@@ -47,7 +47,7 @@ Some configuration params are required, while others are advised to be set.
   `g137jz3hjhz6psrxxjtj5h7h4s6llfyrv2zxtfq3@gno-core-sen-01.test7.testnets.gno.land:26656,g1kpxll39mgzfhsepazzs0vne2l42mmkylxkt6un@gno-core-sen-02.test7.testnets.gno.land:26656`
   ** ⚠️.
 - `p2p.seeds` - the bootnode peers. ⚠️ **Required to be
-  `g137jz3hjhz6psrxxjtj5h7h4s6llfyrv2zxtfq3@gno-core-sen-01.test7.testnets.gno.land,g1kpxll39mgzfhsepazzs0vne2l42mmkylxkt6un@gno-core-sen-02.test7.testnets.gno.land:26656`
+  `g137jz3hjhz6psrxxjtj5h7h4s6llfyrv2zxtfq3@gno-core-sen-01.test7.testnets.gno.land:26656,g1kpxll39mgzfhsepazzs0vne2l42mmkylxkt6un@gno-core-sen-02.test7.testnets.gno.land:26656`
   ** ⚠️.
 - `p2p.pex` - if using a sentry node architecture, should be `false`. **If not, please set to `true`**.
 - `p2p.external_address` - the advertised peer dial address. If empty, will use the same port as the `p2p.laddr`. This
