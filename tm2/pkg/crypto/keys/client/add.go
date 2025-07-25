@@ -145,15 +145,9 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 	}
 
 	// Ask for a password when generating a local key
-	encryptPassword, err := io.GetCheckPassword(
-		[2]string{
-			"Enter a passphrase to encrypt your key to disk:",
-			"Repeat the passphrase:",
-		},
-		cfg.RootCfg.InsecurePasswordStdin,
-	)
+	pw, err := getPassphraseWithConfirmation(io, cfg.RootCfg.InsecurePasswordStdin)
 	if err != nil {
-		return fmt.Errorf("unable to parse provided password, %w", err)
+		return err
 	}
 
 	// Get bip39 mnemonic
@@ -180,7 +174,7 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 		name,
 		mnemonic,
 		"",
-		encryptPassword,
+		pw,
 		uint32(cfg.Account),
 		uint32(cfg.Index),
 	)
@@ -204,6 +198,29 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 	return nil
 }
 
+// Prompts for a password, with confirmation.
+func getPassphraseWithConfirmation(io commands.IO, insecurePasswordStdin bool) (string, error) {
+	pw, err := io.GetPassword("Enter a passphrase to encrypt your private key to disk:", insecurePasswordStdin)
+	if err != nil {
+		return "", fmt.Errorf("unable to get provided passphrase, %w", err)
+	}
+
+	prompt2 := "Repeat the passphrase:"
+	if pw == "" {
+		prompt2 = "WARNING: a key with no passphrase will be stored unencrypted.\n" +
+			"This unsafe for any key used on-chain.\n" + prompt2
+	}
+	pw2, err := io.GetPassword(prompt2, insecurePasswordStdin)
+	if err != nil {
+		return "", fmt.Errorf("unable to get provided passphrase, %w", err)
+	}
+	if pw != pw2 {
+		return "", errors.New("passphrases don't match")
+	}
+
+	return pw, nil
+}
+
 func printCreate(info keys.Info, showMnemonic bool, mnemonic string, io commands.IO) {
 	io.Println("")
 	printNewInfo(info, io)
@@ -212,7 +229,7 @@ func printCreate(info keys.Info, showMnemonic bool, mnemonic string, io commands
 	if showMnemonic {
 		io.Printfln(`
 **IMPORTANT** write this mnemonic phrase in a safe place.
-It is the only way to recover your account if you ever forget your password.
+It is the only way to recover your account if you ever forget your passphrase.
 %v
 `, mnemonic)
 	}
