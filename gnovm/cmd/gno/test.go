@@ -34,6 +34,7 @@ type testCmd struct {
 	profile             bool
 	profileOutput       string
 	profileStdout       bool
+	profileFormat       string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -200,6 +201,13 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"print profiling output to stdout instead of file",
 	)
+
+	fs.StringVar(
+		&c.profileFormat,
+		"profile-format",
+		"text",
+		"profile output format: text, toplist, flamegraph, calltree",
+	)
 }
 
 func execTest(cmd *testCmd, args []string, io commands.IO) error {
@@ -251,6 +259,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Profile = cmd.profile
 	opts.ProfileOutput = cmd.profileOutput
 	opts.ProfileStdout = cmd.profileStdout
+	opts.ProfileFormat = cmd.profileFormat
 
 	// test.ProdStore() is suitable for type-checking prod (non-test) files.
 	// _, pgs := test.ProdStore(cmd.rootDir, opts.WriterForStore())

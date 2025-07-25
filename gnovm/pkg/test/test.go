@@ -25,6 +25,20 @@ import (
 	"go.uber.org/multierr"
 )
 
+// getProfileFormat converts string format to ProfileFormat
+func getProfileFormat(format string) gno.ProfileFormat {
+	switch format {
+	case "toplist":
+		return gno.FormatTopList
+	case "flamegraph":
+		return gno.FormatFlameGraph
+	case "calltree":
+		return gno.FormatCallTree
+	default:
+		return gno.FormatText
+	}
+}
+
 const (
 	// DefaultHeight is the default height used in the [Context].
 	DefaultHeight = 123
@@ -149,6 +163,8 @@ type TestOptions struct {
 	ProfileOutput string
 	// Print profiling output to stdout instead of file.
 	ProfileStdout bool
+	// Profile output format.
+	ProfileFormat string
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -232,7 +248,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 	// Initialize profiling if enabled
 	if opts.Profile {
-		globalProfiler = gno.NewProfiler(gno.ProfileCPU, 100)
+		globalProfiler = gno.NewProfiler(gno.ProfileCPU, 1) // Sample every operation
 		globalProfiler.Start()
 		defer func() {
 			profile := globalProfiler.Stop()
@@ -240,7 +256,8 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 				if opts.ProfileStdout {
 					// Print to stdout
 					fmt.Fprintln(opts.Output, "\n=== PROFILING RESULTS ===")
-					err := profile.WriteTo(opts.Output)
+					format := getProfileFormat(opts.ProfileFormat)
+					err := profile.WriteFormat(opts.Output, format)
 					if err != nil {
 						fmt.Fprintf(opts.Error, "Failed to write profile: %v\n", err)
 					}

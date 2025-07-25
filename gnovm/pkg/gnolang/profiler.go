@@ -171,6 +171,9 @@ func (p *Profiler) RecordFuncEnter(m *Machine, funcName string) {
 		p.funcProfiles[funcName] = prof
 	}
 	prof.CallCount++
+
+	// Debug: print function entry
+	// fmt.Printf("PROFILE: Enter %s (count: %d)\n", funcName, prof.CallCount)
 }
 
 // RecordFuncExit records function exit
