@@ -74,9 +74,6 @@ query {
 ## Installation
 Follow official [installation guide](https://github.com/gnolang/tx-indexer?tab=readme-ov-file#getting-started) on `tx-indexer` README.
 
-## Implement Custom TM2 Indexer
-
-
 ## Building Custom Indexers
 
 ### Step-by-Step Development Guide
