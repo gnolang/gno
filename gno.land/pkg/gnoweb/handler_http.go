@@ -483,47 +483,91 @@ func (h *HTTPHandler) renderReadme(gnourl *weburl.GnoURL, pkgPath string) (compo
 
 func (h *HTTPHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View) {
 	pkgPath := gnourl.Path
-
 	files, err := h.Client.ListFiles(pkgPath)
 	if err != nil {
 		h.Logger.Warn("unable to list sources file", "path", gnourl.Path, "error", err)
 		return GetClientErrorStatusPage(gnourl, err)
 	}
-
 	if len(files) == 0 {
 		h.Logger.Debug("no files available", "path", gnourl.Path)
 		return http.StatusOK, components.StatusErrorComponent("no files available")
 	}
 
-	var fileName string
-	if gnourl.IsFile() { // check path file from path first
+	fileName := ""
+	if gnourl.IsFile() {
 		fileName = gnourl.File
 	} else if file := gnourl.WebQuery.Get("file"); file != "" {
 		fileName = file
-	} else {
-		// Prefer README.md, then .gno files, otherwise first file
-		i := slices.IndexFunc(files, func(f string) bool {
-			return f == "README.md" || strings.HasSuffix(f, ".gno")
-		})
-
-		if i >= 0 {
-			fileName = files[i] // prefer .gno files and README.md
-		} else {
-			fileName = files[0] // fallback to first file - might be a .toml file
-		}
 	}
 
-	// Standard file rendering
+	if fileName == "" {
+		return h.getSourceOverviewView(pkgPath, gnourl, files)
+	}
+	return h.getSourceFileView(pkgPath, gnourl, files, fileName)
+}
+
+// getSourceOverview construit la vue overview (README, fonctions, fichiers)
+func (h *HTTPHandler) getSourceOverviewView(pkgPath string, gnourl *weburl.GnoURL, files []string) (int, *components.View) {
+	readmeComp, _ := h.renderReadme(gnourl, pkgPath)
+	jdoc, _ := h.Client.Doc(pkgPath)
+	var functions []*doc.JSONFunc
+	var docString string
+	var consts []*doc.JSONValueDecl
+	var vars []*doc.JSONValueDecl
+	var types []*doc.JSONType
+	var dirs []string
+	if jdoc != nil {
+		functions = jdoc.Funcs
+		docString = jdoc.PackageDoc
+		types = jdoc.Types
+		for _, v := range jdoc.Values {
+			if v.Const {
+				consts = append(consts, v)
+			} else {
+				vars = append(vars, v)
+			}
+		}
+	}
+	// List dirs
+	prefix := h.Static.Domain + pkgPath + "/"
+	limit := 1_000
+	paths, err := h.Client.ListPaths(prefix, limit)
+	if err != nil {
+		h.Logger.Warn("ListPaths failed", "pkgPath", pkgPath, "error", err)
+		paths = nil
+	}
+
+	for _, p := range paths {
+		dir := strings.TrimPrefix(p, pkgPath+"/")
+		if dir != "" && !strings.Contains(dir, "/") && dir != "." {
+			dirs = append(dirs, dir)
+		}
+	}
+	h.Logger.Debug("Dirs for overview", "pkgPath", pkgPath, "dirs", dirs)
+	return http.StatusOK, components.OverviewView(components.OverviewData{
+		PkgPath:     pkgPath,
+		Readme:      readmeComp,
+		Functions:   functions,
+		Doc:         docString,
+		Files:       files,
+		FileCounter: len(files),
+		Consts:      consts,
+		Vars:        vars,
+		Types:       types,
+		Dirs:        dirs,
+	})
+}
+
+// getSourceFile construit la vue source pour un fichier donné
+func (h *HTTPHandler) getSourceFileView(pkgPath string, gnourl *weburl.GnoURL, files []string, fileName string) (int, *components.View) {
 	var (
 		fileSource components.Component
 		fileLines  int
 		sizeKB     float64
 	)
 
-	// Check whether the file is a markdown file
 	switch fileName {
 	case ReadmeFileName:
-		// Try to render README.md with markdown processing
 		readmeComp, raw := h.renderReadme(gnourl, pkgPath)
 		if readmeComp != nil && raw != nil {
 			fileSource = readmeComp
@@ -531,11 +575,8 @@ func (h *HTTPHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.Vie
 			sizeKB = float64(len(raw)) / 1024.0
 			break
 		}
-		// Fall through to default case if markdown rendering fails
 		fallthrough
-
 	default:
-		// Fetch raw source file
 		file, meta, err := h.Client.File(pkgPath, fileName)
 		if err != nil {
 			h.Logger.Warn("unable to get source file", "file", fileName, "error", err)
@@ -571,7 +612,9 @@ func (h *HTTPHandler) GetPathsListView(gnourl *weburl.GnoURL, indexData *compone
 	const limit = 1_000 // XXX: implement pagination
 
 	prefix := path.Join(h.Static.Domain, gnourl.Path) + "/"
+
 	paths, qerr := h.Client.ListPaths(prefix, limit)
+
 	if qerr != nil {
 		h.Logger.Error("unable to query path", "error", qerr, "path", gnourl.EncodeURL())
 	} else {
