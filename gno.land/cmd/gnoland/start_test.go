@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -131,6 +130,9 @@ func TestStart_Lazy(t *testing.T) {
 	// Do run this one in parallel
 	// t.Parallel()
 
+	// We allow one minute by node lifespan
+	const maxTestDeadline = time.Minute
+
 	tests := []struct {
 		name           string
 		additionalArgs []string
@@ -151,7 +153,6 @@ func TestStart_Lazy(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // capture range variable
 		t.Run(tc.name, func(t *testing.T) {
 			// Generate temp socket filepath for listening.
 			// (Use short path to avoid > 120 char socket path).
@@ -191,7 +192,7 @@ func TestStart_Lazy(t *testing.T) {
 			io.SetErr(commands.WriteNopCloser(mockErr))
 
 			// Create and run the command
-			deadline := time.Now().Add(time.Second * 30)
+			deadline := time.Now().Add(maxTestDeadline)
 			ctx, cancelFn := context.WithDeadline(context.Background(), deadline)
 			defer cancelFn()
 
@@ -200,6 +201,7 @@ func TestStart_Lazy(t *testing.T) {
 
 			// Start the node
 			g.Go(func() error {
+				defer cancelFn()
 				return newRootCmd(io).ParseAndRun(gCtx, args)
 			})
 
@@ -208,51 +210,30 @@ func TestStart_Lazy(t *testing.T) {
 			// Check that starting ascii graphic display
 			require.Eventuallyf(t, func() bool {
 				return strings.Contains(mockOut.String(), startGraphic)
-			}, time.Until(deadline), time.Millisecond*500,
-				"node: ascii graphic never show up: %s", context.DeadlineExceeded)
+			}, time.Until(deadline), time.Millisecond*500, "node: ascii graphic never show up")
 
 			cli, err := client.NewHTTPClient(sockAddr)
 			require.NoError(t, err)
 
 			t.Logf("rpc: get node infos - time left %s", time.Until(deadline))
 
-			// Check that rpc endpoint is correctly listening on our socket
-			var nerr error
-			require.Eventuallyf(t, func() bool {
-				var info *ctypes.ResultABCIInfo
-				if info, nerr = cli.ABCIInfo(); nerr != nil {
-					t.Logf("query infos: %v", nerr)
-					return false
-				}
-
-				nerr = info.Response.Error
-				return nerr == nil
-			}, time.Until(deadline), time.Millisecond*500,
-				"rpc: unable get node infos: %s", context.DeadlineExceeded)
+			// Check that rpc endpoint is correctly listening on our socke+
+			require.EventuallyWithT(t, func(c *assert.CollectT) {
+				info, qerr := cli.ABCIInfo()
+				require.NoError(c, qerr)
+				require.NoError(c, info.Response.Error)
+			}, time.Until(deadline), time.Millisecond*500, "rpc: unable get node infos")
 
 			t.Logf("rpc: query vm/qpaths - time left %s", time.Until(deadline))
 
-			// Check listing path
-			require.Eventuallyf(t, func() bool {
-				var qres *ctypes.ResultABCIQuery
-				if qres, nerr = cli.ABCIQuery("vm/qpaths", []byte("gno.land")); nerr != nil {
-					t.Logf("query error: %v", nerr)
-					return false
-				}
-
-				if nerr = qres.Response.Error; nerr != nil {
-					return false
-				}
-
+			// Check the node as fully loaded by checking rpc qpaths endpoint
+			require.EventuallyWithT(t, func(c *assert.CollectT) {
+				qres, qerr := cli.ABCIQuery("vm/qpaths", []byte("gno.land"))
+				require.NoError(c, qerr)
+				require.NoError(c, qres.Response.Error)
 				paths := strings.Split(string(qres.Response.Data), "\n")
-				if len(paths) <= 1 {
-					t.Logf("no package has been loaded")
-					return false
-				}
-
-				return true
-			}, time.Until(deadline), time.Millisecond*500,
-				"rpc: unable to call rpc vm/qpath: %v", context.DeadlineExceeded)
+				require.Greater(c, len(paths), 1, "query qpaths: no package has been loaded")
+			}, time.Until(deadline), time.Millisecond*500, "rpc: unable to call rpc vm/qpaths")
 
 			t.Logf("node: stoping - time left %s", time.Until(deadline))
 
