@@ -3,6 +3,7 @@ package coinflip
 import (
 	"gno.land/p/moul/txlink"
 	"gno.land/p/moul/md"
+	"strconv"
 )
 
 var (
@@ -44,8 +45,8 @@ func renderFooter() string {
 }
 
 func renderBalance() string {
-	out := md.H2("Realm balance: " + GetBalance(cross))
-	out += "\n"
+	balance := strconv.Itoa(int(GetBalance(cross)))
+	out := md.H2("Balance: " + balance + " " + denom + "\n")
 
 	return out
 }

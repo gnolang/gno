@@ -91,12 +91,12 @@ func GetLatestResults() string {
 	return out;
 }
 
-func GetBalance(cur realm) string {
+func GetBalance(cur realm) int64 {
 	banker := std.NewBanker(std.BankerTypeReadonly)
 	coins := banker.GetCoins(std.CurrentRealm().Address())
+	balance := coins.AmountOf(denom)
 
-	std.Emit("Balance", coins.String(), strconv.Itoa(int(coins.AmountOf(denom))))
-	return coins.String()
+	return balance
 }
 
 func UpdateCoinUsed(cur realm, newCoinDenom string) {
