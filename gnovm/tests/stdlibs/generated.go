@@ -588,24 +588,6 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"testing",
-		"unixNano",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.X("int64")},
-		},
-		false,
-		func(m *gno.Machine) {
-			r0 := testlibs_testing.X_unixNano()
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"testing",
 		"matchString",
 		[]gno.FieldTypeExpr{
 			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
@@ -669,6 +651,24 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
+		"testing",
+		"unixNano",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("int64")},
+		},
+		false,
+		func(m *gno.Machine) {
+			r0 := testlibs_testing.X_unixNano()
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
 		"testing/base",
 		"unixNano",
 		[]gno.FieldTypeExpr{},
@@ -683,6 +683,28 @@ var nativeFuncs = [...]NativeFunc{
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"testing/base",
+		"recoverWithStacktrace",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.AnyT()},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("string")},
+		},
+		true,
+		func(m *gno.Machine) {
+			r0, r1 := testlibs_testing_base.X_recoverWithStacktrace(
+				m,
+			)
+
+			m.PushValue(r0)
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
 			))
 		},
 	},
@@ -721,28 +743,6 @@ var nativeFuncs = [...]NativeFunc{
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
 			))
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r1).Elem(),
-			))
-		},
-	},
-	{
-		"testing/base",
-		"recoverWithStacktrace",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.AnyT()},
-			{NameExpr: *gno.Nx("r1"), Type: gno.X("string")},
-		},
-		true,
-		func(m *gno.Machine) {
-			r0, r1 := testlibs_testing_base.X_recoverWithStacktrace(
-				m,
-			)
-
-			m.PushValue(r0)
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
 				m.Store,

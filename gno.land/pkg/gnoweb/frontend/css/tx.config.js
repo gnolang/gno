@@ -83,10 +83,6 @@ export default {
 				'"Inter var"',
 				'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif',
 			],
-			interSans: [
-				'"Inter var"',
-				'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
-			],
 		},
 		fontSize: {
 			0: "0",
@@ -109,7 +105,6 @@ export default {
 		"link-internal",
 		"link-tx",
 		"tooltip",
-		"font-sans",
 		"lg:pt-10",
 		"pt-6",
 	],
