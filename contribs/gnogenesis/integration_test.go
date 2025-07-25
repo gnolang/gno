@@ -77,7 +77,7 @@ func TestIntegration(t *testing.T) {
 	}
 
 	balanceSheet := filepath.Join(t.TempDir(), "balance-sheet.txt")
-	err = os.WriteFile(balanceSheet, []byte(strings.Join(balances, "\n")), 0644)
+	err = os.WriteFile(balanceSheet, []byte(strings.Join(balances, "\n")), 0o644)
 	require.NoError(t, err)
 
 	// Add balance sheet
