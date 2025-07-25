@@ -287,6 +287,9 @@ func (p *Profiler) RecordAlloc(m *Machine, size int64, count int64, allocType st
 	}
 	prof.AllocBytes += size
 	prof.AllocObjects += count
+
+	// Debug logging
+	// fmt.Printf("MEMORY ALLOC: %s - %d bytes, %d objects (type: %s)\n", funcName, size, count, allocType)
 }
 
 // buildCallStack builds a call stack from machine frames

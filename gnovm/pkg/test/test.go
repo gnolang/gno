@@ -165,6 +165,10 @@ type TestOptions struct {
 	ProfileStdout bool
 	// Profile output format.
 	ProfileFormat string
+	// Profile type.
+	ProfileType string
+	// Global profiler instance (internal use)
+	globalProfiler *gno.Profiler
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -248,10 +252,16 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 	// Initialize profiling if enabled
 	if opts.Profile {
-		// TODO: Add profile type selection flag
-		// For now, test memory profiling
-		globalProfiler = gno.NewProfiler(gno.ProfileMemory, 1) // Sample every allocation
+		// Select profile type based on flag
+		profileType := gno.ProfileCPU
+		sampleRate := 100
+		if opts.ProfileType == "memory" {
+			profileType = gno.ProfileMemory
+			sampleRate = 1 // Sample every allocation for memory
+		}
+		globalProfiler = gno.NewProfiler(profileType, sampleRate)
 		globalProfiler.Start()
+		opts.globalProfiler = globalProfiler // Store in opts for use in runTestFiles
 		defer func() {
 			profile := globalProfiler.Stop()
 			if profile != nil {
@@ -413,15 +423,8 @@ func (opts *TestOptions) runTestFiles(
 	files *gno.FileSet,
 	tgs gno.TransactionStore,
 ) (errs error) {
-	// Get profiler from the test context
-	var globalProfiler *gno.Profiler
-	if opts.Profile {
-		// Use the machine's profiler if it exists
-		testMachine := Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
-		if testMachine.Profiler != nil {
-			globalProfiler = testMachine.Profiler
-		}
-	}
+	// Get profiler from the test options
+	globalProfiler := opts.globalProfiler
 	var m *gno.Machine
 	defer func() {
 		if r := recover(); r != nil {
@@ -439,7 +442,7 @@ func (opts *TestOptions) runTestFiles(
 	tests := loadTestFuncs(mpkg.Name, files)
 
 	var alloc *gno.Allocator
-	if opts.Metrics {
+	if opts.Metrics || (opts.Profile && opts.ProfileType == "memory") {
 		alloc = gno.NewAllocator(math.MaxInt64)
 	}
 	// reset store ops, if any - we only need them for some filetests.
@@ -448,6 +451,13 @@ func (opts *TestOptions) runTestFiles(
 	// Check if we already have the package - it may have been eagerly loaded.
 	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
 	m.Alloc = alloc
+	if m.Alloc != nil {
+		m.Alloc.SetMachine(m)
+	}
+	// Enable profiling on the machine if profiling is enabled
+	if opts.Profile && globalProfiler != nil {
+		m.Profiler = globalProfiler
+	}
 	if tgs.GetMemPackage(mpkg.Path) == nil {
 		m.RunMemPackage(mpkg, false)
 	} else {
@@ -469,6 +479,9 @@ func (opts *TestOptions) runTestFiles(
 		// - Wrap here.
 		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
 		m.Alloc = alloc.Reset()
+		if m.Alloc != nil {
+			m.Alloc.SetMachine(m)
+		}
 		m.SetActivePackage(pv)
 		// Enable profiling on the test machine if profiling is enabled
 		if opts.Profile && globalProfiler != nil {

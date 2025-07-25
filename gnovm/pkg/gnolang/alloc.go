@@ -184,11 +184,11 @@ func (alloc *Allocator) AllocateString(size int64) {
 }
 
 func (alloc *Allocator) AllocatePointer() {
-	alloc.Allocate(allocPointer)
+	alloc.allocateWithType(allocPointer, "pointer")
 }
 
 func (alloc *Allocator) AllocateDataArray(size int64) {
-	alloc.Allocate(allocArray + size)
+	alloc.allocateWithType(allocArray+size, "data_array")
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
@@ -201,15 +201,15 @@ func (alloc *Allocator) AllocateSlice() {
 
 // NOTE: fields must be allocated separately.
 func (alloc *Allocator) AllocateStruct() {
-	alloc.Allocate(allocStruct)
+	alloc.allocateWithType(allocStruct, "struct")
 }
 
 func (alloc *Allocator) AllocateStructFields(fields int64) {
-	alloc.Allocate(allocStructField * fields)
+	alloc.allocateWithType(allocStructField*fields, "struct_fields")
 }
 
 func (alloc *Allocator) AllocateFunc() {
-	alloc.Allocate(allocFunc)
+	alloc.allocateWithType(allocFunc, "func")
 }
 
 func (alloc *Allocator) AllocateMap(items int64) {
@@ -217,19 +217,19 @@ func (alloc *Allocator) AllocateMap(items int64) {
 }
 
 func (alloc *Allocator) AllocateMapItem() {
-	alloc.Allocate(allocMapItem)
+	alloc.allocateWithType(allocMapItem, "map_item")
 }
 
 func (alloc *Allocator) AllocateBoundMethod() {
-	alloc.Allocate(allocBoundMethod)
+	alloc.allocateWithType(allocBoundMethod, "bound_method")
 }
 
 func (alloc *Allocator) AllocateBlock(items int64) {
-	alloc.Allocate(allocBlock + allocBlockItem*items)
+	alloc.allocateWithType(allocBlock+allocBlockItem*items, "block")
 }
 
 func (alloc *Allocator) AllocateBlockItems(items int64) {
-	alloc.Allocate(allocBlockItem * items)
+	alloc.allocateWithType(allocBlockItem*items, "block_items")
 }
 
 /* NOTE: Not used, account for with AllocatePointer.
@@ -239,11 +239,11 @@ func (alloc *Allocator) AllocateDataByte() {
 */
 
 func (alloc *Allocator) AllocateType() {
-	alloc.Allocate(allocType)
+	alloc.allocateWithType(allocType, "type")
 }
 
 func (alloc *Allocator) AllocateHeapItem() {
-	alloc.Allocate(allocHeapItem)
+	alloc.allocateWithType(allocHeapItem, "heap_item")
 }
 
 //----------------------------------------
