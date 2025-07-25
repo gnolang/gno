@@ -67,7 +67,7 @@ func (m *Machine) doOpExec(op Op) {
 		bs := m.LastBlock().GetBodyStmt()
 		if bs.NextBodyIndex == -2 { // init
 			bs.Goto = &gotoInfo{
-				NumOps:    len(m.Ops),
+				NumOps:    m.Ops.size,
 				NumValues: len(m.Values),
 				NumExprs:  len(m.Exprs),
 				NumStmts:  len(m.Stmts),
@@ -91,7 +91,7 @@ func (m *Machine) doOpExec(op Op) {
 		// evaluate .Cond.
 		if bs.NextBodyIndex == -2 { // init
 			bs.Goto = &gotoInfo{
-				NumOps:    len(m.Ops),
+				NumOps:    m.Ops.size,
 				NumValues: len(m.Values),
 				NumExprs:  len(m.Exprs),
 				NumStmts:  len(m.Stmts),
@@ -162,7 +162,7 @@ func (m *Machine) doOpExec(op Op) {
 			}
 			bs.Loop.ListLen = ll
 			bs.Goto = &gotoInfo{
-				NumOps:    len(m.Ops),
+				NumOps:    m.Ops.size,
 				NumValues: len(m.Values),
 				NumExprs:  len(m.Exprs),
 				NumStmts:  len(m.Stmts),
@@ -260,7 +260,7 @@ func (m *Machine) doOpExec(op Op) {
 			bs.Loop.NextRune = r
 			bs.Loop.RuneSize = byte(size)
 			bs.Goto = &gotoInfo{
-				NumOps:    len(m.Ops),
+				NumOps:    m.Ops.size,
 				NumValues: len(m.Values),
 				NumExprs:  len(m.Exprs),
 				NumStmts:  len(m.Stmts),
@@ -358,7 +358,7 @@ func (m *Machine) doOpExec(op Op) {
 			// initialize bs.
 			bs.Loop.NextItem = mv.List.Head
 			bs.Goto = &gotoInfo{
-				NumOps:    len(m.Ops),
+				NumOps:    m.Ops.size,
 				NumValues: len(m.Values),
 				NumExprs:  len(m.Exprs),
 				NumStmts:  len(m.Stmts),
@@ -677,7 +677,7 @@ EXEC_SWITCH:
 			last := m.LastBlock()
 			bs := last.GetBodyStmt()
 			gi := bs.Goto
-			m.Ops = m.Ops[:gi.NumOps]
+			m.Ops.resetLen(gi.NumOps)
 			m.Values = m.Values[:gi.NumValues]
 			m.Exprs = m.Exprs[:gi.NumExprs]
 			m.Stmts = m.Stmts[:gi.NumStmts]
