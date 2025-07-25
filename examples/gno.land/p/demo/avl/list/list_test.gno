@@ -225,7 +225,7 @@ func TestList_ReadOnlyTree(t *testing.T) {
 	var l List
 	l.Append(1, 2, 3)
 
-	rotree := l.ReadOnlyTree()
+	rotree := l.Tree()
 	expected := 3
 
 	// Reverse iterate through the ReadOnlyTree

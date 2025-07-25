@@ -77,7 +77,7 @@ func (t *Treasury) History(
 	history := br.(*bankerRecord).history
 
 	// Get the page of payments from the history.
-	p := pager.NewPager(history.ReadOnlyTree(), pageSize, true)
+	p := pager.NewPager(history.Tree(), pageSize, true)
 	page := p.GetPage(pageNumber)
 
 	// Convert the items in the page to a slice of Payments.

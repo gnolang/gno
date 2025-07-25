@@ -53,7 +53,6 @@ type IReadOnlyList interface {
 	Get(index int) any
 	Slice(startIndex, endIndex int) []any
 	ForEach(fn func(index int, value any) bool)
-	ReadOnlyTree() *rotree.ReadOnlyTree
 }
 
 // ReadOnlyList wraps a list.List and provides read-only access.
@@ -122,7 +121,7 @@ func (rol *ReadOnlyList) ForEach(fn func(index int, value any) bool) {
 	})
 }
 
-// ReadOnlyTree returns a read-only pointer to the underlying AVL tree.
-func (rol *ReadOnlyList) ReadOnlyTree() *rotree.ReadOnlyTree {
-	return rol.list.ReadOnlyTree()
+// Tree returns a read-only pointer to the underlying AVL tree.
+func (rol *ReadOnlyList) Tree() *rotree.ReadOnlyTree {
+	return rol.list.Tree()
 }

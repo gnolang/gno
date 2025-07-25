@@ -124,7 +124,7 @@ func (t *Treasury) RenderBankerHistory(bankerID string, path string) string {
 	out := md.H2(bankerID + " Banker History")
 
 	// Get the current page of tokens based on the request path.
-	p := pager.NewPager(history.ReadOnlyTree(), DefaultHistoryPageSize, true)
+	p := pager.NewPager(history.Tree(), DefaultHistoryPageSize, true)
 	page, err := p.GetPageByPath(path)
 	if err != nil {
 		return md.Paragraph("Error retrieving page: " + err.Error())

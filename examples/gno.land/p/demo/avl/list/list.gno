@@ -53,7 +53,6 @@ type IList interface {
 	ForEach(fn func(index int, value any) bool)
 	Clone() *List
 	DeleteRange(startIndex, endIndex int) int
-	ReadOnlyTree() *rotree.ReadOnlyTree
 }
 
 // Verify List implements IList interface
@@ -315,18 +314,18 @@ func (l *List) DeleteRange(startIndex, endIndex int) int {
 	return len(keysToDelete)
 }
 
-// ReadOnlyTree returns a read-only pointer to the underlying AVL tree.
+// Tree returns a read-only pointer to the underlying AVL tree.
 //
 // Example:
 //
 //	var l list.List
 //	l.Append(1, 2, 3)
 //
-//	rotree := l.ReadOnlyTree()
+//	rotree := l.Tree()
 //	rotree.ReverseIterateByOffset(0, rotree.Size(), func(key string, value any) bool {
 //	  println(value) // Output: 3 2 1
 //	  return false
 //	})
-func (l *List) ReadOnlyTree() *rotree.ReadOnlyTree {
+func (l *List) Tree() *rotree.ReadOnlyTree {
 	return rotree.Wrap(&l.tree, nil)
 }
