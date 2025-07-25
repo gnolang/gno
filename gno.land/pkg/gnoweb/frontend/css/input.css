@@ -243,6 +243,11 @@
 	.realm-view sup {
 		@apply text-50 align-middle pl-px;
 	}
+
+	.realm-view sup > a {
+		@apply align-middle;
+	}
+
 	.realm-view input,
 	.realm-view button,
 	.realm-view textarea,

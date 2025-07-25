@@ -28,7 +28,7 @@ const (
 	iconExternalLink = "ico-external-link"
 	iconInternalLink = "ico-internal-link"
 	iconTxLink       = "ico-tx-link"
-	iconUserLink     = "ico-tx-user"
+	iconUserLink     = "ico-gnome"
 
 	// CSS classes for link types
 	classLinkExternal = "link-external"
