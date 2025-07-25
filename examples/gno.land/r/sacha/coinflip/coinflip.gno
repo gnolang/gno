@@ -106,3 +106,16 @@ func UpdateCoinUsed(cur realm, newCoinDenom string) {
 
 	denom = newCoinDenom
 }
+
+func CashOut(cur realm, amount int64) {
+	std.AssertOriginCall()
+
+	banker := std.NewBanker(std.BankerTypeRealmSend)
+	realmBalance := banker.GetCoins(std.CurrentRealm().Address()).AmountOf(denom);
+
+	if realmBalance < amount {
+		panic("insufficient balance")
+	}
+
+	banker.SendCoins(std.CurrentRealm().Address(), std.OriginCaller(), std.NewCoins(std.NewCoin(denom, amount)))
+}
