@@ -1982,7 +1982,21 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	if recv.IsDefined() { // method call
 		obj := recv.GetFirstObject(m.Store)
 		if obj == nil { // nil receiver
-			// no switch
+			// Borrow switch to where the function is declared,
+			// since there is no receiver.
+			// Neither cross nor didswitch.
+			pkgPath := pv.PkgPath
+			rlm = m.Store.GetPackageRealm(pkgPath)
+			m.Realm = rlm
+			// DO NOT set DidCrossing here. Make
+			// DidCrossing only happen upon explicit
+			// cross(fn)(...) calls and subsequent calls to
+			// crossing functions from the same realm, to
+			// avoid user confusion. Otherwise whether
+			// DidCrossing happened or not depends on where
+			// the receiver resides, which isn't explicit
+			// enough to avoid confusion.
+			//   fr.DidCrossing = true
 			return
 		} else {
 			recvOID := obj.GetObjectInfo().ID
@@ -2014,8 +2028,28 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			}
 		}
 	} else { // top level function
-		// no switch
+		if fv.Name == "" {
+			// An unnamed top-level function.
+			// Borrow switch to where the function is declared,
+			// since there is no receiver.
+			// Neither cross nor didswitch.
+			pkgPath := pv.PkgPath
+			rlm = m.Store.GetPackageRealm(pkgPath)
+			m.Realm = rlm
+			// DO NOT set DidCrossing here. Make
+			// DidCrossing only happen upon explicit
+			// cross(fn)(...) calls and subsequent calls to
+			// crossing functions from the same realm, to
+			// avoid user confusion. Otherwise whether
+			// DidCrossing happened or not depends on where
+			// the receiver resides, which isn't explicit
+			// enough to avoid confusion.
+			//   fr.DidCrossing = true
+		} else {
+			// A named top-level function.
+			// no switch
 		return
+		}
 	}
 }
 
