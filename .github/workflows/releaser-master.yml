@@ -30,13 +30,10 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             echo "mode=test" >> $GITHUB_OUTPUT
-            echo "args=--snapshot --skip=publish" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == "refs/heads/master" ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "mode=release" >> $GITHUB_OUTPUT
-            echo "args=--clean --nightly" >> $GITHUB_OUTPUT
+            echo "args=build" >> $GITHUB_OUTPUT
           else
-            echo "mode=test" >> $GITHUB_OUTPUT
-            echo "args=--snapshot --skip=publish" >> $GITHUB_OUTPUT
+            echo "mode=release" >> $GITHUB_OUTPUT
+            echo "args=release --clean --snapshot" >> $GITHUB_OUTPUT
           fi
 
       - name: Create a dummy tag to avoid goreleaser failure
