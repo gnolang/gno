@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"flag"
 	"os"
 	"path/filepath"
@@ -18,9 +19,12 @@ type AuthFlags struct {
 func defaultAuthKeysFile() string {
 	dir, err := os.UserConfigDir()
 	if err != nil {
+		var derr error
 		// Unable to get the user's config directory, fallback to the current directory.
-		if dir, err = os.Getwd(); err != nil {
-			panic("Unable to get any of the user or current directories")
+		if dir, derr = os.Getwd(); derr != nil {
+			panic("Unable to get any of the user or current directories: " + errors.Join(
+				err, derr,
+			).Error())
 		}
 	}
 	return filepath.Join(dir, "gnokms/auth_keys.json")

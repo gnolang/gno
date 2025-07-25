@@ -5,11 +5,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
@@ -264,17 +261,8 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		return fmt.Errorf("unable to start the Gnoland node, %w", err)
 	}
 
-	// Set up the wait context
-	nodeCtx, _ := signal.NotifyContext(
-		ctx,
-		os.Interrupt,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT,
-	)
-
 	// Wait for the exit signal
-	<-nodeCtx.Done()
+	<-ctx.Done()
 
 	if !gnoNode.IsRunning() {
 		return nil

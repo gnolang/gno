@@ -572,7 +572,7 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	nodeConfig.CacheStdlibLoad = true
 	nodeConfig.Genesis.ConsensusParams.Block.MaxGas = n.config.MaxGasPerBlock
 	// Genesis verification is always false with Gnodev
-	nodeConfig.SkipGenesisVerification = true
+	nodeConfig.SkipGenesisSigVerification = true
 
 	// recoverFromError handles panics and converts them to errors.
 	recoverFromError := func() {
