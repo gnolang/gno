@@ -26,16 +26,6 @@ moniker = "artemis.local" # Change me!
 # Path to the JSON file containing the private key to use for node authentication in the p2p protocol
 node_key_file = "secrets/node_key.json"
 
-# Path to the JSON file containing the private key to use as a validator in the consensus protocol
-priv_validator_key_file = "secrets/priv_validator_key.json"
-
-# TCP or UNIX socket address for Tendermint to listen on for
-# connections from an external PrivValidator process
-priv_validator_laddr = ""
-
-# Path to the JSON file containing the last sign state of a validator
-priv_validator_state_file = "secrets/priv_validator_state.json"
-
 # TCP or UNIX socket address for the profiling server to listen on
 prof_laddr = ""
 
@@ -74,6 +64,40 @@ timeout_prevote_delta = "500ms"
 timeout_propose = "3s"
 timeout_propose_delta = "500ms"
 wal_file = "wal/cs.wal/wal"
+
+##### private validator configuration options #####
+[consensus.priv_validator]
+home = ""
+
+# Path to the JSON file containing the private key to use for signing using a local signer
+local_signer = "priv_validator_key.json"
+
+# Path to the JSON file containing the last validator state to prevent double-signing
+sign_state = "priv_validator_state.json"
+
+# Configuration for the remote signer client
+[consensus.priv_validator.remote_signer]
+
+# Maximum number of retries to dial the remote signer. If set to -1, will retry indefinitely
+dial_max_retries = -1
+
+# Interval between retries to dial the remote signer
+dial_retry_interval = "5s"
+
+# Timeout to dial the remote signer
+dial_timeout = "5s"
+
+# Timeout for requests to the remote signer
+request_timeout = "5s"
+
+# Address of the remote signer to dial (UNIX or TCP). If set, the local signer is disabled
+server_address = ""
+
+# List of authorized public keys for the remote signer (only for TCP). If empty, all keys are authorized
+tcp_authorized_keys = []
+
+# Keep alive period for the remote signer connection (only for TCP)
+tcp_keep_alive_period = "2s"
 
 ##### mempool configuration options #####
 [mempool]
