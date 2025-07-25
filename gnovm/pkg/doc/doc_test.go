@@ -156,8 +156,9 @@ func TestDocument(t *testing.T) {
 	}{
 		{"base", &Documentable{bfsDir: dir}, nil, []string{"func Crypto", "!Crypto symbol", "func NewRand", "!unexp", "type Flag", "!Name"}},
 		{"func", &Documentable{bfsDir: dir, symbol: "crypto"}, nil, []string{"Crypto symbol", "func Crypto", "!func NewRand", "!type Flag"}},
-		{"funcWriter", &Documentable{bfsDir: dir, symbol: "NewWriter"}, nil, []string{"func NewWriter() io.Writer", "!func Crypto"}},
+		{"funcWriter", &Documentable{bfsDir: dir, symbol: "NewWriter"}, nil, []string{"func NewWriter() io.Writer", "!func Crypto", "!// crossing"}},
 		{"tp", &Documentable{bfsDir: dir, symbol: "Rand"}, nil, []string{"type Rand", "comment1", "!func Crypto", "!unexp  ", "!comment4", "Has unexported"}},
+		{"inter", &Documentable{bfsDir: dir, symbol: "Rander"}, nil, []string{"type Rander", "generate", "!unexp  ", "!comment1", "Has unexported"}},
 		{"tpField", &Documentable{bfsDir: dir, symbol: "Rand", accessible: "Value"}, nil, []string{"type Rand", "!comment1", "comment2", "!func Crypto", "!unexp", "elided"}},
 		{
 			"tpUnexp",
