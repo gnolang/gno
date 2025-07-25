@@ -1,6 +1,6 @@
 package main
 
-import "github.com/gnolang/gno/_test/p1"
+import "filetests/extern/p1"
 
 func main() { println("num:", p1.Uint32()) }
 

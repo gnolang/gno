@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"std"
 	"strings"
 
 	"gno.land/p/demo/avl"
@@ -56,6 +57,10 @@ type proposalStatus struct {
 	TotalPower float64 // TotalPower is the power of all the members existing when this proposal was created.
 }
 
+func getMembers(cur realm) memberstore.MembersByTier {
+	return memberstore.Get()
+}
+
 func newProposalStatus(allowedToVote []string) *proposalStatus {
 	yv := memberstore.NewMembersByTier()
 	yv.SetTier(memberstore.T1)
@@ -77,7 +82,7 @@ func newProposalStatus(allowedToVote []string) *proposalStatus {
 
 		TiersAllowedToVote: allowedToVote,
 
-		TotalPower: memberstore.Get().GetTotalPower(),
+		TotalPower: getMembers(cross).GetTotalPower(),
 	}
 }
 
@@ -90,7 +95,7 @@ func (ps *proposalStatus) YesPercent() float64 {
 			panic("type must be memberstore.Tier")
 		}
 
-		power := tier.PowerHandler(memberstore.Get(), memberstore.Tiers)
+		power := tier.PowerHandler(getMembers(cross), memberstore.Tiers)
 		ts := ps.YesVotes.GetTierSize(tn)
 
 		yp = yp + (power * float64(ts))
@@ -110,7 +115,7 @@ func (ps *proposalStatus) NoPercent() float64 {
 			panic("type must be memberstore.Tier")
 		}
 
-		power := tier.PowerHandler(memberstore.Get(), memberstore.Tiers)
+		power := tier.PowerHandler(getMembers(cross), memberstore.Tiers)
 		ts := ps.NoVotes.GetTierSize(tn)
 		np = np + (power * float64(ts))
 
@@ -132,7 +137,7 @@ func (ps *proposalStatus) IsAllowed(tier string) bool {
 
 func (ps *proposalStatus) String() string {
 	var sb strings.Builder
-	sb.WriteString("### Proposal Status:\n\n")
+	sb.WriteString("### Stats\n")
 
 	if ps.Accepted {
 		sb.WriteString("- **PROPOSAL HAS BEEN ACCEPTED**\n")
@@ -143,14 +148,11 @@ func (ps *proposalStatus) String() string {
 			sb.WriteString(ps.DeniedReason)
 		}
 	} else {
-		sb.WriteString("- **Proposal open for votes**\n")
+		sb.WriteString("- **Proposal is open for votes**\n")
 	}
 
-	sb.WriteString("- Allowed tiers to vote: ")
-	for _, t := range ps.TiersAllowedToVote {
-		sb.WriteString(t)
-		sb.WriteString(" ")
-	}
+	sb.WriteString("- Tiers eligible to vote: ")
+	sb.WriteString(strings.Join(ps.TiersAllowedToVote, ", "))
 	sb.WriteString("\n")
 
 	sb.WriteString(ufmt.Sprintf("- YES PERCENT: %v%%\n", ps.YesPercent()))
@@ -182,16 +184,18 @@ func writeVotes(sb *strings.Builder, t memberstore.MembersByTier, title string) 
 			panic("tier not found")
 		}
 
-		power := tier.PowerHandler(memberstore.Get(), memberstore.Tiers)
+		power := tier.PowerHandler(getMembers(cross), memberstore.Tiers)
 
-		sb.WriteString(ufmt.Sprintf("### %v from %v (VPPM %v):\n", title, tn, power))
+		sb.WriteString(ufmt.Sprintf("%v from %v (VPPM %v):\n\n", title, tn, power))
 		ms, _ := value.(*avl.Tree)
 		ms.Iterate("", "", func(addr string, _ interface{}) bool {
 			sb.WriteString("\n")
-			sb.WriteString("- " + string(addr) + "\n")
+			sb.WriteString("- " + tryResolveAddr(std.Address(addr)) + "\n")
 
 			return false
 		})
+
+		sb.WriteString("\n")
 
 		return false
 	})

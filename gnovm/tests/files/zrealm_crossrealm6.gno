@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
 	"gno.land/p/demo/tests"
@@ -11,7 +11,7 @@ func init() {
 	somevalue.Field = "test"
 }
 
-func main() {
+func main(cur realm) {
 	// this is OK because the method is declared in a non-realm package.
 	somevalue.Modify()
 	println(somevalue)

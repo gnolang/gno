@@ -41,7 +41,7 @@ Likewise, if you have an idea on how to improve this guide, go for it as well.
 
 - **[Discord](https://discord.gg/YFtMjWwUN7)** - we are very active on Discord. Join today and start discussing all
   things gno with fellow engineers and enthusiasts.
-- **[Awesome Gno](https://github.com/gnolang/awesome-gno)** - check out the list of compiled resources for helping you
+- **[Awesome Gno](https://github.com/gnoverse/awesome-gno)** - check out the list of compiled resources for helping you
   understand the gno ecosystem
 - **[Active Staging](https://staging.gno.land/)** - use the currently available staging environment to play around with a
   production network. If you want to interact with a local instance, refer to the [Local Setup](#local-setup) guide.
@@ -301,8 +301,7 @@ covered by tests ([Codecov](https://about.codecov.io/) will loudly complain in
 your PR's comments if you don't).
 
 Additionally, we have a few testing systems that stray from this general rule;
-at the time of writing, these are for integration tests and language tests. You
-can find more documentation about them [on this guide](docs/testing-guide.md).
+at the time of writing, these are for integration tests and language tests.
 
 ### Repository Structure
 
@@ -359,13 +358,6 @@ A reviewer may like to see a linear commit history while reviewing. If you tend 
 a reviewer might lose track in your recent changes and will have to start reviewing from scratch.
 
 Don't worry about adding too many commits. The commits are squashed into a single commit while merging (if needed).
-
-#### PR template
-
-The [PR template](https://github.com/gnolang/gno/blob/master/.github/pull_request_template.md) is by default a
-simple template meant to illustrate quickly what’s the context of the PR.
-
-If you've run a manual test, please provide the exact steps taken.
 
 ### How do I report a bug?
 
@@ -462,7 +454,7 @@ Resources for idiomatic Go docs:
 - [godoc](https://go.dev/blog/godoc)
 - [Go Doc Comments](https://tip.golang.org/doc/comment)
 
-## Avoding Unhelpful Contributions
+## Avoiding Unhelpful Contributions
 
 While we welcome all contributions to the Gno project, it's important to ensure that your changes provide meaningful value or improve the quality of the codebase. Contributions that fail to meet these criteria may not be accepted. Examples of unhelpful contributions include (but not limited to):
 

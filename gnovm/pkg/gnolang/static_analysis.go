@@ -95,7 +95,7 @@ func (s *staticAnalysis) staticAnalysisExpr(expr Expr) bool {
 		term := s.staticAnalysisBlockStmt(n.Body)
 		if !term {
 			ctx := s.pop().(*FuncLitContext)
-			s.errs = append(s.errs, fmt.Errorf("lambda at %v does not terminate", ctx.f.Loc))
+			s.errs = append(s.errs, fmt.Errorf("lambda at %v does not terminate", ctx.f.GetLocation()))
 		}
 		return false
 	case *NameExpr:
@@ -125,6 +125,15 @@ func (s *staticAnalysis) staticAnalysisStmt(stmt Stmt) bool {
 			//
 		case FALLTHROUGH:
 			return true
+		}
+	case *ExprStmt:
+		x := n.X
+		if cs, ok := x.(*CallExpr); ok {
+			if nx, ok := cs.Func.(*NameExpr); ok {
+				if nx.Name == "panic" {
+					return true
+				}
+			}
 		}
 	case *IfStmt:
 		terminates := s.staticAnalysisBlockStmt(n.Then.Body)
@@ -181,8 +190,6 @@ func (s *staticAnalysis) staticAnalysisStmt(stmt Stmt) bool {
 		hasNoBreaks := len(ctx.breakstmts) == 0
 		terminates := hasNoBreaks && hasDefault && casesTerm
 		return terminates
-	case *PanicStmt:
-		return true
 	}
 	return false
 }

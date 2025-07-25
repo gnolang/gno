@@ -41,7 +41,7 @@ type DB interface {
 	ReverseIterator(start, end []byte) Iterator
 
 	// Closes the connection.
-	Close()
+	Close() error
 
 	// Creates a batch for atomic updates.
 	NewBatch() Batch
@@ -53,7 +53,7 @@ type DB interface {
 	Stats() map[string]string
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Batch
 
 // Batch Close must be called when the program no longer needs the object.
@@ -69,7 +69,7 @@ type SetDeleter interface {
 	Delete(key []byte)     // CONTRACT: key readonly []byte
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Iterator
 
 /*

@@ -86,7 +86,7 @@ func NewSysParamStringsPropRequestWithTitle(module, submodule, name, title strin
 }
 
 func newPropRequest(key string, fn func(), title string) dao.ProposalRequest {
-	callback := func() error {
+	callback := func(cur realm) error {
 		fn()
 		std.Emit("set", "key", key) // TODO document, make const, make consistent. 'k'??
 		return nil

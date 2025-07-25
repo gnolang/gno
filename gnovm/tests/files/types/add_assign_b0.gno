@@ -10,4 +10,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/add_assign_b0.gno:8:2: invalid operation: mismatched types int and main.Error
+// main/add_assign_b0.gno:8:2-15: invalid operation: mismatched types int and main.Error
+
+// TypeCheckError:
+// main/add_assign_b0.gno:8:2: invalid operation: r += Error(1) (mismatched types int and Error)

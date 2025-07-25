@@ -4,24 +4,23 @@ loadpkg gno.land/r/demo/edcl $WORK
 # start a new node
 gnoland start
 
-gnokey maketx call -pkgpath gno.land/r/demo/edcl -func Main -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/edcl -func Main -gas-fee 1000000ugnot -gas-wanted 3000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
-stdout 'GAS WANTED: 2000000'
+stdout 'GAS WANTED: 3000000'
 stdout 'GAS USED:   [0-9]+'
 stdout 'HEIGHT:     [0-9]+'
-stdout 'EVENTS:     \[{\"type\":\"ForLoopEvent\",\"attrs\":\[{\"key\":\"iteration\",\"value\":\"0\"},{\"key\":\"key\",\"value\":\"value\"}\],\"pkg_path\":\"gno.land\/r\/demo\/edcl\",\"func\":\"\"},{\"type\":\"ForLoopEvent\",\"attrs\":\[{\"key\":\"iteration\",\"value\":\"1\"},{\"key\":\"key\",\"value\":\"value\"}\],\"pkg_path\":\"gno.land\/r\/demo\/edcl\",\"func\":\"\"},{\"type\":\"ForLoopEvent\",\"attrs\":\[{\"key\":\"iteration\",\"value\":\"2\"},{\"key\":\"key\",\"value\":\"value\"}\],\"pkg_path\":\"gno.land\/r\/demo\/edcl\",\"func\":\"\"},{\"type\":\"ForLoopCompletionEvent\",\"attrs\":\[{\"key\":\"count\",\"value\":\"3\"}\],\"pkg_path\":\"gno.land\/r\/demo\/edcl\",\"func\":\"forLoopEmitExample\"},{\"type\":\"CallbackEvent\",\"attrs\":\[{\"key\":\"key1\",\"value\":\"value1\"},{\"key\":\"key2\",\"value\":\"value2\"}\],\"pkg_path\":\"gno.land\/r\/demo\/edcl\",\"func\":\"\"},{\"type\":\"CallbackCompletionEvent\",\"attrs\":\[{\"key\":\"key\",\"value\":\"value\"}\],\"pkg_path\":\"gno.land\/r\/demo\/edcl\",\"func\":\"callbackEmitExample\"},{\"type\":\"DeferEvent\",\"attrs\":\[{\"key\":\"key1\",\"value\":\"value1\"},{\"key\":\"key2\",\"value\":\"value2\"}\],\"pkg_path\":\"gno.land\/r\/demo\/edcl\",\"func\":\"deferEmitExample\"}\]'
+stdout 'EVENTS:     \[{\"type\":\"ForLoopEvent\",\"attrs\":\[{\"key\":\"iteration\",\"value\":\"0\"},{\"key\":\"key\",\"value\":\"value\"}\],\"pkg_path\":\"gno.land/r/demo/edcl\"},{\"type\":\"ForLoopEvent\",\"attrs\":\[{\"key\":\"iteration\",\"value\":\"1\"},{\"key\":\"key\",\"value\":\"value\"}\],\"pkg_path\":\"gno.land/r/demo/edcl\"},{\"type\":\"ForLoopEvent\",\"attrs\":\[{\"key\":\"iteration\",\"value\":\"2\"},{\"key\":\"key\",\"value\":\"value\"}\],\"pkg_path\":\"gno.land/r/demo/edcl\"},{\"type\":\"ForLoopCompletionEvent\",\"attrs\":\[{\"key\":\"count\",\"value\":\"3\"}\],\"pkg_path\":\"gno.land/r/demo/edcl\"},{\"type\":\"CallbackEvent\",\"attrs\":\[{\"key\":\"key1\",\"value\":\"value1\"},{\"key\":\"key2\",\"value\":\"value2\"}\],\"pkg_path\":\"gno.land/r/demo/edcl\"},{\"type\":\"CallbackCompletionEvent\",\"attrs\":\[{\"key\":\"key\",\"value\":\"value\"}\],\"pkg_path\":\"gno.land/r/demo/edcl\"},{\"type\":\"DeferEvent\",\"attrs\":\[{\"key\":\"key1\",\"value\":\"value1\"},{\"key\":\"key2\",\"value\":\"value2\"}\],\"pkg_path\":\"gno.land/r/demo/edcl\"}\]'
 stdout 'TX HASH:    '
 
 -- edcl.gno --
-
 package edcl
 
 import (
 	"std"
-    "strconv"
+	"strconv"
 )
 
-func Main() {
+func Main(cur realm) {
 	deferEmitExample()
 }
 
@@ -33,7 +32,7 @@ func deferEmitExample() {
 
 	forLoopEmitExample(3, func(i int) {
 		std.Emit("ForLoopEvent", "iteration", strconv.Itoa(i), "key", "value")
-	    println("For loop emit executed: iteration ", i)
+		println("For loop emit executed: iteration ", i)
 	})
 
 	callbackEmitExample(func() {

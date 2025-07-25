@@ -298,8 +298,8 @@ func renderGnoColumns(w util.BufWriter, _ []byte, node ast.Node, entering bool) 
 
 type columns struct{}
 
-// Columns instance for extending markdown with column functionality.
-var Columns = &columns{}
+// ExtColumns instance for extending markdown with column functionality.
+var ExtColumns = &columns{}
 
 // Extend adds column functionality to the markdown processor.
 // XXX: Use 500 for priority for now; we will rework these numbers once another extension is implemented.

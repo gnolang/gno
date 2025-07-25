@@ -12,25 +12,25 @@ import (
 var Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0)
 
 const (
-	ugnotMinDeposit  uint64 = 1000
-	wugnotMinDeposit uint64 = 1
+	ugnotMinDeposit  int64 = 1000
+	wugnotMinDeposit int64 = 1
 )
 
 func init() {
-	grc20reg.Register(Token.Getter(), "")
+	grc20reg.Register(cross, Token, "")
 }
 
-func Deposit() {
+func Deposit(cur realm) {
 	caller := std.PreviousRealm().Address()
 	sent := std.OriginSend()
 	amount := sent.AmountOf("ugnot")
 
-	require(uint64(amount) >= ugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d ugnot.", amount, ugnotMinDeposit))
+	require(int64(amount) >= ugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d ugnot.", amount, ugnotMinDeposit))
 
-	checkErr(adm.Mint(caller, uint64(amount)))
+	checkErr(adm.Mint(caller, int64(amount)))
 }
 
-func Withdraw(amount uint64) {
+func Withdraw(cur realm, amount int64) {
 	require(amount >= wugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d wugnot.", amount, wugnotMinDeposit))
 
 	caller := std.PreviousRealm().Address()
@@ -61,27 +61,29 @@ func Render(path string) string {
 	}
 }
 
-func TotalSupply() uint64 { return Token.TotalSupply() }
+func TotalSupply() int64 {
+	return Token.TotalSupply()
+}
 
-func BalanceOf(owner std.Address) uint64 {
+func BalanceOf(owner std.Address) int64 {
 	return Token.BalanceOf(owner)
 }
 
-func Allowance(owner, spender std.Address) uint64 {
+func Allowance(owner, spender std.Address) int64 {
 	return Token.Allowance(owner, spender)
 }
 
-func Transfer(to std.Address, amount uint64) {
+func Transfer(cur realm, to std.Address, amount int64) {
 	userTeller := Token.CallerTeller()
 	checkErr(userTeller.Transfer(to, amount))
 }
 
-func Approve(spender std.Address, amount uint64) {
+func Approve(cur realm, spender std.Address, amount int64) {
 	userTeller := Token.CallerTeller()
 	checkErr(userTeller.Approve(spender, amount))
 }
 
-func TransferFrom(from, to std.Address, amount uint64) {
+func TransferFrom(cur realm, from, to std.Address, amount int64) {
 	userTeller := Token.CallerTeller()
 	checkErr(userTeller.TransferFrom(from, to, amount))
 }

@@ -3,11 +3,26 @@ package main
 import (
 	"context"
 	"os"
+	"runtime/pprof"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 func main() {
+	cpup := os.Getenv("CPUPROFILE")
+	if cpup != "" {
+		f, err := os.Create(cpup)
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+		err = pprof.StartCPUProfile(f)
+		if err != nil {
+			panic(err)
+		}
+		defer pprof.StopCPUProfile()
+	}
+
 	cmd := newGnocliCmd(commands.NewDefaultIO())
 
 	cmd.Execute(context.Background(), os.Args[1:])
@@ -28,7 +43,7 @@ func newGnocliCmd(io commands.IO) *commands.Command {
 		newCleanCmd(io),
 		newDocCmd(io),
 		newEnvCmd(io),
-		// fix
+		newFixCmd(io),
 		newFmtCmd(io),
 		// generate
 		// get
@@ -37,6 +52,7 @@ func newGnocliCmd(io commands.IO) *commands.Command {
 		newLintCmd(io),
 		newModCmd(io),
 		// work
+		newReplCmd(),
 		newRunCmd(io),
 		// telemetry
 		newTestCmd(io),

@@ -1,0 +1,68 @@
+-- input.md --
+> [!NOTE]
+> This is a note
+
+> [!TIP]
+> This is a tip
+
+> [!CAUTION]
+> This is a caution
+
+> [!WARNING]
+> This is a warning
+
+> [!SUCCESS]
+> This is a success
+
+> [!INFO]
+> This is an info
+
+-- output.html --
+<details class="gno-alert gno-alert-note" open>
+<summary>
+<svg><use href="#ico-note"></use></svg>Note<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>This is a note</p>
+</div>
+</details>
+<details class="gno-alert gno-alert-tip" open>
+<summary>
+<svg><use href="#ico-tip"></use></svg>Tip<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>This is a tip</p>
+</div>
+</details>
+<details class="gno-alert gno-alert-caution" open>
+<summary>
+<svg><use href="#ico-caution"></use></svg>Caution<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>This is a caution</p>
+</div>
+</details>
+<details class="gno-alert gno-alert-warning" open>
+<summary>
+<svg><use href="#ico-warning"></use></svg>Warning<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>This is a warning</p>
+</div>
+</details>
+<details class="gno-alert gno-alert-success" open>
+<summary>
+<svg><use href="#ico-success"></use></svg>Success<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>This is a success</p>
+</div>
+</details>
+<details class="gno-alert gno-alert-info" open>
+<summary>
+<svg><use href="#ico-info"></use></svg>Info<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>This is an info</p>
+</div>
+</details>

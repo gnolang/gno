@@ -13,6 +13,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -195,18 +196,39 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 	node := astutil.Apply(f,
 		// pre
 		func(c *astutil.Cursor) bool {
-			node := c.Node()
-			// is function declaration without body?
-			// -> delete (native binding)
-			if fd, ok := node.(*ast.FuncDecl); ok && fd.Body == nil {
-				c.Delete()
-				return false // don't attempt to traverse children
-			}
-
-			// is function call to a native function?
-			// -> rename if unexported, apply `nil,` for the first arg if necessary
-			if ce, ok := node.(*ast.CallExpr); ok {
-				return ctx.transformCallExpr(c, ce)
+			switch node := c.Node().(type) {
+			case *ast.FuncDecl:
+				// is function declaration without body?
+				// -> delete (native binding)
+				if node.Body == nil {
+					c.Delete()
+					return false // don't attempt to traverse children
+				}
+				if node.Recv == nil && node.Name.Name == "init" && node.Type.Params.NumFields() == 1 {
+					p0 := node.Type.Params.List[0]
+					if id, ok := p0.Type.(*ast.Ident); ok && id.Name == "realm" {
+						node.Type.Params = nil
+						node.Body.List = slices.Insert(node.Body.List, 0, ast.Stmt(&ast.AssignStmt{
+							Lhs: []ast.Expr{p0.Names[0]},
+							Tok: token.DEFINE,
+							Rhs: []ast.Expr{&ast.CallExpr{
+								// converted later
+								Fun:  &ast.Ident{Name: "realm"},
+								Args: []ast.Expr{&ast.Ident{Name: "nil"}},
+							}},
+						}))
+					}
+				}
+			case *ast.Ident:
+				switch node.Name {
+				case "cross":
+					// it's a realm; we don't have much to add aside from this, for now.
+					node.Name = "nil"
+				}
+			case *ast.CallExpr:
+				// is function call to a native function?
+				// -> rename if unexported, apply `nil,` for the first arg if necessary
+				return ctx.transformCallExpr(c, node)
 			}
 
 			return true
@@ -214,13 +236,103 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 
 		// post
 		func(c *astutil.Cursor) bool {
+			switch node := c.Node().(type) {
+			case *ast.Field:
+				if ct := convertBuiltinType(node.Type, fset, f); ct != nil {
+					// convert type in struct field or param in general.
+					node.Type = ct
+				}
+			case *ast.TypeSpec:
+				if ct := convertBuiltinType(node.Type, fset, f); ct != nil {
+					node.Type = ct
+				}
+			case *ast.StarExpr:
+				if ct := convertBuiltinType(node.X, fset, f); ct != nil {
+					node.X = ct
+				}
+			case *ast.SliceExpr:
+				if ct := convertBuiltinType(node.X, fset, f); ct != nil {
+					node.X = ct
+				}
+			case *ast.CallExpr:
+				id, ok := node.Fun.(*ast.Ident)
+				if !ok {
+					break
+				}
+				if ct := convertBuiltinType(id, fset, f); ct != nil {
+					node.Fun = ct
+					break
+				}
+				// perform in post as the first arg in these functions may be a closure or
+				// other type which needs earlier processing.
+				switch id.Name {
+				case "istypednil":
+					if len(node.Args) != 1 {
+						panic(fmt.Sprintf("invalid istypednil() call with %d args", len(node.Args)))
+					}
+					c.Replace(&ast.BinaryExpr{
+						X:  node.Args[0],
+						Op: token.NEQ,
+						Y:  ast.NewIdent("nil"),
+						// It's not exactly this, but it's close enough
+						// and it might be better prefer if we removed the global anyway: https://github.com/gnolang/gno/pull/4259
+					})
+				case "revive":
+					if len(node.Args) != 1 {
+						panic(fmt.Sprintf("invalid istypednil() call with %d args", len(node.Args)))
+					}
+
+					// Writing this with AST types is much more complex; parse
+					// the resulting expression and replace `X` with the
+					// argument of revive().
+					x, err := parser.ParseExpr(`
+func() (__revive_recover any) {
+	defer func() { __revive_recover = recover() }()
+	X()
+	return
+}()`)
+					if err != nil {
+						panic(err)
+					}
+					es := x.(*ast.CallExpr).
+						Fun.(*ast.FuncLit).
+						Body.List[1].(*ast.ExprStmt).
+						X.(*ast.CallExpr)
+					es.Fun = node.Args[0]
+					c.Replace(x)
+				}
+			}
+
 			return true
 		},
 	)
 	return node.(*ast.File), errs.Err()
 }
 
-func (ctx *transpileCtx) transformCallExpr(_ *astutil.Cursor, ce *ast.CallExpr) bool {
+func convertBuiltinType(ide ast.Expr, fset *token.FileSet, f *ast.File) ast.Expr {
+	id, ok := ide.(*ast.Ident)
+	if !ok {
+		return nil
+	}
+	switch id.Name {
+	case "realm",
+		"address",
+		"gnocoin",
+		"gnocoins":
+		astutil.AddNamedImport(fset, f, "__transpile_builtin", TranspileImportPath("builtin"))
+		return &ast.SelectorExpr{
+			X: &ast.Ident{
+				Name: "__transpile_builtin",
+			},
+			Sel: &ast.Ident{
+				Name: string(id.Name[0]-('a'-'A')) + id.Name[1:],
+			},
+		}
+	}
+	return nil
+}
+
+func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) bool {
 	switch fe := ce.Fun.(type) {
 	case *ast.SelectorExpr:
 		// XXX: This is not correct in 100% of cases. If I shadow the `std` symbol, and

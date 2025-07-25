@@ -18,7 +18,7 @@ type Swap struct {
 	claimed   bool
 	refunded  bool
 	amountStr string
-	sendFn    func(to std.Address)
+	sendFn    func(cur realm, to std.Address)
 }
 
 func newSwap(
@@ -27,7 +27,7 @@ func newSwap(
 	hashlock string,
 	timelock time.Time,
 	amountStr string,
-	sendFn func(std.Address),
+	sendFn func(realm, std.Address),
 ) *Swap {
 	require(time.Now().Before(timelock), "timelock must be in the future")
 	require(hashlock != "", "hashlock must not be empty")
@@ -54,7 +54,7 @@ func (s *Swap) Claim(preimage string) {
 	require(hashlockHex == s.hashlock, "invalid preimage")
 
 	s.claimed = true
-	s.sendFn(s.recipient)
+	s.sendFn(cross, s.recipient)
 }
 
 // Refund allows the sender to refund the funds after the timelock has expired.
@@ -65,7 +65,7 @@ func (s *Swap) Refund() {
 	require(time.Now().After(s.timelock), "timelock not expired")
 
 	s.refunded = true
-	s.sendFn(s.sender)
+	s.sendFn(cross, s.sender)
 }
 
 func (s Swap) Status() string {

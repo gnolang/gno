@@ -17,8 +17,8 @@ func TestFoo721(t *testing.T) {
 		expected any
 		fn       func() any
 	}{
-		{"BalanceOf(admin, tid1)", uint64(100), func() any { return BalanceOf(admin, tid1) }},
-		{"BalanceOf(bob, tid1)", uint64(0), func() any { return BalanceOf(bob, tid1) }},
+		{"BalanceOf(admin, tid1)", int64(100), func() any { return BalanceOf(admin, tid1) }},
+		{"BalanceOf(bob, tid1)", int64(0), func() any { return BalanceOf(bob, tid1) }},
 		{"IsApprovedForAll(admin, bob)", false, func() any { return IsApprovedForAll(admin, bob) }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

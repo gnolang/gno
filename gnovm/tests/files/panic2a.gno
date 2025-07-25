@@ -14,262 +14,262 @@ func main() {
 // Stacktrace:
 // panic: here
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:5
+//     main/panic2a.gno:5
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // ...74 frame(s) elided...
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // p<VPBlock(3,0)>(0)
-//     main/files/panic2a.gno:7
+//     main/panic2a.gno:7
 // main<VPBlock(1,1)>()
-//     main/files/panic2a.gno:11
+//     main/panic2a.gno:11
 
 // Error:
 // here

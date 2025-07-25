@@ -3,16 +3,16 @@ package packages
 import (
 	"go/token"
 
-	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type MockResolver struct {
-	pkgs         map[string]*gnovm.MemPackage
+	pkgs         map[string]*std.MemPackage
 	resolveCalls map[string]int // Track resolve calls per path
 }
 
-func NewMockResolver(pkgs ...*gnovm.MemPackage) *MockResolver {
-	mappkgs := make(map[string]*gnovm.MemPackage, len(pkgs))
+func NewMockResolver(pkgs ...*std.MemPackage) *MockResolver {
+	mappkgs := make(map[string]*std.MemPackage, len(pkgs))
 	for _, pkg := range pkgs {
 		mappkgs[pkg.Path] = pkg
 	}

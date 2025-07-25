@@ -18,21 +18,20 @@ func TestISAACSeeding(t *testing.T) {
 }
 
 func TestISAACRand(t *testing.T) {
-	source := New(987654321)
-	rng := rand.New(source)
+	rnd := New(987654321)
+	rng := rand.New(rnd)
 
-	// Expected outputs for the first 5 random floats with the given seed
 	expected := []float64{
-		0.17828173023837635,
-		0.7327795780287832,
-		0.4850369074875177,
-		0.9474842397428482,
-		0.6747135561813891,
-		0.7522507082868403,
-		0.041115261836534356,
-		0.7405243709084567,
-		0.672863376128768,
-		0.11866211399980553,
+		0.3590173976876423,
+		0.7045500585814575,
+		0.3307624938209778,
+		0.9174646414250772,
+		0.11232269485263391,
+		0.9276658847827113,
+		0.9561549853128902,
+		0.3921638978394879,
+		0.9824881209760224,
+		0.8213784955963486,
 	}
 
 	for i, exp := range expected {
@@ -44,23 +43,23 @@ func TestISAACRand(t *testing.T) {
 }
 
 func TestISAACUint64(t *testing.T) {
-	isaac := New()
+	rnd := New(1000)
 
 	expected := []uint64{
-		5986068031949215749,
-		10437354066128700566,
-		13478007513323023970,
-		8969511410255984224,
-		3869229557962857982,
-		1762449743873204415,
-		5292356290662282456,
-		7893982194485405616,
-		4296136494566588699,
-		12414349056998262772,
+		13706738165129397958,
+		11158865851759859683,
+		7282911433372880595,
+		10191257834247701829,
+		6756510588635422211,
+		9188469355127567259,
+		3870407692778398450,
+		7510499000403643056,
+		11921506945015596058,
+		5594436529078496461,
 	}
 
 	for i, exp := range expected {
-		val := isaac.Uint64()
+		val := rnd.Uint64()
 		if exp != val {
 			t.Errorf("ISAAC.Uint64() at iteration %d: got %d, expected %d", i, val, exp)
 		}
@@ -81,83 +80,83 @@ func dupState(i *ISAAC) *OpenISAAC {
 }
 
 func TestISAACMarshalUnmarshal(t *testing.T) {
-	isaac := New()
+	rnd := New(1001)
 
 	expected1 := []uint64{
-		5986068031949215749,
-		10437354066128700566,
-		13478007513323023970,
-		8969511410255984224,
-		3869229557962857982,
+		15520355889829550420,
+		14048062122838424762,
+		17386984608929258959,
+		6631892771034928162,
+		10939419587267807737,
 	}
 
 	expected2 := []uint64{
-		1762449743873204415,
-		5292356290662282456,
-		7893982194485405616,
-		4296136494566588699,
-		12414349056998262772,
+		3835981378089717525,
+		13955658256492919532,
+		10077846634918708781,
+		5773204650675356768,
+		4971527406542890875,
 	}
 
 	for i, exp := range expected1 {
-		val := isaac.Uint64()
+		val := rnd.Uint64()
 		if exp != val {
 			t.Errorf("ISAAC.Uint64() at iteration %d: got %d, expected %d", i, val, exp)
 		}
 	}
 
-	marshalled, err := isaac.MarshalBinary()
+	marshalled, err := rnd.MarshalBinary()
 
-	t.Logf("State: [%v]\n", dupState(isaac))
-	t.Logf("Marshalled State: [%x] -- %v\n", marshalled, err)
-	state_before := dupState(isaac)
+	// t.Logf("State: [%v]\n", dupState(rnd))
+	// t.Logf("Marshalled State: [%x] -- %v\n", marshalled, err)
+	state_before := dupState(rnd)
 
 	if err != nil {
 		t.Errorf("ISAAC.MarshalBinary() error: %v", err)
 	}
 
 	// Advance state by one number; then check the next 5. The expectation is that they _will_ fail.
-	isaac.Uint64()
+	rnd.Uint64()
 
 	for i, exp := range expected2 {
-		val := isaac.Uint64()
+		val := rnd.Uint64()
 		if exp == val {
 			t.Errorf("  Iteration %d matched %d; which is from iteration %d; something strange is happening.", (i + 6), val, (i + 5))
 		}
 	}
 
-	t.Logf("State before unmarshall: [%v]\n", dupState(isaac))
+	// t.Logf("State before unmarshall: [%v]\n", dupState(rnd))
 
 	// Now restore the state of the PRNG
-	err = isaac.UnmarshalBinary(marshalled)
+	err = rnd.UnmarshalBinary(marshalled)
 
-	t.Logf("State after unmarshall: [%v]\n", dupState(isaac))
+	// t.Logf("State after unmarshall: [%v]\n", dupState(rnd))
 
-	if state_before.Seed != dupState(isaac).Seed {
+	if state_before.Seed != dupState(rnd).Seed {
 		t.Errorf("Seed mismatch")
 	}
-	if state_before.Randrsl != dupState(isaac).Randrsl {
+	if state_before.Randrsl != dupState(rnd).Randrsl {
 		t.Errorf("Randrsl mismatch")
 	}
-	if state_before.Mm != dupState(isaac).Mm {
+	if state_before.Mm != dupState(rnd).Mm {
 		t.Errorf("Mm mismatch")
 	}
-	if state_before.Aa != dupState(isaac).Aa {
+	if state_before.Aa != dupState(rnd).Aa {
 		t.Errorf("Aa mismatch")
 	}
-	if state_before.Bb != dupState(isaac).Bb {
+	if state_before.Bb != dupState(rnd).Bb {
 		t.Errorf("Bb mismatch")
 	}
-	if state_before.Cc != dupState(isaac).Cc {
+	if state_before.Cc != dupState(rnd).Cc {
 		t.Errorf("Cc mismatch")
 	}
-	if state_before.Randcnt != dupState(isaac).Randcnt {
+	if state_before.Randcnt != dupState(rnd).Randcnt {
 		t.Errorf("Randcnt mismatch")
 	}
 
 	// Now we should be back on track for the last 5 numbers
 	for i, exp := range expected2 {
-		val := isaac.Uint64()
+		val := rnd.Uint64()
 		if exp != val {
 			t.Errorf("ISAAC.Uint64() at iteration %d: got %d, expected %d", (i + 5), val, exp)
 		}

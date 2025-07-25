@@ -85,9 +85,8 @@ func (m *Machine) doOpFuncType() {
 	}
 	// Push func type.
 	ft := &FuncType{
-		Params:    params,
-		Results:   results,
-		IsClosure: x.IsClosure,
+		Params:  params,
+		Results: results,
 	}
 	m.PushValue(TypedValue{
 		T: gTypeType,
@@ -203,19 +202,19 @@ func (m *Machine) doOpStaticTypeOf() {
 		t := getTypeOf(x)
 		m.PushValue(asValue(t))
 	case *IndexExpr:
-		start := m.NumValues
+		start := len(m.Values)
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
 		m.PushOp(OpStaticTypeOf)
-		m.Run() // XXX replace
+		m.Run(StageRun)
 		xt := m.ReapValues(start)[0].GetType()
 		m.PushValue(asValue(xt.Elem()))
 	case *SelectorExpr:
-		start := m.NumValues
+		start := len(m.Values)
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
 		m.PushOp(OpStaticTypeOf)
-		m.Run() // XXX replace
+		m.Run(StageRun)
 		xt := m.ReapValues(start)[0].GetType()
 
 		// NOTE: this code segment similar to that in op_types.go
@@ -290,11 +289,11 @@ func (m *Machine) doOpStaticTypeOf() {
 		case VPBlock:
 			switch dxt.(type) {
 			case *PackageType:
-				start := m.NumValues
+				start := len(m.Values)
 				m.PushOp(OpHalt)
 				m.PushExpr(x.X)
 				m.PushOp(OpEval)
-				m.Run() // XXX replace
+				m.Run(StageRun)
 				xv := m.ReapValues(start)[0]
 				pv := xv.V.(*PackageValue)
 				t := pv.GetBlock(m.Store).GetSource(m.Store).GetStaticTypeOfAt(m.Store, x.Path)
@@ -315,11 +314,11 @@ func (m *Machine) doOpStaticTypeOf() {
 				panic(fmt.Sprintf("struct type %v has no field %s",
 					reflect.TypeOf(baseOf(xt)), x.Sel))
 			case *TypeType:
-				start := m.NumValues
+				start := len(m.Values)
 				m.PushOp(OpHalt)
 				m.PushExpr(x.X)
 				m.PushOp(OpEval)
-				m.Run() // XXX replace
+				m.Run(StageRun)
 				xt := m.ReapValues(start)[0].GetType()
 				switch cxt := xt.(type) {
 				case *PointerType:
@@ -381,11 +380,11 @@ func (m *Machine) doOpStaticTypeOf() {
 		}
 
 	case *SliceExpr:
-		start := m.NumValues
+		start := len(m.Values)
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
 		m.PushOp(OpStaticTypeOf)
-		m.Run() // XXX replace
+		m.Run(StageRun)
 		xt := m.ReapValues(start)[0].V.(TypeValue).Type
 		if pt, ok := baseOf(xt).(*PointerType); ok {
 			m.PushValue(asValue(&SliceType{
@@ -399,11 +398,11 @@ func (m *Machine) doOpStaticTypeOf() {
 			}))
 		}
 	case *StarExpr:
-		start := m.NumValues
+		start := len(m.Values)
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
 		m.PushOp(OpStaticTypeOf)
-		m.Run() // XXX replace
+		m.Run(StageRun)
 		xt := m.ReapValues(start)[0].GetType()
 		if pt, ok := baseOf(xt).(*PointerType); ok {
 			m.PushValue(asValue(pt.Elt))
@@ -413,11 +412,11 @@ func (m *Machine) doOpStaticTypeOf() {
 			panic("unexpected star expression")
 		}
 	case *RefExpr:
-		start := m.NumValues
+		start := len(m.Values)
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
 		m.PushOp(OpStaticTypeOf)
-		m.Run() // XXX replace
+		m.Run(StageRun)
 		xt := m.ReapValues(start)[0].GetType()
 		m.PushValue(asValue(&PointerType{Elt: xt}))
 	case *TypeAssertExpr:

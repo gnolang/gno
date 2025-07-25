@@ -10,7 +10,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -146,14 +146,18 @@ package counter
 import "strconv"
 
 var value int = 0
-func Inc(v int) { value += v } // method to increment value
+
+func Inc(cur realm, v int) {  // method to increment value
+        value += v
+}
+
 func Render(_ string) string { return strconv.Itoa(value) }
 `
 
-	counterPkg := gnovm.MemPackage{
+	counterPkg := std.MemPackage{
 		Name: "counter",
 		Path: "gno.land/r/dev/counter",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{Name: "file.gno", Body: counterFile},
 		},
 	}
@@ -168,7 +172,7 @@ func Render(_ string) string { return strconv.Itoa(value) }
 	require.Equal(t, render, "0")
 
 	// Increment the counter 10 times
-	for i := 0; i < inc; i++ {
+	for i := range inc {
 		t.Logf("call %d", i)
 		// Craft `Inc` msg
 		msg := vm.MsgCall{

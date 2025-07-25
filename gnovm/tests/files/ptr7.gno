@@ -3,7 +3,7 @@ package main
 import (
 	"strings"
 
-	"github.com/gnolang/gno/_test/net"
+	"filetests/extern/net"
 )
 
 type ipNetValue net.IPNet
@@ -23,4 +23,4 @@ func main() {
 }
 
 // Output:
-// (struct{(nil github.com/gnolang/gno/_test/net.IP),(nil github.com/gnolang/gno/_test/net.IPMask)} main.ipNetValue)
+// (struct{(nil filetests/extern/net.IP),(nil filetests/extern/net.IPMask)} main.ipNetValue)

@@ -18,7 +18,6 @@ import (
 	"sync"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -230,7 +229,7 @@ func (upaths uniqPaths) addPath(path string) {
 	upaths[path] = struct{}{}
 }
 
-func (upaths uniqPaths) addPackageDeps(pkg *gnovm.MemPackage) {
+func (upaths uniqPaths) addPackageDeps(pkg *std.MemPackage) {
 	fset := token.NewFileSet()
 	for _, file := range pkg.Files {
 		if !strings.HasSuffix(file.Name, ".gno") {

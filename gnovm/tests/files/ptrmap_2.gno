@@ -21,7 +21,7 @@ func init() {
 
 // ----above is initialized and persisted before main is executed.
 
-func main() {
+func main(cur realm,) {
 	r := GetFromMap()
 	println(r == 5)
 

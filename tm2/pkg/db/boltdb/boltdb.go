@@ -116,8 +116,8 @@ func (bdb *BoltDB) DeleteSync(key []byte) {
 	bdb.Delete(key)
 }
 
-func (bdb *BoltDB) Close() {
-	bdb.db.Close()
+func (bdb *BoltDB) Close() error {
+	return bdb.db.Close()
 }
 
 func (bdb *BoltDB) Print() {

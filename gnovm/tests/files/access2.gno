@@ -1,14 +1,14 @@
-// PKGPATH: gno.land/r/access_test
-package access_test
+// PKGPATH: gno.land/r/access
+package access
 
 import (
 	"gno.land/p/demo/testutils"
 )
 
-func main() {
+func main(cur realm) {
 	testutils.TestVar1 += 1
 	println(testutils.TestVar1)
 }
 
 // Error:
-// cannot modify external-realm or non-realm object
+// cannot directly modify readonly tainted object (w/o method): (const (ref(gno.land/p/demo/testutils) package{})).TestVar1

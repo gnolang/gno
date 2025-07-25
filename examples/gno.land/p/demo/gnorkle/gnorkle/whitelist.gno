@@ -4,9 +4,9 @@ package gnorkle
 type Whitelist interface {
 	ClearAddresses()
 	AddAddresses(addresses []string)
-	RemoveAddress(address string)
+	RemoveAddress(address_XXX string)
 	HasDefinition() bool
-	HasAddress(address string) bool
+	HasAddress(address_XXX string) bool
 }
 
 // ClearWhitelist clears the whitelist of the instance or feed depending on the feed ID.
@@ -42,9 +42,9 @@ func (i *Instance) AddToWhitelist(feedID string, addresses []string) error {
 }
 
 // RemoveFromWhitelist removes the given address from the whitelist of the instance or feed depending on the feed ID.
-func (i *Instance) RemoveFromWhitelist(feedID string, address string) error {
+func (i *Instance) RemoveFromWhitelist(feedID string, address_XXX string) error {
 	if feedID == "" {
-		i.whitelist.RemoveAddress(address)
+		i.whitelist.RemoveAddress(address_XXX)
 		return nil
 	}
 
@@ -53,7 +53,7 @@ func (i *Instance) RemoveFromWhitelist(feedID string, address string) error {
 		return err
 	}
 
-	feedWithWhitelist.RemoveAddress(address)
+	feedWithWhitelist.RemoveAddress(address_XXX)
 	return nil
 }
 
@@ -61,11 +61,11 @@ func (i *Instance) RemoveFromWhitelist(feedID string, address string) error {
 // - the feed has a white list and the address is whitelisted, or
 // - the feed has no white list and the instance has a white list and the address is whitelisted, or
 // - the feed has no white list and the instance has no white list.
-func addressIsWhitelisted(instanceWhitelist, feedWhitelist Whitelist, address string, instanceWhitelistedOverride *bool) bool {
+func addressIsWhitelisted(instanceWhitelist, feedWhitelist Whitelist, address_XXX string, instanceWhitelistedOverride *bool) bool {
 	// A feed whitelist takes priority, so it will return false if the feed has a whitelist and the caller is
 	// not a part of it. An empty whitelist defers to the instance whitelist.
 	if feedWhitelist != nil {
-		if feedWhitelist.HasDefinition() && !feedWhitelist.HasAddress(address) {
+		if feedWhitelist.HasDefinition() && !feedWhitelist.HasAddress(address_XXX) {
 			return false
 		}
 
@@ -92,5 +92,5 @@ func addressIsWhitelisted(instanceWhitelist, feedWhitelist Whitelist, address st
 	}
 
 	// The instance whitelist is defined so if the address is present then it is allowed.
-	return instanceWhitelist.HasAddress(address)
+	return instanceWhitelist.HasAddress(address_XXX)
 }

@@ -9,6 +9,8 @@ import (
 )
 
 func TestNoTestingStdlibImport(t *testing.T) {
+	t.Skip("as keeper is now also typchecking `_test` files, this test doesn't make sense anymore")
+
 	// See: https://github.com/gnolang/gno/issues/3585
 	// The gno.land binary should not import testing stdlibs, which contain unsafe
 	// code in the respective native bindings.

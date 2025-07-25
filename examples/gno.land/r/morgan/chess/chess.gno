@@ -125,9 +125,8 @@ func (g GameState) IsFinished() bool {
 // Ideally, we'd need this to work either by not forcing users not to have
 // parallel games OR by introducing a "request" system, so that a game is not
 // immediately considered "open" when calling NewGame.
-func xNewGame(opponentRaw string, seconds, increment int) string {
+func xNewGame(cur realm, opponentRaw string, seconds, increment int) string {
 	assertOriginCall()
-
 	if seconds >= 0 && increment < 0 {
 		panic("negative increment invalid")
 	}
@@ -250,9 +249,8 @@ func getGame(id string, wantOpen bool) *Game {
 // If the piece is a pawn which is moving to the last row, a promotion piece
 // must be specified.
 // Castling is specified by indicating the king's movement.
-func MakeMove(gameID, from, to string, promote chess.Piece) string {
+func MakeMove(cur realm, gameID, from, to string, promote chess.Piece) string {
 	assertOriginCall()
-
 	g := getGame(gameID, true)
 
 	// determine if this is a black move
@@ -378,18 +376,16 @@ func (g *Game) claimTimeout() error {
 
 // ClaimTimeout should be called when the caller believes the game has resulted
 // in a timeout.
-func ClaimTimeout(gameID string) string {
+func ClaimTimeout(cur realm, gameID string) string {
 	g := getGame(gameID, true)
-
 	err := g.claimTimeout()
 	checkErr(err)
 
 	return g.json()
 }
 
-func Abort(gameID string) string {
+func Abort(cur realm, gameID string) string {
 	assertOriginCall()
-
 	g := getGame(gameID, true)
 	err := abort(g)
 	if err != nil {
@@ -415,9 +411,8 @@ func abort(g *Game) error {
 	return nil
 }
 
-func Resign(gameID string) string {
+func Resign(cur realm, gameID string) string {
 	assertOriginCall()
-
 	g := getGame(gameID, true)
 	err := resign(g)
 	if err != nil {
@@ -449,9 +444,8 @@ func resign(g *Game) error {
 
 // DrawOffer creates a draw offer in the current game, if one doesn't already
 // exist.
-func DrawOffer(gameID string) string {
+func DrawOffer(cur realm, gameID string) string {
 	assertOriginCall()
-
 	g := getGame(gameID, true)
 	caller := std.PreviousRealm().Address()
 
@@ -467,9 +461,8 @@ func DrawOffer(gameID string) string {
 }
 
 // DrawRefuse refuse a draw offer in the given game.
-func DrawRefuse(gameID string) string {
+func DrawRefuse(cur realm, gameID string) string {
 	assertOriginCall()
-
 	g := getGame(gameID, true)
 	caller := std.PreviousRealm().Address()
 
@@ -491,9 +484,8 @@ func DrawRefuse(gameID string) string {
 // - Fifty-move rule (§9.3)
 // - Insufficient material (§9.4)
 // Note: stalemate happens as a consequence of a Move, and thus is handled in that function.
-func Draw(gameID string) string {
+func Draw(cur realm, gameID string) string {
 	assertOriginCall()
-
 	g := getGame(gameID, true)
 
 	caller := std.PreviousRealm().Address()

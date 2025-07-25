@@ -14,7 +14,7 @@ func init() {
 	m[s[myStruct.Index]] = "a"
 }
 
-func main() {
+func main(cur realm,) {
 	println(m[s[myStruct.Index]])
 }
 

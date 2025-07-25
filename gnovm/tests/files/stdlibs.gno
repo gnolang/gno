@@ -3,7 +3,7 @@ package test
 
 import "time"
 
-func main() {
+func main(cur realm,) {
 	println(time.UTC == nil)
 	time.UTC = nil
 	println(time.UTC == nil)
@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// cannot modify external-realm or non-realm object
+// cannot directly modify readonly tainted object (w/o method): (const (ref(time) package{})).UTC

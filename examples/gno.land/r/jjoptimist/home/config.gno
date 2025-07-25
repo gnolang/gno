@@ -25,7 +25,7 @@ func GetConfig() Config {
 }
 
 func UpdateConfig(newTitle, newDescription, newGithub string) {
-	Ownable.AssertCallerIsOwner()
+	Ownable.AssertOwnedByPrevious()
 	config.Title = newTitle
 	config.Description = newDescription
 	config.Github = newGithub

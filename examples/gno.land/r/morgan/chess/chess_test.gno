@@ -25,10 +25,10 @@ func cleanup() {
 	playerRatings = [CategoryMax][]*glicko2.PlayerRating{}
 }
 
-func TestNewGame(t *testing.T) {
+func TestNewGame(cur realm, t *testing.T) {
 	cleanup()
 
-	g := xNewGame(std.DerivePkgAddr("xx").String(), 0, 0)
+	g := xNewGame(cur, std.DerivePkgAddr("xx").String(), 0, 0)
 	println(g)
 }
 
@@ -255,17 +255,17 @@ func (tc testCommandFunc) Run(t *testing.T, bufs map[string]string) { tc(t, bufs
 // form func(gameID string) string (hence ID), and that takes as the first
 // parameter a <player> which will be the caller.
 type testCommandColorID struct {
-	fn   func(string) string
+	fn   func(realm, string) string
 	addr std.Address
 }
 
-func newTestCommandColorID(fn func(string) string, s string, addr string) testCommandRunner {
+func newTestCommandColorID(fn func(realm, string) string, s string, addr string) testCommandRunner {
 	return &testCommandColorID{fn, std.Address("g1" + addr)}
 }
 
 func (tc *testCommandColorID) Run(t *testing.T, bufs map[string]string) {
 	testing.SetRealm(std.NewUserRealm(tc.addr))
-	bufs["result"] = tc.fn(bufs["id"])
+	bufs["result"] = tc.fn(cross, bufs["id"])
 }
 
 type testCommandNewGame struct {
@@ -275,7 +275,7 @@ type testCommandNewGame struct {
 
 func (tc *testCommandNewGame) Run(t *testing.T, bufs map[string]string) {
 	testing.SetRealm(std.NewUserRealm(tc.w))
-	res := xNewGame(string(tc.b), tc.seconds, tc.incr)
+	res := xNewGame(cross, string(tc.b), tc.seconds, tc.incr)
 	bufs["result"] = res
 
 	const idMagicString = `"id":"`
@@ -296,7 +296,7 @@ type testCommandMove struct {
 
 func (tc *testCommandMove) Run(t *testing.T, bufs map[string]string) {
 	testing.SetRealm(std.NewUserRealm(tc.addr))
-	bufs["result"] = MakeMove(bufs["id"], tc.from, tc.to, tc.promotion)
+	bufs["result"] = MakeMove(cross, bufs["id"], tc.from, tc.to, tc.promotion)
 }
 
 type testCommandGame struct {
@@ -587,7 +587,7 @@ func runCommandTest(t *testing.T, command string) {
 	t.Run(testName, func(t *testing.T) {
 		cleanup()
 		bufs := make(map[string]string, 3)
-		for idx, f := range funcs {
+		for _, f := range funcs {
 			if _, ok := f.(interface{ Checker() }); ok {
 				f.Run(t, bufs)
 			} else {
@@ -598,15 +598,12 @@ func runCommandTest(t *testing.T, command string) {
 }
 
 func catchPanic(tc testCommandRunner, t *testing.T, bufs map[string]string) {
-	defer func() {
-		// XXX: should prefer testing.Recover, but see: https://github.com/gnolang/gno/issues/1650
-		e := recover()
-		if e == nil {
-			bufs["panic"] = ""
-			return
-		}
-		bufs["result"] = ""
-		bufs["panic"] = fmt.Sprint(e)
-	}()
-	tc.Run(t, bufs)
+	// XXX: should prefer testing.Recover, but see: https://github.com/gnolang/gno/issues/1650
+	e := revive(func() { tc.Run(t, bufs) })
+	if e == nil {
+		bufs["panic"] = ""
+		return
+	}
+	bufs["result"] = ""
+	bufs["panic"] = fmt.Sprint(e)
 }

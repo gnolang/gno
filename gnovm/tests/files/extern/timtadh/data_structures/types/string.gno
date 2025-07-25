@@ -70,8 +70,8 @@ func (self ByteSlice) Hash() int {
 
 func hash(s []byte) int {
 	res := sha256.Sum256(s)
-	return int(s[0]) |
-		int(s[1]<<8) |
-		int(s[2]<<16) |
-		int(s[3]<<24)
+	return int(res[0]) |
+		int(res[1]<<8) |
+		int(res[2]<<16) |
+		int(res[3]<<24)
 }

@@ -1,35 +1,40 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
-	"strconv"
 	"strings"
 
+	"github.com/gnolang/faucet"
+	"github.com/gnolang/faucet/spec"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/google/go-github/v64/github"
 )
 
-// getGithubMiddleware sets up authentication middleware for GitHub OAuth.
+// ghUsernameKey is the context key for storing the GH username between
+// http and RPC GitHub middleware handlers
+const ghUsernameKey = "gh-username"
+
+// gitHubUsernameMiddleware sets up authentication middleware for GitHub OAuth.
 // If clientID and secret are empty, the middleware does nothing.
 //
 // Parameters:
 // - clientID: The OAuth client ID issued by GitHub when registering the application.
 // - secret: The OAuth client secret used to securely authenticate API requests.
-// - cooldown: A cooldown duration to prevent several claims from the same user.
 //
 // GitHub OAuth applications require a client ID and secret to authenticate users securely.
 // These credentials are obtained when registering an application on GitHub at:
 // https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authenticating-to-the-rest-api-with-an-oauth-app#registering-your-app
-func getGithubMiddleware(clientID, secret string, coolDownLimiter *CooldownLimiter) func(next http.Handler) http.Handler {
+func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "text/plain")
+
 				// Extracts the authorization code returned by the GitHub OAuth flow.
 				//
 				// When a user successfully authenticates via GitHub OAuth, GitHub redirects them
@@ -44,66 +49,92 @@ func getGithubMiddleware(clientID, secret string, coolDownLimiter *CooldownLimit
 					return
 				}
 
-				user, err := exchangeCodeForUser(r.Context(), secret, clientID, code)
+				user, err := exchangeFn(
+					r.Context(),
+					fmt.Sprintf("client_id=%s&client_secret=%s&code=%s", clientID, secret, code),
+				)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusBadRequest)
 
 					return
 				}
 
-				claimAmount, err := getClaimAmount(r)
-				if err != nil {
-					http.Error(w, err.Error(), http.StatusBadRequest)
-					return
-				}
-
-				// Just check if given account have asked for faucet before the cooldown period
-				allowedToClaim, err := coolDownLimiter.CheckCooldown(r.Context(), user.GetLogin(), claimAmount)
-				if err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-				}
-
-				if !allowedToClaim {
-					http.Error(w, "user is on cooldown", http.StatusTooManyRequests)
-					return
-				}
+				// Save the username in the context
+				updatedCtx := context.WithValue(r.Context(), ghUsernameKey, user.GetLogin())
 
 				// Possibility to have more conditions like accountAge, commits, pullRequest, etc.
-				next.ServeHTTP(w, r)
+				next.ServeHTTP(w, r.WithContext(updatedCtx))
 			},
 		)
 	}
 }
 
-type request struct {
-	Amount string `json:"amount"`
+type cooldownLimiter interface {
+	checkCooldown(context.Context, string, int64) (bool, error)
 }
 
-func getClaimAmount(r *http.Request) (int64, error) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		return 0, err
-	}
+// gitHubClaimMiddleware is the GitHub claim validation middleware, based on the provided username
+func gitHubClaimMiddleware(coolDownLimiter cooldownLimiter) faucet.Middleware {
+	return func(next faucet.HandlerFunc) faucet.HandlerFunc {
+		return func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
+			// Grab the username from the context
+			username, ok := ctx.Value(ghUsernameKey).(string)
+			if !ok {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError("invalid username value", spec.InvalidRequestErrorCode),
+				)
+			}
 
-	var data request
-	err = json.Unmarshal(body, &data)
-	if err != nil {
-		return 0, err
-	}
-	r.Body = io.NopCloser(bytes.NewBuffer(body))
+			// Make sure the method is "drip"
+			if req.Method != faucet.DefaultDripMethod {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError("invalid method requested", spec.InvalidRequestErrorCode),
+				)
+			}
 
-	// amount sent is a string, so we need to convert it to int64
-	// Ex: "1000000ugnot" -> 1000000
-	// Regex to extract leading digits
-	re := regexp.MustCompile(`^\d+`)
-	numericPart := re.FindString(data.Amount)
+			// Grab the claim amount
+			if len(req.Params) < 2 {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError("amount not provided", spec.InvalidParamsErrorCode),
+				)
+			}
 
-	value, err := strconv.ParseInt(numericPart, 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("invalid claim amount, %w", err)
+			claimAmount, err := std.ParseCoin(req.Params[1].(string))
+			if err != nil {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError("invalid amount", spec.InvalidParamsErrorCode),
+				)
+			}
+
+			// Just check if given account have asked for faucet before the cooldown period
+			allowedToClaim, err := coolDownLimiter.checkCooldown(ctx, username, claimAmount.Amount)
+			if err != nil {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError("unable to check cooldown", spec.ServerErrorCode),
+				)
+			}
+
+			if !allowedToClaim {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError("user is on cooldown", spec.ServerErrorCode),
+				)
+			}
+
+			return next(ctx, req)
+		}
 	}
-	return value, nil
 }
 
 // ghTokenResponse is the GitHub OAuth response
@@ -124,14 +155,17 @@ type ghExchangeErrorResponse struct {
 //nolint:gosec
 const githubTokenExchangeURL = "https://github.com/login/oauth/access_token"
 
-var exchangeCodeForUser = func(ctx context.Context, secret, clientID, code string) (*github.User, error) {
+type ghExchangeFn func(context.Context, string) (*github.User, error)
+
+func defaultGHExchange(ctx context.Context, body string) (*github.User, error) {
 	client := new(http.Client)
 
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodPost,
 		githubTokenExchangeURL,
-		strings.NewReader(fmt.Sprintf("client_id=%s&client_secret=%s&code=%s", clientID, secret, code)))
+		strings.NewReader(body),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create HTTP request: %w", err)
 	}

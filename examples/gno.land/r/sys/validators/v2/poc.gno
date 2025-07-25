@@ -17,7 +17,7 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 		panic(errNoChangesProposed)
 	}
 
-	callback := func() error {
+	callback := func(cur realm) error {
 		for _, change := range changesFn() {
 			if change.VotingPower == 0 {
 				// This change request is to remove the validator

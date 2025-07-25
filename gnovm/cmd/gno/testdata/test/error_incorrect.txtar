@@ -2,7 +2,7 @@
 
 ! gno test -v .
 
-stderr '=== RUN   file/x_filetest.gno'
+stderr '=== RUN   ./x_filetest.gno'
 stderr 'Error diff:'
 stderr '-xxx'
 stderr '\+oups'

@@ -6,13 +6,12 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/ufmt"
 )
 
 type ProposalID int64
 
 func (pid ProposalID) String() string {
-	return ufmt.Sprintf("%v", int64(pid))
+	return seqid.ID(pid).String()
 }
 
 // VoteOption is the limited voting option for a DAO proposal
@@ -119,9 +118,7 @@ func (ps *Proposals) SetProposal(p *Proposal) ProposalID {
 	if updated {
 		panic("fatal error: Override proposals is not allowed")
 	}
-
 	ps.seq = ps.seq.Next()
-
 	return pid
 }
 
@@ -135,11 +132,11 @@ func (ps *Proposals) GetProposal(pid ProposalID) *Proposal {
 }
 
 type Executor interface {
-	Execute() error
+	Execute(cur realm) error
 	String() string
 }
 
-func NewSimpleExecutor(callback func() error, description string) *SimpleExecutor {
+func NewSimpleExecutor(callback func(realm) error, description string) *SimpleExecutor {
 	return &SimpleExecutor{
 		callback: callback,
 		desc:     description,
@@ -149,12 +146,12 @@ func NewSimpleExecutor(callback func() error, description string) *SimpleExecuto
 // SimpleExecutor implements the Executor interface using
 // a callback function and a description string.
 type SimpleExecutor struct {
-	callback func() error
+	callback func(realm) error
 	desc     string
 }
 
-func (e *SimpleExecutor) Execute() error {
-	return e.callback()
+func (e *SimpleExecutor) Execute(cur realm) error {
+	return e.callback(cross)
 }
 
 func (e *SimpleExecutor) String() string {
@@ -173,13 +170,13 @@ type SafeExecutor struct {
 	e Executor
 }
 
-func (e *SafeExecutor) Execute() error {
+func (e *SafeExecutor) Execute(cur realm) error {
 	// Verify the caller is an adequate Realm
-	if !InAllowedDAOs(std.CurrentRealm().PkgPath()) {
+	if !InAllowedDAOs(std.PreviousRealm().PkgPath()) {
 		return errors.New("execution only allowed by validated govDAOs")
 	}
 
-	return e.e.Execute()
+	return e.e.Execute(cross)
 }
 
 func (e *SafeExecutor) String() string {
@@ -191,39 +188,34 @@ type DAO interface {
 	// It is intended to be used to get the std.Address of the proposal, that
 	// may vary depending on the DAO implementation, and to validate that
 	// the requester is allowed to do a proposal
-	PreCreateProposal(ctx *Context, r ProposalRequest) (std.Address, error)
+	PreCreateProposal(r ProposalRequest) (std.Address, error)
 
 	// PostCreateProposal is called after creating the Proposal. It is
 	// intended to be used as a way to store a new proposal status, that
 	// depends on the actuall govDAO implementation
-	PostCreateProposal(ctx *Context, r ProposalRequest, pid ProposalID)
+	PostCreateProposal(r ProposalRequest, pid ProposalID)
 
 	// VoteOnProposal will send a petition to vote for a specific proposal
 	// to the actual govDAO implementation
-	VoteOnProposal(ctx *Context, r VoteRequest) error
+	VoteOnProposal(r VoteRequest) error
 
 	// PreGetProposal is called when someone is trying to get a proposal by ID.
 	// Is intended to be used to validate who can query proposals, just in case
 	// the actual govDAO implementation wants to limit the access.
-	PreGetProposal(ctx *Context, pid ProposalID) error
+	PreGetProposal(pid ProposalID) error
 
 	// PostGetProposal is called after the proposal has been obtained. Intended to be
 	// used by govDAO implementations if they need to check Proposal data to know if
 	// the caller is allowed to get that kind of Proposal or not.
-	PostGetProposal(ctx *Context, pid ProposalID, p *Proposal) error
+	PostGetProposal(pid ProposalID, p *Proposal) error
 
 	// PreExecuteProposal is called when someone is trying to execute a proposal by ID.
 	// Is intended to be used to validate who can trigger the proposal execution.
-	PreExecuteProposal(ctx *Context, pid ProposalID) (bool, error)
+	PreExecuteProposal(pid ProposalID) (bool, error)
 
 	// Render will return a human-readable string in markdown format that
 	// will be used to show new data through the dao proxy entrypoint.
-	Render(ctx *Context, path string) string
-}
-
-type Context struct {
-	PrevRealm    std.Realm
-	CurrentRealm std.Realm
+	Render(pkgpath string, path string) string
 }
 
 type UpdateRequest struct {

@@ -1,0 +1,1 @@
+var e=class{DOM;constructor(t){this.DOM={inputs:Array.from(t.querySelectorAll('input[type="text"]'))},this.DOM.inputs.length&&this.bindEvents()}bindEvents(){this.DOM.inputs.forEach(t=>{t.addEventListener("focus",()=>t.select())})}},s=n=>new e(n);export{s as default};

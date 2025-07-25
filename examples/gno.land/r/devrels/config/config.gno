@@ -15,5 +15,5 @@ var (
 )
 
 func Render(_ string) string {
-	return Auth.Current().String()
+	return Auth.Authority().String()
 }

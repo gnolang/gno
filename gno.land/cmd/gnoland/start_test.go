@@ -26,7 +26,6 @@ func retryUntilTimeout(ctx context.Context, cb func() bool) error {
 			select {
 			case <-ctx.Done():
 				ch <- ctx.Err()
-
 				return
 			default:
 				retry := cb()
@@ -122,23 +121,24 @@ func TestStart_Lazy(t *testing.T) {
 	// Set up the command ctx
 	g, gCtx := errgroup.WithContext(ctx)
 
+	// Set up the retry ctx
+	rCtx, rCtxCancelFn := context.WithTimeout(gCtx, 5*time.Second)
+	defer rCtxCancelFn()
+
 	// Start the node
 	g.Go(func() error {
-		return newRootCmd(io).ParseAndRun(gCtx, args)
+		err := newRootCmd(io).ParseAndRun(rCtx, args)
+		return err
 	})
-
-	// Set up the retry ctx
-	retryCtx, retryCtxCancelFn := context.WithTimeout(ctx, 5*time.Second)
-	defer retryCtxCancelFn()
 
 	// This is a very janky way to verify the node has started.
 	// The alternative is to poll the node's RPC endpoints, but for some reason
 	// this introduces a lot of flakyness to the testing suite -- shocking!
 	// In an effort to keep this simple, and avoid randomly failing tests,
 	// we query the CLI output of the command
-	require.NoError(t, retryUntilTimeout(retryCtx, func() bool {
+	require.NoError(t, retryUntilTimeout(rCtx, func() bool {
 		return !strings.Contains(mockOut.String(), startGraphic)
-	}))
+	}), g.Wait())
 
 	cancelFn() // stop the node
 	require.NoError(t, g.Wait())

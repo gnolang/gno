@@ -1,7 +1,7 @@
 package pkgdownload
 
-import "github.com/gnolang/gno/gnovm"
+import "github.com/gnolang/gno/tm2/pkg/std"
 
 type PackageFetcher interface {
-	FetchPackage(pkgPath string) ([]*gnovm.MemFile, error)
+	FetchPackage(pkgPath string) ([]*std.MemFile, error)
 }

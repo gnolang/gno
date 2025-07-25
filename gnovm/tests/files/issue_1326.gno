@@ -10,7 +10,7 @@ func init() {
 	println(Delta())
 }
 
-func main() {
+func main(cur realm) {
 	println(Delta())
 }
 

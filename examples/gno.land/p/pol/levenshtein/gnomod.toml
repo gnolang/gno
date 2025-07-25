@@ -1,0 +1,2 @@
+module = "gno.land/p/pol/levenshtein"
+gno = "0.9"

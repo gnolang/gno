@@ -1,6 +1,6 @@
-# Using the Boards Application on gno.land
+# Using the Boards Application on Gno.land
 
-The Boards realm is one of the first applications on gno.land, offering a
+The Boards realm is one of the first applications on Gno.land, offering a
 decentralized discussion forum where anyone can create and participate in
 conversations. This guide will walk you through discovering, exploring, and
 interacting with the Boards realm.
@@ -31,8 +31,8 @@ For more details on browsing through realms and their content, see
 To interact with the Boards application (creating boards, threads, or posts),
 you'll need:
 
-1. A gno.land account with some GNOT tokens
-2. A way to sign and send transactions to the gno.land network
+1. A Gno.land account with some GNOT tokens
+2. A way to sign and send transactions to the Gno.land network
 
 You can interact with Boards through the command line using `gnokey`. For
 detailed instructions on sending transactions to realms, see

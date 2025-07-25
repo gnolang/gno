@@ -45,7 +45,7 @@ func (ls *LifetimeSubscription) processSubscription(receiver std.Address) error 
 
 // Subscribe processes the payment for a lifetime subscription.
 func (ls *LifetimeSubscription) Subscribe() error {
-	caller := std.PreviousRealm().Address()
+	caller := std.CurrentRealm().Address()
 	return ls.processSubscription(caller)
 }
 
@@ -67,7 +67,7 @@ func (ls *LifetimeSubscription) HasValidSubscription(addr std.Address) error {
 
 // UpdateAmount allows the owner of the LifetimeSubscription contract to update the subscription price.
 func (ls *LifetimeSubscription) UpdateAmount(newAmount int64) error {
-	if !ls.CallerIsOwner() {
+	if !ls.OwnedByCurrent() {
 		return ErrNotAuthorized
 	}
 

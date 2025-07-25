@@ -102,8 +102,7 @@ func X_getAddr(m *gnolang.Machine, v gnolang.TypedValue) uint64 {
 		}
 		return uint64(uintptr(unsafe.Pointer(v.TV))) ^
 			uint64(uintptr(unsafe.Pointer(&v.Base))) ^
-			uint64(v.Index) ^
-			uint64(uintptr(unsafe.Pointer(v.Key)))
+			uint64(v.Index)
 	case *gnolang.FuncValue:
 		return uint64(uintptr(unsafe.Pointer(v)))
 	case *gnolang.MapValue:
@@ -217,7 +216,7 @@ func X_arrayIndex(m *gnolang.Machine, v gnolang.TypedValue, n int) gnolang.Typed
 	case gnolang.ArrayKind, gnolang.SliceKind:
 		tv := gnolang.TypedValue{T: gnolang.IntType}
 		tv.SetInt(int64(n))
-		res := v.GetPointerAtIndex(m.Alloc, m.Store, &tv)
+		res := v.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, &tv)
 		return res.Deref()
 	default:
 		panic("invalid type to arrayIndex")

@@ -18,9 +18,8 @@ stdout 'TX HASH: '
 package bar
 
 func Render(path string) string {
- 	return "hello from foo"
+	return "hello from foo"
 }
-
 -- script/script.gno --
 package main
 

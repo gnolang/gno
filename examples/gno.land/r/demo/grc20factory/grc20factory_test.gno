@@ -15,17 +15,17 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 
 	type test struct {
 		name    string
-		balance uint64
-		fn      func() uint64
+		balance int64
+		fn      func() int64
 	}
 
-	checkBalances := func(step string, totSup, balAdm, balBob, allowAdmBob, balCarl uint64) {
+	checkBalances := func(step string, totSup, balAdm, balBob, allowAdmBob, balCarl int64) {
 		tests := []test{
-			{"TotalSupply", totSup, func() uint64 { return TotalSupply("FOO") }},
-			{"BalanceOf(admin)", balAdm, func() uint64 { return BalanceOf("FOO", admin) }},
-			{"BalanceOf(bob)", balBob, func() uint64 { return BalanceOf("FOO", bob) }},
-			{"Allowance(admin, bob)", allowAdmBob, func() uint64 { return Allowance("FOO", admin, bob) }},
-			{"BalanceOf(carl)", balCarl, func() uint64 { return BalanceOf("FOO", carl) }},
+			{"TotalSupply", totSup, func() int64 { return TotalSupply("FOO") }},
+			{"BalanceOf(admin)", balAdm, func() int64 { return BalanceOf("FOO", admin) }},
+			{"BalanceOf(bob)", balBob, func() int64 { return BalanceOf("FOO", bob) }},
+			{"Allowance(admin, bob)", allowAdmBob, func() int64 { return Allowance("FOO", admin, bob) }},
+			{"BalanceOf(carl)", balCarl, func() int64 { return BalanceOf("FOO", carl) }},
 		}
 		for _, tc := range tests {
 			reason := ufmt.Sprintf("%s.%s - %s", step, tc.name, "balances do not match")
@@ -35,8 +35,8 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 
 	// admin creates FOO and BAR.
 	testing.SetOriginCaller(admin)
-	NewWithAdmin("Foo", "FOO", 3, 1_111_111_000, 5_555, admin)
-	NewWithAdmin("Bar", "BAR", 3, 2_222_000, 6_666, admin)
+	NewWithAdmin(cross, "Foo", "FOO", 3, 1_111_111_000, 5_555, admin)
+	NewWithAdmin(cross, "Bar", "BAR", 3, 2_222_000, 6_666, admin)
 	checkBalances("step1", 1_111_111_000, 1_111_111_000, 0, 0, 0)
 
 	// admin mints to bob.
@@ -45,21 +45,21 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 
 	// carl uses the faucet.
 	testing.SetOriginCaller(carl)
-	Faucet("FOO")
+	Faucet(cross, "FOO")
 	checkBalances("step3", 1_444_449_555, 1_111_111_000, 333_333_000, 0, 5_555)
 
 	// admin gives to bob some allowance.
 	testing.SetOriginCaller(admin)
-	Approve("FOO", bob, 1_000_000)
+	Approve(cross, "FOO", bob, 1_000_000)
 	checkBalances("step4", 1_444_449_555, 1_111_111_000, 333_333_000, 1_000_000, 5_555)
 
 	// bob uses a part of the allowance.
 	testing.SetOriginCaller(bob)
-	TransferFrom("FOO", admin, carl, 400_000)
+	TransferFrom(cross, "FOO", admin, carl, 400_000)
 	checkBalances("step5", 1_444_449_555, 1_110_711_000, 333_333_000, 600_000, 405_555)
 
 	// bob uses a part of the allowance.
 	testing.SetOriginCaller(bob)
-	TransferFrom("FOO", admin, carl, 600_000)
+	TransferFrom(cross, "FOO", admin, carl, 600_000)
 	checkBalances("step6", 1_444_449_555, 1_110_111_000, 333_333_000, 0, 1_005_555)
 }

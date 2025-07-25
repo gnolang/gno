@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
+	"strings"
 )
 
 type BaseLoader struct {
@@ -62,17 +63,13 @@ func load(path string, fset *token.FileSet, resolver Resolver, visited, stack ma
 	imports := map[string]struct{}{}
 	for _, file := range mempkg.Files {
 		fname := file.Name
-		if !isGnoFile(fname) || isTestFile(fname) {
+		if !isGnoFile(fname) {
 			continue
 		}
 
 		f, err := parser.ParseFile(fset, fname, file.Body, parser.ImportsOnly)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse file %q: %w", file.Name, err)
-		}
-
-		if name != "" && name != f.Name.Name {
-			return nil, fmt.Errorf("conflict package name between %q and %q", name, f.Name.Name)
 		}
 
 		for _, imp := range f.Imports {
@@ -84,7 +81,16 @@ func load(path string, fset *token.FileSet, resolver Resolver, visited, stack ma
 			imports[val] = struct{}{}
 		}
 
-		name = f.Name.Name
+		if strings.HasSuffix(fname, "_filetest.gno") {
+			continue
+		}
+
+		pname := strings.TrimSuffix(f.Name.Name, "_test")
+		if name != "" && name != pname {
+			return nil, fmt.Errorf("conflict package name between %q and %q", name, f.Name.Name)
+		}
+
+		name = pname
 	}
 
 	pkgs := []Package{}

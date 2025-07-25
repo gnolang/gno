@@ -1,0 +1,44 @@
+# Load the packages and start the node
+loadpkg gno.land/p/testing/pure_package $WORK/pure_package
+loadpkg gno.land/r/testing/realm_caller $WORK/realm_caller
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/testing/realm_caller -func Set -args 42 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK'
+
+gnokey query vm/qeval --data "gno.land/r/testing/realm_caller.Get()"
+stdout '0 int' # Works as expected
+
+-- pure_package/pure_package.gno --
+package pure_package
+
+var Fo = &FooObject{value: 0}
+
+type FooObject struct {
+	value int
+}
+
+func (fo *FooObject) Set(value int) {
+	fo.value = value
+}
+
+func (fo *FooObject) Get() int {
+	return fo.value
+}
+
+
+-- realm_caller/realm_caller.gno --
+package realm_caller
+
+import (
+	pkg "gno.land/p/testing/pure_package"
+)
+
+func Set(cur realm, value int) {
+	pkg.Fo.Set(value)
+}
+
+func Get() int {
+	return pkg.Fo.Get()
+}

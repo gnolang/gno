@@ -3,8 +3,8 @@
 gno test -v . -update-golden-tests
 
 ! stdout .+ # stdout should be empty
-stderr '=== RUN   file/x_filetest.gno'
-stderr '--- PASS: file/x_filetest.gno \(\d+\.\d\ds\)'
+stderr '=== RUN   ./x_filetest.gno'
+stderr '--- PASS: ./x_filetest.gno \(\d+\.\d\ds\)'
 stderr 'ok      \. 	\d+\.\d\ds'
 
 cmp x_filetest.gno x_filetest.gno.golden
@@ -15,7 +15,7 @@ package xx
 
 var x int
 
-func main() {
+func main(cur realm) {
 	x = 1
 }
 
@@ -27,18 +27,24 @@ package xx
 
 var x int
 
-func main() {
+func main(cur realm) {
 	x = 1
 }
 
 // Realm:
-// switchrealm["gno.land/r/xx"]
-// u[aea84df38908f9569d0f552575606e6e6e7e22dd:2]=
-//     @@ -19,6 +19,7 @@
+// finalizerealm["gno.land/r/xx"]
+// u[aea84df38908f9569d0f552575606e6e6e7e22dd:3](5)=
+//     @@ -2,11 +2,12 @@
+//          "ObjectInfo": {
+//              "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:3",
+//              "LastObjectSize": "216",
+//     -        "ModTime": "0",
+//     +        "ModTime": "5",
+//              "OwnerID": "aea84df38908f9569d0f552575606e6e6e7e22dd:2",
+//              "RefCount": "1"
 //          },
-//          "Values": [
-//              {
-//     +            "N": "AQAAAAAAAAA=",
-//                  "T": {
-//                      "@type": "/gno.PrimitiveType",
-//                      "value": "32"
+//          "Value": {
+//     +        "N": "AQAAAAAAAAA=",
+//              "T": {
+//                  "@type": "/gno.PrimitiveType",
+//                  "value": "32"

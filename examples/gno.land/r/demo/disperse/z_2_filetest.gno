@@ -1,27 +1,31 @@
 // PKGPATH: gno.land/r/demo/main
 
-// SEND: 300ugnot
+// SEND: 100ugnot
 
 package main
 
 import (
 	"std"
-	"testing"
 
 	"gno.land/r/demo/disperse"
 )
 
 func main() {
+	mainAddr := std.DerivePkgAddr("gno.land/r/demo/main")
 	disperseAddr := std.DerivePkgAddr("gno.land/r/demo/disperse")
-	mainaddr := std.DerivePkgAddr("gno.land/r/demo/main")
-
-	testing.SetOriginCaller(mainaddr)
+	beneficiary1 := std.Address("g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0")
+	beneficiary2 := std.Address("g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c")
 
 	banker := std.NewBanker(std.BankerTypeRealmSend)
+	println("main balance before send:", banker.GetCoins(mainAddr))
+	println("disperse balance before send:", banker.GetCoins(disperseAddr))
 
-	banker.SendCoins(mainaddr, disperseAddr, std.Coins{{"ugnot", 100}})
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/disperse"))
-	disperse.DisperseUgnotString("g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0,g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c", "150,50")
+	banker.SendCoins(mainAddr, disperseAddr, std.Coins{{"ugnot", 100}})
+	println("main balance after send:", banker.GetCoins(mainAddr))
+	println("disperse balance after send:", banker.GetCoins(disperseAddr))
+
+	addressesStr := beneficiary1.String() + "," + beneficiary2.String()
+	disperse.DisperseUgnotString(cross, addressesStr, "150,50")
 }
 
 // Error:

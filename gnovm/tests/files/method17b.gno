@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/gnolang/gno/_test/time"
+	"filetests/extern/time"
 )
 
 type MyTime struct {

@@ -4,7 +4,7 @@
     [
       {
         "type": "category",
-        "label": "Use gno.land",
+        "label": "Use Gno.land",
         "items": [
           "users/discover-gnoland",
           "users/explore-with-gnoweb",
@@ -16,7 +16,7 @@
       },
       {
         "type": "category",
-        "label": "Build on gno.land",
+        "label": "Build on Gno.land",
         "items": [
           "builders/what-is-gnolang",
           "builders/anatomy-of-a-gno-package",
@@ -31,20 +31,20 @@
         "type": "category",
         "label": "Resources",
         "items": [
-          {
-            "type": "link",
-            "label": "Awesome Gno",
-            "href": "https://github.com/gnoverse/awesome-gno"
-          },
           "resources/effective-gno",
           "resources/gno-packages",
           "resources/gnoland-networks",
           "resources/users-and-teams",
           "resources/gas-fees",
           "resources/gno-stdlibs",
-          "resources/glossary",
+          "resources/configuring-gno-projects",
           "resources/gno-testing",
+          "resources/realms",
+          "resources/gno-interrealm",
+          "resources/gno-memory-model",
+          "resources/glossary",
           "resources/go-gno-compatibility",
+          "resources/gnoconnect",
           {
             "type": "link",
             "label": "Gno Examples",
@@ -54,6 +54,11 @@
             "type": "link",
             "label": "Gno Workshops",
             "href": "https://github.com/gnolang/workshops"
+          },
+          {
+            "type": "link",
+            "label": "Awesome Gno",
+            "href": "https://github.com/gnoverse/awesome-gno"
           }
         ]
       }

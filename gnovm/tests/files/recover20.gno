@@ -13,4 +13,4 @@ func main() {
 // Stacktrace:
 // panic: nil pointer dereference
 // main<VPBlock(1,0)>()
-//     main/files/recover20.gno:5
+//     main/recover20.gno:5

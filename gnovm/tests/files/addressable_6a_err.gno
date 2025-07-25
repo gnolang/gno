@@ -7,4 +7,7 @@ func main() {
 }
 
 // Error:
-// main/files/addressable_6a_err.gno:6:10: cannot take address of i<VPBlock(1,0)>.((const-type int))
+// illegal assignment X expression type *gnolang.TypeAssertExpr
+
+// TypeCheckError:
+// main/addressable_6a_err.gno:6:11: invalid operation: cannot take address of i.(int) (comma, ok expression of type int)

@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
-	"testing"
+	testing "testing/base"
 )
 
 var htmlEscaper = strings.NewReplacer(

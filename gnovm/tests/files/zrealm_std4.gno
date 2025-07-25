@@ -1,17 +1,17 @@
-// PKGPATH: gno.land/r/std_test
-package std_test
+// PKGPATH: gno.land/r/std
+package std
 
 import (
 	"gno.land/r/demo/tests"
 )
 
-func main() {
-	println("test1", tests.CurrentRealmPath())
+func main(cur realm) {
+	println("test1", tests.CurrentRealmPath(cross))
 	func() {
-		println("test2", tests.CurrentRealmPath())
+		println("test2", tests.CurrentRealmPath(cross))
 	}()
 	x := tests.CurrentRealmPath
-	println("test3", x())
+	println("test3", x(cross))
 }
 
 // Output:

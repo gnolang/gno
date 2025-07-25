@@ -6,4 +6,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/shift_e8.gno:5:2: invalid operation: invalid shift count: (const (1.25 <untyped> bigdec))
+// main/shift_e8.gno:5:2-12: invalid operation: invalid shift count: (const (1.25 <untyped> bigdec))
+
+// TypeCheckError:
+// main/shift_e8.gno:5:8: 1.25 (untyped float constant) truncated to uint

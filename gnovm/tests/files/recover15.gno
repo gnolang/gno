@@ -1,14 +1,13 @@
 package main
 
-
 func main() {
-    defer func() {
-    		r := recover()
-    		println("recover:", r)
-    }()
+	defer func() {
+		r := recover()
+		println("recover:", r)
+	}()
 
-    var i any = "hello"
-    _ = i.(int) // Panics because i holds a string, not an int
+	var i any = "hello"
+	_ = i.(int) // Panics because i holds a string, not an int
 }
 
 // Output:

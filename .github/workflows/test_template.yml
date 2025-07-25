@@ -10,6 +10,9 @@ on:
       go-version:
         required: true
         type: string
+      tests-ts-seq: # execute txtar sequentially
+        required: false
+        type: boolean
       tests-extra-args:
         required: false
         type: string
@@ -30,17 +33,18 @@ jobs:
       - name: Go test
         working-directory: ${{ inputs.modulepath }}
         env:
+          SEQ_TS: ${{ inputs.tests-ts-seq }}
           TXTARCOVERDIR: /tmp/txtarcoverdir # txtar cover output
           GOCOVERDIR: /tmp/gocoverdir # go cover output
           COVERDIR: /tmp/coverdir # final output
         run: |
           set -x # print commands
-          
+
           mkdir -p "$GOCOVERDIR" "$TXTARCOVERDIR" "$COVERDIR"
-          
+
           # Craft a filter flag based on the module path to avoid expanding coverage on unrelated tags.
           export filter="-pkg=github.com/gnolang/gno/${{ inputs.modulepath }}/..."
-          
+
           # codecov only supports "boolean" coverage (whether a line is
           # covered or not); so using -covermode=count or atomic would be
           # pointless here.
@@ -49,13 +53,13 @@ jobs:
           # 1.23 regarding coverage, so we can use this as a workaround until
           # then.
           go test -covermode=set -timeout ${{ inputs.tests-timeout }} ${{ inputs.tests-extra-args }} ./... -test.gocoverdir=$GOCOVERDIR
-          
+
           # Print results
           (set +x; echo 'go coverage results:')
           go tool covdata percent $filter -i=$GOCOVERDIR
           (set +x; echo 'txtar coverage results:')
           go tool covdata percent $filter -i=$TXTARCOVERDIR
-          
+
           # Generate final coverage output
           go tool covdata textfmt -v 1 $filter -i=$GOCOVERDIR,$TXTARCOVERDIR -o gocoverage.out
 

@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
 	"gno.land/r/demo/tests"
@@ -12,11 +12,11 @@ func init() {
 	somevalue.Field = "test"
 }
 
-func main() {
+func main(cur realm) {
 	// NOTE: but it is invalid to modify it using an external realm function.
-	tests.ModifyTestRealmObject(&somevalue)
+	tests.ModifyTestRealmObject(cross, &somevalue)
 	println(somevalue)
 }
 
 // Error:
-// cannot modify external-realm or non-realm object
+// cannot directly modify readonly tainted object (w/o method): t<VPBlock(1,1)>.Field

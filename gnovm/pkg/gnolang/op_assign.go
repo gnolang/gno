@@ -12,7 +12,7 @@ func (m *Machine) doOpDefine() {
 		nx := s.Lhs[i].(*NameExpr)
 		// Finally, define (or assign if loop block).
 		ptr := lb.GetPointerToMaybeHeapDefine(m.Store, nx)
-		if !m.PreprocessorMode && isUntyped(rvs[i].T) && rvs[i].T.Kind() != BoolKind {
+		if m.Stage != StagePre && isUntyped(rvs[i].T) && rvs[i].T.Kind() != BoolKind {
 			panic("untyped conversion should not happen at runtime")
 		}
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
@@ -28,7 +28,7 @@ func (m *Machine) doOpAssign() {
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
 		// Pop lhs value and desired type.
 		lv := m.PopAsPointer(s.Lhs[i])
-		if !m.PreprocessorMode && isUntyped(rvs[i].T) && rvs[i].T.Kind() != BoolKind {
+		if m.Stage != StagePre && isUntyped(rvs[i].T) && rvs[i].T.Kind() != BoolKind {
 			panic("untyped conversion should not happen at runtime")
 		}
 		lv.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)

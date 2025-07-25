@@ -2,9 +2,8 @@ package db
 
 import (
 	"fmt"
+	"maps"
 	"slices"
-
-	"golang.org/x/exp/maps"
 )
 
 type BackendType string
@@ -67,9 +66,7 @@ func InternalRegisterDBCreator(backend BackendType, creator dbCreator, force boo
 
 // BackendList returns a list of available db backends. The list is sorted.
 func BackendList() []BackendType {
-	keys := maps.Keys(backends)
-	slices.Sort(keys)
-	return keys
+	return slices.Sorted(maps.Keys(backends))
 }
 
 // NewDB creates a new database of type backend with the given name.

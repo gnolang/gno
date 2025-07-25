@@ -22,4 +22,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/add_a1.gno:21:10: invalid operation: mismatched types main.Error1 and main.Error2
+// main/add_a1.gno:21:10-31: invalid operation: (const (0 main.Error1)) + (const (0 main.Error2)) (mismatched types main.Error1 and main.Error2)
+
+// TypeCheckError:
+// main/add_a1.gno:21:10: invalid operation: Error1(0) + Error2(0) (mismatched types Error1 and Error2)

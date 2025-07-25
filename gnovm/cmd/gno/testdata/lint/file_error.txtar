@@ -15,9 +15,10 @@ func TestIHaveSomeError() {
 	fmt.Println("Hello", 42)
 }
 
--- gno.mod --
-module gno.land/p/test
+-- gnomod.toml --
+module = "gno.land/p/test"
 
 -- stdout.golden --
 -- stderr.golden --
-i_have_error_test.gno:6:7: name undefined_variable not declared (code=2)
+i_have_error_test.gno:6:7: undefined: undefined_variable (code=gnoTypeCheckError)
+i_have_error_test.gno:6:2: declared and not used: i (code=gnoTypeCheckError)

@@ -11,4 +11,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0f14.gno:10:10: cannot use [2]string as [2]int
+// main/eql_0f14.gno:10:10-16: cannot use [2]string as [2]int
+
+// TypeCheckError:
+// main/eql_0f14.gno:10:15: invalid operation: a == c (mismatched types [2]string and [2]int)

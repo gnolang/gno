@@ -6,7 +6,6 @@ var (
 	b [2]*B
 )
 
-
 type A struct {
 	A string
 }
@@ -16,7 +15,7 @@ type B struct {
 }
 
 func init() {
- 	c := B{
+	c := B{
 		A: a,
 		B: "c",
 	}
@@ -29,14 +28,14 @@ func init() {
 	b[1] = &d
 }
 
-func main() {
+func main(cur realm,) {
 	b[0] = nil
 	b[1] = nil
 }
 
 // Realm:
-// switchrealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:5]=
+// finalizerealm["gno.land/r/test"]
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7](-260)=
 //     @@ -8,16 +8,6 @@
 //                          "@type": "/gno.RefType",
 //                          "ID": "gno.land/r/test.B"
@@ -46,15 +45,15 @@ func main() {
 //     -                "@type": "/gno.PointerValue",
 //     -                "Base": {
 //     -                    "@type": "/gno.RefValue",
-//     -                    "Escaped": true,
-//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7"
+//     -                    "Hash": "ff7ee2df0e65a933be3dce7550bf361d29e83bc0",
+//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:11"
 //     -                },
 //     -                "Index": "0",
 //     -                "TV": null
 //                  }
 //              },
 //              {
-//     @@ -27,22 +17,12 @@
+//     @@ -27,23 +17,13 @@
 //                          "@type": "/gno.RefType",
 //                          "ID": "gno.land/r/test.B"
 //                      }
@@ -63,55 +62,35 @@ func main() {
 //     -                "@type": "/gno.PointerValue",
 //     -                "Base": {
 //     -                    "@type": "/gno.RefValue",
-//     -                    "Escaped": true,
-//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7"
+//     -                    "Hash": "ff020e571a6e197bf9ed4e90057ba19a576e0622",
+//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:13"
 //     -                },
-//     -                "Index": "1",
+//     -                "Index": "0",
 //     -                "TV": null
 //                  }
 //              }
 //          ],
 //          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5",
-//     -        "ModTime": "6",
-//     +        "ModTime": "9",
-//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
+//              "LastObjectSize": "582",
+//     -        "ModTime": "10",
+//     +        "ModTime": "14",
+//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
 //              "RefCount": "1"
 //          }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4](0)=
 //     @@ -3,8 +3,8 @@
-//          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
 //              "IsEscaped": true,
-//     -        "ModTime": "0",
-//     -        "RefCount": "2"
-//     +        "ModTime": "9",
-//     +        "RefCount": "0"
-//          },
-//          "Parent": {
-//              "@type": "/gno.RefValue",
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]=
-//     @@ -2,8 +2,8 @@
-//          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
-//              "IsEscaped": true,
-//     -        "ModTime": "8",
+//              "LastObjectSize": "340",
+//     -        "ModTime": "12",
 //     -        "RefCount": "3"
-//     +        "ModTime": "9",
+//     +        "ModTime": "14",
 //     +        "RefCount": "1"
 //          },
 //          "Value": {
 //              "T": {
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:6]=
-//     @@ -4,7 +4,7 @@
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
-//              "IsEscaped": true,
-//              "ModTime": "9",
-//     -        "RefCount": "4"
-//     +        "RefCount": "3"
-//          },
-//          "Parent": {
-//              "@type": "/gno.RefValue",
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:7]
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:8]
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:9]
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:11](-335)
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:12](-444)
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:13](-335)
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:14](-444)

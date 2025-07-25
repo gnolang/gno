@@ -123,7 +123,9 @@ func (mbt MembersByTier) RemoveMember(addr std.Address) (t string) {
 		}
 
 		_, removed := mst.Remove(string(addr))
-		t = tn
+		if removed {
+			t = tn
+		}
 		return removed
 	})
 

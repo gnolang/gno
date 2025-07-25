@@ -55,7 +55,7 @@ func (rs *Roles) CreateRole(name string) (*Role, error) {
 		return nil, ErrNameRole
 	}
 
-	if !rs.Ownable.CallerIsOwner() {
+	if !rs.Ownable.OwnedByCurrent() {
 		return nil, ErrNotOwner
 	}
 
@@ -104,7 +104,7 @@ func (rs *Roles) GrantRole(name string, account std.Address) error {
 		return ErrRoleNotFound
 	}
 
-	if !r.Ownable.CallerIsOwner() {
+	if !r.Ownable.OwnedByCurrent() {
 		return ErrNotOwner
 	}
 
@@ -122,7 +122,7 @@ func (rs *Roles) GrantRole(name string, account std.Address) error {
 		RoleGrantedEvent,
 		"roleName", r.Name,
 		"account", account.String(),
-		"sender", std.PreviousRealm().Address().String(),
+		"sender", std.CurrentRealm().Address().String(),
 	)
 
 	return nil
@@ -135,7 +135,7 @@ func (rs *Roles) RevokeRole(name string, account std.Address) error {
 		return ErrRoleNotFound
 	}
 
-	if !r.Ownable.CallerIsOwner() {
+	if !r.Ownable.OwnedByCurrent() {
 		return ErrNotOwner
 	}
 
@@ -157,7 +157,7 @@ func (rs *Roles) RevokeRole(name string, account std.Address) error {
 		RoleRevokedEvent,
 		"roleName", r.Name,
 		"account", account.String(),
-		"sender", std.PreviousRealm().Address().String(),
+		"sender", std.CurrentRealm().Address().String(),
 	)
 
 	return nil

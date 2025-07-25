@@ -1,2 +1,0 @@
-go test fuzz v1
-[]byte("package A\nimgno.lAn\nB\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"gno.lAnd\"\n\"gno.lAnd\")")

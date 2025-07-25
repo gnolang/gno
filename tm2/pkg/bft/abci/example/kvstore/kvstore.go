@@ -50,7 +50,7 @@ func prefixKey(key []byte) []byte {
 	return append(kvPairPrefixKey, key...)
 }
 
-//---------------------------------------------------
+// ---------------------------------------------------
 
 var _ abci.Application = (*KVStoreApplication)(nil)
 
@@ -137,6 +137,5 @@ func (app *KVStoreApplication) Query(reqQuery abci.RequestQuery) (resQuery abci.
 }
 
 func (app *KVStoreApplication) Close() error {
-	app.state.db.Close()
-	return nil
+	return app.state.db.Close()
 }

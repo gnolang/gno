@@ -10,4 +10,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0f21.gno:9:10: [2]main.f is not comparable
+// main/eql_0f21.gno:9:10-16: [2]main.f is not comparable
+
+// TypeCheckError:
+// main/eql_0f21.gno:9:10: invalid operation: a == b ([2]f cannot be compared)
