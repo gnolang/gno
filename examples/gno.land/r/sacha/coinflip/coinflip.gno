@@ -6,15 +6,17 @@ import (
 	"gno.land/r/sacha/config"
 )
 
-var denom string
-
 type Bet struct {
     Address string
     Result bool
     Amount int64
 }
 
-var latestBets = []Bet{}
+var (
+	latestBets = []Bet{}
+	denom string
+)
+
 
 func init() {
 	denom = "ugnot"
