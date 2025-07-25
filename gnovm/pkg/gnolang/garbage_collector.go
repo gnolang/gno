@@ -42,7 +42,6 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		if debug {
 			debug.Printf("GasConsumed for GC: %v\n", gasCPU)
 		}
-		visitCount = 0
 		if m.GasMeter != nil {
 			m.GasMeter.ConsumeGas(gasCPU, "GC")
 		}
