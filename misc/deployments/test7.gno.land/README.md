@@ -4,6 +4,17 @@ This deployment folder contains minimal information needed to launch a full test
 
 Below is the information relating to the `genesis.json`, how to download it or generate it independently.
 
+## Important Notice
+
+Due to an issue on the `master` branch at the moment, custom package metadata deployers and genesis signatures are
+incompatible. This means that if signature verification is turned on when starting the node, it will cause a panic.
+
+Make sure to run the node using:
+
+```shell
+gnoland start --skip-genesis-sig-verification --genesis genesis.json
+```
+
 ## `genesis.json`
 
 The initial `genesis.json` validator set is consisted of 1 entity (4 validators in total):
@@ -49,7 +60,7 @@ Some configuration params are required, while others are advised to be set.
 
 ---
 
-## test6 `genesis.json` download
+## test7 `genesis.json` download
 
 You can download the full `genesis.json` using the following steps:
 
@@ -57,12 +68,12 @@ You can download the full `genesis.json` using the following steps:
 wget -O genesis.json https://gno-testnets-genesis.s3.eu-central-1.amazonaws.com/test7/genesis.json
 ```
 
-The `shasum` hash of the `genesis.json` should be `TODO`.
+The `shasum` hash of the `genesis.json` should be `2d6a50de6b1d1dd1ec76fdb6be4e0021d5048ccb19071cac45c8670ff42993dd`.
 Verify it by running:
 
 ```sh
 shasum -a 256 genesis.json
-TODO  genesis.json
+2d6a50de6b1d1dd1ec76fdb6be4e0021d5048ccb19071cac45c8670ff42993dd  genesis.json
 ```
 
 **NOTE**: Keep in mind that the generated genesis.json checksum will differ from the downloaded one,
