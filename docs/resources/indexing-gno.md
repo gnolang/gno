@@ -15,7 +15,7 @@ Indexers resolve this paradox by transforming sequential blockchain data into qu
 
 ### Core Definition
 
-An indexer is a tool that transforms raw blockchain data query-optimized databases by:
+An indexer is a tool that transforms raw blockchain data to query-optimized databases by:
 
 1. **Processing** each transaction as blocks are created
 2. **Extracting** key relationships (addresses, contracts, events)
@@ -23,5 +23,29 @@ An indexer is a tool that transforms raw blockchain data query-optimized databas
 4. **Maintaining** real-time synchronization with the chain
 
 This creates a "database view" of the blockchain while preserving its decentralized nature.
+
+### Use case example
+- Real-Time Wallet Balance Tracking
+- DeFi Dashboard Analytics
+- DAO Governance Monitoring
+- Smart Contract Debugging
+
+## [`tx-indexer`](https://github.com/gnolang/tx-indexer) - Official implementation of [Tendermint2 (TM2)](https://github.com/tendermint/tendermint2) Indexer
+
+`tx-indexer` is a tool designed to index TM2 chain data (As GnoLand) and serve it over RPC, facilitating efficient data retrieval and management in TM2 networks.
+
+### Key Features
+
+- Support of GraphQL 
+- **JSON-RPC 2.0 Specification Server**: Utilizes the JSON-RPC 2.0 standard for request / response handling.
+- **HTTP and WebSocket Support**: Handles both HTTP POST requests and WS connections.
+- **2-Way WS Communication**: Subscribe and receive data updates asynchronously over WebSocket connections.
+- **Concurrent Chain Indexing**: Utilizes asynchronous workers for fast and efficient indexing. Data is available for serving as soon as it is fetched from the remote chain.
+- **Embedded Database**: Features PebbleDB for quick on-disk data access and migration.
+
+## Installation
+Follow official [installation guide](https://github.com/gnolang/tx-indexer?tab=readme-ov-file#getting-started) on `tx-indexer` README.
+
+## Implement Custom TM2 Indexer
 
 
