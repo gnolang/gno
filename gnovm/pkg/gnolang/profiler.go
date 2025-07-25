@@ -70,12 +70,16 @@ type Profiler struct {
 type FuncProfile struct {
 	Name         string
 	CallCount    int64
-	TotalCycles  int64
+	TotalCycles  int64 // Cumulative: includes time in called functions
+	SelfCycles   int64 // Flat: only time spent in this function
 	TotalTime    time.Duration
 	SelfTime     time.Duration
 	AllocBytes   int64
 	AllocObjects int64
 	Children     map[string]*FuncProfile
+
+	// Track entry cycles for calculating self time
+	entryCycles int64
 }
 
 // NewProfiler creates a new profiler instance
@@ -171,6 +175,7 @@ func (p *Profiler) RecordFuncEnter(m *Machine, funcName string) {
 		p.funcProfiles[funcName] = prof
 	}
 	prof.CallCount++
+	prof.entryCycles = m.Cycles // Store entry cycles
 
 	// Debug: print function entry
 	// fmt.Printf("PROFILE: Enter %s (count: %d)\n", funcName, prof.CallCount)
@@ -190,7 +195,10 @@ func (p *Profiler) RecordFuncExit(m *Machine, funcName string, cycles int64) {
 	}
 
 	if prof, ok := p.funcProfiles[funcName]; ok {
-		prof.TotalCycles += cycles
+		// Calculate self cycles (flat time)
+		selfCycles := m.Cycles - prof.entryCycles
+		prof.SelfCycles += selfCycles
+		prof.TotalCycles += cycles // This should be the total including sub-calls
 	}
 }
 
@@ -253,8 +261,10 @@ func (p *Profiler) generateSamples() {
 			Value: []int64{prof.CallCount, prof.TotalCycles},
 			Label: make(map[string][]string),
 			NumLabel: map[string][]int64{
-				"calls":  {prof.CallCount},
-				"cycles": {prof.TotalCycles},
+				"calls":       {prof.CallCount},
+				"cycles":      {prof.TotalCycles},
+				"flat_cycles": {prof.SelfCycles},
+				"cum_cycles":  {prof.TotalCycles},
 			},
 			SampleType: p.profile.Type,
 		}
@@ -287,8 +297,10 @@ func (p *Profile) WriteTo(w io.Writer) error {
 
 	// Print top functions
 	fmt.Fprintf(w, "Top Functions:\n")
-	fmt.Fprintf(w, "%-60s %12s %12s\n", "Function", "Calls", "Cycles")
-	fmt.Fprintf(w, "%s\n", strings.Repeat("-", 86))
+	fmt.Fprintf(w, "%-50s %12s %12s %12s %12s\n", "Function", "Flat", "Flat%", "Cum", "Cum%")
+	fmt.Fprintf(w, "%s\n", strings.Repeat("-", 100))
+
+	totalCycles := p.totalCycles()
 
 	for i, sample := range p.Samples {
 		if i >= 20 { // Show top 20
@@ -298,12 +310,35 @@ func (p *Profile) WriteTo(w io.Writer) error {
 		funcName := "unknown"
 		if len(sample.Location) > 0 {
 			funcName = sample.Location[0].Function
+			if len(funcName) > 50 {
+				funcName = funcName[:47] + "..."
+			}
 		}
 
-		calls := sample.NumLabel["calls"][0]
-		cycles := sample.NumLabel["cycles"][0]
+		flatCycles := int64(0)
+		cumCycles := int64(0)
 
-		fmt.Fprintf(w, "%-60s %12d %12d\n", funcName, calls, cycles)
+		if flatVal, ok := sample.NumLabel["flat_cycles"]; ok && len(flatVal) > 0 {
+			flatCycles = flatVal[0]
+		} else if cyclesVal, ok := sample.NumLabel["cycles"]; ok && len(cyclesVal) > 0 {
+			flatCycles = cyclesVal[0]
+		}
+
+		if cumVal, ok := sample.NumLabel["cum_cycles"]; ok && len(cumVal) > 0 {
+			cumCycles = cumVal[0]
+		} else if cyclesVal, ok := sample.NumLabel["cycles"]; ok && len(cyclesVal) > 0 {
+			cumCycles = cyclesVal[0]
+		}
+
+		flatPercent := float64(0)
+		cumPercent := float64(0)
+		if totalCycles > 0 {
+			flatPercent = float64(flatCycles) / float64(totalCycles) * 100
+			cumPercent = float64(cumCycles) / float64(totalCycles) * 100
+		}
+
+		fmt.Fprintf(w, "%-50s %12d %11.2f%% %12d %11.2f%%\n",
+			funcName, flatCycles, flatPercent, cumCycles, cumPercent)
 	}
 
 	return nil

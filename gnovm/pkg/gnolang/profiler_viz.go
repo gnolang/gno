@@ -171,8 +171,8 @@ func (p *Profile) WriteTopList(w io.Writer) error {
 	maxBarWidth := 50
 
 	// Print header
-	fmt.Fprintf(w, "%-50s %12s %12s %8s %s\n", "Function", "Cycles", "Calls", "Percent", "Graph")
-	fmt.Fprintf(w, "%s\n", strings.Repeat("-", 120))
+	fmt.Fprintf(w, "%-40s %12s %12s %12s %12s %8s %s\n", "Function", "Flat", "Flat%", "Cum", "Cum%", "Calls", "Graph")
+	fmt.Fprintf(w, "%s\n", strings.Repeat("-", 130))
 
 	// Print top 20 functions
 	for i, sample := range sortedSamples {
@@ -183,32 +183,43 @@ func (p *Profile) WriteTopList(w io.Writer) error {
 		funcName := "unknown"
 		if len(sample.Location) > 0 {
 			funcName = sample.Location[0].Function
-			if len(funcName) > 50 {
-				funcName = funcName[:47] + "..."
+			if len(funcName) > 40 {
+				funcName = funcName[:37] + "..."
 			}
 		}
 
 		calls := int64(0)
-		cycles := int64(0)
+		flatCycles := int64(0)
+		cumCycles := int64(0)
 
 		if callsVal, ok := sample.NumLabel["calls"]; ok && len(callsVal) > 0 {
 			calls = callsVal[0]
 		}
-		if cyclesVal, ok := sample.NumLabel["cycles"]; ok && len(cyclesVal) > 0 {
-			cycles = cyclesVal[0]
+		if flatVal, ok := sample.NumLabel["flat_cycles"]; ok && len(flatVal) > 0 {
+			flatCycles = flatVal[0]
+		} else if cyclesVal, ok := sample.NumLabel["cycles"]; ok && len(cyclesVal) > 0 {
+			// Fallback for compatibility
+			flatCycles = cyclesVal[0]
+		}
+		if cumVal, ok := sample.NumLabel["cum_cycles"]; ok && len(cumVal) > 0 {
+			cumCycles = cumVal[0]
+		} else if cyclesVal, ok := sample.NumLabel["cycles"]; ok && len(cyclesVal) > 0 {
+			// Fallback for compatibility
+			cumCycles = cyclesVal[0]
 		}
 
-		percentage := float64(cycles) / float64(totalCycles) * 100
+		flatPercent := float64(flatCycles) / float64(totalCycles) * 100
+		cumPercent := float64(cumCycles) / float64(totalCycles) * 100
 
-		// Create visual bar
-		barWidth := int(percentage * float64(maxBarWidth) / 100)
-		if barWidth < 1 && percentage > 0 {
+		// Create visual bar based on cumulative percentage
+		barWidth := int(cumPercent * float64(maxBarWidth) / 100)
+		if barWidth < 1 && cumPercent > 0 {
 			barWidth = 1
 		}
 		bar := strings.Repeat("█", barWidth)
 
-		fmt.Fprintf(w, "%-50s %12d %12d %7.2f%% %s\n",
-			funcName, cycles, calls, percentage, bar)
+		fmt.Fprintf(w, "%-40s %12d %11.2f%% %12d %11.2f%% %12d %s\n",
+			funcName, flatCycles, flatPercent, cumCycles, cumPercent, calls, bar)
 	}
 
 	// Print summary

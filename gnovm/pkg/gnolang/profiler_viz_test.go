@@ -20,8 +20,10 @@ func createTestProfile() *Profile {
 				},
 				Value: []int64{100, 50000}, // 100 calls, 50000 cycles
 				NumLabel: map[string][]int64{
-					"calls":  {100},
-					"cycles": {50000},
+					"calls":       {100},
+					"cycles":      {50000},
+					"flat_cycles": {40000}, // 80% self time
+					"cum_cycles":  {50000}, // 100% total time
 				},
 				SampleType: ProfileCPU,
 			},
@@ -31,8 +33,10 @@ func createTestProfile() *Profile {
 				},
 				Value: []int64{50, 30000}, // 50 calls, 30000 cycles
 				NumLabel: map[string][]int64{
-					"calls":  {50},
-					"cycles": {30000},
+					"calls":       {50},
+					"cycles":      {30000},
+					"flat_cycles": {15000}, // 50% self time
+					"cum_cycles":  {30000}, // 100% total time
 				},
 				SampleType: ProfileCPU,
 			},
@@ -42,8 +46,10 @@ func createTestProfile() *Profile {
 				},
 				Value: []int64{200, 20000}, // 200 calls, 20000 cycles
 				NumLabel: map[string][]int64{
-					"calls":  {200},
-					"cycles": {20000},
+					"calls":       {200},
+					"cycles":      {20000},
+					"flat_cycles": {20000}, // 100% self time (leaf function)
+					"cum_cycles":  {20000}, // 100% total time
 				},
 				SampleType: ProfileCPU,
 			},
@@ -99,6 +105,11 @@ func TestProfileWriteTopList(t *testing.T) {
 		t.Error("Missing header in top list output")
 	}
 
+	// Check for flat and cum columns
+	if !strings.Contains(output, "Flat") || !strings.Contains(output, "Cum") {
+		t.Error("Missing Flat/Cum column headers")
+	}
+
 	// Check that functions are sorted by cycles (fibonacci should be first)
 	lines := strings.Split(output, "\n")
 	fibonacciFound := false
@@ -110,6 +121,10 @@ func TestProfileWriteTopList(t *testing.T) {
 			// Check visual bar exists
 			if !strings.Contains(line, "█") {
 				t.Error("Missing visual bar for fibonacci")
+			}
+			// Check that the line contains percentage values
+			if !strings.Contains(line, "%") {
+				t.Error("Missing percentage values for fibonacci")
 			}
 		}
 		if strings.Contains(line, "main.calculate") {
@@ -285,6 +300,62 @@ func TestWriteProfileComparison(t *testing.T) {
 	// Check for new function
 	if !strings.Contains(output, "main.newFunc") || !strings.Contains(output, "NEW") {
 		t.Error("Missing new function indicator")
+	}
+}
+
+// Test flat and cumulative columns
+func TestFlatCumulativeColumns(t *testing.T) {
+	profile := &Profile{
+		Type:          ProfileCPU,
+		DurationNanos: 1000000000,
+		Samples: []ProfileSample{
+			{
+				Location: []ProfileLocation{{Function: "main.parent"}},
+				Value:    []int64{10, 10000},
+				NumLabel: map[string][]int64{
+					"calls":       {10},
+					"flat_cycles": {2000},  // 20% self time
+					"cum_cycles":  {10000}, // 100% total time
+				},
+			},
+			{
+				Location: []ProfileLocation{{Function: "main.child"}},
+				Value:    []int64{10, 8000},
+				NumLabel: map[string][]int64{
+					"calls":       {10},
+					"flat_cycles": {8000}, // 100% self time
+					"cum_cycles":  {8000}, // 100% total time
+				},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	err := profile.WriteTopList(&buf)
+	if err != nil {
+		t.Fatalf("WriteTopList failed: %v", err)
+	}
+
+	output := buf.String()
+
+	// Check that parent function shows different flat vs cumulative
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "main.parent") {
+			// Should show ~20% flat and 100% cumulative
+			if !strings.Contains(line, "2000") {
+				t.Error("Parent function should show 2000 flat cycles")
+			}
+			if !strings.Contains(line, "10000") {
+				t.Error("Parent function should show 10000 cumulative cycles")
+			}
+		}
+		if strings.Contains(line, "main.child") {
+			// Should show 100% for both flat and cumulative
+			if !strings.Contains(line, "8000") {
+				t.Error("Child function should show 8000 cycles")
+			}
+		}
 	}
 }
 
