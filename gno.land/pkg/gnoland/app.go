@@ -464,10 +464,10 @@ func EndBlocker(
 	return func(ctx sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
 		// set the auth params value in the ctx.  The EndBlocker will use InitialGasPrice in
 		// the params to calculate the updated gas price.
-		if acck != nil {
+		// Only update gas price if gas was consumed in this block to avoid
+		// changing AppHash on empty blocks which breaks needProofBlock logic
+		if acck != nil && gpk != nil && ctx.BlockGasMeter().GasConsumed() > 0 {
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
-		}
-		if acck != nil && gpk != nil {
 			auth.EndBlocker(ctx, gpk)
 		}
 		// Check if there was a valset change
