@@ -41,17 +41,9 @@ This creates a "database view" of the blockchain while preserving its decentrali
 - **Concurrent block** processing pipeline
 - **PebbleDB**: embedded storage engine
 
-### **Subscription System**
-The WebSocket-based subscription system enables instant notifications for on-chain activity. This architecture eliminates the need for constant polling, providing efficient real-time updates.
-
-```go
-// WebSocket subscription example
-conn.Subscribe("address:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", func(event Event) {
-    fmt.Printf("New transaction: %v", event.TxHash)
-})
-```
-
 ### **Query Capabilities**
+
+#### GraphQL
 ```graphql
 query {
     transactions(
@@ -69,6 +61,32 @@ query {
         }
     }
 }
+```
+
+#### JSON-RPC
+
+### **Subscription System**
+The WebSocket-based subscription system enables instant notifications for on-chain activity. This architecture eliminates the need for constant polling.
+
+#### GraphQL
+```graphql
+subscription {
+  blocks(filter: {}) {
+    height
+    version
+    chain_id
+    time
+    proposer_address_raw
+  }
+}
+```
+
+#### JSON-RPC
+```go
+// WebSocket subscription example
+conn.Subscribe("address:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", func(event Event) {
+    fmt.Printf("New transaction: %v", event.TxHash)
+})
 ```
 
 ## Installation
