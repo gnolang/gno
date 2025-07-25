@@ -66,8 +66,6 @@ Links can be created using the following syntax:
 [Link text](https://example.com)
 [Link with title](https://example.com "Link title")
 
-XXX: custom CSS for internal/external links and if possible for "in the same realm/namespace".
-
 ### Lists
 
 Unordered lists use asterisks, plus signs, or hyphens:
