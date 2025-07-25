@@ -19,7 +19,7 @@ jobs:
         with:
           go-version: ${{ inputs.go-version }}
       - name: Lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
           working-directory: ${{ inputs.modulepath }}
           args: --config=${{ github.workspace }}/.github/golangci.yml
