@@ -24,6 +24,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      - name: Dump Runner context
+        env:
+          RUNNER_CONTEXT: ${{ toJson(runner) }}
+        run: echo "$RUNNER_CONTEXT"
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Install Go
