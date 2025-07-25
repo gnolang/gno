@@ -102,12 +102,7 @@ func TestStart_Lazy(t *testing.T) {
 			name:           "with 2 skips",
 			additionalArgs: []string{"--skip-genesis-sig-verification", "--skip-failing-genesis-txs"},
 		},
-		/*
-			   {
-					nname:           "without skip-failing-genesis-txs",
-					additionalArgs: []string{},
-				},
-		*/
+		// XXX: {name: "no args", additionalArgs: []string{}}, // not compatible with current genesis.
 	}
 
 	for _, tc := range tests {
