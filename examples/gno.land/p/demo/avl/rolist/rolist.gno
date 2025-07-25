@@ -13,7 +13,7 @@
 //	}
 //
 //	// Create and populate the original list
-//	privateList := list.New()
+//	var privateList list.List
 //	privateList.Append(&User{
 //	    Name:     "Alice",
 //	    Balance:  100,
@@ -32,7 +32,7 @@
 //	}
 //
 //	// Create a read-only view of the list
-//	publicList := rolist.Wrap(list, makeEntrySafeFn)
+//	publicList := rolist.Wrap(privateList, makeEntrySafeFn)
 //
 //	// Safely access the data
 //	value := publicList.Get(0)
