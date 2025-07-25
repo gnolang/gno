@@ -55,14 +55,27 @@ func init() {
 	}
 }
 
+// SetTokenKeys sets the GRC20 token registry keys that the treasury will use.
+func SetTokenKeys(_ realm, keys []string) {
+	// TODO: Replace this by cur.Previous().PkgPath() when it will be implemented.
+	caller := std.PreviousRealm().PkgPath()
+
+	// Check if the caller realm is allowed to set token keys.
+	if !dao.InAllowedDAOs(caller) {
+		panic("this Realm is not allowed to send payment: " + caller)
+	}
+
+	tokenKeys = keys
+}
+
 // Send sends a payment using the treasury instance.
 func Send(_ realm, payment t.Payment) {
-	// NOTE: Replace this by cur.Previous().PkgPath() when it will be implemented.
-	pkgPath := std.PreviousRealm().PkgPath()
+	// TODO: Replace this by cur.Previous().PkgPath() when it will be implemented.
+	caller := std.PreviousRealm().PkgPath()
 
-	// Check if the current realm is allowed to send payments.
-	if !dao.InAllowedDAOs(pkgPath) {
-		panic("this Realm is not allowed to send payment: " + pkgPath)
+	// Check if the caller realm is allowed to send payments.
+	if !dao.InAllowedDAOs(caller) {
+		panic("this Realm is not allowed to send payment: " + caller)
 	}
 
 	// Send the payment using the treasury instance.
@@ -114,15 +127,4 @@ func ListBankerIDs() []string {
 
 func Render(path string) string {
 	return treasury.Render(path)
-}
-
-// TestingSetTokenKeys sets the token registry keys for testing purposes.
-func TestingSetTokenKeys(_ realm, keys []string) {
-	// Ensure that this function can only be called from the treasury/test realm.
-	caller := std.PreviousRealm().PkgPath()
-	if caller != "gno.land/r/gov/dao/v3/treasury/test" {
-		panic("only the treasury/test realm can set token keys, current:" + caller)
-	}
-
-	tokenKeys = keys
 }
