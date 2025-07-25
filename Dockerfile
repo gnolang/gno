@@ -126,6 +126,7 @@ FROM        base AS gnodev
 COPY        --from=build-gnodev /gnoroot/build/gnodev                       /usr/bin/gnodev
 COPY        --from=build-gno /gnoroot/examples                              /gnoroot/examples
 COPY        --from=build-gno /gnoroot/gnovm/stdlibs                         /gnoroot/gnovm/stdlibs
+COPY        --from=build-gno /gnoroot/gnovm/tests/stdlibs                   /gnoroot/gnovm/tests/stdlibs
 COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
 COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
 # gnoweb port exposed by default
@@ -146,7 +147,6 @@ FROM        base AS gnocontribs
 COPY        --from=build-gnobro /gnoroot/build/gnobro                       /usr/bin/gnobro
 COPY        --from=build-contribs /gnoroot/build/gnogenesis                 /usr/bin/gnogenesis
 COPY        --from=build-gno /gnoroot/examples                              /gnoroot/examples
-COPY        --from=build-gno /gnoroot/gnovm/stdlibs                         /gnoroot/gnovm/stdlibs
 COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
 COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
 EXPOSE     22
@@ -166,6 +166,7 @@ FROM        base AS all
 COPY        --from=build-gno /gnoroot/build/*                               /usr/bin/
 COPY        --from=build-gno /gnoroot/examples                              /gnoroot/examples
 COPY        --from=build-gno /gnoroot/gnovm/stdlibs                         /gnoroot/gnovm/stdlibs
+COPY        --from=build-gno /gnoroot/gnovm/tests/stdlibs                   /gnoroot/gnovm/tests/stdlibs
 COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
 COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
 # gofmt is required by `gnokey maketx addpkg`
