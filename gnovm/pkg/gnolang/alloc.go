@@ -12,10 +12,11 @@ import (
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
-	maxBytes int64
-	bytes    int64
-	collect  func() (left int64, ok bool) // gc callback
-	gasMeter store.GasMeter
+	maxBytes     int64
+	bytes        int64
+	maxBytesUsed int64
+	collect      func() (left int64, ok bool) // gc callback
+	gasMeter     store.GasMeter
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -129,11 +130,6 @@ func (alloc *Allocator) Allocate(size int64) {
 		return
 	}
 
-	if alloc.gasMeter != nil {
-		gas := overflow.Mulp(size, GasCostPerByte)
-		alloc.gasMeter.ConsumeGas(gas, "Memory allocation")
-	}
-
 	alloc.bytes += size
 	if alloc.bytes > alloc.maxBytes {
 		if left, ok := alloc.collect(); !ok {
@@ -147,6 +143,14 @@ func (alloc *Allocator) Allocate(size int64) {
 				panic("allocation limit exceeded")
 			}
 		}
+	}
+	if alloc.bytes > alloc.maxBytesUsed {
+		if alloc.gasMeter != nil {
+			change := alloc.bytes - alloc.maxBytesUsed
+			alloc.gasMeter.ConsumeGas(overflow.Mulp(change, GasCostPerByte), "memory allocation")
+		}
+
+		alloc.maxBytesUsed = alloc.bytes
 	}
 }
 
