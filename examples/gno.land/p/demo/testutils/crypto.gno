@@ -12,5 +12,5 @@ func TestAddress(name string) std.Address {
 	blanks := "____________________"
 	copy(addr[:], []byte(blanks))
 	copy(addr[:], []byte(name))
-	return std.Address(std.EncodeBech32("g", addr))
+	return std.Address(std.EncodeBech32("g", addr[:]))
 }
