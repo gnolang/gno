@@ -24,28 +24,97 @@ An indexer is a tool that transforms raw blockchain data to query-optimized data
 
 This creates a "database view" of the blockchain while preserving its decentralized nature.
 
-### Use case example
-- Real-Time Wallet Balance Tracking
-- DeFi Dashboard Analytics
-- DAO Governance Monitoring
-- Smart Contract Debugging
+### Key Capabilities
+| Capability           | Use Cases                                                                 |
+|----------------------|---------------------------------------------------------------------------|
+| **Real-Time Indexing** | • Wallet balance updates<br>• Exchange transaction monitoring<br>• Live dashboards |
+| **Historical Indexing** | • Regulatory compliance<br>• Smart contract debugging<br>• Chain analytics |
+| **Event Extraction** | • DeFi liquidation alerts<br>• DAO governance tracking<br>• Custom notifications |
+| **State Snapshots**  | • NFT provenance tracking<br>• DeFi performance metrics<br>• Historical queries |
 
-## [`tx-indexer`](https://github.com/gnolang/tx-indexer) - Official implementation of [Tendermint2 (TM2)](https://github.com/tendermint/tendermint2) Indexer
 
-`tx-indexer` is a tool designed to index TM2 chain data (As GnoLand) and serve it over RPC, facilitating efficient data retrieval and management in TM2 networks.
+## [`tx-indexer`](https://github.com/gnolang/tx-indexer): The official [TM2](https://github.com/tendermint/tendermint2) Indexer
 
-### Key Features
+`tx-indexer` is the reference implementation for Tendermint2 chains like Gno.land, providing:
+- Dual-protocol API server: **JSON-RPC 2.0** + **GraphQL**
+- **HTTP and WebSocket Support**
+- **Concurrent block** processing pipeline
+- **PebbleDB**: embedded storage engine
 
-- Support of GraphQL 
-- **JSON-RPC 2.0 Specification Server**: Utilizes the JSON-RPC 2.0 standard for request / response handling.
-- **HTTP and WebSocket Support**: Handles both HTTP POST requests and WS connections.
-- **2-Way WS Communication**: Subscribe and receive data updates asynchronously over WebSocket connections.
-- **Concurrent Chain Indexing**: Utilizes asynchronous workers for fast and efficient indexing. Data is available for serving as soon as it is fetched from the remote chain.
-- **Embedded Database**: Features PebbleDB for quick on-disk data access and migration.
+### **Subscription System**
+The WebSocket-based subscription system enables instant notifications for on-chain activity. This architecture eliminates the need for constant polling, providing efficient real-time updates.
+
+```go
+// WebSocket subscription example
+conn.Subscribe("address:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", func(event Event) {
+    fmt.Printf("New transaction: %v", event.TxHash)
+})
+```
+
+### **Query Capabilities**
+```graphql
+query {
+    transactions(
+        filter: {
+            sender: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+            fromHeight: 10000
+            toHeight: 20000
+        }
+    ) {
+        hash
+        timestamp
+        messages {
+            type
+            data
+        }
+    }
+}
+```
 
 ## Installation
 Follow official [installation guide](https://github.com/gnolang/tx-indexer?tab=readme-ov-file#getting-started) on `tx-indexer` README.
 
 ## Implement Custom TM2 Indexer
 
+
+## Building Custom Indexers
+
+### Step-by-Step Development Guide
+
+1. **Define Your Data Model**
+   ```go
+   type NFTIndex struct {
+       TokenID     string
+       Owner       string
+       MetadataURI string
+       MintHeight  int64
+   }
+   ```
+
+2. **Implement the Processor**
+   ```go
+   func (n *NFTIndexer) ProcessBlock(block *types.Block) error {
+       for _, tx := range block.Txs {
+           if isNFTMint(tx) {
+               nft := extractNFT(tx)
+               n.store.Put(nft.TokenID, nft)
+               n.ownerIndex.Add(nft.Owner, nft.TokenID)
+           }
+       }
+       return nil
+   }
+   ```
+
+3. **Add Query Support**
+   ```go
+   func (n *NFTIndexer) GetNFTsByOwner(owner string) ([]NFTIndex, error) {
+       tokenIDs := n.ownerIndex.Get(owner)
+       var nfts []NFTIndex
+       for _, id := range tokenIDs {
+           nft, _ := n.store.Get(id)
+           nfts = append(nfts, nft)
+       }
+       return nfts, nil
+   }
+   ```
 
