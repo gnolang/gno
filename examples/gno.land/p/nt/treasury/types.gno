@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/list"
 	"gno.land/p/demo/mux"
 )
 
@@ -17,7 +18,7 @@ type Treasury struct {
 // bankerRecord holds a Banker and its payment history.
 type bankerRecord struct {
 	banker  Banker
-	history []Payment
+	history list.List // List of Payment.
 }
 
 // Banker is an interface that allows for banking operations.
