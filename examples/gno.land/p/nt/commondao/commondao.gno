@@ -168,6 +168,10 @@ func (dao CommonDAO) GetProposal(proposalID uint64) *Proposal {
 }
 
 // Vote submits a new vote for a proposal.
+//
+// By default votes are only allowed to members of the DAO when the proposal is active,
+// and within the voting period. No votes are allowed once the voting deadline passes.
+// DAO deadline checks can optionally be disabled using the `DisableVotingDeadlineCheck` option.
 func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice, reason string) error {
 	if !dao.Members().Has(member) {
 		return ErrNotMember
@@ -216,6 +220,9 @@ func (dao *CommonDAO) Tally(proposalID uint64) (passes bool, _ error) {
 }
 
 // Execute executes a proposal.
+//
+// By default active proposals can only be executed after their voting deadline passes.
+// DAO deadline checks can optionally be disabled using the `DisableVotingDeadlineCheck` option.
 func (dao *CommonDAO) Execute(proposalID uint64) error {
 	p := dao.activeProposals.Get(proposalID)
 	if p == nil {
