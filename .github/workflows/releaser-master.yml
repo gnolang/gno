@@ -41,7 +41,7 @@ jobs:
           if [[ "${{ steps.release-mode.outputs.mode }}" == "release" ]]; then
             git tag v0.0.0 master
           else
-            git tag v0.0.0-test HEAD
+            git tag v0.0.0 HEAD
           fi
 
       - uses: actions/setup-go@v5
