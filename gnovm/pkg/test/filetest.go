@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"runtime/debug"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -182,6 +183,9 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			match(dir, pre)
 		case DirectiveStacktrace:
 			match(dir, result.GnoStacktrace)
+		case DirectiveStorage:
+			rlmDiff := realmDiffsString(m.Store.RealmStorageDiffs())
+			match(dir, rlmDiff)
 		case DirectiveTypeCheckError:
 			hasTypeCheckErrorDirective = true
 			match(dir, result.TypeCheckError)
@@ -202,6 +206,21 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	}
 
 	return "", returnErr
+}
+
+// returns a sorted string representation of realm diffs map
+func realmDiffsString(m map[string]int64) string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var sb strings.Builder
+	for _, k := range keys {
+		sb.WriteString(fmt.Sprintf("%s: %d\n", k, m[k]))
+	}
+	return sb.String()
 }
 
 func trimTrailingSpaces(in string) string {
@@ -244,6 +263,9 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 	pkgName := gno.Name(pkgPath[strings.LastIndexByte(pkgPath, '/')+1:])
 	tcError := ""
 	fname = filepath.Base(fname)
+	if opts.tcCache == nil {
+		opts.tcCache = make(gno.TypeCheckCache)
+	}
 
 	// Eagerly load imports.
 	// LoadImports is run using opts.Store, rather than the transaction store;
@@ -315,7 +337,12 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 		// Validate Gno syntax and type check.
 		if tcheck {
-			if _, err := gno.TypeCheckMemPackage(mpkg, m.Store, m.Store, gno.TCLatestRelaxed); err != nil {
+			if _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
+				Getter:     m.Store,
+				TestGetter: m.Store,
+				Mode:       gno.TCLatestRelaxed,
+				Cache:      opts.tcCache,
+			}); err != nil {
 				tcError = fmt.Sprintf("%v", err.Error())
 			}
 		}
@@ -349,7 +376,12 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.Store = txs
 		// Validate Gno syntax and type check.
 		if tcheck {
-			if _, err := gno.TypeCheckMemPackage(mpkg, m.Store, m.Store, gno.TCLatestRelaxed); err != nil {
+			if _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
+				Getter:     m.Store,
+				TestGetter: m.Store,
+				Mode:       gno.TCLatestRelaxed,
+				Cache:      opts.tcCache,
+			}); err != nil {
 				tcError = fmt.Sprintf("%v", err.Error())
 			}
 		}
@@ -395,6 +427,7 @@ const (
 	DirectiveEvents         = "Events"
 	DirectivePreprocessed   = "Preprocessed"
 	DirectiveStacktrace     = "Stacktrace"
+	DirectiveStorage        = "Storage"
 	DirectiveTypeCheckError = "TypeCheckError"
 )
 
@@ -408,6 +441,7 @@ var allDirectives = []string{
 	DirectiveEvents,
 	DirectivePreprocessed,
 	DirectiveStacktrace,
+	DirectiveStorage,
 	DirectiveTypeCheckError,
 }
 
