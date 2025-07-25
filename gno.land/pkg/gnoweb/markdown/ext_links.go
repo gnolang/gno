@@ -28,7 +28,7 @@ const (
 	iconExternalLink = "ico-external-link"
 	iconInternalLink = "ico-internal-link"
 	iconTxLink       = "ico-tx-link"
-  iconUserLink     = "ico-tx-user"
+	iconUserLink     = "ico-tx-user"
 
 	// CSS classes for link types
 	classLinkExternal = "link-external"
@@ -206,8 +206,8 @@ func getLinkIcons(n *GnoLink) []linkTypeInfo {
 			icons = append(icons, linkTypeInfo{tooltipExternalLink, iconExternalLink, classLinkExternal})
 		case GnoLinkTypeInternal:
 			icons = append(icons, linkTypeInfo{tooltipInternalLink, iconInternalLink, classLinkInternal})
-    case GnoLinkTypeUser:
-      icons = append(icons, linkTypeInfo{tooltipUserLink, iconUserLink, classLinkUser})
+		case GnoLinkTypeUser:
+			icons = append(icons, linkTypeInfo{tooltipUserLink, iconUserLink, classLinkUser})
 		}
 	}
 
@@ -257,7 +257,7 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 		w.WriteString(`<svg class="w-3 h-3"><use href="#` + icon.iconID + `"></use></svg>`)
 		w.WriteString("</span>")
 	}
-  
+
 	// Write closing tag <a>.
 	w.WriteString("</a>")
 
