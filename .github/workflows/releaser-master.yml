@@ -30,7 +30,7 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             echo "mode=test" >> $GITHUB_OUTPUT
-            echo "args=build --skip=validate" >> $GITHUB_OUTPUT
+            echo "args=build --snapshot --skip=before" >> $GITHUB_OUTPUT
           else
             echo "mode=release" >> $GITHUB_OUTPUT
             echo "args=release --clean --snapshot" >> $GITHUB_OUTPUT
