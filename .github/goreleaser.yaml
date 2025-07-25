@@ -208,6 +208,7 @@ dockers:
       - gno.land/genesis/genesis_txs.jsonl
       - examples
       - gnovm/stdlibs
+      - gnovm/tests/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -229,6 +230,7 @@ dockers:
       - gno.land/genesis/genesis_txs.jsonl
       - examples
       - gnovm/stdlibs
+      - gnovm/tests/stdlibs
 
   # gnokey
   - use: buildx
@@ -354,6 +356,7 @@ dockers:
       - gno.land/genesis/genesis_txs.jsonl
       - examples
       - gnovm/stdlibs
+      - gnovm/tests/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -375,6 +378,7 @@ dockers:
       - gno.land/genesis/genesis_txs.jsonl
       - examples
       - gnovm/stdlibs
+      - gnovm/tests/stdlibs
 
   # gnocontribs
   - use: buildx
@@ -398,7 +402,6 @@ dockers:
       - gno.land/genesis/genesis_balances.txt
       - gno.land/genesis/genesis_txs.jsonl
       - examples
-      - gnovm/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -420,7 +423,6 @@ dockers:
       - gno.land/genesis/genesis_balances.txt
       - gno.land/genesis/genesis_txs.jsonl
       - examples
-      - gnovm/stdlibs
 
 docker_manifests:
   # https://goreleaser.com/customization/docker_manifest/
