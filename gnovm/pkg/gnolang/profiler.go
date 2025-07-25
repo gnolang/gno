@@ -63,7 +63,16 @@ type Profiler struct {
 	funcProfiles map[string]*FuncProfile
 	callStack    []string
 
+	// Stack samples for call tree
+	stackSamples []stackSample
+
 	mu sync.Mutex
+}
+
+// stackSample represents a single stack trace sample
+type stackSample struct {
+	stack  []string
+	cycles int64
 }
 
 // FuncProfile represents profiling data for a single function
@@ -177,6 +186,16 @@ func (p *Profiler) RecordFuncEnter(m *Machine, funcName string) {
 	prof.CallCount++
 	prof.entryCycles = m.Cycles // Store entry cycles
 
+	// Update parent-child relationships
+	if len(p.callStack) > 1 {
+		parentName := p.callStack[len(p.callStack)-2]
+		if parentProf, ok := p.funcProfiles[parentName]; ok {
+			if _, exists := parentProf.Children[funcName]; !exists {
+				parentProf.Children[funcName] = prof
+			}
+		}
+	}
+
 	// Debug: print function entry
 	// fmt.Printf("PROFILE: Enter %s (count: %d)\n", funcName, prof.CallCount)
 }
@@ -189,6 +208,18 @@ func (p *Profiler) RecordFuncExit(m *Machine, funcName string, cycles int64) {
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
+	// Record stack sample
+	if len(p.callStack) > 0 && p.opCount%p.sampleRate == 0 {
+		// Make a copy of the current call stack
+		stackCopy := make([]string, len(p.callStack))
+		copy(stackCopy, p.callStack)
+
+		p.stackSamples = append(p.stackSamples, stackSample{
+			stack:  stackCopy,
+			cycles: cycles,
+		})
+	}
 
 	if len(p.callStack) > 0 {
 		p.callStack = p.callStack[:len(p.callStack)-1]
@@ -253,6 +284,32 @@ func (p *Profiler) buildCallStack(m *Machine) []ProfileLocation {
 
 // generateSamples converts function profiles to profile samples
 func (p *Profiler) generateSamples() {
+	// First, add stack samples for call tree visualization
+	for _, stackSample := range p.stackSamples {
+		if len(stackSample.stack) == 0 {
+			continue
+		}
+
+		// Build locations from stack (reverse order for proper hierarchy)
+		locations := make([]ProfileLocation, 0, len(stackSample.stack))
+		for i := len(stackSample.stack) - 1; i >= 0; i-- {
+			locations = append(locations, ProfileLocation{
+				Function: stackSample.stack[i],
+			})
+		}
+
+		sample := ProfileSample{
+			Location:   locations,
+			Value:      []int64{1, stackSample.cycles}, // 1 sample, N cycles
+			Label:      make(map[string][]string),
+			NumLabel:   make(map[string][]int64),
+			SampleType: p.profile.Type,
+		}
+
+		p.profile.Samples = append(p.profile.Samples, sample)
+	}
+
+	// Then add individual function summaries
 	for _, prof := range p.funcProfiles {
 		sample := ProfileSample{
 			Location: []ProfileLocation{{

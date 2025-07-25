@@ -154,9 +154,9 @@ func TestProfileWriteFlameGraph(t *testing.T) {
 		Samples: []ProfileSample{
 			{
 				Location: []ProfileLocation{
-					{Function: "main.inner"},
-					{Function: "main.middle"},
 					{Function: "main.outer"},
+					{Function: "main.middle"},
+					{Function: "main.inner"},
 				},
 				Value: []int64{10, 1000},
 			},
@@ -187,18 +187,18 @@ func TestProfileWriteCallTree(t *testing.T) {
 		Samples: []ProfileSample{
 			{
 				Location: []ProfileLocation{
-					{Function: "main.leaf1"},
-					{Function: "main.branch"},
 					{Function: "main.root"},
+					{Function: "main.branch"},
+					{Function: "main.leaf1"},
 				},
 				Value:    []int64{5, 500},
 				NumLabel: map[string][]int64{"calls": {5}, "cycles": {500}},
 			},
 			{
 				Location: []ProfileLocation{
-					{Function: "main.leaf2"},
-					{Function: "main.branch"},
 					{Function: "main.root"},
+					{Function: "main.branch"},
+					{Function: "main.leaf2"},
 				},
 				Value:    []int64{3, 300},
 				NumLabel: map[string][]int64{"calls": {3}, "cycles": {300}},

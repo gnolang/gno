@@ -42,14 +42,15 @@ func (p *Profile) WriteFlameGraph(w io.Writer) error {
 	stacks := make(map[string]int64)
 
 	for _, sample := range p.Samples {
-		if len(sample.Location) == 0 {
+		// Only process samples with multiple locations (stack traces)
+		if len(sample.Location) <= 1 {
 			continue
 		}
 
-		// Build stack string
+		// Build stack string (already in correct order)
 		var stack []string
-		for i := len(sample.Location) - 1; i >= 0; i-- {
-			stack = append(stack, sample.Location[i].Function)
+		for _, loc := range sample.Location {
+			stack = append(stack, loc.Function)
 		}
 		stackStr := strings.Join(stack, ";")
 
@@ -90,12 +91,14 @@ func (p *Profile) WriteCallTree(w io.Writer) error {
 
 	// Build tree from samples
 	for _, sample := range p.Samples {
-		if len(sample.Location) == 0 {
+		// Only process samples with multiple locations (stack traces)
+		if len(sample.Location) <= 1 {
 			continue
 		}
 
 		current := root
-		for i := len(sample.Location) - 1; i >= 0; i-- {
+		// Traverse from root to leaf (already in correct order)
+		for i := 0; i < len(sample.Location); i++ {
 			funcName := sample.Location[i].Function
 
 			if _, exists := current.children[funcName]; !exists {
@@ -106,7 +109,9 @@ func (p *Profile) WriteCallTree(w io.Writer) error {
 			}
 
 			child := current.children[funcName]
-			if i == 0 && len(sample.Value) > 1 {
+
+			// Add cycles to each node in the path
+			if len(sample.Value) > 1 {
 				child.cycles += sample.Value[1]
 				child.calls += sample.Value[0]
 			}
