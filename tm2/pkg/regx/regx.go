@@ -4,21 +4,36 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 // regx is composed from the Go functions below, meaning they are declared in
 // the code, thus not arbitrary and unbounded, so this cache is reasonable, as
 // long as there is no usage like regx(<client_provided_pattern>).
 // That's why regx isn't exposed; you can't do the above without reflect.
-var cache = make(map[regx]*regexp.Regexp)
+var (
+	cache = make(map[regx]*regexp.Regexp)
+	mu    sync.RWMutex
+)
 
 type regx string // do not expose.
 
 func (rx regx) String() string { return string(rx) }
 
 func (rx regx) Compile() *regexp.Regexp {
-	rr := regexp.MustCompile(string(rx))
+	mu.RLock()
+	rr, ok := cache[rx]
+	mu.RUnlock()
+	if ok {
+		return rr
+	}
+
+	rr = regexp.MustCompile(string(rx))
+
+	mu.Lock()
 	cache[rx] = rr
+	mu.Unlock()
+
 	return rr
 }
 
@@ -46,10 +61,8 @@ func (rx regx) Match(s string) *match {
 		rx = rx + `$`
 	}
 	// s is now canonical w/ ^$.
-	rr, ok := cache[rx]
-	if !ok {
-		rr = rx.Compile()
-	}
+	rr := rx.Compile()
+
 	matches := rr.FindStringSubmatch(s)
 	if matches == nil {
 		return nil
