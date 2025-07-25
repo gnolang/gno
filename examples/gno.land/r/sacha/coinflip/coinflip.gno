@@ -39,7 +39,7 @@ func checkMinBet(betCoins std.Coins) {
 }
 
 func sendPrize(caller std.Address, amount int64) {
-	banker := std.NewBanker(std.BankerTypeOriginSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	wonCoins := std.NewCoins(std.NewCoin(denom, amount))
 
 	banker.SendCoins(std.CurrentRealm().Address(), caller, wonCoins)
