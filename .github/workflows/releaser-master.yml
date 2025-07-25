@@ -40,7 +40,12 @@ jobs:
           fi
 
       - name: Create a dummy tag to avoid goreleaser failure
-        run: git tag v0.0.0 master
+        run: |
+          if [[ "${{ steps.release-mode.outputs.mode }}" == "release" ]]; then
+            git tag v0.0.0 master
+          else
+            git tag v0.0.0-test HEAD
+          fi
 
       - uses: actions/setup-go@v5
         with:
