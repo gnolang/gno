@@ -74,6 +74,9 @@ func (d *Debugger) Enable(in io.Reader, out io.Writer, f func(string, string) st
 // Disable makes the debugger d inactive.
 func (d *Debugger) Disable() {
 	d.enabled = false
+	d.loc = Location{}
+	d.prevLoc = Location{}
+	d.nextLoc = Location{}
 }
 
 type debugCommand struct {
@@ -287,7 +290,11 @@ func (d *Debugger) Serve(addr string) error {
 // debugUpdateLocation computes the source code location for the current VM state.
 // The result is stored in Debugger.DebugLoc.
 func debugUpdateLocation(m *Machine) {
-	loc := m.LastBlock().Source.GetLocation()
+	loc := m.LastBlock().GetSource(m.Store).GetLocation()
+
+	if loc.PkgPath == "repl" {
+		loc.File = "<repl>"
+	}
 
 	if m.Debugger.loc.PkgPath == "" ||
 		loc.PkgPath != "" && loc.PkgPath != m.Debugger.loc.PkgPath ||
