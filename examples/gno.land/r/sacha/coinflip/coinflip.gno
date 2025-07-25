@@ -45,7 +45,7 @@ func checkBet(betCoins std.Coins) {
 
 func sendPrize(caller std.Address, amount int64) {
 	banker := std.NewBanker(std.BankerTypeRealmSend)
-	wonCoins := std.NewCoins(std.NewCoin(denom, amount))
+	wonCoins := std.NewCoins(std.NewCoin(denom, amount * 2))
 
 	banker.SendCoins(std.CurrentRealm().Address(), caller, wonCoins)
 }
@@ -58,7 +58,6 @@ func betLogic(flipResult bool) {
 	checkBet(betCoins)
 
 	if flipResult == true {
-		amount *= 2
 		sendPrize(caller, amount)
 		std.Emit("BetResult", "Result", "win")
 	} else {
