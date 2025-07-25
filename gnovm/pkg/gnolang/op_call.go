@@ -141,6 +141,15 @@ func (m *Machine) doOpCall() {
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
 	fv := fr.Func
+
+	// Record function entry for profiling
+	if m.IsProfilingEnabled() {
+		funcName := string(fv.Name)
+		if fv.PkgPath != "" {
+			funcName = fv.PkgPath + "." + funcName
+		}
+		m.Profiler.RecordFuncEnter(m, funcName)
+	}
 	fs := fv.GetSource(m.Store)
 	ft := fr.Func.GetType(m.Store)
 	// Create new block scope.
@@ -276,6 +285,18 @@ func (m *Machine) maybeFinalize(cfr *Frame) {
 func (m *Machine) doOpReturn() {
 	// Unwind stack.
 	cfr := m.PopUntilLastCallFrame()
+
+	// Record function exit for profiling
+	if m.IsProfilingEnabled() && cfr.Func != nil {
+		funcName := string(cfr.Func.Name)
+		if cfr.Func.PkgPath != "" {
+			funcName = cfr.Func.PkgPath + "." + funcName
+		}
+		// Calculate cycles used in this function
+		cycles := m.Cycles // This is current total cycles
+		m.Profiler.RecordFuncExit(m, funcName, cycles)
+	}
+
 	// Finalize if exiting realm boundary.
 	m.maybeFinalize(cfr)
 	// Reset to before frame.

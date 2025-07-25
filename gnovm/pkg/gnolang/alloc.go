@@ -12,6 +12,10 @@ type Allocator struct {
 	maxBytes int64
 	bytes    int64
 	collect  func() (left int64, ok bool) // gc callback
+
+	// For memory profiling
+	machine   *Machine
+	allocType string // Current allocation type being tracked
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -83,6 +87,12 @@ func (alloc *Allocator) SetGCFn(f func() (int64, bool)) {
 	alloc.collect = f
 }
 
+func (alloc *Allocator) SetMachine(m *Machine) {
+	if alloc != nil {
+		alloc.machine = m
+	}
+}
+
 func (alloc *Allocator) MemStats() string {
 	if alloc == nil {
 		return "nil allocator"
@@ -110,6 +120,8 @@ func (alloc *Allocator) Fork() *Allocator {
 	return &Allocator{
 		maxBytes: alloc.maxBytes,
 		bytes:    alloc.bytes,
+		// Don't copy machine reference in Fork to avoid circular dependencies
+		// machine:  alloc.machine,
 	}
 }
 
@@ -133,59 +145,91 @@ func (alloc *Allocator) Allocate(size int64) {
 			}
 		}
 	}
+
+	// Record allocation for profiling
+	if alloc != nil && alloc.machine != nil && alloc.machine.Profiler != nil && alloc.machine.Profiler.enabled {
+		alloc.machine.Profiler.RecordAlloc(alloc.machine, size, 1, "")
+	}
+}
+
+// allocateWithType allocates memory and records the type for profiling
+func (alloc *Allocator) allocateWithType(size int64, allocType string) {
+	if alloc == nil {
+		return
+	}
+
+	alloc.bytes += size
+	if alloc.bytes > alloc.maxBytes {
+		if left, ok := alloc.collect(); !ok {
+			panic("should not happen, allocation limit exceeded while gc.")
+		} else { // retry
+			if debug {
+				debug.Printf("%d left after GC, required size: %d\n", left, size)
+			}
+			alloc.bytes += size
+			if alloc.bytes > alloc.maxBytes {
+				panic("allocation limit exceeded")
+			}
+		}
+	}
+
+	// Record allocation for profiling with type
+	if alloc.machine != nil && alloc.machine.Profiler != nil && alloc.machine.Profiler.enabled {
+		alloc.machine.Profiler.RecordAlloc(alloc.machine, size, 1, allocType)
+	}
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
-	alloc.Allocate(allocString + allocStringByte*size)
+	alloc.allocateWithType(allocString+allocStringByte*size, "string")
 }
 
 func (alloc *Allocator) AllocatePointer() {
-	alloc.Allocate(allocPointer)
+	alloc.allocateWithType(allocPointer, "pointer")
 }
 
 func (alloc *Allocator) AllocateDataArray(size int64) {
-	alloc.Allocate(allocArray + size)
+	alloc.allocateWithType(allocArray+size, "data_array")
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
-	alloc.Allocate(allocArray + allocArrayItem*items)
+	alloc.allocateWithType(allocArray+allocArrayItem*items, "array")
 }
 
 func (alloc *Allocator) AllocateSlice() {
-	alloc.Allocate(allocSlice)
+	alloc.allocateWithType(allocSlice, "slice")
 }
 
 // NOTE: fields must be allocated separately.
 func (alloc *Allocator) AllocateStruct() {
-	alloc.Allocate(allocStruct)
+	alloc.allocateWithType(allocStruct, "struct")
 }
 
 func (alloc *Allocator) AllocateStructFields(fields int64) {
-	alloc.Allocate(allocStructField * fields)
+	alloc.allocateWithType(allocStructField*fields, "struct_fields")
 }
 
 func (alloc *Allocator) AllocateFunc() {
-	alloc.Allocate(allocFunc)
+	alloc.allocateWithType(allocFunc, "func")
 }
 
 func (alloc *Allocator) AllocateMap(items int64) {
-	alloc.Allocate(allocMap + allocMapItem*items)
+	alloc.allocateWithType(allocMap+allocMapItem*items, "map")
 }
 
 func (alloc *Allocator) AllocateMapItem() {
-	alloc.Allocate(allocMapItem)
+	alloc.allocateWithType(allocMapItem, "map_item")
 }
 
 func (alloc *Allocator) AllocateBoundMethod() {
-	alloc.Allocate(allocBoundMethod)
+	alloc.allocateWithType(allocBoundMethod, "bound_method")
 }
 
 func (alloc *Allocator) AllocateBlock(items int64) {
-	alloc.Allocate(allocBlock + allocBlockItem*items)
+	alloc.allocateWithType(allocBlock+allocBlockItem*items, "block")
 }
 
 func (alloc *Allocator) AllocateBlockItems(items int64) {
-	alloc.Allocate(allocBlockItem * items)
+	alloc.allocateWithType(allocBlockItem*items, "block_items")
 }
 
 /* NOTE: Not used, account for with AllocatePointer.
@@ -195,11 +239,11 @@ func (alloc *Allocator) AllocateDataByte() {
 */
 
 func (alloc *Allocator) AllocateType() {
-	alloc.Allocate(allocType)
+	alloc.allocateWithType(allocType, "type")
 }
 
 func (alloc *Allocator) AllocateHeapItem() {
-	alloc.Allocate(allocHeapItem)
+	alloc.allocateWithType(allocHeapItem, "heap_item")
 }
 
 //----------------------------------------

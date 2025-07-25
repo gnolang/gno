@@ -46,6 +46,9 @@ type Machine struct {
 	Store    Store
 	Context  any
 	GasMeter store.GasMeter
+
+	// Profiling
+	Profiler *Profiler
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -127,6 +130,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Alloc = alloc
 	if mm.Alloc != nil {
 		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
+		mm.Alloc.SetMachine(mm)
 	}
 	mm.Output = output
 	mm.Store = store
@@ -1299,6 +1303,9 @@ func (m *Machine) Run(st Stage) {
 			m.doOpEnterCrossing()
 		case OpCall:
 			m.incrCPU(OpCPUCall)
+			if m.IsProfilingEnabled() {
+				m.Profiler.RecordOp(m, op, OpCPUCall)
+			}
 			m.doOpCall()
 		case OpCallNativeBody:
 			m.incrCPU(OpCPUCallNativeBody)
