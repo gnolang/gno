@@ -22,26 +22,22 @@ func (m *Machine) doOpEval() {
 	if debug {
 		debug.Printf("EVAL: (%T) %v\n", x, x)
 	}
-	// This case moved out of switch for performance.
-	// TODO: understand this better.
-	if nx, ok := x.(*NameExpr); ok {
+	switch x := x.(type) {
+	case *NameExpr:
 		m.PopExpr()
-		if nx.Path.Depth == 0 {
+		if x.Path.Depth == 0 {
 			// Name is in uverse (global).
-			gv := Uverse().GetBlock(nil).GetPointerTo(nil, nx.Path)
+			gv := Uverse().GetBlock(nil).GetPointerTo(nil, x.Path)
 			m.PushValue(gv.Deref())
 			return
 		} else {
 			// Get value from scope.
 			lb := m.LastBlock()
 			// Push value, done.
-			ptr := lb.GetPointerTo(m.Store, nx.Path)
+			ptr := lb.GetPointerTo(m.Store, x.Path)
 			m.PushValue(ptr.Deref())
 			return
 		}
-	}
-	switch x := x.(type) {
-	// case NameExpr: handled above
 	case *BasicLitExpr:
 		m.PopExpr()
 		switch x.Kind {
