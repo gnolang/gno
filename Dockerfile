@@ -1,7 +1,7 @@
 # build gno
 FROM        golang:1.23-alpine AS build-gno
 ENV         GNOROOT="/gnoroot"
-ENV         CGO_ENABLED=0 GOOS=linux 
+ENV         CGO_ENABLED=0 GOOS=linux
 WORKDIR     /gnoroot
 RUN         go env -w GOMODCACHE=/root/.cache/go-build
 # Mod files
@@ -47,13 +47,16 @@ RUN         --mount=type=cache,target=/go/pkg/mod/,id=gnodev-modcache \
             --mount=type=cache,target=/root/.cache/go-build,id=gnodev-buildcache \
             go build \
             -ldflags "-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=/gnoroot" \
-            -o /gnoroot/build/gnodev ./cmd/gnodev
+            -o /gnoroot/build/gnodev .
+
 # Gnobro build
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=gnodev-modcache \
-            --mount=type=cache,target=/root/.cache/go-build,id=gnodev-buildcache \
+FROM        build-gno AS build-gnobro
+WORKDIR     /gnoroot/contribs/gnobro
+RUN         --mount=type=cache,target=/go/pkg/mod/,id=gnobro-modcache \
+            --mount=type=cache,target=/root/.cache/go-build,id=gnobro-buildcache \
             go build \
             -ldflags "-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=/gnoroot" \
-            -o /gnoroot/build/gnobro ./cmd/gnobro
+            -o /gnoroot/build/gnobro .
 
 # Gnocontribs
 ## Gnogenesis
@@ -140,7 +143,7 @@ ENTRYPOINT  ["/usr/bin/gno"]
 # Gno Contribs [ Gnobro, Gnogenesis ]
 ## ghcr.io/gnolang/gnocontribs
 FROM        base AS gnocontribs
-COPY        --from=build-gnodev      /gnoroot/build/gnobro /usr/bin/gnobro
+COPY        --from=build-gnobro /gnoroot/build/gnobro /usr/bin/gnobro
 COPY        --from=build-contribs /gnoroot/build/gnogenesis /usr/bin/gnogenesis
 COPY        --from=build-gno /gnoroot/examples      /gnoroot/examples
 COPY        --from=build-gno /gnoroot/gnovm/stdlibs /gnoroot/gnovm/stdlibs
