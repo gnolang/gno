@@ -153,10 +153,16 @@ func (p *Profile) WriteTopList(w io.Writer) error {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	fmt.Fprintf(w, "Top Functions by CPU Cycles\n")
-	fmt.Fprintf(w, "===========================\n\n")
+	// Adjust title based on profile type
+	if p.Type == ProfileMemory {
+		fmt.Fprintf(w, "Top Functions by Memory Allocation\n")
+		fmt.Fprintf(w, "==================================\n\n")
+	} else {
+		fmt.Fprintf(w, "Top Functions by CPU Cycles\n")
+		fmt.Fprintf(w, "===========================\n\n")
+	}
 
-	// Sort samples by cycles
+	// Sort samples by primary metric (cycles for CPU, bytes for memory)
 	sortedSamples := make([]ProfileSample, len(p.Samples))
 	copy(sortedSamples, p.Samples)
 
@@ -168,16 +174,25 @@ func (p *Profile) WriteTopList(w io.Writer) error {
 	})
 
 	totalCycles := p.totalCycles()
-	if totalCycles == 0 {
+	if p.Type == ProfileCPU && totalCycles == 0 {
 		fmt.Fprintf(w, "No CPU cycles recorded\n")
+		return nil
+	}
+	if p.Type == ProfileMemory && p.totalMemory() == 0 {
+		fmt.Fprintf(w, "No memory allocations recorded\n")
 		return nil
 	}
 
 	maxBarWidth := 50
 
-	// Print header
-	fmt.Fprintf(w, "%-40s %12s %12s %12s %12s %8s %s\n", "Function", "Flat", "Flat%", "Cum", "Cum%", "Calls", "Graph")
-	fmt.Fprintf(w, "%s\n", strings.Repeat("-", 130))
+	// Print header based on profile type
+	if p.Type == ProfileMemory {
+		fmt.Fprintf(w, "%-40s %12s %12s %12s %8s %-10s %s\n", "Function", "Bytes", "Bytes%", "Allocs", "Allocs%", "Type", "Graph")
+		fmt.Fprintf(w, "%s\n", strings.Repeat("-", 130))
+	} else {
+		fmt.Fprintf(w, "%-40s %12s %12s %12s %12s %8s %s\n", "Function", "Flat", "Flat%", "Cum", "Cum%", "Calls", "Graph")
+		fmt.Fprintf(w, "%s\n", strings.Repeat("-", 130))
+	}
 
 	// Print top 20 functions
 	for i, sample := range sortedSamples {
@@ -193,43 +208,88 @@ func (p *Profile) WriteTopList(w io.Writer) error {
 			}
 		}
 
-		calls := int64(0)
-		flatCycles := int64(0)
-		cumCycles := int64(0)
+		if p.Type == ProfileMemory {
+			// Memory profile display
+			bytes := int64(0)
+			allocs := int64(0)
+			allocType := "unknown"
 
-		if callsVal, ok := sample.NumLabel["calls"]; ok && len(callsVal) > 0 {
-			calls = callsVal[0]
-		}
-		if flatVal, ok := sample.NumLabel["flat_cycles"]; ok && len(flatVal) > 0 {
-			flatCycles = flatVal[0]
-		} else if cyclesVal, ok := sample.NumLabel["cycles"]; ok && len(cyclesVal) > 0 {
-			// Fallback for compatibility
-			flatCycles = cyclesVal[0]
-		}
-		if cumVal, ok := sample.NumLabel["cum_cycles"]; ok && len(cumVal) > 0 {
-			cumCycles = cumVal[0]
-		} else if cyclesVal, ok := sample.NumLabel["cycles"]; ok && len(cyclesVal) > 0 {
-			// Fallback for compatibility
-			cumCycles = cyclesVal[0]
-		}
+			if bytesVal, ok := sample.NumLabel["bytes"]; ok && len(bytesVal) > 0 {
+				bytes = bytesVal[0]
+			}
+			if allocsVal, ok := sample.NumLabel["allocations"]; ok && len(allocsVal) > 0 {
+				allocs = allocsVal[0]
+			}
+			if typeLabels, ok := sample.Label["type"]; ok && len(typeLabels) > 0 {
+				allocType = typeLabels[0]
+			}
 
-		flatPercent := float64(flatCycles) / float64(totalCycles) * 100
-		cumPercent := float64(cumCycles) / float64(totalCycles) * 100
+			totalMem := p.totalMemory()
+			totalAllocs := p.totalAllocations()
 
-		// Create visual bar based on cumulative percentage
-		barWidth := int(cumPercent * float64(maxBarWidth) / 100)
-		if barWidth < 1 && cumPercent > 0 {
-			barWidth = 1
+			bytesPercent := float64(0)
+			allocsPercent := float64(0)
+			if totalMem > 0 {
+				bytesPercent = float64(bytes) / float64(totalMem) * 100
+			}
+			if totalAllocs > 0 {
+				allocsPercent = float64(allocs) / float64(totalAllocs) * 100
+			}
+
+			// Create visual bar based on bytes percentage
+			barWidth := int(bytesPercent * float64(maxBarWidth) / 100)
+			if barWidth < 1 && bytesPercent > 0 {
+				barWidth = 1
+			}
+			bar := strings.Repeat("█", barWidth)
+
+			fmt.Fprintf(w, "%-40s %12d %11.2f%% %12d %7.2f%% %-10s %s\n",
+				funcName, bytes, bytesPercent, allocs, allocsPercent, allocType, bar)
+		} else {
+			// CPU profile display (existing code)
+			calls := int64(0)
+			flatCycles := int64(0)
+			cumCycles := int64(0)
+
+			if callsVal, ok := sample.NumLabel["calls"]; ok && len(callsVal) > 0 {
+				calls = callsVal[0]
+			}
+			if flatVal, ok := sample.NumLabel["flat_cycles"]; ok && len(flatVal) > 0 {
+				flatCycles = flatVal[0]
+			} else if cyclesVal, ok := sample.NumLabel["cycles"]; ok && len(cyclesVal) > 0 {
+				// Fallback for compatibility
+				flatCycles = cyclesVal[0]
+			}
+			if cumVal, ok := sample.NumLabel["cum_cycles"]; ok && len(cumVal) > 0 {
+				cumCycles = cumVal[0]
+			} else if cyclesVal, ok := sample.NumLabel["cycles"]; ok && len(cyclesVal) > 0 {
+				// Fallback for compatibility
+				cumCycles = cyclesVal[0]
+			}
+
+			flatPercent := float64(flatCycles) / float64(totalCycles) * 100
+			cumPercent := float64(cumCycles) / float64(totalCycles) * 100
+
+			// Create visual bar based on cumulative percentage
+			barWidth := int(cumPercent * float64(maxBarWidth) / 100)
+			if barWidth < 1 && cumPercent > 0 {
+				barWidth = 1
+			}
+			bar := strings.Repeat("█", barWidth)
+
+			fmt.Fprintf(w, "%-40s %12d %11.2f%% %12d %11.2f%% %12d %s\n",
+				funcName, flatCycles, flatPercent, cumCycles, cumPercent, calls, bar)
 		}
-		bar := strings.Repeat("█", barWidth)
-
-		fmt.Fprintf(w, "%-40s %12d %11.2f%% %12d %11.2f%% %12d %s\n",
-			funcName, flatCycles, flatPercent, cumCycles, cumPercent, calls, bar)
 	}
 
 	// Print summary
-	fmt.Fprintf(w, "\nTotal cycles: %d\n", totalCycles)
-	fmt.Fprintf(w, "Total samples: %d\n", len(p.Samples))
+	if p.Type == ProfileMemory {
+		fmt.Fprintf(w, "\nTotal bytes: %d\n", p.totalMemory())
+		fmt.Fprintf(w, "Total allocations: %d\n", p.totalAllocations())
+	} else {
+		fmt.Fprintf(w, "\nTotal cycles: %d\n", totalCycles)
+		fmt.Fprintf(w, "Total samples: %d\n", len(p.Samples))
+	}
 
 	return nil
 }
@@ -240,6 +300,28 @@ func (p *Profile) totalCycles() int64 {
 	for _, sample := range p.Samples {
 		if len(sample.Value) > 1 {
 			total += sample.Value[1]
+		}
+	}
+	return total
+}
+
+// totalMemory calculates total memory bytes across all samples
+func (p *Profile) totalMemory() int64 {
+	var total int64
+	for _, sample := range p.Samples {
+		if bytes, ok := sample.NumLabel["bytes"]; ok && len(bytes) > 0 {
+			total += bytes[0]
+		}
+	}
+	return total
+}
+
+// totalAllocations calculates total allocation count across all samples
+func (p *Profile) totalAllocations() int64 {
+	var total int64
+	for _, sample := range p.Samples {
+		if allocs, ok := sample.NumLabel["allocations"]; ok && len(allocs) > 0 {
+			total += allocs[0]
 		}
 	}
 	return total

@@ -234,7 +234,7 @@ func (p *Profiler) RecordFuncExit(m *Machine, funcName string, cycles int64) {
 }
 
 // RecordAlloc records memory allocation
-func (p *Profiler) RecordAlloc(m *Machine, size int64, count int64) {
+func (p *Profiler) RecordAlloc(m *Machine, size int64, count int64, allocType string) {
 	if !p.enabled || p.profile.Type != ProfileMemory {
 		return
 	}
@@ -242,22 +242,60 @@ func (p *Profiler) RecordAlloc(m *Machine, size int64, count int64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	stack := p.buildCallStack(m)
-	if len(stack) == 0 {
+	// Sampling for memory allocations
+	p.opCount++
+	if p.opCount%p.sampleRate != 0 {
 		return
 	}
 
-	// Update allocation stats
-	funcName := stack[0].Function
-	if prof, ok := p.funcProfiles[funcName]; ok {
-		prof.AllocBytes += size
-		prof.AllocObjects += count
+	stack := p.buildCallStack(m)
+	if len(stack) == 0 {
+		// If no call stack, create a synthetic entry
+		stack = []ProfileLocation{{
+			Function: "<allocation>",
+		}}
 	}
+
+	// Create memory allocation sample
+	sample := ProfileSample{
+		Location:   stack,
+		Value:      []int64{count, size},
+		Label:      make(map[string][]string),
+		NumLabel:   make(map[string][]int64),
+		SampleType: ProfileMemory,
+	}
+
+	// Add type information if available
+	if allocType != "" {
+		sample.Label["type"] = []string{allocType}
+	}
+
+	sample.NumLabel["allocations"] = []int64{count}
+	sample.NumLabel["bytes"] = []int64{size}
+
+	p.profile.Samples = append(p.profile.Samples, sample)
+
+	// Update function profile stats
+	funcName := stack[0].Function
+	prof, ok := p.funcProfiles[funcName]
+	if !ok {
+		prof = &FuncProfile{
+			Name:     funcName,
+			Children: make(map[string]*FuncProfile),
+		}
+		p.funcProfiles[funcName] = prof
+	}
+	prof.AllocBytes += size
+	prof.AllocObjects += count
 }
 
 // buildCallStack builds a call stack from machine frames
 func (p *Profiler) buildCallStack(m *Machine) []ProfileLocation {
 	var stack []ProfileLocation
+
+	if m == nil {
+		return stack
+	}
 
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		frame := &m.Frames[i]

@@ -125,6 +125,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Alloc = alloc
 	if mm.Alloc != nil {
 		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
+		mm.Alloc.SetMachine(mm)
 	}
 	mm.Output = output
 	mm.Store = store

@@ -248,7 +248,9 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 	// Initialize profiling if enabled
 	if opts.Profile {
-		globalProfiler = gno.NewProfiler(gno.ProfileCPU, 1) // Sample every operation
+		// TODO: Add profile type selection flag
+		// For now, test memory profiling
+		globalProfiler = gno.NewProfiler(gno.ProfileMemory, 1) // Sample every allocation
 		globalProfiler.Start()
 		defer func() {
 			profile := globalProfiler.Stop()
