@@ -724,15 +724,15 @@ func (mv *MapValue) GetLength() int {
 // GetPointerForKey is only used for assignment, so the key
 // is not returned as part of the pointer, and TV is not filled.
 func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
+	keyCopy := key.Copy(alloc)
 	// If NaN, instead of computing map key, just append to List.
 	kmk, isNaN := key.ComputeMapKey(store, false)
 	if !isNaN {
 		if mli, ok := mv.vmap[kmk]; ok {
-			key2 := key.Copy(alloc)
 			// When assigning to a map item, the key is always equal to that of the
 			// last assignment; this is mostly noticeable in the case of -0 / 0:
 			// https://go.dev/play/p/iNPDR4FQlRv
-			mli.Key = key2
+			mli.Key = keyCopy
 			return PointerValue{
 				TV:    fillValueTV(store, &mli.Value),
 				Base:  mv,
@@ -740,7 +740,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 			}
 		}
 	}
-	mli := mv.List.Append(alloc, *key)
+	mli := mv.List.Append(alloc, keyCopy)
 	mv.vmap[kmk] = mli
 	return PointerValue{
 		TV:    fillValueTV(store, &mli.Value),
@@ -1988,8 +1988,9 @@ func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Stor
 		}
 		mv := tv.V.(*MapValue)
 
-		// if key already exist,
-		// no need to attach it.
+		// if a key is getting attached, we should update it with the new one,
+		// as that is the one that matters. this is mostly relevant for -0 / 0.
+		// https://github.com/gnolang/gno/pull/4114
 		var oldObject Object
 		key, isNaN := iv.ComputeMapKey(store, false)
 		if !isNaN {
