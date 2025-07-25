@@ -3,11 +3,15 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -45,7 +49,7 @@ func retryUntilTimeout(ctx context.Context, cb func() bool) error {
 // prepareNodeRPC sets the RPC listen address for the node to be an arbitrary
 // free address. Setting the listen port to a free port on the machine avoids
 // node collisions between different testing suites
-func prepareNodeRPC(t *testing.T, nodeDir string) {
+func prepareNodeRPC(t *testing.T, nodeDir string, addr string) {
 	t.Helper()
 
 	path := constructConfigPath(nodeDir)
@@ -70,21 +74,62 @@ func prepareNodeRPC(t *testing.T, nodeDir string) {
 	// Run config init
 	require.NoError(t, newRootCmd(io).ParseAndRun(ctx, args))
 
-	args = []string{
-		"config",
-		"set",
-		"--config-path",
-		path,
-		"rpc.laddr",
-		"tcp://0.0.0.0:0",
+	args = []string{"config", "set",
+		"--config-path", path,
+		"rpc.laddr", addr,
 	}
 
 	// Run config set
 	require.NoError(t, newRootCmd(io).ParseAndRun(ctx, args))
 }
 
+func getFreePort(t *testing.T, nodeDir string, addr string) {
+	t.Helper()
+
+	path := constructConfigPath(nodeDir)
+	args := []string{
+		"config",
+		"init",
+		"--config-path",
+		path,
+	}
+
+	// Prepare the IO
+	mockOut := new(bytes.Buffer)
+	mockErr := new(bytes.Buffer)
+	io := commands.NewTestIO()
+	io.SetOut(commands.WriteNopCloser(mockOut))
+	io.SetErr(commands.WriteNopCloser(mockErr))
+
+	// Prepare the cmd context
+	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelFn()
+
+	// Run config init
+	require.NoError(t, newRootCmd(io).ParseAndRun(ctx, args))
+
+	args = []string{"config", "set",
+		"--config-path", path,
+		"rpc.laddr", addr,
+	}
+
+	// Run config set
+	require.NoError(t, newRootCmd(io).ParseAndRun(ctx, args))
+}
+
+func shortTempDir(t *testing.T) string {
+	t.Helper()
+
+	dir, err := os.MkdirTemp("/tmp", "socktest-*")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	return dir
+}
+
 func TestStart_Lazy(t *testing.T) {
-	t.Parallel()
+	// Running a full node is cpu consuming
+	// Do run this one in parallel
+	// t.Parallel()
 
 	tests := []struct {
 		name           string
@@ -108,7 +153,10 @@ func TestStart_Lazy(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc // capture range variable
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+			// Generate temp socket filepath for listening.
+			// (Use short path to avoid > 120 char socket path).
+			sockFile := filepath.Join(shortTempDir(t), "rpc.sock")
+			sockAddr := fmt.Sprintf("unix://%s", sockFile)
 
 			var (
 				nodeDir     = t.TempDir()
@@ -116,7 +164,7 @@ func TestStart_Lazy(t *testing.T) {
 			)
 
 			// Prepare the config
-			prepareNodeRPC(t, nodeDir)
+			prepareNodeRPC(t, nodeDir, sockAddr)
 
 			args := []string{
 				"start",
@@ -143,30 +191,69 @@ func TestStart_Lazy(t *testing.T) {
 			io.SetErr(commands.WriteNopCloser(mockErr))
 
 			// Create and run the command
-			ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
+			deadline := time.Now().Add(time.Second * 30)
+			ctx, cancelFn := context.WithDeadline(context.Background(), deadline)
 			defer cancelFn()
 
 			// Set up the command ctx
 			g, gCtx := errgroup.WithContext(ctx)
 
-			// Set up the retry ctx
-			rCtx, rCtxCancelFn := context.WithTimeout(gCtx, 5*time.Second)
-			defer rCtxCancelFn()
-
 			// Start the node
 			g.Go(func() error {
-				err := newRootCmd(io).ParseAndRun(rCtx, args)
-				return err
+				return newRootCmd(io).ParseAndRun(gCtx, args)
 			})
 
-			// This is a very janky way to verify the node has started.
-			// The alternative is to poll the node's RPC endpoints, but for some reason
-			// this introduces a lot of flakyness to the testing suite -- shocking!
-			// In an effort to keep this simple, and avoid randomly failing tests,
-			// we query the CLI output of the command
-			require.NoError(t, retryUntilTimeout(rCtx, func() bool {
-				return !strings.Contains(mockOut.String(), startGraphic)
-			}), g.Wait())
+			t.Logf("node: check for ascii graphic to show up - time left %s", time.Until(deadline))
+
+			// Check that starting ascii graphic display
+			require.Eventuallyf(t, func() bool {
+				return strings.Contains(mockOut.String(), startGraphic)
+			}, time.Until(deadline), time.Millisecond*500,
+				"node: ascii graphic never show up: %s", context.DeadlineExceeded)
+
+			cli, err := client.NewHTTPClient(sockAddr)
+			require.NoError(t, err)
+
+			t.Logf("rpc: get node infos - time left %s", time.Until(deadline))
+
+			// Check that rpc endpoint is correctly listening on our socket
+			var nerr error
+			require.Eventuallyf(t, func() bool {
+				var info *ctypes.ResultABCIInfo
+				if info, nerr = cli.ABCIInfo(); nerr != nil {
+					return false
+				}
+
+				nerr = info.Response.Error
+				return nerr == nil
+			}, time.Until(deadline), time.Millisecond*500,
+				"rpc: unable get node infos: %s", context.DeadlineExceeded)
+
+			t.Logf("rpc: query vm/qpaths - time left %s", time.Until(deadline))
+
+			// Check listing path
+			require.Eventuallyf(t, func() bool {
+				var qres *ctypes.ResultABCIQuery
+				if qres, nerr = cli.ABCIQuery("vm/qpaths", []byte("gno.land")); nerr != nil {
+					t.Logf("query error: %v", nerr)
+					return false
+				}
+
+				if nerr = qres.Response.Error; nerr != nil {
+					return false
+				}
+
+				paths := strings.Split(string(qres.Response.Data), "\n")
+				if len(paths) <= 1 {
+					t.Logf("no package has been loaded")
+					return false
+				}
+
+				return true
+			}, time.Until(deadline), time.Millisecond*500,
+				"rpc: unable to call rpc vm/qpath: %v", context.DeadlineExceeded)
+
+			t.Logf("node: stoping - time left %s", time.Until(deadline))
 
 			cancelFn() // stop the node
 			require.NoError(t, g.Wait())
@@ -189,6 +276,7 @@ func TestStart_Lazy(t *testing.T) {
 			assert.FileExists(t, validatorKeyPath)
 			assert.FileExists(t, validatorStatePath)
 			assert.FileExists(t, nodeKeyPath)
+
 		})
 	}
 }
