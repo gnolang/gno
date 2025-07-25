@@ -114,12 +114,13 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	pkgPath := string(files[0].PkgName)
 	ctx := test.Context("", pkgPath, send)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath: pkgPath,
-		Output:  output,
-		Input:   stdin,
-		Store:   testStore,
-		Context: ctx,
-		Debug:   cfg.debug || cfg.debugAddr != "",
+		PkgPath:       pkgPath,
+		Output:        output,
+		Input:         stdin,
+		Store:         testStore,
+		MaxAllocBytes: maxAllocRun,
+		Context:       ctx,
+		Debug:         cfg.debug || cfg.debugAddr != "",
 	})
 
 	defer m.Release()
@@ -206,3 +207,5 @@ func runExpr(m *gno.Machine, expr string) (err error) {
 	m.Eval(ex)
 	return nil
 }
+
+const maxAllocRun = 100_000_000
