@@ -13,7 +13,7 @@ var (
 )
 
 func init() {
-	testing.SetOriginCaller(owner)
+	testing.SetRealm(std.NewUserRealm(owner))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/chaegnal/organizer"))
 }
 

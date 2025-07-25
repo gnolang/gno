@@ -123,6 +123,10 @@ func displayAdminBoard(group organizer.FriendGroup, logged string) string {
 
 // displayActiveProposals displays every ongoing proposals
 func displayActiveProposals(group organizer.FriendGroup, logged string) string {
+	if group.DAO.ActiveProposals().Size() <= 0 {
+		return "No active proposals" + "\n\n"
+	}
+
 	table := mdtable.Table{
 		Headers: []string{"Title", "Description", "Status", "Votes", "Actions", "Result"},
 	}
@@ -168,6 +172,10 @@ func displayActiveProposals(group organizer.FriendGroup, logged string) string {
 
 // displayClosedProposals displays all the past proposals
 func displayClosedProposals(group organizer.FriendGroup) string {
+	if group.DAO.FinishedProposals().Size() <= 0 {
+		return "No closed proposals yet" + "\n\n"
+	}
+
 	table := mdtable.Table{
 		Headers: []string{"Title", "Description", "Status", "Votes", "Actions", "Result"},
 	}
@@ -194,6 +202,10 @@ func displayClosedProposals(group organizer.FriendGroup) string {
 
 // displayHangouts displays the validated hangouts
 func displayHangouts(group organizer.FriendGroup) string {
+	if group.Hangout.Size() <= 0 {
+		return "No Hangouts yet" + "\n\n"
+	}
+
 	table := mdtable.Table{
 		Headers: []string{"ID", "Date", "Time", "Place", "Description"},
 	}
@@ -237,11 +249,11 @@ func Render(url string) string {
 	out += displayHangouts(group)
 	out += md.HorizontalRule()
 
-	out += md.H2("Active DAOs")
+	out += md.H2("Active Proposals")
 	out += displayActiveProposals(group, logged)
 	out += md.HorizontalRule()
 
-	out += md.H2("Closed DAOs")
+	out += md.H2("Closed Proposals")
 	out += displayClosedProposals(group)
 	out += md.HorizontalRule()
 
