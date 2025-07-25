@@ -143,6 +143,12 @@ type TestOptions struct {
 	Metrics bool
 	// Uses Error to print the events emitted.
 	Events bool
+	// Enable profiling for performance analysis.
+	Profile bool
+	// File to write profiling output.
+	ProfileOutput string
+	// Print profiling output to stdout instead of file.
+	ProfileStdout bool
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -222,6 +228,40 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	opts.outWriter.errW = opts.Error
 
 	var errs error
+	var globalProfiler *gno.Profiler
+
+	// Initialize profiling if enabled
+	if opts.Profile {
+		globalProfiler = gno.NewProfiler(gno.ProfileCPU, 100)
+		globalProfiler.Start()
+		defer func() {
+			profile := globalProfiler.Stop()
+			if profile != nil {
+				if opts.ProfileStdout {
+					// Print to stdout
+					fmt.Fprintln(opts.Output, "\n=== PROFILING RESULTS ===")
+					err := profile.WriteTo(opts.Output)
+					if err != nil {
+						fmt.Fprintf(opts.Error, "Failed to write profile: %v\n", err)
+					}
+				} else {
+					// Write to file
+					file, err := os.Create(opts.ProfileOutput)
+					if err != nil {
+						fmt.Fprintf(opts.Error, "Failed to create profile output file: %v\n", err)
+					} else {
+						defer file.Close()
+						err = profile.WriteTo(file)
+						if err != nil {
+							fmt.Fprintf(opts.Error, "Failed to write profile: %v\n", err)
+						} else {
+							fmt.Fprintf(opts.Error, "Profile written to %s\n", opts.ProfileOutput)
+						}
+					}
+				}
+			}
+		}()
+	}
 
 	// Create a common tcw/tgs for both the `pkg` tests as well as the
 	// `pkg_test` tests. This allows us to "export" symbols from the pkg
@@ -245,6 +285,10 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		// will run the mempackage ourselves in the next line.
 		SkipPackage: true,
 	})
+	// Enable profiling on the machine if profiling is enabled
+	if opts.Profile && globalProfiler != nil {
+		m2.Profiler = globalProfiler
+	}
 	// Filter out xxx_test *_test.gno and *_filetest.gno and run.
 	// If testing with only filetests, there will be no files.
 	tmpkg := gno.MPFTest.FilterMemPackage(mpkg)
@@ -350,6 +394,15 @@ func (opts *TestOptions) runTestFiles(
 	files *gno.FileSet,
 	tgs gno.TransactionStore,
 ) (errs error) {
+	// Get profiler from the test context
+	var globalProfiler *gno.Profiler
+	if opts.Profile {
+		// Use the machine's profiler if it exists
+		testMachine := Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
+		if testMachine.Profiler != nil {
+			globalProfiler = testMachine.Profiler
+		}
+	}
 	var m *gno.Machine
 	defer func() {
 		if r := recover(); r != nil {
@@ -398,6 +451,10 @@ func (opts *TestOptions) runTestFiles(
 		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
+		// Enable profiling on the test machine if profiling is enabled
+		if opts.Profile && globalProfiler != nil {
+			m.Profiler = globalProfiler
+		}
 
 		testingpv := m.Store.GetPackage("testing/base", false)
 		testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
