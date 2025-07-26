@@ -39,6 +39,9 @@ func renderLatestResults() []string {
 			break
 		}
 	}
+	if count == 0 {
+		out = append(out, "No results yet, time to flip a coin!")
+	}
 	return out
 }
 
