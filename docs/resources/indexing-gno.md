@@ -65,8 +65,19 @@ query {
 
 #### JSON-RPC
 
+```json
+{
+  "id": 1,
+  "jsonrpc": "2.0",
+  "method": "getBlock",
+  "params": [
+    "10"
+  ]
+}
+```
+
 ### **Subscription System**
-The WebSocket-based subscription system enables instant notifications for on-chain activity. This architecture eliminates the need for constant polling.
+The subscription system enables instant notifications for on-chain activity. The architecture is WebSocket-based, which eliminates the need for constant polling.
 
 #### GraphQL
 ```graphql
@@ -82,15 +93,19 @@ subscription {
 ```
 
 #### JSON-RPC
-```go
-// WebSocket subscription example
-conn.Subscribe("address:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", func(event Event) {
-    fmt.Printf("New transaction: %v", event.TxHash)
-})
+```json
+{
+  "id": 1,
+  "jsonrpc": "2.0",
+  "method": "subscribe",
+  "params": [
+    "newHeads"
+  ]
+}
 ```
 
 ## Installation
-Follow official [installation guide](https://github.com/gnolang/tx-indexer?tab=readme-ov-file#getting-started) on `tx-indexer` README.
+Follow official [installation guide](https://github.com/gnolang/tx-indexer?tab=readme-ov-file#getting-started) on `tx-indexer` repository.
 
 ## Building Custom Indexers
 
