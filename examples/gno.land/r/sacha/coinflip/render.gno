@@ -16,13 +16,39 @@ func init() {
 	pocInnovationName = "PoCInnovation"
 }
 
+func renderResult(
+	address string,
+	result string,
+	amount string,
+	emoji string,
+) string {
+	addressFmt := "**" + address[:30] + "**: "
+	resultFmt := result + " **" + amount + denom + "** " + emoji
+	return addressFmt + resultFmt
+}
+
+func renderLatestResults() []string {
+	latestsResults := GetLatestResults(cross)
+	out := []string{}
+	count := 0
+
+	for _, result := range latestsResults {
+		out = append(out, renderResult(result[0], result[1], result[3], result[2]))
+		count++
+		if count == 8 {
+			break
+		}
+	}
+	return out
+}
+
 func renderGame() string {
 	out := "# "
 	out += md.Link("Heads", txlink.Call("Heads")) + " or "
 	out += md.Link("Tails", txlink.Call("Tails")) + " ?\n"
 
 	out += md.H3("Latests Results:\n\n")
-	out += GetLatestResults()
+	out += md.BulletList(renderLatestResults())
 
 	return out
 }
@@ -46,7 +72,7 @@ func renderFooter() string {
 
 func renderBalance() string {
 	balance := strconv.Itoa(int(GetRealmBalance(cross)))
-	out := md.H2("Balance: " + balance + " " + denom + "\n")
+	out := md.H2("Balance: " + balance + denom + "\n")
 
 	return out
 }

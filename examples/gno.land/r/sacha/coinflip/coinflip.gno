@@ -81,18 +81,22 @@ func Tails(cur realm) {
 	betLogic(flipResult)
 }
 
-func GetLatestResults() string {
-	out := ""
+func GetLatestResults(cur realm) [][]string {
+	latestResults := [][]string{}
+
 	for _, bet := range latestBets {
-		out += "- **" + bet.Address[:30] + "**: "
+		betStr := []string{bet.Address}
 		if bet.Result == true {
-		    out += "won " + strconv.Itoa(int(bet.Amount)) + denom + " 📈"
+		    betStr = append(betStr, "won")
+			betStr = append(betStr, "📈")
 		} else {
-		    out += "lost " + strconv.Itoa(int(bet.Amount)) + denom + " 📉"
+		    betStr = append(betStr, "lost")
+			betStr = append(betStr, "📉")
 		}
-		out += "\n"
+		betStr = append(betStr, strconv.Itoa(int(bet.Amount)))
+		latestResults = append(latestResults, betStr)
 	}
-	return out;
+	return latestResults;
 }
 
 func GetRealmBalance(cur realm) int64 {
