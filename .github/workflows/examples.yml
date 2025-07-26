@@ -52,7 +52,7 @@ jobs:
           echo "LOG_LEVEL=debug" >> $GITHUB_ENV
           echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> $GITHUB_ENV
       - run: go install -v ./gnovm/cmd/gno
-      - run: go run ./gnovm/cmd/gno test -v -print-runtime-metrics -print-events ./examples/...
+      - run: go run ./gnovm/cmd/gno test -v -print-runtime-metrics -print-events -covermode count ./examples/...
   lint:
     strategy:
       fail-fast: false
