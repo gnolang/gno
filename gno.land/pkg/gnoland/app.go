@@ -470,6 +470,7 @@ func EndBlocker(
 		if acck != nil && gpk != nil {
 			auth.EndBlocker(ctx, gpk)
 		}
+
 		// Check if there was a valset change
 		if len(collector.getEvents()) == 0 {
 			// No valset updates
