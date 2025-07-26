@@ -123,24 +123,6 @@ func (ak AccountKeeper) IterateAccounts(ctx sdk.Context, process func(std.Accoun
 	}
 }
 
-// GetPubKey Returns the PubKey of the account at address
-func (ak AccountKeeper) GetPubKey(ctx sdk.Context, addr crypto.Address) (crypto.PubKey, error) {
-	acc := ak.GetAccount(ctx, addr)
-	if acc == nil {
-		return nil, std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", addr))
-	}
-	return acc.GetPubKey(), nil
-}
-
-// GetSequence Returns the Sequence of the account at address
-func (ak AccountKeeper) GetSequence(ctx sdk.Context, addr crypto.Address) (uint64, error) {
-	acc := ak.GetAccount(ctx, addr)
-	if acc == nil {
-		return 0, std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", addr))
-	}
-	return acc.GetSequence(), nil
-}
-
 // GetNextAccountNumber Returns and increments the global account number counter
 func (ak AccountKeeper) GetNextAccountNumber(ctx sdk.Context) uint64 {
 	var accNumber uint64
@@ -161,8 +143,6 @@ func (ak AccountKeeper) GetNextAccountNumber(ctx sdk.Context) uint64 {
 	return accNumber
 }
 
-// -----------------------------------------------------------------------------
-// Misc.
 func (ak AccountKeeper) decodeAccount(bz []byte) (acc std.Account) {
 	err := amino.Unmarshal(bz, &acc)
 	if err != nil {
@@ -170,6 +150,87 @@ func (ak AccountKeeper) decodeAccount(bz []byte) (acc std.Account) {
 	}
 	return
 }
+
+// -----------------------------------------------------------------------------
+// Session.
+
+// GetSession retrieves a session by its public key
+func (ak AccountKeeper) GetSession(ctx sdk.Context, pubkey crypto.PubKey) std.Session {
+	stor := ctx.GasStore(ak.key)
+	bz := stor.Get(SessionStoreKey(pubkey))
+	if bz == nil {
+		return nil
+	}
+	sess := ak.decodeSession(bz)
+	return sess
+}
+
+// GetAllSessions returns all sessions in the AccountKeeper
+func (ak AccountKeeper) GetAllSessions(ctx sdk.Context) []std.Session {
+	sessions := []std.Session{}
+	appendSession := func(sess std.Session) (stop bool) {
+		sessions = append(sessions, sess)
+		return false
+	}
+	ak.IterateSessions(ctx, appendSession)
+	return sessions
+}
+
+// SetSession stores a session in the AccountKeeper
+func (ak AccountKeeper) SetSession(ctx sdk.Context, sess std.Session) {
+	pubkey := sess.GetPubKey()
+	stor := ctx.GasStore(ak.key)
+	bz, err := amino.MarshalAny(sess)
+	if err != nil {
+		panic(err)
+	}
+	stor.Set(SessionStoreKey(pubkey), bz)
+}
+
+// RemoveSession removes a session from the AccountKeeper
+func (ak AccountKeeper) RemoveSession(ctx sdk.Context, sess std.Session) {
+	pubkey := sess.GetPubKey()
+	stor := ctx.GasStore(ak.key)
+	stor.Delete(SessionStoreKey(pubkey))
+}
+
+// IterateSessions implements AccountKeeper
+func (ak AccountKeeper) IterateSessions(ctx sdk.Context, process func(std.Session) (stop bool)) {
+	stor := ctx.GasStore(ak.key)
+	iter := store.PrefixIterator(stor, []byte(SessionStoreKeyPrefix))
+	defer iter.Close()
+	for {
+		if !iter.Valid() {
+			return
+		}
+		val := iter.Value()
+		sess := ak.decodeSession(val)
+		if process(sess) {
+			return
+		}
+		iter.Next()
+	}
+}
+
+// GetSequence returns the sequence number for a given session
+func (ak AccountKeeper) GetSequence(ctx sdk.Context, pubkey crypto.PubKey) (uint64, error) {
+	sess := ak.GetSession(ctx, pubkey)
+	if sess == nil {
+		return 0, std.ErrUnknownAddress(fmt.Sprintf("session %s does not exist", pubkey))
+	}
+	return sess.GetSequence(), nil
+}
+
+func (ak AccountKeeper) decodeSession(bz []byte) (sess std.Session) {
+	err := amino.Unmarshal(bz, &sess)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
+// -----------------------------------------------------------------------------
+// Gas.
 
 type GasPriceContextKey struct{}
 
