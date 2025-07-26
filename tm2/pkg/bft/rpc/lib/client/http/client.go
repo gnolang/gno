@@ -111,48 +111,47 @@ func sendRequestCommon[T requestType, R responseType](
 	client *http.Client,
 	rpcURL string,
 	request T,
-) (R, error) {
+) (response R, err error) {
 	// Marshal the request
 	requestBytes, err := json.Marshal(request)
 	if err != nil {
-		return nil, fmt.Errorf("unable to JSON-marshal the request, %w", err)
+		return response, fmt.Errorf("unable to JSON-marshal the request, %w", err)
 	}
 
 	// Craft the request
-	req, err := http.NewRequest(
-		http.MethodPost,
-		rpcURL,
-		bytes.NewBuffer(requestBytes),
-	)
+	req, err := http.NewRequest(http.MethodPost, rpcURL, bytes.NewBuffer(requestBytes))
 	if err != nil {
-		return nil, fmt.Errorf("unable to create request, %w", err)
+		return response, fmt.Errorf("unable to create request, %w", err)
 	}
-
-	// Set the header content type
 	req.Header.Set("Content-Type", "application/json")
 
 	// Execute the request
 	httpResponse, err := client.Do(req.WithContext(ctx))
 	if err != nil {
-		return nil, fmt.Errorf("unable to send request, %w", err)
+		return response, fmt.Errorf("unable to send request, %w", err)
 	}
-	defer httpResponse.Body.Close() //nolint: errcheck
+	defer httpResponse.Body.Close()
 
 	// Parse the response code
 	if !isOKStatus(httpResponse.StatusCode) {
-		return nil, fmt.Errorf("invalid status code received, %d", httpResponse.StatusCode)
+		return response, fmt.Errorf("invalid status code received, %d", httpResponse.StatusCode)
 	}
 
 	// Parse the response body
 	responseBytes, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read response body, %w", err)
+		return response, fmt.Errorf("unable to read response body, %w", err)
 	}
 
-	var response R
-
-	if err := json.Unmarshal(responseBytes, &response); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal response body, %w", err)
+	// Attempt to unmarshal into the expected response type.
+	var singleResponse *types.RPCResponse
+	var batchResponse types.RPCResponses
+	if err = json.Unmarshal(responseBytes, &batchResponse); err == nil {
+		response = any(batchResponse).(R)
+	} else if err = json.Unmarshal(responseBytes, &singleResponse); err == nil {
+		response = any(singleResponse).(R)
+	} else {
+		return response, fmt.Errorf("unable to unmarshal response body: %w", err)
 	}
 
 	return response, nil
