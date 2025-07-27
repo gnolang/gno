@@ -195,12 +195,12 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 		fset := ParseMemPackage(mpkg)
 		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
 		m.Store.SetBlockNode(pn)
-		PredefineFileSet(m.Store, pn, fset)
+		PredefineFileSet(m.Store, m.GasMeter, pn, fset)
 		for _, fn := range fset.Files {
 			// Save Types to m.Store (while preprocessing).
-			fn = Preprocess(m.Store, pn, fn).(*FileNode)
+			fn = Preprocess(m.Store, m.GasMeter, pn, fn).(*FileNode)
 			// Save BlockNodes to m.Store.
-			SaveBlockNodes(m.Store, fn)
+			SaveBlockNodes(m.Store, m.GasMeter, fn)
 		}
 		// Normally, the fileset would be added onto the
 		// package node only after runFiles(), but we cannot
@@ -496,11 +496,11 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 	pb := pv.GetBlock(m.Store)
 	m.SetActivePackage(pv)
 	m.Store.SetBlockNode(pn)
-	PredefineFileSet(m.Store, pn, fset)
+	PredefineFileSet(m.Store, m.GasMeter, pn, fset)
 	for _, fn := range fset.Files {
-		fn = Preprocess(m.Store, pn, fn).(*FileNode)
+		fn = Preprocess(m.Store, m.GasMeter, pn, fn).(*FileNode)
 		// After preprocessing, save blocknodes to store.
-		SaveBlockNodes(m.Store, fn)
+		SaveBlockNodes(m.Store, m.GasMeter, fn)
 		// Make block for fn.
 		// Each file for each *PackageValue gets its own file *Block,
 		// with values copied over from each file's
@@ -568,7 +568,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	}
 
 	// Predefine declarations across all files.
-	PredefineFileSet(m.Store, pn, fs)
+	PredefineFileSet(m.Store, m.GasMeter, pn, fs)
 
 	// Preprocess each new file.
 	for _, fn := range fns {
@@ -579,12 +579,12 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		// runtime package value via PrepareNewValues.  Then,
 		// non-constant var declarations and file-level imports
 		// are re-set in runDeclaration(,true).
-		fn = Preprocess(m.Store, pn, fn).(*FileNode)
+		fn = Preprocess(m.Store, m.GasMeter, pn, fn).(*FileNode)
 		if debug {
 			debug.Printf("PREPROCESSED FILE: %v\n", fn)
 		}
 		// After preprocessing, save blocknodes to store.
-		SaveBlockNodes(m.Store, fn)
+		SaveBlockNodes(m.Store, m.GasMeter, fn)
 		// Make block for fn.
 		// Each file for each *PackageValue gets its own file *Block,
 		// with values copied over from each file's
@@ -815,7 +815,7 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 		// x already creates its own scope.
 	}
 	// Preprocess x.
-	x = Preprocess(m.Store, last, x).(Expr)
+	x = Preprocess(m.Store, m.GasMeter, last, x).(Expr)
 	// Evaluate x.
 	start := len(m.Values)
 	m.PushOp(OpHalt)
@@ -915,7 +915,7 @@ func (m *Machine) RunStatement(st Stage, s Stmt) {
 				lb.ExpandWith(m.Alloc, last)
 			}
 		}()
-		s = Preprocess(m.Store, last, s).(Stmt)
+		s = Preprocess(m.Store, m.GasMeter, last, s).(Stmt)
 	}()
 	// run s.
 	m.PushOp(OpHalt)
@@ -938,7 +938,7 @@ func (m *Machine) RunDeclaration(d Decl) {
 	// Preprocess input using package block.  There should only
 	// be one block right now, and it's a *PackageNode.
 	pn := m.LastBlock().GetSource(m.Store).(*PackageNode)
-	d = Preprocess(m.Store, pn, d).(Decl)
+	d = Preprocess(m.Store, m.GasMeter, pn, d).(Decl)
 	// do not SaveBlockNodes(m.Store, d).
 	pn.PrepareNewValues(m.Package)
 	m.runDeclaration(d)
