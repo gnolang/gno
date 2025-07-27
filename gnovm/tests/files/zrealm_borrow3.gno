@@ -1,0 +1,18 @@
+// PKGPATH: gno.land/r/borrow
+package borrow
+
+import "gno.land/r/demo/tests/crossrealm"
+
+func main() {
+	f := func() {
+		crossrealm.AllowedList = append(crossrealm.AllowedList, 3)
+		println(crossrealm.AllowedList)
+	}
+
+	crossrealm.SetClosure(cross, f)
+
+	crossrealm.ExecuteClosure(cross)
+}
+
+// Error:
+// cannot directly modify readonly tainted object (w/o method): (const (ref(gno.land/r/demo/tests/crossrealm) package{})).AllowedList
