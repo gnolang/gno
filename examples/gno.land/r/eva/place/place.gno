@@ -30,7 +30,7 @@ const (
 
 	// default moderators wallets
 	chaeWallet = "g1dzzx5qwcmawqnhhd76ehkteas5v2dg42hqnd7g"
-	ghhvWallet = "g1d2hvkqhqckhzpaum09c002fesdw89qrcg9zqws"
+	ghhvWallet = "g1uz7u2aeff4z8haftcsay2zp3rcczknkqu364mm"
 	louWallet  = "g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"
 )
 
@@ -77,7 +77,10 @@ func Submit(cur realm, x uint64, y uint64, colorName string) {
 	user, ok := retrieveMember(std.PreviousRealm().Address())
 	if !ok {
 		Register(cross)
-		user, _ = retrieveMember(std.PreviousRealm().Address())
+		user, ok = retrieveMember(std.PreviousRealm().Address())
+		if !ok {
+			panic("Can't register user")
+		}
 	}
 
 	if time.Now().Before(user.Timer) {
