@@ -6,7 +6,6 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/chaegnal/organizer"
-	"gno.land/r/chaegnal/organizer/group"
 )
 
 var (
@@ -25,13 +24,13 @@ func main() {
 
 	testing.SetRealm(std.NewUserRealm(user))
 	organizer.AskJoinFriendGroup(cross, 1)
-	group.AcceptAwaitingMember(cross, "1", owner.String(), std.Address(user))
-
-	testing.SetRealm(std.NewUserRealm(owner))
-	group.MakeAdmin(cross, "1", owner.String(), user)
-
-	testing.SetRealm(std.NewUserRealm(user))
-	group.RemoveAdminRank(cross, "1", user.String(), owner)
+	// group.AcceptAwaitingMember(cross, "1", owner.String(), std.Address(user))
+	//
+	// testing.SetRealm(std.NewUserRealm(owner))
+	// group.MakeAdmin(cross, "1", owner.String(), user)
+	//
+	// testing.SetRealm(std.NewUserRealm(user))
+	// group.removeAdminRank(cross, "1", user.String(), owner)
 }
 
 // Error:

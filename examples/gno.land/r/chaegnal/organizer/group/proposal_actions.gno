@@ -12,11 +12,11 @@ import (
 )
 
 const (
-	acceptMemberFunc = "AcceptAwaitingMember"
-	refuseMemberFunc = "RefuseAwaitingMember"
-	makeAdminFunc    = "MakeAdmin"
-	removeAdminFunc  = "RemoveAdminRank"
-	removeMemberFunc = "RemoveMember"
+	acceptMemberFunc = "acceptAwaitingMember"
+	refuseMemberFunc = "refuseAwaitingMember"
+	makeAdminFunc    = "makeAdmin"
+	removeAdminFunc  = "removeAdminRank"
+	removeMemberFunc = "removeMember"
 	setHangoutFunc   = "SetHangoutTimeAndPlace"
 )
 
@@ -115,19 +115,19 @@ func (p *callbackProposalDefinition) Execute(cur realm) error {
 
 	switch p.Callback {
 	case acceptMemberFunc:
-		return AcceptAwaitingMember(cross, p.GroupId, p.CallbackArgs[0], std.Address(p.CallbackArgs[1]))
+		return acceptAwaitingMember(cross, p.GroupId, p.CallbackArgs[0], std.Address(p.CallbackArgs[1]))
 
 	case refuseMemberFunc:
-		return RefuseAwaitingMember(cross, p.GroupId, p.CallbackArgs[0], std.Address(p.CallbackArgs[1]))
+		return refuseAwaitingMember(cross, p.GroupId, p.CallbackArgs[0], std.Address(p.CallbackArgs[1]))
 
 	case makeAdminFunc:
-		return MakeAdmin(cross, p.GroupId, p.CallbackArgs[0], std.Address(p.CallbackArgs[1]))
+		return makeAdmin(cross, p.GroupId, p.CallbackArgs[0], std.Address(p.CallbackArgs[1]))
 
 	case removeAdminFunc:
-		return RemoveAdminRank(cross, p.GroupId, p.CallbackArgs[0], std.Address(p.CallbackArgs[1]))
+		return removeAdminRank(cross, p.GroupId, p.CallbackArgs[0], std.Address(p.CallbackArgs[1]))
 
 	case removeMemberFunc:
-		return RemoveMember(cross, p.GroupId, p.CallbackArgs[0], std.Address(p.CallbackArgs[1]))
+		return removeMember(cross, p.GroupId, p.CallbackArgs[0], std.Address(p.CallbackArgs[1]))
 
 	case setHangoutFunc:
 		if len(p.CallbackArgs) < 4 {

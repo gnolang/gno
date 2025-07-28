@@ -6,8 +6,8 @@ import (
 	"gno.land/r/chaegnal/organizer"
 )
 
-// AcceptAwaitingMember accepts new members into friendgroup and DAO
-func AcceptAwaitingMember(cur realm, groupId, logged string, adr std.Address) error {
+// acceptAwaitingMember accepts new members into friendgroup and DAO
+func acceptAwaitingMember(cur realm, groupId, logged string, adr std.Address) error {
 	if !isAdmin(groupId, std.Address(logged)) {
 		panic("only admin can do this action")
 	}
@@ -23,8 +23,8 @@ func AcceptAwaitingMember(cur realm, groupId, logged string, adr std.Address) er
 	return nil
 }
 
-// RefuseAwaitingMember refuses new members into friendgroup and DAO
-func RefuseAwaitingMember(cur realm, groupId, logged string, adr std.Address) error {
+// refuseAwaitingMember refuses new members into friendgroup and DAO
+func refuseAwaitingMember(cur realm, groupId, logged string, adr std.Address) error {
 	if !isAdmin(groupId, std.Address(logged)) {
 		panic("only admin can do this action")
 	}
@@ -34,8 +34,8 @@ func RefuseAwaitingMember(cur realm, groupId, logged string, adr std.Address) er
 	return nil
 }
 
-// RemoveMember removes members from group and DAO
-func RemoveMember(cur realm, groupId, logged string, adr std.Address) error {
+// removeMember removes members from group and DAO
+func removeMember(cur realm, groupId, logged string, adr std.Address) error {
 	if !isAdmin(groupId, std.Address(logged)) {
 		panic("only admin can do this action")
 	}
@@ -50,8 +50,8 @@ func RemoveMember(cur realm, groupId, logged string, adr std.Address) error {
 	return nil
 }
 
-// MakeAdmin promotes member to admin status
-func MakeAdmin(cur realm, groupId, logged string, adr std.Address) error {
+// makeAdmin promotes member to admin status
+func makeAdmin(cur realm, groupId, logged string, adr std.Address) error {
 	if !isAdmin(groupId, std.Address(logged)) {
 		panic("only admin can do this action")
 	}
@@ -66,8 +66,8 @@ func MakeAdmin(cur realm, groupId, logged string, adr std.Address) error {
 	return nil
 }
 
-// RemoveAdminRank demotes admin to member status
-func RemoveAdminRank(cur realm, groupId, logged string, adr std.Address) error {
+// rmoveAdminRank demotes admin to member status
+func removeAdminRank(cur realm, groupId, logged string, adr std.Address) error {
 	if !isAdmin(groupId, std.Address(logged)) {
 		panic("only admin can do this action")
 	}

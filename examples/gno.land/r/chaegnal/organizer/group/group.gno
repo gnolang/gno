@@ -18,16 +18,13 @@ import (
 // It lets admin directly accept or refuse members
 func displayPendingApproval(group organizer.FriendGroup, awaiting rotree.IReadOnlyTree, logged string) string {
 	table := mdtable.Table{
-		Headers: []string{"Address", "Inspect"},
+		Headers: []string{"Address"},
 	}
 
 	awaiting.Iterate("", "", func(indexStr string, val any) bool {
 		adr := std.Address(indexStr)
 
-		table.Append([]string{adr.String(),
-			md.Link("Approve", txlink.Call("AcceptAwaitingMember", "groupId", group.ID.String(), "logged", logged, "adr", adr.String())) + " | " +
-				md.Link("Reject", txlink.Call("RefuseAwaitingMember", "groupId", group.ID.String(), "logged", logged, "adr", adr.String())),
-		})
+		table.Append([]string{adr.String()})
 		return false
 	})
 
@@ -38,12 +35,12 @@ func displayPendingApproval(group organizer.FriendGroup, awaiting rotree.IReadOn
 // It lets the admin promote / demote / remove member
 func displayMembers(group organizer.FriendGroup, logged string) string {
 	table := mdtable.Table{
-		Headers: []string{"Address", "Rank", "Action"},
+		Headers: []string{"Address", "Rank"},
 	}
 
 	members := group.DAO.Members()
 	members.IterateByOffset(0, members.Size(), func(adr std.Address) bool {
-		var actionAdmin string
+		// var actionAdmin string
 
 		if adr == std.Address(logged) {
 			return false
@@ -59,18 +56,7 @@ func displayMembers(group organizer.FriendGroup, logged string) string {
 			rank = "Member"
 		}
 
-		if rank != "Owner" {
-			if isAdmin(group.ID.String(), std.Address(adr)) {
-				actionAdmin = md.Link("Remove Admin", txlink.Call("RemoveAdminRank", "groupId", group.ID.String(), "logged", logged, "adr", adr.String())) + " | "
-			} else {
-				actionAdmin = md.Link("Make Admin", txlink.Call("MakeAdmin", "groupId", group.ID.String(), "logged", logged, "adr", adr.String())) + " | "
-			}
-		}
-
-		table.Append([]string{adr.String(), rank,
-			actionAdmin +
-				md.Link("Kick out", txlink.Call("RemoveMember", "groupId", group.ID.String(), "logged", logged, "adr", adr.String())),
-		})
+		table.Append([]string{adr.String(), rank})
 
 		return false
 	})
@@ -93,11 +79,11 @@ func displayAdminBoard(group organizer.FriendGroup, logged string) string {
 		"logged", logged)) + "\n"
 
 	out += md.H3("Available callbacks:") + "\n"
-	out += "AcceptAwaitingMember(your address - target address)" + "\n\n"
-	out += "RefuseAwaitingMember(your address - target address)" + "\n\n"
-	out += "MakeAdmin(your address - target address)" + "\n\n"
-	out += "RemoveAdminRank(your address - target address)" + "\n\n"
-	out += "RemoveMember(your address - target address)" + "\n\n"
+	out += "acceptAwaitingMember(your address - target address)" + "\n\n"
+	out += "refuseAwaitingMember(your address - target address)" + "\n\n"
+	out += "makeAdmin(your address - target address)" + "\n\n"
+	out += "removeAdminRank(your address - target address)" + "\n\n"
+	out += "removeMember(your address - target address)" + "\n\n"
 	out += "SetHangoutTimeAndPlace(date - time - place - description)" + "\n\n"
 
 	out += md.H3("Approval Waitlist") + "\n"
@@ -121,14 +107,13 @@ func displayAdminBoard(group organizer.FriendGroup, logged string) string {
 	return out
 }
 
-// displayActiveProposals displays every ongoing proposals
 func displayActiveProposals(group organizer.FriendGroup, logged string) string {
 	if group.DAO.ActiveProposals().Size() <= 0 {
 		return "No active proposals" + "\n\n"
 	}
 
 	table := mdtable.Table{
-		Headers: []string{"Title", "Description", "Status", "Votes", "Actions", "Result"},
+		Headers: []string{"ID", "Title", "Description", "Status", "Votes", "Actions", "Result"},
 	}
 
 	group.DAO.ActiveProposals().Iterate(0, group.DAO.ActiveProposals().Size(), false, func(p *commondao.Proposal) bool {
@@ -156,6 +141,7 @@ func displayActiveProposals(group organizer.FriendGroup, logged string) string {
 		}
 
 		table.Append([]string{
+			proposalID,
 			p.Definition().Title(),
 			p.Definition().Body(),
 			"Active",
@@ -170,14 +156,13 @@ func displayActiveProposals(group organizer.FriendGroup, logged string) string {
 	return table.String()
 }
 
-// displayClosedProposals displays all the past proposals
 func displayClosedProposals(group organizer.FriendGroup) string {
 	if group.DAO.FinishedProposals().Size() <= 0 {
 		return "No closed proposals yet" + "\n\n"
 	}
 
 	table := mdtable.Table{
-		Headers: []string{"Title", "Description", "Status", "Votes", "Actions", "Result"},
+		Headers: []string{"ID", "Title", "Description", "Status", "Votes", "Actions", "Result"},
 	}
 
 	group.DAO.FinishedProposals().Iterate(0, group.DAO.FinishedProposals().Size(), false, func(p *commondao.Proposal) bool {
@@ -185,7 +170,10 @@ func displayClosedProposals(group organizer.FriendGroup) string {
 		yay := record.VoteCount(commondao.ChoiceYes)
 		nay := record.VoteCount(commondao.ChoiceNo)
 
+		proposalID := strconv.FormatUint(p.ID(), 10)
+
 		table.Append([]string{
+			proposalID,
 			p.Definition().Title(),
 			p.Definition().Body(),
 			"Closed",
