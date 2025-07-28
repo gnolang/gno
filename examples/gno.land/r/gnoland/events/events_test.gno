@@ -136,7 +136,7 @@ func TestEditEvent(t *testing.T) {
 func TestInvalidEdit(t *testing.T) {
 	testing.SetRealm(suRealm)
 
-	uassert.PanicsWithMessage(t, ErrNoSuchID.Error(), func() {
+	uassert.AbortsWithMessage(t, ErrNoSuchID.Error(), func() {
 		EditEvent("123123", "", "", "", "", "", "")
 	})
 }
