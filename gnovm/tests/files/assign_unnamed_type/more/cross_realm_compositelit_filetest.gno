@@ -10,4 +10,4 @@ func main() {
 }
 
 // Output:
-// (readonly(slice[(0 gno.land/r/demo/tests.Word)]) gno.land/r/demo/tests.nat)
+// (slice[(0 gno.land/r/demo/tests.Word)] gno.land/r/demo/tests.nat)
