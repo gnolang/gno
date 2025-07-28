@@ -1990,9 +1990,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				return
 			}
 		}
-	} else { // top level function
+	} else { // function without receiver
 		if pv.IsRealm() {
-			// A top-level function (named or unnamed) in a realm.
+			// A function without receiver (named or unnamed) in a realm.
 			// Borrow switch to where the function is declared,
 			// since there is no receiver.
 			// Neither cross nor didswitch.
@@ -2009,7 +2009,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			// enough to avoid confusion.
 			//   fr.DidCrossing = true
 		} else {
-			// A named top-level function.
+			// A function without receiver in a non-realm package.
 			// no switch
 			return
 		}
