@@ -109,6 +109,7 @@ class HelpFunc {
 		args: HTMLElement[];
 		modes: HTMLElement[];
 		paramInputs: HTMLInputElement[];
+		functionLink: HTMLAnchorElement | null;
 		send: HTMLElement[];
 		sendInput: HTMLInputElement | null;
 	};
@@ -120,6 +121,7 @@ class HelpFunc {
 		args: "[data-role='help-code-args']",
 		mode: "[data-code-mode]",
 		paramInput: "[data-role='help-param-input']",
+		functionLink: "[data-role='help-function-link']",
 		send: "[data-role='help-code-send']",
 		sendInput: "[data-role='help-send-input']",
 	};
@@ -138,6 +140,9 @@ class HelpFunc {
 			),
 			paramInputs: Array.from(
 				el.querySelectorAll<HTMLInputElement>(HelpFunc.SELECTORS.paramInput),
+			),
+			functionLink: el.querySelector<HTMLAnchorElement>(
+				HelpFunc.SELECTORS.functionLink,
 			),
 			send: Array.from(
 				el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.send),
@@ -202,6 +207,20 @@ class HelpFunc {
 			.forEach((arg) => {
 				arg.textContent = escapedValue || "";
 			});
+
+		// Update function link with new parameter value
+		if (this.DOM.functionLink) {
+			const currentUrl = this.DOM.functionLink.getAttribute("href");
+			if (!currentUrl) {
+				console.warn(`No href attribute found for function ${this.funcName}`);
+				return;
+			}
+			const newUrl = currentUrl.replace(
+				new RegExp(`(${paramName}=)[^&]*`),
+				`$1${encodeURIComponent(paramValue)}`,
+			);
+			this.DOM.functionLink.setAttribute("href", newUrl);
+		}
 	}
 
 	public updateSend(sendValue: boolean): void {

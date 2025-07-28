@@ -194,50 +194,34 @@ func TestConfig_Get_Base(t *testing.T) {
 			true,
 		},
 		{
-			"validator key fetched",
-			"priv_validator_key_file",
+			"validator sign state fetched",
+			"consensus.priv_validator.sign_state",
 			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.PrivValidatorKey, unmarshalJSONCommon[string](t, value))
+				assert.Equal(t, loadedCfg.Consensus.PrivValidator.SignState, unmarshalJSONCommon[string](t, value))
 			},
 			false,
 		},
 		{
-			"validator key fetched, raw",
-			"priv_validator_key_file",
+			"validator sign state fetched, raw",
+			"consensus.priv_validator.sign_state",
 			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.PrivValidatorKey, escapeNewline(value))
+				assert.Equal(t, loadedCfg.Consensus.PrivValidator.SignState, escapeNewline(value))
 			},
 			true,
 		},
 		{
-			"validator state file fetched",
-			"priv_validator_state_file",
+			"validator local signer fetched",
+			"consensus.priv_validator.local_signer",
 			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.PrivValidatorState, unmarshalJSONCommon[string](t, value))
+				assert.Equal(t, loadedCfg.Consensus.PrivValidator.LocalSigner, unmarshalJSONCommon[string](t, value))
 			},
 			false,
 		},
 		{
-			"validator state file fetched, raw",
-			"priv_validator_state_file",
+			"validator local_signer fetched, raw",
+			"consensus.priv_validator.local_signer",
 			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.PrivValidatorState, escapeNewline(value))
-			},
-			true,
-		},
-		{
-			"validator listen addr fetched",
-			"priv_validator_laddr",
-			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.PrivValidatorListenAddr, unmarshalJSONCommon[string](t, value))
-			},
-			false,
-		},
-		{
-			"validator listen addr fetched, raw",
-			"priv_validator_laddr",
-			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.PrivValidatorListenAddr, escapeNewline(value))
+				assert.Equal(t, loadedCfg.Consensus.PrivValidator.LocalSigner, escapeNewline(value))
 			},
 			true,
 		},
