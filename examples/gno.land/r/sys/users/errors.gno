@@ -23,6 +23,15 @@ var (
 	ErrDeletedUser    = errors.New(prefix + "cannot register a new username after deleting")
 
 	ErrUserNotExistOrDeleted = errors.New(prefix + "this user does not exist or was deleted")
+
+	// Anti-squatting related errors
+	ErrNameRequiresAuction     = errors.New(prefix + "name requires auction-based registration")
+	ErrAntiSquattingDisabled   = errors.New(prefix + "anti-squatting system is disabled")
+	ErrSystemNotConfigured     = errors.New(prefix + "anti-squatting system not properly configured")
+	ErrNameNotAvailable        = errors.New(prefix + "name is not available for registration")
+	ErrNameNotFound            = errors.New(prefix + "name not found")
+	ErrInsufficientDeposit     = errors.New(prefix + "insufficient deposit for auction bid")
+	ErrInsufficientDisputeFee  = errors.New(prefix + "insufficient fee for dispute filing")
 )
 
 type ErrNotWhitelisted struct {
