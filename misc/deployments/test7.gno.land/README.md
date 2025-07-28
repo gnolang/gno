@@ -15,6 +15,27 @@ Make sure to run the node using:
 gnoland start --skip-genesis-sig-verification --genesis genesis.json
 ```
 
+Another point is that the schema of the file `gnoland-data/secrets/node_key.json` has changed. If you are reusing one from a previous version, you can apply the following modification.
+
+**Before:**
+
+```json
+{
+    "priv_key": {
+        "@type": "/tm.PrivKeyEd25519",
+        "value": "RmQJFRawC+HnnzlZs8bvEFMPnnz9l8Fw8GpXonsnHEDipEA4N0Zekt/H8XSkEcb6FjWd5Ic13ZjefYJnsUCazg=="
+    }
+}
+```
+
+**After:**
+
+```json
+{
+    "priv_key": "RmQJFRawC+HnnzlZs8bvEFMPnnz9l8Fw8GpXonsnHEDipEA4N0Zekt/H8XSkEcb6FjWd5Ic13ZjefYJnsUCazg=="
+}
+```
+
 ## `genesis.json`
 
 The initial `genesis.json` validator set is consisted of 1 entity (4 validators in total):
