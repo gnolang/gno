@@ -1127,7 +1127,6 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 		if diff == 0 {
 			continue
 		}
-
 		rlm := gnostore.GetPackageRealm(rlmPath)
 		if diff > 0 {
 			// lock deposit for the additional storage used.

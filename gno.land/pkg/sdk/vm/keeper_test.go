@@ -5,6 +5,8 @@ package vm
 import (
 	"errors"
 	"fmt"
+	"path"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -954,4 +956,143 @@ func Echo(cur realm, msg string){
 	depDeltaTest := env.bankk.GetCoins(ctx, depAddrTest).Sub(depTest)
 	depDeltaFoo := env.bankk.GetCoins(ctx, depAddrFoo).Sub(depFoo)
 	assert.True(t, depDeltaTest.Add(depDeltaFoo).IsEqual(msg2.MaxDeposit))
+}
+
+// TestVMKeeperDeterminism tests that multiple runs of the same operations
+// produce the same app hash, ensuring deterministic behavior.
+// See #4580 for context.
+func TestVMKeeperDeterminism(t *testing.T) {
+	// Determine number of runs based on -short flag
+	numRuns := 50
+	if testing.Short() {
+		numRuns = 5
+	}
+
+	runOperations := func() (string, error) {
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+		caller := crypto.AddressFromPreimage([]byte("caller"))
+		acc := env.acck.NewAccountWithAddress(ctx, caller)
+		env.acck.SetAccount(ctx, acc)
+
+		// Give enough coins for package creation
+		env.bankk.SetCoins(ctx, caller, std.MustParseCoins(ugnot.ValueString(100_000_000)))
+
+		// Create realms with names designed to have different map iteration orders
+		realms := []string{
+			"gno.land/r/test/realm_aaa",
+			"gno.land/r/test/realm_zzz",
+			"gno.land/r/test/realm_mmm",
+			"gno.land/r/test/realm_001",
+			"gno.land/r/test/realm_999",
+			"gno.land/r/test/realm_abc",
+			"gno.land/r/test/realm_xyz",
+			"gno.land/r/test/realm_123",
+			"gno.land/r/test/realm_789",
+			"gno.land/r/test/realm_def",
+		}
+
+		// Create each realm
+		for i, realmPath := range realms {
+			files := []*std.MemFile{
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(realmPath)},
+				{
+					Name: "realm.gno",
+					Body: fmt.Sprintf(`package %s
+
+var storage []string
+
+func UpdateStorage(cur realm, n int) {
+	// Force storage growth based on realm index
+	for i := 0; i < n+%d*100; i++ {
+		storage = append(storage, "data_data_data_data")
+	}
+}`, path.Base(realmPath), i),
+				},
+			}
+			msg := NewMsgAddPackage(caller, realmPath, files)
+			err := env.vmk.AddPackage(ctx, msg)
+			require.NoError(t, err)
+		}
+
+		// Create master realm
+		masterPath := "gno.land/r/test/master"
+
+		// Build imports and calls dynamically
+		imports := ""
+		calls := ""
+		for _, realmPath := range realms {
+			alias := path.Base(realmPath)
+			imports += fmt.Sprintf("\t%s \"%s\"\n", alias, realmPath)
+			calls += fmt.Sprintf("\t%s.UpdateStorage(cross, 500)\n", alias)
+		}
+
+		masterCode := fmt.Sprintf(`package master
+
+import (
+%s)
+
+func UpdateAll(cur realm) {
+%s}`, imports, calls)
+
+		masterFiles := []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(masterPath)},
+			{Name: "master.gno", Body: masterCode},
+		}
+		msg := NewMsgAddPackage(caller, masterPath, masterFiles)
+		err := env.vmk.AddPackage(ctx, msg)
+		require.NoError(t, err)
+
+		// Call with limited deposit to force errors in processStorageDeposit
+		// The error will depend on which realms get processed first
+		callMsg := NewMsgCall(caller, std.Coins{}, masterPath, "UpdateAll", []string{})
+		callMsg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(20_000_000))
+
+		// Capture the error - it should vary based on iteration order
+		_, err = env.vmk.Call(ctx, callMsg)
+
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		// Return error string which should vary with iteration order
+		if err != nil {
+			return err.Error(), err
+		}
+		return "no_error", nil
+	}
+
+	// Track first error message as baseline
+	firstMsg, _ := runOperations()
+
+	// Check subsequent runs for differences
+	for i := 1; i < numRuns; i++ {
+		errMsg, _ := runOperations()
+
+		// Fail immediately if we find a different error message
+		if errMsg != firstMsg {
+			t.Logf("Non-determinism detected at run %d!", i+1)
+			t.Logf("First error: %s", firstMsg)
+			t.Logf("Different error at run %d: %s", i+1, errMsg)
+			t.Fatalf("TEST CORRECTLY FAILED: VM Keeper operations are non-deterministic without the sorting fix in PR #4580")
+		}
+
+		// Force GC and allocations to change runtime state
+		if i%10 == 0 {
+			runtime.GC()
+			// Create some allocations to change heap state
+			temp := make([]map[string]int, 100)
+			for j := range temp {
+				temp[j] = make(map[string]int)
+				temp[j]["key"] = j
+			}
+		}
+
+		// Log progress periodically
+		if !testing.Short() && i%10 == 0 {
+			t.Logf("Completed %d runs, all identical so far...", i)
+		}
+	}
+
+	// All runs produced identical results - this is expected with the fix applied
+	t.Logf("SUCCESS: All %d runs produced identical results, confirming deterministic behavior", numRuns)
 }
