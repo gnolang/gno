@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -29,10 +30,10 @@ func New(bankers []Banker) (*Treasury, error) {
 			return nil, ufmt.Errorf("%v: %s", ErrDuplicateBanker, banker.ID())
 		}
 
-		treasury.bankers.Set(banker.ID(), &bankerRecord{
-			banker:  banker,
-			history: []Payment{},
-		})
+		treasury.bankers.Set(
+			banker.ID(),
+			&bankerRecord{banker: banker},
+		)
 	}
 
 	// Register the Render routes.
@@ -56,14 +57,18 @@ func (t *Treasury) Send(p Payment) error {
 	}
 
 	// Add the payment to the history of the banker.
-	record.history = append(record.history, p)
+	record.history.Append(p)
 
 	return nil
 }
 
-// History returns the n last payments sent by the banker with the given ID.
-// Returns the full history if n is 0 or greater than the number of payments.
-func (t *Treasury) History(bankerID string, n uint) ([]Payment, error) {
+// History returns the payment history sent by the banker with the given ID.
+// Payments are paginated, with the most recent payments first.
+func (t *Treasury) History(
+	bankerID string,
+	pageNumber int,
+	pageSize int,
+) ([]Payment, error) {
 	// Get the banker record corresponding to this ID.
 	br, ok := t.bankers.Get(bankerID)
 	if !ok {
@@ -71,13 +76,17 @@ func (t *Treasury) History(bankerID string, n uint) ([]Payment, error) {
 	}
 	history := br.(*bankerRecord).history
 
-	// If n is 0, return the full history.
-	if n == 0 || uint(len(history)) <= n {
-		return history, nil
+	// Get the page of payments from the history.
+	p := pager.NewPager(history.Tree(), pageSize, true)
+	page := p.GetPage(pageNumber)
+
+	// Convert the items in the page to a slice of Payments.
+	payments := make([]Payment, len(page.Items))
+	for i := range page.Items {
+		payments[i] = page.Items[i].Value.(Payment)
 	}
 
-	// Return the last n payments.
-	return history[len(history)-int(n):], nil
+	return payments, nil
 }
 
 // Balances returns the balances of the banker with the given ID.
