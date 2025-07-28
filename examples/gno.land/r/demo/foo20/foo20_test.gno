@@ -72,7 +72,7 @@ func TestErrConditions(t *testing.T) {
 	privateLedger.Mint(std.Address(admin), 10000)
 	{
 		tests := []test{
-			{"Transfer(admin, 1)", "cannot send transfer to self", false, func() {
+			{"Transfer(admin, 1)", "cannot send transfer to self", true, func() {
 				// XXX: should replace with: Transfer(admin, 1)
 				// but there is currently a limitation in manipulating the frame stack and simulate
 				// calling this package from an outside point of view.
