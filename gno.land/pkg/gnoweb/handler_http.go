@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
 )
 
@@ -354,8 +355,7 @@ func (h *HTTPHandler) buildContributions(username string) ([]components.UserCont
 func CreateUsernameFromBech32(username string) string {
 	_, _, err := bech32.Decode(username)
 	if err == nil {
-		// If it's a valid bech32 address, create a shortened version
-		username = username[:4] + "..." + username[len(username)-4:]
+		return username		
 	}
 
 	return username
@@ -393,7 +393,8 @@ func (h *HTTPHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View)
 	username = CreateUsernameFromBech32(username)
 
 	//TODO: get from user r/profile and use placeholder if not set
-	handlename := "Gnome " + username
+	// For now, just use the username without "Gnome" prefix
+	handlename := username
 
 	data := components.UserData{
 		Username:      username,
@@ -506,7 +507,104 @@ func (h *HTTPHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.Vie
 	return h.getSourceFileView(pkgPath, gnourl, files, fileName)
 }
 
-// getSourceOverview construit la vue overview (README, fonctions, fichiers)
+// getPackageMetadata récupère les métadonnées du package depuis gnomod.toml
+func (h *HTTPHandler) getPackageMetadata(pkgPath string, files []string, readmeComp components.Component) *components.PackageInfo {
+	// Get gnomod.toml
+	gnomodData, _, err := h.Client.File(pkgPath, "gnomod.toml")
+	if err != nil {
+		h.Logger.Error("gnomod.toml not found", "pkgPath", pkgPath, "error", err)
+		return nil // No gnomod.toml
+	}
+		
+	// Parse gnomod.toml
+	mod, err := gnomod.ParseBytes("gnomod.toml", gnomodData)
+	if err != nil {
+		h.Logger.Warn("failed to parse gnomod.toml", "pkgPath", pkgPath, "error", err)
+		return nil
+	}
+	
+	// Detect tests
+	hasTests := false
+
+	// range files and check if any file contains _test
+	for _, file := range files {
+		if strings.Contains(file, "_test") {
+			hasTests = true
+			break
+		}
+	}
+
+	// Check if readme.md exists
+	hasReadme := readmeComp != nil
+	
+	// Get license
+	license := h.getPackageLicense(pkgPath)
+		
+	return &components.PackageInfo{
+		Module:     mod.Module,
+		GnoVersion: mod.GetGno(),
+		Creator:    mod.AddPkg.Creator,
+		Height:     mod.AddPkg.Height,
+		Draft:      mod.Draft,
+		Private:    mod.Private,
+		License:    license,
+		HasTests:   hasTests,
+		HasReadme:  hasReadme,
+	}
+}
+
+// getPackageLicense get the license type of the package
+func (h *HTTPHandler) getPackageLicense(pkgPath string) string {
+	// List of possible license files
+	licenseFiles := []string{
+		"LICENSE.md",
+		"LICENSE",
+	}
+	
+	for _, filename := range licenseFiles {
+		licenseData, _, err := h.Client.File(pkgPath, filename)
+		if err != nil {
+			h.Logger.Debug("unable to read license file", "pkgPath", pkgPath, "filename", filename, "error", err)
+			continue
+		}
+		
+		// Detect the license type based on the content
+		licenseType := h.detectLicenseType(string(licenseData))
+		if licenseType != "" {
+			return licenseType
+		}
+	}
+	
+	return ""
+}
+
+// detectLicenseType detect the license type based on the content
+func (h *HTTPHandler) detectLicenseType(content string) string {
+	content = strings.ToLower(content)
+	
+	switch {
+	case strings.Contains(content, "mit license"):
+		return "MIT"
+	case strings.Contains(content, "apache license"):
+		return "Apache-2.0"
+	case strings.Contains(content, "gno network general public license"):
+		return "GNO-GPL"
+	case strings.Contains(content, "gnu general public license"):
+		return "GPL"
+	case strings.Contains(content, "gnu affero general public license"):
+		return "AGPL"
+	case strings.Contains(content, "bsd license"):
+		return "BSD"
+	case strings.Contains(content, "isc license"):
+		return "ISC"
+	case strings.Contains(content, "unlicense"):
+		return "Unlicense"
+	default:
+		return "Custom"
+	}
+}
+
+// getSourceOverview build the overview view (README, functions, files)
 func (h *HTTPHandler) getSourceOverviewView(pkgPath string, gnourl *weburl.GnoURL, files []string) (int, *components.View) {
 	readmeComp, _ := h.renderReadme(gnourl, pkgPath)
 	jdoc, _ := h.Client.Doc(pkgPath)
@@ -516,10 +614,30 @@ func (h *HTTPHandler) getSourceOverviewView(pkgPath string, gnourl *weburl.GnoUR
 	var vars []*doc.JSONValueDecl
 	var types []*doc.JSONType
 	var dirs []string
+	var imports []*components.ImportLink
 	if jdoc != nil {
 		functions = jdoc.Funcs
 		docString = jdoc.PackageDoc
 		types = jdoc.Types
+		// Process imports to create appropriate links
+		for _, imp := range jdoc.Imports {
+			var link string
+			
+			switch {
+			case strings.HasPrefix(imp, h.Static.Domain):
+				// gno.land imports - create relative link
+				trimmed := strings.TrimPrefix(imp, h.Static.Domain)
+				link = trimmed + "$source"
+			case !strings.Contains(imp, "/") && imp != "std":
+				// Standard library imports - link to pkg.go.dev
+				link = "https://pkg.go.dev/" + imp
+			}
+			
+			imports = append(imports, &components.ImportLink{
+				Name: imp,
+				Link: link,
+			})
+		}
 		for _, v := range jdoc.Values {
 			if v.Const {
 				consts = append(consts, v)
@@ -536,7 +654,7 @@ func (h *HTTPHandler) getSourceOverviewView(pkgPath string, gnourl *weburl.GnoUR
 		h.Logger.Warn("ListPaths failed", "pkgPath", pkgPath, "error", err)
 		paths = nil
 	}
-
+	
 	for _, p := range paths {
 		dir := strings.TrimPrefix(p, pkgPath+"/")
 		if dir != "" && !strings.Contains(dir, "/") && dir != "." {
@@ -544,6 +662,13 @@ func (h *HTTPHandler) getSourceOverviewView(pkgPath string, gnourl *weburl.GnoUR
 		}
 	}
 	h.Logger.Debug("Dirs for overview", "pkgPath", pkgPath, "dirs", dirs)
+	
+	// get package metadata
+	packageInfo := h.getPackageMetadata(pkgPath, files, readmeComp)
+	if packageInfo != nil {
+		packageInfo.PackageType = gnourl.PackageType()
+	}
+		
 	return http.StatusOK, components.OverviewView(components.OverviewData{
 		PkgPath:     pkgPath,
 		Readme:      readmeComp,
@@ -555,10 +680,12 @@ func (h *HTTPHandler) getSourceOverviewView(pkgPath string, gnourl *weburl.GnoUR
 		Vars:        vars,
 		Types:       types,
 		Dirs:        dirs,
+		PackageInfo: packageInfo,
+		Imports:     imports,
 	})
 }
 
-// getSourceFile construit la vue source pour un fichier donné
+// getSourceFile build the source view for a given file
 func (h *HTTPHandler) getSourceFileView(pkgPath string, gnourl *weburl.GnoURL, files []string, fileName string) (int, *components.View) {
 	var (
 		fileSource components.Component

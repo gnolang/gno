@@ -7,6 +7,7 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -171,6 +172,35 @@ func (pkg *pkgData) appendFieldList(tName string, fl *ast.FieldList, unexported 
 			pkg.symbols = append(pkg.symbols, symbolData{symbol: tName, accessible: name.Name, typ: typ})
 		}
 	}
+}
+
+
+
+// extractImports returns all unique import paths from the package files, sorted alphabetically
+func (pkg *pkgData) extractImports() []string {
+	var imports []string
+	seen := make(map[string]bool)
+	
+	for _, file := range pkg.files {
+		for _, imp := range file.Imports {
+			importPath := strings.Trim(imp.Path.Value, `"`)
+			if importPath != "" && !seen[importPath] {
+				seen[importPath] = true
+				imports = append(imports, importPath)
+			}
+		}
+	}
+	
+	// Simple alphabetical sort
+	sort.Strings(imports)
+	return imports
+}
+
+// extractPosition extracts file and line information from an AST node
+func (pkg *pkgData) extractPosition(node ast.Node) (file string, line int) {
+	pos := node.Pos()
+	position := pkg.fset.Position(pos)
+	return position.Filename, position.Line
 }
 
 func typeExprString(expr ast.Expr) string {

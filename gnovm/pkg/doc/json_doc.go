@@ -24,6 +24,7 @@ type JSONDocumentation struct {
 	Values []*JSONValueDecl `json:"values"` // constants and variables declared
 	Funcs  []*JSONFunc      `json:"funcs"`  // Funcs and methods
 	Types  []*JSONType      `json:"types"`
+	Imports []string        `json:"imports"` // list of import paths
 }
 
 type JSONValueDecl struct {
@@ -85,6 +86,9 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 		return nil, err
 	}
 
+	// Extract imports from the package files
+	imports := d.pkgData.extractImports()
+
 	jsonDoc := &JSONDocumentation{
 		PackagePath: d.pkgData.dir.dir,
 		PackageLine: fmt.Sprintf("package %s // import %q", pkg.Name, pkg.ImportPath),
@@ -92,6 +96,7 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 		Values:      []*JSONValueDecl{},
 		Funcs:       []*JSONFunc{},
 		Types:       []*JSONType{},
+		Imports:     imports,
 	}
 
 	for _, value := range pkg.Consts {
@@ -113,10 +118,7 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 	}
 
 	for _, fun := range pkg.Funcs {
-		pos := fun.Decl.Pos()
-		position := d.pkgData.fset.Position(pos)
-		file := position.Filename
-		line := position.Line
+		file, line := d.pkgData.extractPosition(fun.Decl)
 		jsonDoc.Funcs = append(jsonDoc.Funcs, &JSONFunc{
 			Name:      fun.Name,
 			Signature: mustFormatNode(d.pkgData.fset, fun.Decl),
@@ -155,16 +157,20 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 
 		// constructors for this type
 		for _, fun := range typ.Funcs {
+			file, line := d.pkgData.extractPosition(fun.Decl)
 			jsonDoc.Funcs = append(jsonDoc.Funcs, &JSONFunc{
 				Name:      fun.Name,
 				Signature: mustFormatNode(d.pkgData.fset, fun.Decl),
 				Doc:       string(pkg.Markdown(fun.Doc)),
 				Params:    d.extractJSONFields(fun.Decl.Type.Params),
 				Results:   d.extractJSONFields(fun.Decl.Type.Results),
+				File:      file,
+				Line:      line,
 			})
 		}
 
 		for _, meth := range typ.Methods {
+			file, line := d.pkgData.extractPosition(meth.Decl)
 			jsonDoc.Funcs = append(jsonDoc.Funcs, &JSONFunc{
 				Type:      typ.Name,
 				Name:      meth.Name,
@@ -172,6 +178,8 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 				Doc:       string(pkg.Markdown(meth.Doc)),
 				Params:    d.extractJSONFields(meth.Decl.Type.Params),
 				Results:   d.extractJSONFields(meth.Decl.Type.Results),
+				File:      file,
+				Line:      line,
 			})
 		}
 	}

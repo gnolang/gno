@@ -42,6 +42,15 @@ func registerCommonFuncs(funcs template.FuncMap) {
 		return vals.Has(key)
 	}
 	funcs["FormatRelativeTime"] = FormatRelativeTimeSince
+	funcs["truncateMiddle"] = func(s string, visibleChars int) string {
+		if len(s) <= visibleChars*2+3 {
+			return s
+		}
+		if visibleChars < 1 {
+			return s[:3] + "..."
+		}
+		return s[:visibleChars] + "..." + s[len(s)-visibleChars:]
+	}
 }
 
 func init() {
