@@ -13,7 +13,6 @@ func main() {
 }
 
 // Storage:
-// gno.land/p/demo/ufmt: 0
 // gno.land/r/crossrealm: 0
 // gno.land/r/demo/tests/crossrealm: 0
 

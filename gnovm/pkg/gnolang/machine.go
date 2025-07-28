@@ -1991,8 +1991,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			}
 		}
 	} else { // top level function
-		if fv.Name == "" {
-			// An unnamed top-level function.
+		if fv.Name == "" && pv.IsRealm() {
+			// An unnamed top-level function in a realm.
 			// Borrow switch to where the function is declared,
 			// since there is no receiver.
 			// Neither cross nor didswitch.

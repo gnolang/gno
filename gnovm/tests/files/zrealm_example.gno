@@ -23,8 +23,6 @@ func main(cur realm) {
 // TEST_BODY
 
 // Realm:
-// finalizerealm["gno.land/p/demo/dom"]
-// finalizerealm["gno.land/p/demo/avl"]
 // finalizerealm["gno.land/r/example"]
 // c[1ffd45e074aa1b8df562907c95ad97526b7ca187:14](256)={
 //     "Fields": [
