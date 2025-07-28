@@ -52,11 +52,11 @@ func (cr *compiledRegx) Match(s string) *match {
 }
 
 // Returns true if matches.
-func (rx *compiledRegx) Matches(s string) bool {
-	return rx.re.MatchString(s)
+func (cr *compiledRegx) Matches(s string) bool {
+	return cr.re.MatchString(s)
 }
 
-func (rx *compiledRegx) Regx() regx { return rx.src }
+func (cr *compiledRegx) Regx() regx { return cr.src }
 
 func r2s(xx regx) string                         { return string(xx) }                     // regx -> string
 func sj(sz ...string) string                     { return strings.Join(sz, ``) }           // string join
