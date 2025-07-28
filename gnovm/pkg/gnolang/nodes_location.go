@@ -164,7 +164,7 @@ func SpanFromMatch(line, col, endLine, endCol string) (span Span, err error) {
 }
 
 func ParseSpan(spanstr string) (span Span, err error) {
-	match := Re_span.Match(spanstr)
+	match := ReSpan.Match(spanstr)
 	if match == nil {
 		return
 	}
@@ -282,7 +282,7 @@ func Location3(pkgPath string, fname string, span Span) Location {
 }
 
 func ParseLocation(locstr string) (loc Location, err error) {
-	match := Re_location.Match(locstr)
+	match := ReLocation.Match(locstr)
 	if match == nil {
 		return
 	}
@@ -369,6 +369,10 @@ var (
 	Re_location    = r.G(r.N("PATH", r.Pl(r.CN(`:`))), r.M(`/`, r.N("FILE", r.P(r.CN(r.E(`/:`))))), `:`, r.N("SPAN", Re_span))
 	Re_locationish = r.G(r.N("PATH", r.Pl(r.CN(`:`))), r.M(`/`, r.N("FILE", r.P(r.CN(r.E(`/:`))))), `:`, r.N("SPAN", Re_spanish))
 	Re_errorLine   = r.L(r.N("LOC", Re_locationish), r.M(`:`), r.S(` `), r.N("MSG", r.S(`.`)))
+
+	ReLocation  = Re_location.Compile()
+	ReSpan      = Re_span.Compile()
+	ReErrorLine = Re_errorLine.Compile()
 )
 
 /* Compare to...
