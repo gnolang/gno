@@ -19,7 +19,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -271,9 +270,7 @@ func (tsg testStdlibGetter) GetMemPackage(pkgPath string) *std.MemPackage {
 	if sourceMpkg != nil {
 		testMpkg.Files = slices.Concat(sourceMpkg.Files, testMpkg.Files)
 	}
-	if pkgPath == "testing" {
-		spew.Dump(sourceMpkg)
-	}
+
 	tsg.cacheMtx.Lock()
 	tsg.cache[pkgPath] = testMpkg
 	tsg.cacheMtx.Unlock()
