@@ -36,34 +36,39 @@ This creates a "database view" of the blockchain while preserving its decentrali
 ## [`tx-indexer`](https://github.com/gnolang/tx-indexer): The official [TM2](https://github.com/tendermint/tendermint2) Indexer
 
 `tx-indexer` is the reference implementation for Tendermint2 chains like Gno.land, providing:
-- Dual-protocol API server: **JSON-RPC 2.0** + **GraphQL**
-- **HTTP and WebSocket Support**
-- **Concurrent block** processing pipeline
-- **PebbleDB**: embedded storage engine
+- **Dual-protocol API**: JSON-RPC 2.0 + GraphQL
+- **Transport Support**: HTTP + WebSocket
+- **High Performance**: Concurrent block processing pipeline
+- **Embedded Storage**: PebbleDB engine
 
 ### **Query Capabilities**
+The query system enables complex data retrieval with multiple filter conditions, pagination, and relationship traversal.
 
-#### GraphQL
+#### GraphQL Example
 ```graphql
 query {
-    transactions(
-        filter: {
-            sender: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
-            fromHeight: 10000
-            toHeight: 20000
-        }
-    ) {
-        hash
-        timestamp
-        messages {
-            type
-            data
+  getBlocks(
+    where: {
+        {
+          height: {
+            eq: 10 
+          }
         }
     }
+  ) {
+    hash       
+    height     
+    time       
+    num_txs    
+    total_txs  
+    txs {
+      content_raw  
+    }
+  }
 }
 ```
 
-#### JSON-RPC
+#### JSON-RPC Example
 
 ```json
 {
@@ -79,7 +84,7 @@ query {
 ### **Subscription System**
 The subscription system enables instant notifications for on-chain activity. The architecture is WebSocket-based, which eliminates the need for constant polling.
 
-#### GraphQL
+#### GraphQL Example
 ```graphql
 subscription {
   blocks(filter: {}) {
@@ -92,7 +97,7 @@ subscription {
 }
 ```
 
-#### JSON-RPC
+#### JSON-RPC Example
 ```json
 {
   "id": 1,
@@ -103,6 +108,8 @@ subscription {
   ]
 }
 ```
+
+For more example, refers to the [tx-indexer](https://github.com/gnolang/tx-indexer?tab=readme-ov-file#examples) documentation.
 
 ## Installation
 Follow official [installation guide](https://github.com/gnolang/tx-indexer?tab=readme-ov-file#getting-started) on `tx-indexer` repository.
