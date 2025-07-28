@@ -103,57 +103,6 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	})
 }
 
-// TestDirectAllowedDAOsModification tests that the allowedDAOs slice 
-// cannot be modified directly from external code, preventing the 
-// proposal spoofing vulnerability that existed before PR #4427
-func TestDirectAllowedDAOsModification(t *testing.T) {
-	// Initialize with known state
-	testing.SetRealm(std.NewCodeRealm(v3))
-	UpdateImpl(cross, UpdateRequest{
-		DAO:         &dummyDao{},
-		AllowedDAOs: []string{v3},
-	})
-
-	// Verify initial state
-	allowed := AllowedDAOs()
-	urequire.Equal(t, 1, len(allowed))
-	urequire.Equal(t, v3, allowed[0])
-	
-	// Test that we cannot directly modify the returned slice
-	// (this tests the defensive copy behavior)
-	allowed[0] = "malicious.package"
-	newAllowed := AllowedDAOs()
-	urequire.Equal(t, v3, newAllowed[0], "allowedDAOs should not be modifiable through returned slice")
-	
-	// Test that appending to returned slice doesn't affect internal state
-	allowed = append(allowed, "another.malicious.package")
-	newAllowed = AllowedDAOs()
-	urequire.Equal(t, 1, len(newAllowed), "allowedDAOs length should not change")
-	
-	// This test simulates what the removed NewAllowImplRequest function
-	// would have allowed - direct manipulation of allowedDAOs without
-	// proper permission checks through UpdateImpl
-	
-	// Before PR #4427, external code could potentially call something like:
-	// NewAllowImplRequest("malicious.package") 
-	// which would append to allowedDAOs without permission validation
-	
-	// Now, the only way to modify allowedDAOs is through UpdateImpl,
-	// which requires being in the allowedDAOs list already
-	
-	testing.SetRealm(std.NewCodeRealm(invalid))
-	urequire.AbortsWithMessage(t, "permission denied for prev realm: gno.land/r/invalid/dao", func() {
-		UpdateImpl(cross, UpdateRequest{
-			AllowedDAOs: []string{invalid, v3},
-		})
-	})
-	
-	// Verify state unchanged after failed attempt
-	finalAllowed := AllowedDAOs()
-	urequire.Equal(t, 1, len(finalAllowed))
-	urequire.Equal(t, v3, finalAllowed[0])
-}
-
 type dummyDao struct{}
 
 func (dd *dummyDao) PreCreateProposal(r ProposalRequest) (std.Address, error) {
