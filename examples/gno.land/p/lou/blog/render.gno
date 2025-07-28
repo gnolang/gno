@@ -1,6 +1,7 @@
 package blog
 
 import (
+	"net/url"
 	"strings"
 
 	"gno.land/p/demo/avl"
@@ -102,8 +103,7 @@ func (b Blog) RenderListGrid(page *pager.Page, gridMode bool, timeFmt string) st
 // :posts/{slug}
 func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	postSlug := req.GetVar("slug")
-
-	foundKey, found := b.findPostBySlug(postSlug)
+	foundKey, found := b.findPostBySlug(url.PathEscape(postSlug))
 	if !found {
 		res.Write("Post not found.")
 		return

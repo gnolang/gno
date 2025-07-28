@@ -1,6 +1,7 @@
 package blog
 
 import (
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -98,7 +99,7 @@ func NewPost(slug, title, body, publicationDate, caller string, authors, tags []
 	}
 
 	return &Post{
-		slug:            slug,
+		slug:            url.PathEscape(slug),
 		title:           title,
 		body:            body,
 		createdAt:       publishedAt,

@@ -15,7 +15,7 @@ package blog
 
 // 	path := "gno.land/r/blog/test1"
 // 	title := "My Test Blog"z
-	
+
 // 	blog, err := NewBlog(path, creator)
 // 	println(creator)
 // 	uassert.NoError(t, err)
