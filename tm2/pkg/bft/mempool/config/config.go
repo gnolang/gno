@@ -1,63 +1,37 @@
 package config
 
-import "github.com/gnolang/gno/tm2/pkg/errors"
+import "errors"
 
-// -----------------------------------------------------------------------------
-// MempoolConfig
+var (
+	ErrInvalidMaxTxCount = errors.New("invalid maximum transaction count")
+	ErrInvalidMaxBytes   = errors.New("invalid maximum mempool size (in bytes)")
+)
 
-// MempoolConfig defines the configuration options for the Tendermint mempool
-type MempoolConfig struct {
-	RootDir            string `json:"home" toml:"home"`
-	Recheck            bool   `json:"recheck" toml:"recheck"`
-	Broadcast          bool   `json:"broadcast" toml:"broadcast"`
-	WalPath            string `json:"wal_dir" toml:"wal_dir"`
-	Size               int    `json:"size" toml:"size" comment:"Maximum number of transactions in the mempool"`
-	MaxPendingTxsBytes int64  `json:"max_pending_txs_bytes" toml:"max_pending_txs_bytes" comment:"Limit the total size of all txs in the mempool.\n This only accounts for raw transactions (e.g. given 1MB transactions and\n max_txs_bytes=5MB, mempool will only accept 5 transactions)."`
-	CacheSize          int    `json:"cache_size" toml:"cache_size" comment:"Size of the cache (used to filter transactions we saw earlier) in transactions"`
+// Config defines the configuration options for the Tendermint mempool
+type Config struct {
+	Broadcast  bool  `json:"broadcast" toml:"broadcast" comment:"Gossip transactions to other peers."`
+	MaxTxCount int   `json:"max_tx_count" toml:"max_tx_count" comment:"Maximum number of transactions in the mempool (count)."`
+	MaxBytes   int64 `json:"max_bytes" toml:"max_bytes" comment:"The maximum combined size of all txs in the mempool.\n This only accounts for raw transactions (e.g. given 1MB transactions and\n max_txs_bytes=5MB, mempool will only accept 5 transactions)."`
 }
 
-// DefaultMempoolConfig returns a default configuration for the Tendermint mempool
-func DefaultMempoolConfig() *MempoolConfig {
-	return &MempoolConfig{
-		Recheck:   true,
-		Broadcast: true,
-		WalPath:   "",
-		// Each signature verification takes .5ms, Size reduced until we implement
-		// ABCI Recheck
-		Size:               5000,
-		MaxPendingTxsBytes: 1024 * 1024 * 1024, // 1GB
-		CacheSize:          10000,
+// DefaultConfig returns a default configuration for the Tendermint mempool
+func DefaultConfig() *Config {
+	return &Config{
+		Broadcast:  true,
+		MaxTxCount: 15000,
+		MaxBytes:   1024 * 1024 * 1024, // 1GB
 	}
 }
 
-// TestMempoolConfig returns a configuration for testing the Tendermint mempool
-func TestMempoolConfig() *MempoolConfig {
-	cfg := DefaultMempoolConfig()
-	cfg.CacheSize = 1000
-	return cfg
-}
-
-// WalDir returns the full path to the mempool's write-ahead log
-func (cfg *MempoolConfig) WalDir() string {
-	return join(cfg.RootDir, cfg.WalPath)
-}
-
-// WalEnabled returns true if the WAL is enabled.
-func (cfg *MempoolConfig) WalEnabled() bool {
-	return cfg.WalPath != ""
-}
-
-// ValidateBasic performs basic validation (checking param bounds, etc.) and
-// returns an error if any check fails.
-func (cfg *MempoolConfig) ValidateBasic() error {
-	if cfg.Size < 0 {
-		return errors.New("size can't be negative")
+// ValidateBasic performs basic validation on the mempool configuration
+func (cfg *Config) ValidateBasic() error {
+	if cfg.MaxBytes < 0 {
+		return ErrInvalidMaxBytes
 	}
-	if cfg.MaxPendingTxsBytes < 0 {
-		return errors.New("max_txs_bytes can't be negative")
+
+	if cfg.MaxTxCount < 0 {
+		return ErrInvalidMaxTxCount
 	}
-	if cfg.CacheSize < 0 {
-		return errors.New("cache_size can't be negative")
-	}
+
 	return nil
 }
