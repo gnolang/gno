@@ -66,8 +66,6 @@ Links can be created using the following syntax:
 [Link text](https://example.com)
 [Link with title](https://example.com "Link title")
 
-XXX: custom CSS for internal/external links and if possible for "in the same realm/namespace".
-
 ### Lists
 
 Unordered lists use asterisks, plus signs, or hyphens:
@@ -734,31 +732,42 @@ By default, the alert boxes are opened. The title is optional and if not provide
 > > [!NOTE]
 > > This is a scoped note
 
-### Usernames
+### User Mentions and Bech32 Addresses
 
-XXX: TODO (add again this feature that was removed)
+Gno markdown automatically recognizes and renders user mentions and Bech32 addresses as clickable links.
 
-<!--
-±±±markdown
-@username
-@dev123
-±±±
+#### User Mentions
 
-@username
-@dev123
--->
-
-### Bech32 Addresses
-
-XXX: TODO
-
-Gno markdown can automatically recognize and render Bech32 addresses.
+// You can mention users using the "@" symbol followed by a username. The username can contain letters, numbers, and underscores.
 
 ±±±markdown
-g1jg955hm9a6f0yen878c2hur6q7stqz7rzpyrwpe
+Hello @alice, how are you doing?
+
+This is a mention of @bob_user and @test-123.
+
+You can also mention users like @user_name_123.
 ±±±
 
-g1jg955hm9a6f0yen878c2hur6q7stqz7rzpyrwpe
+
+Hello @alice, how are you doing?
+
+This is a mention of @bob_user.
+
+You can also mention users like @user_name_123.
+
+#### Bech32 Addresses
+
+Gno markdown can automatically recognize and render valid Bech32 addresses as clickable links.
+
+±±±markdown
+This is a GNO address: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+
+You can also reference g1abc123def456ghi789jkl012mno345pqr678stu901vwx234yz5.
+±±±
+
+This is a GNO address: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+
+You can also reference g1abc123def456ghi789jkl012mno345pqr678stu901vwx234yz5.
 
 ### Smart Contract Integration
 

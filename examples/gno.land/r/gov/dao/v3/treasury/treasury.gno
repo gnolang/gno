@@ -57,7 +57,6 @@ func init() {
 
 // SetTokenKeys sets the GRC20 token registry keys that the treasury will use.
 func SetTokenKeys(_ realm, keys []string) {
-	// TODO: Replace this by cur.Previous().PkgPath() when it will be implemented.
 	caller := std.PreviousRealm().PkgPath()
 
 	// Check if the caller realm is allowed to set token keys.
@@ -70,7 +69,6 @@ func SetTokenKeys(_ realm, keys []string) {
 
 // Send sends a payment using the treasury instance.
 func Send(_ realm, payment t.Payment) {
-	// TODO: Replace this by cur.Previous().PkgPath() when it will be implemented.
 	caller := std.PreviousRealm().PkgPath()
 
 	// Check if the caller realm is allowed to send payments.
@@ -84,10 +82,10 @@ func Send(_ realm, payment t.Payment) {
 	}
 }
 
-// History returns the n last payments sent by the banker with the given ID.
-// Returns the full history if n is 0 or greater than the number of payments.
-func History(bankerID string, n uint) []t.Payment {
-	history, err := treasury.History(bankerID, n)
+// History returns the payment history sent by the banker with the given ID.
+// Payments are paginated, with the most recent payments first.
+func History(bankerID string, pageNumber int, pageSize int) []t.Payment {
+	history, err := treasury.History(bankerID, pageNumber, pageSize)
 	if err != nil {
 		panic("failed to get history: " + err.Error())
 	}

@@ -231,7 +231,7 @@ func TestSendGRC20Payment(t *testing.T) {
 	uassert.Equal(t, compared, len(keyedTokens))
 
 	// Check the history of the GRC20Banker.
-	history := treasury.History(grc20BankerID, 0)
+	history := treasury.History(grc20BankerID, 1, 10)
 	uassert.Equal(t, len(history), 6)
 
 	// Try to send a dummy payment with the GRC20 banker ID, it should abort.
@@ -260,7 +260,7 @@ func TestSendGRC20Payment(t *testing.T) {
 	)
 
 	// Check the history of the GRC20Banker.
-	history = treasury.History(grc20BankerID, 0)
+	history = treasury.History(grc20BankerID, 1, 10)
 	uassert.Equal(t, len(history), 6)
 }
 
@@ -294,7 +294,7 @@ func TestSendCoinPayment(t *testing.T) {
 			uassert.Equal(t, balances[0].Amount, expectedTreasuryBalance)
 
 			// Check treasury.History returned value.
-			history := treasury.History(bankerID, 0)
+			history := treasury.History(bankerID, 1, expectedHistoryLen+1)
 			uassert.Equal(t, len(history), expectedHistoryLen)
 		}
 	)

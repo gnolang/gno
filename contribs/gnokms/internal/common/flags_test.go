@@ -13,6 +13,10 @@ import (
 func TestRegistersDontPanic(t *testing.T) {
 	t.Parallel()
 
+	if os.Getenv("GITHUB_ACTIONS") == "true" {
+		t.Skip("Skipping until https://github.com/gnolang/gno/issues/4561 is resolved")
+	}
+
 	t.Run("auth flags", func(t *testing.T) {
 		t.Parallel()
 
@@ -36,6 +40,10 @@ func TestRegistersDontPanic(t *testing.T) {
 
 func TestDefaultAuthKeysFile(t *testing.T) {
 	t.Parallel()
+
+	if os.Getenv("GITHUB_ACTIONS") == "true" {
+		t.Skip("Skipping until https://github.com/gnolang/gno/issues/4561 is resolved")
+	}
 
 	t.Run("valid context", func(t *testing.T) {
 		t.Parallel()

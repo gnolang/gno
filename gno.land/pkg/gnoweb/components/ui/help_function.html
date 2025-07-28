@@ -39,7 +39,7 @@
             </button>
           </span>
         </span>
-        <span class="flex gap-x-2 flex-none">
+        <span class="flex gap-x-1 flex-none">
         <button
         class="js-copy-btn text-gray-400 hover:text-gray-600 leading-none flex items-top"
         aria-label="Copy Function"
@@ -49,10 +49,11 @@
           <svg class="w-5 h-5 shrink-0 inline-block" data-copy-icon>
             <use href="#ico-link"></use>
             <use href="#ico-check" class="hidden text-green-600"></use>
-
           </svg>
        </button>
-        <a href="{{ buildHelpURL $data . }}" data-role="help-function-link" title="Function transaction link" class="flex items-top text-600 text-gray-400 hover:text-gray-600 font-sans leading-none">⚡︎</a>
+        <a href="{{ buildHelpURL $data . }}" data-role="help-function-link" title="Function transaction link" class="flex items-top text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5"><use href="#ico-tx-link"></use></svg>
+        </a>
       </span>
       </div>
 

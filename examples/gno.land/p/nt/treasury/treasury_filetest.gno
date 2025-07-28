@@ -19,7 +19,7 @@ func checkBalanceAndHistory(t *treasury.Treasury, bankerIDs []string) {
 		}
 		println("Banker", bankerID, "Balance:", balances[0].Amount)
 
-		history, err := t.History(bankerID, 0)
+		history, err := t.History(bankerID, 1, 10)
 		if err != nil {
 			panic("failed to get banker history: " + err.Error())
 		}
