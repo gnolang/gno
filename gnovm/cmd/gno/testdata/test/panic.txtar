@@ -11,7 +11,7 @@ stderr 'FAIL'
 package valid
 
 -- panic_test.gno --
-package valid
+package valid_test
 
 import "testing"
 

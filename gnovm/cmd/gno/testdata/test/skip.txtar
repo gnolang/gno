@@ -13,7 +13,7 @@ stderr 'ok  '
 package skip
 
 -- skip_test.gno --
-package skip
+package skip_test
 
 import "testing"
 

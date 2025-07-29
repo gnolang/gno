@@ -11,7 +11,7 @@ stderr 'FAIL: 0 build errors, 1 test errors'
 package failing
 
 -- failing_test.gno --
-package failing
+package failing_test
 
 import "testing"
 

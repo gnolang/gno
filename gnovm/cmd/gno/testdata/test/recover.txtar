@@ -28,7 +28,7 @@ stderr 'ok  '
 package recov
 
 -- recov_test.gno --
-package recov
+package recov_test
 
 import "testing"
 
