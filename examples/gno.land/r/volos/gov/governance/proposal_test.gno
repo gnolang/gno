@@ -87,3 +87,44 @@ func TestProposal_ExecuteErrors(cur realm, t *testing.T) {
 		})
 	})
 }
+
+func TestProposal_ExecuteFunction(cur realm, t *testing.T) {
+	staker := "gno.land/r/volos/gov/staker"
+	alice := std.DerivePkgAddr("gno.land/r/volos/gov/alice")
+
+	crossThrough(std.NewCodeRealm(staker), func() {
+		xvls.Mint(cross, alice, 10000)
+		AddMember(cross, alice)
+	})
+
+	var proposal *commondao.Proposal
+	executed := false
+	crossThrough(std.NewUserRealm(alice), func() {
+		proposal = CreateProposal(cross, "Successful Execution", "Body", time.Second*1, func() { executed = true })
+		Vote(cross, proposal.ID(), "YES", "For!")
+	})
+
+	testing.SkipHeights(2000)
+
+	crossThrough(std.NewUserRealm(alice), func() {
+		Execute(cross, proposal.ID())
+		urequire.True(t, executed)
+	})
+
+	crossThrough(std.NewUserRealm(alice), func() {
+		uassert.AbortsWithMessage(t, "proposal not found", func() {
+			Execute(cross, 999)
+		})
+	})
+
+	executed2 := false
+	crossThrough(std.NewUserRealm(alice), func() {
+		proposal2 := CreateProposal(cross, "Early Execution", "Body", time.Second*100, func() { executed2 = true })
+		Vote(cross, proposal2.ID(), "YES", "For!")
+		
+		uassert.AbortsWithMessage(t, "voting deadline not met", func() {
+			Execute(cross, proposal2.ID())
+		})
+		urequire.False(t, executed2)
+	})
+}

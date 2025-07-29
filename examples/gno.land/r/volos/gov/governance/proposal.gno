@@ -100,3 +100,12 @@ func CreateProposal(cur realm, title, body string, votingPeriod time.Duration, a
 func GetProposal(id uint64) *commondao.Proposal {
 	return volosGovernance.GetProposal(id)
 }
+
+// Execute executes a proposal with the given ID.
+// This function calls the commondao's Execute method and panics if an error occurs.
+func Execute(cur realm, proposalID uint64) {
+	err := volosGovernance.Execute(proposalID)
+	if err != nil {
+		panic(err)
+	}
+}
