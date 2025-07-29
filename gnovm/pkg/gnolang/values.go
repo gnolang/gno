@@ -1546,13 +1546,12 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		bz = append(bz, pbz...)
 	case *PointerType:
 		fillValueTV(store, tv)
-		// nil pointer.
-		if tv.V == nil {
-			bz = append(bz, nilStr...)
-			return MapKey(bz)
+		var ptrBytes [sizeOfUintPtr]byte // zero-initialized for nil pointers
+		if tv.V != nil {
+			ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
+			ptrBytes = uintptrToBytes(&ptr)
 		}
-		ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
-		bz = append(bz, uintptrToBytes(&ptr)...)
+		bz = append(bz, ptrBytes[:]...)
 	case FieldType:
 		panic("field (pseudo)type cannot be used as map key")
 	case *ArrayType:
