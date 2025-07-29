@@ -1838,6 +1838,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 		NumStmts:  len(m.Stmts),
 		NumBlocks: len(m.Blocks),
 	}
+	m.GasMeter.ConsumeGas(overflow.Mulp(fr.EstimateSize(), GasCostFrameSize), "frame pushed")
 	if debug {
 		m.Printf("+F %#v\n", fr)
 	}
@@ -1895,6 +1896,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	// NOTE: fr cannot be mutated from hereon, as it is a value.
 	// If it must be mutated after append, use m.LastFrame() instead.
 	m.Frames = append(m.Frames, fr)
+	m.GasMeter.ConsumeGas(overflow.Mulp(fr.EstimateSize(), GasCostFrameSize), "frame pushed")
 
 	// Set the package.
 	// .Package always refers to the code being run,

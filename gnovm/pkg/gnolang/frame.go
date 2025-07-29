@@ -106,6 +106,17 @@ func (fr *Frame) SetIsRevive() {
 	fr.IsRevive = true
 }
 
+const GasCostFrameSize = 1 // gas cost corresponding to size of Frame struct
+
+func (fr *Frame) EstimateSize() int64 {
+	total := int64(fr.NumOps)
+	total += int64(fr.NumValues)
+	total += int64(fr.NumExprs)
+	total += int64(fr.NumStmts)
+	total += int64(fr.NumBlocks)
+	return total
+}
+
 //----------------------------------------
 // Defer
 
