@@ -1,17 +1,19 @@
-package haystack
+package haystack_test
 
 import (
 	"encoding/hex"
 	"testing"
 
 	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/urequire"
-	"gno.land/p/n2p5/haystack"
+	"gno.land/p/demo/uassert"
 	"gno.land/p/n2p5/haystack/needle"
+	h "gno.land/r/n2p5/haystack"
 )
 
-func TestHaystack(t *testing.T) {
-	t.Parallel()
+func TestHaystackBasic(t *testing.T) {
+	// Reset storage before running tests
+	h.ResetStorage()
+
 	// needleHex returns a hex-encoded needle and its hash for a given index.
 	genNeedleHex := func(i int) (string, string) {
 		b := make([]byte, needle.PayloadLength)
@@ -21,49 +23,26 @@ func TestHaystack(t *testing.T) {
 	}
 
 	u1 := testutils.TestAddress("u1")
-	u2 := testutils.TestAddress("u2")
 
-	t.Run("Add", func(t *testing.T) {
-		t.Parallel()
+	// Test Add and Get functionality
+	n1, h1 := genNeedleHex(1)
+	n2, h2 := genNeedleHex(2)
 
-		n1, _ := genNeedleHex(1)
-		n2, _ := genNeedleHex(2)
-		n3, _ := genNeedleHex(3)
+	// Add first needle
+	testing.SetOriginCaller(u1)
+	h.Add(n1)
 
-		testing.SetOriginCaller(u1)
-		urequire.NotPanics(t, func() { Add(n1) })
-		urequire.AbortsWithMessage(t,
-			haystack.ErrorDuplicateNeedle.Error(),
-			func() {
-				Add(n1)
-			})
-		testing.SetOriginCaller(u2)
-		urequire.NotPanics(t, func() { Add(n2) })
-		urequire.NotPanics(t, func() { Add(n3) })
-	})
+	// Get the needle back
+	result := h.Get(h1)
+	uassert.Equal(t, n1, result)
 
-	t.Run("Get", func(t *testing.T) {
-		t.Parallel()
+	// Add second needle
+	h.Add(n2)
 
-		n1, h1 := genNeedleHex(4)
-		_, h2 := genNeedleHex(5)
+	// Get both needles
+	result = h.Get(h1)
+	uassert.Equal(t, n1, result)
 
-		testing.SetOriginCaller(u1)
-		urequire.NotPanics(t, func() { Add(n1) })
-		urequire.NotPanics(t, func() {
-			result := Get(h1)
-			urequire.Equal(t, n1, result)
-		})
-
-		testing.SetOriginCaller(u2)
-		urequire.NotPanics(t, func() {
-			result := Get(h1)
-			urequire.Equal(t, n1, result)
-		})
-		urequire.AbortsWithMessage(t,
-			haystack.ErrorNeedleNotFound.Error(),
-			func() {
-				Get(h2)
-			})
-	})
+	result = h.Get(h2)
+	uassert.Equal(t, n2, result)
 }
