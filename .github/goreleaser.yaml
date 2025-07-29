@@ -403,7 +403,6 @@ dockers:
       - gno.land/genesis/genesis_txs.jsonl
       - examples
       - gnovm/stdlibs
-      - gnovm/tests/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -426,7 +425,6 @@ dockers:
       - gno.land/genesis/genesis_txs.jsonl
       - examples
       - gnovm/stdlibs
-      - gnovm/tests/stdlibs
 
 docker_manifests:
   # https://goreleaser.com/customization/docker_manifest/
