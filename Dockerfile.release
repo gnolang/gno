@@ -49,7 +49,7 @@ ENTRYPOINT [ "/usr/bin/gnofaucet" ]
 ## ghcr.io/gnolang/gno/gnodev
 FROM base AS gnodev
 
-COPY       ./gnodev                                /usr/bin/gnodev
+COPY       ./gnodev /usr/bin/gnodev
 COPY       ./examples                              /gnoroot/examples/
 COPY       ./gnovm/stdlibs                         /gnoroot/gnovm/stdlibs/
 COPY       ./gnovm/tests/stdlibs                   /gnoroot/gnovm/tests/stdlibs/
