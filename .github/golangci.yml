@@ -6,6 +6,8 @@ run:
   modules-download-mode: readonly
   allow-parallel-runners: false
   go: "1.23"
+  skip-dirs:
+    - gnovm/pkg/parser
 
 output:
   path-prefix: ""
