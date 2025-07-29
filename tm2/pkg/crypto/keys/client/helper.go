@@ -47,11 +47,11 @@ func GenerateMnemonicWithCustomEntropy(io commands.IO) (string, error) {
 
 	// Hash the input entropy to create deterministic seed
 	hashedEntropy := sha256.Sum256([]byte(inputEntropy))
-	
+
 	// Show what we're using as entropy (first 16 bytes as hex)
 	io.Printf("\nDerived entropy (SHA-256): %x...\n", hashedEntropy[:16])
 	io.Printf("Input length: %d characters\n", len(inputEntropy))
-	
+
 	// Confirm before proceeding
 	conf, err := io.GetConfirmation("Generate mnemonic from this entropy?")
 	if err != nil {

@@ -12,23 +12,23 @@ import (
 
 // testMockIO implements commands.IO for testing
 type testMockIO struct {
-	inputs      []string
-	inputIndex  int
-	confirms    []bool
+	inputs       []string
+	inputIndex   int
+	confirms     []bool
 	confirmIndex int
-	output      bytes.Buffer
+	output       bytes.Buffer
 }
 
-func (m *testMockIO) In() io.Reader                    { return &m.output }
-func (m *testMockIO) Out() io.WriteCloser              { return &testWriteCloser{&m.output} }
-func (m *testMockIO) Err() io.WriteCloser              { return &testWriteCloser{&m.output} }
-func (m *testMockIO) SetIn(in io.Reader)               {}
-func (m *testMockIO) SetOut(out io.WriteCloser)        {}
-func (m *testMockIO) SetErr(err io.WriteCloser)        {}
-func (m *testMockIO) Println(args ...interface{})     {}
-func (m *testMockIO) Printf(format string, args ...interface{}) {}
-func (m *testMockIO) Printfln(format string, args ...interface{}) {}
-func (m *testMockIO) ErrPrintln(args ...interface{})  {}
+func (m *testMockIO) In() io.Reader                                  { return &m.output }
+func (m *testMockIO) Out() io.WriteCloser                            { return &testWriteCloser{&m.output} }
+func (m *testMockIO) Err() io.WriteCloser                            { return &testWriteCloser{&m.output} }
+func (m *testMockIO) SetIn(in io.Reader)                             {}
+func (m *testMockIO) SetOut(out io.WriteCloser)                      {}
+func (m *testMockIO) SetErr(err io.WriteCloser)                      {}
+func (m *testMockIO) Println(args ...interface{})                    {}
+func (m *testMockIO) Printf(format string, args ...interface{})      {}
+func (m *testMockIO) Printfln(format string, args ...interface{})    {}
+func (m *testMockIO) ErrPrintln(args ...interface{})                 {}
 func (m *testMockIO) ErrPrintfln(format string, args ...interface{}) {}
 
 type testWriteCloser struct {
