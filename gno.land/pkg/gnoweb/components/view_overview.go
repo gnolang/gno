@@ -1,6 +1,8 @@
 package components
 
 import (
+	"strings"
+
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
@@ -40,13 +42,47 @@ type OverviewData struct {
 	Article      ArticleData
 	PackageInfo  *PackageInfo
 	Imports      []*ImportLink
+	GroupedConsts []*GroupedDecl
+	GroupedVars   []*GroupedDecl
 }
 
 type overviewViewParams struct {
 	OverviewData
 }
 
+// GroupedDecl represents a grouped declaration
+type GroupedDecl struct {
+	*doc.JSONValueDecl
+	Names string
+	ID    string
+}
+
+// groupDecls groups declarations by their signature
+func groupDecls(decls []*doc.JSONValueDecl, prefix string) []*GroupedDecl {
+	var grouped []*GroupedDecl
+	
+	for _, decl := range decls {
+		if len(decl.Values) > 0 {
+			names := make([]string, len(decl.Values))
+			for i, val := range decl.Values {
+				names[i] = val.Name
+			}
+			grouped = append(grouped, &GroupedDecl{
+				JSONValueDecl: decl,
+				Names:         strings.Join(names, ", "),
+				ID:            prefix + "-" + decl.Values[0].Name,
+			})
+		}
+	}
+	
+	return grouped
+}
+
 func OverviewView(data OverviewData) *View {
+	// Group consts and vars (ultra-simple, one pass)
+	groupedConsts := groupDecls(data.Consts, "const")
+	groupedVars := groupDecls(data.Vars, "var")
+	
 	// Create TOC data using TocItem structure
 	var tocItems []*markdown.TocItem
 	
@@ -71,8 +107,6 @@ func OverviewView(data OverviewData) *View {
 		}
 		tocItems = append(tocItems, section)
 	}
-	
-
 	
 	if len(data.Consts) > 0 {
 		tocItems = append(tocItems, &markdown.TocItem{
@@ -130,29 +164,34 @@ func OverviewView(data OverviewData) *View {
 		tocComponent = NewTemplateComponent("ui/toc_realm", tocData)
 	}
 
-	// Create article content
-	articleContent := NewTemplateComponent("ui/overview_content", data)
+	// Create article content with grouped data
+	articleData := OverviewData{
+		PkgPath:        data.PkgPath,
+		Readme:         data.Readme,
+		Functions:      data.Functions,
+		Doc:            data.Doc,
+		Files:          data.Files,
+		FileCounter:    data.FileCounter,
+		Consts:         data.Consts,
+		Vars:           data.Vars,
+		Types:          data.Types,
+		Dirs:           data.Dirs,
+		Imports:        data.Imports,
+		GroupedConsts:  groupedConsts,
+		GroupedVars:    groupedVars,
+		ComponentTOC:   tocComponent,
+		Article: ArticleData{
+			ComponentContent: nil, // Will be set below
+			Classes:          "overview-view col-span-1 lg:col-span-7 pb-24 text-gray-900",
+		},
+		PackageInfo: data.PackageInfo,
+	}
+	
+	articleContent := NewTemplateComponent("ui/overview_content", articleData)
+	articleData.Article.ComponentContent = articleContent
 
 	viewData := overviewViewParams{
-		OverviewData: OverviewData{
-			PkgPath:      data.PkgPath,
-			Readme:       data.Readme,
-			Functions:    data.Functions,
-			Doc:          data.Doc,
-			Files:        data.Files,
-			FileCounter:  data.FileCounter,
-			Consts:       data.Consts,
-			Vars:         data.Vars,
-			Types:        data.Types,
-			Dirs:         data.Dirs,
-			Imports:      data.Imports,
-			ComponentTOC: tocComponent,
-			Article: ArticleData{
-				ComponentContent: articleContent,
-				Classes:          "overview-view col-span-1 lg:col-span-7 pb-24 text-gray-900",
-			},
-			PackageInfo: data.PackageInfo,
-		},
+		OverviewData: articleData,
 	}
 
 	return NewTemplateView(OverviewViewType, "renderOverview", viewData)

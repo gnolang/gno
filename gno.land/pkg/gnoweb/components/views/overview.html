@@ -28,11 +28,57 @@
 {{ template "layout/article" .Article }}
 {{ end }}
 
+{{ define "ui/code_block" }}
+{{ $id := .ID }}
+{{ $content := .Content }}
+{{ $language := .Language }}
+{{ $doc := .Doc }}
+{{ $name := .Name }}
+{{ $file := .File }}
+{{ $line := .Line }}
+{{ $pkgPath := .PkgPath }}
+{{ $prefix := .Prefix }}
+{{ $prefix := .Prefix }}
+<li id="{{ $id }}" class="group scroll-mt-20">
+  <h3 class="inline-block font-bold text-300" id>{{ $prefix }} <a
+      href="{{ $pkgPath }}$source&file={{ $file }}#L{{ $line }}" class="text-green-600 hover:underline">{{ $name }}</a>
+    <a href="#{{ $id }}" class="hidden group-hover:inline-flex hover:text-green-600 align-sub"><svg
+        class="w-5 h-5 shrink-0">
+        <use href="#ico-link"></use>
+      </svg></a>
+  </h3>
+  {{ if $doc }}<div class="text-gray-600 mt-1">{{ $doc }}</div>{{ end }}
+  <div class="flex flex-col items-center mb-1 mt-3 w-full bg-gray-100 rounded-sm border overflow-hidden">
+    <div class="flex w-full justify-between gap-2 border-b py-1 px-2 text-50 text-gray-400">
+      <span class="font-mono">{{ $language }}</span>
+      <span class="flex items-center gap-4">
+        <button class="js-copy-btn group flex items-center gap-0.5 pt-0.5 hover:text-gray-600"
+          data-copy-btn="{{ $id }}">
+          {{ template "ui/copy" }}
+          <span class="hidden xl:inline">Copy</span>
+        </button>
+        {{ if and $file $line }}
+        <a href="{{ $pkgPath }}$source&file={{ $file }}#L{{ $line }}"
+          class="flex items-center gap-1 pt-0.5 hover:text-gray-600">
+          <svg class="w-4 h-4 shrink-0">
+            <use href="#ico-code"></use>
+          </svg>
+          <span class="hidden xl:inline">View source</span>
+        </a>
+        {{ end }}
+      </span>
+    </div>
+    <pre class="mb-0 w-full text-200 font-mono overflow-x-auto" id="{{ $id }}"
+      data-copy-content="{{ $id }}">{{ highlightCode $content $language }}</pre>
+  </div>
+</li>
+{{ end }}
+
 {{ define "ui/overview_content" }}
 <!-- README section -->
 {{ if .Readme }}
-<div class="mb-8" id="readme">
-  <h2 class="text-2xl font-bold mb-2">README</h2>
+<div class="mb-12" id="readme">
+  <h2 class="text-400 font-bold mb-2">README</h2>
   <md-renderer class="realm-view block bg-light p-4 rounded">
     {{ render .Readme }}
   </md-renderer>
@@ -41,62 +87,45 @@
 
 <!-- Functions section -->
 {{ if .Functions }}
-<div class="mb-8" id="functions">
-  <h2 class="text-2xl font-bold mb-2">Functions</h2>
-  <ul class="space-y-4">
+<div class="mb-12" id="functions">
+  <h2 class="inline-flex items-center gap-2 text-600 font-bold mb-5 w-full border-b pb-2"><svg class="w-6 h-6 shrink-0">
+      <use href="#ico-code"></use>
+    </svg> Functions</h2>
+  <ul class="space-y-6">
     {{ range .Functions }}
-    <li id="func-{{ .Name }}" class="border-b pb-2">
-      <h3 class="font-bold text-lg text-gray-900 mb-1">func {{ .Name }} <span class="text-green-700">¶</span></h3>
-      {{ if .Doc }}<div class="text-gray-600 text-sm mt-1">{{ .Doc }}</div>{{ end }}
-      <div class="flex items-center gap-2 mb-1">
-        <pre class="font-mono text-sm bg-gray-100 rounded px-2 py-1 inline-block mb-0"
-          id="sig-{{ .Name }}">{{ .Signature }}</pre>
-        <button class="js-copy-btn text-gray-400 hover:text-gray-600" data-copy-btn="sig-{{ .Name }}">
-          {{ template "ui/copy" }}
-        </button>
-        <a href="{{ $.PkgPath }}$source&file={{ .File }}#L{{ .Line }}"
-          class="ml-2 text-green-700 hover:underline font-mono text-xs px-2 py-1 border rounded bg-gray-50">View
-          source</a>
-      </div>
-    </li>
+    {{ template "ui/code_block" (dict "ID" (printf "func-%s" .Name) "Content" .Signature "Language" "go" "Doc" .Doc
+    "Name" .Name "File" .File "Line" .Line "PkgPath" $.PkgPath "Prefix" "func") }}
     {{ end }}
   </ul>
 </div>
 {{ end }}
 
 <!-- Constants section -->
-{{ if .Consts }}
-<div class="mb-8" id="constants">
-  <h2 class="text-2xl font-bold mb-2">Constants</h2>
-  <ul>
-    {{ range .Consts }}
-    <li class="mb-2">
-      <pre class="font-mono text-sm bg-gray-100 rounded px-2 py-1 inline-block mb-0"
-        id="const-{{ .Signature }}">{{ .Signature }}</pre>
-      <button class="js-copy-btn text-gray-400 hover:text-gray-600" data-copy-btn="const-{{ .Signature }}">
-        {{ template "ui/copy" }}
-      </button>
-      {{ if .Doc }}<div class="text-gray-600 text-sm mt-1">{{ .Doc }}</div>{{ end }}
-    </li>
+{{ if .GroupedConsts }}
+<div class="mb-12" id="constants">
+  <h2 class="inline-flex items-center gap-2 text-600 font-bold mb-5 w-full"><svg class="w-6 h-6 shrink-0">
+      <use href="#ico-code"></use>
+    </svg> Constants</h2>
+  <ul class="space-y-6">
+    {{ range .GroupedConsts }}
+    {{ template "ui/code_block" (dict "ID" .ID "Content" .Signature "Language" "go"
+    "Doc" .Doc "Name" .Names "File" .File "Line" .Line "PkgPath"
+    $.PkgPath "Prefix" "const") }}
     {{ end }}
   </ul>
 </div>
 {{ end }}
 
 <!-- Variables section -->
-{{ if .Vars }}
-<div class="mb-8" id="variables">
-  <h2 class="text-2xl font-bold mb-2">Variables</h2>
-  <ul>
-    {{ range .Vars }}
-    <li class="mb-2">
-      <pre class="font-mono text-sm bg-gray-100 rounded px-2 py-1 inline-block mb-0"
-        id="var-{{ .Signature }}">{{ .Signature }}</pre>
-      <button class="js-copy-btn text-gray-400 hover:text-gray-600" data-copy-btn="var-{{ .Signature }}">
-        {{ template "ui/copy" }}
-      </button>
-      {{ if .Doc }}<div class="text-gray-600 text-sm mt-1">{{ .Doc }}</div>{{ end }}
-    </li>
+{{ if .GroupedVars }}
+<div class="mb-12" id="variables">
+  <h2 class="inline-flex items-center gap-2 text-600 font-bold mb-5 w-full"><svg class="w-6 h-6 shrink-0">
+      <use href="#ico-code"></use>
+    </svg> Variables</h2>
+  <ul class="space-y-6">
+    {{ range .GroupedVars }}
+    {{ template "ui/code_block" (dict "ID" .ID "Content" .Signature "Language" "go" "Doc"
+    .Doc "Name" .Names "File" .File "Line" .Line "PkgPath" $.PkgPath "Prefix" "var") }}
     {{ end }}
   </ul>
 </div>
@@ -104,18 +133,14 @@
 
 <!-- Types section -->
 {{ if .Types }}
-<div class="mb-8" id="types">
-  <h2 class="text-2xl font-bold mb-2">Types</h2>
-  <ul>
+<div class="mb-12" id="types">
+  <h2 class="inline-flex items-center gap-2 text-600 font-bold mb-5 border-b pb-2 w-full"><svg class="w-6 h-6 shrink-0">
+      <use href="#ico-code"></use>
+    </svg> Types</h2>
+  <ul class="space-y-6">
     {{ range .Types }}
-    <li class="mb-2">
-      <pre class="font-mono text-sm bg-gray-100 rounded px-2 py-1 inline-block mb-0"
-        id="type-{{ .Name }}">{{ .Signature }}</pre>
-      <button class="js-copy-btn text-gray-400 hover:text-gray-600" data-copy-btn="type-{{ .Name }}">
-        {{ template "ui/copy" }}
-      </button>
-      {{ if .Doc }}<div class="text-gray-600 text-sm mt-1">{{ .Doc }}</div>{{ end }}
-    </li>
+    {{ template "ui/code_block" (dict "ID" (printf "type-%s" .Name) "Content" .Signature "Language" "go" "Doc" .Doc
+    "Name" .Name "File" .File "Line" .Line "PkgPath" $.PkgPath "Prefix" "type") }}
     {{ end }}
   </ul>
 </div>
@@ -123,8 +148,10 @@
 
 <!-- Files section -->
 {{ if .Files }}
-<div class="mb-8" id="files">
-  <h2 class="text-2xl font-bold mb-2">Source Files</h2>
+<div class="mb-12" id="files">
+  <h2 class="inline-flex items-center gap-2 text-600 font-bold mb-5 border-b pb-2 w-full"><svg class="w-6 h-6 shrink-0">
+      <use href="#ico-file"></use>
+    </svg> Source Files</h2>
   <ul>
     {{ range .Files }}
     <li class="border-b first:border-t">
@@ -146,12 +173,23 @@
 
 <!-- Directories section -->
 {{ if .Dirs }}
-<div class="mb-8" id="directories">
-  <h2 class="text-2xl font-bold mb-2">Directories</h2>
+<div class="mb-12" id="directories">
+  <h2 class="inline-flex items-center gap-2 text-600 font-bold mb-5 border-b pb-2 w-full"><svg class="w-6 h-6 shrink-0">
+      <use href="#ico-folder"></use>
+    </svg> Directories</h2>
   <ul>
     {{ range .Dirs }}
-    <li>
-      <a href="{{ $.PkgPath }}/{{ . }}" class="text-green-700 hover:underline font-mono">{{ . }}</a>
+    <li class="border-b first:border-t">
+      <a class="py-2 flex justify-between items-center px-2 text-gray-600 line-clamp-2 hover:bg-gray-100"
+        href="{{ $.PkgPath }}/{{ . }}">
+        <span class="flex items-center gap-2">
+          <svg class="w-4 h-4 shrink-0">
+            <use href="#ico-folder"></use>
+          </svg>
+          {{ . }}
+        </span>
+        <span class="text-gray-300">Open</span>
+      </a>
     </li>
     {{ end }}
   </ul>
@@ -160,8 +198,10 @@
 
 <!-- Imports section -->
 {{ if .Imports }}
-<div class="mb-8" id="imports">
-  <h2 class="text-2xl font-bold mb-2">Imports</h2>
+<div class="mb-12" id="imports">
+  <h2 class="inline-flex items-center gap-2 text-600 font-bold mb-5 border-b pb-2 w-full"><svg class="w-6 h-6 shrink-0">
+      <use href="#ico-ddl"></use>
+    </svg> Imports</h2>
   <ul>
     {{ range .Imports }}
     <li>

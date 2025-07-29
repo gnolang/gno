@@ -15,6 +15,14 @@ var funcMap = template.FuncMap{}
 
 var tmpl = template.New("web")
 
+// rendererInstance is a global instance of the renderer
+var rendererInstance interface{}
+
+// SetRenderer sets the global renderer instance for syntax highlighting
+func SetRenderer(renderer interface{}) {
+	rendererInstance = renderer
+}
+
 func registerCommonFuncs(funcs template.FuncMap) {
 	// NOTE: this method does NOT escape HTML, use with caution
 	funcs["noescape_string"] = func(in string) template.HTML {
@@ -51,6 +59,43 @@ func registerCommonFuncs(funcs template.FuncMap) {
 		}
 		return s[:visibleChars] + "..." + s[len(s)-visibleChars:]
 	}
+	// highlightCode highlights code with a specific language
+	funcs["highlightCode"] = func(code, language string) template.HTML {
+		if rendererInstance == nil {
+			return template.HTML(fmt.Sprintf(`<pre class="chroma">%s</pre>`, code))
+		}
+		
+		// Use the HighlightCode method
+		if r, ok := rendererInstance.(interface{ HighlightCode(string, string) (string, error) }); ok {
+			if highlighted, err := r.HighlightCode(code, language); err == nil {
+				return template.HTML(highlighted)
+			} else {
+				// Log error and fallback to plain text
+				return template.HTML(fmt.Sprintf(`<pre class="chroma"><!-- Error: %s -->%s</pre>`, err.Error(), code))
+			}
+		}
+		
+		return template.HTML(fmt.Sprintf(`<pre class="chroma">%s</pre>`, code))
+	}
+	
+	// dict creates a map from key-value pairs
+	funcs["dict"] = func(values ...interface{}) (map[string]interface{}, error) {
+		if len(values)%2 != 0 {
+			return nil, fmt.Errorf("dict requires even number of arguments")
+		}
+		dict := make(map[string]interface{}, len(values)/2)
+		for i := 0; i < len(values); i += 2 {
+			key, ok := values[i].(string)
+			if !ok {
+				return nil, fmt.Errorf("dict keys must be strings")
+			}
+			dict[key] = values[i+1]
+		}
+		return dict, nil
+	}
+	
+	// printf formats a string like fmt.Sprintf
+	funcs["printf"] = fmt.Sprintf
 }
 
 func init() {
