@@ -129,6 +129,21 @@ func PrintRealms(cur realm) {
 	ufmt.Printf("previous realm: %s\n", std.PreviousRealm())
 }
 
+// Utility func
+func UtilityFunc() {
+	AllowedList = append(AllowedList, 3) // global var
+	println(AllowedList)
+	ufmt.Printf("current realm: %s\n", std.CurrentRealm())
+	ufmt.Printf("previous realm: %s\n", std.PreviousRealm())
+}
+
+func UtilityCrossFunc(cur realm) {
+	AllowedList = append(AllowedList, 3) // global var
+	println(AllowedList)
+	ufmt.Printf("current realm: %s\n", std.CurrentRealm())
+	ufmt.Printf("previous realm: %s\n", std.PreviousRealm())
+}
+
 // -------------------------------------------------
 var Object any
 

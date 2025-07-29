@@ -2,6 +2,13 @@ package p_crossrealm
 
 import "std"
 
+var AllowedList = []int{1, 2}
+
+func Modify() {
+	AllowedList = append(AllowedList, 3)
+	println(AllowedList)
+}
+
 type Stringer interface {
 	String() string
 }

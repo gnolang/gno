@@ -51,5 +51,4 @@ func main(cur realm) {
 // finalizerealm["gno.land/r/crossrealm"]
 // finalizerealm["gno.land/r/demo/tests/crossrealm"]
 // finalizerealm["gno.land/r/demo/tests/crossrealm"]
-// finalizerealm["gno.land/r/demo/tests/crossrealm"]
 // finalizerealm["gno.land/r/crossrealm"]
