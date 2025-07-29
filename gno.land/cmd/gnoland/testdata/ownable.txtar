@@ -1,0 +1,123 @@
+# test for add package
+
+## start a new node
+gnoland start
+
+# upload p/demo/ownable
+gnokey maketx addpkg -pkgdir $WORK/ownable -pkgpath gno.land/p/demo/ownable -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+# upload r/demo/toplevel + call
+gnokey maketx addpkg -pkgdir $WORK/toplevel -pkgpath gno.land/r/demo/toplevel -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/toplevel -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
+stdout 'current owner: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5' # test1
+gnokey maketx call -pkgpath gno.land/r/demo/toplevel -func Transfer -args g1000000000000000000 -gas-fee 1000000ugnot -gas-wanted 2000000  -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/toplevel -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
+stdout 'current owner: g1000000000000000000' 
+
+# uplaod r/demo/nftnft + call
+gnokey maketx addpkg -pkgdir $WORK/nftnft     -pkgpath gno.land/r/demo/nftnft     -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/nftnft -func Render -args '' -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout 'name=name1 owner=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
+stdout 'name=name2 owner=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
+gnokey maketx call -pkgpath gno.land/r/demo/nftnft -func Transfer -args '0' -args 'g100000000000000000000' -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/nftnft -func Transfer -args '1' -args 'g111111111111111111111' -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/nftnft -func Render -args '' -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout 'name=name1 owner=g10000000000000000000'
+stdout 'name=name2 owner=g11111111111111111111'
+
+# uplaod r/demo/nftnft2 + call
+gnokey maketx addpkg -pkgdir $WORK/nftnft2     -pkgpath gno.land/r/demo/nftnft2     -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/nftnft2 -func Render -args '' -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout 'name=name1 owner=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
+stdout 'name=name2 owner=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
+gnokey maketx call -pkgpath gno.land/r/demo/nftnft2 -func Transfer -args '0' -args 'g100000000000000000000' -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/nftnft2 -func Transfer -args '1' -args 'g111111111111111111111' -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/nftnft2 -func Render -args '' -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout 'name=name1 owner=g10000000000000000000'
+stdout 'name=name2 owner=g11111111111111111111'
+
+-- nftnft/nftnft.gno --
+package nft
+import "gno.land/p/demo/ownable"
+import "std"
+type NFT struct{
+	*ownable.Ownable
+	name string
+}
+var nfts []*NFT
+// optional; var mappingUserNFTs avl.Tree // user -> []*NFT
+func init() {	nfts = append(nfts, New("name1"),	New("name2")) }
+func GetNFT(idx int) NFT {nft := nfts[idx]; return *nft}
+func Transfer(idx int, to string) {
+	nft := nfts[idx]
+	nft.Transfer(std.Address(to))
+	// optional: update an avl.Tree with mapping user->[]*NFT, for potential lookup
+}
+func (n NFT) String() string { return "name="+n.name + " owner="+n.Ownable.Addr().String() }
+func New(name string) *NFT {
+	return &NFT{
+		name: name,
+		Ownable: ownable.New(),
+	}
+}
+func Render(path string) string {
+	output := "nfts:\n"
+	for idx, nft := range nfts {
+		output += nft.String() + "\n"
+	}
+	return output
+}
+-- nftnft2/nftnft2.gno --
+package nft
+import "gno.land/p/demo/ownable"
+import "std"
+type NFT struct{
+	owner *ownable.Ownable
+	name string
+}
+var nfts []*NFT
+// optional; var mappingUserNFTs avl.Tree // user -> []*NFT
+func init() {	nfts = append(nfts, New("name1"),	New("name2")) }
+func GetNFT(idx int) NFT {nft := nfts[idx]; return *nft}
+func Transfer(idx int, to string) {
+	nft := nfts[idx]
+	nft.owner.Transfer(std.Address(to))
+	// optional: update an avl.Tree with mapping user->[]*NFT, for potential lookup
+}
+func (n NFT) String() string { return "name="+n.name + " owner="+n.owner.Addr().String() }
+func New(name string) *NFT {
+	return &NFT{
+		name: name,
+		owner: ownable.New(),
+	}
+}
+func Render(path string) string {
+	output := "nfts:\n"
+	for idx, nft := range nfts {
+		output += nft.String() + "\n"
+	}
+	return output
+}
+-- toplevel/toplevel.gno --
+package toplevel
+import "gno.land/p/demo/ownable"
+import "std"
+var owner = ownable.New()
+func Render(path string) string { return "current owner: " + owner.Addr().String() }
+func Transfer(newAddr string) { owner.Transfer(std.Address(newAddr)) }
+-- ownable/ownable.gno --
+package ownable
+import "std"
+// Ownable is meant to be used as a top-level object to make your contract ownable OR
+// being embedded in a go object to manage per-object ownership.
+type Ownable struct { addr std.Address }
+func (o Ownable) Addr() std.Address { return o.addr }
+func New() *Ownable {
+	caller := std.GetOrigCaller()
+	return &Ownable{addr: caller}
+}
+func (o *Ownable) Transfer(newAddr std.Address) {
+	if !o.IsCalledByOwner() { panic ("unauthorized") }
+	o.addr = newAddr
+}
+func (o *Ownable) IsCalledByOwner() bool { return std.GetOrigCaller() == o.addr }
