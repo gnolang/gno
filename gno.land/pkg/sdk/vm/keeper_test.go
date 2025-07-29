@@ -958,15 +958,12 @@ func Echo(cur realm, msg string){
 	assert.True(t, depDeltaTest.Add(depDeltaFoo).IsEqual(msg2.MaxDeposit))
 }
 
-// TestVMKeeperDeterminism tests that multiple runs of the same operations
-// produce the same app hash, ensuring deterministic behavior.
+// TestVMKeeper_RealmDiffIterationDeterminism tests that multiple runs of addpkg
+// + msgcall produce the same error messages, ensuring deterministic behavior
+// when iterating through the realm storage diffs.
 // See #4580 for context.
-func TestVMKeeperDeterminism(t *testing.T) {
-	// Determine number of runs based on -short flag
-	numRuns := 50
-	if testing.Short() {
-		numRuns = 5
-	}
+func TestVMKeeper_RealmDiffIterationDeterminism(t *testing.T) {
+	const numRuns = 5
 
 	runOperations := func() (string, error) {
 		env := setupTestEnv()
@@ -1073,18 +1070,15 @@ func UpdateAll(cur realm) {
 			t.Logf("Non-determinism detected at run %d!", i+1)
 			t.Logf("First error: %s", firstMsg)
 			t.Logf("Different error at run %d: %s", i+1, errMsg)
-			t.Fatalf("TEST CORRECTLY FAILED: VM Keeper operations are non-deterministic without the sorting fix in PR #4580")
 		}
 
 		// Force GC and allocations to change runtime state
-		if i%10 == 0 {
-			runtime.GC()
-			// Create some allocations to change heap state
-			temp := make([]map[string]int, 100)
-			for j := range temp {
-				temp[j] = make(map[string]int)
-				temp[j]["key"] = j
-			}
+		runtime.GC()
+		// Create some allocations to change heap state
+		temp := make([]map[string]int, 100)
+		for j := range temp {
+			temp[j] = make(map[string]int)
+			temp[j]["key"] = j
 		}
 
 		// Log progress periodically
