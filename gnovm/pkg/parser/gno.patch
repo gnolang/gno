@@ -1,0 +1,11 @@
+--- ./performance_test.go.orig	2025-02-27 18:57:18.000000000 +0100
++++ ./performance_test.go	2025-07-29 17:37:33.595908141 +0200
+@@ -10,7 +10,7 @@
+ 	"testing"
+ )
+ 
+-var src = readFile("../printer/nodes.go")
++var src = readFile("nodes.go.src")
+ 
+ func readFile(filename string) []byte {
+ 	data, err := os.ReadFile(filename)
