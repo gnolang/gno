@@ -73,7 +73,7 @@ func SetNewAdmin(cur realm, address std.Address) {
 func DeleteYourself(cur realm) {
 	addr := std.PreviousRealm().Address()
 
-	if users.Has(addr.String()) {
+	if !users.Has(addr.String()) {
 		panic("user not registered")
 	}
 
@@ -104,10 +104,10 @@ func BanMember(cur realm, adr std.Address) {
 // Previously banned user must be registered again manually
 func UnbanMember(cur realm, adr std.Address) {
 	if !isAdmin(std.PreviousRealm().Address()) {
-		panic("only admin can ban members")
+		panic("only admin can unban members")
 	}
 
-	if banned.Has(adr.String()) {
+	if !banned.Has(adr.String()) {
 		panic("user is not banned")
 	}
 

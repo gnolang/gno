@@ -2,6 +2,7 @@ package place
 
 import (
 	"encoding/base64"
+	"std"
 	"testing"
 
 	"gno.land/p/demo/ufmt"
@@ -50,6 +51,15 @@ var (
 	testInvalidAdress = []string{
 		"someAdress/r/eva/place:?color=G&x=9a&y=2",
 		"",
+	}
+
+	randomTestWallet  = "g1uz7u2aeff4z8haftcsay2zp2rcc5knkru3y4im"
+	randomTestWallet2 = "g1uz7u2aeffty8hafttest2zp2rcc5knkru3y4im"
+	bobAdminWannabe   = "g1uz7u2aeffty8haft73985782rtt5knkruadmin"
+	adminList         = []string{
+		louWallet,
+		chaeWallet,
+		ghhvWallet,
 	}
 )
 
@@ -172,4 +182,259 @@ func Test_parseXYInvalid(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_Register(t *testing.T) {
+	owner := std.Address(randomTestWallet)
+	testing.SetOriginCaller(owner)
+
+	abort := revive(func() {
+		Register(cross)
+	})
+
+	if abort != nil {
+		t.Fatal("Register panicked for first register")
+	}
+
+	abort = revive(func() {
+		Register(cross)
+	})
+
+	if abort == nil {
+		t.Fatal("Register didn't panick for second register")
+	}
+}
+
+func Test_DeleteYourself(t *testing.T) {
+	owner := std.Address(randomTestWallet)
+	testing.SetOriginCaller(owner)
+
+	revive(func() {
+		Register(cross)
+	})
+
+	abort := revive(func() {
+		DeleteYourself(cross)
+	})
+
+	if abort != nil {
+		t.Fatal("DeleteYourself panicked for first removal")
+	}
+
+	abort = revive(func() {
+		DeleteYourself(cross)
+	})
+
+	if abort == nil {
+		t.Fatal("DeleteYourself didn't panick for second removal")
+	}
+}
+
+func Test_DeleteAllAdmins(t *testing.T) {
+	for idx, admin := range adminList {
+		owner := std.Address(admin)
+		testing.SetOriginCaller(owner)
+
+		abort := revive(func() {
+			DeleteYourself(cross)
+		})
+
+		if idx != len(adminList)-1 {
+			if abort != nil {
+				t.Fatal("DeleteYourself didn't remove admins with enough admins")
+			}
+		} else {
+			if abort == nil {
+				t.Fatal("DeleteYourself didn't panick while removing last admin")
+			}
+		}
+	}
+}
+
+func Test_CountAdmins(t *testing.T) {
+	for _, admin := range adminList {
+		setDefaultAdmin(std.Address(admin))
+	}
+
+	adminNbr := countAdmins()
+
+	if adminNbr != len(adminList) {
+		t.Fatal("CountAdmins reported a wrong amount of admins")
+	}
+}
+
+func Test_IsAdmin(t *testing.T) {
+	if len(adminList) < 1 {
+		t.Fatal("No admin in adminList")
+	}
+
+	owner := std.Address(adminList[len(adminList)-1])
+
+	if !isAdmin(owner) {
+		t.Fatal("Last member in adminList not seen as admin")
+	}
+
+	owner = std.Address(randomTestWallet)
+	testing.SetOriginCaller(owner)
+
+	revive(func() {
+		Register(cross)
+	})
+
+	if isAdmin(owner) {
+		t.Fatal("Random owner seen as admin")
+	}
+}
+
+func Test_setAdmin(t *testing.T) {
+	if len(adminList) < 1 {
+		t.Fatal("No admin in adminList")
+	}
+
+	owner := std.Address(adminList[len(adminList)-1]) // set owner to admin
+	testing.SetOriginCaller(owner)
+
+	abort := revive(func() {
+		SetNewAdmin(cross, std.Address(randomTestWallet2))
+	})
+
+	if abort == nil {
+		t.Fatal("Admin made admin a member that isn't registered")
+	}
+
+	owner = std.Address(randomTestWallet2) // set owner to new randomWallet
+	testing.SetOriginCaller(owner)
+
+	revive(func() {
+		Register(cross)
+	})
+
+	owner = std.Address(randomTestWallet) // set owner to normal member
+	testing.SetOriginCaller(owner)
+
+	revive(func() {
+		Register(cross)
+	})
+
+	abort = revive(func() {
+		SetNewAdmin(cross, std.Address(randomTestWallet2))
+	})
+
+	if abort == nil {
+		t.Fatal("Normal user added a new admin")
+	}
+
+	owner = std.Address(adminList[len(adminList)-1]) // set owner to admin
+	testing.SetOriginCaller(owner)
+
+	abort = revive(func() {
+		SetNewAdmin(cross, std.Address(randomTestWallet2))
+	})
+
+	if abort != nil {
+		t.Fatal("Admin failed to add new admin")
+	}
+
+	abort = revive(func() {
+		SetNewAdmin(cross, std.Address(randomTestWallet2))
+	})
+
+	if abort == nil {
+		t.Fatal("Didn't panick while adding the title of admin to an existing admin")
+	}
+
+	//remove randomWallet2 from admin for test consistency
+	owner = std.Address(randomTestWallet2) // set owner to new randomWallet
+	testing.SetOriginCaller(owner)
+
+	revive(func() {
+		DeleteYourself(cross)
+	})
+}
+
+func Test_setDefaultAdmin(t *testing.T) {
+	setDefaultAdmin(std.Address(bobAdminWannabe))
+
+	if !isAdmin(std.Address(bobAdminWannabe)) {
+		t.Fatal("setDefaultAdmin didn't set a new admin")
+	}
+}
+
+func Test_banSystem(t *testing.T) {
+	t.Run("Ban", func(t *testing.T) {
+		owner := std.Address(randomTestWallet)
+		testing.SetOriginCaller(owner)
+
+		revive(func() {
+			Register(cross)
+		})
+
+		owner = std.Address(randomTestWallet2)
+		testing.SetOriginCaller(owner)
+
+		revive(func() {
+			Register(cross)
+		})
+
+		abort := revive(func() {
+			BanMember(cross, std.Address(randomTestWallet))
+		})
+
+		if abort == nil {
+			t.Fatal("Random user banned another user")
+		}
+
+		setDefaultAdmin(std.Address(bobAdminWannabe))
+
+		owner = std.Address(adminList[len(adminList)-1]) // set owner to admin
+		testing.SetOriginCaller(owner)
+
+		abort = revive(func() {
+			BanMember(cross, std.Address(bobAdminWannabe))
+		})
+
+		if abort == nil {
+			t.Fatal("Admin banned another admin")
+		}
+
+		abort = revive(func() {
+			BanMember(cross, std.Address(randomTestWallet))
+		})
+
+		if abort != nil {
+			t.Fatal("Admin can't ban a random user")
+		}
+	})
+
+	t.Run("unban", func(t *testing.T) {
+		owner := std.Address(randomTestWallet2)
+		testing.SetOriginCaller(owner)
+
+		abort := revive(func() {
+			UnbanMember(cross, std.Address(randomTestWallet))
+		})
+
+		if abort == nil {
+			t.Fatal("Normal user can unban a banned user")
+		}
+
+		owner = std.Address(adminList[len(adminList)-1]) // set user to admin
+		testing.SetOriginCaller(owner)
+
+		abort = revive(func() {
+			UnbanMember(cross, std.Address(randomTestWallet))
+		})
+
+		if abort != nil {
+			t.Fatal("Admin can't unban banned user")
+		}
+
+		abort = revive(func() {
+			UnbanMember(cross, std.Address(randomTestWallet))
+		})
+
+		if abort == nil {
+			t.Fatal("Admin can unban a user that isn't banned")
+		}
+	})
 }
