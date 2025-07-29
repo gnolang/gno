@@ -1,7 +1,7 @@
 package blog
 
 import (
-	"net/url"
+	// "net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -79,9 +79,7 @@ func (p Post) Likes() int {
 }
 
 func NewPost(slug, title, body, publicationDate, caller string, authors, tags []string) (*Post, error) {
-	if slug == "" {
-		title = titleToSlug(title)
-	}
+	newSlug := handleSlug(slug, title)
 	if title == "" {
 		return nil, ErrEmptyTitle
 	}
@@ -99,7 +97,7 @@ func NewPost(slug, title, body, publicationDate, caller string, authors, tags []
 	}
 
 	return &Post{
-		slug:            url.PathEscape(slug),
+		slug:            newSlug,
 		title:           title,
 		body:            body,
 		createdAt:       publishedAt,
@@ -163,7 +161,6 @@ func (p *Post) AddReply(parentID string, reply *Comment) error {
 
 	parent, err := p.GetCommentByID(parentID)
 	if err != nil {
-		println(parentID)
 		return err
 	}
 
@@ -278,7 +275,7 @@ func (p Post) RenderPreview(gridMode bool, timeFmt, prefix string) string {
 	if !gridMode {
 		out += md.Bold("author(s):") + " " + strings.Join(p.Authors(), ", ") + "\n\n"
 	}
-	if len(p.Tags()) > 0 {
+	if len(p.Tags()) > 0 && p.Tags()[0] != "" {
 		out += md.Bold("tags:") + " `" + strings.Join(p.Tags(), "`, `") + "`\n\n"
 	}
 	if !p.DisableComments {

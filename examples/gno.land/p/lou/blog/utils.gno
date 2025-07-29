@@ -1,6 +1,7 @@
 package blog
 
 import (
+	"net/url"
 	"strings"
 	"time"
 
@@ -25,18 +26,6 @@ func hasField(fields []string, match string) bool {
 		}
 	}
 	return false
-}
-
-func titleToSlug(title string) string {
-	slug := strings.ToLower(title)
-	slug = strings.ReplaceAll(slug, " ", "-")
-	slug = strings.Map(func(r rune) rune {
-		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-' {
-			return r
-		}
-		return -1
-	}, slug)
-	return slug
 }
 
 func extractListingDisplay(key string, value interface{}) (label string, count int) {
@@ -133,4 +122,25 @@ func tryParseFlexibleDate(s string) *time.Time {
 		}
 	}
 	return nil
+}
+
+func titleToSlug(title string) string {
+	slug := strings.ToLower(title)
+	slug = strings.ReplaceAll(slug, " ", "-")
+	slug = strings.Map(func(r rune) rune {
+		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-' {
+			return r
+		}
+		return -1
+	}, slug)
+	return slug
+}
+
+func handleSlug(slug, title string) string {
+	if slug == "" {
+		slug = titleToSlug(title)
+	}
+	once := url.PathEscape(slug)
+	twice := url.PathEscape(once)
+	return twice
 }
