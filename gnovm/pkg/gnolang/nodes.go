@@ -1344,7 +1344,11 @@ func (pn *PackageNode) NewPackage() *PackageValue {
 		FBlocks:    nil,
 		fBlocksMap: make(map[string]*Block),
 	}
+	// Set realm for realm packages, main package, and ephemeral run packages
 	if IsRealmPath(pn.PkgPath) || pn.PkgPath == "main" {
+		rlm := NewRealm(pn.PkgPath)
+		pv.SetRealm(rlm)
+	} else if _, isRunPath := IsGnoRunPath(pn.PkgPath); isRunPath {
 		rlm := NewRealm(pn.PkgPath)
 		pv.SetRealm(rlm)
 	}
