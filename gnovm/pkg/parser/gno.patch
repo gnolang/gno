@@ -1,5 +1,12 @@
+--- ./testdata/goversion/t03.go.orig	2025-07-30 17:40:31.544640918 +0200
++++ ./testdata/goversion/t03.go	2025-07-30 17:40:52.704298934 +0200
+@@ -1,3 +1,3 @@
+-//go:build linux && go1.2 || windows
++//go:build (linux && go1.2) || windows
+ 
+ package none
 --- ./parser_test.go.orig	2025-02-27 18:57:18.000000000 +0100
-+++ ./parser_test.go	2025-07-30 17:34:40.733550947 +0200
++++ ./parser_test.go	2025-07-30 17:35:04.130968651 +0200
 @@ -81,6 +81,7 @@
  	}
  }
@@ -17,7 +24,7 @@
  func TestParseExpr(t *testing.T) {
  	// just kicking the tires:
 --- ./performance_test.go.orig	2025-02-27 18:57:18.000000000 +0100
-+++ ./performance_test.go	2025-07-30 17:33:10.897377623 +0200
++++ ./performance_test.go	2025-07-30 17:35:04.131504321 +0200
 @@ -10,7 +10,7 @@
  	"testing"
  )
