@@ -55,5 +55,7 @@ be assembled into bigger, more complex NFTs, creating a digital “painting” w
 
 `
 	)
-	_ = b.NewPost("", path, title, body, "2022-05-20T13:17:23Z", nil, nil)
+	if err := b.NewPost("", path, title, body, "2022-05-20T13:17:23Z", nil, nil); err != nil {
+		panic(err)
+	}
 }

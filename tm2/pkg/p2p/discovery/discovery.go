@@ -5,13 +5,13 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"slices"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
-	"golang.org/x/exp/slices"
 )
 
 const (

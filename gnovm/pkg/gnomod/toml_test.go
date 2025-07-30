@@ -18,8 +18,8 @@ func TestUnmarshalTomlHelper(t *testing.T) {
 			tomlStr: `
 module = "gno.land/r/test"
 develop = 0
-UploadMetadata = {
-  Uploader = "addr1"
+AddPkg = {
+  Creator = "addr1"
   Height = 42
 }
 `,
@@ -64,17 +64,18 @@ func TestMarshalTomlHelper(t *testing.T) {
 				file := File{}
 				file.Module = "gno.land/r/test"
 				file.Gno = "0.9"
-				file.UploadMetadata.Uploader = "addr1"
-				file.UploadMetadata.Height = 42
+				file.AddPkg.Creator = "addr1"
+				file.AddPkg.Height = 42
 				return &file
 			}(),
-			expected: "module = \"gno.land/r/test\"\ngno = \"0.9\"\n\n[upload_metadata]\n  uploader = \"addr1\"\n  height = 42\n",
+			expected: "module = \"gno.land/r/test\"\ngno = \"0.9\"\n\n[addpkg]\n  creator = \"addr1\"\n  height = 42\n",
 		},
 		{
 			name: "full",
 			file: func() *File {
 				file := File{}
 				file.Module = "gno.land/r/test"
+				file.Ignore = true
 				file.Draft = true
 				file.Private = true
 				file.Replace = []Replace{
@@ -82,11 +83,11 @@ func TestMarshalTomlHelper(t *testing.T) {
 					{Old: "gno.land/r/test/v3", New: "../.."},
 				}
 				file.Gno = "0.9"
-				file.UploadMetadata.Uploader = "addr1"
-				file.UploadMetadata.Height = 42
+				file.AddPkg.Creator = "addr1"
+				file.AddPkg.Height = 42
 				return &file
 			}(),
-			expected: "module = \"gno.land/r/test\"\ngno = \"0.9\"\ndraft = true\nprivate = true\n\n[[replace]]\n  old = \"gno.land/r/test\"\n  new = \"gno.land/r/test/v2\"\n\n[[replace]]\n  old = \"gno.land/r/test/v3\"\n  new = \"../..\"\n\n[upload_metadata]\n  uploader = \"addr1\"\n  height = 42\n",
+			expected: "module = \"gno.land/r/test\"\ngno = \"0.9\"\nignore = true\ndraft = true\nprivate = true\n\n[[replace]]\n  old = \"gno.land/r/test\"\n  new = \"gno.land/r/test/v2\"\n\n[[replace]]\n  old = \"gno.land/r/test/v3\"\n  new = \"../..\"\n\n[addpkg]\n  creator = \"addr1\"\n  height = 42\n",
 		},
 		{
 			name:     "empty",

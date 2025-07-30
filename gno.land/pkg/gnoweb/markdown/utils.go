@@ -3,6 +3,7 @@ package markdown
 import (
 	"errors"
 	"io"
+	"unicode"
 
 	"html/template"
 
@@ -14,7 +15,8 @@ func HTMLEscapeString(s string) string {
 	return template.HTMLEscapeString(s)
 }
 
-// ParseHTMLToken parse line for tokens
+// ParseHTMLTokens parses an HTML stream and returns a slice of html.Token.
+// It stops at EOF or on error.
 func ParseHTMLTokens(r io.Reader) ([]html.Token, error) {
 	tokenizer := html.NewTokenizer(r)
 	tokenizer.AllowCDATA(false)
@@ -45,4 +47,18 @@ func ExtractAttr(attrs []html.Attribute, key string) (val string, ok bool) {
 	}
 
 	return "", false
+}
+
+// GetWordArticle returns "a" or "an" based on the first letter of the word
+func GetWordArticle(word string) string {
+	if len(word) == 0 {
+		return "a"
+	}
+
+	// Check if the first letter is a vowel (a, e, i, o, u)
+	firstChar := unicode.ToLower(rune(word[0]))
+	if firstChar == 'a' || firstChar == 'e' || firstChar == 'i' || firstChar == 'o' || firstChar == 'u' {
+		return "an"
+	}
+	return "a"
 }
