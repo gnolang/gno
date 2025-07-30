@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 )
 
 // setupDevNode initializes and returns a new DevNode.
@@ -41,6 +42,14 @@ func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeCo
 		}
 
 		logger.Info("genesis file loaded", "path", cfg.genesisFile, "txs", len(stateTxs))
+	}
+
+	for _, tx := range nodeConfig.InitialTxs {
+		for _, msg := range tx.Tx.Msgs {
+			if callMsg, ok := msg.(vm.MsgCall); ok {
+				paths = append(paths, callMsg.PkgPath)
+			}
+		}
 	}
 
 	if len(paths) > 0 {
