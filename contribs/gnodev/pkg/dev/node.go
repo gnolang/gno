@@ -171,6 +171,10 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig, pkgpaths ...string) (*Node
 	return devnode, nil
 }
 
+func (n *Node) ListPaths() []string {
+	return n.paths
+}
+
 func (n *Node) Close() error {
 	n.muNode.Lock()
 	defer n.muNode.Unlock()
