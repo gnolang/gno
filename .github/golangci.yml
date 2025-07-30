@@ -36,8 +36,9 @@ linters:
     - unused # Checks Go code for unused constants, variables, functions and types
     - gomodguard # Enforces an allow and block list for direct Go module dependencies
     - forbidigo # Forbids some custom-set identifiers, like regexp.MatchString
-  exclude:
-    - gnovm/pkg/parser/*
+  exclusions:
+    paths:
+      - gnovm/pkg/parser/
 
 linters-settings:
   gofmt:
