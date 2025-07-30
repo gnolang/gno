@@ -80,6 +80,9 @@ issues:
   exclude-dirs-use-default: true
   uniq-by-line: false
 
+  exclude-dirs:
+    - gnovm/pkg/parser
+
   exclude-rules:
     - path: _test\.go
       linters:
