@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRun(t *testing.T) {
@@ -54,27 +57,30 @@ func TestRun(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var stdout, stderr bytes.Buffer
 			stdin := strings.NewReader(tt.stdin)
 
 			err := run(stdin, &stdout, &stderr, tt.args)
 
-			if (err != nil) != tt.wantErr {
-				t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.errMsg != "" {
+					assert.Contains(t, err.Error(), tt.errMsg)
+				}
+			} else {
+				require.NoError(t, err)
 			}
 
-			if err != nil && tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
-				t.Errorf("run() error = %v, want error containing %q", err, tt.errMsg)
-			}
-
-			if tt.wantInOut != "" && !strings.Contains(stdout.String(), tt.wantInOut) {
-				t.Errorf("run() output = %q, want output containing %q", stdout.String(), tt.wantInOut)
+			if tt.wantInOut != "" {
+				assert.Contains(t, stdout.String(), tt.wantInOut)
 			}
 		})
 	}
 }
 
 func TestDeterministicOutput(t *testing.T) {
+	t.Parallel()
 	entropy := "my entropy seed with sufficient randomness from dice rolls 18 7 3 12 5 19 8 2 14 11 20 1 9 15 4 13 6 17 10 16 4 8 12 3 7 19 2 11 15 18 5 9 14 6 1 20 13 10 17 4 8 16"
 	expectedMnemonic := "nominee spring term very amazing start rebel slogan breeze across appear hospital emotion rabbit snack please loop real inmate pet unusual any journey avocado"
 
@@ -82,26 +88,21 @@ func TestDeterministicOutput(t *testing.T) {
 	stdin := strings.NewReader(entropy)
 
 	err := run(stdin, &stdout, &stderr, []string{"-quiet"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
 	got := strings.TrimSpace(stdout.String())
-	if got != expectedMnemonic {
-		t.Errorf("got mnemonic %q, want %q", got, expectedMnemonic)
-	}
+	assert.Equal(t, expectedMnemonic, got)
 }
 
 func TestFullInteractiveOutput(t *testing.T) {
+	t.Parallel()
 	entropy := "my entropy seed with sufficient randomness from dice rolls 18 7 3 12 5 19 8 2 14 11 20 1 9 15 4 13 6 17 10 16 4 8 12 3 7 19 2 11 15 18 5 9 14 6 1 20 13 10 17 4 8 16"
 
 	var stdout, stderr bytes.Buffer
 	stdin := strings.NewReader(entropy)
 
 	err := run(stdin, &stdout, &stderr, []string{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
 	output := stdout.String()
 
@@ -118,8 +119,6 @@ func TestFullInteractiveOutput(t *testing.T) {
 	}
 
 	for _, part := range expectedParts {
-		if !strings.Contains(output, part) {
-			t.Errorf("output missing expected part: %q", part)
-		}
+		assert.Contains(t, output, part, "output missing expected part: %q", part)
 	}
 }

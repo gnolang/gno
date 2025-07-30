@@ -166,7 +166,8 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 
 	var mnemonic string
 
-	if cfg.Recover {
+	switch {
+	case cfg.Recover:
 		bip39Message := "Enter your bip39 mnemonic"
 		mnemonic, err = io.GetString(bip39Message)
 		if err != nil {
@@ -177,13 +178,13 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 		if !bip39.IsMnemonicValid(mnemonic) {
 			return errInvalidMnemonic
 		}
-	} else if cfg.Entropy {
+	case cfg.Entropy:
 		// Generate mnemonic using custom entropy
 		mnemonic, err = GenerateMnemonicWithCustomEntropy(io)
 		if err != nil {
 			return fmt.Errorf("unable to generate mnemonic with custom entropy, %w", err)
 		}
-	} else {
+	default:
 		// Generate mnemonic using computer PRNG
 		mnemonic, err = GenerateMnemonic(mnemonicEntropySize)
 		if err != nil {

@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"io"
-	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // testMockIO implements commands.IO for testing
@@ -101,6 +102,7 @@ func TestGenerateMnemonicWithCustomEntropy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			mockIO := &testMockIO{
 				inputs:   []string{tt.entropy},
 				confirms: tt.confirmations,
@@ -109,23 +111,17 @@ func TestGenerateMnemonicWithCustomEntropy(t *testing.T) {
 			mnemonic, err := GenerateMnemonicWithCustomEntropy(mockIO)
 
 			if tt.shouldError {
-				if err == nil {
-					t.Errorf("expected error but got none")
-				} else if tt.errorContains != "" && !strings.Contains(err.Error(), tt.errorContains) {
-					t.Errorf("expected error containing %q, got %q", tt.errorContains, err.Error())
+				require.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
 				}
 				return
 			}
 
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
+			require.NoError(t, err)
 
 			// Verify the mnemonic is valid
-			if !bip39.IsMnemonicValid(mnemonic) {
-				t.Errorf("generated mnemonic is not valid BIP39")
-			}
+			assert.True(t, bip39.IsMnemonicValid(mnemonic), "generated mnemonic is not valid BIP39")
 
 			// Verify determinism - same entropy should produce same mnemonic
 			mockIO2 := &testMockIO{
@@ -134,28 +130,22 @@ func TestGenerateMnemonicWithCustomEntropy(t *testing.T) {
 			}
 
 			mnemonic2, err := GenerateMnemonicWithCustomEntropy(mockIO2)
-			if err != nil {
-				t.Errorf("unexpected error on second generation: %v", err)
-				return
-			}
+			require.NoError(t, err, "unexpected error on second generation")
 
-			if mnemonic != mnemonic2 {
-				t.Errorf("same entropy produced different mnemonics: %q vs %q", mnemonic, mnemonic2)
-			}
+			assert.Equal(t, mnemonic, mnemonic2, "same entropy produced different mnemonics")
 		})
 	}
 }
 
 func TestDeterministicMnemonicGeneration(t *testing.T) {
+	t.Parallel()
 	// Test that the same entropy always produces the same mnemonic
 	testEntropy := "test entropy for deterministic generation 42"
 
 	// Generate expected result
 	hashedEntropy := sha256.Sum256([]byte(testEntropy))
 	expectedMnemonic, err := bip39.NewMnemonic(hashedEntropy[:])
-	if err != nil {
-		t.Fatalf("failed to generate expected mnemonic: %v", err)
-	}
+	require.NoError(t, err, "failed to generate expected mnemonic")
 
 	mockIO := &testMockIO{
 		inputs:   []string{testEntropy},
@@ -163,18 +153,13 @@ func TestDeterministicMnemonicGeneration(t *testing.T) {
 	}
 
 	actualMnemonic, err := GenerateMnemonicWithCustomEntropy(mockIO)
-	if err != nil {
-		t.Fatalf("failed to generate mnemonic: %v", err)
-	}
+	require.NoError(t, err, "failed to generate mnemonic")
 
-	if actualMnemonic != expectedMnemonic {
-		t.Errorf("mnemonic doesn't match expected deterministic result")
-		t.Errorf("expected: %s", expectedMnemonic)
-		t.Errorf("actual:   %s", actualMnemonic)
-	}
+	assert.Equal(t, expectedMnemonic, actualMnemonic, "mnemonic doesn't match expected deterministic result")
 }
 
 func TestEntropyHashingConsistency(t *testing.T) {
+	t.Parallel()
 	// Test specific entropy inputs to ensure consistent results
 	testCases := []struct {
 		input string
@@ -191,15 +176,10 @@ func TestEntropyHashingConsistency(t *testing.T) {
 		}
 
 		mnemonic, err := GenerateMnemonicWithCustomEntropy(mockIO)
-		if err != nil {
-			t.Errorf("failed to generate mnemonic for input %q: %v", tc.input, err)
-			continue
-		}
+		require.NoError(t, err, "failed to generate mnemonic for input %q", tc.input)
 
 		// Verify it's a valid mnemonic
-		if !bip39.IsMnemonicValid(mnemonic) {
-			t.Errorf("invalid mnemonic generated for input %q", tc.input)
-		}
+		assert.True(t, bip39.IsMnemonicValid(mnemonic), "invalid mnemonic generated for input %q", tc.input)
 
 		// Test consistency - run it again
 		mockIO2 := &testMockIO{

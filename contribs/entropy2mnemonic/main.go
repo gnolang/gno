@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/tyler-smith/go-bip39"
+	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 )
 
 const (
