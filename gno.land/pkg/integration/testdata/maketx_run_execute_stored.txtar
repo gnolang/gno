@@ -1,0 +1,42 @@
+loadpkg gno.land/r/demo/tests
+gnoland start
+
+# First maketx run: store a named function
+gnokey maketx run -broadcast -chainid=tendermint_test -gas-wanted 2000000 -gas-fee 1000000ugnot test1 $WORK/store_named_func.gno
+stdout 'OK'
+
+# Second maketx run: try to execute the stored function from another maketx run context
+# This also has its own myNamedFunction to show potential conflicts
+gnokey maketx run -broadcast -chainid=tendermint_test -gas-wanted 2000000 -gas-fee 1000000ugnot test1 $WORK/execute_stored.gno
+
+# This test works but should not. It's because/thanks to the RAM state.
+
+-- store_named_func.gno --
+package main
+
+import "gno.land/r/demo/tests"
+
+func myNamedFunction() {
+	println("HELLO FROM FIRST NAMED FUNCTION")
+}
+
+func main() {
+	tests.StoreFunc(cross, myNamedFunction)
+	println("Stored first function")
+}
+
+-- execute_stored.gno --
+package main
+
+import "gno.land/r/demo/tests"
+
+// Different function with same name to show they're in different contexts
+func myNamedFunction() {
+	println("HELLO FROM SECOND NAMED FUNCTION")
+}
+
+func main() {
+	println("About to execute stored function...")
+	tests.ExecuteStoredFunc(cross)
+	println("Executed stored function")
+}
