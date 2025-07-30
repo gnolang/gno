@@ -1281,6 +1281,55 @@ func (m *Machine) Run(st Stage) {
 			}
 		}
 		// TODO: this can be optimized manually, even into tiers.
+
+		// Record current line for profiling if enabled
+		if m.IsProfilingEnabled() && m.Profiler.lineLevel {
+			var line, column int
+			var file string
+
+			// Try to get current line from expression
+			if len(m.Exprs) > 0 {
+				expr := m.PeekExpr(1)
+				if expr != nil {
+					line = expr.GetLine()
+					column = expr.GetColumn()
+				}
+			} else if len(m.Stmts) > 0 {
+				// Otherwise try statement
+				stmt := m.PeekStmt(1)
+				if stmt != nil {
+					line = stmt.GetLine()
+					column = stmt.GetColumn()
+				}
+			}
+
+			// Get current function info from frame
+			if len(m.Frames) > 0 && line > 0 {
+				frame := &m.Frames[len(m.Frames)-1]
+				if frame.Func != nil {
+					funcName := string(frame.Func.Name)
+					if frame.Func.PkgPath != "" {
+						funcName = frame.Func.PkgPath + "." + funcName
+					}
+					file = frame.Func.FileName
+
+					if file != "" && line > 0 {
+						loc := &profileLocation{
+							function: funcName,
+							file:     file,
+							line:     line,
+							column:   column,
+						}
+						// Use direct update to avoid mutex issues
+						// RecordLineLevel is called from within Run which may already have locks
+						m.Profiler.mu.Lock()
+						m.Profiler.recordLineLevelUnlocked(loc, 1)
+						m.Profiler.mu.Unlock()
+					}
+				}
+			}
+		}
+
 		switch op {
 		/* Control operators */
 		case OpHalt:

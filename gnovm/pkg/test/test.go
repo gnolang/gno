@@ -167,6 +167,8 @@ type TestOptions struct {
 	ProfileFormat string
 	// Profile type.
 	ProfileType string
+	// Function name for line-by-line profile listing.
+	ProfileList string
 	// Global profiler instance (internal use)
 	globalProfiler *gno.Profiler
 
@@ -261,12 +263,23 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 			sampleRate = 1 // Sample every allocation for memory
 		}
 		globalProfiler = gno.NewProfiler(profileType, sampleRate)
+		// Enable line-level profiling if list option is used
+		if opts.ProfileList != "" {
+			globalProfiler.EnableLineLevel(true)
+		}
 		globalProfiler.Start()
 		opts.globalProfiler = globalProfiler // Store in opts for use in runTestFiles
 		defer func() {
 			profile := globalProfiler.Stop()
 			if profile != nil {
-				if opts.ProfileStdout {
+				if opts.ProfileList != "" {
+					// Show line-by-line profile for specific function
+					fmt.Fprintln(opts.Output, "\n=== FUNCTION PROFILE ===")
+					err := profile.WriteFunctionList(opts.Output, opts.ProfileList, opts.TestStore)
+					if err != nil {
+						fmt.Fprintf(opts.Error, "Failed to write function profile: %v\n", err)
+					}
+				} else if opts.ProfileStdout {
 					// Print to stdout
 					fmt.Fprintln(opts.Output, "\n=== PROFILING RESULTS ===")
 					format := getProfileFormat(opts.ProfileFormat)
@@ -316,8 +329,8 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		SkipPackage: true,
 	})
 	// Enable profiling on the machine if profiling is enabled
-	if opts.Profile && globalProfiler != nil {
-		m2.Profiler = globalProfiler
+	if opts.Profile && opts.globalProfiler != nil {
+		m2.Profiler = opts.globalProfiler
 	}
 	// Filter out xxx_test *_test.gno and *_filetest.gno and run.
 	// If testing with only filetests, there will be no files.

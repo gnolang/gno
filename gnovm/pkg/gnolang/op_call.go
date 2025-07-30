@@ -149,6 +149,17 @@ func (m *Machine) doOpCall() {
 			funcName = fv.PkgPath + "." + funcName
 		}
 		m.Profiler.RecordFuncEnter(m, funcName)
+
+		// Record line-level information if enabled
+		if m.Profiler.lineLevel && fr.Source != nil {
+			loc := &profileLocation{
+				function: funcName,
+				file:     fv.FileName,
+				line:     fr.Source.GetLine(),
+				column:   fr.Source.GetColumn(),
+			}
+			m.Profiler.RecordLineLevel(m, loc, 0)
+		}
 	}
 	fs := fv.GetSource(m.Store)
 	ft := fr.Func.GetType(m.Store)
@@ -295,6 +306,17 @@ func (m *Machine) doOpReturn() {
 		// Calculate cycles used in this function
 		cycles := m.Cycles // This is current total cycles
 		m.Profiler.RecordFuncExit(m, funcName, cycles)
+
+		// Record line-level information if enabled
+		if m.Profiler.lineLevel && cfr.Source != nil {
+			loc := &profileLocation{
+				function: funcName,
+				file:     cfr.Func.FileName,
+				line:     cfr.Source.GetLine(),
+				column:   cfr.Source.GetColumn(),
+			}
+			m.Profiler.RecordLineLevel(m, loc, cycles)
+		}
 	}
 
 	// Finalize if exiting realm boundary.

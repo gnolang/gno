@@ -36,6 +36,7 @@ type testCmd struct {
 	profileStdout       bool
 	profileFormat       string
 	profileType         string
+	profileList         string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -216,6 +217,13 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		"cpu",
 		"profile type: cpu, memory",
 	)
+
+	fs.StringVar(
+		&c.profileList,
+		"profile-list",
+		"",
+		"function name to show line-by-line profile (e.g., 'gno.land/p/demo/int256.Add')",
+	)
 }
 
 func execTest(cmd *testCmd, args []string, io commands.IO) error {
@@ -264,12 +272,13 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Events = cmd.printEvents
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
- 
+
 	opts.Profile = cmd.profile
 	opts.ProfileOutput = cmd.profileOutput
 	opts.ProfileStdout = cmd.profileStdout
 	opts.ProfileFormat = cmd.profileFormat
 	opts.ProfileType = cmd.profileType
+	opts.ProfileList = cmd.profileList
 
 	cache := make(gno.TypeCheckCache, 64)
 

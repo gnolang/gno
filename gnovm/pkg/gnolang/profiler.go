@@ -13,9 +13,10 @@ import (
 type ProfileType int
 
 const (
-	ProfileCPU ProfileType = iota
+	_ ProfileType = iota
+	ProfileCPU
 	ProfileMemory
-	ProfileGoroutine
+	ProfileGoroutine // TODO: not supported yet
 )
 
 // ProfileSample represents a single sample in the profile
@@ -32,7 +33,9 @@ type ProfileLocation struct {
 	Function   string
 	File       string
 	Line       int
+	Column     int // Column number for more precise location
 	InlineCall bool
+	PC         uintptr // Virtual machine program counter
 }
 
 // Profile represents collected profiling data
@@ -66,6 +69,12 @@ type Profiler struct {
 	// Stack samples for call tree
 	stackSamples []stackSample
 
+	// Line-level profiling support
+	lineLevel     bool
+	locationCache *locationCache
+	lineSamples   map[string]map[int]*lineStats // file -> line -> stats
+	locationPool  sync.Pool
+
 	mu sync.Mutex
 }
 
@@ -97,6 +106,13 @@ func NewProfiler(profileType ProfileType, sampleRate int) *Profiler {
 		enabled:      false,
 		sampleRate:   sampleRate,
 		funcProfiles: make(map[string]*FuncProfile),
+		lineLevel:    false,
+		lineSamples:  make(map[string]map[int]*lineStats),
+		locationPool: sync.Pool{
+			New: func() interface{} {
+				return &profileLocation{}
+			},
+		},
 		profile: &Profile{
 			Type:      profileType,
 			TimeNanos: time.Now().UnixNano(),
@@ -162,6 +178,21 @@ func (p *Profiler) RecordOp(m *Machine, op Op, cycles int64) {
 
 	prof.CallCount++
 	prof.TotalCycles += cycles
+
+	// Record line-level information if enabled
+	if p.lineLevel && len(stack) > 0 {
+		for _, loc := range stack {
+			if loc.File != "" && loc.Line > 0 {
+				ploc := &profileLocation{
+					function: loc.Function,
+					file:     loc.File,
+					line:     loc.Line,
+					column:   loc.Column,
+				}
+				p.recordLineLevelUnlocked(ploc, cycles)
+			}
+		}
+	}
 }
 
 // RecordFuncEnter records function entry
@@ -195,9 +226,6 @@ func (p *Profiler) RecordFuncEnter(m *Machine, funcName string) {
 			}
 		}
 	}
-
-	// Debug: print function entry
-	// fmt.Printf("PROFILE: Enter %s (count: %d)\n", funcName, prof.CallCount)
 }
 
 // RecordFuncExit records function exit
@@ -306,12 +334,23 @@ func (p *Profiler) buildCallStack(m *Machine) []ProfileLocation {
 		loc := ProfileLocation{
 			Function: string(frame.Func.Name),
 			File:     frame.Func.FileName,
-			Line:     0, // Line number not available from FuncValue
+			Line:     0, // Default line
+			Column:   0,
 		}
 
-		// Add package path to function name
+		// Try to get line information from frame source
+		if frame.Source != nil {
+			loc.Line = frame.Source.GetLine()
+			loc.Column = frame.Source.GetColumn()
+		}
+
+		// Add full file path if available
 		if frame.Func.PkgPath != "" {
 			loc.Function = frame.Func.PkgPath + "." + loc.Function
+			if loc.File == "" {
+				// Use package path as file hint
+				loc.File = frame.Func.PkgPath
+			}
 		}
 
 		stack = append(stack, loc)
