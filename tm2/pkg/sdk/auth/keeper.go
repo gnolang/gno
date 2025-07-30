@@ -205,6 +205,13 @@ func (gk GasPriceKeeper) SetGasPrice(ctx sdk.Context, gp std.GasPrice) {
 func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 	params := ctx.Value(AuthParamsContextKey{}).(Params)
 	gasUsed := ctx.BlockGasMeter().GasConsumed()
+
+	// Only update gas price if gas was consumed to avoid changing AppHash
+	// on empty blocks.
+	if gasUsed <= 0 {
+		return
+	}
+
 	maxBlockGas := ctx.ConsensusParams().Block.MaxGas
 	lgp := gk.LastGasPrice(ctx)
 	newGasPrice := gk.calcBlockGasPrice(lgp, gasUsed, maxBlockGas, params)

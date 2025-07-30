@@ -44,7 +44,7 @@ var startGraphic = strings.ReplaceAll(`
 `, "'", "`")
 
 // Keep in sync with contribs/gnogenesis/internal/txs/txs_add_packages.go
-var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1)))
 
 type startCfg struct {
 	gnoRootDir                 string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
@@ -442,7 +442,7 @@ func generateGenesisFile(genesisFile string, privKey crypto.PrivKey, c *startCfg
 	// Since the cost can't be estimated upfront at this point, the balance
 	// set is an arbitrary value based on a "best guess" basis.
 	// There should be a larger discussion if genesis transactions should consume gas, at all
-	deployerBalance := int64(len(genesisTxs)) * 50_000_000 // ~50 GNOT per tx
+	deployerBalance := int64(len(genesisTxs)) * 2_100_000 // ~2.1 GNOT per tx
 	balances.Set(txSender, std.NewCoins(std.NewCoin("ugnot", deployerBalance)))
 
 	// Construct genesis AppState.
