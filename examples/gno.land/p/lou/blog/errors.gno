@@ -13,6 +13,7 @@ var (
 
 	ErrInvalidPostID    = errors.New("invalid post ID")
 	ErrInvalidCommentID = errors.New("invalid comment ID")
+	ErrInvalidPost      = errors.New("post not found/ invalid")
 
 	ErrEmptyPrefix  = errors.New("prefix cannot be empty")
 	ErrEmptyTitle   = errors.New("title cannot be empty")

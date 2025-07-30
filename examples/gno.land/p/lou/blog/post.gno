@@ -138,6 +138,9 @@ func (p *Post) UpdatePost(newPost *Post) {
 }
 
 func (p *Post) AddComment(comment *Comment) error {
+	if p == nil {
+		return ErrInvalidPost
+	}
 	user, err := CheckUser(comment.Author(), p.UserResolver)
 	if err != nil {
 		return err
@@ -152,6 +155,9 @@ func (p *Post) AddComment(comment *Comment) error {
 }
 
 func (p *Post) AddReply(parentID string, reply *Comment) error {
+	if p == nil {
+		return ErrInvalidPost
+	}
 	user, err := CheckUser(reply.Author(), p.UserResolver)
 	if err != nil {
 		return err

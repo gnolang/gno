@@ -40,6 +40,13 @@ func (b Blog) Prefix() string {
 }
 
 func NewBlog(title string, owner std.Address, opts ...Options) (*Blog, error) {
+	if title == "" {
+		return nil, ErrEmptyTitle
+	}
+	if err := CheckAddr(owner.String()); err != nil {
+		return nil, err
+	}
+
 	pkgPath := std.CurrentRealm().PkgPath()
 	if pkgPath == "" {
 		return nil, ErrEmptyPrefix
