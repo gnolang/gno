@@ -194,8 +194,8 @@ func Render(path string) string {
 	return title + md.Columns([]string{
 		loginPart,
 		actionPart,
-	}) + md.Columns([]string{
+	}, false) + md.Columns([]string{
 		transactionsPart,
 		accountPart,
-	})
+	}, false)
 }

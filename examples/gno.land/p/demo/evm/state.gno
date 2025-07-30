@@ -6,9 +6,9 @@ import (
 
 type contextType uint
 
-// gasPrice defines the cost of one gas unit in wei.
+// GasPrice defines the cost of one gas unit in wei.
 const (
-	gasPrice    uint64      = 10
+	GasPrice    uint64      = 10 // one gas cost 10 wei
 	callContext contextType = iota
 	staticContext
 )
