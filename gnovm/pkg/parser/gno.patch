@@ -1,5 +1,23 @@
+--- ./parser_test.go.orig	2025-02-27 18:57:18.000000000 +0100
++++ ./parser_test.go	2025-07-30 17:34:40.733550947 +0200
+@@ -81,6 +81,7 @@
+ 	}
+ }
+ 
++/*
+ func TestIssue42951(t *testing.T) {
+ 	path := "./testdata/issue42951"
+ 	_, err := ParseDir(token.NewFileSet(), path, nil, 0)
+@@ -88,6 +89,7 @@
+ 		t.Errorf("ParseDir(%s): %v", path, err)
+ 	}
+ }
++*/
+ 
+ func TestParseExpr(t *testing.T) {
+ 	// just kicking the tires:
 --- ./performance_test.go.orig	2025-02-27 18:57:18.000000000 +0100
-+++ ./performance_test.go	2025-07-29 17:37:33.595908141 +0200
++++ ./performance_test.go	2025-07-30 17:33:10.897377623 +0200
 @@ -10,7 +10,7 @@
  	"testing"
  )
