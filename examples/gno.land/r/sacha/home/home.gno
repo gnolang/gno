@@ -2,6 +2,7 @@ package home
 
 import (
 	"gno.land/p/moul/md"
+	"gno.land/r/leon/hor"
 )
 
 var (
@@ -15,6 +16,8 @@ var (
 )
 
 func init() {
+	hor.Register(cross, "Sacha's Home Realm", "A home away from home.")
+
 	banner = "https://shorturl.at/yN9Mp"
 	story = "In the quiet layers of gno.land, a gnome brushed against a line of forgotten code. No one saw him. No one knows what he changed. But sometimes, in the logs...\n\n\"gnonk.\"\n\nJust once. Then silence."
 	title = "Sacha's Space 🏗️"
