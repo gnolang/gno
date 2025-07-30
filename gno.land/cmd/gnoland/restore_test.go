@@ -26,6 +26,7 @@ func TestRestore(t *testing.T) {
 		"--data-dir", filepath.Join(restoreDir, "chain-data"),
 		"--backup-dir", backupDir,
 		"--genesis", filepath.Join(backupDir, "genesis.json"),
+		"--skip-genesis-sig-verification", "true",
 		"--lazy",
 	})
 	require.NoError(t, err)
@@ -49,6 +50,7 @@ func generateBackup(t *testing.T, backupDir string, height int64) {
 		"--lazy",
 		"--data-dir", nodeDir,
 		"--genesis", filepath.Join(backupDir, "genesis.json"),
+		"--skip-genesis-sig-verification", "true",
 	}))
 
 	node, err := createNode(cfg, io)
