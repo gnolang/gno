@@ -5,14 +5,15 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"slices"
 	"strings"
 
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
 
 // setupDevNode initializes and returns a new DevNode.
@@ -47,7 +48,9 @@ func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeCo
 	for _, tx := range nodeConfig.InitialTxs {
 		for _, msg := range tx.Tx.Msgs {
 			if callMsg, ok := msg.(vm.MsgCall); ok {
-				paths = append(paths, callMsg.PkgPath)
+				if slices.Contains(paths, callMsg.PkgPath) == false {
+					paths = append(paths, callMsg.PkgPath)
+				}
 			}
 		}
 	}
