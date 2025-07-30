@@ -178,6 +178,7 @@ func TestCreateNode(t *testing.T) {
 			name: "lazy",
 			args: []string{
 				"--lazy",
+				"--skip-genesis-sig-verification", "true",
 			},
 		},
 		{
