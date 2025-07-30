@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -20,16 +19,15 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval"
+	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 
-	"github.com/gnolang/gno/tm2/pkg/std"
-	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -46,7 +44,7 @@ var startGraphic = strings.ReplaceAll(`
 `, "'", "`")
 
 // Keep in sync with contribs/gnogenesis/internal/txs/txs_add_packages.go
-var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1)))
 
 type nodeCfg struct {
 	gnoRootDir                 string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
@@ -219,7 +217,7 @@ func createNode(c *nodeCfg, io commands.IO) (*node.Node, error) {
 	}
 
 	// Initialize the logger
-	zapLogger, err := initializeLogger(io.Out(), c.logLevel, c.logFormat)
+	zapLogger, err := log.InitializeZapLogger(io.Out(), c.logLevel, c.logFormat)
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize zap logger, %w", err)
 	}
@@ -250,14 +248,14 @@ func createNode(c *nodeCfg, io commands.IO) (*node.Node, error) {
 			return nil, errMissingGenesis
 		}
 
-		// Load the private validator secrets
-		privateKey := privval.LoadFilePV(
-			cfg.PrivValidatorKeyFile(),
-			cfg.PrivValidatorStateFile(),
-		)
+		// Load existing or generate a new private validator key
+		fileKey, err := signer.LoadOrMakeFileKey(cfg.Consensus.PrivValidator.LocalSignerPath())
+		if err != nil {
+			return nil, fmt.Errorf("unable to instantiate validator key: %w", err)
+		}
 
 		// Init a new genesis.json
-		if err := lazyInitGenesis(io, c, genesisPath, privateKey.Key.PrivKey); err != nil {
+		if err := lazyInitGenesis(io, c, genesisPath, fileKey.PrivKey); err != nil {
 			return nil, fmt.Errorf("unable to initialize genesis.json, %w", err)
 		}
 	}
@@ -372,22 +370,6 @@ func lazyInitGenesis(
 	return nil
 }
 
-// initializeLogger initializes the zap logger using the given format and log level,
-// outputting to the given IO
-func initializeLogger(io io.WriteCloser, logLevel, logFormat string) (*zap.Logger, error) {
-	// Initialize the log level
-	level, err := zapcore.ParseLevel(logLevel)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse log level, %w", err)
-	}
-
-	// Initialize the log format
-	format := log.Format(strings.ToLower(logFormat))
-
-	// Initialize the zap logger
-	return log.GetZapLoggerFn(format)(io, level), nil
-}
-
 func generateGenesisFile(genesisFile string, privKey crypto.PrivKey, c *nodeCfg) error {
 	var (
 		pubKey = privKey.PubKey()
@@ -464,7 +446,7 @@ func generateGenesisFile(genesisFile string, privKey crypto.PrivKey, c *nodeCfg)
 	// Since the cost can't be estimated upfront at this point, the balance
 	// set is an arbitrary value based on a "best guess" basis.
 	// There should be a larger discussion if genesis transactions should consume gas, at all
-	deployerBalance := int64(len(genesisTxs)) * 50_000_000 // ~50 GNOT per tx
+	deployerBalance := int64(len(genesisTxs)) * 2_100_000 // ~2.1 GNOT per tx
 	balances.Set(txSender, std.NewCoins(std.NewCoin("ugnot", deployerBalance)))
 
 	// Construct genesis AppState.
