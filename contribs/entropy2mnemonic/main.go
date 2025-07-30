@@ -15,7 +15,7 @@ import (
 const (
 	// MinEntropyLength is the minimum recommended entropy length for 160-bit security
 	MinEntropyLength = 27
-	
+
 	// RecommendedEntropyLength is the recommended entropy length for good security
 	RecommendedEntropyLength = 43
 )
@@ -30,9 +30,9 @@ func main() {
 func run(stdin io.Reader, stdout, stderr io.Writer, args []string) error {
 	fs := flag.NewFlagSet("entropy2mnemonic", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	
+
 	quiet := fs.Bool("quiet", false, "only output the mnemonic")
-	
+
 	fs.Usage = func() {
 		fmt.Fprintf(stderr, "Usage: entropy2mnemonic [options] [entropy]\n\n")
 		fmt.Fprintf(stderr, "Generate BIP39 mnemonic from custom entropy.\n\n")
@@ -42,11 +42,11 @@ func run(stdin io.Reader, stdout, stderr io.Writer, args []string) error {
 		fmt.Fprintf(stderr, "  entropy2mnemonic \"dice rolls: 20 5 13 8 19 2 11 15 4 17 9 1 14 6 18 3 12 7 16 10\"\n")
 		fmt.Fprintf(stderr, "  echo \"my entropy\" | entropy2mnemonic\n")
 	}
-	
+
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	
+
 	// Get entropy from args or stdin
 	var input string
 	if fs.NArg() > 0 {
@@ -70,7 +70,7 @@ func run(stdin io.Reader, stdout, stderr io.Writer, args []string) error {
 			fmt.Fprintln(stdout)
 			fmt.Fprintln(stdout, "Enter your entropy (press Enter when done):")
 		}
-		
+
 		scanner := bufio.NewScanner(stdin)
 		if scanner.Scan() {
 			input = scanner.Text()
@@ -79,27 +79,27 @@ func run(stdin io.Reader, stdout, stderr io.Writer, args []string) error {
 			return fmt.Errorf("reading input: %w", err)
 		}
 	}
-	
+
 	input = strings.TrimSpace(input)
 	if input == "" {
 		return fmt.Errorf("no entropy provided")
 	}
-	
+
 	// Validate entropy length
 	if len(input) < MinEntropyLength {
-		return fmt.Errorf("entropy too short (%d characters). Please provide at least %d characters for 160-bit security", 
+		return fmt.Errorf("entropy too short (%d characters). Please provide at least %d characters for 160-bit security",
 			len(input), MinEntropyLength)
 	}
-	
+
 	// Hash the input entropy
 	hashedEntropy := sha256.Sum256([]byte(input))
-	
+
 	// Generate the mnemonic from the hashed entropy
 	mnemonic, err := bip39.NewMnemonic(hashedEntropy[:])
 	if err != nil {
 		return fmt.Errorf("generating mnemonic: %w", err)
 	}
-	
+
 	if *quiet {
 		fmt.Fprintln(stdout, mnemonic)
 	} else {
@@ -113,6 +113,6 @@ func run(stdin io.Reader, stdout, stderr io.Writer, args []string) error {
 		fmt.Fprintln(stdout)
 		fmt.Fprintln(stdout, "IMPORTANT: Store this mnemonic securely. It cannot be recovered!")
 	}
-	
+
 	return nil
 }
