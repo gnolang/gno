@@ -1513,6 +1513,7 @@ var (
 		r.E(`.`),
 		r.N("NAME", r.P(`.`)))
 
+	// Compile at init to avoid runtime compilation.
 	ReDeclaredTypeID = Re_declaredTypeID.Compile()
 )
 

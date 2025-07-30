@@ -65,6 +65,7 @@ var (
 	Re_name    = r.G(r.M(`_`), r.C(`a-z`), r.S(r.C(`a-z0-9_`))) // optional leading _, start with letter, no dots!
 	Re_address = r.N("ADDRESS", `g1`, r.P(r.C(`a-z0-9`)))       // starts with g1, all lowercase.
 
+	// Compile at init to avoid runtime compilation.
 	ReGnoUserPkgPath = Re_gnoUserPkgPath.Compile()
 	ReGnoStdPkgPath  = Re_gnoStdPkgPath.Compile()
 	ReAddress        = Re_address.Compile()

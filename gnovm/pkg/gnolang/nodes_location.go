@@ -370,6 +370,7 @@ var (
 	Re_locationish = r.G(r.N("PATH", r.Pl(r.CN(`:`))), r.M(`/`, r.N("FILE", r.P(r.CN(r.E(`/:`))))), `:`, r.N("SPAN", Re_spanish))
 	Re_errorLine   = r.L(r.N("LOC", Re_locationish), r.M(`:`), r.S(` `), r.N("MSG", r.S(`.`)))
 
+	// Compile at init to avoid runtime compilation.
 	ReLocation  = Re_location.Compile()
 	ReSpan      = Re_span.Compile()
 	ReErrorLine = Re_errorLine.Compile()
