@@ -36,10 +36,10 @@ func checkBet(betCoins std.Coins) {
 	minBet := std.NewCoin(denom, 1)
 
 	if betCoins.AmountOf(denom) < minBet.Amount {
-    	panic("Bet too low")
+		panic("Bet too low")
 	}
 	if betCoins.AmountOf(denom) * 2 > GetRealmBalance(cross) {
-    	panic("Bet too high")
+		panic("Bet too high")
 	}
 }
 
@@ -116,6 +116,10 @@ func UpdateCoinUsed(cur realm, newCoinDenom string) {
 }
 
 func CashOut(cur realm, amount int64) {
+	if !config.IsAuthorized(std.PreviousRealm().Address()) {
+		panic(config.ErrUnauthorized)
+	}
+
 	std.AssertOriginCall()
 
 	banker := std.NewBanker(std.BankerTypeRealmSend)
