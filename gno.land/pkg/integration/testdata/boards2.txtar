@@ -16,6 +16,7 @@ stdout 'g1amu4p4ccx6s4fqjnswndv9jytzjs663rt5snff'
 
 # Prepare chain
 loadpkg gno.land/r/gnoland/boards2/v1
+patchpkg "g1manfred47kzduec920z88wfr64ylksmdcedlf5" $test123_user_addr # replace boards admin with our admin address
 gnoland start
 
 ### Test board creation
