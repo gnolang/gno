@@ -35,8 +35,14 @@ func newProfileLocation(function, file string, line, column int) *profileLocatio
 	}
 }
 
-func (pl *profileLocation) Function() string   { return pl.function }
-func (pl *profileLocation) File() string       { return pl.file }
+func (pl *profileLocation) Function() string { return pl.function }
+func (pl *profileLocation) File() string {
+	// Convert .gno files to .go for compatibility with go tool pprof
+	if strings.HasSuffix(pl.file, ".gno") {
+		return pl.file[:len(pl.file)-4] + ".go"
+	}
+	return pl.file
+}
 func (pl *profileLocation) Line() int          { return pl.line }
 func (pl *profileLocation) Column() int        { return pl.column }
 func (pl *profileLocation) PC() uintptr        { return pl.pc }
@@ -216,7 +222,8 @@ func (p *Profiler) updateLineStats(loc *profileLocation, cycles, allocations, al
 // updateLineStatsUnlocked updates line-level statistics without locking
 // Must be called with mutex already held
 func (p *Profiler) updateLineStatsUnlocked(loc *profileLocation, cycles, allocations, allocBytes int64) {
-	file := loc.File()
+	// Use the original file name for internal storage
+	file := loc.file
 	line := loc.Line()
 
 	if p.lineSamples[file] == nil {

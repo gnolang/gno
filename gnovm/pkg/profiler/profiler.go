@@ -108,17 +108,42 @@ type Options struct {
 }
 
 // NewProfiler creates a new profiler instance
-func NewProfiler() *Profiler {
-	return &Profiler{
+// Optional parameters: profileType (default: ProfileCPU), sampleRate (default: 1000)
+func NewProfiler(params ...interface{}) *Profiler {
+	// Default values
+	profileType := ProfileCPU
+	sampleRate := 1000
+
+	// Parse optional parameters
+	if len(params) > 0 {
+		if pt, ok := params[0].(ProfileType); ok {
+			profileType = pt
+		}
+	}
+	if len(params) > 1 {
+		if sr, ok := params[1].(int); ok {
+			sampleRate = sr
+		}
+	}
+
+	p := &Profiler{
 		funcProfiles:  make(map[string]*FuncProfile),
 		lineSamples:   make(map[string]map[int]*lineStats),
 		locationCache: newLocationCache(),
+		sampleRate:    sampleRate,
 		locationPool: sync.Pool{
 			New: func() interface{} {
-				return &ProfileLocation{}
+				return &profileLocation{}
 			},
 		},
 	}
+
+	p.profile = &Profile{
+		Type:    profileType,
+		Samples: make([]ProfileSample, 0),
+	}
+
+	return p
 }
 
 // StartProfiling starts profiling with the given options
@@ -590,6 +615,46 @@ func (p *Profiler) DisableLineProfiling() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.lineLevel = false
+}
+
+// Start starts profiling
+func (p *Profiler) Start() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.enabled = true
+	p.startTime = time.Now()
+
+	if p.profile != nil {
+		// Update start time if profile already exists
+		p.profile.TimeNanos = p.startTime.UnixNano()
+	}
+
+	// Reset state
+	p.opCount = 0
+	p.stackSamples = nil
+	// Don't reset funcProfiles and lineSamples to preserve data
+	p.callStack = nil
+}
+
+// Stop stops profiling and returns the collected profile
+func (p *Profiler) Stop() *Profile {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if !p.enabled || p.profile == nil {
+		return nil
+	}
+
+	p.enabled = false
+	p.profile.DurationNanos = time.Since(p.startTime).Nanoseconds()
+
+	// Build profile samples from collected data
+	p.generateSamples()
+
+	result := p.profile
+	// Don't reset p.profile to nil here - keep it for GetLineStats
+	return result
 }
 
 // callStackToStrings converts a call stack to string slice
