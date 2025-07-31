@@ -165,8 +165,11 @@ func (gnoURL GnoURL) IsDir() bool {
 // rePkgPath matches and validates a path.
 var rePkgPath = regexp.MustCompile(`^/[a-z0-9_/]*$`)
 
+// reUserPath matches and validates a user path.
+var reUserPath = regexp.MustCompile(`^/u/[a-zA-Z0-9_]+$`)
+
 func (gnoURL GnoURL) IsValidPath() bool {
-	return rePkgPath.MatchString(gnoURL.Path)
+	return rePkgPath.MatchString(gnoURL.Path) || reUserPath.MatchString(gnoURL.Path)
 }
 
 var reNamespace = regexp.MustCompile(`^/[a-z]/[a-z][a-z0-9_/]*$`)
@@ -183,6 +186,15 @@ func (gnoURL GnoURL) Namespace() string {
 	}
 
 	return path
+}
+
+// Extract the username from the path (e.g., "/u/alice" -> "alice")
+func (gnoURL GnoURL) Username() string {
+	if !gnoURL.IsUser() {
+		return ""
+	}
+
+	return gnoURL.Path[3:] // skip `/u/`
 }
 
 // ParseFromURL parses a URL into a GnoURL structure, extracting and validating its components.
