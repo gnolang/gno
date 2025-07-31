@@ -16,6 +16,18 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
 
+func extractDependenciesFromTxs(nodeConfig *gnodev.NodeConfig, paths *[]string) {
+	for _, tx := range nodeConfig.InitialTxs {
+		for _, msg := range tx.Tx.Msgs {
+			if callMsg, ok := msg.(vm.MsgCall); ok {
+				if slices.Contains(*paths, callMsg.PkgPath) == false {
+					*paths = append(*paths, callMsg.PkgPath)
+				}
+			}
+		}
+	}
+}
+
 // setupDevNode initializes and returns a new DevNode.
 func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeConfig, paths ...string) (*gnodev.Node, error) {
 	logger := nodeConfig.Logger
@@ -27,15 +39,7 @@ func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeCo
 			return nil, fmt.Errorf("unable to load transactions: %w", err)
 		}
 
-		for _, tx := range nodeConfig.InitialTxs {
-			for _, msg := range tx.Tx.Msgs {
-				if callMsg, ok := msg.(vm.MsgCall); ok {
-					if slices.Contains(paths, callMsg.PkgPath) == false {
-						paths = append(paths, callMsg.PkgPath)
-					}
-				}
-			}
-		}
+		extractDependenciesFromTxs(nodeConfig, &paths)
 	} else if cfg.genesisFile != "" { // Load genesis file
 		state, err := extractAppStateFromGenesisFile(cfg.genesisFile)
 		if err != nil {
