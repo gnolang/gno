@@ -127,7 +127,7 @@ func displayDaoOverview() string {
 func displayHidden() string {
 	out := md.H2("You found the secret of this realm!")
 
-	out += md.Paragraph("Welld done on reading the documentation of the CommonDAO package!")
+	out += md.Paragraph("Well done on reading the documentation of the CommonDAO package!")
 	out += md.Paragraph("You can request to joins the DAO by clicking the button below:")
 	out += md.Link("Request to join the DAO", txlink.Call("CreateProposal",
 		"title", "Join the DAO",
