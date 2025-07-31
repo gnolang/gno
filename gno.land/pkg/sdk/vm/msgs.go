@@ -63,7 +63,10 @@ func (msg MsgAddPackage) ValidateBasic() error {
 	if !msg.MaxDeposit.IsValid() {
 		return std.ErrInvalidCoins(msg.MaxDeposit.String())
 	}
-	// XXX validate files.
+	// Validate files: ensure files array is not empty.
+	if len(msg.Package.Files) == 0 {
+		return InvalidFileError{}
+	}
 	return nil
 }
 
@@ -205,6 +208,10 @@ func (msg MsgRun) ValidateBasic() error {
 		if path := msg.Package.Path; path != expected {
 			return ErrInvalidPkgPath(fmt.Sprintf("invalid pkgpath for MsgRun: %q", path))
 		}
+	}
+	// Validate files: ensure files array is not empty.
+	if len(msg.Package.Files) == 0 {
+		return InvalidFileError{}
 	}
 	if !msg.Send.IsValid() {
 		return std.ErrInvalidCoins(msg.Send.String())
