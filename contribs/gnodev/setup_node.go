@@ -22,6 +22,7 @@ import (
 func extractDependenciesFromTxs(nodeConfig *gnodev.NodeConfig, paths *[]string) {
 	for _, tx := range nodeConfig.InitialTxs {
 		for _, msg := range tx.Tx.Msgs {
+			// TODO: Support MsgRun
 			if callMsg, ok := msg.(vm.MsgCall); ok {
 
 				// Add package path to paths slice if not already present
