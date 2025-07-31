@@ -14,14 +14,37 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 )
 
+// extractDependenciesFromTxs extracts dependencies from transactions and adds them to the paths slice and config.BalancesList.
 func extractDependenciesFromTxs(nodeConfig *gnodev.NodeConfig, paths *[]string) {
 	for _, tx := range nodeConfig.InitialTxs {
 		for _, msg := range tx.Tx.Msgs {
 			if callMsg, ok := msg.(vm.MsgCall); ok {
+
+				// Add package path to paths slice if not already present
 				if slices.Contains(*paths, callMsg.PkgPath) == false {
 					*paths = append(*paths, callMsg.PkgPath)
+				}
+
+				// Check if address exists in config.BalancesList
+				addressExists := false
+				for _, balance := range nodeConfig.BalancesList {
+					if balance.Address == callMsg.Caller {
+						addressExists = true
+						break
+					}
+				}
+
+				// If address does not exist, add it to config.BalancesList
+				if !addressExists {
+					newBalance := gnoland.Balance{
+						Address: callMsg.Caller,
+						Amount:  std.Coins{std.NewCoin(ugnot.Denom, 10e12)},
+					}
+					nodeConfig.BalancesList = append(nodeConfig.BalancesList, newBalance)
 				}
 			}
 		}
