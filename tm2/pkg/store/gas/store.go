@@ -166,6 +166,10 @@ func (gi *gasIterator) Value() (value []byte) {
 	return value
 }
 
+func (gi *gasIterator) Error() error {
+	return gi.parent.Error()
+}
+
 // Implements Iterator.
 func (gi *gasIterator) Close() error {
 	return gi.parent.Close()

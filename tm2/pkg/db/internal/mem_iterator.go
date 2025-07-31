@@ -56,6 +56,11 @@ func (itr *MemIterator) Value() []byte {
 	return v
 }
 
+func (itr *MemIterator) Error() error {
+	// TODO return error collected in Value? (check other memdb impl)
+	return nil // famous last words
+}
+
 // Implements Iterator.
 func (itr *MemIterator) Close() error {
 	itr.keys = nil

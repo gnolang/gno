@@ -186,6 +186,10 @@ func (pdb *PrefixDB) DeleteNoLockSync(key []byte) {
 }
 */
 
+func (pdb *PrefixDB) Error() error {
+	return nil // TODO check other implem of prefix db to see if we can do better
+}
+
 // Implements DB.
 func (pdb *PrefixDB) Close() error {
 	pdb.mtx.Lock()
@@ -323,6 +327,10 @@ func (itr *prefixIterator) Value() (value []byte) {
 		panic("prefixIterator invalid, cannot call Value()")
 	}
 	return itr.source.Value()
+}
+
+func (itr *prefixIterator) Error() error {
+	return itr.source.Error()
 }
 
 func (itr *prefixIterator) Close() error {
