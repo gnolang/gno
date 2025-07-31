@@ -86,9 +86,7 @@ func (g *GovDAO) PostCreateProposal(r dao.ProposalRequest, pid dao.ProposalID) {
 			tatv = []string{memberstore.T1, memberstore.T2}
 		}
 	}
-
-	pids := ufmt.Sprintf("%v", int(pid))
-	g.pss.Set(pids, newProposalStatus(tatv))
+	g.pss.Set(pid.String(), newProposalStatus(tatv))
 }
 
 func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {

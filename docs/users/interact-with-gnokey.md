@@ -767,7 +767,7 @@ files found within the `wugnot` realm:
 
 ```bash
 height: 0
-data: gno.mod
+data: gnomod.toml
 wugnot.gno
 z0_filetest.gno
 ```

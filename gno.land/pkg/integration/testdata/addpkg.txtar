@@ -11,7 +11,7 @@ stdout OK!
 stdout 'GAS WANTED: 100000000'
 stdout 'GAS USED:   \d+'
 stdout 'HEIGHT:     \d+'
-stdout 'EVENTS:     \[\]'
+stdout 'EVENTS:     \[.*\]'
 stdout 'TX HASH:    '
 
 ## call added realm

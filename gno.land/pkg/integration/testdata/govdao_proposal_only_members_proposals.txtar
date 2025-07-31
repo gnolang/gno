@@ -27,10 +27,14 @@ import (
 )
 
 func main() {
-	ex := dao.NewSafeExecutor(dao.NewSimpleExecutor(func(realm)error{return nil}, "desc"))
-	pr := dao.NewProposalRequest("title", "desc", ex)
+	// Try to create a proposal as a non-member
+	// Create a simple proposal request with nil executor
+	// The error should come from PreCreateProposal before executor is validated
+	pr := dao.NewProposalRequest("Test Proposal", "This is a test proposal", nil)
 	_, err := dao.CreateProposal(cross, pr)
-	println(err.Error())
+	if err != nil {
+		println(err.Error())
+	}
 }
 
 -- loader/load_govdao.gno --
