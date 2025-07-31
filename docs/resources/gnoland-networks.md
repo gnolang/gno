@@ -5,7 +5,7 @@
 | Network | RPC Endpoint                            | Chain ID  |
 |---------|-----------------------------------------|-----------|
 | Staging | https://rpc.gno.land:443                | `staging` |
-| Test6   | https://rpc.test6.testnets.gno.land:443 | `test6`   |
+| Test7   | https://rpc.test7.testnets.gno.land:443 | `test7`   |
 
 ### WebSocket endpoints
 All networks follow the same pattern for websocket connections:
@@ -134,9 +134,17 @@ is the `gnoweb` render of the Staging testnet.
     [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop) folder in the
     monorepo
 
-### Test6
+### Test7
 
-Test6 is the latest testnet released on the 23rd of June, 2025. It enables token 
+Test7 was released on July 25, 2025. Its purpose is to test all the latest improvements planned for the mainnet beta, and the newly added storage deposit functionality.
+
+### TestX
+
+These testnets are deprecated and currently serve as archives of previous progress.
+
+### Test6 (archive)
+
+Test6 was released on the 23rd of June, 2025. It enabled token 
 locking, implements the interrealm specification, GovDAO V3 and more.
 
 - **Persistence of state:**
@@ -147,11 +155,6 @@ locking, implements the interrealm specification, GovDAO V3 and more.
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
-
-
-### TestX
-
-These testnets are deprecated and currently serve as archives of previous progress.
 
 ### Test5 (archive)
 
