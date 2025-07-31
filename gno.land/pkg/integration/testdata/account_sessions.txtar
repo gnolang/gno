@@ -1,0 +1,15 @@
+gnokey list
+gnokey add NAME
+gnokey add -recover NAME
+gnokey add -session NAME
+gnokey list
+
+# gnokey query
+# gnokey add recover
+# gnokey add
+# gnokey add session
+# gnokey list
+# gnokey query
+# gnokey sign
+# gnokey sign # ambiguous (two keys for same account)
+# gnokey sign # 2 different accounts same key
