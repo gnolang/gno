@@ -4,6 +4,8 @@ import (
 	"std"
 	"strconv"
 	"gno.land/r/sacha/config"
+	"math/rand"
+	"gno.land/p/demo/entropy"
 )
 
 type Bet struct {
@@ -27,7 +29,11 @@ func flip(choice int) bool {
 		panic("Invalid choice")
 	}
 
-	result := int(std.ChainHeight() % 2)
+	seed1 := uint64(entropy.New().Seed())
+	seed2 := uint64(entropy.New().Seed())
+
+	r    := rand.New(rand.NewPCG(seed1, seed2))
+	result := r.IntN(2)
 
 	return result == choice
 }
