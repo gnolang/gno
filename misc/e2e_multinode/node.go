@@ -105,7 +105,7 @@ func setupNode(t TestingT, tempDir string, index int, nodeType NodeType) *Node {
 	}
 
 	// Set up network addresses with dynamic ports
-	node.P2PPort = findAvailablePort(t, 26656 + index)
+	node.P2PPort = findAvailablePort(t, 26656+index)
 	node.SocketAddr = fmt.Sprintf("unix://%s", createSocketPath(t, fmt.Sprintf("%s_%d.sock", nodeType, index)))
 	node.Genesis = filepath.Join(nodeDir, "test_genesis.json")
 
@@ -169,16 +169,16 @@ func initializeNodeConfig(t TestingT, dataDir string, socketAddr string, p2pPort
 	cfg := config.DefaultConfig()
 	cfg.SetRootDir(dataDir)
 	require.NoError(t, config.WriteConfigFile(configPath, cfg), "Failed to write initial config file")
-	
+
 	// Load and modify config
 	loadedCfg, err := config.LoadConfigFile(configPath)
 	require.NoError(t, err, "Failed to load config file")
-	
+
 	loadedCfg.RPC.ListenAddress = socketAddr
 	loadedCfg.P2P.ListenAddress = fmt.Sprintf("tcp://0.0.0.0:%d", p2pPort)
 
 	require.NoError(t, config.WriteConfigFile(configPath, loadedCfg), "Failed to write updated config file")
-	
+
 	t.Logf("Configured node with RPC socket: %s, P2P port: %d", socketAddr, p2pPort)
 }
 
@@ -213,10 +213,10 @@ func findAvailablePort(t TestingT, preferredPort int) int {
 	if err != nil {
 		t.Fatalf("Failed to find available port: %v", err)
 	}
-	
+
 	port := listener.Addr().(*net.TCPAddr).Port
 	listener.Close()
-	
+
 	t.Logf("Found available port: %d (preferred %d was in use)", port, preferredPort)
 	return port
 }

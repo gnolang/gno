@@ -1,8 +1,7 @@
 .PHONY: build install test clean
 
-BIN=build/e2e_multinode
-
 # Build the binary
+build: build/e2e_multinode
 build/e2e_multinode:
 	@mkdir -p $(dir $@)
 	go build -o $@

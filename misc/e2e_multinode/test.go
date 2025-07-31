@@ -168,21 +168,25 @@ func executeTestTransactions(t TestingT, validator *Node, numTxs int) {
 func waitForPeerConnectivity(t TestingT, ctx context.Context, nodes []*ExtendedNode) error {
 	t.Log("📋 Waiting for P2P peer connectivity...")
 
-	// Use assert.Eventually for cleaner timeout handling
-	success := assert.EventuallyWithT(t, func(c *assert.CollectT) { // Check if context is cancelled
-		select {
-		case <-ctx.Done():
-			c.FailNow()
-		default:
+
+	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
+	deadline, _ := ctx.Deadline()
+	defer cancel()
+
+	success := assert.EventuallyWithT(t, func(c *assert.CollectT) {
+
+		// Calculate expected peers: single validator has 0 peers, otherwise at least 1
+		expectedPeers := 1
+		if len(nodes) == 1 {
+			expectedPeers = 0
 		}
 
-		const expectedPeers = 1 // Each validator should have at least 1 peer
 		for _, node := range nodes {
 			netInfo, err := node.Client.NetInfo()
 			require.NoError(c, err)
 			require.GreaterOrEqual(c, len(netInfo.Peers), expectedPeers)
 		}
-	}, 30*time.Second, 1*time.Second, "failed to establish peer connectivity")
+	}, time.Until(deadline), 1*time.Second, "failed to establish peer connectivity")
 
 	if !success {
 		return fmt.Errorf("timeout waiting for peer connectivity")
@@ -196,14 +200,11 @@ func waitForPeerConnectivity(t TestingT, ctx context.Context, nodes []*ExtendedN
 func waitForHeightSync(t TestingT, ctx context.Context, nodes []*ExtendedNode, minHeight int64) error {
 	t.Log("📋 Waiting for block height synchronization...")
 
-	// Use assert.Eventually for cleaner timeout handling
+	ctx, cancel := context.WithTimeout(ctx, time.Second*120)
+	deadline, _ := ctx.Deadline()
+	defer cancel()
+
 	success := assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		// Check if context is cancelled
-		select {
-		case <-ctx.Done():
-			c.FailNow()
-		default:
-		}
 
 		for i, node := range nodes {
 			require.NotNil(c, node.Client)
@@ -215,7 +216,7 @@ func waitForHeightSync(t TestingT, ctx context.Context, nodes []*ExtendedNode, m
 			require.GreaterOrEqual(c, currentHeight, minHeight)
 			t.Logf("Height sync progress - Node %d: %d/%d", i, currentHeight, minHeight)
 		}
-	}, 120*time.Second, 1*time.Second, "failed to sync all nodes to height %d", minHeight)
+	}, time.Until(deadline), 1*time.Second, "failed to sync all nodes to height %d", minHeight)
 
 	if !success {
 		return fmt.Errorf("timeout waiting for height sync to %d", minHeight)

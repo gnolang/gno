@@ -222,7 +222,7 @@ func (suite *E2ETestSuite) TestMultipleValidators() {
 		validators[i] = setupValidatorNode(suite.T(), suite.tempDir, i)
 		suite.NotNil(validators[i])
 	}
-	
+
 	// ta := NewTestAssertion(suite.T()) // Not implemented yet
 	validateNodeSetup(ta, validators, 3)
 }
