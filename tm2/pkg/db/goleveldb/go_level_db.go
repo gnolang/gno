@@ -306,6 +306,10 @@ func (itr *goLevelDBIterator) Next() {
 	}
 }
 
+func (i *goLevelDBIterator) Error() error {
+	return i.source.Error()
+}
+
 // Implements Iterator.
 func (itr *goLevelDBIterator) Close() error {
 	itr.source.Release()

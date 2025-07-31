@@ -320,6 +320,10 @@ func (itr *boltDBIterator) Value() []byte {
 	return value
 }
 
+func (i *boltDBIterator) Error() error {
+	return nil // famous last words
+}
+
 func (itr *boltDBIterator) Close() error {
 	return itr.tx.Rollback()
 }

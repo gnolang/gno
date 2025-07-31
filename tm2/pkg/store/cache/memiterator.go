@@ -78,6 +78,10 @@ func (mi *memIterator) Value() []byte {
 	return mi.items[len(mi.items)-1].Value
 }
 
+func (mi *memIterator) Error() error {
+	return nil // famous last words
+}
+
 func (mi *memIterator) Close() error {
 	mi.start = nil
 	mi.end = nil

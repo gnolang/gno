@@ -143,6 +143,10 @@ func (iter *cacheMergeIterator) Value() []byte {
 	}
 }
 
+func (iter *cacheMergeIterator) Error() error {
+	return iter.parent.Error()
+}
+
 // Close implements Iterator
 func (iter *cacheMergeIterator) Close() error {
 	err := iter.parent.Close()
