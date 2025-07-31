@@ -16,6 +16,7 @@ import (
 	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/profiler"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -26,16 +27,16 @@ import (
 )
 
 // getProfileFormat converts string format to ProfileFormat
-func getProfileFormat(format string) gno.ProfileFormat {
+func getProfileFormat(format string) profiler.ProfileFormat {
 	switch format {
 	case "toplist":
-		return gno.FormatTopList
+		return profiler.FormatTopList
 	case "calltree":
-		return gno.FormatCallTree
+		return profiler.FormatCallTree
 	case "json":
-		return gno.FormatJSON
+		return profiler.FormatJSON
 	default:
-		return gno.FormatText
+		return profiler.FormatText
 	}
 }
 
@@ -170,7 +171,7 @@ type TestOptions struct {
 	// Function name for line-by-line profile listing.
 	ProfileList string
 	// Global profiler instance (internal use)
-	globalProfiler *gno.Profiler
+	globalProfiler *profiler.Profiler
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -251,31 +252,33 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	opts.outWriter.errW = opts.Error
 
 	var errs error
-	var globalProfiler *gno.Profiler
 
 	// Initialize profiling if enabled
 	if opts.Profile {
 		// Select profile type based on flag
-		profileType := gno.ProfileCPU
+		profileType := profiler.ProfileCPU
 		sampleRate := 100
 		if opts.ProfileType == "memory" {
-			profileType = gno.ProfileMemory
+			profileType = profiler.ProfileMemory
 			sampleRate = 1 // Sample every allocation for memory
 		}
-		globalProfiler = gno.NewProfiler(profileType, sampleRate)
+		globalProfiler := profiler.NewProfiler()
 		// Enable line-level profiling if list option is used
 		if opts.ProfileList != "" {
-			globalProfiler.EnableLineLevel(true)
+			globalProfiler.EnableLineProfiling()
 		}
-		globalProfiler.Start()
+		globalProfiler.StartProfiling(nil, profiler.Options{
+			Type:       profileType,
+			SampleRate: sampleRate,
+		})
 		opts.globalProfiler = globalProfiler // Store in opts for use in runTestFiles
 		defer func() {
-			profile := globalProfiler.Stop()
+			profile := globalProfiler.StopProfiling()
 			if profile != nil {
 				if opts.ProfileList != "" {
 					// Show line-by-line profile for specific function
 					fmt.Fprintln(opts.Output, "\n=== FUNCTION PROFILE ===")
-					err := profile.WriteFunctionList(opts.Output, opts.ProfileList, opts.TestStore)
+					err := profile.WriteFunctionList(opts.Output, opts.ProfileList, nil)
 					if err != nil {
 						fmt.Fprintf(opts.Error, "Failed to write function profile: %v\n", err)
 					}
@@ -331,7 +334,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	})
 	// Enable profiling on the machine if profiling is enabled
 	if opts.Profile && opts.globalProfiler != nil {
-		m2.Profiler = opts.globalProfiler
+		m2.SetProfiler(opts.globalProfiler)
 	}
 	// Filter out xxx_test *_test.gno and *_filetest.gno and run.
 	// If testing with only filetests, there will be no files.
@@ -471,7 +474,7 @@ func (opts *TestOptions) runTestFiles(
 	}
 	// Enable profiling on the machine if profiling is enabled
 	if opts.Profile && globalProfiler != nil {
-		m.Profiler = globalProfiler
+		m.SetProfiler(globalProfiler)
 	}
 	if tgs.GetMemPackage(mpkg.Path) == nil {
 		m.RunMemPackage(mpkg, false)
@@ -500,7 +503,7 @@ func (opts *TestOptions) runTestFiles(
 		m.SetActivePackage(pv)
 		// Enable profiling on the test machine if profiling is enabled
 		if opts.Profile && globalProfiler != nil {
-			m.Profiler = globalProfiler
+			m.SetProfiler(globalProfiler)
 		}
 
 		testingpv := m.Store.GetPackage("testing/base", false)

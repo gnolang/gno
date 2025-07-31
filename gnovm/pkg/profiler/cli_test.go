@@ -1,4 +1,4 @@
-package gnolang
+package profiler
 
 import (
 	"bytes"

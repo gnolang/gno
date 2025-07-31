@@ -147,8 +147,8 @@ func (alloc *Allocator) Allocate(size int64) {
 	}
 
 	// Record allocation for profiling
-	if alloc != nil && alloc.machine != nil && alloc.machine.Profiler != nil && alloc.machine.Profiler.enabled {
-		alloc.machine.Profiler.RecordAlloc(alloc.machine, size, 1, "")
+	if alloc != nil && alloc.machine != nil {
+		alloc.machine.RecordAllocation(size, 1, "")
 	}
 }
 
@@ -174,8 +174,8 @@ func (alloc *Allocator) allocateWithType(size int64, allocType string) {
 	}
 
 	// Record allocation for profiling with type
-	if alloc.machine != nil && alloc.machine.Profiler != nil && alloc.machine.Profiler.enabled {
-		alloc.machine.Profiler.RecordAlloc(alloc.machine, size, 1, allocType)
+	if alloc.machine != nil {
+		alloc.machine.RecordAllocation(size, 1, allocType)
 	}
 }
 

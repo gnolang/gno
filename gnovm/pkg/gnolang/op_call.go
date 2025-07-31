@@ -142,25 +142,7 @@ func (m *Machine) doOpCall() {
 	fr := m.LastFrame()
 	fv := fr.Func
 
-	// Record function entry for profiling
-	if m.IsProfilingEnabled() {
-		funcName := string(fv.Name)
-		if fv.PkgPath != "" {
-			funcName = fv.PkgPath + "." + funcName
-		}
-		m.Profiler.RecordFuncEnter(m, funcName)
-
-		// Record line-level information if enabled
-		if m.Profiler.lineLevel && fr.Source != nil {
-			loc := &profileLocation{
-				function: funcName,
-				file:     fv.FileName,
-				line:     fr.Source.GetLine(),
-				column:   fr.Source.GetColumn(),
-			}
-			m.Profiler.RecordLineLevel(m, loc, 0)
-		}
-	}
+	// Profiling is now handled by RecordProfileSample
 	fs := fv.GetSource(m.Store)
 	ft := fr.Func.GetType(m.Store)
 	// Create new block scope.
@@ -297,27 +279,7 @@ func (m *Machine) doOpReturn() {
 	// Unwind stack.
 	cfr := m.PopUntilLastCallFrame()
 
-	// Record function exit for profiling
-	if m.IsProfilingEnabled() && cfr.Func != nil {
-		funcName := string(cfr.Func.Name)
-		if cfr.Func.PkgPath != "" {
-			funcName = cfr.Func.PkgPath + "." + funcName
-		}
-		// Calculate cycles used in this function
-		cycles := m.Cycles // This is current total cycles
-		m.Profiler.RecordFuncExit(m, funcName, cycles)
-
-		// Record line-level information if enabled
-		if m.Profiler.lineLevel && cfr.Source != nil {
-			loc := &profileLocation{
-				function: funcName,
-				file:     cfr.Func.FileName,
-				line:     cfr.Source.GetLine(),
-				column:   cfr.Source.GetColumn(),
-			}
-			m.Profiler.RecordLineLevel(m, loc, cycles)
-		}
-	}
+	// Profiling is now handled by RecordProfileSample
 
 	// Finalize if exiting realm boundary.
 	m.maybeFinalize(cfr)

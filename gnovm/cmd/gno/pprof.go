@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/profiler"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -71,13 +72,13 @@ func execPprof(cfg *pprofCfg, args []string, io commands.IO) error {
 	}
 
 	// Parse profile data (JSON format for now)
-	var profile gnolang.Profile
+	var profile profiler.Profile
 	if err := json.Unmarshal(data, &profile); err != nil {
 		return fmt.Errorf("failed to parse profile data: %w", err)
 	}
 
 	// Create interactive CLI
-	cli := gnolang.NewProfilerCLI(&profile, nil)
+	cli := profiler.NewProfilerCLI(&profile, nil)
 	cli.SetInput(io.In())
 	cli.SetOutput(io.Out())
 
@@ -87,13 +88,9 @@ func execPprof(cfg *pprofCfg, args []string, io commands.IO) error {
 
 // Helper function to save profile data from Machine
 func SaveProfile(m *gnolang.Machine, filename string) error {
-	if m.Profiler == nil {
-		return errors.New("no profiler data available")
-	}
-
 	profile := m.StopProfiling()
 	if profile == nil {
-		return errors.New("failed to get profile data")
+		return errors.New("no profiler data available")
 	}
 
 	// Create directory if it doesn't exist
