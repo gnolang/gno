@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/cosmos/iavl"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/iavl"
 	"github.com/gnolang/gno/tm2/pkg/std"
 
 	"github.com/gnolang/gno/tm2/pkg/store/cache"
@@ -24,7 +25,10 @@ const (
 
 // Implements store.CommitStoreConstructor.
 func StoreConstructor(db dbm.DB, opts types.StoreOptions) types.CommitStore {
-	tree := iavl.NewMutableTree(db, defaultIAVLCacheSize)
+	tree, err := iavl.NewMutableTree(db, defaultIAVLCacheSize, false)
+	if err != nil {
+		panic(err)
+	}
 	store := UnsafeNewStore(tree, opts)
 	return store
 }

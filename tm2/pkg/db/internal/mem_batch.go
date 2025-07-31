@@ -28,24 +28,29 @@ type Operation struct {
 	Value []byte
 }
 
-func (mBatch *MemBatch) Set(key, value []byte) {
+func (mBatch *MemBatch) Set(key, value []byte) error {
 	mBatch.Ops = append(mBatch.Ops, Operation{OpTypeSet, key, value})
+	return nil
 }
 
-func (mBatch *MemBatch) Delete(key []byte) {
+func (mBatch *MemBatch) Delete(key []byte) error {
 	mBatch.Ops = append(mBatch.Ops, Operation{OpTypeDelete, key, nil})
+	return nil
 }
 
-func (mBatch *MemBatch) Write() {
+func (mBatch *MemBatch) Write() error {
 	mBatch.write(false)
+	return nil
 }
 
-func (mBatch *MemBatch) WriteSync() {
+func (mBatch *MemBatch) WriteSync() error {
 	mBatch.write(true)
+	return nil
 }
 
-func (mBatch *MemBatch) Close() {
+func (mBatch *MemBatch) Close() error {
 	mBatch.Ops = nil
+	return nil
 }
 
 func (mBatch *MemBatch) write(doSync bool) {

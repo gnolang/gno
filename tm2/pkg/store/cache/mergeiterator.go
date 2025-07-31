@@ -144,9 +144,12 @@ func (iter *cacheMergeIterator) Value() []byte {
 }
 
 // Close implements Iterator
-func (iter *cacheMergeIterator) Close() {
-	iter.parent.Close()
-	iter.cache.Close()
+func (iter *cacheMergeIterator) Close() error {
+	err := iter.parent.Close()
+	if err != nil {
+		return err
+	}
+	return iter.cache.Close()
 }
 
 // Like bytes.Compare but opposite if not ascending.

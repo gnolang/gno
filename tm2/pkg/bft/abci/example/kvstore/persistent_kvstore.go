@@ -95,7 +95,8 @@ func (app *PersistentKVStoreApplication) Query(reqQuery abci.RequestQuery) (resQ
 	switch reqQuery.Path {
 	case "/val":
 		key := []byte(ValidatorUpdatePrefix + string(reqQuery.Data))
-		value := app.app.state.db.Get(key)
+		// TODO address err
+		value, _ := app.app.state.db.Get(key)
 
 		resQuery.Key = reqQuery.Data
 		resQuery.Value = value
@@ -150,7 +151,8 @@ func (app *PersistentKVStoreApplication) EndBlock(req abci.RequestEndBlock) abci
 // update validators
 
 func (app *PersistentKVStoreApplication) Validators() (validators []abci.ValidatorUpdate) {
-	itr := app.app.state.db.Iterator(nil, nil)
+	// TODO address err
+	itr, _ := app.app.state.db.Iterator(nil, nil)
 	for ; itr.Valid(); itr.Next() {
 		if isValidatorKey(itr.Key()) {
 			validator := new(abci.ValidatorUpdate)
@@ -218,7 +220,9 @@ func (app *PersistentKVStoreApplication) execValidatorTx(tx []byte) (res abci.Re
 func (app *PersistentKVStoreApplication) updateValidator(val abci.ValidatorUpdate) (res abci.ResponseDeliverTx) {
 	if val.Power == 0 {
 		// remove validator
-		if !app.app.state.db.Has(makeValidatorKey(val)) {
+		// TODO address err
+		found, _ := app.app.state.db.Has(makeValidatorKey(val))
+		if found {
 			res.Error = errors.UnauthorizedError{}
 			res.Log = fmt.Sprintf("Cannot remove non-existent validator %s", val.PubKey.String())
 			return res
