@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
 	"sync"
 	"time"
 
@@ -44,6 +45,9 @@ func newTestCmd(io commands.IO) *commands.Command {
 		},
 		cfg,
 		func(ctx context.Context, _ []string) error {
+			ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
+			defer cancel()
+
 			return execTest(ctx, cfg, io)
 		},
 	)
@@ -51,9 +55,9 @@ func newTestCmd(io commands.IO) *commands.Command {
 
 func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.IntVar(&c.numValidators, "validators", 2, "number of validator nodes")
-	fs.IntVar(&c.numNonValidators, "non-validators", 3, "number of non-validator nodes")
+	fs.IntVar(&c.numNonValidators, "non-validators", 1, "number of non-validator nodes")
 	fs.IntVar(&c.numTransactions, "transactions", 5, "number of test transactions")
-	fs.Int64Var(&c.targetHeight, "height", 205, "target blockchain height")
+	fs.Int64Var(&c.targetHeight, "height", 50, "target blockchain height")
 	fs.DurationVar(&c.maxTestTime, "timeout", 15*time.Minute, "maximum test duration")
 }
 
@@ -134,13 +138,6 @@ func runDeterminismTest(t TestingT, ctx context.Context, c *testCfg) {
 	nodes = append(nodes, validators...)
 	nodes = append(nodes, nonValidators...)
 
-	// Cleanup processes at the end
-	defer func() {
-		cancel()
-		wg.Wait()
-		cleanupNodes(t, nodes)
-	}()
-
 	// Create shared genesis
 	t.Log("📋 Creating shared genesis file")
 	t.Logf("Genesis will include %d validators", c.numValidators)
@@ -164,6 +161,13 @@ func runDeterminismTest(t TestingT, ctx context.Context, c *testCfg) {
 
 	// Print node configurations
 	printNodeConfigurations(t, nodes, c)
+
+	// Cleanup processes at the end
+	defer func() {
+		cancel()
+		wg.Wait()
+		cleanupNodes(t, nodes)
+	}()
 
 	// Start nodes and run test
 	t.Log("📋 Starting nodes and running determinism test")

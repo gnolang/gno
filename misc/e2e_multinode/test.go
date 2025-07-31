@@ -93,14 +93,10 @@ func runMultiNodeTest(
 					t.Logf("✅ Non-validator %d ready", idx+1)
 				}
 			}(nonValidators[i], i)
-
-			time.Sleep(2 * time.Second) // Stagger node starts
 		}
 	}
 
-	// Wait for P2P connections
-	t.Log("📋 Waiting for P2P connections to be established...")
-	time.Sleep(10 * time.Second)
+	// P2P connections will be verified in the sync phase
 
 	// Wait for sync to target height and check determinism
 	t.Log("📋 Waiting for chain topology and sync to target height")
@@ -145,7 +141,6 @@ func startGnolandNode(t TestingT, ctx context.Context, binaryPath string, node *
 
 	// Wait for node to be ready
 	extNode := &ExtendedNode{Node: node}
-	// Wait for node to be ready
 	return waitForNodeReady(t, ctx, extNode)
 }
 
@@ -155,10 +150,9 @@ func executeTestTransactions(t TestingT, validator *Node, numTxs int) {
 	t.Logf("Simulating %d transactions", numTxs)
 
 	// In a real implementation, this would send actual transactions
-	// For now, we simulate by waiting for block production
-	for i := 1; i <= numTxs; i++ {
-		t.Logf("📤 Simulating transaction %d (waiting for block production)", i)
-		time.Sleep(2 * time.Second)
+	// For now, we simulate by allowing block production to create state changes
+	if numTxs > 0 {
+		t.Logf("📤 Simulating %d transactions via block production", numTxs)
 	}
 
 	t.Log("✅ Completed transaction simulation - state changes should have occurred via block production")
@@ -168,19 +162,17 @@ func executeTestTransactions(t TestingT, validator *Node, numTxs int) {
 func waitForPeerConnectivity(t TestingT, ctx context.Context, nodes []*ExtendedNode) error {
 	t.Log("📋 Waiting for P2P peer connectivity...")
 
-
 	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
 	deadline, _ := ctx.Deadline()
 	defer cancel()
 
+	expectedPeers := 1
+	if len(nodes) == 1 {
+		expectedPeers = 0
+	}
+
 	success := assert.EventuallyWithT(t, func(c *assert.CollectT) {
-
 		// Calculate expected peers: single validator has 0 peers, otherwise at least 1
-		expectedPeers := 1
-		if len(nodes) == 1 {
-			expectedPeers = 0
-		}
-
 		for _, node := range nodes {
 			netInfo, err := node.Client.NetInfo()
 			require.NoError(c, err)
@@ -200,12 +192,13 @@ func waitForPeerConnectivity(t TestingT, ctx context.Context, nodes []*ExtendedN
 func waitForHeightSync(t TestingT, ctx context.Context, nodes []*ExtendedNode, minHeight int64) error {
 	t.Log("📋 Waiting for block height synchronization...")
 
-	ctx, cancel := context.WithTimeout(ctx, time.Second*120)
-	deadline, _ := ctx.Deadline()
-	defer cancel()
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		deadline = time.Now().Add(time.Minute * 2)
+	}
 
+	t.Logf("Height sync progress - deadline for sync %s", time.Until(deadline).String())
 	success := assert.EventuallyWithT(t, func(c *assert.CollectT) {
-
 		for i, node := range nodes {
 			require.NotNil(c, node.Client)
 
@@ -213,8 +206,11 @@ func waitForHeightSync(t TestingT, ctx context.Context, nodes []*ExtendedNode, m
 			require.NoError(c, err)
 
 			currentHeight := status.SyncInfo.LatestBlockHeight
+			if currentHeight < 50 || currentHeight%50 == 0 {
+				t.Logf("Height sync progress - Node %d: %d/%d", i, currentHeight, minHeight)
+			}
+
 			require.GreaterOrEqual(c, currentHeight, minHeight)
-			t.Logf("Height sync progress - Node %d: %d/%d", i, currentHeight, minHeight)
 		}
 	}, time.Until(deadline), 1*time.Second, "failed to sync all nodes to height %d", minHeight)
 
@@ -255,7 +251,7 @@ func checkDeterminism(t TestingT, ctx context.Context, nodes []*ExtendedNode, cf
 		}
 	}
 
-	// Look for any divergence at ANY height
+	// Look for any divergence
 	for h := int64(0); h < minCompareHeight; h++ {
 		// Get hashes from all nodes for this height
 		hashes := make([]string, len(nodes))
@@ -266,10 +262,12 @@ func checkDeterminism(t TestingT, ctx context.Context, nodes []*ExtendedNode, cf
 		// Check if all hashes are identical
 		allMatch := true
 		for nodeIdx := 1; nodeIdx < len(nodes); nodeIdx++ {
-			if hashes[nodeIdx] != hashes[0] {
-				allMatch = false
-				break
+			if hashes[nodeIdx] == hashes[0] {
+				continue
 			}
+
+			allMatch = false
+			break
 		}
 
 		if !allMatch {
@@ -285,7 +283,7 @@ func checkDeterminism(t TestingT, ctx context.Context, nodes []*ExtendedNode, cf
 		}
 	}
 
-	t.Log("🎉 PERFECT DETERMINISM: All AppHashes match across all nodes for ALL heights!")
+	t.Log("🎉 SUCCESS: All AppHashes match across all nodes for ALL heights!")
 	t.Logf("Verified %d heights across %d nodes (%d validators + %d non-validators)",
 		minCompareHeight, len(nodes), cfg.numValidators, cfg.numNonValidators)
 }

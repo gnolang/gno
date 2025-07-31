@@ -16,8 +16,8 @@ func newRootCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
-			ShortHelp:  "E2E Multi-Node Determinism Test for Gno blockchain",
-			LongHelp:   "Standalone binary for testing multi-node consensus determinism in Gno blockchain.",
+			ShortHelp:  "E2E Multi-Node Determinism Test",
+			LongHelp:   "Standalone binary for testing multi-node consensus determinism",
 		},
 		commands.NewEmptyConfig(),
 		commands.HelpExec,

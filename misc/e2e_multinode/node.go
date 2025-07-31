@@ -105,7 +105,7 @@ func setupNode(t TestingT, tempDir string, index int, nodeType NodeType) *Node {
 	}
 
 	// Set up network addresses with dynamic ports
-	node.P2PPort = findAvailablePort(t, 26656+index)
+	node.P2PPort = findAvailablePort(t)
 	node.SocketAddr = fmt.Sprintf("unix://%s", createSocketPath(t, fmt.Sprintf("%s_%d.sock", nodeType, index)))
 	node.Genesis = filepath.Join(nodeDir, "test_genesis.json")
 
@@ -168,16 +168,10 @@ func initializeNodeConfig(t TestingT, dataDir string, socketAddr string, p2pPort
 	// Write initial config
 	cfg := config.DefaultConfig()
 	cfg.SetRootDir(dataDir)
+	cfg.RPC.ListenAddress = socketAddr
+	cfg.P2P.ListenAddress = fmt.Sprintf("tcp://0.0.0.0:%d", p2pPort)
+
 	require.NoError(t, config.WriteConfigFile(configPath, cfg), "Failed to write initial config file")
-
-	// Load and modify config
-	loadedCfg, err := config.LoadConfigFile(configPath)
-	require.NoError(t, err, "Failed to load config file")
-
-	loadedCfg.RPC.ListenAddress = socketAddr
-	loadedCfg.P2P.ListenAddress = fmt.Sprintf("tcp://0.0.0.0:%d", p2pPort)
-
-	require.NoError(t, config.WriteConfigFile(configPath, loadedCfg), "Failed to write updated config file")
 
 	t.Logf("Configured node with RPC socket: %s, P2P port: %d", socketAddr, p2pPort)
 }
@@ -203,32 +197,20 @@ func createSocketPath(t TestingT, filename string) string {
 	return socketPath
 }
 
-// findAvailablePort finds an available TCP port
-func findAvailablePort(t TestingT, preferredPort int) int {
-	if isPortAvailable(preferredPort) {
-		return preferredPort
-	}
-
+// findAvailablePort finds an available TCP port dynamically
+func findAvailablePort(t TestingT) int {
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
 		t.Fatalf("Failed to find available port: %v", err)
 	}
 
 	port := listener.Addr().(*net.TCPAddr).Port
-	listener.Close()
 
-	t.Logf("Found available port: %d (preferred %d was in use)", port, preferredPort)
+	// Close listener
+	require.NoError(t, listener.Close())
+
+	t.Logf("Found available port: %d", port)
 	return port
-}
-
-// isPortAvailable checks if a port is available
-func isPortAvailable(port int) bool {
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		return false
-	}
-	listener.Close()
-	return true
 }
 
 // waitForNodeReady waits for a node to be ready to accept RPC calls
@@ -240,10 +222,9 @@ func waitForNodeReady(t TestingT, ctx context.Context, node *ExtendedNode) error
 	}
 	node.Client = client
 
-	deadline, ok := ctx.Deadline()
-	if !ok || time.Until(deadline) > time.Second*30 {
-		deadline = time.Now().Add(time.Second * 30)
-	}
+	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
+	defer cancel()
+	deadline, _ := ctx.Deadline()
 
 	success := assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		info, err := node.Client.ABCIInfo()
@@ -278,8 +259,7 @@ func startNode(t TestingT, ctx context.Context, binaryPath string, node *Node, a
 		return fmt.Errorf("failed to create stderr log: %w", err)
 	}
 
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
+	cmd.Stdout, cmd.Stderr = stdout, stderr
 
 	// Log the command being executed
 	t.Logf("Starting node %d with command: %s %s", node.Index, binaryPath, strings.Join(args, " "))
@@ -300,24 +280,18 @@ func cleanupNodes(t TestingT, nodes []*Node) {
 	t.Logf("🧹 Cleaning up nodes, count: %d", len(nodes))
 
 	for _, node := range nodes {
-		if node.Process != nil {
-			if err := node.Process.Signal(os.Interrupt); err != nil {
-				// If interrupt fails, force kill
-				if err := node.Process.Kill(); err != nil {
-					t.Errorf("WARNING: Failed to kill process, node_index: %d, error: %v", node.Index, err)
-				}
-			}
-
-			// Wait for process to exit
-			_, _ = node.Process.Wait()
+		if node.Process == nil {
+			continue
 		}
 
-		// Clean up socket file if exists
-		if node.SocketAddr != "" && strings.HasPrefix(node.SocketAddr, "unix://") {
-			socketPath := node.SocketAddr[7:] // Remove "unix://" prefix
-			if dir := filepath.Dir(socketPath); strings.HasPrefix(dir, "/tmp/gno-") {
-				os.RemoveAll(dir)
+		if err := node.Process.Signal(os.Interrupt); err != nil {
+			// If interrupt fails, force kill
+			if err := node.Process.Kill(); err != nil {
+				t.Errorf("WARNING: Failed to kill process, node_index: %d, error: %v", node.Index, err)
 			}
 		}
+
+		// Wait for process to exit
+		_, _ = node.Process.Wait()
 	}
 }

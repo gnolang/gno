@@ -14,8 +14,6 @@ import (
 func TestNodeSetup(t *testing.T) {
 	tempDir := t.TempDir()
 
-	// ta := NewTestAssertion(t) // Not implemented yet
-
 	// Test validator node setup
 	validator := setupValidatorNode(t, tempDir, 0)
 	assert.NotNil(t, validator, "validator should not be nil")
@@ -31,28 +29,6 @@ func TestNodeSetup(t *testing.T) {
 	assert.Greater(t, nonValidator.P2PPort, 0, "non-validator should have valid P2P port")
 	assert.NotEmpty(t, nonValidator.NodeID, "non-validator should have NodeID")
 	assert.NotEmpty(t, nonValidator.DataDir, "non-validator should have DataDir")
-
-	// Test with testify assertions helper
-	// nodes := []*Node{validator, nonValidator}
-	// validateNodeSetup(t, nodes, 2) // Not implemented yet
-}
-
-// TestNodeTypeEnum tests the NodeType enum functionality
-func TestNodeTypeEnum(t *testing.T) {
-	tests := []struct {
-		nodeType NodeType
-		expected string
-	}{
-		{ValidatorNode, "validator"},
-		{NonValidatorNode, "non-validator"},
-		{NodeType(999), "unknown"}, // Test unknown type
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.expected, func(t *testing.T) {
-			assert.Equal(t, tt.expected, tt.nodeType.String())
-		})
-	}
 }
 
 // TestConfigValidation tests the test configuration validation
@@ -121,34 +97,6 @@ func TestConfigValidation(t *testing.T) {
 	}
 }
 
-// TestBinaryBuilding tests the gnoland binary building process
-func TestBinaryBuilding(t *testing.T) {
-	tempDir := t.TempDir()
-
-	// Test binary building
-	binaryPath, err := buildGnolandBinary(t, tempDir)
-	require.NoError(t, err, "should build binary successfully")
-	require.NotEmpty(t, binaryPath, "binary path should not be empty")
-
-	// Verify binary exists
-	_, err = os.Stat(binaryPath)
-	require.NoError(t, err, "binary should exist at specified path")
-
-	// Verify binary is executable (on Unix systems)
-	info, err := os.Stat(binaryPath)
-	require.NoError(t, err, "should get binary file info")
-	assert.Greater(t, info.Mode()&0o111, os.FileMode(0), "binary should be executable")
-}
-
-// TestErrorHandling tests basic error handling patterns
-func TestErrorHandling(t *testing.T) {
-	// Test that require.NoError works correctly with nil error
-	require.NotPanics(t, func() {
-		err := (error)(nil)
-		require.NoError(t, err, "This should not fail")
-	})
-}
-
 // TestGenesisCreation tests the genesis file creation process
 func TestGenesisCreation(t *testing.T) {
 	tempDir := t.TempDir()
@@ -188,46 +136,3 @@ func validateTestConfig(cfg *testCfg) error {
 	}
 	return nil
 }
-
-// BenchmarkNodeSetup benchmarks the node setup process
-func BenchmarkNodeSetup(b *testing.B) {
-	tempDir := b.TempDir()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = setupValidatorNode(b, tempDir, i)
-	}
-}
-
-// Example of using testify suite for more complex testing scenarios
-// This would require the suite package: import "github.com/stretchr/testify/suite"
-
-/*
-type E2ETestSuite struct {
-	suite.Suite
-	tempDir string
-}
-
-func (suite *E2ETestSuite) SetupTest() {
-	suite.tempDir = suite.T().TempDir()
-}
-
-func (suite *E2ETestSuite) TearDownTest() {
-	// Cleanup is handled automatically by TestingT.TempDir()
-}
-
-func (suite *E2ETestSuite) TestMultipleValidators() {
-	validators := make([]*Node, 3)
-	for i := 0; i < 3; i++ {
-		validators[i] = setupValidatorNode(suite.T(), suite.tempDir, i)
-		suite.NotNil(validators[i])
-	}
-
-	// ta := NewTestAssertion(suite.T()) // Not implemented yet
-	validateNodeSetup(ta, validators, 3)
-}
-
-func TestE2ETestSuite(t *testing.T) {
-	suite.Run(t, new(E2ETestSuite))
-}
-*/

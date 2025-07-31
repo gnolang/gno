@@ -1,3 +1,3 @@
 # E2E Multi-Node Determinism Test
 
-Standalone binary for testing multi-node consensus determinism in Gno.
+This module showcase a standalone binary and testing library for testing multi-node consensus determinism.

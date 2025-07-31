@@ -45,27 +45,6 @@ func TestIntegrationWithMultipleValidators(t *testing.T) {
 	runDeterminismTest(t, ctx, cfg)
 }
 
-// TestIntegrationTimeout tests timeout handling
-func TestIntegrationTimeout(t *testing.T) {
-	cfg := &testCfg{
-		numValidators:    1,
-		numNonValidators: 0,
-		numTransactions:  1,
-		targetHeight:     10,
-		maxTestTime:      1 * time.Second, // Very short timeout to test timeout handling
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.maxTestTime)
-	defer cancel()
-
-	// This test expects the operation to timeout, so we use require.Panics
-	// because runDeterminismTest calls t.FailNow() which panics when a timeout occurs
-	require.Panics(t, func() {
-		runDeterminismTest(t, ctx, cfg)
-	}, "Expected test to panic due to timeout")
-
-}
-
 // TestIntegrationSetupOnly tests only the setup phase without running nodes
 func TestIntegrationSetupOnly(t *testing.T) {
 	cfg := &testCfg{

@@ -83,13 +83,17 @@ func configureConsensusForSync(t TestingT, node *Node) {
 	require.NoError(t, err, "failed to load config")
 
 	// Set extremely fast consensus timeouts to reach target height quickly
-	cfg.Consensus.TimeoutCommit = 50 * time.Millisecond             // Extremely fast commits
+	// Note: Block times are limited by BlockTimeIotaMS (100ms) in tm2/pkg/bft/types/params.go
+	cfg.Consensus.TimeoutCommit = 10 * time.Millisecond             // Ultra fast commits
 	cfg.Consensus.SkipTimeoutCommit = true                          // Skip timeout for faster sync
 	cfg.Consensus.CreateEmptyBlocks = true                          // Keep creating blocks
-	cfg.Consensus.CreateEmptyBlocksInterval = 50 * time.Millisecond // Create empty blocks very frequently
-	cfg.Consensus.TimeoutPropose = 100 * time.Millisecond           // Very fast proposals
-	cfg.Consensus.TimeoutPrevote = 50 * time.Millisecond            // Extremely fast prevotes
-	cfg.Consensus.TimeoutPrecommit = 50 * time.Millisecond          // Extremely fast precommits
+	cfg.Consensus.CreateEmptyBlocksInterval = 10 * time.Millisecond // Create empty blocks very frequently
+	cfg.Consensus.TimeoutPropose = 10 * time.Millisecond            // Ultra fast proposals
+	cfg.Consensus.TimeoutPrevote = 10 * time.Millisecond            // Ultra fast prevotes
+	cfg.Consensus.TimeoutPrecommit = 10 * time.Millisecond          // Ultra fast precommits
+
+	// Configure P2P for faster message propagation
+	cfg.P2P.FlushThrottleTimeout = 10 * time.Millisecond // Reduce P2P message batching delay
 
 	// Configure RPC to use unix socket
 	cfg.RPC.ListenAddress = node.SocketAddr
