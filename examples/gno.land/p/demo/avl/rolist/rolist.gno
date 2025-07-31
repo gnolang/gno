@@ -13,7 +13,7 @@
 //	}
 //
 //	// Create and populate the original list
-//	privateList := list.New()
+//	var privateList list.List
 //	privateList.Append(&User{
 //	    Name:     "Alice",
 //	    Balance:  100,
@@ -32,7 +32,7 @@
 //	}
 //
 //	// Create a read-only view of the list
-//	publicList := rolist.Wrap(list, makeEntrySafeFn)
+//	publicList := rolist.Wrap(privateList, makeEntrySafeFn)
 //
 //	// Safely access the data
 //	value := publicList.Get(0)
@@ -44,6 +44,7 @@ package rolist
 
 import (
 	"gno.land/p/demo/avl/list"
+	"gno.land/p/demo/avl/rotree"
 )
 
 // IReadOnlyList defines the read-only operations available on a list.
@@ -61,8 +62,10 @@ type ReadOnlyList struct {
 }
 
 // Verify interface implementations
-var _ IReadOnlyList = (*ReadOnlyList)(nil)
-var _ IReadOnlyList = (interface{ list.IList })(nil) // is subset of list.IList
+var (
+	_ IReadOnlyList = (*ReadOnlyList)(nil)
+	_ IReadOnlyList = (interface{ list.IList })(nil) // is subset of list.IList
+)
 
 // Wrap creates a new ReadOnlyList from an existing list.List and a safety transformation function.
 // If makeEntrySafeFn is nil, values will be returned as-is without transformation.
@@ -116,4 +119,9 @@ func (rol *ReadOnlyList) ForEach(fn func(index int, value any) bool) {
 	rol.list.ForEach(func(index int, value any) bool {
 		return fn(index, rol.getSafeValue(value))
 	})
+}
+
+// Tree returns a read-only pointer to the underlying AVL tree.
+func (rol *ReadOnlyList) Tree() *rotree.ReadOnlyTree {
+	return rol.list.Tree()
 }
