@@ -5,6 +5,7 @@ go 1.23.0
 toolchain go1.24.1
 
 require (
+	cosmossdk.io/log v1.2.0
 	dario.cat/mergo v1.0.1
 	github.com/alecthomas/chroma/v2 v2.15.0
 	github.com/bendory/conway-hebrew-calendar v0.0.0-20210829020739-dcc34210ce9b

@@ -7,6 +7,8 @@ import (
 
 	"github.com/cosmos/iavl"
 
+	"cosmossdk.io/log"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
@@ -25,10 +27,7 @@ const (
 
 // Implements store.CommitStoreConstructor.
 func StoreConstructor(db dbm.DB, opts types.StoreOptions) types.CommitStore {
-	tree, err := iavl.NewMutableTree(db, defaultIAVLCacheSize, false)
-	if err != nil {
-		panic(err)
-	}
+	tree := iavl.NewMutableTree(db, defaultIAVLCacheSize, false, log.NewNopLogger())
 	store := UnsafeNewStore(tree, opts)
 	return store
 }
