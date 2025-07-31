@@ -1,5 +1,7 @@
 package db
 
+import iavldb "github.com/cosmos/iavl/db"
+
 // DBs are goroutine safe.
 type DB interface {
 	// Get returns nil iff key doesn't exist.
@@ -46,6 +48,10 @@ type DB interface {
 	// Creates a batch for atomic updates.
 	NewBatch() Batch
 
+	// NewBatchWithSize create a new batch for atomic updates, but with pre-allocated size.
+	// This will does the same thing as NewBatch if the batch implementation doesn't support pre-allocation.
+	NewBatchWithSize(int) Batch
+
 	// For debugging
 	Print() error
 
@@ -57,17 +63,7 @@ type DB interface {
 // Batch
 
 // Batch Close must be called when the program no longer needs the object.
-type Batch interface {
-	SetDeleter
-	Write() error
-	WriteSync() error
-	Close() error
-}
-
-type SetDeleter interface {
-	Set(key, value []byte) error // CONTRACT: key, value readonly []byte
-	Delete(key []byte) error     // CONTRACT: key readonly []byte
-}
+type Batch = iavldb.Batch
 
 // ----------------------------------------
 // Iterator
@@ -83,41 +79,4 @@ defer itr.Close()
 		// ...
 	}
 */
-type Iterator interface {
-	// The start & end (exclusive) limits to iterate over.
-	// If end < start, then the Iterator goes in reverse order.
-	//
-	// A domain of ([]byte{12, 13}, []byte{12, 14}) will iterate
-	// over anything with the prefix []byte{12, 13}.
-	//
-	// The smallest key is the empty byte array []byte{} - see BeginningKey().
-	// The largest key is the nil byte array []byte(nil) - see EndingKey().
-	// CONTRACT: start, end readonly []byte
-	Domain() (start []byte, end []byte)
-
-	// Valid returns whether the current position is valid.
-	// Once invalid, an Iterator is forever invalid.
-	Valid() bool
-
-	// Next moves the iterator to the next sequential key in the database, as
-	// defined by order of iteration.
-	//
-	// If Valid returns false, this method will panic.
-	Next()
-
-	// Key returns the key of the cursor.
-	// If Valid returns false, this method will panic.
-	// CONTRACT: key readonly []byte
-	Key() (key []byte)
-
-	// Value returns the value of the cursor.
-	// If Valid returns false, this method will panic.
-	// CONTRACT: value readonly []byte
-	Value() (value []byte)
-
-	// Error returns the last error encountered by the iterator, if any.
-	Error() error
-
-	// Close releases the Iterator.
-	Close() error
-}
+type Iterator = iavldb.Iterator
