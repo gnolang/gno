@@ -13,13 +13,10 @@ import (
 
 func TestRegister_Valid(t *testing.T) {
 	validUsernames := []string{
-		"abc",                  // 3 letters min
-		"abcd",                 // letters-only (vanity)
 		"abc123",               // letters + digits
-		"abc_def",              // letters + underscore
 		"abc123_def456",        // mix of letters / digits / underscore
-		"abc_defghi_jklmnopq",  // 19 chars
-		"abc_defghi_jklmnopqr", // 20 chars (max)
+		"abc_defghi_jklmn123",  // 19 chars
+		"abc_defghi_jklmno456", // 20 chars (max)
 	}
 
 	for _, username := range validUsernames {
@@ -37,75 +34,54 @@ func TestRegister_Valid(t *testing.T) {
 }
 
 func TestRegister_Invalid(t *testing.T) {
-	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", registerPrice)))
-	testing.SetRealm(std.NewUserRealm(testutils.TestAddress("bob123")))
+	t.Run("invalid usernames", func(t *testing.T) {
+		testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", registerPrice)))
+		testing.SetRealm(std.NewUserRealm(testutils.TestAddress("bob123")))
 
-	// Invalid usernames
-	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register(cross, "") // empty
+		invalidUsernames := []string{
+			"alice",                 // vanity
+			"",                      // empty
+			"    ",                  // empty
+			"123",                   // only numbers (no letters)
+			"abc",                   // only letters (no numbers)
+			"alice&#($)",            // invalid characters
+			"Alice123",              // uppercase
+			"abcdefghijklmnopqrstu", // 21 chars (> max)
+			"toolongusernametoolongusernametoolongusername123", // super long
+		}
+
+		for _, username := range invalidUsernames {
+			uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
+				Register(cross, username)
+			})
+		}
 	})
 
-	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register(cross, "    ") // empty
+	t.Run("taken username", func(t *testing.T) {
+		testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", registerPrice)))
+		testing.SetRealm(std.NewUserRealm(testutils.TestAddress("bob123")))
+
+		username := "bob123"
+
+		urequire.NotPanics(t, func() {
+			Register(cross, username)
+		})
+
+		uassert.AbortsWithMessage(t, susers.ErrNameTaken.Error(), func() {
+			Register(cross, username) // already registered
+		})
 	})
 
-	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register(cross, "123") // empty
-	})
+	t.Run("invalid payment", func(t *testing.T) {
+		addr := testutils.TestAddress("bob123")
 
-	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register(cross, "123") // only numbers
-	})
+		testing.SetRealm(std.NewUserRealm(addr))
+		testing.SetOriginCaller(addr)
 
-	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register(cross, "alice&#($)") // non-allowed chars
-	})
+		testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 12))) // invalid payment amount
 
-	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register(cross, "Alice123") // upper-case
-	})
-
-	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register(cross, "abcdefghijklmnopqrstu") // 21 chars
-	})
-
-	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register(cross, "toolongusernametoolongusernametoolongusername123") // too long
-	})
-
-	username := "bob123"
-
-	// Name taken
-	urequire.NotPanics(t, func() {
-		Register(cross, username)
-	})
-
-	uassert.AbortsWithMessage(t, susers.ErrNameTaken.Error(), func() {
-		Register(cross, username) // already registered
-	})
-}
-
-func TestRegister_InvalidPayment(t *testing.T) {
-	addr := testutils.TestAddress("bob123")
-
-	testing.SetRealm(std.NewUserRealm(addr))
-	testing.SetOriginCaller(addr)
-
-	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 12))) // invalid payment amount
-
-	uassert.AbortsWithMessage(t, ErrInvalidPayment.Error(), func() {
-		Register(cross, "alice123")
+		uassert.AbortsWithMessage(t, ErrInvalidPayment.Error(), func() {
+			Register(cross, "alice123")
+		})
 	})
 }
-
-/* TODO fix this @moul
-func TestUsers(t *testing.T) {
-	acc1 := std.Address("g1test1")
-	fee := "1000ugnot"
-
-	// Check initial state
-	uassert.NotPanics(t, func() {
-		MustGetByName(susers.DefaultMinFee)
-	})
-}
-*/

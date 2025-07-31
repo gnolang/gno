@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	reValidUsername = "^[a-z]{3}[_a-z0-9]{0,17}$"
+	reValidUsername = "^[a-z]{3}[_a-z0-9]{0,14}[0-9]{3}$"
 )
 
 var (
@@ -20,7 +20,7 @@ var (
 
 // Register registers a new username for the caller.
 // A valid username must start with a minimum of 3 letters,
-// and be less than 20 chars long.
+// end with a minimum of 3 numbers, and be less than 20 chars long.
 // All letters must be lowercase, and the only valid special char is `_`.
 // Only calls from EOAs are supported.
 func Register(_ realm, username string) {
