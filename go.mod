@@ -5,6 +5,7 @@ go 1.23.0
 toolchain go1.24.1
 
 require (
+	cosmossdk.io/log v1.2.0
 	dario.cat/mergo v1.0.1
 	github.com/alecthomas/chroma/v2 v2.15.0
 	github.com/bendory/conway-hebrew-calendar v0.0.0-20210829020739-dcc34210ce9b
@@ -53,7 +54,6 @@ require (
 )
 
 require (
-	cosmossdk.io/log v1.2.0 // indirect
 	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/HdrHistogram/hdrhistogram-go v1.1.2 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
