@@ -13,7 +13,6 @@ type ProfileFormat int
 
 const (
 	FormatText ProfileFormat = iota
-	FormatFlameGraph
 	FormatCallTree
 	FormatTopList
 	FormatJSON
@@ -22,8 +21,6 @@ const (
 // WriteFormat writes the profile in the specified format
 func (p *Profile) WriteFormat(w io.Writer, format ProfileFormat) error {
 	switch format {
-	case FormatFlameGraph:
-		return p.WriteFlameGraph(w)
 	case FormatCallTree:
 		return p.WriteCallTree(w)
 	case FormatTopList:
@@ -33,42 +30,6 @@ func (p *Profile) WriteFormat(w io.Writer, format ProfileFormat) error {
 	default:
 		return p.WriteTo(w)
 	}
-}
-
-// WriteFlameGraph writes profile data in flame graph format
-// Format: function;caller;caller cycles
-func (p *Profile) WriteFlameGraph(w io.Writer) error {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
-	// Build call stacks
-	stacks := make(map[string]int64)
-
-	for _, sample := range p.Samples {
-		// Only process samples with multiple locations (stack traces)
-		if len(sample.Location) <= 1 {
-			continue
-		}
-
-		// Build stack string (already in correct order)
-		var stack []string
-		for _, loc := range sample.Location {
-			stack = append(stack, loc.Function)
-		}
-		stackStr := strings.Join(stack, ";")
-
-		// Add cycles
-		if len(sample.Value) > 1 {
-			stacks[stackStr] += sample.Value[1] // cycles
-		}
-	}
-
-	// Write in flame graph format
-	for stack, cycles := range stacks {
-		fmt.Fprintf(w, "%s %d\n", stack, cycles)
-	}
-
-	return nil
 }
 
 // WriteCallTree writes a hierarchical call tree

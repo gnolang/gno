@@ -208,7 +208,7 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		&c.profileFormat,
 		"profile-format",
 		"text",
-		"profile output format: text, toplist, flamegraph, calltree, json",
+		"profile output format: text, toplist, calltree, json",
 	)
 
 	fs.StringVar(

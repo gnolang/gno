@@ -36,7 +36,6 @@ Examples:
 Interactive commands:
   top        - Show top functions by sample count
   list       - Show annotated source for a function
-  web        - Generate and view flame graph
   tree       - Show call tree
   focus      - Focus on specific functions
   ignore     - Ignore functions in output

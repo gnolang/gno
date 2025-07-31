@@ -54,7 +54,6 @@ func init() {
 	profilerCmds = map[string]profilerCommand{
 		"top":       {profilerTop, "top [n]", "Show top N functions", topLong},
 		"list":      {profilerList, "list <function>", "Show annotated source for function", pprofListLong},
-		"web":       {profilerWeb, "web", "Generate and open flame graph", ""},
 		"tree":      {profilerTree, "tree [function]", "Show call tree", treeLong},
 		"focus":     {profilerFocus, "focus <function>", "Focus on specific function", focusLong},
 		"ignore":    {profilerIgnore, "ignore <function>", "Ignore function in output", ""},
@@ -83,7 +82,6 @@ func init() {
 	// Set command aliases
 	profilerCmds["t"] = profilerCmds["top"]
 	profilerCmds["l"] = profilerCmds["list"]
-	profilerCmds["w"] = profilerCmds["web"]
 	profilerCmds["h"] = profilerCmds["help"]
 	profilerCmds["q"] = profilerCmds["quit"]
 	profilerCmds["exit"] = profilerCmds["quit"]
@@ -373,30 +371,6 @@ func profilerList(p *ProfilerCLI, arg string) error {
 	return p.profile.WriteFunctionList(p.out, arg, p.store)
 }
 
-// profilerWeb generates and opens a flame graph
-func profilerWeb(p *ProfilerCLI, arg string) error {
-	// Create temporary file
-	tmpFile, err := os.CreateTemp("", "gno-profile-*.html")
-	if err != nil {
-		return fmt.Errorf("failed to create temp file: %v", err)
-	}
-	defer tmpFile.Close()
-
-	// Generate flame graph
-	if err := p.profile.WriteFlameGraph(tmpFile); err != nil {
-		return fmt.Errorf("failed to write flame graph: %v", err)
-	}
-
-	filename := tmpFile.Name()
-	fmt.Fprintf(p.out, "Generating flame graph to %s\n", filename)
-
-	// Try to open in browser
-	// This is platform-specific; for now, just print the path
-	fmt.Fprintf(p.out, "Open %s in your browser to view the flame graph\n", filename)
-
-	return nil
-}
-
 // profilerTree shows the call tree
 func profilerTree(p *ProfilerCLI, arg string) error {
 	samples := p.getFilteredSamples()
@@ -495,7 +469,7 @@ func profilerSave(p *ProfilerCLI, arg string) error {
 	ext := filepath.Ext(arg)
 	switch ext {
 	case ".html":
-		err = p.profile.WriteFlameGraph(file)
+		err = p.profile.WriteTo(file) // Default format for .html files
 	case ".tree":
 		err = p.profile.WriteCallTree(file)
 	case ".top":

@@ -30,8 +30,6 @@ func getProfileFormat(format string) gno.ProfileFormat {
 	switch format {
 	case "toplist":
 		return gno.FormatTopList
-	case "flamegraph":
-		return gno.FormatFlameGraph
 	case "calltree":
 		return gno.FormatCallTree
 	case "json":

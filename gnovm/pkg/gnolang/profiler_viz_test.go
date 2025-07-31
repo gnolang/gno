@@ -145,39 +145,6 @@ func TestProfileWriteTopList(t *testing.T) {
 	}
 }
 
-// Test WriteFlameGraph format
-func TestProfileWriteFlameGraph(t *testing.T) {
-	// Create profile with call stack
-	profile := &Profile{
-		Type:          ProfileCPU,
-		DurationNanos: 1000000000,
-		Samples: []ProfileSample{
-			{
-				Location: []ProfileLocation{
-					{Function: "main.outer"},
-					{Function: "main.middle"},
-					{Function: "main.inner"},
-				},
-				Value: []int64{10, 1000},
-			},
-		},
-	}
-
-	var buf bytes.Buffer
-	err := profile.WriteFlameGraph(&buf)
-	if err != nil {
-		t.Fatalf("WriteFlameGraph failed: %v", err)
-	}
-
-	output := buf.String()
-
-	// Check flame graph format: "outer;middle;inner cycles"
-	expectedStack := "main.outer;main.middle;main.inner 1000"
-	if !strings.Contains(output, expectedStack) {
-		t.Errorf("Expected stack format not found. Got: %s", output)
-	}
-}
-
 // Test WriteCallTree hierarchy
 func TestProfileWriteCallTree(t *testing.T) {
 	// Create profile with nested calls
@@ -374,7 +341,6 @@ func TestEmptyProfile(t *testing.T) {
 	}{
 		{"Text", FormatText},
 		{"TopList", FormatTopList},
-		{"FlameGraph", FormatFlameGraph},
 		{"CallTree", FormatCallTree},
 	}
 
