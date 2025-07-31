@@ -3572,6 +3572,9 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 	pn := packageOf(last)
 	// See comment in evalStaticTypeOfRaw.
 	if store != nil && pn.PkgPath != uversePkgPath {
+		// this used pn.NewPackage previously; however, that function
+		// additionally calls PrepareNewValues, which is not necessary in this
+		// context and incurs in very expensive allocations.
 		pv := &PackageValue{
 			Block: &Block{
 				Source: pn,
@@ -3638,6 +3641,9 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 		// yet predefined this time around.
 		if store != nil && pn.PkgPath != uversePkgPath {
 			pv := &PackageValue{
+				// this used pn.NewPackage previously; however, that function
+				// additionally calls PrepareNewValues, which is not necessary in this
+				// context and incurs in very expensive allocations.
 				Block: &Block{
 					Source: pn,
 				},

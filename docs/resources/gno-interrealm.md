@@ -47,8 +47,8 @@ even when exposed (e.g. `package realm1; var MyGlobal int = 1`) is safe from
 external manipulation (e.g.  `import "xxx/realm1"; realm1.MyGlobal = 2`). For
 users to manipulate them a function or method *must* be provided.
 
-Realm crossing occurs when a crossing function(declared as 
-`fn(cur realm, ...){...}`) 
+Realm crossing occurs when a crossing function (declared as
+`func fn(cur realm, ...){...}`) 
 is called with the Gno `fn(cross, ...)` syntax.
 
 ```go
@@ -57,6 +57,7 @@ import "gno.land/r/alice/realm1"
 
 func main() {
     bread := realm1.MakeBread(cross, "flour", "water")
+}
 ```
 
 (In Linux/Unix operating systems user processes can cross-call into the kernel
@@ -115,7 +116,7 @@ be protected from external realm direct modification, but the return object
 could be passed back to the realm for mutation; or the object may be mutated
 through its own methods.
 
-## `fn(cross, ...)` and `fn(cur realm, ...){...}` Specification
+## `fn(cross, ...)` and `func fn(cur realm, ...){...}` Specification
 
 Gno extends Go's type system with interrealm rules. These rules can be
 checked during the static type-checking phase (but at the moment they are
@@ -135,7 +136,7 @@ A function declared in p packages when called:
 A function declared in a realm package when called:
 
  * explicitly crosses to the realm in which the function is declared if the
-   function is declared as `fn(cur realm, ...){...}` (with `cur realm` as the 
+   function is declared as `func fn(cur realm, ...){...}` (with `cur realm` as the 
    first argument). The new realm is called the "current realm".
  * otherwise follows the same rules as for p packages.
 
@@ -193,7 +194,7 @@ A realm package's initialization (including `init()` calls) execute with current
 realm of itself, and it `std.PreviousRealm()` will panic unless the call stack
 includes a crossing function called like `fn(cross, ...)`.
 
-### `fn(cross, ...)` and `fn(cur realm, ...){...}` Design Goals
+### `fn(cross, ...)` and `func fn(cur realm, ...){...}` Design Goals
 
 P package code should behave the same even when copied verbatim in a realm
 package.
@@ -225,7 +226,7 @@ the caller's current realm. Otherwise two mutable (upgradeable) realms cannot
 export trust unto the chain because functions declared in those two realms can
 be upgraded.
 
-Both `fn(cross, ...)` and `fn(cur realm, ...){...}` may become special syntax in
+Both `fn(cross, ...)` and `func fn(cur realm, ...){...}` may become special syntax in
 future Gno versions.
 
 ## `attach()`

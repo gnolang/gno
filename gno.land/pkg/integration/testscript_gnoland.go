@@ -300,11 +300,12 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 
 			cfg.Genesis.AppState = genesis
 			if *nonVal {
-				pv := gnoland.NewMockedPrivValidator()
+				pv := bft.NewMockPV()
+				pvPubKey := pv.PubKey()
 				cfg.Genesis.Validators = []bft.GenesisValidator{
 					{
-						Address: pv.GetPubKey().Address(),
-						PubKey:  pv.GetPubKey(),
+						Address: pvPubKey.Address(),
+						PubKey:  pvPubKey,
 						Power:   10,
 						Name:    "none",
 					},

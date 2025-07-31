@@ -79,20 +79,20 @@ func ResetTestRoot(testName string) (*Config, string) {
 		panic(err)
 	}
 
-	baseConfig := DefaultBaseConfig()
+	config := TestConfig().SetRootDir(rootDir)
 	configFilePath := filepath.Join(rootDir, defaultConfigPath)
 	// NOTE: this does not match the behaviour of the gno.land node.
 	// However, many tests rely on the fact that they can cleanup the directory
 	// by doing RemoveAll on the rootDir; so to keep compatibility with that
 	// behaviour, we place genesis.json in the rootDir.
 	genesisFilePath := filepath.Join(rootDir, "genesis.json")
-	privKeyFilePath := filepath.Join(rootDir, baseConfig.PrivValidatorKey)
-	privStateFilePath := filepath.Join(rootDir, baseConfig.PrivValidatorState)
 
 	// Write default config file if missing.
 	if !osm.FileExists(configFilePath) {
 		WriteConfigFile(configFilePath, DefaultConfig())
 	}
+
+	// Write default genesis file if missing.
 	if !osm.FileExists(genesisFilePath) {
 		if chainID == "" {
 			chainID = "tendermint_test"
@@ -100,11 +100,10 @@ func ResetTestRoot(testName string) (*Config, string) {
 		testGenesis := fmt.Sprintf(testGenesisFmt, chainID)
 		osm.MustWriteFile(genesisFilePath, []byte(testGenesis), 0o644)
 	}
-	// we always overwrite the priv val
-	osm.MustWriteFile(privKeyFilePath, []byte(testPrivValidatorKey), 0o644)
-	osm.MustWriteFile(privStateFilePath, []byte(testPrivValidatorState), 0o644)
 
-	config := TestConfig().SetRootDir(rootDir)
+	// we always overwrite the priv val
+	osm.MustWriteFile(config.Consensus.PrivValidator.LocalSignerPath(), []byte(testPrivValidatorKey), 0o644)
+	osm.MustWriteFile(config.Consensus.PrivValidator.SignStatePath(), []byte(testPrivValidatorState), 0o644)
 
 	return config, genesisFilePath
 }
@@ -126,15 +125,15 @@ var testGenesisFmt = `{
 }`
 
 var testPrivValidatorKey = `{
-  "address": "g1uvwz22t0l2fv9az93wutmlusrjv5zdwx2n32d5",
+  "priv_key": {
+    "@type": "/tm.PrivKeyEd25519",
+    "value": "Qq4Q9QH2flPSIJShbXPIocbrQtQ4S7Kdn31uI3sKZoJxW3rDcLUNZjDCQCKuduwvj0Kg57xPxlHYEIHwx44ZGA=="
+  },
   "pub_key": {
     "@type": "/tm.PubKeyEd25519",
     "value": "cVt6w3C1DWYwwkAirnbsL49CoOe8T8ZR2BCB8MeOGRg="
   },
-  "priv_key": {
-    "@type": "/tm.PrivKeyEd25519",
-    "value": "Qq4Q9QH2flPSIJShbXPIocbrQtQ4S7Kdn31uI3sKZoJxW3rDcLUNZjDCQCKuduwvj0Kg57xPxlHYEIHwx44ZGA=="
-  }
+  "address": "g1uvwz22t0l2fv9az93wutmlusrjv5zdwx2n32d5"
 }`
 
 var testPrivValidatorState = `{
