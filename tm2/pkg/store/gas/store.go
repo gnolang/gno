@@ -167,8 +167,8 @@ func (gi *gasIterator) Value() (value []byte) {
 }
 
 // Implements Iterator.
-func (gi *gasIterator) Close() {
-	gi.parent.Close()
+func (gi *gasIterator) Close() error {
+	return gi.parent.Close()
 }
 
 // consumeSeekGas consumes a flat gas cost for seeking and a variable gas cost

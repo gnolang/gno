@@ -51,13 +51,16 @@ func (itr *MemIterator) Key() []byte {
 func (itr *MemIterator) Value() []byte {
 	itr.assertIsValid()
 	key := []byte(itr.keys[itr.cur])
-	return itr.db.Get(key)
+	// TODO address err
+	v, _ := itr.db.Get(key)
+	return v
 }
 
 // Implements Iterator.
-func (itr *MemIterator) Close() {
+func (itr *MemIterator) Close() error {
 	itr.keys = nil
 	itr.db = nil
+	return nil
 }
 
 func (itr *MemIterator) assertIsValid() {

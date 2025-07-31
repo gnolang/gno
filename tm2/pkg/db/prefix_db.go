@@ -19,7 +19,9 @@ func IteratePrefix(db DB, prefix []byte) Iterator {
 		start = cp(prefix)
 		end = cpIncr(prefix)
 	}
-	return db.Iterator(start, end)
+	// TODO address err
+	it, _ := db.Iterator(start, end)
+	return it
 }
 
 /*
@@ -54,17 +56,16 @@ func (pdb *PrefixDB) Mutex() *sync.Mutex {
 }
 
 // Implements DB.
-func (pdb *PrefixDB) Get(key []byte) []byte {
+func (pdb *PrefixDB) Get(key []byte) ([]byte, error) {
 	pdb.mtx.Lock()
 	defer pdb.mtx.Unlock()
 
 	pkey := pdb.prefixed(key)
-	value := pdb.db.Get(pkey)
-	return value
+	return pdb.db.Get(pkey)
 }
 
 // Implements DB.
-func (pdb *PrefixDB) Has(key []byte) bool {
+func (pdb *PrefixDB) Has(key []byte) (bool, error) {
 	pdb.mtx.Lock()
 	defer pdb.mtx.Unlock()
 
@@ -72,40 +73,40 @@ func (pdb *PrefixDB) Has(key []byte) bool {
 }
 
 // Implements DB.
-func (pdb *PrefixDB) Set(key []byte, value []byte) {
+func (pdb *PrefixDB) Set(key []byte, value []byte) error {
 	pdb.mtx.Lock()
 	defer pdb.mtx.Unlock()
 
 	pkey := pdb.prefixed(key)
-	pdb.db.Set(pkey, value)
+	return pdb.db.Set(pkey, value)
 }
 
 // Implements DB.
-func (pdb *PrefixDB) SetSync(key []byte, value []byte) {
+func (pdb *PrefixDB) SetSync(key []byte, value []byte) error {
 	pdb.mtx.Lock()
 	defer pdb.mtx.Unlock()
 
-	pdb.db.SetSync(pdb.prefixed(key), value)
+	return pdb.db.SetSync(pdb.prefixed(key), value)
 }
 
 // Implements DB.
-func (pdb *PrefixDB) Delete(key []byte) {
+func (pdb *PrefixDB) Delete(key []byte) error {
 	pdb.mtx.Lock()
 	defer pdb.mtx.Unlock()
 
-	pdb.db.Delete(pdb.prefixed(key))
+	return pdb.db.Delete(pdb.prefixed(key))
 }
 
 // Implements DB.
-func (pdb *PrefixDB) DeleteSync(key []byte) {
+func (pdb *PrefixDB) DeleteSync(key []byte) error {
 	pdb.mtx.Lock()
 	defer pdb.mtx.Unlock()
 
-	pdb.db.DeleteSync(pdb.prefixed(key))
+	return pdb.db.DeleteSync(pdb.prefixed(key))
 }
 
 // Implements DB.
-func (pdb *PrefixDB) Iterator(start, end []byte) Iterator {
+func (pdb *PrefixDB) Iterator(start, end []byte) (Iterator, error) {
 	pdb.mtx.Lock()
 	defer pdb.mtx.Unlock()
 
@@ -115,20 +116,21 @@ func (pdb *PrefixDB) Iterator(start, end []byte) Iterator {
 		pend = cpIncr(pdb.prefix)
 	} else {
 		pend = append(cp(pdb.prefix), end...)
+	}
+	it, err := pdb.db.Iterator(pstart, pend)
+	if err != nil {
+		return nil, err
 	}
 	return newPrefixIterator(
 		pdb.prefix,
 		start,
 		end,
-		pdb.db.Iterator(
-			pstart,
-			pend,
-		),
-	)
+		it,
+	), nil
 }
 
 // Implements DB.
-func (pdb *PrefixDB) ReverseIterator(start, end []byte) Iterator {
+func (pdb *PrefixDB) ReverseIterator(start, end []byte) (Iterator, error) {
 	pdb.mtx.Lock()
 	defer pdb.mtx.Unlock()
 
@@ -139,13 +141,17 @@ func (pdb *PrefixDB) ReverseIterator(start, end []byte) Iterator {
 	} else {
 		pend = append(cp(pdb.prefix), end...)
 	}
-	ritr := pdb.db.ReverseIterator(pstart, pend)
+	ritr, err := pdb.db.ReverseIterator(pstart, pend)
+	if err != nil {
+		return nil, err
+	}
+
 	return newPrefixIterator(
 		pdb.prefix,
 		start,
 		end,
 		ritr,
-	)
+	), nil
 }
 
 // Implements DB.
@@ -189,11 +195,15 @@ func (pdb *PrefixDB) Close() error {
 }
 
 // Implements DB.
-func (pdb *PrefixDB) Print() {
+func (pdb *PrefixDB) Print() error {
 	fmt.Println(colors.Blue("prefix ---------------------"))
 	fmt.Printf("prefix: %v\n", colors.DefaultColoredBytes(pdb.prefix))
-	pdb.db.Print()
+	err := pdb.db.Print()
+	if err != nil {
+		return err
+	}
 	fmt.Println(colors.Blue("prefix --------------------- end"))
+	return nil
 }
 
 // Implements DB.
@@ -227,26 +237,26 @@ func newPrefixBatch(prefix []byte, source Batch) prefixBatch {
 	}
 }
 
-func (pb prefixBatch) Set(key, value []byte) {
+func (pb prefixBatch) Set(key, value []byte) error {
 	pkey := append(cp(pb.prefix), key...)
-	pb.source.Set(pkey, value)
+	return pb.source.Set(pkey, value)
 }
 
-func (pb prefixBatch) Delete(key []byte) {
+func (pb prefixBatch) Delete(key []byte) error {
 	pkey := append(cp(pb.prefix), key...)
-	pb.source.Delete(pkey)
+	return pb.source.Delete(pkey)
 }
 
-func (pb prefixBatch) Write() {
-	pb.source.Write()
+func (pb prefixBatch) Write() error {
+	return pb.source.Write()
 }
 
-func (pb prefixBatch) WriteSync() {
-	pb.source.WriteSync()
+func (pb prefixBatch) WriteSync() error {
+	return pb.source.WriteSync()
 }
 
-func (pb prefixBatch) Close() {
-	pb.source.Close()
+func (pb prefixBatch) Close() error {
+	return pb.source.Close()
 }
 
 // ----------------------------------------
@@ -315,8 +325,9 @@ func (itr *prefixIterator) Value() (value []byte) {
 	return itr.source.Value()
 }
 
-func (itr *prefixIterator) Close() {
+func (itr *prefixIterator) Close() error {
 	itr.source.Close()
+	return nil
 }
 
 // ----------------------------------------
