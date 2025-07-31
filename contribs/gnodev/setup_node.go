@@ -26,6 +26,16 @@ func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeCo
 		if err != nil {
 			return nil, fmt.Errorf("unable to load transactions: %w", err)
 		}
+
+		for _, tx := range nodeConfig.InitialTxs {
+			for _, msg := range tx.Tx.Msgs {
+				if callMsg, ok := msg.(vm.MsgCall); ok {
+					if slices.Contains(paths, callMsg.PkgPath) == false {
+						paths = append(paths, callMsg.PkgPath)
+					}
+				}
+			}
+		}
 	} else if cfg.genesisFile != "" { // Load genesis file
 		state, err := extractAppStateFromGenesisFile(cfg.genesisFile)
 		if err != nil {
@@ -43,16 +53,6 @@ func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeCo
 		}
 
 		logger.Info("genesis file loaded", "path", cfg.genesisFile, "txs", len(stateTxs))
-	}
-
-	for _, tx := range nodeConfig.InitialTxs {
-		for _, msg := range tx.Tx.Msgs {
-			if callMsg, ok := msg.(vm.MsgCall); ok {
-				if slices.Contains(paths, callMsg.PkgPath) == false {
-					paths = append(paths, callMsg.PkgPath)
-				}
-			}
-		}
 	}
 
 	if len(paths) > 0 {
