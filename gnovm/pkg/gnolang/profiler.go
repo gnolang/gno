@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
@@ -21,37 +22,37 @@ const (
 
 // ProfileSample represents a single sample in the profile
 type ProfileSample struct {
-	Location   []ProfileLocation
-	Value      []int64
-	Label      map[string][]string
-	NumLabel   map[string][]int64
-	SampleType ProfileType
+	Location   []ProfileLocation   `json:"location"`
+	Value      []int64             `json:"value"`
+	Label      map[string][]string `json:"label,omitempty"`
+	NumLabel   map[string][]int64  `json:"numLabel,omitempty"`
+	SampleType ProfileType         `json:"sampleType"`
 }
 
 // ProfileLocation represents a location in the call stack
 type ProfileLocation struct {
-	Function   string
-	File       string
-	Line       int
-	Column     int // Column number for more precise location
-	InlineCall bool
-	PC         uintptr // Virtual machine program counter
+	Function   string  `json:"function"`
+	File       string  `json:"file"`
+	Line       int     `json:"line"`
+	Column     int     `json:"column,omitempty"` // Column number for more precise location
+	InlineCall bool    `json:"inlineCall,omitempty"`
+	PC         uintptr `json:"pc,omitempty"` // Virtual machine program counter
 }
 
 // Profile represents collected profiling data
 type Profile struct {
-	Type          ProfileType
-	TimeNanos     int64
-	DurationNanos int64
-	Samples       []ProfileSample
+	Type          ProfileType     `json:"type"`
+	TimeNanos     int64           `json:"timeNanos"`
+	DurationNanos int64           `json:"durationNanos"`
+	Samples       []ProfileSample `json:"samples"`
 
 	// CPU specific
-	CPUHz int64
+	CPUHz int64 `json:"cpuHz,omitempty"`
 
 	// Memory specific
-	DefaultSampleType string
+	DefaultSampleType string `json:"defaultSampleType,omitempty"`
 
-	mu sync.RWMutex
+	mu sync.RWMutex `json:"-"`
 }
 
 // Profiler manages profiling data collection
@@ -476,6 +477,16 @@ func (p *Profile) WriteTo(w io.Writer) error {
 	}
 
 	return nil
+}
+
+// WriteJSON writes the profile in JSON format
+func (p *Profile) WriteJSON(w io.Writer) error {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(p)
 }
 
 func (p *Profile) typeString() string {

@@ -34,6 +34,8 @@ func getProfileFormat(format string) gno.ProfileFormat {
 		return gno.FormatFlameGraph
 	case "calltree":
 		return gno.FormatCallTree
+	case "json":
+		return gno.FormatJSON
 	default:
 		return gno.FormatText
 	}
@@ -294,7 +296,8 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 						fmt.Fprintf(opts.Error, "Failed to create profile output file: %v\n", err)
 					} else {
 						defer file.Close()
-						err = profile.WriteTo(file)
+						format := getProfileFormat(opts.ProfileFormat)
+						err = profile.WriteFormat(file, format)
 						if err != nil {
 							fmt.Fprintf(opts.Error, "Failed to write profile: %v\n", err)
 						} else {

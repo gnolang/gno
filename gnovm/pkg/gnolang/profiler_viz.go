@@ -16,6 +16,7 @@ const (
 	FormatFlameGraph
 	FormatCallTree
 	FormatTopList
+	FormatJSON
 )
 
 // WriteFormat writes the profile in the specified format
@@ -27,6 +28,8 @@ func (p *Profile) WriteFormat(w io.Writer, format ProfileFormat) error {
 		return p.WriteCallTree(w)
 	case FormatTopList:
 		return p.WriteTopList(w)
+	case FormatJSON:
+		return p.WriteJSON(w)
 	default:
 		return p.WriteTo(w)
 	}
