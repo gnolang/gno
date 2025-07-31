@@ -104,6 +104,7 @@ export default {
 		"link-external",
 		"link-internal",
 		"link-tx",
+		"link-user",
 		"tooltip",
 		"lg:pt-10",
 		"pt-6",
