@@ -137,7 +137,7 @@ is the `gnoweb` render of the Staging testnet.
 
 ### Test7
 
-Test7 is the latest testnet released on the 24rd of July, 2025.
+Test7 is the latest testnet released on the 25th of July, 2025.
 
 - **Persistence of state:**
   - State is fully persisted unless there are breaking changes in a new release,
