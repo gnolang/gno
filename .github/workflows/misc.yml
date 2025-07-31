@@ -19,6 +19,7 @@ jobs:
         # fixed list because we have some non go programs on that misc folder
         program:
           - autocounterd
+          - e2e_multinode
           - genproto
           - genstd
           - goscan

@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log/slog"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,12 +16,19 @@ import (
 	fstate "github.com/gnolang/gno/tm2/pkg/bft/privval/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
+// Default file names for node secrets
 const (
 	defaultValidatorKeyName   = "priv_validator_key.json"
 	defaultNodeKeyName        = "node_key.json"
 	defaultValidatorStateName = "priv_validator_state.json"
+
+	// File permissions
+	dirPermissions  = 0o755
+	filePermissions = 0o644
 )
 
 // Extended Node structure with all necessary fields
@@ -30,25 +37,23 @@ type ExtendedNode struct {
 	Client client.Client
 }
 
-// buildGnolandBinary builds a temporary gnoland binary for testing
-func buildGnolandBinary(tempDir string) (string, error) {
+// buildGnolandBinary builds a temporary gnoland binary
+func buildGnolandBinary(t TestingT, tempDir string) (string, error) {
 	binaryPath := filepath.Join(tempDir, "gnoland-test")
 
-	// Use gnoenv.RootDir() to get the root of the gno project
 	gnoRoot := gnoenv.RootDir()
 	gnolandDir := filepath.Join(gnoRoot, "gno.land", "cmd", "gnoland")
 
-	// Verify the gnoland directory exists
+	// Verify gnoland directory exists
 	if _, err := os.Stat(gnolandDir); os.IsNotExist(err) {
 		return "", fmt.Errorf("gnoland directory not found at: %s", gnolandDir)
 	}
 
-	// Build the gnoland binary
+	// Build binary
 	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
 	cmd.Dir = gnolandDir
 
-	slog.Info("Building gnoland binary", "source_dir", gnolandDir)
-	// For debugging, always show build output
+	t.Logf("Building gnoland binary, source_dir: %s", gnolandDir)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -56,158 +61,178 @@ func buildGnolandBinary(tempDir string) (string, error) {
 		return "", fmt.Errorf("failed to build gnoland binary: %w", err)
 	}
 
-	slog.Info("Built temporary gnoland binary", "path", binaryPath)
+	t.Logf("Built temporary gnoland binary, path: %s", binaryPath)
 	return binaryPath, nil
 }
 
+// NodeType represents the type of node being set up
+type NodeType int
 
-// setupValidatorNode creates and initializes a validator node
-func setupValidatorNode(tempDir string, index int) *Node {
+const (
+	ValidatorNode NodeType = iota
+	NonValidatorNode
+)
+
+// String returns the string representation of NodeType
+func (nt NodeType) String() string {
+	switch nt {
+	case ValidatorNode:
+		return "validator"
+	case NonValidatorNode:
+		return "non-validator"
+	default:
+		return "unknown"
+	}
+}
+
+// setupNode creates and initializes a node
+func setupNode(t TestingT, tempDir string, index int, nodeType NodeType) *Node {
 	node := &Node{
 		Index: index,
 	}
 
-	// Create node-specific directories
-	nodeDir := filepath.Join(tempDir, fmt.Sprintf("validator_%d", index))
-	if err := os.MkdirAll(nodeDir, 0755); err != nil {
-		slog.Error("Failed to create validator directory", "error", err)
-		os.Exit(1)
-	}
+	// Create node directory
+	nodeDir := filepath.Join(tempDir, fmt.Sprintf("%s_%d", nodeType, index))
+	require.NoError(t, os.MkdirAll(nodeDir, dirPermissions), "Failed to create node directory")
 	node.DataDir = nodeDir
 
-	// Initialize secrets (validator key, node key, state)
-	node.NodeID = initializeValidatorSecrets(nodeDir)
+	// Initialize secrets
+	switch nodeType {
+	case ValidatorNode:
+		node.NodeID = initializeValidatorSecrets(t, nodeDir)
+	case NonValidatorNode:
+		node.NodeID = initializeNodeSecrets(t, nodeDir)
+	}
 
-	// Initialize configuration
-	initializeNodeConfig(nodeDir)
-
-	// Set up network addresses
-	node.P2PPort = 26656 + index
-	node.SocketAddr = fmt.Sprintf("unix://%s", createSocketPath(fmt.Sprintf("validator_%d.sock", index)))
+	// Set up network addresses with dynamic ports
+	node.P2PPort = findAvailablePort(t, 26656 + index)
+	node.SocketAddr = fmt.Sprintf("unix://%s", createSocketPath(t, fmt.Sprintf("%s_%d.sock", nodeType, index)))
 	node.Genesis = filepath.Join(nodeDir, "test_genesis.json")
 
-	slog.Info("Initialized validator node", "index", index, "dir", nodeDir, "p2p_port", node.P2PPort)
+	// Initialize configuration
+	initializeNodeConfig(t, nodeDir, node.SocketAddr, node.P2PPort)
+
+	t.Logf("Initialized node, type: %s, index: %d, dir: %s, p2p_port: %d", nodeType, index, nodeDir, node.P2PPort)
 	return node
 }
 
-// setupNonValidatorNode creates and initializes a non-validator node
-func setupNonValidatorNode(tempDir string, index int) *Node {
-	node := &Node{
-		Index: index,
-	}
-
-	// Create node-specific directories
-	nodeDir := filepath.Join(tempDir, fmt.Sprintf("nonvalidator_%d", index))
-	if err := os.MkdirAll(nodeDir, 0755); err != nil {
-		slog.Error("Failed to create non-validator directory", "error", err)
-		os.Exit(1)
-	}
-	node.DataDir = nodeDir
-
-	// Initialize only node key for non-validators
-	node.NodeID = initializeNonValidatorSecrets(nodeDir)
-
-	// Initialize configuration
-	initializeNodeConfig(nodeDir)
-
-	// Set up network addresses
-	node.P2PPort = 26656 + index
-	node.SocketAddr = fmt.Sprintf("unix://%s", createSocketPath(fmt.Sprintf("nonvalidator_%d.sock", index)))
-	node.Genesis = filepath.Join(nodeDir, "test_genesis.json")
-
-	slog.Info("Initialized non-validator node", "index", index, "dir", nodeDir, "p2p_port", node.P2PPort)
-	return node
+// setupValidatorNode creates a validator node
+func setupValidatorNode(t TestingT, tempDir string, index int) *Node {
+	return setupNode(t, tempDir, index, ValidatorNode)
 }
 
-// initializeValidatorSecrets generates and saves validator key, node key, and validator state
-func initializeValidatorSecrets(dataDir string) string {
-	// Create secrets directory
+// setupNonValidatorNode creates a non-validator node
+func setupNonValidatorNode(t TestingT, tempDir string, index int) *Node {
+	return setupNode(t, tempDir, index, NonValidatorNode)
+}
+
+// initializeValidatorSecrets generates validator secrets
+func initializeValidatorSecrets(t TestingT, dataDir string) string {
+	return createSecretsAndGenerateKeys(t, dataDir, true)
+}
+
+// initializeNodeSecrets generates node key for non-validators
+func initializeNodeSecrets(t TestingT, dataDir string) string {
+	return createSecretsAndGenerateKeys(t, dataDir, false)
+}
+
+// createSecretsAndGenerateKeys generates cryptographic keys
+func createSecretsAndGenerateKeys(t TestingT, dataDir string, isValidator bool) string {
 	secretsDir := filepath.Join(dataDir, config.DefaultSecretsDir)
-	if err := os.MkdirAll(secretsDir, 0755); err != nil {
-		slog.Error("Failed to create secrets directory", "error", err)
-		os.Exit(1)
+	require.NoError(t, os.MkdirAll(secretsDir, dirPermissions), "Failed to create secrets directory")
+
+	if isValidator {
+		validatorKeyPath := filepath.Join(secretsDir, defaultValidatorKeyName)
+		_, err := signer.GeneratePersistedFileKey(validatorKeyPath)
+		require.NoError(t, err, "Failed to generate validator key")
+
+		validatorStatePath := filepath.Join(secretsDir, defaultValidatorStateName)
+		_, err = fstate.GeneratePersistedFileState(validatorStatePath)
+		require.NoError(t, err, "Failed to generate validator state")
 	}
 
-	// Generate and save validator key
-	validatorKeyPath := filepath.Join(secretsDir, defaultValidatorKeyName)
-	if _, err := signer.GeneratePersistedFileKey(validatorKeyPath); err != nil {
-		slog.Error("Failed to generate validator key", "error", err)
-		os.Exit(1)
-	}
-
-	// Generate and save node key
 	nodeKeyPath := filepath.Join(secretsDir, defaultNodeKeyName)
 	nodeKey, err := types.GeneratePersistedNodeKey(nodeKeyPath)
-	if err != nil {
-		slog.Error("Failed to generate node key", "error", err)
-		os.Exit(1)
-	}
-
-	// Save validator state
-	validatorStatePath := filepath.Join(secretsDir, defaultValidatorStateName)
-	if _, err := fstate.GeneratePersistedFileState(validatorStatePath); err != nil {
-		slog.Error("Failed to generate validator state", "error", err)
-		os.Exit(1)
-	}
+	require.NoError(t, err, "Failed to generate node key")
 
 	return string(nodeKey.ID())
 }
 
-// initializeNonValidatorSecrets generates only node key for non-validators
-func initializeNonValidatorSecrets(dataDir string) string {
-	// Create secrets directory
-	secretsDir := filepath.Join(dataDir, config.DefaultSecretsDir)
-	if err := os.MkdirAll(secretsDir, 0755); err != nil {
-		slog.Error("Failed to create secrets directory", "error", err)
-		os.Exit(1)
-	}
-
-	// Generate and save node key
-	nodeKeyPath := filepath.Join(secretsDir, defaultNodeKeyName)
-	nodeKey, err := types.GeneratePersistedNodeKey(nodeKeyPath)
-	if err != nil {
-		slog.Error("Failed to generate node key", "error", err)
-		os.Exit(1)
-	}
-
-	return string(nodeKey.ID())
-}
-
-// initializeNodeConfig creates a default config.toml for the node
-func initializeNodeConfig(dataDir string) {
+// initializeNodeConfig creates node configuration file
+func initializeNodeConfig(t TestingT, dataDir string, socketAddr string, p2pPort int) {
 	configPath := filepath.Join(dataDir, "config", "config.toml")
 
-	// Create config directory
 	configDir := filepath.Dir(configPath)
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		slog.Error("Failed to create config directory", "error", err)
-		os.Exit(1)
-	}
+	require.NoError(t, os.MkdirAll(configDir, dirPermissions), "Failed to create config directory")
 
-	// Initialize default config
+	// Write initial config
 	cfg := config.DefaultConfig()
 	cfg.SetRootDir(dataDir)
+	require.NoError(t, config.WriteConfigFile(configPath, cfg), "Failed to write initial config file")
+	
+	// Load and modify config
+	loadedCfg, err := config.LoadConfigFile(configPath)
+	require.NoError(t, err, "Failed to load config file")
+	
+	loadedCfg.RPC.ListenAddress = socketAddr
+	loadedCfg.P2P.ListenAddress = fmt.Sprintf("tcp://0.0.0.0:%d", p2pPort)
 
-	// Write config file
-	if err := config.WriteConfigFile(configPath, cfg); err != nil {
-		slog.Error("Failed to write config file", "error", err)
-		os.Exit(1)
-	}
+	require.NoError(t, config.WriteConfigFile(configPath, loadedCfg), "Failed to write updated config file")
+	
+	t.Logf("Configured node with RPC socket: %s, P2P port: %d", socketAddr, p2pPort)
 }
 
-// createSocketPath creates a unique socket path for the node
-func createSocketPath(filename string) string {
-	// Create a temporary directory for socket files
-	tempDir, err := os.MkdirTemp("", "socktest-")
-	if err != nil {
-		slog.Error("Failed to create socket directory", "error", err)
-		os.Exit(1)
+// createSocketPath creates a unique socket path avoiding length limits
+func createSocketPath(t TestingT, filename string) string {
+	randSuffix := fmt.Sprintf("%d", time.Now().UnixNano()%1000000)
+	tempDir := filepath.Join("/tmp", "gno-"+randSuffix)
+
+	err := os.MkdirAll(tempDir, 0755)
+	require.NoError(t, err, "Failed to create socket directory")
+
+	t.Cleanup(func() {
+		os.RemoveAll(tempDir)
+	})
+
+	socketPath := filepath.Join(tempDir, filename)
+
+	if len(socketPath) > 100 { // Unix socket path limit
+		t.Fatalf("Socket path too long (%d chars): %s", len(socketPath), socketPath)
 	}
-	return filepath.Join(tempDir, filename)
+
+	return socketPath
+}
+
+// findAvailablePort finds an available TCP port
+func findAvailablePort(t TestingT, preferredPort int) int {
+	if isPortAvailable(preferredPort) {
+		return preferredPort
+	}
+
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatalf("Failed to find available port: %v", err)
+	}
+	
+	port := listener.Addr().(*net.TCPAddr).Port
+	listener.Close()
+	
+	t.Logf("Found available port: %d (preferred %d was in use)", port, preferredPort)
+	return port
+}
+
+// isPortAvailable checks if a port is available
+func isPortAvailable(port int) bool {
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return false
+	}
+	listener.Close()
+	return true
 }
 
 // waitForNodeReady waits for a node to be ready to accept RPC calls
-func waitForNodeReady(ctx context.Context, node *ExtendedNode) error {
+func waitForNodeReady(t TestingT, ctx context.Context, node *ExtendedNode) error {
 	// Create RPC client
 	client, err := client.NewHTTPClient(node.SocketAddr)
 	if err != nil {
@@ -215,27 +240,26 @@ func waitForNodeReady(ctx context.Context, node *ExtendedNode) error {
 	}
 	node.Client = client
 
-	// Wait for node to be ready using polling
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("context timeout while waiting for node %d", node.Index)
-		case <-ticker.C:
-			info, err := node.Client.ABCIInfo()
-			if err == nil && info.Response.Error == nil {
-				// Node is ready
-				slog.Debug("Node is ready", "index", node.Index)
-				return nil
-			}
-		}
+	deadline, ok := ctx.Deadline()
+	if !ok || time.Until(deadline) > time.Second*30 {
+		deadline = time.Now().Add(time.Second * 30)
 	}
+
+	success := assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		info, err := node.Client.ABCIInfo()
+		require.NoError(c, err)
+		require.NoError(c, info.Response.Error)
+	}, time.Until(deadline), 500*time.Millisecond, "node %d failed to become ready", node.Index)
+
+	if !success {
+		return fmt.Errorf("timeout waiting for node %d to be ready", node.Index)
+	}
+
+	return nil
 }
 
 // startNode starts a gnoland node process
-func startNode(ctx context.Context, binaryPath string, node *Node, args []string) error {
+func startNode(t TestingT, ctx context.Context, binaryPath string, node *Node, args []string) error {
 	// Build command
 	cmd := exec.CommandContext(ctx, binaryPath, args...)
 	cmd.Dir = node.DataDir
@@ -257,27 +281,30 @@ func startNode(ctx context.Context, binaryPath string, node *Node, args []string
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 
+	// Log the command being executed
+	t.Logf("Starting node %d with command: %s %s", node.Index, binaryPath, strings.Join(args, " "))
+
 	// Start the process
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start node: %w", err)
 	}
 
 	node.Process = cmd.Process
-	slog.Info("Started node", "index", node.Index, "pid", node.Process.Pid)
+	t.Logf("Started node, index: %d, pid: %d", node.Index, node.Process.Pid)
 
 	return nil
 }
 
 // cleanupNodes terminates all node processes
-func cleanupNodes(nodes []*Node) {
-	slog.Info("🧹 Cleaning up nodes", "count", len(nodes))
+func cleanupNodes(t TestingT, nodes []*Node) {
+	t.Logf("🧹 Cleaning up nodes, count: %d", len(nodes))
 
 	for _, node := range nodes {
 		if node.Process != nil {
 			if err := node.Process.Signal(os.Interrupt); err != nil {
 				// If interrupt fails, force kill
 				if err := node.Process.Kill(); err != nil {
-					slog.Warn("Failed to kill process", "node_index", node.Index, "error", err)
+					t.Errorf("WARNING: Failed to kill process, node_index: %d, error: %v", node.Index, err)
 				}
 			}
 
@@ -286,9 +313,9 @@ func cleanupNodes(nodes []*Node) {
 		}
 
 		// Clean up socket file if exists
-		if node.SocketAddr != "" {
+		if node.SocketAddr != "" && strings.HasPrefix(node.SocketAddr, "unix://") {
 			socketPath := node.SocketAddr[7:] // Remove "unix://" prefix
-			if dir := filepath.Dir(socketPath); strings.HasPrefix(dir, "/tmp/socktest-") {
+			if dir := filepath.Dir(socketPath); strings.HasPrefix(dir, "/tmp/gno-") {
 				os.RemoveAll(dir)
 			}
 		}

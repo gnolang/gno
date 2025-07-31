@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,18 +13,17 @@ import (
 	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/stretchr/testify/require"
 )
 
 // createSharedGenesis creates a genesis file shared by all nodes
-func createSharedGenesis(tempDir string, validators []*Node) error {
+func createSharedGenesis(t TestingT, tempDir string, validators []*Node) {
 	// Read all validators' private keys
 	validatorKeys := make([]*signer.FileKey, len(validators))
 	for i, validator := range validators {
 		validatorKeyPath := filepath.Join(validator.DataDir, "secrets", defaultValidatorKeyName)
 		validatorFileKey, err := signer.LoadFileKey(validatorKeyPath)
-		if err != nil {
-			return fmt.Errorf("failed to load validator key: %w", err)
-		}
+		require.NoError(t, err, "failed to load validator key")
 		validatorKeys[i] = validatorFileKey
 	}
 
@@ -56,33 +54,25 @@ func createSharedGenesis(tempDir string, validators []*Node) error {
 	}
 
 	// Create enhanced balance file with multiple accounts (like official genesis)
-	balanceFile := createEnhancedBalanceFile(tempDir, validatorKeys)
+	balanceFile := createEnhancedBalanceFile(t, tempDir, validatorKeys)
 	balances, err := gnoland.LoadGenesisBalancesFile(balanceFile)
-	if err != nil {
-		return fmt.Errorf("failed to load genesis balances: %w", err)
-	}
+	require.NoError(t, err, "failed to load genesis balances")
 
 	// Load packages from examples directory to create real transactions
-	examplesDir := findExamplesDir()
-	if examplesDir == "" {
-		return fmt.Errorf("could not find examples directory")
-	}
+	examplesDir := findExamplesDir(t)
+	require.NotEmpty(t, examplesDir, "could not find examples directory")
 
 	txSender := validatorKeys[0].Address // Use first validator as transaction sender
 
 	// Deploy fee matching official genesis
 	deployFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
 	pkgsTxs, err := gnoland.LoadPackagesFromDir(examplesDir, txSender, deployFee)
-	if err != nil {
-		return fmt.Errorf("failed to load packages from examples: %w", err)
-	}
-	slog.Info("Loaded package transactions", "count", len(pkgsTxs), "source", "examples directory")
+	require.NoError(t, err, "failed to load packages from examples")
+	t.Logf("Loaded package transactions, count: %d, source: examples directory", len(pkgsTxs))
 
 	// Sign genesis transactions with the first validator key
 	err = gnoland.SignGenesisTxs(pkgsTxs, validatorKeys[0].PrivKey, gen.ChainID)
-	if err != nil {
-		return fmt.Errorf("failed to sign genesis transactions: %w", err)
-	}
+	require.NoError(t, err, "failed to sign genesis transactions")
 
 	// Ensure deployer has sufficient balance for all transactions
 	deployerBalance := int64(len(pkgsTxs)) * 50_000_000 // ~50 GNOT per tx (match official)
@@ -96,20 +86,17 @@ func createSharedGenesis(tempDir string, validators []*Node) error {
 
 	// Write shared genesis to a common location
 	sharedGenesisPath := filepath.Join(tempDir, "shared_genesis.json")
-	if err := gen.SaveAs(sharedGenesisPath); err != nil {
-		return fmt.Errorf("failed to save genesis: %w", err)
-	}
+	err = gen.SaveAs(sharedGenesisPath)
+	require.NoError(t, err, "failed to save genesis")
 
-	slog.Info("Created shared genesis", "path", sharedGenesisPath)
+	t.Logf("Created shared genesis, path: %s", sharedGenesisPath)
 
 	// Print genesis configuration for debugging
-	printGenesisConfig(gen)
-
-	return nil
+	printGenesisConfig(t, gen)
 }
 
 // createEnhancedBalanceFile creates a balance file with multiple accounts like official genesis
-func createEnhancedBalanceFile(tempDir string, validatorKeys []*signer.FileKey) string {
+func createEnhancedBalanceFile(t TestingT, tempDir string, validatorKeys []*signer.FileKey) string {
 	balanceFile := filepath.Join(tempDir, "enhanced_genesis_balances.txt")
 
 	// Create content similar to official genesis with multiple funded accounts
@@ -119,7 +106,7 @@ func createEnhancedBalanceFile(tempDir string, validatorKeys []*signer.FileKey) 
 	for i, key := range validatorKeys {
 		balance := fmt.Sprintf("%s=100000000ugnot", key.Address.String())
 		balanceLines = append(balanceLines, balance)
-		slog.Debug("Added validator balance", "validator", i+1, "balance", balance)
+		t.Logf("Validator %d balance: %s", i+1, balance)
 	}
 
 	// Add additional test accounts with various balances (using actual addresses from official genesis)
@@ -141,107 +128,85 @@ func createEnhancedBalanceFile(tempDir string, validatorKeys []*signer.FileKey) 
 
 	// Write balance file
 	content := strings.Join(balanceLines, "\n") + "\n"
-	if err := os.WriteFile(balanceFile, []byte(content), 0644); err != nil {
-		slog.Error("Failed to write balance file", "error", err)
-		os.Exit(1)
-	}
+	err := os.WriteFile(balanceFile, []byte(content), 0644)
+	require.NoError(t, err, "Failed to write balance file")
 
-	slog.Info("Created enhanced balance file", "accounts", len(balanceLines), "path", balanceFile)
+	t.Logf("Created enhanced balance file, accounts: %d, path: %s", len(balanceLines), balanceFile)
 
 	return balanceFile
 }
 
 // findExamplesDir locates the examples directory using gnoenv.RootDir()
-func findExamplesDir() string {
+func findExamplesDir(t TestingT) string {
 	// Use gnoenv.RootDir() to get the root of the gno project
 	gnoRoot := gnoenv.RootDir()
 	examplesPath := filepath.Join(gnoRoot, "examples")
 
 	// Verify the examples directory exists
 	if info, err := os.Stat(examplesPath); err == nil && info.IsDir() {
-		slog.Info("Found examples directory", "path", examplesPath)
+		t.Logf("Found examples directory, path: %s", examplesPath)
 		return examplesPath
 	}
 
-	slog.Warn("Examples directory not found", "path", examplesPath)
+	t.Logf("WARNING: Examples directory not found, path: %s", examplesPath)
 	return ""
 }
 
 // copySharedGenesis copies the shared genesis file to each node's directory
-func copySharedGenesis(tempDir string, node *Node) error {
+func copySharedGenesis(t TestingT, tempDir string, node *Node) {
 	sharedGenesisPath := filepath.Join(tempDir, "shared_genesis.json")
 
 	// Read shared genesis
 	genesisData, err := os.ReadFile(sharedGenesisPath)
-	if err != nil {
-		return fmt.Errorf("failed to read shared genesis: %w", err)
-	}
+	require.NoError(t, err, "failed to read shared genesis")
 
 	// Write to node's genesis location
-	if err := os.WriteFile(node.Genesis, genesisData, 0644); err != nil {
-		return fmt.Errorf("failed to write genesis to node: %w", err)
-	}
+	err = os.WriteFile(node.Genesis, genesisData, 0644)
+	require.NoError(t, err, "failed to write genesis to node")
 
-	slog.Debug("Copied shared genesis", "node_index", node.Index, "path", node.Genesis)
-
-	return nil
+	t.Logf("Node %d genesis: %s", node.Index, node.Genesis)
 }
 
 // printGenesisConfig prints the genesis configuration without transactions for debugging
-func printGenesisConfig(gen *bft.GenesisDoc) {
-	slog.Info("📋 Genesis Configuration",
-		"chain_id", gen.ChainID,
-		"genesis_time", gen.GenesisTime.Format("2006-01-02T15:04:05Z"))
+func printGenesisConfig(t TestingT, gen *bft.GenesisDoc) {
+	t.Logf("📋 Genesis Configuration, chain_id: %s, genesis_time: %s",
+		gen.ChainID, gen.GenesisTime.Format("2006-01-02T15:04:05Z"))
 
-	slog.Info("Consensus Parameters",
-		"max_tx_bytes", gen.ConsensusParams.Block.MaxTxBytes,
-		"max_data_bytes", gen.ConsensusParams.Block.MaxDataBytes,
-		"max_gas", gen.ConsensusParams.Block.MaxGas,
-		"time_iota_ms", gen.ConsensusParams.Block.TimeIotaMS)
+	t.Logf("Consensus Parameters, max_tx_bytes: %d, max_data_bytes: %d, max_gas: %d, time_iota_ms: %d",
+		gen.ConsensusParams.Block.MaxTxBytes, gen.ConsensusParams.Block.MaxDataBytes,
+		gen.ConsensusParams.Block.MaxGas, gen.ConsensusParams.Block.TimeIotaMS)
 
 	if gen.ConsensusParams.Validator != nil {
-		slog.Debug("Validator parameters",
-			"pubkey_type_urls", gen.ConsensusParams.Validator.PubKeyTypeURLs)
+		t.Logf("Validator params: %v", gen.ConsensusParams.Validator.PubKeyTypeURLs)
 	}
 
-	slog.Info("Validators", "count", len(gen.Validators))
+	t.Logf("Validators, count: %d", len(gen.Validators))
 	for i, val := range gen.Validators {
-		slog.Info("Validator",
-			"index", i+1,
-			"address", val.Address.String(),
-			"power", val.Power,
-			"name", val.Name,
-			"pubkey", val.PubKey)
+		t.Logf("Validator, index: %d, address: %s, power: %d, name: %s, pubkey: %v",
+			i+1, val.Address.String(), val.Power, val.Name, val.PubKey)
 
 	}
 
 	// Print balance and transaction summary
 	if genState, ok := gen.AppState.(*gnoland.GnoGenesisState); ok {
-		slog.Info("Genesis state",
-			"balance_accounts", len(genState.Balances),
-			"package_transactions", len(genState.Txs))
+		t.Logf("Genesis state, balance_accounts: %d, package_transactions: %d",
+			len(genState.Balances), len(genState.Txs))
 
-		// Show first few balances as examples
-		slog.Debug("Sample balances")
+		// Show sample balances and transactions
 		for i, balance := range genState.Balances {
-			if i >= 3 { // Show only first 3 balances
-				slog.Debug("Additional balances", "remaining", len(genState.Balances)-3)
+			if i >= 3 {
+				t.Logf("Additional balances: %d", len(genState.Balances)-3)
 				break
 			}
-			slog.Debug("Balance", "account", balance.String())
+			t.Logf("Balance: %s", balance.String())
 		}
 
-		// Show first few transaction types as examples
-		slog.Debug("Sample transactions")  
 		for i, tx := range genState.Txs {
-			if i >= 3 { // Show only first 3 transactions
-				slog.Debug("Additional transactions", "remaining", len(genState.Txs)-3)
+			if i >= 3 {
+				t.Logf("Additional transactions: %d", len(genState.Txs)-3)
 				break
 			}
-			slog.Debug("Transaction",
-				"index", i+1,
-				"msgs", len(tx.Tx.Msgs),
-				"fee", fmt.Sprintf("%v", tx.Tx.Fee))
+			t.Logf("Tx %d: %d msgs, fee: %v", i+1, len(tx.Tx.Msgs), tx.Tx.Fee)
 		}
 	}
 }

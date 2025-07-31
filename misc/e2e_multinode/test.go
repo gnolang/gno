@@ -3,85 +3,94 @@ package main
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// runMultiNodeTest executes the multi-node determinism test
+// runMultiNodeTest executes multi-node determinism test
 func runMultiNodeTest(
+	t TestingT,
 	ctx context.Context,
 	wg *sync.WaitGroup,
 	binaryPath string,
 	validators, nonValidators []*Node,
 	cfg *testCfg,
-) error {
+) {
 	allNodes := append(validators, nonValidators...)
 
-	// Step 1: Start all validators
-	slog.Info("📋 Step 1: Starting validators", "count", len(validators))
+	// Start validators
+	t.Log("📋 Starting validators")
+	t.Logf("Starting %d validators", len(validators))
 	for i, validator := range validators {
-		slog.Info("Starting validator", "index", i+1)
-		if err := startValidatorNode(ctx, wg, binaryPath, validator); err != nil {
-			return fmt.Errorf("failed to start validator %d: %w", i+1, err)
-		}
-		slog.Info("✅ Validator ready", "index", i+1)
+		t.Logf("Starting validator %d", i+1)
+		err := startGnolandNode(t, ctx, binaryPath, validator)
+		require.NoError(t, err, "failed to start validator %d", i+1)
+		t.Logf("✅ Validator %d ready", i+1)
 	}
 
-	// Step 2: Wait for validator connectivity
-	slog.Info("📋 Step 2: Waiting for validator connectivity")
+	// Wait for validator P2P connectivity
+	t.Log("📋 Waiting for validator connectivity")
 	extValidators := make([]*ExtendedNode, len(validators))
 	for i, val := range validators {
 		extValidators[i] = &ExtendedNode{Node: val}
+		rpcClient, err := client.NewHTTPClient(val.SocketAddr)
+		require.NoError(t, err, "failed to create RPC client for validator %d", i+1)
+		extValidators[i].Client = rpcClient
 	}
 
-	if err := waitForPeerConnectivity(ctx, extValidators); err != nil {
-		return fmt.Errorf("failed to establish validator connectivity: %w", err)
-	}
+	err := waitForPeerConnectivity(t, ctx, extValidators)
+	require.NoError(t, err, "failed to establish validator connectivity")
 
 	// Wait for initial sync
-	if err := waitForHeightSync(ctx, extValidators, 10); err != nil {
-		return fmt.Errorf("failed to sync validators to height 10: %w", err)
-	}
+	err = waitForHeightSync(t, ctx, extValidators, 10)
+	require.NoError(t, err, "failed to sync validators to height 10")
 
-	// Step 3: Start first non-validator
+	// Start first non-validator
 	var firstNonValidator *ExtendedNode
 	if len(nonValidators) > 0 {
-		slog.Info("📋 Step 3: Starting first non-validator")
-		if err := startNonValidatorNode(ctx, wg, binaryPath, nonValidators[0]); err != nil {
-			return fmt.Errorf("failed to start non-validator 1: %w", err)
-		}
+		t.Log("📋 Starting first non-validator")
+		err := startGnolandNode(t, ctx, binaryPath, nonValidators[0])
+		require.NoError(t, err, "failed to start non-validator 1")
 		firstNonValidator = &ExtendedNode{Node: nonValidators[0]}
-		slog.Info("✅ Non-validator ready", "index", 1)
+		// Initialize RPC client for non-validator
+		rpcClient, err := client.NewHTTPClient(nonValidators[0].SocketAddr)
+		require.NoError(t, err, "failed to create RPC client for non-validator")
+		firstNonValidator.Client = rpcClient
+		t.Log("✅ Non-validator ready")
 	}
 
-	// Step 4: Execute test transactions
+	// Execute test transactions
 	runningNodes := append(extValidators, firstNonValidator)
 	if firstNonValidator == nil {
 		runningNodes = extValidators
 	}
 
-	slog.Info("📋 Step 4: Executing transactions", "count", cfg.numTransactions, "validators", len(validators))
+	t.Log("📋 Executing transactions")
+	t.Logf("Executing %d transactions with %d validators", cfg.numTransactions, len(validators))
 
-	executeTestTransactions(validators[0], cfg.numTransactions)
+	executeTestTransactions(t, validators[0], cfg.numTransactions)
 
 	// Wait for transactions to be processed
-	if err := waitForHeightSync(ctx, runningNodes, 20); err != nil {
-		return fmt.Errorf("failed to sync after transactions: %w", err)
-	}
+	err = waitForHeightSync(t, ctx, runningNodes, 20)
+	require.NoError(t, err, "failed to sync after transactions")
 
-	// Step 5: Start remaining non-validators
+	// Start remaining non-validators
 	if len(nonValidators) > 1 {
-		slog.Info("📋 Step 5: Starting remaining non-validators", "count", len(nonValidators)-1)
+		t.Log("📋 Starting remaining non-validators")
+		t.Logf("Starting %d additional non-validators", len(nonValidators)-1)
 		for i := 1; i < len(nonValidators); i++ {
-			slog.Info("Starting non-validator", "index", i+1)
+			t.Logf("Starting non-validator %d", i+1)
 			wg.Add(1)
 			go func(nv *Node, idx int) {
 				defer wg.Done()
-				if err := startNonValidatorNode(ctx, nil, binaryPath, nv); err != nil {
-					slog.Error("Error starting non-validator", "index", idx+1, "error", err)
+				if err := startGnolandNode(t, ctx, binaryPath, nv); err != nil {
+					t.Logf("Error starting non-validator %d: %v", idx+1, err)
 				} else {
-					slog.Info("✅ Non-validator ready", "index", idx+1)
+					t.Logf("✅ Non-validator %d ready", idx+1)
 				}
 			}(nonValidators[i], i)
 
@@ -90,187 +99,147 @@ func runMultiNodeTest(
 	}
 
 	// Wait for P2P connections
-	slog.Info("📋 Waiting for P2P connections to be established...")
+	t.Log("📋 Waiting for P2P connections to be established...")
 	time.Sleep(10 * time.Second)
 
-	// Step 6: Wait for sync to target height and check determinism
-	slog.Info("📋 Step 6: Waiting for chain topology (%d nodes: %d validators + %d non-validators) and sync to height ~%d...",
+	// Wait for sync to target height and check determinism
+	t.Log("📋 Waiting for chain topology and sync to target height")
+	t.Logf("Total nodes: %d (%d validators + %d non-validators), target height: %d",
 		len(allNodes), len(validators), len(nonValidators), cfg.targetHeight)
 
 	// Create extended nodes for all
-	allExtNodes := make([]*ExtendedNode, len(allNodes))
+	allExtNodes := make([]*ExtendedNode, 0, len(allNodes))
 	for i, node := range allNodes {
-		allExtNodes[i] = &ExtendedNode{Node: node}
-		if allExtNodes[i].Client == nil {
+		extNode := &ExtendedNode{Node: node}
+		if extNode.Client == nil {
 			// Initialize client if not already done
-			if err := waitForNodeReady(ctx, allExtNodes[i]); err != nil {
-				slog.Info("Warning: Node %d not ready: %v", i, err)
+			if err := waitForNodeReady(t, ctx, extNode); err != nil {
+				t.Logf("Warning: Node %d not ready: %v", i, err)
 			}
 		}
+		allExtNodes = append(allExtNodes, extNode)
 	}
 
 	// Wait for target height
-	if err := waitForHeightSync(ctx, allExtNodes, cfg.targetHeight); err != nil {
-		return fmt.Errorf("failed to reach target height %d: %w", cfg.targetHeight, err)
-	}
+	err = waitForHeightSync(t, ctx, allExtNodes, cfg.targetHeight)
+	require.NoError(t, err, "failed to reach target height %d", cfg.targetHeight)
 
 	// Perform comprehensive hash comparison
-	slog.Info("📊 Performing comprehensive determinism check...")
-	if err := checkDeterminism(ctx, allExtNodes, cfg); err != nil {
-		return fmt.Errorf("determinism check failed: %w", err)
-	}
-
-	return nil
+	t.Log("📊 Performing comprehensive determinism check...")
+	checkDeterminism(t, ctx, allExtNodes, cfg)
 }
 
-// startValidatorNode starts a validator node
-func startValidatorNode(ctx context.Context, wg *sync.WaitGroup, binaryPath string, node *Node) error {
+// startGnolandNode starts a gnoland node (validator or non-validator)
+func startGnolandNode(t TestingT, ctx context.Context, binaryPath string, node *Node) error {
 	args := []string{
 		"start",
+		"--skip-failing-genesis-txs",
+		"--skip-genesis-sig-verification",
 		"--genesis", node.Genesis,
-		"--skip-start",
 		"--data-dir", node.DataDir,
 	}
 
-	if err := startNode(ctx, binaryPath, node, args); err != nil {
+	if err := startNode(t, ctx, binaryPath, node, args); err != nil {
 		return err
 	}
 
 	// Wait for node to be ready
 	extNode := &ExtendedNode{Node: node}
-	return waitForNodeReady(ctx, extNode)
-}
-
-// startNonValidatorNode starts a non-validator node
-func startNonValidatorNode(ctx context.Context, wg *sync.WaitGroup, binaryPath string, node *Node) error {
-	args := []string{
-		"start",
-		"--genesis", node.Genesis,
-		"--skip-start",
-		"--data-dir", node.DataDir,
-	}
-
-	if err := startNode(ctx, binaryPath, node, args); err != nil {
-		return err
-	}
-
 	// Wait for node to be ready
-	extNode := &ExtendedNode{Node: node}
-	return waitForNodeReady(ctx, extNode)
+	return waitForNodeReady(t, ctx, extNode)
 }
 
 // executeTestTransactions simulates transaction execution
-func executeTestTransactions(validator *Node, numTxs int) {
-	slog.Info("🔄 Executing %d test transactions to create state changes...", numTxs)
+func executeTestTransactions(t TestingT, validator *Node, numTxs int) {
+	t.Log("🔄 Executing test transactions to create state changes")
+	t.Logf("Simulating %d transactions", numTxs)
 
 	// In a real implementation, this would send actual transactions
 	// For now, we simulate by waiting for block production
 	for i := 1; i <= numTxs; i++ {
-		slog.Info("   📤 Simulating transaction %d (waiting for block production)...", i)
+		t.Logf("📤 Simulating transaction %d (waiting for block production)", i)
 		time.Sleep(2 * time.Second)
 	}
 
-	slog.Info("✅ Completed transaction simulation - state changes should have occurred via block production")
+	t.Log("✅ Completed transaction simulation - state changes should have occurred via block production")
 }
 
 // waitForPeerConnectivity waits for nodes to establish P2P connections
-func waitForPeerConnectivity(ctx context.Context, nodes []*ExtendedNode) error {
-	slog.Info("📋 Waiting for P2P peer connectivity...")
+func waitForPeerConnectivity(t TestingT, ctx context.Context, nodes []*ExtendedNode) error {
+	t.Log("📋 Waiting for P2P peer connectivity...")
 
-	maxAttempts := 30
-	for attempt := 0; attempt < maxAttempts; attempt++ {
-		allConnected := true
-
-		for i, node := range nodes {
-			netInfo, err := node.Client.NetInfo()
-			if err != nil {
-				allConnected = false
-				continue
-			}
-
-			expectedPeers := 1 // Each validator should have at least 1 peer
-			if len(netInfo.Peers) < expectedPeers {
-				allConnected = false
-				// Note: verbose logging removed for now - could be passed in cfg if needed
-				slog.Info("Node %d has %d peers (expected: %d)", i, len(netInfo.Peers), expectedPeers)
-			}
-		}
-
-		if allConnected {
-			slog.Info("✅ All nodes have established peer connections")
-			return nil
-		}
-
+	// Use assert.Eventually for cleaner timeout handling
+	success := assert.EventuallyWithT(t, func(c *assert.CollectT) { // Check if context is cancelled
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("context cancelled while waiting for peer connectivity")
-		case <-time.After(1 * time.Second):
-			// Continue waiting
+			c.FailNow()
+		default:
 		}
+
+		const expectedPeers = 1 // Each validator should have at least 1 peer
+		for _, node := range nodes {
+			netInfo, err := node.Client.NetInfo()
+			require.NoError(c, err)
+			require.GreaterOrEqual(c, len(netInfo.Peers), expectedPeers)
+		}
+	}, 30*time.Second, 1*time.Second, "failed to establish peer connectivity")
+
+	if !success {
+		return fmt.Errorf("timeout waiting for peer connectivity")
 	}
 
-	return fmt.Errorf("timeout waiting for peer connectivity")
+	t.Log("✅ All nodes have established peer connections")
+	return nil
 }
 
 // waitForHeightSync waits for all nodes to reach a minimum height
-func waitForHeightSync(ctx context.Context, nodes []*ExtendedNode, minHeight int64) error {
-	slog.Info("📋 Waiting for block height synchronization...")
+func waitForHeightSync(t TestingT, ctx context.Context, nodes []*ExtendedNode, minHeight int64) error {
+	t.Log("📋 Waiting for block height synchronization...")
 
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
-
-	for {
+	// Use assert.Eventually for cleaner timeout handling
+	success := assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		// Check if context is cancelled
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("context cancelled while waiting for height sync")
-		case <-ticker.C:
-			allSynced := true
-
-			for i, node := range nodes {
-				if node.Client == nil {
-					allSynced = false
-					continue
-				}
-
-				status, err := node.Client.Status()
-				if err != nil {
-					allSynced = false
-					continue
-				}
-
-				currentHeight := status.SyncInfo.LatestBlockHeight
-				if currentHeight < minHeight {
-					allSynced = false
-					if i == 0 { // Only log for first node to reduce noise
-						slog.Info("%d: current height [%d] vs %d", i, currentHeight, minHeight)
-					}
-				}
-			}
-
-			if allSynced {
-				slog.Info("node[0] - configured to min height %d", minHeight)
-				return nil
-			}
+			c.FailNow()
+		default:
 		}
+
+		for i, node := range nodes {
+			require.NotNil(c, node.Client)
+
+			status, err := node.Client.Status()
+			require.NoError(c, err)
+
+			currentHeight := status.SyncInfo.LatestBlockHeight
+			require.GreaterOrEqual(c, currentHeight, minHeight)
+			t.Logf("Height sync progress - Node %d: %d/%d", i, currentHeight, minHeight)
+		}
+	}, 120*time.Second, 1*time.Second, "failed to sync all nodes to height %d", minHeight)
+
+	if !success {
+		return fmt.Errorf("timeout waiting for height sync to %d", minHeight)
 	}
+
+	t.Logf("All nodes synced to target height %d", minHeight)
+	return nil
 }
 
 // checkDeterminism performs comprehensive hash comparison across all nodes
-func checkDeterminism(ctx context.Context, nodes []*ExtendedNode, cfg *testCfg) error {
+func checkDeterminism(t TestingT, ctx context.Context, nodes []*ExtendedNode, cfg *testCfg) {
 	// Get the minimum height across all nodes
 	minCompareHeight := cfg.targetHeight
 	for i, node := range nodes {
 		status, err := node.Client.Status()
-		if err != nil {
-			return fmt.Errorf("failed to get status for node %d: %w", i, err)
-		}
+		require.NoError(t, err, "failed to get status for node %d", i)
 		if status.SyncInfo.LatestBlockHeight < minCompareHeight {
 			minCompareHeight = status.SyncInfo.LatestBlockHeight
 		}
-		slog.Info("   Node %d final height: %d", i, status.SyncInfo.LatestBlockHeight)
+		t.Logf("Node %d final height: %d", i, status.SyncInfo.LatestBlockHeight)
 	}
 
-	slog.Info("📋 Comparing EVERY SINGLE AppHash from height 1 to %d across all %d nodes (%d validators + %d non-validators)...",
+	t.Log("📋 Comparing AppHashes from height 1 to target across all nodes")
+	t.Logf("Target height: %d, Total nodes: %d (%d validators + %d non-validators)",
 		minCompareHeight, len(nodes), cfg.numValidators, cfg.numNonValidators)
 
 	// Get app hashes for ALL heights from 1 to minCompareHeight
@@ -280,15 +249,12 @@ func checkDeterminism(ctx context.Context, nodes []*ExtendedNode, cfg *testCfg) 
 
 		for h := int64(1); h <= minCompareHeight; h++ {
 			block, err := node.Client.Block(&h)
-			if err != nil {
-				return fmt.Errorf("failed to get block at height %d for node %d: %w", h, nodeIdx, err)
-			}
+			require.NoError(t, err, "failed to get block at height %d for node %d", h, nodeIdx)
 			heightList[nodeIdx][h-1] = fmt.Sprintf("%X", block.Block.Header.AppHash)
 		}
 	}
 
 	// Look for any divergence at ANY height
-	divergenceFound := false
 	for h := int64(0); h < minCompareHeight; h++ {
 		// Get hashes from all nodes for this height
 		hashes := make([]string, len(nodes))
@@ -306,25 +272,19 @@ func checkDeterminism(ctx context.Context, nodes []*ExtendedNode, cfg *testCfg) 
 		}
 
 		if !allMatch {
-			slog.Info("❌ NON-DETERMINISM DETECTED at height %d!", h+1)
+			t.Logf("❌ NON-DETERMINISM DETECTED at height %d!", h+1)
 			for nodeIdx, hash := range hashes {
-				slog.Info("   Node %d AppHash: %s", nodeIdx, hash)
+				t.Logf("   Node %d AppHash: %s", nodeIdx, hash)
 			}
-			divergenceFound = true
-			break
+			require.Fail(t, "NON-DETERMINISM FOUND: AppHash divergence detected!")
 		} else {
 			if h < 10 || h%50 == 0 { // Log first 10 and every 50th height for brevity
-				slog.Info("H[%d] all %d nodes -> %s ✅", h+1, len(nodes), hashes[0])
+				t.Logf("Height consensus ✅ - Height %d: all %d nodes -> %s", h+1, len(nodes), hashes[0])
 			}
 		}
 	}
 
-	if !divergenceFound {
-		slog.Info("🎉 PERFECT DETERMINISM: All AppHashes match across all %d nodes (%d validators + %d non-validators) for ALL %d heights!",
-			len(nodes), cfg.numValidators, cfg.numNonValidators, minCompareHeight)
-	} else {
-		return fmt.Errorf("💥 NON-DETERMINISM FOUND: AppHash divergence detected!")
-	}
-
-	return nil
+	t.Log("🎉 PERFECT DETERMINISM: All AppHashes match across all nodes for ALL heights!")
+	t.Logf("Verified %d heights across %d nodes (%d validators + %d non-validators)",
+		minCompareHeight, len(nodes), cfg.numValidators, cfg.numNonValidators)
 }

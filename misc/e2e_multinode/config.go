@@ -2,16 +2,16 @@ package main
 
 import (
 	"fmt"
-	"log/slog"
 	"path/filepath"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
+	"github.com/stretchr/testify/require"
 )
 
 // configureP2PTopology sets up the P2P connections between nodes
-func configureP2PTopology(validators, nonValidators []*Node) error {
-	slog.Info("📋 Configuring P2P topology", "validators", len(validators), "non_validators", len(nonValidators))
+func configureP2PTopology(t TestingT, validators, nonValidators []*Node) {
+	t.Logf("📋 Configuring P2P topology, validators: %d, non_validators: %d", len(validators), len(nonValidators))
 
 	// Configure validator mesh topology (all validators connect to each other)
 	for i, validator := range validators {
@@ -22,11 +22,8 @@ func configureP2PTopology(validators, nonValidators []*Node) error {
 				peerAddrs = append(peerAddrs, peerAddr)
 			}
 		}
-		if err := configurePersistentPeers(validator, peerAddrs); err != nil {
-			return fmt.Errorf("failed to configure peers for validator %d: %w", i, err)
-		}
-		// Log peer connections for debugging
-		slog.Debug("Validator peer connections", "validator", i+1, "peer_count", len(peerAddrs))
+		configurePersistentPeers(t, validator, peerAddrs)
+		t.Logf("Validator %d configured with %d peers", i+1, len(peerAddrs))
 	}
 
 	// Configure non-validator chain topology
@@ -34,35 +31,28 @@ func configureP2PTopology(validators, nonValidators []*Node) error {
 		// First non-validator connects to first validator
 		if len(validators) > 0 {
 			peerAddr := fmt.Sprintf("%s@localhost:%d", validators[0].NodeID, validators[0].P2PPort)
-			if err := configurePersistentPeers(nonValidators[0], []string{peerAddr}); err != nil {
-				return fmt.Errorf("failed to configure peers for non-validator 0: %w", err)
-			}
-			slog.Debug("Non-validator peer connection", "non_validator", 1, "connects_to", "validator 1")
+			configurePersistentPeers(t, nonValidators[0], []string{peerAddr})
+			t.Logf("Non-validator 1 connects to validator 1")
 		}
 
 		// Each subsequent non-validator connects to the previous one (chain topology)
 		for i := 1; i < len(nonValidators); i++ {
 			peerAddr := fmt.Sprintf("%s@localhost:%d", nonValidators[i-1].NodeID, nonValidators[i-1].P2PPort)
-			if err := configurePersistentPeers(nonValidators[i], []string{peerAddr}); err != nil {
-				return fmt.Errorf("failed to configure peers for non-validator %d: %w", i, err)
-			}
-			slog.Debug("Non-validator peer connection", "non_validator", i+1, "connects_to", fmt.Sprintf("non-validator %d", i))
+			configurePersistentPeers(t, nonValidators[i], []string{peerAddr})
+			t.Logf("Non-validator %d connects to node %d", i+1, i)
 		}
 	}
 
-	slog.Info("✅ P2P topology configuration completed")
-	return nil
+	t.Log("✅ P2P topology configuration completed")
 }
 
 // configurePersistentPeers configures a node to use persistent_peers
-func configurePersistentPeers(node *Node, peerAddrs []string) error {
+func configurePersistentPeers(t TestingT, node *Node, peerAddrs []string) {
 	configPath := filepath.Join(node.DataDir, "config", "config.toml")
 
 	// Load current config
 	cfg, err := config.LoadConfigFile(configPath)
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
+	require.NoError(t, err, "failed to load config")
 
 	// Set persistent peers
 	peerList := ""
@@ -78,24 +68,19 @@ func configurePersistentPeers(node *Node, peerAddrs []string) error {
 	cfg.P2P.ListenAddress = fmt.Sprintf("tcp://0.0.0.0:%d", node.P2PPort)
 
 	// Write config back
-	if err := config.WriteConfigFile(configPath, cfg); err != nil {
-		return fmt.Errorf("failed to write config: %w", err)
-	}
+	err = config.WriteConfigFile(configPath, cfg)
+	require.NoError(t, err, "failed to write config")
 
-	slog.Debug("Configured node persistent peers", "node_index", node.Index, "peers", peerList)
-
-	return nil
+	t.Logf("Node %d peers: %s", node.Index, peerList)
 }
 
 // configureConsensusForSync configures consensus parameters for fast synchronization
-func configureConsensusForSync(node *Node) error {
+func configureConsensusForSync(t TestingT, node *Node) {
 	configPath := filepath.Join(node.DataDir, "config", "config.toml")
 
 	// Load current config
 	cfg, err := config.LoadConfigFile(configPath)
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
+	require.NoError(t, err, "failed to load config")
 
 	// Set extremely fast consensus timeouts to reach target height quickly
 	cfg.Consensus.TimeoutCommit = 50 * time.Millisecond             // Extremely fast commits
@@ -110,18 +95,15 @@ func configureConsensusForSync(node *Node) error {
 	cfg.RPC.ListenAddress = node.SocketAddr
 
 	// Write updated config
-	if err := config.WriteConfigFile(configPath, cfg); err != nil {
-		return fmt.Errorf("failed to write config: %w", err)
-	}
+	err = config.WriteConfigFile(configPath, cfg)
+	require.NoError(t, err, "failed to write config")
 
-	slog.Debug("Configured node consensus settings", "node_index", node.Index)
-
-	return nil
+	t.Logf("Node %d consensus configured", node.Index)
 }
 
-// printNodeConfigurations prints detailed node configurations for debugging
-func printNodeConfigurations(nodes []*Node, cfg *testCfg) {
-	slog.Info("📋 Node Configurations")
+// printNodeConfigurations prints node configurations
+func printNodeConfigurations(t TestingT, nodes []*Node, cfg *testCfg) {
+	t.Log("📋 Node Configurations")
 
 	for i, node := range nodes {
 		nodeType := "non-validator"
@@ -129,39 +111,14 @@ func printNodeConfigurations(nodes []*Node, cfg *testCfg) {
 			nodeType = "validator"
 		}
 
-		slog.Info("Node configuration",
-			"index", node.Index,
-			"type", nodeType,
-			"node_id", node.NodeID,
-			"p2p_port", node.P2PPort,
-			"socket", node.SocketAddr,
-			"data_dir", filepath.Base(node.DataDir))
+		t.Logf("Node configuration, index: %d, type: %s, node_id: %s, p2p_port: %d, socket: %s, data_dir: %s",
+			node.Index, nodeType, node.NodeID, node.P2PPort, node.SocketAddr, filepath.Base(node.DataDir))
 
 		// Read and print key config settings
 		configPath := filepath.Join(node.DataDir, "config", "config.toml")
 		if nodeCfg, err := config.LoadConfigFile(configPath); err == nil {
-			slog.Debug("P2P configuration",
-				"node_index", node.Index,
-				"listen_address", nodeCfg.P2P.ListenAddress,
-				"seeds", nodeCfg.P2P.Seeds,
-				"persistent_peers", nodeCfg.P2P.PersistentPeers,
-				"max_inbound_peers", nodeCfg.P2P.MaxNumInboundPeers,
-				"max_outbound_peers", nodeCfg.P2P.MaxNumOutboundPeers)
-
-			slog.Debug("Consensus configuration",
-				"node_index", node.Index,
-				"timeout_commit", nodeCfg.Consensus.TimeoutCommit,
-				"skip_timeout_commit", nodeCfg.Consensus.SkipTimeoutCommit,
-				"create_empty_blocks", nodeCfg.Consensus.CreateEmptyBlocks,
-				"create_empty_blocks_interval", nodeCfg.Consensus.CreateEmptyBlocksInterval,
-				"timeout_propose", nodeCfg.Consensus.TimeoutPropose,
-				"timeout_prevote", nodeCfg.Consensus.TimeoutPrevote,
-				"timeout_precommit", nodeCfg.Consensus.TimeoutPrecommit)
-
-			slog.Debug("RPC configuration",
-				"node_index", node.Index,
-				"listen_address", nodeCfg.RPC.ListenAddress,
-				"grpc_listen_address", nodeCfg.RPC.GRPCListenAddress)
+			t.Logf("Node %d P2P: %s, peers: %s", node.Index, nodeCfg.P2P.ListenAddress, nodeCfg.P2P.PersistentPeers)
+			t.Logf("Node %d RPC: %s", node.Index, nodeCfg.RPC.ListenAddress)
 		}
 	}
 }
