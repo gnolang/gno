@@ -143,7 +143,7 @@ Test7 is the latest testnet released on the 24rd of July, 2025.
   - State is fully persisted unless there are breaking changes in a new release,
     where persistence partly depends on implementing a migration strategy
 - **Timeliness of code:**
-  - Pre-deployed packages and realms are at release tag [chain/test7](https://github.com/gnolang/gno/releases/tag/chain%2Ftest7.2)
+  - Pre-deployed packages and realms are at release tag [chain/test7.2](https://github.com/gnolang/gno/releases/tag/chain%2Ftest7.2)
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
