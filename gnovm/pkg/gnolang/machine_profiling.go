@@ -168,7 +168,7 @@ func (m *Machine) SetProfiler(p *profiler.Profiler) {
 }
 
 // getCurrentLocation extracts the current execution location from the machine state
-func (m *Machine) getCurrentLocation() *profileLocation {
+func (m *Machine) getCurrentLocation() *profiler.ProfileLocation {
 	if m == nil {
 		return nil
 	}
@@ -177,23 +177,23 @@ func (m *Machine) getCurrentLocation() *profileLocation {
 	if len(m.Stmts) > 0 {
 		stmt := m.PeekStmt(1)
 		if stmt != nil {
-			loc := &profileLocation{
-				line:   stmt.GetLine(),
-				column: stmt.GetColumn(),
+			loc := &profiler.ProfileLocation{
+				Line:   stmt.GetLine(),
+				Column: stmt.GetColumn(),
 			}
 
 			// Get file information from current package
 			if m.Package != nil {
-				loc.file = m.Package.PkgPath
+				loc.File = m.Package.PkgPath
 			}
 
 			// Get function information from current frame
 			if len(m.Frames) > 0 {
 				frame := &m.Frames[len(m.Frames)-1]
 				if frame.Func != nil {
-					loc.function = string(frame.Func.Name)
+					loc.Function = string(frame.Func.Name)
 					if frame.Func.PkgPath != "" {
-						loc.function = frame.Func.PkgPath + "." + loc.function
+						loc.Function = frame.Func.PkgPath + "." + loc.Function
 					}
 				}
 			}
@@ -206,23 +206,23 @@ func (m *Machine) getCurrentLocation() *profileLocation {
 	if len(m.Exprs) > 0 {
 		expr := m.PeekExpr(1)
 		if expr != nil {
-			loc := &profileLocation{
-				line:   expr.GetLine(),
-				column: expr.GetColumn(),
+			loc := &profiler.ProfileLocation{
+				Line:   expr.GetLine(),
+				Column: expr.GetColumn(),
 			}
 
 			// Get file information
 			if m.Package != nil {
-				loc.file = m.Package.PkgPath
+				loc.File = m.Package.PkgPath
 			}
 
 			// Get function information from current frame
 			if len(m.Frames) > 0 {
 				frame := &m.Frames[len(m.Frames)-1]
 				if frame.Func != nil {
-					loc.function = string(frame.Func.Name)
+					loc.Function = string(frame.Func.Name)
 					if frame.Func.PkgPath != "" {
-						loc.function = frame.Func.PkgPath + "." + loc.function
+						loc.Function = frame.Func.PkgPath + "." + loc.Function
 					}
 				}
 			}
@@ -235,21 +235,21 @@ func (m *Machine) getCurrentLocation() *profileLocation {
 	if len(m.Frames) > 0 {
 		frame := &m.Frames[len(m.Frames)-1]
 		if frame.Source != nil {
-			loc := &profileLocation{
-				line:   frame.Source.GetLine(),
-				column: frame.Source.GetColumn(),
+			loc := &profiler.ProfileLocation{
+				Line:   frame.Source.GetLine(),
+				Column: frame.Source.GetColumn(),
 			}
 
 			// Get file information
 			if m.Package != nil {
-				loc.file = m.Package.PkgPath
+				loc.File = m.Package.PkgPath
 			}
 
 			// Get function information
 			if frame.Func != nil {
-				loc.function = string(frame.Func.Name)
+				loc.Function = string(frame.Func.Name)
 				if frame.Func.PkgPath != "" {
-					loc.function = frame.Func.PkgPath + "." + loc.function
+					loc.Function = frame.Func.PkgPath + "." + loc.Function
 				}
 			}
 
