@@ -25,12 +25,28 @@ An indexer is a tool that transforms raw blockchain data to query-optimized data
 This creates a "database view" of the blockchain while preserving its decentralized nature.
 
 ### Key Capabilities
-| Capability           | Use Cases                                                                 |
-|----------------------|---------------------------------------------------------------------------|
-| **Real-Time Indexing** | • Wallet balance updates<br>• Exchange transaction monitoring<br>• Live dashboards |
-| **Historical Indexing** | • Regulatory compliance<br>• Smart contract debugging<br>• Chain analytics |
-| **Event Extraction** | • DeFi liquidation alerts<br>• DAO governance tracking<br>• Custom notifications |
-| **State Snapshots**  | • NFT provenance tracking<br>• DeFi performance metrics<br>• Historical queries |
+
+#### **Real-Time Indexing**  
+Enables **live tracking** of on-chain activity as it happens. It is used for dashboards, alerts, or applications requiring instant updates.  
+**Example**: Building a **search tool for decentralized social posts**. Instead of scanning every block manually or on-chain (which can be very costly), real-time indexing automatically captures new posts and updates a searchable database, enabling instant full-text search (e.g., "Find all posts mentioning 'AI' in the last hour").  
+
+---
+
+#### **Historical Indexing**  
+Stores and organizes past transactions or events in a queryable format. Useful for compliance, analytics, or reconstructing activity over time.  
+**Example**: Creating a **[username](https://gno.land/r/gnoland/users/v1) search engine**. Historical indexing scans all past profile creations and builds a searchable index, allowing queries like "Show all usernames containing 'Alice' registered before 2024."
+
+---
+
+#### **Event Extraction**  
+Filters and extracts specific on-chain events (e.g., token mints, governance votes) for custom triggers or notifications.  
+**Example**: Watching for **new comments on a decentralized blog**. Event extraction could monitor realm for interactions with specific posts (e.g., "Notify me when someone replies to my post on X board") without processing irrelevant transactions.
+
+---
+
+#### **State Snapshots**  
+Captures the state of the indexed blockchain (e.g., realm storage, NFT ownership) at specific blocks. Critical for proving past conditions or auditing.  
+**Example**: Auditing a **decentralized social graph**. A snapshot at block #X could prove "How many users followed Profile Y on January 1st? Essential for token airdrops or reputation systems relying on historical data.  
 
 
 ## [`tx-indexer`](https://github.com/gnolang/tx-indexer): The official [TM2](https://github.com/tendermint/tendermint2) Indexer
