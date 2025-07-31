@@ -156,7 +156,13 @@ func (db *MemDB) NewBatch() dbm.Batch {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	return &internal.MemBatch{DB: db}
+	return &internal.MemBatch{DB: db, Size: 0}
+}
+
+// Implements DB.
+// It does the same thing as NewBatch because we can't pre-allocate MemDB.
+func (db *MemDB) NewBatchWithSize(_ int) dbm.Batch {
+	return db.NewBatch()
 }
 
 // ----------------------------------------

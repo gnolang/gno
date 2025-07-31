@@ -146,21 +146,35 @@ func (bdb *BoltDB) Stats() map[string]string {
 // boltDBBatch stores key values in sync.Map and dumps them to the underlying
 // DB upon Write call.
 type boltDBBatch struct {
-	db  *BoltDB
-	ops []internal.Operation
+	db   *BoltDB
+	ops  []internal.Operation
+	size int
 }
 
 // NewBatch returns a new batch.
 func (bdb *BoltDB) NewBatch() db.Batch {
+	bdb.db.MaxBatchSize = bbolt.DefaultMaxBatchSize
 	return &boltDBBatch{
-		ops: nil,
-		db:  bdb,
+		ops:  nil,
+		db:   bdb,
+		size: 0,
+	}
+}
+
+// NewBatchWithSize returns a new batch.
+func (bdb *BoltDB) NewBatchWithSize(size int) db.Batch {
+	bdb.db.MaxBatchSize = size
+	return &boltDBBatch{
+		ops:  nil,
+		db:   bdb,
+		size: 0,
 	}
 }
 
 // It is safe to modify the contents of the argument after Set returns but not
 // before.
 func (bdb *boltDBBatch) Set(key, value []byte) error {
+	bdb.size += len(key) + len(value)
 	bdb.ops = append(bdb.ops, internal.Operation{OpType: internal.OpTypeSet, Key: key, Value: value})
 	return nil
 }
@@ -168,6 +182,7 @@ func (bdb *boltDBBatch) Set(key, value []byte) error {
 // It is safe to modify the contents of the argument after Delete returns but
 // not before.
 func (bdb *boltDBBatch) Delete(key []byte) error {
+	bdb.size += len(key)
 	bdb.ops = append(bdb.ops, internal.Operation{OpType: internal.OpTypeDelete, Key: key})
 	return nil
 }
@@ -197,7 +212,17 @@ func (bdb *boltDBBatch) WriteSync() error {
 	return bdb.Write()
 }
 
-func (bdb *boltDBBatch) Close() error { return nil }
+func (bdb *boltDBBatch) Close() error {
+	bdb.size = 0
+	return nil
+}
+
+func (bdb *boltDBBatch) GetByteSize() (int, error) {
+	if bdb.ops == nil {
+		return 0, errors.New("batch has been written or closed")
+	}
+	return bdb.size, nil
+}
 
 // WARNING: Any concurrent writes or reads will block until the iterator is
 // closed.

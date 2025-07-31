@@ -2,6 +2,7 @@ package db
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -261,6 +262,13 @@ func (pb prefixBatch) WriteSync() error {
 
 func (pb prefixBatch) Close() error {
 	return pb.source.Close()
+}
+
+func (bp prefixBatch) GetByteSize() (int, error) {
+	if bp.source == nil {
+		return 0, errors.New("batch has been written or closed")
+	}
+	return bp.source.GetByteSize()
 }
 
 // ----------------------------------------
