@@ -7,8 +7,17 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
 
+// PackageStats represents package statistics
+type PackageStats struct {
+	FileCount   int     `json:"file_count"`
+	TotalLines  int     `json:"total_lines"`
+	TotalSizeKB float64 `json:"total_size_kb"`
+	Status      string  `json:"status"` // "complete", "sampled", "estimated"
+}
+
 const OverviewViewType ViewType = "overview-view"
 
+// ImportLink represents an import with its link
 type ImportLink struct {
 	Name string
 	Link string
@@ -29,6 +38,7 @@ type PackageInfo struct {
 
 type OverviewData struct {
 	PkgPath      string
+	Title        string
 	Readme       Component
 	Functions    []*doc.JSONFunc
 	Doc          string
@@ -44,6 +54,16 @@ type OverviewData struct {
 	Imports      []*ImportLink
 	GroupedConsts []*GroupedDecl
 	GroupedVars   []*GroupedDecl
+	Stats        *PackageStats
+	// Counters
+	FunctionCount int
+	TypeCount     int
+	ConstCount    int
+	VarCount      int
+	FileCount     int
+	DirCount      int
+	ImportCount   int
+
 }
 
 type overviewViewParams struct {
@@ -83,6 +103,24 @@ func OverviewView(data OverviewData) *View {
 	groupedConsts := groupDecls(data.Consts, "const")
 	groupedVars := groupDecls(data.Vars, "var")
 	
+	// Calculate counters first
+	functionCount := len(data.Functions)
+	typeCount := len(data.Types)
+	fileCount := len(data.Files)
+	dirCount := len(data.Dirs)
+	importCount := len(data.Imports)
+	
+	// Calculate total const and var counts (including grouped ones)
+	constCount := 0
+	for _, decl := range groupedConsts {
+		constCount += len(decl.Values)
+	}
+	
+	varCount := 0
+	for _, decl := range groupedVars {
+		varCount += len(decl.Values)
+	}
+	
 	// Create TOC data using TocItem structure
 	var tocItems []*markdown.TocItem
 	
@@ -90,14 +128,28 @@ func OverviewView(data OverviewData) *View {
 	if data.Readme != nil {
 		tocItems = append(tocItems, &markdown.TocItem{
 			Title: []byte("README"),
-			ID:    []byte("readme"),
+			ID:    []byte("source-readme"),
 		})
 	}
 	
-	if len(data.Functions) > 0 {
+	if constCount > 0 {
+		tocItems = append(tocItems, &markdown.TocItem{
+			Title: []byte("Constants"),
+			ID:    []byte("source-constants"),
+		})
+	}
+	
+	if varCount > 0 {
+		tocItems = append(tocItems, &markdown.TocItem{
+			Title: []byte("Variables"),
+			ID:    []byte("source-variables"),
+		})
+	}
+	
+	if functionCount > 0 {
 		section := &markdown.TocItem{
 			Title: []byte("Functions"),
-			ID:    []byte("functions"),
+			ID:    []byte("source-functions"),
 		}
 		for _, fn := range data.Functions {
 			section.Items = append(section.Items, &markdown.TocItem{
@@ -108,52 +160,38 @@ func OverviewView(data OverviewData) *View {
 		tocItems = append(tocItems, section)
 	}
 	
-	if len(data.Consts) > 0 {
-		tocItems = append(tocItems, &markdown.TocItem{
-			Title: []byte("Constants"),
-			ID:    []byte("constants"),
-		})
-	}
-	
-	if len(data.Vars) > 0 {
-		tocItems = append(tocItems, &markdown.TocItem{
-			Title: []byte("Variables"),
-			ID:    []byte("variables"),
-		})
-	}
-	
-	if len(data.Types) > 0 {
+	if typeCount > 0 {
 		section := &markdown.TocItem{
 			Title: []byte("Types"),
-			ID:    []byte("types"),
+			ID:    []byte("source-types"),
 		}
 		for _, t := range data.Types {
 			section.Items = append(section.Items, &markdown.TocItem{
-				Title: []byte(t.Name),
+				Title: []byte("Type " + t.Name),
 				ID:    []byte("type-" + t.Name),
 			})
 		}
 		tocItems = append(tocItems, section)
 	}
 	
-	if len(data.Files) > 0 {
-		tocItems = append(tocItems, &markdown.TocItem{
-			Title: []byte("Source Files"),
-			ID:    []byte("files"),
-		})
-	}
-	
-	if len(data.Dirs) > 0 {
-		tocItems = append(tocItems, &markdown.TocItem{
-			Title: []byte("Directories"),
-			ID:    []byte("directories"),
-		})
-	}
-	
-	if len(data.Imports) > 0 {
+	if importCount > 0 {
 		tocItems = append(tocItems, &markdown.TocItem{
 			Title: []byte("Imports"),
-			ID:    []byte("imports"),
+			ID:    []byte("source-imports"),
+		})
+	}
+	
+	if fileCount > 0 {
+		tocItems = append(tocItems, &markdown.TocItem{
+			Title: []byte("Source Files"),
+			ID:    []byte("source-files"),
+		})
+	}
+	
+	if dirCount > 0 {
+		tocItems = append(tocItems, &markdown.TocItem{
+			Title: []byte("Directories"),
+			ID:    []byte("source-directories"),
 		})
 	}
 
@@ -163,9 +201,10 @@ func OverviewView(data OverviewData) *View {
 		tocData := &markdown.Toc{Items: tocItems}
 		tocComponent = NewTemplateComponent("ui/toc_realm", tocData)
 	}
-
+	
 	// Create article content with grouped data
 	articleData := OverviewData{
+		Title:          data.Title,
 		PkgPath:        data.PkgPath,
 		Readme:         data.Readme,
 		Functions:      data.Functions,
@@ -185,6 +224,15 @@ func OverviewView(data OverviewData) *View {
 			Classes:          "overview-view col-span-1 lg:col-span-7 pb-24 text-gray-900",
 		},
 		PackageInfo: data.PackageInfo,
+		Stats:       data.Stats,
+		// Counters
+		FunctionCount: functionCount,
+		TypeCount:     typeCount,
+		ConstCount:    constCount,
+		VarCount:      varCount,
+		FileCount:     fileCount,
+		DirCount:      dirCount,
+		ImportCount:   importCount,
 	}
 	
 	articleContent := NewTemplateComponent("ui/overview_content", articleData)

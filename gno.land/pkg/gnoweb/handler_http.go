@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"math/rand"
+
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
@@ -515,7 +517,7 @@ func (h *HTTPHandler) getPackageMetadata(pkgPath string, files []string, readmeC
 		h.Logger.Error("gnomod.toml not found", "pkgPath", pkgPath, "error", err)
 		return nil // No gnomod.toml
 	}
-		
+	
 	// Parse gnomod.toml
 	mod, err := gnomod.ParseBytes("gnomod.toml", gnomodData)
 	if err != nil {
@@ -525,10 +527,8 @@ func (h *HTTPHandler) getPackageMetadata(pkgPath string, files []string, readmeC
 	
 	// Detect tests
 	hasTests := false
-
-	// range files and check if any file contains _test
 	for _, file := range files {
-		if strings.Contains(file, "_test") {
+		if strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno") {
 			hasTests = true
 			break
 		}
@@ -539,7 +539,7 @@ func (h *HTTPHandler) getPackageMetadata(pkgPath string, files []string, readmeC
 	
 	// Get license
 	license := h.getPackageLicense(pkgPath)
-		
+	
 	return &components.PackageInfo{
 		Module:     mod.Module,
 		GnoVersion: mod.GetGno(),
@@ -668,9 +668,15 @@ func (h *HTTPHandler) getSourceOverviewView(pkgPath string, gnourl *weburl.GnoUR
 	if packageInfo != nil {
 		packageInfo.PackageType = gnourl.PackageType()
 	}
+	
+	// Calculate package stats with smart limits
+	stats := h.calculatePackageStats(pkgPath, files)
+	
+	title := path.Base(gnourl.Path)
 		
 	return http.StatusOK, components.OverviewView(components.OverviewData{
 		PkgPath:     pkgPath,
+		Title:       title,
 		Readme:      readmeComp,
 		Functions:   functions,
 		Doc:         docString,
@@ -682,6 +688,7 @@ func (h *HTTPHandler) getSourceOverviewView(pkgPath string, gnourl *weburl.GnoUR
 		Dirs:        dirs,
 		PackageInfo: packageInfo,
 		Imports:     imports,
+		Stats:       stats,
 	})
 }
 
@@ -891,4 +898,107 @@ func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 	}
 
 	return data
+}
+
+
+
+// calculatePackageStats calculates package statistics with stratified sampling and robust estimation
+func (h *HTTPHandler) calculatePackageStats(pkgPath string, files []string) *components.PackageStats {
+	fileCount := len(files)
+	threshold := 50
+	// For large packages: use simple sampling
+	if fileCount >= threshold {
+		sampleSize := min(fileCount/10, 50)
+		sampledFiles := simpleSample(files, sampleSize, pkgPath)
+		files = sampledFiles
+		h.Logger.Debug("package stats sampling", "pkgPath", pkgPath, "totalFiles", fileCount, "sampledFiles", len(files))
+	}
+	
+	// Calculate stats
+	totalLines, totalSizeKB := 0, 0.0
+	
+	for _, fileName := range files {
+		if _, meta, err := h.Client.File(pkgPath, fileName); err == nil {
+			totalLines += meta.Lines
+			totalSizeKB += meta.SizeKB
+		}
+	}
+	
+	// For sampled data, use mean estimation
+	if fileCount >= threshold {
+		// Calculate mean from sampled files
+		var linesPerFile []int
+		var sizesPerFile []float64
+		
+		for _, fileName := range files {
+			if _, meta, err := h.Client.File(pkgPath, fileName); err == nil {
+				linesPerFile = append(linesPerFile, meta.Lines)
+				sizesPerFile = append(sizesPerFile, meta.SizeKB)
+			}
+		}
+		
+		// Calculate median from sampled files (more robust to outliers)
+		medianLines := median(linesPerFile)
+		medianSize := median(sizesPerFile)
+		
+		// Estimate using median * total file count
+		totalLines = medianLines * fileCount
+		totalSizeKB = medianSize * float64(fileCount)
+	}
+	
+	status := "complete"
+	if fileCount >= threshold {
+		status = "sampled"
+	}
+	
+	return &components.PackageStats{
+		FileCount:   fileCount,
+		TotalLines:  totalLines,
+		TotalSizeKB: totalSizeKB,
+		Status:      status,
+	}
+}
+
+
+
+// simpleSample creates a deterministic simple sample
+func simpleSample(files []string, sampleSize int, pkgPath string) []string {
+	if len(files) <= sampleSize {
+		return files
+	}
+
+	// Create deterministic seed from package path
+	seed := int64(0)
+	for _, char := range pkgPath {
+		seed = seed*31 + int64(char)
+	}
+	r := rand.New(rand.NewSource(seed))
+
+	// Generate deterministic permutation and take first sampleSize
+	indices := r.Perm(len(files))
+	sampled := make([]string, sampleSize)
+	for i := 0; i < sampleSize; i++ {
+		sampled[i] = files[indices[i]]
+	}
+
+	return sampled
+}
+
+// median calculates the median of a slice (works for both int and float64)
+func median[T int | float64](values []T) T {
+	if len(values) == 0 {
+		return 0
+	}
+	
+	// Sort the values
+	sorted := make([]T, len(values))
+	copy(sorted, values)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+	
+	// Calculate median
+	n := len(sorted)
+	if n%2 == 0 {
+		return (sorted[n/2-1] + sorted[n/2]) / 2
+	}
+	return sorted[n/2]
 }

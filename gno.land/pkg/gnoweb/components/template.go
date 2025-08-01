@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"html/template"
 	"net/url"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/docparser"
 )
 
 //go:embed ui/*.html views/*.html layouts/*.html
@@ -96,6 +98,28 @@ func registerCommonFuncs(funcs template.FuncMap) {
 	
 	// printf formats a string like fmt.Sprintf
 	funcs["printf"] = fmt.Sprintf
+	funcs["formatDoc"] = formatDoc
+}
+
+// formatDoc formats documentation with code blocks using Chroma syntax highlighting
+func formatDoc(doc string) template.HTML {
+	if len(doc) > 100000 {
+		return template.HTML("<div class=\"text-red-500\">Documentation too large (max 100KB)</div>")
+	}
+	
+	blocks, err := docparser.ParseDocumentation(doc)
+	if err != nil {
+		return template.HTML(fmt.Sprintf("<div class=\"text-red-500\">Error parsing documentation: %s</div>", err.Error()))
+	}
+	
+	if len(blocks) == 0 {
+		return ""
+	}
+	
+	// Execute template
+	var buf bytes.Buffer
+	tmpl.ExecuteTemplate(&buf, "ui/doc_content", map[string]interface{}{"Blocks": blocks})
+	return template.HTML(buf.String())
 }
 
 func init() {

@@ -10,7 +10,7 @@
       {{ template "ui/overview_metadata" $ }}
 
       <!-- TOC Section -->
-      {{ template "ui/expend_label" "On this page"}}
+      {{ template "ui/expend_label" "Package Index"}}
       <nav class="toc-nav hidden lg:block text-100 mt-2 lg:mt-0 pb-6 lg:pb-28 px-4 py-2 lg:px-0 *:pl-0">{{ . }}</nav>
     </div>
   </div>
@@ -18,9 +18,13 @@
 {{ end }}
 
 <!-- Overview Header -->
-<header class="mt-10 lg:row-start-1 row-span-1 col-span-1 lg:col-span-7 flex flex-col xl:flex-row justify-between mb-4">
+<header class="mt-10 lg:row-start-1 row-span-1 col-span-1 lg:col-span-7 flex flex-col xl:flex-row justify-between">
   <div class="flex items-center">
-    <h1 class="text-600 text-gray-900 font-bold">Package Overview</h1>
+    <h1 class="inline-flex items-center gap-2 text-600 text-gray-900 font-bold">Overview - {{ .Title }}
+      <span class="flex items-center gap-2 text-50 font-mono text-gray-600 px-2 py-px rounded-full border">
+        {{ .PackageInfo.PackageType }}
+      </span>
+    </h1>
   </div>
 </header>
 
@@ -29,36 +33,26 @@
 {{ end }}
 
 {{ define "ui/code_block" }}
-{{ $id := .ID }}
-{{ $content := .Content }}
-{{ $language := .Language }}
-{{ $doc := .Doc }}
-{{ $name := .Name }}
-{{ $file := .File }}
-{{ $line := .Line }}
-{{ $pkgPath := .PkgPath }}
-{{ $prefix := .Prefix }}
-{{ $prefix := .Prefix }}
-<li id="{{ $id }}" class="group scroll-mt-20">
-  <h3 class="inline-block font-bold text-300" id>{{ $prefix }} <a
-      href="{{ $pkgPath }}$source&file={{ $file }}#L{{ $line }}" class="text-green-600 hover:underline">{{ $name }}</a>
-    <a href="#{{ $id }}" class="hidden group-hover:inline-flex hover:text-green-600 align-sub"><svg
+<li id="{{ .ID }}" class="group scroll-mt-32">
+  <h3 class="inline-block font-semibold text-300" id>{{ .Prefix }} <a
+      href="{{ .PkgPath }}$source&file={{ .File }}#L{{ .Line }}" class="text-green-600 hover:underline">{{ .Name }}</a>
+    <a href="#{{ .ID }}" class="hidden group-hover:inline-flex hover:text-green-600 align-sub"><svg
         class="w-5 h-5 shrink-0">
         <use href="#ico-link"></use>
       </svg></a>
   </h3>
-  {{ if $doc }}<div class="text-gray-600 mt-1">{{ $doc }}</div>{{ end }}
+  {{ if .Doc }}<div class="text-gray-600 mt-1">{{ formatDoc .Doc }}</div>{{ end }}
   <div class="flex flex-col items-center mb-1 mt-3 w-full bg-gray-100 rounded-sm border overflow-hidden">
     <div class="flex w-full justify-between gap-2 border-b py-1 px-2 text-50 text-gray-400">
-      <span class="font-mono">{{ $language }}</span>
+      <span class="font-mono">{{ .Language }}</span>
       <span class="flex items-center gap-4">
         <button class="js-copy-btn group flex items-center gap-0.5 pt-0.5 hover:text-gray-600"
-          data-copy-btn="{{ $id }}">
+          data-copy-btn="{{ .ID }}">
           {{ template "ui/copy" }}
           <span class="hidden xl:inline">Copy</span>
         </button>
-        {{ if and $file $line }}
-        <a href="{{ $pkgPath }}$source&file={{ $file }}#L{{ $line }}"
+        {{ if and .File .Line }}
+        <a href="{{ .PkgPath }}$source&file={{ .File }}#L{{ .Line }}"
           class="flex items-center gap-1 pt-0.5 hover:text-gray-600">
           <svg class="w-4 h-4 shrink-0">
             <use href="#ico-code"></use>
@@ -68,49 +62,145 @@
         {{ end }}
       </span>
     </div>
-    <pre class="mb-0 w-full text-200 font-mono overflow-x-auto" id="{{ $id }}"
-      data-copy-content="{{ $id }}">{{ highlightCode $content $language }}</pre>
+    <pre class="mb-0 w-full text-200 font-mono overflow-x-auto" id="{{ .ID }}"
+      data-copy-content="{{ .ID }}">{{ highlightCode .Content .Language }}</pre>
   </div>
 </li>
 {{ end }}
 
 {{ define "ui/overview_content" }}
+<nav class="grid grid-cols-4 gap-3 pt-4 mb-6 md:border-b sticky top-14 bg-gray-50 z-100">
+  <!-- Section Links -->
+  <div
+    class="col-span-4 md:col-span-3 flex gap-4 xl:gap-6 font-semibold text-gray-400 text-200 md:text-100 w-auto xl:w-full xl:ml-0 pb-2 border-b md:border-b-0 md:pb-0">
+    {{ if .Readme }}
+    <a href="#source-readme" class="relative flex gap-1 items-center pb-2 text-gray-600 hover:text-gray-600 group after:block after:absolute after:h-1 after:bg-green-600 after:left-0 after:rounded-t-sm after:bottom-0 
+        after:w-full">
+      Readme
+    </a>
+    {{ end }}
+    {{ if .GroupedConsts }}
+    <a href="#source-constants" class="flex gap-1 items-center pb-2 hover:text-gray-600 group">
+      Consts
+      <span
+        class="hidden sm:inline text-gray-600 text-50 font-normal sm:font-semibold rounded-full bg-gray-100 sm:px-2 sm:py-0.5 px-1.5 py-px">
+        {{ .ConstCount }}
+      </span>
+    </a>
+    {{ end }}
+    {{ if .GroupedVars }}
+    <a href="#source-variables" class="flex gap-1 items-center pb-2 hover:text-gray-600 group">
+      Vars
+      <span
+        class="hidden sm:inline text-gray-600 text-50 font-normal sm:font-semibold rounded-full bg-gray-100 sm:px-2 sm:py-0.5 px-1.5 py-px">
+        {{ .VarCount }}
+      </span>
+    </a>
+    {{ end }}
+    {{ if .Functions }}
+    <a href="#source-functions" class="flex gap-1 items-center pb-2 hover:text-gray-600 group">
+      Funcs
+      <span
+        class="hidden sm:inline text-gray-600 text-50 font-normal sm:font-semibold rounded-full bg-gray-100 sm:px-2 sm:py-0.5 px-1.5 py-px">
+        {{ .FunctionCount }}
+      </span>
+    </a>
+    {{ end }}
+    {{ if .Types }}
+    <a href="#source-types" class="flex gap-1 items-center pb-2 hover:text-gray-600 group">
+      Types
+      <span
+        class="hidden sm:inline text-gray-600 text-50 font-normal sm:font-semibold rounded-full bg-gray-100 sm:px-2 sm:py-0.5 px-1.5 py-px">
+        {{ .TypeCount }}
+      </span>
+    </a>
+    {{ end }}
+    {{ if .Imports }}
+    <a href="#source-imports" class="flex gap-1 items-center pb-2 hover:text-gray-600 group">
+      Imports
+      <span
+        class="hidden sm:inline text-gray-600 text-50 font-normal sm:font-semibold rounded-full bg-gray-100 sm:px-2 sm:py-0.5 px-1.5 py-px">
+        {{ .ImportCount }}
+      </span>
+    </a>
+    {{ end }}
+    {{ if .Files }}
+    <a href="#source-files" class="flex gap-1 items-center pb-2 hover:text-gray-600 group">
+      Files
+      <span
+        class="hidden sm:inline text-gray-600 text-50 font-normal sm:font-semibold rounded-full bg-gray-100 sm:px-2 sm:py-0.5 px-1.5 py-px">
+        {{ .FileCount }}
+      </span>
+    </a>
+    {{ end }}
+    {{ if .Dirs }}
+    <a href="#source-directories" class="flex gap-1 items-center pb-2 hover:text-gray-600 group">
+      Directories
+      <span
+        class="hidden sm:inline text-gray-600 text-50 font-normal sm:font-semibold rounded-full bg-gray-100 sm:px-2 sm:py-0.5 px-1.5 py-px">
+        {{ .DirCount }}
+      </span>
+    </a>
+    {{ end }}
+  </div>
+
+  <!-- Search Bar -->
+  <div class="col-span-4 md:col-span-1 relative flex text-100 mb-2">
+    <label for="packages-search" class="sr-only">Search packages</label>
+    <input type="text" id="packages-search" name="packages-search"
+      class="js-list-searchbar peer rounded-sm border p-1 outline-none w-full border-l lg:px-2 xl:py-1.5 text-gray-600 focus:border-gray-300 hover:border-gray-300"
+      placeholder="" aria-label="Search packages" />
+    <span
+      class="absolute left-2 top-1/2 -translate-y-1/2 xl:inline hidden peer-placeholder-shown:opacity-100 opacity-0 text-gray-300 pointer-events-none">
+      Jump to
+    </span>
+    <span
+      class="absolute left-2 top-1/2 -translate-y-1/2 xl:hidden inline peer-placeholder-shown:opacity-100 opacity-0 text-gray-300 pointer-events-none">
+      Jump
+    </span>
+    <div class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+      <svg class="w-4 h-4">
+        <use href="#ico-search"></use>
+      </svg>
+    </div>
+  </div>
+</nav>
 <!-- README section -->
 {{ if .Readme }}
-<div class="mb-12" id="readme">
-  <h2 class="text-400 font-bold mb-2">README</h2>
+<div class="mb-12 scroll-mt-36" id="source-readme">
+  <h2 class="inline-flex items-center justify-between gap-2 text-500 mb-2 w-full">
+    <span class="flex items-center gap-2 font-semibold"><svg class="w-6 h-6 shrink-0">
+        <use href="#ico-readme"></use>
+      </svg> Readme</span>
+    <a href="{{ $.PkgPath }}$source&file=README.md"
+      class="flex items-center gap-1 text-gray-400 text-100 hover:text-gray-600">
+      <svg class="w-4 h-4 shrink-0">
+        <use href="#ico-code"></use>
+      </svg>
+      View Source
+    </a>
+  </h2>
   <md-renderer class="realm-view block bg-light p-4 rounded">
     {{ render .Readme }}
   </md-renderer>
 </div>
 {{ end }}
 
-<!-- Functions section -->
-{{ if .Functions }}
-<div class="mb-12" id="functions">
-  <h2 class="inline-flex items-center gap-2 text-600 font-bold mb-5 w-full border-b pb-2"><svg class="w-6 h-6 shrink-0">
-      <use href="#ico-code"></use>
-    </svg> Functions</h2>
-  <ul class="space-y-6">
-    {{ range .Functions }}
-    {{ template "ui/code_block" (dict "ID" (printf "func-%s" .Name) "Content" .Signature "Language" "go" "Doc" .Doc
-    "Name" .Name "File" .File "Line" .Line "PkgPath" $.PkgPath "Prefix" "func") }}
-    {{ end }}
-  </ul>
-</div>
-{{ end }}
-
 <!-- Constants section -->
 {{ if .GroupedConsts }}
-<div class="mb-12" id="constants">
-  <h2 class="inline-flex items-center gap-2 text-600 font-bold mb-5 w-full"><svg class="w-6 h-6 shrink-0">
-      <use href="#ico-code"></use>
-    </svg> Constants</h2>
+<div class="mb-12 scroll-mt-36" id="source-constants">
+  <h2 class="inline-flex items-center justify-between gap-2 text-500 mb-5 w-full border-b pb-2">
+    <span class="flex items-center gap-2 font-semibold"><svg class="w-6 h-6 shrink-0">
+        <use href="#ico-code"></use>
+      </svg> Constants</span>
+    <span class="text-gray-400 text-100 bg-gray-100 px-2 py-0.5 rounded-full">
+      {{ .ConstCount }}
+    </span>
+  </h2>
   <ul class="space-y-6">
     {{ range .GroupedConsts }}
-    {{ template "ui/code_block" (dict "ID" .ID "Content" .Signature "Language" "go"
-    "Doc" .Doc "Name" .Names "File" .File "Line" .Line "PkgPath"
-    $.PkgPath "Prefix" "const") }}
+    {{ template "ui/code_block" (dict "ID" .ID "Content" .Signature "Language" "go" "Doc"
+    .Doc "Name" .Names "File" .File "Line" .Line "PkgPath" $.PkgPath "Prefix" "const") }}
     {{ end }}
   </ul>
 </div>
@@ -118,10 +208,15 @@
 
 <!-- Variables section -->
 {{ if .GroupedVars }}
-<div class="mb-12" id="variables">
-  <h2 class="inline-flex items-center gap-2 text-600 font-bold mb-5 w-full"><svg class="w-6 h-6 shrink-0">
-      <use href="#ico-code"></use>
-    </svg> Variables</h2>
+<div class="mb-12 scroll-mt-36" id="source-variables">
+  <h2 class="inline-flex items-center justify-between gap-2 text-500 mb-5 w-full border-b pb-2">
+    <span class="flex items-center gap-2 font-semibold"><svg class="w-6 h-6 shrink-0">
+        <use href="#ico-code"></use>
+      </svg> Variables</span>
+    <span class="text-gray-400 text-100 bg-gray-100 px-2 py-0.5 rounded-full">
+      {{ .VarCount }}
+    </span>
+  </h2>
   <ul class="space-y-6">
     {{ range .GroupedVars }}
     {{ template "ui/code_block" (dict "ID" .ID "Content" .Signature "Language" "go" "Doc"
@@ -131,12 +226,37 @@
 </div>
 {{ end }}
 
+<!-- Functions section -->
+{{ if .Functions }}
+<div class="mb-12 scroll-mt-36" id="source-functions">
+  <h2 class="inline-flex items-center justify-between gap-2 text-500 mb-5 w-full border-b pb-2">
+    <span class="flex items-center gap-2 font-semibold"><svg class="w-6 h-6 shrink-0">
+        <use href="#ico-code"></use>
+      </svg> Functions</span>
+    <span class="text-gray-400 text-100 bg-gray-100 px-2 py-0.5 rounded-full">
+      {{ .FunctionCount }}
+    </span>
+  </h2>
+  <ul class="space-y-6">
+    {{ range .Functions }}
+    {{ template "ui/code_block" (dict "ID" (printf "func-%s" .Name) "Content" .Signature "Language" "go" "Doc" .Doc
+    "Name" .Name "File" .File "Line" .Line "PkgPath" $.PkgPath "Prefix" "func") }}
+    {{ end }}
+  </ul>
+</div>
+{{ end }}
+
 <!-- Types section -->
 {{ if .Types }}
-<div class="mb-12" id="types">
-  <h2 class="inline-flex items-center gap-2 text-600 font-bold mb-5 border-b pb-2 w-full"><svg class="w-6 h-6 shrink-0">
-      <use href="#ico-code"></use>
-    </svg> Types</h2>
+<div class="mb-12 scroll-mt-36" id="source-types">
+  <h2 class="inline-flex items-center justify-between gap-2 text-500 mb-5 w-full border-b pb-2">
+    <span class="flex items-center gap-2 font-semibold"><svg class="w-6 h-6 shrink-0">
+        <use href="#ico-code"></use>
+      </svg> Types</span>
+    <span class="text-gray-400 text-100 bg-gray-100 px-2 py-0.5 rounded-full">
+      {{ .TypeCount }}
+    </span>
+  </h2>
   <ul class="space-y-6">
     {{ range .Types }}
     {{ template "ui/code_block" (dict "ID" (printf "type-%s" .Name) "Content" .Signature "Language" "go" "Doc" .Doc
@@ -146,12 +266,44 @@
 </div>
 {{ end }}
 
+<!-- Imports section -->
+{{ if .Imports }}
+<div class="mb-12 scroll-mt-36" id="source-imports">
+  <h2 class="inline-flex items-center justify-between gap-2 text-500 mb-5 w-full border-b pb-2">
+    <span class="flex items-center gap-2 font-semibold"><svg class="w-6 h-6 shrink-0">
+        <use href="#ico-ddl"></use>
+      </svg> Imports</span>
+    <span class="text-gray-400 text-100 bg-gray-100 px-2 py-0.5 rounded-full">
+      {{ .ImportCount }}
+    </span>
+  </h2>
+  <ul>
+    {{ range .Imports }}
+    <li>
+      {{ if .Link }}
+      <a href="{{ .Link }}" class="text-blue-700 hover:underline font-mono" rel="noopener noreferrer ugc">
+        {{ .Name }}
+      </a>
+      {{ else }}
+      <span class="text-gray-500 font-mono">{{ .Name }}</span>
+      {{ end }}
+    </li>
+    {{ end }}
+  </ul>
+</div>
+{{ end }}
+
 <!-- Files section -->
 {{ if .Files }}
-<div class="mb-12" id="files">
-  <h2 class="inline-flex items-center gap-2 text-600 font-bold mb-5 border-b pb-2 w-full"><svg class="w-6 h-6 shrink-0">
-      <use href="#ico-file"></use>
-    </svg> Source Files</h2>
+<div class="mb-12 scroll-mt-36" id="source-files">
+  <h2 class="inline-flex items-center justify-between gap-2 text-500 mb-5 w-full border-b pb-2">
+    <span class="flex items-center gap-2 font-semibold"><svg class="w-6 h-6 shrink-0">
+        <use href="#ico-file"></use>
+      </svg> Source Files</span>
+    <span class="text-gray-400 text-100 bg-gray-100 px-2 py-0.5 rounded-full">
+      {{ .FileCount }}
+    </span>
+  </h2>
   <ul>
     {{ range .Files }}
     <li class="border-b first:border-t">
@@ -173,10 +325,15 @@
 
 <!-- Directories section -->
 {{ if .Dirs }}
-<div class="mb-12" id="directories">
-  <h2 class="inline-flex items-center gap-2 text-600 font-bold mb-5 border-b pb-2 w-full"><svg class="w-6 h-6 shrink-0">
-      <use href="#ico-folder"></use>
-    </svg> Directories</h2>
+<div class="mb-12 scroll-mt-36" id="source-directories">
+  <h2 class="inline-flex items-center justify-between gap-2 text-500 mb-5 w-full border-b pb-2">
+    <span class="flex items-center gap-2 font-semibold"><svg class="w-6 h-6 shrink-0">
+        <use href="#ico-folder"></use>
+      </svg> Directories</span>
+    <span class="text-gray-400 text-100 bg-gray-100 px-2 py-0.5 rounded-full">
+      {{ .DirCount }}
+    </span>
+  </h2>
   <ul>
     {{ range .Dirs }}
     <li class="border-b first:border-t">
@@ -196,28 +353,6 @@
 </div>
 {{ end }}
 
-<!-- Imports section -->
-{{ if .Imports }}
-<div class="mb-12" id="imports">
-  <h2 class="inline-flex items-center gap-2 text-600 font-bold mb-5 border-b pb-2 w-full"><svg class="w-6 h-6 shrink-0">
-      <use href="#ico-ddl"></use>
-    </svg> Imports</h2>
-  <ul>
-    {{ range .Imports }}
-    <li>
-      {{ if .Link }}
-      <a href="{{ .Link }}" class="text-blue-700 hover:underline font-mono" rel="noopener noreferrer ugc">
-        {{ .Name }}
-      </a>
-      {{ else }}
-      <span class="text-gray-500 font-mono">{{ .Name }}</span>
-      {{ end }}
-    </li>
-    {{ end }}
-  </ul>
-</div>
-{{ end }}
-
 {{ if and (not .Readme) (not .Functions) (not .Files) }}
 <div class="text-gray-400 italic">No documentation, functions or files found in this package.</div>
 {{ end }}
@@ -225,45 +360,44 @@
 
 {{ define "ui/overview_metadata" }}
 {{ if .PackageInfo }}
-<div class="mb-6 p-4 bg-gray-50 rounded-lg border">
-  <h3 class="text-sm font-semibold text-gray-700 mb-3">Package Info</h3>
+<div class="mb-6 lg:mt-10 bg-gray-50 text-100">
+  <h3 class="text-300 font-semibold text-gray-700 mb-3">Package Info</h3>
 
   <!-- Module -->
   {{ if .PackageInfo.Module }}
-  <div class="mb-2">
-    <span class="text-xs text-gray-500">Module:</span>
-    <div class="text-xs font-mono text-gray-700 break-all">{{ .PackageInfo.Module }}</div>
+  <div class="mb-2 flex justify-between">
+    <span class="text-gray-500 font-semibold">Module:</span>
+    <div class="text-gray-700 break-all">{{ .PackageInfo.Module }}</div>
   </div>
   {{ end }}
 
   <!-- Version -->
   {{ if .PackageInfo.GnoVersion }}
-  <div class="mb-2">
-    <span class="text-xs text-gray-500">Gno Version:</span>
-    <div class="text-xs font-mono text-gray-700">{{ .PackageInfo.GnoVersion }}</div>
+  <div class="mb-2 flex justify-between">
+    <span class="text-gray-500 font-semibold">Gno Version:</span>
+    <div class="text-gray-700">{{ .PackageInfo.GnoVersion }}</div>
   </div>
   {{ end }}
 
   <!-- Package Type -->
   {{ if .PackageInfo.PackageType }}
-  <div class="mb-2">
-    <span class="text-xs text-gray-500">Type:</span>
-    <div class="text-xs font-mono text-gray-700">{{ .PackageInfo.PackageType }}</div>
+  <div class="mb-2 flex justify-between">
+    <span class="text-gray-500 font-semibold">Type:</span>
+    <div class="text-gray-700">{{ .PackageInfo.PackageType }}</div>
   </div>
   {{ end }}
 
   <!-- Creator -->
-  <div class="mb-2">
-    <span class="text-xs text-gray-500">Creator:</span>
+  <div class="mb-2 flex justify-between">
+    <span class="text-gray-500 font-semibold">Creator:</span>
     {{ if .PackageInfo.Creator }}
-    <div class="text-xs font-mono text-gray-700">
-      <a href="/u/{{ .PackageInfo.Creator }}" class="text-blue-600 hover:text-blue-800 hover:underline"
-        title="{{ .PackageInfo.Creator }}">
+    <div class="text-gray-700">
+      <a href="/u/{{ .PackageInfo.Creator }}" class="text-green-600 hover:underline" title="{{ .PackageInfo.Creator }}">
         Gnome {{ truncateMiddle .PackageInfo.Creator 4 }}
       </a>
     </div>
     {{ else }}
-    <div class="text-xs font-mono text-gray-500 italic">
+    <div class="text-gray-500 italic">
       No Creator
     </div>
     {{ end }}
@@ -271,89 +405,97 @@
 
   <!-- Height -->
   {{ if and .PackageInfo.Height (gt .PackageInfo.Height 0) }}
-  <div class="mb-2">
-    <span class="text-xs text-gray-500">Block Height:</span>
-    <div class="text-xs font-mono text-gray-700">{{ .PackageInfo.Height }}</div>
+  <div class="mb-2 flex justify-between">
+    <span class="text-gray-500 font-semibold">Block Height:</span>
+    <div class="text-gray-700">{{ .PackageInfo.Height }}</div>
+  </div>
+  {{ end }}
+
+  <!-- Package Stats -->
+  {{ if .Stats }}
+  <div class="mt-4 pt-4 border-t border-gray-200">
+    <h4 class="text-200 font-semibold text-gray-600 mb-2">Code Statistics</h4>
+
+    <div class="mb-2 flex justify-between">
+      <span class="text-gray-500 font-semibold">Files:</span>
+      <div class="text-gray-700">{{ .Stats.FileCount }}</div>
+    </div>
+
+    <div class="mb-2 flex justify-between">
+      <span class="text-gray-500 font-semibold">Total Lines:</span>
+      <div class="text-gray-700">{{ .Stats.TotalLines }}</div>
+    </div>
+
+    <div class="mb-2 flex justify-between">
+      <span class="text-gray-500 font-semibold">Total Size:</span>
+      <div class="text-gray-700">{{ printf "%.1f KB" .Stats.TotalSizeKB }}</div>
+    </div>
+
+    {{ if ne .Stats.Status "complete" }}
+    <div class="mt-2 text-50 text-gray-500 italic">
+      {{ if eq .Stats.Status "sampled" }}
+      * Estimated from sample
+      {{ else }}
+      * Statistics unavailable
+      {{ end }}
+    </div>
+    {{ end }}
   </div>
   {{ end }}
 
   <!-- Badges -->
-  <div class="flex flex-wrap gap-1 mt-3">
-    {{ if .PackageInfo.Draft }}
-    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-      Draft
-    </span>
-    {{ else }}
-    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-      Published
-    </span>
-    {{ end }}
-    {{ if .PackageInfo.Private }}
-    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-      Private
-    </span>
-    {{ else }}
-    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-      Public
-    </span>
-    {{ end }}
-    {{ if .PackageInfo.License }}
-    <a href="{{ $.PkgPath }}$source&file=LICENSE.md"
-      class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200">
-      {{ .PackageInfo.License }}
-    </a>
-    {{ else }}
-    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-      No License
-    </span>
-    {{ end }}
-    {{ if .PackageInfo.HasTests }}
-    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-      Tests
-    </span>
-    {{ else }}
-    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-      No Tests
-    </span>
-    {{ end }}
-    {{ if .PackageInfo.HasReadme }}
-    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-      Documentation
-    </span>
-    {{ else }}
-    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-      No Documentation
-    </span>
-    {{ end }}
-  </div>
-</div>
-{{ end }}
-
-<!-- Statistics -->
-<div class="mb-6 p-4 bg-gray-50 rounded-lg border">
-  <h3 class="text-sm font-semibold text-gray-700 mb-3">Statistics</h3>
-
-  <div class="space-y-2 text-xs">
-    <div class="flex justify-between">
-      <span class="text-gray-500">Files:</span>
-      <span class="font-mono text-gray-700">{{ .FileCounter }}</span>
-    </div>
-    <div class="flex justify-between">
-      <span class="text-gray-500">Functions:</span>
-      <span class="font-mono text-gray-700">{{ len .Functions }}</span>
-    </div>
-    <div class="flex justify-between">
-      <span class="text-gray-500">Types:</span>
-      <span class="font-mono text-gray-700">{{ len .Types }}</span>
-    </div>
-    <div class="flex justify-between">
-      <span class="text-gray-500">Directories:</span>
-      <span class="font-mono text-gray-700">{{ len .Dirs }}</span>
-    </div>
-    <div class="flex justify-between">
-      <span class="text-gray-500">Imports:</span>
-      <span class="font-mono text-gray-700">{{ len .Imports }}</span>
+  <div class="border-t border-gray-200 pt-4 mt-4">
+    <h4 class="text-200 font-semibold text-gray-600 mb-4">Badges</h4>
+    <div class="flex flex-wrap gap-2">
+      {{ if .PackageInfo.Draft }}
+      <span class="inline-flex items-center px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-600">
+        Draft
+      </span>
+      {{ else }}
+      <span class="inline-flex items-center px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-600">
+        Published
+      </span>
+      {{ end }}
+      {{ if .PackageInfo.Private }}
+      <span class="inline-flex items-center px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-600">
+        Private
+      </span>
+      {{ else }}
+      <span class="inline-flex items-center px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-600">
+        Public
+      </span>
+      {{ end }}
+      {{ if .PackageInfo.License }}
+      <a href="{{ $.PkgPath }}$source&file=LICENSE.md"
+        class="inline-flex items-center px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-600">
+        {{ .PackageInfo.License }}
+      </a>
+      {{ else }}
+      <span class="inline-flex items-center px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-600">
+        No License
+      </span>
+      {{ end }}
+      {{ if .PackageInfo.HasTests }}
+      <span class="inline-flex items-center px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-600">
+        Tests
+      </span>
+      {{ else }}
+      <span class="inline-flex items-center px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-600">
+        No Tests
+      </span>
+      {{ end }}
+      {{ if .PackageInfo.HasReadme }}
+      <span class="inline-flex items-center px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-600">
+        Readme
+      </span>
+      {{ else }}
+      <span class="inline-flex items-center px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-600">
+        No Readme
+      </span>
+      {{ end }}
     </div>
   </div>
+  {{ end }}
 </div>
+
 {{ end }}

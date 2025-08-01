@@ -807,6 +807,14 @@
 	main :is(.realm-view, .source-code) > pre .chroma-ln {
 		@apply scroll-mt-24;
 	}
+
+	.doc-example + .doc-text {
+		@apply mt-5;
+	}
+
+	.doc-example:last-child {
+		@apply mb-5;
+	}
 }
 
 @layer utilities {
