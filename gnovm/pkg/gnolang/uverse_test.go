@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
@@ -187,10 +187,11 @@ func BenchmarkGnoPrintln(b *testing.B) {
 						println("abcdeffffffffffffffff1222 11111   11111")
 					}
 				}`
-	m.RunMemPackage(&gnovm.MemPackage{
+	m.RunMemPackage(&std.MemPackage{
+		Type: MPUserProd,
 		Name: "p",
-		Path: "p",
-		Files: []*gnovm.MemFile{
+		Path: "exmaple.com/r/p",
+		Files: []*std.MemFile{
 			{Name: "a.gno", Body: program},
 		},
 	}, false)
@@ -200,7 +201,7 @@ func BenchmarkGnoPrintln(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
-		m.RunStatement(S(Call(Nx("main"))))
+		m.RunMain()
 		pSink = buf.String()
 	}
 
@@ -283,16 +284,17 @@ func TestGnoPrintAndPrintln(t *testing.T) {
 
 			program := `package p
 				func main() {` + tt.srcArgs + "\n}"
-			m.RunMemPackage(&gnovm.MemPackage{
+			m.RunMemPackage(&std.MemPackage{
+				Type: MPUserProd,
 				Name: "p",
-				Path: "p",
-				Files: []*gnovm.MemFile{
+				Path: "exmaple.com/r/p",
+				Files: []*std.MemFile{
 					{Name: "a.gno", Body: program},
 				},
 			}, false)
 
 			buf.Reset()
-			m.RunStatement(S(Call(Nx("main"))))
+			m.RunMain()
 			got := buf.String()
 			assert.Equal(t, tt.want, got)
 		})

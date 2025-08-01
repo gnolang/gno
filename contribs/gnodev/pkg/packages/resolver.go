@@ -199,10 +199,6 @@ func PackageCheckerMiddleware(logger *slog.Logger) MiddlewareHandler {
 			return nil, err
 		}
 
-		if err := pkg.Validate(); err != nil {
-			return nil, fmt.Errorf("invalid package %q: %w", path, err)
-		}
-
 		// Post-process each file in the package.
 		for _, file := range pkg.Files {
 			fname := file.Name

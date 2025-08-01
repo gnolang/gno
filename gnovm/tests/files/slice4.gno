@@ -7,3 +7,6 @@ func main() {
 
 // Error:
 // allocation limit exceeded
+
+// TypeCheckError:
+// main/slice4.gno:5:2: declared and not used: b

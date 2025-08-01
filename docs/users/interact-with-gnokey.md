@@ -1,15 +1,11 @@
-# Interacting with gno.land using gnokey
+# Interacting with Gno.land using gnokey
 
 `gnokey` is the official command-line wallet and utility for interacting with
-gno.land networks. It allows you to manage keys, query the blockchain, send
+Gno.land networks. It allows you to manage keys, query the blockchain, send
 transactions, and deploy smart contracts. This guide will help you get started
 with the essential operations.
 
 ## Installing gnokey
-
-You can install `gnokey` through various methods:
-
-### Option 1: Install from source
 
 To build and install from source, you'll need:
 - Git
@@ -24,10 +20,6 @@ cd gno
 # Install gnokey
 make install
 ```
-
-### Option 2: Download prebuilt binaries
-
-Coming soon.
 
 ## Managing key pairs
 
@@ -90,7 +82,7 @@ In Gno, there are four types of messages that can change on-chain state:
 - `Send` - sends coins from one address to another
 - `Run` - executes a Gno script against on-chain code
 
-A gno.land transaction contains two main things:
+A Gno.land transaction contains two main things:
 - A base configuration where variables such as `gas-fee`, `gas-wanted`, and others
   are defined
 - A list of messages to execute on the chain
@@ -464,15 +456,12 @@ func Render(_ string) string {
 }
 ```
 
-This realm is deployed to [`gno.land/r/docs/examples/run/foo`](https://gno.land/r/docs/examples/run/foo/package.gno)
-on the Staging testnet.
-
 1. Calling realm functions multiple times in a loop:
 ```go
 package main
 
 import (
-  "gno.land/r/docs/examples/run/foo"
+  "gno.land/r/docs/examples/foo"
 )
 
 func main() {
@@ -497,7 +486,7 @@ package main
 import (
   "strconv"
 
-  "gno.land/r/docs/examples/run/foo"
+  "gno.land/r/docs/examples/foo"
 )
 
 func main() {
@@ -522,7 +511,7 @@ func main() {
 ```go
 package main
 
-import "gno.land/r/docs/examples/run/foo"
+import "gno.land/r/docs/examples/foo"
 
 func main() {
 	println(foo.MainFoo.String())
@@ -649,15 +638,15 @@ Make sure the signature is in the `hex` format.
 gnokey verify -docpath userbook.tx mykey <signature>
 ```
 
-# Querying a gno.land network
+# Querying a Gno.land network
 
-gno.land and `gnokey` support ABCI queries. Using ABCI queries, you can query the state of
-a gno.land network without spending any gas. All queries need to be pointed towards
+Gno.land and `gnokey` support ABCI queries. Using ABCI queries, you can query the state of
+a Gno.land network without spending any gas. All queries need to be pointed towards
 a specific remote address from which the state will be retrieved.
 
 To send ABCI queries, you can use the `gnokey query` subcommand, and provide it
 with the appropriate query. The `query` subcommand allows us to send different
-types of queries to a gno.land network.
+types of queries to a Gno.land network.
 
 Below is a list of queries a user can make with `gnokey`:
 - `auth/accounts/{ADDRESS}` - returns information about an account
@@ -708,7 +697,7 @@ to hold account data. It contains the following information:
 - `address` - the address of the account
 - `coins` - the list of coins the account owns
 - `public_key` - the TM2 public key of the account, from which the address is derived
-- `account_number` - a unique identifier for the account on the gno.land chain
+- `account_number` - a unique identifier for the account on the Gno.land chain
 - `sequence` - a nonce, used for protection against replay attacks
 
 ## `bank/balances`
@@ -778,7 +767,7 @@ files found within the `wugnot` realm:
 
 ```bash
 height: 0
-data: gno.mod
+data: gnomod.toml
 wugnot.gno
 z0_filetest.gno
 ```
@@ -936,6 +925,58 @@ gnokey query vm/qrender --data "gno.land/r/demo/wugnot:balance/g125em6arxsnj49vx
 To see how this was achieved, check out `wugnot`'s `Render()` function.
 :::
 
+## `vm/qpaths`
+
+`vm/qpaths` lists all existing package paths prefixed with the specified string 
+using `--data=<prefix>`. If no paths are provided, all known paths will be 
+listed, including those from `stdlibs`. You can specify an additional *limit* 
+parameter at the end of the path using `<path>?limit=<x>` to restrict the number 
+of results to `x` elements. If `0` is specified as *limit*, then, no limit will 
+be applied, with a hard limit of `10_000`. The default *limit* is `1_000`.
+  
+A simple example:
+```bash
+gnokey query vm/qpaths --data "gno.land/r/gnoland"
+```
+
+Would output: 
+```bash
+height: 0
+data: gno.land/r/gnoland/blog
+gno.land/r/gnoland/coins
+gno.land/r/gnoland/events
+gno.land/r/gnoland/home
+gno.land/r/gnoland/pages
+gno.land/r/gnoland/users
+gno.land/r/gnoland/users/v1
+```
+
+The result limit can also be specified in the following manner (mind the added 
+quotes):
+```bash
+gnokey query "vm/qpaths?limit=3" --data "gno.land/r/gnoland"
+```
+
+You can also specify a string prefixed with `@` to list username's sub-packages
+including `/p` and `/r`.
+
+For example:
+```bash
+gnokey query vm/qpaths --data "@foo"
+```
+
+```bash
+height: 0
+data: gno.land/r/foo
+gno.land/r/foo/art/gnoface
+gno.land/r/foo/art/millipede
+gno.land/p/foo/ui
+gno.land/p/foo/svg
+```
+
+In practice, this is shorthand for listing packages under `gno.land/p/foo` & 
+`gno.land/r/foo`.
+
 ### Gas parameters
 
 When using `gnokey` to send transactions, you'll need to specify gas parameters:
@@ -952,12 +993,5 @@ gnokey maketx call \
   YOUR_KEY_NAME
 ```
 
-For detailed information about gas fees, including recommended values and optimization strategies, see the [Gas Fees documentation](../resources/gas-fees.md).
-
-## Conclusion
-
-That's it! 🎉
-
-In this tutorial, you've learned to use `gnokey` to query a gno.land
-network.
-
+For detailed information about gas fees, including recommended values and 
+optimization strategies, see the [Gas Fees documentation](../resources/gas-fees.md).

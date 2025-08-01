@@ -3,7 +3,6 @@ package vm
 import (
 	"testing"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +14,7 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 	creator := crypto.AddressFromPreimage([]byte("addr1"))
 	pkgName := "test"
 	pkgPath := "gno.land/r/namespace/test"
-	files := []*gnovm.MemFile{
+	files := []*std.MemFile{
 		{
 			Name: "test.gno",
 			Body: `package test
@@ -30,23 +29,21 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 		expectErr       error
 	}{
 		{
-			name: "valid message",
-			msg:  NewMsgAddPackage(creator, pkgPath, files),
-			expectSignBytes: `{"creator":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt","deposit":"",` +
-				`"package":{"files":[{"body":"package test\n\t\tfunc Echo() string {return \"hello world\"}",` +
-				`"name":"test.gno"}],"name":"test","path":"gno.land/r/namespace/test"}}`,
-			expectErr: nil,
+			name:            "valid message",
+			msg:             NewMsgAddPackage(creator, pkgPath, files),
+			expectSignBytes: `{"creator":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt","package":{"files":[{"body":"package test\n\t\tfunc Echo() string {return \"hello world\"}","name":"test.gno"}],"info":null,"name":"test","path":"gno.land/r/namespace/test","type":null},"send":""}`,
+			expectErr:       nil,
 		},
 		{
 			name: "missing creator address",
 			msg: MsgAddPackage{
 				Creator: crypto.Address{},
-				Package: &gnovm.MemPackage{
+				Package: &std.MemPackage{
 					Name:  pkgName,
 					Path:  pkgPath,
 					Files: files,
 				},
-				Deposit: std.Coins{std.Coin{
+				MaxDeposit: std.Coins{std.Coin{
 					Denom:  "ugnot",
 					Amount: 1000,
 				}},
@@ -57,12 +54,12 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 			name: "missing package path",
 			msg: MsgAddPackage{
 				Creator: creator,
-				Package: &gnovm.MemPackage{
+				Package: &std.MemPackage{
 					Name:  pkgName,
 					Path:  "",
 					Files: files,
 				},
-				Deposit: std.Coins{std.Coin{
+				MaxDeposit: std.Coins{std.Coin{
 					Denom:  "ugnot",
 					Amount: 1000,
 				}},
@@ -73,12 +70,12 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 			name: "invalid deposit coins",
 			msg: MsgAddPackage{
 				Creator: creator,
-				Package: &gnovm.MemPackage{
+				Package: &std.MemPackage{
 					Name:  pkgName,
 					Path:  pkgPath,
 					Files: files,
 				},
-				Deposit: std.Coins{std.Coin{
+				MaxDeposit: std.Coins{std.Coin{
 					Denom:  "ugnot",
 					Amount: -1000, // invalid amount
 				}},
@@ -213,8 +210,8 @@ func TestMsgRun_ValidateBasic(t *testing.T) {
 
 	caller := crypto.AddressFromPreimage([]byte("addr1"))
 	pkgName := "main"
-	pkgPath := "gno.land/r/" + caller.String() + "/run"
-	pkgFiles := []*gnovm.MemFile{
+	pkgPath := "gno.land/e/" + caller.String() + "/run"
+	pkgFiles := []*std.MemFile{
 		{
 			Name: "main.gno",
 			Body: `package main
@@ -229,19 +226,16 @@ func TestMsgRun_ValidateBasic(t *testing.T) {
 		expectErr       error
 	}{
 		{
-			name: "valid message",
-			msg:  NewMsgRun(caller, std.NewCoins(std.NewCoin("ugnot", 1000)), pkgFiles),
-			expectSignBytes: `{"caller":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt",` +
-				`"package":{"files":[{"body":"package main\n\t\tfunc Echo() string {return \"hello world\"}",` +
-				`"name":"main.gno"}],"name":"main","path":""},` +
-				`"send":"1000ugnot"}`,
-			expectErr: nil,
+			name:            "valid message",
+			msg:             NewMsgRun(caller, std.NewCoins(std.NewCoin("ugnot", 1000)), pkgFiles),
+			expectSignBytes: `{"caller":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt","package":{"files":[{"body":"package main\n\t\tfunc Echo() string {return \"hello world\"}","name":"main.gno"}],"info":null,"name":"main","path":"","type":null},"send":"1000ugnot"}`,
+			expectErr:       nil,
 		},
 		{
 			name: "invalid caller address",
 			msg: MsgRun{
 				Caller: crypto.Address{},
-				Package: &gnovm.MemPackage{
+				Package: &std.MemPackage{
 					Name:  pkgName,
 					Path:  pkgPath,
 					Files: pkgFiles,
@@ -257,7 +251,7 @@ func TestMsgRun_ValidateBasic(t *testing.T) {
 			name: "invalid package path",
 			msg: MsgRun{
 				Caller: caller,
-				Package: &gnovm.MemPackage{
+				Package: &std.MemPackage{
 					Name:  pkgName,
 					Path:  "gno.land/r/namespace/test", // this is not a valid run path
 					Files: pkgFiles,

@@ -12,15 +12,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/mod/modfile"
-	"golang.org/x/mod/module"
 )
 
 func TestDownloadDeps(t *testing.T) {
 	for _, tc := range []struct {
 		desc               string
 		pkgPath            string
-		modFile            gnomod.File
+		modFile            *gnomod.File
 		errorShouldContain string
 		requirements       []string
 		ioErrContains      []string
@@ -28,40 +26,34 @@ func TestDownloadDeps(t *testing.T) {
 		{
 			desc:    "not_exists",
 			pkgPath: "gno.land/p/demo/does_not_exists",
-			modFile: gnomod.File{
-				Module: &modfile.Module{
-					Mod: module.Version{
-						Path: "testFetchDeps",
-					},
-				},
-			},
+			modFile: func() *gnomod.File {
+				f := &gnomod.File{}
+				f.Module = "gno.land/r/test_fetch_deps"
+				return f
+			}(),
 			errorShouldContain: "query files list for pkg \"gno.land/p/demo/does_not_exists\": package \"gno.land/p/demo/does_not_exists\" is not available",
 		}, {
 			desc:    "fetch_gno.land/p/demo/avl",
 			pkgPath: "gno.land/p/demo/avl",
-			modFile: gnomod.File{
-				Module: &modfile.Module{
-					Mod: module.Version{
-						Path: "testFetchDeps",
-					},
-				},
-			},
+			modFile: func() *gnomod.File {
+				f := &gnomod.File{}
+				f.Module = "gno.land/r/test_fetch_deps"
+				return f
+			}(),
 			requirements: []string{"avl", "ufmt"},
 			ioErrContains: []string{
 				"gno: downloading gno.land/p/demo/avl",
 				"gno: downloading gno.land/p/demo/ufmt",
 			},
 		}, {
-			desc:    "fetch_gno.land/p/demo/blog6",
+			desc:    "fetch_gno.land/p/demo/blog",
 			pkgPath: "gno.land/p/demo/blog",
-			modFile: gnomod.File{
-				Module: &modfile.Module{
-					Mod: module.Version{
-						Path: "testFetchDeps",
-					},
-				},
-			},
-			requirements: []string{"avl", "blog", "diff", "uassert", "ufmt", "mux"},
+			modFile: func() *gnomod.File {
+				f := &gnomod.File{}
+				f.Module = "gno.land/r/test_fetch_deps"
+				return f
+			}(),
+			requirements: []string{"avl", "blog", "diff", "uassert", "ufmt", "mux", "nestedpkg", "testutils"},
 			ioErrContains: []string{
 				"gno: downloading gno.land/p/demo/blog",
 				"gno: downloading gno.land/p/demo/avl",
@@ -70,17 +62,15 @@ func TestDownloadDeps(t *testing.T) {
 		}, {
 			desc:    "fetch_replace_gno.land/p/demo/avl",
 			pkgPath: "gno.land/p/demo/replaced_avl",
-			modFile: gnomod.File{
-				Module: &modfile.Module{
-					Mod: module.Version{
-						Path: "testFetchDeps",
-					},
-				},
-				Replace: []*modfile.Replace{{
-					Old: module.Version{Path: "gno.land/p/demo/replaced_avl"},
-					New: module.Version{Path: "gno.land/p/demo/avl"},
-				}},
-			},
+			modFile: func() *gnomod.File {
+				f := &gnomod.File{}
+				f.Module = "gno.land/r/test_fetch_deps"
+				f.Replace = []gnomod.Replace{{
+					Old: "gno.land/p/demo/replaced_avl",
+					New: "gno.land/p/demo/avl",
+				}}
+				return f
+			}(),
 			requirements: []string{"avl", "ufmt"},
 			ioErrContains: []string{
 				"gno: downloading gno.land/p/demo/avl",
@@ -89,18 +79,17 @@ func TestDownloadDeps(t *testing.T) {
 		}, {
 			desc:    "fetch_replace_local",
 			pkgPath: "gno.land/p/demo/foo",
-			modFile: gnomod.File{
-				Module: &modfile.Module{
-					Mod: module.Version{
-						Path: "testFetchDeps",
-					},
-				},
-				Replace: []*modfile.Replace{{
-					Old: module.Version{Path: "gno.land/p/demo/foo"},
-					New: module.Version{Path: "../local_foo"},
-				}},
-			},
+			modFile: func() *gnomod.File {
+				f := &gnomod.File{}
+				f.Module = "gno.land/r/test_fetch_deps"
+				f.Replace = []gnomod.Replace{{
+					Old: "gno.land/p/demo/foo",
+					New: "../local_foo",
+				}}
+				return f
+			}(),
 		},
+		// XXX: infinite loop (A imports B, B imports C, C imports A)
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			mockErr := bytes.NewBufferString("")
@@ -118,7 +107,7 @@ func TestDownloadDeps(t *testing.T) {
 			fetcher := examplespkgfetcher.New()
 
 			// gno: downloading dependencies
-			err = downloadDeps(io, dirPath, &tc.modFile, fetcher)
+			err = downloadDeps(io, dirPath, tc.modFile, fetcher, make(map[string]struct{}))
 			if tc.errorShouldContain != "" {
 				require.ErrorContains(t, err, tc.errorShouldContain)
 			} else {
@@ -144,7 +133,7 @@ func TestDownloadDeps(t *testing.T) {
 				mockErr.Reset()
 
 				// Try fetching again. Should be cached
-				downloadDeps(io, dirPath, &tc.modFile, fetcher)
+				err = downloadDeps(io, dirPath, tc.modFile, fetcher, make(map[string]struct{}))
 				for _, c := range tc.ioErrContains {
 					assert.NotContains(t, mockErr.String(), c)
 				}

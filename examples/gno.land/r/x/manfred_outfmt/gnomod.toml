@@ -1,0 +1,3 @@
+module = "gno.land/r/x/manfred_outfmt"
+gno = "0.9"
+ignore = true

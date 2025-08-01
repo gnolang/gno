@@ -1,15 +1,16 @@
 package packages
 
 import (
+	"errors"
 	"fmt"
 	"go/parser"
 	"go/token"
 	"os"
-	"path/filepath"
+	"strings"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type PackageKind int
@@ -21,32 +22,38 @@ const (
 )
 
 type Package struct {
-	gnovm.MemPackage
+	std.MemPackage
 	Kind     PackageKind
 	Location string
 }
 
 func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error) {
-	modpath := filepath.Join(dir, "gno.mod")
-	if _, err := os.Stat(modpath); err == nil {
-		draft, err := isDraftFile(modpath)
-		if err != nil {
-			return nil, err
-		}
-
-		// Skip draft package
-		// XXX: We could potentially do that in a middleware, but doing this
-		// here avoid to potentially parse broken files
-		if draft {
-			return nil, ErrResolverPackageSkip
-		}
+	if !gnolang.IsUserlib(path) && !gnolang.IsStdlib(path) {
+		return nil, ErrResolverPackageSkip
 	}
 
-	mempkg, err := gnolang.ReadMemPackage(dir, path)
+	mod, err := gnomod.ParseDir(dir)
+	switch {
+	case err == nil:
+		if mod.Ignore {
+			// Skip ignored package
+			// XXX: We could potentially do that in a middleware, but doing this
+			// here avoid to potentially parse broken files
+			return nil, ErrResolverPackageSkip
+		}
+	case errors.Is(err, os.ErrNotExist) || errors.Is(err, gnomod.ErrNoModFile):
+		// gnomod.toml is not present, continue anyway
+	default:
+		return nil, err
+	}
+
+	mempkg, err := gnolang.ReadMemPackage(dir, path, gnolang.MPAnyAll)
 	switch {
 	case err == nil: // ok
 	case os.IsNotExist(err):
 		return nil, ErrResolverPackageNotFound
+	case mempkg == nil || mempkg.IsEmpty(): // XXX: should check an internal error instead
+		return nil, ErrResolverPackageSkip
 	default:
 		return nil, fmt.Errorf("unable to read package %q: %w", dir, err)
 	}
@@ -62,14 +69,14 @@ func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error)
 	}, nil
 }
 
-func validateMemPackage(fset *token.FileSet, mempkg *gnovm.MemPackage) error {
-	if mempkg.IsEmpty() {
+func validateMemPackage(fset *token.FileSet, mempkg *std.MemPackage) error {
+	if isMemPackageEmpty(mempkg) {
 		return fmt.Errorf("empty package: %w", ErrResolverPackageSkip)
 	}
 
 	// Validate package name
 	for _, file := range mempkg.Files {
-		if !isGnoFile(file.Name) || isTestFile(file.Name) {
+		if !isGnoFile(file.Name) {
 			continue
 		}
 
@@ -78,7 +85,12 @@ func validateMemPackage(fset *token.FileSet, mempkg *gnovm.MemPackage) error {
 			return fmt.Errorf("unable to parse file %q: %w", file.Name, err)
 		}
 
-		if f.Name.Name != mempkg.Name {
+		if strings.HasSuffix(file.Name, "_filetest.gno") {
+			continue
+		}
+
+		pname := strings.TrimSuffix(f.Name.Name, "_test")
+		if pname != mempkg.Name {
 			return fmt.Errorf("%q package name conflict, expected %q found %q",
 				mempkg.Path, mempkg.Name, f.Name.Name)
 		}
@@ -87,16 +99,16 @@ func validateMemPackage(fset *token.FileSet, mempkg *gnovm.MemPackage) error {
 	return nil
 }
 
-func isDraftFile(modpath string) (bool, error) {
-	modfile, err := os.ReadFile(modpath)
-	if err != nil {
-		return false, fmt.Errorf("unable to read file %q: %w", modpath, err)
+func isMemPackageEmpty(mempkg *std.MemPackage) bool {
+	if mempkg.IsEmpty() {
+		return true
 	}
 
-	mod, err := gnomod.Parse(modpath, modfile)
-	if err != nil {
-		return false, fmt.Errorf("unable to parse `gno.mod`: %w", err)
+	for _, file := range mempkg.Files {
+		if isGnoFile(file.Name) || file.Name == "gnomod.toml" {
+			return false
+		}
 	}
 
-	return mod.Draft, nil
+	return true
 }

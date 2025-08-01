@@ -9,60 +9,6 @@ import (
 )
 
 // ----------------------------------------
-// Functions centralizing definitions
-
-// ReRealmPath and RePackagePath are the regexes used to identify pkgpaths which are meant to
-// be realms with persisted states and pure packages.
-var (
-	ReRealmPath   = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/[a-z0-9_/]+`)
-	RePackagePath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/p/[a-z0-9_/]+`)
-)
-
-// ReGnoRunPath is the path used for realms executed in maketx run.
-// These are not considered realms, as an exception to the ReRealmPathPrefix rule.
-var ReGnoRunPath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/g[a-z0-9]+/run$`)
-
-// IsRealmPath determines whether the given pkgpath is for a realm, and as such
-// should persist the global state.
-func IsRealmPath(pkgPath string) bool {
-	return ReRealmPath.MatchString(pkgPath) &&
-		!ReGnoRunPath.MatchString(pkgPath)
-}
-
-// IsInternalPath determines whether the given pkgPath refers to an internal
-// package, that may not be called directly or imported by packages that don't
-// share the same root.
-//
-// If isInternal is true, base will be set to the root of the internal package,
-// which must also be an ancestor or the same path that imports the given
-// internal package.
-func IsInternalPath(pkgPath string) (base string, isInternal bool) {
-	// Restrict imports to /internal packages to a package rooted at base.
-	var suff string
-	base, suff, isInternal = strings.Cut(pkgPath, "/internal")
-	// /internal should be either at the end, or be a part: /internal/
-	isInternal = isInternal && (suff == "" || suff[0] == '/')
-	return
-}
-
-// IsPurePackagePath determines whether the given pkgpath is for a published Gno package.
-// It only considers "pure" those starting with gno.land/p/, so it returns false for
-// stdlib packages and MsgRun paths.
-func IsPurePackagePath(pkgPath string) bool {
-	return RePackagePath.MatchString(pkgPath)
-}
-
-// IsStdlib determines whether s is a pkgpath for a standard library.
-func IsStdlib(s string) bool {
-	idx := strings.IndexByte(s, '/')
-	if idx < 0 {
-		// If no '/' is found, consider the whole string
-		return strings.IndexByte(s, '.') < 0
-	}
-	return strings.IndexByte(s[:idx+1], '.') < 0
-}
-
-// ----------------------------------------
 // AST Construction (Expr)
 // These are copied over from go-amino-x, but produces Gno ASTs.
 
@@ -73,7 +19,7 @@ func N(n any) Name {
 	case Name:
 		return n
 	default:
-		panic("unexpected name arg")
+		panic("unexpected name type")
 	}
 }
 
@@ -137,11 +83,18 @@ func Flds(args ...any) FieldTypeExprs {
 	list := FieldTypeExprs{}
 	for i := 0; i < len(args); i += 2 {
 		list = append(list, FieldTypeExpr{
-			Name: N(args[i]),
-			Type: X(args[i+1]),
+			NameExpr: *Nx(args[i]),
+			Type:     X(args[i+1]),
 		})
 	}
 	return list
+}
+
+func Fld(n, t any) FieldTypeExpr {
+	return FieldTypeExpr{
+		NameExpr: *Nx(n),
+		Type:     X(t),
+	}
 }
 
 func Recv(n, t any) FieldTypeExpr {
@@ -149,8 +102,8 @@ func Recv(n, t any) FieldTypeExpr {
 		n = blankIdentifier
 	}
 	return FieldTypeExpr{
-		Name: N(n),
-		Type: X(t),
+		NameExpr: *Nx(n),
+		Type:     X(t),
 	}
 }
 
@@ -841,6 +794,24 @@ func SIf(cond bool, then_, else_ Stmt) Stmt {
 		return else_
 	} else {
 		return &EmptyStmt{}
+	}
+}
+
+// ----------------------------------------
+// AST Query
+
+// Unwraps IndexExpr and SelectorExpr only.
+// (defensive, in case malformed exprs that mix).
+func LeftmostX(x Expr) Expr {
+	for {
+		switch x := x.(type) {
+		case *IndexExpr:
+			return x.X
+		case *SelectorExpr:
+			return x.X
+		default:
+			return x
+		}
 	}
 }
 

@@ -14,6 +14,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const div = "--------------------------------------------------------------------------------\n"
+
+func divHeader(label string) string {
+	return label + " " + div[len(label)+1:]
+}
+
 func TestMain_Gno(t *testing.T) {
 	tc := []testMainCase{
 		{args: []string{""}, errShouldBe: "flag: help requested"},
@@ -69,7 +75,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 				if stdoutShouldBeEmpty {
 					require.Empty(t, mockOut.String(), "stdout should be empty")
 				} else {
-					t.Log("stdout", mockOut.String())
+					t.Log(divHeader("stdout"), mockOut.String())
 					if test.stdoutShouldContain != "" {
 						require.Contains(t, mockOut.String(), test.stdoutShouldContain, "stdout should contain")
 					}
@@ -81,7 +87,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 				if stderrShouldBeEmpty {
 					require.Empty(t, mockErr.String(), "stderr should be empty")
 				} else {
-					t.Log("stderr", mockErr.String())
+					t.Log(divHeader("stderr"), mockErr.String())
 					if test.stderrShouldContain != "" {
 						require.Contains(t, mockErr.String(), test.stderrShouldContain, "stderr should contain")
 					}
@@ -94,7 +100,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 			defer func() {
 				if r := recover(); r != nil {
 					output := fmt.Sprintf("%v", r)
-					t.Log("recover", output)
+					t.Log(divHeader("recover"), output)
 					require.False(t, recoverShouldBeEmpty, "should not panic")
 					require.True(t, errShouldBeEmpty, "should not return an error")
 					if test.recoverShouldContain != "" {

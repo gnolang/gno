@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type pkgData struct {
@@ -38,22 +38,23 @@ type symbolData struct {
 }
 
 func newPkgData(dir bfsDir, unexported bool) (*pkgData, error) {
-	memPkg, err := gnolang.ReadMemPackage(dir.dir, dir.importPath)
+	mptype := gno.MPAnyProd
+	mpkg, err := gno.ReadMemPackage(dir.dir, dir.importPath, mptype)
 	if err != nil {
 		return nil, fmt.Errorf("commands/doc: read files %q: %w", dir.dir, err)
 	}
-	return newPkgDataFromMemPkg(memPkg, unexported)
+	return newPkgDataFromMemPkg(mpkg, unexported)
 }
 
-func newPkgDataFromMemPkg(memPkg *gnovm.MemPackage, unexported bool) (*pkgData, error) {
+func newPkgDataFromMemPkg(mpkg *std.MemPackage, unexported bool) (*pkgData, error) {
 	pkg := &pkgData{
 		dir: bfsDir{
-			importPath: memPkg.Name,
-			dir:        memPkg.Path,
+			importPath: mpkg.Name,
+			dir:        mpkg.Path,
 		},
 		fset: token.NewFileSet(),
 	}
-	for _, file := range memPkg.Files {
+	for _, file := range mpkg.Files {
 		n := file.Name
 		// Ignore files with prefix . or _ like go tools do.
 		// Ignore _filetest.gno, but not _test.gno, as we use those to compute
@@ -66,18 +67,18 @@ func newPkgDataFromMemPkg(memPkg *gnovm.MemPackage, unexported bool) (*pkgData, 
 		}
 		err := pkg.parseFile(n, file.Body, unexported)
 		if err != nil {
-			fullPath := filepath.Join(memPkg.Path, n)
+			fullPath := filepath.Join(mpkg.Path, n)
 			return nil, fmt.Errorf("commands/doc: parse file %q: %w", fullPath, err)
 		}
 	}
 
 	if len(pkg.files) == 0 {
-		return nil, fmt.Errorf("commands/doc: no valid gno files in %q", memPkg.Path)
+		return nil, fmt.Errorf("commands/doc: no valid gno files in %q", mpkg.Path)
 	}
 	pkgName := pkg.files[0].Name.Name
 	for _, file := range pkg.files[1:] {
 		if file.Name.Name != pkgName {
-			return nil, fmt.Errorf("commands/doc: multiple packages (%q / %q) in dir %q", pkgName, file.Name.Name, memPkg.Path)
+			return nil, fmt.Errorf("commands/doc: multiple packages (%q / %q) in dir %q", pkgName, file.Name.Name, mpkg.Path)
 		}
 	}
 	pkg.name = pkgName

@@ -11,8 +11,8 @@ func init() {
 
 	auth = authz.NewWithAuthority(
 		authz.NewContractAuthority(
-			"gno.land/r/gov/dao/v2",
-			func(title string, action authz.PrivilegedAction) error {
+			"gno.land/r/gov/dao",
+			func(_ string, action authz.PrivilegedAction) error {
 				return action()
 			},
 		),
