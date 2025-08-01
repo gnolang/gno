@@ -31,6 +31,10 @@ type testCmd struct {
 	printEvents         bool
 	debug               bool
 	debugAddr           string
+	// Coverage options
+	cover         bool   // enable coverage analysis
+	coverMode     string // coverage mode: set, count, atomic
+	coverProfile  string // write coverage profile to file
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -90,6 +94,15 @@ of the GnoVM, acting as a "golden test":
 To speed up execution, imports of pure packages are processed separately from
 the execution of the tests. This makes testing faster, but means that the
 initialization of imported pure packages cannot be checked in filetests.
+
+Coverage analysis:
+The -cover flag enables coverage analysis, which reports the percentage of
+statements executed during tests. Coverage modes can be set with -covermode:
+	- "set": Boolean coverage (default) - tracks whether each statement was executed
+	- "count": Count coverage - tracks how many times each statement was executed
+	- "atomic": Like count, but uses atomic operations for thread safety
+
+Use -coverprofile to write coverage data to a file for use with coverage tools.
 `,
 		},
 		cmd,
@@ -176,6 +189,28 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"enable interactive debugger using tcp address in the form [host]:port",
 	)
+
+	// Coverage flags
+	fs.BoolVar(
+		&c.cover,
+		"cover",
+		false,
+		"enable coverage analysis",
+	)
+
+	fs.StringVar(
+		&c.coverMode,
+		"covermode",
+		"set",
+		"set the mode for coverage analysis: set (default), count, atomic",
+	)
+
+	fs.StringVar(
+		&c.coverProfile,
+		"coverprofile",
+		"",
+		"write a coverage profile to the file",
+	)
 }
 
 func execTest(cmd *testCmd, args []string, io commands.IO) error {
@@ -224,6 +259,14 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Events = cmd.printEvents
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
+	// Coverage options
+	opts.Cover = cmd.cover
+	opts.CoverMode = cmd.coverMode
+	opts.CoverProfile = cmd.coverProfile
+	// Enable coverage if coverprofile is specified
+	if cmd.coverProfile != "" {
+		opts.Cover = true
+	}
 	cache := make(gno.TypeCheckCache, 64)
 
 	// test.ProdStore() is suitable for type-checking prod (non-test) files.
