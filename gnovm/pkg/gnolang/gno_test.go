@@ -629,8 +629,8 @@ func BenchmarkPreprocess(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		// initStaticBlocks is always performed before a Preprocess
-		initStaticBlocks(nil, pn, copies[i])
-		main = Preprocess(nil, pkg, copies[i]).(*FuncDecl)
+		initStaticBlocks(nil, nil, pn, copies[i])
+		main = Preprocess(nil, nil, pkg, copies[i]).(*FuncDecl)
 	}
 }
 
