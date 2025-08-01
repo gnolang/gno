@@ -1,4 +1,4 @@
-# Blockchain Indexing on Gno
+# Blockchain Indexing in Gno
 
 Blockchains store data in an immutable, sequential chain of blocks containing raw transactions. While optimized for security and consensus, this structure creates significant data retrieval challenges:
 
