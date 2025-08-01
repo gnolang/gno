@@ -11,7 +11,7 @@ import (
 	"std"
 )
 
-func Submit(_ realm, title, description, target, location string) {
+func Submit(cur realm, title, description, target, location string) {
 	// check if address is user
 	addr := std.PreviousRealm().Address()
 	user := users.ResolveAddress(addr)

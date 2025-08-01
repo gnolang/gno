@@ -11,7 +11,7 @@ import (
 	"strconv"
 )
 
-func SignPetition(_ realm, petitionId int) {
+func SignPetition(cur realm, petitionId int) {
 	// check if address is user
 	addr := std.PreviousRealm().Address()
 	user := users.ResolveAddress(addr)
@@ -42,7 +42,7 @@ func SignPetition(_ realm, petitionId int) {
 	}
 }
 
-func CommentPetition(_ realm, petitionId int, content string) {
+func CommentPetition(cur realm, petitionId int, content string) {
 	// check if address is user
 	addr := std.PreviousRealm().Address()
 	user := users.ResolveAddress(addr)
@@ -109,7 +109,7 @@ func renderPetitionPage(params map[string]string) string {
 		}
 	}
 
-	content += md.Columns([]string{petitionContent, signContent})
+	content += md.Columns([]string{petitionContent, signContent}, false)
 
 	content += md.H3("Comments (" + strconv.Itoa(len(petition.comments)) + "):")
 	for _, e := range petition.comments {
