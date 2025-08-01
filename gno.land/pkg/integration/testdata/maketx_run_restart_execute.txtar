@@ -1,0 +1,44 @@
+loadpkg gno.land/r/demo/tests
+gnoland start
+
+# First maketx run: store a named function
+gnokey maketx run -broadcast -chainid=tendermint_test -gas-wanted 2000000 -gas-fee 1000000ugnot test1 $WORK/store_named_func.gno
+stdout 'OK'
+
+# Restart the node to clear VM memory
+gnoland restart
+
+# Second maketx run: try to execute the stored function after restart
+# This fails because the function from the first maketx run is no longer in memory
+! gnokey maketx run -broadcast -chainid=tendermint_test -gas-wanted 10000000 -gas-fee 1000000ugnot test1 $WORK/execute_stored.gno
+stderr 'unexpected node with location gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run/store_named_func.gno:5:1-7:2'
+
+-- store_named_func.gno --
+package main
+
+import "gno.land/r/demo/tests"
+
+func myNamedFunction() {
+	println("HELLO FROM FIRST NAMED FUNCTION")
+}
+
+func main() {
+	tests.StoreFunc(cross, myNamedFunction)
+	println("Stored first function")
+}
+
+-- execute_stored.gno --
+package main
+
+import "gno.land/r/demo/tests"
+
+// Different function with same name to show they're in different contexts
+func myNamedFunction() {
+	println("HELLO FROM SECOND NAMED FUNCTION")
+}
+
+func main() {
+	println("About to execute stored function...")
+	tests.ExecuteStoredFunc(cross)
+	println("Executed stored function")
+}
