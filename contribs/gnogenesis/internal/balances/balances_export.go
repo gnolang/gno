@@ -63,9 +63,7 @@ func execBalancesExport(cfg *balancesCfg, io commands.IO, args []string) error {
 	defer outputFile.Close()
 
 	// Save the balances
-	balances := state.Balances
-	gnoland.SortBalances(balances)
-	for _, balance := range balances {
+	for _, balance := range state.Balances {
 		if _, err = outputFile.WriteString(
 			fmt.Sprintf("%s\n", balance),
 		); err != nil {
