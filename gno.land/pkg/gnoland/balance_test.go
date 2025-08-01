@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -238,38 +239,76 @@ func TestBalances_GetBalancesFromSheet(t *testing.T) {
 func TestBalances_List(t *testing.T) {
 	t.Parallel()
 
-	const nAccounts = 100
+	generateBalances := func(count int) Balances {
+		balances := NewBalances()
 
-	balances := NewBalances()
+		for i := 0; i < count; i++ {
+			// Generate a random address
+			var addr bft.Address
+			_, err := crand.Read(addr[:])
+			require.NoError(t, err)
 
-	for i := 0; i < nAccounts; i++ {
-		// Generate a random address
-		var addr bft.Address
-		_, err := crand.Read(addr[:])
-		require.NoError(t, err)
+			// Generate a random amount
+			randAmount, err := crand.Int(crand.Reader, big.NewInt(100))
+			require.NoError(t, err)
 
-		// Generate a random amount
-		randAmount, err := crand.Int(crand.Reader, big.NewInt(100))
-		require.NoError(t, err)
+			amount := std.NewCoins(std.NewCoin(ugnot.Denom, randAmount.Int64()+1))
+			balances.Set(addr, amount)
+		}
 
-		amount := std.NewCoins(std.NewCoin(ugnot.Denom, randAmount.Int64()+1))
-		balances.Set(addr, amount)
+		return balances
 	}
 
-	got := balances.List()
+	t.Run("sorted balance list", func(t *testing.T) {
+		t.Parallel()
 
-	for i := 1; i < len(got); i++ {
+		const nAccounts = 100
+
+		balances := generateBalances(nAccounts)
+
+		got := balances.List()
+
+		for i := 1; i < len(got); i++ {
+			var (
+				prev = got[i-1].Address
+				curr = got[i].Address
+			)
+
+			assert.LessOrEqual(
+				t,
+				prev.Compare(curr),
+				0,
+			)
+		}
+	})
+
+	t.Run("deterministic balance sort", func(t *testing.T) {
+		t.Parallel()
+
+		const (
+			nAccounts   = 100
+			nIterations = 300
+		)
+
 		var (
-			prev = got[i-1].Address
-			curr = got[i].Address
+			balances       = generateBalances(nAccounts)
+			sortedBalances = make([][]Balance, 0, nIterations)
 		)
 
-		assert.LessOrEqual(
-			t,
-			prev.Compare(curr),
-			0,
-		)
-	}
+		for range nIterations {
+			sortedBalances = append(sortedBalances, balances.List())
+		}
+
+		ref := sortedBalances[0]
+		for _, sb := range sortedBalances[1:] {
+			require.True(
+				t,
+				slices.EqualFunc(ref, sb, func(b1 Balance, b2 Balance) bool {
+					return b1.Amount.IsEqual(b2.Amount) && b1.Address.Compare(b2.Address) == 0
+				}),
+			)
+		}
+	})
 }
 
 // XXX: this function should probably be exposed somewhere as it's duplicate of

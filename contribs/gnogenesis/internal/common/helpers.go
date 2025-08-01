@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// GetDummyKey generates a random public key,
+// DummyKey generates a random public key,
 // and returns the key info
-func GetDummyKey(t *testing.T) crypto.PubKey {
+func DummyKey(t *testing.T) crypto.PubKey {
 	t.Helper()
 
 	mnemonic, err := client.GenerateMnemonic(256)
@@ -38,14 +38,14 @@ func generateKeyFromSeed(seed []byte, index uint32) crypto.PrivKey {
 	return secp256k1.PrivKeySecp256k1(derivedPriv)
 }
 
-// GetDummyKeys generates random keys for testing
-func GetDummyKeys(t *testing.T, count int) []crypto.PubKey {
+// DummyKeys generates random keys for testing
+func DummyKeys(t *testing.T, count int) []crypto.PubKey {
 	t.Helper()
 
 	dummyKeys := make([]crypto.PubKey, count)
 
 	for i := 0; i < count; i++ {
-		dummyKeys[i] = GetDummyKey(t)
+		dummyKeys[i] = DummyKey(t)
 	}
 
 	return dummyKeys
