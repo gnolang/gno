@@ -40,6 +40,7 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 		client.NewQueryCmd(cfg, io),
 		client.NewBroadcastCmd(cfg, io),
 		client.NewMultisignCmd(cfg, io),
+		client.NewVersionCmd(cfg, io),
 
 		// Custom MakeTX command
 		NewMakeTxCmd(cfg, io),
