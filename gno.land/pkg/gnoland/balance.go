@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"sort"
+	"slices"
 	"strings"
 
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -97,8 +97,8 @@ func (bs Balances) List() []Balance {
 // .Amount which are unnecessarily complex yet by the nature of each Balance in Balances,
 // each entry will be keyed by the same Address in a map.
 func SortBalances(list []Balance) {
-	sort.Slice(list, func(i, j int) bool {
-		return list[i].Address.Compare(list[j].Address) == -1
+	slices.SortFunc(list, func(a, b Balance) int {
+		return a.Address.Compare(b.Address)
 	})
 }
 
