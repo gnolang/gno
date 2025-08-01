@@ -39,7 +39,7 @@ func TestGenesis_Txs_Export(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		genesis.AppState = nil // no app state
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
@@ -62,7 +62,7 @@ func TestGenesis_Txs_Export(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		genesis.AppState = gnoland.GnoGenesisState{
 			Txs: generateDummyTxs(t, 1),
 		}
@@ -90,7 +90,7 @@ func TestGenesis_Txs_Export(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		genesis.AppState = gnoland.GnoGenesisState{
 			Txs: txs,
 		}
