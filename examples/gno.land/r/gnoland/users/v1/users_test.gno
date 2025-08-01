@@ -46,7 +46,7 @@ func TestRegister_Invalid(t *testing.T) {
 			"abc",                   // only letters (no numbers)
 			"alice&#($)123",            // invalid characters
 			"Alice123",              // uppercase
-			"abcdefghijklmnopqrstu", // 21 chars (> max)
+			"abcdefghijklmnopqr123", // 21 chars (> max)
 			"toolongusernametoolongusernametoolongusername123", // super long
 		}
 
