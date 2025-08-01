@@ -14,6 +14,7 @@ Welcome to most common solidity patterns in Solidity, transpiled and explained i
 
 ## Other resources
 
+- You can also run your raw EVM bytecode from compiled Solidity on [Gno EVM](/r/demo/evm)
 - [Official documentation](https://docs.gno.land) <!-- should be /docs with gnoweb embedding the docs/ folder. -->
 `
 	return content
