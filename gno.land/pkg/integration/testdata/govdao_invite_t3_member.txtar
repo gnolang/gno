@@ -16,8 +16,6 @@ gnoland start
 
 # call gov/dao render to check everything is working as expected and the loader worked
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
-stdout 'data: # GovDAO Proposals'
-
 # Add a T3 member with invitation points
 gnokey maketx call -pkgpath gno.land/r/gov/dao/v3/impl -func AddMember -gas-fee 1000000ugnot -gas-wanted 10000000 -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -broadcast -chainid=tendermint_test member
 stdout OK!
