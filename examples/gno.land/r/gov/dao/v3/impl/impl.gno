@@ -21,14 +21,14 @@ func Render(in string) string {
 }
 
 // AddMember allows T1 and T2 members to freely add T3 members using their invitation points.
-func AddMember(addr std.Address) {
+func AddMember(cur realm, addr std.Address) {
 	caller := std.OriginCaller()
 	m, t := memberstore.Get().GetMember(caller)
 	if m == nil {
 		panic("caller is not a member")
 	}
 
-	if t != memberstore.T1 || t != memberstore.T2 {
+	if t != memberstore.T1 && t != memberstore.T2 {
 		panic("caller is not on T1 or T2. To add members, propose them through proposals")
 	}
 
