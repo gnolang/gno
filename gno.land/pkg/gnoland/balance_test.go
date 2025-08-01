@@ -1,11 +1,10 @@
 package gnoland
 
 import (
-	"bytes"
 	crand "crypto/rand"
 	"fmt"
 	"math"
-	"math/rand"
+	"math/big"
 	"strconv"
 	"strings"
 	"testing"
@@ -236,6 +235,43 @@ func TestBalances_GetBalancesFromSheet(t *testing.T) {
 	})
 }
 
+func TestBalances_List(t *testing.T) {
+	t.Parallel()
+
+	const nAccounts = 100
+
+	balances := NewBalances()
+
+	for i := 0; i < nAccounts; i++ {
+		// Generate a random address
+		var addr bft.Address
+		_, err := crand.Read(addr[:])
+		require.NoError(t, err)
+
+		// Generate a random amount
+		randAmount, err := crand.Int(crand.Reader, big.NewInt(100))
+		require.NoError(t, err)
+
+		amount := std.NewCoins(std.NewCoin(ugnot.Denom, randAmount.Int64()+1))
+		balances.Set(addr, amount)
+	}
+
+	got := balances.List()
+
+	for i := 1; i < len(got); i++ {
+		var (
+			prev = got[i-1].Address
+			curr = got[i].Address
+		)
+
+		assert.LessOrEqual(
+			t,
+			prev.Compare(curr),
+			0,
+		)
+	}
+}
+
 // XXX: this function should probably be exposed somewhere as it's duplicate of
 // cmd/genesis/...
 
@@ -276,25 +312,4 @@ func generateKeyFromSeed(seed []byte, index uint32) crypto.PrivKey {
 	derivedPriv, _ := hd.DerivePrivateKeyForPath(masterPriv, ch, pathParams.String())
 
 	return secp256k1.PrivKeySecp256k1(derivedPriv)
-}
-
-func TestBalancesList(t *testing.T) {
-	// 1. Generate and insert balances.
-	balances := NewBalances()
-	n := 100
-	rng := rand.New(rand.NewSource(10))
-	for i := 0; i < n; i++ {
-		var addr bft.Address
-		crand.Read(addr[:])
-		amount := std.NewCoins(std.NewCoin(ugnot.Denom, 1+rng.Int63n(100)))
-		balances.Set(addr, amount)
-	}
-
-	list := balances.List()
-	for i := 1; i < len(list); i++ {
-		for j := 0; j < i; j++ {
-			isLessOrEqualTo := bytes.Compare(list[j].Address[:], list[i].Address[:]) <= 0
-			assert.True(t, isLessOrEqualTo, "Address:\n\t#%d[%x]\n>\n\t#%d[%x]", j, list[j], i, list[i])
-		}
-	}
 }

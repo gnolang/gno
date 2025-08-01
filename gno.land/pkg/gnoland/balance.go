@@ -92,7 +92,7 @@ func (bs Balances) List() []Balance {
 	return list
 }
 
-// Sorts balances in lexicographic order, compared by .Address instead of .Amount
+// SortBalances sorts balances in lexicographic order, compared by .Address instead of .Amount
 // because .Amount's type is Coins that requires a deeper comparison by .Denom and
 // .Amount which are unnecessarily complex yet by the nature of each Balance in Balances,
 // each entry will be keyed by the same Address in a map.
