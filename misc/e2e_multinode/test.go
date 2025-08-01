@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -64,9 +65,9 @@ func runMultiNodeTest(
 	}
 
 	// Execute test transactions
-	runningNodes := append(extValidators, firstNonValidator)
-	if firstNonValidator == nil {
-		runningNodes = extValidators
+	runningNodes := slices.Clone(extValidators)
+	if firstNonValidator != nil {
+		runningNodes = append(runningNodes, firstNonValidator)
 	}
 
 	t.Log("📋 Executing transactions")

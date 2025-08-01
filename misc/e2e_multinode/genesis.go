@@ -96,11 +96,12 @@ func createSharedGenesis(t TestingT, tempDir string, validators []*Node) {
 }
 
 // createEnhancedBalanceFile creates a balance file with multiple accounts like official genesis
+// XXX: generate this part
 func createEnhancedBalanceFile(t TestingT, tempDir string, validatorKeys []*signer.FileKey) string {
 	balanceFile := filepath.Join(tempDir, "enhanced_genesis_balances.txt")
 
 	// Create content similar to official genesis with multiple funded accounts
-	var balanceLines []string
+	balanceLines := make([]string, 0, len(validatorKeys)+5)
 
 	// Add validator accounts with substantial balances
 	for i, key := range validatorKeys {
@@ -184,7 +185,6 @@ func printGenesisConfig(t TestingT, gen *bft.GenesisDoc) {
 	for i, val := range gen.Validators {
 		t.Logf("Validator, index: %d, address: %s, power: %d, name: %s, pubkey: %v",
 			i+1, val.Address.String(), val.Power, val.Name, val.PubKey)
-
 	}
 
 	// Print balance and transaction summary
