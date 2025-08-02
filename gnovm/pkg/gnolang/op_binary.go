@@ -659,7 +659,7 @@ func isGeq(lv, rv *TypedValue) bool {
 func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
-	switch baseOf(lv.T) {
+	switch asPrimitive(baseOf(lv.T)) {
 	case StringType, UntypedStringType:
 		lv.V = alloc.NewString(lv.GetString() + rv.GetString())
 	case IntType:
@@ -717,7 +717,7 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 func subAssign(lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
-	switch baseOf(lv.T) {
+	switch asPrimitive(baseOf(lv.T)) {
 	case IntType:
 		lv.SetInt(lv.GetInt() - rv.GetInt())
 	case Int8Type:
@@ -773,7 +773,7 @@ func subAssign(lv, rv *TypedValue) {
 func mulAssign(lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
-	switch baseOf(lv.T) {
+	switch asPrimitive(baseOf(lv.T)) {
 	case IntType:
 		lv.SetInt(lv.GetInt() * rv.GetInt())
 	case Int8Type:
@@ -831,7 +831,7 @@ func quoAssign(lv, rv *TypedValue) *Exception {
 
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
-	switch baseOf(lv.T) {
+	switch asPrimitive(baseOf(lv.T)) {
 	case IntType:
 		if rv.GetInt() == 0 {
 			return expt
@@ -937,7 +937,7 @@ func remAssign(lv, rv *TypedValue) *Exception {
 
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
-	switch baseOf(lv.T) {
+	switch asPrimitive(baseOf(lv.T)) {
 	case IntType:
 		if rv.GetInt() == 0 {
 			return expt
@@ -1015,7 +1015,7 @@ func remAssign(lv, rv *TypedValue) *Exception {
 func bandAssign(lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
-	switch baseOf(lv.T) {
+	switch asPrimitive(baseOf(lv.T)) {
 	case IntType:
 		lv.SetInt(lv.GetInt() & rv.GetInt())
 	case Int8Type:
@@ -1054,7 +1054,7 @@ func bandAssign(lv, rv *TypedValue) {
 func bandnAssign(lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
-	switch baseOf(lv.T) {
+	switch asPrimitive(baseOf(lv.T)) {
 	case IntType:
 		lv.SetInt(lv.GetInt() &^ rv.GetInt())
 	case Int8Type:
@@ -1093,7 +1093,7 @@ func bandnAssign(lv, rv *TypedValue) {
 func borAssign(lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
-	switch baseOf(lv.T) {
+	switch asPrimitive(baseOf(lv.T)) {
 	case IntType:
 		lv.SetInt(lv.GetInt() | rv.GetInt())
 	case Int8Type:
@@ -1132,7 +1132,7 @@ func borAssign(lv, rv *TypedValue) {
 func xorAssign(lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
-	switch baseOf(lv.T) {
+	switch asPrimitive(baseOf(lv.T)) {
 	case IntType:
 		lv.SetInt(lv.GetInt() ^ rv.GetInt())
 	case Int8Type:
@@ -1179,7 +1179,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 
 	// set the result in lv.
 	// NOTE: baseOf(rv.T) is always UintType.
-	switch baseOf(lv.T) {
+	switch asPrimitive(baseOf(lv.T)) {
 	case IntType:
 		checkOverflow(func() bool {
 			l := big.NewInt(lv.GetInt())
@@ -1303,7 +1303,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 
 	// set the result in lv.
 	// NOTE: baseOf(rv.T) is always UintType.
-	switch baseOf(lv.T) {
+	switch asPrimitive(baseOf(lv.T)) {
 	case IntType:
 		checkOverflow(func() bool {
 			l := big.NewInt(lv.GetInt())

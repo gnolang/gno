@@ -455,7 +455,7 @@ func (tv TypedValue) ProtectedString(seen *seenValues) string {
 	}
 	vs := ""
 	if tv.V == nil {
-		switch baseOf(tv.T) {
+		switch asPrimitive(baseOf(tv.T)) {
 		case BoolType, UntypedBoolType:
 			vs = fmt.Sprintf("%t", tv.GetBool())
 		case StringType, UntypedStringType:

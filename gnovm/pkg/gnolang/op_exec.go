@@ -66,13 +66,15 @@ func (m *Machine) doOpExec(op Op) {
 	case OpBody:
 		bs := m.LastBlock().GetBodyStmt()
 		if bs.NextBodyIndex == -2 { // init
-			bs.NumOps = len(m.Ops)
-			bs.NumValues = len(m.Values)
-			bs.NumExprs = len(m.Exprs)
-			bs.NumStmts = len(m.Stmts)
+			bs.Goto = &gotoInfo{
+				NumOps:    m.Ops.size,
+				NumValues: len(m.Values),
+				NumExprs:  len(m.Exprs),
+				NumStmts:  len(m.Stmts),
+			}
 			bs.NextBodyIndex = 0
 		}
-		if bs.NextBodyIndex < bs.BodyLen {
+		if bs.NextBodyIndex < len(bs.Body) {
 			next := bs.Body[bs.NextBodyIndex]
 			bs.NextBodyIndex++
 			// continue onto exec stmt.
@@ -88,14 +90,16 @@ func (m *Machine) doOpExec(op Op) {
 		bs := m.LastBlock().GetBodyStmt()
 		// evaluate .Cond.
 		if bs.NextBodyIndex == -2 { // init
-			bs.NumOps = len(m.Ops)
-			bs.NumValues = len(m.Values)
-			bs.NumExprs = len(m.Exprs)
-			bs.NumStmts = len(m.Stmts)
+			bs.Goto = &gotoInfo{
+				NumOps:    m.Ops.size,
+				NumValues: len(m.Values),
+				NumExprs:  len(m.Exprs),
+				NumStmts:  len(m.Stmts),
+			}
 			bs.NextBodyIndex = -1
 		}
 		if bs.NextBodyIndex == -1 {
-			if bs.Cond != nil {
+			if bs.Loop.Cond != nil {
 				cond := m.PopValue()
 				if !cond.GetBool() {
 					// done with loop.
@@ -106,21 +110,21 @@ func (m *Machine) doOpExec(op Op) {
 			bs.NextBodyIndex++
 		}
 		// execute body statement.
-		if bs.NextBodyIndex < bs.BodyLen {
+		if bs.NextBodyIndex < len(bs.Body) {
 			next := bs.Body[bs.NextBodyIndex]
 			bs.NextBodyIndex++
 			// continue onto exec stmt.
 			bs.Active = next
 			s = next
 			goto EXEC_SWITCH
-		} else if bs.NextBodyIndex == bs.BodyLen {
+		} else if bs.NextBodyIndex == len(bs.Body) {
 			// (queue to) go back.
-			if bs.Cond != nil {
-				m.PushExpr(bs.Cond)
+			if bs.Loop.Cond != nil {
+				m.PushExpr(bs.Loop.Cond)
 				m.PushOp(OpEval)
 			}
 			bs.NextBodyIndex = -1
-			if next := bs.Post; next == nil {
+			if next := bs.Loop.Post; next == nil {
 				bs.Active = nil
 				return // go back now.
 			} else {
@@ -156,37 +160,39 @@ func (m *Machine) doOpExec(op Op) {
 				m.PopFrameAndReset()
 				return
 			}
-			bs.ListLen = ll
-			bs.NumOps = len(m.Ops)
-			bs.NumValues = len(m.Values)
-			bs.NumExprs = len(m.Exprs)
-			bs.NumStmts = len(m.Stmts)
+			bs.Loop.ListLen = ll
+			bs.Goto = &gotoInfo{
+				NumOps:    m.Ops.size,
+				NumValues: len(m.Values),
+				NumExprs:  len(m.Exprs),
+				NumStmts:  len(m.Stmts),
+			}
 			bs.NextBodyIndex++
 			fallthrough
 		case -1: // assign list element.
-			if bs.Key != nil {
+			if bs.Loop.Key != nil {
 				iv := TypedValue{T: IntType}
-				iv.SetInt(int64(bs.ListIndex))
-				switch bs.Op {
+				iv.SetInt(int64(bs.Loop.ListIndex))
+				switch bs.Loop.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
+					m.PopAsPointer(bs.Loop.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
 				case DEFINE:
-					knx := bs.Key.(*NameExpr)
+					knx := bs.Loop.Key.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
 					ptr.TV.Assign(m.Alloc, iv, false)
 				default:
 					panic("should not happen")
 				}
 			}
-			if bs.Value != nil {
+			if bs.Loop.Value != nil {
 				iv := TypedValue{T: IntType}
-				iv.SetInt(int64(bs.ListIndex))
+				iv.SetInt(int64(bs.Loop.ListIndex))
 				ev := xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, &iv).Deref()
-				switch bs.Op {
+				switch bs.Loop.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
+					m.PopAsPointer(bs.Loop.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
 				case DEFINE:
-					vnx := bs.Value.(*NameExpr)
+					vnx := bs.Loop.Value.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
 					ptr.TV.Assign(m.Alloc, ev, false)
 				default:
@@ -198,23 +204,23 @@ func (m *Machine) doOpExec(op Op) {
 		default:
 			// NOTE: duplicated for OpRangeIterMap,
 			// but without tracking Next.
-			if bs.NextBodyIndex < bs.BodyLen {
+			if bs.NextBodyIndex < len(bs.Body) {
 				next := bs.Body[bs.NextBodyIndex]
 				bs.NextBodyIndex++
 				// continue onto exec stmt.
 				bs.Active = next
 				s = next // switch on bs.Active
 				goto EXEC_SWITCH
-			} else if bs.NextBodyIndex == bs.BodyLen {
-				if bs.ListIndex < bs.ListLen-1 {
+			} else if bs.NextBodyIndex == len(bs.Body) {
+				if bs.Loop.ListIndex < bs.Loop.ListLen-1 {
 					// set up next assign if needed.
-					switch bs.Op {
+					switch bs.Loop.Op {
 					case ASSIGN:
-						if bs.Key != nil {
-							m.PushForPointer(bs.Key)
+						if bs.Loop.Key != nil {
+							m.PushForPointer(bs.Loop.Key)
 						}
-						if bs.Value != nil {
-							m.PushForPointer(bs.Value)
+						if bs.Loop.Value != nil {
+							m.PushForPointer(bs.Loop.Value)
 						}
 					case DEFINE:
 						// do nothing
@@ -223,7 +229,7 @@ func (m *Machine) doOpExec(op Op) {
 					default:
 						panic("should not happen")
 					}
-					bs.ListIndex++
+					bs.Loop.ListIndex++
 					bs.NextBodyIndex = -1
 					bs.Active = nil
 					return // redo doOpExec:*bodyStmt
@@ -249,38 +255,40 @@ func (m *Machine) doOpExec(op Op) {
 				m.PopFrameAndReset()
 				return
 			}
-			bs.StrLen = strLen
+			bs.Loop.ListLen = strLen
 			r, size := utf8.DecodeRuneInString(sv)
-			bs.NextRune = r
-			bs.StrIndex += size
-			bs.NumOps = len(m.Ops)
-			bs.NumValues = len(m.Values)
-			bs.NumExprs = len(m.Exprs)
-			bs.NumStmts = len(m.Stmts)
+			bs.Loop.NextRune = r
+			bs.Loop.RuneSize = byte(size)
+			bs.Goto = &gotoInfo{
+				NumOps:    m.Ops.size,
+				NumValues: len(m.Values),
+				NumExprs:  len(m.Exprs),
+				NumStmts:  len(m.Stmts),
+			}
 			bs.NextBodyIndex++
 			fallthrough
 		case -1: // assign list element.
-			if bs.Key != nil {
+			if bs.Loop.Key != nil {
 				iv := TypedValue{T: IntType}
-				iv.SetInt(int64(bs.ListIndex))
-				switch bs.Op {
+				iv.SetInt(int64(bs.Loop.ListIndex))
+				switch bs.Loop.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
+					m.PopAsPointer(bs.Loop.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
 				case DEFINE:
-					knx := bs.Key.(*NameExpr)
+					knx := bs.Loop.Key.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
 					ptr.TV.Assign(m.Alloc, iv, false)
 				default:
 					panic("should not happen")
 				}
 			}
-			if bs.Value != nil {
-				ev := typedRune(bs.NextRune)
-				switch bs.Op {
+			if bs.Loop.Value != nil {
+				ev := typedRune(bs.Loop.NextRune)
+				switch bs.Loop.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
+					m.PopAsPointer(bs.Loop.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
 				case DEFINE:
-					vnx := bs.Value.(*NameExpr)
+					vnx := bs.Loop.Value.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
 					ptr.TV.Assign(m.Alloc, ev, false)
 				default:
@@ -292,23 +300,24 @@ func (m *Machine) doOpExec(op Op) {
 		default:
 			// NOTE: duplicated for OpRangeIterMap,
 			// but without tracking Next.
-			if bs.NextBodyIndex < bs.BodyLen {
+			if bs.NextBodyIndex < len(bs.Body) {
 				next := bs.Body[bs.NextBodyIndex]
 				bs.NextBodyIndex++
 				// continue onto exec stmt.
 				bs.Active = next
 				s = next // switch on bs.Active
 				goto EXEC_SWITCH
-			} else if bs.NextBodyIndex == bs.BodyLen {
-				if bs.StrIndex < bs.StrLen {
+			} else if bs.NextBodyIndex == len(bs.Body) {
+				bs.Loop.ListIndex += int(bs.Loop.RuneSize)
+				if bs.Loop.ListIndex < bs.Loop.ListLen {
 					// set up next assign if needed.
-					switch bs.Op {
+					switch bs.Loop.Op {
 					case ASSIGN:
-						if bs.Key != nil {
-							m.PushForPointer(bs.Key)
+						if bs.Loop.Key != nil {
+							m.PushForPointer(bs.Loop.Key)
 						}
-						if bs.Value != nil {
-							m.PushForPointer(bs.Value)
+						if bs.Loop.Value != nil {
+							m.PushForPointer(bs.Loop.Value)
 						}
 					case DEFINE:
 						// do nothing
@@ -317,11 +326,10 @@ func (m *Machine) doOpExec(op Op) {
 					default:
 						panic("should not happen")
 					}
-					rsv := sv[bs.StrIndex:]
+					rsv := sv[bs.Loop.ListIndex:]
 					r, size := utf8.DecodeRuneInString(rsv)
-					bs.NextRune = r
-					bs.ListIndex = bs.StrIndex // trails StrIndex.
-					bs.StrIndex += size
+					bs.Loop.NextRune = r
+					bs.Loop.RuneSize = byte(size)
 					bs.NextBodyIndex = -1
 					bs.Active = nil
 					return // redo doOpExec:*bodyStmt
@@ -348,35 +356,37 @@ func (m *Machine) doOpExec(op Op) {
 				return
 			}
 			// initialize bs.
-			bs.NextItem = mv.List.Head
-			bs.NumOps = len(m.Ops)
-			bs.NumValues = len(m.Values)
-			bs.NumExprs = len(m.Exprs)
-			bs.NumStmts = len(m.Stmts)
+			bs.Loop.NextItem = mv.List.Head
+			bs.Goto = &gotoInfo{
+				NumOps:    m.Ops.size,
+				NumValues: len(m.Values),
+				NumExprs:  len(m.Exprs),
+				NumStmts:  len(m.Stmts),
+			}
 			bs.NextBodyIndex++
 			fallthrough
 		case -1: // assign list element.
-			next := bs.NextItem
-			if bs.Key != nil {
+			next := bs.Loop.NextItem
+			if bs.Loop.Key != nil {
 				kv := *fillValueTV(m.Store, &next.Key)
-				switch bs.Op {
+				switch bs.Loop.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, kv, false)
+					m.PopAsPointer(bs.Loop.Key).Assign2(m.Alloc, m.Store, m.Realm, kv, false)
 				case DEFINE:
-					knx := bs.Key.(*NameExpr)
+					knx := bs.Loop.Key.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
 					ptr.TV.Assign(m.Alloc, kv, false)
 				default:
 					panic("should not happen")
 				}
 			}
-			if bs.Value != nil {
+			if bs.Loop.Value != nil {
 				vv := *fillValueTV(m.Store, &next.Value)
-				switch bs.Op {
+				switch bs.Loop.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, vv, false)
+					m.PopAsPointer(bs.Loop.Value).Assign2(m.Alloc, m.Store, m.Realm, vv, false)
 				case DEFINE:
-					vnx := bs.Value.(*NameExpr)
+					vnx := bs.Loop.Value.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
 					ptr.TV.Assign(m.Alloc, vv, false)
 				default:
@@ -388,28 +398,28 @@ func (m *Machine) doOpExec(op Op) {
 		default:
 			// NOTE: duplicated for OpRangeIter,
 			// with slight modification to track Next.
-			if bs.NextBodyIndex < bs.BodyLen {
+			if bs.NextBodyIndex < len(bs.Body) {
 				next := bs.Body[bs.NextBodyIndex]
 				bs.NextBodyIndex++
 				// continue onto exec stmt.
 				bs.Active = next
 				s = next // switch on bs.Active
 				goto EXEC_SWITCH
-			} else if bs.NextBodyIndex == bs.BodyLen {
-				nnext := bs.NextItem.Next
+			} else if bs.NextBodyIndex == len(bs.Body) {
+				nnext := bs.Loop.NextItem.Next
 				if nnext == nil {
 					// done with range.
 					m.PopFrameAndReset()
 					return
 				} else {
 					// set up next assign if needed.
-					switch bs.Op {
+					switch bs.Loop.Op {
 					case ASSIGN:
-						if bs.Key != nil {
-							m.PushForPointer(bs.Key)
+						if bs.Loop.Key != nil {
+							m.PushForPointer(bs.Loop.Key)
 						}
-						if bs.Value != nil {
-							m.PushForPointer(bs.Value)
+						if bs.Loop.Value != nil {
+							m.PushForPointer(bs.Loop.Value)
 						}
 					case DEFINE:
 						// do nothing
@@ -418,8 +428,8 @@ func (m *Machine) doOpExec(op Op) {
 					default:
 						panic("should not happen")
 					}
-					bs.NextItem = nnext
-					bs.ListIndex++
+					bs.Loop.NextItem = nnext
+					bs.Loop.ListIndex++
 					bs.NextBodyIndex = -1
 					bs.Active = nil
 					return // redo doOpExec:*bodyStmt
@@ -500,10 +510,11 @@ EXEC_SWITCH:
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
-			BodyLen:       len(cs.Body),
 			NextBodyIndex: -2,
-			Cond:          cs.Cond,
-			Post:          cs.Post,
+			Loop: &loopInfo{
+				Cond: cs.Cond,
+				Post: cs.Post,
+			},
 		}
 		m.PushBlock(b)
 		m.PushOp(OpForLoop)
@@ -580,11 +591,12 @@ EXEC_SWITCH:
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
-			BodyLen:       len(cs.Body),
 			NextBodyIndex: -2,
-			Key:           cs.Key,
-			Value:         cs.Value,
-			Op:            cs.Op,
+			Loop: &loopInfo{
+				Key:   cs.Key,
+				Value: cs.Value,
+				Op:    cs.Op,
+			},
 		}
 		m.PushBlock(b)
 		// TODO: replace with "cs.Op".
@@ -664,10 +676,11 @@ EXEC_SWITCH:
 			m.GotoJump(int(cs.FrameDepth), int(cs.BlockDepth))
 			last := m.LastBlock()
 			bs := last.GetBodyStmt()
-			m.Ops = m.Ops[:bs.NumOps]
-			m.Values = m.Values[:bs.NumValues]
-			m.Exprs = m.Exprs[:bs.NumExprs]
-			m.Stmts = m.Stmts[:bs.NumStmts]
+			gi := bs.Goto
+			m.Ops.resetLen(gi.NumOps)
+			m.Values = m.Values[:gi.NumValues]
+			m.Exprs = m.Exprs[:gi.NumExprs]
+			m.Stmts = m.Stmts[:gi.NumStmts]
 			bs.NextBodyIndex = cs.BodyIndex
 			bs.Active = bs.Body[cs.BodyIndex] // prefill
 		case FALLTHROUGH:
@@ -687,7 +700,6 @@ EXEC_SWITCH:
 			// exec clause body
 			b.bodyStmt = bodyStmt{
 				Body:          cl.Body,
-				BodyLen:       len(cl.Body),
 				NextBodyIndex: -2,
 			}
 			m.PushOp(OpBody)
@@ -758,7 +770,6 @@ EXEC_SWITCH:
 		m.PushOp(OpPopBlock)
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
-			BodyLen:       len(cs.Body),
 			NextBodyIndex: -2,
 		}
 		m.PushOp(OpBody)
@@ -781,7 +792,6 @@ func (m *Machine) doOpIfCond() {
 			// exec then body
 			b.bodyStmt = bodyStmt{
 				Body:          is.Then.Body,
-				BodyLen:       len(is.Then.Body),
 				NextBodyIndex: -2,
 			}
 			m.PushOp(OpBody)
@@ -794,7 +804,6 @@ func (m *Machine) doOpIfCond() {
 			// exec then body
 			b.bodyStmt = bodyStmt{
 				Body:          is.Else.Body,
-				BodyLen:       len(is.Else.Body),
 				NextBodyIndex: -2,
 			}
 			m.PushOp(OpBody)
@@ -839,10 +848,7 @@ func (m *Machine) doOpTypeSwitch() {
 						match = true
 					}
 				} else {
-					ctid := TypeID("")
-					if ct != nil {
-						ctid = ct.TypeID()
-					}
+					ctid := ct.TypeID()
 					if xtid == ctid {
 						// match
 						match = true
@@ -872,7 +878,6 @@ func (m *Machine) doOpTypeSwitch() {
 				// exec clause body
 				b.bodyStmt = bodyStmt{
 					Body:          cs.Body,
-					BodyLen:       len(cs.Body),
 					NextBodyIndex: -2,
 				}
 				m.PushOp(OpBody)
@@ -910,7 +915,6 @@ func (m *Machine) doOpSwitchClause() {
 			// exec clause body
 			b.bodyStmt = bodyStmt{
 				Body:          cl.Body,
-				BodyLen:       len(cl.Body),
 				NextBodyIndex: -2,
 			}
 			m.PushOp(OpBody)
@@ -950,7 +954,6 @@ func (m *Machine) doOpSwitchClauseCase() {
 		// exec clause body
 		b.bodyStmt = bodyStmt{
 			Body:          cl.Body,
-			BodyLen:       len(cl.Body),
 			NextBodyIndex: -2,
 		}
 		m.PushOp(OpBody)
