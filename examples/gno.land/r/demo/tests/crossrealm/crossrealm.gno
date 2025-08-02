@@ -123,6 +123,20 @@ func ExecuteClosureCross(cur realm) {
 	Closure2(cross)
 }
 
+type S struct {
+	F func()
+}
+
+var S1 S
+
+func (s *S) SetFn(ff func()) {
+	s.F = ff
+}
+
+func (s *S) Execute() {
+	s.F()
+}
+
 // Closure -> FooUpdate
 func PrintRealms(cur realm) {
 	ufmt.Printf("current realm: %s\n", std.CurrentRealm())
