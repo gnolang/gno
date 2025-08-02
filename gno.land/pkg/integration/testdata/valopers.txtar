@@ -18,7 +18,7 @@ stderr 'panic: invalid address'
 stderr 'panic: invalid checksum'
 
 # add a valoper
-gnokey maketx call -pkgpath gno.land/r/gnoland/valopers -func Register -gas-fee 1000000ugnot -gas-wanted 30000000 -send 20000000ugnot -args berty -args "My validator description" -args g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/valopers -func Register -gas-fee 1000000ugnot -gas-wanted 30000000 -send 20000000ugnot -args berty -args "My validator description" -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # see the valoper in the Render
@@ -90,7 +90,7 @@ import (
 )
 
 func main() {
-  pr := valopers_proposal.NewValidatorProposalRequest(cross, std.Address("g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl"))
+  pr := valopers_proposal.NewValidatorProposalRequest(cross, std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
   pid := dao.MustCreateProposal(cross, pr)
   println(pid.String())
 }
