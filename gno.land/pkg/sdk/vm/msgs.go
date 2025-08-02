@@ -63,9 +63,9 @@ func (msg MsgAddPackage) ValidateBasic() error {
 	if !msg.MaxDeposit.IsValid() {
 		return std.ErrInvalidCoins(msg.MaxDeposit.String())
 	}
-	// Validate files: ensure files array is not empty.
+	// Validate: ensure the package contains at least one file.
 	if len(msg.Package.Files) == 0 {
-		return InvalidFileError{}
+		return ErrInvalidFile("no files in MsgAddPackage")
 	}
 	return nil
 }
@@ -209,10 +209,11 @@ func (msg MsgRun) ValidateBasic() error {
 			return ErrInvalidPkgPath(fmt.Sprintf("invalid pkgpath for MsgRun: %q", path))
 		}
 	}
-	// Validate files: ensure files array is not empty.
+	// Validate: ensure the package contains at least one file.
 	if len(msg.Package.Files) == 0 {
-		return InvalidFileError{}
+		return ErrInvalidFile("no files in MsgRun")
 	}
+
 	if !msg.Send.IsValid() {
 		return std.ErrInvalidCoins(msg.Send.String())
 	}
