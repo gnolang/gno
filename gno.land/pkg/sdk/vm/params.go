@@ -12,10 +12,10 @@ import (
 )
 
 const (
-	sysNamesPkgDefault    = "gno.land/r/sys/names"
-	chainDomainDefault    = "gno.land"
-	defaultDepositDefault = "600000000ugnot"
-	storagePriceDefault   = "100ugnot" // cost per byte (1 gnot per 10KB) 1B GNOT == 10TB
+	sysNamesPkgDefault  = "gno.land/r/sys/names"
+	chainDomainDefault  = "gno.land"
+	depositDefault      = "600000000ugnot"
+	storagePriceDefault = "100ugnot" // cost per byte (1 gnot per 10KB) 1B GNOT == 10TB
 )
 
 var ASCIIDomain = regexp.MustCompile(`^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$`)
@@ -41,7 +41,7 @@ func NewParams(namesPkgPath, chainDomain, defaultDeposit, storagePrice string) P
 // DefaultParams returns a default set of parameters.
 func DefaultParams() Params {
 	return NewParams(sysNamesPkgDefault, chainDomainDefault,
-		defaultDepositDefault, storagePriceDefault)
+		depositDefault, storagePriceDefault)
 }
 
 // String implements the stringer interface.
