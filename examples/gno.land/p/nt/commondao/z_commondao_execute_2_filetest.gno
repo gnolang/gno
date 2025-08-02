@@ -19,7 +19,7 @@ type testPropDef struct{}
 
 func (testPropDef) Title() string               { return "" }
 func (testPropDef) Body() string                { return "" }
-func (testPropDef) VotingPeriod() time.Duration { return 0 }
+func (testPropDef) VotingPeriod() time.Duration { return time.Hour } // Voting ends in 1 hour
 func (testPropDef) Execute(cur realm) error     { return nil }
 
 func (testPropDef) Tally(commondao.ReadonlyVotingRecord, commondao.MemberSet) (bool, error) {
@@ -27,7 +27,10 @@ func (testPropDef) Tally(commondao.ReadonlyVotingRecord, commondao.MemberSet) (b
 }
 
 func init() {
-	dao = commondao.New(commondao.WithMember(member))
+	dao = commondao.New(
+		commondao.WithMember(member),
+		commondao.DisableVotingDeadlineCheck(), // Disable to be able to execute before voting deadline
+	)
 	proposal = dao.MustPropose(member, testPropDef{})
 }
 
