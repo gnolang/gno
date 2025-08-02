@@ -136,7 +136,7 @@ func (r *Repl) RunStatements(code string) {
 				switch rec := rec.(type) {
 				case *gno.PreprocessError:
 					err := rec.Unwrap()
-					match := gno.Re_errorLine.Match(err.Error())
+					match := gno.ReErrorLine.Match(err.Error())
 					if match == nil {
 						r.Errorln(err.Error())
 					} else {
@@ -144,7 +144,7 @@ func (r *Repl) RunStatements(code string) {
 					}
 				case error:
 					err := rec
-					match := gno.Re_errorLine.Match(err.Error())
+					match := gno.ReErrorLine.Match(err.Error())
 					if match == nil {
 						r.Errorln(err.Error())
 					} else {

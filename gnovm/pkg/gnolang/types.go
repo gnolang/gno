@@ -1506,14 +1506,19 @@ func (dt *DeclaredType) TypeID() TypeID {
 	return dt.typeid
 }
 
-var Re_declaredTypeID = r.G(
-	r.N("PATH", r.P(r.CN(r.E(`[.`)))),
-	r.M(r.E(`[`), r.N("LOC", Re_location), r.E(`]`)),
-	r.E(`.`),
-	r.N("NAME", r.P(`.`)))
+var (
+	Re_declaredTypeID = r.G(
+		r.N("PATH", r.P(r.CN(r.E(`[.`)))),
+		r.M(r.E(`[`), r.N("LOC", Re_location), r.E(`]`)),
+		r.E(`.`),
+		r.N("NAME", r.P(`.`)))
+
+	// Compile at init to avoid runtime compilation.
+	ReDeclaredTypeID = Re_declaredTypeID.Compile()
+)
 
 func ParseDeclaredTypeID(tid string) (pkgPath string, loc string, name string, ok bool) {
-	match := Re_declaredTypeID.Match(tid)
+	match := ReDeclaredTypeID.Match(tid)
 	if match == nil {
 		return
 	}
