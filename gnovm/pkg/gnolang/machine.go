@@ -1991,32 +1991,34 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			}
 		}
 	} else { // function without receiver
+		fmt.Println("===PushFrameCall, cx: ", cx)
 		if pv.IsRealm() {
-			// isExternalFunc := false // top level func declared in external package with no cross
-			// if sx, ok := cx.Func.(*SelectorExpr); ok {
-			// 	if cx, ok := sx.X.(*ConstExpr); ok {
-			// 		_, isExternalFunc = cx.T.(*PackageType)
-			// 	}
-			// }
+			isExternalFunc := false // top level func declared in external package with no cross
+			if sx, ok := cx.Func.(*SelectorExpr); ok {
+				if cx, ok := sx.X.(*ConstExpr); ok {
+					_, isExternalFunc = cx.T.(*PackageType)
+				}
+			}
+			fmt.Println("===PushFrameCall, isExternalFunc: ", isExternalFunc)
 
-			// if !isExternalFunc {
-			// A function without receiver (named or unnamed) in a realm.
-			// Borrow switch to where the function is declared,
-			// since there is no receiver.
-			// Neither cross nor didswitch.
-			pkgPath := pv.PkgPath
-			rlm = m.Store.GetPackageRealm(pkgPath)
-			m.Realm = rlm
-			// DO NOT set DidCrossing here. Make
-			// DidCrossing only happen upon explicit
-			// cross(fn)(...) calls and subsequent calls to
-			// crossing functions from the same realm, to
-			// avoid user confusion. Otherwise whether
-			// DidCrossing happened or not depends on where
-			// the receiver resides, which isn't explicit
-			// enough to avoid confusion.
-			//   fr.DidCrossing = true
-			// }
+			if !isExternalFunc {
+				// A function without receiver (named or unnamed) in a realm.
+				// Borrow switch to where the function is declared,
+				// since there is no receiver.
+				// Neither cross nor didswitch.
+				pkgPath := pv.PkgPath
+				rlm = m.Store.GetPackageRealm(pkgPath)
+				m.Realm = rlm
+				// DO NOT set DidCrossing here. Make
+				// DidCrossing only happen upon explicit
+				// cross(fn)(...) calls and subsequent calls to
+				// crossing functions from the same realm, to
+				// avoid user confusion. Otherwise whether
+				// DidCrossing happened or not depends on where
+				// the receiver resides, which isn't explicit
+				// enough to avoid confusion.
+				//   fr.DidCrossing = true
+			}
 		} else {
 			// A function without receiver in a non-realm package.
 			// no switch
