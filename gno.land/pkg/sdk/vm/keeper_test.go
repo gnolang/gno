@@ -958,11 +958,18 @@ func Echo(cur realm, msg string){
 	assert.True(t, depDeltaTest.Add(depDeltaFoo).IsEqual(msg2.MaxDeposit))
 }
 
-// TestVMKeeper_RealmDiffIterationDeterminism tests that multiple runs of addpkg
-// + msgcall produce the same error messages, ensuring deterministic behavior
-// when iterating through the realm storage diffs.
-// See #4580 for context.
+// TestVMKeeper_RealmDiffIterationDeterminism is a regression test for issue #4580.
+// It verifies that the processStorageDeposit function iterates over realms
+// in a deterministic order by sorting the realm paths before iteration.
+// Without the fix, different runs would produce different error messages
+// due to non-deterministic map iteration order.
 func TestVMKeeper_RealmDiffIterationDeterminism(t *testing.T) {
+	// This test creates multiple realms with different names that would iterate
+	// in different orders in a map. It then triggers storage operations that
+	// exceed the deposit limit, causing processStorageDeposit to fail.
+	// The specific error message depends on which realm is processed first.
+	// With proper sorting in processStorageDeposit, the error should be
+	// deterministic across multiple runs.
 	const numRuns = 5
 
 	runOperations := func() (string, error) {
@@ -1065,11 +1072,11 @@ func UpdateAll(cur realm) {
 	for i := 1; i < numRuns; i++ {
 		errMsg, _ := runOperations()
 
-		// Fail immediately if we find a different error message
+		// If we find a different error message, it indicates non-deterministic behavior.
+		// This should NOT happen with the sorting fix in processStorageDeposit.
 		if errMsg != firstMsg {
-			t.Logf("Non-determinism detected at run %d!", i+1)
-			t.Logf("First error: %s", firstMsg)
-			t.Logf("Different error at run %d: %s", i+1, errMsg)
+			t.Fatalf("Non-deterministic behavior detected at run %d!\nFirst error: %s\nDifferent error at run %d: %s\n\nThis indicates the determinism fix in processStorageDeposit is not working correctly.",
+				i+1, firstMsg, i+1, errMsg)
 		}
 
 		// Force GC and allocations to change runtime state
@@ -1079,11 +1086,6 @@ func UpdateAll(cur realm) {
 		for j := range temp {
 			temp[j] = make(map[string]int)
 			temp[j]["key"] = j
-		}
-
-		// Log progress periodically
-		if !testing.Short() && i%10 == 0 {
-			t.Logf("Completed %d runs, all identical so far...", i)
 		}
 	}
 
