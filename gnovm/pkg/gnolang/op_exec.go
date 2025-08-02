@@ -57,6 +57,9 @@ func (m *Machine) doOpExec(op Op) {
 		debug.Printf("%v\n", m)
 	}
 
+	// Track coverage for this statement if coverage is enabled
+	m.trackStatementCoverage(s)
+
 	// NOTE this could go in the switch statement, and we could
 	// use the EXEC_SWITCH to jump back, rather than putting this
 	// in front like so, but loops are so common that this is

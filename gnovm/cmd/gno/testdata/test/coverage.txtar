@@ -1,0 +1,58 @@
+# Test coverage functionality
+
+# Test basic -cover flag
+gno test -cover .
+stderr 'coverage: .* of statements'
+
+# Test -covermode flag with different modes
+gno test -covermode set .
+stderr 'coverage: .* of statements'
+
+gno test -covermode count .
+stderr 'coverage: .* of statements'
+
+gno test -covermode atomic .
+stderr 'coverage: .* of statements'
+
+# Test -coverprofile flag
+gno test -coverprofile coverage.out .
+exists coverage.out
+grep 'mode: set' coverage.out
+
+# Test -covermode with -coverprofile
+gno test -covermode count -coverprofile coverage_count.out .
+exists coverage_count.out
+grep 'mode: count' coverage_count.out
+
+-- gno.mod --
+module test
+
+-- simple.gno --
+package test
+
+func Add(a, b int) int {
+	return a + b
+}
+
+func Multiply(a, b int) int {
+	return a * b
+}
+
+-- simple_test.gno --
+package test
+
+import "testing"
+
+func TestAdd(t *testing.T) {
+	result := Add(2, 3)
+	if result != 5 {
+		t.Errorf("Add(2, 3) = %d; want 5", result)
+	}
+}
+
+func TestMultiply(t *testing.T) {
+	result := Multiply(4, 5)
+	if result != 20 {
+		t.Errorf("Multiply(4, 5) = %d; want 20", result)
+	}
+}
