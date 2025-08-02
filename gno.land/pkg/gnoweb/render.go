@@ -103,3 +103,25 @@ func (r *HTMLRenderer) RenderSource(w io.Writer, name string, src []byte) error 
 func (r *HTMLRenderer) WriteChromaCSS(w io.Writer) error {
 	return r.ch.WriteCSS(w, r.cfg.ChromaStyle)
 }
+
+// HighlightCode highlights code with a specific language using Chroma
+func (r *HTMLRenderer) HighlightCode(code, language string) (string, error) {
+	// Get lexer directly from Chroma using the language parameter
+	lexer := lexers.Get(language)
+	if lexer == nil {
+		// Return error if language not found
+		return "", fmt.Errorf("unsupported language for syntax highlighting: %q", language)
+	}
+	
+	iterator, err := lexer.Tokenise(nil, code)
+	if err != nil {
+		return "", fmt.Errorf("unable to tokenise code for language %q: %w", language, err)
+	}
+	
+	var buf strings.Builder
+	if err := r.ch.Format(&buf, r.cfg.ChromaStyle, iterator); err != nil {
+		return "", fmt.Errorf("unable to format code for language %q: %w", language, err)
+	}
+	
+	return buf.String(), nil
+}

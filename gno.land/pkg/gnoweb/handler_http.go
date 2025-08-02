@@ -13,9 +13,12 @@ import (
 	"strings"
 	"time"
 
+	"math/rand"
+
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
 )
 
@@ -354,8 +357,7 @@ func (h *HTTPHandler) buildContributions(username string) ([]components.UserCont
 func CreateUsernameFromBech32(username string) string {
 	_, _, err := bech32.Decode(username)
 	if err == nil {
-		// If it's a valid bech32 address, create a shortened version
-		username = username[:4] + "..." + username[len(username)-4:]
+		return username		
 	}
 
 	return username
@@ -393,7 +395,8 @@ func (h *HTTPHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View)
 	username = CreateUsernameFromBech32(username)
 
 	//TODO: get from user r/profile and use placeholder if not set
-	handlename := "Gnome " + username
+	// For now, just use the username without "Gnome" prefix
+	handlename := username
 
 	data := components.UserData{
 		Username:      username,
@@ -483,47 +486,222 @@ func (h *HTTPHandler) renderReadme(gnourl *weburl.GnoURL, pkgPath string) (compo
 
 func (h *HTTPHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View) {
 	pkgPath := gnourl.Path
-
 	files, err := h.Client.ListFiles(pkgPath)
 	if err != nil {
 		h.Logger.Warn("unable to list sources file", "path", gnourl.Path, "error", err)
 		return GetClientErrorStatusPage(gnourl, err)
 	}
-
 	if len(files) == 0 {
 		h.Logger.Debug("no files available", "path", gnourl.Path)
 		return http.StatusOK, components.StatusErrorComponent("no files available")
 	}
 
-	var fileName string
-	if gnourl.IsFile() { // check path file from path first
+	fileName := ""
+	if gnourl.IsFile() {
 		fileName = gnourl.File
 	} else if file := gnourl.WebQuery.Get("file"); file != "" {
 		fileName = file
-	} else {
-		// Prefer README.md, then .gno files, otherwise first file
-		i := slices.IndexFunc(files, func(f string) bool {
-			return f == "README.md" || strings.HasSuffix(f, ".gno")
-		})
+	}
 
-		if i >= 0 {
-			fileName = files[i] // prefer .gno files and README.md
-		} else {
-			fileName = files[0] // fallback to first file - might be a .toml file
+	if fileName == "" {
+		return h.getSourceOverviewView(pkgPath, gnourl, files)
+	}
+	return h.getSourceFileView(pkgPath, gnourl, files, fileName)
+}
+
+// getPackageMetadata récupère les métadonnées du package depuis gnomod.toml
+func (h *HTTPHandler) getPackageMetadata(pkgPath string, files []string, readmeComp components.Component) *components.PackageInfo {
+	// Get gnomod.toml
+	gnomodData, _, err := h.Client.File(pkgPath, "gnomod.toml")
+	if err != nil {
+		h.Logger.Error("gnomod.toml not found", "pkgPath", pkgPath, "error", err)
+		return nil // No gnomod.toml
+	}
+	
+	// Parse gnomod.toml
+	mod, err := gnomod.ParseBytes("gnomod.toml", gnomodData)
+	if err != nil {
+		h.Logger.Warn("failed to parse gnomod.toml", "pkgPath", pkgPath, "error", err)
+		return nil
+	}
+	
+	// Detect tests
+	hasTests := false
+	for _, file := range files {
+		if strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno") {
+			hasTests = true
+			break
 		}
 	}
 
-	// Standard file rendering
+	// Check if readme.md exists
+	hasReadme := readmeComp != nil
+	
+	// Get license
+	license := h.getPackageLicense(pkgPath)
+	
+	return &components.PackageInfo{
+		Module:     mod.Module,
+		GnoVersion: mod.GetGno(),
+		Creator:    mod.AddPkg.Creator,
+		Height:     mod.AddPkg.Height,
+		Draft:      mod.Draft,
+		Private:    mod.Private,
+		License:    license,
+		HasTests:   hasTests,
+		HasReadme:  hasReadme,
+	}
+}
+
+// getPackageLicense get the license type of the package
+func (h *HTTPHandler) getPackageLicense(pkgPath string) string {
+	// List of possible license files
+	licenseFiles := []string{
+		"LICENSE.md",
+		"LICENSE",
+	}
+	
+	for _, filename := range licenseFiles {
+		licenseData, _, err := h.Client.File(pkgPath, filename)
+		if err != nil {
+			h.Logger.Debug("unable to read license file", "pkgPath", pkgPath, "filename", filename, "error", err)
+			continue
+		}
+		
+		// Detect the license type based on the content
+		licenseType := h.detectLicenseType(string(licenseData))
+		if licenseType != "" {
+			return licenseType
+		}
+	}
+	
+	return ""
+}
+
+// detectLicenseType detect the license type based on the content
+func (h *HTTPHandler) detectLicenseType(content string) string {
+	content = strings.ToLower(content)
+	
+	switch {
+	case strings.Contains(content, "mit license"):
+		return "MIT"
+	case strings.Contains(content, "apache license"):
+		return "Apache-2.0"
+	case strings.Contains(content, "gno network general public license"):
+		return "GNO-GPL"
+	case strings.Contains(content, "gnu general public license"):
+		return "GPL"
+	case strings.Contains(content, "gnu affero general public license"):
+		return "AGPL"
+	case strings.Contains(content, "bsd license"):
+		return "BSD"
+	case strings.Contains(content, "isc license"):
+		return "ISC"
+	case strings.Contains(content, "unlicense"):
+		return "Unlicense"
+	default:
+		return "Custom"
+	}
+}
+
+// getSourceOverview build the overview view (README, functions, files)
+func (h *HTTPHandler) getSourceOverviewView(pkgPath string, gnourl *weburl.GnoURL, files []string) (int, *components.View) {
+	readmeComp, _ := h.renderReadme(gnourl, pkgPath)
+	jdoc, _ := h.Client.Doc(pkgPath)
+	var functions []*doc.JSONFunc
+	var docString string
+	var consts []*doc.JSONValueDecl
+	var vars []*doc.JSONValueDecl
+	var types []*doc.JSONType
+	var dirs []string
+	var imports []*components.ImportLink
+	if jdoc != nil {
+		functions = jdoc.Funcs
+		docString = jdoc.PackageDoc
+		types = jdoc.Types
+		// Process imports to create appropriate links
+		for _, imp := range jdoc.Imports {
+			var link string
+			
+			switch {
+			case strings.HasPrefix(imp, h.Static.Domain):
+				// gno.land imports - create relative link
+				trimmed := strings.TrimPrefix(imp, h.Static.Domain)
+				link = trimmed + "$source"
+			case !strings.Contains(imp, "/") && imp != "std":
+				// Standard library imports - link to pkg.go.dev
+				link = "https://pkg.go.dev/" + imp
+			}
+			
+			imports = append(imports, &components.ImportLink{
+				Name: imp,
+				Link: link,
+			})
+		}
+		for _, v := range jdoc.Values {
+			if v.Const {
+				consts = append(consts, v)
+			} else {
+				vars = append(vars, v)
+			}
+		}
+	}
+	// List dirs
+	prefix := h.Static.Domain + pkgPath + "/"
+	limit := 1_000
+	paths, err := h.Client.ListPaths(prefix, limit)
+	if err != nil {
+		h.Logger.Warn("ListPaths failed", "pkgPath", pkgPath, "error", err)
+		paths = nil
+	}
+	
+	for _, p := range paths {
+		dir := strings.TrimPrefix(p, pkgPath+"/")
+		if dir != "" && !strings.Contains(dir, "/") && dir != "." {
+			dirs = append(dirs, dir)
+		}
+	}
+	h.Logger.Debug("Dirs for overview", "pkgPath", pkgPath, "dirs", dirs)
+	
+	// get package metadata
+	packageInfo := h.getPackageMetadata(pkgPath, files, readmeComp)
+	if packageInfo != nil {
+		packageInfo.PackageType = gnourl.PackageType()
+	}
+	
+	// Calculate package stats with smart limits
+	stats := h.calculatePackageStats(pkgPath, files)
+	
+	title := path.Base(gnourl.Path)
+		
+	return http.StatusOK, components.OverviewView(components.OverviewData{
+		PkgPath:     pkgPath,
+		Title:       title,
+		Readme:      readmeComp,
+		Functions:   functions,
+		Doc:         docString,
+		Files:       files,
+		FileCounter: len(files),
+		Consts:      consts,
+		Vars:        vars,
+		Types:       types,
+		Dirs:        dirs,
+		PackageInfo: packageInfo,
+		Imports:     imports,
+		Stats:       stats,
+	})
+}
+
+// getSourceFile build the source view for a given file
+func (h *HTTPHandler) getSourceFileView(pkgPath string, gnourl *weburl.GnoURL, files []string, fileName string) (int, *components.View) {
 	var (
 		fileSource components.Component
 		fileLines  int
 		sizeKB     float64
 	)
 
-	// Check whether the file is a markdown file
 	switch fileName {
 	case ReadmeFileName:
-		// Try to render README.md with markdown processing
 		readmeComp, raw := h.renderReadme(gnourl, pkgPath)
 		if readmeComp != nil && raw != nil {
 			fileSource = readmeComp
@@ -531,11 +709,8 @@ func (h *HTTPHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.Vie
 			sizeKB = float64(len(raw)) / 1024.0
 			break
 		}
-		// Fall through to default case if markdown rendering fails
 		fallthrough
-
 	default:
-		// Fetch raw source file
 		file, meta, err := h.Client.File(pkgPath, fileName)
 		if err != nil {
 			h.Logger.Warn("unable to get source file", "file", fileName, "error", err)
@@ -571,7 +746,9 @@ func (h *HTTPHandler) GetPathsListView(gnourl *weburl.GnoURL, indexData *compone
 	const limit = 1_000 // XXX: implement pagination
 
 	prefix := path.Join(h.Static.Domain, gnourl.Path) + "/"
+
 	paths, qerr := h.Client.ListPaths(prefix, limit)
+
 	if qerr != nil {
 		h.Logger.Error("unable to query path", "error", qerr, "path", gnourl.EncodeURL())
 	} else {
@@ -721,4 +898,107 @@ func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 	}
 
 	return data
+}
+
+
+
+// calculatePackageStats calculates package statistics with stratified sampling and robust estimation
+func (h *HTTPHandler) calculatePackageStats(pkgPath string, files []string) *components.PackageStats {
+	fileCount := len(files)
+	threshold := 50
+	// For large packages: use simple sampling
+	if fileCount >= threshold {
+		sampleSize := min(fileCount/10, 50)
+		sampledFiles := simpleSample(files, sampleSize, pkgPath)
+		files = sampledFiles
+		h.Logger.Debug("package stats sampling", "pkgPath", pkgPath, "totalFiles", fileCount, "sampledFiles", len(files))
+	}
+	
+	// Calculate stats
+	totalLines, totalSizeKB := 0, 0.0
+	
+	for _, fileName := range files {
+		if _, meta, err := h.Client.File(pkgPath, fileName); err == nil {
+			totalLines += meta.Lines
+			totalSizeKB += meta.SizeKB
+		}
+	}
+	
+	// For sampled data, use mean estimation
+	if fileCount >= threshold {
+		// Calculate mean from sampled files
+		var linesPerFile []int
+		var sizesPerFile []float64
+		
+		for _, fileName := range files {
+			if _, meta, err := h.Client.File(pkgPath, fileName); err == nil {
+				linesPerFile = append(linesPerFile, meta.Lines)
+				sizesPerFile = append(sizesPerFile, meta.SizeKB)
+			}
+		}
+		
+		// Calculate median from sampled files (more robust to outliers)
+		medianLines := median(linesPerFile)
+		medianSize := median(sizesPerFile)
+		
+		// Estimate using median * total file count
+		totalLines = medianLines * fileCount
+		totalSizeKB = medianSize * float64(fileCount)
+	}
+	
+	status := "complete"
+	if fileCount >= threshold {
+		status = "sampled"
+	}
+	
+	return &components.PackageStats{
+		FileCount:   fileCount,
+		TotalLines:  totalLines,
+		TotalSizeKB: totalSizeKB,
+		Status:      status,
+	}
+}
+
+
+
+// simpleSample creates a deterministic simple sample
+func simpleSample(files []string, sampleSize int, pkgPath string) []string {
+	if len(files) <= sampleSize {
+		return files
+	}
+
+	// Create deterministic seed from package path
+	seed := int64(0)
+	for _, char := range pkgPath {
+		seed = seed*31 + int64(char)
+	}
+	r := rand.New(rand.NewSource(seed))
+
+	// Generate deterministic permutation and take first sampleSize
+	indices := r.Perm(len(files))
+	sampled := make([]string, sampleSize)
+	for i := 0; i < sampleSize; i++ {
+		sampled[i] = files[indices[i]]
+	}
+
+	return sampled
+}
+
+// median calculates the median of a slice (works for both int and float64)
+func median[T int | float64](values []T) T {
+	if len(values) == 0 {
+		return 0
+	}
+	
+	// Sort the values
+	sorted := make([]T, len(values))
+	copy(sorted, values)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+	
+	// Calculate median
+	n := len(sorted)
+	if n%2 == 0 {
+		return (sorted[n/2-1] + sorted[n/2]) / 2
+	}
+	return sorted[n/2]
 }

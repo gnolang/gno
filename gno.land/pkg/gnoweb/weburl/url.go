@@ -162,6 +162,22 @@ func (gnoURL GnoURL) IsDir() bool {
 		len(gnoURL.Path) > 0 && gnoURL.Path[len(gnoURL.Path)-1] == '/'
 }
 
+// PackageType returns the type of package based on the URL path.
+func (gnoURL GnoURL) PackageType() string {
+	if gnoURL.IsPure() {
+		return "Pure Package"
+	} else if gnoURL.IsRealm() {
+		return "Realm Package"
+	} else if gnoURL.IsUser() {
+		return "User Profile"
+	} else if gnoURL.IsFile() {
+		return "File"
+	} else if gnoURL.IsDir() {
+		return "Directory"
+	}
+	return "Unknown"
+}
+
 // rePkgPath matches and validates a path.
 var rePkgPath = regexp.MustCompile(`^/[a-z0-9_/]*$`)
 

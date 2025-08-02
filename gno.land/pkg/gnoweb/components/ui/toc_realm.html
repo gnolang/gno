@@ -1,8 +1,10 @@
 {{ define "ui/toc_realm" }}
 <ul class="group/toc space-y-2 mt-2 pl-4 group-first/toc:border-l group-first/toc:border-gray-100">{{- range .Items }}
   <li>
-    <a class="line-clamp-2 hover:text-green-600 hover:underline" href="{{ .Anchor }}"> {{ .Title | noescape_bytes }} </a>
+    <a class="line-clamp-2 hover:text-green-600 hover:underline" href="{{ .Anchor }}"> {{ .Title | noescape_bytes }}
+    </a>
     {{ if .Items }} {{ template "ui/toc_realm" . }} {{ end }}
   </li>
-  {{ end }}</ul>
-{{ end }} 
+  {{ end }}
+</ul>
+{{ end }}
