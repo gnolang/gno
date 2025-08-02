@@ -1,0 +1,5 @@
+package subwork
+
+func Foo() {
+
+}

@@ -21,3 +21,8 @@ import "testing"
 func TestAlwaysValid(t *testing.T) {
 	// noop
 }
+
+-- gnowork.toml --
+
+-- gnomod.toml --
+module = 'gno.test/r/integ/valid'
