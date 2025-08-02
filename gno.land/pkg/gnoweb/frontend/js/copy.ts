@@ -35,9 +35,9 @@ class Copy {
 	}
 
 	private handleClick(event: Event): void {
-		const target = event.target as HTMLElement;
-		const button = target.closest<HTMLElement>(Copy.SELECTORS.button);
-
+		const button = (event.target as HTMLElement).closest<HTMLElement>(
+			Copy.SELECTORS.button,
+		);
 		if (!button) return;
 
 		this.btnClicked = button;
@@ -45,23 +45,49 @@ class Copy {
 			button.querySelectorAll<HTMLElement>(Copy.SELECTORS.icon),
 		);
 
-		const contentId = button.getAttribute("data-copy-btn");
-		if (!contentId) {
-			console.warn("Copy: No content ID found on the button.");
+		// Handle data-copy-txt (direct text)
+		const contentTxt = button.getAttribute("data-copy-txt");
+		if (contentTxt) {
+			this.copyTextToClipboard(contentTxt, this.btnClickedIcons);
 			return;
 		}
 
-		const codeBlock = this.DOM.el?.querySelector<HTMLElement>(
-			Copy.SELECTORS.content(contentId),
-		);
-		if (codeBlock) {
-			this.copyToClipboard(codeBlock, this.btnClickedIcons);
-		} else {
-			console.warn(`Copy: No content found for ID "${contentId}".`);
+		// Handle data-copy-target (legacy selector)
+		const contentSrc = button.getAttribute("data-copy-target");
+		if (contentSrc) {
+			const codeBlock = this.DOM.el?.querySelector<HTMLElement>(
+				Copy.SELECTORS.content(contentSrc),
+			);
+			if (!codeBlock) {
+				console.warn(`Copy: No content found for source "${contentSrc}".`);
+				return;
+			}
+			this.copyToClipboard(codeBlock, this.btnClickedIcons, false);
+			return;
 		}
+
+		// Handle data-copy-btn (new selector with optional comment removal)
+		const contentId = button.getAttribute("data-copy-btn");
+		if (contentId) {
+			const codeBlock = this.DOM.el?.querySelector<HTMLElement>(
+				Copy.SELECTORS.content(contentId),
+			);
+			if (codeBlock) {
+				const removeComments = button.hasAttribute("data-copy-remove-comments");
+				this.copyToClipboard(codeBlock, this.btnClickedIcons, removeComments);
+			} else {
+				console.warn(`Copy: No content found for ID "${contentId}".`);
+			}
+			return;
+		}
+
+		console.warn("Copy: No content to copy found on the button.");
 	}
 
-	private sanitizeContent(codeBlock: HTMLElement): string {
+	private sanitizeContent(
+		codeBlock: HTMLElement,
+		removeComments: boolean = false,
+	): string {
 		const html = codeBlock.innerHTML.replace(
 			/<span[^>]*class="chroma-ln"[^>]*>[\s\S]*?<\/span>/g,
 			"",
@@ -70,7 +96,19 @@ class Copy {
 		const tempDiv = document.createElement("div");
 		tempDiv.innerHTML = html;
 
-		return tempDiv.textContent?.trim() || "";
+		let text = tempDiv.textContent?.trim() || "";
+
+		if (removeComments) {
+			text = text
+				.split("\n")
+				.filter((line) => {
+					const trimmed = line.trim();
+					return trimmed && !trimmed.match(/^[#/*]/);
+				})
+				.join("\n");
+		}
+
+		return text;
 	}
 
 	private toggleIcons(icons: HTMLElement[]): void {
@@ -90,11 +128,31 @@ class Copy {
 		}, Copy.FEEDBACK_DELAY);
 	}
 
+	private async copyTextToClipboard(
+		text: string,
+		icons: HTMLElement[],
+	): Promise<void> {
+		if (!navigator.clipboard) {
+			console.error("Copy: Clipboard API is not supported in this browser.");
+			this.showFeedback(icons);
+			return;
+		}
+
+		try {
+			await navigator.clipboard.writeText(text.trim());
+			this.showFeedback(icons);
+		} catch (err) {
+			console.error("Copy: Error while copying text.", err);
+			this.showFeedback(icons);
+		}
+	}
+
 	private async copyToClipboard(
 		codeBlock: HTMLElement,
 		icons: HTMLElement[],
+		removeComments: boolean = false,
 	): Promise<void> {
-		const sanitizedText = this.sanitizeContent(codeBlock);
+		const sanitizedText = this.sanitizeContent(codeBlock, removeComments);
 
 		if (!navigator.clipboard) {
 			console.error("Copy: Clipboard API is not supported in this browser.");

@@ -9,7 +9,8 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval"
+	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
+	fstate "github.com/gnolang/gno/tm2/pkg/bft/privval/state"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
@@ -42,14 +43,14 @@ func newSecretsGetCmd(io commands.IO) *commands.Command {
 	)
 
 	// Add subcommand helpers
-	helperGen := metadataHelperGenerator{
+	gen := commands.FieldsGenerator{
 		MetaUpdate: func(meta *commands.Metadata, inputType string) {
 			meta.ShortUsage = fmt.Sprintf("secrets get %s <%s>", meta.Name, inputType)
 		},
 		TagNameSelector: "json",
 		TreeDisplay:     false,
 	}
-	cmd.AddSubCommands(generateSubCommandHelper(helperGen, secrets{}, func(_ context.Context, args []string) error {
+	cmd.AddSubCommands(gen.GenerateFrom(secrets{}, func(_ context.Context, args []string) error {
 		return execSecretsGet(cfg, args, io)
 	})...)
 
@@ -140,7 +141,7 @@ func loadSecrets(dirPath string) (*secrets, error) {
 
 // readValidatorKey reads the validator key from the given path
 func readValidatorKey(path string) (*validatorKeyInfo, error) {
-	validatorKey, err := readSecretData[privval.FilePVKey](path)
+	validatorKey, err := signer.LoadFileKey(path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read validator key, %w", err)
 	}
@@ -153,7 +154,7 @@ func readValidatorKey(path string) (*validatorKeyInfo, error) {
 
 // readValidatorState reads the validator state from the given path
 func readValidatorState(path string) (*validatorStateInfo, error) {
-	validatorState, err := readSecretData[privval.FilePVLastSignState](path)
+	validatorState, err := fstate.LoadFileState(path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read validator state, %w", err)
 	}
@@ -169,7 +170,7 @@ func readValidatorState(path string) (*validatorStateInfo, error) {
 
 // readNodeID reads the node p2p info from the given path
 func readNodeID(path string) (*nodeIDInfo, error) {
-	nodeKey, err := readSecretData[types.NodeKey](path)
+	nodeKey, err := types.LoadNodeKey(path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read node key, %w", err)
 	}
@@ -194,6 +195,7 @@ func readNodeID(path string) (*nodeIDInfo, error) {
 	return &nodeIDInfo{
 		ID:         nodeKey.ID().String(),
 		P2PAddress: constructP2PAddress(nodeKey.ID(), cfg.P2P.ListenAddress),
+		PubKey:     nodeKey.PrivKey.PubKey().String(),
 	}, nil
 }
 
