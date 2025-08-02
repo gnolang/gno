@@ -20,5 +20,6 @@ func main(cur realm) {
 // g1h2y7mn4d8w5ed08kqt8sdd7tp4j96eahyn6yan gno.land/r/crossrealm
 
 // Realm:
+// finalizerealm["gno.land/r/crossrealm"]
 // finalizerealm["gno.land/r/demo/tests/crossrealm"]
 // finalizerealm["gno.land/r/crossrealm"]
