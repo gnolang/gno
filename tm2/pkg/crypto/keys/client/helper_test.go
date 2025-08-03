@@ -65,6 +65,7 @@ func (m *testMockIO) GetPassword(prompt string, insecure bool) (string, error) {
 }
 
 func TestGenerateMnemonicWithCustomEntropy(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		entropy       string
