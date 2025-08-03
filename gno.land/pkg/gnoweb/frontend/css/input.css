@@ -787,7 +787,10 @@
 	main :is(.realm-view, .source-code, .doc-view) pre .chroma-ln:target {
 		@apply !bg-transparent;
 	}
-	main :is(.realm-view, .source-code, .doc-view) pre .chroma-line:has(.chroma-ln:target),
+	main
+		:is(.realm-view, .source-code, .doc-view)
+		pre
+		.chroma-line:has(.chroma-ln:target),
 	main
 		:is(.realm-view, .source-code, .doc-view)
 		pre
@@ -830,7 +833,7 @@
 		@apply text-gray-600 text-200;
 	}
 
-	.doc-view > p {	
+	.doc-view > p {
 		@apply my-2;
 	}
 
