@@ -87,6 +87,11 @@ func (rawRenderer) RenderSource(w io.Writer, name string, src []byte) error {
 	return err
 }
 
+func (rawRenderer) RenderDocumentation(w io.Writer, u *weburl.GnoURL, src []byte) error {
+	_, err := w.Write(src)
+	return err
+}
+
 // newTestHandlerConfig creates a HTTPHandlerConfig for tests using a stub client.
 func newTestHandlerConfig(t *testing.T, client gnoweb.ClientAdapter) *gnoweb.HTTPHandlerConfig {
 	t.Helper()

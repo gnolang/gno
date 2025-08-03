@@ -22,6 +22,7 @@ import (
 type Renderer interface {
 	RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte) (md.Toc, error)
 	RenderSource(w io.Writer, name string, src []byte) error
+	RenderDocumentation(w io.Writer, u *weburl.GnoURL, src []byte) error
 }
 
 // HTMLRenderer implements the Renderer interface for HTML output.
@@ -94,6 +95,27 @@ func (r *HTMLRenderer) RenderSource(w io.Writer, name string, src []byte) error 
 
 	if err := r.ch.Format(w, r.cfg.ChromaStyle, iterator); err != nil {
 		return fmt.Errorf("unable to format source file %q: %w", name, err)
+	}
+
+	return nil
+}
+
+// RenderDocumentation renders documentation with expandable code blocks enabled
+func (r *HTMLRenderer) RenderDocumentation(w io.Writer, u *weburl.GnoURL, src []byte) error {
+	gmOpts := append(r.cfg.GoldmarkOptions, goldmark.WithExtensions(
+		md.ExtCodeExpand, // Enable expandable code blocks with built-in Chroma
+	))
+
+	// Create goldmark renderer for documentation
+	gm := goldmark.New(gmOpts...)
+
+	// Create context for ExtLinks to work properly
+	ctx := md.NewGnoParserContext(u)
+
+	// Parse and render the markdown with context
+	doc := gm.Parser().Parse(text.NewReader(src), parser.WithContext(ctx))
+	if err := gm.Renderer().Render(w, src, doc); err != nil {
+		return fmt.Errorf("unable to render documentation: %w", err)
 	}
 
 	return nil
