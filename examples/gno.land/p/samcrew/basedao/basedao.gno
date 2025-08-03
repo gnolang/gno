@@ -25,7 +25,7 @@ func (d *daoPublic) Vote(id uint64, vote daocond.Vote) {
 	d.impl.Vote(id, vote)
 }
 
-// DAO is meant for internal realm usage and should not be exposed
+// DAOPrivate is meant for internal realm usage and should not be exposed
 type DAOPrivate struct {
 	Core             *daokit.Core
 	Members          *MembersStore
