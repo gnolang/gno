@@ -81,7 +81,7 @@ func TestDirs_findPackage(t *testing.T) {
 			{importPath: "rand", dir: filepath.Join(td, "dirs/rand")},
 			{importPath: "crypto/rand", dir: filepath.Join(td, "dirs/crypto/rand")},
 			{importPath: "math/rand", dir: filepath.Join(td, "dirs/math/rand")},
-			{importPath: "dirs.mod/prefix/math/rand", dir: filepath.Join(td, "dirsmod/math/rand")},
+			{importPath: "dirs.mod/r/prefix/math/rand", dir: filepath.Join(td, "dirsmod/math/rand")},
 		}},
 		{"crypto/rand", []bfsDir{
 			{importPath: "crypto/rand", dir: filepath.Join(td, "dirs/crypto/rand")},

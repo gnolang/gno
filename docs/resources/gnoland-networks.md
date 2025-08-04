@@ -2,10 +2,10 @@
 
 ## Network configurations
 
-| Network | RPC Endpoint                     | Chain ID  |
-|---------|----------------------------------|-----------|
-| Staging | https://rpc.gno.land:443         | `staging` |
-| Test5   | https://rpc.test5.gno.land:443   | `test5`   |
+| Network | RPC Endpoint                            | Chain ID  |
+|---------|-----------------------------------------|-----------|
+| Staging | https://rpc.gno.land:443                | `staging` |
+| Test7   | https://rpc.test7.testnets.gno.land:443 | `test7`   |
 
 ### WebSocket endpoints
 All networks follow the same pattern for websocket connections:
@@ -20,7 +20,7 @@ XXX: tell that staging is currently using a custom code but will switch to a gno
 
 Staging is an always-up-to-date staging testnet that allows for using
 the latest version of Gno, gno.land, and TM2. By utilizing the power of Docker
-& the [tx-archive](https://github.com/gnolang/gno/blob/master/contribs/tx-archive) tool, the Staging
+& the [tx-archive](https://github.com/gnolang/gno/tree/master/contribs/tx-archive) tool, the Staging
 can run the latest code from the master branch on the [Gno monorepo](https://github.com/gnolang/gno),
 while preserving most/all the previous transaction data.
 
@@ -60,7 +60,7 @@ Below is a diagram demonstrating how the Staging chain works:
 
 Specifically, Staging behaves like a normal network until a change is detected
 in the `master` branch in the Gno monorepo. At this point, the Staging chain archives
-on-chain data using the [tx-archive](https://github.com/gnolang/gno/blob/master/contribs/tx-archive)
+on-chain data using the [tx-archive](https://github.com/gnolang/gno/tree/master/contribs/tx-archive)
 tool, saving all transactions that happened on it thus far.
 
 It then pulls the latest changes from the `master` branch, and inserts all
@@ -79,9 +79,9 @@ XXX: list or link to the list of available RPC endpoints.
 While allowing for quick iteration on the most up-to-date software, the Staging chain
 has some drawbacks:
 - If a breaking change happens on `master`, transactions that used the previous version of
-Gno will fail to be replayed, meaning **data will be lost**.
+  Gno will fail to be replayed, meaning **data will be lost**.
 - Since transactions are archived and replayed during genesis,
-block height & timestamp cannot be relied upon.
+  block height & timestamp cannot be relied upon.
 
 #### Deploying to Staging
 
@@ -96,7 +96,7 @@ Since the packages in `examples/gno.land/{p,r}` are deployed first,
 permissionless deployments get superseded when packages with identical `pkgpath`
 get merged into `examples/`.
 
-The above mechanism is also how the `examples/` on Staging get collaboratively 
+The above mechanism is also how the `examples/` on Staging get collaboratively
 iterated upon, which is its main mission.
 
 ## Gno Testnets
@@ -134,28 +134,38 @@ is the `gnoweb` render of the Staging testnet.
     [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop) folder in the
     monorepo
 
-### Test5
 
-Test5 a permanent multi-node testnet. It bumped the validator set from 7 to 17
-nodes, introduced GovDAO V2, and added lots of bug fixes and quality of life
-improvements.
+### Test7
 
-Test5 was launched in November 2024.
+Test7 is the latest testnet released on the 25th of July, 2025.
 
 - **Persistence of state:**
   - State is fully persisted unless there are breaking changes in a new release,
     where persistence partly depends on implementing a migration strategy
 - **Timeliness of code:**
-  - Pre-deployed packages and realms are at monorepo commit [2e9f5ce](https://github.com/gnolang/gno/tree/2e9f5ce8ecc90ee81eb3ae41c06bab30ab926150)
+  - Pre-deployed packages and realms are at release tag [chain/test7.2](https://github.com/gnolang/gno/releases/tag/chain%2Ftest7.2)
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
-- **Versioning strategy**:
-  - Test5 is to be release-based, following releases of the Gno tech stack.
 
 ### TestX
 
 These testnets are deprecated and currently serve as archives of previous progress.
+
+### Test6 (archive)
+
+Test6 enables token locking, implements the interrealm specification, GovDAO V3 and more.
+
+Launch date: 23rd of June 2025
+
+### Test5 (archive)
+
+Test5 a permanent multi-node testnet. It bumped the validator set from 7 to 17
+nodes, introduced GovDAO V2, and added lots of bug fixes and quality of life
+improvements. Archived data for test5 can be
+found [here](https://github.com/gnolang/tx-exports/tree/main/test5.gno.land).
+
+Test5 was launched in November 2024.
 
 ## Test4 (archive)
 

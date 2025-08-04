@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"os"
 	"time"
 
 	"github.com/gnolang/gno/misc/loop/cmd/cfg"
 	"github.com/gnolang/gno/misc/loop/cmd/portalloop"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
 func NewServeCmd(_ commands.IO) *commands.Command {
@@ -28,7 +29,8 @@ func NewServeCmd(_ commands.IO) *commands.Command {
 }
 
 func execServe(ctx context.Context, cfg_ *cfg.CmdCfg) error {
-	logger := log.NewNoopLogger()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
 	portalLoopHandler, err := portalloop.NewPortalLoopHandler(cfg_, logger)
 	if err != nil {
 		return err

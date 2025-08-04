@@ -720,6 +720,8 @@ type Realm struct {
 func (r Realm) Address() Address {...}
 func (r Realm) PkgPath() string {...}
 func (r Realm) IsUser() bool {...}
+func (r Realm) IsUserRun() bool {...}
+func (r Realm) IsUserCall() bool {...}
 func (r Realm) CoinDenom(coinName string) string {...}
 ```
 
@@ -740,11 +742,33 @@ realmPath := r.PkgPath() // eg. gno.land/r/gnoland/blog
 ```
 ---
 ### IsUser
-Checks if the realm it was called upon is a user realm. This check passes for both `MsgCall` and `MsgRun` transactions.
+Checks if the receiver realm is a user realm. This check passes for both `MsgCall` and `MsgRun` transactions.
 
 ##### Usage
 ```go
 if r.IsUser() {...}
+```
+
+---
+
+### IsUserRun
+
+Checks if the receiver realm is a user realm, given by a `MsgRun` transaction.  
+
+##### Usage
+```go
+if r.IsUserRun() {...}
+```
+
+---
+
+### IsUserCall
+
+Checks if the receiver realm is a user realm, given by a `MsgCall` transaction.
+
+##### Usage
+```go
+if r.IsUserCall() {...}
 ```
 
 ---

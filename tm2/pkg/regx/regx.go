@@ -57,6 +57,11 @@ func (rx regx) Match(s string) *match {
 	return &match{rr.SubexpNames(), matches}
 }
 
+// Returns true if matches.
+func (rx regx) Matches(s string) bool {
+	return rx.Match(s) != nil
+}
+
 func r2s(xx regx) string                         { return string(xx) }                     // regx -> string
 func sj(sz ...string) string                     { return strings.Join(sz, ``) }           // string join
 func sjd(dd string, sz ...string) string         { return strings.Join(sz, dd) }           // string join
