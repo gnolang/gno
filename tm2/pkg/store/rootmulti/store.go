@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	ics23 "github.com/cosmos/ics23/go"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
@@ -292,7 +294,8 @@ func (ms *multiStore) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 
 	if !req.Prove {
 		return res
-	} else if res.Proof == nil || len(res.Proof.Ops) == 0 {
+	}
+	if res.Proof == nil || len(res.Proof.Ops) == 0 {
 		res.Error = serrors.ErrInternal("proof is unexpectedly empty; ensure height has not been pruned")
 		return
 	}
@@ -303,10 +306,17 @@ func (ms *multiStore) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 		return
 	}
 
+	// XXX WIP
+	existProof := NewMultiStoreProof(commitInfo.StoreInfos)
+	commitmentProof := &ics23.CommitmentProof{
+		Proof: &ics23.CommitmentProof_Exist{
+			Exist: existProof,
+		},
+	}
+
 	// Restore origin path and append proof op.
-	res.Proof.Ops = append(res.Proof.Ops, NewMultiStoreProofOp(
-		[]byte(storeName),
-		NewMultiStoreProof(commitInfo.StoreInfos),
+	res.Proof.Ops = append(res.Proof.Ops, types.NewSimpleMerkleCommitmentOp(
+		[]byte(storeName), commitmentProof,
 	).ProofOp())
 
 	// TODO: handle in another TM v0.26 update PR
@@ -437,13 +447,15 @@ func (si storeInfo) Hash() []byte {
 
 func getLatestVersion(db dbm.DB) int64 {
 	var latest int64
-	latestBytes := db.Get([]byte(latestVersionKey))
+	latestBytes, err := db.Get([]byte(latestVersionKey))
+	if err != nil {
+		panic(err)
+	}
 	if latestBytes == nil {
 		return 0
 	}
 
-	err := amino.UnmarshalSized(latestBytes, &latest)
-	if err != nil {
+	if err := amino.UnmarshalSized(latestBytes, &latest); err != nil {
 		panic(err)
 	}
 
@@ -492,15 +504,17 @@ func commitStores(version int64, storeMap map[types.StoreKey]types.CommitStore) 
 func getCommitInfo(db dbm.DB, ver int64) (commitInfo, error) {
 	// Get from DB.
 	cInfoKey := fmt.Sprintf(commitInfoKeyFmt, ver)
-	cInfoBytes := db.Get([]byte(cInfoKey))
+	cInfoBytes, err := db.Get([]byte(cInfoKey))
+	if err != nil {
+		return commitInfo{}, fmt.Errorf("failed to get Store: %v", err)
+	}
 	if cInfoBytes == nil {
 		return commitInfo{}, fmt.Errorf("failed to get Store: no data")
 	}
 
 	var cInfo commitInfo
 
-	err := amino.UnmarshalSized(cInfoBytes, &cInfo)
-	if err != nil {
+	if err := amino.UnmarshalSized(cInfoBytes, &cInfo); err != nil {
 		return commitInfo{}, fmt.Errorf("failed to get Store: %w", err)
 	}
 
