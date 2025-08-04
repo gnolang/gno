@@ -16,13 +16,13 @@ type HelpData struct {
 	SelectedArgs map[string]string
 	SelectedSend string
 
-	RealmName   string
-	Functions   []*doc.JSONFunc
-	ChainId     string
-	Remote      string
-	PkgPath     string
-	Doc         string
-	Domain      string
+	RealmName string
+	Functions []*doc.JSONFunc
+	ChainId   string
+	Remote    string
+	PkgPath   string
+	Doc       string
+	Domain    string
 }
 
 type HelpTocData struct {
