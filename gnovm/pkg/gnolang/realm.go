@@ -79,28 +79,28 @@ func (pid PkgID) Bytes() []byte {
 }
 
 var (
-	pkgIDFromPkgPathCacheMu sync.Mutex // protects the shared cache.
+	pkgPathMu sync.Mutex // protects the shared cache.
 	// TODO: later on switch this to an LRU if needed to ensure
 	// fixed memory caps. For now though it isn't a problem:
 	// https://github.com/gnolang/gno/pull/3424#issuecomment-2564571785
 	pkgIDFromPkgPathCache = make(map[string]*PkgID, 100)
-	// Cache for Private Status
-	pkgPrivateStatusCache = make(map[string]bool, 100)
+	// pkgPrivateStatus is a map that stores the private status of packages.
+	// use the SetPkgPrivateStatus and GetPkgPrivateStatus functions to modify and access this map.
+	pkgPrivateStatus = make(map[string]bool, 100)
 )
 
 func SetPkgPrivateStatus(path string, private bool) {
-	pkgIDFromPkgPathCacheMu.Lock()
-	defer pkgIDFromPkgPathCacheMu.Unlock()
+	pkgPathMu.Lock()
+	defer pkgPathMu.Unlock()
 
-	pkgPrivateStatusCache[path] = private
+	pkgPrivateStatus[path] = private
 }
 
-// GetPkgPrivateStatus retrieves the Private status for a given path.
 func GetPkgPrivateStatus(path string) bool {
-	pkgIDFromPkgPathCacheMu.Lock()
-	defer pkgIDFromPkgPathCacheMu.Unlock()
+	pkgPathMu.Lock()
+	defer pkgPathMu.Unlock()
 
-	private, ok := pkgPrivateStatusCache[path]
+	private, ok := pkgPrivateStatus[path]
 	if !ok {
 		return false // Default to false if not found.
 	}
@@ -108,8 +108,8 @@ func GetPkgPrivateStatus(path string) bool {
 }
 
 func PkgIDFromPkgPath(path string) PkgID {
-	pkgIDFromPkgPathCacheMu.Lock()
-	defer pkgIDFromPkgPathCacheMu.Unlock()
+	pkgPathMu.Lock()
+	defer pkgPathMu.Unlock()
 
 	pkgID, ok := pkgIDFromPkgPathCache[path]
 	if !ok {

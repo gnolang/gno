@@ -152,6 +152,7 @@ func init() {
         Value: 999,
         Tree:  tree,
     }
+    tree.Set("data", "hello")
 }
 
 func SaveTreeToPublicRealm(cur realm) {
@@ -312,7 +313,10 @@ func SaveClosure2ToPublicRealm(cur realm) {
 }
 
 func SaveArrayOfSimpleFunctionsToPublicRealm(cur realm) {
-    fn1 := func() string { return "hello" }
+    fn1 := func() string { 
+        data, _ := tree.Get("data")
+        return data.(string)
+    }
     fn2 := func() string { return "hello" }
     fn3 := func() string { return "hello" }
     
