@@ -137,10 +137,10 @@ func gnoFixParseGnomod(dir string) (mod *gnomod.File, isDotMod bool) {
 	return
 }
 
-func (cmd *fixCmd) processFix(cio commands.IO, files []string, gm *gnomod.File) error {
+func (c *fixCmd) processFix(cio commands.IO, files []string, gm *gnomod.File) error {
 	var newVersion string
 	for _, file := range files {
-		if cmd.verbose {
+		if c.verbose {
 			cio.ErrPrintln(file)
 		}
 		fset := token.NewFileSet()
@@ -158,13 +158,13 @@ func (cmd *fixCmd) processFix(cio commands.IO, files []string, gm *gnomod.File) 
 		// set if any of the fixes changed the AST.
 		fixed := false
 		for _, fx := range fix.Fixes {
-			if fx.F == nil || !cmd.fixFilter(fx.Name) {
+			if fx.F == nil || !c.fixFilter(fx.Name) {
 				continue
 			}
 			if fx.Version != "" && gm != nil {
 				cmpv, ok := gno.CompareVersions(fx.Version, gm.Gno)
 				if ok && cmpv <= 0 {
-					if cmd.verbose {
+					if c.verbose {
 						cio.ErrPrintfln(
 							"%s: %s: skipping fix (fix version %q <= gnomod version %q)",
 							file, fx.Name, fx.Version, gm.Gno,
@@ -193,7 +193,7 @@ func (cmd *fixCmd) processFix(cio commands.IO, files []string, gm *gnomod.File) 
 			// onto the next file.
 			continue
 		}
-		if cmd.diff {
+		if c.diff {
 			var buf bytes.Buffer
 			if err := format.Node(&buf, fset, parsed); err != nil {
 				return fmt.Errorf("error formatting: %w", err)

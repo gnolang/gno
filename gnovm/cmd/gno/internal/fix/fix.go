@@ -319,7 +319,6 @@ func apply(f ast.Node, pre, post func(*astutil.Cursor, scopes) bool) ast.Node {
 				*ast.SelectStmt,
 				*ast.File:
 				sc.push()
-
 			}
 			return true
 		},

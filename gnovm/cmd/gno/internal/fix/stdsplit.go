@@ -169,7 +169,7 @@ func stdsplit(f *ast.File) (fixed bool) {
 					}
 
 					decl = f.Imports[len(f.Imports)-1]
-					scopes(sc[:1]).declare(ast.NewIdent(ident), decl)
+					sc[:1].declare(ast.NewIdent(ident), decl)
 				}
 				if sc.lookup(ident) != decl {
 					// Will be tackled in post
@@ -204,7 +204,7 @@ func stdsplit(f *ast.File) (fixed bool) {
 						}
 						du.rename(newName)
 					}
-					if scopes(sc[1:]).lookup(tr) != nil {
+					if sc[1:].lookup(tr) != nil {
 						newToRename = append(newToRename, tr)
 					}
 				}
