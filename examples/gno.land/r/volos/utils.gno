@@ -80,6 +80,10 @@ func safeTransferTo(tokenPath string, to std.Address, amount int64) {
 	beforeContractBalance := token.BalanceOf(contractAddr)
 	beforeToBalance := token.BalanceOf(to)
 	
+	// Debug: print balances
+	print("DEBUG: tokenPath=", tokenPath, ", contractAddr=", contractAddr.String(), ", to=", to.String(), "\n")
+	print("DEBUG: beforeContractBalance=", beforeContractBalance, ", beforeToBalance=", beforeToBalance, ", amount=", amount, "\n")
+	
 	// Check if contract has sufficient balance
 	if beforeContractBalance < amount {
 		panic(ErrInsufficientBalance)
@@ -89,6 +93,7 @@ func safeTransferTo(tokenPath string, to std.Address, amount int64) {
 	teller := GetTokenRealmTeller(tokenPath)
 	err := teller.Transfer(to, amount)
 	if err != nil {
+		print("DEBUG: Transfer failed with error: ", err, "\n")
 		panic(ErrTransferFailed)
 	}
 	
