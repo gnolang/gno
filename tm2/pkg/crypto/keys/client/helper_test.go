@@ -3,66 +3,14 @@ package client
 import (
 	"bytes"
 	"crypto/sha256"
-	"io"
+	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// testMockIO implements commands.IO for testing
-type testMockIO struct {
-	inputs       []string
-	inputIndex   int
-	confirms     []bool
-	confirmIndex int
-	output       bytes.Buffer
-}
-
-func (m *testMockIO) In() io.Reader                                  { return &m.output }
-func (m *testMockIO) Out() io.WriteCloser                            { return &testWriteCloser{&m.output} }
-func (m *testMockIO) Err() io.WriteCloser                            { return &testWriteCloser{&m.output} }
-func (m *testMockIO) SetIn(in io.Reader)                             {}
-func (m *testMockIO) SetOut(out io.WriteCloser)                      {}
-func (m *testMockIO) SetErr(err io.WriteCloser)                      {}
-func (m *testMockIO) Println(args ...interface{})                    {}
-func (m *testMockIO) Printf(format string, args ...interface{})      {}
-func (m *testMockIO) Printfln(format string, args ...interface{})    {}
-func (m *testMockIO) ErrPrintln(args ...interface{})                 {}
-func (m *testMockIO) ErrPrintfln(format string, args ...interface{}) {}
-
-type testWriteCloser struct {
-	*bytes.Buffer
-}
-
-func (w *testWriteCloser) Close() error { return nil }
-
-func (m *testMockIO) GetString(prompt string) (string, error) {
-	if m.inputIndex >= len(m.inputs) {
-		return "", nil
-	}
-	result := m.inputs[m.inputIndex]
-	m.inputIndex++
-	return result, nil
-}
-
-func (m *testMockIO) GetConfirmation(prompt string) (bool, error) {
-	if m.confirmIndex >= len(m.confirms) {
-		return false, nil
-	}
-	result := m.confirms[m.confirmIndex]
-	m.confirmIndex++
-	return result, nil
-}
-
-func (m *testMockIO) GetCheckPassword(prompts [2]string, insecure bool) (string, error) {
-	return "password", nil
-}
-
-func (m *testMockIO) GetPassword(prompt string, insecure bool) (string, error) {
-	return "password", nil
-}
 
 func TestGenerateMnemonicWithCustomEntropy(t *testing.T) {
 	t.Parallel()
@@ -104,12 +52,27 @@ func TestGenerateMnemonicWithCustomEntropy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			mockIO := &testMockIO{
-				inputs:   []string{tt.entropy},
-				confirms: tt.confirmations,
-			}
 
-			mnemonic, err := GenerateMnemonicWithCustomEntropy(mockIO)
+			// Create test IO with configured input for entropy and confirmation
+			io := commands.NewTestIO()
+
+			// Set up input stream with entropy and confirmation response
+			inputData := tt.entropy + "\n"
+			if len(tt.confirmations) > 0 {
+				if tt.confirmations[0] {
+					inputData += "y\n"
+				} else {
+					inputData += "n\n"
+				}
+			}
+			io.SetIn(strings.NewReader(inputData))
+
+			// Capture output
+			var outBuf, errBuf bytes.Buffer
+			io.SetOut(commands.WriteNopCloser(&outBuf))
+			io.SetErr(commands.WriteNopCloser(&errBuf))
+
+			mnemonic, err := GenerateMnemonicWithCustomEntropy(io)
 
 			if tt.shouldError {
 				require.Error(t, err)
@@ -125,12 +88,16 @@ func TestGenerateMnemonicWithCustomEntropy(t *testing.T) {
 			assert.True(t, bip39.IsMnemonicValid(mnemonic), "generated mnemonic is not valid BIP39")
 
 			// Verify determinism - same entropy should produce same mnemonic
-			mockIO2 := &testMockIO{
-				inputs:   []string{tt.entropy},
-				confirms: tt.confirmations,
+			io2 := commands.NewTestIO()
+			inputData2 := tt.entropy + "\n"
+			if len(tt.confirmations) > 0 && tt.confirmations[0] {
+				inputData2 += "y\n"
 			}
+			io2.SetIn(strings.NewReader(inputData2))
+			io2.SetOut(commands.WriteNopCloser(&bytes.Buffer{}))
+			io2.SetErr(commands.WriteNopCloser(&bytes.Buffer{}))
 
-			mnemonic2, err := GenerateMnemonicWithCustomEntropy(mockIO2)
+			mnemonic2, err := GenerateMnemonicWithCustomEntropy(io2)
 			require.NoError(t, err, "unexpected error on second generation")
 
 			assert.Equal(t, mnemonic, mnemonic2, "same entropy produced different mnemonics")
@@ -148,12 +115,13 @@ func TestDeterministicMnemonicGeneration(t *testing.T) {
 	expectedMnemonic, err := bip39.NewMnemonic(hashedEntropy[:])
 	require.NoError(t, err, "failed to generate expected mnemonic")
 
-	mockIO := &testMockIO{
-		inputs:   []string{testEntropy},
-		confirms: []bool{true},
-	}
+	// Create test IO with entropy and confirmation
+	io := commands.NewTestIO()
+	io.SetIn(strings.NewReader(testEntropy + "\ny\n"))
+	io.SetOut(commands.WriteNopCloser(&bytes.Buffer{}))
+	io.SetErr(commands.WriteNopCloser(&bytes.Buffer{}))
 
-	actualMnemonic, err := GenerateMnemonicWithCustomEntropy(mockIO)
+	actualMnemonic, err := GenerateMnemonicWithCustomEntropy(io)
 	require.NoError(t, err, "failed to generate mnemonic")
 
 	assert.Equal(t, expectedMnemonic, actualMnemonic, "mnemonic doesn't match expected deterministic result")
@@ -171,31 +139,26 @@ func TestEntropyHashingConsistency(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		mockIO := &testMockIO{
-			inputs:   []string{tc.input},
-			confirms: []bool{true},
-		}
+		// First generation
+		io := commands.NewTestIO()
+		io.SetIn(strings.NewReader(tc.input + "\ny\n"))
+		io.SetOut(commands.WriteNopCloser(&bytes.Buffer{}))
+		io.SetErr(commands.WriteNopCloser(&bytes.Buffer{}))
 
-		mnemonic, err := GenerateMnemonicWithCustomEntropy(mockIO)
+		mnemonic, err := GenerateMnemonicWithCustomEntropy(io)
 		require.NoError(t, err, "failed to generate mnemonic for input %q", tc.input)
 
 		// Verify it's a valid mnemonic
 		assert.True(t, bip39.IsMnemonicValid(mnemonic), "invalid mnemonic generated for input %q", tc.input)
 
 		// Test consistency - run it again
-		mockIO2 := &testMockIO{
-			inputs:   []string{tc.input},
-			confirms: []bool{true},
-		}
+		io2 := commands.NewTestIO()
+		io2.SetIn(strings.NewReader(tc.input + "\ny\n"))
+		io2.SetOut(commands.WriteNopCloser(&bytes.Buffer{}))
+		io2.SetErr(commands.WriteNopCloser(&bytes.Buffer{}))
 
-		mnemonic2, err := GenerateMnemonicWithCustomEntropy(mockIO2)
-		if err != nil {
-			t.Errorf("failed to generate mnemonic on second try: %v", err)
-			continue
-		}
-
-		if mnemonic != mnemonic2 {
-			t.Errorf("inconsistent mnemonic generation for input %q", tc.input)
-		}
+		mnemonic2, err := GenerateMnemonicWithCustomEntropy(io2)
+		assert.NoError(t, err, "failed to generate mnemonic on second try")
+		assert.Equal(t, mnemonic, mnemonic2, "inconsistent mnemonic generation for input %q", tc.input)
 	}
 }
