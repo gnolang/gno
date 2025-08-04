@@ -215,11 +215,17 @@ class HelpFunc {
 				console.warn(`No href attribute found for function ${this.funcName}`);
 				return;
 			}
-			const newUrl = currentUrl.replace(
-				new RegExp(`(${paramName}=)[^&]*`),
-				`$1${encodeURIComponent(paramValue)}`,
-			);
-			this.DOM.functionLink.setAttribute("href", newUrl);
+
+			if (paramValue) {
+				const paramRegex = new RegExp(`&${paramName}=[^&]*`);
+				const newParam = `&${paramName}=${encodeURIComponent(paramValue)}`;
+
+				const newUrl = paramRegex.test(currentUrl)
+					? currentUrl.replace(paramRegex, newParam)
+					: `${currentUrl}${newParam}`;
+
+				this.DOM.functionLink.setAttribute("href", newUrl);
+			}
 		}
 	}
 

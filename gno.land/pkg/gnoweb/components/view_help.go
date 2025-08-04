@@ -21,7 +21,6 @@ type HelpData struct {
 	ChainId     string
 	Remote      string
 	PkgPath     string
-	PkgFullPath string
 	Doc         string
 	Domain      string
 }
