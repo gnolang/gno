@@ -43,6 +43,9 @@ var (
 	ErrTransferFailed        = errors.New("transfer failed")
 	ErrBalanceVerificationFailed = errors.New("balance verification failed")
 
+	// Flash loan errors
+	ErrZeroAssets = errors.New("zero assets")
+
 	// Authorization errors
 	ErrUnauthorized = errors.New("unauthorized")
 )
