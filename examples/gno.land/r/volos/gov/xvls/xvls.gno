@@ -72,6 +72,9 @@ func Mint(cur realm, to std.Address, amount int64) {
 	}); err != nil {
 		panic(err)
 	}
+
+	caller := std.PreviousRealm().Address()
+	emitMint(caller, to, amount)
 }
 
 // Burn burns xVLS from the specified address. Only callable by the staker contract.
@@ -84,6 +87,9 @@ func Burn(cur realm, from std.Address, amount int64) {
 	}); err != nil {
 		panic(err)
 	}
+	
+	caller := std.PreviousRealm().Address()
+	emitBurn(caller, from, amount)
 }
 
 // Transfer is disabled for xVLS (non-transferable).

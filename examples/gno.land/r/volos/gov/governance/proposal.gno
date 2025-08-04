@@ -93,6 +93,8 @@ func CreateProposal(cur realm, title, body string, votingPeriod time.Duration, a
 	}
 
 	proposal := volosGovernance.MustPropose(proposer, def)
+	deadline := time.Now().Add(votingPeriod).Unix()
+	emitProposalCreated(proposer, proposal.ID(), title, body, deadline)
 	return proposal
 }
 
@@ -104,8 +106,11 @@ func GetProposal(id uint64) *commondao.Proposal {
 // Execute executes a proposal with the given ID.
 // This function calls the commondao's Execute method and panics if an error occurs.
 func Execute(cur realm, proposalID uint64) {
+	caller := std.PreviousRealm().Address()
 	err := volosGovernance.Execute(proposalID)
 	if err != nil {
 		panic(err)
 	}
+	
+	emitProposalExecuted(caller, proposalID)
 }

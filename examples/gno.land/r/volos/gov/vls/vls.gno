@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	VolosDAO        = "gno.land/r/volosgov"
+	VolosDAO        = "gno.land/r/volos/gov/governance"
 	VolosDAOAddress = std.DerivePkgAddr(VolosDAO)
 	token, ledger   = grc20.NewToken("Volos Governance Token", "VLS", 6)
 
@@ -64,6 +64,9 @@ func Transfer(cur realm, to std.Address, amount int64) {
 	if err := teller.Transfer(to, amount); err != nil {
 		panic(err)
 	}
+
+	caller := std.PreviousRealm().Address()
+	emitTransfer(caller, caller, to, amount)
 }
 
 // Approve a spender to spend tokens on behalf of the caller.
@@ -72,6 +75,9 @@ func Approve(cur realm, spender std.Address, amount int64) {
 	if err := teller.Approve(spender, amount); err != nil {
 		panic(err)
 	}
+
+	caller := std.PreviousRealm().Address()
+	emitApproval(caller, spender, amount)
 }
 
 // Transfer tokens from an owner to a recipient, using the caller's allowance.
@@ -80,6 +86,9 @@ func TransferFrom(cur realm, owner, to std.Address, amount int64) {
 	if err := teller.TransferFrom(owner, to, amount); err != nil {
 		panic(err)
 	}
+
+	caller := std.PreviousRealm().Address()
+	emitTransfer(caller, owner, to, amount)
 }
 
 // Public wrapper functions that handle authorization
@@ -93,6 +102,9 @@ func Mint(cur realm, VolosDAO std.Address, to std.Address, amount int64) {
 	}); err != nil {
 		panic(err)
 	}
+
+	caller := std.PreviousRealm().Address()
+	emitMint(caller, to, amount)
 }
 
 // Burn tokens from the caller's account.
@@ -106,10 +118,14 @@ func Burn(cur realm, VolosDAO std.Address, from std.Address, amount int64) {
 	}); err != nil {
 		panic(err)
 	}
+
+	caller := std.PreviousRealm().Address()
+	emitBurn(caller, from, amount)
 }
 
 // Update the governance contract address.
 func UpdateGovernance(cur realm, newPkgPath string) {
+	oldPkgPath := VolosDAO
 	if err := Auth.DoByPrevious("update_governance", func() error {
 		VolosDAOAddress = std.DerivePkgAddr(newPkgPath)
 		VolosDAO = newPkgPath
@@ -119,4 +135,12 @@ func UpdateGovernance(cur realm, newPkgPath string) {
 	}); err != nil {
 		panic(err)
 	}
+
+	caller := std.PreviousRealm().Address()
+	emitGovernanceUpdated(caller, oldPkgPath, newPkgPath)
+}
+
+// Render function for explorer integration.
+func Render(path string) string {
+	return token.RenderHome()
 }

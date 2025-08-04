@@ -48,3 +48,8 @@ func MemberSet() commondao.MemberSet {
 func ProposalThreshold() int64 {
 	return proposalThreshold
 }
+
+// Render function for explorer integration.
+func Render(path string) string {
+	return "Volos Governance - On-chain governance for the Volos protocol"
+}

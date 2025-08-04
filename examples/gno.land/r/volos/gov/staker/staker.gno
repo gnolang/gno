@@ -46,6 +46,9 @@ func Stake(cur realm, amount int64, delegatee std.Address) {
 	vls.TransferFrom(cross, caller, std.CurrentRealm().Address(), amount)
 	xvls.Mint(cross, delegatee, amount)
 	governance.AddMember(cross, delegatee)
+	
+	emitStake(caller, caller, delegatee, amount)
+	emitMemberAdded(caller, delegatee)
 }
 
 // BeginUnstake burns xVLS from the delegatee and starts a cooldown period for the original staker.
@@ -68,6 +71,7 @@ func BeginUnstake(cur realm, amount int64, delegatee std.Address) {
 	xvls.Burn(cross, delegatee, amount)
 	if xvls.BalanceOf(delegatee) == 0 {
 		governance.RemoveMember(cross, delegatee)
+		emitMemberRemoved(caller, delegatee)
 	}
 	key := caller.String()
 	var list []UnstakeInfo
@@ -75,13 +79,16 @@ func BeginUnstake(cur realm, amount int64, delegatee std.Address) {
 		list = existing.([]UnstakeInfo)
 	}
 
+	unlockAt := time.Now().Unix() + UnstakeLockPeriod
 	list = append(list, UnstakeInfo{
 		Amount:    amount,
-		UnlockAt:  time.Now().Unix() + UnstakeLockPeriod,
+		UnlockAt:  unlockAt,
 		Delegatee: delegatee,
 	})
 
 	pendingUnstakes.Set(key, list)
+	
+	emitBeginUnstake(caller, caller, delegatee, amount, unlockAt)
 }
 
 // WithdrawUnstaked allows the original staker to withdraw all matured VLS unstakes.
@@ -121,4 +128,6 @@ func WithdrawUnstaked(cur realm) {
 	} else {
 		pendingUnstakes.Set(key, remaining)
 	}
+	
+	emitWithdraw(caller, caller, totalToWithdraw, len(remaining))
 }

@@ -29,6 +29,9 @@ func AddMember(cur realm, addr std.Address) {
 
 		return nil
 	})
+
+	caller := std.PreviousRealm().Address()
+	emitMemberAdded(caller, addr)
 }
 
 // RemoveMember removes an address from the DAO's member set if they have 0 xVLS. Panics if not.
@@ -47,6 +50,9 @@ func RemoveMember(cur realm, addr std.Address) {
 
 		return nil
 	})
+
+	caller := std.PreviousRealm().Address()
+	emitMemberRemoved(caller, addr)
 }
 
 // KickMember removes an address from the DAO's member set.
@@ -58,4 +64,7 @@ func KickMember(cur realm, addr std.Address) {
 
 		return nil
 	})
+	
+	caller := std.PreviousRealm().Address()
+	emitMemberRemoved(caller, addr)
 }
