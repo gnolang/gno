@@ -64,6 +64,6 @@ type IRM interface {
 // FlashLoanCallback interface that users willing to use flash loans must implement
 type FlashLoanCallback interface {
 	// OnVolosFlashLoan is called when a flash loan occurs
-	OnVolosFlashLoan(assets int64, data []byte)
+	OnVolosFlashLoan(cur realm, assets int64, data []byte)
 }
 

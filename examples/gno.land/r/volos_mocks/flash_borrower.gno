@@ -9,13 +9,15 @@ import (
 // FlashBorrowerMock is a mock contract that demonstrates how to use Volos flash loans
 // It implements the FlashLoanCallback interface
 type FlashBorrowerMock struct {
-	// No need to store volos address since we're in the same package
+	volosAddr std.Address
 }
 
 var borrower *FlashBorrowerMock
 
 func init() {
-	borrower = &FlashBorrowerMock{}
+	borrower = &FlashBorrowerMock{
+		volosAddr: std.DerivePkgAddr("gno.land/r/volos"),
+	}
 }
 
 // FlashLoan initiates a flash loan from Volos
@@ -26,14 +28,13 @@ func FlashLoan(cur realm, token string, assets int64, data []byte) {
 
 // OnVolosFlashLoan is the callback function that gets called during flash loan execution
 // This implements the FlashLoanCallback interface
-func (f *FlashBorrowerMock) OnVolosFlashLoan(assets int64, data []byte) {
+func (f *FlashBorrowerMock) OnVolosFlashLoan(cur realm, assets int64, data []byte) {
 	token := string(data)
 
 	// Approve Volos to take back the tokens using the token's teller
 	tokenObj := grc20reg.MustGet(token)
 	teller := tokenObj.RealmTeller()
-	volosAddr := std.CurrentRealm().Address()
-	err := teller.Approve(volosAddr, assets)
+	err := teller.Approve(f.volosAddr, assets)
 	if err != nil {
 		panic("approval failed")
 	}

@@ -881,7 +881,7 @@ func FlashLoan(cur realm, token string, assets int64, data []byte, callback Flas
 	safeTransferTo(token, caller, assets)
 
 	// Execute the callback function
-	callback.OnVolosFlashLoan(assets, data)
+	callback.OnVolosFlashLoan(cross, assets, data)
 
 	// Transfer tokens back from borrower
 	safeTransferFrom(token, caller, assets)

@@ -253,3 +253,9 @@ check-volos-owner:
 	$(info ************ Check volos owner ************)
 	gnokey query vm/qeval -remote $(GNOLAND_RPC_URL) -data "gno.land/r/volos.GetOwner()"
 	@echo
+
+# Test flash loan
+test-flashloan:
+	$(info ************ Testing Flash Loan ************)
+	@echo "" | gnokey maketx run gnoswap_admin flashloan.gno -gas-wanted 200000000 -gas-fee 1000000ugnot -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -memo ""
+	@echo
