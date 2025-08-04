@@ -89,7 +89,7 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 
 	// Create custom printer that doesn't generate heading IDs
 	printer := createCustomPrinter(pkg)
-	
+
 	// Parse package documentation
 	var pkgDoc string
 	if pkg.Doc != "" {
@@ -97,7 +97,7 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 		doc := p.Parse(pkg.Doc)
 		pkgDoc = normalizedMarkdownPrinter(printer, doc)
 	}
-	
+
 	jsonDoc := &JSONDocumentation{
 		PackagePath: d.pkgData.dir.dir,
 		PackageLine: fmt.Sprintf("package %s // import %q", pkg.Name, pkg.ImportPath),
@@ -112,7 +112,7 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 		doc := p.Parse(value.Doc)
 		jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
 			Signature: mustFormatNode(d.pkgData.fset, value.Decl),
-			Const:     true,	
+			Const:     true,
 			Values:    d.extractValueSpecs(value.Decl.Specs, printer),
 			Doc:       normalizedMarkdownPrinter(printer, doc),
 		})
@@ -202,8 +202,6 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 	return jsonDoc, nil
 }
 
-
-
 // createCustomPrinter creates a printer that doesn't generate heading IDs
 // and handles backslash escaping properly
 func createCustomPrinter(pkg *doc.Package) *comment.Printer {
@@ -220,7 +218,7 @@ func normalizedMarkdownPrinter(printer *comment.Printer, doc *comment.Doc) strin
 	md := string(printer.Markdown(doc))
 	md = convertIndentedCodeBlocksToFenced(md)
 	md = strings.ReplaceAll(md, `\\`, `\`)
-	
+
 	return md
 }
 
@@ -229,12 +227,12 @@ func normalizedMarkdownPrinter(printer *comment.Printer, doc *comment.Doc) strin
 func convertIndentedCodeBlocksToFenced(markdown string) string {
 	var buf bytes.Buffer
 	reader := strings.NewReader(markdown)
-	
+
 	if err := normalizeCodeBlockStream(reader, &buf); err != nil {
 		// If conversion fails, return original markdown
 		return markdown
 	}
-	
+
 	return buf.String()
 }
 
@@ -251,17 +249,39 @@ func normalizeCodeBlockStream(r io.Reader, w io.Writer) error {
 		line := scanner.Text()
 		isCode := strings.HasPrefix(line, "\t") || (len(line) >= 4 && line[:4] == "    ")
 
-		if isCode && !inCode { if err := write("```go"); err != nil { return err }; inCode = true }
-		if !isCode && inCode { if err := write("```"); err != nil { return err }; inCode = false }
+		if isCode && !inCode {
+			if err := write("```go"); err != nil {
+				return err
+			}
+			inCode = true
+		}
+		if !isCode && inCode {
+			if err := write("```"); err != nil {
+				return err
+			}
+			inCode = false
+		}
 
 		if isCode {
-			if strings.HasPrefix(line, "\t") { line = line[1:] } else { line = line[4:] }
+			if strings.HasPrefix(line, "\t") {
+				line = line[1:]
+			} else {
+				line = line[4:]
+			}
 		}
-		if err := write(line); err != nil { return err }
+		if err := write(line); err != nil {
+			return err
+		}
 	}
 
-	if err := scanner.Err(); err != nil { return fmt.Errorf("lecture failed: %w", err) }
-	if inCode { if err := write("```"); err != nil { return err } }
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("lecture failed: %w", err)
+	}
+	if inCode {
+		if err := write("```"); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
