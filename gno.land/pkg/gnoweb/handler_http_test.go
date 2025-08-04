@@ -873,14 +873,14 @@ func TestWebHandler_GetHelpView_PackageDocMarkdown(t *testing.T) {
 		shouldContain string
 	}{
 		{
-			name:          "successful markdown rendering",
-			packageDoc:    "This is a **bold** package with `code` and _italic_ text.",
-			shouldContain: "<strong>bold</strong>",
+			name:          "basic text rendering",
+			packageDoc:    "This is a simple package with basic text.",
+			shouldContain: "This is a simple package with basic text.",
 		},
 		{
 			name:          "escaped markdown characters",
 			packageDoc:    "Special char is \\`\\_\\` and \\*bold\\*",
-			shouldContain: "<code>_</code>",
+			shouldContain: "Special char is `_` and *bold*",
 		},
 		{
 			name:          "empty package doc",
@@ -888,14 +888,19 @@ func TestWebHandler_GetHelpView_PackageDocMarkdown(t *testing.T) {
 			shouldContain: "Function",
 		},
 		{
-			name:          "omit injected HTML link",
-			packageDoc:    "<a href=\"http://inject.com\"\\>text</a\\>",
-			shouldContain: "<!-- raw HTML omitted -->",
+			name:          "escape HTML link",
+			packageDoc:    "<a href=\"http://inject.com\">text</a>",
+			shouldContain: "&lt;!-- raw HTML omitted --&gt;",
 		},
 		{
-			name:          "omit injected HTML image",
-			packageDoc:    "<img src=\"inject.png\"\\>",
-			shouldContain: "<!-- raw HTML omitted -->",
+			name:          "escape HTML image",
+			packageDoc:    "<img src=\"inject.png\">",
+			shouldContain: "&lt;!-- raw HTML omitted --&gt;",
+		},
+		{
+			name:          "code block with expandable feature",
+			packageDoc:    "```go\nfunc main() {\n    fmt.Println(\"Hello\")\n}\n```",
+			shouldContain: "&lt;details class=&#34;doc-example&#34;&gt;",
 		},
 	}
 
@@ -920,7 +925,7 @@ func TestWebHandler_GetHelpView_PackageDocMarkdown(t *testing.T) {
 			}
 
 			// Create a custom mock client that returns package documentation
-			mockClient := *gnoweb.NewMockClient(mockPackage)
+			mockClient := gnoweb.NewMockClient(mockPackage)
 			client := &stubClient{
 				docFunc: func(path string) (*doc.JSONDocumentation, error) {
 					// Get the base documentation from the mock

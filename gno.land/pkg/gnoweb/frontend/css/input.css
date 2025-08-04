@@ -825,7 +825,7 @@
 	}
 
 	.doc-example > div > pre {
-		@apply overflow-scroll no-scrollbar;
+		@apply overflow-scroll no-scrollbar p-2;
 	}
 
 	/* doc-view */

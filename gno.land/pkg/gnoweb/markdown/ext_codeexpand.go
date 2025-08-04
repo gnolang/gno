@@ -96,12 +96,12 @@ func (r *expandableCodeRenderer) renderCodeBlock(w util.BufWriter, source []byte
 		iterator, err := lexer.Tokenise(nil, codeContent)
 		if err != nil || chromaFormatter.Format(w, chromaStyle, iterator) != nil {
 			w.WriteString(`<pre><code class="language-go">`)
-			w.WriteString(codeContent)
+			w.Write(util.EscapeHTML([]byte(codeContent)))
 			w.WriteString(`</code></pre>`)
 		}
 
-		w.WriteString(`</div>`)
-		w.WriteString(`</details>`)
+		w.WriteString(`</div></details>`)
+		w.WriteString("\n")
 
 		return ast.WalkSkipChildren, nil
 	}

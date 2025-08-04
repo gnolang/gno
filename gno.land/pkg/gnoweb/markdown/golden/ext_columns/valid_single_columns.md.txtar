@@ -20,7 +20,7 @@ normal content
 <div class="gno-columns">
 <!-- Column 0 -->
 <div class="gno-column">
-<pre><code>content 2 with indent
-</code></pre>
+<details class="doc-example"><summary>Example</summary><div class=""><pre class="chroma-chroma"><code><span class="chroma-line"><span class="chroma-ln" id="L1"><a class="chroma-lnlinks" href="#L1">1</a></span><span class="chroma-cl"><span class="chroma-nx">content</span> <span class="chroma-mi">2</span> <span class="chroma-nx">with</span> <span class="chroma-nx">indent</span>
+</span></span></code></pre></div></details>
 </div>
 </div> <!-- </gno-columns> -->

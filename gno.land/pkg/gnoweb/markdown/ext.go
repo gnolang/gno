@@ -44,6 +44,12 @@ type GnoExtension struct {
 
 type config struct {
 	imgValidatorFunc ImageValidatorFunc
+	enableCodeExpand bool
+	enableColumns    bool
+	enableAlerts     bool
+	enableLinks      bool
+	enableForms      bool
+	enableMentions   bool
 }
 
 type Option func(cfg *config)
@@ -54,31 +60,91 @@ func WithImageValidator(valFunc ImageValidatorFunc) Option {
 	}
 }
 
+func WithCodeExpand(enable bool) Option {
+	return func(cfg *config) {
+		cfg.enableCodeExpand = enable
+	}
+}
+
+func WithColumns(enable bool) Option {
+	return func(cfg *config) {
+		cfg.enableColumns = enable
+	}
+}
+
+func WithAlerts(enable bool) Option {
+	return func(cfg *config) {
+		cfg.enableAlerts = enable
+	}
+}
+
+func WithLinks(enable bool) Option {
+	return func(cfg *config) {
+		cfg.enableLinks = enable
+	}
+}
+
+func WithForms(enable bool) Option {
+	return func(cfg *config) {
+		cfg.enableForms = enable
+	}
+}
+
+func WithMentions(enable bool) Option {
+	return func(cfg *config) {
+		cfg.enableMentions = enable
+	}
+}
+
+// NewGnoExtension creates a new Gno extension with minimal default configuration.
 func NewGnoExtension(opts ...Option) *GnoExtension {
-	var cfg config
+	cfg := &config{
+		// Minimal default configuration - only essential extensions
+		enableCodeExpand: false, // Disabled by default, enable only where needed
+		enableColumns:    false, // Disabled by default
+		enableAlerts:     false, // Disabled by default
+		enableLinks:      true,  // Essential for most use cases
+		enableForms:      false, // Disabled by default
+		enableMentions:   false, // Disabled by default
+	}
 	for _, opt := range opts {
-		opt(&cfg)
+		opt(cfg)
 	}
 
-	return &GnoExtension{&cfg}
+	return &GnoExtension{cfg}
 }
 
 // Extend adds the Gno extension to the provided Goldmark markdown processor.
 func (e *GnoExtension) Extend(m goldmark.Markdown) {
 	// Add column extension
-	ExtColumns.Extend(m)
+	if e.cfg.enableColumns {
+		ExtColumns.Extend(m)
+	}
 
 	// Add alert extension
-	ExtAlerts.Extend(m)
+	if e.cfg.enableAlerts {
+		ExtAlerts.Extend(m)
+	}
 
 	// Add link extension
-	ExtLinks.Extend(m)
+	if e.cfg.enableLinks {
+		ExtLinks.Extend(m)
+	}
 
 	// Add form / inputs extension
-	ExtForms.Extend(m)
+	if e.cfg.enableForms {
+		ExtForms.Extend(m)
+	}
 
 	// Add mentions extension
-	ExtMention.Extend(m)
+	if e.cfg.enableMentions {
+		ExtMention.Extend(m)
+	}
+
+	// Add expandable code blocks extension
+	if e.cfg.enableCodeExpand {
+		ExtCodeExpand.Extend(m)
+	}
 
 	// If set, setup images filter
 	if e.cfg.imgValidatorFunc != nil {

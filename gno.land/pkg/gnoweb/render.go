@@ -13,7 +13,6 @@ import (
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/yuin/goldmark"
-	markdown "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 )
@@ -30,31 +29,31 @@ type HTMLRenderer struct {
 	logger *slog.Logger
 	cfg    *RenderConfig
 
-	gm goldmark.Markdown
-	ch *chromahtml.Formatter
+	// Separate Goldmark instances for different contexts
+	realmGM         goldmark.Markdown // For realm rendering
+	documentationGM goldmark.Markdown // For documentation rendering
+	ch              *chromahtml.Formatter
 }
 
 func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig) *HTMLRenderer {
-	gmOpts := append(cfg.GoldmarkOptions, goldmark.WithExtensions(
-		markdown.NewHighlighting(
-			markdown.WithFormatOptions(cfg.ChromaOptions...), // force using chroma config
-		),
-	))
 	return &HTMLRenderer{
 		logger: logger,
 		cfg:    &cfg,
-		gm:     goldmark.New(gmOpts...),
-		ch:     chromahtml.New(cfg.ChromaOptions...),
+		// Create dedicated instances for each context
+		realmGM:         goldmark.New(NewRealmGoldmarkOptions()...),
+		documentationGM: goldmark.New(NewDocumentationGoldmarkOptions()...),
+		ch:              chromahtml.New(cfg.ChromaOptions...),
 	}
 }
 
 // RenderRealm renders a realm to HTML and returns a table of contents.
 func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte) (md.Toc, error) {
+	// Use the dedicated realm Goldmark instance (pre-created for performance)
 	ctx := md.NewGnoParserContext(u)
 
 	// Use Goldmark for Markdown parsing
-	doc := r.gm.Parser().Parse(text.NewReader(src), parser.WithContext(ctx))
-	if err := r.gm.Renderer().Render(w, src, doc); err != nil {
+	doc := r.realmGM.Parser().Parse(text.NewReader(src), parser.WithContext(ctx))
+	if err := r.realmGM.Renderer().Render(w, src, doc); err != nil {
 		return md.Toc{}, fmt.Errorf("unable to render markdown at path %q: %w", u.Path, err)
 	}
 
@@ -102,19 +101,12 @@ func (r *HTMLRenderer) RenderSource(w io.Writer, name string, src []byte) error 
 
 // RenderDocumentation renders documentation with expandable code blocks enabled
 func (r *HTMLRenderer) RenderDocumentation(w io.Writer, u *weburl.GnoURL, src []byte) error {
-	gmOpts := append(r.cfg.GoldmarkOptions, goldmark.WithExtensions(
-		md.ExtCodeExpand, // Enable expandable code blocks with built-in Chroma
-	))
-
-	// Create goldmark renderer for documentation
-	gm := goldmark.New(gmOpts...)
-
-	// Create context for ExtLinks to work properly
+	// Use the dedicated documentation Goldmark instance
 	ctx := md.NewGnoParserContext(u)
 
 	// Parse and render the markdown with context
-	doc := gm.Parser().Parse(text.NewReader(src), parser.WithContext(ctx))
-	if err := gm.Renderer().Render(w, src, doc); err != nil {
+	doc := r.documentationGM.Parser().Parse(text.NewReader(src), parser.WithContext(ctx))
+	if err := r.documentationGM.Renderer().Render(w, src, doc); err != nil {
 		return fmt.Errorf("unable to render documentation: %w", err)
 	}
 
