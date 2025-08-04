@@ -274,7 +274,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				tm.Store = newTestGnoStore(false)
 				pn, _ := tm.PreprocessFiles(
 					mpkg.Name, mpkg.Path, tfset, false, false, "")
-				ppkg.AddNormal(pn, fset)
+				ppkg.AddTest(pn, fset)
 			}
 			{
 				// LINT STEP 5: PreprocessFiles()

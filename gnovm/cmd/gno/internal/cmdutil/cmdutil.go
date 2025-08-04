@@ -14,25 +14,31 @@ type ProcessedFileSet struct {
 }
 
 type ProcessedPackage struct {
-	Dir    string             // directory
-	MPkg   *std.MemPackage    // includes all files
-	Normal ProcessedFileSet   // includes all prod (and some *_test.gno) files
-	Tests  ProcessedFileSet   // includes all xxx_test *_test.gno integration files
-	Ftests []ProcessedFileSet // includes all *_filetest.gno filetest files
+	Dir   string             // directory
+	MPkg  *std.MemPackage    // includes all files
+	Prod  ProcessedFileSet   // includes all prod files
+	Test  ProcessedFileSet   // includes all prod (and some *_test.gno) files
+	XTest ProcessedFileSet   // includes all xxx_test *_test.gno integration files
+	FTest []ProcessedFileSet // includes all *_filetest.gno filetest files
+}
+
+func setProcessedFset(pfs *ProcessedFileSet, pn *gno.PackageNode, fset *gno.FileSet, name string) {
+	if *pfs != (ProcessedFileSet{}) {
+		panic(name + " processed fileset already set")
+	}
+	*pfs = ProcessedFileSet{pn, fset}
 }
 
 func (ppkg *ProcessedPackage) AddNormal(pn *gno.PackageNode, fset *gno.FileSet) {
-	if ppkg.Normal != (ProcessedFileSet{}) {
-		panic("normal processed fileset already set")
-	}
-	ppkg.Normal = ProcessedFileSet{pn, fset}
+	setProcessedFset(&ppkg.Prod, pn, fset, "prod")
+}
+
+func (ppkg *ProcessedPackage) AddTest(pn *gno.PackageNode, fset *gno.FileSet) {
+	setProcessedFset(&ppkg.Test, pn, fset, "test")
 }
 
 func (ppkg *ProcessedPackage) AddUnderscoreTests(pn *gno.PackageNode, fset *gno.FileSet) {
-	if ppkg.Tests != (ProcessedFileSet{}) {
-		panic("_test processed fileset already set")
-	}
-	ppkg.Tests = ProcessedFileSet{pn, fset}
+	setProcessedFset(&ppkg.XTest, pn, fset, "_test")
 }
 
 func (ppkg *ProcessedPackage) AddFileTest(pn *gno.PackageNode, fset *gno.FileSet) {
@@ -45,19 +51,19 @@ func (ppkg *ProcessedPackage) AddFileTest(pn *gno.PackageNode, fset *gno.FileSet
 		panic(fmt.Sprintf("expected *_filetest.gno but got %q", fname))
 	}
 	*/
-	for _, ftest := range ppkg.Ftests {
+	for _, ftest := range ppkg.FTest {
 		if ftest.Fset.Files[0].FileName == fname {
 			panic(fmt.Sprintf("fileetest with name %q already exists", fname))
 		}
 	}
-	ppkg.Ftests = append(ppkg.Ftests, ProcessedFileSet{pn, fset})
+	ppkg.FTest = append(ppkg.FTest, ProcessedFileSet{pn, fset})
 }
 
 func (ppkg *ProcessedPackage) GetFileTest(fname string) ProcessedFileSet {
 	if !strings.HasSuffix(fname, "_filetest.gno") {
 		panic(fmt.Sprintf("expected *_filetest.gno but got %q", fname))
 	}
-	for _, ftest := range ppkg.Ftests {
+	for _, ftest := range ppkg.FTest {
 		if ftest.Fset.Files[0].FileName == fname {
 			return ftest
 		}
