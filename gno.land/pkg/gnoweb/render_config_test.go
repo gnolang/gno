@@ -61,7 +61,7 @@ func TestRenderConfigOptionsComparison(t *testing.T) {
 
 	// Realm options should have more extensions than documentation options
 	// (realm has more features like columns, alerts, forms, etc.)
-	assert.GreaterOrEqual(t, len(realmOptions), len(docOptions), 
+	assert.GreaterOrEqual(t, len(realmOptions), len(docOptions),
 		"Realm options should have at least as many options as documentation options")
 
 	// Both should be valid Goldmark configurations
@@ -69,4 +69,4 @@ func TestRenderConfigOptionsComparison(t *testing.T) {
 	docMD := goldmark.New(docOptions...)
 	require.NotNil(t, realmMD)
 	require.NotNil(t, docMD)
-} 
+}

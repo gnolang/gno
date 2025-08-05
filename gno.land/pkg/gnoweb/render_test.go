@@ -107,10 +107,10 @@ This is documentation with **markdown** support.
 ## Another Section
 
 More documentation content.`)
-	
+
 	err := r.RenderDocumentation(w, u, src)
 	require.NoError(t, err)
-	
+
 	html := w.String()
 	assert.Contains(t, html, "<h1")
 	assert.Contains(t, html, "Documentation")
@@ -139,10 +139,10 @@ And another:
     }
 
 End of documentation.`)
-	
+
 	err := r.RenderDocumentation(w, u, src)
 	require.NoError(t, err)
-	
+
 	html := w.String()
 	assert.Contains(t, html, "Test Documentation")
 	assert.Contains(t, html, "func")
@@ -159,10 +159,10 @@ func TestRenderer_RenderDocumentation_EmptyInput(t *testing.T) {
 	w := &bytes.Buffer{}
 	u := &weburl.GnoURL{Path: "/r/test"}
 	src := []byte("")
-	
+
 	err := r.RenderDocumentation(w, u, src)
 	require.NoError(t, err)
-	
+
 	// Should not error with empty input
 	assert.NotNil(t, w.String())
 }
@@ -197,10 +197,10 @@ Visit [Gno.land](https://gno.land) for more information.
 ## Emphasis
 
 *Italic text* and **bold text** are supported.`)
-	
+
 	err := r.RenderDocumentation(w, u, src)
 	require.NoError(t, err)
-	
+
 	html := w.String()
 	assert.Contains(t, html, "Complex Documentation")
 	assert.Contains(t, html, "Lists")

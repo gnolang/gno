@@ -215,7 +215,7 @@ func TestCreateCustomPrinter(t *testing.T) {
 	require.NoError(t, err)
 	d, err := NewDocumentableFromMemPkg(mpkg, true, "", "")
 	require.NoError(t, err)
-	
+
 	opt := &WriteDocumentationOptions{}
 	_, pkg, err := d.pkgData.docPackage(opt)
 	require.NoError(t, err)
@@ -223,7 +223,7 @@ func TestCreateCustomPrinter(t *testing.T) {
 	// Test that createCustomPrinter returns a printer with empty heading IDs
 	printer := createCustomPrinter(pkg)
 	require.NotNil(t, printer)
-	
+
 	// Test that heading ID function returns empty string
 	heading := &comment.Heading{Text: []comment.Text{comment.Plain("Test")}}
 	id := printer.HeadingID(heading)
@@ -239,7 +239,7 @@ func TestNormalizedMarkdownPrinter(t *testing.T) {
 	require.NoError(t, err)
 	d, err := NewDocumentableFromMemPkg(mpkg, true, "", "")
 	require.NoError(t, err)
-	
+
 	opt := &WriteDocumentationOptions{}
 	_, pkg, err := d.pkgData.docPackage(opt)
 	require.NoError(t, err)
@@ -312,7 +312,7 @@ func TestNormalizeCodeBlockStream(t *testing.T) {
 	input := "Simple text\nwith no code"
 	reader := strings.NewReader(input)
 	var buf bytes.Buffer
-	
+
 	err := normalizeCodeBlockStream(reader, &buf)
 	require.NoError(t, err)
 	result := buf.String()
@@ -322,7 +322,7 @@ func TestNormalizeCodeBlockStream(t *testing.T) {
 	input = "Text before\n\n    func test() {\n        return true\n    }\n\nText after"
 	reader = strings.NewReader(input)
 	buf.Reset()
-	
+
 	err = normalizeCodeBlockStream(reader, &buf)
 	require.NoError(t, err)
 	result = buf.String()
@@ -335,7 +335,7 @@ func TestNormalizeCodeBlockStream(t *testing.T) {
 	input = "Text before\n\n\tfunc test() {\n\t\treturn true\n\t}\n\nText after"
 	reader = strings.NewReader(input)
 	buf.Reset()
-	
+
 	err = normalizeCodeBlockStream(reader, &buf)
 	require.NoError(t, err)
 	result = buf.String()
@@ -348,7 +348,7 @@ func TestNormalizeCodeBlockStream(t *testing.T) {
 	input = "Text before\n\n    code at end"
 	reader = strings.NewReader(input)
 	buf.Reset()
-	
+
 	err = normalizeCodeBlockStream(reader, &buf)
 	require.NoError(t, err)
 	result = buf.String()
@@ -360,7 +360,7 @@ func TestNormalizeCodeBlockStream(t *testing.T) {
 	input = "Text\n\n    code1\n\nText\n\n    code2\n\nEnd"
 	reader = strings.NewReader(input)
 	buf.Reset()
-	
+
 	err = normalizeCodeBlockStream(reader, &buf)
 	require.NoError(t, err)
 	result = buf.String()
@@ -381,22 +381,22 @@ func TestJSONDocumentationWithCodeBlocks(t *testing.T) {
 	require.NoError(t, err)
 	d, err := NewDocumentableFromMemPkg(mpkg, true, "", "")
 	require.NoError(t, err)
-	
+
 	jdoc, err := d.WriteJSONDocumentation()
 	require.NoError(t, err)
-	
+
 	// Verify that the JSON contains proper markdown formatting
 	jsonStr := jdoc.JSON()
 	assert.Contains(t, jsonStr, "package hello")
 	assert.Contains(t, jsonStr, "hello is a package for testing")
-	
+
 	// Test that functions are properly documented
 	for _, fun := range jdoc.Funcs {
 		if fun.Name == "Panic" {
 			assert.Contains(t, fun.Doc, "Panic is a func for testing")
 		}
 	}
-	
+
 	// Test that types are properly documented
 	for _, typ := range jdoc.Types {
 		if typ.Name == "myStruct" {
@@ -404,11 +404,3 @@ func TestJSONDocumentationWithCodeBlocks(t *testing.T) {
 		}
 	}
 }
-
-
-
-
-
-
-
-
