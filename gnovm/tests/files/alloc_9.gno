@@ -15,3 +15,6 @@ func grow() {
 func main() {
 	grow()
 }
+
+// Output:
+// Total size: 95.37 MB

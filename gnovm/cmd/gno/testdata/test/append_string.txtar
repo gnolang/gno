@@ -1,6 +1,6 @@
 ! gno run .
 
-stderr 'panic: allocation limit exceeded'
+stderr 'allocation limit exceeded'
 
 -- append.gno --
 package main

@@ -5,7 +5,7 @@ gnoland start
 ! gnokey maketx call -pkgpath gno.land/r/append -func Doappend -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 
 stdout 'TX HASH:'
-stderr 'Data: allocation limit exceeded'
+stderr 'Data: panic running expression main(): allocation limit exceeded'
 
 
 -- append.gno --

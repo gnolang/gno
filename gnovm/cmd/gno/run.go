@@ -199,8 +199,8 @@ func runExpr(m *gno.Machine, expr string) (err error) {
 				err = fmt.Errorf("panic running expression %s: %v\nStacktrace:\n%s",
 					expr, r.Error(), m.ExceptionStacktrace())
 			default:
-				err = fmt.Errorf("panic running expression %s: %v\nMachine State:%s\nStacktrace:\n%s",
-					expr, r, m.String(), m.Stacktrace().String())
+				err = fmt.Errorf("panic running expression %s: %v\nStacktrace:\n%s",
+					expr, r, m.Stacktrace().String())
 			}
 		}
 	}()

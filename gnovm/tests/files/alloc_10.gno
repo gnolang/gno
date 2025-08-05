@@ -11,3 +11,6 @@ func grow() {
 func main() {
 	grow()
 }
+
+// Error:
+// allocation limit exceeded
