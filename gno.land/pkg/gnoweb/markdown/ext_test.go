@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	testdataDir = "golden"
-	realmTestDir = "ext_realm/golden"
-	docTestDir = "ext_doc/golden"
+	testdataDir   = "golden"
+	realmTestDir  = "ext_realm/golden"
+	docTestDir    = "ext_doc/golden"
 	sharedTestDir = "ext_shared/golden"
 )
 
@@ -25,7 +25,6 @@ var (
 	update = flag.Bool("update-golden-tests", false, "update golden tests")
 	dump   = flag.Bool("dump", false, "dump ast tree after parsing")
 )
-
 
 // createTestExtension creates a test extension with optional options
 func createTestExtension(createExt func(...Option) *GnoExtension, opts ...Option) func() *GnoExtension {
