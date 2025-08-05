@@ -1,8 +1,12 @@
 package doc
 
 import (
+	"bytes"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"go/doc/comment"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/stretchr/testify/assert"
@@ -201,3 +205,210 @@ func TestJSONDocumentation(t *testing.T) {
 
 	assert.Equal(t, expected.JSON(), jdoc.JSON())
 }
+
+func TestCreateCustomPrinter(t *testing.T) {
+	// Create a test package to get a printer
+	dir, err := filepath.Abs("./testdata/integ/hello")
+	require.NoError(t, err)
+	pkgPath := "gno.land/r/hello"
+	mpkg, err := gnolang.ReadMemPackage(dir, pkgPath, gnolang.MPAnyAll)
+	require.NoError(t, err)
+	d, err := NewDocumentableFromMemPkg(mpkg, true, "", "")
+	require.NoError(t, err)
+	
+	opt := &WriteDocumentationOptions{}
+	_, pkg, err := d.pkgData.docPackage(opt)
+	require.NoError(t, err)
+
+	// Test that createCustomPrinter returns a printer with empty heading IDs
+	printer := createCustomPrinter(pkg)
+	require.NotNil(t, printer)
+	
+	// Test that heading ID function returns empty string
+	heading := &comment.Heading{Text: []comment.Text{comment.Plain("Test")}}
+	id := printer.HeadingID(heading)
+	assert.Equal(t, "", id)
+}
+
+func TestNormalizedMarkdownPrinter(t *testing.T) {
+	// Create a test package to get a printer
+	dir, err := filepath.Abs("./testdata/integ/hello")
+	require.NoError(t, err)
+	pkgPath := "gno.land/r/hello"
+	mpkg, err := gnolang.ReadMemPackage(dir, pkgPath, gnolang.MPAnyAll)
+	require.NoError(t, err)
+	d, err := NewDocumentableFromMemPkg(mpkg, true, "", "")
+	require.NoError(t, err)
+	
+	opt := &WriteDocumentationOptions{}
+	_, pkg, err := d.pkgData.docPackage(opt)
+	require.NoError(t, err)
+	printer := createCustomPrinter(pkg)
+
+	// Test with simple comment
+	var p comment.Parser
+	doc := p.Parse("Simple comment")
+	result := normalizedMarkdownPrinter(printer, doc)
+	assert.Equal(t, "Simple comment\n", result)
+
+	// Test with backslash escaping
+	doc = p.Parse("Comment with \\\\ backslash")
+	result = normalizedMarkdownPrinter(printer, doc)
+	assert.Equal(t, "Comment with \\\\ backslash\n", result)
+
+	// Test with indented code block
+	doc = p.Parse("Comment with:\n\n    code block\n    more code")
+	result = normalizedMarkdownPrinter(printer, doc)
+	assert.Contains(t, result, "```go")
+	assert.Contains(t, result, "code block")
+	assert.Contains(t, result, "more code")
+	assert.Contains(t, result, "```")
+}
+
+func TestConvertIndentedCodeBlocksToFenced(t *testing.T) {
+	// Test with no code blocks
+	input := "Simple markdown\nwith no code"
+	result := convertIndentedCodeBlocksToFenced(input)
+	assert.Equal(t, input+"\n", result)
+
+	// Test with indented code block
+	input = "Text before\n\n    func test() {\n        return true\n    }\n\nText after"
+	result = convertIndentedCodeBlocksToFenced(input)
+	assert.Contains(t, result, "```go")
+	assert.Contains(t, result, "func test() {")
+	assert.Contains(t, result, "return true")
+	assert.Contains(t, result, "```")
+	assert.Contains(t, result, "Text before")
+	assert.Contains(t, result, "Text after")
+
+	// Test with tab-indented code block
+	input = "Text before\n\n\tfunc test() {\n\t\treturn true\n\t}\n\nText after"
+	result = convertIndentedCodeBlocksToFenced(input)
+	assert.Contains(t, result, "```go")
+	assert.Contains(t, result, "func test() {")
+	assert.Contains(t, result, "return true")
+	assert.Contains(t, result, "```")
+
+	// Test with mixed content
+	input = "Header\n\n    code1\n    code2\n\nText\n\n    more code\n\nEnd"
+	result = convertIndentedCodeBlocksToFenced(input)
+	assert.Contains(t, result, "```go")
+	assert.Contains(t, result, "code1")
+	assert.Contains(t, result, "code2")
+	assert.Contains(t, result, "```")
+	assert.Contains(t, result, "Text")
+	assert.Contains(t, result, "more code")
+	assert.Contains(t, result, "End")
+
+	// Test with backslash escaping
+	input = "Text with \\\\ backslash\n\n    code with \\\\ backslash"
+	result = convertIndentedCodeBlocksToFenced(input)
+	assert.Contains(t, result, "Text with \\\\ backslash")
+	assert.Contains(t, result, "code with \\\\ backslash")
+}
+
+func TestNormalizeCodeBlockStream(t *testing.T) {
+	// Test with no code blocks
+	input := "Simple text\nwith no code"
+	reader := strings.NewReader(input)
+	var buf bytes.Buffer
+	
+	err := normalizeCodeBlockStream(reader, &buf)
+	require.NoError(t, err)
+	result := buf.String()
+	assert.Equal(t, "Simple text\nwith no code\n", result)
+
+	// Test with indented code block
+	input = "Text before\n\n    func test() {\n        return true\n    }\n\nText after"
+	reader = strings.NewReader(input)
+	buf.Reset()
+	
+	err = normalizeCodeBlockStream(reader, &buf)
+	require.NoError(t, err)
+	result = buf.String()
+	assert.Contains(t, result, "```go")
+	assert.Contains(t, result, "func test() {")
+	assert.Contains(t, result, "return true")
+	assert.Contains(t, result, "```")
+
+	// Test with tab-indented code block
+	input = "Text before\n\n\tfunc test() {\n\t\treturn true\n\t}\n\nText after"
+	reader = strings.NewReader(input)
+	buf.Reset()
+	
+	err = normalizeCodeBlockStream(reader, &buf)
+	require.NoError(t, err)
+	result = buf.String()
+	assert.Contains(t, result, "```go")
+	assert.Contains(t, result, "func test() {")
+	assert.Contains(t, result, "return true")
+	assert.Contains(t, result, "```")
+
+	// Test with code block at end
+	input = "Text before\n\n    code at end"
+	reader = strings.NewReader(input)
+	buf.Reset()
+	
+	err = normalizeCodeBlockStream(reader, &buf)
+	require.NoError(t, err)
+	result = buf.String()
+	assert.Contains(t, result, "```go")
+	assert.Contains(t, result, "code at end")
+	assert.Contains(t, result, "```")
+
+	// Test with multiple code blocks
+	input = "Text\n\n    code1\n\nText\n\n    code2\n\nEnd"
+	reader = strings.NewReader(input)
+	buf.Reset()
+	
+	err = normalizeCodeBlockStream(reader, &buf)
+	require.NoError(t, err)
+	result = buf.String()
+	assert.Contains(t, result, "```go")
+	assert.Contains(t, result, "code1")
+	assert.Contains(t, result, "```")
+	assert.Contains(t, result, "Text")
+	assert.Contains(t, result, "code2")
+	assert.Contains(t, result, "End")
+}
+
+func TestJSONDocumentationWithCodeBlocks(t *testing.T) {
+	// Test that JSONDocumentation properly handles code blocks in documentation
+	dir, err := filepath.Abs("./testdata/integ/hello")
+	require.NoError(t, err)
+	pkgPath := "gno.land/r/hello"
+	mpkg, err := gnolang.ReadMemPackage(dir, pkgPath, gnolang.MPAnyAll)
+	require.NoError(t, err)
+	d, err := NewDocumentableFromMemPkg(mpkg, true, "", "")
+	require.NoError(t, err)
+	
+	jdoc, err := d.WriteJSONDocumentation()
+	require.NoError(t, err)
+	
+	// Verify that the JSON contains proper markdown formatting
+	jsonStr := jdoc.JSON()
+	assert.Contains(t, jsonStr, "package hello")
+	assert.Contains(t, jsonStr, "hello is a package for testing")
+	
+	// Test that functions are properly documented
+	for _, fun := range jdoc.Funcs {
+		if fun.Name == "Panic" {
+			assert.Contains(t, fun.Doc, "Panic is a func for testing")
+		}
+	}
+	
+	// Test that types are properly documented
+	for _, typ := range jdoc.Types {
+		if typ.Name == "myStruct" {
+			assert.Contains(t, typ.Doc, "myStruct is a struct for testing")
+		}
+	}
+}
+
+
+
+
+
+
+
+
