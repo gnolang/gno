@@ -112,7 +112,7 @@ func gitHubClaimMiddleware(coolDownLimiter cooldownLimiter, rewarder Rewarder) f
 
 				req.Method = faucet.DefaultDripMethod
 
-				c := std.NewCoin("ugnot", int64(reward))
+				c := std.NewCoin("ugnot", int64(reward)).String()
 				req.Params = append(req.Params, c)
 
 				return next(ctx, req)
