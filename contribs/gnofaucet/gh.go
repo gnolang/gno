@@ -110,6 +110,14 @@ func gitHubClaimMiddleware(coolDownLimiter cooldownLimiter, rewarder Rewarder) f
 					)
 				}
 
+				if reward == 0 {
+					return spec.NewJSONResponse(
+						req.ID,
+						nil,
+						spec.NewJSONError("no tokens to reward.", spec.ServerErrorCode),
+					)
+				}
+
 				req.Method = faucet.DefaultDripMethod
 
 				c := std.NewCoin("ugnot", int64(reward)).String()
