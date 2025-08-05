@@ -73,6 +73,7 @@ func testGoldmarkOutputWithExtension(t *testing.T, nameIn string, input []byte, 
 
 // testGoldmarkOutput tests realm extension
 func testRealmGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []byte) {
+	t.Helper()
 	return testGoldmarkOutputWithExtension(t, nameIn, input, createTestExtension(NewRealmGnoExtension, WithImageValidator(func(uri string) bool {
 		return !strings.HasPrefix(uri, "https://") // disallow https
 	})))
@@ -80,6 +81,7 @@ func testRealmGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string,
 
 // testDocGoldmarkOutput tests documentation extension
 func testDocGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []byte) {
+	t.Helper()
 	return testGoldmarkOutputWithExtension(t, nameIn, input, createTestExtension(NewDocumentationGnoExtension))
 }
 
