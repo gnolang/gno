@@ -44,12 +44,7 @@ type GnoExtension struct {
 
 type config struct {
 	imgValidatorFunc ImageValidatorFunc
-	enableCodeExpand bool
-	enableColumns    bool
-	enableAlerts     bool
-	enableLinks      bool
-	enableForms      bool
-	enableMentions   bool
+	extensions      []goldmark.Extender
 }
 
 type Option func(cfg *config)
@@ -60,53 +55,19 @@ func WithImageValidator(valFunc ImageValidatorFunc) Option {
 	}
 }
 
-func WithCodeExpand(enable bool) Option {
+func WithExtensions(exts ...goldmark.Extender) Option {
 	return func(cfg *config) {
-		cfg.enableCodeExpand = enable
+		cfg.extensions = append(cfg.extensions, exts...)
 	}
 }
 
-func WithColumns(enable bool) Option {
-	return func(cfg *config) {
-		cfg.enableColumns = enable
-	}
-}
-
-func WithAlerts(enable bool) Option {
-	return func(cfg *config) {
-		cfg.enableAlerts = enable
-	}
-}
-
-func WithLinks(enable bool) Option {
-	return func(cfg *config) {
-		cfg.enableLinks = enable
-	}
-}
-
-func WithForms(enable bool) Option {
-	return func(cfg *config) {
-		cfg.enableForms = enable
-	}
-}
-
-func WithMentions(enable bool) Option {
-	return func(cfg *config) {
-		cfg.enableMentions = enable
-	}
-}
-
-// NewGnoExtension creates a new Gno extension with minimal default configuration.
-func NewGnoExtension(opts ...Option) *GnoExtension {
+// newGnoExtension is a helper function to create Gno extensions with common logic
+func newGnoExtension(defaultExtensions []goldmark.Extender, opts ...Option) *GnoExtension {
 	cfg := &config{
-		// Minimal default configuration - only essential extensions
-		enableCodeExpand: false, // Disabled by default, enable only where needed
-		enableColumns:    false, // Disabled by default
-		enableAlerts:     false, // Disabled by default
-		enableLinks:      true,  // Essential for most use cases
-		enableForms:      false, // Disabled by default
-		enableMentions:   false, // Disabled by default
+		extensions: defaultExtensions,
 	}
+	
+	// Apply all options
 	for _, opt := range opts {
 		opt(cfg)
 	}
@@ -114,39 +75,34 @@ func NewGnoExtension(opts ...Option) *GnoExtension {
 	return &GnoExtension{cfg}
 }
 
+// NewRealmGnoExtension creates a Gno extension configured for realm rendering
+// Includes all realm-specific features with full markdown support
+func NewRealmGnoExtension(opts ...Option) *GnoExtension {
+	return newGnoExtension([]goldmark.Extender{
+		ExtColumns,   // Enable columns for realms
+		ExtAlerts,    // Enable alerts for realms
+		ExtLinks,     // Enable links for realms
+		ExtForms,     // Enable forms for realms
+		ExtMention,   // Enable mentions for realms
+	}, opts...)
+}
+
+// NewDocumentationGnoExtension creates a Gno extension configured for documentation rendering
+// Includes only ExtCodeExpand for clean, focused documentation
+func NewDocumentationGnoExtension(opts ...Option) *GnoExtension {
+	return newGnoExtension([]goldmark.Extender{
+		ExtCodeExpand, // Only ExtCodeExpand for documentation
+	}, opts...)
+}
+
 // Extend adds the Gno extension to the provided Goldmark markdown processor.
 func (e *GnoExtension) Extend(m goldmark.Markdown) {
-	// Add column extension
-	if e.cfg.enableColumns {
-		ExtColumns.Extend(m)
+	// Add all configured extensions
+	for _, ext := range e.cfg.extensions {
+		ext.Extend(m)
 	}
 
-	// Add alert extension
-	if e.cfg.enableAlerts {
-		ExtAlerts.Extend(m)
-	}
-
-	// Add link extension
-	if e.cfg.enableLinks {
-		ExtLinks.Extend(m)
-	}
-
-	// Add form / inputs extension
-	if e.cfg.enableForms {
-		ExtForms.Extend(m)
-	}
-
-	// Add mentions extension
-	if e.cfg.enableMentions {
-		ExtMention.Extend(m)
-	}
-
-	// Add expandable code blocks extension
-	if e.cfg.enableCodeExpand {
-		ExtCodeExpand.Extend(m)
-	}
-
-	// If set, setup images filter
+	// If set, setup images filter (ExtImageValidator has a different signature than other extensions)
 	if e.cfg.imgValidatorFunc != nil {
 		ExtImageValidator.Extend(m, e.cfg.imgValidatorFunc)
 	}

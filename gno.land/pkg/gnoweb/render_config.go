@@ -46,14 +46,9 @@ func NewRealmGoldmarkOptions() []goldmark.Option {
 			extension.Table,
 			extension.Footnote,
 			extension.TaskList,
-			// Realm-specific Gno extensions
-			md.NewGnoExtension(
+			// Realm-specific Gno extension with all features
+			md.NewRealmGnoExtension(
 				md.WithImageValidator(allowSvgDataImage),
-				md.WithCodeExpand(false), // Explicitly disable for realms
-				md.WithColumns(true),     // Enable for realms
-				md.WithAlerts(true),      // Enable for realms
-				md.WithForms(true),       // Enable for realms
-				md.WithMentions(true),    // Enable for realms
 			),
 			markdown.NewHighlighting(
 				markdown.WithStyle("friendly"),
@@ -69,10 +64,8 @@ func NewDocumentationGoldmarkOptions() []goldmark.Option {
 	return []goldmark.Option{
 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 		goldmark.WithExtensions(
-			// Documentation-specific Gno extensions (only ExtCodeExpand)
-			md.NewGnoExtension(
-				md.WithCodeExpand(true), // Only ExtCodeExpand for documentation
-			),
+			// Documentation-specific Gno extension (only ExtCodeExpand)
+			md.NewDocumentationGnoExtension(),
 		),
 	}
 }
