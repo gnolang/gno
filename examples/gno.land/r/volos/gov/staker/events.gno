@@ -3,7 +3,6 @@ package staker
 import (
 	"std"
 	"strconv"
-	"time"
 )
 
 const (

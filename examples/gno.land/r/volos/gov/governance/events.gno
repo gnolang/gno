@@ -74,7 +74,7 @@ func emitMemberAdded(caller, member std.Address) {
 		EventMemberAdded,
 		EventCallerKey, caller.String(),
 		EventMemberKey, member.String(),
-		EventTotalMembersKey, strconv.FormatInt(GetMemberCount(), 10),
+		EventTotalMembersKey, strconv.FormatInt(int64(volosGovernance.Members().Size()), 10),
 	)
 }
 
@@ -84,7 +84,7 @@ func emitMemberRemoved(caller, member std.Address) {
 		EventMemberRemoved,
 		EventCallerKey, caller.String(),
 		EventMemberKey, member.String(),
-		EventTotalMembersKey, strconv.FormatInt(GetMemberCount(), 10),
+		EventTotalMembersKey, strconv.FormatInt(int64(volosGovernance.Members().Size()), 10),
 	)
 }
 
