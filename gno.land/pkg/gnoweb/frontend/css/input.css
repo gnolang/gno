@@ -931,23 +931,23 @@
 	}
 
 	/* spacing between link badge */
-	.realm-view a > span {
+	:is(.realm-view, .doc-view) a > span {
 		margin-block-end: 0.1em;
 	}
 
-	.realm-view a .tooltip:only-of-type {
+	:is(.realm-view, .doc-view) a .tooltip:only-of-type {
 		margin-inline: 0.3em;
 	}
 
-	.realm-view a .tooltip:has(+ span) {
+	:is(.realm-view, .doc-view) a .tooltip:has(+ span) {
 		margin-inline-start: 0.3em;
 	}
 
-	.realm-view a > .tooltip + .tooltip {
+	:is(.realm-view, .doc-view) a > .tooltip + .tooltip {
 		margin-inline-start: 0.2em;
 	}
 
-	.realm-view a > .tooltip:last-of-type {
+	:is(.realm-view, .doc-view) a > .tooltip:last-of-type {
 		margin-inline-end: 0.2em;
 	}
 
