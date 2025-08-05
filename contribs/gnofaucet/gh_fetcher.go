@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v74/github"
+	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
@@ -69,7 +70,6 @@ func (f *GHFetcher) fetchEvents(ctx context.Context) {
 				f.logger.Error("error executing redis pipeline", zap.String("org", org), zap.String("repo", n), zap.Error(err))
 			} else {
 				f.logger.Info("events correctly iterated", zap.String("org", org), zap.String("repo", n))
-
 			}
 		}
 	}
@@ -93,7 +93,6 @@ func (f *GHFetcher) fetchHistory(ctx context.Context) bool {
 				f.logger.Error("error executing redis pipeline", zap.String("org", org), zap.String("repo", n), zap.Error(err))
 			} else {
 				f.logger.Info("history saved", zap.String("org", org), zap.String("repo", n))
-
 			}
 		}
 	}
@@ -152,7 +151,6 @@ func (f *GHFetcher) processPullRequest(ctx context.Context, pipe redis.Pipeliner
 			f.logger.Error("error adding review to the count", zap.String("user", ru), zap.String("org", org), zap.String("repo", repo), zap.Error(err))
 		}
 	}
-
 }
 
 func (f *GHFetcher) processEventReview(ctx context.Context, pipe redis.Pipeliner, org, repo string, review *github.PullRequestReview) {
@@ -335,7 +333,7 @@ func (f *GHFetcher) iterateEvents(ctx context.Context, pipe redis.Pipeliner, org
 
 func (f *GHFetcher) getLatestDate(ctx context.Context, org, repo string) time.Time {
 	d, err := f.redisClient.Get(ctx, lastRepoFetchKey(org, repo)).Time()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		return time.Time{}
 	}
 	if err != nil {
