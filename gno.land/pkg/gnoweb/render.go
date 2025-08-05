@@ -40,7 +40,7 @@ type HTMLRenderer struct {
 func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig) *HTMLRenderer {
 	// Use shared Chroma components
 	chromaFormatter, chromaStyle := chromaconfig.GetSharedChromaComponents()
-	
+
 	return &HTMLRenderer{
 		logger: logger,
 		cfg:    &cfg,

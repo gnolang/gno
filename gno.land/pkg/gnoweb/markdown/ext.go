@@ -44,7 +44,7 @@ type GnoExtension struct {
 
 type config struct {
 	imgValidatorFunc ImageValidatorFunc
-	extensions      []goldmark.Extender
+	extensions       []goldmark.Extender
 }
 
 type Option func(cfg *config)
@@ -66,7 +66,7 @@ func newGnoExtension(defaultExtensions []goldmark.Extender, opts ...Option) *Gno
 	cfg := &config{
 		extensions: defaultExtensions,
 	}
-	
+
 	// Apply all options
 	for _, opt := range opts {
 		opt(cfg)
@@ -79,11 +79,11 @@ func newGnoExtension(defaultExtensions []goldmark.Extender, opts ...Option) *Gno
 // Includes all realm-specific features with full markdown support
 func NewRealmGnoExtension(opts ...Option) *GnoExtension {
 	return newGnoExtension([]goldmark.Extender{
-		ExtColumns,   // Enable columns for realms
-		ExtAlerts,    // Enable alerts for realms
-		ExtLinks,     // Enable links for realms
-		ExtForms,     // Enable forms for realms
-		ExtMention,   // Enable mentions for realms
+		ExtColumns, // Enable columns for realms
+		ExtAlerts,  // Enable alerts for realms
+		ExtLinks,   // Enable links for realms
+		ExtForms,   // Enable forms for realms
+		ExtMention, // Enable mentions for realms
 	}, opts...)
 }
 

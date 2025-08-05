@@ -48,4 +48,4 @@ func NewHighlightingExtension() goldmark.Extender {
 		markdown.WithStyle(defaultStyleName),
 		markdown.WithFormatOptions(defaultChromaOptions...),
 	)
-} 
+}
