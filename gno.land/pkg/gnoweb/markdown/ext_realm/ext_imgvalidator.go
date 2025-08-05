@@ -1,4 +1,4 @@
-package markdown
+package extrealm
 
 import (
 	"github.com/yuin/goldmark"

@@ -1,4 +1,4 @@
-package markdown
+package extdoc
 
 import (
 	"github.com/alecthomas/chroma/v2"
