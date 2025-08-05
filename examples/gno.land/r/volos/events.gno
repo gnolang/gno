@@ -21,6 +21,7 @@ const (
 	SupplyCollateralEvent   = "SupplyCollateral"
 	WithdrawCollateralEvent = "WithdrawCollateral"
 	FlashLoanEvent          = "FlashLoan"
+	SetFeeEvent             = "SetFee"
 
 	// Event names
 	EventAccrueInterest     = "accrue_interest"
@@ -191,5 +192,14 @@ func emitFlashLoan(caller std.Address, token string, assets int64) {
 		EventUserKey, caller.String(),
 		EventTokenKey, token,
 		EventAmountKey, u256.NewUint(uint64(assets)).ToString(),
+	)
+}
+
+// emitSetFee emits an event when a market fee is set (following Morpho pattern)
+func emitSetFee(marketId string, fee string) {
+	std.Emit(
+		SetFeeEvent,
+		EventMarketIDKey, marketId,
+		EventFeeKey, fee,
 	)
 }

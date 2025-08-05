@@ -116,6 +116,33 @@ func SetFeeRecipient(cur realm, newFeeRecipient std.Address) {
 	feeRecipient = newFeeRecipient
 }
 
+// setFee sets the fee for a specific market
+func setFee(cur realm, marketId string, newFee *u256.Uint) {
+	Ownable.AssertOwnedByPrevious()
+
+	// Get market (will panic if not found)
+	market, _ := GetMarket(marketId)
+
+	// Check if fee is already set to the same value
+	if market.Fee.Cmp(newFee) == 0 {
+		panic(ErrAlreadySet)
+	}
+
+	// Check fee doesn't exceed maximum
+	if newFee.Cmp(MAX_FEE) > 0 {
+		panic(ErrMaxFeeExceeded)
+	}
+
+	// Accrue interest using the previous fee before changing it
+	accrueInterest(marketId)
+
+	// Update market fee
+	market.Fee = newFee
+	markets.Set(marketId, market)
+
+	emitSetFee(marketId, newFee.ToString())
+}
+
 /* MARKET CREATION */
 
 // CreateMarket initializes a new lending market with basic parameters
