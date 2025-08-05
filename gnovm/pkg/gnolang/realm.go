@@ -771,7 +771,6 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 			}
 		}
 	}
-	tids := make(map[TypeID]struct{})
 	for _, uo := range rlm.updated {
 		// for i := len(rlm.updated) - 1; i >= 0; i-- {
 		// uo := rlm.updated[i]
@@ -782,7 +781,7 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 		} else {
 			if !uo.GetIsDeleted() {
 				// Perform private ownership check.
-				rlm.assertNoPrivateDeps(uo, store, tids)
+				rlm.assertNoPrivateDeps(uo, store)
 				rlm.saveUnsavedObjectRecursively(store, uo)
 			}
 		}
@@ -908,15 +907,15 @@ func (rlm *Realm) clearMarks() {
 }
 
 // panic if any private dependencies are found.
-func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store, tids map[TypeID]struct{}) bool {
+func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store) bool {
 	objs := make(map[Object]struct{})
-	return rlm.assertNoPrivateDeps2(obj, store, tids, objs)
+	return rlm.assertNoPrivateDeps2(obj, store, objs)
 }
 
 // assertNoPrivateDeps2 checks for private dependencies.
 // difference with assertNoPrivateDeps is that this take a seen map
 // to avoid infinite recursion on circular references & optimize repeated checks.
-func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, tids map[TypeID]struct{}, objs map[Object]struct{}) bool {
+func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, objs map[Object]struct{}) bool {
 	if _, exists := objs[obj]; exists {
 		return false
 	}
@@ -929,7 +928,7 @@ func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, tids map[TypeID]
 
 	if hiv, ok := obj.(*HeapItemValue); ok {
 		if hiv.Value.T != nil {
-			rlm.assertNoPrivateType(hiv.Value.T, tids)
+			rlm.assertNoPrivateType(hiv.Value.T)
 		}
 	}
 
@@ -942,7 +941,7 @@ func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, tids map[TypeID]
 
 	children := getChildObjects2(store, obj)
 	for _, child := range children {
-		if rlm.assertNoPrivateDeps2(child, store, tids, objs) {
+		if rlm.assertNoPrivateDeps2(child, store, objs) {
 			return true
 		}
 	}
@@ -952,42 +951,36 @@ func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, tids map[TypeID]
 
 // assertNoPrivateType ensure that the type t is not defined in a private realm.
 // it do it recursively for all types in t.
-func (rlm *Realm) assertNoPrivateType(t Type, tids map[TypeID]struct{}) {
+func (rlm *Realm) assertNoPrivateType(t Type) {
 	pkgPath := ""
-	tid := t.TypeID()
-	if _, exists := tids[tid]; exists {
-		return
-	}
-	tids[tid] = struct{}{}
-
 	switch tt := t.(type) {
 	// NOTE: redundant check since any closure defined in a private realm will panic at value check.
 	case *FuncType:
 		for _, param := range tt.Params {
-			rlm.assertNoPrivateType(param, tids)
+			rlm.assertNoPrivateType(param)
 		}
 		for _, result := range tt.Results {
-			rlm.assertNoPrivateType(result, tids)
+			rlm.assertNoPrivateType(result)
 		}
 	case FieldType:
-		rlm.assertNoPrivateType(tt.Type, tids)
-	case *SliceType, *ArrayType, *ChanType:
-		rlm.assertNoPrivateType(tt.Elem(), tids)
+		rlm.assertNoPrivateType(tt.Type)
+	case *SliceType, *ArrayType, *ChanType, *PointerType:
+		rlm.assertNoPrivateType(tt.Elem())
 	case *tupleType:
 		for _, et := range tt.Elts {
-			rlm.assertNoPrivateType(et, tids)
+			rlm.assertNoPrivateType(et)
 		}
 	case *MapType:
-		rlm.assertNoPrivateType(tt.Key, tids)
-		rlm.assertNoPrivateType(tt.Elem(), tids)
+		rlm.assertNoPrivateType(tt.Key)
+		rlm.assertNoPrivateType(tt.Elem())
 	case *InterfaceType:
 		for _, method := range tt.Methods {
-			rlm.assertNoPrivateType(method.Type, tids)
+			rlm.assertNoPrivateType(method.Type)
 		}
 		pkgPath = tt.GetPkgPath()
 	case *StructType:
 		for _, field := range tt.Fields {
-			rlm.assertNoPrivateType(field.Type, tids)
+			rlm.assertNoPrivateType(field.Type)
 		}
 		pkgPath = tt.GetPkgPath()
 	default:
