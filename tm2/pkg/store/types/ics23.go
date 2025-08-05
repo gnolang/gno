@@ -6,9 +6,6 @@ import (
 	ics23 "github.com/cosmos/ics23/go"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
-
-	sdkmaps "cosmossdk.io/store/internal/maps"
-	sdkproofs "cosmossdk.io/store/internal/proofs"
 )
 
 const (
@@ -147,7 +144,7 @@ func (op CommitmentOp) ProofOp() merkle.ProofOp {
 
 // ProofOpFromMap generates a single proof from a map and converts it to a ProofOp.
 func ProofOpFromMap(cmap map[string][]byte, storeName string) (ret merkle.ProofOp, err error) {
-	_, proofs, _ := sdkmaps.ProofsFromMap(cmap)
+	_, proofs, _ := merkle.SimpleProofsFromMap(cmap)
 
 	proof := proofs[storeName]
 	if proof == nil {
@@ -156,7 +153,7 @@ func ProofOpFromMap(cmap map[string][]byte, storeName string) (ret merkle.ProofO
 	}
 
 	// convert merkle.SimpleProof to CommitmentProof
-	existProof, err := sdkproofs.ConvertExistenceProof(proof, []byte(storeName), cmap[storeName])
+	existProof, err := merkle.ConvertExistenceProof(proof, []byte(storeName), cmap[storeName])
 	if err != nil {
 		err = fmt.Errorf("could not convert simple proof to existence proof: %w", err)
 		return

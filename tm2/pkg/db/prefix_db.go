@@ -165,6 +165,16 @@ func (pdb *PrefixDB) NewBatch() Batch {
 	return newPrefixBatch(pdb.prefix, pdb.db.NewBatch())
 }
 
+// Implements DB.
+// Panics if the underlying DB is not an
+// atomicSetDeleter.
+func (pdb *PrefixDB) NewBatchWithSize(size int) Batch {
+	pdb.mtx.Lock()
+	defer pdb.mtx.Unlock()
+
+	return newPrefixBatch(pdb.prefix, pdb.db.NewBatchWithSize(size))
+}
+
 /* NOTE: Uncomment to use memBatch instead of prefixBatch
 // Implements atomicSetDeleter.
 func (pdb *PrefixDB) SetNoLock(key []byte, value []byte) {
