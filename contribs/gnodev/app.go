@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -369,6 +370,27 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 		}
 
 		scripts = append(scripts, reloadScript)
+	}
+
+	// Custom script
+	if ds.cfg.webCustomJS != "" {
+		customJS, err := os.ReadFile(ds.cfg.webCustomJS)
+		if err != nil {
+			return nil, fmt.Errorf("unable to read custom JS file %q: %w", ds.cfg.webCustomJS, err)
+		}
+
+		var customScript bytes.Buffer
+
+		// Prepend gnodev infos to the custom JS script.
+		customScript.WriteString("const gnodev = {\n")
+		customScript.WriteString(fmt.Sprintf("  rpcListenerAddr: '%s',\n", ds.cfg.nodeP2PListenerAddr))
+		customScript.WriteString(fmt.Sprintf("  webListenerAddr: '%s',\n", ds.cfg.webListenerAddr))
+		customScript.WriteString(fmt.Sprintf("  webHomePath: '%s',\n", ds.webHomePath))
+		customScript.WriteString(fmt.Sprintf("  chainID: '%s',\n", ds.cfg.chainId))
+		customScript.WriteString("};\n\n")
+
+		customScript.Write(customJS)
+		scripts = append(scripts, customScript.Bytes())
 	}
 
 	if len(scripts) > 0 {
