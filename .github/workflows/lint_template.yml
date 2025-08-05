@@ -23,4 +23,4 @@ jobs:
         with:
           working-directory: ${{ inputs.modulepath }}
           args: --config=${{ github.workspace }}/.github/golangci.yml
-          version: v1.64 # sync with misc/devdeps
+          version: v2.3 # sync with misc/devdeps
