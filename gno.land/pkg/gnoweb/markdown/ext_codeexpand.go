@@ -2,9 +2,8 @@ package markdown
 
 import (
 	"github.com/alecthomas/chroma/v2"
-	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/lexers"
-	"github.com/alecthomas/chroma/v2/styles"
+	chromaconfig "github.com/gnolang/gno/gno.land/pkg/gnoweb/chroma"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/renderer"
@@ -18,23 +17,8 @@ var ExtCodeExpand = &expandableCodeExtension{}
 
 type expandableCodeExtension struct{}
 
-// Cache for Chroma components to avoid recreating them
-var (
-	chromaFormatter *chromahtml.Formatter
-	chromaStyle     *chroma.Style
-	lexerCache      = make(map[string]chroma.Lexer)
-)
-
-func init() {
-	// Initialize Chroma components
-	chromaFormatter = chromahtml.New(
-		chromahtml.WithClasses(true),
-		chromahtml.ClassPrefix("chroma-"),
-		chromahtml.WithLineNumbers(true),
-		chromahtml.WithLinkableLineNumbers(true, "L"),
-	)
-	chromaStyle = styles.Get("friendly")
-}
+// Cache for lexers to avoid recreating them
+var lexerCache = make(map[string]chroma.Lexer)
 
 // expandableCodeRenderer renders expandable code blocks
 type expandableCodeRenderer struct {
@@ -74,7 +58,10 @@ func (r *expandableCodeRenderer) renderCodeBlock(w util.BufWriter, source []byte
 			codeContent += string(line.Value(source))
 		}
 
-		// Use Chroma to highlight the code with cached components
+		// Get shared Chroma components from the chroma package
+		chromaFormatter, chromaStyle := chromaconfig.GetSharedChromaComponents()
+
+		// Use Chroma to highlight the code with shared components
 		var lexer chroma.Lexer
 		lang := "go"
 		if len(language) > 0 {
@@ -92,7 +79,7 @@ func (r *expandableCodeRenderer) renderCodeBlock(w util.BufWriter, source []byte
 			lexerCache[lang] = lexer
 		}
 
-		// Highlight the code with Chroma using cached components
+		// Highlight the code with Chroma using shared components
 		iterator, err := lexer.Tokenise(nil, codeContent)
 		if err != nil || chromaFormatter.Format(w, chromaStyle, iterator) != nil {
 			w.WriteString(`<pre><code class="language-go">`)
@@ -110,9 +97,7 @@ func (r *expandableCodeRenderer) renderCodeBlock(w util.BufWriter, source []byte
 }
 
 func (e *expandableCodeExtension) Extend(m goldmark.Markdown) {
-	m.Renderer().AddOptions(
-		renderer.WithNodeRenderers(
-			util.Prioritized(&expandableCodeRenderer{}, 100),
-		),
-	)
+	m.Renderer().AddOptions(renderer.WithNodeRenderers(
+		util.Prioritized(&expandableCodeRenderer{}, 0),
+	))
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/alecthomas/chroma/v2"
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/lexers"
+	chromaconfig "github.com/gnolang/gno/gno.land/pkg/gnoweb/chroma"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/yuin/goldmark"
@@ -33,16 +34,21 @@ type HTMLRenderer struct {
 	realmGM         goldmark.Markdown // For realm rendering
 	documentationGM goldmark.Markdown // For documentation rendering
 	ch              *chromahtml.Formatter
+	chromaStyle     *chroma.Style
 }
 
 func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig) *HTMLRenderer {
+	// Use shared Chroma components
+	chromaFormatter, chromaStyle := chromaconfig.GetSharedChromaComponents()
+	
 	return &HTMLRenderer{
 		logger: logger,
 		cfg:    &cfg,
 		// Create dedicated instances for each context
 		realmGM:         goldmark.New(NewRealmGoldmarkOptions()...),
 		documentationGM: goldmark.New(NewDocumentationGoldmarkOptions()...),
-		ch:              chromahtml.New(cfg.ChromaOptions...),
+		ch:              chromaFormatter,
+		chromaStyle:     chromaStyle,
 	}
 }
 
@@ -92,7 +98,7 @@ func (r *HTMLRenderer) RenderSource(w io.Writer, name string, src []byte) error 
 		return fmt.Errorf("unable to tokenise %q: %w", name, err)
 	}
 
-	if err := r.ch.Format(w, r.cfg.ChromaStyle, iterator); err != nil {
+	if err := r.ch.Format(w, r.chromaStyle, iterator); err != nil {
 		return fmt.Errorf("unable to format source file %q: %w", name, err)
 	}
 
@@ -115,5 +121,5 @@ func (r *HTMLRenderer) RenderDocumentation(w io.Writer, u *weburl.GnoURL, src []
 
 // WriteChromaCSS writes the CSS for syntax highlighting to the provided writer.
 func (r *HTMLRenderer) WriteChromaCSS(w io.Writer) error {
-	return r.ch.WriteCSS(w, r.cfg.ChromaStyle)
+	return r.ch.WriteCSS(w, r.chromaStyle)
 }

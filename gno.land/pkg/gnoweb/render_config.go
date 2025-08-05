@@ -3,30 +3,21 @@ package gnoweb
 import (
 	"strings"
 
-	"github.com/alecthomas/chroma/v2"
-	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
-	"github.com/alecthomas/chroma/v2/styles"
+	chromaconfig "github.com/gnolang/gno/gno.land/pkg/gnoweb/chroma"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/yuin/goldmark"
-	markdown "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 )
 
-var DefaultChromaRenderStyle = styles.Get("friendly")
-
-// RenderConfig holds configuration for syntax highlighting and Markdown rendering.
+// RenderConfig holds configuration for Markdown rendering.
 type RenderConfig struct {
-	ChromaStyle     *chroma.Style
-	ChromaOptions   []chromahtml.Option
 	GoldmarkOptions []goldmark.Option
 }
 
-// NewDefaultRenderConfig returns a RenderConfig with default styles and options.
+// NewDefaultRenderConfig returns a RenderConfig with default options.
 func NewDefaultRenderConfig() (cfg RenderConfig) {
-	cfg.ChromaStyle = DefaultChromaRenderStyle
 	cfg.GoldmarkOptions = NewDocumentationGoldmarkOptions() // Use documentation config by default
-	cfg.ChromaOptions = NewDefaultChromaOptions()
 	return cfg
 }
 
@@ -50,10 +41,8 @@ func NewRealmGoldmarkOptions() []goldmark.Option {
 			md.NewRealmGnoExtension(
 				md.WithImageValidator(allowSvgDataImage),
 			),
-			markdown.NewHighlighting(
-				markdown.WithStyle("friendly"),
-				markdown.WithFormatOptions(NewDefaultChromaOptions()...),
-			),
+			// Use centralized highlighting extension
+			chromaconfig.NewHighlightingExtension(),
 		),
 	}
 }
@@ -67,15 +56,5 @@ func NewDocumentationGoldmarkOptions() []goldmark.Option {
 			// Documentation-specific Gno extension (only ExtCodeExpand)
 			md.NewDocumentationGnoExtension(),
 		),
-	}
-}
-
-// NewDefaultChromaOptions returns the default Chroma options for syntax highlighting.
-func NewDefaultChromaOptions() []chromahtml.Option {
-	return []chromahtml.Option{
-		chromahtml.WithLineNumbers(true),
-		chromahtml.WithLinkableLineNumbers(true, "L"),
-		chromahtml.WithClasses(true),
-		chromahtml.ClassPrefix("chroma-"),
 	}
 }
