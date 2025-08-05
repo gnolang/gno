@@ -15,6 +15,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/middleware"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/proxy"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
@@ -354,10 +355,24 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 		})
 	}
 
+	// Setup scripts to inject into the web pages
+	var scripts [][]byte
+
+	// Reload script
 	if !ds.cfg.noWatch {
 		evtstarget := fmt.Sprintf("%s/_events", ds.cfg.webListenerAddr)
 		mux.Handle("/_events", ds.emitterServer)
-		mux.Handle("/", emitter.NewMiddleware(evtstarget, webhandler))
+
+		reloadScript, err := emitter.GenerateReloadScript(evtstarget)
+		if err != nil {
+			return nil, fmt.Errorf("unable to generate reload script: %w", err)
+		}
+
+		scripts = append(scripts, reloadScript)
+	}
+
+	if len(scripts) > 0 {
+		mux.Handle("/", middleware.NewInjectorMiddleware(scripts, webhandler))
 	} else {
 		mux.Handle("/", webhandler)
 	}

@@ -1,4 +1,4 @@
-package emitter
+package middleware
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,7 +27,11 @@ func TestMiddlewareUsesHTMLTemplate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			mdw := NewMiddleware(tt.remote, http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+
+			script, err := emitter.GenerateReloadScript(tt.remote)
+			require.NoError(t, err, "GenerateReloadScript should not error")
+
+			mdw := NewInjectorMiddleware([][]byte{script}, http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 				rw.Header().Set("Content-Type", "text/html")
 				fmt.Fprintf(rw, "<body></body>")
 			}))
