@@ -62,7 +62,12 @@ func (MockIterator) Value() []byte {
 	return nil
 }
 
-func (MockIterator) Close() {
+func (MockIterator) Close() error {
+	return nil
+}
+
+func (MockIterator) Error() error {
+	return nil
 }
 
 func BenchmarkRandomReadsWrites(b *testing.B, db db.DB) {

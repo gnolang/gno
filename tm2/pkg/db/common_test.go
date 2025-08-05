@@ -6,10 +6,11 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/gnolang/gno/tm2/pkg/db/internal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/internal"
 )
 
 // ----------------------------------------
@@ -18,7 +19,8 @@ import (
 func checkValue(t *testing.T, db db.DB, key []byte, valueWanted []byte) {
 	t.Helper()
 
-	valueGot := db.Get(key)
+	valueGot, err := db.Get(key)
+	require.NoError(t, err)
 	assert.Equal(t, valueWanted, valueGot)
 }
 

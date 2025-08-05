@@ -10,18 +10,18 @@ import (
 // Implements CommitStoreConstructor.
 func StoreConstructor(db dbm.DB, opts types.StoreOptions) types.CommitStore {
 	return Store{
-		db: db,
+		DB: db,
 	}
 }
 
 // Wrapper type for dbm.Db with implementation of Store
 type Store struct {
-	db dbm.DB
+	DB dbm.DB
 }
 
 // Get returns nil iff key doesn't exist. Panics on nil key.
 func (dsa Store) Get(key []byte) []byte {
-	v, err := dsa.db.Get(key)
+	v, err := dsa.DB.Get(key)
 	if err != nil {
 		panic(err)
 	}
@@ -30,7 +30,7 @@ func (dsa Store) Get(key []byte) []byte {
 
 // Has checks if a key exists. Panics on nil key.
 func (dsa Store) Has(key []byte) bool {
-	v, err := dsa.db.Has(key)
+	v, err := dsa.DB.Has(key)
 	if err != nil {
 		panic(err)
 	}
@@ -39,7 +39,7 @@ func (dsa Store) Has(key []byte) bool {
 
 // Set sets the key. Panics on nil key or value.
 func (dsa Store) Set(key, value []byte) {
-	err := dsa.db.Set(key, value)
+	err := dsa.DB.Set(key, value)
 	if err != nil {
 		panic(err)
 	}
@@ -47,7 +47,7 @@ func (dsa Store) Set(key, value []byte) {
 
 // Delete deletes the key. Panics on nil key.
 func (dsa Store) Delete(key []byte) {
-	err := dsa.db.Delete(key)
+	err := dsa.DB.Delete(key)
 	if err != nil {
 		panic(err)
 	}
@@ -60,7 +60,7 @@ func (dsa Store) Delete(key []byte) {
 // CONTRACT: No writes may happen within a domain while an iterator exists over it.
 // Exceptionally allowed for cachekv.Store, safe to write in the modules.
 func (dsa Store) Iterator(start, end []byte) types.Iterator {
-	it, err := dsa.db.Iterator(start, end)
+	it, err := dsa.DB.Iterator(start, end)
 	if err != nil {
 		panic(err)
 	}
@@ -73,7 +73,7 @@ func (dsa Store) Iterator(start, end []byte) types.Iterator {
 // CONTRACT: No writes may happen within a domain while an iterator exists over it.
 // Exceptionally allowed for cachekv.Store, safe to write in the modules.
 func (dsa Store) ReverseIterator(start, end []byte) types.Iterator {
-	it, err := dsa.db.ReverseIterator(start, end)
+	it, err := dsa.DB.ReverseIterator(start, end)
 	if err != nil {
 		panic(err)
 	}
