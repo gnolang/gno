@@ -29,6 +29,10 @@
 			selector: ".js-breadcrumb",
 			path: "/public/js/breadcrumb.js",
 		},
+		wallet: {
+			selector: ".js-wallet-button",
+			path: "/public/js/wallet.js",
+		},
 	};
 
 	const loadModuleIfExists = async ({
