@@ -11,6 +11,8 @@ import (
 )
 
 func setupTestRewarder(t *testing.T) (*RedisRewarder, *redis.Client) {
+	t.Helper()
+
 	redisServer := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{
 		Addr: redisServer.Addr(),

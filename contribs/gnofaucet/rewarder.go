@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -72,7 +73,7 @@ func (r *RedisRewarder) GetReward(ctx context.Context, user string) (int, error)
 
 func (r *RedisRewarder) getCount(ctx context.Context, key string) (int, error) {
 	out, err := r.redisClient.Get(ctx, key).Int()
-	if err != nil && err != redis.Nil {
+	if err != nil && !errors.Is(err, redis.Nil) {
 		return 0, fmt.Errorf("error obtaining redis key: %w", err)
 	}
 

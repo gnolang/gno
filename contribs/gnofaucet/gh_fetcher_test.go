@@ -71,6 +71,8 @@ func getResult(t *testing.T, rdb *redis.Client, key string) string {
 }
 
 func createTestServer(t *testing.T) *httptest.Server {
+	t.Helper()
+
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Handle different endpoints
 		switch {
@@ -87,6 +89,8 @@ func createTestServer(t *testing.T) *httptest.Server {
 }
 
 func handleIssuesRequest(t *testing.T, w http.ResponseWriter, r *http.Request) {
+	t.Helper()
+
 	page := r.URL.Query().Get("page")
 	if page == "" {
 		page = "1"
@@ -100,6 +104,8 @@ func handleIssuesRequest(t *testing.T, w http.ResponseWriter, r *http.Request) {
 }
 
 func handleEventsRequest(t *testing.T, w http.ResponseWriter, r *http.Request) {
+	t.Helper()
+
 	page := r.URL.Query().Get("page")
 	if page == "" {
 		page = "1"
@@ -113,6 +119,8 @@ func handleEventsRequest(t *testing.T, w http.ResponseWriter, r *http.Request) {
 }
 
 func handleGraphQLRequest(t *testing.T, w http.ResponseWriter, r *http.Request) {
+	t.Helper()
+
 	obj := &graphQLRequest{}
 	err := json.NewDecoder(r.Body).Decode(obj)
 	require.NoError(t, err)

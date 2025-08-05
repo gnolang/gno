@@ -42,8 +42,9 @@ func (lre *GithubClientImpl) ListPullRequests(ctx context.Context, owner string,
 
 	r := data.GetRepository()
 
-	var out []PullRequest
-	for _, n := range r.GetPullRequests().Nodes {
+	nodes := r.GetPullRequests().Nodes
+	out := make([]PullRequest, 0, len(nodes))
+	for _, n := range nodes {
 		out = append(out, &PullRequestGql{n})
 	}
 
@@ -142,8 +143,9 @@ func (p *PullRequestGql) CreatedAt() time.Time {
 
 // Reviews implements PullRequest.
 func (p *PullRequestGql) Reviews() []Review {
-	var out []Review
-	for _, r := range p.pr.Reviews.Nodes {
+	nodes := p.pr.Reviews.Nodes
+	out := make([]Review, 0, len(nodes))
+	for _, r := range nodes {
 		out = append(out, &ReviewGql{r})
 	}
 
