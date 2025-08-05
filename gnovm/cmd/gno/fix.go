@@ -40,7 +40,8 @@ changes that should be applied.
 The available fixes are the following:
 `)
 	for _, fx := range fix.Fixes {
-		fmt.Fprintf(&bld, "- %s (%s)\n\t%s\n", fx.Name, fx.Date, fx.Desc)
+		desc := strings.ReplaceAll(fx.Desc, "\n", "\n\t")
+		fmt.Fprintf(&bld, "- %s (%s)\n\t%s\n", fx.Name, fx.Date, desc)
 	}
 
 	return commands.NewCommand(
