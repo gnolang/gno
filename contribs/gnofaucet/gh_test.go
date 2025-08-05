@@ -107,6 +107,12 @@ func (m *mockCooldownLimiter) checkCooldown(ctx context.Context, key string, amo
 	return false, nil
 }
 
+type mockRewarder struct{}
+
+func (m *mockRewarder) GetReward(ctx context.Context, user string) (int, error) {
+	return 0, nil
+}
+
 func TestGitHubClaimMiddleware(t *testing.T) {
 	t.Parallel()
 
@@ -215,7 +221,7 @@ func TestGitHubClaimMiddleware(t *testing.T) {
 			t.Parallel()
 
 			var (
-				mw     = gitHubClaimMiddleware(testCase.limiter)
+				mw     = gitHubClaimMiddleware(testCase.limiter, &mockRewarder{})
 				called = false
 				next   = func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
 					called = true

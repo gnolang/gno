@@ -77,7 +77,7 @@ type cooldownLimiter interface {
 }
 
 // gitHubClaimMiddleware is the GitHub claim validation middleware, based on the provided username
-func gitHubClaimMiddleware(coolDownLimiter cooldownLimiter) faucet.Middleware {
+func gitHubClaimMiddleware(coolDownLimiter cooldownLimiter, rewarder Rewarder) faucet.Middleware {
 	return func(next faucet.HandlerFunc) faucet.HandlerFunc {
 		return func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
 			// Grab the username from the context
@@ -106,6 +106,20 @@ func gitHubClaimMiddleware(coolDownLimiter cooldownLimiter) faucet.Middleware {
 					nil,
 					spec.NewJSONError("amount not provided", spec.InvalidParamsErrorCode),
 				)
+			}
+
+			// TODO: if the second param is "CLAIM_CONTRIBS":
+			if req.Params[1] == "CLAIM_CONTRIBS" {
+				reward, err := rewarder.GetReward(ctx, username)
+				if err != nil {
+					return spec.NewJSONResponse(
+						req.ID,
+						nil,
+						spec.NewJSONError("unable to get reward", spec.ServerErrorCode),
+					)
+				}
+				// TODO: do something with the reward
+				fmt.Println(reward)
 			}
 
 			claimAmount, err := std.ParseCoin(req.Params[1].(string))

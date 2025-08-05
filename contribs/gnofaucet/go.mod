@@ -1,17 +1,29 @@
 module github.com/gnolang/gno/contribs/gnofaucet
 
-go 1.23.6
+go 1.24.0
+
+toolchain go1.24.3
 
 require (
+	github.com/Khan/genqlient v0.8.1
 	github.com/alicebob/miniredis/v2 v2.35.0
 	github.com/gnolang/faucet v0.5.3
 	github.com/gnolang/gno v0.0.0-20250901125041-596de150f06c
 	github.com/google/go-github/v64 v64.0.0
+	github.com/google/go-github/v74 v74.0.0
+	github.com/jferrl/go-githubauth v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/redis/go-redis/v9 v9.12.1
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.0
+	golang.org/x/oauth2 v0.30.0
 	golang.org/x/time v0.12.0
+)
+
+require (
+	github.com/golang-jwt/jwt/v5 v5.2.3 // indirect
+	github.com/google/go-github/v69 v69.2.0 // indirect
+	github.com/vektah/gqlparser/v2 v2.5.19 // indirect
 )
 
 require (
