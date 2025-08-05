@@ -217,6 +217,7 @@ func (ms *multiStore) MultiImmutableCacheWrapWithVersion(version int64) (types.M
 		storeOpts:    ms.storeOpts,
 		storesParams: ms.storesParams,
 		keysByName:   ms.keysByName,
+		stores:       make(map[types.StoreKey]types.CommitStore),
 	}
 	ims.storeOpts.Immutable = true
 	err := ims.LoadVersion(version)
