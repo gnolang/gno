@@ -60,6 +60,11 @@ func (idb *ImmutableDB) NewBatch() Batch {
 }
 
 // Implements DB.
+func (idb *ImmutableDB) NewBatchWithSize(_ int) Batch {
+	return nil // XXX
+}
+
+// Implements DB.
 func (idb *ImmutableDB) Close() error {
 	return idb.db.Close()
 }

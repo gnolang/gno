@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	ics23 "github.com/cosmos/ics23/go"
-
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
@@ -306,18 +304,14 @@ func (ms *multiStore) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 		return
 	}
 
-	// XXX WIP
-	existProof := NewMultiStoreProof(commitInfo.StoreInfos)
-	commitmentProof := &ics23.CommitmentProof{
-		Proof: &ics23.CommitmentProof_Exist{
-			Exist: existProof,
-		},
+	proofOp, errMsg := types.ProofOpFromMap(commitInfo.toMap(), storeName)
+	if errMsg != nil {
+		res.Error = serrors.ErrInternal(errMsg.Error())
+		return
 	}
 
 	// Restore origin path and append proof op.
-	res.Proof.Ops = append(res.Proof.Ops, types.NewSimpleMerkleCommitmentOp(
-		[]byte(storeName), commitmentProof,
-	).ProofOp())
+	res.Proof.Ops = append(res.Proof.Ops, proofOp)
 
 	// TODO: handle in another TM v0.26 update PR
 	// res.Proof = buildMultiStoreProof(res.Proof, storeName, commitInfo.StoreInfos)
@@ -391,15 +385,18 @@ type commitInfo struct {
 	StoreInfos []storeInfo
 }
 
-// Hash returns the simple merkle root hash of the stores sorted by name.
-func (ci commitInfo) Hash() []byte {
-	// TODO: cache to ci.hash []byte
+func (ci commitInfo) toMap() map[string][]byte {
 	m := make(map[string][]byte, len(ci.StoreInfos))
 	for _, storeInfo := range ci.StoreInfos {
 		m[storeInfo.Name] = storeInfo.Hash()
 	}
+	return m
+}
 
-	return merkle.SimpleHashFromMap(m)
+// Hash returns the simple merkle root hash of the stores sorted by name.
+func (ci commitInfo) Hash() []byte {
+	// TODO: cache to ci.hash []byte
+	return merkle.SimpleHashFromMap(ci.toMap())
 }
 
 func (ci commitInfo) CommitID() types.CommitID {
