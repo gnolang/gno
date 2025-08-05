@@ -22,6 +22,9 @@ type faucetContextKey string
 // http and RPC GitHub middleware handlers
 const ghUsernameKey faucetContextKey = "gh-username"
 
+// claimRPCMethod is a method that is exactly like the default drip method but without any amount set
+const claimRPCMethod = "claim"
+
 // gitHubUsernameMiddleware sets up authentication middleware for GitHub OAuth.
 // If clientID and secret are empty, the middleware does nothing.
 //
@@ -90,6 +93,31 @@ func gitHubClaimMiddleware(coolDownLimiter cooldownLimiter, rewarder Rewarder) f
 				)
 			}
 
+			if req.Method == claimRPCMethod {
+				if len(req.Params) != 1 {
+					return spec.NewJSONResponse(
+						req.ID,
+						nil,
+						spec.NewJSONError("params must contain only the address", spec.InvalidParamsErrorCode),
+					)
+				}
+				reward, err := rewarder.GetReward(ctx, username)
+				if err != nil {
+					return spec.NewJSONResponse(
+						req.ID,
+						nil,
+						spec.NewJSONError("unable to get reward", spec.ServerErrorCode),
+					)
+				}
+
+				req.Method = faucet.DefaultDripMethod
+
+				c := std.NewCoin("ugnot", int64(reward))
+				req.Params = append(req.Params, c)
+
+				return next(ctx, req)
+			}
+
 			// Make sure the method is "drip"
 			if req.Method != faucet.DefaultDripMethod {
 				return spec.NewJSONResponse(
@@ -106,20 +134,6 @@ func gitHubClaimMiddleware(coolDownLimiter cooldownLimiter, rewarder Rewarder) f
 					nil,
 					spec.NewJSONError("amount not provided", spec.InvalidParamsErrorCode),
 				)
-			}
-
-			// TODO: if the second param is "CLAIM_CONTRIBS":
-			if req.Params[1] == "CLAIM_CONTRIBS" {
-				reward, err := rewarder.GetReward(ctx, username)
-				if err != nil {
-					return spec.NewJSONResponse(
-						req.ID,
-						nil,
-						spec.NewJSONError("unable to get reward", spec.ServerErrorCode),
-					)
-				}
-				// TODO: do something with the reward
-				fmt.Println(reward)
 			}
 
 			claimAmount, err := std.ParseCoin(req.Params[1].(string))
