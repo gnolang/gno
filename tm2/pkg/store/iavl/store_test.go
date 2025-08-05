@@ -6,11 +6,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/cosmos/iavl"
+
+	"cosmossdk.io/log"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
-	"github.com/gnolang/gno/tm2/pkg/iavl"
 	"github.com/gnolang/gno/tm2/pkg/random"
 
 	// "github.com/gnolang/gno/tm2/pkg/store/errors"
@@ -35,7 +38,7 @@ var (
 func newAlohaTree(t *testing.T, db dbm.DB) (*iavl.MutableTree, types.CommitID) {
 	t.Helper()
 
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, log.NewNopLogger())
 	for k, v := range treeData {
 		tree.Set([]byte(k), []byte(v))
 	}
@@ -56,7 +59,9 @@ func TestGetImmutable(t *testing.T) {
 	tree, cID := newAlohaTree(t, db)
 	store := UnsafeNewStore(tree, storeOptions(10, 10))
 
-	require.True(t, tree.Set([]byte("hello"), []byte("adios")))
+	updated, err := tree.Set([]byte("hello"), []byte("adios"))
+	require.NoError(t, err)
+	require.True(t, updated)
 	hash, ver, err := tree.SaveVersion()
 	cID = types.CommitID{Version: ver, Hash: hash}
 	require.Nil(t, err)
@@ -221,7 +226,7 @@ func TestIAVLReverseIterator(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, log.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
 
 	iavlStore.Set([]byte{0x00}, []byte("0"))
@@ -256,7 +261,7 @@ func TestIAVLPrefixIterator(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, log.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
 
 	iavlStore.Set([]byte("test1"), []byte("test1"))
@@ -320,7 +325,7 @@ func TestIAVLReversePrefixIterator(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, log.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
 
 	iavlStore.Set([]byte("test1"), []byte("test1"))
@@ -445,7 +450,7 @@ func testPruning(t *testing.T, numRecent int64, storeEvery int64, states []prune
 	t.Helper()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, log.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
 	for step, state := range states {
 		for _, ver := range state.stored {
@@ -466,7 +471,7 @@ func TestIAVLNoPrune(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, log.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, int64(1)))
 	nextVersion(iavlStore)
 	for i := 1; i < 100; i++ {
@@ -483,7 +488,7 @@ func TestIAVLPruneEverything(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, log.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(int64(0), int64(0)))
 	nextVersion(iavlStore)
 	for i := 1; i < 100; i++ {
@@ -503,7 +508,7 @@ func TestIAVLStoreQuery(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, log.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
 
 	k1, v1 := []byte("key1"), []byte("val1")
@@ -594,7 +599,7 @@ func TestIAVLStoreQuery(t *testing.T) {
 func BenchmarkIAVLIteratorNext(b *testing.B) {
 	db := memdb.NewMemDB()
 	treeSize := 1000
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, log.NewNopLogger())
 	for range treeSize {
 		key := random.RandBytes(4)
 		value := random.RandBytes(50)

@@ -19,29 +19,34 @@ func testBackendGetSetDelete(t *testing.T, backend db.BackendType) {
 	db, err := db.NewDB("testdb", backend, t.TempDir())
 	require.NoError(t, err)
 
+	must := func(bz []byte, err error) []byte {
+		require.NoError(t, err)
+		return bz
+	}
+
 	// A nonexistent key should return nil, even if the key is empty
-	require.Nil(t, db.Get([]byte("")))
+	require.Nil(t, must(db.Get([]byte(""))))
 
 	// A nonexistent key should return nil, even if the key is nil
-	require.Nil(t, db.Get(nil))
+	require.Nil(t, must(db.Get(nil)))
 
 	// A nonexistent key should return nil.
 	key := []byte("abc")
-	require.Nil(t, db.Get(key))
+	require.Nil(t, must(db.Get(key)))
 
 	// Set empty value.
 	db.SetSync(key, []byte(""))
-	require.NotNil(t, db.Get(key))
-	require.Empty(t, db.Get(key))
+	require.NotNil(t, must(db.Get(key)))
+	require.Empty(t, must(db.Get(key)))
 
 	// Set nil value.
 	db.SetSync(key, nil)
-	require.NotNil(t, db.Get(key))
-	require.Empty(t, db.Get(key))
+	require.NotNil(t, must(db.Get(key)))
+	require.Empty(t, must(db.Get(key)))
 
 	// Delete.
 	db.DeleteSync(key)
-	require.Nil(t, db.Get(key))
+	require.Nil(t, must(db.Get(key)))
 }
 
 func TestBackendsGetSetDelete(t *testing.T) {
@@ -77,11 +82,23 @@ func TestBackendsNilKeys(t *testing.T) {
 				// Nil keys are treated as the empty key for most operations.
 				expect := func(key, value []byte) {
 					if len(key) == 0 { // nil or empty
-						assert.Equal(t, db.Get(nil), db.Get([]byte("")))
-						assert.Equal(t, db.Has(nil), db.Has([]byte("")))
+						exp, err := db.Get(nil)
+						require.NoError(t, err)
+						got, err := db.Get([]byte(""))
+						require.NoError(t, err)
+						assert.Equal(t, exp, got)
+						exp2, err := db.Has(nil)
+						require.NoError(t, err)
+						got2, err := db.Has([]byte(""))
+						require.NoError(t, err)
+						assert.Equal(t, exp2, got2)
 					}
-					assert.Equal(t, db.Get(key), value)
-					assert.Equal(t, db.Has(key), value != nil)
+					v, err := db.Get(key)
+					require.NoError(t, err)
+					assert.Equal(t, v, value)
+					h, err := db.Has(key)
+					require.NoError(t, err)
+					assert.Equal(t, h, value != nil)
 				}
 
 				// Not set
@@ -241,7 +258,8 @@ func TestDBIteratorSingleKey(t *testing.T) {
 			db := newTempDB(t, backend)
 
 			db.SetSync(bz("1"), bz("value_1"))
-			itr := db.Iterator(nil, nil)
+			itr, err := db.Iterator(nil, nil)
+			require.NoError(t, err)
 
 			checkValid(t, itr, true)
 			checkNext(t, itr, false)
@@ -267,7 +285,8 @@ func TestDBIteratorTwoKeys(t *testing.T) {
 			db.SetSync(bz("2"), bz("value_1"))
 
 			{ // Fail by calling Next too much
-				itr := db.Iterator(nil, nil)
+				itr, err := db.Iterator(nil, nil)
+				require.NoError(t, err)
 				checkValid(t, itr, true)
 
 				checkNext(t, itr, true)

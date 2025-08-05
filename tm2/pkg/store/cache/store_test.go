@@ -456,7 +456,8 @@ func assertIterateDomainCheck(t *testing.T, st types.Store, mem dbm.DB, r []keyR
 
 	// iterate over each and check they match the other
 	itr := st.Iterator(nil, nil)
-	itr2 := mem.Iterator(nil, nil) // ground truth
+	itr2, err := mem.Iterator(nil, nil) // ground truth
+	require.NoError(t, err)
 
 	krc := newKeyRangeCounter(r)
 	i := 0
@@ -488,7 +489,8 @@ func assertIterateDomainCompare(t *testing.T, st types.Store, mem dbm.DB) {
 
 	// iterate over each and check they match the other
 	itr := st.Iterator(nil, nil)
-	itr2 := mem.Iterator(nil, nil) // ground truth
+	itr2, err := mem.Iterator(nil, nil) // ground truth
+	require.NoError(t, err)
 	checkIterators(t, itr, itr2)
 	checkIterators(t, itr2, itr)
 }
