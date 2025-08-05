@@ -11,7 +11,7 @@ stderr 'Data: allocation limit exceeded'
 -- append.gno --
 package append
 
-func Doappend() {
+func Doappend(_ realm) {
     var hugeString string
     for i := 0; ; i++ {
         // bypass alloc.maxBytes ("allocation limit exceeded") //
