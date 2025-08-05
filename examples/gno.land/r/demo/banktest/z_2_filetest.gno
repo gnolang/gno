@@ -1,6 +1,3 @@
-// Empty line between the directives is important for them to be parsed
-// independently. :facepalm:
-
 // PKGPATH: gno.land/r/demo/bank1
 
 package bank1
@@ -14,9 +11,9 @@ import (
 
 func main() {
 	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/banktest")
+	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
 
 	// print main balance before.
-	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
 	testing.SetOriginCaller(mainaddr)
 
 	banker := std.NewBanker(std.BankerTypeReadonly)
@@ -26,8 +23,8 @@ func main() {
 	// simulate a Deposit call.
 	testing.IssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
 	testing.SetOriginSend(std.Coins{{"ugnot", 100000000}})
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/banktest"))
-	res := banktest.Deposit("ugnot", 55000000)
+	testing.SetRealm(std.NewUserRealm(mainaddr))
+	res := banktest.Deposit(cross, "ugnot", 55000000)
 	println("Deposit():", res)
 
 	// print main balance after.

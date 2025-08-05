@@ -19,4 +19,7 @@ func main() {
 }
 
 // Error:
-// main/files/type37b.gno:7:1: invalid receiver type **main.Integer (base type is pointer type)
+// main/type37b.gno:7:1-9:2: invalid receiver type **main.Integer (base type is pointer type)
+
+// TypeCheckError:
+// main/type37b.gno:7:10: invalid receiver type **Integer; main/type37b.gno:16:4: b.Add undefined (type **Integer has no field or method Add)

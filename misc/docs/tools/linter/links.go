@@ -83,7 +83,7 @@ func lintLocalLinks(filepathToLinks map[string][]string) (string, error) {
 					output.WriteString("Could not find files with the following paths:\n")
 					found = true
 				}
-				// Make the source file clickable (file:// URI)
+
 				absSourcePath, _ := filepath.Abs(filePath)
 				output.WriteString(
 					fmt.Sprintf(">>> %s (found in file: file://%s)\n", link, absSourcePath),

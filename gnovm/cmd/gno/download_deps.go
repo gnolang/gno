@@ -12,16 +12,15 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"golang.org/x/mod/module"
 )
 
 // downloadDeps recursively fetches the imports of a local package while following a given gno.mod replace directives
-func downloadDeps(io commands.IO, pkgDir string, gnoMod *gnomod.File, fetcher pkgdownload.PackageFetcher) error {
+func downloadDeps(io commands.IO, pkgDir string, modfile *gnomod.File, fetcher pkgdownload.PackageFetcher, visited map[string]struct{}) error {
 	if fetcher == nil {
 		return errors.New("fetcher is nil")
 	}
 
-	pkg, err := gnolang.ReadMemPackage(pkgDir, gnoMod.Module.Mod.Path)
+	pkg, err := gnolang.ReadMemPackage(pkgDir, modfile.Module, gnolang.MPUserAll)
 	if err != nil {
 		return fmt.Errorf("read package at %q: %w", pkgDir, err)
 	}
@@ -31,21 +30,28 @@ func downloadDeps(io commands.IO, pkgDir string, gnoMod *gnomod.File, fetcher pk
 	}
 	imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
 
-	for _, pkgPath := range imports {
-		resolved := gnoMod.Resolve(module.Version{Path: pkgPath.PkgPath})
-		resolvedPkgPath := resolved.Path
+	for _, imp := range imports {
+		resolved := modfile.Resolve(imp.PkgPath)
 
-		if !isRemotePkgPath(resolvedPkgPath) {
+		if !isRemotePkgPath(resolved) {
 			continue
 		}
 
-		depDir := gnomod.PackageDir("", module.Version{Path: resolvedPkgPath})
+		// Cycle + redundancy check: Have we already started processing this dependency?
+		if _, exists := visited[resolved]; exists {
+			continue // Skip dependencies already being processed or finished in this run.
+		}
+		// Mark this dependency as visited *before* recursive call.
+		visited[resolved] = struct{}{}
 
-		if err := downloadPackage(io, resolvedPkgPath, depDir, fetcher); err != nil {
-			return fmt.Errorf("download import %q of %q: %w", resolvedPkgPath, pkgDir, err)
+		cachePath := gnomod.ModCachePath()
+		depDir := filepath.Join(cachePath, filepath.FromSlash(resolved))
+
+		if err := downloadPackage(io, resolved, depDir, fetcher); err != nil {
+			return fmt.Errorf("download import %q of %q: %w", resolved, pkgDir, err)
 		}
 
-		if err := downloadDeps(io, depDir, gnoMod, fetcher); err != nil {
+		if err := downloadDeps(io, depDir, modfile, fetcher, visited); err != nil {
 			return err
 		}
 	}

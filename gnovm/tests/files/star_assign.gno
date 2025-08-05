@@ -21,7 +21,7 @@ func init() {
 	New()
 }
 
-func main() {
+func main(cur realm) {
 	Delta()
 	println(Values())
 }

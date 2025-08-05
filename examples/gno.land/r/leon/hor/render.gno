@@ -120,6 +120,10 @@ func RenderExhibWidget(itemsToRender int) string {
 		return ""
 	}
 
+	if exhibition.items.Size() == 0 {
+		return "No items in the Hall of Realms.\n\n"
+	}
+
 	out := ""
 	i := 0
 	exhibition.items.Iterate("", "", func(key string, value any) bool {
@@ -154,12 +158,12 @@ func renderAbout() string {
 	out := `
 Welcome, gnomes!
 
-The Hall of Realms is a simple & permissionless dashboard for gnomes to share 
+The Hall of Realms is a simple & permissionless dashboard for gnomes to share
 their work with the community.
 
 Here, anyone is welcome to submit their own code. This realm utilizes a common
-Gno pattern - the registry pattern - to allow anyone to programmatically submit 
-their work. 
+Gno pattern - the registry pattern - to allow anyone to programmatically submit
+their work.
 
 Simply import the Hall of Realms in your code, and call the "Register()" function
 inside your realm init, as shown below:
@@ -170,7 +174,7 @@ package myrealm
 import "gno.land/r/leon/hor"
 
 func init() {
-	hor.Register("My Gnome App", "This is my submission to the Hall of Realms.")
+	cross(hor.Register)("My Gnome App", "This is my submission to the Hall of Realms.")
 }
 ...
 """

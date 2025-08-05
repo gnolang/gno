@@ -1,3 +1,5 @@
+# XXX(FIXME): missing module name in error: `Data: module name <> not registered`
+
 # test for https://github.com/gnolang/gno/pull/2920
 
 gnoland start
@@ -66,6 +68,9 @@ gnokey maketx call -pkgpath gno.land/r/myrealm -func SetValidString -args ugnot 
 gnokey query params/vm:gno.land/r/myrealm:bank_lockTransfer
 stdout 'data: "ugnot"'
 
+-- params/gnomod.toml --
+module = "gno.land/r/sys/params"
+gno = "0.9"
 
 -- params/setter.gno --
 package params
@@ -74,12 +79,29 @@ import (
 	"std"
 )
 
-func SetFoo(newFoo string) { std.SetParamString("foo", newFoo) }
-func SetBar(newBar bool)   { std.SetParamBool("bar", newBar) }
-func SetBaz(newBaz int64)  { std.SetParamInt64("baz", newBaz) }
+func SetFoo(cur realm, newFoo string) {
+	std.SetParamString("foo", newFoo)
+}
+
+func SetBar(cur realm, newBar bool)   {
+	std.SetParamBool("bar", newBar)
+}
+
+func SetBaz(cur realm, newBaz int64)  {
+	std.SetParamInt64("baz", newBaz)
+}
+
 func SetUint64(newBaz uint64)  { std.SetParamUint64("baz", newBaz) }
 func SetBytes()  { std.SetParamBytes("baz", []byte{255,255}) }
 
-func SetLockTransfer(denom string)  { std.SetParamString("bank:p:lockTransfer", denom) }
-func SetInvalidString(denom string)  { std.SetParamString("bank:p:lockTransfer", denom) }
-func SetValidString(denom string)  { std.SetParamString("bank_lockTransfer", denom) }
+func SetLockTransfer(cur realm, denom string)  {
+	std.SetParamString("bank:p:lockTransfer", denom)
+}
+
+func SetInvalidString(cur realm, denom string)  {
+	std.SetParamString("bank:p:lockTransfer", denom)
+}
+
+func SetValidString(cur realm, denom string)  {
+	std.SetParamString("bank_lockTransfer", denom)
+}

@@ -30,9 +30,6 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 	}
 	// special case for interface target
 	if t.Kind() == InterfaceKind {
-		if tv.IsUndefined() && tv.T == nil {
-			tv.T = t
-		}
 		return
 	}
 	// special case for undefined/nil source
@@ -1363,15 +1360,15 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 	}
 }
 
-func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
+func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 	k := t.Kind()
-	bi := bv.V
+	bi := biv.V
 	var sv int64 = 0  // if signed.
 	var uv uint64 = 0 // if unsigned.
 	switch k {
 	case BigintKind:
 		dst.T = t
-		dst.V = bv
+		dst.V = biv
 		return // done
 	case BoolKind:
 		panic("not yet implemented")
@@ -1519,9 +1516,9 @@ func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
 	}
 }
 
-func ConvertUntypedBigdecTo(dst *TypedValue, bv BigdecValue, t Type) {
+func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 	k := t.Kind()
-	bd := bv.V
+	bd := bdv.V
 	switch k {
 	case BigintKind:
 		if !isInteger(bd) {

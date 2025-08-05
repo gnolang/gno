@@ -181,7 +181,7 @@ func (m *Machine) doOpExec(op Op) {
 			if bs.Value != nil {
 				iv := TypedValue{T: IntType}
 				iv.SetInt(int64(bs.ListIndex))
-				ev := xv.GetPointerAtIndex(m.Alloc, m.Store, &iv).Deref()
+				ev := xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, &iv).Deref()
 				switch bs.Op {
 				case ASSIGN:
 					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
@@ -337,10 +337,13 @@ func (m *Machine) doOpExec(op Op) {
 	case OpRangeIterMap:
 		bs := s.(*bodyStmt)
 		xv := m.PeekValue(1)
-		mv := xv.V.(*MapValue)
+		var mv *MapValue
+		if xv.V != nil {
+			mv = xv.V.(*MapValue)
+		}
 		switch bs.NextBodyIndex {
 		case -2: // init.
-			if mv.GetLength() == 0 { // early termination
+			if mv == nil || mv.GetLength() == 0 { // early termination
 				m.PopFrameAndReset()
 				return
 			}
@@ -541,7 +544,7 @@ EXEC_SWITCH:
 		m.PushForPointer(cs.X)
 	case *ReturnStmt:
 		m.PopStmt()
-		fr := m.MustLastCallFrame(1)
+		fr := m.MustPeekCallFrame(1)
 		ft := fr.Func.GetType(m.Store)
 		hasDefers := 0 < len(fr.Defers)
 		hasResults := 0 < len(ft.Results)
@@ -550,7 +553,6 @@ EXEC_SWITCH:
 			// NOTE: unnamed results are given hidden names
 			// ".res%d" from the preprocessor, so they are
 			// present in the func block.
-			m.PushOp(OpReturnFromBlock)
 			m.PushOp(OpReturnCallDefers) // sticky
 			if cs.Results == nil {
 				// results already in block, if any.
@@ -561,6 +563,8 @@ EXEC_SWITCH:
 		} else {
 			if cs.Results == nil {
 				m.PushOp(OpReturnFromBlock)
+			} else if cs.CopyResults {
+				m.PushOp(OpReturnAfterCopy)
 			} else {
 				m.PushOp(OpReturn)
 			}
@@ -571,12 +575,6 @@ EXEC_SWITCH:
 			m.PushExpr(res)
 			m.PushOp(OpEval)
 		}
-	case *PanicStmt:
-		m.PopStmt()
-		m.PushOp(OpPanic1)
-		// evaluate exception
-		m.PushExpr(cs.Exception)
-		m.PushOp(OpEval)
 	case *RangeStmt:
 		m.PushFrameBasic(cs)
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
@@ -663,9 +661,7 @@ EXEC_SWITCH:
 				}
 			}
 		case GOTO:
-			for i := uint8(0); i < cs.Depth; i++ {
-				m.PopBlock()
-			}
+			m.GotoJump(int(cs.FrameDepth), int(cs.BlockDepth))
 			last := m.LastBlock()
 			bs := last.GetBodyStmt()
 			m.NumOps = bs.NumOps
@@ -686,10 +682,8 @@ EXEC_SWITCH:
 			// compute next switch clause from BodyIndex (assigned in preprocess)
 			nextClause := cs.BodyIndex + 1
 			// expand block size
-			cl := ss.Clauses[nextClause]
-			if nn := cl.GetNumNames(); int(nn) > len(b.Values) {
-				b.ExpandToSize(m.Alloc, nn)
-			}
+			cl := &ss.Clauses[nextClause]
+			b.ExpandWith(m.Alloc, cl)
 			// exec clause body
 			b.bodyStmt = bodyStmt{
 				Body:          cl.Body,
@@ -783,9 +777,7 @@ func (m *Machine) doOpIfCond() {
 	if cond.GetBool() {
 		if len(is.Then.Body) != 0 {
 			// expand block size
-			if nn := is.Then.GetNumNames(); int(nn) > len(b.Values) {
-				b.ExpandToSize(m.Alloc, nn)
-			}
+			b.ExpandWith(m.Alloc, &is.Then)
 			// exec then body
 			b.bodyStmt = bodyStmt{
 				Body:          is.Then.Body,
@@ -798,9 +790,7 @@ func (m *Machine) doOpIfCond() {
 	} else {
 		if len(is.Else.Body) != 0 {
 			// expand block size
-			if nn := is.Else.GetNumNames(); int(nn) > len(b.Values) {
-				b.ExpandToSize(m.Alloc, nn)
-			}
+			b.ExpandWith(m.Alloc, &is.Else)
 			// exec then body
 			b.bodyStmt = bodyStmt{
 				Body:          is.Else.Body,
@@ -865,19 +855,19 @@ func (m *Machine) doOpTypeSwitch() {
 		if match { // did match
 			if len(cs.Body) != 0 {
 				b := m.LastBlock()
+				// remember size (from init)
+				size := len(b.Values)
+				// expand block size
+				b.ExpandWith(m.Alloc, cs)
 				// define if varname
 				if ss.VarName != "" {
-					// NOTE: assumes the var is first in block.
+					// NOTE: assumes the var is first after size.
 					vp := NewValuePath(
-						VPBlock, 1, 0, ss.VarName)
+						VPBlock, 1, uint16(size), ss.VarName)
 					// NOTE: GetPointerToMaybeHeapDefine not needed,
 					// because this type is in new type switch clause block.
 					ptr := b.GetPointerTo(m.Store, vp)
 					ptr.TV.Assign(m.Alloc, *xv, false)
-				}
-				// expand block size
-				if nn := cs.GetNumNames(); int(nn) > len(b.Values) {
-					b.ExpandToSize(m.Alloc, nn)
 				}
 				// exec clause body
 				b.bodyStmt = bodyStmt{
@@ -907,7 +897,7 @@ func (m *Machine) doOpSwitchClause() {
 		m.PopValue() // pop clause index
 		// done!
 	} else {
-		cl := ss.Clauses[idx]
+		cl := &ss.Clauses[idx]
 		if len(cl.Cases) == 0 {
 			// default clause
 			m.PopStmt()  // pop switch stmt
@@ -916,9 +906,7 @@ func (m *Machine) doOpSwitchClause() {
 			m.PopValue() // clause index no longer needed
 			// expand block size
 			b := m.LastBlock()
-			if nn := cl.GetNumNames(); int(nn) > len(b.Values) {
-				b.ExpandToSize(m.Alloc, nn)
-			}
+			b.ExpandWith(m.Alloc, cl)
 			// exec clause body
 			b.bodyStmt = bodyStmt{
 				Body:          cl.Body,
@@ -956,11 +944,9 @@ func (m *Machine) doOpSwitchClauseCase() {
 		m.PopValue()                    // pop clause index
 		// expand block size
 		clidx := cliv.GetInt()
-		cl := ss.Clauses[clidx]
+		cl := &ss.Clauses[clidx]
 		b := m.LastBlock()
-		if nn := cl.GetNumNames(); int(nn) > len(b.Values) {
-			b.ExpandToSize(m.Alloc, nn)
-		}
+		b.ExpandWith(m.Alloc, cl)
 		// exec clause body
 		b.bodyStmt = bodyStmt{
 			Body:          cl.Body,

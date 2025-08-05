@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	api_gen "github.com/gnolang/gnonative/api/gen/go"
-	"github.com/gnolang/gnonative/api/gen/go/_goconnect"
-	"github.com/gnolang/gnonative/service"
+	api_gen "github.com/gnolang/gnonative/v4/api/gen/go"
+	"github.com/gnolang/gnonative/v4/api/gen/go/_goconnect"
+	"github.com/gnolang/gnonative/v4/service"
 )
 
 func main() {
@@ -96,13 +96,14 @@ func setup(client _goconnect.GnoNativeServiceClient, test1Address []byte) error 
 		context.Background(),
 		connect.NewRequest(&api_gen.CallRequest{
 			GasFee:        "1000000ugnot",
-			GasWanted:     10_000_000,
+			GasWanted:     50_000_000,
 			CallerAddress: test1Address,
 			Msgs: []*api_gen.MsgCall{{
 				PackagePath: "gno.land/r/demo/boards",
 				Fnc:         "CreateBoard",
 				Args:        []string{"testboard"},
-			}}}),
+			}},
+		}),
 	)
 	if err != nil {
 		return err
@@ -114,13 +115,14 @@ func setup(client _goconnect.GnoNativeServiceClient, test1Address []byte) error 
 		context.Background(),
 		connect.NewRequest(&api_gen.CallRequest{
 			GasFee:        "1000000ugnot",
-			GasWanted:     10_000_000,
+			GasWanted:     50_000_000,
 			CallerAddress: test1Address,
 			Msgs: []*api_gen.MsgCall{{
 				PackagePath: "gno.land/r/demo/boards",
 				Fnc:         "CreateThread",
 				Args:        []string{"1", "Test thread", "Test post"},
-			}}}),
+			}},
+		}),
 	)
 	if err != nil {
 		return err
@@ -145,7 +147,7 @@ import (
 
 func main() {
 	for i := 0; i < ` + strconv.Itoa(postsPerCall) + `; i++ {
-		boards.CreateReply(boards.BoardID(1), boards.PostID(1), boards.PostID(1), "reply")
+		boards.CreateReply(cross, boards.BoardID(1), boards.PostID(1), boards.PostID(1), "reply")
 	}
 }`
 
@@ -161,12 +163,13 @@ func main() {
 		res, err := client.Run(
 			context.Background(),
 			connect.NewRequest(&api_gen.RunRequest{
-				GasFee:        "1000000ugnot",
-				GasWanted:     100_000_000,
+				GasFee:        "10000000ugnot",
+				GasWanted:     1_000_000_000,
 				CallerAddress: test1Address,
 				Msgs: []*api_gen.MsgRun{{
 					Package: code,
-				}}}),
+				}},
+			}),
 		)
 		if err != nil {
 			return err

@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -181,4 +182,33 @@ func generatePubKeysAndSignatures(n int, msg []byte) (pubkeys []crypto.PubKey, s
 		signatures[i], _ = privkey.Sign(msg)
 	}
 	return
+}
+
+func TestPubKeyMultisigThreshold_String(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty set", func(t *testing.T) {
+		t.Parallel()
+
+		pk := PubKeyMultisigThreshold{
+			PubKeys: make([]crypto.PubKey, 0), // empty
+		}
+
+		assert.Equal(t, "[]", pk.String())
+	})
+
+	t.Run("multiple keys", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			keys, _ = generatePubKeysAndSignatures(10, []byte("dummy"))
+			pk      = NewPubKeyMultisigThreshold(5, keys)
+		)
+
+		output := pk.String()
+
+		for _, key := range keys {
+			assert.Contains(t, output, key.String())
+		}
+	})
 }

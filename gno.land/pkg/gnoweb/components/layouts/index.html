@@ -16,18 +16,11 @@
           dev-mode bg-gray-50
         {{ else }}
           bg-light
-        {{ end }}"
-      >
+        {{ end }}">
         <section
-          class="max-w-screen-max mx-auto grid grid-flow-dense items-start min-h-full
-                {{ if eq .Layout "sidebar" }}
-            px-4 md:px-10 grid-cols-1 lg:grid-cols-10 xl:grid-cols-10 gap-x-20
-            xxl:gap-x-32
-          {{ else }}
-            px-10 grid-cols-1 gap-8 xxl:gap-20
-          {{ end }}
-                {{ if .ViewType }}js-{{ .ViewType }}{{ end }}"
-        >
+          class="max-w-screen-max mx-auto grid grid-flow-dense items-start min-h-full px-4 md:px-10 grid-cols-1 lg:grid-cols-10 xl:grid-cols-10 gap-x-20 xxl:gap-x-32 {{ if .ViewType }}
+            js-{{ .ViewType }}
+          {{ end }}">
           {{ render .IndexData.BodyView -}}
         </section>
       </main>
