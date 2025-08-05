@@ -354,6 +354,30 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 				res.WriteHeader(http.StatusInternalServerError)
 			}
 		})
+
+		mux.HandleFunc("/next_tx", func(res http.ResponseWriter, req *http.Request) {
+			if err := ds.devNode.MoveToNextTX(req.Context()); err != nil {
+				ds.logger.Error("failed to move forward", slog.Any("err", err))
+				res.WriteHeader(http.StatusInternalServerError)
+			}
+		})
+
+		mux.HandleFunc("/prev_tx", func(res http.ResponseWriter, req *http.Request) {
+			if err := ds.devNode.MoveToPreviousTX(req.Context()); err != nil {
+				ds.logger.Error("failed to move backward", slog.Any("err", err))
+				res.WriteHeader(http.StatusInternalServerError)
+			}
+		})
+
+		mux.HandleFunc("/list_accounts", func(res http.ResponseWriter, req *http.Request) {
+			if jsonBytes, err := marshalJSONAccounts(ds.book); err != nil {
+				ds.logger.Error("failed to list accounts", slog.Any("err", err))
+				res.WriteHeader(http.StatusInternalServerError)
+			} else {
+				res.Header().Set("Content-Type", "application/json")
+				res.Write(jsonBytes)
+			}
+		})
 	}
 
 	// Setup scripts to inject into the web pages
