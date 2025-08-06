@@ -16,7 +16,7 @@ gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetHandleByAddress
 stdout ""
 
 # a verification request was made but there should be no verified handle
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetAddressByHandle -args 'deelawn' -gas-fee 1000000ugnot -gas-wanted 800000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetAddressByHandle -args 'deelawn' -gas-fee 1000000ugnot -gas-wanted 900000 -broadcast -chainid=tendermint_test test1
 stdout ""
 
 # fail on ingestion with a bad task ID
