@@ -115,7 +115,7 @@ func (ms *multiStore) LoadVersion(ver int64) error {
 			if !store.LastCommitID().IsZero() {
 				return errors.New("failed to load Store: non-empty CommitID for zero state")
 			}
-			ms.stores[key] = store
+			newStores[key] = store
 		}
 		ms.stores = newStores
 		ms.lastCommitID = types.CommitID{}
