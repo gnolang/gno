@@ -1015,8 +1015,8 @@ func (rlm *Realm) assertNoPrivateType(store Store, t Type) {
 	rlm.assertNoPrivateType2(store, t, visited)
 }
 
-// assertNoPrivateType ensure that the type t is not defined in a private realm.
-// it do it recursively for all types in t.
+// assertNoPrivateType2 ensure that the type t is not defined in a private realm.
+// it do it recursively for all types in t and have recursive guard to avoid infinite recursion on declared types.
 func (rlm *Realm) assertNoPrivateType2(store Store, t Type, visited map[TypeID]struct{}) {
 	pkgPath := ""
 	switch tt := t.(type) {
