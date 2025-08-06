@@ -2,7 +2,7 @@
 
 # Build the binary
 build: build/e2e_multinode
-build/e2e_multinode:
+build/e2e_multinode: *.go
 	@mkdir -p $(dir $@)
 	go build -o $@
 
