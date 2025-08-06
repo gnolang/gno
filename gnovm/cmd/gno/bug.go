@@ -11,7 +11,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/gnolang/gno/gnovm/pkg/version"
+	"github.com/gnolang/gno/tm2/pkg/version"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 

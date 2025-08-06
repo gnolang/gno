@@ -22,7 +22,7 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 GNOROOT_DIR ?= $(abspath $(lastword $(MAKEFILE_LIST))/../../)
 # We can't use '-trimpath' yet as amino use absolute path from call stack
 # to find some directory: see #1236
-GOBUILD_FLAGS ?= -ldflags "-X github.com/gnolang/gno/gnovm/pkg/version.Version=$(VERSION) -X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=$(GNOROOT_DIR)"
+GOBUILD_FLAGS ?= -ldflags "-X github.com/gnolang/gno/tm2/pkg/version.Version=$(VERSION) -X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=$(GNOROOT_DIR)"
 # file where to place cover profile; used for coverage commands which are
 # more complex than adding -coverprofile, like test.cmd.coverage.
 GOTEST_COVER_PROFILE ?= cmd-profile.out
