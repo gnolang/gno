@@ -101,6 +101,7 @@ func (ms *multiStore) LoadVersion(ver int64) error {
 	if ver == 0 {
 		// Special logic for version 0 where there is no need to get commit
 		// information.
+		newStores := make(map[types.StoreKey]types.CommitStore)
 		for key, storeParams := range ms.storesParams {
 			store, err := ms.constructStore(storeParams)
 			if err != nil {
@@ -116,6 +117,7 @@ func (ms *multiStore) LoadVersion(ver int64) error {
 			}
 			ms.stores[key] = store
 		}
+		ms.stores = newStores
 		ms.lastCommitID = types.CommitID{}
 		return nil
 	}
@@ -217,7 +219,6 @@ func (ms *multiStore) MultiImmutableCacheWrapWithVersion(version int64) (types.M
 		storeOpts:    ms.storeOpts,
 		storesParams: ms.storesParams,
 		keysByName:   ms.keysByName,
-		stores:       make(map[types.StoreKey]types.CommitStore),
 	}
 	ims.storeOpts.Immutable = true
 	err := ims.LoadVersion(version)
