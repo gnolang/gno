@@ -907,15 +907,10 @@ func (rlm *Realm) clearMarks() {
 	rlm.escaped = nil
 }
 
-// panic if any private dependencies are found.
-func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store, visited map[Object]struct{}) {
-	rlm.assertNoPrivateDeps2(obj, store, visited)
-}
-
 // assertNoPrivateDeps2 checks for private dependencies.
 // difference with assertNoPrivateDeps is that this take a visited map
 // to avoid infinite recursion on circular references & optimize repeated checks.
-func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, visited map[Object]struct{}) {
+func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store, visited map[Object]struct{}) {
 	if _, exists := visited[obj]; exists {
 		return
 	}
@@ -1007,11 +1002,11 @@ func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, visited map[Obje
 
 func (rlm *Realm) assertValueNoPrivateDeps(val Value, store Store, visited map[Object]struct{}) {
 	if obj, ok := val.(Object); ok {
-		rlm.assertNoPrivateDeps2(obj, store, visited)
+		rlm.assertNoPrivateDeps(obj, store, visited)
 	} else if ref, ok := val.(RefValue); ok {
 		if !ref.ObjectID.IsZero() {
 			referencedObj := store.GetObject(ref.ObjectID)
-			rlm.assertNoPrivateDeps2(referencedObj, store, visited)
+			rlm.assertNoPrivateDeps(referencedObj, store, visited)
 		}
 	}
 }
