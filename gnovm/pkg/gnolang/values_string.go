@@ -270,20 +270,9 @@ func (b *Block) StringIndented(indent string) string {
 					lines = append(lines,
 						fmt.Sprintf("%s%s: undefined static:%s", indent, n, types[i]))
 				} else {
-					maxLength := 1 * 1024 * 1024
-
-					var valueStr string
-
-					// Only compute .String() if we know we'll use it
-					if len(b.Values[i].String()) > maxLength {
-						valueStr = b.Values[i].String()[:10] + "...[truncated]"
-					} else {
-						valueStr = b.Values[i].String()
-					}
-
 					lines = append(lines,
 						fmt.Sprintf("%s%s: %s static:%s",
-							indent, n, valueStr, types[i]))
+							indent, n, b.Values[i].String(), types[i]))
 				}
 			}
 		}
