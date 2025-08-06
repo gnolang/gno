@@ -758,7 +758,6 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 
 // Saves .created and .updated objects.
 func (rlm *Realm) saveUnsavedObjects(store Store) {
-	objsVisited := make(map[Object]struct{})
 	for _, co := range rlm.created {
 		// for i := len(rlm.created) - 1; i >= 0; i-- {
 		// co := rlm.created[i]
@@ -772,6 +771,7 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 			}
 		}
 	}
+	objsVisited := make(map[Object]struct{})
 	for _, uo := range rlm.updated {
 		// for i := len(rlm.updated) - 1; i >= 0; i-- {
 		// uo := rlm.updated[i]
