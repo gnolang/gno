@@ -2,7 +2,7 @@ package volos_mocks
 
 import (
 	"std"
-	"gno.land/r/volos"
+	"gno.land/r/volos/core"
 	"gno.land/r/demo/grc20reg"
 )
 
@@ -23,7 +23,7 @@ func init() {
 // FlashLoan initiates a flash loan from Volos
 func FlashLoan(cur realm, token string, assets int64, data []byte) {
 	// Call the Volos flash loan function with our borrower
-	volos.FlashLoan(cross, token, assets, data, borrower)
+	core.FlashLoan(cross, token, assets, data, borrower)
 }
 
 // OnVolosFlashLoan is the callback function that gets called during flash loan execution

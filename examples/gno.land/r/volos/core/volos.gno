@@ -70,6 +70,9 @@ func RegisterIRM(cur realm, irm IRM) {
 /* GOVERNANCE FUNCTIONS */
 
 func EnableIRM(cur realm, irm string) {
+	print("Current realm:", std.CurrentRealm().Address())
+	print("Previous realm:", std.PreviousRealm().Address())
+	print("Owner:", Ownable.Owner())
 	Ownable.AssertOwnedByPrevious()
 
 	// Check if IRM exists in registry

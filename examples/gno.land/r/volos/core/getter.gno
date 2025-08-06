@@ -378,6 +378,11 @@ func GetOwner() string {
 	return Ownable.Owner().String()
 }
 
+// GetAddress returns the address of this volos realm derived from its path
+func GetAddress() string {
+	return std.DerivePkgAddr("gno.land/r/volos/core").String()
+}
+
 // GetIsAuthorized checks if authorized can act on behalf of authorizer
 func GetIsAuthorized(authorizer string, authorized string) bool {
 	return IsAuthorized(std.Address(authorizer), std.Address(authorized))
