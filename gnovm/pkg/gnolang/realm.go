@@ -907,9 +907,8 @@ func (rlm *Realm) clearMarks() {
 	rlm.escaped = nil
 }
 
-// assertNoPrivateDeps2 checks for private dependencies.
-// difference with assertNoPrivateDeps is that this take a visited map
-// to avoid infinite recursion on circular references & optimize repeated checks.
+// assertNoPrivateDeps checks for private dependencies.
+// this take a visited map to avoid infinite recursion on circular references & optimize repeated checks.
 func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store, visited map[Object]struct{}) {
 	if _, exists := visited[obj]; exists {
 		return
