@@ -45,13 +45,16 @@ gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStruct
 stdout OK!
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmWithRefToStruct -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
-stderr 'cannot persist reference of object from private realm'
+stderr 'cannot persist object of type defined in a private realm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmWithRefToTree -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from private realm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmAfterSaving -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
-stderr 'cannot persist reference of object from private realm'
+stderr 'cannot persist object of type defined in a private realm'
+
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmWithNewPrivateData -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist object of type defined in a private realm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveInterfaceToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from private realm'
@@ -91,13 +94,13 @@ stderr 'cannot persist object of type defined in a private realm'
 
 # these functions are allowed since they do not use private types or references to private realm objects
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayOfSimpleFunctionsToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
-stderr 'cannot persist functions from private realm'
+stderr 'cannot persist function or method from private realm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayOfFunctionsWithPrivateDataToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in a private realm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayOfFunctionsWithTreePointerToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
-stderr 'cannot persist functions from private realm'
+stderr 'cannot persist function or method from private realm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveNilPointerToPrivateStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in a private realm'
@@ -212,6 +215,16 @@ func SaveMixedStructToPublicRealmWithoutRef(cur realm) {
     mixed := publicrealm.CreatePublicStruct(cross, "mixed", nil, nil)
     publicrealm.SaveYourMixedStruct(cross, mixed)
 }
+
+func SaveMixedStructToPublicRealmWithNewPrivateData(cur realm) {
+    mixed := publicrealm.CreatePublicStruct(cross, "mixed", nil,  PrivateData{
+        Name:  "array of private struct",
+        Value: 0,
+        Tree:  avl.NewTree(),
+    })
+    publicrealm.SaveYourMixedStructVal(cross, *mixed)
+}
+
 
 func SaveMixedStructToPublicRealmWithRefToStruct(cur realm) {
     mixed := publicrealm.CreatePublicStruct(cross, "mixed", nil, privateStruct)
@@ -463,6 +476,12 @@ func SaveYourNested(cur realm, nested *NestedStruct) {
 
 func SaveYourClosure(cur realm, fn func() *avl.Tree) {
     savedClosure = fn
+}
+
+var savedPublicStructVal PublicStruct
+
+func SaveYourMixedStructVal(cur realm, mixed PublicStruct) {
+    savedPublicStructVal.PrivateData = mixed
 }
 
 func CreatePublicStruct(cur realm, name string, privateTree *avl.Tree, privateData interface{}) *PublicStruct {

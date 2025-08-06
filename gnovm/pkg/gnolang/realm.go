@@ -758,6 +758,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 
 // Saves .created and .updated objects.
 func (rlm *Realm) saveUnsavedObjects(store Store) {
+	objsVisited := make(map[Object]struct{})
 	for _, co := range rlm.created {
 		// for i := len(rlm.created) - 1; i >= 0; i-- {
 		// co := rlm.created[i]
@@ -781,7 +782,7 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 		} else {
 			if !uo.GetIsDeleted() {
 				// Perform private ownership check.
-				rlm.assertNoPrivateDeps(uo, store)
+				rlm.assertNoPrivateDeps(uo, store, objsVisited)
 				rlm.saveUnsavedObjectRecursively(store, uo)
 			}
 		}
@@ -907,41 +908,84 @@ func (rlm *Realm) clearMarks() {
 }
 
 // panic if any private dependencies are found.
-func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store) bool {
-	objs := make(map[Object]struct{})
-	return rlm.assertNoPrivateDeps2(obj, store, objs)
+func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store, visited map[Object]struct{}) bool {
+	return rlm.assertNoPrivateDeps2(obj, store, visited)
 }
 
 // assertNoPrivateDeps2 checks for private dependencies.
 // difference with assertNoPrivateDeps is that this take a seen map
 // to avoid infinite recursion on circular references & optimize repeated checks.
-func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, objs map[Object]struct{}) bool {
-	if _, exists := objs[obj]; exists {
+func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, visited map[Object]struct{}) bool {
+	if _, exists := visited[obj]; exists {
 		return false
 	}
-	objs[obj] = struct{}{}
+	visited[obj] = struct{}{}
 
 	objID := obj.GetObjectID()
 	if objID.PkgID != rlm.ID && objID.Private {
 		panic("cannot persist reference of object from private realm")
 	}
 
-	if hiv, ok := obj.(*HeapItemValue); ok {
-		if hiv.Value.T != nil {
-			rlm.assertNoPrivateType(hiv.Value.T)
+	switch v := obj.(type) {
+	case *HeapItemValue:
+		if v.Value.T != nil {
+			rlm.assertNoPrivateType(store, v.Value.T)
 		}
-	}
-
-	// NOTE: Closure captures outer scope making it a potential attack vector.
-	if fv, ok := obj.(*FuncValue); ok {
-		if fv.PkgPath != rlm.Path && GetPkgPrivateStatus(fv.PkgPath) {
-			panic("cannot persist functions from private realm")
+		if hivObj, ok := v.Value.V.(Object); ok {
+			rlm.assertNoPrivateDeps2(hivObj, store, visited)
+		}
+	case *ArrayValue:
+		for _, av := range v.List {
+			if av.T != nil {
+				rlm.assertNoPrivateType(store, av.T)
+			}
+			if elemObj, ok := av.V.(Object); ok {
+				rlm.assertNoPrivateDeps2(elemObj, store, visited)
+			}
+		}
+	case *StructValue:
+		for _, sv := range v.Fields {
+			if sv.T != nil {
+				rlm.assertNoPrivateType(store, sv.T)
+			}
+			if fieldObj, ok := sv.V.(Object); ok {
+				rlm.assertNoPrivateDeps2(fieldObj, store, visited)
+			}
+		}
+	case *MapValue:
+		for head := v.List.Head; head != nil; head = head.Next {
+			if head.Key.T != nil {
+				rlm.assertNoPrivateType(store, head.Key.T)
+			}
+			if head.Value.T != nil {
+				rlm.assertNoPrivateType(store, head.Value.T)
+			}
+			if headObj, ok := head.Key.V.(Object); ok {
+				rlm.assertNoPrivateDeps2(headObj, store, visited)
+			}
+		}
+	case *FuncValue:
+		if v.PkgPath != rlm.Path && GetPkgPrivateStatus(v.PkgPath) {
+			panic("cannot persist function or method from private realm")
+		}
+	case *BoundMethodValue:
+		if v.Func.PkgPath != rlm.Path && GetPkgPrivateStatus(v.Func.PkgPath) {
+			panic("cannot persist bound method from private realm")
+		}
+	case *Block:
+		for _, bv := range v.Values {
+			if bv.T != nil {
+				rlm.assertNoPrivateType(store, bv.T)
+			}
+			if bvObj, ok := bv.V.(Object); ok {
+				rlm.assertNoPrivateDeps2(bvObj, store, visited)
+			}
 		}
 	}
 
 	children := getChildObjects2(store, obj)
 	for _, child := range children {
-		if rlm.assertNoPrivateDeps2(child, store, objs) {
+		if rlm.assertNoPrivateDeps2(child, store, visited) {
 			return true
 		}
 	}
@@ -949,42 +993,63 @@ func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, objs map[Object]
 	return false
 }
 
+func (rlm *Realm) assertNoPrivateType(store Store, t Type) {
+	visited := make(map[TypeID]struct{})
+	rlm.assertNoPrivateTypeRec(store, t, visited)
+}
+
 // assertNoPrivateType ensure that the type t is not defined in a private realm.
 // it do it recursively for all types in t.
-func (rlm *Realm) assertNoPrivateType(t Type) {
+func (rlm *Realm) assertNoPrivateTypeRec(store Store, t Type, visited map[TypeID]struct{}) {
 	pkgPath := ""
 	switch tt := t.(type) {
 	// NOTE: redundant check since any closure defined in a private realm will panic at value check.
 	case *FuncType:
 		for _, param := range tt.Params {
-			rlm.assertNoPrivateType(param)
+			rlm.assertNoPrivateTypeRec(store, param, visited)
 		}
 		for _, result := range tt.Results {
-			rlm.assertNoPrivateType(result)
+			rlm.assertNoPrivateTypeRec(store, result, visited)
 		}
 	case FieldType:
-		rlm.assertNoPrivateType(tt.Type)
+		rlm.assertNoPrivateTypeRec(store, tt.Type, visited)
 	case *SliceType, *ArrayType, *ChanType, *PointerType:
-		rlm.assertNoPrivateType(tt.Elem())
+		rlm.assertNoPrivateTypeRec(store, tt.Elem(), visited)
 	case *tupleType:
 		for _, et := range tt.Elts {
-			rlm.assertNoPrivateType(et)
+			rlm.assertNoPrivateTypeRec(store, et, visited)
 		}
 	case *MapType:
-		rlm.assertNoPrivateType(tt.Key)
-		rlm.assertNoPrivateType(tt.Elem())
+		rlm.assertNoPrivateTypeRec(store, tt.Key, visited)
+		rlm.assertNoPrivateTypeRec(store, tt.Elem(), visited)
 	case *InterfaceType:
 		for _, method := range tt.Methods {
-			rlm.assertNoPrivateType(method.Type)
+			rlm.assertNoPrivateTypeRec(store, method.Type, visited)
 		}
 		pkgPath = tt.GetPkgPath()
 	case *StructType:
 		for _, field := range tt.Fields {
-			rlm.assertNoPrivateType(field.Type)
+			rlm.assertNoPrivateTypeRec(store, field.Type, visited)
 		}
 		pkgPath = tt.GetPkgPath()
-	default:
+	case *DeclaredType:
+		tid := tt.TypeID()
+		if _, exists := visited[tid]; !exists {
+			visited[tid] = struct{}{} // DO THE CHECK ABOVE TO AVOID RE PROCESS ALREADY KNOW TYPE
+			rlm.assertNoPrivateTypeRec(store, tt.Base, visited)
+			for _, method := range tt.Methods {
+				rlm.assertNoPrivateTypeRec(store, method.T, visited)
+				if mv, ok := method.V.(*FuncValue); ok {
+					rlm.assertNoPrivateTypeRec(store, mv.Type, visited)
+				}
+			}
+		}
 		pkgPath = tt.GetPkgPath()
+	case *RefType:
+		t2 := store.GetType(tt.TypeID())
+		rlm.assertNoPrivateTypeRec(store, t2, visited)
+	default:
+		return
 	}
 	if pkgPath != "" && pkgPath != rlm.Path && GetPkgPrivateStatus(pkgPath) {
 		panic("cannot persist object of type defined in a private realm")
