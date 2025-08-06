@@ -278,7 +278,7 @@ func checkDeterminism(t TestingT, ctx context.Context, nodes []*ExtendedNode, cf
 			}
 			require.Fail(t, "NON-DETERMINISM FOUND: AppHash divergence detected!")
 		} else {
-			if h < 10 || h%50 == 0 { // Log first 10 and every 50th height for brevity
+			if h < 10 || (h+1)%50 == 0 { // Log first 10 and every 50th height for brevity
 				t.Logf("Height consensus ✅ - Height %d: all %d nodes -> %s", h+1, len(nodes), hashes[0])
 			}
 		}
