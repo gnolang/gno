@@ -27,12 +27,12 @@ var (
 func init() {
 	volosGovernance = commondao.New(
 		commondao.WithName("Volos Governance"),
-		commondao.WithDescription("On-chain governance for the Volos protocol, powered by commondao."),
+		commondao.WithDescription("On-chain governance for the Volos protocol."),
 	)
 }
 
 // SetProposalThreshold allows governance to change the minimum xVLS required to propose.
-func SetProposalThreshold(cur realm, newThreshold int64) {
+func SetProposalThreshold(newThreshold int64) {
 	authorizer.DoByCurrent("set_proposal_threshold", func() error {
 		proposalThreshold = newThreshold
 		return nil

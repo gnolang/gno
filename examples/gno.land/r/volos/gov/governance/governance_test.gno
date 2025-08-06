@@ -32,7 +32,7 @@ func TestProposal_CreationThreshold(cur realm, t *testing.T) {
 	urequire.Equal(t, 1, volosGovernance.ActiveProposals().Size())
 
 	crossThrough(std.NewCodeRealm(gov), func() {
-		SetProposalThreshold(cross, 5000)
+		SetProposalThreshold(5000)
 	})
 	urequire.Equal(t, int64(5000), ProposalThreshold())
 
