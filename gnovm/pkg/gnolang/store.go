@@ -649,9 +649,8 @@ func (ds *defaultStore) SetCacheType(tt Type) {
 	if tt2, exists := ds.cacheTypes.Get(tid); exists {
 		if tt != tt2 {
 			panic(fmt.Sprintf("cannot re-register %q with different type", tid))
-		} else {
-			// already set.
 		}
+		// else, already set.
 	} else {
 		ds.cacheTypes.Set(tid, tt)
 	}
@@ -751,11 +750,11 @@ func (ds *defaultStore) SetBlockNode(bn BlockNode) {
 		panic("unexpected zero location in blocknode")
 	}
 	// save node to backend.
-	if ds.baseStore != nil {
-		// TODO: implement copyValueWithRefs() for Nodes.
-		// key := backendNodeKey(loc)
-		// ds.backend.Set([]byte(key), bz)
-	}
+	// if ds.baseStore != nil {
+	// TODO: implement copyValueWithRefs() for Nodes.
+	// key := backendNodeKey(loc)
+	// ds.backend.Set([]byte(key), bz)
+	// }
 	// save node to cache.
 	ds.cacheNodes.Set(loc, bn)
 	// XXX duplicate?
@@ -914,7 +913,7 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 		if err != nil {
 			panic(err)
 		}
-		ch := make(chan *std.MemPackage, 0)
+		ch := make(chan *std.MemPackage)
 		go func() {
 			for i := uint64(1); i <= uint64(ctr); i++ {
 				idxkey := []byte(backendPackageIndexKey(i))
@@ -1033,7 +1032,7 @@ func backendNodeKey(loc Location) string {
 }
 
 func backendPackageIndexCtrKey() string {
-	return fmt.Sprintf("pkgidx:counter")
+	return "pkgidx:counter"
 }
 
 func backendPackageIndexKey(index uint64) string {

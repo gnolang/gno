@@ -836,10 +836,7 @@ func parseDraft(block *modfile.CommentBlock) bool {
 		return false
 	}
 	comment := block.Before[0]
-	if strings.TrimSpace(strings.TrimPrefix(comment.Token, "//")) != "Draft" {
-		return false
-	}
-	return true
+	return strings.TrimSpace(strings.TrimPrefix(comment.Token, "//")) == "Draft"
 }
 
 // markLineAsRemoved modifies line so that it (and its end-of-line comment, if any)

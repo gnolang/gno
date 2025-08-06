@@ -2552,14 +2552,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						assertValidConstExpr(store, last, n, vx)
 						n.Values[i] = evalConst(store, last, vx)
 					}
-				} else {
-					// value(s) may already be *ConstExpr, but
-					// otherwise as far as we know the
-					// expression is not a const expr, so no
-					// point evaluating it further.  this makes
-					// the implementation differ from
-					// runDeclaration(), as this uses OpStaticTypeOf.
 				}
+				// else, value(s) may already be *ConstExpr, but
+				// otherwise as far as we know the
+				// expression is not a const expr, so no
+				// point evaluating it further.  this makes
+				// the implementation differ from
+				// runDeclaration(), as this uses OpStaticTypeOf.
 
 				nameExprs := make([]*NameExpr, len(n.NameExprs))
 				for i := range n.NameExprs {
@@ -2879,13 +2878,16 @@ func parseMultipleAssignFromOneExpr(
 //
 //nolint:unused
 func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
-	// create stack of BlockNodes.
-	var stack []BlockNode = make([]BlockNode, 0, 32)
-	var last BlockNode = ctx
-	stack = append(stack, last)
-
 	// iterate over all nodes recursively.
-	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+	_ = TranscribeB(ctx, bn, func(
+		ns []Node,
+		stack []BlockNode,
+		last BlockNode,
+		ftype TransField,
+		index int,
+		n Node,
+		stage TransStage,
+	) (Node, TransCtrl) {
 		defer doRecover(stack, n)
 
 		if debug {
@@ -3038,13 +3040,16 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 // Also happens to declare all package and file names
 // as heap use, so that functions added later may use them.
 func findHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
-	// create stack of BlockNodes.
-	var stack []BlockNode = make([]BlockNode, 0, 32)
-	var last BlockNode = ctx
-	stack = append(stack, last)
-
 	// Iterate over all nodes recursively.
-	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+	_ = TranscribeB(ctx, bn, func(
+		ns []Node,
+		stack []BlockNode,
+		last BlockNode,
+		ftype TransField,
+		index int,
+		n Node,
+		stage TransStage,
+	) (Node, TransCtrl) {
 		defer doRecover(stack, n)
 
 		if debug {
@@ -3301,9 +3306,8 @@ func findLastFunction(last BlockNode, stop BlockNode) (fn FuncNode, depth int, f
 // as heap use, demotes them.
 func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
-	var stack []BlockNode = make([]BlockNode, 0, 32)
-	var last BlockNode = ctx
-	stack = append(stack, last)
+	last := ctx
+	stack := append(make([]BlockNode, 0, 32), last)
 
 	// Iterate over all nodes recursively.
 	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
@@ -4741,7 +4745,8 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				"unknown import path %s",
 				d.PkgPath))
 		}
-		if d.Name == "" { // use default
+		switch d.Name {
+		case "": // use default
 			exp, ok := expectedPkgName(d.PkgPath)
 			if !ok {
 				// should not happen, because the package exists in the store.
@@ -4753,9 +4758,9 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 						"the import declaration must specify an identifier", pv.PkgPath, pv.PkgName, exp))
 			}
 			d.Name = pv.PkgName
-		} else if d.Name == blankIdentifier { // no definition
+		case blankIdentifier: // no definition
 			return
-		} else if d.Name == "." { // dot import
+		case ".": // dot import
 			panic("dot imports not allowed in Gno")
 		}
 		// NOTE imports usually must happen with a file,
@@ -5078,9 +5083,11 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 			// distinguish between undefined reserved and and
 			// (pre)defined variables. See tests/files/define1.go
 			// for test case.
-			var path ValuePath
-			var i int = 0
-			var fauxChild int = 0
+			var (
+				path      ValuePath
+				i         = 0
+				fauxChild = 0
+			)
 			for {
 				i++
 				if fauxChildBlockNode(last) {
@@ -5382,10 +5389,7 @@ func isLocallyDefined(bn BlockNode, n Name) bool {
 		return false
 	}
 	t := bn.GetStaticBlock().Types[idx]
-	if t == nil {
-		return false
-	}
-	return true
+	return t != nil
 }
 
 // r := 0
