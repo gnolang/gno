@@ -45,13 +45,13 @@ gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStruct
 stdout OK!
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmWithRefToStruct -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
-stderr 'cannot persist object of type defined in a private realm'
+stderr 'cannot persist reference of object from private realm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmWithRefToTree -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from private realm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmAfterSaving -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
-stderr 'cannot persist object of type defined in a private realm'
+stderr 'cannot persist reference of object from private realm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmWithNewPrivateData -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in a private realm'

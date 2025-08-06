@@ -913,7 +913,7 @@ func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store, visited map[Objec
 }
 
 // assertNoPrivateDeps2 checks for private dependencies.
-// difference with assertNoPrivateDeps is that this take a seen map
+// difference with assertNoPrivateDeps is that this take a visited map
 // to avoid infinite recursion on circular references & optimize repeated checks.
 func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, visited map[Object]struct{}) bool {
 	if _, exists := visited[obj]; exists {
@@ -931,26 +931,20 @@ func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, visited map[Obje
 		if v.Value.T != nil {
 			rlm.assertNoPrivateType(store, v.Value.T)
 		}
-		if hivObj, ok := v.Value.V.(Object); ok {
-			rlm.assertNoPrivateDeps2(hivObj, store, visited)
-		}
+		rlm.checkValueForPrivateDeps(v.Value.V, store, visited)
 	case *ArrayValue:
 		for _, av := range v.List {
 			if av.T != nil {
 				rlm.assertNoPrivateType(store, av.T)
 			}
-			if elemObj, ok := av.V.(Object); ok {
-				rlm.assertNoPrivateDeps2(elemObj, store, visited)
-			}
+			rlm.checkValueForPrivateDeps(av.V, store, visited)
 		}
 	case *StructValue:
 		for _, sv := range v.Fields {
 			if sv.T != nil {
 				rlm.assertNoPrivateType(store, sv.T)
 			}
-			if fieldObj, ok := sv.V.(Object); ok {
-				rlm.assertNoPrivateDeps2(fieldObj, store, visited)
-			}
+			rlm.checkValueForPrivateDeps(sv.V, store, visited)
 		}
 	case *MapValue:
 		for head := v.List.Head; head != nil; head = head.Next {
@@ -960,37 +954,68 @@ func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, visited map[Obje
 			if head.Value.T != nil {
 				rlm.assertNoPrivateType(store, head.Value.T)
 			}
-			if headObj, ok := head.Key.V.(Object); ok {
-				rlm.assertNoPrivateDeps2(headObj, store, visited)
-			}
+			rlm.checkValueForPrivateDeps(head.Key.V, store, visited)
+			rlm.checkValueForPrivateDeps(head.Value.V, store, visited)
 		}
 	case *FuncValue:
 		if v.PkgPath != rlm.Path && GetPkgPrivateStatus(v.PkgPath) {
 			panic("cannot persist function or method from private realm")
 		}
+		if v.Type != nil {
+			rlm.assertNoPrivateType(store, v.Type)
+		}
+		rlm.checkValueForPrivateDeps(v.Parent, store, visited)
+		for _, capture := range v.Captures {
+			if capture.T != nil {
+				rlm.assertNoPrivateType(store, capture.T)
+			}
+			rlm.checkValueForPrivateDeps(capture.V, store, visited)
+		}
+
 	case *BoundMethodValue:
 		if v.Func.PkgPath != rlm.Path && GetPkgPrivateStatus(v.Func.PkgPath) {
 			panic("cannot persist bound method from private realm")
 		}
+		rlm.checkValueForPrivateDeps(v.Func, store, visited)
+		if v.Receiver.T != nil {
+			rlm.assertNoPrivateType(store, v.Receiver.T)
+		}
+		rlm.checkValueForPrivateDeps(v.Receiver.V, store, visited)
 	case *Block:
 		for _, bv := range v.Values {
 			if bv.T != nil {
 				rlm.assertNoPrivateType(store, bv.T)
 			}
-			if bvObj, ok := bv.V.(Object); ok {
-				rlm.assertNoPrivateDeps2(bvObj, store, visited)
-			}
+			rlm.checkValueForPrivateDeps(bv.V, store, visited)
 		}
-	}
-
-	children := getChildObjects2(store, obj)
-	for _, child := range children {
-		if rlm.assertNoPrivateDeps2(child, store, visited) {
-			return true
+		rlm.checkValueForPrivateDeps(v.Parent, store, visited)
+		if v.Blank.T != nil {
+			rlm.assertNoPrivateType(store, v.Blank.T)
+		}
+		rlm.checkValueForPrivateDeps(v.Blank.V, store, visited)
+	case *PackageValue:
+		// Check if package is from private realm
+		if v.PkgPath != rlm.Path && GetPkgPrivateStatus(v.PkgPath) {
+			panic("cannot persist package from private realm")
+		}
+		rlm.checkValueForPrivateDeps(v.Block, store, visited)
+		for _, fb := range v.FBlocks {
+			rlm.checkValueForPrivateDeps(fb, store, visited)
 		}
 	}
 
 	return false
+}
+
+func (rlm *Realm) checkValueForPrivateDeps(val Value, store Store, visited map[Object]struct{}) {
+	if obj, ok := val.(Object); ok {
+		rlm.assertNoPrivateDeps2(obj, store, visited)
+	} else if ref, ok := val.(RefValue); ok {
+		if !ref.ObjectID.IsZero() {
+			referencedObj := store.GetObject(ref.ObjectID)
+			rlm.assertNoPrivateDeps2(referencedObj, store, visited)
+		}
+	}
 }
 
 func (rlm *Realm) assertNoPrivateType(store Store, t Type) {
@@ -1035,7 +1060,7 @@ func (rlm *Realm) assertNoPrivateTypeRec(store Store, t Type, visited map[TypeID
 	case *DeclaredType:
 		tid := tt.TypeID()
 		if _, exists := visited[tid]; !exists {
-			visited[tid] = struct{}{} // DO THE CHECK ABOVE TO AVOID RE PROCESS ALREADY KNOW TYPE
+			visited[tid] = struct{}{}
 			rlm.assertNoPrivateTypeRec(store, tt.Base, visited)
 			for _, method := range tt.Methods {
 				rlm.assertNoPrivateTypeRec(store, method.T, visited)
@@ -1156,9 +1181,6 @@ func getChildObjects2(store Store, val Value) []Object {
 	objs := make([]Object, 0, len(chos))
 	for _, child := range chos {
 		if ref, ok := child.(RefValue); ok {
-			if ref.ObjectID.IsZero() {
-				continue
-			}
 			oo := store.GetObject(ref.ObjectID)
 			objs = append(objs, oo)
 		} else if oo, ok := child.(Object); ok {
