@@ -832,6 +832,7 @@ private = true`,
 		{
 			Name: "test.gno",
 			Body: `package test
+
 func Echo(cur realm) string {
 	return "hello world"
 }`,
