@@ -979,7 +979,7 @@ In practice, this is shorthand for listing packages under `gno.land/p/foo` &
 
 ## `vm/qstorage`
 
-Use this command to inspect current storage usage and deposit in a realm:
+This ABCI query endpoint can be used to inspect current storage usage and deposit in a realm:
 
 ```bash
 gnokey query vm/qstorage --data "gno.land/r/foo"
@@ -992,12 +992,10 @@ storage: 5025, deposit: 502500
 
 ```
 
-storage: total bytes used
-
-deposit: total GNOT locked for that storage
+`storage` represents total bytes used, while `deposit` is the total GNOT locked for that by that realm.
 
 The storage price can be also calculated directly using this output
-(e.g., deposit / storage, 502500/5025 = 100ugnot) instead of querying the price
+(e.g., deposit / storage, `502500/5025 = 100ugnot`) instead of querying the price
 per byte from the params realm.
 
 ### Gas parameters

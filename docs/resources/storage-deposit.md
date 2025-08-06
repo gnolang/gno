@@ -19,18 +19,17 @@ Deleting data → GNOT refunded
 ### Purpose
 
 - Paying for persistent storage: Storing objects or primitives in realms costs GNOT.
-- Encouraging cleanup: Users can reclaim deposits by deleting unneeded data.
+- Encouraging cleanup: Users can reclaim deposits by deleting data which is not used/needed.
 - Flexibility: Realm developers can design their own cleanup or reward logic.
 
 ### Storage Settlement Flow
 
 Below is an example of how the storage fee settlement flow works:
 
-1. Start with a message call (e.g. AddPkg)
+1. Start with a message call (e.g. `AddPkg`)
 2. Specify optional `-max-deposit` to limit the GNOT that can be locked for storage.
 3. The storage delta is calculated by the GnoVM (how much it grew or shrunk).
 4. The system locks or refunds GNOT accordingly.
-
 
 ### Anyone Can Free Storage
 
@@ -41,7 +40,7 @@ design and manage user storage.
 
 ### Global Storage Price Parameter
 
-The storage price is a global parameter governed by the GovDAO'
+The storage price is a global parameter governed by the GovDAO.
 The default value is defined in [`gno.land/pkg/sdk/vm/params.go`](https://github.com/gnolang/gno/blob/b99c1bf878af4f606507895f5b51a7d44b0956e0/gno.land/pkg/sdk/vm/params.go#L18).
 ```
 storagePriceDefault = "100ugnot" // cost per byte
