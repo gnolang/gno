@@ -2,7 +2,9 @@ package gnolang
 
 import (
 	"fmt"
+	"github.com/shirou/gopsutil/v3/process"
 	"math"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -250,7 +252,51 @@ func (b *Block) String() string {
 	return b.StringIndented("    ")
 }
 
+// getRSS returns the current process's Resident Set Size (RSS) in bytes.
+// It logs any errors and returns 0 if there's a failure.
+func getRSS() uint64 {
+	pid := int32(os.Getpid())
+	fmt.Println("======node side pid: ", pid)
+	p, err := process.NewProcess(pid)
+	if err != nil {
+		fmt.Printf("Error getting process: %v\n", err)
+		return 0
+	}
+
+	mem, err := p.MemoryInfo()
+	if err != nil {
+		fmt.Printf("Error getting memory info: %v\n", err)
+		return 0
+	}
+
+	return mem.RSS
+}
+
+// formatBytes converts bytes to a human-readable string (e.g., "1.2 GB")
+func formatBytes(b uint64) string {
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := uint64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
+}
+
 func (b *Block) StringIndented(indent string) string {
+	fmt.Println("===block StringIndented...")
+	rss := getRSS()
+	fmt.Printf("System RSS:    %s (actual physical memory)\n", formatBytes(rss))
+
+	defer func() {
+		fmt.Println("===after block StringIndented...")
+		rss := getRSS()
+		fmt.Printf("System RSS:    %s (actual physical memory)\n", formatBytes(rss))
+	}()
+
 	source := toString(b.Source)
 	if len(source) > 32 {
 		source = source[:32] + "..."
@@ -270,20 +316,60 @@ func (b *Block) StringIndented(indent string) string {
 					lines = append(lines,
 						fmt.Sprintf("%s%s: undefined static:%s", indent, n, types[i]))
 				} else {
-					maxLength := 1 * 1024 * 1024
+					// maxLength := 1 * 1024 * 1024
 
-					var valueStr string
+					// var valueStr string
 
-					// Only compute .String() if we know we'll use it
-					if len(b.Values[i].String()) > maxLength {
-						valueStr = b.Values[i].String()[:10] + "...[truncated]"
-					} else {
-						valueStr = b.Values[i].String()
+					// // Only compute .String() if we know we'll use it
+					// if len(b.Values[i].String()) > maxLength {
+					// 	valueStr = b.Values[i].String()[:10] + "...[truncated]"
+					// } else {
+					// 	valueStr = b.Values[i].String()
+					// }
+
+					// fmt.Println("===before print string...")
+					// MemStats()
+					// fmt.Println("================sizeof : ", unsafe.Sizeof(b.Values[i]))
+
+					// var buf bytes.Buffer
+					// buf.WriteString(b.Values[i].String()) // No extra allocation.
+
+					// lines = append(lines,
+					// 	fmt.Sprintf("%s%s: %s static:%s",
+					// 		indent, n, buf.String(), types[i]))
+
+					fmt.Println("===================== values i: ", i)
+					var shallowSize int
+					if b.Values[i].V != nil {
+						fmt.Println("shallow size: ", b.Values[i].V.GetShallowSize())
+						shallowSize = int(b.Values[i].V.GetShallowSize())
 					}
 
-					lines = append(lines,
-						fmt.Sprintf("%s%s: %s static:%s",
-							indent, n, valueStr, types[i]))
+					fmt.Println("===before print string...")
+					MemStats()
+
+					vStr := b.Values[i].String()
+
+					// lines = append(lines,
+					// 	fmt.Sprintf("%s%s: %s static:%s",
+					// 		indent, n, b.Values[i].String(), types[i]))
+
+					// fmt.Println(b.Values[i].String())
+					// _ = b.Values[i].String()
+					fmt.Println("===after print string...")
+					MemStats()
+
+					var sb strings.Builder
+					builder := &sb
+					builder.Grow(len(indent) + len(n) + shallowSize)
+
+					fmt.Fprintf(builder, "%s%s: %s static:%s",
+						indent, n, vStr)
+
+					lines = append(lines, builder.String())
+
+					fmt.Println("===after build string...")
+					MemStats()
 				}
 			}
 		}
@@ -330,6 +416,12 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 }
 
 func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType bool) string {
+	fmt.Println("======start ProtectedSprint...")
+	MemStats()
+	defer func() {
+		fmt.Println("===after ProtectedSprint...")
+		MemStats()
+	}()
 	if i := seen.IndexOf(tv.V); i != -1 {
 		return fmt.Sprintf("ref@%d", i)
 	}
@@ -354,6 +446,7 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 		case UntypedBoolType, BoolType:
 			return fmt.Sprintf("%t", tv.GetBool())
 		case UntypedStringType, StringType:
+			fmt.Println("===going to get string...")
 			return tv.GetString()
 		case IntType:
 			return fmt.Sprintf("%d", tv.GetInt())
@@ -457,19 +550,34 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 
 // For gno debugging/testing.
 func (tv TypedValue) String() string {
+	fmt.Println("===start tv.String()...")
+	MemStats()
+	defer func() {
+		fmt.Println("===after tv.String()...")
+		MemStats()
+	}()
+
 	return tv.ProtectedString(newSeenValues())
 }
 
 func (tv TypedValue) ProtectedString(seen *seenValues) string {
+	fmt.Println("===start tv.ProtectedString...")
+	MemStats()
+	defer func() {
+		fmt.Println("===after ProtectedString...")
+		MemStats()
+	}()
 	if tv.IsUndefined() {
 		return "(undefined)"
 	}
 	vs := ""
 	if tv.V == nil {
+		fmt.Println("===tv.V == nil...")
 		switch baseOf(tv.T) {
 		case BoolType, UntypedBoolType:
 			vs = fmt.Sprintf("%t", tv.GetBool())
 		case StringType, UntypedStringType:
+			fmt.Println("===StringType...")
 			vs = fmt.Sprintf("%s", tv.GetString())
 		case IntType:
 			vs = fmt.Sprintf("%d", tv.GetInt())
@@ -503,9 +611,17 @@ func (tv TypedValue) ProtectedString(seen *seenValues) string {
 		}
 	} else {
 		vs = tv.ProtectedSprint(seen, false)
+		fmt.Println("======before strconv.Quote...")
+		MemStats()
 		if base := baseOf(tv.T); base == StringType || base == UntypedStringType {
+			const maxLen = 10
+			if len(vs) > maxLen {
+				vs = vs[:maxLen] + "..."
+			}
 			vs = strconv.Quote(vs)
 		}
+		fmt.Println("======after strconv.Quote...")
+		MemStats()
 	}
 
 	ts := tv.T.String()

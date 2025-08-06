@@ -1162,6 +1162,12 @@ func (tv *TypedValue) SetString(s StringValue) {
 }
 
 func (tv *TypedValue) GetString() string {
+	fmt.Println("======start GetString...")
+	MemStats()
+	defer func() {
+		fmt.Println("===after GetString...")
+		MemStats()
+	}()
 	if debug {
 		if tv.T != nil && tv.T.Kind() != StringKind {
 			panic(fmt.Sprintf(
