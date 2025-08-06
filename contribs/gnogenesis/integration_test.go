@@ -65,7 +65,7 @@ func TestIntegration(t *testing.T) {
 	)
 
 	// Dummy account
-	dKeys := common.GetDummyKeys(t, 3)
+	dKeys := common.DummyKeys(t, 3)
 
 	// Generate balance sheet
 	defaultBalanceAmount := std.Coins{std.NewCoin(ugnot.Denom, 10e8)}
