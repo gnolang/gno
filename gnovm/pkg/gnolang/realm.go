@@ -971,7 +971,6 @@ func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, visited map[Obje
 			}
 			rlm.checkValueForPrivateDeps(capture.V, store, visited)
 		}
-
 	case *BoundMethodValue:
 		if v.Func.PkgPath != rlm.Path && GetPkgPrivateStatus(v.Func.PkgPath) {
 			panic("cannot persist bound method from private realm")
@@ -994,7 +993,6 @@ func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, visited map[Obje
 		}
 		rlm.checkValueForPrivateDeps(v.Blank.V, store, visited)
 	case *PackageValue:
-		// Check if package is from private realm
 		if v.PkgPath != rlm.Path && GetPkgPrivateStatus(v.PkgPath) {
 			panic("cannot persist package from private realm")
 		}
@@ -1002,6 +1000,8 @@ func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, visited map[Obje
 		for _, fb := range v.FBlocks {
 			rlm.checkValueForPrivateDeps(fb, store, visited)
 		}
+	default:
+		panic(fmt.Sprintf("assertNoPrivateDeps2: unhandled object type %T", v))
 	}
 
 	return false
@@ -1028,7 +1028,6 @@ func (rlm *Realm) assertNoPrivateType(store Store, t Type) {
 func (rlm *Realm) assertNoPrivateTypeRec(store Store, t Type, visited map[TypeID]struct{}) {
 	pkgPath := ""
 	switch tt := t.(type) {
-	// NOTE: redundant check since any closure defined in a private realm will panic at value check.
 	case *FuncType:
 		for _, param := range tt.Params {
 			rlm.assertNoPrivateTypeRec(store, param, visited)
@@ -1073,8 +1072,12 @@ func (rlm *Realm) assertNoPrivateTypeRec(store Store, t Type, visited map[TypeID
 	case *RefType:
 		t2 := store.GetType(tt.TypeID())
 		rlm.assertNoPrivateTypeRec(store, t2, visited)
-	default:
+	case PrimitiveType, *TypeType, *PackageType, blockType, heapItemType:
+		// these types do not have a package path.
+		// NOTE: PackageType have a TypeID, should i loat it from store and check it?
 		return
+	default:
+		panic(fmt.Sprintf("assertNoPrivateTypeRec: unhandled type %T", tt))
 	}
 	if pkgPath != "" && pkgPath != rlm.Path && GetPkgPrivateStatus(pkgPath) {
 		panic("cannot persist object of type defined in a private realm")
