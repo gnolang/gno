@@ -222,6 +222,97 @@ func Echo(cur realm) string {
 	assert.NoError(t, err)
 }
 
+func TestVMKeeperAddPackage_PrivatePackage(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(initialBalance))
+
+	// Create test package.
+	const pkgPath = "gno.land/r/test"
+	files := []*std.MemFile{
+		{
+			Name: "gnomod.toml",
+			Body: `module = "gno.land/r/test"
+gno = "0.9"
+private = true`,
+		},
+		{
+			Name: "test.gno",
+			Body: `package test
+
+func Echo(cur realm) string {
+	return "hello world"
+}`,
+		},
+	}
+
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+}
+
+func TestVMKeeperAddPackage_ImportPrivate(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(initialBalance))
+
+	// Create test package 1.
+	const pkgPath = "gno.land/r/test"
+	files := []*std.MemFile{
+		{
+			Name: "gnomod.toml",
+			Body: `module = "gno.land/r/test"
+gno = "0.9"
+private = true`,
+		},
+		{
+			Name: "test.gno",
+			Body: `package test
+
+func Echo(cur realm) string {
+	return "hello world"
+}`,
+		},
+	}
+
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	const pkgPath2 = "gno.land/r/test2"
+	files2 := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath2)},
+		{
+			Name: "test2.gno",
+			Body: `package test2
+
+import "gno.land/r/test"
+
+func Echo(cur realm) string {
+	return test.Echo(cross)
+}`,
+		},
+	}
+
+	msg2 := NewMsgAddPackage(addr, pkgPath2, files2)
+	err = env.vmk.AddPackage(ctx, msg2)
+	assert.Error(t, err, ErrTypeCheck(gnolang.ImportPrivateError{PkgPath: pkgPath}))
+}
+
 // Sending total send amount succeeds.
 func TestVMKeeperOriginSend1(t *testing.T) {
 	env := setupTestEnv()
@@ -716,6 +807,63 @@ func main() {
 	res, err := env.vmk.Run(ctx, msg2)
 	assert.NoError(t, err)
 	assert.Equal(t, "hello world\n", res)
+}
+
+func TestVMKeeperRunImportPrivate(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(initialBalance))
+
+	// Create test package 1.
+	const pkgPath = "gno.land/r/test"
+	files := []*std.MemFile{
+		{
+			Name: "gnomod.toml",
+			Body: `module = "gno.land/r/test"
+gno = "0.9"
+private = true`,
+		},
+		{
+			Name: "test.gno",
+			Body: `package test
+func Echo(cur realm) string {
+	return "hello world"
+}`,
+		},
+	}
+
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	files = []*std.MemFile{
+		{
+			Name: "main.gno",
+			Body: `
+package main
+
+import "gno.land/r/test"
+
+func main() {
+	msg := test.Echo(cross)
+	println(msg)
+}
+`,
+		},
+	}
+
+	// Msg Run Echo function.
+	coins := std.MustParseCoins("")
+	msg2 := NewMsgRun(addr, coins, files)
+	_, err = env.vmk.Run(ctx, msg2)
+	assert.Error(t, err, ErrTypeCheck(gnolang.ImportPrivateError{PkgPath: pkgPath}))
 }
 
 func TestNumberOfArgsError(t *testing.T) {
