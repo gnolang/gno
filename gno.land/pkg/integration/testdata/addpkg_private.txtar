@@ -17,17 +17,29 @@ stdout OK!
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveTreeToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from private realm'
 
+gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func ReadTreeToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveTreeAsAValueOfTreeToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from private realm'
 
 gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveIntToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stdout OK!
 
+gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveStringToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveSliceToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from private realm'
 
+gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func ReadSliceToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stdout 'private1'
+
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMapToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from private realm'
+
+gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func ReadMapToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stdout 100
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in a private realm'
@@ -55,6 +67,9 @@ stderr 'cannot persist reference of object from private realm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmWithNewPrivateData -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in a private realm'
+
+gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func EditMixedStructWithPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stdout 'Read Mixed Struct'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveInterfaceToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from private realm'
@@ -128,6 +143,7 @@ import (
 
 var tree *avl.Tree = avl.NewTree()
 var integerValue int = 42
+var stringValue string = "hello"
 var privateSlice []string
 var privateMap map[string]int
 
@@ -162,6 +178,10 @@ func SaveTreeToPublicRealm(cur realm) {
     publicrealm.SaveYourTree(cross, tree)
 }
 
+func ReadTreeToPublicRealm(cur realm) {
+    publicrealm.ReadYourTree(cross, tree)
+}
+
 func SaveTreeAsAValueOfTreeToPublicRealm(cur realm) {
     publicrealm.SaveYourTreeAsAValueOfTree(cross, tree)
 }
@@ -170,12 +190,24 @@ func SaveIntToPublicRealm(cur realm) {
     publicrealm.SaveYourInt(cross, integerValue)
 }
 
+func SaveStringToPublicRealm(cur realm) {
+    publicrealm.SaveYourString(cross, stringValue)
+}
+
 func SaveSliceToPublicRealm(cur realm) {
     publicrealm.SaveYourSlice(cross, privateSlice)
 }
 
+func ReadSliceToPublicRealm(cur realm) string {
+    return publicrealm.ReadYourSlice(cross, privateSlice)
+}
+
 func SaveMapToPublicRealm(cur realm) {
     publicrealm.SaveYourMap(cross, privateMap)
+}
+
+func ReadMapToPublicRealm(cur realm) int {
+    return publicrealm.ReadYourMap(cross, privateMap)
 }
 
 func SaveStructToPublicRealm(cur realm) {
@@ -225,6 +257,15 @@ func SaveMixedStructToPublicRealmWithNewPrivateData(cur realm) {
     publicrealm.SaveYourMixedStructVal(cross, *mixed)
 }
 
+func EditMixedStructWithPublicRealm(cur realm) string {
+    mixed := publicrealm.CreatePublicStruct(cross, "mixed", nil, PrivateData{
+        Name:  "array of private struct",
+        Value: 0,
+        Tree:  avl.NewTree(),
+    })
+    publicrealm.EditYourMixedStruct(cross, mixed)
+    return mixed.Name
+}
 
 func SaveMixedStructToPublicRealmWithRefToStruct(cur realm) {
     mixed := publicrealm.CreatePublicStruct(cross, "mixed", nil, privateStruct)
@@ -403,6 +444,7 @@ import (
 
 var savedTree *avl.Tree
 var savedInt int
+var savedString string
 var savedSlice []string
 var savedMap map[string]int
 var savedInterface interface{}
@@ -437,6 +479,14 @@ func SaveYourTree(cur realm, ptr *avl.Tree) {
     savedTree = ptr
 }
 
+func ReadYourTree(cur realm, ptr *avl.Tree) string {
+    data, exists := ptr.Get("data")
+    if !exists {
+        return ""
+    }
+    return data.(string)
+}
+
 func SaveYourTreeAsAValueOfTree(cur realm, tree *avl.Tree) {
     savedTree = avl.NewTree()
     savedTree.Set("key", tree)
@@ -446,12 +496,30 @@ func SaveYourInt(cur realm, value int) {
     savedInt = value
 }
 
+func SaveYourString(cur realm, value string) {
+    savedString = value
+}
+
 func SaveYourSlice(cur realm, slice []string) {
     savedSlice = slice
 }
 
+func ReadYourSlice(cur realm, slice []string) string {
+    if len(slice) == 0 {
+        return "empty slice"
+    }
+    return slice[0]
+}
+
 func SaveYourMap(cur realm, m map[string]int) {
     savedMap = m
+}
+
+func ReadYourMap(cur realm, m map[string]int) int {
+    if value, exists := m["private"]; exists {
+        return value
+    }
+    return 0
 }
 
 func SaveYourMixedStruct(cur realm, mixed *PublicStruct) {
@@ -482,6 +550,13 @@ var savedPublicStructVal PublicStruct
 
 func SaveYourMixedStructVal(cur realm, mixed PublicStruct) {
     savedPublicStructVal.PrivateData = mixed
+}
+
+func EditYourMixedStruct(cur realm, mixed *PublicStruct) *PublicStruct {
+    if mixed.PrivateData != nil { // just wanted to see if a check with underlying private struct works
+        mixed.Name = "Read Mixed Struct"
+    }
+    return mixed
 }
 
 func CreatePublicStruct(cur realm, name string, privateTree *avl.Tree, privateData interface{}) *PublicStruct {
