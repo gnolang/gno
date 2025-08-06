@@ -1018,58 +1018,58 @@ func (rlm *Realm) checkValueForPrivateDeps(val Value, store Store, visited map[O
 
 func (rlm *Realm) assertNoPrivateType(store Store, t Type) {
 	visited := make(map[TypeID]struct{})
-	rlm.assertNoPrivateTypeRec(store, t, visited)
+	rlm.assertNoPrivateType2(store, t, visited)
 }
 
 // assertNoPrivateType ensure that the type t is not defined in a private realm.
 // it do it recursively for all types in t.
-func (rlm *Realm) assertNoPrivateTypeRec(store Store, t Type, visited map[TypeID]struct{}) {
+func (rlm *Realm) assertNoPrivateType2(store Store, t Type, visited map[TypeID]struct{}) {
 	pkgPath := ""
 	switch tt := t.(type) {
 	case *FuncType:
 		for _, param := range tt.Params {
-			rlm.assertNoPrivateTypeRec(store, param, visited)
+			rlm.assertNoPrivateType2(store, param, visited)
 		}
 		for _, result := range tt.Results {
-			rlm.assertNoPrivateTypeRec(store, result, visited)
+			rlm.assertNoPrivateType2(store, result, visited)
 		}
 	case FieldType:
-		rlm.assertNoPrivateTypeRec(store, tt.Type, visited)
+		rlm.assertNoPrivateType2(store, tt.Type, visited)
 	case *SliceType, *ArrayType, *ChanType, *PointerType:
-		rlm.assertNoPrivateTypeRec(store, tt.Elem(), visited)
+		rlm.assertNoPrivateType2(store, tt.Elem(), visited)
 	case *tupleType:
 		for _, et := range tt.Elts {
-			rlm.assertNoPrivateTypeRec(store, et, visited)
+			rlm.assertNoPrivateType2(store, et, visited)
 		}
 	case *MapType:
-		rlm.assertNoPrivateTypeRec(store, tt.Key, visited)
-		rlm.assertNoPrivateTypeRec(store, tt.Elem(), visited)
+		rlm.assertNoPrivateType2(store, tt.Key, visited)
+		rlm.assertNoPrivateType2(store, tt.Elem(), visited)
 	case *InterfaceType:
 		for _, method := range tt.Methods {
-			rlm.assertNoPrivateTypeRec(store, method.Type, visited)
+			rlm.assertNoPrivateType2(store, method.Type, visited)
 		}
 		pkgPath = tt.GetPkgPath()
 	case *StructType:
 		for _, field := range tt.Fields {
-			rlm.assertNoPrivateTypeRec(store, field.Type, visited)
+			rlm.assertNoPrivateType2(store, field.Type, visited)
 		}
 		pkgPath = tt.GetPkgPath()
 	case *DeclaredType:
 		tid := tt.TypeID()
 		if _, exists := visited[tid]; !exists {
 			visited[tid] = struct{}{}
-			rlm.assertNoPrivateTypeRec(store, tt.Base, visited)
+			rlm.assertNoPrivateType2(store, tt.Base, visited)
 			for _, method := range tt.Methods {
-				rlm.assertNoPrivateTypeRec(store, method.T, visited)
+				rlm.assertNoPrivateType2(store, method.T, visited)
 				if mv, ok := method.V.(*FuncValue); ok {
-					rlm.assertNoPrivateTypeRec(store, mv.Type, visited)
+					rlm.assertNoPrivateType2(store, mv.Type, visited)
 				}
 			}
 		}
 		pkgPath = tt.GetPkgPath()
 	case *RefType:
 		t2 := store.GetType(tt.TypeID())
-		rlm.assertNoPrivateTypeRec(store, t2, visited)
+		rlm.assertNoPrivateType2(store, t2, visited)
 	case PrimitiveType, *TypeType, *PackageType, blockType, heapItemType:
 		// these types do not have a package path.
 		// NOTE: PackageType have a TypeID, should i loat it from store and check it?
