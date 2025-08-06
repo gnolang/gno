@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"strconv"
 
 	"github.com/cockroachdb/apd/v3"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
@@ -1442,19 +1441,7 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 	case BoolKind:
 		panic("not yet implemented")
 	case IntKind, InterfaceKind:
-		if strconv.IntSize == 32 {
-			if math.MaxInt32 < sv {
-				panic("bigint overflows target kind")
-			}
-			if sv < math.MinInt32 {
-				panic("bigint underflows target kind")
-			}
-			dst.SetInt(sv)
-		} else if strconv.IntSize == 64 {
-			dst.SetInt(sv)
-		} else {
-			panic("unexpected IntSize")
-		}
+		dst.SetInt(sv)
 	case Int8Kind:
 		if math.MaxInt8 < sv {
 			panic("bigint overflows target kind")
@@ -1482,16 +1469,7 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 	case Int64Kind:
 		dst.SetInt64(sv)
 	case UintKind:
-		if strconv.IntSize == 32 {
-			if math.MaxUint32 < uv {
-				panic("bigint overflows target kind")
-			}
-			dst.SetUint(uv)
-		} else if strconv.IntSize == 64 {
-			dst.SetUint(uv)
-		} else {
-			panic("unexpected IntSize")
-		}
+		dst.SetUint(uv)
 	case Uint8Kind:
 		if math.MaxUint8 < uv {
 			panic("bigint overflows target kind")

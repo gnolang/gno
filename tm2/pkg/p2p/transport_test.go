@@ -227,7 +227,7 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 
 			id := key.ID()
 
-			if index%1 == 0 {
+			if index%2 == 0 {
 				// Hijack the key value
 				id = types.GenerateNodeKey().ID()
 			}

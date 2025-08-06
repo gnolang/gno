@@ -130,7 +130,7 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
 
-		indexData.HeadData.Title = "gno.land — invalid path"
+		indexData.Title = "gno.land — invalid path"
 		indexData.BodyView = components.StatusErrorComponent("invalid path")
 		w.WriteHeader(http.StatusNotFound)
 		if err := components.IndexLayout(indexData).Render(w); err != nil {
@@ -179,7 +179,7 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 		return http.StatusNotFound, components.StatusErrorComponent("invalid path")
 	}
 
-	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path
+	indexData.Title = h.Static.Domain + " - " + gnourl.Path
 	indexData.HeaderData = components.HeaderData{
 		Breadcrumb: generateBreadcrumbPaths(gnourl),
 		RealmURL:   *gnourl,
@@ -274,11 +274,9 @@ func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) 
 	// Get public non-method funcs
 	fsigs := []*doc.JSONFunc{}
 	for _, fun := range jdoc.Funcs {
-		if !(fun.Type == "" && token.IsExported(fun.Name)) {
-			continue
+		if fun.Type == "" && token.IsExported(fun.Name) {
+			fsigs = append(fsigs, fun)
 		}
-
-		fsigs = append(fsigs, fun)
 	}
 
 	// Get selected function

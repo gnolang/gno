@@ -23,7 +23,7 @@ type testingLogger struct {
 }
 
 func (t *testingLogger) Write(b []byte) (n int, err error) {
-	t.T.Log(strings.TrimSpace(string(b)))
+	t.Log(strings.TrimSpace(string(b)))
 	return len(b), nil
 }
 

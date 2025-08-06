@@ -405,16 +405,18 @@ func deriveSecretAndChallenge(dhSecret *[32]byte, locIsLeast bool) (recvSecret, 
 //
 // It returns an error if the computed shared secret is all zeroes.
 func computeDHSecret(remPubKey, locPrivKey *[32]byte) (shrKey *[32]byte, err error) {
-	shrKey = new([32]byte)
-	curve25519.ScalarMult(shrKey, locPrivKey, remPubKey)
+	dst, err := curve25519.X25519(locPrivKey[:], remPubKey[:])
+	if err != nil {
+		return nil, err
+	}
 
 	// reject if the returned shared secret is all zeroes
 	// related to: https://github.com/tendermint/classic/issues/3010
 	zero := new([32]byte)
-	if subtle.ConstantTimeCompare(shrKey[:], zero[:]) == 1 {
+	if subtle.ConstantTimeCompare(dst, zero[:]) == 1 {
 		return nil, ErrSharedSecretIsZero
 	}
-	return
+	return (*[32]byte)(dst), nil
 }
 
 func sort32(foo, bar *[32]byte) (lo, hi *[32]byte) {

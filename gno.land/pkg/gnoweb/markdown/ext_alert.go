@@ -361,7 +361,7 @@ func (r *AlertHeaderHTMLRenderer) renderAlertHeader(w util.BufWriter, source []b
 		var kind string
 		if t, ok := node.AttributeString("kind"); ok {
 			kind = strings.ToLower(t.(string))
-			w.WriteString(fmt.Sprintf(`<svg><use href="#ico-%s"></use></svg>`, kind))
+			fmt.Fprintf(w, `<svg><use href="#ico-%s"></use></svg>`, kind)
 			// Only show the kind if there's no explicit title
 			if hasTitle, ok := node.AttributeString("hasTitle"); !ok || !hasTitle.(bool) {
 				w.WriteString(strings.Title(kind))

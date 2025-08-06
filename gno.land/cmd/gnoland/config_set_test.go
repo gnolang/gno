@@ -612,7 +612,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 				"0.0.0.0:0",
 			},
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, strings.SplitN(value, ",", -1), loadedCfg.RPC.CORSAllowedOrigins)
+				assert.Equal(t, strings.Split(value, ","), loadedCfg.RPC.CORSAllowedOrigins)
 			},
 		},
 		{
@@ -622,7 +622,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 				"POST,GET",
 			},
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, strings.SplitN(value, ",", -1), loadedCfg.RPC.CORSAllowedMethods)
+				assert.Equal(t, strings.Split(value, ","), loadedCfg.RPC.CORSAllowedMethods)
 			},
 		},
 		{
@@ -632,7 +632,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 				"*",
 			},
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, strings.SplitN(value, ",", -1), loadedCfg.RPC.CORSAllowedHeaders)
+				assert.Equal(t, strings.Split(value, ","), loadedCfg.RPC.CORSAllowedHeaders)
 			},
 		},
 		{

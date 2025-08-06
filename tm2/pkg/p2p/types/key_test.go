@@ -62,11 +62,11 @@ func TestNodeKey_Load(t *testing.T) {
 		path := fmt.Sprintf("%s/key.json", t.TempDir())
 
 		type random struct {
-			field string
+			Field string
 		}
 
-		data, err := json.Marshal(&random{
-			field: "random data",
+		data, err := json.Marshal(random{
+			Field: "random data",
 		})
 		require.NoError(t, err)
 
@@ -95,7 +95,7 @@ func TestNodeKey_Load(t *testing.T) {
 		loadedKey, err := LoadNodeKey(path)
 		require.NoError(t, err)
 
-		assert.True(t, key.PrivKey.Equals(loadedKey.PrivKey))
+		assert.True(t, key.Equals(loadedKey.PrivKey))
 		assert.Equal(t, key.ID(), loadedKey.ID())
 	})
 }
@@ -132,7 +132,7 @@ func TestNodeKey_LoadOrGenNodeKey(t *testing.T) {
 		require.NoError(t, err)
 
 		// Make sure the key was not generated
-		assert.True(t, key.PrivKey.Equals(loadedKey.PrivKey))
+		assert.True(t, key.Equals(loadedKey.PrivKey))
 	})
 
 	t.Run("fresh key generated", func(t *testing.T) {
@@ -153,6 +153,6 @@ func TestNodeKey_LoadOrGenNodeKey(t *testing.T) {
 		require.NoError(t, err)
 
 		// Make sure the keys are the same
-		assert.True(t, key.PrivKey.Equals(loadedKey.PrivKey))
+		assert.True(t, key.Equals(loadedKey.PrivKey))
 	})
 }
