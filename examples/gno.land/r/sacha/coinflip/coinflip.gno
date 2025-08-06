@@ -3,9 +3,10 @@ package coinflip
 import (
 	"std"
 	"strconv"
-	"gno.land/r/sacha/config"
 	"math/rand"
+	
 	"gno.land/p/demo/entropy"
+	"gno.land/r/sacha/config"
 )
 
 type Bet struct {
