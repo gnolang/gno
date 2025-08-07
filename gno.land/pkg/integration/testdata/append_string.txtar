@@ -5,7 +5,7 @@ gnoland start
 ! gnokey maketx call -pkgpath gno.land/r/append -func Doappend -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 
 stdout 'TX HASH:'
-stderr 'Data: panic running expression main(): allocation limit exceeded'
+stderr 'Data: allocation limit exceeded'
 
 
 -- append.gno --
@@ -15,6 +15,6 @@ func Doappend(_ realm) {
     var hugeString string
     for i := 0; ; i++ {
         // bypass alloc.maxBytes ("allocation limit exceeded") //
-        hugeString += string(make([]byte, 150_000_000))
+        hugeString += string(make([]byte, 100_000_000))
     }
 }
