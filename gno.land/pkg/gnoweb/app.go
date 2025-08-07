@@ -111,6 +111,9 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	}
 	renderer := NewHTMLRenderer(logger, rcfg)
 
+	// Configure components with the renderer for syntax highlighting
+	components.SetRenderer(renderer)
+
 	// Configure HTTPHandler
 	if cfg.Aliases == nil {
 		cfg.Aliases = make(map[string]AliasTarget) // Sanitize Aliases cfg
