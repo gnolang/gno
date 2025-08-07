@@ -343,7 +343,7 @@ the publicly-known `test1` address, and `100ugnot` for the coins we want to send
 respectively.
 
 To check the balance of a specific address, check out the `bank/balances` query
-in the [Querying a network](#bankbalances) section.
+in the [Querying a network](#querying-a-gnoland-network) section.
 
 ## `Run`
 
@@ -637,7 +637,7 @@ Make sure the signature is in the `hex` format.
 gnokey verify -docpath userbook.tx mykey <signature>
 ```
 
-# Querying a Gno.land network
+## Querying a Gno.land network
 
 Gno.land and `gnokey` support ABCI queries. Using ABCI queries, you can query the state of
 a Gno.land network without spending any gas. All queries need to be pointed towards
