@@ -208,4 +208,4 @@ func runExpr(m *gno.Machine, expr string) (err error) {
 	return nil
 }
 
-const maxAllocRun = 100_000_000
+const maxAllocRun = 500_000_000

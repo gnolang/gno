@@ -8,7 +8,6 @@ package main
 func main() {
 	s := "hello"
 	for i := 0; ; i++ {
-		s += string(make([]byte, 150_000_000))
-		//s += "world"
+		s += string(make([]byte, 50_000_000))
 	}
 }
