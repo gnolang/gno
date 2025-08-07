@@ -917,7 +917,8 @@ func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store) {
 		panic("cannot persist reference of object from private realm")
 	}
 
-	// NOTE: should i set the visited tids map at the
+	// NOTE: should i set the visited tids map at the higher level so it's set one time.
+	// it could help to reduce the number of checks for the same type.
 	tids := make(map[TypeID]struct{})
 	switch v := obj.(type) {
 	case *HeapItemValue:
