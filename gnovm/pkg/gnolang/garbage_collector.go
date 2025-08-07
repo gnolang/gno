@@ -213,6 +213,8 @@ func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
 		}
 	case RefValue:
 		stop = vis(v)
+	default:
+        	panic(fmt.Sprintf("unexpected FuncValue.Parent type: %T", v))
 	}
 
 	return
