@@ -989,7 +989,6 @@ Sample Output:
 
 ```
 storage: 5025, deposit: 502500
-
 ```
 
 `storage` represents total bytes used, while `deposit` is the total GNOT locked for that by that realm.
