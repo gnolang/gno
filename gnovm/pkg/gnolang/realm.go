@@ -771,7 +771,6 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 			}
 		}
 	}
-	//objsVisited := make(map[Object]struct{})
 	for _, uo := range rlm.updated {
 		// for i := len(rlm.updated) - 1; i >= 0; i-- {
 		// uo := rlm.updated[i]
@@ -979,7 +978,7 @@ func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store) {
 			panic("cannot persist package from private realm")
 		}
 	default:
-		panic(fmt.Sprintf("assertNoPrivateDeps2: unhandled object type %T", v))
+		panic(fmt.Sprintf("assertNoPrivateDeps: unhandled object type %T", v))
 	}
 }
 
@@ -1031,7 +1030,7 @@ func (rlm *Realm) assertNoPrivateType(store Store, t Type, visited map[TypeID]st
 		// NOTE: PackageType have a TypeID, should i loat it from store and check it?
 		return
 	default:
-		panic(fmt.Sprintf("assertNoPrivateTypeRec: unhandled type %T", tt))
+		panic(fmt.Sprintf("assertNoPrivateType: unhandled type %T", tt))
 	}
 	if pkgPath != "" && pkgPath != rlm.Path && GetPkgPrivateStatus(pkgPath) {
 		panic("cannot persist object of type defined in a private realm")
