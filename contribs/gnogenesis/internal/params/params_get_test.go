@@ -22,7 +22,7 @@ func TestParamsGetCmd(t *testing.T) {
 		t.Helper()
 
 		tempGenesis, cleanup := testutils.NewTestFile(t)
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		appState := genesis.AppState.(gnoland.GnoGenesisState)
 		appState.Auth.Params.MaxMemoBytes = 12345
 		appState.Auth.Params.FeeCollector = [20]byte{1, 2, 3}

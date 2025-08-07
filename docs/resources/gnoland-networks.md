@@ -5,7 +5,7 @@
 | Network | RPC Endpoint                            | Chain ID  |
 |---------|-----------------------------------------|-----------|
 | Staging | https://rpc.gno.land:443                | `staging` |
-| Test6   | https://rpc.test6.testnets.gno.land:443 | `test6`   |
+| Test7   | https://rpc.test7.testnets.gno.land:443 | `test7`   |
 
 ### WebSocket endpoints
 All networks follow the same pattern for websocket connections:
@@ -134,30 +134,36 @@ is the `gnoweb` render of the Staging testnet.
     [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop) folder in the
     monorepo
 
-### Test6
 
-Test6 is the latest testnet released on the 23rd of June, 2025. It enables token 
-locking, implements the interrealm specification, GovDAO V3 and more.
+### Test7
+
+Test7 is the latest testnet released on the 25th of July, 2025.
 
 - **Persistence of state:**
   - State is fully persisted unless there are breaking changes in a new release,
     where persistence partly depends on implementing a migration strategy
 - **Timeliness of code:**
-  - Pre-deployed packages and realms are at release tag [chain/test6](https://github.com/gnolang/gno/releases/tag/chain%2Ftest6.0)
+  - Pre-deployed packages and realms are at release tag [chain/test7.2](https://github.com/gnolang/gno/releases/tag/chain%2Ftest7.2)
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
-
 
 ### TestX
 
 These testnets are deprecated and currently serve as archives of previous progress.
 
+### Test6 (archive)
+
+Test6 enables token locking, implements the interrealm specification, GovDAO V3 and more.
+
+Launch date: 23rd of June 2025
+
 ### Test5 (archive)
 
 Test5 a permanent multi-node testnet. It bumped the validator set from 7 to 17
 nodes, introduced GovDAO V2, and added lots of bug fixes and quality of life
-improvements.
+improvements. Archived data for test5 can be
+found [here](https://github.com/gnolang/tx-exports/tree/main/test5.gno.land).
 
 Test5 was launched in November 2024.
 
