@@ -21,7 +21,7 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 ########################################
 # Dev tools
 .PHONY: start.gnoland
-start.gnoland:; go run ./cmd/gnoland start -lazy
+start.gnoland:; go run ./cmd/gnoland start -lazy -skip-genesis-sig-verification
 
 .PHONY: start.gnoweb
 start.gnoweb:; go run ./cmd/gnoweb
