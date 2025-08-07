@@ -1,12 +1,12 @@
 package gnolang
 
 import (
-	"bytes"
 	"fmt"
 	"html/template"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
@@ -27,16 +27,16 @@ func GenGnoModDefault(pkgPath string) string { return genGnoMod(pkgPath, GnoVerD
 func GenGnoModMissing(pkgPath string) string { return genGnoMod(pkgPath, GnoVerMissing) }
 
 func genGnoMod(pkgPath string, gnoVersion string) string {
-	buf := new(bytes.Buffer)
+	var buf strings.Builder
 	tmpl := template.Must(template.New("").Parse(gnomodTemplate))
-	err := tmpl.Execute(buf, struct {
+	err := tmpl.Execute(&buf, struct {
 		PkgPath    string
 		GnoVersion string
 	}{pkgPath, gnoVersion})
 	if err != nil {
 		panic(fmt.Errorf("generating gno.mod: %w", err))
 	}
-	return string(buf.Bytes())
+	return buf.String()
 }
 
 const (

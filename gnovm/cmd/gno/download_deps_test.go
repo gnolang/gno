@@ -146,6 +146,7 @@ func TestDownloadDeps(t *testing.T) {
 
 				// Try fetching again. Should be cached
 				err = downloadDeps(io, dirPath, &tc.modFile, fetcher, make(map[string]struct{}))
+				assert.NoError(t, err)
 				for _, c := range tc.ioErrContains {
 					assert.NotContains(t, mockErr.String(), c)
 				}

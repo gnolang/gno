@@ -30,7 +30,8 @@ const (
 )
 
 type pkgPrinter struct {
-	name        string       // Package name, json for encoding/json.
+	name string // Package name, json for encoding/json.
+	//nolint:staticcheck
 	pkg         *ast.Package // Parsed package.
 	file        *ast.File    // Merged from all files in the package
 	doc         *doc.Package

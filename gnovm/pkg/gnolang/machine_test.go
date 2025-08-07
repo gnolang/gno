@@ -116,7 +116,7 @@ func TestMachineString(t *testing.T) {
 					Kind:  INT,
 					Value: "100",
 				})
-				m.Blocks = make([]*Block, 1, 1)
+				m.Blocks = make([]*Block, 1)
 				m.PushStmts(S(Call(X("Redecl"), 11)))
 				return m
 			}(),

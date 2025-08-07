@@ -171,9 +171,8 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 // PrpedefineFileSet may precede Preprocess.
 func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 	// create stack of BlockNodes.
-	var stack []BlockNode = make([]BlockNode, 0, 32)
-	var last BlockNode = ctx
-	stack = append(stack, last)
+	last := ctx
+	stack := append(make([]BlockNode, 0, 32), last)
 
 	// iterate over all nodes recursively.
 	_ = Transcribe(nn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
@@ -257,13 +256,14 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 				} else {
 					pkg := skipFile(last).(*PackageNode)
 					// special case: if n.Name == "init", assign unique suffix.
-					if n.Name == "init" {
+					switch n.Name {
+					case "init":
 						idx := pkg.GetNumNames()
 						// NOTE: use a dot for init func suffixing.
 						// this also makes them unreferenceable.
 						dname := Name(fmt.Sprintf("init.%d", idx))
 						n.Name = dname
-					} else if n.Name == blankIdentifier {
+					case blankIdentifier:
 						idx := pkg.GetNumNames()
 						dname := Name(fmt.Sprintf("._%d", idx))
 						n.Name = dname
@@ -518,11 +518,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 	preprocessing.Add(1)
 	defer preprocessing.Add(-1)
 
-	if ctx == nil {
-		// Generally a ctx is required, but if not, it's ok to pass in nil.
-		// panic("Preprocess requires context")
-	}
-
 	// if n is file node, set node locations recursively.
 	if fn, ok := n.(*FileNode); ok {
 		pkgPath := ctx.(*PackageNode).PkgPath
@@ -532,10 +527,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 	}
 
 	// create stack of BlockNodes.
-	var stack []BlockNode = make([]BlockNode, 0, 32)
-	var last BlockNode = ctx
+	last := ctx
+	stack := append(make([]BlockNode, 0, 32), last)
 	ctxpn := packageOf(ctx)
-	stack = append(stack, last)
 
 	// iterate over all nodes recursively
 	nn := Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
@@ -567,14 +561,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							if !ok {
 								// initial declaration to be re-defined.
 								last.Reserve(false, lnx, n, NSDefine, i)
-							} else {
-								// do not redeclare.
 							}
+							// else, do not redeclare.
 						}
 					}
-				} else {
-					// nothing defined.
 				}
+				// else, nothing defined.
 			// TRANS_ENTER -----------------------
 			case *ImportDecl, *ValueDecl, *TypeDecl, *FuncDecl:
 				// NOTE func decl usually must happen with a
@@ -1101,13 +1093,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					// `cross` can only be used as the first argument
 					// to a crossing function, for cross-calling.
-					if ftype != TRANS_CALL_ARG {
-						panic(fmt.Sprintf(
-							"cross can only be used as the first argument to a crossing function (since gno 0.9)"))
-					}
-					if index != 0 {
-						panic(fmt.Sprintf(
-							"cross can only be used as the first argument to a crossing function (since gno 0.9)"))
+					if ftype != TRANS_CALL_ARG || index != 0 {
+						panic("cross can only be used as the first argument to a crossing function (since gno 0.9)")
 					}
 					// special name that is defined in uverse as undefined,
 					// but should not be statically evaluated.
@@ -1120,14 +1107,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// contain nil nodes.
 					fallthrough
 				default:
-					if ftype == TRANS_ASSIGN_LHS {
+					switch ftype {
+					case TRANS_ASSIGN_LHS:
 						as := ns[len(ns)-1].(*AssignStmt)
 						fillNameExprPath(last, n, as.Op == DEFINE)
 						return n, TRANS_CONTINUE
-					} else if ftype == TRANS_VAR_NAME {
+					case TRANS_VAR_NAME:
 						fillNameExprPath(last, n, true)
 						return n, TRANS_CONTINUE
-					} else {
+					default:
 						fillNameExprPath(last, n, false)
 					}
 					// If uverse, return a *ConstExpr.
@@ -1429,7 +1417,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							switch arg0.Op {
 							case EQL, NEQ, LSS, GTR, LEQ, GEQ:
 								assertAssignableTo(n, at, ct, false)
-								break
 							default:
 								checkOrConvertType(store, last, n, &n.Args[0], ct, false)
 							}
@@ -1491,8 +1478,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if isNumeric(atBase) {
 							panic(fmt.Sprintf("cannot convert %v to %v: non-numeric to numeric",
 								at, ct))
-						} else {
-							// continue...
 						}
 					} // escapes...
 
@@ -1648,7 +1633,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// LEAVE (FUNC) CALL EXPR GENERAL CASE:
 					//----------------------------------------
 
-					var ft *FuncType = bnft
+					ft := bnft
 					if ft.IsCrossing() {
 						// Special case when ctxpn.PkgPath is "testing/base",
 						// pkg/test/test.gno will pass toConstExpr(Nx(`.cur`), NewConcreteRealm())
@@ -1745,7 +1730,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					hasVarg := ft.HasVarg()
 					isVarg := n.Varg
 					embedded := false
-					argTVs := []TypedValue{}
+					var argTVs []TypedValue
 					minArgs := len(ft.Params)
 					if hasVarg {
 						minArgs--
@@ -2030,7 +2015,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			case *StarExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
 				if xt == nil {
-					panic(fmt.Sprintf("invalid operation: cannot indirect nil"))
+					panic("invalid operation: cannot indirect nil")
 				}
 				if xt.Kind() != PointerKind && xt.Kind() != TypeKind {
 					panic(fmt.Sprintf("invalid operation: cannot indirect %s (variable of type %s)", n.X.String(), xt.String()))
@@ -2145,10 +2130,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if !isUpper(string(n.Sel)) && ctxpn.PkgPath != pv.PkgPath {
 						panic(fmt.Sprintf("cannot access %s.%s from %s",
 							pv.PkgPath, n.Sel, ctxpn.PkgPath))
-					} else {
-						// NOTE: this can happen with software upgrades,
-						// with multiple versions of the same package path.
 					}
+					// NOTE: this can happen with software upgrades,
+					// with multiple versions of the same package path.
 					n.Path = pn.GetPathForName(store, n.Sel)
 					// packages may contain constant vars,
 					// so check and evaluate if so.
@@ -2335,14 +2319,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// we updated FuncValue from source.
 						}
 					} else { // len(Lhs) == len(Rhs)
-						if n.Op == SHL_ASSIGN || n.Op == SHR_ASSIGN {
+						switch n.Op {
+						case SHL_ASSIGN, SHR_ASSIGN:
 							// Special case if shift assign <<= or >>=.
 							convertType(store, last, n, &n.Rhs[0], UintType)
-						} else if n.Op == ADD_ASSIGN || n.Op == SUB_ASSIGN || n.Op == MUL_ASSIGN || n.Op == QUO_ASSIGN || n.Op == REM_ASSIGN {
+						case ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN:
 							// e.g. a += b, single value for lhs and rhs,
 							lt := evalStaticTypeOf(store, last, n.Lhs[0])
 							checkOrConvertType(store, last, n, &n.Rhs[0], lt, true)
-						} else { // all else, like BAND_ASSIGN, etc
+						default: // all else, like BAND_ASSIGN, etc
 							// General case: a, b = x, y.
 							for i, lx := range n.Lhs {
 								lt := evalStaticTypeOf(store, last, lx)
@@ -2473,9 +2458,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									len(ft.Results),
 									len(cft.Results),
 								))
-							} else {
-								// nothing more to do.
 							}
+							// else, nothing more to do.
 						} else {
 							panic(fmt.Sprintf("expected %d return values; got %d",
 								len(ft.Results),

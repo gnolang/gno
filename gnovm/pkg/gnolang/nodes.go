@@ -797,7 +797,7 @@ func (ss Body) isCrossing_gno0p0() bool {
 		return false
 	}
 	cx, ok := xs.X.(*CallExpr)
-	return cx.isCrossing_gno0p0()
+	return ok && cx.isCrossing_gno0p0()
 }
 
 // ----------------------------------------
@@ -1411,7 +1411,6 @@ func ReadMemPackageFromList(list []string, pkgPath string, mtype MemPackageType)
 			pkgName = "filetests"
 		} else {
 			pkgName = "xxxinvalidpackagenamexxx" // sensible default
-			errs = multierr.Append(errs, fmt.Errorf("package name could be determined"))
 		}
 	} else if err := validatePkgName(pkgName); err != nil {
 		errs = multierr.Append(errs, err)
@@ -1912,7 +1911,6 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	sb.Consts = make([]Name, 0, 16)
 	sb.Externs = make([]Name, 0, 16)
 	sb.Parent = parent
-	return
 }
 
 // Implements BlockNode.
@@ -2399,7 +2397,6 @@ func (sb *StaticBlock) GetFuncNodeForExpr(store Store, fne Expr) (FuncNode, erro
 					// So just return this.
 					pn = this
 				} else {
-					pv = store.GetPackage(ref.PkgPath, false)
 					pn = store.GetPackageNode(ref.PkgPath)
 				}
 			} else {

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -156,7 +155,7 @@ func TestStdlibs(t *testing.T) {
 		fp := filepath.Join(dir, path)
 
 		// Exclude empty directories.
-		files, err := ioutil.ReadDir(fp)
+		files, err := os.ReadDir(fp)
 		hasFiles := false
 		if err != nil {
 			return err

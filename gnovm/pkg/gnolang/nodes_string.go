@@ -193,7 +193,7 @@ func (fle FuncLitExpr) String() string {
 
 func (x KeyValueExpr) String() string {
 	if x.Key == nil {
-		return fmt.Sprintf("%s", x.Value)
+		return x.Value.String()
 	}
 	return fmt.Sprintf("%s: %s", x.Key, x.Value)
 }
