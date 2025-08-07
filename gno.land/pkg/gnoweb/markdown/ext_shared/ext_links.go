@@ -1,10 +1,11 @@
-package markdown
+package extshared
 
 import (
 	"errors"
 	"fmt"
 	"net/url"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/utils"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
@@ -89,7 +90,7 @@ type linkTransformer struct{}
 
 // Transform replaces ast.Link nodes with GnoLink nodes in two passes.
 func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
-	orig, ok := getUrlFromContext(pc)
+	orig, ok := utils.GetUrlFromContext(pc)
 	if !ok {
 		return
 	}

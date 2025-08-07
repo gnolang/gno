@@ -1,0 +1,53 @@
+-- input.md --
+# Test ExtCodeExpand
+
+Here is an example using Go language
+
+```go
+func main() {
+    fmt.Println("Hello, World!")
+}
+```
+
+Another with JavaScript
+
+```javascript
+function greet(name) {
+    console.log(`Hello, ${name}!`);
+}
+```
+
+And some code without language specification
+
+```
+without language
+```
+
+And code with special chars:
+
+```go
+func escapeTest() {
+    fmt.Println("Test with \"specialchars\" and <tags>")
+}
+```
+
+-- output.html --
+<h1>Test ExtCodeExpand</h1>
+<p>Here is an example using Go language</p>
+<details class="doc-example"><summary>Example</summary><div class=""><pre class="chroma-chroma"><code><span class="chroma-line"><span class="chroma-ln" id="L1"><a class="chroma-lnlinks" href="#L1">1</a></span><span class="chroma-cl"><span class="chroma-kd">func</span> <span class="chroma-nf">main</span><span class="chroma-p">(</span><span class="chroma-p">)</span> <span class="chroma-p">{</span>
+</span></span><span class="chroma-line"><span class="chroma-ln" id="L2"><a class="chroma-lnlinks" href="#L2">2</a></span><span class="chroma-cl">    <span class="chroma-nx">fmt</span><span class="chroma-p">.</span><span class="chroma-nf">Println</span><span class="chroma-p">(</span><span class="chroma-s">&#34;Hello, World!&#34;</span><span class="chroma-p">)</span>
+</span></span><span class="chroma-line"><span class="chroma-ln" id="L3"><a class="chroma-lnlinks" href="#L3">3</a></span><span class="chroma-cl"><span class="chroma-p">}</span>
+</span></span></code></pre></div></details>
+<p>Another with JavaScript</p>
+<details class="doc-example"><summary>Example</summary><div class=""><pre class="chroma-chroma"><code><span class="chroma-line"><span class="chroma-ln" id="L1"><a class="chroma-lnlinks" href="#L1">1</a></span><span class="chroma-cl"><span class="chroma-kd">function</span> <span class="chroma-nx">greet</span><span class="chroma-p">(</span><span class="chroma-nx">name</span><span class="chroma-p">)</span> <span class="chroma-p">{</span>
+</span></span><span class="chroma-line"><span class="chroma-ln" id="L2"><a class="chroma-lnlinks" href="#L2">2</a></span><span class="chroma-cl">    <span class="chroma-nx">console</span><span class="chroma-p">.</span><span class="chroma-nx">log</span><span class="chroma-p">(</span><span class="chroma-sb">`</span><span class="chroma-sb">Hello, </span><span class="chroma-si">${</span><span class="chroma-nx">name</span><span class="chroma-si">}</span><span class="chroma-sb">!</span><span class="chroma-sb">`</span><span class="chroma-p">)</span><span class="chroma-p">;</span>
+</span></span><span class="chroma-line"><span class="chroma-ln" id="L3"><a class="chroma-lnlinks" href="#L3">3</a></span><span class="chroma-cl"><span class="chroma-p">}</span>
+</span></span></code></pre></div></details>
+<p>And some code without language specification</p>
+<details class="doc-example"><summary>Example</summary><div class=""><pre class="chroma-chroma"><code><span class="chroma-line"><span class="chroma-ln" id="L1"><a class="chroma-lnlinks" href="#L1">1</a></span><span class="chroma-cl"><span class="chroma-nx">without</span> <span class="chroma-nx">language</span>
+</span></span></code></pre></div></details>
+<p>And code with special chars:</p>
+<details class="doc-example"><summary>Example</summary><div class=""><pre class="chroma-chroma"><code><span class="chroma-line"><span class="chroma-ln" id="L1"><a class="chroma-lnlinks" href="#L1">1</a></span><span class="chroma-cl"><span class="chroma-kd">func</span> <span class="chroma-nf">escapeTest</span><span class="chroma-p">(</span><span class="chroma-p">)</span> <span class="chroma-p">{</span>
+</span></span><span class="chroma-line"><span class="chroma-ln" id="L2"><a class="chroma-lnlinks" href="#L2">2</a></span><span class="chroma-cl">    <span class="chroma-nx">fmt</span><span class="chroma-p">.</span><span class="chroma-nf">Println</span><span class="chroma-p">(</span><span class="chroma-s">&#34;Test with \&#34;specialchars\&#34; and &lt;tags&gt;&#34;</span><span class="chroma-p">)</span>
+</span></span><span class="chroma-line"><span class="chroma-ln" id="L3"><a class="chroma-lnlinks" href="#L3">3</a></span><span class="chroma-cl"><span class="chroma-p">}</span>
+</span></span></code></pre></div></details>
