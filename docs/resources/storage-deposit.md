@@ -41,7 +41,7 @@ design and manage user storage.
 ### Global Storage Price Parameter
 
 The storage price is a global parameter governed by the GovDAO.
-The default value is defined in [`gno.land/pkg/sdk/vm/params.go`](https://github.com/gnolang/gno/blob/master/gno.land/pkg/sdk/vm/params.go#L18).
+The default value is defined in [`gno.land/pkg/sdk/vm/params.go`](https://github.com/gnolang/gno/blob/8452891dee1a92643dd0ceb4623e2c684455d3d5/gno.land/pkg/sdk/vm/params.go#L18).
 
 ```text
 storagePriceDefault = "100ugnot" // cost per byte
