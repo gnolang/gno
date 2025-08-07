@@ -98,7 +98,15 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 			),
 			Then: r.
 				If(r.Or(
-					r.ReviewByOrgMembers(gh).WithDesiredState(utils.ReviewStateApproved),
+					// Approved by member of the review/triage team
+					r.ReviewByUser(gh, "jefft0", r.RequestIgnore).WithDesiredState(utils.ReviewStateApproved),
+					r.ReviewByUser(gh, "leohhhn", r.RequestIgnore).WithDesiredState(utils.ReviewStateApproved),
+					r.ReviewByUser(gh, "n0izn0iz", r.RequestIgnore).WithDesiredState(utils.ReviewStateApproved),
+					r.ReviewByUser(gh, "notJoon", r.RequestIgnore).WithDesiredState(utils.ReviewStateApproved),
+					r.ReviewByUser(gh, "omarsy", r.RequestIgnore).WithDesiredState(utils.ReviewStateApproved),
+					r.ReviewByUser(gh, "wyhaines", r.RequestIgnore).WithDesiredState(utils.ReviewStateApproved),
+					r.ReviewByUser(gh, "x1unix", r.RequestIgnore).WithDesiredState(utils.ReviewStateApproved),
+					// Reviewed by a core dev
 					r.ReviewByTeamMembers(gh, "tech-staff", r.RequestIgnore),
 					r.Draft(),
 				)).
