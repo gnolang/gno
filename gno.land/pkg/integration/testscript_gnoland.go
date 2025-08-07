@@ -265,9 +265,6 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 		case "":
 			err = errors.New("no command provided")
 		case "start":
-			fmt.Println("===TestNode start")
-			pid := int32(os.Getpid())
-			fmt.Println("===Test Pid: ", pid)
 			if nodesManager.IsNodeRunning(sid) {
 				err = fmt.Errorf("node already started")
 				break

@@ -3,11 +3,9 @@ package gnolang
 import (
 	"fmt"
 	"io"
-	"os"
 	"path"
 	"reflect"
 	"runtime"
-	"runtime/pprof"
 	"slices"
 	"strconv"
 	"strings"
@@ -2465,37 +2463,7 @@ func MemStats() {
 	fmt.Printf("Sys = %v MiB\n", m.Sys/1024/1024) // 总内存（含堆/栈/CGO等）
 }
 
-func dumpHeapProfile(filename string) error {
-	f, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	// Write the current heap profile to the file.
-	return pprof.WriteHeapProfile(f)
-}
-
 func (m *Machine) String() string {
-	fmt.Println("===start m.String...")
-	// if err := dumpHeapProfile("heap.pprof"); err != nil {
-	// 	panic(err)
-	// }
-	rss := getRSS()
-	fmt.Printf("System RSS:    %s (actual physical memory)\n", formatBytes(rss))
-
-	MemStats()
-
-	defer func() {
-		fmt.Println("===done m.String...")
-		// if err := dumpHeapProfile("heap.pprof"); err != nil {
-		// 	panic(err)
-		// }
-		rss := getRSS()
-		fmt.Printf("System RSS:    %s (actual physical memory)\n", formatBytes(rss))
-		MemStats()
-	}()
-
 	if m == nil {
 		return "Machine:nil"
 	}

@@ -129,9 +129,6 @@ func (alloc *Allocator) Allocate(size int64) {
 			}
 			alloc.bytes += size
 			if alloc.bytes > alloc.maxBytes {
-				fmt.Println("!!!!!!!!!! exeeded...............")
-				fmt.Println("===alloc.bytes: ", alloc.bytes)
-				fmt.Println("===alloc.maxBytes: ", alloc.maxBytes)
 				panic("allocation limit exceeded")
 			}
 		}

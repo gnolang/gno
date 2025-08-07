@@ -34,6 +34,7 @@ func setupMachine(b *testing.B, numValues, numStmts, numExprs, numBlocks, numFra
 	return m
 }
 
+// TODO: test big value
 func BenchmarkStringLargeData(b *testing.B) {
 	m := setupMachine(b, 10000, 5000, 5000, 2000, 3000, 1000)
 	b.ResetTimer()
