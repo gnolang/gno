@@ -42,6 +42,8 @@ func NewDefaultGoldmarkOptions() []goldmark.Option {
 		goldmark.WithExtensions(
 			extension.Strikethrough,
 			extension.Table,
+			extension.Footnote,
+			extension.TaskList,
 			md.NewGnoExtension(
 				md.WithImageValidator(allowSvgDataImage),
 			),

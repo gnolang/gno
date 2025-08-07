@@ -76,6 +76,8 @@ type Token struct {
 	symbol string
 	// Number of decimal places used for the token's precision.
 	decimals int
+	// Original realm of the token (e.g., "gno.land/r/demo/foo20").
+	origRealm string
 	// Pointer to the PrivateLedger that manages balances and allowances.
 	ledger *PrivateLedger
 }
