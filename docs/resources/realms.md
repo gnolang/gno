@@ -67,7 +67,13 @@ found [here](../users/interact-with-gnokey.md#making-transactions).
 Every Gno transaction produces a call stack that can switch across functions
 declared in realm packages and functions declared in p packages. The `std`
 package contains functions that return the current realm, previous realm, and
-the origin caller's address.
+the origin caller's address. 
+
+:::info
+
+In this demo, we consider that all functions called
+are [crossing](./gno-interrealm.md).
+:::
 
 - `std.OriginCaller()` - returns the address of the original signer of the
   transaction
@@ -181,7 +187,7 @@ std.CurrentRealm() => Realm {
 ### Resources
 
 See the [Gno Interrealm Specification](./gno-interrealm.md) for more
-information on language rules for interrealm (cross) safety including how and
+information on language rules for interrealm (crossing) safety including how and
 when to use the `func fn(_ realm, ...)` function parameter and `fn(cross, ...)` parameter and more.
 
 For more information about realms and how they fit into the gno.land ecosystem,

@@ -9,7 +9,7 @@ import (
 var posts []*Post
 
 // CreatePost creates a new post
-// As the function changes memory (i.e. the `posts` slice),
+// As the function modifies state (i.e. the `posts` slice),
 // it needs to be crossing. This is defined by the first argument being of type `realm`
 func CreatePost(_ realm, text string) error {
 	// If the body of the post is empty, return an error

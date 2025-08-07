@@ -66,6 +66,10 @@ the other hand, tokens are created with packages such as GRC20, GRC721, etc.
 ### Contract
 See [Realm](#realm).
 
+### Crossing
+Refers to the way context is switched during interrealm interactions. Check out
+the [Interrealm Specification](./gno-interrealm.md).
+
 ## D
 
 ### dApp
