@@ -50,7 +50,7 @@ dev: dev.all
 
 # Run gnodev instance
 node-start:
-	go -C ../../../contribs/gnodev run ./cmd/gnodev -no-web
+	go -C ../../../contribs/gnodev run . -no-web
 
 # Test process
 test:
