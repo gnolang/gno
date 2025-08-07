@@ -68,7 +68,7 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Create the command
@@ -96,7 +96,7 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		io := commands.NewTestIO()
@@ -134,7 +134,7 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 		// Prepare the package
 		var (
@@ -191,7 +191,7 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Prepare the package
@@ -272,7 +272,7 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		key := keyFromMnemonic(defaultAccount_Seed)
@@ -334,7 +334,7 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		key := keyFromMnemonic(defaultAccount_Seed)

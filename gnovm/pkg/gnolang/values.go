@@ -895,6 +895,10 @@ func (pv *PackageValue) GetPkgAddr() crypto.Address {
 	return DerivePkgCryptoAddr(pv.PkgPath)
 }
 
+func (pv *PackageValue) GetPkgStorageDepositAddr() crypto.Address {
+	return DeriveStorageDepositCryptoAddr(pv.PkgPath)
+}
+
 // ----------------------------------------
 // TypedValue (is not a value, but a tuple)
 
@@ -1542,8 +1546,12 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		bz = append(bz, pbz...)
 	case *PointerType:
 		fillValueTV(store, tv)
-		ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
-		bz = append(bz, uintptrToBytes(&ptr)...)
+		var ptrBytes [sizeOfUintPtr]byte // zero-initialized for nil pointers
+		if tv.V != nil {
+			ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
+			ptrBytes = uintptrToBytes(&ptr)
+		}
+		bz = append(bz, ptrBytes[:]...)
 	case FieldType:
 		panic("field (pseudo)type cannot be used as map key")
 	case *ArrayType:
