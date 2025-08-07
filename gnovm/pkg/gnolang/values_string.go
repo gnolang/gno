@@ -255,6 +255,7 @@ func (b *Block) StringIndented(indent string) string {
 	if len(source) > 32 {
 		source = source[:32] + "..."
 	}
+	fmt.Println("======b.StringIndented..., b.Source: ", source)
 	lines := make([]string, 0, 3)
 	lines = append(lines,
 		fmt.Sprintf("Block(ID:%v,Addr:%p,Source:%s,Parent:%p)",
@@ -272,6 +273,9 @@ func (b *Block) StringIndented(indent string) string {
 				} else {
 					fmt.Println("===================== values i: ", i)
 					fmt.Println("===before print string...")
+					if b.Values[i].V != nil {
+						fmt.Println("======shallow size: ", b.Values[i].V.GetShallowSize())
+					}
 					MemStats()
 
 					lines = append(lines,
