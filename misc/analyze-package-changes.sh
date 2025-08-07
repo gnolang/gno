@@ -2,9 +2,11 @@
 # Script to analyze package-level changes between current branch and master
 # Usage: ./analyze-package-changes.sh [base-branch]
 # Example: ./analyze-package-changes.sh master
+# Make sure to run this from the misc/ folder
+# since EXAMPLES_DIR is relative
 
+EXAMPLES_DIR="../examples"
 BASE_BRANCH="${1:-master}"
-EXAMPLES_DIR="examples"
 
 # Temporary files
 TEMP_BASE=$(mktemp)

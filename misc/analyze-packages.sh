@@ -4,6 +4,8 @@
 # Example: ./analyze-packages.sh examples/gno.land
 # Example: ./analyze-packages.sh examples/gno.land "p/demo"
 # Example: ./analyze-packages.sh examples/gno.land "moul"
+# Make sure to run this from the misc/ folder
+# since EXAMPLES_DIR is relative
 
 DIR="${1:-examples/gno.land}"
 FILTER="${2:-}"
