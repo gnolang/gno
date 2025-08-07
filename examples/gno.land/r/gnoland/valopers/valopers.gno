@@ -13,7 +13,7 @@ import (
 	"gno.land/p/demo/ownable/exts/authorizable"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/realmpath"
-	"gno.land/p/villaquiranm/keyderive"
+	"gno.land/p/samcrew/keyderive"
 )
 
 const (
