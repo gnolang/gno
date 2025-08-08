@@ -77,7 +77,7 @@ The `Increment()` function has a few important features:
 - When written with the first letter in uppercase, the function is
 exported. This means that calls to this function from outside the `counter`
 package are allowed - be it from off-chain clients, users, or from other Gno programs
-- As this function intends to change the memory of the realm (incrementing the 
+- As this function intends to change the state of the realm (incrementing the 
 `count` variable), it needs to be ["crossing"](../resources/gno-interrealm.md). 
 To declare the function crossing, the first argument must be of type `realm`, 
 which is a custom Gno built-in keyword. In this case, as we won't be using the 
