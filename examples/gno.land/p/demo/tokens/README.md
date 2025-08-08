@@ -1,4 +1,4 @@
-# GRC: Gnoland Request for Comments
+# GRC: Gno.land Request for Comments
 
 GRCs are the Gnoland's equivalent of Ethereum's ERCs and EIPs, or Bitcoin's BIPs.
 
