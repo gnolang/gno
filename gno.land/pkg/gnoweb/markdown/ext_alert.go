@@ -364,7 +364,7 @@ func (r *AlertHeaderHTMLRenderer) renderAlertHeader(w util.BufWriter, source []b
 			fmt.Fprintf(w, `<svg><use href="#ico-%s"></use></svg>`, kind)
 			// Only show the kind if there's no explicit title
 			if hasTitle, ok := node.AttributeString("hasTitle"); !ok || !hasTitle.(bool) {
-				w.WriteString(strings.Title(kind))
+				w.WriteString(strings.Title(kind)) //nolint:staticcheck
 			}
 		}
 	} else {

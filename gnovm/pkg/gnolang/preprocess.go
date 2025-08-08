@@ -2573,22 +2573,23 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				//
 				// In short, the relationship between tmp and dst is:
 				//   `type dst tmp`.
-				dst := last.GetSlot(store, n.Name, true).GetType()
-				switch dst := dst.(type) {
+				dstTV := last.GetSlot(store, n.Name, true)
+				dstT := dstTV.GetType()
+				switch dstT := dstT.(type) {
 				case *FuncType:
-					*dst = *(tmp.(*FuncType))
+					*dstT = *(tmp.(*FuncType))
 				case *ArrayType:
-					*dst = *(tmp.(*ArrayType))
+					*dstT = *(tmp.(*ArrayType))
 				case *SliceType:
-					*dst = *(tmp.(*SliceType))
+					*dstT = *(tmp.(*SliceType))
 				case *InterfaceType:
-					*dst = *(tmp.(*InterfaceType))
+					*dstT = *(tmp.(*InterfaceType))
 				case *ChanType:
-					*dst = *(tmp.(*ChanType))
+					*dstT = *(tmp.(*ChanType))
 				case *MapType:
-					*dst = *(tmp.(*MapType))
+					*dstT = *(tmp.(*MapType))
 				case *StructType:
-					*dst = *(tmp.(*StructType))
+					*dstT = *(tmp.(*StructType))
 				case *DeclaredType:
 					if n.IsAlias {
 						// Nothing to do.
@@ -2604,22 +2605,22 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// if !n.IsAlias { // not sure why this was here.
 						tmp2.Seal()
 						// }
-						*dst = *tmp2
+						*dstT = *tmp2
 					}
 				case PrimitiveType:
-					dst = tmp.(PrimitiveType)
+					dstTV.V = TypeValue{Type: tmp}
 				case *PointerType:
-					*dst = *(tmp.(*PointerType))
+					*dstT = *(tmp.(*PointerType))
 				default:
 					panic(fmt.Sprintf("unexpected type declaration type %v",
-						reflect.TypeOf(dst)))
+						reflect.TypeOf(dstTV)))
 				}
 				// We need to replace all references of the new
 				// Type with old Type, including in attributes.
-				n.Type.SetAttribute(ATTR_TYPE_VALUE, dst)
+				n.Type.SetAttribute(ATTR_TYPE_VALUE, dstT)
 				// Replace the type with *{},
 				// otherwise methods would be un at runtime.
-				n.Type = toConstTypeExpr(last, n.Type, dst)
+				n.Type = toConstTypeExpr(last, n.Type, dstT)
 			}
 			// end type switch statement
 			// END TRANS_LEAVE -----------------------
