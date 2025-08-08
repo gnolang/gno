@@ -2,23 +2,20 @@ package coinflip
 
 import (
 	"std"
-	"strconv"
 	"math/rand"
-	
+
 	"gno.land/p/demo/entropy"
 	"gno.land/r/sacha/config"
+	"gno.land/p/moul/fifo"
 )
-
-type Bet struct {
-    Address string
-    Result bool
-    Amount int64
-}
 
 const denom = "ugnot"
 const minBetAmount = 1
 
-var latestBets = []Bet{}
+var (
+	bets = []Bet{}
+	latestBets = fifo.New(8)
+)
 
 func Heads(cur realm) {
 	std.AssertOriginCall()
@@ -34,22 +31,8 @@ func Tails(cur realm) {
 	betLogic(flipResult)
 }
 
-func GetLatestResults(cur realm) [][]string {
-	latestResults := [][]string{}
-
-	for _, bet := range latestBets {
-		betStr := []string{bet.Address}
-		if bet.Result == true {
-		    betStr = append(betStr, "won")
-			betStr = append(betStr, "📈")
-		} else {
-		    betStr = append(betStr, "lost")
-			betStr = append(betStr, "📉")
-		}
-		betStr = append(betStr, strconv.Itoa(int(bet.Amount)))
-		latestResults = append(latestResults, betStr)
-	}
-	return latestResults;
+func GetResults(cur realm) []Bet {
+	return bets
 }
 
 func GetRealmBalance(cur realm) int64 {
@@ -86,7 +69,8 @@ func flip(choice int) bool {
 	return result == choice
 }
 
-func checkBet(bet std.Coins) int64 {
+func getBet() std.Coin {
+	bet := std.OriginSend()
 	if len(bet) != 1 || bet[0].Denom != denom {
 		panic("bet is invalid")
 	}
@@ -100,7 +84,7 @@ func checkBet(bet std.Coins) int64 {
 		panic("Bet too high")
 	}
 
-	return amount
+	return bet[0]
 }
 
 func sendPrize(caller std.Address, amount int64) {
@@ -112,14 +96,15 @@ func sendPrize(caller std.Address, amount int64) {
 
 func betLogic(flipResult bool) {
 	caller := std.OriginCaller()
-	amount := checkBet(std.OriginSend())
+	bet := getBet()
 
 	if flipResult == true {
-		sendPrize(caller, amount)
+		sendPrize(caller, bet.Amount)
 		std.Emit("BetResult", "Result", "win")
 	} else {
 		std.Emit("BetResult", "Result", "lose")
 	}
 
-	latestBets = append([]Bet{{Address: caller.String(), Result: flipResult, Amount: amount}}, latestBets...)
+	bets = append(bets, Bet{Address: caller, Result: flipResult, Amount: bet})
+	latestBets.Append(Bet{Address: caller, Result: flipResult, Amount: bet})
 }

@@ -1,9 +1,12 @@
 package coinflip
 
 import (
+	"std"
+	"strconv"
+
 	"gno.land/p/moul/txlink"
 	"gno.land/p/moul/md"
-	"strconv"
+	"gno.land/r/sys/users"
 )
 
 var (
@@ -16,31 +19,38 @@ func init() {
 	pocInnovationName = "PoCInnovation"
 }
 
-func renderResult(
-	address string,
-	result string,
-	amount string,
-	emoji string,
-) string {
-	addressFmt := "**" + address[:30] + "**: "
-	resultFmt := result + " **" + amount + denom + "** " + emoji
-	return addressFmt + resultFmt
+func renderResult(address std.Address, result bool, amount std.Coin) string {
+	addressFmt := "**" + address.String()[:30] + "**: "
+	resultFmt := "lost"
+	amountFmt := " **" + amount.String() + "** "
+	emoji := "📉"
+
+	data := users.ResolveAddress(address)
+	if data != nil {
+		addressFmt = "**" + data.RenderLink("") + "**: "
+	}
+
+	if result == true {
+		resultFmt = "won"
+		emoji = "📈"
+	}
+
+	return addressFmt + resultFmt + amountFmt + emoji
 }
 
-func renderLatestResults() []string {
-	latestsResults := GetLatestResults(cross)
-	out := []string{}
-	count := 0
+func renderLatestResults() string {
+	size := latestBets.Size()
 
-	for _, result := range latestsResults {
-		out = append(out, renderResult(result[0], result[1], result[3], result[2]))
-		count++
-		if count == 8 {
-			break
-		}
+	if size == 0 {
+		return "No results yet"
 	}
-	if count == 0 {
-		out = append(out, "No results yet, time to flip a coin!")
+
+	entries := latestBets.Entries()
+
+	var out string
+	for i := size - 1; i >= 0; i-- {
+		bet := entries[i].(Bet)
+		out += md.BulletItem(renderResult(bet.Address, bet.Result, bet.Amount))
 	}
 	return out
 }
@@ -51,7 +61,7 @@ func renderGame() string {
 	out += md.Link("Tails", txlink.Call("Tails")) + " ?\n"
 
 	out += md.H3("Latests Results:\n\n")
-	out += md.BulletList(renderLatestResults())
+	out += renderLatestResults()
 
 	return out
 }
