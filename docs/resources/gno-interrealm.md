@@ -234,8 +234,8 @@ future Gno versions.
 
 `panic()` behaves the same within the same realm boundary, but when a panic
 crosses a realm boundary (as defined in [Realm
-Finalization](#realm-boundaries)) the Machine aborts the program. This is
-because in a multi-user environment, it isn't safe to let the caller recover from
+Boundries](#realm-boundaries)) the Machine aborts the program. This is
+because in a multi-user environment it isn't safe to let the caller recover from
 realm panics that often leave the state in an invalid state.
 
 This would be sufficient, but we also want to write our tests to be able

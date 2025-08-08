@@ -1079,7 +1079,7 @@ func (vm *VMKeeper) QueryDoc(ctx sdk.Context, pkgPath string) (*doc.JSONDocument
 	if err != nil {
 		return nil, err
 	}
-	return d.WriteJSONDocumentation()
+	return d.WriteJSONDocumentation(nil)
 }
 
 // QueryStorage returns storage and deposit for a realm.

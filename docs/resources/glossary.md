@@ -12,7 +12,7 @@ consensus engine with the Gno application logic.
 ### ABCI Queries
 A set of queries that can be executed to retrieve data from the Gno.land
 blockchain without changing state.
-See [Querying a network](../users/interact-with-gnokey.md#querying-the-blockchain).
+See [Querying a network](../users/interact-with-gnokey.md#querying-a-gnoland-network).
 
 ### Account Number
 A unique number given to each address on a given network, used for transaction
