@@ -140,9 +140,9 @@ A function declared in a realm package when called:
    first argument). The new realm is called the "current realm".
  * otherwise follows the same rules as for p packages.
 
-The `_ realm` argument must appear as the first argument of a function's 
+The `cur realm` argument must appear as the first argument of a function's 
 parameter list. It is illegal to use anywhere else, and cannot be used in p
-packages. Functions that start with the `_ realm` argument as first argument
+packages. Functions that start with the `cur realm` argument as first argument
 are called "crossing functions". 
 
 A crossing function declared in a realm different from the last explicitly
