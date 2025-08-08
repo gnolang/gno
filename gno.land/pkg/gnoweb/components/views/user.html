@@ -1,323 +1,252 @@
 {{ define "renderUser" }}
-  <aside
-    class="first:mt-8 lg:first:mt-0 col-span-1 lg:col-span-3 lg:order-2 relative border-b lg:border-b-0 pb-8 lg:mb-0 lg:h-full">
-    <div class="lg:sticky top-14 lg:pt-2 space-y-8">
-      <div class="flex lg:flex-col items-start gap-6 lg:mt-10">
-        <div class="w-24 h-24 md:w-36 md:h-36 border border-gray-100 rounded">
-          <img
-            src="/public/imgs/gnoland.svg"
-            alt="{{ .Username }}'s avatar"
-            class="w-full h-full object-cover" />
-        </div>
-        <div class="self-end lg:self-start">
-          <h1
-            class="block font-bold text-700 md:text-800 text-gray-900 leading-[1.1] word-break capitalize">
-            {{ .Handlename }}
-          </h1>
-          <p class="block text-gray-600 text-100 leading-none mt-3">
-            {{ .Username }}
-          </p>
-        </div>
+<aside
+  class="first:mt-8 lg:first:mt-0 col-span-1 lg:col-span-3 lg:order-2 relative border-b lg:border-b-0 pb-8 lg:mb-0 lg:h-full">
+  <div class="lg:sticky top-14 lg:pt-2 space-y-8">
+    <div class="flex lg:flex-col items-start gap-6 lg:mt-10">
+      <div class="w-24 h-24 md:w-36 md:h-36 border border-gray-100 rounded">
+        <img src="/public/imgs/gnoland.svg" alt="{{ .Username }}'s avatar" class="w-full h-full object-cover" />
       </div>
-
-      <a
-        href="#user-contributions-packages"
-        role="button"
-        aria-controls="user-contributions-packages"
-        class="flex sm:gap-1.5 gap-1 items-center justify-center lg:w-fit rounded border py-1.5 px-2 hover:bg-gray-100 font-semibold text-100">
-        Contributions
-        <span
-          class="text-gray-600 text-50 font-normal sm:font-semibold rounded-full bg-gray-50 sm:px-2 sm:py-0.5 px-1.5 py-px ml-1">
-          {{ .PackageCount }}
-        </span>
-      </a>
-
-      <div class="flex flex-col gap-6">
-        {{ with .Bio }}
-          <div>
-            <h2 class="text-400 lg:text-200 font-semibold">Info</h2>
-            <p class="text-gray-600 text-200 lg:text-100 mt-2">
-              {{ . }}
-            </p>
-          </div>
-        {{ end }}
-
-        {{ with .Links }}
-          <div class="flex flex-col gap-2">
-            <h2 class="text-400 lg:text-200 font-semibold">Links</h2>
-            <ul
-              class="flex flex-col gap-2 lg:gap-1 flex-wrap text-200 lg:text-100">
-              {{ range . }}
-                <li>
-                  <a
-                    href="{{ .URL }}"
-                    rel="noopener noreferrer"
-                    class="inline-flex gap-2 items-start group leading-tight"
-                    title="{{ .Title }}">
-                    {{ $type := .Type }}
-                    {{ $icon := printf "ico-%s" $type }}
-                    <svg
-                      class="w-5 h-5 text-gray-400 group-hover:text-gray-600 shrink-0">
-                      <use href="#{{ $icon }}" />
-                    </svg>
-                    <span class="group-hover:underline word-break"
-                      >{{ .URL }}</span
-                    >
-                  </a>
-                </li>
-              {{ end }}
-            </ul>
-          </div>
-        {{ end }}
+      <div class="self-end lg:self-start">
+        <h1 class="block font-bold text-700 md:text-800 text-gray-900 leading-[1.1] word-break capitalize">
+          {{ .Handlename }}
+        </h1>
+        <p class="block text-gray-600 text-100 leading-none mt-3">
+          {{ .Username }}
+        </p>
       </div>
-      {{ with .Teams }}
-        <div class="flex flex-col gap-6">
-          <h2 class="text-400 lg:text-200 font-semibold mt-6 lg:mt-10">
-            Teams
-          </h2>
-          <ul class="flex gap-1 flex-wrap mt-2">
-            {{ range . }}
-              <li>
-                <a
-                  href="#"
-                  class="rounded-full lg:w-7 lg:h-7 w-8 h-8 border border-gray-100 block">
-                  <img
-                    src="/public/imgs/gnoland.svg"
-                    alt="user"
-                    class="w-full h-full"
-                /></a>
-              </li>
-            {{ end }}
-          </ul>
-        </div>
+    </div>
+
+    <a href="#user-contributions-packages" role="button" aria-controls="user-contributions-packages"
+      class="flex sm:gap-1.5 gap-1 items-center justify-center lg:w-fit rounded border py-1.5 px-2 hover:bg-gray-100 font-semibold text-100">
+      Contributions
+      <span
+        class="text-gray-600 text-50 font-normal sm:font-semibold rounded-full bg-gray-50 sm:px-2 sm:py-0.5 px-1.5 py-px ml-1">
+        {{ .PackageCount }}
+      </span>
+    </a>
+
+    <div class="flex flex-col gap-6">
+      {{ with .Bio }}
+      <div>
+        <h2 class="text-400 lg:text-200 font-semibold">Info</h2>
+        <p class="text-gray-600 text-200 lg:text-100 mt-2">
+          {{ . }}
+        </p>
+      </div>
+      {{ end }}
+
+      {{ with .Links }}
+      <div class="flex flex-col gap-2">
+        <h2 class="text-400 lg:text-200 font-semibold">Links</h2>
+        <ul class="flex flex-col gap-2 lg:gap-1 flex-wrap text-200 lg:text-100">
+          {{ range . }}
+          <li>
+            <a href="{{ .URL }}" rel="noopener noreferrer" class="inline-flex gap-2 items-start group leading-tight"
+              title="{{ .Title }}">
+              {{ $type := .Type }}
+              {{ $icon := printf "ico-%s" $type }}
+              <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-600 shrink-0">
+                <use href="#{{ $icon }}" />
+              </svg>
+              <span class="group-hover:underline word-break">{{ .URL }}</span>
+            </a>
+          </li>
+          {{ end }}
+        </ul>
+      </div>
       {{ end }}
     </div>
-  </aside>
+    {{ with .Teams }}
+    <div class="flex flex-col gap-6">
+      <h2 class="text-400 lg:text-200 font-semibold mt-6 lg:mt-10">
+        Teams
+      </h2>
+      <ul class="flex gap-1 flex-wrap mt-2">
+        {{ range . }}
+        <li>
+          <a href="#" class="rounded-full lg:w-7 lg:h-7 w-8 h-8 border border-gray-100 block">
+            <img src="/public/imgs/gnoland.svg" alt="user" class="w-full h-full" /></a>
+        </li>
+        {{ end }}
+      </ul>
+    </div>
+    {{ end }}
+  </div>
+</aside>
 
-  <div class="lg:col-span-7 pt-10">
-    <md-renderer class="realm-view block w-full mb-20 empty:hidden">
-      <div class="realm-view__btns float-right lg:mt-2 ml-6 mb-1">
-        <a
-          href="../r/{{ .Username }}/home"
-          class="flex sm:gap-1.5 gap-2 items-center !no-underline rounded border !text-gray-600 py-1.5 px-2 hover:bg-gray-100 !font-semibold text-50 sm:text-100">
-          <svg class="w-5 h-5 text-gray-600">
+<div class="lg:col-span-7 pt-10">
+  <md-renderer class="realm-view block w-full mb-20 empty:hidden">
+    <div class="realm-view__btns float-right lg:mt-2 ml-6 mb-1">
+      <a href="../r/{{ .Username }}/home"
+        class="flex sm:gap-1.5 gap-2 items-center !no-underline rounded border !text-gray-600 py-1.5 px-2 hover:bg-gray-100 !font-semibold text-50 sm:text-100">
+        <svg class="w-5 h-5 text-gray-600">
+          <use href="#ico-realm"></use>
+        </svg>
+        {{ .Username }}/home
+      </a>
+    </div>
+    {{ render .Content }}
+  </md-renderer>
+
+  <div id="user-contributions-packages" data-controller="list"
+    class="is-loading lg:col-span-7 pb-24 scroll-mt-24 min-h-96 filter-list">
+    <h2 class="block text-gray-900 text-700 md:text-800 font-bold mb-6">
+      Contributions
+    </h2>
+    <nav class="grid grid-cols-4 gap-3 mb-6 md:pb-2 md:border-b">
+      <div
+        class="col-span-4 md:col-span-2 flex gap-4 xl:gap-6 font-semibold text-gray-400 text-200 md:text-100 w-auto xl:w-full xl:ml-0 pb-2 border-b md:border-b-0 md:pb-0">
+        <label class="relative flex gap-1 items-center cursor-pointer hover:text-gray-600 group">
+          <input type="radio" id="contributions-filter-packages" name="contributions-filter" value="packages" checked
+            class="peer hidden" />
+          All&nbsp;Packages
+          <span data-list-target="packages-count"
+            class="hidden sm:inline text-gray-600 text-50 font-normal sm:font-semibold rounded-full bg-gray-50 sm:px-2 sm:py-0.5 px-1.5 py-px">
+            {{ .PackageCount }}
+          </span>
+        </label>
+        <label class="relative flex gap-1 items-center cursor-pointer hover:text-gray-600 group">
+          <input type="radio" id="contributions-filter-realms" name="contributions-filter" value="realms"
+            class="peer hidden" />
+          <svg class="w-5 h-5 text-gray-300 group-hover:text-gray-600 peer-checked:text-gray-600">
             <use href="#ico-realm"></use>
           </svg>
-          {{ .Username }}/home
-        </a>
+          Realms
+          <span data-list-target="realms-count"
+            class="hidden sm:inline text-gray-600 text-50 font-normal sm:font-semibold rounded-full bg-gray-50 sm:px-2 sm:py-0.5 px-1.5 py-px">
+            {{ .RealmCount }}
+          </span>
+        </label>
+        <label class="relative flex gap-1 items-center cursor-pointer hover:text-gray-600 group">
+          <input type="radio" id="contributions-filter-pures" name="contributions-filter" value="pures"
+            class="peer hidden" />
+
+          <svg class="w-5 h-5 text-gray-300 group-hover:text-gray-600 peer-checked:text-gray-600">
+            <use href="#ico-pure"></use>
+          </svg>
+          Pures
+          <span data-list-target="pure-count"
+            class="hidden sm:inline text-gray-600 text-50 font-normal sm:font-semibold rounded-full bg-gray-50 sm:px-2 sm:py-0.5 px-1.5 py-px">
+            {{ .PureCount }}
+          </span>
+        </label>
       </div>
-      {{ render .Content }}
-    </md-renderer>
+      <div class="col-span-2 sm:col-span-1 flex gap-3 md:justify-end items-center text-gray-400 text-100">
+        <div data-action="change->list#orderChange" class="grid">
+          <input type="radio" name="order-mode" value="desc" id="order-desc" class="peer/order-desc hidden" checked />
 
-    <div
-      id="user-contributions-packages"
-      class="js-list is-loading lg:col-span-7 pb-24 scroll-mt-24 min-h-96 filter-list">
-      <h2 class="block text-gray-900 text-700 md:text-800 font-bold mb-6">
-        Contributions
-      </h2>
-      <nav class="grid grid-cols-4 gap-3 mb-6 md:pb-2 md:border-b">
-        <div
-          class="col-span-4 md:col-span-2 flex gap-4 xl:gap-6 font-semibold text-gray-400 text-200 md:text-100 w-auto xl:w-full xl:ml-0 pb-2 border-b md:border-b-0 md:pb-0">
-          <label
-            class="relative flex gap-1 items-center cursor-pointer hover:text-gray-600 group">
-            <input
-              type="radio"
-              id="contributions-filter-packages"
-              name="contributions-filter"
-              value="packages"
-              checked
-              class="peer hidden" />
-            All&nbsp;Packages
-            <span class="js-list-packages-count hidden sm:inline text-gray-600 text-50 font-normal sm:font-semibold rounded-full bg-gray-50 sm:px-2 sm:py-0.5 px-1.5 py-px">
-              {{ .PackageCount }}
-            </span>
-          </label>
-          <label
-            class="relative flex gap-1 items-center cursor-pointer hover:text-gray-600 group">
-            <input
-              type="radio"
-              id="contributions-filter-realms"
-              name="contributions-filter"
-              value="realms"
-              class="peer hidden" />
-            <svg
-              class="w-5 h-5 text-gray-300 group-hover:text-gray-600 peer-checked:text-gray-600">
-              <use href="#ico-realm"></use>
+          <label for="order-asc"
+            class="col-start-1 row-start-1 cursor-pointer flex invisible gap-0.5 items-center justify-between peer-checked/order-desc:visible hover:text-gray-600 group">
+            <svg class="w-5 h-5 text-gray-300 group-hover:text-gray-600">
+              <title>Descending Order</title>
+              <use href="#ico-order-desc"></use>
             </svg>
-            Realms
-            <span class="js-list-realms-count hidden sm:inline text-gray-600 text-50 font-normal sm:font-semibold rounded-full bg-gray-50 sm:px-2 sm:py-0.5 px-1.5 py-px">
-              {{ .RealmCount }}
-            </span>
+            <span class="md:hidden xxl:inline">Order</span>
           </label>
-          <label
-            class="relative flex gap-1 items-center cursor-pointer hover:text-gray-600 group">
-            <input
-              type="radio"
-              id="contributions-filter-pures"
-              name="contributions-filter"
-              value="pures"
-              class="peer hidden" />
 
-            <svg
-              class="w-5 h-5 text-gray-300 group-hover:text-gray-600 peer-checked:text-gray-600">
+          <input type="radio" name="order-mode" value="asc" id="order-asc" class="peer/order-asc hidden" />
+
+          <label for="order-desc"
+            class="col-start-1 row-start-1 cursor-pointer flex invisible gap-0.5 items-center justify-between peer-checked/order-asc:visible hover:text-gray-600 group">
+            <svg class="w-5 h-5 text-gray-300 group-hover:text-gray-600">
+              <title>Ascending Order</title>
+              <use href="#ico-order-asc"></use>
+            </svg>
+            <span class="md:hidden xxl:inline">Order</span>
+          </label>
+        </div>
+
+        <div class="grid" data-action="change->list#displayModeChange">
+          <input type="radio" name="display-mode" value="display-grid" id="display-grid" class="peer/grid hidden"
+            checked />
+
+          <label for="display-list"
+            class="col-start-1 row-start-1 cursor-pointer flex invisible gap-0.5 items-center justify-between peer-checked/grid:visible hover:text-gray-600 group">
+            <svg class="w-5 h-5 text-gray-300 group-hover:text-gray-600">
+              <title>Grid Display</title>
+              <use href="#ico-grid"></use>
+            </svg>
+            <span class="md:hidden xxl:inline">Grid</span>
+          </label>
+
+          <input type="radio" name="display-mode" value="display-list" id="display-list" class="peer/list hidden" />
+
+          <label for="display-grid"
+            class="col-start-1 row-start-1 cursor-pointer flex invisible gap-0.5 items-center justify-between peer-checked/list:visible hover:text-gray-600 group">
+            <svg class="w-5 h-5 text-gray-300 group-hover:text-gray-600">
+              <title>List Display</title>
+              <use href="#ico-list"></use>
+            </svg>
+            <span class="md:hidden xxl:inline">List</span>
+          </label>
+        </div>
+      </div>
+      <div class="col-span-2 sm:col-span-3 md:col-span-1 relative flex text-100">
+        <label for="packages-search" class="sr-only">Search packages</label>
+        <input type="text" id="packages-search" name="packages-search" data-list-target="search-bar"
+          data-action="input->list#search"
+          class="peer rounded-sm border p-1 outline-none w-full border-l lg:px-2 xl:py-1.5 text-gray-600 focus:border-gray-300 hover:border-gray-300"
+          placeholder="" aria-label="Search packages" />
+        <span
+          class="absolute left-2 top-1/2 -translate-y-1/2 xl:inline hidden peer-placeholder-shown:opacity-100 opacity-0 text-gray-300 pointer-events-none">
+          Search Packages
+        </span>
+        <span
+          class="absolute left-2 top-1/2 -translate-y-1/2 xl:hidden inline peer-placeholder-shown:opacity-100 opacity-0 text-gray-300 pointer-events-none">
+          Search
+        </span>
+        <div class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+          <svg class="w-4 h-4">
+            <use href="#ico-search"></use>
+          </svg>
+        </div>
+      </div>
+    </nav>
+    <div data-list-target="range" class="range text-100 text-gray-600">{{- range .Contributions -}}
+      <article data-list-type-value="{{ .Type }}" class="list-item">
+        <div class="list-item__content">
+          <span class="list-item__title">
+            {{ if eq .Type.String "pure" }}
+            <svg class="w-5 h-5 text-gray-600">
               <use href="#ico-pure"></use>
             </svg>
-            Pures
-            <span class="js-list-pure-count hidden sm:inline text-gray-600 text-50 font-normal sm:font-semibold rounded-full bg-gray-50 sm:px-2 sm:py-0.5 px-1.5 py-px">
-              {{ .PureCount }}
-            </span>
-          </label>
-        </div>
-        <div
-          class="col-span-2 sm:col-span-1 flex gap-3 md:justify-end items-center text-gray-400 text-100">
-          <div class="js-list-order-filter grid">
-            <input
-              type="radio"
-              name="order-mode"
-              value="desc"
-              id="order-desc"
-              class="peer/order-desc hidden"
-              checked />
-
-            <label
-              for="order-asc"
-              class="col-start-1 row-start-1 cursor-pointer flex invisible gap-0.5 items-center justify-between peer-checked/order-desc:visible hover:text-gray-600 group">
-              <svg class="w-5 h-5 text-gray-300 group-hover:text-gray-600">
-                <title>Descending Order</title>
-                <use href="#ico-order-desc"></use>
-              </svg>
-              <span class="md:hidden xxl:inline">Order</span>
-             </label>
-
-            <input
-              type="radio"
-              name="order-mode"
-              value="asc"
-              id="order-asc"
-              class="peer/order-asc hidden" />
-
-            <label
-              for="order-desc"
-              class="col-start-1 row-start-1 cursor-pointer flex invisible gap-0.5 items-center justify-between peer-checked/order-asc:visible hover:text-gray-600 group">
-              <svg class="w-5 h-5 text-gray-300 group-hover:text-gray-600">
-                <title>Ascending Order</title>
-                <use href="#ico-order-asc"></use>
-              </svg>
-              <span class="md:hidden xxl:inline">Order</span>
-            </label>
-          </div>
-
-          <div class="grid">
-            <input
-              type="radio"
-              name="display-mode"
-              value="display-grid"
-              id="display-grid"
-              class="peer/grid hidden"
-              checked />
-
-            <label
-              for="display-list"
-              class="col-start-1 row-start-1 cursor-pointer flex invisible gap-0.5 items-center justify-between peer-checked/grid:visible hover:text-gray-600 group">
-              <svg class="w-5 h-5 text-gray-300 group-hover:text-gray-600">
-                <title>Grid Display</title>
-                <use href="#ico-grid"></use>
-              </svg>
-              <span class="md:hidden xxl:inline">Grid</span>
-            </label>
-
-            <input
-              type="radio"
-              name="display-mode"
-              value="display-list"
-              id="display-list"
-              class="peer/list hidden" />
-
-            <label
-              for="display-grid"
-              class="col-start-1 row-start-1 cursor-pointer flex invisible gap-0.5 items-center justify-between peer-checked/list:visible hover:text-gray-600 group">
-              <svg class="w-5 h-5 text-gray-300 group-hover:text-gray-600">
-                <title>List Display</title>
-                <use href="#ico-list"></use>
-              </svg>
-              <span class="md:hidden xxl:inline">List</span>
-            </label>
-          </div>
-        </div>
-        <div
-          class="col-span-2 sm:col-span-3 md:col-span-1 relative flex text-100">
-          <label for="packages-search" class="sr-only">Search packages</label>
-          <input
-            type="text"
-            id="packages-search"
-            name="packages-search"
-            class="js-list-searchbar peer rounded-sm border p-1 outline-none w-full border-l lg:px-2 xl:py-1.5 text-gray-600 focus:border-gray-300 hover:border-gray-300"
-            placeholder=""
-            aria-label="Search packages" />
-          <span
-            class="absolute left-2 top-1/2 -translate-y-1/2 xl:inline hidden peer-placeholder-shown:opacity-100 opacity-0 text-gray-300 pointer-events-none">
-            Search Packages
-          </span>
-          <span
-            class="absolute left-2 top-1/2 -translate-y-1/2 xl:hidden inline peer-placeholder-shown:opacity-100 opacity-0 text-gray-300 pointer-events-none">
-            Search
-          </span>
-          <div
-            class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-            <svg class="w-4 h-4">
-              <use href="#ico-search"></use>
+            {{ else }}
+            <svg class="w-5 h-5 text-gray-600">
+              <use href="#ico-realm"></use>
             </svg>
-          </div>
-        </div>
-      </nav>
-      <div class="js-list-range range text-100 text-gray-600">{{- range .Contributions -}}
-          <article data-type="{{ .Type }}" class="list-item">
-            <div class="list-item__content">
-              <span class="list-item__title">
-                {{ if eq .Type.String "pure" }}
-                  <svg class="w-5 h-5 text-gray-600">
-                    <use href="#ico-pure"></use>
-                  </svg>
-                {{ else }}
-                  <svg class="w-5 h-5 text-gray-600">
-                    <use href="#ico-realm"></use>
-                  </svg>
-                {{ end }}
-                <h3
-                  class="js-list-range-title font-bold text-200 overflow-hidden text-ellipsis whitespace-nowrap">
-                  <a href="{{ .URL }}" class="hover:underline text-green-600">
-                    {{ .Title }}
-                  </a>
-                </h3>
-              </span>
-              <p class="list-item__description">
-                {{ with .Description }}
-                  {{ . }}
-                {{ else }}
-                  <a href="{{ .URL }}" class="hover:underline">
-                    Explore
-                    {{ .Title }}
-                    {{ .Type.String }}
-                  </a>
-                {{ end }}
-              </p>
-            </div>
-            {{ if or .Date .Size }}
-              <div class="list-item__footer">
-                {{ if .Date }}
-                  <time
-                    datetime="{{ .Date.Format "2006-01-02" }}"
-                    class="list-item__date">
-                    {{ FormatRelativeTime .Date }}
-                  </time>
-                {{ end }}
-                {{ if .Size }}
-                  <span class="list-item__size">{{ .Size }}b</span>
-                {{ end }}
-              </div>
             {{ end }}
-          </article>
-        {{ end }}</div>
+            <h3 class="font-bold text-200 overflow-hidden text-ellipsis whitespace-nowrap">
+              <a href="{{ .URL }}" class="hover:underline text-green-600" data-list-target="range-title">{{- .Title
+                -}}</a>
+            </h3>
+          </span>
+          <p class="list-item__description">
+            {{ with .Description }}
+            {{ . }}
+            {{ else }}
+            <a href="{{ .URL }}" class="hover:underline">
+              Explore
+              {{ .Title }}
+              {{ .Type.String }}
+            </a>
+            {{ end }}
+          </p>
+        </div>
+        {{ if or .Date .Size }}
+        <div class="list-item__footer">
+          {{ if .Date }}
+          <time datetime="{{ .Date.Format " 2006-01-02" }}" class="list-item__date">
+            {{ FormatRelativeTime .Date }}
+          </time>
+          {{ end }}
+          {{ if .Size }}
+          <span class="list-item__size">{{ .Size }}b</span>
+          {{ end }}
+        </div>
+        {{ end }}
+      </article>
+      {{ end }}
     </div>
   </div>
+</div>
 {{ end }}

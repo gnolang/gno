@@ -56,6 +56,7 @@ type indexLayoutParams struct {
 	// Additional data
 	IsDevmodView bool
 	ViewType     string
+	JSController string
 }
 
 func IndexLayout(data IndexData) Component {
