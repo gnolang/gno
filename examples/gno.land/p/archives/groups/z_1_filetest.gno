@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/archives/groups_test
+// PKGPATH: gno.land/p/archives/groups
 package groups
 
 import (

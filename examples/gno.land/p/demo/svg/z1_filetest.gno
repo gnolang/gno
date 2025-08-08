@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/p/demo/svg_test
-package svg_test
+// PKGPATH: gno.land/p/demo/svg
+package svg
 
 import "gno.land/p/demo/svg"
 

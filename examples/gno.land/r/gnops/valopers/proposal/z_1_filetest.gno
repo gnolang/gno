@@ -1,7 +1,7 @@
-// PKGPATH: gno.land/r/gnoland/valopers_proposal_test
+// PKGPATH: gno.land/r/gnops/valopers/proposal
 // SEND: 100000000ugnot
 
-package valopers_proposal_test
+package proposal
 
 import (
 	"std"
