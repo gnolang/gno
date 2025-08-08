@@ -112,7 +112,6 @@ export class ActionFunctionController extends BaseController {
 			const u = new URL(functionLink.href, window.location.origin);
 			u.searchParams.set(paramName, paramValue);
 			functionLink.href = u.toString();
-			console.log(functionLink.href);
 		}
 	}
 

@@ -123,5 +123,77 @@ declare const __DEV__: boolean;
 		);
 	};
 
-	document.addEventListener("DOMContentLoaded", initModules);
+	const startObserver = (): void => {
+		const queue = new Map<string, Set<HTMLElement>>();
+		let scheduled = false;
+
+		const flush = () => {
+			scheduled = false;
+			if (queue.size === 0) return;
+			const tasks: Promise<void>[] = [];
+			for (const [name, set] of queue)
+				tasks.push(loadController(name, [...set]));
+			queue.clear();
+			Promise.all(tasks).catch((e) =>
+				console.error("Observer batch error:", e),
+			);
+		};
+
+		const schedule = () => {
+			if (!scheduled) {
+				scheduled = true;
+				queueMicrotask(flush); // setTimeout(flush, 0)
+			}
+		};
+
+		const handleRoot = (root: ParentNode) => {
+			// short-circuit if no controllers are found
+			if (!(root as Element).querySelector?.("[data-controller]")) return;
+
+			// collect the controllers in the root element
+			const map = collectControllers(root);
+			for (const [name, els] of map) {
+				const kebab = toKebabCase(name);
+				const flag = `data-controller-initialized-${kebab}`;
+				const filtered = els.filter((el) => !el.hasAttribute(flag));
+				if (filtered.length === 0) continue;
+
+				const set = queue.get(name) ?? new Set<HTMLElement>();
+				filtered.forEach((el) => set.add(el));
+				queue.set(name, set);
+			}
+			if (map.size) schedule();
+		};
+
+		// create a mutation observer to observe the document for new controllers
+		const observer = new MutationObserver((muts) => {
+			for (const m of muts) {
+				if (m.type === "childList") {
+					m.addedNodes.forEach((n) => {
+						if (n.nodeType === 1) handleRoot(n as ParentNode);
+					});
+				} else if (m.type === "attributes" && m.target instanceof HTMLElement) {
+					handleRoot(m.target);
+				}
+			}
+		});
+
+		// observe the document for new controllers
+		observer.observe(document.documentElement, {
+			childList: true,
+			subtree: true,
+			attributes: true,
+			attributeFilter: ["data-controller"],
+		});
+
+		if (typeof __DEV__ !== "undefined" && __DEV__) {
+			console.log("👀 controllers observer started");
+		}
+	};
+
+	// Init modules and start observer after DOMContentLoaded
+	document.addEventListener("DOMContentLoaded", async () => {
+		await initModules();
+		startObserver();
+	});
 })();
