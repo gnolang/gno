@@ -1,0 +1,5 @@
+module = "gno.land/r/gov/dao/v3/memberstore"
+gno = "0.9"
+
+[addpkg]
+  creator = "g1g73v2anukg4ej7axwqpthsatzrxjsh0wk797da"

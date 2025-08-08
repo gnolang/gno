@@ -555,8 +555,10 @@ func (m *Machine) doOpPanic2() {
 	}
 	cfr := m.PopUntilLastCallFrame()
 	if cfr == nil {
-		// panic(m.makeUnhandledPanicError())
-		panic("should not happen")
+		// If we can't find a call frame, we're in a corrupted state.
+		// This can happen during init functions with realm calls.
+		// Return the original exception as an unhandled panic.
+		panic(m.makeUnhandledPanicError())
 	}
 	m.PushOp(OpReturnCallDefers)
 }

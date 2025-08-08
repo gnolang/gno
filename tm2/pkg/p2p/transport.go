@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
@@ -29,12 +29,12 @@ var (
 	errIncompatibleNodeInfo   = errors.New("incompatible node info")
 )
 
-type connUpgradeFn func(io.ReadWriteCloser, crypto.PrivKey) (*conn.SecretConnection, error)
+type connUpgradeFn func(io.ReadWriteCloser, ed25519.PrivKeyEd25519) (*conn.SecretConnection, error)
 
 type secretConn interface {
 	net.Conn
 
-	RemotePubKey() crypto.PubKey
+	RemotePubKey() ed25519.PubKeyEd25519
 }
 
 // peerInfo is a wrapper for an unverified peer connection
@@ -420,7 +420,7 @@ func exchangeNodeInfo(
 func (mt *MultiplexTransport) upgradeToSecretConn(
 	c net.Conn,
 	timeout time.Duration,
-	privKey crypto.PrivKey,
+	privKey ed25519.PrivKeyEd25519,
 ) (secretConn, error) {
 	if err := c.SetDeadline(time.Now().Add(timeout)); err != nil {
 		return nil, err

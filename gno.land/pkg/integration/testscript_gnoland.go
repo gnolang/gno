@@ -37,7 +37,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const nodeMaxLifespan = time.Second * 30
+const nodeMaxLifespan = time.Second * 120
 
 var defaultUserBalance = std.Coins{std.NewCoin(ugnot.Denom, 10e8)}
 
@@ -77,6 +77,8 @@ type tNodeProcess struct {
 type NodesManager struct {
 	nodes map[string]*tNodeProcess
 	mu    sync.RWMutex
+
+	sequentialMu sync.RWMutex
 }
 
 // NewNodesManager creates a new instance of NodesManager.
@@ -274,6 +276,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			fs := flag.NewFlagSet("start", flag.ContinueOnError)
 			nonVal := fs.Bool("non-validator", false, "set up node as a non-validator")
 			lockTransfer := fs.Bool("lock-transfer", false, "lock transfer ugnot")
+			noParallel := fs.Bool("no-parallel", false, "don't run this node in parallel with other testing nodes")
 			if err := fs.Parse(cmdargs); err != nil {
 				ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 			}
@@ -297,19 +300,41 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 
 			cfg.Genesis.AppState = genesis
 			if *nonVal {
-				pv := gnoland.NewMockedPrivValidator()
+				pv := bft.NewMockPV()
+				pvPubKey := pv.PubKey()
 				cfg.Genesis.Validators = []bft.GenesisValidator{
 					{
-						Address: pv.GetPubKey().Address(),
-						PubKey:  pv.GetPubKey(),
+						Address: pvPubKey.Address(),
+						PubKey:  pvPubKey,
 						Power:   10,
 						Name:    "none",
 					},
 				}
 			}
 
+			if *noParallel {
+				// The reason for this is that a direct Lock() on the RWMutex
+				// can too easily create "splits", which are inefficient;
+				// for instance: 10 parallel tests, one sequential test, 10 parallel tests.
+				// Instead, TryLock() does not "request" the lock to be
+				// transferred to the caller, so any incoming RLock() will be
+				// given if there are other RLocks.
+				// There is probably a better way to do this without using this hack;
+				// however, this should be done if -no-parallel is actually
+				// adopted in a variety of tests.
+				for !nodesManager.sequentialMu.TryLock() {
+					time.Sleep(time.Millisecond * 10)
+				}
+				ts.Defer(nodesManager.sequentialMu.Unlock)
+			} else {
+				nodesManager.sequentialMu.RLock()
+				ts.Defer(nodesManager.sequentialMu.RUnlock)
+			}
+
 			ctx, cancel := context.WithTimeout(context.Background(), nodeMaxLifespan)
 			ts.Defer(cancel)
+
+			start := time.Now()
 
 			dbdir := ts.Getenv("GNO_DBDIR")
 			priv := ts.Value(envKeyPrivValKey).(ed25519.PrivKeyEd25519)
@@ -328,7 +353,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			// Load user infos
 			loadUserEnv(ts, nodep.Address())
 
-			fmt.Fprintln(ts.Stdout(), "node started successfully")
+			fmt.Fprintf(ts.Stdout(), "node started successfully, took %s\n", time.Since(start).String())
 
 		case "restart":
 			node, exists := nodesManager.Get(sid)

@@ -29,21 +29,11 @@ type HeaderData struct {
 }
 
 func StaticHeaderGeneralLinks() []HeaderLink {
-	links := []HeaderLink{
-		{
-			Label: "About",
-			URL:   "https://gno.land/about",
-		},
-		{
-			Label: "Docs",
-			URL:   "https://docs.gno.land/",
-		},
-		{
-			Label: "GitHub",
-			URL:   "https://github.com/gnolang",
-		},
+	return []HeaderLink{
+		{Label: "About", URL: "https://gno.land/about"},
+		{Label: "Docs", URL: "https://docs.gno.land/"},
+		{Label: "GitHub", URL: "https://github.com/gnolang"},
 	}
-	return links
 }
 
 func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode) []HeaderLink {
@@ -52,36 +42,36 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode) []HeaderLink {
 	sourceURL.WebQuery = url.Values{"source": {""}}
 	helpURL.WebQuery = url.Values{"help": {""}}
 
-	links := []HeaderLink{
-		{
-			Label:    "Content",
-			URL:      contentURL.EncodeWebURL(),
-			Icon:     "ico-content",
-			IsActive: isActive(u.WebQuery, "Content"),
-		},
-		{
-			Label:    "Source",
-			URL:      sourceURL.EncodeWebURL(),
-			Icon:     "ico-code",
-			IsActive: isActive(u.WebQuery, "Source"),
-		},
+	contentLink := HeaderLink{
+		Label:    "Content",
+		URL:      contentURL.EncodeWebURL(),
+		Icon:     "ico-content",
+		IsActive: isActive(u.WebQuery, "Content"),
+	}
+
+	sourceLink := HeaderLink{
+		Label:    "Source",
+		URL:      sourceURL.EncodeWebURL(),
+		Icon:     "ico-code",
+		IsActive: isActive(u.WebQuery, "Source"),
+	}
+
+	actionsLink := HeaderLink{
+		Label:    "Actions",
+		URL:      helpURL.EncodeWebURL(),
+		Icon:     "ico-helper",
+		IsActive: isActive(u.WebQuery, "Actions"),
 	}
 
 	switch mode {
 	case ViewModeExplorer:
-		// no links - full width breadcrumb
 		return []HeaderLink{}
+	case ViewModeUser:
+		return []HeaderLink{contentLink}
 	case ViewModePackage:
-		// links
-		return links
+		return []HeaderLink{contentLink, sourceLink}
 	default:
-		// links + Actions
-		return append(links, HeaderLink{
-			Label:    "Actions",
-			URL:      helpURL.EncodeWebURL(),
-			Icon:     "ico-helper",
-			IsActive: isActive(u.WebQuery, "Actions"),
-		})
+		return []HeaderLink{contentLink, sourceLink, actionsLink}
 	}
 }
 

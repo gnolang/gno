@@ -614,8 +614,7 @@ func validateBasicTxMsgs(msgs []Msg) error {
 
 	for _, msg := range msgs {
 		// Validate the Msg.
-		err := msg.ValidateBasic()
-		if err != nil {
+		if err := msg.ValidateBasic(); err != nil {
 			return err
 		}
 	}

@@ -172,7 +172,7 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]Tx
 // It creates and returns a list of transactions based on these packages.
 func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWithMetadata, error) {
 	// list all packages from target path
-	pkgs, err := gno.ReadPkgListFromDir(dir)
+	pkgs, err := gno.ReadPkgListFromDir(dir, gno.MPUserAll)
 	if err != nil {
 		return nil, fmt.Errorf("listing gno packages from gnomod: %w", err)
 	}
@@ -183,14 +183,29 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWith
 		return nil, fmt.Errorf("sorting packages: %w", err)
 	}
 
-	// Filter out draft packages.
-	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
-	txs := make([]TxWithMetadata, 0, len(nonDraftPkgs))
+	// Filter out ignore packages.
+	nonIgnoredPkgs := sortedPkgs.GetNonIgnoredPkgs()
+	txs := make([]TxWithMetadata, 0, len(nonIgnoredPkgs))
 
-	for _, pkg := range nonDraftPkgs {
+	for _, pkg := range nonIgnoredPkgs {
 		// XXX: as addpkg require gno.mod, we should probably check this here
-		mpkg := gno.MustReadMemPackage(pkg.Dir, pkg.Name)
-		tx, err := LoadPackage(mpkg, creator, fee, nil)
+		mpkg, err := gno.ReadMemPackage(pkg.Dir, pkg.Name, gno.MPUserAll)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)
+		}
+
+		// Check if gnomod.toml specifies a creator
+		packageCreator := creator
+		if mod, err := gno.ParseCheckGnoMod(mpkg); err == nil && mod != nil && mod.AddPkg.Creator != "" {
+			// Parse the creator address from gnomod.toml
+			creatorAddr, err := crypto.AddressFromBech32(mod.AddPkg.Creator)
+			if err != nil {
+				return nil, fmt.Errorf("invalid creator address %q in package %q: %w", mod.AddPkg.Creator, pkg.Dir, err)
+			}
+			packageCreator = creatorAddr
+		}
+
+		tx, err := LoadPackage(mpkg, packageCreator, fee, nil)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)
 		}
@@ -208,7 +223,7 @@ func LoadPackage(mpkg *std.MemPackage, creator bft.Address, fee std.Fee, deposit
 	var tx std.Tx
 
 	// Open files in directory as MemPackage.
-	err := gno.ValidateMemPackage(mpkg)
+	err := gno.ValidateMemPackageAny(mpkg)
 	if err != nil {
 		return tx, fmt.Errorf("invalid package: %w", err)
 	}
@@ -217,9 +232,9 @@ func LoadPackage(mpkg *std.MemPackage, creator bft.Address, fee std.Fee, deposit
 	tx.Fee = fee
 	tx.Msgs = []std.Msg{
 		vmm.MsgAddPackage{
-			Creator: creator,
-			Package: mpkg,
-			Deposit: deposit,
+			Creator:    creator,
+			Package:    mpkg,
+			MaxDeposit: deposit,
 		},
 	}
 	tx.Signatures = make([]std.Signature, len(tx.GetSigners()))

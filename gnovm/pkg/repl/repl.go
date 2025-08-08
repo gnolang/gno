@@ -61,7 +61,7 @@ func NewRepl(opts ...ReplOption) *Repl {
 	r.input = os.Stdin
 	r.output = os.Stdout
 	r.errput = os.Stderr
-	_, r.store = test.Store(gnoenv.RootDir(), test.OutputWithError(r.output, r.errput))
+	_, r.store = test.TestStore(gnoenv.RootDir(), test.OutputWithError(r.output, r.errput))
 	r.pn = gno.NewPackageNode("repl", r.pkgPath, &gno.FileSet{})
 	r.pv = r.pn.NewPackage()
 	r.fn = &gno.FileNode{
@@ -136,7 +136,7 @@ func (r *Repl) RunStatements(code string) {
 				switch rec := rec.(type) {
 				case *gno.PreprocessError:
 					err := rec.Unwrap()
-					match := gno.Re_errorLine.Match(err.Error())
+					match := gno.ReErrorLine.Match(err.Error())
 					if match == nil {
 						r.Errorln(err.Error())
 					} else {
@@ -144,7 +144,7 @@ func (r *Repl) RunStatements(code string) {
 					}
 				case error:
 					err := rec
-					match := gno.Re_errorLine.Match(err.Error())
+					match := gno.ReErrorLine.Match(err.Error())
 					if match == nil {
 						r.Errorln(err.Error())
 					} else {

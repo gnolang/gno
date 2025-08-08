@@ -723,6 +723,7 @@ func (mv *MapValue) GetLength() int {
 // GetPointerForKey is only used for assignment, so the key
 // is not returned as part of the pointer, and TV is not filled.
 func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
+	// If NaN, instead of computing map key, just append to List.
 	kmk := key.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
 		return PointerValue{
@@ -743,6 +744,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 // Like GetPointerForKey, but does not create a slot if key
 // doesn't exist.
 func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue, ok bool) {
+	// If key is NaN, return default
 	kmk := key.ComputeMapKey(store, false)
 	if mli, exists := mv.vmap[kmk]; exists {
 		fillValueTV(store, &mli.Value)
@@ -752,6 +754,7 @@ func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue
 }
 
 func (mv *MapValue) DeleteForKey(store Store, key *TypedValue) {
+	// if key is NaN, do nothing.
 	kmk := key.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
 		mv.List.Remove(mli)
@@ -890,6 +893,10 @@ func (pv *PackageValue) GetPackageNode(store Store) *PackageNode {
 // Convenience
 func (pv *PackageValue) GetPkgAddr() crypto.Address {
 	return DerivePkgCryptoAddr(pv.PkgPath)
+}
+
+func (pv *PackageValue) GetPkgStorageDepositAddr() crypto.Address {
+	return DeriveStorageDepositCryptoAddr(pv.PkgPath)
 }
 
 // ----------------------------------------
@@ -1538,8 +1545,12 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		bz = append(bz, pbz...)
 	case *PointerType:
 		fillValueTV(store, tv)
-		ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
-		bz = append(bz, uintptrToBytes(&ptr)...)
+		var ptrBytes [sizeOfUintPtr]byte // zero-initialized for nil pointers
+		if tv.V != nil {
+			ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
+			ptrBytes = uintptrToBytes(&ptr)
+		}
+		bz = append(bz, ptrBytes[:]...)
 	case FieldType:
 		panic("field (pseudo)type cannot be used as map key")
 	case *ArrayType:
@@ -1894,10 +1905,10 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 	iv := TypedValue{T: IntType}
 	iv.SetInt(int64(ii))
-	return tv.GetPointerAtIndex(nilAllocator, store, &iv)
+	return tv.GetPointerAtIndex(nilRealm, nilAllocator, store, &iv)
 }
 
-func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *TypedValue) PointerValue {
+func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Store, iv *TypedValue) PointerValue {
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		if bt == StringType || bt == UntypedStringType {
@@ -1939,6 +1950,15 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 			panic(&Exception{Value: typedString("uninitialized map index")})
 		}
 		mv := tv.V.(*MapValue)
+
+		// if key already exist,
+		// no need to attach it.
+		exist := false
+		key := iv.ComputeMapKey(store, false)
+		if _, ok := mv.vmap[key]; ok {
+			exist = true
+		}
+
 		pv := mv.GetPointerForKey(alloc, store, iv)
 		if pv.TV.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
@@ -1946,6 +1966,10 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 				// this will get assigned over, so no alloc.
 				*(pv.TV) = defaultTypedValue(nil, vt)
 			}
+		}
+		// attach mapkey object
+		if !exist {
+			rlm.DidUpdate(mv, nil, iv.GetFirstObject(store))
 		}
 		return pv
 	default:

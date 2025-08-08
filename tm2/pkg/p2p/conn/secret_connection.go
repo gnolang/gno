@@ -22,7 +22,6 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/async"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
@@ -57,7 +56,7 @@ type SecretConnection struct {
 	recvAead cipher.AEAD
 	sendAead cipher.AEAD
 
-	remPubKey crypto.PubKey
+	remPubKey ed25519.PubKeyEd25519
 	conn      io.ReadWriteCloser
 
 	// net.Conn must be thread safe:
@@ -80,8 +79,8 @@ type SecretConnection struct {
 // Returns nil if there is an error in handshake.
 // Caller should call conn.Close()
 // See docs/sts-final.pdf for more information.
-func MakeSecretConnection(conn io.ReadWriteCloser, locPrivKey crypto.PrivKey) (*SecretConnection, error) {
-	locPubKey := locPrivKey.PubKey()
+func MakeSecretConnection(conn io.ReadWriteCloser, locPrivKey ed25519.PrivKeyEd25519) (*SecretConnection, error) {
+	locPubKey := locPrivKey.PubKey().(ed25519.PubKeyEd25519)
 
 	// Generate ephemeral keys for perfect forward secrecy.
 	locEphPub, locEphPriv := genEphKeys()
@@ -142,10 +141,6 @@ func MakeSecretConnection(conn io.ReadWriteCloser, locPrivKey crypto.PrivKey) (*
 
 	remPubKey, remSignature := authSigMsg.Key, authSigMsg.Sig
 
-	if _, ok := remPubKey.(ed25519.PubKeyEd25519); !ok {
-		return nil, errors.New("expected ed25519 pubkey, got %T", remPubKey)
-	}
-
 	if !remPubKey.VerifyBytes(challenge[:], remSignature) {
 		return nil, errors.New("challenge verification failed")
 	}
@@ -156,7 +151,7 @@ func MakeSecretConnection(conn io.ReadWriteCloser, locPrivKey crypto.PrivKey) (*
 }
 
 // RemotePubKey returns authenticated remote pubkey
-func (sc *SecretConnection) RemotePubKey() crypto.PubKey {
+func (sc *SecretConnection) RemotePubKey() ed25519.PubKeyEd25519 {
 	return sc.remPubKey
 }
 
@@ -431,11 +426,11 @@ func sort32(foo, bar *[32]byte) (lo, hi *[32]byte) {
 }
 
 type authSigMessage struct {
-	Key crypto.PubKey
+	Key ed25519.PubKeyEd25519
 	Sig []byte
 }
 
-func shareAuthSignature(sc *SecretConnection, pubKey crypto.PubKey, signature []byte) (recvMsg authSigMessage, err error) {
+func shareAuthSignature(sc *SecretConnection, pubKey ed25519.PubKeyEd25519, signature []byte) (recvMsg authSigMessage, err error) {
 	// Send our info and receive theirs in tandem.
 	trs, _ := async.Parallel(
 		func(_ int) (val any, err error, abort bool) {

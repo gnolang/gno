@@ -45,7 +45,7 @@ func Incr(cur realm) {
 			},
 		},
 	}
-	pkg.SetFile("gno.mod", gnolang.GenGnoModLatest(pkg.Path))
+	pkg.SetFile("gnomod.toml", gnolang.GenGnoModLatest(pkg.Path))
 	pkg.Sort()
 
 	rootdir := gnoenv.RootDir()
@@ -164,7 +164,7 @@ import foo "` + targetPath + `"
 
 func Render(_ string) string { return foo.Render("bar") }`,
 			},
-			{Name: "gno.mod", Body: gnolang.GenGnoModLatest(barPath)},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(barPath)},
 		}
 
 		cli, err := client.NewHTTPClient(interceptor.TargetAddress())

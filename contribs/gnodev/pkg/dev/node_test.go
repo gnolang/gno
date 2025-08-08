@@ -61,7 +61,7 @@ func Render(_ string) string { return "foo" }
 		},
 	}
 
-	pkg.SetFile("gno.mod", gnolang.GenGnoModLatest(pkg.Path))
+	pkg.SetFile("gnomod.toml", gnolang.GenGnoModLatest(pkg.Path))
 	pkg.Sort()
 
 	logger := log.NewTestingLogger(t)
@@ -94,6 +94,10 @@ func TestNodeAddPackage(t *testing.T) {
 func Render(_ string) string { return "foo" }
 `,
 			},
+			{
+				Name: "gnomod.toml",
+				Body: gnolang.GenGnoModLatest("gno.land/r/dev/foo"),
+			},
 		},
 	}
 
@@ -106,6 +110,10 @@ func Render(_ string) string { return "foo" }
 				Body: `package bar
 func Render(_ string) string { return "bar" }
 `,
+			},
+			{
+				Name: "gnomod.toml",
+				Body: gnolang.GenGnoModLatest("gno.land/r/dev/bar"),
 			},
 		},
 	}
@@ -144,7 +152,7 @@ func TestNodeUpdatePackage(t *testing.T) {
 		Name: "foobar",
 		Path: "gno.land/r/dev/foobar",
 	}
-	modfile := &std.MemFile{Name: "gno.mod", Body: gnolang.GenGnoModLatest(foorbarPkg.Path)}
+	modfile := &std.MemFile{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(foorbarPkg.Path)}
 
 	fooFiles := []*std.MemFile{
 		{
@@ -211,6 +219,10 @@ func UpdateStr(cur realm, newStr string) { // method to update 'str' variable
 func Render(_ string) string { return str }
 `,
 			},
+			{
+				Name: "gnomod.toml",
+				Body: gnolang.GenGnoModLatest("gno.land/r/dev/foo"),
+			},
 		},
 	}
 
@@ -271,6 +283,10 @@ func Inc(cur realm) {  // method to increment i
 
 func Render(_ string) string { return strconv.Itoa(i) }
 `,
+			},
+			{
+				Name: "gnomod.toml",
+				Body: gnolang.GenGnoModLatest("gno.land/r/dev/foo"),
 			},
 		},
 	}
@@ -577,13 +593,13 @@ func newTestingNodeConfig(pkgs ...*std.MemPackage) *NodeConfig {
 	var loader packages.BaseLoader
 	gnoroot := gnoenv.RootDir()
 
-	// Ensure that a gno.mod exists
+	// Ensure that a gnomod.toml exists
 	for _, pkg := range pkgs {
-		if mod := pkg.GetFile("gno.mod"); mod != nil {
+		if mod := pkg.GetFile("gnomod.toml"); mod != nil {
 			continue
 		}
 
-		pkg.SetFile("gno.mod", gnolang.GenGnoModLatest(pkg.Path))
+		pkg.SetFile("gnomod.toml", gnolang.GenGnoModLatest(pkg.Path))
 		pkg.Sort()
 	}
 

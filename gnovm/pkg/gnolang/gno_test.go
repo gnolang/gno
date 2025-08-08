@@ -22,9 +22,7 @@ func setupMachine(b *testing.B, numValues, numStmts, numExprs, numBlocks, numFra
 
 	m := &Machine{
 		Ops:       make([]Op, 100),
-		NumOps:    100,
 		Values:    make([]TypedValue, numValues),
-		NumValues: numValues,
 		Exprs:     make([]Expr, numExprs),
 		Stmts:     make([]Stmt, numStmts),
 		Blocks:    make([]*Block, numBlocks),

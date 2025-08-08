@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/std_test
-package std_test
+// PKGPATH: gno.land/r/std
+package std
 
 import (
 	"std"
@@ -27,7 +27,7 @@ func main(cur realm) {
 }
 
 // Output:
-// (slice[ref(1ed29bd278d735e20e296bd4afe927501941392f:8)] std.AddressList)
+// (slice[ref(6da16ec68c07a7e26176ab66972e2ddf979cd22f:8)] std.AddressList)
 // error: address already exists
 // has: true
 // has: false
