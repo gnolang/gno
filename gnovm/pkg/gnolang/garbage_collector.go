@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -120,6 +121,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount int64) Visitor {
 		if debug {
 			debug.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
 		}
+		fmt.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
 
 		if oo, isObject := v.(Object); isObject {
 			// Return if already measured.
@@ -143,6 +145,10 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount int64) Visitor {
 		// Consider removing it later if no issues arise.
 		maxBytes, curBytes := alloc.Status()
 		if maxBytes < curBytes+size {
+			fmt.Println("======curBytes: ", curBytes)
+			fmt.Println("======size: ", size)
+			fmt.Println("======curBytes + size: ", curBytes+size)
+			fmt.Println("======maxBytes: ", maxBytes)
 			return true
 		}
 
