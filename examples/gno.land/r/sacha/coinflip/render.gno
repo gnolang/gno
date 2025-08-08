@@ -67,7 +67,7 @@ func renderGame() string {
 }
 
 func renderRight() string {
-	out := md.Image("Coin Flip Illustration", "https://cdn.dribbble.com/userupload/23852777/file/original-7c6789feec78629e91335795a5baf105.gif")
+	out := md.Image("Coin Flip Illustration", "https://ipfs.io/ipfs/QmVZxCKz3J5iMHrACNLfFWpfpfcKT2aSmZMfvZsCQnMWbf")
 	out += "\n"
 	out += renderBalance()
 	return out
