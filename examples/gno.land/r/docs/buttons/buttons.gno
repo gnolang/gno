@@ -12,7 +12,7 @@ var (
 	lastCaller std.Address
 )
 
-func UpdateMOTD(newmotd string) {
+func UpdateMOTD(_ realm, newmotd string) {
 	motd = newmotd
 	lastCaller = std.PreviousRealm().Address()
 }
