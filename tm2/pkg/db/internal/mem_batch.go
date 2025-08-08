@@ -62,7 +62,7 @@ func (mBatch *MemBatch) Close() error {
 
 func (mBatch *MemBatch) GetByteSize() (int, error) {
 	if mBatch.Ops == nil {
-		return 0, errors.New("batch has been written or closed")
+		return 0, errors.New("membatch: batch has been written or closed")
 	}
 	return mBatch.Size, nil
 }

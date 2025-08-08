@@ -186,7 +186,7 @@ func (mBatch *goLevelDBBatch) Close() error { return nil }
 // Implements Batch
 func (mBatch *goLevelDBBatch) GetByteSize() (int, error) {
 	if mBatch.batch == nil {
-		return 0, errors.New("batch has been written or closed")
+		return 0, errors.New("goleveldb: batch has been written or closed")
 	}
 	return len(mBatch.batch.Dump()), nil
 }

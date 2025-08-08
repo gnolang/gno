@@ -219,7 +219,7 @@ func (bdb *boltDBBatch) Close() error {
 
 func (bdb *boltDBBatch) GetByteSize() (int, error) {
 	if bdb.ops == nil {
-		return 0, errors.New("batch has been written or closed")
+		return 0, errors.New("boltdb: batch has been written or closed")
 	}
 	return bdb.size, nil
 }

@@ -156,7 +156,11 @@ func (db *MemDB) NewBatch() dbm.Batch {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	return &internal.MemBatch{DB: db, Size: 0}
+	return &internal.MemBatch{
+		DB:   db,
+		Ops:  []internal.Operation{},
+		Size: 0,
+	}
 }
 
 // Implements DB.
