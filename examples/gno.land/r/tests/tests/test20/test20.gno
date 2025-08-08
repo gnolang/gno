@@ -9,8 +9,8 @@
 package test20
 
 import (
-	"gno.land/p/demo/grc/grc20"
-	"gno.land/r/demo/grc20reg"
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/r/demo/defi/grc20reg"
 )
 
 var Token, PrivateLedger = grc20.NewToken("Test20", "TST", 4)

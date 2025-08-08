@@ -4,9 +4,9 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/demo/grc/grc20"
-	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/grc20reg"
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/ufmt"
+	"gno.land/r/demo/defi/grc20reg"
 )
 
 var Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0)

@@ -3,7 +3,7 @@ package commondao
 import (
 	"errors"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 // MemberGrouping defines an interface for storing multiple member groups.

@@ -3,7 +3,7 @@ package int256
 import (
 	"testing"
 
-	"gno.land/p/demo/uint256"
+	"gno.land/p/onbloc/uint256"
 )
 
 func TestInitializers(t *testing.T) {

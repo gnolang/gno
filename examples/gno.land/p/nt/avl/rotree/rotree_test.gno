@@ -3,7 +3,7 @@ package rotree
 import (
 	"testing"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 func TestExample(t *testing.T) {

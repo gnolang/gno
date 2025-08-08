@@ -4,7 +4,7 @@ import (
 	"errors"
 	"std"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 // Teller interface defines the methods that a GRC20 token must implement. It

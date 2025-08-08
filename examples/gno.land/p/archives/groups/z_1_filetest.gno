@@ -1,9 +1,9 @@
-// PKGPATH: gno.land/r/demo/groups_test
+// PKGPATH: gno.land/r/archives/groups_test
 package groups
 
 import (
-	"gno.land/p/demo/groups"
-	"gno.land/p/demo/testutils"
+	"gno.land/p/archives/groups"
+	"gno.land/p/nt/testutils"
 )
 
 var vset groups.VoteSet

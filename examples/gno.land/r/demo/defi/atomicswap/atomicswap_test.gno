@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/uassert"
-	"gno.land/r/demo/tests/test20"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/uassert"
+	"gno.land/r/tests/tests/test20"
 )
 
 var testRun bool
@@ -301,7 +301,7 @@ func TestNewGRC20Swap_Claim(t *testing.T) {
 
 	// Create a new swap
 	testing.SetRealm(std.NewUserRealm(sender))
-	id, swap := NewGRC20Swap(cross, recipient, hashlockHex, "gno.land/r/demo/tests/test20")
+	id, swap := NewGRC20Swap(cross, recipient, hashlockHex, "gno.land/r/tests/tests/test20")
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -376,7 +376,7 @@ func TestNewGRC20Swap_Refund(t *testing.T) {
 
 	// Create a new swap
 	testing.SetRealm(std.NewUserRealm(sender))
-	id, swap := NewGRC20Swap(cross, recipient, hashlockHex, "gno.land/r/demo/tests/test20")
+	id, swap := NewGRC20Swap(cross, recipient, hashlockHex, "gno.land/r/tests/tests/test20")
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active

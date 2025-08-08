@@ -4,8 +4,8 @@ import (
 	"regexp"
 	"std"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/nt/avl"
 )
 
 //----------------------------------------

@@ -3,10 +3,10 @@ package pager
 import (
 	"testing"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/urequire"
 )
 
 func TestPager_GetPage(t *testing.T) {

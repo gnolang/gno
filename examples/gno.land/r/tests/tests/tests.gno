@@ -4,7 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/nestedpkg"
-	rsubtests "gno.land/r/demo/tests/subtests"
+	rsubtests "gno.land/r/tests/tests/subtests"
 )
 
 var counter int

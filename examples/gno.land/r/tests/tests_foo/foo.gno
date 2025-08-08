@@ -1,10 +1,10 @@
 package tests_foo
 
 import (
-	"gno.land/r/demo/tests"
+	"gno.land/r/tests/tests"
 )
 
-// for testing gno.land/r/demo/tests/interfaces.go
+// for testing gno.land/r/tests/tests/interfaces.go
 
 type FooStringer struct {
 	FieldA string

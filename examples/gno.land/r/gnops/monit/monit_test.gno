@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/demo/ownable"
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/watchdog"
+	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/watchdog"
 )
 
 func initTest() {

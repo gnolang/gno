@@ -3,7 +3,7 @@ package fqname
 import (
 	"testing"
 
-	"gno.land/p/demo/uassert"
+	"gno.land/p/nt/uassert"
 )
 
 func TestParse(t *testing.T) {
@@ -12,10 +12,10 @@ func TestParse(t *testing.T) {
 		expectedPkgPath string
 		expectedName    string
 	}{
-		{"gno.land/p/demo/avl.Tree", "gno.land/p/demo/avl", "Tree"},
-		{"gno.land/p/demo/avl", "gno.land/p/demo/avl", ""},
-		{"gno.land/p/demo/avl.Tree.Node", "gno.land/p/demo/avl", "Tree.Node"},
-		{"gno.land/p/demo/avl/nested.Package.Func", "gno.land/p/demo/avl/nested", "Package.Func"},
+		{"gno.land/p/nt/avl.Tree", "gno.land/p/nt/avl", "Tree"},
+		{"gno.land/p/nt/avl", "gno.land/p/nt/avl", ""},
+		{"gno.land/p/nt/avl.Tree.Node", "gno.land/p/nt/avl", "Tree.Node"},
+		{"gno.land/p/nt/avl/nested.Package.Func", "gno.land/p/nt/avl/nested", "Package.Func"},
 		{"path/filepath.Split", "path/filepath", "Split"},
 		{"path.Split", "path", "Split"},
 		{"path/filepath", "path/filepath", ""},
@@ -58,8 +58,8 @@ func TestRenderLink(t *testing.T) {
 		slug     string
 		expected string
 	}{
-		{"gno.land/p/demo/avl", "Tree", "[gno.land/p/demo/avl](/p/demo/avl).Tree"},
-		{"gno.land/p/demo/avl", "", "[gno.land/p/demo/avl](/p/demo/avl)"},
+		{"gno.land/p/nt/avl", "Tree", "[gno.land/p/nt/avl](/p/demo/avl).Tree"},
+		{"gno.land/p/nt/avl", "", "[gno.land/p/nt/avl](/p/demo/avl)"},
 		{"github.com/a/b", "C", "github.com/a/b.C"},
 		{"example.com/pkg", "Func", "example.com/pkg.Func"},
 		{"gno.land/r/demo/foo20", "Token", "[gno.land/r/demo/foo20](/r/demo/foo20).Token"},

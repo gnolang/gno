@@ -1,9 +1,9 @@
 package valopers
 
 import (
-	"gno.land/p/demo/avl"
 	"gno.land/p/moul/authz"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/nt/avl"
 )
 
 func init() {

@@ -3,15 +3,15 @@ package foo20
 import (
 	"std"
 
-	"gno.land/p/demo/avl"
-	p "gno.land/p/demo/avl/pager"
-	"gno.land/p/demo/avl/rotree"
-	"gno.land/p/demo/grc/grc20"
-	"gno.land/p/demo/mux"
-	"gno.land/p/demo/ownable"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/moul/md"
-	"gno.land/r/demo/grc20reg"
+	"gno.land/p/nt/avl"
+	p "gno.land/p/nt/avl/pager"
+	"gno.land/p/nt/avl/rotree"
+	"gno.land/p/nt/mux"
+	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/ufmt"
+	"gno.land/r/demo/defi/grc20reg"
 )
 
 var (

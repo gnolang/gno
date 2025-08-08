@@ -43,10 +43,10 @@ import (
 	"strconv"
 	"time"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/grc/grc20"
-	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/grc20reg"
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/ufmt"
+	"gno.land/r/demo/defi/grc20reg"
 )
 
 const defaultTimelockDuration = 7 * 24 * time.Hour // 1w
@@ -64,7 +64,7 @@ func NewCoinSwap(cur realm, recipient std.Address, hashlock string) (int, *Swap)
 }
 
 // NewGRC20Swap creates a new atomic swap contract for grc20 tokens.
-// It uses gno.land/r/demo/grc20reg to lookup for a registered token.
+// It uses gno.land/r/demo/defi/grc20reg to lookup for a registered token.
 func NewGRC20Swap(cur realm, recipient std.Address, hashlock string, tokenRegistryKey string) (int, *Swap) {
 	timelock := time.Now().Add(defaultTimelockDuration)
 	token := grc20reg.MustGet(tokenRegistryKey)

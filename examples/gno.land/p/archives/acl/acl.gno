@@ -3,7 +3,7 @@ package acl
 import (
 	"std"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 func New() *Directory {

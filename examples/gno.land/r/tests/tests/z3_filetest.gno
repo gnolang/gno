@@ -5,14 +5,14 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/r/demo/tests"
+	"gno.land/p/nt/testutils"
+	"gno.land/r/tests/tests"
 )
 
 func main() {
 	var (
 		eoa        = testutils.TestAddress("someone")
-		rTestsAddr = std.DerivePkgAddr("gno.land/r/demo/tests")
+		rTestsAddr = std.DerivePkgAddr("gno.land/r/tests/tests")
 	)
 	testing.SetOriginCaller(eoa)
 	// Contrarily to z2_filetest.gno we EXPECT GetPreviousRealms != eoa (#1704)

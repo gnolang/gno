@@ -2,7 +2,7 @@
 package avl
 
 import (
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 var node *avl.Node
@@ -84,7 +84,7 @@ func main(cur realm) {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/demo/avl.Node"
+//                     "ID": "gno.land/p/nt/avl.Node"
 //                 }
 //             }
 //         },
@@ -93,7 +93,7 @@ func main(cur realm) {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/demo/avl.Node"
+//                     "ID": "gno.land/p/nt/avl.Node"
 //                 }
 //             }
 //         }
@@ -117,7 +117,7 @@ func main(cur realm) {
 //     "Value": {
 //         "T": {
 //             "@type": "/gno.RefType",
-//             "ID": "gno.land/p/demo/avl.Node"
+//             "ID": "gno.land/p/nt/avl.Node"
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
@@ -158,7 +158,7 @@ func main(cur realm) {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/demo/avl.Node"
+//                     "ID": "gno.land/p/nt/avl.Node"
 //                 }
 //             },
 //             "V": {
@@ -177,7 +177,7 @@ func main(cur realm) {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/demo/avl.Node"
+//                     "ID": "gno.land/p/nt/avl.Node"
 //                 }
 //             },
 //             "V": {
@@ -211,7 +211,7 @@ func main(cur realm) {
 //     "Value": {
 //         "T": {
 //             "@type": "/gno.RefType",
-//             "ID": "gno.land/p/demo/avl.Node"
+//             "ID": "gno.land/p/nt/avl.Node"
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
@@ -252,7 +252,7 @@ func main(cur realm) {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/demo/avl.Node"
+//                     "ID": "gno.land/p/nt/avl.Node"
 //                 }
 //             },
 //             "V": {
@@ -271,7 +271,7 @@ func main(cur realm) {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/demo/avl.Node"
+//                     "ID": "gno.land/p/nt/avl.Node"
 //                 }
 //             },
 //             "V": {
@@ -305,7 +305,7 @@ func main(cur realm) {
 //     "Value": {
 //         "T": {
 //             "@type": "/gno.RefType",
-//             "ID": "gno.land/p/demo/avl.Node"
+//             "ID": "gno.land/p/nt/avl.Node"
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",

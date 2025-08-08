@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/demo/groups_test
+// PKGPATH: gno.land/r/archives/groups_test
 package groups
 
 // SEND: 200000000ugnot
@@ -7,8 +7,8 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/r/demo/groups"
+	"gno.land/p/nt/testutils"
+	"gno.land/r/archives/groups"
 	users "gno.land/r/gnoland/users/v1"
 )
 

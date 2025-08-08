@@ -3,7 +3,7 @@ package int256
 import (
 	"math"
 
-	"gno.land/p/demo/uint256"
+	"gno.land/p/onbloc/uint256"
 )
 
 // SetInt64 sets the Int to the value of the provided int64.

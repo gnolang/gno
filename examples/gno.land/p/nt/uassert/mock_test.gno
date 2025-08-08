@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"gno.land/p/demo/uassert"
+	"gno.land/p/nt/uassert"
 )
 
 type mockTestingT struct {

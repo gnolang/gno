@@ -3,7 +3,7 @@ package list
 import (
 	"testing"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 func TestList_Basic(t *testing.T) {

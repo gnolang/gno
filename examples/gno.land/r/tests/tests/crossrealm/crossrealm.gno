@@ -3,9 +3,9 @@ package crossrealm
 import (
 	"std"
 
-	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/tests/p_crossrealm"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/ufmt"
 )
 
 type LocalStruct struct {

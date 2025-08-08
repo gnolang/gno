@@ -7,12 +7,12 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/r/demo/banktest"
+	"gno.land/r/archives/banktest"
 )
 
 func main() {
 	// set up main address and banktest addr.
-	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/banktest")
+	banktestAddr := std.DerivePkgAddr("gno.land/r/archives/banktest")
 	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
 	testing.SetOriginCaller(mainaddr)
 

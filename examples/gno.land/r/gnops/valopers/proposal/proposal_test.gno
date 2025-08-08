@@ -4,9 +4,9 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/urequire"
 	"gno.land/r/gnoland/valopers"
 	"gno.land/r/gov/dao"
 	daoinit "gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed

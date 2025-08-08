@@ -4,7 +4,7 @@ import (
 	"std"
 	"time"
 
-	"gno.land/p/demo/rat"
+	"gno.land/p/archives/rat"
 )
 
 //----------------------------------------

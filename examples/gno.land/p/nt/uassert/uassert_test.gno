@@ -6,8 +6,8 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/uassert"
-	"gno.land/r/demo/tests"
+	"gno.land/p/nt/uassert"
+	"gno.land/r/tests/tests"
 )
 
 var _ uassert.TestingT = (*testing.T)(nil)

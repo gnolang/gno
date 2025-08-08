@@ -4,7 +4,7 @@ import (
 	"errors"
 	"std"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 	pVals "gno.land/p/sys/validators"
 	valopers "gno.land/r/gnoland/valopers"
 	"gno.land/r/gov/dao"

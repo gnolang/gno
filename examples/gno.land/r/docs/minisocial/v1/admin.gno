@@ -1,6 +1,6 @@
 package minisocial
 
-import "gno.land/p/demo/ownable"
+import "gno.land/p/nt/ownable"
 
 var Ownable = ownable.NewWithAddress("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
 

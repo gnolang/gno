@@ -13,7 +13,7 @@ var stringers []Stringer
 func AddStringer(cur realm, str Stringer) {
 	// NOTE: this is ridiculous, a slice that will become too long
 	// eventually.  Don't do this in production programs; use
-	// gno.land/p/demo/avl or similar structures.
+	// gno.land/p/nt/avl or similar structures.
 	stringers = append(stringers, str)
 }
 

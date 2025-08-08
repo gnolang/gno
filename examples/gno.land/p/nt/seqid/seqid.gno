@@ -14,7 +14,7 @@ package seqid
 import (
 	"encoding/binary"
 
-	"gno.land/p/demo/cford32"
+	"gno.land/p/nt/cford32"
 )
 
 // An ID is a simple sequential ID generator.
@@ -53,7 +53,7 @@ func (i ID) Binary() string {
 }
 
 // String encodes i using cford32's compact encoding. For more information,
-// see the documentation for package [gno.land/p/demo/cford32].
+// see the documentation for package [gno.land/p/nt/cford32].
 //
 // The result of String will be a 7-byte string for IDs [0,2^34), and a
 // 13-byte string for all values following that. All generated string IDs

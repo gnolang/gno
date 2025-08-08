@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/demo/diff"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
+	"gno.land/p/onbloc/diff"
 )
 
 // NoError asserts that a function returned no error (i.e. `nil`).

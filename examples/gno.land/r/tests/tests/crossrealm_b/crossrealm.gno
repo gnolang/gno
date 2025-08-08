@@ -3,7 +3,7 @@ package crossrealm_b
 import (
 	"std"
 
-	"gno.land/r/demo/tests/crossrealm"
+	"gno.land/r/tests/tests/crossrealm"
 )
 
 type fooer struct {

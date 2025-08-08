@@ -3,8 +3,8 @@ package bar20
 import (
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/urequire"
 )
 
 func TestPackage(t *testing.T) {

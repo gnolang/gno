@@ -3,7 +3,7 @@ package rolist
 import (
 	"testing"
 
-	"gno.land/p/demo/avl/list"
+	"gno.land/p/nt/avl/list"
 )
 
 func TestExample(t *testing.T) {

@@ -4,8 +4,8 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/uassert"
 	"gno.land/p/moul/authz"
+	"gno.land/p/nt/uassert"
 )
 
 func TestUpdateInstructions(t *testing.T) {

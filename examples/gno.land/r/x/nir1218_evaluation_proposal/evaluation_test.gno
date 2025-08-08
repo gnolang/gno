@@ -10,8 +10,8 @@ package evaluation
 import (
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/ufmt"
 )
 
 var (

@@ -5,8 +5,8 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/r/demo/tests"
+	"gno.land/p/nt/testutils"
+	"gno.land/r/tests/tests"
 )
 
 func TestAssertOriginCall(t *testing.T) {
@@ -18,7 +18,7 @@ func TestAssertOriginCall(t *testing.T) {
 		t.Errorf("expected IsOriginCall=true but got false")
 	}
 
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/tests/tests"))
 	// CallAssertOriginCall() from a block: abort
 	r := revive(func() {
 		// if called inside a function literal, this is no longer an origin call
@@ -48,8 +48,8 @@ func TestAssertOriginCall(t *testing.T) {
 
 func TestPreviousRealm(t *testing.T) {
 	var (
-		firstRealm = std.DerivePkgAddr("gno.land/r/demo/tests_test")
-		rTestsAddr = std.DerivePkgAddr("gno.land/r/demo/tests")
+		firstRealm = std.DerivePkgAddr("gno.land/r/tests/tests_test")
+		rTestsAddr = std.DerivePkgAddr("gno.land/r/tests/tests")
 	)
 	// When only one realm in the frames, PreviousRealm returns the same realm
 	if addr := tests.GetPreviousRealm(cross).Address(); addr != firstRealm {

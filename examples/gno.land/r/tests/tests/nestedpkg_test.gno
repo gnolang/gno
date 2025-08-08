@@ -7,7 +7,7 @@ import (
 
 func TestNestedPkg(t *testing.T) {
 	// direct child
-	cur := "gno.land/r/demo/tests/foo"
+	cur := "gno.land/r/tests/tests/foo"
 	testing.SetRealm(std.NewCodeRealm(cur))
 	if !IsCallerSubPath(cross) {
 		t.Errorf(cur + " should be a sub path")
@@ -20,7 +20,7 @@ func TestNestedPkg(t *testing.T) {
 	}
 
 	// grand-grand-child
-	cur = "gno.land/r/demo/tests/foo/bar/baz"
+	cur = "gno.land/r/tests/tests/foo/bar/baz"
 	testing.SetRealm(std.NewCodeRealm(cur))
 	if !IsCallerSubPath(cross) {
 		t.Errorf(cur + " should be a sub path")

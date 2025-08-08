@@ -4,7 +4,7 @@ import (
 	"errors"
 	"io"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 type buffer struct {

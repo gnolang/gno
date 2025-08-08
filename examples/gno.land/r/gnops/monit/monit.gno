@@ -10,9 +10,9 @@ import (
 	"std"
 	"time"
 
-	"gno.land/p/demo/ownable"
-	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/watchdog"
+	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/watchdog"
 )
 
 var (

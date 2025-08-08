@@ -4,12 +4,12 @@ import (
 	"net/url"
 	"strings"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/avl/pager"
-	"gno.land/p/demo/fqname"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/pager"
+	"gno.land/p/nt/fqname"
+	"gno.land/p/nt/ufmt"
 
 	"gno.land/r/sys/users"
 )

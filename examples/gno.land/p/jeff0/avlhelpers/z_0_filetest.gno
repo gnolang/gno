@@ -4,9 +4,9 @@ package avlhelpers
 import (
 	"encoding/hex"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/avlhelpers"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/jeff0/avlhelpers"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/ufmt"
 )
 
 func main() {

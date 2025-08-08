@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/grc/grc20"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/urequire"
 )
 
 func TestRegistry(t *testing.T) {

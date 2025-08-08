@@ -6,7 +6,7 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/testutils"
+	"gno.land/p/nt/testutils"
 	"gno.land/r/demo/wugnot"
 )
 
