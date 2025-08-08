@@ -43,7 +43,7 @@ func GetRealmBalance(cur realm) int64 {
 	return balance
 }
 
-func CashOut(cur realm, amount int64) {
+func Withdrawal(cur realm, amount int64) {
 	if !config.IsAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
