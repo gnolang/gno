@@ -276,7 +276,7 @@ func (pb prefixBatch) Close() error {
 
 func (bp prefixBatch) GetByteSize() (int, error) {
 	if bp.source == nil {
-		return 0, errors.New("batch has been written or closed")
+		return 0, errors.New("prefixdb: batch has been written or closed")
 	}
 	return bp.source.GetByteSize()
 }

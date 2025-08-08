@@ -1,6 +1,8 @@
 package db
 
-import iavldb "github.com/cosmos/iavl/db"
+import (
+	corestore "cosmossdk.io/core/store"
+)
 
 // DBs are goroutine safe.
 type DB interface {
@@ -63,7 +65,7 @@ type DB interface {
 // Batch
 
 // Batch Close must be called when the program no longer needs the object.
-type Batch = iavldb.Batch
+type Batch = corestore.Batch
 
 // ----------------------------------------
 // Iterator
@@ -79,4 +81,4 @@ defer itr.Close()
 		// ...
 	}
 */
-type Iterator = iavldb.Iterator
+type Iterator = corestore.Iterator

@@ -162,7 +162,11 @@ func (mdb *mockDB) Close() error {
 
 func (mdb *mockDB) NewBatch() db.Batch {
 	mdb.calls["NewBatch"]++
-	return &internal.MemBatch{DB: mdb}
+	return &internal.MemBatch{
+		DB:   mdb,
+		Ops:  []internal.Operation{},
+		Size: 0,
+	}
 }
 
 func (mdb *mockDB) Print() {
