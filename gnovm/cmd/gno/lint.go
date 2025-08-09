@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gnolang/gno/gnovm/cmd/gno/internal/cmdutil"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -88,7 +89,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			SourceStore:    prodgs,
 		},
 	)
-	ppkgs := map[string]processedPackage{}
+	ppkgs := map[string]cmdutil.ProcessedPackage{}
 	cache := make(gno.TypeCheckCache)
 
 	if cmd.verbose {
@@ -219,7 +220,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		// Handle runtime errors
 		didPanic := catchPanic(dir, pkgPath, io.Err(), func() {
 			// Memo process results here.
-			ppkg := processedPackage{mpkg: mpkg, dir: dir}
+			ppkg := cmdutil.ProcessedPackage{MPkg: mpkg, Dir: dir}
 
 			// Run type checking
 			// LINT STEP 2: ParseGnoMod()
@@ -265,7 +266,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				tm.Store = newProdGnoStore()
 				pn, _ := tm.PreprocessFiles(
 					mpkg.Name, mpkg.Path, fset, false, false, "")
-				ppkg.AddProd(pn, fset)
+				ppkg.AddNormal(pn, fset)
 			}
 			{
 				// LINT STEP 5: PreprocessFiles()
@@ -325,7 +326,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		}
 
 		// LINT STEP 6: mpkg.WriteTo():
-		err := ppkg.mpkg.WriteTo(dir)
+		err := ppkg.MPkg.WriteTo(dir)
 		if err != nil {
 			return err
 		}
