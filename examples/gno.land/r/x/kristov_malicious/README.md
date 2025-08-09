@@ -1,0 +1,1 @@
+This directory contains vulnerable or serruptious examples of Gno to highlight areas where the language excels or demands improvement for auditability and ease of writing secure code.
