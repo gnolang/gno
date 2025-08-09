@@ -1,0 +1,5 @@
+module = "gno.land/p/samcrew/daokit"
+gno = "0.9"
+
+[addpkg]
+  creator = "g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen"
