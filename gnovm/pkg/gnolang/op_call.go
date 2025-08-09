@@ -141,6 +141,8 @@ func (m *Machine) doOpCall() {
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
 	fv := fr.Func
+
+	// Profiling is now handled by RecordProfileSample
 	fs := fv.GetSource(m.Store)
 	ft := fr.Func.GetType(m.Store)
 	// Create new block scope.
@@ -276,6 +278,9 @@ func (m *Machine) maybeFinalize(cfr *Frame) {
 func (m *Machine) doOpReturn() {
 	// Unwind stack.
 	cfr := m.PopUntilLastCallFrame()
+
+	// Profiling is now handled by RecordProfileSample
+
 	// Finalize if exiting realm boundary.
 	m.maybeFinalize(cfr)
 	// Reset to before frame.

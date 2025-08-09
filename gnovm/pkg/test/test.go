@@ -16,6 +16,7 @@ import (
 	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/profiler"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -24,6 +25,20 @@ import (
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"go.uber.org/multierr"
 )
+
+// getProfileFormat converts string format to ProfileFormat
+func getProfileFormat(format string) profiler.ProfileFormat {
+	switch format {
+	case "toplist":
+		return profiler.FormatTopList
+	case "calltree":
+		return profiler.FormatCallTree
+	case "json":
+		return profiler.FormatJSON
+	default:
+		return profiler.FormatText
+	}
+}
 
 const (
 	// DefaultHeight is the default height used in the [Context].
@@ -143,6 +158,20 @@ type TestOptions struct {
 	Metrics bool
 	// Uses Error to print the events emitted.
 	Events bool
+	// Enable profiling for performance analysis.
+	Profile bool
+	// File to write profiling output.
+	ProfileOutput string
+	// Print profiling output to stdout instead of file.
+	ProfileStdout bool
+	// Profile output format.
+	ProfileFormat string
+	// Profile type.
+	ProfileType string
+	// Function name for line-by-line profile listing.
+	ProfileList string
+	// Global profiler instance (internal use)
+	globalProfiler *profiler.Profiler
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -224,6 +253,63 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 	var errs error
 
+	// Initialize profiling if enabled
+	if opts.Profile {
+		// Select profile type based on flag
+		profileType := profiler.ProfileCPU
+		sampleRate := 100
+		if opts.ProfileType == "memory" {
+			profileType = profiler.ProfileMemory
+			sampleRate = 1 // Sample every allocation for memory
+		}
+		globalProfiler := profiler.NewProfiler()
+		// Enable line-level profiling if list option is used
+		if opts.ProfileList != "" {
+			globalProfiler.EnableLineProfiling()
+		}
+		globalProfiler.StartProfiling(nil, profiler.Options{
+			Type:       profileType,
+			SampleRate: sampleRate,
+		})
+		opts.globalProfiler = globalProfiler // Store in opts for use in runTestFiles
+		defer func() {
+			profile := globalProfiler.StopProfiling()
+			if profile != nil {
+				if opts.ProfileList != "" {
+					// Show line-by-line profile for specific function
+					fmt.Fprintln(opts.Output, "\n=== FUNCTION PROFILE ===")
+					err := profile.WriteFunctionList(opts.Output, opts.ProfileList, nil)
+					if err != nil {
+						fmt.Fprintf(opts.Error, "Failed to write function profile: %v\n", err)
+					}
+				} else if opts.ProfileStdout {
+					// Print to stdout
+					fmt.Fprintln(opts.Output, "\n=== PROFILING RESULTS ===")
+					format := getProfileFormat(opts.ProfileFormat)
+					err := profile.WriteFormat(opts.Output, format)
+					if err != nil {
+						fmt.Fprintf(opts.Error, "Failed to write profile: %v\n", err)
+					}
+				} else {
+					// Write to file
+					file, err := os.Create(opts.ProfileOutput)
+					if err != nil {
+						fmt.Fprintf(opts.Error, "Failed to create profile output file: %v\n", err)
+					} else {
+						defer file.Close()
+						format := getProfileFormat(opts.ProfileFormat)
+						err = profile.WriteFormat(file, format)
+						if err != nil {
+							fmt.Fprintf(opts.Error, "Failed to write profile: %v\n", err)
+						} else {
+							fmt.Fprintf(opts.Error, "Profile written to %s\n", opts.ProfileOutput)
+						}
+					}
+				}
+			}
+		}()
+	}
+
 	// Create a common tcw/tgs for both the `pkg` tests as well as the
 	// `pkg_test` tests. This allows us to "export" symbols from the pkg
 	// tests and import them from the `pkg_test` tests.
@@ -246,6 +332,10 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		// will run the mempackage ourselves in the next line.
 		SkipPackage: true,
 	})
+	// Enable profiling on the machine if profiling is enabled
+	if opts.Profile && opts.globalProfiler != nil {
+		m2.SetProfiler(opts.globalProfiler)
+	}
 	// Filter out xxx_test *_test.gno and *_filetest.gno and run.
 	// If testing with only filetests, there will be no files.
 	tmpkg := gno.MPFTest.FilterMemPackage(mpkg)
@@ -351,6 +441,8 @@ func (opts *TestOptions) runTestFiles(
 	files *gno.FileSet,
 	tgs gno.TransactionStore,
 ) (errs error) {
+	// Get profiler from the test options
+	globalProfiler := opts.globalProfiler
 	var m *gno.Machine
 	defer func() {
 		if r := recover(); r != nil {
@@ -368,7 +460,7 @@ func (opts *TestOptions) runTestFiles(
 	tests := loadTestFuncs(mpkg.Name, files)
 
 	var alloc *gno.Allocator
-	if opts.Metrics {
+	if opts.Metrics || (opts.Profile && opts.ProfileType == "memory") {
 		alloc = gno.NewAllocator(math.MaxInt64)
 	}
 	// reset store ops, if any - we only need them for some filetests.
@@ -377,6 +469,13 @@ func (opts *TestOptions) runTestFiles(
 	// Check if we already have the package - it may have been eagerly loaded.
 	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
 	m.Alloc = alloc
+	if m.Alloc != nil {
+		m.Alloc.SetMachine(m)
+	}
+	// Enable profiling on the machine if profiling is enabled
+	if opts.Profile && globalProfiler != nil {
+		m.SetProfiler(globalProfiler)
+	}
 	if tgs.GetMemPackage(mpkg.Path) == nil {
 		m.RunMemPackage(mpkg, false)
 	} else {
@@ -398,7 +497,14 @@ func (opts *TestOptions) runTestFiles(
 		// - Wrap here.
 		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
 		m.Alloc = alloc.Reset()
+		if m.Alloc != nil {
+			m.Alloc.SetMachine(m)
+		}
 		m.SetActivePackage(pv)
+		// Enable profiling on the test machine if profiling is enabled
+		if opts.Profile && globalProfiler != nil {
+			m.SetProfiler(globalProfiler)
+		}
 
 		testingpv := m.Store.GetPackage("testing/base", false)
 		testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
