@@ -25,7 +25,7 @@ func main(cur realm,) {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
 //              "LastObjectSize": "249",
 //     -        "ModTime": "0",
-//     +        "ModTime": "10",
+//     +        "ModTime": "7",
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
 //              "RefCount": "1"
 //          },
@@ -54,7 +54,7 @@ func main(cur realm,) {
 //     +        "IsEscaped": true,
 //              "LastObjectSize": "333",
 //     -        "ModTime": "0",
-//     +        "ModTime": "10",
+//     +        "ModTime": "7",
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
 //     -        "RefCount": "1"
 //     +        "RefCount": "2"

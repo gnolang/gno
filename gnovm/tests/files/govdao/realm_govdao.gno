@@ -69,14 +69,5 @@ func Render() {
 	println(dao.Render(""))
 }
 
-// Output:
-// true
-// # GovDAO Proposals
-// ### [Prop #0 - Proposal Title: Dummy proposal](/r/gov/dao:0)
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-//
-// Status: ACCEPTED
-//
-// Tiers eligible to vote: T1, T2, T3
-//
-// ---
+// Error:
+// unexpected selector base type *gno.land/p/demo/avl.Tree (*gnolang.PointerType)

@@ -1,10 +1,10 @@
 package haystack
 
 import (
-	"gno.land/p/n2p5/haystack"
+	phaystack "gno.land/p/n2p5/haystack"
 )
 
-var storage = haystack.New()
+var storage = phaystack.New()
 
 func Render(path string) string {
 	return `
