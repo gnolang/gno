@@ -106,6 +106,8 @@ func (fr *Frame) SetIsRevive() {
 	fr.IsRevive = true
 }
 
+const GasCostFrame = 1 // gas cost corresponding to pushing a new max depth for frame stack
+
 //----------------------------------------
 // Defer
 

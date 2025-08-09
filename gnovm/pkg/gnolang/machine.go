@@ -29,6 +29,7 @@ type Machine struct {
 	Stmts         []Stmt        // pending statements
 	Blocks        []*Block      // block (scope) stack
 	Frames        []Frame       // func call stack
+	MaxFrames     int           // current max stack depth
 	Package       *PackageValue // active package
 	Realm         *Realm        // active realm
 	Alloc         *Allocator    // memory allocations
@@ -1838,10 +1839,17 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 		NumStmts:  len(m.Stmts),
 		NumBlocks: len(m.Blocks),
 	}
+
 	if debug {
 		m.Printf("+F %#v\n", fr)
 	}
 	m.Frames = append(m.Frames, fr)
+	if len(m.Frames) > m.MaxFrames {
+		m.MaxFrames = len(m.Frames)
+		if m.GasMeter != nil {
+			m.GasMeter.ConsumeGas(GasCostFrame, "frame pushed")
+		}
+	}
 }
 
 // TODO: track breaks/panics/returns on frame and
@@ -1895,6 +1903,12 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	// NOTE: fr cannot be mutated from hereon, as it is a value.
 	// If it must be mutated after append, use m.LastFrame() instead.
 	m.Frames = append(m.Frames, fr)
+	if len(m.Frames) > m.MaxFrames {
+		m.MaxFrames = len(m.Frames)
+		if m.GasMeter != nil {
+			m.GasMeter.ConsumeGas(GasCostFrame, "frame pushed")
+		}
+	}
 
 	// Set the package.
 	// .Package always refers to the code being run,
