@@ -22,6 +22,7 @@ require (
 )
 
 require (
+	connectrpc.com/connect v1.18.1 // indirect
 	dario.cat/mergo v1.0.1 // indirect
 	github.com/alecthomas/chroma/v2 v2.15.0 // indirect
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
