@@ -2,8 +2,83 @@ package errors
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"runtime"
+	"strings"
+	"sync"
 )
+
+// ----------------------------------------
+// Build directory detection for cleaner stack traces
+
+var buildDir string
+var buildDirOnce sync.Once
+
+// getBuildDir returns the root directory of the build
+func getBuildDir() string {
+	buildDirOnce.Do(func() {
+		// Use GOMOD environment variable
+		if gomod := os.Getenv("GOMOD"); gomod != "" && gomod != "/dev/null" {
+			buildDir = filepath.Dir(gomod)
+			return
+		}
+
+		// Fallback: try to find the module root from current file
+		_, file, _, ok := runtime.Caller(0)
+		if ok {
+			dir := filepath.Dir(file)
+			for dir != "/" && dir != "." {
+				if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+					buildDir = dir
+					return
+				}
+				dir = filepath.Dir(dir)
+			}
+		}
+	})
+	return buildDir
+}
+
+// stripBuildDir removes the build directory prefix from a file path
+func stripBuildDir(path string) string {
+	// Handle project paths (within the gno repository)
+	if bd := getBuildDir(); bd != "" {
+		if strings.HasPrefix(path, bd) {
+			return "gno/" + strings.TrimPrefix(path, bd+"/")
+		}
+	}
+
+	// Handle Go module paths (e.g., /home/user/go/pkg/mod/... or C:\Users\user\go\pkg\mod\...)
+	// Support both Unix and Windows path separators
+	modulePath := "/go/pkg/mod/"
+	if idx := strings.Index(path, modulePath); idx >= 0 {
+		modPath := path[idx+len(modulePath):]
+		// For toolchain paths, simplify further
+		if strings.HasPrefix(modPath, "golang.org/toolchain@") && strings.Contains(modPath, "/src/") {
+			if srcIdx := strings.Index(modPath, "/src/"); srcIdx >= 0 {
+				return "toolchain/" + modPath[srcIdx+len("/src/"):]
+			}
+		}
+		return "mod/" + modPath
+	}
+	// Windows style paths
+	modulePathWin := `\go\pkg\mod\`
+	if idx := strings.Index(path, modulePathWin); idx >= 0 {
+		modPath := path[idx+len(modulePathWin):]
+		// Convert Windows separators to Unix style
+		modPath = strings.ReplaceAll(modPath, `\`, "/")
+		// For toolchain paths, simplify further
+		if strings.HasPrefix(modPath, "golang.org/toolchain@") && strings.Contains(modPath, "/src/") {
+			if srcIdx := strings.Index(modPath, "/src/"); srcIdx >= 0 {
+				return "toolchain/" + modPath[srcIdx+len("/src/"):]
+			}
+		}
+		return "mod/" + modPath
+	}
+
+	return path
+}
 
 // ----------------------------------------
 // Convenience method.
@@ -180,7 +255,7 @@ func (err *cmnError) Format(s fmt.State, verb rune) {
 			frames := runtime.CallersFrames(err.stacktrace)
 			for i := 0; ; i++ {
 				frame, more := frames.Next()
-				fmt.Fprintf(s, " %4d  %s:%d\n", i, frame.File, frame.Line)
+				fmt.Fprintf(s, " %4d  %s:%d\n", i, stripBuildDir(frame.File), frame.Line)
 				if !more {
 					break
 				}
@@ -211,7 +286,7 @@ func (mti msgtraceItem) String() string {
 	fnc := runtime.FuncForPC(mti.pc)
 	file, line := fnc.FileLine(mti.pc)
 	return fmt.Sprintf("%s:%d - %s",
-		file, line,
+		stripBuildDir(file), line,
 		mti.msg,
 	)
 }
