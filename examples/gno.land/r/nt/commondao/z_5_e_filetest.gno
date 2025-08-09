@@ -19,7 +19,7 @@ type propDef struct{}
 
 func (propDef) Title() string                                                 { return "" }
 func (propDef) Body() string                                                  { return "" }
-func (propDef) VotingPeriod() time.Duration                                   { return 0 }
+func (propDef) VotingPeriod() time.Duration                                   { return time.Hour }
 func (propDef) Validate() error                                               { return nil }
 func (propDef) Tally(pdao.ReadonlyVotingRecord, pdao.MemberSet) (bool, error) { return false, nil }
 func (propDef) Execute() error                                                { return nil }
