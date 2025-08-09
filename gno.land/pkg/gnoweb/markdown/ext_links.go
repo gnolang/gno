@@ -251,8 +251,10 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 	// Render all icons dynamically
 	for _, icon := range getLinkIcons(n) {
 		writeHTMLTag(w, "span", []attr{
-			{"class", icon.class + " js-tooltip tooltip"},
+			{"class", icon.class + " tooltip"},
+			{"data-tooltip-target", "info"},
 			{"data-tooltip", icon.tooltip},
+			{"title", icon.tooltip},
 		})
 		w.WriteString(`<svg class="w-3 h-3"><use href="#` + icon.iconID + `"></use></svg>`)
 		w.WriteString("</span>")

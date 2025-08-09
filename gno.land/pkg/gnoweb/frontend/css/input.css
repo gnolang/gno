@@ -547,12 +547,15 @@
 	}
 
 	.filter-list:has(input[value="realms"]:checked)
-		:is(li[data-type="realm"], article[data-type="realm"]) {
+		:is(
+			li[data-list-type-value="realm"],
+			article[data-list-type-value="realm"]
+		) {
 		@apply flex;
 	}
 
 	.filter-list:has(input[value="pures"]:checked)
-		:is(li[data-type="pure"], article[data-type="pure"]) {
+		:is(li[data-list-type-value="pure"], article[data-list-type-value="pure"]) {
 		@apply flex;
 	}
 
@@ -587,33 +590,33 @@
 	}
 
 	.filter-list:has(input[value="realms"]:checked)
-		.range:not(:has(> [data-type="realm"]))::before {
+		.range:not(:has(> [data-list-type-value="realm"]))::before {
 		@apply block;
 		content: "No realms found";
 	}
 
 	.filter-list:has(input[value="realms"]:checked)
-		.range:not(:has(> [data-type="realm"]))::after {
+		.range:not(:has(> [data-list-type-value="realm"]))::after {
 		@apply block;
 		content: "Add a realm to your namespace to get started";
 	}
 
 	.filter-list:has(input[value="realms"]:checked)
-		.range:not(:has(> [data-type="realm"])),
+		.range:not(:has(> [data-list-type-value="realm"])),
 	.filter-list:has(input[value="pures"]:checked)
-		.range:not(:has(> [data-type="pure"])),
+		.range:not(:has(> [data-list-type-value="pure"])),
 	.range:empty {
 		@apply block;
 	}
 
 	.filter-list:has(input[value="pures"]:checked)
-		.range:not(:has(> [data-type="pure"]))::before {
+		.range:not(:has(> [data-list-type-value="pure"]))::before {
 		@apply block;
 		content: "No pures found";
 	}
 
 	.filter-list:has(input[value="pures"]:checked)
-		.range:not(:has(> [data-type="pure"]))::after {
+		.range:not(:has(> [data-list-type-value="pure"]))::after {
 		@apply block;
 		content: "Add a pure to your namespace to get started";
 	}
