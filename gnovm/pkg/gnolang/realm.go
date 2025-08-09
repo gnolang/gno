@@ -28,7 +28,7 @@ is provided a home package, for example
 a "realm package", and functions and methods declared there
 have special privileges.
 
-Every "realm package" should define at last one package-level variable:
+Every "realm package" should define at least one package-level variable:
 
 ```go
 // PKGPATH: gno.land/r/alice
@@ -79,16 +79,37 @@ func (pid PkgID) Bytes() []byte {
 }
 
 var (
-	pkgIDFromPkgPathCacheMu sync.Mutex // protects the shared cache.
+	pkgPathMu sync.Mutex // protects the shared cache.
 	// TODO: later on switch this to an LRU if needed to ensure
 	// fixed memory caps. For now though it isn't a problem:
 	// https://github.com/gnolang/gno/pull/3424#issuecomment-2564571785
 	pkgIDFromPkgPathCache = make(map[string]*PkgID, 100)
+	// pkgPrivateStatus is a map that stores the private status of packages.
+	// use the SetPkgPrivateStatus and GetPkgPrivateStatus functions to modify and access this map.
+	pkgPrivateStatus = make(map[string]bool, 100)
 )
 
+func SetPkgPrivateStatus(path string, private bool) {
+	pkgPathMu.Lock()
+	defer pkgPathMu.Unlock()
+
+	pkgPrivateStatus[path] = private
+}
+
+func GetPkgPrivateStatus(path string) bool {
+	pkgPathMu.Lock()
+	defer pkgPathMu.Unlock()
+
+	private, ok := pkgPrivateStatus[path]
+	if !ok {
+		return false // Default to false if not found.
+	}
+	return private
+}
+
 func PkgIDFromPkgPath(path string) PkgID {
-	pkgIDFromPkgPathCacheMu.Lock()
-	defer pkgIDFromPkgPathCacheMu.Unlock()
+	pkgPathMu.Lock()
+	defer pkgPathMu.Unlock()
 
 	pkgID, ok := pkgIDFromPkgPathCache[path]
 	if !ok {
@@ -102,14 +123,16 @@ func PkgIDFromPkgPath(path string) PkgID {
 // Returns the ObjectID of the PackageValue associated with path.
 func ObjectIDFromPkgPath(path string) ObjectID {
 	pkgID := PkgIDFromPkgPath(path)
-	return ObjectIDFromPkgID(pkgID)
+	oid := ObjectIDFromPkgID(pkgID, GetPkgPrivateStatus(path))
+	return oid
 }
 
 // Returns the ObjectID of the PackageValue associated with pkgID.
-func ObjectIDFromPkgID(pkgID PkgID) ObjectID {
+func ObjectIDFromPkgID(pkgID PkgID, private bool) ObjectID {
 	return ObjectID{
 		PkgID:   pkgID,
-		NewTime: 1, // by realm logic.
+		NewTime: 1,       // by realm logic.
+		Private: private, // whether the package is private.
 	}
 }
 
@@ -121,9 +144,10 @@ var nilRealm = (*Realm)(nil)
 // support methods that don't require persistence. This is the default realm
 // when a machine starts with a non-realm package.
 type Realm struct {
-	ID   PkgID
-	Path string
-	Time uint64
+	ID      PkgID
+	Path    string
+	Private bool
+	Time    uint64
 
 	Deposit uint64 // Amount of deposit held
 	Storage uint64 // Amount of storage used
@@ -143,9 +167,10 @@ type Realm struct {
 func NewRealm(path string) *Realm {
 	id := PkgIDFromPkgPath(path)
 	return &Realm{
-		ID:   id,
-		Path: path,
-		Time: 0,
+		ID:      id,
+		Path:    path,
+		Time:    0,
+		Private: false,
 	}
 }
 
@@ -165,6 +190,14 @@ func (rlm *Realm) String() string {
 			"Realm{Path:%q,Time:%d}#%X",
 			rlm.Path, rlm.Time, rlm.ID.Bytes())
 	}
+}
+
+func (rlm *Realm) SetPrivate(private bool) {
+	if rlm == nil {
+		return
+	}
+	rlm.Private = private
+	SetPkgPrivateStatus(rlm.Path, private)
 }
 
 //----------------------------------------
@@ -771,6 +804,10 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 			panic("cannot save deleted objects")
 		}
 	}
+
+	// assert no private dependencies.
+	rlm.assertNoPrivateDeps(oo, store)
+
 	// first, save unsaved children.
 	unsaved := getUnsavedChildObjects(oo)
 	for _, uch := range unsaved {
@@ -869,6 +906,135 @@ func (rlm *Realm) clearMarks() {
 	rlm.updated = nil
 	rlm.deleted = nil
 	rlm.escaped = nil
+}
+
+// assertNoPrivateDeps ensures that the object is not private
+// it does not recursively check the values, but it does check recursively the types
+func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store) {
+	objID := obj.GetObjectID()
+	if objID.PkgID != rlm.ID && objID.Private {
+		panic("cannot persist reference of object from private realm")
+	}
+
+	// NOTE: should i set the visited tids map at the higher level so it's set one time.
+	// it could help to reduce the number of checks for the same type.
+	tids := make(map[TypeID]struct{})
+	switch v := obj.(type) {
+	case *HeapItemValue:
+		if v.Value.T != nil {
+			rlm.assertNoPrivateType(store, v.Value.T, tids)
+		}
+	case *ArrayValue:
+		for _, av := range v.List {
+			if av.T != nil {
+				rlm.assertNoPrivateType(store, av.T, tids)
+			}
+		}
+	case *StructValue:
+		for _, sv := range v.Fields {
+			if sv.T != nil {
+				rlm.assertNoPrivateType(store, sv.T, tids)
+			}
+		}
+	case *MapValue:
+		for head := v.List.Head; head != nil; head = head.Next {
+			if head.Key.T != nil {
+				rlm.assertNoPrivateType(store, head.Key.T, tids)
+			}
+			if head.Value.T != nil {
+				rlm.assertNoPrivateType(store, head.Value.T, tids)
+			}
+		}
+	case *FuncValue:
+		if v.PkgPath != rlm.Path && GetPkgPrivateStatus(v.PkgPath) {
+			panic("cannot persist function or method from private realm")
+		}
+		if v.Type != nil {
+			rlm.assertNoPrivateType(store, v.Type, tids)
+		}
+		for _, capture := range v.Captures {
+			if capture.T != nil {
+				rlm.assertNoPrivateType(store, capture.T, tids)
+			}
+		}
+	case *BoundMethodValue:
+		if v.Func.PkgPath != rlm.Path && GetPkgPrivateStatus(v.Func.PkgPath) {
+			panic("cannot persist bound method from private realm")
+		}
+		if v.Receiver.T != nil {
+			rlm.assertNoPrivateType(store, v.Receiver.T, tids)
+		}
+	case *Block:
+		for _, bv := range v.Values {
+			if bv.T != nil {
+				rlm.assertNoPrivateType(store, bv.T, tids)
+			}
+		}
+		if v.Blank.T != nil {
+			rlm.assertNoPrivateType(store, v.Blank.T, tids)
+		}
+	case *PackageValue:
+		if v.PkgPath != rlm.Path && GetPkgPrivateStatus(v.PkgPath) {
+			panic("cannot persist package from private realm")
+		}
+	default:
+		panic(fmt.Sprintf("assertNoPrivateDeps: unhandled object type %T", v))
+	}
+}
+
+// assertNoPrivateType ensure that the type t is not defined in a private realm.
+// it do it recursively for all types in t and have recursive guard to avoid infinite recursion on declared types.
+func (rlm *Realm) assertNoPrivateType(store Store, t Type, visited map[TypeID]struct{}) {
+	pkgPath := ""
+	switch tt := t.(type) {
+	case *FuncType:
+		for _, param := range tt.Params {
+			rlm.assertNoPrivateType(store, param, visited)
+		}
+		for _, result := range tt.Results {
+			rlm.assertNoPrivateType(store, result, visited)
+		}
+	case FieldType:
+		rlm.assertNoPrivateType(store, tt.Type, visited)
+	case *SliceType, *ArrayType, *ChanType, *PointerType:
+		rlm.assertNoPrivateType(store, tt.Elem(), visited)
+	case *tupleType:
+		for _, et := range tt.Elts {
+			rlm.assertNoPrivateType(store, et, visited)
+		}
+	case *MapType:
+		rlm.assertNoPrivateType(store, tt.Key, visited)
+		rlm.assertNoPrivateType(store, tt.Elem(), visited)
+	case *InterfaceType:
+		pkgPath = tt.GetPkgPath()
+	case *StructType:
+		pkgPath = tt.GetPkgPath()
+	case *DeclaredType:
+		tid := tt.TypeID()
+		if _, exists := visited[tid]; !exists {
+			visited[tid] = struct{}{}
+			rlm.assertNoPrivateType(store, tt.Base, visited)
+			for _, method := range tt.Methods {
+				rlm.assertNoPrivateType(store, method.T, visited)
+				if mv, ok := method.V.(*FuncValue); ok {
+					rlm.assertNoPrivateType(store, mv.Type, visited)
+				}
+			}
+		}
+		pkgPath = tt.GetPkgPath()
+	case *RefType:
+		t2 := store.GetType(tt.TypeID())
+		rlm.assertNoPrivateType(store, t2, visited)
+	case PrimitiveType, *TypeType, *PackageType, blockType, heapItemType:
+		// these types do not have a package path.
+		// NOTE: PackageType have a TypeID, should i loat it from store and check it?
+		return
+	default:
+		panic(fmt.Sprintf("assertNoPrivateType: unhandled type %T", tt))
+	}
+	if pkgPath != "" && pkgPath != rlm.Path && GetPkgPrivateStatus(pkgPath) {
+		panic("cannot persist object of type defined in a private realm")
+	}
 }
 
 //----------------------------------------
@@ -1488,6 +1654,7 @@ func (rlm *Realm) nextObjectID() ObjectID {
 	rlm.Time++
 	nxtid := ObjectID{
 		PkgID:   rlm.ID,
+		Private: rlm.Private,
 		NewTime: rlm.Time, // starts at 1.
 	}
 	return nxtid
