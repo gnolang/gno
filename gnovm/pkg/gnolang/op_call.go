@@ -188,7 +188,6 @@ func (m *Machine) doOpCall() {
 		// Exec body.
 		b.bodyStmt = bodyStmt{
 			Body:          fbody,
-			BodyLen:       len(fbody),
 			NextBodyIndex: -2,
 		}
 		m.PushOp(OpBody)
@@ -416,7 +415,6 @@ func (m *Machine) doOpReturnCallDefers() {
 		// Exec body.
 		b.bodyStmt = bodyStmt{
 			Body:          fbody,
-			BodyLen:       len(fbody),
 			NextBodyIndex: -2,
 		}
 		m.PushOp(OpBody)
