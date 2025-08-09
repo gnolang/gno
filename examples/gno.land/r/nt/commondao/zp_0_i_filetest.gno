@@ -10,36 +10,30 @@ import (
 const (
 	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 	user  = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
-	name  = "B"
 )
 
 var daoID uint64
 
 func init() {
-	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
 	commondao.Invite(cross, user)
 
-	// Create a couple of DAOs
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
-	commondao.New("A")
-	daoID = commondao.New(name).ID()
-	commondao.New("C")
+	dao := commondao.New("Foo")
+	dao.Members().Add(user)
+
+	options := commondao.GetOptions(dao.ID())
+	options.SetAllowMembersUpdate(true)
+
+	daoID = dao.ID()
 }
 
 func main() {
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
+	testing.SetRealm(std.NewUserRealm(user))
 
-	dao := commondao.Get(daoID)
-	if dao == nil {
-		panic("expected DAO to be found")
-	}
-
-	println(dao.Name() == name)
-	println(dao.ID() == daoID)
+	commondao.CreateMembersUpdateProposal(cross, daoID, "", owner.String())
 }
 
-// Output:
-// true
-// true
+// Error:
+// address is not a DAO member: g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq
