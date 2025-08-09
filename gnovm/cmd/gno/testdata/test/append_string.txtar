@@ -1,0 +1,13 @@
+! gno run .
+
+stderr 'allocation limit exceeded'
+
+-- append.gno --
+package main
+
+func main() {
+	s := "hello"
+	for i := 0; ; i++ {
+		s += string(make([]byte, 50_000_000))
+	}
+}
