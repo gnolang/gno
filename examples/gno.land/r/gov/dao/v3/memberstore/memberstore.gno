@@ -94,7 +94,7 @@ func init() {
 
 }
 
-func Render(string) string {
+func Render(path string) string {
 	var sb strings.Builder
 
 	sb.WriteString("# Memberstore Govdao v3:\n\n")
@@ -116,6 +116,8 @@ func Render(string) string {
 
 		return false
 	})
+
+	RenderMembers(path, &sb)
 
 	return sb.String()
 }
