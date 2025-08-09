@@ -270,9 +270,16 @@ func (b *Block) StringIndented(indent string) string {
 					lines = append(lines,
 						fmt.Sprintf("%s%s: undefined static:%s", indent, n, types[i]))
 				} else {
+					fmt.Println("===================== values i: ", i)
+					fmt.Println("===before print string...")
+					MemStats()
+
 					lines = append(lines,
 						fmt.Sprintf("%s%s: %s static:%s",
 							indent, n, b.Values[i].String(), types[i]))
+
+					fmt.Println("===after print string...")
+					MemStats()
 				}
 			}
 		}
@@ -343,6 +350,7 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 		case UntypedBoolType, BoolType:
 			return fmt.Sprintf("%t", tv.GetBool())
 		case UntypedStringType, StringType:
+			fmt.Println("===going to get string...")
 			return tv.GetString()
 		case IntType:
 			return fmt.Sprintf("%d", tv.GetInt())
@@ -455,10 +463,12 @@ func (tv TypedValue) ProtectedString(seen *seenValues) string {
 	}
 	vs := ""
 	if tv.V == nil {
+		fmt.Println("===tv.V == nil...")
 		switch baseOf(tv.T) {
 		case BoolType, UntypedBoolType:
 			vs = fmt.Sprintf("%t", tv.GetBool())
 		case StringType, UntypedStringType:
+			fmt.Println("===StringType...")
 			vs = fmt.Sprintf("%s", tv.GetString())
 		case IntType:
 			vs = fmt.Sprintf("%d", tv.GetInt())
@@ -492,9 +502,17 @@ func (tv TypedValue) ProtectedString(seen *seenValues) string {
 		}
 	} else {
 		vs = tv.ProtectedSprint(seen, false)
+		fmt.Println("======before strconv.Quote...")
+		MemStats()
 		if base := baseOf(tv.T); base == StringType || base == UntypedStringType {
+			const maxLen = 10
+			if len(vs) > maxLen {
+				vs = vs[:maxLen] + "..."
+			}
 			vs = strconv.Quote(vs)
 		}
+		fmt.Println("======after strconv.Quote...")
+		MemStats()
 	}
 
 	ts := tv.T.String()

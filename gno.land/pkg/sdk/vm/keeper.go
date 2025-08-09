@@ -707,9 +707,15 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 	}
 	*e = errors.Wrapf(
 		fmt.Errorf("%v", r),
-		"VM panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
+		"VM panic: %v\nMachine state:%s\nStacktrace:\n%s\n",
 		r, m.String(), m.Stacktrace().String(),
 	)
+
+	// *e = errors.Wrapf(
+	// 	fmt.Errorf("%v", r),
+	// 	"VM panic: %v\nStacktrace:\n%s\n",
+	// 	r, m.Stacktrace().String(),
+	// )
 }
 
 // Run executes arbitrary Gno code in the context of the caller's realm.

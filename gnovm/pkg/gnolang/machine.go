@@ -2434,6 +2434,13 @@ func (m *Machine) Printf(format string, args ...any) {
 	}
 }
 
+func MemStats() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	fmt.Printf("HeapAlloc = %v MiB\n", m.HeapAlloc/1024/1024)
+	fmt.Printf("Sys = %v MiB\n", m.Sys/1024/1024) // 总内存（含堆/栈/CGO等）
+}
+
 func (m *Machine) String() string {
 	if m == nil {
 		return "Machine:nil"
