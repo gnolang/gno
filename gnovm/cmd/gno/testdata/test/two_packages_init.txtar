@@ -44,3 +44,5 @@ func TestCalled(t *testing.T) {
 		t.Fatalf("called: %v", called)
 	}
 }
+
+-- gnowork.toml --

@@ -3,14 +3,10 @@ package gnolang
 import (
 	"fmt"
 	"html/template"
-	"io/fs"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -77,80 +73,4 @@ func ParseCheckGnoMod(mpkg *std.MemPackage) (mod *gnomod.File, err error) {
 		panic("unsupported gno version " + mod.Gno)
 	}
 	return
-}
-
-// ========================================
-// ReadPkgListFromDir() lists all gno packages in the given dir directory.
-// `mptype` determines what subset of files are considered to read from.
-func ReadPkgListFromDir(dir string, mptype MemPackageType) (gnomod.PkgList, error) {
-	var pkgs []gnomod.Pkg
-
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if !d.IsDir() {
-			return nil
-		}
-
-		for _, fname := range []string{"gnomod.toml", "gno.mod"} {
-			modPath := filepath.Join(path, fname)
-			data, err := os.ReadFile(modPath)
-			if os.IsNotExist(err) {
-				continue
-			}
-			if err != nil {
-				return err
-			}
-
-			mod, err := gnomod.ParseBytes(modPath, data)
-			if err != nil {
-				return fmt.Errorf("parse: %w", err)
-			}
-			mod.Sanitize()
-			if err := mod.Validate(); err != nil {
-				return fmt.Errorf("failed to validate gnomod.toml in %s: %w", modPath, err)
-			}
-
-			pkg, err := ReadMemPackage(path, mod.Module, mptype)
-			if err != nil {
-				// ignore package files on error
-				pkg = &std.MemPackage{}
-			}
-
-			importsMap, err := packages.Imports(pkg, nil)
-			if err != nil {
-				// ignore imports on error
-				importsMap = nil
-			}
-			importsRaw := importsMap.Merge(
-				packages.FileKindFiletest,
-				packages.FileKindPackageSource,
-				packages.FileKindTest,
-				packages.FileKindXTest,
-			)
-
-			imports := make([]string, 0, len(importsRaw))
-			for _, imp := range importsRaw {
-				// remove self and standard libraries from imports
-				if imp.PkgPath != mod.Module &&
-					!IsStdlib(imp.PkgPath) {
-					imports = append(imports, imp.PkgPath)
-				}
-			}
-
-			pkgs = append(pkgs, gnomod.Pkg{
-				Dir:     path,
-				Name:    mod.Module,
-				Ignore:  mod.Ignore,
-				Imports: imports,
-			})
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return pkgs, nil
 }

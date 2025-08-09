@@ -7,22 +7,27 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type ExamplesPackageFetcher struct{}
+type ExamplesPackageFetcher struct {
+	examplesDir string
+}
 
 var _ pkgdownload.PackageFetcher = (*ExamplesPackageFetcher)(nil)
 
-func New() pkgdownload.PackageFetcher {
-	return &ExamplesPackageFetcher{}
+func New(examplesDir string) pkgdownload.PackageFetcher {
+	if examplesDir == "" {
+		examplesDir = filepath.Join(gnoenv.RootDir(), "examples")
+	}
+	return &ExamplesPackageFetcher{examplesDir: examplesDir}
 }
 
 // FetchPackage implements [pkgdownload.PackageFetcher].
 func (e *ExamplesPackageFetcher) FetchPackage(pkgPath string) ([]*std.MemFile, error) {
-	pkgDir := filepath.Join(gnoenv.RootDir(), "examples", filepath.FromSlash(pkgPath))
+	pkgDir := filepath.Join(e.examplesDir, filepath.FromSlash(pkgPath))
 
 	entries, err := os.ReadDir(pkgDir)
 	if os.IsNotExist(err) {
