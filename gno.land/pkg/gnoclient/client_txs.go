@@ -256,7 +256,11 @@ func (c *Client) SignTx(tx std.Tx, accountNumber, sequenceNumber uint64) (*std.T
 			return nil, errors.Wrap(err, "query account")
 		}
 		accountNumber = account.AccountNumber
-		sequenceNumber = account.Sequence
+		seqNumber, err := account.SequenceByPubKey(caller.GetPubKey())
+		if err != nil {
+			return nil, errors.Wrap(err, "get sequence by pubkey")
+		}
+		sequenceNumber = seqNumber
 	}
 
 	signCfg := SignCfg{
