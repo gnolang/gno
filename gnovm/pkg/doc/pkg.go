@@ -1,3 +1,4 @@
+//nolint:staticcheck // code copied from golang/go, staticcheck complains for usage of ast.Package.
 package doc
 
 import (

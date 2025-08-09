@@ -49,6 +49,7 @@ func TestEncode(t *testing.T) {
 
 	p, err := bech32.Encode(pubkeyPrefix, bz)
 
+	assert.NoError(t, err)
 	assert.Equal(t, pubkeyBech32, p)
 }
 

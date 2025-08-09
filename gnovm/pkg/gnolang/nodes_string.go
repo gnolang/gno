@@ -193,7 +193,7 @@ func (fle FuncLitExpr) String() string {
 
 func (x KeyValueExpr) String() string {
 	if x.Key == nil {
-		return fmt.Sprintf("%s", x.Value)
+		return x.Value.String()
 	}
 	return fmt.Sprintf("%s: %s", x.Key, x.Value)
 }
@@ -362,7 +362,7 @@ func (x RangeStmt) String() string {
 
 func (x ReturnStmt) String() string {
 	if len(x.Results) == 0 {
-		return fmt.Sprintf("return")
+		return "return"
 	}
 	return fmt.Sprintf("return %v", x.Results)
 }
@@ -554,7 +554,7 @@ func (x ConstExpr) String() string {
 
 func (x constTypeExpr) String() string {
 	if x.Type == nil { // type switch case
-		return fmt.Sprintf("(const-type nil)")
+		return "(const-type nil)"
 	}
 	return fmt.Sprintf("(const-type %s)", x.Type.String())
 }

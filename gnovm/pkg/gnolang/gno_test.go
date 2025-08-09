@@ -597,7 +597,7 @@ func assertOutput(t *testing.T, input string, output string) {
 	n := MustParseFile("main.go", input)
 	m.RunFiles(n)
 	m.RunMain()
-	assert.Equal(t, output, string(buf.Bytes()))
+	assert.Equal(t, output, buf.String())
 	err := m.CheckEmpty()
 	assert.Nil(t, err)
 }
@@ -631,6 +631,7 @@ func BenchmarkPreprocess(b *testing.B) {
 		// initStaticBlocks is always performed before a Preprocess
 		initStaticBlocks(nil, pn, copies[i])
 		main = Preprocess(nil, pkg, copies[i]).(*FuncDecl)
+		_ = main
 	}
 }
 

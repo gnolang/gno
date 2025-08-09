@@ -222,7 +222,7 @@ func targetsFromPatterns(patterns []string) ([]string, error) {
 // (see $GOROOT/src/cmd/internal/pkgpattern)
 func matchPattern(pattern string) func(name string) bool {
 	re := regexp.QuoteMeta(pattern)
-	re = strings.Replace(re, `\.\.\.`, `.*`, -1)
+	re = strings.ReplaceAll(re, `\.\.\.`, `.*`)
 	// Special case: foo/... matches foo too.
 	if strings.HasSuffix(re, `/.*`) {
 		re = re[:len(re)-len(`/.*`)] + `(/.*)?`

@@ -129,7 +129,7 @@ func saveStringToValue(value string, dstValue reflect.Value) error {
 		// they need to be parsed from a custom format.
 		// In this case, the format for a []string is comma separated:
 		// value1,value2,value3 ...
-		val := strings.SplitN(value, ",", -1)
+		val := strings.Split(value, ",")
 
 		dstValue.Set(reflect.ValueOf(val))
 	case time.Duration:
@@ -176,7 +176,7 @@ func parseEventStoreParams(values string) types.EventStoreParams {
 	params := make(types.EventStoreParams, len(values))
 
 	// Split the string into different key value pairs
-	keyPairs := strings.SplitN(values, ",", -1)
+	keyPairs := strings.Split(values, ",")
 
 	for _, keyPair := range keyPairs {
 		// Split the string into key and value
