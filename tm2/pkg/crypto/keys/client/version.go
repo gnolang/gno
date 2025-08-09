@@ -1,23 +1,22 @@
-package main
+package client
 
 import (
 	"context"
 
-	"github.com/gnolang/gno/tm2/pkg/version"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/version"
 )
 
-// newVersionCmd creates a new version command
-func newGnoVersionCmd(io commands.IO) *commands.Command {
+func NewVersionCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "version",
 			ShortUsage: "version",
-			ShortHelp:  "display installed gno version",
+			ShortHelp:  "display installed gnokey version",
 		},
 		nil,
 		func(_ context.Context, args []string) error {
-			io.Println("gno version:", version.Version)
+			io.Println("gnokey version:", version.Version)
 			return nil
 		},
 	)
