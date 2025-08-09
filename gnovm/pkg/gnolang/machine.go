@@ -1972,12 +1972,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				// Implicit switch to storage realm.
 				// Neither cross nor didswitch.
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
-				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				if objpv.IsRealm() && objpv.Realm == nil {
-					rlm = m.Store.GetPackageRealm(objpv.PkgPath)
-				} else {
-					rlm = objpv.GetRealm()
-				}
+				objpv := m.Store.GetPackageFromStore(recvPkgOID)
+				rlm = objpv.GetRealm()
 				m.Realm = rlm
 				// DO NOT set DidCrossing here. Make
 				// DidCrossing only happen upon explicit
