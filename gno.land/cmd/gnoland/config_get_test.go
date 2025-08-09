@@ -894,7 +894,7 @@ func TestConfig_Get_Mempool(t *testing.T) {
 			"max pending txs bytes",
 			"mempool.max_pending_txs_bytes",
 			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.Mempool.MaxPendingTxsBytes, unmarshalJSONCommon[int64](t, value))
+				assert.Equal(t, loadedCfg.Mempool.MaxTxSize, unmarshalJSONCommon[int64](t, value))
 			},
 			false,
 		},

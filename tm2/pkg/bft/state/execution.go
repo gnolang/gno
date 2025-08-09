@@ -8,7 +8,6 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/fail"
-	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	typesver "github.com/gnolang/gno/tm2/pkg/bft/types/version"
 	tmver "github.com/gnolang/gno/tm2/pkg/bft/version"
@@ -33,18 +32,27 @@ type BlockExecutor struct {
 	// events
 	evsw events.EventSwitch
 
-	// manage the mempool lock during commit
-	// and update both with block results after commit.
-	mempool mempl.Mempool
+	mempool Mempool // Manages in-memory node transactions
 
 	logger *slog.Logger
+}
+
+// Mempool defines the block executor's mempool abstraction
+type Mempool interface {
+	// Update realigns the mempool with the given committed transactions.
+	// Additionally, it updates the maximum tx size consensus limit
+	Update(txs types.Txs, updatedTxSize int64)
+
+	// Pending fetches executable transactions from the mempool,
+	// that fit into the gas / size ranges specified
+	Pending(maxSizeBytes int64, maxGas int64) types.Txs
 }
 
 type BlockExecutorOption func(executor *BlockExecutor)
 
 // NewBlockExecutor returns a new BlockExecutor with a NopEventBus.
 // Call SetEventBus to provide one.
-func NewBlockExecutor(db dbm.DB, logger *slog.Logger, proxyApp appconn.Consensus, mempool mempl.Mempool, options ...BlockExecutorOption) *BlockExecutor {
+func NewBlockExecutor(db dbm.DB, logger *slog.Logger, proxyApp appconn.Consensus, mempool Mempool, options ...BlockExecutorOption) *BlockExecutor {
 	res := &BlockExecutor{
 		db:       db,
 		proxyApp: proxyApp,
@@ -74,12 +82,15 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 	state State, commit *types.Commit,
 	proposerAddr crypto.Address,
 ) (*types.Block, *types.PartSet) {
-	maxDataBytes := state.ConsensusParams.Block.MaxDataBytes
-	maxGas := state.ConsensusParams.Block.MaxGas
+	var (
+		maxDataBytes = state.ConsensusParams.Block.MaxDataBytes
+		maxGas       = state.ConsensusParams.Block.MaxGas
+	)
 
-	txs := blockExec.mempool.ReapMaxBytesMaxGas(maxDataBytes, maxGas)
+	// Fetch the pending transactions, given the limits
+	pendingTxs := blockExec.mempool.Pending(maxDataBytes, maxGas)
 
-	return state.MakeBlock(height, txs, commit, proposerAddr)
+	return state.MakeBlock(height, pendingTxs, commit, proposerAddr)
 }
 
 // ApplyBlock validates the block against the state, executes it against the app,
@@ -164,17 +175,6 @@ func (blockExec *BlockExecutor) Commit(
 	block *types.Block,
 	deliverTxResponses []abci.ResponseDeliverTx,
 ) ([]byte, error) {
-	blockExec.mempool.Lock()
-	defer blockExec.mempool.Unlock()
-
-	// while mempool is Locked, flush to ensure all async requests have completed
-	// in the ABCI app before Commit.
-	err := blockExec.mempool.FlushAppConn()
-	if err != nil {
-		blockExec.logger.Error("Client error during mempool.FlushAppConn", "err", err)
-		return nil, err
-	}
-
 	// Commit block, get hash back
 	res, err := blockExec.proxyApp.CommitSync()
 	if err != nil {
@@ -194,11 +194,8 @@ func (blockExec *BlockExecutor) Commit(
 	)
 
 	// Update mempool.
-	err = blockExec.mempool.Update(
-		block.Height,
+	blockExec.mempool.Update(
 		block.Txs,
-		deliverTxResponses,
-		TxPreCheck(state),
 		state.ConsensusParams.Block.MaxTxBytes,
 	)
 
