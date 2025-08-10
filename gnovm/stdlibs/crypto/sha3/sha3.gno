@@ -114,7 +114,7 @@ func (d *state) Write(p []byte) (n int, err error) {
 	for len(p) > 0 {
 
 		x, res := subtle.XORBytes(d.a[d.n:d.rate], d.a[d.n:d.rate], p)
-		d.a = convertTo200Bytes(res)
+		copy(d.a[d.n:d.rate], res)
 		d.n += x
 		p = p[x:]
 
@@ -235,10 +235,4 @@ func (d *state) UnmarshalBinary(b []byte) error {
 	d.state = state
 
 	return nil
-}
-
-func convertTo200Bytes(src []byte) [200]byte {
-	var dst [200]byte
-	copy(dst[:], src)
-	return dst
 }

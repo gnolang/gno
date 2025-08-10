@@ -130,11 +130,11 @@ func TestKeccak(t *testing.T) {
 		want string
 	}{
 
-		//{  XXX: This test does not pass yet
-		//	NewLegacyKeccak256,
-		//	[]byte("There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised words which don't look even slightly believable. If you are going to use a passage of Lorem Ipsum, you need to be sure there isn't anything embarrassing hidden in the middle of text"),
-		//	"39670cbdfbfc25519e9834899e13569e5f5802b77df3d8259961f713ad09745d",
-		//},
+		{
+			NewLegacyKeccak256,
+			[]byte("There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised words which don't look even slightly believable. If you are going to use a passage of Lorem Ipsum, you need to be sure there isn't anything embarrassing hidden in the middle of text"),
+			"39670cbdfbfc25519e9834899e13569e5f5802b77df3d8259961f713ad09745d",
+		},
 		{
 			NewLegacyKeccak256,
 			[]byte("abc"),
@@ -159,6 +159,11 @@ func TestKeccak(t *testing.T) {
 			NewLegacyKeccak256,
 			[]byte("Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC"),
 			"da5293ad50619d7fdac8b4c8dc2f80e0cd40b6571be14740229d0a1d6e2fc232",
+		},
+		{
+			NewLegacyKeccak256,
+			[]byte("There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised words which don't look even slightly believable. If you are going to use a passage of Lorem Ipsum, you need to be sure there isn't anything embarrassing hidden in the middle of text. All the Lorem Ipsum generators on the Internet tend to repeat predefined chunks as necessary, making this the first true generator on the Internet. It uses a dictionary of over 200 Latin words, combined with a handful of model sentence structures, to generate Lorem Ipsum which looks reasonable. The generated Lorem Ipsum is therefore always free from repetition, injected humour, or non-characteristic words etc."),
+			"a84506d23b7246dc18805c8bf60316fb6f677934a546ee8d8650495929f21eef",
 		},
 	}
 
