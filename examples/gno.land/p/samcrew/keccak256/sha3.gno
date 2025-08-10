@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package sha3
+package keccak256
 
 import (
 	"crypto/subtle"
@@ -112,7 +112,9 @@ func (d *state) Write(p []byte) (n int, err error) {
 
 	n = len(p)
 	for len(p) > 0 {
-
+		//XXX: Originally this function modifies d.a[d.n:d.rate] inside subtle.XORBytes but
+		// when using a native bindings seems like the arrays is being retuned unmodified
+		// that is why we are returning an array and copying on the next line.
 		x, res := subtle.XORBytes(d.a[d.n:d.rate], d.a[d.n:d.rate], p)
 		copy(d.a[d.n:d.rate], res)
 		d.n += x

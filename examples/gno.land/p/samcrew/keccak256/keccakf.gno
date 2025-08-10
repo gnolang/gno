@@ -1,4 +1,4 @@
-package sha3
+package keccak256
 
 import "math/bits"
 

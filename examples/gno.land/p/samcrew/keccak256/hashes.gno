@@ -1,4 +1,4 @@
-package sha3
+package keccak256
 
 // This file provides functions for creating instances of the SHA-3
 // and SHAKE hash functions, as well as utility functions for hashing

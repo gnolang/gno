@@ -9,8 +9,7 @@ package subtle
 // dst and x or y may overlap exactly or not at all,
 // otherwise XORBytes may panic.
 func XORBytes(dst, x, y []byte) (int, []byte) {
-	res, data := xorBytes(dst, x, y)
-	return res, data
+	return xorBytes(dst, x, y)
 }
 
 func xorBytes(dst, x, y []byte) (int, []byte) // injected
