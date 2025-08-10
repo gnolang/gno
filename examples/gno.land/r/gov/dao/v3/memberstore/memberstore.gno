@@ -117,7 +117,7 @@ func Render(path string) string {
 		return false
 	})
 
-	RenderMembers(path, &sb)
+	RenderMembers(path, members, &sb)
 
 	return sb.String()
 }
