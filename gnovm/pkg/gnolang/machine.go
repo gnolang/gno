@@ -1991,7 +1991,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			}
 		}
 	} else { // function without receiver
-		fmt.Println("===PushFrameCall, cx: ", cx)
+		// fmt.Println("===PushFrameCall, cx: ", cx)
 		if pv.IsRealm() {
 			isExternalFunc := false // top level func declared in external package with no cross
 			if sx, ok := cx.Func.(*SelectorExpr); ok {
@@ -1999,7 +1999,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 					_, isExternalFunc = cx.T.(*PackageType)
 				}
 			}
-			fmt.Println("===PushFrameCall, isExternalFunc: ", isExternalFunc)
+			// fmt.Println("===PushFrameCall, isExternalFunc: ", isExternalFunc)
 
 			if !isExternalFunc {
 				// A function without receiver (named or unnamed) in a realm.
