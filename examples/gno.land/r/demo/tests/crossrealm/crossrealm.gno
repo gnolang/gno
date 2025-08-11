@@ -123,6 +123,7 @@ func ExecuteClosureCross(cur realm) {
 	Closure2(cross)
 }
 
+// ------------------------------------
 type S struct {
 	F func()
 }
@@ -137,12 +138,13 @@ func (s *S) Execute() {
 	s.F()
 }
 
-// Closure -> FooUpdate
+// ------------------------------------
 func PrintRealms(cur realm) {
 	ufmt.Printf("current realm: %s\n", std.CurrentRealm())
 	ufmt.Printf("previous realm: %s\n", std.PreviousRealm())
 }
 
+// ------------------------------------
 // Utility func
 func UtilityFunc() {
 	AllowedList = append(AllowedList, 3) // global var
@@ -156,6 +158,21 @@ func UtilityCrossFunc(cur realm) {
 	println(AllowedList)
 	ufmt.Printf("current realm: %s\n", std.CurrentRealm())
 	ufmt.Printf("previous realm: %s\n", std.PreviousRealm())
+}
+
+// ------------------------------------
+type Mutator interface {
+	Mutate()
+}
+
+var MockMutator Mutator
+
+func SetMutator(_ realm, mutator Mutator) {
+	MockMutator = mutator
+}
+
+func DoMutate() {
+	MockMutator.Mutate()
 }
 
 // -------------------------------------------------

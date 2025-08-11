@@ -12,7 +12,7 @@ func main() {
 	}
 
 	crossrealm.S1.SetFn(ff)
-	// cx: s.F()
+	// cx expr is: s.F()
 	crossrealm.S1.Execute()
 }
 
