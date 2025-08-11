@@ -17,24 +17,39 @@ const (
 var dao *pcommondao.CommonDAO
 
 func init() {
-	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
 	commondao.Invite(cross, user)
 
-	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
 	dao = commondao.New("Foo")
-
-	// Configure DAO
 	dao.Members().Add(user)
+
+	options := commondao.GetOptions(dao.ID())
+	options.SetAllowDissolutionProposals(true)
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(user))
 
-	commondao.Execute(cross, dao.ID(), 404)
+	pID := commondao.CreateDissolutionProposal(cross, dao.ID())
+
+	p := dao.ActiveProposals().Get(pID)
+	if p == nil {
+		panic("expected proposal to be created")
+	}
+
+	println(p.Status() == pcommondao.StatusActive)
+	println(p.Creator() == user)
+	println(p.Definition().Title() == ("Dissolve DAO: " + dao.Name()))
+	println(p.VotingDeadline())
+	println(p.Definition().Body())
 }
 
-// Error:
-// proposal not found
+// Output:
+// true
+// true
+// true
+// 2009-02-20 23:31:30 +0000 UTC m=+1235172690.000000001
+// **DAO:**
+// [Foo](/r/nt/commondao:2)
