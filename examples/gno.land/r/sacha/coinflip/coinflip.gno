@@ -1,19 +1,19 @@
 package coinflip
 
 import (
-	"std"
 	"math/rand"
+	"std"
 
 	"gno.land/p/demo/entropy"
-	"gno.land/r/sacha/config"
 	"gno.land/p/moul/fifo"
+	"gno.land/r/sacha/config"
 )
 
 const denom = "ugnot"
 const minBetAmount = 1
 
 var (
-	bets = []Bet{}
+	bets       = []Bet{}
 	latestBets = fifo.New(8)
 )
 
@@ -80,7 +80,7 @@ func getBet() std.Coin {
 	if amount < minBetAmount {
 		panic("Bet too low")
 	}
-	if amount * 2 > GetRealmBalance(cross) {
+	if amount*2 > GetRealmBalance(cross) {
 		panic("Bet too high")
 	}
 
@@ -99,7 +99,7 @@ func betLogic(flipResult bool) {
 	bet := getBet()
 
 	if flipResult == true {
-		sendPrize(cross, caller, bet.Amount * 2)
+		sendPrize(cross, caller, bet.Amount*2)
 		std.Emit("BetResult", "Result", "win")
 	} else {
 		std.Emit("BetResult", "Result", "lose")

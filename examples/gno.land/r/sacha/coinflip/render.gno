@@ -4,13 +4,13 @@ import (
 	"std"
 	"strconv"
 
-	"gno.land/p/moul/txlink"
 	"gno.land/p/moul/md"
+	"gno.land/p/moul/txlink"
 	"gno.land/r/sys/users"
 )
 
 var (
-	githubUsername string
+	githubUsername    string
 	pocInnovationName string
 )
 

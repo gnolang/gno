@@ -1,9 +1,10 @@
 package config
 
 import (
-	"gno.land/p/demo/ownable"
-	"std"
 	"errors"
+	"std"
+
+	"gno.land/p/demo/ownable"
 )
 
 var (

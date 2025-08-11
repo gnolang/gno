@@ -1,8 +1,9 @@
 package home
 
 import (
-	"gno.land/r/sacha/config"
 	"std"
+
+	"gno.land/r/sacha/config"
 )
 
 func UpdateTitle(cur realm, newTitle string) {
@@ -52,9 +53,9 @@ func RemoveGame(cur realm, name string) {
 	}
 
 	if _, exists := game[name]; exists {
-	    delete(game, name)
+		delete(game, name)
 	} else {
-	    panic("Game not found")
+		panic("Game not found")
 	}
 }
 

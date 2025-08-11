@@ -6,12 +6,12 @@ import (
 )
 
 var (
-	banner string
-	title string
-	story string
-	game map[string]string
-	art string
-	githubUsername string
+	banner            string
+	title             string
+	story             string
+	game              map[string]string
+	art               string
+	githubUsername    string
 	pocInnovationName string
 )
 
