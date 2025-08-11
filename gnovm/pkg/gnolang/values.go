@@ -723,8 +723,7 @@ func (mv *MapValue) GetLength() int {
 
 // GetPointerForKey is only used for assignment, so the key
 // is not returned as part of the pointer, and TV is not filled.
-func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
-	keyCopy := key.Copy(alloc)
+func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key TypedValue) PointerValue {
 	// If NaN, instead of computing map key, just append to List.
 	kmk, isNaN := key.ComputeMapKey(store, false)
 	if !isNaN {
@@ -732,7 +731,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 			// When assigning to a map item, the key is always equal to that of the
 			// last assignment; this is mostly noticeable in the case of -0 / 0:
 			// https://go.dev/play/p/iNPDR4FQlRv
-			mli.Key = keyCopy
+			mli.Key = key
 			return PointerValue{
 				TV:    fillValueTV(store, &mli.Value),
 				Base:  mv,
@@ -740,7 +739,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 			}
 		}
 	}
-	mli := mv.List.Append(alloc, keyCopy)
+	mli := mv.List.Append(alloc, key)
 	mv.vmap[kmk] = mli
 	return PointerValue{
 		TV:    fillValueTV(store, &mli.Value),
@@ -2004,7 +2003,8 @@ func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Stor
 			}
 		}
 
-		pv := mv.GetPointerForKey(alloc, store, iv)
+		ivk := iv.Copy(alloc)
+		pv := mv.GetPointerForKey(alloc, store, ivk)
 		if pv.TV.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
 			if vt.Kind() != InterfaceKind {
@@ -2013,7 +2013,7 @@ func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Stor
 			}
 		}
 		// attach mapkey object
-		rlm.DidUpdate(mv, oldObject, iv.GetFirstObject(store))
+		rlm.DidUpdate(mv, oldObject, ivk.GetFirstObject(store))
 		return pv
 	default:
 		panic(fmt.Sprintf(
