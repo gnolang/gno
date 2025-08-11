@@ -172,7 +172,7 @@ func SetMutator(_ realm, mutator Mutator) {
 }
 
 func DoMutate() {
-	MockMutator.Mutate()
+	MockMutator.Mutate() // soft cross into current realm
 }
 
 // -------------------------------------------------

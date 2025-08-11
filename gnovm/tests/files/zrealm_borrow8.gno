@@ -18,5 +18,5 @@ func main() {
 	crossrealm.DoMutate()
 }
 
-// Output:
-// slice[(1 int),(2 int),(3 int)]
+// Error:
+// cannot directly modify readonly tainted object (w/o method): (const (ref(gno.land/r/demo/tests/crossrealm) package{})).AllowedList

@@ -48,6 +48,5 @@ func main(cur realm) {
 	println(p.Get())
 }
 
-// Output:
-// foo closure
-// 101
+// Error:
+// cannot directly modify readonly tainted object (w/o method): s<VPBlock(1,0)>.A

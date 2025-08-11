@@ -183,7 +183,7 @@ func main(cur realm) {
 //              "RefCount": "1"
 //          },
 // d[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:50](-618)
-// finalizerealm["gno.land/r/demo/tests"]
-// finalizerealm["gno.land/r/demo/tests"]
-// finalizerealm["gno.land/r/demo/tests"]
+// finalizerealm["gno.land/r/demo/tests_foo"]
+// finalizerealm["gno.land/r/demo/tests_foo"]
+// finalizerealm["gno.land/r/demo/tests_foo"]
 // finalizerealm["gno.land/r/demo/tests0"]

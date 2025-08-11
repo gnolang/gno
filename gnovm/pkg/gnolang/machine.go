@@ -1954,6 +1954,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		return
 	}
 
+	// fmt.Println("========cx: ", cx)
+	// fmt.Println("===========Not cross nor crossing, fv.PkgPath: ", fv.PkgPath)
+	// fmt.Println("========recv: ", recv)
 	// Not cross nor crossing.
 	// Only "soft" switch to storage realm of receiver.
 	var rlm *Realm
@@ -1970,13 +1973,17 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			} else {
 				// Implicit switch to storage realm.
 				// Neither cross nor didswitch.
-				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
-				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				if objpv.IsRealm() && objpv.Realm == nil {
-					rlm = m.Store.GetPackageRealm(objpv.PkgPath)
-				} else {
-					rlm = objpv.GetRealm()
+				// recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
+				// objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
+				// if objpv.IsRealm() && objpv.Realm == nil {
+				// 	rlm = m.Store.GetPackageRealm(objpv.PkgPath)
+				// } else {
+				// 	rlm = objpv.GetRealm()
+				// }
+				if pkgPath := fv.PkgPath; IsRealmPath(pkgPath) {
+					rlm = m.Store.GetPackageRealm(pkgPath)
 				}
+
 				m.Realm = rlm
 				// DO NOT set DidCrossing here. Make
 				// DidCrossing only happen upon explicit

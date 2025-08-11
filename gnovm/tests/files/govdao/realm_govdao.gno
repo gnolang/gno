@@ -70,4 +70,4 @@ func Render() {
 }
 
 // Error:
-// unexpected selector base type *gno.land/p/demo/avl.Tree (*gnolang.PointerType)
+// only members can create new proposals
