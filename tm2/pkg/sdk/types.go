@@ -23,8 +23,9 @@ type Handler interface {
 // Result is the union of ResponseDeliverTx and ResponseCheckTx plus events.
 type Result struct {
 	abci.ResponseBase
-	GasWanted int64
-	GasUsed   int64
+	GasWanted        int64
+	GasUsed          int64
+	DepositUsedUgnot int64
 }
 
 // AnteHandler authenticates transactions, before their internal messages are handled.

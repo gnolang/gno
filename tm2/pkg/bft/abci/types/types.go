@@ -176,14 +176,16 @@ type ResponseBeginBlock struct {
 
 type ResponseCheckTx struct {
 	ResponseBase
-	GasWanted int64 // nondeterministic
-	GasUsed   int64
+	GasWanted        int64 // nondeterministic
+	GasUsed          int64
+	DepositUsedUgnot int64
 }
 
 type ResponseDeliverTx struct {
 	ResponseBase
-	GasWanted int64
-	GasUsed   int64
+	GasWanted        int64
+	GasUsed          int64
+	DepositUsedUgnot int64
 }
 
 type ResponseEndBlock struct {

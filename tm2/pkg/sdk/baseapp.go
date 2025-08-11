@@ -584,6 +584,7 @@ func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) 
 		res.ResponseBase = result.ResponseBase
 		res.GasWanted = result.GasWanted
 		res.GasUsed = result.GasUsed
+		res.DepositUsedUgnot = result.DepositUsedUgnot
 		return
 	}
 }
@@ -602,6 +603,7 @@ func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) (res abci.ResponseDeliv
 		res.ResponseBase = result.ResponseBase
 		res.GasWanted = result.GasWanted
 		res.GasUsed = result.GasUsed
+		res.DepositUsedUgnot = result.DepositUsedUgnot
 		return
 	}
 }
@@ -702,6 +704,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 	result.Info = strings.Join(msgInfos, "\n")
 	result.Log = strings.Join(msgLogs, "\n")
 	result.GasUsed = ctx.GasMeter().GasConsumed()
+	result.DepositUsedUgnot = ctx.DepositUsed().Amount
 	return result
 }
 
@@ -772,6 +775,7 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 				result.Log = log
 				result.GasWanted = gasWanted
 				result.GasUsed = ctx.GasMeter().GasConsumed()
+				result.DepositUsedUgnot = ctx.DepositUsed().Amount
 				return
 			default:
 				log := fmt.Sprintf("recovered: %v\nstack:\n%v", r, string(debug.Stack()))
@@ -779,12 +783,15 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 				result.Log = log
 				result.GasWanted = gasWanted
 				result.GasUsed = ctx.GasMeter().GasConsumed()
+				result.DepositUsedUgnot = ctx.DepositUsed().Amount
 				return
 			}
 		}
 		// Whether AnteHandler panics or not.
 		result.GasWanted = gasWanted
 		result.GasUsed = ctx.GasMeter().GasConsumed()
+		// TODO: Check for Denom "ugnot"
+		result.DepositUsedUgnot = ctx.DepositUsed().Amount
 	}()
 
 	// If BlockGasMeter() panics it will be caught by the above recover and will

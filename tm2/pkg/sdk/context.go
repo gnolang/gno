@@ -7,6 +7,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/gas"
 )
@@ -31,6 +32,7 @@ type Context struct {
 	gasMeter      store.GasMeter // XXX make passthroughGasMeter w/ blockGasMeter?
 	blockGasMeter store.GasMeter
 	minGasPrices  []GasPrice
+	depositUsed   *std.Coin
 	consParams    *abci.ConsensusParams
 	eventLogger   *EventLogger
 }
@@ -52,6 +54,7 @@ func (c Context) GasMeter() store.GasMeter      { return c.gasMeter }
 func (c Context) BlockGasMeter() store.GasMeter { return c.blockGasMeter }
 func (c Context) IsCheckTx() bool               { return c.mode == RunTxModeCheck }
 func (c Context) MinGasPrices() []GasPrice      { return c.minGasPrices }
+func (c Context) DepositUsed() *std.Coin        { return c.depositUsed }
 func (c Context) EventLogger() *EventLogger     { return c.eventLogger }
 
 // clone the header before returning
@@ -78,6 +81,7 @@ func NewContext(mode RunTxMode, ms store.MultiStore, header abci.Header, logger 
 		logger:       logger,
 		gasMeter:     store.NewInfiniteGasMeter(),
 		minGasPrices: nil,
+		depositUsed:  &std.Coin{},
 		eventLogger:  NewEventLogger(),
 	}
 }

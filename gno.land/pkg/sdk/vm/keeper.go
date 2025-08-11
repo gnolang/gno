@@ -1157,6 +1157,7 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 				PkgPath: rlmPath,
 			}
 			ctx.EventLogger().EmitEvent(evt)
+			ctx.DepositUsed().Amount = requiredDeposit
 		} else {
 			// release storage used and return deposit
 			released := -diff
@@ -1187,6 +1188,8 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 				PkgPath: rlmPath,
 			}
 			ctx.EventLogger().EmitEvent(evt)
+			// A negative "used" amount
+			ctx.DepositUsed().Amount = -depositUnlocked
 		}
 		gnostore.SetPackageRealm(rlm)
 	}
