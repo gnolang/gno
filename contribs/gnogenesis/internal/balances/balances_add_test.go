@@ -43,7 +43,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Create the command
@@ -78,12 +78,12 @@ func TestGenesis_Balances_Add(t *testing.T) {
 	t.Run("balances from entries", func(t *testing.T) {
 		t.Parallel()
 
-		dummyKeys := common.GetDummyKeys(t, 2)
+		dummyKeys := common.DummyKeys(t, 2)
 
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		// Create the command
@@ -148,10 +148,10 @@ func TestGenesis_Balances_Add(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
-		dummyKeys := common.GetDummyKeys(t, 10)
+		dummyKeys := common.DummyKeys(t, 10)
 		amount := std.NewCoins(std.NewCoin(ugnot.Denom, 10))
 
 		balances := make([]string, len(dummyKeys))
@@ -218,17 +218,96 @@ func TestGenesis_Balances_Add(t *testing.T) {
 		}
 	})
 
+	t.Run("deterministic balances from sheet", func(t *testing.T) {
+		t.Parallel()
+
+		const (
+			nKeys      = 100
+			nRuns      = 10
+			coinAmount = int64(10)
+		)
+
+		equalBalances := func(b1, b2 gnoland.Balance) bool {
+			return b1.Address.Compare(b2.Address) == 0 && b1.Amount.IsEqual(b2.Amount)
+		}
+
+		dummyKeys := common.DummyKeys(t, nKeys)
+		amount := std.NewCoins(std.NewCoin(ugnot.Denom, coinAmount))
+
+		// Prepare the balance sheet
+		lines := make([]string, 0, nKeys+1)
+		lines = append(lines, "#comment") // random comment on top
+
+		for _, key := range dummyKeys {
+			lines = append(
+				lines,
+				fmt.Sprintf(
+					"%s=%s",
+					key.Address().String(),
+					ugnot.ValueString(amount.AmountOf(ugnot.Denom)),
+				),
+			)
+		}
+
+		balanceSheet, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		_, err := balanceSheet.WriteString(strings.Join(lines, "\n"))
+		require.NoError(t, err)
+
+		var referenceBalances []gnoland.Balance
+
+		for run := 0; run < nRuns; run++ {
+			// Create a fresh genesis file
+			tempGenesis, cleanupGen := testutils.NewTestFile(t)
+			t.Cleanup(cleanupGen)
+
+			genesis := common.DefaultGenesis()
+			require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
+
+			// Add the balance sheet
+			cmd := NewBalancesCmd(commands.NewTestIO())
+			args := []string{
+				"add",
+				"--genesis-path", tempGenesis.Name(),
+				"--balance-sheet", balanceSheet.Name(),
+			}
+
+			require.NoError(t, cmd.ParseAndRun(context.Background(), args))
+
+			// Load the modified genesis
+			genesisDoc, err := types.GenesisDocFromFile(tempGenesis.Name())
+			require.NoError(t, err)
+			require.NotNil(t, genesisDoc.AppState)
+
+			state, ok := genesisDoc.AppState.(gnoland.GnoGenesisState)
+			require.True(t, ok)
+			require.Len(t, state.Balances, nKeys)
+
+			// The first run should be the reference one
+			if run == 0 {
+				referenceBalances = state.Balances
+
+				continue
+			}
+
+			for index, balance := range state.Balances {
+				assert.True(t, equalBalances(referenceBalances[index], balance))
+			}
+		}
+	})
+
 	t.Run("balances from transactions", func(t *testing.T) {
 		t.Parallel()
 
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		var (
-			dummyKeys   = common.GetDummyKeys(t, 10)
+			dummyKeys   = common.DummyKeys(t, 10)
 			amount      = std.NewCoins(std.NewCoin(ugnot.Denom, 10))
 			amountCoins = std.NewCoins(std.NewCoin(ugnot.Denom, 10))
 			gasFee      = std.NewCoin(ugnot.Denom, 1000000)
@@ -326,12 +405,12 @@ func TestGenesis_Balances_Add(t *testing.T) {
 	t.Run("balances overwrite", func(t *testing.T) {
 		t.Parallel()
 
-		dummyKeys := common.GetDummyKeys(t, 10)
+		dummyKeys := common.DummyKeys(t, 10)
 
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		state := gnoland.GnoGenesisState{
 			// Set an initial balance value
 			Balances: []gnoland.Balance{
@@ -408,7 +487,7 @@ func TestBalances_GetBalancesFromTransactions(t *testing.T) {
 		t.Parallel()
 
 		var (
-			dummyKeys   = common.GetDummyKeys(t, 10)
+			dummyKeys   = common.DummyKeys(t, 10)
 			amount      = std.NewCoins(std.NewCoin(ugnot.Denom, 10))
 			amountCoins = std.NewCoins(std.NewCoin(ugnot.Denom, 10))
 			gasFee      = std.NewCoin(ugnot.Denom, 1000000)
@@ -466,7 +545,7 @@ func TestBalances_GetBalancesFromTransactions(t *testing.T) {
 		t.Parallel()
 
 		var (
-			dummyKeys   = common.GetDummyKeys(t, 10)
+			dummyKeys   = common.DummyKeys(t, 10)
 			amountCoins = std.NewCoins(std.NewCoin(ugnot.Denom, 10))
 			gasFee      = std.NewCoin("gnos", 1) // invalid fee
 			txs         = make([]std.Tx, 0)
@@ -518,7 +597,7 @@ func TestBalances_GetBalancesFromTransactions(t *testing.T) {
 		t.Parallel()
 
 		var (
-			dummyKeys   = common.GetDummyKeys(t, 10)
+			dummyKeys   = common.DummyKeys(t, 10)
 			amountCoins = std.NewCoins(std.NewCoin("gnogno", 10)) // invalid send amount
 			gasFee      = std.NewCoin(ugnot.Denom, 1)
 			txs         = make([]std.Tx, 0)
