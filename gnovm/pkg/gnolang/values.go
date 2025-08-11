@@ -732,8 +732,8 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 			Index: PointerIndexMap,
 		}
 	}
-	key2 := key.Copy(alloc)
-	mli := mv.List.Append(alloc, key2)
+	mli := mv.List.Append(alloc, *key)
+
 	mv.vmap[kmk] = mli
 	return PointerValue{
 		TV:    fillValueTV(store, &mli.Value),
@@ -1953,15 +1953,15 @@ func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Stor
 		}
 		mv := tv.V.(*MapValue)
 
-		// if key already exist,
-		// no need to attach it.
-		exist := false
+		var oldObject Object
 		key := iv.ComputeMapKey(store, false)
-		if _, ok := mv.vmap[key]; ok {
-			exist = true
+		k, ok := mv.vmap[key]
+		if ok {
+			oldObject = k.Key.GetFirstObject(store)
 		}
 
-		pv := mv.GetPointerForKey(alloc, store, iv)
+		ivk := iv.Copy(alloc)
+		pv := mv.GetPointerForKey(alloc, store, &ivk)
 		if pv.TV.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
 			if vt.Kind() != InterfaceKind {
@@ -1970,9 +1970,8 @@ func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Stor
 			}
 		}
 		// attach mapkey object
-		if !exist {
-			rlm.DidUpdate(mv, nil, iv.GetFirstObject(store))
-		}
+		rlm.DidUpdate(mv, oldObject, ivk.GetFirstObject(store))
+
 		return pv
 	default:
 		panic(fmt.Sprintf(
