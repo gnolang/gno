@@ -117,6 +117,8 @@ func Render(path string) string {
 		return false
 	})
 
+	RenderCharts(members, &sb)
+
 	RenderMembers(path, members, &sb)
 
 	return sb.String()
