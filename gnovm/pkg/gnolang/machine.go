@@ -1961,10 +1961,24 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	// Only "soft" switch to storage realm of receiver.
 	var rlm *Realm
 	if recv.IsDefined() { // method call
+		// XXX, consider these...
+		// obj := recv.GetFirstObject(m.Store)
+		// if obj == nil { // nil receiver
+		// 	// no switch
+		// 	return
+		// }
+		// recvOID := obj.GetObjectInfo().ID
+
+		// if recvOID.IsZero() ||
+		// 	(m.Realm != nil && recvOID.PkgID == m.Realm.ID) {
+		// 	// no switch
+		// 	return
+		// }
+
 		if pkgPath := fv.PkgPath; IsRealmPath(pkgPath) {
 			rlm = m.Store.GetPackageRealm(pkgPath)
+			m.Realm = rlm
 		}
-		m.Realm = rlm
 		return
 	} else { // function without receiver
 		// fmt.Println("===PushFrameCall, cx: ", cx)
