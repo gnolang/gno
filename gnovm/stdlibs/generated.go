@@ -565,6 +565,34 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
+		"deleteSliceIndex",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("[]string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("int")},
+		},
+		[]gno.FieldTypeExpr{},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  []string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  int
+				rp1 = reflect.ValueOf(&p1).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+
+			libs_std.X_deleteSliceIndex(p0, p1)
+		},
+	},
+	{
+		"std",
 		"AssertOriginCall",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{},
