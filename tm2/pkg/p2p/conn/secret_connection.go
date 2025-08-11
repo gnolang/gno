@@ -37,10 +37,7 @@ const (
 	aeadNonceSize    = chacha20poly1305.NonceSize
 )
 
-var (
-	ErrSmallOrderRemotePubKey = errors.New("detected low order point from remote peer")
-	ErrSharedSecretIsZero     = errors.New("shared secret is all zeroes")
-)
+var ErrSmallOrderRemotePubKey = errors.New("detected low order point from remote peer")
 
 // SecretConnection implements net.Conn.
 // It is an implementation of the STS protocol.
@@ -405,12 +402,6 @@ func computeDHSecret(remPubKey, locPrivKey *[32]byte) (shrKey *[32]byte, err err
 		return nil, err
 	}
 
-	// reject if the returned shared secret is all zeroes
-	// related to: https://github.com/tendermint/classic/issues/3010
-	zero := new([32]byte)
-	if subtle.ConstantTimeCompare(dst, zero[:]) == 1 {
-		return nil, ErrSharedSecretIsZero
-	}
 	return (*[32]byte)(dst), nil
 }
 
