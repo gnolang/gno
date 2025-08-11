@@ -290,8 +290,7 @@ func TestCreateCustomPrinter(t *testing.T) {
 	d, err := NewDocumentableFromMemPkg(mpkg, true, "", "")
 	require.NoError(t, err)
 
-	opt := &WriteDocumentationOptions{}
-	_, pkg, err := d.pkgData.docPackage(opt)
+	_, pkg, err := d.pkgData.docPackage()
 	require.NoError(t, err)
 
 	// Test that createCustomPrinter returns a printer with empty heading IDs
@@ -314,8 +313,7 @@ func TestNormalizedMarkdownPrinter(t *testing.T) {
 	d, err := NewDocumentableFromMemPkg(mpkg, true, "", "")
 	require.NoError(t, err)
 
-	opt := &WriteDocumentationOptions{}
-	_, pkg, err := d.pkgData.docPackage(opt)
+	_, pkg, err := d.pkgData.docPackage()
 	require.NoError(t, err)
 	printer := createCustomPrinter(pkg)
 
@@ -456,7 +454,8 @@ func TestJSONDocumentationWithCodeBlocks(t *testing.T) {
 	d, err := NewDocumentableFromMemPkg(mpkg, true, "", "")
 	require.NoError(t, err)
 
-	jdoc, err := d.WriteJSONDocumentation()
+	opt := &WriteDocumentationOptions{}
+	jdoc, err := d.WriteJSONDocumentation(opt)
 	require.NoError(t, err)
 
 	// Verify that the JSON contains proper markdown formatting

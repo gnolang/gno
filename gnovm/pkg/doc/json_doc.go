@@ -122,9 +122,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 	// Parse package documentation
 	var pkgDoc string
 	if pkg.Doc != "" {
-		var p comment.Parser
-		doc := p.Parse(pkg.Doc)
-		pkgDoc = normalizedMarkdownPrinter(printer, doc)
+		pkgDoc = normalizedMarkdownPrinter(printer, pkg.Doc)
 	}
 
 	jsonDoc := &JSONDocumentation{
@@ -334,8 +332,26 @@ func createCustomPrinter(pkg *doc.Package) *comment.Printer {
 
 // normalizedMarkdownPrinter converts a doc comment to markdown without double backslashes
 // and converts indented code blocks to fenced code blocks for Chroma syntax highlighting
-func normalizedMarkdownPrinter(printer *comment.Printer, doc *comment.Doc) string {
-	md := string(printer.Markdown(doc))
+func normalizedMarkdownPrinter(printer *comment.Printer, doc interface{}) string {
+	if doc == "" {
+		return ""
+	}
+
+	var md string
+	switch d := doc.(type) {
+	case string:
+		if d == "" {
+			return ""
+		}
+		var p comment.Parser
+		parsedDoc := p.Parse(d)
+		md = string(printer.Markdown(parsedDoc))
+	case *comment.Doc:
+		md = string(printer.Markdown(d))
+	default:
+		return ""
+	}
+
 	md = convertIndentedCodeBlocksToFenced(md)
 	md = strings.ReplaceAll(md, `\\`, `\`)
 
@@ -469,13 +485,10 @@ func (d *Documentable) extractValueSpecs(specs []ast.Spec, printer *comment.Prin
 		// Const declaration can be of the form: const a, b, c = 1, 2, 3
 		// so we need to iterate over the names
 		for _, name := range constSpec.Names {
-			// Parse the comment and use our custom printer
-			var p comment.Parser
-			doc := p.Parse(commentBuf.String())
 			jsonValue := &JSONValue{
 				Name: name.Name,
 				Type: typeString,
-				Doc:  normalizedMarkdownPrinter(printer, doc),
+				Doc:  normalizedMarkdownPrinter(printer, commentBuf.String()),
 			}
 			values = append(values, jsonValue)
 		}
