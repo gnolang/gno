@@ -722,7 +722,7 @@ func (mv *MapValue) GetLength() int {
 
 // GetPointerForKey is only used for assignment, so the key
 // is not returned as part of the pointer, and TV is not filled.
-func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
+func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key TypedValue) PointerValue {
 	// If NaN, instead of computing map key, just append to List.
 	kmk := key.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
@@ -732,7 +732,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 			Index: PointerIndexMap,
 		}
 	}
-	mli := mv.List.Append(alloc, *key)
+	mli := mv.List.Append(alloc, key)
 
 	mv.vmap[kmk] = mli
 	return PointerValue{
@@ -1960,8 +1960,9 @@ func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Stor
 			oldObject = k.Key.GetFirstObject(store)
 		}
 
+		// Copy key object
 		ivk := iv.Copy(alloc)
-		pv := mv.GetPointerForKey(alloc, store, &ivk)
+		pv := mv.GetPointerForKey(alloc, store, ivk)
 		if pv.TV.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
 			if vt.Kind() != InterfaceKind {

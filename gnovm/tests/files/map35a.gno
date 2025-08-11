@@ -18,10 +18,8 @@ func Set(v int) {
 }
 
 func Render(s string) string {
-	i := 0
 	for k := range accounts {
-		s += "" + strconv.Itoa(i) + "key.num:" + strconv.Itoa(k)
-		i++
+		s += "key:" + strconv.Itoa(k)
 	}
 	return s
 }
@@ -33,4 +31,4 @@ func main() {
 }
 
 // Output:
-// 0key.num:1
+// key:1
