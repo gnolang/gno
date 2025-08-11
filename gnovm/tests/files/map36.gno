@@ -1,19 +1,25 @@
 package main
 
-import (
-	"fmt"
-	"math"
-)
+import "fmt"
+
+var accounts = map[any]int{}
+
+func Register() {
+	var a *int
+	var b *int64
+	accounts[nil] = 1
+	accounts[a] = 1
+	accounts[b] = 1
+}
 
 func main() {
-	n0 := math.Float64frombits(1 << 63)
-	fmt.Println(n0)
-	m := map[float64]string{}
-	m[0] = "hey"
-	m[n0] = "world"
-	fmt.Println(m)
+	Register()
+	for k, v := range accounts {
+		fmt.Printf("%v: %d\n", k, v)
+	}
 }
 
 // Output:
-// -0
-// map[-0:world]
+// <nil>: 1
+// <nil>: 1
+// <nil>: 1
