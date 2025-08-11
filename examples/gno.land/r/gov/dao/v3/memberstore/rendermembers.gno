@@ -9,10 +9,11 @@ import (
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/samcrew/urlfilter"
+	"gno.land/p/sunspirit/md"
 )
 
-// RenderMembers displays the full memberstore with tier filters and pagination, it writes into the provided string builder
-func RenderMembers(path string, members MembersByTier, sb *strings.Builder) string {
+// RenderMembers returns the members list with tier filters and pagination.
+func RenderMembers(path string, members MembersByTier) string {
 	u, _ := url.Parse(path)
 	query := u.Query()
 	pageNum, _ := strconv.Atoi(query.Get("page"))
@@ -22,20 +23,24 @@ func RenderMembers(path string, members MembersByTier, sb *strings.Builder) stri
 	pageSize := 14
 	data := urlfilter.ApplyFilters(u, members.Tree)
 
-	sb.WriteString("## Members:\n")
-	sb.WriteString("Filter members by tier: \n")
+	var sb strings.Builder
+	sb.WriteString(md.Link("> Go to Tiers summary <", "/r/gov/dao/v3/memberstore"))
+	sb.WriteString(md.LineBreak(1))
+	sb.WriteString(md.Bold("Filter members by tiers:"))
 	sb.WriteString(data.Markdown)
-	sb.WriteString("\n")
+	sb.WriteString(md.LineBreak(1))
 
 	pager := pager.NewPager(data.Items, pageSize, false)
 	page := pager.GetPageWithSize(pageNum, pageSize)
-	renderMembersPage(sb, page, data.Items)
-	renderPagination(sb, u, page)
+
+	sb.WriteString(renderMembersPage(page, data.Items))
+	sb.WriteString(md.LineBreak(1))
+	sb.WriteString(renderPagination(u, page))
 
 	return sb.String()
 }
 
-// parsePageNum parses the page number from the query string, defaults to 1 if invalid, and returns it
+// parsePageNum parses the page number from the query string, defaults to 1 if invalid, and returns it.
 func parsePageNum(s string) int {
 	if n, err := strconv.Atoi(s); err == nil && n > 0 {
 		return n
@@ -43,20 +48,25 @@ func parsePageNum(s string) int {
 	return 1
 }
 
-// renderMembersPage writes the members of the current page into the provided string builder
-func renderMembersPage(sb *strings.Builder, page *pager.Page, allMembers *avl.Tree) {
+// renderMembersPage returns the members of the current page as bullet points.
+func renderMembersPage(page *pager.Page, members *avl.Tree) string {
+	var sb strings.Builder
 	for _, item := range page.Items {
 		addr := item.Key
-		tn, _ := allMembers.Get(addr)
+		tn, _ := members.Get(addr)
 		sb.WriteString(ufmt.Sprintf("- %v · %v\n", tn, addr))
 	}
+	return sb.String()
 }
 
-// renderPagination writes the pagination UI for the current page into the provided string builder
-func renderPagination(sb *strings.Builder, u *url.URL, page *pager.Page) {
-	sb.WriteString("\n")
+// renderPagination returns the pagination UI for the current page.
+func renderPagination(u *url.URL, page *pager.Page) string {
 	q := u.Query()
 	q.Del("page")
 	u.RawQuery = q.Encode()
-	sb.WriteString(page.Picker(u.String()) + "\n\n")
+
+	var sb strings.Builder
+	sb.WriteString(page.Picker(u.String()))
+
+	return sb.String()
 }

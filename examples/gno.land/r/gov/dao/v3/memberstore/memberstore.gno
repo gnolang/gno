@@ -5,12 +5,15 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/sunspirit/md"
 	"gno.land/r/gov/dao"
 )
 
 var members MembersByTier
 var Tiers TiersByName
+var router *mux.Router
 
 const (
 	T1 = "T1"
@@ -92,12 +95,23 @@ func init() {
 		},
 	})
 
+	initRouter()
 }
 
-func Render(path string) string {
+// initRouter initializes the router for the memberstore.
+func initRouter() {
+	router = mux.NewRouter()
+	router.HandleFunc("", renderHome)
+	router.HandleFunc("members", renderMembers)
+	router.NotFoundHandler = renderNotFound
+}
+
+// renderHome displays the tiers data (Number of members and powers) and tiers charts.
+func renderHome(res *mux.ResponseWriter, req *mux.Request) {
 	var sb strings.Builder
 
-	sb.WriteString("# Memberstore Govdao v3:\n\n")
+	sb.WriteString(md.Link("> Go to Members list <", "/r/gov/dao/v3/memberstore:members"))
+	sb.WriteString(md.LineBreak(1))
 
 	members.Iterate("", "", func(tn string, ti interface{}) bool {
 		tree, ok := ti.(*avl.Tree)
@@ -117,10 +131,25 @@ func Render(path string) string {
 		return false
 	})
 
-	RenderCharts(members, &sb)
+	sb.WriteString(RenderCharts(members))
 
-	RenderMembers(path, members, &sb)
+	res.Write(sb.String())
+}
 
+// renderMembers displays the members list.
+func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
+	path := strings.Replace(req.RawPath, "members", "", 1) // We have to clean the path
+	res.Write(RenderMembers(path, members))
+}
+
+func renderNotFound(res *mux.ResponseWriter, req *mux.Request) {
+	res.Write("# 404\n\nThat page was not found. Would you like to [**go home**?](/r/gov/dao/v3/memberstore)")
+}
+
+func Render(path string) string {
+	var sb strings.Builder
+	sb.WriteString(md.H1("Memberstore Govdao v3"))
+	sb.WriteString(router.Render(path))
 	return sb.String()
 }
 

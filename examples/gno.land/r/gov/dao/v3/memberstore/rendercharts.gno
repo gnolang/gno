@@ -4,13 +4,15 @@ import (
 	"strings"
 
 	"gno.land/p/samcrew/piechart"
+	"gno.land/p/sunspirit/md"
 )
 
 // RenderCharts generates two pie charts for member tiers:
 // 1) distribution of member counts per tier
 // 2) distribution of power per tier
-// It writes into the provided string builder
-func RenderCharts(members MembersByTier, sb *strings.Builder) string {
+func RenderCharts(members MembersByTier) string {
+	var sb strings.Builder
+
 	tierNames := []string{"T1", "T2", "T3"}
 	memberCounts := make([]float64, 0, len(tierNames))
 	powerValues := make([]float64, 0, len(tierNames))
@@ -28,12 +30,13 @@ func RenderCharts(members MembersByTier, sb *strings.Builder) string {
 
 	colors := []string{"#2FA08C", "#8654D6", "#F5C65B"}
 
-	resultPieTs := piechart.GeneratePieChart(memberCounts, colors, tierNames, "Members repartition:")
-	resultPieTp := piechart.GeneratePieChart(powerValues, colors, tierNames, "Power repartition:")
+	resultPieTs := piechart.RenderPieChart(memberCounts, colors, tierNames, "Members repartition:")
+	resultPieTp := piechart.RenderPieChart(powerValues, colors, tierNames, "Power repartition:")
 
 	sb.WriteString(resultPieTs)
+	sb.WriteString(md.LineBreak(1))
 	sb.WriteString(resultPieTp)
-	sb.WriteString("\n")
+	sb.WriteString(md.LineBreak(1))
 
 	return sb.String()
 }

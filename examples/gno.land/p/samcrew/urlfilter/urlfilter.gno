@@ -6,6 +6,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/sunspirit/md"
 )
 
 // FilterItemsTree is a type alias for an AVL tree that holds filter items.
@@ -75,7 +76,7 @@ func ApplyFilters(u *url.URL, items FilterItemsTree) Result {
 	for _, f := range allFilters {
 		q := toggleFilterQuery(active, f, allFilters)
 		urlStr := buildURL(u.Path, q)
-		sb.WriteString(ufmt.Sprintf(" | [%v](%v) ", formatLabel(f, active[f]), urlStr))
+		sb.WriteString(ufmt.Sprintf(" | %v ", md.Link(formatLabel(f, active[f]), urlStr)))
 	}
 
 	return Result{
@@ -139,7 +140,7 @@ func toggleFilterQuery(active map[string]bool, toggled string, all []string) url
 // with strikethrough (~~filter~~).
 func formatLabel(name string, active bool) string {
 	if active {
-		return "**" + name + "**"
+		return md.Bold(name)
 	}
-	return "~~" + name + "~~"
+	return md.Strikethrough(name)
 }

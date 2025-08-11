@@ -4,13 +4,13 @@ import (
 	"testing"
 )
 
-func TestGeneratePieChart(t *testing.T) {
+func TestRenderPieChart(t *testing.T) {
 	values := []float64{10, 20, 30}
 	colors := []string{"#FF6384", "#36A2EB", "#FFCE56"}
 	labels := []string{"Red", "Blue", "Yellow"}
 	title := "Sample Pie Chart"
 
-	result := GeneratePieChart(values, colors, labels, title)
+	result := RenderPieChart(values, colors, labels, title)
 
 	// Check if the result is not empty
 	if result == "" {
@@ -19,9 +19,9 @@ func TestGeneratePieChart(t *testing.T) {
 
 	// Check if one of the slices has not the same length than the others
 	badValues := []float64{10, 20, 30, 40} // one extra value
-	errMsg := "values, colors and labels slices must have the same length"
+	errMsg := "\npiechart fails: values, colors and labels slices must have the same length"
 
-	if res := GeneratePieChart(badValues, colors, labels, title); res != errMsg {
+	if res := RenderPieChart(badValues, colors, labels, title); res != errMsg {
 		t.Errorf("Expected error message for mismatched lengths, got: %s", res)
 	}
 }

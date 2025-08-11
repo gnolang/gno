@@ -2,14 +2,16 @@ package piechart
 
 import (
 	"math"
+	"strings"
 
 	"gno.land/p/demo/svg"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/sunspirit/md"
 )
 
-// GeneratePieChart creates an SVG pie chart from given values, colors, labels, and optional title.
+// RenderPieChart creates an SVG pie chart from given values, colors, labels, and optional title.
 // It returns the SVG markup as a string, including a markdown header if a title is provided.
-func GeneratePieChart(values []float64, colors []string, labels []string, title string) string {
+func RenderPieChart(values []float64, colors []string, labels []string, title string) string {
 	// Validate input slices length
 	if len(values) != len(colors) || len(values) != len(labels) {
 		return "\npiechart fails: values, colors and labels slices must have the same length"
@@ -94,13 +96,15 @@ func GeneratePieChart(values []float64, colors []string, labels []string, title 
 		})
 	}
 
-	return formatChartHeader(title) + canvas.Render("Pie Chart "+title) + "\n"
+	return formatChartHeader(title) + canvas.Render("Pie Chart "+title)
 }
 
 // formatChartHeader returns a markdown header for the chart title if provided.
 func formatChartHeader(title string) string {
+	var sb strings.Builder
 	if title == "" {
-		return ""
+		return sb.String()
 	}
-	return "## " + title + "\n"
+	sb.WriteString(md.H2(title))
+	return sb.String()
 }
