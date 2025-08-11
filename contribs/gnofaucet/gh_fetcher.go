@@ -190,9 +190,8 @@ func (f *GHFetcher) iterateIssues(ctx context.Context, pipe redis.Pipeliner, org
 		}
 
 		var lastCreatedAt time.Time
+		ca := f.getLatestDate(ctx, org, repo)
 		for _, issue := range issues {
-			ca := f.getLatestDate(ctx, org, repo)
-
 			if issue.CreatedAt.Before(ca) {
 				return true // return early if we already processed previous issues
 			}
@@ -200,8 +199,8 @@ func (f *GHFetcher) iterateIssues(ctx context.Context, pipe redis.Pipeliner, org
 			f.processIssue(ctx, pipe, org, repo, issue)
 			lastCreatedAt = issue.CreatedAt.Time
 		}
-		t := f.getLatestDate(ctx, org, repo)
-		if lastCreatedAt.After(t) {
+
+		if lastCreatedAt.After(ca) {
 			if err := pipe.Set(ctx, lastRepoFetchKey(org, repo), lastCreatedAt, 0).Err(); err != nil {
 				f.logger.Error("error setting last event date", zap.String("org", org), zap.String("repo", repo), zap.Error(err))
 				return false
@@ -268,7 +267,7 @@ func (f *GHFetcher) iterateEvents(ctx context.Context, pipe redis.Pipeliner, org
 
 		latestEventDate := f.getLatestDate(ctx, org, repo)
 		for _, ev := range events {
-			if ev.CreatedAt.GetTime().Before(latestEventDate) || ev.CreatedAt.GetTime().Equal(latestEventDate) {
+			if !ev.CreatedAt.GetTime().After(latestEventDate) {
 				continue
 			}
 
