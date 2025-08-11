@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"strings"
 	"testing"
 
 	"gno.land/r/nt/commondao"
@@ -12,27 +13,32 @@ const (
 	user  = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
-var parentID uint64
+var (
+	daoID uint64
+	name  = strings.Repeat("A", 61)
+)
 
 func init() {
-	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
 	commondao.Invite(cross, user)
 
-	// The origin must be the invited user
 	testing.SetRealm(std.NewUserRealm(user))
-
-	// Create the root DAO
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
-	parentID = commondao.New("Parent DAO").ID()
+	dao := commondao.New("Foo")
+	dao.Members().Add(user)
+
+	options := commondao.GetOptions(dao.ID())
+	options.SetAllowChildren(true)
+	options.SetAllowSubDAOPorposals(true)
+
+	daoID = dao.ID()
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
 
-	commondao.NewSubDAO("", parentID)
+	commondao.CreateSubDAOProposal(cross, daoID, name, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 }
 
 // Error:
-// DAO name is empty
+// DAO name is too long, max length is 60 characters
