@@ -25,12 +25,10 @@ var (
 	tmpInt   = myInt{1}
 )
 
-func Register() {
-	crossing()
+func Register(_ realm) {
 	accounts[1] = tmpInt
 }
 
-func Render(string) string {
-    crossing()
+func Render(_ realm, s string) string {
     return strconv.Itoa(accounts[1].num)
 }

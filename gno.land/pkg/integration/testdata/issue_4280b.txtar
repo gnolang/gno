@@ -32,12 +32,10 @@ var (
 	tmpInt   = myInt{num:1, myint2: MyInt2{num2: 2}}
 )
 
-func Register() {
-	crossing()
+func Register(_ realm) {
 	accounts[tmpInt] = 1
 }
 
-func Render(string) string {
-    crossing()
+func Render(_ realm, s string) string {
 	return "[Break the map!](maperror$help&func=Register)\n\nmap len: " + strconv.Itoa(len(accounts))
 }
