@@ -1961,42 +1961,11 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	// Only "soft" switch to storage realm of receiver.
 	var rlm *Realm
 	if recv.IsDefined() { // method call
-		obj := recv.GetFirstObject(m.Store)
-		if obj == nil { // nil receiver
-			return
-		} else {
-			recvOID := obj.GetObjectInfo().ID
-			if recvOID.IsZero() ||
-				(m.Realm != nil && recvOID.PkgID == m.Realm.ID) {
-				// no switch
-				return
-			} else {
-				// Implicit switch to storage realm.
-				// Neither cross nor didswitch.
-				// recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
-				// objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				// if objpv.IsRealm() && objpv.Realm == nil {
-				// 	rlm = m.Store.GetPackageRealm(objpv.PkgPath)
-				// } else {
-				// 	rlm = objpv.GetRealm()
-				// }
-				if pkgPath := fv.PkgPath; IsRealmPath(pkgPath) {
-					rlm = m.Store.GetPackageRealm(pkgPath)
-				}
-
-				m.Realm = rlm
-				// DO NOT set DidCrossing here. Make
-				// DidCrossing only happen upon explicit
-				// cross(fn)(...) calls and subsequent calls to
-				// crossing functions from the same realm, to
-				// avoid user confusion. Otherwise whether
-				// DidCrossing happened or not depends on where
-				// the receiver resides, which isn't explicit
-				// enough to avoid confusion.
-				//   fr.DidCrossing = true
-				return
-			}
+		if pkgPath := fv.PkgPath; IsRealmPath(pkgPath) {
+			rlm = m.Store.GetPackageRealm(pkgPath)
 		}
+		m.Realm = rlm
+		return
 	} else { // function without receiver
 		// fmt.Println("===PushFrameCall, cx: ", cx)
 		if pv.IsRealm() {
