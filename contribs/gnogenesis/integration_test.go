@@ -49,35 +49,35 @@ func TestIntegration(t *testing.T) {
 	// Create keybase
 	gnoHomeDir := filepath.Join(t.TempDir(), "gno")
 
-	pk := ed25519.GenPrivKey()
-	myVal := bft.NewMockPVWithParams(pk, false, false)
+	sk := ed25519.GenPrivKey()
+	myVal := bft.NewMockPVWithPrivKey(sk)
 	kb, err := keys.NewKeyBaseFromDir(gnoHomeDir)
 	require.NoError(t, err)
-	kb.ImportPrivKey("mykey", pk, "")
+	kb.ImportPrivKey("mykey", sk, "")
 
 	// Add my validator
 	runGnoGenesisCommand(t, ctx, "validator", "add",
 		"--name", "myval",
 		"--genesis-path", genesisfile,
-		"--address", myVal.GetPubKey().Address().String(),
-		"--pub-key", myVal.GetPubKey().String(),
+		"--address", myVal.PubKey().Address().String(),
+		"--pub-key", myVal.PubKey().String(),
 		"--power", "1",
 	)
 
 	// Dummy account
-	dKeys := common.GetDummyKeys(t, 3)
+	dKeys := common.DummyKeys(t, 3)
 
 	// Generate balance sheet
 	defaultBalanceAmount := std.Coins{std.NewCoin(ugnot.Denom, 10e8)}
 	balances := []string{
-		fmt.Sprintf("%s=%s", myVal.GetPubKey().Address().String(), defaultBalanceAmount.String()),
+		fmt.Sprintf("%s=%s", myVal.PubKey().Address().String(), defaultBalanceAmount.String()),
 		fmt.Sprintf("%s=%s", dKeys[0].Address().String(), defaultBalanceAmount.String()),
 		fmt.Sprintf("%s=%s", dKeys[1].Address().String(), defaultBalanceAmount.String()),
 		fmt.Sprintf("%s=%s", dKeys[2].Address().String(), defaultBalanceAmount.String()),
 	}
 
 	balanceSheet := filepath.Join(t.TempDir(), "balance-sheet.txt")
-	err = os.WriteFile(balanceSheet, []byte(strings.Join(balances, "\n")), 0644)
+	err = os.WriteFile(balanceSheet, []byte(strings.Join(balances, "\n")), 0o644)
 	require.NoError(t, err)
 
 	// Add balance sheet
