@@ -1334,6 +1334,7 @@ func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 }
 
 func (pn *PackageNode) NewPackage() *PackageValue {
+	fmt.Println("======NewPackage......")
 	pv := &PackageValue{
 		Block: &Block{
 			Source: pn,
@@ -1344,6 +1345,7 @@ func (pn *PackageNode) NewPackage() *PackageValue {
 		FBlocks:    nil,
 		fBlocksMap: make(map[string]*Block),
 	}
+	fmt.Println("======pv: ", pv.Block)
 	// Set realm for realm packages, main package, and ephemeral run packages
 	if IsRealmPath(pn.PkgPath) || pn.PkgPath == "main" {
 		rlm := NewRealm(pn.PkgPath)

@@ -102,6 +102,7 @@ var machinePool = sync.Pool{
 // Machines initialized through this constructor must be finalized with
 // [Machine.Release].
 func NewMachineWithOptions(opts MachineOptions) *Machine {
+	fmt.Println("======NewMachineWithOptions...")
 	vmGasMeter := opts.GasMeter
 
 	output := opts.Output
@@ -258,6 +259,7 @@ func (m *Machine) RunMemPackageWithOverrides(mpkg *std.MemPackage, save bool) (*
 }
 
 func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
+	fmt.Println("======runMemPackage...")
 	// validate mpkg.Type.
 	mptype := mpkg.Type.(MemPackageType)
 	if save && !mptype.IsStorable() {
@@ -490,6 +492,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 // "examples/*".
 //   - fixFrom: the version of gno to fix from.
 func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool, fixFrom string) (*PackageNode, *PackageValue) {
+	fmt.Println("======PreprocessFiles...")
 	if !withOverrides {
 		if err := checkDuplicates(fset); err != nil {
 			panic(fmt.Errorf("running package %q: %w", pkgName, err))

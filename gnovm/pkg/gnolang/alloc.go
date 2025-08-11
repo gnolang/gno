@@ -9,9 +9,12 @@ import (
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
-	maxBytes int64
-	bytes    int64
-	collect  func() (left int64, ok bool) // gc callback
+	maxBytes   int64
+	bytes      int64
+	collect    func() (left int64, ok bool) // gc callback
+	isGc       bool
+	GcCount    int
+	AllocCount int
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -125,17 +128,30 @@ func (alloc *Allocator) Allocate(size int64) {
 		fmt.Println("======alloc.bytes: ", alloc.bytes)
 		fmt.Println("======size: ", size)
 		fmt.Println("======alloc.bytes - size: ", alloc.bytes-size)
+		alloc.isGc = true
 		if left, ok := alloc.collect(); !ok {
 			panic("should not happen, allocation limit exceeded while gc.")
 		} else { // retry
+			fmt.Println("======GC finished, retry alloc, left: ", left)
 			if debug {
 				debug.Printf("%d left after GC, required size: %d\n", left, size)
 			}
+			fmt.Printf("%d left after GC, required size: %d\n", left, size)
 			alloc.bytes += size
 			if alloc.bytes > alloc.maxBytes {
+				fmt.Println("==================Alloc.GcCount: ", alloc.GcCount)
+				fmt.Println("==================Alloc.AllocCount: ", alloc.AllocCount)
 				panic("allocation limit exceeded")
 			}
 		}
+	}
+	if alloc.isGc {
+		alloc.GcCount++
+		fmt.Println("========================GC counting size: ", size)
+		fmt.Println("========================GC alloc.bytes: ", alloc.bytes)
+	} else {
+		alloc.AllocCount++
+		fmt.Println("========================Alloc size: ", size)
 	}
 }
 

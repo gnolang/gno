@@ -497,6 +497,7 @@ EXEC_SWITCH:
 		m.PushOp(OpEval)
 	case *ForStmt:
 		m.PushFrameBasic(cs)
+		fmt.Println("======Alloc for block...")
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,

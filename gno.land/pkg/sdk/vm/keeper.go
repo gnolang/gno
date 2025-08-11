@@ -626,6 +626,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
 	}
+	fmt.Println("======Call...")
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
