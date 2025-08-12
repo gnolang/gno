@@ -194,10 +194,10 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 		return err
 	}
 
-	stdout := io.Out()
+	sb := &strings.Builder{}
 
 	if cfg.format == "dot" {
-		fmt.Fprint(stdout, "digraph gno {\n")
+		fmt.Fprint(sb, "digraph gno {\n")
 	}
 
 	errCount := uint(0)
@@ -212,16 +212,18 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 		deps := pkg.ImportsSpecs.Merge()
 		for _, dep := range deps {
 			if cfg.format == "dot" {
-				fmt.Fprintf(stdout, "    %q -> %q;\n", pkg.ImportPath, dep.PkgPath)
+				fmt.Fprintf(sb, "    %q -> %q;\n", pkg.ImportPath, dep.PkgPath)
 			} else {
-				fmt.Fprintf(stdout, "%s %s\n", pkg.ImportPath, dep.PkgPath)
+				fmt.Fprintf(sb, "%s %s\n", pkg.ImportPath, dep.PkgPath)
 			}
 		}
 	}
 
 	if cfg.format == "dot" {
-		fmt.Fprint(stdout, "}\n")
+		fmt.Fprint(sb, "}\n")
 	}
+
+	io.Out().Write([]byte(sb.String()))
 
 	if errCount != 0 {
 		return errors.New("%d build error(s)", errCount)
