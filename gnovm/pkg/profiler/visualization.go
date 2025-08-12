@@ -35,7 +35,8 @@ func (p *Profile) WriteFormat(w io.Writer, format ProfileFormat) error {
 	case FormatJSON:
 		return p.WriteJSON(w)
 	default:
-		return p.WriteTo(w)
+		_, err := p.WriteTo(w)
+		return err
 	}
 }
 
@@ -51,8 +52,8 @@ func (p *Profile) WriteCallTree(w io.Writer) error {
 
 	// Process stack samples to build tree
 	for _, sample := range p.Samples {
-		if len(sample.Location) <= 1 {
-			continue // Skip non-stack samples
+		if len(sample.Location) == 0 {
+			continue // Skip empty samples
 		}
 
 		cycles := int64(0)
@@ -61,8 +62,10 @@ func (p *Profile) WriteCallTree(w io.Writer) error {
 		}
 
 		// Traverse/build tree from root to leaf
+		// Location[0] is the bottom of the stack (root)
+		// Location[n-1] is the top of the stack (leaf)
 		current := root
-		for i := len(sample.Location) - 1; i >= 0; i-- {
+		for i := 0; i < len(sample.Location); i++ {
 			funcName := sample.Location[i].Function
 			if child, ok := current.children[funcName]; ok {
 				child.cycles += cycles
@@ -125,9 +128,9 @@ func printNode(w io.Writer, n *node, prefix string, isLast bool, totalCycles int
 	childPrefix := prefix
 	if n.name != "<root>" {
 		if isLast {
-			childPrefix += "  "
+			childPrefix += "    "
 		} else {
-			childPrefix += "│ "
+			childPrefix += "│   "
 		}
 	}
 
@@ -211,11 +214,11 @@ func (p *Profile) WriteTopList(w io.Writer) error {
 
 	// Print header
 	totalCycles := p.totalCycles()
-	fmt.Fprintf(w, "Top Functions by Cumulative Time\n")
+	fmt.Fprintf(w, "Top Functions by CPU Cycles\n")
 	fmt.Fprintf(w, "Total cycles: %d\n\n", totalCycles)
-	fmt.Fprintf(w, "%-6s %-12s %-8s %-12s %-8s %-8s %s\n",
-		"Rank", "Cumulative", "Cum%", "Flat", "Flat%", "Calls", "Function")
-	fmt.Fprintf(w, "%s\n", strings.Repeat("-", 80))
+	fmt.Fprintf(w, "%-6s %-12s %-8s %-12s %-8s %-8s %-20s %s\n",
+		"Rank", "Cumulative", "Cum%", "Flat", "Flat%", "Calls", "Bar", "Function")
+	fmt.Fprintf(w, "%s\n", strings.Repeat("-", 100))
 
 	// Print functions
 	for i, stat := range funcs {
@@ -230,8 +233,18 @@ func (p *Profile) WriteTopList(w io.Writer) error {
 			flatPercent = float64(stat.flat) / float64(totalCycles) * 100
 		}
 
-		fmt.Fprintf(w, "%-6d %-12d %-7.2f%% %-12d %-7.2f%% %-8d %s\n",
-			i+1, stat.cumulative, cumPercent, stat.flat, flatPercent, stat.calls, stat.name)
+		// Create visual bar
+		barLength := min(int(cumPercent/5), 20) // 20 chars max
+		bar := strings.Repeat("█", barLength)
+
+		// Truncate function name if too long
+		funcName := stat.name
+		if len(funcName) > 50 {
+			funcName = funcName[:47] + "..."
+		}
+
+		fmt.Fprintf(w, "%-6d %-12d %-7.2f%% %-12d %-7.2f%% %-8d %-20s %s\n",
+			i+1, stat.cumulative, cumPercent, stat.flat, flatPercent, stat.calls, bar, funcName)
 	}
 
 	// Print summary

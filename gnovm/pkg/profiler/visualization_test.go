@@ -62,7 +62,7 @@ func TestProfileWriteTo(t *testing.T) {
 	profile := createTestProfile(t)
 
 	var buf bytes.Buffer
-	err := profile.WriteTo(&buf)
+	_, err := profile.WriteTo(&buf)
 	if err != nil {
 		t.Fatalf("WriteTo failed: %v", err)
 	}
@@ -184,17 +184,46 @@ func TestProfileWriteCallTree_Hierarchy(t *testing.T) {
 		t.Error("Missing call tree header")
 	}
 
+	// Debug output
+	t.Logf("Call tree output:\n%s", output)
+
 	// Check indentation levels
 	lines := strings.Split(output, "\n")
 	rootIndent := -1
 	branchIndent := -1
+	rootFound := false
+	branchFound := false
 
 	for _, line := range lines {
-		if strings.Contains(line, "main.root") {
-			rootIndent = len(line) - len(strings.TrimLeft(line, " "))
+		if strings.Contains(line, "main.root") && !rootFound {
+			// Count leading spaces/tabs/special chars up to function name
+			indent := 0
+			for i, ch := range line {
+				if strings.HasPrefix(line[i:], "main.root") {
+					break
+				}
+				if ch == ' ' || ch == '\t' || ch == '│' || ch == '├' || ch == '└' || ch == '─' {
+					indent++
+				}
+			}
+			rootIndent = indent
+			rootFound = true
+			t.Logf("Root line: %q, calculated indent: %d", line, indent)
 		}
-		if strings.Contains(line, "main.branch") {
-			branchIndent = len(line) - len(strings.TrimLeft(line, " "))
+		if strings.Contains(line, "main.branch") && !branchFound {
+			// Count leading spaces/tabs/special chars up to function name
+			indent := 0
+			for i, ch := range line {
+				if strings.HasPrefix(line[i:], "main.branch") {
+					break
+				}
+				if ch == ' ' || ch == '\t' || ch == '│' || ch == '├' || ch == '└' || ch == '─' {
+					indent++
+				}
+			}
+			branchIndent = indent
+			branchFound = true
+			t.Logf("Branch line: %q, calculated indent: %d", line, indent)
 		}
 	}
 

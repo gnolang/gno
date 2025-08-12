@@ -141,7 +141,7 @@ func TestWriteFunctionList_PartialMatch(t *testing.T) {
 
 				// Check for "ROUTINE" headers for multiple matches
 				if len(tt.expectMatches) > 1 {
-					routineCount := strings.Count(output, "ROUTINE ========================")
+					routineCount := strings.Count(output, ROUTINE_SEPARATOR)
 					if routineCount != len(tt.expectMatches) {
 						t.Errorf("expected %d ROUTINE sections, got %d", len(tt.expectMatches), routineCount)
 					}
@@ -187,8 +187,8 @@ func TestWriteFunctionList_MultipleMatches_Formatting(t *testing.T) {
 
 	// Check that both functions are displayed with proper formatting
 	expectedSections := []string{
-		"ROUTINE ======================== gno.land/p/demo/ufmt.Sprintf in ufmt.gno",
-		"ROUTINE ======================== fmt.Sprintf in fmt.gno",
+		ROUTINE_SEPARATOR + " gno.land/p/demo/ufmt.Sprintf in ufmt.gno",
+		ROUTINE_SEPARATOR + " fmt.Sprintf in fmt.gno",
 	}
 
 	for _, section := range expectedSections {

@@ -264,13 +264,13 @@ func profilerSave(p *ProfilerCLI, arg string) error {
 	ext := filepath.Ext(arg)
 	switch ext {
 	case ".html":
-		err = p.profile.WriteTo(file) // Default format for .html files
+		_, err = p.profile.WriteTo(file) // Default format for .html files
 	case ".tree":
 		err = p.profile.WriteCallTree(file)
 	case ".top":
 		err = p.profile.WriteTopList(file)
 	default:
-		err = p.profile.WriteTo(file)
+		_, err = p.profile.WriteTo(file)
 	}
 
 	if err != nil {

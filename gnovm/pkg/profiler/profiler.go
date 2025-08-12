@@ -461,14 +461,37 @@ func (p *Profiler) generateSamples() {
 	}
 }
 
+// countingWriter counts bytes written
+type countingWriter struct {
+	w   io.Writer
+	n   int64
+	err error
+}
+
+func (cw *countingWriter) Write(p []byte) (int, error) {
+	if cw.err != nil {
+		return 0, cw.err
+	}
+	n, err := cw.w.Write(p)
+	cw.n += int64(n)
+	if err != nil {
+		cw.err = err
+	}
+	return n, err
+}
+
 // WriteTo writes the profile in a human-readable format
-func (p *Profile) WriteTo(w io.Writer) error {
+// Implements io.WriterTo interface
+func (p *Profile) WriteTo(w io.Writer) (int64, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	fmt.Fprintf(w, "Profile Type: %s\n", p.typeString())
-	fmt.Fprintf(w, "Duration: %s\n", time.Duration(p.DurationNanos))
-	fmt.Fprintf(w, "Samples: %d\n\n", len(p.Samples))
+	// Use a counting writer to track bytes written
+	cw := &countingWriter{w: w}
+
+	fmt.Fprintf(cw, "Profile Type: %s\n", p.typeString())
+	fmt.Fprintf(cw, "Duration: %s\n", time.Duration(p.DurationNanos))
+	fmt.Fprintf(cw, "Samples: %d\n\n", len(p.Samples))
 
 	// Sort samples by total cycles/value
 	sort.Slice(p.Samples, func(i, j int) bool {
@@ -479,9 +502,9 @@ func (p *Profile) WriteTo(w io.Writer) error {
 	})
 
 	// Print top functions
-	fmt.Fprintf(w, "Top Functions:\n")
-	fmt.Fprintf(w, "%-50s %12s %12s %12s %12s\n", "Function", "Flat", "Flat%", "Cum", "Cum%")
-	fmt.Fprintf(w, "%s\n", strings.Repeat("-", 100))
+	fmt.Fprintf(cw, "Top Functions:\n")
+	fmt.Fprintf(cw, "%-50s %12s %12s %12s %12s\n", "Function", "Flat", "Flat%", "Cum", "Cum%")
+	fmt.Fprintf(cw, "%s\n", strings.Repeat("-", 100))
 
 	totalCycles := p.totalCycles()
 
@@ -520,11 +543,11 @@ func (p *Profile) WriteTo(w io.Writer) error {
 			cumPercent = float64(cumCycles) / float64(totalCycles) * 100
 		}
 
-		fmt.Fprintf(w, "%-50s %12d %11.2f%% %12d %11.2f%%\n",
+		fmt.Fprintf(cw, "%-50s %12d %11.2f%% %12d %11.2f%%\n",
 			funcName, flatCycles, flatPercent, cumCycles, cumPercent)
 	}
 
-	return nil
+	return cw.n, cw.err
 }
 
 // WriteJSON writes the profile in JSON format

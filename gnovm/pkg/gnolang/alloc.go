@@ -14,7 +14,7 @@ type Allocator struct {
 	collect  func() (left int64, ok bool) // gc callback
 
 	// For memory profiling
-	machine   *Machine
+	machine *Machine
 }
 
 // for gonative, which doesn't consider the allocator.
