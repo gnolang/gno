@@ -331,7 +331,7 @@ func DefaultBaseConfig() BaseConfig {
 		ABCI:              SocketABCI,
 		ProfListenAddress: "",
 		FastSyncMode:      true,
-		DBBackend:         db.GoLevelDBBackend.String(),
+		DBBackend:         db.PebbleDBBackend.String(),
 		DBPath:            DefaultDBDir,
 	}
 }
