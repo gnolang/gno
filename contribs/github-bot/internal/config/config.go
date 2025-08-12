@@ -98,7 +98,7 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 			),
 			Then: r.
 				If(r.Or(
-					r.ReviewByAnyUser(gh, "jefft0", "leohhhn", "n0izn0iz", "notJoon", "omarsy", "wyhaines", "x1unix").WithDesiredState(utils.ReviewStateApproved),
+					r.ReviewByAnyUser(gh, "jefft0", "leohhhn", "n0izn0iz", "notJoon", "omarsy", "x1unix").WithDesiredState(utils.ReviewStateApproved),
 					r.ReviewByTeamMembers(gh, "tech-staff", r.RequestIgnore),
 					r.Draft(),
 				)).
