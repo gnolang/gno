@@ -1,0 +1,761 @@
+/* ==========================================================================
+   06-BLOCKS - Reusable UI components and blocks (CUBE CSS: Block)
+   ========================================================================== */
+
+/* ===== REALM VIEW COMPONENT ===== */
+
+.c-realm-view {
+	font-size: var(--font-size-200);
+	word-break: break-words;
+}
+
+.c-realm-view h1,
+.c-realm-view h2,
+.c-realm-view h3,
+.c-realm-view h4 {
+	color: var(--color-gray-900);
+	margin-top: var(--space-8);
+	line-height: var(--line-height-tight);
+}
+
+.c-realm-view h1 + h2,
+.c-realm-view h2 + h3,
+.c-realm-view h3 + h4 {
+	margin-top: var(--space-4);
+}
+
+.c-realm-view h1 {
+	font-size: var(--font-size-700);
+	font-weight: var(--font-weight-bold);
+}
+
+.c-realm-view h2 {
+	font-size: var(--font-size-500);
+	font-weight: var(--font-weight-bold);
+}
+
+.c-realm-view h3 {
+	font-size: var(--font-size-300);
+	color: var(--color-gray-600);
+	margin-top: var(--space-10);
+	font-weight: var(--font-weight-semibold);
+}
+
+.c-realm-view h4 {
+	font-size: var(--font-size-200);
+	color: var(--color-gray-600);
+	font-weight: var(--font-weight-medium);
+	margin-block: var(--space-6);
+}
+
+.c-realm-view p {
+	margin-block: var(--space-5);
+}
+
+.c-realm-view img {
+	max-width: 100%;
+	margin-block: var(--space-8);
+	border: 1px solid var(--color-gray-100);
+	border-radius: var(--border-radius);
+	user-select: none;
+}
+
+.c-realm-view p:has(> a:only-child > img) {
+	margin-block: var(--space-8);
+}
+
+.c-realm-view p:has(> a:only-child > img) img {
+	margin-block: 0;
+}
+
+.c-realm-view strong {
+	font-weight: var(--font-weight-bold);
+}
+
+.c-realm-view strong * {
+	font-weight: var(--font-weight-bold);
+}
+
+.c-realm-view em {
+	font-style: italic;
+	color: var(--color-gray-600);
+}
+
+.c-realm-view blockquote {
+	border-left: 4px solid var(--color-gray-300);
+	padding-left: var(--space-4);
+	color: var(--color-gray-600);
+	font-style: italic;
+	margin-block: var(--space-4);
+}
+
+.c-realm-view ul,
+.c-realm-view ol {
+	padding-left: var(--space-4);
+	margin-block: var(--space-6);
+}
+
+.c-realm-view ul li,
+.c-realm-view ol li {
+	margin-bottom: var(--space-2);
+}
+
+.c-realm-view figure {
+	margin-block: var(--space-6);
+	text-align: center;
+}
+
+.c-realm-view figcaption {
+	font-size: var(--font-size-100);
+	color: var(--color-gray-600);
+}
+
+.c-realm-view :not(pre) > code {
+	background-color: var(--color-gray-100);
+	padding: var(--space-1) var(--space-0-5);
+	border-radius: var(--border-radius-sm);
+	font-size: 0.96em;
+	font-family: var(--font-family-mono);
+}
+
+.c-realm-view pre {
+	background-color: var(--color-gray-50);
+	padding: var(--space-4);
+	margin-block: var(--space-5);
+	border-radius: var(--border-radius);
+	overflow-x: auto;
+	font-family: var(--font-family-mono);
+}
+
+.c-realm-view hr {
+	border: none;
+	border-top: 1px solid var(--color-gray-200);
+	margin-block: var(--space-8);
+}
+
+.c-realm-view table {
+	width: 100%;
+	border-collapse: collapse;
+	margin-block: var(--space-6);
+}
+
+.c-realm-view th,
+.c-realm-view td {
+	padding: var(--space-2);
+	text-align: left;
+	border-bottom: 1px solid var(--color-gray-200);
+}
+
+.c-realm-view th {
+	font-weight: var(--font-weight-semibold);
+	background-color: var(--color-gray-50);
+}
+
+.c-realm-view caption {
+	font-size: var(--font-size-100);
+	color: var(--color-gray-600);
+	margin-bottom: var(--space-2);
+}
+
+.c-realm-view q {
+	font-style: italic;
+	color: var(--color-gray-600);
+}
+
+.c-realm-view q::before {
+	content: '"';
+}
+
+.c-realm-view q::after {
+	content: '"';
+}
+
+.c-realm-view ul ul,
+.c-realm-view ol ol,
+.c-realm-view ul ol,
+.c-realm-view ol ul {
+	margin-block: var(--space-2);
+}
+
+.c-realm-view ul {
+	list-style-type: disc;
+}
+
+.c-realm-view ol {
+	list-style-type: decimal;
+}
+
+.c-realm-view abbr[title] {
+	text-decoration: underline dotted;
+	cursor: help;
+}
+
+.c-realm-view details {
+	margin-block: var(--space-4);
+}
+
+.c-realm-view summary {
+	cursor: pointer;
+	font-weight: var(--font-weight-medium);
+}
+
+.c-realm-view a code {
+	color: var(--color-green-600);
+}
+
+.c-realm-view video {
+	max-width: 100%;
+	height: auto;
+}
+
+.c-realm-view math {
+	font-family: var(--font-family-mono);
+}
+
+.c-realm-view small {
+	font-size: var(--font-size-100);
+	color: var(--color-gray-600);
+}
+
+.c-realm-view del {
+	text-decoration: line-through;
+	color: var(--color-gray-600);
+}
+
+.c-realm-view sub {
+	vertical-align: sub;
+	font-size: smaller;
+}
+
+.c-realm-view sup {
+	vertical-align: super;
+	font-size: smaller;
+}
+
+.c-realm-view sup > a {
+	color: var(--color-green-600);
+	text-decoration: none;
+}
+
+.c-realm-view input,
+.c-realm-view textarea,
+.c-realm-view select {
+	font-family: inherit;
+	font-size: inherit;
+	line-height: inherit;
+}
+
+.c-realm-view > *:first-child:not(.realm-view__btns) {
+	margin-top: 0;
+}
+
+.c-realm-view :is(h1, h2, h3, h4, sup, .footnote-backref) {
+	scroll-margin-top: var(--space-8);
+}
+
+/* ===== REALM VIEW LINKS ===== */
+
+.c-realm-view a {
+	position: relative;
+	display: inline-block;
+	color: var(--color-green-600);
+	font-weight: var(--font-weight-medium);
+	text-wrap: balance;
+	vertical-align: top;
+}
+
+.c-realm-view a:hover {
+	text-decoration: underline;
+}
+
+/* ===== RESPONSIVE REALM VIEW ===== */
+
+@media (min-width: var(--breakpoint-md)) {
+	.c-realm-view h1 {
+		font-size: var(--font-size-800);
+	}
+
+	.c-realm-view h2 {
+		font-size: var(--font-size-600);
+	}
+
+	.c-realm-view h1,
+	.c-realm-view h2 {
+		margin-top: var(--space-12);
+	}
+}
+
+/* ===== FORM COMPONENTS ===== */
+.c-form {
+	margin: var(--space-6) 0;
+}
+
+.c-form_header {
+	margin-bottom: var(--space-4);
+}
+
+.c-form_input label,
+.c-form_input input,
+.c-form_input textarea {
+	display: block;
+	width: 100%;
+}
+
+.c-form_input {
+	margin-bottom: var(--space-4);
+}
+
+.c-form_input:has(input:focus) label,
+.c-form_input:has(textarea:focus) label {
+	color: var(--color-green-600);
+	font-weight: var(--font-weight-medium);
+}
+
+.c-form_input input,
+.c-form_input textarea {
+	margin-top: var(--space-2);
+}
+
+.c-form_input input:focus,
+.c-form_input textarea:focus {
+	border-color: var(--color-green-400);
+	box-shadow: 0 0 0 3px rgb(96 171 150 / 0.1);
+}
+
+.c-form textarea {
+	min-height: 100px;
+	resize: vertical;
+}
+
+.c-form_select select:has(option[value=""]:checked) {
+	color: var(--color-gray-400);
+}
+
+.c-form_description {
+	margin-top: var(--space-2);
+	font-size: var(--font-size-100);
+	color: var(--color-gray-500);
+}
+
+.c-form_selectable {
+	margin: var(--space-4) 0;
+}
+
+.c-form_selectable input {
+	margin-right: var(--space-2);
+}
+
+.c-form_selectable label {
+	cursor: pointer;
+	user-select: none;
+}
+
+.c-form_selectable input[type="radio"],
+.c-form_selectable input[type="checkbox"] {
+	width: auto;
+	margin-right: var(--space-2);
+}
+
+.c-form_selectable input[type="radio"]::after {
+	content: "";
+	display: block;
+	width: 12px;
+	height: 12px;
+	border: 2px solid var(--color-gray-300);
+	border-radius: 50%;
+	background: var(--color-light);
+}
+
+.c-form_selectable input[type="checkbox"] {
+	width: auto;
+}
+
+.c-form_selectable input[type="checkbox"]::after {
+	content: "";
+	display: block;
+	width: 12px;
+	height: 12px;
+	border: 2px solid var(--color-gray-300);
+	border-radius: var(--border-radius-sm);
+	background: var(--color-light);
+}
+
+.c-form_selectable input[type="radio"]:checked::after,
+.c-form_selectable input[type="checkbox"]:checked::after {
+	background: var(--color-green-600);
+	border-color: var(--color-green-600);
+}
+
+.c-form_selectable label:hover,
+.c-form_selectable label:focus-within {
+	color: var(--color-green-600);
+}
+
+.c-form_selectable {
+	display: flex;
+	align-items: center;
+}
+
+.c-form input[type="submit"] {
+	background-color: var(--color-green-600);
+	color: var(--color-light);
+	border: none;
+	padding: var(--space-3) var(--space-6);
+	border-radius: var(--border-radius-md);
+	cursor: pointer;
+	font-weight: var(--font-weight-medium);
+}
+
+/* ===== ALERT COMPONENTS ===== */
+.c-alert {
+	margin: var(--space-6) 0;
+	border: 1px solid var(--color-gray-200);
+	border-radius: var(--border-radius-md);
+	background-color: var(--color-light);
+}
+
+.c-alert > div > *:first-child {
+	margin-top: 0;
+}
+
+.c-alert > div > *:last-child {
+	margin-bottom: 0;
+}
+
+.c-alert > summary {
+	cursor: pointer;
+	padding: var(--space-4);
+	font-weight: var(--font-weight-medium);
+}
+
+.c-alert > summary svg {
+	margin-right: var(--space-2);
+	width: 20px;
+	height: 20px;
+}
+
+.c-alert > summary svg:last-of-type {
+	display: none;
+}
+
+.c-alert[open] > summary svg:last-of-type {
+	display: inline;
+}
+
+.c-alert > summary::marker,
+.c-alert > summary::-webkit-details-marker {
+	display: none;
+}
+
+.c-alert .c-alert {
+	margin: var(--space-4) 0;
+	border-left: 4px solid var(--color-gray-300);
+}
+
+.c-alert-info {
+	border-left: 4px solid var(--color-blue-600);
+}
+
+.c-alert-info summary svg,
+.c-alert-info summary {
+	color: var(--color-blue-600);
+}
+
+.c-alert-note {
+	border-left: 4px solid var(--color-blue-600);
+}
+
+.c-alert-note summary svg,
+.c-alert-note summary {
+	color: var(--color-blue-600);
+}
+
+.c-alert-success {
+	border-left: 4px solid var(--color-green-600);
+}
+
+.c-alert-success summary svg,
+.c-alert-success summary {
+	color: var(--color-green-600);
+}
+
+.c-alert-warning {
+	border-left: 4px solid var(--color-yellow-600);
+}
+
+.c-alert-warning summary svg,
+.c-alert-warning summary {
+	color: var(--color-yellow-600);
+}
+
+.c-alert-caution {
+	border-left: 4px solid var(--color-red-600);
+}
+
+.c-alert-caution summary svg,
+.c-alert-caution summary {
+	color: var(--color-red-600);
+}
+
+.c-alert-tip {
+	border-left: 4px solid var(--color-purple-600);
+}
+
+.c-alert-tip summary svg,
+.c-alert-tip summary {
+	color: var(--color-purple-600);
+}
+
+/* ===== LIST ITEM COMPONENT ===== */
+.c-list-item {
+	padding: var(--space-4);
+	border: 1px solid var(--color-gray-200);
+	border-radius: var(--border-radius-md);
+}
+
+.c-list-item__content {
+	margin-bottom: var(--space-2);
+}
+
+.c-list-item__title {
+	font-weight: var(--font-weight-semibold);
+	margin-bottom: var(--space-1);
+}
+
+.c-list-item__description {
+	color: var(--color-gray-600);
+	font-size: var(--font-size-100);
+}
+
+.c-list-item__footer {
+	margin-top: var(--space-2);
+	font-size: var(--font-size-100);
+	color: var(--color-gray-500);
+}
+
+.c-list-item__size {
+	color: var(--color-gray-400);
+}
+
+.c-list-item__date {
+	color: var(--color-gray-400);
+}
+
+/* ===== FILTER LIST COMPONENT ===== */
+.c-filter-list :is(li, article) {
+	margin-bottom: var(--space-4);
+}
+
+.c-filter-list:has(input[value="packages"]:checked) :is(li, article) {
+	display: block;
+}
+
+.c-filter-list:has(input[value="realms"]:checked)
+	:is(li, article):not([data-type="realm"]) {
+	display: none;
+}
+
+.c-filter-list:has(input[value="pures"]:checked)
+	:is(li, article):not([data-type="pure"]) {
+	display: none;
+}
+
+.c-filter-list label:has(input:checked) {
+	font-weight: var(--font-weight-semibold);
+}
+
+.c-filter-list label:has(input:checked)::after {
+	content: " ✓";
+	color: var(--color-green-600);
+}
+
+/* ===== RANGE COMPONENT ===== */
+.c-range {
+	position: relative;
+}
+
+.c-range::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 50%;
+	height: 2px;
+	background: var(--color-gray-200);
+	transform: translateY(-50%);
+}
+
+.c-range::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 50%;
+	height: 2px;
+	background: var(--color-green-400);
+	transform: translateY(-50%);
+	clip-path: polygon(
+		0 0,
+		var(--range-value, 0%) 0,
+		var(--range-value, 0%) 100%,
+		0 100%
+	);
+}
+
+.c-range:empty::before {
+	display: none;
+}
+
+.c-range:empty::after {
+	display: none;
+}
+
+/* ===== SIDEBAR COMPONENT ===== */
+.c-sidebar__container:has(ul:empty) {
+	display: none;
+}
+
+/* ===== TOC COMPONENT ===== */
+.c-toc-expend-btn:has(#toc-expend:checked) + nav {
+	display: block;
+}
+
+.c-toc-expend-btn:has(#toc-expend:checked) .c-toc-expend-btn_ico {
+	transform: rotate(180deg);
+}
+
+/* ===== MAIN HEADER COMPONENT ===== */
+.c-main-header:has(#sidemenu-summary:checked) + main #sidebar #sidebar-summary,
+.c-main-header:has(#sidemenu-summary:checked)
+	+ main
+	#sidebar
+	.c-sidebar__container {
+	display: block;
+}
+
+/* ===== TOOLTIP COMPONENT ===== */
+.c-tooltip {
+	position: relative;
+	display: inline-block;
+}
+
+.c-tooltip::after {
+	content: attr(data-tooltip);
+	position: absolute;
+	bottom: 100%;
+	left: 50%;
+	transform: translateX(-50%);
+	background: var(--color-gray-900);
+	color: var(--color-light);
+	padding: var(--space-2) var(--space-3);
+	border-radius: var(--border-radius-sm);
+	font-size: var(--font-size-100);
+	white-space: nowrap;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity var(--transition-fast);
+	z-index: var(--z-layer-tooltip);
+}
+
+.c-tooltip:hover::after {
+	opacity: 1;
+}
+
+/* ===== SOURCE CODE COMPONENT ===== */
+.c-source-code > pre {
+	margin: var(--space-6) 0;
+}
+
+.c-realm-view > pre a {
+	color: var(--color-green-600);
+}
+
+.c-realm-view > pre .chroma-ln:target,
+.c-source-code > pre .chroma-ln:target {
+	background-color: var(--color-yellow-100);
+}
+
+.c-realm-view > pre .chroma-line:has(.chroma-ln:target),
+.c-realm-view > pre .chroma-line:has(.chroma-ln:target) *,
+.c-source-code > pre .chroma-line:has(.chroma-ln:target),
+.c-source-code > pre .chroma-line:has(.chroma-ln:target) * {
+	background-color: var(--color-yellow-100);
+}
+
+.c-realm-view > pre .chroma-ln,
+.c-source-code > pre .chroma-ln {
+	padding: var(--space-1) var(--space-2);
+	border-radius: var(--border-radius-sm);
+}
+
+/* ===== FIELD CONTENT COMPONENT ===== */
+.c-field-content {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+/* ===== SIDEMENU COMPONENT ===== */
+.c-sidemenu .peer:checked + label > svg {
+	transform: rotate(180deg);
+}
+
+/* ===== EMPTY STATE COMPONENT ===== */
+.c-realm-view:has(.c-realm-view__btns:only-child) {
+	margin-bottom: var(--space-8);
+}
+
+.c-realm-view__btns:only-child {
+	margin-top: var(--space-8);
+	margin-bottom: var(--space-8);
+	padding: var(--space-4);
+	background-color: var(--color-gray-50);
+	border-radius: var(--border-radius-md);
+	text-align: center;
+}
+
+/* ===== COMPORTEMENTS CONDITIONNELS DES COMPOSANTS ===== */
+
+/* Comportements de display pour filter-list */
+.c-filter-list:has(input[value="display-grid"]:checked) .c-range {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+	gap: var(--space-4);
+}
+
+.c-filter-list:has(input[value="display-list"]:checked) .c-range .c-list-item {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
+}
+
+.c-filter-list:has(input[value="display-list"]:checked) .c-list-item__content {
+	flex: 1;
+}
+
+.c-filter-list:has(input[value="display-list"]:checked) .c-list-item__footer {
+	text-align: right;
+}
+
+.c-filter-list:has(input[value="display-grid"]:checked) .c-list-item {
+	display: block;
+}
+
+.c-filter-list:has(input[value="display-list"]:checked) .c-list-item__size {
+	display: none;
+}
+
+.c-filter-list:has(input[value="display-list"]:checked) .c-list-item__date {
+	display: none;
+}
+
+/* ===== ÉTATS DE DÉVELOPPEMENT ===== */
+
+/* États du composant toc en mode dev */
+.dev-mode .c-toc-expend-btn {
+	display: block;
+}
+
+.dev-mode #sidebar-summary {
+	display: block;
+}

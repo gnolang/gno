@@ -1,0 +1,58 @@
+/* ==========================================================================
+   04-ELEMENTS - Unclassed HTML elements (type selectors)
+   ========================================================================== */
+
+/* ===== TYPOGRAPHY ELEMENTS ===== */
+/* ===== FONTS ===== */
+@font-face {
+	font-family: "Roboto";
+	font-style: normal;
+	font-weight: 900;
+	font-display: swap;
+	src:
+		url("./fonts/roboto/roboto-mono-normal.woff2") format("woff2"),
+		url("./fonts/roboto/roboto-mono-normal.woff") format("woff");
+}
+
+@font-face {
+	font-family: "Inter";
+	font-weight: 100 900;
+	font-display: block;
+	font-variant: normal;
+	font-style: oblique 0deg 10deg;
+	src: url("./fonts/intervar/Intervar.woff2") format("woff2");
+}
+
+html {
+	font-family: var(--g-font-family-inter-var);
+	font-size: var(--g-font-size-200);
+	color: var(--g-color-gray-600);
+	background-color: var(--g-color-light);
+	line-height: var(--g-line-height-normal);
+
+	font-feature-settings:
+		"kern" on,
+		"liga" on,
+		"calt" off,
+		"zero" on;
+	-webkit-font-feature-settings:
+		"kern" on,
+		"liga" on,
+		"calt" off,
+		"zero" on;
+	text-size-adjust: 100%;
+	-moz-osx-font-smoothing: grayscale;
+	-webkit-font-smoothing: antialiased;
+	font-variant-ligatures: contextual common-ligatures;
+	font-kerning: normal;
+	text-rendering: optimizeLegibility;
+}
+
+svg {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+form {
+	margin-block: 0;
+}

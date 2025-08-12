@@ -20,6 +20,11 @@ biome := $(node_modules)/.bin/biome
 input_css := frontend/css/input.css
 output_css := $(PUBLIC_DIR)/styles.css
 tw_config_path := frontend/css/tx.config.js
+
+# main css config
+main_css_files := $(shell find frontend/css -name '*.css')
+output_maincss := $(PUBLIC_DIR)/main.css
+
 templates_files := $(shell find . -iname '*.html')
 
 # static config
@@ -67,16 +72,22 @@ lint.go:; $(golangci_lint) --config ../../../.github/golangci.yml run ./...
 lint.front:; $(MAKE) -C frontend lint
 
 # Generate process
-generate: css ts static
+generate: css maincss ts static
 
 css: $(tailwind) $(output_css)
 $(output_css): $(input_css) $(templates_files)
 	$(tailwind) -c $(tw_config_path) -i $(input_css) -o $@ --minify # tailwind
 	touch $@
 
+# Main CSS (ITCSS + CUBE CSS)
+maincss: $(output_maincss)
+$(output_maincss): $(main_css_files) $(templates_files)
+	cd frontend && npx postcss css/main.css -o ../$(output_maincss) --env production
+	touch $@
+
 ts: $(esbuild) $(output_js)
 $(out_dir_js)/%.js: $(src_dir_js)/%.ts
-	$(esbuild) $< --log-level=error --bundle --outdir=$(out_dir_js) --format=esm --define:__DEV__=false --splitting --minify
+	NODE_ENV=production $(esbuild) $< --log-level=error --bundle --outdir=$(out_dir_js) --format=esm --define:process.env.NODE_ENV="\"production\"" --splitting --minify
 
 # Rule to copy static files while preserving directory structure
 static: $(output_static)
@@ -92,7 +103,7 @@ $(out_dir_static)/%: $(src_dir_static)/%
 # Run the development dependencies in parallel
 dev.all: $(esbuild) $(tailwind) $(PUBLIC_DIR)
 	@echo "-- starting development tools"
-	PUBLIC_DIR=$(cache_dir)/public $(MAKE) -j 3 dev.gnoweb dev.ts dev.css
+	PUBLIC_DIR=$(cache_dir)/public $(MAKE) -j 4 dev.gnoweb dev.ts dev.css dev.maincss
 
 # Go server in development mode
 dev.gnoweb: generate
@@ -106,9 +117,14 @@ dev.css: $(tailwind) generate | $(PUBLIC_DIR)
 	$(tailwind) -c $(tw_config_path) --verbose -i $(input_css) -o $(output_css) --watch \
 		2>&1 | $(logname) tailwind
 
+# Main CSS in development mode
+dev.maincss: generate | $(PUBLIC_DIR)
+	cd frontend && npx postcss css/main.css -o ../$(output_maincss) --watch --env development \
+		2>&1 | $(logname) maincss
+
 # TS in development mode
 dev.ts: $(esbuild) generate | $(PUBLIC_DIR)
-	$(esbuild) $(input_js) --bundle --outdir=$(out_dir_js) --sourcemap --define:__DEV__=true --format=esm --splitting --watch \
+	NODE_ENV=development $(esbuild) $(input_js) --bundle --outdir=$(out_dir_js) --sourcemap --define:process.env.NODE_ENV="\"development\"" --format=esm --splitting --watch \
 		2>&1 | $(logname) esbuild
 
 # Install node modules deps located in ./tools

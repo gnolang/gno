@@ -1,0 +1,314 @@
+/* ==========================================================================
+   05-COMPOSITION - Layout, grid, and composition patterns (CUBE CSS: Composition)
+   ========================================================================== */
+
+/* ===== LAYOUT COMPOSITIONS ===== */
+
+/* Container composition */
+.c-container {
+	width: 100%;
+	margin-left: auto;
+	margin-right: auto;
+	padding-inline: var(--g-space-4);
+}
+
+.realm-view {
+	font-size: var(--g-font-size-200);
+	word-break: break-words;
+
+	a {
+		position: relative;
+		display: inline-block;
+		color: var(--g-color-green-600);
+		font-weight: var(--g-font-medium);
+		text-wrap: balance;
+		vertical-align: top;
+
+		&:hover {
+			text-decoration: underline;
+		}
+	}
+
+	/* ===== HEADINGS ===== */
+
+	/* Base styles for all headings */
+	:is(h1, h2, h3, h4) {
+		color: var(--g-color-gray-900);
+		margin-block-start: var(--g-space-8);
+		line-height: var(--g-line-height-tight);
+	}
+
+	/* Adjacent heading spacing */
+	h1 + h2,
+	h2 + h3,
+	h3 + h4 {
+		margin-block-start: var(--g-space-4);
+	}
+
+	/* H1 - Main heading */
+	h1 {
+		font-size: var(--g-font-size-700);
+		font-weight: var(--g-font-bold);
+
+		@media (--md) {
+			font-size: var(--g-font-size-800);
+		}
+	}
+
+	/* H2 - Section heading */
+	h2 {
+		font-size: var(--g-font-size-500);
+		font-weight: var(--g-font-bold);
+
+		@media (--md) {
+			font-size: var(--g-font-size-600);
+		}
+
+		* {
+			font-weight: var(--g-font-bold);
+		}
+	}
+
+	/* H3 & H4 - Subsection headings with common properties */
+	:is(h3, h4) {
+		color: var(--g-color-gray-600);
+		font-weight: var(--g-font-semibold);
+	}
+
+	h3 {
+		font-size: var(--g-font-size-300);
+		margin-block-start: var(--g-space-10);
+	}
+
+	h4 {
+		font-size: var(--g-font-size-200);
+		margin-block-start: var(--g-space-6);
+
+		@media (--md) {
+			font-size: var(--g-font-size-300);
+		}
+	}
+
+	/* Ensure consistent font weight for h3 and h4 children */
+	:is(h3 *, h4 *) {
+		font-weight: var(--g-font-semibold);
+	}
+
+	/* ===== IMAGE ELEMENTS ===== */
+
+	img {
+		max-width: 100%;
+		margin-block: var(--g-space-8);
+		border: var(--g-border-gray-100);
+		border-radius: var(--g-border-radius-sm);
+		user-select: none;
+	}
+
+	figure {
+		margin-block: var(--g-space-6);
+		text-align: center;
+	}
+
+	figcaption {
+		font-size: var(--g-font-size-100);
+		color: var(--g-color-gray-600);
+	}
+
+	video {
+		max-width: 100%;
+		margin-block: var(--g-space-8);
+	}
+
+	/* ===== TEXT ELEMENTS ===== */
+
+	p {
+		margin-block: var(--g-space-5);
+	}
+
+	p:has(> a:only-child > img) {
+		margin-block: var(--g-space-8);
+	}
+
+	p:has(> a:only-child > img) img {
+		margin-block: 0;
+	}
+
+	:is(strong, strong *) {
+		font-weight: var(--g-font-bold);
+	}
+
+	em {
+		font-style: var(--g-italic);
+	}
+
+	blockquote {
+		border-inline-start: var(--g-border-gray-300);
+		padding-inline-start: var(--g-space-4);
+		color: var(--g-color-gray-600);
+		font-style: var(--g-italic);
+		margin-block: var(--g-space-4);
+	}
+
+	caption {
+		font-size: var(--g-font-size-100);
+		color: var(--g-color-gray-600);
+		margin-block-start: var(--g-space-2);
+		text-align: left;
+	}
+
+	q {
+		quotes: "“" "”";
+
+		&::before {
+			content: open-quote;
+		}
+
+		&::after {
+			content: close-quote;
+		}
+	}
+
+	details {
+		margin-block: var(--g-space-5);
+	}
+
+	summary {
+		font-weight: var(--g-font-bold);
+		cursor: pointer;
+	}
+
+	math {
+		font-family: var(--g-font-family-mono);
+	}
+
+	small {
+		font-size: var(--g-font-size-100);
+	}
+
+	del {
+		text-decoration: line-through;
+	}
+
+	sub {
+		font-size: var(--g-font-size-50);
+		vertical-align: sub;
+	}
+
+	sup {
+		font-size: var(--g-font-size-50);
+		vertical-align: middle;
+		padding-left: var(--space-px);
+	}
+
+	sup > a {
+		vertical-align: middle;
+	}
+
+	/* ===== LIST ELEMENTS ===== */
+
+	/* Base list styles */
+	ul,
+	ol {
+		margin-block: var(--g-space-6);
+		padding-inline-start: var(--g-space-4);
+	}
+
+	/* List markers */
+	ul {
+		list-style: disc;
+	}
+	ol {
+		list-style: decimal;
+	}
+
+	/* Nested lists */
+	ul ul,
+	ol ol,
+	ul ol,
+	ol ul {
+		margin-block: var(--g-space-2);
+		padding-inline-start: var(--g-space-4);
+	}
+
+	/* List items */
+	li {
+		margin-block: var(--g-space-2);
+	}
+
+	/* ===== CODE ELEMENTS ===== */
+
+	:is(pre, code) {
+		font-family: var(--g-font-family-mono);
+	}
+
+	pre {
+		background-color: var(--g-color-gray-50);
+		padding: var(--g-space-4);
+		margin-block: var(--g-space-5);
+		border-radius: var(--g-border-radius-sm);
+		overflow-x: auto;
+	}
+
+	:not(pre) > code {
+		font-size: 0.96em;
+		padding: var(--g-space-0-5) var(--g-space-1);
+		border-radius: var(--g-border-radius-sm);
+		background-color: var(--g-color-gray-100);
+	}
+
+	a code {
+		color: inherit;
+	}
+
+	hr {
+		border-top: var(--g-border-gray-100);
+		margin-block: var(--g-space-10);
+	}
+
+	/* ===== TABLE ELEMENTS ===== */
+	table {
+		margin-block: var(--g-space-8);
+		display: block;
+		width: 100%;
+		max-width: 100%;
+		overflow-x: auto;
+		border-collapse: collapse;
+	}
+
+	th,
+	td {
+		border: var(--g-border-gray-100);
+		padding: var(--g-space-4) var(--g-space-2);
+		white-space: normal;
+		word-break: break-word;
+	}
+
+	th {
+		background-color: var(--g-color-gray-100);
+		font-weight: var(--g-font-bold);
+	}
+
+	/* ===== FORM ELEMENTS ===== */
+
+	input,
+	button,
+	textarea,
+	select {
+		appearance: none;
+		padding-inline: var(--g-space-4);
+		padding-block: var(--g-space-2);
+		border: var(--g-border-gray-300);
+		background-color: var(--g-color-light);
+	}
+
+	> *:first-child:not(.realm-view__btns),
+	> .realm-view__btns:first-child + * {
+		margin-block-start: 0 !important;
+	}
+
+	/* ===== FOOTNOTES ===== */
+
+	:is(h1, h2, h3, h4, sup, .footnote-backref) {
+		scroll-margin-top: var(--g-space-24);
+	}
+}

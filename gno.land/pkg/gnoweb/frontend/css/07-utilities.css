@@ -1,0 +1,134 @@
+/* ==========================================================================
+   07-UTILITIES - Utility classes and overrides (CUBE CSS: Utility + Exception)
+   ========================================================================== */
+
+/* ===== DEV MODE UTILITIES ===== */
+/* Ces règles sont déplacées vers 06-blocks.css car elles définissent 
+   des comportements de composants, pas des utilitaires */
+
+/* ===== RESPONSIVE HIDING UTILITIES ===== */
+:is(
+		.c-main-header:has(#sidemenu-summary:checked) + main #sidebar,
+		.c-main-header:has(#sidemenu-summary:checked) + main #sidebar *
+	) {
+	display: block;
+}
+
+/* ===== TEXT UTILITIES ===== */
+.u-italic-subtle {
+	font-style: italic;
+	opacity: 0.8;
+}
+
+.u-word-break {
+	word-break: break-word;
+	overflow-wrap: break-word;
+}
+
+.u-quotes::before,
+.u-quotes::after {
+	content: '"';
+	color: var(--color-gray-400);
+}
+
+.u-text-stroke {
+	-webkit-text-stroke: 1px var(--color-gray-300);
+	color: transparent;
+}
+
+/* ===== SCROLLBAR UTILITIES ===== */
+.u-no-scrollbar::-webkit-scrollbar {
+	display: none;
+}
+
+.u-no-scrollbar {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+
+/* ===== STATE UTILITIES ===== */
+.u-is-loading {
+	opacity: 0.6;
+	pointer-events: none;
+}
+
+/* ===== LINK TYPE UTILITIES ===== */
+.u-link-external {
+	color: var(--color-blue-600);
+}
+
+.u-link-internal {
+	color: var(--color-green-600);
+}
+
+.u-link-tx {
+	color: var(--color-purple-600);
+}
+
+.u-link-user {
+	color: var(--color-yellow-600);
+	font-weight: var(--font-weight-medium);
+}
+
+/* ===== FOCUS UTILITIES ===== */
+.u-focus-no-field-sizing\\:w-20:focus {
+	width: 5rem;
+}
+
+/* ===== EMPTY STATE UTILITIES ===== */
+*:empty + .u-prev-empty {
+	margin-top: var(--space-4);
+}
+
+/* ===== COMPONENT-SPECIFIC UTILITIES ===== */
+.c-realm-view__btns:only-child {
+	margin-top: var(--space-8);
+	margin-bottom: var(--space-8);
+}
+
+/* ===== EXCEPTIONS (CUBE CSS: Exception) ===== */
+
+/* Exception: Override default button styles for specific contexts */
+.c-form input[type="submit"].u-exception-primary {
+	background-color: var(--color-blue-600);
+	border-color: var(--color-blue-600);
+}
+
+.c-form input[type="submit"].u-exception-primary:hover {
+	background-color: var(--color-blue-500);
+	border-color: var(--color-blue-500);
+}
+
+/* Exception: Override default alert styles for critical messages */
+.c-alert.u-exception-critical {
+	border-color: var(--color-red-600);
+	background-color: var(--color-red-50);
+}
+
+.c-alert.u-exception-critical summary {
+	color: var(--color-red-600);
+}
+
+/* Exception: Override default grid for specific layouts */
+.o-grid.u-exception-compact {
+	gap: var(--space-2);
+}
+
+.o-grid.u-exception-wide {
+	gap: var(--space-8);
+}
+
+/* Exception: Override default spacing for specific components */
+.c-realm-view.u-exception-compact h1,
+.c-realm-view.u-exception-compact h2,
+.c-realm-view.u-exception-compact h3,
+.c-realm-view.u-exception-compact h4 {
+	margin-top: var(--space-4);
+}
+
+.c-realm-view.u-exception-spacious h1,
+.c-realm-view.u-exception-spacious h2,
+.c-realm-view.u-exception-spacious h3,
+.c-realm-view.u-exception-spacious h4 {
+	margin-top: var(--space-16);
+}

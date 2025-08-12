@@ -30,5 +30,10 @@
 				"organizeImports": "on"
 			}
 		}
+	},
+	"css": {
+		"formatter": {
+			"enabled": true
+		}
 	}
 }

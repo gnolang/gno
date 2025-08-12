@@ -1,0 +1,122 @@
+/* ==========================================================================
+   02-TOOLS - Default mixins and functions
+   ========================================================================== */
+
+/* ===== UTILITIES MIXINS ===== */
+
+/* Mixin for media queries */
+@custom-media --xs (min-width: 0);
+@custom-media --sm (min-width: calc(480 / 16 * 1rem));
+@custom-media --md (min-width: calc(640 / 16 * 1rem));
+@custom-media --lg (min-width: calc(820 / 16 * 1rem));
+@custom-media --xl (min-width: calc(1020 / 16 * 1rem));
+@custom-media --2xl (min-width: calc(1366 / 16 * 1rem));
+@custom-media --max (min-width: calc(1580 / 16 * 1rem));
+
+/* ===== SEMANTIC TOKENS ===== */
+:root {
+	/* ===== COLORS BACKGROUNDS ===== */
+	/* Base surfaces (page level) */
+	--s-color-bg-base: var(--g-color-light); /* Page background */
+	--s-color-bg-base-dev: var(--g-color-gray-50); /* Stronger page background */
+
+	/* Component surfaces (elevation levels) */
+	--s-color-bg-surface-primary: var(--g-color-gray-50); /* Lightest surface */
+	--s-color-bg-surface-primary-hover: var(--g-color-gray-100); /* Hover state */
+	--s-color-bg-surface-secondary: var(--g-color-gray-100); /* Medium surface */
+	--s-color-bg-surface-secondary-hover: var(--g-color-gray-200); /* Hover state */
+	--s-color-bg-surface-tertiary: var(--g-color-gray-200); /* Darkest surface */
+	--s-color-bg-surface-tertiary-hover: var(--g-color-gray-300); /* Lightest surface */
+
+	/* Semantic backgrounds */
+	--s-color-bg-brand-default: var(--g-color-green-600); /* Primary brand */
+	--s-color-bg-brand-weak: var(--g-color-green-50); /* Light brand */
+	--s-color-bg-brand-action: var(--g-color-green-400); /* Brand hover */
+
+	--s-color-bg-success-default: var(--g-color-green-600); /* Success state */
+	--s-color-bg-success-action: var(--g-color-green-400); /* Light success */
+
+	--s-color-bg-info-default: var(--g-color-blue-600); /* Info state */
+	--s-color-bg-info-action: var(--g-color-blue-400); /* Light info */
+
+	--s-color-bg-warning-default: var(--g-color-yellow-600); /* Warning state */
+	--s-color-bg-warning-action: var(--g-color-yellow-400); /* Light warning */
+
+	--s-color-bg-error-default: var(--g-color-red-600); /* Error state */
+	--s-color-bg-error-action: var(--g-color-red-400); /* Light error */
+
+	--s-color-bg-tip-default: var(--g-color-purple-600); /* Tip state */
+	--s-color-bg-tip-action: var(--g-color-purple-400); /* Light tip */
+
+	/* Form backgrounds */
+	--s-color-bg-input: var(--g-color-light); /* Input background */
+	--s-color-bg-input-disabled: var(--g-color-gray-50); /* Disabled input */
+	--s-color-bg-input-focus: var(--g-color-light); /* Focused input */
+
+	/* Interactive backgrounds */
+	--s-color-bg-hover: var(--g-color-gray-100); /* Generic hover */
+	--s-color-bg-active: var(--g-color-gray-100); /* Generic active */
+	--s-color-bg-selected: var(--g-color-gray-100); /* Selected state */
+
+	/* ===== TEXT COLORS ===== */
+	/* Text hierarchy (dark to light) */
+	--s-color-text-primary: var(--g-color-gray-900); /* Darkest text - headings */
+	--s-color-text-secondary: var(--g-color-gray-600); /* Medium text - body */
+	--s-color-text-tertiary: var(--g-color-gray-400); /* Light text - muted */
+	--s-color-text-muted: var(--g-color-gray-300); /* Muted text - captions */
+
+	/* Interactive text */
+	--s-color-text-link: var(--g-color-green-600); /* Link color */
+	--s-color-text-link-hover: var(--g-color-green-600); /* Link hover */
+	--s-color-text-link-active: var(--g-color-green-600); /* Link active */
+
+	/* Form text */
+	--s-color-text-input: var(--g-color-gray-600); /* Input text */
+	--s-color-text-input-placeholder: var(--g-color-gray-400); /* Placeholder */
+	--s-color-text-input-disabled: var(--g-color-gray-300); /* Disabled input */
+
+	/* Semantic text */
+	--s-color-text-success: var(--g-color-green-900); /* Success text */
+	--s-color-text-info: var(--g-color-blue-900); /* Info text */
+	--s-color-text-warning: var(--g-color-yellow-900); /* Warning text */
+	--s-color-text-error: var(--g-color-red-900); /* Error text */
+	--s-color-text-tip: var(--g-color-purple-900); /* Tip text */
+
+	/* ===== BORDER COLORS ===== */
+	/* Border hierarchy (light to dark) */
+	--s-color-border-primary: var(--g-color-gray-200); /* Lightest border */
+	--s-color-border-secondary: var(--g-color-gray-300); /* Medium border */
+	--s-color-border-tertiary: var(--g-color-gray-400); /* Darkest border */
+
+	/* Interactive borders */
+	--s-color-border-hover: var(--g-color-gray-300); /* Hover border */
+	--s-color-border-focus: var(--g-color-green-600); /* Focus border */
+	--s-color-border-active: var(--g-color-gray-400); /* Active border */
+
+	/* Form borders */
+	--s-color-border-input: var(--g-color-gray-300); /* Input border */
+	--s-color-border-input-hover: var(--g-color-gray-400); /* Input hover */
+	--s-color-border-input-focus: var(--g-color-green-600); /* Input focus */
+	--s-color-border-input-disabled: var(--g-color-gray-200); /* Input disabled */
+
+	/* Semantic borders */
+	--s-color-border-success: var(--g-color-green-600); /* Success border */
+	--s-color-border-info: var(--g-color-blue-600); /* Info border */
+	--s-color-border-warning: var(--g-color-yellow-600); /* Warning border */
+	--s-color-border-error: var(--g-color-red-600); /* Error border */
+	--s-color-border-tip: var(--g-color-purple-600); /* Tip border */
+
+	/* ===== INTERACTIVE STATES ===== */
+	/* Focus states */
+	--s-color-focus-ring: var(--s-color-bg-brand-default); /* Focus ring */
+	--s-color-focus-ring-opacity: 0.2; /* Focus ring opacity */
+
+	/* Selection colors */
+	--s-color-selection-bg: var(--s-color-bg-brand-default); /* Selection background */
+	--s-color-selection-text: var(--g-color-light); /* Selection text */
+
+	/* ===== BORDER RADIUS ===== */
+	--s-border-radius-sm: var(--g-border-radius-sm); /* Small border radius */
+	--s-border-radius: var(--g-border-radius); /* Medium border radius */
+	--s-border-radius-full: var(--g-border-radius-full); /* Full border radius */
+}

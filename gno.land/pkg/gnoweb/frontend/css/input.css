@@ -22,35 +22,7 @@
 @tailwind utilities;
 
 @layer base {
-	html {
-		@apply font-interVar text-gray-600 bg-light text-200;
-		font-feature-settings:
-			"kern" on,
-			"liga" on,
-			"calt" off,
-			"zero" on;
-		-webkit-font-feature-settings:
-			"kern" on,
-			"liga" on,
-			"calt" off,
-			"zero" on;
-		text-size-adjust: 100%;
-		-moz-osx-font-smoothing: grayscale;
-		-webkit-font-smoothing: antialiased;
-		font-variant-ligatures: contextual common-ligatures;
-		font-kerning: normal;
-		text-rendering: optimizeLegibility;
-	}
-
-	svg {
-		@apply max-w-full max-h-full;
-	}
-
-	form {
-		@apply my-0;
-	}
-
-	.realm-view {
+	/* .realm-view {
 		@apply text-200 break-words;
 	}
 
@@ -189,6 +161,11 @@
 		content: close-quote;
 	}
 
+
+
+
+
+	
 	.realm-view ul ul,
 	.realm-view ul ol,
 	.realm-view ol ul,
@@ -262,7 +239,7 @@
 
 	.realm-view :is(h1, h2, h3, h4, sup, .footnote-backref) {
 		@apply scroll-mt-24;
-	}
+	} */
 
 	::-moz-selection {
 		@apply bg-green-600 text-light;

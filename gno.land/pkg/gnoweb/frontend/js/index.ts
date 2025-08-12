@@ -1,6 +1,6 @@
 import { toCamelCase, toKebabCase } from "./utils.js";
 
-declare const __DEV__: boolean;
+declare const process: { env: { NODE_ENV: string } };
 
 (() => {
 	// TODO: Make CONTROLLER_PATH build-safe (BASE_URL, CDN, hashing, etc.)
@@ -14,12 +14,14 @@ declare const __DEV__: boolean;
 	): Promise<void> => {
 		if (elements.length === 0) return;
 
-		// normalize the controller name
+		// normalize the controller name to kebab-case
 		const kebab = toKebabCase(controllerName);
 		if (!/^[a-z0-9-]+$/.test(kebab)) {
 			console.error(`❌ Invalid controller name: ${controllerName}`);
 			return;
 		}
+
+		// normalize the controller name to camelCase
 		const camel = toCamelCase(controllerName);
 		const pascal = camel.charAt(0).toUpperCase() + camel.slice(1);
 
@@ -83,7 +85,8 @@ declare const __DEV__: boolean;
 			}
 		});
 
-		if (__DEV__) console.log(`✅ Loaded: ${controllerName} (${path})`);
+		if (process.env.NODE_ENV === "development")
+			console.log(`✅ Loaded: ${controllerName} (${path})`);
 	};
 
 	// Collect controllers once and pass elements directly
@@ -104,6 +107,7 @@ declare const __DEV__: boolean;
 		return map;
 	};
 
+	// Init modules and start observer after DOMContentLoaded
 	const initModules = async (): Promise<void> => {
 		// get all used controllers and their elements
 		const controllers = collectControllers(document);
@@ -123,6 +127,7 @@ declare const __DEV__: boolean;
 		);
 	};
 
+	// Start observer to collect controllers in the DOM
 	const startObserver = (): void => {
 		const queue = new Map<string, Set<HTMLElement>>();
 		let scheduled = false;
@@ -146,6 +151,7 @@ declare const __DEV__: boolean;
 			}
 		};
 
+		// Collect controllers in a root element in order to avoid re-querying the DOM
 		const handleRoot = (root: ParentNode) => {
 			// short-circuit if no controllers are found
 			if (!(root as Element).querySelector?.("[data-controller]")) return;
@@ -186,7 +192,7 @@ declare const __DEV__: boolean;
 			attributeFilter: ["data-controller"],
 		});
 
-		if (typeof __DEV__ !== "undefined" && __DEV__) {
+		if (process.env.NODE_ENV === "development") {
 			console.log("👀 controllers observer started");
 		}
 	};
