@@ -37,6 +37,7 @@ func (opts *TestOptions) RunFiletest(fname string, source []byte, tgs gno.Store)
 // Go type-checking in filetests is only available for gnovm internal filetests
 // in test/files.
 func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store, tcheck bool) (string, error) {
+	fmt.Println("======runFiletest...")
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
 		return "", fmt.Errorf("error parsing directives: %w", err)
@@ -68,6 +69,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 
 	// Create machine for execution and run test
 	tcw := opts.BaseStore.CacheWrap()
+	fmt.Println("=============machine for main...")
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Output:        &opts.outWriter,
 		Store:         tgs.BeginTransaction(tcw, tcw, nil),
@@ -267,6 +269,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		opts.tcCache = make(gno.TypeCheckCache)
 	}
 
+	fmt.Println("=============Run filetest, pkgPath: ", pkgPath)
 	// Eagerly load imports.
 	// LoadImports is run using opts.Store, rather than the transaction store;
 	// it allows us to only have to load the imports once (and re-use the cached
@@ -346,8 +349,13 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 				tcError = fmt.Sprintf("%v", err.Error())
 			}
 		}
+		fmt.Println("======Construct throwaway package and parse file...")
 		// Construct throwaway package and parse file.
 		pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
+		if pkgPath == "main" {
+			fmt.Println("=====================!!!!!!!!!!!!!!!, alloc main pakcage block, m.Alloc: ", m.Alloc)
+			m.Alloc.AllocateBlock(int64(len(pn.Values)))
+		}
 		pv := pn.NewPackage()
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)

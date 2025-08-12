@@ -1334,7 +1334,7 @@ func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 }
 
 func (pn *PackageNode) NewPackage() *PackageValue {
-	fmt.Println("======NewPackage......")
+	fmt.Println("======NewPackage......, pn.PkgPath: ", pn.PkgPath)
 	pv := &PackageValue{
 		Block: &Block{
 			Source: pn,

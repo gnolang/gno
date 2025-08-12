@@ -102,7 +102,7 @@ var machinePool = sync.Pool{
 // Machines initialized through this constructor must be finalized with
 // [Machine.Release].
 func NewMachineWithOptions(opts MachineOptions) *Machine {
-	fmt.Println("======NewMachineWithOptions...")
+	fmt.Println("======NewMachineWithOptions..., opts.PkgPath: ", opts.PkgPath)
 	vmGasMeter := opts.GasMeter
 
 	output := opts.Output
@@ -259,7 +259,7 @@ func (m *Machine) RunMemPackageWithOverrides(mpkg *std.MemPackage, save bool) (*
 }
 
 func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
-	fmt.Println("======runMemPackage...")
+	fmt.Println("======runMemPackage..., mpkg.Path: ", mpkg.Path)
 	// validate mpkg.Type.
 	mptype := mpkg.Type.(MemPackageType)
 	if save && !mptype.IsStorable() {
@@ -599,6 +599,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		// Each file for each *PackageValue gets its own file *Block,
 		// with values copied over from each file's
 		// *FileNode.StaticBlock.
+		fmt.Println("======runFileDecls, alloc block, m.Alloc: ", m.Alloc)
 		fb := m.Alloc.NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
@@ -711,6 +712,7 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 // Returns a throwaway realm package is not a realm,
 // such as stdlibs or /p/ packages.
 func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
+	fmt.Println("======saveNewPackageValuesAndTypes...")
 	// save package value and dependencies.
 	pv := m.Package
 	if pv.IsRealm() {
@@ -779,12 +781,14 @@ func (m *Machine) runFunc(st Stage, fn Name, maybeCrossing bool) {
 }
 
 func (m *Machine) RunMain() {
+	fmt.Println("======RunMain......")
 	m.runFunc(StageRun, "main", false)
 }
 
 // This is used for realm filetests which may declare
 // either main() or main(cur crossing).
 func (m *Machine) RunMainMaybeCrossing() {
+	fmt.Println("======RunMainMaybeCrossing...")
 	m.runFunc(StageRun, "main", true)
 }
 

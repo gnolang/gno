@@ -124,12 +124,15 @@ func (alloc *Allocator) Allocate(size int64) {
 
 	alloc.bytes += size
 	if alloc.bytes > alloc.maxBytes {
-		fmt.Println("!!!!!!!!!!!!!!!!!!!!Exeeded, going to garbage collect...")
+		fmt.Println("!!!!!!!!!!!!!!!!!!!!Exeeded, going to garbage collect..., size: ", size)
 		fmt.Println("======alloc.bytes: ", alloc.bytes)
 		fmt.Println("======size: ", size)
 		fmt.Println("======alloc.bytes - size: ", alloc.bytes-size)
 		alloc.isGc = true
 		if left, ok := alloc.collect(); !ok {
+			fmt.Println("!!!!!!!!!!!!!!!, should not happen...")
+			fmt.Println("==================Alloc.GcCount: ", alloc.GcCount)
+			fmt.Println("==================Alloc.AllocCount: ", alloc.AllocCount)
 			panic("should not happen, allocation limit exceeded while gc.")
 		} else { // retry
 			fmt.Println("======GC finished, retry alloc, left: ", left)
@@ -347,6 +350,7 @@ func (alloc *Allocator) NewMap(size int) *MapValue {
 }
 
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
+	fmt.Println("======NewBlock, source: ", source)
 	alloc.AllocateBlock(int64(source.GetNumNames()))
 	return NewBlock(source, parent)
 }
@@ -385,6 +389,13 @@ func (pv *PackageValue) GetShallowSize() int64 {
 }
 
 func (b *Block) GetShallowSize() int64 {
+	if pn, ok := b.Source.(*PackageNode); ok {
+		fmt.Println("===pn: ", pn, pn.PkgPath)
+		if pn.PkgPath == "uverse" {
+			fmt.Println("==================skip uverse........")
+			return 0
+		}
+	}
 	return allocBlock + allocBlockItem*int64(len(b.Values))
 }
 
@@ -426,8 +437,11 @@ func (sv *SliceValue) GetShallowSize() int64 {
 
 // Only count for closures.
 func (fv *FuncValue) GetShallowSize() int64 {
-	return allocFunc +
-		int64(len(fv.Captures))*(allocTypedValue+allocHeapItem)
+	if fv.IsClosure {
+		return allocFunc +
+			int64(len(fv.Captures))*(allocTypedValue+allocHeapItem)
+	}
+	return 0
 }
 
 func (sv StringValue) GetShallowSize() int64 {

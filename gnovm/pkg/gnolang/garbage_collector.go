@@ -35,6 +35,8 @@ type Visitor func(v Value) (stop bool)
 //
 // XXX: make sure tv.T isn't bumped from allocation either.
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
+	fmt.Println("===============GarbageCollect...")
+	m.Alloc.isGc = true
 	// times objects are visited for gc
 	var visitCount int64
 
@@ -113,7 +115,10 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 	// Return bytes remaining.
 	maxBytes, bytes := m.Alloc.Status()
-	fmt.Println("====================GC finished,  bytes: ", bytes)
+	fmt.Println("=======================================================GC finished,  bytes: ", bytes)
+	fmt.Println("=======================================================left: ", maxBytes-bytes)
+	fmt.Println("==================Alloc.GcCount: ", m.Alloc.GcCount)
+	fmt.Println("==================Alloc.AllocCount: ", m.Alloc.AllocCount)
 	return maxBytes - bytes, true
 }
 
@@ -129,24 +134,24 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount int64) Visitor {
 		fmt.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
 
 		// filter out pre-exist values
-		switch vv := v.(type) {
-		case StringValue: // XXX, reuse this
-			return false
-		case *PackageValue: // XXX, alloc except uverse?
-			return false
-		case *Block:
-			if pn, ok := vv.Source.(*PackageNode); ok { // XXX, alloc, excepit uverse.
-				fmt.Println("===pn: ", pn, pn.PkgPath)
-				// if pn.PkgPath == "uverse" || pn.PkgPath == ".uverse" {
-				// 	fmt.Println("==================skip uverse........")
-				// 	return false
-				// }
-				fmt.Println("=================skip package block...")
-				return false
-			}
-		case *FuncValue: // XXX, reuse
-			return false
-		}
+		// switch vv := v.(type) {
+		// case StringValue: // XXX, reuse this
+		// 	return false
+		// case *PackageValue: // XXX, alloc except uverse?
+		// 	return false
+		// case *Block:
+		// 	if pn, ok := vv.Source.(*PackageNode); ok { // XXX, alloc, excepit uverse.
+		// 		fmt.Println("===pn: ", pn, pn.PkgPath)
+		// 		if pn.PkgPath == "uverse" || pn.PkgPath == ".uverse" {
+		// 			fmt.Println("==================skip uverse........")
+		// 			return false
+		// 		}
+		// 		// fmt.Println("=================skip package block...")
+		// 		// return false
+		// 	}
+		// case *FuncValue: // XXX, reuse
+		// 	return false
+		// }
 
 		if oo, isObject := v.(Object); isObject {
 			// Return if already measured.
@@ -223,6 +228,9 @@ func (av *ArrayValue) VisitAssociated(vis Visitor) (stop bool) {
 
 func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
 	fmt.Println("======VisitAssociated of FuncValue...")
+	if !fv.IsClosure {
+		return
+	}
 	// visit captures
 	for _, tv := range fv.Captures {
 		v := tv.V
@@ -334,7 +342,14 @@ func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
-	fmt.Println("======VisitAssociated of BlockValue...")
+	fmt.Println("======VisitAssociated of BlockValue..., type of b.Souce: ", reflect.TypeOf(b.Source))
+	if pn, ok := b.Source.(*PackageNode); ok {
+		fmt.Println("===pn: ", pn, pn.PkgPath)
+		if pn.PkgPath == "uverse" {
+			return
+		}
+	}
+
 	// Visit each value.
 	for i := 0; i < len(b.Values); i++ {
 		v := b.Values[i].V
