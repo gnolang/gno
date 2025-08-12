@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 
+	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -159,7 +160,26 @@ func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit)
 	// 5% fee buffer to cover the suden change of gas price
 	feeBuffer := overflow.Mulp(fee, 5) / 100
 	fee = overflow.Addp(fee, feeBuffer)
-	s := fmt.Sprintf("estimated gas usage: %d, gas fee: %d%s, current gas price: %s\n", bres.DeliverTx.GasUsed, fee, gp.Price.Denom, gp.String())
+
+	// Search events for the deposit amount
+	deposit := ""
+	for _, event := range bres.DeliverTx.Events {
+		gnoEvent, ok := event.(gnostd.GnoEvent)
+		if !ok {
+			continue
+		}
+		switch gnoEvent.Type {
+		case "StorageDeposit":
+			if value, ok := gnoEvent.FindAttribute("Deposit"); ok {
+				deposit = ", storage deposit " + value
+			}
+		case "UnlockDeposit":
+			if value, ok := gnoEvent.FindAttribute("Deposit"); ok {
+				deposit = ", unlock deposit " + value
+			}
+		}
+	}
+	s := fmt.Sprintf("estimated gas usage: %d, gas fee: %d%s, current gas price: %s%s\n", bres.DeliverTx.GasUsed, fee, gp.Price.Denom, gp.String(), deposit)
 	bres.DeliverTx.Info = s
 	return nil
 }
