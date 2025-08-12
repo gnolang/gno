@@ -1,8 +1,6 @@
 // PKGPATH: gno.land/r/map_ref_key
 package map_ref_key
 
-import "strconv"
-
 type myInt struct {
 	num int
 }
@@ -18,13 +16,9 @@ func init() {
 	accounts[1] = tmpInt
 }
 
-func Render(string) string {
-	return strconv.Itoa(accounts[1].num)
-}
-
 func main() {
-	println(Render("a"))
+	println(accounts)
 }
 
 // Output:
-// 1
+// (map{(1 int):(ref(0934e54b8f0575a8200841a7feee61eca343f4de:10) gno.land/r/map_ref_key.myInt)} gno.land/r/map_ref_key.stringMap)

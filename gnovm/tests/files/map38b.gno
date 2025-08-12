@@ -1,8 +1,6 @@
 // PKGPATH: gno.land/r/map_ref_key
 package map_ref_key
 
-import "strconv"
-
 type myInt struct {
 	num    int
 	myint2 MyInt2
@@ -23,15 +21,9 @@ func init() {
 	accounts[tmpInt] = 1
 }
 
-func Render(string) string {
-	return "[Break the map!](maperror$help&func=Register)\n\nmap len: " + strconv.Itoa(len(accounts))
-}
-
 func main() {
-	println(Render("a"))
+	println(accounts)
 }
 
 // Output:
-// [Break the map!](maperror$help&func=Register)
-//
-// map len: 1
+// (map{(struct{(1 int),(struct{(2 int)} gno.land/r/map_ref_key.MyInt2)} gno.land/r/map_ref_key.myInt):(1 int)} gno.land/r/map_ref_key.stringMap)
