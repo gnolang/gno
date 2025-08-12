@@ -27,14 +27,18 @@ func (p *Passthrough) Mutate() {
 	p.S.Mutate()
 }
 
-func main(cur realm) {
-	s := &Struct{A: 100}
-	p := &Passthrough{S: s}
+var s = &Struct{A: 100}
+var p *Passthrough
 
-	crossrealm.SetObject(cross, p) // saved in crossrealm.
+func main(cur realm) {
+	p = &Passthrough{S: s}
+
+	crossrealm.SetObject(cross, p)
 
 	p.Mutate() // cross into current realm where method Mutate is declared
 }
 
-// Error:
-// cannot directly modify readonly tainted object (w/o method): s<VPBlock(1,0)>.A
+// Output:
+// s.A: 101
+// current realm:  CodeRealm{ g1mdevzlw3defhhew53zsky80lhqnk94ew8grqdt, gno.land/r/borrow }
+// previous realm:  UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }

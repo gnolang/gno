@@ -1,6 +1,31 @@
 package p_crossrealm
 
-import "std"
+import (
+	"errors"
+	"std"
+)
+
+type Foo struct {
+	num int
+}
+
+var F *Foo = &Foo{num: 0}
+
+var Err = errors.New("Err 1")
+
+func (f *Foo) Modify2() {
+	f.num = 1
+	println(f)
+	Err = errors.New("Err 2")
+	println(Err)
+}
+
+var AllowedList = []int{1, 2}
+
+func Modify() {
+	AllowedList = append(AllowedList, 3)
+	println(AllowedList)
+}
 
 type Stringer interface {
 	String() string

@@ -40,6 +40,6 @@ func main(cur realm) {
 
 // Output:
 // hello A gno.land/r/crossrealm
-// hello Bar gno.land/r/crossrealm
-// hello Bar gno.land/r/demo/tests/crossrealm
-// .
+
+// Error:
+// cannot directly modify readonly tainted object (w/o method): f<VPBlock(1,0)>.s

@@ -45,4 +45,4 @@ func main() {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): sa<VPBlock(1,1)>.A
+// cannot directly modify readonly tainted object (w/o method): sb<VPBlock(1,0)>.B

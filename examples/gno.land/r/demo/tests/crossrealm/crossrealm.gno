@@ -103,6 +103,7 @@ func Exec(cb func() string) string {
 }
 
 // ------------------------------------
+var AllowedList = []int{1, 2}
 var Closure func()
 
 func SetClosure(cur realm, f func()) {
@@ -122,10 +123,56 @@ func ExecuteClosureCross(cur realm) {
 	Closure2(cross)
 }
 
-// Closure -> FooUpdate
+// ------------------------------------
+type S struct {
+	F func()
+}
+
+var S1 S
+
+func (s *S) SetFn(ff func()) {
+	s.F = ff
+}
+
+func (s *S) Execute() {
+	s.F()
+}
+
+// ------------------------------------
 func PrintRealms(cur realm) {
 	ufmt.Printf("current realm: %s\n", std.CurrentRealm())
 	ufmt.Printf("previous realm: %s\n", std.PreviousRealm())
+}
+
+// ------------------------------------
+// Utility func
+func UtilityFunc() {
+	AllowedList = append(AllowedList, 3) // global var
+	println(AllowedList)
+	ufmt.Printf("current realm: %s\n", std.CurrentRealm())
+	ufmt.Printf("previous realm: %s\n", std.PreviousRealm())
+}
+
+func UtilityCrossFunc(cur realm) {
+	AllowedList = append(AllowedList, 3) // global var
+	println(AllowedList)
+	ufmt.Printf("current realm: %s\n", std.CurrentRealm())
+	ufmt.Printf("previous realm: %s\n", std.PreviousRealm())
+}
+
+// ------------------------------------
+type Mutator interface {
+	Mutate()
+}
+
+var MockMutator Mutator
+
+func SetMutator(_ realm, mutator Mutator) {
+	MockMutator = mutator
+}
+
+func DoMutate() {
+	MockMutator.Mutate() // soft cross into current realm
 }
 
 // -------------------------------------------------
