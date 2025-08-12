@@ -171,11 +171,11 @@ func findLoaderContext() (*loaderContext, error) {
 
 	{
 		dir, err := findWorkspaceRootDir(wd)
-		switch err {
-		case ErrGnoworkNotFound:
-			// continue
-		case nil:
+		switch {
+		case err == nil:
 			return &loaderContext{Root: dir, IsWorkspace: true}, nil
+		case errors.Is(err, ErrGnoworkNotFound):
+			// continue
 		default:
 			return nil, err
 		}
