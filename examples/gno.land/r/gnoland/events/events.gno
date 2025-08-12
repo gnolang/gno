@@ -45,7 +45,7 @@ const (
 
 // AddEvent adds auth new event
 // Start time & end time need to be specified in RFC3339, ie 2024-08-08T12:00:00+02:00
-func AddEvent(name, description, link, location, startTime, endTime string) (string, error) {
+func AddEvent(_ realm, name, description, link, location, startTime, endTime string) (string, error) {
 	Auth.AssertOnAuthList()
 
 	if strings.TrimSpace(name) == "" {
