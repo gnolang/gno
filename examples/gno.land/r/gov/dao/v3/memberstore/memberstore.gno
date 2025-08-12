@@ -126,7 +126,7 @@ func renderHome(res *mux.ResponseWriter, req *mux.Request) {
 
 		tp := (tier.PowerHandler(members, Tiers) * float64(members.GetTierSize(tn)))
 
-		sb.WriteString(ufmt.Sprintf("- Tier %v contains %v members with power: %v\n", tn, tree.Size(), tp))
+		sb.WriteString(ufmt.Sprintf("- %v Tier %v contains %v members with power: %v\n", tierColor(tn), tn, tree.Size(), tp))
 
 		return false
 	})
@@ -151,6 +151,19 @@ func Render(path string) string {
 	sb.WriteString(md.H1("Memberstore Govdao v3"))
 	sb.WriteString(router.Render(path))
 	return sb.String()
+}
+
+func tierColor(tn string) string {
+	switch tn {
+	case "T1":
+		return "🟢"
+	case "T2":
+		return "🟣"
+	case "T3":
+		return "🟡​"
+	default:
+		return "⚪​"
+	}
 }
 
 // Get gets the Members store

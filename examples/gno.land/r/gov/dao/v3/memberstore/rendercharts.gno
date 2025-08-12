@@ -28,7 +28,7 @@ func RenderCharts(members MembersByTier) string {
 		powerValues = append(powerValues, tp)
 	}
 
-	colors := []string{"#2FA08C", "#8654D6", "#F5C65B"}
+	colors := []string{"#7CB342", "#AB47BC", "#FFCC32"}
 
 	resultPieTs := piechart.RenderPieChart(memberCounts, colors, tierNames, "Members repartition:")
 	resultPieTp := piechart.RenderPieChart(powerValues, colors, tierNames, "Power repartition:")

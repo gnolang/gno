@@ -54,7 +54,8 @@ func renderMembersPage(page *pager.Page, members *avl.Tree) string {
 	for _, item := range page.Items {
 		addr := item.Key
 		tn, _ := members.Get(addr)
-		sb.WriteString(ufmt.Sprintf("- %v · %v\n", tn, addr))
+		tnStr, _ := tn.(string)
+		sb.WriteString(ufmt.Sprintf("- %v %v · %v\n", tierColor(tnStr), tnStr, addr))
 	}
 	return sb.String()
 }
