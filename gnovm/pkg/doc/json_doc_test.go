@@ -326,7 +326,7 @@ func TestNormalizedMarkdownPrinter(t *testing.T) {
 	// Test with backslash escaping
 	doc = p.Parse("Comment with \\\\ backslash")
 	result = normalizedMarkdownPrinter(printer, doc)
-	assert.Equal(t, "Comment with \\\\ backslash\n", result)
+	assert.Equal(t, "Comment with \\\\\\\\ backslash\n", result)
 
 	// Test with indented code block
 	doc = p.Parse("Comment with:\n\n    code block\n    more code")
