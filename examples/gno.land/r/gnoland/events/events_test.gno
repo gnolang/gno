@@ -11,8 +11,7 @@ import (
 )
 
 var (
-	suRealm = std.NewUserRealm(su)
-
+	suRealm          = std.NewUserRealm(std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"))
 	now              = "2009-02-13T23:31:30Z" // time.Now() is hardcoded to this value in the gno test machine currently
 	parsedTimeNow, _ = time.Parse(time.RFC3339, now)
 )
@@ -96,7 +95,7 @@ func TestDeleteEvent(t *testing.T) {
 		t.Fatalf("Expected to find ToDelete event in render")
 	}
 
-	DeleteEvent(id)
+	DeleteEvent(cross, id)
 	got = renderHome(false)
 
 	if strings.Contains(got, "ToDelete") {
@@ -119,7 +118,7 @@ func TestEditEvent(t *testing.T) {
 	newST := e1Start.Add(time.Hour)
 	newET := newST.Add(time.Hour)
 
-	EditEvent(id, newName, newDesc, newLink, "", newST.Format(time.RFC3339), newET.Format(time.RFC3339))
+	EditEvent(cross, id, newName, newDesc, newLink, "", newST.Format(time.RFC3339), newET.Format(time.RFC3339))
 	edited, _, _ := GetEventByID(id)
 
 	// Check updated values
@@ -136,8 +135,8 @@ func TestEditEvent(t *testing.T) {
 func TestInvalidEdit(t *testing.T) {
 	testing.SetRealm(suRealm)
 
-	uassert.PanicsWithMessage(t, ErrNoSuchID.Error(), func() {
-		EditEvent("123123", "", "", "", "", "", "")
+	uassert.AbortsWithMessage(t, ErrNoSuchID.Error(), func() {
+		EditEvent(cross, "123123", "", "", "", "", "", "")
 	})
 }
 

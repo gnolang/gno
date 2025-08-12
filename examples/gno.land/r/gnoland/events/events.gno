@@ -8,8 +8,8 @@ import (
 	"std"
 	"strings"
 	"time"
-
-	"gno.land/p/demo/ownable/exts/authorizable"
+	
+	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 )
@@ -29,10 +29,8 @@ type (
 )
 
 var (
-	su   = std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
-	Auth = authorizable.NewAuthorizableWithAddress(su)
-
-	events    = make(eventsSlice, 0) // sorted
+	Ownable   = ownable.NewWithAddress(std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")) // @leohhhn
+	events    = make(eventsSlice, 0)                                                            // sorted
 	idCounter seqid.ID
 )
 
@@ -46,7 +44,7 @@ const (
 // AddEvent adds auth new event
 // Start time & end time need to be specified in RFC3339, ie 2024-08-08T12:00:00+02:00
 func AddEvent(_ realm, name, description, link, location, startTime, endTime string) (string, error) {
-	Auth.AssertOnAuthList()
+	Ownable.AssertOwnedByPrevious()
 
 	if strings.TrimSpace(name) == "" {
 		return "", ErrEmptyName
@@ -84,8 +82,8 @@ func AddEvent(_ realm, name, description, link, location, startTime, endTime str
 }
 
 // DeleteEvent deletes an event with auth given ID
-func DeleteEvent(id string) {
-	Auth.AssertOnAuthList()
+func DeleteEvent(_ realm, id string) {
+	Ownable.AssertOwnedByPrevious()
 
 	e, idx, err := GetEventByID(id)
 	if err != nil {
@@ -102,8 +100,8 @@ func DeleteEvent(id string) {
 // EditEvent edits an event with auth given ID
 // It only updates values corresponding to non-empty arguments sent with the call
 // Note: if you need to update the start time or end time, you need to provide both every time
-func EditEvent(id string, name, description, link, location, startTime, endTime string) {
-	Auth.AssertOnAuthList()
+func EditEvent(_ realm, id string, name, description, link, location, startTime, endTime string) {
+	Ownable.AssertOwnedByPrevious()
 
 	e, _, err := GetEventByID(id)
 	if err != nil {
