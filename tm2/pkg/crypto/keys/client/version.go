@@ -12,10 +12,11 @@ func NewVersionCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "version",
 			ShortUsage: "version",
-			ShortHelp:  "display installed gnokey version",
+			ShortHelp:  "display the gnokey binary version",
+			LongHelp:  "Displays detailed version information for the gnokey binary, including the build number, commit hash, and build date. Useful for verifying the exact version of gnokey you are running.",
 		},
 		nil,
-		func(_ context.Context, args []string) error {
+		func(_ context.Context, _ []string) error {
 			io.Println("gnokey version:", version.Version)
 			return nil
 		},
