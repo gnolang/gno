@@ -30,3 +30,12 @@ const (
 func NewLegacyKeccak256() hash.Hash {
 	return &state{rate: rateK512, outputLen: 32, dsbyte: dsbyteKeccak}
 }
+
+func Hash(data []byte) [32]byte {
+	var res [32]byte
+	keccak256 := NewLegacyKeccak256()
+	keccak256.Write(data)
+	copy(res[:], keccak256.Sum(nil))
+
+	return res
+}

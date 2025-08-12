@@ -178,6 +178,58 @@ func TestKeccak(t *testing.T) {
 	}
 }
 
+func TestHash(t *testing.T) {
+	tests := []struct {
+		data []byte
+		want string
+	}{
+
+		{
+
+			[]byte("There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised words which don't look even slightly believable. If you are going to use a passage of Lorem Ipsum, you need to be sure there isn't anything embarrassing hidden in the middle of text"),
+			"39670cbdfbfc25519e9834899e13569e5f5802b77df3d8259961f713ad09745d",
+		},
+		{
+
+			[]byte("abc"),
+			"4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45",
+		},
+		{
+
+			[]byte("916889520661998333947422699691"),
+			"c5b223cc231dd56389ca19435758fba38e79f3c461d989d818ceb96595d310d1",
+		},
+		{
+
+			[]byte("6R1Q2KvQNGxI4OtUGDS1rSCbJXkp1H"),
+			"8e94c6d49ca23597ee1d4a317b17a85ae38f6f3241e11c3ace4abe756287839a",
+		},
+		{
+
+			[]byte("SOMERANDOMSTRING"),
+			"59f47b8dc1ffdfb716d2fcb313c070040f6049bd23c321c6cb8adb3f79eb720f",
+		},
+		{
+
+			[]byte("Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC"),
+			"da5293ad50619d7fdac8b4c8dc2f80e0cd40b6571be14740229d0a1d6e2fc232",
+		},
+		{
+
+			[]byte("There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised words which don't look even slightly believable. If you are going to use a passage of Lorem Ipsum, you need to be sure there isn't anything embarrassing hidden in the middle of text. All the Lorem Ipsum generators on the Internet tend to repeat predefined chunks as necessary, making this the first true generator on the Internet. It uses a dictionary of over 200 Latin words, combined with a handful of model sentence structures, to generate Lorem Ipsum which looks reasonable. The generated Lorem Ipsum is therefore always free from repetition, injected humour, or non-characteristic words etc."),
+			"a84506d23b7246dc18805c8bf60316fb6f677934a546ee8d8650495929f21eef",
+		},
+	}
+
+	for _, u := range tests {
+		got := Hash(u.data)
+		want := decodeHex(u.want)
+		if !bytes.Equal(got[:], want) {
+			t.Errorf("unexpected hash: got '%x' want '%s'", got, u.want)
+		}
+	}
+}
+
 // sequentialBytes produces a buffer of size consecutive bytes 0x00, 0x01, ..., used for testing.
 //
 // The alignment of each slice is intentionally randomized to detect alignment
