@@ -25,7 +25,7 @@ GOBUILD_FLAGS ?= -ldflags "-X github.com/gnolang/gno/tm2/pkg/version.Version=$(V
 ########################################
 # Dev tools
 .PHONY: start.gnoland
-start.gnoland:; go run ./cmd/gnoland start -lazy
+start.gnoland:; go run ./cmd/gnoland start -lazy -skip-genesis-sig-verification
 
 .PHONY: start.gnoweb
 start.gnoweb:; go run ./cmd/gnoweb
