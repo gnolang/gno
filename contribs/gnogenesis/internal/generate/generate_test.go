@@ -41,7 +41,7 @@ func TestGenesis_Generate(t *testing.T) {
 		require.NoError(t, readErr)
 
 		// Make sure the default configuration is set
-		defaultGenesis := common.GetDefaultGenesis()
+		defaultGenesis := common.DefaultGenesis()
 		defaultGenesis.GenesisTime = genesis.GenesisTime
 
 		assert.Equal(t, defaultGenesis, genesis)

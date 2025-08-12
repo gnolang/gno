@@ -93,7 +93,9 @@ a transaction by anyone.
 [embedmd]:# (../_assets/minisocial/posts-1.gno go /\/\/ CreatePost/ $)
 ```go
 // CreatePost creates a new post
-func CreatePost(text string) error {
+// As the function modifies state (i.e. the `posts` slice),
+// it needs to be crossing. This is defined by the first argument being of type `realm`
+func CreatePost(_ realm, text string) error {
 	// If the body of the post is empty, return an error
 	if text == "" {
 		return errors.New("empty post text")
@@ -298,7 +300,10 @@ func TestCreatePostSingle(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	err := CreatePost(text1)
+
+	// To call a crossing function, we specify the `cross` keyword
+	// This matches the first argument of type realm in the function itself
+	err := CreatePost(cross, text1)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -335,7 +340,9 @@ func TestCreatePostMultiple(t *testing.T) {
 		testing.SetRealm(std.NewUserRealm(authorAddr))
 
 		// Create the post
-		err := CreatePost(p.text)
+		// To call a crossing function, we specify the `cross` keyword
+		// This matches the first argument of type realm in the function itself
+		err := CreatePost(cross, p.text)
 		if err != nil {
 			t.Fatalf("expected no error for post '%s', got %v", p.text, err)
 		}
@@ -377,7 +384,7 @@ Full code of this app can be found on the Staging network, on
 ## Bonus - resolving usernames
 
 Let's make our MiniSocial app even better by resolving addresses to potential usernames
-registered in the [Gno.land user registry](https://gno.land/demo/users).
+registered in the [Gno.land User Registry](https://gno.land/demo/users).
 
 We can import the `gno.land/r/sys/users` realm which provides user data and use
 it to try to resolve the address:
