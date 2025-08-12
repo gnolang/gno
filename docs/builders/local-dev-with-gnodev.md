@@ -19,7 +19,7 @@ allowing them to easily see how their code behaves before deploying it to a
 remote Gno.land network.
 
 This tutorial will show you how to use gnodev, a local development solution stack
-offering a built-in Gno.land node with a hot-reload feature for packages and
+offering a built-in Gno.land node with a hot-reload feature for packages and 
 realms, as well as a built-in instance of [gnoweb](../users/explore-with-gnoweb.md).
 
 ## Primary features
@@ -30,7 +30,6 @@ prominent ones:
 1. Automatic package deployment
 2. Premining balances
 3. Hot reload
-4. Genesis transactions
 
 If you're familiar with the features above, jump to the [practical example
 section](#practical-example).
@@ -94,17 +93,6 @@ code changes.
 
 Directory watching, as well as transaction replaying, can be disabled with the
 `-no-watch` and `-no-replay` flags, respectively.
-
-### 4. Genesis transactions
-
-`gnodev` can sends genesis transactions to the local node using the `-txs-file` flag associated with the `-paths` and the `-add-account` flag.
-
-The transactions file can be generated using `gnokey`. Here's an example of the format:
-```
-{"tx": {"msg":[{"@type":"/vm.m_call","caller":"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj","send":"1000000ugnot","pkg_path":"gno.land/r/gnoland/users/v1","func":"Register","args":["administrator123"]}],"fee":{"gas_wanted":"2000000","gas_fee":"1000000ugnot"},"signatures":[{"pub_key":{"@type":"/tm.PubKeySecp256k1","value":"AmG6kzznyo1uNqWPAYU6wDpsmzQKDaEOrVRaZ08vOyX0"},"signature":""}],"memo":""}}
-{"tx": {"msg":[{"@type":"/vm.m_call","caller":"g1qpymzwx4l4cy6cerdyajp9ksvjsf20rk5y9rtt","send":"1000000ugnot","pkg_path":"gno.land/r/gnoland/users/v1","func":"Register","args":["zoo_ma123"]}],"fee":{"gas_wanted":"2000000","gas_fee":"1000000ugnot"},"signatures":[{"pub_key":{"@type":"/tm.PubKeySecp256k1","value":"A6yg5/iiktruezVw5vZJwLlGwyrvw8RlqOToTRMWXkE2"},"signature":""}],"memo":""}}
-{"tx": {"msg":[{"@type":"/vm.m_call","caller":"g1manfred47kzduec920z88wfr64ylksmdcedlf5","send":"1000000ugnot","pkg_path":"gno.land/r/gnoland/users/v1","func":"Register","args":["moul001"]}],"fee":{"gas_wanted":"2000000","gas_fee":"200000000ugnot"},"signatures":[{"pub_key":{"@type":"/tm.PubKeySecp256k1","value":"AnK+a6mcFDjY6b/v6p7r8QFW1M1PgIoQxBgrwOoyY7v3"},"signature":""}],"memo":""}}
-```
 
 With the main features of `gnodev` out of the way, let's dive into a practical
 example.
