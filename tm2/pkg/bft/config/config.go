@@ -325,6 +325,7 @@ type BaseConfig struct {
 // DefaultBaseConfig returns a default base configuration for a Tendermint node
 func DefaultBaseConfig() BaseConfig {
 	return BaseConfig{
+		NodeKey:           defaultNodeKeyPath,
 		Moniker:           defaultMoniker,
 		ProxyApp:          "tcp://127.0.0.1:26658",
 		ABCI:              SocketABCI,
