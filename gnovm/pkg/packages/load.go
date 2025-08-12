@@ -26,8 +26,6 @@ type LoadConfig struct {
 	Test                bool                       // load test dependencies
 	GnoRoot             string                     // used to override GNOROOT
 	ExtraWorkspaceRoots []string                   // extra workspaces root used to find dependencies
-
-	loaderContext *loaderContext
 }
 
 func (conf *LoadConfig) applyDefaults() error {
@@ -53,18 +51,17 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 
 	// XXX: allow loading only stdlibs without a workspace (like go allow loading stdlibs without a go.mod)
 
-	var err error
-	conf.loaderContext, err = findLoaderContext()
+	loaderCtx, err := findLoaderContext()
 	if err != nil {
 		return nil, err
 	}
 
 	// sanity assert
-	if !filepath.IsAbs(conf.loaderContext.Root) {
-		panic(fmt.Errorf("context root should be absolute at this point, got %q", conf.loaderContext.Root))
+	if !filepath.IsAbs(loaderCtx.Root) {
+		panic(fmt.Errorf("context root should be absolute at this point, got %q", loaderCtx.Root))
 	}
 
-	expanded, err := expandPatterns(conf.GnoRoot, conf.loaderContext, conf.Out, patterns...)
+	expanded, err := expandPatterns(conf.GnoRoot, loaderCtx, conf.Out, patterns...)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +81,7 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 
 	// load deps
 
-	localDeps := discoverPkgsForLocalDeps(conf)
+	localDeps := discoverPkgsForLocalDeps(conf, loaderCtx)
 
 	// mark all pattern packages for visit
 	toVisit := []*Package(pkgs)
@@ -243,12 +240,12 @@ func setAdd[T comparable](set map[T]struct{}, val T) bool {
 	return true
 }
 
-func discoverPkgsForLocalDeps(conf LoadConfig) map[string]string {
+func discoverPkgsForLocalDeps(conf LoadConfig, loaderCtx *loaderContext) map[string]string {
 	// we swallow errors in this routine as we want the most packages we can get
 
 	roots := []string{}
-	if conf.loaderContext.IsWorkspace {
-		roots = append(roots, conf.loaderContext.Root)
+	if loaderCtx.IsWorkspace {
+		roots = append(roots, loaderCtx.Root)
 	}
 	roots = append(roots, conf.ExtraWorkspaceRoots...)
 
