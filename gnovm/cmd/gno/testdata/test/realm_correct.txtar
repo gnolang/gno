@@ -35,7 +35,7 @@ func main(cur realm) {
 //                  "@type": "/gno.PrimitiveType",
 //                  "value": "32"
 
--- gnowork.toml --
+
 -- gnomod.toml --
 module = "gno.test/r/integ/realm_correct"
 gno = "0.9"

@@ -79,13 +79,15 @@ func TestListAndNonIgnoredPkgs(t *testing.T) {
 				createGnoModPkg(t, dirPath, p.name, p.modfile)
 			}
 
+			err := os.WriteFile(filepath.Join(dirPath, "gnowork.toml"), nil, 0o664)
+			require.NoError(t, err)
+
 			testChdir(t, dirPath)
 
 			// List packages
 			pkgs, err := Load(LoadConfig{
-				AllowEmpty:    true,
-				Fetcher:       pkgdownload.NewNoopFetcher(),
-				WorkspaceRoot: dirPath,
+				AllowEmpty: true,
+				Fetcher:    pkgdownload.NewNoopFetcher(),
 			}, filepath.Join(dirPath, "..."))
 			require.NoError(t, err)
 
@@ -183,10 +185,9 @@ func TestLoadNonIgnoredExamples(t *testing.T) {
 	testChdir(t, examples)
 
 	conf := LoadConfig{
-		Fetcher:       pkgdownload.NewNoopFetcher(),
-		Deps:          true,
-		Test:          true,
-		WorkspaceRoot: ".",
+		Fetcher: pkgdownload.NewNoopFetcher(),
+		Deps:    true,
+		Test:    true,
 	}
 
 	pkgs, err := Load(conf, "./...")

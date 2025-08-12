@@ -18,7 +18,7 @@ func main() {
 // Output:
 // blah
 
--- gnowork.toml --
+
 -- gnomod.toml --
 module = "gno.test/p/integ/failing_filetest"
 gno = "0.9"

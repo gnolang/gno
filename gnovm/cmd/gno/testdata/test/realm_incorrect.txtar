@@ -25,7 +25,7 @@ func main(cur realm) {
 // Realm:
 // xxxx
 
--- gnowork.toml --
+
 -- gnomod.toml --
 module = "gno.test/r/integ/realm_incorrect"
 gno = "0.9"

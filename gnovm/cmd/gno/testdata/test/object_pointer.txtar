@@ -10,6 +10,8 @@ stdout 'With WorkingNew: 42'
 stdout 'With BuggedNew: 42'
 stderr 'ok      . 	\d+\.\d\ds'
 
+-- gnowork.toml --
+
 -- p/bug_package/gnomod.toml --
 module = "gno.land/p/testing/bug_package"
 gno = "0.9"
@@ -109,4 +111,3 @@ func main() {
 // With WorkingNew: 42
 // With BuggedNew: 42
 
--- gnowork.toml --

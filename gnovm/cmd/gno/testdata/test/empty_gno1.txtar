@@ -6,7 +6,6 @@
 stderr 'empty\.gno:1:1: expected ''package'', found ''EOF'''
 
 -- empty.gno --
--- gnowork.toml --
 -- gnomod.toml --
 module = "gno.test/p/integ/empty_gno1"
 gno = "0.9"

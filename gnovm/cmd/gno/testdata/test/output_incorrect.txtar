@@ -23,7 +23,7 @@ func main() {
 // hey
 // hru?
 
--- gnowork.toml --
+
 -- gnomod.toml --
 module = "gno.test/p/integ/output_incorrect"
 gno = "0.9"

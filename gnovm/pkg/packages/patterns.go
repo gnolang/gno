@@ -1,6 +1,7 @@
 package packages
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -19,7 +20,7 @@ type pkgMatch struct {
 	Match []string
 }
 
-func expandPatterns(gnoRoot string, workspaceRoot string, out io.Writer, patterns ...string) ([]*pkgMatch, error) {
+func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, patterns ...string) ([]*pkgMatch, error) {
 	pkgMatches := []*pkgMatch(nil)
 
 	addPkgDir := func(dir string, match *string) {
@@ -49,17 +50,40 @@ func expandPatterns(gnoRoot string, workspaceRoot string, out io.Writer, pattern
 		}
 		kinds = append(kinds, patKind)
 
-		if workspaceRoot == "" {
-			continue
+		// single package mode
+		if !loaderCtx.IsWorkspace {
+			switch patKind {
+			case patternKindRecursiveLocal:
+				return nil, errors.New("recursive pattern not supported in single-package mode, consider creating a gnowork.toml file")
+			case patternKindDirectory:
+				absPat, err := filepath.Abs(match)
+				if err != nil {
+					return nil, fmt.Errorf("can't get absolute path to pattern %q: %w", match, err)
+				}
+				if absPat != loaderCtx.Root {
+					return nil, fmt.Errorf("pattern %q is not current package (%q is not %q)", match, absPat, loaderCtx.Root)
+				}
+			case patternKindSingleFile:
+				absPat, err := filepath.Abs(match)
+				if err != nil {
+					return nil, fmt.Errorf("can't get absolute path to pattern %q: %w", match, err)
+				}
+				dir := filepath.Dir(absPat)
+				if dir != loaderCtx.Root {
+					return nil, fmt.Errorf("pattern %q is not current package (%q is not %q)", match, dir, loaderCtx.Root)
+				}
+			}
 		}
+
+		// workspace mode
 		switch patKind {
 		case patternKindDirectory, patternKindSingleFile, patternKindRecursiveLocal:
 			absPat, err := filepath.Abs(match)
 			if err != nil {
 				return nil, fmt.Errorf("can't get absolute path to pattern %q: %w", match, err)
 			}
-			if !strings.HasPrefix(absPat, workspaceRoot) {
-				return nil, fmt.Errorf("pattern %q is not rooted in current workspace (%q is not in %q)", match, absPat, workspaceRoot)
+			if !strings.HasPrefix(absPat, loaderCtx.Root) {
+				return nil, fmt.Errorf("pattern %q is not rooted in current workspace (%q is not in %q)", match, absPat, loaderCtx.Root)
 			}
 		}
 	}
@@ -100,7 +124,12 @@ func expandPatterns(gnoRoot string, workspaceRoot string, out io.Writer, pattern
 			addPkgDir(dir, &match)
 
 		case patternKindRecursiveLocal:
-			dirs, err := expandRecursive(workspaceRoot, pat)
+			// sanity assert
+			if !loaderCtx.IsWorkspace {
+				panic(fmt.Errorf("unexpected recursive pattern at this point"))
+			}
+
+			dirs, err := expandRecursive(loaderCtx.Root, pat)
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", match, err)
 			}

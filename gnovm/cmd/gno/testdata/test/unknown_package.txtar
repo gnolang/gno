@@ -24,6 +24,6 @@ func TestFoo(t *testing.T) {
 	Foo()
 }
 
--- gnowork.toml --
+
 -- gnomod.toml --
 module = "gno.test/p/integ/unknown_package"

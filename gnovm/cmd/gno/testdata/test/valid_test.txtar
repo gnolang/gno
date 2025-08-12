@@ -5,10 +5,10 @@ gno test .
 ! stdout .+
 stderr 'ok      \. 	\d+\.\d\ds'
 
-gno test ./...
+! gno test ./...
 
 ! stdout .+
-stderr 'ok      \. 	\d+\.\d\ds'
+stderr 'recursive pattern not supported in single-package mode, consider creating a gnowork.toml file'
 
 -- valid.gno --
 package valid
@@ -22,7 +22,7 @@ func TestAlwaysValid(t *testing.T) {
 	// noop
 }
 
--- gnowork.toml --
+
 
 -- gnomod.toml --
 module = 'gno.test/r/integ/valid'

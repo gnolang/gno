@@ -21,7 +21,7 @@ func TestTimeout(t *testing.T) {
 	}
 }
 
--- gnowork.toml --
+
 -- gnomod.toml --
 module = "gno.test/p/integ/flag_timeout"
 gno = "0.9"

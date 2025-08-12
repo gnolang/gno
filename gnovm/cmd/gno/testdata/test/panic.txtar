@@ -19,7 +19,7 @@ func TestPanic(t *testing.T) {
 	panic("hello world")
 }
 
--- gnowork.toml --
+
 -- gnomod.toml --
 module = "gno.test/p/integ/panic"
 gno = "0.9"

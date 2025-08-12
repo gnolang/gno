@@ -16,6 +16,7 @@ stderr '--- PASS: TestHullo.*'
 
 stderr '=== RUN   ./hello/z0_filetest.*'
 
+-- gnowork.toml --
 -- hello/gnomod.toml --
 module = "gno.land/p/demo/hello"
 gno = "0.9"
@@ -70,4 +71,4 @@ func main() {
 // Output:
 // filetest foo
 
--- gnowork.toml --
+-- gnowork.tomlgnowork.toml --

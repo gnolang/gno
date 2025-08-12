@@ -12,6 +12,7 @@ stderr '--- PASS: TestDo.*'
 stderr '=== RUN   ./r/realm2/realm2_filetest.gno'
 stderr '--- PASS: ./r/realm2/realm2_filetest.*'
 
+-- gnowork.toml --
 -- p/counter/gnomod.toml --
 module = "gno.land/p/demo/counter"
 
@@ -79,4 +80,3 @@ func TestDo(t *testing.T) {
 	Do()
 }
 
--- gnowork.toml --

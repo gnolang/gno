@@ -287,7 +287,8 @@ func TestDataExpandPatterns(t *testing.T) {
 			testChdir(t, workroot)
 
 			warn := &strings.Builder{}
-			res, err := expandPatterns(gnoRoot, workroot, warn, tc.patterns...)
+			// TODO: test single-package mode
+			res, err := expandPatterns(gnoRoot, &loaderContext{IsWorkspace: true, Root: workroot}, warn, tc.patterns...)
 			if tc.errShouldContain == "" {
 				require.NoError(t, err)
 			} else {

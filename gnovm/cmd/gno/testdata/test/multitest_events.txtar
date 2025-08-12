@@ -25,7 +25,7 @@ func TestB(t *testing.T) {
 	std.Emit("EventC", "keyD", "valD")
 }
 
--- gnowork.toml --
+
 -- gnomod.toml --
 module = "gno.test/r/integ/multitest_events"
 gno = "0.9"

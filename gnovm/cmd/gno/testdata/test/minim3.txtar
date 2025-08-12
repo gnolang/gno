@@ -13,7 +13,7 @@ package main
 
 func main() {}
 
--- gnowork.toml --
+
 -- gnomod.toml --
 module = "gno.test/p/integ/minim3"
 gno = "0.9"

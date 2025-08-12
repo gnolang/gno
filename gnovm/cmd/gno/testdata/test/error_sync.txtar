@@ -27,7 +27,6 @@ func main() {
 
 // Error:
 // oups
--- gnowork.toml --
 -- gnomod.toml --
 module = "gno.test/p/integ/error_sync"
 gno = "0.9"

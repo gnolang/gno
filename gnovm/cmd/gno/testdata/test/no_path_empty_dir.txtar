@@ -5,7 +5,7 @@
 ! stdout .+
 stderr 'package has no files'
 
--- gnowork.toml --
+
 -- gnomod.toml --
 module = "gno.test/p/integ/no_path_empty_dir"
 gno = "0.9"

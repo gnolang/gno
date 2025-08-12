@@ -99,7 +99,7 @@ func TestRun(t *testing.T) {
 	}
 }
 
--- gnowork.toml --
+
 
 -- gnomod.toml --
 module = 'gno.test/r/integ/flag_run'

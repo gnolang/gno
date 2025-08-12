@@ -3,11 +3,9 @@
 ! gno test .
 
 ! stdout .+
-stderr 'gnomod.toml doesn''t exist'
+stderr 'gnowork.toml file not found in current or any parent directory and gnomod.toml doesn''t exists in current directory'
 
-gno test ./...
+! gno test ./...
 
 ! stdout .+
-stderr 'no packages to test'
-
--- gnowork.toml --
+stderr 'gnowork.toml file not found in current or any parent directory and gnomod.toml doesn''t exists in current directory'

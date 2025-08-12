@@ -23,7 +23,7 @@ func TestSkip(t *testing.T) {
 	t.Log("so this shouldn't print")
 }
 
--- gnowork.toml --
+
 -- gnomod.toml --
 module = "gno.test/p/integ/skip"
 gno = "0.9"

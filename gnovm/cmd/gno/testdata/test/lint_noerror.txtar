@@ -21,6 +21,6 @@ func TestAlwaysValid(t *testing.T) {
 	fn()
 }
 
--- gnowork.toml --
+
 -- gnomod.toml --
 module = "gno.test/p/integ/lint_noerror"

@@ -25,8 +25,9 @@ type LoadConfig struct {
 	Out                 io.Writer                  // used to print info
 	Test                bool                       // load test dependencies
 	GnoRoot             string                     // used to override GNOROOT
-	WorkspaceRoot       string                     // disable workspace root detection if set
 	ExtraWorkspaceRoots []string                   // extra workspaces root used to find dependencies
+
+	loaderContext *loaderContext
 }
 
 func (conf *LoadConfig) applyDefaults() error {
@@ -52,27 +53,18 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 
 	// XXX: allow loading only stdlibs without a workspace (like go allow loading stdlibs without a go.mod)
 
-	if conf.WorkspaceRoot == "" {
-		root, err := findLoaderRootDir()
-		if err != nil {
-			return nil, err
-		}
-		conf.WorkspaceRoot = root
-	} else if !filepath.IsAbs(conf.WorkspaceRoot) {
-		var err error
-		conf.WorkspaceRoot, err = filepath.Abs(conf.WorkspaceRoot)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get absolute workspace root: %w", err)
-		}
+	var err error
+	conf.loaderContext, err = findLoaderContext()
+	if err != nil {
+		return nil, err
 	}
-	conf.WorkspaceRoot = filepath.Clean(conf.WorkspaceRoot)
 
 	// sanity assert
-	if !filepath.IsAbs(conf.WorkspaceRoot) {
-		panic(fmt.Errorf("workspace root should be absolute at this point, got %q", conf.WorkspaceRoot))
+	if !filepath.IsAbs(conf.loaderContext.Root) {
+		panic(fmt.Errorf("context root should be absolute at this point, got %q", conf.loaderContext.Root))
 	}
 
-	expanded, err := expandPatterns(conf.GnoRoot, conf.WorkspaceRoot, conf.Out, patterns...)
+	expanded, err := expandPatterns(conf.GnoRoot, conf.loaderContext, conf.Out, patterns...)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +84,7 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 
 	// load deps
 
-	localDeps := discoverPkgsForLocalDeps(append([]string{conf.WorkspaceRoot}, conf.ExtraWorkspaceRoots...))
+	localDeps := discoverPkgsForLocalDeps(conf)
 
 	// mark all pattern packages for visit
 	toVisit := []*Package(pkgs)
@@ -166,22 +158,50 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 	return loaded, nil
 }
 
-func findLoaderRootDir() (string, error) {
-	wd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-
-	return FindRootDir(wd)
+type loaderContext struct {
+	Root        string
+	IsWorkspace bool
 }
 
-// ErrGnoworkNotFound is returned by [FindRootDir] when, even after traversing
+func findLoaderContext() (*loaderContext, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+
+	{
+		dir, err := findWorkspaceRootDir(wd)
+		switch err {
+		case ErrGnoworkNotFound:
+			// continue
+		case nil:
+			return &loaderContext{Root: dir, IsWorkspace: true}, nil
+		default:
+			return nil, err
+		}
+	}
+
+	gnomodPath := filepath.Join(wd, "gnomod.toml")
+	_, err = os.Stat(gnomodPath)
+	switch {
+	case err == nil:
+		return &loaderContext{Root: wd}, nil
+	case os.IsNotExist(err):
+		return nil, ErrGnoContextNotFound
+	default:
+		return nil, err
+	}
+}
+
+// ErrGnoworkNotFound is returned by [findRootDir] when, even after traversing
 // up to the root directory, a gnowork.toml file could not be found.
 var ErrGnoworkNotFound = errors.New("gnowork.toml file not found in current or any parent directory")
 
-// FindRootDir determines the root directory of the project.
+var ErrGnoContextNotFound = errors.New("gnowork.toml file not found in current or any parent directory and gnomod.toml doesn't exists in current directory")
+
+// findWorkspaceRootDir determines the root directory of the project.
 // The given path must be absolute.
-func FindRootDir(absPath string) (string, error) {
+func findWorkspaceRootDir(absPath string) (string, error) {
 	if !filepath.IsAbs(absPath) {
 		return "", errors.New("requires absolute path")
 	}
@@ -223,8 +243,14 @@ func setAdd[T comparable](set map[T]struct{}, val T) bool {
 	return true
 }
 
-func discoverPkgsForLocalDeps(roots []string) map[string]string {
+func discoverPkgsForLocalDeps(conf LoadConfig) map[string]string {
 	// we swallow errors in this routine as we want the most packages we can get
+
+	roots := []string{}
+	if conf.loaderContext.IsWorkspace {
+		roots = append(roots, conf.loaderContext.Root)
+	}
+	roots = append(roots, conf.ExtraWorkspaceRoots...)
 
 	byPkgPath := make(map[string]string)
 	byDir := make(map[string]string)
