@@ -353,7 +353,6 @@ func normalizedMarkdownPrinter(printer *comment.Printer, doc interface{}) string
 	}
 
 	md = convertIndentedCodeBlocksToFenced(md)
-	md = strings.ReplaceAll(md, `\\`, `\`)
 
 	return md
 }
