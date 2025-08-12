@@ -9,79 +9,111 @@ import (
 	"strings"
 )
 
+const ROUTINE_SEPARATOR = "ROUTINE ========================"
+
 // WriteFunctionList writes a line-by-line profile for a specific function,
 // similar to 'go tool pprof list' command
 func (p *Profile) WriteFunctionList(w io.Writer, funcName string, store Store) error {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	// Find samples for the specified function
-	funcSamples := make(map[string]map[int]*lineStat) // file -> line -> stats
-	totalFuncCycles := int64(0)
+	// Group samples by function name that matches the search term
+	type functionData struct {
+		funcName    string
+		fileSamples map[string]map[int]*lineStat // file -> line -> stats
+		totalCycles int64
+	}
+
+	matchedFunctions := make(map[string]*functionData)
 
 	for _, sample := range p.Samples {
-		// Check if this sample contains the target function
-		hasFuncInStack := false
-		funcDepth := -1
-
-		for i, loc := range sample.Location {
+		// Check each location in the sample
+		for _, loc := range sample.Location {
+			// Check if this location's function matches our search
+			// allows partial matching (e.g., "Sprintf" matches "gno.land/p/demo/ufmt.Sprintf")
 			if strings.Contains(loc.Function, funcName) {
-				hasFuncInStack = true
-				funcDepth = i
+				// Get or create function data
+				fd, exists := matchedFunctions[loc.Function]
+				if !exists {
+					fd = &functionData{
+						funcName:    loc.Function,
+						fileSamples: make(map[string]map[int]*lineStat),
+					}
+					matchedFunctions[loc.Function] = fd
+				}
+
+				file := loc.File
+				line := loc.Line
+
+				if file == "" || line == 0 {
+					continue
+				}
+
+				if fd.fileSamples[file] == nil {
+					fd.fileSamples[file] = make(map[int]*lineStat)
+				}
+
+				if fd.fileSamples[file][line] == nil {
+					fd.fileSamples[file][line] = &lineStat{}
+				}
+
+				if len(sample.Value) > 0 {
+					fd.fileSamples[file][line].count += sample.Value[0]
+				}
+				if len(sample.Value) > 1 {
+					fd.fileSamples[file][line].cycles += sample.Value[1]
+					fd.totalCycles += sample.Value[1]
+				}
+
+				// Only count the first matching location in the stack
 				break
-			}
-		}
-
-		if !hasFuncInStack {
-			continue
-		}
-
-		// For samples containing the function, attribute cycles to the function's location
-		if funcDepth >= 0 && funcDepth < len(sample.Location) {
-			loc := sample.Location[funcDepth]
-			file := loc.File
-			line := loc.Line
-
-			if file == "" || line == 0 {
-				continue
-			}
-
-			if funcSamples[file] == nil {
-				funcSamples[file] = make(map[int]*lineStat)
-			}
-
-			if funcSamples[file][line] == nil {
-				funcSamples[file][line] = &lineStat{}
-			}
-
-			if len(sample.Value) > 0 {
-				funcSamples[file][line].count += sample.Value[0]
-			}
-			if len(sample.Value) > 1 {
-				funcSamples[file][line].cycles += sample.Value[1]
-				totalFuncCycles += sample.Value[1]
 			}
 		}
 	}
 
-	if len(funcSamples) == 0 {
+	if len(matchedFunctions) == 0 {
 		fmt.Fprintf(w, "No samples found for function: %s\n", funcName)
 		return nil
 	}
 
-	// Print results for each file
-	for file, lineStats := range funcSamples {
-		if err := p.writeFunctionFileList(w, funcName, file, lineStats, totalFuncCycles, store); err != nil {
-			// If we can't read the source file, still show the statistics
-			fmt.Fprintf(w, "\nTotal: %d\n", totalFuncCycles)
-			fmt.Fprintf(w, "ROUTINE ======================== %s in %s\n", funcName, file)
-			fileCycles := int64(0)
-			for _, stat := range lineStats {
-				fileCycles += stat.cycles
+	// Sort functions by name for consistent output
+	sortedFuncs := make([]string, 0, len(matchedFunctions))
+	for fname := range matchedFunctions {
+		sortedFuncs = append(sortedFuncs, fname)
+	}
+	sort.Strings(sortedFuncs)
+
+	// Calculate total cycles across all matched functions
+	totalCycles := int64(0)
+	for _, fd := range matchedFunctions {
+		totalCycles += fd.totalCycles
+	}
+
+	// Print results for each matched function
+	first := true
+	for _, fname := range sortedFuncs {
+		fd := matchedFunctions[fname]
+
+		// Add separator between functions
+		if !first {
+			fmt.Fprintf(w, "\n")
+		}
+		first = false
+
+		// Print results for each file in this function
+		for file, lineStats := range fd.fileSamples {
+			if err := p.writeFunctionFileList(w, fd.funcName, file, lineStats, totalCycles, store); err != nil {
+				// If we can't read the source file, still show the statistics
+				fmt.Fprintf(w, "\nTotal: %d\n", totalCycles)
+				fmt.Fprintf(w, "%s %s in %s\n", ROUTINE_SEPARATOR, fd.funcName, file)
+				fileCycles := int64(0)
+				for _, stat := range lineStats {
+					fileCycles += stat.cycles
+				}
+				fmt.Fprintf(w, "%10d %10d (flat, cum) %.2f%% of Total\n", fileCycles, fileCycles,
+					float64(fileCycles)/float64(totalCycles)*100)
+				p.writeLineStatsOnly(w, lineStats, totalCycles)
 			}
-			fmt.Fprintf(w, "%10d %10d (flat, cum) %.2f%% of Total\n", fileCycles, fileCycles,
-				float64(fileCycles)/float64(totalFuncCycles)*100)
-			p.writeLineStatsOnly(w, lineStats, totalFuncCycles)
 		}
 	}
 
@@ -114,7 +146,7 @@ func (p *Profile) writeFunctionFileList(w io.Writer, funcName, file string, line
 
 	// Write header - match go tool pprof format
 	fmt.Fprintf(w, "\nTotal: %d\n", totalCycles)
-	fmt.Fprintf(w, "ROUTINE ======================== %s in %s\n", funcName, file)
+	fmt.Fprintf(w, "%s %s in %s\n", ROUTINE_SEPARATOR, funcName, file)
 	fmt.Fprintf(w, "%10d %10d (flat, cum) %.2f%% of Total\n", fileCycles, fileCycles,
 		float64(fileCycles)/float64(totalCycles)*100)
 
@@ -152,7 +184,7 @@ func (p *Profile) writeFunctionFileList(w io.Writer, funcName, file string, line
 // writeLineStatsOnly writes just the statistics when source is not available
 func (p *Profile) writeLineStatsOnly(w io.Writer, lineStats map[int]*lineStat, totalCycles int64) {
 	// Sort lines
-	var lines []int
+	lines := make([]int, 0, len(lineStats))
 	for line := range lineStats {
 		lines = append(lines, line)
 	}
@@ -196,6 +228,8 @@ func readSourceFile(file string, store Store) (string, error) {
 	}
 
 	// Try various common paths for Gno examples
+	// This is necessary because the profiler only has the filename (e.g., "print.gno")
+	// but needs to find the actual file location in the filesystem
 	// Extract just the filename
 	filename := filepath.Base(file)
 
@@ -208,9 +242,14 @@ func readSourceFile(file string, store Store) (string, error) {
 		filepath.Join("examples", "gno.land", "p", "demo", "avl", filename),
 		filepath.Join("gnovm", "stdlibs", filename),
 		filepath.Join("gnovm", "tests", "stdlibs", filename),
+		// Try with package name in path (e.g., fmt/print.gno)
+		// These paths were added to fix "<source not available>" for stdlib packages
+		filepath.Join("gnovm", "tests", "stdlibs", "fmt", filename),
+		filepath.Join("gnovm", "stdlibs", "fmt", filename),
 		// Try to reconstruct path from package structure
 		filepath.Join("examples", "gno.land", "p", "demo", filepath.Dir(file), filename),
 		filepath.Join("gnovm", "stdlibs", filepath.Dir(file), filename),
+		filepath.Join("gnovm", "tests", "stdlibs", filepath.Dir(file), filename),
 	}
 
 	for _, path := range possiblePaths {

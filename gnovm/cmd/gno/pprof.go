@@ -14,9 +14,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
-type pprofCfg struct {
-	profile string // profile file path
-}
+type pprofCfg struct {}
 
 func newPprofCmd(io commands.IO) *commands.Command {
 	cfg := &pprofCfg{}

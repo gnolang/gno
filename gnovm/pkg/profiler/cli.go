@@ -2,6 +2,7 @@ package profiler
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -182,7 +183,7 @@ func (p *ProfilerCLI) Run() error {
 		}
 
 		if err := p.execCommand(cmd, arg); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return nil
 			}
 			fmt.Fprintf(p.out, "Error: %v\n", err)

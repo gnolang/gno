@@ -256,7 +256,7 @@ func profilerSave(p *ProfilerCLI, arg string) error {
 
 	file, err := os.Create(arg)
 	if err != nil {
-		return fmt.Errorf("failed to create file: %v", err)
+		return fmt.Errorf("failed to create file: %w", err)
 	}
 	defer file.Close()
 
@@ -274,7 +274,7 @@ func profilerSave(p *ProfilerCLI, arg string) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to write profile: %v", err)
+		return fmt.Errorf("failed to write profile: %w", err)
 	}
 
 	fmt.Fprintf(p.out, "Saved profile to %s\n", arg)

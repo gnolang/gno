@@ -15,7 +15,6 @@ type Allocator struct {
 
 	// For memory profiling
 	machine   *Machine
-	allocType string // Current allocation type being tracked
 }
 
 // for gonative, which doesn't consider the allocator.

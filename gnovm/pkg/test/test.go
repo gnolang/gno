@@ -264,6 +264,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		}
 		globalProfiler := profiler.NewProfiler()
 		// Enable line-level profiling if list option is used
+		// This automatically enables detailed line-by-line tracking when -profile-list is specified
 		if opts.ProfileList != "" {
 			globalProfiler.EnableLineProfiling()
 		}

@@ -625,6 +625,8 @@ func (p *Profiler) IsLineProfilingEnabled() bool {
 }
 
 // RecordLineSample records a line-level profiling sample
+// This method is called from the VM's main execution loop when line-level profiling is enabled
+// It tracks the exact source location and cycles spent at each line
 func (p *Profiler) RecordLineSample(funcName, file string, line int, cycles int64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -644,6 +646,7 @@ func (p *Profiler) RecordLineSample(funcName, file string, line int, cycles int6
 	p.lineSamples[file][line].cycles += cycles
 
 	// Also record as a sample for function matching
+	// This allows the WriteFunctionList method to find and display these line-level samples
 	sample := ProfileSample{
 		Location: []ProfileLocation{{
 			Function: funcName,

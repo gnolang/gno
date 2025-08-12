@@ -1317,6 +1317,8 @@ func (m *Machine) Run(st Stage) {
 					if file != "" && line > 0 {
 						// Record sample for line-level profiling
 						if m.profiler != nil && m.profiler.IsEnabled() {
+							// This stores the exact line number and cycles spent and enables
+							// the `-profile-list` feature to show line-by-line metrics
 							m.profiler.RecordLineSample(funcName, file, line, m.Cycles)
 						}
 					}

@@ -113,7 +113,7 @@ func printNode(w io.Writer, n *node, prefix string, isLast bool, totalCycles int
 	}
 
 	// Sort children by cycles
-	var children []*node
+	children := make([]*node, 0, len(n.children))
 	for _, child := range n.children {
 		children = append(children, child)
 	}
@@ -201,7 +201,7 @@ func (p *Profile) WriteTopList(w io.Writer) error {
 	}
 
 	// Convert to slice and sort
-	var funcs []*funcStat
+	funcs := make([]*funcStat, 0, len(funcMap))
 	for _, stat := range funcMap {
 		funcs = append(funcs, stat)
 	}

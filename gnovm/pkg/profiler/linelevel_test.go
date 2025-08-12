@@ -20,6 +20,7 @@ func TestProfileLocation(t *testing.T) {
 				return newProfileLocation("main.foo", "/path/to/file.gno", 42, 10)
 			},
 			validate: func(t *testing.T, loc *profileLocation) {
+				t.Helper()
 				if loc.Function() != "main.foo" {
 					t.Errorf("expected function 'main.foo', got '%s'", loc.Function())
 				}
@@ -42,6 +43,7 @@ func TestProfileLocation(t *testing.T) {
 				return loc
 			},
 			validate: func(t *testing.T, loc *profileLocation) {
+				t.Helper()
 				if loc.PC() != 0x1234 {
 					t.Errorf("expected PC 0x1234, got 0x%x", loc.PC())
 				}
@@ -55,6 +57,7 @@ func TestProfileLocation(t *testing.T) {
 				return loc
 			},
 			validate: func(t *testing.T, loc *profileLocation) {
+				t.Helper()
 				if !loc.IsInlineCall() {
 					t.Error("expected inline call to be true")
 				}

@@ -98,12 +98,13 @@ func adaptMachine(m *Machine) profiler.MachineInfo {
 	return &machineAdapter{m: m}
 }
 
-func adaptStore(s Store) profiler.Store {
-	if s == nil {
-		return nil
-	}
-	return &storeAdapter{s: s}
-}
+// TODO: remove after checking
+// func adaptStore(s Store) profiler.Store {
+// 	if s == nil {
+// 		return nil
+// 	}
+// 	return &storeAdapter{s: s}
+// }
 
 // StartProfiling starts profiling the VM
 func (m *Machine) StartProfiling(options profiler.Options) {

@@ -211,14 +211,6 @@ func (p *Profiler) recordLineLevelUnlocked(loc *profileLocation, cycles int64) {
 	p.profile.Samples = append(p.profile.Samples, sample)
 }
 
-// updateLineStats updates line-level statistics
-func (p *Profiler) updateLineStats(loc *profileLocation, cycles, allocations, allocBytes int64) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.updateLineStatsUnlocked(loc, cycles, allocations, allocBytes)
-}
-
 // updateLineStatsUnlocked updates line-level statistics without locking
 // Must be called with mutex already held
 func (p *Profiler) updateLineStatsUnlocked(loc *profileLocation, cycles, allocations, allocBytes int64) {
