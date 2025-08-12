@@ -9,7 +9,6 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	libs_crypto_ed25519 "github.com/gnolang/gno/gnovm/stdlibs/crypto/ed25519"
 	libs_crypto_sha256 "github.com/gnolang/gno/gnovm/stdlibs/crypto/sha256"
-	libs_crypto_subtle "github.com/gnolang/gno/gnovm/stdlibs/crypto/subtle"
 	libs_math "github.com/gnolang/gno/gnovm/stdlibs/math"
 	libs_runtime "github.com/gnolang/gno/gnovm/stdlibs/runtime"
 	libs_std "github.com/gnolang/gno/gnovm/stdlibs/std"
@@ -105,54 +104,6 @@ var nativeFuncs = [...]NativeFunc{
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"crypto/subtle",
-		"xorBytes",
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("p0"), Type: gno.X("[]byte")},
-			{NameExpr: *gno.Nx("p1"), Type: gno.X("[]byte")},
-			{NameExpr: *gno.Nx("p2"), Type: gno.X("[]byte")},
-		},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.X("int")},
-			{NameExpr: *gno.Nx("r1"), Type: gno.X("[]byte")},
-		},
-		false,
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  []byte
-				rp0 = reflect.ValueOf(&p0).Elem()
-				p1  []byte
-				rp1 = reflect.ValueOf(&p1).Elem()
-				p2  []byte
-				rp2 = reflect.ValueOf(&p2).Elem()
-			)
-
-			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.DeepFill(m.Store)
-			gno.Gno2GoValue(tv0, rp0)
-			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
-			tv1.DeepFill(m.Store)
-			gno.Gno2GoValue(tv1, rp1)
-			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
-			tv2.DeepFill(m.Store)
-			gno.Gno2GoValue(tv2, rp2)
-
-			r0, r1 := libs_crypto_subtle.X_xorBytes(p0, p1, p2)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r1).Elem(),
 			))
 		},
 	},
