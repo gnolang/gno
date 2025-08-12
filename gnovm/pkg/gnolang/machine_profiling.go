@@ -173,6 +173,15 @@ func (m *Machine) getCurrentLocation() *profiler.ProfileLocation {
 		return nil
 	}
 
+	// Get file name from current frame
+	var fileName string
+	if len(m.Frames) > 0 {
+		frame := &m.Frames[len(m.Frames)-1]
+		if frame.Func != nil && frame.Func.FileName != "" {
+			fileName = frame.Func.FileName
+		}
+	}
+
 	// Try to get location from current statement
 	if len(m.Stmts) > 0 {
 		stmt := m.PeekStmt(1)
@@ -180,11 +189,15 @@ func (m *Machine) getCurrentLocation() *profiler.ProfileLocation {
 			loc := &profiler.ProfileLocation{
 				Line:   stmt.GetLine(),
 				Column: stmt.GetColumn(),
+				File:   fileName,
 			}
 
-			// Get file information from current package
-			if m.Package != nil {
-				loc.File = m.Package.PkgPath
+			// Get file information from current frame
+			if len(m.Frames) > 0 {
+				frame := &m.Frames[len(m.Frames)-1]
+				if frame.Func != nil && frame.Func.FileName != "" {
+					loc.File = frame.Func.FileName
+				}
 			}
 
 			// Get function information from current frame
@@ -211,9 +224,12 @@ func (m *Machine) getCurrentLocation() *profiler.ProfileLocation {
 				Column: expr.GetColumn(),
 			}
 
-			// Get file information
-			if m.Package != nil {
-				loc.File = m.Package.PkgPath
+			// Get file information from current frame
+			if len(m.Frames) > 0 {
+				frame := &m.Frames[len(m.Frames)-1]
+				if frame.Func != nil && frame.Func.FileName != "" {
+					loc.File = frame.Func.FileName
+				}
 			}
 
 			// Get function information from current frame
@@ -240,9 +256,12 @@ func (m *Machine) getCurrentLocation() *profiler.ProfileLocation {
 				Column: frame.Source.GetColumn(),
 			}
 
-			// Get file information
-			if m.Package != nil {
-				loc.File = m.Package.PkgPath
+			// Get file information from current frame
+			if len(m.Frames) > 0 {
+				frame := &m.Frames[len(m.Frames)-1]
+				if frame.Func != nil && frame.Func.FileName != "" {
+					loc.File = frame.Func.FileName
+				}
 			}
 
 			// Get function information

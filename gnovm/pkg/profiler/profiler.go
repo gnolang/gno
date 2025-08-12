@@ -617,6 +617,44 @@ func (p *Profiler) DisableLineProfiling() {
 	p.lineLevel = false
 }
 
+// IsLineProfilingEnabled returns whether line-level profiling is enabled
+func (p *Profiler) IsLineProfilingEnabled() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.lineLevel
+}
+
+// RecordLineSample records a line-level profiling sample
+func (p *Profiler) RecordLineSample(funcName, file string, line int, cycles int64) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if !p.enabled || !p.lineLevel {
+		return
+	}
+
+	// Create or update line statistics
+	if p.lineSamples[file] == nil {
+		p.lineSamples[file] = make(map[int]*lineStats)
+	}
+	if p.lineSamples[file][line] == nil {
+		p.lineSamples[file][line] = &lineStats{}
+	}
+	p.lineSamples[file][line].count++
+	p.lineSamples[file][line].cycles += cycles
+
+	// Also record as a sample for function matching
+	sample := ProfileSample{
+		Location: []ProfileLocation{{
+			Function: funcName,
+			File:     file,
+			Line:     line,
+		}},
+		Value: []int64{1, cycles},
+	}
+	p.profile.Samples = append(p.profile.Samples, sample)
+}
+
 // Start starts profiling
 func (p *Profiler) Start() {
 	p.mu.Lock()

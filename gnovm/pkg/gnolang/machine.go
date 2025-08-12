@@ -1283,8 +1283,8 @@ func (m *Machine) Run(st Stage) {
 		}
 		// TODO: this can be optimized manually, even into tiers.
 
-		// Record current line for profiling if enabled
-		if m.IsProfilingEnabled() {
+		// Record current line for profiling if line-level profiling is enabled
+		if m.IsProfilingEnabled() && m.profiler != nil && m.profiler.IsLineProfilingEnabled() {
 			var line int
 			var file string
 
@@ -1315,8 +1315,10 @@ func (m *Machine) Run(st Stage) {
 					file = frame.Func.FileName
 
 					if file != "" && line > 0 {
-						// Line-level profiling will be handled by RecordProfileSample
-						// when it's called during execution
+						// Record sample for line-level profiling
+						if m.profiler != nil && m.profiler.IsEnabled() {
+							m.profiler.RecordLineSample(funcName, file, line, m.Cycles)
+						}
 					}
 				}
 			}

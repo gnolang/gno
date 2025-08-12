@@ -278,7 +278,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 				if opts.ProfileList != "" {
 					// Show line-by-line profile for specific function
 					fmt.Fprintln(opts.Output, "\n=== FUNCTION PROFILE ===")
-					err := profile.WriteFunctionList(opts.Output, opts.ProfileList, nil)
+					err := profile.WriteFunctionList(opts.Output, opts.ProfileList, NewStoreAdapter(opts.TestStore))
 					if err != nil {
 						fmt.Fprintf(opts.Error, "Failed to write function profile: %v\n", err)
 					}
