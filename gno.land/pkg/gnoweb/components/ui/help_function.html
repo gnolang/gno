@@ -6,7 +6,7 @@
   <h2 class="text-400 text-gray-800 font-bold mb-1" id="overview">
     Overview
   </h2>
-  <div class="text-200">{{ . }}</div>
+  <div class="text-200">{{ noescape_string . }}</div>
 </div>
 {{ end }}
 
@@ -24,32 +24,29 @@
         <code class="lg:text-50 text-100 text-gray-600" data-copy-content="func-{{ .Name }}">
               {{ .Signature }}
             </code>
-            <button
-              class="js-copy-btn mr-2 text-gray-400 hover:text-gray-600"
-              aria-label="Copy Function"
-              data-copy-target="func-{{ .Name }}"
-            >
-              {{ template "ui/copy" }}
-            </button>
-          </span>
-        </span>
-        <span class="flex gap-x-1 flex-none">
-        <button
-        class="js-copy-btn text-gray-400 hover:text-gray-600 leading-none flex items-top"
-        aria-label="Copy Function"
-        data-copy-txt="{{ $data.PkgFullPath }}$help&func={{ .Name }}"
-        title="Function anchor link"
-      >
-          <svg class="w-5 h-5 shrink-0 inline-block" data-copy-icon>
-            <use href="#ico-link"></use>
-            <use href="#ico-check" class="hidden text-green-600"></use>
-          </svg>
-       </button>
-        <a href="{{ buildHelpURL $data . }}" data-role="help-function-link" title="Function transaction link" class="flex items-top text-gray-400 hover:text-gray-600">
-          <svg class="w-5 h-5"><use href="#ico-tx-link"></use></svg>
-        </a>
+        <button class="js-copy-btn mr-2 text-gray-400 hover:text-gray-600" aria-label="Copy Function"
+          data-copy-target="func-{{ .Name }}">
+          {{ template "ui/copy" }}
+        </button>
       </span>
-      </div>
+    </span>
+    <span class="flex gap-x-1 flex-none">
+      <button class="js-copy-btn text-gray-400 hover:text-gray-600 leading-none flex items-top"
+        aria-label="Copy Function" data-copy-txt="{{ $data.PkgFullPath }}$help&func={{ .Name }}"
+        title="Function anchor link">
+        <svg class="w-5 h-5 shrink-0 inline-block" data-copy-icon>
+          <use href="#ico-link"></use>
+          <use href="#ico-check" class="hidden text-green-600"></use>
+        </svg>
+      </button>
+      <a href="{{ buildHelpURL $data . }}" data-role="help-function-link" title="Function transaction link"
+        class="flex items-top text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5">
+          <use href="#ico-tx-link"></use>
+        </svg>
+      </a>
+    </span>
+  </div>
 
   {{ with .Doc }}
   <div class="doc-view">{{ noescape_string . }}</div>
