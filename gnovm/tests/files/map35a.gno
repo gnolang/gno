@@ -1,7 +1,5 @@
 package main
 
-import "strconv"
-
 type stringMap map[int]int
 
 var (
@@ -17,18 +15,13 @@ func Set(v int) {
 	key = v
 }
 
-func Render(s string) string {
-	for k := range accounts {
-		s += "key:" + strconv.Itoa(k)
-	}
-	return s
-}
-
 func main() {
 	Register()
 	Set(4)
-	println(Render(""))
+	println(accounts)
+	println(key)
 }
 
 // Output:
-// key:1
+// (map{(1 int):(1 int)} main.stringMap)
+// 4

@@ -1960,7 +1960,6 @@ func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Stor
 			oldObject = k.Key.GetFirstObject(store)
 		}
 
-		// Copy key object
 		ivk := iv.Copy(alloc)
 		pv := mv.GetPointerForKey(alloc, store, ivk)
 		if pv.TV.IsUndefined() {
