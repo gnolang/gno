@@ -172,13 +172,7 @@ func findLoaderRootDir() (string, error) {
 		return "", err
 	}
 
-	root, err := FindRootDir(wd)
-	switch {
-	case err == nil:
-		return root, nil
-	default:
-		return "", err
-	}
+	return FindRootDir(wd)
 }
 
 // ErrGnoworkNotFound is returned by [FindRootDir] when, even after traversing
