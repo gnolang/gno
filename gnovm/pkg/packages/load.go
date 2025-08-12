@@ -182,7 +182,7 @@ func findLoaderRootDir() (string, error) {
 }
 
 // ErrGnoworkNotFound is returned by [FindRootDir] when, even after traversing
-// up to the root directory, a gno.mod file could not be found.
+// up to the root directory, a gnowork.toml file could not be found.
 var ErrGnoworkNotFound = errors.New("gnowork.toml file not found in current or any parent directory")
 
 // FindRootDir determines the root directory of the project.
