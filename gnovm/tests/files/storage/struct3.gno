@@ -42,11 +42,11 @@ func main() {
 // aa:aa:aa
 
 // Storage:
-// gno.land/r/storage: 159
+// gno.land/r/storage: 157
 
 // Realm:
 // finalizerealm["gno.land/r/storage"]
-// u[34f997a9ca158338c03cfc00686d77220a6cf62f:14:0](6)=
+// u[34f997a9ca158338c03cfc00686d77220a6cf62f:14](6)=
 //     @@ -7,14 +7,14 @@
 //                  },
 //                  "V": {
@@ -57,14 +57,14 @@ func main() {
 //              }
 //          ],
 //          "ObjectInfo": {
-//              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:14:0",
-//              "LastObjectSize": "244",
+//              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:14",
+//              "LastObjectSize": "240",
 //     -        "ModTime": "0",
 //     +        "ModTime": "16",
-//              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:3:0",
+//              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:3",
 //              "RefCount": "1"
 //          }
-// u[34f997a9ca158338c03cfc00686d77220a6cf62f:16:0](6)=
+// u[34f997a9ca158338c03cfc00686d77220a6cf62f:16](6)=
 //     @@ -7,14 +7,14 @@
 //                  },
 //                  "V": {
@@ -75,21 +75,21 @@ func main() {
 //              }
 //          ],
 //          "ObjectInfo": {
-//              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:16:0",
-//              "LastObjectSize": "245",
+//              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:16",
+//              "LastObjectSize": "241",
 //     -        "ModTime": "0",
 //     +        "ModTime": "16",
-//              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:15:0",
+//              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:15",
 //              "RefCount": "1"
 //          }
-// u[34f997a9ca158338c03cfc00686d77220a6cf62f:6:0](140)=
+// u[34f997a9ca158338c03cfc00686d77220a6cf62f:6](138)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
-//              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:6:0",
-//              "LastObjectSize": "258",
+//              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:6",
+//              "LastObjectSize": "254",
 //     -        "ModTime": "0",
 //     +        "ModTime": "16",
-//              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:2:0",
+//              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:2",
 //              "RefCount": "1"
 //          },
 //     @@ -13,6 +13,16 @@
@@ -102,23 +102,23 @@ func main() {
 //     +            "Base": {
 //     +                "@type": "/gno.RefValue",
 //     +                "Escaped": true,
-//     +                "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:15:0"
+//     +                "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:15"
 //     +            },
 //     +            "Index": "0",
 //     +            "TV": null
 //              }
 //          }
 //      }
-// u[34f997a9ca158338c03cfc00686d77220a6cf62f:15:0](7)=
+// u[34f997a9ca158338c03cfc00686d77220a6cf62f:15](7)=
 //     @@ -1,10 +1,11 @@
 //      {
 //          "ObjectInfo": {
-//              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:15:0",
+//              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:15",
 //     +        "IsEscaped": true,
-//              "LastObjectSize": "346",
+//              "LastObjectSize": "340",
 //     -        "ModTime": "0",
 //     +        "ModTime": "16",
-//              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:5:0",
+//              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:5",
 //     -        "RefCount": "1"
 //     +        "RefCount": "2"
 //          },
@@ -128,8 +128,8 @@ func main() {
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "e67c93e3e2d4e9d504707bf511bc8bdd6e947b15",
-//     +            "Hash": "271d690a0b3349560cbded5a74f61b7040c98731",
-//                  "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:16:0"
+//     -            "Hash": "1350323698e83f991922ca1d7732a79d01f2161b",
+//     +            "Hash": "0a40968d10e2618a057f0c13a02df1150ad975f4",
+//                  "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:16"
 //              }
 //          }

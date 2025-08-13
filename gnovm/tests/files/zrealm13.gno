@@ -34,7 +34,7 @@ func main(cur realm,) {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7:0](-133)=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7](-130)=
 //     @@ -8,16 +8,6 @@
 //                          "@type": "/gno.RefType",
 //                          "ID": "gno.land/r/test.B"
@@ -44,8 +44,8 @@ func main(cur realm,) {
 //     -                "@type": "/gno.PointerValue",
 //     -                "Base": {
 //     -                    "@type": "/gno.RefValue",
-//     -                    "Hash": "257ca6e0ad33b6ca40478156cb7c5f5262f7dffb",
-//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:11:0"
+//     -                    "Hash": "ff7ee2df0e65a933be3dce7550bf361d29e83bc0",
+//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:11"
 //     -                },
 //     -                "Index": "0",
 //     -                "TV": null
@@ -54,18 +54,18 @@ func main(cur realm,) {
 //              {
 //     @@ -43,7 +33,7 @@
 //          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7:0",
-//              "LastObjectSize": "592",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
+//              "LastObjectSize": "582",
 //     -        "ModTime": "10",
 //     +        "ModTime": "14",
-//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6:0",
+//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
 //              "RefCount": "1"
 //          }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4:0](0)=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4](0)=
 //     @@ -3,8 +3,8 @@
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4:0",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
 //              "IsEscaped": true,
-//              "LastObjectSize": "346",
+//              "LastObjectSize": "340",
 //     -        "ModTime": "12",
 //     -        "RefCount": "3"
 //     +        "ModTime": "14",
@@ -73,5 +73,5 @@ func main(cur realm,) {
 //          },
 //          "Value": {
 //              "T": {
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:11:0](-341)
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:12:0](-450)
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:11](-335)
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:12](-444)

@@ -26,7 +26,7 @@ func main() {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:8:0](231)={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:8](227)={
 //     "Data": null,
 //     "List": [
 //         {
@@ -37,14 +37,14 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8:0",
-//         "LastObjectSize": "231",
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8",
+//         "LastObjectSize": "227",
 //         "ModTime": "0",
-//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7:0",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
 //         "RefCount": "1"
 //     }
 // }
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:7:0](365)={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:7](359)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -55,8 +55,8 @@ func main() {
 //                 "@type": "/gno.SliceValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "88c0cba9197500e01ba3989ea2aae6ef2aaa1605",
-//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8:0"
+//                     "Hash": "053ebe7d3e2087ff390f1c09b3f36cf0763f0967",
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8"
 //                 },
 //                 "Length": "1",
 //                 "Maxcap": "1",
@@ -65,19 +65,19 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7:0",
-//         "LastObjectSize": "365",
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
+//         "LastObjectSize": "359",
 //         "ModTime": "0",
-//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6:0",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
 //         "RefCount": "1"
 //     }
 // }
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:6:0](341)={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:6](335)={
 //     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6:0",
-//         "LastObjectSize": "341",
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
+//         "LastObjectSize": "335",
 //         "ModTime": "0",
-//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3:0",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
 //         "RefCount": "1"
 //     },
 //     "Value": {
@@ -87,19 +87,19 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "0c90b3442e9e34fe751eb9f7b84286b6eec80183",
-//             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7:0"
+//             "Hash": "e757ea3d88983d3fc397e089882a1e31ee2c5e10",
+//             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7"
 //         }
 //     }
 // }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3:0](137)=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3](134)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3:0",
-//              "LastObjectSize": "255",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
+//              "LastObjectSize": "251",
 //     -        "ModTime": "0",
 //     +        "ModTime": "5",
-//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2:0",
+//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
 //              "RefCount": "1"
 //          },
 //     @@ -13,6 +13,16 @@
@@ -111,8 +111,8 @@ func main() {
 //     +            "@type": "/gno.PointerValue",
 //     +            "Base": {
 //     +                "@type": "/gno.RefValue",
-//     +                "Hash": "3962c15ecbadfbf1c5c47b70209ea69bc0193ace",
-//     +                "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6:0"
+//     +                "Hash": "afc8a8a4c127ea7b6713ec59220d7c6cdd6e842e",
+//     +                "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6"
 //     +            },
 //     +            "Index": "0",
 //     +            "TV": null

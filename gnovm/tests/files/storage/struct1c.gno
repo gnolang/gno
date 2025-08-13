@@ -21,7 +21,7 @@ func main() {
 
 // Realm:
 // finalizerealm["gno.land/r/storage"]
-// c[34f997a9ca158338c03cfc00686d77220a6cf62f:7:0](248)={
+// c[34f997a9ca158338c03cfc00686d77220a6cf62f:7](244)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -35,32 +35,32 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:7:0",
-//         "LastObjectSize": "248",
+//         "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:7",
+//         "LastObjectSize": "244",
 //         "ModTime": "0",
-//         "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:3:0",
+//         "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:3",
 //         "RefCount": "1"
 //     }
 // }
-// u[34f997a9ca158338c03cfc00686d77220a6cf62f:3:0](5)=
+// u[34f997a9ca158338c03cfc00686d77220a6cf62f:3](5)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
-//              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:3:0",
-//              "LastObjectSize": "344",
+//              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:3",
+//              "LastObjectSize": "338",
 //     -        "ModTime": "0",
 //     +        "ModTime": "6",
-//              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:2:0",
+//              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:2",
 //              "RefCount": "1"
 //          },
 //     @@ -13,8 +13,8 @@
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "2b93a533a682793571373703d9da1693b9a6d3e3",
-//     -            "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:4:0"
-//     +            "Hash": "e3ca7a65a9ac7d2dbb8c729a91ba5d6f572fc5f6",
-//     +            "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:7:0"
+//     -            "Hash": "ecc526355828cb48db9b977fd3f25539ceeaea83",
+//     -            "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:4"
+//     +            "Hash": "828319b9f2bc74534d09894634deb113649ba6b1",
+//     +            "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:7"
 //              }
 //          }
 //      }
-// d[34f997a9ca158338c03cfc00686d77220a6cf62f:4:0](-247)
+// d[34f997a9ca158338c03cfc00686d77220a6cf62f:4](-243)

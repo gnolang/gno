@@ -28,7 +28,7 @@ func main(cur realm) {
 }
 
 // Output:
-// (slice[ref(6da16ec68c07a7e26176ab66972e2ddf979cd22f:8:0)] std.AddressList)
+// (slice[ref(6da16ec68c07a7e26176ab66972e2ddf979cd22f:8)] std.AddressList)
 // error: address already exists
 // has: true
 // has: false
