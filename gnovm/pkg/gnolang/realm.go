@@ -79,37 +79,38 @@ func (pid PkgID) Bytes() []byte {
 }
 
 var (
-	pkgPathMu sync.Mutex // protects the shared cache.
+	pkgIDFromPkgPathCacheMu sync.Mutex // protects the shared cache.
 	// TODO: later on switch this to an LRU if needed to ensure
 	// fixed memory caps. For now though it isn't a problem:
-	// https://github.com/gnolang/gno/pull/3424#issuecomment-2564571785
+	// https://github.com/gnolang/gno/pull/3 424#issuecomment-2564571785
 	pkgIDFromPkgPathCache = make(map[string]*PkgID, 100)
-	// pkgPrivateStatus is a map that stores the private status of packages.
-	// use the SetPkgPrivateStatus and GetPkgPrivateStatus functions to modify and access this map.
-	pkgPrivateStatus = make(map[string]bool, 100)
+	pkgPrivateFromPkgID   = make(map[PkgID]struct{}, 100)
 )
 
-func SetPkgPrivateStatus(path string, private bool) {
-	pkgPathMu.Lock()
-	defer pkgPathMu.Unlock()
-
-	pkgPrivateStatus[path] = private
+func SetPkgPrivate(path string, private bool) {
+	pkgId := PkgIDFromPkgPath(path)
+	if private {
+		pkgPrivateFromPkgID[pkgId] = struct{}{}
+	} else {
+		delete(pkgPrivateFromPkgID, pkgId)
+	}
 }
 
-func GetPkgPrivateStatus(path string) bool {
-	pkgPathMu.Lock()
-	defer pkgPathMu.Unlock()
-
-	private, ok := pkgPrivateStatus[path]
-	if !ok {
-		return false // Default to false if not found.
+func IsPkgPrivateFromPkgID(pkgID PkgID) bool {
+	if _, ok := pkgPrivateFromPkgID[pkgID]; ok {
+		return true
 	}
-	return private
+	return false
+}
+
+func IsPkgPrivateFromPkgPath(path string) bool {
+	pkgId := PkgIDFromPkgPath(path)
+	return IsPkgPrivateFromPkgID(pkgId)
 }
 
 func PkgIDFromPkgPath(path string) PkgID {
-	pkgPathMu.Lock()
-	defer pkgPathMu.Unlock()
+	pkgIDFromPkgPathCacheMu.Lock()
+	defer pkgIDFromPkgPathCacheMu.Unlock()
 
 	pkgID, ok := pkgIDFromPkgPathCache[path]
 	if !ok {
@@ -123,16 +124,15 @@ func PkgIDFromPkgPath(path string) PkgID {
 // Returns the ObjectID of the PackageValue associated with path.
 func ObjectIDFromPkgPath(path string) ObjectID {
 	pkgID := PkgIDFromPkgPath(path)
-	oid := ObjectIDFromPkgID(pkgID, GetPkgPrivateStatus(path))
+	oid := ObjectIDFromPkgID(pkgID)
 	return oid
 }
 
 // Returns the ObjectID of the PackageValue associated with pkgID.
-func ObjectIDFromPkgID(pkgID PkgID, private bool) ObjectID {
+func ObjectIDFromPkgID(pkgID PkgID) ObjectID {
 	return ObjectID{
 		PkgID:   pkgID,
-		NewTime: 1,       // by realm logic.
-		Private: private, // whether the package is private.
+		NewTime: 1, // by realm logic.
 	}
 }
 
@@ -144,10 +144,9 @@ var nilRealm = (*Realm)(nil)
 // support methods that don't require persistence. This is the default realm
 // when a machine starts with a non-realm package.
 type Realm struct {
-	ID      PkgID
-	Path    string
-	Private bool
-	Time    uint64
+	ID   PkgID
+	Path string
+	Time uint64
 
 	Deposit uint64 // Amount of deposit held
 	Storage uint64 // Amount of storage used
@@ -167,10 +166,9 @@ type Realm struct {
 func NewRealm(path string) *Realm {
 	id := PkgIDFromPkgPath(path)
 	return &Realm{
-		ID:      id,
-		Path:    path,
-		Time:    0,
-		Private: false,
+		ID:   id,
+		Path: path,
+		Time: 0,
 	}
 }
 
@@ -196,8 +194,7 @@ func (rlm *Realm) SetPrivate(private bool) {
 	if rlm == nil {
 		return
 	}
-	rlm.Private = private
-	SetPkgPrivateStatus(rlm.Path, private)
+	SetPkgPrivate(rlm.Path, private)
 }
 
 //----------------------------------------
@@ -912,7 +909,7 @@ func (rlm *Realm) clearMarks() {
 // it does not recursively check the values, but it does check recursively the types
 func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store) {
 	objID := obj.GetObjectID()
-	if objID.PkgID != rlm.ID && objID.Private {
+	if objID.PkgID != rlm.ID && IsPkgPrivateFromPkgID(objID.PkgID) {
 		panic("cannot persist reference of object from private realm")
 	}
 
@@ -946,7 +943,7 @@ func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store) {
 			}
 		}
 	case *FuncValue:
-		if v.PkgPath != rlm.Path && GetPkgPrivateStatus(v.PkgPath) {
+		if v.PkgPath != rlm.Path && IsPkgPrivateFromPkgPath(v.PkgPath) {
 			panic("cannot persist function or method from private realm")
 		}
 		if v.Type != nil {
@@ -958,7 +955,7 @@ func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store) {
 			}
 		}
 	case *BoundMethodValue:
-		if v.Func.PkgPath != rlm.Path && GetPkgPrivateStatus(v.Func.PkgPath) {
+		if v.Func.PkgPath != rlm.Path && IsPkgPrivateFromPkgPath(v.Func.PkgPath) {
 			panic("cannot persist bound method from private realm")
 		}
 		if v.Receiver.T != nil {
@@ -974,7 +971,7 @@ func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store) {
 			rlm.assertNoPrivateType(store, v.Blank.T, tids)
 		}
 	case *PackageValue:
-		if v.PkgPath != rlm.Path && GetPkgPrivateStatus(v.PkgPath) {
+		if v.PkgPath != rlm.Path && IsPkgPrivateFromPkgPath(v.PkgPath) {
 			panic("cannot persist package from private realm")
 		}
 	default:
@@ -1032,7 +1029,7 @@ func (rlm *Realm) assertNoPrivateType(store Store, t Type, visited map[TypeID]st
 	default:
 		panic(fmt.Sprintf("assertNoPrivateType: unhandled type %T", tt))
 	}
-	if pkgPath != "" && pkgPath != rlm.Path && GetPkgPrivateStatus(pkgPath) {
+	if pkgPath != "" && pkgPath != rlm.Path && IsPkgPrivateFromPkgPath(pkgPath) {
 		panic("cannot persist object of type defined in a private realm")
 	}
 }
@@ -1654,7 +1651,6 @@ func (rlm *Realm) nextObjectID() ObjectID {
 	rlm.Time++
 	nxtid := ObjectID{
 		PkgID:   rlm.ID,
-		Private: rlm.Private,
 		NewTime: rlm.Time, // starts at 1.
 	}
 	return nxtid

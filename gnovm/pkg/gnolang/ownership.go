@@ -40,22 +40,17 @@ supported).
 */
 
 type ObjectID struct {
-	PkgID   PkgID // base
-	Private bool
+	PkgID   PkgID  // base
 	NewTime uint64 // time created
 }
 
 func (oid ObjectID) MarshalAmino() (string, error) {
 	pid := hex.EncodeToString(oid.PkgID.Hashlet[:])
-	pvFlag := 0
-	if oid.Private {
-		pvFlag = 1
-	}
-	return fmt.Sprintf("%s:%d:%d", pid, oid.NewTime, pvFlag), nil
+	return fmt.Sprintf("%s:%d", pid, oid.NewTime), nil
 }
 func (oid *ObjectID) UnmarshalAmino(oids string) error {
 	parts := strings.Split(oids, ":")
-	if len(parts) != 3 {
+	if len(parts) != 2 {
 		return errors.New("invalid ObjectID %s", oids)
 	}
 	_, err := hex.Decode(oid.PkgID.Hashlet[:], []byte(parts[0]))
@@ -67,12 +62,6 @@ func (oid *ObjectID) UnmarshalAmino(oids string) error {
 		return err
 	}
 	oid.NewTime = uint64(newTime)
-
-	privateFlag, err := strconv.Atoi(parts[2])
-	if err != nil {
-		return err
-	}
-	oid.Private = privateFlag == 1
 	return nil
 }
 
