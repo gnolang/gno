@@ -22,8 +22,9 @@ func TestAddEvent(t *testing.T) {
 	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
 	e1End := e1Start.Add(time.Hour * 4)
 
-	AddEvent(cross, "Event 1", "this event is upcoming", "gno.land", "gnome land", e1Start.Format(time.RFC3339), e1End.Format(time.RFC3339))
+	_, err := AddEvent(cross, "Event 1", "this event is upcoming", "gno.land", "gnome land", e1Start.Format(time.RFC3339), e1End.Format(time.RFC3339))
 
+	urequire.NoError(t, err)
 	got := renderHome(false)
 
 	if !strings.Contains(got, "Event 1") {
@@ -33,7 +34,8 @@ func TestAddEvent(t *testing.T) {
 	e2Start := parsedTimeNow.Add(-time.Hour * 24 * 5)
 	e2End := e2Start.Add(time.Hour * 4)
 
-	AddEvent(cross, "Event 2", "this event is in the past", "gno.land", "gnome land", e2Start.Format(time.RFC3339), e2End.Format(time.RFC3339))
+	_, err = AddEvent(cross, "Event 2", "this event is in the past", "gno.land", "gnome land", e2Start.Format(time.RFC3339), e2End.Format(time.RFC3339))
+	urequire.NoError(t, err)
 
 	got = renderHome(false)
 
@@ -87,7 +89,8 @@ func TestDeleteEvent(t *testing.T) {
 	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
 	e1End := e1Start.Add(time.Hour * 4)
 
-	id, _ := AddEvent(cross, "ToDelete", "description", "gno.land", "gnome land", e1Start.Format(time.RFC3339), e1End.Format(time.RFC3339))
+	id, err := AddEvent(cross, "ToDelete", "description", "gno.land", "gnome land", e1Start.Format(time.RFC3339), e1End.Format(time.RFC3339))
+	urequire.NoError(t, err)
 
 	got := renderHome(false)
 
@@ -110,7 +113,8 @@ func TestEditEvent(t *testing.T) {
 	e1End := e1Start.Add(time.Hour * 4)
 	loc := "gnome land"
 
-	id, _ := AddEvent(cross, "ToDelete", "description", "gno.land", loc, e1Start.Format(time.RFC3339), e1End.Format(time.RFC3339))
+	id, err := AddEvent(cross, "ToDelete", "description", "gno.land", loc, e1Start.Format(time.RFC3339), e1End.Format(time.RFC3339))
+	urequire.NoError(t, err)
 
 	newName := "New Name"
 	newDesc := "Normal description"
