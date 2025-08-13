@@ -127,6 +127,152 @@ func (tp *testParams) SetString(key string, val string)    { /* noop */ }
 func (tp *testParams) SetStrings(key string, val []string) { /* noop */ }
 
 // ----------------------------------------
+// Profiling abstraction
+
+// ProfileConfig contains all profiling-related configuration
+type ProfileConfig struct {
+	// Enable profiling for performance analysis
+	Enabled bool
+	// File to write profiling output
+	OutputFile string
+	// Print profiling output to stdout instead of file
+	PrintToStdout bool
+	// Profile output format (text, json, toplist, calltree)
+	Format string
+	// Profile type (cpu, memory)
+	Type string
+	// Function name for line-by-line profile listing
+	FunctionList string
+	// Global profiler instance (internal use)
+	profiler *profiler.Profiler
+}
+
+// IsEnabled returns true if profiling is enabled
+func (pc *ProfileConfig) IsEnabled() bool {
+	return pc != nil && pc.Enabled
+}
+
+// GetFormat returns the profile format, defaulting to text if not specified
+func (pc *ProfileConfig) GetFormat() profiler.ProfileFormat {
+	if pc == nil {
+		return profiler.FormatText
+	}
+	return getProfileFormat(pc.Format)
+}
+
+// GetProfileType returns the profile type, defaulting to CPU
+func (pc *ProfileConfig) GetProfileType() profiler.ProfileType {
+	if pc == nil || pc.Type != "memory" {
+		return profiler.ProfileCPU
+	}
+	return profiler.ProfileMemory
+}
+
+// GetSampleRate returns the appropriate sample rate for the profile type
+func (pc *ProfileConfig) GetSampleRate() int {
+	if pc.GetProfileType() == profiler.ProfileMemory {
+		return 1 // Sample every allocation for memory
+	}
+	return 100 // Default CPU sampling rate
+}
+
+// ProfilerInterface abstracts the profiler for testing
+type ProfilerInterface interface {
+	EnableLineProfiling()
+	StartProfiling(machine any, opts profiler.Options) error
+	StopProfiling() *profiler.Profile
+	SetProfiler(p *profiler.Profiler)
+}
+
+// ProfileWriter handles writing profile data to various outputs
+type ProfileWriter interface {
+	WriteProfile(profile *profiler.Profile, pc *ProfileConfig, output, errOutput io.Writer, testStore gno.Store) error
+}
+
+// DefaultProfileWriter implements ProfileWriter for production use
+type DefaultProfileWriter struct{}
+
+func (w *DefaultProfileWriter) WriteProfile(profile *profiler.Profile, pc *ProfileConfig, output, errOutput io.Writer, testStore gno.Store) error {
+	if profile == nil || pc == nil {
+		return nil
+	}
+
+	if pc.FunctionList != "" {
+		// Show line-by-line profile for specific function
+		fmt.Fprintln(output, "\n=== FUNCTION PROFILE ===")
+		err := profile.WriteFunctionList(output, pc.FunctionList, NewStoreAdapter(testStore))
+		if err != nil {
+			return fmt.Errorf("failed to write function profile: %w", err)
+		}
+	} else if pc.PrintToStdout {
+		// Print to stdout
+		fmt.Fprintln(output, "\n=== PROFILING RESULTS ===")
+		format := pc.GetFormat()
+		err := profile.WriteFormat(output, format)
+		if err != nil {
+			return fmt.Errorf("failed to write profile: %w", err)
+		}
+	} else {
+		// Write to file
+		file, err := os.Create(pc.OutputFile)
+		if err != nil {
+			return fmt.Errorf("failed to create profile output file: %w", err)
+		}
+		defer file.Close()
+
+		format := pc.GetFormat()
+		err = profile.WriteFormat(file, format)
+		if err != nil {
+			return fmt.Errorf("failed to write profile: %w", err)
+		}
+		fmt.Fprintf(errOutput, "Profile written to %s\n", pc.OutputFile)
+	}
+	return nil
+}
+
+// initializeProfiling sets up profiling based on test options
+func initializeProfiling(pc *ProfileConfig) (*profiler.Profiler, error) {
+	if !pc.IsEnabled() {
+		return nil, nil
+	}
+
+	globalProfiler := profiler.NewProfiler()
+
+	// Enable line-level profiling if list option is used
+	if pc.FunctionList != "" {
+		globalProfiler.EnableLineProfiling()
+	}
+
+	globalProfiler.StartProfiling(nil, profiler.Options{
+		Type:       pc.GetProfileType(),
+		SampleRate: pc.GetSampleRate(),
+	})
+
+	pc.profiler = globalProfiler
+	return globalProfiler, nil
+}
+
+// finalizeProfiling stops profiling and writes results
+func finalizeProfiling(pc *ProfileConfig, opts *TestOptions, writer ProfileWriter) error {
+	if pc == nil || pc.profiler == nil {
+		return nil
+	}
+
+	profile := pc.profiler.StopProfiling()
+	if profile == nil {
+		return nil
+	}
+
+	err := writer.WriteProfile(profile, pc, opts.Output, opts.Error, opts.TestStore)
+	if err != nil {
+		fmt.Fprintf(opts.Error, "Profiling error: %v\n", err)
+		return err
+	}
+
+	return nil
+}
+
+// ----------------------------------------
 // main test function
 
 // TestOptions is a list of options that must be passed to [Test].
@@ -158,20 +304,8 @@ type TestOptions struct {
 	Metrics bool
 	// Uses Error to print the events emitted.
 	Events bool
-	// Enable profiling for performance analysis.
-	Profile bool
-	// File to write profiling output.
-	ProfileOutput string
-	// Print profiling output to stdout instead of file.
-	ProfileStdout bool
-	// Profile output format.
-	ProfileFormat string
-	// Profile type.
-	ProfileType string
-	// Function name for line-by-line profile listing.
-	ProfileList string
-	// Global profiler instance (internal use)
-	globalProfiler *profiler.Profiler
+	// Profile configuration
+	Profile *ProfileConfig
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -254,61 +388,19 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	var errs error
 
 	// Initialize profiling if enabled
-	if opts.Profile {
-		// Select profile type based on flag
-		profileType := profiler.ProfileCPU
-		sampleRate := 100
-		if opts.ProfileType == "memory" {
-			profileType = profiler.ProfileMemory
-			sampleRate = 1 // Sample every allocation for memory
+	if opts.Profile != nil {
+		_, err := initializeProfiling(opts.Profile)
+		if err != nil {
+			return fmt.Errorf("failed to initialize profiling: %w", err)
 		}
-		globalProfiler := profiler.NewProfiler()
-		// Enable line-level profiling if list option is used
-		// This automatically enables detailed line-by-line tracking when -profile-list is specified
-		if opts.ProfileList != "" {
-			globalProfiler.EnableLineProfiling()
-		}
-		globalProfiler.StartProfiling(nil, profiler.Options{
-			Type:       profileType,
-			SampleRate: sampleRate,
-		})
-		opts.globalProfiler = globalProfiler // Store in opts for use in runTestFiles
-		defer func() {
-			profile := globalProfiler.StopProfiling()
-			if profile != nil {
-				if opts.ProfileList != "" {
-					// Show line-by-line profile for specific function
-					fmt.Fprintln(opts.Output, "\n=== FUNCTION PROFILE ===")
-					err := profile.WriteFunctionList(opts.Output, opts.ProfileList, NewStoreAdapter(opts.TestStore))
-					if err != nil {
-						fmt.Fprintf(opts.Error, "Failed to write function profile: %v\n", err)
-					}
-				} else if opts.ProfileStdout {
-					// Print to stdout
-					fmt.Fprintln(opts.Output, "\n=== PROFILING RESULTS ===")
-					format := getProfileFormat(opts.ProfileFormat)
-					err := profile.WriteFormat(opts.Output, format)
-					if err != nil {
-						fmt.Fprintf(opts.Error, "Failed to write profile: %v\n", err)
-					}
-				} else {
-					// Write to file
-					file, err := os.Create(opts.ProfileOutput)
-					if err != nil {
-						fmt.Fprintf(opts.Error, "Failed to create profile output file: %v\n", err)
-					} else {
-						defer file.Close()
-						format := getProfileFormat(opts.ProfileFormat)
-						err = profile.WriteFormat(file, format)
-						if err != nil {
-							fmt.Fprintf(opts.Error, "Failed to write profile: %v\n", err)
-						} else {
-							fmt.Fprintf(opts.Error, "Profile written to %s\n", opts.ProfileOutput)
-						}
-					}
+		if opts.Profile.profiler != nil {
+			writer := &DefaultProfileWriter{}
+			defer func() {
+				if err := finalizeProfiling(opts.Profile, opts, writer); err != nil {
+					// Error already printed in finalizeProfiling
 				}
-			}
-		}()
+			}()
+		}
 	}
 
 	// Create a common tcw/tgs for both the `pkg` tests as well as the
@@ -334,8 +426,8 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		SkipPackage: true,
 	})
 	// Enable profiling on the machine if profiling is enabled
-	if opts.Profile && opts.globalProfiler != nil {
-		m2.SetProfiler(opts.globalProfiler)
+	if opts.Profile != nil && opts.Profile.profiler != nil {
+		m2.SetProfiler(opts.Profile.profiler)
 	}
 	// Filter out xxx_test *_test.gno and *_filetest.gno and run.
 	// If testing with only filetests, there will be no files.
@@ -442,8 +534,6 @@ func (opts *TestOptions) runTestFiles(
 	files *gno.FileSet,
 	tgs gno.TransactionStore,
 ) (errs error) {
-	// Get profiler from the test options
-	globalProfiler := opts.globalProfiler
 	var m *gno.Machine
 	defer func() {
 		if r := recover(); r != nil {
@@ -461,7 +551,7 @@ func (opts *TestOptions) runTestFiles(
 	tests := loadTestFuncs(mpkg.Name, files)
 
 	var alloc *gno.Allocator
-	if opts.Metrics || (opts.Profile && opts.ProfileType == "memory") {
+	if opts.Metrics || (opts.Profile != nil && opts.Profile.Type == "memory") {
 		alloc = gno.NewAllocator(math.MaxInt64)
 	}
 	// reset store ops, if any - we only need them for some filetests.
@@ -474,8 +564,8 @@ func (opts *TestOptions) runTestFiles(
 		m.Alloc.SetMachine(m)
 	}
 	// Enable profiling on the machine if profiling is enabled
-	if opts.Profile && globalProfiler != nil {
-		m.SetProfiler(globalProfiler)
+	if opts.Profile != nil && opts.Profile.profiler != nil {
+		m.SetProfiler(opts.Profile.profiler)
 	}
 	if tgs.GetMemPackage(mpkg.Path) == nil {
 		m.RunMemPackage(mpkg, false)
@@ -503,8 +593,8 @@ func (opts *TestOptions) runTestFiles(
 		}
 		m.SetActivePackage(pv)
 		// Enable profiling on the test machine if profiling is enabled
-		if opts.Profile && globalProfiler != nil {
-			m.SetProfiler(globalProfiler)
+		if opts.Profile != nil && opts.Profile.profiler != nil {
+			m.SetProfiler(opts.Profile.profiler)
 		}
 
 		testingpv := m.Store.GetPackage("testing/base", false)

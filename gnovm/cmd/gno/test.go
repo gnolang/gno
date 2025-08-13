@@ -273,12 +273,14 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
 
-	opts.Profile = cmd.profile
-	opts.ProfileOutput = cmd.profileOutput
-	opts.ProfileStdout = cmd.profileStdout
-	opts.ProfileFormat = cmd.profileFormat
-	opts.ProfileType = cmd.profileType
-	opts.ProfileList = cmd.profileList
+	opts.Profile = &test.ProfileConfig{
+		Enabled:      cmd.profile,
+		OutputFile:   cmd.profileOutput,
+		PrintToStdout: cmd.profileStdout,
+		Format:       cmd.profileFormat,
+		Type:         cmd.profileType,
+		FunctionList: cmd.profileList,
+	}
 
 	cache := make(gno.TypeCheckCache, 64)
 
