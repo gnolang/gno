@@ -211,7 +211,7 @@ func guessIssueFromError(dir, pkgPath string, err error, code gnoCode) gnoIssue 
 	issue.Code = code
 
 	parsedError := strings.TrimSpace(err.Error())
-	match := gno.Re_errorLine.Match(parsedError)
+	match := gno.ReErrorLine.Match(parsedError)
 	if match == nil {
 		issue.Location = fmt.Sprintf("%s:0", filepath.Clean(pkgPath))
 		issue.Msg = err.Error()
