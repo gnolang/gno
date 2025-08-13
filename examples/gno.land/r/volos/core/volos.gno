@@ -213,7 +213,7 @@ func CreateMarket(cur realm, poolPath string, isToken0Loan bool, irm string, llt
 
 /* SUPPLY MANAGEMENT */
 
-// Supply tokens to a market (backward compatible version)
+// Supply tokens to a market
 // Either assets or shares must be non-zero (XOR)
 func Supply(cur realm, marketId string, assets, shares uint64) {
 	caller := std.PreviousRealm().Address()
@@ -261,7 +261,7 @@ func SupplyOnBehalf(cur realm, marketId string, assets, shares uint64, onBehalf 
 		)
 	}
 
-	// Get onBehalf's current position (not caller's)
+	// Get onBehalf's current position
 	position := GetPosition(marketId, onBehalf.String())
 
 	// Update position
@@ -277,13 +277,13 @@ func SupplyOnBehalf(cur realm, marketId string, assets, shares uint64, onBehalf 
 	market.TotalSupplyAssets = new(u256.Uint).Add(market.TotalSupplyAssets, assetsU256)
 	markets.Set(marketId, market)
 
-	// Handle token transfer using GRC20 interface (from caller, not onBehalf)
+	// Handle token transfer using GRC20 interface
 	safeTransferFrom(params.GetLoanToken(), caller, assetsU256.Int64())
 
 	emitSupply(marketId, caller, onBehalf, assetsU256)
 }
 
-// Withdraw tokens from a market (backward compatible version)
+// Withdraw tokens from a market
 // Either assets or shares must be non-zero (XOR)
 func Withdraw(cur realm, marketId string, assets, shares uint64) {
 	caller := std.PreviousRealm().Address()
@@ -336,7 +336,7 @@ func WithdrawOnBehalf(cur realm, marketId string, assets, shares uint64, onBehal
 		)
 	}
 
-	// Get onBehalf's current position (not caller's)
+	// Get onBehalf's current position
 	position := GetPosition(marketId, onBehalf.String())
 
 	// Check if onBehalf has enough shares
@@ -370,7 +370,7 @@ func WithdrawOnBehalf(cur realm, marketId string, assets, shares uint64, onBehal
 
 /* BORROW MANAGEMENT */
 
-// Borrow assets from a market using collateral (backward compatible version)
+// Borrow assets from a market using collateral
 // Either assets or shares must be non-zero (not both)
 func Borrow(cur realm, marketId string, assets, shares uint64) {
 	caller := std.PreviousRealm().Address()
@@ -461,7 +461,7 @@ func BorrowOnBehalf(cur realm, marketId string, assets, shares uint64, onBehalf 
 	emitBorrow(marketId, caller, onBehalf, receiver, assetsU256)
 }
 
-// Repay borrowed tokens to a market (backward compatible version)
+// Repay borrowed tokens to a market
 // Either assets or shares must be non-zero (XOR)
 func Repay(cur realm, marketId string, assets, shares uint64) {
 	caller := std.PreviousRealm().Address()
@@ -509,7 +509,7 @@ func RepayOnBehalf(cur realm, marketId string, assets, shares uint64, onBehalf s
 		)
 	}
 
-	// Get onBehalf's current position (not caller's)
+	// Get onBehalf's current position
 	position := GetPosition(marketId, onBehalf.String())
 
 	// Check if onBehalf has enough shares
@@ -530,7 +530,7 @@ func RepayOnBehalf(cur realm, marketId string, assets, shares uint64, onBehalf s
 	market.TotalBorrowAssets = new(u256.Uint).Sub(market.TotalBorrowAssets, assetsU256)
 	markets.Set(marketId, market)
 
-	// Handle token transfer using GRC20 interface (from caller, not onBehalf)
+	// Handle token transfer using GRC20 interface 
 	safeTransferFrom(params.GetLoanToken(), caller, assetsU256.Int64())
 
 	emitRepay(marketId, caller, onBehalf, assetsU256, sharesToBurn)
@@ -538,7 +538,7 @@ func RepayOnBehalf(cur realm, marketId string, assets, shares uint64, onBehalf s
 
 /* COLLATERAL MANAGEMENT */
 
-// Supply collateral to a market (backward compatible version)
+// Supply collateral to a market
 func SupplyCollateral(cur realm, marketId string, amount uint64) {
 	caller := std.PreviousRealm().Address()
 	SupplyCollateralOnBehalf(cur, marketId, amount, caller)
@@ -556,7 +556,7 @@ func SupplyCollateralOnBehalf(cur realm, marketId string, amount uint64, onBehal
 
 	_, params := GetMarket(marketId)
 
-	// Get onBehalf's current position (not caller's)
+	// Get onBehalf's current position
 	position := GetPosition(marketId, onBehalf.String())
 
 	// Update position
@@ -567,13 +567,13 @@ func SupplyCollateralOnBehalf(cur realm, marketId string, amount uint64, onBehal
 	marketPositions := marketPositionsInterface.(*avl.Tree)
 	marketPositions.Set(onBehalf.String(), position)
 
-	// Handle token transfer using GRC20 interface (from caller, not onBehalf)
+	// Handle token transfer using GRC20 interface
 	safeTransferFrom(params.GetCollateralToken(), caller, int64(amount))
 
 	emitSupplyCollateral(marketId, caller, onBehalf, amount)
 }
 
-// Withdraw collateral from a market (backward compatible version)
+// Withdraw collateral from a market
 func WithdrawCollateral(cur realm, marketId string, amount uint64) {
 	caller := std.PreviousRealm().Address()
 	WithdrawCollateralOnBehalf(cur, marketId, amount, caller, caller)
@@ -599,7 +599,7 @@ func WithdrawCollateralOnBehalf(cur realm, marketId string, amount uint64, onBeh
 	// Accrue interest before any state changes
 	accrueInterest(marketId)
 
-	// Get onBehalf's current position (not caller's)
+	// Get onBehalf's current position
 	position := GetPosition(marketId, onBehalf.String())
 
 	// Convert amount to uint256
@@ -625,7 +625,7 @@ func WithdrawCollateralOnBehalf(cur realm, marketId string, amount uint64, onBeh
 		}
 	}
 
-	// Handle token transfer using GRC20 interface (to receiver, not caller)
+	// Handle token transfer using GRC20 interface
 	safeTransferTo(params.GetCollateralToken(), receiver, int64(amount))
 
 	emitWithdrawCollateral(marketId, caller, onBehalf, receiver, amount)
