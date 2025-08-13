@@ -73,7 +73,7 @@ func ChangeOwner(cur realm, newOwner address) {
 
 
 > [!NOTE]
-> For a library that hanles this for you, check out [^/p/demo/ownable^](/p/demo/ownable).
+> For a library that handles this for you, check out [^/p/demo/ownable^](/p/demo/ownable).
 
 ---
 `
