@@ -41,14 +41,14 @@ This Solidity contract does:
 ^^^go
 package counter
 
-var Count int64 = 0
+var count int64 = 0
 
 func Increment(cur realm) {
-    Count++
+    count++
 }
 
 func Decrement(cur realm) {
-    Count--
+    count--
 }
 ^^^
 

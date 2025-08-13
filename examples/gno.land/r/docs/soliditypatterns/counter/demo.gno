@@ -2,23 +2,23 @@ package counter
 
 import "strconv"
 
-var Count int64 = 0
+var count int64 = 0
 
 func Increment(cur realm) {
-	Count++
+	count++
 }
 
 func Decrement(cur realm) {
-	Count--
+	count--
 }
 
 func GetCount(cur realm) int64 {
-	return Count
+	return count
 }
 
 func RenderDemo() string {
 	content := "# DEMO\n"
-	content += "Counter Value : **" + strconv.FormatInt(Count, 10) + "**\n\n"
+	content += "Counter Value : **" + strconv.FormatInt(count, 10) + "**\n\n"
 	content += "[Increment](counter$help&func=Increment)\n\n"
 	content += "[Decrement](counter$help&func=Decrement)\n\n"
 	return content
