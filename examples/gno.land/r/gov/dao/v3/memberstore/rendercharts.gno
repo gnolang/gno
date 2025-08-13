@@ -14,28 +14,37 @@ func RenderCharts(members MembersByTier) string {
 	var sb strings.Builder
 
 	tierNames := []string{"T1", "T2", "T3"}
-	memberCounts := make([]float64, 0, len(tierNames))
-	powerValues := make([]float64, 0, len(tierNames))
+	pieSlicesTs := make([]piechart.PieSlice, 0, len(tierNames))
+	pieSlicesTp := make([]piechart.PieSlice, 0, len(tierNames))
 
 	for _, tn := range tierNames {
 		tier, ok := Tiers.GetTier(tn)
 		if !ok {
 			return ""
 		}
+
 		ts := float64(members.GetTierSize(tn))
-		memberCounts = append(memberCounts, ts)
 		tp := tier.PowerHandler(members, Tiers) * ts
-		powerValues = append(powerValues, tp)
+
+		pieSlicesTs = append(pieSlicesTs, piechart.PieSlice{
+			Value: ts,
+			Color: tierColor(tn),
+			Label: tn,
+		})
+		pieSlicesTp = append(pieSlicesTp, piechart.PieSlice{
+			Value: tp,
+			Color: tierColor(tn),
+			Label: tn,
+		})
 	}
 
-	colors := []string{"#7CB342", "#AB47BC", "#FFCC32"}
+	// Render pie charts for members count and power distribution
+	resultPieChartTs := piechart.Render(pieSlicesTs, "Members distribution:")
+	resultPieChartTp := piechart.Render(pieSlicesTp, "Power distribution:")
 
-	resultPieTs := piechart.RenderPieChart(memberCounts, colors, tierNames, "Members repartition:")
-	resultPieTp := piechart.RenderPieChart(powerValues, colors, tierNames, "Power repartition:")
-
-	sb.WriteString(resultPieTs)
+	sb.WriteString(resultPieChartTs)
 	sb.WriteString(md.LineBreak(1))
-	sb.WriteString(resultPieTp)
+	sb.WriteString(resultPieChartTp)
 	sb.WriteString(md.LineBreak(1))
 
 	return sb.String()

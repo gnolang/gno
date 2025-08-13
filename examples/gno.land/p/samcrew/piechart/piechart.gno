@@ -2,19 +2,24 @@ package piechart
 
 import (
 	"math"
-	"strings"
 
 	"gno.land/p/demo/svg"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/sunspirit/md"
 )
 
-// RenderPieChart creates an SVG pie chart from given values, colors, labels, and optional title.
-// It returns the SVG markup as a string, including a markdown header if a title is provided.
-func RenderPieChart(values []float64, colors []string, labels []string, title string) string {
+type PieSlice struct {
+	Value float64
+	Color string
+	Label string
+}
+
+// Render creates an SVG pie chart from given slices (value, color and label).
+// It returns an img svg markup as a string, including a markdown header if a non-empty title is provided.
+func Render(slices []PieSlice, title string) string {
 	// Validate input slices length
-	if len(values) != len(colors) || len(values) != len(labels) {
-		return "\npiechart fails: values, colors and labels slices must have the same length"
+	if len(slices) == 0 {
+		return "\npiechart fails: no data provided"
 	}
 
 	const (
@@ -32,59 +37,63 @@ func RenderPieChart(values []float64, colors []string, labels []string, title st
 
 	canvas := svg.NewCanvas(canvasWidth, canvasHeight)
 
-	// Sum all values to compute slice proportions
+	// Sum all values to compute slices proportions
 	var total float64
-	for _, v := range values {
-		total += v
+	for _, s := range slices {
+		total += s.Value
 	}
 
-	startAngle := 0.0
-	for i, v := range values {
-		// Calculate angle span for current slice
-		angle := (v / total) * 2 * math.Pi
-		endAngle := startAngle + angle
+	// Draw pie slices and legend in one pass
+	startAngle := -math.Pi / 2
+	for i, s := range slices {
+		if s.Value > 0 {
+			// --- PIE SLICE ---
+			// Calculate angle span for current slice
+			angle := (s.Value / total) * 2 * math.Pi
+			endAngle := startAngle + angle
 
-		// Compute start and end points on the circle circumference
-		x1 := centerX + radius*math.Cos(startAngle)
-		y1 := centerY + radius*math.Sin(startAngle)
-		x2 := centerX + radius*math.Cos(endAngle)
-		y2 := centerY + radius*math.Sin(endAngle)
+			// Compute start and end points on the circle circumference
+			cosStart, sinStart := math.Cos(startAngle), math.Sin(startAngle)
+			cosEnd, sinEnd := math.Cos(endAngle), math.Sin(endAngle)
+			x1 := centerX + radius*cosStart
+			y1 := centerY + radius*sinStart
+			x2 := centerX + radius*cosEnd
+			y2 := centerY + radius*sinEnd
 
-		// Determine if the arc should be a large arc (> 180 degrees) (Arc direction)
-		largeArcFlag := 0
-		if angle > math.Pi {
-			largeArcFlag = 1
+			// Determine if the arc should be a large arc (> 180 degrees) (Arc direction)
+			largeArcFlag := 0
+			if angle > math.Pi {
+				largeArcFlag = 1
+			}
+
+			// Build the SVG path for the pie slice
+			path := ufmt.Sprintf(
+				"M%.2f,%.2f L%.2f,%.2f A%.2f,%.2f 0 %d 1 %.2f,%.2f Z",
+				centerX, centerY, x1, y1, radius, radius, largeArcFlag, x2, y2,
+			)
+
+			// Colored slice
+			canvas.Append(svg.Path{
+				D:    path,
+				Fill: s.Color,
+			})
+
+			startAngle = endAngle
 		}
 
-		// Build the SVG path for the pie slice
-		path := ufmt.Sprintf(
-			"M%.2f,%.2f L%.2f,%.2f A%.2f,%.2f 0 %d 1 %.2f,%.2f Z",
-			centerX, centerY, x1, y1, radius, radius, largeArcFlag, x2, y2,
-		)
-
-		canvas.Append(svg.Path{
-			D:    path,
-			Fill: colors[i],
-		})
-
-		startAngle = endAngle
-	}
-
-	// Draw legend with colored squares and labels including percentages
-	for i, label := range labels {
+		// --- LEGEND ---
 		y := legendStartY + i*lineHeight
-
 		// Colored square representing slice color
 		canvas.Append(svg.Rectangle{
 			X:      legendX,
 			Y:      y - squareSize/2,
 			Width:  squareSize,
 			Height: squareSize,
-			Fill:   colors[i],
+			Fill:   s.Color,
 		})
 
 		// Legend text showing label, value and percentage
-		text := ufmt.Sprintf("%s: %.0f (%.1f%%)", label, values[i], values[i]*100/total)
+		text := ufmt.Sprintf("%s: %.0f (%.1f%%)", s.Label, s.Value, s.Value*100/total)
 		canvas.Append(svg.Text{
 			X:    legendX + squareSize + 8,
 			Y:    y + fontSize/3,
@@ -96,15 +105,8 @@ func RenderPieChart(values []float64, colors []string, labels []string, title st
 		})
 	}
 
-	return formatChartHeader(title) + canvas.Render("Pie Chart "+title)
-}
-
-// formatChartHeader returns a markdown header for the chart title if provided.
-func formatChartHeader(title string) string {
-	var sb strings.Builder
 	if title == "" {
-		return sb.String()
+		return canvas.Render("Pie Chart")
 	}
-	sb.WriteString(md.H2(title))
-	return sb.String()
+	return md.H2(title) + canvas.Render("Pie Chart "+title)
 }
