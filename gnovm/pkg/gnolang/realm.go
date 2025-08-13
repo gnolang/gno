@@ -801,8 +801,8 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 	}
 
-	// assert no private dependencies.
-	rlm.assertNoPrivateDeps(oo, store)
+	// assert object have no private dependencies.
+	rlm.assertObjectIsPublic(oo, store)
 
 	// first, save unsaved children.
 	unsaved := getUnsavedChildObjects(oo)
@@ -904,11 +904,11 @@ func (rlm *Realm) clearMarks() {
 	rlm.escaped = nil
 }
 
-// assertNoPrivateDeps ensures that the object is not private
+// assertObjectIsPublic ensures that the object is public and does not have any private dependencies.
 // it check recursively the types of the object
 // it does not recursively check the values because
 // child objects are validated separately during the save traversal (saveUnsavedObjectRecursively)
-func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store) {
+func (rlm *Realm) assertObjectIsPublic(obj Object, store Store) {
 	objID := obj.GetObjectID()
 	if objID.PkgID != rlm.ID && IsPkgPrivateFromPkgID(objID.PkgID) {
 		panic("cannot persist reference of object from private realm")
@@ -920,27 +920,27 @@ func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store) {
 	switch v := obj.(type) {
 	case *HeapItemValue:
 		if v.Value.T != nil {
-			rlm.assertNoPrivateType(store, v.Value.T, tids)
+			rlm.assertTypeIsPublic(store, v.Value.T, tids)
 		}
 	case *ArrayValue:
 		for _, av := range v.List {
 			if av.T != nil {
-				rlm.assertNoPrivateType(store, av.T, tids)
+				rlm.assertTypeIsPublic(store, av.T, tids)
 			}
 		}
 	case *StructValue:
 		for _, sv := range v.Fields {
 			if sv.T != nil {
-				rlm.assertNoPrivateType(store, sv.T, tids)
+				rlm.assertTypeIsPublic(store, sv.T, tids)
 			}
 		}
 	case *MapValue:
 		for head := v.List.Head; head != nil; head = head.Next {
 			if head.Key.T != nil {
-				rlm.assertNoPrivateType(store, head.Key.T, tids)
+				rlm.assertTypeIsPublic(store, head.Key.T, tids)
 			}
 			if head.Value.T != nil {
-				rlm.assertNoPrivateType(store, head.Value.T, tids)
+				rlm.assertTypeIsPublic(store, head.Value.T, tids)
 			}
 		}
 	case *FuncValue:
@@ -948,11 +948,11 @@ func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store) {
 			panic("cannot persist function or method from private realm")
 		}
 		if v.Type != nil {
-			rlm.assertNoPrivateType(store, v.Type, tids)
+			rlm.assertTypeIsPublic(store, v.Type, tids)
 		}
 		for _, capture := range v.Captures {
 			if capture.T != nil {
-				rlm.assertNoPrivateType(store, capture.T, tids)
+				rlm.assertTypeIsPublic(store, capture.T, tids)
 			}
 		}
 	case *BoundMethodValue:
@@ -960,16 +960,16 @@ func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store) {
 			panic("cannot persist bound method from private realm")
 		}
 		if v.Receiver.T != nil {
-			rlm.assertNoPrivateType(store, v.Receiver.T, tids)
+			rlm.assertTypeIsPublic(store, v.Receiver.T, tids)
 		}
 	case *Block:
 		for _, bv := range v.Values {
 			if bv.T != nil {
-				rlm.assertNoPrivateType(store, bv.T, tids)
+				rlm.assertTypeIsPublic(store, bv.T, tids)
 			}
 		}
 		if v.Blank.T != nil {
-			rlm.assertNoPrivateType(store, v.Blank.T, tids)
+			rlm.assertTypeIsPublic(store, v.Blank.T, tids)
 		}
 	case *PackageValue:
 		if v.PkgPath != rlm.Path && IsPkgPrivateFromPkgPath(v.PkgPath) {
@@ -980,29 +980,29 @@ func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store) {
 	}
 }
 
-// assertNoPrivateType ensure that the type t is not defined in a private realm.
+// assertTypeIsPublic ensure that the type t is not defined in a private realm.
 // it do it recursively for all types in t and have recursive guard to avoid infinite recursion on declared types.
-func (rlm *Realm) assertNoPrivateType(store Store, t Type, visited map[TypeID]struct{}) {
+func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]struct{}) {
 	pkgPath := ""
 	switch tt := t.(type) {
 	case *FuncType:
 		for _, param := range tt.Params {
-			rlm.assertNoPrivateType(store, param, visited)
+			rlm.assertTypeIsPublic(store, param, visited)
 		}
 		for _, result := range tt.Results {
-			rlm.assertNoPrivateType(store, result, visited)
+			rlm.assertTypeIsPublic(store, result, visited)
 		}
 	case FieldType:
-		rlm.assertNoPrivateType(store, tt.Type, visited)
+		rlm.assertTypeIsPublic(store, tt.Type, visited)
 	case *SliceType, *ArrayType, *ChanType, *PointerType:
-		rlm.assertNoPrivateType(store, tt.Elem(), visited)
+		rlm.assertTypeIsPublic(store, tt.Elem(), visited)
 	case *tupleType:
 		for _, et := range tt.Elts {
-			rlm.assertNoPrivateType(store, et, visited)
+			rlm.assertTypeIsPublic(store, et, visited)
 		}
 	case *MapType:
-		rlm.assertNoPrivateType(store, tt.Key, visited)
-		rlm.assertNoPrivateType(store, tt.Elem(), visited)
+		rlm.assertTypeIsPublic(store, tt.Key, visited)
+		rlm.assertTypeIsPublic(store, tt.Elem(), visited)
 	case *InterfaceType:
 		pkgPath = tt.GetPkgPath()
 	case *StructType:
@@ -1011,24 +1011,24 @@ func (rlm *Realm) assertNoPrivateType(store Store, t Type, visited map[TypeID]st
 		tid := tt.TypeID()
 		if _, exists := visited[tid]; !exists {
 			visited[tid] = struct{}{}
-			rlm.assertNoPrivateType(store, tt.Base, visited)
+			rlm.assertTypeIsPublic(store, tt.Base, visited)
 			for _, method := range tt.Methods {
-				rlm.assertNoPrivateType(store, method.T, visited)
+				rlm.assertTypeIsPublic(store, method.T, visited)
 				if mv, ok := method.V.(*FuncValue); ok {
-					rlm.assertNoPrivateType(store, mv.Type, visited)
+					rlm.assertTypeIsPublic(store, mv.Type, visited)
 				}
 			}
 		}
 		pkgPath = tt.GetPkgPath()
 	case *RefType:
 		t2 := store.GetType(tt.TypeID())
-		rlm.assertNoPrivateType(store, t2, visited)
+		rlm.assertTypeIsPublic(store, t2, visited)
 	case PrimitiveType, *TypeType, *PackageType, blockType, heapItemType:
 		// these types do not have a package path.
 		// NOTE: PackageType have a TypeID, should i loat it from store and check it?
 		return
 	default:
-		panic(fmt.Sprintf("assertNoPrivateType: unhandled type %T", tt))
+		panic(fmt.Sprintf("assertTypeIsPublic: unhandled type %T", tt))
 	}
 	if pkgPath != "" && pkgPath != rlm.Path && IsPkgPrivateFromPkgPath(pkgPath) {
 		panic("cannot persist object of type defined in a private realm")
