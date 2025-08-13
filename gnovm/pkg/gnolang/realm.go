@@ -905,7 +905,9 @@ func (rlm *Realm) clearMarks() {
 }
 
 // assertNoPrivateDeps ensures that the object is not private
-// it does not recursively check the values, but it does check recursively the types
+// it check recursively the types of the object
+// it does not recursively check the values because
+// child objects are validated separately during the save traversal (saveUnsavedObjectRecursively)
 func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store) {
 	objID := obj.GetObjectID()
 	if objID.PkgID != rlm.ID && IsPkgPrivateFromPkgID(objID.PkgID) {
