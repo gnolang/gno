@@ -48,6 +48,7 @@ func (oid ObjectID) MarshalAmino() (string, error) {
 	pid := hex.EncodeToString(oid.PkgID.Hashlet[:])
 	return fmt.Sprintf("%s:%d", pid, oid.NewTime), nil
 }
+
 func (oid *ObjectID) UnmarshalAmino(oids string) error {
 	parts := strings.Split(oids, ":")
 	if len(parts) != 2 {

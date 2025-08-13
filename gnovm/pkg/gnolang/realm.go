@@ -82,7 +82,7 @@ var (
 	pkgIDFromPkgPathCacheMu sync.Mutex // protects the shared cache.
 	// TODO: later on switch this to an LRU if needed to ensure
 	// fixed memory caps. For now though it isn't a problem:
-	// https://github.com/gnolang/gno/pull/3 424#issuecomment-2564571785
+	// https://github.com/gnolang/gno/pull/3424#issuecomment-2564571785
 	pkgIDFromPkgPathCache = make(map[string]*PkgID, 100)
 	pkgPrivateFromPkgID   = make(map[PkgID]struct{}, 100)
 )
@@ -124,8 +124,7 @@ func PkgIDFromPkgPath(path string) PkgID {
 // Returns the ObjectID of the PackageValue associated with path.
 func ObjectIDFromPkgPath(path string) ObjectID {
 	pkgID := PkgIDFromPkgPath(path)
-	oid := ObjectIDFromPkgID(pkgID)
-	return oid
+	return ObjectIDFromPkgID(pkgID)
 }
 
 // Returns the ObjectID of the PackageValue associated with pkgID.
