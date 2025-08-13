@@ -61,7 +61,7 @@ func TestNewCustomCoinSwap_Claim(cur realm, t *testing.T) {
 	// Test claim
 	testing.SetRealm(std.NewUserRealm(recipient))
 	crossThrough(std.NewCodeRealm("gno.land/r/atomicswap/test"), func() {
-		uassert.PanicsWithMessage(t, "invalid preimage", func() { swap.Claim("invalid") })
+		uassert.AbortsWithMessage(t, "invalid preimage", func() { swap.Claim("invalid") })
 	})
 
 	testing.SetRealm(std.NewUserRealm(recipient))
@@ -72,7 +72,7 @@ func TestNewCustomCoinSwap_Claim(cur realm, t *testing.T) {
 
 	// Test refund (should fail because already claimed)
 	uassert.PanicsWithMessage(t, "already claimed", swap.Refund)
-	uassert.PanicsWithMessage(t, "already claimed", func() { swap.Claim("secret") })
+	uassert.AbortsWithMessage(t, "already claimed", func() { swap.Claim("secret") })
 
 	expected = `- status: claimed
 - sender: g1wdjkuer9wgc47h6lta047h6lta047h6l56jtjc
@@ -184,7 +184,7 @@ func TestNewCustomGRC20Swap_Claim(t *testing.T) {
 	// Test claim
 	testing.SetRealm(std.NewUserRealm(recipient))
 	crossThrough(std.NewCodeRealm("gno.land/r/atomicswap/test"), func() {
-		uassert.PanicsWithMessage(t, "invalid preimage", func() { swap.Claim("invalid") })
+		uassert.AbortsWithMessage(t, "invalid preimage", func() { swap.Claim("invalid") })
 	})
 
 	testing.SetRealm(std.NewUserRealm(recipient))
@@ -202,7 +202,7 @@ func TestNewCustomGRC20Swap_Claim(t *testing.T) {
 
 	// Test refund (should fail because already claimed)
 	uassert.PanicsWithMessage(t, "already claimed", swap.Refund)
-	uassert.PanicsWithMessage(t, "already claimed", func() { swap.Claim("secret") })
+	uassert.AbortsWithMessage(t, "already claimed", func() { swap.Claim("secret") })
 
 	expected = `- status: claimed
 - sender: g1wdjkuer9wge47h6lta047h6lta047h6l5rk38l
@@ -333,7 +333,7 @@ func TestNewGRC20Swap_Claim(t *testing.T) {
 	// Test claim
 	testing.SetRealm(std.NewUserRealm(recipient))
 	crossThrough(std.NewCodeRealm("gno.land/r/atomicswap/test"), func() {
-		uassert.PanicsWithMessage(t, "invalid preimage", func() { swap.Claim("invalid") })
+		uassert.AbortsWithMessage(t, "invalid preimage", func() { swap.Claim("invalid") })
 		swap.Claim("secret")
 		uassert.True(t, swap.claimed, "expected claimed to be true")
 	})
@@ -347,7 +347,7 @@ func TestNewGRC20Swap_Claim(t *testing.T) {
 
 	// Test refund (should fail because already claimed)
 	uassert.PanicsWithMessage(t, "already claimed", swap.Refund)
-	uassert.PanicsWithMessage(t, "already claimed", func() { swap.Claim("secret") })
+	uassert.AbortsWithMessage(t, "already claimed", func() { swap.Claim("secret") })
 
 	expected = `- status: claimed
 - sender: g1wdjkuer9wg697h6lta047h6lta047h6ltt3lty
