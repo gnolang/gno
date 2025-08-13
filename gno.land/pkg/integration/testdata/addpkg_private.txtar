@@ -132,6 +132,15 @@ stderr 'cannot persist object of type defined in a private realm'
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveCustomTypeToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in a private realm'
 
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func TryToExploit1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist object of type defined in a private realm'
+
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func TryToExploit2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist object of type defined in a private realm'
+
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func TryToExploit3 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist object of type defined in a private realm'
+
 ! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr $WORK/msgrun/run.gno
 
 gnokey query vm/qeval --data 'gno.land/r/foobar/privaterealm.GetTreePointer()'
@@ -443,9 +452,34 @@ func SavePrivateMapToPublicRealm(cur realm) {
 
 func SavePrivateMapToPublicRealm2(cur realm) {
     myMap := make(map[string]interface{})
-    myMap["privateKey"] = MyPrivateInt(42)
-    myMap["privateKey2"] = MyPrivateInt(84)
+    myMap["privateKey"] = 42
+    myMap["privateKey2"] = 84
     publicrealm.SaveYourInterface(cross, myMap)
+}
+
+func TryToExploit1(cur realm) {
+    pStruct := publicrealm.CreatePublicStruct(cross, "exploit", nil, MyPrivateInt(42))
+    publicrealm.SaveYourMixedStruct(cross, pStruct)
+}
+
+func (pd *PrivateData) DoSomething() interface{} {
+    return pd
+}
+
+func TryToExploit2(cur realm) {
+    var pi publicrealm.PublicInterface = &PrivateData{
+        Name:  "exploit",
+    }
+    publicrealm.SaveYourInterface(cross, pi)
+}
+
+func (i MyPrivateInt) DoSomething() interface{} {
+    return i
+}
+
+func TryToExploit3(cur realm) {
+    var pi publicrealm.PublicInterface = MyPrivateInt(42)
+    publicrealm.SaveYourInterface(cross, pi)
 }
 
 func SaveCustomTypeToPublicRealm(cur realm) {
@@ -482,6 +516,10 @@ var savedInterface interface{}
 var savedArray [3]*avl.Tree
 var savedArray2 [3]interface{}
 var savedChannel chan *avl.Tree
+
+type PublicInterface interface {
+    DoSomething() interface{}
+}
 
 type PublicStruct struct {
     Name        string

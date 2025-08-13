@@ -1005,8 +1005,14 @@ func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]str
 		rlm.assertTypeIsPublic(store, tt.Elem(), visited)
 	case *InterfaceType:
 		pkgPath = tt.GetPkgPath()
+		for _, method := range tt.Methods {
+			rlm.assertTypeIsPublic(store, method, visited)
+		}
 	case *StructType:
 		pkgPath = tt.GetPkgPath()
+		for _, field := range tt.Fields {
+			rlm.assertTypeIsPublic(store, field, visited)
+		}
 	case *DeclaredType:
 		tid := tt.TypeID()
 		if _, exists := visited[tid]; !exists {
