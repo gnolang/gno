@@ -6,7 +6,7 @@ func Render(path string) string {
 	content := `
 # State Lock
 
-This example defines a contract holding a state that can be locked
+This example showcases how a Solidity modifier might be implemented in Gno.
 
 ---
 

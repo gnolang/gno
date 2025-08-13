@@ -4,7 +4,7 @@ import "strings"
 
 func Render(path string) string {
 	content := `
-## Counter
+# Ownable
 
 This Solidity contract defines a counter that can be incremented or decremented by anyone.
 
@@ -70,6 +70,11 @@ func ChangeOwner(cur realm, newOwner address) {
 * The helper function ^assertOnlyOwner^ checks that the caller is the current ^owner^ by comparing ^std.PreviousRealm().Address()^ with ^owner^. If not, it panics. This is equivalent to a Solidity ^modifier onlyOwner^.
 * The function ^ChangeOwner^ allows the current owner to transfer ownership to a new address. It first calls ^assertOnlyOwner()^ to ensure that only the current owner can do this.
 * All functions are capitalized (exported), meaning they can be called externally. However, ^assertOnlyOwner^ is unexported (lowercase), meaning it's only usable within the package.
+
+
+> [!NOTE]
+> For a library that hanles this for you, check out [^/p/demo/ownable^](/p/demo/ownable).
+
 ---
 `
 	return strings.ReplaceAll(content+RenderDemo(), "^", "`")

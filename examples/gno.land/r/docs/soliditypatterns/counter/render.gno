@@ -4,7 +4,7 @@ import "strings"
 
 func Render(path string) string {
 	content := `
-## Counter
+# Counter
 
 This Solidity contract defines a counter that can be incremented or decremented by anyone.
 
