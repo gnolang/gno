@@ -23,9 +23,9 @@ func ChangeOwner(cur realm, newOwner address) {
 }
 
 func RenderDemo() string {
-	content := "# DEMO\n"
+	content := "## Live Demo\n"
 	content += "Owner address: **" + owner.String() + "**\n\n"
-	content += "[InitOwner](onlyownercanchange$help&func=InitOwner)\n\n"
-	content += "[ChangeOwner](onlyownercanchange$help&func=ChangeOwner)\n\n"
+	content += "[InitOwner](ownable$help&func=InitOwner)\n\n"
+	content += "[ChangeOwner](ownable$help&func=ChangeOwner)\n\n"
 	return content
 }

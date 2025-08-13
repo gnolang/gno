@@ -17,7 +17,7 @@ func GetCount(cur realm) int64 {
 }
 
 func RenderDemo() string {
-	content := "# DEMO\n"
+	content := "## Live Demo\n"
 	content += "Counter Value : **" + strconv.FormatInt(count, 10) + "**\n\n"
 	content += "[Increment](counter$help&func=Increment)\n\n"
 	content += "[Decrement](counter$help&func=Decrement)\n\n"

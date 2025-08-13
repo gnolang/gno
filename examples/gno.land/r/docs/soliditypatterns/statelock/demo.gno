@@ -27,7 +27,7 @@ func Unlock(cur realm) {
 }
 
 func RenderDemo() string {
-	content := "# DEMO\n"
+	content := "## Live Demo\n"
 	content += "Contract State : **" + string(state) + "**\n\n"
 	content += "[Lock](statelock$help&func=Lock)\n\n"
 	content += "[Unlock](statelock$help&func=Unlock)\n\n"
