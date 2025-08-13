@@ -26,7 +26,7 @@ type fixCmd struct {
 	verbose   bool
 	diff      bool
 	fix       string
-	fixFilter func(s string) bool
+	fixFilter func(s fix.Fix) bool
 }
 
 func newFixCmd(cio commands.IO) *commands.Command {
@@ -41,7 +41,11 @@ The available fixes are the following:
 `)
 	for _, fx := range fix.Fixes {
 		desc := strings.ReplaceAll(fx.Desc, "\n", "\n\t")
-		fmt.Fprintf(&bld, "- %s (%s)\n\t%s\n", fx.Name, fx.Date, desc)
+		disabled := ""
+		if fx.DisabledByDefault {
+			disabled = " - disabled by default"
+		}
+		fmt.Fprintf(&bld, "- %s (%s)%s\n\t%s\n", fx.Name, fx.Date, disabled, desc)
 	}
 
 	return commands.NewCommand(
@@ -61,7 +65,7 @@ The available fixes are the following:
 func (c *fixCmd) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&c.verbose, "v", false, "verbose output when fixing")
 	fs.BoolVar(&c.diff, "diff", false, "show diffs of files which are meant to be changed (without writing to them)")
-	fs.StringVar(&c.fix, "fix", "", "comma-separated of fixes to run. by default all known fixes.")
+	fs.StringVar(&c.fix, "fix", "", "comma-separated of fixes to run. refer to the list for the enabled fixes by default.")
 }
 
 func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
@@ -72,9 +76,9 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 
 	if cmd.fix != "" {
 		fixes := strings.Split(cmd.fix, ",")
-		cmd.fixFilter = func(s string) bool { return slices.Contains(fixes, s) }
+		cmd.fixFilter = func(fx fix.Fix) bool { return slices.Contains(fixes, fx.Name) }
 	} else {
-		cmd.fixFilter = func(s string) bool { return true }
+		cmd.fixFilter = func(fx fix.Fix) bool { return !fx.DisabledByDefault }
 	}
 
 	targets, err := targetsFromPatterns(args)
@@ -91,10 +95,11 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 			continue
 		}
 		// individual file: process fix without version
-		if len(files) == 1 && files[0] == targ {
+		if len(files) == 1 && files[0] == cleanPath(targ) {
 			if err := cmd.processFix(cio, files, nil); err != nil {
 				return err
 			}
+			continue
 		}
 		gm, isDotMod := gnoFixParseGnomod(targ)
 		if err := cmd.processFix(cio, files, gm); err != nil {
@@ -159,7 +164,7 @@ func (c *fixCmd) processFix(cio commands.IO, files []string, gm *gnomod.File) er
 		// set if any of the fixes changed the AST.
 		fixed := false
 		for _, fx := range fix.Fixes {
-			if fx.F == nil || !c.fixFilter(fx.Name) {
+			if fx.F == nil || !c.fixFilter(fx) {
 				continue
 			}
 			if fx.Version != "" && gm != nil {

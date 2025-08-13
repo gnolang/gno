@@ -16,10 +16,11 @@ import (
 
 // Fix is an individual fix provided by this package.
 type Fix struct {
-	Name string
-	Date string // date that fix was introduced, in YYYY-MM-DD format
-	F    func(f *ast.File) bool
-	Desc string
+	Name              string
+	Date              string // date that fix was introduced, in YYYY-MM-DD format
+	F                 func(f *ast.File) bool
+	Desc              string
+	DisabledByDefault bool
 
 	// gnomod.toml version applied after this fix. If not said, applied
 	// regardless of gnomod.toml version.
@@ -38,10 +39,11 @@ modification may be required in these cases.`,
 		Version: "0.9",
 	},
 	{
-		Name: "stdsplit",
-		Date: "2025-06-20",
-		Desc: "rewrites imports and symbols of the std package into the new packages and symbols",
-		F:    stdsplit,
+		Name:              "stdsplit",
+		Date:              "2025-08-13",
+		Desc:              "rewrites imports and symbols of the std package into the new packages and symbols",
+		F:                 stdsplit,
+		DisabledByDefault: true,
 	},
 }
 
