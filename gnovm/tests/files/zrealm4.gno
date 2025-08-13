@@ -38,7 +38,7 @@ func main(cur realm) {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8",
 //              "LastObjectSize": "617",
 //     -        "ModTime": "0",
-//     +        "ModTime": "8",
+//     +        "ModTime": "6",
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
 //              "RefCount": "1"
 //          }
@@ -48,7 +48,7 @@ func main(cur realm) {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
 //              "LastObjectSize": "373",
 //     -        "ModTime": "0",
-//     +        "ModTime": "8",
+//     +        "ModTime": "6",
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
 //              "RefCount": "1"
 //          },
@@ -57,26 +57,17 @@ func main(cur realm) {
 //              "V": {
 //                  "@type": "/gno.RefValue",
 //     -            "Hash": "ff7d2f7d23827a0af50e33994bc896d1b1ab3ea8",
-//     +            "Hash": "6e91c2c1ddacaac0d8a29bbbfa6816187d7a491c",
+//     +            "Hash": "96c117a6d96839a8fd3ef5fadbedcdb3253fdc65",
 //                  "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8"
 //              }
 //          }
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3](0)=
-//     @@ -2,7 +2,7 @@
-//          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
-//              "LastObjectSize": "423",
-//     -        "ModTime": "6",
-//     +        "ModTime": "8",
-//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
-//              "RefCount": "1"
-//          },
 //     @@ -18,7 +18,7 @@
 //                  "@type": "/gno.PointerValue",
 //                  "Base": {
 //                      "@type": "/gno.RefValue",
 //     -                "Hash": "9ca98fdf0502999046966e61b84ad729e39753e7",
-//     +                "Hash": "4fa20e6392426796a09b98a2f36a70a1dff01392",
+//     +                "Hash": "473ee60eb7ccf956565783ba16c8970645499554",
 //                      "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7"
 //                  },
 //                  "Index": "0",

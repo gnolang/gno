@@ -103,6 +103,7 @@ func Exec(cb func() string) string {
 }
 
 // ------------------------------------
+var AllowedList = []int{1, 2}
 var Closure func()
 
 func SetClosure(cur realm, f func()) {
