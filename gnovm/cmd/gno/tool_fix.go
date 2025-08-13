@@ -361,13 +361,13 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, testbs stypes.CommitSto
 				// They are collected in
 				// pn.GetAttribute("XREALMFORM")
 				for _, fn := range tfset.Files {
-					gno.FindXformsGno0p9(tm.Store, pn, fn)
-					gno.FindMoreXformsGno0p9(tm.Store, pn, pn, fn)
+					gno.FindXformsGno0p9(tm.Store, nil, pn, fn)
+					gno.FindMoreXformsGno0p9(tm.Store, nil, pn, pn, fn)
 				}
 				for { // continue to find more until exhausted.
 					xnewSum := 0
 					for _, fn := range tfset.Files {
-						xnew := gno.FindMoreXformsGno0p9(tm.Store, pn, pn, fn)
+						xnew := gno.FindMoreXformsGno0p9(tm.Store, nil, pn, pn, fn)
 						xnewSum += xnew
 					}
 					if xnewSum == 0 {
@@ -390,13 +390,13 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, testbs stypes.CommitSto
 				// They are collected in
 				// pn.GetAttribute("XREALMFORM")
 				for _, fn := range _tests.Files {
-					gno.FindXformsGno0p9(tm.Store, pn, fn)
-					gno.FindMoreXformsGno0p9(tm.Store, pn, pn, fn)
+					gno.FindXformsGno0p9(tm.Store, nil, pn, fn)
+					gno.FindMoreXformsGno0p9(tm.Store, nil, pn, pn, fn)
 				}
 				for { // continue to find more until exhausted.
 					xnewSum := 0
 					for _, fn := range _tests.Files {
-						xnew := gno.FindMoreXformsGno0p9(tm.Store, pn, pn, fn)
+						xnew := gno.FindMoreXformsGno0p9(tm.Store, nil, pn, pn, fn)
 						xnewSum += xnew
 					}
 					if xnewSum == 0 {
@@ -431,13 +431,13 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, testbs stypes.CommitSto
 					// They are collected in
 					// pn.GetAttribute("XREALMFORM")
 					for _, fn := range fset.Files {
-						gno.FindXformsGno0p9(tm.Store, pn, fn)
-						gno.FindMoreXformsGno0p9(tm.Store, pn, pn, fn)
+						gno.FindXformsGno0p9(tm.Store, nil, pn, fn)
+						gno.FindMoreXformsGno0p9(tm.Store, nil, pn, pn, fn)
 					}
 					for { // continue to find more until exhausted.
 						xnewSum := 0
 						for _, fn := range fset.Files {
-							xnew := gno.FindMoreXformsGno0p9(tm.Store, pn, pn, fn)
+							xnew := gno.FindMoreXformsGno0p9(tm.Store, nil, pn, pn, fn)
 							xnewSum += xnew
 						}
 						if xnewSum == 0 {

@@ -9,6 +9,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/test"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 type ReplOption func(*Repl)
@@ -91,8 +92,13 @@ func NewRepl(opts ...ReplOption) *Repl {
 	})
 	r.m.SetActivePackage(r.pv)
 
+	var gasMeter store.GasMeter
+	if r.m != nil {
+		gasMeter = r.m.GasMeter
+	}
+
 	// preprocess nodes.
-	r.fn = gno.Preprocess(r.store, r.pn, r.fn).(*gno.FileNode)
+	r.fn = gno.Preprocess(r.store, gasMeter, r.pn, r.fn).(*gno.FileNode)
 
 	// set blocks.
 	// r.m.PushBlock(r.fb)
