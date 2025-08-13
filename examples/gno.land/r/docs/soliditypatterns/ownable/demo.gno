@@ -1,4 +1,4 @@
-package onlyownercanchange
+package ownable
 
 import "std"
 

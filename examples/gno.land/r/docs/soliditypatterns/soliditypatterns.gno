@@ -8,13 +8,13 @@ This is a list of common Solidity patterns, converted and explained to match Gno
 ## Examples
 
 - [Basic Counter](/r/docs/soliditypatterns/counter) - Increment and decrement a counter stored in a contract.
-- [Only Owner can change](/r/docs/soliditypatterns/onlyownercanchange) - A contract that only the owner can change data inside.
-- [State Lock](/r/docs/soliditypatterns/statelock) - A lock to dissalow transaction if it was locked
+- [Only Owner can change](/r/docs/soliditypatterns/ownable) - Simple example of ownership over a contract.
+- [State Lock](/r/docs/soliditypatterns/statelock) - Modifiers.
+- More common examples coming soon!
 
-## Other resources
+> [!NOTE]
+>  If you have experience with Solidity, or a common pattern is missing from this list, please add more examples to the [Monorepo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/docs/soliditypatterns)!
 
-- You can also run your raw EVM bytecode from compiled Solidity on [Gno EVM](/r/demo/evm)
-- [Official documentation](https://docs.gno.land) <!-- should be /docs with gnoweb embedding the docs/ folder. -->
 `
 	return content
 }
