@@ -16,7 +16,7 @@ gnokey maketx call -pkgpath gno.land/r/append -func Append -gas-fee 1000000ugnot
 stdout OK!
 
 # Call Append 3
-gnokey maketx call -pkgpath gno.land/r/append -func Append -gas-fee 1000000ugnot -gas-wanted 500000 -args '3' -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/append -func Append -gas-fee 1000000ugnot -gas-wanted 400000 -args '3' -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # Call render
