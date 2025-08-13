@@ -381,6 +381,7 @@ func LoadImports(store gno.Store, mpkg *std.MemPackage, abortOnError bool) (err 
 		packages.FileKindXTest,
 	)
 	for _, imp := range imports {
+		fmt.Println("===imp: ", imp)
 		if gno.IsRealmPath(imp.PkgPath) {
 			// Don't eagerly load realms.
 			// Realms persist state and can change the state of other realms in initialization.

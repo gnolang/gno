@@ -67,6 +67,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		opslog = new(bytes.Buffer)
 	}
 
+	fmt.Println("======tgs.GetAllocator: ", tgs.GetAllocator())
 	// Create machine for execution and run test
 	tcw := opts.BaseStore.CacheWrap()
 	fmt.Println("=============machine for main...")
@@ -291,6 +292,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 		return runResult{Error: err.Error()}
 	}
+	fmt.Println("=========LoadImports done......")
 
 	// Reset and start capturing stdout.
 	opts.filetestBuffer.Reset()
@@ -352,11 +354,12 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		fmt.Println("======Construct throwaway package and parse file...")
 		// Construct throwaway package and parse file.
 		pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
-		if pkgPath == "main" {
-			fmt.Println("=====================!!!!!!!!!!!!!!!, alloc main pakcage block, m.Alloc: ", m.Alloc)
-			m.Alloc.AllocateBlock(int64(len(pn.Values)))
-		}
-		pv := pn.NewPackage()
+		// if pkgPath == "main" {
+		// 	fmt.Println("=====================!!!!!!!!!!!!!!!, alloc main pakcage block, m.Alloc: ", m.Alloc)
+		// 	m.Alloc.AllocateBlock(int64(len(pn.Values)))
+		// }
+		// XXX, alloc pv for main
+		pv := pn.NewPackage(m.Alloc)
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 		m.SetActivePackage(pv)
@@ -364,6 +367,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		fn := gno.MustParseFile(fname, string(content))
 		// Run (add) file, and then run main().
 		m.RunFiles(fn)
+		fmt.Println("!!!!!!!!!!!!!! len of values: ", len(m.Package.Block.(*gno.Block).Values))
 		m.RunMain()
 	} else { // Realm case.
 		gno.DisableDebug() // until main call.

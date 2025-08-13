@@ -800,12 +800,15 @@ func (pv *PackageValue) getFBlocksMap() map[string]*Block {
 
 // called after loading *PackageValue.
 func (pv *PackageValue) deriveFBlocksMap(store Store) {
+	// XXX, allocation?
 	if pv.fBlocksMap == nil {
 		pv.fBlocksMap = make(map[string]*Block, len(pv.FNames))
 	}
 	for i := range pv.FNames {
 		fname := pv.FNames[i]
+		fmt.Println("======deriveFBlocksMap, fname: ", fname)
 		fblock := pv.GetFileBlock(store, fname)
+		fmt.Println("======fblock...")
 		pv.fBlocksMap[fname] = fblock // idempotent.
 	}
 }
@@ -813,6 +816,7 @@ func (pv *PackageValue) deriveFBlocksMap(store Store) {
 // Retrieves the block from store if necessary, and if so fills all the values
 // of the block.
 func (pv *PackageValue) GetBlock(store Store) *Block {
+	fmt.Println("===================GetBlock...")
 	bv := pv.Block
 	switch bv := bv.(type) {
 	case RefValue:
@@ -820,6 +824,7 @@ func (pv *PackageValue) GetBlock(store Store) *Block {
 		pv.Block = bb
 		for i := range bb.Values {
 			tv := &bb.Values[i]
+			fmt.Println("======================fill value of block...")
 			fillValueTV(store, tv)
 		}
 		return bb
@@ -852,6 +857,7 @@ func (pv *PackageValue) AddFileBlock(fname string, fb *Block) {
 }
 
 func (pv *PackageValue) GetFileBlock(store Store, fname string) *Block {
+	// XXX, or allocate here?
 	if fb, ex := pv.getFBlocksMap()[fname]; ex {
 		return fb
 	}
@@ -2284,8 +2290,7 @@ type Block struct {
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.
-// XXX pass allocator in for heap items.
-func NewBlock(source BlockNode, parent *Block) *Block {
+func NewBlock(alloc *Allocator, source BlockNode, parent *Block) *Block {
 	numNames := source.GetNumNames()
 	values := make([]TypedValue, numNames)
 	// Keep in sync with ExpandWith().
@@ -2296,7 +2301,7 @@ func NewBlock(source BlockNode, parent *Block) *Block {
 		// Indicates must always be heap item.
 		values[i] = TypedValue{
 			T: heapItemType{},
-			V: &HeapItemValue{},
+			V: alloc.NewHeapItem(TypedValue{}),
 		}
 	}
 	return &Block{

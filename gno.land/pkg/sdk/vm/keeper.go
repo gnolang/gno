@@ -386,7 +386,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 
 	// call sysNamesPkg.IsAuthorizedAddressForName("<user>")
 	// We only need to check by name here, as addresses have already been checked
-	mpv := gno.NewPackageNode("main", "main", nil).NewPackage()
+	mpv := gno.NewPackageNode("main", "main", nil).NewPackage(m.Alloc)
 	m.SetActivePackage(mpv)
 	m.RunDeclaration(gno.ImportD("names", sysNamesPkg))
 	x := gno.Call(
@@ -571,7 +571,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// Make main Package with imports.
 	mpn := gno.NewPackageNode("main", "", nil)
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
-	mpv := mpn.NewPackage()
+	mpv := mpn.NewPackage(gnostore.GetAllocator())
 	// Parse expression.
 	argslist := ""
 	for i := range msg.Args {

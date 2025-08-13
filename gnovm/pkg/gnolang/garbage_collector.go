@@ -36,6 +36,7 @@ type Visitor func(v Value) (stop bool)
 // XXX: make sure tv.T isn't bumped from allocation either.
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	fmt.Println("===============GarbageCollect...")
+	fmt.Println("===============m.Alloc.Status(): ", m.Alloc)
 	m.Alloc.isGc = true
 	// times objects are visited for gc
 	var visitCount int64
@@ -313,7 +314,7 @@ func (mv *MapValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
-	fmt.Println("======VisitAssociated of PackageValue...")
+	fmt.Println("======VisitAssociated of PackageValue..., pv: ", pv)
 	// visit pv.Block
 	v := pv.Block
 	if v != nil {
@@ -326,6 +327,7 @@ func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
 
 	// visit pv.FBlocks
 	for _, fb := range pv.FBlocks {
+		fmt.Println("===================visiting file blocks: ", fb)
 		if fb == nil {
 			continue
 		}
@@ -373,6 +375,8 @@ func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
 			stop = vis(v)
 		}
 	case RefValue:
+		// XXX, if ref value existing in memory, not count this.
+		fmt.Println("===parent of refValue: ", v)
 		stop = vis(v)
 	}
 

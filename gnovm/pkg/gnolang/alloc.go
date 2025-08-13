@@ -117,6 +117,8 @@ func (alloc *Allocator) Fork() *Allocator {
 }
 
 func (alloc *Allocator) Allocate(size int64) {
+	// fmt.Println("======Allocate, alloc: ", alloc)
+	// fmt.Println("======Allocate, size: ", size)
 	if alloc == nil {
 		// this can happen for map items just prior to assignment.
 		return
@@ -149,11 +151,15 @@ func (alloc *Allocator) Allocate(size int64) {
 		}
 	}
 	if alloc.isGc {
-		alloc.GcCount++
+		if size > 0 {
+			alloc.GcCount++
+		}
 		fmt.Println("========================GC counting size: ", size)
 		fmt.Println("========================GC alloc.bytes: ", alloc.bytes)
 	} else {
-		alloc.AllocCount++
+		if size > 0 {
+			alloc.AllocCount++
+		}
 		fmt.Println("========================Alloc size: ", size)
 	}
 }
@@ -201,6 +207,10 @@ func (alloc *Allocator) AllocateMapItem() {
 
 func (alloc *Allocator) AllocateBoundMethod() {
 	alloc.Allocate(allocBoundMethod)
+}
+
+func (alloc *Allocator) AllocatePackageValue() {
+	alloc.Allocate(allocPackage)
 }
 
 func (alloc *Allocator) AllocateBlock(items int64) {
@@ -349,10 +359,27 @@ func (alloc *Allocator) NewMap(size int) *MapValue {
 	return mv
 }
 
+func (alloc *Allocator) NewPackageValue(pn *PackageNode) *PackageValue {
+	alloc.AllocatePackageValue()
+	alloc.AllocateBlock(int64(len(pn.Values)))
+	pv := &PackageValue{
+		Block: &Block{
+			Source: pn,
+		},
+		PkgName:    pn.PkgName,
+		PkgPath:    pn.PkgPath,
+		FNames:     nil,
+		FBlocks:    nil,
+		fBlocksMap: make(map[string]*Block),
+	}
+
+	return pv
+}
+
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
 	fmt.Println("======NewBlock, source: ", source)
 	alloc.AllocateBlock(int64(source.GetNumNames()))
-	return NewBlock(source, parent)
+	return NewBlock(alloc, source, parent)
 }
 
 func (alloc *Allocator) NewType(t Type) Type {
@@ -368,17 +395,19 @@ func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 // -----------------------------------------------
 
 func (pv *PackageValue) GetShallowSize() int64 {
+	fmt.Println("================GetShallowSize of pv: ", pv)
 	var (
 		allocFNames     int64
 		allocFBlocks    int64
 		allocFBlocksMap int64
 	)
 
+	// XXX, should make these in visit associated? No
 	for _, name := range pv.FNames {
 		allocFNames += int64(len(name)) + _allocName // string is counted as shallow size.
 	}
 
-	allocFBlocks = int64(len(pv.FBlocks)) * _allocValue
+	allocFBlocks = int64(len(pv.FBlocks)) * _allocValue // like items in block...
 
 	for name := range pv.fBlocksMap {
 		allocFBlocksMap += int64(len(name)) + _allocName // key
@@ -437,11 +466,11 @@ func (sv *SliceValue) GetShallowSize() int64 {
 
 // Only count for closures.
 func (fv *FuncValue) GetShallowSize() int64 {
-	if fv.IsClosure {
-		return allocFunc +
-			int64(len(fv.Captures))*(allocTypedValue+allocHeapItem)
-	}
-	return 0
+	// if fv.IsClosure {
+	return allocFunc +
+		int64(len(fv.Captures))*(allocTypedValue+allocHeapItem)
+	// }
+	// return 0
 }
 
 func (sv StringValue) GetShallowSize() int64 {

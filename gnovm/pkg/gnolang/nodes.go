@@ -1333,17 +1333,22 @@ func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 	return pn
 }
 
-func (pn *PackageNode) NewPackage() *PackageValue {
+func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 	fmt.Println("======NewPackage......, pn.PkgPath: ", pn.PkgPath)
-	pv := &PackageValue{
-		Block: &Block{
-			Source: pn,
-		},
-		PkgName:    pn.PkgName,
-		PkgPath:    pn.PkgPath,
-		FNames:     nil,
-		FBlocks:    nil,
-		fBlocksMap: make(map[string]*Block),
+	var pv *PackageValue
+	if pn.PkgPath == "main" { // XXX, also for non realm? realm not alloc here but in GetObject?
+		pv = alloc.NewPackageValue(pn)
+	} else {
+		pv = &PackageValue{
+			Block: &Block{
+				Source: pn,
+			},
+			PkgName:    pn.PkgName,
+			PkgPath:    pn.PkgPath,
+			FNames:     nil,
+			FBlocks:    nil,
+			fBlocksMap: make(map[string]*Block),
+		}
 	}
 	fmt.Println("======pv: ", pv.Block)
 	// Set realm for realm packages, main package, and ephemeral run packages
@@ -1354,8 +1359,8 @@ func (pn *PackageNode) NewPackage() *PackageValue {
 		rlm := NewRealm(pn.PkgPath)
 		pv.SetRealm(rlm)
 	}
-	pv.IncRefCount() // all package values have starting ref count of 1.
-	pn.PrepareNewValues(pv)
+	pv.IncRefCount()                      // all package values have starting ref count of 1.
+	pn.PrepareNewValues(nilAllocator, pv) // XXX
 	return pv
 }
 
@@ -1365,7 +1370,7 @@ func (pn *PackageNode) NewPackage() *PackageValue {
 // length. The implementation is similar to Block.ExpandWith.
 // NOTE: declared methods do not get their closures set here. See
 // *DeclaredType.GetValueAt() which returns a filled copy.
-func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
+func (pn *PackageNode) PrepareNewValues(alloc *Allocator, pv *PackageValue) []TypedValue {
 	// should already exist.
 	block := pv.Block.(*Block)
 	if block.Source != pn {
@@ -1415,10 +1420,12 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 			if _, ok := tv.T.(heapItemType); ok {
 				panic("unexpected heap item")
 			}
+			// XXX, alloc here?
 			if heapItems[pvl+i] {
 				nvs[i] = TypedValue{
 					T: heapItemType{},
-					V: &HeapItemValue{Value: nvs[i]},
+					// V: &HeapItemValue{Value: nvs[i]},
+					V: alloc.NewHeapItem(nvs[i]),
 				}
 			}
 		}

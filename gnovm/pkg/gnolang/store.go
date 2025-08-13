@@ -60,6 +60,7 @@ type Store interface {
 
 	// UNSTABLE
 	GetAllocator() *Allocator
+	SetAllocator(alloc *Allocator)
 	NumMemPackages() int64
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
@@ -266,6 +267,10 @@ func (ds *defaultStore) GetAllocator() *Allocator {
 	return ds.alloc
 }
 
+func (ds *defaultStore) SetAllocator(alloc *Allocator) {
+	ds.alloc = alloc
+}
+
 // Used by cmd/gno (e.g. lint) to inject target package as MPTest.
 func (ds *defaultStore) GetPackageGetter() (pg PackageGetter) {
 	return ds.pkgGetter
@@ -278,6 +283,9 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 // Gets package from cache, or loads it from baseStore, or gets it from package getter.
 func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
 	fmt.Println("======GetPackage, pkgPath: ", pkgPath)
+	// if pkgPath == "gno.land/r/demo/ext" {
+	// 	panic("!!!!!!!!!!!!!!!!!")
+	// }
 	// helper to detect circular imports
 	if isImport {
 		if slices.Contains(ds.current, pkgPath) {
@@ -291,13 +299,16 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	// first, check cache.
 	oid := ObjectIDFromPkgPath(pkgPath)
 	if oo, exists := ds.cacheObjects[oid]; exists {
+		fmt.Println("=====from cache...")
 		pv := oo.(*PackageValue)
 		return pv
 	}
 	// else, load package.
 	if ds.baseStore != nil {
+		fmt.Println("=====from store...")
 		if oo := ds.loadObjectSafe(oid); oo != nil {
 			pv := oo.(*PackageValue)
+			// XXX, alloc
 			_ = pv.GetBlock(ds) // preload
 			// get package associated realm if nil.
 			if pv.IsRealm() && pv.Realm == nil {
@@ -312,6 +323,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	// otherwise, fetch from pkgGetter.
 	if ds.pkgGetter != nil {
 		if pn, pv := ds.pkgGetter(pkgPath, ds); pv != nil {
+			fmt.Println("=====from pkgGetter...")
 			// e.g. tests/imports_tests loads example/gno.land/r/... realms.
 			// if pv.IsRealm() {
 			// 	panic("realm packages cannot be gotten from pkgGetter")
@@ -464,6 +476,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		gas := overflow.Mulp(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasGetObjectDesc)
 		amino.MustUnmarshal(bz, &oo)
+		fmt.Println("===============loadObjectSafe, allocate..., oid: ", oid)
 		ds.alloc.Allocate(oo.GetShallowSize())
 		if debug {
 			if oo.GetObjectID() != oid {
@@ -496,6 +509,7 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 	}
 	oid := oo.GetObjectID()
 	// replace children/fields with Ref.
+	// XXX: allocate ref???
 	o2 := copyValueWithRefs(oo)
 	// marshal to binary.
 	bz := amino.MustMarshalAny(o2)

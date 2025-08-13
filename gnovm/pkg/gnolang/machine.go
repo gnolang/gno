@@ -117,6 +117,8 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	if store == nil {
 		// bare store, no stdlibs.
 		store = NewStore(alloc, nil, nil)
+	} else {
+		store.SetAllocator(alloc)
 	}
 	// Get machine from pool.
 	mm := machinePool.Get().(*Machine)
@@ -139,7 +141,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		if pv == nil {
 			pkgName := defaultPkgName(opts.PkgPath)
 			pn := NewPackageNode(pkgName, opts.PkgPath, &FileSet{})
-			pv = pn.NewPackage()
+			pv = pn.NewPackage(mm.Alloc)
 			store.SetBlockNode(pn)
 			store.SetCachePackage(pv)
 		}
@@ -282,7 +284,7 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		pn = m.Store.GetBlockNode(loc).(*PackageNode)
 	} else {
 		pn = NewPackageNode(Name(mpkg.Name), mpkg.Path, &FileSet{})
-		pv = pn.NewPackage()
+		pv = pn.NewPackage(m.Alloc)
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 	}
@@ -502,7 +504,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 	if fixFrom != "" {
 		pn.SetAttribute(ATTR_FIX_FROM, fixFrom)
 	}
-	pv := pn.NewPackage()
+	pv := pn.NewPackage(m.Alloc) // XXX, nil?
 	pb := pv.GetBlock(m.Store)
 	m.SetActivePackage(pv)
 	m.Store.SetBlockNode(pn)
@@ -521,7 +523,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		pv.AddFileBlock(fn.FileName, fb)
 	}
 	// Get new values across all files in package.
-	pn.PrepareNewValues(pv)
+	pn.PrepareNewValues(m.Alloc, pv)
 	// save package value.
 	var throwaway *Realm
 	if save {
@@ -577,6 +579,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		}
 	}
 
+	fmt.Println("======Going to PredefineFileSet...")
 	// Predefine declarations across all files.
 	PredefineFileSet(m.Store, pn, fs)
 
@@ -589,6 +592,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		// runtime package value via PrepareNewValues.  Then,
 		// non-constant var declarations and file-level imports
 		// are re-set in runDeclaration(,true).
+		fmt.Println("======Going to preprocess package...")
 		fn = Preprocess(m.Store, pn, fn).(*FileNode)
 		if debug {
 			debug.Printf("PREPROCESSED FILE: %v\n", fn)
@@ -607,7 +611,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	}
 
 	// Get new values across all files in package.
-	updates := pn.PrepareNewValues(pv)
+	updates := pn.PrepareNewValues(m.Alloc, pv)
 
 	// to detect loops in var declarations.
 	loopfindr := []Name{}
@@ -954,7 +958,7 @@ func (m *Machine) RunDeclaration(d Decl) {
 	pn := m.LastBlock().GetSource(m.Store).(*PackageNode)
 	d = Preprocess(m.Store, pn, d).(Decl)
 	// do not SaveBlockNodes(m.Store, d).
-	pn.PrepareNewValues(m.Package)
+	pn.PrepareNewValues(m.Alloc, m.Package)
 	m.runDeclaration(d)
 	if debug {
 		if pn != m.Package.GetBlock(m.Store).GetSource(m.Store) {

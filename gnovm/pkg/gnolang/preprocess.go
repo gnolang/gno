@@ -25,6 +25,10 @@ const (
 // This function must be called on *FileSets because declarations
 // in file sets may be unordered.
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
+	fmt.Println("======PredefineFileSet...")
+	defer func() {
+		fmt.Println("======After PredefineFileSet...")
+	}()
 	// First, initialize all file nodes and connect to package node.
 	// This will also reserve names on BlockNode.StaticBlock by
 	// calling StaticBlock.Reserve().
@@ -208,6 +212,7 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 					panic("dot imports not allowed in gno")
 				}
 				if nn == "" { // use default
+					fmt.Println("======InitStaticBlocks, import decl, n.PkgPath: ", n.PkgPath)
 					pv := store.GetPackage(n.PkgPath, true)
 					if pv == nil {
 						panic(fmt.Sprintf(
@@ -3706,7 +3711,7 @@ func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, x Expr) (tv Typ
 	if cx, ok := x.(*ConstExpr); ok {
 		return cx.TypedValue, nil
 	}
-	pv := pn.NewPackage() // throwaway
+	pv := pn.NewPackage(nilAllocator) // throwaway
 	store = store.BeginTransaction(nil, nil, nil)
 	store.SetCachePackage(pv)
 	m := NewMachine(pn.PkgPath, store)
