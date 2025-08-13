@@ -24,13 +24,13 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(user))
 
 	// Create root DAO without subDAOs
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/nt/commondao"))
 	rootID = commondao.New("Root DAO").ID()
 }
 
 func main() {
 	// Use a caller that is not the owner of the DAO
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
 
 	commondao.NewIterator(rootID)
 }

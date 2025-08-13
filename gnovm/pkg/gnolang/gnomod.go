@@ -1,12 +1,13 @@
 package gnolang
 
 import (
-	"bytes"
 	"fmt"
 	"html/template"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
@@ -20,22 +21,25 @@ to generate the final gnomod.toml file. */}}
 module = "{{.PkgPath}}"
 gno = "{{.GnoVersion}}"`
 
+var gnomodTemplateOnce = sync.OnceValue(func() *template.Template {
+	return template.Must(template.New("").Parse(gnomodTemplate))
+})
+
 func GenGnoModLatest(pkgPath string) string  { return genGnoMod(pkgPath, GnoVerLatest) }
 func GenGnoModTesting(pkgPath string) string { return genGnoMod(pkgPath, GnoVerTesting) }
 func GenGnoModDefault(pkgPath string) string { return genGnoMod(pkgPath, GnoVerDefault) }
 func GenGnoModMissing(pkgPath string) string { return genGnoMod(pkgPath, GnoVerMissing) }
 
 func genGnoMod(pkgPath string, gnoVersion string) string {
-	buf := new(bytes.Buffer)
-	tmpl := template.Must(template.New("").Parse(gnomodTemplate))
-	err := tmpl.Execute(buf, struct {
+	var bld strings.Builder
+	err := gnomodTemplateOnce().Execute(&bld, struct {
 		PkgPath    string
 		GnoVersion string
 	}{pkgPath, gnoVersion})
 	if err != nil {
 		panic(fmt.Errorf("generating gnomod.toml: %w", err))
 	}
-	return string(buf.Bytes())
+	return bld.String()
 }
 
 const (
@@ -77,7 +81,8 @@ func ParseCheckGnoMod(mpkg *std.MemPackage) (mod *gnomod.File, err error) {
 
 // ========================================
 // ReadPkgListFromDir() lists all gno packages in the given dir directory.
-func ReadPkgListFromDir(dir string) (gnomod.PkgList, error) {
+// `mptype` determines what subset of files are considered to read from.
+func ReadPkgListFromDir(dir string, mptype MemPackageType) (gnomod.PkgList, error) {
 	var pkgs []gnomod.Pkg
 
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
@@ -87,6 +92,7 @@ func ReadPkgListFromDir(dir string) (gnomod.PkgList, error) {
 		if !d.IsDir() {
 			return nil
 		}
+
 		for _, fname := range []string{"gnomod.toml", "gno.mod"} {
 			modPath := filepath.Join(path, fname)
 			data, err := os.ReadFile(modPath)
@@ -106,7 +112,7 @@ func ReadPkgListFromDir(dir string) (gnomod.PkgList, error) {
 				return fmt.Errorf("failed to validate gnomod.toml in %s: %w", modPath, err)
 			}
 
-			pkg, err := ReadMemPackage(path, mod.Module)
+			pkg, err := ReadMemPackage(path, mod.Module, mptype)
 			if err != nil {
 				// ignore package files on error
 				pkg = &std.MemPackage{}
@@ -117,7 +123,12 @@ func ReadPkgListFromDir(dir string) (gnomod.PkgList, error) {
 				// ignore imports on error
 				importsMap = nil
 			}
-			importsRaw := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
+			importsRaw := importsMap.Merge(
+				packages.FileKindFiletest,
+				packages.FileKindPackageSource,
+				packages.FileKindTest,
+				packages.FileKindXTest,
+			)
 
 			imports := make([]string, 0, len(importsRaw))
 			for _, imp := range importsRaw {

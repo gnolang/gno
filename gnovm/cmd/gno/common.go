@@ -49,15 +49,18 @@ func (i gnoIssue) String() string {
 //     used to transpile test/files/*.gno (no _filetest.gno suffix).
 //
 // Results:
-//   - fset: all normal and _test.go files in package excluding `package xxx_test`
+//   - all: all files.
+//   - fset: all normal files in package excluding test files.
+//   - tfset: all normal and _test.go files in package excluding `package xxx_test`
 //     integration *_test.gno files.
 //   - _tests: `package xxx_test` integration *_test.gno files.
 //   - ftests: *_filetest.gno file tests, each in their own file set.
 func sourceAndTestFileset(mpkg *std.MemPackage, onlyFiletests bool) (
-	all, fset *gno.FileSet, _tests *gno.FileSet, ftests []*gno.FileSet,
+	all, fset, tfset *gno.FileSet, _tests *gno.FileSet, ftests []*gno.FileSet,
 ) {
 	all = &gno.FileSet{}
 	fset = &gno.FileSet{}
+	tfset = &gno.FileSet{}
 	_tests = &gno.FileSet{}
 	for _, mfile := range mpkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
@@ -78,10 +81,16 @@ func sourceAndTestFileset(mpkg *std.MemPackage, onlyFiletests bool) (
 			strings.HasSuffix(string(n.PkgName), "_test") {
 			// A xxx_file integration test is a package of its own.
 			_tests.AddFiles(n)
-		} else {
-			// All normal package files and,
+		} else if strings.HasSuffix(mfile.Name, "_test.gno") &&
+			!strings.HasSuffix(string(n.PkgName), "_test") {
 			// _test.gno files that aren't xxx_test.
+			tfset.AddFiles(n)
+		} else {
+			// Non-test files.
 			fset.AddFiles(n)
+			// Parse again so fset and tfset can be preprocessed separately.
+			n := gno.MustParseFile(mfile.Name, mfile.Body)
+			tfset.AddFiles(n)
 		}
 	}
 	return
@@ -103,16 +112,24 @@ type processedFileSet struct {
 type processedPackage struct {
 	dir    string             // dirctory
 	mpkg   *std.MemPackage    // includes all files
-	normal processedFileSet   // includes all prod (and some *_test.gno) files
+	prod   processedFileSet   // includes all prod files, no test files.
+	test   processedFileSet   // include all prod files and some *_test.gno files.
 	_tests processedFileSet   // includes all xxx_test *_test.gno integration files
 	ftests []processedFileSet // includes all *_filetest.gno filetest files
 }
 
-func (ppkg *processedPackage) AddNormal(pn *gno.PackageNode, fset *gno.FileSet) {
-	if ppkg.normal != (processedFileSet{}) {
-		panic("normal processed fileset already set")
+func (ppkg *processedPackage) AddProd(pn *gno.PackageNode, fset *gno.FileSet) {
+	if ppkg.prod != (processedFileSet{}) {
+		panic("prod processed fileset already set")
 	}
-	ppkg.normal = processedFileSet{pn, fset}
+	ppkg.prod = processedFileSet{pn, fset}
+}
+
+func (ppkg *processedPackage) AddTest(pn *gno.PackageNode, fset *gno.FileSet) {
+	if ppkg.test != (processedFileSet{}) {
+		panic("test processed fileset already set")
+	}
+	ppkg.test = processedFileSet{pn, fset}
 }
 
 func (ppkg *processedPackage) AddUnderscoreTests(pn *gno.PackageNode, fset *gno.FileSet) {
@@ -259,7 +276,7 @@ func guessIssueFromError(dir, pkgPath string, err error, code gnoCode) gnoIssue 
 	issue.Code = code
 
 	parsedError := strings.TrimSpace(err.Error())
-	match := gno.Re_errorLine.Match(parsedError)
+	match := gno.ReErrorLine.Match(parsedError)
 	if match == nil {
 		issue.Location = fmt.Sprintf("%s:0", filepath.Clean(pkgPath))
 		issue.Msg = err.Error()

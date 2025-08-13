@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	initFunc                  = "init"
 	blankIdentifier           = "_"
 	debugFind                 = false // toggle when debugging.
 	AttrPreprocessFuncLitExpr = "FuncLitExpr"
@@ -2569,6 +2568,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *TypeDecl:
+				if n.Name == blankIdentifier {
+					n.Path = NewValuePathBlock(0, 0, blankIdentifier)
+					return n, TRANS_CONTINUE
+				}
 				// 'tmp' is a newly constructed type value, where
 				// any recursive references refer to the
 				// original type constructed by predefineRecursively()
@@ -3569,7 +3572,16 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 	pn := packageOf(last)
 	// See comment in evalStaticTypeOfRaw.
 	if store != nil && pn.PkgPath != uversePkgPath {
-		pv := pn.NewPackage() // temporary
+		// this used pn.NewPackage previously; however, that function
+		// additionally calls PrepareNewValues, which is not necessary in this
+		// context and incurs in very expensive allocations.
+		pv := &PackageValue{
+			Block: &Block{
+				Source: pn,
+			},
+			PkgName: pn.PkgName,
+			PkgPath: pn.PkgPath,
+		}
 		store = store.BeginTransaction(nil, nil, nil)
 		store.SetCachePackage(pv)
 	}
@@ -3628,7 +3640,16 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 		// package values are already there that weren't
 		// yet predefined this time around.
 		if store != nil && pn.PkgPath != uversePkgPath {
-			pv := pn.NewPackage() // temporary
+			pv := &PackageValue{
+				// this used pn.NewPackage previously; however, that function
+				// additionally calls PrepareNewValues, which is not necessary in this
+				// context and incurs in very expensive allocations.
+				Block: &Block{
+					Source: pn,
+				},
+				PkgName: pn.PkgName,
+				PkgPath: pn.PkgPath,
+			}
 			store = store.BeginTransaction(nil, nil, nil)
 			store.SetCachePackage(pv)
 		}
@@ -4819,6 +4840,9 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			}
 		}
 	case *TypeDecl:
+		if d.Name == blankIdentifier {
+			return
+		}
 		// before looking for dependencies, predefine empty type.
 		last2 := skipFile(last)
 		if !isLocallyDefined(last2, d.Name) {

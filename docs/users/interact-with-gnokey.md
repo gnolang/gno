@@ -147,14 +147,15 @@ The `addpkg` subcommmand uses the following flags and arguments:
 - `-pkgpath` - on-chain path where your code will be uploaded to
 - `-pkgdir` - local path where your is located
 - `-broadcast` - enables broadcasting the transaction to the chain
-- `-deposit` - a deposit amount of GNOT to send along with the transaction
+- `-send` - Amount of GNOT to send to the realm with the transaction (optional)
+- `-max-deposit` - Maximum GNOT to lock for storage deposit (optional)
 - `-gas-wanted` - the upper limit for units of gas for the execution of the
   transaction
 - `-gas-fee` - amount of GNOTs to pay per gas unit
 - `-chain-id` - id of the chain that we are sending the transaction to
 - `-remote` - specifies the remote node RPC listener address
 
-The `-pkgpath`, `-pkgdir`, and `-deposit` flags are unique to the `addpkg`
+The `-pkgpath`, `-pkgdir`, flags are unique to the `addpkg`
 subcommand, while `-broadcast`, `-gas-wanted`, `-gas-fee`, `-chain-id`, and
 `-remote` are used for setting the base transaction configuration. These flags
 will be repeated throughout the tutorial.
@@ -167,7 +168,6 @@ the `example/p/` folder, the command will look like this:
 gnokey maketx addpkg \
 -pkgpath "gno.land/p/<your_namespace>/hello_world" \
 -pkgdir "." \
--deposit "" \
 -gas-fee 10000000ugnot \
 -gas-wanted 8000000 \
 -broadcast \
@@ -182,7 +182,6 @@ transaction:
 gnokey maketx addpkg \
 -pkgpath "gno.land/p/examplenamespace/hello_world" \
 -pkgdir "." \
--send "" \
 -gas-fee 10000000ugnot \
 -gas-wanted 200000 \
 -broadcast \
@@ -344,7 +343,7 @@ the publicly-known `test1` address, and `100ugnot` for the coins we want to send
 respectively.
 
 To check the balance of a specific address, check out the `bank/balances` query
-in the [Querying a network](#bankbalances) section.
+in the [Querying a network](#querying-a-gnoland-network) section.
 
 ## `Run`
 
@@ -461,7 +460,7 @@ func Render(_ string) string {
 package main
 
 import (
-  "gno.land/r/docs/examples/run/foo"
+  "gno.land/r/docs/examples/foo"
 )
 
 func main() {
@@ -486,7 +485,7 @@ package main
 import (
   "strconv"
 
-  "gno.land/r/docs/examples/run/foo"
+  "gno.land/r/docs/examples/foo"
 )
 
 func main() {
@@ -511,7 +510,7 @@ func main() {
 ```go
 package main
 
-import "gno.land/r/docs/examples/run/foo"
+import "gno.land/r/docs/examples/foo"
 
 func main() {
 	println(foo.MainFoo.String())
@@ -638,7 +637,7 @@ Make sure the signature is in the `hex` format.
 gnokey verify -docpath userbook.tx mykey <signature>
 ```
 
-# Querying a Gno.land network
+## Querying a Gno.land network
 
 Gno.land and `gnokey` support ABCI queries. Using ABCI queries, you can query the state of
 a Gno.land network without spending any gas. All queries need to be pointed towards
@@ -656,6 +655,7 @@ Below is a list of queries a user can make with `gnokey`:
 - `vm/qdoc` - Returns the JSON of the doc for a given pkgpath, suitable for printing
 - `vm/qeval` - evaluates an expression in read-only mode on and returns the results
 - `vm/qrender` - shorthand for evaluating `vm/qeval Render("")` for a given pkgpath
+- `vm/qstorage` - returns storage usage and deposit locked in a realm
 
 Let's see how we can use them.
 
@@ -767,7 +767,7 @@ files found within the `wugnot` realm:
 
 ```bash
 height: 0
-data: gno.mod
+data: gnomod.toml
 wugnot.gno
 z0_filetest.gno
 ```
@@ -927,19 +927,19 @@ To see how this was achieved, check out `wugnot`'s `Render()` function.
 
 ## `vm/qpaths`
 
-`vm/qpaths` lists all existing package paths prefixed with the specified string 
-using `--data=<prefix>`. If no paths are provided, all known paths will be 
-listed, including those from `stdlibs`. You can specify an additional *limit* 
-parameter at the end of the path using `<path>?limit=<x>` to restrict the number 
-of results to `x` elements. If `0` is specified as *limit*, then, no limit will 
+`vm/qpaths` lists all existing package paths prefixed with the specified string
+using `--data=<prefix>`. If no paths are provided, all known paths will be
+listed, including those from `stdlibs`. You can specify an additional *limit*
+parameter at the end of the path using `<path>?limit=<x>` to restrict the number
+of results to `x` elements. If `0` is specified as *limit*, then, no limit will
 be applied, with a hard limit of `10_000`. The default *limit* is `1_000`.
-  
+
 A simple example:
 ```bash
 gnokey query vm/qpaths --data "gno.land/r/gnoland"
 ```
 
-Would output: 
+Would output:
 ```bash
 height: 0
 data: gno.land/r/gnoland/blog
@@ -951,7 +951,7 @@ gno.land/r/gnoland/users
 gno.land/r/gnoland/users/v1
 ```
 
-The result limit can also be specified in the following manner (mind the added 
+The result limit can also be specified in the following manner (mind the added
 quotes):
 ```bash
 gnokey query "vm/qpaths?limit=3" --data "gno.land/r/gnoland"
@@ -974,8 +974,28 @@ gno.land/p/foo/ui
 gno.land/p/foo/svg
 ```
 
-In practice, this is shorthand for listing packages under `gno.land/p/foo` & 
+In practice, this is shorthand for listing packages under `gno.land/p/foo` &
 `gno.land/r/foo`.
+
+## `vm/qstorage`
+
+This ABCI query endpoint can be used to inspect current storage usage and deposit in a realm:
+
+```bash
+gnokey query vm/qstorage --data "gno.land/r/foo"
+```
+
+Sample Output:
+
+```
+storage: 5025, deposit: 502500
+```
+
+`storage` represents total bytes used, while `deposit` is the total GNOT locked for that by that realm.
+
+The storage price can be also calculated directly using this output
+(e.g., deposit / storage, `502500/5025 = 100ugnot`) instead of querying the price
+per byte from the params realm.
 
 ### Gas parameters
 
@@ -993,5 +1013,5 @@ gnokey maketx call \
   YOUR_KEY_NAME
 ```
 
-For detailed information about gas fees, including recommended values and 
+For detailed information about gas fees, including recommended values and
 optimization strategies, see the [Gas Fees documentation](../resources/gas-fees.md).

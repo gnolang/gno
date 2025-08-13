@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+// PKGPATH: gno.land/r/demo/test
+package test
 
 import (
 	"std"
@@ -41,9 +41,9 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 	commondao.Invite(cross, user1)
 
-	// Create a new DAO which gives ownership to `commondao_test`
+	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(std.NewUserRealm(user1))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
 	dao = commondao.New("Foo")
 
 	// Configure DAO
@@ -63,7 +63,7 @@ func init() {
 	commondao.Vote(cross, dao.ID(), proposal.ID(), pdao.ChoiceYes, "")
 }
 
-func main(cur realm) {
+func main() {
 	testing.SetRealm(std.NewUserRealm(user1))
 
 	commondao.Execute(cross, dao.ID(), proposal.ID())

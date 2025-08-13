@@ -28,7 +28,7 @@ func TestDownloadDeps(t *testing.T) {
 			pkgPath: "gno.land/p/demo/does_not_exists",
 			modFile: func() *gnomod.File {
 				f := &gnomod.File{}
-				f.Module = "testFetchDeps"
+				f.Module = "gno.land/r/test_fetch_deps"
 				return f
 			}(),
 			errorShouldContain: "query files list for pkg \"gno.land/p/demo/does_not_exists\": package \"gno.land/p/demo/does_not_exists\" is not available",
@@ -37,7 +37,7 @@ func TestDownloadDeps(t *testing.T) {
 			pkgPath: "gno.land/p/demo/avl",
 			modFile: func() *gnomod.File {
 				f := &gnomod.File{}
-				f.Module = "testFetchDeps"
+				f.Module = "gno.land/r/test_fetch_deps"
 				return f
 			}(),
 			requirements: []string{"avl", "ufmt"},
@@ -50,7 +50,7 @@ func TestDownloadDeps(t *testing.T) {
 			pkgPath: "gno.land/p/demo/blog",
 			modFile: func() *gnomod.File {
 				f := &gnomod.File{}
-				f.Module = "testFetchDeps"
+				f.Module = "gno.land/r/test_fetch_deps"
 				return f
 			}(),
 			requirements: []string{"avl", "blog", "diff", "uassert", "ufmt", "mux", "nestedpkg", "testutils"},
@@ -64,7 +64,7 @@ func TestDownloadDeps(t *testing.T) {
 			pkgPath: "gno.land/p/demo/replaced_avl",
 			modFile: func() *gnomod.File {
 				f := &gnomod.File{}
-				f.Module = "testFetchDeps"
+				f.Module = "gno.land/r/test_fetch_deps"
 				f.Replace = []gnomod.Replace{{
 					Old: "gno.land/p/demo/replaced_avl",
 					New: "gno.land/p/demo/avl",
@@ -81,7 +81,7 @@ func TestDownloadDeps(t *testing.T) {
 			pkgPath: "gno.land/p/demo/foo",
 			modFile: func() *gnomod.File {
 				f := &gnomod.File{}
-				f.Module = "testFetchDeps"
+				f.Module = "gno.land/r/test_fetch_deps"
 				f.Replace = []gnomod.Replace{{
 					Old: "gno.land/p/demo/foo",
 					New: "../local_foo",
