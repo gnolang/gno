@@ -539,7 +539,7 @@ func Echo(str string) string {
 	// Query balance to validate deposit
 	baseAcc, _, err := client.QueryAccount(gnolang.DeriveStorageDepositCryptoAddr(deploymentPath))
 	require.NoError(t, err)
-	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 180200}}, baseAcc.GetCoins())
+	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 177600}}, baseAcc.GetCoins())
 
 	// Test signing separately (using a different deployment path)
 	deploymentPathB := "gno.land/p/demo/integration/test/echo2"
@@ -658,7 +658,7 @@ func Hello(str string) string {
 	// Query balance to validate deposit
 	baseAcc, _, err = client.QueryAccount(gnolang.DeriveStorageDepositCryptoAddr(deploymentPath1))
 	require.NoError(t, err)
-	assert.Equal(t, "180200ugnot", baseAcc.GetCoins().String())
+	assert.Equal(t, "177600ugnot", baseAcc.GetCoins().String())
 
 	// Check Package #2
 	query, err = client.Query(QueryCfg{
@@ -672,7 +672,7 @@ func Hello(str string) string {
 	// Query storage deposit balance to validate deposit
 	baseAcc, _, err = client.QueryAccount(gnolang.DeriveStorageDepositCryptoAddr(deploymentPath2))
 	require.NoError(t, err)
-	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 181300}}, baseAcc.GetCoins())
+	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 178700}}, baseAcc.GetCoins())
 
 	// Verify the realm account balance received from the send
 	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath2))
@@ -682,8 +682,8 @@ func Hello(str string) string {
 	// Verify remaining balance of deployer's account
 	baseAcc, _, err = client.QueryAccount(caller.GetAddress())
 	require.NoError(t, err)
-	// 999999654370 = 10000000000000 - (GasFee 2100000 + Storage Deposit 180200 + Storage Deposit 178700 + Send 1000000)
-	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 9999996538500}}, baseAcc.GetCoins())
+	// 999999654370 = 10000000000000 - (GasFee 2100000 + Storage Deposit 177600 + Storage Deposit 178700 + Send 1000000)
+	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 9999996543700}}, baseAcc.GetCoins())
 
 	// Test signing separately (using a different deployment path)
 	deploymentPath1B := "gno.land/p/demo/integration/test/echo2"
