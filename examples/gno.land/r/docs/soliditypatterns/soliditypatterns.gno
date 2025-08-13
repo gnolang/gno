@@ -10,6 +10,7 @@ This is a list of common Solidity patterns, converted and explained to match Gno
 - [Basic Counter](/r/docs/soliditypatterns/counter) - Increment and decrement a counter stored in a contract.
 - [Only Owner can change](/r/docs/soliditypatterns/ownable) - Simple example of ownership over a contract.
 - [State Lock](/r/docs/soliditypatterns/statelock) - Modifiers.
+- [Wallet](/r/docs/soliditypatterns/wallet) - Send and receive coins over a contract.
 - More common examples coming soon!
 
 > [!NOTE]
