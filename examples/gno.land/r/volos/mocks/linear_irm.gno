@@ -1,7 +1,7 @@
-package volos_mocks
+package mocks
 
 import (
-	"gno.land/r/volos/core"
+	volos "gno.land/r/volos/core"
 	u256 "gno.land/p/gnoswap/uint256"
 
 )
@@ -24,7 +24,7 @@ func (irm *LinearIRM) BorrowRate(totalSupplyAssets, totalBorrowAssets *u256.Uint
 
 	// Calculate utilization rate scaled by WAD
 	// utilization = (totalBorrow * WAD) / totalSupply
-	utilization := core.WDivDown(totalBorrowAssets, totalSupplyAssets)
+	utilization := volos.WDivDown(totalBorrowAssets, totalSupplyAssets)
 
 	// Convert APR to per-second rate
 	// APR = utilization (e.g. 80% utilization = 80% APR)
@@ -34,5 +34,5 @@ func (irm *LinearIRM) BorrowRate(totalSupplyAssets, totalBorrowAssets *u256.Uint
 }
 
 func init() {
-	core.RegisterIRM(cross, &LinearIRM{})
+	volos.RegisterIRM(cross, &LinearIRM{})
 }

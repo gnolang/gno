@@ -1,10 +1,10 @@
 package main
 
 import (
-	"gno.land/r/volos_mocks"
+	volos "gno.land/r/volos/mocks"
 )
 
 func main() {
 	// Test flash loan with GNS token
-	volos_mocks.FlashLoan(cross, "gno.land/r/gnoswap/v1/gns", 10000, []byte("gno.land/r/gnoswap/v1/gns"))
+	volos.FlashLoan(cross, "gno.land/r/gnoswap/v1/gns", 10000, []byte("gno.land/r/gnoswap/v1/gns"))
 } 

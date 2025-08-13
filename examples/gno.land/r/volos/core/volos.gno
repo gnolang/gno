@@ -47,7 +47,7 @@ func init() {
 	authorizers = avl.NewTree()
 
 	// Set initial owner
-	Ownable = ownable.NewWithOrigin()
+	Ownable = ownable.NewWithAddress(std.Address("g1tzl3sgre0c2zgxfpws9xhq0c069wf7zqh6aqqy"))
 }
 
 // RegisterIRM registers a new interest rate model
