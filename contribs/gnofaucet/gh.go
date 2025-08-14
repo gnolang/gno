@@ -19,6 +19,9 @@ import (
 // http and RPC GitHub middleware handlers
 const ghUsernameKey = "gh-username"
 
+// claimRPCMethod is a method that is exactly like the default drip method but without any amount set
+const claimRPCMethod = "claim"
+
 // gitHubUsernameMiddleware sets up authentication middleware for GitHub OAuth.
 // If clientID and secret are empty, the middleware does nothing.
 //
@@ -74,7 +77,7 @@ type cooldownLimiter interface {
 }
 
 // gitHubClaimMiddleware is the GitHub claim validation middleware, based on the provided username
-func gitHubClaimMiddleware(coolDownLimiter cooldownLimiter) faucet.Middleware {
+func gitHubClaimMiddleware(coolDownLimiter cooldownLimiter, rewarder Rewarder) faucet.Middleware {
 	return func(next faucet.HandlerFunc) faucet.HandlerFunc {
 		return func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
 			// Grab the username from the context
@@ -85,6 +88,39 @@ func gitHubClaimMiddleware(coolDownLimiter cooldownLimiter) faucet.Middleware {
 					nil,
 					spec.NewJSONError("invalid username value", spec.InvalidRequestErrorCode),
 				)
+			}
+
+			if req.Method == claimRPCMethod {
+				if len(req.Params) != 1 {
+					return spec.NewJSONResponse(
+						req.ID,
+						nil,
+						spec.NewJSONError("params must contain only the address", spec.InvalidParamsErrorCode),
+					)
+				}
+				reward, err := rewarder.GetReward(ctx, username)
+				if err != nil {
+					return spec.NewJSONResponse(
+						req.ID,
+						nil,
+						spec.NewJSONError("unable to get reward", spec.ServerErrorCode),
+					)
+				}
+
+				if reward == 0 {
+					return spec.NewJSONResponse(
+						req.ID,
+						nil,
+						spec.NewJSONError("no tokens to reward.", spec.ServerErrorCode),
+					)
+				}
+
+				req.Method = faucet.DefaultDripMethod
+
+				c := std.NewCoin("ugnot", int64(reward)).String()
+				req.Params = append(req.Params, c)
+
+				return next(ctx, req)
 			}
 
 			// Make sure the method is "drip"
