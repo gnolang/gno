@@ -171,5 +171,11 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Handle status page
 	mux.Handle("/status.json", handlerStatusJSON(logger, rpcclient))
 
+	// Handle liveness check - service itself is up and running
+	mux.Handle("/liveness", handlerLivenessJSON(logger))
+
+	// Handle readiness check - service can communicate with RPC node and serve clients
+	mux.Handle("/ready", handlerReadyJSON(logger, rpcclient, cfg.Domain))
+
 	return mux, nil
 }

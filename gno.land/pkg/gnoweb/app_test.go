@@ -2,6 +2,7 @@ package gnoweb
 
 import (
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -73,6 +74,9 @@ func TestRoutes(t *testing.T) {
 			{"/public/js/index.js", ok, ""},
 			{"/public/_chroma/style.css", ok, ""},
 			{"/public/imgs/gnoland.svg", ok, ""},
+			// Test special endpoints
+			{"/liveness", ok, `{"status":"ok"}`},
+			{"/ready", ok, `{"status":"ready"}`},
 			// Test Toc
 			{"/", ok, `href="#learn-about-gnoland"`},
 			// Test aliased path and static file
@@ -95,9 +99,8 @@ func TestRoutes(t *testing.T) {
 	// Initialize the router with the current node's remote address
 	cfg := NewDefaultAppConfig()
 	cfg.NodeRemote = remoteAddr
-	for alias, target := range aliases {
-		cfg.Aliases[alias] = target
-	}
+	maps.Copy(cfg.Aliases, aliases)
+
 	router, err := NewRouter(logger, cfg)
 	require.NoError(t, err)
 
@@ -181,4 +184,71 @@ func TestAnalytics(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestHealthEndpoints(t *testing.T) {
+	logger := log.NewTestingLogger(t)
+
+	t.Run("not healthy", func(t *testing.T) {
+		// Initialize the router with invalid address
+		cfg := NewDefaultAppConfig()
+		cfg.NodeRemote = "127.0.0.1:123456" // invalid port
+		cfg.ChainID = "test"
+		router, err := NewRouter(logger, cfg)
+		require.NoError(t, err)
+
+		t.Run("service should be running", func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/liveness", nil)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+
+			assert.Equal(t, http.StatusOK, response.Code)
+			assert.Equal(t, "application/json", response.Header().Get("Content-Type"))
+			assert.Contains(t, response.Body.String(), `{"status":"ok"}`)
+		})
+
+		t.Run("node should not be accessible", func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/ready", nil)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+
+			assert.Equal(t, http.StatusServiceUnavailable, response.Code)
+		})
+	})
+
+	t.Run("healthy", func(t *testing.T) {
+		// Setup node
+		rootdir := gnoenv.RootDir()
+		genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
+		config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
+		node, remoteAddr := integration.TestingInMemoryNode(t, logger, config)
+		defer node.Stop()
+
+		// Initialize the router with the current node's remote address
+		cfg := NewDefaultAppConfig()
+		cfg.NodeRemote = remoteAddr
+		router, err := NewRouter(logger, cfg)
+		require.NoError(t, err)
+
+		t.Run("service should be running", func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/liveness", nil)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+
+			assert.Equal(t, http.StatusOK, response.Code)
+			assert.Equal(t, "application/json", response.Header().Get("Content-Type"))
+			assert.Contains(t, response.Body.String(), `{"status":"ok"}`)
+		})
+
+		t.Run("node should be accessible", func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/ready", nil)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+
+			assert.Equal(t, http.StatusOK, response.Code)
+			assert.Equal(t, "application/json", response.Header().Get("Content-Type"))
+			assert.Contains(t, response.Body.String(), `{"status":"ready"}`)
+		})
+	})
+
 }
