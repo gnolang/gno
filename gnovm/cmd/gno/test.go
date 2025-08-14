@@ -31,6 +31,12 @@ type testCmd struct {
 	printEvents         bool
 	debug               bool
 	debugAddr           string
+	profile             bool
+	profileOutput       string
+	profileStdout       bool
+	profileFormat       string
+	profileType         string
+	profileList         string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -176,6 +182,48 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"enable interactive debugger using tcp address in the form [host]:port",
 	)
+
+	fs.BoolVar(
+		&c.profile,
+		"profile",
+		false,
+		"enable profiling to identify performance bottlenecks",
+	)
+
+	fs.StringVar(
+		&c.profileOutput,
+		"profile-output",
+		"profile.out",
+		"file to write profiling output",
+	)
+
+	fs.BoolVar(
+		&c.profileStdout,
+		"profile-stdout",
+		false,
+		"print profiling output to stdout instead of file",
+	)
+
+	fs.StringVar(
+		&c.profileFormat,
+		"profile-format",
+		"text",
+		"profile output format: text, toplist, calltree, json",
+	)
+
+	fs.StringVar(
+		&c.profileType,
+		"profile-type",
+		"cpu",
+		"profile type: cpu, memory",
+	)
+
+	fs.StringVar(
+		&c.profileList,
+		"profile-list",
+		"",
+		"function name to show line-by-line profile (e.g., 'gno.land/p/demo/int256.Add')",
+	)
 }
 
 func execTest(cmd *testCmd, args []string, io commands.IO) error {
@@ -224,6 +272,16 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Events = cmd.printEvents
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
+
+	opts.Profile = &test.ProfileConfig{
+		Enabled:       cmd.profile,
+		OutputFile:    cmd.profileOutput,
+		PrintToStdout: cmd.profileStdout,
+		Format:        cmd.profileFormat,
+		Type:          cmd.profileType,
+		FunctionList:  cmd.profileList,
+	}
+
 	cache := make(gno.TypeCheckCache, 64)
 
 	// test.ProdStore() is suitable for type-checking prod (non-test) files.

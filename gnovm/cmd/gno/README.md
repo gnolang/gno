@@ -22,6 +22,7 @@ SUBCOMMANDS
   fmt      gnofmt (reformat) package sources
   lint     runs the linter for the specified packages
   mod      module maintenance
+  pprof    interactive profiling analysis tool
   repl     starts a GnoVM REPL
   run      run gno packages
   test     test packages
