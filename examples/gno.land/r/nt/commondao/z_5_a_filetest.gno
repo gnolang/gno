@@ -66,6 +66,5 @@ func main() {
 	})
 }
 
-// Output:
-// true
-// true
+// Error:
+// cannot directly modify readonly tainted object (w/o method): tree<VPBlock(1,0)>.node

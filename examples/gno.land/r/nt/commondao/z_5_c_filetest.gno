@@ -32,4 +32,4 @@ func main() {
 }
 
 // Error:
-// caller is not a DAO member
+// cannot directly modify readonly tainted object (w/o method): tree<VPBlock(1,0)>.node

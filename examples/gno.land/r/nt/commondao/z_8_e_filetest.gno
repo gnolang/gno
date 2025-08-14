@@ -37,6 +37,5 @@ func main() {
 	println(iter.Next())
 }
 
-// Output:
-// Count = 0
-// false
+// Error:
+// cannot directly modify readonly tainted object (w/o method): tree<VPBlock(1,0)>.node

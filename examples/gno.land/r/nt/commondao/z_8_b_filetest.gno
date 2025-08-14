@@ -48,7 +48,5 @@ func main() {
 	}
 }
 
-// Output:
-// Count = 2
-// A
-// B
+// Error:
+// cannot directly modify readonly tainted object (w/o method): tree<VPBlock(1,0)>.node

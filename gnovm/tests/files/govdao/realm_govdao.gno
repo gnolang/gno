@@ -70,4 +70,4 @@ func Render() {
 }
 
 // Error:
-// unexpected selector base type *gno.land/p/demo/avl.Tree (*gnolang.PointerType)
+// cannot directly modify readonly tainted object (w/o method): tree<VPBlock(1,0)>.node

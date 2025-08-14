@@ -52,7 +52,5 @@ func main() {
 	}
 }
 
-// Output:
-// true
-// true
-// true
+// Error:
+// cannot directly modify readonly tainted object (w/o method): *(i<VPBlock(1,0)>)

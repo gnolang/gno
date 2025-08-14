@@ -54,4 +54,4 @@ func main() {
 }
 
 // Error:
-// invalid vote choice
+// cannot directly modify readonly tainted object (w/o method): tree<VPBlock(1,0)>.node

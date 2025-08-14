@@ -35,7 +35,7 @@ func main() {
 
 // Realm:
 // finalizerealm["gno.land/r/storage"]
-// c[34f997a9ca158338c03cfc00686d77220a6cf62f:10](215)={
+// c[34f997a9ca158338c03cfc00686d77220a6cf62f:13](215)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -45,7 +45,7 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:10",
+//         "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:13",
 //         "LastObjectSize": "215",
 //         "ModTime": "0",
 //         "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:3",
@@ -66,7 +66,7 @@ func main() {
 //              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:12",
 //              "LastObjectSize": "241",
 //     -        "ModTime": "0",
-//     +        "ModTime": "9",
+//     +        "ModTime": "12",
 //              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:11",
 //              "RefCount": "1"
 //          }
@@ -76,7 +76,7 @@ func main() {
 //              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:11",
 //              "LastObjectSize": "340",
 //     -        "ModTime": "0",
-//     +        "ModTime": "9",
+//     +        "ModTime": "12",
 //              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:5",
 //              "RefCount": "1"
 //          },
@@ -85,7 +85,7 @@ func main() {
 //              "V": {
 //                  "@type": "/gno.RefValue",
 //     -            "Hash": "2b6a1dd38af88a40a05ffd55e77e7ea3b4b3a156",
-//     +            "Hash": "5ac715fa079493544cfd5d9847325bed48b1a29a",
+//     +            "Hash": "6c3ebd5509617364a76aada1372a2c3f2afa0dc4",
 //                  "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:12"
 //              }
 //          }
@@ -95,7 +95,7 @@ func main() {
 //              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:6",
 //              "LastObjectSize": "254",
 //     -        "ModTime": "0",
-//     +        "ModTime": "9",
+//     +        "ModTime": "12",
 //              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:2",
 //              "RefCount": "1"
 //          },
@@ -108,7 +108,7 @@ func main() {
 //     +            "@type": "/gno.PointerValue",
 //     +            "Base": {
 //     +                "@type": "/gno.RefValue",
-//     +                "Hash": "f74d19acc93698020197f40f0c6acc343e350438",
+//     +                "Hash": "dfbf2681f241a888fa3f782d8a6d8a42607ff63d",
 //     +                "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:11"
 //     +            },
 //     +            "Index": "0",
@@ -117,16 +117,36 @@ func main() {
 //          }
 //      }
 // u[34f997a9ca158338c03cfc00686d77220a6cf62f:3](0)=
-//     @@ -13,7 +13,7 @@
+//     @@ -2,7 +2,7 @@
+//          "ObjectInfo": {
+//              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:3",
+//              "LastObjectSize": "344",
+//     -        "ModTime": "9",
+//     +        "ModTime": "12",
+//              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:2",
+//              "RefCount": "1"
+//          },
+//     @@ -13,8 +13,8 @@
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
 //     -            "Hash": "332e3d0f721fc783bbd5d5fec75baae6488cad5a",
-//     +            "Hash": "541b4e398082b20596c343e8674ff4790fd82e0e",
-//                  "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:10"
+//     -            "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:10"
+//     +            "Hash": "95a698670cebb93239a3707db3d217c4799691dd",
+//     +            "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:13"
 //              }
 //          }
+//      }
 // u[34f997a9ca158338c03cfc00686d77220a6cf62f:5](-130)=
+//     @@ -2,7 +2,7 @@
+//          "ObjectInfo": {
+//              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:5",
+//              "LastObjectSize": "389",
+//     -        "ModTime": "9",
+//     +        "ModTime": "12",
+//              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:2",
+//              "RefCount": "1"
+//          },
 //     @@ -13,16 +13,6 @@
 //                      "@type": "/gno.RefType",
 //                      "ID": "gno.land/r/storage.Foo"

@@ -37,4 +37,4 @@ func main() {
 }
 
 // Error:
-// proposal not found
+// cannot directly modify readonly tainted object (w/o method): tree<VPBlock(1,0)>.node

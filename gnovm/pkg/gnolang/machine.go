@@ -1954,80 +1954,37 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		return
 	}
 
-	// fmt.Println("========cx: ", cx)
-	// fmt.Println("===========Not cross nor crossing, fv.PkgPath: ", fv.PkgPath)
-	// fmt.Println("========recv: ", recv)
 	// Not cross nor crossing.
 	// Only "soft" switch to storage realm of receiver.
 	var rlm *Realm
 	if recv.IsDefined() { // method call
 		// XXX, consider these...
-		// obj := recv.GetFirstObject(m.Store)
-		// if obj == nil { // nil receiver
-		// 	// no switch
-		// 	fmt.Println("===========no switch 1...........")
-		// 	return
-		// }
-		// recvOID := obj.GetObjectInfo().ID
-		// fmt.Println("================recvOID: ", recvOID)
-
-		// if recvOID.IsZero() ||
-		// 	(m.Realm != nil && recvOID.PkgID == m.Realm.ID) {
-		// 	// no switch
-		// 	fmt.Println("===========no switch 2...........")
-		// 	return
-		// }
-
-		// fmt.Println("======method..., recv: ", recv)
-		// fmt.Println("===PushFrameCall, cx: ", cx)
-		// fmt.Println("==================pv.IsRealm: ", pv.IsRealm())
 
 		if !pv.IsRealm() {
-			// fmt.Println("=============do nothing......")
 			return
 		}
 
-		rlm = m.Store.GetPackageRealm(fv.PkgPath)
-		if rlm != nil {
-			// fmt.Println(("============rlm not nil..."))
-			// same realm, no switch
-			if m.Realm != nil && PkgIDFromPkgPath(fv.PkgPath) == m.Realm.ID {
-				// fmt.Println("================same realm, do nothing...")
-				return
-			}
-
-			if pkgPath := fv.PkgPath; IsRealmPath(pkgPath) {
-				rlm = m.Store.GetPackageRealm(pkgPath)
-				// if rlm != nil {
-				m.Realm = rlm
-				// }
-			}
+		rlm = pv.Realm
+		// same realm, no switch
+		if rlm == m.Realm {
+			return
 		}
+
+		m.Realm = rlm
+
 		return
 	} else { // function without receiver
-		// fmt.Println("======Func without receiver...")
-		// fmt.Println("===PushFrameCall, cx: ", cx)
-		// fmt.Println("==================pv.IsRealm: ", pv.IsRealm())
+		if pv.Realm == m.Realm {
+			return
+		}
 
 		if pv.IsRealm() {
-			// fmt.Println("======pv is realm..., pv: ", pv)
 			isExternalFunc := false // top level func declared in external package with no cross
 			if sx, ok := cx.Func.(*SelectorExpr); ok {
 				if cx, ok := sx.X.(*ConstExpr); ok {
 					_, isExternalFunc = cx.T.(*PackageType)
 				}
 			}
-			// fmt.Println("===PushFrameCall, isExternalFunc: ", isExternalFunc)
-
-			// fmt.Println("===========m.Realm: ", m.Realm)
-			// if m.Realm != nil {
-			// 	fmt.Println("===========m.Realm.ID: ", m.Realm.ID)
-			// 	fmt.Println("===========PkgID: ", PkgIDFromPkgPath(fv.PkgPath))
-			// 	if m.Realm != nil && PkgIDFromPkgPath(fv.PkgPath) == m.Realm.ID {
-			// 		return
-			// 	}
-			// }
-
 			// XXX, why
 			if m.Realm != nil {
 				if !isExternalFunc {
@@ -2054,7 +2011,6 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		} else {
 			// A function without receiver in a non-realm package.
 			// no switch
-			// fmt.Println("===========pv not realm, no switch, return, last one...")
 			return
 		}
 	}

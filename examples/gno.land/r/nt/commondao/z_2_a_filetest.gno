@@ -38,8 +38,5 @@ func main() {
 	println(commondao.GetOptions(dao.ID()) != nil)
 }
 
-// Output:
-// true
-// true
-// false
-// true
+// Error:
+// cannot directly modify readonly tainted object (w/o method): tree<VPBlock(1,0)>.node

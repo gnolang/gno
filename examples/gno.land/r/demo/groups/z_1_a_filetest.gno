@@ -46,5 +46,18 @@ func main() {
 	println(groups.Render("test_group"))
 }
 
-// Error:
-// r/sys/users: current realm/user does not exist in whitelist: CodeRealm{ g1njxh4leja7h52ea0lnq9crx3j6782g77nc7yd4, gno.land/r/sys/users } (previous: CodeRealm{ g1zypp3wv4qg9cv9rs57r34jj6z7uuqxjztyeqyk, gno.land/r/gnoland/users/v1 })
+// Output:
+// 1
+// Group ID: 0000000001
+//
+// Group Name: test_group
+//
+// Group Creator: main123
+//
+// Group createdAt: 2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001
+//
+// Group Last MemberID: 0000000001
+//
+// Group Members:
+//
+// 			[0000000000, g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy, 32, i am from UAE, 2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001],
