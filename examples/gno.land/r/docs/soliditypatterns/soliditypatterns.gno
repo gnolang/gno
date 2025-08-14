@@ -11,6 +11,7 @@ This is a list of common Solidity patterns, converted and explained to match Gno
 - [Only Owner can change](/r/docs/soliditypatterns/ownable) - Simple example of ownership over a contract.
 - [State Lock](/r/docs/soliditypatterns/statelock) - Modifiers.
 - [Wallet](/r/docs/soliditypatterns/wallet) - Send and receive coins over a contract.
+- [My Token](/r/docs/soliditypatterns/mytoken) - defines a basic ERC-20 token.
 - More common examples coming soon!
 
 > [!NOTE]
