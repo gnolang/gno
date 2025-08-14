@@ -160,7 +160,7 @@ func StoreWithOptions(
 	// Main entrypoint for new test imports.
 	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		if pkgPath == "" {
-			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
+			panic("invalid zero package path in testStore().pkgGetter")
 		}
 		if opts.WithExtern {
 			// if _test package... pretend stdlib.

@@ -115,9 +115,7 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 		}
 		parts := strings.Split(modrlm, ":")
 		numparts := len(parts)
-		if numparts == 1 {
-			// keeper param struct (sys param). skip
-		} else if numparts == 2 {
+		if numparts == 2 {
 			realm := parts[1]
 			// XXX validate realm part.
 			for name, value := range values {

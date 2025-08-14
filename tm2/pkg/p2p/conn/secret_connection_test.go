@@ -140,6 +140,8 @@ func TestShareLowOrderPubkey(t *testing.T) {
 	}
 }
 
+const lowOrderPointError = `crypto/ecdh: bad X25519 remote ECDH input: low order point`
+
 // Test that additionally that the Diffie-Hellman shared secret is non-zero.
 // The shared secret would be zero for lower order pub-keys (but tested against the blacklist only).
 func TestComputeDHFailsOnLowOrder(t *testing.T) {
@@ -149,9 +151,8 @@ func TestComputeDHFailsOnLowOrder(t *testing.T) {
 	for _, remLowOrderPubKey := range blacklist {
 		remLowOrderPubKey := remLowOrderPubKey
 		shared, err := computeDHSecret(&remLowOrderPubKey, locPrivKey)
-		assert.Error(t, err)
-
-		assert.Equal(t, err, ErrSharedSecretIsZero)
+		_ = assert.Error(t, err) &&
+			assert.Equal(t, lowOrderPointError, err.Error())
 		assert.Empty(t, shared)
 	}
 }
@@ -242,7 +243,7 @@ func TestSecretConnectionReadWrite(t *testing.T) {
 	}
 
 	// A helper that will run with (fooConn, fooWrites, fooReads) and vice versa
-	genNodeRunner := func(id string, nodeConn kvstoreConn, nodeWrites []string, nodeReads *[]string) async.Task {
+	genNodeRunner := func(_ string, nodeConn kvstoreConn, nodeWrites []string, nodeReads *[]string) async.Task {
 		return func(_ int) (any, error, bool) {
 			// Initiate cryptographic private key and secret connection through nodeConn.
 			nodePrvKey := ed25519.GenPrivKey()
