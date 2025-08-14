@@ -1,11 +1,13 @@
 #!/bin/sh
 
-# Usage: ./gnoalias <alias_folder> <reload_cmd>
+# Usage: ./gnoalias <alias_folder> <reload_cmd> <rpc_url>
 
 # time to sleep between attempts
 SLEEPING_TIME=60
 # home folder in this context
 ALIAS_HOME_FOLDER="${1:-./home}"
+# home folder in this context
+RPC_NODE_URL="${3:-https://rpc.gno.land}"
 # docker restart gnoweb
 DEFAULT_RELOAD_CMD="docker ps -a --filter ancestor=\"ghcr.io/gnolang/gno/gnoweb:master\" --format \"{{.ID}}\" | \
   xargs -r docker restart"
@@ -33,9 +35,9 @@ check_gnoland_home() {
 
   # tries to query r/gnoland/home.
   echo "Querying current home..."
-  if gnokey query vm/qrender -remote https://rpc.gno.land -data "gno.land/r/gnoland/home:" > out.md; then
+  if gnokey query vm/qrender -remote ${RPC_NODE_URL} -data "gno.land/r/gnoland/home:" > out.md; then
     # eventually patch the page to add things like the newsletter html form
-    echo "<!-- extra blocks -->" >> out.md
+   [ -f extra-blocks.md ] && cat extra-blocks.md >> out.md
     mv out.md home.md
     echo "Success: gno.land home gathered"
   else
