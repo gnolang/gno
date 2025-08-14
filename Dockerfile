@@ -1,5 +1,5 @@
 # build gno
-FROM        golang:1.23-alpine AS build-gno
+FROM        golang:1.24-alpine AS build-gno
 ENV         GNOROOT="/gnoroot"
 ENV         CGO_ENABLED=0 GOOS=linux
 WORKDIR     /gnoroot
