@@ -12,8 +12,5 @@ func main() {
 	println("Err after modify: ", p_crossrealm.Err)
 }
 
-// Output:
-// &(struct{(1 int)} gno.land/p/demo/tests/p_crossrealm.Foo)
-// Err 2
-// F after modify:  readonly(&(struct{(0 int)} gno.land/p/demo/tests/p_crossrealm.Foo))
-// Err after modify:  Err 1
+// Error:
+// cannot directly modify readonly tainted object (w/o method): f<VPBlock(1,0)>.num

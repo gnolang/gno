@@ -1965,24 +1965,52 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		// obj := recv.GetFirstObject(m.Store)
 		// if obj == nil { // nil receiver
 		// 	// no switch
+		// 	fmt.Println("===========no switch 1...........")
 		// 	return
 		// }
 		// recvOID := obj.GetObjectInfo().ID
+		// fmt.Println("================recvOID: ", recvOID)
 
 		// if recvOID.IsZero() ||
 		// 	(m.Realm != nil && recvOID.PkgID == m.Realm.ID) {
 		// 	// no switch
+		// 	fmt.Println("===========no switch 2...........")
 		// 	return
 		// }
 
-		if pkgPath := fv.PkgPath; IsRealmPath(pkgPath) {
-			rlm = m.Store.GetPackageRealm(pkgPath)
-			m.Realm = rlm
+		// fmt.Println("======method..., recv: ", recv)
+		// fmt.Println("===PushFrameCall, cx: ", cx)
+		// fmt.Println("==================pv.IsRealm: ", pv.IsRealm())
+
+		if !pv.IsRealm() {
+			// fmt.Println("=============do nothing......")
+			return
+		}
+
+		rlm = m.Store.GetPackageRealm(fv.PkgPath)
+		if rlm != nil {
+			// fmt.Println(("============rlm not nil..."))
+			// same realm, no switch
+			if m.Realm != nil && PkgIDFromPkgPath(fv.PkgPath) == m.Realm.ID {
+				// fmt.Println("================same realm, do nothing...")
+				return
+			}
+
+			if pkgPath := fv.PkgPath; IsRealmPath(pkgPath) {
+				rlm = m.Store.GetPackageRealm(pkgPath)
+				// if rlm != nil {
+				m.Realm = rlm
+				// }
+			}
 		}
 		return
 	} else { // function without receiver
+		// fmt.Println("======Func without receiver...")
 		// fmt.Println("===PushFrameCall, cx: ", cx)
+		// fmt.Println("==================pv.IsRealm: ", pv.IsRealm())
+
 		if pv.IsRealm() {
+			// fmt.Println("======pv is realm..., pv: ", pv)
 			isExternalFunc := false // top level func declared in external package with no cross
 			if sx, ok := cx.Func.(*SelectorExpr); ok {
 				if cx, ok := sx.X.(*ConstExpr); ok {
@@ -1991,27 +2019,42 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			}
 			// fmt.Println("===PushFrameCall, isExternalFunc: ", isExternalFunc)
 
-			if !isExternalFunc {
-				// A function without receiver (named or unnamed) in a realm.
-				// Borrow switch to where the function is declared,
-				// since there is no receiver.
-				// Neither cross nor didswitch.
-				pkgPath := pv.PkgPath
-				rlm = m.Store.GetPackageRealm(pkgPath)
-				m.Realm = rlm
-				// DO NOT set DidCrossing here. Make
-				// DidCrossing only happen upon explicit
-				// cross(fn)(...) calls and subsequent calls to
-				// crossing functions from the same realm, to
-				// avoid user confusion. Otherwise whether
-				// DidCrossing happened or not depends on where
-				// the receiver resides, which isn't explicit
-				// enough to avoid confusion.
-				//   fr.DidCrossing = true
+			// fmt.Println("===========m.Realm: ", m.Realm)
+			// if m.Realm != nil {
+			// 	fmt.Println("===========m.Realm.ID: ", m.Realm.ID)
+			// 	fmt.Println("===========PkgID: ", PkgIDFromPkgPath(fv.PkgPath))
+			// 	if m.Realm != nil && PkgIDFromPkgPath(fv.PkgPath) == m.Realm.ID {
+			// 		return
+			// 	}
+			// }
+
+			// XXX, why
+			if m.Realm != nil {
+				if !isExternalFunc {
+					// fmt.Println("!!!!!!!!!!!!!!!!!!!!!! cross to closure owner realm...")
+					// fmt.Println("===PushFrameCall, cx: ", cx)
+					// A function without receiver (named or unnamed) in a realm.
+					// Borrow switch to where the function is declared,
+					// since there is no receiver.
+					// Neither cross nor didswitch.
+					pkgPath := pv.PkgPath
+					rlm = m.Store.GetPackageRealm(pkgPath)
+					m.Realm = rlm
+					// DO NOT set DidCrossing here. Make
+					// DidCrossing only happen upon explicit
+					// cross(fn)(...) calls and subsequent calls to
+					// crossing functions from the same realm, to
+					// avoid user confusion. Otherwise whether
+					// DidCrossing happened or not depends on where
+					// the receiver resides, which isn't explicit
+					// enough to avoid confusion.
+					//   fr.DidCrossing = true
+				}
 			}
 		} else {
 			// A function without receiver in a non-realm package.
 			// no switch
+			// fmt.Println("===========pv not realm, no switch, return, last one...")
 			return
 		}
 	}

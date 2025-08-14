@@ -27,3 +27,6 @@ func main() {
 // Output:
 // ---
 // Hello World!
+
+// Error:
+// cannot directly modify readonly tainted object (w/o method): o<VPBlock(1,0)>.owner

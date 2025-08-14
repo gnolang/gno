@@ -175,6 +175,11 @@ func DoMutate() {
 	MockMutator.Mutate() // soft cross into current realm
 }
 
+func SetDoMutate(_ realm, mutator Mutator) {
+	m := mutator
+	m.Mutate()
+}
+
 // -------------------------------------------------
 var Object any
 

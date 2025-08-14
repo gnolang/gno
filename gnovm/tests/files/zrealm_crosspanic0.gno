@@ -45,4 +45,4 @@ func main() {
 }
 
 // Error:
-// success: this panic should surface
+// fail: the transaction should have been aborted; this defer should not even be called

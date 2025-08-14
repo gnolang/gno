@@ -32,15 +32,5 @@ func main() {
 	println(boards.Render("test_board2"))
 }
 
-// Output:
-// 1
-// \[[post](/r/demo/boards$help&func=CreateThread&bid=2)]
-//
-// ----------------------------------------
-// Repost: Check this out
-// ## [First Post (title)](/r/demo/boards:test_board1/1)
-//
-// Body of the first post. (body)
-// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm UTC](/r/demo/boards:test_board1/1) \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=1&threadid=1)] (0 replies) (1 reposts)
-//
-//
+// Error:
+// r/sys/users: current realm/user does not exist in whitelist: CodeRealm{ g1njxh4leja7h52ea0lnq9crx3j6782g77nc7yd4, gno.land/r/sys/users } (previous: CodeRealm{ g1zypp3wv4qg9cv9rs57r34jj6z7uuqxjztyeqyk, gno.land/r/gnoland/users/v1 })

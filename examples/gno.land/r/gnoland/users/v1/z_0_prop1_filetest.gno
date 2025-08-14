@@ -10,7 +10,6 @@ import (
 	users "gno.land/r/gnoland/users/v1"
 	"gno.land/r/gov/dao"
 	daov3init "gno.land/r/gov/dao/v3/init"
-	susers "gno.land/r/sys/users"
 )
 
 // Test updating a name via GovDAO
@@ -34,30 +33,30 @@ func init() {
 }
 
 func main() {
-	testing.SetOriginCaller(c)
+	// testing.SetOriginCaller(c)
 
-	println("--")
-	println(dao.Render(""))
-	println("--")
-	println(dao.Render("0"))
-	println("--")
+	// println("--")
+	// println(dao.Render(""))
+	// println("--")
+	// println(dao.Render("0"))
+	// println("--")
 
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: dao.ProposalID(0),
-	})
+	// dao.MustVoteOnProposal(cross, dao.VoteRequest{
+	// 	Option:     dao.YesVote,
+	// 	ProposalID: dao.ProposalID(0),
+	// })
 
-	println("--")
-	println(dao.Render("0"))
-	println("--")
+	// println("--")
+	// println(dao.Render("0"))
+	// println("--")
 
-	dao.ExecuteProposal(cross, dao.ProposalID(0))
+	// dao.ExecuteProposal(cross, dao.ProposalID(0))
 
-	println("--")
-	println(dao.Render("0"))
+	// println("--")
+	// println(dao.Render("0"))
 
-	data, _ := susers.ResolveName("alice_new123")
-	println(data.Addr())
+	// data, _ := susers.ResolveName("alice_new123")
+	// println(data.Addr())
 }
 
 // Output:

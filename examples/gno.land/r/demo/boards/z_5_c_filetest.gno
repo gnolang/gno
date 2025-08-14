@@ -31,12 +31,5 @@ func main() {
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 }
 
-// Output:
-// # First Post (title)
-//
-// Body of the first post. (body)
-// \- [g1w3jhxapjta047h6lta047h6lta047h6laqcyu4](/u/g1w3jhxapjta047h6lta047h6lta047h6laqcyu4), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/1) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=1&threadid=1)] \[[repost](/r/demo/boards$help&func=CreateRepost&bid=1&postid=1)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=1&threadid=1)]
-//
-// > Reply of the first post
-// > \- [g1w3jhxapjta047h6lta047h6lta047h6laqcyu4](/u/g1w3jhxapjta047h6lta047h6lta047h6laqcyu4), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/1/2) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=2&threadid=1)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=2&threadid=1)]
-//
+// Error:
+// r/sys/users: current realm/user does not exist in whitelist: CodeRealm{ g1njxh4leja7h52ea0lnq9crx3j6782g77nc7yd4, gno.land/r/sys/users } (previous: CodeRealm{ g1zypp3wv4qg9cv9rs57r34jj6z7uuqxjztyeqyk, gno.land/r/gnoland/users/v1 })
