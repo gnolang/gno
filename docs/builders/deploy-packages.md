@@ -51,7 +51,7 @@ Consider the following directory structure for our `Counter` realm:
 
 ```
 counter/
-    ├─ gno.mod
+    ├─ gnomod.toml
     ├─ counter.gno
     ├─ counter_test.gno
 ```
@@ -124,7 +124,8 @@ This gives you a more human-readable package path and establishes your identity 
 
 - `--pkgpath` - The on-chain path where your code will be stored
 - `--pkgdir` - The local directory containing your code
-- `--deposit` - The amount of GNOT to deposit (typically 100 GNOT)
+- `--send` - Amount of GNOT to send to the realm with the transaction (optional)
+- `--max-deposit` - Maximum GNOT to lock for on-chain storage (optional)
 - `--gas-fee` - The fee per unit of gas (typically 1 GNOT)
 - `--gas-wanted` - Maximum gas units for the transaction
 - `--remote` - The RPC endpoint for the network
@@ -132,6 +133,13 @@ This gives you a more human-readable package path and establishes your identity 
 
 For more details on gas fees and optimization strategies, see the [Gas Fees
 documentation](../resources/gas-fees.md).
+
+With the optional `-max-deposit` flag in `gnokey`, you can specify the maximum
+storage deposit that may be locked when deploying a package,since the package
+consumes on-chain storage. The
+transaction will fail if the chain attempts to lock more tokens than the
+specified limit, protecting you from locking more tokens than they are willing
+to tolerate. Learn about [storage deposits](../resources/storage-deposit.md).
 
 ## Conclusion
 
@@ -152,5 +160,4 @@ a third-party web extension wallet, such as Adena.
 [^3]: Address namespaces ([PA namespaces](../resources/gno-packages.md#package-path-structure)) are automatically granted to
 users. Users can register a username using the [Gno.land user registry](https://gno.land/r/gnoland/users),
 which will grant them access to a matching namespace for that specific network.
-[^4]: Automatic gas estimation is being worked on for `gnokey`. Follow progress
-[here](https://github.com/gnolang/gno/pull/3330).
+[^4]: Gas estimation is explained [here](../resources/gas-fees.md#gas-estimation).

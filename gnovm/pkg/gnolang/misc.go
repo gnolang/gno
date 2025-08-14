@@ -110,8 +110,8 @@ func isUpper(s string) bool {
 
 const sizeOfUintPtr = unsafe.Sizeof(uintptr(0))
 
-func uintptrToBytes(u *uintptr) []byte {
-	return (*[sizeOfUintPtr]byte)(unsafe.Pointer(u))[:]
+func uintptrToBytes(u *uintptr) [sizeOfUintPtr]byte {
+	return *(*[sizeOfUintPtr]byte)(unsafe.Pointer(u))
 }
 
 func defaultPkgName(gopkgPath string) Name {
@@ -183,6 +183,9 @@ func isUverseName(n Name) bool {
 // For keeping record of package & realm coins.
 // If you need the bech32 address it is faster to call DerivePkgBech32Addr().
 func DerivePkgCryptoAddr(pkgPath string) crypto.Address {
+	if pkgPath == "" {
+		panic("pkgpath cannot be empty")
+	}
 	b32addr, ok := IsGnoRunPath(pkgPath)
 	if ok {
 		addr, err := crypto.AddressFromBech32(b32addr)
@@ -205,4 +208,19 @@ func DerivePkgBech32Addr(pkgPath string) crypto.Bech32Address {
 	}
 	// NOTE: must not collide with pubkey addrs.
 	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath)).Bech32()
+}
+
+// Used to keep a record of storage deposit coins for a package or realm.
+func DeriveStorageDepositCryptoAddr(pkgPath string) crypto.Address {
+	if pkgPath == "" {
+		panic("pkgpath cannot be empty in DeriveStorageDepositCryptoAddr()")
+	}
+	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath + ".storageDeposit"))
+}
+
+func DeriveStorageDepositBech32Addr(pkgPath string) crypto.Bech32Address {
+	if pkgPath == "" {
+		panic("pkgpath cannot be empty in DeriveStorageDepositBech32Addr()")
+	}
+	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath + ".storageDeposit")).Bech32()
 }

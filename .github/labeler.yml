@@ -47,11 +47,12 @@
           - "LICENSE*"
 
 "🤝 contribs":
-  - changed-files:
-      - any-glob-to-any-file:
-          - contribs/**/*
-      - all-globs-to-all-files:
-          - "!contribs/gnodev/**/*"
+  - all:
+      - changed-files:
+          - all-globs-to-any-file:
+              - contribs/**/*
+          - all-globs-to-all-files:
+              - "!contribs/gnodev/**/*"
 
 "🚀 ci":
   - changed-files:
