@@ -106,6 +106,8 @@ export default {
 		"link-tx",
 		"link-user",
 		"tooltip",
+		"doc-example",
+		"font-sans",
 		"lg:pt-10",
 		"pt-6",
 	],

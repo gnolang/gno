@@ -776,32 +776,76 @@
 	main :is(.source-code) > pre {
 		@apply !bg-light overflow-scroll rounded py-4 md:py-8 px-1 md:px-3 font-mono text-100 md:text-200;
 	}
-	main .realm-view > pre a {
+	main :is(.realm-view, .doc-view) pre a {
 		@apply hover:no-underline;
 	}
 
-	main :is(.realm-view, .source-code) > pre .chroma-ln:target {
+	main :is(.realm-view, .source-code, .doc-view) pre .chroma-ln:target {
 		@apply !bg-transparent;
 	}
-	main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-ln:target),
 	main
-		:is(.realm-view, .source-code)
-		> pre
+		:is(.realm-view, .source-code, .doc-view)
+		pre
+		.chroma-line:has(.chroma-ln:target),
+	main
+		:is(.realm-view, .source-code, .doc-view)
+		pre
 		.chroma-line:has(.chroma-lnlinks:hover),
 	main
-		:is(.realm-view, .source-code)
-		> pre
+		:is(.realm-view, .source-code, .doc-view)
+		pre
 		.chroma-line:has(.chroma-ln:target)
 		.chroma-cl,
 	main
-		:is(.realm-view, .source-code)
-		> pre
+		:is(.realm-view, .source-code, .doc-view)
+		pre
 		.chroma-line:has(.chroma-lnlinks:hover)
 		.chroma-cl {
 		@apply !bg-gray-100 rounded;
 	}
-	main :is(.realm-view, .source-code) > pre .chroma-ln {
+	main :is(.realm-view, .source-code, .doc-view) pre .chroma-ln {
 		@apply scroll-mt-24;
+	}
+
+	/* expand */
+	.doc-example {
+		@apply my-2;
+	}
+
+	.doc-example > summary {
+		@apply cursor-pointer text-green-600 hover:underline font-medium;
+	}
+
+	.doc-example > div {
+		@apply border rounded-sm overflow-scroll mt-2;
+	}
+
+	.doc-example > div > pre {
+		@apply overflow-scroll no-scrollbar p-2;
+	}
+
+	/* doc-view */
+	.doc-view {
+		@apply text-gray-600 text-200;
+	}
+
+	.doc-view > p {
+		@apply my-2;
+	}
+
+	.doc-view > h3,
+	.doc-view > h4,
+	.doc-view > h5,
+	.doc-view > h6 {
+		@apply font-bold my-2;
+	}
+
+	.doc-view > ul {
+		@apply list-disc pl-4;
+	}
+
+	.doc-view a {
+		@apply text-green-600 hover:underline;
 	}
 }
 
@@ -883,23 +927,23 @@
 	}
 
 	/* spacing between link badge */
-	.realm-view a > span {
+	:is(.realm-view, .doc-view) a > span {
 		margin-block-end: 0.1em;
 	}
 
-	.realm-view a .tooltip:only-of-type {
+	:is(.realm-view, .doc-view) a .tooltip:only-of-type {
 		margin-inline: 0.3em;
 	}
 
-	.realm-view a .tooltip:has(+ span) {
+	:is(.realm-view, .doc-view) a .tooltip:has(+ span) {
 		margin-inline-start: 0.3em;
 	}
 
-	.realm-view a > .tooltip + .tooltip {
+	:is(.realm-view, .doc-view) a > .tooltip + .tooltip {
 		margin-inline-start: 0.2em;
 	}
 
-	.realm-view a > .tooltip:last-of-type {
+	:is(.realm-view, .doc-view) a > .tooltip:last-of-type {
 		margin-inline-end: 0.2em;
 	}
 
