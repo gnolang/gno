@@ -8,8 +8,8 @@ package testing
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
-	"unicode"
 )
 
 type filterMatch interface {
@@ -130,8 +130,8 @@ func rewrite(s string) string {
 		switch {
 		case isSpace(r):
 			b = append(b, '_')
-		case !unicode.IsPrint(r):
-			s := simpleQuoteRune(r)
+		case !strconv.IsPrint(r):
+			s := strconv.QuoteRune(r)
 			b = append(b, s[1:len(s)-1]...)
 		default:
 			b = append(b, string(r)...)
