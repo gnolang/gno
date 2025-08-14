@@ -1115,8 +1115,8 @@ func (ps *PeerState) EnsureVoteBitArrays(height int64, numValidators int) {
 }
 
 func (ps *PeerState) ensureVoteBitArrays(height int64, numValidators int) {
-	switch height {
-	case ps.PRS.Height:
+	switch ps.PRS.Height {
+	case height:
 		if ps.PRS.Prevotes == nil {
 			ps.PRS.Prevotes = bitarray.NewBitArray(numValidators)
 		}
@@ -1129,7 +1129,7 @@ func (ps *PeerState) ensureVoteBitArrays(height int64, numValidators int) {
 		if ps.PRS.ProposalPOL == nil {
 			ps.PRS.ProposalPOL = bitarray.NewBitArray(numValidators)
 		}
-	case ps.PRS.Height + 1:
+	case height + 1:
 		if ps.PRS.LastCommit == nil {
 			ps.PRS.LastCommit = bitarray.NewBitArray(numValidators)
 		}
