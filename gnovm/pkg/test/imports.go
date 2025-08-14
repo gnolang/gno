@@ -45,6 +45,13 @@ type StoreOptions struct {
 	// When fixing code from an earler gno version. Not supported for stdlibs.
 	FixFrom string
 
+	// Coverage enables code coverage instrumentation
+	Coverage bool
+
+	// TestedPackagePath is the path of the package being tested (for coverage)
+	// This is used to prevent loading the package from disk when it's already instrumented
+	TestedPackagePath string
+
 	// SourceStore, if given, is used to process imports, whenever a custom
 	// version doesn't exist in the testing standard libraries.
 	// This ignores the value of WithExtern.
@@ -218,10 +225,24 @@ func StoreWithOptions(
 		if opts.WithExamples {
 			examplePath := filepath.Join(rootDir, "examples", pkgPath)
 			if osm.DirExists(examplePath) {
+				// Skip loading if this is the package being tested with coverage
+				// This ensures we use the instrumented version instead
+				if opts.Coverage && pkgPath == opts.TestedPackagePath {
+					if output != nil {
+						fmt.Fprintf(output, "[Coverage Debug] Skipping reload of tested package: %s\n", pkgPath)
+					}
+					return nil, nil
+				}
+
 				mpkg := gno.MustReadMemPackage(examplePath, pkgPath, gno.MPUserProd)
 				if mpkg.IsEmpty() {
 					panic(fmt.Sprintf("found an empty package %q", pkgPath))
 				}
+
+				// NOTE: Coverage instrumentation should NOT be applied to imported packages.
+				// Only the package being tested should be instrumented, not its dependencies.
+				// Instrumenting imports causes parse errors because the "testing" package
+				// is not available in the regular package context.
 
 				send := std.Coins{}
 				ctx := Context("", pkgPath, send)
@@ -336,6 +357,12 @@ func (e *stackWrappedError) String() string {
 // imports are pre-loaded in a permanent store, so that the tests can use
 // ephemeral transaction stores.
 func LoadImports(store gno.Store, mpkg *std.MemPackage, abortOnError bool) (err error) {
+	return LoadImportsWithOptions(store, mpkg, abortOnError, false)
+}
+
+// LoadImportsWithOptions is like LoadImports but allows specifying whether to load realm dependencies.
+// This is needed for coverage testing of realms that depend on other realms.
+func LoadImportsWithOptions(store gno.Store, mpkg *std.MemPackage, abortOnError bool, loadRealmDeps bool) (err error) {
 	// If this gets out of hand (e.g. with nested catchPanic with need for
 	// selective catching) then pass in a bool instead.
 	// See also cmd/gno/common.go.
@@ -374,10 +401,20 @@ func LoadImports(store gno.Store, mpkg *std.MemPackage, abortOnError bool) (err 
 		packages.FileKindXTest,
 	)
 	for _, imp := range imports {
-		if gno.IsRealmPath(imp.PkgPath) {
-			// Don't eagerly load realms.
-			// Realms persist state and can change the state of other realms in initialization.
+		// Skip loading the package being tested itself as it's already instrumented
+		// This is crucial for coverage to work correctly
+		if imp.PkgPath == mpkg.Path {
 			continue
+		}
+		if gno.IsRealmPath(imp.PkgPath) {
+			if !loadRealmDeps {
+				// Don't eagerly load realms in normal mode.
+				// Realms persist state and can change the state of other realms in initialization.
+				continue
+			}
+			// In coverage mode or when explicitly requested, we need to load realm dependencies
+			// to avoid "unexpected node with location" panics when the tested realm
+			// calls functions from other realms.
 		}
 		if !abortOnError {
 			defer func() {
