@@ -274,12 +274,12 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.FailfastFlag = cmd.failfast
 
 	opts.Profile = &test.ProfileConfig{
-		Enabled:      cmd.profile,
-		OutputFile:   cmd.profileOutput,
+		Enabled:       cmd.profile,
+		OutputFile:    cmd.profileOutput,
 		PrintToStdout: cmd.profileStdout,
-		Format:       cmd.profileFormat,
-		Type:         cmd.profileType,
-		FunctionList: cmd.profileList,
+		Format:        cmd.profileFormat,
+		Type:          cmd.profileType,
+		FunctionList:  cmd.profileList,
 	}
 
 	cache := make(gno.TypeCheckCache, 64)
