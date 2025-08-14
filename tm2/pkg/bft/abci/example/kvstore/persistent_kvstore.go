@@ -12,7 +12,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db"
-	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
+	_ "github.com/gnolang/gno/tm2/pkg/db/pebbledb"
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
@@ -21,7 +21,7 @@ const (
 	ValidatorKeyPrefix    string = "/val/"
 )
 
-const dbBackend = db.GoLevelDBBackend
+const dbBackend = db.PebbleDBBackend
 
 // -----------------------------------------
 
