@@ -120,3 +120,20 @@ func IsCallerParentPath(cur realm) bool {
 func HasCallerSameNamespace(cur realm) bool {
 	return nestedpkg.IsSameNamespace()
 }
+
+//----------------------------------------
+// Test function storage
+
+var storedFunc func()
+
+func StoreFunc(cur realm, fn func()) {
+	storedFunc = fn
+}
+
+func ExecuteStoredFunc(cur realm) {
+	if storedFunc != nil {
+		storedFunc()
+	} else {
+		println("No function stored")
+	}
+}
