@@ -14,7 +14,10 @@ import (
 // ReadPkgListFromDir() lists all gno packages in the given dir directory.
 // `mptype` determines what subset of files are considered to read from.
 //
-// Deprecated: use [Load] with a recursive pattern instead
+// deprecated: use [Load] with a recursive pattern instead
+//
+// Not using official deprecated syntax because our current golangcilint config enforces that deprecated function are not used
+// and there is a bug that prevents selectively ignoring the rule, see https://github.com/golangci/golangci-lint/issues/1658
 func ReadPkgListFromDir(dir string, mptype gnolang.MemPackageType) (gnomod.PkgList, error) {
 	var pkgs []gnomod.Pkg
 

@@ -21,11 +21,11 @@ type FileKind string
 
 const (
 	FileKindUnknown       FileKind = ""
-	FileKindPackageSource          = "PackageSource"
-	FileKindTest                   = "Test"
-	FileKindXTest                  = "XTest"
-	FileKindFiletest               = "Filetest"
-	FileKindOther                  = "Other"
+	FileKindPackageSource FileKind = "PackageSource"
+	FileKindTest          FileKind = "Test"
+	FileKindXTest         FileKind = "XTest"
+	FileKindFiletest      FileKind = "Filetest"
+	FileKindOther         FileKind = "Other"
 )
 
 func GnoFileKinds() []FileKind {
