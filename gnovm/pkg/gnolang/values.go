@@ -34,7 +34,7 @@ type Value interface {
 	// receiver, and RefValue returns another type entirely.
 	DeepFill(store Store) Value
 
-	GetShallowSize() int64
+	GetShallowSize(withRef bool) int64
 	VisitAssociated(vis Visitor) (stop bool) // for GC
 }
 
@@ -808,8 +808,9 @@ func (pv *PackageValue) deriveFBlocksMap(store Store) {
 		fname := pv.FNames[i]
 		fmt.Println("======deriveFBlocksMap, fname: ", fname)
 		fblock := pv.GetFileBlock(store, fname)
-		fmt.Println("======fblock...")
+		fmt.Println("======fblock... ", fblock)
 		pv.fBlocksMap[fname] = fblock // idempotent.
+		// XXX FBlocks...
 	}
 }
 

@@ -367,7 +367,9 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		fn := gno.MustParseFile(fname, string(content))
 		// Run (add) file, and then run main().
 		m.RunFiles(fn)
-		fmt.Println("!!!!!!!!!!!!!! len of values: ", len(m.Package.Block.(*gno.Block).Values))
+		// fmt.Println("!!!!!!!!!!!!!! len of values: ", len(m.Package.Block.(*gno.Block).Values))
+		m.Alloc.AllocateBlockItems(int64(len(m.Package.Block.(*gno.Block).Values)))
+		// XXX, allocate items here to make consistent...
 		m.RunMain()
 	} else { // Realm case.
 		gno.DisableDebug() // until main call.

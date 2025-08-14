@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -308,7 +309,8 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 		fmt.Println("=====from store...")
 		if oo := ds.loadObjectSafe(oid); oo != nil {
 			pv := oo.(*PackageValue)
-			// XXX, alloc
+			// XXX, alloc, FBlocks...?
+			// in loadObjectSafe...?
 			_ = pv.GetBlock(ds) // preload
 			// get package associated realm if nil.
 			if pv.IsRealm() && pv.Realm == nil {
@@ -477,7 +479,9 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		ds.consumeGas(gas, GasGetObjectDesc)
 		amino.MustUnmarshal(bz, &oo)
 		fmt.Println("===============loadObjectSafe, allocate..., oid: ", oid)
-		ds.alloc.Allocate(oo.GetShallowSize())
+		fmt.Println("===========oo, type of oo: ", oo, reflect.TypeOf(oo))
+		withRef := true
+		ds.alloc.Allocate(oo.GetShallowSize(withRef))
 		if debug {
 			if oo.GetObjectID() != oid {
 				panic(fmt.Sprintf("unexpected object id: expected %v but got %v",

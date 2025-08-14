@@ -169,7 +169,8 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount int64) Visitor {
 		visitCount++ // Count operations for gas calculation
 
 		// Add object size to alloc.
-		size := v.GetShallowSize()
+		withRef := false
+		size := v.GetShallowSize(withRef)
 		fmt.Println("===================New count size: ", size)
 
 		// Stop if alloc max exceeded during GC.
@@ -351,6 +352,8 @@ func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
 			return
 		}
 	}
+
+	// XXX, visit b.Source???
 
 	// Visit each value.
 	for i := 0; i < len(b.Values); i++ {
