@@ -455,7 +455,7 @@ func (opts *TestOptions) runTestFiles(
 				}
 				if err != nil {
 					p = filepath.Join(opts.RootDir, "examples", ppath, name)
-					b, err = os.ReadFile(p)
+					b, _ = os.ReadFile(p)
 				}
 				return string(b)
 			}

@@ -1,7 +1,6 @@
 package testutils
 
 import (
-	"fmt"
 	"os"
 	"testing"
 )
@@ -19,6 +18,6 @@ func FilterStability(t *testing.T, mode StabilityMode) {
 
 	filter := os.Getenv("STABILITY_FILTER")
 	if filter != string(mode) {
-		t.Skip(fmt.Sprintf("skip test with %q stability", mode))
+		t.Skipf("skip test with %q stability", mode)
 	}
 }

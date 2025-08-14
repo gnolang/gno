@@ -189,7 +189,7 @@ func TestHelpView(t *testing.T) {
 	helpViewParams, ok := templateComponent.data.(helpViewParams)
 	assert.True(t, ok, "expected helpViewParams type in component data")
 
-	assert.Equal(t, data.RealmName, helpViewParams.HelpData.RealmName, "expected realm name %s, got %s", data.RealmName, helpViewParams.HelpData.RealmName)
+	assert.Equal(t, data.RealmName, helpViewParams.RealmName, "expected realm name %s, got %s", data.RealmName, helpViewParams.RealmName)
 
 	assert.NoError(t, view.Render(io.Discard))
 }
