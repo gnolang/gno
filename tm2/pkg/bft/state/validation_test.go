@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/mempool/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/gnolang/gno/tm2/pkg/bft/mempool/mock"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
@@ -28,7 +28,7 @@ func TestValidateBlockHeader(t *testing.T) {
 	defer proxyApp.Stop()
 
 	state, stateDB, privVals := makeState(3, 1)
-	blockExec := sm.NewBlockExecutor(stateDB, log.NewTestingLogger(t), proxyApp.Consensus(), mock.Mempool{})
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewTestingLogger(t), proxyApp.Consensus(), &mock.Mempool{})
 	lastCommit := types.NewCommit(types.BlockID{}, nil)
 
 	validHash := tmhash.Sum([]byte("this hash is valid"))
@@ -163,7 +163,7 @@ func TestValidateBlockCommit(t *testing.T) {
 	defer proxyApp.Stop()
 
 	state, stateDB, privVals := makeState(1, 1)
-	blockExec := sm.NewBlockExecutor(stateDB, log.NewTestingLogger(t), proxyApp.Consensus(), mock.Mempool{})
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewTestingLogger(t), proxyApp.Consensus(), &mock.Mempool{})
 	lastCommit := types.NewCommit(types.BlockID{}, nil)
 	wrongPrecommitsCommit := types.NewCommit(types.BlockID{}, nil)
 	badPrivVal := types.NewMockPV()

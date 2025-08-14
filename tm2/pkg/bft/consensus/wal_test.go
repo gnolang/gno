@@ -155,7 +155,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 		return errors.Wrap(err, "failed to start event bus")
 	}
 	defer evsw.Stop()
-	mempool := mock.Mempool{}
+	mempool := &mock.Mempool{}
 	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), proxyApp.Consensus(), mempool)
 	consensusState := NewConsensusState(config.Consensus, state.Copy(), blockExec, blockStore, mempool)
 	consensusState.SetLogger(logger)

@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -33,7 +32,7 @@ func newMempoolWithApp(cc proxy.ClientCreator) (*CListMempool, cleanupFunc) {
 	return newMempoolWithAppAndConfig(cc, cfg.TestMempoolConfig())
 }
 
-func newMempoolWithAppAndConfig(cc proxy.ClientCreator, config *cfg.MempoolConfig) (*CListMempool, cleanupFunc) {
+func newMempoolWithAppAndConfig(cc proxy.ClientCreator, config *cfg.Config) (*CListMempool, cleanupFunc) {
 	appConnMem, _ := cc.NewABCIClient()
 	appConnMem.SetLogger(log.NewNoopLogger().With("module", "abci-client", "connection", "mempool"))
 	err := appConnMem.Start()
@@ -370,51 +369,6 @@ func TestSerialReap(t *testing.T) {
 	reapCheck(600)
 }
 
-func TestMempoolCloseWAL(t *testing.T) {
-	// 1. Create the temporary directory for mempool and WAL testing.
-	rootDir := t.TempDir()
-
-	// 2. Ensure that it doesn't contain any elements -- Sanity check
-	m1, err := filepath.Glob(filepath.Join(rootDir, "*"))
-	require.Nil(t, err, "successful globbing expected")
-	require.Equal(t, 0, len(m1), "no matches yet")
-
-	// 3. Create the mempool
-	wcfg := cfg.TestMempoolConfig()
-	wcfg.RootDir = rootDir
-	app := kvstore.NewKVStoreApplication()
-	cc := proxy.NewLocalClientCreator(app)
-	mempool, cleanup := newMempoolWithAppAndConfig(cc, wcfg)
-	defer cleanup()
-	mempool.height = 10
-	mempool.InitWAL()
-
-	// 4. Ensure that the directory contains the WAL file
-	m2, err := filepath.Glob(filepath.Join(rootDir, "*"))
-	require.Nil(t, err, "successful globbing expected")
-	require.Equal(t, 1, len(m2), "expecting the wal match in")
-
-	// 5. Write some contents to the WAL
-	mempool.CheckTx(types.Tx([]byte("foo")), nil)
-	walFilepath := mempool.wal.Path
-	sum1 := checksumFile(t, walFilepath)
-
-	// 6. Sanity check to ensure that the written TX matches the expectation.
-	require.Equal(t, sum1, checksumIt([]byte("foo\n")), "foo with a newline should be written")
-
-	// 7. Invoke CloseWAL() and ensure it discards the
-	// WAL thus any other write won't go through.
-	mempool.CloseWAL()
-	mempool.CheckTx(types.Tx([]byte("bar")), nil)
-	sum2 := checksumFile(t, walFilepath)
-	require.Equal(t, sum1, sum2, "expected no change to the WAL after invoking CloseWAL() since it was discarded")
-
-	// 8. Sanity check to ensure that the WAL file still exists
-	m3, err := filepath.Glob(filepath.Join(rootDir, "*"))
-	require.Nil(t, err, "successful globbing expected")
-	require.Equal(t, 1, len(m3), "expecting the wal match in")
-}
-
 func TestMempoolMaxMsgSize(t *testing.T) {
 	app := kvstore.NewKVStoreApplication()
 	cc := proxy.NewLocalClientCreator(app)
@@ -463,7 +417,7 @@ func TestMempoolMaxPendingTxsBytes(t *testing.T) {
 	app := kvstore.NewKVStoreApplication()
 	cc := proxy.NewLocalClientCreator(app)
 	config := cfg.TestMempoolConfig()
-	config.MaxPendingTxsBytes = 10
+	config.MaxTxSize = 10
 	mempool, cleanup := newMempoolWithAppAndConfig(cc, config)
 	defer cleanup()
 
@@ -487,7 +441,7 @@ func TestMempoolMaxPendingTxsBytes(t *testing.T) {
 	mempool.Flush()
 	assert.EqualValues(t, 0, mempool.TxsBytes())
 
-	// 5. MempoolIsFullError is returned when/if MaxPendingTxsBytes limit is reached.
+	// 5. MempoolIsFullError is returned when/if MaxTxSize limit is reached.
 	err = mempool.CheckTx([]byte{0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04}, nil)
 	require.NoError(t, err)
 	err = mempool.CheckTx([]byte{0x05}, nil)

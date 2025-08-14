@@ -790,7 +790,7 @@ func TestConfig_Set_Mempool(t *testing.T) {
 				"100",
 			},
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.Mempool.MaxPendingTxsBytes))
+				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.Mempool.MaxTxSize))
 			},
 		},
 		{
