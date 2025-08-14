@@ -65,7 +65,7 @@ func NewRepl(opts ...ReplOption) *Repl {
 	r.pn = gno.NewPackageNode("repl", r.pkgPath, &gno.FileSet{})
 	r.pv = r.pn.NewPackage()
 	r.fn = &gno.FileNode{
-		FileName: "repl.gno",
+		FileName: "<repl>",
 		PkgName:  "repl",
 		Decls:    nil,
 	}
@@ -136,7 +136,7 @@ func (r *Repl) RunStatements(code string) {
 				switch rec := rec.(type) {
 				case *gno.PreprocessError:
 					err := rec.Unwrap()
-					match := gno.Re_errorLine.Match(err.Error())
+					match := gno.ReErrorLine.Match(err.Error())
 					if match == nil {
 						r.Errorln(err.Error())
 					} else {
@@ -144,7 +144,7 @@ func (r *Repl) RunStatements(code string) {
 					}
 				case error:
 					err := rec
-					match := gno.Re_errorLine.Match(err.Error())
+					match := gno.ReErrorLine.Match(err.Error())
 					if match == nil {
 						r.Errorln(err.Error())
 					} else {
@@ -153,6 +153,13 @@ func (r *Repl) RunStatements(code string) {
 				}
 			}
 		}()
+	}
+
+	if r.debug {
+		// Activate debugger for this statement only.
+		r.m.Debugger.Enable(os.Stdin, os.Stdout, func(ppath, file string) string { return code })
+		r.debug = false
+		defer r.m.Debugger.Disable()
 	}
 
 	decls, err := gno.ParseDecls(code)
@@ -183,5 +190,5 @@ func (r *Repl) Reset() {
 
 // Debug activates the GnoVM debugger for the next evaluation.
 func (r *Repl) Debug() {
-	panic("not yet implemented")
+	r.debug = true
 }
