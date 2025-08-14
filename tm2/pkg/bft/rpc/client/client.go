@@ -69,13 +69,13 @@ func NewRPCClient(caller rpcclient.Client, opts ...Option) *RPCClient {
 // Request batching is available for JSON RPC requests over HTTP, which conforms to
 // the JSON RPC specification (https://www.jsonrpc.org/specification#batch). See
 // the example for more details
-func NewHTTPClient(rpcURL string) (*RPCClient, error) {
+func NewHTTPClient(rpcURL string, opts ...Option) (*RPCClient, error) {
 	httpClient, err := http.NewClient(rpcURL)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewRPCClient(httpClient), nil
+	return NewRPCClient(httpClient, opts...), nil
 }
 
 // NewWSClient takes a remote endpoint in the form <protocol>://<host>:<port>,
@@ -85,13 +85,13 @@ func NewHTTPClient(rpcURL string) (*RPCClient, error) {
 // Request batching is available for JSON RPC requests over WS, which conforms to
 // the JSON RPC specification (https://www.jsonrpc.org/specification#batch). See
 // the example for more details
-func NewWSClient(rpcURL string) (*RPCClient, error) {
+func NewWSClient(rpcURL string, opts ...Option) (*RPCClient, error) {
 	wsClient, err := ws.NewClient(rpcURL)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewRPCClient(wsClient), nil
+	return NewRPCClient(wsClient, opts...), nil
 }
 
 // Close attempts to gracefully close the RPC client
@@ -427,7 +427,6 @@ func (c *RPCClient) ValidatorsWithContext(ctx context.Context, height *int64) (*
 		params,
 	)
 }
-
 
 // newRequest creates a new request based on the method
 // and given params
