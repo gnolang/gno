@@ -140,11 +140,6 @@ func rewrite(s string) string {
 	return string(b)
 }
 
-// simpleQuoteRune does not follow the original strconv.QuoteRune.
-func simpleQuoteRune(r rune) string {
-	return "."
-}
-
 func isSpace(r rune) bool {
 	if r < 0x2000 {
 		switch r {
