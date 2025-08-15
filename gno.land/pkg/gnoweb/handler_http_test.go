@@ -938,39 +938,30 @@ func TestHTTPHandler_ContextCancellation(t *testing.T) {
 func TestHTTPHandler_ContextPropagation(t *testing.T) {
 	t.Parallel()
 
-	contextReceived := make(map[string]bool)
-
-	client := &stubClient{
-		realmFunc: func(ctx context.Context, path, args string) ([]byte, error) {
-			contextReceived["realm"] = ctx != nil
-			return []byte("realm content"), nil
-		},
-		listFilesFunc: func(ctx context.Context, path string) ([]string, error) {
-			contextReceived["listFiles"] = ctx != nil
-			return []string{"test.gno"}, nil
-		},
-		fileFunc: func(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error) {
-			contextReceived["file"] = ctx != nil
-			return []byte("file content"), gnoweb.FileMeta{}, nil
-		},
-		docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
-			contextReceived["doc"] = ctx != nil
-			return &doc.JSONDocumentation{
-				PackagePath: "test",
-			}, nil
-		},
-		listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) {
-			contextReceived["listPaths"] = ctx != nil
-			return []string{"/r/test/path1", "/r/test/path2"}, nil
-		},
+	newClient := func(cr map[string]bool) gnoweb.ClientAdapter {
+		return &stubClient{
+			realmFunc: func(ctx context.Context, path, args string) ([]byte, error) {
+				cr["realm"] = ctx != nil
+				return []byte("realm content"), nil
+			},
+			listFilesFunc: func(ctx context.Context, path string) ([]string, error) {
+				cr["listFiles"] = ctx != nil
+				return []string{"test.gno"}, nil
+			},
+			fileFunc: func(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error) {
+				cr["file"] = ctx != nil
+				return []byte("file content"), gnoweb.FileMeta{}, nil
+			},
+			docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+				cr["doc"] = ctx != nil
+				return &doc.JSONDocumentation{PackagePath: "test"}, nil
+			},
+			listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) {
+				cr["listPaths"] = ctx != nil
+				return []string{"/r/test/path1", "/r/test/path2"}, nil
+			},
+		}
 	}
-
-	cfg := newTestHandlerConfig(t, client)
-	handler, err := gnoweb.NewHTTPHandler(
-		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
-		cfg,
-	)
-	require.NoError(t, err)
 
 	testCases := []struct {
 		name             string
@@ -1003,10 +994,15 @@ func TestHTTPHandler_ContextPropagation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			// Reset context tracking
-			for k := range contextReceived {
-				delete(contextReceived, k)
-			}
+			contextReceived := make(map[string]bool)
+
+			cl := newClient(contextReceived)
+			cfg := newTestHandlerConfig(t, cl)
+			handler, err := gnoweb.NewHTTPHandler(
+				slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+				cfg,
+			)
+			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
 			rr := httptest.NewRecorder()
