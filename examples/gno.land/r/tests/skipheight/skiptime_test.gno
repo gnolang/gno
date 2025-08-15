@@ -1,4 +1,4 @@
-package skiptime
+package skipheight
 
 import (
 	"std"
