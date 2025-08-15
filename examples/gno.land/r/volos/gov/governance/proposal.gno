@@ -18,6 +18,7 @@ type VolosProposalDefinition struct {
 	BodyField         string
 	VotingPeriodField time.Duration
 	Action            func()
+	QuorumAtCreation  int64 // Store quorum value at proposal creation time
 }
 
 func (v VolosProposalDefinition) Title() string               { return v.TitleField }
@@ -26,7 +27,7 @@ func (v VolosProposalDefinition) VotingPeriod() time.Duration { return v.VotingP
 
 // Tally implements the commondao.ProposalDefinition interface.
 // This function is used to tally the votes for the proposal meaning that all the logic for determining the result of the proposal is implemented here.
-// The result is calculated based on the voting power of the yes and no vote(r)s.
+// The result is calculated based on the voting power of the yes and no vote(r)s, and must meet voting power quorum requirements.
 func (v VolosProposalDefinition) Tally(r commondao.ReadonlyVotingRecord, m commondao.MemberSet) (bool, error) {
 	votePower := avl.NewTree()
 	var totalPower int64 = 0
@@ -51,6 +52,10 @@ func (v VolosProposalDefinition) Tally(r commondao.ReadonlyVotingRecord, m commo
 
 		return false
 	})
+
+	if v.QuorumAtCreation > 0 && totalPower < v.QuorumAtCreation {
+		return false, nil
+	}
 
 	yesPower, _ := votePower.Get(string(commondao.ChoiceYes))
 	noPower, _ := votePower.Get(string(commondao.ChoiceNo))
@@ -90,11 +95,12 @@ func CreateProposal(cur realm, title, body string, votingPeriod time.Duration, a
 		BodyField:         body,
 		VotingPeriodField: votingPeriod,
 		Action:            action,
+		QuorumAtCreation:  votingPowerQuorum, 
 	}
 
 	proposal := volosGovernance.MustPropose(proposer, def)
 	deadline := time.Now().Add(votingPeriod).Unix()
-	emitProposalCreated(proposer, proposal.ID(), title, body, deadline)
+	emitProposalCreated(proposer, proposal.ID(), title, body, deadline, votingPowerQuorum)
 	return proposal
 }
 
@@ -111,6 +117,6 @@ func Execute(cur realm, proposalID uint64) {
 	if err != nil {
 		panic(err)
 	}
-	
+
 	emitProposalExecuted(caller, proposalID)
 }

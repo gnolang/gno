@@ -13,14 +13,14 @@ import (
 
 func TestProposal_NewAndVoteChoices(cur realm, t *testing.T) {
 	staker := "gno.land/r/volos/gov/staker"
-	alice := std.DerivePkgAddr("gno.land/r/volos/gov/alice")
+	aliceproposal := std.DerivePkgAddr("gno.land/r/volos/gov/aliceproposal")
 
 	crossThrough(std.NewCodeRealm(staker), func() {
-		xvls.Mint(cross, alice, 10000)
-		AddMember(cross, alice)
+		xvls.Mint(cross, aliceproposal, 10000)
+		AddMember(cross, aliceproposal)
 	})
 
-	crossThrough(std.NewUserRealm(alice), func() {
+	crossThrough(std.NewUserRealm(aliceproposal), func() {
 		CreateProposal(cross, "Default Choices", "Body", time.Second*10, func() {})
 	})
 
@@ -37,22 +37,22 @@ func TestProposal_NewAndVoteChoices(cur realm, t *testing.T) {
 
 func TestProposal_TallyAndQuorum(cur realm, t *testing.T) {
 	staker := "gno.land/r/volos/gov/staker"
-	alice := std.DerivePkgAddr("gno.land/r/volos/gov/alice")
-	bob := std.DerivePkgAddr("gno.land/r/volos/gov/bob")
+	aliceproposal := std.DerivePkgAddr("gno.land/r/volos/gov/aliceproposal")
+	bobproposal := std.DerivePkgAddr("gno.land/r/volos/gov/bobproposal")
 
 	crossThrough(std.NewCodeRealm(staker), func() {
-		xvls.Mint(cross, alice, 10000)
-		xvls.Mint(cross, bob, 10000)
-		AddMember(cross, alice)
-		AddMember(cross, bob)
+		xvls.Mint(cross, aliceproposal, 10000)
+		xvls.Mint(cross, bobproposal, 10000)
+		AddMember(cross, aliceproposal)
+		AddMember(cross, bobproposal)
 	})
 
-	crossThrough(std.NewUserRealm(alice), func() {
+	crossThrough(std.NewUserRealm(aliceproposal), func() {
 		CreateProposal(cross, "Quorum Test", "Body", time.Second*10, func() {})
 		Vote(cross, 1, "YES", "For!")
 	})
 
-	crossThrough(std.NewUserRealm(bob), func() {
+	crossThrough(std.NewUserRealm(bobproposal), func() {
 		Vote(cross, 1, "NO", "Against!")
 	})
 
@@ -66,22 +66,22 @@ func TestProposal_TallyAndQuorum(cur realm, t *testing.T) {
 
 func TestProposal_ExecuteErrors(cur realm, t *testing.T) {
 	staker := "gno.land/r/volos/gov/staker"
-	alice := std.DerivePkgAddr("gno.land/r/volos/gov/alice")
+	aliceproposal := std.DerivePkgAddr("gno.land/r/volos/gov/aliceproposal")
 
 	crossThrough(std.NewCodeRealm(staker), func() {
-		xvls.Mint(cross, alice, 10000)
-		AddMember(cross, alice)
+		xvls.Mint(cross, aliceproposal, 10000)
+		AddMember(cross, aliceproposal)
 	})
 
 	var proposal *commondao.Proposal
-	crossThrough(std.NewUserRealm(alice), func() {
+	crossThrough(std.NewUserRealm(aliceproposal), func() {
 		proposal = CreateProposal(cross, "Panic Action", "Body", time.Second*1, func() { panic("fail") })
 		Vote(cross, proposal.ID(), "YES", "For!")
 	})
 
 	testing.SkipHeights(2000)
 
-	crossThrough(std.NewUserRealm(alice), func() {
+	crossThrough(std.NewUserRealm(aliceproposal), func() {
 		uassert.AbortsWithMessage(t, "fail", func() {
 			volosGovernance.Execute(proposal.ID())
 		})
@@ -90,38 +90,38 @@ func TestProposal_ExecuteErrors(cur realm, t *testing.T) {
 
 func TestProposal_ExecuteFunction(cur realm, t *testing.T) {
 	staker := "gno.land/r/volos/gov/staker"
-	alice := std.DerivePkgAddr("gno.land/r/volos/gov/alice")
+	aliceproposal := std.DerivePkgAddr("gno.land/r/volos/gov/aliceproposal")
 
 	crossThrough(std.NewCodeRealm(staker), func() {
-		xvls.Mint(cross, alice, 10000)
-		AddMember(cross, alice)
+		xvls.Mint(cross, aliceproposal, 10000)
+		AddMember(cross, aliceproposal)
 	})
 
 	var proposal *commondao.Proposal
 	executed := false
-	crossThrough(std.NewUserRealm(alice), func() {
+	crossThrough(std.NewUserRealm(aliceproposal), func() {
 		proposal = CreateProposal(cross, "Successful Execution", "Body", time.Second*1, func() { executed = true })
 		Vote(cross, proposal.ID(), "YES", "For!")
 	})
 
 	testing.SkipHeights(2000)
 
-	crossThrough(std.NewUserRealm(alice), func() {
+	crossThrough(std.NewUserRealm(aliceproposal), func() {
 		Execute(cross, proposal.ID())
 		urequire.True(t, executed)
 	})
 
-	crossThrough(std.NewUserRealm(alice), func() {
+	crossThrough(std.NewUserRealm(aliceproposal), func() {
 		uassert.AbortsWithMessage(t, "proposal not found", func() {
 			Execute(cross, 999)
 		})
 	})
 
 	executed2 := false
-	crossThrough(std.NewUserRealm(alice), func() {
+	crossThrough(std.NewUserRealm(aliceproposal), func() {
 		proposal2 := CreateProposal(cross, "Early Execution", "Body", time.Second*100, func() { executed2 = true })
 		Vote(cross, proposal2.ID(), "YES", "For!")
-		
+
 		uassert.AbortsWithMessage(t, "voting deadline not met", func() {
 			Execute(cross, proposal2.ID())
 		})

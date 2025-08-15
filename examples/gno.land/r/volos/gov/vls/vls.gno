@@ -144,3 +144,13 @@ func UpdateGovernance(cur realm, newPkgPath string) {
 func Render(path string) string {
 	return token.RenderHome()
 }
+
+// temporary function to mint tokens for testing
+func Faucet(cur realm, amount int64) {
+	caller := std.PreviousRealm().Address()
+	if err := ledger.Mint(caller, amount); err != nil {
+		panic(err)
+	}
+
+	emitMint(caller, caller, amount)
+}

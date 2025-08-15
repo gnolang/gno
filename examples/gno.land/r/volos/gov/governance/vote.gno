@@ -45,5 +45,5 @@ func Vote(cur realm, proposalID uint64, choice string, reason string) {
 
 	p.VotingRecord().AddVote(vote)
 	caller := std.PreviousRealm().Address()
-	emitVoteCast(caller, voter, proposalID, choice, reason)
+	emitVoteCast(caller, voter, proposalID, xvls.BalanceOf(voter), choice, reason)
 }

@@ -6,12 +6,14 @@ import (
 )
 
 const (
-	EventProposalCreated = "ProposalCreated"
-	EventProposalExecuted = "ProposalExecuted"
-	EventVoteCast        = "VoteCast"
-	EventMemberAdded     = "MemberAdded"
-	EventMemberRemoved   = "MemberRemoved"
-	EventGovernanceUpdated = "GovernanceUpdated"
+	EventProposalCreated          = "ProposalCreated"
+	EventProposalExecuted         = "ProposalExecuted"
+	EventVoteCast                 = "VoteCast"
+	EventMemberAdded              = "MemberAdded"
+	EventMemberRemoved            = "MemberRemoved"
+	EventGovernanceUpdated        = "GovernanceUpdated"
+	EventVotingPowerQuorumUpdated = "VotingPowerQuorumUpdated"
+	EventProposalThresholdUpdated = "ProposalThresholdUpdated"
 )
 
 const (
@@ -33,10 +35,16 @@ const (
 	EventYesVotesKey     = "yes_votes"
 	EventNoVotesKey      = "no_votes"
 	EventAbstainVotesKey = "abstain_votes"
+	EventOldQuorumKey    = "old_quorum"
+	EventNewQuorumKey    = "new_quorum"
+	EventOldThresholdKey = "old_threshold"
+	EventNewThresholdKey = "new_threshold"
+	EventQuorumKey       = "quorum"
+	EventXvlsAmountKey   = "xvls_amount"
 )
 
 // Emit proposal creation event
-func emitProposalCreated(caller std.Address, proposalID uint64, title, body string, deadline int64) {
+func emitProposalCreated(caller std.Address, proposalID uint64, title, body string, deadline, quorum int64) {
 	std.Emit(
 		EventProposalCreated,
 		EventCallerKey, caller.String(),
@@ -44,6 +52,7 @@ func emitProposalCreated(caller std.Address, proposalID uint64, title, body stri
 		EventTitleKey, title,
 		EventBodyKey, body,
 		EventDeadlineKey, strconv.FormatInt(deadline, 10),
+		EventQuorumKey, strconv.FormatInt(quorum, 10),
 	)
 }
 
@@ -57,7 +66,7 @@ func emitProposalExecuted(caller std.Address, proposalID uint64) {
 }
 
 // Emit vote cast event
-func emitVoteCast(caller, voter std.Address, proposalID uint64, vote, reason string) {
+func emitVoteCast(caller, voter std.Address, proposalID uint64, xvlsAmount int64, vote, reason string) {
 	std.Emit(
 		EventVoteCast,
 		EventCallerKey, caller.String(),
@@ -65,6 +74,7 @@ func emitVoteCast(caller, voter std.Address, proposalID uint64, vote, reason str
 		EventProposalIDKey, strconv.FormatUint(proposalID, 10),
 		EventVoteKey, vote,
 		EventReasonKey, reason,
+		EventXvlsAmountKey, strconv.FormatInt(xvlsAmount, 10),
 	)
 }
 
@@ -96,4 +106,24 @@ func emitGovernanceUpdated(caller std.Address, oldPkgPath, newPkgPath string) {
 		EventOldPkgPathKey, oldPkgPath,
 		EventNewPkgPathKey, newPkgPath,
 	)
-} 
+}
+
+// Emit voting power quorum updated event
+func emitVotingPowerQuorumUpdated(caller std.Address, oldQuorum, newQuorum int64) {
+	std.Emit(
+		EventVotingPowerQuorumUpdated,
+		EventCallerKey, caller.String(),
+		EventOldQuorumKey, strconv.FormatInt(oldQuorum, 10),
+		EventNewQuorumKey, strconv.FormatInt(newQuorum, 10),
+	)
+}
+
+// Emit proposal threshold updated event
+func emitProposalThresholdUpdated(caller std.Address, oldThreshold, newThreshold int64) {
+	std.Emit(
+		EventProposalThresholdUpdated,
+		EventCallerKey, caller.String(),
+		EventOldThresholdKey, strconv.FormatInt(oldThreshold, 10),
+		EventNewThresholdKey, strconv.FormatInt(newThreshold, 10),
+	)
+}

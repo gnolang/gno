@@ -64,7 +64,7 @@ func KickMember(cur realm, addr std.Address) {
 
 		return nil
 	})
-	
+
 	caller := std.PreviousRealm().Address()
 	emitMemberRemoved(caller, addr)
 }
