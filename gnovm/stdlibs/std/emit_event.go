@@ -60,3 +60,14 @@ type GnoEventAttribute struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
+
+// FindAttribute returns the value for the key in e.Attributes. If not found, return "", false
+func (e *GnoEvent) FindAttribute(key string) (string, bool) {
+	for _, attr := range e.Attributes {
+		if attr.Key == key {
+			return attr.Value, true
+		}
+	}
+
+	return "", false
+}
