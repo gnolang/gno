@@ -36,7 +36,7 @@ func TestModApp(t *testing.T) {
 			testDir:              "../../tests/integ/invalid_module_name",
 			simulateExternalRepo: true,
 			errShouldBe:          "1 build error(s)",
-			stderrShouldContain:  "usage: module module/path",
+			stderrShouldContain:  "invalid gnomod.toml: 'module' is required (type: *errors.errorString)",
 		},
 		{
 			args:                 []string{"mod", "download"},
