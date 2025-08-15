@@ -32,11 +32,11 @@ func IsInvited(addr std.Address) bool {
 
 // New creates a new CommonDAO.
 // An invitation is required to be able to create new DAOs.
-func New(name string, options ...Option) *commondao.CommonDAO {
+func New(_ realm, name string, options ...Option) *commondao.CommonDAO {
 	name = strings.TrimSpace(name)
 	assertDAONameIsValid(name)
 
-	caller := std.CurrentRealm().Address()
+	caller := std.PreviousRealm().Address()
 	if !hasOwnership(caller) {
 		orig := std.OriginCaller()
 		assertIsInvited(orig)
@@ -46,9 +46,19 @@ func New(name string, options ...Option) *commondao.CommonDAO {
 	return createDAO(name, caller, options)
 }
 
+func UpdateUser(_ realm, daoID uint64, user std.Address) {
+	dao := mustGetDAO(daoID)
+	dao.Members().Add(user)
+}
+
+func Propose(_ realm, daoID uint64, user std.Address, pd commondao.ProposalDefinition) (*commondao.Proposal, error) {
+	dao := mustGetDAO(daoID)
+	return dao.Propose(user, pd)
+}
+
 // NewSubDAO creates a new SubDAO.
-func NewSubDAO(name string, parentID uint64, options ...Option) *commondao.CommonDAO {
-	caller := std.CurrentRealm().Address()
+func NewSubDAO(_ realm, name string, parentID uint64, options ...Option) *commondao.CommonDAO {
+	caller := std.PreviousRealm().Address()
 	assertIsOwner(caller, parentID)
 
 	parentOptions := getOptions(parentID)

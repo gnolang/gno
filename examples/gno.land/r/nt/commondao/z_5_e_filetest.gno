@@ -37,14 +37,14 @@ func init() {
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
-	dao := commondao.New("Foo")
+	dao := commondao.New(cross, "Foo")
 	daoID = dao.ID()
 
 	// Configure DAO
-	dao.Members().Add(user)
+	commondao.UpdateUser(cross, daoID, user)
 
 	// Create a new proposal
-	proposal, _ = dao.Propose(user, propDef{})
+	proposal, _ = commondao.Propose(cross, dao.ID(), user, propDef{})
 }
 
 func main() {
@@ -54,4 +54,4 @@ func main() {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): tree<VPBlock(1,0)>.node
+// invalid vote choice

@@ -1956,7 +1956,6 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 
 	// Not cross nor crossing.
 	// Only "soft" switch to storage realm of receiver.
-	var rlm *Realm
 	if recv.IsDefined() { // method call
 		// XXX, consider these...
 
@@ -1964,13 +1963,12 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			return
 		}
 
-		rlm = pv.Realm
 		// same realm, no switch
-		if rlm == m.Realm {
+		if pv.Realm == m.Realm {
 			return
 		}
 
-		m.Realm = rlm
+		m.Realm = pv.Realm
 
 		return
 	} else { // function without receiver
@@ -1979,34 +1977,36 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		}
 
 		if pv.IsRealm() {
-			isExternalFunc := false // top level func declared in external package with no cross
+			// pkg.Foo
 			if sx, ok := cx.Func.(*SelectorExpr); ok {
 				if cx, ok := sx.X.(*ConstExpr); ok {
-					_, isExternalFunc = cx.T.(*PackageType)
+					_, isExternalFunc := cx.T.(*PackageType)
+					if isExternalFunc {
+						// no switch to utility func
+						return
+					}
 				}
 			}
 			// XXX, why
 			if m.Realm != nil {
-				if !isExternalFunc {
-					// fmt.Println("!!!!!!!!!!!!!!!!!!!!!! cross to closure owner realm...")
-					// fmt.Println("===PushFrameCall, cx: ", cx)
-					// A function without receiver (named or unnamed) in a realm.
-					// Borrow switch to where the function is declared,
-					// since there is no receiver.
-					// Neither cross nor didswitch.
-					pkgPath := pv.PkgPath
-					rlm = m.Store.GetPackageRealm(pkgPath)
-					m.Realm = rlm
-					// DO NOT set DidCrossing here. Make
-					// DidCrossing only happen upon explicit
-					// cross(fn)(...) calls and subsequent calls to
-					// crossing functions from the same realm, to
-					// avoid user confusion. Otherwise whether
-					// DidCrossing happened or not depends on where
-					// the receiver resides, which isn't explicit
-					// enough to avoid confusion.
-					//   fr.DidCrossing = true
-				}
+				// fmt.Println("!!!!!!!!!!!!!!!!!!!!!! cross to closure owner realm...")
+				// fmt.Println("===PushFrameCall, cx: ", cx)
+				// A function without receiver (named or unnamed) in a realm.
+				// Borrow switch to where the function is declared,
+				// since there is no receiver.
+				// Neither cross nor didswitch.
+				// pkgPath := pv.PkgPath
+				// rlm = m.Store.GetPackageRealm(pkgPath)
+				m.Realm = pv.Realm
+				// DO NOT set DidCrossing here. Make
+				// DidCrossing only happen upon explicit
+				// cross(fn)(...) calls and subsequent calls to
+				// crossing functions from the same realm, to
+				// avoid user confusion. Otherwise whether
+				// DidCrossing happened or not depends on where
+				// the receiver resides, which isn't explicit
+				// enough to avoid confusion.
+				//   fr.DidCrossing = true
 			}
 		} else {
 			// A function without receiver in a non-realm package.
@@ -2259,6 +2259,9 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 		return false
 	}
 	if tvoid.PkgID != m.Realm.ID {
+		// fmt.Println("=================IsReadOnly...")
+		// fmt.Println("=================m.Realm: ", m.Realm)
+		// fmt.Println("=================tvoid.PkgID: ", tvoid.PkgID)
 		return true
 	}
 	return false

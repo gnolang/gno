@@ -28,7 +28,7 @@ func init() {
 
 	// Create the root DAO
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/nt/commondao"))
-	parentDAO := commondao.New("Parent DAO", commondao.AllowChildren(true))
+	parentDAO := commondao.New(cross, "Parent DAO", commondao.AllowChildren(true))
 	parentID = parentDAO.ID()
 }
 
@@ -36,7 +36,7 @@ func main() {
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/nt/commondao"))
 
-	dao := commondao.NewSubDAO(name, parentID)
+	dao := commondao.NewSubDAO(cross, name, parentID)
 	if dao == nil {
 		panic("expected subDAO to be created")
 	}
@@ -52,5 +52,7 @@ func main() {
 	}
 }
 
-// Error:
-// cannot directly modify readonly tainted object (w/o method): *(i<VPBlock(1,0)>)
+// Output:
+// true
+// true
+// true

@@ -27,7 +27,7 @@ func main() {
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
 
-	dao := commondao.New(name)
+	dao := commondao.New(cross, name)
 	if dao == nil {
 		panic("expected DAO to be created")
 	}
@@ -38,5 +38,8 @@ func main() {
 	println(commondao.GetOptions(dao.ID()) != nil)
 }
 
-// Error:
-// cannot directly modify readonly tainted object (w/o method): tree<VPBlock(1,0)>.node
+// Output:
+// true
+// true
+// false
+// true

@@ -22,7 +22,7 @@ func init() {
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
-	daoID = commondao.New("Foo").ID()
+	daoID = commondao.New(cross, "Foo").ID()
 }
 
 func main() {
@@ -30,4 +30,4 @@ func main() {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): tree<VPBlock(1,0)>.node
+// caller is not a DAO member

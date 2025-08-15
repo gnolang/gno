@@ -26,15 +26,15 @@ func init() {
 
 	// Create the root DAO
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
-	parentID = commondao.New("Parent DAO").ID()
+	parentID = commondao.New(cross, "Parent DAO").ID()
 }
 
 func main() {
 	// Call with a realm that is not the owner of the parent DAO
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
 
-	commondao.NewSubDAO("Foo", parentID)
+	commondao.NewSubDAO(cross, "Foo", parentID)
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): tree<VPBlock(1,0)>.node
+// unauthorized
