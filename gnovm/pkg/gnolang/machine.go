@@ -210,10 +210,9 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 		// TODO: is this right?
 		if pn.FileSet == nil {
 			pn.FileSet = fset
-		} else {
-			// This happens for non-realm file tests.
-			// TODO ensure the files are the same.
 		}
+		// pn.FileSet != nil happens for non-realm file tests.
+		// TODO ensure the files are the same.
 	}
 }
 
@@ -819,9 +818,8 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 			Ss(
 				Return(x),
 			)))
-	} else {
-		// x already creates its own scope.
 	}
+	// else,x already creates its own scope.
 	// Preprocess x.
 	x = Preprocess(m.Store, last, x).(Expr)
 	// Evaluate x.
@@ -1751,7 +1749,6 @@ func (m *Machine) PushValue(tv TypedValue) {
 		m.Printf("+v %v\n", tv)
 	}
 	m.Values = append(m.Values, tv)
-	return
 }
 
 // Resulting reference is volatile.
@@ -2491,15 +2488,8 @@ func (m *Machine) String() string {
 		}
 		// Update b
 		switch bp := b.Parent.(type) {
-		case nil:
-			b = nil
-		case *Block:
-			b = bp
 		case RefValue:
 			fmt.Fprintf(builder, "            (block ref %v)\n", bp.ObjectID)
-			b = nil
-		default:
-			panic("should not happen")
 		}
 	}
 	builder.WriteString("    Blocks (other):\n")

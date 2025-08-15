@@ -856,9 +856,9 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 	// NOTE: also sets the hash to object.
 	rlm.sumDiff += store.SetObject(oo)
 	// set index.
-	if oo.GetIsEscaped() {
-		// XXX save oid->hash to iavl.
-	}
+	// if oo.GetIsEscaped() {
+	// XXX save oid->hash to iavl.
+	// }
 }
 
 //----------------------------------------
@@ -1701,11 +1701,12 @@ func toRefValue(val Value) RefValue {
 			}
 		} else if !oo.GetIsReal() {
 			panic("unexpected unreal object")
-		} else if oo.GetIsDirty() {
-			// This can happen with some circular
-			// references.
-			// panic("unexpected dirty object")
 		}
+		// This can happen with some circular
+		// references.
+		// else if oo.GetIsDirty() {
+		// panic("unexpected dirty object")
+		// }
 		if oo.GetIsNewEscaped() {
 			// NOTE: oo.GetOwnerID() will become zero.
 			return RefValue{
