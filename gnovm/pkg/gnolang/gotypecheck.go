@@ -424,9 +424,10 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 			if IsStdlib(mpkg.Path) {
 				panic("expected ParseCheckGnoMod() to auto-generate a gno.mod for stdlibs")
 			}
-			if gimp.tcmode == TCGno0p0 {
+			switch gimp.tcmode {
+			case TCGno0p0:
 				gnoVersion = GnoVerMissing
-			} else if gimp.tcmode == TCLatestRelaxed {
+			case TCLatestRelaxed:
 				gnoVersion = GnoVerLatest
 			}
 		} else {
