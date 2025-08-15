@@ -13,7 +13,7 @@ import (
 func RenderCharts(members MembersByTier) string {
 	var sb strings.Builder
 
-	tierNames := []string{"T1", "T2", "T3"}
+	tierNames := []string{T1, T2, T3}
 	pieSlicesTs := make([]piechart.PieSlice, 0, len(tierNames))
 	pieSlicesTp := make([]piechart.PieSlice, 0, len(tierNames))
 

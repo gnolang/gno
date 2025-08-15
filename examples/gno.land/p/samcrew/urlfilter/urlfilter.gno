@@ -46,8 +46,14 @@ type Result struct {
 //
 //	// result.Markdown → Markdown links for toggling filters
 //	// result.Items    → AVL tree containing only the filtered items
-func ApplyFilters(u *url.URL, items FilterItemsTree) Result {
-	active := parseFilterMap(u.Query())
+func ApplyFilters(u *url.URL, items FilterItemsTree, paramName ...string) Result {
+	// Default parameter name for filters
+	pName := "filter"
+	if len(paramName) > 0 && paramName[0] != "" {
+		pName = paramName[0]
+	}
+
+	active := parseFilterMap(u.Query(), pName)
 	allFilters := make([]string, 0)
 	resultTree := avl.NewTree()
 
@@ -74,7 +80,7 @@ func ApplyFilters(u *url.URL, items FilterItemsTree) Result {
 	// Build Markdown links for toggling each filter
 	var sb strings.Builder
 	for _, f := range allFilters {
-		q := toggleFilterQuery(active, f, allFilters)
+		q := toggleFilterQuery(active, f, allFilters, pName)
 		urlStr := buildURL(u.Path, q)
 		sb.WriteString(ufmt.Sprintf(" | %v ", md.Link(formatLabel(f, active[f]), urlStr)))
 	}
@@ -99,8 +105,8 @@ func buildURL(path string, query url.Values) string {
 // Example:
 //
 //	"filter=T1,T2" -> map[string]bool{"T1": true, "T2": true}
-func parseFilterMap(query url.Values) map[string]bool {
-	filterStr := strings.TrimSpace(query.Get("filter"))
+func parseFilterMap(query url.Values, paramName string) map[string]bool {
+	filterStr := strings.TrimSpace(query.Get(paramName))
 	if filterStr == "" {
 		return map[string]bool{}
 	}
@@ -117,7 +123,7 @@ func parseFilterMap(query url.Values) map[string]bool {
 // - If the filter is currently active, it will be removed.
 // - If it is inactive, it will be added.
 // The order of filters follows the `all` list for consistency.
-func toggleFilterQuery(active map[string]bool, toggled string, all []string) url.Values {
+func toggleFilterQuery(active map[string]bool, toggled string, all []string, paramName string) url.Values {
 	newFilters := []string{}
 	for _, f := range all {
 		if f == toggled {
@@ -130,7 +136,7 @@ func toggleFilterQuery(active map[string]bool, toggled string, all []string) url
 	}
 	q := url.Values{}
 	if len(newFilters) > 0 {
-		q.Set("filter", strings.Join(newFilters, ","))
+		q.Set(paramName, strings.Join(newFilters, ","))
 	}
 	return q
 }

@@ -56,8 +56,10 @@ func (ren *render) Render(pkgPath string, path string) string {
 }
 
 func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
-	out := "# GovDAO Proposals\n"
-
+	out := "# GovDAO\n"
+	out += "## Memberstore\n"
+	out += "[> Go to Memberstore <](/r/gov/dao/v3/memberstore:members)\n"
+	out += "## Proposals\n"
 	page := ren.pssPager.MustGetPageByPath(url)
 	for _, item := range page.Items {
 		seqpid, err := seqid.FromString(item.Key)

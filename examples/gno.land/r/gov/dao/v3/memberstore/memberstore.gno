@@ -150,11 +150,11 @@ func renderNotFound(res *mux.ResponseWriter, req *mux.Request) {
 
 func tierColor(tn string) string {
 	switch tn {
-	case "T1":
+	case T1:
 		return "#329175"
-	case "T2":
+	case T2:
 		return "#21577A"
-	case "T3":
+	case T3:
 		return "#F3D3BC"
 	default:
 		return "#FFF"

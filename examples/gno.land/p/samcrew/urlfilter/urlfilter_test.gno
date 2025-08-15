@@ -2,6 +2,7 @@ package urlfilter
 
 import (
 	"net/url"
+	"strings"
 	"testing"
 
 	"gno.land/p/demo/avl"
@@ -28,10 +29,10 @@ func buildTestTree() *avl.Tree {
 func TestApplyFilters(t *testing.T) {
 	TreeParent := buildTestTree()
 
-	// --- Case 1: No filter selected
+	// --- Case 1: No filter selected, custom parameter name
 	u, _ := url.Parse("/test")
-	res := ApplyFilters(u, TreeParent)
-	expectedMarkdown := " | [~~keyF1~~](/test?filter=keyF1)  | [~~keyF2~~](/test?filter=keyF2) "
+	res := ApplyFilters(u, TreeParent, "custom-param-name")
+	expectedMarkdown := " | [~~keyF1~~](/test?custom-param-name=keyF1)  | [~~keyF2~~](/test?custom-param-name=keyF2) "
 	if res.Markdown != expectedMarkdown {
 		t.Errorf("Expected Markdown %q, got %q", expectedMarkdown, res.Markdown)
 	}
@@ -43,6 +44,10 @@ func TestApplyFilters(t *testing.T) {
 	})
 	if count != 4 {
 		t.Errorf("Expected 4 items, got %d", count)
+	}
+	// The parameter name should be "custom-param-name"
+	if !strings.Contains(expectedMarkdown, "custom-param-name") {
+		t.Errorf("Expected 'custom-param-name' parameter in Markdown, got %q", res.Markdown)
 	}
 
 	// --- Case 2: One filter active (keyF1)

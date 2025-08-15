@@ -20,7 +20,7 @@ func RenderMembers(path string, members MembersByTier) string {
 	if pageNum < 1 {
 		pageNum = 1
 	}
-	pageSize := 14
+	const pageSize = 14
 	data := urlfilter.ApplyFilters(u, members.Tree)
 
 	var sb strings.Builder
