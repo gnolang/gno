@@ -1,0 +1,38 @@
+package xvls
+
+import (
+	"gno.land/p/demo/json"
+	"std"
+)
+
+// ApiGetTokenInfo returns xVLS token information as JSON string
+func ApiGetTokenInfo() string {
+	tokenInfo := TokenInfoToRpc()
+	return marshal(tokenInfo.JSON())
+}
+
+// ApiGetBalance returns a balance as JSON string
+func ApiGetBalance(address string) string {
+	addr := std.Address(address)
+	if !addr.IsValid() {
+		return marshalError("invalid address")
+	}
+	
+	balance := BalanceToRpc(addr)
+	return marshal(balance.JSON())
+}
+
+func marshal(node *json.Node) string {
+	b, err := json.Marshal(node)
+	if err != nil {
+		panic(err.Error())
+	}
+	return string(b)
+}
+
+func marshalError(message string) string {
+	errorNode := json.ObjectNode("", map[string]*json.Node{
+		"error": json.StringNode("error", message),
+	})
+	return marshal(errorNode)
+}
