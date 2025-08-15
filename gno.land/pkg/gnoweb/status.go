@@ -1,7 +1,9 @@
 package gnoweb
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"runtime"
@@ -17,8 +19,8 @@ import (
 func handlerStatusJSON(logger *slog.Logger, cli *client.RPCClient) http.Handler {
 	const qpath = ".app/version"
 
-	queryVersion := func() (*abci.ResponseQuery, error) {
-		qres, err := cli.ABCIQuery(qpath, []byte{})
+	queryVersion := func(ctx context.Context) (*abci.ResponseQuery, error) {
+		qres, err := cli.ABCIQueryWithContext(ctx, qpath, []byte{})
 		if err != nil {
 			return nil, errors.Wrap(err, "query app version")
 		}
@@ -28,6 +30,8 @@ func handlerStatusJSON(logger *slog.Logger, cli *client.RPCClient) http.Handler 
 
 	startedAt := time.Now()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
 		var ret struct {
 			Gnoland struct {
 				Connected bool    `json:"connected"`
@@ -59,7 +63,7 @@ func handlerStatusJSON(logger *slog.Logger, cli *client.RPCClient) http.Handler 
 		ret.Website.GoVersion = runtime.Version()
 
 		ret.Gnoland.Connected = true
-		res, err := queryVersion()
+		res, err := queryVersion(ctx)
 		if err != nil {
 			ret.Gnoland.Connected = false
 			errmsg := err.Error()
@@ -73,6 +77,52 @@ func handlerStatusJSON(logger *slog.Logger, cli *client.RPCClient) http.Handler 
 		out, _ := json.MarshalIndent(ret, "", "  ")
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(out)
+	})
+}
+
+// handlerLivenessJSON checks if the gnoweb service itself is running and responding.
+func handlerLivenessJSON(logger *slog.Logger) http.Handler {
+	startTime := time.Now()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Simple liveness check - service is up and running
+		uptime := time.Since(startTime)
+		logger.Debug("liveness check passed", "uptime", uptime)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, `{"status":"ok"}`)
+	})
+}
+
+// handlerReadyJSON checks if gnoweb can communicate with the RPC node and serve clients.
+func handlerReadyJSON(logger *slog.Logger, cli *client.RPCClient, domain string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		// Test basic query functionality by checking if we can query paths
+		const testPath = "vm/qpaths?limit=1"
+		testData := domain + "/"
+
+		qres, err := cli.ABCIQueryWithContext(ctx, testPath, []byte(testData))
+		switch {
+		case err != nil:
+		case qres.Response.Error != nil:
+			err = qres.Response.Error
+		case len(qres.Response.Data) == 0:
+			// Node should have at least some paths available
+			err = errors.New("empty response from the node")
+
+		default: // ok
+			logger.Debug("readiness check passed", "path", testPath)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprint(w, `{"status":"ready"}`)
+			return
+		}
+
+		// not ready
+		logger.Warn("readiness check failed", "error", err, "test_path", testPath)
+		http.Error(w, "not ready", http.StatusServiceUnavailable)
 	})
 }
 
