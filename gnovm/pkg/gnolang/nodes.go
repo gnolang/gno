@@ -789,7 +789,7 @@ func (ss Body) isCrossing_gno0p0() bool {
 		return false
 	}
 	cx, ok := xs.X.(*CallExpr)
-	return cx.isCrossing_gno0p0()
+	return ok && cx.isCrossing_gno0p0()
 }
 
 // ----------------------------------------
@@ -1687,7 +1687,6 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	sb.Consts = make([]Name, 0, 16)
 	sb.Externs = make([]Name, 0, 16)
 	sb.Parent = parent
-	return
 }
 
 // Implements BlockNode.
@@ -2174,7 +2173,6 @@ func (sb *StaticBlock) GetFuncNodeForExpr(store Store, fne Expr) (FuncNode, erro
 					// So just return this.
 					pn = this
 				} else {
-					pv = store.GetPackage(ref.PkgPath, false)
 					pn = store.GetPackageNode(ref.PkgPath)
 				}
 			} else {
