@@ -13,7 +13,7 @@ Please note that this is a quick overview. For a more detailed guide, refer to t
 ## Features
 -  **In-Memory Node**: Gnodev starts an in-memory node, automatically loading the **examples** folder and any
    user-specified paths.
--  **Web Interface Server**: Gnodev starts a `gnoweb` server on [`localhost:8889`](https://localhost:8889).
+-  **Web Interface Server**: Gnodev starts a `gnoweb` server on [`localhost:8888`](https://localhost:8888).
 -  **Balances and Keybase Customization**: Set account balances, load them from a file, or add new accounts via a flag.
 -  **Hot Reload**: Monitors the **examples** folder and specified directories for file changes, reloading the
    package and automatically restarting the node as needed.
@@ -128,7 +128,7 @@ FLAGS
   -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
   -web-home ...	gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
-  -web-listener 127.0.0.1:8889	gnoweb: web server listener address
+  -web-listener 127.0.0.1:8888	gnoweb: web server listener address
   -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
 
 ```
@@ -171,7 +171,7 @@ FLAGS
   -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
   -web-home :none:	gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
-  -web-listener 127.0.0.1:8889	gnoweb: web server listener address
+  -web-listener 127.0.0.1:8888	gnoweb: web server listener address
   -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
 
 ```

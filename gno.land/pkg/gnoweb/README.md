@@ -29,7 +29,7 @@ make dev
 
 This will:
 
-- Start a `gnoweb` server in development mode and watch for any Go files change (listening on [localhost](http://localhost:8889)).
+- Start a `gnoweb` server in development mode and watch for any Go files change (listening on [localhost](http://localhost:8888)).
 - Enable Tailwind CSS in watch mode to automatically compile CSS changes.
 - Use esbuild in watch mode to automatically transpile and bundle TypeScript changes.
 

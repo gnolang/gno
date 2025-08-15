@@ -153,7 +153,7 @@ GnoWeb      ┃ I using default package path=gno.land/r/example/minisocial
 Proxy       ┃ I lazy loading is enabled. packages will be loaded only upon a request via a query or transaction. loader=local<threads-full>/root<examples>
 Node        ┃ I packages paths=[gno.land/r/example/minisocial]
 Event       ┃ I sending event to clients clients=0 type=NODE_RESET event={}
-GnoWeb      ┃ I gnoweb started lisn=http://127.0.0.1:8889
+GnoWeb      ┃ I gnoweb started lisn=http://127.0.0.1:8888
 --- READY   ┃ I for commands and help, press `h` took=1.689893s
 ```
 
@@ -161,7 +161,7 @@ If we didn't make any errors in our code, we should get the output as presented
 above. If not, follow the stack trace and fix any errors that might have showed up.
 
 Next, we can open the `gnoweb` instance by opening the local listener at
-[`127.0.0.1:8889`](http://127.0.0.1:8889). `gnodev` is configured to open
+[`127.0.0.1:8888`](http://127.0.0.1:8888). `gnodev` is configured to open
 the package path you're working on by default.
 
 Since a `Render()` function is not defined yet, `gnoweb` will return an error.
