@@ -25,7 +25,7 @@ func init() {
 
 	// Create root DAO without subDAOs
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
-	rootID = commondao.New(cross, "Root DAO").ID()
+	rootID = commondao.New("Root DAO").ID()
 }
 
 func main() {

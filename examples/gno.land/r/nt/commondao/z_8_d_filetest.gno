@@ -25,11 +25,11 @@ func init() {
 
 	// Create root DAO with subDAOs
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
-	rootDAO := commondao.New(cross, "Root DAO")
-	fooDAO := commondao.NewSubDAO(cross, "A", rootDAO.ID())
-	barDAO := commondao.NewSubDAO(cross, "B", fooDAO.ID())
-	commondao.NewSubDAO(cross, "C", barDAO.ID())
-	commondao.NewSubDAO(cross, "D", fooDAO.ID())
+	rootDAO := commondao.New("Root DAO")
+	fooDAO := commondao.NewSubDAO("A", rootDAO.ID())
+	barDAO := commondao.NewSubDAO("B", fooDAO.ID())
+	commondao.NewSubDAO("C", barDAO.ID())
+	commondao.NewSubDAO("D", fooDAO.ID())
 
 	rootID = rootDAO.ID()
 }

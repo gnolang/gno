@@ -37,14 +37,14 @@ func init() {
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
-	dao := commondao.New(cross, "Foo")
+	dao := commondao.New("Foo")
 	daoID = dao.ID()
 
 	// Configure DAO
-	commondao.UpdateUser(cross, daoID, user)
+	dao.Members().Add(user)
 
 	// Create a new proposal
-	proposal, _ = commondao.Propose(cross, dao.ID(), user, propDef{})
+	proposal, _ = dao.Propose(user, propDef{})
 }
 
 func main() {
