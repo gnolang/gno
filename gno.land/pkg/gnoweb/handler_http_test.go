@@ -1001,6 +1001,8 @@ func TestHTTPHandler_ContextPropagation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			// Reset context tracking
 			for k := range contextReceived {
 				delete(contextReceived, k)

@@ -165,6 +165,7 @@ func TestAnalytics(t *testing.T) {
 			})
 		}
 	})
+
 	t.Run("disabled", func(t *testing.T) {
 		for _, route := range routes {
 			t.Run(route, func(t *testing.T) {
@@ -250,5 +251,4 @@ func TestHealthEndpoints(t *testing.T) {
 			assert.Contains(t, response.Body.String(), `{"status":"ready"}`)
 		})
 	})
-
 }
