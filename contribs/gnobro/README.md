@@ -20,13 +20,13 @@ repository.
 Start the `gnobro` with the development server:
 
 ```sh
-gnobro -remote localhost:8888
+gnobro -remote localhost:8889
 ```
 
 Or connect to a `gnodev` instance by specifying a ws endpoint:
 
 ```sh
-gnobro -remote localhost:8888 -dev-ws localhost:8889
+gnobro -remote localhost:8889 -dev-ws localhost:8889
 ```
 
 ### Command Line Help
@@ -48,7 +48,7 @@ FLAGS
   -chainid dev	chainid
   -default-realm gno.land/r/gnoland/home	default realm to display when gnobro starts and no argument is provided
   -dev=true 	enable dev mode and connect to gnodev for realtime update
-  -dev-remote ...	dev endpoint, if empty will default to `ws://<target>:8888`
+  -dev-remote ...	dev endpoint, if empty will default to `ws://<target>:8889`
   -jsonlog=false 	display server log as json format
   -readonly=false 	readonly mode, no commands allowed
   -remote 127.0.0.1:26657	remote gno.land URL

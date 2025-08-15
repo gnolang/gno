@@ -38,4 +38,4 @@ Make sure you have started website
 
 Request testing tokens from following URL, Have fun!
 
-    http://localhost:8888/faucet
+    http://localhost:8889/faucet

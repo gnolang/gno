@@ -29,7 +29,7 @@ go run .
 ## Monitor
 
 This calls r/demo/boards to add `testboard` and a thread if they don't exist. This utility adds millions of replies to the first post on board #1.
-To monitor progress, in a web browser go to http://127.0.0.1:8888/r/demo/boards:testboard . The first post says something like "(100 replies)".
+To monitor progress, in a web browser go to http://127.0.0.1:8889/r/demo/boards:testboard . The first post says something like "(100 replies)".
 Refresh your browser to see this number increase.
 
 ## Optional speedup

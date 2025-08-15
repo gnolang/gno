@@ -122,11 +122,11 @@ Loader      ┃ I guessing directory path path=gno.land/r/example/counter dir={y
 Accounts    ┃ I default address imported name=test1 addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 Node        ┃ I packages paths=[gno.land/r/example/counter]
 Event       ┃ I sending event to clients clients=0 type=NODE_RESET event=&{}
-GnoWeb      ┃ I gnoweb started lisn=http://127.0.0.1:8888
+GnoWeb      ┃ I gnoweb started lisn=http://127.0.0.1:8889
 --- READY   ┃ I for commands and help, press `h` took=1.391020125s
 ```
 
-By opening the `gnoweb` listener address, [`http://localhost:8888`](http://127.0.0.1:8888),
+By opening the `gnoweb` listener address, [`http://localhost:8889`](http://127.0.0.1:8889),
 we should see the render of our `counter` realm:
 
 ```
