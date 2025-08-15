@@ -387,14 +387,5 @@ func lintTargetName(pkg *packages.Package) string {
 		return pkg.ImportPath
 	}
 
-	if filepath.IsAbs(pkg.Dir) {
-		return pkg.Dir
-	}
-
-	relPath, err := filepath.Rel(".", pkg.Dir)
-	if err != nil {
-		return pkg.Dir
-	}
-
-	return relPath
+	return tryRelativizePath(pkg.Dir)
 }

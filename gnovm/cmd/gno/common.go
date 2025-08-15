@@ -338,18 +338,25 @@ func guessFilePathLoc(s, pkgPath, dir string) string {
 
 // Wrapper around [guessFilePathLoc] that tries to relativize it's output
 func guessFilePathLocRel(s, pkgPath, dir string) string {
-	outStr := guessFilePathLoc(s, pkgPath, dir)
+	p := guessFilePathLoc(s, pkgPath, dir)
+	return tryRelativizePath(p)
+}
 
-	if !filepath.IsAbs(outStr) {
-		return outStr
+// tryRelativizePath takes a path in and if it is absolute, tries to make it relative to cwd.
+// Any errors are ignored and in case of errors, the initial path is returned
+func tryRelativizePath(p string) string {
+	if !filepath.IsAbs(p) {
+		return p
 	}
+
 	wd, err := os.Getwd()
 	if err != nil {
-		return outStr
+		return p
 	}
-	rel, err := filepath.Rel(wd, outStr)
+
+	rel, err := filepath.Rel(wd, p)
 	if err != nil {
-		return outStr
+		return p
 	}
 
 	return rel
