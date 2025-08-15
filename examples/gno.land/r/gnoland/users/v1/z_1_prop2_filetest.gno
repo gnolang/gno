@@ -66,6 +66,9 @@ func main() {
 // Output:
 // --
 // # GovDAO
+// ## Members
+// [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
+// ## Proposals
 // ### [Prop #0 - User Registry V1: Delete user `alice123`](/r/gov/dao:0)
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
