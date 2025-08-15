@@ -71,7 +71,7 @@ func Render() {
 
 // Output:
 // true
-// # GovDAO Proposals
+// # GovDAO
 // ### [Prop #0 - Proposal Title: Dummy proposal](/r/gov/dao:0)
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //

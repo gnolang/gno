@@ -62,7 +62,7 @@ func main() {
 
 // Output:
 // --
-// # GovDAO Proposals
+// # GovDAO
 // ### [Prop #0 - User Registry V1: Rename user `alice123` to `alice_new123`](/r/gov/dao:0)
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
