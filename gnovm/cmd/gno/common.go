@@ -292,50 +292,14 @@ func guessIssueFromError(dir, pkgPath string, err error, code gnoCode) gnoIssue 
 	return issue
 }
 
-// Wrapper around [guessFilePathLoc] that tries to relativize it's output
-func guessFilePathLocRel(s, pkgPath, dir string) string {
-	outStr := guessFilePathLoc(s, pkgPath, dir)
-
-	if !filepath.IsAbs(outStr) {
-		return outStr
-	}
-	wd, err := os.Getwd()
-	if err != nil {
-		return outStr
-	}
-	rel, err := filepath.Rel(wd, outStr)
-	if err != nil {
-		return outStr
-	}
-
-	return rel
-}
-
 // Takes a location string `s` and tries to convert to a path based on `dir`.
 // NOTE: s may not be in pkgPath (e.g. for type-check errors on imports).
 // Do not make a transformation unless the answer is highly unlikely to be incorrect.
 // Otherwise debugging may be painful. Better to return s as is.
-func guessFilePathLoc(s, pkgPath, dir string) (outStr string) {
+func guessFilePathLoc(s, pkgPath, dir string) string {
 	if !dirExists(dir) {
 		panic(fmt.Sprintf("dir %q does not exist", dir))
 	}
-
-	// make the returned path relative if possible
-	// XXX: find a better way to do that
-	defer func() {
-		if !filepath.IsAbs(outStr) {
-			return
-		}
-		wd, err := os.Getwd()
-		if err != nil {
-			return
-		}
-		rel, err := filepath.Rel(wd, outStr)
-		if err != nil {
-			return
-		}
-		outStr = rel
-	}()
 
 	s = filepath.Clean(s)
 	pkgPath = filepath.Clean(pkgPath)
@@ -370,6 +334,25 @@ func guessFilePathLoc(s, pkgPath, dir string) (outStr string) {
 	}
 	// dunno.
 	return s
+}
+
+// Wrapper around [guessFilePathLoc] that tries to relativize it's output
+func guessFilePathLocRel(s, pkgPath, dir string) string {
+	outStr := guessFilePathLoc(s, pkgPath, dir)
+
+	if !filepath.IsAbs(outStr) {
+		return outStr
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return outStr
+	}
+	rel, err := filepath.Rel(wd, outStr)
+	if err != nil {
+		return outStr
+	}
+
+	return rel
 }
 
 func dirExists(dir string) bool {
