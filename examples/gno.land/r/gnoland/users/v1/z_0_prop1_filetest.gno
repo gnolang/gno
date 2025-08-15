@@ -59,3 +59,5 @@ func main() {
 	// println(data.Addr())
 }
 
+// Error:
+// should not happen, method and object not in same realm

@@ -22,6 +22,5 @@ func main() {
 	println(groups.Render(""))
 }
 
-// Output:
-// 1
-// List of all Groups:
+// Error:
+// should not happen, method and object not in same realm

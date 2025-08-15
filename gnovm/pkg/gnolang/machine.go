@@ -1956,21 +1956,41 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 
 	// Not cross nor crossing.
 	// Only "soft" switch to storage realm of receiver.
+	var rlm *Realm
 	if recv.IsDefined() { // method call
-		// XXX, consider these...
-
-		if !pv.IsRealm() {
+		obj := recv.GetFirstObject(m.Store)
+		if obj == nil { // nil receiver
+			// no switch
 			return
+		} else {
+			recvOID := obj.GetObjectInfo().ID
+
+			if IsRealmPath(fv.PkgPath) && PkgIDFromPkgPath(fv.PkgPath) != recvOID.PkgID {
+				panic("should not happen, method and object not in same realm")
+			} else {
+				// println("=========not realm fv, do nothing")
+			}
+
+			if recvOID.IsZero() ||
+				(m.Realm != nil && recvOID.PkgID == m.Realm.ID) {
+				// no switch
+
+				return
+			} else {
+				// Implicit switch to storage realm.
+				// Neither cross nor didswitch.
+				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
+				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
+				if objpv.IsRealm() && objpv.Realm == nil {
+					rlm = m.Store.GetPackageRealm(objpv.PkgPath)
+				} else {
+					rlm = objpv.GetRealm()
+				}
+
+				m.Realm = rlm
+				return
+			}
 		}
-
-		// same realm, no switch
-		if pv.Realm == m.Realm {
-			return
-		}
-
-		m.Realm = pv.Realm
-
-		return
 	} else { // function without receiver
 		if pv.Realm == m.Realm {
 			return

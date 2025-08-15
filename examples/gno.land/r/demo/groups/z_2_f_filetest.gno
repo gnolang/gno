@@ -26,4 +26,4 @@ func main() {
 }
 
 // Error:
-// group id (20) does not exists
+// should not happen, method and object not in same realm

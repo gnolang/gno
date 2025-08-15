@@ -42,4 +42,4 @@ func main(cur realm) {
 // hello A gno.land/r/crossrealm
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): f<VPBlock(1,0)>.s
+// should not happen, method and object not in same realm

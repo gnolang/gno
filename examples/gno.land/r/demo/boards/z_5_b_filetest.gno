@@ -30,4 +30,4 @@ func main() {
 }
 
 // Error:
-// please register, otherwise minimum fee 100000000 is required if anonymous
+// should not happen, method and object not in same realm

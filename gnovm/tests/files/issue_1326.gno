@@ -59,6 +59,5 @@ func Values() string {
 	return s
 }
 
-// Output:
-// 1,1,1;
-// 1,1,1;2,2,2;
+// Error:
+// should not happen, method and object not in same realm

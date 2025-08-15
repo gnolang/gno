@@ -17,13 +17,6 @@ func main(cur realm) {
 	println("end")
 }
 
-// Output:
-// 0: &FooStringer{one}
-// 1: &FooStringer{two}
-// 2: &FooStringer{three}
-//
-// end
-
 // Realm:
 // finalizerealm["gno.land/r/demo/tests"]
 // c[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:59](245)={
@@ -183,7 +176,6 @@ func main(cur realm) {
 //              "RefCount": "1"
 //          },
 // d[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:54](-618)
-// finalizerealm["gno.land/r/demo/tests_foo"]
-// finalizerealm["gno.land/r/demo/tests_foo"]
-// finalizerealm["gno.land/r/demo/tests_foo"]
-// finalizerealm["gno.land/r/demo/tests0"]
+
+// Error:
+// should not happen, method and object not in same realm

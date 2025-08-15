@@ -38,7 +38,5 @@ func main(cur realm) {
 	p.Mutate() // cross into current realm where method Mutate is declared
 }
 
-// Output:
-// s.A: 101
-// current realm:  CodeRealm{ g1mdevzlw3defhhew53zsky80lhqnk94ew8grqdt, gno.land/r/borrow }
-// previous realm:  UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
+// Error:
+// should not happen, method and object not in same realm

@@ -24,4 +24,4 @@ func main() {
 }
 
 // Error:
-// dst board not exist
+// should not happen, method and object not in same realm

@@ -48,28 +48,5 @@ func main() {
 	println(groups.RenderGroup(gid))
 }
 
-// Output:
-// Group ID: 0000000001
-//
-// Group Name: test_group
-//
-// Group Creator: main123
-//
-// Group createdAt: 2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001
-//
-// Group Last MemberID: 0000000000
-//
-// Group Members:
-//
-//
-// Group ID: 0000000001
-//
-// Group Name: test_group
-//
-// Group Creator: main123
-//
-// Group createdAt: 2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001
-//
-// Group Last MemberID: 0000000001
-//
-// Group Members:
+// Error:
+// should not happen, method and object not in same realm

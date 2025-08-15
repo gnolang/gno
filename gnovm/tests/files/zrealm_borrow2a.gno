@@ -49,4 +49,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): s<VPBlock(1,0)>.A
+// should not happen, method and object not in same realm

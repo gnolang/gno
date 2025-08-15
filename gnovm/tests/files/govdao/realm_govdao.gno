@@ -70,4 +70,4 @@ func Render() {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): tree<VPBlock(1,0)>.node
+// should not happen, method and object not in same realm

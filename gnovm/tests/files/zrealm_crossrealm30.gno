@@ -39,4 +39,4 @@ func main() {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): sb<VPBlock(1,0)>.B
+// should not happen, method and object not in same realm

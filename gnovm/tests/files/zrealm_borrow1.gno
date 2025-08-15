@@ -67,7 +67,5 @@ func main(cur realm) {
 	p.PrintRealms()
 }
 
-// Output:
-// 101
-// CodeRealm{ g1mdevzlw3defhhew53zsky80lhqnk94ew8grqdt, gno.land/r/borrow }
-// CodeRealm{ g1mdevzlw3defhhew53zsky80lhqnk94ew8grqdt, gno.land/r/borrow }
+// Error:
+// should not happen, method and object not in same realm

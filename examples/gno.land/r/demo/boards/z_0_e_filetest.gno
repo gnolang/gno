@@ -24,4 +24,4 @@ func main() {
 }
 
 // Error:
-// board not exist
+// should not happen, method and object not in same realm

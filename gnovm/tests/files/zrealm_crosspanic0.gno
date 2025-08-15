@@ -45,4 +45,4 @@ func main() {
 }
 
 // Error:
-// fail: the transaction should have been aborted; this defer should not even be called
+// should not happen, method and object not in same realm

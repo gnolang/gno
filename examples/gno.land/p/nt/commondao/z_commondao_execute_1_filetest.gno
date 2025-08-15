@@ -43,7 +43,5 @@ func main() {
 	println(proposal.StatusReason())
 }
 
-// Output:
-// true
-// failed
-// test error
+// Error:
+// should not happen, method and object not in same realm

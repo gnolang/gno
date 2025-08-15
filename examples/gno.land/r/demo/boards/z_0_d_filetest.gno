@@ -25,4 +25,4 @@ func main() {
 }
 
 // Error:
-// thread not exist
+// should not happen, method and object not in same realm

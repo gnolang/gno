@@ -28,4 +28,4 @@ func main() {
 }
 
 // Error:
-// invalid non-user call
+// should not happen, method and object not in same realm

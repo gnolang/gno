@@ -45,5 +45,16 @@ func main() {
 	println("beneficiary2 balance (TEST2):", tokens.BalanceOf("TEST2", beneficiary2))
 }
 
-// Error:
-// cannot directly modify readonly tainted object (w/o method): led<~VPBlock(1,0)>.totalSupply
+// Output:
+// main balance before (TEST1): 200
+// main balance before (TEST2): 200
+// disperse allowance before (TEST1): 200
+// disperse allowance before (TEST2): 200
+// main balance after (TEST1): 0
+// main balance after (TEST2): 0
+// disperse allowance after (TEST1): 0
+// disperse allowance after (TEST2): 0
+// beneficiary1 balance (TEST1): 200
+// beneficiary1 balance (TEST2): 0
+// beneficiary2 balance (TEST1): 0
+// beneficiary2 balance (TEST2): 200
