@@ -26,7 +26,7 @@ gnobro -remote localhost:8888
 Or connect to a `gnodev` instance by specifying a ws endpoint:
 
 ```sh
-gnobro -remote localhost:8888 -dev-ws localhost:8888
+gnobro -remote localhost:8888 -dev-ws localhost:8889
 ```
 
 ### Command Line Help
