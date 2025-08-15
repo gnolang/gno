@@ -21,6 +21,7 @@ require (
 	dario.cat/mergo v1.0.1 // indirect
 	github.com/alecthomas/chroma/v2 v2.15.0 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
+	github.com/boombuler/barcode v1.1.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.6 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
