@@ -84,11 +84,15 @@ var (
 	// fixed memory caps. For now though it isn't a problem:
 	// https://github.com/gnolang/gno/pull/3424#issuecomment-2564571785
 	pkgIDFromPkgPathCache = make(map[string]*PkgID, 100)
+
+	pkgPrivateFromPkgIDMu sync.RWMutex // protects concurrent access
 	pkgPrivateFromPkgID   = make(map[PkgID]struct{}, 100)
 )
 
 func SetPkgPrivate(path string, private bool) {
 	pkgId := PkgIDFromPkgPath(path)
+	pkgPrivateFromPkgIDMu.Lock()
+	defer pkgPrivateFromPkgIDMu.Unlock()
 	if private {
 		pkgPrivateFromPkgID[pkgId] = struct{}{}
 	} else {
@@ -97,10 +101,10 @@ func SetPkgPrivate(path string, private bool) {
 }
 
 func IsPkgPrivateFromPkgID(pkgID PkgID) bool {
-	if _, ok := pkgPrivateFromPkgID[pkgID]; ok {
-		return true
-	}
-	return false
+	pkgPrivateFromPkgIDMu.RLock()
+	_, ok := pkgPrivateFromPkgID[pkgID]
+	pkgPrivateFromPkgIDMu.RUnlock()
+	return ok
 }
 
 func IsPkgPrivateFromPkgPath(path string) bool {
