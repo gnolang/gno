@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/demo/testutils"
 	pdao "gno.land/p/nt/commondao"
+	"gno.land/p/nt/testutils"
 
 	"gno.land/r/nt/commondao"
 )

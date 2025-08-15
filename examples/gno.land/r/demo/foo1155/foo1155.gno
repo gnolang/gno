@@ -3,8 +3,8 @@ package foo1155
 import (
 	"std"
 
-	"gno.land/p/demo/grc/grc1155"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/tokens/grc1155"
+	"gno.land/p/nt/ufmt"
 )
 
 var (

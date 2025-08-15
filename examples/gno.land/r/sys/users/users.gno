@@ -3,7 +3,7 @@ package users
 import (
 	"std"
 
-	"gno.land/p/demo/avl/rotree"
+	"gno.land/p/nt/avl/rotree"
 )
 
 // ResolveName returns the latest UserData of a specific user by name or alias

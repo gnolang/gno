@@ -1,5 +1,5 @@
 # Reproducible Test for https://github.com/gnolang/gno/issues/1167
-loadpkg gno.land/p/demo/avl
+loadpkg gno.land/p/nt/avl
 
 gnoland start
 
@@ -40,7 +40,7 @@ package xx
 import (
 	"strconv"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 type Move struct {

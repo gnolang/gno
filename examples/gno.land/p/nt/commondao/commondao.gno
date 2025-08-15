@@ -5,8 +5,8 @@ import (
 	"std"
 	"time"
 
-	"gno.land/p/demo/avl/list"
-	"gno.land/p/demo/seqid"
+	"gno.land/p/nt/avl/list"
+	"gno.land/p/nt/seqid"
 )
 
 // PathSeparator is the separator character used in DAO paths.

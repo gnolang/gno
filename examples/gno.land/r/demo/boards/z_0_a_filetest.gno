@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/demo/boards_test
-package boards_test
+// PKGPATH: gno.land/r/demo/boards
+package boards
 
 // SEND: 1000000ugnot
 
@@ -7,7 +7,7 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/testutils"
+	"gno.land/p/nt/testutils"
 	"gno.land/r/demo/boards"
 )
 

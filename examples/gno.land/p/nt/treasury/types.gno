@@ -3,9 +3,9 @@ package treasury
 import (
 	"errors"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/avl/list"
-	"gno.land/p/demo/mux"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/list"
+	"gno.land/p/nt/mux"
 )
 
 // Treasury is the main structure that holds all bankers and their payment

@@ -4,8 +4,8 @@ import (
 	"std"
 	"strconv"
 
-	"gno.land/p/demo/ownable"
 	"gno.land/p/moul/dynreplacer"
+	"gno.land/p/nt/ownable"
 	blog "gno.land/r/gnoland/blog"
 
 	"gno.land/r/gnoland/events"

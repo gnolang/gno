@@ -5,10 +5,10 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/gnorkle/agent"
 	"gno.land/p/demo/gnorkle/feed"
 	"gno.land/p/demo/gnorkle/message"
+	"gno.land/p/nt/avl"
 )
 
 // Instance is a single instance of an oracle.

@@ -11,7 +11,7 @@ package levenshtein
 import (
 	"strconv"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 // Distance computes the Levenshtein distance between two strings.

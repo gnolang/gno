@@ -3,7 +3,7 @@ package expect
 import (
 	"strings"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 const defaultAssertFailMsg = "assert expectation failed"

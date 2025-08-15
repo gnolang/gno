@@ -1,4 +1,4 @@
-loadpkg gno.land/p/demo/avl
+loadpkg gno.land/p/nt/avl
 
 # start a new node
 gnoland start
@@ -33,7 +33,7 @@ import (
 	"strconv"
 	"time"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 var gData = avl.Tree{} // id -> string

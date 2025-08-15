@@ -3,7 +3,7 @@ package complexargs
 import (
 	"strings"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 // Some example complex types, ie a slice, and a custom type
