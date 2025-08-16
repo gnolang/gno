@@ -96,3 +96,8 @@ func TestRun(t *testing.T) {
 		t.Run(tc, func(t *testing.T) {})
 	}
 }
+
+
+
+-- gnomod.toml --
+module = 'gno.test/r/integ/no_path_flag_run'

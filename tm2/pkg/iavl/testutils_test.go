@@ -2,8 +2,8 @@ package iavl
 
 import (
 	"bytes"
+	crand "crypto/rand"
 	"fmt"
-	mrand "math/rand"
 	"runtime"
 	"testing"
 
@@ -78,9 +78,7 @@ func P(n *Node) string {
 
 func randBytes(length int) []byte {
 	key := make([]byte, length)
-	// math.rand.Read always returns err=nil
-	// we do not need cryptographic randomness for this test:
-	mrand.Read(key)
+	crand.Read(key)
 	return key
 }
 
