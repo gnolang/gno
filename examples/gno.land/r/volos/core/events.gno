@@ -72,6 +72,8 @@ const (
     EventIsAuthorizedKey  = "is_authorized"
     EventTokenKey = "token"
     EventTimestampKey     = "currentTimestamp"
+    EventSupplyAPRKey     = "supplyAPR"
+    EventBorrowAPRKey     = "borrowAPR"
 )
 
 // Event emission helper functions
@@ -86,6 +88,10 @@ func emitCreateMarket(marketId string, loanToken string, collateralToken string)
 }
 
 func emitSupply(marketId string, caller std.Address, onBehalf std.Address, assets, shares *u256.Uint) {
+	// Calculate APRs after supply operation
+	supplyAPR := CalculateSupplyAPR(marketId)
+	borrowAPR := CalculateBorrowAPR(marketId)
+	
 	std.Emit(
 		SupplyEvent,
 		EventMarketIDKey, marketId,
@@ -94,10 +100,16 @@ func emitSupply(marketId string, caller std.Address, onBehalf std.Address, asset
 		EventAmountKey, assets.ToString(),
 		EventSharesKey, shares.ToString(),
 		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
+		EventSupplyAPRKey, supplyAPR.ToString(),
+		EventBorrowAPRKey, borrowAPR.ToString(),
 	)
 }
 
 func emitWithdraw(marketId string, caller std.Address, onBehalf std.Address, receiver std.Address, assets, shares *u256.Uint) {
+	// Calculate APRs after withdraw operation
+	supplyAPR := CalculateSupplyAPR(marketId)
+	borrowAPR := CalculateBorrowAPR(marketId)
+	
 	std.Emit(
 		WithdrawEvent,
 		EventMarketIDKey, marketId,
@@ -107,10 +119,16 @@ func emitWithdraw(marketId string, caller std.Address, onBehalf std.Address, rec
 		EventAmountKey, assets.ToString(),
 		EventSharesKey, shares.ToString(),
 		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
+		EventSupplyAPRKey, supplyAPR.ToString(),
+		EventBorrowAPRKey, borrowAPR.ToString(),
 	)
 }
 
 func emitBorrow(marketId string, caller std.Address, onBehalf std.Address, receiver std.Address, assets, shares *u256.Uint) {
+	// Calculate APRs after borrow operation
+	supplyAPR := CalculateSupplyAPR(marketId)
+	borrowAPR := CalculateBorrowAPR(marketId)
+	
 	std.Emit(
 		BorrowEvent,
 		EventMarketIDKey, marketId,
@@ -120,10 +138,16 @@ func emitBorrow(marketId string, caller std.Address, onBehalf std.Address, recei
 		EventAmountKey, assets.ToString(),
 		EventSharesKey, shares.ToString(),
 		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
+		EventSupplyAPRKey, supplyAPR.ToString(),
+		EventBorrowAPRKey, borrowAPR.ToString(),
 	)
 }
 
 func emitRepay(marketId string, caller std.Address, onBehalf std.Address, assets, shares *u256.Uint) {
+	// Calculate APRs after repay operation
+	supplyAPR := CalculateSupplyAPR(marketId)
+	borrowAPR := CalculateBorrowAPR(marketId)
+	
 	std.Emit(
 		RepayEvent,
 		EventMarketIDKey, marketId,
@@ -132,10 +156,16 @@ func emitRepay(marketId string, caller std.Address, onBehalf std.Address, assets
 		EventAmountKey, assets.ToString(),
 		EventSharesKey, shares.ToString(),
 		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
+		EventSupplyAPRKey, supplyAPR.ToString(),
+		EventBorrowAPRKey, borrowAPR.ToString(),
 	)
 }
 
 func emitLiquidate(marketId string, caller std.Address, borrower std.Address, repaidAssets, repaidShares, seizedAssets *u256.Uint) {
+	// Calculate APRs after liquidation operation
+	supplyAPR := CalculateSupplyAPR(marketId)
+	borrowAPR := CalculateBorrowAPR(marketId)
+	
 	std.Emit(
 		EventLiquidate,
 		EventMarketIdKey, marketId,
@@ -145,6 +175,8 @@ func emitLiquidate(marketId string, caller std.Address, borrower std.Address, re
 		EventSharesKey, repaidShares.ToString(),
 		EventSeizedKey, seizedAssets.ToString(),
 		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
+		EventSupplyAPRKey, supplyAPR.ToString(),
+		EventBorrowAPRKey, borrowAPR.ToString(),
 	)
 }
 
