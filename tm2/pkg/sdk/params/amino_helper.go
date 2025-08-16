@@ -16,7 +16,7 @@ func encodeStructFields(prm any) (res []std.KVPair) {
 	if err != nil {
 		panic(errors.Wrap(err, "Error reflecting on module param struct"))
 	}
-	fields := tinfo.StructInfo.Fields
+	fields := tinfo.Fields
 	for i, field := range fields {
 		rv := rvPrm.Field(i)
 		name := field.JSONName
@@ -45,7 +45,7 @@ func decodeStructFields(prmPtr any, kvz []std.KVPair) {
 	if err != nil {
 		panic(errors.Wrap(err, "Error reflecting on module param struct"))
 	}
-	fields := tinfo.StructInfo.Fields
+	fields := tinfo.Fields
 	for i, field := range fields {
 		rv := rvPrm.Field(i)
 		name := field.JSONName
@@ -67,7 +67,7 @@ func getStructFieldsFromStore(prmPtr any, store sm.Store, key []byte) (res []std
 	if err != nil {
 		panic(errors.Wrap(err, "Error reflecting on module param struct"))
 	}
-	fields := tinfo.StructInfo.Fields
+	fields := tinfo.Fields
 	for _, field := range fields {
 		name := field.JSONName
 		value := store.Get([]byte(string(key) + ":" + name))
