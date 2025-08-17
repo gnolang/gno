@@ -85,6 +85,12 @@ func Approve(cur realm, spender std.Address, amount int64) {
 	emitApproval(caller, spender, amount)
 }
 
+// Approve a realm to spend tokens on behalf of the caller.
+func ApproveRealm(cur realm, spenderPkgPath string, amount int64) {
+	spender := std.DerivePkgAddr(spenderPkgPath)
+	Approve(cur, spender, amount)
+}
+
 // Transfer tokens from an owner to a recipient, using the caller's allowance.
 func TransferFrom(cur realm, owner, to std.Address, amount int64) {
 	teller := token.CallerTeller()
