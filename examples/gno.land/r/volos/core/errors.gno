@@ -1,4 +1,4 @@
-package volos
+package core
 
 import (
 	"errors"

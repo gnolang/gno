@@ -1,4 +1,4 @@
-package volos
+package core
 
 import (
 	"std"
@@ -107,8 +107,6 @@ func safeTransferTo(tokenPath string, to std.Address, amount int64) {
 		panic(ErrBalanceVerificationFailed)
 	}
 }
-
-
 
 // Helper function to check if two tokens exist together in a Gnoswap pool
 func areTokensPairedInGnoswap(token0, token1 string) bool {

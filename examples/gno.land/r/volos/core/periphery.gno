@@ -1,8 +1,10 @@
-package volos
+package core
 
 import (
 	"gno.land/p/demo/avl"
 	u256 "gno.land/p/gnoswap/uint256"
+	"gno.land/p/volos/consts"
+	"gno.land/p/volos/math"
 )
 
 // ExpectedMarketBalances returns the expected market balances after interest accrual
@@ -52,7 +54,7 @@ func ExpectedSupplyAssets(marketId string, user string) *u256.Uint {
 	position := GetPosition(marketId, user)
 	market, _ := GetMarket(marketId)
 
-	return ToAssetsDown(position.SupplyShares, market.TotalSupplyAssets, market.TotalSupplyShares)
+	return math.ToAssetsDown(position.SupplyShares, market.TotalSupplyAssets, market.TotalSupplyShares)
 }
 
 // ExpectedBorrowAssets returns the expected borrow assets balance of a user after interest accrual
@@ -65,7 +67,7 @@ func ExpectedBorrowAssets(marketId string, user string) *u256.Uint {
 	position := GetPosition(marketId, user)
 	market, _ := GetMarket(marketId)
 
-	return ToAssetsUp(position.BorrowShares, market.TotalBorrowAssets, market.TotalBorrowShares)
+	return math.ToAssetsUp(position.BorrowShares, market.TotalBorrowAssets, market.TotalBorrowShares)
 }
 
 // CalculateBorrowRate returns the current borrow rate per second
@@ -108,16 +110,16 @@ func CalculateSupplyRate(marketId string) *u256.Uint {
 	borrowRate := irm.BorrowRate(market.TotalSupplyAssets, market.TotalBorrowAssets)
 
 	// Calculate utilization rate: totalBorrow / totalSupply
-	utilizationRate := WDivDown(market.TotalBorrowAssets, market.TotalSupplyAssets)
+	utilizationRate := math.WDivDown(market.TotalBorrowAssets, market.TotalSupplyAssets)
 
 	// Calculate fee-adjusted borrow rate
-	feeFactor := new(u256.Uint).Sub(WAD, market.Fee) // (1 - fee)
+	feeFactor := new(u256.Uint).Sub(consts.WAD, market.Fee) // (1 - fee)
 
 	// Supply rate = borrow rate * utilization rate * (1 - fee)
 	// This formula accounts for:
 	// 1. Interest is only earned on the portion of funds being borrowed (utilization)
 	// 2. A portion of interest (the fee) goes to the fee recipient
-	return WMulDown(WMulDown(borrowRate, utilizationRate), feeFactor)
+	return math.WMulDown(math.WMulDown(borrowRate, utilizationRate), feeFactor)
 }
 
 // CalculateBorrowAPR returns the current borrow APR (scaled by WAD)
@@ -159,7 +161,7 @@ func CalculateLoanAmount(marketId string, user string) *u256.Uint {
 	market, _ := GetMarket(marketId)
 
 	// Calculate current borrowed value using ToAssetsUp for safety
-	return ToAssetsUp(
+	return math.ToAssetsUp(
 		position.BorrowShares,
 		market.TotalBorrowAssets,
 		market.TotalBorrowShares,
@@ -212,13 +214,13 @@ func CalculateHealthFactor(marketId string, userAddr string) *u256.Uint {
 
 	// If no borrows, position is maximally healthy (return a very large number)
 	if position.BorrowShares.IsZero() {
-		return new(u256.Uint).Mul(WAD, u256.NewUint(100)) // 100 * WAD
+		return new(u256.Uint).Mul(consts.WAD, u256.NewUint(100)) // 100 * WAD
 	}
 
 	market, params := GetMarket(marketId)
 
 	// Calculate current borrowed value
-	borrowed := ToAssetsUp(
+	borrowed := math.ToAssetsUp(
 		position.BorrowShares,
 		market.TotalBorrowAssets,
 		market.TotalBorrowShares,
@@ -229,15 +231,15 @@ func CalculateHealthFactor(marketId string, userAddr string) *u256.Uint {
 		return u256.Zero()
 	}
 
-	collateralPrice := GetPrice(params.PoolPath)
+	collateralPrice := GetPrice(marketId)
 
 	// Calculate max borrow allowed
-	maxBorrow := WMulDown(MulDivDown(position.Collateral, collateralPrice, ORACLE_PRICE_SCALE), params.LLTV)
+	maxBorrow := math.WMulDown(math.MulDivDown(position.Collateral, collateralPrice, consts.ORACLE_PRICE_SCALE), params.LLTV)
 
 	// Health factor = maxBorrow / borrowed (WAD scaled)
 	if borrowed.IsZero() {
-		return new(u256.Uint).Mul(WAD, u256.NewUint(100)) // 100 * WAD
+		return new(u256.Uint).Mul(consts.WAD, u256.NewUint(100)) // 100 * WAD
 	}
 
-	return WDivDown(maxBorrow, borrowed)
+	return math.WDivDown(maxBorrow, borrowed)
 }

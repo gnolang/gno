@@ -1,4 +1,4 @@
-package volos
+package core
 
 import (
 	"std"
@@ -9,6 +9,8 @@ import (
 
 	u256 "gno.land/p/gnoswap/uint256"
 	pl "gno.land/r/gnoswap/v1/pool"
+	"gno.land/p/volos/consts"
+	"gno.land/p/volos/math"
 )
 
 /* STATE VARIABLES */
@@ -94,7 +96,7 @@ func EnableLLTV(cur realm, lltv int64) {
 
 	// Convert LLTV percentage to WAD-scaled value (e.g., 75% -> 0.75 * 1e18)
 	lltvUint := u256.NewUint(uint64(lltv))
-	lltvWad := MulDivDown(lltvUint, WAD, u256.NewUint(100)) // This will give us (lltv * 1e18) / 100
+	lltvWad := math.MulDivDown(lltvUint, consts.WAD, u256.NewUint(100)) // This will give us (lltv * 1e18) / 100
 
 	// Convert LLTV to string for use as key in tree
 	lltvStr := lltvWad.ToString()
@@ -129,7 +131,7 @@ func setFee(cur realm, marketId string, newFee *u256.Uint) {
 	}
 
 	// Check fee doesn't exceed maximum
-	if newFee.Cmp(MAX_FEE) > 0 {
+	if newFee.Cmp(consts.MAX_FEE) > 0 {
 		panic(ErrMaxFeeExceeded)
 	}
 
@@ -158,7 +160,7 @@ func CreateMarket(cur realm, poolPath string, isToken0Loan bool, irm string, llt
 
 	// Convert LLTV percentage to WAD-scaled value (e.g., 75% -> 0.75 * 1e18)
 	lltvUint := u256.NewUint(uint64(lltv))
-	lltvWad := MulDivDown(lltvUint, WAD, u256.NewUint(100)) // This will give us (lltv * 1e18) / 100
+	lltvWad := math.MulDivDown(lltvUint, consts.WAD, u256.NewUint(100)) // This will give us (lltv * 1e18) / 100
 
 	// Create market params
 	params := MarketParams{
@@ -244,14 +246,14 @@ func SupplyOnBehalf(cur realm, marketId string, assets, shares uint64, onBehalf 
 	// Calculate shares to mint
 	var sharesToMint *u256.Uint
 	if assets > 0 {
-		sharesToMint = ToSharesDown(
+		sharesToMint = math.ToSharesDown(
 			assetsU256,
 			market.TotalSupplyAssets,
 			market.TotalSupplyShares,
 		)
 	} else {
 		sharesToMint = sharesU256
-		assetsU256 = ToAssetsUp(
+		assetsU256 = math.ToAssetsUp(
 			sharesU256,
 			market.TotalSupplyAssets,
 			market.TotalSupplyShares,
@@ -319,14 +321,14 @@ func WithdrawOnBehalf(cur realm, marketId string, assets, shares uint64, onBehal
 	// Calculate shares to burn
 	var sharesToBurn *u256.Uint
 	if assets > 0 {
-		sharesToBurn = ToSharesUp(
+		sharesToBurn = math.ToSharesUp(
 			assetsU256,
 			market.TotalSupplyAssets,
 			market.TotalSupplyShares,
 		)
 	} else {
 		sharesToBurn = sharesU256
-		assetsU256 = ToAssetsDown(
+		assetsU256 = math.ToAssetsDown(
 			sharesU256,
 			market.TotalSupplyAssets,
 			market.TotalSupplyShares,
@@ -414,14 +416,14 @@ func BorrowOnBehalf(cur realm, marketId string, assets, shares uint64, onBehalf 
 	// Calculate shares to mint
 	var sharesToMint *u256.Uint
 	if assets > 0 {
-		sharesToMint = ToSharesUp(
+		sharesToMint = math.ToSharesUp(
 			assetsU256,
 			market.TotalBorrowAssets,
 			market.TotalBorrowShares,
 		)
 	} else {
 		sharesToMint = sharesU256
-		assetsU256 = ToAssetsDown(
+		assetsU256 = math.ToAssetsDown(
 			sharesU256,
 			market.TotalBorrowAssets,
 			market.TotalBorrowShares,
@@ -492,14 +494,14 @@ func RepayOnBehalf(cur realm, marketId string, assets, shares uint64, onBehalf s
 	// Calculate shares to burn
 	var sharesToBurn *u256.Uint
 	if assets > 0 {
-		sharesToBurn = ToSharesDown(
+		sharesToBurn = math.ToSharesDown(
 			assetsU256,
 			market.TotalBorrowAssets,
 			market.TotalBorrowShares,
 		)
 	} else {
 		sharesToBurn = sharesU256
-		assetsU256 = ToAssetsUp(
+		assetsU256 = math.ToAssetsUp(
 			sharesU256,
 			market.TotalBorrowAssets,
 			market.TotalBorrowShares,
@@ -660,39 +662,39 @@ func Liquidate(cur realm, marketId string, borrower std.Address, seizedAssets, r
 	}
 
 	// Calculate the liquidation incentive factor: min(maxLiquidationIncentiveFactor, 1/(1 - cursor*(1 - lltv)))
-	incentiveFactor := WDivDown(
-		WAD,
-		new(u256.Uint).Sub(WAD, WMulDown(LIQUIDATION_CURSOR, new(u256.Uint).Sub(WAD, params.LLTV))),
+	incentiveFactor := math.WDivDown(
+		consts.WAD,
+		new(u256.Uint).Sub(consts.WAD, math.WMulDown(consts.LIQUIDATION_CURSOR, new(u256.Uint).Sub(consts.WAD, params.LLTV))),
 	)
-	incentiveFactor = Min(incentiveFactor, MAX_LIQUIDATION_INCENTIVE_FACTOR)
+	incentiveFactor = Min(incentiveFactor, consts.MAX_LIQUIDATION_INCENTIVE_FACTOR)
 
 	// Calculate seized assets or repaid shares based on input
 	if seizedAssets > 0 {
 		// Calculate repaid shares from seized assets
-		seizedAssetsQuoted := MulDivUp(seizedAssetsU256, collateralPrice, ORACLE_PRICE_SCALE)
-		repaidSharesU256 = ToSharesUp(
-			WDivUp(seizedAssetsQuoted, incentiveFactor),
+		seizedAssetsQuoted := math.MulDivUp(seizedAssetsU256, collateralPrice, consts.ORACLE_PRICE_SCALE)
+		repaidSharesU256 = math.ToSharesUp(
+			math.WDivUp(seizedAssetsQuoted, incentiveFactor),
 			market.TotalBorrowAssets,
 			market.TotalBorrowShares,
 		)
 	} else {
 		// Calculate seized assets from repaid shares
-		seizedAssetsU256 = MulDivDown(
-			WMulDown(
-				ToAssetsDown(
+		seizedAssetsU256 = math.MulDivDown(
+			math.WMulDown(
+				math.ToAssetsDown(
 					repaidSharesU256,
 					market.TotalBorrowAssets,
 					market.TotalBorrowShares,
 				),
 				incentiveFactor,
 			),
-			ORACLE_PRICE_SCALE,
+			consts.ORACLE_PRICE_SCALE,
 			collateralPrice,
 		)
 	}
 
 	// Calculate repaid assets
-	repaidAssets := ToAssetsUp(
+	repaidAssets := math.ToAssetsUp(
 		repaidSharesU256,
 		market.TotalBorrowAssets,
 		market.TotalBorrowShares,
@@ -710,7 +712,7 @@ func Liquidate(cur realm, marketId string, borrower std.Address, seizedAssets, r
 	// Handle bad debt if all collateral is seized
 	if borrowerPos.Collateral.IsZero() {
 		badDebtShares := borrowerPos.BorrowShares
-		badDebtAssets := ToAssetsUp(
+		badDebtAssets := math.ToAssetsUp(
 			badDebtShares,
 			market.TotalBorrowAssets,
 			market.TotalBorrowShares,
@@ -821,9 +823,9 @@ func accrueInterest(marketId string) {
 	// wTaylorCompounded returns the sum of first 3 terms: x*n + (x*n)^2/2 + (x*n)^3/6
 	// This approximates continuous compound interest more accurately than simple interest
 	elapsedUint := u256.NewUint(uint64(elapsed))
-	wtc := WTaylorCompounded(borrowRate, elapsedUint)
+	wtc := math.WTaylorCompounded(borrowRate, elapsedUint)
 
-	interest := WMulDown(market.TotalBorrowAssets, wtc)
+	interest := math.WMulDown(market.TotalBorrowAssets, wtc)
 
 	// Update market state
 	market.TotalBorrowAssets = new(u256.Uint).Add(market.TotalBorrowAssets, interest)
@@ -832,12 +834,12 @@ func accrueInterest(marketId string) {
 	// Handle fees if any
 	if !market.Fee.IsZero() && feeRecipient != "" {
 		// Calculate fee amount
-		feeAmount := WMulDown(interest, market.Fee)
+		feeAmount := math.WMulDown(interest, market.Fee)
 
 		// Calculate fee shares
 		// The fee amount is subtracted from total supply to compensate for already increased supply
 		totalSupplyMinusFee := new(u256.Uint).Sub(market.TotalSupplyAssets, feeAmount)
-		feeShares := ToSharesDown(
+		feeShares := math.ToSharesDown(
 			feeAmount,
 			totalSupplyMinusFee,
 			market.TotalSupplyShares,
@@ -876,16 +878,16 @@ func isHealthy(marketId string, userAddr string) bool {
 	market, params := GetMarket(marketId)
 
 	// Calculate current borrowed value
-	borrowed := ToAssetsUp(
+	borrowed := math.ToAssetsUp(
 		position.BorrowShares,
 		market.TotalBorrowAssets,
 		market.TotalBorrowShares,
 	)
 
-	collateralPrice := GetPrice(params.PoolPath)
+	collateralPrice := GetPrice(marketId)
 
 	// Calculate max borrow allowed
-	maxBorrow := WMulDown(MulDivDown(position.Collateral, collateralPrice, ORACLE_PRICE_SCALE), params.LLTV)
+	maxBorrow := math.WMulDown(math.MulDivDown(position.Collateral, collateralPrice, consts.ORACLE_PRICE_SCALE), params.LLTV)
 
 	// Position is healthy if borrowed <= maxBorrow
 	return borrowed.Cmp(maxBorrow) <= 0
@@ -894,7 +896,7 @@ func isHealthy(marketId string, userAddr string) bool {
 /* FLASH LOANS */
 
 // FlashLoan allows users to borrow assets without collateral, provided they are repaid within the same transaction
-func FlashLoan(cur realm, token string, assets int64, data []byte, callback FlashLoanCallback) {
+func FlashLoan(cur realm, token string, assets int64, data any, callback FlashLoanCallback) {
 	if assets == 0 {
 		panic(ErrZeroAssets)
 	}

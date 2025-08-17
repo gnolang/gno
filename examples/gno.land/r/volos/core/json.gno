@@ -1,8 +1,9 @@
-package volos
+package core
 
 import (
 	"gno.land/p/demo/json"
 	u256 "gno.land/p/gnoswap/uint256"
+	"gno.land/p/volos/math"
 )
 
 // RpcMarket
@@ -164,7 +165,7 @@ func GetRpcMarketInfo(marketId string) RpcMarketInfo {
 	if market.TotalSupplyAssets.IsZero() {
 		utilization = u256.Zero()
 	} else {
-		utilization = WDivDown(market.TotalBorrowAssets, market.TotalSupplyAssets)
+		utilization = math.WDivDown(market.TotalBorrowAssets, market.TotalSupplyAssets)
 	}
 
 	// Get token paths

@@ -1,6 +1,3 @@
-# Governance testing flow - Basic environment setup
-# This file sets up a real governance environment for testing
-
 include _info.mk
 include ../gnoswap-tests/test.mk
 

@@ -16,20 +16,20 @@ var borrower *FlashBorrowerMock
 
 func init() {
 	borrower = &FlashBorrowerMock{
-		volosAddr: std.DerivePkgAddr("gno.land/r/volos"),
+		volosAddr: std.DerivePkgAddr("gno.land/r/volos/core"),
 	}
 }
 
 // FlashLoan initiates a flash loan from Volos
-func FlashLoan(cur realm, token string, assets int64, data []byte) {
+func FlashLoan(cur realm, token string, assets int64, data any) {
 	// Call the Volos flash loan function with our borrower
 	volos.FlashLoan(cross, token, assets, data, borrower)
 }
 
 // OnVolosFlashLoan is the callback function that gets called during flash loan execution
 // This implements the FlashLoanCallback interface
-func (f *FlashBorrowerMock) OnVolosFlashLoan(cur realm, assets int64, data []byte) {
-	token := string(data)
+func (f *FlashBorrowerMock) OnVolosFlashLoan(cur realm, assets int64, data any) {
+	token := data.(string)
 
 	// Approve Volos to take back the tokens using the token's teller
 	tokenObj := grc20reg.MustGet(token)
