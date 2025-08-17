@@ -17,6 +17,7 @@ import (
 
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/moul/authz"
+	"gno.land/r/demo/grc20reg"
 )
 
 var (
@@ -27,6 +28,10 @@ var (
 	// Use MemberAuthority for governance address
 	Auth = authz.NewWithMembers(VolosDAOAddress)
 )
+
+func init() {
+	grc20reg.Register(cross, token, "")
+}
 
 // Name returns the token name.
 func Name() string {
