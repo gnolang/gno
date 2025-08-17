@@ -41,6 +41,7 @@ coverage.out
 
 .tmp/
 wal/
+!/tm2/pkg/bft/wal/
 
 # GnoSwap and Volos specific
 gnoswap-tests/_info.mk
