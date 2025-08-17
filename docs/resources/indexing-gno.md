@@ -13,11 +13,7 @@ Without proper indexing, each query would require scanning the entire blockchain
 
 **Indexers** resolve this paradox by storing all created blockchain data in a searchable database, enabling instant queries and unlock complex real-time use cases (e.g., "Find all 'addpkg' transaction of 'x' address").
 
-To do so, an indexer works by:
-1. **Processing** each transaction as blocks are created
-2. **Extracting** key relationships (addresses, contracts, events)
-3. **Structuring** data for efficient retrieval
-4. **Maintaining** real-time synchronization with the chain
+It works by **processing** transactions as blocks are created and **extracting** key relationships (addresses, contracts, events) to store in a structured database, while **maintaining** real-time synchronization with the chain. Using them, it enables the creation of **structured datasets** for analytics and application development.
 
 This creates a "database view" of the blockchain while preserving its decentralized nature.
 
@@ -566,7 +562,6 @@ func main() {
 Your transaction data is now persistent and ready for productions!
 
 ## Examples
-
 For more example of queries, refers to the [tx-indexer](https://github.com/gnolang/tx-indexer?tab=readme-ov-file#examples) documentation.
 
 ## Installation
