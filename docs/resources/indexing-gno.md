@@ -200,7 +200,6 @@ Copy that GraphQL query into the [playground](https://indexer.test7.testnets.gno
 Now we have raw JSON data from our GraphQL query. Let's turn that into something useful for our dashboard. We'll write some Go code to parse the JSON and find the biggest transactions.
 
 ```go
-
 package main
 
 import (
@@ -212,10 +211,11 @@ import (
 
 // Simplified transaction data structure
 type Transaction struct {
-	Hash   string  // Transaction ID
-	Amount float64 // Amount in ugnot
-	From   string  // Sender address
-	To     string  // Receiver address
+	Hash   		string  // Transaction ID
+	BlockHeight float64	// Block number 
+	Amount 		float64 // Amount in ugnot
+	From   		string  // Sender address
+	To     		string  // Receiver address
 }
 
 // Step 1 - Parse JSON from GraphQL into our Transaction structs
@@ -233,6 +233,9 @@ func parseTransactions(jsonData []byte) []Transaction {
 		txMap := tx.(map[string]interface{})
 		hash := txMap["hash"].(string)
 		
+		// block_height comes as a number, not string
+		blockHeight := txMap["block_height"].(float64)
+		
 		// Each transaction has messages - we want the first one
 		msg := txMap["messages"].([]interface{})[0]
 		msgMap := msg.(map[string]interface{})["value"].(map[string]interface{})
@@ -244,11 +247,13 @@ func parseTransactions(jsonData []byte) []Transaction {
 		
 		amountStr := amount[:len(amount)-5] // Remove "ugnot" suffix
 		amountInt, _ := strconv.ParseFloat(amountStr, 64)
+
 		transactions = append(transactions, Transaction{
-			Hash:   hash,
-			Amount: amountInt,
-			From:   from,
-			To:     to,
+			Hash:   	 hash,
+			Amount:      amountInt,
+			From:        from,
+			To:          to,
+			BlockHeight: blockHeight,
 		})
 	}
 	return transactions
@@ -419,7 +424,7 @@ func main() {
 
 func handleStats(w http.ResponseWriter, r *http.Request) {
 	// Sample data (in real app, get from indexer)
-	jsonData := `{...}`
+	jsonData := `{ "data": { "getTransactions": [...] } }`
 	
 	// Process data
 	transactions := parseTransactions([]byte(jsonData))
@@ -430,7 +435,7 @@ func handleStats(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"total_transactions": len(sorted),
 		"biggest_amount":     sorted[0].Amount,
-		"top_transactions":   sorted[:3], // Top 3
+		"top_transactions":   sorted[:2], // Top 2
 	})
 }
 ```
@@ -449,6 +454,7 @@ import (
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"  // SQLite driver
 )
+
 
 // Create our database and transactions table
 func setupDB() *sql.DB {
@@ -478,6 +484,7 @@ func setupDB() *sql.DB {
 
 // Save a single transaction to our database
 func insertTransaction(db *sql.DB, tx Transaction) error {
+
 	_, err := db.Exec(`
 		INSERT OR IGNORE INTO transactions 
 		(hash, amount, from_addr, to_addr, block_height) 
@@ -516,6 +523,19 @@ func getTopTransactions(db *sql.DB, limit int) ([]Transaction, error) {
 	}
 	
 	return transactions, nil
+}
+
+// Save multiple transactions to the database
+func saveTransactionsToDB(db *sql.DB, transactions []Transaction) {
+	for _, tx := range transactions {
+		err := insertTransaction(db, tx)
+		if err != nil {
+			log.Printf("Failed to save transaction %s: %v", tx.Hash, err)
+		} else {
+			fmt.Printf("✅ Saved transaction %s (%.2f GNOT)\n", tx.Hash, tx.Amount/1000000)
+		}
+	}
+	fmt.Printf("💾 Processed %d transactions\n", len(transactions))
 }
 
 func main() {
