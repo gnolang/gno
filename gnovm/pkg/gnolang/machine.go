@@ -1964,17 +1964,28 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			return
 		} else {
 			recvOID := obj.GetObjectInfo().ID
+			if recvOID.IsZero() {
+				// cross into fv's realm for unreal receiver
+				// see realm_dao.gno
+				rlm = pv.Realm
+				m.Realm = rlm
+				return
+			}
 
+			// is recv is real, method realm and storage realm should be same
 			if IsRealmPath(fv.PkgPath) && PkgIDFromPkgPath(fv.PkgPath) != recvOID.PkgID {
-				panic("should not happen, method and object not in same realm")
+				fmt.Println("==============cx: ", cx)
+				fmt.Println("==============recv: ", recv)
+				fmt.Println("==============obj: ", obj)
+				fmt.Println("==============obj.GetIsReal(): ", obj.GetIsReal())
+				fmt.Println("==============recvOID: ", recvOID)
+				panic(fmt.Sprintf("should not happen, mismatched method/receiver realm, %v/(%v---------%v)\n", cx, fv.PkgPath, recvOID.PkgID))
 			} else {
 				// println("=========not realm fv, do nothing")
 			}
 
-			if recvOID.IsZero() ||
-				(m.Realm != nil && recvOID.PkgID == m.Realm.ID) {
+			if m.Realm != nil && recvOID.PkgID == m.Realm.ID {
 				// no switch
-
 				return
 			} else {
 				// Implicit switch to storage realm.

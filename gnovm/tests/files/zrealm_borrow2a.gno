@@ -49,4 +49,4 @@ func main(cur realm) {
 }
 
 // Error:
-// should not happen, method and object not in same realm
+// should not happen, mismatched method/receiver realm, p<VPBlock(1,1)>.Mutate()/(gno.land/r/borrow---------RID1712AC7ADCFDC8E58A67E5615E20FB312394C4DF)

@@ -61,7 +61,6 @@ func (m *Machine) doOpIndex2() {
 
 func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
-	// fmt.Println("=================sx: ", sx)
 	xv := m.PeekValue(1) // package, struct, whatever.
 	ro := m.IsReadonly(xv)
 	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()

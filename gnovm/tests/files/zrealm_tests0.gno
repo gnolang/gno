@@ -178,4 +178,4 @@ func main(cur realm) {
 // d[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:54](-618)
 
 // Error:
-// should not happen, method and object not in same realm
+// should not happen, mismatched method/receiver realm, stringer<VPBlock(1,1)>.String()/(gno.land/r/demo/tests_foo---------RID0FFE7732B4D549B4CF9EC18BD68641CD2C75AD0A)

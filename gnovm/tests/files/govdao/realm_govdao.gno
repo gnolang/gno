@@ -69,5 +69,14 @@ func Render() {
 	println(dao.Render(""))
 }
 
-// Error:
-// should not happen, method and object not in same realm
+// Output:
+// true
+// # GovDAO Proposals
+// ### [Prop #0 - Proposal Title: Dummy proposal](/r/gov/dao:0)
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+// Status: ACCEPTED
+//
+// Tiers eligible to vote: T1, T2, T3
+//
+// ---

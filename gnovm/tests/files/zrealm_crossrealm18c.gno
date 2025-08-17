@@ -35,6 +35,9 @@ func main(cur realm) {
 // Output:
 // init
 // hello gno.land/r/crossrealm
+// hello gno.land/r/crossrealm
+// hello gno.land/r/demo/tests/crossrealm
+// main
 
 // Error:
-// should not happen, method and object not in same realm
+// cannot cur-call to external realm function gno.land/r/crossrealm.Foo from gno.land/r/demo/tests/crossrealm

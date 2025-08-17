@@ -1798,7 +1798,6 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 				panic("unexpected selector base typeval.")
 			}
 		default:
-			fmt.Println("=============dtv:", dtv, dtv.V)
 			panic(fmt.Sprintf("unexpected selector base type %s (%s)",
 				dtv.T.String(), reflect.TypeOf(dtv.T)))
 		}

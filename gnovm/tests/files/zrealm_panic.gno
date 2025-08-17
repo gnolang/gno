@@ -13,10 +13,11 @@ func main(cur realm) {
 }
 
 // Error:
-// should not happen, method and object not in same realm
+// panic
 
 // Stacktrace:
+// panic: panic
 // ms<VPBlock(1,1)>.Panic()
-//     gno.land/r/test/zrealm_panic.gno:12
+//     gno.land/r/test/zrealm_panic.gno:7
 // main<VPBlock(1,1)>(struct{( .uverse.address),("gno.land/r/test" string),(nil .uverse..grealm)})
 //     gno.land/r/test/zrealm_panic.gno:12

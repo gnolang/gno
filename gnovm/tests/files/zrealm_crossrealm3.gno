@@ -19,4 +19,4 @@ func main(cur realm) {
 }
 
 // Error:
-// should not happen, method and object not in same realm
+// should not happen, mismatched method/receiver realm, &(somevalue<~VPBlock(3,0)>).Modify()/(gno.land/r/demo/tests---------RIDDC8307F7BBE97FDB07B2D0FA6907B8D67517C02A)

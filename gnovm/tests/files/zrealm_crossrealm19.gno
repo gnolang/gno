@@ -42,4 +42,4 @@ func main(cur realm) {
 // hello A gno.land/r/crossrealm
 
 // Error:
-// should not happen, method and object not in same realm
+// should not happen, mismatched method/receiver realm, fooer<~VPBlock(3,5)>.Bar()/(gno.land/r/crossrealm---------RID1712AC7ADCFDC8E58A67E5615E20FB312394C4DF)

@@ -18,4 +18,4 @@ func main() {
 }
 
 // Error:
-// should not happen, method and object not in same realm
+// cannot directly modify readonly tainted object (w/o method): (const (ref(gno.land/r/demo/tests/crossrealm) package{})).AllowedList

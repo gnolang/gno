@@ -40,6 +40,7 @@ func main(cur realm) {
 
 // Output:
 // hello container gno.land/r/crossrealm
+// hello container gno.land/r/crossrealm
+// hello container gno.land/r/demo/tests/crossrealm
+// .
 
-// Error:
-// should not happen, method and object not in same realm
