@@ -154,6 +154,38 @@ The indexer will return a JSON response that looks like this:
 }
 ```
 
+It is also possible to only query transaction initiated from a specific address:
+
+```graphql
+# Add a variable to GetSendTransactions
+query GetSendTransactions($address: String!) {
+   getTransactions(
+    where: {
+      success: { eq: true }
+      messages: {
+        value: {
+          BankMsgSend:{
+            from_address: {eq: $address} # from_address == $address
+          }
+        }
+      }
+    }
+  )  {
+    hash
+    block_height
+    messages {
+      value {
+        ... on BankMsgSend {
+        from_address
+        to_address
+        amount
+        }
+      }
+    }
+  }
+}
+```
+
 **Understanding the data:**
 - Each transaction has a unique `hash` (like a fingerprint)
 - `block_height` tells you when it happened (higher = more recent)
