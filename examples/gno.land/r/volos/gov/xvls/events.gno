@@ -3,6 +3,7 @@ package xvls
 import (
 	"std"
 	"strconv"
+	"time"
 )
 
 const (
@@ -33,6 +34,7 @@ func emitMint(caller, to std.Address, amount int64) {
 		EventAmountKey, strconv.FormatInt(amount, 10),
 		EventTotalSupplyKey, strconv.FormatInt(TotalSupply(), 10),
 		EventVotingSupplyKey, strconv.FormatInt(VotingSupply(), 10),
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
 
@@ -46,6 +48,7 @@ func emitBurn(caller, from std.Address, amount int64) {
 		EventTotalSupplyKey, strconv.FormatInt(TotalSupply(), 10),
 		EventVotingSupplyKey, strconv.FormatInt(VotingSupply(), 10),
 		EventBalanceKey, strconv.FormatInt(BalanceOf(from), 10),
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
 
@@ -58,5 +61,6 @@ func emitVotingSupply(caller std.Address, totalSupply, votingSupply int64, exclu
 		EventVotingSupplyKey, strconv.FormatInt(votingSupply, 10),
 		EventExcludedKey, strconv.FormatInt(excludedBalance, 10),
 		EventLaunchpadKey, Launchpad.String(),
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 } 

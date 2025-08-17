@@ -3,6 +3,7 @@ package vls
 import (
 	"std"
 	"strconv"
+	"time"
 )
 
 const (
@@ -36,6 +37,7 @@ func emitMint(caller, to std.Address, amount int64) {
 		EventToKey, to.String(),
 		EventAmountKey, strconv.FormatInt(amount, 10),
 		EventTotalSupplyKey, strconv.FormatInt(TotalSupply(), 10),
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
 
@@ -47,6 +49,7 @@ func emitBurn(caller, from std.Address, amount int64) {
 		EventFromKey, from.String(),
 		EventAmountKey, strconv.FormatInt(amount, 10),
 		EventTotalSupplyKey, strconv.FormatInt(TotalSupply(), 10),
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
 
@@ -59,6 +62,7 @@ func emitTransfer(caller, from, to std.Address, amount int64) {
 		EventToKey, to.String(),
 		EventAmountKey, strconv.FormatInt(amount, 10),
 		EventBalanceKey, strconv.FormatInt(BalanceOf(from), 10),
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
 
@@ -70,6 +74,7 @@ func emitApproval(owner, spender std.Address, value int64) {
 		EventSpenderKey, spender.String(),
 		EventValueKey, strconv.FormatInt(value, 10),
 		EventBalanceKey, strconv.FormatInt(BalanceOf(owner), 10),
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
 
@@ -80,5 +85,6 @@ func emitGovernanceUpdated(caller std.Address, oldPkgPath, newPkgPath string) {
 		EventCallerKey, caller.String(),
 		EventOldPkgPathKey, oldPkgPath,
 		EventNewPkgPathKey, newPkgPath,
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }

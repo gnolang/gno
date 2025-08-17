@@ -3,6 +3,7 @@ package staker
 import (
 	"std"
 	"strconv"
+	"time"
 )
 
 const (
@@ -39,6 +40,7 @@ func emitStake(caller, staker, delegatee std.Address, amount int64) {
 		EventDelegateeKey, delegatee.String(),
 		EventAmountKey, strconv.FormatInt(amount, 10),
 		EventCooldownPeriodKey, strconv.FormatInt(UnstakeLockPeriod, 10),
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
 
@@ -52,6 +54,7 @@ func emitBeginUnstake(caller, staker, delegatee std.Address, amount int64, unloc
 		EventAmountKey, strconv.FormatInt(amount, 10),
 		EventUnlockAtKey, strconv.FormatInt(unlockAt, 10),
 		EventCooldownPeriodKey, strconv.FormatInt(UnstakeLockPeriod, 10),
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
 
@@ -63,6 +66,7 @@ func emitWithdraw(caller, staker std.Address, totalWithdrawn int64, remainingUns
 		EventStakerKey, staker.String(),
 		EventTotalWithdrawnKey, strconv.FormatInt(totalWithdrawn, 10),
 		EventRemainingUnstakesKey, strconv.Itoa(remainingUnstakes),
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
 
@@ -72,6 +76,7 @@ func emitMemberAdded(caller, member std.Address) {
 		EventMemberAdded,
 		EventCallerKey, caller.String(),
 		EventMemberKey, member.String(),
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
 
@@ -81,5 +86,6 @@ func emitMemberRemoved(caller, member std.Address) {
 		EventMemberRemoved,
 		EventCallerKey, caller.String(),
 		EventMemberKey, member.String(),
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 } 

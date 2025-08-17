@@ -3,6 +3,7 @@ package governance
 import (
 	"std"
 	"strconv"
+	"time"
 )
 
 const (
@@ -53,6 +54,7 @@ func emitProposalCreated(caller std.Address, proposalID uint64, title, body stri
 		EventBodyKey, body,
 		EventDeadlineKey, strconv.FormatInt(deadline, 10),
 		EventQuorumKey, strconv.FormatInt(quorum, 10),
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
 
@@ -62,6 +64,7 @@ func emitProposalExecuted(caller std.Address, proposalID uint64) {
 		EventProposalExecuted,
 		EventCallerKey, caller.String(),
 		EventProposalIDKey, strconv.FormatUint(proposalID, 10),
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
 
@@ -75,6 +78,7 @@ func emitVoteCast(caller, voter std.Address, proposalID uint64, xvlsAmount int64
 		EventVoteKey, vote,
 		EventReasonKey, reason,
 		EventXvlsAmountKey, strconv.FormatInt(xvlsAmount, 10),
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
 
@@ -85,6 +89,7 @@ func emitMemberAdded(caller, member std.Address) {
 		EventCallerKey, caller.String(),
 		EventMemberKey, member.String(),
 		EventTotalMembersKey, strconv.FormatInt(int64(volosGovernance.Members().Size()), 10),
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
 
@@ -95,6 +100,7 @@ func emitMemberRemoved(caller, member std.Address) {
 		EventCallerKey, caller.String(),
 		EventMemberKey, member.String(),
 		EventTotalMembersKey, strconv.FormatInt(int64(volosGovernance.Members().Size()), 10),
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
 
@@ -105,6 +111,7 @@ func emitGovernanceUpdated(caller std.Address, oldPkgPath, newPkgPath string) {
 		EventCallerKey, caller.String(),
 		EventOldPkgPathKey, oldPkgPath,
 		EventNewPkgPathKey, newPkgPath,
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
 
@@ -115,6 +122,7 @@ func emitVotingPowerQuorumUpdated(caller std.Address, oldQuorum, newQuorum int64
 		EventCallerKey, caller.String(),
 		EventOldQuorumKey, strconv.FormatInt(oldQuorum, 10),
 		EventNewQuorumKey, strconv.FormatInt(newQuorum, 10),
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
 
@@ -125,5 +133,6 @@ func emitProposalThresholdUpdated(caller std.Address, oldThreshold, newThreshold
 		EventCallerKey, caller.String(),
 		EventOldThresholdKey, strconv.FormatInt(oldThreshold, 10),
 		EventNewThresholdKey, strconv.FormatInt(newThreshold, 10),
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
