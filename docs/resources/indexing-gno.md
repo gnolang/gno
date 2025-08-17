@@ -1,12 +1,17 @@
 # Blockchain Indexing in Gno
 
-Blockchains store data in an immutable, sequential chain of blocks containing raw transactions. While optimized for security and consensus, this structure creates significant data retrieval challenges.
+Blockchains store data in an **immutable**, **sequential** chain of blocks containing raw transactions. While optimized for security and consensus, this structure creates significant data retrieval challenges.
 
-To track all transactions initiated by a specific address, we are required to re-scan **every blocks manually or on-chain**, which is a **computationally expensive tasks** (which can be very costly).
+However, tracking transaction metrics requires re-scanning **every block** of the blockchain, which is a **computationally expensive task** (and can be very costly). 
+Some interesting tasks that demonstrate this challenge include:
+- Calculating **total trading volume** over time periods
+- Identifying the **largest transfers** in network history.
+
+Without proper indexing, each query would require scanning the entire blockchain from genesis, making real-time applications depending on this data practically impossible.
 
 ### The Indexing Solution
 
-**Indexers** resolve this paradox by capturing newly-created blockchain data in a searchable database, enabling instant queries and unlock complex real-time use cases (e.g., "Find all 'addpkg' transaction of 'x' address").
+**Indexers** resolve this paradox by storing all created blockchain data in a searchable database, enabling instant queries and unlock complex real-time use cases (e.g., "Find all 'addpkg' transaction of 'x' address").
 
 To do so, an indexer works by:
 1. **Processing** each transaction as blocks are created
@@ -29,15 +34,16 @@ This creates a "database view" of the blockchain while preserving its decentrali
 To demonstrate `tx-indexer` implementation workflow, we'll create a **real-time dashboard** that tracks GNOT transfers through the `send` transactions and identifies the biggest movers on the network.
 
 In order, we will:
-- 1. Get the indexer running
-- 2. Query transaction data from the GraphQL interface hosted by `tx-indexer`
-- 3. Process and analyze transactions to structure and sort relevant informations
-- 4. Add real-time monitoring using WebSocket
-- 5. Build a very simple dashboard that serves processed informations
+1. [Get the indexer running](#step-1-getting-started---launch-your-own-indexer)
+2. [Query transaction data from the GraphQL interface hosted by `tx-indexer`](#step-2-querying-for-send-transactions)
+3. [Process and analyze transactions to structure and sort relevant informations](#step-3-processing-the-transaction-data-with-go)
+4. [Add real-time monitoring using WebSocket](#step-4-real-time-monitoring-with-websockets)
+5. [Build a very simple dashboard that serves processed informations](#step-5-api-implementation-example)
+6. [Store data permanently with SQLite](#step-6-storing-data-permanently-with-sqlite)
 
 #### Step 1: Getting Started - Launch your own indexer
 
-Before we can query transaction data, we need to get the tx-indexer running.
+Before we can query transaction data, we need to get `tx-indexer` running.
 
 **Quick Setup:**
 
