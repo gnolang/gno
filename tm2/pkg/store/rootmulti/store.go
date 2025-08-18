@@ -112,9 +112,14 @@ func (ms *multiStore) LoadVersion(ver int64) error {
 			if err != nil {
 				return errors.New("failed to load Store version %d: %v", ver, err)
 			}
-			if !store.LastCommitID().IsZero() {
-				return errors.New("failed to load Store: non-empty CommitID for zero state")
-			}
+			// NOTE(tb): tm2/iavl used to return empty hash for empty tree, but this
+			// is no longer the case for cosmos/iavl, since this change:
+			// https://github.com/cosmos/iavl/pull/304
+			// For that reason, the following check is commented as no longer
+			// relevant.
+			// if !store.LastCommitID().IsZero() {
+			// return errors.New("failed to load Store: non-empty CommitID for zero state")
+			// }
 			newStores[key] = store
 		}
 		ms.stores = newStores
