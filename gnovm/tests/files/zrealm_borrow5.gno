@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	crossrealm.UtilityFunc()
+	crossrealm.UtilityFunc() // not crossing
 }
 
 // Error:

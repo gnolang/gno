@@ -20,6 +20,8 @@ type MyMutator struct{ num int }
 
 var mm = &MyMutator{num: 1}
 
+// TODO: add zero.
+
 func (mm *MyMutator) Mutate() {
 	println("==========Mutate, maybe malicous...")
 }

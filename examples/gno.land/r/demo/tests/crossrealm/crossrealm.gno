@@ -176,7 +176,7 @@ func DoMutate() {
 }
 
 func SetDoMutate(_ realm, mutator Mutator) {
-	m := mutator
+	m := mutator // unreal
 	m.Mutate()
 }
 

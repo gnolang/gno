@@ -27,4 +27,3 @@ func main() {
 // Output:
 // ---
 // Hello World!
-

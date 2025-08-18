@@ -1956,7 +1956,6 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 
 	// Not cross nor crossing.
 	// Only "soft" switch to storage realm of receiver.
-	var rlm *Realm
 	if recv.IsDefined() { // method call
 		obj := recv.GetFirstObject(m.Store)
 		if obj == nil { // nil receiver
@@ -1967,21 +1966,13 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			if recvOID.IsZero() {
 				// cross into fv's realm for unreal receiver
 				// see realm_dao.gno
-				rlm = pv.Realm
-				m.Realm = rlm
+				m.Realm = pv.Realm
 				return
 			}
 
 			// is recv is real, method realm and storage realm should be same
 			if IsRealmPath(fv.PkgPath) && PkgIDFromPkgPath(fv.PkgPath) != recvOID.PkgID {
-				fmt.Println("==============cx: ", cx)
-				fmt.Println("==============recv: ", recv)
-				fmt.Println("==============obj: ", obj)
-				fmt.Println("==============obj.GetIsReal(): ", obj.GetIsReal())
-				fmt.Println("==============recvOID: ", recvOID)
 				panic(fmt.Sprintf("should not happen, mismatched method/receiver realm, %v/(%v---------%v)\n", cx, fv.PkgPath, recvOID.PkgID))
-			} else {
-				// println("=========not realm fv, do nothing")
 			}
 
 			if m.Realm != nil && recvOID.PkgID == m.Realm.ID {
@@ -1990,6 +1981,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			} else {
 				// Implicit switch to storage realm.
 				// Neither cross nor didswitch.
+				var rlm *Realm
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
 				if objpv.IsRealm() && objpv.Realm == nil {
@@ -2006,7 +1998,6 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		if pv.Realm == m.Realm {
 			return
 		}
-
 		if pv.IsRealm() {
 			// pkg.Foo
 			if sx, ok := cx.Func.(*SelectorExpr); ok {
@@ -2020,14 +2011,10 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			}
 			// XXX, why
 			if m.Realm != nil {
-				// fmt.Println("!!!!!!!!!!!!!!!!!!!!!! cross to closure owner realm...")
-				// fmt.Println("===PushFrameCall, cx: ", cx)
 				// A function without receiver (named or unnamed) in a realm.
 				// Borrow switch to where the function is declared,
 				// since there is no receiver.
 				// Neither cross nor didswitch.
-				// pkgPath := pv.PkgPath
-				// rlm = m.Store.GetPackageRealm(pkgPath)
 				m.Realm = pv.Realm
 				// DO NOT set DidCrossing here. Make
 				// DidCrossing only happen upon explicit
