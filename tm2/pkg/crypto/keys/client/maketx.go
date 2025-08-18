@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -228,9 +229,41 @@ func ExecSignAndBroadcast(
 	io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
 	io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 	io.Println("HEIGHT:    ", bres.Height)
+	if delta, fee, ok := getStorageInfo(bres.DeliverTx.Events); ok {
+		io.Println("STORAGE DELTA:", delta)
+		io.Println("STORAGE FEE:  ", fee)
+	}
 	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
 	io.Println("INFO:      ", bres.DeliverTx.Info)
 	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
 
 	return nil
+}
+
+// getStorageInfo searches events for StorageDeposit or UnlockDeposit and
+// returns the delta and fee strings. We prepend a "+" or "-" (for unlock) to the delta string.
+// The third return is true if found, else false.
+func getStorageInfo(events []abci.Event) (string, string, bool) {
+	for _, event := range events {
+		eventKV, ok := event.(abci.EventKeyValue)
+		if !ok {
+			continue
+		}
+		switch eventKV.Type {
+		case "StorageDeposit":
+			delta, ok2 := eventKV.FindAttribute("Storage")
+			fee, ok1 := eventKV.FindAttribute("Deposit")
+			if ok1 && ok2 {
+				return "+" + delta, fee, true
+			}
+		case "UnlockDeposit":
+			delta, ok2 := eventKV.FindAttribute("ReleaseStorage")
+			fee, ok1 := eventKV.FindAttribute("Deposit")
+			if ok1 && ok2 {
+				return "-" + delta, fee, true
+			}
+		}
+	}
+
+	return "", "", false
 }

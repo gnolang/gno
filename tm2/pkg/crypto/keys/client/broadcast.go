@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 
-	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -91,6 +90,10 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 		io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
 		io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
 		io.Println("HEIGHT:    ", res.Height)
+		if delta, fee, ok := getStorageInfo(res.DeliverTx.Events); ok {
+			io.Println("STORAGE DELTA:", delta)
+			io.Println("STORAGE FEE:  ", fee)
+		}
 		io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
 		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
 	}
@@ -160,26 +163,7 @@ func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit)
 	// 5% fee buffer to cover the suden change of gas price
 	feeBuffer := overflow.Mulp(fee, 5) / 100
 	fee = overflow.Addp(fee, feeBuffer)
-
-	// Search events for the deposit amount
-	deposit := ""
-	for _, event := range bres.DeliverTx.Events {
-		gnoEvent, ok := event.(gnostd.GnoEvent)
-		if !ok {
-			continue
-		}
-		switch gnoEvent.Type {
-		case "StorageDeposit":
-			if value, ok := gnoEvent.FindAttribute("Deposit"); ok {
-				deposit = ", storage deposit " + value
-			}
-		case "UnlockDeposit":
-			if value, ok := gnoEvent.FindAttribute("Deposit"); ok {
-				deposit = ", unlock deposit " + value
-			}
-		}
-	}
-	s := fmt.Sprintf("estimated gas usage: %d, gas fee: %d%s, current gas price: %s%s\n", bres.DeliverTx.GasUsed, fee, gp.Price.Denom, gp.String(), deposit)
+	s := fmt.Sprintf("estimated gas usage: %d, gas fee: %d%s, current gas price: %s\n", bres.DeliverTx.GasUsed, fee, gp.Price.Denom, gp.String())
 	bres.DeliverTx.Info = s
 	return nil
 }
