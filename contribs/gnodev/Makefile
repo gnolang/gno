@@ -3,7 +3,7 @@ GOBUILD_FLAGS ?= -ldflags "-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=$
 GOTEST_FLAGS ?= $(GOBUILD_FLAGS) -v -p 1 -timeout=5m
 
 rundep := go run -modfile ../../misc/devdeps/go.mod
-golangci_lint := $(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint
+golangci_lint := $(rundep) github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 
 .PHONY: install
 install:
