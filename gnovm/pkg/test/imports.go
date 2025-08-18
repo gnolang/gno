@@ -51,6 +51,8 @@ type StoreOptions struct {
 	// TestedPackagePath is the path of the package being tested (for coverage)
 	// This is used to prevent loading the package from disk when it's already instrumented
 	TestedPackagePath string
+	// Preloaded packages
+	Packages packages.PkgList
 
 	// SourceStore, if given, is used to process imports, whenever a custom
 	// version doesn't exist in the testing standard libraries.
@@ -66,6 +68,7 @@ type StoreOptions struct {
 func ProdStore(
 	rootDir string,
 	output io.Writer,
+	pkgs packages.PkgList,
 ) (
 	baseStore storetypes.CommitStore,
 	gnoStore gno.Store,
@@ -76,6 +79,7 @@ func ProdStore(
 		StoreOptions{
 			WithExamples: true,
 			Testing:      false,
+			Packages:     pkgs,
 		},
 	)
 }
@@ -86,6 +90,7 @@ func ProdStore(
 func TestStore(
 	rootDir string,
 	output io.Writer,
+	pkgs packages.PkgList,
 ) (
 	baseStore storetypes.CommitStore,
 	gnoStore gno.Store,
@@ -96,6 +101,7 @@ func TestStore(
 		StoreOptions{
 			WithExamples: true,
 			Testing:      true,
+			Packages:     pkgs,
 		},
 	)
 }
@@ -221,9 +227,34 @@ func StoreWithOptions(
 			}
 		}
 
-		// if examples package...
+		loadFromDir := func(dir string) (pn *gno.PackageNode, pv *gno.PackageValue) {
+			mpkg := gno.MustReadMemPackage(dir, pkgPath, gno.MPUserProd)
+			if mpkg.IsEmpty() {
+				panic(fmt.Sprintf("found an empty package %q", pkgPath))
+			}
+			send := std.Coins{}
+			ctx := Context("", pkgPath, send)
+			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+				PkgPath:       pkgPath,
+				Output:        output,
+				Store:         store,
+				Context:       ctx,
+				ReviveEnabled: true,
+				SkipPackage:   true,
+			})
+			return _processMemPackage(m2, mpkg, true)
+		}
+
+		// If available in loaded packages
+		if pkg := opts.Packages.Get(pkgPath); pkg != nil {
+			return loadFromDir(pkg.Dir)
+		}
+
 		if opts.WithExamples {
+			// if examples package...
 			examplePath := filepath.Join(rootDir, "examples", pkgPath)
+			/*
+      // FIXME: need to check this
 			if osm.DirExists(examplePath) {
 				// Skip loading if this is the package being tested with coverage
 				// This ensures we use the instrumented version instead
@@ -255,8 +286,11 @@ func StoreWithOptions(
 					SkipPackage:   true,
 				})
 				return _processMemPackage(m2, mpkg, true)
+			  */
+				return loadFromDir(examplePath)
 			}
 		}
+
 		return nil, nil
 	}
 
