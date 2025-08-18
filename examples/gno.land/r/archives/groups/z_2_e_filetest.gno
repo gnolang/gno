@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/p/archives/groups
-package groups
+// PKGPATH: gno.land/p/archives/groups_test
+package groups_test
 
 // SEND: 1000000ugnot
 
@@ -25,5 +25,3 @@ func main() {
 // Output:
 // 1
 // List of all Groups:
-//
-//

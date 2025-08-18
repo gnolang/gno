@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/p/archives/groups
-package groups
+// PKGPATH: gno.land/p/archives/groups_test
+package groups_test
 
 // SEND: 1000000ugnot
 
@@ -61,5 +61,3 @@ func main() {
 // Group Members:
 //
 // 			[0000000000, g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy, 32, i am from UAE, 2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001],
-//
-//

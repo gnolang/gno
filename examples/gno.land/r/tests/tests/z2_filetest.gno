@@ -22,4 +22,4 @@ func main() {
 
 // Output:
 // tests.GetPreviousRealm().Address():  g1wdhk6et0dej47h6lta047h6lta047h6lrnerlk
-// tests.GetRSubtestsPreviousRealm().Address():  g1gz4ycmx0s6ln2wdrsh4e00l9fsel2wskqa3snq
+// tests.GetRSubtestsPreviousRealm().Address():  g1rdr02g9j3ephef45a9lfdw6qwd7yelc36n7quc

@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/demo/boards
-package boards
+// PKGPATH: gno.land/r/demo/boards_test
+package boards_test
 
 // SEND: 1000000ugnot
 

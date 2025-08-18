@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/p/archives/groups
-package groups
+// PKGPATH: gno.land/p/archives/groups_test
+package groups_test
 
 // SEND: 1000000ugnot
 
@@ -73,5 +73,3 @@ func main() {
 // Group Last MemberID: 0000000001
 //
 // Group Members:
-//
-//
