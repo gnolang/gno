@@ -30,8 +30,7 @@ func (m *Machine) doOpPrecall() {
 		// replace the first nil arg with a new realm.
 		if cx.IsWithCross() {
 			if !isCrossing { // sanity
-				panic(fmt.Sprintf(
-					"non-crossing function in cross call"))
+				panic("non-crossing function in cross call")
 			}
 			niltv := m.PeekValue(cx.NumArgs)
 			if !niltv.IsUndefined() { // sanity
@@ -53,8 +52,7 @@ func (m *Machine) doOpPrecall() {
 		// replace the first nil arg with a new realm.
 		if cx.IsWithCross() {
 			if !isCrossing { // sanity
-				panic(fmt.Sprintf(
-					"non-crossing function in cross call"))
+				panic("non-crossing function in cross call")
 			}
 			niltv := m.PeekValue(cx.NumArgs)
 			if !niltv.IsUndefined() { // sanity

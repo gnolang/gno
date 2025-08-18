@@ -847,9 +847,8 @@ func (cs *ConsensusState) enterNewRound(height int64, round int) {
 		if cs.config.CreateEmptyBlocks && cs.config.CreateEmptyBlocksInterval > 0 {
 			cs.scheduleTimeout(cs.config.CreateEmptyBlocksInterval, height, round,
 				cstypes.RoundStepNewRound)
-		} else {
-			// wait until mempool pings us.
 		}
+		// else wait until mempool pings us.
 	} else {
 		cs.enterPropose(height, round)
 	}

@@ -64,7 +64,7 @@ func (pin proofInnerNode) Hash(childHash []byte) []byte {
 	}
 
 	if len(pin.Left) > 0 && len(pin.Right) > 0 {
-		panic(fmt.Sprintf("both left and right child hashes are set"))
+		panic("both left and right child hashes are set")
 	}
 
 	if len(pin.Left) == 0 {
