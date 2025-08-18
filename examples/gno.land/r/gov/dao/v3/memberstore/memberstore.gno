@@ -8,7 +8,7 @@ import (
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/svg"
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/sunspirit/md"
+	"gno.land/p/moul/md"
 	"gno.land/r/gov/dao"
 )
 
@@ -110,9 +110,7 @@ func initRouter() {
 // renderHome displays the tiers data (Number of members and powers) and tiers charts.
 func renderHome(res *mux.ResponseWriter, req *mux.Request) {
 	var sb strings.Builder
-
-	sb.WriteString(md.Link("> Go to Members list <", "/r/gov/dao/v3/memberstore:members"))
-	sb.WriteString(md.LineBreak(1))
+	sb.WriteString(md.Link("> Go to Members list <", "/r/gov/dao/v3/memberstore:members") + "\n")
 
 	members.Iterate("", "", func(tn string, ti interface{}) bool {
 		tree, ok := ti.(*avl.Tree)
@@ -132,9 +130,7 @@ func renderHome(res *mux.ResponseWriter, req *mux.Request) {
 		return false
 	})
 
-	sb.WriteString(md.LineBreak(1))
-	sb.WriteString(RenderCharts(members))
-
+	sb.WriteString("\n" + RenderCharts(members))
 	res.Write(sb.String())
 }
 

@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"gno.land/p/samcrew/piechart"
-	"gno.land/p/sunspirit/md"
 )
 
 // RenderCharts generates two pie charts for member tiers:
@@ -42,10 +41,8 @@ func RenderCharts(members MembersByTier) string {
 	resultPieChartTs := piechart.Render(pieSlicesTs, "Members distribution:")
 	resultPieChartTp := piechart.Render(pieSlicesTp, "Power distribution:")
 
-	sb.WriteString(resultPieChartTs)
-	sb.WriteString(md.LineBreak(1))
-	sb.WriteString(resultPieChartTp)
-	sb.WriteString(md.LineBreak(1))
+	sb.WriteString(resultPieChartTs + "\n")
+	sb.WriteString(resultPieChartTp + "\n")
 
 	return sb.String()
 }
