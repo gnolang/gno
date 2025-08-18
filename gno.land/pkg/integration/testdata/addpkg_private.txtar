@@ -141,6 +141,12 @@ stderr 'cannot persist object of type defined in a private realm'
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func TryToExploit3 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in a private realm'
 
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMapOfMapOfMapOfPrivateToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist object of type defined in a private realm'
+
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveNilSliceOfSliceOfPrivateToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist object of type defined in a private realm'
+
 ! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr $WORK/msgrun/run.gno
 
 gnokey query vm/qeval --data 'gno.land/r/foobar/privaterealm.GetTreePointer()'
@@ -485,6 +491,16 @@ func TryToExploit3(cur realm) {
 func SaveCustomTypeToPublicRealm(cur realm) {
     i := MyPrivateInt(100)
     publicrealm.SaveYourInterface(cross, i)
+}
+
+func SaveNilSliceOfSliceOfPrivateToPublicRealm(cur realm) {
+    var arr [][]*PrivateData = nil
+    publicrealm.SaveYourInterface(cross, arr)
+}
+
+func SaveMapOfMapOfMapOfPrivateToPublicRealm(cur realm) {
+    m := make(map[string]map[string]map[string]PrivateData)
+    publicrealm.SaveYourInterface(cross, m)
 }
 
 func ThisISTheClosure() *avl.Tree {

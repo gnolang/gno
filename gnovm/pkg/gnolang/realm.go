@@ -758,6 +758,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 
 // Saves .created and .updated objects.
 func (rlm *Realm) saveUnsavedObjects(store Store) {
+	tids := make(map[TypeID]struct{})
 	for _, co := range rlm.created {
 		// for i := len(rlm.created) - 1; i >= 0; i-- {
 		// co := rlm.created[i]
@@ -767,7 +768,7 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 			continue
 		} else {
 			if !co.GetIsDeleted() {
-				rlm.saveUnsavedObjectRecursively(store, co)
+				rlm.saveUnsavedObjectRecursively(store, co, tids)
 			}
 		}
 	}
@@ -780,14 +781,16 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 			continue
 		} else {
 			if !uo.GetIsDeleted() {
-				rlm.saveUnsavedObjectRecursively(store, uo)
+				rlm.saveUnsavedObjectRecursively(store, uo, tids)
 			}
 		}
 	}
 }
 
 // store unsaved children first.
-func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
+// ensure that the object and children does not have any private dependencies.
+// use a visited map to mark visited types when asserting there are no private dependencies.
+func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object, visited map[TypeID]struct{}) {
 	if debugRealm {
 		if !oo.GetIsNewReal() && !oo.GetIsDirty() {
 			panic("cannot save new real or non-dirty objects")
@@ -806,7 +809,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 	}
 
 	// assert object have no private dependencies.
-	rlm.assertObjectIsPublic(oo, store)
+	rlm.assertObjectIsPublic(oo, store, visited)
 
 	// first, save unsaved children.
 	unsaved := getUnsavedChildObjects(oo)
@@ -814,7 +817,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		if uch.GetIsEscaped() || uch.GetIsNewEscaped() {
 			// no need to save preemptively.
 		} else {
-			rlm.saveUnsavedObjectRecursively(store, uch)
+			rlm.saveUnsavedObjectRecursively(store, uch, visited)
 		}
 	}
 	// then, save self.
@@ -912,7 +915,7 @@ func (rlm *Realm) clearMarks() {
 // it check recursively the types of the object
 // it does not recursively check the values because
 // child objects are validated separately during the save traversal (saveUnsavedObjectRecursively)
-func (rlm *Realm) assertObjectIsPublic(obj Object, store Store) {
+func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[TypeID]struct{}) {
 	objID := obj.GetObjectID()
 	if objID.PkgID != rlm.ID && IsPkgPrivateFromPkgID(objID.PkgID) {
 		panic("cannot persist reference of object from private realm")
@@ -920,31 +923,30 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store) {
 
 	// NOTE: should i set the visited tids map at the higher level so it's set one time.
 	// it could help to reduce the number of checks for the same type.
-	tids := make(map[TypeID]struct{})
 	switch v := obj.(type) {
 	case *HeapItemValue:
 		if v.Value.T != nil {
-			rlm.assertTypeIsPublic(store, v.Value.T, tids)
+			rlm.assertTypeIsPublic(store, v.Value.T, visited)
 		}
 	case *ArrayValue:
 		for _, av := range v.List {
 			if av.T != nil {
-				rlm.assertTypeIsPublic(store, av.T, tids)
+				rlm.assertTypeIsPublic(store, av.T, visited)
 			}
 		}
 	case *StructValue:
 		for _, sv := range v.Fields {
 			if sv.T != nil {
-				rlm.assertTypeIsPublic(store, sv.T, tids)
+				rlm.assertTypeIsPublic(store, sv.T, visited)
 			}
 		}
 	case *MapValue:
 		for head := v.List.Head; head != nil; head = head.Next {
 			if head.Key.T != nil {
-				rlm.assertTypeIsPublic(store, head.Key.T, tids)
+				rlm.assertTypeIsPublic(store, head.Key.T, visited)
 			}
 			if head.Value.T != nil {
-				rlm.assertTypeIsPublic(store, head.Value.T, tids)
+				rlm.assertTypeIsPublic(store, head.Value.T, visited)
 			}
 		}
 	case *FuncValue:
@@ -952,11 +954,11 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store) {
 			panic("cannot persist function or method from private realm")
 		}
 		if v.Type != nil {
-			rlm.assertTypeIsPublic(store, v.Type, tids)
+			rlm.assertTypeIsPublic(store, v.Type, visited)
 		}
 		for _, capture := range v.Captures {
 			if capture.T != nil {
-				rlm.assertTypeIsPublic(store, capture.T, tids)
+				rlm.assertTypeIsPublic(store, capture.T, visited)
 			}
 		}
 	case *BoundMethodValue:
@@ -964,16 +966,16 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store) {
 			panic("cannot persist bound method from private realm")
 		}
 		if v.Receiver.T != nil {
-			rlm.assertTypeIsPublic(store, v.Receiver.T, tids)
+			rlm.assertTypeIsPublic(store, v.Receiver.T, visited)
 		}
 	case *Block:
 		for _, bv := range v.Values {
 			if bv.T != nil {
-				rlm.assertTypeIsPublic(store, bv.T, tids)
+				rlm.assertTypeIsPublic(store, bv.T, visited)
 			}
 		}
 		if v.Blank.T != nil {
-			rlm.assertTypeIsPublic(store, v.Blank.T, tids)
+			rlm.assertTypeIsPublic(store, v.Blank.T, visited)
 		}
 	case *PackageValue:
 		if v.PkgPath != rlm.Path && IsPkgPrivateFromPkgPath(v.PkgPath) {
@@ -988,6 +990,13 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store) {
 // it do it recursively for all types in t and have recursive guard to avoid infinite recursion on declared types.
 func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]struct{}) {
 	pkgPath := ""
+
+	// NOTE: Use to avoid infinite recursion on declared types & avoid repeated checks.
+	tid := t.TypeID()
+	if _, exists := visited[tid]; exists {
+		return
+	}
+	visited[tid] = struct{}{}
 	switch tt := t.(type) {
 	case *FuncType:
 		for _, param := range tt.Params {
@@ -1018,15 +1027,11 @@ func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]str
 			rlm.assertTypeIsPublic(store, field, visited)
 		}
 	case *DeclaredType:
-		tid := tt.TypeID()
-		if _, exists := visited[tid]; !exists {
-			visited[tid] = struct{}{}
-			rlm.assertTypeIsPublic(store, tt.Base, visited)
-			for _, method := range tt.Methods {
-				rlm.assertTypeIsPublic(store, method.T, visited)
-				if mv, ok := method.V.(*FuncValue); ok {
-					rlm.assertTypeIsPublic(store, mv.Type, visited)
-				}
+		rlm.assertTypeIsPublic(store, tt.Base, visited)
+		for _, method := range tt.Methods {
+			rlm.assertTypeIsPublic(store, method.T, visited)
+			if mv, ok := method.V.(*FuncValue); ok {
+				rlm.assertTypeIsPublic(store, mv.Type, visited)
 			}
 		}
 		pkgPath = tt.GetPkgPath()
