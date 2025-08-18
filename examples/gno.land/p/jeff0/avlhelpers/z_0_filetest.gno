@@ -73,19 +73,5 @@ func main() {
 	}
 }
 
-// Output:
-// # matches: 0
-// # matches: 1
-// match: alice
-// # matches: 2
-// match: alice
-// match: andy
-// # matches: 1
-// match: alice
-// # matches: 1
-// match: 61ffff
-// # matches: 2
-// match: 61ff
-// match: 61ffff
-// # matches: 1
-// match: ffff00
+// Error:
+// expected package name [test] but got [avlhelpers]

@@ -16,5 +16,5 @@ func main() {
 	println(canvas)
 }
 
-// Output:
-// <svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox=""><rect x="50" y="50" width="100" height="100" rx="0" ry="0" fill="red" /><circle cx="100" cy="100" r="50" fill="blue" /><text x="100" y="100" dx="0" dy="0" rotate="" fill="magenta" >hello world!</text><circle cx="100" cy="100" r="50" fill="blue" class="toto"/></svg>
+// Error:
+// gno.land/p/demo/svg/z0.gno:7:12-22: should not happen

@@ -1,2 +1,2 @@
-module = "gno.land/p/demo/ownable"
+module = "gno.land/p/nt/ownable"
 gno = "0.9"

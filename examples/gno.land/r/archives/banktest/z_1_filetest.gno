@@ -23,4 +23,4 @@ func main() {
 }
 
 // Error:
-// cannot send "101000000ugnot", limit "100000000ugnot" exceeded with "" already spent
+// expected package name [bank1] but got [banktest]

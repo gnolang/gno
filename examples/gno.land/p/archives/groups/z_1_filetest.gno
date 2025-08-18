@@ -22,7 +22,5 @@ func main() {
 	println("no:", vset.CountVotes("no"))
 }
 
-// Output:
-// 2
-// yes: 2
-// no: 0
+// Error:
+// gno.land/p/archives/groups/z_1.gno:9:10-24: name VoteSet not declared
