@@ -76,7 +76,7 @@ $(output_css): $(input_css) $(templates_files)
 
 ts: $(esbuild) $(output_js)
 $(out_dir_js)/%.js: $(src_dir_js)/%.ts
-	$(esbuild) $< --log-level=error --bundle --outdir=$(out_dir_js) --format=esm --minify
+	$(esbuild) $< --log-level=error --bundle --outdir=$(out_dir_js) --format=esm --define:__DEV__=false --splitting --minify
 
 # Rule to copy static files while preserving directory structure
 static: $(output_static)
@@ -108,7 +108,7 @@ dev.css: $(tailwind) generate | $(PUBLIC_DIR)
 
 # TS in development mode
 dev.ts: $(esbuild) generate | $(PUBLIC_DIR)
-	$(esbuild) $(input_js) --bundle --outdir=$(out_dir_js) --sourcemap --format=esm --watch \
+	$(esbuild) $(input_js) --bundle --outdir=$(out_dir_js) --sourcemap --define:__DEV__=true --format=esm --splitting --watch \
 		2>&1 | $(logname) esbuild
 
 # Install node modules deps located in ./tools
