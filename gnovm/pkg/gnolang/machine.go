@@ -1896,6 +1896,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	// If it must be mutated after append, use m.LastFrame() instead.
 	m.Frames = append(m.Frames, fr)
 
+	// fmt.Println("===============push frame call, cx: ", cx)
+	// fmt.Println("===============before set new package, m.Package.PkgPath: ", m.Package.PkgPath)
 	// Set the package.
 	// .Package always refers to the code being run,
 	// and may differ from .Realm.
@@ -1956,6 +1958,16 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 
 	// Not cross nor crossing.
 	// Only "soft" switch to storage realm of receiver.
+	// DO NOT set DidCrossing for any implicit crossing.
+	// Make DidCrossing only happen upon explicit
+	// cross(fn)(...) calls and subsequent calls to
+	// crossing functions from the same realm, to
+	// avoid user confusion. Otherwise whether
+	// DidCrossing happened or not depends on where
+	// the receiver resides, which isn't explicit
+	// enough to avoid confusion.
+	//   fr.DidCrossing = true
+	// }
 	if recv.IsDefined() { // method call
 		obj := recv.GetFirstObject(m.Store)
 		if obj == nil { // nil receiver
@@ -1966,7 +1978,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			if recvOID.IsZero() {
 				// cross into fv's realm for unreal receiver
 				// see realm_dao.gno
-				m.Realm = pv.Realm
+				if pv.IsRealm() {
+					m.Realm = pv.Realm
+				}
 				return
 			}
 
@@ -1990,15 +2004,17 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 					rlm = objpv.GetRealm()
 				}
 
-				m.Realm = rlm
+				m.Realm = rlm // never nil
 				return
 			}
 		}
-	} else { // function without receiver
+	} else { // function without receiver, nor explicit cross
 		if pv.Realm == m.Realm {
 			return
 		}
 		if pv.IsRealm() {
+			// Case 1, non-cross call func declared in
+			// other realm, usually for a utility func.
 			// pkg.Foo
 			if sx, ok := cx.Func.(*SelectorExpr); ok {
 				if cx, ok := sx.X.(*ConstExpr); ok {
@@ -2009,25 +2025,19 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 					}
 				}
 			}
-			// XXX, why
-			if m.Realm != nil {
-				// A function without receiver (named or unnamed) in a realm.
-				// Borrow switch to where the function is declared,
-				// since there is no receiver.
-				// Neither cross nor didswitch.
-				m.Realm = pv.Realm
-				// DO NOT set DidCrossing here. Make
-				// DidCrossing only happen upon explicit
-				// cross(fn)(...) calls and subsequent calls to
-				// crossing functions from the same realm, to
-				// avoid user confusion. Otherwise whether
-				// DidCrossing happened or not depends on where
-				// the receiver resides, which isn't explicit
-				// enough to avoid confusion.
-				//   fr.DidCrossing = true
+
+			// Case 2, non-cross call the func declared in
+			// same realm.
+			// p -> r
+			// r1 -> r2
+			if fv.PkgPath == fr.LastPackage.PkgPath {
+				// no switch func call within package
+				return
 			}
+
+			// Otherwise cross into realm where func decalared
+			m.Realm = pv.Realm
 		} else {
-			// A function without receiver in a non-realm package.
 			// no switch
 			return
 		}

@@ -99,7 +99,7 @@ func TestValopers_Register(t *testing.T) {
 		// Send invalid coins
 		testing.SetOriginSend(std.Coins{std.NewCoin("gnogno", minFee.Amount)})
 
-		uassert.PanicsWithMessage(t, "incompatible coin denominations: gnogno, ugnot", func() {
+		uassert.AbortsWithMessage(t, "incompatible coin denominations: gnogno, ugnot", func() {
 			Register(cross, info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 	})
@@ -258,7 +258,7 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		testing.SetOriginCaller(test2Address)
 
 		// Update the valoper
-		uassert.PanicsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
+		uassert.AbortsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
 			UpdateMoniker(cross, info.Address, "new moniker")
 		})
 	})
@@ -388,7 +388,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		testing.SetOriginCaller(test2Address)
 
 		// Update the valoper
-		uassert.PanicsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
+		uassert.AbortsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
 			UpdateDescription(cross, info.Address, "new description")
 		})
 	})
@@ -507,7 +507,7 @@ func TestValopers_UpdateKeepRunning(t *testing.T) {
 		testing.SetOriginCaller(test2Address)
 
 		// Update the valoper
-		uassert.PanicsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
+		uassert.AbortsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
 			UpdateKeepRunning(cross, info.Address, false)
 		})
 	})
