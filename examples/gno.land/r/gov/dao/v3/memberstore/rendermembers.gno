@@ -9,6 +9,7 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/samcrew/urlfilter"
 	"gno.land/p/sunspirit/md"
+	"gno.land/p/sunspirit/table"
 )
 
 // RenderMembers returns the members list with tier filters and pagination.
@@ -27,22 +28,37 @@ func RenderMembers(path string, members MembersByTier) string {
 	pager := pager.NewPager(data.Items, pageSize, false)
 	page := pager.MustGetPageByPath(path)
 
-	sb.WriteString(renderMembersPage(page, data.Items))
+	sb.WriteString(renderMembersPages(page, data.Items))
 	sb.WriteString(md.LineBreak(1))
 	sb.WriteString(renderPagination(u, page))
 
 	return sb.String()
 }
 
-// renderMembersPage returns the members of the current page as bullet points.
-func renderMembersPage(page *pager.Page, members *avl.Tree) string {
+// renderMembersPages returns the members of each page.
+func renderMembersPages(page *pager.Page, members *avl.Tree) string {
 	var sb strings.Builder
+	mdBuilder := md.NewBuilder()
+	tb, _ := table.New([]string{"Tier", "Address"}, [][]string{})
+
 	for _, item := range page.Items {
 		addr := item.Key
 		tn, _ := members.Get(addr)
 		tnStr, _ := tn.(string)
-		sb.WriteString(ufmt.Sprintf("- %v %v · %v\n", tierColoredChip(tnStr), tnStr, addr))
+
+		tb.AddRow([]string{
+			ufmt.Sprintf(
+				"%s %s",
+				tn,
+				tierColoredChip(tnStr),
+			),
+			addr,
+		})
 	}
+
+	mdBuilder.Add(md.Table(tb))
+	sb.WriteString(mdBuilder.Render("\n"))
+
 	return sb.String()
 }
 
