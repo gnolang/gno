@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"gno.land/p/nt/testutils"
-	"gno.land/r/gnoland/valopers"
-	"gno.land/r/gnoland/valopers_proposal"
+	"gno.land/r/gnops/valopers"
+	"gno.land/r/gnops/valopers_proposal"
 	"gno.land/r/gov/dao"
 	daoinit "gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed
 )

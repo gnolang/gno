@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/nt/ufmt"
 	pVals "gno.land/p/sys/validators"
-	valopers "gno.land/r/gnoland/valopers"
+	valopers "gno.land/r/gnops/valopers"
 	"gno.land/r/gov/dao"
 	validators "gno.land/r/sys/validators/v2"
 )
@@ -57,7 +57,7 @@ func NewValidatorProposalRequest(cur realm, address_XXX std.Address) dao.Proposa
 		valoper.Moniker,
 	)
 
-	description := ufmt.Sprintf("Valoper profile: [%s](/r/gnoland/valopers:%s)\n\n%s",
+	description := ufmt.Sprintf("Valoper profile: [%s](/r/gnops/valopers:%s)\n\n%s",
 		valoper.Moniker,
 		valoper.Address,
 		valoper.Render(),
@@ -72,7 +72,7 @@ func NewValidatorProposalRequest(cur realm, address_XXX std.Address) dao.Proposa
 func ProposeNewInstructionsProposalRequest(cur realm, newInstructions string) dao.ProposalRequest {
 	cb := valopers.NewInstructionsProposalCallback(newInstructions)
 	// Create a proposal
-	title := "/p/gnoland/valopers: Update instructions"
+	title := "/p/gnops/valopers: Update instructions"
 	description := ufmt.Sprintf("Update the instructions to: \n\n%s", newInstructions)
 
 	e := dao.NewSimpleExecutor(cb, "")
@@ -85,7 +85,7 @@ func ProposeNewInstructionsProposalRequest(cur realm, newInstructions string) da
 func ProposeNewMinFeeProposalRequest(cur realm, newMinFee int64) dao.ProposalRequest {
 	cb := valopers.NewMinFeeProposalCallback(newMinFee)
 	// Create a proposal
-	title := "/p/gnoland/valopers: Update minFee"
+	title := "/p/gnops/valopers: Update minFee"
 	description := ufmt.Sprintf("Update the minimum register fee to: %d ugnot", newMinFee)
 
 	e := dao.NewSimpleExecutor(cb, "")

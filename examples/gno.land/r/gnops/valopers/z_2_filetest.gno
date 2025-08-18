@@ -1,14 +1,14 @@
-// PKGPATH: gno.land/r/gnops/valopers
+// PKGPATH: gno.land/r/gnops/valopers_test
 // SEND: 20000000ugnot
 
-package valopers
+package valopers_test
 
 import (
 	"std"
 	"testing"
 
 	"gno.land/p/nt/testutils"
-	"gno.land/r/gnoland/valopers"
+	"gno.land/r/gnops/valopers"
 )
 
 var g1user = testutils.TestAddress("g1user")

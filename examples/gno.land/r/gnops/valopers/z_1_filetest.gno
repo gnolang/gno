@@ -1,14 +1,14 @@
-// PKGPATH: gno.land/r/gnops/valopers
+// PKGPATH: gno.land/r/gnops/valopers_test
 // SEND: 20000000ugnot
 
-package valopers
+package valopers_test
 
 import (
 	"std"
 	"testing"
 
 	"gno.land/p/nt/testutils"
-	"gno.land/r/gnoland/valopers"
+	"gno.land/r/gnops/valopers"
 )
 
 var g1user = testutils.TestAddress("g1user") // g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
@@ -45,7 +45,7 @@ func main() {
 //
 // ## 📝 How to Register Your Validator Node
 //
-// To add your validator node to the registry, use the [**Register**](/r/gnoland/valopers$help&func=Register) function with the following parameters:
+// To add your validator node to the registry, use the [**Register**](/r/gnops/valopers$help&func=Register) function with the following parameters:
 //
 // - **Moniker** (Validator Name)
 //   - Must be **human-readable**
@@ -102,6 +102,4 @@ func main() {
 //
 //
 //
-//  * [test-1](/r/gnoland/valopers:g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h) - [profile](/r/demo/profile:u/g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w)
-//
-//
+//  * [test-1](/r/gnops/valopers:g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h) - [profile](/r/demo/profile:u/g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w)

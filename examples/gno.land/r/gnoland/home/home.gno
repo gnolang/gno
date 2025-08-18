@@ -8,7 +8,7 @@ import (
 	"gno.land/p/nt/ownable"
 	blog "gno.land/r/gnoland/blog"
 
-	"gno.land/r/gnoland/events"
+	"gno.land/r/devrels/events"
 	users "gno.land/r/gnoland/users/v1"
 	"gno.land/r/leon/hor"
 )

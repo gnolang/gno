@@ -1,6 +1,6 @@
 package ui
 
-import "gno.land/p/demo/ui"
+import "gno.land/p/archives/ui"
 
 func Render(path string) string {
 	// TODO: build this realm as a demo one with one page per feature.

@@ -7,7 +7,7 @@ import (
 	"gno.land/p/nt/testutils"
 	"gno.land/p/nt/ufmt"
 	"gno.land/p/nt/urequire"
-	"gno.land/r/gnoland/valopers"
+	"gno.land/r/gnops/valopers"
 	"gno.land/r/gov/dao"
 	daoinit "gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed
 )
@@ -82,7 +82,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		proposal, err := dao.GetProposal(cross, pid) // index starts from 0
 		urequire.NoError(t, err, "proposal not found")
 
-		description := ufmt.Sprintf("Valoper profile: [%s](/r/gnoland/valopers:%s)\n\n%s",
+		description := ufmt.Sprintf("Valoper profile: [%s](/r/gnops/valopers:%s)\n\n%s",
 			valoper.Moniker,
 			valoper.Address,
 			valoper.Render(),

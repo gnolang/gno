@@ -7,10 +7,10 @@ import (
 	"regexp"
 	"std"
 
-	"gno.land/p/demo/combinederr"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/avl/pager"
+	"gno.land/p/nt/combinederr"
 	"gno.land/p/nt/ownable/exts/authorizable"
 	"gno.land/p/nt/ufmt"
 )
@@ -167,8 +167,8 @@ func GetByAddr(address_XXX std.Address) Valoper {
 }
 
 // Render renders the current valoper set.
-// "/r/gnoland/valopers" lists all valopers, paginated.
-// "/r/gnoland/valopers:addr" shows the detail for the valoper with the addr.
+// "/r/gnops/valopers" lists all valopers, paginated.
+// "/r/gnops/valopers:addr" shows the detail for the valoper with the addr.
 func Render(fullPath string) string {
 	req := realmpath.Parse(fullPath)
 	if req.Path == "" {
@@ -204,7 +204,7 @@ func renderHome(path string) string {
 
 	for _, item := range page.Items {
 		v := item.Value.(Valoper)
-		output += ufmt.Sprintf(" * [%s](/r/gnoland/valopers:%s) - [profile](/r/demo/profile:u/%s)\n",
+		output += ufmt.Sprintf(" * [%s](/r/gnops/valopers:%s) - [profile](/r/demo/profile:u/%s)\n",
 			v.Moniker, v.Address, v.Auth().Owner())
 	}
 
