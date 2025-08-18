@@ -1,3 +1,6 @@
+// Package piechart provides functionality to render a pie chart as an SVG image.
+// It takes a list of PieSlice objects, each representing a slice of the pie with a value,
+// color, and label, and generates an SVG representation of the pie chart.
 package piechart
 
 import (

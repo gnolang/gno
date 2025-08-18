@@ -1,3 +1,6 @@
+// Package urlfilter provides functionality to filter items based on URL query parameters.
+// It is designed to work with an avl.Tree structure where each key represents a filter
+// and each value is an avl.Tree containing items associated with that filter.
 package urlfilter
 
 import (
@@ -9,24 +12,15 @@ import (
 	"gno.land/p/sunspirit/md"
 )
 
-// FilterItemsTree is a type alias for an AVL tree that holds filter items.
-type FilterItemsTree = *avl.Tree
-
-// Result holds the outcome of filtering operations.
-type Result struct {
-	Markdown string          // Filters represented as a Markdown string (for UI rendering)
-	Items    FilterItemsTree // The filtered set of items
-}
-
 // ApplyFilters filters items based on the "filter" query parameter in the given URL
 // and generates a Markdown representation of all available filters.
 //
 // Expected `items` structure:
-//   - items is an *avl.Tree where:
-//     Key   (string): The filter name (e.g., "T1", "size:XL", "on_sale")
-//     Value (*avl.Tree): A nested tree containing the actual items for that filter
-//   - Key   (string): Unique item identifier
-//   - Value (any)   : Associated item data (optional)
+//   - `items` is an *avl.Tree where each key is a filter name (e.g., "T1", "size:XL", "on_sale")
+//     and each value is an *avl.Tree containing the items for that filter.
+//   - Each item tree uses:
+//     Key   (string): Unique item identifier
+//     Value (any)   : Optional associated item data
 //
 // Example:
 //
@@ -42,18 +36,12 @@ type Result struct {
 //	// URL with active filter "T1"
 //	u, _ := url.Parse("/shop?filter=T1")
 //
-//	result := ApplyFilters(u, filters)
+//	mdFilters, items := ApplyFilters(u, filters, "filter")
 //
-//	// result.Markdown → Markdown links for toggling filters
-//	// result.Items    → AVL tree containing only the filtered items
-func ApplyFilters(u *url.URL, items FilterItemsTree, paramName ...string) Result {
-	// Default parameter name for filters
-	pName := "filter"
-	if len(paramName) > 0 && paramName[0] != "" {
-		pName = paramName[0]
-	}
-
-	active := parseFilterMap(u.Query(), pName)
+//	// mdFilters	→ Markdown links for toggling filters
+//	// items    	→ AVL tree containing the filtered items
+func ApplyFilters(u *url.URL, items *avl.Tree, paramName string) (string, *avl.Tree) {
+	active := parseFilterMap(u.Query(), paramName)
 	allFilters := make([]string, 0)
 	resultTree := avl.NewTree()
 
@@ -80,15 +68,12 @@ func ApplyFilters(u *url.URL, items FilterItemsTree, paramName ...string) Result
 	// Build Markdown links for toggling each filter
 	var sb strings.Builder
 	for _, f := range allFilters {
-		q := toggleFilterQuery(active, f, allFilters, pName)
+		q := toggleFilterQuery(active, f, allFilters, paramName)
 		urlStr := buildURL(u.Path, q)
 		sb.WriteString(ufmt.Sprintf(" | %v ", md.Link(formatLabel(f, active[f]), urlStr)))
 	}
 
-	return Result{
-		Markdown: sb.String(),
-		Items:    resultTree,
-	}
+	return sb.String(), resultTree
 }
 
 // buildURL returns a path + query string, omitting the "?" if no query exists.

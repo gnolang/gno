@@ -15,20 +15,20 @@ import (
 // RenderMembers returns the members list with tier filters and pagination.
 func RenderMembers(path string, members MembersByTier) string {
 	u, _ := url.Parse(path)
-	data := urlfilter.ApplyFilters(u, members.Tree)
+	mdFilters, items := urlfilter.ApplyFilters(u, members.Tree, "filter")
 	var sb strings.Builder
 
 	sb.WriteString(md.Link("> Go to Tiers summary <", "/r/gov/dao/v3/memberstore"))
 	sb.WriteString(md.LineBreak(1))
 	sb.WriteString(md.Bold("Filter members by tiers:"))
-	sb.WriteString(data.Markdown)
+	sb.WriteString(mdFilters)
 	sb.WriteString(md.LineBreak(1))
 
 	const pageSize = 14
-	pager := pager.NewPager(data.Items, pageSize, false)
+	pager := pager.NewPager(items, pageSize, false)
 	page := pager.MustGetPageByPath(path)
 
-	sb.WriteString(renderMembersPages(page, data.Items))
+	sb.WriteString(renderMembersPages(page, items))
 	sb.WriteString(md.LineBreak(1))
 	sb.WriteString(renderPagination(u, page))
 

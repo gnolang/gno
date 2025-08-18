@@ -29,16 +29,16 @@ func buildTestTree() *avl.Tree {
 func TestApplyFilters(t *testing.T) {
 	TreeParent := buildTestTree()
 
-	// --- Case 1: No filter selected, custom parameter name
+	// --- Case 1: No filter selected
 	u, _ := url.Parse("/test")
-	res := ApplyFilters(u, TreeParent, "custom-param-name")
-	expectedMarkdown := " | [~~keyF1~~](/test?custom-param-name=keyF1)  | [~~keyF2~~](/test?custom-param-name=keyF2) "
-	if res.Markdown != expectedMarkdown {
-		t.Errorf("Expected Markdown %q, got %q", expectedMarkdown, res.Markdown)
+	mdFilters, items := ApplyFilters(u, TreeParent, "filter")
+	expectedMarkdown := " | [~~keyF1~~](/test?filter=keyF1)  | [~~keyF2~~](/test?filter=keyF2) "
+	if mdFilters != expectedMarkdown {
+		t.Errorf("Expected Markdown %q, got %q", expectedMarkdown, mdFilters)
 	}
 	// All items should be present
 	count := 0
-	res.Items.Iterate("", "", func(k string, _ interface{}) bool {
+	items.Iterate("", "", func(k string, _ interface{}) bool {
 		count++
 		return false
 	})
@@ -47,19 +47,19 @@ func TestApplyFilters(t *testing.T) {
 	}
 	// The parameter name should be "custom-param-name"
 	if !strings.Contains(expectedMarkdown, "custom-param-name") {
-		t.Errorf("Expected 'custom-param-name' parameter in Markdown, got %q", res.Markdown)
+		t.Errorf("Expected 'custom-param-name' parameter in Markdown, got %q", mdFilters)
 	}
 
 	// --- Case 2: One filter active (keyF1)
 	u, _ = url.Parse("/test?filter=keyF1")
-	res = ApplyFilters(u, TreeParent)
+	mdFilters, items = ApplyFilters(u, TreeParent, "filter")
 	expectedMarkdown = " | [**keyF1**](/test)  | [~~keyF2~~](/test?filter=keyF1%2CkeyF2) "
-	if res.Markdown != expectedMarkdown {
-		t.Errorf("Expected Markdown %q, got %q", expectedMarkdown, res.Markdown)
+	if mdFilters != expectedMarkdown {
+		t.Errorf("Expected Markdown %q, got %q", expectedMarkdown, mdFilters)
 	}
 	// Only keyF1 items should be present
 	keys := map[string]bool{}
-	res.Items.Iterate("", "", func(k string, _ interface{}) bool {
+	items.Iterate("", "", func(k string, _ interface{}) bool {
 		keys[k] = true
 		return false
 	})
@@ -69,17 +69,17 @@ func TestApplyFilters(t *testing.T) {
 
 	// --- Case 3: Multiple filters active (keyF1, keyF2)
 	u, _ = url.Parse("/test?filter=keyF1,keyF2")
-	res = ApplyFilters(u, TreeParent)
+	mdFilters, items = ApplyFilters(u, TreeParent, "filter")
 	// Both filters should be bold, no remove query for last one
-	if res.Items.Size() != 4 {
-		t.Errorf("Expected 4 items, got %d", res.Items.Size())
+	if items.Size() != 4 {
+		t.Errorf("Expected 4 items, got %d", items.Size())
 	}
 
 	// --- Case 4: Filter not existing
 	u, _ = url.Parse("/test?filter=unknown")
-	res = ApplyFilters(u, TreeParent)
+	mdFilters, items = ApplyFilters(u, TreeParent, "filter")
 	// No matching items
-	if res.Items.Size() != 0 {
-		t.Errorf("Expected 0 items for unknown filter, got %d", res.Items.Size())
+	if items.Size() != 0 {
+		t.Errorf("Expected 0 items for unknown filter, got %d", items.Size())
 	}
 }
