@@ -33,7 +33,7 @@ func TestNestedPkg(t *testing.T) {
 	}
 
 	// direct parent
-	cur = "gno.land/r/demo"
+	cur = "gno.land/r/tests"
 	testing.SetRealm(std.NewCodeRealm(cur))
 	if IsCallerSubPath(cross) {
 		t.Errorf(cur + " should not be a sub path")
