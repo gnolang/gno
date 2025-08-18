@@ -24,7 +24,7 @@ make install.gnoland
 ### Run gnoland
 
 ```bash
-gnoland start -lazy
+gnoland start -lazy -skip-genesis-sig-verification
 ```
 
 Once running, you can interact with it using:

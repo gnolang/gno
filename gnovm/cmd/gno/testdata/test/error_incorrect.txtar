@@ -16,3 +16,8 @@ func main() {
 
 // Error:
 // xxx
+
+
+
+-- gnomod.toml --
+module = 'gno.test/r/integ/error_incorrect'
