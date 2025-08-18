@@ -41,5 +41,6 @@ func main() {
 	println(string(proposal.Status()))
 }
 
-// Error:
-// should not happen, method and object not in same realm
+// Output:
+// true
+// passed

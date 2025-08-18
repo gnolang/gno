@@ -24,5 +24,8 @@ func main() {
 	println(boards.Render(""))
 }
 
-// Error:
-// should not happen, method and object not in same realm
+// Output:
+// These are all the boards of this realm:
+//
+//  * [/r/demo/boards:test_board_1](/r/demo/boards:test_board_1)
+//  * [/r/demo/boards:test_board_2](/r/demo/boards:test_board_2)

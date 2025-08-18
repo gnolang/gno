@@ -23,7 +23,6 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/nt/commondao"))
 	dao := commondao.New("Foo", commondao.AllowVoting(false)) // Disallow voting
-
 	daoID = dao.ID()
 }
 

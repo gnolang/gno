@@ -63,5 +63,91 @@ func main() {
 	}
 }
 
-// Error:
-// should not happen, method and object not in same realm
+// Output:
+// --
+// # GovDAO Proposals
+// ### [Prop #0 - User Registry V1: Delete user `alice123`](/r/gov/dao:0)
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+// Status: ACTIVE
+//
+// Tiers eligible to vote: T1, T2, T3
+//
+// ---
+//
+//
+// --
+// ## Prop #0 - User Registry V1: Delete user `alice123`
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+// delete user test
+//
+//
+//
+// ---
+//
+// ### Stats
+// - **Proposal is open for votes**
+// - Tiers eligible to vote: T1, T2, T3
+// - YES PERCENT: 0%
+// - NO PERCENT: 0%
+//
+// [Detailed voting list](/r/gov/dao:0/votes)
+//
+// ---
+//
+// ### Actions
+// [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
+//
+// WARNING: Please double check transaction data before voting.
+// --
+// --
+// ## Prop #0 - User Registry V1: Delete user `alice123`
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+// delete user test
+//
+//
+//
+// ---
+//
+// ### Stats
+// - **Proposal is open for votes**
+// - Tiers eligible to vote: T1, T2, T3
+// - YES PERCENT: 100%
+// - NO PERCENT: 0%
+//
+// [Detailed voting list](/r/gov/dao:0/votes)
+//
+// ---
+//
+// ### Actions
+// [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
+//
+// WARNING: Please double check transaction data before voting.
+// --
+// --
+// ## Prop #0 - User Registry V1: Delete user `alice123`
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+// delete user test
+//
+//
+//
+// ---
+//
+// ### Stats
+// - **PROPOSAL HAS BEEN ACCEPTED**
+// - Tiers eligible to vote: T1, T2, T3
+// - YES PERCENT: 100%
+// - NO PERCENT: 0%
+//
+// [Detailed voting list](/r/gov/dao:0/votes)
+//
+// ---
+//
+// ### Actions
+// [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
+//
+// WARNING: Please double check transaction data before voting.
+// Successfully deleted alice

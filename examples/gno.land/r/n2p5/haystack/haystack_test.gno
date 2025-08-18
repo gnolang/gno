@@ -32,7 +32,7 @@ func TestHaystack(t *testing.T) {
 
 		testing.SetOriginCaller(u1)
 		urequire.NotPanics(t, func() { Add(n1) })
-		urequire.AbortsWithMessage(t,
+		urequire.PanicsWithMessage(t,
 			haystack.ErrorDuplicateNeedle.Error(),
 			func() {
 				Add(n1)
@@ -60,7 +60,7 @@ func TestHaystack(t *testing.T) {
 			result := Get(h1)
 			urequire.Equal(t, n1, result)
 		})
-		urequire.AbortsWithMessage(t,
+		urequire.PanicsWithMessage(t,
 			haystack.ErrorNeedleNotFound.Error(),
 			func() {
 				Get(h2)

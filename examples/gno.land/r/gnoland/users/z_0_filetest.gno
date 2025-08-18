@@ -36,5 +36,11 @@ func main() {
 	println(users.Render(""))
 }
 
-// Error:
-// should not happen, method and object not in same realm
+// Output:
+// # r/gnoland/users
+// See the r/gnoland/users changelog below.
+//
+// | Version | Link | Notes |
+// | --- | --- | --- |
+// | v2 | [r/gnoland/users v2 (latest)](/r/gnoland/users/v2) | This is a note! |
+// | v1 | [r/gnoland/users v1](/r/gnoland/users/v1) | [Original PR](https://github.com/gnolang/gno/pull/3166) |

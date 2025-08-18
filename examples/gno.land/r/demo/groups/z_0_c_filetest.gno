@@ -21,5 +21,8 @@ func main() {
 	println(groups.Render(""))
 }
 
-// Error:
-// should not happen, method and object not in same realm
+// Output:
+// 1
+// List of all Groups:
+//
+//  * [test_group](/r/demo/groups:test_group)

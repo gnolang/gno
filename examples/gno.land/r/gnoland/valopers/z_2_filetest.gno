@@ -32,5 +32,12 @@ func main() {
 	println(valopers.Render(validAddress.String()))
 }
 
-// Error:
-// should not happen, method and object not in same realm
+// Output:
+// Valoper's details:
+// ## test-1
+// test-1's description
+//
+// - Address: g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h
+// - PubKey: gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p
+//
+// [Profile link](/r/demo/profile:u/g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h)

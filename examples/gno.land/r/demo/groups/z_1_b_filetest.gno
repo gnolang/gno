@@ -25,4 +25,4 @@ func main() {
 }
 
 // Error:
-// should not happen, method and object not in same realm
+// group id (2) does not exists

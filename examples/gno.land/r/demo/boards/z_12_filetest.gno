@@ -32,5 +32,13 @@ func main() {
 	println(boards.Render("test_board2"))
 }
 
-// Error:
-// should not happen, method and object not in same realm
+// Output:
+// 1
+// \[[post](/r/demo/boards$help&func=CreateThread&bid=2)]
+//
+// ----------------------------------------
+// Repost: Check this out
+// ## [First Post (title)](/r/demo/boards:test_board1/1)
+//
+// Body of the first post. (body)
+// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm UTC](/r/demo/boards:test_board1/1) \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=1&threadid=1)] (0 replies) (1 reposts)

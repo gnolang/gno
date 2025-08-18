@@ -32,5 +32,11 @@ func main() {
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 }
 
-// Error:
-// should not happen, method and object not in same realm
+// Output:
+// # First Post in (title)
+//
+// Body of the first post. (body)
+// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/1) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=1&threadid=1)] \[[repost](/r/demo/boards$help&func=CreateRepost&bid=1&postid=1)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=1&threadid=1)]
+//
+// ----------------------------------------------------
+// thread does not exist with id: 1

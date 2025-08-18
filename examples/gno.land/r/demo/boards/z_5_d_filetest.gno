@@ -31,4 +31,4 @@ func main() {
 }
 
 // Error:
-// should not happen, method and object not in same realm
+// please register, otherwise minimum fee 100000000 is required if anonymous

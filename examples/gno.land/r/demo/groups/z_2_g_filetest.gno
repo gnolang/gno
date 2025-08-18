@@ -32,4 +32,4 @@ func main() {
 }
 
 // Error:
-// should not happen, method and object not in same realm
+// unauthorized to delete group

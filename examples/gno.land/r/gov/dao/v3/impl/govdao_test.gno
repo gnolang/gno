@@ -199,7 +199,7 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	testing.SetOriginCaller(noMember)
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
-	urequire.AbortsWithMessage(t, "proposer is not a member", func() {
+	urequire.PanicsWithMessage(t, "proposer is not a member", func() {
 		NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
 	})
 
