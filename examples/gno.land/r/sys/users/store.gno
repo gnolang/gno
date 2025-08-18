@@ -111,7 +111,6 @@ func (u *UserData) UpdateName(newName string) error {
 
 	// Validate caller
 	if !controllers.Has(std.CurrentRealm().Address()) {
-		panic(NewErrNotWhitelisted())
 		return NewErrNotWhitelisted()
 	}
 
