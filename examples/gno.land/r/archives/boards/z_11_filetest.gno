@@ -1,0 +1,46 @@
+package main
+
+// SEND: 1000000ugnot
+
+import (
+	"std"
+	"strconv"
+	"testing"
+
+	"gno.land/r/archives/boards"
+	users "gno.land/r/gnoland/users/v1"
+)
+
+var (
+	bid boards.BoardID
+	pid boards.PostID
+)
+
+func init() {
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	users.Register(cross, "gnouser123")
+
+	bid = boards.CreateBoard(cross, "test_board")
+	pid = boards.CreateThread(cross, bid, "First Post in (title)", "Body of the first post. (body)")
+}
+
+func main() {
+	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
+	boards.EditPost(cross, bid, pid, pid, "Edited: First Post in (title)", "Edited: Body of the first post. (body)")
+	println("----------------------------------------------------")
+	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
+}
+
+// Output:
+// # First Post in (title)
+//
+// Body of the first post. (body)
+// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/archives/boards:test_board/1) \[[reply](/r/archives/boards$help&func=CreateReply&bid=1&postid=1&threadid=1)] \[[repost](/r/archives/boards$help&func=CreateRepost&bid=1&postid=1)] \[[x](/r/archives/boards$help&func=DeletePost&bid=1&postid=1&threadid=1)]
+//
+// ----------------------------------------------------
+// # Edited: First Post in (title)
+//
+// Edited: Body of the first post. (body)
+// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/archives/boards:test_board/1) \[[reply](/r/archives/boards$help&func=CreateReply&bid=1&postid=1&threadid=1)] \[[repost](/r/archives/boards$help&func=CreateRepost&bid=1&postid=1)] \[[x](/r/archives/boards$help&func=DeletePost&bid=1&postid=1&threadid=1)]
+//
