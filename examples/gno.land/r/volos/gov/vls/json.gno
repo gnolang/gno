@@ -1,8 +1,9 @@
 package vls
 
 import (
-	"gno.land/p/demo/json"
 	"std"
+
+	"gno.land/p/demo/json"
 )
 
 // RpcTokenInfo represents VLS token information in RPC format
@@ -53,9 +54,9 @@ func (r RpcBalance) JSON() *json.Node {
 
 // RpcAllowance represents an allowance in RPC format
 type RpcAllowance struct {
-	Owner    string `json:"owner"`
-	Spender  string `json:"spender"`
-	Allowance int64 `json:"allowance"`
+	Owner     string `json:"owner"`
+	Spender   string `json:"spender"`
+	Allowance int64  `json:"allowance"`
 }
 
 func AllowanceToRpc(owner, spender std.Address) RpcAllowance {

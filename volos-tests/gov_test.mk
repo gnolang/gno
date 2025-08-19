@@ -5,6 +5,10 @@ include ../gnoswap-tests/test.mk
 gov-test-flow: faucet-vls approve-vls-for-staking stake-vls faucet-all-voters approve-all-voters stake-all-voters create-test-proposal vote-all-on-all-proposals
 	@echo "************ GOVERNANCE ENVIRONMENT SETUP COMPLETE ************"
 
+# Basic governance setup and test
+gov-test-flow-no-voting: faucet-vls approve-vls-for-staking stake-vls faucet-all-voters approve-all-voters stake-all-voters create-test-proposal
+	@echo "************ GOVERNANCE ENVIRONMENT SETUP COMPLETE ************"
+
 # Faucet VLS tokens
 faucet-vls:
 	$(info ************ Faucet VLS tokens ************)

@@ -1,8 +1,9 @@
 package xvls
 
 import (
-	"gno.land/p/demo/json"
 	"std"
+
+	"gno.land/p/demo/json"
 )
 
 // RpcTokenInfo represents xVLS token information in RPC format

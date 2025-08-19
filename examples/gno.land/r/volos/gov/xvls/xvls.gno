@@ -92,7 +92,7 @@ func Burn(cur realm, from std.Address, amount int64) {
 	}); err != nil {
 		panic(err)
 	}
-	
+
 	caller := std.PreviousRealm().Address()
 	emitBurn(caller, from, amount)
 }

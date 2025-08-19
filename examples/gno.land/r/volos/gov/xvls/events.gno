@@ -13,16 +13,16 @@ const (
 )
 
 const (
-	EventToKey        = "to"
-	EventFromKey      = "from"
-	EventAmountKey    = "amount"
-	EventTotalSupplyKey = "total_supply"
+	EventToKey           = "to"
+	EventFromKey         = "from"
+	EventAmountKey       = "amount"
+	EventTotalSupplyKey  = "total_supply"
 	EventVotingSupplyKey = "voting_supply"
-	EventExcludedKey  = "excluded_balance"
-	EventCallerKey    = "caller"
-	EventTimestampKey = "timestamp"
-	EventBalanceKey   = "balance"
-	EventLaunchpadKey = "launchpad_address"
+	EventExcludedKey     = "excluded_balance"
+	EventCallerKey       = "caller"
+	EventTimestampKey    = "timestamp"
+	EventBalanceKey      = "balance"
+	EventLaunchpadKey    = "launchpad_address"
 )
 
 // emitMint emits an event when xVLS tokens are minted
@@ -63,4 +63,4 @@ func emitVotingSupply(caller std.Address, totalSupply, votingSupply int64, exclu
 		EventLaunchpadKey, Launchpad.String(),
 		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
-} 
+}

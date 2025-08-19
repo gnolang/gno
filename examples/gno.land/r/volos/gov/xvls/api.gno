@@ -1,8 +1,9 @@
 package xvls
 
 import (
-	"gno.land/p/demo/json"
 	"std"
+
+	"gno.land/p/demo/json"
 )
 
 // ApiGetTokenInfo returns xVLS token information as JSON string
@@ -17,7 +18,7 @@ func ApiGetBalance(address string) string {
 	if !addr.IsValid() {
 		return marshalError("invalid address")
 	}
-	
+
 	balance := BalanceToRpc(addr)
 	return marshal(balance.JSON())
 }

@@ -15,18 +15,18 @@ const (
 )
 
 const (
-	EventFromKey      = "from"
-	EventToKey        = "to"
-	EventAmountKey    = "amount"
-	EventOwnerKey     = "owner"
-	EventSpenderKey   = "spender"
-	EventValueKey     = "value"
-	EventOldPkgPathKey = "old_pkg_path"
-	EventNewPkgPathKey = "new_pkg_path"
-	EventCallerKey    = "caller"
-	EventTimestampKey = "timestamp"
+	EventFromKey        = "from"
+	EventToKey          = "to"
+	EventAmountKey      = "amount"
+	EventOwnerKey       = "owner"
+	EventSpenderKey     = "spender"
+	EventValueKey       = "value"
+	EventOldPkgPathKey  = "old_pkg_path"
+	EventNewPkgPathKey  = "new_pkg_path"
+	EventCallerKey      = "caller"
+	EventTimestampKey   = "timestamp"
 	EventTotalSupplyKey = "total_supply"
-	EventBalanceKey   = "balance"
+	EventBalanceKey     = "balance"
 )
 
 // emitMint emits an event when VLS tokens are minted

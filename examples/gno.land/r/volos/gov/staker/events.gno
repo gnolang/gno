@@ -15,20 +15,20 @@ const (
 )
 
 const (
-	EventStakerKey     = "staker"
-	EventDelegateeKey  = "delegatee"
-	EventAmountKey     = "amount"
-	EventUnlockAtKey   = "unlock_at"
-	EventMemberKey     = "member"
-	EventTotalWithdrawnKey = "total_withdrawn"
+	EventStakerKey            = "staker"
+	EventDelegateeKey         = "delegatee"
+	EventAmountKey            = "amount"
+	EventUnlockAtKey          = "unlock_at"
+	EventMemberKey            = "member"
+	EventTotalWithdrawnKey    = "total_withdrawn"
 	EventRemainingUnstakesKey = "remaining_unstakes"
-	EventCallerKey     = "caller"
-	EventTimestampKey  = "timestamp"
-	EventCooldownPeriodKey = "cooldown_period"
-	EventPendingUnstakesKey = "pending_unstakes"
-	EventVlsBalanceKey = "vls_balance"
-	EventXvlsBalanceKey = "xvls_balance"
-	EventUnstakeInfoKey = "unstake_info"
+	EventCallerKey            = "caller"
+	EventTimestampKey         = "timestamp"
+	EventCooldownPeriodKey    = "cooldown_period"
+	EventPendingUnstakesKey   = "pending_unstakes"
+	EventVlsBalanceKey        = "vls_balance"
+	EventXvlsBalanceKey       = "xvls_balance"
+	EventUnstakeInfoKey       = "unstake_info"
 )
 
 // emitStake emits an event when VLS tokens are staked
@@ -39,7 +39,7 @@ func emitStake(caller, staker, delegatee std.Address, amount int64) {
 		EventStakerKey, staker.String(),
 		EventDelegateeKey, delegatee.String(),
 		EventAmountKey, strconv.FormatInt(amount, 10),
-		EventCooldownPeriodKey, strconv.FormatInt(UnstakeLockPeriod, 10),
+		EventCooldownPeriodKey, strconv.FormatInt(UnstakeLockPeriod(), 10),
 		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
@@ -53,7 +53,7 @@ func emitBeginUnstake(caller, staker, delegatee std.Address, amount int64, unloc
 		EventDelegateeKey, delegatee.String(),
 		EventAmountKey, strconv.FormatInt(amount, 10),
 		EventUnlockAtKey, strconv.FormatInt(unlockAt, 10),
-		EventCooldownPeriodKey, strconv.FormatInt(UnstakeLockPeriod, 10),
+		EventCooldownPeriodKey, strconv.FormatInt(UnstakeLockPeriod(), 10),
 		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
@@ -88,4 +88,4 @@ func emitMemberRemoved(caller, member std.Address) {
 		EventMemberKey, member.String(),
 		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
-} 
+}

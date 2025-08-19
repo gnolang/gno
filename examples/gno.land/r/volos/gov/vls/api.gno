@@ -1,8 +1,9 @@
 package vls
 
 import (
-	"gno.land/p/demo/json"
 	"std"
+
+	"gno.land/p/demo/json"
 )
 
 // ApiGetTokenInfo returns VLS token information as JSON string
@@ -17,7 +18,7 @@ func ApiGetBalance(address string) string {
 	if !addr.IsValid() {
 		return marshalError("invalid address")
 	}
-	
+
 	balance := BalanceToRpc(addr)
 	return marshal(balance.JSON())
 }
@@ -26,14 +27,14 @@ func ApiGetBalance(address string) string {
 func ApiGetAllowance(owner, spender string) string {
 	ownerAddr := std.Address(owner)
 	spenderAddr := std.Address(spender)
-	
+
 	if !ownerAddr.IsValid() {
 		return marshalError("invalid owner address")
 	}
 	if !spenderAddr.IsValid() {
 		return marshalError("invalid spender address")
 	}
-	
+
 	allowance := AllowanceToRpc(ownerAddr, spenderAddr)
 	return marshal(allowance.JSON())
 }

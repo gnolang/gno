@@ -95,7 +95,7 @@ func CreateProposal(cur realm, title, body string, votingPeriod time.Duration, a
 		BodyField:         body,
 		VotingPeriodField: votingPeriod,
 		Action:            action,
-		QuorumAtCreation:  votingPowerQuorum, 
+		QuorumAtCreation:  votingPowerQuorum,
 	}
 
 	proposal := volosGovernance.MustPropose(proposer, def)
@@ -119,4 +119,19 @@ func Execute(cur realm, proposalID uint64) {
 	}
 
 	emitProposalExecuted(caller, proposalID)
+}
+
+// GetUserActiveProposals returns all active proposals that the given user has voted on.
+// It iterates the active proposals and checks the voting record for the user.
+func GetUserActiveProposals(user std.Address) []*commondao.Proposal {
+	proposals := []*commondao.Proposal{}
+	active := volosGovernance.ActiveProposals()
+	count := active.Size()
+	active.Iterate(0, count, false, func(p *commondao.Proposal) bool {
+		if p != nil && p.VotingRecord().Readonly().HasVoted(user) {
+			proposals = append(proposals, p)
+		}
+		return false
+	})
+	return proposals
 }
