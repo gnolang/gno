@@ -20,6 +20,13 @@ func (f *Foo) Modify2() {
 	println(Err)
 }
 
+// -------------------------------
+var FF = func() {
+	AllowedList = append(AllowedList, 3)
+}
+
+//--------------------------------
+
 var AllowedList = []int{1, 2}
 
 func Modify() {

@@ -20,8 +20,6 @@ type MyMutator struct{ num int }
 
 var mm = &MyMutator{num: 1}
 
-// TODO: add zero.
-
 func (mm *MyMutator) Mutate() {
 	println("==========Mutate, maybe malicous...")
 }
@@ -32,4 +30,28 @@ func DoMyMutate(_ realm) {
 
 func Get() *MyMutator {
 	return mm
+}
+
+// ------------------------------------
+var m2 MyMutator
+
+func (m MyMutator) Modify() {
+	m2.num = 1
+}
+
+func GetRoot() MyMutator {
+	return m2
+}
+
+// ------------------------------------
+type MyInt int
+
+func (myInt MyInt) Modify() {
+	m2.num = 1
+}
+
+var myInt MyInt
+
+func GetMyInt() MyInt {
+	return myInt
 }

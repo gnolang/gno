@@ -1957,7 +1957,6 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	}
 
 	// Not cross nor crossing.
-	// Only "soft" switch to storage realm of receiver.
 	// DO NOT set DidCrossing for any implicit crossing.
 	// Make DidCrossing only happen upon explicit
 	// cross(fn)(...) calls and subsequent calls to
@@ -1971,6 +1970,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	if recv.IsDefined() { // method call
 		obj := recv.GetFirstObject(m.Store)
 		if obj == nil { // nil receiver
+			if pv.IsRealm() {
+				m.Realm = pv.Realm
+			}
 			// no switch
 			return
 		} else {
@@ -2003,8 +2005,10 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				} else {
 					rlm = objpv.GetRealm()
 				}
-
-				m.Realm = rlm // never nil
+				// Note it's possible to cross into nil realm(for p),
+				// mutating global var and discared.
+				// see files/zrealm_borrow7.gno, files/import4.gno
+				m.Realm = rlm
 				return
 			}
 		}
@@ -2012,6 +2016,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		if pv.Realm == m.Realm {
 			return
 		}
+		// XXX, consider this, and else caluses.
 		if pv.IsRealm() {
 			// Case 1, non-cross call func declared in
 			// other realm, usually for a utility func.
@@ -2028,8 +2033,6 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 
 			// Case 2, non-cross call the func declared in
 			// same realm.
-			// p -> r
-			// r1 -> r2
 			if fv.PkgPath == fr.LastPackage.PkgPath {
 				// no switch func call within package
 				return
