@@ -38,7 +38,7 @@ func TestEmit(t *testing.T) {
 	pushFuncFrame(m, "main")
 	pushFuncFrame(m, "Emit")
 	_, pkgPath := X_getRealm(m, 0)
-	if pkgPath != pkgPath || m.Package.PkgPath != pkgPath {
+	if m.Package.PkgPath != pkgPath {
 		panic("inconsistent package paths")
 	}
 	tests := []struct {

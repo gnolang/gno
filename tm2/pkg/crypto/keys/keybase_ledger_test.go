@@ -33,6 +33,7 @@ func TestCreateLedger(t *testing.T) {
 
 	// Check that restoring the key gets the same results
 	restoredKey, err := kb.GetByName("some_account")
+	require.NoError(t, err)
 	assert.NotNil(t, restoredKey)
 	assert.Equal(t, "some_account", restoredKey.GetName())
 	assert.Equal(t, TypeLedger, restoredKey.GetType())

@@ -47,3 +47,8 @@ func main() {
 //     "pkg_path": "main"
 //   }
 // ]
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/filetest_events"
+gno = "0.9"

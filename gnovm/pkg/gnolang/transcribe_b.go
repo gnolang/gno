@@ -22,8 +22,7 @@ type TransformB func(ns []Node, stack []BlockNode, last BlockNode, ftype TransFi
 // XXX Replace all usage of Transcribe() with TranscribeB().
 func TranscribeB(last BlockNode, gasMeter store.GasMeter, n Node, tb TransformB) (nn Node) {
 	// create stack of BlockNodes.
-	var stack []BlockNode = make([]BlockNode, 0, 32)
-	stack = append(stack, last)
+	stack := append(make([]BlockNode, 0, 32), last)
 
 	// Iterate over all nodes recursively.
 	nn = Transcribe(n, gasMeter, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (nn Node, tctrl TransCtrl) {

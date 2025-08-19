@@ -186,7 +186,7 @@ func compareKeys(ki, kj gnolang.TypedValue) bool {
 	case gnolang.BoolKind:
 		bi, bj := ki.GetBool(), kj.GetBool()
 		// use == just to make it more explicit
-		return bi == false && bj == true
+		return bi == false && bj == true //nolint:staticcheck
 	case gnolang.Float32Kind:
 		return math.Float32frombits(ki.GetFloat32()) < math.Float32frombits(kj.GetFloat32())
 	case gnolang.Float64Kind:

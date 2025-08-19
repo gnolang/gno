@@ -131,7 +131,7 @@ func Render(_ string) string { return "bar" }
 	require.Equal(t, render, "foo")
 
 	// Render should fail as the node hasn't reloaded
-	render, err = testingRenderRealm(t, node, "gno.land/r/dev/bar")
+	_, err = testingRenderRealm(t, node, "gno.land/r/dev/bar")
 	require.Error(t, err)
 
 	// Add bar package
@@ -328,7 +328,7 @@ func Render(_ string) string { return strconv.Itoa(i) }
 		GasWanted: 100_000,
 	}
 
-	res, err = testingCallRealmWithConfig(t, node, callCfg, msg)
+	_, err = testingCallRealmWithConfig(t, node, callCfg, msg)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &std.OutOfGasError{})
 

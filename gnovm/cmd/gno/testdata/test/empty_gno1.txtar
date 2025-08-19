@@ -1,8 +1,11 @@
 # Test empty gno1
 
-gno test .
+! gno test .
 
 ! stdout .+
-stderr '\?       \. 	\[no test files\]'
+stderr 'empty\.gno:1:1: expected ''package'', found ''EOF'''
 
 -- empty.gno --
+-- gnomod.toml --
+module = "gno.test/p/integ/empty_gno1"
+gno = "0.9"

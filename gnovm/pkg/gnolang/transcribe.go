@@ -130,7 +130,7 @@ func Transcribe(n Node, gasMeter store.GasMeter, t Transform) (nn Node) {
 	if reflect.TypeOf(n).Kind() != reflect.Ptr {
 		panic("Transcribe() expects a non-pointer concrete Node struct")
 	}
-	var ns []Node = make([]Node, 0, 32)
+	ns := make([]Node, 0, 32)
 	var nc TransCtrl
 	nn = transcribe(t, gasMeter, ns, TRANS_ROOT, 0, n, &nc)
 	return
@@ -709,15 +709,16 @@ func transcribe(t Transform, gasMeter store.GasMeter, ns []Node, ftype TransFiel
 // returns true if transcribe() should stop or skip or exit (& if so then sets
 // *c to TRANS_EXIT if exit, or TRANS_CONTINUE if skip).
 func stopOrSkip(oldnc *TransCtrl, nc TransCtrl) (stop bool) {
-	if nc == TRANS_EXIT {
+	switch nc {
+	case TRANS_EXIT:
 		*oldnc = TRANS_EXIT
 		return true
-	} else if nc == TRANS_SKIP {
+	case TRANS_SKIP:
 		*oldnc = TRANS_CONTINUE
 		return true
-	} else if nc == TRANS_CONTINUE {
+	case TRANS_CONTINUE:
 		return false
-	} else {
+	default:
 		panic("should not happen")
 	}
 }

@@ -576,3 +576,67 @@ func TestReviewByOrgMembers(t *testing.T) {
 		})
 	}
 }
+
+func TestReviewByAnyUser(t *testing.T) {
+	t.Parallel()
+
+	reviews := []*github.PullRequestReview{
+		{
+			User:  &github.User{Login: github.String("user1")},
+			State: github.String("APPROVED"),
+		}, {
+			// should be ignored in favour of the following one.
+			User:  &github.User{Login: github.String("user2")},
+			State: github.String("CHANGES_REQUESTED"),
+		}, {
+			User:  &github.User{Login: github.String("user2")},
+			State: github.String("APPROVED"),
+		}, {
+			User:  &github.User{Login: github.String("user3")},
+			State: github.String("APPROVED"),
+		}, {
+			User:  &github.User{Login: github.String("user4")},
+			State: github.String("CHANGES_REQUESTED"),
+		},
+	}
+
+	for _, testCase := range []struct {
+		name         string
+		users        []string
+		desiredState utils.ReviewState
+		isSatisfied  bool
+	}{
+		{"empty users", []string{}, utils.ReviewStateApproved, false},
+		{"non-matching user approval", []string{"user4"}, utils.ReviewStateApproved, false},
+		{"matching approval", []string{"user2", "user4"}, utils.ReviewStateApproved, true},
+		{"matching non-approval", []string{"user4"}, "", true},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			mockedHTTPClient := mock.NewMockedHTTPClient(
+				mock.WithRequestMatchPages(
+					mock.EndpointPattern{
+						Pattern: "/repos/pulls/0/reviews",
+						Method:  "GET",
+					},
+					reviews,
+				),
+			)
+
+			gh := &client.GitHub{
+				Client: github.NewClient(mockedHTTPClient),
+				Ctx:    context.Background(),
+				Logger: logger.NewNoopLogger(),
+			}
+
+			pr := &github.PullRequest{}
+			details := treeprint.New()
+			requirement := ReviewByAnyUser(gh, testCase.users...).
+				WithDesiredState(testCase.desiredState)
+
+			assert.Equal(t, requirement.IsSatisfied(pr, details), testCase.isSatisfied, fmt.Sprintf("requirement should have a satisfied status: %t", testCase.isSatisfied))
+			assert.True(t, utils.TestLastNodeStatus(t, testCase.isSatisfied, details), fmt.Sprintf("requirement details should have a status: %t", testCase.isSatisfied))
+		})
+	}
+}

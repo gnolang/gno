@@ -14,7 +14,7 @@ var (
 )
 
 // Add function to update the number and timestamp
-func Add(n int) {
+func Add(cur realm, n int) {
 	number += n
 	lastUpdate = time.Now()
 }

@@ -11,7 +11,7 @@ In gno.land, users can register a unique username that:
 
 To register a username:
 
-1. Visit the user registry realm at [`gno.land/r/gnoland/users`](https://gno.land/r/gnoland/users)
+1. Visit the user registry realm at [`gno.land/r/gnoland/users/v1`](https://gno.land/r/gnoland/users/v1)
 2. Check if your desired username is available by 
 3. Register using the following command:
 

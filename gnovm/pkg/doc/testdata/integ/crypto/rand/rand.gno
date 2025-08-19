@@ -18,7 +18,9 @@ type Rand struct {
 }
 
 type Rander interface {
-	Generate()
+	Generate() // To generate
+	// comment1
+	unexp(x int) string
 }
 
 type RandEmbedder struct {
@@ -49,3 +51,7 @@ var FlagVar Flag = 9999
 var ExportedVar = true
 
 var unexp = 1
+
+func SetUnexp(cur realm, val int) {
+	unexp = val
+}

@@ -33,3 +33,7 @@ func TestFoo(t *testing.T) {
 func add2(a, b int) int {
 	return a + b
 }
+
+
+-- gnomod.toml --
+module = "gno.test/r/integ/issue_2763"

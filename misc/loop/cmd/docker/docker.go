@@ -34,9 +34,7 @@ func (dh *DockerHandler) CheckPulledMasterImage(ctx context.Context) (bool, erro
 	}
 
 	// Get local image digest
-	if len(localImage.RepoDigests) < 0 {
-		return false, fmt.Errorf("unable to get a local digest")
-	} else if len(localImage.RepoDigests) == 0 {
+	if len(localImage.RepoDigests) == 0 {
 		// Assume it's locally built and not pulled
 		return true, nil
 	}

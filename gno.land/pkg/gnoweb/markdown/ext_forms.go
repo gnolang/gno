@@ -598,7 +598,7 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 
 				// Start the select container
 				// Format the name to be more readable (capitalize first letter, replace underscores with spaces)
-				labelText := strings.Title(strings.ReplaceAll(e.Name, "_", " "))
+				labelText := titleCase(strings.ReplaceAll(e.Name, "_", " "))
 				fmt.Fprintf(w, `<div class="gno-form_select"><label for="%s"> %s </label>`+"\n",
 					HTMLEscapeString(e.Name),
 					HTMLEscapeString(labelText))

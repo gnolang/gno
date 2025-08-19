@@ -244,10 +244,6 @@ Main:
 		// *, & is filter out previously since they are not primitive
 		assertValidConstValue(store, gasMeter, last, currExpr.X)
 	case *TypeAssertExpr:
-		ty := evalStaticTypeOf(store, gasMeter, last, currExpr)
-		if _, ok := ty.(*TypeType); ok {
-			ty = evalStaticType(store, gasMeter, last, currExpr)
-		}
 		panic(fmt.Sprintf("%s (comma, ok expression of type %s) is not constant", currExpr.String(), currExpr.Type))
 	case *CallExpr:
 		ift := evalStaticTypeOf(store, gasMeter, last, currExpr.Func)

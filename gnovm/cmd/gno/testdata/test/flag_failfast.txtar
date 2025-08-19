@@ -1,6 +1,6 @@
 # Test -failfast flag
 
-! gno test -failfast ./...
+! gno test -failfast .
 
 ! stdout .+
 stderr '--- FAIL: TestFail'
@@ -34,3 +34,7 @@ func TestTopLevel(t *testing.T) {
 	t.Error("topLevelError")
 }
 
+
+-- gnomod.toml --
+module = "gno.test/p/integ/flag_failfast"
+gno = "0.9"

@@ -2,12 +2,13 @@ package markdown
 
 import (
 	"errors"
+	"html/template"
 	"io"
 	"unicode"
 
-	"html/template"
-
 	"golang.org/x/net/html"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // HTMLEscapeString escapes special characters in HTML content
@@ -61,4 +62,10 @@ func GetWordArticle(word string) string {
 		return "an"
 	}
 	return "a"
+}
+
+var titleCaser = cases.Title(language.AmericanEnglish)
+
+func titleCase(s string) string {
+	return titleCaser.String(s)
 }
