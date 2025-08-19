@@ -90,9 +90,12 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 		io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
 		io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
 		io.Println("HEIGHT:    ", res.Height)
-		if delta, fee, ok := getStorageInfo(res.DeliverTx.Events); ok {
-			io.Println("STORAGE DELTA:", delta)
-			io.Println("STORAGE FEE:  ", fee)
+		if delta, storageFee, ok := getStorageInfo(res.DeliverTx.Events); ok {
+			io.Printfln("STORAGE DELTA: %d bytes", delta)
+			io.Println("STORAGE FEE:  ", storageFee)
+			if tx.Fee.GasFee.Denom == storageFee.Denom {
+				io.Println("TOTAL TX COST:", tx.Fee.GasFee.Add(storageFee))
+			}
 		}
 		io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
 		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))

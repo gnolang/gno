@@ -4,6 +4,8 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -229,9 +231,12 @@ func ExecSignAndBroadcast(
 	io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
 	io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 	io.Println("HEIGHT:    ", bres.Height)
-	if delta, fee, ok := getStorageInfo(bres.DeliverTx.Events); ok {
-		io.Println("STORAGE DELTA:", delta)
-		io.Println("STORAGE FEE:  ", fee)
+	if delta, storageFee, ok := getStorageInfo(bres.DeliverTx.Events); ok {
+		io.Printfln("STORAGE DELTA: %d bytes", delta)
+		io.Println("STORAGE FEE:  ", storageFee)
+		if tx.Fee.GasFee.Denom == storageFee.Denom {
+			io.Println("TOTAL TX COST:", tx.Fee.GasFee.Add(storageFee))
+		}
 	}
 	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
 	io.Println("INFO:      ", bres.DeliverTx.Info)
@@ -241,29 +246,57 @@ func ExecSignAndBroadcast(
 }
 
 // getStorageInfo searches events for StorageDeposit or UnlockDeposit and
-// returns the delta and fee strings. We prepend a "+" or "-" (for unlock) to the delta string.
+// returns the delta and fee. If this is "UnlockDeposit", then delta and fee are negative.
 // The third return is true if found, else false.
-func getStorageInfo(events []abci.Event) (string, string, bool) {
+func getStorageInfo(events []abci.Event) (int64, std.Coin, bool) {
 	for _, event := range events {
 		eventKV, ok := event.(abci.EventKeyValue)
 		if !ok {
 			continue
 		}
+
+		isUnlock := false
+		deltaStr := ""
+		feeStr := ""
 		switch eventKV.Type {
 		case "StorageDeposit":
-			delta, ok2 := eventKV.FindAttribute("Storage")
-			fee, ok1 := eventKV.FindAttribute("Deposit")
-			if ok1 && ok2 {
-				return "+" + delta, fee, true
+			deltaStr, ok = eventKV.FindAttribute("Storage")
+			if !ok {
+				continue
+			}
+			feeStr, ok = eventKV.FindAttribute("Deposit")
+			if !ok {
+				continue
 			}
 		case "UnlockDeposit":
-			delta, ok2 := eventKV.FindAttribute("ReleaseStorage")
-			fee, ok1 := eventKV.FindAttribute("Deposit")
-			if ok1 && ok2 {
-				return "-" + delta, fee, true
+			deltaStr, ok = eventKV.FindAttribute("ReleaseStorage")
+			if !ok {
+				continue
 			}
+			isUnlock = true
+			feeStr, ok = eventKV.FindAttribute("Deposit")
+			if !ok {
+				continue
+			}
+		default:
+			continue
 		}
+
+		delta, err := strconv.ParseInt(strings.TrimSuffix(deltaStr, " bytes"), 10, 64)
+		if err != nil {
+			continue
+		}
+		fee, err := std.ParseCoin(feeStr)
+		if err != nil {
+			continue
+		}
+		if isUnlock {
+			delta = -delta
+			fee.Amount = -fee.Amount
+		}
+
+		return delta, fee, true
 	}
 
-	return "", "", false
+	return 0, std.Coin{}, false
 }

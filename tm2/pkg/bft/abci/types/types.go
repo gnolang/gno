@@ -240,7 +240,7 @@ func (err EventString) Event() string {
 
 type EventKeyValue struct {
 	Type       string                   `json:"type"`
-	Attributes []EventKeyValueAttribute `json:"attributes"`
+	Attributes []EventKeyValueAttribute `json:"attrs"`
 }
 
 func (e EventKeyValue) AssertABCIEvent() {}
