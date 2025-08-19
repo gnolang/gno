@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/test
-package avl
+package test
 
 import (
 	"gno.land/p/nt/avl"
@@ -18,5 +18,5 @@ func main(cur realm) {
 	println(updated, tree.Size())
 }
 
-// Error:
-// expected package name [test] but got [avl]
+// Output:
+// false 3

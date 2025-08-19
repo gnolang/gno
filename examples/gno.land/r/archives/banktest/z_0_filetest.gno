@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/demo/bank1
 // SEND: 100000000ugnot
 
-package banktest
+package bank1
 
 import (
 	"std"
@@ -38,5 +38,13 @@ func main() {
 	println(res)
 }
 
-// Error:
-// expected package name [bank1] but got [banktest]
+// Output:
+// main before: 100000000ugnot
+// Deposit(): returned!
+// main after: 50000000ugnot
+// ## recent activity
+//
+//  * g1tnpdmvrmtgql8fmxgsq9rwtst5hsxahk3f05dk 100000000ugnot sent, 50000000ugnot returned, at 2009-02-13 11:31pm UTC
+//
+// ## total deposits
+// 50000000ugnot

@@ -1,6 +1,6 @@
 // PKGPATH: gno.land/r/demo/bank1
 
-package banktest
+package bank1
 
 import (
 	"std"
@@ -23,4 +23,4 @@ func main() {
 }
 
 // Error:
-// expected package name [bank1] but got [banktest]
+// cannot send "101000000ugnot", limit "100000000ugnot" exceeded with "" already spent

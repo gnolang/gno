@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/p/archives/groups
-package groups
+// PKGPATH: gno.land/p/archives/groups_test
+package groups_test
 
 import (
 	"gno.land/p/archives/groups"
@@ -22,5 +22,7 @@ func main() {
 	println("no:", vset.CountVotes("no"))
 }
 
-// Error:
-// gno.land/p/archives/groups/z_1.gno:9:10-24: name VoteSet not declared
+// Output:
+// 2
+// yes: 2
+// no: 0

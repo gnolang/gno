@@ -1,6 +1,6 @@
 // PKGPATH: gno.land/r/demo/bank1
 
-package banktest
+package bank1
 
 import (
 	"std"
@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// expected package name [bank1] but got [banktest]
+// can only send coins from realm that created banker "g1tnpdmvrmtgql8fmxgsq9rwtst5hsxahk3f05dk", not "g17rhj38ydnsms35338eafnqrkgkyw7wl7nln86e"
