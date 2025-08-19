@@ -2016,7 +2016,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		if pv.Realm == m.Realm {
 			return
 		}
-		// XXX, consider this, and else caluses.
+		// XXX, consider this, and else clauses.
 		if pv.IsRealm() {
 			// Case 1, non-cross call func declared in
 			// other realm, usually for a utility func.
