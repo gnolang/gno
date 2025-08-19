@@ -40,8 +40,8 @@ func (f *GHFetcher) Fetch(ctx context.Context) error {
 	defer ticker.Stop()
 
 	ctx = rateLimited(ctx)
-	if !f.fetchHistory(ctx) {
-		f.logger.Warn("problems found fetching repositories history. Scores might not be 100% accurate")
+	if err := f.fetchHistory(ctx); err != nil {
+		return err
 	}
 
 	f.logger.Info("finished getting history, going for events")
@@ -51,12 +51,14 @@ func (f *GHFetcher) Fetch(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			f.fetchEvents(ctx)
+			if err := f.fetchEvents(ctx); err != nil {
+				return err
+			}
 		}
 	}
 }
 
-func (f *GHFetcher) fetchEvents(ctx context.Context) {
+func (f *GHFetcher) fetchEvents(ctx context.Context) error {
 	for org, names := range f.repos {
 		for _, n := range names {
 			f.logger.Info("fetching events for repo", zap.String("org", org), zap.String("repo", n))
@@ -68,36 +70,39 @@ func (f *GHFetcher) fetchEvents(ctx context.Context) {
 			_, err := pipe.Exec(ctx)
 			if err != nil {
 				f.logger.Error("error executing redis pipeline", zap.String("org", org), zap.String("repo", n), zap.Error(err))
+				return err
 			} else {
 				f.logger.Info("events correctly iterated", zap.String("org", org), zap.String("repo", n))
 			}
 		}
 	}
+
+	return nil
 }
 
-func (f *GHFetcher) fetchHistory(ctx context.Context) bool {
+func (f *GHFetcher) fetchHistory(ctx context.Context) error {
 	for org, names := range f.repos {
 		for _, n := range names {
 			f.logger.Info("Fetching history for repo", zap.String("org", org), zap.String("repo", n))
 			pipe := f.redisClient.TxPipeline()
 
 			if !f.iterateIssues(ctx, pipe, org, n) {
-				return false
+				return fmt.Errorf("error iterating issues")
 			}
 			if !f.iteratePullRequests(ctx, pipe, org, n) {
-				return false
+				return fmt.Errorf("error iterating pull requests")
 			}
 
 			_, err := pipe.Exec(ctx)
 			if err != nil {
-				f.logger.Error("error executing redis pipeline", zap.String("org", org), zap.String("repo", n), zap.Error(err))
+				return fmt.Errorf("error executing redis pipeline: %w", err)
 			} else {
 				f.logger.Info("history saved", zap.String("org", org), zap.String("repo", n))
 			}
 		}
 	}
 
-	return true
+	return nil
 }
 
 func (f *GHFetcher) processIssue(ctx context.Context, pipe redis.Pipeliner, org, repo string, issue *github.Issue) {
