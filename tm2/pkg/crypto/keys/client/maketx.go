@@ -239,7 +239,7 @@ func ExecSignAndBroadcast(
 			if delta < 0 {
 				total = tx.Fee.GasFee.Amount - storageFee.Amount
 			}
-			io.Println("TOTAL TX COST:", std.NewCoin(tx.Fee.GasFee.Denom, total))
+			io.Printfln("TOTAL TX COST: %d%v", total, tx.Fee.GasFee.Denom)
 		}
 	}
 	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
