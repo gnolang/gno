@@ -275,19 +275,32 @@ func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 		if !req.Prove {
 			break
 		}
-		var proof *ics23.CommitmentProof
 
+		// Continue to prove existence/absence of value
+		// Must convert store.Tree to iavl.MutableTree with given version
+		iTree, err := tree.GetImmutable(res.Height)
+		if err != nil {
+			// sanity check: If value for given version was retrieved, immutable tree must also be retrievable
+			panic(fmt.Sprintf("version exists in store but could not retrieve corresponding versioned tree in store, %v", err))
+		}
+		mtree := &iavl.MutableTree{
+			ImmutableTree: iTree,
+		}
+
+		// Generate ics23 proof
+		var proof *ics23.CommitmentProof
 		if value != nil {
 			// Get existence proof
-			proof, err = tree.(*iavl.MutableTree).GetMembershipProof(key)
+			proof, err = mtree.GetMembershipProof(key)
 		} else {
 			// Get non-existence proof
-			proof, err = tree.(*iavl.MutableTree).GetNonMembershipProof(key)
+			proof, err = mtree.GetNonMembershipProof(key)
 		}
 		if err != nil {
 			res.Log = err.Error()
 			break
 		}
+		// Encode and append proof
 		res.Proof = &merkle.Proof{Ops: []merkle.ProofOp{types.NewIavlCommitmentOp(key, proof).ProofOp()}}
 
 	case "/subspace":
