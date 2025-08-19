@@ -4,14 +4,12 @@
 
 package subtle
 
-// XORBytes sets dst[i] = x[i] ^ y[i] for all i < n = min(len(x), len(y)),
-// returning n, the number of bytes written to dst.
+// XORBytes computes x[i] ^ y[i] for all i < n = min(len(x), len(y)),
+// returning buf, the resulting bytes slice.
 //
-// If dst does not have length at least n,
-// XORBytes panics without writing anything to dst.
-//
-// dst and x or y may overlap exactly or not at all,
-// otherwise XORBytes may panic.
+// XXX: In the original implementation, XORBytes also checked for memory overlap
+// between the destination and the input slices. Since buf is always freshly
+// allocated here, overlap with x or y is impossible and the check is omitted.
 func XORBytes(x, y []byte) []byte {
 	n := min(len(x), len(y))
 	buf := make([]byte, n)
