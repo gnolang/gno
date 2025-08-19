@@ -1,13 +1,13 @@
 package render
 
 import (
-	volos "gno.land/r/volos/core"
-	"gno.land/p/moul/md"
-	"gno.land/p/moul/mdtable"
+	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/avl/rotree"
-	"gno.land/p/demo/avl"
+	"gno.land/p/moul/md"
+	"gno.land/p/moul/mdtable"
 	"gno.land/r/demo/grc20reg"
+	volos "gno.land/r/volos/core"
 )
 
 func renderHome(path string) string {

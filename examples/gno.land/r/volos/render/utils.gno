@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	"gno.land/p/demo/ufmt"
 	volos "gno.land/r/volos/core"
 )
@@ -16,11 +17,11 @@ func parseFloat(s string) float64 {
 func calculateUtilization(marketId string) string {
 	totalSupply := parseFloat(volos.GetMarketTotalSupplyAssets(marketId))
 	totalBorrow := parseFloat(volos.GetMarketTotalBorrowAssets(marketId))
-	
+
 	if totalSupply == 0 {
 		return "0.00"
 	}
-	
+
 	utilization := (totalBorrow / totalSupply) * 100
 	return strconv.FormatFloat(utilization, 'f', 2, 64)
 }

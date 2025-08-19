@@ -34,7 +34,7 @@ const (
 	EventLiquidate          = "liquidate"
 	EventSupplyCollateral   = "supply_collateral"
 	EventWithdrawCollateral = "withdraw_collateral"
-    AuthorizationSetEvent = "authorization_set"
+	AuthorizationSetEvent   = "authorization_set"
 )
 
 // Event keys
@@ -61,19 +61,19 @@ const (
 	EventInterestKey   = "interest"
 
 	// Event keys
-	EventMarketIdKey = "market_id"
-	EventSharesKey   = "shares"
-	EventSeizedKey   = "seized"
-	EventFeeKey      = "fee"
-	EventPkgPathKey  = "pkgpath"
-	EventNameKey     = "name"
-    EventAuthorizerKey    = "authorizer"
-    EventAuthorizedKey    = "authorized"
-    EventIsAuthorizedKey  = "is_authorized"
-    EventTokenKey = "token"
-    EventTimestampKey     = "currentTimestamp"
-    EventSupplyAPRKey     = "supplyAPR"
-    EventBorrowAPRKey     = "borrowAPR"
+	EventMarketIdKey     = "market_id"
+	EventSharesKey       = "shares"
+	EventSeizedKey       = "seized"
+	EventFeeKey          = "fee"
+	EventPkgPathKey      = "pkgpath"
+	EventNameKey         = "name"
+	EventAuthorizerKey   = "authorizer"
+	EventAuthorizedKey   = "authorized"
+	EventIsAuthorizedKey = "is_authorized"
+	EventTokenKey        = "token"
+	EventTimestampKey    = "currentTimestamp"
+	EventSupplyAPRKey    = "supplyAPR"
+	EventBorrowAPRKey    = "borrowAPR"
 )
 
 // Event emission helper functions
@@ -91,7 +91,7 @@ func emitSupply(marketId string, caller std.Address, onBehalf std.Address, asset
 	// Calculate APRs after supply operation
 	supplyAPR := CalculateSupplyAPR(marketId)
 	borrowAPR := CalculateBorrowAPR(marketId)
-	
+
 	std.Emit(
 		SupplyEvent,
 		EventMarketIDKey, marketId,
@@ -109,7 +109,7 @@ func emitWithdraw(marketId string, caller std.Address, onBehalf std.Address, rec
 	// Calculate APRs after withdraw operation
 	supplyAPR := CalculateSupplyAPR(marketId)
 	borrowAPR := CalculateBorrowAPR(marketId)
-	
+
 	std.Emit(
 		WithdrawEvent,
 		EventMarketIDKey, marketId,
@@ -128,7 +128,7 @@ func emitBorrow(marketId string, caller std.Address, onBehalf std.Address, recei
 	// Calculate APRs after borrow operation
 	supplyAPR := CalculateSupplyAPR(marketId)
 	borrowAPR := CalculateBorrowAPR(marketId)
-	
+
 	std.Emit(
 		BorrowEvent,
 		EventMarketIDKey, marketId,
@@ -147,7 +147,7 @@ func emitRepay(marketId string, caller std.Address, onBehalf std.Address, assets
 	// Calculate APRs after repay operation
 	supplyAPR := CalculateSupplyAPR(marketId)
 	borrowAPR := CalculateBorrowAPR(marketId)
-	
+
 	std.Emit(
 		RepayEvent,
 		EventMarketIDKey, marketId,
@@ -165,7 +165,7 @@ func emitLiquidate(marketId string, caller std.Address, borrower std.Address, re
 	// Calculate APRs after liquidation operation
 	supplyAPR := CalculateSupplyAPR(marketId)
 	borrowAPR := CalculateBorrowAPR(marketId)
-	
+
 	std.Emit(
 		EventLiquidate,
 		EventMarketIdKey, marketId,

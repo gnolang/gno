@@ -2,8 +2,9 @@ package render
 
 import (
 	"std"
-	"strings"
 	"strconv"
+	"strings"
+
 	"gno.land/p/matijamarjanovic/charts"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"

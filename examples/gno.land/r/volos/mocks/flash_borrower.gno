@@ -2,8 +2,9 @@ package mocks
 
 import (
 	"std"
-	volos "gno.land/r/volos/core"
+
 	"gno.land/r/demo/grc20reg"
+	volos "gno.land/r/volos/core"
 )
 
 // FlashBorrowerMock is a mock contract that demonstrates how to use Volos flash loans

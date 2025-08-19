@@ -2,9 +2,9 @@ package core
 
 import (
 	u256 "gno.land/p/gnoswap/uint256"
-	"gno.land/r/gnoswap/v1/pool"
 	"gno.land/p/volos/consts"
 	"gno.land/p/volos/math"
+	"gno.land/r/gnoswap/v1/pool"
 )
 
 // GetPrice returns the price from a Gnoswap pool

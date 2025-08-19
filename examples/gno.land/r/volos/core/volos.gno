@@ -8,9 +8,9 @@ import (
 	"gno.land/p/demo/ownable"
 
 	u256 "gno.land/p/gnoswap/uint256"
-	pl "gno.land/r/gnoswap/v1/pool"
 	"gno.land/p/volos/consts"
 	"gno.land/p/volos/math"
+	pl "gno.land/r/gnoswap/v1/pool"
 )
 
 /* STATE VARIABLES */
@@ -181,7 +181,7 @@ func CreateMarket(cur realm, poolPath string, isToken0Loan bool, irm string, llt
 	// Check if IRM is whitelisted
 	IsIRMEnabled(irm)
 
-	// Check if LLTV is whitelisted 
+	// Check if LLTV is whitelisted
 	IsLLTVEnabled(lltvWad.ToString())
 
 	// Create market with initial values
@@ -529,7 +529,7 @@ func RepayOnBehalf(cur realm, marketId string, assets, shares uint64, onBehalf s
 	market.TotalBorrowAssets = new(u256.Uint).Sub(market.TotalBorrowAssets, assetsU256)
 	markets.Set(marketId, market)
 
-	// Handle token transfer using GRC20 interface 
+	// Handle token transfer using GRC20 interface
 	safeTransferFrom(params.GetLoanToken(), caller, assetsU256.Int64())
 
 	emitRepay(marketId, caller, onBehalf, assetsU256, sharesToBurn)
@@ -788,7 +788,6 @@ func isSenderAuthorized(onBehalf std.Address) bool {
 	return IsAuthorized(onBehalf, sender)
 }
 
-
 /* INTEREST ACCRUAL */
 
 func AccrueInterest(cur realm, marketId string) {
@@ -902,7 +901,7 @@ func FlashLoan(cur realm, token string, assets int64, data any, callback FlashLo
 	}
 
 	caller := std.PreviousRealm().Address()
-	
+
 	// Emit flash loan event
 	emitFlashLoan(caller, token, assets)
 
@@ -915,4 +914,3 @@ func FlashLoan(cur realm, token string, assets int64, data any, callback FlashLo
 	// Transfer tokens back from borrower
 	safeTransferFrom(token, caller, assets)
 }
-

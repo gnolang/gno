@@ -64,9 +64,9 @@ type IRM interface {
 	// Name returns a human readable name for the IRM
 	Name() string
 }
+
 // FlashLoanCallback interface that users willing to use flash loans must implement
 type FlashLoanCallback interface {
 	// OnVolosFlashLoan is called when a flash loan occurs
 	OnVolosFlashLoan(cur realm, assets int64, data any)
 }
-
