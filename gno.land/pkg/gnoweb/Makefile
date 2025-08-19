@@ -14,12 +14,14 @@ golangci_lint := go run -modfile ../../../misc/devdeps/go.mod github.com/golangc
 node_modules := ./frontend/node_modules
 esbuild := $(node_modules)/.bin/esbuild
 tailwind := $(node_modules)/.bin/tailwindcss
+postcss := $(node_modules)/.bin/postcss
 biome := $(node_modules)/.bin/biome
 
 # css config
 input_css := frontend/css/input.css
 output_css := $(PUBLIC_DIR)/styles.css
 tw_config_path := frontend/css/tx.config.js
+css_config_path := frontend/css/main.css
 
 # main css config
 main_css_files := $(shell find frontend/css -name '*.css')
@@ -79,10 +81,10 @@ $(output_css): $(input_css) $(templates_files)
 	$(tailwind) -c $(tw_config_path) -i $(input_css) -o $@ --minify # tailwind
 	touch $@
 
-# Main CSS (ITCSS + CUBE CSS)
+# Main CSS
 maincss: $(output_maincss)
 $(output_maincss): $(main_css_files) $(templates_files)
-	cd frontend && npx postcss css/main.css -o ../$(output_maincss) --env production
+	$(postcss) $(css_config_path) -o $@ --env production
 	touch $@
 
 ts: $(esbuild) $(output_js)
@@ -119,7 +121,7 @@ dev.css: $(tailwind) generate | $(PUBLIC_DIR)
 
 # Main CSS in development mode
 dev.maincss: generate | $(PUBLIC_DIR)
-	cd frontend && npx postcss css/main.css -o ../$(output_maincss) --watch --env development \
+	$(postcss) $(css_config_path) -o $(output_maincss) --watch --env development \
 		2>&1 | $(logname) maincss
 
 # TS in development mode

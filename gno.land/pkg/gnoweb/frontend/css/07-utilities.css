@@ -14,6 +14,18 @@
 	display: block;
 }
 
+.u-sr-only {
+	height: 1px;
+	margin: -1px;
+	overflow: hidden;
+	padding: 0;
+	position: absolute;
+	width: 1px;
+	clip: rect(0, 0, 0, 0);
+	border-width: 0;
+	white-space: nowrap;
+}
+
 /* ===== TEXT UTILITIES ===== */
 .u-italic-subtle {
 	font-style: italic;
@@ -32,8 +44,8 @@
 }
 
 .u-text-stroke {
-	-webkit-text-stroke: 1px var(--color-gray-300);
-	color: transparent;
+	-webkit-text-stroke: currentColor;
+    -webkit-text-stroke-width: .6px;
 }
 
 /* ===== SCROLLBAR UTILITIES ===== */
@@ -49,6 +61,10 @@
 /* ===== STATE UTILITIES ===== */
 .u-is-loading {
 	opacity: 0.6;
+	pointer-events: none;
+}
+
+.u-pointer-events-none {
 	pointer-events: none;
 }
 
