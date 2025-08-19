@@ -1,6 +1,10 @@
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+//
+// This package was ported from x/crypto/sha3
+// the original code can be checked on :
+// https://cs.opensource.google/go/x/crypto/+/master:sha3/sha3.go
 
 package keccak256
 
@@ -112,7 +116,10 @@ func (d *state) Write(p []byte) (n int, err error) {
 
 	n = len(p)
 	for len(p) > 0 {
-		x := subtle.XORBytes(d.a[d.n:d.rate], d.a[d.n:d.rate], p)
+		res := subtle.XORBytes(d.a[d.n:d.rate], p)
+		x := len(res)
+		// Copy the returned bytes to array
+		copy(d.a[d.n:d.rate], res)
 		d.n += x
 		p = p[x:]
 
