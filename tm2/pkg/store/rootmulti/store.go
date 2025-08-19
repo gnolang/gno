@@ -7,7 +7,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
-	"github.com/gnolang/gno/tm2/pkg/crypto/tmhash"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 
@@ -430,18 +429,23 @@ type storeCore struct {
 
 // Implements merkle.Hasher.
 func (si storeInfo) Hash() []byte {
-	// Doesn't write Name, since merkle.SimpleHashFromMap() will
-	// include them via the keys.
-	bz := si.Core.CommitID.Hash
-	hasher := tmhash.New()
+	// NOTE(tb): ics23 compatibility: return the commit hash and not the hash
+	// of the commit hash.
+	// See similar change in SDK https://github.com/cosmos/cosmos-sdk/pull/6323
+	return si.Core.CommitID.Hash
 
-	_, err := hasher.Write(bz)
-	if err != nil {
-		// TODO: Handle with #870
-		panic(err)
-	}
+	//// Doesn't write Name, since merkle.SimpleHashFromMap() will
+	//// include them via the keys.
+	//bz := si.Core.CommitID.Hash
+	// hasher := tmhash.New()
 
-	return hasher.Sum(nil)
+	//_, err := hasher.Write(bz)
+	//if err != nil {
+	//	// TODO: Handle with #870
+	//	panic(err)
+	//}
+
+	// return hasher.Sum(nil)
 }
 
 // ----------------------------------------
