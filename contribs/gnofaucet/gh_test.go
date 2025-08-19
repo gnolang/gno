@@ -249,3 +249,110 @@ func TestGitHubClaimMiddleware(t *testing.T) {
 		})
 	}
 }
+
+type mockRewarderWithFn struct {
+	getRewardFn func(context.Context, string) (int, error)
+}
+
+func (m *mockRewarderWithFn) GetReward(ctx context.Context, user string) (int, error) {
+	if m.getRewardFn != nil {
+		return m.getRewardFn(ctx, user)
+	}
+
+	return 0, nil
+}
+
+func TestGitHubCheckRewardsMiddleware(t *testing.T) {
+	t.Parallel()
+
+	testTable := []struct {
+		name            string
+		ctx             context.Context
+		req             *spec.BaseJSONRequest
+		rewarder        Rewarder
+		nextShouldRun   bool
+		expectedError   string
+		expectedErrCode int
+		expectedResult  any
+	}{
+		{
+			name:            "no username in ctx",
+			ctx:             context.Background(),
+			req:             spec.NewJSONRequest(1, getClaimRPCMethod, nil),
+			rewarder:        &mockRewarderWithFn{},
+			nextShouldRun:   false,
+			expectedError:   "invalid username value",
+			expectedErrCode: spec.InvalidRequestErrorCode,
+		},
+		{
+			name: "invalid method",
+			ctx:  context.WithValue(context.Background(), ghUsernameKey, "ajnavarro"),
+			req:  spec.NewJSONRequest(2, faucet.DefaultDripMethod, nil),
+			rewarder: &mockRewarderWithFn{
+				getRewardFn: func(_ context.Context, _ string) (int, error) {
+					return 0, nil
+				},
+			},
+			nextShouldRun:   false,
+			expectedError:   "invalid method requested",
+			expectedErrCode: spec.InvalidRequestErrorCode,
+		},
+		{
+			name: "rewarder error",
+			ctx:  context.WithValue(context.Background(), ghUsernameKey, "ajnavarro"),
+			req:  spec.NewJSONRequest(3, getClaimRPCMethod, nil),
+			rewarder: &mockRewarderWithFn{
+				getRewardFn: func(_ context.Context, _ string) (int, error) {
+					return 0, errors.New("boom")
+				},
+			},
+			nextShouldRun:   false,
+			expectedError:   "unable to get reward",
+			expectedErrCode: spec.ServerErrorCode,
+		},
+		{
+			name: "successful getClaim",
+			ctx:  context.WithValue(context.Background(), ghUsernameKey, "ajnavarro"),
+			req:  spec.NewJSONRequest(4, getClaimRPCMethod, nil),
+			rewarder: &mockRewarderWithFn{
+				getRewardFn: func(_ context.Context, _ string) (int, error) {
+					return 10, nil
+				},
+			},
+			nextShouldRun:  false,
+			expectedResult: 10,
+		},
+	}
+
+	for _, tc := range testTable {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var (
+				mw     = gitHubCheckRewardsMiddleware(tc.rewarder)
+				called = false
+				next   = func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
+					called = true
+
+					return spec.NewJSONResponse(req.ID, "next", nil)
+				}
+			)
+
+			handler := mw(next)
+			resp := handler(tc.ctx, tc.req)
+
+			assert.Equal(t, tc.nextShouldRun, called)
+
+			if tc.expectedError != "" {
+				assert.NotNil(t, resp.Error)
+				assert.Contains(t, resp.Error.Message, tc.expectedError)
+				assert.Equal(t, tc.expectedErrCode, resp.Error.Code)
+
+				return
+			}
+
+			assert.Nil(t, resp.Error)
+			assert.Equal(t, tc.expectedResult, resp.Result)
+		})
+	}
+}

@@ -167,6 +167,7 @@ func execGithub(ctx context.Context, cfg *githubCfg, io commands.IO) error {
 
 	rpcMiddlewares := []faucet.Middleware{
 		gitHubClaimMiddleware(cooldownLimiter, rr),
+		gitHubCheckRewardsMiddleware(rr),
 	}
 
 	return serveFaucet(

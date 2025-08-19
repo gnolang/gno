@@ -25,6 +25,9 @@ const ghUsernameKey faucetContextKey = "gh-username"
 // claimRPCMethod is a method that is exactly like the default drip method but without any amount set
 const claimRPCMethod = "claim"
 
+// getClaimRPCMethod is a method that return the amount that the user will be able to claim
+const getClaimRPCMethod = "getClaim"
+
 // gitHubUsernameMiddleware sets up authentication middleware for GitHub OAuth.
 // If clientID and secret are empty, the middleware does nothing.
 //
@@ -79,6 +82,41 @@ type cooldownLimiter interface {
 	checkCooldown(context.Context, string, int64) (bool, error)
 }
 
+func gitHubCheckRewardsMiddleware(rewarder Rewarder) faucet.Middleware {
+	return func(next faucet.HandlerFunc) faucet.HandlerFunc {
+		return func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
+			// Grab the username from the context
+			username, ok := ctx.Value(ghUsernameKey).(string)
+			if !ok {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError("invalid username value", spec.InvalidRequestErrorCode),
+				)
+			}
+
+			if req.Method != getClaimRPCMethod {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError("invalid method requested", spec.InvalidRequestErrorCode),
+				)
+			}
+
+			reward, err := rewarder.GetReward(ctx, username)
+			if err != nil {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError(fmt.Sprintf("unable to get reward: %v", err), spec.ServerErrorCode),
+				)
+			}
+
+			return spec.NewJSONResponse(req.ID, reward, nil)
+		}
+	}
+}
+
 // gitHubClaimMiddleware is the GitHub claim validation middleware, based on the provided username
 func gitHubClaimMiddleware(coolDownLimiter cooldownLimiter, rewarder Rewarder) faucet.Middleware {
 	return func(next faucet.HandlerFunc) faucet.HandlerFunc {
@@ -106,7 +144,7 @@ func gitHubClaimMiddleware(coolDownLimiter cooldownLimiter, rewarder Rewarder) f
 					return spec.NewJSONResponse(
 						req.ID,
 						nil,
-						spec.NewJSONError("unable to get reward", spec.ServerErrorCode),
+						spec.NewJSONError(fmt.Sprintf("unable to get reward: %v", err), spec.ServerErrorCode),
 					)
 				}
 
