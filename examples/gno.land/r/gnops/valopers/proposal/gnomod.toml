@@ -1,4 +1,4 @@
-module = "gno.land/r/gnops/valopers_proposal"
+module = "gno.land/r/gnops/valopers/proposal"
 gno = "0.9"
 
 [addpkg]

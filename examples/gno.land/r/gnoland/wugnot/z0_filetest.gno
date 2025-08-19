@@ -7,12 +7,12 @@ import (
 	"testing"
 
 	"gno.land/p/nt/testutils"
-	"gno.land/r/demo/wugnot"
+	"gno.land/r/gnoland/wugnot"
 )
 
 var (
 	addr1 = testutils.TestAddress("test1")
-	addrc = std.DerivePkgAddr("gno.land/r/demo/wugnot")
+	addrc = std.DerivePkgAddr("gno.land/r/gnoland/wugnot")
 )
 
 func main() {

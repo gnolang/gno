@@ -1,4 +1,4 @@
-package valopers_proposal
+package proposal
 
 import (
 	"std"

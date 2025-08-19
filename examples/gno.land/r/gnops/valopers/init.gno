@@ -72,7 +72,7 @@ After registration, you can update your validator details using the **update fun
 
 Once you're satisfied with your **valoper** profile, you need to notify GovDAO; only a GovDAO member can submit a proposal to add you to the validator set.
 
-If you are a GovDAO member, you can nominate yourself by executing the following function: [**r/gnoland/valopers_proposal.ProposeNewValidator**](` + txlink.Realm("gno.land/r/gnoland/valopers_proposal").Call("ProposeNewValidator") + `)
+If you are a GovDAO member, you can nominate yourself by executing the following function: [**r/gnops/valopers/proposal.ProposeNewValidator**](` + txlink.Realm("gno.land/r/gnops/valopers/proposal").Call("ProposeNewValidator") + `)
 
 This will initiate a governance process where **GovDAO** members will vote on your proposal.
 

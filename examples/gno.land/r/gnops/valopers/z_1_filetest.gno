@@ -86,7 +86,7 @@ func main() {
 //
 // Once you're satisfied with your **valoper** profile, you need to notify GovDAO; only a GovDAO member can submit a proposal to add you to the validator set.
 //
-// If you are a GovDAO member, you can nominate yourself by executing the following function: [**r/gnoland/valopers_proposal.ProposeNewValidator**](/r/gnoland/valopers_proposal$help&func=ProposeNewValidator)
+// If you are a GovDAO member, you can nominate yourself by executing the following function: [**r/gnoland/valopers/proposal.ProposeNewValidator**](/r/gnoland/valopers/proposal$help&func=ProposeNewValidator)
 //
 // This will initiate a governance process where **GovDAO** members will vote on your proposal.
 //

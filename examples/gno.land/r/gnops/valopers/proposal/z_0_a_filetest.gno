@@ -1,7 +1,7 @@
-// PKGPATH: gno.land/r/gnops/valopers/proposal
+// PKGPATH: gno.land/r/gnops/valopers/proposal_test
 // SEND: 20000000ugnot
 
-package proposal
+package proposal_test
 
 import (
 	"std"
@@ -9,7 +9,7 @@ import (
 
 	"gno.land/p/nt/testutils"
 	"gno.land/r/gnops/valopers"
-	"gno.land/r/gnops/valopers_proposal"
+	"gno.land/r/gnops/valopers/proposal"
 	"gno.land/r/gov/dao"
 	daoinit "gno.land/r/gov/dao/v3/init"
 )
@@ -38,7 +38,7 @@ func main() {
 	// Try to make a proposal for a non-existing validator
 
 	if err := revive(func() {
-		pr := valopers_proposal.NewValidatorProposalRequest(cross, otherAddress)
+		pr := proposal.NewValidatorProposalRequest(cross, otherAddress)
 		dao.MustCreateProposal(cross, pr)
 	}); err != nil {
 		println("r: ", err)

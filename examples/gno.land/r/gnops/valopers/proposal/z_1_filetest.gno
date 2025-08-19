@@ -1,7 +1,7 @@
-// PKGPATH: gno.land/r/gnops/valopers/proposal
+// PKGPATH: gno.land/r/gnops/valopers/proposal_test
 // SEND: 100000000ugnot
 
-package proposal
+package proposal_test
 
 import (
 	"std"
@@ -9,7 +9,7 @@ import (
 
 	"gno.land/p/nt/testutils"
 	"gno.land/r/gnops/valopers"
-	"gno.land/r/gnops/valopers_proposal"
+	"gno.land/r/gnops/valopers/proposal"
 	"gno.land/r/gov/dao"
 	daoinit "gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed
 )
@@ -31,7 +31,7 @@ func init() {
 	valopers.Register(cross, validMoniker, validDescription, validAddress, validPubKey)
 
 	if err := revive(func() {
-		pr := valopers_proposal.NewValidatorProposalRequest(cross, validAddress)
+		pr := proposal.NewValidatorProposalRequest(cross, validAddress)
 		dao.MustCreateProposal(cross, pr)
 	}); err != nil {
 		println("r: ", err)
