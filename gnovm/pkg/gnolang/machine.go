@@ -192,7 +192,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for mpkg := range ch {
 		mpkg = MPFProd.FilterMemPackage(mpkg)
-		fset := ParseMemPackage(mpkg)
+		fset := m.ParseMemPackage(mpkg)
 		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
 		m.Store.SetBlockNode(pn)
 		PredefineFileSet(m.Store, pn, fset)
@@ -262,7 +262,7 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	// sort mpkg.
 	mpkg.Sort()
 	// parse files.
-	files := ParseMemPackageAsType(mpkg, mptype)
+	files := m.ParseMemPackageAsType(mpkg, mptype)
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)

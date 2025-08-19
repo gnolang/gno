@@ -575,12 +575,13 @@ func parseMemPackageTests(mpkg *std.MemPackage) (tset, itset *gno.FileSet, itfil
 	tset = &gno.FileSet{}
 	itset = &gno.FileSet{}
 	var errs error
+	var m *gno.Machine
 	for _, mfile := range mpkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // skip this file.
 		}
 
-		n, err := gno.ParseFile(mfile.Name, mfile.Body)
+		n, err := m.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue

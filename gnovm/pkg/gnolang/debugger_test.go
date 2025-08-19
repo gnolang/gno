@@ -40,9 +40,10 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 
 	_, testStore := test.TestStore(gnoenv.RootDir(), output, nil)
 
-	f := gnolang.MustReadFile(file)
+	var m *gnolang.Machine
+	f := m.MustReadFile(file)
 
-	m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
+	m = gnolang.NewMachineWithOptions(gnolang.MachineOptions{
 		PkgPath: string(f.PkgName),
 		Input:   stdin,
 		Output:  output,
@@ -61,7 +62,7 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 	}
 
 	m.RunFiles(f)
-	ex, _ := gnolang.ParseExpr("main()")
+	ex, _ := m.ParseExpr("main()")
 	m.Eval(ex)
 	out, err = bout.String(), berr.String()
 	return
