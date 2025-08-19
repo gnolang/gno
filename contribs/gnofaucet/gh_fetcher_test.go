@@ -44,12 +44,12 @@ func TestFetch(t *testing.T) {
 
 	ctx := context.Background()
 
-	out := fetcher.fetchHistory(ctx)
-	require.True(t, out)
+	err := fetcher.fetchHistory(ctx)
+	require.NoError(t, err)
 	pipe := rdb.Pipeline()
-	out = fetcher.iterateEvents(ctx, pipe, "gnolang", "gno")
+	out := fetcher.iterateEvents(ctx, pipe, "gnolang", "gno")
 	require.True(t, out)
-	_, err := pipe.Exec(ctx)
+	_, err = pipe.Exec(ctx)
 	require.NoError(t, err)
 
 	keys, err := rdb.Keys(ctx, "*").Result()
