@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// Events
 const (
 	EventProposalCreated          = "ProposalCreated"
 	EventProposalExecuted         = "ProposalExecuted"
@@ -17,6 +18,7 @@ const (
 	EventProposalThresholdUpdated = "ProposalThresholdUpdated"
 )
 
+// Attribute key names
 const (
 	EventProposalIDKey   = "proposal_id"
 	EventTitleKey        = "title"
@@ -44,7 +46,6 @@ const (
 	EventXvlsAmountKey   = "xvls_amount"
 )
 
-// Emit proposal creation event
 func emitProposalCreated(caller std.Address, proposalID uint64, title, body string, deadline, quorum int64) {
 	std.Emit(
 		EventProposalCreated,
@@ -58,7 +59,6 @@ func emitProposalCreated(caller std.Address, proposalID uint64, title, body stri
 	)
 }
 
-// Emit proposal execution event
 func emitProposalExecuted(caller std.Address, proposalID uint64) {
 	std.Emit(
 		EventProposalExecuted,
@@ -68,7 +68,6 @@ func emitProposalExecuted(caller std.Address, proposalID uint64) {
 	)
 }
 
-// Emit vote cast event
 func emitVoteCast(caller, voter std.Address, proposalID uint64, xvlsAmount int64, vote, reason string) {
 	std.Emit(
 		EventVoteCast,
@@ -82,7 +81,6 @@ func emitVoteCast(caller, voter std.Address, proposalID uint64, xvlsAmount int64
 	)
 }
 
-// Emit member added event
 func emitMemberAdded(caller, member std.Address) {
 	std.Emit(
 		EventMemberAdded,
@@ -93,7 +91,6 @@ func emitMemberAdded(caller, member std.Address) {
 	)
 }
 
-// Emit member removed event
 func emitMemberRemoved(caller, member std.Address) {
 	std.Emit(
 		EventMemberRemoved,
@@ -104,7 +101,6 @@ func emitMemberRemoved(caller, member std.Address) {
 	)
 }
 
-// Emit governance updated event
 func emitGovernanceUpdated(caller std.Address, oldPkgPath, newPkgPath string) {
 	std.Emit(
 		EventGovernanceUpdated,
@@ -115,7 +111,6 @@ func emitGovernanceUpdated(caller std.Address, oldPkgPath, newPkgPath string) {
 	)
 }
 
-// Emit voting power quorum updated event
 func emitVotingPowerQuorumUpdated(caller std.Address, oldQuorum, newQuorum int64) {
 	std.Emit(
 		EventVotingPowerQuorumUpdated,
@@ -126,7 +121,6 @@ func emitVotingPowerQuorumUpdated(caller std.Address, oldQuorum, newQuorum int64
 	)
 }
 
-// Emit proposal threshold updated event
 func emitProposalThresholdUpdated(caller std.Address, oldThreshold, newThreshold int64) {
 	std.Emit(
 		EventProposalThresholdUpdated,

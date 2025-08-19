@@ -7,7 +7,7 @@ import (
 	"gno.land/p/demo/json"
 )
 
-// ApiGetProposal returns a proposal as JSON string
+// ApiGetProposal returns a proposal as JSON object
 func ApiGetProposal(proposalID string) string {
 	id, err := strconv.ParseUint(proposalID, 10, 64)
 	if err != nil {
@@ -23,14 +23,14 @@ func ApiGetProposal(proposalID string) string {
 	return marshal(rpcProposal.JSON())
 }
 
-// ApiGetMemberSet returns the member set as JSON string
+// ApiGetMemberSet returns the member set as JSON object
 func ApiGetMemberSet() string {
 	memberSet := MemberSet()
 	rpcMemberSet := MemberSetToRpc(memberSet)
 	return marshal(rpcMemberSet.JSON())
 }
 
-// ApiGetProposalThreshold returns the proposal threshold as JSON string
+// ApiGetProposalThreshold returns the proposal threshold as JSON object
 func ApiGetProposalThreshold() string {
 	threshold := ProposalThreshold()
 	thresholdNode := json.ObjectNode("", map[string]*json.Node{
@@ -39,7 +39,7 @@ func ApiGetProposalThreshold() string {
 	return marshal(thresholdNode)
 }
 
-// ApiGetVotingPowerQuorum returns the voting power quorum as JSON string
+// ApiGetVotingPowerQuorum returns the voting power quorum as JSON object
 func ApiGetVotingPowerQuorum() string {
 	quorum := VotingPowerQuorum()
 	quorumNode := json.ObjectNode("", map[string]*json.Node{
@@ -48,7 +48,7 @@ func ApiGetVotingPowerQuorum() string {
 	return marshal(quorumNode)
 }
 
-// ApiGetUserInfo returns user information as JSON string
+// ApiGetUserInfo returns user information as JSON object
 func ApiGetUserInfo(userAddr string) string {
 	addr := std.Address(userAddr)
 	if !addr.IsValid() {

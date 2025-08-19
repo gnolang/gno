@@ -6,13 +6,13 @@ import (
 	"gno.land/p/demo/json"
 )
 
-// ApiGetTokenInfo returns xVLS token information as JSON string
+// ApiGetTokenInfo returns xVLS token information as JSON object
 func ApiGetTokenInfo() string {
 	tokenInfo := TokenInfoToRpc()
 	return marshal(tokenInfo.JSON())
 }
 
-// ApiGetBalance returns a balance as JSON string
+// ApiGetBalance returns a balance as JSON object
 func ApiGetBalance(address string) string {
 	addr := std.Address(address)
 	if !addr.IsValid() {

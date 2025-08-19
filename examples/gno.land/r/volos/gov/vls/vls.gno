@@ -25,7 +25,6 @@ var (
 	VolosDAOAddress = std.DerivePkgAddr(VolosDAO)
 	token, ledger   = grc20.NewToken("Volos Governance Token", "VLS", 6)
 
-	// Use MemberAuthority for governance address
 	Auth = authz.NewWithMembers(VolosDAOAddress)
 )
 
@@ -33,32 +32,26 @@ func init() {
 	grc20reg.Register(cross, token, "")
 }
 
-// Name returns the token name.
 func Name() string {
 	return token.GetName()
 }
 
-// Symbol returns the token symbol.
 func Symbol() string {
 	return token.GetSymbol()
 }
 
-// Decimals returns the token decimals.
 func Decimals() int {
 	return token.GetDecimals()
 }
 
-// TotalSupply returns the total supply of the token.
 func TotalSupply() int64 {
 	return token.TotalSupply()
 }
 
-// BalanceOf returns the token balance of the given address.
 func BalanceOf(addr std.Address) int64 {
 	return token.BalanceOf(addr)
 }
 
-// Allowance returns the allowance from owner to spender.
 func Allowance(owner, spender std.Address) int64 {
 	return token.Allowance(owner, spender)
 }
@@ -102,7 +95,6 @@ func TransferFrom(cur realm, owner, to std.Address, amount int64) {
 	emitTransfer(caller, owner, to, amount)
 }
 
-// Public wrapper functions that handle authorization
 func Mint(cur realm, VolosDAO std.Address, to std.Address, amount int64) {
 	if err := Auth.DoByPrevious("mint", func() error {
 		if err := ledger.Mint(to, amount); err != nil {
@@ -118,7 +110,6 @@ func Mint(cur realm, VolosDAO std.Address, to std.Address, amount int64) {
 	emitMint(caller, to, amount)
 }
 
-// Burn tokens from the caller's account.
 func Burn(cur realm, VolosDAO std.Address, from std.Address, amount int64) {
 	if err := Auth.DoByPrevious("burn", func() error {
 		if err := ledger.Burn(from, amount); err != nil {
@@ -151,7 +142,6 @@ func UpdateGovernance(cur realm, newPkgPath string) {
 	emitGovernanceUpdated(caller, oldPkgPath, newPkgPath)
 }
 
-// Render function for explorer integration.
 func Render(path string) string {
 	return token.RenderHome()
 }

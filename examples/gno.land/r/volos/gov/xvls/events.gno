@@ -6,12 +6,14 @@ import (
 	"time"
 )
 
+// Events
 const (
 	EventMint         = "Mint"
 	EventBurn         = "Burn"
 	EventVotingSupply = "VotingSupply"
 )
 
+// Attribute key names
 const (
 	EventToKey           = "to"
 	EventFromKey         = "from"
@@ -25,7 +27,6 @@ const (
 	EventLaunchpadKey    = "launchpad_address"
 )
 
-// emitMint emits an event when xVLS tokens are minted
 func emitMint(caller, to std.Address, amount int64) {
 	std.Emit(
 		EventMint,
@@ -38,7 +39,6 @@ func emitMint(caller, to std.Address, amount int64) {
 	)
 }
 
-// emitBurn emits an event when xVLS tokens are burned
 func emitBurn(caller, from std.Address, amount int64) {
 	std.Emit(
 		EventBurn,
@@ -52,7 +52,6 @@ func emitBurn(caller, from std.Address, amount int64) {
 	)
 }
 
-// emitVotingSupply emits an event when voting supply changes
 func emitVotingSupply(caller std.Address, totalSupply, votingSupply int64, excludedBalance int64) {
 	std.Emit(
 		EventVotingSupply,

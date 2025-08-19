@@ -9,7 +9,6 @@ import (
 	"gno.land/r/volos/gov/xvls"
 )
 
-// RpcProposal represents a proposal in RPC format
 type RpcProposal struct {
 	ID               uint64 `json:"id"`
 	Title            string `json:"title"`
@@ -49,7 +48,6 @@ func (r RpcProposal) JSON() *json.Node {
 	})
 }
 
-// RpcMemberSet represents the member set in RPC format
 type RpcMemberSet struct {
 	Members []string `json:"members"`
 	Size    int      `json:"size"`
@@ -80,7 +78,6 @@ func (r RpcMemberSet) JSON() *json.Node {
 	})
 }
 
-// RpcUserInfo represents user information in RPC format
 type RpcUserInfo struct {
 	Address           string `json:"address"`
 	VlsBalance        int64  `json:"vlsBalance"`
@@ -109,7 +106,6 @@ func (r RpcUserInfo) JSON() *json.Node {
 	})
 }
 
-// RpcUserActiveVotes lists active proposals a user voted on
 type RpcUserActiveVotes struct {
 	User      string        `json:"user"`
 	Proposals []RpcProposal `json:"proposals"`

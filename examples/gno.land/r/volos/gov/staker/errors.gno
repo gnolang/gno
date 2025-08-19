@@ -9,6 +9,6 @@ var (
 	ErrInvalidDelegatee       = errors.New("invalid delegatee address")
 	ErrInsufficientAllowance  = errors.New("insufficient allowance")
 	ErrInsufficientBalance    = errors.New("insufficient balance")
-	ErrCooldownNotFinished    = errors.New("cooldown not finished")
+	ErrNoReadyUnstake         = errors.New("no ready unstake")
 	ErrInsufficientDelegation = errors.New("insufficient delegation")
 )

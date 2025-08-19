@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// Events
 const (
 	EventMint              = "Mint"
 	EventBurn              = "Burn"
@@ -14,6 +15,7 @@ const (
 	EventGovernanceUpdated = "GovernanceUpdated"
 )
 
+// Attribute key names
 const (
 	EventFromKey        = "from"
 	EventToKey          = "to"
@@ -29,7 +31,6 @@ const (
 	EventBalanceKey     = "balance"
 )
 
-// emitMint emits an event when VLS tokens are minted
 func emitMint(caller, to std.Address, amount int64) {
 	std.Emit(
 		EventMint,
@@ -41,7 +42,6 @@ func emitMint(caller, to std.Address, amount int64) {
 	)
 }
 
-// emitBurn emits an event when VLS tokens are burned
 func emitBurn(caller, from std.Address, amount int64) {
 	std.Emit(
 		EventBurn,
@@ -53,7 +53,6 @@ func emitBurn(caller, from std.Address, amount int64) {
 	)
 }
 
-// emitTransfer emits an event when VLS tokens are transferred
 func emitTransfer(caller, from, to std.Address, amount int64) {
 	std.Emit(
 		EventTransfer,
@@ -66,7 +65,6 @@ func emitTransfer(caller, from, to std.Address, amount int64) {
 	)
 }
 
-// emitApproval emits an event when VLS token allowance is approved
 func emitApproval(owner, spender std.Address, value int64) {
 	std.Emit(
 		EventApproval,
@@ -78,7 +76,6 @@ func emitApproval(owner, spender std.Address, value int64) {
 	)
 }
 
-// emitGovernanceUpdated emits an event when the governance contract is updated
 func emitGovernanceUpdated(caller std.Address, oldPkgPath, newPkgPath string) {
 	std.Emit(
 		EventGovernanceUpdated,

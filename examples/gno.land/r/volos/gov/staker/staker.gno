@@ -16,6 +16,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/rotree"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/authz"
 	"gno.land/r/volos/gov/governance"
 	"gno.land/r/volos/gov/vls"
@@ -23,17 +24,19 @@ import (
 )
 
 type UnstakeInfo struct {
+	ID        seqid.ID    // Unique identifier for this unstake
 	Amount    int64       // Amount of VLS to be withdrawn after cooldown
 	UnlockAt  int64       // Unix timestamp when withdrawal is allowed
 	Delegatee std.Address // Address from which xVLS was burned
 }
 
 var (
-	unstakeLockPeriod = int64(7 * 24 * 60 * 60) // 7 days cooldown for unstaking
+	unstakeLockPeriod = int64(7 * 24 * 60 * 60) // 7 days cooldown for unstakings
 	pendingUnstakes   = avl.NewTree()           // staker address (string) -> []UnstakeInfo
 	delegations       = avl.NewTree()           // staker address (string) -> avl.Tree(delegatee address (string) -> int64 amount)
 
-	authorizer = authz.NewWithMembers(std.DerivePkgAddr("gno.land/r/volos/gov/governance"))
+	authorizer    = authz.NewWithMembers(std.DerivePkgAddr("gno.land/r/volos/gov/governance"))
+	nextUnstakeID seqid.ID
 )
 
 func UnstakeLockPeriod() int64 {
@@ -47,7 +50,7 @@ func Delegations() *rotree.ReadOnlyTree {
 		delegationTree := v.(*avl.Tree)
 		return rotree.Wrap(delegationTree, nil)
 	}
-	
+
 	return rotree.Wrap(delegations, makeEntrySafeFn)
 }
 
@@ -114,7 +117,9 @@ func BeginUnstake(cur realm, amount int64, delegatee std.Address) {
 	baseUnlockAt := time.Now().Unix() + unstakeLockPeriod
 	unlockAt := calculateUnlockTime(delegatee, baseUnlockAt)
 
+	newID := nextUnstakeID.Next()
 	list = append(list, UnstakeInfo{
+		ID:        newID,
 		Amount:    amount,
 		UnlockAt:  unlockAt,
 		Delegatee: delegatee,
@@ -122,7 +127,7 @@ func BeginUnstake(cur realm, amount int64, delegatee std.Address) {
 
 	pendingUnstakes.Set(key, list)
 
-	emitBeginUnstake(caller, caller, delegatee, amount, unlockAt)
+	emitBeginUnstake(caller, caller, delegatee, amount, unlockAt, newID)
 }
 
 // WithdrawUnstaked allows the original staker to withdraw all matured VLS unstakes.
@@ -133,19 +138,21 @@ func WithdrawUnstaked(cur realm) {
 	key := caller.String()
 	infoAny, ok := pendingUnstakes.Get(key)
 	if !ok {
-		panic(ErrCooldownNotFinished)
+		panic(ErrNoReadyUnstake)
 	}
 
 	list := infoAny.([]UnstakeInfo)
 	var (
 		remaining       []UnstakeInfo
 		totalToWithdraw int64 = 0
+		withdrawnIDs    []string
 	)
 
 	now := time.Now().Unix()
 	for _, info := range list {
 		if now >= info.UnlockAt {
 			totalToWithdraw += info.Amount
+			withdrawnIDs = append(withdrawnIDs, info.ID.String())
 		} else {
 			remaining = append(remaining, info)
 		}
@@ -163,7 +170,7 @@ func WithdrawUnstaked(cur realm) {
 		pendingUnstakes.Set(key, remaining)
 	}
 
-	emitWithdraw(caller, caller, totalToWithdraw, len(remaining))
+	emitWithdraw(caller, caller, totalToWithdraw, len(remaining), withdrawnIDs)
 }
 
 // SetUnstakeLockPeriod allows governance to change the unstake lock period.

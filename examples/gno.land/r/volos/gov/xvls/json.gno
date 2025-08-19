@@ -6,7 +6,6 @@ import (
 	"gno.land/p/demo/json"
 )
 
-// RpcTokenInfo represents xVLS token information in RPC format
 type RpcTokenInfo struct {
 	Name         string `json:"name"`
 	Symbol       string `json:"symbol"`
@@ -35,7 +34,6 @@ func (r RpcTokenInfo) JSON() *json.Node {
 	})
 }
 
-// RpcBalance represents a balance in RPC format
 type RpcBalance struct {
 	Address string `json:"address"`
 	Balance int64  `json:"balance"`
