@@ -6,8 +6,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"cosmossdk.io/log"
-
 	cosmosiavl "github.com/cosmos/iavl"
 
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -93,7 +91,7 @@ func TestIAVLStorePrefix(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := cosmosiavl.NewMutableTree(db, cacheSize, false, log.NewNopLogger())
+	tree := cosmosiavl.NewMutableTree(db, cacheSize, false, cosmosiavl.NewNopLogger())
 	iavlStore := iavl.UnsafeNewStore(tree, types.StoreOptions{
 		PruningOptions: types.PruningOptions{
 			KeepRecent: numRecent,
