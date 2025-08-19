@@ -159,7 +159,7 @@ func WithdrawUnstaked(cur realm) {
 	}
 
 	if totalToWithdraw == 0 {
-		panic(ErrCooldownNotFinished)
+		panic(ErrNoReadyUnstake)
 	}
 
 	vls.Transfer(cross, caller, totalToWithdraw)
