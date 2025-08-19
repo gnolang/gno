@@ -235,7 +235,11 @@ func ExecSignAndBroadcast(
 		io.Printfln("STORAGE DELTA: %d bytes", delta)
 		io.Println("STORAGE FEE:  ", storageFee)
 		if tx.Fee.GasFee.Denom == storageFee.Denom {
-			io.Println("TOTAL TX COST:", tx.Fee.GasFee.Add(storageFee))
+			total := tx.Fee.GasFee.Amount + storageFee.Amount
+			if delta < 0 {
+				total = tx.Fee.GasFee.Amount - storageFee.Amount
+			}
+			io.Println("TOTAL TX COST:", std.NewCoin(tx.Fee.GasFee.Denom, total))
 		}
 	}
 	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
@@ -246,7 +250,8 @@ func ExecSignAndBroadcast(
 }
 
 // getStorageInfo searches events for StorageDeposit or UnlockDeposit and
-// returns the delta and fee. If this is "UnlockDeposit", then delta and fee are negative.
+// returns the delta and fee.
+// If this is "UnlockDeposit", then delta is negative. (The fee Coin amount must be positive.)
 // The third return is true if found, else false.
 func getStorageInfo(events []abci.Event) (int64, std.Coin, bool) {
 	for _, event := range events {
@@ -286,13 +291,12 @@ func getStorageInfo(events []abci.Event) (int64, std.Coin, bool) {
 		if err != nil {
 			continue
 		}
+		if isUnlock {
+			delta = -delta
+		}
 		fee, err := std.ParseCoin(feeStr)
 		if err != nil {
 			continue
-		}
-		if isUnlock {
-			delta = -delta
-			fee.Amount = -fee.Amount
 		}
 
 		return delta, fee, true

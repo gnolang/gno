@@ -94,7 +94,11 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 			io.Printfln("STORAGE DELTA: %d bytes", delta)
 			io.Println("STORAGE FEE:  ", storageFee)
 			if tx.Fee.GasFee.Denom == storageFee.Denom {
-				io.Println("TOTAL TX COST:", tx.Fee.GasFee.Add(storageFee))
+				total := tx.Fee.GasFee.Amount + storageFee.Amount
+				if delta < 0 {
+					total = tx.Fee.GasFee.Amount - storageFee.Amount
+				}
+				io.Println("TOTAL TX COST:", std.NewCoin(tx.Fee.GasFee.Denom, total))
 			}
 		}
 		io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
