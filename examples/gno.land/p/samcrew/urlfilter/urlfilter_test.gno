@@ -45,8 +45,10 @@ func TestApplyFilters(t *testing.T) {
 	if count != 4 {
 		t.Errorf("Expected 4 items, got %d", count)
 	}
-	// The parameter name should be "custom-param-name"
-	if !strings.Contains(expectedMarkdown, "custom-param-name") {
+
+	// Try using ApplyFilters with a different name.
+	withCustom, _ := ApplyFilters(u, TreeParent, "custom-param-name")
+	if !strings.Contains(withCustom, "custom-param-name=keyF1") {
 		t.Errorf("Expected 'custom-param-name' parameter in Markdown, got %q", mdFilters)
 	}
 
