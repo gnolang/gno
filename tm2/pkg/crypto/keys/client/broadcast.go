@@ -95,9 +95,6 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 			io.Println("STORAGE FEE:  ", storageFee)
 			if tx.Fee.GasFee.Denom == storageFee.Denom {
 				total := tx.Fee.GasFee.Amount + storageFee.Amount
-				if delta < 0 {
-					total = tx.Fee.GasFee.Amount - storageFee.Amount
-				}
 				io.Printfln("TOTAL TX COST: %d%v", total, tx.Fee.GasFee.Denom)
 			}
 		}
