@@ -115,10 +115,7 @@ func (d *state) Write(p []byte) (n int, err error) {
 
 	n = len(p)
 	for len(p) > 0 {
-		xoredBytes := subtle.XORBytes(d.a[d.n:d.rate], p)
-		x := len(xoredBytes)
-		// Copy the xored Bytes to array
-		copy(d.a[d.n:d.rate], xoredBytes)
+		x := subtle.XORBytesUnsafe(d.a[d.n:d.rate], d.a[d.n:d.rate], p)
 		d.n += x
 		p = p[x:]
 
