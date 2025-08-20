@@ -165,10 +165,7 @@ func execGithub(ctx context.Context, cfg *githubCfg, io commands.IO) error {
 		gitHubUsernameMiddleware(clientID, clientSecret, defaultGHExchange),
 	}
 
-	rpcMiddlewares := []faucet.Middleware{
-		gitHubClaimMiddleware(cooldownLimiter, rr),
-		gitHubCheckRewardsMiddleware(rr),
-	}
+	rpcMiddlewares := getMiddlewares(rr, cooldownLimiter)
 
 	return serveFaucet(
 		ctx,
