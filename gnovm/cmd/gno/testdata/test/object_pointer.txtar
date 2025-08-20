@@ -10,8 +10,13 @@ stdout 'With WorkingNew: 42'
 stdout 'With BuggedNew: 42'
 stderr 'ok      . 	\d+\.\d\ds'
 
+-- gnowork.toml --
 
--- examples/gno.land/p/testing/bug_package/bug_package.gno --
+-- p/bug_package/gnomod.toml --
+module = "gno.land/p/testing/bug_package"
+gno = "0.9"
+
+-- p/bug_package/bug_package.gno --
 package bug_package
 
 type PkgObject struct {
@@ -30,8 +35,11 @@ func (po *PkgObject) Get() int {
 	return po.value
 }
 
+-- r/bug_callee/gnomod.toml --
+module = "gno.land/r/testing/bug_callee"
+gno = "0.9"
 
--- examples/gno.land/r/testing/bug_callee/bug_callee.gno --
+-- r/bug_callee/bug_callee.gno --
 package bug_callee
 
 import (
@@ -44,8 +52,11 @@ func Register(cur realm,callerPtr *pkg.PkgObject) {
 	calleePtr = callerPtr
 }
 
+-- r/bug_caller/gnomod.toml --
+module = "gno.land/r/testing/bug_caller"
+gno = "0.9"
 
--- examples/gno.land/r/testing/bug_caller/bug_caller.gno --
+-- r/bug_caller/bug_caller.gno --
 package bug_caller
 
 import (
@@ -73,6 +84,9 @@ func Get() int {
 	return callerPtr.Get()
 }
 
+-- gnomod.toml --
+module = "gno.test/p/integ/object_pointer"
+gno = "0.9"
 
 -- x_filetest.gno --
 // PKGPATH: gno.land/r/testing/main
@@ -96,3 +110,4 @@ func main() {
 // Output:
 // With WorkingNew: 42
 // With BuggedNew: 42
+

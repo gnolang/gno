@@ -2,11 +2,13 @@ package markdown
 
 import (
 	"errors"
-	"io"
-
 	"html/template"
+	"io"
+	"unicode"
 
 	"golang.org/x/net/html"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // HTMLEscapeString escapes special characters in HTML content
@@ -46,4 +48,24 @@ func ExtractAttr(attrs []html.Attribute, key string) (val string, ok bool) {
 	}
 
 	return "", false
+}
+
+// GetWordArticle returns "a" or "an" based on the first letter of the word
+func GetWordArticle(word string) string {
+	if len(word) == 0 {
+		return "a"
+	}
+
+	// Check if the first letter is a vowel (a, e, i, o, u)
+	firstChar := unicode.ToLower(rune(word[0]))
+	if firstChar == 'a' || firstChar == 'e' || firstChar == 'i' || firstChar == 'o' || firstChar == 'u' {
+		return "an"
+	}
+	return "a"
+}
+
+var titleCaser = cases.Title(language.AmericanEnglish)
+
+func titleCase(s string) string {
+	return titleCaser.String(s)
 }
