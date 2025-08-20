@@ -48,7 +48,7 @@ func TestGetReward_SumNeverExceedsMaxReward(t *testing.T) {
 	rdb.Set(ctx, commitCountKey(user), 20, 0)  // 20 * 1 = 20
 	// Total: 30 + 50 + 40 + 20 = 140
 
-	reward, err := rewarder.GetReward(ctx, user)
+	reward, err := rewarder.Reward(ctx, user, false)
 	require.NoError(t, err)
 	assert.Equal(t, 140, reward)
 
@@ -58,11 +58,11 @@ func TestGetReward_SumNeverExceedsMaxReward(t *testing.T) {
 	rdb.Set(ctx, commitCountKey(user), 200, 0)  // 200 * 1 = 200
 	// Total: 300 + 500 + 400 + 200 = 1400, but MaxReward is 1000
 
-	reward, err = rewarder.GetReward(ctx, user)
+	reward, err = rewarder.Reward(ctx, user, false)
 	require.NoError(t, err)
 	assert.Equal(t, 860, reward) // 1000 - 140 = 860
 
-	reward, err = rewarder.GetReward(ctx, user)
+	reward, err = rewarder.Reward(ctx, user, false)
 	require.NoError(t, err)
 	assert.Equal(t, 0, reward)
 
@@ -83,7 +83,7 @@ func TestGetReward_EdgeCases(t *testing.T) {
 		rdb.Set(ctx, prReviewCountKey(user), 0, 0)
 		rdb.Set(ctx, commitCountKey(user), 0, 0)
 
-		reward, err := rewarder.GetReward(ctx, user)
+		reward, err := rewarder.Reward(ctx, user, false)
 		require.NoError(t, err)
 		assert.Equal(t, 0, reward)
 	})
@@ -91,7 +91,7 @@ func TestGetReward_EdgeCases(t *testing.T) {
 	t.Run("missing keys", func(t *testing.T) {
 		rdb.Del(ctx, issueCountKey(user), prCountKey(user), prReviewCountKey(user), commitCountKey(user), userRewardedKey(user))
 
-		reward, err := rewarder.GetReward(ctx, user)
+		reward, err := rewarder.Reward(ctx, user, false)
 		require.NoError(t, err)
 		assert.Equal(t, 0, reward)
 	})
@@ -101,7 +101,7 @@ func TestGetReward_EdgeCases(t *testing.T) {
 
 		rdb.Set(ctx, issueCountKey(user), 1000000, 0) // 1000000 * 3 = 3000000
 
-		reward, err := rewarder.GetReward(ctx, user)
+		reward, err := rewarder.Reward(ctx, user, false)
 		require.NoError(t, err)
 		assert.Equal(t, 1000, reward)
 	})
@@ -119,11 +119,11 @@ func TestGetReward_MultipleUsers(t *testing.T) {
 	rdb.Set(ctx, issueCountKey(user2), 10, 0) // 10 * 3 = 30
 	rdb.Set(ctx, prCountKey(user2), 5, 0)     // 5 * 10 = 50
 
-	reward1, err := rewarder.GetReward(ctx, user1)
+	reward1, err := rewarder.Reward(ctx, user1, false)
 	require.NoError(t, err)
 	assert.Equal(t, 35, reward1) // 15 + 20
 
-	reward2, err := rewarder.GetReward(ctx, user2)
+	reward2, err := rewarder.Reward(ctx, user2, false)
 	require.NoError(t, err)
 	assert.Equal(t, 80, reward2) // 30 + 50
 
@@ -158,7 +158,7 @@ func TestGetReward_Rounding(t *testing.T) {
 	rdb.Set(ctx, commitCountKey(user), 7, 0)   // 7 * 0.3 = 2.1 -> 2
 	// Expected total: 2 + 6 + 14 + 2 = 24
 
-	reward, err := rewarder.GetReward(ctx, user)
+	reward, err := rewarder.Reward(ctx, user, false)
 	require.NoError(t, err)
 	assert.Equal(t, 24, reward)
 }
