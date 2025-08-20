@@ -133,7 +133,7 @@ func gitHubCheckRewardsMiddleware(rewarder Rewarder) faucet.Middleware {
 				)
 			}
 
-			reward, err := rewarder.GetReward(ctx, username)
+			reward, err := rewarder.Reward(ctx, username, true)
 			if err != nil {
 				return spec.NewJSONResponse(
 					req.ID,
@@ -171,7 +171,7 @@ func gitHubClaimRewardsMiddleware(rewarder Rewarder) faucet.Middleware {
 					spec.NewJSONError("params must contain only the address", spec.InvalidParamsErrorCode),
 				)
 			}
-			reward, err := rewarder.GetReward(ctx, username)
+			reward, err := rewarder.Reward(ctx, username, false)
 			if err != nil {
 				return spec.NewJSONResponse(
 					req.ID,

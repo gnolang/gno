@@ -109,7 +109,7 @@ func (m *mockCooldownLimiter) checkCooldown(ctx context.Context, key string, amo
 
 type mockRewarder struct{}
 
-func (m *mockRewarder) GetReward(ctx context.Context, user string) (int, error) {
+func (m *mockRewarder) Reward(ctx context.Context, user string, readOnly bool) (int, error) {
 	return 0, nil
 }
 
@@ -254,7 +254,7 @@ type mockRewarderWithFn struct {
 	getRewardFn func(context.Context, string) (int, error)
 }
 
-func (m *mockRewarderWithFn) GetReward(ctx context.Context, user string) (int, error) {
+func (m *mockRewarderWithFn) Reward(ctx context.Context, user string, readOnly bool) (int, error) {
 	if m.getRewardFn != nil {
 		return m.getRewardFn(ctx, user)
 	}

@@ -10,7 +10,7 @@ import (
 )
 
 type Rewarder interface {
-	GetReward(ctx context.Context, user string) (int, error)
+	Reward(ctx context.Context, user string, readOnly bool) (int, error)
 }
 
 var _ Rewarder = &RedisRewarder{}
@@ -29,8 +29,8 @@ type RedisRewarder struct {
 	cfg         *RewarderCfg
 }
 
-// GetReward implements Rewarder.
-func (r *RedisRewarder) GetReward(ctx context.Context, user string) (int, error) {
+// Reward implements Rewarder.
+func (r *RedisRewarder) Reward(ctx context.Context, user string, readOnly bool) (int, error) {
 	keys := map[string]float64{
 		issueCountKey(user):    r.cfg.IssueFactor,
 		prCountKey(user):       r.cfg.PRFactor,
@@ -61,6 +61,10 @@ func (r *RedisRewarder) GetReward(ctx context.Context, user string) (int, error)
 	} else {
 		// if we didn't reach the max amount, we just remove previously rewarded tokens
 		total = total - previouslyRewarded
+	}
+
+	if readOnly {
+		return total, nil
 	}
 
 	err = r.redisClient.Set(ctx, userRewardedKey(user), total+previouslyRewarded, 0).Err()
