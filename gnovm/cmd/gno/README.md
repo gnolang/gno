@@ -20,8 +20,10 @@ SUBCOMMANDS
   env      print gno environment information
   fix      runs the fixer for the specified packages
   fmt      gnofmt (reformat) package sources
+  list     lists the named packages
   lint     runs the linter for the specified packages
   mod      module maintenance
+  repl     starts a GnoVM REPL
   run      run gno packages
   test     test packages
   tool     run specified gno tool

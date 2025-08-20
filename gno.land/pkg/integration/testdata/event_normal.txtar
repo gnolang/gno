@@ -32,9 +32,7 @@ const (
 	EventBar = "bar"
 )
 
-func Foo(){
-	crossing()
-
+func Foo(cur realm) {
 	SubFoo()
 	SubBar()
 }
@@ -55,9 +53,7 @@ func SubBar() {
 	)
 }
 
-func Bar() {
-	crossing()
-
+func Bar(cur realm) {
 	std.Emit(
 		EventBar,
 		"foo", "bar",

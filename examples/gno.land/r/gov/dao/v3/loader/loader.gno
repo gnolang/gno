@@ -21,7 +21,7 @@ func init() {
 	memberstore.Get().SetMember(memberstore.T1, std.Address("g127l4gkhk0emwsx5tmxe96sp86c05h8vg5tufzq"), &memberstore.Member{InvitationPoints: 3}) // Maxwell
 	memberstore.Get().SetMember(memberstore.T1, std.Address("g1m0rgan0rla00ygmdmp55f5m0unvsvknluyg2a4"), &memberstore.Member{InvitationPoints: 3}) // Morgan
 	memberstore.Get().SetMember(memberstore.T1, std.Address("g1ker4vvggvsyatexxn3hkthp2hu80pkhrwmuczr"), &memberstore.Member{InvitationPoints: 3}) // Sergio
-	memberstore.Get().SetMember(memberstore.T1, std.Address("g18x425qmujg99cfz3q97y4uep5pxjq3z8lmpt25"), &memberstore.Member{InvitationPoints: 3}) // Antoine
+	memberstore.Get().SetMember(memberstore.T1, std.Address("g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m"), &memberstore.Member{InvitationPoints: 3}) // Antoine
 	memberstore.Get().SetMember(memberstore.T1, std.Address("g16tfrrul20g4jzt3z303raqw8vs8s2pqqh5clwu"), &memberstore.Member{InvitationPoints: 3}) // Ilker
 	memberstore.Get().SetMember(memberstore.T1, std.Address("g1hy6zry03hg5d8le9s2w4fxme6236hkgd928dun"), &memberstore.Member{InvitationPoints: 3}) // Jerónimo
 	memberstore.Get().SetMember(memberstore.T1, std.Address("g15ruzptpql4dpuyzej0wkt5rq6r26kw4nxu9fwd"), &memberstore.Member{InvitationPoints: 3}) // Denis
@@ -47,7 +47,7 @@ func init() {
 	memberstore.Get().SetMember(memberstore.T3, std.Address("g1qynsu9dwj9lq0m5fkje7jh6qy3md80ztqnshhm"), &memberstore.Member{InvitationPoints: 1}) // Rémi
 	memberstore.Get().SetMember(memberstore.T3, std.Address("g17ernafy6ctpcz6uepfsq2js8x2vz0wladh5yc3"), &memberstore.Member{InvitationPoints: 1}) // Dragos
 
-	cross(dao.UpdateImpl)(dao.UpdateRequest{
+	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO:         impl.GetInstance(),
 		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
 	})

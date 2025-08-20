@@ -9,86 +9,6 @@ import (
 )
 
 // ----------------------------------------
-// Functions centralizing definitions
-
-// ReRealmPath and RePPackagePath are the regexes used to identify pkgpaths which are meant to
-// be realms with persisted states and pure packages.
-var (
-	ReRealmPath    = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/[a-z0-9_/]+$`)
-	RePPackagePath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/p/[a-z0-9_/]+$`)
-)
-
-// ReGnoRunPath is the path used for realms executed in maketx run.
-// These are not considered realms, as an exception to the ReRealmPathPrefix rule.
-var (
-	ReGnoRunPath          = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/(?P<addr>g1[a-z0-9]+)/run$`)
-	ReGnoRunPathAddrIndex = ReGnoRunPath.SubexpIndex("addr")
-)
-
-// IsRealmPath determines whether the given pkgpath is for a realm, and as such
-// should persist the global state. These include temporary run realms.
-func IsRealmPath(pkgPath string) bool {
-	return ReRealmPath.MatchString(pkgPath)
-}
-
-// IsGnoRunPath returns true if it's a run (MsgRun) package path.  These are
-// also realm paths, but they are handled differently; DerivePkgAddr() for
-// example returns the embedded address such that the run package can receive
-// coins on behalf of the user.
-func IsGnoRunPath(pkgPath string) (addr string, ok bool) {
-	matches := ReGnoRunPath.FindStringSubmatch(pkgPath)
-	if matches == nil {
-		return "", false
-	}
-	return matches[ReGnoRunPathAddrIndex], true
-}
-
-// IsInternalPath determines whether the given pkgPath refers to an internal
-// package, that may not be called directly or imported by packages that don't
-// share the same root.
-//
-// If isInternal is true, base will be set to the root of the internal package,
-// which must also be an ancestor or the same path that imports the given
-// internal package.
-func IsInternalPath(pkgPath string) (base string, isInternal bool) {
-	// Restrict imports to /internal packages to a package rooted at base.
-	var suff string
-	base, suff, isInternal = strings.Cut(pkgPath, "/internal")
-	// /internal should be either at the end, or be a part: /internal/
-	isInternal = isInternal && (suff == "" || suff[0] == '/')
-	return
-}
-
-// IsPPackagePath determines whether the given pkgpath is for a published Gno package.
-// It only considers "pure" those starting with gno.land/p/, so it returns false for
-// stdlib packages, realm paths, and run paths. It also excludes _test paths.
-func IsPPackagePath(pkgPath string) bool {
-	if !RePPackagePath.MatchString(pkgPath) {
-		return false
-	}
-	if strings.HasSuffix(pkgPath, "_test") {
-		return false
-	}
-	return true
-}
-
-// IsStdlib determines whether s is a pkgpath for a standard library.  If it
-// doesn't start with a domain (e.g. has a dot), it is stdlib.  This
-// implementation ignores dots after the first slash.
-func IsStdlib(s string) bool {
-	idx := strings.IndexByte(s, '/')
-	if idx < 0 {
-		// If no '/' is found, consider the whole string
-		return strings.IndexByte(s, '.') < 0
-	}
-	return strings.IndexByte(s[:idx+1], '.') < 0
-}
-
-func IsTestFile(file string) bool {
-	return strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno")
-}
-
-// ----------------------------------------
 // AST Construction (Expr)
 // These are copied over from go-amino-x, but produces Gno ASTs.
 
@@ -168,6 +88,13 @@ func Flds(args ...any) FieldTypeExprs {
 		})
 	}
 	return list
+}
+
+func Fld(n, t any) FieldTypeExpr {
+	return FieldTypeExpr{
+		NameExpr: *Nx(n),
+		Type:     X(t),
+	}
 }
 
 func Recv(n, t any) FieldTypeExpr {

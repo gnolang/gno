@@ -2,7 +2,34 @@
 
 In this tutorial, you will learn to make a simple `Counter` application in
 Gno. We will cover the basics of the Gno language which will help you get
-started writing smart contracts for gno.land.
+started writing smart contracts for Gno.land.
+
+## Package Types Overview
+
+Gno.land supports three types of packages:
+- **Realms (`/r/`)**: Stateful applications (smart contracts) that maintain 
+  persistent state between transactions
+- **Pure Packages (`/p/`)**: Stateless libraries that provide reusable 
+  functionality
+- **Ephemeral Packages (`/e/`)**: Temporary code execution environments created 
+  with [`gnokey maketx run`](../users/interact-with-gnokey.md#run). They are 
+  designed for executing complex logic or workflows (like `maketx call` on 
+  steroids) but exist only during their execution
+
+### Import Rules
+
+The import rules between different package types are:
+- **Pure packages (`/p/`)** can be imported by everything: realms, other 
+  packages, and ephemeral realms
+- **Realms (`/r/`)** can only be imported by other realms or ephemeral realms 
+  (not by pure packages)
+- **Ephemeral packages (`/e/`)** cannot be imported by anything
+
+When importing:
+- Importing a **realm** gives access to its exported functions and interacts 
+  with the realm's persistent state
+- Importing a **pure package** gives access to its exported functions without 
+  any state persistence
 
 ## Language basics
 
@@ -40,7 +67,7 @@ package counter
 
 var count int
 
-func Increment(change int) int {
+func Increment(_ realm, change int) int {
 	count += change
 	return count
 }
@@ -48,10 +75,15 @@ func Increment(change int) int {
 
 The `Increment()` function has a few important features:
 - When written with the first letter in uppercase, the function is
-  exported. This means that calls to this function from outside the `counter`
-  package are allowed - be it from off-chain clients or from other Gno programs
-- It takes an argument of type `int`, called `change`. This is how the caller
-  will provide a specific number which will be used to increment the `counter`
+exported. This means that calls to this function from outside the `counter`
+package are allowed - be it from off-chain clients, users, or from other Gno programs
+- As this function intends to change the state of the realm (incrementing the 
+`count` variable), it needs to be ["crossing"](../resources/gno-interrealm.md). 
+To declare the function crossing, the first argument must be of type `realm`, 
+which is a custom Gno built-in keyword. In this case, as we won't be using the 
+argument for anything, we can leave it unnamed (i.e., `_`).
+- It takes a second argument of type `int`, called `change`. This is how the caller
+will provide a specific number which will be used to increment the `counter`
 - Returns the value of `count` after a successful call
 
 Next, to make our application more user-friendly, we should define a `Render()`
@@ -65,7 +97,7 @@ import "strconv"
 
 var count int
 
-func Increment(change int) int {
+func Increment(_ realm, change int) int {
 	count += change
 	return count
 }
@@ -108,7 +140,7 @@ func TestIncrement(t *testing.T) {
 	}
 
 	// Call Increment
-	value := Increment(42)
+	value := Increment(cross, 42)
 
 	// Check result
 	if value != 42 {
@@ -119,6 +151,8 @@ func TestIncrement(t *testing.T) {
 
 By using the `testing` package from the standard library, we can access the
 `testing.T` object that exposes methods which can help us terminate tests in specific cases.
+Next, to satisfy the first argument of the `Increment()` function, we will use the
+built-in `cross`.
 
 :::info
 Common testing patterns found in Go, such as [TDT](https://go.dev/wiki/TableDrivenTests),

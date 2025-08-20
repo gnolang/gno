@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/evt_test
-package evt_test
+// PKGPATH: gno.land/r/evt
+package evt
 
 type Event struct {
 	name string
@@ -44,9 +44,7 @@ func printEvents(events []*Event) {
 	}
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	DelEvent("event2")
 	InsertEvent("event1.5")
 	AppendEvent("event2")

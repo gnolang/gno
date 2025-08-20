@@ -14,7 +14,7 @@ import (
 var gid groups.GroupID
 
 func main() {
-	gid = cross(groups.CreateGroup)("test_group")
+	gid = groups.CreateGroup(cross, "test_group")
 	println(gid)
 
 	// add member via anon user
@@ -22,7 +22,7 @@ func main() {
 	testing.SetOriginCaller(test2)
 	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}})
 
-	cross(groups.AddMember)(gid, test2.String(), 42, "metadata3")
+	groups.AddMember(cross, gid, test2.String(), 42, "metadata3")
 }
 
 // Error:

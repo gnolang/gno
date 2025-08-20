@@ -14,6 +14,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -60,6 +61,9 @@ func Render(_ string) string { return "foo" }
 		},
 	}
 
+	pkg.SetFile("gnomod.toml", gnolang.GenGnoModLatest(pkg.Path))
+	pkg.Sort()
+
 	logger := log.NewTestingLogger(t)
 
 	cfg := DefaultNodeConfig(gnoenv.RootDir(), "gno.land")
@@ -90,6 +94,10 @@ func TestNodeAddPackage(t *testing.T) {
 func Render(_ string) string { return "foo" }
 `,
 			},
+			{
+				Name: "gnomod.toml",
+				Body: gnolang.GenGnoModLatest("gno.land/r/dev/foo"),
+			},
 		},
 	}
 
@@ -102,6 +110,10 @@ func Render(_ string) string { return "foo" }
 				Body: `package bar
 func Render(_ string) string { return "bar" }
 `,
+			},
+			{
+				Name: "gnomod.toml",
+				Body: gnolang.GenGnoModLatest("gno.land/r/dev/bar"),
 			},
 		},
 	}
@@ -119,7 +131,7 @@ func Render(_ string) string { return "bar" }
 	require.Equal(t, render, "foo")
 
 	// Render should fail as the node hasn't reloaded
-	render, err = testingRenderRealm(t, node, "gno.land/r/dev/bar")
+	_, err = testingRenderRealm(t, node, "gno.land/r/dev/bar")
 	require.Error(t, err)
 
 	// Add bar package
@@ -140,6 +152,7 @@ func TestNodeUpdatePackage(t *testing.T) {
 		Name: "foobar",
 		Path: "gno.land/r/dev/foobar",
 	}
+	modfile := &std.MemFile{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(foorbarPkg.Path)}
 
 	fooFiles := []*std.MemFile{
 		{
@@ -160,7 +173,8 @@ func Render(_ string) string { return "bar" }
 	}
 
 	// Update foobar content with bar content
-	foorbarPkg.Files = fooFiles
+	foorbarPkg.Files = append(fooFiles, modfile)
+	foorbarPkg.Sort()
 
 	node, emitter := newTestingDevNode(t, &foorbarPkg)
 	assert.Len(t, node.ListPkgs(), 1)
@@ -171,7 +185,8 @@ func Render(_ string) string { return "bar" }
 	require.Equal(t, render, "foo")
 
 	// Update foobar content with bar content
-	foorbarPkg.Files = barFiles
+	foorbarPkg.Files = append(barFiles, modfile)
+	foorbarPkg.Sort()
 
 	err = node.Reload(context.Background())
 	require.NoError(t, err)
@@ -197,13 +212,16 @@ func TestNodeReset(t *testing.T) {
 				Body: `package foo
 var str string = "foo"
 
-func UpdateStr(newStr string) { // method to update 'str' variable
-        crossing()
+func UpdateStr(cur realm, newStr string) { // method to update 'str' variable
         str = newStr
 }
 
 func Render(_ string) string { return str }
 `,
+			},
+			{
+				Name: "gnomod.toml",
+				Body: gnolang.GenGnoModLatest("gno.land/r/dev/foo"),
 			},
 		},
 	}
@@ -259,13 +277,16 @@ import "strconv"
 
 var i int
 
-func Inc() {  // method to increment i
-        crossing()
+func Inc(cur realm) {  // method to increment i
         i++
 }
 
 func Render(_ string) string { return strconv.Itoa(i) }
 `,
+			},
+			{
+				Name: "gnomod.toml",
+				Body: gnolang.GenGnoModLatest("gno.land/r/dev/foo"),
 			},
 		},
 	}
@@ -307,7 +328,7 @@ func Render(_ string) string { return strconv.Itoa(i) }
 		GasWanted: 100_000,
 	}
 
-	res, err = testingCallRealmWithConfig(t, node, callCfg, msg)
+	_, err = testingCallRealmWithConfig(t, node, callCfg, msg)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &std.OutOfGasError{})
 
@@ -342,8 +363,7 @@ var times = []time.Time{
 	time.Now(), // Evaluate at genesis
 }
 
-func SpanTime() {
-        crossing()
+func SpanTime(cur realm) {
 	times = append(times, time.Now())
 }
 
@@ -572,6 +592,16 @@ func testingCallRealmWithConfig(t *testing.T, node *Node, bcfg gnoclient.BaseTxC
 func newTestingNodeConfig(pkgs ...*std.MemPackage) *NodeConfig {
 	var loader packages.BaseLoader
 	gnoroot := gnoenv.RootDir()
+
+	// Ensure that a gnomod.toml exists
+	for _, pkg := range pkgs {
+		if mod := pkg.GetFile("gnomod.toml"); mod != nil {
+			continue
+		}
+
+		pkg.SetFile("gnomod.toml", gnolang.GenGnoModLatest(pkg.Path))
+		pkg.Sort()
+	}
 
 	loader.Resolver = packages.MiddlewareResolver(
 		packages.NewMockResolver(pkgs...),

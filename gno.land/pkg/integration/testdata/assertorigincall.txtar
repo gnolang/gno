@@ -123,23 +123,17 @@ package myrlm
 
 import "std"
 
-func A() {
-	crossing()
-
-	C()
+func A(cur realm) {
+	C(cur)
 }
 
-func B() {
-	crossing()
-
+func B(cur realm) {
 	if false {
-		C()
+		C(cur)
 	}
 }
 
-func C() {
-	crossing()
-
+func C(cur realm) {
 	std.AssertOriginCall()
 }
 -- r/foo/foo.gno --
@@ -147,22 +141,16 @@ package foo
 
 import "gno.land/r/myrlm"
 
-func A() {
-	crossing()
-
-	cross(myrlm.A)()
+func A(cur realm) {
+	myrlm.A(cross)
 }
 
-func B() {
-	crossing()
-
-	cross(myrlm.B)()
+func B(cur realm) {
+	myrlm.B(cross)
 }
 
-func C() {
-	crossing()
-
-	cross(myrlm.C)()
+func C(cur realm) {
+	myrlm.C(cross)
 }
 -- p/demo/bar/bar.gno --
 package bar
@@ -187,9 +175,7 @@ package main
 import myrlm "gno.land/r/myrlm"
 
 func main() {
-	crossing()
-
-	cross(myrlm.A)()
+	myrlm.A(cross)
 }
 -- run/myrlm-b.gno --
 package main
@@ -197,9 +183,7 @@ package main
 import "gno.land/r/myrlm"
 
 func main() {
-	crossing()
-
-	cross(myrlm.B)()
+	myrlm.B(cross)
 }
 -- run/myrlm-c.gno --
 package main
@@ -207,9 +191,7 @@ package main
 import "gno.land/r/myrlm"
 
 func main() {
-	crossing()
-
-	cross(myrlm.C)()
+	myrlm.C(cross)
 }
 -- run/foo-a.gno --
 package main
@@ -217,9 +199,7 @@ package main
 import "gno.land/r/foo"
 
 func main() {
-	crossing()
-
-	cross(foo.A)()
+	foo.A(cross)
 }
 -- run/foo-b.gno --
 package main
@@ -227,9 +207,7 @@ package main
 import "gno.land/r/foo"
 
 func main() {
-	crossing()
-
-	cross(foo.B)()
+	foo.B(cross)
 }
 -- run/foo-c.gno --
 package main
@@ -237,9 +215,7 @@ package main
 import "gno.land/r/foo"
 
 func main() {
-	crossing()
-
-	cross(foo.C)()
+	foo.C(cross)
 }
 -- run/bar-a.gno --
 package main
@@ -247,8 +223,6 @@ package main
 import "gno.land/p/demo/bar"
 
 func main() {
-	crossing()
-
 	bar.A()
 }
 -- run/bar-b.gno --
@@ -257,8 +231,6 @@ package main
 import "gno.land/p/demo/bar"
 
 func main() {
-	crossing()
-
 	bar.B()
 }
 -- run/bar-c.gno --
@@ -267,8 +239,6 @@ package main
 import "gno.land/p/demo/bar"
 
 func main() {
-	crossing()
-
 	bar.C()
 }
 -- run/baz.gno --
@@ -277,7 +247,5 @@ package main
 import "std"
 
 func main() {
-	crossing()
-
 	std.AssertOriginCall()
 }

@@ -67,6 +67,7 @@ const (
 	IsBigDec
 
 	IsNumeric = IsInteger | IsFloat | IsBigInt | IsBigDec
+	IsWhole   = IsInteger | IsBigInt
 	IsOrdered = IsNumeric | IsString
 )
 
@@ -130,6 +131,15 @@ func isNumericOrString(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
 		return t.category()&IsNumeric != 0 || t.category()&IsString != 0
+	default:
+		return false
+	}
+}
+
+func isWhole(t Type) bool {
+	switch t := baseOf(t).(type) {
+	case PrimitiveType:
+		return t.category()&IsWhole != 0
 	default:
 		return false
 	}
@@ -233,10 +243,6 @@ Main:
 		// *, & is filter out previously since they are not primitive
 		assertValidConstValue(store, last, currExpr.X)
 	case *TypeAssertExpr:
-		ty := evalStaticTypeOf(store, last, currExpr)
-		if _, ok := ty.(*TypeType); ok {
-			ty = evalStaticType(store, last, currExpr)
-		}
 		panic(fmt.Sprintf("%s (comma, ok expression of type %s) is not constant", currExpr.String(), currExpr.Type))
 	case *CallExpr:
 		ift := evalStaticTypeOf(store, last, currExpr.Func)
@@ -249,8 +255,8 @@ Main:
 				if fv, ok := cx.V.(*FuncValue); ok {
 					if fv.PkgPath == uversePkgPath {
 						// TODO: should support min, max, real, imag
-						switch {
-						case fv.Name == "len":
+						switch fv.Name {
+						case "len":
 							at := evalStaticTypeOf(store, last, currExpr.Args[0])
 							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
 								// ok
@@ -258,7 +264,7 @@ Main:
 							}
 							assertValidConstValue(store, last, currExpr.Args[0])
 							break Main
-						case fv.Name == "cap":
+						case "cap":
 							at := evalStaticTypeOf(store, last, currExpr.Args[0])
 							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
 								// ok

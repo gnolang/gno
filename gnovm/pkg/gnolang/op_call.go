@@ -22,10 +22,46 @@ func (m *Machine) doOpPrecall() {
 	case *FuncValue:
 		m.PushFrameCall(cx, fv, TypedValue{}, false)
 		m.PushOp(OpCall)
+		isCrossing := fv.IsCrossing()
+		if isCrossing {
+			m.PushOp(OpEnterCrossing)
+		}
+		// If a cross-call of a crossing function,
+		// replace the first nil arg with a new realm.
+		if cx.IsWithCross() {
+			if !isCrossing { // sanity
+				panic("non-crossing function in cross call")
+			}
+			niltv := m.PeekValue(cx.NumArgs)
+			if !niltv.IsUndefined() { // sanity
+				panic(fmt.Sprintf(
+					"expected nil for realm argument in cross call but got %v", niltv))
+			}
+			crlm := NewConcreteRealm(fv.PkgPath)
+			niltv.Assign(m.Alloc, crlm, false)
+		}
 	case *BoundMethodValue:
 		recv := fv.Receiver
 		m.PushFrameCall(cx, fv.Func, recv, false)
 		m.PushOp(OpCall)
+		isCrossing := fv.IsCrossing()
+		if isCrossing {
+			m.PushOp(OpEnterCrossing)
+		}
+		// If a cross-call of a crossing function,
+		// replace the first nil arg with a new realm.
+		if cx.IsWithCross() {
+			if !isCrossing { // sanity
+				panic("non-crossing function in cross call")
+			}
+			niltv := m.PeekValue(cx.NumArgs)
+			if !niltv.IsUndefined() { // sanity
+				panic(fmt.Sprintf(
+					"expected nil for realm argument in cross call but got %v", niltv))
+			}
+			crlm := NewConcreteRealm(fv.Func.PkgPath)
+			niltv.Assign(m.Alloc, crlm, false)
+		}
 	case TypeValue:
 		// Do not pop type yet.
 		// No need for frames.
@@ -40,21 +76,62 @@ func (m *Machine) doOpPrecall() {
 			}
 		}
 	default:
+		// e.g. when *CallExpr.NumArgs is wrong.
 		panic(fmt.Sprintf(
-			"unexpected function value type %s",
-			reflect.TypeOf(v).String()))
+			"unexpected function value type %s %v",
+			reflect.TypeOf(v).String(), v))
 	}
 }
 
 var gReturnStmt = &ReturnStmt{}
 
-//nolint:unused
-func getFuncTypeExprFromSource(source Node) *FuncTypeExpr {
-	if fd, ok := source.(*FuncDecl); ok {
-		return fd.GetUnboundTypeExpr()
-	} else {
-		return &source.(*FuncLitExpr).Type
+// This used to be the crossing() uverse function.
+// It should be run once upon calling every crossing function,
+// whether or not it was cross-called.
+func (m *Machine) doOpEnterCrossing() {
+	// Sanity check.
+	fr1 := m.PeekCallFrame(1) // fr1.LastPackage called to create fr1.
+	if !m.Package.IsRealm() {
+		panic("expected crossing function in a realm package")
 	}
+
+	// Verify prior fr.WithCross or fr.DidCrossing.
+	// NOTE: fr.WithCross may or may not be true,
+	// crossing() (which sets fr.DidCrossing) can be
+	// stacked.
+	for i := 1; ; i++ {
+		fri := m.PeekCallFrame(i) // TODO: O(n^2), optimize.
+		if 1 < i && fri == nil {
+			// For stage add, meaning init() AND
+			// global var decls inherit a faux
+			// frame of index -1 which crossed from
+			// the package deployer.
+			// For stage run, main() does the same,
+			// so main() can be crossing or not, it
+			// doesn't matter. This applies for
+			// MsgRun() as well as tests. MsgCall()
+			// runs like cross(fn)(...) which
+			// meains fri.WithCross would have been
+			// found below.
+			fr1.SetDidCrossing()
+			return
+		}
+		if fri.WithCross || fri.DidCrossing {
+			// NOTE: fri.DidCrossing implies
+			// everything under it is also valid.
+			// fri.DidCrossing && !fri.WithCross
+			// can happen with an implicit switch.
+			fr1.SetDidCrossing()
+			return
+		}
+		// Neither fri.WithCross nor fri.DidCrossing, yet
+		// Realm already switched implicitly.
+		if fri.LastRealm != m.Realm {
+			panic("crossing could not find corresponding cross(fn)(...) call")
+		}
+	}
+	//nolint:govet // detected as unreachable
+	panic("should not happen") // defensive
 }
 
 func (m *Machine) doOpCall() {
@@ -478,8 +555,10 @@ func (m *Machine) doOpPanic2() {
 	}
 	cfr := m.PopUntilLastCallFrame()
 	if cfr == nil {
-		// panic(m.makeUnhandledPanicError())
-		panic("should not happen")
+		// If we can't find a call frame, we're in a corrupted state.
+		// This can happen during init functions with realm calls.
+		// Return the original exception as an unhandled panic.
+		panic(m.makeUnhandledPanicError())
 	}
 	m.PushOp(OpReturnCallDefers)
 }

@@ -6,11 +6,13 @@ import (
 	"io"
 	"log/slog"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -21,11 +23,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	sdkCfg "github.com/gnolang/gno/tm2/pkg/sdk/config"
 	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 
 	// Only goleveldb is supported for now.
 	_ "github.com/gnolang/gno/tm2/pkg/db/_tags"
@@ -41,6 +45,7 @@ type AppOptions struct {
 	SkipGenesisVerification bool               // default to verify genesis transactions
 	InitChainerConfig                          // options related to InitChainer
 	MinGasPrices            string             // optional
+	PruneStrategy           types.PruneStrategy
 }
 
 // TestAppOptions provides a "ready" default [AppOptions] for use with
@@ -56,6 +61,7 @@ func TestAppOptions(db dbm.DB) *AppOptions {
 			CacheStdlibLoad:        true,
 		},
 		SkipGenesisVerification: true,
+		PruneStrategy:           types.PruneNothingStrategy,
 	}
 }
 
@@ -87,6 +93,9 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	if cfg.MinGasPrices != "" {
 		appOpts = append(appOpts, sdk.SetMinGasPrices(cfg.MinGasPrices))
 	}
+
+	appOpts = append(appOpts, sdk.SetPruningOptions(cfg.PruneStrategy.Options()))
+
 	// Create BaseApp.
 	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey, appOpts...)
 	baseApp.SetAppVersion("dev")
@@ -129,6 +138,25 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(ctx))
 			// Override auth params.
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
+
+			// During genesis (block height 0), automatically create accounts for signers
+			// if they don't exist. This allows packages with custom creators to be loaded.
+			if ctx.BlockHeight() == 0 {
+				for _, signer := range tx.GetSigners() {
+					if acck.GetAccount(ctx, signer) == nil {
+						// Create a new account for the signer
+						acc := acck.NewAccountWithAddress(ctx, signer)
+						acck.SetAccount(ctx, acc)
+						// Give it enough funds to pay for the transaction
+						// This is only for genesis - in normal operation accounts must be funded
+						err := bankk.SetCoins(ctx, signer, std.Coins{std.NewCoin("ugnot", 10_000_000_000)})
+						if err != nil {
+							panic(fmt.Sprintf("failed to set coins for genesis account %s: %v", signer, err))
+						}
+					}
+				}
+			}
+
 			// Continue on with default auth ante handler.
 			newCtx, res, abort = authAnteHandler(ctx, tx, simulate)
 			return
@@ -204,9 +232,9 @@ func NewTestGenesisAppConfig() GenesisAppConfig {
 func NewApp(
 	dataRootDir string,
 	genesisCfg GenesisAppConfig,
+	appCfg *sdkCfg.AppConfig,
 	evsw events.EventSwitch,
 	logger *slog.Logger,
-	minGasPrices string,
 ) (abci.Application, error) {
 	var err error
 
@@ -217,8 +245,9 @@ func NewApp(
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
 			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 		},
-		MinGasPrices:            minGasPrices,
+		MinGasPrices:            appCfg.MinGasPrices,
 		SkipGenesisVerification: genesisCfg.SkipSigVerification,
+		PruneStrategy:           appCfg.PruneStrategy,
 	}
 	if genesisCfg.SkipFailingTxs {
 		cfg.GenesisTxResultHandler = NoopGenesisTxResultHandler
@@ -348,6 +377,10 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 
 	for _, addr := range state.Auth.Params.UnrestrictedAddrs {
 		acc := cfg.acck.GetAccount(ctx, addr)
+		if acc == nil {
+			panic(fmt.Errorf("unrestricted address must be one of the genesis accounts: invalid account %q", addr))
+		}
+
 		accr := acc.(*GnoAccount)
 		accr.SetUnrestricted()
 		cfg.acck.SetAccount(ctx, acc)
@@ -437,6 +470,7 @@ func EndBlocker(
 		if acck != nil && gpk != nil {
 			auth.EndBlocker(ctx, gpk)
 		}
+
 		// Check if there was a valset change
 		if len(collector.getEvents()) == 0 {
 			// No valset updates
@@ -462,6 +496,40 @@ func EndBlocker(
 
 			return abci.ResponseEndBlock{}
 		}
+
+		allowedKeyTypes := ctx.ConsensusParams().Validator.PubKeyTypeURLs
+
+		// Filter out the updates that are not valid
+		updates = slices.DeleteFunc(updates, func(u abci.ValidatorUpdate) bool {
+			// Make sure the power is valid
+			if u.Power < 0 {
+				app.Logger().Error(
+					"valset update invalid; voting power < 0",
+					"address", u.Address.String(),
+					"power", u.Power,
+				)
+
+				return true // delete it
+			}
+
+			// Make sure the public key matches the address
+			if u.PubKey.Address().Compare(u.Address) != 0 {
+				app.Logger().Error(
+					"valset update invalid; pubkey + address mismatch",
+					"address", u.Address.String(),
+					"pubkey", u.PubKey.String(),
+				)
+
+				return true // delete it
+			}
+
+			// Make sure the public key is an allowed consensus key type
+			if !slices.Contains(allowedKeyTypes, amino.GetTypeURL(u.PubKey)) {
+				return true // delete it
+			}
+
+			return false // keep it, update is valid
+		})
 
 		return abci.ResponseEndBlock{
 			ValidatorUpdates: updates,

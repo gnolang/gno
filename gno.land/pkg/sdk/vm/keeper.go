@@ -10,25 +10,32 @@ import (
 	"io"
 	"iter"
 	"log/slog"
+	"maps"
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/stdlibs"
+	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
-	"github.com/gnolang/gno/tm2/pkg/store/types"
+	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 	"go.opentelemetry.io/otel/attribute"
@@ -70,6 +77,9 @@ type VMKeeper struct {
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
+	// committed typecheck cache
+	typeCheckCache  gno.TypeCheckCache
+	testStdlibCache testStdlibCache
 }
 
 // NewVMKeeper returns a new VMKeeper.
@@ -83,11 +93,16 @@ func NewVMKeeper(
 	prmk ParamsKeeperI,
 ) *VMKeeper {
 	vmk := &VMKeeper{
-		baseKey: baseKey,
-		iavlKey: iavlKey,
-		acck:    acck,
-		bank:    bank,
-		prmk:    prmk,
+		baseKey:        baseKey,
+		iavlKey:        iavlKey,
+		acck:           acck,
+		bank:           bank,
+		prmk:           prmk,
+		typeCheckCache: gno.TypeCheckCache{},
+		testStdlibCache: testStdlibCache{
+			rootDir: gnoenv.RootDir(),
+			cache:   map[string]*std.MemPackage{},
+		},
 	}
 
 	return vmk
@@ -139,6 +154,9 @@ type stdlibCache struct {
 var (
 	cachedStdlibOnce sync.Once
 	cachedStdlib     stdlibCache
+	// XXX: this is shared across different goroutines, in txtar tests.
+	// need to find a better way, or put a lock.
+	sharedTypeCheckCache gno.TypeCheckCache
 )
 
 // LoadStdlib loads the Gno standard library into the given store.
@@ -146,24 +164,27 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 	cachedStdlibOnce.Do(func() {
 		cachedStdlib = stdlibCache{
 			dir:  stdlibDir,
-			base: dbadapter.StoreConstructor(memdb.NewMemDB(), types.StoreOptions{}),
-			iavl: dbadapter.StoreConstructor(memdb.NewMemDB(), types.StoreOptions{}),
+			base: dbadapter.StoreConstructor(memdb.NewMemDB(), stypes.StoreOptions{}),
+			iavl: dbadapter.StoreConstructor(memdb.NewMemDB(), stypes.StoreOptions{}),
 		}
 
 		gs := gno.NewStore(nil, cachedStdlib.base, cachedStdlib.iavl)
 		gs.SetNativeResolver(stdlibs.NativeResolver)
 		loadStdlib(gs, stdlibDir)
 		cachedStdlib.gno = gs
+		sharedTypeCheckCache = make(gno.TypeCheckCache)
 	})
 
 	if stdlibDir != cachedStdlib.dir {
 		panic(fmt.Sprintf(
 			"cannot load cached stdlib: cached stdlib is in dir %q; wanted to load stdlib in dir %q",
-			cachedStdlib.dir, stdlibDir))
+			cachedStdlib.dir, stdlibDir,
+		))
 	}
 
 	gs := vm.getGnoTransactionStore(ctx)
 	gno.CopyFromCachedStore(gs, cachedStdlib.gno, cachedStdlib.base, cachedStdlib.iavl)
+	vm.typeCheckCache = sharedTypeCheckCache
 }
 
 // LoadStdlib loads the Gno standard library into the given store.
@@ -175,14 +196,6 @@ func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
 func loadStdlib(store gno.Store, stdlibDir string) {
 	stdlibInitList := stdlibs.InitOrder()
 	for _, lib := range stdlibInitList {
-		parts := strings.Split(lib, "/")
-		if len(parts) > 0 && parts[0] == "testing" {
-			// XXX: testing and sub testing packages are skipped for
-			// now while it uses testing-only packages
-			// like fmt and encoding/json
-			continue
-		}
-
 		loadStdlibPackage(lib, stdlibDir, store)
 	}
 }
@@ -193,7 +206,7 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 		// does not exist.
 		panic(fmt.Errorf("failed loading stdlib %q: does not exist", pkgPath))
 	}
-	memPkg, err := gno.ReadMemPackage(stdlibPath, pkgPath)
+	memPkg, err := gno.ReadMemPackage(stdlibPath, pkgPath, gno.MPStdlibAll)
 	if err != nil {
 		// no gno files are present
 		panic(fmt.Errorf("failed loading stdlib %q: %w", pkgPath, err))
@@ -201,17 +214,75 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		// XXX: gno.land, vm.domain, other?
-		PkgPath: "gno.land/r/stdlibs/" + pkgPath,
-		// PkgPath: pkgPath, XXX why?
-		Store: store,
+		PkgPath:     pkgPath,
+		Store:       store,
+		SkipPackage: true,
 	})
 	defer m.Release()
 	m.RunMemPackage(memPkg, true)
 }
 
-type gnoStoreContextKeyType struct{}
+type testStdlibCache struct {
+	rootDir  string
+	cache    map[string]*std.MemPackage // nil = no test package, use source; otherwise result from test stdlib
+	cacheMtx sync.RWMutex
+}
 
-var gnoStoreContextKey gnoStoreContextKeyType
+type testStdlibGetter struct {
+	*testStdlibCache
+	source gno.MemPackageGetter
+}
+
+func (tsc *testStdlibCache) memPackageGetter(source gno.Store) gno.MemPackageGetter {
+	return testStdlibGetter{testStdlibCache: tsc, source: source}
+}
+
+func (tsg testStdlibGetter) GetMemPackage(pkgPath string) *std.MemPackage {
+	// Only stdlibs have alternative versions.
+	if !gno.IsStdlib(pkgPath) {
+		return tsg.source.GetMemPackage(pkgPath)
+	}
+
+	tsg.cacheMtx.RLock()
+	res, ok := tsg.cache[pkgPath]
+	tsg.cacheMtx.RUnlock()
+	// fast path: if cache was hit, return the mempackage from tsg.source (if
+	// nil) or
+	if ok {
+		if res == nil {
+			return tsg.source.GetMemPackage(pkgPath)
+		}
+		return res
+	}
+
+	// Cache miss: load package, and join it with the base package if necessary.
+	sourceMpkg := tsg.source.GetMemPackage(pkgPath)
+	// load from directory. NOTE: pkgPath is validated by `!gno.IsStdlib`,
+	// hence it cannot contain path traversals like `../`.
+	dir := filepath.Join(tsg.rootDir, "gnovm", "tests", "stdlibs", pkgPath)
+	testMpkg, err := gno.ReadMemPackage(dir, pkgPath, gno.MPStdlibTest)
+	if err != nil {
+		tsg.cacheMtx.Lock()
+		tsg.cache[pkgPath] = nil
+		tsg.cacheMtx.Unlock()
+		return sourceMpkg
+	}
+	if sourceMpkg != nil {
+		testMpkg.Files = slices.Concat(sourceMpkg.Files, testMpkg.Files)
+	}
+
+	tsg.cacheMtx.Lock()
+	tsg.cache[pkgPath] = testMpkg
+	tsg.cacheMtx.Unlock()
+	return testMpkg
+}
+
+type vmkContextKey int
+
+const (
+	vmkContextKeyStore vmkContextKey = iota
+	vmkContextKeyTypeCheckCache
+)
 
 func (vm *VMKeeper) newGnoTransactionStore(ctx sdk.Context) gno.TransactionStore {
 	base := ctx.Store(vm.baseKey)
@@ -222,15 +293,32 @@ func (vm *VMKeeper) newGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 }
 
 func (vm *VMKeeper) MakeGnoTransactionStore(ctx sdk.Context) sdk.Context {
-	return ctx.WithValue(gnoStoreContextKey, vm.newGnoTransactionStore(ctx))
+	return ctx.
+		WithValue(vmkContextKeyTypeCheckCache, maps.Clone(vm.typeCheckCache)).
+		WithValue(vmkContextKeyStore, vm.newGnoTransactionStore(ctx))
 }
 
 func (vm *VMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
+	tcc := vm.getTypeCheckCache(ctx)
+	for k, v := range tcc {
+		if vm.typeCheckCache[k] != nil {
+			continue
+		}
+		// only add stdlibs to the type check cache.
+		rawK, _, _ := strings.Cut(k, ":")
+		if gno.IsStdlib(rawK) {
+			vm.typeCheckCache[k] = v
+		}
+	}
 	vm.getGnoTransactionStore(ctx).Write()
 }
 
+func (vm *VMKeeper) getTypeCheckCache(ctx sdk.Context) gno.TypeCheckCache {
+	return ctx.Value(vmkContextKeyTypeCheckCache).(gno.TypeCheckCache)
+}
+
 func (vm *VMKeeper) getGnoTransactionStore(ctx sdk.Context) gno.TransactionStore {
-	txStore := ctx.Value(gnoStoreContextKey).(gno.TransactionStore)
+	txStore := ctx.Value(vmkContextKeyStore).(gno.TransactionStore)
 	txStore.ClearObjectCache()
 	return txStore
 }
@@ -330,9 +418,12 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	creator := msg.Creator
 	pkgPath := msg.Package.Path
 	memPkg := msg.Package
-	deposit := msg.Deposit
+	send := msg.Send
+	maxDeposit := msg.MaxDeposit
 	gnostore := vm.getGnoTransactionStore(ctx)
 	chainDomain := vm.getChainDomainParam(ctx)
+
+	memPkg.Type = gno.MPUserAll
 
 	// Validate arguments.
 	if creator.IsZero() {
@@ -342,9 +433,10 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if creatorAcc == nil {
 		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist, it must receive coins to be created", creator))
 	}
-	if err := gno.ValidateMemPackage(msg.Package); err != nil {
+	if err := gno.ValidateMemPackageAny(msg.Package); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
+
 	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)
 	}
@@ -357,15 +449,48 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if strings.HasSuffix(pkgPath, "_test") || strings.HasSuffix(pkgPath, "_filetest") {
 		return ErrInvalidPkgPath("package path must not end with _test or _filetest")
 	}
-	if gno.ReGnoRunPath.MatchString(pkgPath) {
+	if _, ok := gno.IsGnoRunPath(pkgPath); ok {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
 
+	opts := gno.TypeCheckOptions{
+		Getter:     gnostore,
+		TestGetter: vm.testStdlibCache.memPackageGetter(gnostore),
+		Mode:       gno.TCLatestStrict,
+		Cache:      vm.getTypeCheckCache(ctx),
+	}
+	if ctx.BlockHeight() == 0 {
+		opts.Mode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
+	}
 	// Validate Gno syntax and type check.
-	_, _, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction)
+	_, err = gno.TypeCheckMemPackage(memPkg, opts)
 	if err != nil {
 		return ErrTypeCheck(err)
 	}
+
+	// Extra keeper-only checks.
+	gm, err := gnomod.ParseMemPackage(memPkg)
+	if err != nil {
+		return ErrInvalidPackage(err.Error())
+	}
+	// no development packages.
+	if gm.HasReplaces() {
+		return ErrInvalidPackage("development packages are not allowed")
+	}
+	if gm.Draft && ctx.BlockHeight() > 0 {
+		return ErrInvalidPackage("draft packages can only be deployed at genesis time")
+	}
+	// no (deprecated) gno.mod file.
+	if memPkg.GetFile("gno.mod") != nil {
+		return ErrInvalidPackage("gno.mod file is deprecated and not allowed, run 'gno mod tidy' to upgrade to gnomod.toml")
+	}
+
+	// Patch gnomod.toml metadata
+	gm.Module = pkgPath // XXX: if gm.Module != msg.Package.Path { panic() }?
+	gm.AddPkg.Creator = creator.String()
+	gm.AddPkg.Height = int(ctx.BlockHeight())
+	// Re-encode gnomod.toml in memPkg
+	memPkg.SetFile("gnomod.toml", gm.WriteString())
 
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
@@ -377,7 +502,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return err
 	}
 
-	err = vm.bank.SendCoins(ctx, creator, pkgAddr, deposit)
+	err = vm.bank.SendCoins(ctx, creator, pkgAddr, send)
 	if err != nil {
 		return err
 	}
@@ -389,7 +514,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		Height:          ctx.BlockHeight(),
 		Timestamp:       ctx.BlockTime().Unix(),
 		OriginCaller:    creator.Bech32(),
-		OriginSend:      deposit,
+		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm.prmk, ctx),
@@ -407,8 +532,15 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		})
 	defer m2.Release()
 	defer doRecover(m2, &err)
+	params := vm.GetParams(ctx)
 	m2.RunMemPackage(memPkg, true)
 
+	// use the parameters before executing the message, as they may change during execution.
+	// The message should not fail due to parameter changes in the same transaction.
+	err = vm.processStorageDeposit(ctx, creator, maxDeposit, gnostore, params)
+	if err != nil {
+		return err
+	}
 	// Log the telemetry
 	logTelemetry(
 		m2.GasMeter.GasConsumed(),
@@ -424,6 +556,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 
 // Call calls a public Gno function (for delivertx).
 func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
+	params := vm.GetParams(ctx)
 	pkgPath := msg.PkgPath // to import
 	fnc := msg.Func
 	gnostore := vm.getGnoTransactionStore(ctx)
@@ -444,7 +577,12 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		}
 		argslist += fmt.Sprintf("arg%d", i)
 	}
-	expr := fmt.Sprintf(`cross(pkg.%s)(%s)`, fnc, argslist)
+	var expr string
+	if argslist == "" {
+		expr = fmt.Sprintf(`pkg.%s(cross)`, fnc)
+	} else {
+		expr = fmt.Sprintf(`pkg.%s(cross,%s)`, fnc, argslist)
+	}
 	xn := gno.MustParseExpr(expr)
 	// Send send-coins to pkg from caller.
 	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
@@ -459,13 +597,13 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	if cx.Varg {
 		panic("variadic calls not yet supported")
 	}
-	if len(msg.Args) != len(ft.Params) {
-		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), len(msg.Args)))
+	if nargs := len(msg.Args) + 1; nargs != len(ft.Params) { // NOTE: nargs = `cur` + user's len(args)
+		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), nargs))
 	}
 	for i, arg := range msg.Args {
-		argType := ft.Params[i].Type
+		argType := ft.Params[i+1].Type
 		atv := convertArgToGno(arg, argType)
-		cx.Args[i] = &gno.ConstExpr{
+		cx.Args[i+1] = &gno.ConstExpr{
 			TypedValue: atv,
 		}
 	}
@@ -506,6 +644,12 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		}
 	}
 
+	// Use parameters before executing the message, as they may change during execution.
+	// Parameter changes take effect only after the message has executed successfully.
+	err = vm.processStorageDeposit(ctx, caller, msg.MaxDeposit, gnostore, params)
+	if err != nil {
+		return "", err
+	}
 	// Log the telemetry
 	logTelemetry(
 		m.GasMeter.GasConsumed(),
@@ -542,7 +686,7 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 		return
 	}
 	if err, ok := r.(error); ok {
-		var oog types.OutOfGasError
+		var oog stypes.OutOfGasError
 		if goerrors.As(err, &oog) {
 			if repanicOutOfGas {
 				panic(oog)
@@ -576,23 +720,31 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	send := msg.Send
 	memPkg := msg.Package
 	chainDomain := vm.getChainDomainParam(ctx)
+	params := vm.GetParams(ctx)
+
+	memPkg.Type = gno.MPUserProd
 
 	// coerce path to right one.
 	// the path in the message must be "" or the following path.
 	// this is already checked in MsgRun.ValidateBasic
-	memPkg.Path = chainDomain + "/r/" + msg.Caller.String() + "/run"
+	memPkg.Path = chainDomain + "/e/" + msg.Caller.String() + "/run"
 
 	// Validate arguments.
 	callerAcc := vm.acck.GetAccount(ctx, caller)
 	if callerAcc == nil {
 		return "", std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist, it must receive coins to be created", caller))
 	}
-	if err := gno.ValidateMemPackage(msg.Package); err != nil {
+	if err := gno.ValidateMemPackage(memPkg); err != nil {
 		return "", ErrInvalidPkgPath(err.Error())
 	}
 
 	// Validate Gno syntax and type check.
-	_, _, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction)
+	_, err = gno.TypeCheckMemPackage(memPkg, gno.TypeCheckOptions{
+		Getter:     gnostore,
+		TestGetter: vm.testStdlibCache.memPackageGetter(gnostore),
+		Mode:       gno.TCLatestRelaxed,
+		Cache:      vm.getTypeCheckCache(ctx),
+	})
 	if err != nil {
 		return "", ErrTypeCheck(err)
 	}
@@ -660,7 +812,12 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	defer doRecover(m2, &err)
 	m2.RunMain()
 	res = buf.String()
-
+	// Use parameters before executing the message, as they may change during execution.
+	// Parameter changes take effect only after the message has executed successfully.
+	err = vm.processStorageDeposit(ctx, caller, msg.MaxDeposit, gnostore, params)
+	if err != nil {
+		return "", err
+	}
 	// Log the telemetry
 	logTelemetry(
 		m2.GasMeter.GasConsumed(),
@@ -889,13 +1046,15 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 	if filename != "" {
 		memFile := store.GetMemFile(dirpath, filename)
 		if memFile == nil {
-			return "", fmt.Errorf("file %q is not available", filepath) // TODO: XSS protection
+			// TODO: XSS protection
+			return "", errors.Wrapf(&InvalidFileError{}, "file %q is not available", filepath)
 		}
 		return memFile.Body, nil
 	} else {
 		memPkg := store.GetMemPackage(dirpath)
 		if memPkg == nil {
-			return "", fmt.Errorf("package %q is not available", dirpath) // TODO: XSS protection
+			// TODO: XSS protection
+			return "", errors.Wrapf(&InvalidPackageError{}, "package %q is not available", dirpath)
 		}
 		for i, memfile := range memPkg.Files {
 			if i > 0 {
@@ -920,7 +1079,148 @@ func (vm *VMKeeper) QueryDoc(ctx sdk.Context, pkgPath string) (*doc.JSONDocument
 	if err != nil {
 		return nil, err
 	}
-	return d.WriteJSONDocumentation()
+	return d.WriteJSONDocumentation(nil)
+}
+
+// QueryStorage returns storage and deposit for a realm.
+func (vm *VMKeeper) QueryStorage(ctx sdk.Context, pkgPath string) (string, error) {
+	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+	rlm := store.GetPackageRealm(pkgPath)
+	if rlm == nil {
+		err := ErrInvalidPkgPath(fmt.Sprintf(
+			"realm not found: %s", pkgPath))
+		return "", err
+	}
+	res := fmt.Sprintf("storage: %d, deposit: %d", rlm.Storage, rlm.Deposit)
+
+	return res, nil
+}
+
+// processStorageDeposit processes storage deposit adjustments for package realms based on
+// storage size changes tracked within the gnoStore.
+//
+// For each realm, it:
+// - Charges the caller a deposit proportional to newly used storage (positive size difference).
+// - Returns the deposit to the caller for released storage (negative size difference).
+//
+// Returns an aggregated error if any realm processing fails due to insufficient deposit,
+// transfer errors.
+
+func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address, deposit std.Coins, gnostore gno.Store, params Params) error {
+	realmDiffs := gnostore.RealmStorageDiffs()
+	depositAmt := deposit.AmountOf(ugnot.Denom)
+	if depositAmt == 0 {
+		depositAmt = std.MustParseCoin(params.DefaultDeposit).Amount
+	}
+	price := std.MustParseCoin(params.StoragePrice)
+
+	// Sort paths for determinism
+	sortedRealm := make([]string, 0, len(realmDiffs))
+	for path := range realmDiffs {
+		sortedRealm = append(sortedRealm, path)
+	}
+	slices.SortFunc(sortedRealm, strings.Compare)
+
+	var allErrs error
+	for _, rlmPath := range sortedRealm {
+		diff := realmDiffs[rlmPath]
+		if diff == 0 {
+			continue
+		}
+		rlm := gnostore.GetPackageRealm(rlmPath)
+		if diff > 0 {
+			// lock deposit for the additional storage used.
+			requiredDeposit := overflow.Mulp(diff, price.Amount)
+			if depositAmt < requiredDeposit {
+				allErrs = goerrors.Join(allErrs, fmt.Errorf(
+					"not enough deposit to cover the storage usage: requires %d%s for %d bytes",
+					requiredDeposit, ugnot.Denom, diff))
+				continue
+			}
+			err := vm.lockStorageDeposit(ctx, caller, rlm, requiredDeposit, diff)
+			if err != nil {
+				allErrs = goerrors.Join(allErrs, fmt.Errorf(
+					"lockStorageDeposit failed for realm %s: %w",
+					rlmPath, err))
+				continue
+			}
+			depositAmt -= requiredDeposit
+			// Emit event for storage deposit lock
+			d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}}
+			evt := gnostd.GnoEvent{
+				Type: "StorageDeposit",
+				Attributes: []gnostd.GnoEventAttribute{
+					{Key: "Deposit", Value: d.String()},
+					{Key: "Storage", Value: fmt.Sprintf("%d bytes", diff)},
+				},
+				PkgPath: rlmPath,
+			}
+			ctx.EventLogger().EmitEvent(evt)
+		} else {
+			// release storage used and return deposit
+			released := -diff
+			if rlm.Storage < uint64(released) {
+				panic(fmt.Sprintf(
+					"not enough storage to be released for realm %s, realm storage %d bytes; requested release: %d bytes",
+					rlmPath, rlm.Storage, released))
+			}
+			depositUnlocked := overflow.Mulp(released, price.Amount)
+			if rlm.Deposit < uint64(depositUnlocked) {
+				panic(fmt.Sprintf(
+					"not enough deposit to be unlocked for realm %s, realm deposit %d%s; required to unlock: %d%s",
+					rlmPath, rlm.Deposit, ugnot.Denom, depositUnlocked, ugnot.Denom))
+			}
+
+			err := vm.refundStorageDeposit(ctx, caller, rlm, depositUnlocked, released)
+			if err != nil {
+				return err
+			}
+			// Emit event for deposit return
+			d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}}
+			evt := gnostd.GnoEvent{
+				Type: "UnlockDeposit",
+				Attributes: []gnostd.GnoEventAttribute{
+					{Key: "Deposit", Value: d.String()},
+					{Key: "ReleaseStorage", Value: fmt.Sprintf("%d bytes", released)},
+				},
+				PkgPath: rlmPath,
+			}
+			ctx.EventLogger().EmitEvent(evt)
+		}
+		gnostore.SetPackageRealm(rlm)
+	}
+	if allErrs != nil {
+		return fmt.Errorf("storage deposit processing encountered one or more errors: %w", allErrs)
+	}
+	return nil
+}
+
+func (vm *VMKeeper) lockStorageDeposit(ctx sdk.Context, caller crypto.Address, rlm *gno.Realm, requiredDeposit int64, diff int64) error {
+	storageDepositAddr := gno.DeriveStorageDepositCryptoAddr(rlm.Path)
+
+	d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}}
+	err := vm.bank.SendCoinsUnrestricted(ctx, caller, storageDepositAddr, d)
+	if err != nil {
+		return fmt.Errorf("unable to transfer deposit %s, %w", rlm.Path, err)
+	}
+
+	rlm.Deposit = overflow.Addp(rlm.Deposit, uint64(requiredDeposit))
+
+	rlm.Storage = overflow.Addp(rlm.Storage, uint64(diff))
+	return nil
+}
+
+func (vm *VMKeeper) refundStorageDeposit(ctx sdk.Context, caller crypto.Address, rlm *gno.Realm, depositUnlocked int64, released int64) error {
+	storageDepositAddr := gno.DeriveStorageDepositCryptoAddr(rlm.Path)
+	d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}}
+	err := vm.bank.SendCoinsUnrestricted(ctx, storageDepositAddr, caller, d)
+	if err != nil {
+		return fmt.Errorf("unable to return deposit %s, %w", rlm.Path, err)
+	}
+	rlm.Deposit = overflow.Subp(rlm.Deposit, uint64(depositUnlocked))
+	rlm.Storage = overflow.Subp(rlm.Storage, uint64(released))
+
+	return nil
 }
 
 // logTelemetry logs the VM processing telemetry

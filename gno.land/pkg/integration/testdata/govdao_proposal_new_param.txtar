@@ -17,7 +17,7 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
 stdout OK!
 
-# call gov/dao render to check everything the proposal was created
+# call gov/dao render to check the proposal was created
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
 stdout 'This proposal wants to add a new key to sys/params: vm:bar:baz'
 
@@ -42,7 +42,7 @@ import (
 
 func main() {
 	preq := params.NewSysParamStringPropRequest("vm", "bar", "baz", "qux")
-	cross(dao.MustCreateProposal)(preq)
+	dao.MustCreateProposal(cross, preq)
 }
 
 -- loader/load_govdao.gno --
@@ -63,7 +63,7 @@ func init() {
 
 	memberstore.Get().SetMember(memberstore.T1, std.Address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3}) // member address
 
-	cross(dao.UpdateImpl)(dao.UpdateRequest{
+	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO:         impl.GetInstance(),
 		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
 	})

@@ -19,7 +19,7 @@ type propDef struct{}
 
 func (propDef) Title() string                                                 { return "" }
 func (propDef) Body() string                                                  { return "" }
-func (propDef) VotingPeriod() time.Duration                                   { return 0 }
+func (propDef) VotingPeriod() time.Duration                                   { return time.Hour }
 func (propDef) Validate() error                                               { return nil }
 func (propDef) Tally(pdao.ReadonlyVotingRecord, pdao.MemberSet) (bool, error) { return false, nil }
 func (propDef) Execute() error                                                { return nil }
@@ -32,11 +32,11 @@ var (
 func init() {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
-	cross(commondao.Invite)(user)
+	commondao.Invite(cross, user)
 
-	// Create a new DAO which gives ownership to `commondao_test`
+	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
 	dao := commondao.New("Foo")
 	daoID = dao.ID()
 
@@ -50,7 +50,7 @@ func init() {
 func main() {
 	testing.SetRealm(std.NewUserRealm(user))
 
-	cross(commondao.Vote)(daoID, proposal.ID(), "invalid", "")
+	commondao.Vote(cross, daoID, proposal.ID(), "invalid", "")
 }
 
 // Error:

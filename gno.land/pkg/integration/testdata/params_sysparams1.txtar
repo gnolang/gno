@@ -29,6 +29,9 @@ stdout 'data: "65536"\n'
 gnokey query params/auth:p:tx_sig_limit
 stdout 'data: "7"\n'
 
+-- params/gnomod.toml --
+module = "gno.land/r/sys/params"
+gno = "0.9"
 -- params/setter.gno --
 package params
 
@@ -37,7 +40,6 @@ import (
 )
 
 // This should succeed if it is called from gno.land/r/sys/params
-func SetLockTransfer(denom string) {
-	crossing()
+func SetLockTransfer(cur realm, denom string) {
 	params.SetSysParamStrings("bank","p", "restricted_denoms", []string{denom})
 }

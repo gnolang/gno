@@ -18,8 +18,7 @@ var (
 
 // AddBackupOwner adds a backup owner to the Owner Group.
 // A backup owner can claim ownership of the contract.
-func AddBackupOwner(addr std.Address) {
-	crossing()
+func AddBackupOwner(cur realm, addr std.Address) {
 	if err := adminGroup.AddBackupOwner(addr); err != nil {
 		panic(err)
 	}
@@ -27,8 +26,7 @@ func AddBackupOwner(addr std.Address) {
 
 // RemoveBackupOwner removes a backup owner from the Owner Group.
 // The primary owner cannot be removed.
-func RemoveBackupOwner(addr std.Address) {
-	crossing()
+func RemoveBackupOwner(cur realm, addr std.Address) {
 	if err := adminGroup.RemoveBackupOwner(addr); err != nil {
 		panic(err)
 	}
@@ -36,16 +34,14 @@ func RemoveBackupOwner(addr std.Address) {
 
 // ClaimOwnership allows an authorized user in the ownerGroup
 // to claim ownership of the contract.
-func ClaimOwnership() {
-	crossing()
+func ClaimOwnership(cur realm) {
 	if err := adminGroup.ClaimOwnership(); err != nil {
 		panic(err)
 	}
 }
 
 // AddAdmin adds an admin to the Admin Group.
-func AddAdmin(addr std.Address) {
-	crossing()
+func AddAdmin(cur realm, addr std.Address) {
 	if err := adminGroup.AddMember(addr); err != nil {
 		panic(err)
 	}
@@ -53,8 +49,7 @@ func AddAdmin(addr std.Address) {
 
 // RemoveAdmin removes an admin from the Admin Group.
 // The primary owner cannot be removed.
-func RemoveAdmin(addr std.Address) {
-	crossing()
+func RemoveAdmin(cur realm, addr std.Address) {
 	if err := adminGroup.RemoveMember(addr); err != nil {
 		panic(err)
 	}

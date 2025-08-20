@@ -83,9 +83,7 @@ package hello
 
 var name = "Ringo"
 
-func SetName(newName string) {
-	crossing()
-
+func SetName(cur realm, newName string) {
 	name = newName
 }
 
