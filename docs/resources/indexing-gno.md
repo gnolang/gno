@@ -19,11 +19,13 @@ This creates a "database view" of the blockchain while preserving its decentrali
 
 ## [`tx-indexer`](https://github.com/gnolang/tx-indexer): The official [TM2](https://github.com/tendermint/tendermint2) Indexer
 
-`tx-indexer` is the reference implementation for Tendermint2 chains like Gno.land, providing:
+`tx-indexer` is the reference indexer implementation for Tendermint2 chains like Gno.land, providing:
 - **Dual-protocol API**: JSON-RPC 2.0 + GraphQL
 - **Transport Support**: HTTP + WebSocket
 - **High Performance**: Concurrent block processing pipeline
 - **Embedded Storage**: PebbleDB engine
+
+It facilitate efficient data retrieval and management in Tendermint2 networks.
 
 ## Examples
 For example of queries, refers to the [tx-indexer](https://github.com/gnolang/tx-indexer?tab=readme-ov-file#examples) documentation.
@@ -34,6 +36,7 @@ Follow official [installation guide](https://github.com/gnolang/tx-indexer?tab=r
 ### Use case: `send` transactions dashboard 
 
 To demonstrate `tx-indexer` implementation workflow, we'll create a **real-time dashboard** that tracks GNOT transfers through the `send` transactions and identifies the biggest movers on the network.
+We'll work during this implementation in local environment, but the same concepts apply when working over a network environment.
 
 In order, we will:
 1. [Get the indexer running](#step-1-getting-started---launch-your-own-indexer)
@@ -62,12 +65,16 @@ make build
 
 3. **Start indexing** 
 ```bash
+# For local development
+./build/tx-indexer start --remote http://127.0.0.1:26657 --db-path indexer-db
+
+# For testnets development
 ./build/tx-indexer start --remote https://rpc.test7.testnets.gno.land --db-path indexer-db
 ```
 
 Or if you prefer running directly with Go:
 ```bash
-go run cmd/main.go cmd/start.go cmd/waiter.go start --remote https://rpc.test7.testnets.gno.land --db-path indexer-db
+go run cmd/main.go cmd/start.go cmd/waiter.go start --remote http://127.0.0.1:26657 --db-path indexer-db
 ```
 
 **What's happening here?**
@@ -77,6 +84,8 @@ go run cmd/main.go cmd/start.go cmd/waiter.go start --remote https://rpc.test7.t
 
 **Your endpoints will be:**
 - GraphQL playground: `http://localhost:8546/graphql` 
+- GraphQL query: `http://localhost:8546/graphql/query`
+- GraphQL websocket: `ws://localhost:8546/graphql/query`
 - WebSocket: `ws://localhost:8546/ws`
 - JSON-RPC: `http://localhost:8546`
 
@@ -162,7 +171,7 @@ The indexer will return a JSON response that looks like this:
 }
 ```
 
-It is also possible to only query transaction initiated from a specific address:
+It is also possible to only query transaction initiated from a specific address, where `$address` is a variable:
 
 ```graphql
 # Add a variable to GetSendTransactions
@@ -334,8 +343,6 @@ func main() {
 **Try it out:**
 Copy the JSON response from your GraphQL query into the `jsonData` variable and run this code. 
 
-**Tip:** In a real application, you'd probably store this data in a database instead of just displaying it. But this gives you the foundation to work with transaction data in Go.
-
 #### Step 4: Real-time monitoring with WebSockets
 
 Instead of just querying historical data, we'll set up real-time monitoring to catch new transactions as they happen on the blockchain. We're building a live feed that alerts us whenever someone sends GNOT on the network. It can enhance our application by adding live notification for example.
@@ -386,7 +393,12 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// Import the previously created function
 func parseTransactions(jsonData []byte) []Transaction {
+	...
+}
+
+func displayTransactions(transactions []Transaction) {
 	...
 }
 
@@ -475,8 +487,7 @@ func main() {
 			data := response["payload"]
 			dataBytes, _ := json.Marshal(data)
 			parsedData := parseTransactions(dataBytes)
-			fmt.Println(parsedData)
-			
+			displayTransactions(parsedData) // Show formatted transaction details
 		case "error":
 			// GraphQL query/subscription error
 			fmt.Printf("❌ GraphQL error: %+v\n", response["payload"])
@@ -754,3 +765,7 @@ func main() {
 
 Your transaction data is now persistent and ready for productions!
 
+### Resources for Continued Learning
+
+- **[tx-indexer Documentation](https://github.com/gnolang/tx-indexer)** - Official reference and advanced configuration
+- **[GraphQL Best Practices](https://graphql.org/learn/best-practices/)** - Advanced querying techniques and optimization
