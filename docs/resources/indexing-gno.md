@@ -530,7 +530,7 @@ Your WebSocket listener is now detecting send transactions in real-time!
 
 #### Step 5: API Implementation Example
 
-Let's create a simple JSON API that serves transaction data. This is great for building mobile apps, frontends, or integrating with other services! 🚀
+Let's create a simple JSON API that serves transaction data. This is great for building applications, frontends, or integrating with other services.
 
 **What we're building:**
 A lightweight REST API that returns transaction statistics as JSON. 
@@ -716,10 +716,10 @@ func getTransactionStats(db *sql.DB) {
 	var maxAmount float64
 	db.QueryRow("SELECT MAX(amount) FROM transactions").Scan(&maxAmount)
 	
-	fmt.Printf("📊 Database Statistics:\n")
-	fmt.Printf("   Total transactions: %d\n", count)
-	fmt.Printf("   Total volume: %.2f uGNOT\n", totalVolume)
-	fmt.Printf("   Largest transaction: %.2f uGNOT\n", maxAmount)
+	fmt.Printf("Database Statistics:\n")
+	fmt.Printf("Total transactions: %d\n", count)
+	fmt.Printf("Total volume: %.2f uGNOT\n", totalVolume)
+	fmt.Printf("Largest transaction: %.2f uGNOT\n", maxAmount)
 }
 
 func main() {
