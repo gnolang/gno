@@ -25,6 +25,12 @@ This creates a "database view" of the blockchain while preserving its decentrali
 - **High Performance**: Concurrent block processing pipeline
 - **Embedded Storage**: PebbleDB engine
 
+## Examples
+For example of queries, refers to the [tx-indexer](https://github.com/gnolang/tx-indexer?tab=readme-ov-file#examples) documentation.
+
+## Installation
+Follow official [installation guide](https://github.com/gnolang/tx-indexer?tab=readme-ov-file#getting-started) on `tx-indexer` repository.
+
 ### Use case: `send` transactions dashboard 
 
 To demonstrate `tx-indexer` implementation workflow, we'll create a **real-time dashboard** that tracks GNOT transfers through the `send` transactions and identifies the biggest movers on the network.
@@ -212,47 +218,69 @@ import (
 )
 
 // Simplified transaction data structure
+// This struct represents a cleaned-up version of the raw GraphQL data
 type Transaction struct {
-	Hash   		string  // Transaction ID
-	BlockHeight float64	// Block number 
-	Amount 		float64 // Amount in ugnot
-	From   		string  // Sender address
-	To     		string  // Receiver address
+	Hash   		string  // Transaction ID - unique identifier for each transaction
+	BlockHeight float64	// Block number - tells us when this transaction happened
+	Amount 		float64 // Amount in ugnot (1 GNOT = 1,000,000 ugnot)
+	From   		string  // Sender address - who initiated the transaction
+	To     		string  // Receiver address - who received the funds
 }
 
 // Step 1 - Parse JSON from GraphQL into our Transaction structs
+// This function takes raw JSON from the indexer and converts it to Go structs
 func parseTransactions(jsonData []byte) []Transaction {
 	var data map[string]interface{}
 	json.Unmarshal(jsonData, &data)
 	
 	// Navigate through the JSON structure
-	// {"data": { "getTransactions": [...]}}
-	// Returns list of transactions (txs)
-	txs := data["data"].(map[string]interface{})["getTransactions"].([]interface{})
+	// GraphQL returns: {"data": { "getTransactions": [...]}}
+	// We need to drill down to get the actual transaction array
+	txs := data["data"].(map[string]interface{})["getTransactions"]
 	var transactions []Transaction
 	
-	for _, tx := range txs {
+	// Handle both single transaction and array of transactions
+	// The indexer might return either format depending on the query
+	var txList []interface{}
+	switch v := txs.(type) {
+	case []interface{}:
+		// Multiple transactions - this is the typical case
+		txList = v
+	case map[string]interface{}:
+		// Single transaction - wrap it in an array for consistent processing
+		txList = []interface{}{v}
+	default:
+		// Unexpected format - return empty slice to avoid crashes
+		return transactions
+	}
+		
+	// Process each transaction in the response
+	for _, tx := range txList {
 		txMap := tx.(map[string]interface{})
+		
+		// Extract basic transaction info
 		hash := txMap["hash"].(string)
+		blockHeight := txMap["block_height"].(float64) // Comes as number from GraphQL
 		
-		// block_height comes as a number, not string
-		blockHeight := txMap["block_height"].(float64)
-		
-		// Each transaction has messages - we want the first one
-		msg := txMap["messages"].([]interface{})[0]
+		// Navigate to the message data (transaction details)
+		// Each transaction has "messages" array containing the actual operations
+		msg := txMap["messages"].([]interface{})[0] // We want the first message
 		msgMap := msg.(map[string]interface{})["value"].(map[string]interface{})
 		
-		// Extract informations
-		amount := msgMap["amount"].(string)
-		from := msgMap["from_address"].(string)
-		to := msgMap["to_address"].(string)
+		// Extract the send transaction details
+		amount := msgMap["amount"].(string)        // e.g., "10000000ugnot"
+		from := msgMap["from_address"].(string)    // Sender's Gno address
+		to := msgMap["to_address"].(string)        // Receiver's Gno address
 		
-		amountStr := amount[:len(amount)-5] // Remove "ugnot" suffix
+		// Convert amount from string to number
+		// Remove "ugnot" suffix and parse as float
+		amountStr := amount[:len(amount)-5] // Remove last 5 chars ("ugnot")
 		amountInt, _ := strconv.ParseFloat(amountStr, 64)
 
+		// Create our clean Transaction struct
 		transactions = append(transactions, Transaction{
 			Hash:   	 hash,
-			Amount:      amountInt,
+			Amount:      amountInt,      // Raw ugnot amount
 			From:        from,
 			To:          to,
 			BlockHeight: blockHeight,
@@ -262,6 +290,7 @@ func parseTransactions(jsonData []byte) []Transaction {
 }
 
 // Step 2 - Sort transactions by amount (biggest first)
+// This helps us identify the largest transfers on the network
 func sortTransactions(transactions []Transaction) []Transaction {
 	sort.Slice(transactions, func(i, j int) bool {
 		return transactions[i].Amount > transactions[j].Amount
@@ -270,23 +299,35 @@ func sortTransactions(transactions []Transaction) []Transaction {
 }
 
 // Step 3 - Show the transactions in a nice format
+// Convert raw data into human-readable output
 func displayTransactions(transactions []Transaction) {
 	fmt.Println("🏆 Top GNOT Transactions:")
+	
 	for i, tx := range transactions {
-		if i >= 5 { break } // Show top 5
+		if i >= 5 { break } // Limit to top 5
+		
+		// Convert ugnot to GNOT for display (divide by 1,000,000)
+		gnotAmount := tx.Amount / 1000000
+		
 		fmt.Printf("%d. %.2f GNOT from %s to %s\n", 
-			i+1, tx.Amount, tx.From[:10]+"...", tx.To[:10]+"...")
+			i+1, gnotAmount, tx.From, tx.To)
 	}
 }
 
 func main() {
 	// This would be your actual JSON from the GraphQL query
+	// In a real app, you'd get this from an HTTP request to the indexer
 	jsonData := `{ "data": { "getTransactions": [...] } }`
 	
 	// Process the data in 3 simple steps:
-	transactions := parseTransactions([]byte(jsonData))  // 1. Parse JSON
-	sorted := sortTransactions(transactions)             // 2. Sort by amount  
-	displayTransactions(sorted)                          // 3. Display results 
+	transactions := parseTransactions([]byte(jsonData))  // 1. Parse JSON into structs
+	sorted := sortTransactions(transactions)             // 2. Sort by amount (largest first)
+	displayTransactions(sorted)                          // 3. Display results nicely
+	
+	// At this point, you have clean, sorted transaction data ready for:
+	// - Saving to a database
+	// - Serving via an API
+	// - Further analysis
 }
 ```
 
@@ -303,25 +344,26 @@ Instead of just querying historical data, we'll set up real-time monitoring to c
 First, we need to change our GraphQL from a one-time `query` to a streaming `subscription`:
 
 ```graphql
-subscription MonitorNewTransactions {
-  transactions(
-    filter: {
-      success: { eq: true }      # Only successful transactions
+subscription GetSendTransactions {
+   getTransactions(
+    where: {
+      success: { eq: true }
       messages: {
         value: {
-          BankMsgSend: {}         # Only send transactions
+          BankMsgSend:{
+          }
         }
       }
     }
-  ) {
+  )  {
     hash
     block_height
     messages {
       value {
         ... on BankMsgSend {
-          from_address
-          to_address
-          amount
+        from_address
+        to_address
+        amount
         }
       }
     }
@@ -335,67 +377,126 @@ subscription MonitorNewTransactions {
 Now we need a WebSocket client to receive these real-time updates:
 
 ```go
-package main
-
 import (
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/url"
-	
+
 	"github.com/gorilla/websocket"
 )
+
+func parseTransactions(jsonData []byte) []Transaction {
+	...
+}
 
 func main() {
 	fmt.Println("🔗 Connecting to tx-indexer WebSocket...")
 	
-	// Connect to the indexer's WebSocket endpoint
-	u := url.URL{Scheme: "ws", Host: "localhost:8546", Path: "/ws"}
+	// Build WebSocket URL - replace localhost:8546 with your indexer's address
+	u := url.URL{Scheme: "ws", Host: "localhost:8546", Path: "/graphql/query"}
 	
+	// Establish WebSocket connection with GraphQL-WS protocol
 	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
 		log.Fatal("❌ WebSocket connection failed:", err)
 	}
-	defer conn.Close()
+	defer conn.Close() // Clean up connection when function exits
 	
-	fmt.Println("✅ Connected! Setting up subscription...")
+	fmt.Println("✅ Connected! Initializing GraphQL-WS connection...")
 	
-	// Send our subscription request
+	// Step 1: Send connection_init message
+	// GraphQL-WS protocol requires this handshake before subscriptions
+	initMsg := map[string]interface{}{
+		"type": "connection_init",
+	}
+	initBytes, _ := json.Marshal(initMsg)
+	conn.WriteMessage(websocket.TextMessage, initBytes)
+	
+	// Step 2: Wait for connection_ack from server
+	// Server must acknowledge our connection before we can subscribe
+	_, ackMessage, err := conn.ReadMessage()
+	if err != nil {
+		log.Fatal("❌ Failed to receive connection ack:", err)
+	}
+	
+	var ackResponse map[string]interface{}
+	json.Unmarshal(ackMessage, &ackResponse)
+	
+	// Verify server sent the correct acknowledgment
+	if ackResponse["type"] != "connection_ack" {
+		log.Fatalf("❌ Expected connection_ack, got: %+v", ackResponse)
+	}
+	
+	fmt.Println("✅ Connection acknowledged! Setting up subscription...")
+	
+	// Step 3: Send subscription message
+	// This tells the server what data we want to receive in real-time
 	subscription := map[string]interface{}{
-		"type": "start",
+		"id":   "1",                    // Unique ID for this subscription
+		"type": "start",                // GraphQL-WS message type for subscriptions
 		"payload": map[string]interface{}{
-			"query": `subscription {...}`,
+			"query": `subscription { ... }`, // Your GraphQL subscription here
 		},
 	}
 	
 	subscriptionBytes, _ := json.Marshal(subscription)
 	conn.WriteMessage(websocket.TextMessage, subscriptionBytes)
 	
-	fmt.Println("📡 Listening for new transactions...")
+	fmt.Println("📡 Listening for new send transactions...")
 	
-	// Listen for new transactions forever
+	// Step 4: Listen for incoming messages in an infinite loop
 	for {
+		// Read next message from WebSocket
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			log.Println("❌ Read error:", err)
-			break
+			continue // Try to keep listening even after errors
 		}
 		
-		// Parse the incoming transaction
-		var response map[string]interface{}
-		json.Unmarshal(message, &response)
+		// Debug: Show raw message (remove in production)
+		fmt.Printf("📨 Raw message: %s", string(message))
 		
-		if response["type"] == "data" {
-			fmt.Println("🔥 NEW TRANSACTION DETECTED!")
+		// Parse JSON message from server
+		var response map[string]interface{}
+		err = json.Unmarshal(message, &response)
+		if err != nil {
+			log.Printf("❌ JSON parse error: %v\n", err)
+			continue
+		}
+		
+		// Handle different message types from GraphQL-WS protocol
+		switch response["type"] {
+		case "data":
+			// New transaction data received!
+			fmt.Println("🔥 NEW SEND TRANSACTION DETECTED!")
 			
-			// You can process this using our parseTransactions() function from Step 3
-			// or handle it directly here for real-time alerts
+			// Extract payload and process transaction data
+			data := response["payload"]
+			dataBytes, _ := json.Marshal(data)
+			parsedData := parseTransactions(dataBytes)
+			fmt.Println(parsedData)
 			
-			// Example: Extract amount for quick alert
-			if data, ok := response["payload"].(map[string]interface{}); ok {
-				// Process the transaction data...
-				fmt.Printf("📊 Transaction data: %+v\n", data)
-			}
+		case "error":
+			// GraphQL query/subscription error
+			fmt.Printf("❌ GraphQL error: %+v\n", response["payload"])
+			
+		case "complete":
+			// Subscription finished (shouldn't happen for infinite subscriptions)
+			fmt.Println("✅ Subscription completed")
+			
+		case "connection_error":
+			// WebSocket connection issue
+			fmt.Printf("❌ Connection error: %+v\n", response["payload"])
+			
+		case "ka":
+			// Keep-alive message from server - ignore silently
+			// Server sends these periodically to prevent connection timeouts
+			continue
+			
+		default:
+			// Unknown message type - log for debugging
+			fmt.Printf("📋 Unknown message type: %s\n", response["type"])
 		}
 	}
 }
@@ -417,28 +518,61 @@ import (
 	"net/http"
 )
 
-// Simple dashboard server
+
+func parseTransactions(jsonData []byte) []Transaction {
+	...
+}
+
+func sortTransactions(transactions []Transaction) []Transaction {
+	...
+}
+
+// Simple dashboard server that serves transaction statistics via JSON API
 func main() {
+	// Register our API endpoint
 	http.HandleFunc("/stats", handleStats)
+	
 	fmt.Println("📊 Dashboard running on http://localhost:8080/stats")
+	
+	// Start HTTP server on port 8080
 	http.ListenAndServe(":8080", nil)
 }
 
+// HTTP handler function for /stats endpoint
 func handleStats(w http.ResponseWriter, r *http.Request) {
-	// Sample data (in real app, get from indexer)
+	// Sample data (in real app, get from indexer or database)
+	// This would typically come from:
+	// 1. Direct GraphQL query to indexer
+	// 2. Your local database
+	// 3. Cached data in memory
 	jsonData := `{ "data": { "getTransactions": [...] } }`
 	
-	// Process data
-	transactions := parseTransactions([]byte(jsonData))
-	sorted := sortTransactions(transactions)
+	// Process data using our existing functions
+	transactions := parseTransactions([]byte(jsonData))  // Parse raw JSON
+	sorted := sortTransactions(transactions)             // Sort by amount
 	
-	// Send JSON response
+	// Calculate statistics from our transaction data
+	var totalVolume float64
+	for _, tx := range transactions {
+		totalVolume += tx.Amount // Sum all transaction amounts
+	}
+	
+	// Prepare response data structure
+	response := map[string]interface{}{
+		"status":             "success",
+		"total_transactions": len(sorted),                    // Count of transactions
+		"total_volume":       totalVolume / 1000000,         // Convert ugnot to GNOT
+		"biggest_amount":     sorted[0].Amount / 1000000,    // Largest single transaction
+		"average_amount":     totalVolume / float64(len(sorted)) / 1000000, // Average transaction size
+		"top_transactions":   sorted[:min(5, len(sorted))],  // Top 5 transactions
+	}
+	
+	// Set response headers for JSON API
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"total_transactions": len(sorted),
-		"biggest_amount":     sorted[0].Amount,
-		"top_transactions":   sorted[:2], // Top 2
-	})
+	w.Header().Set("Access-Control-Allow-Origin", "*") // Enable CORS for frontend access
+	
+	// Send JSON response to client
+	json.NewEncoder(w).Encode(response)
 }
 ```
 #### Step 6: Storing data permanently with SQLite
@@ -454,26 +588,30 @@ A simple web server that provides transaction data through a REST API endpoint, 
 ```go
 import (
 	"database/sql"
-	_ "github.com/mattn/go-sqlite3"  // SQLite driver
+	"fmt"
+	"log"
+	_ "github.com/mattn/go-sqlite3"  // SQLite driver - underscore import for side effects
 )
 
-
 // Create our database and transactions table
+// This function sets up the SQLite database and creates the schema
 func setupDB() *sql.DB {
+	// Open SQLite database file (creates if doesn't exist)
 	db, err := sql.Open("sqlite3", "./transactions.db")
 	if err != nil {
 		log.Fatal("Failed to open database:", err)
 	}
 	
-	// Create table if it doesn't exist
+	// Create transactions table with proper schema
+	// Using IF NOT EXISTS to avoid errors if table already exists
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS transactions (
-			hash TEXT PRIMARY KEY,     -- Unique transaction ID
-			amount REAL,              -- Amount in GNOT (converted from ugnot)
+			hash TEXT PRIMARY KEY,     -- Unique transaction ID (prevents duplicates)
+			amount REAL,              -- Amount in ugnot (we'll convert for display)
 			from_addr TEXT,           -- Sender address
 			to_addr TEXT,             -- Receiver address
-			block_height INTEGER,     -- When it happened
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			block_height INTEGER,     -- Block number (helps with ordering)
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- When we stored this record
 		)
 	`)
 	
@@ -481,12 +619,14 @@ func setupDB() *sql.DB {
 		log.Fatal("Failed to create table:", err)
 	}
 	
+	fmt.Println("✅ Database initialized successfully")
 	return db
 }
 
 // Save a single transaction to our database
+// Uses INSERT OR IGNORE to avoid duplicate key errors
 func insertTransaction(db *sql.DB, tx Transaction) error {
-
+	// Prepare SQL statement with placeholders (?) to prevent SQL injection
 	_, err := db.Exec(`
 		INSERT OR IGNORE INTO transactions 
 		(hash, amount, from_addr, to_addr, block_height) 
@@ -502,7 +642,9 @@ func insertTransaction(db *sql.DB, tx Transaction) error {
 }
 
 // Get the biggest transactions from our database
+// Returns top N transactions sorted by amount (largest first)
 func getTopTransactions(db *sql.DB, limit int) ([]Transaction, error) {
+	// Query database with ORDER BY and LIMIT for top transactions
 	rows, err := db.Query(`
 		SELECT hash, amount, from_addr, to_addr, block_height 
 		FROM transactions 
@@ -512,14 +654,17 @@ func getTopTransactions(db *sql.DB, limit int) ([]Transaction, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer rows.Close() // Always close database rows when done
 	
 	var transactions []Transaction
+	
+	// Iterate through result set and scan into struct fields
 	for rows.Next() {
 		var tx Transaction
 		err := rows.Scan(&tx.Hash, &tx.Amount, &tx.From, &tx.To, &tx.BlockHeight)
 		if err != nil {
-			continue
+			log.Printf("Error scanning transaction: %v", err)
+			continue // Skip malformed rows
 		}
 		transactions = append(transactions, tx)
 	}
@@ -528,41 +673,84 @@ func getTopTransactions(db *sql.DB, limit int) ([]Transaction, error) {
 }
 
 // Save multiple transactions to the database
+// Processes a slice of transactions and saves each one
 func saveTransactionsToDB(db *sql.DB, transactions []Transaction) {
+	savedCount := 0
+	
 	for _, tx := range transactions {
 		err := insertTransaction(db, tx)
 		if err != nil {
 			log.Printf("Failed to save transaction %s: %v", tx.Hash, err)
 		} else {
-			fmt.Printf("✅ Saved transaction %s (%.2f GNOT)\n", tx.Hash, tx.Amount/1000000)
+			savedCount++
+			// Convert ugnot to GNOT for display (divide by 1,000,000)
+			fmt.Printf("✅ Saved transaction %s (%.2f GNOT)\n", 
+				tx.Hash[:8]+"...", tx.Amount/1000000) // Show truncated hash
 		}
 	}
-	fmt.Printf("💾 Processed %d transactions\n", len(transactions))
+	
+	fmt.Printf("💾 Successfully saved %d/%d transactions to database\n", 
+		savedCount, len(transactions))
+}
+
+// Get transaction statistics from database
+func getTransactionStats(db *sql.DB) {
+	// Count total transactions
+	var count int
+	db.QueryRow("SELECT COUNT(*) FROM transactions").Scan(&count)
+	
+	// Get total volume
+	var totalVolume float64
+	db.QueryRow("SELECT SUM(amount) FROM transactions").Scan(&totalVolume)
+	
+	// Get largest transaction
+	var maxAmount float64
+	db.QueryRow("SELECT MAX(amount) FROM transactions").Scan(&maxAmount)
+	
+	fmt.Printf("📊 Database Statistics:\n")
+	fmt.Printf("   Total transactions: %d\n", count)
+	fmt.Printf("   Total volume: %.2f GNOT\n", totalVolume/1000000)
+	fmt.Printf("   Largest transaction: %.2f GNOT\n", maxAmount/1000000)
 }
 
 func main() {
-	// Set up our database
+	// Set up our persistent database
 	db := setupDB()
-	defer db.Close()
+	defer db.Close() // Clean up database connection when program exits
 	
-	// Get new transactions from the indexer
+	// Example: Get new transactions from the indexer
+	// In a real application, this would be:
+	// 1. HTTP request to GraphQL endpoint, or
+	// 2. WebSocket subscription data, or
+	// 3. Periodic polling of the indexer
 	jsonData := `{"data": {"getTransactions": [...]}}`
 	transactions := parseTransactions([]byte(jsonData))
 	
-	// Save them to our database
-	saveTransactionsToDB(db, transactions)
+	// Save new transactions to our database
+	if len(transactions) > 0 {
+		saveTransactionsToDB(db, transactions)
+	}
 	
-	// Get the top 10 transactions ever recorded
-	topTx, _ := getTopTransactions(db, 10)
-	fmt.Println("🏆 Top 10 biggest transactions in our database:")
+	// Display current database statistics
+	getTransactionStats(db)
+	
+	// Get and display the top 10 transactions ever recorded
+	topTx, err := getTopTransactions(db, 10)
+	if err != nil {
+		log.Printf("Error getting top transactions: %v", err)
+		return
+	}
+	
+	fmt.Println("\n🏆 Top 10 biggest transactions in our database:")
 	displayTransactions(topTx)
+	
+	// Your transaction data is now persistent and ready for:
+	// - Web dashboards
+	// - Mobile app APIs  
+	// - Analytics and reporting
+	// - Real-time monitoring alerts
 }
 ```
 
 Your transaction data is now persistent and ready for productions!
 
-## Examples
-For more example of queries, refers to the [tx-indexer](https://github.com/gnolang/tx-indexer?tab=readme-ov-file#examples) documentation.
-
-## Installation
-Follow official [installation guide](https://github.com/gnolang/tx-indexer?tab=readme-ov-file#getting-started) on `tx-indexer` repository.
