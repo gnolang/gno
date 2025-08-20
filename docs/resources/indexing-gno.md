@@ -269,17 +269,17 @@ func parseTransactions(jsonData []byte) []Transaction {
 		
 		// Extract basic transaction info
 		hash := txMap["hash"].(string)
-		blockHeight := txMap["block_height"].(float64) // Comes as number from GraphQL
+		blockHeight := txMap["block_height"].(float64)
 		
 		// Navigate to the message data (transaction details)
 		// Each transaction has "messages" array containing the actual operations
-		msg := txMap["messages"].([]interface{})[0] // We want the first message
+		msg := txMap["messages"].([]interface{})[0]
 		msgMap := msg.(map[string]interface{})["value"].(map[string]interface{})
 		
 		// Extract the send transaction details
-		amount := msgMap["amount"].(string)        // e.g., "10000000ugnot"
-		from := msgMap["from_address"].(string)    // Sender's Gno address
-		to := msgMap["to_address"].(string)        // Receiver's Gno address
+		amount := msgMap["amount"].(string)        
+		from := msgMap["from_address"].(string)    
+		to := msgMap["to_address"].(string)        
 		
 		// Convert amount from string to number
 		// Remove "ugnot" suffix and parse as float
@@ -289,7 +289,7 @@ func parseTransactions(jsonData []byte) []Transaction {
 		// Create our clean Transaction struct
 		transactions = append(transactions, Transaction{
 			Hash:   	 hash,
-			Amount:      amountInt,      // Raw ugnot amount
+			Amount:      amountInt,     
 			From:        from,
 			To:          to,
 			BlockHeight: blockHeight,
@@ -310,15 +310,13 @@ func sortTransactions(transactions []Transaction) []Transaction {
 // Step 3 - Show the transactions in a nice format
 // Convert raw data into human-readable output
 func displayTransactions(transactions []Transaction) {
-	fmt.Println("🏆 Top GNOT Transactions:")
+	fmt.Println("Top GNOT Transactions:")
 	
 	for i, tx := range transactions {
 		if i >= 5 { break } // Limit to top 5
 		
-		// Convert ugnot to GNOT for display (divide by 1,000,000)
-		gnotAmount := tx.Amount / 1000000
-		
-		fmt.Printf("%d. %.2f GNOT from %s to %s\n", 
+		gnotAmount := tx.Amount 
+		fmt.Printf("%d. %.2f uGNOT from %s to %s\n", 
 			i+1, gnotAmount, tx.From, tx.To)
 	}
 }
@@ -336,7 +334,7 @@ func main() {
 	// At this point, you have clean, sorted transaction data ready for:
 	// - Saving to a database
 	// - Serving via an API
-	// - Further analysis
+	// - ...
 }
 ```
 
@@ -443,7 +441,7 @@ func main() {
 	fmt.Println("✅ Connection acknowledged! Setting up subscription...")
 	
 	// Step 3: Send subscription message
-	// This tells the server what data we want to receive in real-time
+	// This give the query to the server
 	subscription := map[string]interface{}{
 		"id":   "1",                    // Unique ID for this subscription
 		"type": "start",                // GraphQL-WS message type for subscriptions
@@ -463,7 +461,7 @@ func main() {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			log.Println("❌ Read error:", err)
-			continue // Try to keep listening even after errors
+			continue
 		}
 		
 		// Debug: Show raw message (remove in production)
@@ -559,12 +557,8 @@ func sortTransactions(transactions []Transaction) []Transaction {
 
 // Simple dashboard server that serves transaction statistics via JSON API
 func main() {
-	// Register our API endpoint
 	http.HandleFunc("/stats", handleStats)
-	
-	fmt.Println("📊 Dashboard running on http://localhost:8080/stats")
-	
-	// Start HTTP server on port 8080
+	fmt.Println("Dashboard running on http://localhost:8080/stats")
 	http.ListenAndServe(":8080", nil)
 }
 
@@ -575,33 +569,31 @@ func handleStats(w http.ResponseWriter, r *http.Request) {
 	// 1. Direct GraphQL query to indexer
 	// 2. Your local database
 	// 3. Cached data in memory
-	jsonData := `{ "data": { "getTransactions": [...] } }`
+	data := ...
 	
 	// Process data using our existing functions
-	transactions := parseTransactions([]byte(jsonData))  // Parse raw JSON
-	sorted := sortTransactions(transactions)             // Sort by amount
+	transactions := parseTransactions([]byte(data)) 
+	sorted := sortTransactions(transactions)            
 	
 	// Calculate statistics from our transaction data
 	var totalVolume float64
 	for _, tx := range transactions {
-		totalVolume += tx.Amount // Sum all transaction amounts
+		totalVolume += tx.Amount
 	}
 	
 	// Prepare response data structure
 	response := map[string]interface{}{
 		"status":             "success",
-		"total_transactions": len(sorted),                    // Count of transactions
-		"total_volume":       totalVolume / 1000000,         // Convert ugnot to GNOT
-		"biggest_amount":     sorted[0].Amount / 1000000,    // Largest single transaction
-		"average_amount":     totalVolume / float64(len(sorted)) / 1000000, // Average transaction size
+		"total_transactions": len(sorted),         
+		"total_volume":       totalVolume,         
+		"biggest_amount":     sorted[0].Amount,    
+		"average_amount":     totalVolume / float64(len(sorted)),
 		"top_transactions":   sorted[:min(5, len(sorted))],  // Top 5 transactions
 	}
 	
 	// Set response headers for JSON API
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*") // Enable CORS for frontend access
-	
-	// Send JSON response to client
 	json.NewEncoder(w).Encode(response)
 }
 ```
@@ -631,9 +623,7 @@ func setupDB() *sql.DB {
 	if err != nil {
 		log.Fatal("Failed to open database:", err)
 	}
-	
-	// Create transactions table with proper schema
-	// Using IF NOT EXISTS to avoid errors if table already exists
+
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS transactions (
 			hash TEXT PRIMARY KEY,     -- Unique transaction ID (prevents duplicates)
@@ -654,9 +644,7 @@ func setupDB() *sql.DB {
 }
 
 // Save a single transaction to our database
-// Uses INSERT OR IGNORE to avoid duplicate key errors
 func insertTransaction(db *sql.DB, tx Transaction) error {
-	// Prepare SQL statement with placeholders (?) to prevent SQL injection
 	_, err := db.Exec(`
 		INSERT OR IGNORE INTO transactions 
 		(hash, amount, from_addr, to_addr, block_height) 
@@ -672,9 +660,7 @@ func insertTransaction(db *sql.DB, tx Transaction) error {
 }
 
 // Get the biggest transactions from our database
-// Returns top N transactions sorted by amount (largest first)
 func getTopTransactions(db *sql.DB, limit int) ([]Transaction, error) {
-	// Query database with ORDER BY and LIMIT for top transactions
 	rows, err := db.Query(`
 		SELECT hash, amount, from_addr, to_addr, block_height 
 		FROM transactions 
@@ -684,7 +670,7 @@ func getTopTransactions(db *sql.DB, limit int) ([]Transaction, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close() // Always close database rows when done
+	defer rows.Close()
 	
 	var transactions []Transaction
 	
@@ -694,7 +680,7 @@ func getTopTransactions(db *sql.DB, limit int) ([]Transaction, error) {
 		err := rows.Scan(&tx.Hash, &tx.Amount, &tx.From, &tx.To, &tx.BlockHeight)
 		if err != nil {
 			log.Printf("Error scanning transaction: %v", err)
-			continue // Skip malformed rows
+			continue 
 		}
 		transactions = append(transactions, tx)
 	}
@@ -703,7 +689,6 @@ func getTopTransactions(db *sql.DB, limit int) ([]Transaction, error) {
 }
 
 // Save multiple transactions to the database
-// Processes a slice of transactions and saves each one
 func saveTransactionsToDB(db *sql.DB, transactions []Transaction) {
 	savedCount := 0
 	
@@ -713,9 +698,8 @@ func saveTransactionsToDB(db *sql.DB, transactions []Transaction) {
 			log.Printf("Failed to save transaction %s: %v", tx.Hash, err)
 		} else {
 			savedCount++
-			// Convert ugnot to GNOT for display (divide by 1,000,000)
-			fmt.Printf("✅ Saved transaction %s (%.2f GNOT)\n", 
-				tx.Hash[:8]+"...", tx.Amount/1000000) // Show truncated hash
+			fmt.Printf("✅ Saved transaction %s (%.2f uGNOT)\n", 
+				tx.Hash[:8]+"...", tx.Amount)
 		}
 	}
 	
@@ -725,28 +709,24 @@ func saveTransactionsToDB(db *sql.DB, transactions []Transaction) {
 
 // Get transaction statistics from database
 func getTransactionStats(db *sql.DB) {
-	// Count total transactions
 	var count int
 	db.QueryRow("SELECT COUNT(*) FROM transactions").Scan(&count)
 	
-	// Get total volume
 	var totalVolume float64
 	db.QueryRow("SELECT SUM(amount) FROM transactions").Scan(&totalVolume)
 	
-	// Get largest transaction
 	var maxAmount float64
 	db.QueryRow("SELECT MAX(amount) FROM transactions").Scan(&maxAmount)
 	
 	fmt.Printf("📊 Database Statistics:\n")
 	fmt.Printf("   Total transactions: %d\n", count)
-	fmt.Printf("   Total volume: %.2f GNOT\n", totalVolume/1000000)
-	fmt.Printf("   Largest transaction: %.2f GNOT\n", maxAmount/1000000)
+	fmt.Printf("   Total volume: %.2f uGNOT\n", totalVolume)
+	fmt.Printf("   Largest transaction: %.2f uGNOT\n", maxAmount)
 }
 
 func main() {
-	// Set up our persistent database
 	db := setupDB()
-	defer db.Close() // Clean up database connection when program exits
+	defer db.Close()
 	
 	// Example: Get new transactions from the indexer
 	// In a real application, this would be:
@@ -771,7 +751,7 @@ func main() {
 		return
 	}
 	
-	fmt.Println("\n🏆 Top 10 biggest transactions in our database:")
+	fmt.Println("\nTop 10 biggest transactions in our database:")
 	displayTransactions(topTx)
 	
 	// Your transaction data is now persistent and ready for:
