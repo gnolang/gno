@@ -160,6 +160,9 @@ type TypeCheckOptions struct {
 	// libraries. Packages found in the Cache won't need to be type checked
 	// again.
 	Cache TypeCheckCache
+
+	// Alloc
+	Alloc *Allocator
 }
 
 // TypeCheckMemPackage performs type validation and checking on the given
@@ -174,8 +177,9 @@ type TypeCheckOptions struct {
 func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 	pkg *types.Package, errs error,
 ) {
+	fmt.Println("===========TypeCheckMemPackage, alloator: ", opts.Getter.(Store).GetAllocator())
 	defer func() {
-		fmt.Println("===finish TypeCheckMemPackage...")
+		fmt.Println("=============finish TypeCheckMemPackage...")
 	}()
 
 	var gimp *gnoImporter
@@ -193,6 +197,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 			},
 		},
 		errors: nil,
+		alloc:  opts.Alloc,
 	}
 	gimp.cfg.Importer = gimp
 
@@ -222,6 +227,7 @@ type gnoImporter struct {
 	cfg       *types.Config
 	errors    []error  // there may be many for a single import
 	stack     []string // stack of pkgpaths for cyclic import detection
+	alloc     *Allocator
 }
 
 // Unused, but satisfies the Importer interface.
@@ -439,7 +445,6 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		}
 	}
 
-	fmt.Println("================before step 3...........")
 	// STEP 3: Parse the mem package to Go AST.
 	gofset, allgofs, gofs, _gofs, tgofs, errs := GoParseMemPackage(mpkg)
 	if errs != nil {
@@ -454,7 +459,6 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		}
 	}
 
-	fmt.Println("====================after prepare......")
 	// STEP 3: Add and Parse .gnobuiltins.go file.
 	file := makeGnoBuiltins(mpkg.Name, gnoVersion)
 	const parseOpts = parser.ParseComments |
@@ -469,7 +473,6 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		panic(fmt.Errorf("error parsing gotypecheck .gnobuiltins.gno file: %w", err))
 	}
 
-	fmt.Println("====================after make builtins......")
 	// STEP 4: Type-check Gno0.9 AST in Go (normal/production only).
 	if !strings.HasPrefix(mpkg.Path, "gnobuiltins/") {
 		gofs = append(gofs, gmgof)
@@ -484,7 +487,6 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// Preserve gimp.testing, sub-imports are under the same context.
 	// gimp.testing = false <-- incorrect!
 	pgofs := filterTests(gofset, gofs) // prod gofs.
-	fmt.Println("===============going to do go type check......")
 	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, nil)
 	fmt.Println("======================================done go type check..........")
 	// Fail early: there's no point checking the others.
@@ -500,7 +502,6 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		return
 	}
 
-	fmt.Println("=================before step 4......")
 	// STEP 4: Type-check Gno0.9 AST in Go (w/ tests, but not xxx_tests).
 	if len(pgofs) < len(gofs) {
 		gimp.testing = true // use tgetter for stdlibs, default to getter.

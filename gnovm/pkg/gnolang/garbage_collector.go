@@ -77,6 +77,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	// Visit frames
 	fmt.Println("===============visiting frames...")
 	for _, frame := range m.Frames {
+		fmt.Println("==============frame: ", frame)
 		stop := frame.Visit(m.Alloc, vis)
 		if stop {
 			return -1, false
@@ -84,7 +85,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	}
 
 	// Visit package
-	fmt.Println("===============visiting packages...")
+	fmt.Println("===============visiting packages..., m.Package: ", m.Package)
 	stop := vis(m.Package)
 	if stop {
 		return -1, false
@@ -164,6 +165,8 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount int64) Visitor {
 				fmt.Println("======visited, skip................")
 				return false // but don't stop
 			}
+
+			// check cache
 		}
 
 		visitCount++ // Count operations for gas calculation
@@ -171,7 +174,6 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount int64) Visitor {
 		// Add object size to alloc.
 		withRef := false
 		size := v.GetShallowSize(withRef)
-		fmt.Println("===================New count size: ", size)
 
 		// Stop if alloc max exceeded during GC.
 		// NOTE: Unlikely to occur, but keep it here for
@@ -345,10 +347,10 @@ func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
-	fmt.Println("======VisitAssociated of BlockValue..., type of b.Souce: ", reflect.TypeOf(b.Source))
+	fmt.Println("======VisitAssociated of Block..., type of b.Souce: ", reflect.TypeOf(b.Source))
 	if pn, ok := b.Source.(*PackageNode); ok {
 		fmt.Println("===pn: ", pn, pn.PkgPath)
-		if pn.PkgPath == "uverse" {
+		if pn.PkgPath == ".uverse" {
 			return
 		}
 	}

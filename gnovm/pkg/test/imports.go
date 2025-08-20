@@ -112,6 +112,7 @@ func StoreWithOptions(
 		m *gno.Machine, mpkg *std.MemPackage, save bool) (
 		pn *gno.PackageNode, pv *gno.PackageValue,
 	) {
+		println("==============_processMemPackage...")
 		// _processMemPackage should only be called for "prod" packages.
 		// filetests/extern are MPStdlibProd, and examples are MPUserProd.
 		// (pkg/test/test.go Test() will filter for MPFTest and store
@@ -124,6 +125,7 @@ func StoreWithOptions(
 			return nil, nil
 		}
 		if opts.PreprocessOnly {
+			println("===============PreprocessOnly...")
 			// Check the gno.mod gno version.
 			mod, err := gno.ParseCheckGnoMod(mpkg)
 			if err != nil {
@@ -160,6 +162,8 @@ func StoreWithOptions(
 	// Main entrypoint for new test imports.
 	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		fmt.Println("======pkgGetter, pkgPath: ", pkgPath)
+		alloc := store.GetAllocator()
+		fmt.Println("================allocator: ", alloc)
 		if pkgPath == "" {
 			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
 		}
@@ -179,6 +183,7 @@ func StoreWithOptions(
 					Context:       ctx,
 					ReviveEnabled: true,
 					SkipPackage:   true,
+					Alloc:         alloc,
 				})
 				return _processMemPackage(m2, mpkg, true)
 			}
@@ -237,6 +242,7 @@ func StoreWithOptions(
 					Context:       ctx,
 					ReviveEnabled: true,
 					SkipPackage:   true,
+					Alloc:         alloc,
 				})
 				return _processMemPackage(m2, mpkg, true)
 			}
@@ -317,6 +323,7 @@ func loadStdlib(
 		Store:         store,
 		ReviveEnabled: true,
 		SkipPackage:   true, // will PreprocessFiles() or RunMemPackage() after.
+		Alloc:         store.GetAllocator(),
 	})
 	if preprocessOnly {
 		m2.Store.AddMemPackage(mpkg, mPkgType)

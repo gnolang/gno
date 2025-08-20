@@ -4,7 +4,6 @@ package main
 import (
 	"runtime"
 
-	// "gno.land/r/demo/memeland"
 	"gno.land/r/demo/ext"
 )
 
@@ -15,7 +14,6 @@ func main() {
 	s1 := s  //  another string value, underlying array same
 	runtime.GC()
 	println("MemStats: ", runtime.MemStats())
-	// memeland.Render("")
 	ext.GetVar()
 }
 

@@ -1397,7 +1397,7 @@ func (pn *PackageNode) PrepareNewValues(alloc *Allocator, pv *PackageValue) []Ty
 		for i, tv := range nvs {
 			if fv, ok := tv.V.(*FuncValue); ok {
 				// copy function value and assign closure from package value.
-				fv = fv.Copy(nilAllocator)
+				fv = fv.Copy(alloc)
 				if fv.FileName == "" {
 					// .uverse functions have no filename,
 					// and repl runs declarations directly

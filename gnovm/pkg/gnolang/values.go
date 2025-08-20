@@ -791,15 +791,16 @@ func (pv *PackageValue) IsRealm() bool {
 	return IsRealmPath(pv.PkgPath)
 }
 
-func (pv *PackageValue) getFBlocksMap() map[string]*Block {
+func (pv *PackageValue) getFBlocksMap(alloc *Allocator) map[string]*Block {
 	if pv.fBlocksMap == nil {
+		alloc.AllocateMap(int64(len(pv.FNames)))
 		pv.fBlocksMap = make(map[string]*Block, len(pv.FNames))
 	}
 	return pv.fBlocksMap
 }
 
 // called after loading *PackageValue.
-func (pv *PackageValue) deriveFBlocksMap(store Store) {
+func (pv *PackageValue) deriveFBlocksMap(alloc *Allocator, store Store) {
 	// XXX, allocation?
 	if pv.fBlocksMap == nil {
 		pv.fBlocksMap = make(map[string]*Block, len(pv.FNames))
@@ -807,7 +808,7 @@ func (pv *PackageValue) deriveFBlocksMap(store Store) {
 	for i := range pv.FNames {
 		fname := pv.FNames[i]
 		fmt.Println("======deriveFBlocksMap, fname: ", fname)
-		fblock := pv.GetFileBlock(store, fname)
+		fblock := pv.GetFileBlock(alloc, store, fname)
 		fmt.Println("======fblock... ", fblock)
 		pv.fBlocksMap[fname] = fblock // idempotent.
 		// XXX FBlocks...
@@ -843,7 +844,7 @@ func (pv *PackageValue) GetValueAt(store Store, path ValuePath) TypedValue {
 		TV)
 }
 
-func (pv *PackageValue) AddFileBlock(fname string, fb *Block) {
+func (pv *PackageValue) AddFileBlock(alloc *Allocator, fname string, fb *Block) {
 	for _, fn := range pv.FNames {
 		if fname == fn {
 			panic(fmt.Sprintf(
@@ -851,15 +852,16 @@ func (pv *PackageValue) AddFileBlock(fname string, fb *Block) {
 				fname))
 		}
 	}
+	// XXX, alloc properly, by checking cap?
 	pv.FNames = append(pv.FNames, fname)
 	pv.FBlocks = append(pv.FBlocks, fb)
-	pv.getFBlocksMap()[fname] = fb
+	pv.getFBlocksMap(alloc)[fname] = fb
 	fb.SetOwner(pv)
 }
 
-func (pv *PackageValue) GetFileBlock(store Store, fname string) *Block {
+func (pv *PackageValue) GetFileBlock(alloc *Allocator, store Store, fname string) *Block {
 	// XXX, or allocate here?
-	if fb, ex := pv.getFBlocksMap()[fname]; ex {
+	if fb, ex := pv.getFBlocksMap(alloc)[fname]; ex {
 		return fb
 	}
 	for i, fn := range pv.FNames {
@@ -868,10 +870,10 @@ func (pv *PackageValue) GetFileBlock(store Store, fname string) *Block {
 			switch fbv := fbv.(type) {
 			case RefValue:
 				fb := store.GetObject(fbv.ObjectID).(*Block)
-				pv.getFBlocksMap()[fname] = fb
+				pv.getFBlocksMap(alloc)[fname] = fb
 				return fb
 			case *Block:
-				pv.getFBlocksMap()[fname] = fbv
+				pv.getFBlocksMap(alloc)[fname] = fbv
 				return fbv
 			default:
 				panic("should not happen")

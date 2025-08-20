@@ -342,11 +342,15 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 		// Validate Gno syntax and type check.
 		if tcheck {
+			// XXX
+			// m.Store.SetAllocator(m.Alloc)
 			if _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
-				Getter:     m.Store,
+				// Getter: m.Store,
+				Getter:     opts.TestStore,
 				TestGetter: m.Store,
 				Mode:       gno.TCLatestRelaxed,
 				Cache:      opts.tcCache,
+				// Alloc:      m.Alloc,
 			}); err != nil {
 				tcError = fmt.Sprintf("%v", err.Error())
 			}
@@ -395,6 +399,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 				TestGetter: m.Store,
 				Mode:       gno.TCLatestRelaxed,
 				Cache:      opts.tcCache,
+				Alloc:      m.Alloc,
 			}); err != nil {
 				tcError = fmt.Sprintf("%v", err.Error())
 			}

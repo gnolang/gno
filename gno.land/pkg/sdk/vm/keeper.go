@@ -239,6 +239,7 @@ func (tsc *testStdlibCache) memPackageGetter(source gno.Store) gno.MemPackageGet
 }
 
 func (tsg testStdlibGetter) GetMemPackage(pkgPath string) *std.MemPackage {
+	fmt.Println("================GetMemPackage for stdlibs...")
 	// Only stdlibs have alternative versions.
 	if !gno.IsStdlib(pkgPath) {
 		return tsg.source.GetMemPackage(pkgPath)
@@ -456,12 +457,31 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
 
+	// rootDir, _ := filepath.Abs("../../../../")
+	// o := &test.TestOptions{
+	// 	RootDir: rootDir,
+	// 	Output:  io.Discard,
+	// 	Error:   io.Discard,
+	// }
+
+	// _, testStore := test.StoreWithOptions(
+	// 	rootDir, o.WriterForStore(),
+	// 	test.StoreOptions{WithExtern: true, WithExamples: true, Testing: false},
+	// )
+
+	// gno.InitStoreCaches(testStore)
+
+	tcStore := gnostore.Clone()
+
 	opts := gno.TypeCheckOptions{
-		Getter:     gnostore,
+		// Getter: gnostore,
+		Getter:     tcStore,
 		TestGetter: vm.testStdlibCache.memPackageGetter(gnostore),
-		Mode:       gno.TCLatestStrict,
-		Cache:      vm.getTypeCheckCache(ctx),
+		// TestGetter: vm.testStdlibCache.memPackageGetter(testStore),
+		Mode:  gno.TCLatestStrict,
+		Cache: vm.getTypeCheckCache(ctx),
 	}
+
 	if ctx.BlockHeight() == 0 {
 		opts.Mode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
 	}

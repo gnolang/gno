@@ -261,7 +261,8 @@ func (m *Machine) RunMemPackageWithOverrides(mpkg *std.MemPackage, save bool) (*
 }
 
 func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
-	fmt.Println("======runMemPackage..., mpkg.Path: ", mpkg.Path)
+	fmt.Println("======runMemPackage..., mpkg.Path, m.Alloc: ", mpkg.Path, m.Alloc)
+	println("=======save: ", save)
 	// validate mpkg.Type.
 	mptype := mpkg.Type.(MemPackageType)
 	if save && !mptype.IsStorable() {
@@ -292,7 +293,7 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	// run files.
 	updates := m.runFileDecls(overrides, files.Files...)
 	// populate pv.fBlocksMap.
-	pv.deriveFBlocksMap(m.Store)
+	pv.deriveFBlocksMap(m.Alloc, m.Store)
 	// save package value and mempackage.
 	// XXX save condition will be removed once gonative is removed.
 	var throwaway *Realm
@@ -520,7 +521,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		fb := m.Alloc.NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
-		pv.AddFileBlock(fn.FileName, fb)
+		pv.AddFileBlock(m.Alloc, fn.FileName, fb)
 	}
 	// Get new values across all files in package.
 	pn.PrepareNewValues(m.Alloc, pv)
@@ -607,7 +608,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		fb := m.Alloc.NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
-		pv.AddFileBlock(fn.FileName, fb)
+		pv.AddFileBlock(m.Alloc, fn.FileName, fb)
 	}
 
 	// Get new values across all files in package.
@@ -661,7 +662,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 			loopfindr = loopfindr[:len(loopfindr)-1]
 		}
 		// run declaration
-		fb := pv.GetFileBlock(m.Store, fn.FileName)
+		fb := pv.GetFileBlock(m.Alloc, m.Store, fn.FileName)
 		m.PushBlock(fb)
 		m.runDeclaration(decl)
 		m.PopBlock()
@@ -700,7 +701,7 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 				continue // skip native functions.
 			}
 			if strings.HasPrefix(string(fv.Name), "init.") {
-				fb := pv.GetFileBlock(m.Store, fv.FileName)
+				fb := pv.GetFileBlock(m.Alloc, m.Store, fv.FileName)
 				m.PushBlock(fb)
 				maybeCrossing := m.Realm != nil
 				m.runFunc(StageAdd, fv.Name, maybeCrossing)

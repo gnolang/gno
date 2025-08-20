@@ -379,7 +379,7 @@ func (alloc *Allocator) NewPackageValue(pn *PackageNode) *PackageValue {
 }
 
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
-	fmt.Println("======NewBlock, source: ", source)
+	// fmt.Println("======NewBlock, source: ", source)
 	alloc.AllocateBlock(int64(source.GetNumNames()))
 	return NewBlock(alloc, source, parent)
 }
@@ -400,14 +400,18 @@ func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 // XXX, see realm.go lin 1258
 func (pv *PackageValue) GetShallowSize(withRef bool) int64 {
 	fmt.Println("================GetShallowSize of pv: ", pv)
+	if pv.PkgPath == ".uverse" {
+		return 0
+	}
 	var (
-		ss              int64
+		ss int64
+		// These also takes up memory,
+		// placed here for convenience
 		allocFNames     int64
 		allocFBlocks    int64
 		allocFBlocksMap int64
 	)
 
-	// XXX, should make these in visit associated? No
 	for _, name := range pv.FNames {
 		allocFNames += int64(len(name)) + _allocName // string is counted as shallow size.
 	}
@@ -420,9 +424,11 @@ func (pv *PackageValue) GetShallowSize(withRef bool) int64 {
 	}
 
 	ss = allocPackage + allocFNames + allocFBlocks + allocFBlocksMap
+
 	if !withRef {
 		return ss
 	}
+
 	// add RefValue size
 	for _, fb := range pv.FBlocks {
 		if _, ok := fb.(RefValue); !ok {
@@ -436,22 +442,23 @@ func (pv *PackageValue) GetShallowSize(withRef bool) int64 {
 func (b *Block) GetShallowSize(withRef bool) int64 {
 	if pn, ok := b.Source.(*PackageNode); ok {
 		// fmt.Println("===pn: ", pn, pn.PkgPath)
-		if pn.PkgPath == "uverse" {
+		if pn.PkgPath == ".uverse" {
 			fmt.Println("==================skip uverse........")
 			return 0
 		}
 	}
 	var ss int64
 	ss = allocBlock + allocBlockItem*int64(len(b.Values))
+
 	if !withRef {
 		return ss
 	}
 
 	if _, ok := b.Source.(RefNode); ok {
-		ss += allocRefValue //
+		ss += allocRefValue
 	}
 	if _, ok := b.Parent.(RefValue); ok {
-		ss += allocRefValue //
+		ss += allocRefValue
 	}
 	return ss
 }
@@ -510,6 +517,9 @@ func (sv *SliceValue) GetShallowSize(withRef bool) int64 {
 
 // Only count for closures.
 func (fv *FuncValue) GetShallowSize(withRef bool) int64 {
+	if fv.PkgPath == ".uverse" {
+		return 0
+	}
 	var ss int64
 	// ss = allocFunc +
 	// 	int64(len(fv.Captures))*(allocTypedValue+allocHeapItem)

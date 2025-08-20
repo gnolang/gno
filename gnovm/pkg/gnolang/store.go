@@ -59,6 +59,8 @@ type Store interface {
 	SetBlockNode(BlockNode)
 	RealmStorageDiffs() map[string]int64 // returns storage changes per realm within the message
 
+	Clone() *defaultStore
+
 	// UNSTABLE
 	GetAllocator() *Allocator
 	SetAllocator(alloc *Allocator)
@@ -73,6 +75,7 @@ type Store interface {
 	IterMemPackage() <-chan *std.MemPackage
 	ClearObjectCache() // run before processing a message
 	GarbageCollectObjectCache(gcCycle int64)
+	// CacheExists(oid ObjectID) bool
 	SetNativeResolver(NativeResolver)                     // for native functions
 	GetNative(pkgPath string, name Name) func(m *Machine) // for native functions
 	SetLogStoreOps(dst io.Writer)
@@ -284,8 +287,12 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 // Gets package from cache, or loads it from baseStore, or gets it from package getter.
 func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
 	fmt.Println("======GetPackage, pkgPath: ", pkgPath)
+	fmt.Println("======GetPackage, allocator: ", ds.GetAllocator())
 	// if pkgPath == "gno.land/r/demo/ext" {
 	// 	panic("!!!!!!!!!!!!!!!!!")
+	// }
+	// if ds.GetAllocator() == nil {
+	// 	panic("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 	// }
 	// helper to detect circular imports
 	if isImport {
@@ -304,10 +311,11 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 		pv := oo.(*PackageValue)
 		return pv
 	}
+	println("=============not exist in cache")
 	// else, load package.
 	if ds.baseStore != nil {
-		fmt.Println("=====from store...")
 		if oo := ds.loadObjectSafe(oid); oo != nil {
+			fmt.Println("=====from store...")
 			pv := oo.(*PackageValue)
 			// XXX, alloc, FBlocks...?
 			// in loadObjectSafe...?
@@ -318,7 +326,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 				pv.Realm = rlm
 			}
 			// Rederive pv.fBlocksMap.
-			pv.deriveFBlocksMap(ds)
+			pv.deriveFBlocksMap(ds.alloc, ds)
 			return pv
 		}
 	}
@@ -495,6 +503,11 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		return oo
 	}
 	return nil
+}
+
+func (ds *defaultStore) Clone() *defaultStore {
+	ds2 := *ds
+	return &ds2
 }
 
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
@@ -881,10 +894,12 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 // GetMemPackage retrieves the MemPackage at the given path.
 // It returns nil if the package could not be found.
 func (ds *defaultStore) GetMemPackage(path string) *std.MemPackage {
+	fmt.Println("!!!!!!!!!!!!!!!!!!!!!, GetMemPackage from import..: ", ds.alloc)
 	return ds.getMemPackage(path, false)
 }
 
 func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage {
+	fmt.Println("===========getMemPackage, path: ", path)
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -901,12 +916,14 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 	pathkey := []byte(backendPackagePathKey(path))
 	bz := ds.iavlStore.Get(pathkey)
 	if bz == nil {
+		fmt.Println("===bz is nil...")
 		// If this is the first try, attempt using GetPackage to retrieve the
 		// package, first. GetPackage can leverage pkgGetter, which in most
 		// implementations works by running Machine.RunMemPackage with save = true,
 		// which would add the package to the store after running.
 		// Some packages may never be persisted, thus why we only attempt this twice.
 		if !isRetry && ds.pkgGetter != nil {
+			// panic("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 			if pv := ds.GetPackage(path, false); pv != nil {
 				return ds.getMemPackage(path, true)
 			}
@@ -916,8 +933,11 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 	gas := overflow.Mulp(ds.gasConfig.GasGetMemPackage, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasGetMemPackageDesc)
 
+	println("=====================bz not nil, from iavl...")
+	// XXX, alloc
 	var mpkg *std.MemPackage
 	amino.MustUnmarshal(bz, &mpkg)
+	// ds.alloc.Allocate(2000)
 	size = len(bz)
 	return mpkg
 }
@@ -1009,6 +1029,9 @@ func (ds *defaultStore) ClearObjectCache() {
 	ds.opslog = nil // new ops log.
 	ds.SetCachePackage(Uverse())
 }
+
+// func (ds *defaultStore) CacheExists(oid ObjectID) bool {
+// }
 
 func (ds *defaultStore) GarbageCollectObjectCache(gcCycle int64) {
 	for objId, obj := range ds.cacheObjects {
