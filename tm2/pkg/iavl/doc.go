@@ -1,6 +1,8 @@
 // Package iavl implements a versioned, snapshottable (immutable) AVL+ tree
 // for persisting key-value pairs.
 //
+// Deprecated: use `github.com/cosmos/iavl` instead.
+//
 // Basic usage of MutableTree.
 //
 //	import "github.com/tendermint/classic/iavl"
