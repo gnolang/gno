@@ -513,6 +513,25 @@ func main() {
 }
 ```
 
+**Testing our real-time monitoring:**
+
+Now that we have our WebSocket listener running, let's generate some test transactions to see it work! You can try it by running:
+
+```bash
+# Send 1000 ugnot (0.001 GNOT) from one address to another
+gnokey maketx send \
+	-gas-fee 1000000ugnot \
+	-gas-wanted 500000 \
+	-send 1000ugnot \
+	-broadcast \
+	-chainid "dev" \
+	-remote "tcp://127.0.0.1:26657" \
+	-to g1destination_address_here \
+	g1your_address_here
+```
+
+Your WebSocket listener is now detecting send transactions in real-time!
+
 #### Step 5: API Implementation Example
 
 Let's create a simple JSON API that serves transaction data. This is great for building mobile apps, frontends, or integrating with other services! 🚀
