@@ -90,3 +90,18 @@ func WithFinishedProposalStorage(s ProposalStorage) Option {
 		dao.finishedProposals = s
 	}
 }
+
+// DisableVotingDeadlineCheck disables voting deadline check when voting or executing proposals.
+// By default CommonDAO checks that the proposal voting deadline has not been met when a new vote
+// is submitted, before registering the vote, and on proposal execution it also checks that voting
+// deadline has been met before executing a proposal.
+//
+// Disabling these checks can be useful in different use cases, moving the responsibility to check
+// the deadline to the commondao package caller. One example where this could be useful would be
+// in case where 100% or a required number of members of a DAO vote on a proposal and reach consensus
+// before the deadline is met, otherwise proposal would have to wait until deadline to be executed.
+func DisableVotingDeadlineCheck() Option {
+	return func(dao *CommonDAO) {
+		dao.disableVotingDeadlineCheck = true
+	}
+}
