@@ -320,8 +320,8 @@ func (itr *goLevelDBIterator) Next() {
 	}
 }
 
-func (i *goLevelDBIterator) Error() error {
-	return i.source.Error()
+func (itr *goLevelDBIterator) Error() error {
+	return itr.source.Error()
 }
 
 // Implements Iterator.

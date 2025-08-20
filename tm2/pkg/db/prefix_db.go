@@ -274,11 +274,11 @@ func (pb prefixBatch) Close() error {
 	return pb.source.Close()
 }
 
-func (bp prefixBatch) GetByteSize() (int, error) {
-	if bp.source == nil {
+func (pb prefixBatch) GetByteSize() (int, error) {
+	if pb.source == nil {
 		return 0, errors.New("prefixdb: batch has been written or closed")
 	}
-	return bp.source.GetByteSize()
+	return pb.source.GetByteSize()
 }
 
 // ----------------------------------------
