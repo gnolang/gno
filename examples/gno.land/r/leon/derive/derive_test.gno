@@ -44,6 +44,7 @@ func TestParsePkgPath(t *testing.T) {
 func TestDerive(t *testing.T) {
 	got := Render("?pkgpath=gno.land/r/leon/home")
 	if !strings.Contains(got, "g1n0z9kw63c6ze8fgle93s2e86hfm2qz025cgkey") {
+		// manually checked the above address
 		t.Fatal("Failed derivation!")
 	}
 }
