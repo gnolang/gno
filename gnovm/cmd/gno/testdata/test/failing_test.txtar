@@ -18,3 +18,8 @@ import "testing"
 func TestAlwaysFailing(t *testing.T) {
 	t.Fatal("failed")
 }
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/failing_tst"
+gno = "0.9"
