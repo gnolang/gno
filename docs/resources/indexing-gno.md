@@ -25,8 +25,6 @@ This creates a "database view" of the blockchain while preserving its decentrali
 - **High Performance**: Concurrent block processing pipeline
 - **Embedded Storage**: PebbleDB engine
 
-It facilitate efficient data retrieval and management in Tendermint2 networks.
-
 ## Examples
 For example of queries, refers to the [tx-indexer](https://github.com/gnolang/tx-indexer?tab=readme-ov-file#examples) documentation.
 
