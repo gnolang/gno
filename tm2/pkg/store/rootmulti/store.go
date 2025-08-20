@@ -512,7 +512,7 @@ func getCommitInfo(db dbm.DB, ver int64) (commitInfo, error) {
 	cInfoKey := fmt.Sprintf(commitInfoKeyFmt, ver)
 	cInfoBytes, err := db.Get([]byte(cInfoKey))
 	if err != nil {
-		return commitInfo{}, fmt.Errorf("failed to get Store: %v", err)
+		return commitInfo{}, fmt.Errorf("failed to get Store: %w", err)
 	}
 	if cInfoBytes == nil {
 		return commitInfo{}, fmt.Errorf("failed to get Store: no data")

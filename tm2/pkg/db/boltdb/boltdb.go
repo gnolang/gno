@@ -345,7 +345,7 @@ func (itr *boltDBIterator) Value() []byte {
 	return value
 }
 
-func (i *boltDBIterator) Error() error {
+func (*boltDBIterator) Error() error {
 	return nil // famous last words
 }
 
