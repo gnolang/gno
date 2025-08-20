@@ -624,11 +624,11 @@ func setupDB() *sql.DB {
 
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS transactions (
-			hash TEXT PRIMARY KEY,     -- Unique transaction ID (prevents duplicates)
-			amount REAL,              -- Amount in ugnot (we'll convert for display)
+			hash TEXT PRIMARY KEY,     -- Unique transaction ID
+			amount REAL,              -- Amount in ugnot
 			from_addr TEXT,           -- Sender address
 			to_addr TEXT,             -- Receiver address
-			block_height INTEGER,     -- Block number (helps with ordering)
+			block_height INTEGER,     -- Block number 
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- When we stored this record
 		)
 	`)
