@@ -986,7 +986,7 @@ For advanced users who want to control gas parameters manually, you can
 specify:
 
 - `--gas-wanted` - Maximum gas units to consume (or "auto" for estimation)
-- `--gas-fee` - Fee per gas unit (or "auto" for automatic pricing)
+- `--gas-fee` - Amount to pay (or "auto" for automatic pricing)
 
 ```bash
 # Manual gas specification
