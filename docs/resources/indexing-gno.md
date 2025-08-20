@@ -533,7 +533,7 @@ Your WebSocket listener is now detecting send transactions in real-time!
 Let's create a simple JSON API that serves transaction data. This is great for building applications, frontends, or integrating with other services.
 
 **What we're building:**
-A lightweight REST API that returns transaction statistics as JSON. 
+A lightweight API that returns transaction statistics as JSON. 
 
 ```go
 package main
