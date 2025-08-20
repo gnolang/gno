@@ -1,4 +1,4 @@
-module = "gno.land/r/leon/derivr"
+module = "gno.land/r/leon/derive"
 gno = "0.9"
 
 [addpkg]

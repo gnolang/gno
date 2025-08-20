@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/leon/hor"
 )
 
 var cd = std.ChainDomain()
@@ -61,4 +62,8 @@ func parsePkgPath(path string) string {
 		// reject invalid
 		return ""
 	}
+}
+
+func init() {
+	hor.Register(cross, "Derive", "Quickly derive a Gno address from a pkg path.")
 }
