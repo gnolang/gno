@@ -392,7 +392,7 @@ func (opts *TestOptions) writeCoverageProfile() {
 	fmt.Fprintf(file, "mode: %s\n", opts.CoverMode)
 
 	// Write coverage data for each package
-	for pkgPath, coverageData := range opts.coverageData {
+	for _, coverageData := range opts.coverageData {
 		if coverageData == nil {
 			continue
 		}

@@ -77,7 +77,7 @@ func TestCoverageGetCoverage(t *testing.T) {
 	
 	// Add some blocks
 	block1 := coverage.AddBlock("test.gno", 1, 1, 1, 10, 2)
-	block2 := coverage.AddBlock("test.gno", 2, 1, 2, 10, 3)
+	_ = coverage.AddBlock("test.gno", 2, 1, 2, 10, 3)
 	block3 := coverage.AddBlock("test.gno", 3, 1, 3, 10, 1)
 	
 	// Initially no coverage

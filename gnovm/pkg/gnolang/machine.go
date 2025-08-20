@@ -131,27 +131,39 @@ func (m *Machine) trackStatementCoverage(s Stmt) {
 		return
 	}
 
-	// Get statement location information
-	loc := s.GetLocation()
-	if loc.IsZero() {
+	// Get statement span information
+	span := s.GetSpan()
+	pos := span.Pos
+	if pos.Line == 0 {
 		return
 	}
 
-	// For now, create a simple coverage block for each statement
-	// In a more sophisticated implementation, we would pre-analyze the code
-	// and create coverage blocks during preprocessing
-	filename := loc.File
-	if filename == "" {
-		filename = "unknown"
+	// Determine filename from current frame's function location if available
+	filename := "unknown"
+	if n := len(m.Frames); n > 0 && m.Frames[n-1].Func != nil {
+		funcLoc := m.Frames[n-1].Func.GetSource(m.Store).GetLocation()
+		if funcLoc.File != "" {
+			filename = funcLoc.File
+		}
+	}
+
+	// Determine end line/col; fall back to same line with rough col estimate
+	endLine := span.End.Line
+	endCol := span.End.Column
+	if endLine == 0 {
+		endLine = pos.Line
+	}
+	if endCol == 0 {
+		endCol = pos.Column + 10
 	}
 
 	// Create a coverage block for this statement
 	blockIndex := m.Coverage.AddBlock(
 		filename,
-		loc.Line,
-		loc.Column,
-		loc.Line, // For now, assume single-line statements
-		loc.Column+10, // Rough estimate
+		pos.Line,
+		pos.Column,
+		endLine,
+		endCol,
 		1, // One statement per block for simplicity
 	)
 

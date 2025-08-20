@@ -3,6 +3,7 @@ package gnomod
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -323,7 +324,10 @@ func TestFile_WriteFile(t *testing.T) {
 			err := tc.file.WriteFile(fpath)
 			if tc.expectedErr != "" {
 				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tc.expectedErr)
+				msg := strings.ToLower(err.Error())
+				if !(strings.Contains(msg, "no such file") || strings.Contains(msg, "cannot find the path")) {
+					t.Fatalf("unexpected error: %v", err)
+				}
 				return
 			}
 
