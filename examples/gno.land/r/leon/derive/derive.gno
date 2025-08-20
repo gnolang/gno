@@ -1,0 +1,64 @@
+package derive
+
+import (
+	"net/url"
+	"std"
+	"strings"
+
+	"gno.land/p/demo/ufmt"
+)
+
+var cd = std.ChainDomain()
+
+func Render(path string) string {
+	out := "# Derive Realm Address\n\n"
+
+	out += `<gno-form>
+ 	 <gno-input name="pkgpath" placeholder="gno.land/r/..." />
+	</gno-form>
+`
+
+	if strings.Contains(path, "pkgpath") {
+		parsed := parsePkgPath(path)
+		if parsed == "" {
+			out += "Please input a valid pkgpath."
+			return out
+		}
+		out += ufmt.Sprintf("### [%s](%s) matches %s", parsed, strings.TrimPrefix(parsed, "gno.land"), std.DerivePkgAddr(parsed))
+	}
+
+	return out
+}
+
+func parsePkgPath(path string) string {
+	u, err := url.Parse(path)
+	if err != nil {
+		return ""
+	}
+
+	pkgpath := u.Query().Get("pkgpath")
+	if pkgpath == "" {
+		return ""
+	}
+
+	switch {
+	case strings.HasPrefix(pkgpath, "gno.land/r/"),
+		strings.HasPrefix(pkgpath, "gno.land/p/"):
+		// already absolute and valid
+		return pkgpath
+
+	case strings.HasPrefix(pkgpath, "r/"),
+		strings.HasPrefix(pkgpath, "p/"):
+		// relative path, normalize
+		return "gno.land/" + pkgpath
+
+	case strings.HasPrefix(pkgpath, "/r/"),
+		strings.HasPrefix(pkgpath, "/p/"):
+		// relative with leading slash
+		return "gno.land" + pkgpath
+
+	default:
+		// reject invalid
+		return ""
+	}
+}
