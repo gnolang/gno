@@ -150,7 +150,7 @@ The `addpkg` subcommmand uses the following flags and arguments:
 - `-broadcast` - enables broadcasting the transaction to the chain
 - `-deposit` - a deposit amount of GNOT to send along with the transaction
 - `-gas-wanted` - the upper limit for units of gas (optional, defaults to auto)
-- `-gas-fee` - amount of GNOTs to pay per gas unit (optional, defaults to auto)
+- `-gas-fee` - amount of GNOTs to pay (optional, defaults to auto)
 - `-chain-id` - id of the chain that we are sending the transaction to
 - `-remote` - specifies the remote node RPC listener address
 
