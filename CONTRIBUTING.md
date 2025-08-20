@@ -70,6 +70,14 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 Avoid rebasing after opening your PR for review. Maintainers handle the final
 squash/merge. Add new commits to address feedback instead of force-pushing.
 
+Using merge commits instead of rebase allows reviewers
+to better review changes only since their last review.
+To disable rebase when using `git pull` on the repository, run:
+
+	git config pull.rebase false
+
+This will be disabled only for the git repository you're currently on.
+
 ### Code Style
 
 - Read [PHILOSOPHY.md](./PHILOSOPHY.md) to understand our approach
