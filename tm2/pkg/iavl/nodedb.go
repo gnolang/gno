@@ -469,7 +469,7 @@ func (ndb *nodeDB) String() string {
 
 	ndb.traverseNodes(func(hash []byte, node *Node) {
 		if len(hash) == 0 {
-			str += fmt.Sprintf("<nil>\n")
+			str += "<nil>\n"
 		} else if node == nil {
 			str += fmt.Sprintf("%s%40x: <nil>\n", nodeKeyFormat.Prefix(), hash)
 		} else if node.value == nil && node.height > 0 {

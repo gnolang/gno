@@ -16,6 +16,7 @@ import (
 	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -156,7 +157,7 @@ func (opts *TestOptions) WriterForStore() io.Writer {
 }
 
 // NewTestOptions sets up TestOptions, filling out all "required" parameters.
-func NewTestOptions(rootDir string, stdout, stderr io.Writer) *TestOptions {
+func NewTestOptions(rootDir string, stdout, stderr io.Writer, pkgs packages.PkgList) *TestOptions {
 	opts := &TestOptions{
 		RootDir: rootDir,
 		Output:  stdout,
@@ -164,9 +165,9 @@ func NewTestOptions(rootDir string, stdout, stderr io.Writer) *TestOptions {
 	}
 	opts.BaseStore, opts.TestStore = StoreWithOptions(
 		rootDir, opts.WriterForStore(), StoreOptions{
-			WithExtern:   false,
-			WithExamples: true,
-			Testing:      true,
+			WithExtern: false,
+			Testing:    true,
+			Packages:   pkgs,
 		})
 	return opts
 }
@@ -454,7 +455,7 @@ func (opts *TestOptions) runTestFiles(
 				}
 				if err != nil {
 					p = filepath.Join(opts.RootDir, "examples", ppath, name)
-					b, err = os.ReadFile(p)
+					b, _ = os.ReadFile(p)
 				}
 				return string(b)
 			}

@@ -37,7 +37,7 @@ cannot be called via a standard "MsgCall" transaction. To call these functions, 
 
 Check out the source code to see example functions and objects.
 
-In this case, the following "MsgRun" code would be used to call the function:  
+In this case, the following "MsgRun" code would be used to call the function:
 `
 	out += ufmt.Sprintf("```go\n%s\n```\n\n", msgrun)
 
@@ -61,7 +61,7 @@ In this case, the following "MsgRun" code would be used to call the function:
 		out += ufmt.Sprintf("Value of myObject: `CustomObject{Name: %s, Numbers: %s}`", myObject.Name, s)
 	}
 
-	out = strings.Replace(out, "\"", "`", -1)
+	out = strings.ReplaceAll(out, "\"", "`")
 	return out
 }
 

@@ -401,7 +401,7 @@ func TestAveragingInIncrementProposerPriority(t *testing.T) {
 			},
 			// this should average twice but the average should be 0 after the first iteration
 			// (voting power is 0 -> no changes)
-			11, 1 / 3,
+			11, 0,
 		},
 		2: {
 			ValidatorSet{

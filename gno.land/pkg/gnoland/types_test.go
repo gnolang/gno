@@ -112,7 +112,7 @@ func TestReadGenesisTxs(t *testing.T) {
 			encodedTx, err := amino.MarshalJSON(tx)
 			require.NoError(t, err)
 
-			_, err = file.WriteString(fmt.Sprintf("%s\n", encodedTx))
+			_, err = fmt.Fprintf(file, "%s\n", encodedTx)
 			require.NoError(t, err)
 		}
 

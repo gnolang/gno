@@ -1,6 +1,7 @@
 package benchmarks
 
 import (
+	crand "crypto/rand"
 	"fmt"
 	"math/rand"
 	"os"
@@ -18,9 +19,7 @@ const historySize = 20
 
 func randBytes(length int) []byte {
 	key := make([]byte, length)
-	// math.rand.Read always returns err=nil
-	// we do not need cryptographic randomness for this test:
-	rand.Read(key)
+	crand.Read(key)
 	return key
 }
 

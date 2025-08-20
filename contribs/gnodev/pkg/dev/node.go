@@ -509,6 +509,9 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 
 	// Reset the node with the new genesis state.
 	err = n.rebuildNode(ctx, genesis)
+	if err != nil {
+		return fmt.Errorf("unable to rebuild node: %w", err)
+	}
 	n.logger.Info("reload done",
 		"pkgs", len(pkgsTxs),
 		"state applied", len(state),
@@ -653,8 +656,6 @@ func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result
 	}
 
 	n.logger.LogAttrs(context.Background(), slog.LevelError, "unable to deliver tx", attrs...)
-
-	return
 }
 
 func newNodeConfig(tmc *tmcfg.Config, chainid, chaindomain string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {

@@ -41,6 +41,7 @@ Learn about core concepts found in Gno.land & Gno.
 - [Networks](resources/gnoland-networks.md) - Discover different Gno.land networks (testnets, devnets) and their purposes, including network configurations.
 - [Users and Teams](resources/users-and-teams.md) - Understand user registration, namespace ownership, and team collaboration in the Gno.land ecosystem.
 - [Gas Fees](resources/gas-fees.md) - Learn about gas pricing, estimation, and optimization strategies in Gno.land.
+- [Storage Deposit](resources/storage-deposit.md) - Learn how storage deposits work, including costs, refunds, and cleanup incentives in Gno.land.
 - [Standard libraries](resources/gno-stdlibs.md) - An overview of the standard libraries found in the Gno language and how they enhance blockchain functionality.
 - [Configuring Gno Projects](resources/configuring-gno-projects.md) - Using gnomod.toml & gnowork.toml to configure your Gno packages.
 - [Indexing Gno](resources/indexing-gno.md) - Learn how to index TM2 blockchain (As Gno Land) through `tx-indexer`.

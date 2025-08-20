@@ -1079,7 +1079,7 @@ func (vm *VMKeeper) QueryDoc(ctx sdk.Context, pkgPath string) (*doc.JSONDocument
 	if err != nil {
 		return nil, err
 	}
-	return d.WriteJSONDocumentation()
+	return d.WriteJSONDocumentation(nil)
 }
 
 // QueryStorage returns storage and deposit for a realm.
@@ -1127,7 +1127,6 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 		if diff == 0 {
 			continue
 		}
-
 		rlm := gnostore.GetPackageRealm(rlmPath)
 		if diff > 0 {
 			// lock deposit for the additional storage used.

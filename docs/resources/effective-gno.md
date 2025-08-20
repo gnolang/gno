@@ -59,7 +59,7 @@ func GetCounter() int {
 }
 
 // public setter endpoint.
-func IncCounter() {
+func IncCounter(_ realm) {
 	counter++
 }
 ```
@@ -142,7 +142,7 @@ In Gno, `init()` primarily serves two purposes:
 import "gno.land/r/some/registry"
 
 func init() {
-	registry.Register("myID", myCallback)
+	registry.Register(cross, "myID", myCallback)
 }
 
 func myCallback(a, b string) { /* ... */ }
@@ -251,14 +251,14 @@ func init() {
 	myExchange = exchange.NewExchange(myToken)
 }
 
-func BuyTokens(amount int) {
+func BuyTokens(_ realm, amount int) {
 	caller := permissions.GetCaller()
 	permissions.CheckPermission(caller, "buy")
 	myWallet.Debit(caller, amount)
 	myExchange.Buy(caller, amount)
 }
 
-func SellTokens(amount int) {
+func SellTokens(_ realm, amount int) {
 	caller := permissions.GetCaller()
 	permissions.CheckPermission(caller, "sell")
 	myWallet.Credit(caller, amount)
@@ -509,7 +509,7 @@ func init() {
 	owner = std.PreviousRealm().Address()
 }
 
-func ChangeOwner(newOwner std.Address) {
+func ChangeOwner(_ realm, newOwner std.Address) {
 	caller := std.PreviousRealm().Address()
 
 	if caller != owner {
@@ -581,7 +581,7 @@ import "std"
 
 var admin std.Address = "g1xxxxx"
 
-func AdminOnlyFunction() {
+func AdminOnlyFunction(_ realm) {
 	caller := std.PreviousRealm().Address()
 	if caller != admin {
 		panic("permission denied")
@@ -589,7 +589,7 @@ func AdminOnlyFunction() {
 	// ...
 }
 
-// func UpdateAdminAddress(newAddr std.Address) { /* ... */ }
+// func UpdateAdminAddress(_ realm, newAddr std.Address) { /* ... */ }
 ```
 
 In this example, `AdminOnlyFunction` is a function that can only be called by
@@ -608,7 +608,7 @@ Here's an example:
 ```go
 import "std"
 
-func TransferTokens(to std.Address, amount int64) {
+func TransferTokens(_ realm, to std.Address, amount int64) {
 	caller := std.PreviousRealm().Address()
 	if caller != admin {
 		panic("permission denied")
@@ -653,7 +653,7 @@ func GetPost(id string) *Post {
 	return tree.Get(id).(*Post)
 }
 
-func AddPost(id string, post *Post) {
+func AddPost(_ realm, id string, post *Post) {
 	tree.Set(id, post)
 }
 ```
@@ -705,7 +705,7 @@ func NewSafeStruct() *MySafeStruct {
 }
 
 func (s *MySafeStruct) Counter() int { return s.counter }
-func (s *MySafeStruct) Inc() {
+func (s *MySafeStruct) Inc(_ realm) {
 	caller := std.PreviousRealm().Address()
 	if caller != s.admin {
 		panic("permission denied")
@@ -769,7 +769,7 @@ import "gno.land/p/demo/grc/grc20"
 
 var fooToken = grc20.NewBanker("Foo Token", "FOO", 4)
 
-func MyBalance() uint64 {
+func MyBalance(_ realm) uint64 {
 	caller := std.PreviousRealm().Address()
 	return fooToken.BalanceOf(caller)
 }

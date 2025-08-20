@@ -14,7 +14,7 @@ The added dimension of the program domain means the language should be extended
 to best express the complexities of programming in the inter-realm (inter-user)
 domain. In other words, Go is a restricted subset of the Gno language in the
 single-user context. (In this analogy client requests for Go web servers don't
-count as they run outside of the server program).
+count as they run outside the server program).
 
 ### Interrealm Programming Context
 
@@ -143,7 +143,7 @@ A function declared in a realm package when called:
 The `cur realm` argument must appear as the first argument of a function's 
 parameter list. It is illegal to use anywhere else, and cannot be used in p
 packages. Functions that start with the `cur realm` argument as first argument
-are called "crossing functions".
+are called "crossing functions". 
 
 A crossing function declared in a realm different from the last explicitly
 crossed realm *must* be called like `fn(cross, ...)`. That is, functions of
@@ -229,13 +229,12 @@ be upgraded.
 Both `fn(cross, ...)` and `func fn(cur realm, ...){...}` may become special syntax in
 future Gno versions.
 
-## `attach()`
 
 ## `panic()` and `revive(fn)`
 
 `panic()` behaves the same within the same realm boundary, but when a panic
 crosses a realm boundary (as defined in [Realm
-Finalization](#realm-finalization)) the Machine aborts the program. This is
+Boundries](#realm-boundaries)) the Machine aborts the program. This is
 because in a multi-user environment it isn't safe to let the caller recover from
 realm panics that often leave the state in an invalid state.
 
@@ -245,8 +244,7 @@ the `revive(fn)` builtin.
 
 ```go
 abort := revive(func() {
-    cross(func() {
-        crossing()
+    cross(func(_ realm) {
         panic("cross-realm panic")
     })
 })
@@ -263,6 +261,10 @@ and the behavior will change such that `fn()` is run in transactional
 was an abort.
 
 TL;DR: `revive(fn)` is Gno's builtin for STM (software transactional memory).
+
+## `attach()`
+
+Coming soon.
 
 ## Application
 
@@ -309,7 +311,7 @@ functions of other realms is still possible with MsgRun.
 ```go
 // PKGPATH: gno.land/r/test/test
 
-func Public(cur realm) {
+func Public(_ realm) {
 
     // Returns (
     //     addr:<origin_caller>,
@@ -330,7 +332,7 @@ func Public(cur realm) {
     AnotherPublic(cur)
 }
 
-func AnotherPublic(cur realm) {
+func AnotherPublic(_ realm) {
     ...
 }
 ```
@@ -489,7 +491,7 @@ package myrealm
 
 import (
     "std"
-    "stdlibs/testing"
+    "testing"
 )
 
 func TestFoo(t *testing.T) {
@@ -552,7 +554,6 @@ func main() {
     // CodeRealm("gno.land/r/test/test") before
     // main() is called, so crossing() here
     // is redundant.
-    // crossing()
 
     // Returns (
     //     addr:g1user,

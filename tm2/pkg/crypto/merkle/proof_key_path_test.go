@@ -1,9 +1,8 @@
 package merkle
 
 import (
-	// it is ok to use math/rand here: we do not need a cryptographically secure random
-	// number generator here and we can run the tests a bit faster
-	"math/rand"
+	"crypto/sha256"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,20 +14,22 @@ func TestKeyPath(t *testing.T) {
 	var path KeyPath
 	keys := make([][]byte, 10)
 	alphanum := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	cc8 := rand.NewChaCha8(sha256.Sum256([]byte("abc123")))
+	rng := rand.New(cc8)
 
 	for range 1_000 {
 		path = nil
 
 		for i := range keys {
-			enc := keyEncoding(rand.Intn(int(KeyEncodingMax)))
+			enc := keyEncoding(rng.IntN(int(KeyEncodingMax)))
 			keys[i] = make([]byte, rand.Uint32()%20)
 			switch enc {
 			case KeyEncodingURL:
 				for j := range keys[i] {
-					keys[i][j] = alphanum[rand.Intn(len(alphanum))]
+					keys[i][j] = alphanum[rng.IntN(len(alphanum))]
 				}
 			case KeyEncodingHex:
-				rand.Read(keys[i])
+				cc8.Read(keys[i])
 			default:
 				panic("Unexpected encoding")
 			}

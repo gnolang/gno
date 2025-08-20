@@ -503,7 +503,6 @@ func TestAnteHandlerBadSignBytes(t *testing.T) {
 		{chainID, 0, 1, fee3, msgs, unauthErr},                           // test wrong fee
 	}
 
-	privs, seqs = []crypto.PrivKey{priv1}, []uint64{1}
 	for _, cs := range cases {
 		signPayload, err := std.GetSignaturePayload(std.SignDoc{
 			ChainID:       cs.chainID,

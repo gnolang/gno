@@ -772,10 +772,7 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 	typ3 := einfo.GetTyp3(fopts)
 	if typ3 != Typ3ByteLength || (newoptions&beOptionByte > 0) {
 		// Read elems in packed form.
-		for {
-			if len(bz) == 0 {
-				break
-			}
+		for len(bz) != 0 {
 			erv, _n := reflect.New(ert).Elem(), int(0)
 			_n, err = cdc.decodeReflectBinary(bz, einfo, erv, fopts, false, newoptions)
 			if slide(&bz, &n, _n) && err != nil {
@@ -792,10 +789,7 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 			einfo.Elem.ReprType.GetTyp3(fopts) != Typ3ByteLength
 
 		// Read elements in unpacked form.
-		for {
-			if len(bz) == 0 {
-				break
-			}
+		for len(bz) != 0 {
 			// Read field key (number and type).
 			var (
 				typ  Typ3

@@ -92,7 +92,7 @@ func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
 
 func execGenerate(cfg *generateCfg, io commands.IO) error {
 	// Start with the default configuration
-	genesis := common.GetDefaultGenesis()
+	genesis := common.DefaultGenesis()
 
 	// Set the genesis time
 	if cfg.genesisTime > 0 {

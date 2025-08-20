@@ -15,7 +15,7 @@ const (
 
 var (
 	daoID     uint64
-	realmAddr = std.DerivePkgAddr("gno.land/r/test")
+	realmAddr = std.DerivePkgAddr("gno.land/r/demo/test")
 )
 
 func init() {
@@ -25,12 +25,12 @@ func init() {
 
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
 	daoID = commondao.New("Foo").ID()
 }
 
 func main() {
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
 
 	commondao.TransferOwnership(cross, daoID, newRealm)
 
