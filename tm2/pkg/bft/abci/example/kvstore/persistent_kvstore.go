@@ -222,7 +222,7 @@ func (app *PersistentKVStoreApplication) updateValidator(val abci.ValidatorUpdat
 		// remove validator
 		// TODO address err
 		found, _ := app.app.state.db.Has(makeValidatorKey(val))
-		if found {
+		if !found {
 			res.Error = errors.UnauthorizedError{}
 			res.Log = fmt.Sprintf("Cannot remove non-existent validator %s", val.PubKey.String())
 			return res
