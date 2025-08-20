@@ -1,11 +1,10 @@
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
-//
-// This package was ported from x/crypto/sha3
-// the original code can be checked on :
-// https://cs.opensource.google/go/x/crypto/+/master:sha3/sha3.go
 
+// Package keccak256 was ported from x/crypto/sha3
+// the original source can be found here:
+// https://cs.opensource.google/go/x/crypto/+/master:sha3/sha3.go
 package keccak256
 
 import (
