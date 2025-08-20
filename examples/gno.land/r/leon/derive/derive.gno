@@ -15,7 +15,7 @@ func Render(path string) string {
 	out := "# Derive Realm Address\n\n"
 
 	out += `<gno-form>
- 	 <gno-input name="pkgpath" placeholder="gno.land/r/..." />
+ 	 <gno-input name="pkgpath" placeholder="gno.land/{r,p}/..." />
 	</gno-form>
 `
 
