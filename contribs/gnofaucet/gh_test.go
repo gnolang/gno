@@ -221,7 +221,7 @@ func TestGitHubClaimMiddleware(t *testing.T) {
 			t.Parallel()
 
 			var (
-				mw     = gitHubClaimMiddleware(testCase.limiter, &mockRewarder{})
+				mw     = chainMiddlewares(getMiddlewares(&mockRewarder{}, testCase.limiter)...)
 				called = false
 				next   = func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
 					called = true
@@ -287,7 +287,7 @@ func TestGitHubCheckRewardsMiddleware(t *testing.T) {
 		{
 			name: "invalid method",
 			ctx:  context.WithValue(context.Background(), ghUsernameKey, "ajnavarro"),
-			req:  spec.NewJSONRequest(2, faucet.DefaultDripMethod, nil),
+			req:  spec.NewJSONRequest(2, "boo", nil),
 			rewarder: &mockRewarderWithFn{
 				getRewardFn: func(_ context.Context, _ string) (int, error) {
 					return 0, nil
@@ -329,7 +329,7 @@ func TestGitHubCheckRewardsMiddleware(t *testing.T) {
 			t.Parallel()
 
 			var (
-				mw     = gitHubCheckRewardsMiddleware(tc.rewarder)
+				mw     = chainMiddlewares(getMiddlewares(tc.rewarder, nil)...)
 				called = false
 				next   = func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
 					called = true
@@ -354,5 +354,18 @@ func TestGitHubCheckRewardsMiddleware(t *testing.T) {
 			assert.Nil(t, resp.Error)
 			assert.Equal(t, tc.expectedResult, resp.Result)
 		})
+	}
+}
+
+// chainMiddlewares combines the given JSON-RPC middlewares
+func chainMiddlewares(mw ...faucet.Middleware) faucet.Middleware {
+	return func(final faucet.HandlerFunc) faucet.HandlerFunc {
+		h := final
+
+		for i := len(mw) - 1; i >= 0; i-- {
+			h = mw[i](h)
+		}
+
+		return h
 	}
 }
