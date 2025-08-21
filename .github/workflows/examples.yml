@@ -6,7 +6,6 @@ on:
       - master
   pull_request:
     paths:
-      # any change to gnovm code can make examples fail
       - gnovm/**
       - examples/**
 
@@ -24,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
@@ -37,11 +36,10 @@ jobs:
       matrix:
         goversion:
           - "1.23.x"
-        # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
@@ -61,18 +59,14 @@ jobs:
       matrix:
         goversion:
           - "1.23.x"
-        # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
-      # testing official directories, basically examples/ minus examples/.../x/.
       - run: make lint -C ./examples
-      # TODO: consider running lint on every other directories, maybe in "warning" mode?
-    # TODO: track coverage
 
   fmt:
     name: Run gno fmt on examples
@@ -92,16 +86,14 @@ jobs:
       fail-fast: false
       matrix:
         go-version: ["1.23.x"]
-        # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: |
           cd examples
           make tidy
-          # Check if there are changes after running gno mod tidy
           git diff --exit-code || (echo "Some gnomod.toml files are not tidy, please run 'make tidy'." && exit 1)
