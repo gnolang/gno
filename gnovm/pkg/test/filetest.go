@@ -346,7 +346,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			// m.Store.SetAllocator(m.Alloc)
 			if _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
 				// Getter: m.Store,
-				Getter:     opts.TestStore,
+				Getter:     opts.TestStore, // bare store with no cache wrapper
 				TestGetter: m.Store,
 				Mode:       gno.TCLatestRelaxed,
 				Cache:      opts.tcCache,

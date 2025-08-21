@@ -281,14 +281,21 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
 	if m.Package != nil && m.Package.PkgPath == mpkg.Path {
+		fmt.Println("===============m.Package != nil, ", m.Package)
 		pv = m.Package
 		loc := PackageNodeLocation(mpkg.Path)
 		pn = m.Store.GetBlockNode(loc).(*PackageNode)
 	} else {
+		fmt.Println("===============m.Package == nil")
 		pn = NewPackageNode(Name(mpkg.Name), mpkg.Path, &FileSet{})
 		pv = pn.NewPackage(m.Alloc)
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
+	}
+	oid := ObjectIDFromPkgPath(pv.PkgPath)
+	if _, exists := m.Store.(*defaultStore).cacheObjects[oid]; exists {
+		fmt.Println("=======================alrealdy exists...")
+		fmt.Printf("=======================addr of store: %p\n", &m.Store)
 	}
 	m.SetActivePackage(pv)
 	// run files.

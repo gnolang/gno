@@ -322,6 +322,8 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	if ds.baseStore != nil {
 		if oo := ds.loadObjectSafe(oid); oo != nil {
 			fmt.Println("=====from store..., allocater: ", ds.GetAllocator())
+			fmt.Printf("===============addr of store: %p\n", ds)
+			fmt.Printf("===============type of store: %v\n", reflect.TypeOf(ds))
 			pv := oo.(*PackageValue)
 			// XXX, alloc, FBlocks...?
 			// in loadObjectSafe...?
