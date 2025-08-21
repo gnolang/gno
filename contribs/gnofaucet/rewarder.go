@@ -10,7 +10,8 @@ import (
 )
 
 type Rewarder interface {
-	Reward(ctx context.Context, user string, readOnly bool) (int, error)
+	GetReward(ctx context.Context, user string) (int, error)
+	Apply(ctx context.Context, user string, amount int) error
 }
 
 var _ Rewarder = &RedisRewarder{}
@@ -30,7 +31,7 @@ type RedisRewarder struct {
 }
 
 // Reward implements Rewarder.
-func (r *RedisRewarder) Reward(ctx context.Context, user string, readOnly bool) (int, error) {
+func (r *RedisRewarder) GetReward(ctx context.Context, user string) (int, error) {
 	keys := map[string]float64{
 		issueCountKey(user):    r.cfg.IssueFactor,
 		prCountKey(user):       r.cfg.PRFactor,
@@ -63,16 +64,16 @@ func (r *RedisRewarder) Reward(ctx context.Context, user string, readOnly bool) 
 		total = total - previouslyRewarded
 	}
 
-	if readOnly {
-		return total, nil
-	}
-
-	err = r.redisClient.Set(ctx, userRewardedKey(user), total+previouslyRewarded, 0).Err()
-	if err != nil {
-		return 0, fmt.Errorf("error storing reward on redis: %w", err)
-	}
-
 	return total, nil
+}
+
+func (r *RedisRewarder) Apply(ctx context.Context, user string, amount int) error {
+	previouslyRewarded, err := r.getCount(ctx, userRewardedKey(user))
+	if err != nil {
+		return err
+	}
+
+	return r.redisClient.Set(ctx, userRewardedKey(user), amount+previouslyRewarded, 0).Err()
 }
 
 func (r *RedisRewarder) getCount(ctx context.Context, key string) (int, error) {

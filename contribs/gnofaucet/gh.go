@@ -136,7 +136,7 @@ func gitHubCheckRewardsMiddleware(rewarder Rewarder) faucet.Middleware {
 				)
 			}
 
-			reward, err := rewarder.Reward(ctx, username, true)
+			reward, err := rewarder.GetReward(ctx, username)
 			if err != nil {
 				return spec.NewJSONResponse(
 					req.ID,
@@ -174,7 +174,7 @@ func gitHubClaimRewardsMiddleware(rewarder Rewarder) faucet.Middleware {
 					spec.NewJSONError("params must contain only the address", spec.InvalidParamsErrorCode),
 				)
 			}
-			reward, err := rewarder.Reward(ctx, username, false)
+			reward, err := rewarder.GetReward(ctx, username)
 			if err != nil {
 				return spec.NewJSONResponse(
 					req.ID,
@@ -195,6 +195,15 @@ func gitHubClaimRewardsMiddleware(rewarder Rewarder) faucet.Middleware {
 
 			c := std.NewCoin("ugnot", int64(reward)).String()
 			req.Params = append(req.Params, c)
+
+			// TODO: this should be called AFTER the faucet succesfully gives tokens to the requester
+			if err := rewarder.Apply(ctx, username, reward); err != nil {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError(fmt.Sprintf("unable to apply reward: %v", err), spec.ServerErrorCode),
+				)
+			}
 
 			return next(ctx, req)
 		}
