@@ -23,7 +23,8 @@ func (m *Machine) doOpIndex1() {
 			*xv = defaultTypedValue(m.Alloc, vt) // reuse as result
 		}
 	default:
-		res := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
+		// NOTE: nilRealm is OK, not setting a map (w/ new key).
+		res := xv.GetPointerAtIndex(nilRealm, m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result
 	}
 	xv.SetReadonly(ro)
@@ -73,7 +74,7 @@ func (m *Machine) doOpSelector() {
 
 func (m *Machine) doOpSlice() {
 	sx := m.PopExpr().(*SliceExpr)
-	var lowVal, highVal, maxVal int = -1, -1, -1
+	lowVal, highVal, maxVal := -1, -1, -1
 	// max
 	if sx.Max != nil {
 		maxVal = int(m.PopValue().ConvertGetInt())
@@ -297,8 +298,7 @@ func (m *Machine) doOpTypeAssert2() {
 
 			// t is Gno interface.
 			// assert that x implements type.
-			var impl bool
-			impl = it.IsImplementedBy(xt)
+			impl := it.IsImplementedBy(xt)
 			if impl {
 				// *xv = *xv
 				*tv = untypedBool(true)
@@ -601,9 +601,8 @@ func (m *Machine) doOpStructLit() {
 					panic(fmt.Sprintf(
 						"Cannot initialize imported struct %s.%s with nameless composite lit expression (has unexported fields) from package %s",
 						st.PkgPath, st.String(), m.Package.PkgPath))
-				} else {
-					// this is fine.
 				}
+				// else, this is fine.
 			}
 		}
 		m.PopCopyValues(fs)

@@ -38,5 +38,6 @@ func main() {
 	println(commondao.IsOwner(newRealm, daoID))
 }
 
-// Error:
-// unauthorized
+// Output:
+// false
+// true
