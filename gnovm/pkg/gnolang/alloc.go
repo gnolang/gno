@@ -379,7 +379,7 @@ func (alloc *Allocator) NewPackageValue(pn *PackageNode) *PackageValue {
 }
 
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
-	// fmt.Println("======NewBlock, source: ", source)
+	fmt.Println("======NewBlock, source: ", source)
 	alloc.AllocateBlock(int64(source.GetNumNames()))
 	return NewBlock(alloc, source, parent)
 }

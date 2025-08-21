@@ -212,25 +212,35 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 					panic("dot imports not allowed in gno")
 				}
 				if nn == "" { // use default
-					fmt.Println("======InitStaticBlocks, import decl, n.PkgPath: ", n.PkgPath)
-					pv := store.GetPackage(n.PkgPath, true)
-					if pv == nil {
-						panic(fmt.Sprintf(
-							"unknown import path %s",
-							n.PkgPath))
-					}
-					exp, ok := expectedPkgName(pv.PkgPath)
-					if !ok {
-						panic(fmt.Sprintf("invalid pkg path: %q", pv.PkgPath))
-					}
-					if exp != string(pv.PkgName) {
-						panic(fmt.Sprintf(
-							"package name for %q (%q) doesn't match its expected identifier %q; "+
-								"the import declaration must specify an identifier", pv.PkgPath, pv.PkgName, exp))
-					}
-					nn = pv.PkgName
-					nx.Name = nn
+					fmt.Println("========nn: ", nn)
+					fmt.Println("========n.PkgPath: ", n.PkgPath)
+					parts := strings.Split(n.PkgPath, "/")
+					lastPart := parts[len(parts)-1]
+					nx.Name = Name(lastPart)
 				}
+
+				// if nn == "" { // use default
+				// 	fmt.Println("======InitStaticBlocks, import decl, n.PkgPath: ", n.PkgPath)
+
+				// 	pv := store.GetPackage(n.PkgPath, true)
+				// 	if pv == nil {
+				// 		panic(fmt.Sprintf(
+				// 			"unknown import path %s",
+				// 			n.PkgPath))
+				// 	}
+				// 	exp, ok := expectedPkgName(pv.PkgPath)
+				// 	if !ok {
+				// 		panic(fmt.Sprintf("invalid pkg path: %q", pv.PkgPath))
+				// 	}
+				// 	if exp != string(pv.PkgName) {
+				// 		panic(fmt.Sprintf(
+				// 			"package name for %q (%q) doesn't match its expected identifier %q; "+
+				// 				"the import declaration must specify an identifier", pv.PkgPath, pv.PkgName, exp))
+				// 	}
+				// 	nn = pv.PkgName
+				// 	fmt.Println("======nn: ", nn)
+				// 	nx.Name = nn
+				// }
 				if nn != blankIdentifier {
 					nx.Type = NameExprTypeDefine
 					last.Reserve(false, nx, n, NSImportDecl, -1)
@@ -464,6 +474,7 @@ var preprocessing atomic.Int32
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
+	println("============Preprocess...")
 	// First init static blocks of blocknodes.
 	// This may have already happened.
 	// Keep this function idemponent.
@@ -3796,6 +3807,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	}
 
 	if cx == nil {
+		fmt.Println("========eval const..., x: ", x)
 		// is constant?  From the machine?
 		m := NewMachine(".dontcare", store)
 		cv := m.EvalStatic(last, x)
@@ -4776,24 +4788,31 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			panic(fmt.Sprintf("pure package path %q cannot import realm path %q", pkg.PkgPath, d.PkgPath))
 		}
 
-		pv := store.GetPackage(d.PkgPath, true)
-		if pv == nil {
-			panic(fmt.Sprintf(
-				"unknown import path %s",
-				d.PkgPath))
+		// pv := store.GetPackage(d.PkgPath, true)
+		// if pv == nil {
+		// 	panic(fmt.Sprintf(
+		// 		"unknown import path %s",
+		// 		d.PkgPath))
+		// }
+
+		if d.Name == "" {
+			parts := strings.Split(d.PkgPath, "/")
+			lastPart := parts[len(parts)-1]
+			d.Name = Name(lastPart)
 		}
+
 		if d.Name == "" { // use default
-			exp, ok := expectedPkgName(d.PkgPath)
-			if !ok {
-				// should not happen, because the package exists in the store.
-				panic(fmt.Sprintf("invalid pkg path: %q", d.PkgPath))
-			}
-			if exp != string(pv.PkgName) {
-				panic(fmt.Sprintf(
-					"package name for %q (%q) doesn't match its expected identifier %q; "+
-						"the import declaration must specify an identifier", pv.PkgPath, pv.PkgName, exp))
-			}
-			d.Name = pv.PkgName
+			// exp, ok := expectedPkgName(d.PkgPath)
+			// if !ok {
+			// 	// should not happen, because the package exists in the store.
+			// 	panic(fmt.Sprintf("invalid pkg path: %q", d.PkgPath))
+			// }
+			// if exp != string(pv.PkgName) {
+			// 	panic(fmt.Sprintf(
+			// 		"package name for %q (%q) doesn't match its expected identifier %q; "+
+			// 			"the import declaration must specify an identifier", pv.PkgPath, pv.PkgName, exp))
+			// }
+			// d.Name = pv.PkgName
 		} else if d.Name == blankIdentifier { // no definition
 			return
 		} else if d.Name == "." { // dot import
@@ -4805,7 +4824,10 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 		// directly onto the package.
 		last.Define(d.Name, TypedValue{
 			T: gPackageType,
-			V: pv,
+			// V: pv,
+			V: RefValue{
+				PkgPath: d.PkgPath,
+			},
 		})
 		d.Path = last.GetPathForName(store, d.Name)
 	case *ValueDecl:

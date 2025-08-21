@@ -137,6 +137,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	// Maybe get/set package and realm.
 	if !opts.SkipPackage && opts.PkgPath != "" {
 		pv := (*PackageValue)(nil)
+		fmt.Println("=======GetPackage for: ", opts.PkgPath)
 		pv = store.GetPackage(opts.PkgPath, false)
 		if pv == nil {
 			pkgName := defaultPkgName(opts.PkgPath)
@@ -464,6 +465,7 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 // m.Package must match fns's package path.
 // XXX delete?
 func (m *Machine) RunFiles(fns ...*FileNode) {
+	fmt.Println("======RunFiles...")
 	pv := m.Package
 	if pv == nil {
 		panic("RunFiles requires Machine.Package")

@@ -2638,6 +2638,10 @@ func typedString(s string) TypedValue {
 
 // returns the same tv instance for convenience.
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
+	fmt.Println("======fillValueTV...")
+	if store != nil {
+		fmt.Println("======store.GetAllocator(): ", store.GetAllocator())
+	}
 	switch cv := tv.V.(type) {
 	case *HeapItemValue:
 		fillValueTV(store, &cv.Value)

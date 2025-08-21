@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"path"
 	"reflect"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -288,6 +290,10 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
 	fmt.Println("======GetPackage, pkgPath: ", pkgPath)
 	fmt.Println("======GetPackage, allocator: ", ds.GetAllocator())
+	_, file, line, _ := runtime.Caller(8)
+	caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
+	prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
+	fmt.Println(append([]any{prefix}, "")...)
 	// if pkgPath == "gno.land/r/demo/ext" {
 	// 	panic("!!!!!!!!!!!!!!!!!")
 	// }
@@ -315,7 +321,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	// else, load package.
 	if ds.baseStore != nil {
 		if oo := ds.loadObjectSafe(oid); oo != nil {
-			fmt.Println("=====from store...")
+			fmt.Println("=====from store..., allocater: ", ds.GetAllocator())
 			pv := oo.(*PackageValue)
 			// XXX, alloc, FBlocks...?
 			// in loadObjectSafe...?
