@@ -16,7 +16,6 @@ var errFoo = errors.New("dummy")
 
 func TestAccessors(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	mockDB := mockdb.NewMockDB(ctrl)
 	store := dbadapter.Store{mockDB}
 
