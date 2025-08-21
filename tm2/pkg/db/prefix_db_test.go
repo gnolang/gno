@@ -7,6 +7,7 @@ import (
 
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
 
 func mockDBWithStuff() dbm.DB {
@@ -42,6 +43,22 @@ func TestPrefixDBSimple(t *testing.T) {
 	checkValue(t, pdb, bz("k"), nil)
 	checkValue(t, pdb, bz("ke"), nil)
 	checkValue(t, pdb, bz("kee"), nil)
+
+	pdb.Set(bz("1"), bz("1"))
+	pdb.SetSync(bz("2"), bz("2"))
+	checkValue(t, pdb, bz("1"), bz("1"))
+	checkValue(t, pdb, bz("2"), bz("2"))
+
+	pdb.Delete(bz("1"))
+	pdb.DeleteSync(bz("2"))
+	checkValue(t, pdb, bz("1"), nil)
+	checkValue(t, pdb, bz("2"), nil)
+
+	closer := testutils.CaptureStdoutAndStderr()
+	require.NoError(t, pdb.Print())
+	out, err := closer()
+	require.NoError(t, err)
+	require.NotEmpty(t, out)
 }
 
 func TestPrefixDBIterator1(t *testing.T) {
