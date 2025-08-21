@@ -76,12 +76,11 @@ func init() {
 
 	memberstore.Get().SetMember(memberstore.T1, std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), &memberstore.Member{InvitationPoints: 3}) // member address
 
-	dao.UpdateImpl(cross,dao.UpdateRequest{
+	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO:         impl.GetInstance(),
 		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
 	})
 }
-
 -- run/vote_proposal.gno --
 package main
 
@@ -101,15 +100,12 @@ func main() {
 package main
 
 import (
-  "gno.land/r/gov/dao"
+	"gno.land/r/gov/dao"
 )
 
 func main() {
-  dao.ExecuteProposal(cross,dao.ProposalID(0))
+	dao.ExecuteProposal(cross, dao.ProposalID(0))
 }
-
-
-
 -- storage/gnomod.toml --
 module = "gno.land/r/storage"
 
@@ -120,25 +116,25 @@ package storage
 
 var record Foo
 
-func init(){
-	NewFoo(cross,"hello")
+func init() {
+	NewFoo(cross, "hello")
 }
 
-type Foo struct{
-  name string
+type Foo struct {
+	name string
 }
 
-func NewFoo(cur realm, name string){
-  record = Foo{name}
+func NewFoo(cur realm, name string) {
+	record = Foo{name}
 }
-func SetName(cur realm, n string){
-  record.name = n
-}
-
-func GetName()string {
-  return record.name
+func SetName(cur realm, n string) {
+	record.name = n
 }
 
-func Clear(cur realm){
-  record = Foo{}
+func GetName() string {
+	return record.name
+}
+
+func Clear(cur realm) {
+	record = Foo{}
 }

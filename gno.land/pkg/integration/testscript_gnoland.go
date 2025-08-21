@@ -902,6 +902,9 @@ func fmtGnoFiles(t *testing.T, loader *PkgsLoader, env *testscript.Env, dir stri
 		fmtfiles[file] = body
 		return nil
 	})
+	if err != nil {
+		return err
+	}
 
 	for i, f := range txa.Files {
 		if body, ok := fmtfiles[f.Name]; ok {

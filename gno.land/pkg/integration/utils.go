@@ -82,13 +82,13 @@ func splitArgs(s string) ([]string, error) {
 	)
 
 	var (
-		args      []string
 		cur       strings.Builder
 		inQuote   bool
 		quoteChar rune // Either ' or "
 		escape    bool
 	)
 
+	args := []string{}
 	for _, r := range s {
 		switch {
 		case escape:
