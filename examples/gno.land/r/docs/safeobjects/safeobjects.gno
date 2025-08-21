@@ -21,7 +21,7 @@ type SafeObject struct {
 
 // Set is a function only the admin can call
 func (so SafeObject) Set(value string) {
-	if std.PreviousRealm().Address() != so.admin {
+	if std.CurrentRealm().Address() != so.admin {
 		panic("caller is not authorized")
 	}
 
@@ -30,7 +30,7 @@ func (so SafeObject) Set(value string) {
 
 // UpdateAdmin is a function only the admin can call
 func (so SafeObject) UpdateAdmin(newAdmin std.Address) {
-	if std.PreviousRealm().Address() != so.admin {
+	if std.CurrentRealm().Address().Address() != so.admin {
 		panic("caller is not authorized")
 	}
 
