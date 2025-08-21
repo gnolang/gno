@@ -94,7 +94,7 @@ For editor configuration and LSP support, see
 
 Before opening an issue:
 1. Search existing issues
-2. Include reproduction steps, version info, and logs
+2. Include reproduction steps, version info, and logs (see `gno bug`)
 
 ## Quality Standards
 
