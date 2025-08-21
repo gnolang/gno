@@ -1968,8 +1968,12 @@ func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Stor
 				*(pv.TV) = defaultTypedValue(nil, vt)
 			}
 		}
-		// attach mapkey object
-		rlm.DidUpdate(mv, oldObject, ivk.GetFirstObject(store))
+
+		// attach mapkey object, if changed
+		newObject := ivk.GetFirstObject(store)
+		if oldObject != newObject {
+			rlm.DidUpdate(mv, oldObject, newObject)
+		}
 
 		return pv
 	default:
