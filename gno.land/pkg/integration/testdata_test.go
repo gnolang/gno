@@ -68,6 +68,7 @@ func TestTestdata(t *testing.T) {
 	t.Parallel()
 
 	p := gno_integration.NewTestingParams(t, "testdata")
+	p.Cmds = make(map[string]func(ts *testscript.TestScript, neg bool, args []string))
 	p.RequireUniqueNames = true
 
 	if coverdir, ok := gno_integration.ResolveCoverageDir(); ok {
@@ -75,11 +76,16 @@ func TestTestdata(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	mf, err := ParseDirFlags(".txtar", "txtar:opts", p.Dir, newTestFlagsOpts)
+	// Set up gnoland for testscript
+	err := SetupGnolandTestscript(t, &p)
 	require.NoError(t, err)
 
-	// Set up gnoland for testscript
-	err = SetupGnolandTestscript(t, &p)
+	// Setup setopts
+	const command = "setopts"
+	// Setup noop command, as this command is parsed before test is actually running
+	p.Cmds[command] = func(ts *testscript.TestScript, neg bool, args []string) {}
+
+	mf, err := ParseDirFlags(".txtar", command, p.Dir, newTestFlagsOpts)
 	require.NoError(t, err)
 
 	mode := CommandKindTesting
@@ -99,13 +105,11 @@ func TestTestdata(t *testing.T) {
 		}
 
 		// Override origin setup
-		if origSetup != nil {
-			if err := origSetup(env); err != nil {
-				return err
-			}
+		if origSetup == nil {
+			return nil
 		}
 
-		return nil
+		return origSetup(env)
 	}
 
 	ts := tShim{
@@ -186,7 +190,7 @@ func ParseDirFlags[T any](ext, prefix, dir string, newT func(*flag.FlagSet) T) (
 			return nil, fmt.Errorf("invalid file flags %q: %w", entry.Name(), err)
 		}
 
-		fs := flag.NewFlagSet("txtar:opts", flag.ContinueOnError)
+		fs := flag.NewFlagSet(prefix, flag.ContinueOnError)
 		t := newT(fs)
 		if err := fs.Parse(args); err != nil {
 			return nil, fmt.Errorf("unable to parse flags in %q: %w", entry.Name(), err)
@@ -206,22 +210,22 @@ func captureTopLevelLineArgs(r io.Reader, prefix string) ([]string, error) {
 	args := []string{}
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if !strings.HasPrefix(line, "#") {
-			break // Stop at first non-# line
+
+		if strings.HasPrefix(line, "#") || len(line) == 0 { // skip comment line and empty line
+			continue
 		}
 
-		// Remove leading #
-		line = strings.TrimSpace(line[1:])
-
-		if strings.HasPrefix(line, prefix) {
-			opts := strings.TrimSpace(line[len(prefix):])
-			sargs, err := splitArgs(opts)
-			if err != nil {
-				return nil, fmt.Errorf("unable to split opts %q: %w", opts, err)
-			}
-
-			args = append(args, sargs...)
+		if !strings.HasPrefix(line, prefix) {
+			break // setopts as to be the top level commands
 		}
+
+		opts := strings.TrimSpace(line[len(prefix):])
+		sargs, err := splitArgs(opts)
+		if err != nil {
+			return nil, fmt.Errorf("unable to split opts %q: %w", opts, err)
+		}
+
+		args = append(args, sargs...)
 	}
 
 	return args, nil

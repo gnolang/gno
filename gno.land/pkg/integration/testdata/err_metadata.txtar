@@ -1,5 +1,5 @@
 # ensure users get proper out of gas errors when they add packages
-# txtar:opts -no-fmt
+setopts -no-fmt
 
 # start a new node
 gnoland start

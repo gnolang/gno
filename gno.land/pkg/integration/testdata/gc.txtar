@@ -1,5 +1,5 @@
 # Disable parallel testing for this, as it can make other tests timeout due heavy cpu consuming task
-# txtar:opts -no-parallel
+setopts -no-parallel
 
 # Init
 ## deploy realm

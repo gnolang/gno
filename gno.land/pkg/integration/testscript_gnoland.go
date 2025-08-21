@@ -42,7 +42,7 @@ import (
 
 var flagFormatGnofiles = flag.Bool("ts-fmt", false, "format gno files within txtar")
 
-const nodeMaxLifespan = time.Second * 120
+const nodeDefaultLifespan = time.Second * 60
 
 var defaultUserBalance = std.Coins{std.NewCoin(ugnot.Denom, 10e8)}
 
