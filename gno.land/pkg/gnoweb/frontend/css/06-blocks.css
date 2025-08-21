@@ -336,6 +336,7 @@
 		color: var(--s-color-text-primary);
 	}
 
+	/* Common styles for all breadcrumb items */
 	.element,
 	.argument,
 	.query {
@@ -344,6 +345,7 @@
 		z-index: var(--g-z-1);
 		white-space: nowrap;
 
+		/* Separator for non-first items */
 		&:not(:first-child)::before {
 			content: "/";
 			color: var(--s-color-text-tertiary);
@@ -352,6 +354,7 @@
 			line-height: var(--g-line-height-normal);
 		}
 
+		/* Common link styles */
 		a {
 			display: inline-block;
 			border: 1px solid var(--s-color-border-transparent);
@@ -368,8 +371,9 @@
 		}
 	}
 
+	/* Argument specific styles */
 	.argument {
-		&:nth-child(1 of .argument)::before {
+		&:first-of-type::before {
 			content: ":";
 		}
 
@@ -379,8 +383,9 @@
 		}
 	}
 
+	/* Query specific styles */
 	.query {
-		&::before {
+		&:first-of-type::before {
 			content: "?";
 		}
 
@@ -435,6 +440,79 @@
 			}
 		}
 	}
+}
+
+/* ===== ASIDE COMPONENT ===== */
+
+.b-sidebar {
+	position: relative;
+	height: 100%;
+	grid-column: span 1 / span 1;
+
+	@media (--lg) {
+		order: 2;
+		grid-column: span 3 / span 3;
+		grid-row: span 2 / span 2;
+		grid-row-start: 1;
+	}
+
+	&:first-child {
+		margin-block-start: var(--g-space-8);
+
+		@media (--lg) {
+			margin-block-start: 0;
+		}
+	}
+
+	& > div {
+		position: sticky;
+		top: var(--g-space-14);
+
+		/* Hide sidebar if it has no children */
+		&:has(ul:empty) {
+			display: none;
+		}
+
+		@media (--lg) {
+			padding-block-end: var(--g-space-2);
+		}
+	}
+
+	.inner {
+		max-height: 100vh;
+		overflow: scroll;
+		scrollbar-width: none;
+		border-radius: var(--s-rounded-sm);
+		background-color: var(--s-color-bg-surface-primary);
+
+		@media (--lg) {
+			background-color: var(--g-color-transparent);
+		}
+
+		& > nav {
+			display: none;
+			font-size: var(--g-font-size-100);
+			margin-block-start: var(--g-space-2);
+			padding-inline: var(--g-space-4);
+			padding-block: var(--g-space-2) var(--g-space-6);
+
+			@media (--lg) {
+				display: block;
+				margin-block-start: 0;
+				padding-inline: 0;
+				padding-block-end: var(--g-space-28);
+
+				& > * {
+					padding-inline-start: 0;
+				}
+			}
+		}
+	}
+}
+
+/* dev mode sidebar styles */
+.dev-mode .b-sidebar > .inner {
+	background-color: var(--s-color-bg-base);
 }
 
 /* ===== POPUP COMPONENT ===== */
@@ -824,11 +902,6 @@
 	display: none;
 }
 
-/* ===== SIDEBAR COMPONENT ===== */
-.c-sidebar__container:has(ul:empty) {
-	display: none;
-}
-
 /* ===== TOC COMPONENT ===== */
 .c-toc-expend-btn:has(#toc-expend:checked) + nav {
 	display: block;
@@ -839,13 +912,13 @@
 }
 
 /* ===== MAIN HEADER COMPONENT ===== */
-.c-main-header:has(#sidemenu-summary:checked) + main #sidebar #sidebar-summary,
+/* .c-main-header:has(#sidemenu-summary:checked) + main #sidebar #sidebar-summary,
 .c-main-header:has(#sidemenu-summary:checked)
 	+ main
 	#sidebar
 	.c-sidebar__container {
 	display: block;
-}
+} */
 
 /* ===== TOOLTIP COMPONENT ===== */
 .c-tooltip {

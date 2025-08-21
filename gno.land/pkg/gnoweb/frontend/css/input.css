@@ -680,9 +680,6 @@
 	}
 
 	/* sidebar */
-	.sidebar__container:has(ul:empty) {
-		@apply hidden;
-	}
 
 	.dev-mode .toc-expend-btn {
 		@apply bg-gray-100 hover:bg-gray-50 cursor-pointer border lg:border-none lg:bg-transparent;
@@ -692,12 +689,12 @@
 		@apply bg-light lg:bg-transparent;
 	}
 
-	.main-header:has(#sidemenu-summary:checked) + main #sidebar #sidebar-summary,
+	/* .main-header:has(#sidemenu-summary:checked) + main #sidebar #sidebar-summary,
 	.main-header:has(#sidemenu-source:checked) + main #sidebar #sidebar-source,
 	.main-header:has(#sidemenu-docs:checked) + main #sidebar #sidebar-docs,
 	.main-header:has(#sidemenu-meta:checked) + main #sidebar #sidebar-meta {
 		@apply block;
-	}
+	} */
 
 	:is(
 			.main-header:has(#sidemenu-source:checked),

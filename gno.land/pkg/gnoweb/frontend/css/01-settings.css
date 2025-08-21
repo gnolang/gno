@@ -128,18 +128,18 @@
 	--g-skew-12: 12deg;
 
 	/* Grid templates */
-	--g-grid-1: repeat(1, 1fr);
-	--g-grid-2: repeat(2, 1fr);
-	--g-grid-3: repeat(3, 1fr);
-	--g-grid-4: repeat(4, 1fr);
-	--g-grid-5: repeat(5, 1fr);
-	--g-grid-6: repeat(6, 1fr);
-	--g-grid-7: repeat(7, 1fr);
-	--g-grid-8: repeat(8, 1fr);
-	--g-grid-9: repeat(9, 1fr);
-	--g-grid-10: repeat(10, 1fr);
-	--g-grid-11: repeat(11, 1fr);
-	--g-grid-12: repeat(12, 1fr);
+	--g-grid-1: repeat(1, minmax(0, 1fr));
+	--g-grid-2: repeat(2, minmax(0, 1fr));
+	--g-grid-3: repeat(3, minmax(0, 1fr));
+	--g-grid-4: repeat(4, minmax(0, 1fr));
+	--g-grid-5: repeat(5, minmax(0, 1fr));
+	--g-grid-6: repeat(6, minmax(0, 1fr));
+	--g-grid-7: repeat(7, minmax(0, 1fr));
+	--g-grid-8: repeat(8, minmax(0, 1fr));
+	--g-grid-9: repeat(9, minmax(0, 1fr));
+	--g-grid-10: repeat(10, minmax(0, 1fr));
+	--g-grid-11: repeat(11, minmax(0, 1fr));
+	--g-grid-12: repeat(12, minmax(0, 1fr));
 
 	/* Container sizes */
 	--g-container-xs: calc(20 / var(--g-px-base) * 1rem);

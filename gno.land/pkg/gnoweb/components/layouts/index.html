@@ -3,27 +3,14 @@
 <html lang="en">
 {{ template "layouts/head" .IndexData.HeadData -}}
 
-<body class="min-h-screen flex flex-col">
+<body>
   {{ template "ui/icons" -}}
-
-
-  <!-- header -->
   {{ template "layouts/header" .IndexData.HeaderData -}}
-
-
-  <!-- main -->
-  <main class="w-full grow-[2] {{ if .IsDevmodView }}
-          dev-mode bg-gray-50
-        {{ else }}
-          bg-light
-        {{ end }}">
-    <section
-      class="max-w-screen-max mx-auto grid grid-flow-dense items-start min-h-full px-4 md:px-10 grid-cols-1 lg:grid-cols-10 xl:grid-cols-10 gap-x-20 xxl:gap-x-32">
+  <main {{ if .IsDevmodView }}class="dev-mode" {{ end }}>
+    <section class="c-center">
       {{ render .IndexData.BodyView -}}
     </section>
   </main>
-
-  <!-- footer -->
   {{ template "layouts/footer" .FooterData -}}
 </body>
 
