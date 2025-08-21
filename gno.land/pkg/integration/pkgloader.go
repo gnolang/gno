@@ -126,7 +126,7 @@ func (pl *PkgsLoader) GenerateTxs(creatorKey crypto.PrivKey, fee std.Fee, deposi
 
 func (pl *PkgsLoader) LoadAllPackagesFromDir(dir string) error {
 	// list all packages from target path
-	pkglist, err := gnolang.ReadPkgListFromDir(dir, gnolang.MPUserAll)
+	pkglist, err := packages.ReadPkgListFromDir(dir, gnolang.MPUserAll)
 	if err != nil {
 		return fmt.Errorf("listing gno packages from gnomod: %w", err)
 	}

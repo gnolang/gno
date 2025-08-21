@@ -31,7 +31,6 @@ func main() {
 	// Create a simple proposal request with nil executor
 	// The error should come from PreCreateProposal before executor is validated
 	pr := dao.NewProposalRequest("Test Proposal", "This is a test proposal", nil)
-
 	_, err := dao.CreateProposal(cross, pr)
 	if err != nil {
 		println(err.Error())
