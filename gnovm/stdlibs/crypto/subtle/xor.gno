@@ -21,7 +21,7 @@ func XORBytes(x, y []byte) []byte {
 // If dst does not have length at least n, XORBytes panics without writing anything to dst.
 //
 // WARNING: dst must not overlap with x or y unless it is exactly the same slice.
-// Otherwise, the behavior is non-deterministic because overlap checks were removed.
+// Otherwise, the behavior may be surprising and incorrect because overlap checks were removed.
 func XORBytesUnsafe(dst, x, y []byte) int {
 	n := min(len(x), len(y))
 	if n == 0 {
