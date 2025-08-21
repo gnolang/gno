@@ -11,7 +11,6 @@ import (
 const (
 	ProofOpIAVLCommitment         = "ics23:iavl"
 	ProofOpSimpleMerkleCommitment = "ics23:simple"
-	ProofOpSMTCommitment          = "ics23:smt"
 )
 
 // CommitmentOp implements merkle.ProofOperator by wrapping an ics23 CommitmentProof
@@ -47,15 +46,6 @@ func NewSimpleMerkleCommitmentOp(key []byte, proof *ics23.CommitmentProof) Commi
 	}
 }
 
-func NewSmtCommitmentOp(key []byte, proof *ics23.CommitmentProof) CommitmentOp {
-	return CommitmentOp{
-		Type:  ProofOpSMTCommitment,
-		Spec:  ics23.SmtSpec,
-		Key:   key,
-		Proof: proof,
-	}
-}
-
 // CommitmentOpDecoder takes a merkle.ProofOp and attempts to decode it into a CommitmentOp ProofOperator
 // The proofOp.Data is just a marshaled CommitmentProof. The Key of the CommitmentOp is extracted
 // from the unmarshalled proof.
@@ -66,8 +56,6 @@ func CommitmentOpDecoder(pop merkle.ProofOp) (merkle.ProofOperator, error) {
 		spec = ics23.IavlSpec
 	case ProofOpSimpleMerkleCommitment:
 		spec = ics23.TendermintSpec
-	case ProofOpSMTCommitment:
-		spec = ics23.SmtSpec
 	default:
 		return nil, fmt.Errorf("unexpected ProofOp.Type; got %s, want supported ics23 subtypes 'ProofOpSimpleMerkleCommitment', 'ProofOpIAVLCommitment', or 'ProofOpSMTCommitment'", pop.Type)
 	}
