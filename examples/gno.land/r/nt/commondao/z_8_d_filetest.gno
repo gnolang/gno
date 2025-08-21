@@ -48,5 +48,7 @@ func main() {
 	}
 }
 
-// Error:
-// unauthorized
+// Output:
+// Count = 2
+// B
+// C

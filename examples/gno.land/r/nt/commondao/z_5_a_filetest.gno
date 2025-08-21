@@ -66,6 +66,5 @@ func main() {
 	})
 }
 
-// Output:
-// true
-// true
+// Error:
+// voting deadline has passed

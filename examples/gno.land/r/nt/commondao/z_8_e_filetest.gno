@@ -37,5 +37,6 @@ func main() {
 	println(iter.Next())
 }
 
-// Error:
-// unauthorized
+// Output:
+// Count = 0
+// false

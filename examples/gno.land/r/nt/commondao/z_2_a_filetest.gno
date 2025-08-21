@@ -40,8 +40,7 @@ func main() {
 
 // Output:
 // true
+// true
 // false
 // true
 
-// Error:
-// unauthorized

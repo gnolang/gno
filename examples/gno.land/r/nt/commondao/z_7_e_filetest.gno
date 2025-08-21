@@ -36,3 +36,5 @@ func main() {
 	commondao.NewSubDAO(cross, "Foo", parentID)
 }
 
+// Error:
+// unauthorized

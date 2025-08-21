@@ -40,5 +40,6 @@ func main() {
 	println(dao.ID() == daoID)
 }
 
-// Error:
-// unauthorized
+// Output:
+// true
+// true

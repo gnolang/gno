@@ -16,3 +16,5 @@ func main() {
 	commondao.New(cross, "Foo")
 }
 
+// Error:
+// unauthorized

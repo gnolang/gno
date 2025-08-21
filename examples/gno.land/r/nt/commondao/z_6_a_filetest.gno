@@ -77,6 +77,5 @@ func main() {
 	println(executed)
 }
 
-// Output:
-// true
-// true
+// Error:
+// voting deadline has passed

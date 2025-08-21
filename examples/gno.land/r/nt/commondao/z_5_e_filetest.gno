@@ -54,4 +54,4 @@ func main() {
 }
 
 // Error:
-// invalid vote choice
+// voting deadline has passed

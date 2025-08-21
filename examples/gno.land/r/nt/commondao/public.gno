@@ -36,7 +36,7 @@ func New(_ realm, name string, options ...Option) *commondao.CommonDAO {
 	name = strings.TrimSpace(name)
 	assertDAONameIsValid(name)
 
-	caller := std.CurrentRealm().Address()
+	caller := std.PreviousRealm().Address()
 	if !hasOwnership(caller) {
 		orig := std.OriginCaller()
 		assertIsInvited(orig)
@@ -48,7 +48,7 @@ func New(_ realm, name string, options ...Option) *commondao.CommonDAO {
 
 // NewSubDAO creates a new SubDAO.
 func NewSubDAO(_ realm, name string, parentID uint64, options ...Option) *commondao.CommonDAO {
-	caller := std.CurrentRealm().Address()
+	caller := std.PreviousRealm().Address()
 	assertIsOwner(caller, parentID)
 
 	parentOptions := getOptions(parentID)
