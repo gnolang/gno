@@ -12,10 +12,10 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 )
 
 // extractDependenciesFromTxs extracts dependencies from transactions and adds them to the paths slice and config.BalancesList.
@@ -24,9 +24,8 @@ func extractDependenciesFromTxs(nodeConfig *gnodev.NodeConfig, paths *[]string) 
 		for _, msg := range tx.Tx.Msgs {
 			// TODO: Support MsgRun
 			if callMsg, ok := msg.(vm.MsgCall); ok {
-
 				// Add package path to paths slice if not already present
-				if slices.Contains(*paths, callMsg.PkgPath) == false {
+				if !slices.Contains(*paths, callMsg.PkgPath) {
 					*paths = append(*paths, callMsg.PkgPath)
 				}
 
