@@ -202,7 +202,7 @@ func (kb dbKeybase) GetByNameOrAddress(nameOrBech32 string) (Info, error) {
 func (kb dbKeybase) GetByName(name string) (Info, error) {
 	bs, err := kb.db.Get(infoKey(name))
 	if err != nil {
-		return nil, err // TODO wrap err
+		return nil, fmt.Errorf("error while getting key %s from db: %w", name, err)
 	}
 	if len(bs) == 0 {
 		return nil, keyerror.NewErrKeyNotFound(name)
@@ -213,14 +213,14 @@ func (kb dbKeybase) GetByName(name string) (Info, error) {
 func (kb dbKeybase) GetByAddress(address crypto.Address) (Info, error) {
 	ik, err := kb.db.Get(addrKey(address))
 	if err != nil {
-		return nil, err // TODO wrap err
+		return nil, fmt.Errorf("error while getting key with address %s from db: %w", address, err)
 	}
 	if len(ik) == 0 {
 		return nil, keyerror.NewErrKeyNotFound(fmt.Sprintf("key with address %s not found", address))
 	}
 	bs, err := kb.db.Get(ik)
 	if err != nil {
-		return nil, err // TODO wrap err
+		return nil, fmt.Errorf("error while getting info for address %s from db: %w", address, err)
 	}
 	return readInfo(bs)
 }
@@ -413,7 +413,7 @@ func (kb dbKeybase) writeInfo(name string, info Info) error {
 	key := infoKey(name)
 	oldInfob, err := kb.db.Get(key)
 	if err != nil {
-		return err // TODO wrap err
+		return fmt.Errorf("error while getting info by key %v: %w", key, err)
 	}
 	if len(oldInfob) > 0 {
 		// Enforce 1-to-1 name to address. Remove the lookup by the old address
@@ -427,7 +427,7 @@ func (kb dbKeybase) writeInfo(name string, info Info) error {
 	addressKey := addrKey(info.GetAddress())
 	nameKeyForAddress, err := kb.db.Get(addressKey)
 	if err != nil {
-		return err // TODO wrap err
+		return fmt.Errorf("error while getting key for address %v: %w", info.GetAddress().String(), err)
 	}
 	if len(nameKeyForAddress) > 0 {
 		// Enforce 1-to-1 name to address. Remove the info by the old name with the same address

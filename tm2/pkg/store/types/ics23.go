@@ -1,5 +1,7 @@
 package types
 
+// NOTE(tb): Adapted from cosmos-sdk/store/types/proof.go
+
 import (
 	"fmt"
 

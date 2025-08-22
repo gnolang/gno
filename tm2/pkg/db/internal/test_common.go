@@ -173,7 +173,10 @@ func BenchmarkRandomReadsWrites(b *testing.B, db db.DB) {
 			idx := int64(rand.Int()) % numItems
 			valExp := internal[idx]
 			idxBytes := int642Bytes(idx)
-			valBytes, _ := db.Get(idxBytes)
+			valBytes, err := db.Get(idxBytes)
+			if err != nil {
+				panic(err)
+			}
 			if valExp == 0 {
 				if !bytes.Equal(valBytes, nil) {
 					b.Errorf("Expected %v for %v, got %X", nil, idx, valBytes)

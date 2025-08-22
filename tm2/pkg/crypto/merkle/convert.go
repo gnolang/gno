@@ -1,5 +1,7 @@
 package merkle
 
+// NOTE(tb): Adapted from cosmos-sdk/store/internal/proofs/convert.go
+
 import (
 	"fmt"
 

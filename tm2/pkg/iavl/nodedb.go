@@ -75,7 +75,7 @@ func (ndb *nodeDB) GetNode(hash []byte) *Node {
 	// Doesn't exist, load.
 	buf, err := ndb.db.Get(ndb.nodeKey(hash))
 	if err != nil {
-		panic(err) // TODO wrap err
+		panic(err)
 	}
 	if buf == nil {
 		panic(fmt.Sprintf("Value missing for hash %x corresponding to nodeKey %s", hash, ndb.nodeKey(hash)))
@@ -120,8 +120,10 @@ func (ndb *nodeDB) SaveNode(node *Node) {
 // Has checks if a hash exists in the database.
 func (ndb *nodeDB) Has(hash []byte) bool {
 	key := ndb.nodeKey(hash)
-	// TODO address err
-	v, _ := ndb.db.Get(key)
+	v, err := ndb.db.Get(key)
+	if err != nil {
+		panic(err)
+	}
 	return v != nil
 }
 
@@ -246,11 +248,13 @@ func (ndb *nodeDB) resetLatestVersion(version int64) {
 }
 
 func (ndb *nodeDB) getPreviousVersion(version int64) int64 {
-	// TODO address err
-	itr, _ := ndb.db.ReverseIterator(
+	itr, err := ndb.db.ReverseIterator(
 		rootKeyFormat.Key(1),
 		rootKeyFormat.Key(version),
 	)
+	if err != nil {
+		panic(err)
+	}
 	defer itr.Close()
 
 	pversion := int64(-1)
@@ -284,8 +288,10 @@ func (ndb *nodeDB) traverseOrphansVersion(version int64, fn func(k, v []byte)) {
 
 // Traverse all keys.
 func (ndb *nodeDB) traverse(fn func(key, value []byte)) {
-	// TODO address err
-	itr, _ := ndb.db.Iterator(nil, nil)
+	itr, err := ndb.db.Iterator(nil, nil)
+	if err != nil {
+		panic(err)
+	}
 	defer itr.Close()
 
 	for ; itr.Valid(); itr.Next() {
@@ -334,8 +340,10 @@ func (ndb *nodeDB) Commit() {
 }
 
 func (ndb *nodeDB) getRoot(version int64) []byte {
-	// TODO address err
-	v, _ := ndb.db.Get(ndb.rootKey(version))
+	v, err := ndb.db.Get(ndb.rootKey(version))
+	if err != nil {
+		panic(err)
+	}
 	return v
 }
 
