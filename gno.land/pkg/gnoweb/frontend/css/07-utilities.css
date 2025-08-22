@@ -7,11 +7,15 @@
    des comportements de composants, pas des utilitaires */
 
 /* ===== RESPONSIVE HIDING UTILITIES ===== */
-:is(
+/* :is(
 		.c-main-header:has(#sidemenu-summary:checked) + main #sidebar,
 		.c-main-header:has(#sidemenu-summary:checked) + main #sidebar *
 	) {
 	display: block;
+} */
+
+.u-hidden {
+	display: none;
 }
 
 .u-sr-only {
@@ -35,6 +39,10 @@
 .u-word-break {
 	word-break: break-word;
 	overflow-wrap: break-word;
+}
+
+.u-color-brand {
+	color: var(--s-color-bg-brand-default);
 }
 
 .u-quotes::before,
@@ -66,6 +74,11 @@
 
 .u-pointer-events-none {
 	pointer-events: none;
+}
+
+.u-icon-static {
+	width: var(--g-space-4);
+	height: var(--g-space-4);
 }
 
 /* ===== LINK TYPE UTILITIES ===== */

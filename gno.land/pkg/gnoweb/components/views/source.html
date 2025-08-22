@@ -9,15 +9,15 @@
   </div>
   <div class="flex gap-12 text-gray-300 items-center justify-between text-gray-400">
     <span class="pt-0.5">{{ .FileSize }} · {{ .FileLines }} lines</span>
-    <div class="flex gap-2 xl:gap-3 items-center">
+    <div class="flex gap-1 xl:gap-4 items-center">
       <button data-controller="copy" data-copy-remote-value="source-code" data-action="click->copy#copy"
-        class="group flex items-center gap-0.5 pt-0.5 hover:text-gray-600">
+        class="c-with-icon group flex items-center pt-0.5 hover:text-gray-600">
         {{ template "ui/copy" }}
         <span class="hidden xl:inline">Copy</span>
       </button>
-      <a href="{{ .FileDownload }}" class="flex items-center gap-0.5 pt-0.5 hover:text-gray-600"
+      <a href="{{ .FileDownload }}" class="c-with-icon flex items-center pt-0.5 hover:text-gray-600"
         download="{{ .FileName }}">
-        <svg class="w-5 h-5 xxl:w-4 xxl:h-4 shrink-0 inline-block">
+        <svg class="c-icon">
           <use href="#ico-ddl"></use>
         </svg>
         <span class="hidden xl:inline">Download</span>

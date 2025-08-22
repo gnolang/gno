@@ -1,12 +1,12 @@
 {{- define "ui/toc_generic" }}
-<ul class="list-none space-y-2 pt-2">
+<ul class="b-toc">
   {{ range .Items }}
   <li>
-    <a class="flex items-start gap-2 line-clamp-2 hover:text-green-600 hover:underline break-all" href="{{ .Link }}">
-      <svg class="w-4 h-4 shrink-0 mt-[0.15rem]">
+    <a class="c-with-icon" href="{{ .Link }}">
+      <svg class="c-icon">
         <use href="#ico-{{ $.Icon }}"></use>
       </svg>
-      {{ .Text }}
+      <span>{{ .Text }}</span>
     </a>
   </li>
   {{ end }}

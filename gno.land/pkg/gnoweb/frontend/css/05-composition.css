@@ -28,20 +28,21 @@
 }
 
 /* Icon */
+
 .c-icon {
-	width: 0.75em;
-	width: 1cap;
-	height: 0.75em;
-	height: 1cap;
+	flex-shrink: 0;
+	width: 1.15em;
+	height: 1.15em;
 }
 
 .c-with-icon {
 	display: inline-flex;
-	align-items: baseline;
+	align-items: top;
 }
 
 .c-with-icon .c-icon {
-	margin-inline-end: 1rem;
+	margin-inline-end: 0.4em;
+	margin-block-start: 0.15em;
 }
 
 /* View grid */

@@ -754,7 +754,7 @@
 	}
 
 	/* chroma */
-	main :is(.source-code) > pre {
+	/* main :is(.source-code) > pre {
 		@apply !bg-light overflow-scroll rounded py-4 md:py-8 px-1 md:px-3 font-mono text-100 md:text-200;
 	}
 	main .realm-view > pre a {
@@ -783,7 +783,7 @@
 	}
 	main :is(.realm-view, .source-code) > pre .chroma-ln {
 		@apply scroll-mt-24;
-	}
+	} */
 }
 
 @layer utilities {

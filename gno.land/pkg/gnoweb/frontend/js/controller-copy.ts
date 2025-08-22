@@ -38,7 +38,7 @@ export class CopyController extends BaseController {
 	// toggle icons (show/hide)
 	private _toggleIcons(icons: HTMLElement[]): void {
 		icons.forEach((icon) => {
-			icon.classList.toggle("hidden");
+			icon.classList.toggle("u-hidden");
 		});
 	}
 
