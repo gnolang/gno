@@ -239,8 +239,10 @@ func (err EventString) Event() string {
 }
 
 type StorageDepositEvent struct {
-	BytesDelta int64  `json:"bytes_delta"`
-	FeeDelta   string `json:"fee_delta"`
+	// BytesDelta is negative for deposit unlock
+	BytesDelta int64 `json:"bytes_delta"`
+	// FeeDelta is always positive
+	FeeDelta string `json:"fee_delta"`
 }
 
 func (e StorageDepositEvent) AssertABCIEvent() {}

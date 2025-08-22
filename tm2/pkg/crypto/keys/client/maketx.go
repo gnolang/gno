@@ -258,6 +258,10 @@ func getStorageInfo(events []abci.Event) (int64, std.Coin, bool) {
 		if err != nil {
 			continue
 		}
+		if depositEvent.BytesDelta < 0 {
+			// For unlock, we want to display a negative fee
+			fee.Amount = -fee.Amount
+		}
 		return depositEvent.BytesDelta, fee, true
 	}
 
