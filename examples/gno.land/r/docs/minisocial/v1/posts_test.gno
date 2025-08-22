@@ -9,7 +9,7 @@ import (
 	"gno.land/p/nt/uassert"
 )
 
-func TestCreatePostSingle(cur realm, t *testing.T) {
+func TestCreatePostSingle(t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
 	// TestSetRealm sets the realm caller, in this case Alice
@@ -27,7 +27,7 @@ func TestCreatePostSingle(cur realm, t *testing.T) {
 	uassert.True(t, condition, "expected render to contain text & alice's address")
 }
 
-func TestCreatePostMultiple(cur realm, t *testing.T) {
+func TestCreatePostMultiple(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(testutils.TestAddress("alice")))
 
 	// Initialize a slice to hold the test posts and their authors

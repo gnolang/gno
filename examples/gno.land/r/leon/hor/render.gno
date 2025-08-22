@@ -179,12 +179,9 @@ func init() {
 ...
 """
 
-%s
+## [Visit The Hall ->](/r/leon/hor:hall)
 
 `
-
-	out = ufmt.Sprintf(out, "## [Visit The Hall ->](/r/leon/hor:hall)")
-
 	out = strings.ReplaceAll(out, "\"", "`")
 
 	return out

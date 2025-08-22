@@ -22,8 +22,8 @@ func init() {
 
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/tests/tests"))
-	daoID = commondao.New("Foo").ID()
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
+	daoID = commondao.New(cross, "Foo").ID()
 }
 
 func main() {

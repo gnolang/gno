@@ -21,8 +21,8 @@ func init() {
 
 	// Create a DAO
 	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/nt/commondao"))
-	daoID = commondao.New("Foo").ID()
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
+	daoID = commondao.New(cross, "Foo").ID()
 }
 
 func main() {
