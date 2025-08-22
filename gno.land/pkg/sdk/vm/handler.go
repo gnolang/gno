@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gnolang/gno/tm2/pkg/version"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/version"
 )
 
 type vmHandler struct {
