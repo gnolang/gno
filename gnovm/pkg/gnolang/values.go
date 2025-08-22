@@ -1544,7 +1544,6 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		pbz := tv.PrimitiveBytes()
 		bz = append(bz, pbz...)
 	case *PointerType:
-		fillValueTV(store, tv)
 		var ptrBytes [sizeOfUintPtr]byte // zero-initialized for nil pointers
 		if tv.V != nil {
 			ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
