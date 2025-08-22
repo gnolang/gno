@@ -1,12 +1,14 @@
 package markdown
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"unicode"
 
 	"html/template"
 
+	"github.com/yuin/goldmark/ast"
 	"golang.org/x/net/html"
 )
 
@@ -61,4 +63,40 @@ func GetWordArticle(word string) string {
 		return "an"
 	}
 	return "a"
+}
+
+// ExtractText returns the text content of a node, recursively.
+func ExtractText(node ast.Node, source []byte) []byte {
+	if node == nil {
+		return nil
+	}
+
+	var buf bytes.Buffer
+
+	type textNoder interface {
+		Text([]byte) []byte
+	}
+	type softBreaker interface {
+		SoftLineBreak() bool
+	}
+
+	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
+		// If the node can be rendered as text, use its method
+		if tn, ok := child.(textNoder); ok {
+			buf.Write(tn.Text(source))
+		} else if t, ok := child.(*ast.Text); ok {
+			// Fallback: raw text from the segment
+			buf.Write(t.Segment.Value(source))
+		} else {
+			// Else, descend into its subtree
+			buf.Write(ExtractText(child, source))
+		}
+
+		// Soft line break -> "\n"
+		if sb, ok := child.(softBreaker); ok && sb.SoftLineBreak() {
+			buf.WriteByte('\n')
+		}
+	}
+
+	return buf.Bytes()
 }
