@@ -7,10 +7,7 @@ import (
 	"io"
 	"unicode"
 
-	"html/template"
-
 	"github.com/yuin/goldmark/ast"
-
 	"golang.org/x/net/html"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"

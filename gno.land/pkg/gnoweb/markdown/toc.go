@@ -103,7 +103,7 @@ func TocInspect(n ast.Node, src []byte, opts TocOptions) (Toc, error) {
 		if len(target.Title) > 0 || len(target.Items) > 0 {
 			target = appendChild(parent)
 		}
-    
+
 		target.Title = util.UnescapePunctuations(ExtractText(heading, src))
 
 		if id, ok := n.AttributeString("id"); ok {
