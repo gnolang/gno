@@ -50,7 +50,7 @@ import "strconv"
 
 var count int
 
-func Increment(change int) int {
+func Increment(_ realm, change int) int {
 	count += change
 	return count
 }
@@ -73,7 +73,7 @@ func TestIncrement(t *testing.T) {
 	}
 
 	// Call Increment
-	value := Increment(42)
+	value := Increment(cross, 42)
 
 	// Check result
 	if value != 42 {
@@ -137,7 +137,7 @@ import "strconv"
 
 var count int
 
-func Increment(change int) int {
+func Increment(_ realm, change int) int {
 	count += change
 	return count
 }

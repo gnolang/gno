@@ -77,7 +77,6 @@ func main() {
 		std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), // receiver address
 	)
 	preq := impl.NewTreasuryPaymentRequest(
-		cross,
 		payment,
 		"integration test payment",
 	)

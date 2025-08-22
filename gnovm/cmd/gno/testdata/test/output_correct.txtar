@@ -19,3 +19,8 @@ func main() {
 // Output:
 // hey
 // hru?
+
+
+
+-- gnomod.toml --
+module = 'gno.test/r/integ/output_correct'

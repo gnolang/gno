@@ -243,10 +243,6 @@ Main:
 		// *, & is filter out previously since they are not primitive
 		assertValidConstValue(store, last, currExpr.X)
 	case *TypeAssertExpr:
-		ty := evalStaticTypeOf(store, last, currExpr)
-		if _, ok := ty.(*TypeType); ok {
-			ty = evalStaticType(store, last, currExpr)
-		}
 		panic(fmt.Sprintf("%s (comma, ok expression of type %s) is not constant", currExpr.String(), currExpr.Type))
 	case *CallExpr:
 		ift := evalStaticTypeOf(store, last, currExpr.Func)
@@ -259,8 +255,8 @@ Main:
 				if fv, ok := cx.V.(*FuncValue); ok {
 					if fv.PkgPath == uversePkgPath {
 						// TODO: should support min, max, real, imag
-						switch {
-						case fv.Name == "len":
+						switch fv.Name {
+						case "len":
 							at := evalStaticTypeOf(store, last, currExpr.Args[0])
 							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
 								// ok
@@ -268,7 +264,7 @@ Main:
 							}
 							assertValidConstValue(store, last, currExpr.Args[0])
 							break Main
-						case fv.Name == "cap":
+						case "cap":
 							at := evalStaticTypeOf(store, last, currExpr.Args[0])
 							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
 								// ok

@@ -54,7 +54,7 @@ func TestCacheMultiStoreWithVersion(t *testing.T) {
 
 	k, v := []byte("wind"), []byte("blows")
 
-	store1 := ms.getStoreByName("store1").(types.Store)
+	store1 := ms.getStoreByName("store1")
 	store1.Set(k, v)
 
 	cID := ms.Commit()
@@ -93,7 +93,7 @@ func TestHashStableWithEmptyCommit(t *testing.T) {
 
 	k, v := []byte("wind"), []byte("blows")
 
-	store1 := ms.getStoreByName("store1").(types.Store)
+	store1 := ms.getStoreByName("store1")
 	store1.Set(k, v)
 
 	cID := ms.Commit()
@@ -209,11 +209,11 @@ func TestMultiStoreQuery(t *testing.T) {
 	require.Nil(t, garbage)
 
 	// Set and commit data in one store.
-	store1 := multi.getStoreByName("store1").(types.Store)
+	store1 := multi.getStoreByName("store1")
 	store1.Set(k, v)
 
 	// ... and another.
-	store2 := multi.getStoreByName("store2").(types.Store)
+	store2 := multi.getStoreByName("store2")
 	store2.Set(k2, v2)
 
 	// Commit the multistore.

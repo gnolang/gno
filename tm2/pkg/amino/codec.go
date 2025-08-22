@@ -284,9 +284,8 @@ func (cdc *Codec) registerType(pkg *Package, rt reflect.Type, typeURL string, po
 				panic(fmt.Sprintf("type %v already registered with different type URL %v", rt, info.TypeURL))
 			}
 			return // silently
-		} else {
-			// we will be filling in an existing type.
 		}
+		// else, we will be filling in an existing type.
 	} else {
 		// construct a new one.
 		info = cdc.newTypeInfoUnregisteredWLock(rt)
@@ -432,7 +431,7 @@ func (cdc *Codec) doAutoseal() {
 // CONTRACT: if info.Registered, info.TypeURL is set
 func (cdc *Codec) registerTypeInfoWLocked(info *TypeInfo, primary bool) {
 	if info.Type.Kind() == reflect.Ptr {
-		panic(fmt.Sprintf("unexpected pointer type"))
+		panic("unexpected pointer type")
 	}
 	if existing, ok := cdc.typeInfos[info.Type]; !ok || existing != info {
 		if !ok {
@@ -752,9 +751,10 @@ func parseFieldOptions(field reflect.StructField) (skip bool, fopts FieldOptions
 
 	// Parse binary tags.
 	// NOTE: these get validated later, we don't have TypeInfo yet.
-	if binTag == "fixed64" {
+	switch binTag {
+	case "fixed64":
 		fopts.BinFixed64 = true
-	} else if binTag == "fixed32" {
+	case "fixed32":
 		fopts.BinFixed32 = true
 	}
 

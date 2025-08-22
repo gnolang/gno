@@ -206,7 +206,7 @@ func execBrowser(cfg *broCfg, args []string, cio commands.IO) error {
 		path = strings.TrimSpace(args[0])
 		path = strings.TrimPrefix(path, gnoPrefix)
 	case cfg.defaultRealm != "":
-		path = strings.TrimLeft(cfg.defaultRealm, gnoPrefix)
+		path = strings.TrimPrefix(cfg.defaultRealm, gnoPrefix)
 	}
 
 	bcfg := browser.DefaultConfig()
@@ -341,6 +341,9 @@ func runServer(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg b
 			// XXX: add ip throttler
 		),
 	)
+	if err != nil {
+		return fmt.Errorf("unable to create SSH server: %w", err)
+	}
 
 	var errgs errgroup.Group
 

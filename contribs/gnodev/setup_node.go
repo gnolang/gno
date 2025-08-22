@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"slices"
 	"strings"
 
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
@@ -34,11 +35,7 @@ func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeCo
 		nodeConfig.BalancesList = state.Balances
 
 		stateTxs := state.Txs
-		nodeConfig.InitialTxs = make([]gnoland.TxWithMetadata, len(stateTxs))
-
-		for index, nodeTx := range stateTxs {
-			nodeConfig.InitialTxs[index] = nodeTx
-		}
+		nodeConfig.InitialTxs = slices.Clone(stateTxs)
 
 		logger.Info("genesis file loaded", "path", cfg.genesisFile, "txs", len(stateTxs))
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func BenchmarkCreateNewMachine(b *testing.B) {
@@ -51,10 +52,11 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 		return
 	}()
 	t.Log("panic trying to redeclare invalid func", result)
-	m.RunStatement(StageRun, S(Call(X("Redecl"), 11)))
+	results := m.Eval(Call(X("Redecl"), 11))
 
 	// Check last value, assuming it is the result of Redecl.
-	v := m.Values[0]
+	require.Len(t, results, 1)
+	v := results[0]
 	assert.NotNil(t, v)
 	assert.Equal(t, StringKind, v.T.Kind())
 	assert.Equal(t, StringValue("1"), v.V)
@@ -118,7 +120,7 @@ func TestMachineString(t *testing.T) {
 					Kind:  INT,
 					Value: "100",
 				})
-				m.Blocks = make([]*Block, 1, 1)
+				m.Blocks = make([]*Block, 1)
 				m.PushStmts(S(Call(X("Redecl"), 11)))
 				return m
 			}(),

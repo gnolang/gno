@@ -8,7 +8,7 @@ import (
 
 	_ "crypto/sha256"
 
-	_ "golang.org/x/crypto/ripemd160"
+	_ "golang.org/x/crypto/ripemd160" //nolint:staticcheck
 	_ "golang.org/x/crypto/sha3"
 )
 

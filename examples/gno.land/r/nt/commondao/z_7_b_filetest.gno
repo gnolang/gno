@@ -21,7 +21,7 @@ func init() {
 func main() {
 	testing.SetRealm(std.NewUserRealm(user))
 
-	commondao.NewSubDAO("Foo", 404)
+	commondao.NewSubDAO(cross, "Foo", 404)
 }
 
 // Error:

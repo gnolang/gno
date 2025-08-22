@@ -18,3 +18,8 @@ import "testing"
 func TestPanic(t *testing.T) {
 	panic("hello world")
 }
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/panic"
+gno = "0.9"

@@ -1,0 +1,2 @@
+module = "gno.land/r/docs/soliditypatterns/counter"
+gno = "0.9"

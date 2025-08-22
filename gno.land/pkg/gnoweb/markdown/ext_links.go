@@ -22,16 +22,19 @@ const (
 	tooltipExternalLink = "External link"
 	tooltipInternalLink = "Cross package link"
 	tooltipTxLink       = "Transaction link"
+	tooltipUserLink     = "User profile"
 
-	// Icons for link types
-	iconExternalLink = "↗"
-	iconInternalLink = "↔"
-	iconTxLink       = "⚡︎"
+	// SVG icon ids for link types
+	iconExternalLink = "ico-external-link"
+	iconInternalLink = "ico-internal-link"
+	iconTxLink       = "ico-tx-link"
+	iconUserLink     = "ico-user-link"
 
 	// CSS classes for link types
 	classLinkExternal = "link-external"
 	classLinkInternal = "link-internal"
 	classLinkTx       = "link-tx"
+	classLinkUser     = "link-user"
 )
 
 // GnoLinkType represents the type of a link
@@ -42,6 +45,7 @@ const (
 	GnoLinkTypeExternal
 	GnoLinkTypePackage
 	GnoLinkTypeInternal
+	GnoLinkTypeUser
 )
 
 func (t GnoLinkType) String() string {
@@ -52,6 +56,8 @@ func (t GnoLinkType) String() string {
 		return "package"
 	case GnoLinkTypeInternal:
 		return "internal"
+	case GnoLinkTypeUser:
+		return "user"
 	}
 	return "unknown"
 }
@@ -135,6 +141,11 @@ func detectLinkType(dest *url.URL, orig *weburl.GnoURL) (*weburl.GnoURL, GnoLink
 		return nil, GnoLinkTypeExternal
 	}
 
+	// Check if it's a user link first
+	if target.IsUser() {
+		return target, GnoLinkTypeUser
+	}
+
 	// Extract domain and namespace from the target.
 	targetDomain := target.Domain
 	targetName := target.Namespace()
@@ -180,14 +191,32 @@ func writeHTMLTag(w util.BufWriter, tag string, attrs []attr) {
 // linkTypeInfo contains information about a link type.
 type linkTypeInfo struct {
 	tooltip string
-	icon    string
+	iconID  string
 	class   string
 }
 
-var linkTypes = map[GnoLinkType]linkTypeInfo{
-	GnoLinkTypeExternal: {tooltipExternalLink, iconExternalLink, classLinkExternal},
-	GnoLinkTypeInternal: {tooltipInternalLink, iconInternalLink, classLinkInternal},
-	GnoLinkTypePackage:  {tooltipTxLink, iconTxLink, classLinkTx},
+// getLinkIcons returns all icons that should be displayed for a given link
+func getLinkIcons(n *GnoLink) []linkTypeInfo {
+	var icons []linkTypeInfo
+
+	// Add type-specific icon (external/internal)
+	if n.LinkType != GnoLinkTypePackage {
+		switch n.LinkType {
+		case GnoLinkTypeExternal:
+			icons = append(icons, linkTypeInfo{tooltipExternalLink, iconExternalLink, classLinkExternal})
+		case GnoLinkTypeInternal:
+			icons = append(icons, linkTypeInfo{tooltipInternalLink, iconInternalLink, classLinkInternal})
+		case GnoLinkTypeUser:
+			icons = append(icons, linkTypeInfo{tooltipUserLink, iconUserLink, classLinkUser})
+		}
+	}
+
+	// Add Tx icon for non-external links with help webquery
+	if n.LinkType != GnoLinkTypeExternal && n.GnoURL != nil && n.GnoURL.WebQuery.Has("help") {
+		icons = append(icons, linkTypeInfo{tooltipTxLink, iconTxLink, classLinkTx})
+	}
+
+	return icons
 }
 
 // renderGnoLink renders a link node.
@@ -219,27 +248,14 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 		return ast.WalkContinue, nil
 	}
 
-	// Add the Tx icon span if needed.
-	if n.LinkType != GnoLinkTypeExternal &&
-		n.GnoURL != nil && n.GnoURL.WebQuery.Has("help") { // has help webquery
+	// Render all icons dynamically
+	for _, icon := range getLinkIcons(n) {
 		writeHTMLTag(w, "span", []attr{
-			{"class", classLinkTx + " js-tooltip tooltip font-sans"},
-			{"data-tooltip", tooltipTxLink},
+			{"class", icon.class + " js-tooltip tooltip"},
+			{"data-tooltip", icon.tooltip},
 		})
-		w.WriteString(iconTxLink)
+		w.WriteString(`<svg class="w-3 h-3"><use href="#` + icon.iconID + `"></use></svg>`)
 		w.WriteString("</span>")
-	}
-
-	// Add external/internal icon span if needed.
-	if n.LinkType != GnoLinkTypePackage {
-		if info, ok := linkTypes[n.LinkType]; ok {
-			writeHTMLTag(w, "span", []attr{
-				{"class", info.class + " js-tooltip tooltip font-sans"},
-				{"data-tooltip", info.tooltip},
-			})
-			w.WriteString(info.icon)
-			w.WriteString("</span>")
-		}
 	}
 
 	// Write closing tag <a>.

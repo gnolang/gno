@@ -5,6 +5,7 @@ import (
 
 	"gno.land/p/aeddi/panictoerr"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/md"
 	trs_pkg "gno.land/p/nt/treasury"
 
 	"gno.land/r/gov/dao"
@@ -142,7 +143,7 @@ func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) d
 	)
 }
 
-func NewTreasuryPaymentRequest(_ realm, payment trs_pkg.Payment, reason string) dao.ProposalRequest {
+func NewTreasuryPaymentRequest(payment trs_pkg.Payment, reason string) dao.ProposalRequest {
 	if !treasury.HasBanker(payment.BankerID()) {
 		panic("banker not registered in treasury with ID: " + payment.BankerID())
 	}
@@ -172,6 +173,37 @@ func NewTreasuryPaymentRequest(_ realm, payment trs_pkg.Payment, reason string) 
 			"This proposal is looking to send a payment using the treasury.\n\nReason: %s\n\nPayment: %s",
 			reason,
 			payment.String(),
+		),
+		e,
+	)
+}
+
+// NewTreasuryGRC20TokensUpdate creates a proposal request to update the list of GRC20 tokens registry
+// keys used by the treasury. The new list, if voted and accepted, will overwrite the current one.
+func NewTreasuryGRC20TokensUpdate(newTokenKeys []string) dao.ProposalRequest {
+	cb := func(_ realm) error {
+		return panictoerr.PanicToError(func() {
+			// NOTE:: Consider checking if the newTokenKeys are already registered
+			// in the grc20reg before updating the treasury tokens keys.
+			treasury.SetTokenKeys(cross, newTokenKeys)
+		})
+	}
+
+	bulletList := md.BulletList(newTokenKeys)
+
+	e := dao.NewSimpleExecutor(
+		cb,
+		ufmt.Sprintf(
+			"The list of GRC20 tokens used by the treasury will be updated.\n\nNew Token Keys:\n%s.\n",
+			bulletList,
+		),
+	)
+
+	return dao.NewProposalRequest(
+		"Treasury GRC20 Tokens Update",
+		ufmt.Sprintf(
+			"This proposal is looking to update the list of GRC20 tokens used by the treasury.\n\nNew Token Keys:\n%s",
+			bulletList,
 		),
 		e,
 	)

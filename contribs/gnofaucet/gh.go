@@ -15,9 +15,12 @@ import (
 	"github.com/google/go-github/v64/github"
 )
 
+// type to scope the context.Context values to this package.
+type faucetContextKey string
+
 // ghUsernameKey is the context key for storing the GH username between
 // http and RPC GitHub middleware handlers
-const ghUsernameKey = "gh-username"
+const ghUsernameKey faucetContextKey = "gh-username"
 
 // gitHubUsernameMiddleware sets up authentication middleware for GitHub OAuth.
 // If clientID and secret are empty, the middleware does nothing.

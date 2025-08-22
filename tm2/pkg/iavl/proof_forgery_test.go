@@ -94,9 +94,7 @@ func TestProofForgery(t *testing.T) {
 
 func decodeHex(t *testing.T, str string) []byte {
 	t.Helper()
-	if strings.HasPrefix(str, "0x") {
-		str = str[2:]
-	}
+	str = strings.TrimPrefix(str, "0x")
 	b, err := hex.DecodeString(str)
 	if err != nil {
 		t.Fatalf("unable to decode string, %v", err)

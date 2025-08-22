@@ -174,17 +174,14 @@ package myrealm
 import "gno.land/r/leon/hor"
 
 func init() {
-	cross(hor.Register)("My Gnome App", "This is my submission to the Hall of Realms.")
+	hor.Register(cross, "My Gnome App", "This is my submission to the Hall of Realms.")
 }
 ...
 """
 
-%s
+## [Visit The Hall ->](/r/leon/hor:hall)
 
 `
-
-	out = ufmt.Sprintf(out, "## [Visit The Hall ->](/r/leon/hor:hall)")
-
 	out = strings.ReplaceAll(out, "\"", "`")
 
 	return out

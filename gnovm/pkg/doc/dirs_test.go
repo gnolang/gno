@@ -99,7 +99,7 @@ func TestDirs_findPackage(t *testing.T) {
 	}
 	for _, tc := range tt {
 		tc := tc
-		t.Run("name_"+strings.Replace(tc.name, "/", "_", -1), func(t *testing.T) {
+		t.Run("name_"+strings.ReplaceAll(tc.name, "/", "_"), func(t *testing.T) {
 			res := d.findPackage(tc.name)
 			assert.Equal(t, tc.res, res, "dirs returned should be the equal")
 		})
@@ -127,7 +127,7 @@ func TestDirs_findDir(t *testing.T) {
 	}
 	for _, tc := range tt {
 		tc := tc
-		t.Run(strings.Replace(tc.name, "/", "_", -1), func(t *testing.T) {
+		t.Run(strings.ReplaceAll(tc.name, "/", "_"), func(t *testing.T) {
 			res := d.findDir(tc.in)
 			assert.Equal(t, tc.res, res, "dirs returned should be the equal")
 		})
