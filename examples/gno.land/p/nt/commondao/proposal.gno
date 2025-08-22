@@ -74,8 +74,7 @@ type (
 		Body() string
 
 		// VotingPeriod returns the period where votes are allowed after proposal creation.
-		// No more votes should be allowed once this period is met. It is used to calculate
-		// the voting deadline from the proposal's creationd date.
+		// It is used to calculate the voting deadline from the proposal's creationd date.
 		VotingPeriod() time.Duration
 
 		// Tally counts the number of votes and verifies if proposal passes.
@@ -93,7 +92,6 @@ type (
 	// Once proposals are executed they are archived and considered finished.
 	Executable interface {
 		// Execute executes the proposal.
-		// This method must allow crossing.
 		Execute(realm) error
 	}
 
