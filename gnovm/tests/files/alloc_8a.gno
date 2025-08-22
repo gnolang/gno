@@ -1,11 +1,11 @@
-// MAXALLOC: 1000
+// MAXALLOC: 1500
 package main
 
 var counter int
 
 func recurse(n int) {
 	counter++
-	if counter == 100 {
+	if counter == 1000 {
 		return
 	}
 	recurse(n + 1)

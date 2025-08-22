@@ -119,34 +119,34 @@ func (alloc *Allocator) Fork() *Allocator {
 
 func (alloc *Allocator) Allocate(size int64) {
 	// fmt.Println("======Allocate, alloc: ", alloc)
-	// fmt.Println("======Allocate, size: ", size)
 	if alloc == nil {
 		// this can happen for map items just prior to assignment.
 		return
 	}
+	// fmt.Println("======trying allocate/gc count size: ", size)
 
 	alloc.bytes += size
 	if alloc.bytes > alloc.maxBytes {
-		fmt.Println("!!!!!!!!!!!!!!!!!!!!Exeeded, going to garbage collect..., size: ", size)
-		fmt.Println("======alloc.bytes: ", alloc.bytes)
-		fmt.Println("======size: ", size)
-		fmt.Println("======alloc.bytes - size: ", alloc.bytes-size)
+		// fmt.Println("!!!!!!!!!!!!!!!!!!!!Exeeded, going to garbage collect..., size: ", size)
+		// fmt.Println("======alloc.bytes: ", alloc.bytes)
+		// fmt.Println("======size: ", size)
+		// fmt.Println("======memory exceeded!!!!!!, allocatd bytes: ", alloc.bytes-size)
 		alloc.isGc = true
 		if left, ok := alloc.collect(); !ok {
-			fmt.Println("!!!!!!!!!!!!!!!, should not happen...")
-			fmt.Println("==================Alloc.GcCount: ", alloc.GcCount)
-			fmt.Println("==================Alloc.AllocCount: ", alloc.AllocCount)
+			// fmt.Println("!!!!!!!!!!!!!!!, should not happen...")
+			// fmt.Println("======Alloc.GcCount: ", alloc.GcCount)
+			// fmt.Println("======Alloc.AllocCount: ", alloc.AllocCount)
 			panic("should not happen, allocation limit exceeded while gc.")
 		} else { // retry
-			fmt.Println("======GC finished, retry alloc, left: ", left)
+			// fmt.Println("======GC finished, retry alloc, left: ", left)
 			if debug {
 				debug.Printf("%d left after GC, required size: %d\n", left, size)
 			}
-			fmt.Printf("%d left after GC, required size: %d\n", left, size)
+			// fmt.Printf("%d left after GC, required size: %d\n", left, size)
 			alloc.bytes += size
 			if alloc.bytes > alloc.maxBytes {
-				fmt.Println("==================Alloc.GcCount: ", alloc.GcCount)
-				fmt.Println("==================Alloc.AllocCount: ", alloc.AllocCount)
+				// fmt.Println("==================Alloc.GcCount: ", alloc.GcCount)
+				// fmt.Println("==================Alloc.AllocCount: ", alloc.AllocCount)
 				panic("allocation limit exceeded")
 			}
 		}
@@ -161,7 +161,7 @@ func (alloc *Allocator) Allocate(size int64) {
 		if size > 0 {
 			alloc.AllocCount++
 		}
-		// fmt.Println("========================Alloc size: ", size)
+		// fmt.Println("========================Allocated size: ", size)
 	}
 }
 
@@ -361,7 +361,7 @@ func (alloc *Allocator) NewMap(size int) *MapValue {
 }
 
 func (alloc *Allocator) NewPackageValue(pn *PackageNode) *PackageValue {
-	fmt.Println("======allocator NewPackageValue, pn.GetNumNames: ", pn.GetNumNames())
+	// fmt.Println("======allocator NewPackageValue, pn.GetNumNames: ", pn.GetNumNames())
 	alloc.AllocatePackageValue()
 	alloc.AllocateBlock(int64(pn.GetNumNames()))
 	pv := &PackageValue{
@@ -397,7 +397,7 @@ func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 // -----------------------------------------------
 // Utilities for obtaining shallow size
 
-// XXX, see realm.go lin 1258
+// XXX, see realm.go line 1258
 func (pv *PackageValue) GetShallowSize(withRef bool) int64 {
 	// fmt.Println("================GetShallowSize of pv: ", pv)
 	if pv.PkgPath == ".uverse" {
@@ -407,23 +407,25 @@ func (pv *PackageValue) GetShallowSize(withRef bool) int64 {
 		ss int64
 		// These also takes up memory,
 		// placed here for convenience
-		allocFNames     int64
-		allocFBlocks    int64
-		allocFBlocksMap int64
+		// allocFNames     int64
+		// allocFBlocks    int64
+		// allocFBlocksMap int64
 	)
 
-	for _, name := range pv.FNames {
-		allocFNames += int64(len(name)) + _allocName // string is counted as shallow size.
-	}
+	// for _, name := range pv.FNames {
+	// 	allocFNames += int64(len(name)) + _allocName // string is counted as shallow size.
+	// }
 
-	allocFBlocks = int64(len(pv.FBlocks)) * _allocValue // like items in block...
+	// allocFBlocks = int64(len(pv.FBlocks)) * _allocValue // like items in block...
 
-	for name := range pv.fBlocksMap {
-		allocFBlocksMap += int64(len(name)) + _allocName // key
-		allocFBlocksMap += _allocPointer                 // *Block
-	}
+	// for name := range pv.fBlocksMap {
+	// 	allocFBlocksMap += int64(len(name)) + _allocName // key
+	// 	allocFBlocksMap += _allocPointer                 // *Block
+	// }
 
-	ss = allocPackage + allocFNames + allocFBlocks + allocFBlocksMap
+	// ss = allocPackage + allocFNames + allocFBlocks + allocFBlocksMap
+
+	ss = allocPackage
 
 	if !withRef {
 		return ss
@@ -443,7 +445,7 @@ func (b *Block) GetShallowSize(withRef bool) int64 {
 	if pn, ok := b.Source.(*PackageNode); ok {
 		// fmt.Println("===pn: ", pn, pn.PkgPath)
 		if pn.PkgPath == ".uverse" {
-			fmt.Println("==================skip uverse........")
+			// fmt.Println("==================skip uverse........")
 			return 0
 		}
 	}

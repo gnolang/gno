@@ -793,7 +793,7 @@ func (pv *PackageValue) IsRealm() bool {
 
 func (pv *PackageValue) getFBlocksMap(alloc *Allocator) map[string]*Block {
 	if pv.fBlocksMap == nil {
-		alloc.AllocateMap(int64(len(pv.FNames)))
+		// alloc.AllocateMap(int64(len(pv.FNames)))
 		pv.fBlocksMap = make(map[string]*Block, len(pv.FNames))
 	}
 	return pv.fBlocksMap

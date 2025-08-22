@@ -1,7 +1,6 @@
 package gnolang
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -35,8 +34,8 @@ type Visitor func(v Value) (stop bool)
 //
 // XXX: make sure tv.T isn't bumped from allocation either.
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
-	fmt.Println("===============GarbageCollect...")
-	fmt.Println("===============m.Alloc.Status(): ", m.Alloc)
+	// fmt.Println("===============GarbageCollect...")
+	// fmt.Println("===============m.Alloc.Status(): ", m.Alloc)
 	m.Alloc.isGc = true
 	// times objects are visited for gc
 	var visitCount int64
@@ -65,7 +64,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	vis := GCVisitorFn(m.GCCycle, m.Alloc, &visitCount)
 
 	// Visit blocks
-	fmt.Println("===============visiting blocks...")
+	// fmt.Println("===============visiting blocks...")
 	for _, block := range m.Blocks {
 		if block == nil {
 			continue
@@ -77,9 +76,9 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	}
 
 	// Visit frames
-	fmt.Println("===============visiting frames...")
+	// fmt.Println("===============visiting frames...")
 	for _, frame := range m.Frames {
-		fmt.Println("==============frame: ", frame)
+		// fmt.Println("==============frame: ", frame)
 		stop := frame.Visit(m.Alloc, vis)
 		if stop {
 			return -1, false
@@ -87,14 +86,14 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	}
 
 	// Visit package
-	fmt.Println("===============visiting packages..., m.Package: ", m.Package)
+	// fmt.Println("===============visiting packages..., m.Package: ", m.Package)
 	stop := vis(m.Package)
 	if stop {
 		return -1, false
 	}
 
 	// Visit exceptions
-	fmt.Println("===============visiting exceptions...")
+	// fmt.Println("===============visiting exceptions...")
 	if m.Exception != nil {
 		e := m.Exception
 		// Visit m.Exception and its previous Exceptions
@@ -119,10 +118,10 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 	// Return bytes remaining.
 	maxBytes, bytes := m.Alloc.Status()
-	fmt.Println("=======================================================GC finished,  bytes: ", bytes)
-	fmt.Println("=======================================================left: ", maxBytes-bytes)
-	fmt.Println("==================Alloc.GcCount: ", m.Alloc.GcCount)
-	fmt.Println("==================Alloc.AllocCount: ", m.Alloc.AllocCount)
+	// fmt.Println("=======================================================GC finished,  bytes: ", bytes)
+	// fmt.Println("=======================================================left: ", maxBytes-bytes)
+	// fmt.Println("==================Alloc.GcCount: ", m.Alloc.GcCount)
+	// fmt.Println("==================Alloc.AllocCount: ", m.Alloc.AllocCount)
 	return maxBytes - bytes, true
 }
 
@@ -135,7 +134,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 		if debug {
 			debug.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
 		}
-		fmt.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
+		// fmt.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
 
 		// filter out pre-exist values
 		// switch vv := v.(type) {
@@ -164,7 +163,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 			}
 
 			if oo.GetLastGCCycle() == gcCycle {
-				fmt.Println("======visited, skip................")
+				// fmt.Println("======visited, skip................")
 				return false // but don't stop
 			}
 
@@ -183,10 +182,10 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 		// Consider removing it later if no issues arise.
 		maxBytes, curBytes := alloc.Status()
 		if maxBytes < curBytes+size {
-			fmt.Println("======curBytes: ", curBytes)
-			fmt.Println("======size: ", size)
-			fmt.Println("======curBytes + size: ", curBytes+size)
-			fmt.Println("======maxBytes: ", maxBytes)
+			// fmt.Println("======curBytes: ", curBytes)
+			// fmt.Println("======size: ", size)
+			// fmt.Println("======curBytes + size: ", curBytes+size)
+			// fmt.Println("======maxBytes: ", maxBytes)
 			return true
 		}
 
@@ -233,7 +232,7 @@ func (av *ArrayValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
-	fmt.Println("======VisitAssociated of FuncValue...")
+	// fmt.Println("======VisitAssociated of FuncValue...")
 	if !fv.IsClosure {
 		return
 	}
@@ -254,7 +253,7 @@ func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
 	case nil:
 		return
 	case *Block:
-		fmt.Println("===Block: ", v)
+		// fmt.Println("===Block: ", v)
 		if v != nil {
 			stop = vis(v)
 		}
@@ -319,7 +318,7 @@ func (mv *MapValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
-	fmt.Println("======VisitAssociated of PackageValue..., pv: ", pv)
+	// fmt.Println("======VisitAssociated of PackageValue..., pv: ", pv)
 	// visit pv.Block
 	v := pv.Block
 	if v != nil {
@@ -332,7 +331,7 @@ func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
 
 	// visit pv.FBlocks
 	for _, fb := range pv.FBlocks {
-		fmt.Println("===================visiting file blocks: ", fb)
+		// fmt.Println("===================visiting file blocks: ", fb)
 		if fb == nil {
 			continue
 		}
@@ -349,9 +348,9 @@ func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
-	fmt.Println("======VisitAssociated of Block..., type of b.Souce: ", reflect.TypeOf(b.Source))
+	// fmt.Println("======VisitAssociated of Block..., type of b.Souce: ", reflect.TypeOf(b.Source))
 	if pn, ok := b.Source.(*PackageNode); ok {
-		fmt.Println("===pn: ", pn, pn.PkgPath)
+		// fmt.Println("===pn: ", pn, pn.PkgPath)
 		if pn.PkgPath == ".uverse" {
 			return
 		}
