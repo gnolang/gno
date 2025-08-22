@@ -244,8 +244,8 @@ func ExecSignAndBroadcast(
 	return nil
 }
 
-// getStorageInfo searches events for StorageDepositEvent and returns the delta and fee.
-// If this is "unlock", then delta and fee are negative.
+// getStorageInfo searches events for StorageDepositEvent and returns the bytes delta and fee.
+// If this is "unlock", then bytes delta and fee are negative.
 // The third return is true if found, else false.
 func getStorageInfo(events []abci.Event) (int64, std.Coin, bool) {
 	for _, event := range events {
@@ -258,11 +258,14 @@ func getStorageInfo(events []abci.Event) (int64, std.Coin, bool) {
 		if err != nil {
 			continue
 		}
-		if depositEvent.BytesDelta < 0 {
-			// For unlock, we want to display a negative fee
+		bytes := depositEvent.BytesDelta
+		if depositEvent.Type == "UnlockDeposit" {
+			// For unlock, we want to display a negative bytes delta and fee
+			bytes = -bytes
 			fee.Amount = -fee.Amount
 		}
-		return depositEvent.BytesDelta, fee, true
+
+		return bytes, fee, true
 	}
 
 	return 0, std.Coin{}, false

@@ -238,11 +238,12 @@ func (err EventString) Event() string {
 	return string(err)
 }
 
+// StorageDepositEvent is emitted when a storage deposit fee is locked or unlocked
 type StorageDepositEvent struct {
-	// BytesDelta is negative for deposit unlock
-	BytesDelta int64 `json:"bytes_delta"`
-	// FeeDelta is always positive
-	FeeDelta string `json:"fee_delta"`
+	// "StorageDeposit" or "UnlockDeposit"
+	Type       string `json:"type"`
+	BytesDelta int64  `json:"bytes_delta"`
+	FeeDelta   string `json:"fee_delta"`
 }
 
 func (e StorageDepositEvent) AssertABCIEvent() {}

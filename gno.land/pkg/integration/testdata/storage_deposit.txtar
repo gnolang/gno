@@ -4,7 +4,7 @@
 gnoland start
 
 gnokey maketx addpkg -pkgdir $WORK/realm -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 502500ugnot -broadcast -chainid=tendermint_test test1
-stdout 'EVENTS:     \[{\"type\":\"StorageDeposit\",\"attrs\":\[{\"key\":\"Deposit\",\"value\":\"502500ugnot\"},{\"key\":\"Storage\",\"value\":\"5025 bytes\"}\]}\]'
+stdout 'EVENTS:     \[{\"type\":\"StorageDeposit\",\"bytes_delta\":5025,\"fee_delta\":\"502500ugnot\"}\]'
 stdout 'STORAGE DELTA: 5025 bytes'
 stdout 'STORAGE FEE:   502500ugnot'
 stdout 'TOTAL TX COST: 1502500ugnot'
@@ -16,7 +16,7 @@ stdout 'storage: 5025, deposit: 502500'
 ## Set an object with a smaller size. Exactly 2 bytes are released when we update the realm record from 'hello' to 'foo'.
 gnokey maketx call -pkgpath gno.land/r/foo -func NewFoo -args "foo"  -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test test1
 stdout OK!
-stdout 'EVENTS:     \[{\"type\":\"UnlockDeposit\",\"attrs\":\[{\"key\":\"Deposit\",\"value\":\"200ugnot\"},{\"key\":\"ReleaseStorage\",\"value\":\"2 bytes\"}\]}\]'
+stdout 'EVENTS:     \[{\"type\":\"UnlockDeposit\",\"bytes_delta\":2,\"fee_delta\":\"200ugnot\"}\]'
 stdout 'STORAGE DELTA: -2 bytes'
 stdout 'STORAGE FEE:   -200ugnot'
 stdout 'TOTAL TX COST: 999800ugnot'
@@ -32,7 +32,7 @@ gnoland restart
 
  gnokey maketx call -pkgpath gno.land/r/foo -func Clear -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test test1
  stdout OK!
- stdout 'EVENTS:     \[{\"type\":\"UnlockDeposit\",\"attrs\":\[{\"key\":\"Deposit\",\"value\":\"2700ugnot\"},{\"key\":\"ReleaseStorage\",\"value\":\"27 bytes\"}\]}\]'
+ stdout 'EVENTS:     \[{\"type\":\"UnlockDeposit\",\"bytes_delta\":27,\"fee_delta\":\"2700ugnot\"}\]'
  stdout 'STORAGE DELTA: -27 bytes'
  stdout 'STORAGE FEE:   -2700ugnot'
  stdout 'TOTAL TX COST: 997300ugnot'
@@ -47,7 +47,7 @@ gnoland restart
 ## test storage deposit for package gno.land/p/foo
 gnokey maketx addpkg -pkgdir $WORK/package -pkgpath gno.land/p/foo -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 302900ugnot -broadcast -chainid=tendermint_test test1
 stdout OK!
-stdout 'EVENTS:     \[{\"type\":\"StorageDeposit\",\"attrs\":\[{\"key\":\"Deposit\",\"value\":\"302900ugnot\"},{\"key\":\"Storage\",\"value\":\"3029 bytes\"}\]}\]'
+stdout 'EVENTS:     \[{\"type\":\"StorageDeposit\",\"bytes_delta\":3029,\"fee_delta\":\"302900ugnot\"}\]'
 stdout 'STORAGE DELTA: 3029 bytes'
 stdout 'STORAGE FEE:   302900ugnot'
 stdout 'TOTAL TX COST: 1302900ugnot'

@@ -193,8 +193,9 @@ message EventString {
 }
 
 message StorageDepositEvent {
-	sint64 bytes_delta = 1;
-	string fee_delta = 2;
+	string type = 1;
+	sint64 bytes_delta = 2;
+	string fee_delta = 3;
 }
 
 message MockHeader {

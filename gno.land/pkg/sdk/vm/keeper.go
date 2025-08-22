@@ -1148,6 +1148,7 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			// Emit event for storage deposit lock
 			d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}}
 			evt := abci.StorageDepositEvent{
+				Type:       "StorageDeposit",
 				BytesDelta: diff,
 				FeeDelta:   d.String(),
 			}
@@ -1171,10 +1172,10 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			if err != nil {
 				return err
 			}
-			// Emit event for deposit return. BytesDelta is negative, but FeeDelta Coin must be positive.
 			d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}}
 			evt := abci.StorageDepositEvent{
-				BytesDelta: diff,
+				Type:       "UnlockDeposit",
+				BytesDelta: released,
 				FeeDelta:   d.String(),
 			}
 			ctx.EventLogger().EmitEvent(evt)
