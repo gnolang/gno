@@ -818,15 +818,15 @@ func (pv *PackageValue) deriveFBlocksMap(alloc *Allocator, store Store) {
 // Retrieves the block from store if necessary, and if so fills all the values
 // of the block.
 func (pv *PackageValue) GetBlock(store Store) *Block {
-	fmt.Println("===================GetBlock...")
 	bv := pv.Block
+	fmt.Printf("======GetBlock for pkgPath: %s, (type of pv.Block: %v)\n", pv.PkgPath, reflect.TypeOf(bv))
 	switch bv := bv.(type) {
 	case RefValue:
 		bb := store.GetObject(bv.ObjectID).(*Block)
 		pv.Block = bb
 		for i := range bb.Values {
 			tv := &bb.Values[i]
-			fmt.Println("======================fill value of block...")
+			fmt.Println("======fill value of block...")
 			fillValueTV(store, tv)
 		}
 		return bb
@@ -2638,7 +2638,7 @@ func typedString(s string) TypedValue {
 
 // returns the same tv instance for convenience.
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
-	fmt.Println("======fillValueTV...")
+	// fmt.Println("======fillValueTV...")
 	if store != nil {
 		fmt.Println("======store.GetAllocator(): ", store.GetAllocator())
 	}

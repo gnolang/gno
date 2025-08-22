@@ -103,6 +103,10 @@ var machinePool = sync.Pool{
 // [Machine.Release].
 func NewMachineWithOptions(opts MachineOptions) *Machine {
 	fmt.Println("======NewMachineWithOptions..., opts.PkgPath: ", opts.PkgPath)
+	PrintlnCaller(2)
+	PrintlnCaller(8)
+	PrintlnCaller(9)
+	PrintlnCaller(10)
 	vmGasMeter := opts.GasMeter
 
 	output := opts.Output
@@ -137,7 +141,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	// Maybe get/set package and realm.
 	if !opts.SkipPackage && opts.PkgPath != "" {
 		pv := (*PackageValue)(nil)
-		fmt.Println("=======GetPackage for: ", opts.PkgPath)
+		fmt.Println("======GetPackage for: ", opts.PkgPath)
 		pv = store.GetPackage(opts.PkgPath, false)
 		if pv == nil {
 			pkgName := defaultPkgName(opts.PkgPath)
@@ -258,12 +262,13 @@ func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, 
 // NOTE: Does not validate the mpkg, except when saving validates a mpkg with
 // its type.
 func (m *Machine) RunMemPackageWithOverrides(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+	fmt.Println("======RunMemPackageWithOverrides, save: ", save)
 	return m.runMemPackage(mpkg, save, true)
 }
 
 func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
-	fmt.Println("======runMemPackage..., mpkg.Path, m.Alloc: ", mpkg.Path, m.Alloc)
-	println("=======save: ", save)
+	fmt.Println("======runMemPackage..., mpkg.Path: ", mpkg.Path)
+	fmt.Println("======m.Alloc: ", m.Alloc)
 	// validate mpkg.Type.
 	mptype := mpkg.Type.(MemPackageType)
 	if save && !mptype.IsStorable() {
@@ -281,21 +286,16 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
 	if m.Package != nil && m.Package.PkgPath == mpkg.Path {
-		fmt.Println("===============m.Package != nil, ", m.Package)
+		fmt.Println("======m.Package != nil, ", m.Package)
 		pv = m.Package
 		loc := PackageNodeLocation(mpkg.Path)
 		pn = m.Store.GetBlockNode(loc).(*PackageNode)
 	} else {
-		fmt.Println("===============m.Package == nil")
+		fmt.Println("======m.Package == nil")
 		pn = NewPackageNode(Name(mpkg.Name), mpkg.Path, &FileSet{})
 		pv = pn.NewPackage(m.Alloc)
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
-	}
-	oid := ObjectIDFromPkgPath(pv.PkgPath)
-	if _, exists := m.Store.(*defaultStore).cacheObjects[oid]; exists {
-		fmt.Println("=======================alrealdy exists...")
-		fmt.Printf("=======================addr of store: %p\n", &m.Store)
 	}
 	m.SetActivePackage(pv)
 	// run files.
@@ -555,6 +555,11 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 // Returns the updated typed values of package.
 // m.Package must match fns's package path.
 func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValue {
+	fmt.Println("======runFileDecls...")
+	fmt.Println("======m.Alloc: ", m.Alloc)
+	defer func() {
+		fmt.Println("======finish runFileDecls...")
+	}()
 	// Files' package names must match the machine's active one.
 	// if there is one.
 	for _, fn := range fns {
@@ -589,7 +594,6 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		}
 	}
 
-	fmt.Println("======Going to PredefineFileSet...")
 	// Predefine declarations across all files.
 	PredefineFileSet(m.Store, pn, fs)
 
@@ -613,9 +617,10 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		// Each file for each *PackageValue gets its own file *Block,
 		// with values copied over from each file's
 		// *FileNode.StaticBlock.
-		fmt.Println("======runFileDecls, alloc block, m.Alloc: ", m.Alloc)
+		fmt.Println("======After preprocess, start allocating, allocate block, m.Alloc: ", m.Alloc)
 		fb := m.Alloc.NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
+		// XXX, alloc?
 		copy(fb.Values, fn.StaticBlock.Values)
 		pv.AddFileBlock(m.Alloc, fn.FileName, fb)
 	}

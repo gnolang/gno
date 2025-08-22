@@ -361,7 +361,7 @@ func (alloc *Allocator) NewMap(size int) *MapValue {
 }
 
 func (alloc *Allocator) NewPackageValue(pn *PackageNode) *PackageValue {
-	fmt.Println("=============NewPackageValue, pn.GetNumNames: ", pn.GetNumNames())
+	fmt.Println("======allocator NewPackageValue, pn.GetNumNames: ", pn.GetNumNames())
 	alloc.AllocatePackageValue()
 	alloc.AllocateBlock(int64(pn.GetNumNames()))
 	pv := &PackageValue{
@@ -379,7 +379,7 @@ func (alloc *Allocator) NewPackageValue(pn *PackageNode) *PackageValue {
 }
 
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
-	fmt.Println("======NewBlock, source: ", source)
+	// fmt.Println("======NewBlock, source: ", source)
 	alloc.AllocateBlock(int64(source.GetNumNames()))
 	return NewBlock(alloc, source, parent)
 }

@@ -177,9 +177,9 @@ type TypeCheckOptions struct {
 func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 	pkg *types.Package, errs error,
 ) {
-	fmt.Println("===========TypeCheckMemPackage, alloator: ", opts.Getter.(Store).GetAllocator())
+	fmt.Println("======TypeCheckMemPackage, alloator: ", opts.Getter.(Store).GetAllocator())
 	defer func() {
-		fmt.Println("=============finish TypeCheckMemPackage...")
+		fmt.Println("======finish TypeCheckMemPackage============")
 	}()
 
 	var gimp *gnoImporter
@@ -488,7 +488,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// gimp.testing = false <-- incorrect!
 	pgofs := filterTests(gofset, gofs) // prod gofs.
 	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, nil)
-	fmt.Println("======================================done go type check..........")
+	fmt.Println("======done go type check for this package......")
 	// Fail early: there's no point checking the others.
 	if len(gimp.errors) != numErrs {
 		errs = multierr.Combine(gimp.errors[numErrs:]...)

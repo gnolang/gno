@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"io"
 	"iter"
-	"path"
 	"reflect"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -290,10 +288,11 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
 	fmt.Println("======GetPackage, pkgPath: ", pkgPath)
 	fmt.Println("======GetPackage, allocator: ", ds.GetAllocator())
-	_, file, line, _ := runtime.Caller(8)
-	caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
-	prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
-	fmt.Println(append([]any{prefix}, "")...)
+	PrintlnCaller(2)
+	defer func() {
+		fmt.Println("======Finish GetPackage, !!!")
+
+	}()
 	// if pkgPath == "gno.land/r/demo/ext" {
 	// 	panic("!!!!!!!!!!!!!!!!!")
 	// }
@@ -312,18 +311,15 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	}
 	// first, check cache.
 	oid := ObjectIDFromPkgPath(pkgPath)
+	fmt.Println("======trying from cache...")
 	if oo, exists := ds.cacheObjects[oid]; exists {
-		fmt.Println("=====from cache...")
 		pv := oo.(*PackageValue)
 		return pv
 	}
-	println("=============not exist in cache")
 	// else, load package.
 	if ds.baseStore != nil {
+		fmt.Println("======trying from store..., allocater: ", ds.GetAllocator())
 		if oo := ds.loadObjectSafe(oid); oo != nil {
-			fmt.Println("=====from store..., allocater: ", ds.GetAllocator())
-			fmt.Printf("===============addr of store: %p\n", ds)
-			fmt.Printf("===============type of store: %v\n", reflect.TypeOf(ds))
 			pv := oo.(*PackageValue)
 			// XXX, alloc, FBlocks...?
 			// in loadObjectSafe...?
@@ -340,8 +336,8 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	}
 	// otherwise, fetch from pkgGetter.
 	if ds.pkgGetter != nil {
+		fmt.Println("======trying from pkgGetter...")
 		if pn, pv := ds.pkgGetter(pkgPath, ds); pv != nil {
-			fmt.Println("=====from pkgGetter...")
 			// e.g. tests/imports_tests loads example/gno.land/r/... realms.
 			// if pv.IsRealm() {
 			// 	panic("realm packages cannot be gotten from pkgGetter")
@@ -494,8 +490,8 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		gas := overflow.Mulp(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasGetObjectDesc)
 		amino.MustUnmarshal(bz, &oo)
-		fmt.Println("===============loadObjectSafe, allocate..., oid: ", oid)
-		fmt.Println("===========oo, type of oo: ", oo, reflect.TypeOf(oo))
+		fmt.Println("======loadObjectSafe, allocate..., oid: ", oid)
+		fmt.Println("======oo, type of oo: ", oo, reflect.TypeOf(oo))
 		withRef := true
 		ds.alloc.Allocate(oo.GetShallowSize(withRef))
 		if debug {
@@ -514,8 +510,11 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 }
 
 func (ds *defaultStore) Clone() *defaultStore {
-	ds2 := *ds
-	return &ds2
+	baseStore := ds.baseStore
+	iavlStore := ds.iavlStore
+
+	ds2 := NewStore(nil, baseStore.CacheWrap(), iavlStore.CacheWrap())
+	return ds2
 }
 
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
@@ -902,12 +901,13 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 // GetMemPackage retrieves the MemPackage at the given path.
 // It returns nil if the package could not be found.
 func (ds *defaultStore) GetMemPackage(path string) *std.MemPackage {
-	fmt.Println("!!!!!!!!!!!!!!!!!!!!!, GetMemPackage from import..: ", ds.alloc)
+	fmt.Println("======, GetMemPackage, path: ", path)
+	fmt.Println("======ds.GetAllocator: ", ds.GetAllocator())
 	return ds.getMemPackage(path, false)
 }
 
 func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage {
-	fmt.Println("===========getMemPackage, path: ", path)
+	fmt.Println("======getMemPackage, path: ", path)
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -924,7 +924,7 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 	pathkey := []byte(backendPackagePathKey(path))
 	bz := ds.iavlStore.Get(pathkey)
 	if bz == nil {
-		fmt.Println("===bz is nil...")
+		fmt.Println("======bz is nil...")
 		// If this is the first try, attempt using GetPackage to retrieve the
 		// package, first. GetPackage can leverage pkgGetter, which in most
 		// implementations works by running Machine.RunMemPackage with save = true,
@@ -941,7 +941,8 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 	gas := overflow.Mulp(ds.gasConfig.GasGetMemPackage, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasGetMemPackageDesc)
 
-	println("=====================bz not nil, from iavl...")
+	// XXX, maybe already loaded by LoadImport
+	println("======bz not nil, from iavl...")
 	// XXX, alloc
 	var mpkg *std.MemPackage
 	amino.MustUnmarshal(bz, &mpkg)

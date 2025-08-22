@@ -313,7 +313,7 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(&x.Type)
 		m.PushOp(OpEval)
 	case *ConstExpr:
-		fmt.Println("======OpEval, ConstExpr: ", x)
+		// fmt.Println("======OpEval, ConstExpr: ", x)
 		m.PopExpr()
 		// push preprocessed value
 		tv := x.TypedValue

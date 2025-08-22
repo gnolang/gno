@@ -1336,7 +1336,9 @@ func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 	fmt.Println("======NewPackage......, pn.PkgPath: ", pn.PkgPath)
 	var pv *PackageValue
-	if pn.PkgPath == "main" { // XXX, also for non realm? realm not alloc here but in GetObject?
+	if pn.PkgPath == "main" {
+		// Allocation is only for the main package,
+		// other packages are preloaded into the store.
 		pv = alloc.NewPackageValue(pn)
 	} else {
 		pv = &PackageValue{
@@ -1371,6 +1373,10 @@ func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 // NOTE: declared methods do not get their closures set here. See
 // *DeclaredType.GetValueAt() which returns a filled copy.
 func (pn *PackageNode) PrepareNewValues(alloc *Allocator, pv *PackageValue) []TypedValue {
+	// fmt.Println("======PrepareNewValues..., alloc: ", alloc)
+	// defer func() {
+	// 	fmt.Println("======finish PrepareNewValues...")
+	// }()
 	// should already exist.
 	block := pv.Block.(*Block)
 	if block.Source != pn {
@@ -1429,6 +1435,7 @@ func (pn *PackageNode) PrepareNewValues(alloc *Allocator, pv *PackageValue) []Ty
 				}
 			}
 		}
+		// XXX, alloc other values?
 		block.Values = append(block.Values, nvs...)
 		return block.Values[pvl:]
 	} else if pvl > pnl {

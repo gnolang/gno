@@ -456,30 +456,11 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if _, ok := gno.IsGnoRunPath(pkgPath); ok {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
-
-	// rootDir, _ := filepath.Abs("../../../../")
-	// o := &test.TestOptions{
-	// 	RootDir: rootDir,
-	// 	Output:  io.Discard,
-	// 	Error:   io.Discard,
-	// }
-
-	// _, testStore := test.StoreWithOptions(
-	// 	rootDir, o.WriterForStore(),
-	// 	test.StoreOptions{WithExtern: true, WithExamples: true, Testing: false},
-	// )
-
-	// gno.InitStoreCaches(testStore)
-
-	tcStore := gnostore.Clone()
-
 	opts := gno.TypeCheckOptions{
-		// Getter: gnostore,
-		Getter:     tcStore,
+		Getter:     gnostore,
 		TestGetter: vm.testStdlibCache.memPackageGetter(gnostore),
-		// TestGetter: vm.testStdlibCache.memPackageGetter(testStore),
-		Mode:  gno.TCLatestStrict,
-		Cache: vm.getTypeCheckCache(ctx),
+		Mode:       gno.TCLatestStrict,
+		Cache:      vm.getTypeCheckCache(ctx),
 	}
 
 	if ctx.BlockHeight() == 0 {
