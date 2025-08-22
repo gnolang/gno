@@ -172,6 +172,9 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig, pkgpaths ...string) (*Node
 }
 
 func (n *Node) Paths() []string {
+	n.muNode.RLock()
+	defer n.muNode.RUnlock()
+
 	return n.paths
 }
 
