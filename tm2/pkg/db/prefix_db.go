@@ -20,8 +20,10 @@ func IteratePrefix(db DB, prefix []byte) Iterator {
 		start = cp(prefix)
 		end = cpIncr(prefix)
 	}
-	// TODO address err
-	it, _ := db.Iterator(start, end)
+	it, err := db.Iterator(start, end)
+	if err != nil {
+		panic(err)
+	}
 	return it
 }
 
@@ -166,8 +168,7 @@ func (pdb *PrefixDB) NewBatch() Batch {
 }
 
 // Implements DB.
-// Panics if the underlying DB is not an
-// atomicSetDeleter.
+// Panics if the underlying DB is not an atomicSetDeleter.
 func (pdb *PrefixDB) NewBatchWithSize(size int) Batch {
 	pdb.mtx.Lock()
 	defer pdb.mtx.Unlock()
@@ -196,10 +197,6 @@ func (pdb *PrefixDB) DeleteNoLockSync(key []byte) {
 	pdb.db.(atomicSetDeleter).DeleteNoLockSync(pdb.prefixed(key))
 }
 */
-
-func (pdb *PrefixDB) Error() error {
-	return nil // TODO check other implem of prefix db to see if we can do better
-}
 
 // Implements DB.
 func (pdb *PrefixDB) Close() error {

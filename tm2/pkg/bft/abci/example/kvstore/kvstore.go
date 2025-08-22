@@ -116,8 +116,10 @@ func (app *KVStoreApplication) Commit() (res abci.ResponseCommit) {
 // Returns an associated value or nil if missing.
 func (app *KVStoreApplication) Query(reqQuery abci.RequestQuery) (resQuery abci.ResponseQuery) {
 	if reqQuery.Prove {
-		// TODO address err
-		value, _ := app.state.db.Get(prefixKey(reqQuery.Data))
+		value, err := app.state.db.Get(prefixKey(reqQuery.Data))
+		if err != nil {
+			panic(err)
+		}
 		// resQuery.Index = -1 // TODO make Proof return index
 		resQuery.Key = reqQuery.Data
 		resQuery.Value = value
@@ -129,8 +131,10 @@ func (app *KVStoreApplication) Query(reqQuery abci.RequestQuery) (resQuery abci.
 		return
 	} else {
 		resQuery.Key = reqQuery.Data
-		// TODO address err
-		value, _ := app.state.db.Get(prefixKey(reqQuery.Data))
+		value, err := app.state.db.Get(prefixKey(reqQuery.Data))
+		if err != nil {
+			panic(err)
+		}
 		resQuery.Value = value
 		if value != nil {
 			resQuery.Log = "exists"

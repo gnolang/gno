@@ -981,7 +981,7 @@ func LoadStateFromDBOrGenesisDocProvider(stateDB dbm.DB, genesisDocProvider Gene
 func loadGenesisDoc(db dbm.DB) (*types.GenesisDoc, error) {
 	b, err := db.Get(genesisDocKey)
 	if err != nil {
-		panic(err) // TODO improve err
+		return nil, fmt.Errorf("error while getting Genesis doc: %w", err)
 	}
 	if len(b) == 0 {
 		return nil, errors.New("Genesis doc not found")

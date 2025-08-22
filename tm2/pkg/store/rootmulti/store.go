@@ -433,19 +433,6 @@ func (si storeInfo) Hash() []byte {
 	// of the commit hash.
 	// See similar change in SDK https://github.com/cosmos/cosmos-sdk/pull/6323
 	return si.Core.CommitID.Hash
-
-	//// Doesn't write Name, since merkle.SimpleHashFromMap() will
-	//// include them via the keys.
-	//bz := si.Core.CommitID.Hash
-	// hasher := tmhash.New()
-
-	//_, err := hasher.Write(bz)
-	//if err != nil {
-	//	// TODO: Handle with #870
-	//	panic(err)
-	//}
-
-	// return hasher.Sum(nil)
 }
 
 // ----------------------------------------

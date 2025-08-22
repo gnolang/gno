@@ -166,13 +166,12 @@ func (iter *prefixIterator) Value() []byte {
 
 // Implements Iterator
 func (iter *prefixIterator) Close() error {
-	iter.iter.Close()
-	return nil
+	return iter.iter.Close()
 }
 
 // Implements Iterator
 func (iter *prefixIterator) Error() error {
-	return nil
+	return iter.iter.Error()
 }
 
 // copied from github.com/tendermint/classic/libs/db/prefix_db.go
