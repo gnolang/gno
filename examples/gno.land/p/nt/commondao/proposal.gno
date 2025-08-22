@@ -221,6 +221,11 @@ func (p Proposal) VoteChoices() []VoteChoice {
 	return choices
 }
 
+// HasVotingDeadlinePassed checks if the voting deadline has been met.
+func (p Proposal) HasVotingDeadlinePassed() bool {
+	return !time.Now().Before(p.VotingDeadline())
+}
+
 // Validate validates that a proposal is valid for the current state.
 // Validation is done when proposal status is active and when the definition supports validation.
 func (p Proposal) Validate() error {
