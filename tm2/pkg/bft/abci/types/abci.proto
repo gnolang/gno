@@ -192,6 +192,11 @@ message EventString {
 	string value = 1;
 }
 
+message StorageDepositEvent {
+	sint64 bytes_delta = 1;
+	string fee_delta = 2;
+}
+
 message MockHeader {
 	string version = 1;
 	string chain_id = 2;
