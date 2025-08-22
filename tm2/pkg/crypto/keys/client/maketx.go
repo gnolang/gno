@@ -4,8 +4,6 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -246,58 +244,21 @@ func ExecSignAndBroadcast(
 	return nil
 }
 
-// getStorageInfo searches events for StorageDeposit or UnlockDeposit and
-// returns the delta and fee.
-// If this is "UnlockDeposit", then delta and fee are negative.
+// getStorageInfo searches events for StorageDepositEvent and returns the delta and fee.
+// If this is "unlock", then delta and fee are negative.
 // The third return is true if found, else false.
 func getStorageInfo(events []abci.Event) (int64, std.Coin, bool) {
 	for _, event := range events {
-		eventKV, ok := event.(abci.EventKeyValue)
+		depositEvent, ok := event.(abci.StorageDepositEvent)
 		if !ok {
 			continue
 		}
 
-		isUnlock := false
-		deltaStr := ""
-		feeStr := ""
-		switch eventKV.Type {
-		case "StorageDeposit":
-			deltaStr, ok = eventKV.FindAttribute("Storage")
-			if !ok {
-				continue
-			}
-			feeStr, ok = eventKV.FindAttribute("Deposit")
-			if !ok {
-				continue
-			}
-		case "UnlockDeposit":
-			deltaStr, ok = eventKV.FindAttribute("ReleaseStorage")
-			if !ok {
-				continue
-			}
-			isUnlock = true
-			feeStr, ok = eventKV.FindAttribute("Deposit")
-			if !ok {
-				continue
-			}
-		default:
-			continue
-		}
-
-		delta, err := strconv.ParseInt(strings.TrimSuffix(deltaStr, " bytes"), 10, 64)
+		fee, err := std.ParseCoin(depositEvent.FeeDelta)
 		if err != nil {
 			continue
 		}
-		fee, err := std.ParseCoin(feeStr)
-		if err != nil {
-			continue
-		}
-		if isUnlock {
-			delta = -delta
-			fee.Amount = -fee.Amount
-		}
-
-		return delta, fee, true
+		return depositEvent.BytesDelta, fee, true
 	}
 
 	return 0, std.Coin{}, false

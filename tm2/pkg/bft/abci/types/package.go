@@ -68,8 +68,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 
 		// events
 		EventString(""),
-		EventKeyValueAttribute{},
-		EventKeyValue{},
+		StorageDepositEvent{},
 
 		// mocks
 		MockHeader{},

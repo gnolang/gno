@@ -238,28 +238,12 @@ func (err EventString) Event() string {
 	return string(err)
 }
 
-type EventKeyValue struct {
-	Type       string                   `json:"type"`
-	Attributes []EventKeyValueAttribute `json:"attrs"`
+type StorageDepositEvent struct {
+	BytesDelta int64  `json:"bytes_delta"`
+	FeeDelta   string `json:"fee_delta"`
 }
 
-func (e EventKeyValue) AssertABCIEvent() {}
-
-type EventKeyValueAttribute struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
-}
-
-// FindAttribute returns the value for the key in e.Attributes. If not found, return "", false
-func (e *EventKeyValue) FindAttribute(key string) (string, bool) {
-	for _, attr := range e.Attributes {
-		if attr.Key == key {
-			return attr.Value, true
-		}
-	}
-
-	return "", false
-}
+func (e StorageDepositEvent) AssertABCIEvent() {}
 
 // ----------------------------------------
 // Misc
