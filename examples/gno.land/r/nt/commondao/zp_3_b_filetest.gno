@@ -25,14 +25,14 @@ func init() {
 
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
-	dao = commondao.New("Foo")
+	dao = commondao.New(cross, "Foo")
 	dao.Members().Add(user)
 
 	options := commondao.GetOptions(dao.ID())
 	options.SetAllowDissolutionProposals(true)
 
 	// Create a SubDAO to be dissolveed
-	subDAO = commondao.NewSubDAO("Bar", dao.ID())
+	subDAO = commondao.NewSubDAO(cross, "Bar", dao.ID())
 }
 
 func main() {
