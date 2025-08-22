@@ -155,13 +155,13 @@ func (alloc *Allocator) Allocate(size int64) {
 		if size > 0 {
 			alloc.GcCount++
 		}
-		fmt.Println("========================GC counting size: ", size)
-		fmt.Println("========================GC alloc.bytes: ", alloc.bytes)
+		// fmt.Println("========================GC counting size: ", size)
+		// fmt.Println("========================GC alloc.bytes: ", alloc.bytes)
 	} else {
 		if size > 0 {
 			alloc.AllocCount++
 		}
-		fmt.Println("========================Alloc size: ", size)
+		// fmt.Println("========================Alloc size: ", size)
 	}
 }
 
@@ -399,7 +399,7 @@ func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 
 // XXX, see realm.go lin 1258
 func (pv *PackageValue) GetShallowSize(withRef bool) int64 {
-	fmt.Println("================GetShallowSize of pv: ", pv)
+	// fmt.Println("================GetShallowSize of pv: ", pv)
 	if pv.PkgPath == ".uverse" {
 		return 0
 	}

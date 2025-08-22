@@ -25,10 +25,10 @@ const (
 // This function must be called on *FileSets because declarations
 // in file sets may be unordered.
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
-	fmt.Println("======PredefineFileSet=================")
-	defer func() {
-		fmt.Println("======After PredefineFileSet===================")
-	}()
+	// fmt.Println("======PredefineFileSet=================")
+	// defer func() {
+	// 	fmt.Println("======After PredefineFileSet===================")
+	// }()
 	// First, initialize all file nodes and connect to package node.
 	// This will also reserve names on BlockNode.StaticBlock by
 	// calling StaticBlock.Reserve().
@@ -212,7 +212,7 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 				}
 
 				if nn == "" { // use default
-					fmt.Println("======InitStaticBlocks, import decl, n.PkgPath: ", n.PkgPath)
+					// fmt.Println("======InitStaticBlocks, import decl, n.PkgPath: ", n.PkgPath)
 					pv := store.GetPackage(n.PkgPath, true)
 					if pv == nil {
 						panic(fmt.Sprintf(
@@ -3765,8 +3765,8 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	}
 
 	if cx == nil {
-		fmt.Println("======eval const..., x: ", x)
-		PrintlnCaller(2)
+		// fmt.Println("======eval const..., x: ", x)
+		// PrintlnCaller(2)
 		// is constant?  From the machine?
 		m := NewMachine(".dontcare", store)
 		cv := m.EvalStatic(last, x)

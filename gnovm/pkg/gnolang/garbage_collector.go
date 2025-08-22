@@ -377,13 +377,13 @@ func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
 	case nil:
 		return
 	case *Block:
-		fmt.Println("======parent of block: ", v)
+		// fmt.Println("======parent of block: ", v)
 		if v != nil {
 			stop = vis(v)
 		}
 	case RefValue:
 		// XXX, if ref value existing in memory, not count this.
-		fmt.Println("===parent of refValue: ", v)
+		// fmt.Println("===parent of refValue: ", v)
 		stop = vis(v)
 	}
 

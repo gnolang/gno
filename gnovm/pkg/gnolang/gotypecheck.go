@@ -177,10 +177,10 @@ type TypeCheckOptions struct {
 func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 	pkg *types.Package, errs error,
 ) {
-	fmt.Println("======TypeCheckMemPackage, alloator: ", opts.Getter.(Store).GetAllocator())
-	defer func() {
-		fmt.Println("======finish TypeCheckMemPackage============")
-	}()
+	// fmt.Println("======TypeCheckMemPackage, alloator: ", opts.Getter.(Store).GetAllocator())
+	// defer func() {
+	// 	fmt.Println("======finish TypeCheckMemPackage============")
+	// }()
 
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
@@ -411,7 +411,7 @@ func prepareGoGno0p9(f *ast.File) (err error) {
 func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool) (
 	pkg *types.Package, errs error,
 ) {
-	fmt.Println("======typeCheckMemPackage......")
+	// fmt.Println("======typeCheckMemPackage......")
 	// See adr/pr4264_lint_transpile.md
 	// STEP 2: Check gno.mod version.
 	var gnoVersion string
@@ -489,7 +489,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// gimp.testing = false <-- incorrect!
 	pgofs := filterTests(gofset, gofs) // prod gofs.
 	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, nil)
-	fmt.Println("======done go type check for this package......")
+	// fmt.Println("======done go type check for this package......")
 	// Fail early: there's no point checking the others.
 	if len(gimp.errors) != numErrs {
 		errs = multierr.Combine(gimp.errors[numErrs:]...)

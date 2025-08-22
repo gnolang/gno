@@ -107,11 +107,11 @@ var machinePool = sync.Pool{
 // Machines initialized through this constructor must be finalized with
 // [Machine.Release].
 func NewMachineWithOptions(opts MachineOptions) *Machine {
-	fmt.Println("======NewMachineWithOptions..., opts.PkgPath: ", opts.PkgPath)
-	PrintlnCaller(2)
-	PrintlnCaller(8)
-	PrintlnCaller(9)
-	PrintlnCaller(10)
+	// fmt.Println("======NewMachineWithOptions..., opts.PkgPath: ", opts.PkgPath)
+	// PrintlnCaller(2)
+	// PrintlnCaller(8)
+	// PrintlnCaller(9)
+	// PrintlnCaller(10)
 	vmGasMeter := opts.GasMeter
 
 	output := opts.Output
@@ -146,7 +146,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	// Maybe get/set package and realm.
 	if !opts.SkipPackage && opts.PkgPath != "" {
 		pv := (*PackageValue)(nil)
-		fmt.Println("======GetPackage for: ", opts.PkgPath)
+		// fmt.Println("======GetPackage for: ", opts.PkgPath)
 		pv = store.GetPackage(opts.PkgPath, false)
 		if pv == nil {
 			pkgName := defaultPkgName(opts.PkgPath)
@@ -254,13 +254,13 @@ func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, 
 // NOTE: Does not validate the mpkg, except when saving validates a mpkg with
 // its type.
 func (m *Machine) RunMemPackageWithOverrides(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
-	fmt.Println("======RunMemPackageWithOverrides, save: ", save)
+	// fmt.Println("======RunMemPackageWithOverrides, save: ", save)
 	return m.runMemPackage(mpkg, save, true)
 }
 
 func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
-	fmt.Println("======runMemPackage..., mpkg.Path: ", mpkg.Path)
-	fmt.Println("======m.Alloc: ", m.Alloc)
+	// fmt.Println("======runMemPackage..., mpkg.Path: ", mpkg.Path)
+	// fmt.Println("======m.Alloc: ", m.Alloc)
 	// validate mpkg.Type.
 	mptype := mpkg.Type.(MemPackageType)
 	if save && !mptype.IsStorable() {
@@ -278,12 +278,12 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
 	if m.Package != nil && m.Package.PkgPath == mpkg.Path {
-		fmt.Println("======m.Package != nil, ", m.Package)
+		// fmt.Println("======m.Package != nil, ", m.Package)
 		pv = m.Package
 		loc := PackageNodeLocation(mpkg.Path)
 		pn = m.Store.GetBlockNode(loc).(*PackageNode)
 	} else {
-		fmt.Println("======m.Package == nil")
+		// fmt.Println("======m.Package == nil")
 		pn = NewPackageNode(Name(mpkg.Name), mpkg.Path, &FileSet{})
 		pv = pn.NewPackage(m.Alloc)
 		m.Store.SetBlockNode(pn)
@@ -464,7 +464,7 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 // m.Package must match fns's package path.
 // XXX delete?
 func (m *Machine) RunFiles(fns ...*FileNode) {
-	fmt.Println("======RunFiles...")
+	// fmt.Println("======RunFiles...")
 	pv := m.Package
 	if pv == nil {
 		panic("RunFiles requires Machine.Package")
@@ -496,7 +496,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 // "examples/*".
 //   - fixFrom: the version of gno to fix from.
 func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool, fixFrom string) (*PackageNode, *PackageValue) {
-	fmt.Println("======PreprocessFiles...")
+	// fmt.Println("======PreprocessFiles...")
 	if !withOverrides {
 		if err := checkDuplicates(fset); err != nil {
 			panic(fmt.Errorf("running package %q: %w", pkgName, err))
@@ -547,11 +547,11 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 // Returns the updated typed values of package.
 // m.Package must match fns's package path.
 func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValue {
-	fmt.Println("======runFileDecls...")
-	fmt.Println("======m.Alloc: ", m.Alloc)
-	defer func() {
-		fmt.Println("======finish runFileDecls...")
-	}()
+	// fmt.Println("======runFileDecls...")
+	// fmt.Println("======m.Alloc: ", m.Alloc)
+	// defer func() {
+	// 	fmt.Println("======finish runFileDecls...")
+	// }()
 	// Files' package names must match the machine's active one.
 	// if there is one.
 	for _, fn := range fns {
@@ -598,7 +598,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		// runtime package value via PrepareNewValues.  Then,
 		// non-constant var declarations and file-level imports
 		// are re-set in runDeclaration(,true).
-		fmt.Println("======Going to preprocess package...")
+		// fmt.Println("======Going to preprocess package...")
 		fn = Preprocess(m.Store, pn, fn).(*FileNode)
 		if debug {
 			debug.Printf("PREPROCESSED FILE: %v\n", fn)
@@ -609,7 +609,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		// Each file for each *PackageValue gets its own file *Block,
 		// with values copied over from each file's
 		// *FileNode.StaticBlock.
-		fmt.Println("======After preprocess, start allocating, allocate block, m.Alloc: ", m.Alloc)
+		// fmt.Println("======After preprocess, start allocating, allocate block, m.Alloc: ", m.Alloc)
 		fb := m.Alloc.NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		// XXX, alloc?
@@ -723,7 +723,7 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 // Returns a throwaway realm package is not a realm,
 // such as stdlibs or /p/ packages.
 func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
-	fmt.Println("======saveNewPackageValuesAndTypes...")
+	// fmt.Println("======saveNewPackageValuesAndTypes...")
 	// save package value and dependencies.
 	pv := m.Package
 	if pv.IsRealm() {
@@ -792,14 +792,14 @@ func (m *Machine) runFunc(st Stage, fn Name, maybeCrossing bool) {
 }
 
 func (m *Machine) RunMain() {
-	fmt.Println("======RunMain......")
+	// fmt.Println("======RunMain......")
 	m.runFunc(StageRun, "main", false)
 }
 
 // This is used for realm filetests which may declare
 // either main() or main(cur crossing).
 func (m *Machine) RunMainMaybeCrossing() {
-	fmt.Println("======RunMainMaybeCrossing...")
+	// fmt.Println("======RunMainMaybeCrossing...")
 	m.runFunc(StageRun, "main", true)
 }
 

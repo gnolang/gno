@@ -238,7 +238,7 @@ func (tsc *testStdlibCache) memPackageGetter(source gno.Store) gno.MemPackageGet
 }
 
 func (tsg testStdlibGetter) GetMemPackage(pkgPath string) *std.MemPackage {
-	fmt.Println("================GetMemPackage for stdlibs...")
+	// fmt.Println("================GetMemPackage for stdlibs...")
 	// Only stdlibs have alternative versions.
 	if !gno.IsStdlib(pkgPath) {
 		return tsg.source.GetMemPackage(pkgPath)
@@ -624,7 +624,6 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
 	}
-	fmt.Println("======Call...")
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{

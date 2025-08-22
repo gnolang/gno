@@ -807,9 +807,9 @@ func (pv *PackageValue) deriveFBlocksMap(alloc *Allocator, store Store) {
 	}
 	for i := range pv.FNames {
 		fname := pv.FNames[i]
-		fmt.Println("======deriveFBlocksMap, fname: ", fname)
+		// fmt.Println("======deriveFBlocksMap, fname: ", fname)
 		fblock := pv.GetFileBlock(alloc, store, fname)
-		fmt.Println("======fblock... ", fblock)
+		// fmt.Println("======fblock... ", fblock)
 		pv.fBlocksMap[fname] = fblock // idempotent.
 		// XXX FBlocks...
 	}
@@ -819,14 +819,14 @@ func (pv *PackageValue) deriveFBlocksMap(alloc *Allocator, store Store) {
 // of the block.
 func (pv *PackageValue) GetBlock(store Store) *Block {
 	bv := pv.Block
-	fmt.Printf("======GetBlock for pkgPath: %s, (type of pv.Block: %v)\n", pv.PkgPath, reflect.TypeOf(bv))
+	// fmt.Printf("======GetBlock for pkgPath: %s, (type of pv.Block: %v)\n", pv.PkgPath, reflect.TypeOf(bv))
 	switch bv := bv.(type) {
 	case RefValue:
 		bb := store.GetObject(bv.ObjectID).(*Block)
 		pv.Block = bb
 		for i := range bb.Values {
 			tv := &bb.Values[i]
-			fmt.Println("======fill value of block...")
+			// fmt.Println("======fill value of block...")
 			fillValueTV(store, tv)
 		}
 		return bb
@@ -2641,9 +2641,9 @@ func typedString(s string) TypedValue {
 // returns the same tv instance for convenience.
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 	// fmt.Println("======fillValueTV...")
-	if store != nil {
-		fmt.Println("======store.GetAllocator(): ", store.GetAllocator())
-	}
+	// if store != nil {
+	// 	fmt.Println("======store.GetAllocator(): ", store.GetAllocator())
+	// }
 	switch cv := tv.V.(type) {
 	case *HeapItemValue:
 		fillValueTV(store, &cv.Value)

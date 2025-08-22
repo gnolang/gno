@@ -37,7 +37,7 @@ func (opts *TestOptions) RunFiletest(fname string, source []byte, tgs gno.Store)
 // Go type-checking in filetests is only available for gnovm internal filetests
 // in test/files.
 func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store, tcheck bool) (string, error) {
-	fmt.Println("======runFiletest...")
+	// fmt.Println("======runFiletest...")
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
 		return "", fmt.Errorf("error parsing directives: %w", err)
@@ -67,11 +67,11 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		opslog = new(bytes.Buffer)
 	}
 
-	fmt.Println("======TestStore.GetAllocator: ", tgs.GetAllocator())
-	fmt.Println("======maxAlloc: ", maxAlloc)
+	// fmt.Println("======TestStore.GetAllocator: ", tgs.GetAllocator())
+	// fmt.Println("======maxAlloc: ", maxAlloc)
 	// Create machine for execution and run test
 	tcw := opts.BaseStore.CacheWrap()
-	fmt.Println("======machine for filetest...")
+	// fmt.Println("======machine for filetest...")
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Output:        &opts.outWriter,
 		Store:         tgs.BeginTransaction(tcw, tcw, nil),
@@ -271,8 +271,8 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		opts.tcCache = make(gno.TypeCheckCache)
 	}
 
-	fmt.Println("======runTest, pkgPath: ", pkgPath)
-	fmt.Println("======m.Store.GetAllocator(): ", m.Store.GetAllocator())
+	// fmt.Println("======runTest, pkgPath: ", pkgPath)
+	// fmt.Println("======m.Store.GetAllocator(): ", m.Store.GetAllocator())
 	opts.TestStore.SetAllocator(m.Store.GetAllocator())
 	// Eagerly load imports.
 	// LoadImports is run using opts.Store, rather than the transaction store;
@@ -295,7 +295,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 		return runResult{Error: err.Error()}
 	}
-	fmt.Println("======LoadImports done============")
+	// fmt.Println("======LoadImports done============")
 
 	// Reset and start capturing stdout.
 	opts.filetestBuffer.Reset()
@@ -358,7 +358,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 				tcError = fmt.Sprintf("%v", err.Error())
 			}
 		}
-		fmt.Println("======Construct throwaway package and parse file...")
+		// fmt.Println("======Construct throwaway package and parse file...")
 		// Construct throwaway package and parse file.
 		pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
 		pv := pn.NewPackage(m.Alloc)

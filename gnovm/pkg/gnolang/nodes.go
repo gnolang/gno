@@ -1334,7 +1334,7 @@ func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 }
 
 func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
-	fmt.Println("======NewPackage......, pn.PkgPath: ", pn.PkgPath)
+	// fmt.Println("======NewPackage......, pn.PkgPath: ", pn.PkgPath)
 	var pv *PackageValue
 	if pn.PkgPath == "main" {
 		// Allocation is only for the main package,
@@ -1352,7 +1352,7 @@ func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 			fBlocksMap: make(map[string]*Block),
 		}
 	}
-	fmt.Println("======pv: ", pv.Block)
+	// fmt.Println("======pv: ", pv.Block)
 	// Set realm for realm packages, main package, and ephemeral run packages
 	if IsRealmPath(pn.PkgPath) || pn.PkgPath == "main" {
 		rlm := NewRealm(pn.PkgPath)
