@@ -220,7 +220,7 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	ds.DeferClose(ds.devNode.Close)
 
 	// Setup default web home realm, fallback on first local path
-	devNodePaths := ds.devNode.ListPaths()
+	devNodePaths := ds.devNode.Paths()
 
 	switch webHome := ds.cfg.webHome; webHome {
 	case "":
