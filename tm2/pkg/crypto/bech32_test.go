@@ -1,8 +1,9 @@
 package crypto_test
 
 import (
+	"crypto/sha256"
 	"encoding/json"
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -53,9 +54,10 @@ func TestRandBech32AddrConsistency(t *testing.T) {
 	t.Parallel()
 
 	var pub ed25519.PubKeyEd25519
+	cc8 := rand.NewChaCha8(sha256.Sum256([]byte("abc123")))
 
 	for range 1000 {
-		rand.Read(pub[:])
+		cc8.Read(pub[:])
 
 		addr := crypto.AddressFromBytes(pub.Address().Bytes())
 		testMarshal(t, addr, amino.Marshal, amino.Unmarshal)
