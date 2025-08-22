@@ -20,7 +20,7 @@ func init() {
 
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
-	dao := commondao.New("Foo")
+	dao := commondao.New(cross, "Foo")
 
 	// Disallow SubDAO creation
 	options := commondao.GetOptions(dao.ID())

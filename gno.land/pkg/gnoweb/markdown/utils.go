@@ -3,13 +3,17 @@ package markdown
 import (
 	"bytes"
 	"errors"
+	"html/template"
 	"io"
 	"unicode"
 
 	"html/template"
 
 	"github.com/yuin/goldmark/ast"
+
 	"golang.org/x/net/html"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // HTMLEscapeString escapes special characters in HTML content
@@ -99,4 +103,10 @@ func ExtractText(node ast.Node, source []byte) []byte {
 	}
 
 	return buf.Bytes()
+}
+
+var titleCaser = cases.Title(language.AmericanEnglish)
+
+func titleCase(s string) string {
+	return titleCaser.String(s)
 }

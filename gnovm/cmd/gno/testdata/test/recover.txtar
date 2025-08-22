@@ -70,3 +70,8 @@ func TestBadRecoverSkip(t *testing.T) {
 	t.Skip("skipped")
 	panic("bad panic!")
 }
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/recover"
+gno = "0.9"

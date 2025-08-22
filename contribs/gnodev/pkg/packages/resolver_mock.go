@@ -23,7 +23,7 @@ func NewMockResolver(pkgs ...*std.MemPackage) *MockResolver {
 }
 
 func (m *MockResolver) ResolveCalls(fset *token.FileSet, path string) int {
-	count, _ := m.resolveCalls[path]
+	count := m.resolveCalls[path]
 	return count
 }
 
