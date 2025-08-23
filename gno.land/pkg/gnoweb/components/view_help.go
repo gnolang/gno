@@ -1,10 +1,15 @@
 package components
 
 import (
+	"bytes"
+	"encoding/base64"
 	"html/template"
+	"image/png"
 	"strings"
 
 	// for error types
+	"github.com/boombuler/barcode"
+	"github.com/boombuler/barcode/qr"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
 
@@ -67,6 +72,18 @@ func registerHelpFuncs(funcs template.FuncMap) {
 			}
 		}
 		return url
+	}
+
+	funcs["buildHelpQR"] = func(data HelpData, fn *doc.JSONFunc) string {
+		// create and scale the QR code
+		buildHelpURL := funcs["buildHelpURL"].(func(HelpData, *doc.JSONFunc) string)
+		qrCode, _ := qr.Encode(buildHelpURL(data, fn), qr.M, qr.Auto)
+		qrCode, _ = barcode.Scale(qrCode, 200, 200)
+
+		// encode the QR code as png in base64
+		buf := new(bytes.Buffer)
+		png.Encode(buf, qrCode)
+		return base64.StdEncoding.EncodeToString(buf.Bytes())
 	}
 }
 
