@@ -194,7 +194,7 @@ loop:
 	debugUpdateLocation(m)
 
 	// Keep track of exact locations when performing calls.
-	op := m.Ops[len(m.Ops)-1]
+	op := m.Ops.peek()
 	switch op {
 	case OpCall:
 		m.Debugger.call = append(m.Debugger.call, m.Debugger.loc)

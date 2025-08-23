@@ -21,7 +21,6 @@ func setupMachine(b *testing.B, numValues, numStmts, numExprs, numBlocks, numFra
 	b.Helper()
 
 	m := &Machine{
-		Ops:       make([]Op, 100),
 		Values:    make([]TypedValue, numValues),
 		Exprs:     make([]Expr, numExprs),
 		Stmts:     make([]Stmt, numStmts),
