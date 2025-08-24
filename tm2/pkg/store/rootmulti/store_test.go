@@ -47,7 +47,7 @@ func TestCacheMultiStoreWithVersion(t *testing.T) {
 	var db dbm.DB = memdb.NewMemDB()
 	ms := newMultiStoreWithMounts(db)
 	err := ms.LoadLatestVersion()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	commitID := types.CommitID{}
 	checkStore(t, ms, commitID, commitID)
@@ -196,7 +196,7 @@ func TestMultiStoreQuery(t *testing.T) {
 	db := memdb.NewMemDB()
 	multi := newMultiStoreWithMounts(db)
 	err := multi.LoadLatestVersion()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	k, v := []byte("wind"), []byte("blows")
 	k2, v2 := []byte("water"), []byte("flows")

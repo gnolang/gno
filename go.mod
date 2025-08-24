@@ -5,17 +5,21 @@ go 1.23.0
 toolchain go1.24.1
 
 require (
+	cosmossdk.io/core v0.12.1-0.20240725072823-6a2d039e1212
 	dario.cat/mergo v1.0.1
 	github.com/alecthomas/chroma/v2 v2.15.0
 	github.com/bendory/conway-hebrew-calendar v0.0.0-20210829020739-dcc34210ce9b
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/btcsuite/btcd/btcutil v1.1.6
 	github.com/cockroachdb/apd/v3 v3.2.1
+	github.com/cosmos/iavl v1.3.5
+	github.com/cosmos/ics23/go v0.11.0
 	github.com/cosmos/ledger-cosmos-go v0.14.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/gofrs/flock v0.12.1
+	github.com/golang/mock v1.6.0
 	github.com/google/gofuzz v1.2.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/libp2p/go-buffer-pool v0.1.0
@@ -53,11 +57,16 @@ require (
 
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/cosmos/gogoproto v1.7.0 // indirect
 	github.com/dlclark/regexp2 v1.11.4 // indirect
+	github.com/emicklei/dot v1.6.2 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
+	github.com/google/btree v1.1.2 // indirect
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.25.1 // indirect
 	github.com/nxadm/tail v1.4.11 // indirect

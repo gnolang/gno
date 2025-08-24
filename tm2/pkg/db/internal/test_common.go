@@ -62,7 +62,12 @@ func (MockIterator) Value() []byte {
 	return nil
 }
 
-func (MockIterator) Close() {
+func (MockIterator) Close() error {
+	return nil
+}
+
+func (MockIterator) Error() error {
+	return nil
 }
 
 func BenchmarkRandomReadsWrites(b *testing.B, db db.DB) {
@@ -99,7 +104,10 @@ func BenchmarkRandomReadsWrites(b *testing.B, db db.DB) {
 			idx := int64(rand.Int()) % numItems
 			valExp := internal[idx]
 			idxBytes := int642Bytes(idx)
-			valBytes := db.Get(idxBytes)
+			valBytes, err := db.Get(idxBytes)
+			if err != nil {
+				panic(err)
+			}
 			// fmt.Printf("Get %X -> %X\n", idxBytes, valBytes)
 			if valExp == 0 {
 				if !bytes.Equal(valBytes, nil) {

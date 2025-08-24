@@ -12,7 +12,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/db"
 	_ "github.com/gnolang/gno/tm2/pkg/db/_all"
-	"github.com/gnolang/gno/tm2/pkg/iavl"
+	"github.com/gnolang/gno/tm2/pkg/iavl" //nolint:staticcheck
 )
 
 const historySize = 20

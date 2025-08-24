@@ -7,7 +7,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
-	"github.com/gnolang/gno/tm2/pkg/crypto/tmhash"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 
@@ -112,9 +111,14 @@ func (ms *multiStore) LoadVersion(ver int64) error {
 			if err != nil {
 				return errors.New("failed to load Store version %d: %v", ver, err)
 			}
-			if !store.LastCommitID().IsZero() {
-				return errors.New("failed to load Store: non-empty CommitID for zero state")
-			}
+			// NOTE(tb): tm2/iavl used to return empty hash for empty tree, but this
+			// is no longer the case for cosmos/iavl, since this change:
+			// https://github.com/cosmos/iavl/pull/304
+			// For that reason, the following check is commented as no longer
+			// relevant.
+			// if !store.LastCommitID().IsZero() {
+			// return errors.New("failed to load Store: non-empty CommitID for zero state")
+			// }
 			newStores[key] = store
 		}
 		ms.stores = newStores
@@ -292,7 +296,8 @@ func (ms *multiStore) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 
 	if !req.Prove {
 		return res
-	} else if res.Proof == nil || len(res.Proof.Ops) == 0 {
+	}
+	if res.Proof == nil || len(res.Proof.Ops) == 0 {
 		res.Error = serrors.ErrInternal("proof is unexpectedly empty; ensure height has not been pruned")
 		return
 	}
@@ -303,11 +308,14 @@ func (ms *multiStore) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 		return
 	}
 
+	proofOp, errMsg := types.ProofOpFromMap(commitInfo.toMap(), storeName)
+	if errMsg != nil {
+		res.Error = serrors.ErrInternal(errMsg.Error())
+		return
+	}
+
 	// Restore origin path and append proof op.
-	res.Proof.Ops = append(res.Proof.Ops, NewMultiStoreProofOp(
-		[]byte(storeName),
-		NewMultiStoreProof(commitInfo.StoreInfos),
-	).ProofOp())
+	res.Proof.Ops = append(res.Proof.Ops, proofOp)
 
 	// TODO: handle in another TM v0.26 update PR
 	// res.Proof = buildMultiStoreProof(res.Proof, storeName, commitInfo.StoreInfos)
@@ -381,15 +389,18 @@ type commitInfo struct {
 	StoreInfos []storeInfo
 }
 
-// Hash returns the simple merkle root hash of the stores sorted by name.
-func (ci commitInfo) Hash() []byte {
-	// TODO: cache to ci.hash []byte
+func (ci commitInfo) toMap() map[string][]byte {
 	m := make(map[string][]byte, len(ci.StoreInfos))
 	for _, storeInfo := range ci.StoreInfos {
 		m[storeInfo.Name] = storeInfo.Hash()
 	}
+	return m
+}
 
-	return merkle.SimpleHashFromMap(m)
+// Hash returns the simple merkle root hash of the stores sorted by name.
+func (ci commitInfo) Hash() []byte {
+	// TODO: cache to ci.hash []byte
+	return merkle.SimpleHashFromMap(ci.toMap())
 }
 
 func (ci commitInfo) CommitID() types.CommitID {
@@ -418,18 +429,10 @@ type storeCore struct {
 
 // Implements merkle.Hasher.
 func (si storeInfo) Hash() []byte {
-	// Doesn't write Name, since merkle.SimpleHashFromMap() will
-	// include them via the keys.
-	bz := si.Core.CommitID.Hash
-	hasher := tmhash.New()
-
-	_, err := hasher.Write(bz)
-	if err != nil {
-		// TODO: Handle with #870
-		panic(err)
-	}
-
-	return hasher.Sum(nil)
+	// NOTE(tb): ics23 compatibility: return the commit hash and not the hash
+	// of the commit hash.
+	// See similar change in SDK https://github.com/cosmos/cosmos-sdk/pull/6323
+	return si.Core.CommitID.Hash
 }
 
 // ----------------------------------------
@@ -437,13 +440,15 @@ func (si storeInfo) Hash() []byte {
 
 func getLatestVersion(db dbm.DB) int64 {
 	var latest int64
-	latestBytes := db.Get([]byte(latestVersionKey))
+	latestBytes, err := db.Get([]byte(latestVersionKey))
+	if err != nil {
+		panic(err)
+	}
 	if latestBytes == nil {
 		return 0
 	}
 
-	err := amino.UnmarshalSized(latestBytes, &latest)
-	if err != nil {
+	if err := amino.UnmarshalSized(latestBytes, &latest); err != nil {
 		panic(err)
 	}
 
@@ -492,15 +497,17 @@ func commitStores(version int64, storeMap map[types.StoreKey]types.CommitStore) 
 func getCommitInfo(db dbm.DB, ver int64) (commitInfo, error) {
 	// Get from DB.
 	cInfoKey := fmt.Sprintf(commitInfoKeyFmt, ver)
-	cInfoBytes := db.Get([]byte(cInfoKey))
+	cInfoBytes, err := db.Get([]byte(cInfoKey))
+	if err != nil {
+		return commitInfo{}, fmt.Errorf("failed to get Store: %w", err)
+	}
 	if cInfoBytes == nil {
 		return commitInfo{}, fmt.Errorf("failed to get Store: no data")
 	}
 
 	var cInfo commitInfo
 
-	err := amino.UnmarshalSized(cInfoBytes, &cInfo)
-	if err != nil {
+	if err := amino.UnmarshalSized(cInfoBytes, &cInfo); err != nil {
 		return commitInfo{}, fmt.Errorf("failed to get Store: %w", err)
 	}
 

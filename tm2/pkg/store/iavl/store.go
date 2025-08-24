@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/cosmos/iavl"
+	ics23 "github.com/cosmos/ics23/go"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/iavl"
 	"github.com/gnolang/gno/tm2/pkg/std"
 
 	"github.com/gnolang/gno/tm2/pkg/store/cache"
@@ -24,7 +26,7 @@ const (
 
 // Implements store.CommitStoreConstructor.
 func StoreConstructor(db dbm.DB, opts types.StoreOptions) types.CommitStore {
-	tree := iavl.NewMutableTree(db, defaultIAVLCacheSize)
+	tree := iavl.NewMutableTree(db, defaultIAVLCacheSize, false, iavl.NewNopLogger())
 	store := UnsafeNewStore(tree, opts)
 	return store
 }
@@ -89,7 +91,7 @@ func (st *Store) Commit() types.CommitID {
 	if st.opts.KeepRecent < previous {
 		toRelease := previous - st.opts.KeepRecent
 		if st.opts.KeepEvery == 0 || toRelease%st.opts.KeepEvery != 0 {
-			err := st.tree.DeleteVersion(toRelease)
+			err := st.tree.DeleteVersionsTo(toRelease)
 			if errCause := errors.Cause(err); errCause != nil && !goerrors.Is(errCause, iavl.ErrVersionDoesNotExist) {
 				panic(err)
 			}
@@ -121,12 +123,6 @@ func (st *Store) SetStoreOptions(opts2 types.StoreOptions) {
 }
 
 // Implements Committer.
-func (st *Store) LoadLatestVersion() error {
-	version := st.tree.LatestVersion()
-	return st.LoadVersion(version)
-}
-
-// Implements Committer.
 func (st *Store) LoadVersion(ver int64) error {
 	if st.opts.Immutable {
 		immutTree, err := st.tree.(*iavl.MutableTree).GetImmutable(ver)
@@ -138,7 +134,7 @@ func (st *Store) LoadVersion(ver int64) error {
 		}
 	} else {
 		if st.opts.LazyLoad {
-			_, err := st.tree.(*iavl.MutableTree).LazyLoadVersion(ver)
+			_, err := st.tree.(*iavl.MutableTree).LoadVersion(ver) // TODO(tb): ensure cosmos/iavl.MutableTree.LoadVersion handle lazy loading, then remove st.opts.LazyLoad field.
 			return err
 		} else {
 			_, err := st.tree.(*iavl.MutableTree).LoadVersion(ver)
@@ -165,23 +161,36 @@ func (st *Store) Write() {
 // Implements types.Store.
 func (st *Store) Set(key, value []byte) {
 	types.AssertValidValue(value)
-	st.tree.Set(key, value)
+	_, err := st.tree.Set(key, value)
+	if err != nil {
+		panic(err)
+	}
 }
 
 // Implements types.Store.
 func (st *Store) Get(key []byte) (value []byte) {
-	_, v := st.tree.Get(key)
+	v, err := st.tree.Get(key)
+	if err != nil {
+		panic(err)
+	}
 	return v
 }
 
 // Implements types.Store.
 func (st *Store) Has(key []byte) (exists bool) {
-	return st.tree.Has(key)
+	has, err := st.tree.Has(key)
+	if err != nil {
+		panic(err)
+	}
+	return has
 }
 
 // Implements types.Store.
 func (st *Store) Delete(key []byte) {
-	st.tree.Remove(key)
+	_, _, err := st.tree.Remove(key)
+	if err != nil {
+		panic(err)
+	}
 }
 
 // Implements types.Store.
@@ -256,30 +265,43 @@ func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 			break
 		}
 
-		if req.Prove {
-			value, proof, err := tree.GetVersionedWithProof(key, res.Height)
-			if err != nil {
-				res.Log = err.Error()
-				break
-			}
-			if proof == nil {
-				// Proof == nil implies that the store is empty.
-				if value != nil {
-					panic("unexpected value for an empty proof")
-				}
-			}
-			if value != nil {
-				// value was found
-				res.Value = value
-				res.Proof = &merkle.Proof{Ops: []merkle.ProofOp{iavl.NewIAVLValueOp(key, proof).ProofOp()}}
-			} else {
-				// value wasn't found
-				res.Value = nil
-				res.Proof = &merkle.Proof{Ops: []merkle.ProofOp{iavl.NewIAVLAbsenceOp(key, proof).ProofOp()}}
-			}
-		} else {
-			_, res.Value = tree.GetVersioned(key, res.Height)
+		value, err := tree.GetVersioned(key, res.Height)
+		if err != nil {
+			res.Log = err.Error()
+			break
 		}
+		res.Value = value
+
+		if !req.Prove {
+			break
+		}
+
+		// Continue to prove existence/absence of value
+		// Must convert store.Tree to iavl.MutableTree with given version
+		iTree, err := tree.GetImmutable(res.Height)
+		if err != nil {
+			// sanity check: If value for given version was retrieved, immutable tree must also be retrievable
+			panic(fmt.Sprintf("version exists in store but could not retrieve corresponding versioned tree in store, %v", err))
+		}
+		mtree := &iavl.MutableTree{
+			ImmutableTree: iTree,
+		}
+
+		// Generate ics23 proof
+		var proof *ics23.CommitmentProof
+		if value != nil {
+			// Get existence proof
+			proof, err = mtree.GetMembershipProof(key)
+		} else {
+			// Get non-existence proof
+			proof, err = mtree.GetNonMembershipProof(key)
+		}
+		if err != nil {
+			res.Log = err.Error()
+			break
+		}
+		// Encode and append proof
+		res.Proof = &merkle.Proof{Ops: []merkle.ProofOp{types.NewIavlCommitmentOp(key, proof).ProofOp()}}
 
 	case "/subspace":
 		var KVs []types.KVPair
@@ -425,8 +447,14 @@ func (iter *iavlIterator) Value() []byte {
 }
 
 // Implements types.Iterator.
-func (iter *iavlIterator) Close() {
+func (iter *iavlIterator) Close() error {
 	close(iter.quitCh)
+	return nil
+}
+
+// Implements types.Iterator.
+func (iter *iavlIterator) Error() error {
+	return nil
 }
 
 // ----------------------------------------
