@@ -18,7 +18,7 @@ func init() {
 	AddToMap(5)
 }
 
-func main() {
+func main(cur realm,) {
 	r := GetFromMap()
 	println(r == 5)
 }

@@ -1,54 +1,71 @@
 package params
 
 import (
+	"std"
 	"testing"
 
-	"gno.land/p/demo/dao"
-	"gno.land/p/demo/simpledao"
+	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/urequire"
-	"gno.land/r/gov/dao/bridge"
-
-	// loads the latest DAO implementation in the bridge.
-	_ "gno.land/r/gov/dao/init"
+	"gno.land/r/gov/dao"
+	ini "gno.land/r/gov/dao/v3/init"
 )
 
+var (
+	g1user = testutils.TestAddress("g1user")
+)
+
+func init() {
+	testing.SetRealm(std.NewUserRealm(g1user))
+	ini.InitWithUsers(g1user)
+}
+
 func TestProUnlockTransfer(t *testing.T) {
-	govdao := bridge.GovDAO()
-	id := ProposeUnlockTransfer()
-	p, err := govdao.GetPropStore().ProposalByID(id)
+	testing.SetRealm(std.NewUserRealm(g1user))
+
+	pr := ProposeUnlockTransferRequest()
+	id := dao.MustCreateProposal(cross, pr)
+	p, err := dao.GetProposal(cross, id)
 	urequire.NoError(t, err)
 	urequire.Equal(t, unlockTransferTitle, p.Title())
 }
 
 func TestFailUnlockTransfer(t *testing.T) {
-	govdao := bridge.GovDAO()
-	id := ProposeUnlockTransfer()
-	urequire.PanicsWithMessage(
+	testing.SetRealm(std.NewUserRealm(g1user))
+
+	pr := ProposeUnlockTransferRequest()
+	id := dao.MustCreateProposal(cross, pr)
+	urequire.AbortsWithMessage(
 		t,
-		simpledao.ErrProposalNotAccepted.Error(),
+		"proposal didn't reach supermajority yet: 66",
 		func() {
-			govdao.ExecuteProposal(id)
+			dao.ExecuteProposal(cross, id)
 		},
 	)
 }
 
 func TestExeUnlockTransfer(t *testing.T) {
-	govdao := bridge.GovDAO()
-	id := ProposeUnlockTransfer()
-	p, err := govdao.GetPropStore().ProposalByID(id)
+	testing.SetRealm(std.NewUserRealm(g1user))
+
+	pr := ProposeUnlockTransferRequest()
+	id := dao.MustCreateProposal(cross, pr)
+	_, err := dao.GetProposal(cross, id)
 	urequire.NoError(t, err)
-	urequire.True(t, dao.Active == p.Status())
-
-	govdao.VoteOnProposal(id, dao.YesVote)
-
-	urequire.True(t, dao.Accepted == p.Status())
+	// urequire.True(t, dao.Active == p.Status()) // TODO
 
 	urequire.NotPanics(
 		t,
 		func() {
-			govdao.ExecuteProposal(id)
+			dao.MustVoteOnProposal(cross, dao.VoteRequest{
+				Option:     dao.YesVote,
+				ProposalID: dao.ProposalID(id),
+			})
 		},
 	)
 
-	urequire.True(t, dao.ExecutionSuccessful == p.Status())
+	urequire.NotPanics(
+		t,
+		func() {
+			dao.ExecuteProposal(cross, id)
+		},
+	)
 }

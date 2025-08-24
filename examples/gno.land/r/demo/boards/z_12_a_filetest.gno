@@ -1,10 +1,10 @@
-// PKGPATH: gno.land/r/demo/boards_test
-package boards_test
+package main
 
 // SEND: 1000000ugnot
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
@@ -12,19 +12,19 @@ import (
 )
 
 func main() {
-	std.TestSetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
-	users.Register("gnouser123")
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	users.Register(cross, "gnouser123")
 	// create a post via registered user
-	bid1 := boards.CreateBoard("test_board1")
-	pid := boards.CreateThread(bid1, "First Post (title)", "Body of the first post. (body)")
-	bid2 := boards.CreateBoard("test_board2")
+	bid1 := boards.CreateBoard(cross, "test_board1")
+	pid := boards.CreateThread(cross, bid1, "First Post (title)", "Body of the first post. (body)")
+	bid2 := boards.CreateBoard(cross, "test_board2")
 
 	// create a repost via anon user
 	test2 := testutils.TestAddress("test2")
-	std.TestSetOriginCaller(test2)
-	std.TestSetOriginSend(std.Coins{{"ugnot", 9000000}}, nil)
+	testing.SetOriginCaller(test2)
+	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}})
 
-	rid := boards.CreateRepost(bid1, pid, "", "Check this out", bid2)
+	rid := boards.CreateRepost(cross, bid1, pid, "", "Check this out", bid2)
 	println(rid)
 	println(boards.Render("test_board1"))
 }

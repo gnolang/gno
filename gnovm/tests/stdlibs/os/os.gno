@@ -21,7 +21,7 @@ func (w *stderrWriter) Write(p []byte) (n int, err error) {
 }
 
 func Sleep(duration time.Duration) {
-	return sleep(int64(duration))
+	sleep(int64(duration))
 }
 
 // native bindings

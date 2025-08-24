@@ -136,7 +136,7 @@ func (pkg *Package) WithDependencies(deps ...*Package) *Package {
 //		&StructB{}, // If pointer receivers are preferred when decoding to interfaces.
 //		NoInputsError{}, "NoInputsError", // Named
 //	)
-func (pkg *Package) WithTypes(objs ...interface{}) *Package {
+func (pkg *Package) WithTypes(objs ...any) *Package {
 	var lastType *Type = nil
 	for _, obj := range objs {
 		// Initialize variables
@@ -261,7 +261,7 @@ func (pkg *Package) WithComments(filename string) *Package {
 				continue
 			}
 			for _, field := range structType.Fields.List {
-				if field.Names != nil && len(field.Names) == 1 && field.Doc != nil {
+				if len(field.Names) == 1 && field.Doc != nil {
 					// Set the field comment.
 					if pkgType.FieldComments == nil {
 						pkgType.FieldComments = make(map[string]string)

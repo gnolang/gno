@@ -26,7 +26,7 @@ func mintGRC1155Token(owner std.Address) {
 
 // Getters
 
-func BalanceOf(user std.Address, tid grc1155.TokenID) uint64 {
+func BalanceOf(user std.Address, tid grc1155.TokenID) int64 {
 	balance, err := foo.BalanceOf(user, tid)
 	if err != nil {
 		panic(err)
@@ -35,7 +35,7 @@ func BalanceOf(user std.Address, tid grc1155.TokenID) uint64 {
 	return balance
 }
 
-func BalanceOfBatch(ul []std.Address, batch []grc1155.TokenID) []uint64 {
+func BalanceOfBatch(ul []std.Address, batch []grc1155.TokenID) []int64 {
 	balanceBatch, err := foo.BalanceOfBatch(ul, batch)
 	if err != nil {
 		panic(err)
@@ -50,21 +50,21 @@ func IsApprovedForAll(owner, user std.Address) bool {
 
 // Setters
 
-func SetApprovalForAll(user std.Address, approved bool) {
+func SetApprovalForAll(_ realm, user std.Address, approved bool) {
 	err := foo.SetApprovalForAll(user, approved)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func TransferFrom(from, to std.Address, tid grc1155.TokenID, amount uint64) {
+func TransferFrom(_ realm, from, to std.Address, tid grc1155.TokenID, amount int64) {
 	err := foo.SafeTransferFrom(from, to, tid, amount)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func BatchTransferFrom(from, to std.Address, batch []grc1155.TokenID, amounts []uint64) {
+func BatchTransferFrom(_ realm, from, to std.Address, batch []grc1155.TokenID, amounts []int64) {
 	err := foo.SafeBatchTransferFrom(from, to, batch, amounts)
 	if err != nil {
 		panic(err)
@@ -73,7 +73,7 @@ func BatchTransferFrom(from, to std.Address, batch []grc1155.TokenID, amounts []
 
 // Admin
 
-func Mint(to std.Address, tid grc1155.TokenID, amount uint64) {
+func Mint(_ realm, to std.Address, tid grc1155.TokenID, amount int64) {
 	caller := std.OriginCaller()
 	assertIsAdmin(caller)
 	err := foo.SafeMint(to, tid, amount)
@@ -82,7 +82,7 @@ func Mint(to std.Address, tid grc1155.TokenID, amount uint64) {
 	}
 }
 
-func MintBatch(to std.Address, batch []grc1155.TokenID, amounts []uint64) {
+func MintBatch(_ realm, to std.Address, batch []grc1155.TokenID, amounts []int64) {
 	caller := std.OriginCaller()
 	assertIsAdmin(caller)
 	err := foo.SafeBatchMint(to, batch, amounts)
@@ -91,7 +91,7 @@ func MintBatch(to std.Address, batch []grc1155.TokenID, amounts []uint64) {
 	}
 }
 
-func Burn(from std.Address, tid grc1155.TokenID, amount uint64) {
+func Burn(_ realm, from std.Address, tid grc1155.TokenID, amount int64) {
 	caller := std.OriginCaller()
 	assertIsAdmin(caller)
 	err := foo.Burn(from, tid, amount)
@@ -100,7 +100,7 @@ func Burn(from std.Address, tid grc1155.TokenID, amount uint64) {
 	}
 }
 
-func BurnBatch(from std.Address, batch []grc1155.TokenID, amounts []uint64) {
+func BurnBatch(_ realm, from std.Address, batch []grc1155.TokenID, amounts []int64) {
 	caller := std.OriginCaller()
 	assertIsAdmin(caller)
 	err := foo.BatchBurn(from, batch, amounts)
@@ -122,8 +122,8 @@ func Render(path string) string {
 
 // Util
 
-func assertIsAdmin(address std.Address) {
-	if address != admin {
+func assertIsAdmin(address_XXX std.Address) {
+	if address_XXX != admin {
 		panic("restricted access")
 	}
 }

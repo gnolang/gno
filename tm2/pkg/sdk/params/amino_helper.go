@@ -10,13 +10,13 @@ import (
 )
 
 // Returns list of kvpairs from param struct.
-func encodeStructFields(prm interface{}) (res []std.KVPair) {
+func encodeStructFields(prm any) (res []std.KVPair) {
 	rvPrm := reflect.ValueOf(prm)
 	tinfo, err := amino.GetTypeInfo(rvPrm.Type())
 	if err != nil {
 		panic(errors.Wrap(err, "Error reflecting on module param struct"))
 	}
-	fields := tinfo.StructInfo.Fields
+	fields := tinfo.Fields
 	for i, field := range fields {
 		rv := rvPrm.Field(i)
 		name := field.JSONName
@@ -36,7 +36,7 @@ func findKV(kvz []std.KVPair, key string) (std.KVPair, bool) {
 }
 
 // Reads list of kvpairs into param struct.
-func decodeStructFields(prmPtr interface{}, kvz []std.KVPair) {
+func decodeStructFields(prmPtr any, kvz []std.KVPair) {
 	if reflect.TypeOf(prmPtr).Kind() != reflect.Pointer {
 		panic("setStructFields expects module param struct pointer")
 	}
@@ -45,7 +45,7 @@ func decodeStructFields(prmPtr interface{}, kvz []std.KVPair) {
 	if err != nil {
 		panic(errors.Wrap(err, "Error reflecting on module param struct"))
 	}
-	fields := tinfo.StructInfo.Fields
+	fields := tinfo.Fields
 	for i, field := range fields {
 		rv := rvPrm.Field(i)
 		name := field.JSONName
@@ -58,7 +58,7 @@ func decodeStructFields(prmPtr interface{}, kvz []std.KVPair) {
 }
 
 // Gets list of kvpairs associated with param struct from store.
-func getStructFieldsFromStore(prmPtr interface{}, store sm.Store, key []byte) (res []std.KVPair) {
+func getStructFieldsFromStore(prmPtr any, store sm.Store, key []byte) (res []std.KVPair) {
 	if reflect.TypeOf(prmPtr).Kind() != reflect.Pointer {
 		panic("setStructFields expects module param struct pointer")
 	}
@@ -67,7 +67,7 @@ func getStructFieldsFromStore(prmPtr interface{}, store sm.Store, key []byte) (r
 	if err != nil {
 		panic(errors.Wrap(err, "Error reflecting on module param struct"))
 	}
-	fields := tinfo.StructInfo.Fields
+	fields := tinfo.Fields
 	for _, field := range fields {
 		name := field.JSONName
 		value := store.Get([]byte(string(key) + ":" + name))

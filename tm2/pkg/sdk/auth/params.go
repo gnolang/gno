@@ -22,6 +22,8 @@ const (
 
 	DefaultGasPricesChangeCompressor int64 = 10
 	DefaultTargetGasRatio            int64 = 70 //  70% of the MaxGas in a block
+
+	DefaultFeeCollectorName string = "fee_collector"
 )
 
 // Params defines the parameters for the auth module.
@@ -35,11 +37,13 @@ type Params struct {
 	TargetGasRatio            int64            `json:"target_gas_ratio" yaml:"target_gas_ratio"`
 	InitialGasPrice           std.GasPrice     `json:"initial_gasprice"`
 	UnrestrictedAddrs         []crypto.Address `json:"unrestricted_addrs" yaml:"unrestricted_addrs"`
+	FeeCollector              crypto.Address   `json:"fee_collector" yaml:"fee_collector"`
 }
 
 // NewParams creates a new Params object
 func NewParams(maxMemoBytes, txSigLimit, txSizeCostPerByte,
 	sigVerifyCostED25519, sigVerifyCostSecp256k1, gasPricesChangeCompressor, targetGasRatio int64,
+	feeCollector crypto.Address,
 ) Params {
 	return Params{
 		MaxMemoBytes:              maxMemoBytes,
@@ -49,6 +53,7 @@ func NewParams(maxMemoBytes, txSigLimit, txSizeCostPerByte,
 		SigVerifyCostSecp256k1:    sigVerifyCostSecp256k1,
 		GasPricesChangeCompressor: gasPricesChangeCompressor,
 		TargetGasRatio:            targetGasRatio,
+		FeeCollector:              feeCollector,
 	}
 }
 
@@ -67,6 +72,7 @@ func DefaultParams() Params {
 		DefaultSigVerifyCostSecp256k1,
 		DefaultGasPricesChangeCompressor,
 		DefaultTargetGasRatio,
+		crypto.AddressFromPreimage([]byte(DefaultFeeCollectorName)),
 	)
 }
 
@@ -82,6 +88,7 @@ func (p Params) String() string {
 	fmt.Fprintf(sb, "SigVerifyCostSecp256k1: %d\n", p.SigVerifyCostSecp256k1)
 	fmt.Fprintf(sb, "GasPricesChangeCompressor: %d\n", p.GasPricesChangeCompressor)
 	fmt.Fprintf(sb, "TargetGasRatio: %d\n", p.TargetGasRatio)
+	fmt.Fprintf(sb, "FeeCollector: %s\n", p.FeeCollector.String())
 	return sb.String()
 }
 
@@ -107,7 +114,27 @@ func (p Params) Validate() error {
 	if p.TargetGasRatio < 0 || p.TargetGasRatio > 100 {
 		return fmt.Errorf("invalid target block gas ratio: %d, it should be between 0 and 100, 0 is unlimited", p.TargetGasRatio)
 	}
+	if p.FeeCollector.IsZero() {
+		return fmt.Errorf("invalid fee collector, cannot be empty")
+	}
 	return nil
+}
+
+const (
+	// feeCollectorPath the params path for the fee collector account address
+	feeCollectorPath = "p:fee_collector"
+)
+
+func (ak AccountKeeper) FeeCollectorAddress(ctx sdk.Context) crypto.Address {
+	feeCollector := ak.GetParams(ctx).FeeCollector
+	if feeCollector.IsZero() {
+		panic("empty `fee_collector` param value")
+	}
+	return feeCollector
+}
+
+func (ak AccountKeeper) SetFeesCollectorAddress(ctx sdk.Context, addr crypto.Address) {
+	ak.prmk.SetString(ctx, feeCollectorPath, addr.Bech32().String())
 }
 
 func (ak AccountKeeper) SetParams(ctx sdk.Context, params Params) error {
@@ -124,6 +151,6 @@ func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
 	return params
 }
 
-func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
+func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	// XXX validate input?
 }

@@ -4,55 +4,58 @@ package main
 
 import (
 	"std"
+	"testing"
 
-	"gno.land/p/demo/dao"
 	"gno.land/p/demo/testutils"
-
 	users "gno.land/r/gnoland/users/v1"
-	_ "gno.land/r/gov/dao/init" // so that the govdao.GovDAO initializer is executed
-	govdao "gno.land/r/gov/dao/v2"
+	"gno.land/r/gov/dao"
+	daov3init "gno.land/r/gov/dao/v3/init"
 	susers "gno.land/r/sys/users"
 )
 
 // Test updating a name via GovDAO
 
+var c std.Address = std.OriginCaller()
+
 func init() {
-	c := std.OriginCaller()
+	daov3init.InitWithUsers(c)
+
 	alice := testutils.TestAddress("alice")
 
 	// Register alice
-	std.TestSetOriginCaller(alice)
-	std.TestSetRealm(std.NewUserRealm(alice))
-	users.Register("alice123")
+	testing.SetOriginCaller(alice)
+	testing.SetRealm(std.NewUserRealm(alice))
+	users.Register(cross, "alice123")
 
-	// Prop to change name
-	std.TestSetOriginCaller(c)
-	std.TestSetRealm(std.NewUserRealm(c))
-	ex := users.ProposeDeleteUser(alice)
-
-	// Create a proposal
-	prop := dao.ProposalRequest{
-		Title:       "Change alice's name!",
-		Description: "",
-		Executor:    ex,
-	}
-
-	govdao.GovDAO.Propose(prop)
+	// Prop to delete user
+	testing.SetOriginCaller(c)
+	testing.SetRealm(std.NewUserRealm(c))
+	pr := users.ProposeDeleteUser(alice, "delete user test")
+	dao.MustCreateProposal(cross, pr)
 }
 
 func main() {
+	testing.SetOriginCaller(c)
+
 	println("--")
-	println(govdao.Render(""))
+	println(dao.Render(""))
 	println("--")
-	println(govdao.Render("0"))
+	println(dao.Render("0"))
 	println("--")
-	govdao.GovDAO.VoteOnProposal(0, "YES")
+
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{
+		Option:     dao.YesVote,
+		ProposalID: dao.ProposalID(0),
+	})
+
 	println("--")
-	println(govdao.Render("0"))
+	println(dao.Render("0"))
 	println("--")
-	govdao.GovDAO.ExecuteProposal(0)
+
+	dao.ExecuteProposal(cross, dao.ProposalID(0))
+
 	println("--")
-	println(govdao.Render("0"))
+	println(dao.Render("0"))
 
 	data, _ := susers.ResolveName("alice123")
 	if data == nil {
@@ -62,201 +65,92 @@ func main() {
 
 // Output:
 // --
-// # GovDAO Proposals
+// # GovDAO
+// ## Members
+// [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
+// ## Proposals
+// ### [Prop #0 - User Registry V1: Delete user `alice123`](/r/gov/dao:0)
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// ## [Prop #0 - Change alice's name!](/r/gov/dao/v2:0)
+// Status: ACTIVE
 //
-// **Status: ACTIVE**
+// Tiers eligible to vote: T1, T2, T3
 //
-// **Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm**
+// ---
 //
 //
 // --
-// # Proposal #0 - Change alice's name!
+// ## Prop #0 - User Registry V1: Delete user `alice123`
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// ## Description
-//
-// No description provided.
-//
-// ## Proposal information
-//
-// **Status: ACTIVE**
-//
-// **Voting stats:**
-// - YES 0 (0%)
-// - NO 0 (0%)
-// - ABSTAIN 0 (0%)
-// - MISSING VOTES 10 (100%)
+// delete user test
 //
 //
-// **Threshold met: FALSE**
 //
-// **Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm**
+// ---
+//
+// ### Stats
+// - **Proposal is open for votes**
+// - Tiers eligible to vote: T1, T2, T3
+// - YES PERCENT: 0%
+// - NO PERCENT: 0%
+//
+// [Detailed voting list](/r/gov/dao:0/votes)
+//
+// ---
 //
 // ### Actions
+// [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
 //
-// #### [[Vote YES](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=YES)] - [[Vote NO](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=NO)] - [[Vote ABSTAIN](/r/gov/dao/v2$help&func=VoteOnProposal&id=0&option=ABSTAIN)]
-//
-//
+// WARNING: Please double check transaction data before voting.
 // --
 // --
-// # Proposal #0 - Change alice's name!
+// ## Prop #0 - User Registry V1: Delete user `alice123`
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// ## Description
-//
-// No description provided.
-//
-// ## Proposal information
-//
-// **Status: ACCEPTED**
-//
-// **Voting stats:**
-// - YES 10 (100%)
-// - NO 0 (0%)
-// - ABSTAIN 0 (0%)
-// - MISSING VOTES 0 (0%)
+// delete user test
 //
 //
-// **Threshold met: TRUE**
 //
-// **Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm**
+// ---
+//
+// ### Stats
+// - **Proposal is open for votes**
+// - Tiers eligible to vote: T1, T2, T3
+// - YES PERCENT: 100%
+// - NO PERCENT: 0%
+//
+// [Detailed voting list](/r/gov/dao:0/votes)
+//
+// ---
 //
 // ### Actions
+// [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
 //
-// The voting period for this proposal is over.
-//
-//
+// WARNING: Please double check transaction data before voting.
 // --
 // --
-// # Proposal #0 - Change alice's name!
+// ## Prop #0 - User Registry V1: Delete user `alice123`
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// ## Description
-//
-// No description provided.
-//
-// ## Proposal information
-//
-// **Status: EXECUTION SUCCESSFUL**
-//
-// **Voting stats:**
-// - YES 10 (100%)
-// - NO 0 (0%)
-// - ABSTAIN 0 (0%)
-// - MISSING VOTES 0 (0%)
+// delete user test
 //
 //
-// **Threshold met: TRUE**
 //
-// **Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm**
+// ---
+//
+// ### Stats
+// - **PROPOSAL HAS BEEN ACCEPTED**
+// - Tiers eligible to vote: T1, T2, T3
+// - YES PERCENT: 100%
+// - NO PERCENT: 0%
+//
+// [Detailed voting list](/r/gov/dao:0/votes)
+//
+// ---
 //
 // ### Actions
+// [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
 //
-// The voting period for this proposal is over.
-//
-//
+// WARNING: Please double check transaction data before voting.
 // Successfully deleted alice
-
-// Events:
-// [
-//   {
-//     "type": "Registered",
-//     "attrs": [
-//       {
-//         "key": "name",
-//         "value": "alice123"
-//       },
-//       {
-//         "key": "address",
-//         "value": "g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh"
-//       }
-//     ],
-//     "pkg_path": "gno.land/r/sys/users",
-//     "func": "RegisterUser"
-//   },
-//   {
-//     "type": "Registeration",
-//     "attrs": [
-//       {
-//         "key": "address",
-//         "value": "g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh"
-//       },
-//       {
-//         "key": "name",
-//         "value": "alice123"
-//       }
-//     ],
-//     "pkg_path": "gno.land/r/gnoland/users/v1",
-//     "func": "Register"
-//   },
-//   {
-//     "type": "ProposalAdded",
-//     "attrs": [
-//       {
-//         "key": "proposal-id",
-//         "value": "0"
-//       },
-//       {
-//         "key": "proposal-author",
-//         "value": "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
-//       }
-//     ],
-//     "pkg_path": "gno.land/r/gov/dao/v2",
-//     "func": "EmitProposalAdded"
-//   },
-//   {
-//     "type": "VoteAdded",
-//     "attrs": [
-//       {
-//         "key": "proposal-id",
-//         "value": "0"
-//       },
-//       {
-//         "key": "author",
-//         "value": "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
-//       },
-//       {
-//         "key": "option",
-//         "value": "YES"
-//       }
-//     ],
-//     "pkg_path": "gno.land/r/gov/dao/v2",
-//     "func": "EmitVoteAdded"
-//   },
-//   {
-//     "type": "ProposalAccepted",
-//     "attrs": [
-//       {
-//         "key": "proposal-id",
-//         "value": "0"
-//       }
-//     ],
-//     "pkg_path": "gno.land/r/gov/dao/v2",
-//     "func": "EmitProposalAccepted"
-//   },
-//   {
-//     "type": "Deleted",
-//     "attrs": [
-//       {
-//         "key": "address",
-//         "value": "g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh"
-//       }
-//     ],
-//     "pkg_path": "gno.land/r/sys/users",
-//     "func": "Delete"
-//   },
-//   {
-//     "type": "ProposalExecuted",
-//     "attrs": [
-//       {
-//         "key": "proposal-id",
-//         "value": "0"
-//       },
-//       {
-//         "key": "exec-status",
-//         "value": "accepted"
-//       }
-//     ],
-//     "pkg_path": "gno.land/r/gov/dao/v2",
-//     "func": "ExecuteProposal"
-//   }
-// ]

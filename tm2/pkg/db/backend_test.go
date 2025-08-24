@@ -62,7 +62,8 @@ func withDB(t *testing.T, dbType db.BackendType, fn func(db.DB)) {
 	db, err := db.NewDB(name, dbType, t.TempDir())
 	require.Nil(t, err)
 	fn(db)
-	db.Close()
+
+	require.NoError(t, db.Close())
 }
 
 func TestBackendsNilKeys(t *testing.T) {
@@ -164,7 +165,7 @@ func testDBIterator(t *testing.T, backend db.BackendType) {
 	db, err := db.NewDB(name, backend, t.TempDir())
 	require.NoError(t, err)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		if i != 6 { // but skip 6.
 			db.Set(int642Bytes(int64(i)), nil)
 		}
@@ -288,7 +289,7 @@ func TestDBIteratorMany(t *testing.T) {
 			db := newTempDB(t, backend)
 
 			keys := make([][]byte, 100)
-			for i := 0; i < 100; i++ {
+			for i := range 100 {
 				keys[i] = []byte{byte(i)}
 			}
 

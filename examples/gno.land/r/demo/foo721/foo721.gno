@@ -17,7 +17,7 @@ func init() {
 	mintNNFT("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm", 5) // @hariom (5)
 }
 
-func mintNNFT(owner std.Address, n uint64) {
+func mintNNFT(owner std.Address, n int64) {
 	count := foo.TokenCount()
 	for i := count; i < count+n; i++ {
 		tid := grc721.TokenID(ufmt.Sprintf("%d", i))
@@ -27,7 +27,7 @@ func mintNNFT(owner std.Address, n uint64) {
 
 // Getters
 
-func BalanceOf(user std.Address) uint64 {
+func BalanceOf(user std.Address) int64 {
 	balance, err := foo.BalanceOf(user)
 	if err != nil {
 		panic(err)
@@ -60,21 +60,21 @@ func GetApproved(tid grc721.TokenID) std.Address {
 
 // Setters
 
-func Approve(user std.Address, tid grc721.TokenID) {
+func Approve(_ realm, user std.Address, tid grc721.TokenID) {
 	err := foo.Approve(user, tid)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func SetApprovalForAll(user std.Address, approved bool) {
+func SetApprovalForAll(_ realm, user std.Address, approved bool) {
 	err := foo.SetApprovalForAll(user, approved)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func TransferFrom(from, to std.Address, tid grc721.TokenID) {
+func TransferFrom(_ realm, from, to std.Address, tid grc721.TokenID) {
 	err := foo.TransferFrom(from, to, tid)
 	if err != nil {
 		panic(err)
@@ -83,7 +83,7 @@ func TransferFrom(from, to std.Address, tid grc721.TokenID) {
 
 // Admin
 
-func Mint(to std.Address, tid grc721.TokenID) {
+func Mint(_ realm, to std.Address, tid grc721.TokenID) {
 	caller := std.PreviousRealm().Address()
 	assertIsAdmin(caller)
 	err := foo.Mint(to, tid)
@@ -92,7 +92,7 @@ func Mint(to std.Address, tid grc721.TokenID) {
 	}
 }
 
-func Burn(tid grc721.TokenID) {
+func Burn(_ realm, tid grc721.TokenID) {
 	caller := std.PreviousRealm().Address()
 	assertIsAdmin(caller)
 	err := foo.Burn(tid)
@@ -114,8 +114,8 @@ func Render(path string) string {
 
 // Util
 
-func assertIsAdmin(address std.Address) {
-	if address != admin {
+func assertIsAdmin(address_XXX std.Address) {
+	if address_XXX != admin {
 		panic("restricted access")
 	}
 }

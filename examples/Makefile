@@ -34,11 +34,19 @@ build:
 
 .PHONY: test
 test:
-	go run ../gnovm/cmd/gno test -v ./...
+	go run ../gnovm/cmd/gno test -v ./gno.land/...
+
+.PHONY: test.fast
+test.fast:
+	go run ../gnovm/cmd/gno test -failfast -v  ./... 
 
 .PHONY: lint
 lint:
-	go run ../gnovm/cmd/gno tool lint -v .
+	go run ../gnovm/cmd/gno lint -v .
+
+.PHONY: fix
+fix:
+	go run ../gnovm/cmd/gno fix -v .
 
 .PHONY: test.sync
 test.sync:

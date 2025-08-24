@@ -38,6 +38,9 @@ func setupTestEnv() testEnv {
 	prmk.Register("dummybank", bankk)
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, log.NewNoopLogger())
+
+	acck.SetParams(ctx, DefaultParams()) // Setup default params
+
 	ctx = ctx.WithValue(AuthParamsContextKey{}, DefaultParams())
 	ctx = ctx.WithConsensusParams(&abci.ConsensusParams{
 		Block: &abci.BlockParams{
@@ -96,4 +99,4 @@ func (bankk DummyBankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address,
 }
 
 // WillSetParam checks if the key contains the module's parameter key prefix and updates the module parameter accordingly.
-func (bankk DummyBankKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) { return }
+func (bankk DummyBankKeeper) WillSetParam(ctx sdk.Context, key string, value any) {}

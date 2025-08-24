@@ -110,7 +110,7 @@ The Coin(s) API can be found in the `std` package.
 
 ## Banker
 
-The Banker's main purpose is to handle balance changes of [native coins](coin.md)
+The Banker's main purpose is to handle balance changes of [native coins](#coin)
 within Gno chains. This includes issuance, transfers, and burning of coins.
 
 The Banker module can be cast into 4 subtypes of bankers that expose different
@@ -315,7 +315,7 @@ banker.RemoveCoin(addr, denom, amount)
 ```go
 func AssertOriginCall()
 ```
-Panics if caller of function is not an EOA.
+Panics if caller of function is not an EOA. Only allows `MsgCall` transactions; panics on `MsgRun` calls.
 
 ##### Usage
 ```go
@@ -396,18 +396,6 @@ caller := std.OriginCaller()
 ```
 ---
 
-### OriginPkgAddress
-```go
-func OriginPkgAddress() Address
-```
-Returns the address of the first (entry point) realm/package in a sequence of realm/package calls.
-
-##### Usage
-```go
-addr := std.OriginPkgAddress()
-```
----
-
 ### CurrentRealm
 ```go
 func CurrentRealm() Realm
@@ -420,7 +408,7 @@ currentRealm := std.CurrentRealm()
 ```
 ---
 
-### PrevRealm
+### PreviousRealm
 ```go
 func PreviousRealm() Realm
 ```
@@ -732,6 +720,8 @@ type Realm struct {
 func (r Realm) Address() Address {...}
 func (r Realm) PkgPath() string {...}
 func (r Realm) IsUser() bool {...}
+func (r Realm) IsUserRun() bool {...}
+func (r Realm) IsUserCall() bool {...}
 func (r Realm) CoinDenom(coinName string) string {...}
 ```
 
@@ -752,11 +742,33 @@ realmPath := r.PkgPath() // eg. gno.land/r/gnoland/blog
 ```
 ---
 ### IsUser
-Checks if the realm it was called upon is a user realm.
+Checks if the receiver realm is a user realm. This check passes for both `MsgCall` and `MsgRun` transactions.
 
 ##### Usage
 ```go
 if r.IsUser() {...}
+```
+
+---
+
+### IsUserRun
+
+Checks if the receiver realm is a user realm, given by a `MsgRun` transaction.  
+
+##### Usage
+```go
+if r.IsUserRun() {...}
+```
+
+---
+
+### IsUserCall
+
+Checks if the receiver realm is a user realm, given by a `MsgCall` transaction.
+
+##### Usage
+```go
+if r.IsUserCall() {...}
 ```
 
 ---
@@ -783,75 +795,72 @@ denom := r.CoinDenom("blgcoin") // /gno.land/r/gnoland/blog:blgcoin
 ## Testing
 
 ```go
-func TestSkipHeights(count int64)
-func TestSetOriginCaller(addr Address)
-func TestSetOriginPkgAddress(addr Address)
-func TestSetOriginSend(sent, spent Coins)
-func TestIssueCoins(addr Address, coins Coins)
-func TestSetRealm(realm Realm)
-func NewUserRealm(address Address) Realm
-func NewCodeRealm(pkgPath string) Realm
+// package `testing`
+func SkipHeights(count int64)
+func SetOriginCaller(origCaller std.Address)
+func SetOriginSend(sent std.Coins)
+func IssueCoins(addr std.Address, coins std.Coins)
+func SetRealm(realm std.Realm)
+
+// package `std`
+func NewUserRealm(address std.Address) std.Realm
+func NewCodeRealm(pkgPath string) std.Realm
 ```
 
-### TestSkipHeights
+### SkipHeights
 
 ```go
-func TestSkipHeights(count int64)
+func SkipHeights(count int64)
 ```
+
 Modifies the block height variable by skipping **count** blocks.
 
 It also increases block timestamp by 5 seconds for every single count
 
 #### Usage
+
 ```go
-std.TestSkipHeights(100)
+testing.SkipHeights(100)
 ```
+
 ---
 
-### TestSetOriginCaller
+### SetOriginCaller
 
 ```go
-func TestSetOriginCaller(addr Address)
+func SetOriginCaller(origCaller std.Address)
 ```
+
 Sets the current caller of the transaction to **addr**.
 
 #### Usage
-```go
-std.TestSetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
-```
----
-
-### TestSetOriginPkgAddress
 
 ```go
-func TestSetOriginPkgAddress(addr Address)
-```
-Sets the call entry realm address to **addr**.
-
-#### Usage
-```go
-std.TestSetOriginPkgAddress(std.Address("g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec"))
+testing.SetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 ```
 
 ---
 
-### TestSetOriginSend
+### SetOriginSend
 
 ```go
-func TestSetOriginSend(sent, spent Coins)
+func SetOriginSend(sent std.Coins)
 ```
+
 Sets the sent & spent coins for the current context.
 
 #### Usage
+
 ```go
-std.TestSetOriginSend(sent, spent Coins)
+testing.SetOriginSend(sent Coins)
 ```
+
 ---
 
-### TestIssueCoins
+### IssueCoins
 
 ```go
-func TestIssueCoins(addr Address, coins Coins)
+func IssueCoins(addr std.Address, coins std.Coins)
 ```
 
 Issues testing context **coins** to **addr**.
@@ -861,7 +870,7 @@ Issues testing context **coins** to **addr**.
 ```go
 issue := std.Coins{{"coin1", 100}, {"coin2", 200}}
 addr := std.Address("g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec")
-std.TestIssueCoins(addr, issue)
+testing.TestIssueCoins(addr, issue)
 ```
 
 ---
@@ -869,10 +878,10 @@ std.TestIssueCoins(addr, issue)
 ### TestSetRealm
 
 ```go
-func TestSetRealm(rlm Realm)
+func SetRealm(rlm Realm)
 ```
 
-Sets the realm for the current frame. After calling `TestSetRealm()`, calling
+Sets the realm for the current frame. After calling `SetRealm()`, calling
 [`CurrentRealm()`](#currentrealm) in the same test function will yield the value of `rlm`, and
 any `PreviousRealm()` called from a function used after TestSetRealm will yield `rlm`.
 
@@ -880,11 +889,12 @@ Should be used in combination with [`NewUserRealm`](#newuserrealm) &
 [`NewCodeRealm`](#newcoderealm).
 
 #### Usage
+
 ```go
 addr := std.Address("g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec")
-std.TestSetRealm(std.NewUserRealm(""))
+testing.SetRealm(std.NewUserRealm(""))
 // or
-std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/users"))
+testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/users"))
 ```
 
 ---
@@ -892,7 +902,7 @@ std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/users"))
 ### NewUserRealm
 
 ```go
-func NewUserRealm(address Address) Realm
+func NewUserRealm(address std.Address) Realm
 ```
 
 Creates a new user realm for testing purposes.
@@ -908,7 +918,7 @@ userRealm := std.NewUserRealm(addr)
 ### NewCodeRealm
 
 ```go
-func NewCodeRealm(pkgPath string) Realm
+func NewCodeRealm(pkgPath string) std.Realm
 ```
 
 Creates a new code realm for testing purposes.

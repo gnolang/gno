@@ -1,0 +1,2 @@
+module = "gnovm/tests/integ/typecheck_missing_return"
+gno = "0.9"

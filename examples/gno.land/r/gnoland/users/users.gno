@@ -4,10 +4,8 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/demo/dao"
 	"gno.land/p/demo/releases"
-
-	"gno.land/r/gov/dao/bridge"
+	"gno.land/r/gov/dao"
 )
 
 var (
@@ -30,17 +28,23 @@ func LatestRelease() string {
 }
 
 // ProposeNewRelease allows a GovDAO proposal to add a release to the changelog
-func ProposeNewRelease(newVerPkgPath, note string) dao.Executor {
+func ProposeNewRelease(newVerPkgPath, note string) dao.ProposalRequest {
 	ver := strings.TrimPrefix(newVerPkgPath, usersPrefix)
 	if ver == newVerPkgPath || // TrimPrefix returns unchanged newVerPkgPath if !HasPrefix
 		strings.Contains(ver, "/") { // if has prefix, has to be first child under
 		panic("r/gnoland/users: invalid version pkgpath")
 	}
 
-	cb := func() error {
+	cb := func(cur realm) error {
 		changelog.NewRelease(ver, strings.TrimPrefix(newVerPkgPath, "gno.land"), note)
 		return nil
 	}
 
-	return bridge.GovDAO().NewGovDAOExecutor(cb)
+	e := dao.NewSimpleExecutor(cb, "")
+
+	return dao.NewProposalRequest(
+		"Propose a new release for gnoland/users realm",
+		"",
+		e,
+	)
 }

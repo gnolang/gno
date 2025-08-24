@@ -103,10 +103,14 @@ func (e CorruptInputError) Error() string {
 //
 // If any of these requirements fail, a CorruptInputError will be returned.
 func Uint64(b []byte) (uint64, error) {
+	if len(b) == 0 {
+		return 0, CorruptInputError(0)
+	}
+	b0 := decTable[b[0]]
 	switch {
 	default:
 		return 0, CorruptInputError(0)
-	case len(b) == 7 && b[0] >= '0' && b[0] <= 'f':
+	case len(b) == 7 && b0 < 16:
 		decVals := [7]byte{
 			decTable[b[0]],
 			decTable[b[1]],
@@ -130,7 +134,7 @@ func Uint64(b []byte) (uint64, error) {
 			uint64(decVals[4])<<10 |
 			uint64(decVals[5])<<5 |
 			uint64(decVals[6]), nil
-	case len(b) == 13 && b[0] >= 'g' && b[0] <= 'z':
+	case len(b) == 13 && b0 >= 16 && b0 < 32:
 		decVals := [13]byte{
 			decTable[b[0]] & 0x0F, // disregard high bit
 			decTable[b[1]],

@@ -1,6 +1,8 @@
 package testutils
 
 import (
+	"slices"
+
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
@@ -23,7 +25,7 @@ func MutateByteSlice(bytez []byte) []byte {
 		bytez[random.RandInt()%len(bytez)] += byte(random.RandInt()%255 + 1)
 	case 1: // Remove an arbitrary byte
 		pos := random.RandInt() % len(bytez)
-		bytez = append(bytez[:pos], bytez[pos+1:]...)
+		bytez = slices.Delete(bytez, pos, pos+1)
 	}
 	return bytez
 }

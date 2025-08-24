@@ -132,6 +132,7 @@ func TestExtractLocalLinks(t *testing.T) {
 Here is some text with a link to a local file: [text](../concepts/file1.md)
 Here is another local link: [another](./path/to/file1.md)
 Here is another local link: [another](./path/to/file2.md#header-1-2)
+Here is another local link without ./ or ../: [another](path/to/another-file.md)
 And a link to an external website: [example](https://example.com)
 And a websocket link: [websocket](ws://example.com/socket)
 Here's an embedmd link: [embedmd]:# (../assets/how-to-guides/simple-library/tapas.gno go)
@@ -139,6 +140,7 @@ Here's an embedmd link: [embedmd]:# (../assets/myfile.sol go)
 Here's an embedmd link: [embedmd]:# (../assets/myfi()le.gno c)
 Here's an embedmd link: [embedmd]:# (../assets/)myfi(le.gno c)
 Here's another link: [embedmd]:# (../folder/myfile.gno c
+Here's a tcp link: [tcp](tcp://localhost:25567)
 `
 
 	// Expected local links
@@ -146,6 +148,7 @@ Here's another link: [embedmd]:# (../folder/myfile.gno c
 		"../concepts/file1.md",
 		"./path/to/file1.md",
 		"./path/to/file2.md",
+		"path/to/another-file.md",
 		"../assets/how-to-guides/simple-library/tapas.gno",
 		"../assets/myfile.sol",
 		"../assets/myfi()le.gno",
@@ -157,7 +160,7 @@ Here's another link: [embedmd]:# (../folder/myfile.gno c
 	extractedLinks := extractLocalLinks([]byte(mockFileContent))
 
 	if len(expectedLinks) != len(extractedLinks) {
-		t.Fatal("did not extract the correct amount of local links")
+		t.Fatalf("did not extract the correct amount of local links, expected %d, got %d", len(expectedLinks), len(extractedLinks))
 	}
 
 	sort.Strings(extractedLinks)

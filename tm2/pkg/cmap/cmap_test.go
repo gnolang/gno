@@ -26,7 +26,7 @@ func TestIterateKeysWithValues(t *testing.T) {
 
 	// Iterating Keys, checking for matching Value
 	for _, key := range cmap.Keys() {
-		val := strings.Replace(key, "key", "value", -1)
+		val := strings.ReplaceAll(key, "key", "value")
 		assert.Equal(t, val, cmap.Get(key))
 	}
 
@@ -72,7 +72,7 @@ func BenchmarkCMapConcurrentInsertsDeletesHas(b *testing.B) {
 		var wg sync.WaitGroup
 		semaCh := make(chan bool)
 		nCPU := runtime.NumCPU()
-		for j := 0; j < nCPU; j++ {
+		for j := range nCPU {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -115,7 +115,7 @@ func BenchmarkCMapConcurrentInsertsDeletesHas(b *testing.B) {
 
 func BenchmarkCMapHas(b *testing.B) {
 	m := NewCMap()
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		m.Set(fmt.Sprint(i), i)
 	}
 	b.ResetTimer()

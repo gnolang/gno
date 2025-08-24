@@ -11,85 +11,77 @@ import (
 	susers "gno.land/r/sys/users"
 )
 
-var (
-	alice     = "alice123"
-	bob       = "bob123"
-	aliceAddr = testutils.TestAddress(alice)
-	bobAddr   = testutils.TestAddress(bob)
-)
-
 func TestRegister_Valid(t *testing.T) {
-	std.TestSetOriginSend(std.NewCoins(std.NewCoin("ugnot", 1_000_000)), nil)
-	std.TestSetRealm(std.NewUserRealm(aliceAddr))
-	std.TestSetOriginCaller(aliceAddr)
+	validUsernames := []string{
+		"abc123",               // letters + digits
+		"abc123_def456",        // mix of letters / digits / underscore
+		"abc_defghi_jklmn123",  // 19 chars
+		"abc_defghi_jklmno456", // 20 chars (max)
+	}
 
-	uassert.NotPanics(t, func() {
-		Register(alice)
-	})
+	for _, username := range validUsernames {
+		addr := testutils.TestAddress(username)
 
-	res, latest := susers.ResolveName(alice)
+		// Simulate a proper user call with the required 1GNOT fee.
+		testing.SetRealm(std.NewUserRealm(addr))
+		testing.SetOriginCaller(addr)
+		testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", registerPrice)))
 
-	uassert.NotEqual(t, nil, res)
-	uassert.Equal(t, alice, res.Name())
-	uassert.Equal(t, aliceAddr, res.Addr())
-	uassert.False(t, res.IsDeleted())
-	uassert.True(t, latest)
+		urequire.NotPanics(t, func() {
+			Register(cross, username)
+		})
+	}
 }
 
 func TestRegister_Invalid(t *testing.T) {
-	std.TestSetOriginSend(std.NewCoins(std.NewCoin("ugnot", 1_000_000)), nil)
-	std.TestSetRealm(std.NewUserRealm(bobAddr))
-	std.TestSetOriginCaller(bobAddr)
+	t.Run("invalid usernames", func(t *testing.T) {
+		testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", registerPrice)))
+		testing.SetRealm(std.NewUserRealm(testutils.TestAddress("bob123")))
 
-	// Invalid usernames
-	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register("alice") // vanity
+		invalidUsernames := []string{
+			"alice",                 // vanity
+			"",                      // empty
+			"    ",                  // empty
+			"123",                   // only numbers (no letters)
+			"abc",                   // only letters (no numbers)
+			"alice&#($)123",         // invalid characters
+			"Alice123",              // uppercase
+			"abcdefghijklmnopqr123", // 21 chars (> max)
+			"toolongusernametoolongusernametoolongusername123", // super long
+		}
+
+		for _, username := range invalidUsernames {
+			uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
+				Register(cross, username)
+			})
+		}
 	})
 
-	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register("") // empty
+	t.Run("taken username", func(t *testing.T) {
+		testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", registerPrice)))
+		testing.SetRealm(std.NewUserRealm(testutils.TestAddress("bob123")))
+
+		username := "bob123"
+
+		urequire.NotPanics(t, func() {
+			Register(cross, username)
+		})
+
+		uassert.AbortsWithMessage(t, susers.ErrNameTaken.Error(), func() {
+			Register(cross, username) // already registered
+		})
 	})
 
-	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register("    ") // empty
-	})
+	t.Run("invalid payment", func(t *testing.T) {
+		addr := testutils.TestAddress("bob123")
 
-	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register("123") // empty
-	})
+		testing.SetRealm(std.NewUserRealm(addr))
+		testing.SetOriginCaller(addr)
 
-	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register("123") // only numbers
-	})
+		testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 12))) // invalid payment amount
 
-	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register("alice&#($)") // non-allowed chars
-	})
-
-	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register("Alice123") // upper-case
-	})
-
-	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register("toolongusernametoolongusernametoolongusername123") // too long
-	})
-
-	// Name taken
-	urequire.NotPanics(t, func() {
-		Register(bob)
-	})
-
-	uassert.PanicsWithMessage(t, susers.ErrNameTaken.Error(), func() {
-		Register(bob) // already registered
-	})
-}
-func TestRegister_InvalidPayment(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(bobAddr))
-	std.TestSetOriginCaller(bobAddr)
-
-	std.TestSetOriginSend(std.NewCoins(std.NewCoin("ugnot", 12)), nil) // invalid payment amount
-
-	uassert.PanicsWithMessage(t, ErrInvalidPayment.Error(), func() {
-		Register(alice)
+		uassert.AbortsWithMessage(t, ErrInvalidPayment.Error(), func() {
+			Register(cross, "alice123")
+		})
 	})
 }

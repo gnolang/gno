@@ -10,7 +10,9 @@ import (
 
 func TestCreateForm(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	std.TestSetOriginCaller(alice)
+	testing.SetOriginCaller(alice)
+	testing.SetRealm(std.NewUserRealm(alice))
+
 	db := NewDB()
 	title := "Simple Form"
 	description := "This is a form"
@@ -57,7 +59,7 @@ func TestCreateForm(t *testing.T) {
 		}
 
 		urequire.True(t, form.ID == id, "Form ID is not correct")
-		urequire.True(t, form.Owner == alice, "Owner is not correct")
+		urequire.Equal(t, form.Owner, alice, "Owner is not correct")
 		urequire.True(t, form.Title == title, "Title is not correct")
 		urequire.True(t, form.Description == description, "Description is not correct")
 		urequire.True(t, len(form.Fields) == 5, "Not enough fields were provided")

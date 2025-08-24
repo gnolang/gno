@@ -2,7 +2,7 @@
 
 gno test .
 
-gno test ./run_test.gno
+# gno test ./run_test.gno # XXX: add back support for command-line-arguments package
 
 gno test -v .
 
@@ -85,7 +85,6 @@ package run
 package run
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -99,3 +98,8 @@ func TestRun(t *testing.T) {
 		t.Run(tc, func(t *testing.T) {})
 	}
 }
+
+
+
+-- gnomod.toml --
+module = 'gno.test/r/integ/flag_run'

@@ -38,15 +38,7 @@ func renderHomePage() string {
 	out += renderIntroParagraph()
 
 	out += md.H2("Latest registrations")
-	entries := latestUsers.Entries()
-	if len(entries) == 0 {
-		out += "No registered users."
-	}
-
-	for i := len(entries) - 1; i >= 0; i-- {
-		user := entries[i].(string)
-		out += ufmt.Sprintf("- User [%s](/r/gnoland/users/v1:%s)\n", md.Bold(user), user)
-	}
+	out += RenderLatestUsersWidget(-1)
 
 	return out
 }
@@ -59,7 +51,8 @@ will gain permission to deploy packages and realms to package paths with the pat
 
 	out += md.Paragraph("In V1, usernames must follow these rules, in order to prevent username squatting:")
 	items := []string{
-		"Must start with 3 characters",
+		"Must start with 3 letters",
+		"Letters must be lowercase",
 		"Must end with 3 numbers",
 		"Have a maximum length of 20 characters",
 		"With the only special character allowed being `_`",
@@ -70,8 +63,10 @@ will gain permission to deploy packages and realms to package paths with the pat
 	out += md.Paragraph("In later versions of the registry, vanity usernames will be allowed through specific mechanisms.")
 
 	if !paused {
-		out += md.H3(ufmt.Sprintf(" [[Click here to register]](%s)", txlink.Call("Register")))
-		out += ufmt.Sprintf("Registration price: %f GNOT (%dugnot)\n\n", float64(registerPrice)/1_000_000, registerPrice)
+		amount := ufmt.Sprintf("%dugnot", registerPrice)
+		out += md.H3(ufmt.Sprintf(" [[Click here to register]](%s)", txlink.NewLink("Register").SetSend(amount).URL()))
+		// XXX: Display registration price adjusting for dynamic GNOT price when it becomes possible.
+		out += ufmt.Sprintf("Registration price: %f GNOT (%s)\n\n", float64(registerPrice)/1_000_000, amount)
 	}
 
 	out += md.HorizontalRule()
@@ -106,7 +101,7 @@ func renderUserPage(path string) string {
 
 	if isName && !isLatest {
 		out += md.Paragraph(ufmt.Sprintf(
-			"Note: You searched for `%s`, which is a previous name of [`%s`](/r/gnoland/users/v1:%s).",
+			"Note: You searched for `%s`, which is a previous name of [`%s`](/u/%s).",
 			path, data.Name(), data.Name()))
 	} else {
 		out += ufmt.Sprintf("Address: %s\n\n", data.Addr().String())
@@ -116,6 +111,29 @@ func renderUserPage(path string) string {
 		out += "\n\n"
 		out += ufmt.Sprintf("[Update bio](%s)", txlink.Realm("gno.land/r/demo/profile").Call("SetStringField", "field", "Bio"))
 		out += "\n\n"
+	}
+
+	return out
+}
+
+// RenderLatestUsersWidget renders the latest num registered users
+// For num = -1, maximum number (10) will be displayed
+func RenderLatestUsersWidget(num int) string {
+	size := latestUsers.Size()
+	if size == 0 {
+		return "No registered users."
+	}
+
+	if num > size || num < 0 {
+		num = size
+	}
+
+	entries := latestUsers.Entries()
+	var out string
+
+	for i := size - 1; i >= size-num; i-- {
+		user := entries[i].(string)
+		out += md.BulletItem(md.UserLink(user))
 	}
 
 	return out

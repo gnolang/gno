@@ -334,11 +334,13 @@ func TestAnteHandlerFees(t *testing.T) {
 	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.InsufficientFundsError{})
 
+	feeCollector := env.acck.FeeCollectorAddress(ctx)
+
 	acc1.SetCoins(std.NewCoins(std.NewCoin("atom", 149)))
 	env.acck.SetAccount(ctx, acc1)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.InsufficientFundsError{})
 
-	collector := env.bankk.(DummyBankKeeper).acck.GetAccount(ctx, FeeCollectorAddress())
+	collector := env.bankk.(DummyBankKeeper).acck.GetAccount(ctx, feeCollector)
 	require.Nil(t, collector)
 	require.Equal(t, env.acck.GetAccount(ctx, addr1).GetCoins().AmountOf("atom"), int64(149))
 
@@ -346,7 +348,7 @@ func TestAnteHandlerFees(t *testing.T) {
 	env.acck.SetAccount(ctx, acc1)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 
-	require.Equal(t, env.bankk.(DummyBankKeeper).acck.GetAccount(ctx, FeeCollectorAddress()).GetCoins().AmountOf("atom"), int64(150))
+	require.Equal(t, env.bankk.(DummyBankKeeper).acck.GetAccount(ctx, feeCollector).GetCoins().AmountOf("atom"), int64(150))
 	require.Equal(t, env.acck.GetAccount(ctx, addr1).GetCoins().AmountOf("atom"), int64(0))
 }
 
@@ -501,7 +503,6 @@ func TestAnteHandlerBadSignBytes(t *testing.T) {
 		{chainID, 0, 1, fee3, msgs, unauthErr},                           // test wrong fee
 	}
 
-	privs, seqs = []crypto.PrivKey{priv1}, []uint64{1}
 	for _, cs := range cases {
 		signPayload, err := std.GetSignaturePayload(std.SignDoc{
 			ChainID:       cs.chainID,
@@ -639,7 +640,7 @@ func TestConsumeSignatureVerificationGas(t *testing.T) {
 	multisigKey1 := multisig.NewPubKeyMultisigThreshold(2, pkSet1)
 	multisignature1 := multisig.NewMultisig(len(pkSet1))
 	expectedCost1 := expectedGasCostByKeys(pkSet1)
-	for i := 0; i < len(pkSet1); i++ {
+	for i := range pkSet1 {
 		multisignature1.AddSignatureFromPubKey(sigSet1[i], pkSet1[i], pkSet1)
 	}
 
@@ -680,7 +681,7 @@ func TestConsumeSignatureVerificationGas(t *testing.T) {
 func generatePubKeysAndSignatures(n int, msg []byte, keyTypeed25519 bool) (pubkeys []crypto.PubKey, signatures [][]byte) {
 	pubkeys = make([]crypto.PubKey, n)
 	signatures = make([][]byte, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		var privkey crypto.PrivKey
 		if rand.Int63()%2 == 0 {
 			privkey = ed25519.GenPrivKey()
@@ -714,7 +715,7 @@ func TestCountSubkeys(t *testing.T) {
 
 	genPubKeys := func(n int) []crypto.PubKey {
 		var ret []crypto.PubKey
-		for i := 0; i < n; i++ {
+		for range n {
 			ret = append(ret, secp256k1.GenPrivKey().PubKey())
 		}
 		return ret

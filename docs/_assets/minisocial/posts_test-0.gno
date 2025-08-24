@@ -12,10 +12,13 @@ func TestCreatePostSingle(t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
 	// TestSetRealm sets the realm caller, in this case Alice
-	std.TestSetRealm(std.NewUserRealm(aliceAddr))
+	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	err := CreatePost(text1)
+
+	// To call a crossing function, we specify the `cross` keyword
+	// This matches the first argument of type realm in the function itself
+	err := CreatePost(cross, text1)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}

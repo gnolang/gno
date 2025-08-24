@@ -145,7 +145,7 @@ func (memR *Reactor) AddPeer(peer p2p.PeerConn) {
 }
 
 // RemovePeer implements Reactor.
-func (memR *Reactor) RemovePeer(peer p2p.PeerConn, reason interface{}) {
+func (memR *Reactor) RemovePeer(peer p2p.PeerConn, reason any) {
 	memR.ids.Reclaim(peer.ID())
 	// broadcast routine checks if peer is gone and returns
 }
@@ -253,7 +253,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.PeerConn) {
 // Messages
 
 // MempoolMessage is a message sent or received by the Reactor.
-type MempoolMessage interface{}
+type MempoolMessage any
 
 func (memR *Reactor) decodeMsg(bz []byte) (msg MempoolMessage, err error) {
 	err = amino.Unmarshal(bz, &msg)

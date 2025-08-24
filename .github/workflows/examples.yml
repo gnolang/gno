@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
@@ -52,7 +52,7 @@ jobs:
           echo "LOG_LEVEL=debug" >> $GITHUB_ENV
           echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> $GITHUB_ENV
       - run: go install -v ./gnovm/cmd/gno
-      - run: go run ./gnovm/cmd/gno test -v -print-runtime-metrics -print-events ./examples/...
+      - run: cd examples && go run ../gnovm/cmd/gno test -v -print-runtime-metrics -print-events ./...
   lint:
     strategy:
       fail-fast: false
@@ -63,7 +63,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
@@ -97,10 +97,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v4
-      - run: |
-          GNO_CMD="$(pwd)/gnovm/cmd/gno"
-          # Find all directories containing gno.mod file
-          find ./examples -name "gno.mod" -execdir go run "$GNO_CMD" mod tidy \;
+      - uses: actions/checkout@v5
+      - working-directory: ./examples
+        run: |
+          make tidy
           # Check if there are changes after running gno mod tidy
-          git diff --exit-code || (echo "Some gno.mod files are not tidy, please run 'make tidy'." && exit 1)
+          git diff --exit-code || (echo "Some gnomod.toml files are not tidy, please run 'make tidy'." && exit 1)

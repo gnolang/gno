@@ -1,0 +1,29 @@
+# Test with a _test.gno file calling std.OriginCaller()
+
+ gno test .
+
+! stdout .+
+stderr 'ok      \. 	\d+\.\d\ds'
+
+-- gnomod.toml --
+module = "origin_caller"
+gno = "0.9"
+
+-- origin_caller_test.gno --
+package origin_caller
+
+import (
+  "testing"
+  "std"
+)
+
+func TestOriginCaller(t *testing.T) {
+  if std.OriginCaller().IsValid() {
+    t.Error("std.OriginCaller() from (non-filetest) test cases should not return a valid address")
+  }
+}
+
+
+-- gnomod.toml --
+module = "gno.test/r/integ/origin_caller"
+gno = "0.9"

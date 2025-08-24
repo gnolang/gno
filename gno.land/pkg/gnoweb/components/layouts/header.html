@@ -1,134 +1,176 @@
 {{ define "layouts/header" }}
-  <header class="main-header sticky top-0 bg-light border-b text-100 z-max">
-    <nav
-      aria-label="Realm navigation"
-      class="max-w-screen-max mx-auto px-4 md:px-10 grid grid-cols-10 grid-flow-dense gap-4 md:gap-x-8 lg:gap-x-20 xxl:gap-x-32 items-center"
+<header class="main-header sticky top-0 bg-light border-b text-100 z-max">
+  <nav
+    aria-label="Package navigation"
+    class="max-w-screen-max mx-auto px-4 md:px-10 flex lg:grid grid-cols-10 grid-flow-dense md:gap-4 md:gap-x-8 lg:gap-x-20 xxl:gap-x-32 items-stretch flex-col h-auto md:flex-row"
+  >
+    <div
+      class="main-navigation flex-auto min-w-0 flex items-stretch gap-1 {{ if .Mode.IsExplorer }}
+          col-span-10
+        {{ else }}
+          col-span-7
+        {{ end }} w-full h-full py-2"
     >
-      <div
-        class="main-navigation flex items-center gap-1 col-span-7 max-w-screen-max h-full py-2"
+      <a
+        href="/"
+        class="rounded border border-gray-100 cursor-pointer h-10 w-10 shrink-0"
       >
-        <a
-          href="/"
-          class="rounded border border-gray-100 cursor-pointer h-10 w-10 shrink-0"
+        <img
+          src="/public/imgs/gnoland.svg"
+          alt="Gno username profile pic"
+          width="40px"
+          height="40px"
+        />
+      </a>
+
+      <div
+        class="relative h-auto w-full overflow-scroll no-scrollbar text-gray-100 has-[[data-role='header-input-search']:focus-within]:text-gray-50"
+      >
+        <div
+          class="relative overflow-scroll no-scrollbar md:pr-8 flex items-center bg-current has-[[data-role='header-input-search']:focus-within]:border-gray-300 border h-full border-gray-100 px-1.5 py-0 rounded"
         >
-          <img
-            src="/public/imgs/gnoland.svg"
-            alt="Gno username profile pic"
-            width="40px"
-            height="40px"
-          />
-        </a>
+          <form
+            class="js-header-searchbar peer absolute w-full h-full top-0 left-0 p-1.5 md:pr-8 text-200 text-gray-600 font-medium"
+          >
+            <label for="header-input-search" class="sr-only">
+              gno.land Search
+            </label>
+            <input
+              id="header-input-search"
+              data-role="header-input-search"
+              type="text"
+              value="{{ .RealmPath }}"
+              class="relative h-full w-full bg-transparent outline-none"
+            />
+            <button type="submit" class="sr-only">Search</button>
+          </form>
+
+          {{ template "ui/breadcrumb" .Breadcrumb }}
+        </div>
+
+        <!-- Network Info Popup -->
+        <label
+          for="searchbar-server-popup-toggle"
+          class="absolute hidden md:flex justify-center rounded-r items-center p-1.5 h-[calc(100%-2px)] bg-current z-max right-px top-px cursor-pointer"
+          tabindex="0"
+          role="button"
+          aria-controls="network-info-popup"
+        >
+          <svg class="w-5 h-5 text-gray-400 hover:text-gray-600">
+            <title>Network Info</title>
+            <use href="#ico-earth"></use>
+          </svg>
+        </label>
+
+        <input
+          type="checkbox"
+          id="searchbar-server-popup-toggle"
+          class="hidden peer"
+          aria-expanded="false"
+        />
+        <label
+          for="searchbar-server-popup-toggle"
+          class="fixed z-max inset-0 flex items-center justify-center opacity-0 invisible peer-checked:opacity-100 peer-checked:visible"
+        ></label>
 
         <div
-          class="relative w-full h-full overflow-scroll no-scrollbar text-gray-100 has-[[data-role='header-input-search']:focus-within]:text-gray-50"
+          class="z-max absolute top-0 right-0 opacity-0 invisible 0 peer-checked:opacity-100 peer-checked:visible"
+          role="dialog"
+          aria-labelledby="network-info-title"
+          aria-modal="true"
         >
           <div
-            class="relative overflow-scroll no-scrollbar md:pr-8 flex items-center bg-current has-[[data-role='header-input-search']:focus-within]:border-gray-300 border h-full border-gray-100 px-1.5 py-0 rounded"
+            class="px-4 py-2 w-72 fixed -translate-x-full rounded bg-light border border-gray-100"
           >
-            <form
-              class="js-header-searchbar peer absolute w-full h-full top-0 left-0 p-1.5 md:pr-8 text-200 text-gray-600 font-medium"
-            >
-              <label for="header-input-search" class="sr-only">
-                gno.land Search
+            <div class="w-full flex justify-between items-center pb-3">
+              <span
+                id="network-info-title"
+                class="text-gray-600 text-100 font-semibold"
+                >Network Info</span
+              >
+              <label
+                for="searchbar-server-popup-toggle"
+                class="absolute right-3 text-gray-400 hover:text-gray-900 cursor-pointer"
+                tabindex="0"
+                role="button"
+                aria-label="Close popup"
+              >
+                <svg class="w-3 h-3">
+                  <title>Close Network Info</title>
+                  <use href="#ico-cross"></use>
+                </svg>
               </label>
-              <input
-                id="header-input-search"
-                data-role="header-input-search"
-                type="text"
-                value="{{ .RealmPath }}"
-                class="relative h-full w-full bg-transparent outline-none"
-              />
-              <button type="submit" class="sr-only">Search</button>
-            </form>
-
-            {{ template "ui/breadcrumb" .Breadcrumb }}
-          </div>
-
-          <!-- Network Info Popup -->
-          <label
-            for="searchbar-server-popup-toggle"
-            class="absolute hidden md:flex justify-center rounded-r items-center p-1.5 h-[calc(100%-2px)] bg-current z-max right-px top-px cursor-pointer"
-            tabindex="0"
-            role="button"
-            aria-controls="network-info-popup"
-          >
-            <svg class="w-5 h-5 text-gray-400 hover:text-gray-600">
-              <title>Network Info</title>
-              <use href="#ico-earth"></use>
-            </svg>
-          </label>
-
-          <input
-            type="checkbox"
-            id="searchbar-server-popup-toggle"
-            class="hidden peer"
-            aria-expanded="false"
-          />
-          <label
-            for="searchbar-server-popup-toggle"
-            class="fixed z-max inset-0 flex items-center justify-center opacity-0 invisible peer-checked:opacity-100 peer-checked:visible"
-          ></label>
-
-          <div
-            class="z-max absolute top-0 right-0 opacity-0 invisible 0 peer-checked:opacity-100 peer-checked:visible"
-            role="dialog"
-            aria-labelledby="network-info-title"
-            aria-modal="true"
-          >
-            <div
-              class="px-4 py-2 w-72 fixed -translate-x-full rounded bg-light border border-gray-100"
-            >
-              <div class="w-full flex justify-between items-center pb-3">
-                <span
-                  id="network-info-title"
-                  class="text-gray-600 text-100 font-semibold"
-                  >Network Info</span
+            </div>
+            <div class="flex gap-1 items-start w-full py-2 text-gray-400">
+              <svg class="w-4 h-4" aria-hidden="true">
+                <use href="#ico-chain"></use>
+              </svg>
+              <div class="flex flex-col justify-start items-start">
+                <span class="text-50">Chain ID</span>
+                <span class="text-gray-600 font-semibold leading-tigh"
+                  >{{ .ChainId }}</span
                 >
-                <label
-                  for="searchbar-server-popup-toggle"
-                  class="absolute right-3 text-gray-400 hover:text-gray-900 cursor-pointer"
-                  tabindex="0"
-                  role="button"
-                  aria-label="Close popup"
+              </div>
+            </div>
+            <div class="flex gap-1 items-start w-full py-2 text-gray-400">
+              <svg class="w-4 h-4" aria-hidden="true">
+                <use href="#ico-rpc"></use>
+              </svg>
+              <div class="flex flex-col justify-start items-start">
+                <span class="text-50">RPC Address</span>
+                <span class="text-gray-600 font-semibold leading-tight"
+                  >{{ .Remote }}</span
                 >
-                  <svg class="w-3 h-3">
-                    <title>Close Network Info</title>
-                    <use href="#ico-cross"></use>
-                  </svg>
-                </label>
-              </div>
-              <div class="flex gap-1 items-start w-full py-2 text-gray-400">
-                <svg class="w-4 h-4" aria-hidden="true">
-                  <use href="#ico-chain"></use>
-                </svg>
-                <div class="flex flex-col justify-start items-start">
-                  <span class="text-50">Chain ID</span>
-                  <span class="text-gray-600 font-semibold leading-tigh"
-                    >{{ .ChainId }}</span
-                  >
-                </div>
-              </div>
-              <div class="flex gap-1 items-start w-full py-2 text-gray-400">
-                <svg class="w-4 h-4" aria-hidden="true">
-                  <use href="#ico-rpc"></use>
-                </svg>
-                <div class="flex flex-col justify-start items-start">
-                  <span class="text-50">RPC Address</span>
-                  <span class="text-gray-600 font-semibold leading-tight"
-                    >{{ .Remote }}</span
-                  >
-                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
 
-      <form
-        class="sidemenu col-span-3 flex justify-end lg:justify-start gap-3 sm:gap-6 h-full text-100 text-gray-400"
+    <div
+      class="sidemenu col-span-3 h-12 md:h-auto flex flex-grow-0 flex-shrink-0 basis-auto"
+    >
+      {{ if .Mode.IsHome }}
+      <label
+        for="header-input-devmode"
+        class="order-3 ml-auto flex items-center cursor-pointer"
       >
-        {{ range .Links }}{{ template "ui/header_link" . }}{{ end }}
-      </form>
-    </nav>
-  </header>
+        <svg class="w-5 h-5 ml-4 lg:ml-2">
+          <title>Developer menu switch</title>
+          <use href="#ico-more"></use>
+        </svg>
+      </label>
+      {{ end }}
+      <input
+        id="header-input-devmode"
+        type="checkbox"
+        name="devmode"
+        class="peer sr-only"
+        {{
+        if
+        not
+        .Mode.IsHome
+        }}checked{{
+        end
+        }}
+      />
+      <div
+        role="menu"
+        class="peer-checked:flex hidden justify-end lg:justify-start h-full"
+      >
+        {{ range .Links.Dev }}{{ template "ui/header_link" . }}{{ end }}
+      </div>
+
+      {{ if .Mode.IsHome }}
+      <div
+        role="menu"
+        class="peer-checked:hidden flex justify-end lg:justify-start h-full"
+      >
+        {{ range .Links.General }}{{ template "ui/header_link" . }}{{ end }}
+      </div>
+      {{ end }}
+    </div>
+  </nav>
+</header>
 {{ end }}

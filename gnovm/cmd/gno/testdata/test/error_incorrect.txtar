@@ -2,7 +2,7 @@
 
 ! gno test -v .
 
-stderr '=== RUN   file/x_filetest.gno'
+stderr '=== RUN   ./x_filetest.gno'
 stderr 'Error diff:'
 stderr '-xxx'
 stderr '\+oups'
@@ -16,3 +16,8 @@ func main() {
 
 // Error:
 // xxx
+
+
+
+-- gnomod.toml --
+module = 'gno.test/r/integ/error_incorrect'

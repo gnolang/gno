@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"regexp"
 	"runtime/debug"
+	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -19,26 +21,31 @@ import (
 	"go.uber.org/multierr"
 )
 
-// RunFiletest executes the program in source as a filetest.
+// RunFiletest executes a gnovm internal filetest in test/files.
 // If opts.Sync is enabled, and the filetest's golden output has changed,
 // the first string is set to the new generated content of the file.
-func (opts *TestOptions) RunFiletest(filename string, source []byte) (string, error) {
+// Before the filetest is run it will be type-checked.
+func (opts *TestOptions) RunFiletest(fname string, source []byte, tgs gno.Store) (string, error) {
 	opts.outWriter.w = opts.Output
 	opts.outWriter.errW = opts.Error
-
-	return opts.runFiletest(filename, source)
+	tcheck := true // Go type-check filetests in test/files.
+	return opts.runFiletest(fname, source, tgs, tcheck)
 }
 
-var reEndOfLineSpaces = func() *regexp.Regexp {
-	re := regexp.MustCompile(" +\n")
-	re.Longest()
-	return re
-}()
-
-func (opts *TestOptions) runFiletest(filename string, source []byte) (string, error) {
+// tcheck: only set to false pkg/test.Test(), since `gno test`
+// (cmd/gno/test.go) already type-checked the whole package.
+// Go type-checking in filetests is only available for gnovm internal filetests
+// in test/files.
+func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store, tcheck bool) (string, error) {
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
 		return "", fmt.Errorf("error parsing directives: %w", err)
+	}
+
+	// Sanity check: type-check directives are not available
+	// with `gno test` of user packages.
+	if !tcheck && dirs.FirstDefault(DirectiveTypeCheckError, "") != "" {
+		panic("type-check error directive is only available for gnovm internal test files")
 	}
 
 	// Initialize Machine.Context and Machine.Alloc according to the input directives.
@@ -47,27 +54,32 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 	if err != nil {
 		return "", err
 	}
-	ctx := Context(
-		pkgPath,
-		coins,
-	)
+	ctx := Context("", pkgPath, coins)
 	maxAllocRaw := dirs.FirstDefault(DirectiveMaxAlloc, "0")
 	maxAlloc, err := strconv.ParseInt(maxAllocRaw, 10, 64)
 	if err != nil {
 		return "", fmt.Errorf("could not parse MAXALLOC directive: %w", err)
 	}
 
+	var opslog io.Writer
+	if dirs.First(DirectiveRealm) != nil {
+		opslog = new(bytes.Buffer)
+	}
+
 	// Create machine for execution and run test
-	cw := opts.BaseStore.CacheWrap()
+	tcw := opts.BaseStore.CacheWrap()
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Output:        &opts.outWriter,
-		Store:         opts.TestStore.BeginTransaction(cw, cw, nil),
+		Store:         tgs.BeginTransaction(tcw, tcw, nil),
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
 		Debug:         opts.Debug,
+		ReviveEnabled: true,
 	})
 	defer m.Release()
-	result := opts.runTest(m, pkgPath, filename, source)
+
+	// RUN THE FILETEST /////////////////////////////////////
+	result := opts.runTest(m, pkgPath, fname, source, opslog, tcheck)
 
 	// updated tells whether the directives have been updated, and as such
 	// a new generated filetest should be returned.
@@ -75,40 +87,60 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 	// multiple mismatches occurred.
 	updated := false
 	var returnErr error
-	// match verifies the content against dir.Content; if different,
+	// `match` verifies the content against dir.Content; if different,
 	// either updates dir.Content (for opts.Sync) or appends a new returnErr.
 	match := func(dir *Directive, actual string) {
-		// Remove end-of-line spaces, as these are removed from `fmt` in the filetests anyway.
-		actual = reEndOfLineSpaces.ReplaceAllString(actual, "\n")
-		if dir.Content != actual {
+		content := dir.Content
+		actual = strings.TrimRight(actual, "\n")
+		content = strings.TrimRight(content, "\n")
+		if content != actual {
 			if opts.Sync {
 				dir.Content = actual
 				updated = true
 			} else {
-				returnErr = multierr.Append(
-					returnErr,
-					fmt.Errorf("%s diff:\n%s", dir.Name, unifiedDiff(dir.Content, actual)),
-				)
+				if dir.Name == DirectiveError {
+					returnErr = multierr.Append(
+						returnErr,
+						fmt.Errorf("%s diff:\n%s\nstacktrace:\n%s\nstack:\n%v",
+							dir.Name, unifiedDiff(content, actual),
+							result.GnoStacktrace, string(result.GoPanicStack)),
+					)
+				} else {
+					returnErr = multierr.Append(
+						returnErr,
+						fmt.Errorf("%s diff:\n%s", dir.Name, unifiedDiff(content, actual)),
+					)
+				}
 			}
 		}
 	}
 
-	// First, check if we have an error, whether we're supposed to get it.
+	// Ensure needed the directives are present.
 	if result.Error != "" {
 		// Ensure this error was supposed to happen.
 		errDirective := dirs.First(DirectiveError)
 		if errDirective == nil {
-			return "", fmt.Errorf("unexpected panic: %s\noutput:\n%s\nstack:\n%v",
-				result.Error, result.Output, string(result.GoPanicStack))
+			if opts.Sync {
+				dirs = append(dirs, Directive{
+					Name:    DirectiveError,
+					Content: "",
+				})
+			} else {
+				return "", fmt.Errorf("unexpected panic: %s\noutput:\n%s\nstacktrace:\n%s\nstack:\n%v",
+					result.Error, result.Output, result.GnoStacktrace, string(result.GoPanicStack))
+			}
 		}
-
-		// The Error directive (and many others) will have one trailing newline,
-		// which is not in the output - so add it there.
-		match(errDirective, result.Error+"\n")
 	} else if result.Output != "" {
 		outputDirective := dirs.First(DirectiveOutput)
 		if outputDirective == nil {
-			return "", fmt.Errorf("unexpected output:\n%s", result.Output)
+			if opts.Sync {
+				dirs = append(dirs, Directive{
+					Name:    DirectiveOutput,
+					Content: "",
+				})
+			} else {
+				return "", fmt.Errorf("unexpected output:\n%s", result.Output)
+			}
 		}
 	} else {
 		err = m.CheckEmpty()
@@ -120,33 +152,53 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 		}
 	}
 
+	// Set to true if there was a go-typecheck directive..
+	var hasTypeCheckErrorDirective bool
+
 	// Check through each directive and verify it against the values from the test.
 	for idx := range dirs {
 		dir := &dirs[idx]
 		switch dir.Name {
 		case DirectiveOutput:
-			if !strings.HasSuffix(result.Output, "\n") {
-				result.Output += "\n"
-			}
-			match(dir, result.Output)
+			match(dir, trimTrailingSpaces(result.Output))
+		case DirectiveError:
+			match(dir, result.Error)
 		case DirectiveRealm:
-			sops := m.Store.SprintStoreOps() + "\n"
-			match(dir, sops)
+			res := opslog.(*bytes.Buffer).String()
+			match(dir, res)
 		case DirectiveEvents:
 			events := m.Context.(*teststd.TestExecContext).EventLogger.Events()
 			evtjson, err := json.MarshalIndent(events, "", "  ")
 			if err != nil {
 				panic(err)
 			}
-			evtstr := string(evtjson) + "\n"
+			evtstr := string(evtjson)
 			match(dir, evtstr)
 		case DirectivePreprocessed:
-			pn := m.Store.GetBlockNode(gno.PackageNodeLocation(pkgPath))
-			pre := pn.(*gno.PackageNode).FileSet.Files[0].String() + "\n"
+			pn := m.Store.GetBlockNodeSafe(gno.PackageNodeLocation(pkgPath))
+			if pn == nil {
+				return "", fmt.Errorf("package %q not preprocessed: %s", pkgPath, result.Error)
+			}
+			pre := pn.(*gno.PackageNode).FileSet.Files[0].String()
 			match(dir, pre)
 		case DirectiveStacktrace:
 			match(dir, result.GnoStacktrace)
+		case DirectiveStorage:
+			rlmDiff := realmDiffsString(m.Store.RealmStorageDiffs())
+			match(dir, rlmDiff)
+		case DirectiveTypeCheckError:
+			hasTypeCheckErrorDirective = true
+			match(dir, result.TypeCheckError)
 		}
+	}
+
+	if !hasTypeCheckErrorDirective && result.TypeCheckError != "" {
+		dir := Directive{
+			Name:    DirectiveTypeCheckError,
+			Content: "",
+		}
+		match(&dir, result.TypeCheckError)
+		dirs = append(dirs, dir)
 	}
 
 	if updated { // only true if sync == true
@@ -154,6 +206,30 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 	}
 
 	return "", returnErr
+}
+
+// returns a sorted string representation of realm diffs map
+func realmDiffsString(m map[string]int64) string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var sb strings.Builder
+	for _, k := range keys {
+		sb.WriteString(fmt.Sprintf("%s: %d\n", k, m[k]))
+	}
+	return sb.String()
+}
+
+func trimTrailingSpaces(in string) string {
+	lines := strings.Split(in, "\n")
+	for i, line := range lines {
+		line = strings.TrimRight(line, " ")
+		lines[i] = line
+	}
+	return strings.Join(lines, "\n")
 }
 
 func unifiedDiff(wanted, actual string) string {
@@ -175,28 +251,41 @@ func unifiedDiff(wanted, actual string) string {
 type runResult struct {
 	Output string
 	Error  string
+	// Set if there was an issue with type-checking.
+	TypeCheckError string
 	// Set if there was a panic within gno code.
 	GnoStacktrace string
 	// Set if this was recovered from a panic.
 	GoPanicStack []byte
 }
 
-func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, content []byte) (rr runResult) {
+func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content []byte, opslog io.Writer, tcheck bool) (rr runResult) {
 	pkgName := gno.Name(pkgPath[strings.LastIndexByte(pkgPath, '/')+1:])
+	tcError := ""
+	fname = filepath.Base(fname)
+	if opts.tcCache == nil {
+		opts.tcCache = make(gno.TypeCheckCache)
+	}
 
 	// Eagerly load imports.
-	// This is executed using opts.Store, rather than the transaction store;
+	// LoadImports is run using opts.Store, rather than the transaction store;
 	// it allows us to only have to load the imports once (and re-use the cached
 	// versions). Running the tests in separate "transactions" means that they
 	// don't get the parent store dirty.
-	if err := LoadImports(opts.TestStore, &gnovm.MemPackage{
+	abortOnError := true
+	if err := LoadImports(opts.TestStore, &std.MemPackage{
+		Type: gno.MPFiletests,
 		Name: string(pkgName),
 		Path: pkgPath,
-		Files: []*gnovm.MemFile{
-			{Name: filename, Body: string(content)},
+		Files: []*std.MemFile{
+			{Name: "gnomod.toml", Body: gno.GenGnoModLatest(pkgPath)},
+			{Name: fname, Body: string(content)},
 		},
-	}); err != nil {
+	}, abortOnError); err != nil {
 		// NOTE: we perform this here, so we can capture the runResult.
+		if swe, ok := err.(*stackWrappedError); ok {
+			return runResult{Error: err.Error(), GoPanicStack: swe.stack}
+		}
 		return runResult{Error: err.Error()}
 	}
 
@@ -209,6 +298,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		if r := recover(); r != nil {
 			rr.Output = opts.filetestBuffer.String()
 			rr.GoPanicStack = debug.Stack()
+			rr.TypeCheckError = tcError
 			switch v := r.(type) {
 			case *gno.TypedValue:
 				rr.Error = v.Sprint(m)
@@ -216,7 +306,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 				rr.Error = v.Unwrap().Error()
 			case gno.UnhandledPanicError:
 				rr.Error = v.Error()
-				rr.GnoStacktrace = m.ExceptionsStacktrace()
+				rr.GnoStacktrace = m.ExceptionStacktrace()
 			default:
 				rr.Error = fmt.Sprint(v)
 				rr.GnoStacktrace = m.Stacktrace().String()
@@ -224,56 +314,98 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		}
 	}()
 
+	// Remove filetest from name, as that can lead to the package not being
+	// parsed correctly when using RunMemPackage.
+	fname = strings.ReplaceAll(fname, "_filetest", "")
+
 	// Use last element after / (works also if slash is missing).
-	if !gno.IsRealmPath(pkgPath) {
-		// Simple case - pure package.
+	if !gno.IsRealmPath(pkgPath) { // Simple case - pure package.
+		// Determine package type based on path
+		mptype := gno.MPUserProd
+		if strings.HasSuffix(pkgPath, "_test") {
+			mptype = gno.MPUserIntegration
+		}
+		// Construct mem package for single filetest.
+		mpkg := &std.MemPackage{
+			Type: mptype,
+			Name: string(pkgName),
+			Path: pkgPath,
+			Files: []*std.MemFile{
+				{Name: "gnomod.toml", Body: gno.GenGnoModLatest(pkgPath)},
+				{Name: fname, Body: string(content)},
+			},
+		}
+		// Validate Gno syntax and type check.
+		if tcheck {
+			if _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
+				Getter:     m.Store,
+				TestGetter: m.Store,
+				Mode:       gno.TCLatestRelaxed,
+				Cache:      opts.tcCache,
+			}); err != nil {
+				tcError = fmt.Sprintf("%v", err.Error())
+			}
+		}
+		// Construct throwaway package and parse file.
 		pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
 		pv := pn.NewPackage()
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 		m.SetActivePackage(pv)
-		n := gno.MustParseFile(filename, string(content))
-		m.RunFiles(n)
-		m.RunStatement(gno.S(gno.Call(gno.X("main"))))
-	} else {
-		// Realm case.
+		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
+		fn := gno.MustParseFile(fname, string(content))
+		// Run (add) file, and then run main().
+		m.RunFiles(fn)
+		m.RunMain()
+	} else { // Realm case.
 		gno.DisableDebug() // until main call.
 
-		// Remove filetest from name, as that can lead to the package not being
-		// parsed correctly when using RunMemPackage.
-		filename = strings.ReplaceAll(filename, "_filetest", "")
-
-		// save package using realm crawl procedure.
-		memPkg := &gnovm.MemPackage{
+		// Save package using realm crawl procedure.
+		// Realms are always MPUserProd because they need to be stored
+		mpkg := &std.MemPackage{
+			Type: gno.MPUserProd,
 			Name: string(pkgName),
 			Path: pkgPath,
-			Files: []*gnovm.MemFile{
-				{
-					Name: filename,
-					Body: string(content),
-				},
+			Files: []*std.MemFile{
+				{Name: "gnomod.toml", Body: gno.GenGnoModLatest(pkgPath)},
+				{Name: fname, Body: string(content)},
 			},
 		}
-		orig, tx := m.Store, m.Store.BeginTransaction(nil, nil, nil)
-		m.Store = tx
+		// Start transaction store.
+		orig, txs := m.Store, m.Store.BeginTransaction(nil, nil, nil)
+		m.Store = txs
+		// Validate Gno syntax and type check.
+		if tcheck {
+			if _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
+				Getter:     m.Store,
+				TestGetter: m.Store,
+				Mode:       gno.TCLatestRelaxed,
+				Cache:      opts.tcCache,
+			}); err != nil {
+				tcError = fmt.Sprintf("%v", err.Error())
+			}
+		}
 		// Run decls and init functions.
-		m.RunMemPackage(memPkg, true)
+		m.RunMemPackage(mpkg, true)
+
 		// Clear store cache and reconstruct machine from committed info
 		// (mimicking on-chain behaviour).
-		tx.Write()
+		// (jae) why is this needed?
+		txs.Write()
 		m.Store = orig
-
 		pv2 := m.Store.GetPackage(pkgPath, false)
 		m.SetActivePackage(pv2)
+		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
 		gno.EnableDebug()
-		// clear store.opslog from init function(s).
-		m.Store.SetLogStoreOps(true) // resets.
-		m.RunStatement(gno.S(gno.Call(gno.X("main"))))
-	}
 
+		// Clear store.opslog from init function(s).
+		m.Store.SetLogStoreOps(opslog) // resets.
+		m.RunMainMaybeCrossing()
+	}
 	return runResult{
-		Output:        opts.filetestBuffer.String(),
-		GnoStacktrace: m.Stacktrace().String(),
+		Output:         opts.filetestBuffer.String(),
+		GnoStacktrace:  m.Stacktrace().String(),
+		TypeCheckError: tcError,
 	}
 }
 
@@ -289,13 +421,29 @@ const (
 
 	// These are used to match the result of the filetest against known golden
 	// values.
-	DirectiveOutput       = "Output"
-	DirectiveError        = "Error"
-	DirectiveRealm        = "Realm"
-	DirectiveEvents       = "Events"
-	DirectivePreprocessed = "Preprocessed"
-	DirectiveStacktrace   = "Stacktrace"
+	DirectiveOutput         = "Output"
+	DirectiveError          = "Error"
+	DirectiveRealm          = "Realm"
+	DirectiveEvents         = "Events"
+	DirectivePreprocessed   = "Preprocessed"
+	DirectiveStacktrace     = "Stacktrace"
+	DirectiveStorage        = "Storage"
+	DirectiveTypeCheckError = "TypeCheckError"
 )
+
+var allDirectives = []string{
+	DirectivePkgPath,
+	DirectiveMaxAlloc,
+	DirectiveSend,
+	DirectiveOutput,
+	DirectiveError,
+	DirectiveRealm,
+	DirectiveEvents,
+	DirectivePreprocessed,
+	DirectiveStacktrace,
+	DirectiveStorage,
+	DirectiveTypeCheckError,
+}
 
 // Directives contains the directives of a file.
 // It may also contains directives with empty names, to indicate parts of the
@@ -328,15 +476,23 @@ func (d Directives) FirstDefault(name, defaultValue string) string {
 // FileTest re-generates the filetest from the given directives; the inverse of ParseDirectives.
 func (d Directives) FileTest() string {
 	var bld strings.Builder
-	for _, dir := range d {
+	for i, dir := range d {
+		ll := ""
+		if i < len(d)-1 {
+			ll = "\n"
+		}
 		switch {
 		case dir.Name == "":
-			bld.WriteString(dir.Content)
-		case strings.ToUpper(dir.Name) == dir.Name: // is it all uppercase?
-			bld.WriteString("// " + dir.Name + ": " + dir.Content + "\n")
+			cnt := strings.TrimRight(dir.Content, "\n ")
+			bld.WriteString(cnt + "\n" + ll)
+		case strings.ToUpper(dir.Name) == dir.Name: // ALLCAPS:
+			bld.WriteString("// " + dir.Name + ": " + dir.Content + ll)
 		default:
+			if dir.Content == "" || dir.Content == "\n" {
+				continue
+			}
 			bld.WriteString("// " + dir.Name + ":\n")
-			cnt := strings.TrimSuffix(dir.Content, "\n")
+			cnt := strings.TrimRight(dir.Content, "\n ")
 			lines := strings.Split(cnt, "\n")
 			for _, line := range lines {
 				if line == "" {
@@ -344,9 +500,10 @@ func (d Directives) FileTest() string {
 					continue
 				}
 				bld.WriteString("// ")
-				bld.WriteString(strings.TrimRight(line, " "))
-				bld.WriteByte('\n')
+				bld.WriteString(line)
+				bld.WriteString("\n")
 			}
+			bld.WriteString(ll)
 		}
 	}
 	return bld.String()
@@ -357,65 +514,117 @@ func (d Directives) FileTest() string {
 // these compose the source file itself, and are used to re-construct the file
 // when a directive is changed.
 type Directive struct {
-	Name    string
-	Content string
+	Name     string
+	Content  string
+	Complete bool
+	LastLine string
 }
 
 // Allows either a `ALLCAPS: content` on a single line, or a `PascalCase:`,
 // with content on the following lines.
-var reDirectiveLine = regexp.MustCompile("^(?:([A-Z][a-z]*):|([A-Z]+): ?(.*))$")
+var reDirectiveLine = regexp.MustCompile("^(?:([A-Za-z]*):|([A-Z]+): ?(.*))$")
 
 // ParseDirectives parses all the directives in the filetest given at source.
 func ParseDirectives(source io.Reader) (Directives, error) {
 	sc := bufio.NewScanner(source)
 	parsed := make(Directives, 0, 8)
+	parsed = append(parsed, Directive{LastLine: "// FAUX: faux directive", Complete: true}) // faux directive.
 	for sc.Scan() {
-		// Re-append trailing newline.
-		// Useful as we always use it anyway.
-		txt := sc.Text() + "\n"
+		last := &parsed[len(parsed)-1]
+		txt := sc.Text()
 		if !strings.HasPrefix(txt, "//") {
-			if len(parsed) == 0 || parsed[len(parsed)-1].Name != "" {
-				parsed = append(parsed, Directive{Content: txt})
+			// If we're already in an incomplete text directive, simply append there.
+			if last.Name == "" && !last.Complete {
+				last.Content += txt + "\n"
+				last.LastLine = txt
 				continue
 			}
-			parsed[len(parsed)-1].Content += txt
+			// Otherwise make a new directive.
+			parsed = append(parsed,
+				Directive{
+					Content:  txt + "\n",
+					LastLine: txt,
+				})
 			continue
 		}
 
-		comment := txt[2 : len(txt)-1]             // leading double slash, trailing \n
+		comment := txt[2:]                         // leading double slash
 		comment = strings.TrimPrefix(comment, " ") // leading space (if any)
 
-		// If we're already in a directive, simply append there.
-		if len(parsed) > 0 && parsed[len(parsed)-1].Name != "" {
-			parsed[len(parsed)-1].Content += comment + "\n"
-			continue
+		// Special case if following an incomplete comment line,
+		// always append to it even if it looks like `// TODO: ...`.
+		if strings.HasPrefix(txt, "//") &&
+			strings.HasPrefix(last.LastLine, "//") &&
+			!last.Complete {
+			if last.Name == "" {
+				// Just append text to it.
+				last.Content += txt + "\n"
+				last.LastLine = txt
+				continue
+			} else {
+				// Just append comment to it.
+				last.Content += comment + "\n"
+				last.LastLine = txt
+				continue
+			}
 		}
 
 		// Find if there is a colon (indicating a possible directive).
 		subm := reDirectiveLine.FindStringSubmatch(comment)
-		switch {
-		case subm == nil:
-			// Not found; append to parsed as a line, or to the previous
-			// directive if it exists.
-			if len(parsed) == 0 {
-				parsed = append(parsed, Directive{Content: txt})
-				continue
-			}
-			last := &parsed[len(parsed)-1]
+		if subm != nil && slices.Contains(allDirectives, subm[1]) {
+			// CamelCase directive.
+			parsed = append(parsed,
+				Directive{
+					Name:     subm[1],
+					LastLine: txt,
+				})
+			continue
+		}
+		if subm != nil && slices.Contains(allDirectives, subm[2]) {
+			// APPCAPS directive.
+			parsed = append(parsed,
+				Directive{
+					Name:     subm[2],
+					Content:  subm[3],
+					Complete: true,
+				})
+			continue
+		}
+
+		// Not a directive, just a comment.
+		// If we're already in an incomplete directive, simply append there.
+		if !last.Complete {
 			if last.Name == "" {
-				last.Content += txt
+				last.Content += txt + "\n"
+				last.LastLine = txt
+				continue
 			} else {
 				last.Content += comment + "\n"
+				last.LastLine = txt
+				continue
 			}
-		case subm[1] != "": // output directive, with content on newlines
-			parsed = append(parsed, Directive{Name: subm[1]})
-		default: // subm[2] != "", all caps
-			parsed = append(parsed,
-				Directive{Name: subm[2], Content: subm[3]},
-				// enforce new directive later
-				Directive{},
-			)
 		}
+		// Otherwise make a new directive.
+		parsed = append(parsed,
+			Directive{
+				Content:  txt + "\n",
+				LastLine: txt,
+			})
 	}
-	return parsed, sc.Err()
+
+	// Remove trailing (newline|space)* and filter empty directives.
+	result := make([]Directive, 0, len(parsed))
+	parsed = parsed[1:] // remove faux directive
+	for _, dir := range parsed {
+		content := dir.Content
+		content = strings.TrimRight(content, "\n ")
+		if content == "" {
+			continue
+		}
+		dir.Content = content
+		result = append(result, dir)
+		// fmt.Printf("#%d %s: [[[%s]]]\n", i, dir.Name, dir.Content)
+	}
+
+	return result, sc.Err()
 }

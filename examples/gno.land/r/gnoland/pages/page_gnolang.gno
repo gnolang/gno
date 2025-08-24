@@ -3,7 +3,7 @@ package gnopages
 func init() {
 	var (
 		path  = "gnolang"
-		title = "About the Gno, the Language for gno.land"
+		title = "About the Gno, the Language for Gno.land"
 		// TODO fix broken images
 		body = `
 
@@ -15,7 +15,7 @@ Under the hood, the Gno code is parsed into an abstract syntax tree (AST) and th
 
 ![Gno and Go differences](static/img/gno-language/go-and-gno.jpg)
 
-The composable nature of Go/Gno allows for type-checked interactions between contracts, making gno.land safer and more powerful, as well as operationally cheaper and faster. Smart contracts on gno.land are light, simple, more focused, and easily interoperable—a network of interconnected contracts rather than siloed monoliths that limit interactions with other contracts.
+The composable nature of Go/Gno allows for type-checked interactions between contracts, making Gno.land safer and more powerful, as well as operationally cheaper and faster. Smart contracts on Gno.land are light, simple, more focused, and easily interoperable—a network of interconnected contracts rather than siloed monoliths that limit interactions with other contracts.
 
 ![Example of Gno code](static/img/gno-language/code-example.jpg)
 
@@ -39,5 +39,7 @@ Using Gno, developers can rapidly accelerate application development and adopt a
 
 The Go language is so well designed that the Gno smart contract system will become the new gold standard for smart contract development and other blockchain applications. As a programming language that is universally adopted, secure, composable, and complete, Gno is essential for the broader adoption of web3 and its sustainable growth.`
 	)
-	_ = b.NewPost("", path, title, body, "2022-05-20T13:17:25Z", nil, nil)
+	if err := b.NewPost("", path, title, body, "2022-05-20T13:17:24Z", nil, nil); err != nil {
+		panic(err)
+	}
 }

@@ -24,7 +24,7 @@ func generateTxs(t *testing.T, count int) []TxWithMetadata {
 
 	txs := make([]TxWithMetadata, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		txs[i] = TxWithMetadata{
 			Tx: std.Tx{
 				Msgs: []std.Msg{
@@ -112,7 +112,7 @@ func TestReadGenesisTxs(t *testing.T) {
 			encodedTx, err := amino.MarshalJSON(tx)
 			require.NoError(t, err)
 
-			_, err = file.WriteString(fmt.Sprintf("%s\n", encodedTx))
+			_, err = fmt.Fprintf(file, "%s\n", encodedTx)
 			require.NoError(t, err)
 		}
 

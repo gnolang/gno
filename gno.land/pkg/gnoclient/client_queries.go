@@ -50,7 +50,7 @@ func (c *Client) QueryAccount(addr crypto.Address) (*std.BaseAccount, *ctypes.Re
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "query account")
 	}
-	if qres.Response.Data == nil || len(qres.Response.Data) == 0 || string(qres.Response.Data) == "null" {
+	if len(qres.Response.Data) == 0 || string(qres.Response.Data) == "null" {
 		return nil, nil, std.ErrUnknownAddress("unknown address: " + crypto.AddressToBech32(addr))
 	}
 
@@ -90,7 +90,7 @@ func (c *Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCI
 	}
 
 	path := "vm/qrender"
-	data := []byte(fmt.Sprintf("%s:%s", pkgPath, args))
+	data := fmt.Appendf(nil, "%s:%s", pkgPath, args)
 
 	qres, err := c.RPCClient.ABCIQuery(path, data)
 	if err != nil {
@@ -113,7 +113,7 @@ func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.Resul
 	}
 
 	path := "vm/qeval"
-	data := []byte(fmt.Sprintf("%s.%s", pkgPath, expression))
+	data := fmt.Appendf(nil, "%s.%s", pkgPath, expression)
 
 	qres, err := c.RPCClient.ABCIQuery(path, data)
 	if err != nil {

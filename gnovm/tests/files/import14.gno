@@ -1,10 +1,10 @@
-// PKGPATH: github.com/gnolang/gno/_test/foo
+// PKGPATH: filetests/extern/foo
 
 package foo
 
 import (
-	"github.com/gnolang/gno/_test/foo/internal"
-	"github.com/gnolang/gno/_test/foo/internal/aa"
+	"filetests/extern/foo/internal"
+	"filetests/extern/foo/internal/aa"
 )
 
 func main() {

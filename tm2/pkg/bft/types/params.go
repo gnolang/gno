@@ -4,6 +4,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
@@ -31,7 +32,8 @@ const (
 )
 
 var validatorPubKeyTypeURLs = map[string]struct{}{
-	amino.GetTypeURL(ed25519.PubKeyEd25519{}): {},
+	amino.GetTypeURL(ed25519.PubKeyEd25519{}):     {},
+	amino.GetTypeURL(secp256k1.PubKeySecp256k1{}): {},
 }
 
 func DefaultConsensusParams() abci.ConsensusParams {
@@ -53,6 +55,7 @@ func DefaultBlockParams() *abci.BlockParams {
 func DefaultValidatorParams() *abci.ValidatorParams {
 	return &abci.ValidatorParams{PubKeyTypeURLs: []string{
 		amino.GetTypeURL(ed25519.PubKeyEd25519{}),
+		amino.GetTypeURL(secp256k1.PubKeySecp256k1{}),
 	}}
 }
 
@@ -81,7 +84,7 @@ func ValidateConsensusParams(params abci.ConsensusParams) error {
 	}
 
 	// Check if keyType is a known ABCIPubKeyType
-	for i := 0; i < len(params.Validator.PubKeyTypeURLs); i++ {
+	for i := range params.Validator.PubKeyTypeURLs {
 		keyType := params.Validator.PubKeyTypeURLs[i]
 		if _, ok := validatorPubKeyTypeURLs[keyType]; !ok {
 			return errors.New("params.Validator.PubKeyTypeURLs[%d], %s, is an unknown pubKey type",

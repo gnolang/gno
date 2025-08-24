@@ -1,6 +1,8 @@
 package multisig
 
 import (
+	"strings"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
@@ -31,7 +33,12 @@ func NewPubKeyMultisigThreshold(k int, pubkeys []crypto.PubKey) crypto.PubKey {
 }
 
 func (pk PubKeyMultisigThreshold) String() string {
-	panic("not yet implemented")
+	pubKeys := make([]string, len(pk.PubKeys))
+	for i, key := range pk.PubKeys {
+		pubKeys[i] = key.String()
+	}
+
+	return "[" + strings.Join(pubKeys, ", ") + "]"
 }
 
 // VerifyBytes expects sig to be an amino encoded version of a MultiSignature.
@@ -61,7 +68,7 @@ func (pk PubKeyMultisigThreshold) VerifyBytes(msg []byte, marshalledSig []byte) 
 	}
 	// index in the list of signatures which we are concerned with.
 	sigIndex := 0
-	for i := 0; i < size; i++ {
+	for i := range size {
 		if sig.BitArray.GetIndex(i) {
 			if !pk.PubKeys[i].VerifyBytes(msg, sig.Sigs[sigIndex]) {
 				return false
@@ -92,7 +99,7 @@ func (pk PubKeyMultisigThreshold) Equals(other crypto.PubKey) bool {
 	if pk.K != otherKey.K || len(pk.PubKeys) != len(otherKey.PubKeys) {
 		return false
 	}
-	for i := 0; i < len(pk.PubKeys); i++ {
+	for i := range pk.PubKeys {
 		if !pk.PubKeys[i].Equals(otherKey.PubKeys[i]) {
 			return false
 		}

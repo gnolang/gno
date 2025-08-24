@@ -14,7 +14,7 @@ import (
 const embedmd = `[embedmd]:# `
 
 // Regular expression to match markdown links
-var regex = regexp.MustCompile(`]\((\.\.?/.+?)\)`)
+var regex = regexp.MustCompile(`]\(([^)]+)\)`)
 
 // extractLocalLinks extracts links to local files from the given file content
 func extractLocalLinks(fileContent []byte) []string {
@@ -52,6 +52,11 @@ func extractLocalLinks(fileContent []byte) []string {
 			// Remove ]( from the beginning and ) from end of link
 			match = match[2 : len(match)-1]
 
+			// Ignore http, https, tcp, ws links
+			if shouldIgnoreLink(match) {
+				continue
+			}
+
 			// Remove markdown headers in links
 			if pos := strings.Index(match, "#"); pos != -1 {
 				match = match[:pos]
@@ -79,7 +84,10 @@ func lintLocalLinks(filepathToLinks map[string][]string) (string, error) {
 					found = true
 				}
 
-				output.WriteString(fmt.Sprintf(">>> %s (found in file: %s)\n", link, filePath))
+				absSourcePath, _ := filepath.Abs(filePath)
+				output.WriteString(
+					fmt.Sprintf(">>> %s (found in file: file://%s)\n", link, absSourcePath),
+				)
 			}
 		}
 	}
@@ -89,4 +97,8 @@ func lintLocalLinks(filepathToLinks map[string][]string) (string, error) {
 	}
 
 	return "", nil
+}
+
+func shouldIgnoreLink(m string) bool {
+	return strings.HasPrefix(m, "http") || strings.HasPrefix(m, "https") || strings.HasPrefix(m, "ws") || strings.HasPrefix(m, "tcp")
 }
