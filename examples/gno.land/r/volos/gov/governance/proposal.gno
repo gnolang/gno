@@ -90,6 +90,10 @@ func CreateProposal(cur realm, title, body string, votingPeriod time.Duration, a
 		panic(ErrInsufficientXVLS)
 	}
 
+	if votingPeriod > maximumProposalDuration {
+		panic(ErrVotingPeriodExceedsMaximum)
+	}
+
 	def := VolosProposalDefinition{
 		TitleField:        title,
 		BodyField:         body,
@@ -118,7 +122,7 @@ func Execute(cur realm, proposalID uint64) {
 		panic(err)
 	}
 
-	emitProposalExecuted(caller, proposalID)
+	emitProposalExecuted(caller, proposalID, string(volosGovernance.GetProposal(proposalID).Status()))
 }
 
 // GetUserActiveProposals returns all active proposals that the given user has voted on.

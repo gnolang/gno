@@ -10,6 +10,7 @@ package governance
 
 import (
 	"std"
+	"time"
 
 	"gno.land/p/moul/authz"
 	"gno.land/p/nt/commondao"
@@ -19,6 +20,7 @@ var (
 	volosGovernance   *commondao.CommonDAO
 	proposalThreshold int64 = 1000 //min xVLS required to create a proposal
 	votingPowerQuorum int64 = 1000 //minimum xVLS voting power required for a proposal to pass (0 = disabled)
+	maximumProposalDuration time.Duration = 14 * 24 * time.Hour //maximum duration of a proposal
 
 	authorizer = authz.NewWithAuthority(authz.NewMemberAuthority(
 		std.DerivePkgAddr("gno.land/r/volos/gov/staker"),
@@ -55,6 +57,14 @@ func SetVotingPowerQuorum(newQuorum int64) {
 	})
 }
 
+// SetMaximumProposalDuration allows governance to change the maximum proposal duration.
+func SetMaximumProposalDuration(newMax time.Duration) {
+	authorizer.DoByCurrent("set_maximum_proposal_duration", func() error {
+		maximumProposalDuration = newMax
+		return nil
+	})
+}
+
 // MemberSet returns a read-only view of the current member set for analytics and governance logic.
 func MemberSet() commondao.MemberSet {
 	return commondao.NewMemberSet(volosGovernance.Members())
@@ -73,6 +83,11 @@ func VotingPowerQuorum() int64 {
 // VotingPowerQuorumEnabled returns whether voting power quorum enforcement is enabled.
 func VotingPowerQuorumEnabled() bool {
 	return votingPowerQuorum > 0
+}
+
+// MaximumProposalDuration returns the current maximum allowed proposal duration.
+func MaximumProposalDuration() time.Duration {
+	return maximumProposalDuration
 }
 
 // Render function for explorer integration.

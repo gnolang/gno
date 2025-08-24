@@ -8,4 +8,5 @@ var (
 	ErrNoXVLS               = errors.New("cannot add member: address does not hold any xVLS")
 	ErrVotingDeadlineNotMet = errors.New("voting deadline not met")
 	ErrNotStaker            = errors.New("only staker can call this function")
+	ErrVotingPeriodExceedsMaximum = errors.New("voting period exceeds maximum allowed duration")
 )

@@ -446,3 +446,34 @@ func TestProposal_QuorumChangesDontAffectActiveProposals(cur realm, t *testing.T
 		SetVotingPowerQuorum(1000)
 	})
 }
+
+func TestProposal_MaximumDurationEnforced(cur realm, t *testing.T) {
+	staker := "gno.land/r/volos/gov/staker"
+	gov := "gno.land/r/volos/gov/governance"
+	alice := std.DerivePkgAddr("gno.land/r/volos/gov/alice")
+
+	crossThrough(std.NewCodeRealm(staker), func() {
+		xvls.Mint(cross, alice, 10_000)
+		AddMember(cross, alice)
+	})
+
+	max := MaximumProposalDuration()
+	urequire.True(t, max > 0)
+
+	crossThrough(std.NewUserRealm(alice), func() {
+		uassert.AbortsWithMessage(t, "voting period exceeds maximum allowed duration", func() {
+			CreateProposal(cross, "Too long", "Body", max+time.Second, func() {})
+		})
+	})
+
+	crossThrough(std.NewCodeRealm(gov), func() {
+		SetMaximumProposalDuration(max + time.Hour)
+	})
+
+	urequire.Equal(t, int64(max+time.Hour), int64(MaximumProposalDuration()))
+
+	crossThrough(std.NewUserRealm(alice), func() {
+		p := CreateProposal(cross, "Within new max", "Body", max+time.Second, func() {})
+		urequire.NotEqual(t, nil, p)
+	})
+}

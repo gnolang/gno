@@ -44,6 +44,7 @@ const (
 	EventNewThresholdKey = "new_threshold"
 	EventQuorumKey       = "quorum"
 	EventXvlsAmountKey   = "xvls_amount"
+	EventStatusKey       = "status"
 )
 
 func emitProposalCreated(caller std.Address, proposalID uint64, title, body string, deadline, quorum int64) {
@@ -59,11 +60,12 @@ func emitProposalCreated(caller std.Address, proposalID uint64, title, body stri
 	)
 }
 
-func emitProposalExecuted(caller std.Address, proposalID uint64) {
+func emitProposalExecuted(caller std.Address, proposalID uint64, status string) {
 	std.Emit(
 		EventProposalExecuted,
 		EventCallerKey, caller.String(),
 		EventProposalIDKey, strconv.FormatUint(proposalID, 10),
+		EventStatusKey, status,
 		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
