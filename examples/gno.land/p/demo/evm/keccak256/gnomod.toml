@@ -1,0 +1,2 @@
+module = "gno.land/p/demo/evm/keccak256"
+gno = "0.9"
