@@ -1,45 +1,45 @@
 package oo
 
 import (
-	"time"
 	"std"
 	"strconv"
+	"time"
 
 	"crypto/sha256"
 	"encoding/hex"
 )
 
 type Vote struct {
-	RequestId string
-	Voter std.Address
+	RequestId   string
+	Voter       std.Address
 	TokenAmount int64
-	Hash string
-	Value int64
-	Revealed bool
+	Hash        string
+	Value       int64
+	Revealed    bool
 }
 
 type Voter struct {
-	HasVoted bool
+	HasVoted  bool
 	VoteIndex int64
 }
 
 type Dispute struct {
-	RequestId string
-	Votes []Vote
+	RequestId       string
+	Votes           []Vote
 	NbResolvedVotes int64
-	Voters map[std.Address]Voter
-	IsResolved bool
-	WinningValue int64
-	EndTime time.Time
-	EndRevealTime time.Time
+	Voters          map[std.Address]Voter
+	IsResolved      bool
+	WinningValue    int64
+	EndTime         time.Time
+	EndRevealTime   time.Time
 }
 
 var (
-	Disputes map[string]Dispute
+	Disputes        map[string]Dispute
 	DisputeDuration int64 = 2 * int64(time.Minute.Seconds())
-	RevealDuration int64 = 2 * int64(time.Minute.Seconds())
-	VoteTokenPrice int64 = 1 * int64(1_000_000) // in GNOT
-	VoteToken *OOT
+	RevealDuration  int64 = 2 * int64(time.Minute.Seconds())
+	VoteTokenPrice  int64 = 1 * int64(1_000_000) // in GNOT
+	VoteToken       *OOT
 )
 
 func init() {
@@ -52,12 +52,12 @@ func initiateDispute(id string) {
 		panic("Error: Dispute for this request already exists.")
 	}
 	dispute := Dispute{
-		RequestId: id,
-		Votes:     []Vote{},
-		Voters:    make(map[std.Address]Voter),
-		IsResolved: false,
-		EndTime: time.Now().Add(time.Duration(DisputeDuration) * time.Second),
-		EndRevealTime: time.Now().Add(time.Duration(DisputeDuration + RevealDuration) * time.Second),
+		RequestId:     id,
+		Votes:         []Vote{},
+		Voters:        make(map[std.Address]Voter),
+		IsResolved:    false,
+		EndTime:       time.Now().Add(time.Duration(DisputeDuration) * time.Second),
+		EndRevealTime: time.Now().Add(time.Duration(DisputeDuration+RevealDuration) * time.Second),
 	}
 	Disputes[id] = dispute
 	std.Emit("DisputeInitiated", "id", id)
@@ -67,20 +67,20 @@ func initiateDispute(id string) {
 
 // BuyInitialVoteToken allows a user to buy their first vote token by sending VoteTokenPrice amount of ugnot.
 func BuyInitialVoteToken(_ realm) {
-    caller := std.OriginCaller()
-    coins := std.OriginSend()
-    expected := std.Coin{Denom: "ugnot", Amount: VoteTokenPrice}
-    if len(coins) != 0 && !coins[0].IsEqual(expected) {
-        panic("Error: Must send exactly " + strconv.Itoa(int(VoteTokenPrice / 1_000_000)) + " gnot to get a vote token.")
-    }
+	caller := std.OriginCaller()
+	coins := std.OriginSend()
+	expected := std.Coin{Denom: "ugnot", Amount: VoteTokenPrice}
+	if len(coins) != 0 && !coins[0].IsEqual(expected) {
+		panic("Error: Must send exactly " + strconv.Itoa(int(VoteTokenPrice/1_000_000)) + " gnot to get a vote token.")
+	}
 
-    balance := VoteToken.BalanceOf(caller)
-    if balance > 0 {
-        panic("Error: You already have a vote token.")
-    }
+	balance := VoteToken.BalanceOf(caller)
+	if balance > 0 {
+		panic("Error: You already have a vote token.")
+	}
 
-    VoteToken.Mint(caller, 1)
-    std.Emit("VoteTokenPurchased", "voter", caller.String())
+	VoteToken.Mint(caller, 1)
+	std.Emit("VoteTokenPurchased", "voter", caller.String())
 }
 
 // BalanceOfVoteToken returns the number of vote tokens held by the caller.
@@ -112,11 +112,11 @@ func VoteOnDispute(cur realm, id string, hash string) {
 	}
 
 	vote := Vote{
-		RequestId:  id,
-		Voter:      std.PreviousRealm().Address(),
+		RequestId:   id,
+		Voter:       std.PreviousRealm().Address(),
 		TokenAmount: amount,
-		Hash:       hash,
-		Revealed:   false,
+		Hash:        hash,
+		Revealed:    false,
 	}
 	if dispute.Voters[vote.Voter].HasVoted {
 		panic("Error: Voter has already voted in this dispute.")
@@ -157,7 +157,7 @@ func RevealVote(cur realm, id string, value int64, salt string) {
 	// Verify the hash
 	res := sha256.Sum256([]byte(strconv.FormatInt(value, 10) + salt))
 	expectedHash := hex.EncodeToString(res[:])
-	if (vote.Hash != expectedHash) {
+	if vote.Hash != expectedHash {
 		panic("Error: Hash does not match the revealed value and salt.")
 	}
 	vote.Value = value

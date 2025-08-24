@@ -1,38 +1,38 @@
 package oo
 
 import (
-	"time"
-	"std"
-	"strconv"
 	"crypto/sha256"
 	"encoding/hex"
+	"std"
+	"strconv"
+	"time"
 )
 
 type DataRequest struct {
-	Id string
-	Creator std.Address
-	Timestamp time.Time
-	AncillaryData string
-	YesNoQuestion bool
-	ProposedValue int64
-	Proposer std.Address
-	ProposerBond int64
-	Disputer std.Address
-	DisputerBond int64
+	Id             string
+	Creator        std.Address
+	Timestamp      time.Time
+	AncillaryData  string
+	YesNoQuestion  bool
+	ProposedValue  int64
+	Proposer       std.Address
+	ProposerBond   int64
+	Disputer       std.Address
+	DisputerBond   int64
 	ResolutionTime time.Time
-	WinningValue int64
-	State string // "Requested", "Proposed", "Disputed", "Resolved"
-	Deadline time.Time
+	WinningValue   int64
+	State          string // "Requested", "Proposed", "Disputed", "Resolved"
+	Deadline       time.Time
 }
 
 var (
 	Requests map[string]DataRequest
 
-	admin = std.Address("g1qdwemgqgqm7s42gy6xcj7f22uhfdzr82st3sy3")
-	ResolutionTime int64 = 2 * int64(time.Minute.Seconds())
+	admin                 = std.Address("g1qdwemgqgqm7s42gy6xcj7f22uhfdzr82st3sy3")
+	ResolutionTime  int64 = 2 * int64(time.Minute.Seconds())
 	RequesterReward int64 = 1 * int64(1_000_000) // in GNOT
-	Bond int64 = 2 * int64(1_000_000) // in GNOT
-	Bank std.Banker
+	Bond            int64 = 2 * int64(1_000_000) // in GNOT
+	Bank            std.Banker
 )
 
 func init() {
@@ -63,7 +63,7 @@ func RequestData(cur realm, ancillaryData string, yesNoQuestion bool, deadline i
 	if ancillaryData == "" {
 		panic("Error: Ancillary data cannot be empty.")
 	}
-	if deadline < time.Now().Add(24 * time.Hour).Unix() {
+	if deadline < time.Now().Add(24*time.Hour).Unix() {
 		panic("Error: Deadline must be at least 24 hours in the future.")
 	}
 
@@ -232,9 +232,7 @@ func RequesterRetreiveFund(cur realm, id string) {
 	std.Emit("RequestExpired", "id", id)
 }
 
-
 // -- ADMIN FUNCTIONS --
-
 
 // SetResolutionDuration sets the duration (in seconds) for the resolution period.
 // @param duration - The new resolution duration in seconds.
@@ -321,4 +319,3 @@ func GetRequestState(_ realm, id string) string {
 func GetAdmin(_ realm) std.Address {
 	return admin
 }
-

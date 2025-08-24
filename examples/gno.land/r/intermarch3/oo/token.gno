@@ -2,6 +2,7 @@ package oo
 
 import (
 	"std"
+
 	"gno.land/p/demo/grc/grc20"
 )
 
@@ -9,7 +10,6 @@ type OOT struct {
 	*grc20.Token
 	*grc20.PrivateLedger
 }
-
 
 func newOOToken(name, symbol string, decimals int) *OOT {
 	token := &OOT{}

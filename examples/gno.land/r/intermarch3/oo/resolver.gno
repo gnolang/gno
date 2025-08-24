@@ -18,7 +18,7 @@ func resolve(id string) int64 {
 	}
 }
 
-func resolveYesNo(dispute Dispute) int64{
+func resolveYesNo(dispute Dispute) int64 {
 	yesVotes := int64(0)
 	noVotes := int64(0)
 	for _, vote := range dispute.Votes {
@@ -53,11 +53,11 @@ func resolveNumeric(dispute Dispute) int64 {
 			valueWeights[vote.Value] += vote.TokenAmount
 		}
 	}
-	
+
 	// Find the value with the most token weight
 	var winningValue int64
 	var maxWeight int64
-	
+
 	for value, weight := range valueWeights {
 		if weight > maxWeight {
 			maxWeight = weight
@@ -75,7 +75,7 @@ func rewardAndSlachVoters(dispute Dispute, winningValue, totalWeight int64) {
 				// Reward winning voters
 				VoteToken.mint(vote.Voter, 2)
 				reward := Bond * (vote.TokenAmount / totalWeight)
-				if (reward != 0) {
+				if reward != 0 {
 					Bank.SendCoins(std.CurrentRealm().Address(), vote.Voter, std.Coins{std.Coin{Denom: "ugnot", Amount: reward}})
 				}
 				std.Emit("VoterRewarded", "voter", vote.Voter.String())

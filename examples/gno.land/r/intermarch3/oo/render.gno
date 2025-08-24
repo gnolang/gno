@@ -1,13 +1,14 @@
 package oo
 
 import (
-	"gno.land/p/moul/md"
-	"gno.land/p/moul/realmpath"
-	"gno.land/p/moul/txlink"
-	"gno.land/p/demo/ufmt"
 	"std"
 	"strconv"
 	"time"
+
+	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/md"
+	"gno.land/p/moul/realmpath"
+	"gno.land/p/moul/txlink"
 )
 
 const DateFormat = "January 2 2006, 03:04:04 PM"
@@ -23,8 +24,8 @@ func Render(path string) string {
 func renderHome() string {
 	msg := md.H1("OO Home")
 	msg += md.Paragraph("Welcome to the first Optimistic Oracle on GnoLand! This project is developed by " + md.Link("@intermarch3", "/r/intermarch3/home"))
-	msg += md.Paragraph("For more information, visit the " + md.Link("Readme", std.CurrentRealm().PkgPath()[8:] + "$source") + ".")
-	msg += md.Link("Request Data", ufmt.Sprintf("%s", txlink.NewLink("RequestData").AddArgs("id", "YOUR_ID", "ancillaryData", "YOUR_QUESTION", "yesNoQuestion", "true or false").SetSend(strconv.Itoa(int(RequesterReward))).URL())) + "\n\n(Note: Requesting data need to pay a reward of " + strconv.Itoa(int(RequesterReward / 1_000_000)) + " GNOT to the proposer).\n\n"
+	msg += md.Paragraph("For more information, visit the " + md.Link("Readme", std.CurrentRealm().PkgPath()[8:]+"$source") + ".")
+	msg += md.Link("Request Data", ufmt.Sprintf("%s", txlink.NewLink("RequestData").AddArgs("id", "YOUR_ID", "ancillaryData", "YOUR_QUESTION", "yesNoQuestion", "true or false").SetSend(strconv.Itoa(int(RequesterReward))).URL())) + "\n\n(Note: Requesting data need to pay a reward of " + strconv.Itoa(int(RequesterReward/1_000_000)) + " GNOT to the proposer).\n\n"
 	msg += md.H2("Current Requests :")
 	// List current requests
 	var table []string
@@ -50,7 +51,7 @@ func renderHome() string {
 			resolved = append(resolved, md.Paragraph(req.AncillaryData))
 			resolved = append(resolved, md.Paragraph(rendervalue(req, req.WinningValue)))
 			resolved = append(resolved, md.Paragraph(req.Proposer.String()))
-			resolved = append(resolved, md.Link("Click here", std.CurrentRealm().PkgPath()[8:] + ":" + req.Id))
+			resolved = append(resolved, md.Link("Click here", std.CurrentRealm().PkgPath()[8:]+":"+req.Id))
 		}
 	}
 	msg += md.ColumnsN(resolved, 4, false)
@@ -67,24 +68,24 @@ func renderRequestPage(id string) string {
 	}
 	msg := md.H1("Question: " + req.AncillaryData)
 	msg += md.H2("Details:\n\n")
-	msg += md.H3("Request ID: " + req.Id) + "\n\n"
-	msg += md.H3("Requested at: " + req.Timestamp.Format(DateFormat)) + "\n\n"
+	msg += md.H3("Request ID: "+req.Id) + "\n\n"
+	msg += md.H3("Requested at: "+req.Timestamp.Format(DateFormat)) + "\n\n"
 	if req.State == "Requested" && req.Deadline.Unix() < time.Now().Unix() {
 		msg += md.H3("Deadline Missed: requests not fulfilled") + "\n\n"
 		return msg
-	} 
-	msg += md.H3("State: " + req.State) + "\n\n"
+	}
+	msg += md.H3("State: "+req.State) + "\n\n"
 	if req.State == "Requested" {
 		msg += md.Paragraph("This request has not been proposed yet.") + "\n\n"
-		msg += md.H3("The reward for the proposer is " + strconv.Itoa(int(RequesterReward / 1_000_000)) + " GNOT.") + "\n\n"
+		msg += md.H3("The reward for the proposer is "+strconv.Itoa(int(RequesterReward/1_000_000))+" GNOT.") + "\n\n"
 		msg += renderAction(req)
 		return msg
 	}
 	if req.State == "Resolved" {
-		msg += md.H3("Winning Value: " + rendervalue(req, req.WinningValue)) + "\n\n"
+		msg += md.H3("Winning Value: "+rendervalue(req, req.WinningValue)) + "\n\n"
 		dispute, exist := Disputes[req.Id]
 		if !exist {
-			msg += md.Paragraph("Value Proposed by: " + req.Proposer.String()) + "\n\n"
+			msg += md.Paragraph("Value Proposed by: "+req.Proposer.String()) + "\n\n"
 			return msg
 		}
 		msg += md.Paragraph("Number of Votes: " + strconv.Itoa(len(dispute.Votes)) + "\n\n")
@@ -97,9 +98,9 @@ func renderRequestPage(id string) string {
 		return msg
 	}
 	if req.State == "Proposed" {
-		msg += md.Paragraph("Proposed by: " + req.Proposer.String()) + "\n\n"
-		msg += md.H3("Proposed Value: " + rendervalue(req, req.ProposedValue)) + "\n\n"
-		msg += md.H3("End Resolution Time: " + req.ResolutionTime.Format(DateFormat)) + "\n\n"
+		msg += md.Paragraph("Proposed by: "+req.Proposer.String()) + "\n\n"
+		msg += md.H3("Proposed Value: "+rendervalue(req, req.ProposedValue)) + "\n\n"
+		msg += md.H3("End Resolution Time: "+req.ResolutionTime.Format(DateFormat)) + "\n\n"
 	}
 	if req.State == "Disputed" {
 		dispute, exists := Disputes[req.Id]
@@ -156,17 +157,17 @@ func renderRequest(req DataRequest) []string {
 		table = append(table, md.Paragraph(rendervalue(req, req.ProposedValue)))
 	}
 	table = append(table, md.Paragraph(req.State))
-	table = append(table, md.Link("Click here", std.CurrentRealm().PkgPath()[8:] + ":" + req.Id))
+	table = append(table, md.Link("Click here", std.CurrentRealm().PkgPath()[8:]+":"+req.Id))
 	return table
 }
 
 func renderAction(req DataRequest) string {
 	action := md.H2("Actions:\n\n")
-	if (req.State == "Requested") {
-		action += md.Link("Propose a value", ufmt.Sprintf("%s", txlink.NewLink("ProposeData").AddArgs("id", req.Id, "proposedValue", "YOUR_VALUE_HERE").SetSend(strconv.Itoa(int(Bond))).URL())) + "\n\n(Note: Proposing need to bond " + strconv.Itoa(int(Bond / 1_000_000)) + " GNOT)"
-	} else if (req.State == "Proposed") {
-		action += md.Link("Dispute value", ufmt.Sprintf("%s", txlink.NewLink("DisputeData").AddArgs("id", req.Id).SetSend(strconv.Itoa(int(Bond))).URL())) + "\n\n(Note: Disputing need to bond " + strconv.Itoa(int(Bond / 1_000_000)) + " GNOT)"
-	} else if (req.State == "Disputed" && !Disputes[req.Id].IsResolved) {
+	if req.State == "Requested" {
+		action += md.Link("Propose a value", ufmt.Sprintf("%s", txlink.NewLink("ProposeData").AddArgs("id", req.Id, "proposedValue", "YOUR_VALUE_HERE").SetSend(strconv.Itoa(int(Bond))).URL())) + "\n\n(Note: Proposing need to bond " + strconv.Itoa(int(Bond/1_000_000)) + " GNOT)"
+	} else if req.State == "Proposed" {
+		action += md.Link("Dispute value", ufmt.Sprintf("%s", txlink.NewLink("DisputeData").AddArgs("id", req.Id).SetSend(strconv.Itoa(int(Bond))).URL())) + "\n\n(Note: Disputing need to bond " + strconv.Itoa(int(Bond/1_000_000)) + " GNOT)"
+	} else if req.State == "Disputed" && !Disputes[req.Id].IsResolved {
 		if Disputes[req.Id].EndTime.Before(time.Now()) {
 			action += md.Link("Reveal vote", ufmt.Sprintf("%s", txlink.NewLink("RevealVote").AddArgs("id", req.Id, "value", "YOUR_VALUE_HERE", "salt", "YOUR_SALT_HERE").URL())) + "\n\n(Note: You must reveal your vote before the reveal period ends at " + Disputes[req.Id].EndRevealTime.UTC().Format(time.UnixDate) + ")"
 		} else {
