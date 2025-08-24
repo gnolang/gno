@@ -22,13 +22,11 @@ func Render(path string) string {
 
 func renderHome() string {
 	msg := md.H1("OO Home")
-	msg += md.Paragraph("Welcome to the first Optimistic Oracle on GnoLand! This project is developed by @intermarch3.")
+	msg += md.Paragraph("Welcome to the first Optimistic Oracle on GnoLand! This project is developed by " + md.Link("@intermarch3", "/r/intermarch3/home"))
+	msg += md.Paragraph("For more information, visit the " + md.Link("Readme", std.CurrentRealm().PkgPath()[8:] + "$source") + ".")
 	msg += md.Link("Request Data", ufmt.Sprintf("%s", txlink.NewLink("RequestData").AddArgs("id", "YOUR_ID", "ancillaryData", "YOUR_QUESTION", "yesNoQuestion", "true or false").SetSend(strconv.Itoa(int(RequesterReward))).URL())) + "\n\n(Note: Requesting data need to pay a reward of " + strconv.Itoa(int(RequesterReward / 1_000_000)) + " GNOT to the proposer).\n\n"
 	msg += md.H2("Current Requests :")
-	if len(Requests) == 0 {
-		msg += md.Paragraph("No current requests.")
-		return msg
-	}
+	// List current requests
 	var table []string
 	table = append(table, md.Bold("Question"), md.Bold("Proposed Value"), md.Bold("State"), md.Bold("See more"))
 	for _, req := range Requests {
@@ -38,6 +36,27 @@ func renderHome() string {
 		table = append(table, renderRequest(req)...)
 	}
 	msg += md.ColumnsN(table, 4, false)
+	if len(table) == 4 {
+		msg += md.Paragraph("No current requests.")
+	}
+
+	msg += md.HorizontalRule()
+	// List last 5 resolved requests
+	msg += md.H2("Last 5 Resolved Requests :")
+	var resolved []string
+	resolved = append(resolved, md.Bold("Question"), md.Bold("Winning Value"), md.Bold("Proposer"), md.Bold("See more"))
+	for _, req := range Requests {
+		if req.State == "Resolved" {
+			resolved = append(resolved, md.Paragraph(req.AncillaryData))
+			resolved = append(resolved, md.Paragraph(rendervalue(req, req.WinningValue)))
+			resolved = append(resolved, md.Paragraph(req.Proposer.String()))
+			resolved = append(resolved, md.Link("Click here", std.CurrentRealm().PkgPath()[8:] + ":" + req.Id))
+		}
+	}
+	msg += md.ColumnsN(resolved, 4, false)
+	if len(resolved) == 4 {
+		msg += md.Paragraph("No resolved requests yet.")
+	}
 	return msg
 }
 
@@ -151,7 +170,7 @@ func renderAction(req DataRequest) string {
 		if Disputes[req.Id].EndTime.Before(time.Now()) {
 			action += md.Link("Reveal vote", ufmt.Sprintf("%s", txlink.NewLink("RevealVote").AddArgs("id", req.Id, "value", "YOUR_VALUE_HERE", "salt", "YOUR_SALT_HERE").URL())) + "\n\n(Note: You must reveal your vote before the reveal period ends at " + Disputes[req.Id].EndRevealTime.UTC().Format(time.UnixDate) + ")"
 		} else {
-			action += md.Link("Vote", ufmt.Sprintf("%s", txlink.NewLink("SubmitVote").AddArgs("id", req.Id, "hash", "YOUR_HASH_HERE").URL())) + "\n\n(Note: Voting costs " + strconv.Itoa(int(VotePrice / 1_000_000)) + " GNOT and requires you to hash your vote with a salt. Use a tool to generate the sha256 hash and keep your salt safe to reveal your vote)"
+			action += md.Link("Vote", ufmt.Sprintf("%s", txlink.NewLink("SubmitVote").AddArgs("id", req.Id, "hash", "YOUR_HASH_HERE").URL())) + "\n\n(Note: Voting need to hold a Vote Token and requires you to hash your vote with a salt. Use a tool to generate the sha256 hash and keep your salt safe to reveal your vote)"
 		}
 	} else if req.State == "Disputed" && Disputes[req.Id].EndTime.Before(time.Now()) {
 		action += md.Link("Resolve dispute", ufmt.Sprintf("%s", txlink.NewLink("ResolveDispute").AddArgs("id", req.Id).URL())) + "\n\n"

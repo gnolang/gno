@@ -1,8 +1,6 @@
 # Gno Optimistic Oracle (OO)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-An Optimistic Oracle (OO) built on Gno.land. This system is designed to bring external data onto the blockchain by leveraging game-theoretic incentives. It assumes data is correct unless disputed, hence the term "optimistic."  
+An Optimistic Oracle (OO) built on Gno.land. This system is designed to bring external data onto the blockchain by leveraging game-theoretic incentives. It assumes data is correct unless disputed, hence the term "optimistic."
 This implementation is inspired by the [UMA Optimistic Oracle](https://uma.xyz/) but adapted for the Gno ecosystem.
 
 ## Table of Contents
@@ -10,6 +8,7 @@ This implementation is inspired by the [UMA Optimistic Oracle](https://uma.xyz/)
 - [How It Works: The Lifecycle of a Data Request](#how-it-works-the-lifecycle-of-a-data-request)
 - [Architecture](#architecture)
 - [User Roles](#user-roles)
+- [Tokenomics](#tokenomics)
 - [Usage Example](#usage-example)
 - [Developer](#developer)
 
@@ -18,7 +17,7 @@ This implementation is inspired by the [UMA Optimistic Oracle](https://uma.xyz/)
 The Gno Optimistic Oracle operates on the principle that data proposed to the oracle is assumed to be true. A bond is required for any new proposition. This proposition enters a "liveness" period where anyone can dispute it by posting an equal bond.
 
 - **Happy Path**: If no one disputes the data within the liveness period, it is considered resolved and accepted as truth. The proposer's bond is returned along with a reward.
-- **Unhappy Path (Dispute)**: If the data is disputed, the Gno community is called upon to vote on the correct outcome. This is handled by the `court.gno` contract. Token holders vote, and the outcome is decided by the total token weight backing each value. The winner's bond is returned, and they receive a portion of the loser's slashed bond.
+- **Unhappy Path (Dispute)**: If the data is disputed, Oracle Token Holders can vote on the correct outcome. This is handled by the `court.gno` contract. Token holders vote, and the outcome is decided by the total token weight backing each value. The winner's bond is returned, and they receive a portion of the loser's slashed bond.
 
 ## How It Works: The Lifecycle of a Data Request
 
@@ -50,7 +49,7 @@ A **Disputer** can challenge the Proposer's value.
 - This action pauses the request's resolution and initiates a formal dispute, handled by the `court.gno` contract.
 
 ### 5. Voting (`VoteOnDispute`)
-The dispute is now open for voting by all GNOT holders. The system uses a **commit-reveal scheme** to prevent vote-copying.
+The dispute is now open for voting by all Oracle Soulbound Token holders. The system uses a **commit-reveal scheme** to prevent vote-copying.
 
 - **Commit Phase**: During the `DisputeDuration`, voters submit a hash of their vote (`SHA256(value + salt)`) by calling `VoteOnDispute`. They must also pay a small `VotePrice` fee. // todo
 - **Reveal Phase**: After the commit phase ends, the `RevealDuration` begins. Voters must call `RevealVote`, submitting their original `value` and `salt`. The contract verifies that the hash matches the one submitted during the commit phase.
@@ -59,7 +58,7 @@ The dispute is now open for voting by all GNOT holders. The system uses a **comm
 Once the reveal period is over, anyone can call `ResolveDispute`.
 - The `resolver.gno` contract tallies the votes. The winning value is the one with the highest cumulative token weight from voters.
 - The `WinningValue` is set in the original `DataRequest`.
-- **Slashing & Rewards**: The party (Proposer or Disputer) that lost the vote has their bond slashed. The winning party gets their bond back, and the slashed bond is distributed among the voters who voted for the winning outcome.
+- **Slashing & Rewards**: The party (Proposer or Disputer) that lost the vote has their bond slashed. The winning party gets their bond back, and the slashed bond is distributed among the voters who voted for the winning outcome (voters who vote incorrectly lose 25% of their Oracle Token balance).
 
 ## Architecture
 
@@ -74,51 +73,76 @@ The oracle is composed of three main contracts:
 - **Requester**: The user or contract that needs external data. They create the request and fund the reward.
 - **Proposer**: The user who provides the initial answer to a data request and posts a bond.
 - **Disputer**: A user who challenges a proposed value and posts a bond to initiate a vote.
-- **Voter**: A GNOT holder who participates in a dispute by voting on the correct outcome.
+- **Voter**: An Oracle Soulbound Token holder who participates in a dispute by voting on the correct outcome.
+
+## Tokenomics
+
+The Oracle Soulbound Token (OOT) is a non-transferable token that represents voting power in the oracle system.
+- **Acquisition**: Users can acquire OOT by calling `BuyInitialVoteToken` and paying a fee in GNOT. This action mints one OOT to the caller's address (can only buy 1 initial token).
+Vote token holders can participate in disputes and earn rewards by voting correctly. By voting correctly, they can earn a portion of the slashed bonds from losing parties and gain 2 Vote tokens, incentivizing accurate and honest participation in the oracle system and increasing their voting power.
+- **GNOT Usage**: The reward and the Bond (in GNOT Token) need to be less than the bond to avoid trying to game the system by creating disputes just to earn tokens, as they would lose more from the bond than the reward.
+This design is not final and can be adjusted based on community feedback and economic analysis.
 
 ## Usage Example
 
-Here is a full workflow using `gnokey`.
+Here is a full workflow using `gnokey`.  
+**0. Buy Vote Token for Voter Role**
+```bash
+# Buy Oracle Soulbound Token (replace <voter-key-name> with your key name)
+gnokey maketx call -pkgpath "gno.land/r/intermarch3/oo" -func "BuyInitialVoteToken" -gas-fee 1000000ugnot -gas-wanted 10000000 -send "1000000ugnot" -broadcast -chainid "dev" -remote "tcp://127.0.0.1:26657" <voter-key-name>
+```
+
 
 **1. Request Data**
 ```bash
 # Ask a Yes/No question: "Will ETH be below $4000 ?" (replace DEADLINE_TIMESTAMP with a future unix timestamp more than 24h from now)
-gnokey maketx call -pkgpath "gno.land/r/intermarch3/oo" -func "RequestData" -args "Will ETH be below 4000$ ?" -args "true" -args "DEADLINE_TIMESTAMP" --gas-fee 1000000ugnot --gas-wanted 5000000 --send "1000000ugnot" --broadcast true --chainid "dev" --remote "tcp://127.0.0.1:26657" <your-key-name>
+gnokey maketx call -pkgpath "gno.land/r/intermarch3/oo" -func "RequestData" -args "ETH below 4000$ ?" -args "true" -args "DEADLINE_TIMESTAMP" -gas-fee 1000000ugnot -gas-wanted 10000000 -send "1000000ugnot" -broadcast -chainid "dev" -remote "tcp://127.0.0.1:26657" <your-key-name>
 ```
 
 **2. Propose a Value**
 ```bash
 # Propose "Yes" (value 1) (replace ID with the actual ID returned from the RequestData call)
-gnokey maketx call -pkgpath "gno.land/r/intermarch3/oo" -func "ProposeValue" -args "ID" -args "1" --gas-fee 1000000ugnot --gas-wanted 10000000 --send "2000000ugnot" --broadcast true --chainid "dev" --remote "tcp://127.0.0.1:26657" <proposer-key-name>
+gnokey maketx call -pkgpath "gno.land/r/intermarch3/oo" -func "ProposeValue" -args "ID" -args "0" -gas-fee 1000000ugnot -gas-wanted 10000000 -send "2000000ugnot" -broadcast -chainid "dev" -remote "tcp://127.0.0.1:26657" <proposer-key-name>
+```
+
+**If no one disputes within the liveness period, anyone can resolve the request:**
+```bash
+# Resolve the request (replace ID with the actual ID)
+gnokey maketx call -pkgpath "gno.land/r/intermarch3/oo" -func "ResolveRequest" -args "ID" -gas-fee 1000000ugnot -gas-wanted 10000000 -send "" -broadcast -chainid "dev" -remote "tcp://127.0.0.1:26657" <any-key-name>
 ```
 
 **3. Dispute the Value**
 ```bash
 # Dispute the proposal (replace ID with the actual ID)
-gnokey maketx call -pkgpath "gno.land/r/intermarch3/oo" -func "DisputeData" -args "ID" --gas-fee 1000000ugnot --gas-wanted 5000000 --send "2000000ugnot" --broadcast true --chainid "dev" --remote "tcp://127.0.0.1:26657" <disputer-key-name>
+gnokey maketx call -pkgpath "gno.land/r/intermarch3/oo" -func "DisputeData" -args "ID" -gas-fee 1000000ugnot -gas-wanted 5000000 -send "2000000ugnot" -broadcast -chainid "dev" -remote "tcp://127.0.0.1:26657" <disputer-key-name>
 ```
 
 **4. Vote on the Dispute**
 First, generate a hash locally. Let's vote "No" (value 0) with salt "mysecret".
-Hash: `sha256("0" + "mysecret")` -> `a96e0beb59a16b085a7d2b3b5ffd6e5971870aa2903c6df86f26fa908ded2e21`
+Hash: `sha256("0" + "test")` -> `a96e0beb59a16b085a7d2b3b5ffd6e5971870aa2903c6df86f26fa908ded2e21`
 ```bash
 # Commit the vote (replace ID with the actual ID)
-gnokey maketx call -pkgpath "gno.land/r/intermarch3/oo" -func "VoteOnDispute" -args "ID" -args "a96e0beb59a16b085a7d2b3b5ffd6e5971870aa2903c6df86f26fa908ded2e21" --gas-fee 1000000ugnot --gas-wanted 5000000 --send "1000000ugnot" --broadcast true --chainid "dev" --remote "tcp://127.0.0.1:26657" <voter-key-name>
+ggnokey maketx call -pkgpath "gno.land/r/intermarch3/oo" -func "VoteOnDispute" -args "ID" -args "a96e0beb59a16b085a7d2b3b5ffd6e5971870aa2903c6df86f26fa908ded2e21" -gas-fee 1000000ugnot -gas-wanted 5000000 -send "" -broadcast -chainid "dev" -remote "tcp://127.0.0.1:26657" <voter-key-name>
 ```
 
 **5. Reveal the Vote**
 ```bash
 # Reveal the vote after the voting period ends (replace ID with the actual ID)
-gnokey maketx call -pkgpath "gno.land/r/intermarch3/oo" -func "RevealVote" -args "ID" -args "0" -args "mysecret" --gas-fee 1000000ugnot --gas-wanted 10000000 --broadcast true --chainid "dev" --remote "tcp://127.0.0.1:26657" <voter-key-name>
+gnokey maketx call -pkgpath "gno.land/r/intermarch3/oo" -func "RevealVote" -args "ID" -args "0" -args "test" -gas-fee 1000000ugnot -gas-wanted 10000000 -send "" -broadcast -chainid "dev" -remote "tcp://127.0.0.1:26657" <voter-key-name>
 ```
 
 **6. Resolve the Dispute**
 ```bash
 # After the reveal period, anyone can trigger the final resolution (replace ID with the actual ID).
-gnokey maketx call -pkgpath "gno.land/r/intermarch3/oo" -func "ResolveDispute" -args "ID" --gas-fee 1000000ugnot --gas-wanted 10000000 --broadcast true --chainid "dev" --remote "tcp://127.0.0.1:26657" <any-key-name>
+gnokey maketx call -pkgpath "gno.land/r/intermarch3/oo" -func "ResolveDispute" -args "ID" -gas-fee 1000000ugnot -gas-wanted 10000000 -send "" -broadcast -chainid "dev" -remote "tcp://127.0.0.1:26657" <any-key-name>
 ```  
 
-**Warning**: When testing with `gnodev`, ensure to make transactions between waiting periods as `gnodev` does create blocks only when a transaction is made and the oracle relies on block timestamps.
+When testing with `gnodev` locally, ensure to make transactions between waiting periods as `gnodev` only creates blocks when a transaction is made, and the oracle relies on current block timestamps.
+
+## Warning
+
+This is a simplified example for educational purposes. In a production environment, consider additional security measures, optimizations, and edge cases.
+
 
 ## Developer
 

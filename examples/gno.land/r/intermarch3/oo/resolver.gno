@@ -1,5 +1,9 @@
 package oo
 
+import (
+	"std"
+)
+
 func resolve(id string) int64 {
 	dispute, _ := Disputes[id]
 	if dispute.NbResolvedVotes == 0 {
@@ -27,11 +31,15 @@ func resolveYesNo(dispute Dispute) int64{
 		}
 	}
 	var winningValue int64
+	var weight int64
 	if yesVotes > noVotes {
 		winningValue = 1
+		weight = yesVotes
 	} else {
 		winningValue = 0
+		weight = noVotes
 	}
+	rewardAndSlachVoters(dispute, winningValue, weight)
 	return winningValue
 }
 
@@ -56,5 +64,27 @@ func resolveNumeric(dispute Dispute) int64 {
 			winningValue = value
 		}
 	}
+	rewardAndSlachVoters(dispute, winningValue, maxWeight)
 	return winningValue
+}
+
+func rewardAndSlachVoters(dispute Dispute, winningValue, totalWeight int64) {
+	for _, vote := range dispute.Votes {
+		if vote.Revealed {
+			if vote.Value == winningValue {
+				// Reward winning voters
+				VoteToken.mint(vote.Voter, 2)
+				reward := Bond * (vote.TokenAmount / totalWeight)
+				if (reward != 0) {
+					Bank.SendCoins(std.CurrentRealm().Address(), vote.Voter, std.Coins{std.Coin{Denom: "ugnot", Amount: reward}})
+				}
+				std.Emit("VoterRewarded", "voter", vote.Voter.String())
+			} else {
+				// Slash losing voters
+				slash := vote.TokenAmount / 4 // 25% slash
+				VoteToken.burn(vote.Voter, slash)
+				std.Emit("VoterSlashed", "voter", vote.Voter.String())
+			}
+		}
+	}
 }

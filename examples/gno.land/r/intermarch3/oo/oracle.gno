@@ -4,6 +4,8 @@ import (
 	"time"
 	"std"
 	"strconv"
+	"crypto/sha256"
+	"encoding/hex"
 )
 
 type DataRequest struct {
@@ -20,6 +22,7 @@ type DataRequest struct {
 	ResolutionTime time.Time
 	WinningValue int64
 	State string // "Requested", "Proposed", "Disputed", "Resolved"
+	Deadline time.Time
 }
 
 var (
@@ -29,15 +32,17 @@ var (
 	ResolutionTime int64 = 2 * int64(time.Minute.Seconds())
 	RequesterReward int64 = 1 * int64(1_000_000) // in GNOT
 	Bond int64 = 2 * int64(1_000_000) // in GNOT
+	Bank std.Banker
 )
 
 func init() {
 	Requests = make(map[string]DataRequest)
+	Bank = std.NewBanker(std.BankerTypeRealmSend)
 }
 
 // 6 first chars of sha256(ancillaryData + timestamp)
 func getUniqueId(ancillaryData string, timestamp int64) string {
-	data := ancillaryData + strconv.Itoa(timestamp)
+	data := ancillaryData + strconv.Itoa(int(timestamp)) + strconv.Itoa(int(std.ChainHeight()))
 	hash := sha256.Sum256([]byte(data))
 	return hex.EncodeToString(hash[:])[:6]
 }
@@ -63,12 +68,20 @@ func RequestData(cur realm, ancillaryData string, yesNoQuestion bool, deadline i
 	}
 
 	// TODO: check that x GNOT is sent as reward
+	coins := std.OriginSend()
+	expected := std.Coin{Denom: "ugnot", Amount: RequesterReward}
+	if len(coins) == 0 || !coins[0].IsEqual(expected) {
+		panic("Error: Incorrect reward amount sent. Required: " + strconv.FormatInt(RequesterReward, 10) + " ugnot.")
+	}
+
 	request := DataRequest{
 		Id:            id,
 		Timestamp:     time.Now(),
 		AncillaryData: ancillaryData,
 		YesNoQuestion: yesNoQuestion,
 		State:         "Requested",
+		Deadline:      time.Unix(deadline, 0),
+		Creator:       std.PreviousRealm().Address(),
 	}
 	Requests[id] = request
 	std.Emit("DataRequested", "id", id, "timestamp", request.Timestamp.String(), "ancillaryData", ancillaryData)
@@ -90,10 +103,20 @@ func ProposeValue(cur realm, id string, proposedValue int64) {
 	if request.YesNoQuestion && proposedValue != 0 && proposedValue != 1 {
 		panic("Error: Proposed value must be 0 or 1 for yes/no questions.")
 	}
+	if time.Now().After(request.Deadline) {
+		panic("Error: Deadline for proposal has passed.")
+	}
+
 	// TODO: check that proposerBond is x GNOT
+	coins := std.OriginSend()
+	expected := std.Coin{Denom: "ugnot", Amount: Bond}
+	if len(coins) == 0 || !coins[0].IsEqual(expected) {
+		panic("Error: Incorrect bond amount sent. Required: " + strconv.FormatInt(Bond, 10) + " ugnot")
+	}
+
 	request.ProposedValue = proposedValue
-	request.Proposer = std.OriginCaller()
-	request.ProposerBond = 1 // TODO: check actual bond sent
+	request.Proposer = std.PreviousRealm().Address()
+	request.ProposerBond = Bond
 	request.ResolutionTime = time.Now().Add(time.Duration(ResolutionTime) * time.Second)
 	request.State = "Proposed"
 	Requests[id] = request
@@ -108,7 +131,7 @@ func DisputeData(cur realm, id string) string {
 	if !exists {
 		panic("Error: No request with this ID exists.")
 	}
-	if request.Proposer == std.OriginCaller() {
+	if request.Proposer == std.PreviousRealm().Address() {
 		panic("Error: Proposer cannot dispute their own proposal.")
 	}
 	if request.State != "Proposed" {
@@ -117,8 +140,16 @@ func DisputeData(cur realm, id string) string {
 	if time.Now().After(request.ResolutionTime) {
 		panic("Error: Dispute period has ended.")
 	}
-	request.Disputer = std.OriginCaller()
-	request.DisputerBond = 1 // TODO: check actual bond sent
+
+	// Vérifie que la caution a bien été envoyée.
+	coins := std.OriginSend()
+	expected := std.Coin{Denom: "ugnot", Amount: Bond}
+	if len(coins) == 0 || !coins[0].IsEqual(expected) {
+		panic("Error: Incorrect bond amount sent. Required: " + strconv.FormatInt(Bond, 10) + " ugnot")
+	}
+
+	request.Disputer = std.PreviousRealm().Address()
+	request.DisputerBond = Bond
 	request.State = "Disputed"
 	Requests[id] = request
 	initiateDispute(id)
@@ -148,8 +179,15 @@ func ResolveRequest(cur realm, id string) {
 	request.State = "Resolved"
 	request.WinningValue = request.ProposedValue
 	Requests[id] = request
-	std.Emit("RequestResolved", "id", id, "winningValue", strconv.Itoa(int(request.WinningValue)))
+
 	// TODO: Return bonds + reward to proposer
+	from := std.CurrentRealm().Address()
+	to := request.Proposer
+	totalPayout := request.ProposerBond + RequesterReward
+	payout := std.Coins{std.Coin{Denom: "ugnot", Amount: totalPayout}}
+	Bank.SendCoins(from, to, payout)
+
+	std.Emit("RequestResolved", "id", id, "winningValue", strconv.Itoa(int(request.WinningValue)))
 }
 
 // RequestResult returns the winning value of a resolved request.
@@ -160,7 +198,7 @@ func RequestResult(cur realm, id string) int64 {
 		panic("Error: No request with this ID exists.")
 	}
 	if request.State != "Resolved" {
-		panic("Error: Request is not resolved yet.")
+		panic("Error: Request is not resolved.")
 	}
 	return request.WinningValue
 }
@@ -175,13 +213,23 @@ func RequesterRetreiveFund(cur realm, id string) {
 	if request.State != "Requested" {
 		panic("Error: cannot retreive fund as requests fulfilled.")
 	}
-	if request.Creator != std.OriginCaller() {
+	if request.Creator != std.PreviousRealm().Address() {
 		panic("Error: Only the creator of the request can retreive the fund.")
 	}
-	if request.Deadline > time.Now().Unix() {
+	if request.Deadline.After(time.Now()) {
 		panic("Error: Cannot retreive fund before the deadline.")
 	}
-	// TODO: return the fund to the requester
+
+	// Rembourser la récompense au créateur de la requête
+	from := std.CurrentRealm().Address()
+	to := request.Creator
+	refund := std.Coins{std.Coin{Denom: "ugnot", Amount: RequesterReward}}
+	Bank.SendCoins(from, to, refund)
+
+	// Marquer la requête comme expirée pour éviter un double remboursement
+	request.State = "Expired"
+	Requests[id] = request
+	std.Emit("RequestExpired", "id", id)
 }
 
 

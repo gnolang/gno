@@ -38,11 +38,13 @@ var (
 	Disputes map[string]Dispute
 	DisputeDuration int64 = 2 * int64(time.Minute.Seconds())
 	RevealDuration int64 = 2 * int64(time.Minute.Seconds())
-	VotePrice int64 = 1 * int64(1_000_000) // in GNOT
+	VoteTokenPrice int64 = 1 * int64(1_000_000) // in GNOT
+	VoteToken *OOT
 )
 
 func init() {
 	Disputes = make(map[string]Dispute)
+	VoteToken = newOOToken("Gno Optimistic Oracle Token", "goot", 6)
 }
 
 func initiateDispute(id string) {
@@ -63,6 +65,29 @@ func initiateDispute(id string) {
 
 // -- PUBLIC FUNCTIONS --
 
+// BuyInitialVoteToken allows a user to buy their first vote token by sending VoteTokenPrice amount of ugnot.
+func BuyInitialVoteToken(_ realm) {
+    caller := std.OriginCaller()
+    coins := std.OriginSend()
+    expected := std.Coin{Denom: "ugnot", Amount: VoteTokenPrice}
+    if len(coins) != 0 && !coins[0].IsEqual(expected) {
+        panic("Error: Must send exactly " + strconv.Itoa(int(VoteTokenPrice / 1_000_000)) + " gnot to get a vote token.")
+    }
+
+    balance := VoteToken.BalanceOf(caller)
+    if balance > 0 {
+        panic("Error: You already have a vote token.")
+    }
+
+    VoteToken.Mint(caller, 1)
+    std.Emit("VoteTokenPurchased", "voter", caller.String())
+}
+
+// BalanceOfVoteToken returns the number of vote tokens held by the caller.
+func BalanceOfVoteToken(_ realm) int64 {
+	return VoteToken.balanceOf(std.PreviousRealm().Address())
+}
+
 // VoteOnDispute allows a user to commit a vote during a dispute.
 // @param id - The ID of the dispute (same as Request ID).
 // @param hash - The SHA256 hash of the vote value and a secret salt.
@@ -72,7 +97,7 @@ func VoteOnDispute(cur realm, id string, hash string) {
 		panic("Error: No dispute with this ID exists.")
 	}
 	r, _ := Requests[id]
-	if r.Proposer == std.OriginCaller() || r.Disputer == std.OriginCaller() {
+	if r.Proposer == std.PreviousRealm().Address() || r.Disputer == std.PreviousRealm().Address() {
 		panic("Error: Proposer and Disputer cannot vote in this dispute.")
 	}
 	if dispute.IsResolved {
@@ -81,12 +106,15 @@ func VoteOnDispute(cur realm, id string, hash string) {
 	if time.Now().After(dispute.EndTime) {
 		panic("Error: Vote period has ended.")
 	}
-	// TODO: check that voter has at least VotePrice GNOT to stake
-	// get voter token balance
+	amount := VoteToken.BalanceOf(std.PreviousRealm().Address())
+	if amount < 1 {
+		panic("Error: You need at least 1 vote token to vote.")
+	}
+
 	vote := Vote{
 		RequestId:  id,
-		Voter:      std.OriginCaller(),
-		TokenAmount: 1, // TODO: actually get voter's token balance
+		Voter:      std.PreviousRealm().Address(),
+		TokenAmount: amount,
 		Hash:       hash,
 		Revealed:   false,
 	}
@@ -117,7 +145,7 @@ func RevealVote(cur realm, id string, value int64, salt string) {
 	if time.Now().After(dispute.EndRevealTime) {
 		panic("Error: Reveal period has ended.")
 	}
-	voter := dispute.Voters[std.OriginCaller()]
+	voter := dispute.Voters[std.PreviousRealm().Address()]
 	if !voter.HasVoted {
 		panic("Error: Voter did not participate in this dispute.")
 	}
@@ -165,7 +193,16 @@ func ResolveDispute(cur realm, id string) {
 	Requests[id] = request
 	std.Emit("DisputeResolved", "id", id, "winningValue", strconv.Itoa(int(val)))
 	std.Emit("RequestResolved", "id", id, "winningValue", strconv.Itoa(int(val)))
-	// TODO: Distribuate bond + reward between winning voters and if disputer win, give a part to him
+
+	var winner std.Address
+	if val != request.ProposedValue {
+		// Refund + reward the disputer if the dispute changed the value
+		winner = request.Disputer
+	} else {
+		// Refund + reward the proposer if the dispute did not change the value
+		winner = request.Proposer
+	}
+	Bank.SendCoins(std.CurrentRealm().Address(), winner, std.Coins{std.Coin{Denom: "ugnot", Amount: Bond + RequesterReward}})
 }
 
 // -- admin functions --
@@ -190,11 +227,11 @@ func SetRevealDuration(_ realm, duration int64) {
 	}
 }
 
-// SetVotePrice sets the price (in ugnot) to cast a vote.
+// SetVoteTokenPrice sets the price (in ugnot) to cast a vote.
 // @param price - The new vote price.
-func SetVotePrice(_ realm, price int64) {
+func SetVoteTokenPrice(_ realm, price int64) {
 	if std.OriginCaller() == admin {
-		VotePrice = price
+		VoteTokenPrice = price
 	} else {
 		panic("Error: Only admin can set vote price.")
 	}
@@ -217,9 +254,9 @@ func GetDisputeDuration(_ realm) int64 {
 	return DisputeDuration
 }
 
-// GetVotePrice returns the current vote price.
-func GetVotePrice(_ realm) int64 {
-	return VotePrice
+// GetVoteTokenPrice returns the current vote price.
+func GetVoteTokenPrice(_ realm) int64 {
+	return VoteTokenPrice
 }
 
 // GetDisputeEndTime returns the end time of the voting period for a specific dispute.
