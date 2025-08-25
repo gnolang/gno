@@ -29,7 +29,7 @@ var (
 	tickets             = grc721.NewBasicNFT("Event Ticket", "EVTIX")
 )
 
-func CreateEvent(name, description, dateStr string, paymentToken interface{}, maxTickets int, price uint64) uint64 {
+func CreateEvent(_ realm, name, description, dateStr string, paymentToken interface{}, maxTickets int, price uint64) uint64 {
 	// validate inputs
 	if maxTickets <= 0 {
 		panic("Maximum tickets must be greater than 0")
@@ -69,15 +69,7 @@ func CreateEvent(name, description, dateStr string, paymentToken interface{}, ma
 	return newID
 }
 
-func getEvent(eventId uint64) (Event, bool) {
-	value, exists := events.Get(strconv.Itoa(int(eventId)))
-	if !exists {
-		return Event{}, false
-	}
-	return value.(Event), true
-}
-
-func BuyTicket(eventId uint64) {
+func BuyTicket(_ realm, eventId uint64) {
 	event, exists := getEvent(eventId)
 	if !exists {
 		panic("Event does not exist")
@@ -87,7 +79,7 @@ func BuyTicket(eventId uint64) {
 		panic("Event is sold out")
 	}
 
-	buyer := std.PrevRealm().Addr()
+	buyer := std.PreviousRealm().Address()
 
 	switch pt := event.paymentToken.(type) {
 	case string:
@@ -95,13 +87,13 @@ func BuyTicket(eventId uint64) {
 			panic("Unsupported native token")
 		}
 
-		sent := std.GetOrigSend()
+		sent := std.OriginSend()
 		if len(sent) != 1 || sent[0].Denom != "ugnot" || uint64(sent[0].Amount) != event.price {
 			panic("Invalid payment amount")
 		}
 
 	case grc20.Teller:
-		if err := pt.TransferFrom(buyer, std.CurrentRealm().Addr(), event.price); err != nil {
+		if err := pt.TransferFrom(buyer, std.CurrentRealm().Address(), int64(event.price)); err != nil {
 			panic("GRC20 payment failed: " + err.Error())
 		}
 	default:
@@ -139,7 +131,15 @@ func Render(path string) string {
 		output += "---\n\n"
 	}
 
-	output += pg.Picker()
+	output += pg.Picker(path)
 
 	return output
+}
+
+func getEvent(eventId uint64) (Event, bool) {
+	value, exists := events.Get(strconv.Itoa(int(eventId)))
+	if !exists {
+		return Event{}, false
+	}
+	return value.(Event), true
 }
