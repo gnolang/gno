@@ -451,8 +451,90 @@
 	}
 }
 
-/* ===== ASIDE COMPONENT ===== */
+/* ===== FOOTER COMPONENT ===== */
+.b-footer {
+	width: 100%;
+	padding-block: var(--g-space-4);
+	border-block-start: var(--s-border);
+	font-size: var(--g-font-size-100);
 
+	& > nav {
+		align-items: center;
+
+		@media (--md) {
+			padding-block-end: var(--g-space-0);
+		}
+	}
+
+	.logo {
+		align-self: flex-start;
+		grid-column: span 2 / span 2;
+		width: 100%;
+		margin-block-end: var(--g-space-3);
+
+		@media (--md) {
+			width: 50%;
+		}
+		@media (--lg) {
+			width: 100%;
+		}
+
+		& > svg {
+			height: var(--g-space-7);
+		}
+	}
+
+	.menu {
+		grid-column: span 10 / span 10;
+		width: 100%;
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+
+		@media (--lg) {
+			display: grid;
+		}
+
+		& > ul {
+			display: flex;
+			flex-direction: column;
+			justify-content: flex-start;
+			margin-block-end: var(--g-space-2);
+
+			@media (--xl) {
+				flex-direction: row;
+				gap: var(--g-space-4);
+			}
+
+			&:nth-child(1) {
+				grid-column: span 4 / span 4;
+			}
+
+			&:nth-child(2) {
+				grid-column: span 3 / span 3;
+
+				@media (--xl) {
+					justify-content: flex-end;
+				}
+			}
+
+			&:nth-child(3) {
+				grid-column: span 3 / span 3;
+			}
+
+			li {
+				margin-block: var(--g-space-2);
+			}
+		}
+	}
+
+	a:hover {
+		color: var(--s-color-text-link-hover);
+		text-decoration: underline;
+	}
+}
+
+/* ===== ASIDE COMPONENT ===== */
 .b-sidebar {
 	position: relative;
 	height: 100%;
@@ -476,6 +558,7 @@
 	& > div {
 		position: sticky;
 		top: var(--g-space-14);
+		padding-block-start: var(--g-space-2);
 
 		/* Hide sidebar if it has no children */
 		&:has(ul:empty) {
@@ -528,11 +611,11 @@
 		border: var(--s-border);
 		border-radius: var(--s-rounded-sm);
 		padding: var(--g-space-2) var(--g-space-4);
-	
+
 		&:hover {
 			background-color: var(--s-color-bg-surface-secondary);
 		}
-	
+
 		@media (--lg) {
 			font-size: var(--g-font-size-200);
 			font-weight: var(--g-font-semibold);
@@ -541,16 +624,16 @@
 			background-color: var(--g-color-transparent);
 			padding: 0;
 			cursor: default;
-	
+
 			&:hover {
 				background-color: var(--g-color-transparent);
 			}
 		}
-	
+
 		&:has(#toc-expend:checked) + nav {
 			display: block;
 		}
-	
+
 		&:has(#toc-expend:checked) .ico {
 			transform: rotate(180deg);
 		}
@@ -584,7 +667,6 @@
 		}
 	}
 }
-
 
 .dev-mode .b-sidebar .b-expend-btn {
 	background-color: var(--s-color-bg-surface-secondary);
@@ -628,7 +710,7 @@ pre.chroma-chroma {
 	.chroma-line:has(.chroma-ln:target),
 	.chroma-line:has(.chroma-lnlinks:hover),
 	.chroma-line:has(.chroma-ln:target) .chroma-cl,
-	.chroma-line:has(.chroma-lnlinks:hover) .chroma-cl{
+	.chroma-line:has(.chroma-lnlinks:hover) .chroma-cl {
 		background-color: var(--s-color-bg-surface-secondary);
 		border-radius: var(--s-rounded);
 	}
@@ -641,12 +723,17 @@ pre.chroma-chroma {
 /* ===== TOC COMPONENT ===== */
 
 .b-toc {
-	/* list-none space-y-2 pt-2 */
 	list-style: none;
 	margin-block-start: var(--g-space-2);
 
 	& > * + * {
-		margin-block: var(--g-space-2);
+		margin-block: var(--g-space-1-5);
+	}
+
+	.b-toc {
+		border-inline-start: 1px solid var(--s-color-border-secondary);
+		padding-inline-start: var(--g-space-4);
+		margin-block-end: var(--g-space-4);
 	}
 
 	a {
@@ -662,14 +749,49 @@ pre.chroma-chroma {
 
 		&:hover {
 			text-decoration: underline;
-			color: var(--s-color-text-brand);
+			color: var(--s-color-text-link-hover);
 		}
 	}
 }
 
+.b-source-toc {
+	& > .b-toc {
+		margin-block-end: var(--g-space-4);
+	}
 
+	& > * + * {
+		margin-block-start: var(--g-space-1-5);
+	}
 
+	.accordion {
+		summary {
+			& > svg {
+				transform: rotate(-90deg);
+			}
 
+			&:hover {
+				text-decoration: underline;
+				color: var(--s-color-text-link-hover);
+			}
+		}
+
+		&[open] {
+			summary > svg {
+				transform: rotate(0deg);
+			}
+		}
+
+		& > .b-toc {
+			padding-inline-start: var(--g-space-5);
+		}
+
+		h3 {
+			font-size: var(--g-font-size-100);
+			font-weight: var(--g-font-medium);
+			margin-block-start: 0;
+		}
+	}
+}
 
 /* ===== POPUP COMPONENT ===== */
 .b-popup-bg,

@@ -20,6 +20,11 @@
 	box-sizing: border-box;
 	margin-inline: auto;
 	max-inline-size: var(--g-breakpoint-max);
+	padding-inline: var(--g-space-4);
+
+	@media (--md) {
+		padding-inline: var(--g-space-10);
+	}
 }
 
 .c-reel {
@@ -37,7 +42,7 @@
 
 .c-with-icon {
 	display: inline-flex;
-	align-items: top;
+	align-items: flex-start;
 }
 
 .c-with-icon .c-icon {
@@ -49,10 +54,8 @@
 .c-view-grid {
 	display: flex;
 	flex-direction: column;
-	padding-inline: var(--g-space-4);
 
 	@media (--md) {
-		padding-inline: var(--g-space-10);
 		column-gap: var(--g-space-8);
 		flex-direction: row;
 	}

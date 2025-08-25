@@ -94,6 +94,10 @@ form {
 	margin-block: 0;
 }
 
+summary {
+	cursor: pointer;
+}
+
 md-renderer {
 	margin-block-start: var(--g-space-4);
 	padding-bottom: var(--g-space-24);
