@@ -547,10 +547,6 @@ func (m *Machine) doOpMapLit() {
 			ktv := &kvs[i*2]
 			vtv := kvs[i*2+1]
 			ptr := mv.GetPointerForKey(m.Alloc, m.Store, ktv)
-			if ptr.TV.IsDefined() && isConst(x.Elts[i].Key) {
-				// map key has already been assigned
-				panic(fmt.Sprintf("duplicate key %s in map literal", ktv.V))
-			}
 			*ptr.TV = vtv.Copy(m.Alloc)
 		}
 	}
