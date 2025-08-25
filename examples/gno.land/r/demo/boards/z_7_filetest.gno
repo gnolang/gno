@@ -32,5 +32,3 @@ func main() {
 //
 // Body of the first post. (body)
 // \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm UTC](/r/demo/boards:test_board/1) \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=1&threadid=1)] (0 replies) (0 reposts)
-//
-//

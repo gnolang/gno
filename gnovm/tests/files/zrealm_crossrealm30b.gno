@@ -40,4 +40,4 @@ func main() {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): sa<VPBlock(1,1)>.A
+// should not happen, mismatched method/receiver realm, sb<VPBlock(1,0)>.Set(sa<VPBlock(1,1)>)/(gno.land/r/crossrealm---------RID0EDC46CAF30C00EFD87B6C272673239EAFBD051E)

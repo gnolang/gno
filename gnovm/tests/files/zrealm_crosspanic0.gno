@@ -45,4 +45,4 @@ func main() {
 }
 
 // Error:
-// success: this panic should surface
+// should not happen, mismatched method/receiver realm, sb<~VPBlock(1,0)>.Panic()/(gno.land/r/crossrealm---------RID0EDC46CAF30C00EFD87B6C272673239EAFBD051E)

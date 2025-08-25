@@ -1893,6 +1893,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	// If it must be mutated after append, use m.LastFrame() instead.
 	m.Frames = append(m.Frames, fr)
 
+	// fmt.Println("===============push frame call, cx: ", cx)
+	// fmt.Println("===============before set new package, m.Package.PkgPath: ", m.Package.PkgPath)
 	// Set the package.
 	// .Package always refers to the code being run,
 	// and may differ from .Realm.
@@ -1952,22 +1954,47 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	}
 
 	// Not cross nor crossing.
-	// Only "soft" switch to storage realm of receiver.
-	var rlm *Realm
+	// DO NOT set DidCrossing for any implicit crossing.
+	// Make DidCrossing only happen upon explicit
+	// cross(fn)(...) calls and subsequent calls to
+	// crossing functions from the same realm, to
+	// avoid user confusion. Otherwise whether
+	// DidCrossing happened or not depends on where
+	// the receiver resides, which isn't explicit
+	// enough to avoid confusion.
+	//   fr.DidCrossing = true
+	// }
 	if recv.IsDefined() { // method call
 		obj := recv.GetFirstObject(m.Store)
 		if obj == nil { // nil receiver
+			if pv.IsRealm() {
+				m.Realm = pv.Realm
+			}
 			// no switch
 			return
 		} else {
 			recvOID := obj.GetObjectInfo().ID
-			if recvOID.IsZero() ||
-				(m.Realm != nil && recvOID.PkgID == m.Realm.ID) {
+			if recvOID.IsZero() {
+				// cross into fv's realm for unreal receiver
+				// see realm_dao.gno
+				if pv.IsRealm() {
+					m.Realm = pv.Realm
+				}
+				return
+			}
+
+			// is recv is real, method realm and storage realm should be same
+			if IsRealmPath(fv.PkgPath) && PkgIDFromPkgPath(fv.PkgPath) != recvOID.PkgID {
+				panic(fmt.Sprintf("should not happen, mismatched method/receiver realm, %v/(%v---------%v)\n", cx, fv.PkgPath, recvOID.PkgID))
+			}
+
+			if m.Realm != nil && recvOID.PkgID == m.Realm.ID {
 				// no switch
 				return
 			} else {
 				// Implicit switch to storage realm.
 				// Neither cross nor didswitch.
+				var rlm *Realm
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
 				if objpv.IsRealm() && objpv.Realm == nil {
@@ -1975,22 +2002,45 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				} else {
 					rlm = objpv.GetRealm()
 				}
+				// Note it's possible to cross into nil realm(for p),
+				// mutating global var and discared.
+				// see files/zrealm_borrow7.gno, files/import4.gno
 				m.Realm = rlm
-				// DO NOT set DidCrossing here. Make
-				// DidCrossing only happen upon explicit
-				// cross(fn)(...) calls and subsequent calls to
-				// crossing functions from the same realm, to
-				// avoid user confusion. Otherwise whether
-				// DidCrossing happened or not depends on where
-				// the receiver resides, which isn't explicit
-				// enough to avoid confusion.
-				//   fr.DidCrossing = true
 				return
 			}
 		}
-	} else { // top level function
-		// no switch
-		return
+	} else { // function without receiver, nor explicit cross
+		if pv.Realm == m.Realm {
+			return
+		}
+		// XXX, consider this, and else clauses.
+		if pv.IsRealm() {
+			// Case 1, non-cross call func declared in
+			// other realm, usually for a utility func.
+			// pkg.Foo
+			if sx, ok := cx.Func.(*SelectorExpr); ok {
+				if cx, ok := sx.X.(*ConstExpr); ok {
+					_, isExternalFunc := cx.T.(*PackageType)
+					if isExternalFunc {
+						// no switch to utility func
+						return
+					}
+				}
+			}
+
+			// Case 2, non-cross call the func declared in
+			// same realm.
+			if fv.PkgPath == fr.LastPackage.PkgPath {
+				// no switch func call within package
+				return
+			}
+
+			// Otherwise cross into realm where func decalared
+			m.Realm = pv.Realm
+		} else {
+			// no switch
+			return
+		}
 	}
 }
 
@@ -2237,6 +2287,9 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 		return false
 	}
 	if tvoid.PkgID != m.Realm.ID {
+		// fmt.Println("=================IsReadOnly...")
+		// fmt.Println("=================m.Realm: ", m.Realm)
+		// fmt.Println("=================tvoid.PkgID: ", tvoid.PkgID)
 		return true
 	}
 	return false

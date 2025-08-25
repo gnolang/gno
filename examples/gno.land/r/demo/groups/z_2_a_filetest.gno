@@ -73,5 +73,3 @@ func main() {
 // Group Last MemberID: 0000000001
 //
 // Group Members:
-//
-//

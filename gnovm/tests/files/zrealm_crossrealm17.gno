@@ -43,3 +43,4 @@ func main(cur realm) {
 // hello container gno.land/r/crossrealm
 // hello container gno.land/r/demo/tests/crossrealm
 // .
+

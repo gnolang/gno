@@ -44,4 +44,3 @@ func main() {
 // | --- | --- | --- |
 // | v2 | [r/gnoland/users v2 (latest)](/r/gnoland/users/v2) | This is a note! |
 // | v1 | [r/gnoland/users v1](/r/gnoland/users/v1) | [Original PR](https://github.com/gnolang/gno/pull/3166) |
-//

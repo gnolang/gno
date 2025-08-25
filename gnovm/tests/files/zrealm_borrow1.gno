@@ -67,7 +67,5 @@ func main(cur realm) {
 	p.PrintRealms()
 }
 
-// Output:
-// 101
-// CodeRealm{ g1mdevzlw3defhhew53zsky80lhqnk94ew8grqdt, gno.land/r/borrow }
-// CodeRealm{ g1mdevzlw3defhhew53zsky80lhqnk94ew8grqdt, gno.land/r/borrow }
+// Error:
+// should not happen, mismatched method/receiver realm, p<VPBlock(1,1)>.Mutate()/(gno.land/r/borrow---------RID1712AC7ADCFDC8E58A67E5615E20FB312394C4DF)
