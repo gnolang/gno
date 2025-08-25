@@ -45,8 +45,6 @@ check_gnoland_home() {
     return 1
   fi
 
-  # Exits folder
-  cd -
   return 0
 }
 
