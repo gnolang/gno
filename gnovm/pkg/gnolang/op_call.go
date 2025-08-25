@@ -143,6 +143,10 @@ func (m *Machine) doOpCall() {
 	ft := fr.Func.GetType(m.Store)
 	// Create new block scope.
 	pb := fr.Func.GetParent(m.Store)
+	// fmt.Println("======doOpCall, AllocBlock, fs: ", fs)
+	// fmt.Println("=====m.Alloc: ", m.Alloc)
+	// fmt.Println("=====m.Store.GetAllocator: ", m.Store.GetAllocator())
+	m.Store.SetAllocator(m.Alloc)
 	b := m.Alloc.NewBlock(fs, pb)
 
 	// Copy *FuncValue.Captures into block

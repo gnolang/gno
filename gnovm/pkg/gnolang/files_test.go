@@ -106,6 +106,7 @@ func TestFiles(t *testing.T) {
 				t.Parallel()
 				opts = newOpts()
 			}
+			// fmt.Println("======TestFiles......")
 			changed, err := opts.RunFiletest(path, content, opts.TestStore)
 			if err != nil {
 				t.Fatal(err.Error())

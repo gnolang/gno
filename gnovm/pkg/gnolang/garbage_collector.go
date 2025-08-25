@@ -34,6 +34,9 @@ type Visitor func(v Value) (stop bool)
 //
 // XXX: make sure tv.T isn't bumped from allocation either.
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
+	// fmt.Println("===============GarbageCollect...")
+	// fmt.Println("===============m.Alloc.Status(): ", m.Alloc)
+	m.Alloc.isGc = true
 	// times objects are visited for gc
 	var visitCount int64
 
@@ -61,6 +64,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	vis := GCVisitorFn(m.GCCycle, m.Alloc, &visitCount)
 
 	// Visit blocks
+	// fmt.Println("===============visiting blocks...")
 	for _, block := range m.Blocks {
 		if block == nil {
 			continue
@@ -72,7 +76,9 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	}
 
 	// Visit frames
+	// fmt.Println("===============visiting frames...")
 	for _, frame := range m.Frames {
+		// fmt.Println("==============frame: ", frame)
 		stop := frame.Visit(m.Alloc, vis)
 		if stop {
 			return -1, false
@@ -80,12 +86,14 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	}
 
 	// Visit package
+	// fmt.Println("===============visiting packages..., m.Package: ", m.Package)
 	stop := vis(m.Package)
 	if stop {
 		return -1, false
 	}
 
 	// Visit exceptions
+	// fmt.Println("===============visiting exceptions...")
 	if m.Exception != nil {
 		e := m.Exception
 		// Visit m.Exception and its previous Exceptions
@@ -110,6 +118,10 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 	// Return bytes remaining.
 	maxBytes, bytes := m.Alloc.Status()
+	// fmt.Println("=======================================================GC finished,  bytes: ", bytes)
+	// fmt.Println("=======================================================left: ", maxBytes-bytes)
+	// fmt.Println("==================Alloc.GcCount: ", m.Alloc.GcCount)
+	// fmt.Println("==================Alloc.AllocCount: ", m.Alloc.AllocCount)
 	return maxBytes - bytes, true
 }
 
@@ -122,35 +134,67 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 		if debug {
 			debug.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
 		}
+		// fmt.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
+
+		// filter out pre-exist values
+		// switch vv := v.(type) {
+		// case StringValue: // XXX, reuse this
+		// 	return false
+		// case *PackageValue: // XXX, alloc except uverse?
+		// 	return false
+		// case *Block:
+		// 	if pn, ok := vv.Source.(*PackageNode); ok { // XXX, alloc, excepit uverse.
+		// 		fmt.Println("===pn: ", pn, pn.PkgPath)
+		// 		if pn.PkgPath == "uverse" || pn.PkgPath == ".uverse" {
+		// 			fmt.Println("==================skip uverse........")
+		// 			return false
+		// 		}
+		// 		// fmt.Println("=================skip package block...")
+		// 		// return false
+		// 	}
+		// case *FuncValue: // XXX, reuse
+		// 	return false
+		// }
 
 		if oo, isObject := v.(Object); isObject {
-			defer func() {
-				// Finally bump cycle for object.
-				oo.SetLastGCCycle(gcCycle)
-			}()
-
 			// Return if already measured.
 			if debug {
 				debug.Printf("oo.GetLastGCCycle: %d, gcCycle: %d\n", oo.GetLastGCCycle(), gcCycle)
 			}
+
 			if oo.GetLastGCCycle() == gcCycle {
+				// fmt.Println("======visited, skip................")
 				return false // but don't stop
 			}
+
+			// check cache
 		}
 
 		*visitCount++ // Count operations for gas calculation
 
 		// Add object size to alloc.
-		size := v.GetShallowSize()
-		alloc.Allocate(size)
+		withRef := false
+		size := v.GetShallowSize(withRef)
 
-		// Stop if alloc max exceeded.
+		// Stop if alloc max exceeded during GC.
 		// NOTE: Unlikely to occur, but keep it here for
 		// now to handle potential edge cases.
 		// Consider removing it later if no issues arise.
 		maxBytes, curBytes := alloc.Status()
-		if maxBytes < curBytes {
+		if maxBytes < curBytes+size {
+			// fmt.Println("======curBytes: ", curBytes)
+			// fmt.Println("======size: ", size)
+			// fmt.Println("======curBytes + size: ", curBytes+size)
+			// fmt.Println("======maxBytes: ", maxBytes)
 			return true
+		}
+
+		alloc.Allocate(size)
+
+		// bump before visiting associated,
+		// this avoids infinite recurse.
+		if oo, isObject := v.(Object); isObject {
+			oo.SetLastGCCycle(gcCycle)
 		}
 
 		// Invoke the traverser on v.
@@ -188,6 +232,10 @@ func (av *ArrayValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
+	// fmt.Println("======VisitAssociated of FuncValue...")
+	if !fv.IsClosure {
+		return
+	}
 	// visit captures
 	for _, tv := range fv.Captures {
 		v := tv.V
@@ -200,8 +248,19 @@ func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
 		}
 	}
 
-	// Skip visiting the parent to avoid redundancy
-	// and prevent a potential cycle.
+	// Visit parent.
+	switch v := fv.Parent.(type) {
+	case nil:
+		return
+	case *Block:
+		// fmt.Println("===Block: ", v)
+		if v != nil {
+			stop = vis(v)
+		}
+	case RefValue:
+		stop = vis(v)
+	}
+
 	return
 }
 
@@ -259,6 +318,7 @@ func (mv *MapValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
+	// fmt.Println("======VisitAssociated of PackageValue..., pv: ", pv)
 	// visit pv.Block
 	v := pv.Block
 	if v != nil {
@@ -271,6 +331,7 @@ func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
 
 	// visit pv.FBlocks
 	for _, fb := range pv.FBlocks {
+		// fmt.Println("===================visiting file blocks: ", fb)
 		if fb == nil {
 			continue
 		}
@@ -287,6 +348,16 @@ func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
+	// fmt.Println("======VisitAssociated of Block..., type of b.Souce: ", reflect.TypeOf(b.Source))
+	if pn, ok := b.Source.(*PackageNode); ok {
+		// fmt.Println("===pn: ", pn, pn.PkgPath)
+		if pn.PkgPath == ".uverse" {
+			return
+		}
+	}
+
+	// XXX, visit b.Source???
+
 	// Visit each value.
 	for i := 0; i < len(b.Values); i++ {
 		v := b.Values[i].V
@@ -305,10 +376,13 @@ func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
 	case nil:
 		return
 	case *Block:
+		// fmt.Println("======parent of block: ", v)
 		if v != nil {
 			stop = vis(v)
 		}
 	case RefValue:
+		// XXX, if ref value existing in memory, not count this.
+		// fmt.Println("===parent of refValue: ", v)
 		stop = vis(v)
 	}
 

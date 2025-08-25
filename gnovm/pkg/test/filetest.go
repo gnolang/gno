@@ -37,6 +37,7 @@ func (opts *TestOptions) RunFiletest(fname string, source []byte, tgs gno.Store)
 // Go type-checking in filetests is only available for gnovm internal filetests
 // in test/files.
 func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store, tcheck bool) (string, error) {
+	// fmt.Println("======runFiletest...")
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
 		return "", fmt.Errorf("error parsing directives: %w", err)
@@ -66,8 +67,11 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		opslog = new(bytes.Buffer)
 	}
 
+	// fmt.Println("======TestStore.GetAllocator: ", tgs.GetAllocator())
+	// fmt.Println("======maxAlloc: ", maxAlloc)
 	// Create machine for execution and run test
 	tcw := opts.BaseStore.CacheWrap()
+	// fmt.Println("======machine for filetest...")
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Output:        &opts.outWriter,
 		Store:         tgs.BeginTransaction(tcw, tcw, nil),
@@ -267,6 +271,9 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		opts.tcCache = make(gno.TypeCheckCache)
 	}
 
+	// fmt.Println("======runTest, pkgPath: ", pkgPath)
+	// fmt.Println("======m.Store.GetAllocator(): ", m.Store.GetAllocator())
+	opts.TestStore.SetAllocator(m.Store.GetAllocator())
 	// Eagerly load imports.
 	// LoadImports is run using opts.Store, rather than the transaction store;
 	// it allows us to only have to load the imports once (and re-use the cached
@@ -288,6 +295,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 		return runResult{Error: err.Error()}
 	}
+	// fmt.Println("======LoadImports done============")
 
 	// Reset and start capturing stdout.
 	opts.filetestBuffer.Reset()
@@ -338,17 +346,22 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		// Validate Gno syntax and type check.
 		if tcheck {
 			if _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
-				Getter:     m.Store,
+				// Use teststore to load imported packages,
+				// ensuring the loading behavior matches MsgCall,
+				// where target packages are preloaded.
+				Getter:     opts.TestStore,
 				TestGetter: m.Store,
 				Mode:       gno.TCLatestRelaxed,
 				Cache:      opts.tcCache,
+				// Alloc:      m.Alloc,
 			}); err != nil {
 				tcError = fmt.Sprintf("%v", err.Error())
 			}
 		}
+		// fmt.Println("======Construct throwaway package and parse file...")
 		// Construct throwaway package and parse file.
 		pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
-		pv := pn.NewPackage()
+		pv := pn.NewPackage(m.Alloc)
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 		m.SetActivePackage(pv)
@@ -356,6 +369,9 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		fn := gno.MustParseFile(fname, string(content))
 		// Run (add) file, and then run main().
 		m.RunFiles(fn)
+		// fmt.Println("!!!!!!!!!!!!!! len of values: ", len(m.Package.Block.(*gno.Block).Values))
+		// XXX, allocate items here to make consistent...
+		m.Alloc.AllocateBlockItems(int64(len(m.Package.Block.(*gno.Block).Values)))
 		m.RunMain()
 	} else { // Realm case.
 		gno.DisableDebug() // until main call.
@@ -381,6 +397,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 				TestGetter: m.Store,
 				Mode:       gno.TCLatestRelaxed,
 				Cache:      opts.tcCache,
+				Alloc:      m.Alloc,
 			}); err != nil {
 				tcError = fmt.Sprintf("%v", err.Error())
 			}

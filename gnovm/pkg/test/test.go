@@ -225,6 +225,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 	var errs error
 
+	fmt.Println("============Start test......")
 	// Create a common tcw/tgs for both the `pkg` tests as well as the
 	// `pkg_test` tests. This allows us to "export" symbols from the pkg
 	// tests and import them from the `pkg_test` tests.
@@ -352,6 +353,7 @@ func (opts *TestOptions) runTestFiles(
 	files *gno.FileSet,
 	tgs gno.TransactionStore,
 ) (errs error) {
+	fmt.Println("======runTestFiles...")
 	var m *gno.Machine
 	defer func() {
 		if r := recover(); r != nil {

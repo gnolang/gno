@@ -119,6 +119,7 @@ func StoreWithOptions(
 		m *gno.Machine, mpkg *std.MemPackage, save bool) (
 		pn *gno.PackageNode, pv *gno.PackageValue,
 	) {
+		// println("==============_processMemPackage...")
 		// _processMemPackage should only be called for "prod" packages.
 		// filetests/extern are MPStdlibProd, and examples are MPUserProd.
 		// (pkg/test/test.go Test() will filter for MPFTest and store
@@ -131,6 +132,7 @@ func StoreWithOptions(
 			return nil, nil
 		}
 		if opts.PreprocessOnly {
+			println("===============PreprocessOnly...")
 			// Check the gno.mod gno version.
 			mod, err := gno.ParseCheckGnoMod(mpkg)
 			if err != nil {
@@ -166,6 +168,9 @@ func StoreWithOptions(
 	//----------------------------------------
 	// Main entrypoint for new test imports.
 	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
+		// fmt.Println("======pkgGetter, pkgPath: ", pkgPath)
+		alloc := store.GetAllocator()
+		// fmt.Println("======allocator: ", alloc)
 		if pkgPath == "" {
 			panic("invalid zero package path in testStore().pkgGetter")
 		}
@@ -184,6 +189,7 @@ func StoreWithOptions(
 					Context:       ctx,
 					ReviveEnabled: true,
 					SkipPackage:   true,
+					Alloc:         alloc,
 				})
 				return _processMemPackage(m2, mpkg, true)
 			}
@@ -286,6 +292,8 @@ func loadStdlib(
 	preprocessOnly bool,
 	testing bool,
 ) (*gno.PackageNode, *gno.PackageValue) {
+	// fmt.Println("======loadStdlib..., pkgPath: ", pkgPath)
+	// fmt.Println("======store.GetAllocator: ", store.GetAllocator())
 	dirs := []string{
 		// Normal stdlib path.
 		stdlibLocation(rootDir, pkgPath),
@@ -327,6 +335,7 @@ func loadStdlib(
 		Store:         store,
 		ReviveEnabled: true,
 		SkipPackage:   true, // will PreprocessFiles() or RunMemPackage() after.
+		Alloc:         store.GetAllocator(),
 	})
 	if preprocessOnly {
 		m2.Store.AddMemPackage(mpkg, mPkgType)
@@ -352,6 +361,7 @@ func (e *stackWrappedError) String() string {
 // imports are pre-loaded in a permanent store, so that the tests can use
 // ephemeral transaction stores.
 func LoadImports(store gno.Store, mpkg *std.MemPackage, abortOnError bool) (err error) {
+	// fmt.Println("======LoadImports to TestStore, mpkg.Path: ", mpkg.Path)
 	// If this gets out of hand (e.g. with nested catchPanic with need for
 	// selective catching) then pass in a bool instead.
 	// See also cmd/gno/common.go.
@@ -390,9 +400,11 @@ func LoadImports(store gno.Store, mpkg *std.MemPackage, abortOnError bool) (err 
 		packages.FileKindXTest,
 	)
 	for _, imp := range imports {
+		// fmt.Println("======imp: ", imp)
 		if gno.IsRealmPath(imp.PkgPath) {
 			// Don't eagerly load realms.
 			// Realms persist state and can change the state of other realms in initialization.
+			// fmt.Println("======skip realm while importing..., path: ", imp.PkgPath)
 			continue
 		}
 		if !abortOnError {
@@ -402,6 +414,7 @@ func LoadImports(store gno.Store, mpkg *std.MemPackage, abortOnError bool) (err 
 				}
 			}()
 		}
+		// fmt.Println("======GetPackage, imp.PkgPath: ", imp.PkgPath)
 		// Get package from store, recursively as necessary.
 		pkg := store.GetPackage(imp.PkgPath, true)
 		if abortOnError && pkg == nil {
