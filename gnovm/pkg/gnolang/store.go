@@ -41,6 +41,7 @@ type Store interface {
 	GetPackageGetter() PackageGetter
 	SetPackageGetter(PackageGetter)
 	GetPackage(pkgPath string, isImport bool) *PackageValue
+	GetPackageFromStore(oid ObjectID) *PackageValue
 	SetCachePackage(*PackageValue)
 	GetPackageRealm(pkgPath string) *Realm
 	SetPackageRealm(*Realm)
@@ -287,27 +288,14 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 			ds.current = ds.current[:len(ds.current)-1]
 		}()
 	}
-	// first, check cache.
+
 	oid := ObjectIDFromPkgPath(pkgPath)
-	if oo, exists := ds.cacheObjects[oid]; exists {
-		pv := oo.(*PackageValue)
+	// Get package from cache or baseStore
+	oo := ds.GetObjectSafe(oid)
+	if pv, ok := oo.(*PackageValue); ok {
 		return pv
 	}
-	// else, load package.
-	if ds.baseStore != nil {
-		if oo := ds.loadObjectSafe(oid); oo != nil {
-			pv := oo.(*PackageValue)
-			_ = pv.GetBlock(ds) // preload
-			// get package associated realm if nil.
-			if pv.IsRealm() && pv.Realm == nil {
-				rlm := ds.GetPackageRealm(pkgPath)
-				pv.Realm = rlm
-			}
-			// Rederive pv.fBlocksMap.
-			pv.deriveFBlocksMap(ds)
-			return pv
-		}
-	}
+
 	// otherwise, fetch from pkgGetter.
 	if ds.pkgGetter != nil {
 		if pn, pv := ds.pkgGetter(pkgPath, ds); pv != nil {
@@ -337,6 +325,13 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	}
 	// otherwise, package does not exist.
 	return nil
+}
+
+// NOTE: Does not consult pkgGetter, used only for
+// getting *PackageValue from store.
+func (ds *defaultStore) GetPackageFromStore(oid ObjectID) *PackageValue {
+	obj := ds.GetObject(oid)
+	return obj.(*PackageValue)
 }
 
 // Used to set throwaway packages.
@@ -402,7 +397,8 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 }
 
 // NOTE: does not consult the packageGetter, so instead
-// call GetPackage() for packages.
+// call GetPackage() for packages. if attempting to get
+// *PackageValue only from store, see GetPackageFromStore().
 // NOTE: current implementation behavior requires
 // all []TypedValue types and TypeValue{} types to be
 // loaded (non-ref) types.
@@ -426,11 +422,6 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	// check baseStore.
 	if ds.baseStore != nil {
 		if oo := ds.loadObjectSafe(oid); oo != nil {
-			if debug {
-				if _, ok := oo.(*PackageValue); ok {
-					panic("packages must be fetched with GetPackage()")
-				}
-			}
 			return oo
 		}
 	}
@@ -471,12 +462,27 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 			}
 		}
 		oo.SetHash(ValueHash{NewHashlet(hash)})
+
+		if pv, ok := oo.(*PackageValue); ok {
+			ds.fillPackage(pv)
+		}
+
 		ds.cacheObjects[oid] = oo
 		oo.GetObjectInfo().LastObjectSize = int64(size)
 		_ = fillTypesOfValue(ds, oo)
 		return oo
 	}
 	return nil
+}
+
+func (ds *defaultStore) fillPackage(pv *PackageValue) {
+	pv.GetBlock(ds) // preload
+	if pv.IsRealm() && pv.Realm == nil {
+		rlm := ds.GetPackageRealm(pv.PkgPath)
+		pv.Realm = rlm
+	}
+	// Rederive pv.fBlocksMap.
+	pv.deriveFBlocksMap(ds)
 }
 
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
