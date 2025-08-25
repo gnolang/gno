@@ -139,6 +139,7 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 func parseFiles(fpaths []string, stderr io.WriteCloser) ([]*gno.FileNode, error) {
 	files := make([]*gno.FileNode, 0, len(fpaths))
 	var didPanic bool
+	var m *gno.Machine
 	for _, fpath := range fpaths {
 		if s, err := os.Stat(fpath); err == nil && s.IsDir() {
 			subFns, err := listNonTestFiles(fpath)
@@ -159,7 +160,7 @@ func parseFiles(fpaths []string, stderr io.WriteCloser) ([]*gno.FileNode, error)
 
 		dir, fname := filepath.Split(fpath)
 		didPanic = catchPanic(dir, fname, stderr, func() {
-			files = append(files, gno.MustReadFile(fpath))
+			files = append(files, m.MustReadFile(fpath))
 		})
 	}
 
@@ -187,7 +188,7 @@ func listNonTestFiles(dir string) ([]string, error) {
 }
 
 func runExpr(m *gno.Machine, expr string) (err error) {
-	ex, err := gno.ParseExpr(expr)
+	ex, err := m.ParseExpr(expr)
 	if err != nil {
 		return fmt.Errorf("could not parse expression: %w", err)
 	}
