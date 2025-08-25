@@ -229,7 +229,7 @@ func ExecSignAndBroadcast(
 	io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
 	io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 	io.Println("HEIGHT:    ", bres.Height)
-	if delta, storageFee, ok := getStorageInfo(bres.DeliverTx.Events); ok {
+	if delta, storageFee, ok := GetStorageInfo(bres.DeliverTx.Events); ok {
 		io.Printfln("STORAGE DELTA: %d bytes", delta)
 		io.Println("STORAGE FEE:  ", storageFee)
 		if tx.Fee.GasFee.Denom == storageFee.Denom {
@@ -244,10 +244,10 @@ func ExecSignAndBroadcast(
 	return nil
 }
 
-// getStorageInfo searches events for StorageDepositEvent and returns the bytes delta and fee.
+// GetStorageInfo searches events for StorageDepositEvent and returns the bytes delta and fee.
 // If this is "unlock", then bytes delta and fee are negative.
 // The third return is true if found, else false.
-func getStorageInfo(events []abci.Event) (int64, std.Coin, bool) {
+func GetStorageInfo(events []abci.Event) (int64, std.Coin, bool) {
 	for _, event := range events {
 		depositEvent, ok := event.(abci.StorageDepositEvent)
 		if !ok {

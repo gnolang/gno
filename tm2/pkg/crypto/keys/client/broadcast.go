@@ -90,7 +90,7 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 		io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
 		io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
 		io.Println("HEIGHT:    ", res.Height)
-		if delta, storageFee, ok := getStorageInfo(res.DeliverTx.Events); ok {
+		if delta, storageFee, ok := GetStorageInfo(res.DeliverTx.Events); ok {
 			io.Printfln("STORAGE DELTA: %d bytes", delta)
 			io.Println("STORAGE FEE:  ", storageFee)
 			if tx.Fee.GasFee.Denom == storageFee.Denom {
