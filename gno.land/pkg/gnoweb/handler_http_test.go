@@ -2,6 +2,7 @@ package gnoweb_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
@@ -32,44 +34,44 @@ func (t *testingLogger) Write(b []byte) (n int, err error) {
 // Top-level stubClient definition for use in error simulation/custom behavior tests
 // stubClient simulates a client that can be customized per test by setting function fields.
 type stubClient struct {
-	realmFunc     func(path, args string) ([]byte, error)
-	fileFunc      func(path, filename string) ([]byte, gnoweb.FileMeta, error)
-	docFunc       func(path string) (*doc.JSONDocumentation, error)
-	listFilesFunc func(path string) ([]string, error)
-	listPathsFunc func(prefix string, limit int) ([]string, error)
+	realmFunc     func(ctx context.Context, path, args string) ([]byte, error)
+	fileFunc      func(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error)
+	docFunc       func(ctx context.Context, path string) (*doc.JSONDocumentation, error)
+	listFilesFunc func(ctx context.Context, path string) ([]string, error)
+	listPathsFunc func(ctx context.Context, prefix string, limit int) ([]string, error)
 }
 
-func (s *stubClient) Realm(path, args string) ([]byte, error) {
+func (s *stubClient) Realm(ctx context.Context, path, args string) ([]byte, error) {
 	if s.realmFunc != nil {
-		return s.realmFunc(path, args)
+		return s.realmFunc(ctx, path, args)
 	}
 	return nil, errors.New("stubClient: Realm not implemented")
 }
 
-func (s *stubClient) File(path, filename string) ([]byte, gnoweb.FileMeta, error) {
+func (s *stubClient) File(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error) {
 	if s.fileFunc != nil {
-		return s.fileFunc(path, filename)
+		return s.fileFunc(ctx, path, filename)
 	}
 	return nil, gnoweb.FileMeta{}, errors.New("stubClient: File not implemented")
 }
 
-func (s *stubClient) Doc(path string) (*doc.JSONDocumentation, error) {
+func (s *stubClient) Doc(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
 	if s.docFunc != nil {
-		return s.docFunc(path)
+		return s.docFunc(ctx, path)
 	}
 	return nil, errors.New("stubClient: Doc not implemented")
 }
 
-func (s *stubClient) ListFiles(path string) ([]string, error) {
+func (s *stubClient) ListFiles(ctx context.Context, path string) ([]string, error) {
 	if s.listFilesFunc != nil {
-		return s.listFilesFunc(path)
+		return s.listFilesFunc(ctx, path)
 	}
 	return nil, errors.New("stubClient: ListFiles not implemented")
 }
 
-func (s *stubClient) ListPaths(prefix string, limit int) ([]string, error) {
+func (s *stubClient) ListPaths(ctx context.Context, prefix string, limit int) ([]string, error) {
 	if s.listPathsFunc != nil {
-		return s.listPathsFunc(prefix, limit)
+		return s.listPathsFunc(ctx, prefix, limit)
 	}
 	return nil, errors.New("stubClient: ListPaths not implemented")
 }
@@ -581,12 +583,12 @@ func TestHTTPHandler_GetUserView(t *testing.T) {
 	t.Parallel()
 
 	client := &stubClient{
-		listPathsFunc: func(prefix string, limit int) ([]string, error) {
+		listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) {
 			return []string{
 				"/r/testuser/pkg1", "/r/testuser/pkg2",
 			}, nil
 		},
-		realmFunc: func(path string, args string) ([]byte, error) {
+		realmFunc: func(ctx context.Context, path string, args string) ([]byte, error) {
 			if path != "/r/testuser/home" {
 				return nil, fmt.Errorf("unknown path")
 			}
@@ -623,10 +625,10 @@ func TestHTTPHandler_GetUserView_QueryPathsError(t *testing.T) {
 	t.Parallel()
 
 	client := &stubClient{
-		listPathsFunc: func(prefix string, limit int) ([]string, error) {
+		listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) {
 			return nil, errors.New("fail to list paths")
 		},
-		realmFunc: func(path string, args string) ([]byte, error) {
+		realmFunc: func(ctx context.Context, path string, args string) ([]byte, error) {
 			if path != "/r/testuser/home" {
 				return nil, fmt.Errorf("unknown path")
 			}
@@ -730,10 +732,10 @@ func TestHTTPHandler_GetSourceView_FilePreference(t *testing.T) {
 			t.Parallel()
 
 			client := &stubClient{
-				listFilesFunc: func(path string) ([]string, error) {
+				listFilesFunc: func(ctx context.Context, path string) ([]string, error) {
 					return tc.files, nil
 				},
-				fileFunc: func(path string, filename string) ([]byte, gnoweb.FileMeta, error) {
+				fileFunc: func(ctx context.Context, path string, filename string) ([]byte, gnoweb.FileMeta, error) {
 					if slices.Contains(tc.files, filename) {
 						content := fmt.Sprintf("content of %s", filename)
 						return []byte(content), gnoweb.FileMeta{}, nil
@@ -774,7 +776,7 @@ func TestHTTPHandler_GetSourceView_ReadmeErrors(t *testing.T) {
 	t.Parallel()
 
 	client := &stubClient{
-		fileFunc: func(path string, filename string) ([]byte, gnoweb.FileMeta, error) {
+		fileFunc: func(ctx context.Context, path string, filename string) ([]byte, gnoweb.FileMeta, error) {
 			return nil, gnoweb.FileMeta{}, errors.New("mock readme fetch error")
 		},
 	}
@@ -798,14 +800,14 @@ func TestHTTPHandler_GetSourceView_ReadmeSuccess(t *testing.T) {
 	t.Parallel()
 
 	client := &stubClient{
-		fileFunc: func(path string, filename string) ([]byte, gnoweb.FileMeta, error) {
+		fileFunc: func(ctx context.Context, path string, filename string) ([]byte, gnoweb.FileMeta, error) {
 			if filename == "README.md" {
 				return []byte("# Hello World"), gnoweb.FileMeta{}, nil
 			}
 
 			return nil, gnoweb.FileMeta{}, errors.New("uknown file")
 		},
-		listFilesFunc: func(path string) ([]string, error) {
+		listFilesFunc: func(ctx context.Context, path string) ([]string, error) {
 			return []string{"README.md"}, nil
 		},
 	}
@@ -852,4 +854,194 @@ func TestHTTPHandler_GetSourceView_DefaultCase(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Contains(t, rr.Body.String(), "main.gno")
 	assert.Contains(t, rr.Body.String(), "package main")
+}
+
+func TestHTTPHandler_ContextTimeout(t *testing.T) {
+	t.Parallel()
+
+	client := &stubClient{
+		realmFunc: func(ctx context.Context, path, args string) ([]byte, error) {
+			// Simulate a slow operation
+			select {
+			case <-time.After(100 * time.Millisecond):
+				return []byte("slow response"), nil
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		},
+	}
+
+	cfg := newTestHandlerConfig(t, client)
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		cfg,
+	)
+	require.NoError(t, err)
+
+	// Create request with short timeout context
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	req := httptest.NewRequest(http.MethodGet, "/r/slow/realm", nil)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	// Should return an error status due to context timeout
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, rr.Body.String(), "internal error")
+}
+
+func TestHTTPHandler_ContextCancellation(t *testing.T) {
+	t.Parallel()
+
+	client := &stubClient{
+		listFilesFunc: func(ctx context.Context, path string) ([]string, error) {
+			// Check if context is cancelled
+			if err := ctx.Err(); err != nil {
+				return nil, fmt.Errorf("context cancelled: %w", err)
+			}
+			return []string{"test.gno"}, nil
+		},
+		fileFunc: func(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error) {
+			// Check if context is cancelled
+			if err := ctx.Err(); err != nil {
+				return nil, gnoweb.FileMeta{}, fmt.Errorf("context cancelled: %w", err)
+			}
+			return []byte("package test"), gnoweb.FileMeta{}, nil
+		},
+	}
+
+	cfg := newTestHandlerConfig(t, client)
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		cfg,
+	)
+	require.NoError(t, err)
+
+	// Create request with cancelled context
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	req := httptest.NewRequest(http.MethodGet, "/r/test/path$source", nil)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	// Should return an error status due to cancelled context
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, rr.Body.String(), "internal error")
+}
+
+func TestHTTPHandler_ContextPropagation(t *testing.T) {
+	t.Parallel()
+
+	newClient := func(cr map[string]bool) gnoweb.ClientAdapter {
+		return &stubClient{
+			realmFunc: func(ctx context.Context, path, args string) ([]byte, error) {
+				cr["realm"] = ctx != nil
+				return []byte("realm content"), nil
+			},
+			listFilesFunc: func(ctx context.Context, path string) ([]string, error) {
+				cr["listFiles"] = ctx != nil
+				return []string{"test.gno"}, nil
+			},
+			fileFunc: func(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error) {
+				cr["file"] = ctx != nil
+				return []byte("file content"), gnoweb.FileMeta{}, nil
+			},
+			docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+				cr["doc"] = ctx != nil
+				return &doc.JSONDocumentation{PackagePath: "test"}, nil
+			},
+			listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) {
+				cr["listPaths"] = ctx != nil
+				return []string{"/r/test/path1", "/r/test/path2"}, nil
+			},
+		}
+	}
+
+	testCases := []struct {
+		name             string
+		path             string
+		expectedContexts []string
+	}{
+		{
+			name:             "realm view",
+			path:             "/r/test/realm",
+			expectedContexts: []string{"realm"},
+		},
+		{
+			name:             "source view",
+			path:             "/r/test/path$source",
+			expectedContexts: []string{"listFiles"},
+		},
+		{
+			name:             "help view",
+			path:             "/r/test/path$help",
+			expectedContexts: []string{"doc"},
+		},
+		{
+			name:             "user view",
+			path:             "/u/testuser",
+			expectedContexts: []string{"realm", "listPaths"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			contextReceived := make(map[string]bool)
+
+			cl := newClient(contextReceived)
+			cfg := newTestHandlerConfig(t, cl)
+			handler, err := gnoweb.NewHTTPHandler(
+				slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+				cfg,
+			)
+			require.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			// Verify that context was received for expected operations
+			for _, expectedCtx := range tc.expectedContexts {
+				assert.True(t, contextReceived[expectedCtx],
+					"Context should have been received for %s operation", expectedCtx)
+			}
+		})
+	}
+}
+
+func TestHTTPHandler_DownloadWithContext(t *testing.T) {
+	t.Parallel()
+
+	const content = "file content for download"
+
+	contextReceived := false
+	client := &stubClient{
+		fileFunc: func(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error) {
+			contextReceived = ctx != nil
+			return []byte(content), gnoweb.FileMeta{}, nil
+		},
+	}
+
+	cfg := newTestHandlerConfig(t, client)
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		cfg,
+	)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/test/path$source&file=test.gno&download", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.True(t, contextReceived)
+	assert.Contains(t, rr.Body.String(), content)
 }
