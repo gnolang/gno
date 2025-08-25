@@ -3,9 +3,9 @@ package boards2
 import (
 	"std"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/nt/avl"
 )
 
 // TODO: Refactor globals in favor of a cleaner pattern

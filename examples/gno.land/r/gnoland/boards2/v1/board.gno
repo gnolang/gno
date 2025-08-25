@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/avl"
 	"gno.land/p/nt/commondao"
+	"gno.land/p/nt/seqid"
 )
 
 type (

@@ -6,13 +6,13 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/fqname"
-	"gno.land/p/demo/grc/grc20"
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/fqname"
+	"gno.land/p/nt/testutils"
 	trs_pkg "gno.land/p/nt/treasury"
+	"gno.land/p/nt/uassert"
 
-	"gno.land/r/demo/grc20reg"
+	"gno.land/r/demo/defi/grc20reg"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
 	"gno.land/r/gov/dao/v3/treasury"

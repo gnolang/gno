@@ -5,7 +5,7 @@ import (
 	"math"
 	"std"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 // ErrVoteExists indicates that a user already voted.

@@ -3,8 +3,8 @@ package basedao
 import (
 	"std"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/json"
+	"gno.land/p/nt/avl"
+	"gno.land/p/onbloc/json"
 )
 
 type MembersStore struct {

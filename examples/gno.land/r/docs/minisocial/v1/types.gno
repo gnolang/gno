@@ -4,7 +4,7 @@ import (
 	"std"  // The standard Gno package
 	"time" // For handling time operations
 
-	"gno.land/p/demo/ufmt" // For string formatting, like `fmt`
+	"gno.land/p/nt/ufmt" // For string formatting, like `fmt`
 )
 
 // Post defines the main data we keep about each post

@@ -16,7 +16,7 @@ package charts
 import (
 	"strings"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 const height = 15
