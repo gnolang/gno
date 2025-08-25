@@ -16,7 +16,7 @@ stdout 'GAS USED:   109032' # same as simulate only
 package call_package
 
 func Render() string {
- 	return "notok"
+	return "notok"
 }
 -- simulate/simulate.gno --
 package simulate

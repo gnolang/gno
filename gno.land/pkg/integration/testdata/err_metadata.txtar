@@ -1,4 +1,5 @@
 # ensure users get proper out of gas errors when they add packages
+setopts -no-fmt
 
 # start a new node
 gnoland start

@@ -46,15 +46,14 @@ stdout 'Tier T3 contains 1 members'
 package proxy
 
 import (
-    "std"
+	"std"
 
-    "gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/impl"
 )
 
 func CreateMember(cur realm, addr std.Address) {
-    impl.AddMember(cross, addr)
+	impl.AddMember(cross, addr)
 }
-
 -- loader/load_govdao.gno --
 package load_govdao
 

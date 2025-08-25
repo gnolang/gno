@@ -80,5 +80,5 @@ gno = "0.9"
 package one
 
 func Render(path string) string {
-    return "# Hello One"
+	return "# Hello One"
 }

@@ -61,7 +61,6 @@ func main() {
 	preq := impl.NewAddMemberRequest(cross, addr, tier, portfolio)
 	dao.MustCreateProposal(cross, preq)
 }
-
 -- debug/check_addresses.gno --
 package main
 
@@ -73,7 +72,6 @@ func main() {
 	currentRealm := std.CurrentRealm()
 	println("Current realm:", currentRealm.String())
 }
-
 -- loader/load_govdao.gno --
 package load_govdao
 

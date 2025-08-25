@@ -70,7 +70,6 @@ func main() {
 		42,
 	)
 }
-
 -- proposer/create_proposal.gno --
 package main
 
@@ -89,7 +88,6 @@ func main() {
 	)
 	dao.MustCreateProposal(cross, tureq)
 }
-
 -- loader/load_govdao.gno --
 package load_govdao
 

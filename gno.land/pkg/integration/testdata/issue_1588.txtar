@@ -20,7 +20,7 @@ gno = "0.9"
 package xx
 
 type Parent struct {
-	children []Child
+	children     []Child
 	outcastChild *Child
 }
 

@@ -83,25 +83,25 @@ func SetFoo(cur realm, newFoo string) {
 	std.SetParamString("foo", newFoo)
 }
 
-func SetBar(cur realm, newBar bool)   {
+func SetBar(cur realm, newBar bool) {
 	std.SetParamBool("bar", newBar)
 }
 
-func SetBaz(cur realm, newBaz int64)  {
+func SetBaz(cur realm, newBaz int64) {
 	std.SetParamInt64("baz", newBaz)
 }
 
-func SetUint64(newBaz uint64)  { std.SetParamUint64("baz", newBaz) }
-func SetBytes()  { std.SetParamBytes("baz", []byte{255,255}) }
+func SetUint64(newBaz uint64) { std.SetParamUint64("baz", newBaz) }
+func SetBytes()               { std.SetParamBytes("baz", []byte{255, 255}) }
 
-func SetLockTransfer(cur realm, denom string)  {
+func SetLockTransfer(cur realm, denom string) {
 	std.SetParamString("bank:p:lockTransfer", denom)
 }
 
-func SetInvalidString(cur realm, denom string)  {
+func SetInvalidString(cur realm, denom string) {
 	std.SetParamString("bank:p:lockTransfer", denom)
 }
 
-func SetValidString(cur realm, denom string)  {
+func SetValidString(cur realm, denom string) {
 	std.SetParamString("bank_lockTransfer", denom)
 }

@@ -71,3 +71,74 @@ func unquote(args []string) ([]string, error) {
 
 	return parts, nil
 }
+
+// splitArgs splits a flags line into arguments, respecting both single and
+// double quotes and matching shell-like conventions.
+// Returns an error if there is an unfinished quote.
+func splitArgs(s string) ([]string, error) {
+	const (
+		singleQuote = '\''
+		doubleQuote = '"'
+	)
+
+	var (
+		cur       strings.Builder
+		inQuote   bool
+		quoteChar rune // Either ' or "
+		escape    bool
+	)
+
+	args := []string{}
+	for _, r := range s {
+		switch {
+		case escape:
+			// Always treat next character as literal when escaping (except in single quotes)
+			cur.WriteRune(r)
+			escape = false
+
+		case r == '\\':
+			// Only enable escaping outside single quotes
+			if inQuote && quoteChar == singleQuote {
+				cur.WriteRune(r)
+			} else {
+				escape = true
+			}
+
+		case r == singleQuote || r == doubleQuote:
+			if !inQuote {
+				inQuote = true
+				quoteChar = r
+			} else if quoteChar == r {
+				inQuote = false
+				quoteChar = 0
+			} else {
+				// Different quote inside quoted string, treat as literal
+				cur.WriteRune(r)
+			}
+
+		case r == ' ' && !inQuote:
+			// End of an argument
+			if cur.Len() > 0 {
+				args = append(args, cur.String())
+				cur.Reset()
+			}
+
+		default:
+			cur.WriteRune(r)
+		}
+	}
+
+	if inQuote {
+		return nil, errors.New("unfinished quote")
+	}
+	if escape {
+		// Trailing backslash at end of input
+		cur.WriteRune('\\')
+	}
+
+	if cur.Len() > 0 {
+		args = append(args, cur.String())
+	}
+
+	return args, nil
+}

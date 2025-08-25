@@ -67,60 +67,59 @@ gno = "0.9"
 package callerrealm
 
 import (
- 	"gno.land/p/test/utils"
-	"gno.land/r/test/borrowrealm"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/test/utils"
+	"gno.land/r/test/borrowrealm"
 )
 
 var obj = borrowrealm.NewObject() // seems to be same thing with obj = borrowrealm.ObjectImpl{}
 
 func NonCrossingMutation(cur realm) {
- 	utils.AssertPreviousRealmPkgPath("")
- 	utils.AssertCurrentRealmPkgPath("gno.land/r/test/callerrealm")
+	utils.AssertPreviousRealmPkgPath("")
+	utils.AssertCurrentRealmPkgPath("gno.land/r/test/callerrealm")
 
- 	borrowrealm.Mutate()
+	borrowrealm.Mutate()
 }
 
 func CrossingMutation(cur realm) {
- 	borrowrealm.MutateCrossing(cross)
+	borrowrealm.MutateCrossing(cross)
 }
 
 func NonCrossingObjectMutation(cur realm) {
- 	borrowrealm.Object.Mutate()
+	borrowrealm.Object.Mutate()
 }
 
 func ObjectMutationRootedAtCaller(cur realm) {
- 	obj.Mutate()
+	obj.Mutate()
 }
 
 func CallMutateObject(cur realm) {
- 	borrowrealm.MutateObject()
+	borrowrealm.MutateObject()
 }
 
 func InspectRealmsCrossing(cur realm) {
- 	borrowrealm.InspectRealmsCrossing(cross)
+	borrowrealm.InspectRealmsCrossing(cross)
 }
 
 func InspectRealmsNonCrossing(cur realm) {
- 	borrowrealm.InspectRealmsNonCrossing()
+	borrowrealm.InspectRealmsNonCrossing()
 }
 
 func MutateObjectWithBorrowCrossing(cur realm) {
- 	borrowrealm.MutateObjectWithBorrowCrossing(cross)
+	borrowrealm.MutateObjectWithBorrowCrossing(cross)
 }
 
 func MutateCrossingObject(cur realm) {
- 	borrowrealm.Object.MutateCrossing(cross)
+	borrowrealm.Object.MutateCrossing(cross)
 }
 
 func MutateCrossingObjectRootedAtCaller(cur realm) {
- 	obj.MutateCrossingObjectRootedAtCaller(cross)
+	obj.MutateCrossingObjectRootedAtCaller(cross)
 }
 
 func Render(_ string) string {
- 	return ufmt.Sprintf("obj.value = %s", obj.String())
+	return ufmt.Sprintf("obj.value = %s", obj.String())
 }
-
 -- borrowrealm/gnomod.toml --
 module = "gno.land/r/test/borrowrealm"
 gno = "0.9"
@@ -129,19 +128,19 @@ gno = "0.9"
 package borrowrealm
 
 import (
- 	"gno.land/p/test/utils"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/test/utils"
 )
 
 var Object ObjectImplem
 var value int
 
 type ObjectImplem struct {
- 	value int
+	value int
 }
 
 func NewObject() *ObjectImplem {
- 	return &ObjectImplem{}
+	return &ObjectImplem{}
 }
 
 func (o *ObjectImplem) String() string {
@@ -149,67 +148,66 @@ func (o *ObjectImplem) String() string {
 }
 
 func (o *ObjectImplem) MutateWithoutRealmCheck() {
- 	o.value++
+	o.value++
 }
 
 func (o *ObjectImplem) Mutate() {
- 	utils.AssertPreviousRealmPkgPath("")
- 	utils.AssertCurrentRealmPkgPath("gno.land/r/test/callerrealm")
+	utils.AssertPreviousRealmPkgPath("")
+	utils.AssertCurrentRealmPkgPath("gno.land/r/test/callerrealm")
 
- 	o.value++
+	o.value++
 }
 
 func (o *ObjectImplem) MutateCrossing(cur realm) {
- 	utils.AssertPreviousRealmPkgPath("gno.land/r/test/callerrealm")
- 	utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
+	utils.AssertPreviousRealmPkgPath("gno.land/r/test/callerrealm")
+	utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
 
- 	o.value++
+	o.value++
 }
 
 func (o *ObjectImplem) MutateCrossingObjectRootedAtCaller(cur realm) {
- 	utils.AssertPreviousRealmPkgPath("gno.land/r/test/callerrealm")
- 	utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
+	utils.AssertPreviousRealmPkgPath("gno.land/r/test/callerrealm")
+	utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
 
- 	o.value++
+	o.value++
 }
 
 func (o *ObjectImplem) MutateWithBorrowCrossing() {
- 	utils.AssertPreviousRealmPkgPath("gno.land/r/test/callerrealm")
- 	utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
+	utils.AssertPreviousRealmPkgPath("gno.land/r/test/callerrealm")
+	utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
 
- 	o.value++
+	o.value++
 }
 
 func InspectRealmsNonCrossing() {
- 	utils.AssertPreviousRealmPkgPath("")
- 	utils.AssertCurrentRealmPkgPath("gno.land/r/test/callerrealm")
+	utils.AssertPreviousRealmPkgPath("")
+	utils.AssertCurrentRealmPkgPath("gno.land/r/test/callerrealm")
 }
 
 func InspectRealmsCrossing(cur realm) {
- 	utils.AssertPreviousRealmPkgPath("gno.land/r/test/callerrealm")
- 	utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
+	utils.AssertPreviousRealmPkgPath("gno.land/r/test/callerrealm")
+	utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
 }
 
 func Mutate() {
- 	value++
+	value++
 }
 
 func MutateCrossing(cur realm) {
- 	value++
+	value++
 }
 
 func MutateObject() {
- 	Object.Mutate()
+	Object.Mutate()
 }
 
 func MutateObjectWithBorrowCrossing(cur realm) {
- 	Object.MutateWithBorrowCrossing()
+	Object.MutateWithBorrowCrossing()
 }
 
 func Render(_ string) string {
- 	return ufmt.Sprintf("Object.value = %d, value = %d\n", Object.value, value)
+	return ufmt.Sprintf("Object.value = %d, value = %d\n", Object.value, value)
 }
-
 -- utils/gnomod.toml --
 module = "gno.land/p/test/utils"
 gno = "0.9"
@@ -218,25 +216,25 @@ gno = "0.9"
 package utils
 
 import (
- 	"std"
+	"std"
 )
 
 func AssertCurrentRealmPkgPath(expected string) {
- 	currentRealm := std.CurrentRealm().PkgPath()
- 	if currentRealm != expected {
- 	 	if expected == "" {
- 	 	 	expected = "empty"
- 	 	}
- 	 	panic("expected std.CurrentRealm().PkgPath() to return " + expected + ", got " + currentRealm)
- 	}
+	currentRealm := std.CurrentRealm().PkgPath()
+	if currentRealm != expected {
+		if expected == "" {
+			expected = "empty"
+		}
+		panic("expected std.CurrentRealm().PkgPath() to return " + expected + ", got " + currentRealm)
+	}
 }
 
 func AssertPreviousRealmPkgPath(expected string) {
- 	previousRealm := std.PreviousRealm().PkgPath()
- 	if previousRealm != expected {
- 	 	if expected == "" {
- 	 	 	expected = "empty"
- 	 	}
- 	 	panic("expected std.PreviousRealm().PkgPath() to return " + expected + ", got " + previousRealm)
- 	}
+	previousRealm := std.PreviousRealm().PkgPath()
+	if previousRealm != expected {
+		if expected == "" {
+			expected = "empty"
+		}
+		panic("expected std.PreviousRealm().PkgPath() to return " + expected + ", got " + previousRealm)
+	}
 }

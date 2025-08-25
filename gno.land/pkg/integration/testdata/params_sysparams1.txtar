@@ -41,5 +41,5 @@ import (
 
 // This should succeed if it is called from gno.land/r/sys/params
 func SetLockTransfer(cur realm, denom string) {
-	params.SetSysParamStrings("bank","p", "restricted_denoms", []string{denom})
+	params.SetSysParamStrings("bank", "p", "restricted_denoms", []string{denom})
 }
