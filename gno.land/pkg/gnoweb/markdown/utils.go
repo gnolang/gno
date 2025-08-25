@@ -66,40 +66,25 @@ func GetWordArticle(word string) string {
 	return "a"
 }
 
-// ExtractText returns the text content of a node, recursively.
-func ExtractText(node ast.Node, source []byte) []byte {
-	if node == nil {
-		return nil
-	}
-
+// nodeText returns the text content of a node, recursively.
+func nodeText(src []byte, n ast.Node) []byte {
 	var buf bytes.Buffer
-
-	type textNoder interface {
-		Text([]byte) []byte
-	}
-	type softBreaker interface {
-		SoftLineBreak() bool
-	}
-
-	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
-		// If the node can be rendered as text, use its method
-		if tn, ok := child.(textNoder); ok {
-			buf.Write(tn.Text(source))
-		} else if t, ok := child.(*ast.Text); ok {
-			// Fallback: raw text from the segment
-			buf.Write(t.Segment.Value(source))
-		} else {
-			// Else, descend into its subtree
-			buf.Write(ExtractText(child, source))
-		}
-
-		// Soft line break -> "\n"
-		if sb, ok := child.(softBreaker); ok && sb.SoftLineBreak() {
-			buf.WriteByte('\n')
-		}
-	}
-
+	writeNodeText(src, &buf, n)
 	return buf.Bytes()
+}
+
+// writeNodeText writes the text content of a node to a buffer.
+func writeNodeText(src []byte, dst io.Writer, n ast.Node) {
+	switch n := n.(type) {
+	case *ast.Text:
+		_, _ = dst.Write(n.Segment.Value(src))
+	case *ast.String:
+		_, _ = dst.Write(n.Value)
+	default:
+		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+			writeNodeText(src, dst, c)
+		}
+	}
 }
 
 var titleCaser = cases.Title(language.AmericanEnglish)
