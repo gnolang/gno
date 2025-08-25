@@ -14,13 +14,13 @@ var (
 )
 
 // Add function to update the number and timestamp
-func Add(n int) {
+func Add(_ realm, n int) {
 	number += n
 	lastUpdate = time.Now()
 }
 
 // Render displays the current number value, last update timestamp, and a link to call Add with 42
-func Render(path string) string {
+func Render(_ string) string {
 	// Display the current number and formatted last update time
 	result := "# Add Example\n\n"
 	result += "Current Number: " + strconv.Itoa(number) + "\n\n"

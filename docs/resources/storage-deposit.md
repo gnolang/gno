@@ -1,4 +1,4 @@
-## Storage deposits
+# Storage deposits
 
 In Gno.land, storage is a paid resource. To persist data in a realm (such as
 setting variables or storing objects), users must lock GNOT tokens as a storage
@@ -41,8 +41,9 @@ design and manage user storage.
 ### Global Storage Price Parameter
 
 The storage price is a global parameter governed by the GovDAO.
-The default value is defined in [`gno.land/pkg/sdk/vm/params.go`](https://github.com/gnolang/gno/blob/b99c1bf878af4f606507895f5b51a7d44b0956e0/gno.land/pkg/sdk/vm/params.go#L18).
-```
+The default value is defined in [`gno.land/pkg/sdk/vm/params.go`](https://github.com/gnolang/gno/blob/8452891dee1a92643dd0ceb4623e2c684455d3d5/gno.land/pkg/sdk/vm/params.go#L18).
+
+```text
 storagePriceDefault = "100ugnot" // cost per byte
 // e.g., 1 GNOT per 10KB (≈ 1B GNOT = 10TB)
 ```
