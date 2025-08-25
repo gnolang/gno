@@ -43,7 +43,6 @@ func TestGasMeter(t *testing.T) {
 		require.Panics(t, func() { meter.ConsumeGas(1, "") }, "Exceeded but not panicked. tc #%d", tcnum)
 		require.Equal(t, meter.GasConsumedToLimit(), meter.Limit(), "Gas consumption (to limit) not match limit")
 		require.Equal(t, meter.GasConsumed(), meter.Limit()+1, "Gas consumption not match limit+1")
-		break
 	}
 }
 
@@ -62,7 +61,7 @@ func TestAddUint64Overflow(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		res, ok := overflow.Add64(tc.a, tc.b)
+		res, ok := overflow.Add(tc.a, tc.b)
 		overflow := !ok
 		require.Equal(
 			t, tc.overflow, overflow,

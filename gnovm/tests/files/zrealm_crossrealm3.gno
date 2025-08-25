@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
 	"gno.land/r/demo/tests"
@@ -12,11 +12,11 @@ func init() {
 	somevalue.Field = "test"
 }
 
-func main() {
-	// NOTE: but it is invalid to modify it using an external realm function.
+func main(cur realm) {
+	// NOTE: it is also valid to modify it using an external realm function.
 	somevalue.Modify()
 	println(somevalue)
 }
 
-// Error:
-// cannot modify external-realm or non-realm object
+// Output:
+// (struct{("test_modified" string)} gno.land/r/demo/tests.TestRealmObject)

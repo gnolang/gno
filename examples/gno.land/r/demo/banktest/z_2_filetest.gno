@@ -1,32 +1,30 @@
-// Empty line between the directives is important for them to be parsed
-// independently. :facepalm:
-
 // PKGPATH: gno.land/r/demo/bank1
 
 package bank1
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/r/demo/banktest"
 )
 
 func main() {
 	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/banktest")
+	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
 
 	// print main balance before.
-	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
-	std.TestSetOrigCaller(mainaddr)
+	testing.SetOriginCaller(mainaddr)
 
-	banker := std.GetBanker(std.BankerTypeReadonly)
+	banker := std.NewBanker(std.BankerTypeReadonly)
 	mainbal := banker.GetCoins(mainaddr)
-	println("main before:", mainbal) // plus OrigSend equals 300.
+	println("main before:", mainbal) // plus OriginSend equals 300.
 
 	// simulate a Deposit call.
-	std.TestSetOrigPkgAddr(banktestAddr)
-	std.TestIssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
-	std.TestSetOrigSend(std.Coins{{"ugnot", 100000000}}, nil)
-	res := banktest.Deposit("ugnot", 55000000)
+	testing.IssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
+	testing.SetOriginSend(std.Coins{{"ugnot", 100000000}})
+	testing.SetRealm(std.NewUserRealm(mainaddr))
+	res := banktest.Deposit(cross, "ugnot", 55000000)
 	println("Deposit():", res)
 
 	// print main balance after.

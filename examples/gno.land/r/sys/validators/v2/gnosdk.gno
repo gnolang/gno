@@ -10,7 +10,7 @@ func GetChanges(from int64) []validators.Validator {
 	valsetChanges := make([]validators.Validator, 0)
 
 	// Gather the changes from the specified block
-	changes.Iterate(getBlockID(from), "", func(_ string, value interface{}) bool {
+	changes.Iterate(getBlockID(from), "", func(_ string, value any) bool {
 		chs := value.([]change)
 
 		for _, ch := range chs {

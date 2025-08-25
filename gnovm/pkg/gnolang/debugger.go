@@ -10,11 +10,15 @@ import (
 	"io"
 	"net"
 	"os"
+	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 )
 
 // DebugState is the state of the machine debugger, defined by a finite state
@@ -43,29 +47,36 @@ type Debugger struct {
 	out     io.Writer      // debugger output, defaults to Stdout
 	scanner *bufio.Scanner // to parse input per line
 
-	state       DebugState          // current state of debugger
-	lastCmd     string              // last debugger command
-	lastArg     string              // last debugger command arguments
-	loc         Location            // source location of the current machine instruction
-	prevLoc     Location            // source location of the previous machine instruction
-	breakpoints []Location          // list of breakpoints set by user, as source locations
-	call        []Location          // for function tracking, ideally should be provided by machine frame
-	frameLevel  int                 // frame level of the current machine instruction
-	getSrc      func(string) string // helper to access source from repl or others
+	state       DebugState                  // current state of debugger
+	lastCmd     string                      // last debugger command
+	lastArg     string                      // last debugger command arguments
+	loc         Location                    // source location of the current machine instruction
+	prevLoc     Location                    // source location of the previous machine instruction
+	nextLoc     Location                    // source location at the 'next' command
+	breakpoints []Location                  // list of breakpoints set by user, as source locations
+	call        []Location                  // for function tracking, ideally should be provided by machine frame
+	frameLevel  int                         // frame level of the current machine instruction
+	nextDepth   int                         // function call depth at the 'next' command
+	getSrc      func(string, string) string // helper to access source from repl or others
+	rootDir     string
 }
 
 // Enable makes the debugger d active, using in as input reader, out as output writer and f as a source helper.
-func (d *Debugger) Enable(in io.Reader, out io.Writer, f func(string) string) {
+func (d *Debugger) Enable(in io.Reader, out io.Writer, f func(string, string) string) {
 	d.in = in
 	d.out = out
 	d.enabled = true
 	d.state = DebugAtInit
 	d.getSrc = f
+	d.rootDir = gnoenv.RootDir()
 }
 
 // Disable makes the debugger d inactive.
 func (d *Debugger) Disable() {
 	d.enabled = false
+	d.loc = Location{}
+	d.prevLoc = Location{}
+	d.nextLoc = Location{}
 }
 
 type debugCommand struct {
@@ -92,11 +103,11 @@ func init() {
 		"list":        {debugList, listUsage, listShort, listLong},
 		"print":       {debugPrint, printUsage, printShort, ""},
 		"stack":       {debugStack, stackUsage, stackShort, ""},
-		// NOTE: the difference between continue, step and stepi is handled within
-		// the main Debug() loop.
-		"step":  {debugContinue, stepUsage, stepShort, ""},
-		"stepi": {debugContinue, stepiUsage, stepiShort, ""},
-		"up":    {debugUp, upUsage, upShort, ""},
+		"next":        {debugContinue, nextUsage, nextShort, ""},
+		"step":        {debugContinue, stepUsage, stepShort, ""},
+		"stepi":       {debugContinue, stepiUsage, stepiShort, ""},
+		"stepout":     {debugContinue, stepoutUsage, stepoutShort, ""},
+		"up":          {debugUp, upUsage, upShort, ""},
 	}
 
 	// Sort command names for help.
@@ -113,11 +124,13 @@ func init() {
 	debugCmds["c"] = debugCmds["continue"]
 	debugCmds["h"] = debugCmds["help"]
 	debugCmds["l"] = debugCmds["list"]
+	debugCmds["n"] = debugCmds["next"]
 	debugCmds["p"] = debugCmds["print"]
 	debugCmds["quit"] = debugCmds["exit"]
 	debugCmds["q"] = debugCmds["exit"]
 	debugCmds["s"] = debugCmds["step"]
 	debugCmds["si"] = debugCmds["stepi"]
+	debugCmds["so"] = debugCmds["stepout"]
 }
 
 // Debug is the debug callback invoked at each VM execution step. It implements the DebugState FSA.
@@ -135,12 +148,30 @@ loop:
 				fmt.Fprintln(m.Debugger.out, "Command failed:", err)
 			}
 		case DebugAtRun:
+			if !m.Debugger.enabled {
+				break loop
+			}
 			switch m.Debugger.lastCmd {
 			case "si", "stepi":
 				m.Debugger.state = DebugAtCmd
 				debugLineInfo(m)
 			case "s", "step":
 				if m.Debugger.loc != m.Debugger.prevLoc && m.Debugger.loc.File != "" {
+					m.Debugger.state = DebugAtCmd
+					m.Debugger.prevLoc = m.Debugger.loc
+					debugList(m, "")
+					continue loop
+				}
+			case "n", "next":
+				if m.Debugger.loc != m.Debugger.prevLoc && m.Debugger.loc.File != "" &&
+					(m.Debugger.nextDepth == 0 || !sameLine(m.Debugger.loc, m.Debugger.nextLoc) && callDepth(m) <= m.Debugger.nextDepth) {
+					m.Debugger.state = DebugAtCmd
+					m.Debugger.prevLoc = m.Debugger.loc
+					debugList(m, "")
+					continue loop
+				}
+			case "stepout", "so":
+				if callDepth(m) < m.Debugger.nextDepth {
 					m.Debugger.state = DebugAtCmd
 					m.Debugger.prevLoc = m.Debugger.loc
 					debugList(m, "")
@@ -163,13 +194,30 @@ loop:
 	debugUpdateLocation(m)
 
 	// Keep track of exact locations when performing calls.
-	op := m.Ops[m.NumOps-1]
+	op := m.Ops[len(m.Ops)-1]
 	switch op {
 	case OpCall:
 		m.Debugger.call = append(m.Debugger.call, m.Debugger.loc)
 	case OpReturn, OpReturnFromBlock:
 		m.Debugger.call = m.Debugger.call[:len(m.Debugger.call)-1]
 	}
+}
+
+// callDepth returns the function call depth.
+func callDepth(m *Machine) int {
+	n := 0
+	for _, f := range m.Frames {
+		if f.Func == nil {
+			continue
+		}
+		n++
+	}
+	return n
+}
+
+// sameLine returns true if both arguments are at the same line.
+func sameLine(loc1, loc2 Location) bool {
+	return loc1.PkgPath == loc2.PkgPath && loc1.File == loc2.File && loc1.Line == loc2.Line
 }
 
 // atBreak returns true if current machine location matches a breakpoint, false otherwise.
@@ -242,7 +290,11 @@ func (d *Debugger) Serve(addr string) error {
 // debugUpdateLocation computes the source code location for the current VM state.
 // The result is stored in Debugger.DebugLoc.
 func debugUpdateLocation(m *Machine) {
-	loc := m.LastBlock().Source.GetLocation()
+	loc := m.LastBlock().GetSource(m.Store).GetLocation()
+
+	if loc.PkgPath == "repl" {
+		loc.File = "<repl>"
+	}
 
 	if m.Debugger.loc.PkgPath == "" ||
 		loc.PkgPath != "" && loc.PkgPath != m.Debugger.loc.PkgPath ||
@@ -317,7 +369,14 @@ func parseLocSpec(m *Machine, arg string) (loc Location, err error) {
 			if loc.File, err = filepath.Abs(strs[0]); err != nil {
 				return loc, err
 			}
-			loc.File = filepath.Clean(loc.File)
+			loc.File = path.Clean(loc.File)
+			if m.Debugger.rootDir != "" && strings.HasPrefix(loc.File, m.Debugger.rootDir) {
+				loc.File = strings.TrimPrefix(loc.File, m.Debugger.rootDir+"/gnovm/stdlibs/")
+				loc.File = strings.TrimPrefix(loc.File, m.Debugger.rootDir+"/examples/")
+				loc.File = strings.TrimPrefix(loc.File, m.Debugger.rootDir+"/")
+				loc.PkgPath = path.Dir(loc.File)
+				loc.File = path.Base(loc.File)
+			}
 		}
 		if line, err = strconv.Atoi(strs[1]); err != nil {
 			return loc, err
@@ -370,7 +429,7 @@ func debugClear(m *Machine, arg string) error {
 		if err != nil || id < 0 || id >= len(m.Debugger.breakpoints) {
 			return fmt.Errorf("invalid breakpoint id: %v", arg)
 		}
-		m.Debugger.breakpoints = append(m.Debugger.breakpoints[:id], m.Debugger.breakpoints[id+1:]...)
+		m.Debugger.breakpoints = slices.Delete(m.Debugger.breakpoints, id, id+1)
 		return nil
 	}
 	m.Debugger.breakpoints = nil
@@ -378,24 +437,29 @@ func debugClear(m *Machine, arg string) error {
 }
 
 // ---------------------------------------
+// NOTE: the difference between continue, next, step, stepi and stepout is handled within the Debug() loop.
 const (
 	continueUsage = `continue|c`
 	continueShort = `Run until breakpoint or program termination.`
-)
 
-const (
+	nextUsage = `next|n`
+	nextShort = `Step over to next source line.`
+
 	stepUsage = `step|s`
 	stepShort = `Single step through program.`
-)
 
-const (
 	stepiUsage = `stepi|si`
 	stepiShort = `Single step a single VM instruction.`
+
+	stepoutUsage = `stepout|so`
+	stepoutShort = `Step out of the current function.`
 )
 
 func debugContinue(m *Machine, arg string) error {
 	m.Debugger.state = DebugAtRun
 	m.Debugger.frameLevel = 0
+	m.Debugger.nextDepth = callDepth(m)
+	m.Debugger.nextLoc = m.Debugger.loc
 	return nil
 }
 
@@ -505,7 +569,7 @@ func debugList(m *Machine, arg string) (err error) {
 	if err != nil {
 		// Use optional getSrc helper as fallback to get source.
 		if m.Debugger.getSrc != nil {
-			src = m.Debugger.getSrc(loc.File)
+			src = m.Debugger.getSrc(loc.PkgPath, loc.File)
 		}
 		if src == "" {
 			return err
@@ -664,7 +728,7 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 		if err != nil {
 			return tv, err
 		}
-		return x.GetPointerAtIndex(m.Alloc, m.Store, &index).Deref(), nil
+		return x.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, &index).Deref(), nil
 	default:
 		err = fmt.Errorf("expression not supported: %v", n)
 	}
@@ -695,6 +759,27 @@ func debugLookup(m *Machine, name string) (tv TypedValue, ok bool) {
 	if i < 0 {
 		return tv, false
 	}
+
+	// XXX The following logic isn't necessary and it isn't correct either.
+	// XXX See `GetPathForName(Store, Name) ValuePath` in node.go,
+	// XXX get the path and pass it into the last block.GetPointerTo().
+	// XXX That function will find the correct block by depth etc.
+	// XXX There was some latent bug for case:
+	// XXX '{in: "b 37\nc\np b\n", out: "(3 int)"},' (debugger test case #51)
+	// XXX which was revealed by some earlier commits regarding lines
+	// XXX (Node now has not just the starting .Pos but also .End.)
+	// XXX and is resolved by the following diff to values.go:
+	// XXX The exact bug probably doesn't matter, as the logic
+	// XXX should be replaced by the aforementioned block.GetPointerTo().
+	//
+	// --- a/gnovm/pkg/gnolang/values.go
+	// +++ b/gnovm/pkg/gnolang/values.go
+	// @@ -2480,6 +2480,7 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
+	//                 }
+	//         }
+	//         b.Values = values
+	// +       b.Source = source // otherwise new variables won't show in print or debugger.
+	//  }
 
 	// Position to the right block, i.e the first after the last fblock (if any).
 	for i = len(m.Blocks) - 1; i >= 0; i-- {
@@ -738,7 +823,7 @@ func debugLookup(m *Machine, name string) (tv TypedValue, ok bool) {
 		}
 	}
 	// Fallback: search a global value.
-	if v := sblocks[0].Source.GetValueRef(m.Store, Name(name), true); v != nil {
+	if v := sblocks[0].Source.GetSlot(m.Store, Name(name), true); v != nil {
 		return *v, true
 	}
 	return tv, false

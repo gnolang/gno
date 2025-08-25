@@ -15,14 +15,14 @@ var (
 )
 
 func TestNewFromOwnable(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
-
+	testing.SetOriginCaller(firstCaller)
 	result := NewFromOwnable(o)
+
 	urequire.Equal(t, firstCaller.String(), result.Ownable().Owner().String())
 }
 
 func TestSetUnpaused(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	testing.SetOriginCaller(firstCaller)
 	result := NewFromOwnable(o)
 
 	result.Unpause()
@@ -30,7 +30,7 @@ func TestSetUnpaused(t *testing.T) {
 }
 
 func TestSetPaused(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	testing.SetOriginCaller(firstCaller)
 	result := NewFromOwnable(o)
 
 	result.Pause()
@@ -41,7 +41,7 @@ func TestIsPaused(t *testing.T) {
 	result := NewFromOwnable(o)
 	urequire.False(t, result.IsPaused(), "Expected result to be unpaused")
 
-	std.TestSetOrigCaller(firstCaller)
+	testing.SetOriginCaller(firstCaller)
 	result.Pause()
 	uassert.True(t, result.IsPaused(), "Expected result to be paused")
 }

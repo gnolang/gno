@@ -305,7 +305,7 @@ func (c *RPCClient) Tx(hash []byte) (*ctypes.ResultTx, error) {
 		c.caller,
 		c.requestTimeout,
 		txMethod,
-		map[string]interface{}{
+		map[string]any{
 			"hash": hash,
 		},
 	)

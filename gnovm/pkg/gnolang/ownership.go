@@ -84,6 +84,10 @@ func (oid ObjectID) IsZero() bool {
 	return oid.PkgID.IsZero()
 }
 
+type ObjectIDer interface {
+	GetObjectID() ObjectID
+}
+
 type Object interface {
 	Value
 	GetObjectInfo() *ObjectInfo
@@ -118,6 +122,9 @@ type Object interface {
 	SetIsNewDeleted(bool)
 	GetIsTransient() bool
 
+	GetLastGCCycle() int64
+	SetLastGCCycle(int64)
+
 	// Saves to realm along the way if owned, and also (dirty
 	// or new).
 	// ValueImage(rlm *Realm, owned bool) *ValueImage
@@ -126,6 +133,7 @@ type Object interface {
 var (
 	_ Object = &ArrayValue{}
 	_ Object = &StructValue{}
+	_ Object = &FuncValue{}
 	_ Object = &BoundMethodValue{}
 	_ Object = &MapValue{}
 	_ Object = &Block{}
@@ -142,6 +150,8 @@ type ObjectInfo struct {
 	// Object has multiple references (refcount > 1) and is persisted separately
 	IsEscaped bool `json:",omitempty"` // hash in iavl.
 
+	LastObjectSize int64 //
+
 	// MemRefCount int // consider for optimizations.
 	// Object has been modified and needs to be saved
 	isDirty bool
@@ -157,26 +167,27 @@ type ObjectInfo struct {
 
 	// Object is marked for deletion in current transaction
 	isNewDeleted bool
-
-	// XXX huh?
-	owner Object // mem reference to owner.
+	lastGCCycle  int64
+	owner        Object // mem reference to owner.
 }
 
 // Copy used for serialization of objects.
 // Note that "owner" is nil.
 func (oi *ObjectInfo) Copy() ObjectInfo {
 	return ObjectInfo{
-		ID:           oi.ID,
-		Hash:         oi.Hash.Copy(),
-		OwnerID:      oi.OwnerID,
-		ModTime:      oi.ModTime,
-		RefCount:     oi.RefCount,
-		IsEscaped:    oi.IsEscaped,
-		isDirty:      oi.isDirty,
-		isDeleted:    oi.isDeleted,
-		isNewReal:    oi.isNewReal,
-		isNewEscaped: oi.isNewEscaped,
-		isNewDeleted: oi.isNewDeleted,
+		ID:             oi.ID,
+		Hash:           oi.Hash.Copy(),
+		OwnerID:        oi.OwnerID,
+		ModTime:        oi.ModTime,
+		RefCount:       oi.RefCount,
+		IsEscaped:      oi.IsEscaped,
+		LastObjectSize: oi.LastObjectSize,
+		isDirty:        oi.isDirty,
+		isDeleted:      oi.isDeleted,
+		isNewReal:      oi.isNewReal,
+		isNewEscaped:   oi.isNewEscaped,
+		isNewDeleted:   oi.isNewDeleted,
+		lastGCCycle:    oi.lastGCCycle,
 	}
 }
 
@@ -339,6 +350,14 @@ func (oi *ObjectInfo) SetIsNewDeleted(x bool) {
 	oi.isNewDeleted = x
 }
 
+func (oi *ObjectInfo) GetLastGCCycle() int64 {
+	return oi.lastGCCycle
+}
+
+func (oi *ObjectInfo) SetLastGCCycle(c int64) {
+	oi.lastGCCycle = c
+}
+
 func (oi *ObjectInfo) GetIsTransient() bool {
 	return false
 }
@@ -354,15 +373,13 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 	case *StructValue:
 		return cv
 	case *FuncValue:
-		return cv.GetClosure(store)
+		return cv
 	case *MapValue:
 		return cv
 	case *BoundMethodValue:
 		return cv
-	case *NativeValue:
-		// XXX allow PointerValue.Assign2 to pass nil for oo1/oo2.
-		// panic("realm logic for native values not supported")
-		return nil
+	case *PackageValue:
+		return cv.GetBlock(store)
 	case *Block:
 		return cv
 	case RefValue:
@@ -374,5 +391,39 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 		panic("heap item value should only appear as a pointer's base")
 	default:
 		return nil
+	}
+}
+
+// returns false if there is no object.
+func (tv *TypedValue) GetFirstObjectID() (ObjectID, bool) {
+	switch cv := tv.V.(type) {
+	case PointerValue:
+		if cv.Base == nil {
+			return ObjectID{}, false
+		}
+		return cv.Base.(ObjectIDer).GetObjectID(), true
+	case *ArrayValue:
+		return cv.GetObjectID(), true
+	case *SliceValue:
+		return cv.Base.(ObjectIDer).GetObjectID(), true
+	case *StructValue:
+		return cv.GetObjectID(), true
+	case *FuncValue:
+		return cv.GetObjectID(), true
+	case *MapValue:
+		return cv.GetObjectID(), true
+	case *BoundMethodValue:
+		return cv.GetObjectID(), true
+	case *PackageValue:
+		return cv.Block.(ObjectIDer).GetObjectID(), true
+	case *Block:
+		return cv.GetObjectID(), true
+	case RefValue:
+		return cv.GetObjectID(), true
+	case *HeapItemValue:
+		// should only appear in PointerValue.Base
+		panic("heap item value should only appear as a pointer's base")
+	default:
+		return ObjectID{}, false
 	}
 }

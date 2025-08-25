@@ -1,15 +1,14 @@
-// PKGPATH: gno.land/r/demo/boards_test
-package boards_test
+package main
 
-// SEND: 200000000ugnot
+// SEND: 1000000ugnot
 
 import (
 	"std"
 	"strconv"
+	"testing"
 
-	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
-	"gno.land/r/demo/users"
+	users "gno.land/r/gnoland/users/v1"
 )
 
 var (
@@ -18,23 +17,20 @@ var (
 )
 
 func init() {
-	caller := testutils.TestAddress("caller")
-	std.TestSetRealm(std.NewUserRealm(caller))
-	users.Register("", "gnouser", "my profile")
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	users.Register(cross, "gnouser123")
 
-	bid = boards.CreateBoard("test_board")
-	pid = boards.CreateThread(bid, "First Post in (title)", "Body of the first post. (body)")
+	bid = boards.CreateBoard(cross, "test_board")
+	pid = boards.CreateThread(cross, bid, "First Post in (title)", "Body of the first post. (body)")
 }
 
 func main() {
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 	// post 2 not exist
-	caller := testutils.TestAddress("caller")
-	std.TestSetRealm(std.NewUserRealm(caller))
-	boards.EditPost(bid, pid, 2, "Edited: First Post in (title)", "Edited: Body of the first post. (body)")
+	boards.EditPost(cross, bid, pid, 2, "Edited: First Post in (title)", "Edited: Body of the first post. (body)")
 	println("----------------------------------------------------")
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 }
 
 // Error:
-// post not exist
+// invalid non-user call

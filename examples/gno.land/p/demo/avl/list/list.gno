@@ -19,7 +19,7 @@
 //	l.Delete(0)       // removes first element
 //
 //	// Iterate over elements
-//	l.ForEach(func(index int, value interface{}) bool {
+//	l.ForEach(func(index int, value any) bool {
 //	    ufmt.Printf("index %d: %v\n", index, value)
 //	    return false  // continue iteration
 //	})
@@ -38,18 +38,19 @@ package list
 
 import (
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/seqid"
 )
 
 // IList defines the interface for list operations
 type IList interface {
 	Len() int
-	Append(values ...interface{})
-	Get(index int) interface{}
-	Set(index int, value interface{}) bool
-	Delete(index int) (interface{}, bool)
-	Slice(startIndex, endIndex int) []interface{}
-	ForEach(fn func(index int, value interface{}) bool)
+	Append(values ...any)
+	Get(index int) any
+	Set(index int, value any) bool
+	Delete(index int) (any, bool)
+	Slice(startIndex, endIndex int) []any
+	ForEach(fn func(index int, value any) bool)
 	Clone() *List
 	DeleteRange(startIndex, endIndex int) int
 }
@@ -67,7 +68,7 @@ type List struct {
 //
 // Example:
 //
-//	l := list.New()
+//	var l list.List
 //	l.Append(1, 2, 3)
 //	println(l.Len()) // Output: 3
 func (l *List) Len() int {
@@ -78,11 +79,11 @@ func (l *List) Len() int {
 //
 // Example:
 //
-//	l := list.New()
+//	var l list.List
 //	l.Append(1)        // adds single value
 //	l.Append(2, 3, 4)  // adds multiple values
 //	println(l.Len()) // Output: 4
-func (l *List) Append(values ...interface{}) {
+func (l *List) Append(values ...any) {
 	for _, v := range values {
 		l.tree.Set(l.idGen.Next().String(), v)
 	}
@@ -93,12 +94,12 @@ func (l *List) Append(values ...interface{}) {
 //
 // Example:
 //
-//	l := list.New()
+//	var l list.List
 //	l.Append(1, 2, 3)
 //	println(l.Get(1))    // Output: 2
 //	println(l.Get(-1))   // Output: nil
 //	println(l.Get(999))  // Output: nil
-func (l *List) Get(index int) interface{} {
+func (l *List) Get(index int) any {
 	if index < 0 || index >= l.tree.Size() {
 		return nil
 	}
@@ -112,7 +113,7 @@ func (l *List) Get(index int) interface{} {
 //
 // Example:
 //
-//	l := list.New()
+//	var l list.List
 //	l.Append(1, 2, 3)
 //
 //	l.Set(1, 42)      // updates existing index
@@ -123,7 +124,7 @@ func (l *List) Get(index int) interface{} {
 //
 //	l.Set(-1, 5)      // invalid index
 //	println(l.Len()) // Output: 4 (list unchanged)
-func (l *List) Set(index int, value interface{}) bool {
+func (l *List) Set(index int, value any) bool {
 	size := l.tree.Size()
 
 	// Handle empty list case - only allow index 0
@@ -161,7 +162,7 @@ func (l *List) Set(index int, value interface{}) bool {
 //
 // Example:
 //
-//	l := list.New()
+//	var l list.List
 //	l.Append(1, 2, 3)
 //
 //	val, ok := l.Delete(1)
@@ -170,7 +171,7 @@ func (l *List) Set(index int, value interface{}) bool {
 //
 //	val, ok = l.Delete(-1)
 //	println(val, ok)  // Output: nil false
-func (l *List) Delete(index int) (interface{}, bool) {
+func (l *List) Delete(index int) (any, bool) {
 	size := l.tree.Size()
 	// Always return nil, false for empty list
 	if size == 0 {
@@ -195,14 +196,14 @@ func (l *List) Delete(index int) (interface{}, bool) {
 //
 // Example:
 //
-//	l := list.New()
+//	var l list.List
 //	l.Append(1, 2, 3, 4, 5)
 //
 //	println(l.Slice(1, 4))   // Output: [2 3 4]
 //	println(l.Slice(-1, 2))  // Output: [1 2]
 //	println(l.Slice(3, 999)) // Output: [4 5]
 //	println(l.Slice(3, 2))   // Output: nil
-func (l *List) Slice(startIndex, endIndex int) []interface{} {
+func (l *List) Slice(startIndex, endIndex int) []any {
 	size := l.tree.Size()
 
 	// Normalize bounds
@@ -217,10 +218,10 @@ func (l *List) Slice(startIndex, endIndex int) []interface{} {
 	}
 
 	count := endIndex - startIndex
-	result := make([]interface{}, count)
+	result := make([]any, count)
 
 	i := 0
-	l.tree.IterateByOffset(startIndex, count, func(_ string, value interface{}) bool {
+	l.tree.IterateByOffset(startIndex, count, func(_ string, value any) bool {
 		result[i] = value
 		i++
 		return false
@@ -229,13 +230,13 @@ func (l *List) Slice(startIndex, endIndex int) []interface{} {
 }
 
 // ForEach iterates through all elements in the list.
-func (l *List) ForEach(fn func(index int, value interface{}) bool) {
+func (l *List) ForEach(fn func(index int, value any) bool) {
 	if l.tree.Size() == 0 {
 		return
 	}
 
 	index := 0
-	l.tree.IterateByOffset(0, l.tree.Size(), func(_ string, value interface{}) bool {
+	l.tree.IterateByOffset(0, l.tree.Size(), func(_ string, value any) bool {
 		result := fn(index, value)
 		index++
 		return result
@@ -246,7 +247,7 @@ func (l *List) ForEach(fn func(index int, value interface{}) bool) {
 //
 // Example:
 //
-//	l := list.New()
+//	var l list.List
 //	l.Append(1, 2, 3)
 //
 //	clone := l.Clone()
@@ -265,7 +266,7 @@ func (l *List) Clone() *List {
 		return newList
 	}
 
-	l.tree.IterateByOffset(0, size, func(_ string, value interface{}) bool {
+	l.tree.IterateByOffset(0, size, func(_ string, value any) bool {
 		newList.Append(value)
 		return false
 	})
@@ -278,7 +279,7 @@ func (l *List) Clone() *List {
 //
 // Example:
 //
-//	l := list.New()
+//	var l list.List
 //	l.Append(1, 2, 3, 4, 5)
 //
 //	deleted := l.DeleteRange(1, 4)
@@ -300,7 +301,7 @@ func (l *List) DeleteRange(startIndex, endIndex int) int {
 
 	// Collect keys to delete
 	keysToDelete := make([]string, 0, endIndex-startIndex)
-	l.tree.IterateByOffset(startIndex, endIndex-startIndex, func(key string, _ interface{}) bool {
+	l.tree.IterateByOffset(startIndex, endIndex-startIndex, func(key string, _ any) bool {
 		keysToDelete = append(keysToDelete, key)
 		return false
 	})
@@ -311,4 +312,20 @@ func (l *List) DeleteRange(startIndex, endIndex int) int {
 	}
 
 	return len(keysToDelete)
+}
+
+// Tree returns a read-only pointer to the underlying AVL tree.
+//
+// Example:
+//
+//	var l list.List
+//	l.Append(1, 2, 3)
+//
+//	rotree := l.Tree()
+//	rotree.ReverseIterateByOffset(0, rotree.Size(), func(key string, value any) bool {
+//	  println(value) // Output: 3 2 1
+//	  return false
+//	})
+func (l *List) Tree() *rotree.ReadOnlyTree {
+	return rotree.Wrap(&l.tree, nil)
 }

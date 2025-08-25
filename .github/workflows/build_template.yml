@@ -13,7 +13,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
           - name: Checkout code
-            uses: actions/checkout@v4
+            uses: actions/checkout@v5
 
           - name: Install Go
             uses: actions/setup-go@v5
@@ -25,10 +25,10 @@ jobs:
             run: |
               if make -qp | grep -q '^generate:'; then
                 make generate
-
                 if [ "$(git status -s)" != "" ]; then
                   echo "command 'make generate' creates files that differ from the git tree, please run 'make generate' and commit:"
                   git status -s
+                  git diff
                   exit 1
                 fi
               else

@@ -143,7 +143,7 @@ func isHex(r rune) bool {
 // Advances runes, while checking that each passes `check`.  if error, panics
 // with info including `back` runes back.
 func (ss *scanner) eatRunes(back int, eat int, check func(rune) bool) {
-	for i := 0; i < eat; i++ {
+	for i := range eat {
 		if ss.idx+i == len(ss.rnz) {
 			panic(fmt.Sprintf("eof while parsing: %s",
 				string(ss.rnz[ss.idx-back:])))

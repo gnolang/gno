@@ -1,0 +1,39 @@
+# https://github.com/gnolang/gno/issues/2763
+
+! gno test .
+stderr 'foo_test.gno:16:6: add2 redeclared in this block \(code=gnoTypeCheckError\)'
+
+-- foo.gno --
+package foo
+
+func Add(a, b int) int {
+	return add2(a, b)
+}
+
+func add2(a, b int) int {
+	return a + b
+}
+
+-- foo_test.gno --
+package foo
+
+import (
+	"testing"
+)
+
+func TestFoo(t *testing.T) {
+	a := 1
+	b := 2
+
+	if Add(a, b) != 3 {
+		t.Errorf("Add(%d, %d) = %d, want %d", a, b, Add(a, b), a+b)
+	}
+}
+
+func add2(a, b int) int {
+	return a + b
+}
+
+
+-- gnomod.toml --
+module = "gno.test/r/integ/issue_2763"

@@ -3,70 +3,63 @@ package std
 import (
 	"fmt"
 	"strings"
-	"unicode"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
-// ParamsInterface is the interface through which Gno is capable of accessing
-// the blockchain's params.
-//
-// The name is what it is to avoid a collision with Gno's Params, when
-// transpiling.
+// std.SetParam*() can only be used to set realm-local VM parameters.  All
+// parameters stored in ExecContext.Params will be prefixed by "vm:<realm>:".
+// TODO rename to SetRealmParam*().
+
 type ParamsInterface interface {
 	SetString(key, val string)
 	SetBool(key string, val bool)
 	SetInt64(key string, val int64)
 	SetUint64(key string, val uint64)
 	SetBytes(key string, val []byte)
+	SetStrings(key string, val []string)
 }
 
 func X_setParamString(m *gno.Machine, key, val string) {
-	pk := pkey(m, key, "string")
+	pk := pkey(m, key)
 	GetContext(m).Params.SetString(pk, val)
 }
 
 func X_setParamBool(m *gno.Machine, key string, val bool) {
-	pk := pkey(m, key, "bool")
+	pk := pkey(m, key)
 	GetContext(m).Params.SetBool(pk, val)
 }
 
 func X_setParamInt64(m *gno.Machine, key string, val int64) {
-	pk := pkey(m, key, "int64")
+	pk := pkey(m, key)
 	GetContext(m).Params.SetInt64(pk, val)
 }
 
 func X_setParamUint64(m *gno.Machine, key string, val uint64) {
-	pk := pkey(m, key, "uint64")
+	pk := pkey(m, key)
 	GetContext(m).Params.SetUint64(pk, val)
 }
 
 func X_setParamBytes(m *gno.Machine, key string, val []byte) {
-	pk := pkey(m, key, "bytes")
+	pk := pkey(m, key)
 	GetContext(m).Params.SetBytes(pk, val)
 }
 
-func pkey(m *gno.Machine, key string, kind string) string {
-	// validate key.
-	untypedKey := strings.TrimSuffix(key, "."+kind)
-	if key == untypedKey {
-		m.Panic(typedString("invalid param key: " + key))
-	}
+func X_setParamStrings(m *gno.Machine, key string, val []string) {
+	pk := pkey(m, key)
+	GetContext(m).Params.SetStrings(pk, val)
+}
 
+// NOTE: further validation must happen by implementor of ParamsInterface.
+func pkey(m *gno.Machine, key string) string {
 	if len(key) == 0 {
 		m.Panic(typedString("empty param key"))
+		return ""
 	}
-	first := rune(key[0])
-	if !unicode.IsLetter(first) && first != '_' {
+	if strings.Contains(key, ":") {
 		m.Panic(typedString("invalid param key: " + key))
+		return ""
 	}
-	for _, char := range untypedKey[1:] {
-		if !unicode.IsLetter(char) && !unicode.IsDigit(char) && char != '_' {
-			m.Panic(typedString("invalid param key: " + key))
-		}
-	}
-
-	// decorate key with realm and type.
 	_, rlmPath := currentRealm(m)
-	return fmt.Sprintf("%s.%s", rlmPath, key)
+	return fmt.Sprintf("vm:%s:%s", rlmPath, key)
 }

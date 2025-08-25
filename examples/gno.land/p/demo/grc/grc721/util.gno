@@ -13,6 +13,6 @@ func isValidAddress(addr std.Address) error {
 	return nil
 }
 
-func emit(event interface{}) {
+func emit(event any) {
 	// TODO: setup a pubsub system here?
 }

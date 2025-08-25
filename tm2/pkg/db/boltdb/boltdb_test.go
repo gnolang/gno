@@ -15,7 +15,7 @@ func TestBoltDBNew(t *testing.T) {
 
 	db, err := New(name, t.TempDir())
 	require.NoError(t, err)
-	db.Close()
+	require.NoError(t, db.Close())
 }
 
 func BenchmarkBoltDBRandomReadsWrites(b *testing.B) {

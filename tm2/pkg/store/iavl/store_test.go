@@ -39,7 +39,7 @@ func newAlohaTree(t *testing.T, db dbm.DB) (*iavl.MutableTree, types.CommitID) {
 	for k, v := range treeData {
 		tree.Set([]byte(k), []byte(v))
 	}
-	for i := 0; i < nMoreData; i++ {
+	for range nMoreData {
 		key := random.RandBytes(12)
 		value := random.RandBytes(50)
 		tree.Set(key, value)
@@ -378,8 +378,8 @@ func TestIAVLReversePrefixIterator(t *testing.T) {
 }
 
 func nextVersion(iavl *Store) {
-	key := []byte(fmt.Sprintf("Key for tree: %d", iavl.LastCommitID().Version))
-	value := []byte(fmt.Sprintf("Value for tree: %d", iavl.LastCommitID().Version))
+	key := fmt.Appendf(nil, "Key for tree: %d", iavl.LastCommitID().Version)
+	value := fmt.Appendf(nil, "Value for tree: %d", iavl.LastCommitID().Version)
 	iavl.Set(key, value)
 	iavl.Commit()
 }
@@ -595,20 +595,20 @@ func BenchmarkIAVLIteratorNext(b *testing.B) {
 	db := memdb.NewMemDB()
 	treeSize := 1000
 	tree := iavl.NewMutableTree(db, cacheSize)
-	for i := 0; i < treeSize; i++ {
+	for range treeSize {
 		key := random.RandBytes(4)
 		value := random.RandBytes(50)
 		tree.Set(key, value)
 	}
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
 	iterators := make([]types.Iterator, b.N/treeSize)
-	for i := 0; i < len(iterators); i++ {
+	for i := range iterators {
 		iterators[i] = iavlStore.Iterator([]byte{0}, []byte{255, 255, 255, 255, 255})
 	}
 	b.ResetTimer()
-	for i := 0; i < len(iterators); i++ {
+	for i := range iterators {
 		iter := iterators[i]
-		for j := 0; j < treeSize; j++ {
+		for range treeSize {
 			iter.Next()
 		}
 	}

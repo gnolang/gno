@@ -36,7 +36,7 @@ func (c *Committee) DismissMembers(members []std.Address) []std.Address {
 
 func (c *Committee) AddCategory(name string, criteria []string) bool {
 	// TODO error handling
-	if !c.isMember(std.GetOrigCaller()) {
+	if !c.isMember(std.OriginCaller()) {
 		return false
 	}
 	category := NewCategory(name, criteria)
@@ -45,7 +45,7 @@ func (c *Committee) AddCategory(name string, criteria []string) bool {
 }
 
 func (c *Committee) ApproveCategory(name string, option string) bool {
-	if !c.isMember(std.GetOrigCaller()) {
+	if !c.isMember(std.OriginCaller()) {
 		return false
 	}
 
@@ -58,8 +58,8 @@ func (c *Committee) ApproveCategory(name string, option string) bool {
 		return false
 	}
 
-	vote := NewVote(std.GetOrigCaller(), option)
-	category.votes.Set(std.GetOrigCaller().String(), vote)
+	vote := NewVote(std.OriginCaller(), option)
+	category.votes.Set(std.OriginCaller().String(), vote)
 	category.Tally()
 
 	// TODO Add threshold factor for a category approval
@@ -81,7 +81,7 @@ func (c *Committee) ApproveCategory(name string, option string) bool {
 
 // TODO error handling
 func (c *Committee) AddContribution(pr *PullRequest, contributor std.Address) (contributionId int, ok bool) {
-	if !c.isMember(std.GetOrigCaller()) {
+	if !c.isMember(std.OriginCaller()) {
 		return -1, false
 	}
 	// Check the category of the PR matches a category this committee evaluates
@@ -95,7 +95,7 @@ func (c *Committee) AddContribution(pr *PullRequest, contributor std.Address) (c
 
 // TODO error handling
 func (c *Committee) ApproveContribution(id int, option string) bool {
-	if !c.isMember(std.GetOrigCaller()) {
+	if !c.isMember(std.OriginCaller()) {
 		return false
 	}
 
@@ -109,7 +109,7 @@ func (c *Committee) ApproveContribution(id int, option string) bool {
 		return false
 	}
 
-	vote := NewVote(std.GetOrigCaller(), option)
+	vote := NewVote(std.OriginCaller(), option)
 	contribution.votes = append(contribution.votes, vote)
 	contribution.Tally()
 

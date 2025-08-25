@@ -366,7 +366,7 @@ func TestProposerFrequency(t *testing.T) {
 	for caseNum, testCase := range testCases {
 		// run each case 5 times to sample different
 		// initial priorities
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			valSet := genValSetWithPowers(testCase.powers)
 			testProposerFreq(t, caseNum, valSet)
 		}
@@ -376,17 +376,16 @@ func TestProposerFrequency(t *testing.T) {
 	maxVals := 100
 	maxPower := 1000
 	nTestCases := 5
-	for i := 0; i < nTestCases; i++ {
+	for i := range nTestCases {
 		N := random.RandInt()%maxVals + 1
 		vals := make([]*types.Validator, N)
 		totalVotePower := int64(0)
-		for j := 0; j < N; j++ {
+		for j := range N {
 			// make sure votePower > 0
 			votePower := int64(random.RandInt()%maxPower) + 1
 			totalVotePower += votePower
 			privVal := types.NewMockPV()
-			pubKey := privVal.GetPubKey()
-			val := types.NewValidator(pubKey, votePower)
+			val := types.NewValidator(privVal.PubKey(), votePower)
 			val.ProposerPriority = random.RandInt64()
 			vals[j] = val
 		}
@@ -401,7 +400,7 @@ func genValSetWithPowers(powers []int64) *types.ValidatorSet {
 	size := len(powers)
 	vals := make([]*types.Validator, size)
 	totalVotePower := int64(0)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		totalVotePower += powers[i]
 		val := types.NewValidator(ed25519.GenPrivKey().PubKey(), powers[i])
 		val.ProposerPriority = random.RandInt64()
@@ -423,7 +422,7 @@ func testProposerFreq(t *testing.T, caseNum int, valSet *types.ValidatorSet) {
 	runMult := 1
 	runs := int(totalPower) * runMult
 	freqs := make([]int, N)
-	for i := 0; i < runs; i++ {
+	for range runs {
 		prop := valSet.GetProposer()
 		idx, _ := valSet.GetByAddress(prop.Address)
 		freqs[idx] += 1
@@ -661,7 +660,7 @@ func TestProposerPriorityProposerAlternates(t *testing.T) {
 	expectedVal1Prio = -9
 	expectedVal2Prio = 9
 
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		// no validator updates:
 		abciResponses := &sm.ABCIResponses{
 			EndBlock: abci.ResponseEndBlock{ValidatorUpdates: nil},
@@ -708,7 +707,7 @@ func TestLargeGenesisValidator(t *testing.T) {
 	// update state a few times with no validator updates
 	// asserts that the single validator's ProposerPrio stays the same
 	oldState := state
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		// no updates:
 		abciResponses := &sm.ABCIResponses{
 			EndBlock: abci.ResponseEndBlock{ValidatorUpdates: nil},
@@ -744,7 +743,7 @@ func TestLargeGenesisValidator(t *testing.T) {
 	require.NoError(t, err)
 
 	lastState := updatedState
-	for i := 0; i < 200; i++ {
+	for range 200 {
 		// no updates:
 		abciResponses := &sm.ABCIResponses{
 			EndBlock: abci.ResponseEndBlock{ValidatorUpdates: nil},
@@ -771,7 +770,7 @@ func TestLargeGenesisValidator(t *testing.T) {
 	assert.True(t, addedOldVal.ProposerPriority < addedNewVal.ProposerPriority)
 
 	// add 10 validators with the same voting power as the one added directly after genesis:
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		addedPubKey := ed25519.GenPrivKey().PubKey()
 
 		addedVal := abci.ValidatorUpdate{PubKey: (addedPubKey), Power: firstAddedValVotingPower}
@@ -823,7 +822,7 @@ func TestLargeGenesisValidator(t *testing.T) {
 	// store proposers here to see if we see them again in the same order:
 	numVals := len(updatedState.Validators.Validators)
 	proposers := make([]*types.Validator, numVals)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		// no updates:
 		abciResponses := &sm.ABCIResponses{
 			EndBlock: abci.ResponseEndBlock{ValidatorUpdates: nil},

@@ -12,25 +12,32 @@ type protectedStringer interface {
 	ProtectedString(*seenValues) string
 }
 
-// This indicates the maximum anticipated depth of the stack when printing a Value type.
-const defaultSeenValuesSize = 32
+const (
+	// defaultSeenValuesSize indicates the maximum anticipated depth of the stack when printing a Value type.
+	defaultSeenValuesSize = 32
+
+	// nestedLimit indicates the maximum nested level when printing a deeply recursive value.
+	// if this increases significantly a map should be used instead
+	nestedLimit = 10
+)
 
 type seenValues struct {
 	values []Value
+	nc     int // nested counter, to limit recursivity
 }
 
 func (sv *seenValues) Put(v Value) {
 	sv.values = append(sv.values, v)
 }
 
-func (sv *seenValues) Contains(v Value) bool {
-	for _, vv := range sv.values {
+func (sv *seenValues) IndexOf(v Value) int {
+	for i, vv := range sv.values {
 		if vv == v {
-			return true
+			return i
 		}
 	}
 
-	return false
+	return -1
 }
 
 // Pop should be called by using a defer after each Put.
@@ -46,19 +53,22 @@ func (sv *seenValues) Pop() {
 }
 
 func newSeenValues() *seenValues {
-	return &seenValues{values: make([]Value, 0, defaultSeenValuesSize)}
+	return &seenValues{
+		values: make([]Value, 0, defaultSeenValuesSize),
+		nc:     nestedLimit,
+	}
 }
 
-func (v StringValue) String() string {
-	return strconv.Quote(string(v))
+func (sv StringValue) String() string {
+	return strconv.Quote(string(sv))
 }
 
-func (bv BigintValue) String() string {
-	return bv.V.String()
+func (biv BigintValue) String() string {
+	return biv.V.String()
 }
 
-func (bv BigdecValue) String() string {
-	return bv.V.String()
+func (bdv BigdecValue) String() string {
+	return bdv.V.String()
 }
 
 func (dbv DataByteValue) String() string {
@@ -70,10 +80,14 @@ func (av *ArrayValue) String() string {
 }
 
 func (av *ArrayValue) ProtectedString(seen *seenValues) string {
-	if seen.Contains(av) {
-		return fmt.Sprintf("%p", av)
+	if i := seen.IndexOf(av); i != -1 {
+		return fmt.Sprintf("ref@%d", i)
 	}
 
+	seen.nc--
+	if seen.nc < 0 {
+		return "..."
+	}
 	seen.Put(av)
 	defer seen.Pop()
 
@@ -102,8 +116,8 @@ func (sv *SliceValue) ProtectedString(seen *seenValues) string {
 		return "nil-slice"
 	}
 
-	if seen.Contains(sv) {
-		return fmt.Sprintf("%p", sv)
+	if i := seen.IndexOf(sv); i != -1 {
+		return fmt.Sprintf("ref@%d", i)
 	}
 
 	if ref, ok := sv.Base.(RefValue); ok {
@@ -132,8 +146,8 @@ func (pv PointerValue) String() string {
 }
 
 func (pv PointerValue) ProtectedString(seen *seenValues) string {
-	if seen.Contains(pv) {
-		return fmt.Sprintf("%p", &pv)
+	if i := seen.IndexOf(pv); i != -1 {
+		return fmt.Sprintf("ref@%d", i)
 	}
 
 	seen.Put(pv)
@@ -152,8 +166,8 @@ func (sv *StructValue) String() string {
 }
 
 func (sv *StructValue) ProtectedString(seen *seenValues) string {
-	if seen.Contains(sv) {
-		return fmt.Sprintf("%p", sv)
+	if i := seen.IndexOf(sv); i != -1 {
+		return fmt.Sprintf("ref@%d", i)
 	}
 
 	seen.Put(sv)
@@ -177,18 +191,18 @@ func (fv *FuncValue) String() string {
 	return name
 }
 
-func (v *BoundMethodValue) String() string {
-	name := v.Func.Name
+func (bmv *BoundMethodValue) String() string {
+	name := bmv.Func.Name
 	var (
-		recvT   string = "?"
-		params  string = "?"
-		results string = "(?)"
+		recvT   = "?"
+		params  = "?"
+		results = "(?)"
 	)
-	if ft, ok := v.Func.Type.(*FuncType); ok {
+	if ft, ok := bmv.Func.Type.(*FuncType); ok {
 		recvT = ft.Params[0].Type.String()
-		params = FieldTypeList(ft.Params).StringWithCommas()
+		params = FieldTypeList(ft.Params).StringForFunc()
 		if len(results) > 0 {
-			results = FieldTypeList(ft.Results).StringWithCommas()
+			results = FieldTypeList(ft.Results).StringForFunc()
 			results = "(" + results + ")"
 		}
 	}
@@ -205,8 +219,8 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 		return "zero-map"
 	}
 
-	if seen.Contains(mv) {
-		return fmt.Sprintf("%p", mv)
+	if i := seen.IndexOf(mv); i != -1 {
+		return fmt.Sprintf("ref@%d", i)
 	}
 
 	seen.Put(mv)
@@ -223,48 +237,61 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 	return "map{" + strings.Join(ss, ",") + "}"
 }
 
-func (v TypeValue) String() string {
-	ptr := ""
-	if reflect.TypeOf(v.Type).Kind() == reflect.Ptr {
-		ptr = fmt.Sprintf(" (%p)", v.Type)
-	}
-	/*
-		mthds := ""
-		if d, ok := v.Type.(*DeclaredType); ok {
-			mthds = fmt.Sprintf(" %v", d.Methods)
-		}
-	*/
-	return fmt.Sprintf("typeval{%s%s}",
-		v.Type.String(), ptr)
+func (tv TypeValue) String() string {
+	return fmt.Sprintf("typeval{%s}",
+		tv.Type.String())
 }
 
 func (pv *PackageValue) String() string {
 	return fmt.Sprintf("package(%s %s)", pv.PkgName, pv.PkgPath)
 }
 
-func (nv *NativeValue) String() string {
-	return fmt.Sprintf("gonative{%v}",
-		nv.Value.Interface())
-	/*
-		return fmt.Sprintf("gonative{%v (%s)}",
-			v.Value.Interface(),
-			v.Value.Type().String(),
-		)
-	*/
+func (b *Block) String() string {
+	return b.StringIndented("    ")
 }
 
-func (v RefValue) String() string {
-	if v.PkgPath == "" {
+func (b *Block) StringIndented(indent string) string {
+	source := toString(b.Source)
+	if len(source) > 32 {
+		source = source[:32] + "..."
+	}
+	lines := make([]string, 0, 3)
+	lines = append(lines,
+		fmt.Sprintf("Block(ID:%v,Addr:%p,Source:%s,Parent:%p)",
+			b.ObjectInfo.ID, b, source, b.Parent)) // XXX Parent may be RefValue{}.
+	if b.Source != nil {
+		if _, ok := b.Source.(RefNode); ok {
+			lines = append(lines,
+				fmt.Sprintf("%s(RefNode names not shown)", indent))
+		} else {
+			types := b.Source.GetStaticBlock().Types
+			for i, n := range b.Source.GetBlockNames() {
+				if len(b.Values) <= i {
+					lines = append(lines,
+						fmt.Sprintf("%s%s: undefined static:%s", indent, n, types[i]))
+				} else {
+					lines = append(lines,
+						fmt.Sprintf("%s%s: %s static:%s",
+							indent, n, b.Values[i].String(), types[i]))
+				}
+			}
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+func (rv RefValue) String() string {
+	if rv.PkgPath == "" {
 		return fmt.Sprintf("ref(%v)",
-			v.ObjectID)
+			rv.ObjectID)
 	}
 	return fmt.Sprintf("ref(%s)",
-		v.PkgPath)
+		rv.PkgPath)
 }
 
-func (v *HeapItemValue) String() string {
+func (hiv *HeapItemValue) String() string {
 	return fmt.Sprintf("heapitem(%v)",
-		v.Value)
+		hiv.Value)
 }
 
 // ----------------------------------------
@@ -278,7 +305,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	}
 
 	// if implements .String(), return it.
-	if IsImplementedBy(gStringerType, tv.T) {
+	if IsImplementedBy(gStringerType, tv.T) && !tv.IsNilInterface() {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
 		return res[0].GetString()
 	}
@@ -292,8 +319,8 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 }
 
 func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType bool) string {
-	if seen.Contains(tv.V) {
-		return fmt.Sprintf("%p", tv)
+	if i := seen.IndexOf(tv.V); i != -1 {
+		return fmt.Sprintf("ref@%d", i)
 	}
 
 	// print declared type
@@ -343,18 +370,22 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 			return fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32()))
 		case Float64Type:
 			return fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64()))
-		case UntypedBigintType, BigintType:
+		case UntypedBigintType:
 			return tv.V.(BigintValue).V.String()
-		case UntypedBigdecType, BigdecType:
+		case UntypedBigdecType:
 			return tv.V.(BigdecValue).V.String()
 		default:
 			panic("should not happen")
 		}
 	case *PointerType:
 		if tv.V == nil {
-			return "invalid-pointer"
+			return "typed-nil"
 		}
-		return tv.V.(PointerValue).ProtectedString(seen)
+		roPre, roPost := "", ""
+		if tv.IsReadonly() {
+			roPre, roPost = "readonly(", ")"
+		}
+		return roPre + tv.V.(PointerValue).ProtectedString(seen) + roPost
 	case *FuncType:
 		switch fv := tv.V.(type) {
 		case nil:
@@ -387,13 +418,17 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 		if tv.V == nil {
 			return "(" + nilStr + " " + tv.T.String() + ")"
 		}
-
+		// Value may be N_Readonly
+		roPre, roPost := "", ""
+		if tv.IsReadonly() {
+			roPre, roPost = "readonly(", ")"
+		}
 		// *ArrayType, *SliceType, *StructType, *MapType
 		if ps, ok := tv.V.(protectedStringer); ok {
-			return ps.ProtectedString(seen)
+			return roPre + ps.ProtectedString(seen) + roPost
 		} else if s, ok := tv.V.(fmt.Stringer); ok {
 			// *NativeType
-			return s.String()
+			return roPre + s.String() + roPost
 		}
 
 		if debug {
@@ -424,7 +459,7 @@ func (tv TypedValue) ProtectedString(seen *seenValues) string {
 		case BoolType, UntypedBoolType:
 			vs = fmt.Sprintf("%t", tv.GetBool())
 		case StringType, UntypedStringType:
-			vs = fmt.Sprintf("%s", tv.GetString())
+			vs = tv.GetString()
 		case IntType:
 			vs = fmt.Sprintf("%d", tv.GetInt())
 		case Int8Type:

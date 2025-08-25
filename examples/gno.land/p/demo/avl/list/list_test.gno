@@ -69,7 +69,7 @@ func TestList_Set(t *testing.T) {
 	}
 
 	// Verify list state hasn't changed after invalid operations
-	expected := []interface{}{1, 42, 3, 4}
+	expected := []any{1, 42, 3, 4}
 	for i, want := range expected {
 		if got := l.Get(i); got != want {
 			t.Errorf("index %d = %v; want %v", i, got, want)
@@ -107,16 +107,16 @@ func TestList_Slice(t *testing.T) {
 
 	// Test valid ranges
 	values := l.Slice(1, 4)
-	expected := []interface{}{2, 3, 4}
+	expected := []any{2, 3, 4}
 	if !sliceEqual(values, expected) {
 		t.Errorf("Slice(1,4) = %v; want %v", values, expected)
 	}
 
 	// Test edge cases
-	if values := l.Slice(-1, 2); !sliceEqual(values, []interface{}{1, 2}) {
+	if values := l.Slice(-1, 2); !sliceEqual(values, []any{1, 2}) {
 		t.Errorf("Slice(-1,2) = %v; want [1 2]", values)
 	}
-	if values := l.Slice(3, 10); !sliceEqual(values, []interface{}{4, 5}) {
+	if values := l.Slice(3, 10); !sliceEqual(values, []any{4, 5}) {
 		t.Errorf("Slice(3,10) = %v; want [4 5]", values)
 	}
 	if values := l.Slice(3, 2); values != nil {
@@ -129,7 +129,7 @@ func TestList_ForEach(t *testing.T) {
 	l.Append(1, 2, 3)
 
 	sum := 0
-	l.ForEach(func(index int, value interface{}) bool {
+	l.ForEach(func(index int, value any) bool {
 		sum += value.(int)
 		return false
 	})
@@ -140,7 +140,7 @@ func TestList_ForEach(t *testing.T) {
 
 	// Test early termination
 	count := 0
-	l.ForEach(func(index int, value interface{}) bool {
+	l.ForEach(func(index int, value any) bool {
 		count++
 		return true // stop after first item
 	})
@@ -187,7 +187,7 @@ func TestList_DeleteRange(t *testing.T) {
 	if l.Len() != 2 {
 		t.Errorf("after DeleteRange(1,4) len = %d; want 2", l.Len())
 	}
-	expected := []interface{}{1, 5}
+	expected := []any{1, 5}
 	for i, want := range expected {
 		if got := l.Get(i); got != want {
 			t.Errorf("after DeleteRange(1,4) index %d = %v; want %v", i, got, want)
@@ -219,6 +219,24 @@ func TestList_DeleteRange(t *testing.T) {
 	if deleted := l.DeleteRange(1, 1); deleted != 0 {
 		t.Errorf("DeleteRange(1,1) deleted %d elements; want 0", deleted)
 	}
+}
+
+func TestList_Tree(t *testing.T) {
+	var l List
+	l.Append(1, 2, 3)
+
+	rotree := l.Tree()
+	expected := 3
+
+	// Reverse iterate through the ReadOnlyTree
+	rotree.ReverseIterateByOffset(0, rotree.Size(), func(key string, value any) bool {
+		intValue := value.(int)
+		if intValue != expected {
+			t.Errorf("ReadOnlyTree expected %d, got %d", expected, intValue)
+		}
+		expected--
+		return false
+	})
 }
 
 func TestList_EmptyOperations(t *testing.T) {
@@ -281,7 +299,7 @@ func TestList_LargeOperations(t *testing.T) {
 
 	// Test range on large list
 	values := l.Slice(n-3, n)
-	expected := []interface{}{n - 3, n - 2, n - 1}
+	expected := []any{n - 3, n - 2, n - 1}
 	if !sliceEqual(values, expected) {
 		t.Errorf("Range(%d,%d) = %v; want %v", n-3, n, values, expected)
 	}
@@ -305,7 +323,7 @@ func TestList_ChainedOperations(t *testing.T) {
 	l.Append(4)
 	l.Set(1, 5)
 
-	expected := []interface{}{1, 5, 4}
+	expected := []any{1, 5, 4}
 	for i, want := range expected {
 		if got := l.Get(i); got != want {
 			t.Errorf("index %d = %v; want %v", i, got, want)
@@ -320,10 +338,10 @@ func TestList_RangeEdgeCases(t *testing.T) {
 	// Test various edge cases for Range
 	cases := []struct {
 		start, end int
-		want       []interface{}
+		want       []any
 	}{
-		{-10, 2, []interface{}{1, 2}},
-		{3, 10, []interface{}{4, 5}},
+		{-10, 2, []any{1, 2}},
+		{3, 10, []any{4, 5}},
 		{0, 0, nil},
 		{5, 5, nil},
 		{4, 3, nil},
@@ -357,7 +375,7 @@ func TestList_IndexConsistency(t *testing.T) {
 	l.Append(8, 9, 10) // [1,6,7,8,9,10]
 
 	// Verify sequence is continuous
-	expected := []interface{}{1, 6, 7, 8, 9, 10}
+	expected := []any{1, 6, 7, 8, 9, 10}
 	for i, want := range expected {
 		if got := l.Get(i); got != want {
 			t.Errorf("index %d = %v; want %v", i, got, want)
@@ -376,9 +394,9 @@ func TestList_IndexConsistency(t *testing.T) {
 	}
 
 	// Verify no gaps in iteration
-	var iteratedValues []interface{}
+	var iteratedValues []any
 	var indices []int
-	l.ForEach(func(index int, value interface{}) bool {
+	l.ForEach(func(index int, value any) bool {
 		iteratedValues = append(iteratedValues, value)
 		indices = append(indices, index)
 		return false
@@ -408,7 +426,7 @@ func TestList_RecursiveSafety(t *testing.T) {
 
 	// Test deep list traversal
 	found := false
-	l.ForEach(func(i int, v interface{}) bool {
+	l.ForEach(func(i int, v any) bool {
 		if str, ok := v.(string); ok {
 			if str == "id2" {
 				found = true
@@ -432,7 +450,7 @@ func TestList_RecursiveSafety(t *testing.T) {
 		if !short {
 			// Search for a value
 			var lastFound bool
-			l.ForEach(func(j int, v interface{}) bool {
+			l.ForEach(func(j int, v any) bool {
 				if str, ok := v.(string); ok {
 					if str == ufmt.Sprintf("id%d", i+3) {
 						lastFound = true
@@ -460,7 +478,7 @@ func TestList_RecursiveSafety(t *testing.T) {
 }
 
 // Helper function to compare slices
-func sliceEqual(a, b []interface{}) bool {
+func sliceEqual(a, b []any) bool {
 	if len(a) != len(b) {
 		return false
 	}

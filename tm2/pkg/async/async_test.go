@@ -17,8 +17,8 @@ func TestParallel(t *testing.T) {
 	// Create tasks.
 	counter := new(int32)
 	tasks := make([]Task, 100*1000)
-	for i := 0; i < len(tasks); i++ {
-		tasks[i] = func(i int) (res interface{}, err error, abort bool) {
+	for i := range tasks {
+		tasks[i] = func(i int) (res any, err error, abort bool) {
 			atomic.AddInt32(counter, 1)
 			return -1 * i, nil, false
 		}
@@ -31,7 +31,7 @@ func TestParallel(t *testing.T) {
 	// Verify.
 	assert.Equal(t, int(*counter), len(tasks), "Each task should have incremented the counter already")
 	var failedTasks int
-	for i := 0; i < len(tasks); i++ {
+	for i := range tasks {
 		taskResult, ok := trs.LatestResult(i)
 		switch {
 		case !ok:
@@ -63,22 +63,22 @@ func TestParallelAbort(t *testing.T) {
 
 	// Create tasks.
 	tasks := []Task{
-		func(i int) (res interface{}, err error, abort bool) {
+		func(i int) (res any, err error, abort bool) {
 			assert.Equal(t, i, 0)
 			flow1 <- struct{}{}
 			return 0, nil, false
 		},
-		func(i int) (res interface{}, err error, abort bool) {
+		func(i int) (res any, err error, abort bool) {
 			assert.Equal(t, i, 1)
 			flow2 <- <-flow1
 			return 1, errors.New("some error"), false
 		},
-		func(i int) (res interface{}, err error, abort bool) {
+		func(i int) (res any, err error, abort bool) {
 			assert.Equal(t, i, 2)
 			flow3 <- <-flow2
 			return 2, nil, true
 		},
-		func(i int) (res interface{}, err error, abort bool) {
+		func(i int) (res any, err error, abort bool) {
 			assert.Equal(t, i, 3)
 			<-flow4
 			return 3, nil, false
@@ -111,13 +111,13 @@ func TestParallelRecover(t *testing.T) {
 
 	// Create tasks.
 	tasks := []Task{
-		func(i int) (res interface{}, err error, abort bool) {
+		func(i int) (res any, err error, abort bool) {
 			return 0, nil, false
 		},
-		func(i int) (res interface{}, err error, abort bool) {
+		func(i int) (res any, err error, abort bool) {
 			return 1, errors.New("some error"), false
 		},
-		func(i int) (res interface{}, err error, abort bool) {
+		func(i int) (res any, err error, abort bool) {
 			panic(2)
 		},
 	}
@@ -133,7 +133,7 @@ func TestParallelRecover(t *testing.T) {
 }
 
 // Wait for result
-func checkResult(t *testing.T, taskResultSet *TaskResultSet, index int, val interface{}, err error, pnk interface{}) {
+func checkResult(t *testing.T, taskResultSet *TaskResultSet, index int, val any, err error, pnk any) {
 	t.Helper()
 
 	taskResult, ok := taskResultSet.LatestResult(index)

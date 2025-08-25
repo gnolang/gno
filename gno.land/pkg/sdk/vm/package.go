@@ -1,7 +1,6 @@
 package vm
 
 import (
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -12,7 +11,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	amino.GetCallersDirname(),
 ).WithDependencies(
 	std.Package,
-	gnovm.Package,
 ).WithTypes(
 	MsgCall{}, "m_call",
 	MsgRun{}, "m_run",
@@ -26,4 +24,5 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	InvalidExprError{}, "InvalidExprError",
 	TypeCheckError{}, "TypeCheckError",
 	UnauthorizedUserError{}, "UnauthorizedUserError",
+	InvalidPackageError{}, "InvalidPackageError",
 ))

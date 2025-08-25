@@ -1,6 +1,7 @@
 package ufmt
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"testing"
@@ -16,86 +17,113 @@ func TestSprintf(t *testing.T) {
 	tru := true
 	cases := []struct {
 		format         string
-		values         []interface{}
+		values         []any
 		expectedOutput string
 	}{
-		{"hello %s!", []interface{}{"planet"}, "hello planet!"},
-		{"hello %v!", []interface{}{"planet"}, "hello planet!"},
-		{"hi %%%s!", []interface{}{"worl%d"}, "hi %worl%d!"},
-		{"%s %c %d %t", []interface{}{"foo", 'α', 421, true}, "foo α 421 true"},
-		{"string [%s]", []interface{}{"foo"}, "string [foo]"},
-		{"int [%d]", []interface{}{int(42)}, "int [42]"},
-		{"int [%v]", []interface{}{int(42)}, "int [42]"},
-		{"int8 [%d]", []interface{}{int8(8)}, "int8 [8]"},
-		{"int8 [%v]", []interface{}{int8(8)}, "int8 [8]"},
-		{"int16 [%d]", []interface{}{int16(16)}, "int16 [16]"},
-		{"int16 [%v]", []interface{}{int16(16)}, "int16 [16]"},
-		{"int32 [%d]", []interface{}{int32(32)}, "int32 [32]"},
-		{"int32 [%v]", []interface{}{int32(32)}, "int32 [32]"},
-		{"int64 [%d]", []interface{}{int64(64)}, "int64 [64]"},
-		{"int64 [%v]", []interface{}{int64(64)}, "int64 [64]"},
-		{"uint [%d]", []interface{}{uint(42)}, "uint [42]"},
-		{"uint [%v]", []interface{}{uint(42)}, "uint [42]"},
-		{"uint8 [%d]", []interface{}{uint8(8)}, "uint8 [8]"},
-		{"uint8 [%v]", []interface{}{uint8(8)}, "uint8 [8]"},
-		{"uint16 [%d]", []interface{}{uint16(16)}, "uint16 [16]"},
-		{"uint16 [%v]", []interface{}{uint16(16)}, "uint16 [16]"},
-		{"uint32 [%d]", []interface{}{uint32(32)}, "uint32 [32]"},
-		{"uint32 [%v]", []interface{}{uint32(32)}, "uint32 [32]"},
-		{"uint64 [%d]", []interface{}{uint64(64)}, "uint64 [64]"},
-		{"uint64 [%v]", []interface{}{uint64(64)}, "uint64 [64]"},
-		{"float64 [%e]", []interface{}{float64(64.1)}, "float64 [6.41e+01]"},
-		{"float64 [%E]", []interface{}{float64(64.1)}, "float64 [6.41E+01]"},
-		{"float64 [%f]", []interface{}{float64(64.1)}, "float64 [64.100000]"},
-		{"float64 [%F]", []interface{}{float64(64.1)}, "float64 [64.100000]"},
-		{"float64 [%g]", []interface{}{float64(64.1)}, "float64 [64.1]"},
-		{"float64 [%G]", []interface{}{float64(64.1)}, "float64 [64.1]"},
-		{"bool [%t]", []interface{}{true}, "bool [true]"},
-		{"bool [%v]", []interface{}{true}, "bool [true]"},
-		{"bool [%t]", []interface{}{false}, "bool [false]"},
-		{"bool [%v]", []interface{}{false}, "bool [false]"},
+		{"hello %s!", []any{"planet"}, "hello planet!"},
+		{"hello %v!", []any{"planet"}, "hello planet!"},
+		{"hi %%%s!", []any{"worl%d"}, "hi %worl%d!"},
+		{"%s %c %d %t", []any{"foo", 'α', 421, true}, "foo α 421 true"},
+		{"string [%s]", []any{"foo"}, "string [foo]"},
+		{"int [%d]", []any{int(42)}, "int [42]"},
+		{"int [%v]", []any{int(42)}, "int [42]"},
+		{"int8 [%d]", []any{int8(8)}, "int8 [8]"},
+		{"int8 [%v]", []any{int8(8)}, "int8 [8]"},
+		{"int16 [%d]", []any{int16(16)}, "int16 [16]"},
+		{"int16 [%v]", []any{int16(16)}, "int16 [16]"},
+		{"int32 [%d]", []any{int32(32)}, "int32 [32]"},
+		{"int32 [%v]", []any{int32(32)}, "int32 [32]"},
+		{"int64 [%d]", []any{int64(64)}, "int64 [64]"},
+		{"int64 [%v]", []any{int64(64)}, "int64 [64]"},
+		{"uint [%d]", []any{uint(42)}, "uint [42]"},
+		{"uint [%v]", []any{uint(42)}, "uint [42]"},
+		{"uint8 [%d]", []any{uint8(8)}, "uint8 [8]"},
+		{"uint8 [%v]", []any{uint8(8)}, "uint8 [8]"},
+		{"uint16 [%d]", []any{uint16(16)}, "uint16 [16]"},
+		{"uint16 [%v]", []any{uint16(16)}, "uint16 [16]"},
+		{"uint32 [%d]", []any{uint32(32)}, "uint32 [32]"},
+		{"uint32 [%v]", []any{uint32(32)}, "uint32 [32]"},
+		{"uint64 [%d]", []any{uint64(64)}, "uint64 [64]"},
+		{"uint64 [%v]", []any{uint64(64)}, "uint64 [64]"},
+		{"float64 [%e]", []any{float64(64.1)}, "float64 [6.41e+01]"},
+		{"float64 [%E]", []any{float64(64.1)}, "float64 [6.41E+01]"},
+		{"float64 [%f]", []any{float64(64.1)}, "float64 [64.100000]"},
+		{"float64 [%F]", []any{float64(64.1)}, "float64 [64.100000]"},
+		{"float64 [%g]", []any{float64(64.1)}, "float64 [64.1]"},
+		{"float64 [%G]", []any{float64(64.1)}, "float64 [64.1]"},
+		{"bool [%t]", []any{true}, "bool [true]"},
+		{"bool [%v]", []any{true}, "bool [true]"},
+		{"bool [%t]", []any{false}, "bool [false]"},
+		{"bool [%v]", []any{false}, "bool [false]"},
 		{"no args", nil, "no args"},
 		{"finish with %", nil, "finish with %"},
-		{"stringer [%s]", []interface{}{stringer{}}, "stringer [I'm a stringer]"},
+		{"stringer [%s]", []any{stringer{}}, "stringer [I'm a stringer]"},
 		{"â", nil, "â"},
 		{"Hello, World! 😊", nil, "Hello, World! 😊"},
-		{"unicode formatting: %s", []interface{}{"😊"}, "unicode formatting: 😊"},
-		{"invalid hex [%x]", []interface{}{"invalid"}, "invalid hex [(unhandled)]"},
-		{"rune as character [%c]", []interface{}{rune('A')}, "rune as character [A]"},
-		{"int as character [%c]", []interface{}{int('B')}, "int as character [B]"},
-		{"quoted string [%q]", []interface{}{"hello"}, "quoted string [\"hello\"]"},
-		{"quoted string with escape [%q]", []interface{}{"\thello\nworld\\"}, "quoted string with escape [\"\\thello\\nworld\\\\\"]"},
-		{"invalid quoted string [%q]", []interface{}{123}, "invalid quoted string [(unhandled)]"},
-		{"type of bool [%T]", []interface{}{true}, "type of bool [bool]"},
-		{"type of int [%T]", []interface{}{123}, "type of int [int]"},
-		{"type of string [%T]", []interface{}{"hello"}, "type of string [string]"},
-		{"type of []byte [%T]", []interface{}{[]byte{1, 2, 3}}, "type of []byte [[]byte]"},
-		{"type of []rune [%T]", []interface{}{[]rune{'a', 'b', 'c'}}, "type of []rune [[]rune]"},
-		{"type of unknown [%T]", []interface{}{struct{}{}}, "type of unknown [unknown]"},
+		{"unicode formatting: %s", []any{"😊"}, "unicode formatting: 😊"},
+		{"invalid hex [%x]", []any{"invalid"}, "invalid hex [(unhandled)]"},
+		{"rune as character [%c]", []any{rune('A')}, "rune as character [A]"},
+		{"int as character [%c]", []any{int('B')}, "int as character [B]"},
+		{"quoted string [%q]", []any{"hello"}, "quoted string [\"hello\"]"},
+		{"quoted string with escape [%q]", []any{"\thello\nworld\\"}, "quoted string with escape [\"\\thello\\nworld\\\\\"]"},
+		{"invalid quoted string [%q]", []any{123}, "invalid quoted string [(unhandled)]"},
+		{"type of bool [%T]", []any{true}, "type of bool [bool]"},
+		{"type of int [%T]", []any{123}, "type of int [int]"},
+		{"type of string [%T]", []any{"hello"}, "type of string [string]"},
+		{"type of []byte [%T]", []any{[]byte{1, 2, 3}}, "type of []byte [[]byte]"},
+		{"type of []rune [%T]", []any{[]rune{'a', 'b', 'c'}}, "type of []rune [[]rune]"},
+		{"type of unknown [%T]", []any{struct{}{}}, "type of unknown [unknown]"},
 		// mismatch printing
-		{"%s", []interface{}{nil}, "%!s(<nil>)"},
-		{"%s", []interface{}{421}, "%!s(int=421)"},
-		{"%s", []interface{}{"z"}, "z"},
-		{"%s", []interface{}{tru}, "%!s(bool=true)"},
-		{"%s", []interface{}{'z'}, "%!s(int32=122)"},
+		{"%s", []any{nil}, "%!s(<nil>)"},
+		{"%s", []any{421}, "%!s(int=421)"},
+		{"%s", []any{"z"}, "z"},
+		{"%s", []any{tru}, "%!s(bool=true)"},
+		{"%s", []any{'z'}, "%!s(int32=122)"},
 
-		{"%c", []interface{}{nil}, "%!c(<nil>)"},
-		{"%c", []interface{}{421}, "ƥ"},
-		{"%c", []interface{}{"z"}, "%!c(string=z)"},
-		{"%c", []interface{}{tru}, "%!c(bool=true)"},
-		{"%c", []interface{}{'z'}, "z"},
+		{"%c", []any{nil}, "%!c(<nil>)"},
+		{"%c", []any{421}, "ƥ"},
+		{"%c", []any{"z"}, "%!c(string=z)"},
+		{"%c", []any{tru}, "%!c(bool=true)"},
+		{"%c", []any{'z'}, "z"},
 
-		{"%d", []interface{}{nil}, "%!d(<nil>)"},
-		{"%d", []interface{}{421}, "421"},
-		{"%d", []interface{}{"z"}, "%!d(string=z)"},
-		{"%d", []interface{}{tru}, "%!d(bool=true)"},
-		{"%d", []interface{}{'z'}, "122"},
+		{"%d", []any{nil}, "%!d(<nil>)"},
+		{"%d", []any{421}, "421"},
+		{"%d", []any{"z"}, "%!d(string=z)"},
+		{"%d", []any{tru}, "%!d(bool=true)"},
+		{"%d", []any{'z'}, "122"},
 
-		{"%t", []interface{}{nil}, "%!t(<nil>)"},
-		{"%t", []interface{}{421}, "%!t(int=421)"},
-		{"%t", []interface{}{"z"}, "%!t(string=z)"},
-		{"%t", []interface{}{tru}, "true"},
-		{"%t", []interface{}{'z'}, "%!t(int32=122)"},
+		{"%t", []any{nil}, "%!t(<nil>)"},
+		{"%t", []any{421}, "%!t(int=421)"},
+		{"%t", []any{"z"}, "%!t(string=z)"},
+		{"%t", []any{tru}, "true"},
+		{"%t", []any{'z'}, "%!t(int32=122)"},
+
+		{"%.2f", []any{3.14159}, "3.14"},
+		{"%.4f", []any{3.14159}, "3.1416"},
+		{"%.0f", []any{3.14159}, "3"},
+		{"%.1f", []any{3.0}, "3.0"},
+		{"%.3F", []any{3.14159}, "3.142"},
+		{"%.2e", []any{314.159}, "3.14e+02"},
+		{"%.3E", []any{314.159}, "3.142E+02"},
+		{"%.3g", []any{3.14159}, "3.14"},
+		{"%.5G", []any{3.14159}, "3.1416"},
+		{"%.0f", []any{3.6}, "4"},
+		{"%.0f", []any{3.4}, "3"},
+		{"%.1f", []any{0.0}, "0.0"},
+		{"%.2f", []any{1e6}, "1000000.00"},
+		{"%.2f", []any{1e-6}, "0.00"},
+
+		{"%5s", []any{"Hello World"}, "Hello World"},
+		{"%3s", []any{"Hi"}, " Hi"},
+		{"%2s", []any{"Hello"}, "Hello"},
+		{"%1s", []any{"A"}, "A"},
+		{"%0s", []any{"Test"}, "Test"},
+		{"%5s!", []any{"Hello World"}, "Hello World!"},
+		{"_%5s_", []any{"abc"}, "_  abc_"},
+		{"%2s%4s", []any{"ab", "cde"}, "ab cde"},
+		{"%5s", []any{""}, "     "},
+		{"%3s", []any{nil}, "%!s(<nil>)"},
+		{"%2s", []any{123}, "%!s(int=123)"},
 	}
 
 	for _, tc := range cases {
@@ -113,37 +141,37 @@ func TestErrorf(t *testing.T) {
 	tests := []struct {
 		name     string
 		format   string
-		args     []interface{}
+		args     []any
 		expected string
 	}{
 		{
 			name:     "simple string",
 			format:   "error: %s",
-			args:     []interface{}{"something went wrong"},
+			args:     []any{"something went wrong"},
 			expected: "error: something went wrong",
 		},
 		{
 			name:     "integer value",
 			format:   "value: %d",
-			args:     []interface{}{42},
+			args:     []any{42},
 			expected: "value: 42",
 		},
 		{
 			name:     "boolean value",
 			format:   "success: %t",
-			args:     []interface{}{true},
+			args:     []any{true},
 			expected: "success: true",
 		},
 		{
 			name:     "multiple values",
 			format:   "error %d: %s (success=%t)",
-			args:     []interface{}{123, "failure occurred", false},
+			args:     []any{123, "failure occurred", false},
 			expected: "error 123: failure occurred (success=false)",
 		},
 		{
 			name:     "literal percent",
 			format:   "literal %%",
-			args:     []interface{}{},
+			args:     []any{},
 			expected: "literal %",
 		},
 	}
@@ -166,45 +194,177 @@ func TestPrintErrors(t *testing.T) {
 	}
 }
 
-// NOTE: Currently, there is no way to get the output of Println without using os.Stdout,
-// so we can only test that it doesn't panic and print arguments well.
-func TestPrintln(t *testing.T) {
+func TestSprint(t *testing.T) {
 	tests := []struct {
 		name     string
-		args     []interface{}
+		args     []any
 		expected string
 	}{
 		{
 			name:     "Empty args",
-			args:     []interface{}{},
+			args:     []any{},
 			expected: "",
 		},
 		{
 			name:     "String args",
-			args:     []interface{}{"Hello", "World"},
+			args:     []any{"Hello", "World"},
 			expected: "Hello World",
 		},
 		{
 			name:     "Integer args",
-			args:     []interface{}{1, 2, 3},
+			args:     []any{1, 2, 3},
 			expected: "1 2 3",
 		},
 		{
 			name:     "Mixed args",
-			args:     []interface{}{"Hello", 42, true, false, "World"},
+			args:     []any{"Hello", 42, true, false, "World"},
 			expected: "Hello 42 true false World",
 		},
 		{
 			name:     "Unhandled type",
-			args:     []interface{}{"Hello", 3.14, []int{1, 2, 3}},
-			expected: "Hello (unhandled) (unhandled)",
+			args:     []any{"Hello", 3.14, []int{1, 2, 3}},
+			expected: "Hello 3.140000 (unhandled)",
 		},
 	}
 
-	// TODO: replace os.Stdout with a buffer to capture the output and test it.
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			Println(tt.args...)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := Sprint(tc.args...)
+			if got != tc.expected {
+				t.Errorf("got %q, want %q.", got, tc.expected)
+			}
 		})
+	}
+}
+
+func TestFprintf(t *testing.T) {
+	var buf bytes.Buffer
+	n, err := Fprintf(&buf, "Count: %d, Message: %s", 42, "hello")
+	if err != nil {
+		t.Fatalf("Fprintf failed: %v", err)
+	}
+
+	const expected = "Count: 42, Message: hello"
+	if buf.String() != expected {
+		t.Errorf("Expected %q, got %q", expected, buf.String())
+	}
+	if n != len(expected) {
+		t.Errorf("Expected %d bytes written, got %d", len(expected), n)
+	}
+}
+
+// TODO: replace os.Stdout with a buffer to capture the output and test it.
+func TestPrintf(t *testing.T) {
+	n, err := Printf("The answer is %d", 42)
+	if err != nil {
+		t.Fatalf("Printf failed: %v", err)
+	}
+
+	const expected = "The answer is 42"
+	if n != len(expected) {
+		t.Errorf("Expected 14 bytes written, got %d", n)
+	}
+}
+
+func TestAppendf(t *testing.T) {
+	b := []byte("Header: ")
+	result := Appendf(b, "Value %d", 7)
+	const expected = "Header: Value 7"
+	if string(result) != expected {
+		t.Errorf("Expected %q, got %q", expected, string(result))
+	}
+}
+
+func TestFprint(t *testing.T) {
+	var buf bytes.Buffer
+	n, err := Fprint(&buf, "Hello", 42, true)
+	if err != nil {
+		t.Fatalf("Fprint failed: %v", err)
+	}
+
+	const expected = "Hello 42 true"
+	if buf.String() != expected {
+		t.Errorf("Expected %q, got %q", expected, buf.String())
+	}
+	if n != len(expected) {
+		t.Errorf("Expected %d bytes written, got %d", len(expected), n)
+	}
+}
+
+// TODO: replace os.Stdout with a buffer to capture the output and test it.
+func TestPrint(t *testing.T) {
+	n, err := Print("Mixed", 3.14, false)
+	if err != nil {
+		t.Fatalf("Print failed: %v", err)
+	}
+
+	const expected = "Mixed 3.140000 false"
+	if n != len(expected) {
+		t.Errorf("Expected 12 bytes written, got %d", n)
+	}
+}
+
+func TestAppend(t *testing.T) {
+	b := []byte{0x01, 0x02}
+	result := Append(b, "Test", 99)
+
+	const expected = "\x01\x02Test 99"
+	if string(result) != expected {
+		t.Errorf("Expected %q, got %q", expected, string(result))
+	}
+}
+
+func TestFprintln(t *testing.T) {
+	var buf bytes.Buffer
+	n, err := Fprintln(&buf, "Line", 1)
+	if err != nil {
+		t.Fatalf("Fprintln failed: %v", err)
+	}
+
+	const expected = "Line 1\n"
+	if buf.String() != expected {
+		t.Errorf("Expected %q, got %q", expected, buf.String())
+	}
+	if n != len(expected) {
+		t.Errorf("Expected %d bytes written, got %d", len(expected), n)
+	}
+}
+
+// TODO: replace os.Stdout with a buffer to capture the output and test it.
+func TestPrintln(t *testing.T) {
+	n, err := Println("Output", "test")
+	if err != nil {
+		t.Fatalf("Println failed: %v", err)
+	}
+
+	const expected = "Output test\n"
+	if n != len(expected) {
+		t.Errorf("Expected 12 bytes written, got %d", n)
+	}
+}
+
+func TestSprintln(t *testing.T) {
+	result := Sprintln("Item", 42)
+
+	const expected = "Item 42\n"
+	if result != expected {
+		t.Errorf("Expected %q, got %q", expected, result)
+	}
+}
+
+func TestAppendln(t *testing.T) {
+	b := []byte("Start:")
+	result := Appendln(b, "End")
+
+	const expected = "Start:End\n"
+	if string(result) != expected {
+		t.Errorf("Expected %q, got %q", expected, string(result))
+	}
+}
+
+func assertNoError(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
 	}
 }

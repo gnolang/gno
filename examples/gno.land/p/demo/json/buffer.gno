@@ -428,7 +428,7 @@ func (b *buffer) word(bs []byte) error {
 	return nil
 }
 
-func numberKind2f64(value interface{}) (result float64, err error) {
+func numberKind2f64(value any) (result float64, err error) {
 	switch typed := value.(type) {
 	case float64:
 		result = typed

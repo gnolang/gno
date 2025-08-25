@@ -2,7 +2,7 @@ package uassert
 
 import "strings"
 
-func fail(t TestingT, customMsgs []string, failureMessage string, args ...interface{}) bool {
+func fail(t TestingT, customMsgs []string, failureMessage string, args ...any) bool {
 	customMsg := ""
 	if len(customMsgs) > 0 {
 		customMsg = strings.Join(customMsgs, " ")
@@ -14,14 +14,7 @@ func fail(t TestingT, customMsgs []string, failureMessage string, args ...interf
 	return false
 }
 
-func autofail(t TestingT, success bool, customMsgs []string, failureMessage string, args ...interface{}) bool {
-	if success {
-		return true
-	}
-	return fail(t, customMsgs, failureMessage, args...)
-}
-
-func checkDidPanic(f func()) (didPanic bool, message string) {
+func checkDidPanic(f any) (didPanic bool, message string) {
 	didPanic = true
 	defer func() {
 		r := recover()
@@ -45,7 +38,14 @@ func checkDidPanic(f func()) (didPanic bool, message string) {
 
 		message = "recover: unsupported type"
 	}()
-	f()
+	switch f := f.(type) {
+	case func():
+		f()
+	case func(realm):
+		f(cross)
+	default:
+		panic("f must be of type func() or func(realm)")
+	}
 	didPanic = false
 	return
 }

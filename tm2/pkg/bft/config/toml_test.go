@@ -64,14 +64,19 @@ func TestEnsureTestRoot(t *testing.T) {
 	require.True(t, checkConfig(string(data)))
 
 	// TODO: make sure the cfg returned and testconfig are the same!
-	baseConfig := DefaultBaseConfig()
 	ensureFiles(
 		t,
 		rootDir,
 		"genesis.json",
 		DefaultDBDir,
-		baseConfig.PrivValidatorKey,
-		baseConfig.PrivValidatorState,
+	)
+
+	// Root dir was set directly in validator config along with the DefaultSecretsDir.
+	ensureFiles(
+		t,
+		"",
+		cfg.Consensus.PrivValidator.LocalSignerPath(),
+		cfg.Consensus.PrivValidator.SignStatePath(),
 	)
 }
 
@@ -179,7 +184,7 @@ func TestTOML_ConfigComments(t *testing.T) {
 			structStack = structStack[:len(structStack)-1]
 
 			// Process all fields of the struct
-			for i := 0; i < structVal.NumField(); i++ {
+			for i := range structVal.NumField() {
 				fieldVal := structVal.Field(i)
 				fieldType := structVal.Type().Field(i)
 

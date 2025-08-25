@@ -7,6 +7,9 @@ on:
       tests-extra-args:
         required: false
         type: string
+      tests-ts-seq: # execute txtar sequentially
+        required: false
+        type: boolean
       go-version:
         description: "Go version to use"
         required: false
@@ -34,9 +37,9 @@ jobs:
     uses: ./.github/workflows/test_template.yml
     with:
       modulepath: ${{ inputs.modulepath }}
+      tests-ts-seq: ${{ inputs.tests-ts-seq }}
       tests-timeout: "30m"
       go-version: ${{ inputs.go-version }}
       tests-extra-args: ${{ inputs.tests-extra-args }}
     secrets:
       codecov-token: ${{ secrets.codecov-token }}
-    

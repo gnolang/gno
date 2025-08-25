@@ -36,7 +36,7 @@ package main
 import "std"
 
 func hello() {
-	std.GetChainID()
+	std.ChainID()
 }
 
 -- main.gno.gen.go.golden --
@@ -61,5 +61,5 @@ package main
 import "github.com/gnolang/gno/gnovm/stdlibs/std"
 
 func hello() {
-	std.GetChainID(nil)
+	std.ChainID(nil)
 }

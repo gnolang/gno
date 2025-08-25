@@ -7,4 +7,7 @@ func () A()
 func main() {}
 
 // Error:
-// method has no receiver
+// parse_err0.gno:5:1: method has no receiver
+
+// TypeCheckError:
+// main/parse_err0.gno:5:6: method has no receiver

@@ -3,7 +3,7 @@ package outfmt
 import (
 	"testing"
 
-	"gno.land/r/x/manfred_outfmt"
+	outfmt "gno.land/r/x/manfred_outfmt"
 )
 
 func TestRender(t *testing.T) {

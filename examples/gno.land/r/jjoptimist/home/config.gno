@@ -24,8 +24,8 @@ func GetConfig() Config {
 	return config
 }
 
-func UpdateConfig(newTitle, newDescription, newGithub string) {
-	Ownable.AssertCallerIsOwner()
+func UpdateConfig(_ realm, newTitle, newDescription, newGithub string) {
+	Ownable.AssertOwnedByPrevious()
 	config.Title = newTitle
 	config.Description = newDescription
 	config.Github = newGithub

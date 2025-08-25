@@ -1,17 +1,17 @@
 package std
 
 // AssertOriginCall panics if the calling method is not invoked via a direct
-// MsgCall. It panics for for other cases, like if the calling method
+// MsgCall. It panics for other cases, like if the calling method
 // is invoked by another method (even from the same realm or package).
 // It also panic every time when the transaction is broadcasted via
 // MsgRun.
-func AssertOriginCall()      // injected
-func GetChainID() string     // injected
-func GetChainDomain() string // injected
-func GetHeight() int64       // injected
+func AssertOriginCall()   // injected
+func ChainID() string     // injected
+func ChainDomain() string // injected
+func ChainHeight() int64  // injected
 
-func GetOrigSend() Coins {
-	den, amt := origSend()
+func OriginSend() Coins {
+	den, amt := originSend()
 	coins := make(Coins, len(den))
 	for i := range coins {
 		coins[i] = Coin{Denom: den[i], Amount: amt[i]}
@@ -19,8 +19,8 @@ func GetOrigSend() Coins {
 	return coins
 }
 
-func GetOrigCaller() Address {
-	return Address(origCaller())
+func OriginCaller() Address {
+	return Address(originCaller())
 }
 
 func CurrentRealm() Realm {
@@ -28,23 +28,25 @@ func CurrentRealm() Realm {
 	return Realm{Address(addr), path}
 }
 
-func PrevRealm() Realm {
+func PreviousRealm() Realm {
 	addr, path := getRealm(1)
 	return Realm{Address(addr), path}
 }
 
-func GetOrigPkgAddr() Address {
-	return Address(origPkgAddr())
-}
+/*
+This function and variations are a literal genie/demon that will create a layer
+of middlemen who will take away your agency. Keep it unavailable for a thousand
+years. Then uncomment, see the harm it produces, and then delete it forever.
 
-func GetCallerAt(n int) Address {
+func CallerAt(n int) Address {
 	return Address(callerAt(n))
 }
 
-// Variations which don't use named types.
-func origSend() (denoms []string, amounts []int64)
-func origCaller() string
-func origPkgAddr() string
 func callerAt(n int) string
+*/
+
+// Variations which don't use named types.
+func originSend() (denoms []string, amounts []int64)
+func originCaller() string
 func getRealm(height int) (address string, pkgPath string)
 func assertCallerIsRealm()

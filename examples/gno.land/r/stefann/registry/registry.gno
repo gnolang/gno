@@ -28,23 +28,23 @@ func BackupAddr() std.Address {
 	return backupAddr
 }
 
-func SetMainAddr(addr std.Address) error {
+func SetMainAddr(_ realm, addr std.Address) error {
 	if !addr.IsValid() {
 		return errors.New("config: invalid address")
 	}
 
-	owner.AssertCallerIsOwner()
+	owner.AssertOwnedByPrevious()
 
 	mainAddr = addr
 	return nil
 }
 
-func SetBackupAddr(addr std.Address) error {
+func SetBackupAddr(_ realm, addr std.Address) error {
 	if !addr.IsValid() {
 		return errors.New("config: invalid address")
 	}
 
-	owner.AssertCallerIsOwner()
+	owner.AssertOwnedByPrevious()
 
 	backupAddr = addr
 	return nil

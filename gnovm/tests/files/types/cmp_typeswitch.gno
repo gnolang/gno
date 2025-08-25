@@ -1,7 +1,7 @@
 package main
 
 func main() {
-	var l interface{}
+	var l any
 	l = int64(0)
 
 	switch val := l.(type) {

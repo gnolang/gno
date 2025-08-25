@@ -6,12 +6,11 @@
 package microblog
 
 import (
-	"std"
 	"strings"
 
 	"gno.land/p/demo/microblog"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/users"
+	susers "gno.land/r/sys/users"
 )
 
 var (
@@ -29,8 +28,8 @@ func renderHome() string {
 	output += "# pages\n\n"
 
 	for _, page := range m.GetPages() {
-		if u := users.GetUserByAddress(page.Author); u != nil {
-			output += ufmt.Sprintf("- [%s (%s)](%s%s)\n", u.Name, page.Author.String(), m.Prefix, page.Author.String())
+		if u := susers.ResolveAddress(page.Author); u != nil {
+			output += ufmt.Sprintf("- [%s (%s)](%s%s)\n", u.Name(), page.Author.String(), m.Prefix, page.Author.String())
 		} else {
 			output += ufmt.Sprintf("- [%s](%s%s)\n", page.Author.String(), m.Prefix, page.Author.String())
 		}
@@ -67,9 +66,8 @@ func Render(path string) string {
 
 func PageToString(p *microblog.Page) string {
 	o := ""
-	if u := users.GetUserByAddress(p.Author); u != nil {
-		o += ufmt.Sprintf("# [%s](/r/demo/users:%s)\n\n", u, u)
-		o += ufmt.Sprintf("%s\n\n", u.Profile)
+	if u := susers.ResolveAddress(p.Author); u != nil {
+		o += ufmt.Sprintf("# [%s](/u/%s)\n\n", u, u)
 	}
 	o += ufmt.Sprintf("## [%s](/r/demo/microblog:%s)\n\n", p.Author, p.Author)
 
@@ -83,15 +81,9 @@ func PageToString(p *microblog.Page) string {
 
 // NewPost takes a single argument (post markdown) and
 // adds a post to the address of the caller.
-func NewPost(text string) string {
+func NewPost(_ realm, text string) string {
 	if err := m.NewPost(text); err != nil {
 		return "unable to add new post"
 	}
 	return "added new post"
-}
-
-func Register(name, profile string) string {
-	caller := std.GetOrigCaller() // main
-	users.Register(caller, name, profile)
-	return "OK"
 }

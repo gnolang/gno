@@ -5,13 +5,11 @@
 package strings
 
 /*
-func (r *Replacer) Replacer() interface{} {
-	r.once.Do(r.buildOnce)
+func (r *Replacer) Replacer() any {
 	return r.r
 }
 
 func (r *Replacer) PrintTrie() string {
-	r.once.Do(r.buildOnce)
 	gen := r.r.(*genericReplacer)
 	return gen.printNode(&gen.root, 0)
 }

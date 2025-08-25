@@ -41,16 +41,16 @@ func newGroup(url string, name string, creator std.Address) *Group {
 	}
 }
 
-func (group *Group) newMember(id MemberID, address std.Address, weight int, metadata string) *Member {
-	if group.members.Has(address.String()) {
+func (group *Group) newMember(id MemberID, address_XXX std.Address, weight int, metadata string) *Member {
+	if group.members.Has(address_XXX.String()) {
 		panic("this member for this group already exists")
 	}
 	return &Member{
-		id:        id,
-		address:   address,
-		weight:    weight,
-		metadata:  metadata,
-		createdAt: time.Now(),
+		id:          id,
+		address_XXX: address_XXX,
+		weight:      weight,
+		metadata:    metadata,
+		createdAt:   time.Now(),
 	}
 }
 
@@ -69,7 +69,7 @@ func (group *Group) RenderGroup() string {
 		"Group Last MemberID: " + memberIDKey(group.lastMemberID) + "\n\n"
 
 	str += "Group Members: \n\n"
-	group.members.Iterate("", "", func(key string, value interface{}) bool {
+	group.members.Iterate("", "", func(key string, value any) bool {
 		member := value.(*Member)
 		str += member.getMemberStr()
 		return false

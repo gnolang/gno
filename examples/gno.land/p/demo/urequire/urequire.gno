@@ -54,15 +54,23 @@ func ErrorIs(t uassert.TestingT, err, target error, msgs ...string) {
 	t.FailNow()
 }
 
-func PanicsWithMessage(t uassert.TestingT, msg string, f func(), msgs ...string) {
+// AbortsWithMessage requires that the code inside the specified func aborts
+// (panics when crossing another realm).
+// Use PanicsWithMessage for requiring local panics within the same realm.
+// Note: This relies on gno's `revive` mechanism to catch aborts.
+func AbortsWithMessage(t uassert.TestingT, msg string, f any, msgs ...string) {
 	t.Helper()
-	if uassert.PanicsWithMessage(t, msg, f, msgs...) {
+	if uassert.AbortsWithMessage(t, msg, f, msgs...) {
 		return
 	}
 	t.FailNow()
 }
 
-func NotPanics(t uassert.TestingT, f func(), msgs ...string) {
+// NotAborts requires that the code inside the specified func does NOT abort
+// when crossing an execution boundary (e.g., VM call).
+// Use NotPanics for requiring the absence of local panics within the same realm.
+// Note: This relies on Gno's `revive` mechanism.
+func NotAborts(t uassert.TestingT, f any, msgs ...string) {
 	t.Helper()
 	if uassert.NotPanics(t, f, msgs...) {
 		return
@@ -70,7 +78,29 @@ func NotPanics(t uassert.TestingT, f func(), msgs ...string) {
 	t.FailNow()
 }
 
-func Equal(t uassert.TestingT, expected, actual interface{}, msgs ...string) {
+// PanicsWithMessage requires that the code inside the specified func panics
+// locally within the same execution realm.
+// Use AbortsWithMessage for requiring panics that cross execution boundaries (aborts).
+func PanicsWithMessage(t uassert.TestingT, msg string, f any, msgs ...string) {
+	t.Helper()
+	if uassert.PanicsWithMessage(t, msg, f, msgs...) {
+		return
+	}
+	t.FailNow()
+}
+
+// NotPanics requires that the code inside the specified func does NOT panic
+// locally within the same execution realm.
+// Use NotAborts for requiring the absence of panics that cross execution boundaries (aborts).
+func NotPanics(t uassert.TestingT, f any, msgs ...string) {
+	t.Helper()
+	if uassert.NotPanics(t, f, msgs...) {
+		return
+	}
+	t.FailNow()
+}
+
+func Equal(t uassert.TestingT, expected, actual any, msgs ...string) {
 	t.Helper()
 	if uassert.Equal(t, expected, actual, msgs...) {
 		return
@@ -78,7 +108,7 @@ func Equal(t uassert.TestingT, expected, actual interface{}, msgs ...string) {
 	t.FailNow()
 }
 
-func NotEqual(t uassert.TestingT, expected, actual interface{}, msgs ...string) {
+func NotEqual(t uassert.TestingT, expected, actual any, msgs ...string) {
 	t.Helper()
 	if uassert.NotEqual(t, expected, actual, msgs...) {
 		return
@@ -86,7 +116,7 @@ func NotEqual(t uassert.TestingT, expected, actual interface{}, msgs ...string) 
 	t.FailNow()
 }
 
-func Empty(t uassert.TestingT, obj interface{}, msgs ...string) {
+func Empty(t uassert.TestingT, obj any, msgs ...string) {
 	t.Helper()
 	if uassert.Empty(t, obj, msgs...) {
 		return
@@ -94,7 +124,7 @@ func Empty(t uassert.TestingT, obj interface{}, msgs ...string) {
 	t.FailNow()
 }
 
-func NotEmpty(t uassert.TestingT, obj interface{}, msgs ...string) {
+func NotEmpty(t uassert.TestingT, obj any, msgs ...string) {
 	t.Helper()
 	if uassert.NotEmpty(t, obj, msgs...) {
 		return

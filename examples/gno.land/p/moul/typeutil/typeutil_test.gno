@@ -26,7 +26,7 @@ func TestToString(t *testing.T) {
 
 	type testCase struct {
 		name     string
-		input    interface{}
+		input    any
 		expected string
 	}
 
@@ -73,7 +73,7 @@ func TestToString(t *testing.T) {
 		{"bytes_slice", [][]byte{[]byte("a"), []byte("b")}, "[a b]"},
 		{"time_slice", []time.Time{now, now}, "[" + now.String() + " " + now.String() + "]"},
 		{"address_slice", []std.Address{addr, addr}, "[" + string(addr) + " " + string(addr) + "]"},
-		{"interface_slice", []interface{}{1, "a", true}, "[1 a true]"},
+		{"interface_slice", []any{1, "a", true}, "[1 a true]"},
 
 		// empty slices
 		{"empty_string_slice", []string{}, "[]"},
@@ -85,17 +85,17 @@ func TestToString(t *testing.T) {
 		{"empty_bytes_slice", [][]byte{}, "[]"},
 		{"empty_time_slice", []time.Time{}, "[]"},
 		{"empty_address_slice", []std.Address{}, "[]"},
-		{"empty_interface_slice", []interface{}{}, "[]"},
+		{"empty_interface_slice", []any{}, "[]"},
 
 		// maps
 		{"empty_string_map", map[string]string{}, "map[]"},
 		{"string_map", map[string]string{"a": "1", "b": "2"}, "map[a:1 b:2]"},
-		{"empty_interface_map", map[string]interface{}{}, "map[]"},
-		{"interface_map", map[string]interface{}{"a": 1, "b": "2"}, "map[a:1 b:2]"},
+		{"empty_interface_map", map[string]any{}, "map[]"},
+		{"interface_map", map[string]any{"a": 1, "b": "2"}, "map[a:1 b:2]"},
 
 		// edge cases
 		{"empty_bytes", []byte{}, ""},
-		{"nil_interface", interface{}(nil), ""},
+		{"nil_interface", any(nil), ""},
 		{"empty_struct", struct{}{}, "{}"},
 		{"unknown_type", struct{ foo string }{}, "<unknown>"},
 
@@ -134,7 +134,7 @@ func TestToBool(t *testing.T) {
 
 	type testCase struct {
 		name     string
-		input    interface{}
+		input    any
 		expected bool
 	}
 
@@ -217,7 +217,7 @@ func TestIsZero(t *testing.T) {
 
 	type testCase struct {
 		name     string
-		input    interface{}
+		input    any
 		expected bool
 	}
 
@@ -280,9 +280,9 @@ func TestIsZero(t *testing.T) {
 func TestToInterfaceSlice(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    interface{}
-		expected []interface{}
-		compare  func([]interface{}, []interface{}) bool
+		input    any
+		expected []any
+		compare  func([]any, []any) bool
 	}{
 		{
 			name:     "nil",
@@ -292,74 +292,74 @@ func TestToInterfaceSlice(t *testing.T) {
 		},
 		{
 			name:     "empty_interface_slice",
-			input:    []interface{}{},
-			expected: []interface{}{},
+			input:    []any{},
+			expected: []any{},
 			compare:  compareEmpty,
 		},
 		{
 			name:     "interface_slice",
-			input:    []interface{}{1, "two", true},
-			expected: []interface{}{1, "two", true},
+			input:    []any{1, "two", true},
+			expected: []any{1, "two", true},
 			compare:  compareInterfaces,
 		},
 		{
 			name:     "string_slice",
 			input:    []string{"a", "b", "c"},
-			expected: []interface{}{"a", "b", "c"},
+			expected: []any{"a", "b", "c"},
 			compare:  compareStrings,
 		},
 		{
 			name:     "int_slice",
 			input:    []int{1, 2, 3},
-			expected: []interface{}{1, 2, 3},
+			expected: []any{1, 2, 3},
 			compare:  compareInts,
 		},
 		{
 			name:     "int32_slice",
 			input:    []int32{1, 2, 3},
-			expected: []interface{}{int32(1), int32(2), int32(3)},
+			expected: []any{int32(1), int32(2), int32(3)},
 			compare:  compareInt32s,
 		},
 		{
 			name:     "int64_slice",
 			input:    []int64{1, 2, 3},
-			expected: []interface{}{int64(1), int64(2), int64(3)},
+			expected: []any{int64(1), int64(2), int64(3)},
 			compare:  compareInt64s,
 		},
 		{
 			name:     "float32_slice",
 			input:    []float32{1.1, 2.2, 3.3},
-			expected: []interface{}{float32(1.1), float32(2.2), float32(3.3)},
+			expected: []any{float32(1.1), float32(2.2), float32(3.3)},
 			compare:  compareFloat32s,
 		},
 		{
 			name:     "float64_slice",
 			input:    []float64{1.1, 2.2, 3.3},
-			expected: []interface{}{1.1, 2.2, 3.3},
+			expected: []any{1.1, 2.2, 3.3},
 			compare:  compareFloat64s,
 		},
 		{
 			name:     "bool_slice",
 			input:    []bool{true, false, true},
-			expected: []interface{}{true, false, true},
+			expected: []any{true, false, true},
 			compare:  compareBools,
 		},
 		/* {
 			name:     "time_slice",
 			input:    []time.Time{now},
-			expected: []interface{}{now},
+			expected: []any{now},
 			compare:  compareTimes,
 		}, */ // TODO: fix this
 		/* {
 			name:     "address_slice",
 			input:    []std.Address{addr},
-			expected: []interface{}{addr},
+			expected: []any{addr},
 			compare:  compareAddresses,
 		},*/ // TODO: fix this
 		/* {
 			name:     "bytes_slice",
 			input:    [][]byte{[]byte("hello"), []byte("world")},
-			expected: []interface{}{[]byte("hello"), []byte("world")},
+			expected: []any{[]byte("hello"), []byte("world")},
 			compare:  compareBytes,
 		},*/ // TODO: fix this
 	}
@@ -374,15 +374,15 @@ func TestToInterfaceSlice(t *testing.T) {
 	}
 }
 
-func compareNil(a, b []interface{}) bool {
+func compareNil(a, b []any) bool {
 	return a == nil && b == nil
 }
 
-func compareEmpty(a, b []interface{}) bool {
+func compareEmpty(a, b []any) bool {
 	return len(a) == 0 && len(b) == 0
 }
 
-func compareInterfaces(a, b []interface{}) bool {
+func compareInterfaces(a, b []any) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -394,7 +394,7 @@ func compareInterfaces(a, b []interface{}) bool {
 	return true
 }
 
-func compareStrings(a, b []interface{}) bool {
+func compareStrings(a, b []any) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -408,7 +408,7 @@ func compareStrings(a, b []interface{}) bool {
 	return true
 }
 
-func compareInts(a, b []interface{}) bool {
+func compareInts(a, b []any) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -422,7 +422,7 @@ func compareInts(a, b []interface{}) bool {
 	return true
 }
 
-func compareInt32s(a, b []interface{}) bool {
+func compareInt32s(a, b []any) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -436,7 +436,7 @@ func compareInt32s(a, b []interface{}) bool {
 	return true
 }
 
-func compareInt64s(a, b []interface{}) bool {
+func compareInt64s(a, b []any) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -450,7 +450,7 @@ func compareInt64s(a, b []interface{}) bool {
 	return true
 }
 
-func compareFloat32s(a, b []interface{}) bool {
+func compareFloat32s(a, b []any) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -464,7 +464,7 @@ func compareFloat32s(a, b []interface{}) bool {
 	return true
 }
 
-func compareFloat64s(a, b []interface{}) bool {
+func compareFloat64s(a, b []any) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -478,7 +478,7 @@ func compareFloat64s(a, b []interface{}) bool {
 	return true
 }
 
-func compareBools(a, b []interface{}) bool {
+func compareBools(a, b []any) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -492,7 +492,7 @@ func compareBools(a, b []interface{}) bool {
 	return true
 }
 
-func compareTimes(a, b []interface{}) bool {
+func compareTimes(a, b []any) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -506,7 +506,7 @@ func compareTimes(a, b []interface{}) bool {
 	return true
 }
 
-func compareAddresses(a, b []interface{}) bool {
+func compareAddresses(a, b []any) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -520,7 +520,7 @@ func compareAddresses(a, b []interface{}) bool {
 	return true
 }
 
-func compareBytes(a, b []interface{}) bool {
+func compareBytes(a, b []any) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -534,8 +534,8 @@ func compareBytes(a, b []interface{}) bool {
 	return true
 }
 
-// compareStringInterfaceMaps compares two map[string]interface{} for equality
-func compareStringInterfaceMaps(a, b map[string]interface{}) bool {
+// compareStringInterfaceMaps compares two map[string]any for equality
+func compareStringInterfaceMaps(a, b map[string]any) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -566,8 +566,8 @@ func compareStringInterfaceMaps(a, b map[string]interface{}) bool {
 			if !ok || val1 != val2 {
 				return false
 			}
-		case []interface{}:
-			val2, ok := v2.([]interface{})
+		case []any:
+			val2, ok := v2.([]any)
 			if !ok || len(val1) != len(val2) {
 				return false
 			}
@@ -576,8 +576,8 @@ func compareStringInterfaceMaps(a, b map[string]interface{}) bool {
 					return false
 				}
 			}
-		case map[string]interface{}:
-			val2, ok := v2.(map[string]interface{})
+		case map[string]any:
+			val2, ok := v2.(map[string]any)
 			if !ok || !compareStringInterfaceMaps(val1, val2) {
 				return false
 			}
@@ -591,17 +591,17 @@ func compareStringInterfaceMaps(a, b map[string]interface{}) bool {
 func TestToMapStringInterface(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    interface{}
-		expected map[string]interface{}
+		input    any
+		expected map[string]any
 		wantErr  bool
 	}{
 		{
-			name: "map[string]interface{}",
-			input: map[string]interface{}{
+			name: "map[string]any",
+			input: map[string]any{
 				"key1": "value1",
 				"key2": 42,
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"key1": "value1",
 				"key2": 42,
 			},
@@ -613,7 +613,7 @@ func TestToMapStringInterface(t *testing.T) {
 				"key1": "value1",
 				"key2": "value2",
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"key1": "value1",
 				"key2": "value2",
 			},
@@ -625,7 +625,7 @@ func TestToMapStringInterface(t *testing.T) {
 				"key1": 1,
 				"key2": 2,
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"key1": 1,
 				"key2": 2,
 			},
@@ -637,7 +637,7 @@ func TestToMapStringInterface(t *testing.T) {
 				"key1": 1.1,
 				"key2": 2.2,
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"key1": 1.1,
 				"key2": 2.2,
 			},
@@ -649,7 +649,7 @@ func TestToMapStringInterface(t *testing.T) {
 				"key1": true,
 				"key2": false,
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"key1": true,
 				"key2": false,
 			},
@@ -661,9 +661,9 @@ func TestToMapStringInterface(t *testing.T) {
 				"key1": {"a", "b"},
 				"key2": {"c", "d"},
 			},
-			expected: map[string]interface{}{
-				"key1": []interface{}{"a", "b"},
-				"key2": []interface{}{"c", "d"},
+			expected: map[string]any{
+				"key1": []any{"a", "b"},
+				"key2": []any{"c", "d"},
 			},
 			wantErr: false,
 		},
@@ -673,9 +673,9 @@ func TestToMapStringInterface(t *testing.T) {
 				"key1": {"nested1": "value1"},
 				"key2": {"nested2": "value2"},
 			},
-			expected: map[string]interface{}{
-				"key1": map[string]interface{}{"nested1": "value1"},
-				"key2": map[string]interface{}{"nested2": "value2"},
+			expected: map[string]any{
+				"key1": map[string]any{"nested1": "value1"},
+				"key2": map[string]any{"nested2": "value2"},
 			},
 			wantErr: false,
 		},
@@ -711,8 +711,8 @@ func TestToMapStringInterfaceErrors(t *testing.T) {
 	}
 }
 
-// compareIntInterfaceMaps compares two map[int]interface{} for equality
-func compareIntInterfaceMaps(a, b map[int]interface{}) bool {
+// compareIntInterfaceMaps compares two map[int]any for equality
+func compareIntInterfaceMaps(a, b map[int]any) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -743,8 +743,8 @@ func compareIntInterfaceMaps(a, b map[int]interface{}) bool {
 			if !ok || val1 != val2 {
 				return false
 			}
-		case []interface{}:
-			val2, ok := v2.([]interface{})
+		case []any:
+			val2, ok := v2.([]any)
 			if !ok || len(val1) != len(val2) {
 				return false
 			}
@@ -753,8 +753,8 @@ func compareIntInterfaceMaps(a, b map[int]interface{}) bool {
 					return false
 				}
 			}
-		case map[string]interface{}:
-			val2, ok := v2.(map[string]interface{})
+		case map[string]any:
+			val2, ok := v2.(map[string]any)
 			if !ok || !compareStringInterfaceMaps(val1, val2) {
 				return false
 			}
@@ -768,17 +768,17 @@ func compareIntInterfaceMaps(a, b map[int]interface{}) bool {
 func TestToMapIntInterface(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    interface{}
-		expected map[int]interface{}
+		input    any
+		expected map[int]any
 		wantErr  bool
 	}{
 		{
-			name: "map[int]interface{}",
-			input: map[int]interface{}{
+			name: "map[int]any",
+			input: map[int]any{
 				1: "value1",
 				2: 42,
 			},
-			expected: map[int]interface{}{
+			expected: map[int]any{
 				1: "value1",
 				2: 42,
 			},
@@ -790,7 +790,7 @@ func TestToMapIntInterface(t *testing.T) {
 				1: "value1",
 				2: "value2",
 			},
-			expected: map[int]interface{}{
+			expected: map[int]any{
 				1: "value1",
 				2: "value2",
 			},
@@ -802,7 +802,7 @@ func TestToMapIntInterface(t *testing.T) {
 				1: 10,
 				2: 20,
 			},
-			expected: map[int]interface{}{
+			expected: map[int]any{
 				1: 10,
 				2: 20,
 			},
@@ -814,7 +814,7 @@ func TestToMapIntInterface(t *testing.T) {
 				1: 1.1,
 				2: 2.2,
 			},
-			expected: map[int]interface{}{
+			expected: map[int]any{
 				1: 1.1,
 				2: 2.2,
 			},
@@ -826,7 +826,7 @@ func TestToMapIntInterface(t *testing.T) {
 				1: true,
 				2: false,
 			},
-			expected: map[int]interface{}{
+			expected: map[int]any{
 				1: true,
 				2: false,
 			},
@@ -838,21 +838,21 @@ func TestToMapIntInterface(t *testing.T) {
 				1: {"a", "b"},
 				2: {"c", "d"},
 			},
-			expected: map[int]interface{}{
-				1: []interface{}{"a", "b"},
-				2: []interface{}{"c", "d"},
+			expected: map[int]any{
+				1: []any{"a", "b"},
+				2: []any{"c", "d"},
 			},
 			wantErr: false,
 		},
 		{
-			name: "map[int]map[string]interface{}",
-			input: map[int]map[string]interface{}{
+			name: "map[int]map[string]any",
+			input: map[int]map[string]any{
 				1: {"nested1": "value1"},
 				2: {"nested2": "value2"},
 			},
-			expected: map[int]interface{}{
-				1: map[string]interface{}{"nested1": "value1"},
-				2: map[string]interface{}{"nested2": "value2"},
+			expected: map[int]any{
+				1: map[string]any{"nested1": "value1"},
+				2: map[string]any{"nested2": "value2"},
 			},
 			wantErr: false,
 		},
@@ -883,7 +883,7 @@ func TestToMapIntInterface(t *testing.T) {
 func TestToStringSlice(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    interface{}
+		input    any
 		expected []string
 	}{
 		{
@@ -963,12 +963,12 @@ func TestToStringSlice(t *testing.T) {
 		},
 		{
 			name:     "interface slice",
-			input:    []interface{}{1, "hello", true},
+			input:    []any{1, "hello", true},
 			expected: []string{"1", "hello", "true"},
 		},
 		{
 			name:     "time slice",
-			input:    []time.Time{time.Time{}, time.Time{}},
+			input:    []time.Time{{}, {}},
 			expected: []string{"0001-01-01 00:00:00 +0000 UTC", "0001-01-01 00:00:00 +0000 UTC"},
 		},
 		{
@@ -1009,12 +1009,12 @@ func slicesEqual(a, b []string) bool {
 func TestToStringAdvanced(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    interface{}
+		input    any
 		expected string
 	}{
 		{
 			name: "slice with mixed basic types",
-			input: []interface{}{
+			input: []any{
 				42,
 				"hello",
 				true,
@@ -1024,7 +1024,7 @@ func TestToStringAdvanced(t *testing.T) {
 		},
 		{
 			name: "map with basic types",
-			input: map[string]interface{}{
+			input: map[string]any{
 				"int":   42,
 				"str":   "hello",
 				"bool":  true,
@@ -1034,7 +1034,7 @@ func TestToStringAdvanced(t *testing.T) {
 		},
 		{
 			name: "mixed types map",
-			input: map[interface{}]interface{}{
+			input: map[any]any{
 				42:         "number",
 				"string":   123,
 				true:       []int{1, 2, 3},
@@ -1044,12 +1044,12 @@ func TestToStringAdvanced(t *testing.T) {
 		},
 		{
 			name: "nested maps",
-			input: map[string]interface{}{
+			input: map[string]any{
 				"a": map[string]int{
 					"x": 1,
 					"y": 2,
 				},
-				"b": []interface{}{1, "two", true},
+				"b": []any{1, "two", true},
 			},
 			expected: "map[a:map[x:1 y:2] b:[1 two true]]",
 		},

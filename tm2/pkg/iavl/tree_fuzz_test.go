@@ -144,7 +144,7 @@ func runThenGenerateMutableTreeFuzzSeeds(tb testing.TB, writeSeedsToFileSystem b
 	}
 
 	for size := 5; iterations < maxIterations; size++ {
-		for i := 0; i < progsPerIteration/size; i++ {
+		for i := range progsPerIteration / size {
 			tree := NewMutableTree(memdb.NewMemDB(), 0)
 			program := genRandomProgram(size)
 			err := program.Execute(tree)

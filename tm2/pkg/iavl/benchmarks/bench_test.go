@@ -1,6 +1,7 @@
 package benchmarks
 
 import (
+	crand "crypto/rand"
 	"fmt"
 	"math/rand"
 	"os"
@@ -18,9 +19,7 @@ const historySize = 20
 
 func randBytes(length int) []byte {
 	key := make([]byte, length)
-	// math.rand.Read always returns err=nil
-	// we do not need cryptographic randomness for this test:
-	rand.Read(key)
+	crand.Read(key)
 	return key
 }
 
@@ -30,7 +29,7 @@ func prepareTree(b *testing.B, db db.DB, size, keyLen, dataLen int) (*iavl.Mutab
 	t := iavl.NewMutableTree(db, size)
 	keys := make([][]byte, size)
 
-	for i := 0; i < size; i++ {
+	for i := range size {
 		key := randBytes(keyLen)
 		t.Set(key, randBytes(dataLen))
 		keys[i] = key
@@ -103,7 +102,7 @@ func runBlock(b *testing.B, t *iavl.MutableTree, keyLen, dataLen, blockSize int,
 	// check := t
 
 	for i := 0; i < b.N; i++ {
-		for j := 0; j < blockSize; j++ {
+		for range blockSize {
 			// 50% insert, 50% update
 			var key []byte
 			if i%2 == 0 {

@@ -17,7 +17,7 @@ var (
 	gIntSlice    []int    = []int{-42, 0, 42}
 	gUintSlice   []uint   = []uint{0, 42, 84}
 	gTree        avl.Tree
-	// gInterface  = interface{}{-42, "a string", uint(42)}
+	// gInterface  = any{-42, "a string", uint(42)}
 )
 
 func init() {

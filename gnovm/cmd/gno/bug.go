@@ -69,7 +69,7 @@ func newBugCmd(io commands.IO) *commands.Command {
 The new issue body is prefilled for you with the following information:
 
 - Gno version (the output of "gno version")
-- Go version (example: go1.22.4)
+- Go version (example: go1.23.4)
 - OS and CPU architecture (example: linux/amd64)
 - Gno commit hash causing the issue (example: f24690e7ebf325bffcfaf9e328c3df8e6b21e50c)
 

@@ -16,20 +16,20 @@ func init() {
 	// FIXME: admin = std.GetCreator()
 }
 
-func NewRelease(name, url, notes string) {
-	caller := std.GetOrigCaller()
+func NewRelease(_ realm, name, url, notes string) {
+	caller := std.OriginCaller()
 	if caller != admin {
 		panic("restricted area")
 	}
 	changelog.NewRelease(name, url, notes)
 }
 
-func UpdateAdmin(address std.Address) {
-	caller := std.GetOrigCaller()
+func UpdateAdmin(_ realm, address_XXX std.Address) {
+	caller := std.OriginCaller()
 	if caller != admin {
 		panic("restricted area")
 	}
-	admin = address
+	admin = address_XXX
 }
 
 func Render(path string) string {

@@ -32,15 +32,15 @@ type KeyStore struct {
 
 // Set will set a value to a key
 // requires write-access (original caller must be caller)
-func Set(k, v string) string {
-	origOwner := std.GetOrigCaller()
+func Set(_ realm, k, v string) string {
+	origOwner := std.OriginCaller()
 	return set(origOwner.String(), k, v)
 }
 
 // set (private) will set a key to value
 // requires write-access (original caller must be caller)
 func set(owner, k, v string) string {
-	origOwner := std.GetOrigCaller()
+	origOwner := std.OriginCaller()
 	if origOwner.String() != owner {
 		return StatusNoWriteAccess
 	}
@@ -61,15 +61,15 @@ func set(owner, k, v string) string {
 
 // Remove removes a key
 // requires write-access (original owner must be caller)
-func Remove(k string) string {
-	origOwner := std.GetOrigCaller()
+func Remove(_ realm, k string) string {
+	origOwner := std.OriginCaller()
 	return remove(origOwner.String(), k)
 }
 
 // remove (private) removes a key
 // requires write-access (original owner must be caller)
 func remove(owner, k string) string {
-	origOwner := std.GetOrigCaller()
+	origOwner := std.OriginCaller()
 	if origOwner.String() != owner {
 		return StatusNoWriteAccess
 	}
@@ -94,7 +94,7 @@ func remove(owner, k string) string {
 // Get returns a value for a key
 // read-only
 func Get(k string) string {
-	origOwner := std.GetOrigCaller()
+	origOwner := std.OriginCaller()
 	return remove(origOwner.String(), k)
 }
 
@@ -116,7 +116,7 @@ func get(owner, k string) string {
 // Size returns size of database
 // read-only
 func Size() string {
-	origOwner := std.GetOrigCaller()
+	origOwner := std.OriginCaller()
 	return size(origOwner.String())
 }
 
@@ -146,7 +146,7 @@ func Render(p string) string {
 		if data.Size() == 0 {
 			return StatusNoDatabases
 		}
-		data.Iterate("", "", func(key string, value interface{}) bool {
+		data.Iterate("", "", func(key string, value any) bool {
 			ks := value.(*KeyStore)
 			response += ufmt.Sprintf("- [%s](%s:%s) (%d keys)\n", ks.Owner, BaseURL, ks.Owner, ks.Data.Size())
 			return false
@@ -160,7 +160,7 @@ func Render(p string) string {
 		ks := keystoreInterface.(*KeyStore)
 		i := 0
 		response += ufmt.Sprintf("# %s database\n\n", ks.Owner)
-		ks.Data.Iterate("", "", func(key string, value interface{}) bool {
+		ks.Data.Iterate("", "", func(key string, value any) bool {
 			response += ufmt.Sprintf("- %d [%s](%s:%s:get:%s)\n", i, key, BaseURL, ks.Owner, key)
 			i++
 			return false

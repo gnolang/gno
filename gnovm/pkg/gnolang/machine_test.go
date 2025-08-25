@@ -2,15 +2,16 @@ package gnolang
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
-	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func BenchmarkCreateNewMachine(b *testing.B) {
@@ -28,10 +29,11 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
 	store := NewStore(nil, baseStore, iavlStore)
 	m := NewMachine("std", store)
-	m.RunMemPackageWithOverrides(&gnovm.MemPackage{
+	m.RunMemPackageWithOverrides(&std.MemPackage{
+		Type: MPStdlibProd,
 		Name: "std",
 		Path: "std",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{Name: "a.gno", Body: `package std; func Redecl(x int) string { return "1" }`},
 		},
 	}, true)
@@ -39,20 +41,22 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 		defer func() {
 			p = fmt.Sprint(recover())
 		}()
-		m.RunMemPackageWithOverrides(&gnovm.MemPackage{
+		m.RunMemPackageWithOverrides(&std.MemPackage{
+			Type: MPStdlibProd,
 			Name: "std",
 			Path: "std",
-			Files: []*gnovm.MemFile{
+			Files: []*std.MemFile{
 				{Name: "b.gno", Body: `package std; func Redecl(x int) string { var y string; _, _ = y; return "2" }`},
 			},
 		}, true)
 		return
 	}()
 	t.Log("panic trying to redeclare invalid func", result)
-	m.RunStatement(S(Call(X("Redecl"), 11)))
+	results := m.Eval(Call(X("Redecl"), 11))
 
 	// Check last value, assuming it is the result of Redecl.
-	v := m.Values[0]
+	require.Len(t, results, 1)
+	v := results[0]
 	assert.NotNil(t, v)
 	assert.Equal(t, StringKind, v.T.Kind())
 	assert.Equal(t, StringValue("1"), v.V)
@@ -72,7 +76,16 @@ func TestMachineString(t *testing.T) {
 		{
 			"created with defaults",
 			NewMachineWithOptions(MachineOptions{}),
-			"Machine:\n    PreprocessorMode: false\n    Op: []\n    Values: (len: 0)\n    Exprs:\n    Stmts:\n    Blocks:\n    Blocks (other):\n    Frames:\n    Exceptions:\n",
+			`Machine:
+    Stage: $
+    Op: []
+    Values: (len: 0)
+    Exprs:
+    Stmts:
+    Blocks:
+    Blocks (other):
+    Frames:
+`,
 		},
 		{
 			"created with store and defaults",
@@ -83,7 +96,16 @@ func TestMachineString(t *testing.T) {
 				store := NewStore(nil, baseStore, iavlStore)
 				return NewMachine("std", store)
 			}(),
-			"Machine:\n    PreprocessorMode: false\n    Op: []\n    Values: (len: 0)\n    Exprs:\n    Stmts:\n    Blocks:\n    Blocks (other):\n    Frames:\n    Exceptions:\n",
+			`Machine:
+    Stage: $
+    Op: []
+    Values: (len: 0)
+    Exprs:
+    Stmts:
+    Blocks:
+    Blocks (other):
+    Frames:
+`,
 		},
 		{
 			"filled in",
@@ -98,20 +120,30 @@ func TestMachineString(t *testing.T) {
 					Kind:  INT,
 					Value: "100",
 				})
-				m.Blocks = make([]*Block, 1, 1)
+				m.Blocks = make([]*Block, 1)
 				m.PushStmts(S(Call(X("Redecl"), 11)))
 				return m
 			}(),
-			"Machine:\n    PreprocessorMode: false\n    Op: [OpHalt]\n    Values: (len: 0)\n    Exprs:\n          #0 100\n    Stmts:\n          #0 Redecl<VPUverse(0)>(11)\n    Blocks:\n    Blocks (other):\n    Frames:\n    Exceptions:\n",
+			`Machine:
+    Stage: $
+    Op: [OpHalt]
+    Values: (len: 0)
+    Exprs:
+          #0 100
+    Stmts:
+          #0 Redecl<VPInvalid(0)>(11)
+    Blocks:
+    Blocks (other):
+    Frames:
+`,
 		},
 	}
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.in.String()
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Fatalf("Mismatch: got - want +\n%s", diff)
-			}
+			tt.want = strings.ReplaceAll(tt.want, "$\n", "\n")
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

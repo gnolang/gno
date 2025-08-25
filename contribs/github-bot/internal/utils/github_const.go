@@ -23,6 +23,7 @@ const (
 	ReviewStateApproved         ReviewState = "APPROVED"
 	ReviewStateChangesRequested ReviewState = "CHANGES_REQUESTED"
 	ReviewStateCommented        ReviewState = "COMMENTED"
+	ReviewStateDismissed        ReviewState = "DISMISSED"
 )
 
 // Valid determines whether the ReviewState is one of the known ReviewStates.

@@ -4,9 +4,12 @@ func main() {
 	_ = &getSlice().([]int)
 }
 
-func getSlice() interface{} {
+func getSlice() any {
 	return []int{1}
 }
 
 // Error:
-// main/files/addressable_6d_err.gno:4:6: cannot take address of getSlice<VPBlock(3,1)>().([](const-type int))
+// illegal assignment X expression type *gnolang.TypeAssertExpr
+
+// TypeCheckError:
+// main/addressable_6d_err.gno:4:7: invalid operation: cannot take address of getSlice().([]int) (comma, ok expression of type []int)

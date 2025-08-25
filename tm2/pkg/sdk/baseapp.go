@@ -608,14 +608,13 @@ func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) (res abci.ResponseDeliv
 
 // validateBasicTxMsgs executes basic validator calls for messages.
 func validateBasicTxMsgs(msgs []Msg) error {
-	if msgs == nil || len(msgs) == 0 {
+	if len(msgs) == 0 {
 		return std.ErrUnknownRequest("Tx.GetMsgs() must return at least one message in list")
 	}
 
 	for _, msg := range msgs {
 		// Validate the Msg.
-		err := msg.ValidateBasic()
-		if err != nil {
+		if err := msg.ValidateBasic(); err != nil {
 			return err
 		}
 	}
@@ -646,6 +645,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 	ctx = ctx.WithEventLogger(NewEventLogger())
 
 	msgLogs := make([]string, 0, len(msgs))
+	msgInfos := make([]string, 0, len(msgs))
 	data := make([]byte, 0, len(msgs))
 
 	var (
@@ -675,6 +675,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 		// each result.
 		data = append(data, msgResult.Data...)
 		events = append(events, msgResult.Events...)
+		msgInfos = append(msgInfos, msgResult.Info)
 
 		// stop execution and return on first failed message
 		if !msgResult.IsOK() {
@@ -698,6 +699,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 	result.Error = ABCIError(err)
 	result.Data = data
 	result.Events = events
+	result.Info = strings.Join(msgInfos, "\n")
 	result.Log = strings.Join(msgLogs, "\n")
 	result.GasUsed = ctx.GasMeter().GasConsumed()
 	return result
@@ -969,9 +971,18 @@ func (app *BaseApp) halt() {
 	os.Exit(0)
 }
 
-// TODO implement cleanup
 func (app *BaseApp) Close() error {
-	return nil // XXX
+	if app.db == nil {
+		return nil
+	}
+
+	app.logger.Info("Closing application.db")
+
+	if err := app.db.Close(); err != nil {
+		return fmt.Errorf("unable to gracefully close DB: %w", err)
+	}
+
+	return nil
 }
 
 // ----------------------------------------------------------------------------

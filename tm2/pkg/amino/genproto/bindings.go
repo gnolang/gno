@@ -1,3 +1,4 @@
+//nolint:staticcheck
 package genproto
 
 import (
@@ -1057,10 +1058,10 @@ func _func(name string, recvRef string, recvTypeName string, params *ast.FieldLi
 // The name and types get parsed by _i()/_x() unless they are already ast.Expr.
 // Identical type (instances or strings) are compressed into Names automatically.
 // args must always be even in length.
-func _fields(args ...interface{}) *ast.FieldList {
+func _fields(args ...any) *ast.FieldList {
 	list := []*ast.Field{}
 	names := []*ast.Ident{}
-	lasti := interface{}(nil)
+	lasti := any(nil)
 	maybePop := func() {
 		if len(names) > 0 {
 			var last ast.Expr
@@ -1149,7 +1150,7 @@ var (
 // Cuz I'm testing the hypothesis that for the scope of what we're trying
 // to do here, given this language, that this is easier to understand and
 // maintain than using advanced tooling.
-func _x(expr string, args ...interface{}) ast.Expr {
+func _x(expr string, args ...any) ast.Expr {
 	if expr == "" {
 		panic("_x requires argument")
 	}
@@ -1337,7 +1338,7 @@ func _x(expr string, args ...interface{}) ast.Expr {
 //	3             ==  !=  <  <=  >  >=
 //	2             &&
 //	1             ||
-func _kv(k, v interface{}) *ast.KeyValueExpr {
+func _kv(k, v any) *ast.KeyValueExpr {
 	var kx, vx ast.Expr
 	if ks, ok := k.(string); ok {
 		kx = _x(ks)
@@ -1364,7 +1365,7 @@ func _block(b ...ast.Stmt) *ast.BlockStmt {
 // Usage: _a(lhs1, lhs2, ..., ":=", rhs1, rhs2, ...)
 // Token can be ":=", "=", "+=", etc.
 // Other strings are automatically parsed as _x(arg).
-func _a(args ...interface{}) *ast.AssignStmt {
+func _a(args ...any) *ast.AssignStmt {
 	lhs := []ast.Expr(nil)
 	tok := token.ILLEGAL
 	rhs := []ast.Expr(nil)
@@ -1410,7 +1411,7 @@ func _not(x ast.Expr) *ast.UnaryExpr {
 }
 
 // Binary expression.  x, y can be ast.Expr or string.
-func _b(x interface{}, op string, y interface{}) ast.Expr {
+func _b(x any, op string, y any) ast.Expr {
 	var xx, yx ast.Expr
 	if xstr, ok := x.(string); ok {
 		xx = _x(xstr)

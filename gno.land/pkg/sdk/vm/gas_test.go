@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
-	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -70,8 +70,8 @@ func TestAddPkgDeliverTx(t *testing.T) {
 
 	assert.True(t, res.IsOK())
 
-	// NOTE: let's try to keep this bellow 150_000 :)
-	assert.Equal(t, int64(143845), gasDeliver)
+	// NOTE: let's try to keep this bellow 250_000 :)
+	assert.Equal(t, int64(225871), gasDeliver)
 }
 
 // Enough gas for a failed transaction.
@@ -137,11 +137,15 @@ func setupAddPkg(success bool) (sdk.Context, sdk.Tx, vmHandler) {
 	addr := crypto.AddressFromPreimage([]byte("test1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10000000)))
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10000000)))
+
+	const pkgPath = "gno.land/r/hello"
+
 	// success message
-	var files []*gnovm.MemFile
+	var files []*std.MemFile
 	if success {
-		files = []*gnovm.MemFile{
+		files = []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 			{
 				Name: "hello.gno",
 				Body: `package hello
@@ -153,7 +157,8 @@ func Echo() string {
 		}
 	} else {
 		// failed message
-		files = []*gnovm.MemFile{
+		files = []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 			{
 				Name: "hello.gno",
 				Body: `package hello
@@ -165,7 +170,6 @@ func Echo() UnknowType {
 		}
 	}
 
-	pkgPath := "gno.land/r/hello"
 	// create messages and a transaction
 	msg := NewMsgAddPackage(addr, pkgPath, files)
 	msgs := []std.Msg{msg}

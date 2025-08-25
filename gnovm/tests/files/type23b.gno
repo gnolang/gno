@@ -1,13 +1,13 @@
 package main
 
 import (
-	"github.com/gnolang/gno/_test/net/http"
-	"github.com/gnolang/gno/_test/net/http/httptest"
+	"filetests/extern/net/http"
+	"filetests/extern/net/http/httptest"
 )
 
 func main() {
-	var v1 interface{} = 1
-	var v2 interface{}
+	var v1 any = 1
+	var v2 any
 	var v3 http.ResponseWriter = httptest.NewRecorder()
 
 	if r1, ok := v1.(string); ok {

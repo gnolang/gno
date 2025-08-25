@@ -51,17 +51,17 @@ func ExampleWrap() {
 func Test_txLog(t *testing.T) {
 	t.Parallel()
 
-	type Value = struct{}
+	type Value = struct{ b byte }
 
 	// Full "integration test" of the txLog + mapwrapper.
 	source := GoMap[int, *Value](map[int]*Value{})
 
 	// create 4 empty values (we'll just use the pointers)
 	vs := [...]*Value{
-		{},
-		{},
-		{},
-		{},
+		{0},
+		{1},
+		{2},
+		{3},
 	}
 	source.Set(0, vs[0])
 	source.Set(1, vs[1])
@@ -121,8 +121,8 @@ func Test_txLog(t *testing.T) {
 		assert.Equal(t, saved, txm.source)
 
 		// double-check on the iterators.
-		verifyHashMapValues(t, source, map[int]*Value{1: vs[1], 2: vs[0]})
-		verifyHashMapValues(t, txm, map[int]*Value{2: vs[2], 3: vs[3]})
+		verifyHashMapValues(t, source, map[int]*Value{1: vs[1], 2: vs[2]})
+		verifyHashMapValues(t, txm, map[int]*Value{2: vs[0], 3: vs[3]})
 	}
 
 	{
@@ -146,17 +146,16 @@ func Test_txLog(t *testing.T) {
 	}
 }
 
-func verifyHashMapValues(t *testing.T, m Map[int, *struct{}], expectedReadonly map[int]*struct{}) {
+func verifyHashMapValues(t *testing.T, m Map[int, *struct{ b byte }], expectedReadonly map[int]*struct{ b byte }) {
 	t.Helper()
 
 	expected := maps.Clone(expectedReadonly)
-	m.Iterate()(func(k int, v *struct{}) bool {
+	for k, v := range m.Iterate() {
 		ev, eok := expected[k]
 		_ = assert.True(t, eok, "mapping %d:%v should exist in expected map", k, v) &&
 			assert.Equal(t, ev, v, "values should match")
 		delete(expected, k)
-		return true
-	})
+	}
 	assert.Empty(t, expected, "(some) expected values not found in the Map")
 }
 
@@ -346,7 +345,7 @@ func Benchmark_txLogRead(b *testing.B) {
 		stack2  = Wrap(stack1)             // n'th values filled (n%9 == 0)
 	)
 
-	for i := 0; i < maxValues; i++ {
+	for i := range maxValues {
 		baseMap[i] = i
 		switch i % 9 {
 		case 1, 4, 7:
@@ -455,7 +454,7 @@ func Benchmark_bufferedTxMapRead(b *testing.B) {
 		// does not support stacking
 	)
 
-	for i := 0; i < maxValues; i++ {
+	for i := range maxValues {
 		baseMap[i] = i
 		switch i % 9 {
 		case 0, 1, 4, 7:

@@ -96,7 +96,7 @@ func MakeConnectedPeers(
 	}
 
 	// Create transports and gather addresses
-	for i := 0; i < cfg.Count; i++ {
+	for i := range cfg.Count {
 		transport := createTransport(i)
 		addr := transport.NetAddress()
 
@@ -156,7 +156,7 @@ func MakeConnectedPeers(
 	}
 
 	g, _ := errgroup.WithContext(ctx)
-	for i := 0; i < cfg.Count; i++ {
+	for i := range cfg.Count {
 		g.Go(func() error { return connectPeers(i) })
 	}
 
@@ -239,14 +239,14 @@ func (mp *Peer) ID() p2pTypes.ID               { return mp.id }
 func (mp *Peer) IsOutbound() bool              { return mp.Outbound }
 func (mp *Peer) IsPersistent() bool            { return mp.Persistent }
 func (mp *Peer) IsPrivate() bool               { return mp.Private }
-func (mp *Peer) Get(key string) interface{} {
+func (mp *Peer) Get(key string) any {
 	if value, ok := mp.kv[key]; ok {
 		return value
 	}
 	return nil
 }
 
-func (mp *Peer) Set(key string, value interface{}) {
+func (mp *Peer) Set(key string, value any) {
 	mp.kv[key] = value
 }
 func (mp *Peer) RemoteIP() net.IP                 { return mp.ip }

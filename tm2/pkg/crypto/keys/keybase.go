@@ -223,22 +223,20 @@ func (kb dbKeybase) Sign(nameOrBech32, passphrase string, msg []byte) (sig []byt
 
 	var priv crypto.PrivKey
 
-	switch info.(type) {
+	switch info := info.(type) {
 	case localInfo:
-		linfo := info.(localInfo)
-		if linfo.PrivKeyArmor == "" {
+		if info.PrivKeyArmor == "" {
 			err = fmt.Errorf("%w: %s", errKeyNotAvailable, nameOrBech32)
 			return
 		}
 
-		priv, err = armor.UnarmorDecryptPrivKey(linfo.PrivKeyArmor, passphrase)
+		priv, err = armor.UnarmorDecryptPrivKey(info.PrivKeyArmor, passphrase)
 		if err != nil {
 			return nil, nil, err
 		}
 
 	case ledgerInfo:
-		linfo := info.(ledgerInfo)
-		priv, err = ledger.NewPrivKeyLedgerSecp256k1Unsafe(linfo.Path)
+		priv, err = ledger.NewPrivKeyLedgerSecp256k1Unsafe(info.Path)
 		if err != nil {
 			return
 		}
@@ -265,8 +263,7 @@ func (kb dbKeybase) Verify(nameOrBech32 string, msg []byte, sig []byte) (err err
 		return
 	}
 
-	var pub crypto.PubKey
-	pub = info.GetPubKey()
+	pub := info.GetPubKey()
 	if !pub.VerifyBytes(msg, sig) {
 		return errors.New("invalid signature")
 	}
@@ -291,14 +288,13 @@ func (kb dbKeybase) ExportPrivKey(nameOrBech32 string, passphrase string) (crypt
 
 	var priv crypto.PrivKey
 
-	switch info.(type) {
+	switch info := info.(type) {
 	case localInfo:
-		linfo := info.(localInfo)
-		if linfo.PrivKeyArmor == "" {
+		if info.PrivKeyArmor == "" {
 			return nil, fmt.Errorf("%w: %s", errKeyNotAvailable, nameOrBech32)
 		}
 
-		priv, err = armor.UnarmorDecryptPrivKey(linfo.PrivKeyArmor, passphrase)
+		priv, err = armor.UnarmorDecryptPrivKey(info.PrivKeyArmor, passphrase)
 		if err != nil {
 			return nil, err
 		}
@@ -342,10 +338,9 @@ func (kb dbKeybase) Rotate(nameOrBech32, oldpass string, getNewpass func() (stri
 	if err != nil {
 		return err
 	}
-	switch info.(type) {
+	switch info := info.(type) {
 	case localInfo:
-		linfo := info.(localInfo)
-		key, err := armor.UnarmorDecryptPrivKey(linfo.PrivKeyArmor, oldpass)
+		key, err := armor.UnarmorDecryptPrivKey(info.PrivKeyArmor, oldpass)
 		if err != nil {
 			return err
 		}
@@ -429,9 +424,9 @@ func (kb dbKeybase) writeInfo(name string, info Info) error {
 }
 
 func addrKey(address crypto.Address) []byte {
-	return []byte(fmt.Sprintf("%s.%s", address.String(), addressSuffix))
+	return fmt.Appendf(nil, "%s.%s", address.String(), addressSuffix)
 }
 
 func infoKey(name string) []byte {
-	return []byte(fmt.Sprintf("%s.%s", name, infoSuffix))
+	return fmt.Appendf(nil, "%s.%s", name, infoSuffix)
 }
