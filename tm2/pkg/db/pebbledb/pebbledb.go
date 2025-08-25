@@ -5,6 +5,7 @@ import (
 	goerrors "errors"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/cockroachdb/pebble"
 
@@ -31,6 +32,7 @@ func NewPebbleDB(name string, dir string) (*PebbleDB, error) {
 
 func NewPebbleDBWithOpts(name string, dir string, o *pebble.Options) (*PebbleDB, error) {
 	dbPath := filepath.Join(dir, name+".db")
+	dbPath = strings.ReplaceAll(dbPath, " ", "\\ ")
 	db, err := pebble.Open(dbPath, o)
 	if err != nil {
 		return nil, err
