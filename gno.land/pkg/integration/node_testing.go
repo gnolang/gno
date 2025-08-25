@@ -60,7 +60,7 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 // It will return the default creator address of the loaded packages.
 func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...gnoland.TxWithMetadata) (*gnoland.InMemoryNodeConfig, bft.Address) {
 	cfg := TestingMinimalNodeConfig(gnoroot)
-	cfg.SkipGenesisVerification = true
+	cfg.SkipGenesisSigVerification = true
 
 	creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 	balances := LoadDefaultGenesisBalanceFile(t, gnoroot)

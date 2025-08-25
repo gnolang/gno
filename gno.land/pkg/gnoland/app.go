@@ -36,14 +36,14 @@ import (
 
 // AppOptions contains the options to create the gno.land ABCI application.
 type AppOptions struct {
-	DB                      dbm.DB             // required
-	Logger                  *slog.Logger       // required
-	EventSwitch             events.EventSwitch // required
-	VMOutput                io.Writer          // optional
-	SkipGenesisVerification bool               // default to verify genesis transactions
-	InitChainerConfig                          // options related to InitChainer
-	MinGasPrices            string             // optional
-	PruneStrategy           types.PruneStrategy
+	DB                         dbm.DB             // required
+	Logger                     *slog.Logger       // required
+	EventSwitch                events.EventSwitch // required
+	VMOutput                   io.Writer          // optional
+	SkipGenesisSigVerification bool               // default to verify genesis transactions
+	InitChainerConfig                             // options related to InitChainer
+	MinGasPrices               string             // optional
+	PruneStrategy              types.PruneStrategy
 }
 
 // TestAppOptions provides a "ready" default [AppOptions] for use with
@@ -58,8 +58,8 @@ func TestAppOptions(db dbm.DB) *AppOptions {
 			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 			CacheStdlibLoad:        true,
 		},
-		SkipGenesisVerification: true,
-		PruneStrategy:           types.PruneNothingStrategy,
+		SkipGenesisSigVerification: true,
+		PruneStrategy:              types.PruneNothingStrategy,
 	}
 }
 
@@ -123,7 +123,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
-		VerifyGenesisSignatures: !cfg.SkipGenesisVerification,
+		VerifyGenesisSignatures: !cfg.SkipGenesisSigVerification,
 	}
 	authAnteHandler := auth.NewAnteHandler(
 		acck, bankk, auth.DefaultSigVerificationGasConsumer, authOptions)
@@ -243,9 +243,9 @@ func NewApp(
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
 			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 		},
-		MinGasPrices:            appCfg.MinGasPrices,
-		SkipGenesisVerification: genesisCfg.SkipSigVerification,
-		PruneStrategy:           appCfg.PruneStrategy,
+		MinGasPrices:               appCfg.MinGasPrices,
+		SkipGenesisSigVerification: genesisCfg.SkipSigVerification,
+		PruneStrategy:              appCfg.PruneStrategy,
 	}
 	if genesisCfg.SkipFailingTxs {
 		cfg.GenesisTxResultHandler = NoopGenesisTxResultHandler
