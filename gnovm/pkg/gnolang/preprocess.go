@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 const (
@@ -24,7 +25,7 @@ const (
 //
 // This function must be called on *FileSets because declarations
 // in file sets may be unordered.
-func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
+func PredefineFileSet(store Store, gasMeter store.GasMeter, pn *PackageNode, fset *FileSet) {
 	// First, initialize all file nodes and connect to package node.
 	// This will also reserve names on BlockNode.StaticBlock by
 	// calling StaticBlock.Reserve().
@@ -35,9 +36,9 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// function declarations which will get filled out later during
 	// preprocessing.
 	for _, fn := range fset.Files {
-		setNodeLines(fn)
-		setNodeLocations(pn.PkgPath, fn.FileName, fn)
-		initStaticBlocks(store, pn, fn)
+		setNodeLines(gasMeter, fn)
+		setNodeLocations(pn.PkgPath, gasMeter, fn.FileName, fn)
+		initStaticBlocks(store, gasMeter, pn, fn)
 	}
 	// NOTE: much of what follows is duplicated for a single *FileNode
 	// in the main Preprocess translation function.  Keep synced.
@@ -58,7 +59,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				}
 
 				// recursively predefine dependencies.
-				predefineRecursively(store, fn, d)
+				predefineRecursively(store, gasMeter, fn, d)
 				fn.Decls[i] = d
 			}
 		}
@@ -77,7 +78,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				}
 
 				// recursively predefine dependencies.
-				predefineRecursively(store, fn, d)
+				predefineRecursively(store, gasMeter, fn, d)
 				fn.Decls[i] = d
 			}
 		}
@@ -96,7 +97,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				}
 
 				// recursively predefine dependencies.
-				predefineRecursively(store, fn, d)
+				predefineRecursively(store, gasMeter, fn, d)
 				fn.Decls[i] = d
 			}
 		}
@@ -150,7 +151,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 					if iota_ != nil {
 						part.SetAttribute(ATTR_IOTA, iota_)
 					}
-					predefineRecursively(store, fn, part)
+					predefineRecursively(store, gasMeter, fn, part)
 					split[j] = part
 				}
 				fn.Decls = append(fn.Decls[:i], append(split, fn.Decls[i+1:]...)...) //nolint:makezero
@@ -158,7 +159,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				continue
 			} else {
 				// recursively predefine dependencies.
-				predefineRecursively(store, fn, d)
+				predefineRecursively(store, gasMeter, fn, d)
 				continue
 			}
 		}
@@ -168,13 +169,13 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 // Initialize static blocks, and also reserves all names.
 // TODO: ensure and keep idempotent.
 // PrpedefineFileSet may precede Preprocess.
-func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
+func initStaticBlocks(store Store, gasMeter store.GasMeter, ctx BlockNode, nn Node) {
 	// create stack of BlockNodes.
 	last := ctx
 	stack := append(make([]BlockNode, 0, 32), last)
 
 	// iterate over all nodes recursively.
-	_ = Transcribe(nn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+	_ = Transcribe(nn, gasMeter, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		defer doRecover(stack, n)
 		if debug {
 			debug.Printf("initStaticBlocks %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
@@ -458,15 +459,16 @@ var preprocessing atomic.Int32
 // List of what Preprocess() does:
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
-func Preprocess(store Store, ctx BlockNode, n Node) Node {
+func Preprocess(store Store, gasMeter store.GasMeter, ctx BlockNode, n Node) Node {
 	// First init static blocks of blocknodes.
 	// This may have already happened.
 	// Keep this function idemponent.
 	// NOTE: need to use Transcribe() here instead of `bn, ok := n.(BlockNode)`
 	// because say n may be a *CallExpr containing an anonymous function.
-	initStaticBlocks(store, ctx, n)
+	initStaticBlocks(store, gasMeter, ctx, n)
 	defer func() {
 		Transcribe(n,
+			gasMeter,
 			func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 				if stage != TRANS_ENTER {
 					return n, TRANS_CONTINUE
@@ -478,7 +480,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	}()
 
 	// Bulk of the preprocessor function
-	n = preprocess1(store, ctx, n)
+	n = preprocess1(store, gasMeter, ctx, n)
 
 	// XXX check node lines and locations
 	checkNodeLinesLocations("XXXpkgPath", "XXXfileName", n)
@@ -486,6 +488,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// NOTE: need to use Transcribe() here instead of `bn, ok := n.(BlockNode)`
 	// because say n may be a *CallExpr containing an anonymous function.
 	Transcribe(n,
+		gasMeter,
 		func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 			if stage != TRANS_ENTER {
 				return n, TRANS_CONTINUE
@@ -497,9 +500,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			}
 			if bn, ok := n.(BlockNode); ok {
 				// findGotoLoopDefines(ctx, bn)
-				findHeapDefinesByUse(ctx, bn)
-				findHeapUsesDemoteDefines(ctx, bn)
-				findPackageSelectors(bn)
+				findHeapDefinesByUse(ctx, gasMeter, bn)
+				findHeapUsesDemoteDefines(ctx, gasMeter, bn)
+				findPackageSelectors(gasMeter, bn)
 				return n, TRANS_SKIP
 			}
 			return n, TRANS_CONTINUE
@@ -507,7 +510,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	return n
 }
 
-func preprocess1(store Store, ctx BlockNode, n Node) Node {
+func preprocess1(store Store, gasMeter store.GasMeter, ctx BlockNode, n Node) Node {
 	// Increment preprocessing counter while preprocessing.
 	preprocessing.Add(1)
 	defer preprocessing.Add(-1)
@@ -516,8 +519,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 	if fn, ok := n.(*FileNode); ok {
 		pkgPath := ctx.(*PackageNode).PkgPath
 		fileName := fn.FileName
-		setNodeLines(fn)
-		setNodeLocations(pkgPath, fileName, fn)
+		setNodeLines(gasMeter, fn)
+		setNodeLocations(pkgPath, gasMeter, fileName, fn)
 	}
 
 	// create stack of BlockNodes.
@@ -526,7 +529,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 	ctxpn := packageOf(ctx)
 
 	// iterate over all nodes recursively
-	nn := Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+	nn := Transcribe(n, gasMeter, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		// if already preprocessed, skip it.
 		if n.GetAttribute(ATTR_PREPROCESSED) == true {
 			return n, TRANS_SKIP
@@ -578,7 +581,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 
 					// recursively predefine dependencies.
-					preprocessed := predefineRecursively(store, last, d)
+					preprocessed := predefineRecursively(store, gasMeter, last, d)
 					if preprocessed {
 						return d, TRANS_SKIP
 					} else {
@@ -656,8 +659,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// NOTE: preprocess it here, so type can
 				// be used to set n.IsMap/IsString and
 				// define key/value.
-				n.X = Preprocess(store, last, n.X).(Expr)
-				xt := evalStaticTypeOf(store, last, n.X)
+				n.X = Preprocess(store, gasMeter, last, n.X).(Expr)
+				xt := evalStaticTypeOf(store, gasMeter, last, n.X)
 				if xt == nil {
 					panic("cannot range over nil")
 				}
@@ -715,7 +718,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_BLOCK -----------------------
 			case *FuncLitExpr:
 				// retrieve cached function type.
-				ft := evalStaticType(store, last, &n.Type).(*FuncType)
+				ft := evalStaticType(store, gasMeter, last, &n.Type).(*FuncType)
 				if n.GetAttribute(ATTR_PREPROCESS_SKIPPED) == AttrPreprocessFuncLitExpr {
 					// This preprocessing was initiated by predefineRecursively().
 					// When predefined from a package/file, the dependant names may
@@ -791,7 +794,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// evaluate default case.
 						if ss.VarName != "" {
 							// The type is the tag type.
-							tt := evalStaticTypeOf(store, last, ss.X)
+							tt := evalStaticTypeOf(store, gasMeter, last, ss.X)
 							last.Define(
 								ss.VarName, anyValue(tt))
 						}
@@ -799,7 +802,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// evaluate case types.
 						for i, cx := range n.Cases {
 							cx = Preprocess(
-								store, last, cx).(Expr)
+								store, gasMeter, last, cx).(Expr)
 							var ct Type
 							if cxx, ok := cx.(*ConstExpr); ok {
 								if cxx.IsUndefined() {
@@ -810,7 +813,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									ct = cxx.GetType()
 								}
 							} else {
-								ct = evalStaticType(store, last, cx)
+								ct = evalStaticType(store, gasMeter, last, cx)
 							}
 							n.Cases[i] = toConstTypeExpr(last, cx, ct)
 							// maybe type-switch def.
@@ -824,7 +827,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								} else {
 									// If there are 2 or more
 									// cases, the type is the tag type.
-									tt := evalStaticTypeOf(store, last, ss.X)
+									tt := evalStaticTypeOf(store, gasMeter, last, ss.X)
 									last.Define(
 										ss.VarName, anyValue(tt))
 								}
@@ -833,12 +836,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 				} else {
 					// evaluate tag type
-					tt := evalStaticTypeOf(store, last, ss.X)
+					tt := evalStaticTypeOf(store, gasMeter, last, ss.X)
 					// check or convert case types to tt.
 					for i, cx := range n.Cases {
 						cx = Preprocess(
-							store, last, cx).(Expr)
-						checkOrConvertType(store, last, n, &cx, tt, false) // #nosec G601
+							store, gasMeter, last, cx).(Expr)
+						checkOrConvertType(store, gasMeter, last, n, &cx, tt, false) // #nosec G601
 						n.Cases[i] = cx
 					}
 				}
@@ -905,7 +908,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							} else {
 								// recursively predefine
 								// dependencies.
-								predefineRecursively(store, n, d)
+								predefineRecursively(store, gasMeter, n, d)
 								n.Decls[i] = d
 							}
 						}
@@ -922,7 +925,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							} else {
 								// recursively predefine
 								// dependencies.
-								predefineRecursively(store, n, d)
+								predefineRecursively(store, gasMeter, n, d)
 								n.Decls[i] = d
 							}
 						}
@@ -939,7 +942,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							} else {
 								// recursively predefine
 								// dependencies.
-								predefineRecursively(store, n, d)
+								predefineRecursively(store, gasMeter, n, d)
 								n.Decls[i] = d
 							}
 						}
@@ -955,7 +958,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						} else {
 							// recursively predefine
 							// dependencies.
-							predefineRecursively(store, n, d)
+							predefineRecursively(store, gasMeter, n, d)
 							n.Decls[i] = d
 						}
 					}
@@ -978,8 +981,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// NOTE: TRANS_BLOCK2 ensures after .Init.
 				// Preprocess and convert tag if const.
 				if n.X != nil {
-					n.X = Preprocess(store, last, n.X).(Expr)
-					convertIfConst(store, last, n, n.X)
+					n.X = Preprocess(store, gasMeter, last, n.X).(Expr)
+					convertIfConst(store, gasMeter, last, n, n.X)
 				}
 			}
 			return n, TRANS_CONTINUE
@@ -1014,7 +1017,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// fill elided element composite lit type exprs
 					clx := ns[len(ns)-1].(*CompositeLitExpr)
 					// get or evaluate composite type.
-					clt := evalStaticType(store, last, n.(Expr))
+					clt := evalStaticType(store, gasMeter, last, n.(Expr))
 					// elide composite lit element (nested) composite types.
 					elideCompositeElements(last, clx, clt)
 				}
@@ -1040,7 +1043,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// Special case if struct composite key.
 				if ftype == TRANS_COMPOSITE_KEY {
 					clx := ns[len(ns)-1].(*CompositeLitExpr)
-					clt := evalStaticType(store, last, clx.Type)
+					clt := evalStaticType(store, gasMeter, last, clx.Type)
 					switch bt := baseOf(clt).(type) {
 					case *StructType:
 						n.Path = bt.GetPathForName(n.Name)
@@ -1048,14 +1051,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					case *ArrayType, *SliceType:
 						fillNameExprPath(last, n, false)
 						if last.GetIsConst(store, n.Name) {
-							cx := evalConst(store, last, n)
+							cx := evalConst(store, gasMeter, last, n)
 							return cx, TRANS_CONTINUE
 						}
 						// If name refers to a package, and this is not in
 						// the context of a selector, fail. Packages cannot
 						// be used as a value, for go compatibility but also
 						// to preserve the security expectation regarding imports.
-						nt := evalStaticTypeOf(store, last, n)
+						nt := evalStaticTypeOf(store, gasMeter, last, n)
 						if nt.Kind() == PackageKind {
 							panic(fmt.Sprintf(
 								"package %s cannot only be referred to in a selector expression",
@@ -1114,7 +1117,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					// If uverse, return a *ConstExpr.
 					if n.Path.Depth == 0 { // uverse
-						cx := evalConst(store, last, n)
+						cx := evalConst(store, gasMeter, last, n)
 						// built-in functions must be called.
 						if !cx.IsUndefined() &&
 							cx.T.Kind() == FuncKind &&
@@ -1134,7 +1137,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// a value OR a type. But don't change
 						// this behavior, it's reasonable for
 						// a name to be a value by default.
-						cx := evalConst(store, last, n)
+						cx := evalConst(store, gasMeter, last, n)
 						/*
 							if !cx.IsUndefined() && cx.T.Kind() == TypeKind && ftype == TRANS_TYPE_TYPE {
 								return toConstTypeExpr(last, n, cx.GetType()), TRANS_CONTINUE
@@ -1143,7 +1146,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						return cx, TRANS_CONTINUE
 					}
 					// Special handling of packages
-					nt := evalStaticTypeOf(store, last, n)
+					nt := evalStaticTypeOf(store, gasMeter, last, n)
 					if nt == nil {
 						// this is fine, e.g. for TRANS_ASSIGN_LHS (define) etc.
 					} else if nt.Kind() == PackageKind {
@@ -1158,7 +1161,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 						// Remember the package path
 						// for findPackageSelectors().
-						pvc := evalConst(store, last, n)
+						pvc := evalConst(store, gasMeter, last, n)
 						pv, ok := pvc.V.(*PackageValue)
 						if !ok {
 							panic(fmt.Sprintf(
@@ -1174,13 +1177,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *BasicLitExpr:
 				// Replace with *ConstExpr.
-				cx := evalConst(store, last, n)
+				cx := evalConst(store, gasMeter, last, n)
 				return cx, TRANS_CONTINUE
 
 			// TRANS_LEAVE -----------------------
 			case *BinaryExpr:
-				lt := evalStaticTypeOf(store, last, n.Left)
-				rt := evalStaticTypeOf(store, last, n.Right)
+				lt := evalStaticTypeOf(store, gasMeter, last, n.Left)
+				rt := evalStaticTypeOf(store, gasMeter, last, n.Right)
 
 				lcx, lic := n.Left.(*ConstExpr)
 				rcx, ric := n.Right.(*ConstExpr)
@@ -1193,7 +1196,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				isShift := n.Op == SHL || n.Op == SHR
 				if isShift {
 					// check LHS type compatibility
-					n.assertShiftExprCompatible1(store, last, lt, rt)
+					n.assertShiftExprCompatible1(store, gasMeter, last, lt, rt)
 					// checkOrConvert RHS
 					if baseOf(rt) != UintType {
 						// convert n.Right to (gno) uint type,
@@ -1205,12 +1208,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							Right: rn,
 						}
 						n2.Right.SetAttribute(ATTR_SHIFT_RHS, true)
-						resn := Preprocess(store, last, n2)
+						resn := Preprocess(store, gasMeter, last, n2)
 						return resn, TRANS_CONTINUE
 					}
 					// Then, evaluate the expression.
 					if lic && ric {
-						cx := evalConst(store, last, n)
+						cx := evalConst(store, gasMeter, last, n)
 						return cx, TRANS_CONTINUE
 					}
 					return n, TRANS_CONTINUE
@@ -1230,30 +1233,30 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							(rt == nil || rt.Kind() != InterfaceKind) {
 							if !shouldSwapOnSpecificity(lcx.T, rcx.T) {
 								// convert n.Left to right type.
-								checkOrConvertType(store, last, n, &n.Left, rcx.T, false)
+								checkOrConvertType(store, gasMeter, last, n, &n.Left, rcx.T, false)
 							} else {
 								// convert n.Right to left type.
-								checkOrConvertType(store, last, n, &n.Right, lcx.T, false)
+								checkOrConvertType(store, gasMeter, last, n, &n.Right, lcx.T, false)
 							}
 						}
 						// Then, evaluate the expression.
-						cx := evalConst(store, last, n)
+						cx := evalConst(store, gasMeter, last, n)
 						return cx, TRANS_CONTINUE
 					} else if isUntyped(lcx.T) {
 						// Left untyped const, Right not ----------------
 						// right is untyped const, left is not const, typed/untyped
 						checkUntypedShiftExpr := func(x Expr) {
 							if bx, ok := x.(*BinaryExpr); ok {
-								slt := evalStaticTypeOf(store, last, bx.Left)
+								slt := evalStaticTypeOf(store, gasMeter, last, bx.Left)
 								if bx.Op == SHL || bx.Op == SHR {
-									srt := evalStaticTypeOf(store, last, bx.Right)
-									bx.assertShiftExprCompatible1(store, last, slt, srt)
+									srt := evalStaticTypeOf(store, gasMeter, last, bx.Right)
+									bx.assertShiftExprCompatible1(store, gasMeter, last, slt, srt)
 								}
 							}
 						}
 
 						if !isUntyped(rt) { // right is typed
-							checkOrConvertType(store, last, n, &n.Left, rt, false)
+							checkOrConvertType(store, gasMeter, last, n, &n.Left, rt, false)
 						} else {
 							if shouldSwapOnSpecificity(lt, rt) {
 								checkUntypedShiftExpr(n.Right)
@@ -1263,10 +1266,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 					} else if lcx.T == nil { // LHS is nil.
 						// convert n.Left to typed-nil type.
-						checkOrConvertType(store, last, n, &n.Left, rt, false)
+						checkOrConvertType(store, gasMeter, last, n, &n.Left, rt, false)
 					} else {
 						if isUntyped(rt) {
-							checkOrConvertType(store, last, n, &n.Right, lt, false)
+							checkOrConvertType(store, gasMeter, last, n, &n.Right, lt, false)
 						}
 					}
 				} else if ric { // right is const, left is not
@@ -1276,14 +1279,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						checkUntypedShiftExpr := func(x Expr) {
 							if bx, ok := x.(*BinaryExpr); ok {
 								if bx.Op == SHL || bx.Op == SHR {
-									srt := evalStaticTypeOf(store, last, bx.Right)
-									bx.assertShiftExprCompatible1(store, last, rt, srt)
+									srt := evalStaticTypeOf(store, gasMeter, last, bx.Right)
+									bx.assertShiftExprCompatible1(store, gasMeter, last, rt, srt)
 								}
 							}
 						}
 						// both untyped, e.g. 1<<s != 1.0
 						if !isUntyped(lt) { // left is typed
-							checkOrConvertType(store, last, n, &n.Right, lt, false)
+							checkOrConvertType(store, gasMeter, last, n, &n.Right, lt, false)
 						} else { // if one side is untyped shift expression, check type with lower specificity
 							if shouldSwapOnSpecificity(lt, rt) {
 								checkUntypedShiftExpr(n.Right)
@@ -1293,10 +1296,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 					} else if rcx.T == nil { // RHS is nil
 						// refer to tests/files/types/eql_0f20.gno
-						checkOrConvertType(store, last, n, &n.Right, lt, false)
+						checkOrConvertType(store, gasMeter, last, n, &n.Right, lt, false)
 					} else { // left is not const, right is typed const
 						if isUntyped(lt) {
-							checkOrConvertType(store, last, n, &n.Left, rt, false)
+							checkOrConvertType(store, gasMeter, last, n, &n.Left, rt, false)
 						}
 					}
 				} else {
@@ -1311,25 +1314,25 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									lt.TypeID(), n.Op, rt.TypeID()))
 							}
 							// convert untyped to typed
-							checkOrConvertType(store, last, n, &n.Left, defaultTypeOf(lt), false)
-							checkOrConvertType(store, last, n, &n.Right, defaultTypeOf(rt), false)
+							checkOrConvertType(store, gasMeter, last, n, &n.Left, defaultTypeOf(lt), false)
+							checkOrConvertType(store, gasMeter, last, n, &n.Right, defaultTypeOf(rt), false)
 						} else { // left untyped, right typed
-							checkOrConvertType(store, last, n, &n.Left, rt, false)
+							checkOrConvertType(store, gasMeter, last, n, &n.Left, rt, false)
 						}
 					} else if riu { // left typed, right untyped
-						checkOrConvertType(store, last, n, &n.Right, lt, false)
+						checkOrConvertType(store, gasMeter, last, n, &n.Right, lt, false)
 					} else { // both typed, refer to 0a1g.gno
 						if !shouldSwapOnSpecificity(lt, rt) {
-							checkOrConvertType(store, last, n, &n.Left, rt, false)
+							checkOrConvertType(store, gasMeter, last, n, &n.Left, rt, false)
 						} else {
-							checkOrConvertType(store, last, n, &n.Right, lt, false)
+							checkOrConvertType(store, gasMeter, last, n, &n.Right, lt, false)
 						}
 					}
 				}
 			// TRANS_LEAVE -----------------------
 			case *CallExpr:
 				// Func type evaluation.
-				nft := evalStaticTypeOf(store, last, n.Func)
+				nft := evalStaticTypeOf(store, gasMeter, last, n.Func)
 				switch bnft := baseOf(nft).(type) {
 				case *TypeType:
 					// Not a func type, but a type conversion.
@@ -1338,8 +1341,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					n.NumArgs = 1
 					arg0 := n.Args[0]
-					ct := evalStaticType(store, last, n.Func)
-					at := evalStaticTypeOf(store, last, n.Args[0])
+					ct := evalStaticType(store, gasMeter, last, n.Func)
+					at := evalStaticTypeOf(store, gasMeter, last, n.Args[0])
 
 					// OPTIMIZATION: Skip redundant type conversions when source and target types are identical
 					if at != nil && ct.TypeID() == at.TypeID() && !isUntyped(at) {
@@ -1399,7 +1402,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 
 						// evaluate the new expression.
-						cx := evalConst(store, last, n)
+						cx := evalConst(store, gasMeter, last, n)
 						// The conversion is legal, set the target type.
 						// Though cx may be undefined if ct is interface,
 						// the ATTR_TYPEOF_VALUE is still interface.
@@ -1412,7 +1415,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							case EQL, NEQ, LSS, GTR, LEQ, GEQ:
 								assertAssignableTo(n, at, ct, false)
 							default:
-								checkOrConvertType(store, last, n, &n.Args[0], ct, false)
+								checkOrConvertType(store, gasMeter, last, n, &n.Args[0], ct, false)
 							}
 							// The conversion is legal, set the target type.
 							n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
@@ -1421,7 +1424,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// continue...
 					case *UnaryExpr:
 						if isUntyped(at) {
-							checkOrConvertType(store, last, n, &n.Args[0], ct, false)
+							checkOrConvertType(store, gasMeter, last, n, &n.Args[0], ct, false)
 							// The conversion is legal, set the target type.
 							n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 							return n, TRANS_CONTINUE
@@ -1547,7 +1550,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								// If the second argument is a string,
 								// convert to byteslice.
 								args1 := n.Args[1]
-								if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
+								if evalStaticTypeOf(store, gasMeter, last, args1).Kind() == StringKind {
 									fn, err := last.GetFuncNodeForExpr(store, n.Func)
 									if err != nil {
 										panic(fmt.Errorf("unexpected: %w", err))
@@ -1556,7 +1559,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									etx := ftx.Params[1].Type
 									bsx := toConstTypeExpr(last, etx, gByteSliceType)
 									args1 = Call(bsx, args1)
-									args1 = Preprocess(nil, last, args1).(Expr)
+									args1 = Preprocess(nil, gasMeter, last, args1).(Expr)
 									n.Args[1] = args1
 								}
 							} else {
@@ -1568,19 +1571,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 										// Consider only constant expressions.
 										continue
 									}
-									if t1 := evalStaticTypeOf(store, last, arg); t1 != nil && !isUntyped(t1) {
+									if t1 := evalStaticTypeOf(store, gasMeter, last, arg); t1 != nil && !isUntyped(t1) {
 										// Consider only untyped values (including nil).
 										continue
 									}
 									if tx == nil {
 										// Get the array type from the first argument.
-										s0 := evalStaticTypeOf(store, last, n.Args[0])
+										s0 := evalStaticTypeOf(store, gasMeter, last, n.Args[0])
 										tx = toConstTypeExpr(last, arg, s0.Elem())
 									}
 									// Convert to the array type.
 									// NOTE: append([]<iface>{}, nil) remains nil arg.
 									arg1 := Call(tx, arg)
-									n.Args[i+1] = Preprocess(nil, last, arg1).(Expr)
+									n.Args[i+1] = Preprocess(nil, gasMeter, last, arg1).(Expr)
 								}
 							}
 						} else if fv.PkgPath == uversePkgPath && fv.Name == "copy" {
@@ -1588,10 +1591,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								// If the second argument is a string,
 								// convert to byteslice.
 								args1 := n.Args[1]
-								if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
+								if evalStaticTypeOf(store, gasMeter, last, args1).Kind() == StringKind {
 									bsx := toConstTypeExpr(last, args1, gByteSliceType)
 									args1 = Call(bsx, args1)
-									args1 = Preprocess(nil, last, args1).(Expr)
+									args1 = Preprocess(nil, gasMeter, last, args1).(Expr)
 									n.Args[1] = args1
 								}
 							}
@@ -1668,7 +1671,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								// NOTE: We don't necessaryily know statically
 								// whether n.Func is a local realm function or external,
 								// so this check must also happen at runtime.
-								ftv, err := tryEvalStatic(store, ctxpn, last, n.Func)
+								ftv, err := tryEvalStatic(store, gasMeter, ctxpn, last, n.Func)
 								if err == nil {
 									// This is fine; e.g. somefunc()(cur,...)
 								} else if ftv.IsUndefined() {
@@ -1684,7 +1687,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								dbn := last.GetBlockNodeForPath(store, nx.Path)
 								switch dbn := dbn.(type) {
 								case *FuncDecl:
-									// dft := evalStaticType(store, last, &dbn.Type).(*FuncType)
+									// dft := evalStaticType(store, gasMeter, last, &dbn.Type).(*FuncType)
 									dft := getType(&dbn.Type).(*FuncType)
 									if !dft.IsCrossing() {
 										panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
@@ -1693,7 +1696,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									// NOTE: TRANS_ENTER *FuncTypeExpr ensures that `cur realm` is the first
 									// argument of the crossing function.
 								case *FuncLitExpr:
-									// dft := evalStaticType(store, last, &dbn.Type).(*FuncType)
+									// dft := evalStaticType(store, gasMeter, last, &dbn.Type).(*FuncType)
 									dft := getType(&dbn.Type).(*FuncType)
 									if !dft.IsCrossing() {
 										panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
@@ -1729,7 +1732,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if hasVarg {
 						minArgs--
 					}
-					numArgs := countNumArgs(store, last, n) // isVarg?
+					numArgs := countNumArgs(store, gasMeter, last, n) // isVarg?
 					n.NumArgs = numArgs
 
 					// Check input arg count.
@@ -1761,7 +1764,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 					} else if !hasVarg {
-						argTVs = evalStaticTypedValues(store, last, n.Args...)
+						argTVs = evalStaticTypedValues(store, gasMeter, last, n.Args...)
 						if len(n.Args) != len(ft.Params) {
 							panic(fmt.Sprintf(
 								"wrong argument count in call to %s; want %d got %d",
@@ -1771,7 +1774,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							))
 						}
 					} else if hasVarg && !isVarg {
-						argTVs = evalStaticTypedValues(store, last, n.Args...)
+						argTVs = evalStaticTypedValues(store, gasMeter, last, n.Args...)
 						if len(n.Args) < len(ft.Params)-1 {
 							panic(fmt.Sprintf(
 								"not enough arguments in call to %s; want %d (besides variadic) got %d",
@@ -1780,7 +1783,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								len(n.Args)))
 						}
 					} else if hasVarg && isVarg {
-						argTVs = evalStaticTypedValues(store, last, n.Args...)
+						argTVs = evalStaticTypedValues(store, gasMeter, last, n.Args...)
 						if len(n.Args) != len(ft.Params) {
 							panic(fmt.Sprintf(
 								"not enough arguments in call to %s; want %d (including variadic) got %d",
@@ -1834,16 +1837,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 										if len(spts) <= i {
 											panic("expected final vargs slice but got many")
 										}
-										checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type, true)
+										checkOrConvertType(store, gasMeter, last, n, &n.Args[i], spts[i].Type, true)
 									} else {
-										checkOrConvertType(store, last, n, &n.Args[i],
+										checkOrConvertType(store, gasMeter, last, n, &n.Args[i],
 											spts[len(spts)-1].Type.Elem(), true)
 									}
 								} else {
-									checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type, true)
+									checkOrConvertType(store, gasMeter, last, n, &n.Args[i], spts[i].Type, true)
 								}
 							} else {
-								checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type, true)
+								checkOrConvertType(store, gasMeter, last, n, &n.Args[i], spts[i].Type, true)
 							}
 						}
 					}
@@ -1855,7 +1858,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *IndexExpr:
-				dt := evalStaticTypeOf(store, last, n.X)
+				dt := evalStaticTypeOf(store, gasMeter, last, n.X)
 				if dt.Kind() == PointerKind {
 					// if a is a pointer to an array,
 					// a[low : high : max] is shorthand
@@ -1868,10 +1871,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				case StringKind, ArrayKind, SliceKind:
 					// Replace const index with int *ConstExpr,
 					// or if not const, assert integer type..
-					checkOrConvertIntegerKind(store, last, n, n.Index)
+					checkOrConvertIntegerKind(store, gasMeter, last, n, n.Index)
 				case MapKind:
 					mt := baseOf(dt).(*MapType)
-					checkOrConvertType(store, last, n, &n.Index, mt.Key, false)
+					checkOrConvertType(store, gasMeter, last, n, &n.Index, mt.Key, false)
 				default:
 					panic(fmt.Sprintf(
 						"unexpected index base kind for type %s",
@@ -1882,16 +1885,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			case *SliceExpr:
 				// Replace const L/H/M with int *ConstExpr,
 				// or if not const, assert integer type..
-				checkOrConvertIntegerKind(store, last, n, n.Low)
-				checkOrConvertIntegerKind(store, last, n, n.High)
-				checkOrConvertIntegerKind(store, last, n, n.Max)
+				checkOrConvertIntegerKind(store, gasMeter, last, n, n.Low)
+				checkOrConvertIntegerKind(store, gasMeter, last, n, n.High)
+				checkOrConvertIntegerKind(store, gasMeter, last, n, n.Max)
 
-				t := evalStaticTypeOf(store, last, n.X)
+				t := evalStaticTypeOf(store, gasMeter, last, n.X)
 
 				// if n.X is untyped, convert to corresponding type
 				if isUntyped(t) {
 					dt := defaultTypeOf(t)
-					checkOrConvertType(store, last, n, &n.X, dt, false)
+					checkOrConvertType(store, gasMeter, last, n, &n.X, dt, false)
 				}
 
 			// TRANS_LEAVE -----------------------
@@ -1908,7 +1911,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 				// ExprStmt of form `x.(<type>)`,
 				// or special case form `c, ok := x.(<type>)`.
-				t := evalStaticTypeOf(store, last, n.X)
+				t := evalStaticTypeOf(store, gasMeter, last, n.X)
 				baseType := baseOf(t) // The base type of the asserted value must be an interface.
 				switch baseType.(type) {
 				case *InterfaceType:
@@ -1925,19 +1928,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *UnaryExpr:
-				xt := evalStaticTypeOf(store, last, n.X)
+				xt := evalStaticTypeOf(store, gasMeter, last, n.X)
 				n.AssertCompatible(xt)
 
 				// Replace with *ConstExpr if const X.
 				if isConst(n.X) {
-					cx := evalConst(store, last, n)
+					cx := evalConst(store, gasMeter, last, n)
 					return cx, TRANS_CONTINUE
 				}
 
 			// TRANS_LEAVE -----------------------
 			case *CompositeLitExpr:
 				// Get or evaluate composite type.
-				clt := evalStaticType(store, last, n.Type)
+				clt := evalStaticType(store, gasMeter, last, n.Type)
 				n.Type = toConstTypeExpr(last, n.Type, clt)
 				// Replace const Elts with default *ConstExpr.
 				switch cclt := baseOf(clt).(type) {
@@ -1947,28 +1950,28 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							key := n.Elts[i].Key.(*NameExpr).Name
 							path := cclt.GetPathForName(key)
 							ft := cclt.GetStaticTypeOfAt(path)
-							checkOrConvertType(store, last, n, &n.Elts[i].Value, ft, false)
+							checkOrConvertType(store, gasMeter, last, n, &n.Elts[i].Value, ft, false)
 						}
 					} else {
 						for i := range n.Elts {
 							ft := cclt.Fields[i].Type
-							checkOrConvertType(store, last, n, &n.Elts[i].Value, ft, false)
+							checkOrConvertType(store, gasMeter, last, n, &n.Elts[i].Value, ft, false)
 						}
 					}
 				case *ArrayType:
 					for i := range n.Elts {
-						convertType(store, last, n, &n.Elts[i].Key, IntType)
-						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt, false)
+						convertType(store, gasMeter, last, n, &n.Elts[i].Key, IntType)
+						checkOrConvertType(store, gasMeter, last, n, &n.Elts[i].Value, cclt.Elt, false)
 					}
 				case *SliceType:
 					for i := range n.Elts {
-						convertType(store, last, n, &n.Elts[i].Key, IntType)
-						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt, false)
+						convertType(store, gasMeter, last, n, &n.Elts[i].Key, IntType)
+						checkOrConvertType(store, gasMeter, last, n, &n.Elts[i].Value, cclt.Elt, false)
 					}
 				case *MapType:
 					for i := range n.Elts {
-						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key, false)
-						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value, false)
+						checkOrConvertType(store, gasMeter, last, n, &n.Elts[i].Key, cclt.Key, false)
+						checkOrConvertType(store, gasMeter, last, n, &n.Elts[i].Value, cclt.Value, false)
 					}
 				default:
 					panic(fmt.Sprintf(
@@ -1983,7 +1986,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							if elt.Key == nil {
 								idx++
 							} else {
-								k := int(evalConst(store, last, elt.Key).ConvertGetInt())
+								k := int(evalConst(store, gasMeter, last, elt.Key).ConvertGetInt())
 								if idx <= k {
 									idx = k + 1
 								} else {
@@ -2007,7 +2010,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// use the *CompositeLitExpr.
 			// TRANS_LEAVE -----------------------
 			case *StarExpr:
-				xt := evalStaticTypeOf(store, last, n.X)
+				xt := evalStaticTypeOf(store, gasMeter, last, n.X)
 				if xt == nil {
 					panic("invalid operation: cannot indirect nil")
 				}
@@ -2016,7 +2019,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				}
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
-				xt := evalStaticTypeOf(store, last, n.X)
+				xt := evalStaticTypeOf(store, gasMeter, last, n.X)
 
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
@@ -2047,12 +2050,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 						// recursively preprocess new n.X.
-						n.X = Preprocess(store, last, nx2).(Expr)
+						n.X = Preprocess(store, gasMeter, last, nx2).(Expr)
 					}
 					// nxt2 may not be xt anymore.
 					// (even the dereferenced of xt and nxt2 may not
 					// be the same, with embedded fields)
-					nxt2 := evalStaticTypeOf(store, last, n.X)
+					nxt2 := evalStaticTypeOf(store, gasMeter, last, n.X)
 					// Case 1: If receiver is pointer type but n.X is
 					// not:
 					if rcvr != nil &&
@@ -2110,7 +2113,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					} else {
 						// otherwise, packages can only be referred to by
 						// *NameExprs, and cannot be copied.
-						pvc := evalConst(store, last, n.X)
+						pvc := evalConst(store, gasMeter, last, n.X)
 						pv_, ok := pvc.V.(*PackageValue)
 						if !ok {
 							panic(fmt.Sprintf(
@@ -2134,13 +2137,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 					// Produce a constant expression for both typed and untyped constants.
 					if isUntyped(tt) || pn.GetIsConstAt(store, n.Path) {
-						cx := evalConst(store, last, n)
+						cx := evalConst(store, gasMeter, last, n)
 						return cx, TRANS_CONTINUE
 					}
 
 				case *TypeType:
 					// unbound method
-					xt := evalStaticType(store, last, n.X)
+					xt := evalStaticType(store, gasMeter, last, n.X)
 					switch ct := xt.(type) {
 					case *PointerType:
 						dt := ct.Elt.(*DeclaredType)
@@ -2161,7 +2164,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *FieldTypeExpr:
 				// Replace const Tag with default *ConstExpr.
-				convertIfConst(store, last, n, n.Tag)
+				convertIfConst(store, gasMeter, last, n, n.Tag)
 
 			// TRANS_LEAVE -----------------------
 			case *ArrayTypeExpr:
@@ -2169,42 +2172,42 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// Calculate length at *CompositeLitExpr:LEAVE
 				} else {
 					// Replace const Len with int *ConstExpr.
-					cx := evalConst(store, last, n.Len)
+					cx := evalConst(store, gasMeter, last, n.Len)
 					convertConst(store, last, n, cx, IntType)
 					n.Len = cx
 				}
 				// NOTE: For all TypeExprs, the node is not replaced
 				// with *constTypeExprs (as *ConstExprs are) because
 				// we want to support type logic at runtime.
-				evalStaticType(store, last, n)
+				evalStaticType(store, gasMeter, last, n)
 
 			// TRANS_LEAVE -----------------------
 			case *SliceTypeExpr:
-				evalStaticType(store, last, n)
+				evalStaticType(store, gasMeter, last, n)
 
 			// TRANS_LEAVE -----------------------
 			case *InterfaceTypeExpr:
-				evalStaticType(store, last, n)
+				evalStaticType(store, gasMeter, last, n)
 
 			// TRANS_LEAVE -----------------------
 			case *ChanTypeExpr:
-				evalStaticType(store, last, n)
+				evalStaticType(store, gasMeter, last, n)
 
 			// TRANS_LEAVE -----------------------
 			case *FuncTypeExpr:
-				evalStaticType(store, last, n)
+				evalStaticType(store, gasMeter, last, n)
 
 			// TRANS_LEAVE -----------------------
 			case *MapTypeExpr:
-				evalStaticType(store, last, n)
+				evalStaticType(store, gasMeter, last, n)
 
 			// TRANS_LEAVE -----------------------
 			case *StructTypeExpr:
-				evalStaticType(store, last, n)
+				evalStaticType(store, gasMeter, last, n)
 
 			// TRANS_LEAVE -----------------------
 			case *AssignStmt:
-				n.AssertCompatible(store, last)
+				n.AssertCompatible(store, gasMeter, last)
 				if n.Op == ASSIGN {
 					for _, lh := range n.Lhs {
 						if ne, ok := lh.(*NameExpr); ok {
@@ -2220,13 +2223,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// Rhs consts become default *ConstExprs.
 					for _, rx := range n.Rhs {
 						// NOTE: does nothing if rx is "nil".
-						convertIfConst(store, last, n, rx)
+						convertIfConst(store, gasMeter, last, n, rx)
 					}
 					nameExprs := make([]*NameExpr, len(n.Lhs))
 					for i := range len(n.Lhs) {
 						nameExprs[i] = n.Lhs[i].(*NameExpr)
 					}
-					defineOrDecl(store, last, n, false, nameExprs, nil, n.Rhs, true)
+					defineOrDecl(store, gasMeter, last, n, false, nameExprs, nil, n.Rhs, true)
 				} else { // ASSIGN, or assignment operation (+=, -=, <<=, etc.)
 					// NOTE: Keep in sync with DEFINE above.
 					if len(n.Lhs) > len(n.Rhs) {
@@ -2236,13 +2239,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// we decompose the a,b = x(...) for named and unamed
 							// type value return in an assignments
 							// Call case: a, b = x(...)
-							ift := evalStaticTypeOf(store, last, cx.Func)
+							ift := evalStaticTypeOf(store, gasMeter, last, cx.Func)
 							cft := getGnoFuncTypeOf(store, ift)
 							// check if we we need to decompose for named typed conversion in the function return results
 							var decompose bool
 
 							for i, rhsType := range cft.Results {
-								lt := evalStaticTypeOf(store, last, n.Lhs[i])
+								lt := evalStaticTypeOf(store, gasMeter, last, n.Lhs[i])
 								if lt != nil && isNamedConversion(rhsType.Type, lt) {
 									decompose = true
 									break
@@ -2274,7 +2277,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									Rhs: n.Rhs,
 								}
 								// dsx.SetSpan(n.GetSpan())
-								dsx = Preprocess(store, last, dsx).(*AssignStmt)
+								dsx = Preprocess(store, gasMeter, last, dsx).(*AssignStmt)
 
 								// step3:
 
@@ -2292,7 +2295,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									Rhs: copyExprs(tmpExprs),
 								}
 								// asx.SetSpan(n.GetSpan())
-								asx = Preprocess(store, last, asx).(*AssignStmt)
+								asx = Preprocess(store, gasMeter, last, asx).(*AssignStmt)
 
 								// step4:
 								// replace the original stmt with two new stmts
@@ -2316,18 +2319,18 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						switch n.Op {
 						case SHL_ASSIGN, SHR_ASSIGN:
 							// Special case if shift assign <<= or >>=.
-							convertType(store, last, n, &n.Rhs[0], UintType)
+							convertType(store, gasMeter, last, n, &n.Rhs[0], UintType)
 						case ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN:
 							// e.g. a += b, single value for lhs and rhs,
-							lt := evalStaticTypeOf(store, last, n.Lhs[0])
-							checkOrConvertType(store, last, n, &n.Rhs[0], lt, true)
+							lt := evalStaticTypeOf(store, gasMeter, last, n.Lhs[0])
+							checkOrConvertType(store, gasMeter, last, n, &n.Rhs[0], lt, true)
 						default: // all else, like BAND_ASSIGN, etc
 							// General case: a, b = x, y.
 							for i, lx := range n.Lhs {
-								lt := evalStaticTypeOf(store, last, lx)
+								lt := evalStaticTypeOf(store, gasMeter, last, lx)
 
 								// if lt is interface, nothing will happen
-								checkOrConvertType(store, last, n, &n.Rhs[i], lt, true)
+								checkOrConvertType(store, gasMeter, last, n, &n.Rhs[i], lt, true)
 							}
 						}
 					}
@@ -2399,23 +2402,23 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *IncDecStmt:
-				xt := evalStaticTypeOf(store, last, n.X)
+				xt := evalStaticTypeOf(store, gasMeter, last, n.X)
 				n.AssertCompatible(xt)
 
 			// TRANS_LEAVE -----------------------
 			case *ForStmt:
 				// Cond consts become bool *ConstExprs.
-				checkOrConvertBoolKind(store, last, n, n.Cond)
+				checkOrConvertBoolKind(store, gasMeter, last, n, n.Cond)
 
 			// TRANS_LEAVE -----------------------
 			case *IfStmt:
 				// Cond consts become bool *ConstExprs.
-				checkOrConvertBoolKind(store, last, n, n.Cond)
+				checkOrConvertBoolKind(store, gasMeter, last, n, n.Cond)
 
 			// TRANS_LEAVE -----------------------
 			case *RangeStmt:
 				// NOTE: k,v already defined @ TRANS_BLOCK.
-				n.AssertCompatible(store, last)
+				n.AssertCompatible(store, gasMeter, last)
 
 			// TRANS_LEAVE -----------------------
 			case *ReturnStmt:
@@ -2446,7 +2449,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 					} else if len(n.Results) == 1 {
 						if cx, ok := n.Results[0].(*CallExpr); ok {
-							ift := evalStaticTypeOf(store, last, cx.Func)
+							ift := evalStaticTypeOf(store, gasMeter, last, cx.Func)
 							cft := getGnoFuncTypeOf(store, ift)
 							if len(cft.Results) != len(ft.Results) {
 								panic(fmt.Sprintf("expected %d return values; got %d",
@@ -2471,14 +2474,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// Results consts become default *ConstExprs.
 					for i := range n.Results {
 						rtx := ft.Results[i].Type
-						rt := evalStaticType(store, fnode.GetParentNode(nil), rtx)
+						rt := evalStaticType(store, gasMeter, fnode.GetParentNode(nil), rtx)
 						if isGeneric(rt) {
 							// cannot convert generic result,
 							// the result type depends.
 							// XXX how to deal?
 							panic("not yet implemented")
 						} else {
-							checkOrConvertType(store, last, n, &n.Results[i], rt, false)
+							checkOrConvertType(store, gasMeter, last, n, &n.Results[i], rt, false)
 						}
 					}
 				}
@@ -2486,7 +2489,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *SendStmt:
 				// Value consts become default *ConstExprs.
-				checkOrConvertType(store, last, n, &n.Value, nil, false)
+				checkOrConvertType(store, gasMeter, last, n, &n.Value, nil, false)
 
 			// TRANS_LEAVE -----------------------
 			case *SelectCaseStmt:
@@ -2521,15 +2524,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *ValueDecl:
-				assertValidAssignRhs(store, last, n)
+				assertValidAssignRhs(store, gasMeter, last, n)
 
 				// evaluate value if const expr.
 				if n.Const {
 					// NOTE: may or may not be a *ConstExpr,
 					// but if not, make one now.
 					for i, vx := range n.Values {
-						assertValidConstExpr(store, last, n, vx)
-						n.Values[i] = evalConst(store, last, vx)
+						assertValidConstExpr(store, gasMeter, last, n, vx)
+						n.Values[i] = evalConst(store, gasMeter, last, vx)
 					}
 				}
 				// else, value(s) may already be *ConstExpr, but
@@ -2543,7 +2546,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				for i := range n.NameExprs {
 					nameExprs[i] = &n.NameExprs[i]
 				}
-				defineOrDecl(store, last, n, n.Const, nameExprs, n.Type, n.Values, false)
+				defineOrDecl(store, gasMeter, last, n, n.Const, nameExprs, n.Type, n.Values, false)
 
 				// TODO make note of constance in static block for
 				// future use, or consider "const paths".  set as
@@ -2566,7 +2569,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// original. It is later copied back into the
 				// original type, thus completing the recursive
 				// definition. (thus called 'tmp')
-				tmp := evalStaticType(store, last, n.Type)
+				tmp := evalStaticType(store, gasMeter, last, n.Type)
 				// 'dst' is the actual original type structure
 				// as contructed by predefineRecursively().
 				//
@@ -2636,6 +2639,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 // defineOrDecl merges the code logic from op define (:=) and declare (var/const).
 func defineOrDecl(
 	store Store,
+	gasMeter store.GasMeter,
 	bn BlockNode,
 	n Node,
 	isConst bool,
@@ -2655,9 +2659,9 @@ func defineOrDecl(
 	tvs := make([]TypedValue, numNames)
 
 	if numVals == 1 && numNames > 1 {
-		parseMultipleAssignFromOneExpr(store, bn, n, sts, tvs, nameExprs, typeExpr, valueExprs[0])
+		parseMultipleAssignFromOneExpr(store, gasMeter, bn, n, sts, tvs, nameExprs, typeExpr, valueExprs[0])
 	} else {
-		parseAssignFromExprList(store, bn, n, sts, tvs, isConst, nameExprs, typeExpr, valueExprs)
+		parseAssignFromExprList(store, gasMeter, bn, n, sts, tvs, isConst, nameExprs, typeExpr, valueExprs)
 	}
 
 	node := skipFile(bn)
@@ -2686,6 +2690,7 @@ func defineOrDecl(
 // This function will alter the value of sts, tvs.
 func parseAssignFromExprList(
 	store Store,
+	gasMeter store.GasMeter,
 	bn BlockNode,
 	n Node,
 	sts []Type,
@@ -2700,7 +2705,7 @@ func parseAssignFromExprList(
 	// Ensure that function only return 1 value.
 	for _, v := range valueExprs {
 		if cx, ok := v.(*CallExpr); ok {
-			tt, ok := evalStaticTypeOfRaw(store, bn, cx).(*tupleType)
+			tt, ok := evalStaticTypeOfRaw(store, gasMeter, bn, cx).(*tupleType)
 			if ok && len(tt.Elts) > 1 {
 				panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", cx.Func.String(), tt.Elts))
 			}
@@ -2710,18 +2715,18 @@ func parseAssignFromExprList(
 	// Evaluate types and convert consts.
 	if typeExpr != nil {
 		// Only a single type can be specified.
-		nt := evalStaticType(store, bn, typeExpr)
+		nt := evalStaticType(store, gasMeter, bn, typeExpr)
 		for i := range numNames {
 			sts[i] = nt
 		}
 		// Convert if const to nt.
 		for i := range valueExprs {
-			checkOrConvertType(store, bn, n, &valueExprs[i], nt, false)
+			checkOrConvertType(store, gasMeter, bn, n, &valueExprs[i], nt, false)
 		}
 	} else if isConst {
 		// Derive static type from values.
 		for i, vx := range valueExprs {
-			vt := evalStaticTypeOf(store, bn, vx)
+			vt := evalStaticTypeOf(store, gasMeter, bn, vx)
 			sts[i] = vt
 		}
 	} else { // T is nil, n not const => same as AssignStmt DEFINE
@@ -2731,9 +2736,9 @@ func parseAssignFromExprList(
 				convertConst(store, bn, n, cx, nil)
 				// convertIfConst(store, last, vx)
 			} else {
-				checkOrConvertType(store, bn, n, &vx, nil, false)
+				checkOrConvertType(store, gasMeter, bn, n, &vx, nil, false)
 			}
-			vt := evalStaticTypeOf(store, bn, vx)
+			vt := evalStaticTypeOf(store, gasMeter, bn, vx)
 			sts[i] = vt
 		}
 	}
@@ -2774,6 +2779,7 @@ func parseAssignFromExprList(
 // - a, b := n[i], where n is a map
 func parseMultipleAssignFromOneExpr(
 	store Store,
+	gasMeter store.GasMeter,
 	bn BlockNode,
 	n Node,
 	sts []Type,
@@ -2789,13 +2795,13 @@ func parseMultipleAssignFromOneExpr(
 		// Call case:
 		// var a, b, c T = f()
 		// a, b, c := f()
-		valueType := evalStaticTypeOfRaw(store, bn, valueExpr)
+		valueType := evalStaticTypeOfRaw(store, gasMeter, bn, valueExpr)
 		tuple = valueType.(*tupleType)
 	case *TypeAssertExpr:
 		// Type assert case:
 		// var a, b = n.(T)
 		// a, b := n.(T)
-		tt := evalStaticType(store, bn, expr.Type)
+		tt := evalStaticType(store, gasMeter, bn, expr.Type)
 		tuple = &tupleType{Elts: []Type{tt, BoolType}}
 		expr.HasOK = true
 	case *IndexExpr:
@@ -2803,7 +2809,7 @@ func parseMultipleAssignFromOneExpr(
 		// var a, b = n[i], where n is a map
 		// a, b := n[i], where n is a map
 		var mt *MapType
-		dt := evalStaticTypeOf(store, bn, expr.X)
+		dt := evalStaticTypeOf(store, gasMeter, bn, expr.X)
 		mt, ok := baseOf(dt).(*MapType)
 		if !ok {
 			panic(fmt.Sprintf("invalid index expression on %T", dt))
@@ -2828,7 +2834,7 @@ func parseMultipleAssignFromOneExpr(
 	var st Type = nil
 	if typeExpr != nil {
 		// Only a single type can be specified.
-		st = evalStaticType(store, bn, typeExpr)
+		st = evalStaticType(store, gasMeter, bn, typeExpr)
 	}
 
 	for i := range nameExprs {
@@ -2861,9 +2867,9 @@ func parseMultipleAssignFromOneExpr(
 // produces false positives.
 //
 //nolint:unused
-func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
+func findGotoLoopDefines(gasMeter store.GasMeter, ctx BlockNode, bn BlockNode) {
 	// iterate over all nodes recursively.
-	_ = TranscribeB(ctx, bn, func(
+	_ = TranscribeB(ctx, gasMeter, bn, func(
 		ns []Node,
 		stack []BlockNode,
 		last BlockNode,
@@ -2892,6 +2898,7 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 			switch n := n.(type) {
 			case *ForStmt, *RangeStmt:
 				Transcribe(n,
+					gasMeter,
 					func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 						switch stage {
 						case TRANS_ENTER:
@@ -2938,6 +2945,7 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 					// Recurse and mark stmts as ATTR_GOTOLOOP_STMT.
 					// NOTE: ATTR_GOTOLOOP_STMT is not used.
 					Transcribe(bn,
+						gasMeter,
 						func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 							switch stage {
 							case TRANS_ENTER:
@@ -3009,9 +3017,9 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 // capture.
 // Also happens to declare all package and file names
 // as heap use, so that functions added later may use them.
-func findHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
+func findHeapDefinesByUse(ctx BlockNode, gasMeter store.GasMeter, bn BlockNode) {
 	// Iterate over all nodes recursively.
-	_ = TranscribeB(ctx, bn, func(
+	_ = TranscribeB(ctx, gasMeter, bn, func(
 		ns []Node,
 		stack []BlockNode,
 		last BlockNode,
@@ -3261,13 +3269,13 @@ func findLastFunction(last BlockNode, stop BlockNode) (fn FuncNode, depth int, f
 // If a name is used as a heap item, Convert all other uses of such names
 // for heap use. If a name of type heap define is not actually used
 // as heap use, demotes them.
-func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
+func findHeapUsesDemoteDefines(ctx BlockNode, gasMeter store.GasMeter, bn BlockNode) {
 	// create stack of BlockNodes.
 	last := ctx
 	stack := append(make([]BlockNode, 0, 32), last)
 
 	// Iterate over all nodes recursively.
-	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+	_ = Transcribe(bn, gasMeter, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		defer doRecover(stack, n)
 
 		if debug {
@@ -3415,9 +3423,9 @@ func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 // TODO Do not perform this transform unless the name is used
 // inside of a closure. Top level declared functions and methods
 // do not need this indirection. XXX
-func findPackageSelectors(bn BlockNode) {
+func findPackageSelectors(gasMeter store.GasMeter, bn BlockNode) {
 	// Iterate over all nodes recursively.
-	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+	_ = Transcribe(bn, gasMeter, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		switch stage {
 		case TRANS_ENTER:
 			switch n := n.(type) {
@@ -3525,7 +3533,7 @@ func copyFromFauxBlock(bn BlockNode, orig BlockNode) {
 // Evaluates (constructs) the value of x which is expected to be a typeval.
 // Caches the result as an attribute of x.
 // To discourage mis-use, expects x to already be preprocessed.
-func evalStaticType(store Store, last BlockNode, x Expr) Type {
+func evalStaticType(store Store, gasMeter store.GasMeter, last BlockNode, x Expr) Type {
 	if t, ok := x.GetAttribute(ATTR_TYPE_VALUE).(Type); ok {
 		return t
 	} else if ctx, ok := x.(*constTypeExpr); ok {
@@ -3547,7 +3555,12 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 		store = store.BeginTransaction(nil, nil, nil)
 		store.SetCachePackage(pv)
 	}
-	m := NewMachine(pn.PkgPath, store)
+	m := NewMachineWithOptions(
+		MachineOptions{
+			PkgPath:  pn.PkgPath,
+			GasMeter: gasMeter,
+			Store:    store,
+		})
 	tv := m.EvalStatic(last, x)
 	m.Release()
 	if _, ok := tv.V.(TypeValue); !ok {
@@ -3575,8 +3588,8 @@ func getType(x Expr) Type {
 
 // Unlike evalStaticType, x is not expected to be a typeval,
 // but rather computes the type OF x.
-func evalStaticTypeOf(store Store, last BlockNode, x Expr) Type {
-	t := evalStaticTypeOfRaw(store, last, x)
+func evalStaticTypeOf(store Store, gasMeter store.GasMeter, last BlockNode, x Expr) Type {
+	t := evalStaticTypeOfRaw(store, gasMeter, last, x)
 
 	if tt, ok := t.(*tupleType); ok && len(tt.Elts) == 1 {
 		return tt.Elts[0]
@@ -3586,7 +3599,7 @@ func evalStaticTypeOf(store Store, last BlockNode, x Expr) Type {
 }
 
 // like evalStaticTypeOf() but returns the raw *tupleType for *CallExpr.
-func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
+func evalStaticTypeOfRaw(store Store, gasMeter store.GasMeter, last BlockNode, x Expr) (t Type) {
 	if t, ok := x.GetAttribute(ATTR_TYPEOF_VALUE).(Type); ok {
 		return t
 	} else if _, ok := x.(*constTypeExpr); ok {
@@ -3615,7 +3628,12 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 			store = store.BeginTransaction(nil, nil, nil)
 			store.SetCachePackage(pv)
 		}
-		m := NewMachine(pn.PkgPath, store)
+		m := NewMachineWithOptions(
+			MachineOptions{
+				PkgPath:  pn.PkgPath,
+				Store:    store,
+				GasMeter: gasMeter,
+			})
 		t = m.EvalStaticTypeOf(last, x)
 		m.Release()
 		x.SetAttribute(ATTR_TYPEOF_VALUE, t)
@@ -3649,12 +3667,12 @@ func getTypeOf(x Expr) Type {
 
 // like evalStaticTypeOf() but for list of exprs, and the result
 // includes the value if type is TypeKind.
-func evalStaticTypedValues(store Store, last BlockNode, xs ...Expr) []TypedValue {
+func evalStaticTypedValues(store Store, gasMeter store.GasMeter, last BlockNode, xs ...Expr) []TypedValue {
 	res := make([]TypedValue, len(xs))
 	for i, x := range xs {
-		t := evalStaticTypeOf(store, last, x)
+		t := evalStaticTypeOf(store, gasMeter, last, x)
 		if t != nil && t.Kind() == TypeKind {
-			v := evalStaticType(store, last, x)
+			v := evalStaticType(store, gasMeter, last, x)
 			res[i] = TypedValue{
 				T: t,
 				V: toTypeValue(v),
@@ -3670,14 +3688,19 @@ func evalStaticTypedValues(store Store, last BlockNode, xs ...Expr) []TypedValue
 }
 
 // Evaluate (but do not memoize) x. May fail for a variety of reasons.
-func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, x Expr) (tv TypedValue, err error) {
+func tryEvalStatic(store Store, gasMeter store.GasMeter, pn *PackageNode, last BlockNode, x Expr) (tv TypedValue, err error) {
 	if cx, ok := x.(*ConstExpr); ok {
 		return cx.TypedValue, nil
 	}
 	pv := pn.NewPackage() // throwaway
 	store = store.BeginTransaction(nil, nil, nil)
 	store.SetCachePackage(pv)
-	m := NewMachine(pn.PkgPath, store)
+	m := NewMachineWithOptions(
+		MachineOptions{
+			PkgPath:  pn.PkgPath,
+			Store:    store,
+			GasMeter: gasMeter,
+		})
 	defer m.Release()
 	func() {
 		// cannot be resolved statically
@@ -3737,11 +3760,11 @@ func getResultTypedValues(cx *CallExpr) []TypedValue {
 // as constants, even if the array itself is not a constant. This evaluation
 // is handled independently of the rest of the constant evaluation process,
 // bypassing machine.EvalStatic.
-func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
+func evalConst(store Store, gasMeter store.GasMeter, last BlockNode, x Expr) *ConstExpr {
 	// TODO: some check or verification for ensuring x
 	var cx *ConstExpr
 	if clx, ok := x.(*CallExpr); ok {
-		t := evalStaticTypeOf(store, last, clx.Args[0])
+		t := evalStaticTypeOf(store, gasMeter, last, clx.Args[0])
 		if ar, ok := unwrapPointerType(baseOf(t)).(*ArrayType); ok {
 			fv := clx.Func.(*ConstExpr).V.(*FuncValue)
 			switch fv.Name {
@@ -3760,7 +3783,12 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 
 	if cx == nil {
 		// is constant?  From the machine?
-		m := NewMachine(".dontcare", store)
+		m := NewMachineWithOptions(
+			MachineOptions{
+				PkgPath:  ".dontcare",
+				Store:    store,
+				GasMeter: gasMeter,
+			})
 		cv := m.EvalStatic(last, x)
 		m.Release()
 		cx = &ConstExpr{
@@ -4062,7 +4090,7 @@ func isConstType(x Expr) bool {
 }
 
 // check before convert type
-func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type, autoNative bool) {
+func checkOrConvertType(store Store, gasMeter store.GasMeter, last BlockNode, n Node, x *Expr, t Type, autoNative bool) {
 	if debug {
 		debug.Printf("checkOrConvertType, *x: %v:, t:%v \n", *x, t)
 	}
@@ -4070,7 +4098,7 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type, au
 		// e.g. int(1) == int8(1)
 		assertAssignableTo(n, cx.T, t, autoNative)
 	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
-		xt := evalStaticTypeOf(store, last, *x)
+		xt := evalStaticTypeOf(store, gasMeter, last, *x)
 		if debug {
 			debug.Printf("shift, xt: %v, Op: %v, t: %v \n", xt, bx.Op, t)
 		}
@@ -4083,13 +4111,13 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type, au
 			}
 
 			bx.assertShiftExprCompatible2(t)
-			checkOrConvertType(store, last, n, &bx.Left, t, autoNative)
+			checkOrConvertType(store, gasMeter, last, n, &bx.Left, t, autoNative)
 		} else {
 			assertAssignableTo(n, xt, t, autoNative)
 		}
 		return
 	} else if *x != nil {
-		xt := evalStaticTypeOf(store, last, *x)
+		xt := evalStaticTypeOf(store, gasMeter, last, *x)
 		if t != nil {
 			assertAssignableTo(n, xt, t, autoNative)
 		}
@@ -4099,12 +4127,12 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type, au
 				switch bx.Op {
 				case ADD, SUB, MUL, QUO, REM, BAND, BOR, XOR,
 					BAND_NOT, LAND, LOR:
-					lt := evalStaticTypeOf(store, last, bx.Left)
-					rt := evalStaticTypeOf(store, last, bx.Right)
+					lt := evalStaticTypeOf(store, gasMeter, last, bx.Left)
+					rt := evalStaticTypeOf(store, gasMeter, last, bx.Right)
 					if t != nil {
 						// push t into bx.Left and bx.Right
-						checkOrConvertType(store, last, n, &bx.Left, t, autoNative)
-						checkOrConvertType(store, last, n, &bx.Right, t, autoNative)
+						checkOrConvertType(store, gasMeter, last, n, &bx.Left, t, autoNative)
+						checkOrConvertType(store, gasMeter, last, n, &bx.Right, t, autoNative)
 						return
 					} else {
 						if shouldSwapOnSpecificity(lt, rt) {
@@ -4115,23 +4143,23 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type, au
 							// without a specific context type, '1.0<<s' is checked against
 							// its default type, the BigDecKind, will trigger assertion failure.
 							// so here in checkOrConvertType, shift expression is "finally" checked.
-							checkOrConvertType(store, last, n, &bx.Left, lt, autoNative)
-							checkOrConvertType(store, last, n, &bx.Right, lt, autoNative)
+							checkOrConvertType(store, gasMeter, last, n, &bx.Left, lt, autoNative)
+							checkOrConvertType(store, gasMeter, last, n, &bx.Right, lt, autoNative)
 						} else {
-							checkOrConvertType(store, last, n, &bx.Left, rt, autoNative)
-							checkOrConvertType(store, last, n, &bx.Right, rt, autoNative)
+							checkOrConvertType(store, gasMeter, last, n, &bx.Left, rt, autoNative)
+							checkOrConvertType(store, gasMeter, last, n, &bx.Right, rt, autoNative)
 						}
 					}
 					return
 				case EQL, LSS, GTR, NEQ, LEQ, GEQ:
-					lt := evalStaticTypeOf(store, last, bx.Left)
-					rt := evalStaticTypeOf(store, last, bx.Right)
+					lt := evalStaticTypeOf(store, gasMeter, last, bx.Left)
+					rt := evalStaticTypeOf(store, gasMeter, last, bx.Right)
 					if shouldSwapOnSpecificity(lt, rt) {
-						checkOrConvertType(store, last, n, &bx.Left, lt, autoNative)
-						checkOrConvertType(store, last, n, &bx.Right, lt, autoNative)
+						checkOrConvertType(store, gasMeter, last, n, &bx.Left, lt, autoNative)
+						checkOrConvertType(store, gasMeter, last, n, &bx.Right, lt, autoNative)
 					} else {
-						checkOrConvertType(store, last, n, &bx.Left, rt, autoNative)
-						checkOrConvertType(store, last, n, &bx.Right, rt, autoNative)
+						checkOrConvertType(store, gasMeter, last, n, &bx.Left, rt, autoNative)
+						checkOrConvertType(store, gasMeter, last, n, &bx.Right, rt, autoNative)
 					}
 					// this is not a constant expression; the result here should
 					// always be a BoolType. (in this scenario, we may have some
@@ -4141,20 +4169,20 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type, au
 					// do nothing
 				}
 			} else if ux, ok := (*x).(*UnaryExpr); ok {
-				xt := evalStaticTypeOf(store, last, *x)
+				xt := evalStaticTypeOf(store, gasMeter, last, *x)
 				// check assignable first
 				assertAssignableTo(n, xt, t, autoNative)
 
 				if t == nil || t.Kind() == InterfaceKind {
 					t = defaultTypeOf(xt)
 				}
-				checkOrConvertType(store, last, n, &ux.X, t, autoNative)
+				checkOrConvertType(store, gasMeter, last, n, &ux.X, t, autoNative)
 				return
 			}
 		}
 	}
 	// convert recursively
-	convertType(store, last, n, x, t)
+	convertType(store, gasMeter, last, n, x, t)
 }
 
 // 1. convert x to t if x is *ConstExpr.
@@ -4163,20 +4191,20 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type, au
 // for native function calls, where gno values are
 // automatically converted to native go types.
 // NOTE: also see checkOrConvertIntegerKind()
-func convertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
+func convertType(store Store, gasMeter store.GasMeter, last BlockNode, n Node, x *Expr, t Type) {
 	if debug {
 		debug.Printf("convertType, *x: %v:, t:%v \n", *x, t)
 	}
 	if cx, ok := (*x).(*ConstExpr); ok {
 		convertConst(store, last, n, cx, t)
 	} else if *x != nil {
-		xt := evalStaticTypeOf(store, last, *x)
+		xt := evalStaticTypeOf(store, gasMeter, last, *x)
 		if isUntyped(xt) {
 			if t == nil {
 				t = defaultTypeOf(xt)
 			}
 			// convert x to destination type t
-			doConvertType(store, last, x, t)
+			doConvertType(store, gasMeter, last, x, t)
 		} else {
 			// if t is interface do nothing
 			if t != nil && t.Kind() == InterfaceKind {
@@ -4184,16 +4212,16 @@ func convertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 			} else if isNamedConversion(xt, t) {
 				// if one side is declared name type and the other side is unnamed type
 				// covert right (xt) to the type of the left (t)
-				doConvertType(store, last, x, t)
+				doConvertType(store, gasMeter, last, x, t)
 			}
 		}
 	}
 }
 
 // convert x to destination type t
-func doConvertType(store Store, last BlockNode, x *Expr, t Type) {
+func doConvertType(store Store, gasMeter store.GasMeter, last BlockNode, x *Expr, t Type) {
 	cx := Expr(Call(toConstTypeExpr(last, *x, t), *x))
-	cx = Preprocess(store, last, cx).(Expr)
+	cx = Preprocess(store, gasMeter, last, cx).(Expr)
 	*x = cx
 }
 
@@ -4234,7 +4262,7 @@ func isNamedConversion(xt, t Type) bool {
 }
 
 // like checkOrConvertType(last, x, nil)
-func convertIfConst(store Store, last BlockNode, n Node, x Expr) {
+func convertIfConst(store Store, gasMeter store.GasMeter, last BlockNode, n Node, x Expr) {
 	if cx, ok := x.(*ConstExpr); ok {
 		convertConst(store, last, n, cx, nil)
 	}
@@ -4276,15 +4304,15 @@ func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
 //     NOTE: 'direct' is passed through, or becomes overridden with false and
 //     passed to higher/later calls in the stack, and the `direct` argument
 //     seen at the top of the stack is returned all the way back.
-func findUndefinedV(store Store, last BlockNode, x Expr, stack []Name, defining map[Name]struct{}, direct bool, elide Type) (un Name, directR bool) {
-	return findUndefinedAny(store, last, x, stack, defining, false, direct, false, elide)
+func findUndefinedV(store Store, gasMeter store.GasMeter, last BlockNode, x Expr, stack []Name, defining map[Name]struct{}, direct bool, elide Type) (un Name, directR bool) {
+	return findUndefinedAny(store, gasMeter, last, x, stack, defining, false, direct, false, elide)
 }
 
-func findUndefinedT(store Store, last BlockNode, x Expr, stack []Name, defining map[Name]struct{}, isalias bool, direct bool) (un Name, directR bool) {
-	return findUndefinedAny(store, last, x, stack, defining, isalias, direct, true, nil)
+func findUndefinedT(store Store, gasMeter store.GasMeter, last BlockNode, x Expr, stack []Name, defining map[Name]struct{}, isalias bool, direct bool) (un Name, directR bool) {
+	return findUndefinedAny(store, gasMeter, last, x, stack, defining, isalias, direct, true, nil)
 }
 
-func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, defining map[Name]struct{}, isalias bool, direct bool, astype bool, elide Type) (un Name, directR bool) {
+func findUndefinedAny(store Store, gasMeter store.GasMeter, last BlockNode, x Expr, stack []Name, defining map[Name]struct{}, isalias bool, direct bool, astype bool, elide Type) (un Name, directR bool) {
 	if debugFind {
 		fmt.Printf("findUndefinedAny(%v, %v, %v, isalias=%v, direct=%v, astype=%v, elide=%v\n", x, stack, defining, isalias, direct, astype, elide)
 	}
@@ -4339,35 +4367,35 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 	case *BasicLitExpr:
 		return
 	case *BinaryExpr:
-		un, directR = findUndefinedV(store, last, cx.Left, stack, defining, direct, nil)
+		un, directR = findUndefinedV(store, gasMeter, last, cx.Left, stack, defining, direct, nil)
 		if un != "" {
 			return
 		}
-		un, directR = findUndefinedV(store, last, cx.Right, stack, defining, direct, nil)
+		un, directR = findUndefinedV(store, gasMeter, last, cx.Right, stack, defining, direct, nil)
 		if un != "" {
 			return
 		}
 	case *SelectorExpr:
-		return findUndefinedV(store, last, cx.X, stack, defining, direct, nil)
+		return findUndefinedV(store, gasMeter, last, cx.X, stack, defining, direct, nil)
 	case *SliceExpr:
-		un, directR = findUndefinedV(store, last, cx.X, stack, defining, direct, nil)
+		un, directR = findUndefinedV(store, gasMeter, last, cx.X, stack, defining, direct, nil)
 		if un != "" {
 			return
 		}
 		if cx.Low != nil {
-			un, directR = findUndefinedV(store, last, cx.Low, stack, defining, direct, nil)
+			un, directR = findUndefinedV(store, gasMeter, last, cx.Low, stack, defining, direct, nil)
 			if un != "" {
 				return
 			}
 		}
 		if cx.High != nil {
-			un, directR = findUndefinedV(store, last, cx.High, stack, defining, direct, nil)
+			un, directR = findUndefinedV(store, gasMeter, last, cx.High, stack, defining, direct, nil)
 			if un != "" {
 				return
 			}
 		}
 		if cx.Max != nil {
-			un, directR = findUndefinedV(store, last, cx.Max, stack, defining, direct, nil)
+			un, directR = findUndefinedV(store, gasMeter, last, cx.Max, stack, defining, direct, nil)
 			if un != "" {
 				return
 			}
@@ -4377,20 +4405,20 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 		// It's not only confusing for new developers, it causes complexity
 		// in type checking. A *StarExpr is indirect as a type unless alias.
 		if astype {
-			return findUndefinedT(store, last, cx.X, stack, defining, isalias, isalias)
+			return findUndefinedT(store, gasMeter, last, cx.X, stack, defining, isalias, isalias)
 		} else {
-			return findUndefinedV(store, last, cx.X, stack, defining, direct, nil)
+			return findUndefinedV(store, gasMeter, last, cx.X, stack, defining, direct, nil)
 		}
 	case *RefExpr:
-		return findUndefinedV(store, last, cx.X, stack, defining, direct, nil)
+		return findUndefinedV(store, gasMeter, last, cx.X, stack, defining, direct, nil)
 	case *TypeAssertExpr:
-		un, directR = findUndefinedV(store, last, cx.X, stack, defining, direct, nil)
+		un, directR = findUndefinedV(store, gasMeter, last, cx.X, stack, defining, direct, nil)
 		if un != "" {
 			return
 		}
-		return findUndefinedT(store, last, cx.Type, stack, defining, isalias, direct)
+		return findUndefinedT(store, gasMeter, last, cx.Type, stack, defining, isalias, direct)
 	case *UnaryExpr:
-		return findUndefinedV(store, last, cx.X, stack, defining, direct, nil)
+		return findUndefinedV(store, gasMeter, last, cx.X, stack, defining, direct, nil)
 	case *CompositeLitExpr:
 		var ct Type
 		if cx.Type == nil {
@@ -4406,7 +4434,7 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 				cx.Type = toConstTypeExpr(tx, elide)
 			*/
 		} else {
-			un, directR = findUndefinedT(store, last, cx.Type, stack, defining, isalias, astype && direct)
+			un, directR = findUndefinedT(store, gasMeter, last, cx.Type, stack, defining, isalias, astype && direct)
 			if un != "" {
 				return
 			}
@@ -4415,26 +4443,26 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 			// way.  This cannot be done asynchronously, cuz undefined
 			// names ought to be returned immediately to let the caller
 			// predefine it.
-			cx.Type = Preprocess(store, last, cx.Type).(Expr) // recursive
-			ct = evalStaticType(store, last, cx.Type)
+			cx.Type = Preprocess(store, gasMeter, last, cx.Type).(Expr) // recursive
+			ct = evalStaticType(store, gasMeter, last, cx.Type)
 			// elide composite lit element (nested) composite types.
 			elideCompositeElements(last, cx, ct)
 		}
 		switch ct.Kind() {
 		case ArrayKind, SliceKind, MapKind:
 			for _, kvx := range cx.Elts {
-				un, directR = findUndefinedV(store, last, kvx.Key, stack, defining, direct, nil)
+				un, directR = findUndefinedV(store, gasMeter, last, kvx.Key, stack, defining, direct, nil)
 				if un != "" {
 					return
 				}
-				un, directR = findUndefinedV(store, last, kvx.Value, stack, defining, direct, ct.Elem())
+				un, directR = findUndefinedV(store, gasMeter, last, kvx.Value, stack, defining, direct, ct.Elem())
 				if un != "" {
 					return
 				}
 			}
 		case StructKind:
 			for _, kvx := range cx.Elts {
-				un, directR = findUndefinedV(store, last, kvx.Value, stack, defining, direct, nil)
+				un, directR = findUndefinedV(store, gasMeter, last, kvx.Value, stack, defining, direct, nil)
 				if un != "" {
 					return
 				}
@@ -4445,7 +4473,7 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 				ct.String()))
 		}
 	case *FuncLitExpr:
-		un, directR = findUndefinedT(store, last, &cx.Type, stack, defining, isalias, astype && isalias)
+		un, directR = findUndefinedT(store, gasMeter, last, &cx.Type, stack, defining, isalias, astype && isalias)
 		if un != "" {
 			return
 		}
@@ -4454,17 +4482,17 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 			cx.SetAttribute(ATTR_PREPROCESS_SKIPPED, AttrPreprocessFuncLitExpr)
 		}
 	case *FieldTypeExpr: // FIELD
-		return findUndefinedT(store, last, cx.Type, stack, defining, isalias, direct)
+		return findUndefinedT(store, gasMeter, last, cx.Type, stack, defining, isalias, direct)
 	case *ArrayTypeExpr:
 		if cx.Len != nil {
-			un, directR = findUndefinedV(store, last, cx.Len, stack, defining, direct, nil)
+			un, directR = findUndefinedV(store, gasMeter, last, cx.Len, stack, defining, direct, nil)
 			if un != "" {
 				return
 			}
 		}
-		return findUndefinedT(store, last, cx.Elt, stack, defining, isalias, direct)
+		return findUndefinedT(store, gasMeter, last, cx.Elt, stack, defining, isalias, direct)
 	case *SliceTypeExpr:
-		return findUndefinedT(store, last, cx.Elt, stack, defining, isalias, astype && isalias)
+		return findUndefinedT(store, gasMeter, last, cx.Elt, stack, defining, isalias, astype && isalias)
 	case *InterfaceTypeExpr:
 		for i := range cx.Methods {
 			method := &cx.Methods[i]
@@ -4472,28 +4500,28 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 			if _, ok := method.Type.(*NameExpr); ok {
 				direct2 = true
 			}
-			un, directR = findUndefinedT(store, last, &cx.Methods[i], stack, defining, isalias, direct2)
+			un, directR = findUndefinedT(store, gasMeter, last, &cx.Methods[i], stack, defining, isalias, direct2)
 			if un != "" {
 				return
 			}
 		}
 	case *ChanTypeExpr:
-		return findUndefinedT(store, last, cx.Value, stack, defining, isalias, astype && isalias)
+		return findUndefinedT(store, gasMeter, last, cx.Value, stack, defining, isalias, astype && isalias)
 	case *FuncTypeExpr:
 		for i := range cx.Params {
-			un, directR = findUndefinedT(store, last, &cx.Params[i], stack, defining, isalias, astype && isalias)
+			un, directR = findUndefinedT(store, gasMeter, last, &cx.Params[i], stack, defining, isalias, astype && isalias)
 			if un != "" {
 				return
 			}
 		}
 		for i := range cx.Results {
-			un, directR = findUndefinedT(store, last, &cx.Results[i], stack, defining, isalias, astype && isalias)
+			un, directR = findUndefinedT(store, gasMeter, last, &cx.Results[i], stack, defining, isalias, astype && isalias)
 			if un != "" {
 				return
 			}
 		}
 	case *MapTypeExpr: // MAP
-		un, directR = findUndefinedT(store, last, cx.Key, stack, defining, isalias, astype && isalias)
+		un, directR = findUndefinedT(store, gasMeter, last, cx.Key, stack, defining, isalias, astype && isalias)
 		if un != "" {
 			return
 		}
@@ -4501,34 +4529,34 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 		// type Int = map[Int]IntIllegal;
 		// type Int = struct{Int};
 		// type Int = *Int;
-		un, directR = findUndefinedT(store, last, cx.Value, stack, defining, isalias, isalias)
+		un, directR = findUndefinedT(store, gasMeter, last, cx.Value, stack, defining, isalias, isalias)
 		if un != "" {
 			return
 		}
 	case *StructTypeExpr: // STRUCT
 		for i := range cx.Fields {
-			un, directR = findUndefinedT(store, last, &cx.Fields[i], stack, defining, isalias, direct)
+			un, directR = findUndefinedT(store, gasMeter, last, &cx.Fields[i], stack, defining, isalias, direct)
 			if un != "" {
 				return
 			}
 		}
 	case *CallExpr:
-		un, directR = findUndefinedV(store, last, cx.Func, stack, defining, direct, nil)
+		un, directR = findUndefinedV(store, gasMeter, last, cx.Func, stack, defining, direct, nil)
 		if un != "" {
 			return
 		}
 		for i := range cx.Args {
-			un, directR = findUndefinedV(store, last, cx.Args[i], stack, defining, direct, nil)
+			un, directR = findUndefinedV(store, gasMeter, last, cx.Args[i], stack, defining, direct, nil)
 			if un != "" {
 				return
 			}
 		}
 	case *IndexExpr:
-		un, directR = findUndefinedV(store, last, cx.X, stack, defining, direct, nil)
+		un, directR = findUndefinedV(store, gasMeter, last, cx.X, stack, defining, direct, nil)
 		if un != "" {
 			return
 		}
-		un, directR = findUndefinedV(store, last, cx.Index, stack, defining, direct, nil)
+		un, directR = findUndefinedV(store, gasMeter, last, cx.Index, stack, defining, direct, nil)
 		if un != "" {
 			return
 		}
@@ -4545,11 +4573,11 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 }
 
 // like checkOrConvertType() but for any typed bool kind.
-func checkOrConvertBoolKind(store Store, last BlockNode, n Node, x Expr) {
+func checkOrConvertBoolKind(store Store, gasMeter store.GasMeter, last BlockNode, n Node, x Expr) {
 	if cx, ok := x.(*ConstExpr); ok {
 		convertConst(store, last, n, cx, BoolType)
 	} else if x != nil {
-		xt := evalStaticTypeOf(store, last, x)
+		xt := evalStaticTypeOf(store, gasMeter, last, x)
 		checkBoolKind(xt)
 	}
 }
@@ -4567,11 +4595,11 @@ func checkBoolKind(xt Type) {
 }
 
 // like checkOrConvertType() but for any typed integer kind.
-func checkOrConvertIntegerKind(store Store, last BlockNode, n Node, x Expr) {
+func checkOrConvertIntegerKind(store Store, gasMeter store.GasMeter, last BlockNode, n Node, x Expr) {
 	if cx, ok := x.(*ConstExpr); ok {
 		convertConst(store, last, n, cx, IntType)
 	} else if x != nil {
-		xt := evalStaticTypeOf(store, last, x)
+		xt := evalStaticTypeOf(store, gasMeter, last, x)
 		checkIntegerKind(xt)
 	}
 }
@@ -4606,19 +4634,19 @@ func checkIntegerKind(xt Type) {
 // Returns true if the result was also preprocessed for *ImportDecl, *TypeDecl
 // and *ValueDecl. *ValueDecl values are NOT evaluated at this stage. *FuncDecl
 // are only partially defined and also only partially preprocessed.
-func predefineRecursively(store Store, last BlockNode, d Decl) bool {
+func predefineRecursively(store Store, gasMeter store.GasMeter, last BlockNode, d Decl) bool {
 	defer doRecover([]BlockNode{last}, d)
 	stack := []Name{}
 	defining := make(map[Name]struct{})
 	direct := true
-	return predefineRecursively2(store, last, d, stack, defining, direct)
+	return predefineRecursively2(store, gasMeter, last, d, stack, defining, direct)
 }
 
 // `stack` and `defining` are used for cycle detection. They hold the same data.
 // NOTE: `stack` never truncates; a slice is used instead of a map to show a
 // helpful message when a circular declaration is found. `defining` is also used as
 // a map to ensure best time performance of circular definition detection.
-func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool) bool {
+func predefineRecursively2(store Store, gasMeter store.GasMeter, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool) bool {
 	pkg := packageOf(last)
 
 	// NOTE: predefine fileset breaks up circular definitions like
@@ -4648,7 +4676,7 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 	var directR bool
 	// var direct = true // invalid cycle detection
 	for {
-		un, untype, directR = tryPredefine(store, pkg, last, d, stack, defining, direct)
+		un, untype, directR = tryPredefine(store, gasMeter, pkg, last, d, stack, defining, direct)
 		if debugFind {
 			fmt.Printf("tryPredefine(%v, %v, defining=%v, direct=%v)-->un=%v,untype=%v,direct2=%v\n", d, stack, defining, direct, un, untype, directR)
 		}
@@ -4672,7 +4700,7 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 			}
 			// predefine dependency recursively.
 			// `directR` is passed on.
-			predefineRecursively2(store, file, *unDecl, stack, defining, directR)
+			predefineRecursively2(store, gasMeter, file, *unDecl, stack, defining, directR)
 		} else {
 			break // predefine successfully performed.
 		}
@@ -4683,15 +4711,15 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 		// refer to package names in any order.
 		return false
 	case *ValueDecl:
-		vd2 := Preprocess(store, last, cd).(*ValueDecl)
+		vd2 := Preprocess(store, gasMeter, last, cd).(*ValueDecl)
 		*cd = *vd2
 		return true
 	case *TypeDecl:
-		td2 := Preprocess(store, last, cd).(*TypeDecl)
+		td2 := Preprocess(store, gasMeter, last, cd).(*TypeDecl)
 		*cd = *td2
 		return true
 	case *ImportDecl:
-		id2 := Preprocess(store, last, cd).(*ImportDecl)
+		id2 := Preprocess(store, gasMeter, last, cd).(*ImportDecl)
 		*cd = *id2
 		return true
 	default:
@@ -4705,7 +4733,7 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 // If all dependencies are met, constructs and empty definition value (for a
 // *TypeDecl is a TypeValue) and sets it on last. As an exception, *FuncDecls
 // will preprocess receiver/argument/result types recursively.
-func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool) (un Name, untype bool, directR bool) {
+func tryPredefine(store Store, gasMeter store.GasMeter, pkg *PackageNode, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool) (un Name, untype bool, directR bool) {
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
 		panic(fmt.Sprintf("decl node already predefined! %v", d))
 	}
@@ -4778,8 +4806,8 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 		if isBlankIdentifier(d.Type) {
 			panic("cannot use _ as value or type")
 		}
-		isalias := false                                                                   // a value decl can't be.
-		un, directR = findUndefinedT(store, last, d.Type, stack, defining, isalias, false) // XXX
+		isalias := false                                                                             // a value decl can't be.
+		un, directR = findUndefinedT(store, gasMeter, last, d.Type, stack, defining, isalias, false) // XXX
 		if un != "" {
 			untype = true
 			return
@@ -4788,7 +4816,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 		// `var a, b, c = 1, a, b` was already split up before reaching
 		// here, whereas they are illegal inside a function.
 		for _, vx := range d.Values {
-			un, directR = findUndefinedV(store, last, vx, stack, defining, direct, nil)
+			un, directR = findUndefinedV(store, gasMeter, last, vx, stack, defining, direct, nil)
 			if un != "" {
 				untype = false
 				return
@@ -4858,7 +4886,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				}
 			case *SelectorExpr:
 				// get package value.
-				un, directR = findUndefinedV(store, last, tx.X, stack, defining, false, nil)
+				un, directR = findUndefinedV(store, gasMeter, last, tx.X, stack, defining, false, nil)
 				if un != "" {
 					untype = true
 					return
@@ -4900,20 +4928,20 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 		// after predefinitions (for reasonable recursion support),
 		// return any undefined dependencies.
 		un, directR = findUndefinedAny(
-			store, last, d.Type, stack, defining, d.IsAlias, direct, true, nil)
+			store, gasMeter, last, d.Type, stack, defining, d.IsAlias, direct, true, nil)
 		if un != "" {
 			untype = true
 			return
 		}
 		// END *TypeDecl
 	case *FuncDecl:
-		un, directR = findUndefinedT(store, last, &d.Type, stack, defining, false, false)
+		un, directR = findUndefinedT(store, gasMeter, last, &d.Type, stack, defining, false, false)
 		if un != "" {
 			untype = true
 			return
 		}
 		if d.IsMethod {
-			un, directR = findUndefinedT(store, last, &d.Recv, stack, defining, false, false)
+			un, directR = findUndefinedT(store, gasMeter, last, &d.Recv, stack, defining, false, false)
 			if un != "" {
 				untype = true
 				return
@@ -4921,11 +4949,11 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			if d.Recv.Name == "" || d.Recv.Name == blankIdentifier {
 				panic("d.Recv.Name should have been set in initStaticBlocks")
 			}
-			d.Recv = *Preprocess(store, last, &d.Recv).(*FieldTypeExpr)
-			d.Type = *Preprocess(store, last, &d.Type).(*FuncTypeExpr)
-			rft := evalStaticType(store, last, &d.Recv).(FieldType)
+			d.Recv = *Preprocess(store, gasMeter, last, &d.Recv).(*FieldTypeExpr)
+			d.Type = *Preprocess(store, gasMeter, last, &d.Type).(*FuncTypeExpr)
+			rft := evalStaticType(store, gasMeter, last, &d.Recv).(FieldType)
 			rt := rft.Type
-			ft := evalStaticType(store, last, &d.Type).(*FuncType)
+			ft := evalStaticType(store, gasMeter, last, &d.Type).(*FuncType)
 			ubft := ft.UnboundType(rft)
 			dt := (*DeclaredType)(nil)
 
@@ -5008,8 +5036,8 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				T: ft,
 				V: fv,
 			})
-			d.Type = *Preprocess(store, last, &d.Type).(*FuncTypeExpr)
-			ft2 := evalStaticType(store, last, &d.Type).(*FuncType)
+			d.Type = *Preprocess(store, gasMeter, last, &d.Type).(*FuncTypeExpr)
+			ft2 := evalStaticType(store, gasMeter, last, &d.Type).(*FuncType)
 			if !ft.IsZero() {
 				// redefining function.
 				// make sure the type is the same.
@@ -5234,11 +5262,11 @@ func elideCompositeExpr(last BlockNode, x *Expr, t Type) {
 
 // returns number of args, or if arg is a call result,
 // the number of results of the return tuple type.
-func countNumArgs(store Store, last BlockNode, n *CallExpr) (numArgs int) {
+func countNumArgs(store Store, gasMeter store.GasMeter, last BlockNode, n *CallExpr) (numArgs int) {
 	if len(n.Args) != 1 {
 		return len(n.Args)
 	} else if cx, ok := n.Args[0].(*CallExpr); ok {
-		cxift := evalStaticTypeOf(store, last, cx.Func) // cx (iface) func type
+		cxift := evalStaticTypeOf(store, gasMeter, last, cx.Func) // cx (iface) func type
 		if cxift.Kind() == TypeKind {
 			return 1 // type conversion
 		} else {
@@ -5405,9 +5433,9 @@ func isLocallyDefined2(bn BlockNode, n Name) bool {
 // ----------------------------------------
 // setNodeLines & setNodeLocations
 
-func setNodeLines(nn Node) {
+func setNodeLines(gasMeter store.GasMeter, nn Node) {
 	var all Span // if nn has no span defined, derive one from its contents.
-	Transcribe(nn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+	Transcribe(nn, gasMeter, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		switch stage {
 		case TRANS_ENTER:
 			nspan := n.GetSpan()
@@ -5450,11 +5478,11 @@ func setNodeLines(nn Node) {
 // Iterate over all nodes recursively and sets location information
 // based on sparse expectations on block nodes, and ensures uniqueness of BlockNode.Locations.
 // Ensures uniqueness of BlockNode.Locations.
-func setNodeLocations(pkgPath string, fileName string, n Node) {
+func setNodeLocations(pkgPath string, gasMeter store.GasMeter, fileName string, n Node) {
 	if pkgPath == "" || fileName == "" {
 		panic("missing package path or file name")
 	}
-	Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+	Transcribe(n, gasMeter, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		if stage != TRANS_ENTER {
 			return n, TRANS_CONTINUE
 		}
@@ -5483,7 +5511,7 @@ func checkNodeLinesLocations(pkgPath string, fileName string, n Node) {
 
 // Iterate over all block nodes recursively and saves them.
 // Ensures uniqueness of BlockNode.Locations.
-func SaveBlockNodes(store Store, fn *FileNode) {
+func SaveBlockNodes(store Store, gasMeter store.GasMeter, fn *FileNode) {
 	// First, get the package and file names.
 	pn := packageOf(fn)
 	store.SetBlockNode(pn)
@@ -5492,7 +5520,7 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 	if pkgPath == "" || fileName == "" {
 		panic("missing package path or file name")
 	}
-	Transcribe(fn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+	Transcribe(fn, gasMeter, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		if stage != TRANS_ENTER {
 			return n, TRANS_CONTINUE
 		}
