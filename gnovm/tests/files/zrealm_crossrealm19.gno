@@ -42,4 +42,4 @@ func main(cur realm) {
 // hello A gno.land/r/crossrealm
 
 // Error:
-// should not happen, mismatched method/receiver realm, fooer<~VPBlock(3,5)>.Bar()/(gno.land/r/crossrealm---------RID1712AC7ADCFDC8E58A67E5615E20FB312394C4DF)
+// invalid call: fooer<~VPBlock(3,5)>.Bar(), method realm: RIDDC8307F7BBE97FDB07B2D0FA6907B8D67517C02A does not match receiver realm: RID1712AC7ADCFDC8E58A67E5615E20FB312394C4DF

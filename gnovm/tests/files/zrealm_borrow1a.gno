@@ -68,4 +68,4 @@ func main(cur realm) {
 }
 
 // Error:
-// should not happen, mismatched method/receiver realm, p<VPBlock(1,1)>.Mutate()/(gno.land/r/borrow---------RID1712AC7ADCFDC8E58A67E5615E20FB312394C4DF)
+// invalid call: p<VPBlock(1,1)>.Mutate(), method realm: RIDC459C7103CD5303D426ED1E6E642FFFCFFD55F7C does not match receiver realm: RID1712AC7ADCFDC8E58A67E5615E20FB312394C4DF

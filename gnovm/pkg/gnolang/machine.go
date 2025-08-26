@@ -1893,8 +1893,6 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	// If it must be mutated after append, use m.LastFrame() instead.
 	m.Frames = append(m.Frames, fr)
 
-	// fmt.Println("===============push frame call, cx: ", cx)
-	// fmt.Println("===============before set new package, m.Package.PkgPath: ", m.Package.PkgPath)
 	// Set the package.
 	// .Package always refers to the code being run,
 	// and may differ from .Realm.
@@ -1955,59 +1953,54 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 
 	// Not cross nor crossing.
 	// DO NOT set DidCrossing for any implicit crossing.
-	// Make DidCrossing only happen upon explicit
-	// cross(fn)(...) calls and subsequent calls to
-	// crossing functions from the same realm, to
-	// avoid user confusion. Otherwise whether
-	// DidCrossing happened or not depends on where
-	// the receiver resides, which isn't explicit
-	// enough to avoid confusion.
-	//   fr.DidCrossing = true
-	// }
 	if recv.IsDefined() { // method call
 		obj := recv.GetFirstObject(m.Store)
 		if obj == nil { // nil receiver
 			if pv.IsRealm() {
+				// cross into fv's realm
 				m.Realm = pv.Realm
 			}
-			// no switch
 			return
 		} else {
 			recvOID := obj.GetObjectInfo().ID
 			if recvOID.IsZero() {
-				// cross into fv's realm for unreal receiver
-				// see realm_dao.gno
 				if pv.IsRealm() {
+					// cross into fv's realm for unreal receiver
+					// see realm_dao.gno
 					m.Realm = pv.Realm
 				}
 				return
 			}
 
 			// is recv is real, method realm and storage realm should be same
-			if IsRealmPath(fv.PkgPath) && PkgIDFromPkgPath(fv.PkgPath) != recvOID.PkgID {
-				panic(fmt.Sprintf("should not happen, mismatched method/receiver realm, %v/(%v---------%v)\n", cx, fv.PkgPath, recvOID.PkgID))
+			if IsRealmPath(fv.PkgPath) {
+				if fvPkgID := PkgIDFromPkgPath(fv.PkgPath); fvPkgID != recvOID.PkgID {
+					panic(fmt.Sprintf("invalid call: %v, method realm: %v does not match receiver realm: %v\n",
+						cx, fvPkgID, recvOID.PkgID))
+				}
 			}
 
+			// same realm
 			if m.Realm != nil && recvOID.PkgID == m.Realm.ID {
 				// no switch
 				return
-			} else {
-				// Implicit switch to storage realm.
-				// Neither cross nor didswitch.
-				var rlm *Realm
-				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
-				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				if objpv.IsRealm() && objpv.Realm == nil {
-					rlm = m.Store.GetPackageRealm(objpv.PkgPath)
-				} else {
-					rlm = objpv.GetRealm()
-				}
-				// Note it's possible to cross into nil realm(for p),
-				// mutating global var and discared.
-				// see files/zrealm_borrow7.gno, files/import4.gno
-				m.Realm = rlm
-				return
 			}
+
+			// Implicit switch to storage realm.
+			// Neither cross nor didswitch.
+			var rlm *Realm
+			recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
+			objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
+			if objpv.IsRealm() && objpv.Realm == nil {
+				rlm = m.Store.GetPackageRealm(objpv.PkgPath)
+			} else {
+				rlm = objpv.GetRealm()
+			}
+			// Note it's possible to cross into nil realm(for p),
+			// mutating global var and discared.
+			// see files/zrealm_borrow7.gno, files/import4.gno
+			m.Realm = rlm
+			return
 		}
 	} else { // function without receiver, nor explicit cross
 		if pv.Realm == m.Realm {
@@ -2017,7 +2010,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		if pv.IsRealm() {
 			// Case 1, non-cross call func declared in
 			// other realm, usually for a utility func.
-			// pkg.Foo
+			// in the stype of pkg.Foo
 			if sx, ok := cx.Func.(*SelectorExpr); ok {
 				if cx, ok := sx.X.(*ConstExpr); ok {
 					_, isExternalFunc := cx.T.(*PackageType)
@@ -2028,8 +2021,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				}
 			}
 
-			// Case 2, non-cross call the func declared in
-			// same realm.
+			// Case 2, non-cross call the func declared
+			// in Same realm.
+			// m.Realm may be nil in tests, allowing p to import r.
 			if fv.PkgPath == fr.LastPackage.PkgPath {
 				// no switch func call within package
 				return
