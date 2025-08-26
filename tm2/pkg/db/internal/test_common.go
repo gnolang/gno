@@ -91,7 +91,10 @@ func BenchmarkIterator(b *testing.B, db db.DB) {
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		it := db.Iterator(int642Bytes(0), int642Bytes(numItems))
+		it, err := db.Iterator(int642Bytes(0), int642Bytes(numItems))
+		if err != nil {
+			panic(err)
+		}
 		for {
 			it.Next()
 
