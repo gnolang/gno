@@ -7,6 +7,7 @@ import (
 // CallerTeller returns a GRC20 compatible teller that checks the PreviousRealm
 // caller for each call. It's usually safe to expose it publicly to let users
 // manipulate their tokens directly, or for realms to use their allowance.
+
 func (tok *Token) CallerTeller() Teller {
 	if tok == nil {
 		panic("Token cannot be nil")
@@ -39,7 +40,6 @@ func (tok *Token) ReadonlyTeller() Teller {
 // The initializer of this teller should usually never share the resulting Teller from
 // this method except maybe for advanced delegation flows such as a DAO treasury
 // management.
-// NEEDS TO BE USED IN A CROSSING FUNCTION
 func (tok *Token) RealmTeller() Teller {
 	if tok == nil {
 		panic("Token cannot be nil")
@@ -57,7 +57,6 @@ func (tok *Token) RealmTeller() Teller {
 
 // RealmSubTeller is like RealmTeller but uses the provided slug to derive a
 // subaccount.
-// NEEDS TO BE USED IN A CROSSING FUNCTION
 func (tok *Token) RealmSubTeller(slug string) Teller {
 	if tok == nil {
 		panic("Token cannot be nil")
