@@ -349,9 +349,8 @@ func makeHTTPHandler(rpcFunc *RPCFunc, logger *slog.Logger) http.HandlerFunc {
 		logger.Info("HTTPRestRPC", "method", r.URL.Path, "args", args, "returns", returns)
 		result, err := unreflectResult(returns)
 		if err != nil {
-			statusErr := &types.HTTPStatusError{}
-			if ok := goerrors.As(err, statusErr); ok {
-				fmt.Println("found our error", statusErr)
+			statusErr := types.HTTPStatusError{}
+			if ok := goerrors.As(err, &statusErr); ok {
 				WriteRPCResponseHTTPError(w, statusErr.Code, types.RPCInternalError(types.JSONRPCStringID(""), err))
 				return
 			}
