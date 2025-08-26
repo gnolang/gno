@@ -18,6 +18,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
+
+	igh "github.com/gnolang/gno/contribs/gnofaucet/github"
 )
 
 type githubCfg struct {
@@ -154,10 +156,7 @@ func execGithub(ctx context.Context, cfg *githubCfg, io commands.IO) error {
 		return fmt.Errorf("failed to parse rewarder config: %w", err)
 	}
 
-	rr := &RedisRewarder{
-		redisClient: rdb,
-		cfg:         rewarderCfg,
-	}
+	rr := igh.NewRedisRewarder(rdb, rewarderCfg)
 
 	// Prepare the middlewares
 	httpMiddlewares := []func(http.Handler) http.Handler{
@@ -222,9 +221,9 @@ func execGHFetcher(ctx context.Context, cfg *ghFetcherCfg, io commands.IO) error
 	httpClient := oauth2.NewClient(context.Background(), installationTokenSource)
 	githubClient := github.NewClient(httpClient)
 	githubGraphql := graphql.NewClient("https://api.github.com/graphql", httpClient)
-	ghImpl := NewGithubClientImpl(githubClient, githubGraphql)
+	ghImpl := igh.NewGithubClientImpl(githubClient, githubGraphql)
 
-	fetcher := NewGHFetcher(ghImpl, rdb, parseRepos(), log, cfg.fetchInterval)
+	fetcher := igh.NewGHFetcher(ghImpl, rdb, parseRepos(), log, cfg.fetchInterval)
 
 	return fetcher.Fetch(ctx)
 }
@@ -250,8 +249,8 @@ func parseRepos() map[string][]string {
 	return out
 }
 
-func parseRewarderConfig() (*RewarderCfg, error) {
-	cfg := &RewarderCfg{}
+func parseRewarderConfig() (*igh.RewarderCfg, error) {
+	cfg := &igh.RewarderCfg{}
 
 	parsers := []struct {
 		envVar string

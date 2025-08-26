@@ -1,4 +1,4 @@
-package main
+package github
 
 import (
 	"context"
@@ -31,9 +31,7 @@ func TestFetch(t *testing.T) {
 
 	redisServer := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     redisServer.Addr(),
-		Username: os.Getenv(envRedisUser),
-		Password: os.Getenv(envRedisPassword),
+		Addr: redisServer.Addr(),
 	})
 
 	repos := map[string][]string{
