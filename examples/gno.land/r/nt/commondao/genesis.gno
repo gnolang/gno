@@ -9,7 +9,6 @@ import (
 func init() {
 	// Create a DAO for the realm
 	id := daoID.Next()
-
 	dao := commondao.New(
 		commondao.WithID(uint64(id)),
 		commondao.WithName("Common DAO"),

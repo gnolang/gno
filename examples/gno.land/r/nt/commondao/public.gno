@@ -68,7 +68,7 @@ func NewSubDAO(_ realm, name string, parentID uint64, options ...Option) *common
 // GetOptions returns the configuration of a DAO.
 // It panics if caller doesn't have ownership of the DAO instance.
 func GetOptions(daoID uint64) *Options {
-	if !isOwner(std.PreviousRealm().Address(), daoID) {
+	if !isOwner(std.CurrentRealm().Address(), daoID) {
 		panic("unauthorized")
 	}
 
