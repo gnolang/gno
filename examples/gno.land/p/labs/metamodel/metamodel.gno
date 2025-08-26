@@ -190,6 +190,25 @@ func New(inputs ...any) *Model {
 
 	return m
 }
+func (model *Model) T(val int64, object string) TokenType {
+    size := 1
+    if len(model.Objects) > 0 {
+        size = len(model.Objects)
+    }
+
+    wt := make(TokenType, size)
+    if object != "" && len(model.Objects) > 0 {
+        for i, obj := range model.Objects {
+            if obj == object {
+                wt[i] = val
+                break
+            }
+        }
+    } else {
+        wt[0] = val // default to first object
+    }
+    return wt
+}
 
 func (model *Model) Arrow(opts Arc) Arrow {
 	if opts.Source == "" {

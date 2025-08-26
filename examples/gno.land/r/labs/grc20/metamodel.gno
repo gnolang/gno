@@ -15,13 +15,16 @@ const (
 // GRC20 returns a single model that matches GRC20 semantics.
 func GRC20(opts map[string]any) *mm.Model {
     // Helper to get integer options with defaults
-    getIntOpt := func(key string, def int) int {
-        if v, ok := opts[key]; ok {
-            if i, ok := v.(int); ok {
-                return i
+    getIntOpt := func(key string, def int) int64 {
+        if val, ok := opts[key]; ok {
+            if intval, ok := val.(int); ok {
+                return int64(intval)
+            }
+            if intval, ok := val.(int64); ok {
+                return intval
             }
         }
-        return def
+        return int64(def)
     }
 
     // Objects
@@ -37,11 +40,12 @@ func GRC20(opts map[string]any) *mm.Model {
     burnAmt := int64(getIntOpt("burn_amount", 2))
 
     // Initial values
-    ownerInit := mm.T(getIntOpt("owner_balance", 1100))
-    recipientInit := mm.T(getIntOpt("recipient_balance", 0))
-    allowInit := mm.T(getIntOpt("allowance_initial", 0))
-    minterInit := mm.T(getIntOpt("minter_initial", 1))
-    supplyInit := mm.T(getIntOpt("supply_initial", 0))
+    supplyInit := objectModel.T(getIntOpt("supply_initial", 0), Token)
+    ownerInit := objectModel.T(getIntOpt("owner_balance", 1100), Token)
+    recipientInit := objectModel.T(getIntOpt("recipient_balance", 0), Token)
+
+    allowInit := objectModel.T(getIntOpt("allowance_initial", 0), Allow)
+    minterInit := objectModel.T(getIntOpt("minter_initial", 1), Allow)
 
 places := map[string]mm.Place{
     "$owner":               {Initial: ownerInit, X: 43, Y: 266},
