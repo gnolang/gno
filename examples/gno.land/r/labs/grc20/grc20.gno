@@ -7,8 +7,8 @@ package grc20
 var pflowLink = "[![pflow](https://pflow.dev/img/zb2rhdBY7MrYLhWAm1GLZu7NzKfnko2DxpcYwUHGWgWWE8KAk.svg)](https://pflow.dev/p/zb2rhdBY7MrYLhWAm1GLZu7NzKfnko2DxpcYwUHGWgWWE8KAk/)"
 
 func Render(path string) string {
-    m := GRC20(map[string]any{})
-    return pflowLink + "\n\n" + m.Markdown()
+	m := GRC20(map[string]any{})
+	return pflowLink + "\n\n" + m.Markdown()
 }
 
 /*
