@@ -67,7 +67,7 @@ transitions := map[string]mm.Transition{
 arrows := []mm.Arrow{
     objectModel.Arrow(mm.Arc{Source: "$owner", Target: "transfer", Weight: transferAmt, Object: Token}),
     objectModel.Arrow(mm.Arc{Source: "transfer", Target: "$recipient", Weight: transferAmt, Object: Token}),
-    objectModel.Arrow(mm.Arc{Source: "$owner", Target: "approveAdd", Weight: approveAmt, Object: Allow}),
+    objectModel.Arrow(mm.Arc{Source: "approveAdd", Target: "$owner", Weight: approveAmt, Inhibit: true, Object: Allow}),
     objectModel.Arrow(mm.Arc{Source: "approveAdd", Target: "$allow(owner->spender)", Weight: approveAmt, Object: Allow}),
     objectModel.Arrow(mm.Arc{Source: "$allow(owner->spender)", Target: "approveZero", Weight: spendAmt, Object: Allow}),
     objectModel.Arrow(mm.Arc{Source: "approveZero", Target: "$void", Weight: spendAmt, Object: Allow}),
