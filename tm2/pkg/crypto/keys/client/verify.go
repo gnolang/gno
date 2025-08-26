@@ -63,7 +63,7 @@ func execVerify(cfg *VerifyCfg, args []string, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-	msg := []byte{}
+	var msg []byte
 
 	// read document to sign
 	if docpath == "" { // from stdin.
