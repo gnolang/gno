@@ -93,7 +93,7 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - uses: actions/checkout@v5
-      - run: |
-          cd examples
+      - working-directory: ./examples
+        run: |
           make tidy
           git diff --exit-code || (echo "Some gnomod.toml files are not tidy, please run 'make tidy'." && exit 1)
