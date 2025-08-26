@@ -304,3 +304,19 @@ func (ctx *Context) Context() context.Context {
 	}
 	return context.Background()
 }
+
+func NewHTTPStatusError(code int, message string) error {
+	return &HTTPStatusError{Code: code, Message: message}
+}
+
+type HTTPStatusError struct {
+	Code    int
+	Message string
+}
+
+// Error implements error.
+func (h HTTPStatusError) Error() string {
+	return fmt.Sprintf("%d: %s", h.Code, h.Message)
+}
+
+var _ error = (*HTTPStatusError)(nil)

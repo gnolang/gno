@@ -47,8 +47,7 @@ func Ready(ctx *rpctypes.Context) (*ctypes.ResultReady, error) {
 	}
 
 	if latestHeight < 1 {
-		// NOTE: using panic since it is the only way to send a non-200 http response with current middleware
-		panic(fmt.Errorf("not ready, latest height is %d", latestHeight))
+		return &ctypes.ResultReady{}, rpctypes.NewHTTPStatusError(503, fmt.Sprintf("not ready: latest height is %d", latestHeight))
 	}
 
 	return &ctypes.ResultReady{}, nil
