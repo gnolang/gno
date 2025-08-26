@@ -26,7 +26,7 @@ const (
 
 // Implements store.CommitStoreConstructor.
 func StoreConstructor(db dbm.DB, opts types.StoreOptions) types.CommitStore {
-	tree := iavl.NewMutableTree(db, defaultIAVLCacheSize, false, iavl.NewNopLogger())
+	tree := iavl.NewMutableTree(db, defaultIAVLCacheSize, true, iavl.NewNopLogger())
 	store := UnsafeNewStore(tree, opts)
 	return store
 }
