@@ -32,6 +32,7 @@ const (
 	consensusStateMethod     = "consensus_state"
 	consensusParamsMethod    = "consensus_params"
 	healthMethod             = "health"
+	readyMethod              = "ready"
 	blockchainMethod         = "blockchain"
 	genesisMethod            = "genesis"
 	blockMethod              = "block"
@@ -233,6 +234,15 @@ func (c *RPCClient) Health() (*ctypes.ResultHealth, error) {
 		c.caller,
 		c.requestTimeout,
 		healthMethod,
+		map[string]any{},
+	)
+}
+
+func (c *RPCClient) Ready() (*ctypes.ResultReady, error) {
+	return sendRequestCommon[ctypes.ResultReady](
+		c.caller,
+		c.requestTimeout,
+		readyMethod,
 		map[string]any{},
 	)
 }

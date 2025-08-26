@@ -550,6 +550,36 @@ func TestRPCClient_Health(t *testing.T) {
 	assert.Equal(t, expectedResult, result)
 }
 
+func TestRPCClient_Ready(t *testing.T) {
+	t.Parallel()
+
+	var (
+		expectedResult = &ctypes.ResultReady{}
+
+		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
+			assert.Len(t, params, 0)
+		}
+
+		mockClient = generateMockRequestClient(
+			t,
+			readyMethod,
+			verifyFn,
+			expectedResult,
+		)
+	)
+
+	// Create the client
+	c := NewRPCClient(mockClient)
+
+	// Get the result
+	result, err := c.Ready()
+	require.NoError(t, err)
+
+	assert.Equal(t, expectedResult, result)
+}
+
 func TestRPCClient_BlockchainInfo(t *testing.T) {
 	t.Parallel()
 

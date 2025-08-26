@@ -309,6 +309,21 @@ func (b *RPCBatch) Health() error {
 	return nil
 }
 
+func (b *RPCBatch) Ready() error {
+	// Prepare the RPC request
+	request, err := newRequest(
+		readyMethod,
+		map[string]any{},
+	)
+	if err != nil {
+		return fmt.Errorf("unable to create request, %w", err)
+	}
+
+	b.addRequest(request, &ctypes.ResultReady{})
+
+	return nil
+}
+
 func (b *RPCBatch) BlockchainInfo(minHeight, maxHeight int64) error {
 	// Prepare the RPC request
 	request, err := newRequest(

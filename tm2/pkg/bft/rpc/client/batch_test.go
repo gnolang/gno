@@ -361,6 +361,19 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 			},
 		},
 		{
+			readyMethod,
+			&ctypes.ResultReady{},
+			func(batch *RPCBatch) {
+				require.NoError(t, batch.Ready())
+			},
+			func(result any) any {
+				castResult, ok := result.(*ctypes.ResultReady)
+				require.True(t, ok)
+
+				return castResult
+			},
+		},
+		{
 			blockchainMethod,
 			&ctypes.ResultBlockchainInfo{
 				LastHeight: 100,
