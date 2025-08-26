@@ -1,7 +1,3 @@
----
-id: comparison-of-ways-to-interact-with-gnoland
----
-
 # Comparison of the various ways to communicate with Gno.land
 
 This document is an overview of the various methods to interact with gnoland. This is mainly for developers writing applications.
@@ -21,8 +17,6 @@ This document is an overview of the various methods to interact with gnoland. Th
 ## Go code with `gnoclient` and `crypto/keys`
 
 **What is it?** The [`gnoclient`](https://docs.gno.land/how-to-guides/connect-from-go) and [`crypto/keys`](https://github.com/gnolang/gno/tree/master/tm2/pkg/crypto/keys) packages are part of the core Gno codebase, written in Go. The `gnoclient` API is for querying the blockchain, calling realm functions, and other basic interactions. The `crypto/keys` API is for generating cryptographical keys and managing the local keys database.
-
-Make sure you also check out this [practical guide](https://github.com/gnolang/gno/blob/master/docs/how-to-guides/connecting-from-go.md) on connecting from Go using gnoclient.
 
 **When to use it?** If your app is written in Go, you can use these packages (as `gnokey` and other command-line apps do).
 
