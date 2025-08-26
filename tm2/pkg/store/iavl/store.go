@@ -123,6 +123,15 @@ func (st *Store) SetStoreOptions(opts2 types.StoreOptions) {
 }
 
 // Implements Committer.
+func (st *Store) LoadLatestVersion() error {
+	version, err := st.tree.GetLatestVersion()
+	if err != nil {
+		return err
+	}
+	return st.LoadVersion(version)
+}
+
+// Implements Committer.
 func (st *Store) LoadVersion(ver int64) error {
 	if st.opts.Immutable {
 		immutTree, err := st.tree.(*iavl.MutableTree).GetImmutable(ver)

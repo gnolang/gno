@@ -97,6 +97,7 @@ type Committer interface {
 	LastCommitID() CommitID
 	GetStoreOptions() StoreOptions
 	SetStoreOptions(StoreOptions)
+	LoadLatestVersion() error
 
 	// Load a specific persisted version. When you load an old version, or when
 	// the last commit attempt didn't complete, the next commit after loading
@@ -118,8 +119,6 @@ type CommitStoreConstructor func(db dbm.DB, opts StoreOptions) CommitStore
 type CommitMultiStore interface {
 	Committer
 	MultiStore
-
-	LoadLatestVersion() error
 
 	// Mount a store of type using the given db.
 	// If db == nil, the new store will use the CommitMultiStore db.

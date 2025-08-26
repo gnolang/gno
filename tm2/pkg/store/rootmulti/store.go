@@ -314,7 +314,7 @@ func (ms *multiStore) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 		return
 	}
 
-	// Restore origin path and append proof op.
+	// Append proof op.
 	res.Proof.Ops = append(res.Proof.Ops, proofOp)
 
 	// TODO: handle in another TM v0.26 update PR

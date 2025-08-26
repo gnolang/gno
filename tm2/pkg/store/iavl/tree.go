@@ -24,6 +24,7 @@ type Tree interface {
 	DeleteVersionsTo(version int64) error
 	Version() int64
 	Hash() []byte
+	GetLatestVersion() (int64, error)
 	VersionExists(version int64) bool
 	GetVersioned(key []byte, version int64) ([]byte, error)
 	GetImmutable(version int64) (*iavl.ImmutableTree, error)
@@ -52,8 +53,8 @@ func (it *immutableTree) DeleteVersionsTo(_ int64) error {
 	panic("cannot call 'DeleteVersionsTo' on an immutable IAVL tree")
 }
 
-func (it *immutableTree) LatestVersion() int64 {
-	return it.Version()
+func (it *immutableTree) GetLatestVersion() (int64, error) {
+	return it.Version(), nil
 }
 
 func (it *immutableTree) VersionExists(version int64) bool {
