@@ -53,13 +53,9 @@ func TestBuyTicket(t *testing.T) {
 	buyer := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	testing.SetOriginCaller(buyer)
 
-	// Test buying without payment
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("Expected panic when buying without payment")
-		}
-	}()
-	BuyTicket(cross, eventId)
+	uassert.AbortsWithMessage(t, "Invalid payment amount: needs to be 1000000ugnot", func() {
+		BuyTicket(cross, eventId)
+	})
 
 	// Test successful purchase
 	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 1000000)))
@@ -78,13 +74,11 @@ func TestBuyTicket(t *testing.T) {
 
 	// Test buying sold out event
 	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 1000000)))
-	//BuyTicket(cross, eventId) // Buy second ticket
-	//defer func() {
-	//	if r := revive(); r == nil {
-	//		t.Error("Expected panic when event is sold out")
-	//	}
-	//}()
-	//BuyTicket(cross, eventId) // Should panic - sold out
+	BuyTicket(cross, eventId) // Buy second ticket
+
+	uassert.AbortsWithMessage(t, "Event is sold out", func() {
+		BuyTicket(cross, eventId)
+	})
 }
 
 func TestBuyTicketWithGRC20(t *testing.T) {
@@ -112,7 +106,7 @@ func TestBuyTicketWithGRC20(t *testing.T) {
 		"GRC20 Event",
 		"An event with GRC20 payment",
 		"2024-12-31T23:59:59Z",
-		token.RealmTeller(),
+		token.CallerTeller(),
 		2,
 		1000000,
 	)
@@ -127,13 +121,14 @@ func TestBuyTicketWithGRC20(t *testing.T) {
 
 	// Verify approval
 	allowance := token.Allowance(buyer, pkgAddr)
-	urequire.Equal(t, uint64(1000000), allowance, "Approval should be set correctly")
+	urequire.Equal(t, int64(1000000), allowance, "Approval should be set correctly")
 
-	// Buy ticket
 	testing.SetOriginCaller(buyer)
 	testing.SetRealm(std.NewUserRealm(buyer))
-	BuyTicket(cross, eventId)
 
+	// Buy ticket
+	BuyTicket(cross, eventId)
+	//
 	// Verify purchase
 	event, exists := getEvent(eventId)
 	urequire.True(t, exists)
@@ -147,5 +142,5 @@ func TestBuyTicketWithGRC20(t *testing.T) {
 
 	// Verify GRC20 balance changes
 	buyerBalance := token.BalanceOf(buyer)
-	urequire.Equal(t, uint64(1000000), buyerBalance) // Should have 1M left after spending 1M
+	urequire.Equal(t, int64(1000000), buyerBalance) // Should have 1M left after spending 1M
 }

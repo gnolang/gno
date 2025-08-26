@@ -14,7 +14,7 @@ func (tok *Token) CallerTeller() Teller {
 
 	return &fnTeller{
 		accountFn: func() std.Address {
-			caller := std.PreviousRealm().Address()
+			caller := std.CurrentRealm().Address()
 			return caller
 		},
 		Token: tok,
@@ -39,6 +39,7 @@ func (tok *Token) ReadonlyTeller() Teller {
 // The initializer of this teller should usually never share the resulting Teller from
 // this method except maybe for advanced delegation flows such as a DAO treasury
 // management.
+// NEEDS TO BE USED IN A CROSSING FUNCTION
 func (tok *Token) RealmTeller() Teller {
 	if tok == nil {
 		panic("Token cannot be nil")
@@ -56,6 +57,7 @@ func (tok *Token) RealmTeller() Teller {
 
 // RealmSubTeller is like RealmTeller but uses the provided slug to derive a
 // subaccount.
+// NEEDS TO BE USED IN A CROSSING FUNCTION
 func (tok *Token) RealmSubTeller(slug string) Teller {
 	if tok == nil {
 		panic("Token cannot be nil")

@@ -14,7 +14,7 @@ import (
 //
 // The Teller interface is designed to ensure that any token adhering to this
 // standard provides a consistent API for interacting with fungible tokens.
-type Teller interface {
+type gsTeller interface {
 	exts.TokenMetadata
 
 	// Returns the amount of tokens in existence.

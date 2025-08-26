@@ -19,7 +19,7 @@ type Event struct {
 	date         time.Time
 	maxTickets   int
 	price        uint64
-	paymentToken interface{}
+	paymentToken any
 	ticketsSold  int
 }
 
@@ -29,7 +29,7 @@ var (
 	tickets             = grc721.NewBasicNFT("Event Ticket", "EVTIX")
 )
 
-func CreateEvent(_ realm, name, description, dateStr string, paymentToken interface{}, maxTickets int, price uint64) uint64 {
+func CreateEvent(_ realm, name, description, dateStr string, paymentToken any, maxTickets int, price uint64) uint64 {
 	// validate inputs
 	if maxTickets <= 0 {
 		panic("Maximum tickets must be greater than 0")
@@ -86,15 +86,13 @@ func BuyTicket(_ realm, eventId uint64) {
 		if pt != "ugnot" {
 			panic("Unsupported native token")
 		}
-
-		sent := std.OriginSend()
-		if len(sent) != 1 || sent[0].Denom != "ugnot" || uint64(sent[0].Amount) != event.price {
-			panic("Invalid payment amount")
+		if std.OriginSend().AmountOf("ugnot") != int64(event.price) {
+			panic(ufmt.Sprintf("Invalid payment amount: needs to be %dugnot", event.price))
 		}
-
 	case grc20.Teller:
 		if err := pt.TransferFrom(buyer, std.CurrentRealm().Address(), int64(event.price)); err != nil {
-			panic("GRC20 payment failed: " + err.Error())
+			//panic(ufmt.Sprintf("Buyer: %s\nCurr: %s\nallowance: %d\nprice:%d\n", buyer, std.CurrentRealm().Address().String(), pt.Allowance(buyer, std.CurrentRealm().Address()), event.price))
+			panic("GRC20 transfer error: " + err.Error())
 		}
 	default:
 		panic("Unsupported payment token type")
