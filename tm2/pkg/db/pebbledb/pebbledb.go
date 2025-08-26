@@ -120,7 +120,7 @@ func (pdb *PebbleDB) NewBatch() db.Batch {
 
 // Implements DB.
 func (pdb *PebbleDB) NewBatchWithSize(s int) db.Batch {
-	return &pebbleDBBatch{pdb, pdb.db.NewBatch()}
+	return &pebbleDBBatch{pdb, pdb.db.NewBatchWithSize(s)}
 }
 
 type pebbleDBBatch struct {
@@ -155,7 +155,7 @@ func (mBatch *pebbleDBBatch) Close() error {
 
 // Implements Batch.
 func (mBatch *pebbleDBBatch) GetByteSize() (int, error) {
-	return 0, nil
+	return mBatch.batch.Len(), nil
 }
 
 // Implements DB.
