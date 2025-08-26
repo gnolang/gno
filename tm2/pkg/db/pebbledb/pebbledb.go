@@ -42,14 +42,14 @@ func NewPebbleDBWithOpts(name string, dir string, o *pebble.Options) (*PebbleDB,
 }
 
 // Implements DB.
-func (pdb *PebbleDB) Get(key []byte) []byte {
+func (pdb *PebbleDB) Get(key []byte) ([]byte, error) {
 	key = internal.NonNilBytes(key)
 	res, closer, err := pdb.db.Get(key)
 	if err != nil {
 		if goerrors.Is(err, pebble.ErrNotFound) {
-			return nil
+			return nil, nil
 		}
-		panic(err)
+		return nil, err
 	}
 
 	// The caller should not modify the contents of the returned slice,
@@ -59,45 +59,40 @@ func (pdb *PebbleDB) Get(key []byte) []byte {
 	defer closer.Close()
 	out := make([]byte, len(res))
 	copy(out, res)
-	return out
+	return out, nil
 }
 
 // Implements DB.
-func (pdb *PebbleDB) Has(key []byte) bool {
-	return pdb.Get(key) != nil
+func (pdb *PebbleDB) Has(key []byte) (bool, error) {
+	v, err := pdb.Get(key)
+	if err != nil {
+		return false, err
+	}
+	return v != nil, nil
 }
 
 // Implements DB.
-func (pdb *PebbleDB) Set(key []byte, value []byte) {
+func (pdb *PebbleDB) Set(key []byte, value []byte) error {
 	key = internal.NonNilBytes(key)
 	value = internal.NonNilBytes(value)
-	err := pdb.db.Set(key, value, pebble.Sync)
-	if err != nil {
-		panic(err)
-	}
+	return pdb.db.Set(key, value, pebble.Sync)
 }
 
 // Implements DB.
-func (pdb *PebbleDB) SetSync(key []byte, value []byte) {
-	pdb.Set(key, value)
+func (pdb *PebbleDB) SetSync(key []byte, value []byte) error {
+	return pdb.Set(key, value)
 }
 
 // Implements DB.
-func (pdb *PebbleDB) Delete(key []byte) {
+func (pdb *PebbleDB) Delete(key []byte) error {
 	key = internal.NonNilBytes(key)
-	err := pdb.db.Delete(key, pebble.Sync)
-	if err != nil {
-		panic(err)
-	}
+	return pdb.db.Delete(key, pebble.Sync)
 }
 
 // Implements DB.
-func (pdb *PebbleDB) DeleteSync(key []byte) {
+func (pdb *PebbleDB) DeleteSync(key []byte) error {
 	key = internal.NonNilBytes(key)
-	err := pdb.db.Delete(key, pebble.Sync)
-	if err != nil {
-		panic(err)
-	}
+	return pdb.db.Delete(key, pebble.Sync)
 }
 
 // Implements DB.
@@ -106,7 +101,8 @@ func (pdb *PebbleDB) Close() error {
 }
 
 // Implements DB.
-func (pdb *PebbleDB) Print() {
+func (pdb *PebbleDB) Print() error {
+	return nil
 }
 
 // Implements DB.
@@ -122,65 +118,67 @@ func (pdb *PebbleDB) NewBatch() db.Batch {
 	return &pebbleDBBatch{pdb, pdb.db.NewBatch()}
 }
 
+// Implements DB.
+func (pdb *PebbleDB) NewBatchWithSize(s int) db.Batch {
+	return &pebbleDBBatch{pdb, pdb.db.NewBatch()}
+}
+
 type pebbleDBBatch struct {
 	db    *PebbleDB
 	batch *pebble.Batch
 }
 
 // Implements Batch.
-func (mBatch *pebbleDBBatch) Set(key, value []byte) {
-	if err := mBatch.batch.Set(key, value, pebble.NoSync); err != nil {
-		panic(err)
-	}
+func (mBatch *pebbleDBBatch) Set(key, value []byte) error {
+	return mBatch.batch.Set(key, value, pebble.NoSync)
 }
 
 // Implements Batch.
-func (mBatch *pebbleDBBatch) Delete(key []byte) {
-	if err := mBatch.batch.Delete(key, pebble.NoSync); err != nil {
-		panic(err)
-	}
+func (mBatch *pebbleDBBatch) Delete(key []byte) error {
+	return mBatch.batch.Delete(key, pebble.NoSync)
 }
 
 // Implements Batch.
-func (mBatch *pebbleDBBatch) Write() {
-	if err := mBatch.batch.Commit(pebble.Sync); err != nil {
-		panic(err)
-	}
+func (mBatch *pebbleDBBatch) Write() error {
+	return mBatch.batch.Commit(pebble.Sync)
 }
 
 // Implements Batch.
-func (mBatch *pebbleDBBatch) WriteSync() {
-	if err := mBatch.batch.Commit(pebble.Sync); err != nil {
-		panic(err)
-	}
+func (mBatch *pebbleDBBatch) WriteSync() error {
+	return mBatch.batch.Commit(pebble.Sync)
 }
 
 // Implements Batch.
-func (mBatch *pebbleDBBatch) Close() {
-	mBatch.batch.Close()
+func (mBatch *pebbleDBBatch) Close() error {
+	return mBatch.batch.Close()
+}
+
+// Implements Batch.
+func (mBatch *pebbleDBBatch) GetByteSize() (int, error) {
+	return 0, nil
 }
 
 // Implements DB.
-func (pdb *PebbleDB) Iterator(start, end []byte) db.Iterator {
+func (pdb *PebbleDB) Iterator(start, end []byte) (db.Iterator, error) {
 	it, err := pdb.db.NewIter(&pebble.IterOptions{
 		LowerBound: start,
 		UpperBound: end,
 	})
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return newPebbleDBIterator(it, start, end, false)
+	return newPebbleDBIterator(it, start, end, false), nil
 }
 
 // Implements DB.
-func (pdb *PebbleDB) ReverseIterator(start, end []byte) db.Iterator {
+func (pdb *PebbleDB) ReverseIterator(start, end []byte) (db.Iterator, error) {
 	it, err := pdb.db.NewIter(nil)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return newPebbleDBIterator(it, start, end, true)
+	return newPebbleDBIterator(it, start, end, true), nil
 }
 
 type pebbleDBIterator struct {
@@ -292,8 +290,13 @@ func (itr *pebbleDBIterator) Next() {
 }
 
 // Implements Iterator.
-func (itr *pebbleDBIterator) Close() {
-	itr.source.Close()
+func (itr *pebbleDBIterator) Close() error {
+	return itr.source.Close()
+}
+
+// Implements Iterator.
+func (itr *pebbleDBIterator) Error() error {
+	return itr.source.Error()
 }
 
 func (itr *pebbleDBIterator) assertNoError() {
