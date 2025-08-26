@@ -103,15 +103,11 @@
 	}
 
 	.realm-view img {
-		@apply max-w-full my-8 border border-gray-100 select-none rounded;
+		@apply inline-block max-w-full border border-gray-100 select-none rounded;
 	}
 
-	.realm-view p:has(> a:only-child > img) {
+	.realm-view p:has(img) {
 		@apply my-8;
-	}
-
-	.realm-view p:has(> a:only-child > img) img {
-		@apply my-0;
 	}
 
 	.realm-view strong {
