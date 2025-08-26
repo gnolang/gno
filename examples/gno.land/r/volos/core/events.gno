@@ -74,15 +74,48 @@ const (
 	EventTimestampKey    = "currentTimestamp"
 	EventSupplyAPRKey    = "supplyAPR"
 	EventBorrowAPRKey    = "borrowAPR"
+	// MarketInfo keys
+	EventIsToken0LoanKey            = "isToken0Loan"
+	EventLoanTokenNameKey           = "loanTokenName"
+	EventLoanTokenSymbolKey         = "loanTokenSymbol"
+	EventLoanTokenDecimalsKey       = "loanTokenDecimals"
+	EventCollateralTokenNameKey     = "collateralTokenName"
+	EventCollateralTokenSymbolKey   = "collateralTokenSymbol"
+	EventCollateralTokenDecimalsKey = "collateralTokenDecimals"
 )
 
 // Event emission helper functions
 func emitCreateMarket(marketId string, loanToken string, collateralToken string) {
+	var loanTokenName, loanTokenSymbol string
+	var loanTokenDecimals uint
+	var collateralTokenName, collateralTokenSymbol string
+	var collateralTokenDecimals uint
+
+	loanTokenInfo := GetToken(loanToken)
+	if loanTokenInfo != nil {
+		loanTokenName = loanTokenInfo.GetName()
+		loanTokenSymbol = loanTokenInfo.GetSymbol()
+		loanTokenDecimals = uint(loanTokenInfo.GetDecimals())
+	}
+
+	collateralTokenInfo := GetToken(collateralToken)
+	if collateralTokenInfo != nil {
+		collateralTokenName = collateralTokenInfo.GetName()
+		collateralTokenSymbol = collateralTokenInfo.GetSymbol()
+		collateralTokenDecimals = uint(collateralTokenInfo.GetDecimals())
+	}
+
 	std.Emit(
 		CreateMarketEvent,
 		EventMarketIDKey, marketId,
 		EventLoanTokenKey, loanToken,
 		EventCollateralTokenKey, collateralToken,
+		EventLoanTokenNameKey, loanTokenName,
+		EventLoanTokenSymbolKey, loanTokenSymbol,
+		EventLoanTokenDecimalsKey, strconv.FormatUint(uint64(loanTokenDecimals), 10),
+		EventCollateralTokenNameKey, collateralTokenName,
+		EventCollateralTokenSymbolKey, collateralTokenSymbol,
+		EventCollateralTokenDecimalsKey, strconv.FormatUint(uint64(collateralTokenDecimals), 10),
 		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
