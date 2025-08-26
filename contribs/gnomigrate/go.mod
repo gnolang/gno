@@ -7,6 +7,8 @@ require (
 	github.com/stretchr/testify v1.10.0
 )
 
+replace github.com/gnolang/gno => ../..
+
 require (
 	cosmossdk.io/core v0.12.1-0.20240725072823-6a2d039e1212 // indirect
 	dario.cat/mergo v1.0.1 // indirect
@@ -58,7 +60,7 @@ require (
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/sig-0/insertion-queue v0.0.0-20241004125609-6b3ca841346b // indirect
-	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d // indirect
+	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/zondax/ledger-go v1.0.1 // indirect
 	go.etcd.io/bbolt v1.3.11 // indirect
@@ -87,5 +89,3 @@ require (
 	google.golang.org/protobuf v1.36.8 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/gnolang/gno => ../..
