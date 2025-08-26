@@ -318,9 +318,7 @@ type HTTPStatusError struct {
 	Message string
 }
 
-var _ error = (*HTTPStatusError)(nil)
-
 // Error implements error.
-func (h HTTPStatusError) Error() string {
+func (h *HTTPStatusError) Error() string {
 	return fmt.Sprintf("%d: %s", h.Code, h.Message)
 }
