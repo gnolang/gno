@@ -55,7 +55,7 @@ func TestTeller(t *testing.T) {
 	urequire.NoError(t, ledger.Mint(alice, 1000))
 	urequire.NoError(t, ledger.Mint(alice, 100))
 	checkBalances(1100, 0, 0)
-	//checkAllowances(0, 0, 0, 0, 0, 0)
+	checkAllowances(0, 0, 0, 0, 0, 0)
 
 	urequire.NoError(t, ledger.Approve(alice, bob, 99999999))
 	checkBalances(1100, 0, 0)
@@ -141,7 +141,7 @@ func TestCallerTeller(t *testing.T) {
 		testing.SetRealm(std.NewUserRealm(bob))
 		urequire.NoError(t, teller.TransferFrom(alice, carl, 400))
 	})
-
+	//
 	checkBalances(600, 0, 400)
 	checkAllowances(200, 0, 0, 0, 0, 0)
 }
