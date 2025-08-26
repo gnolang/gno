@@ -53,12 +53,7 @@ func (dsa Store) Delete(key []byte) {
 	}
 }
 
-// Iterator over a domain of keys in ascending order. End is exclusive.
-// Start must be less than end, or the Iterator is invalid.
-// Iterator must be closed by caller.
-// To iterate over entire domain, use store.Iterator(nil, nil)
-// CONTRACT: No writes may happen within a domain while an iterator exists over it.
-// Exceptionally allowed for cachekv.Store, safe to write in the modules.
+// Iterator over a domain of keys in ascending order.
 func (dsa Store) Iterator(start, end []byte) types.Iterator {
 	it, err := dsa.DB.Iterator(start, end)
 	if err != nil {
@@ -67,11 +62,7 @@ func (dsa Store) Iterator(start, end []byte) types.Iterator {
 	return it
 }
 
-// Iterator over a domain of keys in descending order. End is exclusive.
-// Start must be less than end, or the Iterator is invalid.
-// Iterator must be closed by caller.
-// CONTRACT: No writes may happen within a domain while an iterator exists over it.
-// Exceptionally allowed for cachekv.Store, safe to write in the modules.
+// Iterator over a domain of keys in descending order.
 func (dsa Store) ReverseIterator(start, end []byte) types.Iterator {
 	it, err := dsa.DB.ReverseIterator(start, end)
 	if err != nil {
