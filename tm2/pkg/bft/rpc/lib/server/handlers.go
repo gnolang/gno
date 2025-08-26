@@ -349,7 +349,6 @@ func makeHTTPHandler(rpcFunc *RPCFunc, logger *slog.Logger) http.HandlerFunc {
 		logger.Info("HTTPRestRPC", "method", r.URL.Path, "args", args, "returns", returns)
 		result, err := unreflectResult(returns)
 		if err != nil {
-			fmt.Printf("%T: %v\n", err, err)
 			statusErr := &types.HTTPStatusError{}
 			if ok := goerrors.As(err, statusErr); ok {
 				fmt.Println("found our error", statusErr)
