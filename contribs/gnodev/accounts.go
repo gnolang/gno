@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -106,7 +107,7 @@ func generateBalances(bk *address.Book, cfg *AppConfig) (gnoland.Balances, error
 	return blsFile, nil
 }
 
-func logAccounts(logger *slog.Logger, book *address.Book, _ *dev.Node) error {
+func logAccounts(ctx context.Context, logger *slog.Logger, book *address.Book, _ *dev.Node) error {
 	var tab strings.Builder
 	tabw := tabwriter.NewWriter(&tab, 0, 0, 2, ' ', tabwriter.TabIndent)
 
@@ -116,7 +117,7 @@ func logAccounts(logger *slog.Logger, book *address.Book, _ *dev.Node) error {
 
 	for _, entry := range entries {
 		address := entry.Address.String()
-		qres, err := client.NewLocal().ABCIQuery("auth/accounts/"+address, []byte{})
+		qres, err := client.NewLocal().ABCIQuery(ctx, "auth/accounts/"+address, []byte{})
 		if err != nil {
 			return fmt.Errorf("unable to query account %q: %w", address, err)
 		}

@@ -20,7 +20,7 @@ func handlerStatusJSON(logger *slog.Logger, cli *client.RPCClient) http.Handler 
 	const qpath = ".app/version"
 
 	queryVersion := func(ctx context.Context) (*abci.ResponseQuery, error) {
-		qres, err := cli.ABCIQueryWithContext(ctx, qpath, []byte{})
+		qres, err := cli.ABCIQuery(ctx, qpath, []byte{})
 		if err != nil {
 			return nil, errors.Wrap(err, "query app version")
 		}
@@ -103,7 +103,7 @@ func handlerReadyJSON(logger *slog.Logger, cli *client.RPCClient, domain string)
 		const testPath = "vm/qpaths?limit=1"
 		testData := domain + "/"
 
-		qres, err := cli.ABCIQueryWithContext(ctx, testPath, []byte(testData))
+		qres, err := cli.ABCIQuery(ctx, testPath, []byte(testData))
 		switch {
 		case err != nil:
 		case qres.Response.Error != nil:
@@ -127,8 +127,8 @@ func handlerReadyJSON(logger *slog.Logger, cli *client.RPCClient, domain string)
 }
 
 // getChainID fetches the status endpoint and returns the "network" field
-func getChainID(cli *client.RPCClient) (string, error) {
-	status, err := cli.Status()
+func getChainID(ctx context.Context, cli *client.RPCClient) (string, error) {
+	status, err := cli.Status(ctx)
 	if err != nil {
 		return "", err
 	}

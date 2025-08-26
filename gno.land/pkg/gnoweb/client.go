@@ -178,7 +178,7 @@ func (c *rpcClient) query(ctx context.Context, qpath string, data []byte) ([]byt
 	c.logger.Info("querying node", "path", qpath, "data", string(data))
 
 	start := time.Now()
-	qres, err := c.client.ABCIQueryWithContext(ctx, qpath, data)
+	qres, err := c.client.ABCIQuery(ctx, qpath, data)
 	took := time.Since(start)
 	if err != nil {
 		// Unexpected error from the RPC client itself

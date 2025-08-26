@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -87,7 +88,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	}
 
 	if cfg.ChainID == "" {
-		cfg.ChainID, err = getChainID(rpcclient)
+		cfg.ChainID, err = getChainID(context.Background(), rpcclient)
 		if err != nil {
 			logger.Error("unable to guess chain-id, make sure that the remote node is up and running and the RPC endpoint is valid", "error", err)
 			return nil, errors.New("no chain-id configured")
