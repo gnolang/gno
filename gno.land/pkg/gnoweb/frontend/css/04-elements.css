@@ -94,6 +94,10 @@ form {
 	margin-block: 0;
 }
 
+code {
+	font-family: var(--g-font-mono);
+}
+
 summary {
 	cursor: pointer;
 }

@@ -12,7 +12,7 @@
 }
 
 .c-stack > * + * {
-	margin-block-start: var(--g-space-5);
+	margin-block-start: var(--g-space-4);
 }
 
 /* Center layout */
@@ -27,13 +27,13 @@
 	}
 }
 
+/* Scrollable content */
 .c-reel {
 	display: flex;
 	overflow: scroll;
 }
 
 /* Icon */
-
 .c-icon {
 	flex-shrink: 0;
 	width: 1.15em;
@@ -45,9 +45,22 @@
 	align-items: flex-start;
 }
 
-.c-with-icon .c-icon {
-	margin-inline-end: 0.4em;
+.c-with-icon .c-icon,
+.c-with-icon--inline .c-icon {
+	margin-inline: 0.3em;
 	margin-block-start: 0.15em;
+}
+
+.c-with-icon--inline {
+	display: inline-block;
+
+	& > * {
+		vertical-align: middle;
+	}
+
+	.c-icon {
+		margin-block-start: 0;
+	}
 }
 
 /* View grid */

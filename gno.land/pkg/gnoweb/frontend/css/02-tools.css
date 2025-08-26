@@ -36,18 +36,23 @@
 	--s-color-bg-brand-action: var(--g-color-green-400, #60AB96); /* Brand hover */
 
 	--s-color-bg-success-default: var(--g-color-green-600, #144134	); /* Success state */
+	--s-color-bg-success-weak: var(--g-color-green-50, #F0F9FF); /* Light success */
 	--s-color-bg-success-action: var(--g-color-green-400, #60AB96); /* Light success */
 
 	--s-color-bg-info-default: var(--g-color-blue-600, #21506B); /* Info state */
+	--s-color-bg-info-weak: var(--g-color-blue-50, #F0F9FF); /* Light info */
 	--s-color-bg-info-action: var(--g-color-blue-400, #49AFEB); /* Light info */
 
 	--s-color-bg-warning-default: var(--g-color-yellow-600, #665100); /* Warning state */
+	--s-color-bg-warning-weak: var(--g-color-yellow-50, #F9D985); /* Light warning */
 	--s-color-bg-warning-action: var(--g-color-yellow-400, #F9D985); /* Light warning */
 
 	--s-color-bg-error-default: var(--g-color-red-600, #661100); /* Error state */
+	--s-color-bg-error-weak: var(--g-color-red-50, #F98585); /* Light error */
 	--s-color-bg-error-action: var(--g-color-red-400, #F98585); /* Light error */
 
 	--s-color-bg-tip-default: var(--g-color-purple-600, #49216B); /* Tip state */
+	--s-color-bg-tip-weak: var(--g-color-purple-50, #F0F9FF); /* Light tip */
 	--s-color-bg-tip-action: var(--g-color-purple-400, #9660AB); /* Light tip */
 
 	/* Form backgrounds */
