@@ -25,7 +25,7 @@ func renderHome() string {
 	msg := md.H1("OO Home")
 	msg += md.Paragraph("Welcome to the first Optimistic Oracle on GnoLand! This project is developed by " + md.Link("@intermarch3", "/r/intermarch3/home"))
 	msg += md.Paragraph("For more information, visit the " + md.Link("Readme", std.CurrentRealm().PkgPath()[8:]+"$source") + ".")
-	msg += md.Link("Request Data", ufmt.Sprintf("%s", txlink.NewLink("RequestData").AddArgs("id", "YOUR_ID", "ancillaryData", "YOUR_QUESTION", "yesNoQuestion", "true or false").SetSend(strconv.Itoa(int(RequesterReward))).URL())) + "\n\n(Note: Requesting data need to pay a reward of " + strconv.Itoa(int(RequesterReward/1_000_000)) + " GNOT to the proposer).\n\n"
+	msg += md.Link("Request Data", ufmt.Sprintf("%s", txlink.NewLink("RequestData").AddArgs("ancillaryData", "YOUR_QUESTION", "yesNoQuestion", "true or false", "deadline", "DEADLINE_TIMESTAMP").SetSend(strconv.Itoa(int(RequesterReward))).URL())) + "\n\n(Note: Requesting data need to pay a reward of " + strconv.Itoa(int(RequesterReward/1_000_000)) + " GNOT to the proposer).\n\n"
 	msg += md.H2("Current Requests :")
 	// List current requests
 	var table []string
