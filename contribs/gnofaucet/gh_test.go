@@ -9,6 +9,7 @@ import (
 
 	"github.com/gnolang/faucet"
 	"github.com/gnolang/faucet/spec"
+	igh "github.com/gnolang/gno/contribs/gnofaucet/github"
 	"github.com/google/go-github/v64/github"
 	"github.com/stretchr/testify/assert"
 )
@@ -277,7 +278,7 @@ func TestGitHubCheckRewardsMiddleware(t *testing.T) {
 		name            string
 		ctx             context.Context
 		req             *spec.BaseJSONRequest
-		rewarder        Rewarder
+		rewarder        igh.Rewarder
 		nextShouldRun   bool
 		expectedError   string
 		expectedErrCode int

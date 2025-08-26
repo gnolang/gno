@@ -1,4 +1,4 @@
-package main
+package github
 
 import (
 	"context"
@@ -28,6 +28,13 @@ type RewarderCfg struct {
 type RedisRewarder struct {
 	redisClient *redis.Client
 	cfg         *RewarderCfg
+}
+
+func NewRedisRewarder(cli *redis.Client, cfg *RewarderCfg) *RedisRewarder {
+	return &RedisRewarder{
+		redisClient: cli,
+		cfg:         cfg,
+	}
 }
 
 // Reward implements Rewarder.
