@@ -177,6 +177,15 @@ func (cz Coins) Add(b Coins) Coins {
 	return c
 }
 
+func (cz Coins) GetCoin(demon string) Coin {
+	for _, c := range cz {
+		if c.Denom == denom {
+			return c
+		}
+	}
+	return Coin{}
+}
+
 // expandNative expands for usage within natively bound functions.
 func (cz Coins) expandNative() (denoms []string, amounts []int64) {
 	denoms = make([]string, len(cz))
