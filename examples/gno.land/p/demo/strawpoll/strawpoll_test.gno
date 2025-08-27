@@ -45,17 +45,13 @@ func TestCreatePoll(t *testing.T) {
 			t.Errorf("expected question to be: %v, but got: %v", question, poll.question)
 		}
 
-		if len(poll.options) != 2 {
-			t.Errorf("expected options length to be: %v, but got: %v", len(options), len(poll.options))
+		if !poll.votes.Has(options[0]) || !poll.votes.Has(options[1]) {
+			t.Errorf("expected options to contain: %v and %v, but got: %v", options[0], options[1], poll.options)
 		}
 
-		for i, option := range options {
-			if poll.options[i] != option {
-				t.Errorf("expected option at index %d to be: %v, but got: %v", i, option, poll.options[i])
-			}
-
-			if poll.votes[option] != 0 {
-				t.Errorf("expected votes for option %v to be 0, but got: %v", option, poll.votes[option])
+		for _, option := range options {
+			if poll.VoteCount(option) != 0 {
+				t.Errorf("expected votes for option %v to be 0, but got: %v", option, poll.VoteCount(option))
 			}
 		}
 	})
@@ -102,8 +98,8 @@ func TestVote(t *testing.T) {
 			t.Fatalf("failed to vote: %v", err)
 		}
 
-		if poll.votes[options[0]] != 1 && poll.OptionCount(options[0]) != 1 {
-			t.Errorf("expected votes for option %v to be 1, but got: %v", options[0], poll.votes[options[0]])
+		if poll.VoteCount(options[0]) != 1 {
+			t.Errorf("expected votes for option %v to be 1, but got: %v", options[0], poll.VoteCount(options[0]))
 		}
 	})
 }
