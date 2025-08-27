@@ -1,8 +1,8 @@
 package factory
 
 import (
-	"strings"
 	"strconv"
+	"strings"
 )
 
 func Render(path string) string {

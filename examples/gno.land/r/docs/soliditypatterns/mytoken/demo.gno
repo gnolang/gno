@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	token *grc20.Token
+	token  *grc20.Token
 	ledger *grc20.PrivateLedger
 )
 
@@ -19,42 +19,42 @@ func init() {
 }
 
 func Name() string {
-    return token.GetName()
+	return token.GetName()
 }
 
 func Symbol() string {
-    return token.GetSymbol()
+	return token.GetSymbol()
 }
 
 func Decimals() int {
-    return token.GetDecimals()
+	return token.GetDecimals()
 }
 
 func TotalSupply() int64 {
-    return token.TotalSupply()
+	return token.TotalSupply()
 }
 
 func BalanceOf(addr std.Address) int64 {
-    return token.BalanceOf(addr)
+	return token.BalanceOf(addr)
 }
 
 func Transfer(to std.Address, amount int64) error {
-    teller := token.CallerTeller()
-    return teller.Transfer(to, amount)
+	teller := token.CallerTeller()
+	return teller.Transfer(to, amount)
 }
 
 func Approve(spender std.Address, amount int64) error {
-    teller := token.CallerTeller()
-    return teller.Approve(spender, amount)
+	teller := token.CallerTeller()
+	return teller.Approve(spender, amount)
 }
 
 func TransferFrom(owner, to std.Address, amount int64) error {
-    teller := token.CallerTeller()
-    return teller.TransferFrom(owner, to, amount)
+	teller := token.CallerTeller()
+	return teller.TransferFrom(owner, to, amount)
 }
 
 func RenderDemo() string {
 	out := "## Live Demo\n"
-    out += token.RenderHome()
-    return out
+	out += token.RenderHome()
+	return out
 }
