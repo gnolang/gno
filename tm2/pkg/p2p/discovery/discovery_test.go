@@ -164,7 +164,7 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 		// Make sure the peers are valid
 		require.Len(t, resp.Peers, maxPeersShared)
 
-		slices.ContainsFunc(resp.Peers, func(addr *types.NetAddress) bool {
+		require.True(t, slices.ContainsFunc(resp.Peers, func(addr *types.NetAddress) bool {
 			for _, localP := range peers {
 				if localP.NodeInfo().DialAddress().Equals(*addr) {
 					return true
@@ -172,7 +172,7 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 			}
 
 			return false
-		})
+		}))
 	})
 
 	t.Run("empty peers on discover", func(t *testing.T) {
@@ -315,7 +315,7 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 		// Make sure the peers are valid
 		require.Len(t, resp.Peers, publicPeers)
 
-		slices.ContainsFunc(resp.Peers, func(addr *types.NetAddress) bool {
+		require.True(t, slices.ContainsFunc(resp.Peers, func(addr *types.NetAddress) bool {
 			for _, localP := range peers {
 				if localP.NodeInfo().DialAddress().Equals(*addr) {
 					return true
@@ -323,7 +323,7 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 			}
 
 			return false
-		})
+		}))
 	})
 
 	t.Run("peer response received", func(t *testing.T) {

@@ -38,7 +38,6 @@ func (pvs *VersionSet) Set(pv VersionInfo) {
 	}
 	*pvs = append(*pvs, pv)
 	pvs.Sort()
-	return
 }
 
 func (pvs VersionSet) Get(name string) (pv VersionInfo, ok bool) {
