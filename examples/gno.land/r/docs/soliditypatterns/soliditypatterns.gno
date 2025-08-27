@@ -13,6 +13,8 @@ This is a list of common Solidity patterns, converted and explained to match Gno
 - [Wallet](/r/docs/soliditypatterns/wallet) - Send and receive coins over a contract.
 - [My Token](/r/docs/soliditypatterns/mytoken) - defines a basic ERC-20 token.
 - [Emit Events](/r/docs/soliditypatterns/emitevents) - Emit events from a contract.
+- [Factory](/r/docs/soliditypatterns/factory) - Create new instances of a contract.
+- [Reentrancy](/r/docs/soliditypatterns/reentrancy) - Create new instances of a contract.
 - More common examples coming soon!
 
 > [!NOTE]
