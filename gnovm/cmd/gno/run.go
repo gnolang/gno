@@ -128,7 +128,7 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 			PkgPath: pkgPath,
 			Output:  output,
 			Input:   stdin,
-			Store:   testStore.BeginTransaction(cw, cw, nil),
+			Store:   testStore.BeginTransaction(nil, nil, nil),
 			Context: ctx,
 			Debug:   cfg.debug || cfg.debugAddr != "",
 		})
