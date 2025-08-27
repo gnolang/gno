@@ -387,7 +387,7 @@ type commitInfo struct {
 func (ci commitInfo) toMap() map[string][]byte {
 	m := make(map[string][]byte, len(ci.StoreInfos))
 	for _, storeInfo := range ci.StoreInfos {
-		m[storeInfo.Name] = storeInfo.Hash()
+		m[storeInfo.Name] = storeInfo.GetHash()
 	}
 	return m
 }
@@ -422,11 +422,11 @@ type storeCore struct {
 	// ... maybe add more state
 }
 
-// Implements merkle.Hasher.
-func (si storeInfo) Hash() []byte {
+func (si storeInfo) GetHash() []byte {
 	// NOTE(tb): ics23 compatibility: return the commit hash and not the hash
 	// of the commit hash.
 	// See similar change in SDK https://github.com/cosmos/cosmos-sdk/pull/6323
+	// Problem: this causes app hash mismatch when upgrading from an existing store.
 	return si.Core.CommitID.Hash
 }
 

@@ -298,7 +298,7 @@ func hashStores(stores map[types.StoreKey]types.CommitStore) []byte {
 				CommitID: store.LastCommitID(),
 				// StoreType: store.GetStoreType(),
 			},
-		}.Hash()
+		}.GetHash()
 	}
 	return merkle.SimpleHashFromMap(m)
 }
