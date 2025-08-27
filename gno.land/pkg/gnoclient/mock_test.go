@@ -239,7 +239,7 @@ func (m *mockRPCClient) Health() (*ctypes.ResultHealth, error) {
 }
 
 func (m *mockRPCClient) Ready() (*ctypes.ResultReady, error) {
-	if m.health != nil {
+	if m.ready != nil {
 		return m.ready()
 	}
 	return nil, nil
