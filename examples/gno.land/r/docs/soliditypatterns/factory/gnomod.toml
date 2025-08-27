@@ -1,0 +1,2 @@
+module = "gno.land/r/docs/soliditypatterns/factory"
+gno = "0.9"
