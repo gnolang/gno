@@ -7,8 +7,8 @@ import (
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 )
 
-// Get node readyness. Returns 200 OK on success, 500 Internal Server Error - in
-// case of an error.
+// Get node readyness. Returns 200 OK on success, 503 Service Unavailable - in
+// case the node is not ready.
 //
 // ```shell
 // curl 'localhost:26657/ready'
