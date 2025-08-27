@@ -6,6 +6,9 @@ import (
 	"std"
 	"strconv"
 	"strings"
+
+	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/txlink"
 )
 
 // Poll represents a blueprint for a single poll.
@@ -140,10 +143,22 @@ func Render(_ string) string {
 		result += "No polls have been created yet. Be the first!\n"
 	}
 
-	result += `# Actions
-- [Create a poll](/r/demo/strawpoll$help&func=CreatePoll&question=What%20is%20your%20favourite%20colour%3F&choices=Orange%2CYellow)
-- [Vote](/r/demo/strawpoll$help&func=Vote&pollNumber=1&choice=Orange)
-`
+	createPollLink := txlink.NewLink("CreatePoll").
+		AddArgs(
+			"question", "What is your favourite colour?",
+			"choices", "Orange,Yellow",
+		).URL()
+
+	voteLink := txlink.NewLink("Vote").
+		AddArgs(
+			"pollNumber", "1",
+			"choice", "Orange",
+		).URL()
+
+	result += ufmt.Sprintf(`# Actions
+- [Create a poll](%s)
+- [Vote](%s)
+`, createPollLink, voteLink)
 
 	return result
 }
