@@ -134,7 +134,7 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		&c.autoGnomod,
 		"auto-gnomod",
 		true,
-		"auto-generate gno.mod file if not already present.",
+		"auto-generate gnomod.toml file if not already present.",
 	)
 
 	fs.StringVar(
@@ -279,21 +279,19 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		// Read and parse gnomod.toml directly.
 		fpath := filepath.Join(pkg.Dir, "gnomod.toml")
 		mod, err := gnomod.ParseFilepath(fpath)
-		if errors.Is(err, fs.ErrNotExist) {
-			if cmd.autoGnomod {
-				modulePath, _ := determinePkgPath(nil, pkg.Dir, cmd.rootDir)
-				modstr := gno.GenGnoModLatest(modulePath)
-				mod, err = gnomod.ParseBytes("gnomod.toml", []byte(modstr))
-				if err != nil {
-					panic(fmt.Errorf("unexpected panic parsing default gnomod.toml bytes: %w", err))
-				}
-				io.ErrPrintfln("auto-generated %q", fpath)
-				err = mod.WriteFile(fpath)
-				if err != nil {
-					panic(fmt.Errorf("unexpected panic writing to %q: %w", fpath, err))
-				}
-				// err == nil.
+		if errors.Is(err, fs.ErrNotExist) && cmd.autoGnomod {
+			modulePath, _ := determinePkgPath(nil, pkg.Dir, cmd.rootDir)
+			modstr := gno.GenGnoModLatest(modulePath)
+			mod, err = gnomod.ParseBytes("gnomod.toml", []byte(modstr))
+			if err != nil {
+				panic(fmt.Errorf("unexpected panic parsing default gnomod.toml bytes: %w", err))
 			}
+			io.ErrPrintfln("auto-generated %q", fpath)
+			err = mod.WriteFile(fpath)
+			if err != nil {
+				panic(fmt.Errorf("unexpected panic writing to %q: %w", fpath, err))
+			}
+			// err == nil.
 		}
 
 		// Determine pkgPath from gno.mod.
