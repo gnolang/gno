@@ -15,7 +15,7 @@ directory.
 
 The `files/extern` directory contains several packages used to test the import
 system. The packages here are imported with the prefix
-`github.com/gnolang/gno/_test/`, exclusively within these filetests.
+`filetests/extern/`, exclusively within these filetests.
 
 Tests with the `_long` suffix are skipped when the `-short` flag is passed.
 

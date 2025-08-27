@@ -28,7 +28,7 @@ var (
 )
 
 // CreatePost creates a new post
-func CreatePost(cur realm, text string) error {
+func CreatePost(_ realm, text string) error {
 	if text == "" {
 		return ErrEmptyPost
 	}
@@ -54,7 +54,7 @@ func CreatePost(cur realm, text string) error {
 
 // UpdatePost allows the author to update a post
 // The post can only be updated up to 10 minutes after posting
-func UpdatePost(cur realm, id string, text string) error {
+func UpdatePost(_ realm, id string, text string) error {
 	// Try to get the post
 	raw, ok := posts.Get(id)
 	if !ok {
@@ -80,7 +80,7 @@ func UpdatePost(cur realm, id string, text string) error {
 
 // DeletePost deletes a post with a specific id
 // Only the creator of a post can delete the post
-func DeletePost(cur realm, id string) error {
+func DeletePost(_ realm, id string) error {
 	// Try to get the post
 	raw, ok := posts.Get(id)
 	if !ok {
@@ -105,7 +105,7 @@ func DeletePost(cur realm, id string) error {
 }
 
 // Render renders the main page of threads
-func Render(cur realm, path string) string {
+func Render(path string) string {
 	out := md.H1("MiniSocial")
 	if posts.Size() == 0 {
 		out += "No posts yet!\n\n"

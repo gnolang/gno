@@ -4,11 +4,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	// allows the default config to have a valid DB
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	// allows the default config to have a valid DB
-	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
+	_ "github.com/gnolang/gno/tm2/pkg/db/pebbledb"
 )
 
 func TestConfig_LoadOrMakeConfigWithOptions(t *testing.T) {
@@ -129,33 +130,6 @@ func TestConfig_ValidateBaseConfig(t *testing.T) {
 		c.DBPath = ""
 
 		assert.ErrorIs(t, c.BaseConfig.ValidateBasic(), errInvalidDBPath)
-	})
-
-	t.Run("priv validator key path not set", func(t *testing.T) {
-		t.Parallel()
-
-		c := DefaultConfig()
-		c.PrivValidatorKey = ""
-
-		assert.ErrorIs(t, c.BaseConfig.ValidateBasic(), errInvalidPrivValidatorKeyPath)
-	})
-
-	t.Run("priv validator state path not set", func(t *testing.T) {
-		t.Parallel()
-
-		c := DefaultConfig()
-		c.PrivValidatorState = ""
-
-		assert.ErrorIs(t, c.BaseConfig.ValidateBasic(), errInvalidPrivValidatorStatePath)
-	})
-
-	t.Run("invalid priv validator listen address", func(t *testing.T) {
-		t.Parallel()
-
-		c := DefaultConfig()
-		c.PrivValidatorListenAddr = "beep.boop"
-
-		assert.ErrorIs(t, c.BaseConfig.ValidateBasic(), errInvalidPrivValidatorListenAddress)
 	})
 
 	t.Run("node key path not set", func(t *testing.T) {

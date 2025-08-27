@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"strings"
 	"time"
@@ -33,9 +34,7 @@ func (dh *DockerHandler) CheckPulledMasterImage(ctx context.Context) (bool, erro
 	}
 
 	// Get local image digest
-	if len(localImage.RepoDigests) < 0 {
-		return false, fmt.Errorf("unable to get a local digest")
-	} else if len(localImage.RepoDigests) == 0 {
+	if len(localImage.RepoDigests) == 0 {
 		// Assume it's locally built and not pulled
 		return true, nil
 	}
@@ -81,9 +80,16 @@ func (dh *DockerHandler) StartGnoPortalLoopContainer(ctx context.Context, contai
 
 	// force pull image
 	if pullImage {
-		_, err := dh.DockerClient.ImagePull(ctx, gnoOfficialImage, types.ImagePullOptions{})
+		pullOutput, err := dh.DockerClient.ImagePull(ctx, gnoOfficialImage, types.ImagePullOptions{})
 		if err != nil {
 			return nil, err
+		}
+		defer pullOutput.Close()
+
+		// Read until EOF to ensure pull completes
+		_, err = io.Copy(io.Discard, pullOutput)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read image pull output: %w", err)
 		}
 	}
 

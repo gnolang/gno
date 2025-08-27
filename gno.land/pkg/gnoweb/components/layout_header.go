@@ -90,7 +90,7 @@ func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 func isActive(webQuery url.Values, label string) bool {
 	switch label {
 	case "Content":
-		return !(webQuery.Has("source") || webQuery.Has("help"))
+		return !webQuery.Has("source") && !webQuery.Has("help")
 	case "Source":
 		return webQuery.Has("source")
 	case "Actions":

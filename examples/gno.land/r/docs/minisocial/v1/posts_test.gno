@@ -9,7 +9,7 @@ import (
 	"gno.land/p/demo/uassert"
 )
 
-func TestCreatePostSingle(cur realm, t *testing.T) {
+func TestCreatePostSingle(t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
 	// TestSetRealm sets the realm caller, in this case Alice
@@ -20,14 +20,14 @@ func TestCreatePostSingle(cur realm, t *testing.T) {
 	uassert.True(t, err == nil, "expected no error")
 
 	// Get the rendered page
-	got := Render(cur, "")
+	got := Render("")
 
 	// Content should have the text and alice's address in it
 	condition := strings.Contains(got, text1) && strings.Contains(got, aliceAddr.String())
 	uassert.True(t, condition, "expected render to contain text & alice's address")
 }
 
-func TestCreatePostMultiple(cur realm, t *testing.T) {
+func TestCreatePostMultiple(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(testutils.TestAddress("alice")))
 
 	// Initialize a slice to hold the test posts and their authors
@@ -52,7 +52,7 @@ func TestCreatePostMultiple(cur realm, t *testing.T) {
 	}
 
 	// Get the rendered page
-	got := Render(cur, "")
+	got := Render("")
 
 	// Check that all posts and their authors are present in the rendered output
 	for _, p := range posts {

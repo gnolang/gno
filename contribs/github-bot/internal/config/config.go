@@ -48,7 +48,7 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 			Then: r.And(
 				r.Or(
 					r.AuthorInTeam(gh, "tech-staff"),
-					r.ReviewByTeamMembers(gh, "tech-staff", r.RequestApply).WithDesiredState(utils.ReviewStateApproved),
+					r.ReviewByTeamMembers(gh, "tech-staff", r.RequestIgnore).WithDesiredState(utils.ReviewStateApproved),
 				),
 				r.Or(
 					r.AuthorInTeam(gh, "devrels"),
@@ -98,7 +98,7 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 			),
 			Then: r.
 				If(r.Or(
-					r.ReviewByOrgMembers(gh).WithDesiredState(utils.ReviewStateApproved),
+					r.ReviewByAnyUser(gh, "jefft0", "leohhhn", "n0izn0iz", "notJoon", "omarsy", "x1unix").WithDesiredState(utils.ReviewStateApproved),
 					r.ReviewByTeamMembers(gh, "tech-staff", r.RequestIgnore),
 					r.Draft(),
 				)).
@@ -108,7 +108,7 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 				Then(
 					r.And(
 						r.Not(r.Label(gh, "review/triage-pending", r.LabelRemove)),
-						r.ReviewByTeamMembers(gh, "tech-staff", r.RequestApply),
+						r.ReviewByTeamMembers(gh, "tech-staff", r.RequestIgnore),
 					),
 				).
 				// Or there was not, and we apply the triage-pending label
@@ -118,7 +118,7 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 				Else(
 					r.And(
 						r.Label(gh, "review/triage-pending", r.LabelApply),
-						r.ReviewByTeamMembers(gh, "tech-staff", r.RequestRemove),
+						r.ReviewByTeamMembers(gh, "tech-staff", r.RequestIgnore),
 						r.Never(), // Always fail the requirement.
 					),
 				),

@@ -17,6 +17,7 @@ func TestParseBytes(t *testing.T) {
 		fileType        string // "gno.mod" or "gnomod.toml"
 		expectedModule  string
 		expectedVersion string
+		expectedIgnore  bool
 		expectedDraft   bool
 		expectedError   string
 	}{
@@ -43,11 +44,11 @@ func TestParseBytes(t *testing.T) {
 			expectedVersion: "0.0",
 		},
 		{
-			name:           "gno.mod with draft comment",
-			content:        "// Draft\n\nmodule gno.land/p/demo/foo",
+			name:           "gno.mod with ignore comment",
+			content:        "// Ignore\n\nmodule gno.land/p/demo/foo",
 			fileType:       "gno.mod",
 			expectedModule: "gno.land/p/demo/foo",
-			expectedDraft:  true,
+			expectedIgnore: true,
 		},
 		{
 			name:           "gno.mod with deprecated comment",
@@ -73,18 +74,26 @@ func TestParseBytes(t *testing.T) {
 		},
 		{
 			name:            "valid gnomod.toml with module and replace",
-			content:         "module = \"gno.land/p/demo/foo\"\ndraft = true",
+			content:         "module = \"gno.land/p/demo/foo\"\nignore = true",
 			fileType:        "gnomod.toml",
 			expectedModule:  "gno.land/p/demo/foo",
 			expectedVersion: "0.0",
-			expectedDraft:   true,
+			expectedIgnore:  true,
 		},
 		{
-			name:           "gnomod.toml with draft flag",
-			content:        "module = \"gno.land/p/demo/foo\"\ndraft = true",
+			name:           "gnomod.toml with ignore flag",
+			content:        "module = \"gno.land/p/demo/foo\"\nignore = true",
+			fileType:       "gnomod.toml",
+			expectedModule: "gno.land/p/demo/foo",
+			expectedIgnore: true,
+		},
+		{
+			name:           "gnomod.toml with draft and ignore flags",
+			content:        "module = \"gno.land/p/demo/foo\"\ndraft = true\nignore = true",
 			fileType:       "gnomod.toml",
 			expectedModule: "gno.land/p/demo/foo",
 			expectedDraft:  true,
+			expectedIgnore: true,
 		},
 
 		// Invalid cases
@@ -142,6 +151,7 @@ func TestParseBytes(t *testing.T) {
 			if tc.expectedVersion != "" {
 				assert.Equal(t, tc.expectedVersion, file.GetGno())
 			}
+			assert.Equal(t, tc.expectedIgnore, file.Ignore)
 			assert.Equal(t, tc.expectedDraft, file.Draft)
 		})
 	}

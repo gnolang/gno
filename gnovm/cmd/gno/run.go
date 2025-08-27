@@ -102,8 +102,7 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 
 	// init store and machine
 	output := test.OutputWithError(stdout, stderr)
-	baseStore, testStore := test.Store(cfg.rootDir, output)
-	cw := baseStore.CacheWrap()
+	_, testStore := test.ProdStore(cfg.rootDir, output, nil)
 
 	if len(args) == 0 {
 		args = []string{"."}
@@ -171,12 +170,13 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	// Run in non-realm mode.
 	ctx := test.Context("", pkgPath, send)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath: pkgPath,
-		Output:  output,
-		Input:   stdin,
-		Store:   testStore,
-		Context: ctx,
-		Debug:   cfg.debug || cfg.debugAddr != "",
+		PkgPath:       pkgPath,
+		Output:        output,
+		Input:         stdin,
+		Store:         testStore,
+		MaxAllocBytes: maxAllocRun,
+		Context:       ctx,
+		Debug:         cfg.debug || cfg.debugAddr != "",
 	})
 
 	defer m.Release()
@@ -255,11 +255,13 @@ func runExpr(m *gno.Machine, expr string) (err error) {
 				err = fmt.Errorf("panic running expression %s: %v\nStacktrace:\n%s",
 					expr, r.Error(), m.ExceptionStacktrace())
 			default:
-				err = fmt.Errorf("panic running expression %s: %v\nMachine State:%s\nStacktrace:\n%s",
-					expr, r, m.String(), m.Stacktrace().String())
+				err = fmt.Errorf("panic running expression %s: %v\nStacktrace:\n%s",
+					expr, r, m.Stacktrace().String())
 			}
 		}
 	}()
 	m.Eval(ex)
 	return nil
 }
+
+const maxAllocRun = 500_000_000

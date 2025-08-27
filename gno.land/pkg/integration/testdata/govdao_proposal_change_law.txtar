@@ -16,9 +16,9 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
 stdout OK!
 
-# call gov/dao render to check everything the proposal was created
+# call gov/dao render to check the proposal was created
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
-stdout '- Supermajority: 50%'
+stdout '## Prop #0 - Change Law Proposal'
 
 # vote on the proposal
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test member

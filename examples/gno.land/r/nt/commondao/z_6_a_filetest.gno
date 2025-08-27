@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+// PKGPATH: gno.land/r/demo/test
+package test
 
 import (
 	"std"
@@ -19,8 +19,6 @@ var (
 	proposal *pdao.Proposal
 	executed bool
 	user1    = testutils.TestAddress("user1")
-	user2    = testutils.TestAddress("user2")
-	user3    = testutils.TestAddress("user3")
 )
 
 type propDef struct{}
@@ -41,29 +39,19 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 	commondao.Invite(cross, user1)
 
-	// Create a new DAO which gives ownership to `commondao_test`
+	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(std.NewUserRealm(user1))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
-	dao = commondao.New("Foo")
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
+	dao = commondao.New(cross, "Foo")
 
 	// Configure DAO
 	dao.Members().Add(user1)
-	dao.Members().Add(user2)
-	dao.Members().Add(user3)
 
 	// Create a new proposal
 	proposal, _ = dao.Propose(user1, propDef{})
-
-	// Submit user1 vote
-	testing.SetRealm(std.NewUserRealm(user1))
-	commondao.Vote(cross, dao.ID(), proposal.ID(), pdao.ChoiceYes, "")
-
-	// Submit user2 vote
-	testing.SetRealm(std.NewUserRealm(user2))
-	commondao.Vote(cross, dao.ID(), proposal.ID(), pdao.ChoiceYes, "")
 }
 
-func main(cur realm) {
+func main() {
 	testing.SetRealm(std.NewUserRealm(user1))
 
 	commondao.Execute(cross, dao.ID(), proposal.ID())

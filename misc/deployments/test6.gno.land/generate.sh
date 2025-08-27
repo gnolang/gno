@@ -24,7 +24,7 @@ pullTxs () {
 }
 
 CHAIN_ID=test6
-GENESIS_TIME=1744876800 # Thursday, April 17th 2025 10:00 GMT+0200 (Central European Summer Time)
+GENESIS_TIME=1750402800 # Friday, June 20th 2025 09:00 GMT+0200 (Central European Summer Time)
 GENESIS_FILE=genesis.json
 
 # Generate a fresh genesis.json
@@ -37,14 +37,6 @@ printf "\nAdding validators...\n"
 # Gno Core (2)
 gnogenesis validator add -name gnocore-val-01 -power 1 -address g1wsa9j6nel8ltt6q2lmf78585ymyfh5nsvhaxa3 -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqma223maxmnw4f42kfqppvgyn8dr8wu7mhtdm6lcq64303a3vlln8xdmms
 gnogenesis validator add -name gnocore-val-02 -power 1 -address g13762rd7y8s7jcc6uc4lyxv269hguchhpyzaamt -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq5ndww8w6qrxgfdeastcx2lsuuk5r8w9jckkgevylq6duw59d54n935fq2
-
-# Gno DevX (2)
-gnogenesis validator add -name devx-val-01 -power 1 -address g1mxguhd5zacar64txhfm0v7hhtph5wur5hx86vs -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqz6fwulsygvu9xypka3zqxhkxllm467e3adphmj6y44vn3yy8qq34vxnse
-gnogenesis validator add -name devx-val-02 -power 1 -address g1t9ctfa468hn6czff8kazw08crazehcxaqa2uaa -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpsq650w975vqsf6ajj5x4wdzfnrh64kmw7sljqz7wts6k0p6l36d0huls3
-
-# AiB (2)
-gnogenesis validator add -name aib-val-01 -power 1 -address g12yvv8pl5s20suxyd30g7ychqenamtlhctgfu90 -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zplgfkp8609ghdh20w6newh40f9tz7ussw2zylq23ca0tjda3csztm242ft
-gnogenesis validator add -name aib-val-02 -power 1 -address g1p3lyk676gludkk6hqceem58c6xgnpsld45s4v9 -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpf65yj5xh8y9qux89skvve77w7hytfcfey92zlvx56ruugqvk9eepk73fg
 
 # Onbloc (2)
 gnogenesis validator add -name onbloc-val-01 -power 1 -address g14cppfre9hsvu6p4scttuyu7mj082lfwxl7hvz9 -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqe87d7lc0c4l4yaa8a94fucfre8882n8556l9z5220zjaaaqj7k5cl5sud

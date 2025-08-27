@@ -14,6 +14,7 @@ gnoland start
 
 # call gov/dao render to check everything is working as expected and the loader worked
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
+stdout 'data: # GovDAO'
 
 # add the proposal
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
@@ -21,7 +22,7 @@ stdout OK!
 
 # call gov/dao render to check everything the proposal was created
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
-stdout 'not responding'
+stdout 'This is a proposal to remove g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 from the GovDAO'
 
 # vote on the proposal 1
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test member
@@ -50,8 +51,10 @@ import (
 )
 
 func main() {
-
-	preq := impl.NewWithdrawMemberRequest(cross, std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), "not responding")
+	addr := std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0")
+	reason := "not responding"
+	
+	preq := impl.NewWithdrawMemberRequest(cross, addr, reason)
 	dao.MustCreateProposal(cross, preq)
 }
 
