@@ -33,7 +33,7 @@ var p *Passthrough
 func main(cur realm) {
 	p = &Passthrough{S: s}
 
-	crossrealm.SetObject(cross, p)
+	crossrealm.SetObject(cross, p) // attach p to crossrealm
 
 	p.Mutate() // cross into current realm where method Mutate is declared
 }

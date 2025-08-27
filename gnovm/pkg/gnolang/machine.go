@@ -2281,9 +2281,6 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 		return false
 	}
 	if tvoid.PkgID != m.Realm.ID {
-		// fmt.Println("=================IsReadOnly...")
-		// fmt.Println("=================m.Realm: ", m.Realm)
-		// fmt.Println("=================tvoid.PkgID: ", tvoid.PkgID)
 		return true
 	}
 	return false

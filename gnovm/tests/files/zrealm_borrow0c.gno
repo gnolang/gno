@@ -31,7 +31,7 @@ var s = &Struct{A: 100}
 var p = &Passthrough{S: s}
 
 func main(cur realm) {
-	crossrealm.SetObject(cross, p)
+	crossrealm.SetObject(cross, p) // p already attached to current realm
 
 	p.Mutate() // cross into current realm where method Mutate is declared
 }

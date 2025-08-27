@@ -52,7 +52,7 @@ func (p *Passthrough) printRealm() {
 var s *Struct
 
 func init() {
-	s = &Struct{A: 100} // saved in borrow_test.
+	s = &Struct{A: 100} // saved in current realm.
 }
 
 func main(cur realm) {

@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/borrow
 package borrow
 
-import "gno.land/r/demo/tests/ext"
+import crossrealm "gno.land/r/demo/tests/crossrealm_d"
 
 type NoopMutator struct{ num int }
 
@@ -14,12 +14,12 @@ var root interface{}
 func main() {
 	var nm = &NoopMutator{num: 1}
 	root = nm
-	ext.SetMutator(cross, nm) // attached to ext firstly.
+	crossrealm.SetMutator(cross, nm) // attached to crossrealm firstly.
 }
 
 // Realm:
-// finalizerealm["gno.land/r/demo/tests/ext"]
-// c[4f26ea8f8f08e71800f22b46c09652d382e95799:18](216)={
+// finalizerealm["gno.land/r/demo/tests/crossrealm_d"]
+// c[0deeee8113af63ad50ebdabff9de7675ae4b2ea8:18](216)={
 //     "Fields": [
 //         {
 //             "N": "AQAAAAAAAAA=",
@@ -30,16 +30,16 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "4f26ea8f8f08e71800f22b46c09652d382e95799:18",
+//         "ID": "0deeee8113af63ad50ebdabff9de7675ae4b2ea8:18",
 //         "LastObjectSize": "216",
 //         "ModTime": "0",
-//         "OwnerID": "4f26ea8f8f08e71800f22b46c09652d382e95799:17",
+//         "OwnerID": "0deeee8113af63ad50ebdabff9de7675ae4b2ea8:17",
 //         "RefCount": "1"
 //     }
 // }
-// c[4f26ea8f8f08e71800f22b46c09652d382e95799:17](349)={
+// c[0deeee8113af63ad50ebdabff9de7675ae4b2ea8:17](349)={
 //     "ObjectInfo": {
-//         "ID": "4f26ea8f8f08e71800f22b46c09652d382e95799:17",
+//         "ID": "0deeee8113af63ad50ebdabff9de7675ae4b2ea8:17",
 //         "IsEscaped": true,
 //         "LastObjectSize": "349",
 //         "ModTime": "0",
@@ -52,19 +52,19 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "38cdc381ac6b3c5ad02d4f9b323f775cfe7598ab",
-//             "ObjectID": "4f26ea8f8f08e71800f22b46c09652d382e95799:18"
+//             "Hash": "e5c70d6630b2a6e73c7ff308c5a475b51555a50a",
+//             "ObjectID": "0deeee8113af63ad50ebdabff9de7675ae4b2ea8:18"
 //         }
 //     }
 // }
-// u[4f26ea8f8f08e71800f22b46c09652d382e95799:3](209)=
+// u[0deeee8113af63ad50ebdabff9de7675ae4b2ea8:3](209)=
 //     @@ -2,9 +2,27 @@
 //          "ObjectInfo": {
-//              "ID": "4f26ea8f8f08e71800f22b46c09652d382e95799:3",
+//              "ID": "0deeee8113af63ad50ebdabff9de7675ae4b2ea8:3",
 //              "LastObjectSize": "190",
 //     -        "ModTime": "0",
 //     +        "ModTime": "16",
-//              "OwnerID": "4f26ea8f8f08e71800f22b46c09652d382e95799:2",
+//              "OwnerID": "0deeee8113af63ad50ebdabff9de7675ae4b2ea8:2",
 //              "RefCount": "1"
 //          },
 //     -    "Value": {}
@@ -81,7 +81,7 @@ func main() {
 //     +            "Base": {
 //     +                "@type": "/gno.RefValue",
 //     +                "Escaped": true,
-//     +                "ObjectID": "4f26ea8f8f08e71800f22b46c09652d382e95799:17"
+//     +                "ObjectID": "0deeee8113af63ad50ebdabff9de7675ae4b2ea8:17"
 //     +            },
 //     +            "Index": "0",
 //     +            "TV": null
@@ -113,7 +113,7 @@ func main() {
 //     +            "Base": {
 //     +                "@type": "/gno.RefValue",
 //     +                "Escaped": true,
-//     +                "ObjectID": "4f26ea8f8f08e71800f22b46c09652d382e95799:17"
+//     +                "ObjectID": "0deeee8113af63ad50ebdabff9de7675ae4b2ea8:17"
 //     +            },
 //     +            "Index": "0",
 //     +            "TV": null

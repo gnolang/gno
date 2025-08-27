@@ -14,7 +14,7 @@ func (nm *NoopMutator) Mutate() {
 
 func main() {
 	var nm = &NoopMutator{}
-	crossrealm.SetDoMutate(cross, nm)
+	crossrealm.SetDoMutate(cross, nm) // execute method of unreal receiver, cross to current realm
 }
 
 // Error:

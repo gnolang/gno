@@ -25,15 +25,6 @@ func (s *Struct) PrintRealms() {
 }
 
 func (s *Struct) printRealms() {
-	// XXX
-	// printRealm is called from s.PrintRealm()
-	// which in this test is persisted in the same realm.
-	// Therefore p.printRealm() -> s.PrintRealm()
-	// borrows this realm, and then the crossing()
-	// below is called.
-	// Should this be allowed?
-	// Whether it panics or not is determined by
-	// 'fr.DidCrossing = true' in PushFrameCall.
 	fmt.Println(std.CurrentRealm())
 	fmt.Println(std.PreviousRealm())
 }
@@ -65,13 +56,11 @@ func init() {
 }
 
 func main(cur realm) {
-	// cross(crossrealm_b.SetObject)(s) // saved in crossrealm_b
-
 	p := &Passthrough{S: s}
 
 	crossrealm.SetObject(cross, p) // saved in crossrealm.
 
-	p.Mutate() // receiver method borrows crossrealm_b.
+	p.Mutate() // cross into current realm where method Mutate is declared
 
 	println(p.Get())
 
