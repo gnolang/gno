@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // here are a range of rules predefined for preprocessor to check the compatibility between operands and operators
@@ -214,15 +215,15 @@ func assertAssignableTo(n Node, xt, dt Type, autoNative bool) {
 	}
 }
 
-func assertValidConstExpr(store Store, last BlockNode, n *ValueDecl, expr Expr) {
+func assertValidConstExpr(store Store, gasMeter store.GasMeter, last BlockNode, n *ValueDecl, expr Expr) {
 	if n.Type != nil {
-		nt := evalStaticType(store, last, n.Type)
+		nt := evalStaticType(store, gasMeter, last, n.Type)
 		if _, ok := baseOf(nt).(PrimitiveType); !ok {
 			panic(fmt.Sprintf("invalid constant type %s", nt.String()))
 		}
 	}
 
-	nt := evalStaticTypeOf(store, last, expr)
+	nt := evalStaticTypeOf(store, gasMeter, last, expr)
 
 	if nt == nil {
 		panic(fmt.Sprintf("%s (variable of type nil) is not constant", expr))
@@ -232,45 +233,45 @@ func assertValidConstExpr(store Store, last BlockNode, n *ValueDecl, expr Expr) 
 		panic(fmt.Sprintf("%s (variable of type %s) is not constant", expr, nt))
 	}
 
-	assertValidConstValue(store, last, expr)
+	assertValidConstValue(store, gasMeter, last, expr)
 }
 
-func assertValidConstValue(store Store, last BlockNode, currExpr Expr) {
+func assertValidConstValue(store Store, gasMeter store.GasMeter, last BlockNode, currExpr Expr) {
 Main:
 	switch currExpr := currExpr.(type) {
 	case *ConstExpr:
 	case *UnaryExpr:
 		// *, & is filter out previously since they are not primitive
-		assertValidConstValue(store, last, currExpr.X)
+		assertValidConstValue(store, gasMeter, last, currExpr.X)
 	case *TypeAssertExpr:
 		panic(fmt.Sprintf("%s (comma, ok expression of type %s) is not constant", currExpr.String(), currExpr.Type))
 	case *CallExpr:
-		ift := evalStaticTypeOf(store, last, currExpr.Func)
+		ift := evalStaticTypeOf(store, gasMeter, last, currExpr.Func)
 		switch baseOf(ift).(type) {
 		case *FuncType:
-			tup := evalStaticTypeOfRaw(store, last, currExpr).(*tupleType)
+			tup := evalStaticTypeOfRaw(store, gasMeter, last, currExpr).(*tupleType)
 
 			// check for built-in functions
 			if cx, ok := currExpr.Func.(*ConstExpr); ok {
 				if fv, ok := cx.V.(*FuncValue); ok {
 					if fv.PkgPath == uversePkgPath {
 						// TODO: should support min, max, real, imag
-						switch fv.Name {
-						case "len":
-							at := evalStaticTypeOf(store, last, currExpr.Args[0])
+						switch {
+						case fv.Name == "len":
+							at := evalStaticTypeOf(store, gasMeter, last, currExpr.Args[0])
 							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
 								// ok
 								break Main
 							}
-							assertValidConstValue(store, last, currExpr.Args[0])
+							assertValidConstValue(store, gasMeter, last, currExpr.Args[0])
 							break Main
-						case "cap":
-							at := evalStaticTypeOf(store, last, currExpr.Args[0])
+						case fv.Name == "cap":
+							at := evalStaticTypeOf(store, gasMeter, last, currExpr.Args[0])
 							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
 								// ok
 								break Main
 							}
-							assertValidConstValue(store, last, currExpr.Args[0])
+							assertValidConstValue(store, gasMeter, last, currExpr.Args[0])
 							break Main
 						}
 					}
@@ -287,7 +288,7 @@ Main:
 			}
 		case *TypeType:
 			for _, arg := range currExpr.Args {
-				assertValidConstValue(store, last, arg)
+				assertValidConstValue(store, gasMeter, last, arg)
 			}
 		default:
 			panic(fmt.Sprintf(
@@ -295,10 +296,10 @@ Main:
 				ift, reflect.TypeOf(ift)))
 		}
 	case *BinaryExpr:
-		assertValidConstValue(store, last, currExpr.Left)
-		assertValidConstValue(store, last, currExpr.Right)
+		assertValidConstValue(store, gasMeter, last, currExpr.Left)
+		assertValidConstValue(store, gasMeter, last, currExpr.Right)
 	case *SelectorExpr:
-		xt := evalStaticTypeOf(store, last, currExpr.X)
+		xt := evalStaticTypeOf(store, gasMeter, last, currExpr.X)
 		switch xt := xt.(type) {
 		case *PackageType:
 			var pv *PackageValue
@@ -309,7 +310,7 @@ Main:
 			} else {
 				// otherwise, packages can only be referred to by
 				// *NameExprs, and cannot be copied.
-				pvc := evalConst(store, last, currExpr.X)
+				pvc := evalConst(store, gasMeter, last, currExpr.X)
 				pv_, ok := pvc.V.(*PackageValue)
 				if !ok {
 					panic(fmt.Sprintf(
@@ -325,9 +326,9 @@ Main:
 			tt := pv.GetBlock(store).Source.GetStaticTypeOf(store, currExpr.Sel)
 			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), tt))
 		case *PointerType, *DeclaredType, *StructType, *InterfaceType, *TypeType:
-			ty := evalStaticTypeOf(store, last, currExpr)
+			ty := evalStaticTypeOf(store, gasMeter, last, currExpr)
 			if _, ok := ty.(*TypeType); ok {
-				ty = evalStaticType(store, last, currExpr)
+				ty = evalStaticType(store, gasMeter, last, currExpr)
 			}
 			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ty))
 		default:
@@ -336,9 +337,9 @@ Main:
 				reflect.TypeOf(xt)))
 		}
 	default:
-		ift := evalStaticTypeOf(store, last, currExpr)
+		ift := evalStaticTypeOf(store, gasMeter, last, currExpr)
 		if _, ok := ift.(*TypeType); ok {
-			ift = evalStaticType(store, last, currExpr)
+			ift = evalStaticType(store, gasMeter, last, currExpr)
 		}
 		panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ift))
 	}
@@ -652,7 +653,7 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) (err error) {
 // Check part of the LHS to ensure it is of a numeric type.
 // More stringent checks will be performed in the subsequent stage in
 // assertShiftExprCompatible2.
-func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt, rt Type) {
+func (x *BinaryExpr) assertShiftExprCompatible1(store Store, gasMeter store.GasMeter, last BlockNode, lt, rt Type) {
 	// check rhs type
 	if rt == nil {
 		panic(fmt.Sprintf("cannot convert %v to type uint", x.Right))
@@ -669,7 +670,7 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 		var isIntValue bool
 		// special case for num like 1.0, it will be converted to uint later
 		if ric {
-			rv := evalConst(store, last, x.Right)
+			rv := evalConst(store, gasMeter, last, x.Right)
 			if bd, ok := rv.V.(BigdecValue); ok {
 				if isInteger(bd.V) {
 					isIntValue = true
@@ -680,7 +681,7 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 			panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
 		}
 	} else if ric { // is integer, check negative
-		rv := evalConst(store, last, x.Right)
+		rv := evalConst(store, gasMeter, last, x.Right)
 		if rv.Sign() < 0 {
 			panic(fmt.Sprintf("invalid operation: negative shift count: %v", x.Right))
 		}
@@ -832,7 +833,7 @@ func assertIndexTypeIsInt(kt Type) {
 	}
 }
 
-func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
+func (x *RangeStmt) AssertCompatible(store Store, gasMeter store.GasMeter, last BlockNode) {
 	if x.Op != ASSIGN {
 		return
 	}
@@ -840,16 +841,16 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 		// both "_"
 		return
 	}
-	assertValidAssignLhs(store, last, x.Key)
+	assertValidAssignLhs(store, gasMeter, last, x.Key)
 	// if is valid left value
 
-	kt := evalStaticTypeOf(store, last, x.Key)
+	kt := evalStaticTypeOf(store, gasMeter, last, x.Key)
 	var vt Type
 	if x.Value != nil {
-		vt = evalStaticTypeOf(store, last, x.Value)
+		vt = evalStaticTypeOf(store, gasMeter, last, x.Value)
 	}
 
-	xt := evalStaticTypeOf(store, last, x.X)
+	xt := evalStaticTypeOf(store, gasMeter, last, x.X)
 	switch cxt := xt.(type) {
 	case *MapType:
 		assertAssignableTo(x, cxt.Key, kt, false)
@@ -880,9 +881,9 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	}
 }
 
-func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
+func (x *AssignStmt) AssertCompatible(store Store, gasMeter store.GasMeter, last BlockNode) {
 	if x.Op == ASSIGN || x.Op == DEFINE {
-		assertValidAssignRhs(store, last, x)
+		assertValidAssignRhs(store, gasMeter, last, x)
 		if len(x.Lhs) > len(x.Rhs) {
 			if len(x.Rhs) != 1 {
 				panic(fmt.Sprintf("assignment mismatch: %d variables but %d values", len(x.Lhs), len(x.Rhs)))
@@ -890,7 +891,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 			switch cx := x.Rhs[0].(type) {
 			case *CallExpr:
 				// Call case: a, b = x(...)
-				ift := evalStaticTypeOf(store, last, cx.Func)
+				ift := evalStaticTypeOf(store, gasMeter, last, cx.Func)
 				cft := getGnoFuncTypeOf(store, ift)
 				if len(x.Lhs) != len(cft.Results) {
 					panic(fmt.Sprintf(
@@ -901,9 +902,9 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				if x.Op == ASSIGN {
 					// check assignable
 					for i, lx := range x.Lhs {
-						assertValidAssignLhs(store, last, lx)
+						assertValidAssignLhs(store, gasMeter, last, lx)
 						if !isBlankIdentifier(lx) {
-							lxt := evalStaticTypeOf(store, last, lx)
+							lxt := evalStaticTypeOf(store, gasMeter, last, lx)
 							assertAssignableTo(x, cft.Results[i].Type, lxt, false)
 						}
 					}
@@ -915,16 +916,16 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				}
 				if x.Op == ASSIGN {
 					// check first value
-					assertValidAssignLhs(store, last, x.Lhs[0])
+					assertValidAssignLhs(store, gasMeter, last, x.Lhs[0])
 					if !isBlankIdentifier(x.Lhs[0]) { // see composite3.gno
-						dt := evalStaticTypeOf(store, last, x.Lhs[0])
-						ift := evalStaticTypeOf(store, last, cx)
+						dt := evalStaticTypeOf(store, gasMeter, last, x.Lhs[0])
+						ift := evalStaticTypeOf(store, gasMeter, last, cx)
 						assertAssignableTo(x, ift, dt, false)
 					}
 					// check second value
-					assertValidAssignLhs(store, last, x.Lhs[1])
+					assertValidAssignLhs(store, gasMeter, last, x.Lhs[1])
 					if !isBlankIdentifier(x.Lhs[1]) { // see composite3.gno
-						dt := evalStaticTypeOf(store, last, x.Lhs[1])
+						dt := evalStaticTypeOf(store, gasMeter, last, x.Lhs[1])
 						if dt.Kind() != BoolKind { // typed, not bool
 							panic(fmt.Sprintf("want bool type got %v", dt))
 						}
@@ -936,16 +937,16 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					panic("should not happen")
 				}
 				if x.Op == ASSIGN {
-					assertValidAssignLhs(store, last, x.Lhs[0])
+					assertValidAssignLhs(store, gasMeter, last, x.Lhs[0])
 					if !isBlankIdentifier(x.Lhs[0]) {
-						lt := evalStaticTypeOf(store, last, x.Lhs[0])
+						lt := evalStaticTypeOf(store, gasMeter, last, x.Lhs[0])
 						if _, ok := cx.X.(*NameExpr); ok {
-							rt := evalStaticTypeOf(store, last, cx.X)
+							rt := evalStaticTypeOf(store, gasMeter, last, cx.X)
 							if mt, ok := rt.(*MapType); ok {
 								assertAssignableTo(x, mt.Value, lt, false)
 							}
 						} else if _, ok := cx.X.(*CompositeLitExpr); ok {
-							cpt := evalStaticTypeOf(store, last, cx.X)
+							cpt := evalStaticTypeOf(store, gasMeter, last, cx.X)
 							if mt, ok := cpt.(*MapType); ok {
 								assertAssignableTo(x, mt.Value, lt, false)
 							} else {
@@ -954,9 +955,9 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 						}
 					}
 
-					assertValidAssignLhs(store, last, x.Lhs[1])
+					assertValidAssignLhs(store, gasMeter, last, x.Lhs[1])
 					if !isBlankIdentifier(x.Lhs[1]) {
-						dt := evalStaticTypeOf(store, last, x.Lhs[1])
+						dt := evalStaticTypeOf(store, gasMeter, last, x.Lhs[1])
 						if dt != nil && dt.Kind() != BoolKind { // typed, not bool
 							panic(fmt.Sprintf("want bool type got %v", dt))
 						}
@@ -970,7 +971,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 			if x.Op == ASSIGN {
 				// assert valid left value
 				for _, lx := range x.Lhs {
-					assertValidAssignLhs(store, last, lx)
+					assertValidAssignLhs(store, gasMeter, last, lx)
 				}
 			}
 		}
@@ -981,8 +982,8 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 			panic("assignment operator " + x.Op.TokenString() +
 				" requires only one expression on lhs and rhs")
 		}
-		lt := evalStaticTypeOf(store, last, x.Lhs[0])
-		rt := evalStaticTypeOf(store, last, x.Rhs[0])
+		lt := evalStaticTypeOf(store, gasMeter, last, x.Lhs[0])
+		rt := evalStaticTypeOf(store, gasMeter, last, x.Rhs[0])
 
 		if checker, ok := AssignStmtChecker[x.Op]; ok {
 			if !checker(lt) {
@@ -1005,7 +1006,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				_, ric := x.Rhs[0].(*ConstExpr)
 				// check negative
 				if ric {
-					rv := evalConst(store, last, x.Rhs[0])
+					rv := evalConst(store, gasMeter, last, x.Rhs[0])
 					rv.AssertNonNegative("invalid operation: negative shift count")
 				}
 			default:
@@ -1018,7 +1019,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 }
 
 // misc
-func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
+func assertValidAssignLhs(store Store, gasMeter store.GasMeter, last BlockNode, lx Expr) {
 	shouldPanic := true
 	switch clx := lx.(type) {
 	case *NameExpr:
@@ -1034,7 +1035,7 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 	case *StarExpr, *SelectorExpr:
 		shouldPanic = false
 	case *IndexExpr:
-		xt := evalStaticTypeOf(store, last, clx.X)
+		xt := evalStaticTypeOf(store, gasMeter, last, clx.X)
 		shouldPanic = xt != nil && xt.Kind() == StringKind
 	default:
 	}
@@ -1043,7 +1044,7 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 	}
 }
 
-func assertValidAssignRhs(store Store, last BlockNode, n Node) {
+func assertValidAssignRhs(store Store, gasMeter store.GasMeter, last BlockNode, n Node) {
 	var exps []Expr
 	switch x := n.(type) {
 	case *ValueDecl:
@@ -1055,7 +1056,7 @@ func assertValidAssignRhs(store Store, last BlockNode, n Node) {
 	}
 
 	for _, exp := range exps {
-		tt := evalStaticTypeOfRaw(store, last, exp)
+		tt := evalStaticTypeOfRaw(store, gasMeter, last, exp)
 		if tt == nil {
 			switch x := n.(type) {
 			case *ValueDecl:
@@ -1071,7 +1072,7 @@ func assertValidAssignRhs(store Store, last BlockNode, n Node) {
 			}
 		}
 		if _, ok := tt.(*TypeType); ok {
-			tt = evalStaticType(store, last, exp)
+			tt = evalStaticType(store, gasMeter, last, exp)
 			panic(fmt.Sprintf("%s (type) is not an expression", tt.String()))
 		}
 

@@ -1440,8 +1440,8 @@ func (pn *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*
 	}
 
 	fd := FuncD(n, ps, rs, nil)
-	fd = Preprocess(nil, pn, fd).(*FuncDecl)
-	ft := evalStaticType(nil, pn, &fd.Type).(*FuncType)
+	fd = Preprocess(nil, nil, pn, fd).(*FuncDecl)
+	ft := evalStaticType(nil, nil, pn, &fd.Type).(*FuncType)
 	if debug {
 		if ft == nil {
 			panic("should not happen")
@@ -1461,16 +1461,16 @@ func (pn *PackageNode) DefineNativeMethod(r Name, n Name, ps, rs FieldTypeExprs,
 	}
 
 	fd := MthdD(n, Fld("_", Nx(r)), ps, rs, nil)
-	fd = Preprocess(nil, pn, fd).(*FuncDecl)
-	ft := evalStaticType(nil, pn, &fd.Type).(*FuncType)
+	fd = Preprocess(nil, nil, pn, fd).(*FuncDecl)
+	ft := evalStaticType(nil, nil, pn, &fd.Type).(*FuncType)
 	if debug {
 		if ft == nil {
 			panic("should not happen")
 		}
 	}
 	// attach fv to base declared type as method.
-	nx := Preprocess(nil, pn, Nx(r)).(Expr)
-	recv := evalStaticType(nil, pn, nx).(*DeclaredType)
+	nx := Preprocess(nil, nil, pn, Nx(r)).(Expr)
+	recv := evalStaticType(nil, nil, pn, nx).(*DeclaredType)
 	if debug {
 		if ft == nil {
 			panic("should not happen")

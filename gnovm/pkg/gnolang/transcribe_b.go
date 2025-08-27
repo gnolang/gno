@@ -1,5 +1,7 @@
 package gnolang
 
+import "github.com/gnolang/gno/tm2/pkg/store"
+
 type TransformB func(ns []Node, stack []BlockNode, last BlockNode, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl)
 
 // TranscribeB handles the common routine of keeping a stack and popping it at
@@ -18,12 +20,12 @@ type TransformB func(ns []Node, stack []BlockNode, last BlockNode, ftype TransFi
 //   - TRANS_EXIT to stop traversing altogether.
 //
 // XXX Replace all usage of Transcribe() with TranscribeB().
-func TranscribeB(last BlockNode, n Node, tb TransformB) (nn Node) {
+func TranscribeB(last BlockNode, gasMeter store.GasMeter, n Node, tb TransformB) (nn Node) {
 	// create stack of BlockNodes.
 	stack := append(make([]BlockNode, 0, 32), last)
 
 	// Iterate over all nodes recursively.
-	nn = Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (nn Node, tctrl TransCtrl) {
+	nn = Transcribe(n, gasMeter, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (nn Node, tctrl TransCtrl) {
 		switch stage {
 		case TRANS_ENTER:
 			nn, tctrl = tb(ns, stack, last, ftype, index, n, stage) // user transform

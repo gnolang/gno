@@ -14,6 +14,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 /*
@@ -107,9 +108,9 @@ type Xform struct {
 
 // Finds Xforms for Gno 0.9 from the Gno AST and stores them pn
 // ATTR_PN_XFORMS.
-func FindXformsGno0p9(store Store, pn *PackageNode, fn *FileNode) {
+func FindXformsGno0p9(store Store, gasMeter store.GasMeter, pn *PackageNode, fn *FileNode) {
 	// Iterate over all file nodes recursively.
-	_ = TranscribeB(pn, fn, func(ns []Node, stack []BlockNode, last BlockNode, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+	_ = TranscribeB(pn, gasMeter, fn, func(ns []Node, stack []BlockNode, last BlockNode, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		defer doRecover(stack, n)
 
 		switch stage {
@@ -151,7 +152,7 @@ func FindXformsGno0p9(store Store, pn *PackageNode, fn *FileNode) {
 				// Add xform to call expr n if the body is crossing.
 				// The rest will be handled by FindMore.
 				// Try to evaluate statically n.Func; may fail.
-				ftv, err := tryEvalStatic(store, pn, last, n.Func)
+				ftv, err := tryEvalStatic(store, gasMeter, pn, last, n.Func)
 				if false { // for debugging:
 					fmt.Println("FAILED TO EVALSTATIC", n.Func, err)
 				}
@@ -270,9 +271,9 @@ func spreadXform(lhs, rhs Node, xnew *int) (more Node, cmp int) {
 // Apply the found xform's and xform more.  The ultimate goal is to find more
 // pn xforms which result in actual transforms in part 2.
 // Returns number of new xforms; need to run across all files until all files return 0.
-func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) (xnew int) {
+func FindMoreXformsGno0p9(store Store, gasMeter store.GasMeter, pn *PackageNode, last BlockNode, n Node) (xnew int) {
 	// Iterate over all nodes recursively.
-	_ = TranscribeB(last, n, func(ns []Node, stack []BlockNode, last BlockNode, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+	_ = TranscribeB(last, gasMeter, n, func(ns []Node, stack []BlockNode, last BlockNode, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		defer doRecover(stack, n)
 
 		switch stage {
@@ -308,7 +309,7 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 				if cmp > 0 {
 					// recurse again in dbn.
 					dbnLast := dbn.GetParentNode(store)
-					FindMoreXformsGno0p9(store, pn, dbnLast, dbn)
+					FindMoreXformsGno0p9(store, gasMeter, pn, dbnLast, dbn)
 				}
 				return n, TRANS_CONTINUE
 			case *AssignStmt:
@@ -320,7 +321,7 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 						rhx := rhs[i]
 						more, _ := spreadXform(lhx, rhx, &xnew)
 						if more != nil { // recurse
-							FindMoreXformsGno0p9(store, pn, last, more)
+							FindMoreXformsGno0p9(store, gasMeter, pn, last, more)
 						}
 					}
 				} else if len(lhs) > 1 && len(rhs) == 1 {
@@ -358,10 +359,10 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 							}
 							addXform1(pn, fileNameOf(last), ftx.Type, XTYPE_ADD_CUR_FUNC, &xnew)
 							// Dive into the param type? maybe useful later.
-							FindMoreXformsGno0p9(store, pn, last, ftx.Type)
+							FindMoreXformsGno0p9(store, gasMeter, pn, last, ftx.Type)
 						case cmp > 0: // name expr >>> value (add cur to func)
 							// Find more in kvx.
-							FindMoreXformsGno0p9(store, pn, last, kvx.Value)
+							FindMoreXformsGno0p9(store, gasMeter, pn, last, kvx.Value)
 						}
 					}
 					return n, TRANS_CONTINUE
@@ -395,7 +396,7 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 					cfn = n.Func
 				}
 				// fill `ft`
-				ft, ok := evalStaticTypeOf(store, last, cfn).(*FuncType)
+				ft, ok := evalStaticTypeOf(store, gasMeter, last, cfn).(*FuncType)
 				if !ok {
 					// conversions not handled "yet".
 					return n, TRANS_CONTINUE
@@ -407,7 +408,7 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 				// fill `sx*`
 				if sx2, ok := cfn.(*SelectorExpr); ok {
 					sx = sx2
-					sxt = evalStaticTypeOf(store, last, sx.X)
+					sxt = evalStaticTypeOf(store, gasMeter, last, sx.X)
 				}
 				// fill `i*` and do some work.
 				if sx != nil && sxt.Kind() == InterfaceKind {
@@ -420,7 +421,7 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 						return n, TRANS_CONTINUE
 					}
 					ipn = store.GetPackageNode(it.PkgPath)
-					inx1 := unconst(Preprocess(store, ipn, Nx(it.Name)).(Expr)).(*NameExpr)
+					inx1 := unconst(Preprocess(store, gasMeter, ipn, Nx(it.Name)).(Expr)).(*NameExpr)
 					ifn1, itx1 := ipn.GetTypeExprForExpr(store, inx1)
 					if ipn != skipFile(ifn1) {
 						panic("package mismatch")
@@ -573,10 +574,10 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 						fname := fn.GetLocation().File
 						addXform1(fpn, fname, ptx, XTYPE_ADD_CUR_FUNC, &xnew)
 						// Dive into the param type? maybe useful later.
-						FindMoreXformsGno0p9(store, fpn, fn, ptx)
+						FindMoreXformsGno0p9(store, gasMeter, fpn, fn, ptx)
 						didFixArg = true
 					case cmp > 0: // param >>> argx
-						FindMoreXformsGno0p9(store, pn, last, argx)
+						FindMoreXformsGno0p9(store, gasMeter, pn, last, argx)
 					}
 				}
 
@@ -588,7 +589,7 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 				// computationally efficient, but it's simple.
 				if didFixArg {
 					fparent := fn.GetParentNode(store)
-					FindMoreXformsGno0p9(store, fpn, fparent, fn)
+					FindMoreXformsGno0p9(store, gasMeter, fpn, fparent, fn)
 				}
 				return n, TRANS_CONTINUE
 			} // END switch n.(type) {}
