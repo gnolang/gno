@@ -177,7 +177,7 @@ func (cz Coins) Add(b Coins) Coins {
 	return c
 }
 
-func (cz Coins) GetCoin(demon string) Coin {
+func (cz Coins) GetCoin(denom string) Coin {
 	for _, c := range cz {
 		if c.Denom == denom {
 			return c
