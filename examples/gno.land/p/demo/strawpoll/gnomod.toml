@@ -1,0 +1,2 @@
+module = "gno.land/p/demo/strawpoll"
+gno = "0.9"

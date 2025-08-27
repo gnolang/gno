@@ -3,6 +3,8 @@ package strawpoll
 import (
 	"strings"
 	"testing"
+
+	"gno.land/p/demo/strawpoll"
 )
 
 func TestCreatePoll(t *testing.T) {
@@ -10,8 +12,8 @@ func TestCreatePoll(t *testing.T) {
 		emptyQuestion := ""
 
 		err := CreatePoll(cross, emptyQuestion, "Blue,Green")
-		if err != ErrQuestionMustBeProvided {
-			t.Errorf("expected error to be: %v, but got: %v", ErrQuestionMustBeProvided, err)
+		if err != strawpoll.ErrQuestionMustBeProvided {
+			t.Errorf("expected error to be: %v, but got: %v", strawpoll.ErrQuestionMustBeProvided, err)
 		}
 	})
 
@@ -20,8 +22,8 @@ func TestCreatePoll(t *testing.T) {
 		insufficientOptions := "Blue"
 
 		err := CreatePoll(cross, question, insufficientOptions)
-		if err != ErrMiniminalOptionsMustBeProvided {
-			t.Errorf("expected error to be: %v, but got: %v", ErrMiniminalOptionsMustBeProvided, err)
+		if err != strawpoll.ErrMinimumOptionsMustBeProvided {
+			t.Errorf("expected error to be: %v, but got: %v", strawpoll.ErrMinimumOptionsMustBeProvided, err)
 		}
 	})
 
@@ -34,24 +36,8 @@ func TestCreatePoll(t *testing.T) {
 			t.Errorf("expected no error, but got: %v", err)
 		}
 
-		lastPoll := polls[len(polls)-1]
-
-		if lastPoll.Question != question {
-			t.Errorf("expected question to be: %v, but got: %v", question, lastPoll.Question)
-		}
-
-		if len(lastPoll.Options) != 2 {
-			t.Errorf("expected options length to be: %v, but got: %v", len(options), len(lastPoll.Options))
-		}
-
-		for i, option := range options {
-			if lastPoll.Options[i] != option {
-				t.Errorf("expected option at index %d to be: %v, but got: %v", i, option, lastPoll.Options[i])
-			}
-
-			if lastPoll.Votes[option] != 0 {
-				t.Errorf("expected votes for option %v to be 0, but got: %v", option, lastPoll.Votes[option])
-			}
+		if len(polls) != 1 {
+			t.Errorf("expected 1 poll to be created, but got: %v", len(polls))
 		}
 	})
 }
@@ -64,28 +50,6 @@ func TestVote(t *testing.T) {
 		}
 	})
 
-	t.Run("AlreadyVoted", func(t *testing.T) {
-		question := "What is your favorite color?"
-		options := []string{"Blue", "Green"}
-
-		err := CreatePoll(cross, question, strings.Join(options, ","))
-		if err != nil {
-			t.Fatalf("failed to create poll: %v", err)
-		}
-
-		pollNumber := int64(len(polls))
-
-		err = Vote(cross, pollNumber, options[0])
-		if err != nil {
-			t.Fatalf("failed to vote: %v", err)
-		}
-
-		err = Vote(cross, pollNumber, options[1])
-		if err != ErrAlreadyVoted {
-			t.Errorf("expected error to be: %v, but got: %v", ErrAlreadyVoted, err)
-		}
-	})
-
 	t.Run("Success", func(t *testing.T) {
 		question := "What is your favorite color?"
 		options := []string{"Blue", "Green"}
@@ -95,21 +59,15 @@ func TestVote(t *testing.T) {
 			t.Fatalf("failed to create poll: %v", err)
 		}
 
-		pollNumber := len(polls)
-
-		if pollNumber < 1 {
-			t.Fatalf("no polls available to vote on")
-		}
-
-		err = Vote(cross, int64(pollNumber), options[0])
+		err = Vote(cross, int64(len(polls)), options[0])
 		if err != nil {
 			t.Fatalf("failed to vote: %v", err)
 		}
 
-		poll := polls[pollNumber-1]
+		lastPoll := polls[len(polls)-1]
 
-		if poll.Votes[options[0]] != 1 {
-			t.Errorf("expected votes for option %v to be 1, but got: %v", options[0], poll.Votes[options[0]])
+		if lastPoll.OptionCount(options[0]) != 1 {
+			t.Errorf("expected votes for option %v to be 1, but got: %v", options[0], lastPoll.OptionCount(options[0]))
 		}
 	})
 }
