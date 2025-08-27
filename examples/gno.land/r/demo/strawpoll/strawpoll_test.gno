@@ -66,8 +66,8 @@ func TestVote(t *testing.T) {
 
 		lastPoll := polls[len(polls)-1]
 
-		if lastPoll.OptionCount(options[0]) != 1 {
-			t.Errorf("expected votes for option %v to be 1, but got: %v", options[0], lastPoll.OptionCount(options[0]))
+		if lastPoll.VoteCount(options[0]) != 1 {
+			t.Errorf("expected votes for option %v to be 1, but got: %v", options[0], lastPoll.VoteCount(options[0]))
 		}
 	})
 }

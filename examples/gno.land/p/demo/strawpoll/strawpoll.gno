@@ -5,6 +5,7 @@ import (
 	"std"
 	"strconv"
 
+	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -19,16 +20,20 @@ var (
 
 // Poll represents a blueprint for a single poll.
 type Poll struct {
-	creator  std.Address          // The address of the person who created the poll.
-	question string               // The poll's question.
-	options  []string             // A list of valid options for this poll.
-	votes    map[string]int64     // A map to store the vote count for each option.
-	voters   map[std.Address]bool // A map to track who has voted *in this specific poll*.
+	creator  std.Address // The address of the person who created the poll.
+	question string      // The poll's question.
+	options  []string    // A list of valid options for this poll.
+	votes    *avl.Tree   // A map to store the vote count for each option.
+	voters   *avl.Tree   // A map to track who has voted *in this specific poll*.
 }
 
-// OptionCount returns the number of votes for a specific option in the poll.
-func (poll *Poll) OptionCount(option string) int64 {
-	return poll.votes[option]
+// VoteCount returns the number of votes for a specific option in the poll.
+func (poll *Poll) VoteCount(option string) int64 {
+	if count, ok := poll.votes.Get(option); ok {
+		return count.(int64)
+	}
+
+	return 0
 }
 
 // New creates a new poll with the given question and options.
@@ -41,11 +46,11 @@ func New(question string, options []string) (Poll, error) {
 		return Poll{}, ErrMinimumOptionsMustBeProvided
 	}
 
-	votes := make(map[string]int64)
-	voters := make(map[std.Address]bool)
+	votes := avl.NewTree()
+	voters := avl.NewTree()
 
 	for _, option := range options {
-		votes[option] = 0
+		votes.Set(option, int64(0))
 	}
 
 	return Poll{
@@ -61,18 +66,17 @@ func New(question string, options []string) (Poll, error) {
 func (poll *Poll) Vote(option string) error {
 	caller := std.PreviousRealm().Address()
 
-	_, hasAlreadyVoted := poll.voters[caller]
-	if hasAlreadyVoted {
+	if poll.voters.Has(caller.String()) {
 		return ErrAlreadyVoted
 	}
 
-	_, isOptionAvailable := poll.votes[option]
-	if !isOptionAvailable {
+	count, ok := poll.votes.Get(option)
+	if !ok {
 		return ErrOptionNotAvailable
 	}
 
-	poll.votes[option]++
-	poll.voters[caller] = true
+	poll.votes.Set(option, count.(int64)+1)
+	poll.voters.Set(caller.String(), true)
 
 	return nil
 }
@@ -87,7 +91,7 @@ func (poll *Poll) Markdown() string {
 
 	// Display each option as a row in the new table format.
 	for _, option := range poll.options {
-		voteCount := poll.votes[option]
+		voteCount := poll.VoteCount(option)
 
 		var percentage int64 = 0
 		if totalVotes > 0 {
@@ -104,9 +108,10 @@ func (poll *Poll) Markdown() string {
 }
 
 func (poll *Poll) totalVotes() (total int64) {
-	for _, count := range poll.votes {
-		total += count
-	}
+	poll.votes.IterateByOffset(0, poll.votes.Size(), func(key string, value any) bool {
+		total += value.(int64)
+		return false
+	})
 
 	return total
 }
