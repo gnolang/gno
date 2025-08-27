@@ -147,6 +147,9 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 					p = filepath.Join(cfg.rootDir, "examples", ppath, name)
 					b, err = os.ReadFile(p)
 				}
+				if err != nil {
+					return ""
+				}
 				return string(b)
 			})
 		}
