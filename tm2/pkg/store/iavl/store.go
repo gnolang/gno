@@ -137,19 +137,12 @@ func (st *Store) LoadVersion(ver int64) error {
 		immutTree, err := st.tree.(*iavl.MutableTree).GetImmutable(ver)
 		if err != nil {
 			return err
-		} else {
-			st.tree = &immutableTree{immutTree}
-			return nil
 		}
-	} else {
-		if st.opts.LazyLoad {
-			_, err := st.tree.(*iavl.MutableTree).LoadVersion(ver) // TODO(tb): ensure cosmos/iavl.MutableTree.LoadVersion handle lazy loading, then remove st.opts.LazyLoad field.
-			return err
-		} else {
-			_, err := st.tree.(*iavl.MutableTree).LoadVersion(ver)
-			return err
-		}
+		st.tree = &immutableTree{immutTree}
+		return nil
 	}
+	_, err := st.tree.(*iavl.MutableTree).LoadVersion(ver)
+	return err
 }
 
 // VersionExists returns whether or not a given version is stored.

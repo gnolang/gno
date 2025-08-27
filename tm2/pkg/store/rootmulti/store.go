@@ -60,11 +60,6 @@ func (ms *multiStore) SetStoreOptions(opts types.StoreOptions) {
 	}
 }
 
-// SetLazyLoad sets if the store should be loaded lazily or not
-func (ms *multiStore) SetLazyLoad(lazyLoad bool) {
-	ms.storeOpts.LazyLoad = lazyLoad
-}
-
 // Implements CommitMultiStore.
 func (ms *multiStore) MountStoreWithDB(key types.StoreKey, cons types.CommitStoreConstructor, db dbm.DB) {
 	if key == nil {
