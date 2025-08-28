@@ -13,7 +13,7 @@ import (
 // ----------------------------------------
 // Primitives
 
-type Word int
+type Word byte
 
 const (
 	// Special words
@@ -101,6 +101,8 @@ const (
 	SWITCH
 	TYPE
 	VAR
+
+	wordMax
 )
 
 type Name string
@@ -982,25 +984,34 @@ type SwitchClauseStmt struct {
 // NOTE: embedded in Block.
 type bodyStmt struct {
 	Attributes
-	Body                       // for non-loop stmts
-	BodyLen       int          // for for-continue
-	NextBodyIndex int          // init:-2, cond/elem:-1, body:0..., post:n
-	NumOps        int          // number of Ops, for goto
-	NumValues     int          // number of Values, for goto
-	NumExprs      int          // number of Exprs, for goto
-	NumStmts      int          // number of Stmts, for goto
-	Cond          Expr         // for ForStmt
-	Post          Stmt         // for ForStmt
-	Active        Stmt         // for PopStmt()
-	Key           Expr         // for RangeStmt
-	Value         Expr         // for RangeStmt
-	Op            Word         // for RangeStmt
-	ListLen       int          // for RangeStmt only
-	ListIndex     int          // for RangeStmt only
-	NextItem      *MapListItem // fpr RangeStmt w/ maps only
-	StrLen        int          // for RangeStmt w/ strings only
-	StrIndex      int          // for RangeStmt w/ strings only
-	NextRune      rune         // for RangeStmt w/ strings only
+	Body               // for non-loop stmts
+	NextBodyIndex int  // init:-2, cond/elem:-1, body:0..., post:n
+	Active        Stmt // for PopStmt()
+	Goto          *gotoInfo
+	Loop          *loopInfo
+}
+
+type gotoInfo struct {
+	NumOps    int // number of Ops, for goto
+	NumValues int // number of Values, for goto
+	NumExprs  int // number of Exprs, for goto
+	NumStmts  int // number of Stmts, for goto
+}
+
+type loopInfo struct {
+	Cond  Expr // for ForStmt
+	Post  Stmt // for ForStmt
+	Key   Expr // for RangeStmt
+	Value Expr // for RangeStmt
+	Op    Word // for RangeStmt
+
+	ListLen   int // for RangeStmt (slices, strings)
+	ListIndex int // for RangeStmt (slices, strings)
+
+	NextItem *MapListItem // for RangeStmt (maps)
+
+	RuneSize byte // for RangeStmt (strings)
+	NextRune rune // for RangeStmt (strings)
 }
 
 func (x *bodyStmt) PopActiveStmt() (as Stmt) {
@@ -1032,9 +1043,12 @@ func (x *bodyStmt) String() string {
 			active = fmt.Sprintf(" unexpected active: %v", x.Active)
 		}
 	}
-	return fmt.Sprintf("bodyStmt[%d/%d/%d]=%s%s Active:%v",
-		x.ListLen,
-		x.ListIndex,
+	var loopData string
+	if li := x.Loop; li != nil {
+		loopData = fmt.Sprintf("%d/%d, ", li.ListIndex, li.ListLen)
+	}
+	return fmt.Sprintf("bodyStmt[%s%d]=%s%s Active:%v",
+		loopData,
 		x.NextBodyIndex,
 		next,
 		active,

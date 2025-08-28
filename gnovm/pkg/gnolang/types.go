@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unsafe"
 
 	r "github.com/gnolang/gno/tm2/pkg/regx"
 )
@@ -2091,8 +2092,26 @@ func debugAssertEqualityTypes(lt, rt Type) {
 // ----------------------------------------
 // misc
 
+type iface struct {
+	tab  uintptr
+	data unsafe.Pointer
+}
+
+var primitiveTypeUintptr = func() uintptr {
+	x := Type(InvalidType)
+	return (*iface)(unsafe.Pointer(&x)).tab
+}()
+
+func asPrimitive(t Type) PrimitiveType {
+	conv := (*iface)(unsafe.Pointer(&t))
+	if conv.tab == primitiveTypeUintptr {
+		return *(*PrimitiveType)(conv.data)
+	}
+	return InvalidType
+}
+
 func isUntyped(t Type) bool {
-	switch t {
+	switch asPrimitive(t) {
 	case UntypedBoolType, UntypedRuneType, UntypedBigintType, UntypedBigdecType, UntypedStringType:
 		return true
 	default:
@@ -2101,12 +2120,7 @@ func isUntyped(t Type) bool {
 }
 
 func isDataByte(t Type) bool {
-	switch t {
-	case DataByteType:
-		return true
-	default:
-		return false
-	}
+	return asPrimitive(t) == DataByteType
 }
 
 // TODO move untyped const stuff to preprocess.go.
