@@ -19,12 +19,12 @@ var daoID uint64
 func init() {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
-	cross(commondao.Invite)(user)
+	commondao.Invite(cross, user)
 
-	// Create a new DAO which gives ownership to `commondao_test`
+	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
-	dao := commondao.New("Foo")
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
+	dao := commondao.New(cross, "Foo")
 	daoID = dao.ID()
 
 	// Configure DAO
@@ -34,7 +34,7 @@ func init() {
 func main() {
 	testing.SetRealm(std.NewUserRealm(user))
 
-	cross(commondao.Vote)(daoID, 404, pcommondao.ChoiceYes, "")
+	commondao.Vote(cross, daoID, 404, pcommondao.ChoiceYes, "")
 }
 
 // Error:

@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+package main
 
 import (
 	"std"
@@ -19,19 +18,19 @@ var daoID uint64
 func init() {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
-	cross(commondao.Invite)(user)
+	commondao.Invite(cross, user)
 
-	// Create a new DAO which gives ownership to `commondao_test`
+	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
-	daoID = commondao.New("Foo").ID()
+	daoID = commondao.New(cross, "Foo").ID()
 }
 
 func main() {
 	// Use a caller that is not the owner of the DAO
 	testing.SetRealm(std.NewUserRealm(user))
 
-	cross(commondao.TransferOwnership)(daoID, newRealm)
+	commondao.TransferOwnership(cross, daoID, newRealm)
 }
 
 // Error:

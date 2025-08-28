@@ -14,7 +14,7 @@ func main() {
 }
 
 // Error:
-// main/files/type37e.gno:8:1: invalid receiver type main.Int2 (base type is pointer type)
+// main/type37e.gno:8:1-10:2: invalid receiver type main.Int2 (base type is pointer type)
 
 // TypeCheckError:
-// main/files/type37e.gno:8:10: invalid receiver type Int2 (pointer or interface type); main/files/type37e.gno:13:19: Int2(ip).Int undefined (type Int2 has no field or method Int)
+// main/type37e.gno:8:10: invalid receiver type Int2 (pointer or interface type); main/type37e.gno:13:19: Int2(ip).Int undefined (type Int2 has no field or method Int)

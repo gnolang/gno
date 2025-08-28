@@ -14,9 +14,11 @@ func (f *fooer) SetS(newVal string) {
 	f.s = newVal
 }
 
-func (f *fooer) Foo() {
-	crossing()
+func (f *fooer) Foo(cur realm) {
+	println("hello " + f.s + " cur=" + std.CurrentRealm().PkgPath() + " prev=" + std.PreviousRealm().PkgPath())
+}
 
+func (f *fooer) Bar() {
 	println("hello " + f.s + " cur=" + std.CurrentRealm().PkgPath() + " prev=" + std.PreviousRealm().PkgPath())
 }
 
@@ -28,17 +30,13 @@ var (
 
 var Closure func()
 
-func SetClosure(f func()) {
-	crossing()
-
+func SetClosure(cur realm, f func()) {
 	Closure = f
 }
 
 var Object any
 
-func SetObject(x any) {
-	crossing()
-
+func SetObject(cur realm, x any) {
 	Object = x
 }
 

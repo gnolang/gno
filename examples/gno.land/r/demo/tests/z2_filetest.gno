@@ -12,12 +12,12 @@ import (
 // When 2 or more realms in the frames, PreviousRealm returns the second to last
 func main() {
 	var (
-		eoa        = testutils.TestAddress("someone")
-		rTestsAddr = std.DerivePkgAddr("gno.land/r/demo/tests")
+		eoa = testutils.TestAddress("someone")
+		_   = std.DerivePkgAddr("gno.land/r/demo/tests")
 	)
 	testing.SetOriginCaller(eoa)
-	println("tests.GetPreviousRealm().Address(): ", cross(tests.GetPreviousRealm)().Address())
-	println("tests.GetRSubtestsPreviousRealm().Address(): ", cross(tests.GetRSubtestsPreviousRealm)().Address())
+	println("tests.GetPreviousRealm().Address(): ", tests.GetPreviousRealm(cross).Address())
+	println("tests.GetRSubtestsPreviousRealm().Address(): ", tests.GetRSubtestsPreviousRealm(cross).Address())
 }
 
 // Output:

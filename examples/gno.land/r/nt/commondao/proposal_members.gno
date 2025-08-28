@@ -7,13 +7,12 @@ import (
 	"time"
 
 	"gno.land/p/moul/addrset"
+	"gno.land/p/moul/md"
 	"gno.land/p/nt/commondao"
 )
 
-// TODO: Support optional parent DAO mechanics to add/remove direct SubDAO members
-
-// NewMembersPropDefinition creates a new proposal definition for adding/removing DAO members.
-func NewMembersPropDefinition(dao *commondao.CommonDAO, add, remove addrset.Set) MembersPropDefinition {
+// newMembersUpdatePropDefinition creates a new proposal definition for adding/removing DAO members.
+func newMembersUpdatePropDefinition(dao *commondao.CommonDAO, add, remove addrset.Set) membersUpdatePropDefinition {
 	if dao == nil {
 		panic("DAO is required")
 	}
@@ -26,57 +25,54 @@ func NewMembersPropDefinition(dao *commondao.CommonDAO, add, remove addrset.Set)
 		panic("no members were specified to be added or removed")
 	}
 
-	return MembersPropDefinition{
+	return membersUpdatePropDefinition{
 		dao:      dao,
 		toAdd:    add,
 		toRemove: remove,
 	}
 }
 
-// MembersUpdateProposal defines a proposal type for adding/removing DAO members.
-type MembersPropDefinition struct {
+// membersUpdatePropDefinition defines a proposal type for adding/removing DAO members.
+type membersUpdatePropDefinition struct {
 	dao             *commondao.CommonDAO
 	toAdd, toRemove addrset.Set
 }
 
-func (MembersPropDefinition) Title() string               { return "Members Update" }
-func (MembersPropDefinition) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
+func (membersUpdatePropDefinition) Title() string               { return "Members Update" }
+func (membersUpdatePropDefinition) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
 
-func (p MembersPropDefinition) Body() string {
+func (p membersUpdatePropDefinition) Body() string {
 	var b strings.Builder
 
 	if p.toAdd.Size() > 0 {
-		b.WriteString("**Members to Add:**\n")
+		items := make([]string, 0, p.toAdd.Size())
 		p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr std.Address) bool {
-			b.WriteString("- ")
-			b.WriteString(addr.String())
-			b.WriteString("\n")
+			items = append(items, addr.String())
 			return false
 		})
+
+		b.WriteString(md.Paragraph(
+			md.Bold("Members to Add:") + "\n" + md.BulletList(items),
+		))
 	}
 
 	if p.toRemove.Size() > 0 {
-		b.WriteString("\n**Members to Remove:**\n")
+		items := make([]string, 0, p.toRemove.Size())
 		p.toRemove.IterateByOffset(0, p.toRemove.Size(), func(addr std.Address) bool {
-			b.WriteString("- ")
-			b.WriteString(addr.String())
-			b.WriteString("\n")
+			items = append(items, addr.String())
 			return false
 		})
+
+		b.WriteString(md.Paragraph(
+			md.Bold("Members to Remove:") + "\n" + md.BulletList(items),
+		))
 	}
 
 	return b.String()
 }
 
-func (p MembersPropDefinition) Validate() error {
-	if p.dao == nil {
-		return ErrInvalidProposal
-	}
-
-	var (
-		err     error
-		members = p.dao.Members()
-	)
+func (p membersUpdatePropDefinition) Validate() (err error) {
+	members := p.dao.Members()
 
 	p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr std.Address) bool {
 		if members.Has(addr) {
@@ -101,7 +97,7 @@ func (p MembersPropDefinition) Validate() error {
 	return err
 }
 
-func (MembersPropDefinition) Tally(r commondao.ReadonlyVotingRecord, members commondao.MemberSet) (bool, error) {
+func (membersUpdatePropDefinition) Tally(r commondao.ReadonlyVotingRecord, members commondao.MemberSet) (bool, error) {
 	// When DAO has one or two members succeed when there is a YES vote, otherwise
 	// tally requires at least three votes to be able to tally by 2/3s super majority
 	if members.Size() < 3 {
@@ -119,9 +115,7 @@ func (MembersPropDefinition) Tally(r commondao.ReadonlyVotingRecord, members com
 	return false, nil
 }
 
-func (p MembersPropDefinition) Execute() error {
-	assertIsValidProposalDefinition(p)
-
+func (p membersUpdatePropDefinition) Execute(realm) error {
 	members := p.dao.Members()
 
 	p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr std.Address) bool {

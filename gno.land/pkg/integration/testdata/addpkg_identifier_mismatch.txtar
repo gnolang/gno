@@ -11,20 +11,20 @@ stdout OK!
 ! gnokey maketx addpkg -pkgdir $WORK/bye -pkgpath gno.land/r/$test1_user_addr/bye -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 stderr 'match its expected identifier'
 
--- hello/gno.mod --
-module gno.land/p/demo/hello
+-- hello/gnomod.toml --
+module = "gno.land/p/demo/hello"
+gno = "0.9"
 
 -- hello/hello.gno --
 package hello123
 
 func SayHello() string {
- 	return "hello world!"
+	return "hello world!"
 }
 
-
--- bye/gno.mod --
-module gno.land/p/demo/bye
-
+-- bye/gnomod.toml --
+module = "gno.land/p/demo/bye"
+gno = "0.9"
 -- bye/bye.gno --
 package bye
 

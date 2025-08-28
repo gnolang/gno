@@ -12,18 +12,27 @@ const (
 	user  = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
+var parentID uint64
+
 func init() {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
-	cross(commondao.Invite)(user)
+	commondao.Invite(cross, user)
+
+	// The origin must be the invited user
+	testing.SetRealm(std.NewUserRealm(user))
+
+	// Create the root DAO
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
+	parentID = commondao.New(cross, "Parent DAO").ID()
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
 
-	commondao.NewSubDAO("Foo", "foo", nil)
+	commondao.NewSubDAO(cross, "", parentID)
 }
 
 // Error:
-// parent is required
+// DAO name is empty

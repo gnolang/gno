@@ -1,12 +1,16 @@
-// MAXALLOC: 50000000
+// MAXALLOC: 500000000
 package main
 
-func recurse(n int) {
-	recurse(n + 1)
+func grow() {
+	var hugeString string
+	for {
+		hugeString += string(make([]byte, 100_000_000))
+	}
 }
+
 func main() {
-	recurse(0)
+	grow()
 }
 
 // Error:
-// should not happen, allocation limit exceeded while gc.
+// allocation limit exceeded

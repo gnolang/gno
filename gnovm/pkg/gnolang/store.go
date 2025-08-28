@@ -38,6 +38,7 @@ type NativeResolver func(pkgName string, name Name) func(m *Machine)
 type Store interface {
 	// STABLE
 	BeginTransaction(baseStore, iavlStore store.Store, gasMeter store.GasMeter) TransactionStore
+	GetPackageGetter() PackageGetter
 	SetPackageGetter(PackageGetter)
 	GetPackage(pkgPath string, isImport bool) *PackageValue
 	SetCachePackage(*PackageValue)
@@ -45,15 +46,17 @@ type Store interface {
 	SetPackageRealm(*Realm)
 	GetObject(oid ObjectID) Object
 	GetObjectSafe(oid ObjectID) Object
-	SetObject(Object)
-	DelObject(Object)
+	SetObject(Object) int64 // returns size difference of the object
+	DelObject(Object) int64 // returns size difference of the object
 	GetType(tid TypeID) Type
 	GetTypeSafe(tid TypeID) Type
 	SetCacheType(Type)
 	SetType(Type)
-	GetBlockNode(Location) BlockNode // to get a PackageNode, use PackageNodeLocation().
+	GetPackageNode(pkgPath string) *PackageNode
+	GetBlockNode(Location) BlockNode
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
+	RealmStorageDiffs() map[string]int64 // returns storage changes per realm within the message
 
 	// UNSTABLE
 	GetAllocator() *Allocator
@@ -61,7 +64,7 @@ type Store interface {
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
-	AddMemPackage(memPkg *std.MemPackage)
+	AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType)
 	GetMemPackage(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
 	FindPathsByPrefix(prefix string) iter.Seq[string]
@@ -149,6 +152,9 @@ type defaultStore struct {
 	// gas
 	gasMeter  store.GasMeter
 	gasConfig GasConfig
+
+	// realm storage changes on message level.
+	realmStorageDiffs map[string]int64 // maps realm path to size diff
 }
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
@@ -161,6 +167,9 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   txlog.GoMap[TypeID, Type](map[TypeID]Type{}),
 		cacheNodes:   txlog.GoMap[Location, BlockNode](map[Location]BlockNode{}),
+
+		// reset at the message level
+		realmStorageDiffs: make(map[string]int64),
 
 		// store configuration
 		pkgGetter:      nil,
@@ -201,21 +210,21 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gasMe
 		// transient
 		current: nil,
 		opslog:  nil,
+		// reset at the message level
+		realmStorageDiffs: make(map[string]int64),
 	}
 	ds2.SetCachePackage(Uverse())
 
 	return transactionStore{ds2}
 }
 
-type transactionStore struct{ *defaultStore }
+type transactionStore struct {
+	*defaultStore
+}
 
 func (t transactionStore) Write() {
 	t.cacheTypes.(txlog.MapCommitter[TypeID, Type]).Commit()
 	t.cacheNodes.(txlog.MapCommitter[Location, BlockNode]).Commit()
-}
-
-func (transactionStore) SetPackageGetter(pg PackageGetter) {
-	panic("SetPackageGetter may not be called in a transaction store")
 }
 
 // XXX: we should block Go2GnoType, because it uses a global cache map;
@@ -255,6 +264,11 @@ func CopyFromCachedStore(destStore, cachedStore Store, cachedBase, cachedIavl st
 
 func (ds *defaultStore) GetAllocator() *Allocator {
 	return ds.alloc
+}
+
+// Used by cmd/gno (e.g. lint) to inject target package as MPTest.
+func (ds *defaultStore) GetPackageGetter() (pg PackageGetter) {
+	return ds.pkgGetter
 }
 
 func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
@@ -302,12 +316,9 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 			// 	panic("realm packages cannot be gotten from pkgGetter")
 			// }
 			ds.SetBlockNode(pn)
-			// NOTE: not SetObject() here,
-			// we don't want to overwrite
-			// the value from pkgGetter.
-			// Realm values obtained this way
-			// will get written elsewhere
-			// later.
+			// NOTE: not SetObject() here, we don't want to overwrite the value
+			// from pkgGetter. Realm values obtained this way will get written
+			// elsewhere later.
 			ds.cacheObjects[oid] = pv
 			// cache all types. usually preprocess() sets types,
 			// but packages gotten from the pkgGetter may skip this step,
@@ -318,7 +329,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 					// (for other types, .T == nil even after definition).
 				} else if tv.T.Kind() == TypeKind {
 					t := tv.GetType()
-					ds.SetCacheType(t)
+					ds.SetType(t)
 				}
 			}
 			return pv
@@ -329,6 +340,8 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 }
 
 // Used to set throwaway packages.
+// NOTE: To check whether a mem package has been run, use GetMemPackage()
+// instead of implementing HasCachePackage().
 func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 	oid := ObjectIDFromPkgPath(pv.PkgPath)
 	if _, exists := ds.cacheObjects[oid]; exists {
@@ -459,6 +472,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		}
 		oo.SetHash(ValueHash{NewHashlet(hash)})
 		ds.cacheObjects[oid] = oo
+		oo.GetObjectInfo().LastObjectSize = int64(size)
 		_ = fillTypesOfValue(ds, oo)
 		return oo
 	}
@@ -467,7 +481,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
 // package values.
-func (ds *defaultStore) SetObject(oo Object) {
+func (ds *defaultStore) SetObject(oo Object) int64 {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -492,12 +506,16 @@ func (ds *defaultStore) SetObject(oo Object) {
 		panic("should not happen")
 	}
 	oo.SetHash(ValueHash{hash})
+	// difference between object size and cached value
+	diff := int64(len(hash)+len(bz)) - o2.(Object).GetObjectInfo().LastObjectSize
 	// make store op log entry
 	if ds.opslog != nil {
 		obj := o2.(Object)
 		if oo.GetIsNewReal() {
-			fmt.Fprintf(ds.opslog, "c[%v]=%s\n",
+			obj.GetObjectInfo().LastObjectSize += diff
+			fmt.Fprintf(ds.opslog, "c[%v](%d)=%s\n",
 				obj.GetObjectID(),
+				diff,
 				prettyJSON(amino.MustMarshalJSON(obj)))
 		} else {
 			old := ds.loadForLog(oid)
@@ -508,6 +526,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 			// ie. empty slices should be null, not [].
 			var pureNew Object
 			amino.MustUnmarshalAny(amino.MustMarshalAny(obj), &pureNew)
+			pureNew.GetObjectInfo().LastObjectSize = obj.GetObjectInfo().LastObjectSize
 
 			s, err := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
 				A:       difflib.SplitLines(string(prettyJSON(amino.MustMarshalJSON(old)))),
@@ -521,7 +540,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 				fmt.Fprintf(ds.opslog, "u[%v]=(noop)\n", obj.GetObjectID())
 			} else {
 				s = "    " + strings.TrimSpace(strings.ReplaceAll(s, "\n", "\n    "))
-				fmt.Fprintf(ds.opslog, "u[%v]=\n%s\n", obj.GetObjectID(), s)
+				fmt.Fprintf(ds.opslog, "u[%v](%d)=\n%s\n", obj.GetObjectID(), diff, s)
 			}
 		}
 	}
@@ -533,6 +552,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 		copy(hashbz[HashSize:], bz)
 		ds.baseStore.Set([]byte(key), hashbz)
 		size = len(hashbz)
+		oo.GetObjectInfo().LastObjectSize = int64(size)
 	}
 	// save object to cache.
 	if debug {
@@ -555,6 +575,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 		value = hash.Bytes()
 		ds.iavlStore.Set(key, value)
 	}
+	return diff
 }
 
 func (ds *defaultStore) loadForLog(oid ObjectID) Object {
@@ -566,10 +587,11 @@ func (ds *defaultStore) loadForLog(oid ObjectID) Object {
 	bz := hashbz[HashSize:]
 	var oo Object
 	amino.MustUnmarshal(bz, &oo)
+	oo.GetObjectInfo().LastObjectSize = int64(len(hashbz))
 	return oo
 }
 
-func (ds *defaultStore) DelObject(oo Object) {
+func (ds *defaultStore) DelObject(oo Object) int64 {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -583,6 +605,7 @@ func (ds *defaultStore) DelObject(oo Object) {
 	}
 	ds.consumeGas(ds.gasConfig.GasDeleteObject, GasDeleteObjectDesc)
 	oid := oo.GetObjectID()
+	size := oo.GetObjectInfo().LastObjectSize
 	// delete from cache.
 	delete(ds.cacheObjects, oid)
 	// delete from backend.
@@ -592,8 +615,9 @@ func (ds *defaultStore) DelObject(oo Object) {
 	}
 	// make realm op log entry
 	if ds.opslog != nil {
-		fmt.Fprintf(ds.opslog, "d[%v]\n", oo.GetObjectID())
+		fmt.Fprintf(ds.opslog, "d[%v](%d)\n", oo.GetObjectID(), -size)
 	}
+	return size
 }
 
 // NOTE: not used quite yet.
@@ -617,6 +641,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 	if tt, exists := ds.cacheTypes.Get(tid); exists {
 		return tt
 	}
+
 	// check backend.
 	if ds.baseStore != nil {
 		key := backendTypeKey(tid)
@@ -647,9 +672,8 @@ func (ds *defaultStore) SetCacheType(tt Type) {
 	if tt2, exists := ds.cacheTypes.Get(tid); exists {
 		if tt != tt2 {
 			panic(fmt.Sprintf("cannot re-register %q with different type", tid))
-		} else {
-			// already set.
 		}
+		// else, already set.
 	} else {
 		ds.cacheTypes.Set(tid, tt)
 	}
@@ -689,6 +713,11 @@ func (ds *defaultStore) SetType(tt Type) {
 	}
 	// save type to cache.
 	ds.cacheTypes.Set(tid, tt)
+}
+
+// Convenience
+func (ds *defaultStore) GetPackageNode(pkgPath string) *PackageNode {
+	return ds.GetBlockNode(PackageNodeLocation(pkgPath)).(*PackageNode)
 }
 
 func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {
@@ -744,11 +773,11 @@ func (ds *defaultStore) SetBlockNode(bn BlockNode) {
 		panic("unexpected zero location in blocknode")
 	}
 	// save node to backend.
-	if ds.baseStore != nil {
-		// TODO: implement copyValueWithRefs() for Nodes.
-		// key := backendNodeKey(loc)
-		// ds.backend.Set([]byte(key), bz)
-	}
+	// if ds.baseStore != nil {
+	// TODO: implement copyValueWithRefs() for Nodes.
+	// key := backendNodeKey(loc)
+	// ds.backend.Set([]byte(key), bz)
+	// }
 	// save node to cache.
 	ds.cacheNodes.Set(loc, bn)
 	// XXX duplicate?
@@ -787,7 +816,13 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 	}
 }
 
-func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
+// mptype is passed in as a redundant parameter as convenience to assert that
+// mpkg.Type is what is expected.
+// If MPAnyAll, mpkg may be either MPStdlibAll or MPProdAll, and likewise for
+// MPAnyProd and MPAnyTest.
+// MPFiletests are not allowed, as they are currently only read from disk (e.g.
+// test/files). However, MP*All may include filetests files.
+func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType) {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -800,14 +835,25 @@ func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
 			bm.StopStore(size)
 		}()
 	}
-	memPkg.Validate() // NOTE: duplicate validation.
+	mpkgtype := mpkg.Type.(MemPackageType)
+	if !mpkgtype.IsStorable() {
+		panic(fmt.Sprintf("mempackage type is not storable: %v", mpkgtype))
+	}
+	mptype = mptype.Decide(mpkg.Path)
+	if mpkgtype != mptype {
+		panic(fmt.Sprintf("unexpected mempackage type: expected %v but got %v", mptype, mpkgtype))
+	}
+	err := ValidateMemPackageAny(mpkg)
+	if err != nil {
+		panic(fmt.Errorf("invalid mempackage: %w", err))
+	}
 	ctr := ds.incGetPackageIndexCounter()
 	idxkey := []byte(backendPackageIndexKey(ctr))
-	bz := amino.MustMarshal(memPkg)
+	bz := amino.MustMarshal(mpkg)
 	gas := overflow.Mulp(ds.gasConfig.GasAddMemPackage, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAddMemPackageDesc)
-	ds.baseStore.Set(idxkey, []byte(memPkg.Path))
-	pathkey := []byte(backendPackagePathKey(memPkg.Path))
+	ds.baseStore.Set(idxkey, []byte(mpkg.Path))
+	pathkey := []byte(backendPackagePathKey(mpkg.Path))
 	ds.iavlStore.Set(pathkey, bz)
 	size = len(bz)
 }
@@ -850,21 +896,21 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 	gas := overflow.Mulp(ds.gasConfig.GasGetMemPackage, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasGetMemPackageDesc)
 
-	var memPkg *std.MemPackage
-	amino.MustUnmarshal(bz, &memPkg)
+	var mpkg *std.MemPackage
+	amino.MustUnmarshal(bz, &mpkg)
 	size = len(bz)
-	return memPkg
+	return mpkg
 }
 
 // GetMemFile retrieves the MemFile with the given name, contained in the
 // MemPackage at the given path. It returns nil if the file or the package
 // do not exist.
 func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
-	memPkg := ds.GetMemPackage(path)
-	if memPkg == nil {
+	mpkg := ds.GetMemPackage(path)
+	if mpkg == nil {
 		return nil
 	}
-	memFile := memPkg.GetFile(name)
+	memFile := mpkg.GetFile(name)
 	return memFile
 }
 
@@ -903,7 +949,7 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 		if err != nil {
 			panic(err)
 		}
-		ch := make(chan *std.MemPackage, 0)
+		ch := make(chan *std.MemPackage)
 		go func() {
 			for i := uint64(1); i <= uint64(ctr); i++ {
 				idxkey := []byte(backendPackageIndexKey(i))
@@ -912,8 +958,8 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 					panic(fmt.Sprintf(
 						"missing package index %d", i))
 				}
-				memPkg := ds.GetMemPackage(string(path))
-				ch <- memPkg
+				mpkg := ds.GetMemPackage(string(path))
+				ch <- mpkg
 			}
 			close(ch)
 		}()
@@ -928,13 +974,19 @@ func (ds *defaultStore) consumeGas(gas int64, descriptor string) {
 	}
 }
 
+// It resturns storage changes per realm within message
+func (ds *defaultStore) RealmStorageDiffs() map[string]int64 {
+	return ds.realmStorageDiffs
+}
+
 // Unstable.
 // This function is used to clear the object cache every transaction.
 // It also sets a new allocator.
 func (ds *defaultStore) ClearObjectCache() {
 	ds.alloc.Reset()
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
-	ds.opslog = nil                             // new ops log.
+	ds.realmStorageDiffs = make(map[string]int64)
+	ds.opslog = nil // new ops log.
 	ds.SetCachePackage(Uverse())
 }
 
@@ -1022,7 +1074,7 @@ func backendNodeKey(loc Location) string {
 }
 
 func backendPackageIndexCtrKey() string {
-	return fmt.Sprintf("pkgidx:counter")
+	return "pkgidx:counter"
 }
 
 func backendPackageIndexKey(index uint64) string {
@@ -1052,6 +1104,9 @@ func decodeBackendPackagePathKey(key string) string {
 // builtin types and packages
 
 func InitStoreCaches(store Store) {
+	/* This is what it used to be, but it's confusing when there are new
+	 * uverse types.
+
 	types := []Type{
 		BoolType, UntypedBoolType,
 		StringType, UntypedStringType,
@@ -1066,6 +1121,19 @@ func InitStoreCaches(store Store) {
 	}
 	for _, tt := range types {
 		store.SetCacheType(tt)
+	}
+	*/
+	uverse := UverseNode()
+	for _, tv := range uverse.GetStaticBlock().Values {
+		if tv.T != nil && tv.T.Kind() == TypeKind {
+			uverseType := tv.GetType()
+			switch uverseType.(type) {
+			case PrimitiveType:
+				store.SetCacheType(uverseType)
+			case *DeclaredType:
+				store.SetCacheType(uverseType)
+			}
+		}
 	}
 	store.SetCachePackage(Uverse())
 }

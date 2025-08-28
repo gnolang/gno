@@ -25,7 +25,7 @@ func main() {
 	println("disperse balance after send:", banker.GetCoins(disperseAddr))
 
 	addressesStr := beneficiary1.String() + "," + beneficiary2.String()
-	cross(disperse.DisperseUgnotString)(addressesStr, "150,50")
+	disperse.DisperseUgnotString(cross, addressesStr, "150,50")
 
 	println("main balance after disperse:", banker.GetCoins(mainAddr))
 	println("disperse balance after disperse:", banker.GetCoins(disperseAddr))

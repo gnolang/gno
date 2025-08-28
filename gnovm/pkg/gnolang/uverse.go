@@ -8,6 +8,7 @@ import (
 	"io"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 // ----------------------------------------
@@ -57,6 +58,144 @@ var gStringerType = &DeclaredType{
 		},
 	},
 	sealed: true,
+}
+
+var gAddressType = &DeclaredType{
+	PkgPath: uversePkgPath,
+	Name:    "address",
+	Base:    StringType,
+	sealed:  true,
+	// methods defined in makeUverseNode()
+}
+
+var gCoinType = &DeclaredType{
+	PkgPath: uversePkgPath,
+	Name:    "gnocoin",
+	Base: &StructType{
+		PkgPath: uversePkgPath,
+		Fields: []FieldType{
+			{Name: "Denom", Type: StringType},
+			{Name: "Amount", Type: Int64Type},
+		},
+	},
+	sealed: true,
+}
+
+var gCoinsType = &DeclaredType{
+	PkgPath: uversePkgPath,
+	Name:    "gnocoins",
+	Base:    &SliceType{Elt: gCoinType},
+	sealed:  true,
+}
+
+var gRealmType = &DeclaredType{
+	PkgPath: uversePkgPath,
+	Name:    "realm",
+	Base: &InterfaceType{
+		PkgPath: uversePkgPath,
+		Methods: []FieldType{
+			{
+				Name: "Address",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{{
+						Type: gAddressType,
+					}},
+				},
+			}, {
+				Name: "PkgPath",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{{
+						Type: StringType,
+					}},
+				},
+			}, {
+				Name: "Coins",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{{
+						Type: gCoinsType,
+					}},
+				},
+			}, {
+				Name: "Send",
+				Type: &FuncType{
+					Params: []FieldType{{
+						Name: "coins", Type: gCoinsType,
+					}, {
+						Name: "to", Type: gAddressType,
+					}},
+					Results: []FieldType{{
+						Type: gErrorType,
+					}},
+				},
+			}, { // gets filled in init() below.
+				Name: "Previous",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{{
+						Type: nil,
+					}},
+				},
+			}, { // gets filled in init() below.
+				Name: "Origin",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{{
+						Type: nil,
+					}},
+				},
+			}, { // gets filled in init() below.
+				Name: "String",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{{
+						Type: StringType,
+					}},
+				},
+			},
+		},
+	},
+	sealed: true,
+}
+
+func init() {
+	gRealmPrevious := gRealmType.Base.(*InterfaceType).GetMethodFieldType("Previous")
+	gRealmOrigin := gRealmType.Base.(*InterfaceType).GetMethodFieldType("Origin")
+	gRealmPrevious.Type.(*FuncType).Results[0].Type = gRealmType
+	gRealmOrigin.Type.(*FuncType).Results[0].Type = gRealmType
+}
+
+var gConcreteRealmType = &DeclaredType{
+	PkgPath: uversePkgPath,
+	Name:    ".grealm",
+	Base: &StructType{
+		PkgPath: uversePkgPath,
+		Fields: []FieldType{
+			{Name: "addr", Type: gAddressType},
+			{Name: "pkgPath", Type: StringType},
+			{Name: "prev", Type: gRealmType},
+		},
+	},
+	sealed: true,
+	// methods defined in makeUverseNode()
+}
+
+// NOTE: the value is set as a constExpr for the `.cur` in the preprocessor,
+// and likewise for MsgCall cross-call of crossing functions, so the value
+// should be deterministic, not dynamic, and only depend on the realm.
+func NewConcreteRealm(pkgPath string) TypedValue {
+	return TypedValue{
+		T: gConcreteRealmType,
+		V: &StructValue{
+			Fields: []TypedValue{
+				{T: gAddressType, V: nil}, // XXX
+				{T: StringType, V: StringValue(pkgPath)},
+				{T: gConcreteRealmType, V: nil}, // XXX
+			},
+		},
+	}
 }
 
 // ----------------------------------------
@@ -122,9 +261,10 @@ func makeUverseNode() {
 
 	// temporary convenience functions.
 	def := func(n Name, tv TypedValue) {
-		uverseNode.Define(n, tv)
+		uverseNode.Define2(true, n, tv.T, tv, NameSource{})
 	}
 	defNative := uverseNode.DefineNative
+	defNativeMethod := uverseNode.DefineNativeMethod
 
 	// Primitive types
 	undefined := TypedValue{}
@@ -413,7 +553,6 @@ func makeUverseNode() {
 			}
 			res0.SetInt(int64(arg0.TV.GetCapacity()))
 			m.PushValue(res0)
-			return
 		},
 	)
 	defNative("copy",
@@ -549,7 +688,6 @@ func makeUverseNode() {
 			}
 			res0.SetInt(int64(arg0.TV.GetLength()))
 			m.PushValue(res0)
-			return
 		},
 	)
 	defNative("make",
@@ -568,7 +706,8 @@ func makeUverseNode() {
 			switch bt := baseOf(tt).(type) {
 			case *SliceType:
 				et := bt.Elem()
-				if vargsl == 1 {
+				switch vargsl {
+				case 1:
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 					li := int(lv.ConvertGetInt())
 					if et.Kind() == Uint8Kind {
@@ -594,7 +733,7 @@ func makeUverseNode() {
 						})
 						return
 					}
-				} else if vargsl == 2 {
+				case 2:
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 					li := int(lv.ConvertGetInt())
 					cv := vargs.TV.GetPointerAtIndexInt(m.Store, 1).Deref()
@@ -639,18 +778,19 @@ func makeUverseNode() {
 						})
 						return
 					}
-				} else {
+				default:
 					panic("make() of slice type takes 2 or 3 arguments")
 				}
 			case *MapType:
 				// NOTE: the type is not used.
-				if vargsl == 0 {
+				switch vargsl {
+				case 0:
 					m.PushValue(TypedValue{
 						T: tt,
 						V: m.Alloc.NewMap(0),
 					})
 					return
-				} else if vargsl == 1 {
+				case 1:
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 					li := int(lv.ConvertGetInt())
 					m.PushValue(TypedValue{
@@ -658,15 +798,14 @@ func makeUverseNode() {
 						V: m.Alloc.NewMap(li),
 					})
 					return
-				} else {
+				default:
 					panic("make() of map type takes 1 or 2 arguments")
 				}
 			case *ChanType:
-				if vargsl == 0 {
+				switch vargsl {
+				case 0, 1:
 					panic("not yet implemented")
-				} else if vargsl == 1 {
-					panic("not yet implemented")
-				} else {
+				default:
 					panic("make() of chan type takes 1 or 2 arguments")
 				}
 			default:
@@ -699,7 +838,6 @@ func makeUverseNode() {
 					Index: 0,
 				},
 			})
-			return
 		},
 	)
 
@@ -752,64 +890,124 @@ func makeUverseNode() {
 			}
 		},
 	)
+
+	//----------------------------------------
+	// Gno2 types
+	def("address", asValue(gAddressType))
+	defNativeMethod("address", "String",
+		nil, // params
+		Flds( // results
+			"", "string",
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(nil)
+			res0 := typedString(arg0.TV.GetString())
+			m.PushValue(res0)
+		},
+	)
+	defNativeMethod("address", "IsValid",
+		nil, // params
+		Flds( // results
+			"", "bool",
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(nil)
+			b32addr := arg0.TV.GetString()
+			addr, err := crypto.AddressFromBech32(b32addr)
+			if err != nil {
+				m.PushValue(typedBool(false))
+				return
+			}
+			_ = addr
+			m.PushValue(typedBool(len(addr) == 20))
+		},
+	)
+	def("gnocoin", asValue(gCoinType))
+	def("gnocoins", asValue(gCoinsType))
+	def("realm", asValue(gRealmType))
+	def(".grealm", asValue(gConcreteRealmType))
+	defNativeMethod(".grealm", "Address",
+		nil, // params
+		Flds( // results
+			"", "address",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
+	defNativeMethod(".grealm", "PkgPath",
+		nil, // params
+		Flds( // results
+			"", "string",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
+	defNativeMethod(".grealm", "Coins",
+		nil, // params
+		Flds( // results
+			"", "gnocoins",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
+	defNativeMethod(".grealm", "Send",
+		Flds( // params
+			"coins", "gnocoins",
+			"to", "address",
+		),
+		Flds( // results
+			"", "error",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
+	defNativeMethod(".grealm", "Origin",
+		nil, // params
+		Flds( // results
+			"", "realm",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
+	defNativeMethod(".grealm", "Previous",
+		nil, // params
+		Flds( // results
+			"", "realm",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
+	defNativeMethod(".grealm", "String",
+		nil, // params
+		Flds( // results
+			"", "string",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
 	defNative("crossing",
 		nil, // params
 		nil, // results
 		func(m *Machine) {
-			stmt := m.PeekStmt(1)
-			bs, ok := stmt.(*bodyStmt)
-			if !ok {
-				panic("unexpected origin of crossing call")
-			}
-			if bs.NextBodyIndex != 1 {
-				panic("crossing call must be the first call of a function or method")
-			}
-			fr1 := m.PeekCallFrame(1) // fr1.LastPackage created fr.
-			if !fr1.LastPackage.IsRealm() {
-				panic("crossing call only allowed in realm packages") // XXX test
-			}
-			// Verify prior fr.WithCross or fr.DidCrossing.
-			// NOTE: fr.WithCross may or may not be true,
-			// crossing() (which sets fr.DidCrossing) can be
-			// stacked.
-			for i := 1 + 1; ; i++ {
-				fri := m.PeekCallFrame(i)
-				if fri == nil {
-					// For stage add, meaning init() AND
-					// global var decls inherit a faux
-					// frame of index -1 which crossed from
-					// the package deployer.
-					// For stage run, main() does the same,
-					// so main() can be crossing or not, it
-					// doesn't matter. This applies for
-					// MsgRun() as well as tests. MsgCall()
-					// runs like cross(fn)(...) which
-					// meains fri.WithCross would have been
-					// found below.
-					fr2 := m.PeekCallFrame(2)
-					fr2.SetDidCrossing()
-					return
-				}
-				if fri.WithCross || fri.DidCrossing {
-					// NOTE: fri.DidCrossing implies
-					// everything under it is also valid.
-					// fri.DidCrossing && !fri.WithCross
-					// can happen with an implicit switch.
-					fr2 := m.PeekCallFrame(2)
-					fr2.SetDidCrossing()
-					return
-				}
-				// Neither fri.WithCross nor fri.DidCrossing, yet
-				// Realm already switched implicitly.
-				if fri.LastRealm != m.Realm {
-					panic("crossing could not find corresponding cross(fn)(...) call")
-				}
-			}
-			//nolint:govet // detected as unreachable
-			panic("should not happen") // defensive
+			// should not happen since gno 0.9.
+			panic("crossing() is reserved but deprecated")
 		},
 	)
-	defNative("cross",
+	def("cross", undefined) // special keyword for cross-calling
+	def(".cur", undefined)  // special keyword for non-cross-calling main(cur realm)
+	// `cross` used to be a function, but it is now a special value.
+	// XXX make this unavailable in prod 0.9.  Code that refers to this
+	// intermediate name (gno fix > prepare()) will not pass type-checking
+	// because it isn't available in .gnobuiltins.gno for gno 0.9, but this
+	// name is unnecessarily reserved and brittle.
+	defNative("_cross_gno0p0",
 		Flds( // param
 			"x", GenT("X", nil),
 		),
@@ -819,10 +1017,6 @@ func makeUverseNode() {
 		func(m *Machine) {
 			// This is handled by op_call instead.
 			panic("cross is a virtual function")
-			/*
-				arg0 := m.LastBlock().GetParams1(m.Store)
-				m.PushValue(arg0.Deref())
-			*/
 		},
 	)
 	defNative("attach",
@@ -843,6 +1037,7 @@ func makeUverseNode() {
 	// implementing istypednil() is annoying, while istypednil() shouldn't
 	// require reflect, Gno should therefore offer istypednil() as a uverse
 	// function.
+	// XXX REMOVE, move to std function.
 	defNative("istypednil",
 		Flds( // params
 			"x", AnyT(),

@@ -10,4 +10,4 @@ func getArr() [1]int {
 }
 
 // TypeCheckError:
-// main/files/addressable_1c_rrr.gno:4:7: invalid operation: cannot take address of getArr()[0] (value of type int)
+// main/addressable_1c_rrr.gno:4:7: invalid operation: cannot take address of getArr()[0] (value of type int)

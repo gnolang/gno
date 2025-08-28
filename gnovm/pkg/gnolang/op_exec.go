@@ -66,8 +66,8 @@ func (m *Machine) doOpExec(op Op) {
 	case OpBody:
 		bs := m.LastBlock().GetBodyStmt()
 		if bs.NextBodyIndex == -2 { // init
-			bs.NumOps = m.NumOps
-			bs.NumValues = m.NumValues
+			bs.NumOps = len(m.Ops)
+			bs.NumValues = len(m.Values)
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex = 0
@@ -88,8 +88,8 @@ func (m *Machine) doOpExec(op Op) {
 		bs := m.LastBlock().GetBodyStmt()
 		// evaluate .Cond.
 		if bs.NextBodyIndex == -2 { // init
-			bs.NumOps = m.NumOps
-			bs.NumValues = m.NumValues
+			bs.NumOps = len(m.Ops)
+			bs.NumValues = len(m.Values)
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex = -1
@@ -157,8 +157,8 @@ func (m *Machine) doOpExec(op Op) {
 				return
 			}
 			bs.ListLen = ll
-			bs.NumOps = m.NumOps
-			bs.NumValues = m.NumValues
+			bs.NumOps = len(m.Ops)
+			bs.NumValues = len(m.Values)
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex++
@@ -181,7 +181,7 @@ func (m *Machine) doOpExec(op Op) {
 			if bs.Value != nil {
 				iv := TypedValue{T: IntType}
 				iv.SetInt(int64(bs.ListIndex))
-				ev := xv.GetPointerAtIndex(m.Alloc, m.Store, &iv).Deref()
+				ev := xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, &iv).Deref()
 				switch bs.Op {
 				case ASSIGN:
 					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
@@ -253,8 +253,8 @@ func (m *Machine) doOpExec(op Op) {
 			r, size := utf8.DecodeRuneInString(sv)
 			bs.NextRune = r
 			bs.StrIndex += size
-			bs.NumOps = m.NumOps
-			bs.NumValues = m.NumValues
+			bs.NumOps = len(m.Ops)
+			bs.NumValues = len(m.Values)
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex++
@@ -337,17 +337,20 @@ func (m *Machine) doOpExec(op Op) {
 	case OpRangeIterMap:
 		bs := s.(*bodyStmt)
 		xv := m.PeekValue(1)
-		mv := xv.V.(*MapValue)
+		var mv *MapValue
+		if xv.V != nil {
+			mv = xv.V.(*MapValue)
+		}
 		switch bs.NextBodyIndex {
 		case -2: // init.
-			if mv.GetLength() == 0 { // early termination
+			if mv == nil || mv.GetLength() == 0 { // early termination
 				m.PopFrameAndReset()
 				return
 			}
 			// initialize bs.
 			bs.NextItem = mv.List.Head
-			bs.NumOps = m.NumOps
-			bs.NumValues = m.NumValues
+			bs.NumOps = len(m.Ops)
+			bs.NumValues = len(m.Values)
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex++
@@ -658,13 +661,11 @@ EXEC_SWITCH:
 				}
 			}
 		case GOTO:
-			for i := uint8(0); i < cs.Depth; i++ {
-				m.PopBlock()
-			}
+			m.GotoJump(int(cs.FrameDepth), int(cs.BlockDepth))
 			last := m.LastBlock()
 			bs := last.GetBodyStmt()
-			m.NumOps = bs.NumOps
-			m.NumValues = bs.NumValues
+			m.Ops = m.Ops[:bs.NumOps]
+			m.Values = m.Values[:bs.NumValues]
 			m.Exprs = m.Exprs[:bs.NumExprs]
 			m.Stmts = m.Stmts[:bs.NumStmts]
 			bs.NextBodyIndex = cs.BodyIndex

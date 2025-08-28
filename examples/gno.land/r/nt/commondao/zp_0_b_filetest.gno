@@ -5,7 +5,7 @@ import (
 )
 
 func main() {
-	cross(commondao.CreateMembersUpdateProposal)(404, "", "", "")
+	commondao.CreateMembersUpdateProposal(cross, 404, "", "")
 }
 
 // Error:

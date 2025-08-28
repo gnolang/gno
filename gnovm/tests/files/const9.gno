@@ -14,7 +14,7 @@ func main() {
 }
 
 // Error:
-// main/files/const9.gno:5:2: constant definition loop with b
+// main/const9.gno:5:2-11: invalid recursive value: b -> c -> d -> e -> b
 
 // TypeCheckError:
-// main/files/const9.gno:6:2: initialization cycle for c; main/files/const9.gno:6:2: 	c refers to d; main/files/const9.gno:7:2: 	d refers to e; main/files/const9.gno:8:2: 	e refers to b; main/files/const9.gno:5:2: 	b refers to c; main/files/const9.gno:5:2: initialization cycle for b; main/files/const9.gno:5:2: 	b refers to c; main/files/const9.gno:6:2: 	c refers to d; main/files/const9.gno:7:2: 	d refers to e; main/files/const9.gno:8:2: 	e refers to b
+// main/const9.gno:6:2: initialization cycle for c; main/const9.gno:6:2: 	c refers to d; main/const9.gno:7:2: 	d refers to e; main/const9.gno:8:2: 	e refers to b; main/const9.gno:5:2: 	b refers to c; main/const9.gno:5:2: initialization cycle for b; main/const9.gno:5:2: 	b refers to c; main/const9.gno:6:2: 	c refers to d; main/const9.gno:7:2: 	d refers to e; main/const9.gno:8:2: 	e refers to b

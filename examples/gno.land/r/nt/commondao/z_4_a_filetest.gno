@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+package main
 
 import (
 	"std"
@@ -14,33 +13,25 @@ const (
 	name  = "B"
 )
 
-var (
-	daoID uint64
-	realm std.Realm
-)
+var daoID uint64
 
 func init() {
-	realm = std.CurrentRealm()
-
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
-	cross(commondao.Invite)(user)
+	commondao.Invite(cross, user)
 
 	// Create a couple of DAOs
 	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm(realm.PkgPath()))
-	commondao.New("A")
-	daoID = commondao.New(name).ID()
-	commondao.New("C")
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
+	commondao.New(cross, "A")
+	daoID = commondao.New(cross, name).ID()
+	commondao.New(cross, "C")
 }
 
 func main() {
-	crossing()
-
-	testing.SetRealm(std.NewCodeRealm(realm.PkgPath()))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
 
 	dao := commondao.Get(daoID)
-
 	if dao == nil {
 		panic("expected DAO to be found")
 	}

@@ -22,9 +22,7 @@ func setupMachine(b *testing.B, numValues, numStmts, numExprs, numBlocks, numFra
 
 	m := &Machine{
 		Ops:       make([]Op, 100),
-		NumOps:    100,
 		Values:    make([]TypedValue, numValues),
-		NumValues: numValues,
 		Exprs:     make([]Expr, numExprs),
 		Stmts:     make([]Stmt, numStmts),
 		Blocks:    make([]*Block, numBlocks),
@@ -171,7 +169,7 @@ func TestConvertTo(t *testing.T) {
 			var g = float32(t)
 			println(g)
 		}
-		`, `test/main.go:5:12: cannot convert interface{} to float32: need type assertion`,
+		`, `test/main.go:5:12-22: cannot convert interface{} to float32: need type assertion`,
 		},
 		{
 			`package test
@@ -181,7 +179,7 @@ func TestConvertTo(t *testing.T) {
 		   var g = int(t)
 		   println(g)
 		}
-		`, `test/main.go:5:14: cannot convert interface{} to int: need type assertion`,
+		`, `test/main.go:5:14-20: cannot convert interface{} to int: need type assertion`,
 		},
 		{
 			`package test
@@ -191,7 +189,7 @@ func TestConvertTo(t *testing.T) {
 		   var g = int8(t)
 		   println(g)
 		}
-		`, `test/main.go:5:14: cannot convert interface{} to int8: need type assertion`,
+		`, `test/main.go:5:14-21: cannot convert interface{} to int8: need type assertion`,
 		},
 		{
 			`package test
@@ -201,7 +199,7 @@ func TestConvertTo(t *testing.T) {
 		   var g = int16(t)
 		   println(g)
 		}
-		`, `test/main.go:5:14: cannot convert interface{} to int16: need type assertion`,
+		`, `test/main.go:5:14-22: cannot convert interface{} to int16: need type assertion`,
 		},
 		{
 			`package test
@@ -211,7 +209,7 @@ func TestConvertTo(t *testing.T) {
 				   var g = int32(t)
 				   println(g)
 				}
-				`, `test/main.go:5:16: cannot convert interface{} to int32: need type assertion`,
+				`, `test/main.go:5:16-24: cannot convert interface{} to int32: need type assertion`,
 		},
 		{
 			`package test
@@ -221,7 +219,7 @@ func TestConvertTo(t *testing.T) {
 		   var g = int64(t)
 		   println(g)
 		}
-		`, `test/main.go:5:14: cannot convert interface{} to int64: need type assertion`,
+		`, `test/main.go:5:14-22: cannot convert interface{} to int64: need type assertion`,
 		},
 		{
 			`package test
@@ -231,7 +229,7 @@ func TestConvertTo(t *testing.T) {
 		   var g = uint(t)
 		   println(g)
 		}
-		`, `test/main.go:5:14: cannot convert interface{} to uint: need type assertion`,
+		`, `test/main.go:5:14-21: cannot convert interface{} to uint: need type assertion`,
 		},
 		{
 			`package test
@@ -241,7 +239,7 @@ func TestConvertTo(t *testing.T) {
 		   var g = uint8(t)
 		   println(g)
 		}
-		`, `test/main.go:5:14: cannot convert interface{} to uint8: need type assertion`,
+		`, `test/main.go:5:14-22: cannot convert interface{} to uint8: need type assertion`,
 		},
 		{
 			`package test
@@ -251,7 +249,7 @@ func TestConvertTo(t *testing.T) {
 		   var g = uint16(t)
 		   println(g)
 		}
-		`, `test/main.go:5:14: cannot convert interface{} to uint16: need type assertion`,
+		`, `test/main.go:5:14-23: cannot convert interface{} to uint16: need type assertion`,
 		},
 		{
 			`package test
@@ -261,7 +259,7 @@ func TestConvertTo(t *testing.T) {
 		   var g = uint32(t)
 		   println(g)
 		}
-		`, `test/main.go:5:14: cannot convert interface{} to uint32: need type assertion`,
+		`, `test/main.go:5:14-23: cannot convert interface{} to uint32: need type assertion`,
 		},
 		{
 			`package test
@@ -271,7 +269,7 @@ func TestConvertTo(t *testing.T) {
 		   var g = uint64(t)
 		   println(g)
 		}
-		`, `test/main.go:5:14: cannot convert interface{} to uint64: need type assertion`,
+		`, `test/main.go:5:14-23: cannot convert interface{} to uint64: need type assertion`,
 		},
 
 		// Built-in non-numeric types
@@ -283,7 +281,7 @@ func TestConvertTo(t *testing.T) {
 		   var g = string(t)
 		   println(g)
 		}
-		`, `test/main.go:5:14: cannot convert interface{} to string: need type assertion`,
+		`, `test/main.go:5:14-23: cannot convert interface{} to string: need type assertion`,
 		},
 		{
 			`package test
@@ -293,7 +291,7 @@ func TestConvertTo(t *testing.T) {
 		   var g = bool(t)
 		   println(g)
 		}
-		`, `test/main.go:5:14: cannot convert interface{} to bool: need type assertion`,
+		`, `test/main.go:5:14-21: cannot convert interface{} to bool: need type assertion`,
 		},
 		{
 			`package test
@@ -303,7 +301,7 @@ func TestConvertTo(t *testing.T) {
 		   var g = rune(t)
 		   println(g)
 		}
-		`, `test/main.go:5:14: cannot convert interface{} to int32: need type assertion`,
+		`, `test/main.go:5:14-21: cannot convert interface{} to int32: need type assertion`,
 		},
 		{
 			`package test
@@ -313,7 +311,7 @@ func TestConvertTo(t *testing.T) {
 		   var g = byte(t)
 		   println(g)
 		}
-		`, `test/main.go:5:14: cannot convert interface{} to uint8: need type assertion`,
+		`, `test/main.go:5:14-21: cannot convert interface{} to uint8: need type assertion`,
 		},
 
 		{
@@ -325,90 +323,90 @@ func TestConvertTo(t *testing.T) {
 		   var g = MyInt(t)
 		   println(g)
 		}
-		`, `test/main.go:6:14: cannot convert interface{} to test.MyInt: need type assertion`,
+		`, `test/main.go:6:14-22: cannot convert interface{} to test.MyInt: need type assertion`,
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a int = -1
 		   println(uint(a))
 		}`,
-			`test/main.go:5:14: cannot convert constant of type IntKind to UintKind`,
+			`test/main.go:5:14-21: cannot convert constant of type IntKind to UintKind`,
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a int = -1
 		   println(uint8(a))
 		}`,
-			`test/main.go:5:14: cannot convert constant of type IntKind to Uint8Kind`,
+			`test/main.go:5:14-22: cannot convert constant of type IntKind to Uint8Kind`,
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a int = -1
 		   println(uint16(a))
 		}`,
-			`test/main.go:5:14: cannot convert constant of type IntKind to Uint16Kind`,
+			`test/main.go:5:14-23: cannot convert constant of type IntKind to Uint16Kind`,
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a int = -1
 		   println(uint32(a))
 		}`,
-			`test/main.go:5:14: cannot convert constant of type IntKind to Uint32Kind`,
+			`test/main.go:5:14-23: cannot convert constant of type IntKind to Uint32Kind`,
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a int = -1
 		   println(uint64(a))
 		}`,
-			`test/main.go:5:14: cannot convert constant of type IntKind to Uint64Kind`,
+			`test/main.go:5:14-23: cannot convert constant of type IntKind to Uint64Kind`,
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a float32 = 1.5
 		   println(int32(a))
 		}`,
-			`test/main.go:5:14: cannot convert constant of type Float32Kind to Int32Kind`,
+			`test/main.go:5:14-22: cannot convert constant of type Float32Kind to Int32Kind`,
 		},
 		{
 			`package test
-		
+
 		func main() {
 		   println(int32(1.5))
 		}`,
-			`test/main.go:4:14: cannot convert (const (1.5 <untyped> bigdec)) to integer type`,
+			`test/main.go:4:14-24: cannot convert (const (1.5 <untyped> bigdec)) to integer type`,
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a float64 = 1.5
 		   println(int64(a))
 		}`,
-			`test/main.go:5:14: cannot convert constant of type Float64Kind to Int64Kind`,
+			`test/main.go:5:14-22: cannot convert constant of type Float64Kind to Int64Kind`,
 		},
 		{
 			`package test
-		
+
 		func main() {
 		   println(int64(1.5))
 		}`,
-			`test/main.go:4:14: cannot convert (const (1.5 <untyped> bigdec)) to integer type`,
+			`test/main.go:4:14-24: cannot convert (const (1.5 <untyped> bigdec)) to integer type`,
 		},
 		{
 			`package test
-		
+
 				func main() {
 					const f = float64(1.0)
 				   println(int64(f))
@@ -599,7 +597,7 @@ func assertOutput(t *testing.T, input string, output string) {
 	n := MustParseFile("main.go", input)
 	m.RunFiles(n)
 	m.RunMain()
-	assert.Equal(t, output, string(buf.Bytes()))
+	assert.Equal(t, output, buf.String())
 	err := m.CheckEmpty()
 	assert.Nil(t, err)
 }
@@ -633,6 +631,7 @@ func BenchmarkPreprocess(b *testing.B) {
 		// initStaticBlocks is always performed before a Preprocess
 		initStaticBlocks(nil, pn, copies[i])
 		main = Preprocess(nil, pkg, copies[i]).(*FuncDecl)
+		_ = main
 	}
 }
 

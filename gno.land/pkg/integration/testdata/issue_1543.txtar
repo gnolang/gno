@@ -25,9 +25,7 @@ var (
 	b [2]*B
 )
 
-func Fill(i int) {
-	crossing()
-
+func Fill(cur realm, i int) {
 	c := B{
 		A: a,
 		B: "",
@@ -35,8 +33,6 @@ func Fill(i int) {
 	b[i] = &c
 }
 
-func UnFill(i int) {
-	crossing()
-
+func UnFill(cur realm, i int) {
 	b[i] = nil
 }

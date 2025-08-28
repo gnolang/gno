@@ -60,7 +60,7 @@ func TestRoutes(t *testing.T) {
 			{"/game-of-realms", found, "/contribute"},
 			{"/gor", found, "/contribute"},
 			{"/blog", found, "/r/gnoland/blog"},
-			{"/r/docs/optional_render", http.StatusOK, "No Render"},
+			{"/r/docs/optional_render", http.StatusOK, "gnomod.toml"},
 			{"/r/not/found/", notFound, ""},
 			{"/z/bad/request", badRequest, ""}, // not realm or pure
 			{"/아스키문자가아닌경로", notFound, ""},

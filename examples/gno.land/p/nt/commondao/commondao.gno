@@ -3,7 +3,6 @@ package commondao
 import (
 	"errors"
 	"std"
-	"time"
 
 	"gno.land/p/demo/avl/list"
 	"gno.land/p/demo/seqid"
@@ -19,20 +18,23 @@ var (
 	ErrProposalFailed       = errors.New("proposal failed to pass")
 	ErrProposalNotFound     = errors.New("proposal not found")
 	ErrVotingDeadlineNotMet = errors.New("voting deadline not met")
+	ErrVotingDeadlinePassed = errors.New("voting deadline has passed")
 )
 
 // CommonDAO defines a DAO.
 type CommonDAO struct {
-	id                uint64
-	slug              string
-	name              string
-	description       string
-	parent            *CommonDAO
-	children          list.IList
-	members           MemberStorage
-	genID             seqid.ID
-	activeProposals   ProposalStorage
-	finishedProposals ProposalStorage
+	id                         uint64
+	slug                       string
+	name                       string
+	description                string
+	parent                     *CommonDAO
+	children                   list.IList
+	members                    MemberStorage
+	genID                      seqid.ID
+	activeProposals            ProposalStorage
+	finishedProposals          ProposalStorage
+	deleted                    bool // Soft delete
+	disableVotingDeadlineCheck bool
 }
 
 // New creates a new common DAO.
@@ -121,6 +123,16 @@ func (dao CommonDAO) FinishedProposals() ProposalStorage {
 	return dao.finishedProposals
 }
 
+// IsDeleted returns true when DAO has been soft deleted.
+func (dao CommonDAO) IsDeleted() bool {
+	return dao.deleted
+}
+
+// SetDeleted changes DAO's soft delete flag.
+func (dao *CommonDAO) SetDeleted(deleted bool) {
+	dao.deleted = deleted
+}
+
 // Propose creates a new DAO proposal.
 func (dao *CommonDAO) Propose(creator std.Address, d ProposalDefinition) (*Proposal, error) {
 	id, ok := dao.genID.TryNext()
@@ -156,6 +168,10 @@ func (dao CommonDAO) GetProposal(proposalID uint64) *Proposal {
 }
 
 // Vote submits a new vote for a proposal.
+//
+// By default votes are only allowed to members of the DAO when the proposal is active,
+// and within the voting period. No votes are allowed once the voting deadline passes.
+// DAO deadline checks can optionally be disabled using the `DisableVotingDeadlineCheck` option.
 func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice, reason string) error {
 	if !dao.Members().Has(member) {
 		return ErrNotMember
@@ -164,6 +180,10 @@ func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice, 
 	p := dao.activeProposals.Get(proposalID)
 	if p == nil {
 		return ErrProposalNotFound
+	}
+
+	if !dao.disableVotingDeadlineCheck && p.HasVotingDeadlinePassed() {
+		return ErrVotingDeadlinePassed
 	}
 
 	if !p.IsVoteChoiceValid(c) {
@@ -200,6 +220,9 @@ func (dao *CommonDAO) Tally(proposalID uint64) (passes bool, _ error) {
 }
 
 // Execute executes a proposal.
+//
+// By default active proposals can only be executed after their voting deadline passes.
+// DAO deadline checks can optionally be disabled using the `DisableVotingDeadlineCheck` option.
 func (dao *CommonDAO) Execute(proposalID uint64) error {
 	p := dao.activeProposals.Get(proposalID)
 	if p == nil {
@@ -210,7 +233,7 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 		return ErrStatusIsNotActive
 	}
 
-	if time.Now().Before(p.VotingDeadline()) {
+	if !dao.disableVotingDeadlineCheck && !p.HasVotingDeadlinePassed() {
 		return ErrVotingDeadlineNotMet
 	}
 
@@ -224,7 +247,7 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 	if err == nil {
 		// Execute proposal only if it's executable
 		if e, ok := p.Definition().(Executable); ok {
-			err = cross(e.Execute)()
+			err = e.Execute(cross)
 		}
 	}
 

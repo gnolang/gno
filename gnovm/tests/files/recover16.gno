@@ -14,4 +14,4 @@ func main() {
 // recover: len out of range
 
 // TypeCheckError:
-// main/files/recover16.gno:10:21: invalid argument: index -1 (constant of type int) must not be negative
+// main/recover16.gno:10:21: invalid argument: index -1 (constant of type int) must not be negative

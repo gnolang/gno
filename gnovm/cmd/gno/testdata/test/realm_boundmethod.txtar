@@ -4,18 +4,19 @@ symlink $WORK/gnovm/stdlibs -> $GNOROOT/gnovm/stdlibs
 symlink $WORK/gnovm/tests/stdlibs -> $GNOROOT/gnovm/tests/stdlibs
 env GNOROOT=$WORK
 
-gno test -v ./examples/gno.land/r/demo/realm2
+gno test -v ./r/realm2
 
 stderr '=== RUN   TestDo'
 stderr '--- PASS: TestDo.*'
 
-stderr '=== RUN   ./examples/gno.land/r/demo/realm2/realm2_filetest.gno'
-stderr '--- PASS: ./examples/gno.land/r/demo/realm2/realm2_filetest.*'
+stderr '=== RUN   ./r/realm2/realm2_filetest.gno'
+stderr '--- PASS: ./r/realm2/realm2_filetest.*'
 
--- examples/gno.land/p/demo/counter/gno.mod --
-module gno.land/p/demo/counter
+-- gnowork.toml --
+-- p/counter/gnomod.toml --
+module = "gno.land/p/demo/counter"
 
--- examples/gno.land/p/demo/counter/counter.gno --
+-- p/counter/counter.gno --
 package counter
 
 type Counter struct {
@@ -26,7 +27,11 @@ func (c *Counter) Inc() {
 	c.n++
 }
 
--- examples/gno.land/r/demo/realm1/realm1.gno --
+-- r/realm1/gnomod.toml --
+module = "gno.land/r/demo/realm1"
+gno = "0.9"
+
+-- r/realm1/realm1.gno --
 package realm1
 
 import "gno.land/p/demo/counter"
@@ -37,7 +42,11 @@ func GetCounter() *counter.Counter {
 	return &c
 }
 
--- examples/gno.land/r/demo/realm2/realm2.gno --
+-- r/realm2/gnomod.toml --
+module = "gno.land/r/demo/realm2"
+gno = "0.9"
+
+-- r/realm2/realm2.gno --
 package realm2
 
 import (
@@ -48,15 +57,13 @@ func Do() {
 	realm1.GetCounter().Inc()
 }
 
--- examples/gno.land/r/demo/realm2/realm2_filetest.gno --
+-- r/realm2/realm2_filetest.gno --
 // PKGPATH: gno.land/r/tests
 package tests
 
 import "gno.land/r/demo/realm2"
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	realm2.Do()
 	println("OK")
 }
@@ -64,7 +71,7 @@ func main() {
 // Output:
 // OK
 
--- examples/gno.land/r/demo/realm2/realm2_test.gno --
+-- r/realm2/realm2_test.gno --
 package realm2
 
 import "testing"
@@ -72,3 +79,4 @@ import "testing"
 func TestDo(t *testing.T) {
 	Do()
 }
+

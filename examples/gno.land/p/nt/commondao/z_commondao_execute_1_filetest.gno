@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+// PKGPATH: gno.land/r/test
+package test
 
 import (
 	"errors"
@@ -26,9 +26,7 @@ func (testPropDef) Tally(commondao.ReadonlyVotingRecord, commondao.MemberSet) (b
 	return true, nil
 }
 
-func (testPropDef) Execute() error {
-	crossing()
-
+func (testPropDef) Execute(cur realm) error {
 	return errors.New("test error")
 }
 

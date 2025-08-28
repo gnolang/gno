@@ -1,0 +1,10 @@
+-- input.md --
+
+<gno-input name="test" placeholder="Enter test value" />
+my content
+
+</gno-form>
+
+-- output.html --
+<!-- raw HTML omitted -->
+<!-- Error: unexpected or invalid tag -->

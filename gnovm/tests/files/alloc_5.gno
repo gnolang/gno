@@ -5,6 +5,9 @@ import "runtime"
 
 func gen() {
 	data := make([]byte, 50*1024*1024)
+	if false {
+		println(data)
+	}
 }
 
 // this is mainly for gas usage check
@@ -19,7 +22,4 @@ func main() {
 }
 
 // Output:
-// memstats in main after GC:  Allocator{maxBytes:100000000, bytes:6144}
-
-// TypeCheckError:
-// main/files/alloc_5.gno:7:2: declared and not used: data
+// memstats in main after GC:  Allocator{maxBytes:100000000, bytes:6036}
