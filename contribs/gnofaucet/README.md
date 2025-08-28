@@ -39,7 +39,7 @@ To run the GitHub fetcher, which is a utility for fetching and storing GitHub us
 |-------------------------|------------|---------|-------------|
 | `--fetch-interval `     | `duration` | `"20s"` | Interval used to fetch new events from Github repositories. |
 
-This command will fetch and save information on redis about the specified GitHub user, whitch will be used for verifying eligibility for faucet rewards. Make sure to fill all requested environment variables like Github Apps and Redis ones.
+This command will fetch and save information on redis about the specified GitHub user, which will be used for verifying eligibility for faucet rewards. Make sure to fill all requested environment variables like Github Apps and Redis ones.
 
 ## Step3:
 
