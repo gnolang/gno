@@ -44,9 +44,12 @@ func TestQueryAccount(t *testing.T) {
 
 	// set account
 	acc.SetAccountNumber(uint64(1))
-	acc.SetSequence(uint64(20))
+	if acc.GetMasterKey() == nil {
+		acc.SetMasterKey(nil)
+	}
+	acc.GetMasterKey().SetSequence(uint64(20))
 	acc.SetCoins(std.NewCoins(std.NewCoin("foo", 10)))
-	acc.SetPubKey(pubkey)
+	acc.SetMasterKey(pubkey)
 	env.acck.SetAccount(env.ctx, acc)
 
 	res = h.Query(env.ctx, req)
