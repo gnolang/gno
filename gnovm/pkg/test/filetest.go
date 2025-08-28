@@ -338,7 +338,11 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		// Validate Gno syntax and type check.
 		if tcheck {
 			if _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
-				Getter:     m.Store,
+				// Use teststore to load imported packages,
+				// mimicing the loading behavior with on-chain.
+				// (if using m.Store, the realm package will
+				// be preloaded during typecheck, exist in cache)
+				Getter:     opts.TestStore,
 				TestGetter: m.Store,
 				Mode:       gno.TCLatestRelaxed,
 				Cache:      opts.tcCache,
@@ -348,7 +352,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 		// Construct throwaway package and parse file.
 		pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
-		pv := pn.NewPackage()
+		pv := pn.NewPackage(m.Alloc)
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 		m.SetActivePackage(pv)
@@ -356,6 +360,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		fn := gno.MustParseFile(fname, string(content))
 		// Run (add) file, and then run main().
 		m.RunFiles(fn)
+
 		m.RunMain()
 	} else { // Realm case.
 		gno.DisableDebug() // until main call.

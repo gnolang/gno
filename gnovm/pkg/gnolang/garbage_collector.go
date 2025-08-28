@@ -33,6 +33,7 @@ type Visitor func(v Value) (stop bool)
 //	impl, whether it re-uses the same Type or not.
 //
 // XXX: make sure tv.T isn't bumped from allocation either.
+// XXX: record original value and verify after GC
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	// times objects are visited for gc
 	var visitCount int64
@@ -85,6 +86,14 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		return -1, false
 	}
 
+	// Visit staging package
+	if tpv := m.Store.GetStagingPackage(); tpv != nil {
+		stop = vis(tpv)
+		if stop {
+			return -1, false
+		}
+	}
+
 	// Visit exceptions
 	if m.Exception != nil {
 		e := m.Exception
@@ -132,12 +141,15 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 			if oo.GetLastGCCycle() == gcCycle {
 				return false // but don't stop
 			}
+
+			// check cache
 		}
 
 		*visitCount++ // Count operations for gas calculation
 
 		// Add object size to alloc.
-		size := v.GetShallowSize()
+		withRef := false
+		size := v.GetShallowSize(withRef)
 
 		// Stop if alloc max exceeded during GC.
 		// NOTE: Unlikely to occur, but keep it here for
@@ -151,7 +163,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 		alloc.Allocate(size)
 
 		// bump before visiting associated,
-		// this avoids infinite recurse.
+		// this avoids infinite recursion.
 		if oo, isObject := v.(Object); isObject {
 			oo.SetLastGCCycle(gcCycle)
 		}
@@ -300,6 +312,13 @@ func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
+	// skip .uverse
+	if pn, ok := b.Source.(*PackageNode); ok {
+		if pn.PkgPath == ".uverse" {
+			return
+		}
+	}
+
 	// Visit each value.
 	for i := 0; i < len(b.Values); i++ {
 		v := b.Values[i].V
