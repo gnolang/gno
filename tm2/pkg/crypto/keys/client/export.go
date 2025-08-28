@@ -90,7 +90,7 @@ func execExport(cfg *ExportCfg, io commands.IO) error {
 	}
 
 	// Get the armor encrypt password
-	pw, err := getPassphraseWithConfirmation(io, cfg.RootCfg.InsecurePasswordStdin)
+	pw, err := promptPassphrase(io, cfg.RootCfg.InsecurePasswordStdin)
 	if err != nil {
 		return err
 	}

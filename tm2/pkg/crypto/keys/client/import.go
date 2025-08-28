@@ -98,7 +98,7 @@ func execImport(cfg *ImportCfg, io commands.IO) error {
 	}
 
 	// Get the key-base encrypt password
-	encryptPassword, err = getPassphraseWithConfirmation(io, cfg.RootCfg.InsecurePasswordStdin)
+	encryptPassword, err = promptPassphrase(io, cfg.RootCfg.InsecurePasswordStdin)
 	if err != nil {
 		return fmt.Errorf(
 			"unable to retrieve key encrypt password from user, %w",

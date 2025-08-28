@@ -52,7 +52,7 @@ func execRotate(cfg *RotateCfg, args []string, io commands.IO) error {
 		return err
 	}
 
-	newpass, err := getPassphraseWithConfirmation(io, cfg.RootCfg.InsecurePasswordStdin)
+	newpass, err := promptPassphrase(io, cfg.RootCfg.InsecurePasswordStdin)
 	if err != nil {
 		return err
 	}

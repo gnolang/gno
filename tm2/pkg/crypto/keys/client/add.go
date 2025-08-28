@@ -18,6 +18,7 @@ import (
 var (
 	errInvalidMnemonic       = errors.New("invalid bip39 mnemonic")
 	errInvalidDerivationPath = errors.New("invalid derivation path")
+	errPassphraseMismatch    = errors.New("passphrases don't match")
 )
 
 var reDerivationPath = regexp.MustCompile(`^44'\/118'\/\d+'\/0\/\d+$`)
@@ -145,7 +146,7 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 	}
 
 	// Ask for a password when generating a local key
-	pw, err := getPassphraseWithConfirmation(io, cfg.RootCfg.InsecurePasswordStdin)
+	pw, err := promptPassphrase(io, cfg.RootCfg.InsecurePasswordStdin)
 	if err != nil {
 		return err
 	}
@@ -198,24 +199,26 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 	return nil
 }
 
-// Prompts for a password, with confirmation.
-func getPassphraseWithConfirmation(io commands.IO, insecurePasswordStdin bool) (string, error) {
-	pw, err := io.GetPassword("Enter a passphrase to encrypt your private key to disk:", insecurePasswordStdin)
+// promptPassphrase prompts for a password, with confirmation.
+func promptPassphrase(io commands.IO, insecurePasswordStdin bool) (string, error) {
+	pw, err := io.GetPassword("Enter a passphrase to encrypt your private key on disk: ", insecurePasswordStdin)
 	if err != nil {
 		return "", fmt.Errorf("unable to get provided passphrase, %w", err)
 	}
 
-	prompt2 := "Repeat the passphrase:"
+	prompt2 := "Repeat the passphrase: "
 	if pw == "" {
-		prompt2 = "WARNING: a key with no passphrase will be stored unencrypted.\n" +
-			"This unsafe for any key used on-chain.\n" + prompt2
+		prompt2 = "WARNING: a key with no passphrase will be stored UNENCRYPTED.\n" +
+			"This is unsafe for any key used on-chain.\n" + prompt2
 	}
+
 	pw2, err := io.GetPassword(prompt2, insecurePasswordStdin)
 	if err != nil {
 		return "", fmt.Errorf("unable to get provided passphrase, %w", err)
 	}
+
 	if pw != pw2 {
-		return "", errors.New("passphrases don't match")
+		return "", errPassphraseMismatch
 	}
 
 	return pw, nil
