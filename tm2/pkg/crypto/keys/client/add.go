@@ -206,13 +206,15 @@ func promptPassphrase(io commands.IO, insecurePasswordStdin bool) (string, error
 		return "", fmt.Errorf("unable to get provided passphrase, %w", err)
 	}
 
-	prompt2 := "Repeat the passphrase: "
+	// If empty, just print the warning
 	if pw == "" {
-		prompt2 = "WARNING: a key with no passphrase will be stored UNENCRYPTED.\n" +
-			"This is unsafe for any key used on-chain.\n" + prompt2
+		io.Println("WARNING: a key with no passphrase will be stored UNENCRYPTED.\n" +
+			"This is unsafe for any key used on-chain.")
+
+		return "", nil
 	}
 
-	pw2, err := io.GetPassword(prompt2, insecurePasswordStdin)
+	pw2, err := io.GetPassword("Repeat the passphrase: ", insecurePasswordStdin)
 	if err != nil {
 		return "", fmt.Errorf("unable to get provided passphrase, %w", err)
 	}

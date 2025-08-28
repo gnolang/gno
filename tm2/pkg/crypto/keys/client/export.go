@@ -109,7 +109,7 @@ func execExport(cfg *ExportCfg, io commands.IO) error {
 		)
 	}
 
-	io.Printfln("Private key armor successfully outputted to %s", cfg.OutputPath)
+	io.Printfln("Key armor successfully saved to %s", cfg.OutputPath)
 
 	return nil
 }

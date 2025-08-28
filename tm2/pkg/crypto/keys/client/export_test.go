@@ -139,7 +139,7 @@ func TestExport_ExportKey(t *testing.T) {
 			testCmdKeyOptsBase{},
 			strings.NewReader(
 				fmt.Sprintf(
-					"%s\n\n\n",
+					"%s\n\n",
 					password, // decrypt
 				),
 			),
@@ -199,6 +199,8 @@ func TestExport_ExportKey(t *testing.T) {
 }
 
 func TestExport_ExportKeyWithEmptyName(t *testing.T) {
+	t.Parallel()
+	
 	// Generate a temporary key-base directory
 	_, kbHome := newTestKeybase(t)
 	err := exportKey(
