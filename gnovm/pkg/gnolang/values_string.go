@@ -194,9 +194,9 @@ func (fv *FuncValue) String() string {
 func (bmv *BoundMethodValue) String() string {
 	name := bmv.Func.Name
 	var (
-		recvT   string = "?"
-		params  string = "?"
-		results string = "(?)"
+		recvT   = "?"
+		params  = "?"
+		results = "(?)"
 	)
 	if ft, ok := bmv.Func.Type.(*FuncType); ok {
 		recvT = ft.Params[0].Type.String()
@@ -459,7 +459,7 @@ func (tv TypedValue) ProtectedString(seen *seenValues) string {
 		case BoolType, UntypedBoolType:
 			vs = fmt.Sprintf("%t", tv.GetBool())
 		case StringType, UntypedStringType:
-			vs = fmt.Sprintf("%s", tv.GetString())
+			vs = tv.GetString()
 		case IntType:
 			vs = fmt.Sprintf("%d", tv.GetInt())
 		case Int8Type:

@@ -94,7 +94,7 @@ func TestImport_ImportKey(t *testing.T) {
 			kb, kbHome := newTestKeybase(t)
 
 			// Add an initial key to the key base
-			info, err := addRandomKeyToKeybase(kb, keyName, testCase.encryptPass)
+			_, err := addRandomKeyToKeybase(kb, keyName, testCase.encryptPass)
 			if err != nil {
 				t.Fatalf(
 					"unable to create a key base account, %v",
@@ -143,7 +143,7 @@ func TestImport_ImportKey(t *testing.T) {
 			}
 
 			// Make sure the key-base has the new key imported
-			info, err = kb.GetByName(importKeyName)
+			info, err := kb.GetByName(importKeyName)
 
 			assert.NotNil(t, info)
 			assert.NoError(t, err)
