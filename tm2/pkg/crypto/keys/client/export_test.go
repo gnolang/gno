@@ -200,7 +200,7 @@ func TestExport_ExportKey(t *testing.T) {
 
 func TestExport_ExportKeyWithEmptyName(t *testing.T) {
 	t.Parallel()
-	
+
 	// Generate a temporary key-base directory
 	_, kbHome := newTestKeybase(t)
 	err := exportKey(
