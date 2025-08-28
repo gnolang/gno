@@ -23,6 +23,7 @@ SUBCOMMANDS
   list     lists the named packages
   lint     runs the linter for the specified packages
   mod      module maintenance
+  pprof    interactive profiling analysis tool
   repl     starts a GnoVM REPL
   run      run gno packages
   test     test packages
