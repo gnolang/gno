@@ -249,12 +249,12 @@ func TestSignGenesisTx(t *testing.T) {
 	}
 }
 
-func TestSetFlag(t *testing.T) {
+func TestSetAccountFlag(t *testing.T) {
 	account := &GnoAccount{}
 
 	// Test setting a valid flag
-	account.setFlag(flagUnrestricted)
-	assert.True(t, account.hasFlag(flagUnrestricted), "Expected unrestricted flag to be set")
+	account.setFlag(flagUnrestrictedAccount)
+	assert.True(t, account.hasFlag(flagUnrestrictedAccount), "Expected unrestricted flag to be set")
 
 	// Test setting an invalid flag
 	assert.Panics(t, func() {
@@ -262,13 +262,40 @@ func TestSetFlag(t *testing.T) {
 	}, "Expected panic for invalid flag")
 }
 
-func TestClearFlag(t *testing.T) {
+func TestClearAccountFlag(t *testing.T) {
 	account := &GnoAccount{}
 
 	// Set and then clear the flag
-	account.setFlag(flagUnrestricted)
-	assert.True(t, account.hasFlag(flagUnrestricted), "Expected unrestricted flag to be set before clearing")
+	account.setFlag(flagUnrestrictedAccount)
+	assert.True(t, account.hasFlag(flagUnrestrictedAccount), "Expected unrestricted flag to be set before clearing")
 
-	account.clearFlag(flagUnrestricted)
-	assert.False(t, account.hasFlag(flagUnrestricted), "Expected unrestricted flag to be cleared")
+	account.clearFlag(flagUnrestrictedAccount)
+	assert.False(t, account.hasFlag(flagUnrestrictedAccount), "Expected unrestricted flag to be cleared")
 }
+
+func TestSetSessionFlag(t *testing.T) {
+	session := &GnoSession{}
+
+	// Test setting a valid flag
+	session.setFlag(flagSessionManagerSession)
+	assert.True(t, session.hasFlag(flagSessionManagerSession), "Expected session manager flag to be set")
+
+	// Test setting an invalid flag
+	assert.Panics(t, func() {
+		session.setFlag(BitSet(0x1000)) // Invalid flag
+	}, "Expected panic for invalid flag")
+}
+
+func TestClearSessionFlag(t *testing.T) {
+	session := &GnoSession{}
+
+	// Test clearing a valid flag
+	session.setFlag(flagSessionManagerSession)
+	assert.True(t, session.hasFlag(flagSessionManagerSession), "Expected session manager flag to be set before clearing")
+
+	session.clearFlag(flagSessionManagerSession)
+	assert.False(t, session.hasFlag(flagSessionManagerSession), "Expected session manager flag to be cleared")
+}
+
+// XXX: test session coin restriction
+// XXX: test session validity

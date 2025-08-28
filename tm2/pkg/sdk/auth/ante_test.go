@@ -948,3 +948,5 @@ func TestInvalidUserFee(t *testing.T) {
 	require.False(t, res2.IsOK())
 	assert.Contains(t, res2.Log, "Gas price denominations should be equal;")
 }
+
+// XXX: bunch of tests about chains of msgs with shared pubkeys different accounts, shared accounts different pubkeys, mix between rootkey and sessions, etc.
