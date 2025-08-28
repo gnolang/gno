@@ -1,0 +1,22 @@
+loadpkg gno.land/r/demo/tests
+gnoland start
+
+# call StoreFunc with a lambda from maketx run.
+# TODO: should panic.
+gnokey maketx run -broadcast -chainid=tendermint_test -gas-wanted 2000000 -gas-fee 1000000ugnot test1 $WORK/store_func.gno
+stdout 'OK'
+
+# call ExecuteStoredFunc to execute the stored function
+! gnokey maketx call -pkgpath gno.land/r/demo/tests -func ExecuteStoredFunc -broadcast -chainid=tendermint_test -gas-wanted 2000000 -gas-fee 1000000ugnot test1
+stderr 'package value missing in store: gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run'
+
+-- store_func.gno --
+package main
+
+import "gno.land/r/demo/tests"
+
+func main() {
+	tests.StoreFunc(cross, func() {
+		println("HELLO FROM LAMBDA")
+	})
+}
