@@ -2,14 +2,14 @@ package uint256
 
 import (
 	"testing"
+
+	"gno.land/p/demo/uassert"
 )
 
 func TestSetAllOne(t *testing.T) {
 	z := Zero()
 	z.SetAllOne()
-	if z.String() != twoPow256Sub1 {
-		t.Errorf("Expected all ones, got %s", z.String())
-	}
+	uassert.Equal(t, z.String(), twoPow256Sub1)	
 }
 
 func TestByte(t *testing.T) {
@@ -44,9 +44,7 @@ func TestByte(t *testing.T) {
 	n := NewUint(32)
 	result := z.Byte(n)
 
-	if !result.IsZero() {
-		t.Errorf("Expected zero for position >= 32, got %v", result)
-	}
+	uassert.Equal(t, result.IsZero(), true)
 }
 
 func TestBitLen(t *testing.T) {
@@ -71,10 +69,7 @@ func TestBitLen(t *testing.T) {
 		z, _ := FromHex(tt.input)
 		result := z.BitLen()
 
-		if result != tt.expected {
-			t.Errorf("Test case %d failed. Input: %s, Expected: %d, Got: %d",
-				i, tt.input, tt.expected, result)
-		}
+		uassert.Equal(t, result, tt.expected)
 	}
 }
 
@@ -99,11 +94,7 @@ func TestByteLen(t *testing.T) {
 	for i, tt := range tests {
 		z, _ := FromHex(tt.input)
 		result := z.ByteLen()
-
-		if result != tt.expected {
-			t.Errorf("Test case %d failed. Input: %s, Expected: %d, Got: %d",
-				i, tt.input, tt.expected, result)
-		}
+		uassert.Equal(t, result, tt.expected)
 	}
 }
 
@@ -120,8 +111,6 @@ func TestClone(t *testing.T) {
 	for _, tt := range tests {
 		z, _ := FromHex(tt.input)
 		result := z.Clone()
-		if result.String() != tt.expected {
-			t.Errorf("Test %s failed. Expected %s, got %s", tt.input, tt.expected, result.String())
-		}
+		uassert.Equal(t, result.String(), tt.expected)
 	}
 }
