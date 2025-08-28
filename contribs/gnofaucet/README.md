@@ -20,7 +20,7 @@ Start the faucet. This repository provides middleware for integrating GitHub OAu
 
 #### Running Github Oauth protected faucet:
 
-    ./build/gnofaucet serve github -chain-id dev -mnemonic "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast" --github-client-id=<CLIENT_ID> --cooldown-period=24h --max-claimable-limit=100000000 (100 gnot)
+    ./build/gnofaucet serve github -chain-id dev -mnemonic "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast" --cooldown-period=24h --max-claimable-limit=100000000 (100 gnot)
 
 | Flag                    | Type       | Default      | Description |
 |-------------------------|------------|--------------|-------------|
