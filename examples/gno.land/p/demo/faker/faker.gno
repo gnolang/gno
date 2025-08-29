@@ -11,7 +11,7 @@ import (
 	"unicode"
 
 	"gno.land/p/demo/entropy"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 // Faker provides fake data generation using a pseudorandom number generator.

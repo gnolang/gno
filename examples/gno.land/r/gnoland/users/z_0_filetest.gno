@@ -4,7 +4,7 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/testutils"
+	"gno.land/p/nt/testutils"
 	"gno.land/r/gnoland/users"
 	"gno.land/r/gov/dao"
 	ini "gno.land/r/gov/dao/v3/init"

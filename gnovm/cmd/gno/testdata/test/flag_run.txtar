@@ -1,4 +1,4 @@
-# Run test on gno.land/p/demo/ufmt
+# Run test on gno.land/p/nt/ufmt
 
 gno test .
 

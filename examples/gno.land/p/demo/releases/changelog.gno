@@ -1,9 +1,9 @@
 package releases
 
 import (
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
+	"gno.land/p/nt/ufmt"
 )
 
 type changelog struct {

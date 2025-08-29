@@ -3,8 +3,8 @@ package config
 import (
 	"std"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/n2p5/mgroup"
+	"gno.land/p/nt/ufmt"
 )
 
 const (

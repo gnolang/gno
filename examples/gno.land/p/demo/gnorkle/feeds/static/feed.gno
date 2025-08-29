@@ -10,7 +10,7 @@ import (
 	"gno.land/p/demo/gnorkle/ingesters/single"
 	"gno.land/p/demo/gnorkle/message"
 	"gno.land/p/demo/gnorkle/storage/simple"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 // Feed is a static feed.

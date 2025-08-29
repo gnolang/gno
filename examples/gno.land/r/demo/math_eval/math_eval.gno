@@ -5,7 +5,7 @@ package eval
 
 import (
 	evalint32 "gno.land/p/demo/math_eval/int32"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 func Render(p string) string {

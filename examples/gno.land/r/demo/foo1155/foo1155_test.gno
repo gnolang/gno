@@ -4,7 +4,7 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/grc/grc1155"
+	"gno.land/p/demo/tokens/grc1155"
 )
 
 func TestFoo721(t *testing.T) {
