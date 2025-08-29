@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
@@ -56,7 +57,8 @@ func setupDevNodeConfig(
 	emitter emitter.Emitter,
 	balances gnoland.Balances,
 	loader packages.Loader,
-) *gnodev.NodeConfig {
+	book *address.Book,
+) (*gnodev.NodeConfig, error) {
 	config := gnodev.DefaultNodeConfig(cfg.root, cfg.chainDomain)
 	config.Loader = loader
 
@@ -72,7 +74,18 @@ func setupDevNodeConfig(
 	config.TMConfig.P2P.ListenAddress = defaultLocalAppConfig.nodeP2PListenerAddr
 	config.TMConfig.ProxyApp = defaultLocalAppConfig.nodeProxyAppListenerAddr
 
-	return config
+	// Setup deploy key as default creator
+	if cfg.deployKey == "" {
+		return nil, fmt.Errorf("no deploy key provided")
+	}
+
+	dkey, _, ok := book.GetFromNameOrAddress(cfg.deployKey)
+	if !ok {
+		return nil, fmt.Errorf("unable to get deploy key %q", cfg.deployKey)
+	}
+	config.DefaultCreator = dkey
+
+	return config, nil
 }
 
 func extractAppStateFromGenesisFile(path string) (*gnoland.GnoGenesisState, error) {
