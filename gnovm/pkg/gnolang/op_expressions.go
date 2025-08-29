@@ -544,7 +544,7 @@ func (m *Machine) doOpMapLit() {
 		// TODO: future optimization
 		// omitType := baseOf(mt).Elem().Kind() != InterfaceKind
 		for i := range ne {
-			ktv := &kvs[i*2]
+			ktv := kvs[i*2].Copy(m.Alloc)
 			vtv := kvs[i*2+1]
 			ptr := mv.GetPointerForKey(m.Alloc, m.Store, ktv)
 			if ptr.TV.IsDefined() && isConst(x.Elts[i].Key) {
