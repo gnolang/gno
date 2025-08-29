@@ -76,7 +76,7 @@ func TestVerificationLifecycle(cur realm, t *testing.T) {
 
 	// Set the caller back to the whitelisted user and transfer contract ownership.
 	testing.SetOriginCaller(defaultAddress)
-	SetOwner(defaultAddress)
+	SetOwner(cross, defaultAddress)
 
 	// Now trigger the feed ingestion from the user and new owner and only whitelisted address.
 	GnorkleEntrypoint(cur, "ingest,"+string(user1Address)+",OK")

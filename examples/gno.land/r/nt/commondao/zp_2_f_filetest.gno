@@ -21,10 +21,10 @@ func init() {
 
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
-	dao := commondao.New("Foo")
+	dao := commondao.New(cross, "Foo")
 	dao.Members().Add(user)
 
-	commondao.NewSubDAO(name, dao.ID())
+	commondao.NewSubDAO(cross, name, dao.ID())
 
 	options := commondao.GetOptions(dao.ID())
 	options.SetAllowChildren(true)

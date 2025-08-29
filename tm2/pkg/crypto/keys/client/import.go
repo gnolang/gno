@@ -18,7 +18,6 @@ type ImportCfg struct {
 
 	KeyName   string
 	ArmorPath string
-	Unsafe    bool
 }
 
 func NewImportCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -53,13 +52,6 @@ func (c *ImportCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"path to the encrypted armor file",
 	)
-
-	fs.BoolVar(
-		&c.Unsafe,
-		"unsafe",
-		false,
-		"import the private key armor as unencrypted",
-	)
 }
 
 func execImport(cfg *ImportCfg, io commands.IO) error {
@@ -93,28 +85,20 @@ func execImport(cfg *ImportCfg, io commands.IO) error {
 		encryptPassword string
 	)
 
-	if !cfg.Unsafe {
-		// Get the armor decrypt password
-		decryptPassword, err = io.GetPassword(
-			"Enter the passphrase to decrypt your private key armor:",
-			cfg.RootCfg.InsecurePasswordStdin,
+	// Get the armor decrypt password
+	decryptPassword, err = io.GetPassword(
+		"Enter the passphrase to decrypt your private key armor:",
+		cfg.RootCfg.InsecurePasswordStdin,
+	)
+	if err != nil {
+		return fmt.Errorf(
+			"unable to retrieve armor decrypt password from user, %w",
+			err,
 		)
-		if err != nil {
-			return fmt.Errorf(
-				"unable to retrieve armor decrypt password from user, %w",
-				err,
-			)
-		}
 	}
 
 	// Get the key-base encrypt password
-	encryptPassword, err = io.GetCheckPassword(
-		[2]string{
-			"Enter a passphrase to encrypt your private key:",
-			"Repeat the passphrase:",
-		},
-		cfg.RootCfg.InsecurePasswordStdin,
-	)
+	encryptPassword, err = promptPassphrase(io, cfg.RootCfg.InsecurePasswordStdin)
 	if err != nil {
 		return fmt.Errorf(
 			"unable to retrieve key encrypt password from user, %w",
@@ -124,18 +108,10 @@ func execImport(cfg *ImportCfg, io commands.IO) error {
 
 	var privateKey crypto.PrivKey
 
-	if cfg.Unsafe {
-		// Un-armor the private key
-		privateKey, err = armor.UnarmorPrivateKey(string(keyArmor))
-		if err != nil {
-			return fmt.Errorf("unable to unarmor private key, %w", err)
-		}
-	} else {
-		// Decrypt the armor
-		privateKey, err = armor.UnarmorDecryptPrivKey(string(keyArmor), decryptPassword)
-		if err != nil {
-			return fmt.Errorf("unable to decrypt private key armor, %w", err)
-		}
+	// Decrypt the armor
+	privateKey, err = armor.UnarmorDecryptPrivKey(string(keyArmor), decryptPassword)
+	if err != nil {
+		return fmt.Errorf("unable to decrypt private key armor, %w", err)
 	}
 
 	// Import the private key

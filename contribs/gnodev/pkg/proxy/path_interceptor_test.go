@@ -62,7 +62,7 @@ func Incr(cur realm) {
 	require.NoError(t, err)
 	defer interceptor.Close()
 	cfg.TMConfig.RPC.ListenAddress = interceptor.ProxyAddress()
-	cfg.SkipGenesisVerification = true
+	cfg.SkipGenesisSigVerification = true
 
 	// Setup genesis
 	privKey := secp256k1.GenPrivKey()

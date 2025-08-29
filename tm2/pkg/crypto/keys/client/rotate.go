@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"flag"
-	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -53,15 +52,9 @@ func execRotate(cfg *RotateCfg, args []string, io commands.IO) error {
 		return err
 	}
 
-	newpass, err := io.GetCheckPassword(
-		[2]string{
-			"Enter the new password to encrypt your key to disk:",
-			"Repeat the password:",
-		},
-		cfg.RootCfg.InsecurePasswordStdin,
-	)
+	newpass, err := promptPassphrase(io, cfg.RootCfg.InsecurePasswordStdin)
 	if err != nil {
-		return fmt.Errorf("unable to parse provided password, %w", err)
+		return err
 	}
 
 	getNewpass := func() (string, error) { return newpass, nil }

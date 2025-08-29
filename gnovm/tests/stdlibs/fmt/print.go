@@ -179,7 +179,7 @@ func (m mapKV) Less(i, j int) bool {
 }
 
 func compareKeys(ki, kj gnolang.TypedValue) bool {
-	if ki.T.Kind() != kj.T.Kind() {
+	if ki.T == nil || kj.T == nil || ki.T.Kind() != kj.T.Kind() {
 		return false
 	}
 	switch ki.T.Kind() {
