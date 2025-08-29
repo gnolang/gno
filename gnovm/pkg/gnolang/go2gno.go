@@ -33,45 +33,51 @@ package gnolang
 import (
 	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/token"
+	"math"
 	"os"
 	"reflect"
 	"strconv"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/gnolang/gno/gnovm/pkg/parser"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
-func MustReadFile(path string) *FileNode {
-	n, err := ReadFile(path)
+func (m *Machine) MustReadFile(path string) *FileNode {
+	n, err := m.ReadFile(path)
 	if err != nil {
 		panic(err)
 	}
 	return n
 }
 
-func MustParseFile(fname string, body string) *FileNode {
-	n, err := ParseFile(fname, body)
+func (m *Machine) MustParseFile(fname string, body string) *FileNode {
+	n, err := m.ParseFile(fname, body)
 	if err != nil {
 		panic(err)
 	}
 	return n
 }
 
-func ReadFile(path string) (*FileNode, error) {
+func (m *Machine) ReadFile(path string) (*FileNode, error) {
 	bz, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	return ParseFile(path, string(bz))
+	return m.ParseFile(path, string(bz))
 }
 
-func ParseExpr(code string) (expr Expr, err error) {
-	x, err := parser.ParseExpr(code)
+func (m *Machine) ParseExpr(code string) (expr Expr, err error) {
+	x, stats, err := parser.ParseExprStats(code)
 	if err != nil {
 		return nil, err
 	}
+	if m != nil && m.GasMeter != nil {
+		m.GasMeter.ConsumeGas(parseCost(stats), "parsing")
+	}
+
 	// recover from Go2Gno.
 	// NOTE: Go2Gno is best implemented with panics due to inlined toXYZ() calls.
 	defer func() {
@@ -90,24 +96,28 @@ func ParseExpr(code string) (expr Expr, err error) {
 	return Go2Gno(fset, x).(Expr), nil
 }
 
-func MustParseExpr(code string) Expr {
-	x, err := ParseExpr(code)
+func (m *Machine) MustParseExpr(code string) Expr {
+	x, err := m.ParseExpr(code)
 	if err != nil {
 		panic(err)
 	}
 	return x
 }
 
-func ParseStmts(code string) (stmts []Stmt, err error) {
+func (m *Machine) ParseStmts(code string) (stmts []Stmt, err error) {
 	// Go only parses exprs and files,
 	// so wrap in a func body.
 	fset := token.NewFileSet()
 	code = fmt.Sprintf("func(){%s}\n", code)
-	x, err := parser.ParseExprFrom(fset, "<repl>", code, parser.SkipObjectResolution)
+	x, stats, err := parser.ParseExprFromStats(fset, "<repl>", code, parser.SkipObjectResolution)
 	if err != nil {
 		return nil, err
 	}
 	gostmts := x.(*ast.FuncLit).Body.List
+
+	if m != nil && m.GasMeter != nil {
+		m.GasMeter.ConsumeGas(parseCost(stats), "parsing")
+	}
 
 	// recover from Go2Gno.
 	// NOTE: Go2Gno is best implemented with panics due to inlined toXYZ() calls.
@@ -140,48 +150,61 @@ func ParseStmts(code string) (stmts []Stmt, err error) {
 	return stmts, nil
 }
 
-func MustParseStmts(code string) []Stmt {
-	stmts, err := ParseStmts(code)
+func (m *Machine) MustParseStmts(code string) []Stmt {
+	stmts, err := m.ParseStmts(code)
 	if err != nil {
 		panic(err)
 	}
 	return stmts
 }
 
-func ParseDecls(code string) (decls []Decl, err error) {
+func (m *Machine) ParseDecls(code string) (decls []Decl, err error) {
 	// Go only parses exprs and files,
 	// so wrap in a func body.
 	code = fmt.Sprintf("package repl\n%s\n", code)
-	fn, err := ParseFile("<repl>", code)
+	fn, err := m.ParseFile("<repl>", code)
 	if err != nil {
 		return nil, err
 	}
 	return fn.Decls, nil
 }
 
-func MustParseDecls(code string) []Decl {
-	decls, err := ParseDecls(code)
+func (m *Machine) MustParseDecls(code string) []Decl {
+	decls, err := m.ParseDecls(code)
 	if err != nil {
 		panic(err)
 	}
 	return decls
 }
 
+// parseCost computes and returns the cost of parsing from the parser stats.
+func parseCost(stats *parser.Stats) types.Gas {
+	// The parsing cost is a function of the number of tokens and the
+	// nesting level reached during the parsing, which reflect both the size
+	// and the complexity of the AST.
+	return types.Gas(stats.NumTok * math.Ilogb(float64(1+stats.TopNest)))
+}
+
 // ParseFile uses the Go parser to parse body. It then runs [Go2Gno] on the
 // resulting AST -- the resulting FileNode is returned, together with any other
 // error (including panics, which are recovered) from [Go2Gno].
-func ParseFile(fname string, body string) (fn *FileNode, err error) {
+func (m *Machine) ParseFile(fname string, body string) (fn *FileNode, err error) {
 	// Use go parser to parse the body.
 	fs := token.NewFileSet()
 	// TODO(morgan): would be nice to add parser.SkipObjectResolution as we don't
 	// seem to be using its features, but this breaks when testing (specifically redeclaration tests).
 	const parseOpts = parser.ParseComments | parser.DeclarationErrors
-	astf, err := parser.ParseFile(fs, fname, body, parseOpts)
+	astf, stats, err := parser.ParseFileStats(fs, fname, body, parseOpts)
 	if err != nil {
 		return nil, err
 	}
+	_ = stats
 	// Print the imports from the file's AST.
 	// spew.Dump(f)
+
+	if m != nil && m.GasMeter != nil {
+		m.GasMeter.ConsumeGas(parseCost(stats), "parsing")
+	}
 
 	// NOTE: DO NOT Disable this when running with -debug or similar.
 	// Global environment variables are a vector for attack and should not

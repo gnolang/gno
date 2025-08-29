@@ -162,9 +162,9 @@ func (r *Repl) RunStatements(code string) {
 		defer r.m.Debugger.Disable()
 	}
 
-	decls, err := gno.ParseDecls(code)
+	decls, err := r.m.ParseDecls(code)
 	if err != nil {
-		stmts, err2 := gno.ParseStmts(code)
+		stmts, err2 := r.m.ParseStmts(code)
 		if err2 != nil {
 			r.Errorln(err2.Error())
 			return
