@@ -6,7 +6,34 @@
 // commands like "gnoland" and "gnokey" into the test script ecosystem. Specifically, it allows the
 // user to initiate an in-memory gnoland node and interact with it via the `gnokey` command.
 //
-// Additional Command Overview:
+// # Txtar Test File Options
+//
+// Each txtar test file can specify options to control its test execution and formatting behavior.
+// Options are set at the top of the file using a comment:
+//
+//	# txtar:opts <flags>
+//
+// Supported flags:
+//
+//	-no-fmt
+//	     Disable formatting of Gno files in this test file. Use this to preserve original formatting.
+//
+//	-no-parallel
+//	     Disable parallel execution for this test file. This is handled natively using t.Parallel
+//	     and is useful for resource-intensive or order-dependent tests.
+//
+//	-skip
+//	     Skip this test file entirely.
+//
+//	-timeout <duration>
+//	     Set a custom timeout for this test file (e.g., -timeout 90s).
+//
+// # Formatting Gno Files in Txtar
+//
+// Gno source files within txtar archives can be formatted automatically by running `go test` with `-ts-fmt`
+// flag. If a file uses the `-no-fmt` file flag option, formatting is skipped for that file.
+//
+// # Additional Command Overview
 //
 // 1. `gnoland [start|stop|restart]`:
 //   - The gnoland node doesn't start automatically. This enables the user to do some
@@ -54,7 +81,7 @@
 //   - NOTE: this command may only be temporary, as it's not best approach to
 //     solve the above problem
 //
-// Logging:
+// # Logging
 //
 // Gnoland logs aren't forwarded to stdout to avoid overwhelming the tests with too much
 // information. Instead, a log directory can be specified with `LOG_DIR`, or you
@@ -62,7 +89,7 @@
 // to persist logs in the txtar working directory. In any case, the log file should be printed
 // on start if one of these environment variables is set.
 //
-// Accounts:
+// # Accounts
 //
 // By default, only the test1 user will be created in the default keybase directory,
 // with no password set. The default gnoland genesis balance file and the genesis
@@ -72,7 +99,7 @@
 //
 // Examples can be found in the `testdata` directory of this package.
 //
-// Environment Variables:
+// # Environment Variables
 //
 // Input:
 //

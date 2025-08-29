@@ -82,7 +82,6 @@ func main() {
 	)
 	dao.MustCreateProposal(cross, preq)
 }
-
 -- loader/load_govdao.gno --
 package load_govdao
 

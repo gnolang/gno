@@ -62,21 +62,21 @@ gno = "0.9"
 -- hello.gno --
 package hello
 
-import(
-  "std"
+import (
+	"std"
 )
 
 func SayHello(cur realm) string {
- 	return "hello world!"
+	return "hello world!"
 }
 
 func SayHello1(cur realm, s string) string {
- 	return "hello " + s + "!"
+	return "hello " + s + "!"
 }
 func SayHello2(cur realm, s1, s2 string) string {
- 	return s1 + " " +s2 + "!"
+	return s1 + " " + s2 + "!"
 }
 
-func PreviousRealm(cur realm) string{
-  return std.PreviousRealm().String()
+func PreviousRealm(cur realm) string {
+	return std.PreviousRealm().String()
 }

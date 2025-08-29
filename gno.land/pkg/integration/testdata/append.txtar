@@ -72,7 +72,6 @@ type T struct{ i int }
 var a, b, d []T
 var c = []T{{i: 100}}
 
-
 func init() {
 	a = make([]T, 0, 1)
 }
@@ -115,8 +114,8 @@ func Render(path string) string {
 	}
 
 	var s string
-	for i:=0;i<len(source);i++{
-		s+=ufmt.Sprintf("%d-", source[i].i)
+	for i := 0; i < len(source); i++ {
+		s += ufmt.Sprintf("%d-", source[i].i)
 	}
 	return s
 }

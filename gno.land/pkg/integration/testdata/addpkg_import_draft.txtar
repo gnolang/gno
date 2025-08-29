@@ -20,5 +20,5 @@ package bar
 import "gno.land/r/demo/draftrealm"
 
 func Render(path string) string {
- 	return "hello " + draftrealm.Render(path)
+	return "hello " + draftrealm.Render(path)
 }

@@ -49,3 +49,55 @@ func TestUnquote(t *testing.T) {
 		})
 	}
 }
+
+func TestSplitArgs(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected []string
+		wantErr  bool
+	}{
+		// Basic cases
+		{"plain", `--foo=bar --bar=42`, []string{"--foo=bar", "--bar=42"}, false},
+		{"double_quotes", `--foo="bar baz" --bar=42`, []string{"--foo=bar baz", "--bar=42"}, false},
+		{"single_quotes", `--foo='bar baz' --bar=42`, []string{"--foo=bar baz", "--bar=42"}, false},
+		{"nested_single_in_double", `--foo="bar 'baz'" --bar=42`, []string{"--foo=bar 'baz'", "--bar=42"}, false},
+		{"nested_double_in_single", `--foo='bar "baz"' --bar=42`, []string{"--foo=bar \"baz\"", "--bar=42"}, false},
+
+		// Escaping in double quotes
+		{"escaped_quote_in_double", `--foo="bar \"baz\" test"`, []string{"--foo=bar \"baz\" test"}, false},
+		{"escaped_backslash_in_double", `--foo="bar \\ baz"`, []string{"--foo=bar \\ baz"}, false},
+
+		// Escaping in single quotes
+		{"escaped_single_in_single", `--foo='bar \'baz'\'`, []string{`--foo=bar \baz\`}, false},
+
+		// Escaping outside quotes (not handled, so literal)
+		{"escaped_space_outside_quotes", `foo\ bar`, []string{`foo bar`}, false},
+
+		// Unclosed quotes (should error)
+		{"unclosed_double", `--foo="bar baz`, nil, true},
+		{"unclosed_single", `--foo='bar baz`, nil, true},
+
+		// Quote mismatch (should not error, treated as literal)
+		{"quote_mismatch", `--foo="bar 'baz"`, []string{"--foo=bar 'baz"}, false},
+
+		// Multiple spaces
+		{"extra_spaces", `    --foo=bar     --bar=42  `, []string{"--foo=bar", "--bar=42"}, false},
+
+		// Empty input
+		{"empty", ``, []string{}, false},
+	}
+
+	for _, tc := range cases {
+		tc := tc // capture range variable
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := splitArgs(tc.input)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tc.expected, result)
+			}
+		})
+	}
+}

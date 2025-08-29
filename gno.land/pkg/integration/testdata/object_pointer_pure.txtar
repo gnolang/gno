@@ -26,8 +26,6 @@ func (fo *FooObject) Set(value int) {
 func (fo *FooObject) Get() int {
 	return fo.value
 }
-
-
 -- realm_caller/realm_caller.gno --
 package realm_caller
 
