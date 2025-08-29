@@ -1,6 +1,11 @@
 # Run gno test without path argument on an empty dir 
 
-gno test
+! gno test
 
 ! stdout .+
-stderr '[no test files]'
+stderr 'package has no files'
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/no_path_empty_dir"
+gno = "0.9"

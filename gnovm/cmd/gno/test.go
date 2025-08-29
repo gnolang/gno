@@ -8,6 +8,7 @@ import (
 	goio "io"
 	"io/fs"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -224,12 +226,19 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		cmd.rootDir = gnoenv.RootDir()
 	}
 
-	paths, err := targetsFromPatterns(args)
+	loadConf := packages.LoadConfig{
+		Fetcher:    testPackageFetcher,
+		Out:        io.Err(),
+		Deps:       true,
+		Test:       true,
+		AllowEmpty: true,
+	}
+	pkgs, err := packages.Load(loadConf, args...)
 	if err != nil {
-		return fmt.Errorf("list targets from patterns: %w", err)
+		return err
 	}
 
-	if len(paths) == 0 {
+	if len(pkgs) == 0 {
 		io.ErrPrintln("no packages to test")
 		return nil
 	}
@@ -241,17 +250,12 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		}()
 	}
 
-	subPkgs, err := gnomod.SubPkgsFromPaths(paths)
-	if err != nil {
-		return fmt.Errorf("list sub packages: %w", err)
-	}
-
 	// Set up options to run tests.
 	stdout := goio.Discard
 	if cmd.verbose {
 		stdout = io.Out()
 	}
-	opts := test.NewTestOptions(cmd.rootDir, stdout, io.Err())
+	opts := test.NewTestOptions(cmd.rootDir, stdout, io.Err(), pkgs)
 	opts.RunFlag = cmd.run
 	opts.Sync = cmd.updateGoldenTests
 	opts.Verbose = cmd.verbose
@@ -279,9 +283,39 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
 	}
 
-	for _, pkg := range subPkgs {
-		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
-			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
+	for _, pkg := range pkgs {
+		for _, err := range pkg.Errors {
+			io.ErrPrintfln("%s", err.Error())
+			buildErrCount++
+		}
+		// don't test packages with load errors
+		if len(pkg.Errors) != 0 {
+			continue
+		}
+		// don't test packages not listed in patterns
+		if len(pkg.Match) == 0 {
+			continue
+		}
+
+		// Relativize and prepend dot to pkg dir if possible
+		// We ignore errors since it's a cosmetic thing
+		// XXX: use pkg import path instead of this when printing if possible
+		prettyDir := pkg.Dir
+		if filepath.IsAbs(pkg.Dir) {
+			cwd, err := os.Getwd()
+			if err == nil {
+				relDir, err := filepath.Rel(cwd, pkg.Dir)
+				if err == nil {
+					prettyDir = relDir
+					if prettyDir != "." && !strings.HasPrefix(prettyDir, "."+string(filepath.Separator)) {
+						prettyDir = "." + string(filepath.Separator) + prettyDir
+					}
+				}
+			}
+		}
+
+		if len(pkg.Files[packages.FileKindTest]) == 0 && len(pkg.Files[packages.FileKindXTest]) == 0 && len(pkg.Files[packages.FileKindFiletest]) == 0 {
+			io.ErrPrintfln("?       %s \t[no test files]", prettyDir)
 			continue
 		}
 
@@ -313,7 +347,6 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 
 		// Read MemPackage with all files.
 		mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath, gno.MPAnyAll)
-
 		var didPanic, didError bool
 		startedAt := time.Now()
 		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
@@ -333,9 +366,10 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			} else if cmd.verbose {
 				io.ErrPrintfln("%s: module is ignore, skipping type check", pkgPath)
 			}
+
 			///////////////////////////////////
 			// Run the tests found in the mpkg.
-			errs := test.Test(mpkg, pkg.Dir, opts)
+			errs := test.Test(mpkg, prettyDir, opts)
 			if errs != nil {
 				didError = true
 				io.ErrPrintln(errs)
@@ -347,13 +381,13 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
 		if didPanic || didError {
-			io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
+			io.ErrPrintfln("FAIL    %s \t%s", prettyDir, dstr)
 			testErrCount++
 			if cmd.failfast {
 				return fail()
 			}
 		} else {
-			io.ErrPrintfln("ok      %s \t%s", pkg.Dir, dstr)
+			io.ErrPrintfln("ok      %s \t%s", prettyDir, dstr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
