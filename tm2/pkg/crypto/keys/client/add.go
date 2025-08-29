@@ -30,6 +30,7 @@ type AddCfg struct {
 	NoBackup bool
 	Account  uint64
 	Index    uint64
+	Entropy  bool
 
 	DerivationPath commands.StringArr
 }
@@ -87,6 +88,13 @@ func (c *AddCfg) RegisterFlags(fs *flag.FlagSet) {
 		"index",
 		0,
 		"address index number for HD derivation",
+	)
+
+	fs.BoolVar(
+		&c.Entropy,
+		"entropy",
+		false,
+		"supply custom entropy for key generation instead of using computer's PRNG",
 	)
 
 	fs.Var(
@@ -151,13 +159,10 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 		return err
 	}
 
-	// Get bip39 mnemonic
-	mnemonic, err := GenerateMnemonic(mnemonicEntropySize)
-	if err != nil {
-		return fmt.Errorf("unable to generate mnemonic, %w", err)
-	}
+	var mnemonic string
 
-	if cfg.Recover {
+	switch {
+	case cfg.Recover:
 		bip39Message := "Enter your bip39 mnemonic"
 		mnemonic, err = io.GetString(bip39Message)
 		if err != nil {
@@ -167,6 +172,18 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 		// Make sure it's valid
 		if !bip39.IsMnemonicValid(mnemonic) {
 			return errInvalidMnemonic
+		}
+	case cfg.Entropy:
+		// Generate mnemonic using custom entropy
+		mnemonic, err = GenerateMnemonicWithCustomEntropy(io)
+		if err != nil {
+			return fmt.Errorf("unable to generate mnemonic with custom entropy, %w", err)
+		}
+	default:
+		// Generate mnemonic using computer PRNG
+		mnemonic, err = GenerateMnemonic(mnemonicEntropySize)
+		if err != nil {
+			return fmt.Errorf("unable to generate mnemonic, %w", err)
 		}
 	}
 
