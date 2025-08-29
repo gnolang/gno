@@ -332,6 +332,16 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 			},
 		},
 		{
+			readyMethod,
+			&ctypes.ResultReady{},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.Ready()
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+			},
+		},
+		{
 			blockchainMethod,
 			&ctypes.ResultBlockchainInfo{
 				LastHeight: 100,

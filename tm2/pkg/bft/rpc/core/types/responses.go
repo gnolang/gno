@@ -206,3 +206,6 @@ type (
 type ResultEvent struct {
 	Event types.TMEvent `json:"event"`
 }
+
+type ResultReady struct {
+}

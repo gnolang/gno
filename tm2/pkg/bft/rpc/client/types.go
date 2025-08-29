@@ -77,6 +77,7 @@ type NetworkClient interface {
 	ConsensusState() (*ctypes.ResultConsensusState, error)
 	ConsensusParams(height *int64) (*ctypes.ResultConsensusParams, error)
 	Health() (*ctypes.ResultHealth, error)
+	Ready() (*ctypes.ResultReady, error)
 }
 
 // MempoolClient shows us data about current mempool state.

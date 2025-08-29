@@ -111,6 +111,7 @@ type (
 	mockConsensusState       func() (*ctypes.ResultConsensusState, error)
 	mockConsensusParams      func(height *int64) (*ctypes.ResultConsensusParams, error)
 	mockHealth               func() (*ctypes.ResultHealth, error)
+	mockReady                func() (*ctypes.ResultReady, error)
 	mockBlock                func(height *int64) (*ctypes.ResultBlock, error)
 	mockBlockResults         func(height *int64) (*ctypes.ResultBlockResults, error)
 	mockCommit               func(height *int64) (*ctypes.ResultCommit, error)
@@ -135,6 +136,7 @@ type mockRPCClient struct {
 	consensusState       mockConsensusState
 	consensusParams      mockConsensusParams
 	health               mockHealth
+	ready                mockReady
 	block                mockBlock
 	blockResults         mockBlockResults
 	commit               mockCommit
@@ -232,6 +234,13 @@ func (m *mockRPCClient) ConsensusParams(height *int64) (*ctypes.ResultConsensusP
 func (m *mockRPCClient) Health() (*ctypes.ResultHealth, error) {
 	if m.health != nil {
 		return m.health()
+	}
+	return nil, nil
+}
+
+func (m *mockRPCClient) Ready() (*ctypes.ResultReady, error) {
+	if m.ready != nil {
+		return m.ready()
 	}
 	return nil, nil
 }

@@ -106,6 +106,10 @@ func (c *Local) Health() (*ctypes.ResultHealth, error) {
 	return core.Health(c.ctx)
 }
 
+func (c *Local) Ready() (*ctypes.ResultReady, error) {
+	return core.Ready(c.ctx)
+}
+
 func (c *Local) BlockchainInfo(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
 	return core.BlockchainInfo(c.ctx, minHeight, maxHeight)
 }
