@@ -299,11 +299,12 @@ func (c *Client) BroadcastTxCommit(signedTx *std.Tx) (*ctypes.ResultBroadcastTxC
 
 // EstimateGas returns the least amount of gas required
 // for the transaction to go through on the chain (minimum gas wanted).
+// Also return the transaction events which you can search for storage deposit events.
 // The estimation process assumes the transaction is properly signed
-func (c *Client) EstimateGas(tx *std.Tx) (int64, error) {
+func (c *Client) EstimateGas(tx *std.Tx) (int64, []abci.Event, error) {
 	// Make sure the RPC client is set
 	if err := c.validateRPCClient(); err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
 	// Prepare the transaction.
@@ -311,30 +312,30 @@ func (c *Client) EstimateGas(tx *std.Tx) (int64, error) {
 	// in order to be estimated
 	encodedTx, err := amino.Marshal(tx)
 	if err != nil {
-		return 0, fmt.Errorf("unable to marshal tx: %w", err)
+		return 0, nil, fmt.Errorf("unable to marshal tx: %w", err)
 	}
 
 	// Perform the simulation query
 	resp, err := c.RPCClient.ABCIQuery(simulatePath, encodedTx)
 	if err != nil {
-		return 0, fmt.Errorf("unable to perform ABCI query: %w", err)
+		return 0, nil, fmt.Errorf("unable to perform ABCI query: %w", err)
 	}
 
 	// Extract the query response
 	if err = resp.Response.Error; err != nil {
-		return 0, fmt.Errorf("error encountered during ABCI query: %w", err)
+		return 0, nil, fmt.Errorf("error encountered during ABCI query: %w", err)
 	}
 
 	var deliverTx abci.ResponseDeliverTx
 	if err = amino.Unmarshal(resp.Response.Value, &deliverTx); err != nil {
-		return 0, fmt.Errorf("unable to unmarshal gas estimation response: %w", err)
+		return 0, nil, fmt.Errorf("unable to unmarshal gas estimation response: %w", err)
 	}
 
 	if err = deliverTx.Error; err != nil {
-		return 0, fmt.Errorf("error encountered during gas estimation: %w", err)
+		return 0, nil, fmt.Errorf("error encountered during gas estimation: %w", err)
 	}
 
 	// Return the actual value returned by the node
 	// for executing the transaction
-	return deliverTx.GasUsed, nil
+	return deliverTx.GasUsed, deliverTx.Events, nil
 }

@@ -1422,7 +1422,7 @@ func TestClient_EstimateGas(t *testing.T) {
 			RPCClient: nil, // not set
 		}
 
-		estimate, err := c.EstimateGas(&std.Tx{})
+		estimate, _, err := c.EstimateGas(&std.Tx{})
 
 		assert.Zero(t, estimate)
 		assert.ErrorIs(t, err, ErrMissingRPCClient)
@@ -1450,7 +1450,7 @@ func TestClient_EstimateGas(t *testing.T) {
 			RPCClient: mockRPCClient,
 		}
 
-		estimate, err := c.EstimateGas(&std.Tx{})
+		estimate, _, err := c.EstimateGas(&std.Tx{})
 
 		assert.Zero(t, estimate)
 		assert.ErrorIs(t, err, rpcErr)
@@ -1484,7 +1484,7 @@ func TestClient_EstimateGas(t *testing.T) {
 			RPCClient: mockRPCClient,
 		}
 
-		estimate, err := c.EstimateGas(&std.Tx{})
+		estimate, _, err := c.EstimateGas(&std.Tx{})
 
 		assert.Zero(t, estimate)
 		assert.ErrorIs(t, err, abciErrors.UnknownError{})
@@ -1516,7 +1516,7 @@ func TestClient_EstimateGas(t *testing.T) {
 			RPCClient: mockRPCClient,
 		}
 
-		estimate, err := c.EstimateGas(&std.Tx{})
+		estimate, _, err := c.EstimateGas(&std.Tx{})
 
 		assert.Zero(t, estimate)
 		assert.ErrorContains(t, err, "unable to unmarshal gas estimation response")
@@ -1559,7 +1559,7 @@ func TestClient_EstimateGas(t *testing.T) {
 			RPCClient: mockRPCClient,
 		}
 
-		estimate, err := c.EstimateGas(&std.Tx{})
+		estimate, _, err := c.EstimateGas(&std.Tx{})
 
 		require.NoError(t, err)
 		assert.Equal(t, gasUsed, estimate)
