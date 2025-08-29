@@ -8,6 +8,7 @@ import (
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
+	"gno.land/p/samcrew/sortabletable"
 	"gno.land/p/samcrew/urlfilter"
 )
 
@@ -25,26 +26,30 @@ func RenderMembers(path string, members MembersByTier) string {
 	pager := pager.NewPager(items, pageSize, false)
 	page := pager.MustGetPageByPath(path)
 
-	sb.WriteString(renderMembersPages(page, items) + "\n")
+	sb.WriteString(renderMembersPages(u, page, items) + "\n")
 	sb.WriteString(renderPagination(u, page))
 
 	return sb.String()
 }
 
 // renderMembersPages returns the members of each page.
-func renderMembersPages(page *pager.Page, members *avl.Tree) string {
+func renderMembersPages(u *url.URL, page *pager.Page, members *avl.Tree) string {
 	var sb strings.Builder
 
-	sb.WriteString("| **Tier** | **Address** |\n")
-	sb.WriteString("|----------|-------------|\n")
+	table := &sortabletable.Table{
+		Headings: []string{"Tier", "Address"},
+		Rows:     [][]string{},
+	}
 
 	for _, item := range page.Items {
 		addr := item.Key
 		tn, _ := members.Get(addr)
 		tnStr, _ := tn.(string)
-
-		sb.WriteString(ufmt.Sprintf("| %s %s | %s |\n", tierColoredChip(tnStr), tn, addr))
+		tierCell := ufmt.Sprintf("%s %s", tierColoredChip(tnStr), tn)
+		table.Rows = append(table.Rows, []string{tierCell, addr})
 	}
+
+	sb.WriteString(sortabletable.Render(u, table, ""))
 
 	return sb.String()
 }
