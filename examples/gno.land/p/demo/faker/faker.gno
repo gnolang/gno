@@ -179,7 +179,7 @@ func (f *Faker) StdAddress() std.Address {
 		rawAddr[i] = byte(f.rng.IntN(256))
 	}
 
-	addr := std.EncodeBech32("g", rawAddr)
+	addr := std.EncodeBech32("g", rawAddr[:])
 
 	return std.Address(addr)
 }

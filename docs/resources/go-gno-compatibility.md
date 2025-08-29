@@ -128,6 +128,7 @@ Legend:
 | crypto/md5                                  | `test`[^2] |
 | crypto/rand                                 | `nondet` |
 | crypto/rc4                                  | `tbd`    |
+| crypto/ripemd160                            | `full`   |
 | crypto/rsa                                  | `tbd`    |
 | crypto/sha1                                 | `test`[^2] |
 | crypto/sha256                               | `part`[^3] |
