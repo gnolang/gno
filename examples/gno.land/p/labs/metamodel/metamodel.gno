@@ -475,19 +475,17 @@ func AssertValidObjectName(name string) {
 }
 
 func (model *Model) Cid() string {
-    return ShaToCid(model.IdentityHash())
+    return shaToCid(model.IdentityHash())
 }
 
 func (model *Model) IdentityHash() string {
 	var elements []string
 
-	// Add objects in canonical order
 	sort.Strings(model.Objects)
 	for _, obj := range model.Objects {
 		elements = append(elements, hashString(obj))
 	}
 
-	// Add places in canonical order
 	placeKeys := make([]string, 0, len(model.Places))
 	for label := range model.Places {
 		placeKeys = append(placeKeys, label)
@@ -497,7 +495,6 @@ func (model *Model) IdentityHash() string {
 		elements = append(elements, hashString(label))
 	}
 
-	// Add transitions in canonical order
 	transitionKeys := make([]string, 0, len(model.Transitions))
 	for label := range model.Transitions {
 		transitionKeys = append(transitionKeys, label)
@@ -507,7 +504,6 @@ func (model *Model) IdentityHash() string {
 		elements = append(elements, hashString(label))
 	}
 
-	// Add arcs in canonical order
 	for _, arrow := range model.Arrows {
 		if arrow.Inhibit {
 			arcHash := hashString(arrow.Source + "-|>" + arrow.Target)
@@ -527,9 +523,9 @@ func hashString(data string) string {
 	return hex.EncodeToString(hash[:])
 }
 
-// ShaToCid converts a hex-encoded SHA-256 digest into a CIDv1 (base32, multibase "b").
+// shaToCid converts a hex-encoded SHA-256 digest into a CIDv1 (base32, multibase "b").
 // Layout: <0x01 version><0x55 codec=raw><0x12 mh=sha2-256><0x20 len=32><digest>
-func ShaToCid(sha string) string {
+func shaToCid(sha string) string {
 	sha = strings.TrimSpace(sha)
 
 	// Decode hex digest (must be 32 bytes for sha2-256)
