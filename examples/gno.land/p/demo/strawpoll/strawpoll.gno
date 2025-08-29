@@ -23,8 +23,8 @@ type Poll struct {
 	creator  std.Address // The address of the person who created the poll.
 	question string      // The poll's question.
 	options  []string    // A list of valid options for this poll.
-	votes    *avl.Tree   // A map to store the vote count for each option.
-	voters   *avl.Tree   // A map to track who has voted *in this specific poll*.
+	votes    *avl.Tree   // A tree to store the vote count for each option.
+	voters   *avl.Tree   // A tree to track who has voted in this specific poll.
 }
 
 // VoteCount returns the number of votes for a specific option in the poll.
