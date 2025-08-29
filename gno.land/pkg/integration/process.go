@@ -11,7 +11,6 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"os/signal"
 	"slices"
 	"sync"
 	"testing"
@@ -295,9 +294,6 @@ func RunInMemoryProcess(ctx context.Context, cfg ProcessConfig) (NodeProcess, er
 }
 
 func RunMain(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-
 	// Read the configuration from standard input
 	configData, err := io.ReadAll(stdin)
 	if err != nil {

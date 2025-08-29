@@ -171,6 +171,13 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig, pkgpaths ...string) (*Node
 	return devnode, nil
 }
 
+func (n *Node) Paths() []string {
+	n.muNode.RLock()
+	defer n.muNode.RUnlock()
+
+	return n.paths
+}
+
 func (n *Node) Close() error {
 	n.muNode.Lock()
 	defer n.muNode.Unlock()
@@ -575,7 +582,7 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	nodeConfig.CacheStdlibLoad = true
 	nodeConfig.Genesis.ConsensusParams.Block.MaxGas = n.config.MaxGasPerBlock
 	// Genesis verification is always false with Gnodev
-	nodeConfig.SkipGenesisVerification = true
+	nodeConfig.SkipGenesisSigVerification = true
 
 	// recoverFromError handles panics and converts them to errors.
 	recoverFromError := func() {
