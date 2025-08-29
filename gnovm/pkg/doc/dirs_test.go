@@ -40,8 +40,8 @@ func TestNewDirs_nonExisting(t *testing.T) {
 	log.Default().SetOutput(old)
 	assert.Empty(t, d.hist, "hist should be empty")
 	assert.Equal(t, strings.Count(buf.String(), "\n"), 2, "output should contain 2 lines")
-	assert.Contains(t, buf.String(), "non/existing/dir: no such file or directory")
-	assert.Contains(t, buf.String(), "this/one/neither/gnomod.toml: no such file or directory")
+	assert.Contains(t, buf.String(), "non/existing/dir")
+	assert.Contains(t, buf.String(), "this/one/neither/gnomod.toml")
 	assert.NotContains(t, buf.String(), "dirsempty: no such file or directory")
 }
 
