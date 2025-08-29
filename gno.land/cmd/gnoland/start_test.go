@@ -17,34 +17,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// retryUntilTimeout runs the callback until the timeout is exceeded, or
-// the callback returns a flag indicating completion
-func retryUntilTimeout(ctx context.Context, cb func() bool) error {
-	ch := make(chan error, 1)
-
-	go func() {
-		defer close(ch)
-
-		for {
-			select {
-			case <-ctx.Done():
-				ch <- ctx.Err()
-				return
-			default:
-				retry := cb()
-				if !retry {
-					ch <- nil
-					return
-				}
-			}
-
-			time.Sleep(500 * time.Millisecond)
-		}
-	}()
-
-	return <-ch
-}
-
 // prepareNodeRPC sets the RPC listen address for the node to be an arbitrary
 // free address. Setting the listen port to a free port on the machine avoids
 // node collisions between different testing suites
@@ -82,49 +54,6 @@ func prepareNodeRPC(t *testing.T, nodeDir string, addr string) {
 	require.NoError(t, newRootCmd(io).ParseAndRun(ctx, args))
 }
 
-func getFreePort(t *testing.T, nodeDir string, addr string) {
-	t.Helper()
-
-	path := constructConfigPath(nodeDir)
-	args := []string{
-		"config",
-		"init",
-		"--config-path",
-		path,
-	}
-
-	// Prepare the IO
-	mockOut := new(bytes.Buffer)
-	mockErr := new(bytes.Buffer)
-	io := commands.NewTestIO()
-	io.SetOut(commands.WriteNopCloser(mockOut))
-	io.SetErr(commands.WriteNopCloser(mockErr))
-
-	// Prepare the cmd context
-	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancelFn()
-
-	// Run config init
-	require.NoError(t, newRootCmd(io).ParseAndRun(ctx, args))
-
-	args = []string{"config", "set",
-		"--config-path", path,
-		"rpc.laddr", addr,
-	}
-
-	// Run config set
-	require.NoError(t, newRootCmd(io).ParseAndRun(ctx, args))
-}
-
-func shortTempDir(t *testing.T) string {
-	t.Helper()
-
-	dir, err := os.MkdirTemp("/tmp", "socktest-*")
-	require.NoError(t, err)
-	t.Cleanup(func() { os.RemoveAll(dir) })
-	return dir
-}
-
 func TestStart_Lazy(t *testing.T) {
 	// Running a full node is cpu consuming
 	// Do run this one in parallel
@@ -132,6 +61,15 @@ func TestStart_Lazy(t *testing.T) {
 
 	// We allow one minute by node lifespan
 	const maxTestDeadline = time.Minute
+
+	shortTempDir := func(t *testing.T) string {
+		t.Helper()
+
+		dir, err := os.MkdirTemp("/tmp", "socktest-*")
+		require.NoError(t, err)
+		t.Cleanup(func() { os.RemoveAll(dir) })
+		return dir
+	}
 
 	tests := []struct {
 		name           string
@@ -217,7 +155,7 @@ func TestStart_Lazy(t *testing.T) {
 
 			t.Logf("rpc: get node infos - time left %s", time.Until(deadline))
 
-			// Check that rpc endpoint is correctly listening on our socke+
+			// Check that rpc endpoint is correctly listening on our socket
 			require.EventuallyWithT(t, func(c *assert.CollectT) {
 				info, qerr := cli.ABCIInfo()
 				require.NoError(c, qerr)
