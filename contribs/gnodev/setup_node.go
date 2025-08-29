@@ -92,9 +92,8 @@ func extractAppStateFromGenesisFile(path string) (*gnoland.GnoGenesisState, erro
 func resolveUnixOrTCPAddr(in string) (addr net.Addr) {
 	var err error
 
-	if strings.HasPrefix(in, "unix://") {
-		in = strings.TrimPrefix(in, "unix://")
-		if addr, err = net.ResolveUnixAddr("unix", in); err == nil {
+	if saddr, ok := strings.CutPrefix(in, "unix://"); ok {
+		if addr, err = net.ResolveUnixAddr("unix", saddr); err == nil {
 			return addr
 		}
 
