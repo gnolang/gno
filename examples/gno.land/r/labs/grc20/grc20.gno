@@ -3,12 +3,12 @@ package grc20
 // REVIEW: conversion to julia w/ Algebraic Petri Nets
 // https://gist.github.com/stackdump/33dcd8e6f071d391c998008dfeac6ed9
 
-// interactive
-var pflowLink = "[![pflow](https://pflow.dev/img/zb2rhdBY7MrYLhWAm1GLZu7NzKfnko2DxpcYwUHGWgWWE8KAk.svg)](https://pflow.dev/p/zb2rhdBY7MrYLhWAm1GLZu7NzKfnko2DxpcYwUHGWgWWE8KAk/)"
+var pflowLink = `
+[![pflow](https://pflow.dev/img/zb2rhdVMFVdcBLYqpMJh8Vk4awKUf5GeWsuURmeTxRghdAmQx.svg)](https://pflow.dev/p/zb2rhdVMFVdcBLYqpMJh8Vk4awKUf5GeWsuURmeTxRghdAmQx/)`
 
 func Render(path string) string {
-	m := GRC20(map[string]any{})
-	return pflowLink + "\n\n" + m.Markdown()
+	m := GRC20(modelOpts)
+	return pflowLink + "\n\n Model ID: " + m.Cid() + "\n\n" + m.Markdown()
 }
 
 /*

@@ -5,6 +5,12 @@ import (
 	"net/url"
 	"strings"
 
+	"crypto/sha256"
+	"encoding/base32"
+	"encoding/hex"
+
+	"sort"
+
 	"gno.land/p/demo/ufmt"
 )
 
@@ -191,23 +197,23 @@ func New(inputs ...any) *Model {
 	return m
 }
 func (model *Model) T(val int64, object string) TokenType {
-    size := 1
-    if len(model.Objects) > 0 {
-        size = len(model.Objects)
-    }
+	size := 1
+	if len(model.Objects) > 0 {
+		size = len(model.Objects)
+	}
 
-    wt := make(TokenType, size)
-    if object != "" && len(model.Objects) > 0 {
-        for i, obj := range model.Objects {
-            if obj == object {
-                wt[i] = val
-                break
-            }
-        }
-    } else {
-        wt[0] = val // default to first object
-    }
-    return wt
+	wt := make(TokenType, size)
+	if object != "" && len(model.Objects) > 0 {
+		for i, obj := range model.Objects {
+			if obj == object {
+				wt[i] = val
+				break
+			}
+		}
+	} else {
+		wt[0] = val // default to first object
+	}
+	return wt
 }
 
 func (model *Model) Arrow(opts Arc) Arrow {
@@ -385,10 +391,10 @@ var legendStyles = `
 
 func (model *Model) LegendSvg() string {
 	var sb strings.Builder
-	rowHeight := 37 // REVIEW: can we calculate this dynamically based on content?
-	numRows := len(model.Places) + len(model.Transitions) + len(model.Arrows)
-	height := numRows * rowHeight // 60px for header and padding
-	if numRows < 10 {             // add space for low row count
+	rowHeight := 37
+	numRows := len(model.Places) + len(model.Transitions) + len(model.Arrows) + len(model.Objects) + 2 // Add rows for objects, header, and hash
+	height := numRows * rowHeight
+	if numRows < 10 {
 		height = 2*rowHeight + height
 	}
 	width := 700
@@ -398,12 +404,24 @@ func (model *Model) LegendSvg() string {
 	sb.WriteString(`<foreignObject x="10" y="10" width="680" height="` + ufmt.Sprintf("%d", height-20) + `">`)
 	sb.WriteString(`<div xmlns="http://www.w3.org/1999/xhtml">`)
 	sb.WriteString(`<table><thead><tr><th>Type</th><th>Label</th><th>Initial</th><th>Capacity</th><th>Weight</th></tr></thead><tbody>`)
+
+	// Add objects section
+	sb.WriteString(`<tr><td colspan="5"><strong>Objects:</strong></td></tr>`)
+	for i, obj := range model.Objects {
+		sb.WriteString(ufmt.Sprintf(`<tr><td colspan="5">%d: %s</td></tr>`, i, obj))
+	}
+
+	// Add places
 	for label, place := range model.Places {
 		sb.WriteString(`<tr><td>Place</td><td>` + label + `</td><td>` + place.Initial.String() + `</td><td>` + place.Capacity.String() + `</td><td>-</td></tr>`)
 	}
+
+	// Add transitions
 	for label := range model.Transitions {
 		sb.WriteString(`<tr><td>Transition</td><td>` + label + `</td><td>-</td><td>-</td><td>-</td></tr>`)
 	}
+
+	// Add arrows
 	for _, arrow := range model.Arrows {
 		arrowType := "Arc"
 		if arrow.Inhibit {
@@ -411,6 +429,10 @@ func (model *Model) LegendSvg() string {
 		}
 		sb.WriteString(`<tr><td>` + arrowType + `</td><td>` + arrow.Source + ` → ` + arrow.Target + `</td><td>-</td><td>-</td><td>` + fmtWeight(arrow.Weight) + `</td></tr>`)
 	}
+
+	// Add structural hash
+	sb.WriteString(`<tr><td colspan="5"><strong>ID:</strong> ` + model.Cid() + `</td></tr>`)
+
 	sb.WriteString(`</tbody></table></div></foreignObject>`)
 	sb.WriteString("</svg>")
 	return sb.String()
@@ -450,4 +472,101 @@ func AssertValidObjectName(name string) {
 	if !strings.HasPrefix(name, "$") {
 		panic("Invalid object name: " + name + ". Object names must start with '$'.")
 	}
+}
+
+func (model *Model) Cid() string {
+    return ShaToCid(model.IdentityHash())
+}
+
+func (model *Model) IdentityHash() string {
+	var elements []string
+
+	// Add objects in canonical order
+	sort.Strings(model.Objects)
+	for _, obj := range model.Objects {
+		elements = append(elements, hashString(obj))
+	}
+
+	// Add places in canonical order
+	placeKeys := make([]string, 0, len(model.Places))
+	for label := range model.Places {
+		placeKeys = append(placeKeys, label)
+	}
+	sort.Strings(placeKeys)
+	for _, label := range placeKeys {
+		elements = append(elements, hashString(label))
+	}
+
+	// Add transitions in canonical order
+	transitionKeys := make([]string, 0, len(model.Transitions))
+	for label := range model.Transitions {
+		transitionKeys = append(transitionKeys, label)
+	}
+	sort.Strings(transitionKeys)
+	for _, label := range transitionKeys {
+		elements = append(elements, hashString(label))
+	}
+
+	// Add arcs in canonical order
+	for _, arrow := range model.Arrows {
+		if arrow.Inhibit {
+			arcHash := hashString(arrow.Source + "-|>" + arrow.Target)
+			elements = append(elements, arcHash)
+		} else {
+			arcHash := hashString(arrow.Source + "-->" + arrow.Target)
+			elements = append(elements, arcHash)
+		}
+	}
+
+	return buildMerkleRoot(elements)
+}
+
+// hashString generates a SHA-256 hash for a string.
+func hashString(data string) string {
+	hash := sha256.Sum256([]byte(data))
+	return hex.EncodeToString(hash[:])
+}
+
+// ShaToCid converts a hex-encoded SHA-256 digest into a CIDv1 (base32, multibase "b").
+// Layout: <0x01 version><0x55 codec=raw><0x12 mh=sha2-256><0x20 len=32><digest>
+func ShaToCid(sha string) string {
+	sha = strings.TrimSpace(sha)
+
+	// Decode hex digest (must be 32 bytes for sha2-256)
+	digest, err := hex.DecodeString(sha)
+	if err != nil || len(digest) != 32 {
+		panic("invalid sha256 digest")
+	}
+
+	// Assemble CIDv1 bytes
+	// 0x01 = version 1
+	// 0x55 = multicodec "raw"
+	// 0x12 = multihash code for sha2-256, 0x20 = digest length (32)
+	buf := make([]byte, 0, 1+1+2+32)
+	buf = append(buf, 0x01, 0x55, 0x12, 0x20)
+	buf = append(buf, digest...)
+
+	// Base32 (RFC 4648), no padding, lowercase, with multibase 'b' prefix
+	enc := base32.StdEncoding.WithPadding(base32.NoPadding)
+	return "b" + strings.ToLower(enc.EncodeToString(buf))
+}
+
+// buildMerkleRoot builds the Merkle root from a list of hashes.
+func buildMerkleRoot(hashes []string) string {
+	if len(hashes) == 0 {
+		return ""
+	}
+	for len(hashes) > 1 {
+		var newLevel []string
+		for i := 0; i < len(hashes); i += 2 {
+			if i+1 < len(hashes) {
+				combined := hashes[i] + hashes[i+1]
+				newLevel = append(newLevel, hashString(combined))
+			} else {
+				newLevel = append(newLevel, hashes[i]) // Carry forward the last hash if odd
+			}
+		}
+		hashes = newLevel
+	}
+	return hashes[0]
 }
