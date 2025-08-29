@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -228,9 +229,44 @@ func ExecSignAndBroadcast(
 	io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
 	io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 	io.Println("HEIGHT:    ", bres.Height)
+	if delta, storageFee, ok := getStorageInfo(bres.DeliverTx.Events); ok {
+		io.Printfln("STORAGE DELTA: %d bytes", delta)
+		io.Println("STORAGE FEE:  ", storageFee)
+		if tx.Fee.GasFee.Denom == storageFee.Denom {
+			total := tx.Fee.GasFee.Amount + storageFee.Amount
+			io.Printfln("TOTAL TX COST: %d%v", total, tx.Fee.GasFee.Denom)
+		}
+	}
 	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
 	io.Println("INFO:      ", bres.DeliverTx.Info)
 	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
 
 	return nil
+}
+
+// getStorageInfo searches events for StorageDepositEvent and returns the bytes delta and fee.
+// If this is "unlock", then bytes delta and fee are negative.
+// The third return is true if found, else false.
+func getStorageInfo(events []abci.Event) (int64, std.Coin, bool) {
+	for _, event := range events {
+		depositEvent, ok := event.(abci.StorageDepositEvent)
+		if !ok {
+			continue
+		}
+
+		fee, err := std.ParseCoin(depositEvent.FeeDelta)
+		if err != nil {
+			continue
+		}
+		bytes := depositEvent.BytesDelta
+		if depositEvent.Type == "UnlockDeposit" {
+			// For unlock, we want to display a negative bytes delta and fee
+			bytes = -bytes
+			fee.Amount = -fee.Amount
+		}
+
+		return bytes, fee, true
+	}
+
+	return 0, std.Coin{}, false
 }
