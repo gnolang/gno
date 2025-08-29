@@ -6,7 +6,7 @@
 SLEEPING_TIME=60
 # home folder in this context
 ALIAS_HOME_FOLDER="${1:-./home}"
-# home folder in this context
+# target rpc node url
 RPC_NODE_URL="${3:-https://rpc.gno.land}"
 # docker restart gnoweb
 DEFAULT_RELOAD_CMD="docker ps -a --filter ancestor=\"ghcr.io/gnolang/gno/gnoweb:master\" --format \"{{.ID}}\" | \

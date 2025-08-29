@@ -20,6 +20,7 @@ services:
       - dev
 
   gnoalias:
+    # Gnokey binary is needed within the script
     image: ghcr.io/gnolang/gno/gnokey:master
     entrypoint: sh
     command: >

@@ -13,7 +13,7 @@ In any environment used:
 
 - the `gnoalias` script MUST share a `volume` with the running `gnoweb` service
 - `gnoweb` should be run using the `--aliases=/=static:<path to home.md>` argument
- `ALIAS_HOME_FOLDER` env variable specifies the folder of currently aliased home file
+- (opt.) `ALIAS_HOME_FOLDER` env variable specifies the folder of currently aliased home file. If not present, fallbacks to the `./home` folder, `/gnoroot/home` in a gnoweb container
 
 ## Docker version
 
@@ -37,5 +37,5 @@ gnokey query vm/qrender -remote https://rpc.test6.testnets.gno.land -data "gno.l
 
 ## Kubernetes version
 
-- Create a CronJob
-- The CronJob runs the script but using a `kubectl` command as argument.
+- Create a Kubernetes Job resource
+- The Job runs the script but using a `kubectl` command as argument rather than `docker`.
