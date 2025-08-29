@@ -62,8 +62,10 @@ func NewRepl(opts ...ReplOption) *Repl {
 	r.output = os.Stdout
 	r.errput = os.Stderr
 	_, r.store = test.TestStore(gnoenv.RootDir(), test.OutputWithError(r.output, r.errput), nil)
+
+	var nilAllocator = (*gno.Allocator)(nil)
 	r.pn = gno.NewPackageNode("repl", r.pkgPath, &gno.FileSet{})
-	r.pv = r.pn.NewPackage()
+	r.pv = r.pn.NewPackage(nilAllocator)
 	r.fn = &gno.FileNode{
 		FileName: "<repl>",
 		PkgName:  "repl",

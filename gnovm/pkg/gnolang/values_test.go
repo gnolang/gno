@@ -9,8 +9,8 @@ type mockTypedValueStruct struct {
 	field int
 }
 
-func (m *mockTypedValueStruct) assertValue()          {}
-func (m *mockTypedValueStruct) GetShallowSize() int64 { return 0 }
+func (m *mockTypedValueStruct) assertValue()                      {}
+func (m *mockTypedValueStruct) GetShallowSize(withRef bool) int64 { return 0 }
 func (m *mockTypedValueStruct) VisitAssociated(vis Visitor) (stop bool) {
 	return true
 }

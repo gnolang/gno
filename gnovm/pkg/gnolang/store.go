@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -47,6 +48,8 @@ type Store interface {
 	GetObject(oid ObjectID) Object
 	GetObjectSafe(oid ObjectID) Object
 	SetObject(Object) int64 // returns size difference of the object
+	GetStagingPackage() *PackageValue
+	SetStagingPackage(pv *PackageValue)
 	DelObject(Object) int64 // returns size difference of the object
 	GetType(tid TypeID) Type
 	GetTypeSafe(tid TypeID) Type
@@ -60,6 +63,7 @@ type Store interface {
 
 	// UNSTABLE
 	GetAllocator() *Allocator
+	SetAllocator(alloc *Allocator)
 	NumMemPackages() int64
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
@@ -140,6 +144,10 @@ type defaultStore struct {
 	cacheTypes   txlog.Map[TypeID, Type]        // this re-uses the parent store's.
 	cacheNodes   txlog.Map[Location, BlockNode] // until BlockNode persistence is implemented, this is an actual store.
 	alloc        *Allocator                     // for accounting for cached items
+
+	// Partially restored package; occupies memory and tracked for GC,
+	// this is more efficient than iterating over cacheObjects.
+	stagingPackage *PackageValue
 
 	// store configuration; cannot be modified in a transaction
 	pkgGetter      PackageGetter  // non-realm packages
@@ -266,6 +274,10 @@ func (ds *defaultStore) GetAllocator() *Allocator {
 	return ds.alloc
 }
 
+func (ds *defaultStore) SetAllocator(alloc *Allocator) {
+	ds.alloc = alloc
+}
+
 // Used by cmd/gno (e.g. lint) to inject target package as MPTest.
 func (ds *defaultStore) GetPackageGetter() (pg PackageGetter) {
 	return ds.pkgGetter
@@ -275,8 +287,20 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 	ds.pkgGetter = pg
 }
 
+func (ds *defaultStore) GetStagingPackage() *PackageValue {
+	return ds.stagingPackage
+}
+
+func (ds *defaultStore) SetStagingPackage(pv *PackageValue) {
+	ds.stagingPackage = pv
+}
+
 // Gets package from cache, or loads it from baseStore, or gets it from package getter.
 func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
+	defer func() {
+		ds.stagingPackage = nil
+	}()
+
 	// helper to detect circular imports
 	if isImport {
 		if slices.Contains(ds.current, pkgPath) {
@@ -297,6 +321,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	if ds.baseStore != nil {
 		if oo := ds.loadObjectSafe(oid); oo != nil {
 			pv := oo.(*PackageValue)
+			ds.SetStagingPackage(pv)
 			_ = pv.GetBlock(ds) // preload
 			// get package associated realm if nil.
 			if pv.IsRealm() && pv.Realm == nil {
@@ -463,7 +488,12 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		gas := overflow.Mulp(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasGetObjectDesc)
 		amino.MustUnmarshal(bz, &oo)
-		ds.alloc.Allocate(oo.GetShallowSize())
+		if debug {
+			debug.Printf("loadObjectSafe by oid: %v, type of oo: %v\n", oid, reflect.TypeOf(oo))
+		}
+
+		withRef := true
+		ds.alloc.Allocate(oo.GetShallowSize(withRef))
 		if debug {
 			if oo.GetObjectID() != oid {
 				panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
