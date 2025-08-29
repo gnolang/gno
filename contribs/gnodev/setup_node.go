@@ -12,8 +12,48 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
+
+// extractDependenciesFromTxs extracts dependencies from transactions and adds them to the paths slice and config.BalancesList.
+func extractDependenciesFromTxs(nodeConfig *gnodev.NodeConfig, paths *[]string) {
+	var defaultPremineBalance = std.Coins{std.NewCoin(ugnot.Denom, 10e12)}
+
+	for _, tx := range nodeConfig.InitialTxs {
+		for _, msg := range tx.Tx.Msgs {
+			// TODO: Support MsgRun
+			callMsg, ok := msg.(vm.MsgCall)
+			if !ok {
+				continue
+			}
+			// Add package path to paths slice if not already present
+			if !slices.Contains(*paths, callMsg.PkgPath) {
+				*paths = append(*paths, callMsg.PkgPath)
+			}
+
+			// Check if address exists in config.BalancesList
+			addressExists := false
+			for _, balance := range nodeConfig.BalancesList {
+				if balance.Address == callMsg.Caller {
+					addressExists = true
+					break
+				}
+			}
+
+			// If address does not exist, add it to config.BalancesList
+			if !addressExists {
+				newBalance := gnoland.Balance{
+					Address: callMsg.Caller,
+					Amount:  defaultPremineBalance,
+				}
+				nodeConfig.BalancesList = append(nodeConfig.BalancesList, newBalance)
+			}
+		}
+	}
+}
 
 // setupDevNode initializes and returns a new DevNode.
 func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeConfig, paths ...string) (*gnodev.Node, error) {
@@ -25,6 +65,8 @@ func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeCo
 		if err != nil {
 			return nil, fmt.Errorf("unable to load transactions: %w", err)
 		}
+
+		extractDependenciesFromTxs(nodeConfig, &paths)
 	} else if cfg.genesisFile != "" { // Load genesis file
 		state, err := extractAppStateFromGenesisFile(cfg.genesisFile)
 		if err != nil {
