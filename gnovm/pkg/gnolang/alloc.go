@@ -389,12 +389,14 @@ func (pv *PackageValue) GetShallowSize(withRef bool) int64 {
 		return ss
 	}
 
-	ss += allocRefValue // .Block ref
+	if _, ok := pv.Block.(RefValue); ok {
+		ss += allocRefValue // .Block ref
+	}
 
 	// include RefValue size
 	for _, fb := range pv.FBlocks {
 		if _, ok := fb.(RefValue); !ok {
-			panic("should not happen, fb shoud be refValue")
+			continue
 		}
 		ss += allocRefValue
 	}
@@ -411,6 +413,13 @@ func (b *Block) GetShallowSize(withRef bool) int64 {
 	}
 
 	var ss int64
+
+	// RefNode is not value, put it here
+	// for convinence
+	if _, ok := b.Source.(RefNode); ok {
+		ss += allocRefValue
+	}
+
 	ss = allocBlock + allocBlockItem*int64(len(b.Values))
 
 	if !withRef {
@@ -423,9 +432,6 @@ func (b *Block) GetShallowSize(withRef bool) int64 {
 		}
 	}
 
-	if _, ok := b.Source.(RefNode); ok {
-		ss += allocRefValue
-	}
 	if _, ok := b.Parent.(RefValue); ok {
 		ss += allocRefValue
 	}
@@ -433,25 +439,66 @@ func (b *Block) GetShallowSize(withRef bool) int64 {
 }
 
 func (av *ArrayValue) GetShallowSize(withRef bool) int64 {
-	// no ref count with shallow size.
 	if av.Data != nil {
+		// no ref count with shallow size.
 		return allocArray + int64(len(av.Data))
 	} else {
-		return allocArray + int64(len(av.List)*allocArrayItem)
+		var ss int64
+		ss = allocArray + int64(len(av.List)*allocArrayItem)
+		if !withRef {
+			return ss
+		}
+
+		for _, tv := range av.List {
+			if _, ok := tv.V.(RefValue); ok {
+				ss += allocRefValue
+			}
+		}
+		return ss
 	}
 }
 
 func (sv *StructValue) GetShallowSize(withRef bool) int64 {
-	// no ref count with shallow size.
-	return allocStruct + int64(len(sv.Fields))*allocStructField
+	var ss int64
+	ss = allocStruct + int64(len(sv.Fields))*allocStructField
+	if !withRef {
+		return ss
+	}
+
+	for _, tv := range sv.Fields {
+		if _, ok := tv.V.(RefValue); ok {
+			ss += allocRefValue
+		}
+	}
+	return ss
 }
 
 func (mv *MapValue) GetShallowSize(withRef bool) int64 {
-	// no ref count with shallow size.
-	return allocMap + allocMapItem*int64(mv.GetLength())
+	var ss int64
+	ss = allocMap + allocMapItem*int64(mv.GetLength())
+	if !withRef {
+		return ss
+	}
+
+	// Note: MapKey would be deep filled, so not
+	// count(allocate) RefValue here by then.
+	for cur := mv.List.Head; cur != nil; cur = cur.Next {
+		if _, ok := cur.Key.V.(RefValue); ok {
+			ss += allocRefValue
+		}
+
+		if _, ok := cur.Value.V.(RefValue); ok {
+			ss += allocRefValue
+		}
+	}
+	return ss
 }
 
 func (bmv *BoundMethodValue) GetShallowSize(withRef bool) int64 {
+	// skip .uverse
+	if bmv.Func.PkgPath == ".uverse" {
+		return 0
+	}
 	var ss int64
 	ss = allocBoundMethod
 	if !withRef {
@@ -465,8 +512,15 @@ func (bmv *BoundMethodValue) GetShallowSize(withRef bool) int64 {
 }
 
 func (hiv *HeapItemValue) GetShallowSize(withRef bool) int64 {
-	// no ref count with shallow size.
-	return allocHeapItem
+	var ss int64
+	ss = allocHeapItem
+	if !withRef {
+		return ss
+	}
+	if _, ok := hiv.Value.V.(RefValue); ok {
+		ss += allocRefValue
+	}
+	return ss
 }
 
 func (rv RefValue) GetShallowSize(withRef bool) int64 {
@@ -475,13 +529,29 @@ func (rv RefValue) GetShallowSize(withRef bool) int64 {
 }
 
 func (pv PointerValue) GetShallowSize(withRef bool) int64 {
-	// no ref count with shallow size.
-	return allocPointer
+	var ss int64
+	ss = allocPointer
+	if !withRef {
+		return ss
+	}
+
+	if _, ok := pv.Base.(RefValue); ok {
+		ss += allocRefValue
+	}
+	return ss
 }
 
 func (sv *SliceValue) GetShallowSize(withRef bool) int64 {
-	// no ref count with shallow size.
-	return allocSlice
+	var ss int64
+	ss = allocSlice
+	if !withRef {
+		return ss
+	}
+
+	if _, ok := sv.Base.(RefValue); ok {
+		ss += allocRefValue
+	}
+	return ss
 }
 
 func (fv *FuncValue) GetShallowSize(withRef bool) int64 {
@@ -491,6 +561,12 @@ func (fv *FuncValue) GetShallowSize(withRef bool) int64 {
 
 	var ss int64
 	ss = allocFunc
+
+	// RefNode is not value, put it here
+	// for convinence
+	if _, ok := fv.Source.(RefNode); ok {
+		ss += allocRefNode
+	}
 
 	if !withRef {
 		return ss
@@ -504,10 +580,6 @@ func (fv *FuncValue) GetShallowSize(withRef bool) int64 {
 
 	if _, ok := fv.Parent.(RefValue); ok {
 		ss += allocRefValue
-	}
-
-	if _, ok := fv.Source.(RefNode); ok {
-		ss += allocRefNode
 	}
 
 	return ss

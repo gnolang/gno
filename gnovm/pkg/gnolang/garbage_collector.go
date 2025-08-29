@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -86,7 +87,10 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		return -1, false
 	}
 
-	// Visit staging package
+	// Visit staging package.
+	// Stating package is partially loaded package,
+	// it's more efficient to vist it than to
+	// iterate over the whole cache.
 	if tpv := m.Store.GetStagingPackage(); tpv != nil {
 		stop = vis(tpv)
 		if stop {
@@ -157,6 +161,10 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 		// Consider removing it later if no issues arise.
 		maxBytes, curBytes := alloc.Status()
 		if maxBytes < curBytes+size {
+			fmt.Println("======should not happen, curBytes: ", curBytes)
+			fmt.Println("======should not happen, wanted: ", size)
+			fmt.Println("======should not happen, sum: ", curBytes+size)
+			fmt.Println("======should not happen, maxBytes: ", maxBytes)
 			return true
 		}
 
@@ -203,6 +211,9 @@ func (av *ArrayValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
+	if fv.PkgPath == ".uverse" {
+		return
+	}
 	// visit captures
 	for _, tv := range fv.Captures {
 		v := tv.V
@@ -246,14 +257,18 @@ func (sv *StructValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (bmv *BoundMethodValue) VisitAssociated(vis Visitor) (stop bool) {
-	// bmv.Func cannot be a closure, it must be a method.
-	// So we do not visit it (for garbage collection).
-
 	// Visit receiver.
 	v := bmv.Receiver.V
 	if v != nil {
 		stop = vis(v)
 	}
+
+	// Visit func
+	fv := bmv.Func
+	if fv != nil {
+		stop = vis(fv)
+	}
+
 	return
 }
 
@@ -284,6 +299,10 @@ func (mv *MapValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
+	if pv.PkgPath == ".uverse" {
+		return false
+	}
+
 	// visit pv.Block
 	v := pv.Block
 	if v != nil {

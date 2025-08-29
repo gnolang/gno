@@ -359,6 +359,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
 		fn := gno.MustParseFile(fname, string(content))
 		// Run (add) file, and then run main().
+		m.Store.SetAllocator(m.Alloc)
 		m.RunFiles(fn)
 
 		m.RunMain()

@@ -509,7 +509,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		fb := m.Alloc.NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
-		pv.AddFileBlock(m.Alloc, fn.FileName, fb)
+		pv.AddFileBlock(fn.FileName, fb)
 	}
 	// Get new values across all files in package.
 	pn.PrepareNewValues(nilAllocator, pv)
@@ -593,7 +593,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		fb := m.Alloc.NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
-		pv.AddFileBlock(m.Alloc, fn.FileName, fb)
+		pv.AddFileBlock(fn.FileName, fb)
 	}
 
 	// Get new values across all files in package.

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -488,8 +489,9 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		ds.consumeGas(gas, GasGetObjectDesc)
 		amino.MustUnmarshal(bz, &oo)
 		if debug {
-			debug.Printf("loadObjectSafe by oid: %v\n", oid)
+			debug.Printf("loadObjectSafe by oid: %v, type of oo: %v\n", oid, reflect.TypeOf(oo))
 		}
+
 		withRef := true
 		ds.alloc.Allocate(oo.GetShallowSize(withRef))
 		if debug {

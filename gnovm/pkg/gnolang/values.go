@@ -34,10 +34,9 @@ type Value interface {
 	// receiver, and RefValue returns another type entirely.
 	DeepFill(store Store) Value
 
-	// When restoring an object from storage, some fields may be refValues.
-	// These differ from allocations during evaluation, but still consume memory.
-	// Therefore, include the size of refValues in the count. see implementations
-	// in alloc.go
+	// When restoring an object from storage, some fields may be refValues that
+	// consume memory.Therefore, include the size of refValues in the count.
+	// see implementations in alloc.go
 	GetShallowSize(withRef bool) int64
 	VisitAssociated(vis Visitor) (stop bool) // for GC
 }
@@ -842,7 +841,7 @@ func (pv *PackageValue) GetValueAt(store Store, path ValuePath) TypedValue {
 		TV)
 }
 
-func (pv *PackageValue) AddFileBlock(alloc *Allocator, fname string, fb *Block) {
+func (pv *PackageValue) AddFileBlock(fname string, fb *Block) {
 	for _, fn := range pv.FNames {
 		if fname == fn {
 			panic(fmt.Sprintf(
@@ -850,7 +849,7 @@ func (pv *PackageValue) AddFileBlock(alloc *Allocator, fname string, fb *Block) 
 				fname))
 		}
 	}
-	// XXX, alloc properly, by checking cap?
+	// XXX, alloc?
 	pv.FNames = append(pv.FNames, fname)
 	pv.FBlocks = append(pv.FBlocks, fb)
 	pv.getFBlocksMap()[fname] = fb

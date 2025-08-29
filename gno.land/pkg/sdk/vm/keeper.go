@@ -458,7 +458,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		Mode:       gno.TCLatestStrict,
 		Cache:      vm.getTypeCheckCache(ctx),
 	}
-
 	if ctx.BlockHeight() == 0 {
 		opts.Mode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
 	}

@@ -1335,12 +1335,10 @@ func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 
 func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 	var pv *PackageValue
-	var alloc2 *Allocator
 	if pn.PkgName == "main" {
 		// Allocation is only for the new created main package,
 		// other packages are preloaded in the store.
 		pv = alloc.NewPackageValue(pn)
-		alloc2 = alloc
 	} else {
 		pv = &PackageValue{
 			Block: &Block{
@@ -1352,7 +1350,6 @@ func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 			FBlocks:    nil,
 			fBlocksMap: make(map[string]*Block),
 		}
-		alloc2 = nilAllocator
 	}
 	// Set realm for realm packages, main package, and ephemeral run packages
 	if IsRealmPath(pn.PkgPath) || pn.PkgPath == "main" {
@@ -1363,7 +1360,7 @@ func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 		pv.SetRealm(rlm)
 	}
 	pv.IncRefCount() // all package values have starting ref count of 1.
-	pn.PrepareNewValues(alloc2, pv)
+	pn.PrepareNewValues(alloc, pv)
 	return pv
 }
 
