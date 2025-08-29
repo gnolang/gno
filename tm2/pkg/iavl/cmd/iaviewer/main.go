@@ -11,7 +11,7 @@ import (
 
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/goleveldb"
-	"github.com/gnolang/gno/tm2/pkg/iavl"
+	"github.com/gnolang/gno/tm2/pkg/iavl" //nolint:staticcheck
 )
 
 // TODO: make this configurable?
