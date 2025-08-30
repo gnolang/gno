@@ -3,21 +3,18 @@ module github.com/gnolang/gno/contribs/gnofaucet
 go 1.23.6
 
 require (
-	github.com/alicebob/miniredis/v2 v2.34.0
+	github.com/alicebob/miniredis/v2 v2.35.0
 	github.com/gnolang/faucet v0.5.2
-	github.com/gnolang/gno v0.1.0-nightly.20240627
+	github.com/gnolang/gno v0.0.0-20250829151034-f2546008f67a
 	github.com/google/go-github/v64 v64.0.0
 	github.com/pkg/errors v0.9.1
-	github.com/redis/go-redis/v9 v9.7.3
-	github.com/stretchr/testify v1.10.0
+	github.com/redis/go-redis/v9 v9.12.1
+	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.0
-	golang.org/x/time v0.5.0
+	golang.org/x/time v0.12.0
 )
 
-replace github.com/gnolang/gno => ../..
-
 require (
-	github.com/alicebob/gopher-json v0.0.0-20230218143504-906a9b012302 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.6 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect

@@ -48,7 +48,7 @@ func NewWSClient(remote string) (*Client, error) {
 }
 
 func (c *Client) GetLatestBlockNumber() (uint64, error) {
-	status, err := c.client.Status()
+	status, err := c.client.Status(context.Background())
 	if err != nil {
 		return 0, fmt.Errorf(
 			"unable to fetch latest block number, %w",
@@ -135,7 +135,7 @@ func (c *Client) GetBlocks(ctx context.Context, from, to uint64) ([]*client.Bloc
 func (c *Client) GetTxResults(block uint64) ([]*abci.ResponseDeliverTx, error) {
 	block64 := int64(block)
 
-	results, err := c.client.BlockResults(&block64)
+	results, err := c.client.BlockResults(context.Background(), &block64)
 	if err != nil {
 		return nil, fmt.Errorf("unable to fetch block results, %w", err)
 	}

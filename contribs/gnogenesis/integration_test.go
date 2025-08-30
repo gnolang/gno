@@ -168,13 +168,13 @@ func Render(_ string) string { return "bar" }
 	cli, err := client.NewHTTPClient(address)
 	require.NoError(t, err)
 
-	s, err := cli.Status()
+	s, err := cli.Status(ctx)
 	require.NoError(t, err)
 
 	assert.Equal(t, s.NodeInfo.Network, chainid)
 
 	// call bar package
-	res, err := cli.ABCIQuery("vm/qrender", []byte("gno.land/r/dev/bar:"))
+	res, err := cli.ABCIQuery(ctx, "vm/qrender", []byte("gno.land/r/dev/bar:"))
 	require.NoError(t, err)
 	require.NoError(t, res.Response.Error)
 	assert.Equal(t, string(res.Response.Data), "bar")

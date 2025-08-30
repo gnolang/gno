@@ -1,12 +1,14 @@
 package gnoweb
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -36,6 +38,8 @@ type AppConfig struct {
 	Analytics bool
 	// NodeRemote is the remote address of the gno.land node.
 	NodeRemote string
+	// NodeRequestTimeout define how much time a request to the remote node should live before timeout.
+	NodeRequestTimeout time.Duration
 	// RemoteHelp is the remote of the gno.land node, as used in the help page.
 	RemoteHelp string
 	// AssetsPath is the base path to the gnoweb assets.
@@ -60,12 +64,13 @@ type AppConfig struct {
 func NewDefaultAppConfig() *AppConfig {
 	const localRemote = "127.0.0.1:26657"
 	return &AppConfig{
-		NodeRemote:   localRemote, // local first
-		RemoteHelp:   localRemote,
-		AssetsPath:   "/public/",
-		Domain:       "gno.land",
-		Aliases:      DefaultAliases,
-		RenderConfig: NewDefaultRenderConfig(),
+		NodeRemote:         localRemote, // local first
+		RemoteHelp:         localRemote, // local first
+		NodeRequestTimeout: time.Minute,
+		AssetsPath:         "/public/",
+		Domain:             "gno.land",
+		Aliases:            DefaultAliases,
+		RenderConfig:       NewDefaultRenderConfig(),
 	}
 }
 
@@ -74,14 +79,16 @@ func NewDefaultAppConfig() *AppConfig {
 func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	assetsBase := "/" + strings.Trim(cfg.AssetsPath, "/") + "/" // sanitize
 
-	// Initialize RPC Client
-	rpcclient, err := client.NewHTTPClient(cfg.NodeRemote)
+	// Initialize RPC Client.
+	rpcclient, err := client.NewHTTPClient(cfg.NodeRemote,
+		client.WithRequestTimeout(cfg.NodeRequestTimeout),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create HTTP client: %w", err)
 	}
 
 	if cfg.ChainID == "" {
-		cfg.ChainID, err = getChainID(rpcclient)
+		cfg.ChainID, err = getChainID(context.Background(), rpcclient)
 		if err != nil {
 			logger.Error("unable to guess chain-id, make sure that the remote node is up and running and the RPC endpoint is valid", "error", err)
 			return nil, errors.New("no chain-id configured")
@@ -164,6 +171,12 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	// Handle status page
 	mux.Handle("/status.json", handlerStatusJSON(logger, rpcclient))
+
+	// Handle liveness check - service itself is up and running
+	mux.Handle("/liveness", handlerLivenessJSON(logger))
+
+	// Handle readiness check - service can communicate with RPC node and serve clients
+	mux.Handle("/ready", handlerReadyJSON(logger, rpcclient, cfg.Domain))
 
 	return mux, nil
 }
