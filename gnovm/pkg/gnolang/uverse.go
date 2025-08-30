@@ -11,6 +11,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
+const (
+	NativeCPUUversePrint = 1
+)
+
 // ----------------------------------------
 // non-primitive builtin types
 
@@ -848,6 +852,7 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
+			m.GasMeter.ConsumeGas(NativeCPUUversePrint, "CPUCycles")
 			arg0 := m.LastBlock().GetParams1(m.Store)
 			uversePrint(m, arg0, false)
 		},
