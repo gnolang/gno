@@ -20,9 +20,8 @@ var (
 	ErrClientFileNotFound      = errors.New("file not found")
 	ErrClientRenderNotDeclared = errors.New("render function not declared")
 	ErrClientBadRequest        = errors.New("bad request")
-	ErrClientTimeout           = errors.New("node request timeout")
-	ErrClientResponse          = errors.New("node response error")
-	ErrClientFile              = errors.New("unknown or invalid filename for path")
+	ErrClientTimeout           = errors.New("RPC node request timeout")
+	ErrClientResponse          = errors.New("RPC node response error")
 )
 
 type FileMeta struct {
