@@ -82,10 +82,12 @@ const (
 	EventCollateralTokenNameKey     = "collateralTokenName"
 	EventCollateralTokenSymbolKey   = "collateralTokenSymbol"
 	EventCollateralTokenDecimalsKey = "collateralTokenDecimals"
+	EventLLTVKey                    = "lltv"
 )
 
 // Event emission helper functions
 func emitCreateMarket(marketId string, loanToken string, collateralToken string) {
+	_, params := GetMarket(marketId)
 	var loanTokenName, loanTokenSymbol string
 	var loanTokenDecimals uint
 	var collateralTokenName, collateralTokenSymbol string
@@ -116,6 +118,7 @@ func emitCreateMarket(marketId string, loanToken string, collateralToken string)
 		EventCollateralTokenNameKey, collateralTokenName,
 		EventCollateralTokenSymbolKey, collateralTokenSymbol,
 		EventCollateralTokenDecimalsKey, strconv.FormatUint(uint64(collateralTokenDecimals), 10),
+		EventLLTVKey, params.LLTV.ToString(),
 		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }

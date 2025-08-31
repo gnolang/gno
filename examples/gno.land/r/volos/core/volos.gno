@@ -119,7 +119,7 @@ func SetFeeRecipient(cur realm, newFeeRecipient std.Address) {
 }
 
 // setFee sets the fee for a specific market
-func setFee(cur realm, marketId string, newFee *u256.Uint) {
+func SetFee(cur realm, marketId string, newFee *u256.Uint) {
 	Ownable.AssertOwnedByPrevious()
 
 	// Get market (will panic if not found)
