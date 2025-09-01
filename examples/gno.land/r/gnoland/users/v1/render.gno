@@ -65,7 +65,7 @@ will gain permission to deploy packages and realms to package paths with the pat
 	if !paused {
 		amount := ufmt.Sprintf("%dugnot", registerPrice)
 		link := txlink.NewLink("Register")
-		if registerPrice > int64(0) {
+		if registerPrice > 0 {
 			link = link.SetSend(amount)
 		}
 		out += md.H3(ufmt.Sprintf(" [[Click here to register]](%s)", link.URL()))
