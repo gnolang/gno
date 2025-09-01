@@ -4,8 +4,8 @@ go 1.23.6
 
 require (
 	github.com/alicebob/miniredis/v2 v2.35.0
-	github.com/gnolang/faucet v0.5.2
-	github.com/gnolang/gno v0.0.0-20250829151034-f2546008f67a
+	github.com/gnolang/faucet v0.5.3
+	github.com/gnolang/gno v0.0.0-20250901125041-596de150f06c
 	github.com/google/go-github/v64 v64.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/redis/go-redis/v9 v9.12.1
@@ -15,6 +15,7 @@ require (
 )
 
 require (
+	github.com/ajg/form v1.5.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.6 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
@@ -22,7 +23,8 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
-	github.com/go-chi/chi/v5 v5.2.1 // indirect
+	github.com/go-chi/chi/v5 v5.2.3 // indirect
+	github.com/go-chi/render v1.0.3 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
