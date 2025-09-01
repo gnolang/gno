@@ -174,7 +174,7 @@ func foo() { _ = v1.Register }
 			source: `
 package foo
 
-import "gno.land/p/demo/avl"
+import "gno.land/p/nt/avl"
 
 func foo() { _ = avl.NewTree("hey", 1) }
 `,

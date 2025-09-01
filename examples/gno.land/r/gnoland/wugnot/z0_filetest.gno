@@ -53,14 +53,14 @@ func printBalances() {
 
 // Output:
 // -----------
-// | wugnot        | addr=g1pf6dv9fjk3rn0m4jjcne306ga4he3mzmupfjl6 | wugnot=0      | ugnot=0         |
+// | wugnot        | addr=g15vj5q08amlvyd0nx6zjgcvwq2d0gt9fcchrvum | wugnot=0      | ugnot=0         |
 // | addr1         | addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 | wugnot=0      | ugnot=100000001 |
 // -----------
 // -----------
-// | wugnot        | addr=g1pf6dv9fjk3rn0m4jjcne306ga4he3mzmupfjl6 | wugnot=0      | ugnot=123400    |
+// | wugnot        | addr=g15vj5q08amlvyd0nx6zjgcvwq2d0gt9fcchrvum | wugnot=0      | ugnot=123400    |
 // | addr1         | addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 | wugnot=123400 | ugnot=99876601  |
 // -----------
 // -----------
-// | wugnot        | addr=g1pf6dv9fjk3rn0m4jjcne306ga4he3mzmupfjl6 | wugnot=0      | ugnot=119158    |
+// | wugnot        | addr=g15vj5q08amlvyd0nx6zjgcvwq2d0gt9fcchrvum | wugnot=0      | ugnot=119158    |
 // | addr1         | addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 | wugnot=119158 | ugnot=99880843  |
 // -----------
