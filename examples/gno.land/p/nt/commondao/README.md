@@ -9,7 +9,7 @@ use cases.
 ## Core Types
 
 Package contains some core types which are important in any DAO implementation,
-these are **CommonDAO**, **ProposalDefinition** and **Proposal**.
+these are **CommonDAO**, **ProposalDefinition**, **Proposal** and **Vote**.
 
 ### 1. CommonDAO Type
 
@@ -148,6 +148,37 @@ is considered valid; Alternatively votes can be directly added without sanity
 checks to the proposal's voting record by calling
 `Proposal.VotingRecord().AddVote()`.
 
+#### 4. Vote Type
+
+Vote type defines the structure to store information for individual proposal
+votes. Apart from the normally mandatory `Address` and voting `Choice` fields,
+there are two optional fields that can be useful in different use cases; These
+fields are `Reason` which can store a string with the reason for the vote, and
+`Context` which can be used to store generic values related to the vote, for
+example vote weight information.
+
+It's *very important* to be careful when using the `Context` field, in case
+references/pointers are assigned to it because they could potentially be
+accessed anywhere, which could lead to unwanted indirect modifications.
+
+Vote type is defined as:
+
+```go
+type Vote struct {
+    // Address is the address of the user that this vote belons to.
+    Address std.Address
+
+    // Choice contains the voted choice.
+    Choice VoteChoice
+
+    // Reason contains an optional reason for the vote.
+    Reason string
+
+    // Context can store any custom voting values related to the vote.
+    Context any
+}
+```
+
 ## Secondary Types
 
 There are other types which can be handy for some implementations which might
@@ -158,7 +189,7 @@ need member grouping support.
 
 These two types allows storing and iterating DAO members and proposals. They
 support DAO implementations that might require storing either members or
-proposals in and external realm other than the DAO realm.
+proposals in an external realm other than the DAO realm.
 
 CommonDAO package provides implementations that use AVL trees under the hood
 for storage and lookup.
