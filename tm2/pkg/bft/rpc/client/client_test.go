@@ -122,7 +122,7 @@ func TestRPCClient_Status(t *testing.T) {
 		verifyFn = func(t *testing.T, params map[string]any) {
 			t.Helper()
 
-			assert.Len(t, params, 0)
+			assert.Len(t, params, 1)
 		}
 
 		mockClient = generateMockRequestClient(
