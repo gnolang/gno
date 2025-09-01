@@ -128,7 +128,7 @@ func handlerReadyJSON(logger *slog.Logger, cli *client.RPCClient, domain string)
 
 // getChainID fetches the status endpoint and returns the "network" field
 func getChainID(ctx context.Context, cli *client.RPCClient) (string, error) {
-	status, err := cli.Status(ctx)
+	status, err := cli.Status(ctx, nil)
 	if err != nil {
 		return "", err
 	}

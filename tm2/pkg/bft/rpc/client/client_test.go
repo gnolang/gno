@@ -137,7 +137,7 @@ func TestRPCClient_Status(t *testing.T) {
 	c := NewRPCClient(mockClient)
 
 	// Get the status
-	status, err := c.Status(context.Background())
+	status, err := c.Status(context.Background(), nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedStatus, status)

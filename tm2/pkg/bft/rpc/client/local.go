@@ -51,8 +51,8 @@ func (c *Local) SetLogger(l *slog.Logger) {
 	c.Logger = l
 }
 
-func (c *Local) Status(_ context.Context) (*ctypes.ResultStatus, error) {
-	return core.Status(c.ctx)
+func (c *Local) Status(_ context.Context, heightGte *int64) (*ctypes.ResultStatus, error) {
+	return core.Status(c.ctx, heightGte)
 }
 
 func (c *Local) ABCIInfo(_ context.Context) (*ctypes.ResultABCIInfo, error) {

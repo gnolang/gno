@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"time"
 
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -72,13 +73,20 @@ import (
 //	}
 //
 // ```
-func Status(ctx *rpctypes.Context) (*ctypes.ResultStatus, error) {
+func Status(ctx *rpctypes.Context, heightGtePtr *int64) (*ctypes.ResultStatus, error) {
 	var latestHeight int64
 	if getFastSync() {
 		latestHeight = blockStore.Height()
 	} else {
 		latestHeight = consensusState.GetLastHeight()
 	}
+
+	if heightGtePtr != nil && latestHeight < *heightGtePtr {
+		// Using `409 Conflict` since it's spec states:
+		// > 409 responses may be used for implementation-specific purposes
+		return nil, rpctypes.NewHTTPStatusError(409, fmt.Sprintf("latest height is %d, which is less than %d", latestHeight, *heightGtePtr))
+	}
+
 	var (
 		latestBlockMeta     *types.BlockMeta
 		latestBlockHash     []byte
