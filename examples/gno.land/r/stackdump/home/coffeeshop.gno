@@ -16,6 +16,19 @@ func init() {
 	}
 	keywords := []string{"coffee", "shop", "payment", "brew", "cafe"}
 	register("Coffee Shop", coffeeShopModel, keywords...)
+
+	shopNoPlaces := coffeeShop().ForgetPlaces()
+	shopNoPlaces.Binding = func(_ string) string {
+		return "This is the Coffee Shop model without places.\n\n\n" + shopNoPlaces.Markdown()
+	}
+	register("Coffee Shop No Places", shopNoPlaces, append(keywords, "no_places")...)
+
+	shopNoTransitions := coffeeShop().ForgetTransitions()
+	shopNoTransitions.Binding = func(_ string) string {
+		return "This is the Coffee Shop model without transitions.\n\n\n" + shopNoTransitions.Markdown()
+	}
+	register("Coffee Shop No Transitions", shopNoTransitions, append(keywords, "no_transitions")...)
+
 }
 
 func coffeeShop() *mm.Model {

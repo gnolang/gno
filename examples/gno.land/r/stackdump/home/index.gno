@@ -19,7 +19,7 @@ var (
 	// consider any path that ends with /metamodel/
 	authorizedPaths = []string{
 		"gno.land/r/stackdump/home",
-		"", // EOA - externally owned account
+		"", // TODO: this opens perms for self, does it open for all EOAs? (i.e. non-realm accounts)
 	}
 
 	registry = mm.NewRegistry(authorizedPaths, renderOpts)

@@ -569,3 +569,143 @@ func buildMerkleRoot(hashes []string) string {
 	}
 	return hashes[0]
 }
+
+/*
+ForgetTransitions projects a P/T net onto its places.
+
+Semantics:
+- Treat each transition as hidden/internal and connect every input place of that
+  transition to every output place of that transition.
+- The result is a place–adjacency graph: an edge p1 → p2 exists iff some
+  transition t has p1 → t and t → p2 (ignoring inhibits).
+
+Use when:
+- You want “token-flow potential” between places (state-space skeleton),
+  e.g., for coarse reachability heuristics, layout hints, or structural summaries.
+
+Notes:
+- Drops enabling/consumption/production details and rates/weights (structure-only).
+- Preserves topological connectivity but not behavioral properties.
+- Inhibit arcs are intentionally ignored so they don’t fabricate flow.
+
+Related:
+- Classical transition elimination and net-reduction rules (Berthelot/Murata).
+- Compositional abstraction as “hiding” internal transitions (open nets).
+*/
+func (model *Model) ForgetTransitions() *Model {
+	newModel := &Model{
+		Places:      map[string]Place{},
+		Transitions: map[string]Transition{},
+		Arrows:      []Arrow{},
+	}
+
+	// Copy places
+	for label, place := range model.Places {
+		newModel.Places[label] = place
+	}
+
+	// Find all Place -> Transition and Transition -> Place arrows
+	pt := map[string][]string{} // transition: sources (places)
+	tp := map[string][]string{} // transition: targets (places)
+	for _, arrow := range model.Arrows {
+		if arrow.Inhibit {
+			continue // Skip inhibit arcs which intentionally break transitivity
+		}
+		if _, srcIsPlace := model.Places[arrow.Source]; srcIsPlace {
+			if _, tgtIsTransition := model.Transitions[arrow.Target]; tgtIsTransition {
+				pt[arrow.Target] = append(pt[arrow.Target], arrow.Source)
+			}
+		}
+		if _, srcIsTransition := model.Transitions[arrow.Source]; srcIsTransition {
+			if _, tgtIsPlace := model.Places[arrow.Target]; tgtIsPlace {
+				tp[arrow.Source] = append(tp[arrow.Source], arrow.Target)
+			}
+		}
+	}
+
+	// For each transition, link all input places to all output places
+	for t, sources := range pt {
+		targets := tp[t]
+		for _, src := range sources {
+			for _, tgt := range targets {
+				newModel.Arrows = append(newModel.Arrows, Arrow{
+					Source:  src,
+					Target:  tgt,
+					Inhibit: false,
+				})
+			}
+		}
+	}
+
+	return newModel
+}
+/*
+ForgetPlaces projects a P/T net onto its transitions.
+
+Semantics:
+- Treat each place as hidden/internal and connect every input transition of that
+  place to every output transition of that place.
+- The result is a transition–adjacency graph (TAR): an edge t1 → t2 exists iff
+  there is some place p with t1 → p and p → t2 (ignoring inhibits).
+
+Use when:
+- You want the “can-follow” relation between transitions (control-flow skeleton),
+  e.g., for partial-order analysis, concurrency visualization, or quick pathing.
+
+Notes:
+- Drops token semantics, capacities, and markings (structure-only abstraction).
+- Preserves causal adjacency but not reachability/liveness/boundedness.
+- Inhibit arcs are intentionally ignored so they don’t fabricate adjacency.
+
+Related:
+- Transition Adjacency Relations (TAR) in workflow/Petri-net analysis.
+- Nets-with-boundaries/compositional “hiding” (open nets / cospans).
+*/
+func (model *Model) ForgetPlaces() *Model {
+	newModel := &Model{
+		Places:      map[string]Place{},
+		Transitions: map[string]Transition{},
+		Arrows:      []Arrow{},
+	}
+
+	// Copy transitions
+	for label, transition := range model.Transitions {
+		newModel.Transitions[label] = transition
+	}
+
+	// Find all Transition -> Place and Place -> Transition arrows
+	tp := map[string][]string{} // place: input transitions
+	pt := map[string][]string{} // place: output transitions
+	for _, arrow := range model.Arrows {
+		if arrow.Inhibit {
+			continue // Skip inhibit arcs which intentionally break transitivity
+		}
+		if _, srcIsTransition := model.Transitions[arrow.Source]; srcIsTransition {
+			if _, tgtIsPlace := model.Places[arrow.Target]; tgtIsPlace {
+				tp[arrow.Target] = append(tp[arrow.Target], arrow.Source)
+			}
+		}
+		if _, srcIsPlace := model.Places[arrow.Source]; srcIsPlace {
+			if _, tgtIsTransition := model.Transitions[arrow.Target]; tgtIsTransition {
+				pt[arrow.Source] = append(pt[arrow.Source], arrow.Target)
+			}
+		}
+	}
+
+	// For each place, link all input transitions to all output transitions
+	for place := range model.Places {
+		inputs := tp[place]
+		outputs := pt[place]
+		for _, src := range inputs {
+			for _, tgt := range outputs {
+				newModel.Arrows = append(newModel.Arrows, Arrow{
+					Source:  src,
+					Target:  tgt,
+					Inhibit: false,
+				})
+			}
+		}
+	}
+
+	return newModel
+}
