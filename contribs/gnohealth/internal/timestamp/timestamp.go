@@ -128,7 +128,7 @@ func execTimestamp(cfg *timestampCfg, io commands.IO) error {
 
 		case <-ticker.C:
 			// Fetch the latest block number from the chain
-			status, err := client.Status(context.Background())
+			status, err := client.Status(context.Background(), nil)
 			if err != nil {
 				return fmt.Errorf("unable to fetch latest block number: %w", err)
 			}
