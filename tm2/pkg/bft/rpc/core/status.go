@@ -17,6 +17,13 @@ import (
 // curl 'localhost:26657/status'
 // ```
 //
+// Additionaly, it has an optional `heightGte` parameter than will return a `409` if the latest chain height is less than it.
+// This parameter is useful for readyness probes.
+//
+// ```shell
+// curl 'localhost:26657/status?heightGte=1'
+// ```
+//
 // ```go
 // client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
 // err := client.Start()
