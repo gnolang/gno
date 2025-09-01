@@ -17,7 +17,7 @@ import (
 // curl 'localhost:26657/status'
 // ```
 //
-// Additionaly, it has an optional `heightGte` parameter than will return a `409` if the latest chain height is less than it.
+// Additionally, it has an optional `heightGte` parameter than will return a `409` if the latest chain height is less than it.
 // This parameter is useful for readyness probes.
 //
 // ```shell
