@@ -69,6 +69,7 @@ func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...gnoland.TxW
 	txs = append(txs, additionalTxs...)
 	ggs := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
 	ggs.Balances = balances
+	ggs.Bank.Params.TotalSupply = gnoland.TotalBalance(balances)
 	ggs.Txs = txs
 	LoadDefaultGenesisParamFile(t, gnoroot, &ggs)
 	cfg.Genesis.AppState = ggs
@@ -107,15 +108,16 @@ func DefaultTestingGenesisConfig(gnoroot string, self crypto.PubKey, tmconfig *t
 	authGen.Params.UnrestrictedAddrs = []crypto.Address{crypto.MustAddressFromString(DefaultAccount_Address)}
 	authGen.Params.InitialGasPrice = std.GasPrice{Gas: 1000, Price: std.Coin{Amount: 1, Denom: "ugnot"}}
 	genState := gnoland.DefaultGenState()
+	balance := std.MustParseCoins(ugnot.ValueString(10000000000000))
 	genState.Balances = []gnoland.Balance{
 		{
 			Address: crypto.MustAddressFromString(DefaultAccount_Address),
-			Amount:  std.MustParseCoins(ugnot.ValueString(10000000000000)),
+			Amount:  balance,
 		},
 	}
 	genState.Txs = []gnoland.TxWithMetadata{}
 	genState.Auth = authGen
-	genState.Bank = bank.DefaultGenesisState()
+	genState.Bank.Params.TotalSupply = balance
 	genState.VM = vmm.DefaultGenesisState()
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
@@ -210,16 +212,18 @@ func GenerateTestingGenesisState(creator crypto.PrivKey, pkgs ...std.MemPackage)
 		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
 		txs[i] = gnoland.TxWithMetadata{Tx: tx}
 	}
-
+	totalSupply := std.MustParseCoins(ugnot.ValueString(10_000_000_000_000))
+	bankGen := bank.DefaultGenesisState()
+	bankGen.Params.TotalSupply = totalSupply
 	gnoland.SignGenesisTxs(txs, creator, "tendermint_test")
 	return gnoland.GnoGenesisState{
 		Txs: txs,
 		Balances: []gnoland.Balance{{
 			Address: creator.PubKey().Address(),
-			Amount:  std.MustParseCoins(ugnot.ValueString(10_000_000_000_000)),
+			Amount:  totalSupply,
 		}},
 		Auth: auth.DefaultGenesisState(),
-		Bank: bank.DefaultGenesisState(),
+		Bank: bankGen,
 		VM:   vmm.DefaultGenesisState(),
 	}
 }

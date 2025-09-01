@@ -1,0 +1,7 @@
+# tests for total supply invariance.
+
+gnoland start
+
+## check the total supply
+gnokey query params/bank:p:total_supply
+stdout '25500000000000ugnot'
