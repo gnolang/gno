@@ -20,7 +20,7 @@ func init() {
 
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
-	daoID = commondao.New("Foo").ID()
+	daoID = commondao.New(cross, "Foo").ID()
 
 	options := commondao.GetOptions(daoID)
 	options.SetAllowDissolutionProposals(false)
