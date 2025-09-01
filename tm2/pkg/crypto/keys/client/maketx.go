@@ -249,23 +249,13 @@ func ExecSignAndBroadcast(
 // The third return is true if found, else false.
 func GetStorageInfo(events []abci.Event) (int64, std.Coin, bool) {
 	for _, event := range events {
-		depositEvent, ok := event.(abci.StorageDepositEvent)
-		if !ok {
-			continue
+		if depositEvent, ok := event.(abci.StorageDepositEvent); ok {
+			feeDelta := std.Coin{
+				Denom:  depositEvent.FeeDelta.Denom,
+				Amount: depositEvent.FeeDelta.Amount,
+			}
+			return depositEvent.BytesDelta, feeDelta, true
 		}
-
-		fee, err := std.ParseCoin(depositEvent.FeeDelta)
-		if err != nil {
-			continue
-		}
-		bytes := depositEvent.BytesDelta
-		if depositEvent.Type == "UnlockDeposit" {
-			// For unlock, we want to display a negative bytes delta and fee
-			bytes = -bytes
-			fee.Amount = -fee.Amount
-		}
-
-		return bytes, fee, true
 	}
 
 	return 0, std.Coin{}, false
