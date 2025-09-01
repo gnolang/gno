@@ -4,11 +4,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	// allows the default config to have a valid DB
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	// allows the default config to have a valid DB
-	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
+	_ "github.com/gnolang/gno/tm2/pkg/db/pebbledb"
 )
 
 func TestConfig_LoadOrMakeConfigWithOptions(t *testing.T) {

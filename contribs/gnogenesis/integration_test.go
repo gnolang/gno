@@ -65,7 +65,7 @@ func TestIntegration(t *testing.T) {
 	)
 
 	// Dummy account
-	dKeys := common.GetDummyKeys(t, 3)
+	dKeys := common.DummyKeys(t, 3)
 
 	// Generate balance sheet
 	defaultBalanceAmount := std.Coins{std.NewCoin(ugnot.Denom, 10e8)}
@@ -77,7 +77,7 @@ func TestIntegration(t *testing.T) {
 	}
 
 	balanceSheet := filepath.Join(t.TempDir(), "balance-sheet.txt")
-	err = os.WriteFile(balanceSheet, []byte(strings.Join(balances, "\n")), 0644)
+	err = os.WriteFile(balanceSheet, []byte(strings.Join(balances, "\n")), 0o644)
 	require.NoError(t, err)
 
 	// Add balance sheet
@@ -168,13 +168,13 @@ func Render(_ string) string { return "bar" }
 	cli, err := client.NewHTTPClient(address)
 	require.NoError(t, err)
 
-	s, err := cli.Status()
+	s, err := cli.Status(ctx, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, s.NodeInfo.Network, chainid)
 
 	// call bar package
-	res, err := cli.ABCIQuery("vm/qrender", []byte("gno.land/r/dev/bar:"))
+	res, err := cli.ABCIQuery(ctx, "vm/qrender", []byte("gno.land/r/dev/bar:"))
 	require.NoError(t, err)
 	require.NoError(t, res.Response.Error)
 	assert.Equal(t, string(res.Response.Data), "bar")
