@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core"
@@ -50,86 +51,86 @@ func (c *Local) SetLogger(l *slog.Logger) {
 	c.Logger = l
 }
 
-func (c *Local) Status() (*ctypes.ResultStatus, error) {
-	return core.Status(c.ctx)
+func (c *Local) Status(_ context.Context, heightGte *int64) (*ctypes.ResultStatus, error) {
+	return core.Status(c.ctx, heightGte)
 }
 
-func (c *Local) ABCIInfo() (*ctypes.ResultABCIInfo, error) {
+func (c *Local) ABCIInfo(_ context.Context) (*ctypes.ResultABCIInfo, error) {
 	return core.ABCIInfo(c.ctx)
 }
 
-func (c *Local) ABCIQuery(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
-	return c.ABCIQueryWithOptions(path, data, DefaultABCIQueryOptions)
+func (c *Local) ABCIQuery(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+	return c.ABCIQueryWithOptions(ctx, path, data, DefaultABCIQueryOptions)
 }
 
-func (c *Local) ABCIQueryWithOptions(path string, data []byte, opts ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+func (c *Local) ABCIQueryWithOptions(_ context.Context, path string, data []byte, opts ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
 	return core.ABCIQuery(c.ctx, path, data, opts.Height, opts.Prove)
 }
 
-func (c *Local) BroadcastTxCommit(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Local) BroadcastTxCommit(_ context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 	return core.BroadcastTxCommit(c.ctx, tx)
 }
 
-func (c *Local) BroadcastTxAsync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+func (c *Local) BroadcastTxAsync(_ context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	return core.BroadcastTxAsync(c.ctx, tx)
 }
 
-func (c *Local) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+func (c *Local) BroadcastTxSync(_ context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	return core.BroadcastTxSync(c.ctx, tx)
 }
 
-func (c *Local) UnconfirmedTxs(limit int) (*ctypes.ResultUnconfirmedTxs, error) {
+func (c *Local) UnconfirmedTxs(_ context.Context, limit int) (*ctypes.ResultUnconfirmedTxs, error) {
 	return core.UnconfirmedTxs(c.ctx, limit)
 }
 
-func (c *Local) NumUnconfirmedTxs() (*ctypes.ResultUnconfirmedTxs, error) {
+func (c *Local) NumUnconfirmedTxs(_ context.Context) (*ctypes.ResultUnconfirmedTxs, error) {
 	return core.NumUnconfirmedTxs(c.ctx)
 }
 
-func (c *Local) NetInfo() (*ctypes.ResultNetInfo, error) {
+func (c *Local) NetInfo(_ context.Context) (*ctypes.ResultNetInfo, error) {
 	return core.NetInfo(c.ctx)
 }
 
-func (c *Local) DumpConsensusState() (*ctypes.ResultDumpConsensusState, error) {
+func (c *Local) DumpConsensusState(_ context.Context) (*ctypes.ResultDumpConsensusState, error) {
 	return core.DumpConsensusState(c.ctx)
 }
 
-func (c *Local) ConsensusState() (*ctypes.ResultConsensusState, error) {
+func (c *Local) ConsensusState(_ context.Context) (*ctypes.ResultConsensusState, error) {
 	return core.ConsensusState(c.ctx)
 }
 
-func (c *Local) ConsensusParams(height *int64) (*ctypes.ResultConsensusParams, error) {
+func (c *Local) ConsensusParams(_ context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
 	return core.ConsensusParams(c.ctx, height)
 }
 
-func (c *Local) Health() (*ctypes.ResultHealth, error) {
+func (c *Local) Health(_ context.Context) (*ctypes.ResultHealth, error) {
 	return core.Health(c.ctx)
 }
 
-func (c *Local) BlockchainInfo(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
+func (c *Local) BlockchainInfo(_ context.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
 	return core.BlockchainInfo(c.ctx, minHeight, maxHeight)
 }
 
-func (c *Local) Genesis() (*ctypes.ResultGenesis, error) {
+func (c *Local) Genesis(_ context.Context) (*ctypes.ResultGenesis, error) {
 	return core.Genesis(c.ctx)
 }
 
-func (c *Local) Block(height *int64) (*ctypes.ResultBlock, error) {
+func (c *Local) Block(_ context.Context, height *int64) (*ctypes.ResultBlock, error) {
 	return core.Block(c.ctx, height)
 }
 
-func (c *Local) BlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
+func (c *Local) BlockResults(_ context.Context, height *int64) (*ctypes.ResultBlockResults, error) {
 	return core.BlockResults(c.ctx, height)
 }
 
-func (c *Local) Commit(height *int64) (*ctypes.ResultCommit, error) {
+func (c *Local) Commit(_ context.Context, height *int64) (*ctypes.ResultCommit, error) {
 	return core.Commit(c.ctx, height)
 }
 
-func (c *Local) Validators(height *int64) (*ctypes.ResultValidators, error) {
+func (c *Local) Validators(_ context.Context, height *int64) (*ctypes.ResultValidators, error) {
 	return core.Validators(c.ctx, height)
 }
 
-func (c *Local) Tx(hash []byte) (*ctypes.ResultTx, error) {
+func (c *Local) Tx(_ context.Context, hash []byte) (*ctypes.ResultTx, error) {
 	return core.Tx(c.ctx, hash)
 }

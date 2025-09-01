@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -175,7 +176,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 				},
 			},
 			func(client *RPCClient, expectedResult any) {
-				status, err := client.Status()
+				status, err := client.Status(context.Background(), nil)
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, status)
@@ -189,7 +190,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 				},
 			},
 			func(client *RPCClient, expectedResult any) {
-				result, err := client.ABCIInfo()
+				result, err := client.ABCIInfo(context.Background())
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, result)
@@ -203,7 +204,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 				},
 			},
 			func(client *RPCClient, expectedResult any) {
-				result, err := client.ABCIQuery("path", []byte("dummy"))
+				result, err := client.ABCIQuery(context.Background(), "path", []byte("dummy"))
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, result)
@@ -215,7 +216,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 				Hash: []byte("dummy"),
 			},
 			func(client *RPCClient, expectedResult any) {
-				result, err := client.BroadcastTxCommit([]byte("dummy"))
+				result, err := client.BroadcastTxCommit(context.Background(), []byte("dummy"))
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, result)
@@ -227,7 +228,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 				Hash: []byte("dummy"),
 			},
 			func(client *RPCClient, expectedResult any) {
-				result, err := client.BroadcastTxAsync([]byte("dummy"))
+				result, err := client.BroadcastTxAsync(context.Background(), []byte("dummy"))
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, result)
@@ -239,7 +240,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 				Hash: []byte("dummy"),
 			},
 			func(client *RPCClient, expectedResult any) {
-				result, err := client.BroadcastTxSync([]byte("dummy"))
+				result, err := client.BroadcastTxSync(context.Background(), []byte("dummy"))
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, result)
@@ -251,7 +252,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 				Count: 10,
 			},
 			func(client *RPCClient, expectedResult any) {
-				result, err := client.UnconfirmedTxs(0)
+				result, err := client.UnconfirmedTxs(context.Background(), 0)
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, result)
@@ -263,7 +264,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 				Count: 10,
 			},
 			func(client *RPCClient, expectedResult any) {
-				result, err := client.NumUnconfirmedTxs()
+				result, err := client.NumUnconfirmedTxs(context.Background())
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, result)
@@ -275,7 +276,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 				NPeers: 10,
 			},
 			func(client *RPCClient, expectedResult any) {
-				result, err := client.NetInfo()
+				result, err := client.NetInfo(context.Background())
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, result)
@@ -289,7 +290,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 				},
 			},
 			func(client *RPCClient, expectedResult any) {
-				result, err := client.DumpConsensusState()
+				result, err := client.DumpConsensusState(context.Background())
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, result)
@@ -303,7 +304,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 				},
 			},
 			func(client *RPCClient, expectedResult any) {
-				result, err := client.ConsensusState()
+				result, err := client.ConsensusState(context.Background())
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, result)
@@ -315,7 +316,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 				BlockHeight: 10,
 			},
 			func(client *RPCClient, expectedResult any) {
-				result, err := client.ConsensusParams(nil)
+				result, err := client.ConsensusParams(context.Background(), nil)
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, result)
@@ -325,7 +326,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 			healthMethod,
 			&ctypes.ResultHealth{},
 			func(client *RPCClient, expectedResult any) {
-				result, err := client.Health()
+				result, err := client.Health(context.Background())
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, result)
@@ -337,7 +338,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 				LastHeight: 100,
 			},
 			func(client *RPCClient, expectedResult any) {
-				result, err := client.BlockchainInfo(0, 0)
+				result, err := client.BlockchainInfo(context.Background(), 0, 0)
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, result)
@@ -351,7 +352,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 				},
 			},
 			func(client *RPCClient, expectedResult any) {
-				result, err := client.Genesis()
+				result, err := client.Genesis(context.Background())
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, result)
@@ -367,7 +368,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 				},
 			},
 			func(client *RPCClient, expectedResult any) {
-				result, err := client.Block(nil)
+				result, err := client.Block(context.Background(), nil)
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, result)
@@ -379,7 +380,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 				Height: 10,
 			},
 			func(client *RPCClient, expectedResult any) {
-				result, err := client.BlockResults(nil)
+				result, err := client.BlockResults(context.Background(), nil)
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, result)
@@ -391,7 +392,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 				CanonicalCommit: true,
 			},
 			func(client *RPCClient, expectedResult any) {
-				result, err := client.Commit(nil)
+				result, err := client.Commit(context.Background(), nil)
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, result)
@@ -404,7 +405,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 				Height: 10,
 			},
 			func(client *RPCClient, expectedResult any) {
-				result, err := client.Tx([]byte("tx hash"))
+				result, err := client.Tx(context.Background(), []byte("tx hash"))
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, result)
@@ -416,7 +417,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 				BlockHeight: 10,
 			},
 			func(client *RPCClient, expectedResult any) {
-				result, err := client.Validators(nil)
+				result, err := client.Validators(context.Background(), nil)
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, result)
