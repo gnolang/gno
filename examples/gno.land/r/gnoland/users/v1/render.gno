@@ -64,7 +64,11 @@ will gain permission to deploy packages and realms to package paths with the pat
 
 	if !paused {
 		amount := ufmt.Sprintf("%dugnot", registerPrice)
-		out += md.H3(ufmt.Sprintf(" [[Click here to register]](%s)", txlink.NewLink("Register").SetSend(amount).URL()))
+		link := txlink.NewLink("Register")
+		if registerPrice > 0 {
+				link = link.SetSend(amount)
+		}
+		out += md.H3(ufmt.Sprintf(" [[Click here to register]](%s)", link.URL()))
 		// XXX: Display registration price adjusting for dynamic GNOT price when it becomes possible.
 		out += ufmt.Sprintf("Registration price: %f GNOT (%s)\n\n", float64(registerPrice)/1_000_000, amount)
 	}
