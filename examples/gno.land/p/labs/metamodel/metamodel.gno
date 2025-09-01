@@ -133,6 +133,9 @@ type Model struct {
 	RenderOpts  map[string]any        // Rendering options for the model.
 }
 
+// l1 := New(m.Objects, m.Places) //.Cid()
+// l2 :  New(l1, Arrows{})
+
 func New(inputs ...any) *Model {
 	m := &Model{
 		Places:      map[string]Place{},
@@ -475,7 +478,7 @@ func AssertValidObjectName(name string) {
 }
 
 func (model *Model) Cid() string {
-    return shaToCid(model.IdentityHash())
+	return shaToCid(model.IdentityHash())
 }
 
 func (model *Model) IdentityHash() string {

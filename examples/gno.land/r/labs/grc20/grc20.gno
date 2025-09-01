@@ -19,7 +19,7 @@ func init() {
 
 func Render(path string) string {
 	m := GRC20(modelOpts)
-	return pflowLink + "\n\n Model ID: " + m.Cid() + "\n\n" + m.Markdown()
+	return pflowLink + "\n\n Model ID: " + m.Cid() + "\n\n"  + m.IdentityHash() + "\n\n" + m.Markdown()
 }
 
 /*

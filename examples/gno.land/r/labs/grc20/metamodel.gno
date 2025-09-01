@@ -56,8 +56,9 @@ func GRC20(opts map[string]any) *mm.Model {
 
 	om := mm.New(opts["objects"].([]string))
 
-	// Initial values
+    //	supplyInit := T(0, 0) // $allow, $token
 	supplyInit := om.T(getIntOpt("supply_initial", 0), Token)
+
 	ownerInit := om.T(getIntOpt("owner_balance", 1100), Token)
 	recipientInit := om.T(getIntOpt("recipient_balance", 0), Token)
 
