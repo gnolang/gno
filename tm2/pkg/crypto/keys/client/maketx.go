@@ -230,11 +230,17 @@ func ExecSignAndBroadcast(
 	io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 	io.Println("HEIGHT:    ", bres.Height)
 	if delta, storageFee, ok := GetStorageInfo(bres.DeliverTx.Events); ok {
-		io.Printfln("STORAGE DELTA: %d bytes", delta)
-		io.Println("STORAGE FEE:  ", storageFee)
+		io.Printfln("STORAGE DELTA:  %d bytes", delta)
+		if storageFee.Amount >= 0 {
+			io.Println("STORAGE FEE:   ", storageFee)
+		} else {
+			refund := storageFee
+			refund.Amount = -refund.Amount
+			io.Println("STORAGE REFUND:", refund)
+		}
 		if tx.Fee.GasFee.Denom == storageFee.Denom {
 			total := tx.Fee.GasFee.Amount + storageFee.Amount
-			io.Printfln("TOTAL TX COST: %d%v", total, tx.Fee.GasFee.Denom)
+			io.Printfln("TOTAL TX COST:  %d%v", total, tx.Fee.GasFee.Denom)
 		}
 	}
 	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
