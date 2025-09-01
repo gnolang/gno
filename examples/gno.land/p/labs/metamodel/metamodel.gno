@@ -570,6 +570,59 @@ func buildMerkleRoot(hashes []string) string {
 	return hashes[0]
 }
 
+
+
+/*
+Definition (informal):
+A system is monotone if “having more resources cannot disable behavior you could already do.”
+
+Monotonicity means: if a transition is enabled under marking M,
+it remains enabled under any "larger" marking M' (with more tokens).
+Ordinary Petri nets are monotone; inhibitor arcs are not.
+Adding tokens can *disable* an inhibitor, so adjacency cannot
+be safely composed through them — transitivity breaks.
+
+*/
+
+/*
+Inhibitor arcs intentionally break transitivity.
+
+Reason: normal arcs are monotone (more tokens ⇒ still enabled), so collapsing
+through them preserves “can-reach” structure. Inhibitors are anti-monotone:
+adding tokens can *disable* a transition.
+
+If you allowed them in ForgetPlaces/ForgetTransitions, you would create edges that do not hold
+behaviorally. To avoid spurious adjacency, inhibitors are skipped.
+
+Baez, Courser, Master, Shulman — Compositionality of Petri Nets / Open Petri Nets (2018–2022).
+
+They highlight that algebraic laws (like transitivity via composition) hold for standard nets with monotone semantics,
+but need adjustment or can outright fail in extensions like inhibitors.
+*/
+
+
+/*
+Example: inhibitors break monotonicity (Esparza & Nielsen 1994).
+
+Place p has an inhibitor arc to transition t.
+- At marking M = [p=0], t is enabled.
+- At marking M' = [p=1], t is disabled.
+
+So M ≤ M' (M' has more tokens), but enabled(M) ⊄ enabled(M').
+This violates monotonicity.
+
+Consequence:
+- With ordinary arcs, Petri nets are monotone and many problems are decidable
+  (reachability is EXPSPACE-complete).
+- With inhibitors, monotonicity fails; nets can simulate counter machines.
+- Result: reachability and related problems become *undecidable*.
+  (Esparza & Nielsen, "Decidability Issues for Petri Nets with Inhibitor Arcs", 1994)
+
+This is why ForgetPlaces/ForgetTransitions explicitly skip inhibitor arcs:
+composing through them would create edges that don’t exist behaviorally.
+*/
+
+
 /*
 ForgetTransitions projects a P/T net onto its places.
 
@@ -709,3 +762,10 @@ func (model *Model) ForgetPlaces() *Model {
 
 	return newModel
 }
+
+/* References
+- Esparza, J., & Nielsen, M. (1994). Decidability Issues for Petri Nets (BRICS Report RS-94-8). University of Aarhus. [Inhibitor arcs → undecidability]
+
+- Baez, J. C., & Master, J. (2018). Open Petri Nets. arXiv preprint.
+- Baez, J. C., & Master, J. (2020). Open Petri Nets. Mathematical Structures in Computer Science, 30(3), 314–341. [Compositional semantics via double categories]
+*/
