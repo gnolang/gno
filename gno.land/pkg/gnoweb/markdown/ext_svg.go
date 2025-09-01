@@ -38,36 +38,19 @@ func NewSvgNode() ast.Node {
 type svgBlockParser struct {
 }
 
-var svgInfoKey = parser.NewContextKey()
-
 var defaultSVGParser = &svgBlockParser{}
 
-// NewFencedCodeBlockParser returns a new BlockParser that
-// parses fenced code blocks.
+// NewSVGParser returns a new BlockParser that parses SVG blocks.
 func NewSVGParser() parser.BlockParser {
 	return defaultSVGParser
 }
 
-type svgData struct {
-	char   byte
-	indent int
-	length int
-	node   ast.Node
-}
-
-// var svgBlockInfoKey = NewContextKey()
 
 func (b *svgBlockParser) Trigger() []byte {
 	return []byte{'<'}
 }
 
 func (b *svgBlockParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
-	// If we're already in an SVG block, don't open a new block for HTML elements
-	if pc.Get(svgInfoKey) != nil {
-		// fmt.Println("Open: Already in SVG block, refusing to open new block")
-		return nil, parser.NoChildren
-	}
-
 	line, _ := reader.PeekLine()
 	line = util.TrimRightSpace(util.TrimLeftSpace(line))
 	toks, err := ParseHTMLTokens(bytes.NewReader(line))
@@ -80,8 +63,6 @@ func (b *svgBlockParser) Open(parent ast.Node, reader text.Reader, pc parser.Con
 		return nil, parser.NoChildren
 	}
 
-	// fmt.Printf("Open: Found <gno-svg> tag, processing all content in Open\n")
-	// Process ALL content in Open() instead of using Continue
 	node := NewSvgNode()
 
 	// Skip the opening <gno-svg> tag
@@ -92,11 +73,8 @@ func (b *svgBlockParser) Open(parent ast.Node, reader text.Reader, pc parser.Con
 		line, segment := reader.PeekLine()
 		trimmedLine := util.TrimRightSpace(util.TrimLeftSpace(line))
 
-		// fmt.Printf("Open: processing line: %q, segment: %v\n", string(line), segment)
-
 		// Check for closing tag
 		if bytes.Contains(trimmedLine, []byte("</gno-svg>")) {
-			// fmt.Println("Open: found closing tag, ending")
 			reader.AdvanceLine()
 			break
 		}
@@ -108,47 +86,12 @@ func (b *svgBlockParser) Open(parent ast.Node, reader text.Reader, pc parser.Con
 		reader.AdvanceLine()
 	}
 
-	return node, parser.Close | parser.NoChildren // Close immediately, no inline parsing
+	return node, parser.Close | parser.NoChildren
 }
 
 func (b *svgBlockParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
-	// fmt.Println("Continue: Called")
-	// Get context data
-	data := pc.Get(svgInfoKey)
-	if data == nil {
-		// fmt.Println("Continue: No context data, returning Close")
-		return parser.Close
-	}
-
-	// Read all lines until we find </gno-svg>
-	for {
-		line, segment := reader.PeekLine()
-		trimmedLine := util.TrimRightSpace(util.TrimLeftSpace(line))
-
-		fmt.Printf("Continue: processing line: %q, segment: %v\n", string(line), segment)
-
-		// Skip the opening <gno-svg> tag
-		if bytes.Contains(trimmedLine, []byte("<gno-svg")) {
-			fmt.Println("Continue: skipping <gno-svg> opening tag")
-			reader.AdvanceLine()
-			continue
-		}
-
-		// Check for closing tag
-		if bytes.Contains(trimmedLine, []byte("</gno-svg>")) {
-			// fmt.Println("Continue: found closing tag, ending")
-			reader.AdvanceLine()
-			pc.Set(svgInfoKey, nil) // Clear context
-			return parser.Close
-		}
-
-		// Append the line as SVG content
-		seg := text.NewSegmentPadding(segment.Start, segment.Stop, segment.Padding)
-		seg.ForceNewline = true
-		// fmt.Printf("Appending segment: %v for line: %q\n", seg, string(line))
-		node.Lines().Append(seg)
-		reader.AdvanceLine()
-	}
+	// All processing is done in Open(), this should not be called
+	return parser.Close
 }
 
 func (b *svgBlockParser) Close(node ast.Node, reader text.Reader, pc parser.Context) {}
@@ -191,8 +134,6 @@ func (r *svgRenderer) render(w util.BufWriter, source []byte, node ast.Node, ent
 	for i := 0; i < l; i++ {
 		line := node.Lines().At(i)
 		lineContent := line.Value(source)
-		// Debug: print what we're actually rendering
-		// fmt.Printf("Rendering line %d: %q\n", i, string(lineContent))
 		w.Write(lineContent)
 	}
 
@@ -205,10 +146,10 @@ func (r *svgRenderer) render(w util.BufWriter, source []byte, node ast.Node, ent
 
 type svgExtension struct{}
 
-// Extend adds parsing and rendering options for the Form node
+// Extend adds parsing and rendering options for the SVG node
 func (e *svgExtension) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(
-		parser.WithBlockParsers(util.Prioritized(NewSVGParser(), 500)), // Absolute highest priority
+		parser.WithBlockParsers(util.Prioritized(NewSVGParser(), 500)),
 	)
 	m.Renderer().AddOptions(
 		renderer.WithNodeRenderers(util.Prioritized(NewSvgRenderer(), 500)),
@@ -217,14 +158,3 @@ func (e *svgExtension) Extend(m goldmark.Markdown) {
 }
 
 var ExtSvg = &svgExtension{}
-
-func preserveLeadingTabInCodeBlock(segment *text.Segment, reader text.Reader, indent int) {
-	offsetWithPadding := reader.LineOffset() + indent
-	sl, ss := reader.Position()
-	reader.SetPosition(sl, text.NewSegment(ss.Start-1, ss.Stop))
-	if offsetWithPadding == reader.LineOffset() {
-		segment.Padding = 0
-		segment.Start--
-	}
-	reader.SetPosition(sl, ss)
-}
