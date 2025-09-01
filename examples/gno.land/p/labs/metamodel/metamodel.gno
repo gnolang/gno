@@ -620,6 +620,13 @@ Consequence:
 
 This is why ForgetPlaces/ForgetTransitions explicitly skip inhibitor arcs:
 composing through them would create edges that don’t exist behaviorally.
+
+Note: many practical "inhibit" conditions can be rephrased monotonically,
+e.g. by encoding them as initial markings or one-shot control places.
+In those cases the system stays monotone and Forget* projections are safe.
+True dynamic inhibitors (tests for zero that can later be refilled)
+remain non-monotone and break transitivity; we skip them.
+
 */
 
 
