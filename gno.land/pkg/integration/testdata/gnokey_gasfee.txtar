@@ -22,7 +22,7 @@ stdout '"coins": "10000000000000ugnot"'
 # Using the simulated gas and estimated gas fee should ensure the transaction executes successfully.
 gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello  -gas-wanted  268994 -gas-fee 282ugnot -broadcast -chainid tendermint_test test1
 stdout 'OK'
-stdout 'EVENTS:     \[\{.*"fee_delta":"207700ugnot"\}\]'
+stdout 'EVENTS:     \[\{.*"fee_delta":\{"denom":"ugnot","amount":207700\}\}\]'
 
 ## fee is charged and sequence number increased
 gnokey query auth/accounts/$test1_user_addr
