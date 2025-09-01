@@ -10,6 +10,7 @@ import (
 	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
+	"golang.org/x/net/html"
 )
 
 type svgNode struct {
@@ -58,6 +59,12 @@ func (b *svgBlockParser) Trigger() []byte {
 }
 
 func (b *svgBlockParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
+	// If we're already in an SVG block, don't open a new block for HTML elements
+	if pc.Get(svgInfoKey) != nil {
+		// fmt.Println("Open: Already in SVG block, refusing to open new block")
+		return nil, parser.NoChildren
+	}
+
 	line, _ := reader.PeekLine()
 	line = util.TrimRightSpace(util.TrimLeftSpace(line))
 	toks, err := ParseHTMLTokens(bytes.NewReader(line))
@@ -66,70 +73,60 @@ func (b *svgBlockParser) Open(parent ast.Node, reader text.Reader, pc parser.Con
 	}
 
 	tok := toks[0]
-	if tok.Data != "gno-svg" {
+	if tok.Data != "gno-svg" || tok.Type != html.StartTagToken {
 		return nil, parser.NoChildren
 	}
 
-	// if pos < 0 || (line[pos] != '`' && line[pos] != '~') {
-	// 	return nil, parser.NoChildren
-	// }
-	// findent := pos
-	// fenceChar := line[pos]
-	// i := pos
-	// for ; i < len(line) && line[i] == fenceChar; i++ {
-	// }
-	// oFenceLength := i - pos
-	// if oFenceLength < 3 {
-	// 	return nil, parser.NoChildren
-	// }
-
+	// fmt.Printf("Open: Found <gno-svg> tag\n")
+	// Don't advance - Continue will handle everything
 	node := NewSvgNode()
-	// pc.Set(svgInfoKey, &svgData{fenceChar, findent, oFenceLength, node})
-	return node, parser.NoChildren
+	pc.Set(svgInfoKey, &svgData{node: node, char: '<', indent: 0, length: 0})
+	return node, parser.Continue // Return Continue to trigger Continue method
 }
 
 func (b *svgBlockParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
-	line, segment := reader.PeekLine()
-	closeLine := util.TrimRightSpace(util.TrimLeftSpace(line))
-	if "</gno-svg>" == string(closeLine) {
-		reader.AdvanceLine()
+	// Get context data
+	data := pc.Get(svgInfoKey)
+	if data == nil {
 		return parser.Close
 	}
+	svgData := data.(*svgData)
 
-	// w, pos := util.IndentWidth(line, reader.LineOffset())
-	// if w < 4 {
-	// 	i := pos
-	// 	for ; i < len(line) && line[i] == fdata.char; i++ {
-	// 	}
-	// 	length := i - pos
-	// 	if length >= fdata.length && util.IsBlank(line[i:]) {
-	// 		newline := 1
-	// 		if line[len(line)-1] != '\n' {
-	// 			newline = 0
-	// 		}
-	// 		reader.Advance(segment.Stop - segment.Start - newline + segment.Padding)
-	// 		return parser.Close
-	// 	}
-	// }
+	// Read all lines until we find </gno-svg>
+	for {
+		line, segment := reader.PeekLine()
+		trimmedLine := util.TrimRightSpace(util.TrimLeftSpace(line))
 
-	pos, padding := util.IndentPosition(line, reader.LineOffset(), segment.Padding)
-	if pos < 0 {
-		pos = util.FirstNonSpacePosition(line)
-		if pos < 0 {
-			pos = 0
+		// fmt.Printf("Continue: processing line: %q, segment: %v\n", string(line), segment)
+
+		// Skip the opening <gno-svg> tag on first iteration
+		if svgData.length == 0 && bytes.Contains(trimmedLine, []byte("<gno-svg")) {
+			// fmt.Println("Continue: skipping <gno-svg> opening tag")
+			svgData.length = 1
+			reader.AdvanceLine()
+			continue
 		}
-		padding = 0
-	}
 
-	seg := text.NewSegmentPadding(segment.Start+pos, segment.Stop, padding)
-	// if code block line starts with a tab, keep a tab as it is.
-	if padding != 0 {
-		preserveLeadingTabInCodeBlock(&seg, reader, 0)
+		// Mark that we've started processing
+		if svgData.length == 0 {
+			svgData.length = 1
+		}
+
+		// Check for closing tag
+		if bytes.Contains(trimmedLine, []byte("</gno-svg>")) {
+			// fmt.Println("Continue: found closing tag, ending")
+			reader.AdvanceLine()
+			pc.Set(svgInfoKey, nil) // Clear context
+			return parser.Close
+		}
+
+		// Append the line as SVG content
+		seg := text.NewSegmentPadding(segment.Start, segment.Stop, segment.Padding)
+		seg.ForceNewline = true
+		// fmt.Printf("Appending segment: %v for line: %q\n", seg, string(line))
+		node.Lines().Append(seg)
+		reader.AdvanceLine()
 	}
-	seg.ForceNewline = true // EOF as newline
-	node.Lines().Append(seg)
-	reader.AdvanceLine()
-	return parser.Continue | parser.NoChildren
 }
 
 func (b *svgBlockParser) Close(node ast.Node, reader text.Reader, pc parser.Context) {}
@@ -139,7 +136,7 @@ func (b *svgBlockParser) CanInterruptParagraph() bool {
 }
 
 func (b *svgBlockParser) CanAcceptIndentedLine() bool {
-	return false
+	return true // Accept indented lines to prevent other parsers from taking them
 }
 
 // svgRenderer renders the Svg node.
@@ -164,14 +161,22 @@ func (r *svgRenderer) render(w util.BufWriter, source []byte, node ast.Node, ent
 		return ast.WalkContinue, nil
 	}
 
-	fmt.Fprintln(w, "</mysvg>")
+	// Write opening object tag
+	fmt.Fprint(w, `<object type="image/svg+xml">`)
+
+	// Write the SVG content
 	l := node.Lines().Len()
 	for i := 0; i < l; i++ {
 		line := node.Lines().At(i)
-		w.Write(line.Value(source))
+		lineContent := line.Value(source)
+		// Debug: print what we're actually rendering
+		// fmt.Printf("Rendering line %d: %q\n", i, string(lineContent))
+		w.Write(lineContent)
 	}
 
-	fmt.Fprintln(w, "</mysvg>")
+	// Write closing object tag
+	fmt.Fprint(w, `</object>`)
+
 	return ast.WalkContinue, nil
 }
 
