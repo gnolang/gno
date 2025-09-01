@@ -1,2 +1,2 @@
-module = "gno.land/r/demo/deep/very/deep"
+module = "gno.land/r/tests/deep/very/deep"
 gno = "0.9"
