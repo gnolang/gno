@@ -707,8 +707,8 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 	}
 	*e = errors.Wrapf(
 		fmt.Errorf("%v", r),
-		"VM panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
-		r, m.String(), m.Stacktrace().String(),
+		"VM panic: %v\nStacktrace:\n%s\n",
+		r, m.Stacktrace().String(),
 	)
 }
 
@@ -1127,7 +1127,6 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 		if diff == 0 {
 			continue
 		}
-
 		rlm := gnostore.GetPackageRealm(rlmPath)
 		if diff > 0 {
 			// lock deposit for the additional storage used.

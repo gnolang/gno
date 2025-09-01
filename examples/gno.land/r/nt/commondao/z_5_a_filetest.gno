@@ -19,7 +19,7 @@ type propDef struct{}
 
 func (propDef) Title() string                                                 { return "" }
 func (propDef) Body() string                                                  { return "" }
-func (propDef) VotingPeriod() time.Duration                                   { return 0 }
+func (propDef) VotingPeriod() time.Duration                                   { return time.Hour }
 func (propDef) Validate() error                                               { return nil }
 func (propDef) Tally(pdao.ReadonlyVotingRecord, pdao.MemberSet) (bool, error) { return false, nil }
 func (propDef) Execute() error                                                { return nil }
@@ -37,8 +37,8 @@ func init() {
 
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
-	dao := commondao.New("Foo")
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
+	dao := commondao.New(cross, "Foo")
 	daoID = dao.ID()
 
 	// Configure DAO

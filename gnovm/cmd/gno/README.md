@@ -20,6 +20,7 @@ SUBCOMMANDS
   env      print gno environment information
   fix      update and fix old gno source files
   fmt      gnofmt (reformat) package sources
+  list     lists the named packages
   lint     runs the linter for the specified packages
   mod      module maintenance
   repl     starts a GnoVM REPL

@@ -2,6 +2,7 @@ package packages
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"go/parser"
@@ -36,7 +37,7 @@ func (res *remoteResolver) Resolve(fset *token.FileSet, path string) (*Package, 
 
 	// First query files
 	data := []byte(path)
-	qres, err := res.RPCClient.ABCIQuery(qpath, data)
+	qres, err := res.RPCClient.ABCIQuery(context.Background(), qpath, data)
 	if err != nil {
 		return nil, fmt.Errorf("client unable to query: %w", err)
 	}
@@ -57,7 +58,7 @@ func (res *remoteResolver) Resolve(fset *token.FileSet, path string) (*Package, 
 	for _, filename := range files {
 		fname := string(filename)
 		fpath := gopath.Join(path, fname)
-		qres, err := res.RPCClient.ABCIQuery(qpath, []byte(fpath))
+		qres, err := res.RPCClient.ABCIQuery(context.Background(), qpath, []byte(fpath))
 		if err != nil {
 			return nil, fmt.Errorf("unable to query path")
 		}
