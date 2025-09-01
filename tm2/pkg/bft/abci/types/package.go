@@ -68,6 +68,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 
 		// events
 		EventString(""),
+		SignedCoin{},
 		StorageDepositEvent{},
 
 		// mocks
