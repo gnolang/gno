@@ -316,12 +316,9 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 			// 	panic("realm packages cannot be gotten from pkgGetter")
 			// }
 			ds.SetBlockNode(pn)
-			// NOTE: not SetObject() here,
-			// we don't want to overwrite
-			// the value from pkgGetter.
-			// Realm values obtained this way
-			// will get written elsewhere
-			// later.
+			// NOTE: not SetObject() here, we don't want to overwrite the value
+			// from pkgGetter. Realm values obtained this way will get written
+			// elsewhere later.
 			ds.cacheObjects[oid] = pv
 			// cache all types. usually preprocess() sets types,
 			// but packages gotten from the pkgGetter may skip this step,
@@ -332,7 +329,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 					// (for other types, .T == nil even after definition).
 				} else if tv.T.Kind() == TypeKind {
 					t := tv.GetType()
-					ds.SetCacheType(t)
+					ds.SetType(t)
 				}
 			}
 			return pv
@@ -555,7 +552,7 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 		copy(hashbz[HashSize:], bz)
 		ds.baseStore.Set([]byte(key), hashbz)
 		size = len(hashbz)
-		oo.(Object).GetObjectInfo().LastObjectSize = int64(size)
+		oo.GetObjectInfo().LastObjectSize = int64(size)
 	}
 	// save object to cache.
 	if debug {
@@ -675,9 +672,8 @@ func (ds *defaultStore) SetCacheType(tt Type) {
 	if tt2, exists := ds.cacheTypes.Get(tid); exists {
 		if tt != tt2 {
 			panic(fmt.Sprintf("cannot re-register %q with different type", tid))
-		} else {
-			// already set.
 		}
+		// else, already set.
 	} else {
 		ds.cacheTypes.Set(tid, tt)
 	}
@@ -777,11 +773,11 @@ func (ds *defaultStore) SetBlockNode(bn BlockNode) {
 		panic("unexpected zero location in blocknode")
 	}
 	// save node to backend.
-	if ds.baseStore != nil {
-		// TODO: implement copyValueWithRefs() for Nodes.
-		// key := backendNodeKey(loc)
-		// ds.backend.Set([]byte(key), bz)
-	}
+	// if ds.baseStore != nil {
+	// TODO: implement copyValueWithRefs() for Nodes.
+	// key := backendNodeKey(loc)
+	// ds.backend.Set([]byte(key), bz)
+	// }
 	// save node to cache.
 	ds.cacheNodes.Set(loc, bn)
 	// XXX duplicate?
@@ -953,7 +949,7 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 		if err != nil {
 			panic(err)
 		}
-		ch := make(chan *std.MemPackage, 0)
+		ch := make(chan *std.MemPackage)
 		go func() {
 			for i := uint64(1); i <= uint64(ctr); i++ {
 				idxkey := []byte(backendPackageIndexKey(i))
@@ -1078,7 +1074,7 @@ func backendNodeKey(loc Location) string {
 }
 
 func backendPackageIndexCtrKey() string {
-	return fmt.Sprintf("pkgidx:counter")
+	return "pkgidx:counter"
 }
 
 func backendPackageIndexKey(index uint64) string {

@@ -42,13 +42,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	if args[0] == "data" {
+	switch args[0] {
+	case "data":
 		PrintKeys(tree)
 		fmt.Printf("Hash: %X\n", tree.Hash())
 		fmt.Printf("Size: %X\n", tree.Size())
-	} else if args[0] == "shape" {
+	case "shape":
 		PrintShape(tree)
-	} else if args[0] == "versions" {
+	case "versions":
 		PrintVersions(tree)
 	}
 }

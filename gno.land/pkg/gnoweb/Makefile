@@ -8,7 +8,7 @@ PUBLIC_DIR ?= public
 ## go tools
 reflex := go run -modfile ./tools/go.mod github.com/cespare/reflex
 logname := go -C ./tools run ./cmd/logname
-golangci_lint := go run -modfile ../../../misc/devdeps/go.mod github.com/golangci/golangci-lint/cmd/golangci-lint
+golangci_lint := go run -modfile ../../../misc/devdeps/go.mod github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 
 ## node tools
 node_modules := ./frontend/node_modules
@@ -50,7 +50,7 @@ dev: dev.all
 
 # Run gnodev instance
 node-start:
-	go -C ../../../contribs/gnodev run ./cmd/gnodev -no-web
+	go -C ../../../contribs/gnodev run . -no-web
 
 # Test process
 test:

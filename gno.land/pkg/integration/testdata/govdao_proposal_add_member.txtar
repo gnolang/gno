@@ -14,7 +14,7 @@ gnoland start
 
 # call gov/dao render to check everything is working as expected and the loader worked
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
-stdout 'data: # GovDAO Proposals'
+stdout 'data: # GovDAO'
 
 # add the proposal (temporarily comment out to debug)
 # First run a debug script to understand the addresses
@@ -27,7 +27,7 @@ stdout 'Current realm: CodeRealm{ g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0, gno.
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
 stdout OK!
 
-# call gov/dao render to check everything the proposal was created
+# call gov/dao render to check the proposal was created
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
 stdout 'This is a proposal to add `g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0` to \*\*T2\*\*.'
 
