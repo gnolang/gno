@@ -2,7 +2,7 @@
 package crossrealm
 
 import (
-	"gno.land/r/demo/tests"
+	"gno.land/r/tests/tests"
 )
 
 // NOTE: it is valid to persist a pointer to an external object
@@ -19,4 +19,4 @@ func main(cur realm) {
 }
 
 // Output:
-// readonly(&(struct{("_modified" string)} gno.land/r/demo/tests.TestRealmObject))
+// readonly(&(struct{("_modified" string)} gno.land/r/tests/tests.TestRealmObject))

@@ -6,7 +6,7 @@ package crossrealm
 // Unlike a,b,c, this file saves sb locally, but crosses into it(self).
 
 import (
-	"gno.land/r/demo/tests/crossrealm_b"
+	"gno.land/r/tests/tests/crossrealm_b"
 )
 
 type StructA struct {

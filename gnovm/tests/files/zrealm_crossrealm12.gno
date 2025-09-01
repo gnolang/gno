@@ -6,7 +6,7 @@ import (
 	"std"
 
 	psubtests "gno.land/p/demo/tests/subtests"
-	rsubtests "gno.land/r/demo/tests/subtests"
+	rsubtests "gno.land/r/tests/tests/subtests"
 )
 
 func main(cur realm) {
@@ -36,4 +36,4 @@ func main(cur realm) {
 // Output:
 // gno.land/r/crossrealm g1h2y7mn4d8w5ed08kqt8sdd7tp4j96eahyn6yan
 // gno.land/r/crossrealm g1h2y7mn4d8w5ed08kqt8sdd7tp4j96eahyn6yan
-// gno.land/r/demo/tests/subtests g13g48xnr7lzxsrvny0uf6lhx0cfaxy4n0n5geuf
+// gno.land/r/tests/tests/subtests g17up60pmemnyemehamlm0x4tau9x2yhguq887pa

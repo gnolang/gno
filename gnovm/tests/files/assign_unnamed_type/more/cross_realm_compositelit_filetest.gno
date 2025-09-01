@@ -2,7 +2,7 @@
 package declaredtype
 
 import (
-	"gno.land/r/demo/tests"
+	"gno.land/r/tests/tests"
 )
 
 func main() {
@@ -10,4 +10,4 @@ func main() {
 }
 
 // Output:
-// (readonly(slice[(0 gno.land/r/demo/tests.Word)]) gno.land/r/demo/tests.nat)
+// (readonly(slice[(0 gno.land/r/tests/tests.Word)]) gno.land/r/tests/tests.nat)

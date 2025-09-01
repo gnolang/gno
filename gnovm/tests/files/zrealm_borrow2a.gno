@@ -2,8 +2,8 @@
 package borrow
 
 import (
-	"gno.land/r/demo/tests/crossrealm"
-	"gno.land/r/demo/tests/crossrealm_b"
+	"gno.land/r/tests/tests/crossrealm"
+	"gno.land/r/tests/tests/crossrealm_b"
 )
 
 type Struct struct {

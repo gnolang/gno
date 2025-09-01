@@ -4,7 +4,7 @@ package crossrealm
 // This tests that panics that cross realm boundaries abort the transaction.
 
 import (
-	"gno.land/r/demo/tests/crossrealm_b"
+	"gno.land/r/tests/tests/crossrealm_b"
 )
 
 type StructA struct {
