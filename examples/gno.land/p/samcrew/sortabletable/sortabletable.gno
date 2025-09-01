@@ -7,6 +7,7 @@ package sortabletable
 
 import (
 	"net/url"
+	"sort"
 	"strings"
 
 	"gno.land/p/demo/ufmt"
@@ -74,22 +75,6 @@ func Render(u *url.URL, table *Table, paramPrefix string) string {
 	return sb.String()
 }
 
-// sortRows sorts the rows slice by a given column index and direction
-func sortRows(rows [][]string, colIndex int, ascending bool) {
-	n := len(rows)
-	for i := 0; i < n-1; i++ {
-		for j := i + 1; j < n; j++ {
-			compare := rows[i][colIndex] > rows[j][colIndex]
-			if !ascending {
-				compare = !compare
-			}
-			if compare {
-				rows[i], rows[j] = rows[j], rows[i]
-			}
-		}
-	}
-}
-
 // buildHeader builds the Markdown header row with clickable links and arrows
 func buildHeader(u *url.URL, headings []string, currentHeading, direction string, paramPrefix string) string {
 	var sb strings.Builder
@@ -131,4 +116,33 @@ func buildHeader(u *url.URL, headings []string, currentHeading, direction string
 		sb.WriteString(" --- |")
 	}
 	return sb.String()
+}
+
+// rowSorter implements sort.Interface for sorting rows by a specific column.
+type rowSorter struct {
+	rows      [][]string
+	colIndex  int
+	ascending bool
+}
+
+func (rs rowSorter) Len() int {
+	return len(rs.rows)
+}
+
+func (rs rowSorter) Less(i, j int) bool {
+	iCell := rs.rows[i][rs.colIndex]
+	jCell := rs.rows[j][rs.colIndex]
+	if rs.ascending {
+		return iCell < jCell
+	}
+	return iCell > jCell
+}
+
+func (rs rowSorter) Swap(i, j int) {
+	rs.rows[i], rs.rows[j] = rs.rows[j], rs.rows[i]
+}
+
+// sortRows sorts the rows slice by a given column index and direction
+func sortRows(rows [][]string, colIndex int, ascending bool) {
+	sort.Sort(rowSorter{rows, colIndex, ascending})
 }
