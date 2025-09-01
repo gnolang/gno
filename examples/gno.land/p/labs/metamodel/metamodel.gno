@@ -5,6 +5,12 @@ import (
 	"net/url"
 	"strings"
 
+	"crypto/sha256"
+	"encoding/base32"
+	"encoding/hex"
+
+	"sort"
+
 	"gno.land/p/demo/ufmt"
 )
 
@@ -127,6 +133,9 @@ type Model struct {
 	RenderOpts  map[string]any        // Rendering options for the model.
 }
 
+// l1 := New(m.Objects, m.Places) //.Cid()
+// l2 :  New(l1, Arrows{})
+
 func New(inputs ...any) *Model {
 	m := &Model{
 		Places:      map[string]Place{},
@@ -189,6 +198,25 @@ func New(inputs ...any) *Model {
 	}
 
 	return m
+}
+func (model *Model) T(val int64, object string) TokenType {
+	size := 1
+	if len(model.Objects) > 0 {
+		size = len(model.Objects)
+	}
+
+	wt := make(TokenType, size)
+	if object != "" && len(model.Objects) > 0 {
+		for i, obj := range model.Objects {
+			if obj == object {
+				wt[i] = val
+				break
+			}
+		}
+	} else {
+		wt[0] = val // default to first object
+	}
+	return wt
 }
 
 func (model *Model) Arrow(opts Arc) Arrow {
@@ -366,10 +394,10 @@ var legendStyles = `
 
 func (model *Model) LegendSvg() string {
 	var sb strings.Builder
-	rowHeight := 37 // REVIEW: can we calculate this dynamically based on content?
-	numRows := len(model.Places) + len(model.Transitions) + len(model.Arrows)
-	height := numRows * rowHeight // 60px for header and padding
-	if numRows < 10 {             // add space for low row count
+	rowHeight := 37
+	numRows := len(model.Places) + len(model.Transitions) + len(model.Arrows) + len(model.Objects) + 2 // Add rows for objects, header, and hash
+	height := numRows * rowHeight
+	if numRows < 10 {
 		height = 2*rowHeight + height
 	}
 	width := 700
@@ -379,12 +407,24 @@ func (model *Model) LegendSvg() string {
 	sb.WriteString(`<foreignObject x="10" y="10" width="680" height="` + ufmt.Sprintf("%d", height-20) + `">`)
 	sb.WriteString(`<div xmlns="http://www.w3.org/1999/xhtml">`)
 	sb.WriteString(`<table><thead><tr><th>Type</th><th>Label</th><th>Initial</th><th>Capacity</th><th>Weight</th></tr></thead><tbody>`)
+
+	// Add objects section
+	sb.WriteString(`<tr><td colspan="5"><strong>Objects:</strong></td></tr>`)
+	for i, obj := range model.Objects {
+		sb.WriteString(ufmt.Sprintf(`<tr><td colspan="5">%d: %s</td></tr>`, i, obj))
+	}
+
+	// Add places
 	for label, place := range model.Places {
 		sb.WriteString(`<tr><td>Place</td><td>` + label + `</td><td>` + place.Initial.String() + `</td><td>` + place.Capacity.String() + `</td><td>-</td></tr>`)
 	}
+
+	// Add transitions
 	for label := range model.Transitions {
 		sb.WriteString(`<tr><td>Transition</td><td>` + label + `</td><td>-</td><td>-</td><td>-</td></tr>`)
 	}
+
+	// Add arrows
 	for _, arrow := range model.Arrows {
 		arrowType := "Arc"
 		if arrow.Inhibit {
@@ -392,6 +432,10 @@ func (model *Model) LegendSvg() string {
 		}
 		sb.WriteString(`<tr><td>` + arrowType + `</td><td>` + arrow.Source + ` → ` + arrow.Target + `</td><td>-</td><td>-</td><td>` + fmtWeight(arrow.Weight) + `</td></tr>`)
 	}
+
+	// Add structural hash
+	sb.WriteString(`<tr><td colspan="5"><strong>ID:</strong> ` + model.Cid() + `</td></tr>`)
+
 	sb.WriteString(`</tbody></table></div></foreignObject>`)
 	sb.WriteString("</svg>")
 	return sb.String()
@@ -432,3 +476,303 @@ func AssertValidObjectName(name string) {
 		panic("Invalid object name: " + name + ". Object names must start with '$'.")
 	}
 }
+
+func (model *Model) Cid() string {
+	return shaToCid(model.IdentityHash())
+}
+
+func (model *Model) IdentityHash() string {
+	var elements []string
+
+	sort.Strings(model.Objects)
+	for _, obj := range model.Objects {
+		elements = append(elements, hashString(obj))
+	}
+
+	placeKeys := make([]string, 0, len(model.Places))
+	for label := range model.Places {
+		placeKeys = append(placeKeys, label)
+	}
+	sort.Strings(placeKeys)
+	for _, label := range placeKeys {
+		elements = append(elements, hashString(label))
+	}
+
+	transitionKeys := make([]string, 0, len(model.Transitions))
+	for label := range model.Transitions {
+		transitionKeys = append(transitionKeys, label)
+	}
+	sort.Strings(transitionKeys)
+	for _, label := range transitionKeys {
+		elements = append(elements, hashString(label))
+	}
+
+	for _, arrow := range model.Arrows {
+		if arrow.Inhibit {
+			arcHash := hashString(arrow.Source + "-|>" + arrow.Target)
+			elements = append(elements, arcHash)
+		} else {
+			arcHash := hashString(arrow.Source + "-->" + arrow.Target)
+			elements = append(elements, arcHash)
+		}
+	}
+
+	return buildMerkleRoot(elements)
+}
+
+// hashString generates a SHA-256 hash for a string.
+func hashString(data string) string {
+	hash := sha256.Sum256([]byte(data))
+	return hex.EncodeToString(hash[:])
+}
+
+// shaToCid converts a hex-encoded SHA-256 digest into a CIDv1 (base32, multibase "b").
+// Layout: <0x01 version><0x55 codec=raw><0x12 mh=sha2-256><0x20 len=32><digest>
+func shaToCid(sha string) string {
+	sha = strings.TrimSpace(sha)
+
+	// Decode hex digest (must be 32 bytes for sha2-256)
+	digest, err := hex.DecodeString(sha)
+	if err != nil || len(digest) != 32 {
+		panic("invalid sha256 digest")
+	}
+
+	// Assemble CIDv1 bytes
+	// 0x01 = version 1
+	// 0x55 = multicodec "raw"
+	// 0x12 = multihash code for sha2-256, 0x20 = digest length (32)
+	buf := make([]byte, 0, 1+1+2+32)
+	buf = append(buf, 0x01, 0x55, 0x12, 0x20)
+	buf = append(buf, digest...)
+
+	// Base32 (RFC 4648), no padding, lowercase, with multibase 'b' prefix
+	enc := base32.StdEncoding.WithPadding(base32.NoPadding)
+	return "b" + strings.ToLower(enc.EncodeToString(buf))
+}
+
+// buildMerkleRoot builds the Merkle root from a list of hashes.
+func buildMerkleRoot(hashes []string) string {
+	if len(hashes) == 0 {
+		return ""
+	}
+	for len(hashes) > 1 {
+		var newLevel []string
+		for i := 0; i < len(hashes); i += 2 {
+			if i+1 < len(hashes) {
+				combined := hashes[i] + hashes[i+1]
+				newLevel = append(newLevel, hashString(combined))
+			} else {
+				newLevel = append(newLevel, hashes[i]) // Carry forward the last hash if odd
+			}
+		}
+		hashes = newLevel
+	}
+	return hashes[0]
+}
+
+
+
+/*
+Definition (informal):
+A system is monotone if “having more resources cannot disable behavior you could already do.”
+
+Monotonicity means: if a transition is enabled under marking M,
+it remains enabled under any "larger" marking M' (with more tokens).
+Ordinary Petri nets are monotone; inhibitor arcs are not.
+Adding tokens can *disable* an inhibitor, so adjacency cannot
+be safely composed through them — transitivity breaks.
+
+*/
+
+/*
+Inhibitor arcs intentionally break transitivity.
+
+Reason: normal arcs are monotone (more tokens ⇒ still enabled), so collapsing
+through them preserves “can-reach” structure. Inhibitors are anti-monotone:
+adding tokens can *disable* a transition.
+
+If you allowed them in ForgetPlaces/ForgetTransitions, you would create edges that do not hold
+behaviorally. To avoid spurious adjacency, inhibitors are skipped.
+
+Baez, Courser, Master, Shulman — Compositionality of Petri Nets / Open Petri Nets (2018–2022).
+
+They highlight that algebraic laws (like transitivity via composition) hold for standard nets with monotone semantics,
+but need adjustment or can outright fail in extensions like inhibitors.
+*/
+
+
+/*
+Example: inhibitors break monotonicity (Esparza & Nielsen 1994).
+
+Place p has an inhibitor arc to transition t.
+- At marking M = [p=0], t is enabled.
+- At marking M' = [p=1], t is disabled.
+
+So M ≤ M' (M' has more tokens), but enabled(M) ⊄ enabled(M').
+This violates monotonicity.
+
+Consequence:
+- With ordinary arcs, Petri nets are monotone and many problems are decidable
+  (reachability is EXPSPACE-complete).
+- With inhibitors, monotonicity fails; nets can simulate counter machines.
+- Result: reachability and related problems become *undecidable*.
+  (Esparza & Nielsen, "Decidability Issues for Petri Nets with Inhibitor Arcs", 1994)
+
+This is why ForgetPlaces/ForgetTransitions explicitly skip inhibitor arcs:
+composing through them would create edges that don’t exist behaviorally.
+
+Note: many practical "inhibit" conditions can be rephrased monotonically,
+e.g. by encoding them as initial markings or one-shot control places.
+In those cases the system stays monotone and Forget* projections are safe.
+True dynamic inhibitors (tests for zero that can later be refilled)
+remain non-monotone and break transitivity; we skip them.
+
+*/
+
+
+/*
+ForgetTransitions projects a P/T net onto its places.
+
+Semantics:
+- Treat each transition as hidden/internal and connect every input place of that
+  transition to every output place of that transition.
+- The result is a place–adjacency graph: an edge p1 → p2 exists iff some
+  transition t has p1 → t and t → p2 (ignoring inhibits).
+
+Use when:
+- You want “token-flow potential” between places (state-space skeleton),
+  e.g., for coarse reachability heuristics, layout hints, or structural summaries.
+
+Notes:
+- Drops enabling/consumption/production details and rates/weights (structure-only).
+- Preserves topological connectivity but not behavioral properties.
+- Inhibit arcs are intentionally ignored so they don’t fabricate flow.
+
+Related:
+- Classical transition elimination and net-reduction rules (Berthelot/Murata).
+- Compositional abstraction as “hiding” internal transitions (open nets).
+*/
+func (model *Model) ForgetTransitions() *Model {
+	newModel := &Model{
+		Places:      map[string]Place{},
+		Transitions: map[string]Transition{},
+		Arrows:      []Arrow{},
+	}
+
+	// Copy places
+	for label, place := range model.Places {
+		newModel.Places[label] = place
+	}
+
+	// Find all Place -> Transition and Transition -> Place arrows
+	pt := map[string][]string{} // transition: sources (places)
+	tp := map[string][]string{} // transition: targets (places)
+	for _, arrow := range model.Arrows {
+		if arrow.Inhibit {
+			continue // Skip inhibit arcs which intentionally break transitivity
+		}
+		if _, srcIsPlace := model.Places[arrow.Source]; srcIsPlace {
+			if _, tgtIsTransition := model.Transitions[arrow.Target]; tgtIsTransition {
+				pt[arrow.Target] = append(pt[arrow.Target], arrow.Source)
+			}
+		}
+		if _, srcIsTransition := model.Transitions[arrow.Source]; srcIsTransition {
+			if _, tgtIsPlace := model.Places[arrow.Target]; tgtIsPlace {
+				tp[arrow.Source] = append(tp[arrow.Source], arrow.Target)
+			}
+		}
+	}
+
+	// For each transition, link all input places to all output places
+	for t, sources := range pt {
+		targets := tp[t]
+		for _, src := range sources {
+			for _, tgt := range targets {
+				newModel.Arrows = append(newModel.Arrows, Arrow{
+					Source:  src,
+					Target:  tgt,
+					Inhibit: false,
+				})
+			}
+		}
+	}
+
+	return newModel
+}
+/*
+ForgetPlaces projects a P/T net onto its transitions.
+
+Semantics:
+- Treat each place as hidden/internal and connect every input transition of that
+  place to every output transition of that place.
+- The result is a transition–adjacency graph (TAR): an edge t1 → t2 exists iff
+  there is some place p with t1 → p and p → t2 (ignoring inhibits).
+
+Use when:
+- You want the “can-follow” relation between transitions (control-flow skeleton),
+  e.g., for partial-order analysis, concurrency visualization, or quick pathing.
+
+Notes:
+- Drops token semantics, capacities, and markings (structure-only abstraction).
+- Preserves causal adjacency but not reachability/liveness/boundedness.
+- Inhibit arcs are intentionally ignored so they don’t fabricate adjacency.
+
+Related:
+- Transition Adjacency Relations (TAR) in workflow/Petri-net analysis.
+- Nets-with-boundaries/compositional “hiding” (open nets / cospans).
+*/
+func (model *Model) ForgetPlaces() *Model {
+	newModel := &Model{
+		Places:      map[string]Place{},
+		Transitions: map[string]Transition{},
+		Arrows:      []Arrow{},
+	}
+
+	// Copy transitions
+	for label, transition := range model.Transitions {
+		newModel.Transitions[label] = transition
+	}
+
+	// Find all Transition -> Place and Place -> Transition arrows
+	tp := map[string][]string{} // place: input transitions
+	pt := map[string][]string{} // place: output transitions
+	for _, arrow := range model.Arrows {
+		if arrow.Inhibit {
+			continue // Skip inhibit arcs which intentionally break transitivity
+		}
+		if _, srcIsTransition := model.Transitions[arrow.Source]; srcIsTransition {
+			if _, tgtIsPlace := model.Places[arrow.Target]; tgtIsPlace {
+				tp[arrow.Target] = append(tp[arrow.Target], arrow.Source)
+			}
+		}
+		if _, srcIsPlace := model.Places[arrow.Source]; srcIsPlace {
+			if _, tgtIsTransition := model.Transitions[arrow.Target]; tgtIsTransition {
+				pt[arrow.Source] = append(pt[arrow.Source], arrow.Target)
+			}
+		}
+	}
+
+	// For each place, link all input transitions to all output transitions
+	for place := range model.Places {
+		inputs := tp[place]
+		outputs := pt[place]
+		for _, src := range inputs {
+			for _, tgt := range outputs {
+				newModel.Arrows = append(newModel.Arrows, Arrow{
+					Source:  src,
+					Target:  tgt,
+					Inhibit: false,
+				})
+			}
+		}
+	}
+
+	return newModel
+}
+
+/* References
+- Esparza, J., & Nielsen, M. (1994). Decidability Issues for Petri Nets (BRICS Report RS-94-8). University of Aarhus. [Inhibitor arcs → undecidability]
+
+- Baez, J. C., & Master, J. (2018). Open Petri Nets. arXiv preprint.
+- Baez, J. C., & Master, J. (2020). Open Petri Nets. Mathematical Structures in Computer Science, 30(3), 314–341. [Compositional semantics via double categories]
+*/
