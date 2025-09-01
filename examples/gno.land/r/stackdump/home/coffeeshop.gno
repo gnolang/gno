@@ -29,6 +29,29 @@ func init() {
 	}
 	register("Coffee Shop No Transitions", shopNoTransitions, append(keywords, "no_transitions")...)
 
+	shopWorkflow := coffeeShopWorkflowNet()
+	shopWorkflow.Binding = func(_ string) string {
+	    return "This is the Coffee Shop model as a workflow net.\n\n\n" +
+	            shopWorkflow.Markdown()
+
+    }
+    register("Coffee Shop Workflow Net", shopWorkflow, append(keywords, "workflow", "workflow_net")...)
+
+    workflowNoTransitions := shopWorkflow.ForgetTransitions()
+    workflowNoTransitions.Binding = func(_ string) string {
+        return "This is the Coffee Shop Workflow Net model without transitions.\n\n\n" +
+            workflowNoTransitions.Markdown()
+    }
+
+    register("Coffee Shop Workflow Net No Transitions", workflowNoTransitions, append(keywords, "workflow", "workflow_net", "no_transitions")...)
+
+    workflowNoPlaces := shopWorkflow.ForgetPlaces()
+    workflowNoPlaces.Binding = func(_ string) string {
+        return "This is the Coffee Shop Workflow Net model without places.\n\n\n" +
+            workflowNoPlaces.Markdown()
+    }
+    register("Coffee Shop Workflow Net No Places", workflowNoPlaces, append(keywords, "workflow", "workflow_net", "no_places")...)
+
 }
 
 func coffeeShop() *mm.Model {
@@ -72,4 +95,42 @@ func coffeeShop() *mm.Model {
 		{Source: "PourCoffee", Target: "Payment", Inhibit: true},
 	}
 	return mm.New(places, transitions, arrows)
+}
+
+func coffeeShopWorkflowNet() *mm.Model {
+	// Start with the base coffeeShop model
+	baseModel := coffeeShop()
+
+	// Add a single start place
+	baseModel.Places["Start"] = mm.Place{
+		Offset: 10, Initial: mm.T(1), Capacity: mm.T(1), X: 280, Y: 20,
+	}
+
+	// Add a single exit place
+	baseModel.Places["Exit"] = mm.Place{
+		Offset: 11, Initial: mm.T(0), Capacity: mm.T(1), X: 280, Y: 300,
+	}
+
+	// Connect the start place to the first transition
+	baseModel.Arrows = append(baseModel.Arrows, mm.Arrow{
+		Source: "Start", Target: "BoilWater",
+	})
+
+	// Connect the last transition to the exit place
+	baseModel.Arrows = append(baseModel.Arrows, mm.Arrow{
+		Source: "Credit", Target: "Exit",
+	})
+
+	// Connect Start and Send to ensure all transitions are on a path from Start to Exit
+	baseModel.Arrows = append(baseModel.Arrows, mm.Arrow{
+	    Source: "Start", Target: "Send",
+    })
+
+    // connect PourCoffee to Exit to ensure all transitions are on a path from Start to Exit
+    baseModel.Arrows = append(baseModel.Arrows, mm.Arrow{
+        Source: "PourCoffee", Target: "Exit",
+    })
+
+
+	return baseModel
 }
