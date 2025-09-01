@@ -19,9 +19,8 @@ func init() {
 }
 
 func Get(){}
--- examples/gno.land/r/demo/hello/gnomod.toml --
+-- gnomod.toml --
 module = "gno.land/r/demo/hello"
 
 -- stdout.golden --
 -- stderr.golden --
-auto-generated "gnomod.toml"
