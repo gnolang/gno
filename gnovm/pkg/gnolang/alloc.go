@@ -369,7 +369,6 @@ func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 // -----------------------------------------------
 // Utilities for obtaining shallow size
 
-// keep sync with copyValueWithRefs().
 func (pv *PackageValue) GetShallowSize() int64 {
 	// .uverse is preloaded
 	if pv.PkgPath == ".uverse" {
@@ -402,7 +401,6 @@ func (b *Block) GetShallowSize() int64 {
 
 func (av *ArrayValue) GetShallowSize() int64 {
 	if av.Data != nil {
-		// no ref count with shallow size.
 		return allocArray + int64(len(av.Data))
 	} else {
 		return allocArray + int64(len(av.List)*allocArrayItem)

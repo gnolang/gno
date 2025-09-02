@@ -134,7 +134,6 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 		if debug {
 			debug.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
 		}
-		// fmt.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
 
 		if oo, isObject := v.(Object); isObject {
 			// Return if already measured.
