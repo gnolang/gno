@@ -21,8 +21,6 @@ func init() {
 	})
 }
 
-const gUsersV1Path = "gno.land/r/gnoland/users/v1"
-
 var (
 	m1    = testutils.TestAddress("m1")
 	m11   = testutils.TestAddress("m1.1")
@@ -37,7 +35,10 @@ var (
 	noMember = testutils.TestAddress("nm1")
 )
 
+const gUsersV1Path = "gno.land/r/gnoland/users/v1"
+
 func registerTestUsers() {
+	// Set realm to users admin to register test users
 	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
 
 	users.RegisterUser(cross, "m1", m1)
