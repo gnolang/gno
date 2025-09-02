@@ -7,6 +7,7 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/sys/users"
 )
 
 var ErrMemberNotFound = errors.New("member not found")
@@ -98,6 +99,10 @@ func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
 	mem, tie := getMembers(cross).GetMember(caller)
 	if mem == nil {
 		return ErrMemberNotFound
+	}
+
+	if users.ResolveAddress(caller) != nil {
+		return errors.New("voter should have a namespace")
 	}
 
 	status := g.pss.GetStatus(r.ProposalID)
