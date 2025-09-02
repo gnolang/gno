@@ -1,7 +1,7 @@
 # cford32
 
 ```
-package cford32 // import "gno.land/p/demo/cford32"
+package cford32 // import "gno.land/p/nt/cford32"
 
 Package cford32 implements a base32-like encoding/decoding package, with the
 encoding scheme specified by Douglas Crockford.
@@ -49,7 +49,7 @@ have a requirement or preferences for IDs consistently being always the same
 size.
 
 To use the cford32 encoding for IDs, you may want to consider using package
-gno.land/p/demo/seqid.
+gno.land/p/nt/seqid.
 
 [specified by Douglas Crockford]: https://www.crockford.com/base32.html
 

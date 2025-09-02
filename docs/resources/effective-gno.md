@@ -400,12 +400,12 @@ use subdirectories like `p/NAMESPACE/DAPP/foo/bar/baz`.
 
 Packages which contain `internal` as an element of the path (ie. at the end, or
 in between, like `gno.land/p/nt/seqid/internal`, or
-`gno.land/p/demo/seqid/internal/base32`) can only be imported by packages
+`gno.land/p/nt/seqid/internal/base32`) can only be imported by packages
 sharing the same root as the `internal` package. That is, given a package
 structure as follows:
 
 ```
-gno.land/p/demo/seqid
+gno.land/p/nt/seqid
 ├── generator
 └── internal
     ├── base32

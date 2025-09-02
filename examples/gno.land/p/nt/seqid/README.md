@@ -1,7 +1,7 @@
 # seqid
 
 ```
-package seqid // import "gno.land/p/demo/seqid"
+package seqid // import "gno.land/p/nt/seqid"
 
 Package seqid provides a simple way to have sequential IDs which will be ordered
 correctly when inserted in an AVL tree.
