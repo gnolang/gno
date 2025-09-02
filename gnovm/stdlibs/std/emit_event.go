@@ -7,6 +7,7 @@ import (
 	"errors"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 var errInvalidGnoEventAttrs = errors.New("cannot pair attributes due to odd count")
@@ -60,3 +61,21 @@ type GnoEventAttribute struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
+
+// StorageDepositEvent is emitted when a storage deposit fee is locked.
+type StorageDepositEvent struct {
+	BytesDelta int64    `json:"bytes_delta"`
+	FeeDelta   std.Coin `json:"fee_delta"`
+	PkgPath    string   `json:"pkg_path"`
+}
+
+func (e StorageDepositEvent) AssertABCIEvent() {}
+
+// StorageUnlockEvent is emitted when a storage deposit fee is unlocked.
+type StorageUnlockEvent struct {
+	BytesDelta int64    `json:"bytes_delta"`
+	FeeDelta   std.Coin `json:"fee_delta"`
+	PkgPath    string   `json:"pkg_path"`
+}
+
+func (e StorageUnlockEvent) AssertABCIEvent() {}

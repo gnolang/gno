@@ -238,22 +238,6 @@ func (err EventString) Event() string {
 	return string(err)
 }
 
-// SignedCoin hold some amount of one currency.
-// A negative amount is allowed.
-type SignedCoin struct {
-	Denom  string `json:"denom"`
-	Amount int64  `json:"amount"`
-}
-
-// StorageDepositEvent is emitted when a storage deposit fee is locked or unlocked.
-// BytesDelta and FeeDelta are negative for "unlock"
-type StorageDepositEvent struct {
-	BytesDelta int64      `json:"bytes_delta"`
-	FeeDelta   SignedCoin `json:"fee_delta"`
-}
-
-func (e StorageDepositEvent) AssertABCIEvent() {}
-
 // ----------------------------------------
 // Misc
 

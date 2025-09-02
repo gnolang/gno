@@ -85,27 +85,17 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
 		return errors.New("transaction failed %#v\nlog %s", res, res.DeliverTx.Log)
 	} else {
-		io.Println(string(res.DeliverTx.Data))
-		io.Println("OK!")
-		io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
-		io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
-		io.Println("HEIGHT:    ", res.Height)
-		if delta, storageFee, ok := GetStorageInfo(res.DeliverTx.Events); ok {
-			io.Printfln("STORAGE DELTA:  %d bytes", delta)
-			if storageFee.Amount >= 0 {
-				io.Println("STORAGE FEE:   ", storageFee)
-			} else {
-				refund := storageFee
-				refund.Amount = -refund.Amount
-				io.Println("STORAGE REFUND:", refund)
-			}
-			if tx.Fee.GasFee.Denom == storageFee.Denom {
-				total := tx.Fee.GasFee.Amount + storageFee.Amount
-				io.Printfln("TOTAL TX COST:  %d%v", total, tx.Fee.GasFee.Denom)
-			}
+		if cfg.RootCfg.OnTxSuccess != nil {
+			cfg.RootCfg.OnTxSuccess(tx, res)
+		} else {
+			io.Println(string(res.DeliverTx.Data))
+			io.Println("OK!")
+			io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
+			io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
+			io.Println("HEIGHT:    ", res.Height)
+			io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
+			io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
 		}
-		io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
-		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
 	}
 	return nil
 }

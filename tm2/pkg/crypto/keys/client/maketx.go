@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -224,45 +223,18 @@ func ExecSignAndBroadcast(
 		return errors.Wrapf(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
 	}
 
-	io.Println(string(bres.DeliverTx.Data))
-	io.Println("OK!")
-	io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
-	io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
-	io.Println("HEIGHT:    ", bres.Height)
-	if delta, storageFee, ok := GetStorageInfo(bres.DeliverTx.Events); ok {
-		io.Printfln("STORAGE DELTA:  %d bytes", delta)
-		if storageFee.Amount >= 0 {
-			io.Println("STORAGE FEE:   ", storageFee)
-		} else {
-			refund := storageFee
-			refund.Amount = -refund.Amount
-			io.Println("STORAGE REFUND:", refund)
-		}
-		if tx.Fee.GasFee.Denom == storageFee.Denom {
-			total := tx.Fee.GasFee.Amount + storageFee.Amount
-			io.Printfln("TOTAL TX COST:  %d%v", total, tx.Fee.GasFee.Denom)
-		}
+	if cfg.RootCfg.OnTxSuccess != nil {
+		cfg.RootCfg.OnTxSuccess(tx, bres)
+	} else {
+		io.Println(string(bres.DeliverTx.Data))
+		io.Println("OK!")
+		io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
+		io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
+		io.Println("HEIGHT:    ", bres.Height)
+		io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
+		io.Println("INFO:      ", bres.DeliverTx.Info)
+		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
 	}
-	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
-	io.Println("INFO:      ", bres.DeliverTx.Info)
-	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
 
 	return nil
-}
-
-// GetStorageInfo searches events for StorageDepositEvent and returns the bytes delta and fee.
-// If this is "unlock", then bytes delta and fee are negative.
-// The third return is true if found, else false.
-func GetStorageInfo(events []abci.Event) (int64, std.Coin, bool) {
-	for _, event := range events {
-		if depositEvent, ok := event.(abci.StorageDepositEvent); ok {
-			feeDelta := std.Coin{
-				Denom:  depositEvent.FeeDelta.Denom,
-				Amount: depositEvent.FeeDelta.Amount,
-			}
-			return depositEvent.BytesDelta, feeDelta, true
-		}
-	}
-
-	return 0, std.Coin{}, false
 }

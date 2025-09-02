@@ -192,16 +192,6 @@ message EventString {
 	string value = 1;
 }
 
-message SignedCoin {
-	string denom = 1;
-	sint64 amount = 2;
-}
-
-message StorageDepositEvent {
-	sint64 bytes_delta = 1;
-	SignedCoin fee_delta = 2;
-}
-
 message MockHeader {
 	string version = 1;
 	string chain_id = 2;
