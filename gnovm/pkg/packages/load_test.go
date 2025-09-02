@@ -468,18 +468,18 @@ func TestDataLoad(t *testing.T) {
 		{
 			name:     "remote",
 			workdir:  localFromSlash("./testdata/workspace-empty"),
-			patterns: []string{"gno.example.com/p/nt/avl"},
+			patterns: []string{"gno.example.com/p/demo/avl"},
 			res: PkgList{{
-				ImportPath: "gno.example.com/p/nt/avl",
+				ImportPath: "gno.example.com/p/demo/avl",
 				Name:       "avl",
-				Dir:        PackageDir("gno.example.com/p/nt/avl"),
-				Match:      []string{"gno.example.com/p/nt/avl"},
+				Dir:        PackageDir("gno.example.com/p/demo/avl"),
+				Match:      []string{"gno.example.com/p/demo/avl"},
 				Files: FilesMap{
 					FileKindOther:         {"gnomod.toml"},
 					FileKindPackageSource: {"avl.gno"},
 				},
 			}},
-			outShouldContain: `gno: downloading gno.example.com/p/nt/avl`,
+			outShouldContain: `gno: downloading gno.example.com/p/demo/avl`,
 		},
 		{
 			name:             "err-stdlibs-recursive",
@@ -526,8 +526,8 @@ func TestDataLoad(t *testing.T) {
 
 			res, err := Load(conf, tc.patterns...)
 
-			fmt.Println("loader output:")
-			fmt.Println(outBuf.String())
+			t.Log("loader output:")
+			t.Log(outBuf.String())
 
 			if tc.errShouldContain == "" {
 				require.NoError(t, err)

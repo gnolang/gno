@@ -204,11 +204,11 @@ valid.gno
 			testDir:              "../../tests/integ/valid2",
 			simulateExternalRepo: true,
 			stderrShouldBe:       "gno: downloading gno.land/p/nt/avl\n",
-			stdoutShouldBe: `gno.land/p/integ/valid gno.land/p/nt/avl
-gno.land/p/integ/valid gno.land/p/integ/valid
+			stdoutShouldBe: `gno.land/p/integ/valid gno.land/p/integ/valid
+gno.land/p/integ/valid gno.land/p/nt/avl
 gno.land/p/integ/valid testing
 gno.land/p/nt/avl gno.land/p/nt/avl
-gno.land/p/nt/avl gno.land/p/demo/ufmt
+gno.land/p/nt/avl gno.land/p/nt/ufmt
 gno.land/p/nt/avl sort
 gno.land/p/nt/avl strings
 gno.land/p/nt/avl testing
@@ -221,7 +221,7 @@ gno.land/p/nt/avl testing
 			stderrShouldBe:       "gno: downloading gno.land/p/nt/avl\n",
 			stdoutShouldBe: `gno.land/t/importavl gno.land/p/nt/avl
 gno.land/p/nt/avl gno.land/p/nt/avl
-gno.land/p/nt/avl gno.land/p/demo/ufmt
+gno.land/p/nt/avl gno.land/p/nt/ufmt
 gno.land/p/nt/avl sort
 gno.land/p/nt/avl strings
 gno.land/p/nt/avl testing
