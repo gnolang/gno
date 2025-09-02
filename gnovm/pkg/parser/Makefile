@@ -1,3 +1,6 @@
+# Build from Go source + .patch file.
+all: clean import patch
+
 GOROOT := $(shell go env GOROOT)
 
 # Import source from the current Go standard library.
@@ -9,15 +12,15 @@ import:
 
 # Generate a patch to be applied against imported files.
 genpatch:
-	for f in $$(find . -name "*.go" | sort); do \
+	for f in $$(find . -name "*.go" | LANG=C sort); do \
 		diff -u --label "$$f" --label "$$f" "$(GOROOT)/src/go/parser/$$f" "$$f" || true; \
 	done > gno.patch
 
 # Apply patch against imported files.
 patch:
-	patch -b < gno.patch
+	patch -p1 < gno.patch
 
 clean:
-	rm -rf *.go *.orig internal testdata
+	find . -type f \! \( -name "Makefile" -o -name "gno.patch" \) -delete
 
-.PHONY: import genpatch patch clean
+.PHONY: all import genpatch patch clean
