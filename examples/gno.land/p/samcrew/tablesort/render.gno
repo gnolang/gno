@@ -1,17 +1,11 @@
-// Package sortabletable provides functionality to render a Markdown table with sortable columns.
-// It allows users to click on column headers to sort the table in ascending or descending sort direction.
-// The sorting state is managed via URL query parameters.
-// It displays an error if the table is malformed (e.g. rows with missing cells).
-// Multiple sortabletable can be rendered on the same page by using a paramPrefix for each Render.
-package sortabletable
+package tablesort
 
 import (
 	"net/url"
-	"sort"
 	"strings"
 
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/moul/md"
+	"gno.land/p/mason/md"
 )
 
 // Table holds the headings and rows for rendering.
@@ -22,7 +16,7 @@ type Table struct {
 }
 
 // Render generates a Markdown table from a Table struct with sortable columns based on URL params.
-// paramPrefix is an optional prefix for in the URL to identify the sortabletable Renders (e.g. "members-").
+// paramPrefix is an optional prefix for in the URL to identify the tablesort Renders (e.g. "members-").
 func Render(u *url.URL, table *Table, paramPrefix string) string {
 	direction := ""
 	currentHeading := ""
@@ -47,7 +41,7 @@ func Render(u *url.URL, table *Table, paramPrefix string) string {
 
 	// Sort rows if necessary
 	if colIndex != -1 {
-		sortRows(table.Rows, colIndex, direction == "asc")
+		SortRows(table.Rows, colIndex, direction == "asc")
 	}
 
 	// Build header
@@ -60,7 +54,7 @@ func Render(u *url.URL, table *Table, paramPrefix string) string {
 	for i, row := range table.Rows {
 		// Validate row length
 		if len(row) != numCols {
-			return "sortabletable fails: row " + ufmt.Sprintf("%d", i+1) + " has " +
+			return "tablesort fails: row " + ufmt.Sprintf("%d", i+1) + " has " +
 				ufmt.Sprintf("%d", len(row)) + " cells, expected " +
 				ufmt.Sprintf("%d", numCols) + ", because there are " + ufmt.Sprintf("%d", numCols) + " columns.\n"
 		}
@@ -116,33 +110,4 @@ func buildHeader(u *url.URL, headings []string, currentHeading, direction string
 		sb.WriteString(" --- |")
 	}
 	return sb.String()
-}
-
-// rowSorter implements sort.Interface for sorting rows by a specific column.
-type rowSorter struct {
-	rows      [][]string
-	colIndex  int
-	ascending bool
-}
-
-func (rs rowSorter) Len() int {
-	return len(rs.rows)
-}
-
-func (rs rowSorter) Less(i, j int) bool {
-	iCell := rs.rows[i][rs.colIndex]
-	jCell := rs.rows[j][rs.colIndex]
-	if rs.ascending {
-		return iCell < jCell
-	}
-	return iCell > jCell
-}
-
-func (rs rowSorter) Swap(i, j int) {
-	rs.rows[i], rs.rows[j] = rs.rows[j], rs.rows[i]
-}
-
-// sortRows sorts the rows slice by a given column index and direction
-func sortRows(rows [][]string, colIndex int, ascending bool) {
-	sort.Sort(rowSorter{rows, colIndex, ascending})
 }

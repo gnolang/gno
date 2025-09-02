@@ -8,7 +8,7 @@ import (
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
-	"gno.land/p/samcrew/sortabletable"
+	"gno.land/p/samcrew/tablesort"
 	"gno.land/p/samcrew/urlfilter"
 )
 
@@ -36,7 +36,7 @@ func RenderMembers(path string, members MembersByTier) string {
 func renderMembersPages(u *url.URL, page *pager.Page, members *avl.Tree) string {
 	var sb strings.Builder
 
-	table := &sortabletable.Table{
+	table := &tablesort.Table{
 		Headings: []string{"Tier", "Address"},
 		Rows:     [][]string{},
 	}
@@ -49,7 +49,7 @@ func renderMembersPages(u *url.URL, page *pager.Page, members *avl.Tree) string 
 		table.Rows = append(table.Rows, []string{tierCell, addr})
 	}
 
-	sb.WriteString(sortabletable.Render(u, table, ""))
+	sb.WriteString(tablesort.Render(u, table, ""))
 
 	return sb.String()
 }

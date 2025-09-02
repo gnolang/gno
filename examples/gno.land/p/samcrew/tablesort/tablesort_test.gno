@@ -1,4 +1,4 @@
-package sortabletable
+package tablesort
 
 import (
 	"net/url"
@@ -7,7 +7,7 @@ import (
 )
 
 func TestRender(t *testing.T) {
-	// --- Case 1: Table with "Role" column sorted descending and param prefix "members-"
+	// --- Case 1: Testing Render with a Table with "Role" column sorted descending and param prefix "members-"
 	table := &Table{
 		Headings: []string{"Tier", "Member", "Role"},
 		Rows: [][]string{
@@ -34,18 +34,32 @@ func TestRender(t *testing.T) {
 		t.Errorf("Render() output mismatch.\nExpected:\n%s\nGot:\n%s", expected, md)
 	}
 
-	// --- Case 2: Just an invalid table (row with missing cell)
+	// --- Case 2: Testing Render with an invalid Table (row with missing cell)
 	table = &Table{
 		Headings: []string{"Tier", "Member", "Role"},
 		Rows: [][]string{
-			{"T1", "g11111"}, // missing Role
+			{"T1", "g11111"}, // Missing the "Role" cell
 		},
 	}
 
 	md = Render(u, table, "")
-	expected = "sortabletable fails: row 1 has 2 cells, expected 3, because there are 3 columns.\n"
+	expected = "tablesort fails: row 1 has 2 cells, expected 3, because there are 3 columns.\n"
 
 	if md != expected {
 		t.Errorf("Expected error message:\n%s\nGot:\n%s", expected, md)
+	}
+
+	// --- Case 3: Testing SortRows
+	rows := [][]string{
+		{"T1", "g11111", "finance-officer"},
+		{"T2", "g22222", "developer"},
+		{"T3", "g33333", "developer"},
+	}
+
+	SortRows(rows, 2, false) // Sort by "Role" descending
+	expected = "developer"
+
+	if rows[0][2] != expected {
+		t.Errorf("SortRows() failed. Expected first role: %s, got: %s", expected, rows[0][2])
 	}
 }

@@ -1,4 +1,4 @@
-module = "gno.land/p/samcrew/sortabletable"
+module = "gno.land/p/samcrew/tablesort"
 gno = "0.9"
 
 [addpkg]
