@@ -11,7 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -1530,6 +1532,14 @@ func TestClient_EstimateGas(t *testing.T) {
 			gasUsed     = int64(100000)
 			deliverResp = &abci.ResponseDeliverTx{
 				GasUsed: gasUsed,
+				ResponseBase: abci.ResponseBase{
+					Events: []abci.Event{
+						&gnostd.StorageDepositEvent{
+							BytesDelta: 10,
+							FeeDelta:   std.Coin{Denom: "ugnot", Amount: 1000},
+						},
+					},
+				},
 			}
 		)
 
@@ -1560,9 +1570,14 @@ func TestClient_EstimateGas(t *testing.T) {
 			RPCClient: mockRPCClient,
 		}
 
-		estimate, _, err := c.EstimateGas(&std.Tx{})
+		estimate, events, err := c.EstimateGas(&std.Tx{})
 
 		require.NoError(t, err)
 		assert.Equal(t, gasUsed, estimate)
+
+		delta, fee, ok := keyscli.GetStorageInfo(events)
+		assert.Equal(t, ok, true)
+		assert.Equal(t, delta, int64(10))
+		assert.Equal(t, fee.Amount, int64(1000))
 	})
 }
