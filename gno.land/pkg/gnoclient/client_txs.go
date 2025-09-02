@@ -1,6 +1,7 @@
 package gnoclient
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -282,7 +283,7 @@ func (c *Client) BroadcastTxCommit(signedTx *std.Tx) (*ctypes.ResultBroadcastTxC
 		return nil, errors.Wrap(err, "marshaling tx binary bytes")
 	}
 
-	bres, err := c.RPCClient.BroadcastTxCommit(bz)
+	bres, err := c.RPCClient.BroadcastTxCommit(context.Background(), bz)
 	if err != nil {
 		return nil, errors.Wrap(err, "broadcasting bytes")
 	}
@@ -316,7 +317,7 @@ func (c *Client) EstimateGas(tx *std.Tx) (int64, []abci.Event, error) {
 	}
 
 	// Perform the simulation query
-	resp, err := c.RPCClient.ABCIQuery(simulatePath, encodedTx)
+	resp, err := c.RPCClient.ABCIQuery(context.Background(), simulatePath, encodedTx)
 	if err != nil {
 		return 0, nil, fmt.Errorf("unable to perform ABCI query: %w", err)
 	}
