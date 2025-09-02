@@ -1,0 +1,33 @@
+services:
+
+  # just for dev purpose
+  gnoweb:
+    image: ghcr.io/gnolang/gno/gnoweb:master
+    restart: unless-stopped
+    command:
+      - --bind=0.0.0.0:8888
+      - --remote=https://rpc.gno.land:443
+      - --chainid=staging
+      - --with-analytics
+      - --faucet-url=https://faucet-api.gno.land
+      - --help-remote=https://rpc.gno.land:443
+      - --aliases=/=static:/tmp/home/home.md
+    volumes:
+      - ./home/:/tmp/home
+    ports:
+      - "88:8888"
+    profiles:
+      - dev
+
+  gnoalias:
+    # Gnokey binary is needed within the script
+    image: ghcr.io/gnolang/gno/gnokey:master
+    entrypoint: sh
+    command: >
+      -c "echo Installing docker... &&
+          apk add --no-cache docker
+          sh gnoalias.sh /gnoroot/home"
+    volumes:
+      - ./home:/gnoroot/home
+      - ./gnoalias.sh:/gnoroot/gnoalias.sh
+      - /var/run/docker.sock:/var/run/docker.sock:ro

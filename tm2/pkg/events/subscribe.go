@@ -8,7 +8,7 @@ import (
 
 // Returns a synchronous event emitter.
 func Subscribe(evsw EventSwitch, listenerID string) <-chan Event {
-	ch := make(chan Event, 0) // synchronous
+	ch := make(chan Event) // synchronous
 	return SubscribeOn(evsw, listenerID, ch)
 }
 
@@ -21,7 +21,7 @@ func SubscribeOn(evsw EventSwitch, listenerID string, ch chan Event) <-chan Even
 }
 
 func SubscribeToEvent(evsw EventSwitch, listenerID string, protoevent Event) <-chan Event {
-	ch := make(chan Event, 0) // synchronous
+	ch := make(chan Event) // synchronous
 	return SubscribeToEventOn(evsw, listenerID, protoevent, ch)
 }
 
@@ -35,7 +35,7 @@ func SubscribeToEventOn(evsw EventSwitch, listenerID string, protoevent Event, c
 type EventFilter func(Event) bool
 
 func SubscribeFiltered(evsw EventSwitch, listenerID string, filter EventFilter) <-chan Event {
-	ch := make(chan Event, 0)
+	ch := make(chan Event)
 	return SubscribeFilteredOn(evsw, listenerID, filter, ch)
 }
 

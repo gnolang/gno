@@ -119,7 +119,7 @@ func (p3c *P3Context) GetP3ImportPath(p3type P3Type, implicit bool) string {
 // (partial) schema.  Imports are added to p3doc.
 func (p3c *P3Context) GenerateProto3MessagePartial(p3doc *P3Doc, rt reflect.Type) (p3msg P3Message) {
 	if p3doc.PackageName == "" {
-		panic(fmt.Sprintf("cannot generate message partials in the root package \"\"."))
+		panic("cannot generate message partials in the root package \"\".")
 	}
 	if rt.Kind() == reflect.Ptr {
 		panic("pointers not yet supported. if you meant pointer-preferred (for decoding), pass in rt.Elem()")
@@ -231,7 +231,7 @@ func (p3c *P3Context) GenerateProto3MessagePartial(p3doc *P3Doc, rt reflect.Type
 // are added to p3doc.
 func (p3c *P3Context) GenerateProto3ListPartial(p3doc *P3Doc, nl NList) (p3msg P3Message) {
 	if p3doc.PackageName == "" {
-		panic(fmt.Sprintf("cannot generate message partials in the root package \"\"."))
+		panic("cannot generate message partials in the root package \"\".")
 	}
 
 	ep3 := nl.ElemP3Type()

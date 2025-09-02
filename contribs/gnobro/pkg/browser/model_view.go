@@ -26,7 +26,7 @@ var (
 	infoStyle = func(r *lipgloss.Renderer) lipgloss.Style {
 		b := lipgloss.RoundedBorder()
 		b.Left = "┤"
-		return boxRoundedStyle(r).Copy().BorderStyle(b)
+		return boxRoundedStyle(r).BorderStyle(b)
 	}
 )
 

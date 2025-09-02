@@ -1,24 +1,11 @@
-// PKGPATH: gno.land/r/map_ref_key
-package map_ref_key
+package main
 
-type myInt struct {
-	num int
-}
-
-type stringMap map[myInt]int
-
-var (
-	accounts = stringMap{}
-	tmpInt   = myInt{1}
-)
-
-func init() {
-	accounts[tmpInt] = 1
-}
+import "fmt"
 
 func main() {
-	println(accounts)
+	mp := map[any]int{nil: 1, 1: 1}
+	fmt.Printf("%v", mp)
 }
 
 // Output:
-// (map{(struct{(1 int)} gno.land/r/map_ref_key.myInt):(1 int)} gno.land/r/map_ref_key.stringMap)
+// map[<nil>:1 1:1]

@@ -201,7 +201,7 @@ func (pv *PointerValue) GetBase(store Store) Object {
 	case nil:
 		return nil
 	case RefValue:
-		base := store.GetObject(cbase.ObjectID).(Object)
+		base := store.GetObject(cbase.ObjectID)
 		pv.Base = base
 		return base
 	case Object:
@@ -985,8 +985,7 @@ func (tv *TypedValue) IsNilInterface() bool {
 		}
 		if debug {
 			if tv.N != [8]byte{} {
-				panic(fmt.Sprintf(
-					"corrupted TypeValue (nil interface)"))
+				panic("corrupted TypeValue (nil interface)")
 			}
 		}
 		return false
@@ -1671,7 +1670,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 	// NOTE: path will be mutated.
 	// NOTE: this code segment similar to that in op_types.go
 	var dtv *TypedValue
-	var isPtr bool = false
+	isPtr := false
 	switch path.Type {
 	case VPField:
 		switch path.Depth {
@@ -2114,9 +2113,9 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 				V: alloc.NewString(tv.GetString()[low:high]),
 			}
 		}
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(&Exception{Value: typedString(
 			"non-string primitive type cannot be sliced",
-		))})
+		)})
 	case *ArrayType:
 		if tv.GetLength() < high {
 			panic(&Exception{Value: typedString(fmt.Sprintf(
@@ -2146,8 +2145,7 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 		}
 		if tv.V == nil {
 			if low != 0 || high != 0 {
-				panic(&Exception{Value: typedString(fmt.Sprintf(
-					"nil slice index out of range"))})
+				panic(&Exception{Value: typedString("nil slice index out of range")})
 			}
 			return TypedValue{
 				T: tv.T,

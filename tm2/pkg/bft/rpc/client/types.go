@@ -1,6 +1,8 @@
 package client
 
 import (
+	"context"
+
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
@@ -38,53 +40,53 @@ type Client interface {
 // is easier to mock.
 type ABCIClient interface {
 	// Reading from abci app
-	ABCIInfo() (*ctypes.ResultABCIInfo, error)
-	ABCIQuery(path string, data []byte) (*ctypes.ResultABCIQuery, error)
-	ABCIQueryWithOptions(path string, data []byte,
+	ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, error)
+	ABCIQuery(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error)
+	ABCIQueryWithOptions(ctx context.Context, path string, data []byte,
 		opts ABCIQueryOptions) (*ctypes.ResultABCIQuery, error)
 
 	// Writing to abci app
-	BroadcastTxCommit(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error)
-	BroadcastTxAsync(tx types.Tx) (*ctypes.ResultBroadcastTx, error)
-	BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error)
+	BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error)
+	BroadcastTxAsync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error)
+	BroadcastTxSync(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error)
 }
 
 // SignClient groups together the functionality needed to get valid signatures
 // and prove anything about the chain.
 type SignClient interface {
-	Block(height *int64) (*ctypes.ResultBlock, error)
-	BlockResults(height *int64) (*ctypes.ResultBlockResults, error)
-	Commit(height *int64) (*ctypes.ResultCommit, error)
-	Validators(height *int64) (*ctypes.ResultValidators, error)
+	Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error)
+	BlockResults(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error)
+	Commit(ctx context.Context, height *int64) (*ctypes.ResultCommit, error)
+	Validators(ctx context.Context, height *int64) (*ctypes.ResultValidators, error)
 }
 
 // HistoryClient provides access to data from genesis to now in large chunks.
 type HistoryClient interface {
-	Genesis() (*ctypes.ResultGenesis, error)
-	BlockchainInfo(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error)
+	Genesis(ctx context.Context) (*ctypes.ResultGenesis, error)
+	BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error)
 }
 
 // StatusClient provides access to general chain info.
 type StatusClient interface {
-	Status() (*ctypes.ResultStatus, error)
+	Status(ctx context.Context, heightGte *int64) (*ctypes.ResultStatus, error)
 }
 
 // NetworkClient is general info about the network state. May not be needed
 // usually.
 type NetworkClient interface {
-	NetInfo() (*ctypes.ResultNetInfo, error)
-	DumpConsensusState() (*ctypes.ResultDumpConsensusState, error)
-	ConsensusState() (*ctypes.ResultConsensusState, error)
-	ConsensusParams(height *int64) (*ctypes.ResultConsensusParams, error)
-	Health() (*ctypes.ResultHealth, error)
+	NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error)
+	DumpConsensusState(ctx context.Context) (*ctypes.ResultDumpConsensusState, error)
+	ConsensusState(ctx context.Context) (*ctypes.ResultConsensusState, error)
+	ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error)
+	Health(ctx context.Context) (*ctypes.ResultHealth, error)
 }
 
 // MempoolClient shows us data about current mempool state.
 type MempoolClient interface {
-	UnconfirmedTxs(limit int) (*ctypes.ResultUnconfirmedTxs, error)
-	NumUnconfirmedTxs() (*ctypes.ResultUnconfirmedTxs, error)
+	UnconfirmedTxs(ctx context.Context, limit int) (*ctypes.ResultUnconfirmedTxs, error)
+	NumUnconfirmedTxs(ctx context.Context) (*ctypes.ResultUnconfirmedTxs, error)
 }
 
 type TxClient interface {
-	Tx(hash []byte) (*ctypes.ResultTx, error)
+	Tx(ctx context.Context, hash []byte) (*ctypes.ResultTx, error)
 }
