@@ -107,13 +107,15 @@ func (c *RPCClient) NewBatch() *RPCBatch {
 	}
 }
 
-func (c *RPCClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
+func (c *RPCClient) Status(ctx context.Context, heightGte *int64) (*ctypes.ResultStatus, error) {
 	return sendRequestCommon[ctypes.ResultStatus](
 		ctx,
 		c.requestTimeout,
 		c.caller,
 		statusMethod,
-		map[string]any{},
+		map[string]any{
+			"heightGte": heightGte,
+		},
 	)
 }
 

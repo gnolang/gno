@@ -171,7 +171,7 @@ func (c *Client) LatestBlockHeight() (int64, error) {
 		return 0, ErrMissingRPCClient
 	}
 
-	status, err := c.RPCClient.Status(context.Background())
+	status, err := c.RPCClient.Status(context.Background(), nil)
 	if err != nil {
 		return 0, fmt.Errorf("block number query failed: %w", err)
 	}

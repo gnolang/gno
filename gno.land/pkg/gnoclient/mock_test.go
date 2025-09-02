@@ -117,7 +117,7 @@ type (
 	mockBlockResults         func(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error)
 	mockCommit               func(ctx context.Context, height *int64) (*ctypes.ResultCommit, error)
 	mockValidators           func(ctx context.Context, height *int64) (*ctypes.ResultValidators, error)
-	mockStatus               func(ctx context.Context) (*ctypes.ResultStatus, error)
+	mockStatus               func(ctx context.Context, heightGte *int64) (*ctypes.ResultStatus, error)
 	mockUnconfirmedTxs       func(ctx context.Context, limit int) (*ctypes.ResultUnconfirmedTxs, error)
 	mockNumUnconfirmedTxs    func(ctx context.Context) (*ctypes.ResultUnconfirmedTxs, error)
 	mockTx                   func(ctx context.Context, hash []byte) (*ctypes.ResultTx, error)
@@ -266,9 +266,9 @@ func (m *mockRPCClient) Validators(ctx context.Context, height *int64) (*ctypes.
 	return nil, nil
 }
 
-func (m *mockRPCClient) Status(ctx context.Context) (*ctypes.ResultStatus, error) {
+func (m *mockRPCClient) Status(ctx context.Context, heightGte *int64) (*ctypes.ResultStatus, error) {
 	if m.status != nil {
-		return m.status(ctx)
+		return m.status(ctx, heightGte)
 	}
 	return nil, nil
 }

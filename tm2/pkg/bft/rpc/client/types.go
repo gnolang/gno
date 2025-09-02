@@ -68,7 +68,7 @@ type HistoryClient interface {
 
 // StatusClient provides access to general chain info.
 type StatusClient interface {
-	Status(ctx context.Context) (*ctypes.ResultStatus, error)
+	Status(ctx context.Context, heightGte *int64) (*ctypes.ResultStatus, error)
 }
 
 // NetworkClient is general info about the network state. May not be needed
