@@ -33,6 +33,10 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 		commands.HelpExec,
 	)
 
+	// OnTxSuccess is only used by NewBroadcastCmd
+	cfg.OnTxSuccess = func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
+		PrintTxInfo(tx, res, io)
+	}
 	cmd.AddSubCommands(
 		client.NewAddCmd(cfg, io),
 		client.NewDeleteCmd(cfg, io),
