@@ -85,13 +85,17 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
 		return errors.New("transaction failed %#v\nlog %s", res, res.DeliverTx.Log)
 	} else {
-		io.Println(string(res.DeliverTx.Data))
-		io.Println("OK!")
-		io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
-		io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
-		io.Println("HEIGHT:    ", res.Height)
-		io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
-		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
+		if cfg.RootCfg.OnTxSuccess != nil {
+			cfg.RootCfg.OnTxSuccess(tx, res)
+		} else {
+			io.Println(string(res.DeliverTx.Data))
+			io.Println("OK!")
+			io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
+			io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
+			io.Println("HEIGHT:    ", res.Height)
+			io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
+			io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
+		}
 	}
 	return nil
 }
