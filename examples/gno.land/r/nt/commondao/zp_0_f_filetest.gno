@@ -20,8 +20,8 @@ func init() {
 
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
-	dao := commondao.New("Foo")
-	subDAO := commondao.NewSubDAO("Bar", dao.ID())
+	dao := commondao.New(cross, "Foo")
+	subDAO := commondao.NewSubDAO(cross, "Bar", dao.ID())
 	subDAO.Members().Add(user)
 
 	daoID = dao.ID()
