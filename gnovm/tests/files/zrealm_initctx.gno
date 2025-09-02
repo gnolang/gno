@@ -4,7 +4,7 @@ package testinit
 import (
 	"std"
 
-	"gno.land/r/tests"
+	"gno.land/r/tests/tests"
 )
 
 var addr = std.Address("test")

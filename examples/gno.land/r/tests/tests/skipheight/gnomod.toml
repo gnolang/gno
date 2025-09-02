@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/tests/skipheight"
+gno = "0.9"

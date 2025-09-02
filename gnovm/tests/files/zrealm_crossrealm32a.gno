@@ -4,7 +4,7 @@ package crossrealm
 import (
 	"std"
 
-	"gno.land/r/tests/crossrealm"
+	"gno.land/r/tests/tests/crossrealm"
 )
 
 func Public(cur realm) {
@@ -24,4 +24,4 @@ func main() {
 
 // Output:
 // current realm:  CodeRealm{ g1h2y7mn4d8w5ed08kqt8sdd7tp4j96eahyn6yan, gno.land/r/crossrealm }
-// previous realm:  CodeRealm{ g1wtde2f2gm29n4k3pdtzjqc4pqeyqj9upgwnsch, gno.land/r/tests/crossrealm }
+// previous realm:  CodeRealm{ g1wtde2f2gm29n4k3pdtzjqc4pqeyqj9upgwnsch, gno.land/r/tests/tests/crossrealm }

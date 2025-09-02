@@ -2,7 +2,7 @@
 package crossrealm
 
 import (
-	"gno.land/r/tests/crossrealm_b"
+	"gno.land/r/tests/tests/crossrealm_b"
 )
 
 type Struct struct {

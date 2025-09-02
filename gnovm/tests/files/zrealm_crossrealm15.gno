@@ -4,7 +4,7 @@ package crossrealm
 import (
 	"std"
 
-	crossrealm "gno.land/r/tests/crossrealm"
+	crossrealm "gno.land/r/tests/tests/crossrealm"
 )
 
 type fooer struct{}
@@ -25,7 +25,7 @@ func init() {
 	crossrealm.SetFooer(cross, f)
 	// crossrealm.CallFooerFooCur(cross) <-- panics: cannot cur-call to
 	// external realm function gno.land/r/crossrealm_test.Foo from
-	// gno.land/r/tests/crossrealm
+	// gno.land/r/tests/tests/crossrealm
 	crossrealm.CallFooerFooCross(cross)
 	crossrealm.CallFooerBar()
 	crossrealm.CallFooerBarCrossing(cross)
@@ -39,5 +39,5 @@ func main(cur realm) {
 // init
 // hello gno.land/r/crossrealm
 // hello gno.land/r/crossrealm
-// hello gno.land/r/tests/crossrealm
+// hello gno.land/r/tests/tests/crossrealm
 // .
