@@ -1,3 +1,4 @@
+//nolint:staticcheck // code copied from golang/go, staticcheck complains for usage of ast.Package.
 package doc
 
 import (
@@ -9,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -38,7 +39,8 @@ type symbolData struct {
 }
 
 func newPkgData(dir bfsDir, unexported bool) (*pkgData, error) {
-	mpkg, err := gnolang.ReadMemPackage(dir.dir, dir.importPath)
+	mptype := gno.MPAnyProd
+	mpkg, err := gno.ReadMemPackage(dir.dir, dir.importPath, mptype)
 	if err != nil {
 		return nil, fmt.Errorf("commands/doc: read files %q: %w", dir.dir, err)
 	}
@@ -186,7 +188,7 @@ func typeExprString(expr ast.Expr) string {
 	return ""
 }
 
-func (pkg *pkgData) docPackage(opts *WriteDocumentationOptions) (*ast.Package, *doc.Package, error) {
+func (pkg *pkgData) docPackage() (*ast.Package, *doc.Package, error) {
 	// largely taken from go/doc.NewFromFiles source
 
 	// Collect .gno files in a map for ast.NewPackage.
@@ -207,9 +209,8 @@ func (pkg *pkgData) docPackage(opts *WriteDocumentationOptions) (*ast.Package, *
 	//	go doc time.Sunday
 	// from finding the symbol. This is why we always have AllDecls.
 	mode := doc.AllDecls
-	if opts.Source {
-		mode |= doc.PreserveAST
-	}
+	// Always keep the function body to check for crossing(). The caller can set the Body nil if needed
+	mode |= doc.PreserveAST
 
 	// Compute package documentation.
 	// Assign to blank to ignore errors that can happen due to unresolved identifiers.

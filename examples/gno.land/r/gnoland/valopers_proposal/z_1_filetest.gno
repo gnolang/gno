@@ -46,30 +46,15 @@ func main() {
 
 // Output:
 // OK
-// # Active Proposals:
-// ## Proposal with id: 0
-// ### Title: Add valoper test-1 to the valset
+// # GovDAO
+// ## Members
+// [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
+// ## Proposals
+// ### [Prop #0 - Add valoper test-1 to the valset](/r/gov/dao:0)
+// Author: g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
 //
-// ### Proposed by: g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
+// Status: ACTIVE
 //
-// Valoper profile: [test-1](/r/gnoland/valopers:g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h)
+// Tiers eligible to vote: T1, T2, T3
 //
-// ## test-1
-// test-1's description
-//
-// - Address: g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h
-// - PubKey: gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p
-//
-// [Profile link](/r/demo/profile:u/g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h)
-//
-//
-//
-// ### Proposal Status:
-//
-// - **Proposal open for votes**
-// - Allowed tiers to vote: T1 T2 T3
-// - YES PERCENT: 0%
-// - NO PERCENT: 0%
-// - [Go to votes list](/r/gov/dao:0/votes).
-//
-//
+// ---

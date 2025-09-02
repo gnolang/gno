@@ -1,7 +1,7 @@
 package main
 
 import (
-	titi "github.com/gnolang/gno/_test/toto"
+	titi "filetests/extern/toto"
 )
 
 func main() {

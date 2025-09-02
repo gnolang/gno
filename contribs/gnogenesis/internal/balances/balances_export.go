@@ -64,9 +64,7 @@ func execBalancesExport(cfg *balancesCfg, io commands.IO, args []string) error {
 
 	// Save the balances
 	for _, balance := range state.Balances {
-		if _, err = outputFile.WriteString(
-			fmt.Sprintf("%s\n", balance),
-		); err != nil {
+		if _, err = fmt.Fprintf(outputFile, "%s\n", balance); err != nil {
 			return fmt.Errorf("unable to write to output, %w", err)
 		}
 	}
