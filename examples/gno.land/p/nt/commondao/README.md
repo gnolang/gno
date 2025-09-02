@@ -88,11 +88,28 @@ type ProposalDefinition interface {
     VotingPeriod() time.Duration
 
     // Tally counts the number of votes and verifies if proposal passes.
+    // It receives a readonly record containing the votes that has been
+    // submitted for the proposal and also the list of current DAO members.
     Tally(ReadonlyVotingRecord, MemberSet) (passes bool, _ error)
 }
 ```
 
-This minimal interface is the one required for *general proposal types*.
+This minimal interface is the one required for *general proposal types*. Here
+the most important method is the `Tally()` one. It's used to check whether a
+proposal passes or not.
+
+Within `Tally()` votes can be counted using different rules depending on the
+proposal type, some proposal types might decide if there is consensus by using
+super majority while others might decide using plurality for example, or even
+just counting that a minimum number of certain positive votes have been
+submitted to approve a proposal.
+
+CommonDAO provides a couple of helpers for this, to cover some cases:
+- `SelectChoiceByAbsoluteMajority()`
+- `SelectChoiceBySuperMajority()` (using a 2/3s threshold)
+- `SelectChoiceByPlurality()`
+
+#### 2.1. Executable Proposals
 
 Proposal definitions have optional features that could be implemented to extend
 the proposal type behaviour. One of those is required to enable execution
@@ -140,13 +157,27 @@ propDef := mydao.NewGeneralProposalDefinition("Title", "Description")
 proposal := dao.MustPropose(creator, propDef)
 ```
 
-#### 3.2. Voting on Proposals
+#### 3.1. Voting on Proposals
 
 The preferred way to submit a vote, once a proposal is created, is by calling
 the `CommonDAO.Vote()` method because it performs sanity checks before a vote
 is considered valid; Alternatively votes can be directly added without sanity
 checks to the proposal's voting record by calling
 `Proposal.VotingRecord().AddVote()`.
+
+#### 3.2. Voting Record
+
+Each proposal keeps track of their submitted votes within an internal voting
+record. CommonDAO package defines it as a **VotingRecord** type.
+
+The voting record of a proposal can be getted by calling its
+`Proposal.VotingRecord()` method.
+
+Right now proposals have a single voting record but the plan is to support
+multiple voting records per proposal as an optional feature, which could be
+used in cases where a proposal must track votes in multiple independent
+records, for example in cases where a proposal could be promoted to a different
+DAO with a different set of members.
 
 #### 4. Vote Type
 

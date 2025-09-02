@@ -78,6 +78,8 @@ type (
 		VotingPeriod() time.Duration
 
 		// Tally counts the number of votes and verifies if proposal passes.
+		// It receives a readonly record containing the votes that has been
+		// submitted for the proposal and also the list of current DAO members.
 		Tally(ReadonlyVotingRecord, MemberSet) (passes bool, _ error)
 	}
 
