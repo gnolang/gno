@@ -316,7 +316,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 			// 	panic("realm packages cannot be gotten from pkgGetter")
 			// }
 			ds.SetBlockNode(pn)
-			// NOTE: not SetObject() here, we don't want to overwrite the value
+			// NOTE: not SetObject() here, we don't wm `json:"-"` // ifant to overwrite the value
 			// from pkgGetter. Realm values obtained this way will get written
 			// elsewhere later.
 			ds.cacheObjects[oid] = pv
