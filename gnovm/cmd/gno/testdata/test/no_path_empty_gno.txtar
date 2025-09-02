@@ -1,8 +1,10 @@
 # Test empty gno without path argument
 
-gno test
+! gno test
 
 ! stdout .+
-stderr '\?       \. 	\[no test files\]'
+stderr 'empty\.gno:1:1: expected ''package'', found ''EOF'''
 
 -- empty.gno --
+-- gnomod.toml --
+module = "gno.test/p/integ/no_path_empty_gno"

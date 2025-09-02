@@ -18,9 +18,12 @@ import (
 	igh "github.com/gnolang/gno/contribs/gnofaucet/github"
 )
 
+// type to scope the context.Context values to this package.
+type faucetContextKey string
+
 // ghUsernameKey is the context key for storing the GH username between
 // http and RPC GitHub middleware handlers
-const ghUsernameKey = "gh-username"
+const ghUsernameKey faucetContextKey = "gh-username"
 
 // claimRPCMethod is a method that is exactly like the default drip method but without any amount set
 const claimRPCMethod = "claim"

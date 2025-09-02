@@ -5,7 +5,6 @@ import (
 	"time" // For handling time operations
 
 	"gno.land/p/demo/ufmt"
-
 	"gno.land/r/sys/users"
 )
 
