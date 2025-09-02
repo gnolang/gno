@@ -19,7 +19,7 @@ Translate Interrealm Spec 2 to Interrealm Spec 3 (Gno 0.9)
    1. p package code copied over to r realms would behave differently
    with respect to std.CurrentRealm() and std.PreviousRealm(). It will
    become typical after launch that p code gets copied to r code for
-   cutstom patchces; and potential p code will first to be tested in
+   custom patchces; and potential p code will first to be tested in
    more mutable r realms.
 
    2. a reentrancy issue exists where r realm's calls to some variable

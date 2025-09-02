@@ -204,22 +204,28 @@ func (c *fixCmd) processFix(cio commands.IO, files []string, gm *gnomod.File) er
 			if err := format.Node(&buf, fset, parsed); err != nil {
 				return fmt.Errorf("error formatting: %w", err)
 			}
-			difflib.WriteUnifiedDiff(cio.Out(), difflib.UnifiedDiff{
+			err := difflib.WriteUnifiedDiff(cio.Out(), difflib.UnifiedDiff{
 				FromFile: file,
 				ToFile:   file,
 				A:        difflib.SplitLines(string(src)),
 				B:        difflib.SplitLines(buf.String()),
 				Context:  3,
 			})
+			if err != nil {
+				return err
+			}
 		} else {
 			f, err := os.Create(file)
 			if err != nil {
 				return fmt.Errorf("cannot write to dst file: %w", err)
 			}
 			err = format.Node(f, fset, parsed)
-			f.Close()
+			closeErr := f.Close()
 			if err != nil {
 				return fmt.Errorf("error formatting: %w", err)
+			}
+			if closeErr != nil {
+				return fmt.Errorf("error closing file: %w", err)
 			}
 		}
 	}

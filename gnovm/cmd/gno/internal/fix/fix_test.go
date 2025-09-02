@@ -47,27 +47,60 @@ var f *fooer
 }
 
 func Test_apply_rename(t *testing.T) {
-	const src = `package main
+	tt := []struct {
+		name     string
+		src, res string
+	}{
+		{
+			"base rename",
+			`package main
 
 func a(address string) {
 	println(address)
-}`
-	const expectedRes = `package main
+}`,
+			`package main
 
 func a(address_ string) {
 	println(address_)
 }
-`
-	fset, f := mustParse(src)
-	apply(f, nil, func(c *astutil.Cursor, s scopes) bool {
-		n := c.Node()
-		if isBlockNode(n) {
-			last := s[len(s)-1]
-			if du := last["address"]; du != nil {
-				du.rename("address_")
-			}
-		}
-		return true
-	})
-	assert.Equal(t, expectedRes, doFormat(fset, f))
+`,
+		},
+		{
+			"rename of global defined later",
+			`package main
+
+func a() {
+	println(address)
+}
+
+var address = "123"
+`,
+			`package main
+
+func a() {
+	println(address_)
+}
+
+var address_ = "123"
+`,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			fset, f := mustParse(tc.src)
+			apply(f, nil, func(c *astutil.Cursor, s scopes) bool {
+				n := c.Node()
+				if isBlockNode(n) {
+					last := s[len(s)-1]
+					if du := last["address"]; du != nil {
+						du.rename("address_")
+					}
+				}
+				return true
+			})
+			got := doFormat(fset, f)
+			assert.Equal(t, tc.res, got)
+		})
+	}
 }

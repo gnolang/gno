@@ -400,6 +400,7 @@ func (s scopes) declare(name *ast.Ident, stmt ast.Node) {
 		}
 		// This name was encountered before, but the name had not been declared yet.
 		du.def = stmt
+		return
 	}
 	sc[name.Name] = &definitionUsages{def: stmt}
 }
