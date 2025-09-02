@@ -302,7 +302,7 @@ func (f *GHFetcher) iterateEvents(ctx context.Context, pipe redis.Pipeliner, org
 					continue
 				}
 
-				if *pr.Merged == false {
+				if !*pr.Merged {
 					continue
 				}
 
