@@ -56,7 +56,7 @@ func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn) 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
-				coo, err := r.Cookie(ghUsernameKey)
+				coo, err := r.Cookie(string(ghUsernameKey))
 				if err == nil {
 					updatedCtx := context.WithValue(r.Context(), ghUsernameKey, coo.Value)
 					next.ServeHTTP(w, r.WithContext(updatedCtx))
@@ -90,7 +90,7 @@ func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn) 
 				}
 
 				http.SetCookie(w, &http.Cookie{
-					Name:     ghUsernameKey,
+					Name:     string(ghUsernameKey),
 					Value:    user.GetLogin(),
 					MaxAge:   3600,
 					HttpOnly: true,
