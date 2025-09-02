@@ -116,40 +116,6 @@ func TestVerifyMultiStoreQueryProof(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-// NOTE(tb): ics23 compatibility: the following test is commented because
-// proofs on empty store are no longer supported.
-// See related SDK comment here https://github.com/cosmos/cosmos-sdk/pull/6390/files#diff-3c078909c57ced350f0aaf3c18cfab5f13a184a6a940345189543ead9d8132e4L112
-//func TestVerifyMultiStoreQueryProofEmptyStore(t *testing.T) {
-//	t.Parallel()
-//
-//	// Create main tree for testing.
-//	db := memdb.NewMemDB()
-//	store := NewMultiStore(db)
-//	iavlStoreKey := types.NewStoreKey("iavlStoreKey")
-//
-//	store.MountStoreWithDB(iavlStoreKey, iavl.StoreConstructor, nil)
-//	store.LoadVersion(0)
-//	cid := store.Commit() // Commit with empty iavl store.
-//
-//	// Get Proof
-//	res := store.Query(abci.RequestQuery{
-//		Path:  "/iavlStoreKey/key", // required path to get key/value+proof
-//		Data:  []byte("MYKEY"),
-//		Prove: true,
-//	})
-//	require.NotNil(t, res.Proof)
-//
-//	// Verify proof.
-//	prt := DefaultProofRuntime()
-//	err := prt.VerifyAbsence(res.Proof, cid.Hash, "/iavlStoreKey/MYKEY")
-//	require.Nil(t, err)
-//
-//	// Verify (bad) proof.
-//	prt = DefaultProofRuntime()
-//	err = prt.VerifyValue(res.Proof, cid.Hash, "/iavlStoreKey/MYKEY", []byte("MYVALUE"))
-//	require.NotNil(t, err)
-//}
-
 func TestVerifyMultiStoreQueryProofAbsence(t *testing.T) {
 	t.Parallel()
 
