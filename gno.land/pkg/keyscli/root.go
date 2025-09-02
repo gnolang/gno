@@ -94,9 +94,10 @@ func GetStorageInfo(events []abci.Event) (int64, std.Coin, bool) {
 		case gnostd.StorageDepositEvent:
 			return storageEvent.BytesDelta, storageEvent.FeeDelta, true
 		case gnostd.StorageUnlockEvent:
-			fee := storageEvent.FeeDelta
+			fee := storageEvent.FeeRefund
 			fee.Amount *= -1
-			return -storageEvent.BytesDelta, fee, true
+			// For unlock, BytesDelta is negative
+			return storageEvent.BytesDelta, fee, true
 		}
 	}
 

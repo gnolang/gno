@@ -1174,8 +1174,9 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			}
 			d := std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}
 			evt := gnostd.StorageUnlockEvent{
-				BytesDelta: released,
-				FeeDelta:   d,
+				// For unlock, BytesDelta is negative
+				BytesDelta: diff,
+				FeeRefund:  d,
 				PkgPath:    rlmPath,
 			}
 			ctx.EventLogger().EmitEvent(evt)

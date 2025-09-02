@@ -73,8 +73,9 @@ func (e StorageDepositEvent) AssertABCIEvent() {}
 
 // StorageUnlockEvent is emitted when a storage deposit fee is unlocked.
 type StorageUnlockEvent struct {
+	// For unlock, BytesDelta is negative
 	BytesDelta int64    `json:"bytes_delta"`
-	FeeDelta   std.Coin `json:"fee_delta"`
+	FeeRefund  std.Coin `json:"fee_refund"`
 	PkgPath    string   `json:"pkg_path"`
 }
 
