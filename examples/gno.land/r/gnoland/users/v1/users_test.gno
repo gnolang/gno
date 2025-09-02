@@ -19,7 +19,7 @@ var (
 )
 
 func TestRegister_Valid(t *testing.T) {
-	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 1_000_000)))
+	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 0)))
 	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	uassert.NotPanics(t, func() {
@@ -37,7 +37,7 @@ func TestRegister_Valid(t *testing.T) {
 }
 
 func TestRegister_Invalid(t *testing.T) {
-	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 1_000_000)))
+	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 0)))
 	testing.SetRealm(std.NewUserRealm(bobAddr))
 
 	// Invalid usernames
