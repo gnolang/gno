@@ -22,26 +22,22 @@ func (m *Machine) doOpEval() {
 	if debug {
 		debug.Printf("EVAL: (%T) %v\n", x, x)
 	}
-	// This case moved out of switch for performance.
-	// TODO: understand this better.
-	if nx, ok := x.(*NameExpr); ok {
+	switch x := x.(type) {
+	case *NameExpr:
 		m.PopExpr()
-		if nx.Path.Depth == 0 {
+		if x.Path.Depth == 0 {
 			// Name is in uverse (global).
-			gv := Uverse().GetBlock(nil).GetPointerTo(nil, nx.Path)
+			gv := Uverse().GetBlock(nil).GetPointerTo(nil, x.Path)
 			m.PushValue(gv.Deref())
 			return
 		} else {
 			// Get value from scope.
 			lb := m.LastBlock()
 			// Push value, done.
-			ptr := lb.GetPointerTo(m.Store, nx.Path)
+			ptr := lb.GetPointerTo(m.Store, x.Path)
 			m.PushValue(ptr.Deref())
 			return
 		}
-	}
-	switch x := x.(type) {
-	// case NameExpr: handled above
 	case *BasicLitExpr:
 		m.PopExpr()
 		switch x.Kind {
@@ -228,7 +224,7 @@ func (m *Machine) doOpEval() {
 			m.PushExpr(x.Left)
 			m.PushOp(OpEval)
 		default:
-			op := word2BinaryOp(x.Op)
+			op := word2BinaryOp[x.Op]
 			m.PushOp(op)
 			// alt: m.PushOp(OpBinary2)
 			// evaluate right
@@ -297,7 +293,7 @@ func (m *Machine) doOpEval() {
 		// evaluate x
 		m.PushForPointer(x.X)
 	case *UnaryExpr:
-		op := word2UnaryOp(x.Op)
+		op := word2UnaryOp[x.Op]
 		m.PushOp(op)
 		// evaluate x
 		m.PushExpr(x.X)

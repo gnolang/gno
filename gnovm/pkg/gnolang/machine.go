@@ -23,7 +23,7 @@ import (
 
 type Machine struct {
 	// State
-	Ops           []Op          // main operations
+	Ops           opStack       // main operations
 	Values        []TypedValue  // buffer of values to be operated on
 	Exprs         []Expr        // pending expressions
 	Stmts         []Stmt        // pending statements
@@ -46,6 +46,43 @@ type Machine struct {
 	Store    Store
 	Context  any
 	GasMeter store.GasMeter
+}
+
+type opStack struct {
+	ops   [1024]Op
+	extra []Op
+	size  int
+}
+
+func (p *opStack) peek() Op {
+	if p.size <= len(p.ops) {
+		return p.ops[p.size-1]
+	}
+	return p.extra[p.size-1-len(p.ops)]
+}
+
+func (p *opStack) push(op Op) {
+	if p.size < len(p.ops) {
+		p.ops[p.size] = op
+		p.size++
+	} else {
+		p.extra = append(p.extra[:p.size-len(p.ops)], op)
+		p.size++
+	}
+}
+
+func (p *opStack) pop() Op {
+	if p.size <= len(p.ops) {
+		p.size--
+		return p.ops[p.size]
+	}
+	p.size--
+	return p.extra[p.size-len(p.ops)]
+}
+
+func (p *opStack) resetLen(l int) {
+	p.size = l
+	p.extra = p.extra[:max(0, l-len(p.ops))]
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -82,10 +119,18 @@ type MachineOptions struct {
 }
 
 const (
-	startingOpsCap = 1024
-	// sizeof(TypedValue) is 40 at time of writing; this ensures that the values
-	// slice occupies 1000 bytes by default.
-	startingValuesCap = 25
+	startingOpsCap    = 1024 // sizeof(Op) = 1, 1024
+	startingValuesCap = 25   // sizeof(TypedValue) = 40, 1000
+	startingExprsCap  = 32   // sizeof(Expr) = 16, 512
+	startingStmtsCap  = 32   // sizeof(Stmt) = 16, 512
+	startingBlocksCap = 64   // sizeof(Block) = 8, 512
+	startingFramesCap = 9    // sizeof(Frame) = 208, 1872
+
+	// These may fall out of date.
+	// This is the size of bytes that is allocated for each machine and that is
+	// reset with each machine iteration. Ensuring these are large enough
+	// for most machine executions ensures we don't waste too much time in
+	// allocation during proper execution.
 )
 
 // the machine constructor gets spammed
@@ -95,8 +140,11 @@ const (
 var machinePool = sync.Pool{
 	New: func() any {
 		return &Machine{
-			Ops:    make([]Op, 0, startingOpsCap),
 			Values: make([]TypedValue, 0, startingValuesCap),
+			Exprs:  make([]Expr, 0, startingExprsCap),
+			Stmts:  make([]Stmt, 0, startingStmtsCap),
+			Blocks: make([]*Block, 0, startingBlocksCap),
+			Frames: make([]Frame, 0, startingFramesCap),
 		}
 	},
 }
@@ -161,10 +209,18 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 // package's constructors should be released.
 func (m *Machine) Release() {
 	// here we zero in the values for the next user
-	ops, values := m.Ops[:0:startingOpsCap], m.Values[:0:startingValuesCap]
-	clear(ops[:startingOpsCap])
-	clear(values[:startingValuesCap])
-	*m = Machine{Ops: ops, Values: values}
+	*m = Machine{
+		Values: m.Values[:0:startingValuesCap],
+		Exprs:  m.Exprs[:0:startingExprsCap],
+		Stmts:  m.Stmts[:0:startingStmtsCap],
+		Blocks: m.Blocks[:0:startingBlocksCap],
+		Frames: m.Frames[:0:startingFramesCap],
+	}
+	clear(m.Values[:startingValuesCap])
+	clear(m.Exprs[:startingExprsCap])
+	clear(m.Stmts[:startingStmtsCap])
+	clear(m.Blocks[:startingBlocksCap])
+	clear(m.Frames[:startingFramesCap])
 
 	machinePool.Put(m)
 }
@@ -175,9 +231,7 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 	}
 	m.Package = pv
 	m.Realm = pv.GetRealm()
-	m.Blocks = []*Block{
-		pv.GetBlock(m.Store),
-	}
+	m.Blocks = append(m.Blocks[:0], pv.GetBlock(m.Store))
 }
 
 //----------------------------------------
@@ -505,7 +559,6 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		// with values copied over from each file's
 		// *FileNode.StaticBlock.
 		fb := m.Alloc.NewBlock(fn, pb)
-		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
 		pv.AddFileBlock(fn.FileName, fb)
 	}
@@ -1259,10 +1312,12 @@ func (m *Machine) Run(st Stage) {
 			}
 		}
 	}()
+	debugEnabled := m.Debugger.enabled
 
 	for {
-		if m.Debugger.enabled {
+		if debugEnabled {
 			m.Debug()
+			debugEnabled = m.Debugger.enabled
 		}
 		op := m.PopOp()
 		if bm.OpsEnabled {
@@ -1605,27 +1660,28 @@ func (m *Machine) PushOp(op Op) {
 		m.Printf("+o %v\n", op)
 	}
 
-	m.Ops = append(m.Ops, op)
+	m.Ops.push(op)
 }
 
 func (m *Machine) PopOp() Op {
-	op := m.Ops[len(m.Ops)-1]
+	op := m.Ops.peek()
 	if debug {
 		m.Printf("-o %v\n", op)
 	}
 	if OpSticky <= op {
 		// do not pop persistent op types.
 	} else {
-		m.Ops = m.Ops[:len(m.Ops)-1]
+		m.Ops.pop()
 	}
 	return op
 }
 
 func (m *Machine) ForcePopOp() {
 	if debug {
-		m.Printf("-o! %v\n", m.Ops[len(m.Ops)-1])
+		m.Printf("-o! %v\n", m.Ops.pop())
+	} else {
+		m.Ops.pop()
 	}
-	m.Ops = m.Ops[:len(m.Ops)-1]
 }
 
 // Offset starts at 1.
@@ -1829,7 +1885,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 	fr := Frame{
 		Label:     label,
 		Source:    s,
-		NumOps:    len(m.Ops),
+		NumOps:    m.Ops.size,
 		NumValues: len(m.Values),
 		NumExprs:  len(m.Exprs),
 		NumStmts:  len(m.Stmts),
@@ -1856,7 +1912,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	}
 	fr := Frame{
 		Source:        cx,
-		NumOps:        len(m.Ops),
+		NumOps:        m.Ops.size,
 		NumValues:     numValues,
 		NumExprs:      len(m.Exprs),
 		NumStmts:      len(m.Stmts),
@@ -2018,7 +2074,7 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 		// pop frames
 		m.Frames = m.Frames[:len(m.Frames)-depthFrames]
 		// reset
-		m.Ops = m.Ops[:fr.NumOps]
+		m.Ops.resetLen(fr.NumOps)
 		m.Values = m.Values[:fr.NumValues]
 		m.Exprs = m.Exprs[:fr.NumExprs]
 		m.Stmts = m.Stmts[:fr.NumStmts]
@@ -2036,7 +2092,7 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 
 func (m *Machine) PopFrameAndReset() {
 	fr := m.PopFrame()
-	m.Ops = m.Ops[:fr.NumOps]
+	m.Ops.resetLen(fr.NumOps)
 	m.Values = m.Values[:fr.NumValues]
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts]
@@ -2054,7 +2110,7 @@ func (m *Machine) PopFrameAndReturn() {
 	}
 	rtypes := fr.Func.GetType(m.Store).Results
 	numRes := len(rtypes)
-	m.Ops = m.Ops[:fr.NumOps]
+	m.Ops.resetLen(fr.NumOps)
 	m.NumResults = numRes
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts]
@@ -2084,24 +2140,24 @@ func (m *Machine) PopFrameAndReturn() {
 
 func (m *Machine) PeekFrameAndContinueFor() {
 	fr := m.LastFrame()
-	m.Ops = m.Ops[:fr.NumOps+1]
+	m.Ops.resetLen(fr.NumOps + 1)
 	m.Values = m.Values[:fr.NumValues]
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts+1]
 	m.Blocks = m.Blocks[:fr.NumBlocks+1]
 	ls := m.PeekStmt(1).(*bodyStmt)
-	ls.NextBodyIndex = ls.BodyLen
+	ls.NextBodyIndex = len(ls.Body)
 }
 
 func (m *Machine) PeekFrameAndContinueRange() {
 	fr := m.LastFrame()
-	m.Ops = m.Ops[:fr.NumOps+1]
+	m.Ops.resetLen(fr.NumOps + 1)
 	m.Values = m.Values[:fr.NumValues+1]
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts+1]
 	m.Blocks = m.Blocks[:fr.NumBlocks+1]
 	ls := m.PeekStmt(1).(*bodyStmt)
-	ls.NextBodyIndex = ls.BodyLen
+	ls.NextBodyIndex = len(ls.Body)
 }
 
 func (m *Machine) NumFrames() int {
@@ -2295,7 +2351,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 // for testing.
 func (m *Machine) CheckEmpty() error {
 	found := ""
-	if len(m.Ops) > 0 {
+	if m.Ops.size > 0 {
 		found = "op"
 	} else if len(m.Values) > 0 {
 		found = "value"
@@ -2413,7 +2469,7 @@ func (m *Machine) Println(args ...any) {
 			_, file, line, _ := runtime.Caller(2) // get caller info
 			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
 			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
-			s := prefix + strings.Repeat("|", len(m.Ops))
+			s := prefix + strings.Repeat("|", m.Ops.size)
 			fmt.Println(append([]any{s}, args...)...)
 		}
 	}
@@ -2425,7 +2481,7 @@ func (m *Machine) Printf(format string, args ...any) {
 			_, file, line, _ := runtime.Caller(2) // get caller info
 			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
 			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
-			s := prefix + strings.Repeat("|", len(m.Ops))
+			s := prefix + strings.Repeat("|", m.Ops.size)
 			fmt.Printf(s+" "+format, args...)
 		}
 	}
@@ -2450,7 +2506,11 @@ func (m *Machine) String() string {
 	var sb strings.Builder
 	builder := &sb // Pointer for use in fmt.Fprintf.
 	builder.Grow(totalLength)
-	fmt.Fprintf(builder, "Machine:\n    Stage: %v\n    Op: %v\n    Values: (len: %d)\n", m.Stage, m.Ops[:len(m.Ops)], len(m.Values))
+	fmt.Fprintf(builder, "Machine:\n    Stage: %v\n    Op: %v\n    Values: (len: %d)\n",
+		m.Stage,
+		m.Ops.ops[:],
+		len(m.Values),
+	)
 	for i := len(m.Values) - 1; i >= 0; i-- {
 		fmt.Fprintf(builder, "          #%d %v\n", i, m.Values[i])
 	}

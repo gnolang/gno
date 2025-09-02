@@ -2,6 +2,8 @@ package gnolang
 
 import (
 	"fmt"
+	"math/rand/v2"
+	"slices"
 	"strings"
 	"testing"
 
@@ -13,6 +15,51 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func Test_opStack(t *testing.T) {
+	st := &opStack{}
+	for i := 0; i < 1025; i++ {
+		st.push(Op(i))
+		assert.Equal(t, i+1, st.size)
+	}
+	for i := 1024; i >= 0; i-- {
+		v := st.pop()
+		assert.Equal(t, Op(i), v)
+		assert.Equal(t, i, st.size)
+	}
+}
+
+func Test_opStack_rand(t *testing.T) {
+	sl := []Op{}
+	for i := 0; i < 1000; i++ {
+		sl = append(sl, Op(rand.IntN(256)))
+	}
+	st := &opStack{}
+	for _, v := range sl {
+		st.push(v)
+		assert.Equal(t, v, st.peek())
+	}
+	for i, v := range slices.Backward(sl) {
+		assert.Equal(t, v, st.pop())
+		assert.Equal(t, i, st.size)
+	}
+}
+
+func Test_opStack_resetLen(t *testing.T) {
+	st := &opStack{}
+	for i := 0; i < 1025; i++ {
+		st.push(Op(i))
+		assert.Equal(t, i+1, st.size)
+	}
+	for _, v := range [...]int{1000, 999, 897, 896, 895, 890, 874, 500, 257, 256, 255, 100, 0} {
+		t.Log(v)
+		st.resetLen(v)
+		if v != 0 {
+			assert.Equal(t, Op(v-1), st.peek())
+		}
+		assert.Equal(t, v, st.size)
+	}
+}
 
 func BenchmarkCreateNewMachine(b *testing.B) {
 	for i := 0; i < b.N; i++ {
