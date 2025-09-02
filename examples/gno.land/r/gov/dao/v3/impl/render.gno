@@ -156,6 +156,7 @@ func renderActionBar(sPid string) string {
 
 	out += "\n\n"
 	out += "WARNING: Please double check transaction data before voting."
+	out += "**New**: Members must have a namespace to vote to enforce simpler tracking."
 	return out
 }
 
