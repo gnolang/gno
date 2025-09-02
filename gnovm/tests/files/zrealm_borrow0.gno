@@ -25,15 +25,6 @@ func (s *Struct) PrintRealms() {
 }
 
 func (s *Struct) printRealms() {
-	// XXX
-	// printRealm is called from s.PrintRealm()
-	// which in this test is persisted in the same realm.
-	// Therefore p.printRealm() -> s.PrintRealm()
-	// borrows this realm, and then the crossing()
-	// below is called.
-	// Should this be allowed?
-	// Whether it panics or not is determined by
-	// 'fr.DidCrossing = true' in PushFrameCall.
 	fmt.Println(std.CurrentRealm())
 	fmt.Println(std.PreviousRealm())
 }
@@ -65,20 +56,16 @@ func init() {
 }
 
 func main(cur realm) {
-	// cross(crossrealm_b.SetObject)(s) // saved in crossrealm_b
-
 	p := &Passthrough{S: s}
 
 	crossrealm.SetObject(cross, p) // saved in crossrealm.
 
-	p.Mutate() // receiver method borrows crossrealm_b.
+	p.Mutate() // cross into current realm where method Mutate is declared
 
 	println(p.Get())
 
 	p.PrintRealms()
 }
 
-// Output:
-// 101
-// CodeRealm{ g1mdevzlw3defhhew53zsky80lhqnk94ew8grqdt, gno.land/r/borrow }
-// UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
+// Error:
+// invalid call: p<VPBlock(1,1)>.Mutate(), method realm: RIDC459C7103CD5303D426ED1E6E642FFFCFFD55F7C does not match receiver realm: RID1712AC7ADCFDC8E58A67E5615E20FB312394C4DF

@@ -52,7 +52,7 @@ func (p *Passthrough) printRealm() {
 var s *Struct
 
 func init() {
-	s = &Struct{A: 100} // saved in borrow_test.
+	s = &Struct{A: 100} // saved in current realm.
 }
 
 func main(cur realm) {
@@ -67,7 +67,5 @@ func main(cur realm) {
 	p.PrintRealms()
 }
 
-// Output:
-// 101
-// CodeRealm{ g1mdevzlw3defhhew53zsky80lhqnk94ew8grqdt, gno.land/r/borrow }
-// CodeRealm{ g1mdevzlw3defhhew53zsky80lhqnk94ew8grqdt, gno.land/r/borrow }
+// Error:
+// invalid call: p<VPBlock(1,1)>.Mutate(), method realm: RIDC459C7103CD5303D426ED1E6E642FFFCFFD55F7C does not match receiver realm: RID1712AC7ADCFDC8E58A67E5615E20FB312394C4DF
