@@ -2,8 +2,8 @@
 package crossrealm
 
 import (
-	"gno.land/r/tests/tests/crossrealm"
-	"gno.land/r/tests/tests/crossrealm_b"
+	"gno.land/r/tests/crossrealm"
+	"gno.land/r/tests/crossrealm_b"
 )
 
 func main(cur realm) {
@@ -16,12 +16,12 @@ func main(cur realm) {
 }
 
 // Output:
-// hello A cur=gno.land/r/tests/tests/crossrealm_b prev=gno.land/r/tests/tests/crossrealm
-// hello B cur=gno.land/r/tests/tests/crossrealm_b prev=gno.land/r/tests/tests/crossrealm
+// hello A cur=gno.land/r/tests/crossrealm_b prev=gno.land/r/tests/crossrealm
+// hello B cur=gno.land/r/tests/crossrealm_b prev=gno.land/r/tests/crossrealm
 // .
 
 // Realm:
-// finalizerealm["gno.land/r/tests/tests/crossrealm"]
+// finalizerealm["gno.land/r/tests/crossrealm"]
 // u[83c395a7172ae8aebc131bd64cc048bbd2b31851:7](220)=
 //     @@ -2,9 +2,28 @@
 //          "ObjectInfo": {
@@ -39,7 +39,7 @@ func main(cur realm) {
 //     +            "@type": "/gno.PointerType",
 //     +            "Elt": {
 //     +                "@type": "/gno.RefType",
-//     +                "ID": "gno.land/r/tests/tests/crossrealm_b.fooer"
+//     +                "ID": "gno.land/r/tests/crossrealm_b.fooer"
 //     +            }
 //     +        },
 //     +        "V": {
@@ -69,9 +69,9 @@ func main(cur realm) {
 //          },
 //          "Value": {
 //              "T": {
-// finalizerealm["gno.land/r/tests/tests/crossrealm_b"]
-// finalizerealm["gno.land/r/tests/tests/crossrealm"]
-// finalizerealm["gno.land/r/tests/tests/crossrealm_b"]
+// finalizerealm["gno.land/r/tests/crossrealm_b"]
+// finalizerealm["gno.land/r/tests/crossrealm"]
+// finalizerealm["gno.land/r/tests/crossrealm_b"]
 // u[3003d3e51bf2f146cfba386aa7161085b561ec2d:5](5)=
 //     @@ -7,14 +7,14 @@
 //                  },
@@ -90,6 +90,6 @@ func main(cur realm) {
 //              "OwnerID": "3003d3e51bf2f146cfba386aa7161085b561ec2d:4",
 //              "RefCount": "1"
 //          }
-// finalizerealm["gno.land/r/tests/tests/crossrealm_b"]
-// finalizerealm["gno.land/r/tests/tests/crossrealm"]
+// finalizerealm["gno.land/r/tests/crossrealm_b"]
+// finalizerealm["gno.land/r/tests/crossrealm"]
 // finalizerealm["gno.land/r/crossrealm"]

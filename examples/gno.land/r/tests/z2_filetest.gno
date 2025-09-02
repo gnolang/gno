@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/nt/testutils"
-	"gno.land/r/tests/tests"
+	"gno.land/r/tests"
 )
 
 // When a single realm in the frames, PreviousRealm returns the user
@@ -13,7 +13,7 @@ import (
 func main() {
 	var (
 		eoa = testutils.TestAddress("someone")
-		_   = std.DerivePkgAddr("gno.land/r/tests/tests")
+		_   = std.DerivePkgAddr("gno.land/r/tests")
 	)
 	testing.SetOriginCaller(eoa)
 	println("tests.GetPreviousRealm().Address(): ", tests.GetPreviousRealm(cross).Address())
@@ -22,4 +22,4 @@ func main() {
 
 // Output:
 // tests.GetPreviousRealm().Address():  g1wdhk6et0dej47h6lta047h6lta047h6lrnerlk
-// tests.GetRSubtestsPreviousRealm().Address():  g1rdr02g9j3ephef45a9lfdw6qwd7yelc36n7quc
+// tests.GetRSubtestsPreviousRealm().Address():  g1xstezhtvh0wsrj87mv3av55t4zj7zgla0x7pcq

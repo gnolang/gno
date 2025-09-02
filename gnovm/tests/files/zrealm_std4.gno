@@ -2,7 +2,7 @@
 package std
 
 import (
-	"gno.land/r/tests/tests"
+	"gno.land/r/tests"
 )
 
 func main(cur realm) {
@@ -15,6 +15,6 @@ func main(cur realm) {
 }
 
 // Output:
-// test1 gno.land/r/tests/tests
-// test2 gno.land/r/tests/tests
-// test3 gno.land/r/tests/tests
+// test1 gno.land/r/tests
+// test2 gno.land/r/tests
+// test3 gno.land/r/tests

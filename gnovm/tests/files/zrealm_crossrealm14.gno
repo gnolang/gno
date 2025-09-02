@@ -2,7 +2,7 @@
 package crossrealm
 
 import (
-	crossrealm "gno.land/r/tests/tests/crossrealm"
+	crossrealm "gno.land/r/tests/crossrealm"
 )
 
 func main(cur realm) {

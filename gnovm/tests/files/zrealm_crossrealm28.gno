@@ -2,7 +2,7 @@
 package crossrealm
 
 import (
-	"gno.land/r/tests/tests/crossrealm_b"
+	"gno.land/r/tests/crossrealm_b"
 )
 
 type Struct struct {
@@ -27,10 +27,10 @@ func main(cur realm) {
 // &(struct{(123 int)} gno.land/r/crossrealm.Struct)
 
 // Preprocessed:
-// file{ package crossrealm; import crossrealm_b gno.land/r/tests/tests/crossrealm_b; type Struct (const-type gno.land/r/crossrealm.Struct); var s<!~VPBlock(2,1)> *(typeval{gno.land/r/crossrealm.Struct}); func init.2() { s<~VPBlock(3,1)> = &((const-type gno.land/r/crossrealm.Struct){A<VPField(0,0,A)>: (const (100 int))}); (const (ref(gno.land/r/tests/tests/crossrealm_b) package{})).SetObject((const (undefined)), func func(){ (const (println func(...interface {})))(&((const (ref(gno.land/r/crossrealm) package{})).s.A)) }) }; func main(cur (const-type .uverse.realm)) { (const (ref(gno.land/r/tests/tests/crossrealm_b) package{})).SetObject((const (undefined)), (const (123 int))); s<~VPBlock(3,1)>.A = (const (123 int)); (const (println func(...interface {})))(s<~VPBlock(3,1)>) } }
+// file{ package crossrealm; import crossrealm_b gno.land/r/tests/crossrealm_b; type Struct (const-type gno.land/r/crossrealm.Struct); var s<!~VPBlock(2,1)> *(typeval{gno.land/r/crossrealm.Struct}); func init.2() { s<~VPBlock(3,1)> = &((const-type gno.land/r/crossrealm.Struct){A<VPField(0,0,A)>: (const (100 int))}); (const (ref(gno.land/r/tests/crossrealm_b) package{})).SetObject((const (undefined)), func func(){ (const (println func(...interface {})))(&((const (ref(gno.land/r/crossrealm) package{})).s.A)) }) }; func main(cur (const-type .uverse.realm)) { (const (ref(gno.land/r/tests/crossrealm_b) package{})).SetObject((const (undefined)), (const (123 int))); s<~VPBlock(3,1)>.A = (const (123 int)); (const (println func(...interface {})))(s<~VPBlock(3,1)>) } }
 
 // Realm:
-// finalizerealm["gno.land/r/tests/tests/crossrealm_b"]
+// finalizerealm["gno.land/r/tests/crossrealm_b"]
 // u[3003d3e51bf2f146cfba386aa7161085b561ec2d:13](-98)=
 //     @@ -2,20 +2,15 @@
 //          "ObjectInfo": {

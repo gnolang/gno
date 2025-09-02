@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/tests/tests
+// PKGPATH: gno.land/r/tests
 package tests
 
 import (
@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	"gno.land/p/nt/testutils"
-	"gno.land/r/tests/tests"
+	"gno.land/r/tests"
 )
 
 func main() {
 	var (
 		eoa        = testutils.TestAddress("someone")
-		rTestsAddr = std.DerivePkgAddr("gno.land/r/tests/tests")
+		rTestsAddr = std.DerivePkgAddr("gno.land/r/tests")
 	)
 	testing.SetOriginCaller(eoa)
 	// Contrarily to z2_filetest.gno we EXPECT GetPreviousRealms != eoa (#1704)
@@ -27,4 +27,4 @@ func main() {
 }
 
 // Error:
-// gno.land/r/tests/tests/z3.gno:19:13-35: name GetPreviousRealm not declared
+// gno.land/r/tests/z3.gno:19:13-35: name GetPreviousRealm not declared

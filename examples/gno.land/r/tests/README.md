@@ -1,4 +1,2 @@
-# Tests
-
-This folder contains packages that test specific scenarios in the GnoVM. It's not
-meant to be used in any other way.
+Modules here are only useful for file realm tests.
+They can be safely ignored for other purposes.

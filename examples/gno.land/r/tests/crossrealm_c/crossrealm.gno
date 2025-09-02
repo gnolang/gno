@@ -4,7 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/tests/p_crossrealm"
-	"gno.land/r/tests/tests/crossrealm"
+	"gno.land/r/tests/crossrealm"
 )
 
 func EntryPoint() {
