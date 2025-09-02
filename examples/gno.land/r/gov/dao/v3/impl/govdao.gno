@@ -102,7 +102,7 @@ func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
 		return ErrMemberNotFound
 	}
 
-	if users.ResolveAddress(caller) != nil {
+	if users.ResolveAddress(caller) == nil {
 		return errors.New("voter should have a namespace")
 	}
 
