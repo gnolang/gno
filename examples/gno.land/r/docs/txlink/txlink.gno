@@ -16,7 +16,7 @@ type Message struct {
 var messages []Message
 
 // Post saves a message with the caller as the author
-func Post(cur realm, text string) {
+func Post(_ realm, text string) {
 	msg := Message{
 		Author: std.PreviousRealm().Address().String(),
 		Text:   text,
