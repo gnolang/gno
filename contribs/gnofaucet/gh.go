@@ -53,6 +53,13 @@ func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn) 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
+				coo, err := r.Cookie(ghUsernameKey)
+				if err == nil {
+					updatedCtx := context.WithValue(r.Context(), ghUsernameKey, coo.Value)
+					next.ServeHTTP(w, r.WithContext(updatedCtx))
+					return
+				}
+
 				w.Header().Set("Content-Type", "text/plain")
 
 				// Extracts the authorization code returned by the GitHub OAuth flow.
@@ -78,6 +85,15 @@ func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn) 
 
 					return
 				}
+
+				http.SetCookie(w, &http.Cookie{
+					Name:     ghUsernameKey,
+					Value:    user.GetLogin(),
+					MaxAge:   3600,
+					HttpOnly: true,
+					Secure:   true,
+					SameSite: http.SameSiteLaxMode,
+				})
 
 				// Save the username in the context
 				updatedCtx := context.WithValue(r.Context(), ghUsernameKey, user.GetLogin())
