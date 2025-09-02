@@ -90,7 +90,7 @@ func (g *GovDAO) PostCreateProposal(r dao.ProposalRequest, pid dao.ProposalID) {
 	g.pss.Set(pid.String(), newProposalStatus(tatv))
 }
 
-// Members **should** have a namespace to vote to enforce lisibility
+// Members **must** have a namespace to vote to enforce simpler tracking.
 func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
 	if !g.isValidCall() {
 		return errors.New("proposal voting must be done directly by a user")
