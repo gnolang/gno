@@ -1,2 +1,2 @@
-module = "gno.example.com/p/demo/avl"
+module = "gno.example.com/p/nt/avl"
 gno = "0.9"

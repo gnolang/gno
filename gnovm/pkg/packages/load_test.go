@@ -468,18 +468,18 @@ func TestDataLoad(t *testing.T) {
 		{
 			name:     "remote",
 			workdir:  localFromSlash("./testdata/workspace-empty"),
-			patterns: []string{"gno.example.com/p/demo/avl"},
+			patterns: []string{"gno.example.com/p/nt/avl"},
 			res: PkgList{{
-				ImportPath: "gno.example.com/p/demo/avl",
+				ImportPath: "gno.example.com/p/nt/avl",
 				Name:       "avl",
-				Dir:        PackageDir("gno.example.com/p/demo/avl"),
-				Match:      []string{"gno.example.com/p/demo/avl"},
+				Dir:        PackageDir("gno.example.com/p/nt/avl"),
+				Match:      []string{"gno.example.com/p/nt/avl"},
 				Files: FilesMap{
 					FileKindOther:         {"gnomod.toml"},
 					FileKindPackageSource: {"avl.gno"},
 				},
 			}},
-			outShouldContain: `gno: downloading gno.example.com/p/demo/avl`,
+			outShouldContain: `gno: downloading gno.example.com/p/nt/avl`,
 		},
 		{
 			name:             "err-stdlibs-recursive",
