@@ -791,6 +791,7 @@ func (pv *PackageValue) IsRealm() bool {
 	return IsRealmPath(pv.PkgPath)
 }
 
+// XXX, pass in allocator
 func (pv *PackageValue) getFBlocksMap() map[string]*Block {
 	if pv.fBlocksMap == nil {
 		pv.fBlocksMap = make(map[string]*Block, len(pv.FNames))
@@ -971,8 +972,11 @@ func (tv *TypedValue) IsTypedNil() bool {
 	if tv.V != nil {
 		return false
 	}
-	if tv.T != nil && tv.T.Kind() == PointerKind {
-		return true
+	if tv.T != nil {
+		switch tv.T.Kind() {
+		case SliceKind, FuncKind, MapKind, InterfaceKind, PointerKind, ChanKind:
+			return true
+		}
 	}
 	return false
 }
@@ -2286,8 +2290,7 @@ type Block struct {
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.
-// XXX pass allocator in for heap items.
-func NewBlock(source BlockNode, parent *Block) *Block {
+func NewBlock(alloc *Allocator, source BlockNode, parent *Block) *Block {
 	numNames := source.GetNumNames()
 	values := make([]TypedValue, numNames)
 	// Keep in sync with ExpandWith().
@@ -2298,7 +2301,7 @@ func NewBlock(source BlockNode, parent *Block) *Block {
 		// Indicates must always be heap item.
 		values[i] = TypedValue{
 			T: heapItemType{},
-			V: &HeapItemValue{},
+			V: alloc.NewHeapItem(TypedValue{}),
 		}
 	}
 	return &Block{

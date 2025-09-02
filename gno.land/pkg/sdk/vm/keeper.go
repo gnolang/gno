@@ -383,7 +383,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 
 	// call sysNamesPkg.IsAuthorizedAddressForName("<user>")
 	// We only need to check by name here, as addresses have already been checked
-	mpv := gno.NewPackageNode("main", "main", nil).NewPackage()
+	mpv := gno.NewPackageNode("main", "main", nil).NewPackage(m.Alloc)
 	m.SetActivePackage(mpv)
 	m.RunDeclaration(gno.ImportD("names", sysNamesPkg))
 	x := gno.Call(
@@ -452,7 +452,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if _, ok := gno.IsGnoRunPath(pkgPath); ok {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
-
 	opts := gno.TypeCheckOptions{
 		Getter:     gnostore,
 		TestGetter: vm.testStdlibCache.memPackageGetter(gnostore),
@@ -568,7 +567,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// Make main Package with imports.
 	mpn := gno.NewPackageNode("main", "", nil)
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
-	mpv := mpn.NewPackage()
+	mpv := mpn.NewPackage(gnostore.GetAllocator())
 	// Parse expression.
 	argslist := ""
 	for i := range msg.Args {
@@ -772,6 +771,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	buf := new(bytes.Buffer)
 	output := io.Writer(buf)
 
+	alloc := gnostore.GetAllocator()
 	// Run as self-executing closure to have own function for doRecover / m.Release defers.
 	pv := func() *gno.PackageValue {
 		// Parse and run the files, construct *PV.
@@ -783,7 +783,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 				PkgPath:  "",
 				Output:   output,
 				Store:    gnostore,
-				Alloc:    gnostore.GetAllocator(),
+				Alloc:    alloc,
 				Context:  msgCtx,
 				GasMeter: ctx.GasMeter(),
 			})
@@ -803,7 +803,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 			PkgPath:  "",
 			Output:   output,
 			Store:    gnostore,
-			Alloc:    gnostore.GetAllocator(),
+			Alloc:    alloc,
 			Context:  msgCtx,
 			GasMeter: ctx.GasMeter(),
 		})
