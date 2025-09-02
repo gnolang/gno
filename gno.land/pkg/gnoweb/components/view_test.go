@@ -189,7 +189,7 @@ func TestHelpView(t *testing.T) {
 	helpViewParams, ok := templateComponent.data.(helpViewParams)
 	assert.True(t, ok, "expected helpViewParams type in component data")
 
-	assert.Equal(t, data.RealmName, helpViewParams.HelpData.RealmName, "expected realm name %s, got %s", data.RealmName, helpViewParams.HelpData.RealmName)
+	assert.Equal(t, data.RealmName, helpViewParams.RealmName, "expected realm name %s, got %s", data.RealmName, helpViewParams.RealmName)
 
 	assert.NoError(t, view.Render(io.Discard))
 }
@@ -236,7 +236,7 @@ func TestDirLinkType_LinkPrefix(t *testing.T) {
 			name:     "File link type",
 			linkType: DirLinkTypeFile,
 			pkgPath:  "/r/test/pkg",
-			expected: "https://",
+			expected: "",
 		},
 		{
 			name:     "Invalid link type",
@@ -279,8 +279,8 @@ func TestGetFullLinks(t *testing.T) {
 			linkType: DirLinkTypeFile,
 			pkgPath:  "/r/test/pkg",
 			expected: FilesLinks{
-				{Link: "https://file1.gno", Name: "file1.gno"},
-				{Link: "https://file2.gno", Name: "file2.gno"},
+				{Link: "file1.gno", Name: "file1.gno"},
+				{Link: "file2.gno", Name: "file2.gno"},
 			},
 		},
 		{
@@ -299,4 +299,50 @@ func TestGetFullLinks(t *testing.T) {
 			assert.Equal(t, tc.expected, result)
 		})
 	}
+}
+
+func TestUserView(t *testing.T) {
+	data := UserData{
+		Username:   "testuser",
+		Handlename: "Test User",
+		Bio:        "This is a test user.",
+		Links: []UserLink{
+			{Type: UserLinkTypeLink, URL: "https://example.com"},
+			{Type: UserLinkTypeGithub, URL: "https://github.com/testuser", Title: "GitHub"},
+		},
+		Contributions: []UserContribution{
+			{
+				Title: "Realm Contribution",
+				Type:  UserContributionTypeRealm,
+			},
+			{
+				Title: "Package Contribution",
+				Type:  UserContributionTypePackage,
+			},
+		},
+		PackageCount: 2,
+		RealmCount:   1,
+		PureCount:    1,
+		Content:      NewReaderComponent(strings.NewReader("Test content")),
+	}
+
+	view := UserView(data)
+
+	assert.NotNil(t, view, "expected view to be non-nil")
+
+	templateComponent, ok := view.Component.(*TemplateComponent)
+	assert.True(t, ok, "expected TemplateComponent type in view.Component")
+
+	userData, ok := templateComponent.data.(UserData)
+	assert.True(t, ok, "expected UserData type in component data")
+
+	// Assert that link title for UserLinkTypeLink was set to the host
+	assert.Equal(t, "example.com", userData.Links[0].Title, "expected link title to be host")
+
+	// Assert counts
+	assert.Equal(t, 1, userData.RealmCount, "expected 1 realm")
+	assert.Equal(t, 2, userData.PackageCount, "expected 2 packages")
+	assert.Equal(t, 1, userData.PureCount, "expected 1 pure package")
+
+	assert.NoError(t, view.Render(io.Discard))
 }

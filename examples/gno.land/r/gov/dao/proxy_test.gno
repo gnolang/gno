@@ -8,16 +8,16 @@ import (
 	"gno.land/p/demo/urequire"
 )
 
-const v3 = "gno.land/r/gov/dao/v3/impl"
-const v4 = "gno.land/r/gov/dao/v4/impl"
-const v5 = "gno.land/r/gov/dao/v5/impl"
-const v6 = "gno.land/r/gov/dao/v6/impl"
+const (
+	v3 = "gno.land/r/gov/dao/v3/impl"
+	v4 = "gno.land/r/gov/dao/v4/impl"
+	v5 = "gno.land/r/gov/dao/v5/impl"
+	v6 = "gno.land/r/gov/dao/v6/impl"
+)
 
 const invalid = "gno.land/r/invalid/dao"
 
-var (
-	alice = testutils.TestAddress("alice")
-)
+var alice = testutils.TestAddress("alice")
 
 func TestProxy_Functions(cur realm, t *testing.T) {
 	// initialize tests
@@ -71,7 +71,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(alice))
 	urequire.NotPanics(t, func() {
 		e := NewSimpleExecutor(
-			func() error {
+			func(realm) error {
 				return nil
 			},
 			"",
@@ -103,15 +103,13 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	})
 }
 
-type dummyDao struct {
-}
+type dummyDao struct{}
 
 func (dd *dummyDao) PreCreateProposal(r ProposalRequest) (std.Address, error) {
 	return std.OriginCaller(), nil
 }
 
 func (dd *dummyDao) PostCreateProposal(r ProposalRequest, pid ProposalID) {
-
 }
 
 func (dd *dummyDao) VoteOnProposal(r VoteRequest) error {

@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/demo/tests_test
-package tests_test
+// PKGPATH: gno.land/r/demo/testinit
+package testinit
 
 import (
 	"std"
@@ -29,4 +29,4 @@ func main(cur realm) {
 // .
 
 // Realm:
-// finalizerealm["gno.land/r/demo/tests_test"]
+// finalizerealm["gno.land/r/demo/testinit"]

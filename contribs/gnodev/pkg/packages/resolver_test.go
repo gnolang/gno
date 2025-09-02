@@ -106,7 +106,7 @@ func TestFilterStdlibsMiddleware(t *testing.T) {
 
 	middleware := FilterStdlibs
 	mockResolver := NewMockResolver(&std.MemPackage{
-		Path: "abc.xy/pkg",
+		Path: "abc.xy/t/pkg",
 		Name: "pkg",
 		Files: []*std.MemFile{
 			{Name: "file.gno", Body: "package pkg"},
@@ -126,10 +126,10 @@ func TestFilterStdlibsMiddleware(t *testing.T) {
 	t.Run("allows non-stdlib paths", func(t *testing.T) {
 		t.Parallel()
 
-		pkg, err := filteredResolver.Resolve(token.NewFileSet(), "abc.xy/pkg")
+		pkg, err := filteredResolver.Resolve(token.NewFileSet(), "abc.xy/t/pkg")
 		require.NoError(t, err)
 		require.NotNil(t, pkg)
-		require.Equal(t, 1, mockResolver.resolveCalls["abc.xy/pkg"])
+		require.Equal(t, 1, mockResolver.resolveCalls["abc.xy/t/pkg"])
 	})
 }
 
@@ -197,7 +197,8 @@ func TestPackageCheckerMiddleware(t *testing.T) {
 func TestResolverLocal_Resolve(t *testing.T) {
 	t.Parallel()
 
-	const anotherPath = "abc.xy/another/path"
+	const anotherPath = "abc.xy/t/another/path"
+
 	localResolver := NewLocalResolver(anotherPath, filepath.Join("./testdata", TestdataPkgA))
 
 	t.Run("valid package", func(t *testing.T) {
@@ -212,7 +213,7 @@ func TestResolverLocal_Resolve(t *testing.T) {
 	t.Run("invalid package", func(t *testing.T) {
 		t.Parallel()
 
-		pkg, err := localResolver.Resolve(token.NewFileSet(), "abc.xy/wrong/package")
+		pkg, err := localResolver.Resolve(token.NewFileSet(), "abc.xy/t/wrong/package")
 		require.Nil(t, pkg)
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrResolverPackageNotFound)
@@ -232,7 +233,7 @@ func TestResolver_ResolveRemote(t *testing.T) {
 			},
 		},
 	}
-	mempkg.SetFile("gno.mod", gnolang.GenGnoModLatest(mempkg.Path))
+	mempkg.SetFile("gnomod.toml", gnolang.GenGnoModLatest(mempkg.Path))
 	mempkg.Sort()
 
 	rootdir := gnoenv.RootDir()
@@ -272,6 +273,7 @@ func TestResolverRoot_Resolve(t *testing.T) {
 
 		for _, tpkg := range []string{TestdataPkgA, TestdataPkgB, TestdataPkgC} {
 			t.Run(tpkg, func(t *testing.T) {
+				t.Logf("resolving %q", tpkg)
 				pkg, err := fsResolver.Resolve(token.NewFileSet(), tpkg)
 				require.NoError(t, err)
 				require.NotNil(t, pkg)

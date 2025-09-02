@@ -39,6 +39,7 @@ func TestNewNode_NoPackages(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, node.ListPkgs(), 0)
+	assert.Len(t, node.Paths(), 0)
 
 	require.NoError(t, node.Close())
 }
@@ -61,7 +62,7 @@ func Render(_ string) string { return "foo" }
 		},
 	}
 
-	pkg.SetFile("gno.mod", gnolang.GenGnoModLatest(pkg.Path))
+	pkg.SetFile("gnomod.toml", gnolang.GenGnoModLatest(pkg.Path))
 	pkg.Sort()
 
 	logger := log.NewTestingLogger(t)
@@ -73,6 +74,7 @@ func Render(_ string) string { return "foo" }
 	node, err := NewDevNode(ctx, cfg, pkg.Path)
 	require.NoError(t, err)
 	assert.Len(t, node.ListPkgs(), 1)
+	assert.Len(t, node.Paths(), 1)
 
 	// Test rendering
 	render, err := testingRenderRealm(t, node, pkg.Path)
@@ -94,6 +96,10 @@ func TestNodeAddPackage(t *testing.T) {
 func Render(_ string) string { return "foo" }
 `,
 			},
+			{
+				Name: "gnomod.toml",
+				Body: gnolang.GenGnoModLatest("gno.land/r/dev/foo"),
+			},
 		},
 	}
 
@@ -107,6 +113,10 @@ func Render(_ string) string { return "foo" }
 func Render(_ string) string { return "bar" }
 `,
 			},
+			{
+				Name: "gnomod.toml",
+				Body: gnolang.GenGnoModLatest("gno.land/r/dev/bar"),
+			},
 		},
 	}
 
@@ -116,6 +126,7 @@ func Render(_ string) string { return "bar" }
 	// Call NewDevNode with no package should work
 	node, emitter := newTestingDevNodeWithConfig(t, cfg, fooPkg.Path)
 	assert.Len(t, node.ListPkgs(), 1)
+	assert.Len(t, node.Paths(), 1)
 
 	// Test render
 	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foo")
@@ -123,7 +134,7 @@ func Render(_ string) string { return "bar" }
 	require.Equal(t, render, "foo")
 
 	// Render should fail as the node hasn't reloaded
-	render, err = testingRenderRealm(t, node, "gno.land/r/dev/bar")
+	_, err = testingRenderRealm(t, node, "gno.land/r/dev/bar")
 	require.Error(t, err)
 
 	// Add bar package
@@ -144,7 +155,7 @@ func TestNodeUpdatePackage(t *testing.T) {
 		Name: "foobar",
 		Path: "gno.land/r/dev/foobar",
 	}
-	modfile := &std.MemFile{Name: "gno.mod", Body: gnolang.GenGnoModLatest(foorbarPkg.Path)}
+	modfile := &std.MemFile{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(foorbarPkg.Path)}
 
 	fooFiles := []*std.MemFile{
 		{
@@ -170,6 +181,7 @@ func Render(_ string) string { return "bar" }
 
 	node, emitter := newTestingDevNode(t, &foorbarPkg)
 	assert.Len(t, node.ListPkgs(), 1)
+	assert.Len(t, node.Paths(), 1)
 
 	// Test that render is correct
 	render, err := testingRenderRealm(t, node, foorbarPkg.Path)
@@ -211,11 +223,16 @@ func UpdateStr(cur realm, newStr string) { // method to update 'str' variable
 func Render(_ string) string { return str }
 `,
 			},
+			{
+				Name: "gnomod.toml",
+				Body: gnolang.GenGnoModLatest("gno.land/r/dev/foo"),
+			},
 		},
 	}
 
 	node, emitter := newTestingDevNode(t, &fooPkg)
 	assert.Len(t, node.ListPkgs(), 1)
+	assert.Len(t, node.Paths(), 1)
 
 	// Test rendering
 	render, err := testingRenderRealm(t, node, fooPkg.Path)
@@ -272,11 +289,16 @@ func Inc(cur realm) {  // method to increment i
 func Render(_ string) string { return strconv.Itoa(i) }
 `,
 			},
+			{
+				Name: "gnomod.toml",
+				Body: gnolang.GenGnoModLatest("gno.land/r/dev/foo"),
+			},
 		},
 	}
 
 	node, emitter := newTestingDevNode(t, &fooPkg)
 	assert.Len(t, node.ListPkgs(), 1)
+	assert.Len(t, node.Paths(), 1)
 
 	// Test rendering
 	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foo")
@@ -312,7 +334,7 @@ func Render(_ string) string { return strconv.Itoa(i) }
 		GasWanted: 100_000,
 	}
 
-	res, err = testingCallRealmWithConfig(t, node, callCfg, msg)
+	_, err = testingCallRealmWithConfig(t, node, callCfg, msg)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &std.OutOfGasError{})
 
@@ -577,13 +599,13 @@ func newTestingNodeConfig(pkgs ...*std.MemPackage) *NodeConfig {
 	var loader packages.BaseLoader
 	gnoroot := gnoenv.RootDir()
 
-	// Ensure that a gno.mod exists
+	// Ensure that a gnomod.toml exists
 	for _, pkg := range pkgs {
-		if mod := pkg.GetFile("gno.mod"); mod != nil {
+		if mod := pkg.GetFile("gnomod.toml"); mod != nil {
 			continue
 		}
 
-		pkg.SetFile("gno.mod", gnolang.GenGnoModLatest(pkg.Path))
+		pkg.SetFile("gnomod.toml", gnolang.GenGnoModLatest(pkg.Path))
 		pkg.Sort()
 	}
 

@@ -11,8 +11,8 @@ func Get(v string) string {
 	return "v1:"+ v
 }
 
--- v1/gno.mod --
-module "gno.land/r/dev/shadow/v1"
+-- v1/gnomod.toml --
+module = "gno.land/r/dev/shadow/v1"
 
 -- v2/file.gno --
 package v1
@@ -34,9 +34,8 @@ func main() {
 	println("a", v1.Get("a"))
 }
 
--- v2/gno.mod --
-module "gno.land/r/dev/shadow/v2"
-
+-- v2/gnomod.toml --
+module = "gno.land/r/dev/shadow/v2"
 
 -- stdout.golden --
 package main

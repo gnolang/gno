@@ -31,6 +31,8 @@ const (
 
 	// TODO: flagRealmAccount marks an account as realm.
 	flagRealmAccount
+
+	flagFrozen
 )
 
 // bitSet represents a set of flags stored in a 64-bit unsigned integer.
@@ -49,7 +51,7 @@ type GnoAccount struct {
 }
 
 // validFlags defines the set of all valid flags that can be used with BitSet.
-var validFlags = flagUnrestricted | flagValidatorAccount | flagRealmAccount
+var validFlags = flagUnrestricted | flagValidatorAccount | flagRealmAccount | flagFrozen
 
 func (ga *GnoAccount) setFlag(flag BitSet) {
 	if !isValidFlag(flag) {
@@ -92,6 +94,10 @@ func (ga *GnoAccount) SetRestricted() {
 
 // IsUnrestricted checks whether the account is flagUnrestricted.
 func (ga *GnoAccount) IsUnrestricted() bool {
+	return ga.hasFlag(flagUnrestricted)
+}
+
+func (ga *GnoAccount) IsFrozen() bool {
 	return ga.hasFlag(flagUnrestricted)
 }
 

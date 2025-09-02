@@ -201,7 +201,7 @@ func (pv *PointerValue) GetBase(store Store) Object {
 	case nil:
 		return nil
 	case RefValue:
-		base := store.GetObject(cbase.ObjectID).(Object)
+		base := store.GetObject(cbase.ObjectID)
 		pv.Base = base
 		return base
 	case Object:
@@ -723,6 +723,7 @@ func (mv *MapValue) GetLength() int {
 // GetPointerForKey is only used for assignment, so the key
 // is not returned as part of the pointer, and TV is not filled.
 func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
+	// If NaN, instead of computing map key, just append to List.
 	kmk := key.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
 		return PointerValue{
@@ -743,6 +744,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 // Like GetPointerForKey, but does not create a slot if key
 // doesn't exist.
 func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue, ok bool) {
+	// If key is NaN, return default
 	kmk := key.ComputeMapKey(store, false)
 	if mli, exists := mv.vmap[kmk]; exists {
 		fillValueTV(store, &mli.Value)
@@ -752,6 +754,7 @@ func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue
 }
 
 func (mv *MapValue) DeleteForKey(store Store, key *TypedValue) {
+	// if key is NaN, do nothing.
 	kmk := key.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
 		mv.List.Remove(mli)
@@ -788,6 +791,7 @@ func (pv *PackageValue) IsRealm() bool {
 	return IsRealmPath(pv.PkgPath)
 }
 
+// XXX, pass in allocator
 func (pv *PackageValue) getFBlocksMap() map[string]*Block {
 	if pv.fBlocksMap == nil {
 		pv.fBlocksMap = make(map[string]*Block, len(pv.FNames))
@@ -892,6 +896,10 @@ func (pv *PackageValue) GetPkgAddr() crypto.Address {
 	return DerivePkgCryptoAddr(pv.PkgPath)
 }
 
+func (pv *PackageValue) GetPkgStorageDepositAddr() crypto.Address {
+	return DeriveStorageDepositCryptoAddr(pv.PkgPath)
+}
+
 // ----------------------------------------
 // TypedValue (is not a value, but a tuple)
 
@@ -964,8 +972,11 @@ func (tv *TypedValue) IsTypedNil() bool {
 	if tv.V != nil {
 		return false
 	}
-	if tv.T != nil && tv.T.Kind() == PointerKind {
-		return true
+	if tv.T != nil {
+		switch tv.T.Kind() {
+		case SliceKind, FuncKind, MapKind, InterfaceKind, PointerKind, ChanKind:
+			return true
+		}
 	}
 	return false
 }
@@ -978,8 +989,7 @@ func (tv *TypedValue) IsNilInterface() bool {
 		}
 		if debug {
 			if tv.N != [8]byte{} {
-				panic(fmt.Sprintf(
-					"corrupted TypeValue (nil interface)"))
+				panic("corrupted TypeValue (nil interface)")
 			}
 		}
 		return false
@@ -1538,9 +1548,12 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		pbz := tv.PrimitiveBytes()
 		bz = append(bz, pbz...)
 	case *PointerType:
-		fillValueTV(store, tv)
-		ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
-		bz = append(bz, uintptrToBytes(&ptr)...)
+		var ptrBytes [sizeOfUintPtr]byte // zero-initialized for nil pointers
+		if tv.V != nil {
+			ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
+			ptrBytes = uintptrToBytes(&ptr)
+		}
+		bz = append(bz, ptrBytes[:]...)
 	case FieldType:
 		panic("field (pseudo)type cannot be used as map key")
 	case *ArrayType:
@@ -1661,7 +1674,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 	// NOTE: path will be mutated.
 	// NOTE: this code segment similar to that in op_types.go
 	var dtv *TypedValue
-	var isPtr bool = false
+	isPtr := false
 	switch path.Type {
 	case VPField:
 		switch path.Depth {
@@ -1895,10 +1908,10 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 	iv := TypedValue{T: IntType}
 	iv.SetInt(int64(ii))
-	return tv.GetPointerAtIndex(nilAllocator, store, &iv)
+	return tv.GetPointerAtIndex(nilRealm, nilAllocator, store, &iv)
 }
 
-func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *TypedValue) PointerValue {
+func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Store, iv *TypedValue) PointerValue {
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		if bt == StringType || bt == UntypedStringType {
@@ -1940,6 +1953,15 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 			panic(&Exception{Value: typedString("uninitialized map index")})
 		}
 		mv := tv.V.(*MapValue)
+
+		// if key already exist,
+		// no need to attach it.
+		exist := false
+		key := iv.ComputeMapKey(store, false)
+		if _, ok := mv.vmap[key]; ok {
+			exist = true
+		}
+
 		pv := mv.GetPointerForKey(alloc, store, iv)
 		if pv.TV.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
@@ -1947,6 +1969,10 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 				// this will get assigned over, so no alloc.
 				*(pv.TV) = defaultTypedValue(nil, vt)
 			}
+		}
+		// attach mapkey object
+		if !exist {
+			rlm.DidUpdate(mv, nil, iv.GetFirstObject(store))
 		}
 		return pv
 	default:
@@ -2091,9 +2117,9 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 				V: alloc.NewString(tv.GetString()[low:high]),
 			}
 		}
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(&Exception{Value: typedString(
 			"non-string primitive type cannot be sliced",
-		))})
+		)})
 	case *ArrayType:
 		if tv.GetLength() < high {
 			panic(&Exception{Value: typedString(fmt.Sprintf(
@@ -2123,8 +2149,7 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 		}
 		if tv.V == nil {
 			if low != 0 || high != 0 {
-				panic(&Exception{Value: typedString(fmt.Sprintf(
-					"nil slice index out of range"))})
+				panic(&Exception{Value: typedString("nil slice index out of range")})
 			}
 			return TypedValue{
 				T: tv.T,
@@ -2264,8 +2289,7 @@ type Block struct {
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.
-// XXX pass allocator in for heap items.
-func NewBlock(source BlockNode, parent *Block) *Block {
+func NewBlock(alloc *Allocator, source BlockNode, parent *Block) *Block {
 	numNames := source.GetNumNames()
 	values := make([]TypedValue, numNames)
 	// Keep in sync with ExpandWith().
@@ -2276,7 +2300,7 @@ func NewBlock(source BlockNode, parent *Block) *Block {
 		// Indicates must always be heap item.
 		values[i] = TypedValue{
 			T: heapItemType{},
-			V: &HeapItemValue{},
+			V: alloc.NewHeapItem(TypedValue{}),
 		}
 	}
 	return &Block{

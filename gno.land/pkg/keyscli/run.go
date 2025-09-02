@@ -10,6 +10,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
@@ -18,7 +19,8 @@ import (
 )
 
 type MakeRunCfg struct {
-	RootCfg *client.MakeTxCfg
+	RootCfg    *client.MakeTxCfg
+	MaxDeposit string
 }
 
 func NewMakeRunCmd(rootCfg *client.MakeTxCfg, cmdio commands.IO) *commands.Command {
@@ -39,7 +41,14 @@ func NewMakeRunCmd(rootCfg *client.MakeTxCfg, cmdio commands.IO) *commands.Comma
 	)
 }
 
-func (c *MakeRunCfg) RegisterFlags(fs *flag.FlagSet) {}
+func (c *MakeRunCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.MaxDeposit,
+		"max-deposit",
+		"",
+		"max storage deposit",
+	)
+}
 
 func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	if len(args) != 2 {
@@ -66,6 +75,12 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	}
 	caller := info.GetAddress()
 
+	// Parase deposit amount
+	deposit, err := std.ParseCoins(cfg.MaxDeposit)
+	if err != nil {
+		return errors.Wrap(err, "parsing storage deposit coins")
+	}
+
 	// parse gas wanted & fee.
 	gaswanted := cfg.RootCfg.GasWanted
 	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
@@ -91,7 +106,7 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 			return fmt.Errorf("could not read source path: %q, %w", sourcePath, err)
 		}
 		if info.IsDir() {
-			memPkg = gno.MustReadMemPackage(sourcePath, "")
+			memPkg = gno.MustReadMemPackage(sourcePath, "", gno.MPUserProd)
 		} else { // is file
 			b, err := os.ReadFile(sourcePath)
 			if err != nil {
@@ -116,8 +131,9 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 
 	// construct msg & tx and marshal.
 	msg := vm.MsgRun{
-		Caller:  caller,
-		Package: memPkg,
+		Caller:     caller,
+		Package:    memPkg,
+		MaxDeposit: deposit,
 	}
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},
@@ -127,6 +143,9 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	}
 
 	if cfg.RootCfg.Broadcast {
+		cfg.RootCfg.RootCfg.OnTxSuccess = func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
+			PrintTxInfo(tx, res, cmdio)
+		}
 		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, cmdio)
 		if err != nil {
 			return err

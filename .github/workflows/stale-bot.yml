@@ -12,6 +12,11 @@ jobs:
     steps:
       - uses: actions/stale@v9
         with:
+          # actions/stale's cache mechanism doesn't work if you have a non-trivial
+          # amount of other caches: https://github.com/actions/stale/issues/1136
+          # so, operations-per-run is large enough to hopefully process all
+          # of the open issues/pr's in the repo.
+          operations-per-run: 300
           exempt-all-milestones: true
           stale-pr-message: "This PR is stale because it has been open 3 months with no activity. Remove stale label or comment or this will be closed in 3 months."
           close-pr-message: "This PR was closed because it has been stalled for 3 months with no activity."
