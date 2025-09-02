@@ -198,7 +198,6 @@ func (m *Machine) ParseFile(fname string, body string) (fn *FileNode, err error)
 	if err != nil {
 		return nil, err
 	}
-	_ = stats
 	// Print the imports from the file's AST.
 	// spew.Dump(f)
 
