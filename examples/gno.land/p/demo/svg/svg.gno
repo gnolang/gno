@@ -40,8 +40,11 @@ func (c *Canvas) WithViewBox(x, y, width, height int) *Canvas {
 
 // Render renders your canvas
 func (c Canvas) Render(alt string) string {
-	base64SVG := base64.StdEncoding.EncodeToString([]byte(c.String()))
-	return ufmt.Sprintf("![%s](data:image/svg+xml;base64,%s)", alt, base64SVG)
+	var s strings.Builder
+	ufmt.Fprintln(&s, "<gno-svg>")
+	ufmt.Fprintln(&s, c.String())
+	ufmt.Fprintln(&s, "</gno-svg>")
+	return s.String()
 }
 
 func (c Canvas) String() string {

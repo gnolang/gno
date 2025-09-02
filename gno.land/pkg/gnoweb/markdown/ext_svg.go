@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 
 	"github.com/yuin/goldmark"
@@ -38,13 +39,18 @@ func NewSvgNode() ast.Node {
 type svgBlockParser struct {
 }
 
+var svgInfoKey = parser.NewContextKey()
+
 var defaultSVGParser = &svgBlockParser{}
+
+type svgData struct {
+	node ast.Node
+}
 
 // NewSVGParser returns a new BlockParser that parses SVG blocks.
 func NewSVGParser() parser.BlockParser {
 	return defaultSVGParser
 }
-
 
 func (b *svgBlockParser) Trigger() []byte {
 	return []byte{'<'}
@@ -53,6 +59,7 @@ func (b *svgBlockParser) Trigger() []byte {
 func (b *svgBlockParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	line, _ := reader.PeekLine()
 	line = util.TrimRightSpace(util.TrimLeftSpace(line))
+
 	toks, err := ParseHTMLTokens(bytes.NewReader(line))
 	if err != nil || len(toks) != 1 {
 		return nil, parser.NoChildren
@@ -65,33 +72,27 @@ func (b *svgBlockParser) Open(parent ast.Node, reader text.Reader, pc parser.Con
 
 	node := NewSvgNode()
 
-	// Skip the opening <gno-svg> tag
-	reader.AdvanceLine()
-
-	// Read all lines until we find </gno-svg>
-	for {
-		line, segment := reader.PeekLine()
-		trimmedLine := util.TrimRightSpace(util.TrimLeftSpace(line))
-
-		// Check for closing tag
-		if bytes.Contains(trimmedLine, []byte("</gno-svg>")) {
-			reader.AdvanceLine()
-			break
-		}
-
-		// Append the line as SVG content
-		seg := text.NewSegmentPadding(segment.Start, segment.Stop, segment.Padding)
-		seg.ForceNewline = true
-		node.Lines().Append(seg)
-		reader.AdvanceLine()
-	}
-
-	return node, parser.Close | parser.NoChildren
+	return node, parser.Continue
 }
 
 func (b *svgBlockParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
-	// All processing is done in Open(), this should not be called
-	return parser.Close
+	line, segment := reader.PeekLine()
+	trimmedLine := util.TrimRightSpace(util.TrimLeftSpace(line))
+
+	toks, err := ParseHTMLTokens(bytes.NewReader(trimmedLine))
+	if err == nil && len(toks) == 1 {
+		tok := toks[0]
+		if tok.Data == "gno-svg" && tok.Type == html.EndTagToken {
+			reader.AdvanceLine()
+			return parser.Close
+		}
+	}
+
+	// Append the line as SVG content
+	seg := text.NewSegmentPadding(segment.Start, segment.Stop, segment.Padding)
+	seg.ForceNewline = true
+	node.Lines().Append(seg)
+	return parser.Continue | parser.NoChildren
 }
 
 func (b *svgBlockParser) Close(node ast.Node, reader text.Reader, pc parser.Context) {}
@@ -126,20 +127,20 @@ func (r *svgRenderer) render(w util.BufWriter, source []byte, node ast.Node, ent
 		return ast.WalkContinue, nil
 	}
 
-	// Write opening object tag
-	fmt.Fprint(w, `<object type="image/svg+xml">`)
-
-	// Write the SVG content
-	l := node.Lines().Len()
-	for i := 0; i < l; i++ {
+	// Collect SVG content
+	var svgContent bytes.Buffer
+	for i := range node.Lines().Len() {
 		line := node.Lines().At(i)
 		lineContent := line.Value(source)
-		w.Write(lineContent)
+		svgContent.Write(lineContent)
 	}
 
-	// Write closing object tag
-	fmt.Fprint(w, `</object>`)
-	w.WriteByte('\n')
+	// Base64 encode the SVG content
+	svgData := base64.StdEncoding.EncodeToString(svgContent.Bytes())
+
+	// Write object tag with data URL
+	fmt.Fprintf(w, `<object type="image/svg+xml" data="data:image/svg+xml;base64,%s"></object>`, svgData)
+	fmt.Fprintln(w)
 
 	return ast.WalkContinue, nil
 }
