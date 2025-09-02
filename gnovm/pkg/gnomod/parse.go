@@ -10,9 +10,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-var (
-	ErrNoModFile = errors.New("gnomod.toml doesn't exist")
-)
+var ErrNoModFile = errors.New("gnomod.toml doesn't exist")
 
 // ParseDir parses, validates and returns a gno.mod or gnomod.toml file located at dir (does not search parents).
 func ParseDir(dir string) (*File, error) {
