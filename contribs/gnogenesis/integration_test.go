@@ -168,7 +168,7 @@ func Render(_ string) string { return "bar" }
 	cli, err := client.NewHTTPClient(address)
 	require.NoError(t, err)
 
-	s, err := cli.Status(ctx)
+	s, err := cli.Status(ctx, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, s.NodeInfo.Network, chainid)

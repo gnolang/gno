@@ -1226,7 +1226,7 @@ func TestLatestBlockHeight(t *testing.T) {
 	client := &Client{
 		Signer: &mockSigner{},
 		RPCClient: &mockRPCClient{
-			status: func(ctx context.Context) (*ctypes.ResultStatus, error) {
+			status: func(ctx context.Context, heightGte *int64) (*ctypes.ResultStatus, error) {
 				return &ctypes.ResultStatus{
 					SyncInfo: ctypes.SyncInfo{
 						LatestBlockHeight: latestHeight,
