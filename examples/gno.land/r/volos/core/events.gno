@@ -74,6 +74,8 @@ const (
 	EventTimestampKey    = "currentTimestamp"
 	EventSupplyAPRKey    = "supplyAPR"
 	EventBorrowAPRKey    = "borrowAPR"
+	EventBadDebtAssetsKey = "badDebtAssets"
+	EventBadDebtSharesKey = "badDebtShares"
 	// MarketInfo keys
 	EventIsToken0LoanKey            = "isToken0Loan"
 	EventLoanTokenNameKey           = "loanTokenName"
@@ -83,6 +85,7 @@ const (
 	EventCollateralTokenSymbolKey   = "collateralTokenSymbol"
 	EventCollateralTokenDecimalsKey = "collateralTokenDecimals"
 	EventLLTVKey                    = "lltv"
+	EventPoolPathKey                = "poolPath"
 )
 
 // Event emission helper functions
@@ -120,6 +123,7 @@ func emitCreateMarket(marketId string, loanToken string, collateralToken string)
 		EventCollateralTokenDecimalsKey, strconv.FormatUint(uint64(collateralTokenDecimals), 10),
 		EventLLTVKey, params.LLTV.ToString(),
 		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
+		EventPoolPathKey, params.PoolPath,
 	)
 }
 
@@ -197,7 +201,7 @@ func emitRepay(marketId string, caller std.Address, onBehalf std.Address, assets
 	)
 }
 
-func emitLiquidate(marketId string, caller std.Address, borrower std.Address, repaidAssets, repaidShares, seizedAssets *u256.Uint) {
+func emitLiquidate(marketId string, caller std.Address, borrower std.Address, repaidAssets, repaidShares, seizedAssets, badDebtAssets, badDebtShares *u256.Uint) {
 	// Calculate APRs after liquidation operation
 	supplyAPR := CalculateSupplyAPR(marketId)
 	borrowAPR := CalculateBorrowAPR(marketId)
@@ -210,6 +214,8 @@ func emitLiquidate(marketId string, caller std.Address, borrower std.Address, re
 		EventAmountKey, repaidAssets.ToString(),
 		EventSharesKey, repaidShares.ToString(),
 		EventSeizedKey, seizedAssets.ToString(),
+		EventBadDebtAssetsKey, badDebtAssets.ToString(),
+		EventBadDebtSharesKey, badDebtShares.ToString(),
 		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 		EventSupplyAPRKey, supplyAPR.ToString(),
 		EventBorrowAPRKey, borrowAPR.ToString(),

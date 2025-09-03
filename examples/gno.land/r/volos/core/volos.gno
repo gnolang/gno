@@ -710,9 +710,10 @@ func Liquidate(cur realm, marketId string, borrower std.Address, seizedAssets, r
 	markets.Set(marketId, market)
 
 	// Handle bad debt if all collateral is seized
+	var badDebtShares, badDebtAssets *u256.Uint
 	if borrowerPos.Collateral.IsZero() {
-		badDebtShares := borrowerPos.BorrowShares
-		badDebtAssets := math.ToAssetsUp(
+		badDebtShares = borrowerPos.BorrowShares
+		badDebtAssets = math.ToAssetsUp(
 			badDebtShares,
 			market.TotalBorrowAssets,
 			market.TotalBorrowShares,
@@ -725,6 +726,9 @@ func Liquidate(cur realm, marketId string, borrower std.Address, seizedAssets, r
 		market.TotalSupplyAssets = new(u256.Uint).Sub(market.TotalSupplyAssets, badDebtAssets)
 		market.TotalBorrowShares = new(u256.Uint).Sub(market.TotalBorrowShares, badDebtShares)
 		borrowerPos.BorrowShares = u256.Zero()
+	} else {
+		badDebtShares = u256.Zero()
+		badDebtAssets = u256.Zero()
 	}
 
 	// Transfer seized collateral to liquidator
@@ -734,8 +738,8 @@ func Liquidate(cur realm, marketId string, borrower std.Address, seizedAssets, r
 	// Transfer repaid assets from liquidator to contract
 	safeTransferFrom(params.GetLoanToken(), caller, repaidAssets.Int64())
 
-	// Emit liquidate event
-	emitLiquidate(marketId, caller, borrower, repaidAssets, repaidSharesU256, seizedAssetsU256)
+	// Emit liquidate event with bad debt information
+	emitLiquidate(marketId, caller, borrower, repaidAssets, repaidSharesU256, seizedAssetsU256, badDebtAssets, badDebtShares)
 
 	return seizedAssetsU256.Uint64(), repaidAssets.Uint64()
 }
