@@ -101,15 +101,18 @@ func TestBuyTicketWithGRC20(t *testing.T) {
 	testing.SetOriginCaller(buyer)
 	testing.SetRealm(std.NewUserRealm(buyer))
 
-	eventId := CreateEvent(
-		cross,
-		"GRC20 Event",
-		"An event with GRC20 payment",
-		"2024-12-31T23:59:59Z",
-		token.CallerTeller(),
-		2,
-		1000000,
-	)
+	var eventId uint64
+	crossThrough(std.NewCodeRealm("gno.land/r/jjoptimist/eventix"), func() {
+		eventId = CreateEvent(
+			cross,
+			"GRC20 Event",
+			"An event with GRC20 payment",
+			"2024-12-31T23:59:59Z",
+			token,
+			2,
+			1000000,
+		)
+	})
 
 	// Set up for approval
 	testing.SetOriginCaller(buyer)
@@ -128,7 +131,7 @@ func TestBuyTicketWithGRC20(t *testing.T) {
 
 	// Buy ticket
 	BuyTicket(cross, eventId)
-	//
+
 	// Verify purchase
 	event, exists := getEvent(eventId)
 	urequire.True(t, exists)
@@ -143,4 +146,9 @@ func TestBuyTicketWithGRC20(t *testing.T) {
 	// Verify GRC20 balance changes
 	buyerBalance := token.BalanceOf(buyer)
 	urequire.Equal(t, int64(1000000), buyerBalance) // Should have 1M left after spending 1M
+}
+
+func crossThrough(rlm std.Realm, cr func()) {
+	testing.SetRealm(rlm)
+	cr()
 }

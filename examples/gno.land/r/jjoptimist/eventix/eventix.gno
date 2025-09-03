@@ -45,7 +45,7 @@ func CreateEvent(_ realm, name, description, dateStr string, paymentToken any, m
 		if pt != "ugnot" {
 			panic("Unsupported native token")
 		}
-	case grc20.Teller:
+	case *grc20.Token:
 		if pt == nil {
 			panic("Invalid GRC20 token")
 		}
@@ -89,9 +89,13 @@ func BuyTicket(_ realm, eventId uint64) {
 		if std.OriginSend().AmountOf("ugnot") != int64(event.price) {
 			panic(ufmt.Sprintf("Invalid payment amount: needs to be %dugnot", event.price))
 		}
-	case grc20.Teller:
-		if err := pt.TransferFrom(buyer, std.CurrentRealm().Address(), int64(event.price)); err != nil {
-			//panic(ufmt.Sprintf("Buyer: %s\nCurr: %s\nallowance: %d\nprice:%d\n", buyer, std.CurrentRealm().Address().String(), pt.Allowance(buyer, std.CurrentRealm().Address()), event.price))
+	case *grc20.Token:
+		if err := pt.CallerTeller().Transfer(std.CurrentRealm().Address(), int64(event.price)); err != nil {
+			println(ufmt.Sprintf("Buyer: %s\nCurr: %s\nallowance: %d\nprice:     %d\n",
+				buyer,
+				std.CurrentRealm().Address().String(),
+				pt.Allowance(buyer, std.CurrentRealm().Address()),
+				event.price))
 			panic("GRC20 transfer error: " + err.Error())
 		}
 	default:
