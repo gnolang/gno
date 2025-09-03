@@ -75,18 +75,20 @@ func (pdb *PebbleDB) Has(key []byte) (bool, error) {
 func (pdb *PebbleDB) Set(key []byte, value []byte) error {
 	key = internal.NonNilBytes(key)
 	value = internal.NonNilBytes(value)
-	return pdb.db.Set(key, value, pebble.Sync)
+	return pdb.db.Set(key, value, pebble.NoSync)
 }
 
 // Implements DB.
 func (pdb *PebbleDB) SetSync(key []byte, value []byte) error {
-	return pdb.Set(key, value)
+	key = internal.NonNilBytes(key)
+	value = internal.NonNilBytes(value)
+	return pdb.db.Set(key, value, pebble.Sync)
 }
 
 // Implements DB.
 func (pdb *PebbleDB) Delete(key []byte) error {
 	key = internal.NonNilBytes(key)
-	return pdb.db.Delete(key, pebble.Sync)
+	return pdb.db.Delete(key, pebble.NoSync)
 }
 
 // Implements DB.
