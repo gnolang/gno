@@ -1,8 +1,7 @@
 package buttons
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/txlink"
@@ -10,12 +9,12 @@ import (
 
 var (
 	motd       = "The Initial Message\n\n"
-	lastCaller chain.Address
+	lastCaller std.Address
 )
 
-func UpdateMOTD(newmotd string) {
+func UpdateMOTD(_ realm, newmotd string) {
 	motd = newmotd
-	lastCaller = runtime.PreviousRealm().Address()
+	lastCaller = std.PreviousRealm().Address()
 }
 
 func Render(path string) string {

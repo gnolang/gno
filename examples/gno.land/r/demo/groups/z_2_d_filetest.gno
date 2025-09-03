@@ -4,7 +4,7 @@ package groups_test
 // SEND: 200000000ugnot
 
 import (
-	"chain/banker"
+	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -15,16 +15,16 @@ import (
 var gid groups.GroupID
 
 func main() {
-	users.Register("gnouser123")
-	gid = groups.CreateGroup("test_group")
+	users.Register(cross, "gnouser123")
+	gid = groups.CreateGroup(cross, "test_group")
 	println(gid)
 
 	// delete member via anon user
 	test2 := testutils.TestAddress("test2")
 	testing.SetOriginCaller(test2)
-	testing.SetOriginSend(banker.Coins{{"ugnot", 9000000}})
+	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}})
 
-	groups.DeleteMember(gid, 0)
+	groups.DeleteMember(cross, gid, 0)
 	println(groups.Render(""))
 }
 

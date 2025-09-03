@@ -4,8 +4,8 @@
 package pausable
 
 import (
-	"chain"
 	"errors"
+	"std"
 
 	"gno.land/p/demo/ownable"
 )
@@ -32,24 +32,24 @@ func (p Pausable) IsPaused() bool {
 
 // Pause sets the state of Pausable to true, meaning all pausable functions are paused
 func (p *Pausable) Pause() error {
-	if !p.o.CallerIsOwner() {
+	if !p.o.OwnedByCurrent() {
 		return ownable.ErrUnauthorized
 	}
 
 	p.paused = true
-	chain.Emit("Paused", "by", p.o.Owner().String())
+	std.Emit("Paused", "by", p.o.Owner().String())
 
 	return nil
 }
 
 // Unpause sets the state of Pausable to false, meaning all pausable functions are resumed
 func (p *Pausable) Unpause() error {
-	if !p.o.CallerIsOwner() {
+	if !p.o.OwnedByCurrent() {
 		return ownable.ErrUnauthorized
 	}
 
 	p.paused = false
-	chain.Emit("Unpaused", "by", p.o.Owner().String())
+	std.Emit("Unpaused", "by", p.o.Owner().String())
 
 	return nil
 }

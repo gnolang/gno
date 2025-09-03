@@ -1,8 +1,7 @@
 package ownable
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 )
 
 const OwnershipTransferEvent = "OwnershipTransfer"
@@ -11,24 +10,35 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 // being embedded in a Gno object to manage per-object ownership.
 // Ownable is safe to export as a top-level object
 type Ownable struct {
-	owner chain.Address
+	owner std.Address
 }
 
 func New() *Ownable {
 	return &Ownable{
-		owner: runtime.PreviousRealm().Address(),
+		owner: std.CurrentRealm().Address(),
 	}
 }
 
-func NewWithAddress(addr chain.Address) *Ownable {
+func NewWithOrigin() *Ownable {
+	origin := std.OriginCaller()
+	previous := std.PreviousRealm()
+	if origin != previous.Address() {
+		panic("NewWithOrigin() should be called from init() where std.PreviousRealm() is origin")
+	}
+	return &Ownable{
+		owner: origin,
+	}
+}
+
+func NewWithAddress(addr std.Address) *Ownable {
 	return &Ownable{
 		owner: addr,
 	}
 }
 
 // TransferOwnership transfers ownership of the Ownable struct to a new address
-func (o *Ownable) TransferOwnership(newOwner chain.Address) error {
-	if !o.CallerIsOwner() {
+func (o *Ownable) TransferOwnership(newOwner std.Address) error {
+	if !o.OwnedByCurrent() {
 		return ErrUnauthorized
 	}
 
@@ -38,7 +48,7 @@ func (o *Ownable) TransferOwnership(newOwner chain.Address) error {
 
 	prevOwner := o.owner
 	o.owner = newOwner
-	chain.Emit(
+	std.Emit(
 		OwnershipTransferEvent,
 		"from", prevOwner.String(),
 		"to", newOwner.String(),
@@ -47,49 +57,71 @@ func (o *Ownable) TransferOwnership(newOwner chain.Address) error {
 	return nil
 }
 
-// DropOwnership removes the owner, effectively disabling any owner-related actions
+// DropOwnershipByCurrent removes the owner, effectively disabling any owner-related actions
 // Top-level usage: disables all only-owner actions/functions,
 // Embedded usage: behaves like a burn functionality, removing the owner from the struct
-func (o *Ownable) DropOwnership() error {
-	if !o.CallerIsOwner() {
+func (o *Ownable) DropOwnershipByCurrent() error {
+	if !o.OwnedByCurrent() {
 		return ErrUnauthorized
 	}
+	o.dropOwnership(o.owner)
+	return nil
+}
 
-	prevOwner := o.owner
+// DropOwnershipByPrevious removes the owner, effectively disabling any owner-related actions
+// Top-level usage: disables all only-owner actions/functions,
+// Embedded usage: behaves like a burn functionality, removing the owner from the struct
+func (o *Ownable) DropOwnershipByPrevious() error {
+	if !o.OwnedByPrevious() {
+		return ErrUnauthorized
+	}
+	o.dropOwnership(o.owner)
+	return nil
+}
+
+func (o *Ownable) dropOwnership(prevOwner std.Address) {
 	o.owner = ""
-
-	chain.Emit(
+	std.Emit(
 		OwnershipTransferEvent,
 		"from", prevOwner.String(),
 		"to", "",
 	)
-
-	return nil
 }
 
 // Owner returns the owner address from Ownable
-func (o *Ownable) Owner() chain.Address {
+func (o *Ownable) Owner() std.Address {
 	if o == nil {
-		return chain.Address("")
+		return std.Address("")
 	}
 	return o.owner
 }
 
-// CallerIsOwner checks if the caller of the function is the Realm's owner
-func (o *Ownable) CallerIsOwner() bool {
+// OwnedByCurrent checks if the caller of the function is the Realm's owner
+func (o *Ownable) OwnedByCurrent() bool {
 	if o == nil {
 		return false
 	}
-	return runtime.PreviousRealm().Address() == o.owner
+	return std.CurrentRealm().Address() == o.owner
 }
 
-// AssertCallerIsOwner panics if the caller is not the owner
-func (o *Ownable) AssertCallerIsOwner() {
-	if o == nil {
+// AssertOwnedByCurrent panics if the caller is not the owner
+func (o *Ownable) AssertOwnedByCurrent() {
+	if !o.OwnedByCurrent() {
 		panic(ErrUnauthorized)
 	}
-	caller := runtime.PreviousRealm().Address()
-	if caller != o.owner {
+}
+
+// OwnedByPrevious checks if the caller of the function is the Realm's owner
+func (o *Ownable) OwnedByPrevious() bool {
+	if o == nil {
+		return false
+	}
+	return std.PreviousRealm().Address() == o.owner
+}
+
+// AssertOwnedByPrevious panics if the caller is not the owner
+func (o *Ownable) AssertOwnedByPrevious() {
+	if !o.OwnedByPrevious() {
 		panic(ErrUnauthorized)
 	}
 }

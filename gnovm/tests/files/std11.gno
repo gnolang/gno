@@ -1,14 +1,14 @@
 package main
 
-import "chain/runtime"
+import "std"
 
 func main() {
 	defer func() {
 		// assert panic is recoverable
 		println(recover())
 	}()
-	runtime.CallerAt(42)
+	std.CurrentRealm()
 }
 
 // Output:
-// frame not found
+// undefined

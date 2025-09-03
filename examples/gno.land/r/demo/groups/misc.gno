@@ -1,7 +1,7 @@
 package groups
 
 import (
-	"chain"
+	"std"
 	"strconv"
 	"strings"
 
@@ -75,15 +75,15 @@ func summaryOf(str string, length int) string {
 	return line
 }
 
-func displayAddressMD(addr chain.Address) string {
+func displayAddressMD(addr std.Address) string {
 	user := users.ResolveAddress(addr)
 	if user == nil {
 		return "[" + addr.String() + "](/u/" + addr.String() + ")"
 	}
-	return "[@" + user.Name() + "](/r/gnoland/users/v1:" + user.Name() + ")"
+	return "[@" + user.Name() + "](/u/" + user.Name() + ")"
 }
 
-func usernameOf(addr chain.Address) string {
+func usernameOf(addr std.Address) string {
 	user := users.ResolveAddress(addr)
 	if user == nil {
 		panic("user not found")

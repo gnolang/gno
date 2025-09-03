@@ -1,16 +1,15 @@
 package evaluation
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
 )
 
 type Committee struct {
-	members    []chain.Address // TODO - use avl tree or address set?
-	categories avl.Tree        // A category is mapped to a list of evaluation criteria
+	members    []std.Address // TODO - use avl tree or address set?
+	categories avl.Tree      // A category is mapped to a list of evaluation criteria
 	evaluation *Evaluation
 }
 
@@ -18,26 +17,26 @@ const ApprovedStatus = "Approved"
 
 func NewCommittee() *Committee {
 	c := &Committee{
-		members:    []chain.Address{},
+		members:    []std.Address{},
 		categories: avl.Tree{},
 		evaluation: NewEvalutaion(),
 	}
 	return c
 }
 
-func (c *Committee) DesignateMembers(members []chain.Address) []chain.Address {
+func (c *Committee) DesignateMembers(members []std.Address) []std.Address {
 	c.members = append(c.members, members...)
 	return c.members
 }
 
-func (c *Committee) DismissMembers(members []chain.Address) []chain.Address {
+func (c *Committee) DismissMembers(members []std.Address) []std.Address {
 	// TODO
-	return []chain.Address{}
+	return []std.Address{}
 }
 
 func (c *Committee) AddCategory(name string, criteria []string) bool {
 	// TODO error handling
-	if !c.isMember(runtime.OriginCaller()) {
+	if !c.isMember(std.OriginCaller()) {
 		return false
 	}
 	category := NewCategory(name, criteria)
@@ -46,7 +45,7 @@ func (c *Committee) AddCategory(name string, criteria []string) bool {
 }
 
 func (c *Committee) ApproveCategory(name string, option string) bool {
-	if !c.isMember(runtime.OriginCaller()) {
+	if !c.isMember(std.OriginCaller()) {
 		return false
 	}
 
@@ -59,8 +58,8 @@ func (c *Committee) ApproveCategory(name string, option string) bool {
 		return false
 	}
 
-	vote := NewVote(runtime.OriginCaller(), option)
-	category.votes.Set(runtime.OriginCaller().String(), vote)
+	vote := NewVote(std.OriginCaller(), option)
+	category.votes.Set(std.OriginCaller().String(), vote)
 	category.Tally()
 
 	// TODO Add threshold factor for a category approval
@@ -81,8 +80,8 @@ func (c *Committee) ApproveCategory(name string, option string) bool {
 }
 
 // TODO error handling
-func (c *Committee) AddContribution(pr *PullRequest, contributor chain.Address) (contributionId int, ok bool) {
-	if !c.isMember(runtime.OriginCaller()) {
+func (c *Committee) AddContribution(pr *PullRequest, contributor std.Address) (contributionId int, ok bool) {
+	if !c.isMember(std.OriginCaller()) {
 		return -1, false
 	}
 	// Check the category of the PR matches a category this committee evaluates
@@ -96,7 +95,7 @@ func (c *Committee) AddContribution(pr *PullRequest, contributor chain.Address) 
 
 // TODO error handling
 func (c *Committee) ApproveContribution(id int, option string) bool {
-	if !c.isMember(runtime.OriginCaller()) {
+	if !c.isMember(std.OriginCaller()) {
 		return false
 	}
 
@@ -110,7 +109,7 @@ func (c *Committee) ApproveContribution(id int, option string) bool {
 		return false
 	}
 
-	vote := NewVote(runtime.OriginCaller(), option)
+	vote := NewVote(std.OriginCaller(), option)
 	contribution.votes = append(contribution.votes, vote)
 	contribution.Tally()
 
@@ -131,7 +130,7 @@ func (c *Committee) ApproveContribution(id int, option string) bool {
 	return false
 }
 
-func (c *Committee) isMember(m chain.Address) bool {
+func (c *Committee) isMember(m std.Address) bool {
 	for _, member := range c.members {
 		if m == member {
 			return true

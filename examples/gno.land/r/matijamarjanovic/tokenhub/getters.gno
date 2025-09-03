@@ -1,7 +1,7 @@
 package tokenhub
 
 import (
-	"chain"
+	"std"
 	"strings"
 
 	"gno.land/p/demo/grc/grc1155"
@@ -39,17 +39,12 @@ func GetUserMultiTokenBalancesNonZero(userNameOrAddress string) string {
 
 // GetToken returns a token instance for a given key
 func GetToken(key string) *grc20.Token {
-	getter := grc20reg.Get(key)
-	return getter()
+	return grc20reg.Get(key)
 }
 
 // MustGetToken returns a token instance for a given key, panics if the token is not found
 func MustGetToken(key string) *grc20.Token {
-	getter := grc20reg.MustGet(key)
-	if getter == nil {
-		panic("unknown token: " + key)
-	}
-	return getter()
+	return grc20reg.MustGet(key)
 }
 
 // GetNFT returns an NFT instance for a given key
@@ -113,8 +108,7 @@ func GetAllTokens() string {
 func GetAllTokenWithDetails() string {
 	var out string
 	grc20reg.GetRegistry().Iterate("", "", func(key string, value interface{}) bool {
-		tokenGetter := value.(grc20.TokenGetter)
-		token := tokenGetter()
+		token := value.(*grc20.Token)
 		out += ufmt.Sprintf("Token:%s,Name:%s,Symbol:%s,Decimals:%d;", key, token.GetName(), token.GetSymbol(), token.GetDecimals())
 		return false
 	})
@@ -160,14 +154,15 @@ func getNFTBalances(input string) string {
 
 // getTokenBalances returns a string of all the tokens the user owns
 func getTokenBalances(input string, nonZero bool) string {
+
 	addr := getAddressForUsername(input)
 	if !addr.IsValid() {
 		panic("invalid address or username: " + input)
 	}
 	var out string
 	grc20reg.GetRegistry().Iterate("", "", func(key string, value interface{}) bool {
-		tokenGetter := value.(grc20.TokenGetter)
-		token := tokenGetter()
+
+		token := value.(*grc20.Token)
 		balance := token.BalanceOf(addr)
 		if !nonZero || balance > 0 {
 			out += ufmt.Sprintf("Token:%s:%d,", key, balance)
@@ -202,8 +197,8 @@ func getMultiTokenBalances(input string, nonZero bool) string {
 }
 
 // getAddressForUsername returns an address for a given username or address
-func getAddressForUsername(addrOrName string) chain.Address {
-	addr := chain.Address(addrOrName)
+func getAddressForUsername(addrOrName string) std.Address {
+	addr := std.Address(addrOrName)
 	if addr.IsValid() {
 		return addr
 	}

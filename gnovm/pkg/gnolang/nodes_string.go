@@ -66,6 +66,9 @@ func (w Word) TokenString() string {
 
 func (vp ValuePath) String() string {
 	switch vp.Type {
+	case VPInvalid:
+		// index doesn't matter but useful for debugging.
+		return fmt.Sprintf("VPInvalid(%d)", vp.Index)
 	case VPUverse:
 		return fmt.Sprintf("VPUverse(%d)", vp.Index)
 	case VPBlock:
@@ -134,8 +137,6 @@ func (x IndexExpr) String() string {
 }
 
 func (x SelectorExpr) String() string {
-	// NOTE: for debugging selector issues:
-	// return fmt.Sprintf("%s.(%v).%s", n.X, n.Path.Type, n.Sel)
 	return fmt.Sprintf("%s.%s", x.X, x.Sel)
 }
 
@@ -182,26 +183,30 @@ func (x CompositeLitExpr) String() string {
 	return fmt.Sprintf("%s{%s}", x.Type.String(), x.Elts.String())
 }
 
-func (x FuncLitExpr) String() string {
+func (fle FuncLitExpr) String() string {
 	heapCaptures := ""
-	if len(x.HeapCaptures) > 0 {
-		heapCaptures = "<" + x.HeapCaptures.String() + ">"
+	if len(fle.HeapCaptures) > 0 {
+		heapCaptures = "<" + fle.HeapCaptures.String() + ">"
 	}
-	return fmt.Sprintf("func %s{ %s }%s", x.Type, x.Body.String(), heapCaptures)
+	return fmt.Sprintf("func %s{ %s }%s", fle.Type, fle.Body.String(), heapCaptures)
 }
 
 func (x KeyValueExpr) String() string {
 	if x.Key == nil {
-		return fmt.Sprintf("%s", x.Value)
+		return x.Value.String()
 	}
 	return fmt.Sprintf("%s: %s", x.Key, x.Value)
 }
 
 func (x FieldTypeExpr) String() string {
-	if x.Tag == nil {
-		return fmt.Sprintf("%s %s", x.Name, x.Type)
+	hd := ""
+	if x.NameExpr.Type == NameExprTypeHeapDefine {
+		hd = "~"
 	}
-	return fmt.Sprintf("%s %s %s", x.Name, x.Type, x.Tag)
+	if x.Tag == nil {
+		return fmt.Sprintf("%s%s %s", x.Name, hd, x.Type)
+	}
+	return fmt.Sprintf("%s%s %s %s", x.Name, hd, x.Type, x.Tag)
 }
 
 func (x ArrayTypeExpr) String() string {
@@ -267,9 +272,9 @@ func (x BranchStmt) String() string {
 	if x.Label == "" {
 		return x.Op.TokenString()
 	}
-	return fmt.Sprintf("%s %s<%d,%d>",
+	return fmt.Sprintf("%s %s<%d,%d,%d>",
 		x.Op.TokenString(), string(x.Label),
-		x.Depth, x.BodyIndex)
+		x.BlockDepth, x.FrameDepth, x.BodyIndex)
 }
 
 func (x DeclStmt) String() string {
@@ -316,14 +321,14 @@ func (x IfStmt) String() string {
 	then := x.Then.String()
 	els_ := x.Else.String()
 	if x.Else.Body == nil {
-		return fmt.Sprintf("if %s%s { %s }", init, cond, then)
+		return fmt.Sprintf("if %s%s %s", init, cond, then)
 	}
-	return fmt.Sprintf("if %s%s { %s } else { %s }",
+	return fmt.Sprintf("if %s%s %s else %s",
 		init, cond, then, els_)
 }
 
 func (x IfCaseStmt) String() string {
-	return x.Body.String()
+	return "{ " + x.Body.String() + " }"
 }
 
 func (x IncDecStmt) String() string {
@@ -357,13 +362,9 @@ func (x RangeStmt) String() string {
 
 func (x ReturnStmt) String() string {
 	if len(x.Results) == 0 {
-		return fmt.Sprintf("return")
+		return "return"
 	}
 	return fmt.Sprintf("return %v", x.Results)
-}
-
-func (x PanicStmt) String() string {
-	return fmt.Sprintf("panic(%s)", x.Exception.String())
 }
 
 func (x SelectStmt) String() string {
@@ -459,12 +460,12 @@ func (x FileNode) String() string {
 	return fmt.Sprintf("file{ package %s; %s }", x.PkgName, x.Decls.String())
 }
 
-func (x PackageNode) String() string {
-	return fmt.Sprintf("package(%s)", x.PkgName)
+func (pn PackageNode) String() string {
+	return fmt.Sprintf("package(%s %s)", pn.PkgName, pn.PkgPath)
 }
 
-func (rn RefNode) String() string {
-	return fmt.Sprintf("ref(%s)", rn.Location.String())
+func (ref RefNode) String() string {
+	return fmt.Sprintf("ref(%s)", ref.Location.String())
 }
 
 // ----------------------------------------
@@ -507,9 +508,9 @@ func (ftxz FieldTypeExprs) String() string {
 	return str
 }
 
-func (kvs KeyValueExprs) String() string {
+func (kvxs KeyValueExprs) String() string {
 	str := ""
-	for i, x := range kvs {
+	for i, x := range kvxs {
 		if i == 0 {
 			str += x.String()
 		} else {
@@ -544,12 +545,16 @@ func (ds Decls) String() string {
 }
 
 func (x ConstExpr) String() string {
-	return fmt.Sprintf("(const %s)", x.TypedValue.String())
+	if x.TypedValue.HasKind(TypeKind) {
+		return x.TypedValue.V.String()
+	} else {
+		return fmt.Sprintf("(const %s)", x.TypedValue.String())
+	}
 }
 
 func (x constTypeExpr) String() string {
 	if x.Type == nil { // type switch case
-		return fmt.Sprintf("(const-type nil)")
+		return "(const-type nil)"
 	}
 	return fmt.Sprintf("(const-type %s)", x.Type.String())
 }

@@ -1,16 +1,15 @@
 package foo721
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/ufmt"
 )
 
 var (
-	admin chain.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
-	foo                 = grc721.NewBasicNFT("FooNFT", "FNFT")
+	admin std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
+	foo               = grc721.NewBasicNFT("FooNFT", "FNFT")
 )
 
 func init() {
@@ -18,7 +17,7 @@ func init() {
 	mintNNFT("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm", 5) // @hariom (5)
 }
 
-func mintNNFT(owner chain.Address, n uint64) {
+func mintNNFT(owner std.Address, n int64) {
 	count := foo.TokenCount()
 	for i := count; i < count+n; i++ {
 		tid := grc721.TokenID(ufmt.Sprintf("%d", i))
@@ -28,7 +27,7 @@ func mintNNFT(owner chain.Address, n uint64) {
 
 // Getters
 
-func BalanceOf(user chain.Address) uint64 {
+func BalanceOf(user std.Address) int64 {
 	balance, err := foo.BalanceOf(user)
 	if err != nil {
 		panic(err)
@@ -37,7 +36,7 @@ func BalanceOf(user chain.Address) uint64 {
 	return balance
 }
 
-func OwnerOf(tid grc721.TokenID) chain.Address {
+func OwnerOf(tid grc721.TokenID) std.Address {
 	owner, err := foo.OwnerOf(tid)
 	if err != nil {
 		panic(err)
@@ -46,11 +45,11 @@ func OwnerOf(tid grc721.TokenID) chain.Address {
 	return owner
 }
 
-func IsApprovedForAll(owner, user chain.Address) bool {
+func IsApprovedForAll(owner, user std.Address) bool {
 	return foo.IsApprovedForAll(owner, user)
 }
 
-func GetApproved(tid grc721.TokenID) chain.Address {
+func GetApproved(tid grc721.TokenID) std.Address {
 	addr, err := foo.GetApproved(tid)
 	if err != nil {
 		panic(err)
@@ -61,21 +60,21 @@ func GetApproved(tid grc721.TokenID) chain.Address {
 
 // Setters
 
-func Approve(user chain.Address, tid grc721.TokenID) {
+func Approve(_ realm, user std.Address, tid grc721.TokenID) {
 	err := foo.Approve(user, tid)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func SetApprovalForAll(user chain.Address, approved bool) {
+func SetApprovalForAll(_ realm, user std.Address, approved bool) {
 	err := foo.SetApprovalForAll(user, approved)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func TransferFrom(from, to chain.Address, tid grc721.TokenID) {
+func TransferFrom(_ realm, from, to std.Address, tid grc721.TokenID) {
 	err := foo.TransferFrom(from, to, tid)
 	if err != nil {
 		panic(err)
@@ -84,8 +83,8 @@ func TransferFrom(from, to chain.Address, tid grc721.TokenID) {
 
 // Admin
 
-func Mint(to chain.Address, tid grc721.TokenID) {
-	caller := runtime.PreviousRealm().Address()
+func Mint(_ realm, to std.Address, tid grc721.TokenID) {
+	caller := std.PreviousRealm().Address()
 	assertIsAdmin(caller)
 	err := foo.Mint(to, tid)
 	if err != nil {
@@ -93,8 +92,8 @@ func Mint(to chain.Address, tid grc721.TokenID) {
 	}
 }
 
-func Burn(tid grc721.TokenID) {
-	caller := runtime.PreviousRealm().Address()
+func Burn(_ realm, tid grc721.TokenID) {
+	caller := std.PreviousRealm().Address()
 	assertIsAdmin(caller)
 	err := foo.Burn(tid)
 	if err != nil {
@@ -115,8 +114,8 @@ func Render(path string) string {
 
 // Util
 
-func assertIsAdmin(address chain.Address) {
-	if address != admin {
+func assertIsAdmin(address_XXX std.Address) {
+	if address_XXX != admin {
 		panic("restricted access")
 	}
 }

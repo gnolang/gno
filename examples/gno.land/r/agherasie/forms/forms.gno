@@ -1,22 +1,22 @@
 package forms
 
 import (
-	"chain"
+	"std"
 
 	"gno.land/p/agherasie/forms"
 	"gno.land/p/demo/json"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 )
 
 var db *forms.FormDB
 
 func init() {
-	hof.Register("Ahgerasle's forms", "")
+	hor.Register(cross, "Ahgerasle's forms", "")
 	db = forms.NewDB()
 }
 
-func CreateForm(title string, description string, openAt string, closeAt string, data string) string {
+func CreateForm(_ realm, title string, description string, openAt string, closeAt string, data string) string {
 	id, err := db.CreateForm(title, description, openAt, closeAt, data)
 	if err != nil {
 		panic(err)
@@ -82,7 +82,7 @@ func GetAnswer(formID string, authorID string) string {
 		panic(err)
 	}
 
-	answer, err := db.GetAnswer(formID, chain.Address(authorID))
+	answer, err := db.GetAnswer(formID, std.Address(authorID))
 	if answer != nil {
 		panic(err)
 	}
@@ -90,7 +90,7 @@ func GetAnswer(formID string, authorID string) string {
 	return answer.Answers
 }
 
-func SubmitForm(formID string, answers string) {
+func SubmitForm(_ realm, formID string, answers string) {
 	_, err := db.GetForm(formID)
 	if err != nil {
 		panic(err)
@@ -99,7 +99,7 @@ func SubmitForm(formID string, answers string) {
 	db.SubmitForm(formID, answers)
 }
 
-func Render(path string) string {
+func Render(_ string) string {
 	if len(db.Forms) == 0 {
 		response := "No forms yet !"
 		return response

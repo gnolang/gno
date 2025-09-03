@@ -12,4 +12,7 @@ func main() {
 }
 
 // Error:
-// main/files/const30.gno:10:8: v<VPBlock(3,0)> (no value) used as value
+// main/const30.gno:10:8-15: v<VPBlock(3,0)> (no value) used as value
+
+// TypeCheckError:
+// main/const30.gno:10:12: v() (no value) used as value

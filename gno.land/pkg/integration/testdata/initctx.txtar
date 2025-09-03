@@ -1,30 +1,27 @@
+# XXX: Frame not found - PrevRealm in init()
+
 loadpkg gno.land/r/foobar/bar $WORK/bar
 
 ## start a new node
 gnoland start
 
 # execute Render
-gnokey maketx call -pkgpath gno.land/r/foobar/bar -func Render -args X -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-stdout OK!
-stdout '(" orig=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 prev=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" string)'
-stdout 'OK!'
+gnokey query vm/qrender --data='gno.land/r/foobar/bar:X'
+stdout ' orig=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 prev=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
 
 -- bar/bar.gno --
 package bar
 
-import (
-	"chain"
-	"chain/runtime"
-)
+import "std"
 
-var orig = chain.Address("orig")
-var prev = chain.Address("prev")
+var orig = std.Address("orig")
+var prev = std.Address("prev")
 
 func init() {
-    orig = runtime.OriginCaller()
-    prev = runtime.PreviousRealm().Address()
+	orig = std.OriginCaller()
+	prev = std.PreviousRealm().Address()
 }
 
 func Render(addr string) string {
- 	return " orig="+orig.String()+" prev="+prev.String()
+	return " orig=" + orig.String() + " prev=" + prev.String()
 }

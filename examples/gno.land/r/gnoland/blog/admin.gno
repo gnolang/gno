@@ -1,8 +1,8 @@
 package gnoblog
 
 import (
-	"chain"
-	"chain/runtime"
+	"errors"
+	"std"
 	"strings"
 
 	"gno.land/p/demo/avl"
@@ -11,41 +11,42 @@ import (
 )
 
 var (
-	adminAddr     chain.Address
-	moderatorList avl.Tree
-	commenterList avl.Tree
+	errNotAdmin     = errors.New("access restricted: not admin")
+	errNotModerator = errors.New("access restricted: not moderator")
+	errNotCommenter = errors.New("access restricted: not commenter")
+)
+
+var (
+	adminAddr     = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // FIXME: find a way to use this from the main's genesis.
+	moderatorList = avl.NewTree()
+	commenterList = avl.NewTree()
 	inPause       bool
 )
 
-func init() {
-	// adminAddr = std.OriginCaller() // FIXME: find a way to use this from the main's genesis.
-	adminAddr = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
-}
-
-func AdminSetAdminAddr(addr chain.Address) {
+func AdminSetAdminAddr(_ realm, addr std.Address) {
 	assertIsAdmin()
 	adminAddr = addr
 }
 
-func AdminSetInPause(state bool) {
+func AdminSetInPause(_ realm, state bool) {
 	assertIsAdmin()
 	inPause = state
 }
 
-func AdminAddModerator(addr chain.Address) {
+func AdminAddModerator(_ realm, addr std.Address) {
 	assertIsAdmin()
 	moderatorList.Set(addr.String(), true)
 }
 
-func AdminRemoveModerator(addr chain.Address) {
+func AdminRemoveModerator(_ realm, addr std.Address) {
 	assertIsAdmin()
 	moderatorList.Set(addr.String(), false) // FIXME: delete instead?
 }
 
-func NewPostProposalRequest(slug, title, body, publicationDate, authors, tags string) dao.ProposalRequest {
-	caller := runtime.PreviousRealm().Address()
+func NewPostProposalRequest(_ realm, slug, title, body, publicationDate, authors, tags string) dao.ProposalRequest {
+	caller := std.PreviousRealm().Address()
 	e := dao.NewSimpleExecutor(
-		func() error {
+		func(realm) error {
 			addPost(caller, slug, title, body, publicationDate, authors, tags)
 
 			return nil
@@ -60,13 +61,13 @@ func NewPostProposalRequest(slug, title, body, publicationDate, authors, tags st
 	)
 }
 
-func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
+func ModAddPost(_ realm, slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
-	caller := runtime.OriginCaller()
+	caller := std.OriginCaller()
 	addPost(caller, slug, title, body, publicationDate, authors, tags)
 }
 
-func addPost(caller chain.Address, slug, title, body, publicationDate, authors, tags string) {
+func addPost(caller std.Address, slug, title, body, publicationDate, authors, tags string) {
 	var tagList []string
 	if tags != "" {
 		tagList = strings.Split(tags, ",")
@@ -81,9 +82,8 @@ func addPost(caller chain.Address, slug, title, body, publicationDate, authors, 
 	checkErr(err)
 }
 
-func ModEditPost(slug, title, body, publicationDate, authors, tags string) {
+func ModEditPost(_ realm, slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
-
 	tagList := strings.Split(tags, ",")
 	authorList := strings.Split(authors, ",")
 
@@ -91,64 +91,62 @@ func ModEditPost(slug, title, body, publicationDate, authors, tags string) {
 	checkErr(err)
 }
 
-func ModRemovePost(slug string) {
+func ModRemovePost(_ realm, slug string) {
 	assertIsModerator()
-
 	b.RemovePost(slug)
 }
 
-func ModAddCommenter(addr chain.Address) {
+func ModAddCommenter(_ realm, addr std.Address) {
 	assertIsModerator()
 	commenterList.Set(addr.String(), true)
 }
 
-func ModDelCommenter(addr chain.Address) {
+func ModDelCommenter(_ realm, addr std.Address) {
 	assertIsModerator()
 	commenterList.Set(addr.String(), false) // FIXME: delete instead?
 }
 
-func ModDelComment(slug string, index int) {
+func ModDelComment(_ realm, slug string, index int) {
 	assertIsModerator()
-
 	err := b.GetPost(slug).DeleteComment(index)
 	checkErr(err)
 }
 
-func isAdmin(addr chain.Address) bool {
+func isAdmin(addr std.Address) bool {
 	return addr == adminAddr
 }
 
-func isModerator(addr chain.Address) bool {
+func isModerator(addr std.Address) bool {
 	_, found := moderatorList.Get(addr.String())
 	return found
 }
 
-func isCommenter(addr chain.Address) bool {
+func isCommenter(addr std.Address) bool {
 	_, found := commenterList.Get(addr.String())
 	return found
 }
 
 func assertIsAdmin() {
-	caller := runtime.OriginCaller()
+	caller := std.OriginCaller()
 	if !isAdmin(caller) {
-		panic("access restricted.")
+		panic(errNotAdmin.Error())
 	}
 }
 
 func assertIsModerator() {
-	caller := runtime.OriginCaller()
+	caller := std.OriginCaller()
 	if isAdmin(caller) || isModerator(caller) {
 		return
 	}
-	panic("access restricted")
+	panic(errNotModerator.Error())
 }
 
 func assertIsCommenter() {
-	caller := runtime.OriginCaller()
+	caller := std.OriginCaller()
 	if isAdmin(caller) || isModerator(caller) || isCommenter(caller) {
 		return
 	}
-	panic("access restricted")
+	panic(errNotCommenter.Error())
 }
 
 func assertNotInPause() {

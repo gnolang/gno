@@ -3,9 +3,7 @@ package main
 // SEND: 1000000ugnot
 
 import (
-	"chain"
-	"chain/banker"
-	"chain/runtime"
+	"std"
 	"strconv"
 	"testing"
 
@@ -14,20 +12,20 @@ import (
 	users "gno.land/r/gnoland/users/v1"
 )
 
-const admin = chain.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+const admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(chain.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
-	users.Register("gnouser123")
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	users.Register(cross, "gnouser123")
 	// create board via registered user
-	bid := boards.CreateBoard("test_board")
+	bid := boards.CreateBoard(cross, "test_board")
 
 	// create post via anon user
 	test2 := testutils.TestAddress("test2")
 	testing.SetOriginCaller(test2)
-	testing.SetOriginSend(banker.Coins{{"ugnot", 9000000}})
+	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}})
 
-	pid := boards.CreateThread(bid, "First Post (title)", "Body of the first post. (body)")
+	pid := boards.CreateThread(cross, bid, "First Post (title)", "Body of the first post. (body)")
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 }
 

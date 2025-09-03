@@ -1,12 +1,12 @@
 package grc777
 
 import (
-	"chain"
+	"std"
 
 	"gno.land/p/demo/grc/exts"
 )
 
-// TODO: use big.Int or a custom uint64 instead of uint64
+// TODO: use big.Int or a custom int64 instead of int64
 
 type IGRC777 interface {
 	exts.TokenMetadata
@@ -16,13 +16,13 @@ type IGRC777 interface {
 	// have amounts that are a multiple of this number.
 	//
 	// For most token contracts, this value will equal 1.
-	Granularity() (granularity uint64)
+	Granularity() (granularity int64)
 
 	// Returns the amount of tokens in existence.
-	TotalSupply() (supply uint64)
+	TotalSupply() (supply int64)
 
 	// Returns the amount of tokens owned by an account (`owner`).
-	BalanceOf(address chain.Address) uint64
+	BalanceOf(address_XXX std.Address) int64
 
 	// Moves `amount` tokens from the caller's account to `recipient`.
 	//
@@ -38,7 +38,7 @@ type IGRC777 interface {
 	// - `recipient` cannot be the zero address.
 	// - if `recipient` is a contract, it must implement the {IERC777Recipient}
 	// interface.
-	Send(recipient chain.Address, amount uint64, data []byte)
+	Send(recipient std.Address, amount int64, data []byte)
 
 	// Destroys `amount` tokens from the caller's account, reducing the
 	// total supply.
@@ -51,14 +51,14 @@ type IGRC777 interface {
 	// Requirements
 	//
 	// - the caller must have at least `amount` tokens.
-	Burn(amount uint64, data []byte)
+	Burn(amount int64, data []byte)
 
 	// Returns true if an account is an operator of `tokenHolder`.
 	// Operators can send and burn tokens on behalf of their owners. All
 	// accounts are their own operator.
 	//
 	// See {operatorSend} and {operatorBurn}.
-	IsOperatorFor(operator, tokenHolder chain.Address) bool
+	IsOperatorFor(operator, tokenHolder std.Address) bool
 
 	// Make an account an operator of the caller.
 	//
@@ -69,7 +69,7 @@ type IGRC777 interface {
 	// Requirements
 	//
 	// - `operator` cannot be calling address.
-	AuthorizeOperator(operator chain.Address)
+	AuthorizeOperator(operator std.Address)
 
 	// Revoke an account's operator status for the caller.
 	//
@@ -80,7 +80,7 @@ type IGRC777 interface {
 	// Requirements
 	//
 	// - `operator` cannot be calling address.
-	RevokeOperator(operators chain.Address)
+	RevokeOperator(operators std.Address)
 
 	// Returns the list of default operators. These accounts are operators
 	// for all token holders, even if {authorizeOperator} was never called on
@@ -88,7 +88,7 @@ type IGRC777 interface {
 	//
 	// This list is immutable, but individual holders may revoke these via
 	// {revokeOperator}, in which case {isOperatorFor} will return false.
-	DefaultOperators() []chain.Address
+	DefaultOperators() []std.Address
 
 	// Moves `amount` tokens from `sender` to `recipient`. The caller must
 	// be an operator of `sender`.
@@ -107,7 +107,7 @@ type IGRC777 interface {
 	// - `recipient` cannot be the zero address.
 	// - if `recipient` is a contract, it must implement the {IERC777Recipient}
 	// interface.
-	OperatorSend(sender, recipient chain.Address, amount uint64, data, operatorData []byte)
+	OperatorSend(sender, recipient std.Address, amount int64, data, operatorData []byte)
 
 	// Destroys `amount` tokens from `account`, reducing the total supply.
 	// The caller must be an operator of `account`.
@@ -122,16 +122,16 @@ type IGRC777 interface {
 	// - `account` cannot be the zero address.
 	// - `account` must have at least `amount` tokens.
 	// - the caller must be an operator for `account`.
-	OperatorBurn(account chain.Address, amount uint64, data, operatorData []byte)
+	OperatorBurn(account std.Address, amount int64, data, operatorData []byte)
 }
 
 // Emitted when `amount` tokens are created by `operator` and assigned to `to`.
 //
 // Note that some additional user `data` and `operatorData` can be logged in the event.
 type MintedEvent struct {
-	Operator     chain.Address
-	To           chain.Address
-	Amount       uint64
+	Operator     std.Address
+	To           std.Address
+	Amount       int64
 	Data         []byte
 	OperatorData []byte
 }
@@ -140,30 +140,30 @@ type MintedEvent struct {
 //
 // Note that some additional user `data` and `operatorData` can be logged in the event.
 type BurnedEvent struct {
-	Operator     chain.Address
-	From         chain.Address
-	Amount       uint64
+	Operator     std.Address
+	From         std.Address
+	Amount       int64
 	Data         []byte
 	OperatorData []byte
 }
 
 // Emitted when `operator` is made operator for `tokenHolder`
 type AuthorizedOperatorEvent struct {
-	Operator    chain.Address
-	TokenHolder chain.Address
+	Operator    std.Address
+	TokenHolder std.Address
 }
 
 // Emitted when `operator` is revoked its operator status for `tokenHolder`.
 type RevokedOperatorEvent struct {
-	Operator    chain.Address
-	TokenHolder chain.Address
+	Operator    std.Address
+	TokenHolder std.Address
 }
 
 type SentEvent struct {
-	Operator     chain.Address
-	From         chain.Address
-	To           chain.Address
-	Amount       uint64
+	Operator     std.Address
+	From         std.Address
+	To           std.Address
+	Amount       int64
 	Data         []byte
 	OperatorData []byte
 }

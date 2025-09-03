@@ -2,22 +2,36 @@
 package groups
 
 import (
-	"chain/runtime"
+	"std"
 	"testing"
 )
 
-func main() {
-	PrintRealm()
-	println(pad("CurrentRealm:"), runtime.CurrentRealm())
-	println(pad("PreviousRealm:"), runtime.PreviousRealm())
-	testing.SetRealm(runtime.NewUserRealm("g1user"))
-	PrintRealm()
-	println(pad("CurrentRealm:"), runtime.CurrentRealm())
-	println(pad("PreviousRealm:"), runtime.PreviousRealm())
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/sys/users"))
-	PrintRealm()
-	println(pad("CurrentRealm:"), runtime.CurrentRealm())
-	println(pad("PreviousRealm:"), runtime.PreviousRealm())
+func main(cur realm) {
+	println("From main:")
+	PrintRealm(cur)
+	PrintRealm(cross)
+	println(pad("CurrentRealm:"), std.CurrentRealm())
+	println(pad("PreviousRealm:"), std.PreviousRealm())
+	println("")
+
+	println("From g1user origin:")
+	testing.SetRealm(std.NewUserRealm("g1user"))
+	PrintRealm(cross)
+	println(pad("CurrentRealm:"), std.CurrentRealm())
+	func() {
+		defer func() {
+			r := recover()
+			println(pad("PreviousRealm:"), r)
+		}()
+		println(pad("PreviousRealm:"), std.PreviousRealm())
+	}()
+	println("")
+
+	println("From gno.land/r/sys/users realm:")
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
+	PrintRealm(cross)
+	println(pad("CurrentRealm:"), std.CurrentRealm())
+	println(pad("PreviousRealm:"), std.PreviousRealm())
 }
 
 func pad(s string) string {
@@ -27,21 +41,28 @@ func pad(s string) string {
 	return s
 }
 
-func PrintRealm() {
-	println(pad("PrintRealm: CurrentRealm:"), runtime.CurrentRealm())
-	println(pad("PrintRealm: PreviousRealm:"), runtime.PreviousRealm())
+func PrintRealm(cur realm) {
+	println(pad("PrintRealm: CurrentRealm:"), std.CurrentRealm())
+	println(pad("PrintRealm: PreviousRealm:"), std.PreviousRealm())
 }
 
 // Output:
-// PrintRealm: CurrentRealm:  (struct{("g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02" chain.Address),("gno.land/r/demo/groups" string)} chain/runtime.Realm)
-// PrintRealm: PreviousRealm: (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" chain.Address),("" string)} chain/runtime.Realm)
-// CurrentRealm:              (struct{("g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02" chain.Address),("gno.land/r/demo/groups" string)} chain/runtime.Realm)
-// PreviousRealm:             (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" chain.Address),("" string)} chain/runtime.Realm)
-// PrintRealm: CurrentRealm:  (struct{("g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02" chain.Address),("gno.land/r/demo/groups" string)} chain/runtime.Realm)
-// PrintRealm: PreviousRealm: (struct{("g1user" chain.Address),("" string)} chain/runtime.Realm)
-// CurrentRealm:              (struct{("g1user" chain.Address),("" string)} chain/runtime.Realm)
-// PreviousRealm:             (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" chain.Address),("" string)} chain/runtime.Realm)
-// PrintRealm: CurrentRealm:  (struct{("g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02" chain.Address),("gno.land/r/demo/groups" string)} chain/runtime.Realm)
-// PrintRealm: PreviousRealm: (struct{("g1njxh4leja7h52ea0lnq9crx3j6782g77nc7yd4" chain.Address),("gno.land/r/sys/users" string)} chain/runtime.Realm)
-// CurrentRealm:              (struct{("g1njxh4leja7h52ea0lnq9crx3j6782g77nc7yd4" chain.Address),("gno.land/r/sys/users" string)} chain/runtime.Realm)
-// PreviousRealm:             (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" chain.Address),("" string)} chain/runtime.Realm)
+// From main:
+// PrintRealm: CurrentRealm:  CodeRealm{ g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02, gno.land/r/demo/groups }
+// PrintRealm: PreviousRealm: UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
+// PrintRealm: CurrentRealm:  CodeRealm{ g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02, gno.land/r/demo/groups }
+// PrintRealm: PreviousRealm: CodeRealm{ g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02, gno.land/r/demo/groups }
+// CurrentRealm:              CodeRealm{ g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02, gno.land/r/demo/groups }
+// PreviousRealm:             UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
+//
+// From g1user origin:
+// PrintRealm: CurrentRealm:  CodeRealm{ g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02, gno.land/r/demo/groups }
+// PrintRealm: PreviousRealm: UserRealm{ g1user }
+// CurrentRealm:              UserRealm{ g1user }
+// PreviousRealm:             frame not found: cannot seek beyond origin caller override
+//
+// From gno.land/r/sys/users realm:
+// PrintRealm: CurrentRealm:  CodeRealm{ g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02, gno.land/r/demo/groups }
+// PrintRealm: PreviousRealm: CodeRealm{ g1njxh4leja7h52ea0lnq9crx3j6782g77nc7yd4, gno.land/r/sys/users }
+// CurrentRealm:              CodeRealm{ g1njxh4leja7h52ea0lnq9crx3j6782g77nc7yd4, gno.land/r/sys/users }
+// PreviousRealm:             CodeRealm{ g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02, gno.land/r/demo/groups }

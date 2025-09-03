@@ -1,17 +1,17 @@
 package grc721
 
-import "chain"
+import "std"
 
 type IGRC721 interface {
-	BalanceOf(owner chain.Address) (uint64, error)
-	OwnerOf(tid TokenID) (chain.Address, error)
+	BalanceOf(owner std.Address) (int64, error)
+	OwnerOf(tid TokenID) (std.Address, error)
 	SetTokenURI(tid TokenID, tURI TokenURI) (bool, error)
-	SafeTransferFrom(from, to chain.Address, tid TokenID) error
-	TransferFrom(from, to chain.Address, tid TokenID) error
-	Approve(approved chain.Address, tid TokenID) error
-	SetApprovalForAll(operator chain.Address, approved bool) error
-	GetApproved(tid TokenID) (chain.Address, error)
-	IsApprovedForAll(owner, operator chain.Address) bool
+	SafeTransferFrom(from, to std.Address, tid TokenID) error
+	TransferFrom(from, to std.Address, tid TokenID) error
+	Approve(approved std.Address, tid TokenID) error
+	SetApprovalForAll(operator std.Address, approved bool) error
+	GetApproved(tid TokenID) (std.Address, error)
+	IsApprovedForAll(owner, operator std.Address) bool
 }
 
 type (

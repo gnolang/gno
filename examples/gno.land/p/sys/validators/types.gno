@@ -1,8 +1,8 @@
 package validators
 
 import (
-	"chain"
 	"errors"
+	"std"
 )
 
 // ValsetProtocol defines the validator set protocol (PoA / PoS / PoC / ?)
@@ -13,18 +13,18 @@ type ValsetProtocol interface {
 	// TODO: This API is not ideal -- the address should be derived from
 	// the public key, and not be passed in as such, but currently Gno
 	// does not support crypto address derivation
-	AddValidator(address chain.Address, pubKey string, power uint64) (Validator, error)
+	AddValidator(address_XXX std.Address, pubKey string, power uint64) (Validator, error)
 
 	// RemoveValidator removes the given validator from the set.
 	// If the validator is not present in the set, the method should error out
-	RemoveValidator(address chain.Address) (Validator, error)
+	RemoveValidator(address_XXX std.Address) (Validator, error)
 
 	// IsValidator returns a flag indicating if the given
 	// bech32 address is part of the validator set
-	IsValidator(address chain.Address) bool
+	IsValidator(address_XXX std.Address) bool
 
 	// GetValidator returns the validator using the given address
-	GetValidator(address chain.Address) (Validator, error)
+	GetValidator(address_XXX std.Address) (Validator, error)
 
 	// GetValidators returns the currently active validator set
 	GetValidators() []Validator
@@ -32,8 +32,8 @@ type ValsetProtocol interface {
 
 // Validator represents a single chain validator
 type Validator struct {
-	Address     chain.Address // bech32 address
-	PubKey      string        // bech32 representation of the public key
+	Address     std.Address // bech32 address
+	PubKey      string      // bech32 representation of the public key
 	VotingPower uint64
 }
 

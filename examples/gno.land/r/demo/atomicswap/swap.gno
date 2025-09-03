@@ -1,10 +1,9 @@
 package atomicswap
 
 import (
-	"chain"
-	"chain/runtime"
 	"crypto/sha256"
 	"encoding/hex"
+	"std"
 	"time"
 
 	"gno.land/p/demo/ufmt"
@@ -12,23 +11,23 @@ import (
 
 // Swap represents an atomic swap contract.
 type Swap struct {
-	sender    chain.Address
-	recipient chain.Address
+	sender    std.Address
+	recipient std.Address
 	hashlock  string
 	timelock  time.Time
 	claimed   bool
 	refunded  bool
 	amountStr string
-	sendFn    func(to chain.Address)
+	sendFn    func(cur realm, to std.Address)
 }
 
 func newSwap(
-	sender chain.Address,
-	recipient chain.Address,
+	sender std.Address,
+	recipient std.Address,
 	hashlock string,
 	timelock time.Time,
 	amountStr string,
-	sendFn func(chain.Address),
+	sendFn func(realm, std.Address),
 ) *Swap {
 	require(time.Now().Before(timelock), "timelock must be in the future")
 	require(hashlock != "", "hashlock must not be empty")
@@ -48,25 +47,25 @@ func newSwap(
 func (s *Swap) Claim(preimage string) {
 	require(!s.claimed, "already claimed")
 	require(!s.refunded, "already refunded")
-	require(runtime.PreviousRealm().Address() == s.recipient, "unauthorized")
+	require(std.PreviousRealm().Address() == s.recipient, "unauthorized")
 
 	hashlock := sha256.Sum256([]byte(preimage))
 	hashlockHex := hex.EncodeToString(hashlock[:])
 	require(hashlockHex == s.hashlock, "invalid preimage")
 
 	s.claimed = true
-	s.sendFn(s.recipient)
+	s.sendFn(cross, s.recipient)
 }
 
 // Refund allows the sender to refund the funds after the timelock has expired.
 func (s *Swap) Refund() {
 	require(!s.claimed, "already claimed")
 	require(!s.refunded, "already refunded")
-	require(runtime.PreviousRealm().Address() == s.sender, "unauthorized")
+	require(std.PreviousRealm().Address() == s.sender, "unauthorized")
 	require(time.Now().After(s.timelock), "timelock not expired")
 
 	s.refunded = true
-	s.sendFn(s.sender)
+	s.sendFn(cross, s.sender)
 }
 
 func (s Swap) Status() string {

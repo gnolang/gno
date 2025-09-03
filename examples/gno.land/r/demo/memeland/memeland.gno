@@ -1,7 +1,7 @@
 package memeland
 
 import (
-	"chain"
+	"std"
 	"time"
 
 	"gno.land/p/demo/memeland"
@@ -14,11 +14,11 @@ func init() {
 	m.TransferOwnership("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
 }
 
-func PostMeme(data string, timestamp int64) string {
+func PostMeme(_ realm, data string, timestamp int64) string {
 	return m.PostMeme(data, timestamp)
 }
 
-func Upvote(id string) string {
+func Upvote(_ realm, id string) string {
 	return m.Upvote(id)
 }
 
@@ -26,15 +26,15 @@ func GetPostsInRange(startTimestamp, endTimestamp int64, page, pageSize int, sor
 	return m.GetPostsInRange(startTimestamp, endTimestamp, page, pageSize, sortBy)
 }
 
-func RemovePost(id string) string {
+func RemovePost(_ realm, id string) string {
 	return m.RemovePost(id)
 }
 
-func GetOwner() chain.Address {
+func GetOwner() std.Address {
 	return m.Owner()
 }
 
-func TransferOwnership(newOwner chain.Address) {
+func TransferOwnership(_ realm, newOwner std.Address) {
 	if err := m.TransferOwnership(newOwner); err != nil {
 		panic(err)
 	}

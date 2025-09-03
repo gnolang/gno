@@ -15,7 +15,7 @@ type TestExecContext struct {
 	stdlibs.ExecContext
 
 	// These are used to set up the result of CurrentRealm() and PreviousRealm().
-	RealmFrames map[*gno.Frame]RealmOverride
+	RealmFrames map[int]RealmOverride
 }
 
 var _ stdlibs.ExecContexter = &TestExecContext{}
@@ -28,6 +28,7 @@ type RealmOverride struct {
 func AssertOriginCall(m *gno.Machine) {
 	if !isOriginCall(m) {
 		m.Panic(typedString("invalid non-origin call"))
+		return
 	}
 }
 
@@ -62,65 +63,104 @@ func isOriginCall(m *gno.Machine) bool {
 	panic("unable to determine if test is a _test or a _filetest")
 }
 
-func X_callerAt(m *gno.Machine, n int) string {
-	if n <= 0 {
-		m.Panic(typedString("CallerAt requires positive arg"))
-		return ""
+func getOverride(m *gno.Machine, i int) (RealmOverride, bool) {
+	fr := &m.Frames[i]
+	ctx := m.Context.(*TestExecContext)
+	override, overridden := ctx.RealmFrames[i]
+	if overridden && !fr.TestOverridden {
+		return RealmOverride{}, false // override was replaced
 	}
-	// Add 1 to n to account for the CallerAt (gno fn) frame.
-	n++
-	if n > m.NumFrames()-1 {
-		// NOTE: the last frame's LastPackage
-		// is set to the original non-frame
-		// package, so need this check.
-		m.Panic(typedString("frame not found"))
-		return ""
-	}
-	if n == m.NumFrames()-1 {
-		// This makes it consistent with OriginCaller and testing.SetOriginCaller.
-		ctx := m.Context.(*TestExecContext)
-		return string(ctx.OriginCaller)
-	}
-	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
+	return override, overridden
 }
 
-func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
+func X_getRealm(m *gno.Machine, height int) (addr string, pkgPath string) {
 	// NOTE: keep in sync with stdlibs/std.getRealm
 
 	var (
-		ctx           = m.Context.(*TestExecContext)
-		currentCaller crypto.Bech32Address
-		// Keeps track of the number of times currentCaller
-		// has changed.
-		changes int
+		ctx     = m.Context.(*TestExecContext)
+		lfr     = m.LastFrame() // last call frame
+		crosses int             // track realm crosses
 	)
 
 	for i := m.NumFrames() - 1; i >= 0; i-- {
-		fr := m.Frames[i]
-		override, overridden := ctx.RealmFrames[m.Frames[max(i-1, 0)]]
-		if !overridden &&
-			(fr.LastPackage == nil || !fr.LastPackage.IsRealm()) {
-			continue
+		fr := &m.Frames[i]
+
+		// Skip over (non-realm) non-crosses.
+		override, overridden := getOverride(m, i)
+		if overridden {
+			if override.PkgPath == "" && crosses < height {
+				m.Panic(typedString("frame not found: cannot seek beyond origin caller override"))
+			}
+		}
+		if !overridden {
+			if !fr.IsCall() {
+				continue
+			}
+			if !fr.WithCross {
+				lfr = fr
+				continue
+			}
 		}
 
-		// LastPackage is a realm. Get caller and pkgPath, and compare against
-		// currentCaller.
-		caller, pkgPath := override.Addr, override.PkgPath
+		// Sanity check XXX move check elsewhere
 		if !overridden {
-			caller = fr.LastPackage.GetPkgAddr().Bech32()
-			pkgPath = fr.LastPackage.PkgPath
-		}
-		if caller != currentCaller {
-			if changes == height {
-				return string(caller), pkgPath
+			if !fr.DidCrossing {
+				panic(fmt.Sprintf(
+					"cross(fn) but fn didn't call crossing(): %s.%s",
+					fr.Func.PkgPath,
+					fr.Func.String()))
 			}
-			currentCaller = caller
-			changes++
 		}
+
+		crosses++
+		if crosses > height {
+			if overridden {
+				caller, pkgPath := override.Addr, override.PkgPath
+				return string(caller), pkgPath
+			} else {
+				currlm := lfr.LastRealm
+				caller, rlmPath := gno.DerivePkgBech32Addr(currlm.Path), currlm.Path
+				return string(caller), rlmPath
+			}
+		}
+		lfr = fr
 	}
 
-	// Fallback case: return OriginCaller.
-	return string(ctx.OriginCaller), ""
+	switch m.Stage {
+	case gno.StageAdd:
+		switch height {
+		case crosses:
+			fr := m.Frames[0]
+			path := fr.LastPackage.PkgPath
+			return string(gno.DerivePkgBech32Addr(path)), path
+		case crosses + 1:
+			return string(ctx.OriginCaller), ""
+		default:
+			m.Panic(typedString("frame not found"))
+			return "", ""
+		}
+	case gno.StageRun:
+		switch height {
+		case crosses:
+			fr := m.Frames[0]
+			path := fr.LastPackage.PkgPath
+			if path == "" {
+				// Not sure what would cause this.
+				panic("should not happen")
+			} else {
+				// e.g. TestFoo(t *testing.Test) in *_test.gno
+				// or main() in *_filetest.gno
+				return string(gno.DerivePkgBech32Addr(path)), path
+			}
+		case crosses + 1:
+			return string(ctx.OriginCaller), ""
+		default:
+			m.Panic(typedString("frame not found"))
+			return "", ""
+		}
+	default:
+		panic("exec kind unspecified")
+	}
 }
 
 func X_isRealm(m *gno.Machine, pkgPath string) bool {
@@ -157,7 +197,7 @@ func (tb *TestBanker) SendCoins(from, to crypto.Bech32Address, amt tm2std.Coins)
 	tb.CoinTable[from] = frest
 	// Second, add to 'to'.
 	// NOTE: even works when from==to, due to 2-step isolation.
-	tcoins, _ := tb.CoinTable[to]
+	tcoins := tb.CoinTable[to]
 	tsum := tcoins.Add(amt)
 	tb.CoinTable[to] = tsum
 }
@@ -169,14 +209,14 @@ func (tb *TestBanker) TotalCoin(denom string) int64 {
 
 // IssueCoin implements the Banker interface.
 func (tb *TestBanker) IssueCoin(addr crypto.Bech32Address, denom string, amt int64) {
-	coins, _ := tb.CoinTable[addr]
+	coins := tb.CoinTable[addr]
 	sum := coins.Add(tm2std.Coins{{Denom: denom, Amount: amt}})
 	tb.CoinTable[addr] = sum
 }
 
 // RemoveCoin implements the Banker interface.
 func (tb *TestBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amt int64) {
-	coins, _ := tb.CoinTable[addr]
+	coins := tb.CoinTable[addr]
 	rest := coins.Sub(tm2std.Coins{{Denom: denom, Amount: amt}})
 	tb.CoinTable[addr] = rest
 }

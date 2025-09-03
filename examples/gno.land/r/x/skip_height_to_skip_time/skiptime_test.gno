@@ -1,13 +1,13 @@
 package skiptime
 
 import (
-	"chain/runtime"
+	"std"
 	"testing"
 	"time"
 )
 
 func TestSkipHeights(t *testing.T) {
-	oldHeight := runtime.ChainHeight()
+	oldHeight := std.ChainHeight()
 	shouldEQ(t, oldHeight, 123)
 
 	oldNow := time.Now().Unix()
@@ -16,7 +16,7 @@ func TestSkipHeights(t *testing.T) {
 	// skip 3 blocks == 15 seconds
 	testing.SkipHeights(3)
 
-	shouldEQ(t, runtime.ChainHeight()-oldHeight, 3)
+	shouldEQ(t, std.ChainHeight()-oldHeight, 3)
 	shouldEQ(t, time.Now().Unix()-oldNow, 15)
 }
 

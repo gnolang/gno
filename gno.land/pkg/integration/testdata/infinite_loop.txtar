@@ -1,3 +1,5 @@
+# XXX(FIXME): fix qeval first
+
 # regression test for https://github.com/gnolang/gno/issues/3612
 # infinite loops should panic in all of simulate, query, render, maketx run and addpkg.
 
@@ -36,11 +38,11 @@ stderr 'out of gas.* location: CPUCycles'
 stderr 'out of gas.* location: CPUCycles'
 
 # call on the render function
-! gnokey maketx call -pkgpath gno.land/r/demo/r2 -func Render -args '' -simulate skip -gas-fee 100000ugnot -gas-wanted 1000000 -broadcast -chainid tendermint_test test1
+! gnokey query vm/qrender --data 'gno.land/r/demo/r2:'
 stderr 'out of gas.* location: CPUCycles'
 
 # simulated call on the render function
-! gnokey maketx call -pkgpath gno.land/r/demo/r2 -func Render -args '' -simulate only -gas-fee 100000ugnot -gas-wanted 1000000 -broadcast -chainid tendermint_test test1
+! gnokey query vm/qrender --data 'gno.land/r/demo/r2:'
 stderr 'out of gas.* location: CPUCycles'
 
 -- run.gno --
@@ -52,9 +54,9 @@ func main() {
 	println("hey")
 }
 
--- r1/gno.mod --
-module gno.land/r/demo/r1
-
+-- r1/gnomod.toml --
+module = "gno.land/r/demo/r1"
+gno = "0.9"
 
 -- r1/realm.gno --
 package f1
@@ -65,14 +67,14 @@ func init() {
 
 func main() {}
 
--- r2/gno.mod --
-module gno.land/r/demo/r2
-
-
+-- r2/gnomod.toml --
+module = "gno.land/r/demo/r2"
+gno = "0.9"
 -- r2/realm.gno --
 package r2
 
 func Render(s string) string {
 	for {}
+
 	return "hello world!"
 }

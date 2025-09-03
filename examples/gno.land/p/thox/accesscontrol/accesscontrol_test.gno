@@ -1,7 +1,7 @@
 package accesscontrol
 
 import (
-	"chain"
+	"std"
 	"testing"
 
 	"gno.land/p/demo/ownable"
@@ -18,7 +18,7 @@ var (
 	roleName = "TestRole"
 )
 
-func initSetup(admin chain.Address) *Roles {
+func initSetup(admin std.Address) *Roles {
 	return &Roles{
 		Roles:   []*Role{},
 		Ownable: ownable.NewWithAddress(admin),

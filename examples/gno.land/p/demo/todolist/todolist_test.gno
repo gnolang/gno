@@ -1,7 +1,7 @@
 package todolist
 
 import (
-	"chain/runtime"
+	"std"
 	"testing"
 
 	"gno.land/p/demo/uassert"
@@ -13,7 +13,7 @@ func TestNewTodoList(t *testing.T) {
 
 	uassert.Equal(t, title, todoList.GetTodolistTitle())
 	uassert.Equal(t, 0, len(todoList.GetTasks()))
-	uassert.Equal(t, runtime.OriginCaller().String(), todoList.GetTodolistOwner().String())
+	uassert.Equal(t, std.OriginCaller().String(), todoList.GetTodolistOwner().String())
 }
 
 func TestNewTask(t *testing.T) {

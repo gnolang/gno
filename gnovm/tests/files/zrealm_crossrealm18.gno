@@ -1,35 +1,54 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
-	"chain/runtime"
+	"std"
 
 	crossrealm "gno.land/r/demo/tests/crossrealm"
 )
 
 type fooer struct{}
 
-func (fooer) Foo() { println("hello " + runtime.CurrentRealm().PkgPath()) }
-
-var f crossrealm.Fooer = crossrealm.SetFooer(&fooer{})
-
-func init() {
-	crossrealm.CallFooerFoo()
+func (fooer) Foo(cur realm) {
+	println("hello " + std.CurrentRealm().PkgPath())
 }
 
-func main() {
-	crossrealm.CallFooerFoo()
+func (fooer) Bar() {
+	println("hello " + std.CurrentRealm().PkgPath())
+}
+
+var f crossrealm.Fooer = crossrealm.SetFooer(cross, &fooer{})
+
+func init(cur realm) {
+	println("init")
+	// crossrealm.CallFooerFooCur(cross) <-- should panic
+	crossrealm.CallFooerFooCross(cross)
+	crossrealm.CallFooerBar()
+	crossrealm.CallFooerBarCrossing(cross)
+}
+
+func main(cur realm) {
+	println("main")
+	// crossrealm.CallFooerFooCur(cross) <-- should panic
+	crossrealm.CallFooerFooCross(cross)
+	crossrealm.CallFooerBar()
+	crossrealm.CallFooerBarCrossing(cross)
 	print(".")
 }
 
 // Output:
-// hello gno.land/r/crossrealm_test
-// hello gno.land/r/crossrealm_test
+// init
+// hello gno.land/r/crossrealm
+// hello gno.land/r/crossrealm
+// hello gno.land/r/demo/tests/crossrealm
+// main
+// hello gno.land/r/crossrealm
+// hello gno.land/r/crossrealm
+// hello gno.land/r/demo/tests/crossrealm
 // .
 
-// Error:
-
 // Realm:
-// switchrealm["gno.land/r/crossrealm_test"]
-// switchrealm["gno.land/r/demo/tests/crossrealm"]
-// switchrealm["gno.land/r/crossrealm_test"]
+// finalizerealm["gno.land/r/crossrealm"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm"]
+// finalizerealm["gno.land/r/crossrealm"]

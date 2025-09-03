@@ -1,8 +1,7 @@
 package main
 
 import (
-	"chain"
-	"chain/banker"
+	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -11,23 +10,23 @@ import (
 
 // mints ugnot to current realm
 func init() {
-	facuetaddr := chain.DerivePkgAddr("gno.land/r/gnoland/faucet")
-	testing.IssueCoins(facuetaddr, banker.Coins{{"ugnot", 200000000}})
+	faucetaddr := std.DerivePkgAddr("gno.land/r/gnoland/faucet")
+	testing.IssueCoins(faucetaddr, std.Coins{{"ugnot", 200_000_000}})
 }
 
 // assert render with empty path and 2 controllers
 func main() {
 	var (
-		adminaddr       = chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+		adminaddr       = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 		controlleraddr1 = testutils.TestAddress("controller1")
 		controlleraddr2 = testutils.TestAddress("controller2")
 	)
-	testing.SetOriginCaller(adminaddr)
-	err := faucet.AdminAddController(controlleraddr1)
+	testing.SetRealm(std.NewUserRealm(adminaddr))
+	err := faucet.AdminAddController(cross, controlleraddr1)
 	if err != "" {
 		panic(err)
 	}
-	err = faucet.AdminAddController(controlleraddr2)
+	err = faucet.AdminAddController(cross, controlleraddr2)
 	if err != "" {
 		panic(err)
 	}
@@ -41,7 +40,7 @@ func main() {
 // Balance: 200000000ugnot.
 // Total transfers:  (in 0 times).
 //
-// Package address: g1ttrq7mp4zy6dssnmgyyktnn4hcj3ys8xhju0n7
+// Package address: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 //
 // Admin: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 //
@@ -50,5 +49,3 @@ func main() {
 //  g1vdhkuarjdakxcetjx9047h6lta047h6lsdacav  g1vdhkuarjdakxcetjxf047h6lta047h6lnrev3v
 //
 // Per request limit: 350000000ugnot
-//
-//

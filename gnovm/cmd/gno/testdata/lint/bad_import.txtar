@@ -1,6 +1,6 @@
-# testing gno tool lint command: bad import error
+# testing gno lint command: bad import error
 
-! gno tool lint ./bad_file.gno
+! gno lint ./bad_file.gno
 
 cmp stdout stdout.golden
 cmp stderr stderr.golden
@@ -14,9 +14,10 @@ func main() {
 	println("Hello", 42)
 }
 
--- gno.mod --
-module gno.land/p/test
+-- gnomod.toml --
+module = "bad_import"
+gno = "0.9"
 
 -- stdout.golden --
 -- stderr.golden --
-bad_file.gno:3:8: unknown import path python (code=2)
+bad_file.gno:3:8: unknown import path "python" (code=gnoImportError)

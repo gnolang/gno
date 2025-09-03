@@ -56,7 +56,7 @@ func X_callerAt(m *gno.Machine, n int) string {
 		ctx := execctx.GetContext(m)
 		return string(ctx.OriginCaller)
 	}
-	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
+	return string(m.PeekCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
 
 func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {

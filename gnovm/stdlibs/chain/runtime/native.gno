@@ -28,11 +28,6 @@ func PreviousRealm() Realm {
 	return Realm{chain.Address(addr), path}
 }
 
-func CallerAt(n int) chain.Address {
-	return chain.Address(callerAt(n))
-}
-
 // Variations which don't use named types.
 func originCaller() string
-func callerAt(n int) string
 func getRealm(height int) (address string, pkgPath string)

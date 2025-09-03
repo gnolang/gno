@@ -1,15 +1,13 @@
-# test issue 
+# test issue
 
 loadpkg gno.land/r/demo/realm $WORK
 
 # start a new node
 gnoland start
 
-
 gnokey maketx call -pkgpath gno.land/r/demo/realm --func Fill --args 0 --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast -chainid=tendermint_test test1
 gnokey maketx call -pkgpath gno.land/r/demo/realm --func UnFill --args 0 --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast -chainid=tendermint_test test1
 gnokey maketx call -pkgpath gno.land/r/demo/realm --func Fill --args 0 --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast -chainid=tendermint_test test1
-
 
 -- realm.gno --
 package main
@@ -27,15 +25,14 @@ var (
 	b [2]*B
 )
 
-func Fill(i int) {
- c := B{
+func Fill(cur realm, i int) {
+	c := B{
 		A: a,
 		B: "",
 	}
 	b[i] = &c
 }
 
-func UnFill(i int) {
+func UnFill(cur realm, i int) {
 	b[i] = nil
 }
-

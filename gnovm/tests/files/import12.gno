@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// gno.land/p/demo/files/import12.gno:6:2: cannot import stdlib internal/ package outside of standard library
+// gno.land/p/demo/import12.gno:6:2-20: cannot import stdlib internal/ package outside of standard library

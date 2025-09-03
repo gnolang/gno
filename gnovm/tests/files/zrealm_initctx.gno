@@ -1,28 +1,32 @@
-// PKGPATH: gno.land/r/demo/tests_test
-package tests_test
+// PKGPATH: gno.land/r/demo/testinit
+package testinit
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
+
 	"gno.land/r/demo/tests"
 )
 
-var addr = chain.Address("test")
-var addrInit = chain.Address("addrInit")
+var addr = std.Address("test")
+var addrInit = std.Address("addrInit")
 
 func init() {
-	addr = runtime.OriginCaller()
-	addrInit = tests.InitOriginCaller()
+	addr = std.OriginCaller()
+	addrInit = tests.InitOriginCaller(cross)
 }
 
-func main() {
+func main(cur realm) {
+	// Prints blanks because init's origin caller is blank.
+	// XXX consider panic instead
 	println(addr)
 	println(addrInit)
+	println(".") // trailing newline is needed.
 }
 
 // Output:
-// g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-// g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+//
+// .
 
 // Realm:
-// switchrealm["gno.land/r/demo/tests_test"]
+// finalizerealm["gno.land/r/demo/testinit"]

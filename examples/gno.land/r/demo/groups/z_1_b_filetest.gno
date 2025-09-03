@@ -4,7 +4,7 @@ package groups_test
 // SEND: 1000000ugnot
 
 import (
-	"chain/runtime"
+	"std"
 	"testing"
 
 	"gno.land/r/demo/groups"
@@ -14,13 +14,13 @@ import (
 var gid groups.GroupID
 
 func main() {
-	caller := runtime.OriginCaller()
-	testing.SetRealm(runtime.NewUserRealm(caller))
-	users.Register("gnouser123")
+	caller := std.OriginCaller()
+	testing.SetRealm(std.NewUserRealm(caller))
+	users.Register(cross, "gnouser123")
 
-	gid = groups.CreateGroup("test_group")
+	gid = groups.CreateGroup(cross, "test_group")
 	println(gid)
-	groups.AddMember(2, "g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy", 55, "metadata3")
+	groups.AddMember(cross, 2, "g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy", 55, "metadata3")
 	println(groups.Render(""))
 }
 

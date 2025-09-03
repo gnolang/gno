@@ -3,8 +3,7 @@
 package guestbook
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 	"strconv"
 	"strings"
 	"time"
@@ -17,7 +16,7 @@ import (
 // Signature is a single entry in the guestbook.
 type Signature struct {
 	Message string
-	Author  chain.Address
+	Author  std.Address
 	Time    time.Time
 }
 
@@ -32,8 +31,8 @@ var (
 	hasSigned   avl.Tree // address -> struct{}
 )
 
-func init() {
-	Sign("You reached the end of the guestbook!")
+func init(cur realm) {
+	Sign(cur, "You reached the end of the guestbook!")
 }
 
 const (
@@ -43,8 +42,8 @@ const (
 )
 
 // Sign signs the guestbook, with the specified message.
-func Sign(message string) {
-	prev := runtime.PreviousRealm()
+func Sign(cur realm, message string) {
+	prev := std.PreviousRealm()
 	switch {
 	case !prev.IsUser():
 		panic(errNotAUser)

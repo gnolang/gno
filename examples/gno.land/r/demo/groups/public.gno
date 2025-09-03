@@ -1,8 +1,7 @@
 package groups
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 
 	"gno.land/r/sys/users"
 )
@@ -18,9 +17,9 @@ func GetGroupIDFromName(name string) (GroupID, bool) {
 	return groupI.(*Group).id, true
 }
 
-func CreateGroup(name string) GroupID {
-	runtime.AssertOriginCall()
-	caller := runtime.OriginCaller()
+func CreateGroup(cur realm, name string) GroupID {
+	std.AssertOriginCall()
+	caller := std.OriginCaller()
 	usernameOf(caller)
 	url := "/r/demo/groups:" + name
 	group := newGroup(url, name, caller)
@@ -30,20 +29,20 @@ func CreateGroup(name string) GroupID {
 	return group.id
 }
 
-func AddMember(gid GroupID, address string, weight int, metadata string) MemberID {
-	runtime.AssertOriginCall()
-	caller := runtime.OriginCaller()
+func AddMember(cur realm, gid GroupID, address_XXX string, weight int, metadata string) MemberID {
+	std.AssertOriginCall()
+	caller := std.OriginCaller()
 	usernameOf(caller)
 	group := getGroup(gid)
 	if !group.HasPermission(caller, EditPermission) {
 		panic("unauthorized to edit group")
 	}
-	user := users.ResolveAddress(chain.Address(address))
+	user := users.ResolveAddress(std.Address(address_XXX))
 	if user == nil {
-		panic("unknown address " + address)
+		panic("unknown address " + address_XXX)
 	}
 	mid := group.lastMemberID
-	member := group.newMember(mid, chain.Address(address), weight, metadata)
+	member := group.newMember(mid, std.Address(address_XXX), weight, metadata)
 	midkey := memberIDKey(mid)
 	group.members.Set(midkey, member)
 	mid++
@@ -51,9 +50,9 @@ func AddMember(gid GroupID, address string, weight int, metadata string) MemberI
 	return member.id
 }
 
-func DeleteGroup(gid GroupID) {
-	runtime.AssertOriginCall()
-	caller := runtime.OriginCaller()
+func DeleteGroup(cur realm, gid GroupID) {
+	std.AssertOriginCall()
+	caller := std.OriginCaller()
 	group := getGroup(gid)
 	if !group.HasPermission(caller, DeletePermission) {
 		panic("unauthorized to delete group")
@@ -61,9 +60,9 @@ func DeleteGroup(gid GroupID) {
 	group.deleteGroup()
 }
 
-func DeleteMember(gid GroupID, mid MemberID) {
-	runtime.AssertOriginCall()
-	caller := runtime.OriginCaller()
+func DeleteMember(cur realm, gid GroupID, mid MemberID) {
+	std.AssertOriginCall()
+	caller := std.OriginCaller()
 	group := getGroup(gid)
 	if !group.HasPermission(caller, DeletePermission) {
 		panic("unauthorized to delete member")

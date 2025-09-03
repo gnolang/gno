@@ -1,15 +1,15 @@
 package registry
 
 import (
-	"chain"
 	"errors"
+	"std"
 
 	"gno.land/p/demo/ownable"
 )
 
 var (
-	mainAddr   chain.Address
-	backupAddr chain.Address
+	mainAddr   std.Address
+	backupAddr std.Address
 	owner      *ownable.Ownable
 )
 
@@ -20,31 +20,31 @@ func init() {
 	owner = ownable.NewWithAddress(mainAddr)
 }
 
-func MainAddr() chain.Address {
+func MainAddr() std.Address {
 	return mainAddr
 }
 
-func BackupAddr() chain.Address {
+func BackupAddr() std.Address {
 	return backupAddr
 }
 
-func SetMainAddr(addr chain.Address) error {
+func SetMainAddr(_ realm, addr std.Address) error {
 	if !addr.IsValid() {
 		return errors.New("config: invalid address")
 	}
 
-	owner.AssertCallerIsOwner()
+	owner.AssertOwnedByPrevious()
 
 	mainAddr = addr
 	return nil
 }
 
-func SetBackupAddr(addr chain.Address) error {
+func SetBackupAddr(_ realm, addr std.Address) error {
 	if !addr.IsValid() {
 		return errors.New("config: invalid address")
 	}
 
-	owner.AssertCallerIsOwner()
+	owner.AssertOwnedByPrevious()
 
 	backupAddr = addr
 	return nil

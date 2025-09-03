@@ -1,7 +1,7 @@
 package evaluation
 
 import (
-	"chain"
+	"std"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
@@ -24,7 +24,7 @@ func NewEvalutaion() *Evaluation {
 	return e
 }
 
-func (e *Evaluation) AddContribution(pr *PullRequest, contributor chain.Address) (int, bool) {
+func (e *Evaluation) AddContribution(pr *PullRequest, contributor std.Address) (int, bool) {
 	id := pr.Id()
 	e.pullrequests.Set(ufmt.Sprintf("%d", id), pr)
 	c := NewContribution(id, contributor)

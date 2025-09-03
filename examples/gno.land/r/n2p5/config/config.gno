@@ -1,7 +1,7 @@
 package config
 
 import (
-	"chain"
+	"std"
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/n2p5/mgroup"
@@ -18,50 +18,45 @@ var (
 
 // AddBackupOwner adds a backup owner to the Owner Group.
 // A backup owner can claim ownership of the contract.
-func AddBackupOwner(addr chain.Address) {
-	err := adminGroup.AddBackupOwner(addr)
-	if err != nil {
+func AddBackupOwner(cur realm, addr std.Address) {
+	if err := adminGroup.AddBackupOwner(addr); err != nil {
 		panic(err)
 	}
 }
 
 // RemoveBackupOwner removes a backup owner from the Owner Group.
 // The primary owner cannot be removed.
-func RemoveBackupOwner(addr chain.Address) {
-	err := adminGroup.RemoveBackupOwner(addr)
-	if err != nil {
+func RemoveBackupOwner(cur realm, addr std.Address) {
+	if err := adminGroup.RemoveBackupOwner(addr); err != nil {
 		panic(err)
 	}
 }
 
 // ClaimOwnership allows an authorized user in the ownerGroup
 // to claim ownership of the contract.
-func ClaimOwnership() {
-	err := adminGroup.ClaimOwnership()
-	if err != nil {
+func ClaimOwnership(cur realm) {
+	if err := adminGroup.ClaimOwnership(); err != nil {
 		panic(err)
 	}
 }
 
 // AddAdmin adds an admin to the Admin Group.
-func AddAdmin(addr chain.Address) {
-	err := adminGroup.AddMember(addr)
-	if err != nil {
+func AddAdmin(cur realm, addr std.Address) {
+	if err := adminGroup.AddMember(addr); err != nil {
 		panic(err)
 	}
 }
 
 // RemoveAdmin removes an admin from the Admin Group.
 // The primary owner cannot be removed.
-func RemoveAdmin(addr chain.Address) {
-	err := adminGroup.RemoveMember(addr)
-	if err != nil {
+func RemoveAdmin(cur realm, addr std.Address) {
+	if err := adminGroup.RemoveMember(addr); err != nil {
 		panic(err)
 	}
 }
 
 // Owner returns the current owner of the claims contract.
-func Owner() chain.Address {
+func Owner() std.Address {
 	return adminGroup.Owner()
 }
 
@@ -76,7 +71,7 @@ func Admins() []string {
 }
 
 // IsAdmin checks if an address is in the config adminGroup.
-func IsAdmin(addr chain.Address) bool {
+func IsAdmin(addr std.Address) bool {
 	return adminGroup.IsMember(addr)
 }
 

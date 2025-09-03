@@ -2,10 +2,9 @@ package main
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
-
-	"golang.org/x/exp/maps"
 )
 
 // sortPackages sorts pkgs into their initialization order.
@@ -24,8 +23,7 @@ func sortPackages(pkgs []*pkgData) []string {
 			)
 		}
 		// for a deterministic result, sort the imports.
-		imports := maps.Keys(pkg.imports)
-		slices.Sort(imports)
+		imports := slices.Sorted(maps.Keys(pkg.imports))
 		for _, imp := range imports {
 			if slices.Contains(res, imp) {
 				continue

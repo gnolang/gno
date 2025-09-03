@@ -1,8 +1,10 @@
-// PKGPATH: gno.land/r/const_test
-package const_test
+// PKGPATH: gno.land/r/consttest
+package consttest
 
-func main() {
-	println(20)
+import "std"
+
+func main(cur realm) {
+	println(std.RawAddressSize)
 }
 
 // Output:

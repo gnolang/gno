@@ -1,7 +1,7 @@
 package main
 
 import (
-	"chain"
+	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -9,20 +9,21 @@ import (
 )
 
 func main() {
-	var admin = chain.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+	var admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 	testing.SetOriginCaller(admin)
-	home.AdminSetOverride("Hello World!")
+	home.AdminSetOverride(cross, "Hello World!")
 	println("---")
 	println(home.Render(""))
-	home.Admin.TransferOwnership(testutils.TestAddress("newAdmin"))
-	defer func() {
-		r := recover()
-		println("r: ", r)
-	}()
-	home.AdminSetOverride("Not admin anymore")
+
+	newAdmin := testutils.TestAddress("newAdmin")
+	home.Admin.TransferOwnership(newAdmin)
+	if err := revive(func() {
+		home.AdminSetOverride(cross, "Not admin anymore")
+	}); err == nil {
+		panic("AdminSetOverride should have aborted the transaction")
+	}
 }
 
 // Output:
 // ---
 // Hello World!
-// r:  ownable: caller is not owner

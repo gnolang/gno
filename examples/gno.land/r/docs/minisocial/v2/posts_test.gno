@@ -1,32 +1,30 @@
 package minisocial
 
 import (
-	"chain/runtime"
+	"std"
 	"strings"
 	"testing"
 
 	"gno.land/p/demo/testutils" // Provides testing utilities
+	"gno.land/p/demo/uassert"
 )
 
 func TestCreatePostSingle(t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
 	// TestSetRealm sets the realm caller, in this case Alice
-	testing.SetRealm(runtime.NewUserRealm(aliceAddr))
+	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	err := CreatePost(text1)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
+	err := CreatePost(cross, text1)
+	uassert.True(t, err == nil, "expected no error")
 
 	// Get the rendered page
 	got := Render("")
 
 	// Content should have the text and alice's address in it
-	if !(strings.Contains(got, text1) && strings.Contains(got, aliceAddr.String())) {
-		t.Fatal("expected render to contain text & alice's address")
-	}
+	condition := strings.Contains(got, text1) && strings.Contains(got, aliceAddr.String())
+	uassert.True(t, condition, "expected render to contain text & alice's address")
 }
 
 func TestCreatePostMultiple(t *testing.T) {
@@ -44,13 +42,11 @@ func TestCreatePostMultiple(t *testing.T) {
 	for _, p := range posts {
 		// Set the appropriate caller realm based on the author
 		authorAddr := testutils.TestAddress(p.author)
-		testing.SetRealm(runtime.NewUserRealm(authorAddr))
+		testing.SetRealm(std.NewUserRealm(authorAddr))
 
 		// Create the post
-		err := CreatePost(p.text)
-		if err != nil {
-			t.Fatalf("expected no error for post '%s', got %v", p.text, err)
-		}
+		err := CreatePost(cross, p.text)
+		uassert.True(t, err == nil, "expected no error for post "+p.text)
 	}
 
 	// Get the rendered page
@@ -60,44 +56,35 @@ func TestCreatePostMultiple(t *testing.T) {
 	for _, p := range posts {
 		expectedText := p.text
 		expectedAuthor := testutils.TestAddress(p.author).String() // Get the address for the author
-		if !(strings.Contains(got, expectedText) && strings.Contains(got, expectedAuthor)) {
-			t.Fatalf("expected render to contain text '%s' and address '%s'", expectedText, expectedAuthor)
-		}
+		condition := strings.Contains(got, expectedText) && strings.Contains(got, expectedAuthor)
+		uassert.True(t, condition, "expected render to contain text '"+expectedText+"' and address '"+expectedAuthor+"'")
 	}
 }
 
 func TestReset(t *testing.T) {
 	aliceAddr := testutils.TestAddress("alice")
-	testing.SetRealm(runtime.NewUserRealm(aliceAddr))
+	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	_ = CreatePost(text1)
+	_ = CreatePost(cross, text1)
 
 	got := Render("")
-	if !strings.Contains(got, text1) {
-		t.Fatal("expected render to contain text1")
-	}
+	uassert.True(t, strings.Contains(got, text1), "expected render to contain text1")
 
 	// Set admin
-	testing.SetRealm(runtime.NewUserRealm(Ownable.Owner()))
-	ResetPosts()
+	testing.SetRealm(std.NewUserRealm(Ownable.Owner()))
+	ResetPosts(cross)
 
 	got = Render("")
-	if strings.Contains(got, text1) {
-		t.Fatal("expected render to not contain text1")
-	}
+	uassert.False(t, strings.Contains(got, text1), "expected render to not contain text1")
 
 	text2 := "Some other Text!!"
-	_ = CreatePost(text2)
+	_ = CreatePost(cross, text2)
 
 	got = Render("")
-	if strings.Contains(got, text1) {
-		t.Fatal("expected render to not contain text1")
-	}
+	uassert.False(t, strings.Contains(got, text1), "expected render to not contain text1")
 
-	if !strings.Contains(got, text2) {
-		t.Fatal("expected render to contain text2")
-	}
+	uassert.True(t, strings.Contains(got, text2), "expected render to contain text2")
 }
 
 // TODO: Add tests for Update & Delete

@@ -1,23 +1,23 @@
 package users
 
 import (
-	"chain"
+	"std"
 
 	"gno.land/p/moul/addrset"
 	"gno.land/r/gov/dao"
 )
 
-const gusersv1 = "gno.land/r/gnoland/users/v1" // preregistered with store write perms
+const gUsersV1Path = "gno.land/r/gnoland/users/v1" // preregistered with store write perms
 
 var controllers = addrset.Set{} // caller whitelist
 
 func init() {
-	controllers.Add(chain.DerivePkgAddr(gusersv1)) // initially whitelisted
+	controllers.Add(std.DerivePkgAddr(gUsersV1Path)) // initially whitelisted
 }
 
 // ProposeNewController allows GovDAO to add a whitelisted caller
-func ProposeNewController(addr chain.Address) dao.ProposalRequest {
-	cb := func() error {
+func ProposeNewController(addr std.Address) dao.ProposalRequest {
+	cb := func(cur realm) error {
 		return addToWhitelist(addr)
 	}
 
@@ -25,8 +25,8 @@ func ProposeNewController(addr chain.Address) dao.ProposalRequest {
 }
 
 // ProposeControllerRemoval allows GovDAO to add a whitelisted caller
-func ProposeControllerRemoval(addr chain.Address) dao.ProposalRequest {
-	cb := func() error {
+func ProposeControllerRemoval(addr std.Address) dao.ProposalRequest {
+	cb := func(cur realm) error {
 		return deleteFromwhitelist(addr)
 	}
 
@@ -34,8 +34,8 @@ func ProposeControllerRemoval(addr chain.Address) dao.ProposalRequest {
 }
 
 // ProposeControllerAdditionAndRemoval allows GovDAO to add a new caller and remove an old caller in the same proposal.
-func ProposeControllerAdditionAndRemoval(toAdd, toRemove chain.Address) dao.ProposalRequest {
-	cb := func() error {
+func ProposeControllerAdditionAndRemoval(toAdd, toRemove std.Address) dao.ProposalRequest {
+	cb := func(cur realm) error {
 		err := addToWhitelist(toAdd)
 		if err != nil {
 			return err
@@ -49,9 +49,9 @@ func ProposeControllerAdditionAndRemoval(toAdd, toRemove chain.Address) dao.Prop
 
 // Helpers
 
-func deleteFromwhitelist(addr chain.Address) error {
+func deleteFromwhitelist(addr std.Address) error {
 	if !controllers.Has(addr) {
-		return ErrNotWhitelisted
+		return NewErrNotWhitelisted()
 	}
 
 	if ok := controllers.Remove(addr); !ok {
@@ -61,7 +61,7 @@ func deleteFromwhitelist(addr chain.Address) error {
 	return nil
 }
 
-func addToWhitelist(newCaller chain.Address) error {
+func addToWhitelist(newCaller std.Address) error {
 	if !newCaller.IsValid() {
 		return ErrInvalidAddress
 	}

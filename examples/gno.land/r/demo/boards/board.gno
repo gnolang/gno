@@ -1,12 +1,11 @@
 package boards
 
 import (
-	"chain"
+	"std"
 	"strconv"
 	"time"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/moul/txlink"
 )
 
 //----------------------------------------
@@ -22,14 +21,14 @@ type Board struct {
 	id        BoardID // only set for public boards.
 	url       string
 	name      string
-	creator   chain.Address
+	creator   std.Address
 	threads   avl.Tree // Post.id -> *Post
 	postsCtr  uint64   // increments Post.id
 	createdAt time.Time
 	deleted   avl.Tree // TODO reserved for fast-delete.
 }
 
-func newBoard(id BoardID, url string, name string, creator chain.Address) *Board {
+func newBoard(id BoardID, url string, name string, creator std.Address) *Board {
 	if !reName.MatchString(name) {
 		panic("invalid name: " + name)
 	}
@@ -53,7 +52,7 @@ func newBoard(id BoardID, url string, name string, creator chain.Address) *Board
 // but must be persisted by the caller's realm.
 // Private boards have 0 id and does not ping
 // back the remote board on reposts.
-func NewPrivateBoard(url string, name string, creator std.Address) *Board {
+func NewPrivateBoard(_ realm, url string, name string, creator std.Address) *Board {
 	return newBoard(0, url, name, creator)
 }
 */
@@ -71,7 +70,7 @@ func (board *Board) GetThread(pid PostID) *Post {
 	return postI.(*Post)
 }
 
-func (board *Board) AddThread(creator chain.Address, title string, body string) *Post {
+func (board *Board) AddThread(creator std.Address, title string, body string) *Post {
 	pid := board.incGetPostID()
 	pidkey := postIDKey(pid)
 	thread := newPost(board, pid, creator, title, body, pid, 0, 0)
@@ -89,7 +88,7 @@ func (board *Board) DeleteThread(pid PostID) {
 	}
 }
 
-func (board *Board) HasPermission(addr chain.Address, perm Permission) bool {
+func (board *Board) HasPermission(addr std.Address, perm Permission) bool {
 	if board.creator == addr {
 		switch perm {
 		case EditPermission:
@@ -135,5 +134,5 @@ func (board *Board) GetURLFromThreadAndReplyID(threadID, replyID PostID) string 
 }
 
 func (board *Board) GetPostFormURL() string {
-	return txlink.Call("CreateThread", "bid", board.id.String())
+	return gRealmLink.Call("CreateThread", "bid", board.id.String())
 }

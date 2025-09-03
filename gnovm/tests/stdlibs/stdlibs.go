@@ -19,3 +19,12 @@ func NativeResolver(pkgPath string, name gno.Name) func(*gno.Machine) {
 }
 
 type TestExecContext = runtime.TestExecContext
+
+func HasNativePkg(pkgPath string) bool {
+	for _, nf := range nativeFuncs {
+		if nf.gnoPkg == pkgPath {
+			return true
+		}
+	}
+	return stdlibs.HasNativePkg(pkgPath)
+}

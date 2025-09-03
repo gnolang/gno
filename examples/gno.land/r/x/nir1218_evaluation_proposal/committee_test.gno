@@ -1,14 +1,14 @@
 package evaluation
 
 import (
-	"chain"
+	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
 )
 
 func TestCommitteeMembers(t *testing.T) {
-	members := []chain.Address{testutils.TestAddress("member1"), testutils.TestAddress("member2"), testutils.TestAddress("member3")}
+	members := []std.Address{testutils.TestAddress("member1"), testutils.TestAddress("member2"), testutils.TestAddress("member3")}
 	c := NewCommittee()
 
 	t.Run("Designate Committee Members", func(t *testing.T) {
@@ -33,7 +33,7 @@ func TestCategoryEvaluationCriteria(t *testing.T) {
 	expectedGategory2 := NewCategory(category2, criteria2)
 
 	c := NewCommittee()
-	c.DesignateMembers([]chain.Address{member})
+	c.DesignateMembers([]std.Address{member})
 
 	t.Run("Add First Committee Category and Evaluation Criteria", func(t *testing.T) {
 		testing.SetOriginCaller(member)
@@ -65,7 +65,7 @@ func TestCategoryEvaluationCriteria(t *testing.T) {
 		testing.SetOriginCaller(member)
 		approved := c.ApproveCategory(category, VoteYes)
 		if !approved {
-			value, exists := c.categories.Get(category)
+			value, _ := c.categories.Get(category)
 			gotCategory := value.(*Category)
 			t.Errorf("Approved First Committee category got %s expected %s", gotCategory.status, "Approved")
 		}
@@ -84,7 +84,7 @@ func isEqualStringSlice(a, b []string) bool {
 	return true
 }
 
-func isEqualAddressSlice(a, b []chain.Address) bool {
+func isEqualAddressSlice(a, b []std.Address) bool {
 	if len(a) != len(b) {
 		return false
 	}

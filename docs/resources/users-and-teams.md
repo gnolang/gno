@@ -11,7 +11,7 @@ In gno.land, users can register a unique username that:
 
 To register a username:
 
-1. Visit the user registry realm at [`gno.land/r/gnoland/users`](https://gno.land/r/gnoland/users)
+1. Visit the user registry realm at [`gno.land/r/gnoland/users/v1`](https://gno.land/r/gnoland/users/v1)
 2. Check if your desired username is available by 
 3. Register using the following command:
 
@@ -24,7 +24,7 @@ gnokey maketx call \
   --gas-wanted 2000000 \
   --send "1000000ugnot" \
   --remote https://rpc.gno.land:443 \
-  --chainid portal-loop \
+  --chainid staging \
   YOUR_KEY_NAME
 ```
 
@@ -86,4 +86,4 @@ For more information on users and namespaces, refer to:
 - [Realms](./realms.md) - Learn about stateful applications that can be deployed under your namespace
 - [Deploying Packages](../builders/deploy-packages.md) - Instructions for deploying code under your namespace
 
-To explore registered users, visit the [User Registry](https://gno.land/r/gnoland/users) on the Portal Loop network.
+To explore registered users, visit the [User Registry](https://gno.land/r/gnoland/users/v1) on the Staging network.

@@ -1,8 +1,7 @@
 package guestbook
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 	"strings"
 	"testing"
 
@@ -14,11 +13,11 @@ func TestSign(t *testing.T) {
 	guestbook = avl.Tree{}
 	hasSigned = avl.Tree{}
 
-	testing.SetRealm(runtime.NewUserRealm("g1user"))
-	Sign("Hello!")
+	testing.SetRealm(std.NewUserRealm("g1user"))
+	Sign(cross, "Hello!")
 
-	testing.SetRealm(runtime.NewUserRealm("g1user2"))
-	Sign("Hello2!")
+	testing.SetRealm(std.NewUserRealm("g1user2"))
+	Sign(cross, "Hello2!")
 
 	res := Render("")
 	t.Log(res)
@@ -34,21 +33,18 @@ func TestSign(t *testing.T) {
 }
 
 func TestSign_FromRealm(t *testing.T) {
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/gnoland/users/v1"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/users/v1"))
 
-	defer func() {
-		rec := recover()
-		if rec == nil {
-			t.Fatal("expected panic")
-		}
-		recString, ok := rec.(string)
-		if !ok {
-			t.Fatal("not a string", rec)
-		} else if recString != errNotAUser {
-			t.Fatal("invalid error", recString)
-		}
-	}()
-	Sign("Hey!")
+	rec := revive(func() { Sign(cross, "Hey!") })
+	if rec == nil {
+		t.Fatal("expected panic")
+	}
+	recString, ok := rec.(string)
+	if !ok {
+		t.Fatal("not a string", rec)
+	} else if recString != errNotAUser {
+		t.Fatal("invalid error", recString)
+	}
 }
 
 func TestSign_Double(t *testing.T) {
@@ -56,23 +52,19 @@ func TestSign_Double(t *testing.T) {
 	guestbook = avl.Tree{}
 	hasSigned = avl.Tree{}
 
-	testing.SetRealm(runtime.NewUserRealm("g1user"))
-	Sign("Hello!")
+	testing.SetRealm(std.NewUserRealm("g1user"))
+	Sign(cross, "Hello!")
 
-	defer func() {
-		rec := recover()
-		if rec == nil {
-			t.Fatal("expected panic")
-		}
-		recString, ok := rec.(string)
-		if !ok {
-			t.Error("type assertion failed", rec)
-		} else if recString != errAlreadySigned {
-			t.Error("invalid error message", recString)
-		}
-	}()
-
-	Sign("Hello again!")
+	rec := revive(func() { Sign(cross, "Hello again!") })
+	if rec == nil {
+		t.Fatal("expected panic")
+	}
+	recString, ok := rec.(string)
+	if !ok {
+		t.Error("type assertion failed", rec)
+	} else if recString != errAlreadySigned {
+		t.Error("invalid error message", recString)
+	}
 }
 
 func TestSign_InvalidMessage(t *testing.T) {
@@ -80,27 +72,24 @@ func TestSign_InvalidMessage(t *testing.T) {
 	guestbook = avl.Tree{}
 	hasSigned = avl.Tree{}
 
-	testing.SetRealm(runtime.NewUserRealm("g1user"))
+	testing.SetRealm(std.NewUserRealm("g1user"))
 
-	defer func() {
-		rec := recover()
-		if rec == nil {
-			t.Fatal("expected panic")
-		}
-		recString, ok := rec.(string)
-		if !ok {
-			t.Error("type assertion failed", rec)
-		} else if recString != errInvalidCharacterInMessage {
-			t.Error("invalid error message", recString)
-		}
-	}()
-	Sign("\x00Hello!")
+	rec := revive(func() { Sign(cross, "\x00Hello!") })
+	if rec == nil {
+		t.Fatal("expected panic")
+	}
+	recString, ok := rec.(string)
+	if !ok {
+		t.Error("type assertion failed", rec)
+	} else if recString != errInvalidCharacterInMessage {
+		t.Error("invalid error message", recString)
+	}
 }
 
 func TestAdminDelete(t *testing.T) {
 	const (
-		userAddr  chain.Address = "g1user"
-		adminAddr chain.Address = "g1admin"
+		userAddr  std.Address = "g1user"
+		adminAddr std.Address = "g1admin"
 	)
 
 	guestbook = avl.Tree{}
@@ -108,17 +97,17 @@ func TestAdminDelete(t *testing.T) {
 	owner = ownable.NewWithAddress(adminAddr)
 	signatureID = 0
 
-	testing.SetRealm(runtime.NewUserRealm(userAddr))
+	testing.SetRealm(std.NewUserRealm(userAddr))
 
 	const bad = "Very Bad Message! Nyeh heh heh!"
-	Sign(bad)
+	Sign(cross, bad)
 
 	if rnd := Render(""); !strings.Contains(rnd, bad) {
 		t.Fatal("render does not contain bad message", rnd)
 	}
 
-	testing.SetRealm(runtime.NewUserRealm(adminAddr))
-	AdminDelete(signatureID.String())
+	testing.SetRealm(std.NewUserRealm(adminAddr))
+	AdminDelete(cross, signatureID.String())
 
 	if rnd := Render(""); strings.Contains(rnd, bad) {
 		t.Error("render contains bad message", rnd)

@@ -2,12 +2,12 @@ package main
 
 import (
 	"bytes"
-	"chain/runtime"
+	"std"
 )
 
 func main() {
-	caller := runtime.OriginCaller()
-	caller2 := runtime.OriginCaller()
+	caller := std.OriginCaller()
+	caller2 := std.OriginCaller()
 	cmp := bytes.Compare([]byte(caller), []byte(caller2))
 	println(cmp)
 }

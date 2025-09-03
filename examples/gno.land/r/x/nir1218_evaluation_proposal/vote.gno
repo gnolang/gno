@@ -1,6 +1,6 @@
 package evaluation
 
-import "chain"
+import "std"
 
 const (
 	VoteYes = "YES"
@@ -8,11 +8,11 @@ const (
 )
 
 type Vote struct {
-	voter  chain.Address
+	voter  std.Address
 	option string
 }
 
-func NewVote(voter chain.Address, option string) Vote {
+func NewVote(voter std.Address, option string) Vote {
 	v := Vote{
 		voter:  voter,
 		option: option,

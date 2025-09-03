@@ -1,7 +1,7 @@
 package grc721
 
 import (
-	"chain"
+	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -16,10 +16,10 @@ func TestSetTokenRoyalty(t *testing.T) {
 	addr2 := testutils.TestAddress("bob")
 
 	paymentAddress := testutils.TestAddress("john")
-	percentage := uint64(10) // 10%
+	percentage := int64(10) // 10%
 
-	salePrice := uint64(1000)
-	expectRoyaltyAmount := uint64(100)
+	salePrice := int64(1000)
+	expectRoyaltyAmount := int64(100)
 
 	testing.SetOriginCaller(addr1) // addr1
 
@@ -48,7 +48,7 @@ func TestSetTokenRoyalty(t *testing.T) {
 
 	// Test case: Invalid payment address
 	aerr := dummy.SetTokenRoyalty(TokenID("4"), RoyaltyInfo{
-		PaymentAddress: chain.Address("###"), // invalid address
+		PaymentAddress: std.Address("###"), // invalid address
 		Percentage:     percentage,
 	})
 	uassert.ErrorIs(t, aerr, ErrInvalidRoyaltyPaymentAddress)
@@ -56,7 +56,7 @@ func TestSetTokenRoyalty(t *testing.T) {
 	// Test case: Invalid percentage
 	perr := dummy.SetTokenRoyalty(TokenID("5"), RoyaltyInfo{
 		PaymentAddress: paymentAddress,
-		Percentage:     uint64(200), // over maxRoyaltyPercentage
+		Percentage:     int64(200), // over maxRoyaltyPercentage
 	})
 	uassert.ErrorIs(t, perr, ErrInvalidRoyaltyPercentage)
 

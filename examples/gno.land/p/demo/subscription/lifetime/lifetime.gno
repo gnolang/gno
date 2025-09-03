@@ -1,9 +1,7 @@
 package lifetime
 
 import (
-	"chain"
-	"chain/banker"
-	"chain/runtime"
+	"std"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
@@ -27,8 +25,8 @@ func NewLifetimeSubscription(amount int64) *LifetimeSubscription {
 }
 
 // processSubscription handles the subscription process for a given receiver.
-func (ls *LifetimeSubscription) processSubscription(receiver chain.Address) error {
-	amount := banker.OriginSend()
+func (ls *LifetimeSubscription) processSubscription(receiver std.Address) error {
+	amount := std.OriginSend()
 
 	if amount.AmountOf("ugnot") != ls.amount {
 		return ErrAmt
@@ -47,17 +45,17 @@ func (ls *LifetimeSubscription) processSubscription(receiver chain.Address) erro
 
 // Subscribe processes the payment for a lifetime subscription.
 func (ls *LifetimeSubscription) Subscribe() error {
-	caller := runtime.PreviousRealm().Address()
+	caller := std.CurrentRealm().Address()
 	return ls.processSubscription(caller)
 }
 
 // GiftSubscription allows the caller to pay for a lifetime subscription for another user.
-func (ls *LifetimeSubscription) GiftSubscription(receiver chain.Address) error {
+func (ls *LifetimeSubscription) GiftSubscription(receiver std.Address) error {
 	return ls.processSubscription(receiver)
 }
 
 // HasValidSubscription checks if the given address has an active lifetime subscription.
-func (ls *LifetimeSubscription) HasValidSubscription(addr chain.Address) error {
+func (ls *LifetimeSubscription) HasValidSubscription(addr std.Address) error {
 	_, exists := ls.subs.Get(addr.String())
 
 	if !exists {
@@ -69,7 +67,7 @@ func (ls *LifetimeSubscription) HasValidSubscription(addr chain.Address) error {
 
 // UpdateAmount allows the owner of the LifetimeSubscription contract to update the subscription price.
 func (ls *LifetimeSubscription) UpdateAmount(newAmount int64) error {
-	if !ls.CallerIsOwner() {
+	if !ls.OwnedByCurrent() {
 		return ErrNotAuthorized
 	}
 

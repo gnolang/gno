@@ -690,6 +690,7 @@ func OpLand() {
 }
 
 /*
+XXX fix, OpPanic1 isn't used, "panic" is now a uverse function.
 OpEval, (const (recover func()(exception any)))
 OpDefer, defer (const (recover func()(exception any)))()
 OpExec, bodyStmt[0/0/1]=panic((const ("panic" <untyped> string)))

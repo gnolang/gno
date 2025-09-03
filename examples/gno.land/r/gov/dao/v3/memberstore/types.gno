@@ -1,8 +1,8 @@
 package memberstore
 
 import (
-	"chain"
 	"errors"
+	"std"
 
 	"gno.land/p/demo/avl"
 )
@@ -33,7 +33,14 @@ type MembersByTier struct {
 }
 
 func NewMembersByTier() MembersByTier {
-	return MembersByTier{avl.NewTree()}
+	return MembersByTier{Tree: avl.NewTree()}
+}
+
+func (mbt MembersByTier) DeleteAll() {
+	mbt.Iterate("", "", func(tn string, msv interface{}) bool {
+		mbt.Remove(tn)
+		return false
+	})
 }
 
 func (mbt MembersByTier) SetTier(tier string) error {
@@ -62,7 +69,7 @@ func (mbt MembersByTier) GetTierSize(tn string) int {
 }
 
 // SetMember adds a new member to the specified tier. The tier index is created on the fly if it does not exists.
-func (mbt MembersByTier) SetMember(tier string, addr chain.Address, member *Member) error {
+func (mbt MembersByTier) SetMember(tier string, addr std.Address, member *Member) error {
 	_, t := mbt.GetMember(addr)
 	if t != "" {
 		return &ErrMemberAlreadyExists{Tier: t}
@@ -81,7 +88,7 @@ func (mbt MembersByTier) SetMember(tier string, addr chain.Address, member *Memb
 }
 
 // GetMember iterate over all tiers to try to find a member by its address. The tier ID is also returned if the Member is found.
-func (mbt MembersByTier) GetMember(addr chain.Address) (m *Member, t string) {
+func (mbt MembersByTier) GetMember(addr std.Address) (m *Member, t string) {
 	mbt.Iterate("", "", func(tn string, msv interface{}) bool {
 		mst, ok := msv.(*avl.Tree)
 		if !ok {
@@ -108,7 +115,7 @@ func (mbt MembersByTier) GetMember(addr chain.Address) (m *Member, t string) {
 }
 
 // RemoveMember removes a member from any tier
-func (mbt MembersByTier) RemoveMember(addr chain.Address) (t string) {
+func (mbt MembersByTier) RemoveMember(addr std.Address) (t string) {
 	mbt.Iterate("", "", func(tn string, msv interface{}) bool {
 		mst, ok := msv.(*avl.Tree)
 		if !ok {
@@ -116,7 +123,9 @@ func (mbt MembersByTier) RemoveMember(addr chain.Address) (t string) {
 		}
 
 		_, removed := mst.Remove(string(addr))
-		t = tn
+		if removed {
+			t = tn
+		}
 		return removed
 	})
 

@@ -1,2 +1,0 @@
-go test fuzz v1
-[]byte("package A\ncon\x12\n\xec|b\x80\xddQst(\n/*\n\n\n\n\n\n\nka\n*/A)")

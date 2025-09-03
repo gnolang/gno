@@ -1,7 +1,7 @@
 package validators
 
 import (
-	"chain"
+	"std"
 
 	"gno.land/p/sys/validators"
 	"gno.land/r/gov/dao"
@@ -17,7 +17,7 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 		panic(errNoChangesProposed)
 	}
 
-	callback := func() error {
+	callback := func(cur realm) error {
 		for _, change := range changesFn() {
 			if change.VotingPower == 0 {
 				// This change request is to remove the validator
@@ -40,12 +40,12 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 
 // IsValidator returns a flag indicating if the given bech32 address
 // is part of the validator set
-func IsValidator(addr chain.Address) bool {
+func IsValidator(addr std.Address) bool {
 	return vp.IsValidator(addr)
 }
 
 // GetValidator returns the typed validator
-func GetValidator(addr chain.Address) validators.Validator {
+func GetValidator(addr std.Address) validators.Validator {
 	if validator, err := vp.GetValidator(addr); err == nil {
 		return validator
 	}

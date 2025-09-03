@@ -1,7 +1,7 @@
 package gnoblog
 
 import (
-	"chain/runtime"
+	"std"
 
 	"gno.land/p/demo/blog"
 )
@@ -11,11 +11,11 @@ var b = &blog.Blog{
 	Prefix: "/r/gnoland/blog:",
 }
 
-func AddComment(postSlug, comment string) {
+func AddComment(_ realm, postSlug, comment string) {
 	assertIsCommenter()
 	assertNotInPause()
 
-	caller := runtime.OriginCaller()
+	caller := std.OriginCaller()
 	err := b.GetPost(postSlug).AddComment(caller, comment)
 	checkErr(err)
 }

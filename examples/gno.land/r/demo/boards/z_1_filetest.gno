@@ -1,11 +1,9 @@
-// PKGPATH: gno.land/r/demo/boards_test
-package boards_test
+package main
 
 // SEND: 1000000ugnot
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 	"testing"
 
 	"gno.land/r/demo/boards"
@@ -15,11 +13,11 @@ import (
 var board *boards.Board
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(chain.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
-	users.Register("gnouser123")
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	users.Register(cross, "gnouser123")
 
-	_ = boards.CreateBoard("test_board_1")
-	_ = boards.CreateBoard("test_board_2")
+	_ = boards.CreateBoard(cross, "test_board_1")
+	_ = boards.CreateBoard(cross, "test_board_2")
 }
 
 func main() {

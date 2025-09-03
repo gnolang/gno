@@ -4,9 +4,9 @@
 package typeutil
 
 import (
-	"chain"
 	"errors"
 	"sort"
+	"std"
 	"strconv"
 	"strings"
 	"time"
@@ -66,7 +66,7 @@ func ToString(val any) string {
 			return ""
 		}
 		return v.String()
-	case *chain.Address:
+	case *std.Address:
 		if v == nil {
 			return ""
 		}
@@ -81,7 +81,7 @@ func ToString(val any) string {
 	// Special types
 	case time.Time:
 		return v.String()
-	case chain.Address:
+	case std.Address:
 		return string(v)
 	case []byte:
 		return string(v)
@@ -142,7 +142,7 @@ func ToString(val any) string {
 		return joinTimes(v)
 	case []stringer:
 		return join(v)
-	case []chain.Address:
+	case []std.Address:
 		return joinAddresses(v)
 	case [][]byte:
 		return joinBytes(v)
@@ -275,7 +275,7 @@ func joinTimes(slice []time.Time) string {
 	return b.String()
 }
 
-func joinAddresses(slice []chain.Address) string {
+func joinAddresses(slice []std.Address) string {
 	if len(slice) == 0 {
 		return "[]"
 	}
@@ -352,7 +352,7 @@ func IsZero(val any) bool {
 		return v == nil || *v == 0
 	case *time.Time:
 		return v == nil || v.IsZero()
-	case *chain.Address:
+	case *std.Address:
 		return v == nil || string(*v) == ""
 
 	// Bool
@@ -398,7 +398,7 @@ func IsZero(val any) bool {
 		return len(v) == 0
 	case time.Time:
 		return v.IsZero()
-	case chain.Address:
+	case std.Address:
 		return string(v) == ""
 
 	// Slices (check if empty)
@@ -418,7 +418,7 @@ func IsZero(val any) bool {
 		return len(v) == 0
 	case []time.Time:
 		return len(v) == 0
-	case []chain.Address:
+	case []std.Address:
 		return len(v) == 0
 	case [][]byte:
 		return len(v) == 0
@@ -653,7 +653,7 @@ func ToStringSlice(val any) []string {
 			result[i] = t.String()
 		}
 		return result
-	case []chain.Address:
+	case []std.Address:
 		result := make([]string, len(v))
 		for i, addr := range v {
 			result[i] = string(addr)

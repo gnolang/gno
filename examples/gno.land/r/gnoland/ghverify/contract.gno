@@ -1,9 +1,8 @@
 package ghverify
 
 import (
-	"chain"
-	"chain/runtime"
 	"errors"
+	"std"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/gnorkle/feeds/static"
@@ -17,7 +16,7 @@ const (
 )
 
 var (
-	ownerAddress = runtime.OriginCaller()
+	ownerAddress = std.OriginCaller()
 	oracle       *gnorkle.Instance
 	postHandler  postGnorkleMessageHandler
 
@@ -70,8 +69,8 @@ func (h postGnorkleMessageHandler) Handle(i *gnorkle.Instance, funcType message.
 
 // RequestVerification creates a new static feed with a single task that will
 // instruct an agent to verify the github handle / gno address pair.
-func RequestVerification(githubHandle string) {
-	gnoAddress := string(runtime.OriginCaller())
+func RequestVerification(cur realm, githubHandle string) {
+	gnoAddress := string(std.OriginCaller())
 	if err := oracle.AddFeeds(
 		static.NewSingleValueFeed(
 			gnoAddress,
@@ -84,7 +83,7 @@ func RequestVerification(githubHandle string) {
 	); err != nil {
 		panic(err)
 	}
-	chain.Emit(
+	std.Emit(
 		"verification_requested",
 		"from", gnoAddress,
 		"handle", githubHandle,
@@ -92,7 +91,7 @@ func RequestVerification(githubHandle string) {
 }
 
 // GnorkleEntrypoint is the entrypoint to the gnorkle oracle handler.
-func GnorkleEntrypoint(message string) string {
+func GnorkleEntrypoint(cur realm, message string) string {
 	result, err := oracle.HandleMessage(message, postHandler)
 	if err != nil {
 		panic(err)
@@ -102,8 +101,8 @@ func GnorkleEntrypoint(message string) string {
 }
 
 // SetOwner transfers ownership of the contract to the given address.
-func SetOwner(owner chain.Address) {
-	if ownerAddress != runtime.OriginCaller() {
+func SetOwner(_ realm, owner std.Address) {
+	if ownerAddress != std.OriginCaller() {
 		panic("only the owner can set a new owner")
 	}
 
@@ -116,8 +115,8 @@ func SetOwner(owner chain.Address) {
 }
 
 // GetHandleByAddress returns the github handle associated with the given gno address.
-func GetHandleByAddress(address string) string {
-	if value, ok := addressToHandleMap.Get(address); ok {
+func GetHandleByAddress(cur realm, address_XXX string) string {
+	if value, ok := addressToHandleMap.Get(address_XXX); ok {
 		return value.(string)
 	}
 
@@ -125,7 +124,7 @@ func GetHandleByAddress(address string) string {
 }
 
 // GetAddressByHandle returns the gno address associated with the given github handle.
-func GetAddressByHandle(handle string) string {
+func GetAddressByHandle(cur realm, handle string) string {
 	if value, ok := handleToAddressMap.Get(handle); ok {
 		return value.(string)
 	}
@@ -137,12 +136,12 @@ func GetAddressByHandle(handle string) string {
 func Render(_ string) string {
 	result := "{"
 	var appendComma bool
-	handleToAddressMap.Iterate("", "", func(handle string, address any) bool {
+	handleToAddressMap.Iterate("", "", func(handle string, address_XXX any) bool {
 		if appendComma {
 			result += ","
 		}
 
-		result += `"` + handle + `": "` + address.(string) + `"`
+		result += `"` + handle + `": "` + address_XXX.(string) + `"`
 		appendComma = true
 
 		return false

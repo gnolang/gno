@@ -4,8 +4,7 @@ package boards_test
 // SEND: 1000000ugnot
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 	"testing"
 
 	"gno.land/r/demo/boards"
@@ -15,9 +14,9 @@ import (
 var bid boards.BoardID
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(chain.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
-	users.Register("gnouser123")
-	boards.CreateThread(1, "First Post (title)", "Body of the first post. (body)")
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	users.Register(cross, "gnouser123")
+	boards.CreateThread(cross, 1, "First Post (title)", "Body of the first post. (body)")
 }
 
 func main() {

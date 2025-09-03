@@ -3,8 +3,7 @@
 package foo20
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 	"strings"
 
 	"gno.land/p/demo/grc/grc20"
@@ -21,48 +20,48 @@ var (
 
 func init() {
 	privateLedger.Mint(Ownable.Owner(), 1_000_000*10_000) // @privateLedgeristrator (1M)
-	grc20reg.Register(Token.Getter(), "")
+	grc20reg.Register(cross, Token, "")
 }
 
-func TotalSupply() uint64 {
+func TotalSupply() int64 {
 	return UserTeller.TotalSupply()
 }
 
-func BalanceOf(owner chain.Address) uint64 {
+func BalanceOf(owner std.Address) int64 {
 	return UserTeller.BalanceOf(owner)
 }
 
-func Allowance(owner, spender chain.Address) uint64 {
+func Allowance(owner, spender std.Address) int64 {
 	return UserTeller.Allowance(owner, spender)
 }
 
-func Transfer(to chain.Address, amount uint64) {
+func Transfer(cur realm, to std.Address, amount int64) {
 	checkErr(UserTeller.Transfer(to, amount))
 }
 
-func Approve(spender chain.Address, amount uint64) {
+func Approve(cur realm, spender std.Address, amount int64) {
 	checkErr(UserTeller.Approve(spender, amount))
 }
 
-func TransferFrom(from, to chain.Address, amount uint64) {
+func TransferFrom(cur realm, from, to std.Address, amount int64) {
 	checkErr(UserTeller.TransferFrom(from, to, amount))
 }
 
 // Faucet is distributing foo20 tokens without restriction (unsafe).
 // For a real token faucet, you should take care of setting limits are asking payment.
-func Faucet() {
-	caller := runtime.PreviousRealm().Address()
-	amount := uint64(1_000 * 10_000) // 1k
+func Faucet(cur realm) {
+	caller := std.PreviousRealm().Address()
+	amount := int64(1_000 * 10_000) // 1k
 	checkErr(privateLedger.Mint(caller, amount))
 }
 
-func Mint(to chain.Address, amount uint64) {
-	Ownable.AssertCallerIsOwner()
+func Mint(cur realm, to std.Address, amount int64) {
+	Ownable.AssertOwnedByPrevious()
 	checkErr(privateLedger.Mint(to, amount))
 }
 
-func Burn(from chain.Address, amount uint64) {
-	Ownable.AssertCallerIsOwner()
+func Burn(cur realm, from std.Address, amount int64) {
+	Ownable.AssertOwnedByPrevious()
 	checkErr(privateLedger.Burn(from, amount))
 }
 
@@ -74,7 +73,7 @@ func Render(path string) string {
 	case path == "":
 		return Token.RenderHome()
 	case c == 2 && parts[0] == "balance":
-		owner := chain.Address(parts[1])
+		owner := std.Address(parts[1])
 		balance := UserTeller.BalanceOf(owner)
 		return ufmt.Sprintf("%d\n", balance)
 	default:
@@ -84,6 +83,6 @@ func Render(path string) string {
 
 func checkErr(err error) {
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 }

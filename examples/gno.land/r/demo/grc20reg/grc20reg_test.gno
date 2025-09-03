@@ -1,7 +1,7 @@
 package grc20reg
 
 import (
-	"chain/runtime"
+	"std"
 	"strings"
 	"testing"
 
@@ -10,15 +10,13 @@ import (
 )
 
 func TestRegistry(t *testing.T) {
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/demo/foo"))
-	realmAddr := runtime.CurrentRealm().PkgPath()
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/foo"))
+	realmAddr := std.CurrentRealm().PkgPath()
 	token, ledger := grc20.NewToken("TestToken", "TST", 4)
-	ledger.Mint(runtime.CurrentRealm().Address(), 1234567)
-	tokenGetter := func() *grc20.Token { return token }
+	ledger.Mint(std.CurrentRealm().Address(), 1234567)
 	// register
-	Register(tokenGetter, "")
-	regTokenGetter := Get(realmAddr)
-	regToken := regTokenGetter()
+	Register(cross, token, "")
+	regToken := Get(realmAddr)
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
 
@@ -31,16 +29,14 @@ func TestRegistry(t *testing.T) {
 	urequire.True(t, invalidToken == nil)
 
 	// register with a slug
-	Register(tokenGetter, "mySlug")
-	regTokenGetter = Get(realmAddr + ".mySlug")
-	regToken = regTokenGetter()
+	Register(cross, token, "mySlug")
+	regToken = Get(realmAddr + ".mySlug")
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
 
 	// override
-	Register(tokenGetter, "")
-	regTokenGetter = Get(realmAddr + "")
-	regToken = regTokenGetter()
+	Register(cross, token, "")
+	regToken = Get(realmAddr + "")
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
 

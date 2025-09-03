@@ -1,11 +1,15 @@
 package users
 
-import "errors"
+import (
+	"errors"
+	"std"
+
+	"gno.land/p/demo/ufmt"
+)
 
 const prefix = "r/sys/users: "
 
 var (
-	ErrNotWhitelisted     = errors.New(prefix + "does not exist in whitelist")
 	ErrAlreadyWhitelisted = errors.New(prefix + "already whitelisted")
 
 	ErrNameTaken      = errors.New(prefix + "name/Alias already taken")
@@ -20,3 +24,20 @@ var (
 
 	ErrUserNotExistOrDeleted = errors.New(prefix + "this user does not exist or was deleted")
 )
+
+type ErrNotWhitelisted struct {
+	Current  std.Realm // not whitelisted
+	Previous std.Realm // for context
+}
+
+func NewErrNotWhitelisted() ErrNotWhitelisted {
+	return ErrNotWhitelisted{
+		Current:  std.CurrentRealm(),
+		Previous: std.PreviousRealm(),
+	}
+}
+
+func (e ErrNotWhitelisted) Error() string {
+	return ufmt.Sprintf("%scurrent realm/user does not exist in whitelist: %v (previous: %v)",
+		prefix, e.Current, e.Previous)
+}

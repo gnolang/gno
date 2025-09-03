@@ -194,9 +194,9 @@ func (fv *FuncValue) String() string {
 func (bmv *BoundMethodValue) String() string {
 	name := bmv.Func.Name
 	var (
-		recvT   string = "?"
-		params  string = "?"
-		results string = "(?)"
+		recvT   = "?"
+		params  = "?"
+		results = "(?)"
 	)
 	if ft, ok := bmv.Func.Type.(*FuncType); ok {
 		recvT = ft.Params[0].Type.String()
@@ -238,22 +238,46 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 }
 
 func (tv TypeValue) String() string {
-	ptr := ""
-	if reflect.TypeOf(tv.Type).Kind() == reflect.Ptr {
-		ptr = fmt.Sprintf(" (%p)", tv.Type)
-	}
-	/*
-		mthds := ""
-		if d, ok := tv.Type.(*DeclaredType); ok {
-			mthds = fmt.Sprintf(" %v", d.Methods)
-		}
-	*/
-	return fmt.Sprintf("typeval{%s%s}",
-		tv.Type.String(), ptr)
+	return fmt.Sprintf("typeval{%s}",
+		tv.Type.String())
 }
 
 func (pv *PackageValue) String() string {
 	return fmt.Sprintf("package(%s %s)", pv.PkgName, pv.PkgPath)
+}
+
+func (b *Block) String() string {
+	return b.StringIndented("    ")
+}
+
+func (b *Block) StringIndented(indent string) string {
+	source := toString(b.Source)
+	if len(source) > 32 {
+		source = source[:32] + "..."
+	}
+	lines := make([]string, 0, 3)
+	lines = append(lines,
+		fmt.Sprintf("Block(ID:%v,Addr:%p,Source:%s,Parent:%p)",
+			b.ObjectInfo.ID, b, source, b.Parent)) // XXX Parent may be RefValue{}.
+	if b.Source != nil {
+		if _, ok := b.Source.(RefNode); ok {
+			lines = append(lines,
+				fmt.Sprintf("%s(RefNode names not shown)", indent))
+		} else {
+			types := b.Source.GetStaticBlock().Types
+			for i, n := range b.Source.GetBlockNames() {
+				if len(b.Values) <= i {
+					lines = append(lines,
+						fmt.Sprintf("%s%s: undefined static:%s", indent, n, types[i]))
+				} else {
+					lines = append(lines,
+						fmt.Sprintf("%s%s: %s static:%s",
+							indent, n, b.Values[i].String(), types[i]))
+				}
+			}
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (rv RefValue) String() string {
@@ -355,9 +379,13 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 		}
 	case *PointerType:
 		if tv.V == nil {
-			return "invalid-pointer"
+			return "typed-nil"
 		}
-		return tv.V.(PointerValue).ProtectedString(seen)
+		roPre, roPost := "", ""
+		if tv.IsReadonly() {
+			roPre, roPost = "readonly(", ")"
+		}
+		return roPre + tv.V.(PointerValue).ProtectedString(seen) + roPost
 	case *FuncType:
 		switch fv := tv.V.(type) {
 		case nil:
@@ -390,13 +418,17 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 		if tv.V == nil {
 			return "(" + nilStr + " " + tv.T.String() + ")"
 		}
-
+		// Value may be N_Readonly
+		roPre, roPost := "", ""
+		if tv.IsReadonly() {
+			roPre, roPost = "readonly(", ")"
+		}
 		// *ArrayType, *SliceType, *StructType, *MapType
 		if ps, ok := tv.V.(protectedStringer); ok {
-			return ps.ProtectedString(seen)
+			return roPre + ps.ProtectedString(seen) + roPost
 		} else if s, ok := tv.V.(fmt.Stringer); ok {
 			// *NativeType
-			return s.String()
+			return roPre + s.String() + roPost
 		}
 
 		if debug {
@@ -427,7 +459,7 @@ func (tv TypedValue) ProtectedString(seen *seenValues) string {
 		case BoolType, UntypedBoolType:
 			vs = fmt.Sprintf("%t", tv.GetBool())
 		case StringType, UntypedStringType:
-			vs = fmt.Sprintf("%s", tv.GetString())
+			vs = tv.GetString()
 		case IntType:
 			vs = fmt.Sprintf("%d", tv.GetInt())
 		case Int8Type:

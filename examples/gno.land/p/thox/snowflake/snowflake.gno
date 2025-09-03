@@ -12,9 +12,9 @@
 package snowflake
 
 import (
-	"chain/runtime"
 	"encoding/binary"
 	"encoding/hex"
+	"std"
 	"time"
 
 	"gno.land/p/demo/entropy"
@@ -86,7 +86,7 @@ func (s *SnowflakeID) getTimenow() uint64 {
 
 // SetMachineID sets the machine ID based on the caller’s address.
 func (s *SnowflakeID) SetMachineID() {
-	caller := runtime.PreviousRealm().Address() // Retrieve the caller’s address
+	caller := std.PreviousRealm().Address() // Retrieve the caller’s address
 	machineID := uint64(0)
 	for _, c := range caller.String() {
 		machineID += uint64(c)

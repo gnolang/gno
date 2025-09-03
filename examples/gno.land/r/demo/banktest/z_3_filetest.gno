@@ -1,25 +1,21 @@
-// Empty line between the directives is important for them to be parsed
-// independently. :facepalm:
-
 // PKGPATH: gno.land/r/demo/bank1
 
 package bank1
 
 import (
-	"chain"
-	"chain/banker"
+	"std"
 	"testing"
 )
 
 func main() {
-	banktestAddr := chain.DerivePkgAddr("gno.land/r/demo/banktest")
+	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/banktest")
 
-	mainaddr := chain.DerivePkgAddr("gno.land/r/demo/bank1")
+	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
 	testing.SetOriginCaller(mainaddr)
 
-	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
-	send := banker.Coins{{"ugnot", 123}}
-	banker_.SendCoins(banktestAddr, mainaddr, send)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
+	send := std.Coins{{"ugnot", 123}}
+	banker.SendCoins(banktestAddr, mainaddr, send)
 }
 
 // Error:

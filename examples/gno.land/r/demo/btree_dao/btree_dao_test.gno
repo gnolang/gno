@@ -1,7 +1,7 @@
 package btree_dao
 
 import (
-	"chain"
+	"std"
 	"strings"
 	"testing"
 	"time"
@@ -12,7 +12,7 @@ import (
 )
 
 func setupTest() {
-	testing.SetOriginCaller(chain.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
+	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
 	members = btree.New()
 }
 
@@ -33,7 +33,7 @@ func TestPlantTree(t *testing.T) {
 		tree.Insert(&TestElement{value: val})
 	}
 
-	err := PlantTree(tree)
+	err := PlantTree(cross, tree)
 	urequire.NoError(t, err)
 
 	found := false
@@ -47,18 +47,18 @@ func TestPlantTree(t *testing.T) {
 	})
 	uassert.True(t, found)
 
-	err = PlantTree(tree)
+	err = PlantTree(cross, tree)
 	uassert.Error(t, err)
 
 	emptyTree := btree.New()
-	err = PlantTree(emptyTree)
+	err = PlantTree(cross, emptyTree)
 	uassert.Error(t, err)
 }
 
 func TestPlantSeed(t *testing.T) {
 	setupTest()
 
-	err := PlantSeed("Hello DAO!")
+	err := PlantSeed(cross, "Hello DAO!")
 	urequire.NoError(t, err)
 
 	found := false
@@ -74,7 +74,7 @@ func TestPlantSeed(t *testing.T) {
 	})
 	uassert.True(t, found)
 
-	err = PlantSeed("")
+	err = PlantSeed(cross, "")
 	uassert.Error(t, err)
 }
 
@@ -82,12 +82,12 @@ func TestRegistrationDetailsOrdering(t *testing.T) {
 	setupTest()
 
 	rd1 := &RegistrationDetails{
-		Address: chain.Address("test1"),
+		Address: std.Address("test1"),
 		RegTime: time.Now(),
 		NFTID:   "0",
 	}
 	rd2 := &RegistrationDetails{
-		Address: chain.Address("test2"),
+		Address: std.Address("test2"),
 		RegTime: time.Now().Add(time.Hour),
 		NFTID:   "1",
 	}

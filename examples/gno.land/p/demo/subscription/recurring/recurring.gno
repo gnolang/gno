@@ -1,9 +1,7 @@
 package recurring
 
 import (
-	"chain"
-	"chain/banker"
-	"chain/runtime"
+	"std"
 	"time"
 
 	"gno.land/p/demo/avl"
@@ -30,7 +28,7 @@ func NewRecurringSubscription(duration time.Duration, amount int64) *RecurringSu
 }
 
 // HasValidSubscription verifies if the caller has an active recurring subscription.
-func (rs *RecurringSubscription) HasValidSubscription(addr chain.Address) error {
+func (rs *RecurringSubscription) HasValidSubscription(addr std.Address) error {
 	expTime, exists := rs.subs.Get(addr.String())
 	if !exists {
 		return ErrNoSub
@@ -44,8 +42,8 @@ func (rs *RecurringSubscription) HasValidSubscription(addr chain.Address) error 
 }
 
 // processSubscription processes the payment for a given receiver and renews or adds their subscription.
-func (rs *RecurringSubscription) processSubscription(receiver chain.Address) error {
-	amount := banker.OriginSend()
+func (rs *RecurringSubscription) processSubscription(receiver std.Address) error {
+	amount := std.OriginSend()
 
 	if amount.AmountOf("ugnot") != rs.amount {
 		return ErrAmt
@@ -70,18 +68,18 @@ func (rs *RecurringSubscription) processSubscription(receiver chain.Address) err
 
 // Subscribe handles the payment for the caller's subscription.
 func (rs *RecurringSubscription) Subscribe() error {
-	caller := runtime.PreviousRealm().Address()
+	caller := std.CurrentRealm().Address()
 
 	return rs.processSubscription(caller)
 }
 
 // GiftSubscription allows the user to pay for a subscription for another user (receiver).
-func (rs *RecurringSubscription) GiftSubscription(receiver chain.Address) error {
+func (rs *RecurringSubscription) GiftSubscription(receiver std.Address) error {
 	return rs.processSubscription(receiver)
 }
 
 // GetExpiration returns the expiration date of the recurring subscription for a given caller.
-func (rs *RecurringSubscription) GetExpiration(addr chain.Address) (time.Time, error) {
+func (rs *RecurringSubscription) GetExpiration(addr std.Address) (time.Time, error) {
 	expTime, exists := rs.subs.Get(addr.String())
 	if !exists {
 		return time.Time{}, ErrNoSub
@@ -92,7 +90,7 @@ func (rs *RecurringSubscription) GetExpiration(addr chain.Address) (time.Time, e
 
 // UpdateAmount allows the owner of the subscription contract to change the required subscription amount.
 func (rs *RecurringSubscription) UpdateAmount(newAmount int64) error {
-	if !rs.CallerIsOwner() {
+	if !rs.OwnedByCurrent() {
 		return ErrNotAuthorized
 	}
 

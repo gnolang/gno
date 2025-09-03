@@ -1,7 +1,7 @@
 package users
 
 import (
-	"chain/runtime"
+	"std"
 	"strings"
 
 	"gno.land/p/demo/releases"
@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	cd        = runtime.ChainDomain()
+	cd        = std.ChainDomain()
 	changelog = releases.NewChangelog("r/gnoland/users")
 )
 
@@ -35,7 +35,7 @@ func ProposeNewRelease(newVerPkgPath, note string) dao.ProposalRequest {
 		panic("r/gnoland/users: invalid version pkgpath")
 	}
 
-	cb := func() error {
+	cb := func(cur realm) error {
 		changelog.NewRelease(ver, strings.TrimPrefix(newVerPkgPath, "gno.land"), note)
 		return nil
 	}

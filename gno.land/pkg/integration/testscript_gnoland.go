@@ -37,7 +37,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const nodeMaxLifespan = time.Second * 30
+const nodeMaxLifespan = time.Second * 120
+
+var defaultUserBalance = std.Coins{std.NewCoin(ugnot.Denom, 10e8)}
 
 type envKey int
 
@@ -75,6 +77,8 @@ type tNodeProcess struct {
 type NodesManager struct {
 	nodes map[string]*tNodeProcess
 	mu    sync.RWMutex
+
+	sequentialMu sync.RWMutex
 }
 
 // NewNodesManager creates a new instance of NodesManager.
@@ -272,13 +276,14 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			fs := flag.NewFlagSet("start", flag.ContinueOnError)
 			nonVal := fs.Bool("non-validator", false, "set up node as a non-validator")
 			lockTransfer := fs.Bool("lock-transfer", false, "lock transfer ugnot")
+			noParallel := fs.Bool("no-parallel", false, "don't run this node in parallel with other testing nodes")
 			if err := fs.Parse(cmdargs); err != nil {
 				ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 			}
 
 			pkgs := ts.Value(envKeyPkgsLoader).(*PkgsLoader)
 			defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-			pkgsTxs, err := pkgs.LoadPackages(defaultPK, defaultFee, nil)
+			pkgsTxs, err := pkgs.GenerateTxs(defaultPK, defaultFee, nil)
 			if err != nil {
 				ts.Fatalf("unable to load packages txs: %s", err)
 			}
@@ -295,19 +300,41 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 
 			cfg.Genesis.AppState = genesis
 			if *nonVal {
-				pv := gnoland.NewMockedPrivValidator()
+				pv := bft.NewMockPV()
+				pvPubKey := pv.PubKey()
 				cfg.Genesis.Validators = []bft.GenesisValidator{
 					{
-						Address: pv.GetPubKey().Address(),
-						PubKey:  pv.GetPubKey(),
+						Address: pvPubKey.Address(),
+						PubKey:  pvPubKey,
 						Power:   10,
 						Name:    "none",
 					},
 				}
 			}
 
+			if *noParallel {
+				// The reason for this is that a direct Lock() on the RWMutex
+				// can too easily create "splits", which are inefficient;
+				// for instance: 10 parallel tests, one sequential test, 10 parallel tests.
+				// Instead, TryLock() does not "request" the lock to be
+				// transferred to the caller, so any incoming RLock() will be
+				// given if there are other RLocks.
+				// There is probably a better way to do this without using this hack;
+				// however, this should be done if -no-parallel is actually
+				// adopted in a variety of tests.
+				for !nodesManager.sequentialMu.TryLock() {
+					time.Sleep(time.Millisecond * 10)
+				}
+				ts.Defer(nodesManager.sequentialMu.Unlock)
+			} else {
+				nodesManager.sequentialMu.RLock()
+				ts.Defer(nodesManager.sequentialMu.RUnlock)
+			}
+
 			ctx, cancel := context.WithTimeout(context.Background(), nodeMaxLifespan)
 			ts.Defer(cancel)
+
+			start := time.Now()
 
 			dbdir := ts.Getenv("GNO_DBDIR")
 			priv := ts.Value(envKeyPrivValKey).(ed25519.PrivKeyEd25519)
@@ -326,7 +353,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			// Load user infos
 			loadUserEnv(ts, nodep.Address())
 
-			fmt.Fprintln(ts.Stdout(), "node started successfully")
+			fmt.Fprintf(ts.Stdout(), "node started successfully, took %s\n", time.Since(start).String())
 
 		case "restart":
 			node, exists := nodesManager.Get(sid)
@@ -335,7 +362,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 				break
 			}
 
-			if err := node.Stop(); err != nil {
+			if err = node.Stop(); err != nil {
 				err = fmt.Errorf("unable to stop the node gracefully: %w", err)
 				break
 			}
@@ -368,7 +395,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 				break
 			}
 
-			if err := node.Stop(); err != nil {
+			if err = node.Stop(); err != nil {
 				err = fmt.Errorf("unable to stop the node gracefully: %w", err)
 				break
 			}
@@ -441,7 +468,16 @@ func adduserCmd(nodesManager *NodesManager) func(ts *testscript.TestScript, neg 
 			ts.Fatalf("unable to get keybase")
 		}
 
-		balance, err := createAccount(ts, kb, args[0])
+		coins := defaultUserBalance
+		if len(args) > 1 {
+			// parse coins from string
+			coins, err = std.ParseCoins(args[1])
+			if err != nil {
+				ts.Fatalf("unable to parse coins: %s", err)
+			}
+		}
+
+		balance, err := createAccount(ts, kb, args[0], coins)
 		if err != nil {
 			ts.Fatalf("error creating account %s: %s", args[0], err)
 		}
@@ -486,7 +522,7 @@ func adduserfromCmd(nodesManager *NodesManager) func(ts *testscript.TestScript, 
 			ts.Fatalf("unable to get keybase")
 		}
 
-		balance, err := createAccountFrom(ts, kb, args[0], args[1], uint32(account), uint32(index))
+		balance, err := createAccountFrom(ts, kb, args[0], args[1], defaultUserBalance, uint32(account), uint32(index))
 		if err != nil {
 			ts.Fatalf("error creating wallet %s", err)
 		}
@@ -522,20 +558,20 @@ func loadpkgCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, arg
 
 		pkgs := ts.Value(envKeyPkgsLoader).(*PkgsLoader)
 
-		var path, name string
+		var dir, path string
 		switch len(args) {
 		case 2:
-			name = args[0]
-			path = filepath.Clean(args[1])
+			path = args[0]
+			dir = filepath.Clean(args[1])
 		case 1:
-			path = filepath.Clean(args[0])
+			dir = filepath.Clean(args[0])
 		case 0:
 			ts.Fatalf("`loadpkg`: no arguments specified")
 		default:
 			ts.Fatalf("`loadpkg`: too many arguments specified")
 		}
 
-		if path == "all" {
+		if dir == "all" {
 			ts.Logf("warning: loading all packages")
 			if err := pkgs.LoadAllPackagesFromDir(examplesDir); err != nil {
 				ts.Fatalf("unable to load packages from %q: %s", examplesDir, err)
@@ -544,11 +580,11 @@ func loadpkgCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, arg
 			return
 		}
 
-		if !strings.HasPrefix(path, workDir) {
-			path = filepath.Join(examplesDir, path)
+		if !strings.HasPrefix(dir, workDir) {
+			dir = filepath.Join(examplesDir, dir)
 		}
 
-		if err := pkgs.LoadPackage(examplesDir, path, name); err != nil {
+		if err := pkgs.LoadPackage(examplesDir, dir, path); err != nil {
 			ts.Fatalf("`loadpkg` unable to load package(s) from %q: %s", args[0], err)
 		}
 
@@ -670,7 +706,7 @@ func setupNode(ts *testscript.TestScript, ctx context.Context, cfg *ProcessNodeC
 }
 
 // createAccount creates a new account with the given name and adds it to the keybase.
-func createAccount(ts *testscript.TestScript, kb keys.Keybase, accountName string) (gnoland.Balance, error) {
+func createAccount(ts *testscript.TestScript, kb keys.Keybase, accountName string, coins std.Coins) (gnoland.Balance, error) {
 	var balance gnoland.Balance
 	entropy, err := bip39.NewEntropy(256)
 	if err != nil {
@@ -682,11 +718,11 @@ func createAccount(ts *testscript.TestScript, kb keys.Keybase, accountName strin
 		return balance, fmt.Errorf("error generating mnemonic: %w", err)
 	}
 
-	return createAccountFrom(ts, kb, accountName, mnemonic, 0, 0)
+	return createAccountFrom(ts, kb, accountName, mnemonic, coins, 0, 0)
 }
 
 // createAccountFrom creates a new account with the given metadata and adds it to the keybase.
-func createAccountFrom(ts *testscript.TestScript, kb keys.Keybase, accountName, mnemonic string, account, index uint32) (gnoland.Balance, error) {
+func createAccountFrom(ts *testscript.TestScript, kb keys.Keybase, accountName, mnemonic string, coins std.Coins, account, index uint32) (gnoland.Balance, error) {
 	var balance gnoland.Balance
 
 	// check if mnemonic is valid
@@ -705,7 +741,7 @@ func createAccountFrom(ts *testscript.TestScript, kb keys.Keybase, accountName, 
 
 	return gnoland.Balance{
 		Address: address,
-		Amount:  std.Coins{std.NewCoin(ugnot.Denom, 10e6)},
+		Amount:  coins,
 	}, nil
 }
 

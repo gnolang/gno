@@ -36,7 +36,7 @@ func validatorEventFilter(event events.Event) []validatorUpdate {
 	// Make sure an add / remove event happened
 	for _, ev := range txResult.Result.Response.Events {
 		// Make sure the event is a GnoVM event
-		gnoEv, ok := ev.(chain.Event)
+		gnoEv, ok := ev.(chain.GnoEvent)
 		if !ok {
 			continue
 		}

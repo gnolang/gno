@@ -4,8 +4,7 @@ package groups_test
 // SEND: 1000000ugnot
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -15,35 +14,35 @@ import (
 
 var gid groups.GroupID
 
-const admin = chain.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
-	caller := runtime.OriginCaller() // main
-	testing.SetRealm(runtime.NewUserRealm(caller))
-	users.Register("main123")
+	caller := std.OriginCaller() // main
+	testing.SetRealm(std.NewUserRealm(caller))
+	users.Register(cross, "main123")
 
 	test1 := testutils.TestAddress("gnouser1")
 	testing.SetOriginCaller(test1)
-	testing.SetRealm(runtime.NewUserRealm(test1))
-	users.Register("test123")
+	testing.SetRealm(std.NewUserRealm(test1))
+	users.Register(cross, "test123")
 
 	test2 := testutils.TestAddress("gnouser2")
 	testing.SetOriginCaller(test2)
-	testing.SetRealm(runtime.NewUserRealm(test2))
-	users.Register("test223")
+	testing.SetRealm(std.NewUserRealm(test2))
+	users.Register(cross, "test223")
 
 	test3 := testutils.TestAddress("gnouser3")
 	testing.SetOriginCaller(test3)
-	testing.SetRealm(runtime.NewUserRealm(test3))
-	users.Register("test323")
+	testing.SetRealm(std.NewUserRealm(test3))
+	users.Register(cross, "test323")
 
 	testing.SetOriginCaller(caller)
-	testing.SetRealm(runtime.NewUserRealm(caller))
+	testing.SetRealm(std.NewUserRealm(caller))
 
-	gid = groups.CreateGroup("test_group")
+	gid = groups.CreateGroup(cross, "test_group")
 	println(gid)
 
-	groups.AddMember(gid, test3.String(), 32, "i am from UAE")
+	groups.AddMember(cross, gid, test3.String(), 32, "i am from UAE")
 	println(groups.Render("test_group"))
 }
 
@@ -55,12 +54,12 @@ func main() {
 //
 // Group Creator: main123
 //
-// Group createdAt: 2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001
+// Group createdAt: 2009-02-13 23:31:30 +0000 UTC
 //
 // Group Last MemberID: 0000000001
 //
 // Group Members:
 //
-// 			[0000000000, g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy, 32, i am from UAE, 2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001],
+// 			[0000000000, g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy, 32, i am from UAE, 2009-02-13 23:31:30 +0000 UTC],
 //
 //

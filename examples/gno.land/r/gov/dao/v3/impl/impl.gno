@@ -1,15 +1,14 @@
 package impl
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 
-	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
 var govDAO *GovDAO = NewGovDAO()
 var law *Law
+var gRealm = std.CurrentRealm()
 
 func init() {
 	law = &Law{
@@ -17,26 +16,22 @@ func init() {
 	}
 }
 
-func context() *dao.Context {
-	return &dao.Context{
-		PrevRealm:    runtime.PreviousRealm(),
-		CurrentRealm: runtime.CurrentRealm(),
-	}
-}
-
 func Render(in string) string {
-	return govDAO.Render(context(), in)
+	return govDAO.Render(gRealm.PkgPath(), in)
 }
 
 // AddMember allows T1 and T2 members to freely add T3 members using their invitation points.
-func AddMember(addr chain.Address) {
-	caller := runtime.OriginCaller()
-	m, t := memberstore.Get().GetMember(caller)
+func AddMember(cur realm, addr std.Address) {
+	caller := std.PreviousRealm()
+	if !caller.IsUser() {
+		panic("this function must be called by an EOA through msg call or msg run")
+	}
+	m, t := memberstore.Get().GetMember(caller.Address())
 	if m == nil {
 		panic("caller is not a member")
 	}
 
-	if t != memberstore.T1 || t != memberstore.T2 {
+	if t != memberstore.T1 && t != memberstore.T2 {
 		panic("caller is not on T1 or T2. To add members, propose them through proposals")
 	}
 
@@ -45,4 +40,12 @@ func AddMember(addr chain.Address) {
 	if err := memberstore.Get().SetMember(memberstore.T3, addr, memberByTier(memberstore.T3)); err != nil {
 		panic(err.Error())
 	}
+}
+
+func GetInstance() *GovDAO {
+	if std.CurrentRealm().PkgPath() != "gno.land/r/gov/dao/v3/loader" {
+		panic("not allowed")
+	}
+
+	return govDAO
 }

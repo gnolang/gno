@@ -1,7 +1,7 @@
 package keystore
 
 import (
-	"chain"
+	"std"
 	"strings"
 	"testing"
 
@@ -12,13 +12,13 @@ import (
 
 func TestRender(t *testing.T) {
 	var (
-		author1 chain.Address = testutils.TestAddress("author1")
-		author2 chain.Address = testutils.TestAddress("author2")
+		author1 std.Address = testutils.TestAddress("author1")
+		author2 std.Address = testutils.TestAddress("author2")
 	)
 
 	tt := []struct {
-		caller chain.Address
-		owner  chain.Address
+		caller std.Address
+		owner  std.Address
 		ps     []string
 		exp    string
 	}{
@@ -65,9 +65,9 @@ func TestRender(t *testing.T) {
 			testing.SetOriginCaller(tc.caller)
 			var act string
 			if len(tc.ps) > 0 && tc.ps[0] == "set" {
-				act = strings.TrimSpace(Set(tc.ps[1], tc.ps[2]))
+				act = strings.TrimSpace(Set(cross, tc.ps[1], tc.ps[2]))
 			} else if len(tc.ps) > 0 && tc.ps[0] == "remove" {
-				act = strings.TrimSpace(Remove(tc.ps[1]))
+				act = strings.TrimSpace(Remove(cross, tc.ps[1]))
 			} else {
 				act = strings.TrimSpace(Render(p))
 			}

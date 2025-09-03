@@ -1,336 +1,294 @@
 package mgroup
 
 import (
-	"chain"
+	"std"
 	"testing"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
-	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
 )
 
 func TestManagedGroup(t *testing.T) {
-	t.Parallel()
+	u1 := std.NewCodeRealm("gno.land/r/test/test/u1")
+	u2 := std.NewCodeRealm("gno.land/r/test/test/u2")
+	u3 := std.NewCodeRealm("gno.land/r/test/test/u3")
+	u4 := std.NewCodeRealm("gno.land/r/test/test/u4")
 
-	u1 := testutils.TestAddress("u1")
-	u2 := testutils.TestAddress("u2")
-	u3 := testutils.TestAddress("u3")
+	// testUsingPreviousRealm sets the realm to "gno.land/r/test/test"
+	// and uses the SetRealm in the test as the previous caller
+	testUsingPreviousRealm := func(fn func()) {
+		testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
+		fn()
+	}
 
 	t.Run("AddBackupOwner", func(t *testing.T) {
-		t.Parallel()
-		g := New(u1)
-		// happy path
-		{
-			testing.SetOriginCaller(u1)
-			err := g.AddBackupOwner(u2)
-			if err != nil {
+		g := New(u1.Address())
+
+		testing.SetRealm(u1)
+		testUsingPreviousRealm(func() {
+			if err := g.AddBackupOwner(u2.Address()); err != nil {
 				t.Errorf("expected nil, got %v", err.Error())
 			}
-		}
-		// ensure checking for authorized caller
-		{
-			testing.SetOriginCaller(u2)
-			err := g.AddBackupOwner(u3)
-			if err != ownable.ErrUnauthorized {
-				t.Errorf("expected %v, got %v", ErrNotBackupOwner.Error(), err.Error())
-			}
-		}
-		// ensure invalid address is caught
-		{
-			testing.SetOriginCaller(u1)
-			var badAddr chain.Address
-			err := g.AddBackupOwner(badAddr)
-			if err != ErrInvalidAddress {
+			// ensure invalid address is caught
+			var badAddr std.Address
+			if err := g.AddBackupOwner(badAddr); err != ErrInvalidAddress {
 				t.Errorf("expected %v, got %v", ErrInvalidAddress.Error(), err.Error())
 			}
-		}
+		})
+
+		testing.SetRealm(u3)
+		testUsingPreviousRealm(func() {
+			// an address that is not the owner should not be allowed to add a backup owner
+			if err := g.AddBackupOwner(u4.Address()); err != ownable.ErrUnauthorized {
+				t.Errorf("expected %v, got %v", ownable.ErrUnauthorized, err.Error())
+			}
+		})
+
 	})
 	t.Run("RemoveBackupOwner", func(t *testing.T) {
-		t.Parallel()
-		g := New(u1)
-		// happy path
-		{
-			testing.SetOriginCaller(u1)
-			g.AddBackupOwner(u2)
-			err := g.RemoveBackupOwner(u2)
-			if err != nil {
+		g := New(u1.Address())
+
+		testing.SetRealm(u1)
+		testUsingPreviousRealm(func() {
+			g.AddBackupOwner(u2.Address())
+			if err := g.RemoveBackupOwner(u2.Address()); err != nil {
 				t.Errorf("expected nil, got %v", err.Error())
 			}
-		}
-		// running this twice should not error.
-		{
-			testing.SetOriginCaller(u1)
-			err := g.RemoveBackupOwner(u2)
-			if err != nil {
+			// running this twice should not error.
+			if err := g.RemoveBackupOwner(u2.Address()); err != nil {
 				t.Errorf("expected nil, got %v", err.Error())
 			}
-		}
-		// ensure checking for authorized caller
-		{
-			testing.SetOriginCaller(u2)
-			err := g.RemoveBackupOwner(u3)
-			if err != ownable.ErrUnauthorized {
-				t.Errorf("expected %v, got %v", ErrNotBackupOwner.Error(), err.Error())
-			}
-		}
-		{
-			testing.SetOriginCaller(u1)
-			var badAddr chain.Address
-			err := g.RemoveBackupOwner(badAddr)
-			if err != ErrInvalidAddress {
+			var badAddr std.Address
+			if err := g.RemoveBackupOwner(badAddr); err != ErrInvalidAddress {
 				t.Errorf("expected %v, got %v", ErrInvalidAddress.Error(), err.Error())
 			}
-		}
-		{
-			testing.SetOriginCaller(u1)
-			err := g.RemoveBackupOwner(u1)
-			if err != ErrCannotRemoveOwner {
+			if err := g.RemoveBackupOwner(u1.Address()); err != ErrCannotRemoveOwner {
 				t.Errorf("expected %v, got %v", ErrCannotRemoveOwner.Error(), err.Error())
 			}
-		}
+		})
+
+		testing.SetRealm(u3)
+		testUsingPreviousRealm(func() {
+			g.AddBackupOwner(u2.Address())
+			if err := g.RemoveBackupOwner(u2.Address()); err != ownable.ErrUnauthorized {
+				t.Errorf("expected %v, got %v", ownable.ErrUnauthorized, err.Error())
+			}
+		})
 	})
+
 	t.Run("ClaimOwnership", func(t *testing.T) {
-		t.Parallel()
-		g := New(u1)
-		g.AddBackupOwner(u2)
-		// happy path
-		{
-			testing.SetOriginCaller(u2)
-			err := g.ClaimOwnership()
-			if err != nil {
+		g := New(u1.Address())
+
+		testing.SetRealm(u1)
+		testUsingPreviousRealm(func() {
+			g.AddBackupOwner(u2.Address())
+		})
+		testing.SetRealm(u2)
+		testUsingPreviousRealm(func() {
+			if err := g.ClaimOwnership(); err != nil {
 				t.Errorf("expected nil, got %v", err.Error())
 			}
-			if g.Owner() != u2 {
+			if g.Owner() != u2.Address() {
 				t.Errorf("expected %v, got %v", u2, g.Owner())
 			}
-			if !g.IsMember(u2) {
+			if !g.IsMember(u2.Address()) {
 				t.Errorf("expected %v to be a member", u2)
 			}
-		}
-		// running this twice should not error.
-		{
-			testing.SetOriginCaller(u2)
-			err := g.ClaimOwnership()
-			if err != nil {
+			if err := g.ClaimOwnership(); err != nil {
 				t.Errorf("expected nil, got %v", err.Error())
 			}
-		}
-		// ensure checking for authorized caller
-		{
-			testing.SetOriginCaller(u3)
-			err := g.ClaimOwnership()
-			if err != ErrNotMember {
+		})
+		testing.SetRealm(u3)
+		testUsingPreviousRealm(func() {
+			if err := g.ClaimOwnership(); err != ErrNotMember {
 				t.Errorf("expected %v, got %v", ErrNotMember.Error(), err.Error())
 			}
-		}
+		})
 	})
+
 	t.Run("AddMember", func(t *testing.T) {
-		t.Parallel()
-		g := New(u1)
-		// happy path
-		{
-			testing.SetOriginCaller(u1)
-			err := g.AddMember(u2)
-			if err != nil {
+		g := New(u1.Address())
+		testing.SetRealm(u1)
+		testUsingPreviousRealm(func() {
+			if err := g.AddMember(u2.Address()); err != nil {
 				t.Errorf("expected nil, got %v", err.Error())
 			}
-			if !g.IsMember(u2) {
+			if !g.IsMember(u2.Address()) {
 				t.Errorf("expected %v to be a member", u2)
 			}
-		}
-		// ensure checking for authorized caller
-		{
-			testing.SetOriginCaller(u2)
-			err := g.AddMember(u3)
-			if err != ownable.ErrUnauthorized {
-				t.Errorf("expected %v, got %v", ownable.ErrUnauthorized.Error(), err.Error())
+			var badAddr std.Address
+			if err := g.AddMember(badAddr); err != ErrInvalidAddress {
+				t.Errorf("expected %v, got %v", ErrInvalidAddress, err.Error())
 			}
-		}
-		// ensure invalid address is caught
-		{
-			testing.SetOriginCaller(u1)
-			var badAddr chain.Address
-			err := g.AddMember(badAddr)
-			if err != ErrInvalidAddress {
-				t.Errorf("expected %v, got %v", ErrInvalidAddress.Error(), err.Error())
+		})
+		testing.SetRealm(u3)
+		testUsingPreviousRealm(func() {
+			if err := g.AddMember(u4.Address()); err != ownable.ErrUnauthorized {
+				t.Errorf("expected %v, got %v", ownable.ErrUnauthorized, err.Error())
 			}
-		}
+		})
 	})
+
 	t.Run("RemoveMember", func(t *testing.T) {
-		t.Parallel()
-		g := New(u1)
-		// happy path
-		{
-			testing.SetOriginCaller(u1)
-			g.AddMember(u2)
-			err := g.RemoveMember(u2)
-			if err != nil {
+		g := New(u1.Address())
+
+		testing.SetRealm(u1)
+		testUsingPreviousRealm(func() {
+			g.AddMember(u2.Address())
+			if err := g.RemoveMember(u2.Address()); err != nil {
 				t.Errorf("expected nil, got %v", err.Error())
 			}
-			if g.IsMember(u2) {
+			if g.IsMember(u2.Address()) {
 				t.Errorf("expected %v to not be a member", u2)
 			}
-		}
-		// running this twice should not error.
-		{
-			testing.SetOriginCaller(u1)
-			err := g.RemoveMember(u2)
-			if err != nil {
+			// running this twice should not error
+			if err := g.RemoveMember(u2.Address()); err != nil {
 				t.Errorf("expected nil, got %v", err.Error())
 			}
-		}
-		// ensure checking for authorized caller
-		{
-			testing.SetOriginCaller(u2)
-			err := g.RemoveMember(u3)
-			if err != ownable.ErrUnauthorized {
-				t.Errorf("expected %v, got %v", ownable.ErrUnauthorized.Error(), err.Error())
-			}
-		}
-		// ensure invalid address is caught
-		{
-			testing.SetOriginCaller(u1)
-			var badAddr chain.Address
-			err := g.RemoveMember(badAddr)
-			if err != ErrInvalidAddress {
+			var badAddr std.Address
+			if err := g.RemoveMember(badAddr); err != ErrInvalidAddress {
 				t.Errorf("expected %v, got %v", ErrInvalidAddress.Error(), err.Error())
 			}
-		}
-		// ensure owner cannot be removed
-		{
-			testing.SetOriginCaller(u1)
-			err := g.RemoveMember(u1)
-			if err != ErrCannotRemoveOwner {
+			if err := g.RemoveMember(u1.Address()); err != ErrCannotRemoveOwner {
 				t.Errorf("expected %v, got %v", ErrCannotRemoveOwner.Error(), err.Error())
 			}
-		}
+		})
+
+		testing.SetRealm(u2)
+		testUsingPreviousRealm(func() {
+			if err := g.RemoveMember(u3.Address()); err != ownable.ErrUnauthorized {
+				t.Errorf("expected %v, got %v", ownable.ErrUnauthorized.Error(), err.Error())
+			}
+		})
 	})
+
 	t.Run("MemberCount", func(t *testing.T) {
-		t.Parallel()
-		g := New(u1)
-		if g.MemberCount() != 1 {
-			t.Errorf("expected 0, got %v", g.MemberCount())
-		}
-		g.AddMember(u2)
-		if g.MemberCount() != 2 {
-			t.Errorf("expected 1, got %v", g.MemberCount())
-		}
-		g.AddMember(u3)
-		if g.MemberCount() != 3 {
-			t.Errorf("expected 2, got %v", g.MemberCount())
-		}
-		g.RemoveMember(u2)
-		if g.MemberCount() != 2 {
-			t.Errorf("expected 1, got %v", g.MemberCount())
-		}
+		g := New(u1.Address())
+		testing.SetRealm(u1)
+		testUsingPreviousRealm(func() {
+			uassert.Equal(t, 1, g.MemberCount())
+			g.AddMember(u2.Address())
+			uassert.Equal(t, 2, g.MemberCount())
+			g.AddMember(u3.Address())
+			uassert.Equal(t, 3, g.MemberCount())
+			g.RemoveMember(u2.Address())
+			uassert.Equal(t, 2, g.MemberCount())
+		})
 	})
+
 	t.Run("BackupOwnerCount", func(t *testing.T) {
-		t.Parallel()
-		g := New(u1)
-		if g.BackupOwnerCount() != 1 {
-			t.Errorf("expected 0, got %v", g.BackupOwnerCount())
-		}
-		g.AddBackupOwner(u2)
-		if g.BackupOwnerCount() != 2 {
-			t.Errorf("expected 1, got %v", g.BackupOwnerCount())
-		}
-		g.AddBackupOwner(u3)
-		if g.BackupOwnerCount() != 3 {
-			t.Errorf("expected 2, got %v", g.BackupOwnerCount())
-		}
-		g.RemoveBackupOwner(u2)
-		if g.BackupOwnerCount() != 2 {
-			t.Errorf("expected 1, got %v", g.BackupOwnerCount())
-		}
+		g := New(u1.Address())
+		testing.SetRealm(u1)
+		testUsingPreviousRealm(func() {
+			uassert.Equal(t, 1, g.BackupOwnerCount())
+			g.AddBackupOwner(u2.Address())
+			uassert.Equal(t, 2, g.BackupOwnerCount())
+			g.AddBackupOwner(u3.Address())
+			uassert.Equal(t, 3, g.BackupOwnerCount())
+			g.RemoveBackupOwner(u2.Address())
+			uassert.Equal(t, 2, g.BackupOwnerCount())
+		})
 	})
+
 	t.Run("IsMember", func(t *testing.T) {
-		t.Parallel()
-		g := New(u1)
-		if !g.IsMember(u1) {
-			t.Errorf("expected %v to be a member", u1)
-		}
-		if g.IsMember(u2) {
-			t.Errorf("expected %v to not be a member", u2)
-		}
-		g.AddMember(u2)
-		if !g.IsMember(u2) {
-			t.Errorf("expected %v to be a member", u2)
-		}
+		g := New(u1.Address())
+		testing.SetRealm(u1)
+		testUsingPreviousRealm(func() {
+			if !g.IsMember(u1.Address()) {
+				t.Errorf("expected %v to be a member", u1)
+			}
+			if g.IsMember(u2.Address()) {
+				t.Errorf("expected %v to not be a member", u2)
+			}
+			g.AddMember(u2.Address())
+			if !g.IsMember(u2.Address()) {
+				t.Errorf("expected %v to be a member", u2)
+			}
+		})
 	})
 	t.Run("IsBackupOwner", func(t *testing.T) {
-		t.Parallel()
-		g := New(u1)
-		if !g.IsBackupOwner(u1) {
-			t.Errorf("expected %v to be a backup owner", u1)
-		}
-		if g.IsBackupOwner(u2) {
-			t.Errorf("expected %v to not be a backup owner", u2)
-		}
-		g.AddBackupOwner(u2)
-		if !g.IsBackupOwner(u2) {
-			t.Errorf("expected %v to be a backup owner", u2)
-		}
+		g := New(u1.Address())
+		testing.SetRealm(u1)
+		testUsingPreviousRealm(func() {
+			if !g.IsBackupOwner(u1.Address()) {
+				t.Errorf("expected %v to be a backup owner", u1)
+			}
+			if g.IsBackupOwner(u2.Address()) {
+				t.Errorf("expected %v to not be a backup owner", u2)
+			}
+			g.AddBackupOwner(u2.Address())
+			if !g.IsBackupOwner(u2.Address()) {
+				t.Errorf("expected %v to be a backup owner", u2)
+			}
+		})
 	})
+
 	t.Run("Owner", func(t *testing.T) {
-		t.Parallel()
-		g := New(u1)
-		if g.Owner() != u1 {
-			t.Errorf("expected %v, got %v", u1, g.Owner())
-		}
-		g.AddBackupOwner(u2)
-		if g.Owner() != u1 {
-			t.Errorf("expected %v, got %v", u1, g.Owner())
-		}
-		testing.SetOriginCaller(u2)
-		g.ClaimOwnership()
-		if g.Owner() != u2 {
-			t.Errorf("expected %v, got %v", u2, g.Owner())
-		}
+		g := New(u1.Address())
+		testing.SetRealm(u1)
+		testUsingPreviousRealm(func() {
+			if g.Owner() != u1.Address() {
+				t.Errorf("expected %v, got %v", u1, g.Owner())
+			}
+			g.AddBackupOwner(u2.Address())
+			if g.Owner() != u1.Address() {
+				t.Errorf("expected %v, got %v", u1, g.Owner())
+			}
+		})
+		testing.SetRealm(u2)
+		testUsingPreviousRealm(func() {
+			g.ClaimOwnership()
+			if g.Owner() != u2.Address() {
+				t.Errorf("expected %v, got %v", u2, g.Owner())
+			}
+		})
 	})
 	t.Run("BackupOwners", func(t *testing.T) {
-		t.Parallel()
-		testing.SetOriginCaller(u1)
-		g := New(u1)
-		g.AddBackupOwner(u2)
-		g.AddBackupOwner(u3)
-		owners := g.BackupOwners()
-		if len(owners) != 3 {
-			t.Errorf("expected 2, got %v", len(owners))
-		}
-		if owners[0] != u1.String() {
-			t.Errorf("expected %v, got %v", u2, owners[0])
-		}
-		if owners[1] != u3.String() {
-			t.Errorf("expected %v, got %v", u3, owners[1])
-		}
-		if owners[2] != u2.String() {
-			t.Errorf("expected %v, got %v", u3, owners[1])
-		}
+		g := New(u1.Address())
+		testing.SetRealm(u1)
+		testUsingPreviousRealm(func() {
+			g.AddBackupOwner(u2.Address())
+			g.AddBackupOwner(u3.Address())
+			owners := g.BackupOwners()
+			if len(owners) != 3 {
+				t.Errorf("expected 3, got %v", len(owners))
+			}
+			if owners[0] != u1.Address().String() {
+				t.Errorf("expected %v, got %v", u1, owners[0])
+			}
+			if owners[1] != u2.Address().String() {
+				t.Errorf("expected %v, got %v", u2, owners[1])
+			}
+			if owners[2] != u3.Address().String() {
+				t.Errorf("expected %v, got %v", u3, owners[1])
+			}
+		})
 	})
 	t.Run("Members", func(t *testing.T) {
-		t.Parallel()
-		testing.SetOriginCaller(u1)
-		g := New(u1)
-		g.AddMember(u2)
-		g.AddMember(u3)
-		members := g.Members()
-		if len(members) != 3 {
-			t.Errorf("expected 2, got %v", len(members))
-		}
-		if members[0] != u1.String() {
-			t.Errorf("expected %v, got %v", u2, members[0])
-		}
-		if members[1] != u3.String() {
-			t.Errorf("expected %v, got %v", u3, members[1])
-		}
-		if members[2] != u2.String() {
-			t.Errorf("expected %v, got %v", u3, members[1])
-		}
+		g := New(u1.Address())
+		testing.SetRealm(u1)
+		testUsingPreviousRealm(func() {
+			g.AddMember(u2.Address())
+			g.AddMember(u3.Address())
+			members := g.Members()
+			if len(members) != 3 {
+				t.Errorf("expected 3, got %v", len(members))
+			}
+			if members[0] != u1.Address().String() {
+				t.Errorf("expected %v, got %v", u1, members[0])
+			}
+			if members[1] != u2.Address().String() {
+				t.Errorf("expected %v, got %v", u2, members[1])
+			}
+			if members[2] != u3.Address().String() {
+				t.Errorf("expected %v, got %v", u3, members[1])
+			}
+		})
 	})
 }
 
 func TestSliceWithOffset(t *testing.T) {
-	t.Parallel()
 	testTable := []struct {
 		name          string
 		slice         []string
@@ -406,7 +364,6 @@ func TestSliceWithOffset(t *testing.T) {
 	}
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 			tree := avl.NewTree()
 			for _, s := range test.slice {
 				tree.Set(s, struct{}{})

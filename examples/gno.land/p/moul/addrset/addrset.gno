@@ -9,7 +9,7 @@
 // Example usage:
 //
 //	import (
-//	    "chain"
+//	    "std"
 //	    "gno.land/p/moul/addrset"
 //	)
 //
@@ -18,8 +18,8 @@
 //	    var set addrset.Set
 //
 //	    // Add some addresses
-//	    addr1 := chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-//	    addr2 := chain.Address("g1sss5g0rkqr88k4u648yd5d3l9t4d8vvqwszqth")
+//	    addr1 := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+//	    addr2 := std.Address("g1sss5g0rkqr88k4u648yd5d3l9t4d8vvqwszqth")
 //
 //	    set.Add(addr1)  // returns true (newly added)
 //	    set.Add(addr2)  // returns true (newly added)
@@ -34,7 +34,7 @@
 //	    size := set.Size()  // returns 2
 //
 //	    // Iterate with pagination (10 items per page, starting at offset 0)
-//	    set.IterateByOffset(0, 10, func(addr chain.Address) bool {
+//	    set.IterateByOffset(0, 10, func(addr std.Address) bool {
 //	        // Process addr
 //	        return false  // continue iteration
 //	    })
@@ -46,7 +46,7 @@
 package addrset
 
 import (
-	"chain"
+	"std"
 
 	"gno.land/p/demo/avl"
 )
@@ -57,19 +57,19 @@ type Set struct {
 
 // Add inserts an address into the set.
 // Returns true if the address was newly added, false if it already existed.
-func (s *Set) Add(addr chain.Address) bool {
+func (s *Set) Add(addr std.Address) bool {
 	return !s.tree.Set(string(addr), nil)
 }
 
 // Remove deletes an address from the set.
 // Returns true if the address was found and removed, false if it didn't exist.
-func (s *Set) Remove(addr chain.Address) bool {
+func (s *Set) Remove(addr std.Address) bool {
 	_, removed := s.tree.Remove(string(addr))
 	return removed
 }
 
 // Has checks if an address exists in the set.
-func (s *Set) Has(addr chain.Address) bool {
+func (s *Set) Has(addr std.Address) bool {
 	return s.tree.Has(string(addr))
 }
 
@@ -80,17 +80,17 @@ func (s *Set) Size() int {
 
 // IterateByOffset walks through addresses starting at the given offset.
 // The callback should return true to stop iteration.
-func (s *Set) IterateByOffset(offset int, count int, cb func(addr chain.Address) bool) {
+func (s *Set) IterateByOffset(offset int, count int, cb func(addr std.Address) bool) {
 	s.tree.IterateByOffset(offset, count, func(key string, _ any) bool {
-		return cb(chain.Address(key))
+		return cb(std.Address(key))
 	})
 }
 
 // ReverseIterateByOffset walks through addresses in reverse order starting at the given offset.
 // The callback should return true to stop iteration.
-func (s *Set) ReverseIterateByOffset(offset int, count int, cb func(addr chain.Address) bool) {
+func (s *Set) ReverseIterateByOffset(offset int, count int, cb func(addr std.Address) bool) {
 	s.tree.ReverseIterateByOffset(offset, count, func(key string, _ any) bool {
-		return cb(chain.Address(key))
+		return cb(std.Address(key))
 	})
 }
 

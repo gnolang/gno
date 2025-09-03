@@ -1,7 +1,7 @@
 package users
 
 import (
-	"chain"
+	"std"
 
 	"gno.land/p/demo/avl/rotree"
 )
@@ -22,7 +22,7 @@ func ResolveName(name string) (data *UserData, isCurrent bool) {
 }
 
 // ResolveAddress returns the latest UserData of a specific user by address
-func ResolveAddress(addr chain.Address) *UserData {
+func ResolveAddress(addr std.Address) *UserData {
 	raw, ok := addressStore.Get(addr.String())
 	if !ok {
 		return nil
@@ -34,6 +34,17 @@ func ResolveAddress(addr chain.Address) *UserData {
 	}
 
 	return data
+}
+
+// ResolveAny tries to resolve any given string to *UserData
+// If the input is not found in the registry in any form, nil is returned
+func ResolveAny(input string) (*UserData, bool) {
+	addr := std.Address(input)
+	if addr.IsValid() {
+		return ResolveAddress(addr), true
+	}
+
+	return ResolveName(input)
 }
 
 // GetReadonlyAddrStore exposes the address store in readonly mode

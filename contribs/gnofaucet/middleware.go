@@ -2,21 +2,26 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/netip"
 	"strings"
 	"time"
+
+	"github.com/gnolang/faucet"
+	"github.com/gnolang/faucet/spec"
 )
 
-// getIPMiddleware returns the IP verification middleware, using the given subnet throttler
-func getIPMiddleware(behindProxy bool, st *ipThrottler) func(next http.Handler) http.Handler {
+// ipMiddleware returns the IP verification middleware, using the given subnet throttler
+func ipMiddleware(behindProxy bool, st *ipThrottler) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "text/plain")
+
 				// Determine the remote address
 				host, _, err := net.SplitHostPort(r.RemoteAddr)
 				if err != nil {
@@ -70,60 +75,36 @@ func getIPMiddleware(behindProxy bool, st *ipThrottler) func(next http.Handler) 
 	}
 }
 
-// getCaptchaMiddleware returns the captcha middleware, if any
-func getCaptchaMiddleware(secret string) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(
-			func(w http.ResponseWriter, r *http.Request) {
-				// Check if the captcha is enabled
-				if secret == "" {
-					// Continue with serving the faucet request
-					next.ServeHTTP(w, r)
+// captchaMiddleware returns the captcha middleware, if any
+func captchaMiddleware(secret string) faucet.Middleware {
+	return func(next faucet.HandlerFunc) faucet.HandlerFunc {
+		return func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
+			// Parse the request meta to extract the captcha secret
+			var meta struct {
+				Captcha string `json:"captcha"`
+			}
 
-					return
-				}
+			// Decode the original request
+			if err := json.NewDecoder(bytes.NewBuffer(req.Meta)).Decode(&meta); err != nil {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError("invalid captcha request", spec.InvalidRequestErrorCode),
+				)
+			}
 
-				// Parse the request to extract the captcha secret
-				var request struct {
-					Captcha string `json:"captcha"`
-				}
+			// Verify the captcha response
+			if err := checkRecaptcha(secret, strings.TrimSpace(meta.Captcha)); err != nil {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError("invalid captcha", spec.InvalidParamsErrorCode),
+				)
+			}
 
-				body, err := io.ReadAll(r.Body)
-				if err != nil {
-					http.Error(w, "unable to read request body", http.StatusInternalServerError)
-
-					return
-				}
-
-				// Close the original body
-				if err := r.Body.Close(); err != nil {
-					http.Error(w, "unable to close request body", http.StatusInternalServerError)
-
-					return
-				}
-
-				// Create a new ReadCloser from the read bytes
-				// so that future middleware will be able to read
-				r.Body = io.NopCloser(bytes.NewReader(body))
-
-				// Decode the original request
-				if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&request); err != nil {
-					http.Error(w, "invalid captcha request", http.StatusBadRequest)
-
-					return
-				}
-
-				// Verify the captcha response
-				if err := checkRecaptcha(secret, strings.TrimSpace(request.Captcha)); err != nil {
-					http.Error(w, "invalid captcha", http.StatusUnauthorized)
-
-					return
-				}
-
-				// Continue with serving the faucet request
-				next.ServeHTTP(w, r)
-			},
-		)
+			// Continue with serving the faucet request
+			return next(ctx, req)
+		}
 	}
 }
 

@@ -1,8 +1,7 @@
 package keystore
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 	"strings"
 
 	"gno.land/p/demo/avl"
@@ -27,21 +26,21 @@ func init() {
 
 // KeyStore stores the owner-specific avl.Tree
 type KeyStore struct {
-	Owner chain.Address
+	Owner std.Address
 	Data  avl.Tree
 }
 
 // Set will set a value to a key
 // requires write-access (original caller must be caller)
-func Set(k, v string) string {
-	origOwner := runtime.OriginCaller()
+func Set(_ realm, k, v string) string {
+	origOwner := std.OriginCaller()
 	return set(origOwner.String(), k, v)
 }
 
 // set (private) will set a key to value
 // requires write-access (original caller must be caller)
 func set(owner, k, v string) string {
-	origOwner := runtime.OriginCaller()
+	origOwner := std.OriginCaller()
 	if origOwner.String() != owner {
 		return StatusNoWriteAccess
 	}
@@ -62,15 +61,15 @@ func set(owner, k, v string) string {
 
 // Remove removes a key
 // requires write-access (original owner must be caller)
-func Remove(k string) string {
-	origOwner := runtime.OriginCaller()
+func Remove(_ realm, k string) string {
+	origOwner := std.OriginCaller()
 	return remove(origOwner.String(), k)
 }
 
 // remove (private) removes a key
 // requires write-access (original owner must be caller)
 func remove(owner, k string) string {
-	origOwner := runtime.OriginCaller()
+	origOwner := std.OriginCaller()
 	if origOwner.String() != owner {
 		return StatusNoWriteAccess
 	}
@@ -95,7 +94,7 @@ func remove(owner, k string) string {
 // Get returns a value for a key
 // read-only
 func Get(k string) string {
-	origOwner := runtime.OriginCaller()
+	origOwner := std.OriginCaller()
 	return remove(origOwner.String(), k)
 }
 
@@ -117,7 +116,7 @@ func get(owner, k string) string {
 // Size returns size of database
 // read-only
 func Size() string {
-	origOwner := runtime.OriginCaller()
+	origOwner := std.OriginCaller()
 	return size(origOwner.String())
 }
 

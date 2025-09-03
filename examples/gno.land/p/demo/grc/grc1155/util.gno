@@ -1,10 +1,12 @@
 package grc1155
 
-import "chain"
+import (
+	"std"
+)
 
-const zeroAddress chain.Address = ""
+const zeroAddress std.Address = ""
 
-func isValidAddress(addr chain.Address) bool {
+func isValidAddress(addr std.Address) bool {
 	if !addr.IsValid() {
 		return false
 	}

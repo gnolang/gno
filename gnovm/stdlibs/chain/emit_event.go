@@ -8,6 +8,7 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 var errInvalidGnoEventAttrs = errors.New("cannot pair attributes due to odd count")
@@ -23,7 +24,7 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 
 	ctx := execctx.GetContext(m)
 
-	evt := Event{
+	evt := GnoEvent{
 		Type:       typ,
 		Attributes: eventAttrs,
 		PkgPath:    pkgPath,
@@ -65,14 +66,14 @@ func findPreviousFunctionName(m *gno.Machine, targetIndex int) string {
 	panic("function name not found")
 }
 
-func attrKeysAndValues(attrs []string) ([]EventAttribute, error) {
+func attrKeysAndValues(attrs []string) ([]GnoEventAttribute, error) {
 	attrLen := len(attrs)
 	if attrLen%2 != 0 {
 		return nil, errInvalidGnoEventAttrs
 	}
-	eventAttrs := make([]EventAttribute, attrLen/2)
+	eventAttrs := make([]GnoEventAttribute, attrLen/2)
 	for i := 0; i < attrLen-1; i += 2 {
-		eventAttrs[i/2] = EventAttribute{
+		eventAttrs[i/2] = GnoEventAttribute{
 			Key:   attrs[i],
 			Value: attrs[i+1],
 		}
@@ -80,16 +81,35 @@ func attrKeysAndValues(attrs []string) ([]EventAttribute, error) {
 	return eventAttrs, nil
 }
 
-type Event struct {
-	Type       string           `json:"type"`
-	Attributes []EventAttribute `json:"attrs"`
-	PkgPath    string           `json:"pkg_path"`
-	Func       string           `json:"func"`
+type GnoEvent struct {
+	Type       string              `json:"type"`
+	Attributes []GnoEventAttribute `json:"attrs"`
+	PkgPath    string              `json:"pkg_path"`
+	Func       string              `json:"func"`
 }
 
-func (e Event) AssertABCIEvent() {}
+func (e GnoEvent) AssertABCIEvent() {}
 
-type EventAttribute struct {
+type GnoEventAttribute struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
+
+// StorageDepositEvent is emitted when a storage deposit fee is locked.
+type StorageDepositEvent struct {
+	BytesDelta int64    `json:"bytes_delta"`
+	FeeDelta   std.Coin `json:"fee_delta"`
+	PkgPath    string   `json:"pkg_path"`
+}
+
+func (e StorageDepositEvent) AssertABCIEvent() {}
+
+// StorageUnlockEvent is emitted when a storage deposit fee is unlocked.
+type StorageUnlockEvent struct {
+	// For unlock, BytesDelta is negative
+	BytesDelta int64    `json:"bytes_delta"`
+	FeeRefund  std.Coin `json:"fee_refund"`
+	PkgPath    string   `json:"pkg_path"`
+}
+
+func (e StorageUnlockEvent) AssertABCIEvent() {}

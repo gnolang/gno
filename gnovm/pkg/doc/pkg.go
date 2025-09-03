@@ -1,3 +1,4 @@
+//nolint:staticcheck // code copied from golang/go, staticcheck complains for usage of ast.Package.
 package doc
 
 import (
@@ -9,8 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type pkgData struct {
@@ -38,22 +39,23 @@ type symbolData struct {
 }
 
 func newPkgData(dir bfsDir, unexported bool) (*pkgData, error) {
-	memPkg, err := gnolang.ReadMemPackage(dir.dir, dir.importPath)
+	mptype := gno.MPAnyProd
+	mpkg, err := gno.ReadMemPackage(dir.dir, dir.importPath, mptype)
 	if err != nil {
 		return nil, fmt.Errorf("commands/doc: read files %q: %w", dir.dir, err)
 	}
-	return newPkgDataFromMemPkg(memPkg, unexported)
+	return newPkgDataFromMemPkg(mpkg, unexported)
 }
 
-func newPkgDataFromMemPkg(memPkg *gnovm.MemPackage, unexported bool) (*pkgData, error) {
+func newPkgDataFromMemPkg(mpkg *std.MemPackage, unexported bool) (*pkgData, error) {
 	pkg := &pkgData{
 		dir: bfsDir{
-			importPath: memPkg.Name,
-			dir:        memPkg.Path,
+			importPath: mpkg.Name,
+			dir:        mpkg.Path,
 		},
 		fset: token.NewFileSet(),
 	}
-	for _, file := range memPkg.Files {
+	for _, file := range mpkg.Files {
 		n := file.Name
 		// Ignore files with prefix . or _ like go tools do.
 		// Ignore _filetest.gno, but not _test.gno, as we use those to compute
@@ -66,18 +68,18 @@ func newPkgDataFromMemPkg(memPkg *gnovm.MemPackage, unexported bool) (*pkgData, 
 		}
 		err := pkg.parseFile(n, file.Body, unexported)
 		if err != nil {
-			fullPath := filepath.Join(memPkg.Path, n)
+			fullPath := filepath.Join(mpkg.Path, n)
 			return nil, fmt.Errorf("commands/doc: parse file %q: %w", fullPath, err)
 		}
 	}
 
 	if len(pkg.files) == 0 {
-		return nil, fmt.Errorf("commands/doc: no valid gno files in %q", memPkg.Path)
+		return nil, fmt.Errorf("commands/doc: no valid gno files in %q", mpkg.Path)
 	}
 	pkgName := pkg.files[0].Name.Name
 	for _, file := range pkg.files[1:] {
 		if file.Name.Name != pkgName {
-			return nil, fmt.Errorf("commands/doc: multiple packages (%q / %q) in dir %q", pkgName, file.Name.Name, memPkg.Path)
+			return nil, fmt.Errorf("commands/doc: multiple packages (%q / %q) in dir %q", pkgName, file.Name.Name, mpkg.Path)
 		}
 	}
 	pkg.name = pkgName
@@ -186,7 +188,7 @@ func typeExprString(expr ast.Expr) string {
 	return ""
 }
 
-func (pkg *pkgData) docPackage(opts *WriteDocumentationOptions) (*ast.Package, *doc.Package, error) {
+func (pkg *pkgData) docPackage() (*ast.Package, *doc.Package, error) {
 	// largely taken from go/doc.NewFromFiles source
 
 	// Collect .gno files in a map for ast.NewPackage.
@@ -207,9 +209,8 @@ func (pkg *pkgData) docPackage(opts *WriteDocumentationOptions) (*ast.Package, *
 	//	go doc time.Sunday
 	// from finding the symbol. This is why we always have AllDecls.
 	mode := doc.AllDecls
-	if opts.Source {
-		mode |= doc.PreserveAST
-	}
+	// Always keep the function body to check for crossing(). The caller can set the Body nil if needed
+	mode |= doc.PreserveAST
 
 	// Compute package documentation.
 	// Assign to blank to ignore errors that can happen due to unresolved identifiers.
