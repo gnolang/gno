@@ -4,7 +4,7 @@ loadpkg gno.land/r/gnoland/ghverify
 gnoland start
 
 # make a verification request
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func RequestVerification -args 'deelawn' -gas-fee 1000000ugnot -gas-wanted 4500000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func RequestVerification -args 'deelawn' -gas-fee 1000000ugnot -gas-wanted 6500000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # request tasks to complete (this is done by the agent)
