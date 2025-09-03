@@ -84,33 +84,7 @@ var (
 	// fixed memory caps. For now though it isn't a problem:
 	// https://github.com/gnolang/gno/pull/3424#issuecomment-2564571785
 	pkgIDFromPkgPathCache = make(map[string]*PkgID, 100)
-
-	pkgPrivateFromPkgIDMu sync.RWMutex // protects concurrent access
-	pkgPrivateFromPkgID   = make(map[PkgID]struct{}, 100)
 )
-
-func SetPkgPrivate(path string, private bool) {
-	pkgId := PkgIDFromPkgPath(path)
-	pkgPrivateFromPkgIDMu.Lock()
-	defer pkgPrivateFromPkgIDMu.Unlock()
-	if private {
-		pkgPrivateFromPkgID[pkgId] = struct{}{}
-	} else {
-		delete(pkgPrivateFromPkgID, pkgId)
-	}
-}
-
-func IsPkgPrivateFromPkgID(pkgID PkgID) bool {
-	pkgPrivateFromPkgIDMu.RLock()
-	_, ok := pkgPrivateFromPkgID[pkgID]
-	pkgPrivateFromPkgIDMu.RUnlock()
-	return ok
-}
-
-func IsPkgPrivateFromPkgPath(path string) bool {
-	pkgId := PkgIDFromPkgPath(path)
-	return IsPkgPrivateFromPkgID(pkgId)
-}
 
 func PkgIDFromPkgPath(path string) PkgID {
 	pkgIDFromPkgPathCacheMu.Lock()
@@ -191,13 +165,6 @@ func (rlm *Realm) String() string {
 			"Realm{Path:%q,Time:%d}#%X",
 			rlm.Path, rlm.Time, rlm.ID.Bytes())
 	}
-}
-
-func (rlm *Realm) SetPrivate(private bool) {
-	if rlm == nil {
-		return
-	}
-	SetPkgPrivate(rlm.Path, private)
 }
 
 //----------------------------------------
@@ -917,7 +884,7 @@ func (rlm *Realm) clearMarks() {
 // child objects are validated separately during the save traversal (saveUnsavedObjectRecursively)
 func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[TypeID]struct{}) {
 	objID := obj.GetObjectID()
-	if objID.PkgID != rlm.ID && IsPkgPrivateFromPkgID(objID.PkgID) {
+	if objID.PkgID != rlm.ID && isPkgPrivateFromPkgID(store, objID.PkgID) {
 		panic("cannot persist reference of object from private realm")
 	}
 
@@ -950,7 +917,7 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[Type
 			}
 		}
 	case *FuncValue:
-		if v.PkgPath != rlm.Path && IsPkgPrivateFromPkgPath(v.PkgPath) {
+		if v.PkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, v.PkgPath) {
 			panic("cannot persist function or method from private realm")
 		}
 		if v.Type != nil {
@@ -962,7 +929,7 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[Type
 			}
 		}
 	case *BoundMethodValue:
-		if v.Func.PkgPath != rlm.Path && IsPkgPrivateFromPkgPath(v.Func.PkgPath) {
+		if v.Func.PkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, v.Func.PkgPath) {
 			panic("cannot persist bound method from private realm")
 		}
 		if v.Receiver.T != nil {
@@ -978,7 +945,7 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[Type
 			rlm.assertTypeIsPublic(store, v.Blank.T, visited)
 		}
 	case *PackageValue:
-		if v.PkgPath != rlm.Path && IsPkgPrivateFromPkgPath(v.PkgPath) {
+		if v.PkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, v.PkgPath) {
 			panic("cannot persist package from private realm")
 		}
 	default:
@@ -1045,7 +1012,7 @@ func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]str
 	default:
 		panic(fmt.Sprintf("assertTypeIsPublic: unhandled type %T", tt))
 	}
-	if pkgPath != "" && pkgPath != rlm.Path && IsPkgPrivateFromPkgPath(pkgPath) {
+	if pkgPath != "" && pkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, pkgPath) {
 		panic("cannot persist object of type defined in a private realm")
 	}
 }
@@ -1445,6 +1412,7 @@ func copyValueWithRefs(val Value) Value {
 			Block:      block,
 			PkgName:    cv.PkgName,
 			PkgPath:    cv.PkgPath,
+			Private:    cv.Private,
 			FNames:     cv.FNames, // no copy
 			FBlocks:    fblocks,
 			Realm:      cv.Realm,
@@ -1810,4 +1778,22 @@ func getOwner(store Store, oo Object) Object {
 		}
 	}
 	return po
+}
+
+func isPkgPrivateFromPkgID(store Store, pkgID PkgID) bool {
+	oid := ObjectIDFromPkgID(pkgID)
+	oo := store.GetObject(oid)
+	pv, ok := oo.(*PackageValue)
+	if !ok {
+		panic("oid with time set at 1 does not refer to package value")
+	}
+	return pv.Private
+}
+
+func isPkgPrivateFromPkgPath(store Store, pkgPath string) bool {
+	pv := store.GetPackage(pkgPath, false)
+	if pv == nil {
+		panic("cannot find package value from store for path " + pkgPath)
+	}
+	return pv.Private
 }

@@ -781,6 +781,7 @@ type PackageValue struct {
 	FNames     []string
 	FBlocks    []Value
 	Realm      *Realm `json:"-"` // if IsRealmPath(PkgPath), otherwise nil.
+	Private    bool
 	// NOTE: Realm is persisted separately.
 
 	fBlocksMap map[string]*Block
@@ -886,10 +887,10 @@ func (pv *PackageValue) SetRealm(rlm *Realm) {
 }
 
 func (pv *PackageValue) SetPrivate(private bool) {
-	if private && pv.Realm == nil {
-		panic("cannot set private for nil realm")
+	if private && !pv.IsRealm() {
+		panic("cannot set private for non-realm package")
 	}
-	pv.Realm.SetPrivate(private)
+	pv.Private = private
 }
 
 // Convenience.
