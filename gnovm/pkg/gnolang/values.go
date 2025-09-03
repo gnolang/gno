@@ -1558,7 +1558,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 			fourZeroes  = "\x00\x00\x00\x00"
 			eightZeroes = fourZeroes + fourZeroes
 		)
-		// For float types, return "false" if there is a nan value,
+		// For float types, return isNaN = true if there is a nan value,
 		// normalize to 0 if negative zero.
 		switch bt {
 		case Float32Type:
