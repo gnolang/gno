@@ -116,12 +116,14 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	}
 	alloc := opts.Alloc
 	if alloc == nil {
-		alloc = NewAllocator(opts.MaxAllocBytes)
+		alloc = NewAllocator(opts.MaxAllocBytes) // allocator is nil if MaxAllocBytes is zero
 	}
 	store := opts.Store
 	if store == nil {
 		// bare store, no stdlibs.
 		store = NewStore(alloc, nil, nil)
+	} else if store.GetAllocator() == nil {
+		store.SetAllocator(alloc)
 	}
 	// Get machine from pool.
 	mm := machinePool.Get().(*Machine)
@@ -144,7 +146,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		if pv == nil {
 			pkgName := defaultPkgName(opts.PkgPath)
 			pn := NewPackageNode(pkgName, opts.PkgPath, &FileSet{})
-			pv = pn.NewPackage()
+			pv = pn.NewPackage(mm.Alloc)
 			store.SetBlockNode(pn)
 			store.SetCachePackage(pv)
 		}
@@ -279,7 +281,7 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		pn = m.Store.GetBlockNode(loc).(*PackageNode)
 	} else {
 		pn = NewPackageNode(Name(mpkg.Name), mpkg.Path, &FileSet{})
-		pv = pn.NewPackage()
+		pv = pn.NewPackage(m.Alloc)
 		pv.SetPrivate(private)
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
@@ -485,7 +487,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 }
 
 // PreprocessFiles runs Preprocess on the given files. It is used to detect
-// compile-time errors in the package. It is also usde to preprocess files from
+// compile-time errors in the package. It is also used to preprocess files from
 // the package getter for tests, e.g. from "gnovm/tests/files/extern/*", or from
 // "examples/*".
 //   - fixFrom: the version of gno to fix from.
@@ -499,7 +501,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 	if fixFrom != "" {
 		pn.SetAttribute(ATTR_FIX_FROM, fixFrom)
 	}
-	pv := pn.NewPackage()
+	pv := pn.NewPackage(nilAllocator)
 	pb := pv.GetBlock(m.Store)
 	m.SetActivePackage(pv)
 	m.Store.SetBlockNode(pn)
@@ -518,7 +520,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		pv.AddFileBlock(fn.FileName, fb)
 	}
 	// Get new values across all files in package.
-	pn.PrepareNewValues(pv)
+	pn.PrepareNewValues(nilAllocator, pv)
 	// save package value.
 	var throwaway *Realm
 	if save {
@@ -603,7 +605,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	}
 
 	// Get new values across all files in package.
-	updates := pn.PrepareNewValues(pv)
+	updates := pn.PrepareNewValues(m.Alloc, pv)
 
 	// to detect loops in var declarations.
 	loopfindr := []Name{}
@@ -946,7 +948,7 @@ func (m *Machine) RunDeclaration(d Decl) {
 	pn := m.LastBlock().GetSource(m.Store).(*PackageNode)
 	d = Preprocess(m.Store, pn, d).(Decl)
 	// do not SaveBlockNodes(m.Store, d).
-	pn.PrepareNewValues(m.Package)
+	pn.PrepareNewValues(m.Alloc, m.Package)
 	m.runDeclaration(d)
 	if debug {
 		if pn != m.Package.GetBlock(m.Store).GetSource(m.Store) {
