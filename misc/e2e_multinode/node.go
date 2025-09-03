@@ -227,7 +227,7 @@ func waitForNodeReady(t TestingT, ctx context.Context, node *ExtendedNode) error
 	deadline, _ := ctx.Deadline()
 
 	success := assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		info, err := node.Client.ABCIInfo()
+		info, err := node.Client.ABCIInfo(ctx)
 		require.NoError(c, err)
 		require.NoError(c, info.Response.Error)
 	}, time.Until(deadline), 500*time.Millisecond, "node %d failed to become ready", node.Index)

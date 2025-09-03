@@ -175,7 +175,7 @@ func waitForPeerConnectivity(t TestingT, ctx context.Context, nodes []*ExtendedN
 	success := assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		// Calculate expected peers: single validator has 0 peers, otherwise at least 1
 		for _, node := range nodes {
-			netInfo, err := node.Client.NetInfo()
+			netInfo, err := node.Client.NetInfo(ctx)
 			require.NoError(c, err)
 			require.GreaterOrEqual(c, len(netInfo.Peers), expectedPeers)
 		}
@@ -203,7 +203,7 @@ func waitForHeightSync(t TestingT, ctx context.Context, nodes []*ExtendedNode, m
 		for i, node := range nodes {
 			require.NotNil(c, node.Client)
 
-			status, err := node.Client.Status()
+			status, err := node.Client.Status(ctx, nil)
 			require.NoError(c, err)
 
 			currentHeight := status.SyncInfo.LatestBlockHeight
@@ -228,7 +228,7 @@ func checkDeterminism(t TestingT, ctx context.Context, nodes []*ExtendedNode, cf
 	// Get the minimum height across all nodes
 	minCompareHeight := cfg.targetHeight
 	for i, node := range nodes {
-		status, err := node.Client.Status()
+		status, err := node.Client.Status(ctx, nil)
 		require.NoError(t, err, "failed to get status for node %d", i)
 		if status.SyncInfo.LatestBlockHeight < minCompareHeight {
 			minCompareHeight = status.SyncInfo.LatestBlockHeight
@@ -246,7 +246,7 @@ func checkDeterminism(t TestingT, ctx context.Context, nodes []*ExtendedNode, cf
 		heightList[nodeIdx] = make([]string, minCompareHeight)
 
 		for h := int64(1); h <= minCompareHeight; h++ {
-			block, err := node.Client.Block(&h)
+			block, err := node.Client.Block(ctx, &h)
 			require.NoError(t, err, "failed to get block at height %d for node %d", h, nodeIdx)
 			heightList[nodeIdx][h-1] = fmt.Sprintf("%X", block.Block.Header.AppHash)
 		}
