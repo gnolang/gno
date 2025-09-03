@@ -10,7 +10,7 @@ gnokey maketx call -pkgpath gno.land/r/demo/boards -func CreateThread -args 1 -a
 stdout 'OK!'
 
 # This causes the node to crash with "stack overflow"
-gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 1000000000 -broadcast -chainid=tendermint_test test1 $WORK/script/script.gno
+gnokey maketx run -max-deposit 2000000000ugnot -gas-fee 10000000ugnot -gas-wanted 2900000000 -broadcast -chainid=tendermint_test test1 $WORK/script/script.gno
 stdout OK!
 
 -- script/script.gno --
@@ -18,7 +18,7 @@ package main
 import "gno.land/r/demo/boards"
 
 func main() {
-	n := 800 // If n is 600, then the node doesn't crash
+	n := 2000 
 	for i := 0; i < n; i++ {
 		boards.CreateReply(cross, boards.BoardID(1), boards.PostID(1), boards.PostID(1), "reply")
 	}
