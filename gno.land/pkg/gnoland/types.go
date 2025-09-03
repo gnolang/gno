@@ -23,8 +23,8 @@ var (
 const (
 	// XXX rename these to flagXyz.
 
-	// flagUnrestricted allows flagUnrestricted transfers.
-	flagUnrestricted BitSet = 1 << iota
+	// flagTokenLockWhitelisted allows unrestricted transfers.
+	flagTokenLockWhitelisted BitSet = 1 << iota
 
 	// TODO: flagValidatorAccount marks an account as validator.
 	flagValidatorAccount
@@ -51,7 +51,7 @@ type GnoAccount struct {
 }
 
 // validFlags defines the set of all valid flags that can be used with BitSet.
-var validFlags = flagUnrestricted | flagValidatorAccount | flagRealmAccount | flagFrozen
+var validFlags = flagTokenLockWhitelisted | flagValidatorAccount | flagRealmAccount | flagFrozen
 
 func (ga *GnoAccount) setFlag(flag BitSet) {
 	if !isValidFlag(flag) {
@@ -81,24 +81,31 @@ func isValidFlag(flag BitSet) bool {
 	return flag&^validFlags == 0 && flag != 0
 }
 
-// SetUnrestricted allows the account to bypass global transfer locking restrictions.
-// By default, accounts are restricted when global transfer locking is enabled.
-func (ga *GnoAccount) SetUnrestricted() {
-	ga.setFlag(flagUnrestricted)
+// SetTokenLockWhitelisted allows the account to bypass global transfer locking restrictions.
+// By default, accounts are restricted with token transfer when global transfer locking is enabled.
+func (ga *GnoAccount) SetTokenLockWhitelisted(whitelisted bool) {
+	if whitelisted {
+		ga.setFlag(flagTokenLockWhitelisted)
+	} else {
+		ga.clearFlag(flagTokenLockWhitelisted)
+	}
 }
 
-// SetRestricted, accounts are restricted when global transfer locking is enabled.
-func (ga *GnoAccount) SetRestricted() {
-	ga.clearFlag(flagUnrestricted)
+// IsTokenLockWhitelisted checks whether the account is white listed for the token locking
+func (ga *GnoAccount) IsTokenLockWhitelisted() bool {
+	return ga.hasFlag(flagTokenLockWhitelisted)
 }
 
-// IsUnrestricted checks whether the account is flagUnrestricted.
-func (ga *GnoAccount) IsUnrestricted() bool {
-	return ga.hasFlag(flagUnrestricted)
+func (ga *GnoAccount) SetFrozen(frozen bool) {
+	if frozen {
+		ga.setFlag(flagFrozen)
+	} else {
+		ga.clearFlag(flagFrozen)
+	}
 }
 
 func (ga *GnoAccount) IsFrozen() bool {
-	return ga.hasFlag(flagUnrestricted)
+	return ga.hasFlag(flagFrozen)
 }
 
 // String implements fmt.Stringer

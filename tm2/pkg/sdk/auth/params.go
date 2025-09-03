@@ -153,6 +153,7 @@ func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
 
 // WillSetParam defines what needs to be done when the parameter is set.
 func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
+	logger := ak.Logger(ctx)
 	switch key {
 	case "p:unrestricted_addrs":
 		addrs, ok := value.([]string)
@@ -162,6 +163,7 @@ func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		ak.applyUnrestrictedAddrsChange(ctx, addrs)
 	default:
 		// No-op for unrecognized keys
+		logger.Error("No-op for unrecognized keys", "key", key)
 	}
 }
 
@@ -209,9 +211,9 @@ func (ak AccountKeeper) applyUnrestrictedAddrsChange(ctx sdk.Context, newAddrs [
 		}
 
 		if shouldBeUnrestricted {
-			uacc.SetUnrestricted()
+			uacc.SetTokenLockWhitelisted(true)
 		} else {
-			uacc.SetRestricted()
+			uacc.SetTokenLockWhitelisted(false)
 		}
 		ak.SetAccount(ctx, acc)
 	}
