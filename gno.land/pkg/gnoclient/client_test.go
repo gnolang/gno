@@ -1536,7 +1536,7 @@ func TestClient_EstimateGas(t *testing.T) {
 					Events: []abci.Event{
 						&gnostd.StorageDepositEvent{
 							BytesDelta: 10,
-							FeeDelta:   std.Coin{Denom: "ugnot", Amount: 1000},
+							FeeDelta:   std.Coin{Denom: ugnot.Denom, Amount: 1000},
 						},
 					},
 				},
