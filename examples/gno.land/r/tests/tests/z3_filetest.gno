@@ -26,5 +26,5 @@ func main() {
 	println("Done.")
 }
 
-// Error:
-// gno.land/r/tests/tests/z3.gno:19:13-35: name GetPreviousRealm not declared
+// Output:
+// Done.

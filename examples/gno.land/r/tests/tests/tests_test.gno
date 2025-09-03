@@ -48,7 +48,7 @@ func TestAssertOriginCall(t *testing.T) {
 
 func TestPreviousRealm(t *testing.T) {
 	var (
-		firstRealm = std.DerivePkgAddr("gno.land/r/tests_test")
+		firstRealm = std.DerivePkgAddr("gno.land/r/tests/tests_test")
 		rTestsAddr = std.DerivePkgAddr("gno.land/r/tests/tests")
 	)
 	// When only one realm in the frames, PreviousRealm returns the same realm
