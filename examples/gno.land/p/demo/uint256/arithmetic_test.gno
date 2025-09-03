@@ -2,6 +2,8 @@ package uint256
 
 import (
 	"testing"
+
+	"gno.land/p/demo/uassert"
 )
 
 type binOp2Test struct {
@@ -25,9 +27,7 @@ func TestAdd(t *testing.T) {
 		want := MustFromDecimal(tt.want)
 		got := new(Uint).Add(x, y)
 
-		if got.Neq(want) {
-			t.Errorf("Add(%s, %s) = %v, want %v", tt.x, tt.y, got.String(), want.String())
-		}
+		uassert.Equal(t, got.String(), want.String())
 	}
 }
 
@@ -41,8 +41,8 @@ func TestAddOverflow(t *testing.T) {
 		{"1", "0", "1", false},
 		{"1", "1", "2", false},
 		{"10", "10", "20", false},
-		{"18446744073709551615", "18446744073709551615", "36893488147419103230", false},                    // uint64 overflow, but not Uint256 overflow
-		{"115792089237316195423570985008687907853269984665640564039457584007913129639935", "1", "0", true}, // 2^256 - 1 + 1, should overflow
+		{"18446744073709551615", "18446744073709551615", "36893488147419103230", false}, // uint64 overflow, but not Uint256 overflow
+		{twoPow256Sub1, "1", "0", true},
 		{"57896044618658097711785492504343953926634992332820282019728792003956564819967", "57896044618658097711785492504343953926634992332820282019728792003956564819968", "115792089237316195423570985008687907853269984665640564039457584007913129639935", false}, // (2^255 - 1) + 2^255, no overflow
 		{"57896044618658097711785492504343953926634992332820282019728792003956564819967", "57896044618658097711785492504343953926634992332820282019728792003956564819969", "0", true},                                                                               // (2^255 - 1) + (2^255 + 1), should overflow
 	}
@@ -54,10 +54,8 @@ func TestAddOverflow(t *testing.T) {
 
 		got, overflow := new(Uint).AddOverflow(x, y)
 
-		if got.Cmp(want) != 0 || overflow != tt.overflow {
-			t.Errorf("AddOverflow(%s, %s) = (%s, %v), want (%s, %v)",
-				tt.x, tt.y, got.String(), overflow, tt.want, tt.overflow)
-		}
+		uassert.Equal(t, got.String(), want.String())
+		uassert.Equal(t, overflow, tt.overflow)
 	}
 }
 
@@ -75,15 +73,9 @@ func TestSub(t *testing.T) {
 		y := MustFromDecimal(tc.y)
 
 		want := MustFromDecimal(tc.want)
-
 		got := new(Uint).Sub(x, y)
 
-		if got.Neq(want) {
-			t.Errorf(
-				"Sub(%s, %s) = %v, want %v",
-				tc.x, tc.y, got.String(), want.String(),
-			)
-		}
+		uassert.Equal(t, got.String(), want.String())
 	}
 }
 
@@ -109,12 +101,8 @@ func TestSubOverflow(t *testing.T) {
 
 		got, overflow := new(Uint).SubOverflow(x, y)
 
-		if got.Cmp(want) != 0 || overflow != tc.overflow {
-			t.Errorf(
-				"SubOverflow(%s, %s) = (%s, %v), want (%s, %v)",
-				tc.x, tc.y, got.String(), overflow, tc.want, tc.overflow,
-			)
-		}
+		uassert.Equal(t, got.String(), want.String())
+		uassert.Equal(t, overflow, tc.overflow)
 	}
 }
 
@@ -132,9 +120,7 @@ func TestMul(t *testing.T) {
 		want := MustFromDecimal(tt.want)
 		got := new(Uint).Mul(x, y)
 
-		if got.Neq(want) {
-			t.Errorf("Mul(%s, %s) = %v, want %v", tt.x, tt.y, got.String(), want.String())
-		}
+		uassert.Equal(t, got.String(), want.String())
 	}
 }
 
@@ -162,15 +148,8 @@ func TestMulOverflow(t *testing.T) {
 
 		gotZ, gotOver := new(Uint).MulOverflow(x, y)
 
-		if gotZ.Neq(wantZ) {
-			t.Errorf(
-				"MulOverflow(%s, %s) = %s, want %s",
-				tt.x, tt.y, gotZ.String(), wantZ.String(),
-			)
-		}
-		if gotOver != tt.wantOver {
-			t.Errorf("MulOverflow(%s, %s) = %v, want %v", tt.x, tt.y, gotOver, tt.wantOver)
-		}
+		uassert.Equal(t, gotZ.String(), wantZ.String())
+		uassert.Equal(t, gotOver, tt.wantOver)
 	}
 }
 
@@ -187,13 +166,11 @@ func TestDiv(t *testing.T) {
 	for _, tt := range tests {
 		x := MustFromDecimal(tt.x)
 		y := MustFromDecimal(tt.y)
-		want := MustFromDecimal(tt.want)
 
+		want := MustFromDecimal(tt.want)
 		got := new(Uint).Div(x, y)
 
-		if got.Neq(want) {
-			t.Errorf("Div(%s, %s) = %v, want %v", tt.x, tt.y, got.String(), want.String())
-		}
+		uassert.Equal(t, got.String(), want.String())
 	}
 }
 
@@ -212,13 +189,11 @@ func TestMod(t *testing.T) {
 	for _, tt := range tests {
 		x := MustFromDecimal(tt.x)
 		y := MustFromDecimal(tt.y)
-		want := MustFromDecimal(tt.want)
 
+		want := MustFromDecimal(tt.want)
 		got := new(Uint).Mod(x, y)
 
-		if got.Neq(want) {
-			t.Errorf("Mod(%s, %s) = %v, want %v", tt.x, tt.y, got.String(), want.String())
-		}
+		uassert.Equal(t, got.String(), want.String())
 	}
 }
 
@@ -245,16 +220,11 @@ func TestMulMod(t *testing.T) {
 		x := MustFromHex(tt.x)
 		y := MustFromHex(tt.y)
 		m := MustFromHex(tt.m)
-		want := MustFromHex(tt.want)
 
+		want := MustFromHex(tt.want)
 		got := new(Uint).MulMod(x, y, m)
 
-		if got.Neq(want) {
-			t.Errorf(
-				"MulMod(%s, %s, %s) = %s, want %s",
-				tt.x, tt.y, tt.m, got.String(), want.String(),
-			)
-		}
+		uassert.Equal(t, got.String(), want.String())
 	}
 }
 
@@ -284,17 +254,12 @@ func TestDivMod(t *testing.T) {
 		gotMod := new(Uint)
 		gotDiv.DivMod(x, y, gotMod)
 
-		for i := range gotDiv.arr {
-			if gotDiv.arr[i] != wantDiv.arr[i] {
-				t.Errorf("DivMod(%s, %s) got Div %v, want Div %v", tt.x, tt.y, gotDiv, wantDiv)
-				break
-			}
-		}
 		for i := range gotMod.arr {
-			if gotMod.arr[i] != wantMod.arr[i] {
-				t.Errorf("DivMod(%s, %s) got Mod %v, want Mod %v", tt.x, tt.y, gotMod, wantMod)
-				break
-			}
+			uassert.Equal(t, gotMod.arr[i], wantMod.arr[i])
+		}
+
+		for i := range gotDiv.arr {
+			uassert.Equal(t, gotDiv.arr[i], wantDiv.arr[i])
 		}
 	}
 }
@@ -314,12 +279,9 @@ func TestNeg(t *testing.T) {
 	for _, tt := range tests {
 		x := MustFromDecimal(tt.x)
 		want := MustFromDecimal(tt.want)
-
 		got := new(Uint).Neg(x)
 
-		if got.Neq(want) {
-			t.Errorf("Neg(%s) = %v, want %v", tt.x, got.String(), want.String())
-		}
+		uassert.Equal(t, got.String(), want.String())
 	}
 }
 
@@ -339,16 +301,11 @@ func TestExp(t *testing.T) {
 	for _, tt := range tests {
 		x := MustFromDecimal(tt.x)
 		y := MustFromDecimal(tt.y)
-		want := MustFromDecimal(tt.want)
 
+		want := MustFromDecimal(tt.want)
 		got := new(Uint).Exp(x, y)
 
-		if got.Neq(want) {
-			t.Errorf(
-				"Exp(%s, %s) = %v, want %v",
-				tt.x, tt.y, got.String(), want.String(),
-			)
-		}
+		uassert.Equal(t, got.String(), want.String())
 	}
 }
 
@@ -378,15 +335,50 @@ func TestExp_LargeExponent(t *testing.T) {
 			base := MustFromDecimal(tt.base)
 			exponent := MustFromDecimal(tt.exponent)
 			expected := MustFromDecimal(tt.expected)
-
 			result := new(Uint).Exp(base, exponent)
 
-			if result.Neq(expected) {
-				t.Errorf(
-					"Test %s failed. Expected %s, got %s",
-					tt.name, expected.String(), result.String(),
-				)
-			}
+			uassert.Equal(t, result.String(), expected.String())
+		})
+	}
+}
+
+func TestIsOverflow(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    *Uint
+		expected bool
+	}{
+		{
+			name: "Number greater than max value",
+			input: &Uint{arr: [4]uint64{
+				^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0),
+			}},
+			expected: true,
+		},
+		{
+			name: "Max value",
+			input: &Uint{arr: [4]uint64{
+				^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0) >> 1,
+			}},
+			expected: false,
+		},
+		{
+			name:     "0",
+			input:    &Uint{arr: [4]uint64{0, 0, 0, 0}},
+			expected: false,
+		},
+		{
+			name: "Only 255th bit set",
+			input: &Uint{arr: [4]uint64{
+				0, 0, 0, uint64(1) << 63,
+			}},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			uassert.Equal(t, tt.input.IsOverflow(), tt.expected)
 		})
 	}
 }
