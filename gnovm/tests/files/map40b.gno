@@ -5,10 +5,10 @@ import (
 	"math"
 )
 
-var NaN = math.NaN()
+var NaN = float32(math.NaN())
 
 func main() {
-	fmt.Println(map[float64]int{NaN: 1, NaN: 2})
+	fmt.Println(map[float32]int{NaN: 1, NaN: 2})
 }
 
 // Output:

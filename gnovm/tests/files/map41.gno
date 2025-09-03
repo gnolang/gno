@@ -1,11 +1,19 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 func main() {
-	m := map[any]int{nil: 0, nil: 1}
-	fmt.Printf("%v", m)
+	n0 := math.Float64frombits(1 << 63)
+	fmt.Println(n0)
+	m := map[float64]string{}
+	m[0] = "hey"
+	m[n0] = "world"
+	fmt.Println(m)
 }
 
 // Output:
-// map[<nil>:1]
+// -0
+// map[-0:world]
