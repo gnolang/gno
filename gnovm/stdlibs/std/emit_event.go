@@ -7,6 +7,7 @@ import (
 	"errors"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -74,9 +75,10 @@ func (e StorageDepositEvent) AssertABCIEvent() {}
 // StorageUnlockEvent is emitted when a storage deposit fee is unlocked.
 type StorageUnlockEvent struct {
 	// For unlock, BytesDelta is negative
-	BytesDelta int64    `json:"bytes_delta"`
-	FeeRefund  std.Coin `json:"fee_refund"`
-	PkgPath    string   `json:"pkg_path"`
+	BytesDelta      int64          `json:"bytes_delta"`
+	FeeRefund       std.Coin       `json:"fee_refund"`
+	PkgPath         string         `json:"pkg_path"`
+	ReleaserAddress crypto.Address `json:"releaser_address"`
 }
 
 func (e StorageUnlockEvent) AssertABCIEvent() {}
