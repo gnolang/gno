@@ -12,6 +12,7 @@ import (
 
 	"github.com/cockroachdb/apd/v3"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
@@ -724,12 +725,18 @@ func (mv *MapValue) GetLength() int {
 // is not returned as part of the pointer, and TV is not filled.
 func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key TypedValue) PointerValue {
 	// If NaN, instead of computing map key, just append to List.
-	kmk := key.ComputeMapKey(store, false)
-	if mli, ok := mv.vmap[kmk]; ok {
-		return PointerValue{
-			TV:    fillValueTV(store, &mli.Value),
-			Base:  mv,
-			Index: PointerIndexMap,
+	kmk, isNaN := key.ComputeMapKey(store, false)
+	if !isNaN {
+		if mli, ok := mv.vmap[kmk]; ok {
+			// When assigning to a map item, the key is always equal to that of the
+			// last assignment; this is mostly noticeable in the case of -0 / 0:
+			// https://go.dev/play/p/iNPDR4FQlRv
+			mli.Key = key
+			return PointerValue{
+				TV:    fillValueTV(store, &mli.Value),
+				Base:  mv,
+				Index: PointerIndexMap,
+			}
 		}
 	}
 	mli := mv.List.Append(alloc, key)
@@ -746,7 +753,10 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key TypedVal
 // doesn't exist.
 func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue, ok bool) {
 	// If key is NaN, return default
-	kmk := key.ComputeMapKey(store, false)
+	kmk, isNaN := key.ComputeMapKey(store, false)
+	if isNaN {
+		return
+	}
 	if mli, exists := mv.vmap[kmk]; exists {
 		fillValueTV(store, &mli.Value)
 		val, ok = mli.Value, true
@@ -756,7 +766,10 @@ func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue
 
 func (mv *MapValue) DeleteForKey(store Store, key *TypedValue) {
 	// if key is NaN, do nothing.
-	kmk := key.ComputeMapKey(store, false)
+	kmk, isNaN := key.ComputeMapKey(store, false)
+	if isNaN {
+		return
+	}
 	if mli, ok := mv.vmap[kmk]; ok {
 		mv.List.Remove(mli)
 		delete(mv.vmap, kmk)
@@ -1003,6 +1016,19 @@ func (tv *TypedValue) IsNilInterface() bool {
 	return false
 }
 
+func (tv *TypedValue) IsNaN() bool {
+	switch tv.T.Kind() {
+	case Float32Kind:
+		_, _, _, _, nan := softfloat.Funpack32(tv.GetFloat32())
+		return nan
+	case Float64Kind:
+		_, _, _, _, nan := softfloat.Funpack64(tv.GetFloat64())
+		return nan
+	default:
+		return false
+	}
+}
+
 func (tv *TypedValue) HasKind(k Kind) bool {
 	if tv.T == nil {
 		return false
@@ -1069,63 +1095,36 @@ func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 }
 
 // Returns encoded bytes for primitive values.
-// These bytes are used for both value hashes as well
-// as hash key bytes.
-func (tv *TypedValue) PrimitiveBytes() (data []byte) {
+// These are used for computing map keys.
+func (tv *TypedValue) PrimitiveBytes(bz []byte) []byte {
 	switch bt := baseOf(tv.T); bt {
 	case BoolType:
 		if tv.GetBool() {
-			return []byte{0x01}
+			return append(bz, 0x01)
 		}
-		return []byte{0x00}
+		return append(bz, 0x00)
 	case StringType:
-		return []byte(tv.GetString())
+		return append(bz, tv.GetString()...)
 	case Int8Type:
-		return []byte{uint8(tv.GetInt8())}
+		return append(bz, uint8(tv.GetInt8()))
 	case Int16Type:
-		data = make([]byte, 2)
-		binary.LittleEndian.PutUint16(
-			data, uint16(tv.GetInt16()))
-		return data
+		return binary.LittleEndian.AppendUint16(bz, uint16(tv.GetInt16()))
 	case Int32Type:
-		data = make([]byte, 4)
-		binary.LittleEndian.PutUint32(
-			data, uint32(tv.GetInt32()))
-		return data
+		return binary.LittleEndian.AppendUint32(bz, uint32(tv.GetInt32()))
 	case IntType, Int64Type:
-		data = make([]byte, 8)
-		binary.LittleEndian.PutUint64(
-			data, uint64(tv.GetInt()))
-		return data
+		return binary.LittleEndian.AppendUint64(bz, uint64(tv.GetInt()))
 	case Uint8Type:
-		return []byte{tv.GetUint8()}
+		return append(bz, tv.GetUint8())
 	case Uint16Type:
-		data = make([]byte, 2)
-		binary.LittleEndian.PutUint16(
-			data, tv.GetUint16())
-		return data
+		return binary.LittleEndian.AppendUint16(bz, tv.GetUint16())
 	case Uint32Type:
-		data = make([]byte, 4)
-		binary.LittleEndian.PutUint32(
-			data, tv.GetUint32())
-		return data
+		return binary.LittleEndian.AppendUint32(bz, tv.GetUint32())
 	case UintType, Uint64Type:
-		data = make([]byte, 8)
-		binary.LittleEndian.PutUint64(
-			data, tv.GetUint())
-		return data
+		return binary.LittleEndian.AppendUint64(bz, tv.GetUint())
 	case Float32Type:
-		data = make([]byte, 4)
-		u32 := tv.GetFloat32()
-		binary.LittleEndian.PutUint32(
-			data, u32)
-		return data
+		return binary.LittleEndian.AppendUint32(bz, tv.GetFloat32())
 	case Float64Type:
-		data = make([]byte, 8)
-		u64 := tv.GetFloat64()
-		binary.LittleEndian.PutUint64(
-			data, u64)
-		return data
+		return binary.LittleEndian.AppendUint64(bz, tv.GetFloat64())
 	default:
 		panic(fmt.Sprintf(
 			"unexpected primitive value type: %s",
@@ -1533,7 +1532,13 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 	}
 }
 
-func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
+// ComputeMapKey returns the value of tv, encoded as a string for usage inside
+// of a map.
+//
+// isNaN returns whether tv, or any of the values contained within (like in an
+// array or struct) are NaN's; this would make the same tv != to itself, and
+// so shouldn't be included within a vmap.
+func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isNaN bool) {
 	// Special case when nil: has no separator.
 	if tv.T == nil {
 		if debug {
@@ -1541,7 +1546,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 				panic("should not happen")
 			}
 		}
-		return MapKey(nilStr)
+		return nilStr, false
 	}
 	// General case.
 	bz := make([]byte, 0, 64)
@@ -1551,8 +1556,34 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	}
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
-		pbz := tv.PrimitiveBytes()
-		bz = append(bz, pbz...)
+		const (
+			fourZeroes  = "\x00\x00\x00\x00"
+			eightZeroes = fourZeroes + fourZeroes
+		)
+		// For float types, return isNaN = true if there is a nan value,
+		// normalize to 0 if negative zero.
+		switch bt {
+		case Float32Type:
+			if tv.IsNaN() {
+				return "", true
+			}
+			if tv.GetFloat32() == (1 << 31) {
+				bz = append(bz, fourZeroes...)
+			} else {
+				bz = tv.PrimitiveBytes(bz)
+			}
+		case Float64Type:
+			if tv.IsNaN() {
+				return "", true
+			}
+			if tv.GetFloat64() == (1 << 63) {
+				bz = append(bz, eightZeroes...)
+			} else {
+				bz = tv.PrimitiveBytes(bz)
+			}
+		default:
+			bz = tv.PrimitiveBytes(bz)
+		}
 	case *PointerType:
 		var ptrBytes [sizeOfUintPtr]byte // zero-initialized for nil pointers
 		if tv.V != nil {
@@ -1570,7 +1601,11 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 			omitTypes := bt.Elem().Kind() != InterfaceKind
 			for i := range al {
 				ev := fillValueTV(store, &av.List[i])
-				bz = append(bz, ev.ComputeMapKey(store, omitTypes)...)
+				mk, isNaN := ev.ComputeMapKey(store, omitTypes)
+				if isNaN {
+					return "", true
+				}
+				bz = append(bz, mk...)
 				if i != al-1 {
 					bz = append(bz, ',')
 				}
@@ -1588,7 +1623,11 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		for i := range sl {
 			fv := fillValueTV(store, &sv.Fields[i])
 			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
-			bz = append(bz, fv.ComputeMapKey(store, omitTypes)...)
+			mk, isNaN := fv.ComputeMapKey(store, omitTypes)
+			if isNaN {
+				return "", true
+			}
+			bz = append(bz, mk...)
 			if i != sl-1 {
 				bz = append(bz, ',')
 			}
@@ -1610,7 +1649,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 			"unexpected map key type %s",
 			tv.T.String()))
 	}
-	return MapKey(bz)
+	return MapKey(bz), false
 }
 
 // ----------------------------------------
@@ -1960,11 +1999,16 @@ func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Stor
 		}
 		mv := tv.V.(*MapValue)
 
+		// if a key is getting attached, we should update it with the new one,
+		// as that is the one that matters. this is mostly relevant for -0 / 0.
+		// https://github.com/gnolang/gno/pull/4114
 		var oldObject Object
-		key := iv.ComputeMapKey(store, false)
-		k, ok := mv.vmap[key]
-		if ok {
-			oldObject = k.Key.GetFirstObject(store)
+		key, isNaN := iv.ComputeMapKey(store, false)
+		if !isNaN {
+			k, ok := mv.vmap[key]
+			if ok {
+				oldObject = k.Key.GetFirstObject(store)
+			}
 		}
 
 		ivk := iv.Copy(alloc)
@@ -1976,7 +2020,6 @@ func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Stor
 				*(pv.TV) = defaultTypedValue(nil, vt)
 			}
 		}
-
 		// attach mapkey object, if changed
 		newObject := ivk.GetFirstObject(store)
 		if oldObject != newObject {
