@@ -7,7 +7,6 @@ import (
 // CallerTeller returns a GRC20 compatible teller that checks the PreviousRealm
 // caller for each call. It's usually safe to expose it publicly to let users
 // manipulate their tokens directly, or for realms to use their allowance.
-// WARN: Should NOT be initialized within a crossing function
 func (tok *Token) CallerTeller() Teller {
 	if tok == nil {
 		panic("Token cannot be nil")
@@ -15,7 +14,7 @@ func (tok *Token) CallerTeller() Teller {
 
 	return &fnTeller{
 		accountFn: func() std.Address {
-			caller := std.CurrentRealm().Address()
+			caller := std.PreviousRealm().Address()
 			return caller
 		},
 		Token: tok,
