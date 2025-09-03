@@ -325,10 +325,10 @@ func (cdc *Codec) decodeReflectJSONSlice(bz []byte, info *TypeInfo, rv reflect.V
 		// NOTE: While we prefer nil slices for binary decoding,
 		// we prefer empty slices for json "[]".
 		// This is also how json.Unmarshal() behaves.
-		// if length == 0 {
-		//	rv.Set(info.ZeroValue)
-		//	return
-		// }
+		if length == 0 {
+			rv.Set(info.ZeroValue)
+			return
+		}
 
 		// Read into a new slice.
 		esrt := reflect.SliceOf(ert) // TODO could be optimized.
