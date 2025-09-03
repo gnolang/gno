@@ -1,0 +1,12 @@
+# start a new node
+gnoland start
+
+! gnokey maketx run -max-deposit 2000000000ugnot -gas-fee 10000000ugnot -gas-wanted 2900000000 -broadcast -chainid=tendermint_test test1 $WORK/script/script.gno
+stderr 'allocation limit exceeded'
+
+-- script/script.gno --
+package main
+
+func main() {
+	_ = make([]byte, 510_000_000) // MaxAlloc is 500_000_000	
+}

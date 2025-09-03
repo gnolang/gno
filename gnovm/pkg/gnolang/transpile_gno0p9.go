@@ -1,3 +1,5 @@
+// XXX: DEPRECATED, see cmd/gno/fix
+
 package gnolang
 
 import (
@@ -236,8 +238,6 @@ func addXform2IfMatched(
 			panic("oops, need to refactor xforms2 to allow multiple xforms per node?")
 		}
 		xforms2[gon] = xform1
-	} else { // debugging:
-		// fmt.Println("not found", xform1)
 	}
 }
 
@@ -679,8 +679,8 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, pn *PackageNode, fnames [
 	// Go parse and collect files from mpkg.
 	gofset := token.NewFileSet()
 	var errs error
-	var xall int = 0 // number translated from part 1
-	var xforms12 = make(map[string]struct{})
+	xall := 0 // number translated from part 1
+	xforms12 := make(map[string]struct{})
 	for _, fname := range fnames {
 		if !strings.HasSuffix(fname, ".gno") {
 			panic(fmt.Sprintf("expected a .gno file but got %q", fname))
@@ -847,7 +847,7 @@ XFORMS1_LOOP:
 			panic("xforms1 and xforms2 length don't match")
 		}
 	*/
-	return // good
+	// all good, return
 }
 
 // The main Go AST transpiling logic to make Gno code Gno 0.9.
@@ -866,10 +866,7 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof 
 			return false
 		}
 		value := xforms2[gon]
-		if strings.HasSuffix(value, "+"+string(x)) {
-			return true
-		}
-		return false
+		return strings.HasSuffix(value, "+"+string(x))
 	}
 
 	astutil.Apply(gof, func(c *astutil.Cursor) bool {
