@@ -10,7 +10,7 @@ import (
 	"gno.land/r/gnoland/valopers"
 	"gno.land/r/gov/dao"
 	daoinit "gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed
-	"gno.land/r/sys/users"
+	susers "gno.land/r/sys/users"
 )
 
 var g1user = testutils.TestAddress("g1user")
@@ -28,7 +28,7 @@ func registerTestUsers(addrs ...std.Address) {
 	// Set realm to users admin to register test user
 	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
 	for _, addr := range addrs {
-		err := users.RegisterUser(cross, addr.String()[1:], addr)
+		err := susers.RegisterUser(cross, addr.String()[1:], addr)
 		if err != nil {
 			panic(err.Error() + " : " + addr.String())
 		}

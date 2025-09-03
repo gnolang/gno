@@ -42,7 +42,7 @@ func registerTestUsers(addrs ...std.Address) {
 	// Set realm to users admin to register test user
 	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
 	for _, addr := range addrs {
-		err := users.RegisterUser(cross, addr.String()[1:], addr)
+		err := susers.RegisterUser(cross, addr.String()[1:], addr)
 		if err != nil {
 			panic(err.Error() + " : " + addr.String())
 		}
