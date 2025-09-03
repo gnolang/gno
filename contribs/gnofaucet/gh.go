@@ -104,7 +104,8 @@ func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn, 
 					MaxAge:   3600,
 					HttpOnly: true,
 					Secure:   true,
-					SameSite: http.SameSiteLaxMode,
+					// SameSite: http.SameSiteLaxMode,
+					SameSite: http.SameSiteNoneMode,
 				}
 
 				http.SetCookie(w, c)
