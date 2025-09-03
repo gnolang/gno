@@ -740,10 +740,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key TypedVal
 		}
 	}
 	mli := mv.List.Append(alloc, key)
-<<<<<<< HEAD
-=======
 
->>>>>>> 9acc2100cc1f97db07ce969a1966285a5e217125
 	mv.vmap[kmk] = mli
 	return PointerValue{
 		TV:    fillValueTV(store, &mli.Value),
