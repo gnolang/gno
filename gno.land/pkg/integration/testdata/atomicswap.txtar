@@ -20,7 +20,7 @@ gnokey maketx call -pkgpath gno.land/r/demo/defi/atomicswap -func NewCoinSwap -g
 stdout '(1 int)'
 stdout ".*$test2_user_addr.*$test3_user_addr.*12345ugnot.*"
 stdout 'OK!'
-stdout 'EVENTS:     \[.*"fee_delta":\{"denom":"ugnot","amount":451400\}.*\]'
+stdout 'EVENTS:     \[.*"fee_delta":\{"denom":"ugnot","amount":452800\}.*\]'
 
 gnokey query vm/qrender --data 'gno.land/r/demo/defi/atomicswap:'
 

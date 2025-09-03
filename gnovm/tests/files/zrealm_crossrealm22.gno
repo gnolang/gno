@@ -72,8 +72,8 @@ func main(cur realm) {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "b21569a3d78e9993a29aa1dbeb462600e10fc19d",
-//                 "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:45"
+//                 "Hash": "a62910c37f37391aea1084a7a2369930becc094b",
+//                 "ObjectID": "83c395a7172ae8aebc131bd64cc048bbd2b31851:45"
 //             }
 //         }
 //     ],
@@ -145,8 +145,8 @@ func main(cur realm) {
 //     +        },
 //     +        "V": {
 //     +            "@type": "/gno.RefValue",
-//     +            "Hash": "19a891527c775a06c4e2e7315beba0aea71e30e9",
-//     +            "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:44"
+//     +            "Hash": "09671d83ed82e414ef3d3652028babf6ba3e49dd",
+//     +            "ObjectID": "83c395a7172ae8aebc131bd64cc048bbd2b31851:44"
 //              }
 //          }
 //      }
@@ -214,8 +214,8 @@ func main(cur realm) {
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "19a891527c775a06c4e2e7315beba0aea71e30e9",
-//     -            "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:44"
+//     -            "Hash": "09671d83ed82e414ef3d3652028babf6ba3e49dd",
+//     -            "ObjectID": "83c395a7172ae8aebc131bd64cc048bbd2b31851:44"
 //     +            "Escaped": true,
 //     +            "ObjectID": "3003d3e51bf2f146cfba386aa7161085b561ec2d:7"
 //              }
