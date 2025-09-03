@@ -411,8 +411,8 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 	size = len(bz)
 }
 
-// NOTE: does not consult the packageGetter, it can be use to
-// retrieve a package by ObjectID, only lookup the cache/store.
+// NOTE: it can be use to retrieve a package by ObjectID, but
+// does not consult the packageGetter, only lookup the cache/store.
 // NOTE: current implementation behavior requires
 // all []TypedValue types and TypeValue{} types to be
 // loaded (non-ref) types.
@@ -429,6 +429,10 @@ func (ds *defaultStore) GetObject(oid ObjectID) Object {
 }
 
 func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
 	// check cache.
 	if oo, exists := ds.cacheObjects[oid]; exists {
 		return oo
