@@ -28,11 +28,11 @@ gno = "0.9"
 package bar
 
 func Render(path string) string {
- 	return "hello from foo"
+	return "hello from foo"
 }
-
 -- script/script.gno --
 package main
+
 import "gno.land/r/foobar/bar"
 
 func main() {

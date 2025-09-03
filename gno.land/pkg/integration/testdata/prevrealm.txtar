@@ -126,7 +126,7 @@ func A() string {
 }
 
 func B() string {
-	 return A()
+	return A()
 }
 -- run/myrlm-a.gno --
 package main

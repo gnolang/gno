@@ -17,5 +17,5 @@ draft = true
 package bar
 
 func Render(path string) string {
- 	return "hello"
+	return "hello"
 }

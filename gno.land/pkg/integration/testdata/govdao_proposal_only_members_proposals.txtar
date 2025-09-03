@@ -36,7 +36,6 @@ func main() {
 		println(err.Error())
 	}
 }
-
 -- loader/load_govdao.gno --
 package load_govdao
 

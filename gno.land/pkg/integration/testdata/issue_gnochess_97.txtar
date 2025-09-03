@@ -18,7 +18,7 @@ package bug97
 
 var x = [3]int{1, 2, 3}
 
-func newX() [3]int { return x}
+func newX() [3]int { return x }
 
 type S struct {
 	Arr [3]int
@@ -34,7 +34,7 @@ func RealmCall1(cur realm) {
 	s = NewS()
 }
 
-func RealmCall2(cur realm)  {
+func RealmCall2(cur realm) {
 	arr2 := s.Arr
 	arr2[0] = 8
 	s = S{Arr: arr2}

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type Package interface {
@@ -40,6 +41,31 @@ func ReadWalkPackage(pkg Package, fn PackageReadWalkFunc) error {
 	}
 
 	return nil
+}
+
+var _ Package = (*memPackage)(nil)
+
+func NewPackage(mpkg *std.MemPackage) Package {
+	return &memPackage{mpkg}
+}
+
+type memPackage struct{ *std.MemPackage }
+
+func (m *memPackage) Path() string { return m.MemPackage.Path }
+
+func (m *memPackage) Name() string { return m.MemPackage.Name }
+
+func (m *memPackage) Files() []string {
+	files := make([]string, len(m.MemPackage.Files))
+	for i, f := range m.MemPackage.Files {
+		files[i] = f.Name
+	}
+	return files
+}
+
+func (m *memPackage) Read(filename string) (io.ReadCloser, error) {
+	f := m.MemPackage.GetFile(filename)
+	return &readerCloser{strings.NewReader(f.Body)}, nil
 }
 
 type fsPackage struct {

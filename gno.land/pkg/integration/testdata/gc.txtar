@@ -1,9 +1,12 @@
+# Disable parallel testing for this, as it can make other tests timeout due heavy cpu consuming task
+setopts -no-parallel
+
 # Init
 ## deploy realm
 loadpkg gno.land/r/gc $WORK/r/gc
 
 ## start a new node
-gnoland start -no-parallel
+gnoland start
 
 gnokey maketx call -pkgpath gno.land/r/gc -func Alloc -gas-fee 100000ugnot -gas-wanted 3000000 -simulate skip -broadcast -chainid tendermint_test test1
 stdout 'GAS USED:   544143'

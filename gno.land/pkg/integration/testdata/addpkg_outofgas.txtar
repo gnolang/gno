@@ -34,11 +34,10 @@ package foo
 
 type Counter int
 
-func Inc(i Counter) Counter{
-    i = i+1
-   return i
+func Inc(i Counter) Counter {
+	i = i + 1
+	return i
 }
-
 -- bar/gnomod.toml --
 module = "gno.land/r/bar"
 gno = "0.9"
@@ -50,8 +49,8 @@ import "gno.land/r/foo"
 
 type NewCounter foo.Counter
 
-func Add2(i NewCounter) NewCounter{
-    i=i+2
+func Add2(i NewCounter) NewCounter {
+	i = i + 2
 
-   return i
+	return i
 }

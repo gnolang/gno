@@ -65,32 +65,30 @@ package foo
 
 var record Foo
 
-func init(){
-	NewFoo(cross,"hello")
+func init() {
+	NewFoo(cross, "hello")
 }
 
-type Foo struct{
-  name string
+type Foo struct {
+	name string
 }
 
-func NewFoo(cur realm, name string){
+func NewFoo(cur realm, name string) {
 
-  record = Foo{name}
+	record = Foo{name}
 }
-func SetName(cur realm, n string){
+func SetName(cur realm, n string) {
 
-  record.name = n
-}
-
-func GetName()string {
-  return record.name
+	record.name = n
 }
 
-func Clear(cur realm){
-  record = Foo{}
+func GetName() string {
+	return record.name
 }
 
-
+func Clear(cur realm) {
+	record = Foo{}
+}
 -- package/gnomod.toml --
 module = "gno.land/p/foo"
 
@@ -99,16 +97,16 @@ gno = "0.9"
 -- package/storage.gno --
 package foo
 
-type Foo struct{
-  name string
+type Foo struct {
+	name string
 }
 
 var record Foo
 
-func init(){
+func init() {
 	NewFoo("hello")
 }
 
-func NewFoo(name string){
-  record = Foo{name}
+func NewFoo(name string) {
+	record = Foo{name}
 }

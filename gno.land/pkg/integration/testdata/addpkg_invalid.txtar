@@ -1,4 +1,5 @@
 # test for add package; ensuring type checker catches invalid code.
+setopts -no-fmt
 
 # start a new node
 gnoland start

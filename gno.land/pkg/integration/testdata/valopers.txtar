@@ -57,14 +57,14 @@ stdout 'Update the minimum register fee to: 1000000 ugnot'
 package main
 
 import (
-  i "gno.land/r/gov/dao/v3/init"
-  "std"
+	"std"
+
+	i "gno.land/r/gov/dao/v3/init"
 )
 
 func main() {
 	i.InitWithUsers(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
-
 -- run/new_proposal_bad.gno --
 package main
 

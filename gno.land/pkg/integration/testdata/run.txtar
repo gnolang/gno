@@ -25,7 +25,9 @@ func Render(path string) string {
 }
 -- script/script.gno --
 package main
+
 import "gno.land/r/foobar/bar"
+
 func main() {
 	println("main: ---", bar.Render(""), "---")
 }

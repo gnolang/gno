@@ -53,11 +53,10 @@ import (
 func main() {
 	addr := std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0")
 	reason := "not responding"
-	
+
 	preq := impl.NewWithdrawMemberRequest(cross, addr, reason)
 	dao.MustCreateProposal(cross, preq)
 }
-
 -- loader/load_govdao.gno --
 package load_govdao
 

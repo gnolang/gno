@@ -39,8 +39,6 @@ func (po *PkgObject) Set(value int) {
 func (po *PkgObject) Get() int {
 	return po.value
 }
-
-
 -- bug_callee/bug_callee.gno --
 package bug_callee
 
@@ -53,8 +51,6 @@ var calleePtr *pkg.PkgObject
 func Register(cur realm, callerPtr *pkg.PkgObject) {
 	calleePtr = callerPtr
 }
-
-
 -- bug_caller/bug_caller.gno --
 package bug_caller
 
@@ -71,7 +67,7 @@ func WorkingNew(cur realm) {
 
 func BuggedNew(cur realm) {
 	callerPtr = pkg.New()
- 	callee.Register(cross, callerPtr)
+	callee.Register(cross, callerPtr)
 }
 
 func Set(cur realm, value int) {
