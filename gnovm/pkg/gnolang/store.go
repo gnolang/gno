@@ -42,11 +42,11 @@ type Store interface {
 	GetPackageGetter() PackageGetter
 	SetPackageGetter(PackageGetter)
 	GetPackage(pkgPath string, isImport bool) *PackageValue
-	GetPackageByID(oid ObjectID) *PackageValue
 	SetCachePackage(*PackageValue)
 	GetPackageRealm(pkgPath string) *Realm
 	SetPackageRealm(*Realm)
 	GetObject(oid ObjectID) Object
+	GetObjectSafe(oid ObjectID) Object
 	SetObject(Object) int64 // returns size difference of the object
 	GetStagingPackage() *PackageValue
 	SetStagingPackage(pv *PackageValue)
@@ -314,7 +314,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 
 	oid := ObjectIDFromPkgPath(pkgPath)
 	// Get package from cache or baseStore
-	oo := ds.getObjectSafe(oid)
+	oo := ds.GetObjectSafe(oid)
 	if pv, ok := oo.(*PackageValue); ok {
 		return pv
 	}
@@ -347,13 +347,6 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	}
 	// otherwise, package does not exist.
 	return nil
-}
-
-// NOTE: Does not consult pkgGetter, used only for
-// getting *PackageValue from cache/store.
-func (ds *defaultStore) GetPackageByID(oid ObjectID) *PackageValue {
-	oo := ds.getObjectSafe(oid)
-	return oo.(*PackageValue)
 }
 
 // Used to set throwaway packages.
@@ -429,17 +422,14 @@ func (ds *defaultStore) GetObject(oid ObjectID) Object {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
 	}
-	oo := ds.getObjectSafe(oid)
+	oo := ds.GetObjectSafe(oid)
 	if oo == nil {
 		panic(fmt.Sprintf("unexpected object with id %s", oid.String()))
-	}
-	if _, ok := oo.(*PackageValue); ok {
-		panic("packages must be fetched with GetPackage()")
 	}
 	return oo
 }
 
-func (ds *defaultStore) getObjectSafe(oid ObjectID) Object {
+func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	// check cache.
 	if oo, exists := ds.cacheObjects[oid]; exists {
 		return oo
