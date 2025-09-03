@@ -45,7 +45,6 @@ func main(cur realm) {
 //         "RefCount": "1"
 //     },
 //     "Value": {
-//         "N": "UmVhRG9OTFk=",
 //         "T": {
 //             "@type": "/gno.PointerType",
 //             "Elt": {
@@ -73,8 +72,8 @@ func main(cur realm) {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "a6e466d33f1c6389b5087548cc54a6f8f8867123",
-//                 "ObjectID": "83c395a7172ae8aebc131bd64cc048bbd2b31851:45"
+//                 "Hash": "b21569a3d78e9993a29aa1dbeb462600e10fc19d",
+//                 "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:45"
 //             }
 //         }
 //     ],
@@ -146,8 +145,8 @@ func main(cur realm) {
 //     +        },
 //     +        "V": {
 //     +            "@type": "/gno.RefValue",
-//     +            "Hash": "3d757088d720738c411f541df7e1d820a66a7bfe",
-//     +            "ObjectID": "83c395a7172ae8aebc131bd64cc048bbd2b31851:44"
+//     +            "Hash": "19a891527c775a06c4e2e7315beba0aea71e30e9",
+//     +            "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:44"
 //              }
 //          }
 //      }
@@ -215,8 +214,8 @@ func main(cur realm) {
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "3d757088d720738c411f541df7e1d820a66a7bfe",
-//     -            "ObjectID": "83c395a7172ae8aebc131bd64cc048bbd2b31851:44"
+//     -            "Hash": "19a891527c775a06c4e2e7315beba0aea71e30e9",
+//     -            "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:44"
 //     +            "Escaped": true,
 //     +            "ObjectID": "3003d3e51bf2f146cfba386aa7161085b561ec2d:7"
 //              }
