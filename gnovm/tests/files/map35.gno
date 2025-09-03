@@ -1,15 +1,26 @@
 package main
 
-import (
-	"fmt"
-	"math"
+type stringMap map[*int]int
+
+var (
+	a        int = 1
+	accounts     = stringMap{}
+	ptr          = &a
 )
 
-var NaN = math.NaN()
+func Register() {
+	accounts[ptr] = 1
+}
+
+func Set(v int) {
+	*ptr = v
+}
 
 func main() {
-	fmt.Println(map[float64]int{NaN: 1, NaN: 2})
+	Register()
+	Set(4)
+	println(accounts)
 }
 
 // Output:
-// map[NaN:1 NaN:2]
+// (map{(&(4 int) *int):(1 int)} main.stringMap)

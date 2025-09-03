@@ -1,15 +1,21 @@
 package main
 
-import (
-	"fmt"
-	"math"
-)
-
-var NaN = float32(math.NaN())
+type Key struct {
+	num int
+}
 
 func main() {
-	fmt.Println(map[float32]int{NaN: 1, NaN: 2})
+	k := Key{num: 1}
+	m := map[Key]int{k: 100}
+	println(m)
+
+	k.num = 2
+
+	println(m)
+	println(k)
 }
 
 // Output:
-// map[NaN:1 NaN:2]
+// map{(struct{(1 int)} main.Key):(100 int)}
+// map{(struct{(1 int)} main.Key):(100 int)}
+// (struct{(2 int)} main.Key)
