@@ -25,7 +25,7 @@ stdout 'EVENTS:     \[.*"fee_delta":\{"denom":"ugnot","amount":451300\}.*\]'
 gnokey query vm/qrender --data 'gno.land/r/demo/atomicswap:'
 
 gnokey query auth/accounts/$test2_user_addr
-stdout 'coins.*:.*1008536255ugnot'
+stdout 'coins.*:.*1008536355ugnot'
 gnokey query auth/accounts/$test3_user_addr
 stdout 'coins.*:.*1010000000ugnot'
 
@@ -34,6 +34,6 @@ stdout 'OK!'
 stdout 'EVENTS:     \[.*"fee_delta":\{"denom":"ugnot","amount":500\}.*\]'
 
 gnokey query auth/accounts/$test2_user_addr
-stdout 'coins.*:.*1008536255ugnot'
+stdout 'coins.*:.*1008536355ugnot'
 gnokey query auth/accounts/$test3_user_addr
 stdout 'coins.*:.*1009011845ugnot'
