@@ -722,7 +722,7 @@ func (mv *MapValue) GetLength() int {
 
 // GetPointerForKey is only used for assignment, so the key
 // is not returned as part of the pointer, and TV is not filled.
-func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
+func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key TypedValue) PointerValue {
 	// If NaN, instead of computing map key, just append to List.
 	kmk := key.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
@@ -732,7 +732,8 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 			Index: PointerIndexMap,
 		}
 	}
-	mli := mv.List.Append(alloc, *key)
+	mli := mv.List.Append(alloc, key)
+
 	mv.vmap[kmk] = mli
 	return PointerValue{
 		TV:    fillValueTV(store, &mli.Value),
@@ -791,6 +792,7 @@ func (pv *PackageValue) IsRealm() bool {
 	return IsRealmPath(pv.PkgPath)
 }
 
+// XXX, pass in allocator
 func (pv *PackageValue) getFBlocksMap() map[string]*Block {
 	if pv.fBlocksMap == nil {
 		pv.fBlocksMap = make(map[string]*Block, len(pv.FNames))
@@ -971,8 +973,11 @@ func (tv *TypedValue) IsTypedNil() bool {
 	if tv.V != nil {
 		return false
 	}
-	if tv.T != nil && tv.T.Kind() == PointerKind {
-		return true
+	if tv.T != nil {
+		switch tv.T.Kind() {
+		case SliceKind, FuncKind, MapKind, InterfaceKind, PointerKind, ChanKind:
+			return true
+		}
 	}
 	return false
 }
@@ -1544,7 +1549,6 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		pbz := tv.PrimitiveBytes()
 		bz = append(bz, pbz...)
 	case *PointerType:
-		fillValueTV(store, tv)
 		var ptrBytes [sizeOfUintPtr]byte // zero-initialized for nil pointers
 		if tv.V != nil {
 			ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
@@ -1951,15 +1955,15 @@ func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Stor
 		}
 		mv := tv.V.(*MapValue)
 
-		// if key already exist,
-		// no need to attach it.
-		exist := false
+		var oldObject Object
 		key := iv.ComputeMapKey(store, false)
-		if _, ok := mv.vmap[key]; ok {
-			exist = true
+		k, ok := mv.vmap[key]
+		if ok {
+			oldObject = k.Key.GetFirstObject(store)
 		}
 
-		pv := mv.GetPointerForKey(alloc, store, iv)
+		ivk := iv.Copy(alloc)
+		pv := mv.GetPointerForKey(alloc, store, ivk)
 		if pv.TV.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
 			if vt.Kind() != InterfaceKind {
@@ -1967,10 +1971,13 @@ func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Stor
 				*(pv.TV) = defaultTypedValue(nil, vt)
 			}
 		}
-		// attach mapkey object
-		if !exist {
-			rlm.DidUpdate(mv, nil, iv.GetFirstObject(store))
+
+		// attach mapkey object, if changed
+		newObject := ivk.GetFirstObject(store)
+		if oldObject != newObject {
+			rlm.DidUpdate(mv, oldObject, newObject)
 		}
+
 		return pv
 	default:
 		panic(fmt.Sprintf(
@@ -2286,8 +2293,7 @@ type Block struct {
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.
-// XXX pass allocator in for heap items.
-func NewBlock(source BlockNode, parent *Block) *Block {
+func NewBlock(alloc *Allocator, source BlockNode, parent *Block) *Block {
 	numNames := source.GetNumNames()
 	values := make([]TypedValue, numNames)
 	// Keep in sync with ExpandWith().
@@ -2298,7 +2304,7 @@ func NewBlock(source BlockNode, parent *Block) *Block {
 		// Indicates must always be heap item.
 		values[i] = TypedValue{
 			T: heapItemType{},
-			V: &HeapItemValue{},
+			V: alloc.NewHeapItem(TypedValue{}),
 		}
 	}
 	return &Block{
