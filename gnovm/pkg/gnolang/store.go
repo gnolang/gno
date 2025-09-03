@@ -490,8 +490,8 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		oo.SetHash(ValueHash{NewHashlet(hash)})
 
 		if pv, ok := oo.(*PackageValue); ok {
-			ds.fillPackage(pv)
 			ds.SetStagingPackage(pv)
+			ds.fillPackage(pv)
 		}
 
 		ds.cacheObjects[oid] = oo
