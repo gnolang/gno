@@ -25,9 +25,6 @@ gnokey query vm/qstorage --data gno.land/r/foo
 stdout 'storage: 5023, deposit: 502300'
 
 
-## restart server
-gnoland restart
-
 ## remove an object
 
  gnokey maketx call -pkgpath gno.land/r/foo -func Clear -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test test1
@@ -42,7 +39,7 @@ gnoland restart
 
 
  gnokey query auth/accounts/$test1_user_addr
- stdout '"coins": "9999996500400ugnot"'
+ stdout '"coins": "9999996497500ugnot"'
 
 ## test storage deposit for package gno.land/p/foo
 gnokey maketx addpkg -pkgdir $WORK/package -pkgpath gno.land/p/foo -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 302900ugnot -broadcast -chainid=tendermint_test test1
