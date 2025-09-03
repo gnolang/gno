@@ -44,7 +44,6 @@ func TestTeller(t *testing.T) {
 		bcGB := token.Allowance(bob, carl)
 		caGB := token.Allowance(carl, alice)
 		cbGB := token.Allowance(carl, bob)
-
 		got := ufmt.Sprintf("ab=%d ac=%d ba=%d bc=%d ca=%d cb=%s", abGB, acGB, baGB, bcGB, caGB, cbGB)
 		uassert.Equal(t, got, exp, "invalid allowances")
 	}
@@ -121,27 +120,16 @@ func TestCallerTeller(t *testing.T) {
 		action()
 	}
 
-	tellerThrough(func() {
-		testing.SetRealm(std.NewUserRealm(alice))
-		urequire.NoError(t, teller.Approve(bob, 600))
-	})
-
+	testing.SetRealm(std.NewUserRealm(alice))
+	tellerThrough(func() { urequire.NoError(t, teller.Approve(bob, 600)) })
 	checkBalances(1000, 0, 0)
 	checkAllowances(600, 0, 0, 0, 0, 0)
 
-	tellerThrough(func() {
-		testing.SetRealm(std.NewUserRealm(bob))
-		urequire.Error(t, teller.TransferFrom(alice, carl, 700))
-	})
-
+	testing.SetRealm(std.NewUserRealm(bob))
+	tellerThrough(func() { urequire.Error(t, teller.TransferFrom(alice, carl, 700)) })
 	checkBalances(1000, 0, 0)
 	checkAllowances(600, 0, 0, 0, 0, 0)
-
-	tellerThrough(func() {
-		testing.SetRealm(std.NewUserRealm(bob))
-		urequire.NoError(t, teller.TransferFrom(alice, carl, 400))
-	})
-	//
+	tellerThrough(func() { urequire.NoError(t, teller.TransferFrom(alice, carl, 400)) })
 	checkBalances(600, 0, 400)
 	checkAllowances(200, 0, 0, 0, 0, 0)
 }
