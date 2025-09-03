@@ -774,6 +774,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	buf := new(bytes.Buffer)
 	output := io.Writer(buf)
 
+	// XXX: see reason of private for run msg here: https://github.com/gnolang/gno/pull/4594
 	gm := new(gnomod.File)
 	gm.Module = memPkg.Path
 	gm.Gno = gno.GnoVerLatest
