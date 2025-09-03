@@ -1,7 +1,6 @@
 package eventix
 
 import (
-	"fmt"
 	"std"
 	"strconv"
 	"time"
@@ -91,11 +90,6 @@ func BuyTicket(_ realm, eventId uint64) {
 		}
 	case *grc20.Token:
 		if err := pt.CallerTeller().Transfer(std.CurrentRealm().Address(), int64(event.price)); err != nil {
-			println(ufmt.Sprintf("Buyer: %s\nCurr: %s\nallowance: %d\nprice:     %d\n",
-				buyer,
-				std.CurrentRealm().Address().String(),
-				pt.Allowance(buyer, std.CurrentRealm().Address()),
-				event.price))
 			panic("GRC20 transfer error: " + err.Error())
 		}
 	default:
@@ -103,7 +97,7 @@ func BuyTicket(_ realm, eventId uint64) {
 	}
 
 	// Mint NFT ticket
-	tokenId := grc721.TokenID(fmt.Sprintf("event_%d_ticket_%d", eventId, event.ticketsSold+1))
+	tokenId := grc721.TokenID(ufmt.Sprintf("event_%d_ticket_%d", eventId, event.ticketsSold+1))
 	tickets.Mint(buyer, tokenId)
 
 	event.ticketsSold++

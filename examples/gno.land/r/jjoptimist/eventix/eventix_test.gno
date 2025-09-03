@@ -1,7 +1,6 @@
 package eventix
 
 import (
-	"fmt"
 	"std"
 	"testing"
 
@@ -9,6 +8,7 @@ import (
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
 )
 
@@ -67,7 +67,7 @@ func TestBuyTicket(t *testing.T) {
 	}
 
 	// Verify NFT ownership
-	tokenId := grc721.TokenID(fmt.Sprintf("event_%d_ticket_%d", eventId, 1))
+	tokenId := grc721.TokenID(ufmt.Sprintf("event_%d_ticket_%d", eventId, 1))
 	owner, err := tickets.OwnerOf(tokenId)
 	urequire.NoError(t, err)
 	urequire.Equal(t, buyer, owner)
@@ -138,7 +138,7 @@ func TestBuyTicketWithGRC20(t *testing.T) {
 	urequire.Equal(t, 1, event.ticketsSold)
 
 	// Verify NFT ownership
-	tokenId := grc721.TokenID(fmt.Sprintf("event_%d_ticket_%d", eventId, 1))
+	tokenId := grc721.TokenID(ufmt.Sprintf("event_%d_ticket_%d", eventId, 1))
 	owner, err := tickets.OwnerOf(tokenId)
 	urequire.NoError(t, err)
 	urequire.Equal(t, buyer, owner)
