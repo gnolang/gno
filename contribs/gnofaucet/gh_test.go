@@ -3,16 +3,21 @@ package main
 import (
 	"context"
 	"errors"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gnolang/faucet"
 	"github.com/gnolang/faucet/spec"
-	igh "github.com/gnolang/gno/contribs/gnofaucet/github"
 	"github.com/google/go-github/v64/github"
 	"github.com/stretchr/testify/assert"
+
+	igh "github.com/gnolang/gno/contribs/gnofaucet/github"
 )
+
+var noopLogger = slog.New(slog.NewTextHandler(io.Discard, nil))
 
 func TestGitHubUsernameMiddleware(t *testing.T) {
 	t.Parallel()
@@ -70,7 +75,7 @@ func TestGitHubUsernameMiddleware(t *testing.T) {
 			}
 
 			var (
-				mw     = gitHubUsernameMiddleware(clientID, secret, exchangeFn)
+				mw     = gitHubUsernameMiddleware(clientID, secret, exchangeFn, noopLogger)
 				called = false
 
 				next = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

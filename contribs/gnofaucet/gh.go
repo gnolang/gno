@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"slices"
 	"strings"
@@ -52,23 +53,23 @@ func getMiddlewares(rr igh.Rewarder, cooldownLimiter cooldownLimiter) []faucet.M
 // GitHub OAuth applications require a client ID and secret to authenticate users securely.
 // These credentials are obtained when registering an application on GitHub at:
 // https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authenticating-to-the-rest-api-with-an-oauth-app#registering-your-app
-func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn) func(next http.Handler) http.Handler {
+func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn, logger *slog.Logger) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
 				coo, err := r.Cookie(string(ghUsernameKey))
 				if coo != nil {
-					fmt.Printf("cookie obtained: %s:%s\n", coo.Name, coo.Value)
+					logger.Debug("cookie obtained: %s:%s", coo.Name, coo.Value)
 
 					updatedCtx := context.WithValue(r.Context(), ghUsernameKey, coo.Value)
 					next.ServeHTTP(w, r.WithContext(updatedCtx))
 					return
 				}
 				if errors.Is(err, http.ErrNoCookie) {
-					fmt.Println("cookie not present: %w", err)
+					logger.Debug("cookie not present", "err", err)
 				}
 				if err != nil {
-					fmt.Println("cookie error: %w", err)
+					logger.Debug("cookie error", "err", err)
 				}
 
 				w.Header().Set("Content-Type", "text/plain")
@@ -108,7 +109,7 @@ func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn) 
 
 				http.SetCookie(w, c)
 
-				fmt.Printf("cookie set!: %v\n", c)
+				logger.Debug("cookie set!", "cookie", c)
 
 				// Save the username in the context
 				updatedCtx := context.WithValue(r.Context(), ghUsernameKey, user.GetLogin())
