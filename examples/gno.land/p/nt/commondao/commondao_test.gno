@@ -179,6 +179,61 @@ func TestCommonDAOPropose(t *testing.T) {
 	}
 }
 
+func TestCommonDAOWithdraw(t *testing.T) {
+	cases := []struct {
+		name       string
+		proposalID uint64
+		setup      func() *CommonDAO
+		err        error
+	}{
+		{
+			name:       "success",
+			proposalID: 1,
+			setup: func() *CommonDAO {
+				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
+				dao := New(WithMember(member))
+				dao.Propose(member, testPropDef{votingPeriod: time.Hour})
+				return dao
+			},
+		},
+		{
+			name:       "proposal not found",
+			proposalID: 404,
+			setup: func() *CommonDAO {
+				return New(WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"))
+			},
+			err: ErrProposalNotFound,
+		},
+		{
+			name:       "withdrawal not allowed",
+			proposalID: 1,
+			setup: func() *CommonDAO {
+				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
+				dao := New(WithMember(member))
+				p, _ := dao.Propose(member, testPropDef{votingPeriod: time.Hour})
+				dao.Vote(member, p.ID(), ChoiceYes, "")
+				return dao
+			},
+			err: ErrWithdrawalNotAllowed,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dao := tc.setup()
+
+			err := dao.Withdraw(tc.proposalID)
+
+			if tc.err != nil {
+				urequire.ErrorIs(t, err, tc.err)
+				return
+			}
+
+			urequire.NoError(t, err)
+		})
+	}
+}
+
 func TestCommonDAOVote(t *testing.T) {
 	cases := []struct {
 		name       string

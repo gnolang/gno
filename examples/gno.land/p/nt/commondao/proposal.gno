@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	StatusActive ProposalStatus = "active"
-	StatusFailed                = "failed"
-	StatusPassed                = "passed"
+	StatusActive     ProposalStatus = "active"
+	StatusFailed                    = "failed"
+	StatusPassed                    = "passed"
+	StatusWithdrawed                = "withdrawed"
 )
 
 const (

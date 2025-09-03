@@ -19,6 +19,7 @@ var (
 	ErrProposalNotFound     = errors.New("proposal not found")
 	ErrVotingDeadlineNotMet = errors.New("voting deadline not met")
 	ErrVotingDeadlinePassed = errors.New("voting deadline has passed")
+	ErrWithdrawalNotAllowed = errors.New("withdrawal not allowed for proposals with votes")
 )
 
 // CommonDAO defines a DAO.
@@ -165,6 +166,25 @@ func (dao CommonDAO) GetProposal(proposalID uint64) *Proposal {
 		return p
 	}
 	return dao.finishedProposals.Get(proposalID)
+}
+
+// Withdraw withdraws a proposal that has no votes.
+// Only proposals without votes can be withdrawed, and once
+// withdrawed they are considered finished.
+func (dao *CommonDAO) Withdraw(proposalID uint64) error {
+	p := dao.activeProposals.Get(proposalID)
+	if p == nil {
+		return ErrProposalNotFound
+	}
+
+	if p.VotingRecord().Size() > 0 {
+		return ErrWithdrawalNotAllowed
+	}
+
+	p.status = StatusWithdrawed
+	dao.activeProposals.Remove(p.id)
+	dao.finishedProposals.Add(p)
+	return nil
 }
 
 // Vote submits a new vote for a proposal.
