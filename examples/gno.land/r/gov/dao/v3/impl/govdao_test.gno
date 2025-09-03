@@ -56,6 +56,7 @@ func loadMembers() {
 	mstore.SetMember(memberstore.T3, m5, memberByTier(memberstore.T3))
 	mstore.SetMember(memberstore.T3, m6, memberByTier(memberstore.T3))
 
+	// Give members a namespace to let them act in the GovDAO
 	ini.RegisterTestUsers(m1, m11, m111, m1111, m2, m3, m4, m5, m6, noMember)
 }
 
