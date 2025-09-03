@@ -57,10 +57,18 @@ func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn) 
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
 				coo, err := r.Cookie(string(ghUsernameKey))
-				if err == nil {
+				if coo != nil {
+					fmt.Printf("cookie obtained: %s:%s\n", coo.Name, coo.Value)
+
 					updatedCtx := context.WithValue(r.Context(), ghUsernameKey, coo.Value)
 					next.ServeHTTP(w, r.WithContext(updatedCtx))
 					return
+				}
+				if errors.Is(err, http.ErrNoCookie) {
+					fmt.Println("cookie not present: %w", err)
+				}
+				if err != nil {
+					fmt.Println("cookie error: %w", err)
 				}
 
 				w.Header().Set("Content-Type", "text/plain")
@@ -89,14 +97,18 @@ func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn) 
 					return
 				}
 
-				http.SetCookie(w, &http.Cookie{
+				c := &http.Cookie{
 					Name:     string(ghUsernameKey),
 					Value:    user.GetLogin(),
 					MaxAge:   3600,
 					HttpOnly: true,
 					Secure:   true,
 					SameSite: http.SameSiteLaxMode,
-				})
+				}
+
+				http.SetCookie(w, c)
+
+				fmt.Printf("cookie set!: %v\n", c)
 
 				// Save the username in the context
 				updatedCtx := context.WithValue(r.Context(), ghUsernameKey, user.GetLogin())
