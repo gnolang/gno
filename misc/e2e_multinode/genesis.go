@@ -30,7 +30,7 @@ func createSharedGenesis(t TestingT, tempDir string, validators []*Node) {
 	// Create genesis document matching official configuration
 	gen := &bft.GenesisDoc{}
 	gen.GenesisTime = time.Date(2025, 7, 25, 7, 0, 0, 0, time.UTC) // Match official genesis
-	gen.ChainID = "test7-determinism"                              // Similar to official chain ID
+	gen.ChainID = "test-e2e"
 
 	// Match official consensus parameters
 	gen.ConsensusParams = abci.ConsensusParams{
