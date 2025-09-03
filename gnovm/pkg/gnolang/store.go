@@ -411,9 +411,8 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 	size = len(bz)
 }
 
-// NOTE: does not consult the packageGetter, so instead
-// call GetPackage() for packages. if attempting to get
-// *PackageValue only from store, see GetPackageFromStore().
+// NOTE: does not consult the packageGetter, it can be use to
+// retrieve a package by ObjectID, only lookup the cache/store.
 // NOTE: current implementation behavior requires
 // all []TypedValue types and TypeValue{} types to be
 // loaded (non-ref) types.
