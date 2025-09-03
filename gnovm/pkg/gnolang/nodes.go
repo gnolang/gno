@@ -789,7 +789,7 @@ func (ss Body) isCrossing_gno0p0() bool {
 		return false
 	}
 	cx, ok := xs.X.(*CallExpr)
-	return cx.isCrossing_gno0p0()
+	return ok && cx.isCrossing_gno0p0()
 }
 
 // ----------------------------------------
@@ -1333,16 +1333,23 @@ func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 	return pn
 }
 
-func (pn *PackageNode) NewPackage() *PackageValue {
-	pv := &PackageValue{
-		Block: &Block{
-			Source: pn,
-		},
-		PkgName:    pn.PkgName,
-		PkgPath:    pn.PkgPath,
-		FNames:     nil,
-		FBlocks:    nil,
-		fBlocksMap: make(map[string]*Block),
+func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
+	var pv *PackageValue
+	if pn.PkgName == "main" {
+		// Allocation is only for the new created main package,
+		// other packages are allocted while loading from store.
+		pv = alloc.NewPackageValue(pn)
+	} else {
+		pv = &PackageValue{
+			Block: &Block{
+				Source: pn,
+			},
+			PkgName:    pn.PkgName,
+			PkgPath:    pn.PkgPath,
+			FNames:     nil,
+			FBlocks:    nil,
+			fBlocksMap: make(map[string]*Block),
+		}
 	}
 	// Set realm for realm packages, main package, and ephemeral run packages
 	if IsRealmPath(pn.PkgPath) || pn.PkgPath == "main" {
@@ -1353,7 +1360,7 @@ func (pn *PackageNode) NewPackage() *PackageValue {
 		pv.SetRealm(rlm)
 	}
 	pv.IncRefCount() // all package values have starting ref count of 1.
-	pn.PrepareNewValues(pv)
+	pn.PrepareNewValues(alloc, pv)
 	return pv
 }
 
@@ -1363,7 +1370,7 @@ func (pn *PackageNode) NewPackage() *PackageValue {
 // length. The implementation is similar to Block.ExpandWith.
 // NOTE: declared methods do not get their closures set here. See
 // *DeclaredType.GetValueAt() which returns a filled copy.
-func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
+func (pn *PackageNode) PrepareNewValues(alloc *Allocator, pv *PackageValue) []TypedValue {
 	// should already exist.
 	block := pv.Block.(*Block)
 	if block.Source != pn {
@@ -1390,7 +1397,7 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 		for i, tv := range nvs {
 			if fv, ok := tv.V.(*FuncValue); ok {
 				// copy function value and assign closure from package value.
-				fv = fv.Copy(nilAllocator)
+				fv = fv.Copy(alloc) // mainly for main package func, MsgCall/MsgRun/filetest
 				if fv.FileName == "" {
 					// .uverse functions have no filename,
 					// and repl runs declarations directly
@@ -1416,7 +1423,7 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 			if heapItems[pvl+i] {
 				nvs[i] = TypedValue{
 					T: heapItemType{},
-					V: &HeapItemValue{Value: nvs[i]},
+					V: alloc.NewHeapItem(nvs[i]),
 				}
 			}
 		}
@@ -1687,7 +1694,6 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	sb.Consts = make([]Name, 0, 16)
 	sb.Externs = make([]Name, 0, 16)
 	sb.Parent = parent
-	return
 }
 
 // Implements BlockNode.
@@ -2174,7 +2180,6 @@ func (sb *StaticBlock) GetFuncNodeForExpr(store Store, fne Expr) (FuncNode, erro
 					// So just return this.
 					pn = this
 				} else {
-					pv = store.GetPackage(ref.PkgPath, false)
 					pn = store.GetPackageNode(ref.PkgPath)
 				}
 			} else {

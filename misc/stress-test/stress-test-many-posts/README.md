@@ -10,7 +10,7 @@ Start a local gno.land:
 ```
 cd gno/gno.land
 make install
-gnoland start -lazy
+gnoland start -lazy -skip-genesis-sig-verification
 ```
 
 Start gnoweb. In a separate terminal enter:
@@ -41,7 +41,7 @@ This utility adds 50 replies per transaction (as allowed by the maximum gas of 1
 * In a text editor, open `gnoland-data/config/config.toml`
 * Change `timeout_commit` to "1s"
 * Save and close the text editor.
-* Restart gno.land by entering `gnoland start -lazy`
+* Restart gno.land by entering `gnoland start -lazy -skip-genesis-sig-verification`
 * In the terminal where you started the test, restart it by entering `go run .`
 
 Now data is added 5 times faster. This can reduce adding a million replies from days to hours.
