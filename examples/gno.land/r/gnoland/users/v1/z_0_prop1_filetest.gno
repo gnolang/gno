@@ -18,6 +18,7 @@ var c std.Address = std.OriginCaller()
 
 func init() {
 	daov3init.InitWithUsers(c)
+	registerTestUsers(c)
 
 	alice := testutils.TestAddress("alice")
 
@@ -31,6 +32,21 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(c))
 	pr := users.ProposeNewName(alice, "alice_new123")
 	dao.MustCreateProposal(cross, pr)
+}
+
+const gUsersV1Path = "gno.land/r/gnoland/users/v1"
+
+// Register a namespace for every addresses
+// Necessary to test GovDAO Vote
+func registerTestUsers(addrs ...std.Address) {
+	// Set realm to users admin to register test user
+	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	for _, addr := range addrs {
+		err := users.RegisterUser(cross, addr.String()[1:], addr)
+		if err != nil {
+			panic(err.Error() + " : " + addr.String())
+		}
+	}
 }
 
 func main() {

@@ -12,6 +12,7 @@ import (
 	"gno.land/r/gnoland/valopers_proposal"
 	"gno.land/r/gov/dao"
 	daoinit "gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed
+	"gno.land/r/sys/users"
 )
 
 var g1user = testutils.TestAddress("g1user") // g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
@@ -25,7 +26,9 @@ const (
 
 func init() {
 	testing.SetOriginCaller(g1user)
+
 	daoinit.InitWithUsers(g1user)
+	registerTestUsers(g1user)
 
 	// Register a validator and add the proposal
 	valopers.Register(cross, validMoniker, validDescription, validAddress, validPubKey)
@@ -37,6 +40,21 @@ func init() {
 		println("r: ", err)
 	} else {
 		println("OK")
+	}
+}
+
+const gUsersV1Path = "gno.land/r/gnoland/users/v1"
+
+// Register a namespace for every addresses
+// Necessary to test GovDAO Vote
+func registerTestUsers(addrs ...std.Address) {
+	// Set realm to users admin to register test user
+	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	for _, addr := range addrs {
+		err := users.RegisterUser(cross, addr.String()[1:], addr)
+		if err != nil {
+			panic(err.Error() + " : " + addr.String())
+		}
 	}
 }
 

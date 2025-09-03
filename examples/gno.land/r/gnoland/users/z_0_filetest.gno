@@ -18,10 +18,26 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(alice))
 	c := std.OriginCaller()
 	ini.InitWithUsers(c)
+	registerTestUsers(c)
 
 	pReq := users.ProposeNewRelease("gno.land/r/gnoland/users/v2", "This is a note!")
 
 	dao.MustCreateProposal(cross, pReq)
+}
+
+const gUsersV1Path = "gno.land/r/gnoland/users/v1"
+
+// Register a namespace for every addresses
+// Necessary to test GovDAO Vote
+func registerTestUsers(addrs ...std.Address) {
+	// Set realm to users admin to register test user
+	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	for _, addr := range addrs {
+		err := users.RegisterUser(cross, addr.String()[1:], addr)
+		if err != nil {
+			panic(err.Error() + " : " + addr.String())
+		}
+	}
 }
 
 func main() {

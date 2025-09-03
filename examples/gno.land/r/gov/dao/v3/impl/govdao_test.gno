@@ -9,12 +9,14 @@ import (
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/urequire"
 	"gno.land/r/gov/dao"
-	ini "gno.land/r/gov/dao/v3/init"
 	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/sys/users"
 )
 
 func init() {
 	loadMembers()
+	RegisterTestUser(m1, m11, m111, m1111, m2, m3, m4, m5, m6, noMember)
+
 	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO:         govDAO,
 		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
@@ -34,6 +36,21 @@ var (
 
 	noMember = testutils.TestAddress("nm1")
 )
+
+const gUsersV1Path = "gno.land/r/gnoland/users/v1"
+
+// Register a namespace for every addresses
+// Necessary to test GovDAO Vote
+func RegisterTestUser(addrs ...std.Address) {
+	// Set realm to users admin to register test user
+	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	for _, addr := range addrs {
+		err := users.RegisterUser(cross, addr.String()[1:], addr)
+		if err != nil {
+			panic(err.Error() + " : " + addr.String())
+		}
+	}
+}
 
 func loadMembers() {
 	// This is needed because state is saved between unit tests,
@@ -55,9 +72,6 @@ func loadMembers() {
 	mstore.SetMember(memberstore.T3, m4, memberByTier(memberstore.T3))
 	mstore.SetMember(memberstore.T3, m5, memberByTier(memberstore.T3))
 	mstore.SetMember(memberstore.T3, m6, memberByTier(memberstore.T3))
-
-	// Give members a namespace to let them act in the GovDAO
-	ini.RegisterTestUsers(m1, m11, m111, m1111, m2, m3, m4, m5, m6, noMember)
 }
 
 func TestCreateProposalAndVote(cur realm, t *testing.T) {
