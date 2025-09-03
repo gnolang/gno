@@ -9,8 +9,8 @@ import (
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/urequire"
 	"gno.land/r/gov/dao"
+	ini "gno.land/r/gov/dao/v3/init"
 	"gno.land/r/gov/dao/v3/memberstore"
-	"gno.land/r/sys/users"
 )
 
 func init() {
@@ -35,23 +35,6 @@ var (
 	noMember = testutils.TestAddress("nm1")
 )
 
-const gUsersV1Path = "gno.land/r/gnoland/users/v1"
-
-func registerTestUsers() {
-	// Set realm to users admin to register test users
-	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
-
-	users.RegisterUser(cross, "m1", m1)
-	users.RegisterUser(cross, "m11", m11)
-	users.RegisterUser(cross, "m111", m111)
-	users.RegisterUser(cross, "m1111", m1111)
-	users.RegisterUser(cross, "m2", m2)
-	users.RegisterUser(cross, "m3", m3)
-	users.RegisterUser(cross, "m4", m4)
-	users.RegisterUser(cross, "m5", m5)
-	users.RegisterUser(cross, "m6", m6)
-}
-
 func loadMembers() {
 	// This is needed because state is saved between unit tests,
 	// and we want to avoid having real members used on tests
@@ -73,7 +56,7 @@ func loadMembers() {
 	mstore.SetMember(memberstore.T3, m5, memberByTier(memberstore.T3))
 	mstore.SetMember(memberstore.T3, m6, memberByTier(memberstore.T3))
 
-	registerTestUsers()
+	ini.RegisterTestUsers(m1, m11, m111, m1111, m2, m3, m4, m5, m6, noMember)
 }
 
 func TestCreateProposalAndVote(cur realm, t *testing.T) {
