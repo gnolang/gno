@@ -1,0 +1,22 @@
+diff --git a/gnovm/pkg/gnolang/machine.go b/gnovm/pkg/gnolang/machine.go
+index xxxxxxx..xxxxxxx 100644
+--- a/gnovm/pkg/gnolang/machine.go
++++ b/gnovm/pkg/gnolang/machine.go
+@@ -150,13 +150,14 @@ func (m *Machine) trackStatementCoverage(s Stmt) {
+ 	}
+ 
+ 	// Determine filename from current frame's function location if available
+-	filename := "unknown"
+-	if n := len(m.Frames); n > 0 && m.Frames[n-1].Func != nil {
++	filename := pos.File
++	if filename == "" {
++		// Fall back to current frame's function location if available
++		if n := len(m.Frames); n > 0 && m.Frames[n-1].Func != nil {
+ 			funcLoc := m.Frames[n-1].Func.GetSource(m.Store).GetLocation()
+ 			if funcLoc.File != "" {
+ 				filename = funcLoc.File
+ 			}
++		}
+ 	}
+ 
+ 	// Determine end line/col; fall back to same line with rough col estimate
