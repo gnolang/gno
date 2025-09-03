@@ -6,4 +6,4 @@ func main() {
 }
 
 // TypeCheckError:
-// main/map40.gno:5:34: duplicate key 0 in map literal; main/map40.gno:5:2: declared and not used: t
+// main/map42.gno:5:34: duplicate key 0 in map literal; main/map42.gno:5:2: declared and not used: t
