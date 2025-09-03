@@ -144,6 +144,13 @@ type TestOptions struct {
 	Metrics bool
 	// Uses Error to print the events emitted.
 	Events bool
+	// Coverage options
+	Cover        bool   // Enable coverage analysis
+	CoverMode    string // Coverage mode: set, count, atomic
+	CoverProfile string // Write coverage profile to file
+
+	// Internal coverage data collection
+	coverageData map[string]*gno.CoverageData // pkgPath -> coverage data
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -159,9 +166,10 @@ func (opts *TestOptions) WriterForStore() io.Writer {
 // NewTestOptions sets up TestOptions, filling out all "required" parameters.
 func NewTestOptions(rootDir string, stdout, stderr io.Writer, pkgs packages.PkgList) *TestOptions {
 	opts := &TestOptions{
-		RootDir: rootDir,
-		Output:  stdout,
-		Error:   stderr,
+		RootDir:      rootDir,
+		Output:       stdout,
+		Error:        stderr,
+		coverageData: make(map[string]*gno.CoverageData),
 	}
 	opts.BaseStore, opts.TestStore = StoreWithOptions(
 		rootDir, opts.WriterForStore(), StoreOptions{
@@ -341,7 +349,88 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		}
 	}
 
+	// Report coverage if enabled
+	if opts.Cover {
+		opts.reportCoverage(mpkg.Path)
+	}
+
 	return errs
+}
+
+// reportCoverage reports coverage statistics for the package
+func (opts *TestOptions) reportCoverage(pkgPath string) {
+	coverageData, exists := opts.coverageData[pkgPath]
+	if !exists || coverageData == nil {
+		fmt.Fprintf(opts.Error, "coverage: [no statements] of statements in %s\n", pkgPath)
+		return
+	}
+
+	covered, total := coverageData.GetCoverage()
+	if total == 0 {
+		fmt.Fprintf(opts.Error, "coverage: [no statements] of statements in %s\n", pkgPath)
+		return
+	}
+
+	percentage := float64(covered) / float64(total) * 100
+	fmt.Fprintf(opts.Error, "coverage: %.1f%% of statements in %s\n", percentage, pkgPath)
+
+	// Write coverage profile if requested
+	if opts.CoverProfile != "" {
+		opts.writeCoverageProfile()
+	}
+}
+
+// writeCoverageProfile writes coverage data to the specified profile file
+func (opts *TestOptions) writeCoverageProfile() {
+	file, err := os.Create(opts.CoverProfile)
+	if err != nil {
+		fmt.Fprintf(opts.Error, "error creating coverage profile: %v\n", err)
+		return
+	}
+	defer file.Close()
+
+	// Write coverage profile header
+	fmt.Fprintf(file, "mode: %s\n", opts.CoverMode)
+
+	// Write coverage data for each package
+	for _, coverageData := range opts.coverageData {
+		if coverageData == nil {
+			continue
+		}
+
+		for filename, blocks := range coverageData.Files {
+			for _, block := range blocks {
+				// Format: filename:startLine.startCol,endLine.endCol numStmt count
+				fmt.Fprintf(file, "%s:%d.%d,%d.%d %d %d\n",
+					filename,
+					block.StartLine, block.StartCol,
+					block.EndLine, block.EndCol,
+					block.NumStmt,
+					block.Count,
+				)
+			}
+		}
+	}
+}
+
+// mergeCoverageData merges coverage data from a test machine into the accumulated coverage data
+func (opts *TestOptions) mergeCoverageData(pkgPath string, newCoverage *gno.CoverageData) {
+	if newCoverage == nil {
+		return
+	}
+
+	existingCoverage, exists := opts.coverageData[pkgPath]
+	if !exists || existingCoverage == nil {
+		// First coverage data for this package, just store it
+		opts.coverageData[pkgPath] = newCoverage
+		return
+	}
+
+	// Merge coverage data by combining blocks and updating counts
+	existingCoverage.Blocks = append(existingCoverage.Blocks, newCoverage.Blocks...)
+	for filename, blocks := range newCoverage.Files {
+		existingCoverage.Files[filename] = append(existingCoverage.Files[filename], blocks...)
+	}
 }
 
 // Runs *_test.go tests.
@@ -378,6 +467,18 @@ func (opts *TestOptions) runTestFiles(
 	// Check if we already have the package - it may have been eagerly loaded.
 	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
 	m.Alloc = alloc
+
+	// Enable coverage if requested
+	if opts.Cover {
+		coverMode := gno.CoverageModeSet // default
+		switch opts.CoverMode {
+		case "count":
+			coverMode = gno.CoverageModeCount
+		case "atomic":
+			coverMode = gno.CoverageModeAtomic
+		}
+		m.Coverage = gno.NewCoverageData(coverMode, mpkg.Path)
+	}
 	if tgs.GetMemPackage(mpkg.Path) == nil {
 		m.RunMemPackage(mpkg, false)
 	} else {
@@ -399,6 +500,19 @@ func (opts *TestOptions) runTestFiles(
 		// - Wrap here.
 		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
 		m.Alloc = alloc.Reset()
+
+		// Enable coverage if requested (for each test machine)
+		if opts.Cover {
+			coverMode := gno.CoverageModeSet // default
+			switch opts.CoverMode {
+			case "count":
+				coverMode = gno.CoverageModeCount
+			case "atomic":
+				coverMode = gno.CoverageModeAtomic
+			}
+			m.Coverage = gno.NewCoverageData(coverMode, mpkg.Path)
+		}
+
 		m.SetActivePackage(pv)
 
 		testingpv := m.Store.GetPackage("testing/base", false)
@@ -531,7 +645,15 @@ func (opts *TestOptions) runTestFiles(
 				allocsVal,
 			)
 		}
+
+		// Collect coverage data from this test machine
+		if opts.Cover && m.Coverage != nil {
+			opts.mergeCoverageData(mpkg.Path, m.Coverage)
+		}
 	}
+
+	// Coverage data is collected during test execution and stored in opts.coverageData
+	// No need to collect here as it's done in the test loop
 
 	return errs
 }

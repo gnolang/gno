@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -17,6 +18,158 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
+
+//----------------------------------------
+// Coverage
+
+// CoverageMode represents the coverage tracking mode
+type CoverageMode int
+
+const (
+	CoverageModeSet CoverageMode = iota // Boolean coverage (default)
+	CoverageModeCount                   // Count how many times each statement runs
+	CoverageModeAtomic                  // Like count, but thread-safe
+)
+
+// String returns the string representation of the coverage mode
+func (cm CoverageMode) String() string {
+	switch cm {
+	case CoverageModeSet:
+		return "set"
+	case CoverageModeCount:
+		return "count"
+	case CoverageModeAtomic:
+		return "atomic"
+	default:
+		return "unknown"
+	}
+}
+
+// CoverageBlock represents a single coverage block
+type CoverageBlock struct {
+	StartLine int    // Starting line number
+	StartCol  int    // Starting column number
+	EndLine   int    // Ending line number
+	EndCol    int    // Ending column number
+	NumStmt   int    // Number of statements in this block
+	Count     uint64 // Execution count (atomic for thread safety)
+}
+
+// CoverageData holds coverage information for a package
+type CoverageData struct {
+	Mode     CoverageMode             // Coverage mode
+	Blocks   []*CoverageBlock         // Coverage blocks
+	Files    map[string][]*CoverageBlock // File to blocks mapping
+	PkgPath  string                   // Package path
+	mutex    sync.RWMutex             // Protects non-atomic operations
+}
+
+// NewCoverageData creates a new coverage data structure
+func NewCoverageData(mode CoverageMode, pkgPath string) *CoverageData {
+	return &CoverageData{
+		Mode:    mode,
+		Blocks:  make([]*CoverageBlock, 0),
+		Files:   make(map[string][]*CoverageBlock),
+		PkgPath: pkgPath,
+	}
+}
+
+// AddBlock adds a coverage block
+func (cd *CoverageData) AddBlock(filename string, startLine, startCol, endLine, endCol, numStmt int) int {
+	cd.mutex.Lock()
+	defer cd.mutex.Unlock()
+
+	block := &CoverageBlock{
+		StartLine: startLine,
+		StartCol:  startCol,
+		EndLine:   endLine,
+		EndCol:    endCol,
+		NumStmt:   numStmt,
+		Count:     0,
+	}
+
+	cd.Blocks = append(cd.Blocks, block)
+	cd.Files[filename] = append(cd.Files[filename], block)
+
+	return len(cd.Blocks) - 1 // Return block index
+}
+
+// IncrementBlock increments the count for a coverage block
+func (cd *CoverageData) IncrementBlock(blockIndex int) {
+	if blockIndex < 0 || blockIndex >= len(cd.Blocks) {
+		return
+	}
+
+	block := cd.Blocks[blockIndex]
+	switch cd.Mode {
+	case CoverageModeSet:
+		atomic.StoreUint64(&block.Count, 1)
+	case CoverageModeCount:
+		atomic.AddUint64(&block.Count, 1)
+	case CoverageModeAtomic:
+		atomic.AddUint64(&block.Count, 1)
+	}
+}
+
+// GetCoverage returns coverage statistics
+func (cd *CoverageData) GetCoverage() (covered, total int) {
+	cd.mutex.RLock()
+	defer cd.mutex.RUnlock()
+
+	for _, block := range cd.Blocks {
+		total += block.NumStmt
+		if atomic.LoadUint64(&block.Count) > 0 {
+			covered += block.NumStmt
+		}
+	}
+	return covered, total
+}
+
+// trackStatementCoverage tracks coverage for a statement during execution
+func (m *Machine) trackStatementCoverage(s Stmt) {
+	if m.Coverage == nil || s == nil {
+		return
+	}
+
+	// Get statement span information
+	span := s.GetSpan()
+	pos := span.Pos
+	if pos.Line == 0 {
+		return
+	}
+
+	// Determine filename from current frame's function location if available
+	filename := "unknown"
+	if n := len(m.Frames); n > 0 && m.Frames[n-1].Func != nil {
+		funcLoc := m.Frames[n-1].Func.GetSource(m.Store).GetLocation()
+		if funcLoc.File != "" {
+			filename = funcLoc.File
+		}
+	}
+
+	// Determine end line/col; fall back to same line with rough col estimate
+	endLine := span.End.Line
+	endCol := span.End.Column
+	if endLine == 0 {
+		endLine = pos.Line
+	}
+	if endCol == 0 {
+		endCol = pos.Column + 10
+	}
+
+	// Create a coverage block for this statement
+	blockIndex := m.Coverage.AddBlock(
+		filename,
+		pos.Line,
+		pos.Column,
+		endLine,
+		endCol,
+		1, // One statement per block for simplicity
+	)
+
+	// Increment the coverage count
+	m.Coverage.IncrementBlock(blockIndex)
+}
 
 //----------------------------------------
 // Machine
@@ -40,6 +193,9 @@ type Machine struct {
 	ReviveEnabled bool          // true if revive() enabled (only in testing mode for now)
 
 	Debugger Debugger
+
+	// Coverage tracking
+	Coverage *CoverageData // coverage data collection
 
 	// Configuration
 	Output   io.Writer
@@ -79,6 +235,9 @@ type MachineOptions struct {
 	GasMeter      store.GasMeter
 	ReviveEnabled bool
 	SkipPackage   bool // don't get/set package or realm.
+	// Coverage options
+	CoverageEnabled bool        // enable coverage tracking
+	CoverageMode    CoverageMode // coverage mode (set, count, atomic)
 }
 
 const (
@@ -138,6 +297,10 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Debugger.in = opts.Input
 	mm.Debugger.out = output
 	mm.ReviveEnabled = opts.ReviveEnabled
+	// Initialize coverage if enabled
+	if opts.CoverageEnabled {
+		mm.Coverage = NewCoverageData(opts.CoverageMode, opts.PkgPath)
+	}
 	// Maybe get/set package and realm.
 	if !opts.SkipPackage && opts.PkgPath != "" {
 		pv := (*PackageValue)(nil)
