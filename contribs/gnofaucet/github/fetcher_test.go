@@ -3,6 +3,8 @@ package github
 import (
 	"context"
 	"encoding/json"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -17,8 +19,9 @@ import (
 	"github.com/google/go-github/v74/github"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
+
+var noopLogger = slog.New(slog.NewTextHandler(io.Discard, nil))
 
 func TestFetch(t *testing.T) {
 	server := createTestServer(t)
@@ -38,7 +41,7 @@ func TestFetch(t *testing.T) {
 		"gnolang": {"gno"},
 	}
 
-	fetcher := NewGHFetcher(ghImpl, rdb, repos, zap.NewNop(), 1*time.Second)
+	fetcher := NewGHFetcher(ghImpl, rdb, repos, noopLogger, 1*time.Second)
 
 	ctx := context.Background()
 

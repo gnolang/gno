@@ -3,12 +3,12 @@ package github
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/go-github/v74/github"
 	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
-	"go.uber.org/zap"
 )
 
 type GHFetcher struct {
@@ -16,7 +16,7 @@ type GHFetcher struct {
 	redisClient *redis.Client
 
 	repos         map[string][]string
-	logger        *zap.Logger
+	logger        *slog.Logger
 	queryInterval time.Duration // block query interval
 }
 
@@ -24,7 +24,7 @@ func NewGHFetcher(
 	ghClient GithubClient,
 	rClient *redis.Client,
 	repos map[string][]string,
-	logger *zap.Logger,
+	logger *slog.Logger,
 	interval time.Duration) *GHFetcher {
 	return &GHFetcher{
 		ghClient:      ghClient,
@@ -61,18 +61,18 @@ func (f *GHFetcher) Fetch(ctx context.Context) error {
 func (f *GHFetcher) fetchEvents(ctx context.Context) error {
 	for org, names := range f.repos {
 		for _, n := range names {
-			f.logger.Info("fetching events for repo", zap.String("org", org), zap.String("repo", n))
+			f.logger.Info("fetching events for repo", "org", org, "repo", n)
 			pipe := f.redisClient.TxPipeline()
 			if !f.iterateEvents(ctx, pipe, org, n) {
-				f.logger.Error("error fetching events. Aborting the pipeline", zap.String("org", org), zap.String("repo", n))
+				f.logger.Error("error fetching events. Aborting the pipeline", "org", org, "repo", n)
 				continue
 			}
 			_, err := pipe.Exec(ctx)
 			if err != nil {
-				f.logger.Error("error executing redis pipeline", zap.String("org", org), zap.String("repo", n), zap.Error(err))
+				f.logger.Error("error executing redis pipeline", "org", org, "repo", n, "err", err)
 				return err
 			} else {
-				f.logger.Info("events correctly iterated", zap.String("org", org), zap.String("repo", n))
+				f.logger.Info("events correctly iterated", "org", org, "repo", n)
 			}
 		}
 	}
@@ -83,7 +83,7 @@ func (f *GHFetcher) fetchEvents(ctx context.Context) error {
 func (f *GHFetcher) fetchHistory(ctx context.Context) error {
 	for org, names := range f.repos {
 		for _, n := range names {
-			f.logger.Info("Fetching history for repo", zap.String("org", org), zap.String("repo", n))
+			f.logger.Info("Fetching history for repo", "org", org, "repo", n)
 			pipe := f.redisClient.TxPipeline()
 
 			if !f.iterateIssues(ctx, pipe, org, n) {
@@ -97,7 +97,7 @@ func (f *GHFetcher) fetchHistory(ctx context.Context) error {
 			if err != nil {
 				return fmt.Errorf("error executing redis pipeline: %w", err)
 			} else {
-				f.logger.Info("history saved", zap.String("org", org), zap.String("repo", n))
+				f.logger.Info("history saved", "org", org, "repo", n)
 			}
 		}
 	}
@@ -114,10 +114,10 @@ func (f *GHFetcher) processIssue(ctx context.Context, pipe redis.Pipeliner, org,
 		return
 	}
 
-	f.logger.Info("processing issue", zap.String("user", *u), zap.String("org", org), zap.String("repo", repo), zap.Any("issue", issue.Number))
+	f.logger.Info("processing issue", "user", *u, "org", org, "repo", repo, "issue", issue.Number)
 
 	if err := pipe.Incr(ctx, issueCountKey(*u)).Err(); err != nil {
-		f.logger.Error("error adding issue to the count", zap.String("user", *u), zap.String("org", org), zap.String("repo", repo), zap.Error(err))
+		f.logger.Error("error adding issue to the count", "user", *u, "org", org, "repo", repo, "err", err)
 	}
 }
 
@@ -127,10 +127,10 @@ func (f *GHFetcher) processPullRequest(ctx context.Context, pipe redis.Pipeliner
 		return
 	}
 
-	f.logger.Info("processing pr", zap.String("user", u), zap.String("org", org), zap.String("repo", repo), zap.Any("pr", pr.Number()))
+	f.logger.Info("processing pr", "user", u, "org", org, "repo", repo, "pr", pr.Number())
 
 	if err := pipe.Incr(ctx, prCountKey(u)).Err(); err != nil {
-		f.logger.Error("error adding prs to the count", zap.String("user", u), zap.String("org", org), zap.String("repo", repo), zap.Error(err))
+		f.logger.Error("error adding prs to the count", "user", u, "org", org, "repo", repo, "err", err)
 		return
 	}
 	// if PR is not merged, do not count the commits
@@ -139,7 +139,7 @@ func (f *GHFetcher) processPullRequest(ctx context.Context, pipe redis.Pipeliner
 	}
 	if pr.CommitsCount() != 0 {
 		if err := pipe.IncrBy(ctx, commitCountKey(u), int64(pr.CommitsCount())).Err(); err != nil {
-			f.logger.Error("error adding commits to the count", zap.String("user", u), zap.String("org", org), zap.String("repo", repo), zap.Error(err))
+			f.logger.Error("error adding commits to the count", "user", u, "org", org, "repo", repo, "err", err)
 		}
 	}
 
@@ -153,7 +153,7 @@ func (f *GHFetcher) processPullRequest(ctx context.Context, pipe redis.Pipeliner
 		}
 
 		if err := pipe.Incr(ctx, prReviewCountKey(ru)).Err(); err != nil {
-			f.logger.Error("error adding review to the count", zap.String("user", ru), zap.String("org", org), zap.String("repo", repo), zap.Error(err))
+			f.logger.Error("error adding review to the count", "user", ru, "org", org, "repo", repo, "err", err)
 		}
 	}
 }
@@ -166,7 +166,7 @@ func (f *GHFetcher) processEventReview(ctx context.Context, pipe redis.Pipeliner
 		return
 	}
 	state := *review.State
-	f.logger.Info("review", zap.Any("state", state))
+	f.logger.Info("review", "state", state)
 	if state != "approved" && state != "changes_requested" {
 		return
 	}
@@ -178,10 +178,10 @@ func (f *GHFetcher) processEventReview(ctx context.Context, pipe redis.Pipeliner
 		return
 	}
 
-	f.logger.Info("processing review", zap.String("user", *u), zap.String("org", org), zap.String("repo", repo))
+	f.logger.Info("processing review", "user", *u, "org", org, "repo", repo)
 
 	if err := pipe.Incr(ctx, prReviewCountKey(*u)).Err(); err != nil {
-		f.logger.Error("error adding review to the count", zap.String("user", *u), zap.String("org", org), zap.String("repo", repo), zap.Error(err))
+		f.logger.Error("error adding review to the count", "user", *u, "org", org, "repo", repo, "err", err)
 	}
 }
 
@@ -190,7 +190,7 @@ func (f *GHFetcher) iterateIssues(ctx context.Context, pipe redis.Pipeliner, org
 	for {
 		issues, res, err := f.ghClient.ListIssues(ctx, org, repo, page)
 		if err != nil {
-			f.logger.Error("error getting issues", zap.String("org", org), zap.String("repo", repo), zap.Error(err))
+			f.logger.Error("error getting issues", "org", org, "repo", repo, "err", err)
 			return false
 		}
 
@@ -207,7 +207,7 @@ func (f *GHFetcher) iterateIssues(ctx context.Context, pipe redis.Pipeliner, org
 
 		if lastCreatedAt.After(ca) {
 			if err := pipe.Set(ctx, lastRepoFetchKey(org, repo), lastCreatedAt, 0).Err(); err != nil {
-				f.logger.Error("error setting last event date", zap.String("org", org), zap.String("repo", repo), zap.Error(err))
+				f.logger.Error("error setting last event date", "org", org, "repo", repo, "err", err)
 				return false
 			}
 		}
@@ -226,7 +226,7 @@ func (f *GHFetcher) iteratePullRequests(ctx context.Context, pipe redis.Pipeline
 	for {
 		prs, nextCursor, err := f.ghClient.ListPullRequests(ctx, org, repo, cursor)
 		if err != nil {
-			f.logger.Error("error getting pull requests", zap.String("org", org), zap.String("repo", repo), zap.Error(err))
+			f.logger.Error("error getting pull requests", "org", org, "repo", repo, "err", err)
 			return false
 		}
 
@@ -247,7 +247,7 @@ func (f *GHFetcher) iteratePullRequests(ctx context.Context, pipe redis.Pipeline
 
 		if lastCreatedAt.After(t) {
 			if err := pipe.Set(ctx, lastRepoFetchKey(org, repo), lastCreatedAt, 0).Err(); err != nil {
-				f.logger.Error("error setting last event date", zap.String("org", org), zap.String("repo", repo), zap.Error(err))
+				f.logger.Error("error setting last event date", "org", org, "repo", repo, "err", err)
 				return false
 			}
 		}
@@ -266,7 +266,7 @@ func (f *GHFetcher) iterateEvents(ctx context.Context, pipe redis.Pipeliner, org
 	for {
 		events, res, err := f.ghClient.ListRepositoryEvents(ctx, org, repo, page)
 		if err != nil {
-			f.logger.Error("error getting repository events", zap.String("org", org), zap.String("repo", repo), zap.Error(err))
+			f.logger.Error("error getting repository events", "org", org, "repo", repo, "err", err)
 			return false
 		}
 
@@ -276,11 +276,11 @@ func (f *GHFetcher) iterateEvents(ctx context.Context, pipe redis.Pipeliner, org
 				continue
 			}
 
-			f.logger.Info("processing new event", zap.String("event", *ev.Type), zap.String("user", *ev.Actor.Login), zap.String("org", org), zap.String("repo", repo))
+			f.logger.Info("processing new event", "event", *ev.Type, "user", *ev.Actor.Login, "org", org, "repo", repo)
 
 			et, err := ev.ParsePayload()
 			if err != nil {
-				f.logger.Error("error parsing event payload", zap.String("org", org), zap.String("repo", repo), zap.Error(err))
+				f.logger.Error("error parsing event payload", "org", org, "repo", repo, "err", err)
 				continue
 			}
 
@@ -322,7 +322,7 @@ func (f *GHFetcher) iterateEvents(ctx context.Context, pipe redis.Pipeliner, org
 			}
 
 			if err := pipe.Set(ctx, lastRepoFetchKey(org, repo), ev.CreatedAt.GetTime(), 0).Err(); err != nil {
-				f.logger.Error("error setting lastEventDate", zap.String("org", org), zap.String("repo", repo), zap.Error(err))
+				f.logger.Error("error setting lastEventDate", "org", org, "repo", repo, "err", err)
 				return false
 			}
 		}
@@ -341,7 +341,7 @@ func (f *GHFetcher) getLatestDate(ctx context.Context, org, repo string) time.Ti
 		return time.Time{}
 	}
 	if err != nil {
-		f.logger.Error("error getting lastFetch", zap.String("org", org), zap.String("repo", repo), zap.Error(err))
+		f.logger.Error("error getting lastFetch", "org", org, "repo", repo, "err", err)
 		return time.Time{}
 	}
 
