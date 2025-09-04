@@ -9,7 +9,6 @@ stdout 'OK!'
 gnokey maketx call -pkgpath gno.land/r/demo/boards -func CreateThread -args 1 -args 'thread1' -args 'thread1' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
-# This causes the node to crash with "stack overflow"
 gnokey maketx run -max-deposit 2000000000ugnot -gas-fee 10000000ugnot -gas-wanted 2900000000 -broadcast -chainid=tendermint_test test1 $WORK/script/script.gno
 stdout OK!
 
