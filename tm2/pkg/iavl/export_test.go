@@ -1,6 +1,7 @@
 package iavl
 
 import (
+	"errors"
 	"math"
 	"math/rand"
 	"testing"
@@ -180,7 +181,7 @@ func TestExporter(t *testing.T) {
 	defer exporter.Close()
 	for {
 		node, err := exporter.Next()
-		if err == ErrorExportDone {
+		if errors.Is(err, ErrExportDone) {
 			break
 		}
 		require.NoError(t, err)
@@ -215,7 +216,7 @@ func TestExporterCompress(t *testing.T) {
 	exporter := NewCompressExporter(innerExporter)
 	for {
 		node, err := exporter.Next()
-		if err == ErrorExportDone {
+		if errors.Is(err, ErrExportDone) {
 			break
 		}
 		require.NoError(t, err)
@@ -266,7 +267,7 @@ func TestExporter_Import(t *testing.T) {
 
 				for {
 					item, err := exporter.Next()
-					if err == ErrorExportDone {
+					if errors.Is(err, ErrExportDone) {
 						err = innerImporter.Commit()
 						require.NoError(t, err)
 						break
@@ -309,12 +310,12 @@ func TestExporter_Close(t *testing.T) {
 	exporter.Close()
 	node, err = exporter.Next()
 	require.Error(t, err)
-	require.Equal(t, ErrorExportDone, err)
+	require.Equal(t, ErrExportDone, err)
 	require.Nil(t, node)
 
 	node, err = exporter.Next()
 	require.Error(t, err)
-	require.Equal(t, ErrorExportDone, err)
+	require.Equal(t, ErrExportDone, err)
 	require.Nil(t, node)
 
 	exporter.Close()
@@ -365,7 +366,7 @@ func BenchmarkExport(b *testing.B) {
 		require.NoError(b, err)
 		for {
 			_, err := exporter.Next()
-			if err == ErrorExportDone {
+			if errors.Is(err, ErrExportDone) {
 				break
 			} else if err != nil {
 				b.Error(err)

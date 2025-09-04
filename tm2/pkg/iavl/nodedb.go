@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gnolang/gno/tm2/pkg/iavl/cache"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/iavl/cache"
 	"github.com/gnolang/gno/tm2/pkg/iavl/fastnode"
 	ibytes "github.com/gnolang/gno/tm2/pkg/iavl/internal/bytes"
 	"github.com/gnolang/gno/tm2/pkg/iavl/keyformat"
@@ -78,7 +78,7 @@ type nodeDB struct {
 	mtx                 sync.Mutex       // Read/write lock.
 	done                chan struct{}    // Channel to signal that the pruning process is done.
 	db                  dbm.DB           // Persistent node storage.
-	batch               dbm.Batch  // Batched writing buffer.
+	batch               dbm.Batch        // Batched writing buffer.
 	opts                Options          // Options to customize for pruning/writing
 	versionReaders      map[int64]uint32 // Number of active version readers
 	storageVersion      string           // Storage version
@@ -156,7 +156,7 @@ func (ndb *nodeDB) GetNode(nk []byte) (*Node, error) {
 	}
 	buf, err := ndb.db.Get(nodeKey)
 	if err != nil {
-		return nil, fmt.Errorf("can't get node %v: %v", nk, err)
+		return nil, fmt.Errorf("can't get node %v: %w", nk, err)
 	}
 	if buf == nil && !isLegcyNode {
 		// if the node is reformatted by pruning, check against (version, 0)
@@ -168,7 +168,7 @@ func (ndb *nodeDB) GetNode(nk []byte) (*Node, error) {
 			}).GetKey())
 			buf, err = ndb.db.Get(nodeKey)
 			if err != nil {
-				return nil, fmt.Errorf("can't get the reformatted node %v: %v", nk, err)
+				return nil, fmt.Errorf("can't get the reformatted node %v: %w", nk, err)
 			}
 		}
 	}
@@ -180,12 +180,12 @@ func (ndb *nodeDB) GetNode(nk []byte) (*Node, error) {
 	if isLegcyNode {
 		node, err = MakeLegacyNode(nk, buf)
 		if err != nil {
-			return nil, fmt.Errorf("error reading Legacy Node. bytes: %x, error: %v", buf, err)
+			return nil, fmt.Errorf("error reading Legacy Node. bytes: %x, error: %w", buf, err)
 		}
 	} else {
 		node, err = MakeNode(nk, buf)
 		if err != nil {
-			return nil, fmt.Errorf("error reading Node. bytes: %x, error: %v", buf, err)
+			return nil, fmt.Errorf("error reading Node. bytes: %x, error: %w", buf, err)
 		}
 	}
 
@@ -1295,7 +1295,7 @@ func (ndb *nodeDB) traverseStateChanges(startVersion, endVersion int64, fn func(
 
 	prevVersion := startVersion - 1
 	prevRoot, err := ndb.GetRoot(prevVersion)
-	if err != nil && err != ErrVersionDoesNotExist {
+	if err != nil && errors.Is(err, ErrVersionDoesNotExist) {
 		return err
 	}
 

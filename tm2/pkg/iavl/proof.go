@@ -96,7 +96,7 @@ func (pin ProofInnerNode) Hash(childHash []byte) ([]byte, error) {
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to hash ProofInnerNode: %v", err)
+		return nil, fmt.Errorf("failed to hash ProofInnerNode: %w", err)
 	}
 
 	_, err = hasher.Write(buf.Bytes())
@@ -151,7 +151,7 @@ func (pln ProofLeafNode) Hash() ([]byte, error) {
 		err = encoding.EncodeBytes(buf, pln.ValueHash)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to hash ProofLeafNode: %v", err)
+		return nil, fmt.Errorf("failed to hash ProofLeafNode: %w", err)
 	}
 	_, err = hasher.Write(buf.Bytes())
 	if err != nil {

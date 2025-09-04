@@ -11,8 +11,8 @@ import (
 // especially since callers may export several IAVL stores in parallel (e.g. the Cosmos SDK).
 const exportBufferSize = 32
 
-// ErrorExportDone is returned by Exporter.Next() when all items have been exported.
-var ErrorExportDone = errors.New("export is complete")
+// ErrExportDone is returned by Exporter.Next() when all items have been exported.
+var ErrExportDone = errors.New("export is complete")
 
 // ErrNotInitalizedTree when chains introduce a store without initializing data
 var ErrNotInitalizedTree = errors.New("iavl/export newExporter failed to create")
@@ -84,7 +84,7 @@ func (e *Exporter) Next() (*ExportNode, error) {
 	if exportNode, ok := <-e.ch; ok {
 		return exportNode, nil
 	}
-	return nil, ErrorExportDone
+	return nil, ErrExportDone
 }
 
 // Close closes the exporter. It is safe to call multiple times.

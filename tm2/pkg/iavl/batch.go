@@ -11,7 +11,7 @@ import (
 // as soon as the configurable limit is reached.
 type BatchWithFlusher struct {
 	mtx   sync.Mutex
-	db    dbm.DB          // This is only used to create new batch
+	db    dbm.DB    // This is only used to create new batch
 	batch dbm.Batch // Batched writing buffer.
 
 	flushThreshold int // The threshold to flush the batch to disk.

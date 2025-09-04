@@ -3,8 +3,8 @@ package iavl
 import (
 	"errors"
 
-	"github.com/gnolang/gno/tm2/pkg/iavl/fastnode"
 	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/iavl/fastnode"
 )
 
 var errFastIteratorNilNdbGiven = errors.New("fast iterator must be created with a nodedb but it was nil")
