@@ -1,9 +1,9 @@
-// PKGPATH: gno.land/r/tests/tests0
+// PKGPATH: gno.land/r/tests/vm0
 package tests0
 
 import (
-	"gno.land/r/tests/tests"
-	"gno.land/r/tests/tests/tests_foo"
+	tests "gno.land/r/tests/vm"
+	"gno.land/r/tests/vm/tests_foo"
 )
 
 func init() {
@@ -25,7 +25,7 @@ func main(cur realm) {
 // end
 
 // Realm:
-// finalizerealm["gno.land/r/tests/tests"]
+// finalizerealm[tests "gno.land/r/tests/vm"]
 // c[393e33276bb385821437eda0ee7d24f4c0e905fe:59](245)={
 //     "Fields": [
 //         {
@@ -58,7 +58,7 @@ func main(cur realm) {
 //     "Value": {
 //         "T": {
 //             "@type": "/gno.RefType",
-//             "ID": "gno.land/r/tests/tests/tests_foo.FooStringer"
+//             "ID": "gno.land/r/tests/vm/tests_foo.FooStringer"
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
@@ -75,7 +75,7 @@ func main(cur realm) {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/r/tests/tests/tests_foo.FooStringer"
+//                     "ID": "gno.land/r/tests/vm/tests_foo.FooStringer"
 //                 }
 //             },
 //             "V": {
@@ -94,7 +94,7 @@ func main(cur realm) {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/r/tests/tests/tests_foo.FooStringer"
+//                     "ID": "gno.land/r/tests/vm/tests_foo.FooStringer"
 //                 }
 //             },
 //             "V": {
@@ -113,7 +113,7 @@ func main(cur realm) {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/r/tests/tests/tests_foo.FooStringer"
+//                     "ID": "gno.land/r/tests/vm/tests_foo.FooStringer"
 //                 }
 //             },
 //             "V": {
@@ -183,7 +183,7 @@ func main(cur realm) {
 //              "RefCount": "1"
 //          },
 // d[393e33276bb385821437eda0ee7d24f4c0e905fe:54](-632)
-// finalizerealm["gno.land/r/tests/tests"]
-// finalizerealm["gno.land/r/tests/tests"]
-// finalizerealm["gno.land/r/tests/tests"]
-// finalizerealm["gno.land/r/tests/tests0"]
+// finalizerealm[tests "gno.land/r/tests/vm"]
+// finalizerealm[tests "gno.land/r/tests/vm"]
+// finalizerealm[tests "gno.land/r/tests/vm"]
+// finalizerealm["gno.land/r/tests/vm0"]

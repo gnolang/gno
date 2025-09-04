@@ -2,7 +2,7 @@
 package crossrealm
 
 import (
-	crossrealm "gno.land/r/tests/tests/crossrealm"
+	crossrealm "gno.land/r/tests/vm/crossrealm"
 )
 
 func main() {
@@ -14,7 +14,7 @@ func main() {
 
 // Storage:
 // gno.land/r/crossrealm: 0
-// gno.land/r/tests/tests/crossrealm: 0
+// gno.land/r/tests/vm/crossrealm: 0
 
 // Output:
 // A: 2

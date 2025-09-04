@@ -2,7 +2,7 @@
 package crossrealm
 
 import (
-	"gno.land/r/tests/tests"
+	tests "gno.land/r/tests/vm"
 )
 
 // NOTE: it is valid to persist external realm types.
@@ -19,4 +19,4 @@ func main(cur realm) {
 }
 
 // Output:
-// (struct{("test_modified" string)} gno.land/r/tests/tests.TestRealmObject)
+// (struct{("test_modified" string)} gno.land/r/tests/vm.TestRealmObject)

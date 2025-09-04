@@ -4,7 +4,7 @@ package crossrealm
 import (
 	"std"
 
-	"gno.land/r/tests/tests/crossrealm"
+	"gno.land/r/tests/vm/crossrealm"
 )
 
 func main(cur realm) {
@@ -16,9 +16,9 @@ func main(cur realm) {
 }
 
 // Output:
-// g1wtde2f2gm29n4k3pdtzjqc4pqeyqj9upgwnsch gno.land/r/tests/tests/crossrealm
+// g1wtde2f2gm29n4k3pdtzjqc4pqeyqj9upgwnsch gno.land/r/tests/vm/crossrealm
 // g1h2y7mn4d8w5ed08kqt8sdd7tp4j96eahyn6yan gno.land/r/crossrealm
 
 // Realm:
-// finalizerealm["gno.land/r/tests/tests/crossrealm"]
+// finalizerealm["gno.land/r/tests/vm/crossrealm"]
 // finalizerealm["gno.land/r/crossrealm"]

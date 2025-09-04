@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/tests/tests
+// PKGPATH: gno.land/r/tests/vm
 package tests
 
 type Stringer interface {
@@ -29,7 +29,7 @@ func main() {
 // ok
 
 // Realm:
-// finalizerealm["gno.land/r/tests/tests"]
+// finalizerealm[tests "gno.land/r/tests/vm"]
 // c[393e33276bb385821437eda0ee7d24f4c0e905fe:9](242)={
 //     "Fields": [
 //         {
@@ -62,7 +62,7 @@ func main() {
 //     "Value": {
 //         "T": {
 //             "@type": "/gno.RefType",
-//             "ID": "gno.land/r/tests/tests.Foo"
+//             "ID": "gno.land/r/tests/vm.Foo"
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
@@ -103,7 +103,7 @@ func main() {
 //     "Value": {
 //         "T": {
 //             "@type": "/gno.RefType",
-//             "ID": "gno.land/r/tests/tests.Foo"
+//             "ID": "gno.land/r/tests/vm.Foo"
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
@@ -120,7 +120,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/r/tests/tests.Foo"
+//                     "ID": "gno.land/r/tests/vm.Foo"
 //                 }
 //             },
 //             "V": {
@@ -139,7 +139,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/r/tests/tests.Foo"
+//                     "ID": "gno.land/r/tests/vm.Foo"
 //                 }
 //             },
 //             "V": {
@@ -173,7 +173,7 @@ func main() {
 //              "RefCount": "1"
 //          },
 //     @@ -14,6 +14,17 @@
-//                      "ID": "gno.land/r/tests/tests.Stringer"
+//                      "ID": "gno.land/r/tests/vm.Stringer"
 //                  },
 //                  "Vrd": false
 //     +        },

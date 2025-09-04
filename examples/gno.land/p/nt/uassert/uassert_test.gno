@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"gno.land/p/nt/uassert"
-	"gno.land/r/tests/tests"
+	tests "gno.land/r/tests/vm"
 )
 
 var _ uassert.TestingT = (*testing.T)(nil)

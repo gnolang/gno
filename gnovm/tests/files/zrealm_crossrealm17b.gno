@@ -4,7 +4,7 @@ package crossrealm
 import (
 	"std"
 
-	crossrealm "gno.land/r/tests/tests/crossrealm"
+	crossrealm "gno.land/r/tests/vm/crossrealm"
 )
 
 type container struct{ *fooer }
@@ -29,4 +29,4 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/crossrealm/zrealm_crossrealm17b.gno:28:2-33: cannot cur-call to external realm function gno.land/r/tests/tests/crossrealm.crossrealm<VPBlock(2,1)>.CallFooerFooCur from gno.land/r/crossrealm
+// gno.land/r/crossrealm/zrealm_crossrealm17b.gno:28:2-33: cannot cur-call to external realm function gno.land/r/tests/vm/crossrealm.crossrealm<VPBlock(2,1)>.CallFooerFooCur from gno.land/r/crossrealm
