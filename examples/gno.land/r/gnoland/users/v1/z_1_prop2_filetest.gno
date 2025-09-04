@@ -118,6 +118,7 @@ func main() {
 // [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
 //
 // WARNING: Please double check transaction data before voting.
+//
 // **New**: Members **must** have a namespace to vote to enforce simpler tracking.
 // --
 // --
@@ -144,6 +145,7 @@ func main() {
 // [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
 //
 // WARNING: Please double check transaction data before voting.
+//
 // **New**: Members **must** have a namespace to vote to enforce simpler tracking.
 // --
 // --
@@ -170,5 +172,6 @@ func main() {
 // [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
 //
 // WARNING: Please double check transaction data before voting.
+//
 // **New**: Members **must** have a namespace to vote to enforce simpler tracking.
 // Successfully deleted alice
