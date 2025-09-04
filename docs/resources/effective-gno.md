@@ -119,7 +119,7 @@ func Foobar() {
 }
 ```
 
-- TODO: suggest MustXXX and AssertXXX flows in p/.
+<!-- TODO: suggest MustXXX and AssertXXX flows in p/ -->
 
 ### Understand the importance of `init()`
 
