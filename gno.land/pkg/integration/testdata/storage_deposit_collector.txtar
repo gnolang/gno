@@ -65,7 +65,7 @@ gnokey maketx call -pkgpath gno.land/r/bytesbank -func Debit -args 0  -gas-fee 1
 stdout OK!
 stdout 'STORAGE DELTA:  -501132 bytes'
 stdout 'STORAGE REFUND: 50113200ugnot'
-stdout 'TOTAL TX COST:  -49113200ugnot'
+stdout 'TOTAL TX COST:  1000000ugnot'
 
 
 # balance from storage_collector should be base storage + 501132 ugnot refunded by storage

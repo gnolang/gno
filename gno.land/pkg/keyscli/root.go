@@ -68,17 +68,19 @@ func PrintTxInfo(tx std.Tx, res *ctypes.ResultBroadcastTxCommit, io commands.IO)
 	io.Println("HEIGHT:    ", res.Height)
 	if delta, storageFee, ok := GetStorageInfo(res.DeliverTx.Events); ok {
 		io.Printfln("STORAGE DELTA:  %d bytes", delta)
+		total := tx.Fee.GasFee.Amount
+
 		if storageFee.Amount >= 0 {
 			io.Println("STORAGE FEE:   ", storageFee)
+			total += storageFee.Amount
 		} else {
 			refund := storageFee
 			refund.Amount = -refund.Amount
 			io.Println("STORAGE REFUND:", refund)
 		}
-		if tx.Fee.GasFee.Denom == storageFee.Denom {
-			total := tx.Fee.GasFee.Amount + storageFee.Amount
-			io.Printfln("TOTAL TX COST:  %d%v", total, tx.Fee.GasFee.Denom)
-		}
+
+		io.Printfln("TOTAL TX COST:  %d%v", total, tx.Fee.GasFee.Denom)
+
 	}
 	io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
 	io.Println("INFO:      ", res.DeliverTx.Info)
