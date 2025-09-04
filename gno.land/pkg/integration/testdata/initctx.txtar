@@ -12,14 +12,17 @@ stdout ' orig=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 prev=g1jg8mtutu9khhfwc4nx
 -- bar/bar.gno --
 package bar
 
-import "std"
+import (
+	"chain"
+	"chain/runtime"
+)
 
-var orig = std.Address("orig")
-var prev = std.Address("prev")
+var orig = chain.Address("orig")
+var prev = chain.Address("prev")
 
 func init() {
-	orig = std.OriginCaller()
-	prev = std.PreviousRealm().Address()
+	orig = runtime.OriginCaller()
+	prev = runtime.PreviousRealm().Address()
 }
 
 func Render(addr string) string {

@@ -63,7 +63,8 @@ stdout 'data: ""'
 package main
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
 
 	"gno.land/p/nt/treasury"
 
@@ -73,8 +74,8 @@ import (
 
 func main() {
 	payment := treasury.NewCoinsPayment(
-		std.NewCoins(std.NewCoin("ugnot", 42)),
-		std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), // receiver address
+		banker.NewCoins(banker.NewCoin("ugnot", 42)),
+		chain.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), // receiver address
 	)
 	preq := impl.NewTreasuryPaymentRequest(
 		payment,
@@ -82,12 +83,11 @@ func main() {
 	)
 	dao.MustCreateProposal(cross, preq)
 }
-
 -- loader/load_govdao.gno --
 package load_govdao
 
 import (
-	"std"
+	"chain"
 
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
@@ -101,7 +101,7 @@ func init() {
 
 	memberstore.Get().SetMember(
 		memberstore.T1,
-		std.Address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), // member address
+		chain.Address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), // member address
 		&memberstore.Member{InvitationPoints: 3},
 	)
 
