@@ -241,7 +241,7 @@ func (c *fixCmd) processFixTxtarDir(files []txtar.File) error {
 		if err != nil {
 			continue
 		}
-
+		// set if any of the fixes changed the AST.
 		fixed := false
 		for _, fx := range fix.Fixes {
 			if fx.F == nil || !c.fixFilter(fx) {
