@@ -11,7 +11,6 @@ import (
 func TestSetFeeCollector(t *testing.T) {
 	userRealm := std.NewUserRealm(g1user)
 	testing.SetRealm(userRealm)
-	registerTestUsers(g1user)
 
 	pr := NewSetFeeCollectorRequest(userRealm.Address())
 	id := dao.MustCreateProposal(cross, pr)
