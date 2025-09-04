@@ -20,6 +20,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/pmezard/go-difflib/difflib"
+	"golang.org/x/tools/txtar"
 )
 
 type fixCmd struct {
@@ -36,7 +37,8 @@ func newFixCmd(cio commands.IO) *commands.Command {
 	bld.WriteString(`The gno fix tool allows you to find Gno programs that use old APIs,
 and rewrite them to use new APIs.
 gno fix rewrites the files in-place. Use -diff to only show a diff of the
-changes that should be applied.
+changes that should be applied. Both .gno files
+and .txtar archives can be passed in the same invocation.
 The available fixes are the following:
 `)
 	for _, fx := range fix.Fixes {
@@ -87,6 +89,15 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 	}
 
 	for _, targ := range targets {
+		txtars, err := txtarsFromArgs(targ)
+		if err != nil {
+			return fmt.Errorf("unable to gather txtar files: %w", err)
+		}
+		for _, txtarFile := range txtars {
+			if err := cmd.processFixTxtar(txtarFile); err != nil {
+				return fmt.Errorf("unable to process txtar %q: %w", txtarFile, err)
+			}
+		}
 		files, err := gnoFilesFromArgs([]string{targ})
 		if err != nil {
 			return fmt.Errorf("unable to gather gno files: %w", err)
@@ -141,6 +152,164 @@ func gnoFixParseGnomod(dir string) (mod *gnomod.File, isDotMod bool) {
 		}
 	}
 	return
+}
+
+func txtarsFromArgs(target string) ([]string, error) {
+	var paths []string
+
+	info, err := os.Stat(target)
+	if err != nil {
+		return []string{}, fmt.Errorf("gno: invalid file %q: %w", target, err)
+	}
+
+	if !info.IsDir() {
+		if isTxtarFile(fs.FileInfoToDirEntry(info)) {
+			paths = append(paths, cleanPath(target))
+		}
+		return paths, nil
+	}
+
+	files, err := os.ReadDir(target)
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range files {
+		if isTxtarFile(f) {
+			path := filepath.Join(target, f.Name())
+			paths = append(paths, cleanPath(path))
+		}
+	}
+
+	return paths, nil
+}
+
+func isTxtarFile(f fs.DirEntry) bool {
+	return strings.HasSuffix(f.Name(), ".txtar") && !f.IsDir()
+}
+
+func (c *fixCmd) processFixTxtar(file string) error {
+	archive, err := txtar.ParseFile(file)
+	if err != nil {
+		return err
+	}
+	// group files by folder to handle error gnomod versions.
+	var filesByDir = map[string][]txtar.File{}
+	for _, f := range archive.Files {
+		dir := filepath.Dir(f.Name)
+		filesByDir[dir] = append(filesByDir[dir], f)
+	}
+	for _, files := range filesByDir {
+		res, err := c.processFixTxtarDir(files)
+		if err != nil {
+			return err
+		}
+		// This keep orders to limit diff noise.
+		// NOTE: this is due to processing txtars by folders breaking the order.
+		for _, mf := range res {
+			for i := range archive.Files {
+				if archive.Files[i].Name == mf.Name {
+					archive.Files[i].Data = mf.Data
+				}
+			}
+		}
+	}
+	if !c.diff {
+		archive := txtar.Format(archive)
+		info, err := os.Stat(file)
+		if err != nil {
+			return fmt.Errorf("stat txtar file: %w", err)
+		}
+		err = os.WriteFile(file, archive, info.Mode())
+		if err != nil {
+			return fmt.Errorf("error writing txtar file: %w", err)
+		}
+	}
+	return nil
+}
+
+func (c *fixCmd) processFixTxtarDir(files []txtar.File) ([]txtar.File, error) {
+	var gm *gnomod.File
+	var res []txtar.File
+	for _, f := range files {
+		if f.Name == "gnomod.toml" {
+			gm, _ = gnomod.ParseBytes("gnomod.toml", f.Data)
+			break
+		}
+	}
+	for _, f := range files {
+		if !strings.HasSuffix(f.Name, ".gno") {
+			continue
+		}
+		fset := token.NewFileSet()
+		parsed, err := parser.ParseFile(
+			fset, f.Name, f.Data,
+			parser.SkipObjectResolution|parser.ParseComments,
+		)
+		if err != nil {
+			continue
+		}
+		// set if any of the fixes changed the AST.
+		fixed := false
+		for _, fx := range fix.Fixes {
+			if fx.F == nil || !c.fixFilter(fx) {
+				continue
+			}
+			if fx.Version != "" && gm != nil {
+				cmpv, ok := gno.CompareVersions(fx.Version, gm.Gno)
+				if ok && cmpv <= 0 {
+					if c.verbose {
+						fmt.Printf(
+							"%s: %s: skipping fix (fix version %q <= gnomod version %q)\n",
+							f.Name, fx.Name, fx.Version, gm.Gno,
+						)
+					}
+					continue
+				}
+			}
+			// wrap in anonymous func so we can recover and wrap errors with file name.
+			func() {
+				defer func() {
+					rec := recover()
+					switch rec := rec.(type) {
+					case nil:
+					case error:
+						panic(fmt.Errorf("%s: %s: %w", f.Name, fx.Name, rec))
+					default:
+						panic(fmt.Errorf("%s: %s: %v", f.Name, fx.Name, rec))
+					}
+				}()
+				fixed = fx.F(parsed) || fixed
+			}()
+		}
+		if !fixed {
+			// onto the next file.
+			continue
+		}
+		if c.diff {
+			var buf bytes.Buffer
+			if err := format.Node(&buf, fset, parsed); err != nil {
+				return nil, fmt.Errorf("error formatting: %w", err)
+			}
+			err := difflib.WriteUnifiedDiff(os.Stdout, difflib.UnifiedDiff{
+				FromFile: f.Name,
+				ToFile:   f.Name,
+				A:        difflib.SplitLines(string(f.Data)),
+				B:        difflib.SplitLines(buf.String()),
+				Context:  3,
+			})
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			var buf bytes.Buffer
+			if err := format.Node(&buf, fset, parsed); err != nil {
+				return nil, fmt.Errorf("error formatting: %w", err)
+			}
+			f.Data = buf.Bytes()
+			res = append(res, f)
+		}
+	}
+	return res, nil
 }
 
 func (c *fixCmd) processFix(cio commands.IO, files []string, gm *gnomod.File) error {
