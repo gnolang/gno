@@ -195,15 +195,37 @@ func (c *fixCmd) processFixTxtar(file string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("processing txtar %s\n", file)
-	var gm *gnomod.File
+	// group files by folderlike in a txtar you can have multiple folders.
+	var filesByDir = map[string][]txtar.File{}
 	for _, f := range archive.Files {
+		dir := filepath.Dir(f.Name)
+		filesByDir[dir] = append(filesByDir[dir], f)
+	}
+	for _, files := range filesByDir {
+		if err := c.processFixTxtarDir(files); err != nil {
+			return err
+		}
+	}
+	if !c.diff {
+		// After processing all files write back the txtar file.
+		archive := txtar.Format(archive)
+		err := os.WriteFile(file, archive, 0o644)
+		if err != nil {
+			return fmt.Errorf("error writing txtar file: %w", err)
+		}
+	}
+	return nil
+}
+
+func (c *fixCmd) processFixTxtarDir(files []txtar.File) error {
+	var gm *gnomod.File
+	for _, f := range files {
 		if f.Name == "gnomod.toml" {
 			gm, _ = gnomod.ParseBytes("gnomod.toml", f.Data)
 			break
 		}
 	}
-	for _, f := range archive.Files {
+	for _, f := range files {
 		if !strings.HasSuffix(f.Name, ".gno") {
 			continue
 		}
@@ -228,7 +250,7 @@ func (c *fixCmd) processFixTxtar(file string) error {
 					if c.verbose {
 						fmt.Printf(
 							"%s: %s: skipping fix (fix version %q <= gnomod version %q)\n",
-							file, fx.Name, fx.Version, gm.Gno,
+							f.Name, fx.Name, fx.Version, gm.Gno,
 						)
 					}
 					continue
@@ -241,9 +263,9 @@ func (c *fixCmd) processFixTxtar(file string) error {
 					switch rec := rec.(type) {
 					case nil:
 					case error:
-						panic(fmt.Errorf("%s: %s: %w", file, fx.Name, rec))
+						panic(fmt.Errorf("%s: %s: %w", f.Name, fx.Name, rec))
 					default:
-						panic(fmt.Errorf("%s: %s: %v", file, fx.Name, rec))
+						panic(fmt.Errorf("%s: %s: %v", f.Name, fx.Name, rec))
 					}
 				}()
 				fixed = fx.F(parsed) || fixed
@@ -259,8 +281,8 @@ func (c *fixCmd) processFixTxtar(file string) error {
 				return fmt.Errorf("error formatting: %w", err)
 			}
 			err := difflib.WriteUnifiedDiff(os.Stdout, difflib.UnifiedDiff{
-				FromFile: file,
-				ToFile:   file,
+				FromFile: f.Name,
+				ToFile:   f.Name,
 				A:        difflib.SplitLines(string(f.Data)),
 				B:        difflib.SplitLines(buf.String()),
 				Context:  3,
