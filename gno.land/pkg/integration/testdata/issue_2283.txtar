@@ -531,7 +531,7 @@ var preRegisteredUsers = []struct {
 	Address std.Address
 }{
 	// system name
-	{"archives", "g1xlnyjrnf03ju82v0f98ruhpgnquk28knmjfe5k"}, // -> @r_archives
+	{"archive", "g1xlnyjrnf03ju82v0f98ruhpgnquk28knmjfe5k"}, // -> @r_archive
 	{"demo", "g13ek2zz9qurzynzvssyc4sthwppnruhnp0gdz8n"},     // -> @r_demo
 	{"gno", "g19602kd9tfxrfd60sgreadt9zvdyyuudcyxsz8a"},      // -> @r_gno
 	{"gnoland", "g1g3lsfxhvaqgdv4ccemwpnms4fv6t3aq3p5z6u7"},  // -> @r_gnoland

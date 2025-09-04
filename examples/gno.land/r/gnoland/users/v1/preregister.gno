@@ -13,7 +13,7 @@ var preRegisteredUsers = []struct {
 }{
 	// system names.
 	// the goal is to make them either team/DAO-owned or ownerless.
-	{"archives", "g1xlnyjrnf03ju82v0f98ruhpgnquk28knmjfe5k"}, // -> @archives
+	{"archive", "g1xlnyjrnf03ju82v0f98ruhpgnquk28knmjfe5k"}, // -> @archive
 	{"demo", "g13ek2zz9qurzynzvssyc4sthwppnruhnp0gdz8n"},     // -> @demo
 	{"gno", "g19602kd9tfxrfd60sgreadt9zvdyyuudcyxsz8a"},      // -> @gno
 	{"gnoland", "g1g3lsfxhvaqgdv4ccemwpnms4fv6t3aq3p5z6u7"},  // -> @gnoland
