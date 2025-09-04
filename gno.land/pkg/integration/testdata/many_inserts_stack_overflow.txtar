@@ -9,8 +9,8 @@ stdout 'OK!'
 gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateThread -args 1 -args 'thread1' -args 'thread1' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
-gnokey maketx run -max-deposit 2000000000ugnot -gas-fee 10000000ugnot -gas-wanted 2900000000 -broadcast -chainid=tendermint_test test1 $WORK/script/script.gno
-stdout OK!
+! gnokey maketx run -max-deposit 2000000000ugnot -gas-fee 10000000ugnot -gas-wanted 2999999999 -broadcast -chainid=tendermint_test test1 $WORK/script/script.gno
+stderr 'Data: out of gas error'
 
 -- script/script.gno --
 package main
