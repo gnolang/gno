@@ -202,8 +202,17 @@ func (c *fixCmd) processFixTxtar(file string) error {
 		filesByDir[dir] = append(filesByDir[dir], f)
 	}
 	for _, files := range filesByDir {
-		if err := c.processFixTxtarDir(files); err != nil {
+		var modifiedFiles []txtar.File
+		if modifiedFiles, err = c.processFixTxtarDir(files); err != nil {
 			return err
+		}
+		// Update only the Data field, preserving order
+		for _, mf := range modifiedFiles {
+			for i := range archive.Files {
+				if archive.Files[i].Name == mf.Name {
+					archive.Files[i].Data = mf.Data
+				}
+			}
 		}
 	}
 	if !c.diff {
@@ -217,7 +226,7 @@ func (c *fixCmd) processFixTxtar(file string) error {
 	return nil
 }
 
-func (c *fixCmd) processFixTxtarDir(files []txtar.File) error {
+func (c *fixCmd) processFixTxtarDir(files []txtar.File) ([]txtar.File, error) {
 	var gm *gnomod.File
 	for _, f := range files {
 		if f.Name == "gnomod.toml" {
@@ -225,6 +234,7 @@ func (c *fixCmd) processFixTxtarDir(files []txtar.File) error {
 			break
 		}
 	}
+	var res []txtar.File
 	for _, f := range files {
 		if !strings.HasSuffix(f.Name, ".gno") {
 			continue
@@ -278,7 +288,7 @@ func (c *fixCmd) processFixTxtarDir(files []txtar.File) error {
 		if c.diff {
 			var buf bytes.Buffer
 			if err := format.Node(&buf, fset, parsed); err != nil {
-				return fmt.Errorf("error formatting: %w", err)
+				return nil, fmt.Errorf("error formatting: %w", err)
 			}
 			err := difflib.WriteUnifiedDiff(os.Stdout, difflib.UnifiedDiff{
 				FromFile: f.Name,
@@ -288,17 +298,18 @@ func (c *fixCmd) processFixTxtarDir(files []txtar.File) error {
 				Context:  3,
 			})
 			if err != nil {
-				return err
+				return nil, err
 			}
 		} else {
 			var buf bytes.Buffer
 			if err := format.Node(&buf, fset, parsed); err != nil {
-				return fmt.Errorf("error formatting: %w", err)
+				return nil, fmt.Errorf("error formatting: %w", err)
 			}
 			f.Data = buf.Bytes()
+			res = append(res, f)
 		}
 	}
-	return nil
+	return res, nil
 }
 
 func (c *fixCmd) processFix(cio commands.IO, files []string, gm *gnomod.File) error {
