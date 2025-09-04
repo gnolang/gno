@@ -327,6 +327,9 @@ func TestJSONUnmarshal(t *testing.T) {
 		{ // #14
 			`{"PC":"125","FP":"<FP-FOO>@0"}`, new(innerFP), &innerFP{PC: 125, FP: &fp{Name: `<FP-FOO>`}}, "",
 		},
+		{
+			`{"assets":[]}`, new(BalanceSheet), new(BalanceSheet), "",
+		},
 	}
 
 	for i, tt := range cases {
