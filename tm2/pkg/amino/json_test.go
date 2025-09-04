@@ -66,7 +66,7 @@ func TestMarshalJSON(t *testing.T) {
 					intPtr(11), "ap", nil, &oneExportedField{A: "foo"},
 				},
 			},
-			`{"Inner":{"Foo":"11","nm":"ap","bz":{"A":"foo"}},"year":0}`, "",
+			`{"inner":{"Foo":"11","nm":"ap","bz":{"A":"foo"}},"year":0}`, "",
 		}, // #11
 		{
 			struct{}{}, `{}`, "",
@@ -117,6 +117,10 @@ func TestMarshalJSON(t *testing.T) {
 		{
 			([]int)(nil), `[]`, "",
 		}, // #25
+		{
+			doublyEmbedded{},
+			`{"year":0}`, "",
+		}, // #26 (NOTE: Test omitempty for nil inner)
 	}
 
 	for i, tt := range cases {
@@ -461,8 +465,8 @@ type aPointerField struct {
 }
 
 type doublyEmbedded struct {
-	Inner *aPointerFieldAndEmbeddedField
-	Year  int32 `json:"year"`
+	Inner *aPointerFieldAndEmbeddedField `json:"inner,omitempty"`
+	Year  int32                          `json:"year"`
 }
 
 type aPointerFieldAndEmbeddedField struct {
