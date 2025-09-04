@@ -1,10 +1,10 @@
-// PKGPATH: gno.land/r/test
+// PKGPATH: gno.land/r/test/avlhelpers
 package avlhelpers
 
 import (
 	"encoding/hex"
 
-	"gno.land/p/jeff0/avlhelpers"
+	"gno.land/p/jefft0/avlhelpers"
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/ufmt"
 )
@@ -73,5 +73,19 @@ func main() {
 	}
 }
 
-// Error:
-// expected package name [test] but got [avlhelpers]
+// Output:
+// # matches: 0
+// # matches: 1
+// match: alice
+// # matches: 2
+// match: alice
+// match: andy
+// # matches: 1
+// match: alice
+// # matches: 1
+// match: 61ffff
+// # matches: 2
+// match: 61ff
+// match: 61ffff
+// # matches: 1
+// match: ffff00
