@@ -2,10 +2,11 @@
 package valopers
 
 import (
+	"chain"
+	"chain/banker"
 	"crypto/bech32"
 	"errors"
 	"regexp"
-	"std"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/pager"
@@ -29,9 +30,9 @@ var (
 )
 
 var (
-	valopers     *avl.Tree                            // valopers keeps track of all the valoper profiles. Address -> Valoper
-	instructions string                               // markdown instructions for valoper's registration
-	minFee       = std.NewCoin("ugnot", 20*1_000_000) // minimum gnot must be paid to register.
+	valopers     *avl.Tree                               // valopers keeps track of all the valoper profiles. Address -> Valoper
+	instructions string                                  // markdown instructions for valoper's registration
+	minFee       = banker.NewCoin("ugnot", 20*1_000_000) // minimum gnot must be paid to register.
 
 	monikerMaxLengthMiddle = ufmt.Sprintf("%d", MonikerMaxLength-2)
 	validateMonikerRe      = regexp.MustCompile(`^[a-zA-Z0-9][\w -]{0,` + monikerMaxLengthMiddle + `}[a-zA-Z0-9]$`) // 32 characters, including spaces, hyphens or underscores in the middle
@@ -42,9 +43,9 @@ type Valoper struct {
 	Moniker     string // A human-readable name
 	Description string // A description and details about the valoper
 
-	Address     std.Address // The bech32 gno address of the validator
-	PubKey      string      // The bech32 public key of the validator
-	KeepRunning bool        // Flag indicating if the owner wants to keep the validator running
+	Address     chain.Address // The bech32 gno address of the validator
+	PubKey      string        // The bech32 public key of the validator
+	KeepRunning bool          // Flag indicating if the owner wants to keep the validator running
 
 	auth *authorizable.Authorizable // The authorizer system for the valoper
 }
@@ -53,14 +54,14 @@ func (v Valoper) Auth() *authorizable.Authorizable {
 	return v.auth
 }
 
-func AddToAuthList(cur realm, address_XXX std.Address, member std.Address) {
+func AddToAuthList(cur realm, address_XXX chain.Address, member chain.Address) {
 	v := GetByAddr(address_XXX)
 	if err := v.Auth().AddToAuthListByPrevious(member); err != nil {
 		panic(err)
 	}
 }
 
-func DeleteFromAuthList(cur realm, address_XXX std.Address, member std.Address) {
+func DeleteFromAuthList(cur realm, address_XXX chain.Address, member chain.Address) {
 	v := GetByAddr(address_XXX)
 	if err := v.Auth().DeleteFromAuthListByPrevious(member); err != nil {
 		panic(err)
@@ -68,10 +69,10 @@ func DeleteFromAuthList(cur realm, address_XXX std.Address, member std.Address) 
 }
 
 // Register registers a new valoper
-func Register(cur realm, moniker string, description string, address_XXX std.Address, pubKey string) {
+func Register(cur realm, moniker string, description string, address_XXX chain.Address, pubKey string) {
 	// Check if a fee is enforced
 	if !minFee.IsZero() {
-		sentCoins := std.OriginSend()
+		sentCoins := banker.OriginSend()
 
 		// Coins must be sent and cover the min fee
 		if len(sentCoins) != 1 || sentCoins[0].IsLT(minFee) {
@@ -105,7 +106,7 @@ func Register(cur realm, moniker string, description string, address_XXX std.Add
 }
 
 // UpdateMoniker updates an existing valoper's moniker
-func UpdateMoniker(cur realm, address_XXX std.Address, moniker string) {
+func UpdateMoniker(cur realm, address_XXX chain.Address, moniker string) {
 	// Check that the moniker is not empty
 	if err := validateMoniker(moniker); err != nil {
 		panic(err)
@@ -124,7 +125,7 @@ func UpdateMoniker(cur realm, address_XXX std.Address, moniker string) {
 }
 
 // UpdateDescription updates an existing valoper's description
-func UpdateDescription(cur realm, address_XXX std.Address, description string) {
+func UpdateDescription(cur realm, address_XXX chain.Address, description string) {
 	// Check that the description is not empty
 	if err := validateDescription(description); err != nil {
 		panic(err)
@@ -143,7 +144,7 @@ func UpdateDescription(cur realm, address_XXX std.Address, description string) {
 }
 
 // UpdateKeepRunning updates an existing valoper's active status
-func UpdateKeepRunning(cur realm, address_XXX std.Address, keepRunning bool) {
+func UpdateKeepRunning(cur realm, address_XXX chain.Address, keepRunning bool) {
 	v := GetByAddr(address_XXX)
 
 	// Check that the caller has permissions
@@ -157,7 +158,7 @@ func UpdateKeepRunning(cur realm, address_XXX std.Address, keepRunning bool) {
 }
 
 // GetByAddr fetches the valoper using the address, if present
-func GetByAddr(address_XXX std.Address) Valoper {
+func GetByAddr(address_XXX chain.Address) Valoper {
 	valoperRaw, exists := valopers.Get(address_XXX.String())
 	if !exists {
 		panic(ErrValoperMissing)
@@ -245,7 +246,7 @@ func (v Valoper) Render() string {
 }
 
 // isValoper checks if the valoper exists
-func isValoper(address_XXX std.Address) bool {
+func isValoper(address_XXX chain.Address) bool {
 	_, exists := valopers.Get(address_XXX.String())
 
 	return exists
@@ -282,8 +283,8 @@ func validateDescription(description string) error {
 }
 
 // validateBech32 checks if the value is a valid bech32 address
-func validateBech32(address_XXX std.Address) error {
-	if !std.Address.IsValid(address_XXX) {
+func validateBech32(address_XXX chain.Address) error {
+	if !chain.Address.IsValid(address_XXX) {
 		return ErrInvalidAddress
 	}
 

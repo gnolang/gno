@@ -1,7 +1,7 @@
 package params
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -15,12 +15,12 @@ var (
 )
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(g1user))
+	testing.SetRealm(runtime.NewUserRealm(g1user))
 	ini.InitWithUsers(g1user)
 }
 
 func TestProUnlockTransfer(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(g1user))
+	testing.SetRealm(runtime.NewUserRealm(g1user))
 
 	pr := ProposeUnlockTransferRequest()
 	id := dao.MustCreateProposal(cross, pr)
@@ -30,7 +30,7 @@ func TestProUnlockTransfer(t *testing.T) {
 }
 
 func TestFailUnlockTransfer(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(g1user))
+	testing.SetRealm(runtime.NewUserRealm(g1user))
 
 	pr := ProposeUnlockTransferRequest()
 	id := dao.MustCreateProposal(cross, pr)
@@ -44,7 +44,7 @@ func TestFailUnlockTransfer(t *testing.T) {
 }
 
 func TestExeUnlockTransfer(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(g1user))
+	testing.SetRealm(runtime.NewUserRealm(g1user))
 
 	pr := ProposeUnlockTransferRequest()
 	id := dao.MustCreateProposal(cross, pr)

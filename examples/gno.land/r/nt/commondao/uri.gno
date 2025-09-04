@@ -1,14 +1,15 @@
 package commondao
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"strings"
 
 	"gno.land/p/demo/ufmt"
 )
 
 func currentRealmPath() string {
-	return strings.TrimPrefix(string(realmLink), std.ChainDomain())
+	return strings.TrimPrefix(string(realmLink), runtime.ChainDomain())
 }
 
 func daoURL(daoID uint64) string {
@@ -31,7 +32,7 @@ func proposalURL(daoID, proposalID uint64) string {
 	return ufmt.Sprintf("%s:%d/proposals/%d", path, daoID, proposalID)
 }
 
-func voteURL(daoID, proposalID uint64, addr std.Address) string {
+func voteURL(daoID, proposalID uint64, addr chain.Address) string {
 	path := currentRealmPath()
 	return ufmt.Sprintf("%s:%d/proposals/%d/vote/%s", path, daoID, proposalID, addr)
 }

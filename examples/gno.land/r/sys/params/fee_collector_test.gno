@@ -1,7 +1,7 @@
 package params
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/urequire"
@@ -9,7 +9,7 @@ import (
 )
 
 func TestSetFeeCollector(t *testing.T) {
-	userRealm := std.NewUserRealm(g1user)
+	userRealm := runtime.NewUserRealm(g1user)
 	testing.SetRealm(userRealm)
 
 	pr := NewSetFeeCollectorRequest(userRealm.Address())

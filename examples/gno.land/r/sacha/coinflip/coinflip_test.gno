@@ -1,13 +1,15 @@
 package coinflip
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/testutils"
 )
 
-var coinflipAddr = std.DerivePkgAddr("gno.land/r/sacha/coinflip")
+var coinflipAddr = chain.DerivePkgAddr("gno.land/r/sacha/coinflip")
 
 func TestGetRealmBalance(t *testing.T) {
 	value := GetRealmBalance(cross)
@@ -32,17 +34,17 @@ func TestFlip(t *testing.T) {
 }
 
 func TestWithdrawal(t *testing.T) {
-	banker := std.NewBanker(std.BankerTypeReadonly)
-	sachaAddr := std.Address("g1jpg2hmsh8j4f60u4vkseqh5azeupns8vhrstfm")
+	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+	sachaAddr := chain.Address("g1jpg2hmsh8j4f60u4vkseqh5azeupns8vhrstfm")
 
-	testing.IssueCoins(coinflipAddr, std.Coins{{"ugnot", 100000000}})
+	testing.IssueCoins(coinflipAddr, banker.Coins{{"ugnot", 100000000}})
 
-	testing.SetRealm(std.NewUserRealm(sachaAddr))
+	testing.SetRealm(runtime.NewUserRealm(sachaAddr))
 
 	Withdrawal(cross, 1000)
 
-	mainbal := banker.GetCoins(coinflipAddr)
-	sachabal := banker.GetCoins(sachaAddr)
+	mainbal := banker_.GetCoins(coinflipAddr)
+	sachabal := banker_.GetCoins(sachaAddr)
 
 	if !(mainbal[0].Amount == 99999000 && sachabal[0].Amount == 1000) {
 		t.Fatalf("Expected main balance to be 99999100 and sacha balance to be 900, got %v and %v", mainbal, sachabal)
@@ -50,17 +52,17 @@ func TestWithdrawal(t *testing.T) {
 }
 
 func TestSendPrize(t *testing.T) {
-	banker := std.NewBanker(std.BankerTypeReadonly)
+	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
 	aliceAddr := testutils.TestAddress("alice")
 
-	testing.IssueCoins(coinflipAddr, std.Coins{{"ugnot", 100000000}})
+	testing.IssueCoins(coinflipAddr, banker.Coins{{"ugnot", 100000000}})
 
-	testing.SetRealm(std.NewUserRealm(aliceAddr))
+	testing.SetRealm(runtime.NewUserRealm(aliceAddr))
 
 	sendPrize(cross, aliceAddr, 1000)
 
-	mainbal := banker.GetCoins(coinflipAddr)
-	alicebal := banker.GetCoins(aliceAddr)
+	mainbal := banker_.GetCoins(coinflipAddr)
+	alicebal := banker_.GetCoins(aliceAddr)
 	if !(mainbal[0].Amount == 99999000 && alicebal[0].Amount == 1000) {
 		t.Fatalf("Expected main balance to be 99999100 and alice balance to be 900, got %v and %v", mainbal, alicebal)
 	}

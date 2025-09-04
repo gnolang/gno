@@ -4,7 +4,7 @@ package groups_test
 // SEND: 1000000ugnot
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/r/demo/groups"
@@ -14,8 +14,8 @@ import (
 var gid groups.GroupID
 
 func main() {
-	caller := std.OriginCaller()
-	testing.SetRealm(std.NewUserRealm(caller))
+	caller := runtime.OriginCaller()
+	testing.SetRealm(runtime.NewUserRealm(caller))
 	users.Register(cross, "gnouser123")
 
 	gid = groups.CreateGroup(cross, "test_group")

@@ -1,7 +1,9 @@
 package recurring
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 	"time"
 
 	"gno.land/p/demo/avl"
@@ -28,7 +30,7 @@ func NewRecurringSubscription(duration time.Duration, amount int64) *RecurringSu
 }
 
 // HasValidSubscription verifies if the caller has an active recurring subscription.
-func (rs *RecurringSubscription) HasValidSubscription(addr std.Address) error {
+func (rs *RecurringSubscription) HasValidSubscription(addr chain.Address) error {
 	expTime, exists := rs.subs.Get(addr.String())
 	if !exists {
 		return ErrNoSub
@@ -42,8 +44,8 @@ func (rs *RecurringSubscription) HasValidSubscription(addr std.Address) error {
 }
 
 // processSubscription processes the payment for a given receiver and renews or adds their subscription.
-func (rs *RecurringSubscription) processSubscription(receiver std.Address) error {
-	amount := std.OriginSend()
+func (rs *RecurringSubscription) processSubscription(receiver chain.Address) error {
+	amount := banker.OriginSend()
 
 	if amount.AmountOf("ugnot") != rs.amount {
 		return ErrAmt
@@ -68,18 +70,18 @@ func (rs *RecurringSubscription) processSubscription(receiver std.Address) error
 
 // Subscribe handles the payment for the caller's subscription.
 func (rs *RecurringSubscription) Subscribe() error {
-	caller := std.CurrentRealm().Address()
+	caller := runtime.CurrentRealm().Address()
 
 	return rs.processSubscription(caller)
 }
 
 // GiftSubscription allows the user to pay for a subscription for another user (receiver).
-func (rs *RecurringSubscription) GiftSubscription(receiver std.Address) error {
+func (rs *RecurringSubscription) GiftSubscription(receiver chain.Address) error {
 	return rs.processSubscription(receiver)
 }
 
 // GetExpiration returns the expiration date of the recurring subscription for a given caller.
-func (rs *RecurringSubscription) GetExpiration(addr std.Address) (time.Time, error) {
+func (rs *RecurringSubscription) GetExpiration(addr chain.Address) (time.Time, error) {
 	expTime, exists := rs.subs.Get(addr.String())
 	if !exists {
 		return time.Time{}, ErrNoSub

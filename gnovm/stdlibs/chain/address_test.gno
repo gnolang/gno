@@ -1,7 +1,7 @@
 package chain
 
 import (
-	testing "testing/base"
+	"testing"
 )
 
 func TestValid(t *testing.T) {

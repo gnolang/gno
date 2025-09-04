@@ -1,7 +1,7 @@
 package commondao_test
 
 import (
-	"std"
+	"chain"
 	"testing"
 
 	"gno.land/p/demo/uassert"
@@ -15,12 +15,12 @@ func TestMemberStorageWithGrouping(t *testing.T) {
 	tiers := []struct {
 		Name    string
 		Weight  int
-		Members []std.Address
+		Members []chain.Address
 	}{
 		{
 			Name:   "Tier 1",
 			Weight: 3,
-			Members: []std.Address{
+			Members: []chain.Address{
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			},
@@ -28,7 +28,7 @@ func TestMemberStorageWithGrouping(t *testing.T) {
 		{
 			Name:   "Tier 2",
 			Weight: 2,
-			Members: []std.Address{
+			Members: []chain.Address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 			},
 		},
@@ -61,7 +61,7 @@ func TestMemberStorageWithGrouping(t *testing.T) {
 		uassert.Equal(t, tier.Weight, weight, "expect group weight to match")
 
 		var i int
-		mg.Members().IterateByOffset(0, len(tier.Members), func(addr std.Address) bool {
+		mg.Members().IterateByOffset(0, len(tier.Members), func(addr chain.Address) bool {
 			uassert.Equal(t, tier.Members[i], addr, "expect tier member to match")
 
 			i++

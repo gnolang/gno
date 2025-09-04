@@ -1,8 +1,9 @@
 package treasury
 
 import (
+	"chain"
+	"chain/runtime"
 	"errors"
-	"std"
 	"strconv"
 
 	"gno.land/p/demo/grc/grc20"
@@ -17,7 +18,7 @@ var (
 // GRC20Banker is a Banker that sends GRC20 tokens listed using a getter
 // set during initialization.
 type GRC20Banker struct {
-	owner  std.Address     // The address of this GRC20 banker owner.
+	owner  chain.Address   // The address of this GRC20 banker owner.
 	lister TokenListerFunc // Allows to list tokens from methods that require it.
 }
 
@@ -33,7 +34,7 @@ func (GRC20Banker) ID() string {
 
 // Send implements Banker.
 func (gb *GRC20Banker) Send(p Payment) error {
-	if std.CurrentRealm().Address() != gb.owner {
+	if runtime.CurrentRealm().Address() != gb.owner {
 		return ErrCurrentRealmIsNotOwner
 	}
 
@@ -79,13 +80,13 @@ func (gb *GRC20Banker) Address() string {
 // NewGRC20Banker creates a new GRC20Banker with the current Realm's address
 // as the owner.
 func NewGRC20Banker(lister TokenListerFunc) (*GRC20Banker, error) {
-	owner := std.CurrentRealm().Address()
+	owner := runtime.CurrentRealm().Address()
 
 	return NewGRC20BankerWithOwner(owner, lister)
 }
 
 // NewGRC20BankerWithOwner creates a new GRC20Banker with the given address.
-func NewGRC20BankerWithOwner(owner std.Address, lister TokenListerFunc) (*GRC20Banker, error) {
+func NewGRC20BankerWithOwner(owner chain.Address, lister TokenListerFunc) (*GRC20Banker, error) {
 	if owner == "" {
 		return nil, ErrNoOwnerProvided
 	}
@@ -102,9 +103,9 @@ func NewGRC20BankerWithOwner(owner std.Address, lister TokenListerFunc) (*GRC20B
 
 // grc20Payment represents a payment that is issued by a GRC20Banker.
 type grc20Payment struct {
-	tokenKey  string      // The key associated with the GRC20 token.
-	amount    int64       // The amount of token to send.
-	toAddress std.Address // The recipient of the payment.
+	tokenKey  string        // The key associated with the GRC20 token.
+	amount    int64         // The amount of token to send.
+	toAddress chain.Address // The recipient of the payment.
 }
 
 var _ Payment = (*grc20Payment)(nil)
@@ -121,7 +122,7 @@ func (gp grc20Payment) String() string {
 }
 
 // NewGRC20Payment creates a new grc20Payment.
-func NewGRC20Payment(tokenKey string, amount int64, toAddress std.Address) Payment {
+func NewGRC20Payment(tokenKey string, amount int64, toAddress chain.Address) Payment {
 	return grc20Payment{
 		tokenKey:  tokenKey,
 		amount:    amount,

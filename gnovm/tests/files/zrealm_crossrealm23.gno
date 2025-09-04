@@ -2,15 +2,15 @@
 package crossrealm
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/r/demo/tests/crossrealm"
 )
 
 func main(cur realm) {
 	println(crossrealm.ExecCrossing(cross, func() string {
-		rlm1 := std.CurrentRealm()
-		rlm2 := std.PreviousRealm()
+		rlm1 := runtime.CurrentRealm()
+		rlm2 := runtime.PreviousRealm()
 		return string(rlm1.Address()) + " " + rlm1.PkgPath() + "\n" + string(rlm2.Address()) + " " + rlm2.PkgPath()
 	}))
 }

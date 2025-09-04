@@ -4,8 +4,8 @@
 package events
 
 import (
+	"chain"
 	"sort"
-	"std"
 	"strings"
 	"time"
 
@@ -29,8 +29,8 @@ type (
 )
 
 var (
-	Ownable   = ownable.NewWithAddress(std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")) // @leohhhn
-	events    = make(eventsSlice, 0)                                                            // sorted
+	Ownable   = ownable.NewWithAddress(chain.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")) // @leohhhn
+	events    = make(eventsSlice, 0)                                                              // sorted
 	idCounter seqid.ID
 )
 
@@ -74,7 +74,7 @@ func AddEvent(_ realm, name, description, link, location, startTime, endTime str
 	events = append(events, e)
 	sort.Sort(events)
 
-	std.Emit(EventAdded,
+	chain.Emit(EventAdded,
 		"id", e.id,
 	)
 
@@ -92,7 +92,7 @@ func DeleteEvent(_ realm, id string) {
 
 	events = append(events[:idx], events[idx+1:]...)
 
-	std.Emit(EventDeleted,
+	chain.Emit(EventDeleted,
 		"id", e.id,
 	)
 }
@@ -141,7 +141,7 @@ func EditEvent(_ realm, id string, name, description, link, location, startTime,
 		}
 	}
 
-	std.Emit(EventEdited,
+	chain.Emit(EventEdited,
 		"id", e.id,
 	)
 }

@@ -1,7 +1,8 @@
 package ownable
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 )
 
 const OwnershipTransferEvent = "OwnershipTransfer"
@@ -10,18 +11,18 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 // being embedded in a Gno object to manage per-object ownership.
 // Ownable is safe to export as a top-level object
 type Ownable struct {
-	owner std.Address
+	owner chain.Address
 }
 
 func New() *Ownable {
 	return &Ownable{
-		owner: std.CurrentRealm().Address(),
+		owner: runtime.CurrentRealm().Address(),
 	}
 }
 
 func NewWithOrigin() *Ownable {
-	origin := std.OriginCaller()
-	previous := std.PreviousRealm()
+	origin := runtime.OriginCaller()
+	previous := runtime.PreviousRealm()
 	if origin != previous.Address() {
 		panic("NewWithOrigin() should be called from init() where std.PreviousRealm() is origin")
 	}
@@ -30,14 +31,14 @@ func NewWithOrigin() *Ownable {
 	}
 }
 
-func NewWithAddress(addr std.Address) *Ownable {
+func NewWithAddress(addr chain.Address) *Ownable {
 	return &Ownable{
 		owner: addr,
 	}
 }
 
 // TransferOwnership transfers ownership of the Ownable struct to a new address
-func (o *Ownable) TransferOwnership(newOwner std.Address) error {
+func (o *Ownable) TransferOwnership(newOwner chain.Address) error {
 	if !o.OwnedByCurrent() {
 		return ErrUnauthorized
 	}
@@ -48,7 +49,7 @@ func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 
 	prevOwner := o.owner
 	o.owner = newOwner
-	std.Emit(
+	chain.Emit(
 		OwnershipTransferEvent,
 		"from", prevOwner.String(),
 		"to", newOwner.String(),
@@ -79,9 +80,9 @@ func (o *Ownable) DropOwnershipByPrevious() error {
 	return nil
 }
 
-func (o *Ownable) dropOwnership(prevOwner std.Address) {
+func (o *Ownable) dropOwnership(prevOwner chain.Address) {
 	o.owner = ""
-	std.Emit(
+	chain.Emit(
 		OwnershipTransferEvent,
 		"from", prevOwner.String(),
 		"to", "",
@@ -89,9 +90,9 @@ func (o *Ownable) dropOwnership(prevOwner std.Address) {
 }
 
 // Owner returns the owner address from Ownable
-func (o *Ownable) Owner() std.Address {
+func (o *Ownable) Owner() chain.Address {
 	if o == nil {
-		return std.Address("")
+		return chain.Address("")
 	}
 	return o.owner
 }
@@ -101,7 +102,7 @@ func (o *Ownable) OwnedByCurrent() bool {
 	if o == nil {
 		return false
 	}
-	return std.CurrentRealm().Address() == o.owner
+	return runtime.CurrentRealm().Address() == o.owner
 }
 
 // AssertOwnedByCurrent panics if the caller is not the owner
@@ -116,7 +117,7 @@ func (o *Ownable) OwnedByPrevious() bool {
 	if o == nil {
 		return false
 	}
-	return std.PreviousRealm().Address() == o.owner
+	return runtime.PreviousRealm().Address() == o.owner
 }
 
 // AssertOwnedByPrevious panics if the caller is not the owner

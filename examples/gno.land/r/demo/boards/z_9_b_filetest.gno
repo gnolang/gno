@@ -3,7 +3,8 @@ package main
 // SEND: 1000000ugnot
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/r/demo/boards"
@@ -16,7 +17,7 @@ var (
 )
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	testing.SetRealm(runtime.NewUserRealm(chain.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
 	users.Register(cross, "gnouser123")
 
 	srcBoard = boards.CreateBoard(cross, "first_board")

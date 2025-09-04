@@ -2,15 +2,16 @@
 package crossrealm
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 
 	ptests "gno.land/p/demo/tests"
 	"gno.land/p/demo/ufmt"
 	rtests "gno.land/r/demo/tests"
 )
 
-func getPreviousRealm() std.Realm {
-	return std.PreviousRealm()
+func getPreviousRealm() runtime.Realm {
+	return runtime.PreviousRealm()
 }
 
 func Exec(fn func()) {
@@ -20,15 +21,15 @@ func Exec(fn func()) {
 func main(cur realm) {
 	// Create a map of the potential callers, this will give more understandable
 	// output than the bech32 addresses.
-	callersByAddr := make(map[std.Address]string)
+	callersByAddr := make(map[chain.Address]string)
 	for _, caller := range []string{
 		"user1.gno", "gno.land/r/crossrealm", "gno.land/r/demo/tests",
 	} {
-		addr := std.DerivePkgAddr(caller)
+		addr := chain.DerivePkgAddr(caller)
 		callersByAddr[addr] = caller
 	}
 
-	assertRealm := func(r std.Realm) {
+	assertRealm := func(r runtime.Realm) {
 		pkgPath := callersByAddr[r.Address()]
 		if r.IsUser() && pkgPath != "user1.gno" {
 			panic(ufmt.Sprintf("ERROR: expected: 'user1.gno', got:'%s'", pkgPath))
@@ -39,12 +40,12 @@ func main(cur realm) {
 
 	tests := []struct {
 		callStackAdd     string
-		callerFn         func() std.Realm
-		callerFnCrossing func(realm) std.Realm
+		callerFn         func() runtime.Realm
+		callerFnCrossing func(realm) runtime.Realm
 	}{
 		{
 			callStackAdd: " -> std.PreviousRealm",
-			callerFn:     std.PreviousRealm,
+			callerFn:     runtime.PreviousRealm,
 		},
 		{
 			callStackAdd: " -> r/crossrealm.getPreviousRealm",
@@ -75,7 +76,7 @@ func main(cur realm) {
 	baseCallStack := "user1.gno !> r/crossrealm.main2"
 	for _, tt := range tests {
 		{ // with no Exec
-			var r std.Realm
+			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
 				r = tt.callerFnCrossing(cross)
 			} else {
@@ -85,7 +86,7 @@ func main(cur realm) {
 
 		}
 		Exec(func() {
-			var r std.Realm
+			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
 				r = tt.callerFnCrossing(cross)
 			} else {
@@ -95,7 +96,7 @@ func main(cur realm) {
 			printColumns(baseCallStack+" -> r/crossrealm.Exec"+tt.callStackAdd, callersByAddr[r.Address()])
 		})
 		rtests.Exec(func() {
-			var r std.Realm
+			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
 				r = tt.callerFnCrossing(cross)
 			} else {
@@ -105,7 +106,7 @@ func main(cur realm) {
 			printColumns(baseCallStack+" -> r/demo/tests.Exec"+tt.callStackAdd, callersByAddr[r.Address()])
 		})
 		rtests.ExecSwitch(cross, func() {
-			var r std.Realm
+			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
 				r = tt.callerFnCrossing(cross)
 			} else {
@@ -115,7 +116,7 @@ func main(cur realm) {
 			printColumns(baseCallStack+" !> r/demo/tests.ExecSwitch"+tt.callStackAdd, callersByAddr[r.Address()])
 		})
 		ptests.Exec(func() {
-			var r std.Realm
+			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
 				r = tt.callerFnCrossing(cross)
 			} else {

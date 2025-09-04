@@ -3,16 +3,17 @@
 package main
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+const owner = chain.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(runtime.NewUserRealm(owner))
 
 	// Create board "AAA" with a single thread
 	boardID := boards2.CreateBoard(cross, "AAA", true)

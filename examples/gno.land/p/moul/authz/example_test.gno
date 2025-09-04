@@ -1,7 +1,8 @@
 package authz
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 )
 
 // Example_basic demonstrates initializing and using a basic member authority
@@ -19,12 +20,12 @@ func Example_basic() {
 // Example_addingMembers demonstrates how to add new members to a member authority
 func Example_addingMembers() {
 	// Initialize with contract deployer as authority
-	addr := std.CurrentRealm().Address()
+	addr := runtime.CurrentRealm().Address()
 	auth := NewWithCurrent()
 
 	// Add a new member to the authority
 	memberAuth := auth.Authority().(*MemberAuthority)
-	memberAuth.AddMember(addr, std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	memberAuth.AddMember(addr, chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
 
 // Example_contractAuthority demonstrates using a contract-based authority
@@ -48,8 +49,8 @@ func Example_contractAuthority() {
 func Example_restrictedContractAuthority() {
 	// Initialize member authority for proposers
 	proposerAuth := NewMemberAuthority(
-		std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), // admin1
-		std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"), // admin2
+		chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), // admin1
+		chain.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"), // admin2
 	)
 
 	// Create contract authority with restricted proposers
@@ -73,7 +74,7 @@ func Example_restrictedContractAuthority() {
 // Example_switchingAuthority demonstrates switching from member to contract authority
 func Example_switchingAuthority() {
 	// Start with member authority (deployer)
-	addr := std.CurrentRealm().Address()
+	addr := runtime.CurrentRealm().Address()
 	auth := NewWithCurrent()
 
 	// Create and switch to contract authority

@@ -1,7 +1,7 @@
 package memeland
 
 import (
-	"std"
+	"chain"
 	"time"
 
 	"gno.land/p/demo/memeland"
@@ -30,11 +30,11 @@ func RemovePost(_ realm, id string) string {
 	return m.RemovePost(id)
 }
 
-func GetOwner() std.Address {
+func GetOwner() chain.Address {
 	return m.Owner()
 }
 
-func TransferOwnership(_ realm, newOwner std.Address) {
+func TransferOwnership(_ realm, newOwner chain.Address) {
 	if err := m.TransferOwnership(newOwner); err != nil {
 		panic(err)
 	}

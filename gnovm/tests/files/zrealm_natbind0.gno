@@ -1,14 +1,12 @@
 // PKGPATH: gno.land/r/test
 package test
 
-import (
-	"std"
-)
+import "chain/runtime"
 
 var node any
 
 func init() {
-	node = std.ChainHeight
+	node = runtime.ChainHeight
 }
 
 func main(cur realm) {
@@ -17,7 +15,7 @@ func main(cur realm) {
 	// to convert the types to builtin go/gno identifiers).
 	f := node.(func() int64)
 	println(f())
-	node = std.ChainID
+	node = runtime.ChainID
 	g := node.(func() string)
 	println(g())
 }

@@ -1,8 +1,9 @@
 package config
 
 import (
+	"chain"
+	"chain/runtime"
 	"errors"
-	"std"
 
 	"gno.land/p/moul/authz"
 )
@@ -12,8 +13,8 @@ var Authorizer = authz.NewWithOrigin()
 // AddManager adds a new address to the list of authorized managers.
 // This only works if the current authority is a MemberAuthority.
 // The caller must be authorized by the current authority.
-func AddManager(cur realm, addr std.Address) error {
-	caller := std.PreviousRealm().Address()
+func AddManager(cur realm, addr chain.Address) error {
+	caller := runtime.PreviousRealm().Address()
 	memberAuth, ok := Authorizer.Authority().(*authz.MemberAuthority)
 	if !ok {
 		return errors.New("current authority is not a MemberAuthority, cannot add manager directly")
@@ -26,8 +27,8 @@ func AddManager(cur realm, addr std.Address) error {
 // RemoveManager removes an address from the list of authorized managers.
 // This only works if the current authority is a MemberAuthority.
 // The caller must be authorized by the current authority.
-func RemoveManager(cur realm, addr std.Address) error {
-	caller := std.PreviousRealm().Address()
+func RemoveManager(cur realm, addr chain.Address) error {
+	caller := runtime.PreviousRealm().Address()
 	memberAuth, ok := Authorizer.Authority().(*authz.MemberAuthority)
 	if !ok {
 		return errors.New("current authority is not a MemberAuthority, cannot remove manager directly")
@@ -40,7 +41,7 @@ func RemoveManager(cur realm, addr std.Address) error {
 // TransferManagement transfers the authority to manage keys to a new authority.
 // The caller must be authorized by the current authority.
 func TransferManagement(cur realm, newAuthority authz.Authority) error {
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	if newAuthority == nil {
 		return errors.New("new authority cannot be nil")
 	}
@@ -49,8 +50,8 @@ func TransferManagement(cur realm, newAuthority authz.Authority) error {
 }
 
 // ListManagers returns a slice of all managed keys.
-func ListManagers(cur realm) []std.Address {
-	var keyList []std.Address
+func ListManagers(cur realm) []chain.Address {
+	var keyList []chain.Address
 	memberAuth, ok := Authorizer.Authority().(*authz.MemberAuthority)
 	if !ok {
 		return keyList
@@ -60,13 +61,13 @@ func ListManagers(cur realm) []std.Address {
 		return keyList // Return empty list if tree is not as expected or nil
 	}
 	tree.Iterate("", "", func(key string, _ any) bool {
-		keyList = append(keyList, std.Address(key))
+		keyList = append(keyList, chain.Address(key))
 		return false
 	})
 	return keyList
 }
 
-func HasManager(cur realm, addr std.Address) bool {
+func HasManager(cur realm, addr chain.Address) bool {
 	memberAuth, ok := Authorizer.Authority().(*authz.MemberAuthority)
 	if !ok {
 		return false // Return false if not a MemberAuthority or doesn't exist

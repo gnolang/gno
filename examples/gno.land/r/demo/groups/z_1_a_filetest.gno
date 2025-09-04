@@ -4,7 +4,8 @@ package groups_test
 // SEND: 1000000ugnot
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -14,30 +15,30 @@ import (
 
 var gid groups.GroupID
 
-const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+const admin = chain.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
-	caller := std.OriginCaller() // main
-	testing.SetRealm(std.NewUserRealm(caller))
+	caller := runtime.OriginCaller() // main
+	testing.SetRealm(runtime.NewUserRealm(caller))
 	users.Register(cross, "main123")
 
 	test1 := testutils.TestAddress("gnouser1")
 	testing.SetOriginCaller(test1)
-	testing.SetRealm(std.NewUserRealm(test1))
+	testing.SetRealm(runtime.NewUserRealm(test1))
 	users.Register(cross, "test123")
 
 	test2 := testutils.TestAddress("gnouser2")
 	testing.SetOriginCaller(test2)
-	testing.SetRealm(std.NewUserRealm(test2))
+	testing.SetRealm(runtime.NewUserRealm(test2))
 	users.Register(cross, "test223")
 
 	test3 := testutils.TestAddress("gnouser3")
 	testing.SetOriginCaller(test3)
-	testing.SetRealm(std.NewUserRealm(test3))
+	testing.SetRealm(runtime.NewUserRealm(test3))
 	users.Register(cross, "test323")
 
 	testing.SetOriginCaller(caller)
-	testing.SetRealm(std.NewUserRealm(caller))
+	testing.SetRealm(runtime.NewUserRealm(caller))
 
 	gid = groups.CreateGroup(cross, "test_group")
 	println(gid)

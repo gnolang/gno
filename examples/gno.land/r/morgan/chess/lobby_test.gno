@@ -1,8 +1,9 @@
 package chess
 
 import (
+	"chain"
+	"chain/runtime"
 	"os"
-	"std"
 	"testing"
 	"time"
 
@@ -11,10 +12,10 @@ import (
 
 func TestLobbyJoin(t *testing.T) {
 	cleanup()
-	testing.SetRealm(std.NewUserRealm(white))
+	testing.SetRealm(runtime.NewUserRealm(white))
 	LobbyJoin(cross, 10*60, 5)
 	os.Sleep(time.Second * 5)
-	testing.SetRealm(std.NewUserRealm(black))
+	testing.SetRealm(runtime.NewUserRealm(black))
 	LobbyJoin(cross, 10*60, 5)
 	res := LobbyGameFound(cross)
 	if res == "null" {
@@ -38,7 +39,7 @@ func TestLobbyGameFound(t *testing.T) {
 			}
 		}
 	}
-	ids := func(ids ...std.Address) func(t *testing.T) {
+	ids := func(ids ...chain.Address) func(t *testing.T) {
 		return func(t *testing.T) {
 			if len(ids) != len(lobby[0]) {
 				t.Errorf("lobby doesn't match expected ids: lobby: %v, newIDs: %v", sublobbyToIDs(lobby[0]), ids)
@@ -61,7 +62,7 @@ func TestLobbyGameFound(t *testing.T) {
 	}
 
 	type pl struct {
-		id     std.Address
+		id     chain.Address
 		rating float64
 		// use negative values here to indicate how many seconds in the past;
 		// ie: joinedAt: -1, means player joined 1 second ago.
@@ -71,7 +72,7 @@ func TestLobbyGameFound(t *testing.T) {
 	tt := []struct {
 		name   string
 		pre    []pl
-		caller std.Address
+		caller chain.Address
 		check  func(t *testing.T)
 	}{
 		{
@@ -152,7 +153,7 @@ func TestLobbyGameFound(t *testing.T) {
 				})
 			}
 
-			testing.SetRealm(std.NewUserRealm(tc.caller))
+			testing.SetRealm(runtime.NewUserRealm(tc.caller))
 			LobbyGameFound(cross)
 
 			if tc.check != nil {
@@ -174,7 +175,7 @@ func TestLobbyJoin_HasOpenGames(t *testing.T) {
 	addToUser2Games(white, g)
 	addToUser2Games(black, g)
 
-	testing.SetRealm(std.NewUserRealm(white))
+	testing.SetRealm(runtime.NewUserRealm(white))
 	LobbyJoin(cross, 10*60, 5)
 	if g.State != GameStateAborted {
 		t.Errorf("state wrong: want %d got %d", GameStateAborted, g.State)

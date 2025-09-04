@@ -2,7 +2,8 @@
 package test
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"testing"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 	"gno.land/r/nt/commondao"
 )
 
-const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+const owner = chain.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
 var (
 	dao      *pdao.CommonDAO
@@ -36,12 +37,12 @@ func (propDef) Execute(cur realm) error {
 
 func init() {
 	// Invite a user to be able to start creating DAOs
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(runtime.NewUserRealm(owner))
 	commondao.Invite(cross, user1)
 
 	// Create a new DAO which gives ownership to `test`
-	testing.SetRealm(std.NewUserRealm(user1))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
+	testing.SetRealm(runtime.NewUserRealm(user1))
+	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/demo/test"))
 	dao = commondao.New(cross, "Foo")
 
 	// Configure DAO
@@ -52,7 +53,7 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(user1))
+	testing.SetRealm(runtime.NewUserRealm(user1))
 
 	commondao.Execute(cross, dao.ID(), proposal.ID())
 

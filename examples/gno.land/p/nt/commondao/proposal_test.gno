@@ -1,8 +1,8 @@
 package commondao
 
 import (
+	"chain"
 	"errors"
-	"std"
 	"testing"
 	"time"
 
@@ -13,7 +13,7 @@ import (
 func TestProposalNew(t *testing.T) {
 	cases := []struct {
 		name       string
-		creator    std.Address
+		creator    chain.Address
 		definition ProposalDefinition
 		err        error
 	}{
@@ -105,14 +105,14 @@ func TestIsQuorumReached(t *testing.T) {
 	cases := []struct {
 		name    string
 		quorum  float64
-		members []std.Address
+		members []chain.Address
 		votes   []Vote
 		fail    bool
 	}{
 		{
 			name:   "one third",
 			quorum: QuorumOneThird,
-			members: []std.Address{
+			members: []chain.Address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -124,7 +124,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "one third no quorum",
 			quorum: QuorumOneThird,
-			members: []std.Address{
+			members: []chain.Address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -134,7 +134,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "half",
 			quorum: QuorumHalf,
-			members: []std.Address{
+			members: []chain.Address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -148,7 +148,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "half no quorum",
 			quorum: QuorumHalf,
-			members: []std.Address{
+			members: []chain.Address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -162,7 +162,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "two thirds",
 			quorum: QuorumTwoThirds,
-			members: []std.Address{
+			members: []chain.Address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -175,7 +175,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "two thirds no quorum",
 			quorum: QuorumTwoThirds,
-			members: []std.Address{
+			members: []chain.Address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -188,7 +188,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "three fourths",
 			quorum: QuorumThreeFourths,
-			members: []std.Address{
+			members: []chain.Address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -203,7 +203,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "three fourths no quorum",
 			quorum: QuorumThreeFourths,
-			members: []std.Address{
+			members: []chain.Address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -217,7 +217,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "full",
 			quorum: QuorumFull,
-			members: []std.Address{
+			members: []chain.Address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 			},
@@ -229,7 +229,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "full no quorum",
 			quorum: QuorumFull,
-			members: []std.Address{
+			members: []chain.Address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 			},
@@ -241,7 +241,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "no quorum with empty vote",
 			quorum: QuorumHalf,
-			members: []std.Address{
+			members: []chain.Address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 			},
@@ -253,7 +253,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "no quorum with abstention",
 			quorum: QuorumHalf,
-			members: []std.Address{
+			members: []chain.Address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 			},

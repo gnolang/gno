@@ -128,7 +128,8 @@ func stdsplit(f *ast.File) (fixed bool) {
 				}
 				ip := importPath(def)
 				joined := ip + "." + n.Sel.Name
-				if joined == "std.RawAddressSize" {
+				switch joined {
+				case "std.RawAddressSize":
 					// Special case: this no longer exists, but provide a simple
 					// replacement as a direct literal.
 					c.Replace(&ast.BasicLit{
@@ -137,6 +138,20 @@ func stdsplit(f *ast.File) (fixed bool) {
 						Value:    "20",
 					})
 					return false
+				case "std.RawAddress":
+					// Special case: this no longer exists, substitute with a [20]byte.
+					c.Replace(&ast.ArrayType{
+						Lbrack: n.Pos(),
+						Len: &ast.BasicLit{
+							ValuePos: n.Pos() + 1,
+							Kind:     token.INT,
+							Value:    "20",
+						},
+						Elt: &ast.Ident{
+							NamePos: n.Pos() + 2,
+							Name:    "byte",
+						},
+					})
 				}
 				target, ok := splitFuncs[joined]
 				if !ok {

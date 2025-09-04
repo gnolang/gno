@@ -1,7 +1,7 @@
 package commondao
 
 import (
-	"std"
+	"chain"
 	"testing"
 
 	"gno.land/p/demo/uassert"
@@ -15,14 +15,14 @@ var _ commondao.ProposalDefinition = (*membersUpdatePropDefinition)(nil)
 func TestMembersPropDefinitionTally(t *testing.T) {
 	cases := []struct {
 		name    string
-		members []std.Address
+		members []chain.Address
 		votes   []commondao.Vote
 		err     error
 		success bool
 	}{
 		{
 			name: "succeed",
-			members: []std.Address{
+			members: []chain.Address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
@@ -41,7 +41,7 @@ func TestMembersPropDefinitionTally(t *testing.T) {
 		},
 		{
 			name: "fail",
-			members: []std.Address{
+			members: []chain.Address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
@@ -59,7 +59,7 @@ func TestMembersPropDefinitionTally(t *testing.T) {
 		},
 		{
 			name: "no quorum",
-			members: []std.Address{
+			members: []chain.Address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
@@ -74,7 +74,7 @@ func TestMembersPropDefinitionTally(t *testing.T) {
 		},
 		{
 			name: "succeed with two members",
-			members: []std.Address{
+			members: []chain.Address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			},
@@ -88,7 +88,7 @@ func TestMembersPropDefinitionTally(t *testing.T) {
 		},
 		{
 			name: "fail with two members",
-			members: []std.Address{
+			members: []chain.Address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			},
@@ -129,7 +129,7 @@ func TestMembersPropDefinitionExecute(t *testing.T) {
 	cases := []struct {
 		name                 string
 		dao                  *commondao.CommonDAO
-		members, add, remove []std.Address
+		members, add, remove []chain.Address
 		errMsg               string
 	}{
 		{
@@ -138,8 +138,8 @@ func TestMembersPropDefinitionExecute(t *testing.T) {
 				commondao.WithMember("g1xe2ljac8256rwxxytqddvrjsj2tyv90fvgeaae"),
 				commondao.WithMember("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"),
 			),
-			add: []std.Address{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},
-			members: []std.Address{
+			add: []chain.Address{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},
+			members: []chain.Address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1xe2ljac8256rwxxytqddvrjsj2tyv90fvgeaae",
@@ -150,11 +150,11 @@ func TestMembersPropDefinitionExecute(t *testing.T) {
 			dao: commondao.New(
 				commondao.WithMember("g1xe2ljac8256rwxxytqddvrjsj2tyv90fvgeaae"),
 			),
-			add: []std.Address{
+			add: []chain.Address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 			},
-			members: []std.Address{
+			members: []chain.Address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1xe2ljac8256rwxxytqddvrjsj2tyv90fvgeaae",
@@ -166,8 +166,8 @@ func TestMembersPropDefinitionExecute(t *testing.T) {
 				commondao.WithMember("g1xe2ljac8256rwxxytqddvrjsj2tyv90fvgeaae"),
 				commondao.WithMember("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"),
 			),
-			remove:  []std.Address{"g1xe2ljac8256rwxxytqddvrjsj2tyv90fvgeaae"},
-			members: []std.Address{"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"},
+			remove:  []chain.Address{"g1xe2ljac8256rwxxytqddvrjsj2tyv90fvgeaae"},
+			members: []chain.Address{"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"},
 		},
 		{
 			name: "remove multiple members",
@@ -176,11 +176,11 @@ func TestMembersPropDefinitionExecute(t *testing.T) {
 				commondao.WithMember("g1xe2ljac8256rwxxytqddvrjsj2tyv90fvgeaae"),
 				commondao.WithMember("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"),
 			),
-			remove: []std.Address{
+			remove: []chain.Address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			},
-			members: []std.Address{"g1xe2ljac8256rwxxytqddvrjsj2tyv90fvgeaae"},
+			members: []chain.Address{"g1xe2ljac8256rwxxytqddvrjsj2tyv90fvgeaae"},
 		},
 		{
 			name: "add and remove members",
@@ -188,9 +188,9 @@ func TestMembersPropDefinitionExecute(t *testing.T) {
 				commondao.WithMember("g1xe2ljac8256rwxxytqddvrjsj2tyv90fvgeaae"),
 				commondao.WithMember("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"),
 			),
-			add:    []std.Address{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},
-			remove: []std.Address{"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"},
-			members: []std.Address{
+			add:    []chain.Address{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},
+			remove: []chain.Address{"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"},
+			members: []chain.Address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1xe2ljac8256rwxxytqddvrjsj2tyv90fvgeaae",
 			},
@@ -222,7 +222,7 @@ func TestMembersPropDefinitionExecute(t *testing.T) {
 			urequire.Equal(t, len(tc.members), tc.dao.Members().Size(), "number of members must match")
 
 			var i int
-			tc.dao.Members().IterateByOffset(0, tc.dao.Members().Size(), func(addr std.Address) bool {
+			tc.dao.Members().IterateByOffset(0, tc.dao.Members().Size(), func(addr chain.Address) bool {
 				urequire.Equal(t, tc.members[i], addr, "member address must match")
 
 				i++

@@ -39,7 +39,9 @@
 package atomicswap
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 	"strconv"
 	"time"
 
@@ -58,14 +60,14 @@ var (
 
 // NewCoinSwap creates a new atomic swap contract for native coins.
 // It uses a default timelock duration.
-func NewCoinSwap(cur realm, recipient std.Address, hashlock string) (int, *Swap) {
+func NewCoinSwap(cur realm, recipient chain.Address, hashlock string) (int, *Swap) {
 	timelock := time.Now().Add(defaultTimelockDuration)
 	return NewCustomCoinSwap(cur, recipient, hashlock, timelock)
 }
 
 // NewGRC20Swap creates a new atomic swap contract for grc20 tokens.
 // It uses gno.land/r/demo/grc20reg to lookup for a registered token.
-func NewGRC20Swap(cur realm, recipient std.Address, hashlock string, tokenRegistryKey string) (int, *Swap) {
+func NewGRC20Swap(cur realm, recipient chain.Address, hashlock string, tokenRegistryKey string) (int, *Swap) {
 	timelock := time.Now().Add(defaultTimelockDuration)
 	token := grc20reg.MustGet(tokenRegistryKey)
 	return NewCustomGRC20Swap(cur, recipient, hashlock, timelock, token)
@@ -74,16 +76,16 @@ func NewGRC20Swap(cur realm, recipient std.Address, hashlock string, tokenRegist
 // NewCoinSwapWithTimelock creates a new atomic swap contract for native coin.
 // It allows specifying a custom timelock duration.
 // It is not callable with `gnokey maketx call`, but can be imported by another contract or `gnokey maketx run`.
-func NewCustomCoinSwap(cur realm, recipient std.Address, hashlock string, timelock time.Time) (int, *Swap) {
-	sender := std.PreviousRealm().Address()
-	sent := std.OriginSend()
+func NewCustomCoinSwap(cur realm, recipient chain.Address, hashlock string, timelock time.Time) (int, *Swap) {
+	sender := runtime.PreviousRealm().Address()
+	sent := banker.OriginSend()
 	require(len(sent) != 0, "at least one coin needs to be sent")
 
 	// Create the swap
-	sendFn := func(cur realm, to std.Address) {
-		banker := std.NewBanker(std.BankerTypeRealmSend)
-		pkgAddr := std.CurrentRealm().Address()
-		banker.SendCoins(pkgAddr, to, sent)
+	sendFn := func(cur realm, to chain.Address) {
+		banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+		pkgAddr := runtime.CurrentRealm().Address()
+		banker_.SendCoins(pkgAddr, to, sent)
 	}
 	amountStr := sent.String()
 	swap := newSwap(sender, recipient, hashlock, timelock, amountStr, sendFn)
@@ -96,9 +98,9 @@ func NewCustomCoinSwap(cur realm, recipient std.Address, hashlock string, timelo
 
 // NewCustomGRC20Swap creates a new atomic swap contract for grc20 tokens.
 // It is not callable with `gnokey maketx call`, but can be imported by another contract or `gnokey maketx run`.
-func NewCustomGRC20Swap(cur realm, recipient std.Address, hashlock string, timelock time.Time, token *grc20.Token) (int, *Swap) {
-	sender := std.PreviousRealm().Address()
-	curAddr := std.CurrentRealm().Address()
+func NewCustomGRC20Swap(cur realm, recipient chain.Address, hashlock string, timelock time.Time, token *grc20.Token) (int, *Swap) {
+	sender := runtime.PreviousRealm().Address()
+	curAddr := runtime.CurrentRealm().Address()
 
 	allowance := token.Allowance(sender, curAddr)
 	require(allowance > 0, "no allowance")
@@ -108,7 +110,7 @@ func NewCustomGRC20Swap(cur realm, recipient std.Address, hashlock string, timel
 	require(err == nil, "cannot retrieve tokens from allowance")
 
 	amountStr := ufmt.Sprintf("%d%s", allowance, token.GetSymbol())
-	sendFn := func(cur realm, to std.Address) {
+	sendFn := func(cur realm, to chain.Address) {
 		err := userTeller.Transfer(to, allowance)
 		require(err == nil, "cannot transfer tokens")
 	}

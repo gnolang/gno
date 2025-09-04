@@ -1,7 +1,7 @@
 package faker
 
 import (
-	"std"
+	"chain"
 	"testing"
 
 	"gno.land/p/demo/uassert"
@@ -87,7 +87,7 @@ type goldenValues struct {
 	dateTime       string
 	email          string
 	phone          string
-	stdAddress     std.Address
+	stdAddress     chain.Address
 	username       string
 }
 

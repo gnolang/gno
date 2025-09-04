@@ -2,7 +2,7 @@
 package crossrealm
 
 import (
-	"std"
+	"chain/runtime"
 
 	crossrealm "gno.land/r/demo/tests/crossrealm"
 )
@@ -10,11 +10,11 @@ import (
 type container struct{ *fooer }
 
 func (container) Foo(cur realm) {
-	println("hello container " + std.CurrentRealm().PkgPath())
+	println("hello container " + runtime.CurrentRealm().PkgPath())
 }
 
 func (container) Bar() {
-	println("hello container " + std.CurrentRealm().PkgPath())
+	println("hello container " + runtime.CurrentRealm().PkgPath())
 }
 
 type fooer struct{}

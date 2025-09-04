@@ -2,8 +2,9 @@
 package chess
 
 import (
+	"chain"
+	"chain/runtime"
 	"errors"
-	"std"
 	"time"
 
 	"gno.land/p/demo/avl"
@@ -25,16 +26,16 @@ var (
 type Game struct {
 	ID string `json:"id"`
 
-	White    std.Address    `json:"white"`
-	Black    std.Address    `json:"black"`
+	White    chain.Address  `json:"white"`
+	Black    chain.Address  `json:"black"`
 	Position chess.Position `json:"position"`
 	State    GameState      `json:"state"`
 	Winner   Winner         `json:"winner"`
 
-	Creator     std.Address  `json:"creator"`
-	CreatedAt   time.Time    `json:"created_at"`
-	DrawOfferer *std.Address `json:"draw_offerer"` // set on draw offers
-	Concluder   *std.Address `json:"concluder"`    // set on non-auto draws, and aborts
+	Creator     chain.Address  `json:"creator"`
+	CreatedAt   time.Time      `json:"created_at"`
+	DrawOfferer *chain.Address `json:"draw_offerer"` // set on draw offers
+	Concluder   *chain.Address `json:"concluder"`    // set on non-auto draws, and aborts
 
 	Time *TimeControl `json:"time"`
 }
@@ -132,13 +133,13 @@ func xNewGame(cur realm, opponentRaw string, seconds, increment int) string {
 	}
 
 	opponent := parsePlayer(opponentRaw)
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	assertUserNotInLobby(caller)
 
 	return newGame(caller, opponent, seconds, increment).json()
 }
 
-func getUserGames(user std.Address) []*Game {
+func getUserGames(user chain.Address) []*Game {
 	val, exist := user2Games.Get(user.String())
 	if !exist {
 		return nil
@@ -158,7 +159,7 @@ func assertGamesFinished(games []*Game) {
 	}
 }
 
-func newGame(caller, opponent std.Address, seconds, increment int) *Game {
+func newGame(caller, opponent chain.Address, seconds, increment int) *Game {
 	games := getUserGames(caller)
 	// Ensure player has no ongoing games.
 	assertGamesFinished(games)
@@ -193,7 +194,7 @@ func newGame(caller, opponent std.Address, seconds, increment int) *Game {
 	return g
 }
 
-func addToUser2Games(addr std.Address, game *Game) {
+func addToUser2Games(addr chain.Address, game *Game) {
 	var games []*Game
 	v, ok := user2Games.Get(string(addr))
 	if ok {
@@ -204,7 +205,7 @@ func addToUser2Games(addr std.Address, game *Game) {
 	user2Games.Set(string(addr), games)
 }
 
-func determineColor(games []*Game, caller, opponent std.Address) (isBlack bool) {
+func determineColor(games []*Game, caller, opponent chain.Address) (isBlack bool) {
 	// fast path for no games
 	if len(games) == 0 {
 		return false
@@ -256,7 +257,7 @@ func MakeMove(cur realm, gameID, from, to string, promote chess.Piece) string {
 	// determine if this is a black move
 	isBlack := len(g.Position.Moves)%2 == 1
 
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	if (isBlack && g.Black != caller) ||
 		(!isBlack && g.White != caller) {
 		// either not a player involved; or not the caller's turn.
@@ -399,7 +400,7 @@ func abort(g *Game) error {
 		return errors.New("game can no longer be aborted; if you wish to quit, resign")
 	}
 
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	if caller != g.White && caller != g.Black {
 		return errors.New("you are not involved in this game")
 	}
@@ -425,7 +426,7 @@ func resign(g *Game) error {
 	if len(g.Position.Moves) < 2 {
 		return abort(g)
 	}
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	switch caller {
 	case g.Black:
 		g.State = GameStateResigned
@@ -447,7 +448,7 @@ func resign(g *Game) error {
 func DrawOffer(cur realm, gameID string) string {
 	assertOriginCall()
 	g := getGame(gameID, true)
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 
 	switch {
 	case caller != g.Black && caller != g.White:
@@ -464,7 +465,7 @@ func DrawOffer(cur realm, gameID string) string {
 func DrawRefuse(cur realm, gameID string) string {
 	assertOriginCall()
 	g := getGame(gameID, true)
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 
 	switch {
 	case caller != g.Black && caller != g.White:
@@ -488,7 +489,7 @@ func Draw(cur realm, gameID string) string {
 	assertOriginCall()
 	g := getGame(gameID, true)
 
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	if caller != g.Black && caller != g.White {
 		panic("you are not involved in this game")
 	}
@@ -532,7 +533,7 @@ func checkErr(err error) {
 
 // Replacement for OriginCall using std.PreviousRealm().
 func assertOriginCall() {
-	if !std.PreviousRealm().IsUser() {
+	if !runtime.PreviousRealm().IsUser() {
 		panic("invalid non-origin call")
 	}
 }

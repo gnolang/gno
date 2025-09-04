@@ -1,7 +1,7 @@
 package expect_test
 
 import (
-	"std"
+	"chain"
 	"testing"
 
 	"gno.land/p/jeronimoalbi/expect"
@@ -102,12 +102,12 @@ func TestValue(t *testing.T) {
 	t.Run("to equal stringer", func(t *testing.T) {
 		t.Parallel()
 
-		expect.Value(t, std.Address("foo")).AsString().ToEqual("foo")
+		expect.Value(t, chain.Address("foo")).AsString().ToEqual("foo")
 	})
 
 	t.Run("not to equal stringer", func(t *testing.T) {
 		t.Parallel()
 
-		expect.Value(t, std.Address("foo")).AsString().Not().ToEqual("bar")
+		expect.Value(t, chain.Address("foo")).AsString().Not().ToEqual("bar")
 	})
 }

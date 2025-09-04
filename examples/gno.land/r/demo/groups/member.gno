@@ -1,7 +1,7 @@
 package groups
 
 import (
-	"std"
+	"chain"
 	"strconv"
 	"time"
 )
@@ -10,7 +10,7 @@ type MemberID uint64
 
 type Member struct {
 	id          MemberID
-	address_XXX std.Address
+	address_XXX chain.Address
 	weight      int
 	metadata    string
 	createdAt   time.Time

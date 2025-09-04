@@ -1,8 +1,9 @@
 package loci
 
 import (
+	"chain"
+	"chain/runtime"
 	"encoding/base64"
-	"std"
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/n2p5/loci"
@@ -23,12 +24,12 @@ func Set(_ realm, value string) {
 		panic(err)
 	}
 	store.Set(b)
-	std.Emit("SetValue", "ForAddr", string(std.PreviousRealm().Address()))
+	chain.Emit("SetValue", "ForAddr", string(runtime.PreviousRealm().Address()))
 }
 
 // Get retrieves the value stored at the provided address and
 // returns it as a base64 encoded string.
-func Get(_ realm, addr std.Address) string {
+func Get(_ realm, addr chain.Address) string {
 	return base64.StdEncoding.EncodeToString(store.Get(addr))
 }
 
@@ -49,10 +50,10 @@ if one exists. For instance append :g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t to
 this URL to view the value stored at that address.
 `
 	}
-	return renderGet(cross, std.Address(path))
+	return renderGet(cross, chain.Address(path))
 }
 
-func renderGet(cur realm, addr std.Address) string {
+func renderGet(cur realm, addr chain.Address) string {
 	value := "```\n" + Get(cur, addr) + "\n```"
 
 	return ufmt.Sprintf(`

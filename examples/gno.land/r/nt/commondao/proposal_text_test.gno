@@ -1,7 +1,7 @@
 package commondao
 
 import (
-	"std"
+	"chain"
 	"strings"
 	"testing"
 	"time"
@@ -87,14 +87,14 @@ func TestTextPropDefinitionNew(t *testing.T) {
 func TestTextPropDefinitionTally(t *testing.T) {
 	cases := []struct {
 		name    string
-		members []std.Address
+		members []chain.Address
 		votes   []commondao.Vote
 		err     error
 		success bool
 	}{
 		{
 			name: "succeed",
-			members: []std.Address{
+			members: []chain.Address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
@@ -113,7 +113,7 @@ func TestTextPropDefinitionTally(t *testing.T) {
 		},
 		{
 			name: "fail",
-			members: []std.Address{
+			members: []chain.Address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
@@ -131,7 +131,7 @@ func TestTextPropDefinitionTally(t *testing.T) {
 		},
 		{
 			name: "no quorum",
-			members: []std.Address{
+			members: []chain.Address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",

@@ -3,32 +3,34 @@
 package bank1
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/r/demo/banktest"
 )
 
 func main() {
-	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/banktest")
-	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
+	banktestAddr := chain.DerivePkgAddr("gno.land/r/demo/banktest")
+	mainaddr := chain.DerivePkgAddr("gno.land/r/demo/bank1")
 
 	// print main balance before.
 	testing.SetOriginCaller(mainaddr)
 
-	banker := std.NewBanker(std.BankerTypeReadonly)
-	mainbal := banker.GetCoins(mainaddr)
+	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+	mainbal := banker_.GetCoins(mainaddr)
 	println("main before:", mainbal) // plus OriginSend equals 300.
 
 	// simulate a Deposit call.
-	testing.IssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
-	testing.SetOriginSend(std.Coins{{"ugnot", 100000000}})
-	testing.SetRealm(std.NewUserRealm(mainaddr))
+	testing.IssueCoins(banktestAddr, banker.Coins{{"ugnot", 100000000}})
+	testing.SetOriginSend(banker.Coins{{"ugnot", 100000000}})
+	testing.SetRealm(runtime.NewUserRealm(mainaddr))
 	res := banktest.Deposit(cross, "ugnot", 55000000)
 	println("Deposit():", res)
 
 	// print main balance after.
-	mainbal = banker.GetCoins(mainaddr)
+	mainbal = banker_.GetCoins(mainaddr)
 	println("main after:", mainbal) // now 255.
 
 	// simulate a Render().

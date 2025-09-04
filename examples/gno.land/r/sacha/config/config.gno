@@ -1,8 +1,8 @@
 package config
 
 import (
+	"chain"
 	"errors"
-	"std"
 
 	"gno.land/p/demo/ownable"
 )
@@ -14,6 +14,6 @@ var (
 	ErrUnauthorized = errors.New("You're not Sacha")
 )
 
-func IsAuthorized(addr std.Address) bool {
+func IsAuthorized(addr chain.Address) bool {
 	return addr == OwnableMain.Owner() || addr == OwnableBackup.Owner()
 }

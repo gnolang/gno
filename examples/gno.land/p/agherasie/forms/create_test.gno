@@ -1,7 +1,7 @@
 package forms
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -11,7 +11,7 @@ import (
 func TestCreateForm(t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	testing.SetOriginCaller(alice)
-	testing.SetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(runtime.NewUserRealm(alice))
 
 	db := NewDB()
 	title := "Simple Form"

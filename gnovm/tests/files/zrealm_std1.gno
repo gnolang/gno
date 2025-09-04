@@ -2,7 +2,8 @@
 package std
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 )
 
 var aset *std.AddressList
@@ -10,19 +11,19 @@ var aset *std.AddressList
 func init() {
 	// This won't work, init is called with empty caller.
 	// caller := std.OriginCaller()
-	caller := std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")
+	caller := chain.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")
 	aset = std.NewAddressList()
 	aset.AddAddress(caller)
 }
 
 func main(cur realm) {
 	println(*aset)
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	err := aset.AddAddress(caller)
 	println("error:", err)
 	has := aset.HasAddress(caller)
 	println("has:", has)
-	has = aset.HasAddress(std.Address(""))
+	has = aset.HasAddress(chain.Address(""))
 	println("has:", has)
 }
 

@@ -1,7 +1,7 @@
 package users
 
 import (
-	"std"
+	"chain"
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/gov/dao"
@@ -53,7 +53,7 @@ func NewSetPausedExecutor(newPausedValue bool) dao.ProposalRequest {
 // ProposeNewName allows GovDAO to propose a new name for an existing user
 // The associated address and all previous names of a user that changes a name
 // are preserved, and all resolve to the new name.
-func ProposeNewName(addr std.Address, newName string) dao.ProposalRequest {
+func ProposeNewName(addr chain.Address, newName string) dao.ProposalRequest {
 	if matched := reUsername.MatchString(newName); !matched {
 		panic(ErrInvalidUsername)
 	}
@@ -80,7 +80,7 @@ func ProposeNewName(addr std.Address, newName string) dao.ProposalRequest {
 // ProposeDeleteUser allows GovDAO to propose deletion of a user
 // This will make the associated address and names unresolvable.
 // WARN: After deletion, the same address WILL NOT be able to register a new name.
-func ProposeDeleteUser(addr std.Address, reason string) dao.ProposalRequest {
+func ProposeDeleteUser(addr chain.Address, reason string) dao.ProposalRequest {
 	userData := susers.ResolveAddress(addr)
 	if userData == nil {
 		panic(susers.ErrUserNotExistOrDeleted)

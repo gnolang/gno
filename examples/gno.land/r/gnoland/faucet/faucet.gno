@@ -1,8 +1,10 @@
 package faucet
 
 import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 	"errors"
-	"std"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
@@ -10,21 +12,21 @@ import (
 
 var (
 	// configurable by admin.
-	gAdminAddr          std.Address = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	gControllers                    = avl.NewTree()
-	gControllersMaxSize             = 10 // limit it to 10
-	gInPause                        = false
-	gMessage                        = "# Community Faucet.\n\n"
+	gAdminAddr          chain.Address = chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	gControllers                      = avl.NewTree()
+	gControllersMaxSize               = 10 // limit it to 10
+	gInPause                          = false
+	gMessage                          = "# Community Faucet.\n\n"
 
 	// internal vars, for stats.
-	gTotalTransferred std.Coins
+	gTotalTransferred banker.Coins
 	gTotalTransfers   = uint(0)
 
 	// per request limit, 350 gnot
-	gLimit std.Coin = std.NewCoin("ugnot", 350_000_000)
+	gLimit banker.Coin = banker.NewCoin("ugnot", 350_000_000)
 )
 
-func Transfer(cur realm, to std.Address, send int64) string {
+func Transfer(cur realm, to chain.Address, send int64) string {
 	if err := assertIsController(); err != nil {
 		return err.Error()
 	}
@@ -37,14 +39,14 @@ func Transfer(cur realm, to std.Address, send int64) string {
 	if send > gLimit.Amount {
 		return errors.New("Per request limit " + gLimit.String() + " exceed").Error()
 	}
-	sendCoins := std.Coins{std.NewCoin("ugnot", send)}
+	sendCoins := banker.Coins{banker.NewCoin("ugnot", send)}
 
 	gTotalTransferred = gTotalTransferred.Add(sendCoins)
 	gTotalTransfers++
 
-	banker := std.NewBanker(std.BankerTypeRealmSend)
-	pkgaddr := std.CurrentRealm().Address()
-	banker.SendCoins(pkgaddr, to, sendCoins)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	pkgaddr := runtime.CurrentRealm().Address()
+	banker_.SendCoins(pkgaddr, to, sendCoins)
 	return ""
 }
 
@@ -52,13 +54,13 @@ func GetPerTransferLimit() int64 {
 	return gLimit.Amount
 }
 
-func bankerAddr(cur realm) std.Address {
-	return std.CurrentRealm().Address()
+func bankerAddr(cur realm) chain.Address {
+	return runtime.CurrentRealm().Address()
 }
 
 func Render(_ string) string {
-	banker := std.NewBanker(std.BankerTypeReadonly)
-	balance := banker.GetCoins(bankerAddr(cross))
+	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+	balance := banker_.GetCoins(bankerAddr(cross))
 
 	output := gMessage
 	if gInPause {
@@ -69,13 +71,13 @@ func Render(_ string) string {
 	output += ufmt.Sprintf("Balance: %s.\n", balance.String())
 	output += ufmt.Sprintf("Total transfers: %s (in %d times).\n\n", gTotalTransferred.String(), gTotalTransfers)
 
-	output += "Package address: " + std.CurrentRealm().Address().String() + "\n\n"
+	output += "Package address: " + runtime.CurrentRealm().Address().String() + "\n\n"
 	output += ufmt.Sprintf("Admin: %s\n\n ", gAdminAddr.String())
 	output += ufmt.Sprintf("Controllers:\n\n ")
 
 	for i := 0; i < gControllers.Size(); i++ {
 		_, v := gControllers.GetByIndex(i)
-		output += ufmt.Sprintf("%s  ", v.(std.Address))
+		output += ufmt.Sprintf("%s  ", v.(chain.Address))
 	}
 
 	output += "\n\n"
@@ -85,7 +87,7 @@ func Render(_ string) string {
 }
 
 func assertIsController() error {
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	ok := gControllers.Has(caller.String())
 	if !ok {
 		return errors.New(caller.String() + " is not on the controller list")

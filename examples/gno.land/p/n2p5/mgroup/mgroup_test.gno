@@ -1,7 +1,8 @@
 package mgroup
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/avl"
@@ -10,15 +11,15 @@ import (
 )
 
 func TestManagedGroup(t *testing.T) {
-	u1 := std.NewCodeRealm("gno.land/r/test/test/u1")
-	u2 := std.NewCodeRealm("gno.land/r/test/test/u2")
-	u3 := std.NewCodeRealm("gno.land/r/test/test/u3")
-	u4 := std.NewCodeRealm("gno.land/r/test/test/u4")
+	u1 := runtime.NewCodeRealm("gno.land/r/test/test/u1")
+	u2 := runtime.NewCodeRealm("gno.land/r/test/test/u2")
+	u3 := runtime.NewCodeRealm("gno.land/r/test/test/u3")
+	u4 := runtime.NewCodeRealm("gno.land/r/test/test/u4")
 
 	// testUsingPreviousRealm sets the realm to "gno.land/r/test/test"
 	// and uses the SetRealm in the test as the previous caller
 	testUsingPreviousRealm := func(fn func()) {
-		testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
+		testing.SetRealm(runtime.NewCodeRealm("gno.land/r/test/test"))
 		fn()
 	}
 
@@ -31,7 +32,7 @@ func TestManagedGroup(t *testing.T) {
 				t.Errorf("expected nil, got %v", err.Error())
 			}
 			// ensure invalid address is caught
-			var badAddr std.Address
+			var badAddr chain.Address
 			if err := g.AddBackupOwner(badAddr); err != ErrInvalidAddress {
 				t.Errorf("expected %v, got %v", ErrInvalidAddress.Error(), err.Error())
 			}
@@ -59,7 +60,7 @@ func TestManagedGroup(t *testing.T) {
 			if err := g.RemoveBackupOwner(u2.Address()); err != nil {
 				t.Errorf("expected nil, got %v", err.Error())
 			}
-			var badAddr std.Address
+			var badAddr chain.Address
 			if err := g.RemoveBackupOwner(badAddr); err != ErrInvalidAddress {
 				t.Errorf("expected %v, got %v", ErrInvalidAddress.Error(), err.Error())
 			}
@@ -117,7 +118,7 @@ func TestManagedGroup(t *testing.T) {
 			if !g.IsMember(u2.Address()) {
 				t.Errorf("expected %v to be a member", u2)
 			}
-			var badAddr std.Address
+			var badAddr chain.Address
 			if err := g.AddMember(badAddr); err != ErrInvalidAddress {
 				t.Errorf("expected %v, got %v", ErrInvalidAddress, err.Error())
 			}
@@ -146,7 +147,7 @@ func TestManagedGroup(t *testing.T) {
 			if err := g.RemoveMember(u2.Address()); err != nil {
 				t.Errorf("expected nil, got %v", err.Error())
 			}
-			var badAddr std.Address
+			var badAddr chain.Address
 			if err := g.RemoveMember(badAddr); err != ErrInvalidAddress {
 				t.Errorf("expected %v, got %v", ErrInvalidAddress.Error(), err.Error())
 			}

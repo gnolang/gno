@@ -1,7 +1,7 @@
 package grc721
 
 import (
-	"std"
+	"chain"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -48,7 +48,7 @@ func TestSetTokenRoyalty(t *testing.T) {
 
 	// Test case: Invalid payment address
 	aerr := dummy.SetTokenRoyalty(TokenID("4"), RoyaltyInfo{
-		PaymentAddress: std.Address("###"), // invalid address
+		PaymentAddress: chain.Address("###"), // invalid address
 		Percentage:     percentage,
 	})
 	uassert.ErrorIs(t, aerr, ErrInvalidRoyaltyPaymentAddress)

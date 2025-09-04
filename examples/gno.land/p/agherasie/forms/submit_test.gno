@@ -1,7 +1,7 @@
 package forms
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 	"time"
 
@@ -9,7 +9,7 @@ import (
 )
 
 func TestAnswerForm(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm("g1user"))
+	testing.SetRealm(runtime.NewUserRealm("g1user"))
 
 	db := NewDB()
 
@@ -55,7 +55,7 @@ func TestAnswerForm(t *testing.T) {
 }
 
 func TestAnswerFormDates(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm("g1user"))
+	testing.SetRealm(runtime.NewUserRealm("g1user"))
 	db := NewDB()
 
 	now := time.Now()

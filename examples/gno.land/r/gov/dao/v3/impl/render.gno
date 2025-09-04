@@ -1,7 +1,8 @@
 package impl
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"strconv"
 	"strings"
 
@@ -45,11 +46,11 @@ func NewRender(d *GovDAO) *render {
 }
 
 func (ren *render) Render(pkgPath string, path string) string {
-	relativePath, found := strings.CutPrefix(pkgPath, std.ChainDomain())
+	relativePath, found := strings.CutPrefix(pkgPath, runtime.ChainDomain())
 	if !found {
 		panic(ufmt.Sprintf(
 			"realm package with unexpected name found: %v in chain domain %v",
-			pkgPath, std.ChainDomain()))
+			pkgPath, runtime.ChainDomain()))
 	}
 	ren.relativeRealmPath = relativePath
 	return ren.router.Render(path)
@@ -159,7 +160,7 @@ func renderActionBar(sPid string) string {
 	return out
 }
 
-func tryResolveAddr(addr std.Address) string {
+func tryResolveAddr(addr chain.Address) string {
 	userData := users.ResolveAddress(addr)
 	if userData == nil {
 		return addr.String()

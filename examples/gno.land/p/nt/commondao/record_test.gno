@@ -1,7 +1,7 @@
 package commondao
 
 import (
-	"std"
+	"chain"
 	"testing"
 
 	"gno.land/p/demo/uassert"
@@ -11,7 +11,7 @@ import (
 func TestVotingRecordDefaults(t *testing.T) {
 	var (
 		record VotingRecord
-		user   = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+		user   = chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	)
 
 	uassert.Equal(t, record.Size(), 0)

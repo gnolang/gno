@@ -1,7 +1,7 @@
 package main
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -15,8 +15,8 @@ var (
 )
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(alice))
-	c := std.OriginCaller()
+	testing.SetRealm(runtime.NewUserRealm(alice))
+	c := runtime.OriginCaller()
 	ini.InitWithUsers(c)
 
 	pReq := users.ProposeNewRelease("gno.land/r/gnoland/users/v2", "This is a note!")
@@ -25,7 +25,7 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(runtime.NewUserRealm(alice))
 
 	dao.MustVoteOnProposal(cross, dao.VoteRequest{
 		Option:     dao.YesVote,

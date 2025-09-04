@@ -1,8 +1,9 @@
 package btree_dao
 
 import (
+	"chain"
+	"chain/runtime"
 	"errors"
-	"std"
 	"strings"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 // It stores the user's address, registration time, their B-Tree if they planted one,
 // and their NFT ID.
 type RegistrationDetails struct {
-	Address   std.Address
+	Address   chain.Address
 	RegTime   time.Time
 	UserBTree *btree.BTree
 	NFTID     string
@@ -57,7 +58,7 @@ func PlantSeed(_ realm, message string) error {
 // Returns an error if any validation fails or if NFT minting fails.
 func plantImpl(userBTree *btree.BTree, seedMessage string) error {
 	// Get the caller's address
-	userAddress := std.OriginCaller()
+	userAddress := runtime.OriginCaller()
 
 	var nftID string
 	var regDetails *RegistrationDetails

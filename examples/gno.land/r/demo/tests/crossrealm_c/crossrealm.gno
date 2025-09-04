@@ -1,15 +1,15 @@
 package crossrealm_c
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/p/demo/tests/p_crossrealm"
 	"gno.land/r/demo/tests/crossrealm"
 )
 
 func EntryPoint() {
-	println("crossrealm_c  EntryPoint: " + std.PreviousRealm().PkgPath())
-	println("crossrealm_c  EntryPoint: " + std.PreviousRealm().Address())
+	println("crossrealm_c  EntryPoint: " + runtime.PreviousRealm().PkgPath())
+	println("crossrealm_c  EntryPoint: " + runtime.PreviousRealm().Address())
 	println(" ")
 	passThrough()
 

@@ -1,7 +1,7 @@
 package groups
 
 import (
-	"std"
+	"chain"
 	"time"
 
 	"gno.land/p/demo/rat"
@@ -14,7 +14,7 @@ type VoteSet interface {
 	// number of present votes in set.
 	Size() int
 	// add or update vote for voter.
-	SetVote(voter std.Address, value string) error
+	SetVote(voter chain.Address, value string) error
 	// count the number of votes for value.
 	CountVotes(value string) int
 }
@@ -23,7 +23,7 @@ type VoteSet interface {
 // VoteList
 
 type Vote struct {
-	Voter std.Address
+	Voter chain.Address
 	Value string
 }
 
@@ -37,7 +37,7 @@ func (vlist *VoteList) Size() int {
 	return len(*vlist)
 }
 
-func (vlist *VoteList) SetVote(voter std.Address, value string) error {
+func (vlist *VoteList) SetVote(voter chain.Address, value string) error {
 	// TODO optimize with binary algorithm
 	for i, vote := range *vlist {
 		if vote.Voter == voter {
@@ -93,7 +93,7 @@ const (
 
 type VoteSession struct {
 	Name      string
-	Creator   std.Address
+	Creator   chain.Address
 	Body      string
 	Start     time.Time
 	Deadline  time.Time

@@ -4,7 +4,8 @@ package groups_test
 // SEND: 1000000ugnot
 
 import (
-	"std"
+	"chain/banker"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -15,8 +16,8 @@ import (
 var gid groups.GroupID
 
 func main() {
-	caller := std.OriginCaller()
-	testing.SetRealm(std.NewUserRealm(caller))
+	caller := runtime.OriginCaller()
+	testing.SetRealm(runtime.NewUserRealm(caller))
 	users.Register(cross, "gnouser123")
 
 	gid = groups.CreateGroup(cross, "test_group")
@@ -25,7 +26,7 @@ func main() {
 	// delete group via anon user
 	test2 := testutils.TestAddress("test2")
 	testing.SetOriginCaller(test2)
-	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}})
+	testing.SetOriginSend(banker.Coins{{"ugnot", 9000000}})
 
 	groups.DeleteGroup(cross, gid)
 	println(groups.Render(""))

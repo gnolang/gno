@@ -1,7 +1,7 @@
 package memberstore
 
 import (
-	"std"
+	"chain"
 	"strconv"
 	"testing"
 
@@ -100,16 +100,16 @@ func TestCreateMembers(t *testing.T) {
 	addMembers(ms, 1000, "T3")
 	println("added T3")
 
-	m, tier := ms.GetMember(std.Address("11T3"))
+	m, tier := ms.GetMember(chain.Address("11T3"))
 	urequire.Equal(t, "T3", tier)
 
-	m, tier = ms.GetMember(std.Address("2000T1"))
+	m, tier = ms.GetMember(chain.Address("2000T1"))
 	urequire.Equal(t, "", tier)
 	if m != nil {
 		t.Fatal("member must be nil if not found")
 	}
 
-	tier = ms.RemoveMember(std.Address("1T1"))
+	tier = ms.RemoveMember(chain.Address("1T1"))
 	urequire.Equal(t, "T1", tier)
 }
 
@@ -117,7 +117,7 @@ func addMembers(ms MembersByTier, c int, tier string) {
 	// mt := avl.NewTree() XXX
 	ms.SetTier(tier)
 	for i := 0; i < c; i++ {
-		addr := std.Address(strconv.Itoa(i) + tier)
+		addr := chain.Address(strconv.Itoa(i) + tier)
 		if err := ms.SetMember(tier, addr, &Member{}); err != nil {
 			panic(err.Error())
 		}

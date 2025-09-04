@@ -1,8 +1,8 @@
 package commondao
 
 import (
+	"chain"
 	"errors"
-	"std"
 	"time"
 
 	"gno.land/p/demo/avl"
@@ -54,7 +54,7 @@ type (
 		id             uint64
 		status         ProposalStatus
 		definition     ProposalDefinition
-		creator        std.Address
+		creator        chain.Address
 		record         *VotingRecord // TODO: Add support for multiple voting records
 		statusReason   string
 		voteChoices    *avl.Tree // string(VoteChoice) -> struct{}
@@ -130,7 +130,7 @@ func MustExecute(e Executable) {
 }
 
 // NewProposal creates a new DAO proposal.
-func NewProposal(id uint64, creator std.Address, d ProposalDefinition) (*Proposal, error) {
+func NewProposal(id uint64, creator chain.Address, d ProposalDefinition) (*Proposal, error) {
 	if d == nil {
 		return nil, ErrProposalDefinitionRequired
 	}
@@ -188,7 +188,7 @@ func (p Proposal) Status() ProposalStatus {
 }
 
 // Creator returns the address of the account that created the proposal.
-func (p Proposal) Creator() std.Address {
+func (p Proposal) Creator() chain.Address {
 	return p.creator
 }
 

@@ -1,8 +1,9 @@
 package boards2
 
 import (
+	"chain"
+	"chain/runtime"
 	"errors"
-	"std"
 )
 
 // validateBoardCreate validates PermissionBoardCreate.
@@ -63,7 +64,7 @@ func validateMemberInvite(perms Permissions, args Args) error {
 	}
 
 	if role == RoleOwner {
-		if !perms.HasRole(std.PreviousRealm().Address(), RoleOwner) {
+		if !perms.HasRole(runtime.PreviousRealm().Address(), RoleOwner) {
 			return errors.New("only owners are allowed to invite other owners")
 		}
 	}
@@ -79,7 +80,7 @@ func validateMemberInvite(perms Permissions, args Args) error {
 func validateRoleChange(perms Permissions, args Args) error {
 	// Owners and Admins can change roles.
 	// Admins should not be able to assign or remove the Owner role from members.
-	if perms.HasRole(std.PreviousRealm().Address(), RoleAdmin) {
+	if perms.HasRole(runtime.PreviousRealm().Address(), RoleAdmin) {
 		role, ok := args[2].(Role)
 		if !ok {
 			return errors.New("expected a valid member role")
@@ -88,7 +89,7 @@ func validateRoleChange(perms Permissions, args Args) error {
 		if role == RoleOwner {
 			return errors.New("admins are not allowed to promote members to Owner")
 		} else {
-			member, ok := args[1].(std.Address)
+			member, ok := args[1].(chain.Address)
 			if !ok {
 				return errors.New("expected a valid member address")
 			}

@@ -1,8 +1,8 @@
 package grc20
 
 import (
+	"chain"
 	"errors"
-	"std"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/exts"
@@ -21,19 +21,19 @@ type Teller interface {
 	TotalSupply() int64
 
 	// Returns the amount of tokens owned by `account`.
-	BalanceOf(account std.Address) int64
+	BalanceOf(account chain.Address) int64
 
 	// Moves `amount` tokens from the caller's account to `to`.
 	//
 	// Returns an error if the operation failed.
-	Transfer(to std.Address, amount int64) error
+	Transfer(to chain.Address, amount int64) error
 
 	// Returns the remaining number of tokens that `spender` will be
 	// allowed to spend on behalf of `owner` through {transferFrom}. This is
 	// zero by default.
 	//
 	// This value changes when {approve} or {transferFrom} are called.
-	Allowance(owner, spender std.Address) int64
+	Allowance(owner, spender chain.Address) int64
 
 	// Sets `amount` as the allowance of `spender` over the caller's tokens.
 	//
@@ -45,14 +45,14 @@ type Teller interface {
 	// this race condition is to first reduce the spender's allowance to 0
 	// and set the desired value afterwards:
 	// https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-	Approve(spender std.Address, amount int64) error
+	Approve(spender chain.Address, amount int64) error
 
 	// Moves `amount` tokens from `from` to `to` using the
 	// allowance mechanism. `amount` is then deducted from the caller's
 	// allowance.
 	//
 	// Returns an error if the operation failed.
-	TransferFrom(from, to std.Address, amount int64) error
+	TransferFrom(from, to chain.Address, amount int64) error
 }
 
 // Token represents a fungible token with a name, symbol, and a certain number
@@ -112,7 +112,7 @@ const (
 )
 
 type fnTeller struct {
-	accountFn func() std.Address
+	accountFn func() chain.Address
 	*Token
 }
 

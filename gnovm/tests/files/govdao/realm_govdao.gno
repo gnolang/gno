@@ -2,7 +2,8 @@
 package govdao
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/r/gov/dao"
@@ -11,15 +12,15 @@ import (
 )
 
 var (
-	user1 std.Address = std.DerivePkgAddr("user1.gno")
-	user2 std.Address = std.DerivePkgAddr("user2.gno")
-	user3 std.Address = std.DerivePkgAddr("user3.gno")
+	user1 chain.Address = chain.DerivePkgAddr("user1.gno")
+	user2 chain.Address = chain.DerivePkgAddr("user2.gno")
+	user3 chain.Address = chain.DerivePkgAddr("user3.gno")
 )
 
 func init() {
 	daoinit.InitWithUsers(user1, user2, user3)
 	govDAO := daoimpl.NewGovDAO() // A DAO object without an attached realm.
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO: govDAO,
 	})
@@ -27,12 +28,12 @@ func init() {
 
 func main() {
 	// run the test as end user instead of the testing realm
-	testing.SetRealm(std.NewUserRealm(user1))
+	testing.SetRealm(runtime.NewUserRealm(user1))
 	pid := CreateProposal()
 	VoteProposal(pid)
 	// run the test as another user
 	func() {
-		testing.SetRealm(std.NewUserRealm(user2))
+		testing.SetRealm(runtime.NewUserRealm(user2))
 		VoteProposal(pid)
 	}()
 	accepted := ExecuteProposal(pid)

@@ -1,8 +1,8 @@
 package commondao
 
 import (
+	"chain"
 	"errors"
-	"std"
 	"strings"
 	"time"
 
@@ -50,7 +50,7 @@ func (p subDAOPropDefinition) Body() string {
 
 	if p.members != nil && p.members.Size() > 0 {
 		items := make([]string, 0, p.members.Size())
-		p.members.IterateByOffset(0, p.members.Size(), func(addr std.Address) bool {
+		p.members.IterateByOffset(0, p.members.Size(), func(addr chain.Address) bool {
 			items = append(items, addr.String())
 			return false
 		})
@@ -96,7 +96,7 @@ func (p subDAOPropDefinition) Execute(realm) error {
 	subDAO := createSubDAO(p.parent, p.name, nil)
 
 	if p.members != nil {
-		p.members.IterateByOffset(0, p.members.Size(), func(addr std.Address) bool {
+		p.members.IterateByOffset(0, p.members.Size(), func(addr chain.Address) bool {
 			subDAO.Members().Add(addr)
 			return false
 		})

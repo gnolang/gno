@@ -2,8 +2,9 @@
 package test
 
 import (
+	"chain"
+	"chain/banker"
 	"fmt"
-	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -12,22 +13,22 @@ import (
 
 var (
 	addr1 = testutils.TestAddress("test1")
-	addrc = std.DerivePkgAddr("gno.land/r/demo/wugnot")
+	addrc = chain.DerivePkgAddr("gno.land/r/demo/wugnot")
 )
 
 func main() {
 	// issue ugnots
-	testing.IssueCoins(addr1, std.Coins{{"ugnot", 100000001}})
+	testing.IssueCoins(addr1, banker.Coins{{"ugnot", 100000001}})
 	printBalances()
 	// println(wugnot.Render("queues"))
 	// println("A -", wugnot.Render(""))
 
 	// deposit of 123400ugnot from addr1
 	// origin send must be simulated
-	coins := std.Coins{{"ugnot", 123_400}}
+	coins := banker.Coins{{"ugnot", 123_400}}
 	testing.SetOriginCaller(addr1)
 	testing.SetOriginSend(coins)
-	std.NewBanker(std.BankerTypeRealmSend).SendCoins(addr1, addrc, coins)
+	banker.NewBanker(banker.BankerTypeRealmSend).SendCoins(addr1, addrc, coins)
 	wugnot.Deposit(cross)
 	printBalances()
 
@@ -37,10 +38,10 @@ func main() {
 }
 
 func printBalances() {
-	printSingleBalance := func(name string, addr std.Address) {
+	printSingleBalance := func(name string, addr chain.Address) {
 		wugnotBal := wugnot.BalanceOf(addr)
 		testing.SetOriginCaller(addr)
-		robanker := std.NewBanker(std.BankerTypeReadonly)
+		robanker := banker.NewBanker(banker.BankerTypeReadonly)
 		coins := robanker.GetCoins(addr).AmountOf("ugnot")
 		fmt.Printf("| %-13s | addr=%s | wugnot=%-6d | ugnot=%-9d |\n",
 			name, addr, wugnotBal, coins)

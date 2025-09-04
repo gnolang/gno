@@ -1,7 +1,7 @@
 package forms
 
 import (
-	"std"
+	"chain/runtime"
 	"time"
 
 	"gno.land/p/demo/json"
@@ -64,7 +64,7 @@ func (db *FormDB) CreateForm(title string, description string, openAt string, cl
 	// Creating the form
 	form := Form{
 		ID:          id,
-		Owner:       std.CurrentRealm().Address(),
+		Owner:       runtime.CurrentRealm().Address(),
 		Title:       title,
 		Description: description,
 		CreatedAt:   time.Now(),

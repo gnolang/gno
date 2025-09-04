@@ -1,17 +1,18 @@
 package main
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/r/nt/commondao"
 )
 
-const user = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+const user = chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 
 func main() {
 	// Calling with a user that was not invited
-	testing.SetRealm(std.NewUserRealm(user))
+	testing.SetRealm(runtime.NewUserRealm(user))
 
 	commondao.New(cross, "Foo")
 }

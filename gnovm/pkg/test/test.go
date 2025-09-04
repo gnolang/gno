@@ -401,7 +401,7 @@ func (opts *TestOptions) runTestFiles(
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
 
-		testingpv := m.Store.GetPackage("testing/base", false)
+		testingpv := m.Store.GetPackage("testing", false)
 		testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
 		testingcx := &gno.ConstExpr{TypedValue: testingtv}
 		testfv := m.Eval(gno.Nx(tf.Name))[0].GetFunc()
@@ -416,7 +416,7 @@ func (opts *TestOptions) runTestFiles(
 			// > TestSomething(cur realm, t *testing.T) {...}
 			//
 			// Normally this isn't possible because
-			// stdlibs/testing/base is a non-realm, so it cannot
+			// stdlibs/testing is a non-realm, so it cannot
 			// have `cur`. And while a realm could call `func(cur
 			// realm){...}(cross)`, some *_test.gno test cases want
 			// `cur` to refer to the realm package, while

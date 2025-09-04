@@ -1,7 +1,7 @@
 package main
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 )
 
@@ -9,7 +9,7 @@ func main() {
 	defer func() {
 		println(recover())
 	}()
-	testing.SetRealm(std.NewCodeRealm("gno.land/p/demo/users"))
+	testing.SetRealm(runtime.NewCodeRealm("gno.land/p/demo/users"))
 }
 
 // Output:

@@ -3,19 +3,20 @@
 package bank1
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
 	"testing"
 )
 
 func main() {
-	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/banktest")
+	banktestAddr := chain.DerivePkgAddr("gno.land/r/demo/banktest")
 
-	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
+	mainaddr := chain.DerivePkgAddr("gno.land/r/demo/bank1")
 	testing.SetOriginCaller(mainaddr)
 
-	banker := std.NewBanker(std.BankerTypeRealmSend)
-	send := std.Coins{{"ugnot", 123}}
-	banker.SendCoins(banktestAddr, mainaddr, send)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	send := banker.Coins{{"ugnot", 123}}
+	banker_.SendCoins(banktestAddr, mainaddr, send)
 }
 
 // Error:

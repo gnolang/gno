@@ -1,7 +1,7 @@
 package users
 
 import (
-	"std"
+	"chain"
 
 	"gno.land/p/moul/addrset"
 	"gno.land/r/gov/dao"
@@ -12,11 +12,11 @@ const gUsersV1Path = "gno.land/r/gnoland/users/v1" // preregistered with store w
 var controllers = addrset.Set{} // caller whitelist
 
 func init() {
-	controllers.Add(std.DerivePkgAddr(gUsersV1Path)) // initially whitelisted
+	controllers.Add(chain.DerivePkgAddr(gUsersV1Path)) // initially whitelisted
 }
 
 // ProposeNewController allows GovDAO to add a whitelisted caller
-func ProposeNewController(addr std.Address) dao.ProposalRequest {
+func ProposeNewController(addr chain.Address) dao.ProposalRequest {
 	cb := func(cur realm) error {
 		return addToWhitelist(addr)
 	}
@@ -25,7 +25,7 @@ func ProposeNewController(addr std.Address) dao.ProposalRequest {
 }
 
 // ProposeControllerRemoval allows GovDAO to add a whitelisted caller
-func ProposeControllerRemoval(addr std.Address) dao.ProposalRequest {
+func ProposeControllerRemoval(addr chain.Address) dao.ProposalRequest {
 	cb := func(cur realm) error {
 		return deleteFromwhitelist(addr)
 	}
@@ -34,7 +34,7 @@ func ProposeControllerRemoval(addr std.Address) dao.ProposalRequest {
 }
 
 // ProposeControllerAdditionAndRemoval allows GovDAO to add a new caller and remove an old caller in the same proposal.
-func ProposeControllerAdditionAndRemoval(toAdd, toRemove std.Address) dao.ProposalRequest {
+func ProposeControllerAdditionAndRemoval(toAdd, toRemove chain.Address) dao.ProposalRequest {
 	cb := func(cur realm) error {
 		err := addToWhitelist(toAdd)
 		if err != nil {
@@ -49,7 +49,7 @@ func ProposeControllerAdditionAndRemoval(toAdd, toRemove std.Address) dao.Propos
 
 // Helpers
 
-func deleteFromwhitelist(addr std.Address) error {
+func deleteFromwhitelist(addr chain.Address) error {
 	if !controllers.Has(addr) {
 		return NewErrNotWhitelisted()
 	}
@@ -61,7 +61,7 @@ func deleteFromwhitelist(addr std.Address) error {
 	return nil
 }
 
-func addToWhitelist(newCaller std.Address) error {
+func addToWhitelist(newCaller chain.Address) error {
 	if !newCaller.IsValid() {
 		return ErrInvalidAddress
 	}

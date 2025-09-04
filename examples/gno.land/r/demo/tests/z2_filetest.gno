@@ -1,7 +1,7 @@
 package main
 
 import (
-	"std"
+	"chain"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -13,7 +13,7 @@ import (
 func main() {
 	var (
 		eoa = testutils.TestAddress("someone")
-		_   = std.DerivePkgAddr("gno.land/r/demo/tests")
+		_   = chain.DerivePkgAddr("gno.land/r/demo/tests")
 	)
 	testing.SetOriginCaller(eoa)
 	println("tests.GetPreviousRealm().Address(): ", tests.GetPreviousRealm(cross).Address())

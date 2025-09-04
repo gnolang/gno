@@ -1,7 +1,7 @@
 package grc20
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -116,16 +116,16 @@ func TestCallerTeller(t *testing.T) {
 	checkAllowances(0, 0, 0, 0, 0, 0)
 
 	tellerThrough := func(action func()) {
-		testing.SetRealm(std.NewCodeRealm("gno.land/r/realm_exposing_the_teller"))
+		testing.SetRealm(runtime.NewCodeRealm("gno.land/r/realm_exposing_the_teller"))
 		action()
 	}
 
-	testing.SetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(runtime.NewUserRealm(alice))
 	tellerThrough(func() { urequire.NoError(t, teller.Approve(bob, 600)) })
 	checkBalances(1000, 0, 0)
 	checkAllowances(600, 0, 0, 0, 0, 0)
 
-	testing.SetRealm(std.NewUserRealm(bob))
+	testing.SetRealm(runtime.NewUserRealm(bob))
 	tellerThrough(func() { urequire.Error(t, teller.TransferFrom(alice, carl, 700)) })
 	checkBalances(1000, 0, 0)
 	checkAllowances(600, 0, 0, 0, 0, 0)

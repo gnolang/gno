@@ -1,7 +1,8 @@
 package treasury
 
 import (
-	"std"
+	"chain/banker"
+	"chain/runtime"
 
 	"gno.land/p/demo/grc/grc20"
 	t "gno.land/p/nt/treasury"
@@ -35,7 +36,7 @@ func init() {
 	}
 
 	// Init the treasury bankers.
-	coinsBanker, err := t.NewCoinsBanker(std.NewBanker(std.BankerTypeRealmSend))
+	coinsBanker, err := t.NewCoinsBanker(banker.NewBanker(banker.BankerTypeRealmSend))
 	if err != nil {
 		panic("failed to create CoinsBanker: " + err.Error())
 	}
@@ -57,7 +58,7 @@ func init() {
 
 // SetTokenKeys sets the GRC20 token registry keys that the treasury will use.
 func SetTokenKeys(_ realm, keys []string) {
-	caller := std.PreviousRealm().PkgPath()
+	caller := runtime.PreviousRealm().PkgPath()
 
 	// Check if the caller realm is allowed to set token keys.
 	if !dao.InAllowedDAOs(caller) {
@@ -69,7 +70,7 @@ func SetTokenKeys(_ realm, keys []string) {
 
 // Send sends a payment using the treasury instance.
 func Send(_ realm, payment t.Payment) {
-	caller := std.PreviousRealm().PkgPath()
+	caller := runtime.PreviousRealm().PkgPath()
 
 	// Check if the caller realm is allowed to send payments.
 	if !dao.InAllowedDAOs(caller) {

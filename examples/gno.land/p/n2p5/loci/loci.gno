@@ -7,7 +7,8 @@
 package loci
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 
 	"gno.land/p/demo/avl"
 )
@@ -28,14 +29,14 @@ func New() *LociStore {
 // Set stores a byte slice in the AVL tree using the `std.PreviousRealm().Address()`
 // string as the key.
 func (s *LociStore) Set(value []byte) {
-	key := string(std.PreviousRealm().Address())
+	key := string(runtime.PreviousRealm().Address())
 	s.internal.Set(key, value)
 }
 
 // Get retrieves a byte slice from the AVL tree using the provided address.
 // The return values are the byte slice value and a boolean indicating
 // whether the value exists.
-func (s *LociStore) Get(addr std.Address) []byte {
+func (s *LociStore) Get(addr chain.Address) []byte {
 	value, exists := s.internal.Get(string(addr))
 	if !exists {
 		return nil

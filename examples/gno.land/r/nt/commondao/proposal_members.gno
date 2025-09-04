@@ -1,8 +1,8 @@
 package commondao
 
 import (
+	"chain"
 	"errors"
-	"std"
 	"strings"
 	"time"
 
@@ -46,7 +46,7 @@ func (p membersUpdatePropDefinition) Body() string {
 
 	if p.toAdd.Size() > 0 {
 		items := make([]string, 0, p.toAdd.Size())
-		p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr std.Address) bool {
+		p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr chain.Address) bool {
 			items = append(items, addr.String())
 			return false
 		})
@@ -58,7 +58,7 @@ func (p membersUpdatePropDefinition) Body() string {
 
 	if p.toRemove.Size() > 0 {
 		items := make([]string, 0, p.toRemove.Size())
-		p.toRemove.IterateByOffset(0, p.toRemove.Size(), func(addr std.Address) bool {
+		p.toRemove.IterateByOffset(0, p.toRemove.Size(), func(addr chain.Address) bool {
 			items = append(items, addr.String())
 			return false
 		})
@@ -74,7 +74,7 @@ func (p membersUpdatePropDefinition) Body() string {
 func (p membersUpdatePropDefinition) Validate() (err error) {
 	members := p.dao.Members()
 
-	p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr std.Address) bool {
+	p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr chain.Address) bool {
 		if members.Has(addr) {
 			err = errors.New("address is already a DAO member: " + addr.String())
 			return true
@@ -86,7 +86,7 @@ func (p membersUpdatePropDefinition) Validate() (err error) {
 		return err
 	}
 
-	p.toRemove.IterateByOffset(0, p.toRemove.Size(), func(addr std.Address) bool {
+	p.toRemove.IterateByOffset(0, p.toRemove.Size(), func(addr chain.Address) bool {
 		if !members.Has(addr) {
 			err = errors.New("address is not a DAO member: " + addr.String())
 			return true
@@ -118,12 +118,12 @@ func (membersUpdatePropDefinition) Tally(r commondao.ReadonlyVotingRecord, membe
 func (p membersUpdatePropDefinition) Execute(realm) error {
 	members := p.dao.Members()
 
-	p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr std.Address) bool {
+	p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr chain.Address) bool {
 		members.Add(addr)
 		return false
 	})
 
-	p.toRemove.IterateByOffset(0, p.toRemove.Size(), func(addr std.Address) bool {
+	p.toRemove.IterateByOffset(0, p.toRemove.Size(), func(addr chain.Address) bool {
 		members.Remove(addr)
 		return false
 	})

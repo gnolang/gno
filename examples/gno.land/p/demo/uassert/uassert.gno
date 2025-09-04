@@ -2,7 +2,7 @@
 package uassert
 
 import (
-	"std"
+	"chain"
 	"strconv"
 	"strings"
 
@@ -303,8 +303,8 @@ func Equal(t TestingT, expected, actual any, msgs ...string) bool {
 				return fail(t, msgs, "uassert.Equal: strings are different\n\tDiff: %s", diff.Format(dif))
 			}
 		}
-	case std.Address:
-		if av, ok := actual.(std.Address); ok {
+	case chain.Address:
+		if av, ok := actual.(chain.Address); ok {
 			equal = ev == av
 			ok_ = true
 			es, as = string(ev), string(av)
@@ -437,8 +437,8 @@ func NotEqual(t TestingT, expected, actual any, msgs ...string) bool {
 			ok_ = true
 			es, as = ev, av
 		}
-	case std.Address:
-		if av, ok := actual.(std.Address); ok {
+	case chain.Address:
+		if av, ok := actual.(chain.Address); ok {
 			notEqual = ev != av
 			ok_ = true
 			es, as = string(ev), string(av)
@@ -595,8 +595,8 @@ func Empty(t TestingT, obj any, msgs ...string) bool {
 			if val != "" {
 				return fail(t, msgs, "uassert.Empty: not empty string: %s", val)
 			}
-		case std.Address:
-			var zeroAddr std.Address
+		case chain.Address:
+			var zeroAddr chain.Address
 			if val != zeroAddr {
 				return fail(t, msgs, "uassert.Empty: not empty std.Address: %s", string(val))
 			}
@@ -620,8 +620,8 @@ func NotEmpty(t TestingT, obj any, msgs ...string) bool {
 			if val == "" {
 				return fail(t, msgs, "uassert.NotEmpty: empty string: %s", val)
 			}
-		case std.Address:
-			var zeroAddr std.Address
+		case chain.Address:
+			var zeroAddr chain.Address
 			if val == zeroAddr {
 				return fail(t, msgs, "uassert.NotEmpty: empty std.Address: %s", string(val))
 			}

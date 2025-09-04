@@ -1,14 +1,15 @@
 package gnopages
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"strings"
 
 	"gno.land/p/demo/avl"
 )
 
 var (
-	adminAddr     std.Address
+	adminAddr     chain.Address
 	moderatorList avl.Tree
 	inPause       bool
 )
@@ -18,7 +19,7 @@ func init() {
 	adminAddr = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
 }
 
-func AdminSetAdminAddr(_ realm, addr std.Address) {
+func AdminSetAdminAddr(_ realm, addr chain.Address) {
 	assertIsAdmin()
 	adminAddr = addr
 }
@@ -28,12 +29,12 @@ func AdminSetInPause(_ realm, state bool) {
 	inPause = state
 }
 
-func AdminAddModerator(_ realm, addr std.Address) {
+func AdminAddModerator(_ realm, addr chain.Address) {
 	assertIsAdmin()
 	moderatorList.Set(addr.String(), true)
 }
 
-func AdminRemoveModerator(_ realm, addr std.Address) {
+func AdminRemoveModerator(_ realm, addr chain.Address) {
 	assertIsAdmin()
 	moderatorList.Set(addr.String(), false) // XXX: delete instead?
 }
@@ -41,7 +42,7 @@ func AdminRemoveModerator(_ realm, addr std.Address) {
 func ModAddPost(_ realm, slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
 
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	tagList := strings.Split(tags, ",")
 	authorList := strings.Split(authors, ",")
 
@@ -59,24 +60,24 @@ func ModEditPost(_ realm, slug, title, body, publicationDate, authors, tags stri
 	checkErr(err)
 }
 
-func isAdmin(addr std.Address) bool {
+func isAdmin(addr chain.Address) bool {
 	return addr == adminAddr
 }
 
-func isModerator(addr std.Address) bool {
+func isModerator(addr chain.Address) bool {
 	_, found := moderatorList.Get(addr.String())
 	return found
 }
 
 func assertIsAdmin() {
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	if !isAdmin(caller) {
 		panic("access restricted.")
 	}
 }
 
 func assertIsModerator() {
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	if isAdmin(caller) || isModerator(caller) {
 		return
 	}

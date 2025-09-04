@@ -1,7 +1,7 @@
 package impl
 
 import (
-	"std"
+	"chain"
 	"strings"
 
 	"gno.land/p/demo/avl"
@@ -190,7 +190,7 @@ func writeVotes(sb *strings.Builder, t memberstore.MembersByTier, title string) 
 		ms, _ := value.(*avl.Tree)
 		ms.Iterate("", "", func(addr string, _ interface{}) bool {
 			sb.WriteString("\n")
-			sb.WriteString("- " + tryResolveAddr(std.Address(addr)) + "\n")
+			sb.WriteString("- " + tryResolveAddr(chain.Address(addr)) + "\n")
 
 			return false
 		})

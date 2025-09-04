@@ -3,6 +3,7 @@ package testing
 import (
 	"chain"
 	"chain/banker"
+	"chain/runtime"
 	"time"
 )
 
@@ -65,7 +66,7 @@ func testIssueCoins(addr string, denom []string, amt []int64)
 func SetOriginCaller(origCaller chain.Address) {
 	ctx := GetContext()
 	ctx.OriginCaller = origCaller
-	ctx.CurrentRealm = std.NewUserRealm(origCaller)
+	ctx.CurrentRealm = runtime.NewUserRealm(origCaller)
 	SetContext(ctx)
 }
 
@@ -93,7 +94,7 @@ func SetHeight(height int64) {
 // If rlm.PkgPath() is "", implies rlm.Address() is the user address.
 // OriginCaller will also be set. This is identical to calling
 // ctx.SetOriginCaller(userAddress)
-func SetRealm(rlm std.Realm) {
+func SetRealm(rlm runtime.Realm) {
 	ctx := GetContext()
 	ctx.CurrentRealm = rlm
 	if rlm.PkgPath() == "" {

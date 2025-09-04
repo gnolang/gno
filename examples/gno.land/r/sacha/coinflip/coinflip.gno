@@ -1,8 +1,10 @@
 package coinflip
 
 import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 	"math/rand"
-	"std"
 
 	"gno.land/p/demo/entropy"
 	"gno.land/p/moul/fifo"
@@ -18,14 +20,14 @@ var (
 )
 
 func Heads(cur realm) {
-	std.AssertOriginCall()
+	runtime.AssertOriginCall()
 
 	flipResult := flip(1)
 	betLogic(flipResult)
 }
 
 func Tails(cur realm) {
-	std.AssertOriginCall()
+	runtime.AssertOriginCall()
 
 	flipResult := flip(0)
 	betLogic(flipResult)
@@ -36,27 +38,27 @@ func GetResults(cur realm) []Bet {
 }
 
 func GetRealmBalance(cur realm) int64 {
-	banker := std.NewBanker(std.BankerTypeReadonly)
-	coins := banker.GetCoins(std.CurrentRealm().Address())
+	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+	coins := banker_.GetCoins(runtime.CurrentRealm().Address())
 	balance := coins.AmountOf(denom)
 
 	return balance
 }
 
 func Withdrawal(cur realm, amount int64) {
-	if !config.IsAuthorized(std.PreviousRealm().Address()) {
+	if !config.IsAuthorized(runtime.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
-	std.AssertOriginCall()
+	runtime.AssertOriginCall()
 
-	banker := std.NewBanker(std.BankerTypeRealmSend)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
 
 	if GetRealmBalance(cur) < amount {
 		panic("insufficient balance")
 	}
 
-	banker.SendCoins(std.CurrentRealm().Address(), std.OriginCaller(), std.NewCoins(std.NewCoin(denom, amount)))
+	banker_.SendCoins(runtime.CurrentRealm().Address(), runtime.OriginCaller(), banker.NewCoins(banker.NewCoin(denom, amount)))
 }
 
 func flip(choice int) bool {
@@ -69,8 +71,8 @@ func flip(choice int) bool {
 	return result == choice
 }
 
-func getBet() std.Coin {
-	bet := std.OriginSend()
+func getBet() banker.Coin {
+	bet := banker.OriginSend()
 	if len(bet) != 1 || bet[0].Denom != denom {
 		panic("bet is invalid")
 	}
@@ -87,22 +89,22 @@ func getBet() std.Coin {
 	return bet[0]
 }
 
-func sendPrize(cur realm, caller std.Address, amount int64) {
-	banker := std.NewBanker(std.BankerTypeRealmSend)
-	wonCoins := std.NewCoins(std.NewCoin(denom, amount))
+func sendPrize(cur realm, caller chain.Address, amount int64) {
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	wonCoins := banker.NewCoins(banker.NewCoin(denom, amount))
 
-	banker.SendCoins(std.CurrentRealm().Address(), caller, wonCoins)
+	banker_.SendCoins(runtime.CurrentRealm().Address(), caller, wonCoins)
 }
 
 func betLogic(flipResult bool) {
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	bet := getBet()
 
 	if flipResult == true {
 		sendPrize(cross, caller, bet.Amount*2)
-		std.Emit("BetResult", "Result", "win")
+		chain.Emit("BetResult", "Result", "win")
 	} else {
-		std.Emit("BetResult", "Result", "lose")
+		chain.Emit("BetResult", "Result", "lose")
 	}
 
 	bets = append(bets, Bet{Address: caller, Result: flipResult, Amount: bet})

@@ -4,7 +4,7 @@
 package main
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -16,7 +16,7 @@ func main() {
 	aliceAddr := testutils.TestAddress("alice")
 
 	// TestSetRealm sets the realm caller, in this case Alice
-	testing.SetRealm(std.NewUserRealm(aliceAddr))
+	testing.SetRealm(runtime.NewUserRealm(aliceAddr))
 
 	users.Register(cross, "alice_123")
 
