@@ -16,9 +16,24 @@ import (
 // Test updating a name via GovDAO
 var c std.Address = std.OriginCaller()
 
+const gUsersV1Path = "gno.land/r/gnoland/users/v1"
+
+// Register a namespace for every addresses
+// Necessary to test GovDAO Vote
+func registerTestUser(addrs ...std.Address) {
+	// Set realm to users admin to register test user
+	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	for _, addr := range addrs {
+		err := susers.RegisterUser(cross, addr.String()[1:], addr)
+		if err != nil {
+			panic(err.Error() + " : " + addr.String())
+		}
+	}
+}
+
 func init() {
 	daov3init.InitWithUsers(c)
-	registerTestUsers(c)
+	registerTestUser(c)
 
 	alice := testutils.TestAddress("alice")
 
@@ -32,21 +47,6 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(c))
 	pr := users.ProposeNewName(alice, "alice_new123")
 	dao.MustCreateProposal(cross, pr)
-}
-
-const gUsersV1Path = "gno.land/r/gnoland/users/v1"
-
-// Register a namespace for every addresses
-// Necessary to test GovDAO Vote
-func registerTestUsers(addrs ...std.Address) {
-	// Set realm to users admin to register test user
-	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
-	for _, addr := range addrs {
-		err := susers.RegisterUser(cross, addr.String()[1:], addr)
-		if err != nil {
-			panic(err.Error() + " : " + addr.String())
-		}
-	}
 }
 
 func main() {
@@ -142,6 +142,7 @@ func main() {
 // [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
 //
 // WARNING: Please double check transaction data before voting.
+// **New**: Members **must** have a namespace to vote to enforce simpler tracking.
 // --
 // --
 // ## Prop #0 - User Registry V1: Rename user `alice123` to `alice_new123`
@@ -168,4 +169,4 @@ func main() {
 //
 // WARNING: Please double check transaction data before voting.
 // **New**: Members **must** have a namespace to vote to enforce simpler tracking.
-// [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh

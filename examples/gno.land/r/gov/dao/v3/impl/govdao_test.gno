@@ -15,7 +15,7 @@ import (
 
 func init() {
 	loadMembers()
-	RegisterTestUser(m1, m11, m111, m1111, m2, m3, m4, m5, m6, noMember)
+	registerTestUser(m1, m11, m111, m1111, m2, m3, m4, m5, m6, noMember)
 
 	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO:         govDAO,
@@ -41,7 +41,7 @@ const gUsersV1Path = "gno.land/r/gnoland/users/v1"
 
 // Register a namespace for every addresses
 // Necessary to test GovDAO Vote
-func RegisterTestUser(addrs ...std.Address) {
+func registerTestUser(addrs ...std.Address) {
 	// Set realm to users admin to register test user
 	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
 	for _, addr := range addrs {

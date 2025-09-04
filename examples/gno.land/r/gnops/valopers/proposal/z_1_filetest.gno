@@ -69,7 +69,7 @@ func main() {
 // [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
 // ## Proposals
 // ### [Prop #0 - Add valoper test-1 to the valset](/r/gov/dao:0)
-// Author: g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
+// Author: [@1vuch2um9wf047h6lta047h6lta047h6l2ewm6w](/u/1vuch2um9wf047h6lta047h6lta047h6l2ewm6w)
 //
 // Status: ACTIVE
 //
