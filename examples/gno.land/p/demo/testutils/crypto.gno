@@ -4,7 +4,7 @@ import "chain"
 
 func TestAddress(name string) chain.Address {
 	if len(name) > 20 {
-		panic("address name cannot be greater than std.AddressSize bytes")
+		panic("address name cannot be greater than 20 bytes")
 	}
 	addr := [20]byte{}
 	// TODO: use strings.RepeatString or similar.

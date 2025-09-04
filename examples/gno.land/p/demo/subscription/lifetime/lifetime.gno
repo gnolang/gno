@@ -14,7 +14,7 @@ import (
 type LifetimeSubscription struct {
 	ownable.Ownable
 	amount int64
-	subs   *avl.Tree // std.Address -> bool
+	subs   *avl.Tree // chain.Address -> bool
 }
 
 // NewLifetimeSubscription creates and returns a new lifetime subscription.

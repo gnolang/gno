@@ -15,7 +15,7 @@ func New() *Directory {
 
 type Directory struct {
 	permBuckets avl.Tree // identifier -> perms
-	userGroups  avl.Tree // std.Address -> []string
+	userGroups  avl.Tree // chain.Address -> []string
 }
 
 func (d *Directory) HasPerm(addr chain.Address, verb, resource string) bool {

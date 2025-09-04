@@ -16,7 +16,7 @@ type RecurringSubscription struct {
 	ownable.Ownable
 	duration time.Duration
 	amount   int64
-	subs     *avl.Tree // std.Address -> time.Time
+	subs     *avl.Tree // chain.Address -> time.Time
 }
 
 // NewRecurringSubscription creates and returns a new recurring subscription.

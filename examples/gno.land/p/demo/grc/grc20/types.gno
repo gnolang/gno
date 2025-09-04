@@ -85,9 +85,9 @@ type Token struct {
 type PrivateLedger struct {
 	// Total supply of the token managed by this ledger.
 	totalSupply int64
-	// std.Address -> int64
+	// chain.Address -> int64
 	balances avl.Tree
-	// owner.(std.Address)+":"+spender.(std.Address)) -> int64
+	// owner.(chain.Address)+":"+spender.(chain.Address)) -> int64
 	allowances avl.Tree
 	// Pointer to the associated Token struct
 	token *Token

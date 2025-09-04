@@ -171,7 +171,7 @@ func (f *Faker) Phone() string {
 	return ufmt.Sprintf("(%d) %d-%d", area, exchange, number)
 }
 
-// StdAddress returns a random std.Address.
+// StdAddress returns a random schain.Address.
 func (f *Faker) StdAddress() chain.Address {
 	var rawAddr [20]byte
 
@@ -331,7 +331,7 @@ func Phone() string {
 	return defaultFaker.Phone()
 }
 
-// StdAddress returns a random std.Address using the default faker.
+// StdAddress returns a random chain.Address using the default faker.
 func StdAddress() chain.Address {
 	return defaultFaker.StdAddress()
 }

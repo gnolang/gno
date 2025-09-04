@@ -16,7 +16,7 @@ import (
 
 type Authorizable struct {
 	*ownable.Ownable           // owner in ownable is superuser
-	authorized       *avl.Tree // std.Addr > struct{}{}
+	authorized       *avl.Tree // chain.Addr > struct{}{}
 }
 
 func NewAuthorizable() *Authorizable {

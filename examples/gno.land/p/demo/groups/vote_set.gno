@@ -73,7 +73,7 @@ func (vlist *VoteList) CountVotes(target string) int {
 type Committee struct {
 	Quorum    rat.Rat
 	Threshold rat.Rat
-	Addresses std.AddressSet
+	Addresses []chain.Address
 }
 
 //----------------------------------------
