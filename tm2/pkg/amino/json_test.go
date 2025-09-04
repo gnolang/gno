@@ -110,6 +110,13 @@ func TestMarshalJSON(t *testing.T) {
 			}{FP: &fp{"Foo", 10}, Package: "bytes"},
 			`{"FP":"Foo@10","Package":"bytes"}`, "",
 		}, // #23
+		{
+			BalanceSheet{Assets: []Asset{}},
+			`{"assets":[]}`, "",
+		},
+		{
+			([]int)(nil), `[]`, "",
+		},
 	}
 
 	for i, tt := range cases {
