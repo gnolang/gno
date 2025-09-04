@@ -8,7 +8,7 @@
 # the --gas-wanted.
 loadpkg gno.land/p/nt/avl
 loadpkg gno.land/p/nt/avl/pager
-loadpkg gno.land/p/jeff0/avlhelpers
+loadpkg gno.land/p/jefft0/avlhelpers
 loadpkg gno.land/p/moul/txlink
 
 loadpkg gno.land/p/demo/users $WORK/pusers
@@ -172,7 +172,7 @@ import (
 
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/avl/pager"
-	"gno.land/p/jeff0/avlhelpers"
+	"gno.land/p/jefft0/avlhelpers"
 	"gno.land/p/demo/users"
 )
 
