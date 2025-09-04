@@ -8,11 +8,11 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ownable"
-	"gno.land/p/demo/pausable"
-	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/addrset"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/pausable"
+	"gno.land/p/nt/seqid"
 	"gno.land/r/leon/config"
 )
 

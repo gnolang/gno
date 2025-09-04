@@ -4,12 +4,12 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/grc/grc20"
-	"gno.land/p/demo/grc/grc721"
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/demo/tokens/grc721"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/urequire"
 )
 
 func TestCreateEvent(t *testing.T) {

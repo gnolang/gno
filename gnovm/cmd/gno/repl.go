@@ -67,7 +67,7 @@ const gnoHelp = `Usage:
    gno /debug                           // activate the GnoVM debugger
    gno /reset                           // remove all previously inserted code
    gno println(a())                     // print the result of calling a()
-   gno import "gno.land/p/demo/avl"     // import the p/demo/avl package
+   gno import "gno.land/p/nt/avl"     // import the p/nt/avl package
    gno func a() string { return "a" }   // declare a new function named a
    gno func b() string {\               // multi-line with '\'
    ...    return "a"\
