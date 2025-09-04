@@ -36,9 +36,9 @@ stdout OK!
 # call gov/dao render to check the tokens update proposal was created
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
 stdout 'New Token Keys:'
-stdout '- gno.land/r/demo/grc20factory.TOKEN1'
-stdout '- gno.land/r/demo/grc20factory.TOKEN2'
-stdout '- gno.land/r/demo/grc20factory.TOKEN3'
+stdout '- gno.land/r/demo/defi/grc20factory.TOKEN1'
+stdout '- gno.land/r/demo/defi/grc20factory.TOKEN2'
+stdout '- gno.land/r/demo/defi/grc20factory.TOKEN3'
 
 # vote on the tokens update proposal
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test member
@@ -51,9 +51,9 @@ stdout OK!
 # verify the balances associated with the tokens update proposal
 gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/treasury:GRC20'
 stdout '| Denom | Amount |'
-stdout '| gno.land/r/demo/grc20factory.TOKEN1 | 42 |'
-stdout '| gno.land/r/demo/grc20factory.TOKEN2 | 0 |'
-stdout '| gno.land/r/demo/grc20factory.TOKEN3 | 0 |'
+stdout '| gno.land/r/demo/defi/grc20factory.TOKEN1 | 42 |'
+stdout '| gno.land/r/demo/defi/grc20factory.TOKEN2 | 0 |'
+stdout '| gno.land/r/demo/defi/grc20factory.TOKEN3 | 0 |'
 
 -- tokens/register_tokens.gno --
 package main
@@ -61,7 +61,7 @@ package main
 import (
 	"std"
 
-	factory "gno.land/r/demo/grc20factory"
+	factory "gno.land/r/demo/defi/grc20factory"
 )
 
 func main() {
@@ -88,9 +88,9 @@ import (
 func main() {
 	tureq := impl.NewTreasuryGRC20TokensUpdate(
 		[]string{
-			"gno.land/r/demo/grc20factory.TOKEN1",
-			"gno.land/r/demo/grc20factory.TOKEN2",
-			"gno.land/r/demo/grc20factory.TOKEN3",
+			"gno.land/r/demo/defi/grc20factory.TOKEN1",
+			"gno.land/r/demo/defi/grc20factory.TOKEN2",
+			"gno.land/r/demo/defi/grc20factory.TOKEN3",
 		},
 	)
 	dao.MustCreateProposal(cross, tureq)

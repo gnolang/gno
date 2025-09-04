@@ -4,8 +4,8 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/urequire"
 	"gno.land/r/gov/dao"
 	ini "gno.land/r/gov/dao/v3/init"
 	susers "gno.land/r/sys/users"

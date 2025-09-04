@@ -3,7 +3,7 @@
 package main
 
 import (
-	"gno.land/r/demo/boards" // not enough memory to import
+	"gno.land/r/archive/boards" // not enough memory to import
 )
 
 func main() {
@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/alloc_10.gno:6:2-26: allocation limit exceeded
+// main/alloc_10.gno:6:2-29: allocation limit exceeded

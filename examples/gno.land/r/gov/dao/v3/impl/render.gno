@@ -5,11 +5,11 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/demo/avl/pager"
-	"gno.land/p/demo/mux"
-	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/helplink"
+	"gno.land/p/nt/avl/pager"
+	"gno.land/p/nt/mux"
+	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/ufmt"
 	"gno.land/r/gov/dao"
 	"gno.land/r/sys/users"
 )

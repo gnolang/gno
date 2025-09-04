@@ -4,7 +4,7 @@ import (
 	"errors"
 	"std"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
 	"gno.land/r/sys/users"

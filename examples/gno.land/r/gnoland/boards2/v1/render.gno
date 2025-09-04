@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/demo/mux"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
+	"gno.land/p/nt/mux"
 )
 
 const (
