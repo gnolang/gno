@@ -1,0 +1,41 @@
+# test issue
+
+loadpkg gno.land/r/demo/realm $WORK
+
+# start a new node
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/demo/realm --func Register --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/realm --func Render --args "a" --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast -chainid=tendermint_test test1
+
+
+-- realm.gno --
+package main
+
+import (
+	"strconv"
+)
+
+type myInt struct {
+	num int
+	myint2 MyInt2
+}
+
+type MyInt2 struct{
+    num2 int
+}
+
+type stringMap map[myInt]int
+
+var (
+	accounts = stringMap{}
+	tmpInt   = myInt{num:1, myint2: MyInt2{num2: 2}}
+)
+
+func Register(_ realm) {
+	accounts[tmpInt] = 1
+}
+
+func Render(_ realm, s string) string {
+	return "[Break the map!](maperror$help&func=Register)\n\nmap len: " + strconv.Itoa(len(accounts))
+}

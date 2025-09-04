@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	goerrors "errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -348,6 +349,12 @@ func makeHTTPHandler(rpcFunc *RPCFunc, logger *slog.Logger) http.HandlerFunc {
 		logger.Info("HTTPRestRPC", "method", r.URL.Path, "args", args, "returns", returns)
 		result, err := unreflectResult(returns)
 		if err != nil {
+			var statusErr *types.HTTPStatusError
+			if goerrors.As(err, &statusErr) {
+				WriteRPCResponseHTTPError(w, statusErr.Code, types.RPCInternalError(types.JSONRPCStringID(""), err))
+				return
+			}
+
 			WriteRPCResponseHTTP(w, types.RPCInternalError(types.JSONRPCStringID(""), err))
 			return
 		}
@@ -858,8 +865,8 @@ func (wm *WebsocketManager) WebsocketHandler(w http.ResponseWriter, r *http.Requ
 // NOTE: assume returns is result struct and error. If error is not nil, return it
 func unreflectResult(returns []reflect.Value) (any, error) {
 	errV := returns[1]
-	if errV.Interface() != nil {
-		return nil, errors.New("%v", errV.Interface())
+	if errVI := errV.Interface(); errVI != nil {
+		return nil, errors.NewWithData(errVI)
 	}
 	rv := returns[0]
 	// If the result is a registered interface, we need a pointer to it so

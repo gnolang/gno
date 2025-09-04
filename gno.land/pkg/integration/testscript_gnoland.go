@@ -365,7 +365,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 				break
 			}
 
-			if err := node.Stop(); err != nil {
+			if err = node.Stop(); err != nil {
 				err = fmt.Errorf("unable to stop the node gracefully: %w", err)
 				break
 			}
@@ -398,7 +398,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 				break
 			}
 
-			if err := node.Stop(); err != nil {
+			if err = node.Stop(); err != nil {
 				err = fmt.Errorf("unable to stop the node gracefully: %w", err)
 				break
 			}
