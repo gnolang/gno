@@ -19,6 +19,7 @@ var c std.Address = std.OriginCaller()
 
 func init() {
 	daov3init.InitWithUsers(c)
+	registerTestUsers(c)
 
 	alice := testutils.TestAddress("alice")
 
