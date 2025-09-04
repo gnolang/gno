@@ -3,8 +3,8 @@ package daokit
 import (
 	"errors"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/ufmt"
 )
 
 type Action interface {
