@@ -212,10 +212,10 @@ func (cdc *Codec) encodeReflectJSONList(w io.Writer, info *TypeInfo, rv reflect.
 		}()
 	}
 
-	// Special case when list is a nil slice, just write "null".
+	// Special case when list is a nil slice, just write "[]".
 	// Empty slices and arrays are not encoded as "null".
 	if rv.Kind() == reflect.Slice && rv.IsNil() {
-		err = writeStr(w, `null`)
+		err = writeStr(w, `[]`)
 		return
 	}
 
