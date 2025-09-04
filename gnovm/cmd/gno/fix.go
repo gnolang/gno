@@ -183,8 +183,7 @@ func txtarsFromArgs(target string) ([]string, error) {
 }
 
 func isTxtarFile(f fs.DirEntry) bool {
-	name := f.Name()
-	return strings.HasSuffix(name, ".txtar") && !f.IsDir()
+	return strings.HasSuffix(f.Name(), ".txtar") && !f.IsDir()
 }
 
 func (c *fixCmd) processFixTxtar(file string) error {
