@@ -315,8 +315,8 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	oid := ObjectIDFromPkgPath(pkgPath)
 	// Get package from cache or baseStore
 	oo := ds.GetObjectSafe(oid)
-	if pv, ok := oo.(*PackageValue); ok {
-		return pv
+	if oo != nil {
+		return oo.(*PackageValue);
 	}
 	// otherwise, fetch from pkgGetter.
 	if ds.pkgGetter != nil {
