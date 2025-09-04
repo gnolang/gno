@@ -88,7 +88,7 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 	}
 
 	for _, targ := range targets {
-		txtars, err := txtarsFromArgs(args)
+		txtars, err := txtarsFromArgs(targ)
 		if err != nil {
 			return fmt.Errorf("unable to gather txtar files: %w", err)
 		}
@@ -153,32 +153,29 @@ func gnoFixParseGnomod(dir string) (mod *gnomod.File, isDotMod bool) {
 	return
 }
 
-func txtarsFromArgs(args []string) ([]string, error) {
+func txtarsFromArgs(target string) ([]string, error) {
 	var paths []string
 
-	for _, argPath := range args {
-		info, err := os.Stat(argPath)
-		if err != nil {
-			return []string{}, fmt.Errorf("gno: invalid file %q: %w", argPath, err)
-		}
+	info, err := os.Stat(target)
+	if err != nil {
+		return []string{}, fmt.Errorf("gno: invalid file %q: %w", target, err)
+	}
 
-		if !info.IsDir() {
-			if isTxtarFile(fs.FileInfoToDirEntry(info)) {
-				paths = append(paths, cleanPath(argPath))
-			}
-
-			continue
+	if !info.IsDir() {
+		if isTxtarFile(fs.FileInfoToDirEntry(info)) {
+			paths = append(paths, cleanPath(target))
 		}
+		return paths, nil
+	}
 
-		files, err := os.ReadDir(argPath)
-		if err != nil {
-			return nil, err
-		}
-		for _, f := range files {
-			if isTxtarFile(f) {
-				path := filepath.Join(argPath, f.Name())
-				paths = append(paths, cleanPath(path))
-			}
+	files, err := os.ReadDir(target)
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range files {
+		if isTxtarFile(f) {
+			path := filepath.Join(target, f.Name())
+			paths = append(paths, cleanPath(path))
 		}
 	}
 
@@ -202,10 +199,11 @@ func (c *fixCmd) processFixTxtar(file string) error {
 		filesByDir[dir] = append(filesByDir[dir], f)
 	}
 	for _, files := range filesByDir {
-		if files, err = c.processFixTxtarDir(files); err != nil {
+		if err = c.processFixTxtarDir(files); err != nil {
 			return err
 		}
 		// Update only the Data field, preserving order => limiting diffs.
+		// NOTE: this is due to processing txtars by folders breaking the order.
 		for _, mf := range files {
 			for i := range archive.Files {
 				if archive.Files[i].Name == mf.Name {
@@ -224,7 +222,7 @@ func (c *fixCmd) processFixTxtar(file string) error {
 	return nil
 }
 
-func (c *fixCmd) processFixTxtarDir(files []txtar.File) ([]txtar.File, error) {
+func (c *fixCmd) processFixTxtarDir(files []txtar.File) error {
 	var gm *gnomod.File
 	for _, f := range files {
 		if f.Name == "gnomod.toml" {
@@ -232,8 +230,7 @@ func (c *fixCmd) processFixTxtarDir(files []txtar.File) ([]txtar.File, error) {
 			break
 		}
 	}
-	var res []txtar.File
-	for _, f := range files {
+	for i, f := range files {
 		if !strings.HasSuffix(f.Name, ".gno") {
 			continue
 		}
@@ -285,7 +282,7 @@ func (c *fixCmd) processFixTxtarDir(files []txtar.File) ([]txtar.File, error) {
 		if c.diff {
 			var buf bytes.Buffer
 			if err := format.Node(&buf, fset, parsed); err != nil {
-				return nil, fmt.Errorf("error formatting: %w", err)
+				return fmt.Errorf("error formatting: %w", err)
 			}
 			err := difflib.WriteUnifiedDiff(os.Stdout, difflib.UnifiedDiff{
 				FromFile: f.Name,
@@ -295,18 +292,17 @@ func (c *fixCmd) processFixTxtarDir(files []txtar.File) ([]txtar.File, error) {
 				Context:  3,
 			})
 			if err != nil {
-				return nil, err
+				return nil
 			}
 		} else {
 			var buf bytes.Buffer
 			if err := format.Node(&buf, fset, parsed); err != nil {
-				return nil, fmt.Errorf("error formatting: %w", err)
+				return fmt.Errorf("error formatting: %w", err)
 			}
-			f.Data = buf.Bytes()
-			res = append(res, f)
+			files[i].Data = buf.Bytes()
 		}
 	}
-	return res, nil
+	return nil
 }
 
 func (c *fixCmd) processFix(cio commands.IO, files []string, gm *gnomod.File) error {
