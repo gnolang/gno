@@ -93,7 +93,7 @@ func Render() {
 // [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
 // ## Proposals
 // ### [Prop #0 - Proposal Title: Dummy proposal](/r/gov/dao:0)
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// Author: [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
 //
 // Status: ACCEPTED
 //
