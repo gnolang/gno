@@ -113,10 +113,10 @@ func TestMarshalJSON(t *testing.T) {
 		{
 			BalanceSheet{Assets: []Asset{}},
 			`{"assets":[]}`, "",
-		},
+		}, // #24
 		{
 			([]int)(nil), `[]`, "",
-		},
+		}, // #25
 	}
 
 	for i, tt := range cases {
@@ -327,7 +327,7 @@ func TestJSONUnmarshal(t *testing.T) {
 		{ // #14
 			`{"PC":"125","FP":"<FP-FOO>@0"}`, new(innerFP), &innerFP{PC: 125, FP: &fp{Name: `<FP-FOO>`}}, "",
 		},
-		{
+		{ // #15
 			`{"assets":[]}`, new(BalanceSheet), new(BalanceSheet), "",
 		},
 	}
