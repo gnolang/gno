@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"gno.land/p/nt/testutils"
-	"gno.land/r/archives/boards"
+	"gno.land/r/archive/boards"
 	"gno.land/r/gnoland/users/v1"
 )
 

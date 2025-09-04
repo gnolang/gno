@@ -4,7 +4,7 @@ loadpkg gno.land/r/gnoland/users/v1
 loadpkg gno.land/r/demo/defi/grc20factory
 loadpkg gno.land/r/demo/disperse
 loadpkg gno.land/r/gnoland/wugnot
-loadpkg gno.land/r/archives/boards
+loadpkg gno.land/r/archive/boards
 loadpkg gno.land/r/sys/names
 
 # Override admin address in r/sys/names with test1 address
@@ -146,13 +146,13 @@ gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func Register -args use
 stdout 'OK!'
 
 # user3 creates a new board and a thread
-gnokey maketx call -pkgpath gno.land/r/archives/boards -func CreateBoard -args 'user3_awesome_board' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user3
+gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateBoard -args 'user3_awesome_board' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user3
 stdout 'OK!'
-gnokey maketx call -pkgpath gno.land/r/archives/boards -func CreateThread -args 1 -args 'My first thread' -args 'Hey Guys!' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user3
+gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateThread -args 1 -args 'My first thread' -args 'Hey Guys!' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user3
 stdout 'OK!'
 
 # user1 tries to reply to the thread without registering
-! gnokey maketx call -pkgpath gno.land/r/archives/boards -func CreateReply -args 1 -args 1 -args 1 -args 'Hello!' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
+! gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateReply -args 1 -args 1 -args 1 -args 'Hello!' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
 stderr 'please register, otherwise minimum fee 100000000 is required if anonymous'
 
 # user2 registers as gnoland/user
@@ -160,15 +160,15 @@ gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func Register -args use
 stdout 'OK!'
 
 # user2 posts a reply to the thread
-gnokey maketx call -pkgpath gno.land/r/archives/boards -func CreateReply -args 1 -args 1 -args 1 -args 'Hey hey hey!' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
+gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateReply -args 1 -args 1 -args 1 -args 'Hey hey hey!' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
 stdout 'OK!'
 
 # user2 creates a new thread
-gnokey maketx call -pkgpath gno.land/r/archives/boards -func CreateThread -args 1 -args 'My own thread' -args 'Posting on my own thread' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
+gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateThread -args 1 -args 'My own thread' -args 'Posting on my own thread' -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
 stdout 'OK!'
 
 # user1 replies to user3's thread anonymously
-gnokey maketx call -pkgpath gno.land/r/archives/boards -func CreateReply -args 1 -args 1 -args 1 -args 'I prefer not to register' -send 100000000ugnot -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateReply -args 1 -args 1 -args 1 -args 'I prefer not to register' -send 100000000ugnot -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
 stdout 'OK!'
 
 ######################

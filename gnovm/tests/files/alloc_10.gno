@@ -3,7 +3,7 @@
 package main
 
 import (
-	"gno.land/r/archives/boards" // not enough memory to import
+	"gno.land/r/archive/boards" // not enough memory to import
 )
 
 func main() {

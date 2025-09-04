@@ -2,7 +2,7 @@
 package example
 
 import (
-	"gno.land/p/archives/dom"
+	"gno.land/p/archive/dom"
 )
 
 var gPlot *dom.Plot
@@ -97,7 +97,7 @@ func main(cur realm) {
 //     "Value": {
 //         "T": {
 //             "@type": "/gno.RefType",
-//             "ID": "gno.land/p/archives/dom.Post"
+//             "ID": "gno.land/p/archive/dom.Post"
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
@@ -123,7 +123,7 @@ func main(cur realm) {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/archives/dom.Post"
+//                     "ID": "gno.land/p/archive/dom.Post"
 //                 }
 //             },
 //             "V": {
