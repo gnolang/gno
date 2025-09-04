@@ -80,7 +80,6 @@ func PrintTxInfo(tx std.Tx, res *ctypes.ResultBroadcastTxCommit, io commands.IO)
 		}
 
 		io.Printfln("TOTAL TX COST:  %d%v", total, tx.Fee.GasFee.Denom)
-
 	}
 	io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
 	io.Println("INFO:      ", res.DeliverTx.Info)
