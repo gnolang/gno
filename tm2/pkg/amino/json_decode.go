@@ -322,9 +322,7 @@ func (cdc *Codec) decodeReflectJSONSlice(bz []byte, info *TypeInfo, rv reflect.V
 		}
 
 		length := len(rawSlice)
-		// NOTE: While we prefer nil slices for binary decoding,
-		// we prefer empty slices for json "[]".
-		// This is also how json.Unmarshal() behaves.
+		// Prefer nil slices for json "[]", the same as binary decoding, and what is written by encodeReflectJSONList
 		if length == 0 {
 			rv.Set(info.ZeroValue)
 			return
