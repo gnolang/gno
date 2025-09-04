@@ -3,7 +3,7 @@ package iavl
 import (
 	"fmt"
 
-	"github.com/cosmos/iavl"
+	"github.com/gnolang/gno/tm2/pkg/iavl"
 )
 
 var (

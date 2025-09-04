@@ -1,5 +1,3 @@
-cosmossdk.io/core v0.12.1-0.20240725072823-6a2d039e1212 h1:yLjl2aq6XMa5Zb1aKfwNHn1U+fFmmAtZyWKNWm/yVH8=
-cosmossdk.io/core v0.12.1-0.20240725072823-6a2d039e1212/go.mod h1:sLzMwAW9HW+Nm3GltUVHDRSRZbcXLy9+2AYgi2bwt/s=
 dario.cat/mergo v1.0.1 h1:Ra4+bf83h2ztPIQYNP99R6m+Y7KfnARDfID+a+vLl4s=
 dario.cat/mergo v1.0.1/go.mod h1:uNxQE+84aUszobStD9th8a29P2fMDhsBdgRYvZOxGmk=
 github.com/DataDog/zstd v1.5.7 h1:ybO8RBeh29qrxIhCA9E8gKY6xfONU9T6G6aP9DTKfLE=
