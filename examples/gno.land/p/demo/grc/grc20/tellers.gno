@@ -40,6 +40,8 @@ func (tok *Token) ReadonlyTeller() Teller {
 // The initializer of this teller should usually never share the resulting Teller from
 // this method except maybe for advanced delegation flows such as a DAO treasury
 // management.
+// WARN: Should be initialized within a crossing function
+// This way the the realm that created the teller will match CurrentRealm
 func (tok *Token) RealmTeller() Teller {
 	if tok == nil {
 		panic("Token cannot be nil")
@@ -57,6 +59,8 @@ func (tok *Token) RealmTeller() Teller {
 
 // RealmSubTeller is like RealmTeller but uses the provided slug to derive a
 // subaccount.
+// WARN: Should be initialized within a crossing function
+// This way the realm that created the teller will match CurrentRealm
 func (tok *Token) RealmSubTeller(slug string) Teller {
 	if tok == nil {
 		panic("Token cannot be nil")
