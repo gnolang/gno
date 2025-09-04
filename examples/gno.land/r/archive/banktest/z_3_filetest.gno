@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// can only send coins from realm that created banker "g1tnpdmvrmtgql8fmxgsq9rwtst5hsxahk3f05dk", not "g17rhj38ydnsms35338eafnqrkgkyw7wl7nln86e"
+// can only send coins from realm that created banker "g1tnpdmvrmtgql8fmxgsq9rwtst5hsxahk3f05dk", not "g1hsf4l9pxp4vklr6udmr29ztgqvhswjl8mt78fh"
