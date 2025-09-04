@@ -1,7 +1,6 @@
 package ghverify
 
 import (
-	"chain"
 	"chain/runtime"
 	"testing"
 
@@ -10,8 +9,8 @@ import (
 
 func TestVerificationLifecycle(cur realm, t *testing.T) {
 	defaultAddress := runtime.OriginCaller()
-	user1Address := chain.Address(testutils.TestAddress("user 1"))
-	user2Address := chain.Address(testutils.TestAddress("user 2"))
+	user1Address := address(testutils.TestAddress("user 1"))
+	user2Address := address(testutils.TestAddress("user 2"))
 
 	// Verify request returns no feeds.
 	result := GnorkleEntrypoint(cur, "request")

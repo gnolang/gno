@@ -1,7 +1,6 @@
 package memeland
 
 import (
-	"chain"
 	"chain/runtime"
 	"sort"
 	"strconv"
@@ -21,7 +20,7 @@ const (
 type Post struct {
 	ID            string
 	Data          string
-	Author        chain.Address
+	Author        address
 	Timestamp     time.Time
 	UpvoteTracker *avl.Tree // address > struct{}{}
 }

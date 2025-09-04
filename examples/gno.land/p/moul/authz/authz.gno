@@ -60,7 +60,7 @@ type Authorizer struct {
 type Authority interface {
 	// Authorize executes a privileged action if the caller is authorized
 	// Additional args can be provided for context (e.g., for proposal creation)
-	Authorize(caller chain.Address, title string, action PrivilegedAction, args ...any) error
+	Authorize(caller address, title string, action PrivilegedAction, args ...any) error
 
 	// String returns a human-readable description of the authority
 	String() string
@@ -88,7 +88,7 @@ func NewWithPrevious() *Authorizer {
 }
 
 // NewWithCurrent creates a new Authorizer with the auth realm's address as authority
-func NewWithMembers(addrs ...chain.Address) *Authorizer {
+func NewWithMembers(addrs ...address) *Authorizer {
 	return &Authorizer{
 		auth: NewMemberAuthority(addrs...),
 	}
@@ -121,7 +121,7 @@ func (a *Authorizer) Authority() Authority {
 }
 
 // Transfer changes the auth authority after validation
-func (a *Authorizer) Transfer(caller chain.Address, newAuthority Authority) error {
+func (a *Authorizer) Transfer(caller address, newAuthority Authority) error {
 	// Ask auth authority to validate the transfer
 	return a.auth.Authorize(caller, "transfer_authority", func() error {
 		a.auth = newAuthority
@@ -165,7 +165,7 @@ type MemberAuthority struct {
 	members addrset.Set
 }
 
-func NewMemberAuthority(members ...chain.Address) *MemberAuthority {
+func NewMemberAuthority(members ...address) *MemberAuthority {
 	auth := &MemberAuthority{}
 	for _, addr := range members {
 		auth.members.Add(addr)
@@ -173,7 +173,7 @@ func NewMemberAuthority(members ...chain.Address) *MemberAuthority {
 	return auth
 }
 
-func (a *MemberAuthority) Authorize(caller chain.Address, title string, action PrivilegedAction, args ...any) error {
+func (a *MemberAuthority) Authorize(caller address, title string, action PrivilegedAction, args ...any) error {
 	if !a.members.Has(caller) {
 		return errors.New("unauthorized")
 	}
@@ -195,7 +195,7 @@ func (a *MemberAuthority) String() string {
 }
 
 // AddMember adds a new member to the authority
-func (a *MemberAuthority) AddMember(caller chain.Address, addr chain.Address) error {
+func (a *MemberAuthority) AddMember(caller address, addr address) error {
 	return a.Authorize(caller, "add_member", func() error {
 		a.members.Add(addr)
 		return nil
@@ -203,7 +203,7 @@ func (a *MemberAuthority) AddMember(caller chain.Address, addr chain.Address) er
 }
 
 // AddMembers adds a list of members to the authority
-func (a *MemberAuthority) AddMembers(caller chain.Address, addrs ...chain.Address) error {
+func (a *MemberAuthority) AddMembers(caller address, addrs ...address) error {
 	return a.Authorize(caller, "add_members", func() error {
 		for _, addr := range addrs {
 			a.members.Add(addr)
@@ -213,7 +213,7 @@ func (a *MemberAuthority) AddMembers(caller chain.Address, addrs ...chain.Addres
 }
 
 // RemoveMember removes a member from the authority
-func (a *MemberAuthority) RemoveMember(caller chain.Address, addr chain.Address) error {
+func (a *MemberAuthority) RemoveMember(caller address, addr address) error {
 	return a.Authorize(caller, "remove_member", func() error {
 		a.members.Remove(addr)
 		return nil
@@ -227,14 +227,14 @@ func (a *MemberAuthority) Tree() *rotree.ReadOnlyTree {
 }
 
 // Has checks if the given address is a member of the authority
-func (a *MemberAuthority) Has(addr chain.Address) bool {
+func (a *MemberAuthority) Has(addr address) bool {
 	return a.members.Has(addr)
 }
 
 // ContractAuthority implements async contract-based authority
 type ContractAuthority struct {
 	contractPath    string
-	contractAddr    chain.Address
+	contractAddr    address
 	contractHandler PrivilegedActionHandler
 	proposer        Authority // controls who can create proposals
 }
@@ -268,7 +268,7 @@ func NewRestrictedContractAuthority(path string, handler PrivilegedActionHandler
 	}
 }
 
-func (a *ContractAuthority) Authorize(caller chain.Address, title string, action PrivilegedAction, args ...any) error {
+func (a *ContractAuthority) Authorize(caller address, title string, action PrivilegedAction, args ...any) error {
 	if a.contractHandler == nil {
 		return errors.New("contract handler is not set")
 	}
@@ -310,7 +310,7 @@ func NewAutoAcceptAuthority() *AutoAcceptAuthority {
 	return &AutoAcceptAuthority{}
 }
 
-func (a *AutoAcceptAuthority) Authorize(caller chain.Address, title string, action PrivilegedAction, args ...any) error {
+func (a *AutoAcceptAuthority) Authorize(caller address, title string, action PrivilegedAction, args ...any) error {
 	return action()
 }
 
@@ -325,7 +325,7 @@ func NewDroppedAuthority() Authority {
 	return &droppedAuthority{}
 }
 
-func (a *droppedAuthority) Authorize(caller chain.Address, title string, action PrivilegedAction, args ...any) error {
+func (a *droppedAuthority) Authorize(caller address, title string, action PrivilegedAction, args ...any) error {
 	return errors.New("dropped authority: all actions are denied")
 }
 

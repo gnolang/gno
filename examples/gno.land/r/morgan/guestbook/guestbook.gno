@@ -3,7 +3,6 @@
 package guestbook
 
 import (
-	"chain"
 	"chain/runtime"
 	"strconv"
 	"strings"
@@ -17,7 +16,7 @@ import (
 // Signature is a single entry in the guestbook.
 type Signature struct {
 	Message string
-	Author  chain.Address
+	Author  address
 	Time    time.Time
 }
 

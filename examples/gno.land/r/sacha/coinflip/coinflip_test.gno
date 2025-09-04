@@ -35,7 +35,7 @@ func TestFlip(t *testing.T) {
 
 func TestWithdrawal(t *testing.T) {
 	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
-	sachaAddr := chain.Address("g1jpg2hmsh8j4f60u4vkseqh5azeupns8vhrstfm")
+	sachaAddr := address("g1jpg2hmsh8j4f60u4vkseqh5azeupns8vhrstfm")
 
 	testing.IssueCoins(coinflipAddr, banker.Coins{{"ugnot", 100000000}})
 

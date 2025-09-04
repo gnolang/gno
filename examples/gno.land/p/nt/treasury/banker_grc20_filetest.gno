@@ -13,7 +13,7 @@ import (
 
 const amount = int64(1000)
 
-func createToken(name string, toMint chain.Address) *grc20.Token {
+func createToken(name string, toMint address) *grc20.Token {
 	// Create the token.
 	symbol := strings.ToUpper(name)
 	token, ledger := grc20.NewToken(name, symbol, 0)

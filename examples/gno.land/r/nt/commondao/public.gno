@@ -1,7 +1,6 @@
 package commondao
 
 import (
-	"chain"
 	"chain/runtime"
 	"strings"
 
@@ -12,7 +11,7 @@ import (
 
 // Invite invites a user to the realm.
 // A user invitation is required to start creating new DAOs.
-func Invite(_ realm, invitee chain.Address) {
+func Invite(_ realm, invitee address) {
 	if !invitee.IsValid() {
 		panic("invalid address")
 	}
@@ -27,7 +26,7 @@ func Invite(_ realm, invitee chain.Address) {
 }
 
 // IsInvited check if an address has an invitation to the realm.
-func IsInvited(addr chain.Address) bool {
+func IsInvited(addr address) bool {
 	return isInvited(addr)
 }
 
@@ -77,12 +76,12 @@ func GetOptions(daoID uint64) *Options {
 }
 
 // IsOwner checks if an address has ownership of a DAO.
-func IsOwner(addr chain.Address, daoID uint64) bool {
+func IsOwner(addr address, daoID uint64) bool {
 	return isOwner(addr, daoID)
 }
 
 // TransferOwnership transfers DAO ownership to a different address.
-func TransferOwnership(cur realm, daoID uint64, newOwner chain.Address) {
+func TransferOwnership(cur realm, daoID uint64, newOwner address) {
 	assertIsOwner(runtime.PreviousRealm().Address(), daoID)
 
 	if !newOwner.IsValid() {
@@ -154,17 +153,17 @@ func Execute(_ realm, daoID, proposalID uint64) {
 	}
 }
 
-func hasOwnership(addr chain.Address) bool {
+func hasOwnership(addr address) bool {
 	_, found := ownership.Get(addr.String())
 	return found
 }
 
-func isInvited(addr chain.Address) bool {
+func isInvited(addr address) bool {
 	_, found := invites.Get(addr.String())
 	return found
 }
 
-func isOwner(addr chain.Address, daoID uint64) bool {
+func isOwner(addr address, daoID uint64) bool {
 	// Make sure to check the root DAO ID, in case daoID belongs to a SubDAO.
 	// This is required because ownership is assigned to the root DAO.
 	daoID = mustGetDAO(daoID).TopParent().ID()
@@ -177,13 +176,13 @@ func isOwner(addr chain.Address, daoID uint64) bool {
 	return false
 }
 
-func assertIsInvited(addr chain.Address) {
+func assertIsInvited(addr address) {
 	if !isInvited(addr) {
 		panic("unauthorized")
 	}
 }
 
-func assertIsOwner(addr chain.Address, daoID uint64) {
+func assertIsOwner(addr address, daoID uint64) {
 	if !isOwner(addr, daoID) {
 		panic("unauthorized")
 	}
@@ -199,7 +198,7 @@ func assertDAONameIsValid(name string) {
 	}
 }
 
-func assertCallerIsMember(caller chain.Address, dao *commondao.CommonDAO) {
+func assertCallerIsMember(caller address, dao *commondao.CommonDAO) {
 	if !dao.Members().Has(caller) {
 		panic("caller is not a DAO member")
 	}

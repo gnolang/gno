@@ -21,7 +21,7 @@ func Exec(fn func()) {
 func main(cur realm) {
 	// Create a map of the potential callers, this will give more understandable
 	// output than the bech32 addresses.
-	callersByAddr := make(map[chain.Address]string)
+	callersByAddr := make(map[address]string)
 	for _, caller := range []string{
 		"user1.gno", "gno.land/r/crossrealm", "gno.land/r/demo/tests",
 	} {

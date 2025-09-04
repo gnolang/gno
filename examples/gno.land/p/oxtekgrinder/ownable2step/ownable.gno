@@ -11,8 +11,8 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 // It allows the current owner to set a new owner and the new owner will need to accept the ownership before it is transferred
 // XXX Implement using Ownable instead of replicating it.
 type Ownable2Step struct {
-	owner        chain.Address
-	pendingOwner chain.Address
+	owner        address
+	pendingOwner address
 }
 
 func New() *Ownable2Step {
@@ -33,7 +33,7 @@ func NewWithOrigin() *Ownable2Step {
 	}
 }
 
-func NewWithAddress(addr chain.Address) *Ownable2Step {
+func NewWithAddress(addr address) *Ownable2Step {
 	return &Ownable2Step{
 		owner:        addr,
 		pendingOwner: "",
@@ -41,7 +41,7 @@ func NewWithAddress(addr chain.Address) *Ownable2Step {
 }
 
 // TransferOwnership initiate the transfer of the ownership to a new address by setting the PendingOwner
-func (o *Ownable2Step) TransferOwnership(newOwner chain.Address) error {
+func (o *Ownable2Step) TransferOwnership(newOwner address) error {
 	if !o.OwnedByCurrent() {
 		return ErrUnauthorized
 	}
@@ -90,12 +90,12 @@ func (o *Ownable2Step) DropOwnership() error {
 }
 
 // Owner returns the owner address from Ownable
-func (o *Ownable2Step) Owner() chain.Address {
+func (o *Ownable2Step) Owner() address {
 	return o.owner
 }
 
 // PendingOwner returns the pending owner address from Ownable2Step
-func (o *Ownable2Step) PendingOwner() chain.Address {
+func (o *Ownable2Step) PendingOwner() address {
 	return o.pendingOwner
 }
 

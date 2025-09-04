@@ -103,7 +103,7 @@ func TestRemoveManager(cur realm, t *testing.T) {
 func TestListManagers(cur realm, t *testing.T) {
 	setupTest(cur, t)
 	initialList := ListManagers(cross)
-	assertAddrSliceEqual(t, []chain.Address{originAddr}, initialList)
+	assertAddrSliceEqual(t, []address{originAddr}, initialList)
 	// Add manager1 and manager2
 	testing.SetRealm(runtime.NewUserRealm(originAddr))
 	err := AddManager(cross, manager1Addr)
@@ -113,7 +113,7 @@ func TestListManagers(cur realm, t *testing.T) {
 
 	// List should contain origin, manager1, manager2
 	list1 := ListManagers(cross)
-	expected1 := []chain.Address{manager2Addr, manager1Addr, originAddr}
+	expected1 := []address{manager2Addr, manager1Addr, originAddr}
 	assertAddrSliceEqual(t, expected1, list1)
 
 	// Remove manager1
@@ -123,7 +123,7 @@ func TestListManagers(cur realm, t *testing.T) {
 
 	// List should contain origin, manager2
 	list2 := ListManagers(cross)
-	expected2 := []chain.Address{manager2Addr, originAddr}
+	expected2 := []address{manager2Addr, originAddr}
 	assertAddrSliceEqual(t, expected2, list2)
 
 	// Transfer authority
@@ -286,7 +286,7 @@ func TestTransferToContractAuthority(cur realm, t *testing.T) {
 }
 
 // Helper to check if a slice contains a specific address
-func containsAddr(list []chain.Address, addr chain.Address) bool {
+func containsAddr(list []address, addr address) bool {
 	for _, item := range list {
 		if item == addr {
 			return true
@@ -295,7 +295,7 @@ func containsAddr(list []chain.Address, addr chain.Address) bool {
 	return false
 }
 
-func assertAddrSliceEqual(t *testing.T, expected, actual []chain.Address) {
+func assertAddrSliceEqual(t *testing.T, expected, actual []address) {
 	t.Helper()
 	if len(expected) != len(actual) {
 		t.Fatalf("expected slice length %d, got %d. Expected: %v, Got: %v", len(expected), len(actual), expected, actual)

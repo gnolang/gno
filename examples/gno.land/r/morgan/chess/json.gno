@@ -2,7 +2,6 @@ package chess
 
 import (
 	"bytes"
-	"chain"
 	"errors"
 	"strconv"
 	"time"
@@ -20,7 +19,7 @@ func (g Game) MarshalJSON() (retBytes []byte, err error) {
 	var b bytes.Buffer
 	b.WriteByte('{')
 
-	nilAddr := func(na *chain.Address) string {
+	nilAddr := func(na *address) string {
 		if na == nil {
 			return `null`
 		}

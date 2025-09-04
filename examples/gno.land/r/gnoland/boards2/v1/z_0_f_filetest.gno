@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain"
 	"chain/runtime"
 	"testing"
 
@@ -9,7 +8,7 @@ import (
 	_ "gno.land/r/gnoland/users/v1" // Import realm to pre-register default users
 )
 
-const owner = chain.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+const owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
 func main() {
 	testing.SetRealm(runtime.NewUserRealm(owner))

@@ -2,7 +2,6 @@
 package valopers
 
 import (
-	"chain"
 	"chain/banker"
 	"crypto/bech32"
 	"errors"
@@ -43,9 +42,9 @@ type Valoper struct {
 	Moniker     string // A human-readable name
 	Description string // A description and details about the valoper
 
-	Address     chain.Address // The bech32 gno address of the validator
-	PubKey      string        // The bech32 public key of the validator
-	KeepRunning bool          // Flag indicating if the owner wants to keep the validator running
+	Address     address // The bech32 gno address of the validator
+	PubKey      string  // The bech32 public key of the validator
+	KeepRunning bool    // Flag indicating if the owner wants to keep the validator running
 
 	auth *authorizable.Authorizable // The authorizer system for the valoper
 }
@@ -54,14 +53,14 @@ func (v Valoper) Auth() *authorizable.Authorizable {
 	return v.auth
 }
 
-func AddToAuthList(cur realm, address_XXX chain.Address, member chain.Address) {
+func AddToAuthList(cur realm, address_XXX address, member address) {
 	v := GetByAddr(address_XXX)
 	if err := v.Auth().AddToAuthListByPrevious(member); err != nil {
 		panic(err)
 	}
 }
 
-func DeleteFromAuthList(cur realm, address_XXX chain.Address, member chain.Address) {
+func DeleteFromAuthList(cur realm, address_XXX address, member address) {
 	v := GetByAddr(address_XXX)
 	if err := v.Auth().DeleteFromAuthListByPrevious(member); err != nil {
 		panic(err)
@@ -69,7 +68,7 @@ func DeleteFromAuthList(cur realm, address_XXX chain.Address, member chain.Addre
 }
 
 // Register registers a new valoper
-func Register(cur realm, moniker string, description string, address_XXX chain.Address, pubKey string) {
+func Register(cur realm, moniker string, description string, address_XXX address, pubKey string) {
 	// Check if a fee is enforced
 	if !minFee.IsZero() {
 		sentCoins := banker.OriginSend()
@@ -106,7 +105,7 @@ func Register(cur realm, moniker string, description string, address_XXX chain.A
 }
 
 // UpdateMoniker updates an existing valoper's moniker
-func UpdateMoniker(cur realm, address_XXX chain.Address, moniker string) {
+func UpdateMoniker(cur realm, address_XXX address, moniker string) {
 	// Check that the moniker is not empty
 	if err := validateMoniker(moniker); err != nil {
 		panic(err)
@@ -125,7 +124,7 @@ func UpdateMoniker(cur realm, address_XXX chain.Address, moniker string) {
 }
 
 // UpdateDescription updates an existing valoper's description
-func UpdateDescription(cur realm, address_XXX chain.Address, description string) {
+func UpdateDescription(cur realm, address_XXX address, description string) {
 	// Check that the description is not empty
 	if err := validateDescription(description); err != nil {
 		panic(err)
@@ -144,7 +143,7 @@ func UpdateDescription(cur realm, address_XXX chain.Address, description string)
 }
 
 // UpdateKeepRunning updates an existing valoper's active status
-func UpdateKeepRunning(cur realm, address_XXX chain.Address, keepRunning bool) {
+func UpdateKeepRunning(cur realm, address_XXX address, keepRunning bool) {
 	v := GetByAddr(address_XXX)
 
 	// Check that the caller has permissions
@@ -158,7 +157,7 @@ func UpdateKeepRunning(cur realm, address_XXX chain.Address, keepRunning bool) {
 }
 
 // GetByAddr fetches the valoper using the address, if present
-func GetByAddr(address_XXX chain.Address) Valoper {
+func GetByAddr(address_XXX address) Valoper {
 	valoperRaw, exists := valopers.Get(address_XXX.String())
 	if !exists {
 		panic(ErrValoperMissing)
@@ -246,7 +245,7 @@ func (v Valoper) Render() string {
 }
 
 // isValoper checks if the valoper exists
-func isValoper(address_XXX chain.Address) bool {
+func isValoper(address_XXX address) bool {
 	_, exists := valopers.Get(address_XXX.String())
 
 	return exists
@@ -283,8 +282,8 @@ func validateDescription(description string) error {
 }
 
 // validateBech32 checks if the value is a valid bech32 address
-func validateBech32(address_XXX chain.Address) error {
-	if !chain.Address.IsValid(address_XXX) {
+func validateBech32(address_XXX address) error {
+	if !address.IsValid(address_XXX) {
 		return ErrInvalidAddress
 	}
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain"
 	"chain/runtime"
 	"strings"
 	"testing"
@@ -9,7 +8,7 @@ import (
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const owner = chain.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+const owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
 var name = strings.Repeat("X", boards2.MaxBoardNameLength+1)
 

@@ -1,7 +1,6 @@
 package gnoblog
 
 import (
-	"chain"
 	"chain/runtime"
 	"errors"
 	"strings"
@@ -18,13 +17,13 @@ var (
 )
 
 var (
-	adminAddr     = chain.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // FIXME: find a way to use this from the main's genesis.
+	adminAddr     = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // FIXME: find a way to use this from the main's genesis.
 	moderatorList = avl.NewTree()
 	commenterList = avl.NewTree()
 	inPause       bool
 )
 
-func AdminSetAdminAddr(_ realm, addr chain.Address) {
+func AdminSetAdminAddr(_ realm, addr address) {
 	assertIsAdmin()
 	adminAddr = addr
 }
@@ -34,12 +33,12 @@ func AdminSetInPause(_ realm, state bool) {
 	inPause = state
 }
 
-func AdminAddModerator(_ realm, addr chain.Address) {
+func AdminAddModerator(_ realm, addr address) {
 	assertIsAdmin()
 	moderatorList.Set(addr.String(), true)
 }
 
-func AdminRemoveModerator(_ realm, addr chain.Address) {
+func AdminRemoveModerator(_ realm, addr address) {
 	assertIsAdmin()
 	moderatorList.Set(addr.String(), false) // FIXME: delete instead?
 }
@@ -68,7 +67,7 @@ func ModAddPost(_ realm, slug, title, body, publicationDate, authors, tags strin
 	addPost(caller, slug, title, body, publicationDate, authors, tags)
 }
 
-func addPost(caller chain.Address, slug, title, body, publicationDate, authors, tags string) {
+func addPost(caller address, slug, title, body, publicationDate, authors, tags string) {
 	var tagList []string
 	if tags != "" {
 		tagList = strings.Split(tags, ",")
@@ -97,12 +96,12 @@ func ModRemovePost(_ realm, slug string) {
 	b.RemovePost(slug)
 }
 
-func ModAddCommenter(_ realm, addr chain.Address) {
+func ModAddCommenter(_ realm, addr address) {
 	assertIsModerator()
 	commenterList.Set(addr.String(), true)
 }
 
-func ModDelCommenter(_ realm, addr chain.Address) {
+func ModDelCommenter(_ realm, addr address) {
 	assertIsModerator()
 	commenterList.Set(addr.String(), false) // FIXME: delete instead?
 }
@@ -113,16 +112,16 @@ func ModDelComment(_ realm, slug string, index int) {
 	checkErr(err)
 }
 
-func isAdmin(addr chain.Address) bool {
+func isAdmin(addr address) bool {
 	return addr == adminAddr
 }
 
-func isModerator(addr chain.Address) bool {
+func isModerator(addr address) bool {
 	_, found := moderatorList.Get(addr.String())
 	return found
 }
 
-func isCommenter(addr chain.Address) bool {
+func isCommenter(addr address) bool {
 	_, found := commenterList.Get(addr.String())
 	return found
 }

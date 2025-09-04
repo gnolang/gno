@@ -57,7 +57,7 @@ func NewGovDAO() *GovDAO {
 // realm. TODO replace with future `attach()`.
 var _govdao *GovDAO
 
-func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (chain.Address, error) {
+func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (address, error) {
 	if !g.isValidCall() {
 		return "", errors.New(ufmt.Sprintf("proposal creation must be done directly by a user or through the r/gov/dao proxy. current realm: %v; previous realm: %v",
 			runtime.CurrentRealm(), runtime.PreviousRealm()))

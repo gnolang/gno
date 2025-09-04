@@ -8,7 +8,6 @@
 package mgroup
 
 import (
-	"chain"
 	"chain/runtime"
 	"errors"
 
@@ -31,7 +30,7 @@ type ManagedGroup struct {
 
 // New creates a new ManagedGroup with the owner set to the provided address.
 // The owner is automatically added as a backup owner and member of the group.
-func New(ownerAddress chain.Address) *ManagedGroup {
+func New(ownerAddress address) *ManagedGroup {
 	g := &ManagedGroup{
 		owner:        ownable.NewWithAddress(ownerAddress),
 		backupOwners: avl.NewTree(),
@@ -50,14 +49,14 @@ func New(ownerAddress chain.Address) *ManagedGroup {
 
 // AddBackupOwner adds a backup owner to the group by std.Address.
 // If the caller is not the owner, an error is returned.
-func (g *ManagedGroup) AddBackupOwner(addr chain.Address) error {
+func (g *ManagedGroup) AddBackupOwner(addr address) error {
 	if !g.owner.OwnedByPrevious() {
 		return ownable.ErrUnauthorized
 	}
 	return g.addBackupOwner(addr)
 }
 
-func (g *ManagedGroup) addBackupOwner(addr chain.Address) error {
+func (g *ManagedGroup) addBackupOwner(addr address) error {
 	if !addr.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -67,7 +66,7 @@ func (g *ManagedGroup) addBackupOwner(addr chain.Address) error {
 
 // RemoveBackupOwner removes a backup owner from the group by std.Address.
 // The owner cannot be removed. If the caller is not the owner, an error is returned.
-func (g *ManagedGroup) RemoveBackupOwner(addr chain.Address) error {
+func (g *ManagedGroup) RemoveBackupOwner(addr address) error {
 	if !g.owner.OwnedByPrevious() {
 		return ownable.ErrUnauthorized
 	}
@@ -100,14 +99,14 @@ func (g *ManagedGroup) ClaimOwnership() error {
 
 // AddMember adds a member to the group by std.Address.
 // If the caller is not the owner, an error is returned.
-func (g *ManagedGroup) AddMember(addr chain.Address) error {
+func (g *ManagedGroup) AddMember(addr address) error {
 	if !g.owner.OwnedByPrevious() {
 		return ownable.ErrUnauthorized
 	}
 	return g.addMember(addr)
 }
 
-func (g *ManagedGroup) addMember(addr chain.Address) error {
+func (g *ManagedGroup) addMember(addr address) error {
 	if !addr.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -118,7 +117,7 @@ func (g *ManagedGroup) addMember(addr chain.Address) error {
 // RemoveMember removes a member from the group by std.Address.
 // The owner cannot be removed. If the caller is not the owner,
 // an error is returned.
-func (g *ManagedGroup) RemoveMember(addr chain.Address) error {
+func (g *ManagedGroup) RemoveMember(addr address) error {
 	if !g.owner.OwnedByPrevious() {
 		return ownable.ErrUnauthorized
 	}
@@ -143,17 +142,17 @@ func (g *ManagedGroup) BackupOwnerCount() int {
 }
 
 // IsMember checks if an address is a member of the group.
-func (g *ManagedGroup) IsMember(addr chain.Address) bool {
+func (g *ManagedGroup) IsMember(addr address) bool {
 	return g.members.Has(addr.String())
 }
 
 // IsBackupOwner checks if an address is a backup owner in the group.
-func (g *ManagedGroup) IsBackupOwner(addr chain.Address) bool {
+func (g *ManagedGroup) IsBackupOwner(addr address) bool {
 	return g.backupOwners.Has(addr.String())
 }
 
 // Owner returns the owner of the group.
-func (g *ManagedGroup) Owner() chain.Address {
+func (g *ManagedGroup) Owner() address {
 	return g.owner.Owner()
 }
 

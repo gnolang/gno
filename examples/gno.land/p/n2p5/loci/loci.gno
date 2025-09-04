@@ -7,7 +7,6 @@
 package loci
 
 import (
-	"chain"
 	"chain/runtime"
 
 	"gno.land/p/demo/avl"
@@ -36,7 +35,7 @@ func (s *LociStore) Set(value []byte) {
 // Get retrieves a byte slice from the AVL tree using the provided address.
 // The return values are the byte slice value and a boolean indicating
 // whether the value exists.
-func (s *LociStore) Get(addr chain.Address) []byte {
+func (s *LociStore) Get(addr address) []byte {
 	value, exists := s.internal.Get(string(addr))
 	if !exists {
 		return nil

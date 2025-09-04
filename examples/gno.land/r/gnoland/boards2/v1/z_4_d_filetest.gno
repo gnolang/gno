@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain"
 	"chain/runtime"
 	"testing"
 
@@ -9,9 +8,9 @@ import (
 )
 
 const (
-	owner  = chain.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	admin  = chain.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
-	admin2 = chain.Address("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5")
+	owner  = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	admin  = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
+	admin2 = address("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5")
 )
 
 var bid boards2.BoardID // Operate on board DAO

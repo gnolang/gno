@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain"
 	"chain/runtime"
 	"strings"
 	"testing"
@@ -10,7 +9,7 @@ import (
 )
 
 const (
-	owner   = chain.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	owner   = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 	path    = "test-board/1/2"
 	comment = "Second comment"
 )

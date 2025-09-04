@@ -1,7 +1,6 @@
 package commondao
 
 import (
-	"chain"
 	"chain/runtime"
 
 	"gno.land/p/demo/avl"
@@ -52,7 +51,7 @@ func getTree(rootID uint64) *avl.Tree {
 	return nil
 }
 
-func getOwnership(addr chain.Address) []uint64 {
+func getOwnership(addr address) []uint64 {
 	if v, ok := ownership.Get(addr.String()); ok {
 		return v.([]uint64)
 	}
@@ -71,7 +70,7 @@ func makeIDKey(daoID uint64) string {
 	return seqid.ID(daoID).String()
 }
 
-func createDAO(name string, owner chain.Address, o []Option) *commondao.CommonDAO {
+func createDAO(name string, owner address, o []Option) *commondao.CommonDAO {
 	id := daoID.Next()
 	dao := commondao.New(
 		commondao.WithID(uint64(id)),

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain"
 	"chain/runtime"
 	"testing"
 
@@ -9,8 +8,8 @@ import (
 )
 
 const (
-	user    = chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
-	invitee = chain.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
+	user    = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	invitee = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
 )
 
 func main() {

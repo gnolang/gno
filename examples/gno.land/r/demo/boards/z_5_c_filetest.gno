@@ -3,7 +3,6 @@ package main
 // SEND: 1000000ugnot
 
 import (
-	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"strconv"
@@ -14,10 +13,10 @@ import (
 	users "gno.land/r/gnoland/users/v1"
 )
 
-const admin = chain.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+const admin = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(chain.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	testing.SetRealm(runtime.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
 	users.Register(cross, "gnouser123")
 	// create board via registered user
 	bid := boards.CreateBoard(cross, "test_board")

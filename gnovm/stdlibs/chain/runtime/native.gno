@@ -1,9 +1,5 @@
 package runtime
 
-import (
-	"chain"
-)
-
 // AssertOriginCall panics if the calling method is not invoked via a direct
 // MsgCall. It panics for other cases, like if the calling method
 // is invoked by another method (even from the same realm or package).
@@ -14,18 +10,18 @@ func ChainID() string     // injected
 func ChainDomain() string // injected
 func ChainHeight() int64  // injected
 
-func OriginCaller() chain.Address {
-	return chain.Address(originCaller())
+func OriginCaller() address {
+	return address(originCaller())
 }
 
 func CurrentRealm() Realm {
 	addr, path := getRealm(0)
-	return Realm{chain.Address(addr), path}
+	return Realm{address(addr), path}
 }
 
 func PreviousRealm() Realm {
 	addr, path := getRealm(1)
-	return Realm{chain.Address(addr), path}
+	return Realm{address(addr), path}
 }
 
 // Variations which don't use named types.

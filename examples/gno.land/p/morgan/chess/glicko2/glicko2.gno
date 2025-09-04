@@ -1,7 +1,6 @@
 package glicko2
 
 import (
-	"chain"
 	"math"
 )
 
@@ -28,7 +27,7 @@ const (
 )
 
 type PlayerRating struct {
-	ID chain.Address
+	ID address
 
 	Rating           float64
 	RatingDeviation  float64
@@ -38,7 +37,7 @@ type PlayerRating struct {
 	wr, wrd, wrv float64
 }
 
-func NewPlayerRating(addr chain.Address) *PlayerRating {
+func NewPlayerRating(addr address) *PlayerRating {
 	return &PlayerRating{
 		ID:               addr,
 		Rating:           GlickoInitialRating,
@@ -49,11 +48,11 @@ func NewPlayerRating(addr chain.Address) *PlayerRating {
 
 // RatingScore is the outcome of a game between two players.
 type RatingScore struct {
-	White, Black chain.Address
+	White, Black address
 	Score        float64 // 0 = black win, 0.5 = draw, 1 = white win
 }
 
-func getRatingScore(scores []RatingScore, player, opponent chain.Address) float64 {
+func getRatingScore(scores []RatingScore, player, opponent address) float64 {
 	for _, score := range scores {
 		if score.White == player && score.Black == opponent {
 			return score.Score

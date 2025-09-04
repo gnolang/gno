@@ -2,7 +2,6 @@
 package test
 
 import (
-	"chain"
 	"chain/runtime"
 	"testing"
 	"time"
@@ -13,7 +12,7 @@ import (
 	"gno.land/r/nt/commondao"
 )
 
-const owner = chain.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+const owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
 var (
 	dao      *pdao.CommonDAO

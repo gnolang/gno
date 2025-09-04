@@ -2,7 +2,6 @@
 package test
 
 import (
-	"chain"
 	"chain/runtime"
 	"strings"
 	"testing"
@@ -11,7 +10,7 @@ import (
 )
 
 const (
-	caller = chain.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
+	caller = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
 	msg    = "Boom!"
 )
 

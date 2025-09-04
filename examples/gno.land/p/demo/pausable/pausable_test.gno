@@ -1,7 +1,6 @@
 package pausable
 
 import (
-	"chain"
 	"testing"
 
 	"gno.land/p/demo/ownable"
@@ -10,7 +9,7 @@ import (
 )
 
 var (
-	firstCaller = chain.Address("g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de")
+	firstCaller = address("g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de")
 	o           = ownable.NewWithAddress(firstCaller)
 )
 

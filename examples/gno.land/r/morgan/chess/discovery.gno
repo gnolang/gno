@@ -5,7 +5,6 @@ package chess
 
 import (
 	"bytes"
-	"chain"
 	"chain/runtime"
 	"sort"
 	"strconv"
@@ -90,7 +89,7 @@ func GetPlayer(player string) string {
 
 // Player contains game-related player information.
 type Player struct {
-	Address      chain.Address
+	Address      address
 	CategoryInfo [CategoryMax]CategoryInfo
 }
 
@@ -153,7 +152,7 @@ func (g *Game) saveResult() {
 	leaderboard[cat], _ = leaderboard[cat].push(g.Black, obr, b.CategoryInfo[cat].Rating)
 }
 
-func getPlayer(addr chain.Address) *Player {
+func getPlayer(addr address) *Player {
 	praw, ok := playerStore.Get(addr.String())
 	if ok {
 		return praw.(*Player)
@@ -172,7 +171,7 @@ func getPlayer(addr chain.Address) *Player {
 }
 
 type lbEntry struct {
-	addr  chain.Address
+	addr  address
 	score float64
 }
 
@@ -185,7 +184,7 @@ type leaderboardType []lbEntry
 //
 // The index will be 0 if the score is higher than any other on the leaderboard,
 // and len(leaderboards) if it is lower than any other.
-func (lb leaderboardType) find(score float64, addr chain.Address) (int, bool) {
+func (lb leaderboardType) find(score float64, addr address) (int, bool) {
 	i := sort.Search(len(lb), func(i int) bool {
 		return lb[i].score <= score
 	})
@@ -205,7 +204,7 @@ func (lb leaderboardType) find(score float64, addr chain.Address) (int, bool) {
 
 // push adds or modifies the player's position in the leaderboard.
 // the new leaderboard, and the new position of the player in the leaderboard is returned (0-indexed)
-func (lb leaderboardType) push(player chain.Address, oldScore, newScore float64) (leaderboardType, int) {
+func (lb leaderboardType) push(player address, oldScore, newScore float64) (leaderboardType, int) {
 	// determine where the player is, currently
 	oldPos, found := lb.find(oldScore, player)
 	if found && (oldScore == newScore) {
@@ -329,7 +328,7 @@ func ListGames(filters string) string {
 
 type listGamesFilters struct {
 	filters []func(*Game) bool
-	u2gAddr chain.Address
+	u2gAddr address
 	maxID   string
 	minID   string
 	limit   int
@@ -405,7 +404,7 @@ func parseBool(s string) bool {
 	panic("invalid bool " + s)
 }
 
-func parsePlayer(s string) chain.Address {
+func parsePlayer(s string) address {
 	switch {
 	case s == "":
 		panic("invalid address/user")
@@ -418,7 +417,7 @@ func parsePlayer(s string) chain.Address {
 		}
 		return u.Addr()
 	case s[0] == 'g':
-		return chain.Address(s)
+		return address(s)
 	default:
 		panic("invalid address/user: " + s)
 	}

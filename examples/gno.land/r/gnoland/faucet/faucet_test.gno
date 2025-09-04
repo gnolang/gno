@@ -11,7 +11,7 @@ import (
 
 func TestPackage(t *testing.T) {
 	var (
-		adminaddr        = chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+		adminaddr        = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 		faucetaddr       = chain.DerivePkgAddr("gno.land/r/gnoland/faucet")
 		controlleraddr1  = testutils.TestAddress("controller1")
 		controlleraddr2  = testutils.TestAddress("controller2")
@@ -103,7 +103,7 @@ func assertNoErr(t *testing.T, err string) {
 	}
 }
 
-func assertBalance(t *testing.T, addr chain.Address, expectedBal int64) {
+func assertBalance(t *testing.T, addr address, expectedBal int64) {
 	t.Helper()
 	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
 	coins := banker_.GetCoins(addr)

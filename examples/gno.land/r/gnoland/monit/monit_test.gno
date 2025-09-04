@@ -1,7 +1,6 @@
 package monit
 
 import (
-	"chain"
 	"chain/runtime"
 	"testing"
 	"time"
@@ -14,9 +13,9 @@ import (
 func initTest() {
 	counter = 0
 	lastUpdate = time.Time{}
-	lastCaller = chain.Address("")
+	lastCaller = address("")
 	wd = watchdog.Watchdog{Duration: watchdogDuration}
-	creator := chain.Address("g1creator")
+	creator := address("g1creator")
 	Ownable = ownable.NewWithAddress(creator)
 }
 
@@ -82,7 +81,7 @@ func TestReset(t *testing.T) {
 	initialStatus := wd.Status()
 
 	// Call Incr to change the state
-	user := chain.Address("g1user")
+	user := address("g1user")
 	testing.SetRealm(runtime.NewUserRealm(user))
 	Incr(cross)
 	uassert.True(t, counter > initialCounter, "counter should have increased after Incr")

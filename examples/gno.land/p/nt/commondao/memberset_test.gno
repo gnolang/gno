@@ -1,7 +1,6 @@
 package commondao
 
 import (
-	"chain"
 	"testing"
 
 	"gno.land/p/demo/uassert"
@@ -37,7 +36,7 @@ func TestMemberSetIterateByOffset(t *testing.T) {
 	storage.Add("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 	storage.Add("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc")
 
-	NewMemberSet(storage).IterateByOffset(1, 1, func(addr chain.Address) bool {
+	NewMemberSet(storage).IterateByOffset(1, 1, func(addr address) bool {
 		uassert.Equal(t, "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", addr.String(), "expect address to match")
 		return true
 	})

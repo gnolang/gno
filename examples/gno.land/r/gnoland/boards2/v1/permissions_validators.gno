@@ -1,7 +1,6 @@
 package boards2
 
 import (
-	"chain"
 	"chain/runtime"
 	"errors"
 )
@@ -89,7 +88,7 @@ func validateRoleChange(perms Permissions, args Args) error {
 		if role == RoleOwner {
 			return errors.New("admins are not allowed to promote members to Owner")
 		} else {
-			member, ok := args[1].(chain.Address)
+			member, ok := args[1].(address)
 			if !ok {
 				return errors.New("expected a valid member address")
 			}

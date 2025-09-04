@@ -1,7 +1,6 @@
 package commondao
 
 import (
-	"chain"
 	"errors"
 	"math"
 
@@ -21,7 +20,7 @@ type (
 	// Vote defines a single vote.
 	Vote struct {
 		// Address is the address of the user that this vote belons to.
-		Address chain.Address
+		Address address
 
 		// Choice contains the voted choice.
 		Choice VoteChoice
@@ -74,12 +73,12 @@ func (r ReadonlyVotingRecord) VoteCount(c VoteChoice) int {
 }
 
 // HasVoted checks if an account already voted.
-func (r ReadonlyVotingRecord) HasVoted(user chain.Address) bool {
+func (r ReadonlyVotingRecord) HasVoted(user address) bool {
 	return r.votes.Has(user.String())
 }
 
 // GetVote returns a vote.
-func (r ReadonlyVotingRecord) GetVote(user chain.Address) (_ Vote, found bool) {
+func (r ReadonlyVotingRecord) GetVote(user address) (_ Vote, found bool) {
 	if v, found := r.votes.Get(user.String()); found {
 		return v.(Vote), true
 	}

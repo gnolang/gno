@@ -1,7 +1,6 @@
 package faucet
 
 import (
-	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"errors"
@@ -12,11 +11,11 @@ import (
 
 var (
 	// configurable by admin.
-	gAdminAddr          chain.Address = chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	gControllers                      = avl.NewTree()
-	gControllersMaxSize               = 10 // limit it to 10
-	gInPause                          = false
-	gMessage                          = "# Community Faucet.\n\n"
+	gAdminAddr          address = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	gControllers                = avl.NewTree()
+	gControllersMaxSize         = 10 // limit it to 10
+	gInPause                    = false
+	gMessage                    = "# Community Faucet.\n\n"
 
 	// internal vars, for stats.
 	gTotalTransferred banker.Coins
@@ -26,7 +25,7 @@ var (
 	gLimit banker.Coin = banker.NewCoin("ugnot", 350_000_000)
 )
 
-func Transfer(cur realm, to chain.Address, send int64) string {
+func Transfer(cur realm, to address, send int64) string {
 	if err := assertIsController(); err != nil {
 		return err.Error()
 	}
@@ -54,7 +53,7 @@ func GetPerTransferLimit() int64 {
 	return gLimit.Amount
 }
 
-func bankerAddr(cur realm) chain.Address {
+func bankerAddr(cur realm) address {
 	return runtime.CurrentRealm().Address()
 }
 
@@ -77,7 +76,7 @@ func Render(_ string) string {
 
 	for i := 0; i < gControllers.Size(); i++ {
 		_, v := gControllers.GetByIndex(i)
-		output += ufmt.Sprintf("%s  ", v.(chain.Address))
+		output += ufmt.Sprintf("%s  ", v.(address))
 	}
 
 	output += "\n\n"

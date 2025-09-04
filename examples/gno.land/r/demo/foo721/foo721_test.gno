@@ -1,15 +1,14 @@
 package foo721
 
 import (
-	"chain"
 	"testing"
 
 	"gno.land/p/demo/grc/grc721"
 )
 
 func TestFoo721(t *testing.T) {
-	admin := chain.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
-	hariom := chain.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	admin := address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	hariom := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	for _, tc := range []struct {
 		name     string

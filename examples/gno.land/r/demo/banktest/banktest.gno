@@ -1,14 +1,13 @@
 package banktest
 
 import (
-	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"time"
 )
 
 type activity struct {
-	caller   chain.Address
+	caller   address
 	sent     banker.Coins
 	returned banker.Coins
 	time     time.Time
@@ -56,7 +55,7 @@ func Deposit(cur realm, returnDenom string, returnAmount int64) string {
 	}
 }
 
-func bankerAddr(cur realm) chain.Address {
+func bankerAddr(cur realm) address {
 	return runtime.CurrentRealm().Address()
 }
 

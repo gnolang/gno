@@ -1,7 +1,6 @@
 package config
 
 import (
-	"chain"
 	"chain/runtime"
 	"errors"
 
@@ -13,7 +12,7 @@ var Authorizer = authz.NewWithOrigin()
 // AddManager adds a new address to the list of authorized managers.
 // This only works if the current authority is a MemberAuthority.
 // The caller must be authorized by the current authority.
-func AddManager(cur realm, addr chain.Address) error {
+func AddManager(cur realm, addr address) error {
 	caller := runtime.PreviousRealm().Address()
 	memberAuth, ok := Authorizer.Authority().(*authz.MemberAuthority)
 	if !ok {
@@ -27,7 +26,7 @@ func AddManager(cur realm, addr chain.Address) error {
 // RemoveManager removes an address from the list of authorized managers.
 // This only works if the current authority is a MemberAuthority.
 // The caller must be authorized by the current authority.
-func RemoveManager(cur realm, addr chain.Address) error {
+func RemoveManager(cur realm, addr address) error {
 	caller := runtime.PreviousRealm().Address()
 	memberAuth, ok := Authorizer.Authority().(*authz.MemberAuthority)
 	if !ok {
@@ -50,8 +49,8 @@ func TransferManagement(cur realm, newAuthority authz.Authority) error {
 }
 
 // ListManagers returns a slice of all managed keys.
-func ListManagers(cur realm) []chain.Address {
-	var keyList []chain.Address
+func ListManagers(cur realm) []address {
+	var keyList []address
 	memberAuth, ok := Authorizer.Authority().(*authz.MemberAuthority)
 	if !ok {
 		return keyList
@@ -61,13 +60,13 @@ func ListManagers(cur realm) []chain.Address {
 		return keyList // Return empty list if tree is not as expected or nil
 	}
 	tree.Iterate("", "", func(key string, _ any) bool {
-		keyList = append(keyList, chain.Address(key))
+		keyList = append(keyList, address(key))
 		return false
 	})
 	return keyList
 }
 
-func HasManager(cur realm, addr chain.Address) bool {
+func HasManager(cur realm, addr address) bool {
 	memberAuth, ok := Authorizer.Authority().(*authz.MemberAuthority)
 	if !ok {
 		return false // Return false if not a MemberAuthority or doesn't exist

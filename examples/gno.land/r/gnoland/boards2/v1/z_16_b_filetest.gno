@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain"
 	"chain/runtime"
 	"testing"
 
@@ -9,7 +8,7 @@ import (
 )
 
 const (
-	owner                 = chain.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	owner                 = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 	bid   boards2.BoardID = 404
 )
 

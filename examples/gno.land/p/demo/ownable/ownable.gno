@@ -11,7 +11,7 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 // being embedded in a Gno object to manage per-object ownership.
 // Ownable is safe to export as a top-level object
 type Ownable struct {
-	owner chain.Address
+	owner address
 }
 
 func New() *Ownable {
@@ -31,14 +31,14 @@ func NewWithOrigin() *Ownable {
 	}
 }
 
-func NewWithAddress(addr chain.Address) *Ownable {
+func NewWithAddress(addr address) *Ownable {
 	return &Ownable{
 		owner: addr,
 	}
 }
 
 // TransferOwnership transfers ownership of the Ownable struct to a new address
-func (o *Ownable) TransferOwnership(newOwner chain.Address) error {
+func (o *Ownable) TransferOwnership(newOwner address) error {
 	if !o.OwnedByCurrent() {
 		return ErrUnauthorized
 	}
@@ -80,7 +80,7 @@ func (o *Ownable) DropOwnershipByPrevious() error {
 	return nil
 }
 
-func (o *Ownable) dropOwnership(prevOwner chain.Address) {
+func (o *Ownable) dropOwnership(prevOwner address) {
 	o.owner = ""
 	chain.Emit(
 		OwnershipTransferEvent,
@@ -90,9 +90,9 @@ func (o *Ownable) dropOwnership(prevOwner chain.Address) {
 }
 
 // Owner returns the owner address from Ownable
-func (o *Ownable) Owner() chain.Address {
+func (o *Ownable) Owner() address {
 	if o == nil {
-		return chain.Address("")
+		return address("")
 	}
 	return o.owner
 }

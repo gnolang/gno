@@ -1,7 +1,6 @@
 package faucet
 
 import (
-	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"errors"
@@ -31,7 +30,7 @@ func AdminSetTransferLimit(cur realm, amount int64) string {
 	return ""
 }
 
-func AdminSetAdminAddr(cur realm, addr chain.Address) string {
+func AdminSetAdminAddr(cur realm, addr address) string {
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
@@ -39,7 +38,7 @@ func AdminSetAdminAddr(cur realm, addr chain.Address) string {
 	return ""
 }
 
-func AdminAddController(cur realm, addr chain.Address) string {
+func AdminAddController(cur realm, addr address) string {
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
@@ -59,7 +58,7 @@ func AdminAddController(cur realm, addr chain.Address) string {
 	return ""
 }
 
-func AdminRemoveController(cur realm, addr chain.Address) string {
+func AdminRemoveController(cur realm, addr address) string {
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}

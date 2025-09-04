@@ -3,7 +3,7 @@ package runtime
 import "chain"
 
 // NewUserRealm creates a new "user" realm with the given address.
-func NewUserRealm(user chain.Address) Realm {
+func NewUserRealm(user address) Realm {
 	return Realm{addr: user}
 }
 

@@ -1,7 +1,6 @@
 package buttons
 
 import (
-	"chain"
 	"chain/runtime"
 
 	"gno.land/p/demo/ufmt"
@@ -10,7 +9,7 @@ import (
 
 var (
 	motd       = "The Initial Message\n\n"
-	lastCaller chain.Address
+	lastCaller address
 )
 
 func UpdateMOTD(_ realm, newmotd string) {

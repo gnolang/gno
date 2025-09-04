@@ -17,7 +17,6 @@
 package coins
 
 import (
-	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"net/url"
@@ -111,7 +110,7 @@ func renderBalances(req *mux.Request) string {
 	var wasConverted bool
 
 	// Try to validate or convert
-	if !chain.Address(input).IsValid() {
+	if !address(input).IsValid() {
 		addr, err := ctg.ConvertAnyToGno(input)
 		if err != nil {
 			return out + ufmt.Sprintf("Tried converting `%s` to a Gno address but failed. Please try with a valid bech32 address.\n\n", input)
@@ -125,7 +124,7 @@ func renderBalances(req *mux.Request) string {
 	}
 
 	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
-	balances := banker_.GetCoins(chain.Address(input))
+	balances := banker_.GetCoins(address(input))
 
 	if len(balances) == 0 {
 		out += "This address currently has no coins."
@@ -186,7 +185,7 @@ func renderSingleCoinBalance(denom, addr, origInput string, wasConverted bool) s
 	}
 
 	out += ufmt.Sprintf("%s has `%d%s` at block #%d\n\n",
-		name, banker_.GetCoins(chain.Address(addr)).AmountOf(denom), denom, runtime.ChainHeight())
+		name, banker_.GetCoins(address(addr)).AmountOf(denom), denom, runtime.ChainHeight())
 
 	out += "[View full balance list for this address](/r/gnoland/coins:balances?address=" + addr + ")"
 

@@ -3,7 +3,6 @@
 package names
 
 import (
-	"chain"
 	"strings"
 
 	"gno.land/p/demo/ownable"
@@ -19,7 +18,7 @@ var (
 
 // IsAuthorizedAddressForNamespace ensures that the given address has ownership of the given name.
 // A user's name found in r/sys/users is equivalent to their namespace.
-func IsAuthorizedAddressForNamespace(address_XXX chain.Address, namespace string) bool {
+func IsAuthorizedAddressForNamespace(address_XXX address, namespace string) bool {
 	return verifier(enabled, address_XXX, namespace)
 }
 
@@ -40,7 +39,7 @@ func IsEnabled() bool {
 // verifier checks the store to see that the
 // user has properly registered a given name/namespace.
 // This function considers as valid an `address` that matches the `namespace` (PA namespaces)
-func verifier(enabled bool, address_XXX chain.Address, namespace string) bool {
+func verifier(enabled bool, address_XXX address, namespace string) bool {
 	if !enabled {
 		return true // only in pre-genesis cases
 	}

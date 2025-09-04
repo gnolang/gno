@@ -2,7 +2,6 @@
 package releases_example
 
 import (
-	"chain"
 	"chain/runtime"
 
 	"gno.land/p/demo/releases"
@@ -10,7 +9,7 @@ import (
 
 var (
 	changelog = releases.NewChangelog("example_app")
-	admin     = chain.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @administrator
+	admin     = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @administrator
 )
 
 func init() {
@@ -25,7 +24,7 @@ func NewRelease(_ realm, name, url, notes string) {
 	changelog.NewRelease(name, url, notes)
 }
 
-func UpdateAdmin(_ realm, address_XXX chain.Address) {
+func UpdateAdmin(_ realm, address_XXX address) {
 	caller := runtime.OriginCaller()
 	if caller != admin {
 		panic("restricted area")

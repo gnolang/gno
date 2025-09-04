@@ -60,8 +60,8 @@ func TestConvertAnyToGno(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		input   chain.Address
-		want    chain.Address
+		input   address
+		want    address
 		wantErr bool
 	}{
 		{
@@ -76,7 +76,7 @@ func TestConvertAnyToGno(t *testing.T) {
 		},
 		{
 			name:    "invalid bech32",
-			input:   chain.Address("xyz123"),
+			input:   address("xyz123"),
 			wantErr: true,
 		},
 	}
@@ -148,7 +148,7 @@ func TestConvertGnoToAny(t *testing.T) {
 	})
 
 	t.Run("invalid bech32", func(t *testing.T) {
-		if _, err := ConvertGnoToAny("cosmos", chain.Address("nope")); err == nil {
+		if _, err := ConvertGnoToAny("cosmos", address("nope")); err == nil {
 			t.Fatalf("expected error for invalid bech32")
 		}
 	})

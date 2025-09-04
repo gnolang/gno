@@ -33,7 +33,7 @@ var splitFuncs map[string]splitFunc
 
 func makeSplitFuncs() {
 	splitFuncs = map[string]splitFunc{
-		"std.Address":       newSplitFunc("chain.Address"),
+		// chain.Address & std.Address are converted separately to `address`
 		"std.Emit":          newSplitFunc("chain.Emit"),
 		"std.EncodeBech32":  newSplitFunc("chain.EncodeBech32"),
 		"std.DecodeBech32":  newSplitFunc("chain.DecodeBech32"),
@@ -129,6 +129,14 @@ func stdsplit(f *ast.File) (fixed bool) {
 				ip := importPath(def)
 				joined := ip + "." + n.Sel.Name
 				switch joined {
+				case "chain.Address", "std.Address":
+					// Replace both with simple `address`.
+					c.Replace(&ast.Ident{
+						NamePos: n.Pos(),
+						Name:    "address",
+					})
+					fixed = true
+					return false
 				case "std.RawAddressSize":
 					// Special case: this no longer exists, but provide a simple
 					// replacement as a direct literal.
@@ -137,6 +145,7 @@ func stdsplit(f *ast.File) (fixed bool) {
 						Kind:     token.INT,
 						Value:    "20",
 					})
+					fixed = true
 					return false
 				case "std.RawAddress":
 					// Special case: this no longer exists, substitute with a [20]byte.
@@ -152,6 +161,8 @@ func stdsplit(f *ast.File) (fixed bool) {
 							Name:    "byte",
 						},
 					})
+					fixed = true
+					return false
 				}
 				target, ok := splitFuncs[joined]
 				if !ok {

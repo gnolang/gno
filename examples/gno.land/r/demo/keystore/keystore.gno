@@ -1,7 +1,6 @@
 package keystore
 
 import (
-	"chain"
 	"chain/runtime"
 	"strings"
 
@@ -27,7 +26,7 @@ func init() {
 
 // KeyStore stores the owner-specific avl.Tree
 type KeyStore struct {
-	Owner chain.Address
+	Owner address
 	Data  avl.Tree
 }
 

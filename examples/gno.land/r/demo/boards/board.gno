@@ -1,7 +1,6 @@
 package boards
 
 import (
-	"chain"
 	"strconv"
 	"time"
 
@@ -21,14 +20,14 @@ type Board struct {
 	id        BoardID // only set for public boards.
 	url       string
 	name      string
-	creator   chain.Address
+	creator   address
 	threads   avl.Tree // Post.id -> *Post
 	postsCtr  uint64   // increments Post.id
 	createdAt time.Time
 	deleted   avl.Tree // TODO reserved for fast-delete.
 }
 
-func newBoard(id BoardID, url string, name string, creator chain.Address) *Board {
+func newBoard(id BoardID, url string, name string, creator address) *Board {
 	if !reName.MatchString(name) {
 		panic("invalid name: " + name)
 	}
@@ -70,7 +69,7 @@ func (board *Board) GetThread(pid PostID) *Post {
 	return postI.(*Post)
 }
 
-func (board *Board) AddThread(creator chain.Address, title string, body string) *Post {
+func (board *Board) AddThread(creator address, title string, body string) *Post {
 	pid := board.incGetPostID()
 	pidkey := postIDKey(pid)
 	thread := newPost(board, pid, creator, title, body, pid, 0, 0)
@@ -88,7 +87,7 @@ func (board *Board) DeleteThread(pid PostID) {
 	}
 }
 
-func (board *Board) HasPermission(addr chain.Address, perm Permission) bool {
+func (board *Board) HasPermission(addr address, perm Permission) bool {
 	if board.creator == addr {
 		switch perm {
 		case EditPermission:

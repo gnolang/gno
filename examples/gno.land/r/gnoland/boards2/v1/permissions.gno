@@ -1,7 +1,5 @@
 package boards2
 
-import "chain"
-
 const (
 	PermissionBoardCreate         Permission = "board:create"
 	PermissionBoardFlaggingUpdate            = "board:flagging-update"
@@ -48,7 +46,7 @@ type (
 
 	// User contains user info.
 	User struct {
-		Address chain.Address
+		Address address
 		Roles   []Role
 	}
 
@@ -59,24 +57,24 @@ type (
 	// TODO: Add crossing support to Permissions
 	Permissions interface {
 		// HasRole checks if a user has a specific role assigned.
-		HasRole(chain.Address, Role) bool
+		HasRole(address, Role) bool
 
 		// HasPermission checks if a user has a specific permission.
-		HasPermission(chain.Address, Permission) bool
+		HasPermission(address, Permission) bool
 
 		// WithPermission calls a callback when a user has a specific permission.
 		// It panics on error.
-		WithPermission(chain.Address, Permission, Args, func(Args))
+		WithPermission(address, Permission, Args, func(Args))
 
 		// SetUserRoles adds a new user when it doesn't exist and sets its roles.
 		// Method can also be called to change the roles of an existing user.
-		SetUserRoles(chain.Address, ...Role) error
+		SetUserRoles(address, ...Role) error
 
 		// RemoveUser removes a user from the permissioner.
-		RemoveUser(chain.Address) (removed bool)
+		RemoveUser(address) (removed bool)
 
 		// HasUser checks if a user exists.
-		HasUser(chain.Address) bool
+		HasUser(address) bool
 
 		// UsersCount returns the total number of users the permissioner contains.
 		UsersCount() int

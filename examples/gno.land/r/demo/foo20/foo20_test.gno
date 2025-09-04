@@ -1,7 +1,6 @@
 package foo20
 
 import (
-	"chain"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -10,7 +9,7 @@ import (
 
 func TestReadOnlyPublicMethods(t *testing.T) {
 	var (
-		admin = chain.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+		admin = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 		alice = testutils.TestAddress("alice")
 		bob   = testutils.TestAddress("bob")
 	)
@@ -58,8 +57,8 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 
 func TestErrConditions(t *testing.T) {
 	var (
-		admin = chain.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
-		empty = chain.Address("")
+		admin = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+		empty = address("")
 	)
 
 	type test struct {
@@ -69,14 +68,14 @@ func TestErrConditions(t *testing.T) {
 		fn      func()
 	}
 
-	privateLedger.Mint(chain.Address(admin), 10000)
+	privateLedger.Mint(address(admin), 10000)
 	{
 		tests := []test{
 			{"Transfer(admin, 1)", "cannot send transfer to self", false, func() {
 				// XXX: should replace with: Transfer(admin, 1)
 				// but there is currently a limitation in manipulating the frame stack and simulate
 				// calling this package from an outside point of view.
-				adminAddr := chain.Address(admin)
+				adminAddr := address(admin)
 				if err := privateLedger.Transfer(adminAddr, adminAddr, 1); err != nil {
 					panic(err)
 				}

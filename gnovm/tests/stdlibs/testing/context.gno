@@ -1,7 +1,6 @@
 package testing
 
 import (
-	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"time"
@@ -9,7 +8,7 @@ import (
 
 type Context struct {
 	CurrentRealm runtime.Realm
-	OriginCaller chain.Address
+	OriginCaller address
 	OriginSend   banker.Coins
 	OriginSpend  banker.Coins
 	ChainID      string

@@ -43,7 +43,7 @@ func addValidator(validator validators.Validator) {
 
 // removeValidator removes the given validator from the set.
 // If the validator is not present in the set, the method errors out
-func removeValidator(address_XXX chain.Address) {
+func removeValidator(address_XXX address) {
 	val, err := vp.RemoveValidator(address_XXX)
 	if err != nil {
 		panic(err)

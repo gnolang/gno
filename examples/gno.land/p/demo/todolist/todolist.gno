@@ -1,7 +1,6 @@
 package todolist
 
 import (
-	"chain"
 	"chain/runtime"
 	"strconv"
 
@@ -11,7 +10,7 @@ import (
 type TodoList struct {
 	Title string
 	Tasks *avl.Tree
-	Owner chain.Address
+	Owner address
 }
 
 type Task struct {
@@ -55,7 +54,7 @@ func (tl *TodoList) GetTasks() []*Task {
 	return tasks
 }
 
-func (tl *TodoList) GetTodolistOwner() chain.Address {
+func (tl *TodoList) GetTodolistOwner() address {
 	return tl.Owner
 }
 

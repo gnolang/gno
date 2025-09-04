@@ -1,7 +1,6 @@
 package chess
 
 import (
-	"chain"
 	"chain/runtime"
 	"os"
 	"testing"
@@ -39,7 +38,7 @@ func TestLobbyGameFound(t *testing.T) {
 			}
 		}
 	}
-	ids := func(ids ...chain.Address) func(t *testing.T) {
+	ids := func(ids ...address) func(t *testing.T) {
 		return func(t *testing.T) {
 			if len(ids) != len(lobby[0]) {
 				t.Errorf("lobby doesn't match expected ids: lobby: %v, newIDs: %v", sublobbyToIDs(lobby[0]), ids)
@@ -62,7 +61,7 @@ func TestLobbyGameFound(t *testing.T) {
 	}
 
 	type pl struct {
-		id     chain.Address
+		id     address
 		rating float64
 		// use negative values here to indicate how many seconds in the past;
 		// ie: joinedAt: -1, means player joined 1 second ago.
@@ -72,7 +71,7 @@ func TestLobbyGameFound(t *testing.T) {
 	tt := []struct {
 		name   string
 		pre    []pl
-		caller chain.Address
+		caller address
 		check  func(t *testing.T)
 	}{
 		{

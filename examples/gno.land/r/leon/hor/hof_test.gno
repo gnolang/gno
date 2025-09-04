@@ -1,7 +1,6 @@
 package hor
 
 import (
-	"chain"
 	"chain/runtime"
 	"testing"
 
@@ -26,7 +25,7 @@ const (
 )
 
 var (
-	admin      chain.Address = "g125em6arxsnj49vx35f0n0z34putv5ty3376fg5" // hardcoded from config.OwnableMain
+	admin      address = "g125em6arxsnj49vx35f0n0z34putv5ty3376fg5" // hardcoded from config.OwnableMain
 	adminRealm runtime.Realm
 	alice      = testutils.TestAddress("alice")
 )

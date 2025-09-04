@@ -1,7 +1,6 @@
 package gnopages
 
 import (
-	"chain"
 	"chain/runtime"
 	"strings"
 
@@ -9,7 +8,7 @@ import (
 )
 
 var (
-	adminAddr     chain.Address
+	adminAddr     address
 	moderatorList avl.Tree
 	inPause       bool
 )
@@ -19,7 +18,7 @@ func init() {
 	adminAddr = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
 }
 
-func AdminSetAdminAddr(_ realm, addr chain.Address) {
+func AdminSetAdminAddr(_ realm, addr address) {
 	assertIsAdmin()
 	adminAddr = addr
 }
@@ -29,12 +28,12 @@ func AdminSetInPause(_ realm, state bool) {
 	inPause = state
 }
 
-func AdminAddModerator(_ realm, addr chain.Address) {
+func AdminAddModerator(_ realm, addr address) {
 	assertIsAdmin()
 	moderatorList.Set(addr.String(), true)
 }
 
-func AdminRemoveModerator(_ realm, addr chain.Address) {
+func AdminRemoveModerator(_ realm, addr address) {
 	assertIsAdmin()
 	moderatorList.Set(addr.String(), false) // XXX: delete instead?
 }
@@ -60,11 +59,11 @@ func ModEditPost(_ realm, slug, title, body, publicationDate, authors, tags stri
 	checkErr(err)
 }
 
-func isAdmin(addr chain.Address) bool {
+func isAdmin(addr address) bool {
 	return addr == adminAddr
 }
 
-func isModerator(addr chain.Address) bool {
+func isModerator(addr address) bool {
 	_, found := moderatorList.Get(addr.String())
 	return found
 }

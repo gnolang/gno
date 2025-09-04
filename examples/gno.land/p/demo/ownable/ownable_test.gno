@@ -1,7 +1,6 @@
 package ownable
 
 import (
-	"chain"
 	"chain/runtime"
 	"testing"
 
@@ -186,7 +185,7 @@ func TestNilReceiver(t *testing.T) {
 	var o *Ownable
 
 	owner := o.Owner()
-	if owner != chain.Address("") {
+	if owner != address("") {
 		t.Errorf("expected empty address but got %v", owner)
 	}
 

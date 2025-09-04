@@ -5,20 +5,18 @@ import (
 	"errors"
 )
 
-type Address = address // NOTE: bech32
-
 // bech32AddrPrefix defines the Bech32 prefix of an address
 const bech32AddrPrefix = "g"
 
-func EncodeBech32(prefix string, bz [20]byte) Address {
+func EncodeBech32(prefix string, bz [20]byte) address {
 	b32, err := convertAndEncode(prefix, bz[:])
 	if err != nil {
 		panic(err) // should not happen
 	}
-	return Address(b32)
+	return address(b32)
 }
 
-func DecodeBech32(addr Address) (string, [20]byte, bool) {
+func DecodeBech32(addr address) (string, [20]byte, bool) {
 	prefix, bz, err := decodeAndConvert(string(addr))
 	if err != nil || len(bz) != 20 {
 		return "", [20]byte{}, false
@@ -50,18 +48,18 @@ func derivePkgAddr(string) string
 
 // Returns a crypto hash derived pkgPath, unless pkgPath is a MsgRun run path,
 // in which case the address is extracted from the path.
-func DerivePkgAddr(pkgPath string) Address {
+func DerivePkgAddr(pkgPath string) address {
 	addr := derivePkgAddr(pkgPath)
-	return Address(addr)
+	return address(addr)
 }
 
 func deriveStorageDepositAddr(string) string
 
 // Returns a crypto hash derived pkgPath, unless pkgPath is a MsgRun run path,
 // in which case the address is extracted from the path.
-func DeriveStorageDepositAddr(pkgPath string) Address {
+func DeriveStorageDepositAddr(pkgPath string) address {
 	addr := deriveStorageDepositAddr(pkgPath)
-	return Address(addr)
+	return address(addr)
 }
 
 func convertTo20Byte(in []byte) [20]byte {

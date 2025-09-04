@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain"
 	"chain/runtime"
 	"testing"
 
@@ -9,8 +8,8 @@ import (
 )
 
 const (
-	owner   = chain.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	member  = chain.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
+	owner   = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	member  = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
 	newRole = boards2.RoleOwner
 	bid     = boards2.BoardID(0) // Operate on realm DAO instead of individual boards
 )

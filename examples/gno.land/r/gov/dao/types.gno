@@ -1,7 +1,6 @@
 package dao
 
 import (
-	"chain"
 	"chain/runtime"
 	"errors"
 
@@ -71,7 +70,7 @@ func (p *ProposalRequest) Filter() Filter {
 }
 
 type Proposal struct {
-	author chain.Address
+	author address
 
 	title       string
 	description string
@@ -80,7 +79,7 @@ type Proposal struct {
 	allowedDAOs []string
 }
 
-func (p *Proposal) Author() chain.Address {
+func (p *Proposal) Author() address {
 	return p.author
 }
 
@@ -189,7 +188,7 @@ type DAO interface {
 	// It is intended to be used to get the std.Address of the proposal, that
 	// may vary depending on the DAO implementation, and to validate that
 	// the requester is allowed to do a proposal
-	PreCreateProposal(r ProposalRequest) (chain.Address, error)
+	PreCreateProposal(r ProposalRequest) (address, error)
 
 	// PostCreateProposal is called after creating the Proposal. It is
 	// intended to be used as a way to store a new proposal status, that

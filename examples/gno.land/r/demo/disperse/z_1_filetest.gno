@@ -14,8 +14,8 @@ import (
 func main() {
 	mainAddr := chain.DerivePkgAddr("gno.land/r/demo/main")
 	disperseAddr := chain.DerivePkgAddr("gno.land/r/demo/disperse")
-	beneficiary1 := chain.Address("g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0")
-	beneficiary2 := chain.Address("g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c")
+	beneficiary1 := address("g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0")
+	beneficiary2 := address("g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c")
 
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
 	println("main balance before send:", banker_.GetCoins(mainAddr))

@@ -1,14 +1,13 @@
 package config
 
 import (
-	"chain"
 	"chain/runtime"
 	"errors"
 )
 
 var (
-	main   chain.Address
-	backup chain.Address
+	main   address
+	backup address
 
 	ErrInvalidAddr  = errors.New("Invalid address")
 	ErrUnauthorized = errors.New("Unauthorized")
@@ -18,15 +17,15 @@ func init() {
 	main = "g1x9qyf6f34v2g52k4q5smn5tctmj3hl2kj7l2ql"
 }
 
-func Address() chain.Address {
+func Address() address {
 	return main
 }
 
-func Backup() chain.Address {
+func Backup() address {
 	return backup
 }
 
-func SetAddress(_ realm, a chain.Address) error {
+func SetAddress(_ realm, a address) error {
 	if !a.IsValid() {
 		return ErrInvalidAddr
 	}
@@ -39,7 +38,7 @@ func SetAddress(_ realm, a chain.Address) error {
 	return nil
 }
 
-func SetBackup(_ realm, a chain.Address) error {
+func SetBackup(_ realm, a address) error {
 	if !a.IsValid() {
 		return ErrInvalidAddr
 	}

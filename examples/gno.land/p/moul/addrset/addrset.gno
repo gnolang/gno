@@ -46,8 +46,6 @@
 package addrset
 
 import (
-	"chain"
-
 	"gno.land/p/demo/avl"
 )
 
@@ -57,19 +55,19 @@ type Set struct {
 
 // Add inserts an address into the set.
 // Returns true if the address was newly added, false if it already existed.
-func (s *Set) Add(addr chain.Address) bool {
+func (s *Set) Add(addr address) bool {
 	return !s.tree.Set(string(addr), nil)
 }
 
 // Remove deletes an address from the set.
 // Returns true if the address was found and removed, false if it didn't exist.
-func (s *Set) Remove(addr chain.Address) bool {
+func (s *Set) Remove(addr address) bool {
 	_, removed := s.tree.Remove(string(addr))
 	return removed
 }
 
 // Has checks if an address exists in the set.
-func (s *Set) Has(addr chain.Address) bool {
+func (s *Set) Has(addr address) bool {
 	return s.tree.Has(string(addr))
 }
 
@@ -80,17 +78,17 @@ func (s *Set) Size() int {
 
 // IterateByOffset walks through addresses starting at the given offset.
 // The callback should return true to stop iteration.
-func (s *Set) IterateByOffset(offset int, count int, cb func(addr chain.Address) bool) {
+func (s *Set) IterateByOffset(offset int, count int, cb func(addr address) bool) {
 	s.tree.IterateByOffset(offset, count, func(key string, _ any) bool {
-		return cb(chain.Address(key))
+		return cb(address(key))
 	})
 }
 
 // ReverseIterateByOffset walks through addresses in reverse order starting at the given offset.
 // The callback should return true to stop iteration.
-func (s *Set) ReverseIterateByOffset(offset int, count int, cb func(addr chain.Address) bool) {
+func (s *Set) ReverseIterateByOffset(offset int, count int, cb func(addr address) bool) {
 	s.tree.ReverseIterateByOffset(offset, count, func(key string, _ any) bool {
-		return cb(chain.Address(key))
+		return cb(address(key))
 	})
 }
 

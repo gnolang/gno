@@ -1,7 +1,6 @@
 package chess
 
 import (
-	"chain"
 	"chain/runtime"
 	"time"
 
@@ -98,7 +97,7 @@ func LobbyJoin(cur realm, seconds, increment int) {
 	refreshLobby(tc)
 }
 
-func assertUserNotInLobby(caller chain.Address) {
+func assertUserNotInLobby(caller address) {
 	for _, sublob := range lobby {
 		for _, pl := range sublob {
 			if pl.player.Address == caller {

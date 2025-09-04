@@ -1,7 +1,6 @@
 package treasury
 
 import (
-	"chain"
 	"chain/runtime"
 	"errors"
 	"strconv"
@@ -18,7 +17,7 @@ var (
 // GRC20Banker is a Banker that sends GRC20 tokens listed using a getter
 // set during initialization.
 type GRC20Banker struct {
-	owner  chain.Address   // The address of this GRC20 banker owner.
+	owner  address         // The address of this GRC20 banker owner.
 	lister TokenListerFunc // Allows to list tokens from methods that require it.
 }
 
@@ -86,7 +85,7 @@ func NewGRC20Banker(lister TokenListerFunc) (*GRC20Banker, error) {
 }
 
 // NewGRC20BankerWithOwner creates a new GRC20Banker with the given address.
-func NewGRC20BankerWithOwner(owner chain.Address, lister TokenListerFunc) (*GRC20Banker, error) {
+func NewGRC20BankerWithOwner(owner address, lister TokenListerFunc) (*GRC20Banker, error) {
 	if owner == "" {
 		return nil, ErrNoOwnerProvided
 	}
@@ -103,9 +102,9 @@ func NewGRC20BankerWithOwner(owner chain.Address, lister TokenListerFunc) (*GRC2
 
 // grc20Payment represents a payment that is issued by a GRC20Banker.
 type grc20Payment struct {
-	tokenKey  string        // The key associated with the GRC20 token.
-	amount    int64         // The amount of token to send.
-	toAddress chain.Address // The recipient of the payment.
+	tokenKey  string  // The key associated with the GRC20 token.
+	amount    int64   // The amount of token to send.
+	toAddress address // The recipient of the payment.
 }
 
 var _ Payment = (*grc20Payment)(nil)
@@ -122,7 +121,7 @@ func (gp grc20Payment) String() string {
 }
 
 // NewGRC20Payment creates a new grc20Payment.
-func NewGRC20Payment(tokenKey string, amount int64, toAddress chain.Address) Payment {
+func NewGRC20Payment(tokenKey string, amount int64, toAddress address) Payment {
 	return grc20Payment{
 		tokenKey:  tokenKey,
 		amount:    amount,

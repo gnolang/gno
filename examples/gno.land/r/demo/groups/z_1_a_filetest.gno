@@ -4,7 +4,6 @@ package groups_test
 // SEND: 1000000ugnot
 
 import (
-	"chain"
 	"chain/runtime"
 	"testing"
 
@@ -15,7 +14,7 @@ import (
 
 var gid groups.GroupID
 
-const admin = chain.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+const admin = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
 	caller := runtime.OriginCaller() // main

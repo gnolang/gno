@@ -24,7 +24,7 @@ const (
 )
 
 type UserData struct {
-	addr     chain.Address
+	addr     address
 	username string // contains the latest name of a user
 	deleted  bool
 }
@@ -33,7 +33,7 @@ func (u UserData) Name() string {
 	return u.username
 }
 
-func (u UserData) Addr() chain.Address {
+func (u UserData) Addr() address {
 	return u.addr
 }
 
@@ -52,7 +52,7 @@ func (u UserData) RenderLink(linkText string) string {
 }
 
 // RegisterUser adds a new user to the system.
-func RegisterUser(cur realm, name string, address_XXX chain.Address) error {
+func RegisterUser(cur realm, name string, address_XXX address) error {
 	// Validate caller
 	if !controllers.Has(runtime.PreviousRealm().Address()) {
 		return NewErrNotWhitelisted()
@@ -165,7 +165,7 @@ func validateName(username string) error {
 	}
 
 	// Check if the username can be decoded or looks like a valid address
-	if chain.Address(username).IsValid() || reAddressLookalike.MatchString(username) {
+	if address(username).IsValid() || reAddressLookalike.MatchString(username) {
 		return ErrNameLikeAddress
 	}
 

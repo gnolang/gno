@@ -3,7 +3,6 @@ package main
 // SEND: 1000000ugnot
 
 import (
-	"chain"
 	"chain/runtime"
 	"testing"
 
@@ -12,9 +11,9 @@ import (
 )
 
 const (
-	owner   = chain.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	member  = chain.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
-	member2 = chain.Address("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5")
+	owner   = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	member  = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
+	member2 = address("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5")
 	name    = "foo123"
 	newName = "barbaz123"
 )

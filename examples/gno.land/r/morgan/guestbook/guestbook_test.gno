@@ -1,7 +1,6 @@
 package guestbook
 
 import (
-	"chain"
 	"chain/runtime"
 	"strings"
 	"testing"
@@ -89,8 +88,8 @@ func TestSign_InvalidMessage(t *testing.T) {
 
 func TestAdminDelete(t *testing.T) {
 	const (
-		userAddr  chain.Address = "g1user"
-		adminAddr chain.Address = "g1admin"
+		userAddr  address = "g1user"
+		adminAddr address = "g1admin"
 	)
 
 	guestbook = avl.Tree{}

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain"
 	"chain/runtime"
 	"testing"
 
@@ -10,7 +9,7 @@ import (
 	"gno.land/r/nt/commondao"
 )
 
-const user = chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+const user = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 
 func main() {
 	testing.SetRealm(runtime.NewUserRealm(user))

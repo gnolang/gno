@@ -1,11 +1,10 @@
 package ownable
 
 import (
-	"chain"
 	"chain/runtime"
 )
 
-var owner chain.Address = ""
+var owner address = ""
 
 func InitOwner(cur realm) {
 	if len(owner) != 0 {

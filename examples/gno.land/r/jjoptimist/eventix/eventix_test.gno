@@ -52,7 +52,7 @@ func TestBuyTicket(t *testing.T) {
 	)
 
 	// Setup test buyer
-	buyer := chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	buyer := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	testing.SetOriginCaller(buyer)
 
 	uassert.AbortsWithMessage(t, "Invalid payment amount: needs to be 1000000ugnot", func() {
@@ -90,8 +90,8 @@ func TestBuyTicketWithGRC20(t *testing.T) {
 
 	// Create a test GRC20 token and set up addresses
 	token, ledger := grc20.NewToken("Test Token", "TEST", 6)
-	buyer := chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	adminAddr := chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf6")
+	buyer := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	adminAddr := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf6")
 
 	// Set up admin and mint tokens
 	testing.SetOriginCaller(adminAddr)

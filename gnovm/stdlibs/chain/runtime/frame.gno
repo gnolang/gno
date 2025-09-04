@@ -1,12 +1,11 @@
 package runtime
 
 import (
-	"chain"
 	"strings"
 )
 
 type Realm struct {
-	addr    chain.Address
+	addr    address
 	pkgPath string
 }
 
@@ -18,7 +17,7 @@ func (r Realm) String() string {
 	}
 }
 
-func (r Realm) Address() chain.Address {
+func (r Realm) Address() address {
 	return r.addr
 }
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain"
 	"chain/runtime"
 	"testing"
 
@@ -11,8 +10,8 @@ import (
 )
 
 const (
-	user = chain.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
-	bid  = boards2.BoardID(0)                                        // Operate on realm instead of individual boards
+	user = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
+	bid  = boards2.BoardID(0)                                  // Operate on realm instead of individual boards
 )
 
 var perms boards2.Permissions

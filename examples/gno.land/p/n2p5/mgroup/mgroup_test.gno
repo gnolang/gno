@@ -1,7 +1,6 @@
 package mgroup
 
 import (
-	"chain"
 	"chain/runtime"
 	"testing"
 
@@ -32,7 +31,7 @@ func TestManagedGroup(t *testing.T) {
 				t.Errorf("expected nil, got %v", err.Error())
 			}
 			// ensure invalid address is caught
-			var badAddr chain.Address
+			var badAddr address
 			if err := g.AddBackupOwner(badAddr); err != ErrInvalidAddress {
 				t.Errorf("expected %v, got %v", ErrInvalidAddress.Error(), err.Error())
 			}
@@ -60,7 +59,7 @@ func TestManagedGroup(t *testing.T) {
 			if err := g.RemoveBackupOwner(u2.Address()); err != nil {
 				t.Errorf("expected nil, got %v", err.Error())
 			}
-			var badAddr chain.Address
+			var badAddr address
 			if err := g.RemoveBackupOwner(badAddr); err != ErrInvalidAddress {
 				t.Errorf("expected %v, got %v", ErrInvalidAddress.Error(), err.Error())
 			}
@@ -118,7 +117,7 @@ func TestManagedGroup(t *testing.T) {
 			if !g.IsMember(u2.Address()) {
 				t.Errorf("expected %v to be a member", u2)
 			}
-			var badAddr chain.Address
+			var badAddr address
 			if err := g.AddMember(badAddr); err != ErrInvalidAddress {
 				t.Errorf("expected %v, got %v", ErrInvalidAddress, err.Error())
 			}
@@ -147,7 +146,7 @@ func TestManagedGroup(t *testing.T) {
 			if err := g.RemoveMember(u2.Address()); err != nil {
 				t.Errorf("expected nil, got %v", err.Error())
 			}
-			var badAddr chain.Address
+			var badAddr address
 			if err := g.RemoveMember(badAddr); err != ErrInvalidAddress {
 				t.Errorf("expected %v, got %v", ErrInvalidAddress.Error(), err.Error())
 			}

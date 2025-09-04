@@ -1,7 +1,6 @@
 package valopers
 
 import (
-	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"strings"
@@ -17,7 +16,7 @@ import (
 func validValidatorInfo(t *testing.T) struct {
 	Moniker     string
 	Description string
-	Address     chain.Address
+	Address     address
 	PubKey      string
 } {
 	t.Helper()
@@ -25,12 +24,12 @@ func validValidatorInfo(t *testing.T) struct {
 	return struct {
 		Moniker     string
 		Description string
-		Address     chain.Address
+		Address     address
 		PubKey      string
 	}{
 		Moniker:     "test-1",
 		Description: "test-1's description",
-		Address:     chain.Address("g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h"),
+		Address:     address("g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h"),
 		PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p",
 	}
 }

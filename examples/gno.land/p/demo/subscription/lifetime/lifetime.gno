@@ -1,7 +1,6 @@
 package lifetime
 
 import (
-	"chain"
 	"chain/banker"
 	"chain/runtime"
 
@@ -27,7 +26,7 @@ func NewLifetimeSubscription(amount int64) *LifetimeSubscription {
 }
 
 // processSubscription handles the subscription process for a given receiver.
-func (ls *LifetimeSubscription) processSubscription(receiver chain.Address) error {
+func (ls *LifetimeSubscription) processSubscription(receiver address) error {
 	amount := banker.OriginSend()
 
 	if amount.AmountOf("ugnot") != ls.amount {
@@ -52,12 +51,12 @@ func (ls *LifetimeSubscription) Subscribe() error {
 }
 
 // GiftSubscription allows the caller to pay for a lifetime subscription for another user.
-func (ls *LifetimeSubscription) GiftSubscription(receiver chain.Address) error {
+func (ls *LifetimeSubscription) GiftSubscription(receiver address) error {
 	return ls.processSubscription(receiver)
 }
 
 // HasValidSubscription checks if the given address has an active lifetime subscription.
-func (ls *LifetimeSubscription) HasValidSubscription(addr chain.Address) error {
+func (ls *LifetimeSubscription) HasValidSubscription(addr address) error {
 	_, exists := ls.subs.Get(addr.String())
 
 	if !exists {

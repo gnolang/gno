@@ -2,7 +2,7 @@ package testutils
 
 import "chain"
 
-func TestAddress(name string) chain.Address {
+func TestAddress(name string) address {
 	if len(name) > 20 {
 		panic("address name cannot be greater than 20 bytes")
 	}
@@ -12,5 +12,5 @@ func TestAddress(name string) chain.Address {
 	blanks := "____________________"
 	copy(addr[:], []byte(blanks))
 	copy(addr[:], []byte(name))
-	return chain.Address(chain.EncodeBech32("g", addr))
+	return address(chain.EncodeBech32("g", addr))
 }

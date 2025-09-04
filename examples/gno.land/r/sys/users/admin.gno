@@ -16,7 +16,7 @@ func init() {
 }
 
 // ProposeNewController allows GovDAO to add a whitelisted caller
-func ProposeNewController(addr chain.Address) dao.ProposalRequest {
+func ProposeNewController(addr address) dao.ProposalRequest {
 	cb := func(cur realm) error {
 		return addToWhitelist(addr)
 	}
@@ -25,7 +25,7 @@ func ProposeNewController(addr chain.Address) dao.ProposalRequest {
 }
 
 // ProposeControllerRemoval allows GovDAO to add a whitelisted caller
-func ProposeControllerRemoval(addr chain.Address) dao.ProposalRequest {
+func ProposeControllerRemoval(addr address) dao.ProposalRequest {
 	cb := func(cur realm) error {
 		return deleteFromwhitelist(addr)
 	}
@@ -34,7 +34,7 @@ func ProposeControllerRemoval(addr chain.Address) dao.ProposalRequest {
 }
 
 // ProposeControllerAdditionAndRemoval allows GovDAO to add a new caller and remove an old caller in the same proposal.
-func ProposeControllerAdditionAndRemoval(toAdd, toRemove chain.Address) dao.ProposalRequest {
+func ProposeControllerAdditionAndRemoval(toAdd, toRemove address) dao.ProposalRequest {
 	cb := func(cur realm) error {
 		err := addToWhitelist(toAdd)
 		if err != nil {
@@ -49,7 +49,7 @@ func ProposeControllerAdditionAndRemoval(toAdd, toRemove chain.Address) dao.Prop
 
 // Helpers
 
-func deleteFromwhitelist(addr chain.Address) error {
+func deleteFromwhitelist(addr address) error {
 	if !controllers.Has(addr) {
 		return NewErrNotWhitelisted()
 	}
@@ -61,7 +61,7 @@ func deleteFromwhitelist(addr chain.Address) error {
 	return nil
 }
 
-func addToWhitelist(newCaller chain.Address) error {
+func addToWhitelist(newCaller address) error {
 	if !newCaller.IsValid() {
 		return ErrInvalidAddress
 	}

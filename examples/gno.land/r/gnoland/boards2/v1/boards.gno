@@ -1,7 +1,6 @@
 package boards2
 
 import (
-	"chain"
 	"chain/runtime"
 
 	"gno.land/p/demo/avl"
@@ -39,7 +38,7 @@ func init() {
 }
 
 // initRealmPermissions returns the default realm permissions.
-func initRealmPermissions(owners ...chain.Address) *BasicPermissions {
+func initRealmPermissions(owners ...address) *BasicPermissions {
 	perms := createBasicPermissions(owners...)
 	perms.ValidateFunc(PermissionBoardCreate, validateBoardCreate)
 	perms.ValidateFunc(PermissionMemberInvite, validateMemberInvite)

@@ -1,7 +1,6 @@
 package commondao
 
 import (
-	"chain"
 	"chain/runtime"
 	"strings"
 
@@ -32,7 +31,7 @@ func proposalURL(daoID, proposalID uint64) string {
 	return ufmt.Sprintf("%s:%d/proposals/%d", path, daoID, proposalID)
 }
 
-func voteURL(daoID, proposalID uint64, addr chain.Address) string {
+func voteURL(daoID, proposalID uint64, addr address) string {
 	path := currentRealmPath()
 	return ufmt.Sprintf("%s:%d/proposals/%d/vote/%s", path, daoID, proposalID, addr)
 }

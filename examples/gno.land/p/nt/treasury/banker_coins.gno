@@ -1,7 +1,6 @@
 package treasury
 
 import (
-	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"errors"
@@ -13,7 +12,7 @@ var ErrNoStdBankerProvided = errors.New("no std banker provided")
 
 // CoinsBanker is a Banker that sends std.Coins.
 type CoinsBanker struct {
-	owner  chain.Address // The address of this coins banker owner.
+	owner  address       // The address of this coins banker owner.
 	banker banker.Banker // The underlying std banker, must be a BankerTypeRealmSend.
 }
 
@@ -72,7 +71,7 @@ func NewCoinsBanker(banker_ banker.Banker) (*CoinsBanker, error) {
 }
 
 // NewCoinsBankerWithOwner creates a new CoinsBanker with the given address.
-func NewCoinsBankerWithOwner(owner chain.Address, banker_ banker.Banker) (*CoinsBanker, error) {
+func NewCoinsBankerWithOwner(owner address, banker_ banker.Banker) (*CoinsBanker, error) {
 	if owner == "" {
 		return nil, ErrNoOwnerProvided
 	}
@@ -94,8 +93,8 @@ func NewCoinsBankerWithOwner(owner chain.Address, banker_ banker.Banker) (*Coins
 
 // coinsPayment represents a payment that is issued by a CoinsBanker.
 type coinsPayment struct {
-	coins     banker.Coins  // The coins being sent.
-	toAddress chain.Address // The recipient of the payment.
+	coins     banker.Coins // The coins being sent.
+	toAddress address      // The recipient of the payment.
 }
 
 var _ Payment = (*coinsPayment)(nil)
@@ -111,7 +110,7 @@ func (cp coinsPayment) String() string {
 }
 
 // NewCoinsPayment creates a new coinsPayment.
-func NewCoinsPayment(coins banker.Coins, toAddress chain.Address) Payment {
+func NewCoinsPayment(coins banker.Coins, toAddress address) Payment {
 	return coinsPayment{
 		coins:     coins,
 		toAddress: toAddress,

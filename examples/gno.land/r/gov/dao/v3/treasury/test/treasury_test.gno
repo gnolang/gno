@@ -55,7 +55,7 @@ func ugnotCoins(t *testing.T, amount int64) banker.Coins {
 	return banker.NewCoins(banker.NewCoin("ugnot", amount))
 }
 
-func ugnotBalance(t *testing.T, addr chain.Address) int64 {
+func ugnotBalance(t *testing.T, addr address) int64 {
 	t.Helper()
 
 	// Get the balance of ugnot coins for the given address.
@@ -71,7 +71,7 @@ type keyedToken struct {
 	token *grc20.Token
 }
 
-func registerGRC20Tokens(t *testing.T, tokenNames []string, toMint chain.Address) []keyedToken {
+func registerGRC20Tokens(t *testing.T, tokenNames []string, toMint address) []keyedToken {
 	t.Helper()
 
 	var (
@@ -186,7 +186,7 @@ func TestSendGRC20Payment(t *testing.T) {
 	const txAmount = 42
 
 	// For each token-user pair.
-	for i, userAddr := range []chain.Address{user1Addr, user2Addr} {
+	for i, userAddr := range []address{user1Addr, user2Addr} {
 		for _, keyed := range keyedTokens {
 			// Check that the treasury has the expected balance before sending.
 			uassert.Equal(t, keyed.token.BalanceOf(treasuryAddr), mintAmount-int64(txAmount*i))

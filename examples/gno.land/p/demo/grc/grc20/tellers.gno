@@ -14,7 +14,7 @@ func (tok *Token) CallerTeller() Teller {
 	}
 
 	return &fnTeller{
-		accountFn: func() chain.Address {
+		accountFn: func() address {
 			caller := runtime.PreviousRealm().Address()
 			return caller
 		},
@@ -50,7 +50,7 @@ func (tok *Token) RealmTeller() Teller {
 	caller := runtime.CurrentRealm().Address()
 
 	return &fnTeller{
-		accountFn: func() chain.Address {
+		accountFn: func() address {
 			return caller
 		},
 		Token: tok,
@@ -70,7 +70,7 @@ func (tok *Token) RealmSubTeller(slug string) Teller {
 	account := accountSlugAddr(caller, slug)
 
 	return &fnTeller{
-		accountFn: func() chain.Address {
+		accountFn: func() address {
 			return account
 		},
 		Token: tok,
@@ -90,13 +90,13 @@ func (tok *Token) RealmSubTeller(slug string) Teller {
 //
 // This method should be used with caution, as it allows for potentially
 // sensitive operations to be performed under the guise of another address.
-func (ledger *PrivateLedger) ImpersonateTeller(addr chain.Address) Teller {
+func (ledger *PrivateLedger) ImpersonateTeller(addr address) Teller {
 	if ledger == nil {
 		panic("Ledger cannot be nil")
 	}
 
 	return &fnTeller{
-		accountFn: func() chain.Address {
+		accountFn: func() address {
 			return addr
 		},
 		Token: ledger.token,
@@ -106,7 +106,7 @@ func (ledger *PrivateLedger) ImpersonateTeller(addr chain.Address) Teller {
 // generic tellers methods.
 //
 
-func (ft *fnTeller) Transfer(to chain.Address, amount int64) error {
+func (ft *fnTeller) Transfer(to address, amount int64) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
@@ -114,7 +114,7 @@ func (ft *fnTeller) Transfer(to chain.Address, amount int64) error {
 	return ft.Token.ledger.Transfer(caller, to, amount)
 }
 
-func (ft *fnTeller) Approve(spender chain.Address, amount int64) error {
+func (ft *fnTeller) Approve(spender address, amount int64) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
@@ -122,7 +122,7 @@ func (ft *fnTeller) Approve(spender chain.Address, amount int64) error {
 	return ft.Token.ledger.Approve(caller, spender, amount)
 }
 
-func (ft *fnTeller) TransferFrom(owner, to chain.Address, amount int64) error {
+func (ft *fnTeller) TransferFrom(owner, to address, amount int64) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
@@ -134,7 +134,7 @@ func (ft *fnTeller) TransferFrom(owner, to chain.Address, amount int64) error {
 //
 
 // accountSlugAddr returns the address derived from the specified address and slug.
-func accountSlugAddr(addr chain.Address, slug string) chain.Address {
+func accountSlugAddr(addr address, slug string) address {
 	// XXX: use a new `std.XXX` call for this.
 	if slug == "" {
 		return addr

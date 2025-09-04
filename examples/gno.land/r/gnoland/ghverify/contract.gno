@@ -102,7 +102,7 @@ func GnorkleEntrypoint(cur realm, message string) string {
 }
 
 // SetOwner transfers ownership of the contract to the given address.
-func SetOwner(_ realm, owner chain.Address) {
+func SetOwner(_ realm, owner address) {
 	if ownerAddress != runtime.OriginCaller() {
 		panic("only the owner can set a new owner")
 	}

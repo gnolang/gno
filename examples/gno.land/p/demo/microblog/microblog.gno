@@ -1,7 +1,6 @@
 package microblog
 
 import (
-	"chain"
 	"chain/runtime"
 	"errors"
 	"sort"
@@ -76,7 +75,7 @@ func (m *Microblog) GetPage(author string) (*Page, error) {
 
 type Page struct {
 	ID         int
-	Author     chain.Address
+	Author     address
 	CreatedAt  time.Time
 	LastPosted time.Time
 	Posts      avl.Tree // time -> Post

@@ -4,7 +4,6 @@
 package bar20
 
 import (
-	"chain"
 	"chain/runtime"
 	"strings"
 
@@ -38,7 +37,7 @@ func Render(path string) string {
 	case path == "":
 		return Token.RenderHome()
 	case c == 2 && parts[0] == "balance":
-		owner := chain.Address(parts[1])
+		owner := address(parts[1])
 		balance := Token.BalanceOf(owner)
 		return ufmt.Sprintf("%d\n", balance)
 	default:

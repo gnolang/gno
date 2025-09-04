@@ -49,7 +49,7 @@ type Config struct {
 }
 
 type ProfileStringSetter func(cur realm, field string, value string) bool
-type ProfileStringGetter func(addr chain.Address, field string, def string) string
+type ProfileStringGetter func(addr address, field string, def string) string
 
 const EventBaseDAOCreated = "BaseDAOCreated"
 

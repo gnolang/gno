@@ -1,7 +1,6 @@
 package config
 
 import (
-	"chain"
 	"chain/runtime"
 	"errors"
 	"strings"
@@ -81,6 +80,6 @@ func UpdateBanner(cur realm, newBanner string) {
 	banner = newBanner
 }
 
-func IsAuthorized(addr chain.Address) bool {
+func IsAuthorized(addr address) bool {
 	return addr == OwnableMain.Owner() || addr == OwnableBackup.Owner()
 }

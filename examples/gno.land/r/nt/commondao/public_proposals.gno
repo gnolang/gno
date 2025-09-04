@@ -1,7 +1,6 @@
 package commondao
 
 import (
-	"chain"
 	"chain/runtime"
 	"strings"
 	"time"
@@ -156,7 +155,7 @@ func mustParseStringToAddrset(s string) (set addrset.Set) {
 			continue
 		}
 
-		addr := chain.Address(raw)
+		addr := address(raw)
 		if !addr.IsValid() {
 			panic("invalid address: " + addr.String())
 		}

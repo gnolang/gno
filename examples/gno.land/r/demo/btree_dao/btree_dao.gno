@@ -1,7 +1,6 @@
 package btree_dao
 
 import (
-	"chain"
 	"chain/runtime"
 	"errors"
 	"strings"
@@ -17,7 +16,7 @@ import (
 // It stores the user's address, registration time, their B-Tree if they planted one,
 // and their NFT ID.
 type RegistrationDetails struct {
-	Address   chain.Address
+	Address   address
 	RegTime   time.Time
 	UserBTree *btree.BTree
 	NFTID     string

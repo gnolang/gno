@@ -7,7 +7,6 @@
 package monit
 
 import (
-	"chain"
 	"chain/runtime"
 	"time"
 
@@ -19,7 +18,7 @@ import (
 var (
 	counter          int
 	lastUpdate       time.Time
-	lastCaller       chain.Address
+	lastCaller       address
 	watchdogDuration = 5 * time.Minute
 	wd               = watchdog.Watchdog{Duration: watchdogDuration}
 	Ownable          = ownable.NewWithOrigin()

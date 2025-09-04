@@ -1,7 +1,6 @@
 package tokenhub
 
 import (
-	"chain"
 	"chain/runtime"
 	"strings"
 	"testing"
@@ -127,7 +126,7 @@ func TestTokenListingFunctions(t *testing.T) {
 		"GetAllGRC20Tokens should list registered token")
 
 	nftToken := grc721.NewBasicNFT("Listing NFT", "LNFT")
-	nftToken.Mint(chain.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"), grc721.TokenID("1"))
+	nftToken.Mint(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"), grc721.TokenID("1"))
 	RegisterNFT(cross, nftToken.Getter(), "listing_nft", "1")
 
 	nftList := GetAllNFTs()

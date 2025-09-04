@@ -1,7 +1,6 @@
 package names
 
 import (
-	"chain"
 	"chain/runtime"
 	"testing"
 
@@ -28,7 +27,7 @@ func TestDefaultVerifier(t *testing.T) {
 	uassert.True(t, verifier(true, alice, alice.String()))
 
 	// Empty name/address
-	uassert.False(t, verifier(true, chain.Address(""), ""))
+	uassert.False(t, verifier(true, address(""), ""))
 
 	// Register proper username
 	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/gnoland/users/v1")) // authorized write

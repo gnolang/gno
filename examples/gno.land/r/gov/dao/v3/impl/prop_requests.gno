@@ -1,7 +1,6 @@
 package impl
 
 import (
-	"chain"
 	"chain/runtime"
 
 	"gno.land/p/aeddi/panictoerr"
@@ -53,7 +52,7 @@ func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.Propo
 	return dao.NewProposalRequest("Change DAO implementation", "This proposal is looking to change the actual govDAO implementation. Reason: "+reason, e)
 }
 
-func NewAddMemberRequest(_ realm, addr chain.Address, tier string, portfolio string) dao.ProposalRequest {
+func NewAddMemberRequest(_ realm, addr address, tier string, portfolio string) dao.ProposalRequest {
 	_, ok := memberstore.Tiers.GetTier(tier)
 	if !ok {
 		panic("provided tier does not exists")
@@ -94,7 +93,7 @@ func NewAddMemberRequest(_ realm, addr chain.Address, tier string, portfolio str
 	)
 }
 
-func NewWithdrawMemberRequest(_ realm, addr chain.Address, reason string) dao.ProposalRequest {
+func NewWithdrawMemberRequest(_ realm, addr address, reason string) dao.ProposalRequest {
 	member, tier := memberstore.Get().GetMember(addr)
 	if member == nil {
 		panic("user we want to remove not found")
@@ -118,7 +117,7 @@ func NewWithdrawMemberRequest(_ realm, addr chain.Address, reason string) dao.Pr
 	)
 }
 
-func NewPromoteMemberRequest(addr chain.Address, fromTier string, toTier string) dao.ProposalRequest {
+func NewPromoteMemberRequest(addr address, fromTier string, toTier string) dao.ProposalRequest {
 	cb := func(_ realm) error {
 		prevTier := memberstore.Get().RemoveMember(addr)
 		if prevTier == "" {

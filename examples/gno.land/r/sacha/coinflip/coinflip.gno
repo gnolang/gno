@@ -89,7 +89,7 @@ func getBet() banker.Coin {
 	return bet[0]
 }
 
-func sendPrize(cur realm, caller chain.Address, amount int64) {
+func sendPrize(cur realm, caller address, amount int64) {
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
 	wonCoins := banker.NewCoins(banker.NewCoin(denom, amount))
 

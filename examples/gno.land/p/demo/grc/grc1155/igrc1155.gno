@@ -1,37 +1,35 @@
 package grc1155
 
-import "chain"
-
 type IGRC1155 interface {
-	SafeTransferFrom(from, to chain.Address, tid TokenID, amount int64) error
-	SafeBatchTransferFrom(from, to chain.Address, batch []TokenID, amounts []int64) error
-	BalanceOf(owner chain.Address, tid TokenID) (int64, error)
-	BalanceOfBatch(owners []chain.Address, batch []TokenID) ([]int64, error)
-	SetApprovalForAll(operator chain.Address, approved bool) error
-	IsApprovedForAll(owner, operator chain.Address) bool
+	SafeTransferFrom(from, to address, tid TokenID, amount int64) error
+	SafeBatchTransferFrom(from, to address, batch []TokenID, amounts []int64) error
+	BalanceOf(owner address, tid TokenID) (int64, error)
+	BalanceOfBatch(owners []address, batch []TokenID) ([]int64, error)
+	SetApprovalForAll(operator address, approved bool) error
+	IsApprovedForAll(owner, operator address) bool
 }
 
 type TokenID string
 
 type TransferSingleEvent struct {
-	Operator chain.Address
-	From     chain.Address
-	To       chain.Address
+	Operator address
+	From     address
+	To       address
 	TokenID  TokenID
 	Amount   int64
 }
 
 type TransferBatchEvent struct {
-	Operator chain.Address
-	From     chain.Address
-	To       chain.Address
+	Operator address
+	From     address
+	To       address
 	Batch    []TokenID
 	Amounts  []int64
 }
 
 type ApprovalForAllEvent struct {
-	Owner    chain.Address
-	Operator chain.Address
+	Owner    address
+	Operator address
 	Approved bool
 }
 

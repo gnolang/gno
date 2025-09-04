@@ -19,7 +19,7 @@ const (
 // Ban bans a user from a board for a period of time.
 // Only invited guest members and external users can be banned.
 // Banning board owners, admins and moderators is not allowed.
-func Ban(_ realm, boardID BoardID, user chain.Address, hours uint, reason string) {
+func Ban(_ realm, boardID BoardID, user address, hours uint, reason string) {
 	assertAddressIsValid(user)
 
 	if hours == 0 {
@@ -63,7 +63,7 @@ func Ban(_ realm, boardID BoardID, user chain.Address, hours uint, reason string
 }
 
 // Unban unbans a user from a board.
-func Unban(_ realm, boardID BoardID, user chain.Address, reason string) {
+func Unban(_ realm, boardID BoardID, user address, reason string) {
 	assertAddressIsValid(user)
 
 	board := mustGetBoard(boardID)
@@ -88,18 +88,18 @@ func Unban(_ realm, boardID BoardID, user chain.Address, reason string) {
 }
 
 // IsBanned checks if a user is banned from a board.
-func IsBanned(boardID BoardID, user chain.Address) bool {
+func IsBanned(boardID BoardID, user address) bool {
 	banned, found := getBannedUsers(boardID)
 	return found && banned.Has(user.String())
 }
 
-func assertAddressIsValid(addr chain.Address) {
+func assertAddressIsValid(addr address) {
 	if !addr.IsValid() {
 		panic("invalid address: " + addr.String())
 	}
 }
 
-func assertUserIsNotBanned(boardID BoardID, user chain.Address) {
+func assertUserIsNotBanned(boardID BoardID, user address) {
 	banned, found := getBannedUsers(boardID)
 	if !found {
 		return

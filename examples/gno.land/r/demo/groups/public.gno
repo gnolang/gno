@@ -1,7 +1,6 @@
 package groups
 
 import (
-	"chain"
 	"chain/runtime"
 
 	"gno.land/r/sys/users"
@@ -38,12 +37,12 @@ func AddMember(cur realm, gid GroupID, address_XXX string, weight int, metadata 
 	if !group.HasPermission(caller, EditPermission) {
 		panic("unauthorized to edit group")
 	}
-	user := users.ResolveAddress(chain.Address(address_XXX))
+	user := users.ResolveAddress(address(address_XXX))
 	if user == nil {
 		panic("unknown address " + address_XXX)
 	}
 	mid := group.lastMemberID
-	member := group.newMember(mid, chain.Address(address_XXX), weight, metadata)
+	member := group.newMember(mid, address(address_XXX), weight, metadata)
 	midkey := memberIDKey(mid)
 	group.members.Set(midkey, member)
 	mid++

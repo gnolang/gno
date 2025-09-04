@@ -1,7 +1,6 @@
 package grc1155
 
 import (
-	"chain"
 	"chain/runtime"
 	"math/overflow"
 
@@ -29,7 +28,7 @@ func NewBasicGRC1155Token(uri string) *basicGRC1155Token {
 func (s *basicGRC1155Token) Uri() string { return s.uri }
 
 // BalanceOf returns the input address's balance of the token type requested
-func (s *basicGRC1155Token) BalanceOf(addr chain.Address, tid TokenID) (int64, error) {
+func (s *basicGRC1155Token) BalanceOf(addr address, tid TokenID) (int64, error) {
 	if !isValidAddress(addr) {
 		return 0, ErrInvalidAddress
 	}
@@ -44,7 +43,7 @@ func (s *basicGRC1155Token) BalanceOf(addr chain.Address, tid TokenID) (int64, e
 }
 
 // BalanceOfBatch returns the balance of multiple account/token pairs
-func (s *basicGRC1155Token) BalanceOfBatch(owners []chain.Address, batch []TokenID) ([]int64, error) {
+func (s *basicGRC1155Token) BalanceOfBatch(owners []address, batch []TokenID) ([]int64, error) {
 	if len(owners) != len(batch) {
 		return nil, ErrMismatchLength
 	}
@@ -59,7 +58,7 @@ func (s *basicGRC1155Token) BalanceOfBatch(owners []chain.Address, batch []Token
 }
 
 // SetApprovalForAll can approve the operator to operate on all tokens
-func (s *basicGRC1155Token) SetApprovalForAll(operator chain.Address, approved bool) error {
+func (s *basicGRC1155Token) SetApprovalForAll(operator address, approved bool) error {
 	if !isValidAddress(operator) {
 		return ErrInvalidAddress
 	}
@@ -70,7 +69,7 @@ func (s *basicGRC1155Token) SetApprovalForAll(operator chain.Address, approved b
 
 // IsApprovedForAll returns true if operator is the owner or is approved for all by the owner.
 // Otherwise, returns false
-func (s *basicGRC1155Token) IsApprovedForAll(owner, operator chain.Address) bool {
+func (s *basicGRC1155Token) IsApprovedForAll(owner, operator address) bool {
 	if operator == owner {
 		return true
 	}
@@ -86,7 +85,7 @@ func (s *basicGRC1155Token) IsApprovedForAll(owner, operator chain.Address) bool
 // Safely transfers `tokenId` token from `from` to `to`, checking that
 // contract recipients are aware of the GRC1155 protocol to prevent
 // tokens from being forever locked.
-func (s *basicGRC1155Token) SafeTransferFrom(from, to chain.Address, tid TokenID, amount int64) error {
+func (s *basicGRC1155Token) SafeTransferFrom(from, to address, tid TokenID, amount int64) error {
 	caller := runtime.OriginCaller()
 	if !s.IsApprovedForAll(caller, from) {
 		return ErrCallerIsNotOwnerOrApproved
@@ -109,7 +108,7 @@ func (s *basicGRC1155Token) SafeTransferFrom(from, to chain.Address, tid TokenID
 // Safely transfers a `batch` of tokens from `from` to `to`, checking that
 // contract recipients are aware of the GRC1155 protocol to prevent
 // tokens from being forever locked.
-func (s *basicGRC1155Token) SafeBatchTransferFrom(from, to chain.Address, batch []TokenID, amounts []int64) error {
+func (s *basicGRC1155Token) SafeBatchTransferFrom(from, to address, batch []TokenID, amounts []int64) error {
 	caller := runtime.OriginCaller()
 	if !s.IsApprovedForAll(caller, from) {
 		return ErrCallerIsNotOwnerOrApproved
@@ -131,7 +130,7 @@ func (s *basicGRC1155Token) SafeBatchTransferFrom(from, to chain.Address, batch 
 
 // Creates `amount` tokens of token type `id`, and assigns them to `to`. Also checks that
 // contract recipients are using GRC1155 protocol.
-func (s *basicGRC1155Token) SafeMint(to chain.Address, tid TokenID, amount int64) error {
+func (s *basicGRC1155Token) SafeMint(to address, tid TokenID, amount int64) error {
 	caller := runtime.OriginCaller()
 
 	err := s.mintBatch(to, []TokenID{tid}, []int64{amount})
@@ -150,7 +149,7 @@ func (s *basicGRC1155Token) SafeMint(to chain.Address, tid TokenID, amount int64
 
 // Batch version of `SafeMint()`. Also checks that
 // contract recipients are using GRC1155 protocol.
-func (s *basicGRC1155Token) SafeBatchMint(to chain.Address, batch []TokenID, amounts []int64) error {
+func (s *basicGRC1155Token) SafeBatchMint(to address, batch []TokenID, amounts []int64) error {
 	caller := runtime.OriginCaller()
 
 	err := s.mintBatch(to, batch, amounts)
@@ -168,7 +167,7 @@ func (s *basicGRC1155Token) SafeBatchMint(to chain.Address, batch []TokenID, amo
 }
 
 // Destroys `amount` tokens of token type `id` from `from`.
-func (s *basicGRC1155Token) Burn(from chain.Address, tid TokenID, amount int64) error {
+func (s *basicGRC1155Token) Burn(from address, tid TokenID, amount int64) error {
 	caller := runtime.OriginCaller()
 
 	err := s.burnBatch(from, []TokenID{tid}, []int64{amount})
@@ -182,7 +181,7 @@ func (s *basicGRC1155Token) Burn(from chain.Address, tid TokenID, amount int64) 
 }
 
 // Batch version of `Burn()`
-func (s *basicGRC1155Token) BatchBurn(from chain.Address, batch []TokenID, amounts []int64) error {
+func (s *basicGRC1155Token) BatchBurn(from address, batch []TokenID, amounts []int64) error {
 	caller := runtime.OriginCaller()
 
 	err := s.burnBatch(from, batch, amounts)
@@ -198,7 +197,7 @@ func (s *basicGRC1155Token) BatchBurn(from chain.Address, batch []TokenID, amoun
 /* Helper methods */
 
 // Helper for SetApprovalForAll(): approve `operator` to operate on all of `owner` tokens
-func (s *basicGRC1155Token) setApprovalForAll(owner, operator chain.Address, approved bool) error {
+func (s *basicGRC1155Token) setApprovalForAll(owner, operator address, approved bool) error {
 	if owner == operator {
 		return nil
 	}
@@ -216,7 +215,7 @@ func (s *basicGRC1155Token) setApprovalForAll(owner, operator chain.Address, app
 }
 
 // Helper for SafeTransferFrom() and SafeBatchTransferFrom()
-func (s *basicGRC1155Token) safeBatchTransferFrom(from, to chain.Address, batch []TokenID, amounts []int64) error {
+func (s *basicGRC1155Token) safeBatchTransferFrom(from, to address, batch []TokenID, amounts []int64) error {
 	if len(batch) != len(amounts) {
 		return ErrMismatchLength
 	}
@@ -264,7 +263,7 @@ func (s *basicGRC1155Token) safeBatchTransferFrom(from, to chain.Address, batch 
 }
 
 // Helper for SafeMint() and SafeBatchMint()
-func (s *basicGRC1155Token) mintBatch(to chain.Address, batch []TokenID, amounts []int64) error {
+func (s *basicGRC1155Token) mintBatch(to address, batch []TokenID, amounts []int64) error {
 	if len(batch) != len(amounts) {
 		return ErrMismatchLength
 	}
@@ -298,7 +297,7 @@ func (s *basicGRC1155Token) mintBatch(to chain.Address, batch []TokenID, amounts
 }
 
 // Helper for Burn() and BurnBatch()
-func (s *basicGRC1155Token) burnBatch(from chain.Address, batch []TokenID, amounts []int64) error {
+func (s *basicGRC1155Token) burnBatch(from address, batch []TokenID, amounts []int64) error {
 	if len(batch) != len(amounts) {
 		return ErrMismatchLength
 	}
@@ -339,20 +338,20 @@ func (s *basicGRC1155Token) setUri(newUri string) {
 	emit(&UpdateURIEvent{newUri})
 }
 
-func (s *basicGRC1155Token) beforeTokenTransfer(operator, from, to chain.Address, batch []TokenID, amounts []int64) {
+func (s *basicGRC1155Token) beforeTokenTransfer(operator, from, to address, batch []TokenID, amounts []int64) {
 	// TODO: Implementation
 }
 
-func (s *basicGRC1155Token) afterTokenTransfer(operator, from, to chain.Address, batch []TokenID, amounts []int64) {
+func (s *basicGRC1155Token) afterTokenTransfer(operator, from, to address, batch []TokenID, amounts []int64) {
 	// TODO: Implementation
 }
 
-func (s *basicGRC1155Token) doSafeTransferAcceptanceCheck(operator, from, to chain.Address, tid TokenID, amount int64) bool {
+func (s *basicGRC1155Token) doSafeTransferAcceptanceCheck(operator, from, to address, tid TokenID, amount int64) bool {
 	// TODO: Implementation
 	return true
 }
 
-func (s *basicGRC1155Token) doSafeBatchTransferAcceptanceCheck(operator, from, to chain.Address, batch []TokenID, amounts []int64) bool {
+func (s *basicGRC1155Token) doSafeBatchTransferAcceptanceCheck(operator, from, to address, batch []TokenID, amounts []int64) bool {
 	// TODO: Implementation
 	return true
 }

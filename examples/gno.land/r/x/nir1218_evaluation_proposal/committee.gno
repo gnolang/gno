@@ -1,7 +1,6 @@
 package evaluation
 
 import (
-	"chain"
 	"chain/runtime"
 
 	"gno.land/p/demo/avl"
@@ -9,8 +8,8 @@ import (
 )
 
 type Committee struct {
-	members    []chain.Address // TODO - use avl tree or address set?
-	categories avl.Tree        // A category is mapped to a list of evaluation criteria
+	members    []address // TODO - use avl tree or address set?
+	categories avl.Tree  // A category is mapped to a list of evaluation criteria
 	evaluation *Evaluation
 }
 
@@ -18,21 +17,21 @@ const ApprovedStatus = "Approved"
 
 func NewCommittee() *Committee {
 	c := &Committee{
-		members:    []chain.Address{},
+		members:    []address{},
 		categories: avl.Tree{},
 		evaluation: NewEvalutaion(),
 	}
 	return c
 }
 
-func (c *Committee) DesignateMembers(members []chain.Address) []chain.Address {
+func (c *Committee) DesignateMembers(members []address) []address {
 	c.members = append(c.members, members...)
 	return c.members
 }
 
-func (c *Committee) DismissMembers(members []chain.Address) []chain.Address {
+func (c *Committee) DismissMembers(members []address) []address {
 	// TODO
-	return []chain.Address{}
+	return []address{}
 }
 
 func (c *Committee) AddCategory(name string, criteria []string) bool {
@@ -81,7 +80,7 @@ func (c *Committee) ApproveCategory(name string, option string) bool {
 }
 
 // TODO error handling
-func (c *Committee) AddContribution(pr *PullRequest, contributor chain.Address) (contributionId int, ok bool) {
+func (c *Committee) AddContribution(pr *PullRequest, contributor address) (contributionId int, ok bool) {
 	if !c.isMember(runtime.OriginCaller()) {
 		return -1, false
 	}
@@ -131,7 +130,7 @@ func (c *Committee) ApproveContribution(id int, option string) bool {
 	return false
 }
 
-func (c *Committee) isMember(m chain.Address) bool {
+func (c *Committee) isMember(m address) bool {
 	for _, member := range c.members {
 		if m == member {
 			return true

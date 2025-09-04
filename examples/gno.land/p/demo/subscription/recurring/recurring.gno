@@ -1,7 +1,6 @@
 package recurring
 
 import (
-	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"time"
@@ -30,7 +29,7 @@ func NewRecurringSubscription(duration time.Duration, amount int64) *RecurringSu
 }
 
 // HasValidSubscription verifies if the caller has an active recurring subscription.
-func (rs *RecurringSubscription) HasValidSubscription(addr chain.Address) error {
+func (rs *RecurringSubscription) HasValidSubscription(addr address) error {
 	expTime, exists := rs.subs.Get(addr.String())
 	if !exists {
 		return ErrNoSub
@@ -44,7 +43,7 @@ func (rs *RecurringSubscription) HasValidSubscription(addr chain.Address) error 
 }
 
 // processSubscription processes the payment for a given receiver and renews or adds their subscription.
-func (rs *RecurringSubscription) processSubscription(receiver chain.Address) error {
+func (rs *RecurringSubscription) processSubscription(receiver address) error {
 	amount := banker.OriginSend()
 
 	if amount.AmountOf("ugnot") != rs.amount {
@@ -76,12 +75,12 @@ func (rs *RecurringSubscription) Subscribe() error {
 }
 
 // GiftSubscription allows the user to pay for a subscription for another user (receiver).
-func (rs *RecurringSubscription) GiftSubscription(receiver chain.Address) error {
+func (rs *RecurringSubscription) GiftSubscription(receiver address) error {
 	return rs.processSubscription(receiver)
 }
 
 // GetExpiration returns the expiration date of the recurring subscription for a given caller.
-func (rs *RecurringSubscription) GetExpiration(addr chain.Address) (time.Time, error) {
+func (rs *RecurringSubscription) GetExpiration(addr address) (time.Time, error) {
 	expTime, exists := rs.subs.Get(addr.String())
 	if !exists {
 		return time.Time{}, ErrNoSub

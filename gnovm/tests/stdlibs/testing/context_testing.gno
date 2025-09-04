@@ -1,7 +1,6 @@
 package testing
 
 import (
-	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"time"
@@ -29,7 +28,7 @@ func setContext(
 func GetContext() Context {
 	originCaller, origSendDenoms, origSendAmounts, origSpendDenoms, origSpendAmounts, chainID, height, timeUnix, timeNano := getContext()
 	return Context{
-		OriginCaller: chain.Address(originCaller),
+		OriginCaller: address(originCaller),
 		OriginSend:   compactNative(origSendDenoms, origSendAmounts),
 		OriginSpend:  compactNative(origSpendDenoms, origSpendAmounts),
 		ChainID:      chainID,
@@ -63,7 +62,7 @@ func SetContext(ctx Context) {
 
 func testIssueCoins(addr string, denom []string, amt []int64)
 
-func SetOriginCaller(origCaller chain.Address) {
+func SetOriginCaller(origCaller address) {
 	ctx := GetContext()
 	ctx.OriginCaller = origCaller
 	ctx.CurrentRealm = runtime.NewUserRealm(origCaller)
@@ -110,7 +109,7 @@ func SkipHeights(count int64) {
 	SetContext(Context{Height: toHeight, Time: toTime})
 }
 
-func IssueCoins(addr chain.Address, coins banker.Coins) {
+func IssueCoins(addr address, coins banker.Coins) {
 	denom, amt := expandNative(coins)
 	testIssueCoins(addr.String(), denom, amt)
 }

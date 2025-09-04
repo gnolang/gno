@@ -1,7 +1,6 @@
 package impl
 
 import (
-	"chain"
 	"chain/runtime"
 	"strconv"
 	"strings"
@@ -160,7 +159,7 @@ func renderActionBar(sPid string) string {
 	return out
 }
 
-func tryResolveAddr(addr chain.Address) string {
+func tryResolveAddr(addr address) string {
 	userData := users.ResolveAddress(addr)
 	if userData == nil {
 		return addr.String()

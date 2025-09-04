@@ -365,7 +365,7 @@ func TestMemberAuthorityMultipleMembers(t *testing.T) {
 	auth := NewMemberAuthority(alice, bob)
 
 	// Test that both members can execute actions
-	for _, member := range []chain.Address{alice, bob} {
+	for _, member := range []address{alice, bob} {
 		err := auth.Authorize(member, "test_action", func() error {
 			return nil
 		})
@@ -383,9 +383,9 @@ func TestMemberAuthorityMultipleMembers(t *testing.T) {
 	uassert.True(t, tree.Size() == 2, "tree should have 2 members")
 
 	// Verify both members are in the tree
-	found := make(map[chain.Address]bool)
+	found := make(map[address]bool)
 	tree.Iterate("", "", func(key string, _ any) bool {
-		found[chain.Address(key)] = true
+		found[address(key)] = true
 		return false
 	})
 	uassert.True(t, found[alice], "alice should be in the tree")
@@ -474,7 +474,7 @@ func TestAuthorizerString(t *testing.T) {
 type mockAuthority struct{}
 
 func (c mockAuthority) String() string { return "mock" }
-func (a mockAuthority) Authorize(caller chain.Address, title string, action PrivilegedAction, args ...any) error {
+func (a mockAuthority) Authorize(caller address, title string, action PrivilegedAction, args ...any) error {
 	// autoaccept
 	return action()
 }

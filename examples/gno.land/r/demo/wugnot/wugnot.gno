@@ -1,7 +1,6 @@
 package wugnot
 
 import (
-	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"strings"
@@ -55,7 +54,7 @@ func Render(path string) string {
 	case path == "":
 		return Token.RenderHome()
 	case c == 2 && parts[0] == "balance":
-		owner := chain.Address(parts[1])
+		owner := address(parts[1])
 		balance := Token.BalanceOf(owner)
 		return ufmt.Sprintf("%d", balance)
 	default:
@@ -67,25 +66,25 @@ func TotalSupply() int64 {
 	return Token.TotalSupply()
 }
 
-func BalanceOf(owner chain.Address) int64 {
+func BalanceOf(owner address) int64 {
 	return Token.BalanceOf(owner)
 }
 
-func Allowance(owner, spender chain.Address) int64 {
+func Allowance(owner, spender address) int64 {
 	return Token.Allowance(owner, spender)
 }
 
-func Transfer(cur realm, to chain.Address, amount int64) {
+func Transfer(cur realm, to address, amount int64) {
 	userTeller := Token.CallerTeller()
 	checkErr(userTeller.Transfer(to, amount))
 }
 
-func Approve(cur realm, spender chain.Address, amount int64) {
+func Approve(cur realm, spender address, amount int64) {
 	userTeller := Token.CallerTeller()
 	checkErr(userTeller.Approve(spender, amount))
 }
 
-func TransferFrom(cur realm, from, to chain.Address, amount int64) {
+func TransferFrom(cur realm, from, to address, amount int64) {
 	userTeller := Token.CallerTeller()
 	checkErr(userTeller.TransferFrom(from, to, amount))
 }

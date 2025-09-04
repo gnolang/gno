@@ -38,7 +38,7 @@ func main() {
 }
 
 func printBalances() {
-	printSingleBalance := func(name string, addr chain.Address) {
+	printSingleBalance := func(name string, addr address) {
 		wugnotBal := wugnot.BalanceOf(addr)
 		testing.SetOriginCaller(addr)
 		robanker := banker.NewBanker(banker.BankerTypeReadonly)

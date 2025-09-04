@@ -1,7 +1,6 @@
 package typeutil
 
 import (
-	"chain"
 	"strings"
 	"testing"
 	"time"
@@ -21,7 +20,7 @@ func TestToString(t *testing.T) {
 	num := 42
 	b := true
 	now := time.Now()
-	addr := chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	addr := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	stringer := testStringer{value: "hello"}
 
 	type testCase struct {
@@ -72,7 +71,7 @@ func TestToString(t *testing.T) {
 		{"float64_slice", []float64{1.1, 2.2}, "[1.1 2.2]"},
 		{"bytes_slice", [][]byte{[]byte("a"), []byte("b")}, "[a b]"},
 		{"time_slice", []time.Time{now, now}, "[" + now.String() + " " + now.String() + "]"},
-		{"address_slice", []chain.Address{addr, addr}, "[" + string(addr) + " " + string(addr) + "]"},
+		{"address_slice", []address{addr, addr}, "[" + string(addr) + " " + string(addr) + "]"},
 		{"interface_slice", []any{1, "a", true}, "[1 a true]"},
 
 		// empty slices
@@ -84,7 +83,7 @@ func TestToString(t *testing.T) {
 		{"empty_float64_slice", []float64{}, "[]"},
 		{"empty_bytes_slice", [][]byte{}, "[]"},
 		{"empty_time_slice", []time.Time{}, "[]"},
-		{"empty_address_slice", []chain.Address{}, "[]"},
+		{"empty_address_slice", []address{}, "[]"},
 		{"empty_interface_slice", []any{}, "[]"},
 
 		// maps
@@ -127,7 +126,7 @@ func TestToBool(t *testing.T) {
 	num := 42
 	b := true
 	now := time.Now()
-	addr := chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	addr := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	zero := 0
 	empty := ""
 	falseVal := false
@@ -169,7 +168,7 @@ func TestToBool(t *testing.T) {
 		{"empty_bytes", []byte{}, false},
 		{"non_empty_bytes", []byte{1}, true},
 		/*{"zero_time", time.Time{}, false},*/ // TODO: fix this
-		{"empty_address", chain.Address(""), false},
+		{"empty_address", address(""), false},
 
 		// slices
 		{"empty_slice", []string{}, false},
@@ -210,7 +209,7 @@ func TestIsZero(t *testing.T) {
 	num := 42
 	b := true
 	now := time.Now()
-	addr := chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	addr := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	zero := 0
 	empty := ""
 	falseVal := false
@@ -241,7 +240,7 @@ func TestIsZero(t *testing.T) {
 		{"empty_bytes", []byte{}, true},
 		{"non_empty_bytes", []byte{1}, false},
 		/*{"zero_time", time.Time{}, true},*/ // TODO: fix this
-		{"empty_address", chain.Address(""), true},
+		{"empty_address", address(""), true},
 
 		// slices
 		{"empty_slice", []string{}, true},
@@ -511,8 +510,8 @@ func compareAddresses(a, b []any) bool {
 		return false
 	}
 	for i := range a {
-		aa, ok1 := a[i].(chain.Address)
-		ba, ok2 := b[i].(chain.Address)
+		aa, ok1 := a[i].(address)
+		ba, ok2 := b[i].(address)
 		if !ok1 || !ok2 || aa != ba {
 			return false
 		}
@@ -973,7 +972,7 @@ func TestToStringSlice(t *testing.T) {
 		},
 		{
 			name:     "address slice",
-			input:    []chain.Address{"addr1", "addr2"},
+			input:    []address{"addr1", "addr2"},
 			expected: []string{"addr1", "addr2"},
 		},
 		{

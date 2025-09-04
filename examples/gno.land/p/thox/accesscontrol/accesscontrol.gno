@@ -38,7 +38,7 @@ func validRoleName(name string) error {
 }
 
 // NewRole creates a new instance of Role
-func NewRole(name string, admin chain.Address) (*Role, error) {
+func NewRole(name string, admin address) (*Role, error) {
 	if err := validRoleName(name); err != nil {
 		return nil, ErrNameRole
 	}
@@ -83,7 +83,7 @@ func (rs *Roles) CreateRole(name string) (*Role, error) {
 }
 
 // HasAccount check if an account has a specific role
-func (r *Role) HasAccount(account chain.Address) bool {
+func (r *Role) HasAccount(account address) bool {
 	return r.Holders.Has(account.String())
 }
 
@@ -99,7 +99,7 @@ func (rs *Roles) FindRole(name string) (*Role, error) {
 }
 
 // GrantRole grants a role to an account
-func (rs *Roles) GrantRole(name string, account chain.Address) error {
+func (rs *Roles) GrantRole(name string, account address) error {
 	r, err := rs.FindRole(name)
 	if err != nil {
 		return ErrRoleNotFound
@@ -130,7 +130,7 @@ func (rs *Roles) GrantRole(name string, account chain.Address) error {
 }
 
 // RevokeRole revokes a role from an account
-func (rs *Roles) RevokeRole(name string, account chain.Address) error {
+func (rs *Roles) RevokeRole(name string, account address) error {
 	r, err := rs.FindRole(name)
 	if err != nil {
 		return ErrRoleNotFound
@@ -190,7 +190,7 @@ func (rs *Roles) RenounceRole(name string) error {
 }
 
 // SetRoleAdmin transfers the ownership of the role to a new administrator
-func (r *Role) SetRoleAdmin(admin chain.Address) error {
+func (r *Role) SetRoleAdmin(admin address) error {
 	if err := r.Ownable.TransferOwnership(admin); err != nil {
 		return err
 	}

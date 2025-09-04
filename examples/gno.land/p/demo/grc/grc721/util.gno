@@ -1,10 +1,8 @@
 package grc721
 
-import "chain"
+var zeroAddress = address("")
 
-var zeroAddress = chain.Address("")
-
-func isValidAddress(addr chain.Address) error {
+func isValidAddress(addr address) error {
 	if !addr.IsValid() {
 		return ErrInvalidAddress
 	}

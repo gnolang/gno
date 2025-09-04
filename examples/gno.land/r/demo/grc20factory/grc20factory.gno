@@ -1,7 +1,6 @@
 package foo20
 
 import (
-	"chain"
 	"chain/runtime"
 
 	"gno.land/p/demo/avl"
@@ -32,7 +31,7 @@ func New(cur realm, name, symbol string, decimals int, initialMint, faucet int64
 	NewWithAdmin(cur, name, symbol, decimals, initialMint, faucet, caller)
 }
 
-func NewWithAdmin(cur realm, name, symbol string, decimals int, initialMint, faucet int64, admin chain.Address) {
+func NewWithAdmin(cur realm, name, symbol string, decimals int, initialMint, faucet int64, admin address) {
 	exists := instances.Has(symbol)
 	if exists {
 		panic("token already exists")
@@ -64,36 +63,36 @@ func TotalSupply(symbol string) int64 {
 	return inst.token.ReadonlyTeller().TotalSupply()
 }
 
-func HasAddr(symbol string, owner chain.Address) bool {
+func HasAddr(symbol string, owner address) bool {
 	inst := mustGetInstance(symbol)
 	return inst.token.HasAddr(owner)
 }
 
-func BalanceOf(symbol string, owner chain.Address) int64 {
+func BalanceOf(symbol string, owner address) int64 {
 	inst := mustGetInstance(symbol)
 	return inst.token.ReadonlyTeller().BalanceOf(owner)
 }
 
-func Allowance(symbol string, owner, spender chain.Address) int64 {
+func Allowance(symbol string, owner, spender address) int64 {
 	inst := mustGetInstance(symbol)
 	return inst.token.ReadonlyTeller().Allowance(owner, spender)
 }
 
-func Transfer(cur realm, symbol string, to chain.Address, amount int64) {
+func Transfer(cur realm, symbol string, to address, amount int64) {
 	inst := mustGetInstance(symbol)
 	caller := runtime.PreviousRealm().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.Transfer(to, amount))
 }
 
-func Approve(cur realm, symbol string, spender chain.Address, amount int64) {
+func Approve(cur realm, symbol string, spender address, amount int64) {
 	inst := mustGetInstance(symbol)
 	caller := runtime.PreviousRealm().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.Approve(spender, amount))
 }
 
-func TransferFrom(cur realm, symbol string, from, to chain.Address, amount int64) {
+func TransferFrom(cur realm, symbol string, from, to address, amount int64) {
 	inst := mustGetInstance(symbol)
 	caller := runtime.PreviousRealm().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
@@ -112,13 +111,13 @@ func Faucet(cur realm, symbol string) {
 	checkErr(inst.ledger.Mint(caller, inst.faucet))
 }
 
-func Mint(cur realm, symbol string, to chain.Address, amount int64) {
+func Mint(cur realm, symbol string, to address, amount int64) {
 	inst := mustGetInstance(symbol)
 	inst.admin.AssertOwnedByPrevious()
 	checkErr(inst.ledger.Mint(to, amount))
 }
 
-func Burn(cur realm, symbol string, from chain.Address, amount int64) {
+func Burn(cur realm, symbol string, from address, amount int64) {
 	inst := mustGetInstance(symbol)
 	inst.admin.AssertOwnedByPrevious()
 	checkErr(inst.ledger.Burn(from, amount))
@@ -130,7 +129,7 @@ func DropInstanceOwnership(cur realm, symbol string) {
 	checkErr(inst.admin.DropOwnershipByCurrent())
 }
 
-func TransferInstanceOwnership(cur realm, symbol string, newOwner chain.Address) {
+func TransferInstanceOwnership(cur realm, symbol string, newOwner address) {
 	inst := mustGetInstance(symbol)
 	checkErr(inst.admin.TransferOwnership(newOwner))
 }
@@ -200,7 +199,7 @@ func renderBalance(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Get the balance of the specified address for the token.
 	inst := mustGetInstance(symbol)
-	balance := inst.token.CallerTeller().BalanceOf(chain.Address(addr))
+	balance := inst.token.CallerTeller().BalanceOf(address(addr))
 
 	// Render the balance information.
 	out := md.Paragraph(

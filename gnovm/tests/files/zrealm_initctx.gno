@@ -2,14 +2,15 @@
 package testinit
 
 import (
-	"chain"
 	"chain/runtime"
 
 	"gno.land/r/demo/tests"
 )
 
-var addr = chain.Address("test")
-var addrInit = chain.Address("addrInit")
+var (
+	addr     = address("test")
+	addrInit = address("addrInit")
+)
 
 func init() {
 	addr = runtime.OriginCaller()

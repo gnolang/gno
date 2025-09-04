@@ -1,7 +1,6 @@
 package atomicswap
 
 import (
-	"chain"
 	"chain/runtime"
 	"crypto/sha256"
 	"encoding/hex"
@@ -12,23 +11,23 @@ import (
 
 // Swap represents an atomic swap contract.
 type Swap struct {
-	sender    chain.Address
-	recipient chain.Address
+	sender    address
+	recipient address
 	hashlock  string
 	timelock  time.Time
 	claimed   bool
 	refunded  bool
 	amountStr string
-	sendFn    func(cur realm, to chain.Address)
+	sendFn    func(cur realm, to address)
 }
 
 func newSwap(
-	sender chain.Address,
-	recipient chain.Address,
+	sender address,
+	recipient address,
 	hashlock string,
 	timelock time.Time,
 	amountStr string,
-	sendFn func(realm, chain.Address),
+	sendFn func(realm, address),
 ) *Swap {
 	require(time.Now().Before(timelock), "timelock must be in the future")
 	require(hashlock != "", "hashlock must not be empty")

@@ -172,7 +172,7 @@ func (f *Faker) Phone() string {
 }
 
 // StdAddress returns a random schain.Address.
-func (f *Faker) StdAddress() chain.Address {
+func (f *Faker) StdAddress() address {
 	var rawAddr [20]byte
 
 	for i := 0; i < 20; i++ {
@@ -181,7 +181,7 @@ func (f *Faker) StdAddress() chain.Address {
 
 	addr := chain.EncodeBech32("g", rawAddr)
 
-	return chain.Address(addr)
+	return address(addr)
 }
 
 // Username returns a random gno username following the rules:
@@ -332,7 +332,7 @@ func Phone() string {
 }
 
 // StdAddress returns a random chain.Address using the default faker.
-func StdAddress() chain.Address {
+func StdAddress() address {
 	return defaultFaker.StdAddress()
 }
 

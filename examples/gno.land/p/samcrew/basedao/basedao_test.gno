@@ -1,7 +1,6 @@
 package basedao
 
 import (
-	"chain"
 	"chain/runtime"
 	"testing"
 
@@ -31,7 +30,7 @@ func TestNewDAO(t *testing.T) {
 		Name:             "My DAO",
 		Description:      "My DAO Description",
 		Members:          NewMembersStore(initialRoles, initialMembers),
-		GetProfileString: func(addr chain.Address, field, def string) string { return "" },
+		GetProfileString: func(addr address, field, def string) string { return "" },
 	}
 
 	daoRealm := runtime.NewCodeRealm("gno.land/r/testing/daorealm")
@@ -72,13 +71,13 @@ func TestPropose(t *testing.T) {
 
 	type testNewProposalInput struct {
 		proposalReq daokit.ProposalRequest
-		proposer    chain.Address
+		proposer    address
 	}
 
 	type tesNewProposalExpected struct {
 		title        string
 		description  string
-		proposer     chain.Address
+		proposer     address
 		messsageType string
 		panic        bool
 	}
@@ -171,7 +170,7 @@ func TestVote(t *testing.T) {
 	type testVoteInput struct {
 		proposalID uint64
 		vote       daocond.Vote
-		voter      chain.Address
+		voter      address
 	}
 
 	type testVoteExpected struct {
@@ -278,9 +277,9 @@ func TestExecuteProposal(t *testing.T) {
 
 	type testExecuteInput struct {
 		proposalID uint64
-		executor   chain.Address
+		executor   address
 		haveVote   bool
-		voter      chain.Address
+		voter      address
 	}
 
 	type testExecuteExpected struct {
@@ -383,7 +382,7 @@ func TestInstantExecute(t *testing.T) {
 
 	type testInstantExecuteInput struct {
 		proposalReq daokit.ProposalRequest
-		executor    chain.Address
+		executor    address
 	}
 
 	type testInstantExecuteExpected struct {
@@ -685,7 +684,7 @@ func newTestingDAO(t *testing.T, threshold float64, members []Member) *testingDA
 		Description:      "My DAO Description",
 		Members:          membersStore,
 		InitialCondition: initialCondition,
-		GetProfileString: func(addr chain.Address, field, def string) string { return "" },
+		GetProfileString: func(addr address, field, def string) string { return "" },
 	}
 
 	daoRealm := runtime.NewCodeRealm("gno.land/r/testing/daorealm")

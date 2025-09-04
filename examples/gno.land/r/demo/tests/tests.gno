@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"chain"
 	"chain/runtime"
 
 	"gno.land/p/demo/nestedpkg"
@@ -24,7 +23,7 @@ func CurrentRealmPath(cur realm) string {
 
 var initOriginCaller = runtime.OriginCaller()
 
-func InitOriginCaller(cur realm) chain.Address {
+func InitOriginCaller(cur realm) address {
 	return initOriginCaller
 }
 

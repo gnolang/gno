@@ -29,7 +29,7 @@ func Set(_ realm, value string) {
 
 // Get retrieves the value stored at the provided address and
 // returns it as a base64 encoded string.
-func Get(_ realm, addr chain.Address) string {
+func Get(_ realm, addr address) string {
 	return base64.StdEncoding.EncodeToString(store.Get(addr))
 }
 
@@ -50,10 +50,10 @@ if one exists. For instance append :g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t to
 this URL to view the value stored at that address.
 `
 	}
-	return renderGet(cross, chain.Address(path))
+	return renderGet(cross, address(path))
 }
 
-func renderGet(cur realm, addr chain.Address) string {
+func renderGet(cur realm, addr address) string {
 	value := "```\n" + Get(cur, addr) + "\n```"
 
 	return ufmt.Sprintf(`

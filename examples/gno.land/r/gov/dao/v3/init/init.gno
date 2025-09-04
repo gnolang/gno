@@ -1,8 +1,6 @@
 package init
 
 import (
-	"chain"
-
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
 	"gno.land/r/gov/dao/v3/memberstore"
@@ -18,7 +16,7 @@ func Init() {
 	})
 }
 
-func InitWithUsers(addrs ...chain.Address) {
+func InitWithUsers(addrs ...address) {
 	// This is needed because state is saved between unit tests,
 	// and we want to avoid having real members used on tests
 	memberstore.Get().DeleteAll()

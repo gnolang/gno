@@ -1,7 +1,6 @@
 package disperse
 
 import (
-	"chain"
 	"chain/banker"
 	"chain/runtime"
 
@@ -13,7 +12,7 @@ var realmAddr = runtime.CurrentRealm().Address()
 // DisperseUgnot parses receivers and amounts and sends out ugnot
 // The function will send out the coins to the addresses and return the leftover coins to the caller
 // if there are any to return
-func DisperseUgnot(cur realm, addresses []chain.Address, coins banker.Coins) {
+func DisperseUgnot(cur realm, addresses []address, coins banker.Coins) {
 	coinSent := banker.OriginSend()
 	caller := runtime.PreviousRealm().Address()
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
@@ -71,7 +70,7 @@ func DisperseUgnotString(cur realm, addresses string, amounts string) {
 // DisperseGRC20 disperses tokens to multiple addresses
 // Note that it is necessary to approve the realm to spend the tokens before calling this function
 // see the corresponding filetests for examples
-func DisperseGRC20(cur realm, addresses []chain.Address, amounts []int64, symbols []string) {
+func DisperseGRC20(cur realm, addresses []address, amounts []int64, symbols []string) {
 	caller := runtime.PreviousRealm().Address()
 
 	if (len(addresses) != len(amounts)) || (len(amounts) != len(symbols)) {

@@ -458,7 +458,7 @@ func EditReply(_ realm, boardID BoardID, threadID, replyID PostID, body string) 
 // RemoveMember removes a member from the realm or a boards.
 //
 // Board ID is only required when removing a member from board.
-func RemoveMember(_ realm, boardID BoardID, member chain.Address) {
+func RemoveMember(_ realm, boardID BoardID, member address) {
 	assertMembersUpdateIsEnabled(boardID)
 	assertMemberAddressIsValid(member)
 
@@ -483,7 +483,7 @@ func RemoveMember(_ realm, boardID BoardID, member chain.Address) {
 // IsMember checks if an user is a member of the realm or a board.
 //
 // Board ID is only required when checking if a user is a member of a board.
-func IsMember(boardID BoardID, user chain.Address) bool {
+func IsMember(boardID BoardID, user address) bool {
 	assertUserAddressIsValid(user)
 
 	if boardID != 0 {
@@ -498,7 +498,7 @@ func IsMember(boardID BoardID, user chain.Address) bool {
 // HasMemberRole checks if a realm or board member has a specific role assigned.
 //
 // Board ID is only required when checking a member of a board.
-func HasMemberRole(boardID BoardID, member chain.Address, role Role) bool {
+func HasMemberRole(boardID BoardID, member address, role Role) bool {
 	assertMemberAddressIsValid(member)
 
 	if boardID != 0 {
@@ -513,7 +513,7 @@ func HasMemberRole(boardID BoardID, member chain.Address, role Role) bool {
 // ChangeMemberRole changes the role of a realm or board member.
 //
 // Board ID is only required when changing the role for a member of a board.
-func ChangeMemberRole(_ realm, boardID BoardID, member chain.Address, role Role) {
+func ChangeMemberRole(_ realm, boardID BoardID, member address, role Role) {
 	assertMemberAddressIsValid(member)
 	assertMembersUpdateIsEnabled(boardID)
 
@@ -553,19 +553,19 @@ func GetBoard(boardID BoardID) *Board {
 	return board
 }
 
-func assertMemberAddressIsValid(member chain.Address) {
+func assertMemberAddressIsValid(member address) {
 	if !member.IsValid() {
 		panic("invalid member address")
 	}
 }
 
-func assertUserAddressIsValid(user chain.Address) {
+func assertUserAddressIsValid(user address) {
 	if !user.IsValid() {
 		panic("invalid user address")
 	}
 }
 
-func assertHasPermission(perms Permissions, user chain.Address, p Permission) {
+func assertHasPermission(perms Permissions, user address, p Permission) {
 	if !perms.HasPermission(user, p) {
 		panic("unauthorized")
 	}

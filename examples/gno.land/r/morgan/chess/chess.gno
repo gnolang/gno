@@ -2,7 +2,6 @@
 package chess
 
 import (
-	"chain"
 	"chain/runtime"
 	"errors"
 	"time"
@@ -26,16 +25,16 @@ var (
 type Game struct {
 	ID string `json:"id"`
 
-	White    chain.Address  `json:"white"`
-	Black    chain.Address  `json:"black"`
+	White    address        `json:"white"`
+	Black    address        `json:"black"`
 	Position chess.Position `json:"position"`
 	State    GameState      `json:"state"`
 	Winner   Winner         `json:"winner"`
 
-	Creator     chain.Address  `json:"creator"`
-	CreatedAt   time.Time      `json:"created_at"`
-	DrawOfferer *chain.Address `json:"draw_offerer"` // set on draw offers
-	Concluder   *chain.Address `json:"concluder"`    // set on non-auto draws, and aborts
+	Creator     address   `json:"creator"`
+	CreatedAt   time.Time `json:"created_at"`
+	DrawOfferer *address  `json:"draw_offerer"` // set on draw offers
+	Concluder   *address  `json:"concluder"`    // set on non-auto draws, and aborts
 
 	Time *TimeControl `json:"time"`
 }
@@ -139,7 +138,7 @@ func xNewGame(cur realm, opponentRaw string, seconds, increment int) string {
 	return newGame(caller, opponent, seconds, increment).json()
 }
 
-func getUserGames(user chain.Address) []*Game {
+func getUserGames(user address) []*Game {
 	val, exist := user2Games.Get(user.String())
 	if !exist {
 		return nil
@@ -159,7 +158,7 @@ func assertGamesFinished(games []*Game) {
 	}
 }
 
-func newGame(caller, opponent chain.Address, seconds, increment int) *Game {
+func newGame(caller, opponent address, seconds, increment int) *Game {
 	games := getUserGames(caller)
 	// Ensure player has no ongoing games.
 	assertGamesFinished(games)
@@ -194,7 +193,7 @@ func newGame(caller, opponent chain.Address, seconds, increment int) *Game {
 	return g
 }
 
-func addToUser2Games(addr chain.Address, game *Game) {
+func addToUser2Games(addr address, game *Game) {
 	var games []*Game
 	v, ok := user2Games.Get(string(addr))
 	if ok {
@@ -205,7 +204,7 @@ func addToUser2Games(addr chain.Address, game *Game) {
 	user2Games.Set(string(addr), games)
 }
 
-func determineColor(games []*Game, caller, opponent chain.Address) (isBlack bool) {
+func determineColor(games []*Game, caller, opponent address) (isBlack bool) {
 	// fast path for no games
 	if len(games) == 0 {
 		return false

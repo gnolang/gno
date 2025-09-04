@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	user1 chain.Address = chain.DerivePkgAddr("user1.gno")
-	user2 chain.Address = chain.DerivePkgAddr("user2.gno")
-	user3 chain.Address = chain.DerivePkgAddr("user3.gno")
+	user1 address = chain.DerivePkgAddr("user1.gno")
+	user2 address = chain.DerivePkgAddr("user2.gno")
+	user3 address = chain.DerivePkgAddr("user3.gno")
 )
 
 func init() {

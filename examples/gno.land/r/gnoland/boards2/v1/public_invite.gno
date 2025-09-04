@@ -12,7 +12,7 @@ import (
 //
 // A role can optionally be specified to be assigned to the new member.
 // Board ID is only required when inviting a member to a board.
-func InviteMember(_ realm, boardID BoardID, user chain.Address, role Role) {
+func InviteMember(_ realm, boardID BoardID, user address, role Role) {
 	assertUserAddressIsValid(user)
 	assertMembersUpdateIsEnabled(boardID)
 
@@ -77,7 +77,7 @@ func RequestInvite(_ realm, boardID BoardID) {
 }
 
 // AcceptInvite accepts a board invite request.
-func AcceptInvite(_ realm, boardID BoardID, user chain.Address) {
+func AcceptInvite(_ realm, boardID BoardID, user address) {
 	assertMembersUpdateIsEnabled(boardID)
 	assertInviteRequestExists(boardID, user)
 
@@ -118,7 +118,7 @@ func AcceptInvite(_ realm, boardID BoardID, user chain.Address) {
 }
 
 // RevokeInvite revokes a board invite request.
-func RevokeInvite(_ realm, boardID BoardID, user chain.Address) {
+func RevokeInvite(_ realm, boardID BoardID, user address) {
 	assertInviteRequestExists(boardID, user)
 
 	board := mustGetBoard(boardID)
@@ -142,7 +142,7 @@ func RevokeInvite(_ realm, boardID BoardID, user chain.Address) {
 	})
 }
 
-func assertInviteRequestExists(boardID BoardID, user chain.Address) {
+func assertInviteRequestExists(boardID BoardID, user address) {
 	invitee := user.String()
 	requests, found := getInviteRequests(boardID)
 	if !found || !requests.Has(invitee) {

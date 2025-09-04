@@ -1,7 +1,6 @@
 package dao
 
 import (
-	"chain"
 	"chain/runtime"
 	"testing"
 
@@ -106,7 +105,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 
 type dummyDao struct{}
 
-func (dd *dummyDao) PreCreateProposal(r ProposalRequest) (chain.Address, error) {
+func (dd *dummyDao) PreCreateProposal(r ProposalRequest) (address, error) {
 	return runtime.OriginCaller(), nil
 }
 

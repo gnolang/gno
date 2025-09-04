@@ -1,7 +1,6 @@
 package gnoblog
 
 import (
-	"chain"
 	"chain/runtime"
 	"testing"
 
@@ -20,7 +19,7 @@ func clearState(t *testing.T) {
 		Title:  "gno.land's blog",
 		Prefix: "/r/gnoland/blog:",
 	}
-	adminAddr = chain.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+	adminAddr = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 	inPause = false
 	moderatorList = avl.NewTree()
 	commenterList = avl.NewTree()

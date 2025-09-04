@@ -3,7 +3,6 @@
 package foo20
 
 import (
-	"chain"
 	"chain/runtime"
 	"strings"
 
@@ -28,23 +27,23 @@ func TotalSupply() int64 {
 	return UserTeller.TotalSupply()
 }
 
-func BalanceOf(owner chain.Address) int64 {
+func BalanceOf(owner address) int64 {
 	return UserTeller.BalanceOf(owner)
 }
 
-func Allowance(owner, spender chain.Address) int64 {
+func Allowance(owner, spender address) int64 {
 	return UserTeller.Allowance(owner, spender)
 }
 
-func Transfer(cur realm, to chain.Address, amount int64) {
+func Transfer(cur realm, to address, amount int64) {
 	checkErr(UserTeller.Transfer(to, amount))
 }
 
-func Approve(cur realm, spender chain.Address, amount int64) {
+func Approve(cur realm, spender address, amount int64) {
 	checkErr(UserTeller.Approve(spender, amount))
 }
 
-func TransferFrom(cur realm, from, to chain.Address, amount int64) {
+func TransferFrom(cur realm, from, to address, amount int64) {
 	checkErr(UserTeller.TransferFrom(from, to, amount))
 }
 
@@ -56,12 +55,12 @@ func Faucet(cur realm) {
 	checkErr(privateLedger.Mint(caller, amount))
 }
 
-func Mint(cur realm, to chain.Address, amount int64) {
+func Mint(cur realm, to address, amount int64) {
 	Ownable.AssertOwnedByPrevious()
 	checkErr(privateLedger.Mint(to, amount))
 }
 
-func Burn(cur realm, from chain.Address, amount int64) {
+func Burn(cur realm, from address, amount int64) {
 	Ownable.AssertOwnedByPrevious()
 	checkErr(privateLedger.Burn(from, amount))
 }
@@ -74,7 +73,7 @@ func Render(path string) string {
 	case path == "":
 		return Token.RenderHome()
 	case c == 2 && parts[0] == "balance":
-		owner := chain.Address(parts[1])
+		owner := address(parts[1])
 		balance := UserTeller.BalanceOf(owner)
 		return ufmt.Sprintf("%d\n", balance)
 	default:

@@ -1,15 +1,14 @@
 package foo1155
 
 import (
-	"chain"
 	"testing"
 
 	"gno.land/p/demo/grc/grc1155"
 )
 
 func TestFoo721(t *testing.T) {
-	admin := chain.Address("g10x5phu0k6p64cwrhfpsc8tk43st9kug6wft530")
-	bob := chain.Address("g1ze6et22ces5atv79y4xh38s4kuraey4y2fr6tw")
+	admin := address("g10x5phu0k6p64cwrhfpsc8tk43st9kug6wft530")
+	bob := address("g1ze6et22ces5atv79y4xh38s4kuraey4y2fr6tw")
 	tid1 := grc1155.TokenID("1")
 
 	for _, tc := range []struct {

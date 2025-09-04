@@ -1,7 +1,6 @@
 package banker
 
 import (
-	"chain"
 	"chain/runtime"
 	"strconv"
 	"strings"
@@ -22,11 +21,11 @@ import (
 // type, and those can't return non-primitive objects
 // (without confusion).
 type Banker interface {
-	GetCoins(addr chain.Address) (dst Coins)
-	SendCoins(from, to chain.Address, amt Coins)
+	GetCoins(addr address) (dst Coins)
+	SendCoins(from, to address, amt Coins)
 	TotalCoin(denom string) int64
-	IssueCoin(addr chain.Address, denom string, amount int64)
-	RemoveCoin(addr chain.Address, denom string, amount int64)
+	IssueCoin(addr address, denom string, amount int64)
+	RemoveCoin(addr address, denom string, amount int64)
 }
 
 // BankerType represents the "permission level" requested for a banker,
@@ -73,7 +72,7 @@ func NewBanker(bt BankerType) Banker {
 		panic("invalid banker type")
 	}
 
-	var pkgAddr chain.Address
+	var pkgAddr address
 	if bt == BankerTypeOriginSend {
 		pkgAddr = runtime.CurrentRealm().Address()
 		if runtime.PreviousRealm().PkgPath() != "" {
@@ -97,10 +96,10 @@ func bankerRemoveCoin(bt uint8, addr string, denom string, amount int64)
 
 type banker struct {
 	bt      BankerType
-	pkgAddr chain.Address
+	pkgAddr address
 }
 
-func (b banker) GetCoins(addr chain.Address) (dst Coins) {
+func (b banker) GetCoins(addr address) (dst Coins) {
 	denoms, amounts := bankerGetCoins(uint8(b.bt), string(addr))
 	dst = make(Coins, len(denoms))
 	for i := range dst {
@@ -109,7 +108,7 @@ func (b banker) GetCoins(addr chain.Address) (dst Coins) {
 	return dst
 }
 
-func (b banker) SendCoins(from, to chain.Address, amt Coins) {
+func (b banker) SendCoins(from, to address, amt Coins) {
 	if b.bt == BankerTypeReadonly {
 		panic("BankerTypeReadonly cannot send coins")
 	}
@@ -125,7 +124,7 @@ func (b banker) TotalCoin(denom string) int64 {
 	return bankerTotalCoin(uint8(b.bt), denom)
 }
 
-func (b banker) IssueCoin(addr chain.Address, denom string, amount int64) {
+func (b banker) IssueCoin(addr address, denom string, amount int64) {
 	if b.bt != BankerTypeRealmIssue {
 		panic(b.bt.String() + " cannot issue coins")
 	}
@@ -133,7 +132,7 @@ func (b banker) IssueCoin(addr chain.Address, denom string, amount int64) {
 	bankerIssueCoin(uint8(b.bt), string(addr), denom, amount)
 }
 
-func (b banker) RemoveCoin(addr chain.Address, denom string, amount int64) {
+func (b banker) RemoveCoin(addr address, denom string, amount int64) {
 	if b.bt != BankerTypeRealmIssue {
 		panic(b.bt.String() + " cannot remove coins")
 	}

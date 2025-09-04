@@ -3,7 +3,6 @@ package main
 // SEND: 1000000ugnot
 
 import (
-	"chain"
 	"chain/runtime"
 	"testing"
 
@@ -15,7 +14,7 @@ import (
 )
 
 // Test updating a name via GovDAO
-var c chain.Address = runtime.OriginCaller()
+var c address = runtime.OriginCaller()
 
 func init() {
 	daov3init.InitWithUsers(c)

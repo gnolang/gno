@@ -12,7 +12,7 @@ import (
 )
 
 type Signup struct {
-	address_XXX chain.Address
+	address_XXX address
 	ordinal     int
 	timestamp   time.Time
 }
