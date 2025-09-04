@@ -5,7 +5,7 @@ import (
 	"std"
 	"time"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 const (
@@ -221,6 +221,11 @@ func (p Proposal) VoteChoices() []VoteChoice {
 		return false
 	})
 	return choices
+}
+
+// HasVotingDeadlinePassed checks if the voting deadline has been met.
+func (p Proposal) HasVotingDeadlinePassed() bool {
+	return !time.Now().Before(p.VotingDeadline())
 }
 
 // Validate validates that a proposal is valid for the current state.
