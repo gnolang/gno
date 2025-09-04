@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/alloc_10.gno:6:2-30: allocation limit exceeded
+// main/alloc_10.gno:6:2-29: allocation limit exceeded

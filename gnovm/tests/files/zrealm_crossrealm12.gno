@@ -36,4 +36,4 @@ func main(cur realm) {
 // Output:
 // gno.land/r/crossrealm g1h2y7mn4d8w5ed08kqt8sdd7tp4j96eahyn6yan
 // gno.land/r/crossrealm g1h2y7mn4d8w5ed08kqt8sdd7tp4j96eahyn6yan
-// gno.land/r/tests/vm/subtests g17up60pmemnyemehamlm0x4tau9x2yhguq887pa
+// gno.land/r/tests/vm/subtests g17j8t4d9ner7wd2ezftsp3px32d5qfhv0mcfdcn

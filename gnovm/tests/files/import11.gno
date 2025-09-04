@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// gno.land/p/demo/bar/import11.gno:5:2-26: pure package path "gno.land/p/demo/bar" cannot import realm path tests "gno.land/r/tests/vm"
+// gno.land/p/demo/bar/import11.gno:5:2-29: pure package path "gno.land/p/demo/bar" cannot import realm path "gno.land/r/tests/vm"
