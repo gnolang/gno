@@ -18,8 +18,6 @@ gno = "0.9"
 -- bar.gno --
 package bar
 
-import "std"
-
 func Render(path string) string {
- 	return 89
+	return 89
 }

@@ -250,12 +250,10 @@ gno = "0.9"
 -- utils/utils.gno --
 package utils
 
-import (
-	"std"
-)
+import "chain/runtime"
 
 func AssertCurrentRealmPkgPath(expected string) {
-	currentRealm := std.CurrentRealm().PkgPath()
+	currentRealm := runtime.CurrentRealm().PkgPath()
 	if currentRealm != expected {
 		if expected == "" {
 			expected = "empty"
@@ -265,7 +263,7 @@ func AssertCurrentRealmPkgPath(expected string) {
 }
 
 func AssertPreviousRealmPkgPath(expected string) {
-	previousRealm := std.PreviousRealm().PkgPath()
+	previousRealm := runtime.PreviousRealm().PkgPath()
 	if previousRealm != expected {
 		if expected == "" {
 			expected = "empty"
