@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 // Constants for different banning periods.

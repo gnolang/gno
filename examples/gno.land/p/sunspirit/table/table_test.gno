@@ -3,8 +3,8 @@ package table
 import (
 	"testing"
 
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 )
 
 func TestNew(t *testing.T) {
