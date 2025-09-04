@@ -45,8 +45,8 @@ func main(cur realm) {
 //     +        "N": "ewAAAAAAAAA=",
 //              "T": {
 //     -            "@type": "/gno.FuncType",
-//     -            "Params": null,
-//     -            "Results": null
+//     -            "Params": [],
+//     -            "Results": []
 //     -        },
 //     -        "V": {
 //     -            "@type": "/gno.RefValue",

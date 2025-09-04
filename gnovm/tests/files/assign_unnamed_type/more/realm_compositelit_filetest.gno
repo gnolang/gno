@@ -27,7 +27,7 @@ func main() {
 // Realm:
 // finalizerealm["gno.land/r/test"]
 // c[a8ada09dee16d791fd406d629fe29bb0ed084a30:8](227)={
-//     "Data": null,
+//     "Data": [],
 //     "List": [
 //         {
 //             "T": {
