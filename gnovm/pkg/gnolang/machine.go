@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
+	"github.com/gnolang/gno/gnovm/pkg/profiler"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -46,6 +47,9 @@ type Machine struct {
 	Store    Store
 	Context  any
 	GasMeter store.GasMeter
+
+	// Profiling
+	profiler *profiler.Profiler
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -129,6 +133,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Alloc = alloc
 	if mm.Alloc != nil {
 		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
+		mm.Alloc.SetMachine(mm)
 	}
 	mm.Output = output
 	mm.Store = store
@@ -1277,6 +1282,50 @@ func (m *Machine) Run(st Stage) {
 			}
 		}
 		// TODO: this can be optimized manually, even into tiers.
+
+		// Record current line for profiling if line-level profiling is enabled
+		if m.IsProfilingEnabled() && m.profiler != nil && m.profiler.IsLineProfilingEnabled() {
+			var line int
+			var file string
+
+			// Try to get current line from expression
+			if len(m.Exprs) > 0 {
+				expr := m.PeekExpr(1)
+				if expr != nil {
+					line = expr.GetLine()
+					// column = expr.GetColumn()
+				}
+			} else if len(m.Stmts) > 0 {
+				// Otherwise try statement
+				stmt := m.PeekStmt(1)
+				if stmt != nil {
+					line = stmt.GetLine()
+					// column = stmt.GetColumn()
+				}
+			}
+
+			// Get current function info from frame
+			if len(m.Frames) > 0 && line > 0 {
+				frame := &m.Frames[len(m.Frames)-1]
+				if frame.Func != nil {
+					funcName := string(frame.Func.Name)
+					if frame.Func.PkgPath != "" {
+						funcName = frame.Func.PkgPath + "." + funcName
+					}
+					file = frame.Func.FileName
+
+					if file != "" && line > 0 {
+						// Record sample for line-level profiling
+						if m.profiler != nil && m.profiler.IsEnabled() {
+							// This stores the exact line number and cycles spent and enables
+							// the `-profile-list` feature to show line-by-line metrics
+							m.profiler.RecordLineSample(funcName, file, line, m.Cycles)
+						}
+					}
+				}
+			}
+		}
+
 		switch op {
 		/* Control operators */
 		case OpHalt:
@@ -1299,6 +1348,7 @@ func (m *Machine) Run(st Stage) {
 			m.doOpEnterCrossing()
 		case OpCall:
 			m.incrCPU(OpCPUCall)
+			m.RecordProfileSample()
 			m.doOpCall()
 		case OpCallNativeBody:
 			m.incrCPU(OpCPUCallNativeBody)
