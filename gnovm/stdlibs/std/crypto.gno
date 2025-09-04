@@ -2,25 +2,13 @@ package std
 
 import (
 	"crypto/bech32"
-	"crypto/sha256"
 	"errors"
 )
 
-type Address string // NOTE: bech32
+type Address = address // NOTE: bech32
 
 // bech32AddrPrefix defines the Bech32 prefix of an address
 const bech32AddrPrefix = "g"
-
-func (a Address) String() string {
-	return string(a)
-}
-
-// IsValid checks if the address is valid bech32 encoded string.
-// It also checks if the address has the correct prefix "g".
-func (a Address) IsValid() bool {
-	prefix, _, ok := DecodeBech32(a)
-	return prefix == bech32AddrPrefix && ok
-}
 
 const RawAddressSize = 20
 
@@ -62,24 +50,26 @@ func decodeAndConvert(bech string) (string, []byte, error) {
 	return hrp, converted, nil
 }
 
+func derivePkgAddr(string) string
+
+// Returns a crypto hash derived pkgPath, unless pkgPath is a MsgRun run path,
+// in which case the address is extracted from the path.
 func DerivePkgAddr(pkgPath string) Address {
-	data := sumTruncated([]byte("pkgPath:" + pkgPath))
-	return EncodeBech32(bech32AddrPrefix, data)
+	addr := derivePkgAddr(pkgPath)
+	return Address(addr)
 }
 
-func sumTruncated(bz []byte) [20]byte {
-	hash := sha256.Sum256(bz)
-	return convertTo20Byte(hash[:RawAddressSize])
+func deriveStorageDepositAddr(string) string
+
+// Returns a crypto hash derived pkgPath, unless pkgPath is a MsgRun run path,
+// in which case the address is extracted from the path.
+func DeriveStorageDepositAddr(pkgPath string) Address {
+	addr := deriveStorageDepositAddr(pkgPath)
+	return Address(addr)
 }
 
 func convertTo20Byte(in []byte) [20]byte {
-	/* For some reason [20]byte(bz) fails with: 'cannot convert []uint8 to ArrayKind'
-	Maybe there is an issue to create
-	*/
 	result := [20]byte{}
-	for index, b := range in {
-		result[index] = b
-	}
-
+	copy(result[:], in)
 	return result
 }

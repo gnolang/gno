@@ -12,11 +12,11 @@ import (
 var db *forms.FormDB
 
 func init() {
-	hor.Register("Ahgerasle's forms", "")
+	hor.Register(cross, "Ahgerasle's forms", "")
 	db = forms.NewDB()
 }
 
-func CreateForm(title string, description string, openAt string, closeAt string, data string) string {
+func CreateForm(_ realm, title string, description string, openAt string, closeAt string, data string) string {
 	id, err := db.CreateForm(title, description, openAt, closeAt, data)
 	if err != nil {
 		panic(err)
@@ -90,7 +90,7 @@ func GetAnswer(formID string, authorID string) string {
 	return answer.Answers
 }
 
-func SubmitForm(formID string, answers string) {
+func SubmitForm(_ realm, formID string, answers string) {
 	_, err := db.GetForm(formID)
 	if err != nil {
 		panic(err)
@@ -99,7 +99,7 @@ func SubmitForm(formID string, answers string) {
 	db.SubmitForm(formID, answers)
 }
 
-func Render(path string) string {
+func Render(_ string) string {
 	if len(db.Forms) == 0 {
 		response := "No forms yet !"
 		return response

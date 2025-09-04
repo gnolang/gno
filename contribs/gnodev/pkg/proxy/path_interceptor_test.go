@@ -1,6 +1,7 @@
 package proxy_test
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"path"
@@ -12,10 +13,11 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -26,17 +28,27 @@ import (
 func TestProxy(t *testing.T) {
 	const targetPath = "gno.land/r/target/foo"
 
-	pkg := gnovm.MemPackage{
+	pkg := std.MemPackage{
 		Name: "foo",
 		Path: targetPath,
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{
 				Name: "foo.gno",
-				Body: `package foo; func Render(_ string) string { return "foo" }`,
+				Body: `package foo
+
+func Render(_ string) string { return "foo" }
+
+var i int
+
+func Incr(cur realm) {
+        i++
+}
+`,
 			},
-			{Name: "gno.mod", Body: `module ` + targetPath},
 		},
 	}
+	pkg.SetFile("gnomod.toml", gnolang.GenGnoModLatest(pkg.Path))
+	pkg.Sort()
 
 	rootdir := gnoenv.RootDir()
 	cfg := integration.TestingMinimalNodeConfig(rootdir)
@@ -52,7 +64,7 @@ func TestProxy(t *testing.T) {
 	require.NoError(t, err)
 	defer interceptor.Close()
 	cfg.TMConfig.RPC.ListenAddress = interceptor.ProxyAddress()
-	cfg.SkipGenesisVerification = true
+	cfg.SkipGenesisSigVerification = true
 
 	// Setup genesis
 	privKey := secp256k1.GenPrivKey()
@@ -71,7 +83,7 @@ func TestProxy(t *testing.T) {
 		cli, err := client.NewHTTPClient(interceptor.TargetAddress())
 		require.NoError(t, err)
 
-		res, err := cli.ABCIQuery("vm/qrender", []byte(targetPath+":\n"))
+		res, err := cli.ABCIQuery(context.Background(), "vm/qrender", []byte(targetPath+":\n"))
 		require.NoError(t, err)
 		assert.Nil(t, res.Response.Error)
 
@@ -88,7 +100,7 @@ func TestProxy(t *testing.T) {
 		cli, err := client.NewHTTPClient(interceptor.TargetAddress())
 		require.NoError(t, err)
 
-		res, err := cli.ABCIQuery("vm/qfile", []byte(path.Join(targetPath, "foo.gno")))
+		res, err := cli.ABCIQuery(context.Background(), "vm/qfile", []byte(path.Join(targetPath, "foo.gno")))
 		require.NoError(t, err)
 		assert.Nil(t, res.Response.Error)
 
@@ -104,12 +116,12 @@ func TestProxy(t *testing.T) {
 	t.Run("simulate_tx_paths", func(t *testing.T) {
 		// Build transaction with multiple messages
 		var tx std.Tx
-		send := std.MustParseCoins(ugnot.ValueString(10_000_000))
+		send := std.MustParseCoins(ugnot.ValueString(1_000_000))
 		tx.Fee = std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}}
 		tx.Msgs = []std.Msg{
-			vm.NewMsgCall(creator, send, targetPath, "Render", []string{""}),
-			vm.NewMsgCall(creator, send, targetPath, "Render", []string{""}),
-			vm.NewMsgCall(creator, send, targetPath, "Render", []string{""}),
+			vm.NewMsgCall(creator, send, targetPath, "Incr", nil),
+			vm.NewMsgCall(creator, send, targetPath, "Incr", nil),
+			vm.NewMsgCall(creator, send, targetPath, "Incr", nil),
 		}
 
 		bytes, err := tx.GetSignBytes(cfg.Genesis.ChainID, 0, seq)
@@ -126,10 +138,14 @@ func TestProxy(t *testing.T) {
 		cli, err := client.NewHTTPClient(interceptor.TargetAddress())
 		require.NoError(t, err)
 
-		res, err := cli.BroadcastTxCommit(bz)
+		res, err := cli.BroadcastTxCommit(context.Background(), types.Tx(bz))
 		require.NoError(t, err)
-		assert.NoError(t, res.CheckTx.Error)
-		assert.NoError(t, res.DeliverTx.Error)
+		if !assert.NoError(t, res.CheckTx.Error) {
+			t.Logf("log: %v", res.CheckTx.Log)
+		}
+		if !assert.NoError(t, res.DeliverTx.Error) {
+			t.Logf("log: %v", res.DeliverTx.Log)
+		}
 
 		select {
 		case paths := <-pathChan:
@@ -142,7 +158,7 @@ func TestProxy(t *testing.T) {
 
 	t.Run("add_pkg", func(t *testing.T) {
 		const barPath = "gno.land/r/target/bar"
-		files := []*gnovm.MemFile{
+		files := []*std.MemFile{
 			{
 				Name: "bar.gno",
 				Body: `package bar
@@ -150,7 +166,7 @@ import foo "` + targetPath + `"
 
 func Render(_ string) string { return foo.Render("bar") }`,
 			},
-			{Name: "gno.mod", Body: `module ` + barPath},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(barPath)},
 		}
 
 		cli, err := client.NewHTTPClient(interceptor.TargetAddress())
@@ -175,7 +191,7 @@ func Render(_ string) string { return foo.Render("bar") }`,
 		bz, err := amino.Marshal(tx)
 		require.NoError(t, err)
 
-		res, err := cli.BroadcastTxCommit(bz)
+		res, err := cli.BroadcastTxCommit(context.Background(), types.Tx(bz))
 		require.NoError(t, err)
 		if !assert.NoError(t, res.CheckTx.Error) {
 			t.Logf("logs: %s", res.CheckTx.Log)
@@ -218,7 +234,7 @@ func Render(_ string) string { return foo.Render("bar") }`,
 		require.NoError(t, err)
 		defer cli.Close()
 
-		res, err := cli.ABCIQuery(query, []byte{})
+		res, err := cli.ABCIQuery(context.Background(), query, []byte{})
 		require.NoError(t, err)
 		require.NoError(t, res.Response.Error)
 

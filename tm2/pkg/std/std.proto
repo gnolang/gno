@@ -15,6 +15,17 @@ message BaseAccount {
 	uint64 sequence = 5;
 }
 
+message MemFile {
+	string name = 1 [json_name = "Name"];
+	string body = 2 [json_name = "Body"];
+}
+
+message MemPackage {
+	string name = 1 [json_name = "Name"];
+	string path = 2 [json_name = "Path"];
+	repeated MemFile files = 3 [json_name = "Files"];
+}
+
 message InternalError {
 }
 

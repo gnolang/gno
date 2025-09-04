@@ -18,22 +18,22 @@ type Teller interface {
 	exts.TokenMetadata
 
 	// Returns the amount of tokens in existence.
-	TotalSupply() uint64
+	TotalSupply() int64
 
 	// Returns the amount of tokens owned by `account`.
-	BalanceOf(account std.Address) uint64
+	BalanceOf(account std.Address) int64
 
 	// Moves `amount` tokens from the caller's account to `to`.
 	//
 	// Returns an error if the operation failed.
-	Transfer(to std.Address, amount uint64) error
+	Transfer(to std.Address, amount int64) error
 
 	// Returns the remaining number of tokens that `spender` will be
 	// allowed to spend on behalf of `owner` through {transferFrom}. This is
 	// zero by default.
 	//
 	// This value changes when {approve} or {transferFrom} are called.
-	Allowance(owner, spender std.Address) uint64
+	Allowance(owner, spender std.Address) int64
 
 	// Sets `amount` as the allowance of `spender` over the caller's tokens.
 	//
@@ -45,14 +45,14 @@ type Teller interface {
 	// this race condition is to first reduce the spender's allowance to 0
 	// and set the desired value afterwards:
 	// https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-	Approve(spender std.Address, amount uint64) error
+	Approve(spender std.Address, amount int64) error
 
 	// Moves `amount` tokens from `from` to `to` using the
 	// allowance mechanism. `amount` is then deducted from the caller's
 	// allowance.
 	//
 	// Returns an error if the operation failed.
-	TransferFrom(from, to std.Address, amount uint64) error
+	TransferFrom(from, to std.Address, amount int64) error
 }
 
 // Token represents a fungible token with a name, symbol, and a certain number
@@ -68,17 +68,12 @@ type Token struct {
 	// Symbol of the token (e.g., "DUMMY").
 	symbol string
 	// Number of decimal places used for the token's precision.
-	decimals uint
+	decimals int
+	// Original realm of the token (e.g., "gno.land/r/demo/foo20").
+	origRealm string
 	// Pointer to the PrivateLedger that manages balances and allowances.
 	ledger *PrivateLedger
 }
-
-// TokenGetter is a function type that returns a Token pointer. This type allows
-// bypassing a limitation where we cannot directly pass Token pointers between
-// realms. Instead, we pass this function which can then be called to get the
-// Token pointer. For more details on this limitation and workaround, see:
-// https://github.com/gnolang/gno/pull/3135
-type TokenGetter func() *Token
 
 // PrivateLedger is a struct that holds the balances and allowances for the
 // token. It provides administrative functions for minting, burning,
@@ -89,10 +84,10 @@ type TokenGetter func() *Token
 // unrestricted access to all administrative functions.
 type PrivateLedger struct {
 	// Total supply of the token managed by this ledger.
-	totalSupply uint64
-	// std.Address -> uint64
+	totalSupply int64
+	// std.Address -> int64
 	balances avl.Tree
-	// owner.(std.Address)+":"+spender.(std.Address)) -> uint64
+	// owner.(std.Address)+":"+spender.(std.Address)) -> int64
 	allowances avl.Tree
 	// Pointer to the associated Token struct
 	token *Token
@@ -105,7 +100,8 @@ var (
 	ErrCannotTransferToSelf  = errors.New("cannot send transfer to self")
 	ErrReadonly              = errors.New("banker is readonly")
 	ErrRestrictedTokenOwner  = errors.New("restricted to bank owner")
-	ErrOverflow              = errors.New("Mint overflow")
+	ErrMintOverflow          = errors.New("mint overflow")
+	ErrInvalidAmount         = errors.New("invalid amount")
 )
 
 const (

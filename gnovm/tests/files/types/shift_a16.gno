@@ -6,4 +6,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/shift_a16.gno:4:7: operator << not defined on: StringKind
+// main/shift_a16.gno:4:7-19: operator << not defined on: StringKind
+
+// TypeCheckError:
+// main/shift_a16.gno:4:7: invalid operation: shifted operand "hello" (untyped string constant) must be integer

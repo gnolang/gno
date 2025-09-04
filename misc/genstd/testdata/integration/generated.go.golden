@@ -36,7 +36,7 @@ var nativeFuncs = [...]NativeFunc{
 		[]gno.FieldTypeExpr{
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("int")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("int")},
 		},
 		true,
 		func(m *gno.Machine) {

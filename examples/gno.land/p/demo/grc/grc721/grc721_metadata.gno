@@ -55,11 +55,11 @@ func (s *metadataNFT) Symbol() string {
 	return s.basicNFT.Symbol()
 }
 
-func (s *metadataNFT) TokenCount() uint64 {
+func (s *metadataNFT) TokenCount() int64 {
 	return s.basicNFT.TokenCount()
 }
 
-func (s *metadataNFT) BalanceOf(addr std.Address) (uint64, error) {
+func (s *metadataNFT) BalanceOf(addr std.Address) (int64, error) {
 	return s.basicNFT.BalanceOf(addr)
 }
 

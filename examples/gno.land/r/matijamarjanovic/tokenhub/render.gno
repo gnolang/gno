@@ -63,7 +63,7 @@ import (
 
 // GRC20 token
 myToken, myLedger := grc20.NewToken("My Token", "MTK", 6)
-myTokenPath := tokenhub.RegisterToken(myToken.Getter(), "my_token")
+myTokenPath := tokenhub.RegisterToken(myToken, "my_token")
 
 // GRC721 NFT
 myNFT := grc721.NewBasicNFT("My NFT Collection", "MNFT")
@@ -105,8 +105,7 @@ func renderToken(path string) string {
 	page := tokenPager.MustGetPageByPath(path)
 
 	for _, item := range page.Items {
-		tokenGetter := item.Value.(grc20.TokenGetter)
-		token := tokenGetter()
+		token := item.Value.(*grc20.Token)
 		pkgPath, _ := fqname.Parse(item.Key)
 		linkURL := formatLinkURL(pkgPath, 0)
 

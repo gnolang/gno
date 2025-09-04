@@ -8,4 +8,4 @@
     $> cd ./gno
     $> make install_gnokey
 
-Also, see the [quickstart guide](https://github.com/gnolang/gno/blob/master/examples/gno.land/r/demo/boards/README.md).
+Also, see the [quickstart guide](../../../docs/users/interact-with-gnokey.md).

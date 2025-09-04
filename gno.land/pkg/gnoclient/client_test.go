@@ -1,6 +1,7 @@
 package gnoclient
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -11,7 +12,6 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -21,7 +21,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-var testGasFee = ugnot.ValueString(10_000)
+var testGasFee = ugnot.ValueString(10000)
 
 func TestRender(t *testing.T) {
 	t.Parallel()
@@ -43,7 +43,7 @@ func TestRender(t *testing.T) {
 			},
 		},
 		RPCClient: &mockRPCClient{
-			abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+			abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
 				res := &ctypes.ResultABCIQuery{
 					Response: abci.ResponseQuery{
 						ResponseBase: abci.ResponseBase{
@@ -82,7 +82,7 @@ func TestCallSingle(t *testing.T) {
 			},
 		},
 		RPCClient: &mockRPCClient{
-			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
@@ -146,7 +146,7 @@ func TestCallMultiple(t *testing.T) {
 			},
 		},
 		RPCClient: &mockRPCClient{
-			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					CheckTx: abci.ResponseCheckTx{
 						ResponseBase: abci.ResponseBase{
@@ -620,7 +620,7 @@ func TestRunSingle(t *testing.T) {
 			},
 		},
 		RPCClient: &mockRPCClient{
-			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
@@ -656,8 +656,8 @@ func main() {
 
 	msg := vm.MsgRun{
 		Caller: caller.GetAddress(),
-		Package: &gnovm.MemPackage{
-			Files: []*gnovm.MemFile{
+		Package: &std.MemPackage{
+			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
 					Body: fileBody,
@@ -697,7 +697,7 @@ func TestRunMultiple(t *testing.T) {
 			},
 		},
 		RPCClient: &mockRPCClient{
-			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
@@ -733,8 +733,8 @@ func main() {
 
 	msg1 := vm.MsgRun{
 		Caller: caller.GetAddress(),
-		Package: &gnovm.MemPackage{
-			Files: []*gnovm.MemFile{
+		Package: &std.MemPackage{
+			Files: []*std.MemFile{
 				{
 					Name: "main1.gno",
 					Body: fileBody,
@@ -746,8 +746,8 @@ func main() {
 
 	msg2 := vm.MsgRun{
 		Caller: caller.GetAddress(),
-		Package: &gnovm.MemPackage{
-			Files: []*gnovm.MemFile{
+		Package: &std.MemPackage{
+			Files: []*std.MemFile{
 				{
 					Name: "main2.gno",
 					Body: fileBody,
@@ -798,10 +798,10 @@ func TestRunErrors(t *testing.T) {
 			msgs: []vm.MsgRun{
 				{
 					Caller: mockAddress,
-					Package: &gnovm.MemPackage{
+					Package: &std.MemPackage{
 						Name: "",
 						Path: "",
-						Files: []*gnovm.MemFile{
+						Files: []*std.MemFile{
 							{
 								Name: "file1.gno",
 								Body: "",
@@ -845,10 +845,10 @@ func TestRunErrors(t *testing.T) {
 			msgs: []vm.MsgRun{
 				{
 					Caller: mockAddress,
-					Package: &gnovm.MemPackage{
+					Package: &std.MemPackage{
 						Name: "",
 						Path: "",
-						Files: []*gnovm.MemFile{
+						Files: []*std.MemFile{
 							{
 								Name: "file1.gno",
 								Body: "",
@@ -876,10 +876,10 @@ func TestRunErrors(t *testing.T) {
 			msgs: []vm.MsgRun{
 				{
 					Caller: mockAddress,
-					Package: &gnovm.MemPackage{
+					Package: &std.MemPackage{
 						Name: "",
 						Path: "",
-						Files: []*gnovm.MemFile{
+						Files: []*std.MemFile{
 							{
 								Name: "file1.gno",
 								Body: "",
@@ -907,10 +907,10 @@ func TestRunErrors(t *testing.T) {
 			msgs: []vm.MsgRun{
 				{
 					Caller: mockAddress,
-					Package: &gnovm.MemPackage{
+					Package: &std.MemPackage{
 						Name: "",
 						Path: "",
-						Files: []*gnovm.MemFile{
+						Files: []*std.MemFile{
 							{
 								Name: "file1.gno",
 								Body: "",
@@ -947,7 +947,7 @@ func TestRunErrors(t *testing.T) {
 			msgs: []vm.MsgRun{
 				{
 					Caller:  mockAddress,
-					Package: &gnovm.MemPackage{Name: "", Path: " "},
+					Package: &std.MemPackage{Name: "", Path: " "},
 					Send:    nil,
 				},
 			},
@@ -997,17 +997,17 @@ func TestAddPackageErrors(t *testing.T) {
 			msgs: []vm.MsgAddPackage{
 				{
 					Creator: mockAddress,
-					Package: &gnovm.MemPackage{
+					Package: &std.MemPackage{
 						Name: "",
 						Path: "",
-						Files: []*gnovm.MemFile{
+						Files: []*std.MemFile{
 							{
 								Name: "file1.gno",
 								Body: "",
 							},
 						},
 					},
-					Deposit: nil,
+					MaxDeposit: nil,
 				},
 			},
 			expectedError: ErrMissingSigner.Error(),
@@ -1044,17 +1044,17 @@ func TestAddPackageErrors(t *testing.T) {
 			msgs: []vm.MsgAddPackage{
 				{
 					Creator: mockAddress,
-					Package: &gnovm.MemPackage{
+					Package: &std.MemPackage{
 						Name: "",
 						Path: "",
-						Files: []*gnovm.MemFile{
+						Files: []*std.MemFile{
 							{
 								Name: "file1.gno",
 								Body: "",
 							},
 						},
 					},
-					Deposit: nil,
+					MaxDeposit: nil,
 				},
 			},
 			expectedError: ErrInvalidGasFee.Error(),
@@ -1075,17 +1075,17 @@ func TestAddPackageErrors(t *testing.T) {
 			msgs: []vm.MsgAddPackage{
 				{
 					Creator: mockAddress,
-					Package: &gnovm.MemPackage{
+					Package: &std.MemPackage{
 						Name: "",
 						Path: "",
-						Files: []*gnovm.MemFile{
+						Files: []*std.MemFile{
 							{
 								Name: "file1.gno",
 								Body: "",
 							},
 						},
 					},
-					Deposit: nil,
+					MaxDeposit: nil,
 				},
 			},
 			expectedError: ErrInvalidGasWanted.Error(),
@@ -1106,17 +1106,17 @@ func TestAddPackageErrors(t *testing.T) {
 			msgs: []vm.MsgAddPackage{
 				{
 					Creator: mockAddress,
-					Package: &gnovm.MemPackage{
+					Package: &std.MemPackage{
 						Name: "",
 						Path: "",
-						Files: []*gnovm.MemFile{
+						Files: []*std.MemFile{
 							{
 								Name: "file1.gno",
 								Body: "",
 							},
 						},
 					},
-					Deposit: nil,
+					MaxDeposit: nil,
 				},
 			},
 			expectedError: ErrInvalidGasWanted.Error(),
@@ -1145,9 +1145,9 @@ func TestAddPackageErrors(t *testing.T) {
 			},
 			msgs: []vm.MsgAddPackage{
 				{
-					Creator: mockAddress,
-					Package: &gnovm.MemPackage{Name: "", Path: ""},
-					Deposit: nil,
+					Creator:    mockAddress,
+					Package:    &std.MemPackage{Name: "", Path: ""},
+					MaxDeposit: nil,
 				},
 			},
 			expectedError: vm.InvalidPkgPathError{}.Error(),
@@ -1174,7 +1174,7 @@ func TestBlock(t *testing.T) {
 	client := &Client{
 		Signer: &mockSigner{},
 		RPCClient: &mockRPCClient{
-			block: func(height *int64) (*ctypes.ResultBlock, error) {
+			block: func(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
 				return &ctypes.ResultBlock{
 					BlockMeta: &types.BlockMeta{
 						BlockID: types.BlockID{},
@@ -1204,7 +1204,7 @@ func TestBlockResults(t *testing.T) {
 	client := &Client{
 		Signer: &mockSigner{},
 		RPCClient: &mockRPCClient{
-			blockResults: func(height *int64) (*ctypes.ResultBlockResults, error) {
+			blockResults: func(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error) {
 				return &ctypes.ResultBlockResults{
 					Height:  *height,
 					Results: nil,
@@ -1226,7 +1226,7 @@ func TestLatestBlockHeight(t *testing.T) {
 	client := &Client{
 		Signer: &mockSigner{},
 		RPCClient: &mockRPCClient{
-			status: func() (*ctypes.ResultStatus, error) {
+			status: func(ctx context.Context, heightGte *int64) (*ctypes.ResultStatus, error) {
 				return &ctypes.ResultStatus{
 					SyncInfo: ctypes.SyncInfo{
 						LatestBlockHeight: latestHeight,
@@ -1435,7 +1435,7 @@ func TestClient_EstimateGas(t *testing.T) {
 		var (
 			rpcErr        = errors.New("rpc error")
 			mockRPCClient = &mockRPCClient{
-				abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
 					require.Equal(t, simulatePath, path)
 
 					var tx std.Tx
@@ -1469,7 +1469,7 @@ func TestClient_EstimateGas(t *testing.T) {
 				},
 			}
 			mockRPCClient = &mockRPCClient{
-				abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
 					require.Equal(t, simulatePath, path)
 
 					var tx std.Tx
@@ -1501,7 +1501,7 @@ func TestClient_EstimateGas(t *testing.T) {
 				},
 			}
 			mockRPCClient = &mockRPCClient{
-				abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
 					require.Equal(t, simulatePath, path)
 
 					var tx std.Tx
@@ -1544,7 +1544,7 @@ func TestClient_EstimateGas(t *testing.T) {
 				},
 			}
 			mockRPCClient = &mockRPCClient{
-				abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
 					require.Equal(t, simulatePath, path)
 
 					var tx std.Tx

@@ -189,19 +189,19 @@ func TestHelpView(t *testing.T) {
 	helpViewParams, ok := templateComponent.data.(helpViewParams)
 	assert.True(t, ok, "expected helpViewParams type in component data")
 
-	assert.Equal(t, data.RealmName, helpViewParams.HelpData.RealmName, "expected realm name %s, got %s", data.RealmName, helpViewParams.HelpData.RealmName)
+	assert.Equal(t, data.RealmName, helpViewParams.RealmName, "expected realm name %s, got %s", data.RealmName, helpViewParams.RealmName)
 
 	assert.NoError(t, view.Render(io.Discard))
 }
 
 func TestDirectoryView(t *testing.T) {
-	data := DirData{
-		PkgPath:     "example/path",
-		Files:       []string{"file1.gno", "file2.gno"},
-		FileCounter: 2,
-	}
+	pkgPath := "example/path"
+	files := []string{"file1.gno", "file2.gno"}
+	fileCounter := 2
+	linkType := DirLinkTypeSource
+	mode := ViewModePackage
 
-	view := DirectoryView(data)
+	view := DirectoryView(pkgPath, files, fileCounter, linkType, mode)
 
 	assert.NotNil(t, view, "expected view to be non-nil")
 
@@ -211,9 +211,138 @@ func TestDirectoryView(t *testing.T) {
 	dirData, ok := templateComponent.data.(DirData)
 	assert.True(t, ok, "expected DirData type in component data")
 
-	assert.Equal(t, data.PkgPath, dirData.PkgPath, "expected PkgPath %s, got %s", data.PkgPath, dirData.PkgPath)
-	assert.Equal(t, len(data.Files), len(dirData.Files), "expected %d files, got %d", len(data.Files), len(dirData.Files))
-	assert.Equal(t, data.FileCounter, dirData.FileCounter, "expected FileCounter %d, got %d", data.FileCounter, dirData.FileCounter)
+	assert.Equal(t, pkgPath, dirData.PkgPath, "expected PkgPath %s, got %s", pkgPath, dirData.PkgPath)
+	assert.Equal(t, len(files), len(dirData.Files), "expected %d files, got %d", len(files), len(dirData.Files))
+	assert.Equal(t, fileCounter, dirData.FileCounter, "expected FileCounter %d, got %d", fileCounter, dirData.FileCounter)
+	assert.Equal(t, mode, dirData.Mode, "expected Mode %v, got %v", mode, dirData.Mode)
+
+	assert.NoError(t, view.Render(io.Discard))
+}
+
+func TestDirLinkType_LinkPrefix(t *testing.T) {
+	cases := []struct {
+		name     string
+		linkType DirLinkType
+		pkgPath  string
+		expected string
+	}{
+		{
+			name:     "Source link type",
+			linkType: DirLinkTypeSource,
+			pkgPath:  "/r/test/pkg",
+			expected: "/r/test/pkg$source&file=",
+		},
+		{
+			name:     "File link type",
+			linkType: DirLinkTypeFile,
+			pkgPath:  "/r/test/pkg",
+			expected: "",
+		},
+		{
+			name:     "Invalid link type",
+			linkType: DirLinkType(999),
+			pkgPath:  "/r/test/pkg",
+			expected: "",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			result := tc.linkType.LinkPrefix(tc.pkgPath)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestGetFullLinks(t *testing.T) {
+	cases := []struct {
+		name     string
+		files    []string
+		linkType DirLinkType
+		pkgPath  string
+		expected FilesLinks
+	}{
+		{
+			name:     "Source link type with multiple files",
+			files:    []string{"file1.gno", "file2.gno"},
+			linkType: DirLinkTypeSource,
+			pkgPath:  "/r/test/pkg",
+			expected: FilesLinks{
+				{Link: "/r/test/pkg$source&file=file1.gno", Name: "file1.gno"},
+				{Link: "/r/test/pkg$source&file=file2.gno", Name: "file2.gno"},
+			},
+		},
+		{
+			name:     "File link type with multiple files",
+			files:    []string{"file1.gno", "file2.gno"},
+			linkType: DirLinkTypeFile,
+			pkgPath:  "/r/test/pkg",
+			expected: FilesLinks{
+				{Link: "file1.gno", Name: "file1.gno"},
+				{Link: "file2.gno", Name: "file2.gno"},
+			},
+		},
+		{
+			name:     "Empty files list",
+			files:    []string{},
+			linkType: DirLinkTypeSource,
+			pkgPath:  "/r/test/pkg",
+			expected: FilesLinks{},
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			result := GetFullLinks(tc.files, tc.linkType, tc.pkgPath)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestUserView(t *testing.T) {
+	data := UserData{
+		Username:   "testuser",
+		Handlename: "Test User",
+		Bio:        "This is a test user.",
+		Links: []UserLink{
+			{Type: UserLinkTypeLink, URL: "https://example.com"},
+			{Type: UserLinkTypeGithub, URL: "https://github.com/testuser", Title: "GitHub"},
+		},
+		Contributions: []UserContribution{
+			{
+				Title: "Realm Contribution",
+				Type:  UserContributionTypeRealm,
+			},
+			{
+				Title: "Package Contribution",
+				Type:  UserContributionTypePackage,
+			},
+		},
+		PackageCount: 2,
+		RealmCount:   1,
+		PureCount:    1,
+		Content:      NewReaderComponent(strings.NewReader("Test content")),
+	}
+
+	view := UserView(data)
+
+	assert.NotNil(t, view, "expected view to be non-nil")
+
+	templateComponent, ok := view.Component.(*TemplateComponent)
+	assert.True(t, ok, "expected TemplateComponent type in view.Component")
+
+	userData, ok := templateComponent.data.(UserData)
+	assert.True(t, ok, "expected UserData type in component data")
+
+	// Assert that link title for UserLinkTypeLink was set to the host
+	assert.Equal(t, "example.com", userData.Links[0].Title, "expected link title to be host")
+
+	// Assert counts
+	assert.Equal(t, 1, userData.RealmCount, "expected 1 realm")
+	assert.Equal(t, 2, userData.PackageCount, "expected 2 packages")
+	assert.Equal(t, 1, userData.PureCount, "expected 1 pure package")
 
 	assert.NoError(t, view.Render(io.Discard))
 }

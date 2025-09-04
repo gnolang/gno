@@ -11,6 +11,7 @@ import (
 	testlibs_os "github.com/gnolang/gno/gnovm/tests/stdlibs/os"
 	testlibs_std "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	testlibs_testing "github.com/gnolang/gno/gnovm/tests/stdlibs/testing"
+	testlibs_testing_base "github.com/gnolang/gno/gnovm/tests/stdlibs/testing/base"
 	testlibs_unicode "github.com/gnolang/gno/gnovm/tests/stdlibs/unicode"
 )
 
@@ -37,10 +38,10 @@ var nativeFuncs = [...]NativeFunc{
 		"fmt",
 		"typeString",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("any")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("any")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
 		},
 		false,
 		func(m *gno.Machine) {
@@ -60,14 +61,14 @@ var nativeFuncs = [...]NativeFunc{
 		"fmt",
 		"valueOfInternal",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("any")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("any")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("string")},
-			{Name: gno.N("r1"), Type: gno.X("string")},
-			{Name: gno.N("r2"), Type: gno.X("uint64")},
-			{Name: gno.N("r3"), Type: gno.X("any")},
-			{Name: gno.N("r4"), Type: gno.X("int")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r2"), Type: gno.X("uint64")},
+			{NameExpr: *gno.Nx("r3"), Type: gno.X("any")},
+			{NameExpr: *gno.Nx("r4"), Type: gno.X("int")},
 		},
 		false,
 		func(m *gno.Machine) {
@@ -103,10 +104,10 @@ var nativeFuncs = [...]NativeFunc{
 		"fmt",
 		"getAddr",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("any")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("any")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("uint64")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("uint64")},
 		},
 		true,
 		func(m *gno.Machine) {
@@ -128,10 +129,10 @@ var nativeFuncs = [...]NativeFunc{
 		"fmt",
 		"getPtrElem",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("any")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("any")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("any")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("any")},
 		},
 		false,
 		func(m *gno.Machine) {
@@ -147,11 +148,11 @@ var nativeFuncs = [...]NativeFunc{
 		"fmt",
 		"mapKeyValues",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("any")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("any")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("[]any")},
-			{Name: gno.N("r1"), Type: gno.X("[]any")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("[]any")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("[]any")},
 		},
 		false,
 		func(m *gno.Machine) {
@@ -168,11 +169,11 @@ var nativeFuncs = [...]NativeFunc{
 		"fmt",
 		"arrayIndex",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("any")},
-			{Name: gno.N("p1"), Type: gno.X("int")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("any")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("int")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("any")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("any")},
 		},
 		true,
 		func(m *gno.Machine) {
@@ -198,12 +199,12 @@ var nativeFuncs = [...]NativeFunc{
 		"fmt",
 		"fieldByIndex",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("any")},
-			{Name: gno.N("p1"), Type: gno.X("int")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("any")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("int")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("string")},
-			{Name: gno.N("r1"), Type: gno.X("any")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("any")},
 		},
 		false,
 		func(m *gno.Machine) {
@@ -232,11 +233,11 @@ var nativeFuncs = [...]NativeFunc{
 		"fmt",
 		"asByteSlice",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("any")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("any")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("[]byte")},
-			{Name: gno.N("r1"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("[]byte")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("bool")},
 		},
 		false,
 		func(m *gno.Machine) {
@@ -257,11 +258,11 @@ var nativeFuncs = [...]NativeFunc{
 		"os",
 		"write",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("[]byte")},
-			{Name: gno.N("p1"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("[]byte")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("bool")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("int")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("int")},
 		},
 		true,
 		func(m *gno.Machine) {
@@ -295,7 +296,7 @@ var nativeFuncs = [...]NativeFunc{
 		"os",
 		"sleep",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("int64")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("int64")},
 		},
 		[]gno.FieldTypeExpr{},
 		true,
@@ -329,45 +330,13 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
-		"callerAt",
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("int")},
-		},
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("string")},
-		},
-		true,
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  int
-				rp0 = reflect.ValueOf(&p0).Elem()
-			)
-
-			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.DeepFill(m.Store)
-			gno.Gno2GoValue(tv0, rp0)
-
-			r0 := testlibs_std.X_callerAt(
-				m,
-				p0)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"std",
 		"getRealm",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("int")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("int")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("string")},
-			{Name: gno.N("r1"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("string")},
 		},
 		true,
 		func(m *gno.Machine) {
@@ -401,10 +370,10 @@ var nativeFuncs = [...]NativeFunc{
 		"std",
 		"isRealm",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
 		},
 		true,
 		func(m *gno.Machine) {
@@ -434,15 +403,15 @@ var nativeFuncs = [...]NativeFunc{
 		"getContext",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("string")},
-			{Name: gno.N("r1"), Type: gno.X("[]string")},
-			{Name: gno.N("r2"), Type: gno.X("[]int64")},
-			{Name: gno.N("r3"), Type: gno.X("[]string")},
-			{Name: gno.N("r4"), Type: gno.X("[]int64")},
-			{Name: gno.N("r5"), Type: gno.X("string")},
-			{Name: gno.N("r6"), Type: gno.X("int64")},
-			{Name: gno.N("r7"), Type: gno.X("int64")},
-			{Name: gno.N("r8"), Type: gno.X("int64")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("[]string")},
+			{NameExpr: *gno.Nx("r2"), Type: gno.X("[]int64")},
+			{NameExpr: *gno.Nx("r3"), Type: gno.X("[]string")},
+			{NameExpr: *gno.Nx("r4"), Type: gno.X("[]int64")},
+			{NameExpr: *gno.Nx("r5"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r6"), Type: gno.X("int64")},
+			{NameExpr: *gno.Nx("r7"), Type: gno.X("int64")},
+			{NameExpr: *gno.Nx("r8"), Type: gno.X("int64")},
 		},
 		true,
 		func(m *gno.Machine) {
@@ -501,17 +470,17 @@ var nativeFuncs = [...]NativeFunc{
 		"testing",
 		"setContext",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("string")},
-			{Name: gno.N("p1"), Type: gno.X("string")},
-			{Name: gno.N("p2"), Type: gno.X("string")},
-			{Name: gno.N("p3"), Type: gno.X("[]string")},
-			{Name: gno.N("p4"), Type: gno.X("[]int64")},
-			{Name: gno.N("p5"), Type: gno.X("[]string")},
-			{Name: gno.N("p6"), Type: gno.X("[]int64")},
-			{Name: gno.N("p7"), Type: gno.X("string")},
-			{Name: gno.N("p8"), Type: gno.X("int64")},
-			{Name: gno.N("p9"), Type: gno.X("int64")},
-			{Name: gno.N("p10"), Type: gno.X("int64")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p3"), Type: gno.X("[]string")},
+			{NameExpr: *gno.Nx("p4"), Type: gno.X("[]int64")},
+			{NameExpr: *gno.Nx("p5"), Type: gno.X("[]string")},
+			{NameExpr: *gno.Nx("p6"), Type: gno.X("[]int64")},
+			{NameExpr: *gno.Nx("p7"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p8"), Type: gno.X("int64")},
+			{NameExpr: *gno.Nx("p9"), Type: gno.X("int64")},
+			{NameExpr: *gno.Nx("p10"), Type: gno.X("int64")},
 		},
 		[]gno.FieldTypeExpr{},
 		true,
@@ -585,9 +554,9 @@ var nativeFuncs = [...]NativeFunc{
 		"testing",
 		"testIssueCoins",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("string")},
-			{Name: gno.N("p1"), Type: gno.X("[]string")},
-			{Name: gno.N("p2"), Type: gno.X("[]int64")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("[]string")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("[]int64")},
 		},
 		[]gno.FieldTypeExpr{},
 		true,
@@ -619,32 +588,14 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"testing",
-		"unixNano",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("int64")},
-		},
-		false,
-		func(m *gno.Machine) {
-			r0 := testlibs_testing.X_unixNano()
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"testing",
 		"matchString",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("string")},
-			{Name: gno.N("p1"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("string")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("bool")},
-			{Name: gno.N("r1"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("string")},
 		},
 		false,
 		func(m *gno.Machine) {
@@ -682,8 +633,8 @@ var nativeFuncs = [...]NativeFunc{
 		"recoverWithStacktrace",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.AnyT()},
-			{Name: gno.N("r1"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.AnyT()},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("string")},
 		},
 		true,
 		func(m *gno.Machine) {
@@ -700,13 +651,113 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
+		"testing",
+		"unixNano",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("int64")},
+		},
+		false,
+		func(m *gno.Machine) {
+			r0 := testlibs_testing.X_unixNano()
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"testing/base",
+		"unixNano",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("int64")},
+		},
+		false,
+		func(m *gno.Machine) {
+			r0 := testlibs_testing_base.X_unixNano()
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"testing/base",
+		"recoverWithStacktrace",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.AnyT()},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("string")},
+		},
+		true,
+		func(m *gno.Machine) {
+			r0, r1 := testlibs_testing_base.X_recoverWithStacktrace(
+				m,
+			)
+
+			m.PushValue(r0)
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
+		"testing/base",
+		"matchString",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("string")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("string")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+
+			r0, r1 := testlibs_testing_base.X_matchString(p0, p1)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
 		"unicode",
 		"IsPrint",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("rune")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("rune")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
 		},
 		false,
 		func(m *gno.Machine) {
@@ -733,10 +784,10 @@ var nativeFuncs = [...]NativeFunc{
 		"unicode",
 		"IsGraphic",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("rune")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("rune")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
 		},
 		false,
 		func(m *gno.Machine) {
@@ -763,10 +814,10 @@ var nativeFuncs = [...]NativeFunc{
 		"unicode",
 		"SimpleFold",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("rune")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("rune")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("rune")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("rune")},
 		},
 		false,
 		func(m *gno.Machine) {
@@ -793,10 +844,10 @@ var nativeFuncs = [...]NativeFunc{
 		"unicode",
 		"IsUpper",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("rune")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("rune")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
 		},
 		false,
 		func(m *gno.Machine) {

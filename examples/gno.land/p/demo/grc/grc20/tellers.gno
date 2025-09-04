@@ -39,12 +39,14 @@ func (tok *Token) ReadonlyTeller() Teller {
 // The initializer of this teller should usually never share the resulting Teller from
 // this method except maybe for advanced delegation flows such as a DAO treasury
 // management.
+// WARN: Should be initialized within a crossing function
+// This way the the realm that created the teller will match CurrentRealm
 func (tok *Token) RealmTeller() Teller {
 	if tok == nil {
 		panic("Token cannot be nil")
 	}
 
-	caller := std.PreviousRealm().Address()
+	caller := std.CurrentRealm().Address()
 
 	return &fnTeller{
 		accountFn: func() std.Address {
@@ -56,12 +58,14 @@ func (tok *Token) RealmTeller() Teller {
 
 // RealmSubTeller is like RealmTeller but uses the provided slug to derive a
 // subaccount.
+// WARN: Should be initialized within a crossing function
+// This way the realm that created the teller will match CurrentRealm
 func (tok *Token) RealmSubTeller(slug string) Teller {
 	if tok == nil {
 		panic("Token cannot be nil")
 	}
 
-	caller := std.PreviousRealm().Address()
+	caller := std.CurrentRealm().Address()
 	account := accountSlugAddr(caller, slug)
 
 	return &fnTeller{
@@ -101,7 +105,7 @@ func (ledger *PrivateLedger) ImpersonateTeller(addr std.Address) Teller {
 // generic tellers methods.
 //
 
-func (ft *fnTeller) Transfer(to std.Address, amount uint64) error {
+func (ft *fnTeller) Transfer(to std.Address, amount int64) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
@@ -109,7 +113,7 @@ func (ft *fnTeller) Transfer(to std.Address, amount uint64) error {
 	return ft.Token.ledger.Transfer(caller, to, amount)
 }
 
-func (ft *fnTeller) Approve(spender std.Address, amount uint64) error {
+func (ft *fnTeller) Approve(spender std.Address, amount int64) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
@@ -117,7 +121,7 @@ func (ft *fnTeller) Approve(spender std.Address, amount uint64) error {
 	return ft.Token.ledger.Approve(caller, spender, amount)
 }
 
-func (ft *fnTeller) TransferFrom(owner, to std.Address, amount uint64) error {
+func (ft *fnTeller) TransferFrom(owner, to std.Address, amount int64) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}

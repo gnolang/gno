@@ -31,8 +31,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	// backup "github.com/gnolang/tx-archive/backup/client"
-	// restore "github.com/gnolang/tx-archive/restore/client"
 )
 
 type NodeConfig struct {
@@ -173,6 +171,13 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig, pkgpaths ...string) (*Node
 	return devnode, nil
 }
 
+func (n *Node) Paths() []string {
+	n.muNode.RLock()
+	defer n.muNode.RUnlock()
+
+	return n.paths
+}
+
 func (n *Node) Close() error {
 	n.muNode.Lock()
 	defer n.muNode.Unlock()
@@ -230,24 +235,24 @@ func (n *Node) HasPackageLoaded(path string) bool {
 
 // GetBlockTransactions returns the transactions contained
 // within the specified block, if any.
-func (n *Node) GetBlockTransactions(blockNum uint64) ([]gnoland.TxWithMetadata, error) {
+func (n *Node) GetBlockTransactions(ctx context.Context, blockNum uint64) ([]gnoland.TxWithMetadata, error) {
 	n.muNode.RLock()
 	defer n.muNode.RUnlock()
 
-	return n.getBlockTransactions(blockNum)
+	return n.getBlockTransactions(ctx, blockNum)
 }
 
 // GetBlockTransactions returns the transactions contained
 // within the specified block, if any.
-func (n *Node) getBlockTransactions(blockNum uint64) ([]gnoland.TxWithMetadata, error) {
+func (n *Node) getBlockTransactions(ctx context.Context, blockNum uint64) ([]gnoland.TxWithMetadata, error) {
 	int64BlockNum := int64(blockNum)
-	b, err := n.client.Block(&int64BlockNum)
+	b, err := n.client.Block(ctx, &int64BlockNum)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load block at height %d: %w", blockNum, err)
 	}
 	txs := b.Block.Data.Txs
 
-	bres, err := n.client.BlockResults(&int64BlockNum)
+	bres, err := n.client.BlockResults(ctx, &int64BlockNum)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load block at height %d: %w", blockNum, err)
 	}
@@ -375,7 +380,7 @@ func (n *Node) SendTransaction(tx *std.Tx) error {
 	}
 
 	// we use BroadcastTxCommit to ensure to have one block with the given tx
-	res, err := n.client.BroadcastTxCommit(aminoTx)
+	res, err := n.client.BroadcastTxCommit(context.Background(), aminoTx)
 	if err != nil {
 		return fmt.Errorf("unable to broadcast transaction commit: %w", err)
 	}
@@ -409,7 +414,7 @@ func (n *Node) getBlockStoreState(ctx context.Context) ([]gnoland.TxWithMetadata
 		default:
 		}
 
-		txs, txErr := n.getBlockTransactions(blocnum)
+		txs, txErr := n.getBlockTransactions(ctx, blocnum)
 		if txErr != nil {
 			return nil, fmt.Errorf("unable to fetch block transactions, %w", txErr)
 		}
@@ -424,9 +429,9 @@ func (n *Node) generateTxs(fee std.Fee, pkgs []packages.Package) []gnoland.TxWit
 	metatxs := make([]gnoland.TxWithMetadata, 0, len(pkgs))
 	for _, pkg := range pkgs {
 		msg := vm.MsgAddPackage{
-			Creator: n.config.DefaultCreator,
-			Deposit: n.config.DefaultDeposit,
-			Package: &pkg.MemPackage,
+			Creator:    n.config.DefaultCreator,
+			MaxDeposit: n.config.DefaultDeposit,
+			Package:    &pkg.MemPackage,
 		}
 
 		if m, ok := n.pkgsModifier[pkg.Path]; ok {
@@ -435,13 +440,13 @@ func (n *Node) generateTxs(fee std.Fee, pkgs []packages.Package) []gnoland.TxWit
 			}
 
 			if m.Deposit != nil {
-				msg.Deposit = m.Deposit
+				msg.MaxDeposit = m.Deposit
 			}
 
 			n.logger.Debug("applying pkgs modifier",
 				"path", pkg.Path,
 				"creator", msg.Creator,
-				"deposit", msg.Deposit,
+				"deposit", msg.MaxDeposit,
 			)
 		}
 
@@ -511,6 +516,9 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 
 	// Reset the node with the new genesis state.
 	err = n.rebuildNode(ctx, genesis)
+	if err != nil {
+		return fmt.Errorf("unable to rebuild node: %w", err)
+	}
 	n.logger.Info("reload done",
 		"pkgs", len(pkgsTxs),
 		"state applied", len(state),
@@ -574,7 +582,7 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	nodeConfig.CacheStdlibLoad = true
 	nodeConfig.Genesis.ConsensusParams.Block.MaxGas = n.config.MaxGasPerBlock
 	// Genesis verification is always false with Gnodev
-	nodeConfig.SkipGenesisVerification = true
+	nodeConfig.SkipGenesisSigVerification = true
 
 	// recoverFromError handles panics and converts them to errors.
 	recoverFromError := func() {
@@ -655,18 +663,16 @@ func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result
 	}
 
 	n.logger.LogAttrs(context.Background(), slog.LevelError, "unable to deliver tx", attrs...)
-
-	return
 }
 
 func newNodeConfig(tmc *tmcfg.Config, chainid, chaindomain string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
 	// Create Mocked Identity
-	pv := gnoland.NewMockedPrivValidator()
+	pv := bft.NewMockPV()
 	genesis := gnoland.NewDefaultGenesisConfig(chainid, chaindomain)
 	genesis.AppState = appstate
 
 	// Add self as validator
-	self := pv.GetPubKey()
+	self := pv.PubKey()
 	genesis.Validators = []bft.GenesisValidator{
 		{
 			Address: self.Address(),

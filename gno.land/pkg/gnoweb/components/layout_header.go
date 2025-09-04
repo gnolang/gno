@@ -25,80 +25,63 @@ type HeaderData struct {
 	Links      HeaderLinks
 	ChainId    string
 	Remote     string
-	IsHome     bool
+	Mode       ViewMode
 }
 
 func StaticHeaderGeneralLinks() []HeaderLink {
-	links := []HeaderLink{
-		{
-			Label: "About",
-			URL:   "https://gno.land/about",
-		},
-		{
-			Label: "Docs",
-			URL:   "https://docs.gno.land/",
-		},
-		{
-			Label: "GitHub",
-			URL:   "https://github.com/gnolang",
-		},
+	return []HeaderLink{
+		{Label: "About", URL: "https://gno.land/about"},
+		{Label: "Docs", URL: "https://docs.gno.land/"},
+		{Label: "GitHub", URL: "https://github.com/gnolang"},
 	}
-	return links
 }
 
-func StaticHeaderDevLinks(u weburl.GnoURL, handle string) []HeaderLink {
+func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode) []HeaderLink {
 	contentURL, sourceURL, helpURL := u, u, u
 	contentURL.WebQuery = url.Values{}
 	sourceURL.WebQuery = url.Values{"source": {""}}
 	helpURL.WebQuery = url.Values{"help": {""}}
 
-	links := []HeaderLink{
-		{
-			Label:    "Content",
-			URL:      contentURL.EncodeWebURL(),
-			Icon:     "ico-content",
-			IsActive: isActive(u.WebQuery, "Content"),
-		},
-		{
-			Label:    "Source",
-			URL:      sourceURL.EncodeWebURL(),
-			Icon:     "ico-code",
-			IsActive: isActive(u.WebQuery, "Source"),
-		},
+	contentLink := HeaderLink{
+		Label:    "Content",
+		URL:      contentURL.EncodeWebURL(),
+		Icon:     "ico-content",
+		IsActive: isActive(u.WebQuery, "Content"),
 	}
 
-	switch handle {
-	case "p":
-		// Will have docs soon
+	sourceLink := HeaderLink{
+		Label:    "Source",
+		URL:      sourceURL.EncodeWebURL(),
+		Icon:     "ico-code",
+		IsActive: isActive(u.WebQuery, "Source"),
+	}
 
+	actionsLink := HeaderLink{
+		Label:    "Actions",
+		URL:      helpURL.EncodeWebURL(),
+		Icon:     "ico-helper",
+		IsActive: isActive(u.WebQuery, "Actions"),
+	}
+
+	switch mode {
+	case ViewModeExplorer:
+		return []HeaderLink{}
+	case ViewModeUser:
+		return []HeaderLink{contentLink}
+	case ViewModePackage:
+		return []HeaderLink{contentLink, sourceLink}
 	default:
-		links = append(links, HeaderLink{
-			Label:    "Actions",
-			URL:      helpURL.EncodeWebURL(),
-			Icon:     "ico-helper",
-			IsActive: isActive(u.WebQuery, "Actions"),
-		})
+		return []HeaderLink{contentLink, sourceLink, actionsLink}
 	}
-
-	return links
 }
 
-func EnrichHeaderData(data HeaderData, hasGeneralMenu bool) HeaderData {
+func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 	data.RealmPath = data.RealmURL.EncodeURL()
+	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode)
+	data.Links.General = nil
 
-	var handle string
-	if len(data.Breadcrumb.Parts) > 0 {
-		handle = data.Breadcrumb.Parts[0].Name
-	} else {
-		handle = ""
-	}
-
-	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, handle)
-
-	if hasGeneralMenu {
+	if mode.ShouldShowGeneralLinks() {
 		data.Links.General = StaticHeaderGeneralLinks()
-	} else {
-		data.Links.General = nil
 	}
 
 	return data
@@ -107,7 +90,7 @@ func EnrichHeaderData(data HeaderData, hasGeneralMenu bool) HeaderData {
 func isActive(webQuery url.Values, label string) bool {
 	switch label {
 	case "Content":
-		return !(webQuery.Has("source") || webQuery.Has("help"))
+		return !webQuery.Has("source") && !webQuery.Has("help")
 	case "Source":
 		return webQuery.Has("source")
 	case "Actions":

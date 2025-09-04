@@ -4,3 +4,6 @@ run:
 
 test:
 	go test -v .
+
+test.update:
+	go test -v . -update-golden-tests

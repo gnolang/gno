@@ -13,14 +13,14 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	tm2events "github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
-	tm2std "github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -39,6 +39,7 @@ func TestNewNode_NoPackages(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, node.ListPkgs(), 0)
+	assert.Len(t, node.Paths(), 0)
 
 	require.NoError(t, node.Close())
 }
@@ -48,10 +49,10 @@ func TestNewNode_WithLoader(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	pkg := gnovm.MemPackage{
+	pkg := std.MemPackage{
 		Name: "foobar",
 		Path: "gno.land/r/dev/foobar",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{
 				Name: "foobar.gno",
 				Body: `package foobar
@@ -60,6 +61,9 @@ func Render(_ string) string { return "foo" }
 			},
 		},
 	}
+
+	pkg.SetFile("gnomod.toml", gnolang.GenGnoModLatest(pkg.Path))
+	pkg.Sort()
 
 	logger := log.NewTestingLogger(t)
 
@@ -70,6 +74,7 @@ func Render(_ string) string { return "foo" }
 	node, err := NewDevNode(ctx, cfg, pkg.Path)
 	require.NoError(t, err)
 	assert.Len(t, node.ListPkgs(), 1)
+	assert.Len(t, node.Paths(), 1)
 
 	// Test rendering
 	render, err := testingRenderRealm(t, node, pkg.Path)
@@ -81,28 +86,36 @@ func Render(_ string) string { return "foo" }
 
 func TestNodeAddPackage(t *testing.T) {
 	// Setup a Node instance
-	fooPkg := gnovm.MemPackage{
+	fooPkg := std.MemPackage{
 		Name: "foo",
 		Path: "gno.land/r/dev/foo",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{
 				Name: "foo.gno",
 				Body: `package foo
 func Render(_ string) string { return "foo" }
 `,
 			},
+			{
+				Name: "gnomod.toml",
+				Body: gnolang.GenGnoModLatest("gno.land/r/dev/foo"),
+			},
 		},
 	}
 
-	barPkg := gnovm.MemPackage{
+	barPkg := std.MemPackage{
 		Name: "bar",
 		Path: "gno.land/r/dev/bar",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{
 				Name: "bar.gno",
 				Body: `package bar
 func Render(_ string) string { return "bar" }
 `,
+			},
+			{
+				Name: "gnomod.toml",
+				Body: gnolang.GenGnoModLatest("gno.land/r/dev/bar"),
 			},
 		},
 	}
@@ -113,6 +126,7 @@ func Render(_ string) string { return "bar" }
 	// Call NewDevNode with no package should work
 	node, emitter := newTestingDevNodeWithConfig(t, cfg, fooPkg.Path)
 	assert.Len(t, node.ListPkgs(), 1)
+	assert.Len(t, node.Paths(), 1)
 
 	// Test render
 	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foo")
@@ -120,7 +134,7 @@ func Render(_ string) string { return "bar" }
 	require.Equal(t, render, "foo")
 
 	// Render should fail as the node hasn't reloaded
-	render, err = testingRenderRealm(t, node, "gno.land/r/dev/bar")
+	_, err = testingRenderRealm(t, node, "gno.land/r/dev/bar")
 	require.Error(t, err)
 
 	// Add bar package
@@ -137,12 +151,13 @@ func Render(_ string) string { return "bar" }
 }
 
 func TestNodeUpdatePackage(t *testing.T) {
-	foorbarPkg := gnovm.MemPackage{
+	foorbarPkg := std.MemPackage{
 		Name: "foobar",
 		Path: "gno.land/r/dev/foobar",
 	}
+	modfile := &std.MemFile{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(foorbarPkg.Path)}
 
-	fooFiles := []*gnovm.MemFile{
+	fooFiles := []*std.MemFile{
 		{
 			Name: "foo.gno",
 			Body: `package foobar
@@ -151,7 +166,7 @@ func Render(_ string) string { return "foo" }
 		},
 	}
 
-	barFiles := []*gnovm.MemFile{
+	barFiles := []*std.MemFile{
 		{
 			Name: "bar.gno",
 			Body: `package foobar
@@ -161,10 +176,12 @@ func Render(_ string) string { return "bar" }
 	}
 
 	// Update foobar content with bar content
-	foorbarPkg.Files = fooFiles
+	foorbarPkg.Files = append(fooFiles, modfile)
+	foorbarPkg.Sort()
 
 	node, emitter := newTestingDevNode(t, &foorbarPkg)
 	assert.Len(t, node.ListPkgs(), 1)
+	assert.Len(t, node.Paths(), 1)
 
 	// Test that render is correct
 	render, err := testingRenderRealm(t, node, foorbarPkg.Path)
@@ -172,7 +189,8 @@ func Render(_ string) string { return "bar" }
 	require.Equal(t, render, "foo")
 
 	// Update foobar content with bar content
-	foorbarPkg.Files = barFiles
+	foorbarPkg.Files = append(barFiles, modfile)
+	foorbarPkg.Sort()
 
 	err = node.Reload(context.Background())
 	require.NoError(t, err)
@@ -189,23 +207,32 @@ func Render(_ string) string { return "bar" }
 }
 
 func TestNodeReset(t *testing.T) {
-	fooPkg := gnovm.MemPackage{
+	fooPkg := std.MemPackage{
 		Name: "foo",
 		Path: "gno.land/r/dev/foo",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{
 				Name: "foo.gno",
 				Body: `package foo
 var str string = "foo"
-func UpdateStr(newStr string) { str = newStr } // method to update 'str' variable
+
+func UpdateStr(cur realm, newStr string) { // method to update 'str' variable
+        str = newStr
+}
+
 func Render(_ string) string { return str }
 `,
+			},
+			{
+				Name: "gnomod.toml",
+				Body: gnolang.GenGnoModLatest("gno.land/r/dev/foo"),
 			},
 		},
 	}
 
 	node, emitter := newTestingDevNode(t, &fooPkg)
 	assert.Len(t, node.ListPkgs(), 1)
+	assert.Len(t, node.Paths(), 1)
 
 	// Test rendering
 	render, err := testingRenderRealm(t, node, fooPkg.Path)
@@ -244,25 +271,34 @@ func Render(_ string) string { return str }
 }
 
 func TestTxGasFailure(t *testing.T) {
-	fooPkg := gnovm.MemPackage{
+	fooPkg := std.MemPackage{
 		Name: "foo",
 		Path: "gno.land/r/dev/foo",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{
 				Name: "foo.gno",
 				Body: `package foo
 import "strconv"
 
 var i int
-func Inc() { i++ } // method to increment i
+
+func Inc(cur realm) {  // method to increment i
+        i++
+}
+
 func Render(_ string) string { return strconv.Itoa(i) }
 `,
+			},
+			{
+				Name: "gnomod.toml",
+				Body: gnolang.GenGnoModLatest("gno.land/r/dev/foo"),
 			},
 		},
 	}
 
 	node, emitter := newTestingDevNode(t, &fooPkg)
 	assert.Len(t, node.ListPkgs(), 1)
+	assert.Len(t, node.Paths(), 1)
 
 	// Test rendering
 	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foo")
@@ -298,9 +334,9 @@ func Render(_ string) string { return strconv.Itoa(i) }
 		GasWanted: 100_000,
 	}
 
-	res, err = testingCallRealmWithConfig(t, node, callCfg, msg)
+	_, err = testingCallRealmWithConfig(t, node, callCfg, msg)
 	require.Error(t, err)
-	require.ErrorAs(t, err, &tm2std.OutOfGasError{})
+	require.ErrorAs(t, err, &std.OutOfGasError{})
 
 	// Transaction should be committed regardless the error
 	require.Equal(t, emitter.NextEvent().Type(), events.EvtTxResult,
@@ -333,7 +369,7 @@ var times = []time.Time{
 	time.Now(), // Evaluate at genesis
 }
 
-func SpanTime() {
+func SpanTime(cur realm) {
 	times = append(times, time.Now())
 }
 
@@ -352,10 +388,10 @@ func Render(_ string) string {
 	return strs.String()
 }
 `
-	fooPkg := gnovm.MemPackage{
+	fooPkg := std.MemPackage{
 		Name: "foo",
 		Path: "gno.land/r/dev/foo",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{
 				Name: "foo.gno",
 				Body: fooFile,
@@ -429,7 +465,7 @@ func Render(_ string) string {
 	const nevents = 3
 
 	// Span multiple time
-	for i := 0; i < nevents; i++ {
+	for range nevents {
 		t.Logf("waiting for a block greater than height(%d) and unix(%d)", refHeight, refTimestamp)
 		for {
 			var block types.EventNewBlock
@@ -559,9 +595,19 @@ func testingCallRealmWithConfig(t *testing.T, node *Node, bcfg gnoclient.BaseTxC
 	return cli.Call(bcfg, vmMsgs...)
 }
 
-func newTestingNodeConfig(pkgs ...*gnovm.MemPackage) *NodeConfig {
+func newTestingNodeConfig(pkgs ...*std.MemPackage) *NodeConfig {
 	var loader packages.BaseLoader
 	gnoroot := gnoenv.RootDir()
+
+	// Ensure that a gnomod.toml exists
+	for _, pkg := range pkgs {
+		if mod := pkg.GetFile("gnomod.toml"); mod != nil {
+			continue
+		}
+
+		pkg.SetFile("gnomod.toml", gnolang.GenGnoModLatest(pkg.Path))
+		pkg.Sort()
+	}
 
 	loader.Resolver = packages.MiddlewareResolver(
 		packages.NewMockResolver(pkgs...),
@@ -572,7 +618,7 @@ func newTestingNodeConfig(pkgs ...*gnovm.MemPackage) *NodeConfig {
 	return cfg
 }
 
-func newTestingDevNode(t *testing.T, pkgs ...*gnovm.MemPackage) (*Node, *mock.ServerEmitter) {
+func newTestingDevNode(t *testing.T, pkgs ...*std.MemPackage) (*Node, *mock.ServerEmitter) {
 	t.Helper()
 
 	cfg := newTestingNodeConfig(pkgs...)

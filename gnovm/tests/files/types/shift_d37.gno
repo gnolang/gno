@@ -6,4 +6,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/shift_d37.gno:5:10: operator << not defined on: nil
+// main/shift_d37.gno:5:10-18: operator << not defined on: nil
+
+// TypeCheckError:
+// main/shift_d37.gno:5:10: invalid operation: shifted operand nil must be integer

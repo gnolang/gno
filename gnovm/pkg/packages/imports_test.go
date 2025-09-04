@@ -143,21 +143,14 @@ func TestImports(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	pkg, err := gnolang.ReadMemPackage(tmpDir, "test")
+	pkg, err := gnolang.ReadMemPackage(tmpDir, "test", gnolang.MPAnyAll)
 	require.NoError(t, err)
 
-	importsMap, err := packages.Imports(pkg, nil)
+	imports, err := packages.Imports(pkg, nil)
 	require.NoError(t, err)
 
 	// ignore specs
-	got := map[packages.FileKind][]string{}
-	for key, vals := range importsMap {
-		stringVals := make([]string, len(vals))
-		for i, val := range vals {
-			stringVals[i] = val.PkgPath
-		}
-		got[key] = stringVals
-	}
+	got := imports.ToStrings()
 
 	require.Equal(t, expected, got)
 }
