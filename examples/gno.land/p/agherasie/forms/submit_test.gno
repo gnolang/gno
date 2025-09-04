@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/urequire"
 )
 
 func TestAnswerForm(t *testing.T) {

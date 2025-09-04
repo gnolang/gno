@@ -4,7 +4,7 @@ package crossrealm
 import (
 	"chain/runtime"
 
-	"gno.land/r/demo/tests/crossrealm"
+	"gno.land/r/tests/vm/crossrealm"
 )
 
 func Public(cur realm) {

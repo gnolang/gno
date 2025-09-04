@@ -1,7 +1,9 @@
 package home
 
 import (
-	"gno.land/p/demo/ownable"
+	"std"
+
+	"gno.land/p/nt/ownable"
 )
 
 type Config struct {

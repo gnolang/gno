@@ -5,7 +5,7 @@ import (
 	"chain/runtime"
 	"time"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 // InviteMember adds a member to the realm or to a boards.

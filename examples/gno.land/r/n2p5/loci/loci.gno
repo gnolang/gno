@@ -5,8 +5,8 @@ import (
 	"chain/runtime"
 	"encoding/base64"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/n2p5/loci"
+	"gno.land/p/nt/ufmt"
 )
 
 var store *loci.LociStore

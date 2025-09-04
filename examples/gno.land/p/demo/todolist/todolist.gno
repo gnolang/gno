@@ -4,7 +4,7 @@ import (
 	"chain/runtime"
 	"strconv"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 type TodoList struct {

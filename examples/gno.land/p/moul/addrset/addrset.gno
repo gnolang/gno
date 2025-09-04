@@ -46,7 +46,9 @@
 package addrset
 
 import (
-	"gno.land/p/demo/avl"
+	"std"
+
+	"gno.land/p/nt/avl"
 )
 
 type Set struct {

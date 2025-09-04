@@ -4,7 +4,7 @@ import (
 	"chain/runtime"
 	"testing"
 
-	"gno.land/p/demo/testutils"
+	"gno.land/p/nt/testutils"
 )
 
 func TestLociStore(t *testing.T) {

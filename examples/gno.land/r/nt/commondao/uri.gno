@@ -4,7 +4,7 @@ import (
 	"chain/runtime"
 	"strings"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 func currentRealmPath() string {

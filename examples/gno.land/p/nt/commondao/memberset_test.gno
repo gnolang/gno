@@ -3,7 +3,7 @@ package commondao
 import (
 	"testing"
 
-	"gno.land/p/demo/uassert"
+	"gno.land/p/nt/uassert"
 )
 
 func TestMemberSetSize(t *testing.T) {

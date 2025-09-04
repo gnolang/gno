@@ -3,7 +3,7 @@ package registry
 import (
 	"errors"
 
-	"gno.land/p/demo/ownable"
+	"gno.land/p/nt/ownable"
 )
 
 var (

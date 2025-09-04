@@ -13,10 +13,10 @@ import (
 	"chain/runtime"
 	"time"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/realmpath"
+	"gno.land/p/nt/ufmt"
 )
 
 // Debug encapsulates debug information, including logs and metadata.

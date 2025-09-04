@@ -6,8 +6,8 @@ import (
 	"chain"
 	"testing"
 
+	tokens "gno.land/r/demo/defi/grc20factory"
 	"gno.land/r/demo/disperse"
-	tokens "gno.land/r/demo/grc20factory"
 )
 
 func main() {

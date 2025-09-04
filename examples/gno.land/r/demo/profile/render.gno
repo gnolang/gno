@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"net/url"
 
-	"gno.land/p/demo/mux"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/mux"
+	"gno.land/p/nt/ufmt"
 )
 
 const (

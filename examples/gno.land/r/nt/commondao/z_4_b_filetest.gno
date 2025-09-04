@@ -27,7 +27,7 @@ func init() {
 
 func main() {
 	// Use a caller that is not the owner of the DAO
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/demo/tests"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/tests/vm"))
 
 	commondao.Get(daoID)
 }

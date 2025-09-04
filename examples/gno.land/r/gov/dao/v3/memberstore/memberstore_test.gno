@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"testing"
 
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/urequire"
 )
 
 func TestPower(t *testing.T) {

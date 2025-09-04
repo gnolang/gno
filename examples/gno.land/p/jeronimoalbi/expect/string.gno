@@ -3,7 +3,7 @@ package expect
 import (
 	"errors"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 // ErrIncompatibleType indicates that a value can't be casted to a different type.

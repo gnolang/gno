@@ -3,7 +3,7 @@ package poa
 import (
 	"errors"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 	"gno.land/p/sys/validators"
 )
 

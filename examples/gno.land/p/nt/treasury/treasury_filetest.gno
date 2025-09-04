@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/nt/treasury"
 )
 

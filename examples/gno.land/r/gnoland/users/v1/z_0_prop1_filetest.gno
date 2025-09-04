@@ -6,7 +6,7 @@ import (
 	"chain/runtime"
 	"testing"
 
-	"gno.land/p/demo/testutils"
+	"gno.land/p/nt/testutils"
 	users "gno.land/r/gnoland/users/v1"
 	"gno.land/r/gov/dao"
 	daov3init "gno.land/r/gov/dao/v3/init"

@@ -1,10 +1,12 @@
 package users
 
 import (
-	"gno.land/p/demo/ufmt"
+	"std"
+
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/nt/ufmt"
 
 	"gno.land/r/demo/profile"
 	susers "gno.land/r/sys/users"

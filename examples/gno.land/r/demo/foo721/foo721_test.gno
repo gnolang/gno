@@ -3,7 +3,7 @@ package foo721
 import (
 	"testing"
 
-	"gno.land/p/demo/grc/grc721"
+	"gno.land/p/demo/tokens/grc721"
 )
 
 func TestFoo721(t *testing.T) {

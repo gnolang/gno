@@ -3,10 +3,10 @@ package commondao
 import (
 	"chain/runtime"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/nt/avl"
 	"gno.land/p/nt/commondao"
+	"gno.land/p/nt/seqid"
 )
 
 // CommonDAOID is the ID of the realm's DAO.

@@ -4,8 +4,8 @@ import (
 	"chain/runtime"
 	"errors"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/seqid"
 )
 
 type ProposalID int64

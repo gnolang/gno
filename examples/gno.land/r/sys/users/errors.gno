@@ -4,7 +4,7 @@ import (
 	"chain/runtime"
 	"errors"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 const prefix = "r/sys/users: "

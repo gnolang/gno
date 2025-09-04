@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
 	"gno.land/p/nt/commondao"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 )
 
 var _ commondao.ProposalDefinition = (*TextPropDefinition)(nil)

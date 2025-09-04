@@ -4,7 +4,7 @@ package testinit
 import (
 	"chain/runtime"
 
-	"gno.land/r/demo/tests"
+	tests "gno.land/r/tests/vm"
 )
 
 var (

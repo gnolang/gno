@@ -4,7 +4,7 @@ package crossrealm
 import (
 	"chain/runtime"
 
-	crossrealm "gno.land/r/demo/tests/crossrealm"
+	crossrealm "gno.land/r/tests/vm/crossrealm"
 )
 
 type fooer struct {
@@ -29,7 +29,7 @@ func init() {
 	crossrealm.CallFooerFooCross(cross)
 	// crossrealm.CallFooerFooCur(cross) <-- panics: cannot cross-call to
 	// external realm function gno.land/r/crossrealm_test.Foo from
-	// gno.land/r/demo/tests/crossrealm
+	// gno.land/r/tests/vm/crossrealm
 	crossrealm.CallFooerBar()
 	crossrealm.CallFooerBarCrossing(cross)
 }
@@ -41,5 +41,5 @@ func main(cur realm) {
 // Output:
 // hello A gno.land/r/crossrealm
 // hello Bar gno.land/r/crossrealm
-// hello Bar gno.land/r/demo/tests/crossrealm
+// hello Bar gno.land/r/tests/vm/crossrealm
 // .

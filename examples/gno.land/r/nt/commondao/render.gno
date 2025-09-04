@@ -5,13 +5,13 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/demo/mux"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/nt/commondao"
+	"gno.land/p/nt/mux"
+	"gno.land/p/nt/ufmt"
 
 	"gno.land/r/sys/users"
 )

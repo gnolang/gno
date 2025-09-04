@@ -4,7 +4,7 @@ import (
 	"chain/banker"
 	"chain/runtime"
 
-	tokens "gno.land/r/demo/grc20factory"
+	tokens "gno.land/r/demo/defi/grc20factory"
 )
 
 var realmAddr = runtime.CurrentRealm().Address()

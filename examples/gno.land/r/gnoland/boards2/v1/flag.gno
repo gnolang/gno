@@ -3,7 +3,7 @@ package boards2
 import (
 	"strconv"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 // DefaultFlaggingThreshold defines the default number of flags that hides flaggable items.

@@ -4,7 +4,7 @@ package crossrealm
 import (
 	"chain/runtime"
 
-	crossrealm "gno.land/r/demo/tests/crossrealm"
+	crossrealm "gno.land/r/tests/vm/crossrealm"
 )
 
 type fooer struct {

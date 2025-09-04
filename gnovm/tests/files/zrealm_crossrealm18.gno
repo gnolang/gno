@@ -4,7 +4,7 @@ package crossrealm
 import (
 	"chain/runtime"
 
-	crossrealm "gno.land/r/demo/tests/crossrealm"
+	crossrealm "gno.land/r/tests/vm/crossrealm"
 )
 
 type fooer struct{}
@@ -40,15 +40,15 @@ func main(cur realm) {
 // init
 // hello gno.land/r/crossrealm
 // hello gno.land/r/crossrealm
-// hello gno.land/r/demo/tests/crossrealm
+// hello gno.land/r/tests/vm/crossrealm
 // main
 // hello gno.land/r/crossrealm
 // hello gno.land/r/crossrealm
-// hello gno.land/r/demo/tests/crossrealm
+// hello gno.land/r/tests/vm/crossrealm
 // .
 
 // Realm:
 // finalizerealm["gno.land/r/crossrealm"]
-// finalizerealm["gno.land/r/demo/tests/crossrealm"]
-// finalizerealm["gno.land/r/demo/tests/crossrealm"]
+// finalizerealm["gno.land/r/tests/vm/crossrealm"]
+// finalizerealm["gno.land/r/tests/vm/crossrealm"]
 // finalizerealm["gno.land/r/crossrealm"]

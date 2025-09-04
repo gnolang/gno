@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"gno.land/p/demo/btree"
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 )
 
 func setupTest() {

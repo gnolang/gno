@@ -4,7 +4,7 @@ import (
 	"chain/runtime"
 	"testing"
 
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/urequire"
 )
 
 func TestCall(t *testing.T) {

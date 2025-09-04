@@ -3,7 +3,7 @@ package addrset
 import (
 	"testing"
 
-	"gno.land/p/demo/uassert"
+	"gno.land/p/nt/uassert"
 )
 
 func TestSet(t *testing.T) {

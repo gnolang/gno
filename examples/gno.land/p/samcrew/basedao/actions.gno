@@ -3,8 +3,8 @@ package basedao
 import (
 	"errors"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/ufmt"
 	"gno.land/p/samcrew/daokit"
 )
 

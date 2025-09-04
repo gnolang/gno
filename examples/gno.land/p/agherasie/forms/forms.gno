@@ -3,7 +3,7 @@ package forms
 import (
 	"time"
 
-	"gno.land/p/demo/seqid"
+	"gno.land/p/nt/seqid"
 )
 
 // FieldType examples :

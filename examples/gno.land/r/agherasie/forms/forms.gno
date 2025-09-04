@@ -2,8 +2,8 @@ package forms
 
 import (
 	"gno.land/p/agherasie/forms"
-	"gno.land/p/demo/json"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
+	"gno.land/p/onbloc/json"
 	"gno.land/r/leon/hor"
 )
 

@@ -3,7 +3,7 @@ package commondao
 import (
 	"chain/runtime"
 
-	"gno.land/p/demo/avl/rotree"
+	"gno.land/p/nt/avl/rotree"
 	"gno.land/p/nt/commondao"
 )
 

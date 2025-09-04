@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/leon/ctg"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/ufmt"
 )
 
 func TestBalanceChecker(t *testing.T) {

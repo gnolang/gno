@@ -5,7 +5,7 @@ package ctg
 import (
 	"chain"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 // ConvertCosmosToGno takes a Bech32 Cosmos address (prefix "cosmos")

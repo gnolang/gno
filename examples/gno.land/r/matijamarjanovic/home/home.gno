@@ -5,9 +5,9 @@ import (
 	"chain/runtime"
 	"strings"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/nt/ufmt"
 	"gno.land/r/leon/hor"
 )
 

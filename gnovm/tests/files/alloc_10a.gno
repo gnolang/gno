@@ -7,8 +7,8 @@ import (
 	"chain/runtime"
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/r/demo/boards"
+	"gno.land/p/nt/testutils"
+	"gno.land/r/archive/boards"
 	"gno.land/r/gnoland/users/v1"
 )
 

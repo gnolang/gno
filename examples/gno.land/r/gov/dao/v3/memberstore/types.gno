@@ -3,7 +3,7 @@ package memberstore
 import (
 	"errors"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 type ErrMemberAlreadyExists struct {
