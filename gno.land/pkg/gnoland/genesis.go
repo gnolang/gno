@@ -256,6 +256,7 @@ func DefaultGenState() GnoGenesisState {
 		Bank: bank.DefaultGenesisState(),
 		VM:   vmm.DefaultGenesisState(),
 	}
+	gs.Bank.Params.RestrictedDenoms = nil
 	return gs
 }
 
