@@ -215,7 +215,11 @@ func (c *fixCmd) processFixTxtar(file string) error {
 	}
 	if !c.diff {
 		archive := txtar.Format(archive)
-		err := os.WriteFile(file, archive, 0o644)
+		info, err := os.Stat(file)
+		if err != nil {
+			return fmt.Errorf("stat txtar file: %w", err)
+		}
+		err = os.WriteFile(file, archive, info.Mode())
 		if err != nil {
 			return fmt.Errorf("error writing txtar file: %w", err)
 		}
