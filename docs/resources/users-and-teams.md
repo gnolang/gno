@@ -13,7 +13,7 @@ To register a username:
 
 1. Visit the user registry realm at [`gno.land/r/gnoland/users/v1`](https://gno.land/r/gnoland/users/v1)
 2. Check if your desired username is available
-3. Register using using transaction links & a web extension wallet, or with `gnokey` using the following command:
+3. Register using transaction links & a web extension wallet, or with `gnokey` using the following command:
 
 ```bash
 gnokey maketx call \
