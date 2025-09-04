@@ -37,7 +37,8 @@ func newFixCmd(cio commands.IO) *commands.Command {
 	bld.WriteString(`The gno fix tool allows you to find Gno programs that use old APIs,
 and rewrite them to use new APIs.
 gno fix rewrites the files in-place. Use -diff to only show a diff of the
-changes that should be applied.
+changes that should be applied. Both .gno files
+and .txtar archives can be passed in the same invocation.
 The available fixes are the following:
 `)
 	for _, fx := range fix.Fixes {
@@ -198,12 +199,13 @@ func (c *fixCmd) processFixTxtar(file string) error {
 		filesByDir[dir] = append(filesByDir[dir], f)
 	}
 	for _, files := range filesByDir {
-		if err = c.processFixTxtarDir(files); err != nil {
+		res, err := c.processFixTxtarDir(files)
+		if err != nil {
 			return err
 		}
 		// This keep orders to limit diff noise.
 		// NOTE: this is due to processing txtars by folders breaking the order.
-		for _, mf := range files {
+		for _, mf := range res {
 			for i := range archive.Files {
 				if archive.Files[i].Name == mf.Name {
 					archive.Files[i].Data = mf.Data
@@ -221,15 +223,16 @@ func (c *fixCmd) processFixTxtar(file string) error {
 	return nil
 }
 
-func (c *fixCmd) processFixTxtarDir(files []txtar.File) error {
+func (c *fixCmd) processFixTxtarDir(files []txtar.File) ([]txtar.File, error) {
 	var gm *gnomod.File
+	var res []txtar.File
 	for _, f := range files {
 		if f.Name == "gnomod.toml" {
 			gm, _ = gnomod.ParseBytes("gnomod.toml", f.Data)
 			break
 		}
 	}
-	for i, f := range files {
+	for _, f := range files {
 		if !strings.HasSuffix(f.Name, ".gno") {
 			continue
 		}
@@ -281,7 +284,7 @@ func (c *fixCmd) processFixTxtarDir(files []txtar.File) error {
 		if c.diff {
 			var buf bytes.Buffer
 			if err := format.Node(&buf, fset, parsed); err != nil {
-				return fmt.Errorf("error formatting: %w", err)
+				return nil, fmt.Errorf("error formatting: %w", err)
 			}
 			err := difflib.WriteUnifiedDiff(os.Stdout, difflib.UnifiedDiff{
 				FromFile: f.Name,
@@ -291,17 +294,18 @@ func (c *fixCmd) processFixTxtarDir(files []txtar.File) error {
 				Context:  3,
 			})
 			if err != nil {
-				return nil
+				return nil, err
 			}
 		} else {
 			var buf bytes.Buffer
 			if err := format.Node(&buf, fset, parsed); err != nil {
-				return fmt.Errorf("error formatting: %w", err)
+				return nil, fmt.Errorf("error formatting: %w", err)
 			}
-			files[i].Data = buf.Bytes()
+			f.Data = buf.Bytes()
+			res = append(res, f)
 		}
 	}
-	return nil
+	return res, nil
 }
 
 func (c *fixCmd) processFix(cio commands.IO, files []string, gm *gnomod.File) error {
