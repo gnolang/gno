@@ -26,7 +26,7 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3](-1)=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3](-2)=
 //     @@ -17,7 +17,7 @@
 //                          "Tag": "",
 //                          "Type": {
@@ -40,31 +40,31 @@ func main(cur realm) {
 //              "V": {
 //                  "@type": "/gno.RefValue",
 //                  "Escaped": true,
-//     -            "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:44"
-//     +            "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:41"
+//     -            "ObjectID": "c09c8277a76bf0c457fdf56bd592edcdcf839a50:10"
+//     +            "ObjectID": "c09c8277a76bf0c457fdf56bd592edcdcf839a50:7"
 //              }
 //          }
 //      }
-// u[a7f5397443359ea76c50be82c77f1f893a060925:41](7)=
+// u[c09c8277a76bf0c457fdf56bd592edcdcf839a50:7](7)=
 //     @@ -8,10 +8,11 @@
-//          "NativePkg": "std",
+//          "NativePkg": "chain/runtime",
 //          "ObjectInfo": {
-//              "ID": "a7f5397443359ea76c50be82c77f1f893a060925:41",
+//              "ID": "c09c8277a76bf0c457fdf56bd592edcdcf839a50:7",
 //     +        "IsEscaped": true,
-//              "LastObjectSize": "429",
+//              "LastObjectSize": "457",
 //     -        "ModTime": "0",
 //     +        "ModTime": "6",
-//              "OwnerID": "a7f5397443359ea76c50be82c77f1f893a060925:2",
+//              "OwnerID": "c09c8277a76bf0c457fdf56bd592edcdcf839a50:2",
 //     -        "RefCount": "1"
 //     +        "RefCount": "2"
 //          },
 //          "Parent": {
 //              "@type": "/gno.RefValue",
-// u[a7f5397443359ea76c50be82c77f1f893a060925:44](0)=
+// u[c09c8277a76bf0c457fdf56bd592edcdcf839a50:10](0)=
 //     @@ -12,7 +12,7 @@
-//              "LastObjectSize": "445",
+//              "LastObjectSize": "474",
 //              "ModTime": "6",
-//              "OwnerID": "a7f5397443359ea76c50be82c77f1f893a060925:2",
+//              "OwnerID": "c09c8277a76bf0c457fdf56bd592edcdcf839a50:2",
 //     -        "RefCount": "2"
 //     +        "RefCount": "1"
 //          },
