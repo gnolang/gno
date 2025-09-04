@@ -7,27 +7,19 @@ import (
 
 type Address = address // NOTE: bech32
 
-// bech32AddrPrefix defines the Bech32 prefix of an address
-const bech32AddrPrefix = "g"
+// Bech32AddrPrefix defines the Bech32 prefix of an address
+const Bech32AddrPrefix = "g"
 
 const RawAddressSize = 20
 
 type RawAddress [RawAddressSize]byte
 
-func EncodeBech32(prefix string, bz [20]byte) Address {
-	b32, err := convertAndEncode(prefix, bz[:])
+func EncodeBech32(prefix string, bz []byte) Address {
+	b32, err := convertAndEncode(prefix, bz)
 	if err != nil {
 		panic(err) // should not happen
 	}
 	return Address(b32)
-}
-
-func DecodeBech32(addr Address) (string, [20]byte, bool) {
-	prefix, bz, err := decodeAndConvert(string(addr))
-	if err != nil || len(bz) != 20 {
-		return "", [20]byte{}, false
-	}
-	return prefix, convertTo20Byte(bz), true
 }
 
 func convertAndEncode(hrp string, data []byte) (string, error) {
@@ -38,7 +30,7 @@ func convertAndEncode(hrp string, data []byte) (string, error) {
 	return bech32.Encode(hrp, converted)
 }
 
-func decodeAndConvert(bech string) (string, []byte, error) {
+func DecodeBech32(bech string) (string, []byte, error) {
 	hrp, data, err := bech32.DecodeNoLimit(bech)
 	if err != nil {
 		return "", nil, errors.New("decoding bech32 failed" + err.Error())
@@ -66,10 +58,4 @@ func deriveStorageDepositAddr(string) string
 func DeriveStorageDepositAddr(pkgPath string) Address {
 	addr := deriveStorageDepositAddr(pkgPath)
 	return Address(addr)
-}
-
-func convertTo20Byte(in []byte) [20]byte {
-	result := [20]byte{}
-	copy(result[:], in)
-	return result
 }

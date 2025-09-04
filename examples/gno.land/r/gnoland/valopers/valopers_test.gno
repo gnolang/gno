@@ -12,23 +12,32 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-func validValidatorInfo(t *testing.T) struct {
+type validatorInfo struct {
 	Moniker     string
 	Description string
 	Address     std.Address
 	PubKey      string
-} {
+}
+
+func validValidatorInfo(t *testing.T) validatorInfo {
 	t.Helper()
 
-	return struct {
-		Moniker     string
-		Description string
-		Address     std.Address
-		PubKey      string
-	}{
+	return validatorInfo{
 		Moniker:     "test-1",
 		Description: "test-1's description",
 		Address:     std.Address("g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h"),
+		PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p",
+	}
+}
+
+func notMatchingValidatorInfo(t *testing.T) validatorInfo {
+
+	t.Helper()
+
+	return validatorInfo{
+		Moniker:     "test-1",
+		Description: "test-1's description",
+		Address:     std.Address("g19355aeqzalykcamgk83dzz64mj0sp0ydmnngnp"),
 		PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p",
 	}
 }
@@ -125,6 +134,20 @@ func TestValopers_Register(t *testing.T) {
 			uassert.Equal(t, info.Address, valoper.Address)
 			uassert.Equal(t, info.PubKey, valoper.PubKey)
 			uassert.Equal(t, true, valoper.KeepRunning)
+		})
+	})
+
+	t.Run("address does not match publicKey", func(t *testing.T) {
+		// Clear the set for the test
+		valopers = avl.NewTree()
+
+		info := notMatchingValidatorInfo(t)
+
+		// Send coins
+		testing.SetOriginSend(std.Coins{minFee})
+
+		uassert.AbortsWithMessage(t, "address does not correspond to public key", func() {
+			Register(cross, info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 	})
 }

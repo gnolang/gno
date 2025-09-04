@@ -13,6 +13,7 @@ import (
 	"gno.land/p/demo/ownable/exts/authorizable"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/realmpath"
+	"gno.land/p/samcrew/keyderive"
 )
 
 const (
@@ -99,6 +100,14 @@ func Register(cur realm, moniker string, description string, address_XXX std.Add
 
 	// TODO add address derivation from public key
 	// (when the laws of gno make it possible)
+	matched, err := keyderive.AddressMatchesKey(address_XXX.String(), pubKey)
+	if err != nil {
+		panic(err)
+	}
+
+	if !matched {
+		panic("address does not correspond to public key")
+	}
 
 	// Save the valoper to the set
 	valopers.Set(v.Address.String(), v)
