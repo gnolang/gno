@@ -14,7 +14,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/iavl/cache"
 
-	"github.com/gnolang/gno/tm2/pkg/iavl/internal/color"
+	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/iavl/internal/encoding"
 )
 
@@ -286,8 +286,8 @@ func (node *Node) String() string {
 		child += fmt.Sprintf("{right %v}", node.rightNode.nodeKey)
 	}
 	return fmt.Sprintf("Node{%s:%s@ %v:%x-%x %d-%d %x}#%s\n",
-		color.ColoredBytes(node.key, color.Green, color.Blue),
-		color.ColoredBytes(node.value, color.Cyan, color.Blue),
+		colors.ColoredBytes(node.key, colors.Green, colors.Blue),
+		colors.ColoredBytes(node.value, colors.Cyan, colors.Blue),
 		node.nodeKey, node.leftNodeKey, node.rightNodeKey,
 		node.size, node.subtreeHeight, node.hash, child)
 }

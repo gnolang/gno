@@ -14,7 +14,7 @@ import (
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/iavl/internal/encoding"
-	iavlrand "github.com/gnolang/gno/tm2/pkg/iavl/internal/rand"
+	iavlrand "github.com/gnolang/gno/tm2/pkg/random"
 )
 
 type iteratorTestConfig struct {

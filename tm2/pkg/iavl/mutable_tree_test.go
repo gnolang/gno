@@ -14,11 +14,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/db/mockdb"
 	"github.com/gnolang/gno/tm2/pkg/iavl/fastnode"
 	"github.com/gnolang/gno/tm2/pkg/iavl/internal/encoding"
-	iavlrand "github.com/gnolang/gno/tm2/pkg/iavl/internal/rand"
-	"github.com/gnolang/gno/tm2/pkg/db/mockdb"
-	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	iavlrand "github.com/gnolang/gno/tm2/pkg/random"
 )
 
 var (

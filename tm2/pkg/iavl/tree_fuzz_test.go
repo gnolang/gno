@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	iavlrand "github.com/gnolang/gno/tm2/pkg/iavl/internal/rand"
+	iavlrand "github.com/gnolang/gno/tm2/pkg/random"
 )
 
 // This file implement fuzz testing by generating programs and then running

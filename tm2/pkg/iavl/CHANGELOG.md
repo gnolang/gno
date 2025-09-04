@@ -10,7 +10,8 @@
   - Remove `iavl/db` package, use `tm2/pkg/db` instead
   - Remove `iavl/mock` package, use `tm2/pkg/db/mockdb` instead
   - Remove `iavl/cmd/legacydump` which was used for a past migration
-  - Remove `iavl/proto`, define `KVPair` and `Changeset` types in `diff.go` w/o using protobuf.
+  - Remove `iavl/proto`, define `KVPair` and `Changeset` types in `diff.go` w/o using protobuf
+  - Remove `iavl/internal/rand`, use `tm2/pkg/random` instead
 
 ## 0.12.4 (July 31, 2019)
 

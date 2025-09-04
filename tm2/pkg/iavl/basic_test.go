@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
-	iavlrand "github.com/gnolang/gno/tm2/pkg/iavl/internal/rand"
+	iavlrand "github.com/gnolang/gno/tm2/pkg/random"
 )
 
 func TestBasic(t *testing.T) {

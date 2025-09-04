@@ -16,9 +16,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/db/goleveldb"
-	iavlrand "github.com/gnolang/gno/tm2/pkg/iavl/internal/rand"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	iavlrand "github.com/gnolang/gno/tm2/pkg/random"
 )
 
 var (
