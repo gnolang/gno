@@ -187,7 +187,7 @@ func txtarsFromArgs(args []string) ([]string, error) {
 
 func isTxtarFile(f fs.DirEntry) bool {
 	name := f.Name()
-	return !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".txtar") && !f.IsDir()
+	return strings.HasSuffix(name, ".txtar") && !f.IsDir()
 }
 
 func (c *fixCmd) processFixTxtar(file string) error {
@@ -195,19 +195,18 @@ func (c *fixCmd) processFixTxtar(file string) error {
 	if err != nil {
 		return err
 	}
-	// group files by folderlike in a txtar you can have multiple folders.
+	// group files by folder to handle error gnomod versions.
 	var filesByDir = map[string][]txtar.File{}
 	for _, f := range archive.Files {
 		dir := filepath.Dir(f.Name)
 		filesByDir[dir] = append(filesByDir[dir], f)
 	}
 	for _, files := range filesByDir {
-		var modifiedFiles []txtar.File
-		if modifiedFiles, err = c.processFixTxtarDir(files); err != nil {
+		if files, err = c.processFixTxtarDir(files); err != nil {
 			return err
 		}
-		// Update only the Data field, preserving order
-		for _, mf := range modifiedFiles {
+		// Update only the Data field, preserving order => limiting diffs.
+		for _, mf := range files {
 			for i := range archive.Files {
 				if archive.Files[i].Name == mf.Name {
 					archive.Files[i].Data = mf.Data
@@ -216,7 +215,6 @@ func (c *fixCmd) processFixTxtar(file string) error {
 		}
 	}
 	if !c.diff {
-		// After processing all files write back the txtar file.
 		archive := txtar.Format(archive)
 		err := os.WriteFile(file, archive, 0o644)
 		if err != nil {
@@ -239,7 +237,6 @@ func (c *fixCmd) processFixTxtarDir(files []txtar.File) ([]txtar.File, error) {
 		if !strings.HasSuffix(f.Name, ".gno") {
 			continue
 		}
-		fmt.Printf("processing %s\n", f.Name)
 		fset := token.NewFileSet()
 		parsed, err := parser.ParseFile(
 			fset, f.Name, f.Data,
