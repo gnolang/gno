@@ -201,7 +201,7 @@ func (c *fixCmd) processFixTxtar(file string) error {
 		if err = c.processFixTxtarDir(files); err != nil {
 			return err
 		}
-		// Update only the Data field, preserving order => limiting diffs.
+		// This keep orders to limit diff noise.
 		// NOTE: this is due to processing txtars by folders breaking the order.
 		for _, mf := range files {
 			for i := range archive.Files {
