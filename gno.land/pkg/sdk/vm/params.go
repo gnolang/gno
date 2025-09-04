@@ -7,41 +7,45 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 const (
-	sysNamesPkgDefault  = "gno.land/r/sys/names"
-	chainDomainDefault  = "gno.land"
-	depositDefault      = "600000000ugnot"
-	storagePriceDefault = "100ugnot" // cost per byte (1 gnot per 10KB) 1B GNOT == 10TB
+	sysNamesPkgDefault             = "gno.land/r/sys/names"
+	chainDomainDefault             = "gno.land"
+	depositDefault                 = "600000000ugnot"
+	storagePriceDefault            = "100ugnot" // cost per byte (1 gnot per 10KB) 1B GNOT == 10TB
+	storageFeeCollectorNameDefault = "storage_fee_collector"
 )
 
 var ASCIIDomain = regexp.MustCompile(`^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$`)
 
 // Params defines the parameters for the bank module.
 type Params struct {
-	SysNamesPkgPath string `json:"sysnames_pkgpath" yaml:"sysnames_pkgpath"`
-	ChainDomain     string `json:"chain_domain" yaml:"chain_domain"`
-	DefaultDeposit  string `json:"default_deposit" yaml:"default_deposit"`
-	StoragePrice    string `json:"storage_price" yaml:"storage_price"`
+	SysNamesPkgPath     string         `json:"sysnames_pkgpath" yaml:"sysnames_pkgpath"`
+	ChainDomain         string         `json:"chain_domain" yaml:"chain_domain"`
+	DefaultDeposit      string         `json:"default_deposit" yaml:"default_deposit"`
+	StoragePrice        string         `json:"storage_price" yaml:"storage_price"`
+	StorageFeeCollector crypto.Address `json:"storage_fee_collector" yaml:"storage_fee_collector"`
 }
 
 // NewParams creates a new Params object
-func NewParams(namesPkgPath, chainDomain, defaultDeposit, storagePrice string) Params {
+func NewParams(namesPkgPath, chainDomain, defaultDeposit, storagePrice string, storageFeeCollector crypto.Address) Params {
 	return Params{
-		SysNamesPkgPath: namesPkgPath,
-		ChainDomain:     chainDomain,
-		DefaultDeposit:  defaultDeposit,
-		StoragePrice:    storagePrice,
+		SysNamesPkgPath:     namesPkgPath,
+		ChainDomain:         chainDomain,
+		DefaultDeposit:      defaultDeposit,
+		StoragePrice:        storagePrice,
+		StorageFeeCollector: storageFeeCollector,
 	}
 }
 
 // DefaultParams returns a default set of parameters.
 func DefaultParams() Params {
 	return NewParams(sysNamesPkgDefault, chainDomainDefault,
-		depositDefault, storagePriceDefault)
+		depositDefault, storagePriceDefault, crypto.AddressFromPreimage([]byte(storageFeeCollectorNameDefault)))
 }
 
 // String implements the stringer interface.
@@ -52,6 +56,7 @@ func (p Params) String() string {
 	sb.WriteString(fmt.Sprintf("ChainDomain: %q\n", p.ChainDomain))
 	sb.WriteString(fmt.Sprintf("DefaultDeposit: %q\n", p.DefaultDeposit))
 	sb.WriteString(fmt.Sprintf("StoragePrice: %q\n", p.StoragePrice))
+	sb.WriteString(fmt.Sprintf("StorageFeeCollector: %q\n", p.StorageFeeCollector.String()))
 	return sb.String()
 }
 
@@ -69,6 +74,9 @@ func (p Params) Validate() error {
 	coins, err = std.ParseCoins(p.StoragePrice)
 	if len(coins) == 0 || err != nil {
 		return fmt.Errorf("invalid storage price %q", p.StoragePrice)
+	}
+	if p.StorageFeeCollector.IsZero() {
+		return fmt.Errorf("invalid storage fee collector, cannot be empty")
 	}
 	return nil
 }

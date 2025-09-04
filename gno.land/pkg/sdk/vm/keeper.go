@@ -1168,7 +1168,7 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 					rlmPath, rlm.Deposit, ugnot.Denom, depositUnlocked, ugnot.Denom))
 			}
 
-			err := vm.refundStorageDeposit(ctx, caller, rlm, depositUnlocked, released)
+			err := vm.refundStorageDeposit(ctx, params.StorageFeeCollector, rlm, depositUnlocked, released)
 			if err != nil {
 				return err
 			}
@@ -1204,10 +1204,10 @@ func (vm *VMKeeper) lockStorageDeposit(ctx sdk.Context, caller crypto.Address, r
 	return nil
 }
 
-func (vm *VMKeeper) refundStorageDeposit(ctx sdk.Context, caller crypto.Address, rlm *gno.Realm, depositUnlocked int64, released int64) error {
+func (vm *VMKeeper) refundStorageDeposit(ctx sdk.Context, storageFeeCollector crypto.Address, rlm *gno.Realm, depositUnlocked int64, released int64) error {
 	storageDepositAddr := gno.DeriveStorageDepositCryptoAddr(rlm.Path)
 	d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}}
-	err := vm.bank.SendCoinsUnrestricted(ctx, storageDepositAddr, caller, d)
+	err := vm.bank.SendCoinsUnrestricted(ctx, storageDepositAddr, storageFeeCollector, d)
 	if err != nil {
 		return fmt.Errorf("unable to return deposit %s, %w", rlm.Path, err)
 	}
