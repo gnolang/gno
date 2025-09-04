@@ -14,8 +14,8 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 		abci.Package,
 	).
 	WithTypes(
-		GnoEventAttribute{},
-		GnoEvent{},
+		EventAttribute{},
+		Event{},
 		StorageDepositEvent{},
 		StorageUnlockEvent{},
 	))

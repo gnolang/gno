@@ -574,7 +574,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](mockEventSwitch, noFilter)
 
 		// Fire a GnoVM event
-		mockEventSwitch.FireEvent(chain.GnoEvent{})
+		mockEventSwitch.FireEvent(chain.Event{})
 
 		// Create the EndBlocker
 		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
@@ -621,7 +621,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](mockEventSwitch, noFilter)
 
 		// Fire a GnoVM event
-		mockEventSwitch.FireEvent(chain.GnoEvent{})
+		mockEventSwitch.FireEvent(chain.Event{})
 
 		// Create the EndBlocker
 		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
@@ -664,7 +664,7 @@ func TestEndBlocker(t *testing.T) {
 		// Construct the GnoVM events
 		vmEvents := make([]abci.Event, 0, len(changes))
 		for index := range changes {
-			event := chain.GnoEvent{
+			event := chain.Event{
 				Type:    validatorAddedEvent,
 				PkgPath: valRealm,
 			}
@@ -673,7 +673,7 @@ func TestEndBlocker(t *testing.T) {
 			if index%2 == 0 {
 				changes[index].Power = 0
 
-				event = chain.GnoEvent{
+				event = chain.Event{
 					Type:    validatorRemovedEvent,
 					PkgPath: valRealm,
 				}
@@ -747,11 +747,11 @@ func TestEndBlocker(t *testing.T) {
 			}
 
 			vmEvents = []abci.Event{
-				chain.GnoEvent{
+				chain.Event{
 					Type:    validatorAddedEvent,
 					PkgPath: valRealm,
 				},
-				chain.GnoEvent{
+				chain.Event{
 					Type:    validatorAddedEvent,
 					PkgPath: valRealm,
 				},
@@ -813,11 +813,11 @@ func TestEndBlocker(t *testing.T) {
 			}
 
 			vmEvents = []abci.Event{
-				chain.GnoEvent{
+				chain.Event{
 					Type:    validatorAddedEvent,
 					PkgPath: valRealm,
 				},
-				chain.GnoEvent{
+				chain.Event{
 					Type:    validatorAddedEvent,
 					PkgPath: valRealm,
 				},
@@ -877,7 +877,7 @@ func TestEndBlocker(t *testing.T) {
 					Response: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
 							Events: []abci.Event{
-								chain.GnoEvent{
+								chain.Event{
 									Type:    validatorAddedEvent,
 									PkgPath: valRealm,
 								},

@@ -46,18 +46,18 @@ func TestEmit(t *testing.T) {
 		name           string
 		eventType      string
 		attrs          []string
-		expectedEvents []GnoEvent
+		expectedEvents []Event
 		expectPanic    bool
 	}{
 		{
 			name:      "SimpleValid",
 			eventType: "test",
 			attrs:     []string{"key1", "value1", "key2", "value2"},
-			expectedEvents: []GnoEvent{
+			expectedEvents: []Event{
 				{
 					Type:    "test",
 					PkgPath: pkgPath,
-					Attributes: []GnoEventAttribute{
+					Attributes: []EventAttribute{
 						{Key: "key1", Value: "value1"},
 						{Key: "key2", Value: "value2"},
 					},
@@ -75,11 +75,11 @@ func TestEmit(t *testing.T) {
 			name:      "EmptyAttribute",
 			eventType: "test",
 			attrs:     []string{"key1", "", "key2", "value2"},
-			expectedEvents: []GnoEvent{
+			expectedEvents: []Event{
 				{
 					Type:    "test",
 					PkgPath: pkgPath,
-					Attributes: []GnoEventAttribute{
+					Attributes: []EventAttribute{
 						{Key: "key1", Value: ""},
 						{Key: "key2", Value: "value2"},
 					},
@@ -91,11 +91,11 @@ func TestEmit(t *testing.T) {
 			name:      "EmptyType",
 			eventType: "",
 			attrs:     []string{"key1", "value1", "key2", "value2"},
-			expectedEvents: []GnoEvent{
+			expectedEvents: []Event{
 				{
 					Type:    "",
 					PkgPath: pkgPath,
-					Attributes: []GnoEventAttribute{
+					Attributes: []EventAttribute{
 						{Key: "key1", Value: "value1"},
 						{Key: "key2", Value: "value2"},
 					},
@@ -107,11 +107,11 @@ func TestEmit(t *testing.T) {
 			name:      "EmptyAttributeKey",
 			eventType: "test",
 			attrs:     []string{"", "value1", "key2", "value2"},
-			expectedEvents: []GnoEvent{
+			expectedEvents: []Event{
 				{
 					Type:    "test",
 					PkgPath: pkgPath,
-					Attributes: []GnoEventAttribute{
+					Attributes: []EventAttribute{
 						{Key: "", Value: "value1"},
 						{Key: "key2", Value: "value2"},
 					},
@@ -176,11 +176,11 @@ func TestEmit_MultipleEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expect := []GnoEvent{
+	expect := []Event{
 		{
 			Type:    "test1",
 			PkgPath: pkgPath,
-			Attributes: []GnoEventAttribute{
+			Attributes: []EventAttribute{
 				{Key: "key1", Value: "value1"},
 				{Key: "key2", Value: "value2"},
 			},
@@ -188,7 +188,7 @@ func TestEmit_MultipleEvents(t *testing.T) {
 		{
 			Type:    "test2",
 			PkgPath: pkgPath,
-			Attributes: []GnoEventAttribute{
+			Attributes: []EventAttribute{
 				{Key: "key3", Value: "value3"},
 				{Key: "key4", Value: "value4"},
 			},

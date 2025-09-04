@@ -17,7 +17,7 @@ func isOriginCall(m *gno.Machine) bool {
 		return false
 	}
 	firstPkg := m.Frames[0].LastPackage
-	isMsgCall := firstPkg != nil && firstPkg.PkgPath == "main"
+	isMsgCall := firstPkg != nil && firstPkg.PkgPath == ""
 	return n <= 2 && isMsgCall
 }
 
@@ -35,28 +35,6 @@ func ChainHeight(m *gno.Machine) int64 {
 
 func X_originCaller(m *gno.Machine) string {
 	return string(execctx.GetContext(m).OriginCaller)
-}
-
-func X_callerAt(m *gno.Machine, n int) string {
-	if n <= 0 {
-		m.Panic(typedString("CallerAt requires positive arg"))
-		return ""
-	}
-	// Add 1 to n to account for the CallerAt (gno fn) frame.
-	n++
-	if n > m.NumFrames() {
-		// NOTE: the last frame's LastPackage
-		// is set to the original non-frame
-		// package, so need this check.
-		m.Panic(typedString("frame not found"))
-		return ""
-	}
-	if n == m.NumFrames() {
-		// This makes it consistent with OriginCaller.
-		ctx := execctx.GetContext(m)
-		return string(ctx.OriginCaller)
-	}
-	return string(m.PeekCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
 
 func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
