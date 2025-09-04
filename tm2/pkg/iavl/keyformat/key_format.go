@@ -85,7 +85,6 @@ func (kf *KeyFormat) KeyBytes(segments ...[]byte) []byte {
 			}
 			// Otherwise increase n by the segment length
 			n += l
-
 		}
 		// Big endian so pad on left if not given the full width for this segment
 		copy(key[n-len(s):n], s)

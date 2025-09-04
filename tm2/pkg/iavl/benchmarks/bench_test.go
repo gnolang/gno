@@ -25,7 +25,7 @@ func randBytes(length int) []byte {
 	return key
 }
 
-func prepareTree(b *testing.B, db dbm.DB, size, keyLen, dataLen int) (*iavl.MutableTree, [][]byte) {
+func prepareTree(b *testing.B, db dbm.DB, size, keyLen, dataLen int) (*iavl.MutableTree, [][]byte) { //nolint: thelper
 	t := iavl.NewMutableTree(db, size, false, iavl.NewNopLogger())
 	keys := make([][]byte, size)
 
@@ -41,7 +41,7 @@ func prepareTree(b *testing.B, db dbm.DB, size, keyLen, dataLen int) (*iavl.Muta
 }
 
 // commit tree saves a new version and deletes old ones according to historySize
-func commitTree(b *testing.B, t *iavl.MutableTree) {
+func commitTree(b *testing.B, t *iavl.MutableTree) { //nolint: thelper
 	t.Hash()
 
 	_, version, err := t.SaveVersion()
@@ -58,7 +58,7 @@ func commitTree(b *testing.B, t *iavl.MutableTree) {
 }
 
 // queries random keys against live state. Keys are almost certainly not in the tree.
-func runQueriesFast(b *testing.B, t *iavl.MutableTree, keyLen int) {
+func runQueriesFast(b *testing.B, t *iavl.MutableTree, keyLen int) { //nolint: thelper
 	isFastCacheEnabled, err := t.IsFastCacheEnabled()
 	require.NoError(b, err)
 	require.True(b, isFastCacheEnabled)
@@ -70,7 +70,7 @@ func runQueriesFast(b *testing.B, t *iavl.MutableTree, keyLen int) {
 }
 
 // queries keys that are known to be in state
-func runKnownQueriesFast(b *testing.B, t *iavl.MutableTree, keys [][]byte) {
+func runKnownQueriesFast(b *testing.B, t *iavl.MutableTree, keys [][]byte) { //nolint: thelper
 	isFastCacheEnabled, err := t.IsFastCacheEnabled() // to ensure fast storage is enabled
 	require.NoError(b, err)
 	require.True(b, isFastCacheEnabled)
@@ -82,7 +82,7 @@ func runKnownQueriesFast(b *testing.B, t *iavl.MutableTree, keys [][]byte) {
 	}
 }
 
-func runQueriesSlow(b *testing.B, t *iavl.MutableTree, keyLen int) {
+func runQueriesSlow(b *testing.B, t *iavl.MutableTree, keyLen int) { //nolint: thelper
 	b.StopTimer()
 	// Save version to get an old immutable tree to query against,
 	// Fast storage is not enabled on old tree versions, allowing us to bench the desired behavior.
@@ -103,7 +103,7 @@ func runQueriesSlow(b *testing.B, t *iavl.MutableTree, keyLen int) {
 	}
 }
 
-func runKnownQueriesSlow(b *testing.B, t *iavl.MutableTree, keys [][]byte) {
+func runKnownQueriesSlow(b *testing.B, t *iavl.MutableTree, keys [][]byte) { //nolint: thelper
 	b.StopTimer()
 	// Save version to get an old immutable tree to query against,
 	// Fast storage is not enabled on old tree versions, allowing us to bench the desired behavior.
@@ -126,7 +126,7 @@ func runKnownQueriesSlow(b *testing.B, t *iavl.MutableTree, keys [][]byte) {
 	}
 }
 
-func runIterationFast(b *testing.B, t *iavl.MutableTree, expectedSize int) {
+func runIterationFast(b *testing.B, t *iavl.MutableTree, expectedSize int) { //nolint: thelper
 	isFastCacheEnabled, err := t.IsFastCacheEnabled()
 	require.NoError(b, err)
 	require.True(b, isFastCacheEnabled) // to ensure fast storage is enabled
@@ -138,7 +138,7 @@ func runIterationFast(b *testing.B, t *iavl.MutableTree, expectedSize int) {
 	}
 }
 
-func runIterationSlow(b *testing.B, t *iavl.MutableTree, expectedSize int) {
+func runIterationSlow(b *testing.B, t *iavl.MutableTree, expectedSize int) { //nolint: thelper
 	for i := 0; i < b.N; i++ {
 		itr := iavl.NewIterator(nil, nil, false, t.ImmutableTree) // create slow iterator directly
 		iterate(b, itr, expectedSize)
@@ -146,7 +146,7 @@ func runIterationSlow(b *testing.B, t *iavl.MutableTree, expectedSize int) {
 	}
 }
 
-func iterate(b *testing.B, itr dbm.Iterator, expectedSize int) {
+func iterate(b *testing.B, itr dbm.Iterator, expectedSize int) { //nolint: thelper
 	b.StartTimer()
 	keyValuePairs := make([][][]byte, 0, expectedSize)
 	for i := 0; i < expectedSize && itr.Valid(); i++ {
@@ -161,7 +161,7 @@ func iterate(b *testing.B, itr dbm.Iterator, expectedSize int) {
 	}
 }
 
-// func runInsert(b *testing.B, t *iavl.MutableTree, keyLen, dataLen, blockSize int) *iavl.MutableTree {
+// func runInsert(b *testing.B, t *iavl.MutableTree, keyLen, dataLen, blockSize int) *iavl.MutableTree { //nolint: thelper
 // 	for i := 1; i <= b.N; i++ {
 // 		t.Set(randBytes(keyLen), randBytes(dataLen))
 // 		if i%blockSize == 0 {
@@ -172,7 +172,7 @@ func iterate(b *testing.B, itr dbm.Iterator, expectedSize int) {
 // 	return t
 // }
 
-func runUpdate(b *testing.B, t *iavl.MutableTree, dataLen, blockSize int, keys [][]byte) *iavl.MutableTree {
+func runUpdate(b *testing.B, t *iavl.MutableTree, dataLen, blockSize int, keys [][]byte) *iavl.MutableTree { //nolint: thelper
 	l := int32(len(keys))
 	for i := 1; i <= b.N; i++ {
 		key := keys[mrand.Int31n(l)]
@@ -185,7 +185,7 @@ func runUpdate(b *testing.B, t *iavl.MutableTree, dataLen, blockSize int, keys [
 	return t
 }
 
-// func runDelete(b *testing.B, t *iavl.MutableTree, blockSize int, keys [][]byte) *iavl.MutableTree {
+// func runDelete(b *testing.B, t *iavl.MutableTree, blockSize int, keys [][]byte) *iavl.MutableTree { //nolint: thelper
 // 	var key []byte
 // 	l := int32(len(keys))
 // 	for i := 1; i <= b.N; i++ {
@@ -201,7 +201,7 @@ func runUpdate(b *testing.B, t *iavl.MutableTree, dataLen, blockSize int, keys [
 // }
 
 // runBlock measures time for an entire block, not just one tx
-func runBlock(b *testing.B, t *iavl.MutableTree, keyLen, dataLen, blockSize int, keys [][]byte) *iavl.MutableTree {
+func runBlock(b *testing.B, t *iavl.MutableTree, keyLen, dataLen, blockSize int, keys [][]byte) *iavl.MutableTree { //nolint: thelper
 	l := int32(len(keys))
 
 	// XXX: This was adapted to work with VersionedTree but needs to be re-thought.
@@ -320,7 +320,7 @@ func BenchmarkLevelDBLargeData(b *testing.B) {
 	runBenchmarks(b, benchmarks)
 }
 
-func runBenchmarks(b *testing.B, benchmarks []benchmark) {
+func runBenchmarks(b *testing.B, benchmarks []benchmark) { //nolint: thelper
 	fmt.Printf("%s\n", iavl.GetVersionInfo())
 	for _, bb := range benchmarks {
 		bb := bb
@@ -364,7 +364,7 @@ func memUseMB() float64 {
 	return mb
 }
 
-func runSuite(b *testing.B, d dbm.DB, initSize, blockSize, keyLen, dataLen int) {
+func runSuite(b *testing.B, d dbm.DB, initSize, blockSize, keyLen, dataLen int) { //nolint: thelper
 	// measure mem usage
 	runtime.GC()
 	init := memUseMB()

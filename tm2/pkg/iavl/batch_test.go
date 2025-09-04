@@ -31,7 +31,7 @@ func TestBatchWithFlusher(t *testing.T) {
 	testBatchWithFlusher(t)
 }
 
-func testBatchWithFlusher(t *testing.T) {
+func testBatchWithFlusher(t *testing.T) { //nolint: thelper
 	name := fmt.Sprintf("test_%x", randstr(12))
 	dir := t.TempDir()
 	db, err := goleveldb.NewGoLevelDB(name, dir)

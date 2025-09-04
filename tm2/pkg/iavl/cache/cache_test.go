@@ -156,7 +156,6 @@ func Test_Cache_Add(t *testing.T) {
 			expectedCurSize := 0
 
 			for _, op := range tc.cacheOps {
-
 				actualResult := cache.Add(testNodes[op.testNodexIdx])
 
 				expectedResult := op.expectedResult
@@ -269,7 +268,6 @@ func Test_Cache_Remove(t *testing.T) {
 			expectedCurSize := cache.Len()
 
 			for _, op := range tc.cacheOps {
-
 				actualResult := cache.Remove(testNodes[op.testNodexIdx].GetKey())
 
 				expectedResult := op.expectedResult
@@ -291,7 +289,7 @@ func Test_Cache_Remove(t *testing.T) {
 	}
 }
 
-func validateCacheContentsAfterTest(t *testing.T, tc testcase, cache cache.Cache) {
+func validateCacheContentsAfterTest(t *testing.T, tc testcase, cache cache.Cache) { //nolint: thelper
 	require.Equal(t, len(tc.expectedNodeIndexes), cache.Len())
 	for _, idx := range tc.expectedNodeIndexes {
 		expectedNode := testNodes[idx]

@@ -47,7 +47,7 @@ func TestRandomOperations(t *testing.T) {
 
 // Randomized test that runs all sorts of random operations, mirrors them in a known-good
 // map, and verifies the state of the tree against the map.
-func testRandomOperations(t *testing.T, randSeed int64) {
+func testRandomOperations(t *testing.T, randSeed int64) { //nolint: thelper
 	const (
 		keySize   = 16 // before base64-encoding
 		valueSize = 16 // before base64-encoding
@@ -263,7 +263,7 @@ func testRandomOperations(t *testing.T, randSeed int64) {
 
 // Checks that the database is empty, only containing a single root entry
 // at the given version.
-func assertEmptyDatabase(t *testing.T, tree *MutableTree) {
+func assertEmptyDatabase(t *testing.T, tree *MutableTree) { //nolint: thelper
 	version := tree.Version()
 	iter, err := tree.ndb.db.Iterator(nil, nil)
 	require.NoError(t, err)
@@ -293,15 +293,15 @@ func assertEmptyDatabase(t *testing.T, tree *MutableTree) {
 }
 
 // Checks that the tree has the given number of orphan nodes.
-func assertOrphans(t *testing.T, tree *MutableTree, expected int) {
+func assertOrphans(t *testing.T, tree *MutableTree, expected int) { //nolint: thelper
 	orphans, err := tree.ndb.orphans()
 	require.Nil(t, err)
 	require.EqualValues(t, expected, len(orphans), "Expected %v orphans, got %v", expected, len(orphans))
 }
 
 // Checks that a version is the maximum mirrored version.
-func assertMaxVersion(t *testing.T, _ *MutableTree, version int64, mirrors map[int64]map[string]string) {
-	max := int64(0)
+func assertMaxVersion(t *testing.T, _ *MutableTree, version int64, mirrors map[int64]map[string]string) { //nolint: thelper
+	max := int64(0) //nolint: predeclared
 	for v := range mirrors {
 		if v > max {
 			max = v
@@ -311,7 +311,7 @@ func assertMaxVersion(t *testing.T, _ *MutableTree, version int64, mirrors map[i
 }
 
 // Checks that a mirror, optionally for a given version, matches the tree contents.
-func assertMirror(t *testing.T, tree *MutableTree, mirror map[string]string, version int64) {
+func assertMirror(t *testing.T, tree *MutableTree, mirror map[string]string, version int64) { //nolint: thelper
 	var err error
 	itree := tree.ImmutableTree
 	if version > 0 {
@@ -346,7 +346,7 @@ func assertMirror(t *testing.T, tree *MutableTree, mirror map[string]string, ver
 }
 
 // Checks that fast node cache matches live state.
-func assertFastNodeCacheIsLive(t *testing.T, tree *MutableTree, mirror map[string]string, version int64) {
+func assertFastNodeCacheIsLive(t *testing.T, tree *MutableTree, mirror map[string]string, version int64) { //nolint: thelper
 	_, latestVersion, err := tree.ndb.getLatestVersion()
 	require.NoError(t, err)
 	if latestVersion != version {
@@ -363,7 +363,7 @@ func assertFastNodeCacheIsLive(t *testing.T, tree *MutableTree, mirror map[strin
 }
 
 // Checks that fast nodes on disk match live state.
-func assertFastNodeDiskIsLive(t *testing.T, tree *MutableTree, mirror map[string]string, version int64) {
+func assertFastNodeDiskIsLive(t *testing.T, tree *MutableTree, mirror map[string]string, version int64) { //nolint: thelper
 	_, latestVersion, err := tree.ndb.getLatestVersion()
 	require.NoError(t, err)
 	if latestVersion != version {
@@ -389,7 +389,7 @@ func assertFastNodeDiskIsLive(t *testing.T, tree *MutableTree, mirror map[string
 }
 
 // Checks that all versions in the tree are present in the mirrors, and vice-versa.
-func assertVersions(t *testing.T, tree *MutableTree, mirrors ...map[int64]map[string]string) {
+func assertVersions(t *testing.T, tree *MutableTree, mirrors ...map[int64]map[string]string) { //nolint: thelper
 	require.Equal(t, getMirrorVersions(mirrors...), tree.AvailableVersions())
 }
 

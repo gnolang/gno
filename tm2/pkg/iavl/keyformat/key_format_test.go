@@ -119,7 +119,7 @@ func TestOverflow(t *testing.T) {
 	assert.Equal(t, int64(b), *bo)
 }
 
-func benchmarkKeyFormatBytes(b *testing.B, kf *KeyFormat, segments ...[]byte) {
+func benchmarkKeyFormatBytes(b *testing.B, kf *KeyFormat, segments ...[]byte) { //nolint: thelper
 	for i := 0; i < b.N; i++ {
 		kf.KeyBytes(segments...)
 	}

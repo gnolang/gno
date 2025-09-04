@@ -1,5 +1,4 @@
-// nolint:errcheck
-package iavl
+package iavl //nolint:errcheck
 
 import (
 	"bytes"
@@ -108,8 +107,7 @@ func TestVersionedRandomTree(t *testing.T) {
 	require.Equal(tree.nodeSize(), len(nodes))
 }
 
-// nolint: dupl
-func TestTreeHash(t *testing.T) {
+func TestTreeHash(t *testing.T) { //nolint: dupl
 	const (
 		randSeed  = 49872768940 // For deterministic tests
 		keySize   = 16

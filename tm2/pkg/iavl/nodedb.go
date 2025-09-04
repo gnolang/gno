@@ -1195,7 +1195,7 @@ func (ndb *nodeDB) nodes() ([]*Node, error) {
 	return nodes, nil
 }
 
-func (ndb *nodeDB) legacyNodes() ([]*Node, error) {
+func (ndb *nodeDB) legacyNodes() ([]*Node, error) { //nolint: unused
 	nodes := []*Node{}
 
 	err := ndb.traversePrefix(legacyNodeKeyFormat.Prefix(), func(key, value []byte) error {

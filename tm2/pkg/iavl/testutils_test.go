@@ -1,5 +1,4 @@
-// nolint:errcheck
-package iavl
+package iavl //nolint:errcheck
 
 import (
 	"bytes"
@@ -104,7 +103,7 @@ func (t *traverser) view(key, _ []byte) bool {
 	return false
 }
 
-func expectTraverse(t *testing.T, trav traverser, start, end string, count int) {
+func expectTraverse(t *testing.T, trav traverser, start, end string, count int) { //nolint: thelper
 	if trav.first != start {
 		t.Error("Bad start", start, trav.first)
 	}
@@ -116,7 +115,7 @@ func expectTraverse(t *testing.T, trav traverser, start, end string, count int) 
 	}
 }
 
-func assertMutableMirrorIterate(t *testing.T, tree *MutableTree, mirror map[string]string) {
+func assertMutableMirrorIterate(t *testing.T, tree *MutableTree, mirror map[string]string) { //nolint: thelper
 	sortedMirrorKeys := make([]string, 0, len(mirror))
 	for k := range mirror {
 		sortedMirrorKeys = append(sortedMirrorKeys, k)
@@ -136,7 +135,7 @@ func assertMutableMirrorIterate(t *testing.T, tree *MutableTree, mirror map[stri
 	})
 }
 
-func assertImmutableMirrorIterate(t *testing.T, tree *ImmutableTree, mirror map[string]string) {
+func assertImmutableMirrorIterate(t *testing.T, tree *ImmutableTree, mirror map[string]string) { //nolint: thelper
 	sortedMirrorKeys := getSortedMirrorKeys(mirror)
 
 	curKeyIdx := 0
@@ -161,7 +160,7 @@ func getSortedMirrorKeys(mirror map[string]string) []string {
 	return sortedMirrorKeys
 }
 
-func getRandomizedTreeAndMirror(t *testing.T) (*MutableTree, map[string]string) {
+func getRandomizedTreeAndMirror(t *testing.T) (*MutableTree, map[string]string) { //nolint: thelper
 	const cacheSize = 100
 
 	tree := getTestTree(cacheSize)
@@ -172,7 +171,7 @@ func getRandomizedTreeAndMirror(t *testing.T) (*MutableTree, map[string]string) 
 	return tree, mirror
 }
 
-func randomizeTreeAndMirror(t *testing.T, tree *MutableTree, mirror map[string]string) {
+func randomizeTreeAndMirror(t *testing.T, tree *MutableTree, mirror map[string]string) { //nolint: thelper
 	if mirror == nil {
 		mirror = make(map[string]string)
 	}
@@ -252,7 +251,7 @@ func getRandomKeyFrom(mirror map[string]string) string {
 	panic("no keys in mirror")
 }
 
-func setupMirrorForIterator(t *testing.T, config *iteratorTestConfig, tree *MutableTree) [][]string {
+func setupMirrorForIterator(t *testing.T, config *iteratorTestConfig, tree *MutableTree) [][]string { //nolint: thelper
 	var mirror [][]string
 
 	startByteToSet := config.startByteToSet
@@ -285,7 +284,7 @@ func setupMirrorForIterator(t *testing.T, config *iteratorTestConfig, tree *Muta
 
 // assertIterator confirms that the iterator returns the expected values desribed by mirror in the same order.
 // mirror is a slice containing slices of the form [key, value]. In other words, key at index 0 and value at index 1.
-func assertIterator(t *testing.T, itr dbm.Iterator, mirror [][]string, ascending bool) {
+func assertIterator(t *testing.T, itr dbm.Iterator, mirror [][]string, ascending bool) { //nolint: thelper
 	startIdx, endIdx := 0, len(mirror)-1
 	increment := 1
 	mirrorIdx := startIdx
@@ -316,7 +315,7 @@ func BenchmarkImmutableAvlTreeMemDB(b *testing.B) {
 	benchmarkImmutableAvlTreeWithDB(b, db)
 }
 
-func benchmarkImmutableAvlTreeWithDB(b *testing.B, db dbm.DB) {
+func benchmarkImmutableAvlTreeWithDB(b *testing.B, db dbm.DB) { //nolint: thelper
 	defer db.Close()
 
 	b.StopTimer()

@@ -57,11 +57,11 @@ func (bz HexBytes) String() string {
 func (bz HexBytes) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'p':
-		if _, err := s.Write([]byte(fmt.Sprintf("%p", bz))); err != nil {
+		if _, err := s.Write([]byte(fmt.Sprintf("%p", bz))); err != nil { //nolint: staticcheck
 			panic(err)
 		}
 	default:
-		if _, err := s.Write([]byte(fmt.Sprintf("%X", []byte(bz)))); err != nil {
+		if _, err := s.Write([]byte(fmt.Sprintf("%X", []byte(bz)))); err != nil { //nolint: staticcheck
 			panic(err)
 		}
 	}

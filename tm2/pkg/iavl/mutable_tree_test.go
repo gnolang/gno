@@ -349,7 +349,7 @@ func BenchmarkMutableTree_Set(b *testing.B) {
 	}
 }
 
-func prepareTree(t *testing.T) *MutableTree {
+func prepareTree(t *testing.T) *MutableTree { //nolint: thelper
 	mdb := memdb.NewMemDB()
 	tree := NewMutableTree(mdb, 1000, false, NewNopLogger())
 	for i := 0; i < 100; i++ {
@@ -383,7 +383,7 @@ func TestMutableTree_Version(t *testing.T) {
 	require.Equal(t, int64(2), v)
 }
 
-func checkGetVersioned(t *testing.T, tree *MutableTree, version int64, key, value []byte) {
+func checkGetVersioned(t *testing.T, tree *MutableTree, version int64, key, value []byte) { //nolint: thelper
 	val, err := tree.GetVersioned(key, version)
 	require.NoError(t, err)
 	require.True(t, bytes.Equal(val, value))
@@ -1245,7 +1245,7 @@ func TestUpgradeStorageToFast_Delete_Stale_Success(t *testing.T) {
 	}
 }
 
-func setupTreeAndMirror(t *testing.T, numEntries int, skipFastStorageUpgrade bool) (*MutableTree, [][]string) {
+func setupTreeAndMirror(t *testing.T, numEntries int, skipFastStorageUpgrade bool) (*MutableTree, [][]string) { //nolint: thelper
 	db := memdb.NewMemDB()
 
 	tree := NewMutableTree(db, 0, skipFastStorageUpgrade, NewNopLogger())

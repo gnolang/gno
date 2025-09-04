@@ -1,5 +1,4 @@
-// nolint: scopelint
-package common
+package common //nolint: scopelint
 
 import (
 	"encoding/json"

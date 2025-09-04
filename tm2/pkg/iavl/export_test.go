@@ -60,8 +60,7 @@ func setupExportTreeBasic(t require.TestingT) *ImmutableTree {
 }
 
 // setupExportTreeRandom sets up a randomly generated tree.
-// nolint: dupl
-func setupExportTreeRandom(t *testing.T) *ImmutableTree {
+func setupExportTreeRandom(t *testing.T) *ImmutableTree { //nolint: dupl,thelper
 	const (
 		randSeed  = 49872768940 // For deterministic tests
 		keySize   = 16
@@ -226,7 +225,7 @@ func TestExporterCompress(t *testing.T) {
 	assert.Equal(t, expect, actual)
 }
 
-func TestExporter_Import(t *testing.T) {
+func TestExporter_Import(t *testing.T) { //nolint: tparallel
 	testcases := map[string]*ImmutableTree{
 		"empty tree": NewImmutableTree(memdb.NewMemDB(), 0, false, NewNopLogger()),
 		"basic tree": setupExportTreeBasic(t),

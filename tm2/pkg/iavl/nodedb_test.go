@@ -287,7 +287,7 @@ func TestTraverseNodes(t *testing.T) {
 	require.Equal(t, 64, count)
 }
 
-func assertOrphansAndBranches(t *testing.T, ndb *nodeDB, version int64, branches int, orphanKeys [][]byte) {
+func assertOrphansAndBranches(t *testing.T, ndb *nodeDB, version int64, branches int, orphanKeys [][]byte) { //nolint: thelper
 	var branchCount, orphanIndex int
 	err := ndb.traverseOrphans(version, version+1, func(node *Node) error {
 		if node.isLeaf() {
@@ -377,7 +377,7 @@ func TestNodeDB_traverseOrphans(t *testing.T) {
 	assertOrphansAndBranches(t, tree.ndb, 4, 8, [][]byte{{byte(9)}, {byte(10)}, {byte(12)}})
 }
 
-func makeAndPopulateMutableTree(tb testing.TB) *MutableTree {
+func makeAndPopulateMutableTree(tb testing.TB) *MutableTree { //nolint: thelper
 	memDB := memdb.NewMemDB()
 	tree := NewMutableTree(memDB, 0, false, NewNopLogger(), InitialVersionOption(9))
 

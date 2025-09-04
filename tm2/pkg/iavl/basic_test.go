@@ -1,5 +1,4 @@
-// nolint: errcheck
-package iavl
+package iavl //nolint: errcheck
 
 import (
 	"encoding/hex"

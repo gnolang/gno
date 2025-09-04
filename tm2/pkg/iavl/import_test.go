@@ -240,7 +240,7 @@ func BenchmarkImportBatch(b *testing.B) {
 	benchmarkImport(b, maxBatchSize*10)
 }
 
-func benchmarkImport(b *testing.B, nodes int) {
+func benchmarkImport(b *testing.B, nodes int) { //nolint: thelper
 	b.StopTimer()
 	tree := setupExportTreeSized(b, nodes)
 	exported := make([]*ExportNode, 0, nodes)
