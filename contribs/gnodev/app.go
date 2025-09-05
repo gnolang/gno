@@ -180,18 +180,6 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	// Modifiers will be added later to the node config bellow
 	ds.paths = append(paths, localPaths...)
 
-	// Setup default web home realm, fallback on first local path
-	switch webHome := ds.cfg.webHome; webHome {
-	case "":
-		if len(ds.paths) > 0 {
-			ds.webHomePath = strings.TrimPrefix(ds.paths[0], ds.cfg.chainDomain)
-			ds.logger.WithGroup(WebLogName).Info("using default package", "path", ds.paths[0])
-		}
-	case "/", ":none:": // skip
-	default:
-		ds.webHomePath = webHome
-	}
-
 	balances, err := generateBalances(ds.book, ds.cfg)
 	if err != nil {
 		return fmt.Errorf("unable to generate balances: %w", err)
@@ -233,6 +221,20 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 		return err
 	}
 	ds.DeferClose(ds.devNode.Close)
+
+	// Setup default web home realm, fallback on first local path
+	devNodePaths := ds.devNode.Paths()
+
+	switch webHome := ds.cfg.webHome; webHome {
+	case "":
+		if len(devNodePaths) > 0 {
+			ds.webHomePath = strings.TrimPrefix(devNodePaths[0], ds.cfg.chainDomain)
+			ds.logger.WithGroup(WebLogName).Info("using default package", "path", devNodePaths[0])
+		}
+	case "/", ":none:": // skip
+	default:
+		ds.webHomePath = webHome
+	}
 
 	ds.watcher, err = watcher.NewPackageWatcher(loggerEvents, ds.emitterServer)
 	if err != nil {
@@ -468,7 +470,7 @@ func (ds *App) handleKeyPress(ctx context.Context, key rawterm.KeyPress) {
 		ds.logger.Info("Gno Dev Helper", "helper", helper)
 
 	case rawterm.KeyA: // Accounts
-		logAccounts(ds.logger.WithGroup(AccountsLogName), ds.book, ds.devNode)
+		logAccounts(ctx, ds.logger.WithGroup(AccountsLogName), ds.book, ds.devNode)
 
 	case rawterm.KeyR: // Reload
 		ds.logger.WithGroup(NodeLogName).Info("reloading...")

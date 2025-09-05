@@ -2,8 +2,8 @@
 package crossrealm
 
 import (
-	"gno.land/r/demo/tests/crossrealm"
-	"gno.land/r/demo/tests/crossrealm_b"
+	"gno.land/r/tests/vm/crossrealm"
+	"gno.land/r/tests/vm/crossrealm_b"
 )
 
 func main() {
@@ -17,10 +17,10 @@ func main() {
 
 // Storage:
 // gno.land/r/crossrealm: 0
-// gno.land/r/demo/tests/crossrealm: 226
-// gno.land/r/demo/tests/crossrealm_b: 8
+// gno.land/r/tests/vm/crossrealm: 224
+// gno.land/r/tests/vm/crossrealm_b: 8
 
 // Output:
-// hello A cur=gno.land/r/demo/tests/crossrealm_b prev=gno.land/r/demo/tests/crossrealm
-// hello ABCD cur=gno.land/r/demo/tests/crossrealm_b prev=gno.land/r/demo/tests/crossrealm
+// hello A cur=gno.land/r/tests/vm/crossrealm_b prev=gno.land/r/tests/vm/crossrealm
+// hello ABCD cur=gno.land/r/tests/vm/crossrealm_b prev=gno.land/r/tests/vm/crossrealm
 // .

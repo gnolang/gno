@@ -4,7 +4,7 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/testutils"
+	"gno.land/p/nt/testutils"
 )
 
 var coinflipAddr = std.DerivePkgAddr("gno.land/r/sacha/coinflip")
