@@ -148,12 +148,12 @@ func TestMaskedEntropyInput(t *testing.T) {
 	t.Parallel()
 	// Test that masked input works correctly using a mock IO
 	testEntropy := "this is a test entropy that should work when masked"
-	
+
 	// Create base test IO for output
 	baseIO := commands.NewTestIO()
 	baseIO.SetOut(commands.WriteNopCloser(&bytes.Buffer{}))
 	baseIO.SetErr(commands.WriteNopCloser(&bytes.Buffer{}))
-	
+
 	// Create mock IO that simulates password input
 	mockIO := &mockPasswordIO{
 		IO:        baseIO,
@@ -161,18 +161,18 @@ func TestMaskedEntropyInput(t *testing.T) {
 	}
 	// For confirmation prompt
 	mockIO.SetIn(strings.NewReader("y\n"))
-	
+
 	// Generate with masked = true using our mock
 	mnemonic, err := GenerateMnemonicWithCustomEntropy(mockIO, true)
 	require.NoError(t, err, "failed to generate mnemonic with masked input")
 	assert.True(t, bip39.IsMnemonicValid(mnemonic), "invalid mnemonic generated with masked input")
-	
+
 	// Verify that same entropy produces same result whether masked or not
 	io2 := commands.NewTestIO()
 	io2.SetIn(strings.NewReader(testEntropy + "\ny\n"))
 	io2.SetOut(commands.WriteNopCloser(&bytes.Buffer{}))
 	io2.SetErr(commands.WriteNopCloser(&bytes.Buffer{}))
-	
+
 	mnemonic2, err := GenerateMnemonicWithCustomEntropy(io2, false)
 	require.NoError(t, err, "failed to generate mnemonic without masking")
 	assert.Equal(t, mnemonic, mnemonic2, "masked and unmasked entropy produced different mnemonics")
