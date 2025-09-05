@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/tokens/grc721"
+	"gno.land/p/demo/grc/grc721"
 )
 
 // i say we trash this whole package, we have foo721 as an example of an NFT
