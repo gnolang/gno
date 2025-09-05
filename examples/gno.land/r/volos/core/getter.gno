@@ -237,21 +237,6 @@ func GetMarketPrice(marketId string) string {
 
 // Other getters
 
-func GetSupplyShares(marketId string, user std.Address) string {
-	position := GetPosition(marketId, user.String())
-	return position.SupplyShares.ToString()
-}
-
-func GetBorrowShares(marketId string, user std.Address) string {
-	position := GetPosition(marketId, user.String())
-	return position.BorrowShares.ToString()
-}
-
-func GetCollateral(marketId string, user std.Address) string {
-	position := GetPosition(marketId, user.String())
-	return position.Collateral.ToString()
-}
-
 func GetTotalSupplyAssets(marketId string) string {
 	market, _ := GetMarket(marketId)
 	return market.TotalSupplyAssets.ToString()
@@ -319,12 +304,6 @@ func GetExpectedBorrowAssets(marketId string, user string) string {
 	return ExpectedBorrowAssets(marketId, user).ToString()
 }
 
-// GetBorrowRate returns the current borrow rate per second as a string (WAD-scaled)
-func GetBorrowRate(marketId string) string {
-	borrowRate := CalculateBorrowRate(marketId)
-	return borrowRate.ToString()
-}
-
 // GetSupplyRate returns the current supply rate per second as a string (WAD-scaled)
 func GetSupplyRate(marketId string) string {
 	supplyRate := CalculateSupplyRate(marketId)
@@ -386,4 +365,24 @@ func GetAddress() string {
 // GetIsAuthorized checks if authorized can act on behalf of authorizer
 func GetIsAuthorized(authorizer string, authorized string) bool {
 	return IsAuthorized(std.Address(authorizer), std.Address(authorized))
+}
+
+// getBorrowRate returns the current borrow rate per second
+// The returned value is WAD-scaled (1e18)
+func getBorrowRate(marketId string) *u256.Uint {
+	// Check if market exists
+	if _, exists := markets.Get(marketId); !exists {
+		panic(ErrMarketNotCreated)
+	}
+
+	market, params := GetMarket(marketId)
+
+	// If no borrows or no IRM, rate is zero
+	if market.TotalBorrowAssets.IsZero() || params.IRM == "" {
+		return u256.Zero()
+	}
+
+	// Get IRM and calculate current borrow rate
+	irm := GetIRM(params.IRM)
+	return irm.BorrowRate(market.TotalSupplyAssets, market.TotalBorrowAssets)
 }

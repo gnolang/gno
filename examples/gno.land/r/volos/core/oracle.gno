@@ -1,6 +1,8 @@
 package core
 
 import (
+	"strings"
+	
 	u256 "gno.land/p/gnoswap/uint256"
 	"gno.land/p/volos/consts"
 	"gno.land/p/volos/math"
@@ -25,14 +27,17 @@ func GetPrice(marketId string) *u256.Uint {
 	// Square the price to get the actual price in Q192
 	priceQ192 := new(u256.Uint).Mul(sqrtPriceX96, sqrtPriceX96)
 
-	// Finally divide by Q192 to get the actual price ratio with ORACLE_PRICE_SCALE precision
-	price := math.MulDivDown(priceQ192, consts.ORACLE_PRICE_SCALE, consts.Q192)
+	// Calculate decimal-adjusted scale factor: 10^(36 + loanDecimals - collateralDecimals)
+	scaleFactor := u256.MustFromDecimal("1" + strings.Repeat("0", 36 + int(GetToken(params.GetLoanToken()).GetDecimals()) - int(GetToken(params.GetCollateralToken()).GetDecimals())))
+
+	// Finally divide by Q192 to get the actual price ratio with adjusted precision
+	price := math.MulDivDown(priceQ192, scaleFactor, consts.Q192)
 
 	// If token0 is the loan token, we need to invert the price
 	// because Gnoswap's price is always token1/token0
 	if params.IsToken0Loan {
-		// Invert price: ORACLE_PRICE_SCALE² / price
-		price = math.MulDivDown(consts.ORACLE_PRICE_SCALE, consts.ORACLE_PRICE_SCALE, price)
+		// Invert price: scaleFactor² / price
+		price = math.MulDivDown(scaleFactor, scaleFactor, price)
 	}
 
 	return price

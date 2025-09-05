@@ -13,8 +13,7 @@ var (
 	VIRTUAL_SHARES = u256.NewUint(1000000000) // 1 billion shares
 
 	// VIRTUAL_ASSETS represents the minimum number of assets that exist in a pool
-	// This matches VIRTUAL_SHARES to maintain 1:1 initial share ratio
-	VIRTUAL_ASSETS = u256.NewUint(1000000000) // 1 billion base units
+	VIRTUAL_ASSETS = u256.NewUint(1) // 1 base units
 )
 
 // ToSharesDown converts assets to shares, rounding down (used for supply)

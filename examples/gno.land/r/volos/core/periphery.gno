@@ -70,26 +70,6 @@ func ExpectedBorrowAssets(marketId string, user string) *u256.Uint {
 	return math.ToAssetsUp(position.BorrowShares, market.TotalBorrowAssets, market.TotalBorrowShares)
 }
 
-// CalculateBorrowRate returns the current borrow rate per second
-// The returned value is WAD-scaled (1e18)
-func CalculateBorrowRate(marketId string) *u256.Uint {
-	// Check if market exists
-	if _, exists := markets.Get(marketId); !exists {
-		panic(ErrMarketNotCreated)
-	}
-
-	market, params := GetMarket(marketId)
-
-	// If no borrows or no IRM, rate is zero
-	if market.TotalBorrowAssets.IsZero() || params.IRM == "" {
-		return u256.Zero()
-	}
-
-	// Get IRM and calculate current borrow rate
-	irm := GetIRM(params.IRM)
-	return irm.BorrowRate(market.TotalSupplyAssets, market.TotalBorrowAssets)
-}
-
 // CalculateSupplyRate returns the current supply rate per second
 // The returned value is WAD-scaled (1e18)
 func CalculateSupplyRate(marketId string) *u256.Uint {
@@ -126,7 +106,7 @@ func CalculateSupplyRate(marketId string) *u256.Uint {
 // This converts the per-second rate to an annual rate
 func CalculateBorrowAPR(marketId string) *u256.Uint {
 	// Get the per-second borrow rate
-	borrowRatePerSecond := CalculateBorrowRate(marketId)
+	borrowRatePerSecond := getBorrowRate(marketId)
 	if borrowRatePerSecond.IsZero() {
 		return u256.Zero()
 	}
@@ -203,43 +183,4 @@ func CalculateUserLoans(user string) *avl.Tree {
 	}
 
 	return loans
-}
-
-// CalculateHealthFactor returns the health factor for a user's position in a market
-// - A health factor > 1 means the position is healthy
-// - A health factor < 1 means the position is eligible for liquidation
-// - The lower the health factor, the higher the risk of liquidation
-func CalculateHealthFactor(marketId string, userAddr string) *u256.Uint {
-	position := GetPosition(marketId, userAddr)
-
-	// If no borrows, position is maximally healthy (return a very large number)
-	if position.BorrowShares.IsZero() {
-		return new(u256.Uint).Mul(consts.WAD, u256.NewUint(100)) // 100 * WAD
-	}
-
-	market, params := GetMarket(marketId)
-
-	// Calculate current borrowed value
-	borrowed := math.ToAssetsUp(
-		position.BorrowShares,
-		market.TotalBorrowAssets,
-		market.TotalBorrowShares,
-	)
-
-	// If no collateral, health factor is 0
-	if position.Collateral.IsZero() {
-		return u256.Zero()
-	}
-
-	collateralPrice := GetPrice(marketId)
-
-	// Calculate max borrow allowed
-	maxBorrow := math.WMulDown(math.MulDivDown(position.Collateral, collateralPrice, consts.ORACLE_PRICE_SCALE), params.LLTV)
-
-	// Health factor = maxBorrow / borrowed (WAD scaled)
-	if borrowed.IsZero() {
-		return new(u256.Uint).Mul(consts.WAD, u256.NewUint(100)) // 100 * WAD
-	}
-
-	return math.WDivDown(maxBorrow, borrowed)
 }
