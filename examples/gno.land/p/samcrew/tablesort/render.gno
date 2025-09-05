@@ -4,8 +4,8 @@ import (
 	"net/url"
 	"strings"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/mason/md"
+	"gno.land/p/nt/ufmt"
 )
 
 // Table holds the headings and rows for rendering.
