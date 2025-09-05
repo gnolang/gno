@@ -31,14 +31,14 @@ GENESIS_FILE=genesis.json
 echo "Generating fresh genesis..."
 gnogenesis generate -chain-id $CHAIN_ID -genesis-time $GENESIS_TIME -output-path $GENESIS_FILE
 
-# Add the initial validators (8)
+# Add the initial validators (4)
 printf "\nAdding validators...\n"
 
-# Gno Core (4)
-gnogenesis validator add -name gnocore-val-01 -power 1 -address g1mt5d6l56tf8r3u8mehnhgp54mqlx3lu5qdysum -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpv5dep4jymxp9p3xkd5e3cdk63wqygw00nsm402nxh593rkuan75gkr7e6
-gnogenesis validator add -name gnocore-val-02 -power 1 -address g1mmrdx5j4v878uqttp44t96d3rlw8rls8fgze24 -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpvklu0t8l37fh4lf8kap8jcrsk3akkvm5nsu6m2v74agp45xt9pd7h5ana
-gnogenesis validator add -name gnocore-val-03 -power 1 -address g16wh3t370fctrukvvdslsz9uc76tfpy0ggrm5hr -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp0768mk3fg7dkprgkl5twxzhn2hlef27mzt46qea8z4qv0ltwstuy9qk62
-gnogenesis validator add -name gnocore-val-04 -power 1 -address g1y7d86mffahwy7c8s4j0nvgwhkg4n4tl7ek4w8z -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq82uuwf5yvrfpyhp5zh5hspz7wvee4jpsh37muczqrpatuxr3vpwyhjdsy
+# Gno Core (2) + Onbloc (2)
+gnogenesis validator add -name gnocore-val-01 -power 1 -address g1cc9x4xyf3n3jygf3fvz462k9w0qaklda39mh2c -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqgd6ya9uc5auw4a2y8ms4jyqvdvu453jruseclyz6xnk5qltxvvnwjtkrs
+gnogenesis validator add -name gnocore-val-02 -power 1 -address g1854g5lq87x5f75etzmg2wcd2mdmvj96hr469sa -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpkljjay9cnqmtdcmndxd355ggga8s0tmmu0g5fdplu592wju6spfzngswj
+gnogenesis validator add -name gnocore-val-03 -power 1 -address g15zkeyz2gwrjluqj6eremllrh6nx7mt4tlz8f32 -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpkhggjkjpvuuf4vmdv5lws9f3c22j6qkys3djt44dsyqwqc9padxlkhfd0
+gnogenesis validator add -name gnocore-val-04 -power 1 -address g1v7wl7qlakzku5mrafmgntfuvd7xjrluhuhwewp -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqvl9cfzralqscxunw7cus2dmjwveskwcldjwnpr29zps6d5tlv5e2q2443
 
 # Use a temporary directory for intermediary states
 TMP_DIR=./tmp-genesis
