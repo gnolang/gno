@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package rand
+package rand_test
 
 import (
 	"errors"
 	"fmt"
 	"math"
-	testing "testing/base"
+	"testing"
 )
 
 const (

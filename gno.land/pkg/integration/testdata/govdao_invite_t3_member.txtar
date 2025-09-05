@@ -45,22 +45,15 @@ stdout 'Tier T3 contains 1 members'
 -- proxy/create_member.gno --
 package proxy
 
-import (
-    "std"
+import "gno.land/r/gov/dao/v3/impl"
 
-    "gno.land/r/gov/dao/v3/impl"
-)
-
-func CreateMember(cur realm, addr std.Address) {
-    impl.AddMember(cross, addr)
+func CreateMember(cur realm, addr address) {
+	impl.AddMember(cross, addr)
 }
-
 -- loader/load_govdao.gno --
 package load_govdao
 
 import (
-	"std"
-
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
 	"gno.land/r/gov/dao/v3/memberstore"
@@ -71,7 +64,7 @@ func init() {
 	memberstore.Get().SetTier(memberstore.T2)
 	memberstore.Get().SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(memberstore.T1, std.Address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 1}) // member address
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 1}) // member address
 
 	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO:         impl.GetInstance(),

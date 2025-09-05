@@ -1,7 +1,7 @@
 package basedao
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -30,10 +30,10 @@ func TestNewDAO(t *testing.T) {
 		Name:             "My DAO",
 		Description:      "My DAO Description",
 		Members:          NewMembersStore(initialRoles, initialMembers),
-		GetProfileString: func(addr std.Address, field, def string) string { return "" },
+		GetProfileString: func(addr address, field, def string) string { return "" },
 	}
 
-	daoRealm := std.NewCodeRealm("gno.land/r/testing/daorealm")
+	daoRealm := runtime.NewCodeRealm("gno.land/r/testing/daorealm")
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(daoRealm)
 	_, dao := New(conf)
@@ -71,13 +71,13 @@ func TestPropose(t *testing.T) {
 
 	type testNewProposalInput struct {
 		proposalReq daokit.ProposalRequest
-		proposer    std.Address
+		proposer    address
 	}
 
 	type tesNewProposalExpected struct {
 		title        string
 		description  string
-		proposer     std.Address
+		proposer     address
 		messsageType string
 		panic        bool
 	}
@@ -170,7 +170,7 @@ func TestVote(t *testing.T) {
 	type testVoteInput struct {
 		proposalID uint64
 		vote       daocond.Vote
-		voter      std.Address
+		voter      address
 	}
 
 	type testVoteExpected struct {
@@ -277,9 +277,9 @@ func TestExecuteProposal(t *testing.T) {
 
 	type testExecuteInput struct {
 		proposalID uint64
-		executor   std.Address
+		executor   address
 		haveVote   bool
-		voter      std.Address
+		voter      address
 	}
 
 	type testExecuteExpected struct {
@@ -382,7 +382,7 @@ func TestInstantExecute(t *testing.T) {
 
 	type testInstantExecuteInput struct {
 		proposalReq daokit.ProposalRequest
-		executor    std.Address
+		executor    address
 	}
 
 	type testInstantExecuteExpected struct {
@@ -684,10 +684,10 @@ func newTestingDAO(t *testing.T, threshold float64, members []Member) *testingDA
 		Description:      "My DAO Description",
 		Members:          membersStore,
 		InitialCondition: initialCondition,
-		GetProfileString: func(addr std.Address, field, def string) string { return "" },
+		GetProfileString: func(addr address, field, def string) string { return "" },
 	}
 
-	daoRealm := std.NewCodeRealm("gno.land/r/testing/daorealm")
+	daoRealm := runtime.NewCodeRealm("gno.land/r/testing/daorealm")
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(daoRealm)
 	pubdao, dao := New(conf)

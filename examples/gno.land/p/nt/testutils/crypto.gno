@@ -1,16 +1,16 @@
 package testutils
 
-import "std"
+import "chain"
 
-func TestAddress(name string) std.Address {
-	if len(name) > std.RawAddressSize {
-		panic("address name cannot be greater than std.AddressSize bytes")
+func TestAddress(name string) address {
+	if len(name) > 20 {
+		panic("address name cannot be greater than 20 bytes")
 	}
-	addr := std.RawAddress{}
+	addr := [20]byte{}
 	// TODO: use strings.RepeatString or similar.
 	// NOTE: I miss python's "".Join().
 	blanks := "____________________"
 	copy(addr[:], []byte(blanks))
 	copy(addr[:], []byte(name))
-	return std.Address(std.EncodeBech32("g", addr))
+	return address(chain.EncodeBech32("g", addr))
 }

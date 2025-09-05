@@ -71,47 +71,39 @@ stdout '1000100000ugnot'
 -- run/load_user.gno --
 package main
 
-import (
-	i "gno.land/r/gov/dao/v3/init"
-	"std"
-)
+import i "gno.land/r/gov/dao/v3/init"
 
 func main() {
-	i.InitWithUsers(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	i.InitWithUsers(address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
-
 -- run/propose_collector1.gno --
 package main
 
 import (
-	"std"
 	"gno.land/r/gov/dao"
 	"gno.land/r/sys/params"
 )
 
 func main() {
-	collector1 := std.Address("g1x5zmkv7gws200q887ahhvztvh833d5wpej3f52")
+	collector1 := address("g1x5zmkv7gws200q887ahhvztvh833d5wpej3f52")
 	pr := params.NewSetFeeCollectorRequest(collector1)
 	pid := dao.MustCreateProposal(cross, pr)
 	println(pid.String())
 }
-
 -- run/propose_collector2.gno --
 package main
 
 import (
-	"std"
 	"gno.land/r/gov/dao"
 	"gno.land/r/sys/params"
 )
 
 func main() {
-	collector2 := std.Address("g149244zfh3qc7zcspttmmpknkzss4esteg6f086")
+	collector2 := address("g149244zfh3qc7zcspttmmpknkzss4esteg6f086")
 	pr := params.NewSetFeeCollectorRequest(collector2)
 	pid := dao.MustCreateProposal(cross, pr)
 	println(pid.String())
 }
-
 -- run/costly.gno --
 package main
 

@@ -6,7 +6,7 @@
 package authorizable
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/ownable"
@@ -15,7 +15,7 @@ import (
 
 type Authorizable struct {
 	*ownable.Ownable           // owner in ownable is superuser
-	authorized       *avl.Tree // std.Addr > struct{}{}
+	authorized       *avl.Tree // chain.Addr > struct{}{}
 }
 
 func NewAuthorizable() *Authorizable {
@@ -40,7 +40,7 @@ func NewAuthorizableWithOrigin() *Authorizable {
 	return a
 }
 
-func NewAuthorizableWithAddress(addr std.Address) *Authorizable {
+func NewAuthorizableWithAddress(addr address) *Authorizable {
 	a := &Authorizable{
 		ownable.NewWithAddress(addr),
 		avl.NewTree(),
@@ -51,21 +51,21 @@ func NewAuthorizableWithAddress(addr std.Address) *Authorizable {
 	return a
 }
 
-func (a *Authorizable) AddToAuthList(addr std.Address) error {
+func (a *Authorizable) AddToAuthList(addr address) error {
 	if !a.OwnedByCurrent() {
 		return ErrNotSuperuser
 	}
 	return a.addToAuthList(addr)
 }
 
-func (a *Authorizable) AddToAuthListByPrevious(addr std.Address) error {
+func (a *Authorizable) AddToAuthListByPrevious(addr address) error {
 	if !a.OwnedByPrevious() {
 		return ErrNotSuperuser
 	}
 	return a.addToAuthList(addr)
 }
 
-func (a *Authorizable) addToAuthList(addr std.Address) error {
+func (a *Authorizable) addToAuthList(addr address) error {
 	if _, exists := a.authorized.Get(addr.String()); exists {
 		return ErrAlreadyInList
 	}
@@ -75,21 +75,21 @@ func (a *Authorizable) addToAuthList(addr std.Address) error {
 	return nil
 }
 
-func (a *Authorizable) DeleteFromAuthList(addr std.Address) error {
+func (a *Authorizable) DeleteFromAuthList(addr address) error {
 	if !a.OwnedByCurrent() {
 		return ErrNotSuperuser
 	}
 	return a.deleteFromAuthList(addr)
 }
 
-func (a *Authorizable) DeleteFromAuthListByPrevious(addr std.Address) error {
+func (a *Authorizable) DeleteFromAuthListByPrevious(addr address) error {
 	if !a.OwnedByPrevious() {
 		return ErrNotSuperuser
 	}
 	return a.deleteFromAuthList(addr)
 }
 
-func (a *Authorizable) deleteFromAuthList(addr std.Address) error {
+func (a *Authorizable) deleteFromAuthList(addr address) error {
 	if !a.authorized.Has(addr.String()) {
 		return ErrNotInAuthList
 	}
@@ -103,16 +103,16 @@ func (a *Authorizable) deleteFromAuthList(addr std.Address) error {
 }
 
 func (a *Authorizable) OnAuthList() error {
-	current := std.CurrentRealm().Address()
+	current := runtime.CurrentRealm().Address()
 	return a.onAuthList(current)
 }
 
 func (a *Authorizable) PreviousOnAuthList() error {
-	previous := std.PreviousRealm().Address()
+	previous := runtime.PreviousRealm().Address()
 	return a.onAuthList(previous)
 }
 
-func (a *Authorizable) onAuthList(caller std.Address) error {
+func (a *Authorizable) onAuthList(caller address) error {
 	if !a.authorized.Has(caller.String()) {
 		return ErrNotInAuthList
 	}

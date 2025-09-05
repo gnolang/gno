@@ -2,7 +2,8 @@
 package userbook
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"time"
 
 	"gno.land/p/nt/avl"
@@ -11,7 +12,7 @@ import (
 )
 
 type Signup struct {
-	address_XXX std.Address
+	address_XXX address
 	ordinal     int
 	timestamp   time.Time
 }
@@ -30,7 +31,7 @@ func init() {
 
 func SignUp(cur realm) string {
 	// Get transaction caller
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 
 	// Check if the user is already signed up
 	if _, exists := tracker.Get(caller.String()); exists {
@@ -48,7 +49,7 @@ func SignUp(cur realm) string {
 
 	tracker.Set(caller.String(), struct{}{})
 
-	std.Emit(signUpEvent, "account", caller.String())
+	chain.Emit(signUpEvent, "account", caller.String())
 
 	return ufmt.Sprintf("%s added to userbook! Timestamp: %s", caller.String(), now.Format(time.RFC822Z))
 }

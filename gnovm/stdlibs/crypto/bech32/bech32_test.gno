@@ -10,7 +10,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
-	testing "testing/base"
+	"testing"
 )
 
 // TestBech32 tests whether decoding and re-encoding the valid BIP-173 test
@@ -643,7 +643,6 @@ func TestConvertBitsFailures(t *testing.T) {
 				tc.err, err)
 		}
 	}
-
 }
 
 // BenchmarkConvertBitsDown benchmarks the speed and memory allocation behavior
