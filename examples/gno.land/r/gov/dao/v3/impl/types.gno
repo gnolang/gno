@@ -3,6 +3,7 @@ package impl
 import (
 	"std"
 	"strings"
+	"time"
 
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/ufmt"
@@ -55,6 +56,9 @@ type proposalStatus struct {
 	TiersAllowedToVote []string
 
 	TotalPower float64 // TotalPower is the power of all the members existing when this proposal was created.
+
+	CreatedAt time.Time
+	ClosedAt  time.Time
 }
 
 func getMembers(cur realm) memberstore.MembersByTier {
@@ -83,6 +87,7 @@ func newProposalStatus(allowedToVote []string) *proposalStatus {
 		TiersAllowedToVote: allowedToVote,
 
 		TotalPower: getMembers(cross).GetTotalPower(),
+		CreatedAt:  time.Now(),
 	}
 }
 

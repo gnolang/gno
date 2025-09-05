@@ -3,6 +3,7 @@ package impl
 import (
 	"errors"
 	"std"
+	"time"
 
 	"gno.land/p/nt/ufmt"
 	"gno.land/r/gov/dao"
@@ -148,11 +149,13 @@ func (g *GovDAO) PreExecuteProposal(pid dao.ProposalID) (bool, error) {
 
 	if status.YesPercent() >= law.Supermajority {
 		status.Accepted = true
+		status.ClosedAt = time.Now()
 		return true, nil
 	}
 
 	if status.NoPercent() >= law.Supermajority {
 		status.Denied = true
+		status.ClosedAt = time.Now()
 		return false, nil
 	}
 
