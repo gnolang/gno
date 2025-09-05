@@ -13,8 +13,8 @@ const (
 )
 
 var (
-	registerPrice = int64(1_000_000) // 1 GNOT
-	latestUsers   = fifo.New(10)     // Save the latest 10 users for rendering purposes
+	registerPrice = int64(0)     // 0 GNOT
+	latestUsers   = fifo.New(10) // Save the latest 10 users for rendering purposes
 	reUsername    = regexp.MustCompile(reValidUsername)
 )
 

@@ -23,6 +23,17 @@ var preRegisteredUsers = []struct {
 	{"sys", "g1r929wt2qplfawe4lvqv9zuwfdcz4vxdun7qh8l"},     // -> @sys
 	{"x", "g164sdpew3c2t3rvxj3kmfv7c7ujlvcw2punzzuz"},       // -> @x
 
+	// DevX
+	{"devx", "g16tfrrul20g4jzt3z303raqw8vs8s2pqqh5clwu"}, // -> @devx
+
+	// Onbloc
+	{"gnoswap", "g1lmvrrrr4er2us84h2732sru76c9zl2nvknha8c"}, // -> @gnoswap
+	{"onbloc", "g12vx7dn3dqq89mz550zwunvg4qw6epq73d9csay"},  // -> @onbloc
+
+	// All In Bits Labs
+	{"labs", "g1kvyd3fgr5j2rmywkfatmjlcntpxxh5p7ajxdzl"}, // -> @labs
+	{"eve", "g1mwhqltjp5xvf090uxcld2scqx92qgqdr0fj5um"},  // -> @eve
+
 	// test1 user
 	{"test1", "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}, // -> @test1
 }
