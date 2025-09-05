@@ -10,11 +10,14 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/gnolang/faucet"
 	"github.com/gnolang/faucet/spec"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/google/go-github/v64/github"
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 
 	igh "github.com/gnolang/gno/contribs/gnofaucet/github"
 )
@@ -38,7 +41,7 @@ func getMiddlewares(rr igh.Rewarder, cooldownLimiter cooldownLimiter) []faucet.M
 	return []faucet.Middleware{
 		invalidMethodMiddleware(),
 		gitHubClaimRewardsMiddleware(rr),
-		gitHubClaimMiddleware(cooldownLimiter, rr),
+		gitHubClaimMiddleware(cooldownLimiter),
 		gitHubCheckRewardsMiddleware(rr),
 	}
 }
@@ -53,18 +56,25 @@ func getMiddlewares(rr igh.Rewarder, cooldownLimiter cooldownLimiter) []faucet.M
 // GitHub OAuth applications require a client ID and secret to authenticate users securely.
 // These credentials are obtained when registering an application on GitHub at:
 // https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authenticating-to-the-rest-api-with-an-oauth-app#registering-your-app
-func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn, logger *slog.Logger) func(next http.Handler) http.Handler {
+func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn, logger *slog.Logger, rdb *redis.Client) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
 				coo, err := r.Cookie(string(ghUsernameKey))
 				if coo != nil {
-					logger.Debug("cookie obtained: %s:%s", coo.Name, coo.Value)
+					logger.Debug("cookie obtained", "name", coo.Name, "value", coo.Value)
 
-					updatedCtx := context.WithValue(r.Context(), ghUsernameKey, coo.Value)
-					next.ServeHTTP(w, r.WithContext(updatedCtx))
-					return
+					username, rerr := rdb.Get(r.Context(), redisSessionKey(coo.Value)).Result()
+					if rerr == nil && username != "" {
+						updatedCtx := context.WithValue(r.Context(), ghUsernameKey, username)
+						next.ServeHTTP(w, r.WithContext(updatedCtx))
+						return
+					}
+					if rerr != nil && !errors.Is(rerr, redis.Nil) {
+						logger.Debug("user from cookie not found", "err", rerr)
+					}
 				}
+
 				if errors.Is(err, http.ErrNoCookie) {
 					logger.Debug("cookie not present", "err", err)
 				}
@@ -98,14 +108,24 @@ func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn, 
 					return
 				}
 
+				sessionID := uuid.NewString()
+				ttlSeconds := 3600
+				if err := rdb.Set(
+					r.Context(),
+					redisSessionKey(sessionID),
+					user.GetLogin(),
+					time.Duration(ttlSeconds)*time.Second,
+				).Err(); err != nil {
+					http.Error(w, "unable to persist session", http.StatusInternalServerError)
+				}
+
 				c := &http.Cookie{
 					Name:     string(ghUsernameKey),
-					Value:    user.GetLogin(),
-					MaxAge:   3600,
+					Value:    sessionID,
+					MaxAge:   ttlSeconds,
 					HttpOnly: true,
 					Secure:   true,
-					// SameSite: http.SameSiteLaxMode,
-					SameSite: http.SameSiteNoneMode,
+					SameSite: http.SameSiteLaxMode,
 				}
 
 				http.SetCookie(w, c)
@@ -121,6 +141,8 @@ func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn, 
 		)
 	}
 }
+
+func redisSessionKey(id string) string { return "gh-session:" + id }
 
 type cooldownLimiter interface {
 	checkCooldown(context.Context, string, int64) (bool, error)
@@ -241,7 +263,7 @@ func gitHubClaimRewardsMiddleware(rewarder igh.Rewarder) faucet.Middleware {
 }
 
 // gitHubClaimMiddleware is the GitHub claim validation middleware, based on the provided username
-func gitHubClaimMiddleware(coolDownLimiter cooldownLimiter, rewarder igh.Rewarder) faucet.Middleware {
+func gitHubClaimMiddleware(coolDownLimiter cooldownLimiter) faucet.Middleware {
 	return func(next faucet.HandlerFunc) faucet.HandlerFunc {
 		return func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
 			if req.Method != faucet.DefaultDripMethod {

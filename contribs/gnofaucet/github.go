@@ -169,7 +169,7 @@ func execGithub(ctx context.Context, cfg *githubCfg, io commands.IO) error {
 	// Prepare the middlewares
 	httpMiddlewares := []func(http.Handler) http.Handler{
 		ipMiddleware(cfg.rootCfg.isBehindProxy, st),
-		gitHubUsernameMiddleware(clientID, clientSecret, defaultGHExchange, logger),
+		gitHubUsernameMiddleware(clientID, clientSecret, defaultGHExchange, logger, rdb),
 	}
 
 	rpcMiddlewares := getMiddlewares(rr, cooldownLimiter)

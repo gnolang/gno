@@ -9,9 +9,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/gnolang/faucet"
 	"github.com/gnolang/faucet/spec"
 	"github.com/google/go-github/v64/github"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 
 	igh "github.com/gnolang/gno/contribs/gnofaucet/github"
@@ -74,8 +76,13 @@ func TestGitHubUsernameMiddleware(t *testing.T) {
 				exchangeFn = testCase.exchangeFn
 			}
 
+			redisServer := miniredis.RunT(t)
+			rdb := redis.NewClient(&redis.Options{
+				Addr: redisServer.Addr(),
+			})
+
 			var (
-				mw     = gitHubUsernameMiddleware(clientID, secret, exchangeFn, noopLogger)
+				mw     = gitHubUsernameMiddleware(clientID, secret, exchangeFn, noopLogger, rdb)
 				called = false
 
 				next = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
