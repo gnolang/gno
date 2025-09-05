@@ -5,9 +5,9 @@ import (
 	"std"
 	"time"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/json"
-	"gno.land/p/demo/seqid"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/seqid"
+	"gno.land/p/onbloc/json"
 	"gno.land/p/samcrew/daocond"
 )
 
