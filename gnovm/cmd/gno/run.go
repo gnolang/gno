@@ -78,12 +78,12 @@ func (c *runCmd) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func packageNameFromFirstFile(args []string) string {
+func packageNameFromFirstFile(args []string) (string, error) {
 	for _, arg := range args {
 		if s, err := os.Stat(arg); err == nil && s.IsDir() {
 			files, err := os.ReadDir(arg)
 			if err != nil {
-				panic(err)
+				return "", err
 			}
 			for _, f := range files {
 				n := f.Name()
@@ -94,11 +94,12 @@ func packageNameFromFirstFile(args []string) string {
 				}
 			}
 		} else if err != nil {
-			panic(err)
+			return "", err
+		} else {
+			return gno.ParseFilePackageName(arg)
 		}
-		return gno.ParseFilePackageName(arg)
 	}
-	return ""
+	return "", nil
 }
 
 func execRun(cfg *runCmd, args []string, cio commands.IO) error {
@@ -124,7 +125,10 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	}
 
 	var send std.Coins
-	pkgPath := packageNameFromFirstFile(args)
+	pkgPath, err := packageNameFromFirstFile(args)
+	if err != nil {
+		return err
+	}
 	ctx := test.Context("", pkgPath, send)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath:       pkgPath,

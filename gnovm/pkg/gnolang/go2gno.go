@@ -179,15 +179,14 @@ func (m *Machine) MustParseDecls(code string) []Decl {
 }
 
 // ParseFilePackageName returns the package name of a gno file.
-// It panics in case of parse failure.
-func ParseFilePackageName(fname string) string {
+func ParseFilePackageName(fname string) (string, error) {
 	fs := token.NewFileSet()
 	// Just parse the package clause, and nothing else.
 	f, err := parser.ParseFile(fs, fname, nil, parser.PackageClauseOnly)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
-	return f.Name.Name
+	return f.Name.Name, nil
 }
 
 // parseCost computes and returns the cost of parsing from the parser stats.

@@ -40,7 +40,10 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 
 	_, testStore := test.TestStore(gnoenv.RootDir(), output, nil)
 
-	pkgName := gnolang.ParseFilePackageName(file)
+	pkgName, e := gnolang.ParseFilePackageName(file)
+	if e != nil {
+		return "", e.Error()
+	}
 
 	m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
 		PkgPath: pkgName,
