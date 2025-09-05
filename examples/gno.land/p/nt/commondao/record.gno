@@ -26,7 +26,7 @@ type (
 		// Choice contains the voted choice.
 		Choice VoteChoice
 
-		// Reason contains the reason for the vote.
+		// Reason contains an optional reason for the vote.
 		Reason string
 
 		// Context can store any custom voting values related to the vote.

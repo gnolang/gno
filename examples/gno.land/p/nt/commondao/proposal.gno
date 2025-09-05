@@ -69,16 +69,19 @@ type (
 		// Title returns the proposal title.
 		Title() string
 
-		// Body returns the proposal body.
-		// It usually contains the proposal description and other elements like proposal parameters.
+		// Body returns proposal's body.
+		// It usually contains description or values that are specific to the proposal,
+		// like a description of the proposal's motivation or the list of values that
+		// would be applied when the proposal is approved.
 		Body() string
 
 		// VotingPeriod returns the period where votes are allowed after proposal creation.
-		// No more votes should be allowed once this period is met. It is used to calculate
-		// the voting deadline from the proposal's creationd date.
+		// It is used to calculate the voting deadline from the proposal's creationd date.
 		VotingPeriod() time.Duration
 
 		// Tally counts the number of votes and verifies if proposal passes.
+		// It receives a readonly record containing the votes that has been
+		// submitted for the proposal and also the list of current DAO members.
 		Tally(ReadonlyVotingRecord, MemberSet) (passes bool, _ error)
 	}
 
@@ -93,7 +96,6 @@ type (
 	// Once proposals are executed they are archived and considered finished.
 	Executable interface {
 		// Execute executes the proposal.
-		// This method must allow crossing.
 		Execute(realm) error
 	}
 
