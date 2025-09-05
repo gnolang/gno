@@ -5,12 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/grc/grc1155"
-	"gno.land/p/demo/grc/grc20"
-	"gno.land/p/demo/grc/grc721"
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/demo/tokens/grc1155"
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/demo/tokens/grc721"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 )
 
 const testRealmPkgPath = "gno.land/r/matijamarjanovic/testrealm"

@@ -861,6 +861,11 @@ func (rlm *Realm) clearMarks() {
 		// but its state was not unset. see `processNewCreatedMarks`.
 		// (As a result, it will be garbage collected.)
 		// therefore, new real is allowed to exist here.
+		for _, oo := range rlm.newCreated {
+			if oo.GetIsNewReal() && oo.GetRefCount() != 0 {
+				panic("cannot clear marks if new created exist with refCount not zero")
+			}
+		}
 
 		for _, oo := range rlm.newEscaped {
 			if oo.GetIsNewEscaped() {

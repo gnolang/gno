@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/morgan/chess"
 	"gno.land/p/morgan/chess/glicko2"
+	"gno.land/p/nt/avl"
 )
 
 func cleanup() {

@@ -25,7 +25,7 @@ var testGasFee = ugnot.ValueString(10000)
 
 func TestRender(t *testing.T) {
 	t.Parallel()
-	testRealmPath := "gno.land/r/demo/deep/very/deep"
+	testRealmPath := "gno.land/r/tests/vm/deep/very/deep"
 	expectedRender := []byte("it works!")
 
 	client := Client{
@@ -109,7 +109,7 @@ func TestCallSingle(t *testing.T) {
 	msg := []vm.MsgCall{
 		{
 			Caller:  caller.GetAddress(),
-			PkgPath: "gno.land/r/demo/deep/very/deep",
+			PkgPath: "gno.land/r/tests/vm/deep/very/deep",
 			Func:    "Render",
 			Args:    []string{""},
 			Send:    std.Coins{{Denom: ugnot.Denom, Amount: int64(100)}},
@@ -178,14 +178,14 @@ func TestCallMultiple(t *testing.T) {
 	msg := []vm.MsgCall{
 		{
 			Caller:  caller.GetAddress(),
-			PkgPath: "gno.land/r/demo/deep/very/deep",
+			PkgPath: "gno.land/r/tests/vm/deep/very/deep",
 			Func:    "Render",
 			Args:    []string{""},
 			Send:    std.Coins{{Denom: ugnot.Denom, Amount: int64(100)}},
 		},
 		{
 			Caller:  caller.GetAddress(),
-			PkgPath: "gno.land/r/demo/wugnot",
+			PkgPath: "gno.land/r/gnoland/wugnot",
 			Func:    "Deposit",
 			Args:    []string{""},
 			Send:    std.Coins{{Denom: ugnot.Denom, Amount: int64(1000)}},
@@ -644,8 +644,8 @@ func TestRunSingle(t *testing.T) {
 	fileBody := `package main
 import (
 	"std"
-	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/deep/very/deep"
+	"gno.land/p/nt/ufmt"
+	"gno.land/r/tests/vm/deep/very/deep"
 )
 func main() {
 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
@@ -721,8 +721,8 @@ func TestRunMultiple(t *testing.T) {
 	fileBody := `package main
 import (
 	"std"
-	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/deep/very/deep"
+	"gno.land/p/nt/ufmt"
+	"gno.land/r/tests/vm/deep/very/deep"
 )
 func main() {
 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
