@@ -1,8 +1,6 @@
 package users
 
 import (
-	"std"
-
 	"gno.land/p/nt/ufmt"
 	"gno.land/r/gov/dao"
 	susers "gno.land/r/sys/users"

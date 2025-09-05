@@ -1,8 +1,6 @@
 package users
 
 import (
-	"std"
-
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"

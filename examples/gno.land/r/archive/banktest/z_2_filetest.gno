@@ -12,8 +12,8 @@ import (
 )
 
 func main() {
-	banktestAddr := std.DerivePkgAddr("gno.land/r/archive/banktest")
-	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
+	banktestAddr := chain.DerivePkgAddr("gno.land/r/archive/banktest")
+	mainaddr := chain.DerivePkgAddr("gno.land/r/demo/bank1")
 
 	// print main balance before.
 	testing.SetOriginCaller(mainaddr)

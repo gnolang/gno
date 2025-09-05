@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	banktestAddr := std.DerivePkgAddr("gno.land/r/archive/banktest")
+	banktestAddr := chain.DerivePkgAddr("gno.land/r/archive/banktest")
 
 	mainaddr := chain.DerivePkgAddr("gno.land/r/demo/bank1")
 	testing.SetOriginCaller(mainaddr)

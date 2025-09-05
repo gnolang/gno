@@ -26,7 +26,7 @@ func TestNewCustomCoinSwap_Claim(cur realm, t *testing.T) {
 	defer resetTestState()
 
 	// Setup
-	pkgAddr := std.DerivePkgAddr("gno.land/r/demo/defi/atomicswap")
+	pkgAddr := chain.DerivePkgAddr("gno.land/r/demo/defi/atomicswap")
 	sender := testutils.TestAddress("sender1")
 	recipient := testutils.TestAddress("recipient1")
 	amount := banker.Coins{{Denom: "ugnot", Amount: 1}}
@@ -91,7 +91,7 @@ func TestNewCustomCoinSwap_Refund(cur realm, t *testing.T) {
 	defer resetTestState()
 
 	// Setup
-	pkgAddr := std.DerivePkgAddr("gno.land/r/demo/defi/atomicswap")
+	pkgAddr := chain.DerivePkgAddr("gno.land/r/demo/defi/atomicswap")
 	sender := testutils.TestAddress("sender2")
 	recipient := testutils.TestAddress("recipient2")
 	amount := banker.Coins{{Denom: "ugnot", Amount: 1}}
@@ -116,7 +116,7 @@ func TestNewCustomCoinSwap_Refund(cur realm, t *testing.T) {
 	uassert.Equal(t, expected, Render("1"))
 
 	// Test Refund
-	//testing.SetRealm(std.NewUserRealm(recipient))
+	// testing.SetRealm(runtime.NewUserRealm(recipient))
 	crossThrough(runtime.NewCodeRealm("gno.land/r/atomicswap/test"), func() {
 		testing.IssueCoins(pkgAddr, banker.Coins{{"ugnot", 100000000}})
 		uassert.PanicsWithMessage(t, "timelock not expired", swap.Refund)
@@ -143,7 +143,7 @@ func TestNewCustomGRC20Swap_Claim(t *testing.T) {
 	// Setup
 	sender := testutils.TestAddress("sender3")
 	recipient := testutils.TestAddress("recipient3")
-	rlm := std.DerivePkgAddr("gno.land/r/demo/defi/atomicswap")
+	rlm := chain.DerivePkgAddr("gno.land/r/demo/defi/atomicswap")
 	hashlock := sha256.Sum256([]byte("secret"))
 	hashlockHex := hex.EncodeToString(hashlock[:])
 	timelock := time.Now().Add(1 * time.Hour)
@@ -221,10 +221,10 @@ func TestNewCustomGRC20Swap_Refund(t *testing.T) {
 	defer resetTestState()
 
 	// Setup
-	pkgAddr := std.DerivePkgAddr("gno.land/r/demo/defi/atomicswap")
+	pkgAddr := chain.DerivePkgAddr("gno.land/r/demo/defi/atomicswap")
 	sender := testutils.TestAddress("sender5")
 	recipient := testutils.TestAddress("recipient5")
-	rlm := std.DerivePkgAddr("gno.land/r/demo/defi/atomicswap")
+	rlm := chain.DerivePkgAddr("gno.land/r/demo/defi/atomicswap")
 	hashlock := sha256.Sum256([]byte("secret"))
 	hashlockHex := hex.EncodeToString(hashlock[:])
 	timelock := time.Now().Add(1 * time.Hour)
@@ -293,7 +293,7 @@ func TestNewGRC20Swap_Claim(t *testing.T) {
 	// Setup
 	sender := testutils.TestAddress("sender4")
 	recipient := testutils.TestAddress("recipient4")
-	rlm := std.DerivePkgAddr("gno.land/r/demo/defi/atomicswap")
+	rlm := chain.DerivePkgAddr("gno.land/r/demo/defi/atomicswap")
 	hashlock := sha256.Sum256([]byte("secret"))
 	hashlockHex := hex.EncodeToString(hashlock[:])
 	timelock := time.Now().Add(defaultTimelockDuration)
@@ -302,7 +302,7 @@ func TestNewGRC20Swap_Claim(t *testing.T) {
 	test20.PrivateLedger.Approve(sender, rlm, 70_000)
 
 	// Create a new swap
-	testing.SetRealm(std.NewUserRealm(sender))
+	testing.SetRealm(runtime.NewUserRealm(sender))
 	id, swap := NewGRC20Swap(cross, recipient, hashlockHex, "gno.land/r/tests/vm/test20")
 	uassert.Equal(t, 1, id)
 
@@ -366,10 +366,10 @@ func TestNewGRC20Swap_Refund(t *testing.T) {
 	defer resetTestState()
 
 	// Setup
-	pkgAddr := std.DerivePkgAddr("gno.land/r/demo/defi/atomicswap")
+	pkgAddr := chain.DerivePkgAddr("gno.land/r/demo/defi/atomicswap")
 	sender := testutils.TestAddress("sender6")
 	recipient := testutils.TestAddress("recipient6")
-	rlm := std.DerivePkgAddr("gno.land/r/demo/defi/atomicswap")
+	rlm := chain.DerivePkgAddr("gno.land/r/demo/defi/atomicswap")
 	hashlock := sha256.Sum256([]byte("secret"))
 	hashlockHex := hex.EncodeToString(hashlock[:])
 
@@ -377,7 +377,7 @@ func TestNewGRC20Swap_Refund(t *testing.T) {
 	test20.PrivateLedger.Approve(sender, rlm, 70_000)
 
 	// Create a new swap
-	testing.SetRealm(std.NewUserRealm(sender))
+	testing.SetRealm(runtime.NewUserRealm(sender))
 	id, swap := NewGRC20Swap(cross, recipient, hashlockHex, "gno.land/r/tests/vm/test20")
 	uassert.Equal(t, 1, id)
 
@@ -438,7 +438,7 @@ func TestRender(t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
 	charly := testutils.TestAddress("charly")
-	rlm := std.DerivePkgAddr("gno.land/r/demo/defi/atomicswap")
+	rlm := chain.DerivePkgAddr("gno.land/r/demo/defi/atomicswap")
 	hashlock := sha256.Sum256([]byte("secret"))
 	hashlockHex := hex.EncodeToString(hashlock[:])
 	timelock := time.Now().Add(1 * time.Hour)

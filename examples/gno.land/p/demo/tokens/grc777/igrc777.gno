@@ -1,9 +1,5 @@
 package grc777
 
-import (
-	"std"
-)
-
 // TODO: use big.Int or a custom int64 instead of int64
 
 type IGRC777 interface {

@@ -45,11 +45,7 @@
 //	}
 package addrset
 
-import (
-	"std"
-
-	"gno.land/p/nt/avl"
-)
+import "gno.land/p/nt/avl"
 
 type Set struct {
 	tree avl.Tree

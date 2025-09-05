@@ -1,8 +1,6 @@
 package evaluation
 
 import (
-	"std"
-
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/ufmt"
 )
