@@ -1,10 +1,10 @@
 # CommonDAO Package
 
-This package provides support to implement custom Decentralized Autonomous
-Organizations (DAO).
+CommonDAO is a general-purpose package that provides support to implement
+custom Decentralized Autonomous Organizations (DAO) on Gno.land.
 
-It aims to be minimal and flexible, allowing the implementation of multiple DAO
-use cases.
+It offers a minimal and flexible framework for building DAOs, with customizable
+options that adapt across multiple use cases.
 
 ## Core Types
 
@@ -16,7 +16,7 @@ these are **CommonDAO**, **ProposalDefinition**, **Proposal** and **Vote**.
 CommonDAO type is the main type used to define DAOs, allowing standalone DAO
 creation or hierarchical tree based ones.
 
-During creation it accepts many optional arguments some of which are handy
+During creation, it accepts many optional arguments some of which are handy
 depending on the DAO type. For example, standalone DAOs might use IDs, a name
 and description to uniquely identify individual DAOs; Hierarchical ones might
 choose to use slugs instead of IDs, or even a mix of both.
@@ -70,7 +70,7 @@ are executed after they have been approved, while *general* ones don't, they
 are usually used to signal or measure sentiment, for example regarding a
 relevant issue.
 
-Creating a new proposal type requires to implement the following interface:
+Creating a new proposal type requires implementing the following interface:
 
 ```go
 type ProposalDefinition interface {
