@@ -8,21 +8,16 @@ cmp stderr empty
 -- main.gno --
 package main
 
-import (
-	"std"
-)
-
 func main() {
-	addr := std.Address("g1337")
+	addr := address("g1337")
 	cross(hello)(addr)
 }
 
-func hello(i std.Address) {
+func hello(i address) {
 	crossing()
 
 	println(i)
 }
-
 -- main.gno.golden --
 package main
 

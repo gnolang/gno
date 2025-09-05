@@ -46,15 +46,11 @@ stdout 'OK!'
 -- run/load_user.gno --
 package main
 
-import (
-  i "gno.land/r/gov/dao/v3/init"
-  "std"
-)
+import i "gno.land/r/gov/dao/v3/init"
 
 func main() {
-	i.InitWithUsers(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	i.InitWithUsers(address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
-
 -- run/propose_unlock.gno --
 package main
 

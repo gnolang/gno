@@ -81,52 +81,53 @@ gno = "0.9"
 -- contracts/storage.gno --
 package foo
 
-import "std"
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
+)
 
 var record Foo
 
-func init(){
-	NewFoo(cross,"hello")
+func init() {
+	NewFoo(cross, "hello")
 }
 
-type Foo struct{
-  name string
+type Foo struct {
+	name string
 }
 
-func NewFoo(cur realm, name string){
-  record = Foo{name}
+func NewFoo(cur realm, name string) {
+	record = Foo{name}
 }
-func SetName(n string){
-  record.name = n
-}
-
-func GetName()string {
-  return record.name
+func SetName(n string) {
+	record.name = n
 }
 
-func Clear(cur realm){
-  record = Foo{}
-}
-func PkgAddress(cur realm) string{
-  return string(std.DerivePkgAddr("gno.land/r/foo"))
+func GetName() string {
+	return record.name
 }
 
-func StorageDepositAddress(cur realm) string{
-  return string(std.DeriveStorageDepositAddr("gno.land/r/foo"))
+func Clear(cur realm) {
+	record = Foo{}
+}
+func PkgAddress(cur realm) string {
+	return string(chain.DerivePkgAddr("gno.land/r/foo"))
 }
 
-
-func RealmSend(cur realm,to std.Address,amt int64 ){
-	banker := std.NewBanker(std.BankerTypeRealmSend)
-  banker.SendCoins(std.CurrentRealm().Address(), to, std.Coins{{"ugnot", amt}})
+func StorageDepositAddress(cur realm) string {
+	return string(std.DeriveStorageDepositAddr("gno.land/r/foo"))
 }
 
-func OriginSend(cur realm,to std.Address,amt int64){
-  banker := std.NewBanker(std.BankerTypeOriginSend)
-  banker.SendCoins(std.CurrentRealm().Address(), to, std.Coins{{"ugnot", amt}})
+func RealmSend(cur realm, to address, amt int64) {
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_.SendCoins(runtime.CurrentRealm().Address(), to, banker.Coins{{"ugnot", amt}})
 }
 
-
+func OriginSend(cur realm, to address, amt int64) {
+	banker_ := banker.NewBanker(banker.BankerTypeOriginSend)
+	banker_.SendCoins(runtime.CurrentRealm().Address(), to, banker.Coins{{"ugnot", amt}})
+}
 -- run/realm_send.gno --
 package main
 

@@ -47,13 +47,16 @@ gno = "0.9"
 -- bank.gno --
 package bank
 
-import "std"
+import (
+	"chain/banker"
+	"chain/runtime"
+)
 
-func Withdraw(cur realm, denom string, amt int64) string{
-  caller := std.OriginCaller()
-  coin := std.Coins{{denom, amt}}
-  banker := std.NewBanker(std.BankerTypeOriginSend)
-  pkgaddr := std.PreviousRealm().Address()
-  banker.SendCoins(pkgaddr, caller, coin)
-  return "Withdrawn!"
+func Withdraw(cur realm, denom string, amt int64) string {
+	caller := runtime.OriginCaller()
+	coin := banker.Coins{{denom, amt}}
+	banker_ := banker.NewBanker(banker.BankerTypeOriginSend)
+	pkgaddr := runtime.PreviousRealm().Address()
+	banker_.SendCoins(pkgaddr, caller, coin)
+	return "Withdrawn!"
 }

@@ -56,45 +56,37 @@ stdout 'Update the minimum register fee to: 1000000 ugnot'
 -- run/load_user.gno --
 package main
 
-import (
-  i "gno.land/r/gov/dao/v3/init"
-  "std"
-)
+import i "gno.land/r/gov/dao/v3/init"
 
 func main() {
-	i.InitWithUsers(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	i.InitWithUsers(address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
-
 -- run/new_proposal_bad.gno --
 package main
 
 import (
-  "std"
-  "gno.land/r/gov/dao"
-  "gno.land/r/gnops/valopers/proposal"
+	"gno.land/r/gnops/valopers/proposal"
+	"gno.land/r/gov/dao"
 )
 
 func main() {
-  pr := proposal.NewValidatorProposalRequest(cross, std.Address("g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh"))
-  pid := dao.MustCreateProposal(cross, pr)
-  println(pid.String())
+	pr := proposal.NewValidatorProposalRequest(cross, address("g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh"))
+	pid := dao.MustCreateProposal(cross, pr)
+	println(pid.String())
 }
-
 -- run/new_proposal_good.gno --
 package main
 
 import (
-  "std"
-  "gno.land/r/gov/dao"
-  "gno.land/r/gnops/valopers/proposal"
+	"gno.land/r/gnops/valopers/proposal"
+	"gno.land/r/gov/dao"
 )
 
 func main() {
-  pr := proposal.NewValidatorProposalRequest(cross, std.Address("g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl"))
-  pid := dao.MustCreateProposal(cross, pr)
-  println(pid.String())
+	pr := proposal.NewValidatorProposalRequest(cross, address("g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl"))
+	pid := dao.MustCreateProposal(cross, pr)
+	println(pid.String())
 }
-
 -- run/new_instructions_proposal.gno --
 package main
 
