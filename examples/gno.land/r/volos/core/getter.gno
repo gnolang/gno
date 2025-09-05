@@ -369,7 +369,7 @@ func GetIsAuthorized(authorizer string, authorized string) bool {
 
 // getBorrowRate returns the current borrow rate per second
 // The returned value is WAD-scaled (1e18)
-func getBorrowRate(marketId string) *u256.Uint {
+func GetBorrowRate(marketId string) *u256.Uint {
 	// Check if market exists
 	if _, exists := markets.Get(marketId); !exists {
 		panic(ErrMarketNotCreated)
