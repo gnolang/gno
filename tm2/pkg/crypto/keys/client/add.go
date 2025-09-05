@@ -31,6 +31,7 @@ type AddCfg struct {
 	Account  uint64
 	Index    uint64
 	Entropy  bool
+	Masked   bool
 
 	DerivationPath commands.StringArr
 }
@@ -95,6 +96,13 @@ func (c *AddCfg) RegisterFlags(fs *flag.FlagSet) {
 		"entropy",
 		false,
 		"supply custom entropy for key generation instead of using computer's PRNG",
+	)
+
+	fs.BoolVar(
+		&c.Masked,
+		"masked",
+		false,
+		"mask input characters (use with --entropy or --recover)",
 	)
 
 	fs.Var(
@@ -164,7 +172,11 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 	switch {
 	case cfg.Recover:
 		bip39Message := "Enter your bip39 mnemonic"
-		mnemonic, err = io.GetString(bip39Message)
+		if cfg.Masked {
+			mnemonic, err = io.GetPassword(bip39Message, false)
+		} else {
+			mnemonic, err = io.GetString(bip39Message)
+		}
 		if err != nil {
 			return fmt.Errorf("unable to parse mnemonic, %w", err)
 		}
@@ -175,7 +187,7 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 		}
 	case cfg.Entropy:
 		// Generate mnemonic using custom entropy
-		mnemonic, err = GenerateMnemonicWithCustomEntropy(io)
+		mnemonic, err = GenerateMnemonicWithCustomEntropy(io, cfg.Masked)
 		if err != nil {
 			return fmt.Errorf("unable to generate mnemonic with custom entropy, %w", err)
 		}

@@ -23,7 +23,7 @@ func GenerateMnemonic(entropySize int) (string, error) {
 
 // GenerateMnemonicWithCustomEntropy generates a BIP39 mnemonic using
 // user-provided entropy instead of computer PRNG
-func GenerateMnemonicWithCustomEntropy(io commands.IO) (string, error) {
+func GenerateMnemonicWithCustomEntropy(io commands.IO, masked bool) (string, error) {
 	// Display entropy advice
 	io.Println("")
 	io.Println("=== MANUAL ENTROPY GENERATION ===")
@@ -36,7 +36,15 @@ func GenerateMnemonicWithCustomEntropy(io commands.IO) (string, error) {
 	io.Println("")
 
 	// Get the entropy input
-	inputEntropy, err := io.GetString("Enter your entropy (any length, will be hashed with SHA-256):")
+	var inputEntropy string
+	var err error
+
+	prompt := "Enter your entropy (any length, will be hashed with SHA-256):"
+	if masked {
+		inputEntropy, err = io.GetPassword(prompt, false)
+	} else {
+		inputEntropy, err = io.GetString(prompt)
+	}
 	if err != nil {
 		return "", err
 	}

@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"crypto/sha256"
+	"io"
 	"strings"
 	"testing"
 
@@ -11,6 +12,22 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// mockPasswordIO is a test IO that simulates password masking
+type mockPasswordIO struct {
+	commands.IO
+	passwords []string
+	pwIndex   int
+}
+
+func (m *mockPasswordIO) GetPassword(prompt string, insecure bool) (string, error) {
+	if m.pwIndex >= len(m.passwords) {
+		return "", io.EOF
+	}
+	pw := m.passwords[m.pwIndex]
+	m.pwIndex++
+	return pw, nil
+}
 
 func TestGenerateMnemonicWithCustomEntropy(t *testing.T) {
 	t.Parallel()
@@ -72,7 +89,7 @@ func TestGenerateMnemonicWithCustomEntropy(t *testing.T) {
 			io.SetOut(commands.WriteNopCloser(&outBuf))
 			io.SetErr(commands.WriteNopCloser(&errBuf))
 
-			mnemonic, err := GenerateMnemonicWithCustomEntropy(io)
+			mnemonic, err := GenerateMnemonicWithCustomEntropy(io, false)
 
 			if tt.shouldError {
 				require.Error(t, err)
@@ -97,7 +114,7 @@ func TestGenerateMnemonicWithCustomEntropy(t *testing.T) {
 			io2.SetOut(commands.WriteNopCloser(&bytes.Buffer{}))
 			io2.SetErr(commands.WriteNopCloser(&bytes.Buffer{}))
 
-			mnemonic2, err := GenerateMnemonicWithCustomEntropy(io2)
+			mnemonic2, err := GenerateMnemonicWithCustomEntropy(io2, false)
 			require.NoError(t, err, "unexpected error on second generation")
 
 			assert.Equal(t, mnemonic, mnemonic2, "same entropy produced different mnemonics")
@@ -121,10 +138,44 @@ func TestDeterministicMnemonicGeneration(t *testing.T) {
 	io.SetOut(commands.WriteNopCloser(&bytes.Buffer{}))
 	io.SetErr(commands.WriteNopCloser(&bytes.Buffer{}))
 
-	actualMnemonic, err := GenerateMnemonicWithCustomEntropy(io)
+	actualMnemonic, err := GenerateMnemonicWithCustomEntropy(io, false)
 	require.NoError(t, err, "failed to generate mnemonic")
 
 	assert.Equal(t, expectedMnemonic, actualMnemonic, "mnemonic doesn't match expected deterministic result")
+}
+
+func TestMaskedEntropyInput(t *testing.T) {
+	t.Parallel()
+	// Test that masked input works correctly using a mock IO
+	testEntropy := "this is a test entropy that should work when masked"
+	
+	// Create base test IO for output
+	baseIO := commands.NewTestIO()
+	baseIO.SetOut(commands.WriteNopCloser(&bytes.Buffer{}))
+	baseIO.SetErr(commands.WriteNopCloser(&bytes.Buffer{}))
+	
+	// Create mock IO that simulates password input
+	mockIO := &mockPasswordIO{
+		IO:        baseIO,
+		passwords: []string{testEntropy},
+	}
+	// For confirmation prompt
+	mockIO.SetIn(strings.NewReader("y\n"))
+	
+	// Generate with masked = true using our mock
+	mnemonic, err := GenerateMnemonicWithCustomEntropy(mockIO, true)
+	require.NoError(t, err, "failed to generate mnemonic with masked input")
+	assert.True(t, bip39.IsMnemonicValid(mnemonic), "invalid mnemonic generated with masked input")
+	
+	// Verify that same entropy produces same result whether masked or not
+	io2 := commands.NewTestIO()
+	io2.SetIn(strings.NewReader(testEntropy + "\ny\n"))
+	io2.SetOut(commands.WriteNopCloser(&bytes.Buffer{}))
+	io2.SetErr(commands.WriteNopCloser(&bytes.Buffer{}))
+	
+	mnemonic2, err := GenerateMnemonicWithCustomEntropy(io2, false)
+	require.NoError(t, err, "failed to generate mnemonic without masking")
+	assert.Equal(t, mnemonic, mnemonic2, "masked and unmasked entropy produced different mnemonics")
 }
 
 func TestEntropyHashingConsistency(t *testing.T) {
@@ -145,7 +196,7 @@ func TestEntropyHashingConsistency(t *testing.T) {
 		io.SetOut(commands.WriteNopCloser(&bytes.Buffer{}))
 		io.SetErr(commands.WriteNopCloser(&bytes.Buffer{}))
 
-		mnemonic, err := GenerateMnemonicWithCustomEntropy(io)
+		mnemonic, err := GenerateMnemonicWithCustomEntropy(io, false)
 		require.NoError(t, err, "failed to generate mnemonic for input %q", tc.input)
 
 		// Verify it's a valid mnemonic
@@ -157,7 +208,7 @@ func TestEntropyHashingConsistency(t *testing.T) {
 		io2.SetOut(commands.WriteNopCloser(&bytes.Buffer{}))
 		io2.SetErr(commands.WriteNopCloser(&bytes.Buffer{}))
 
-		mnemonic2, err := GenerateMnemonicWithCustomEntropy(io2)
+		mnemonic2, err := GenerateMnemonicWithCustomEntropy(io2, false)
 		assert.NoError(t, err, "failed to generate mnemonic on second try")
 		assert.Equal(t, mnemonic, mnemonic2, "inconsistent mnemonic generation for input %q", tc.input)
 	}
