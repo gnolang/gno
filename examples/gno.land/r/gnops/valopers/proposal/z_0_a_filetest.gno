@@ -12,6 +12,7 @@ import (
 	"gno.land/r/gnops/valopers/proposal"
 	"gno.land/r/gov/dao"
 	daoinit "gno.land/r/gov/dao/v3/init"
+	susers "gno.land/r/sys/users"
 )
 
 var (
@@ -29,6 +30,22 @@ const (
 func init() {
 	testing.SetOriginCaller(g1user)
 	daoinit.InitWithUsers(g1user)
+	registerTestUsers(g1user)
+}
+
+const gUsersV1Path = "gno.land/r/gnoland/users/v1"
+
+// Register a namespace for every addresses
+// Necessary to test GovDAO Vote
+func registerTestUsers(addrs ...std.Address) {
+	// Set realm to users admin to register test user
+	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	for _, addr := range addrs {
+		err := susers.RegisterUser(cross, addr.String()[1:], addr)
+		if err != nil {
+			panic(err.Error() + " : " + addr.String())
+		}
+	}
 }
 
 func main() {
