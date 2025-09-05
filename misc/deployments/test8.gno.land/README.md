@@ -69,12 +69,12 @@ You can download the full `genesis.json` using the following steps:
 wget -O genesis.json https://gno-testnets-genesis.s3.eu-central-1.amazonaws.com/test8/genesis.json
 ```
 
-The `shasum` hash of the `genesis.json` should be `TODO`.
+The `shasum` hash of the `genesis.json` should be `75b23ea9069a528a31f34fecf7d1a027969c076f945f0cfb3189349e4070044e`.
 Verify it by running:
 
 ```sh
 shasum -a 256 genesis.json
-TODO  genesis.json
+75b23ea9069a528a31f34fecf7d1a027969c076f945f0cfb3189349e4070044e  genesis.json
 ```
 
 ---
@@ -121,7 +121,7 @@ To verify the checksum of the genesis balances sheet:
 
 ```shell
 shasum -a 256 genesis_balances.txt
-TODO  genesis_balances.txt
+7350080e52deccef31dc8b576b10fc183adab17f7f4ab618bacb2c6ffb044fc3  genesis_balances.txt
 ```
 
 The `genesis_txs.jsonl` can be fetched locally by:
@@ -134,7 +134,7 @@ To verify the checksum of the genesis transaction sheet:
 
 ```shell
 shasum -a 256 genesis_txs.jsonl
-TODO  genesis_txs.jsonl
+81e82ad1ec850974b3a29bffbc92b67b9e8c2c3d135f88a55310288814f2cb86  genesis_txs.jsonl
 ```
 
 ### Reconstructing the genesis transactions
