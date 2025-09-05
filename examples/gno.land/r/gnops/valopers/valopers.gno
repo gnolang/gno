@@ -283,7 +283,7 @@ func validateDescription(description string) error {
 
 // validateBech32 checks if the value is a valid bech32 address
 func validateBech32(address_XXX address) error {
-	if !address.IsValid(address_XXX) {
+	if !address_XXX.IsValid() {
 		return ErrInvalidAddress
 	}
 

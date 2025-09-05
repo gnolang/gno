@@ -224,6 +224,10 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 					}
 				}
 			case *ast.Ident:
+				if sx, ok := c.Parent().(*ast.SelectorExpr); ok && sx.X == node {
+					// Could be an expression like `hello.cross`, so ignore.
+					return true
+				}
 				switch node.Name {
 				case "cross":
 					// it's a realm; we don't have much to add aside from this, for now.
@@ -254,9 +258,38 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 				if ct := convertBuiltinType(node.X, fset, f); ct != nil {
 					node.X = ct
 				}
-			case *ast.SliceExpr:
-				if ct := convertBuiltinType(node.X, fset, f); ct != nil {
-					node.X = ct
+			case *ast.ArrayType:
+				if ct := convertBuiltinType(node.Elt, fset, f); ct != nil {
+					node.Elt = ct
+				}
+			case *ast.Ellipsis:
+				if ct := convertBuiltinType(node.Elt, fset, f); ct != nil {
+					node.Elt = ct
+				}
+			case *ast.MapType:
+				if ct := convertBuiltinType(node.Key, fset, f); ct != nil {
+					node.Key = ct
+				}
+				if ct := convertBuiltinType(node.Value, fset, f); ct != nil {
+					node.Value = ct
+				}
+			case *ast.TypeAssertExpr:
+				if ct := convertBuiltinType(node.Type, fset, f); ct != nil {
+					node.Type = ct
+				}
+			case *ast.TypeSwitchStmt:
+				for _, node := range node.Body.List {
+					if cc, isCaseClause := node.(*ast.CaseClause); isCaseClause {
+						for idx, t := range cc.List {
+							if ct := convertBuiltinType(t, fset, f); ct != nil {
+								cc.List[idx] = ct
+							}
+						}
+					}
+				}
+			case *ast.ValueSpec:
+				if ct := convertBuiltinType(node.Type, fset, f); ct != nil {
+					node.Type = ct
 				}
 			case *ast.CallExpr:
 				id, ok := node.Fun.(*ast.Ident)
