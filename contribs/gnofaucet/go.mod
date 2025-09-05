@@ -11,6 +11,7 @@ require (
 	github.com/gnolang/gno v0.0.0-20250901125041-596de150f06c
 	github.com/google/go-github/v64 v64.0.0
 	github.com/google/go-github/v74 v74.0.0
+	github.com/google/uuid v1.6.0
 	github.com/jferrl/go-githubauth v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/redis/go-redis/v9 v9.12.1
@@ -40,7 +41,6 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
