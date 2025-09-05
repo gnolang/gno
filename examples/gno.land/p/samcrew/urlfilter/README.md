@@ -42,7 +42,7 @@ filters.Set("T2", t2Items)
 u, _ := url.Parse("/shop?filter=T1")
 
 // Apply filtering
-mdLinks, filteredItems := urlfilter.ApplyFilters(u, filters, "filter")
+mdLinks, filteredItems := urlfilter.ApplyFilters(u, filters, "filter") // "filter" for /shop?`filter`=T1
 
 // mdLinks    → Markdown links for toggling filters  
 // filteredItems → AVL tree containing only filtered items
@@ -57,7 +57,7 @@ func ApplyFilters(u *url.URL, items *avl.Tree, paramName string) (string, *avl.T
 **Parameters:**
 - `u`: URL containing query parameters
 - `items`: Two-level AVL tree (filters → item trees)
-- `paramName`: Query parameter name (e.g., "filter")
+- `paramName`: Query parameter name (e.g., "filter" for /shop?filter=T1)
 
 **URL Format:**
 - Single filter: `?filter=T1`
