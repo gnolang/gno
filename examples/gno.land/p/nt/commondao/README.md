@@ -21,8 +21,6 @@ depending on the DAO type. For example, standalone DAOs might use IDs, a name
 and description to uniquely identify individual DAOs; Hierarchical ones might
 choose to use slugs instead of IDs, or even a mix of both.
 
-Members can also optionally be initialized during DAO creation.
-
 #### DAO Creation Examples
 
 Standalone DAO:
