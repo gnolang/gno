@@ -40,15 +40,14 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 
 	_, testStore := test.TestStore(gnoenv.RootDir(), output, nil)
 
-	var m *gnolang.Machine
-	f := m.MustReadFile(file)
+	pkgName := gnolang.ParseFilePackageName(file)
 
-	m = gnolang.NewMachineWithOptions(gnolang.MachineOptions{
-		PkgPath: string(f.PkgName),
+	m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
+		PkgPath: pkgName,
 		Input:   stdin,
 		Output:  output,
 		Store:   testStore,
-		Context: test.Context(test.DefaultCaller, string(f.PkgName), nil),
+		Context: test.Context(test.DefaultCaller, pkgName, nil),
 		Debug:   true,
 	})
 
@@ -60,6 +59,8 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 			return
 		}
 	}
+
+	f := m.MustReadFile(file)
 
 	m.RunFiles(f)
 	ex, _ := m.ParseExpr("main()")

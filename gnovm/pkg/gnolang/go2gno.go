@@ -42,6 +42,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/gnovm/pkg/parser"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -177,12 +178,24 @@ func (m *Machine) MustParseDecls(code string) []Decl {
 	return decls
 }
 
+// ParseFilePackageName returns the package name of a gno file.
+// It panics in case of parse failure.
+func ParseFilePackageName(fname string) string {
+	fs := token.NewFileSet()
+	// Just parse the package clause, and nothing else.
+	f, err := parser.ParseFile(fs, fname, nil, parser.PackageClauseOnly)
+	if err != nil {
+		panic(err)
+	}
+	return f.Name.Name
+}
+
 // parseCost computes and returns the cost of parsing from the parser stats.
 func parseCost(stats *parser.Stats) types.Gas {
 	// The parsing cost is a function of the number of tokens and the
 	// nesting level reached during the parsing, which reflect both the size
 	// and the complexity of the AST.
-	return types.Gas(stats.NumTok * math.Ilogb(float64(1+stats.TopNest)))
+	return types.Gas(overflow.Mulp(stats.NumTok, math.Ilogb(float64(1+stats.TopNest))))
 }
 
 // ParseFile uses the Go parser to parse body. It then runs [Go2Gno] on the

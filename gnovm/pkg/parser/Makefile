@@ -7,12 +7,11 @@ GOROOT := $(shell go env GOROOT)
 import:
 	cp -a $(GOROOT)/src/go/parser/* .
 	cp -a $(GOROOT)/src/go/printer/nodes.go nodes.go.src
-#	mkdir -p internal && cp -a $$(go env GOROOT)/src/go/internal/typeparams internal/
 	rm -rf testdata/issue42951
 
 # Generate a patch to be applied against imported files.
 genpatch:
-	for f in $$(find . -name "*.go" | LANG=C sort); do \
+	for f in $$(find . -name "*.go" | LC_ALL=C sort); do \
 		diff -u --label "$$f" --label "$$f" "$(GOROOT)/src/go/parser/$$f" "$$f" || true; \
 	done > gno.patch
 

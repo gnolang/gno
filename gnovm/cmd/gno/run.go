@@ -78,6 +78,29 @@ func (c *runCmd) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
+func packageNameFromFirstFile(args []string) string {
+	for _, arg := range args {
+		if s, err := os.Stat(arg); err == nil && s.IsDir() {
+			files, err := os.ReadDir(arg)
+			if err != nil {
+				panic(err)
+			}
+			for _, f := range files {
+				n := f.Name()
+				if isGnoFile(f) &&
+					!strings.HasSuffix(n, "_test.gno") &&
+					!strings.HasSuffix(n, "_filetest.gno") {
+					return gno.ParseFilePackageName(n)
+				}
+			}
+		} else if err != nil {
+			panic(err)
+		}
+		return gno.ParseFilePackageName(arg)
+	}
+	return ""
+}
+
 func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	if len(args) == 0 {
 		return flag.ErrHelp
@@ -100,18 +123,8 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 		args = []string{"."}
 	}
 
-	// read files
-	files, err := parseFiles(args, stderr)
-	if err != nil {
-		return err
-	}
-
-	if len(files) == 0 {
-		return errors.New("no files to run")
-	}
-
 	var send std.Coins
-	pkgPath := string(files[0].PkgName)
+	pkgPath := packageNameFromFirstFile(args)
 	ctx := test.Context("", pkgPath, send)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath:       pkgPath,
@@ -125,6 +138,16 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 
 	defer m.Release()
 
+	// read files
+	files, err := parseFiles(m, args, stderr)
+	if err != nil {
+		return err
+	}
+
+	if len(files) == 0 {
+		return errors.New("no files to run")
+	}
+
 	// If the debug address is set, the debugger waits for a remote client to connect to it.
 	if cfg.debugAddr != "" {
 		if err := m.Debugger.Serve(cfg.debugAddr); err != nil {
@@ -137,17 +160,16 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	return runExpr(m, cfg.expr)
 }
 
-func parseFiles(fpaths []string, stderr io.WriteCloser) ([]*gno.FileNode, error) {
+func parseFiles(m *gno.Machine, fpaths []string, stderr io.WriteCloser) ([]*gno.FileNode, error) {
 	files := make([]*gno.FileNode, 0, len(fpaths))
 	var didPanic bool
-	var m *gno.Machine
 	for _, fpath := range fpaths {
 		if s, err := os.Stat(fpath); err == nil && s.IsDir() {
 			subFns, err := listNonTestFiles(fpath)
 			if err != nil {
 				return nil, err
 			}
-			subFiles, err := parseFiles(subFns, stderr)
+			subFiles, err := parseFiles(m, subFns, stderr)
 			if err != nil {
 				return nil, err
 			}
