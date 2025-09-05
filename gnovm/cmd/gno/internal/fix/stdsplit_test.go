@@ -33,14 +33,14 @@ func main() {}`,
 			input: `package test
 import "std"
 func main() {
-	addr := std.Address("g1337")
+	addr := std.Coin{}
 }`,
 			expected: `package test
 
-import "chain"
+import "chain/banker"
 
 func main() {
-	addr := chain.Address("g1337")
+	addr := banker.Coin{}
 }`,
 		},
 		{
@@ -63,18 +63,20 @@ func main() {
 			input: `package test
 import "std"
 func main() {
-	addr := std.Address("g1337")
+	addr := std.Address("123")
+	_ = std.Coin{}
 	std.AssertOriginCall()
 }`,
 			expected: `package test
 
 import (
-	"chain"
+	"chain/banker"
 	"chain/runtime"
 )
 
 func main() {
-	addr := chain.Address("g1337")
+	addr := address("123")
+	_ = banker.Coin{}
 	runtime.AssertOriginCall()
 }`,
 		},
@@ -87,18 +89,18 @@ import (
 )
 func main() {
 	fmt.Println("hello")
-	addr := std.Address("g1337")
+	c := std.Coin{}
 }`,
 			expected: `package test
 
 import (
-	"chain"
+	"chain/banker"
 	"fmt"
 )
 
 func main() {
 	fmt.Println("hello")
-	addr := chain.Address("g1337")
+	c := banker.Coin{}
 }`,
 		},
 		{
@@ -106,14 +108,14 @@ func main() {
 			input: `package test
 import s "std"
 func main() {
-	addr := s.Address("g1337")
+	c := s.Coin{}
 }`,
 			expected: `package test
 
-import "chain"
+import "chain/banker"
 
 func main() {
-	addr := chain.Address("g1337")
+	c := banker.Coin{}
 }`,
 		},
 		{
@@ -215,7 +217,7 @@ import (
 
 func main() {
 	if true {
-		addr := chain.Address("g1337")
+		addr := address("g1337")
 		if true {
 			runtime.AssertOriginCall()
 		}
@@ -295,7 +297,7 @@ type (
 	I int
 )
 
-func (S) String() { return string(std.Address("123")) }
+func (S) String() { return string(std.DerivePkgAddr("123")) }
 func (I) String() { return std.RawAddressSize + 123 }`,
 			expected: `package main
 
@@ -306,7 +308,7 @@ type (
 	I int
 )
 
-func (S) String() { return string(chain.Address("123")) }
+func (S) String() { return string(chain.DerivePkgAddr("123")) }
 func (I) String() { return 20 + 123 }`,
 		},
 		{
@@ -368,9 +370,9 @@ func main() {
 			input: `package disperse
 
 import (
-        "std"
+	"std"
 
-        tokens "gno.land/r/demo/grc20factory"
+	tokens "gno.land/r/demo/grc20factory"
 )
 
 // Get address of Disperse realm
@@ -415,7 +417,6 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 			expected: `package disperse
 
 import (
-	"chain"
 	"chain/banker"
 	"chain/runtime"
 
@@ -428,7 +429,7 @@ var realmAddr = runtime.CurrentRealm().Address()
 // DisperseUgnot parses receivers and amounts and sends out ugnot
 // The function will send out the coins to the addresses and return the leftover coins to the caller
 // if there are any to return
-func DisperseUgnot(addresses []chain.Address, coins banker.Coins) {
+func DisperseUgnot(addresses []address, coins banker.Coins) {
 	coinSent := banker.OriginSend()
 	caller := runtime.PreviousRealm().Address()
 	banker_ := banker.NewBanker(banker.BankerTypeOriginSend)
@@ -546,7 +547,7 @@ import (
 )
 func main() {
 	// Already using chain packages along with std
-	std.Address("g1337")
+	std.DerivePkgAddr("g1337")
 	chain.Emit("event", "data")
 	runtime.CurrentRealm()
 
@@ -564,7 +565,7 @@ import (
 
 func main() {
 	// Already using chain packages along with std
-	chain.Address("g1337")
+	chain.DerivePkgAddr("g1337")
 	chain.Emit("event", "data")
 	runtime.CurrentRealm()
 

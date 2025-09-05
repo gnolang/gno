@@ -7,7 +7,11 @@ cmp stderr stderr.golden
 -- cleaning.gno --
 package testdata
 
-import "gno.land/r/hello"
+import (
+	"std"
+
+	"gno.land/r/hello"
+)
 
 var yes = rand.Val
 -- otherfile.gno --

@@ -8,15 +8,17 @@ cmp stderr empty
 -- main.gno --
 package main
 
+import "std"
+
 func main() {
-	addr := address("g1337")
+	addr := std.Coin{}
 }
 -- main.gno.golden --
 package main
 
-import "chain"
+import "chain/banker"
 
 func main() {
-	addr := chain.Address("g1337")
+	addr := banker.Coin{}
 }
 -- empty --

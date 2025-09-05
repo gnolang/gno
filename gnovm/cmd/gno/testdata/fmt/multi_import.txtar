@@ -16,8 +16,8 @@ import (
 	"chain/banker"
 
 	// This comment should stay above the declaration
-	"doesnotexist"
 	avl "gno.land/my/import/does/not/exist"
+	"doesnotexist"
 )
 
 // Pkg Is already imported
@@ -56,7 +56,7 @@ var math = MathS{}
 package testdata
 
 import (
-	"std"
+	"chain/banker"
 	"time"
 
 	// This comment should stay above the declaration
@@ -69,7 +69,7 @@ import (
 var myVar = avl.Node{}
 
 // Pkg exist and should be imported
-var myVar2 = std.Banker{}
+var myVar2 = banker.Banker{}
 
 // This one doesn't exist
 var myVar3 = doesnotexistpkg.Bis{}
