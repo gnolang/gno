@@ -220,19 +220,13 @@ func memberByTier(tier string) *memberstore.Member {
 	switch tier {
 	case memberstore.T1:
 		t, _ := memberstore.GetTier(memberstore.T1)
-		return &memberstore.Member{
-			InvitationPoints: t.InvitationPoints,
-		}
+		return memberstore.NewMember(t.InvitationPoints)
 	case memberstore.T2:
 		t, _ := memberstore.GetTier(memberstore.T2)
-		return &memberstore.Member{
-			InvitationPoints: t.InvitationPoints,
-		}
+		return memberstore.NewMember(t.InvitationPoints)
 	case memberstore.T3:
 		t, _ := memberstore.GetTier(memberstore.T3)
-		return &memberstore.Member{
-			InvitationPoints: t.InvitationPoints,
-		}
+		return memberstore.NewMember(t.InvitationPoints)
 	default:
 		panic("member not found by the specified tier")
 	}
