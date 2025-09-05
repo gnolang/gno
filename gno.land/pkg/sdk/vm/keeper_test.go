@@ -303,12 +303,11 @@ func TestVMKeeperOriginSend2(t *testing.T) {
 package test
 
 import (
-	"chain"
 	"chain/runtime"
 	"chain/banker"
 )
 
-var admin chain.Address
+var admin address
 
 func init() {
      admin = runtime.OriginCaller()
@@ -567,12 +566,11 @@ func TestVMKeeperOriginCallerInit(t *testing.T) {
 package test
 
 import (
-	"chain"
 	"chain/banker"
 	"chain/runtime"
 )
 
-var admin chain.Address
+var admin address
 
 func init() {
 	admin = runtime.OriginCaller()

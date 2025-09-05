@@ -124,13 +124,12 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 package hello
 
 import (
-	"chain"
 	"chain/runtime"
 	"time"
 )
 
 var _ = time.RFC3339
-func caller() chain.Address { return runtime.OriginCaller() }
+func caller() address { return runtime.OriginCaller() }
 var GetHeight = runtime.ChainHeight
 var sl = []int{1,2,3,4,5}
 func fn() func(string) string { return Echo }
