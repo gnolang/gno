@@ -31,6 +31,10 @@ func NewRender(d *GovDAO) *render {
 		rw.Write(ren.renderActiveProposals(req.RawPath, d))
 	})
 
+	r.HandleFunc("activity", func(rw *mux.ResponseWriter, req *mux.Request) {
+		rw.Write(ren.renderActivityPage(d))
+	})
+
 	r.HandleFunc("{pid}", func(rw *mux.ResponseWriter, req *mux.Request) {
 		rw.Write(ren.renderProposalPage(req.GetVar("pid"), d))
 	})
@@ -57,6 +61,7 @@ func (ren *render) Render(pkgPath string, path string) string {
 
 func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
 	out := "# GovDAO\n"
+	out += "[> View Activity <](" + ren.relativeRealmPath + ":activity)\n\n"
 	out += "## Members\n"
 	out += "[> Go to Memberstore <](/r/gov/dao/v3/memberstore)\n"
 	out += "## Proposals\n"
@@ -116,6 +121,25 @@ Executor created in: %s
 	out += "\n\n---\n\n"
 
 	out += renderActionBar(ufmt.Sprintf("%v", pid))
+
+	return out
+}
+
+func (ren *render) renderActivityPage(d *GovDAO) string {
+	out := "# GovDAO Activity\n\n"
+	out += "## Member Activity\n"
+
+	members := getMembers(cross)
+	if members.Size() == 0 {
+		out += "\n\nNo data available"
+	}
+
+	members.Iterate("", "", func(key string, _ any) bool {
+		activity, available_proposal := d.GetMemberActivity(std.Address(key))
+		out += ufmt.Sprintf("**%s**: %d/%d\n", tryResolveAddr(std.Address(key)), activity, available_proposal)
+		return false
+	})
+	out += "\n---\n\n"
 
 	return out
 }
