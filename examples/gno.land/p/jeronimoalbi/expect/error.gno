@@ -1,6 +1,6 @@
 package expect
 
-import "gno.land/p/demo/ufmt"
+import "gno.land/p/nt/ufmt"
 
 // NewErrorChecker creates a new checker of errors.
 func NewErrorChecker(ctx Context, err error) ErrorChecker {
