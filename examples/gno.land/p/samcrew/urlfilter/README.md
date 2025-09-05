@@ -2,20 +2,19 @@
 
 Filter items using URL query parameters with toggleable markdown links. Works with AVL tree structures where each filter contains its associated items.
 
-Given filters `["T1", "T2", "size:XL"]` and URL `/shop?filter=T1,size:XL`:
+Given filters `["T1", "T2", "size:XL"]` and URL `/shop?filter=T1,size:XL`, it generates toggle links:
 
-**Generated toggle links:**
 - **T1** _(active, click to remove)_
 - ~~T2~~ _(inactive, click to add)_  
 - **size:XL** _(active, click to remove)_
 
 **Markdown output:**
 ```markdown
-[**T1**](/shop?filter=size:XL) [~~T2~~](/shop?filter=T1,T2,size:XL) [**size:XL**](/shop?filter=T1)
+[**T1**](/p/samcrew/urlfilter?filter=size:XL) - [~~T2~~](/p/samcrew/urlfilter=T1,T2,size:XL) - [**size:XL**](/p/samcrew/urlfilter?filter=T1)
 ```
 
 **Rendered as:**
-[**T1**](/shop?filter=size:XL) [~~T2~~](/shop?filter=T1,T2,size:XL) [**size:XL**](/shop?filter=T1)
+[**T1**](/p/samcrew/urlfilter?filter=size:XL) - [~~T2~~](/p/samcrew/urlfilter=T1,T2,size:XL) - [**size:XL**](/p/samcrew/urlfilter?filter=T1)
 
 ## Usage
 
@@ -42,7 +41,7 @@ filters.Set("T2", t2Items)
 u, _ := url.Parse("/shop?filter=T1")
 
 // Apply filtering
-mdLinks, filteredItems := urlfilter.ApplyFilters(u, filters, "filter") // "filter" for /shop?`filter`=T1
+mdLinks, filteredItems := urlfilter.ApplyFilters(u, filters, "filter") // "filter" for /shop?*filter*=T1
 
 // mdLinks    → Markdown links for toggling filters  
 // filteredItems → AVL tree containing only filtered items
