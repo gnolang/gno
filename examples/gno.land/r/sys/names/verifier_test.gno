@@ -8,7 +8,7 @@ import (
 	"gno.land/p/nt/testutils"
 	"gno.land/p/nt/uassert"
 	"gno.land/p/nt/urequire"
-	susers "gno.land/r/sys/users"
+	"gno.land/r/sys/users"
 )
 
 var alice = testutils.TestAddress("alice")
@@ -30,7 +30,7 @@ func TestDefaultVerifier(t *testing.T) {
 
 	// Register proper username
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/users/v1")) // authorized write
-	urequire.NoError(t, susers.RegisterUser(cross, "alice", alice))
+	urequire.NoError(t, users.RegisterUser(cross, "alice", alice))
 
 	// Proper namespace
 	uassert.True(t, verifier(true, alice, "alice"))
