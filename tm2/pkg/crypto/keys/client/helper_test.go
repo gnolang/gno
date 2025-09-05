@@ -46,7 +46,7 @@ func TestGenerateMnemonicWithCustomEntropy(t *testing.T) {
 		},
 		{
 			name:          "minimum acceptable entropy",
-			entropy:       "exactly 27 characters here!", // exactly 27 chars
+			entropy:       strings.Repeat("a", MinEntropyChars), // exactly MinEntropyChars
 			confirmations: []bool{true},
 			shouldError:   false,
 		},

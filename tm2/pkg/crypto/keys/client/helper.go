@@ -8,6 +8,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 )
 
+const (
+	// MinEntropyChars is the minimum number of characters required for custom entropy
+	// Calculated as: ceil(180 / log2(10+24)) = 36
+	// This ensures at least 180 bits of entropy when using alphanumeric characters
+	MinEntropyChars = 36
+)
+
 // GenerateMnemonic generates a new BIP39 mnemonic using the
 // provided entropy size
 func GenerateMnemonic(entropySize int) (string, error) {
@@ -28,18 +35,16 @@ func GenerateMnemonicWithCustomEntropy(io commands.IO, masked bool) (string, err
 	io.Println("")
 	io.Println("=== MANUAL ENTROPY GENERATION ===")
 	io.Println("")
-	io.Println("Provide at least 160 bits of entropy from a true random source:")
-	io.Println("- Dice: 38+ d20 rolls (e.g., 18 7 3 12 5 19 8 2 14 11...)")
-	io.Println("- Coins: 160+ flips (e.g., HTTHHTTHHHTTHHTHTTHHTHHT...)")
-	io.Println("- Cards: 31+ draws (e.g., 7H 2C KS 9D 4H JS QC 3S...)")
-	io.Println("- Other: keyboard mashing, environmental noise, etc.")
+	io.Println("Generate true random entropy using ONE of these methods:")
+	io.Println("• Dice: Roll a D20 (20-sided die) exactly 42 times")
+	io.Println("• Cards: Shuffle a standard 52-card deck 20 times, then record the full deck order")
 	io.Println("")
 
 	// Get the entropy input
 	var inputEntropy string
 	var err error
 
-	prompt := "Enter your entropy (any length, will be hashed with SHA-256):"
+	prompt := "Enter your entropy:"
 	if masked {
 		inputEntropy, err = io.GetPassword(prompt, false)
 	} else {
@@ -49,8 +54,8 @@ func GenerateMnemonicWithCustomEntropy(io commands.IO, masked bool) (string, err
 		return "", err
 	}
 
-	if len(inputEntropy) < 27 {
-		return "", fmt.Errorf("entropy too short (%d characters). Please provide at least 27 characters for 160-bit security", len(inputEntropy))
+	if len(inputEntropy) < MinEntropyChars {
+		return "", fmt.Errorf("entropy too short (%d characters). Please provide at least %d characters", len(inputEntropy), MinEntropyChars)
 	}
 
 	// Hash the input entropy to create deterministic seed
