@@ -77,14 +77,16 @@ type ProposalDefinition interface {
     // Title returns proposal title.
     Title() string
 
-    // Body returns proposal body.
-    // It usually contains the proposal description and other elements like
-    // proposal parameters.
+    // Body returns proposal's body.
+    // It usually contains description or values that are specific to
+    // the proposal, like a description of the proposal's motivation
+    // or the list of values that would be applied when the proposal
+    // is approved.
     Body() string
 
-    // VotingPeriod returns the period where votes are allowed after proposal
-    // creation. It is used to calculate the voting deadline from the
-    // proposal's creationd date.
+    // VotingPeriod returns the period where votes are allowed after
+    // proposal creation. It's used to calculate the voting deadline
+    // from the proposal's creationd date.
     VotingPeriod() time.Duration
 
     // Tally counts the number of votes and verifies if proposal passes.
