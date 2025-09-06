@@ -6,7 +6,7 @@ Generate progress bars and gauges as SVG images with customizable styling and la
 
 ```go
 // Basic gauge with default config
-gauge := gauge.Render(75, 100, "Progress", "#4caf50", nil) // nil for &gauge.DefaultConfig
+gauge := gauge.Render(75, 100, "Progress", "#4caf50", &gauge.DefaultConfig)
 
 // Custom configuration
 config := &gauge.Config{
@@ -16,7 +16,7 @@ config := &gauge.Config{
 gauge := gauge.Render(33, 50, "Loading", "#2196f3", config)
 
 // Different styles
-progress := gauge.Render(8, 10, "Health", "#f44336", nil)
+progress := gauge.Render(8, 10, "Health", "#f44336", &gauge.DefaultConfig)
 ```
 
 ## API
