@@ -23,8 +23,8 @@ func TestRender(t *testing.T) {
 	expected := "| [Tier](/test?members-sort-desc=Tier) | [Member](/test?members-sort-desc=Member) | [Role ↓](/test?members-sort-asc=Role) |\n" +
 		"| --- | --- | --- |\n" +
 		"| T1 | g11111 | finance-officer |\n" +
-		"| T3 | g33333 | developer |\n" +
-		"| T2 | g22222 | developer |\n"
+		"| T2 | g22222 | developer |\n" +
+		"| T3 | g33333 | developer |\n"
 
 	// Trim spaces for comparison
 	md = strings.TrimSpace(md)
@@ -57,7 +57,7 @@ func TestRender(t *testing.T) {
 	}
 
 	SortRows(rows, 2, false) // Sort by "Role" descending
-	expected = "developer"
+	expected = "finance-officer"
 
 	if rows[0][2] != expected {
 		t.Errorf("SortRows() failed. Expected first role: %s, got: %s", expected, rows[0][2])
