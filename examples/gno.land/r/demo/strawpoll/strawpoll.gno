@@ -48,7 +48,7 @@ func Vote(_ realm, pollNumber int64, choice string) error {
 
 const maxPollsRendered = 3
 
-// Render provides a detailed view of all polls.
+// Render provides a detailed view of recent polls.
 func Render(_ string) string {
 	result := "# Latest polls created\n"
 
