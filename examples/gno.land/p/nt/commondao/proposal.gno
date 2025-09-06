@@ -10,8 +10,10 @@ import (
 
 const (
 	StatusActive     ProposalStatus = "active"
-	StatusFailed                    = "failed"
 	StatusPassed                    = "passed"
+	StatusRejected                  = "rejected"
+	StatusExecuted                  = "executed"
+	StatusFailed                    = "failed"
 	StatusWithdrawed                = "withdrawed"
 )
 
@@ -245,6 +247,28 @@ func (p Proposal) Validate() error {
 // IsVoteChoiceValid checks if a vote choice is valid for the proposal.
 func (p Proposal) IsVoteChoiceValid(c VoteChoice) bool {
 	return p.voteChoices.Has(string(c))
+}
+
+// Tally counts votes and updates proposal status with the current outcome.
+// Proposal status is updated to "passed" when proposal is approved
+// or to "rejected" if proposal doesn't pass.
+func (p *Proposal) Tally(members MemberSet) error {
+	if p.status != StatusActive {
+		return ErrStatusIsNotActive
+	}
+
+	record := p.VotingRecord().Readonly()
+	passes, err := p.Definition().Tally(record, members)
+	if err != nil {
+		return err
+	}
+
+	if passes {
+		p.status = StatusPassed
+	} else {
+		p.status = StatusRejected
+	}
+	return nil
 }
 
 // IsQuorumReached checks if a participation quorum is reach.
