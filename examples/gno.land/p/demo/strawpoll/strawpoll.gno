@@ -3,19 +3,29 @@ package strawpoll
 import (
 	"errors"
 	"std"
-	"strconv"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/samcrew/piechart"
 )
 
-const minimumOptions = 2
+const (
+	minimumOptions = 2
+	maximumOptions = 10
+)
 
 var (
 	ErrQuestionMustBeProvided       = errors.New("poll question must be provided")
 	ErrMinimumOptionsMustBeProvided = errors.New("at least two comma-separated options must be provided")
+	ErrMaximumOptionsExceeded       = ufmt.Errorf("a maximum of %d options can be provided", maximumOptions)
 	ErrOptionNotAvailable           = errors.New("the option you voted for does not exist in this poll")
 	ErrAlreadyVoted                 = errors.New("you have already voted in this poll")
+
+	pieColors = []string{
+		"#4E79A7", "#F28E2B", "#E15759", "#76B7B2",
+		"#59A14F", "#EDC949", "#AF7AA1", "#FF9DA7",
+		"#9C755F", "#BAB0AB",
+	}
 )
 
 // Poll represents a blueprint for a single poll.
@@ -44,6 +54,10 @@ func New(question string, options []string) (Poll, error) {
 
 	if len(options) < minimumOptions {
 		return Poll{}, ErrMinimumOptionsMustBeProvided
+	}
+
+	if len(options) > maximumOptions {
+		return Poll{}, ErrMaximumOptionsExceeded
 	}
 
 	votes := avl.NewTree()
@@ -81,37 +95,17 @@ func (poll *Poll) Vote(option string) error {
 	return nil
 }
 
-// Markdown generates a Markdown representation of the poll's results.
+// Markdown generates a Markdown representation of the poll's results, using a piechart.
 func (poll *Poll) Markdown() string {
-	totalVotes := poll.totalVotes()
+	slices := make([]piechart.PieSlice, len(poll.options))
 
-	result := poll.question + "\n"
-	result += "| Option | Votes | Percentage |\n"
-	result += "|:---|:---|:---|\n"
-
-	// Display each option as a row in the new table format.
-	for _, option := range poll.options {
-		voteCount := poll.VoteCount(option)
-
-		var percentage int64 = 0
-		if totalVotes > 0 {
-			percentage = (voteCount * 100) / totalVotes
+	for i, option := range poll.options {
+		slices[i] = piechart.PieSlice{
+			Value: float64(poll.VoteCount(option)),
+			Color: pieColors[i%len(pieColors)],
+			Label: option,
 		}
-
-		votes := strconv.FormatInt(voteCount, 10)
-		distribution := strconv.FormatInt(percentage, 10) + "%"
-
-		result += ufmt.Sprintf("| **%s** | %s | %s |\n", option, votes, distribution)
 	}
 
-	return result
-}
-
-func (poll *Poll) totalVotes() (total int64) {
-	poll.votes.IterateByOffset(0, poll.votes.Size(), func(key string, value any) bool {
-		total += value.(int64)
-		return false
-	})
-
-	return total
+	return piechart.Render(slices, poll.question)
 }

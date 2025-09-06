@@ -2,6 +2,8 @@ package strawpoll
 
 import (
 	"testing"
+
+	"gno.land/p/samcrew/piechart"
 )
 
 func TestCreatePoll(t *testing.T) {
@@ -27,6 +29,18 @@ func TestCreatePoll(t *testing.T) {
 		_, err := New(question, insufficientOptions)
 		if err != ErrMinimumOptionsMustBeProvided {
 			t.Errorf("expected error to be: %v, but got: %v", ErrMinimumOptionsMustBeProvided, err)
+		}
+	})
+
+	t.Run("TooManyOptions", func(t *testing.T) {
+		t.Parallel()
+
+		question := "What is your favorite color?"
+		excessiveOptions := []string{"Blue", "Green", "Red", "Yellow", "Purple", "Orange", "Pink", "Brown", "Black", "White", "Gray"}
+
+		_, err := New(question, excessiveOptions)
+		if err != ErrMaximumOptionsExceeded {
+			t.Errorf("expected error to be: %v, but got: %v", ErrMaximumOptionsExceeded, err)
 		}
 	})
 
@@ -120,14 +134,12 @@ func TestMarkdown(t *testing.T) {
 		t.Fatalf("failed to vote: %v", err)
 	}
 
-	want := `What is your favorite color?
-| Option | Votes | Percentage |
-|:---|:---|:---|
-| **Blue** | 1 | 100% |
-| **Green** | 0 | 0% |
-`
+	want := piechart.Render([]piechart.PieSlice{
+		{Value: 1, Label: options[0], Color: pieColors[0]},
+		{Value: 0, Label: options[1], Color: pieColors[1]},
+	}, question)
 
 	if poll.Markdown() != want {
-		t.Errorf("expected markdown to be: %q, but got: %q", want, poll.Markdown())
+		t.Errorf("expected markdown to render following piechart: %q, but got: %q", want, poll.Markdown())
 	}
 }

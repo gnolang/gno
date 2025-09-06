@@ -27,6 +27,16 @@ func TestCreatePoll(t *testing.T) {
 		}
 	})
 
+	t.Run("TooManyOptions", func(t *testing.T) {
+		question := "What is your favorite color?"
+		excessiveOptions := "Blue,Green,Red,Yellow,Purple,Orange,Pink,Brown,Black,White,Gray"
+
+		err := CreatePoll(cross, question, excessiveOptions)
+		if err != strawpoll.ErrMaximumOptionsExceeded {
+			t.Errorf("expected error to be: %v, but got: %v", strawpoll.ErrMaximumOptionsExceeded, err)
+		}
+	})
+
 	t.Run("Success", func(t *testing.T) {
 		question := "What is your favorite color?"
 		options := []string{"Blue", "Green"}
