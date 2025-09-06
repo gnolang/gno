@@ -1248,7 +1248,6 @@ func (m *Machine) Run(st Stage) {
 			// output each machine run results to file
 			bm.FinishNative()
 		}()
-
 	}
 	defer func() {
 		r := recover()

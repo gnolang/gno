@@ -1,6 +1,7 @@
 package benchops
 
 import (
+	"runtime"
 	"time"
 )
 
@@ -130,6 +131,7 @@ func StartNative(code byte) {
 	if !measure.nativeStartTime[code].Equal(measure.timeZero) {
 		panic("Can not start a non-stopped timer")
 	}
+	runtime.GC() // run GC before starting native code timing
 	measure.nativeStartTime[code] = time.Now()
 	measure.nativeCounts[code]++
 

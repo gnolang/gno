@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
@@ -19,6 +20,7 @@ var (
 const tmpFile = "benchmark.bin"
 
 func main() {
+	runtime.GOMAXPROCS(1) // for consistent benchmarking
 	flag.Parse()
 	if *binFlag != "" {
 		binFile, err := filepath.Abs(*binFlag)
