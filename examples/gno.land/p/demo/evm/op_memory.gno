@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math"
 
-	"gno.land/p/demo/uint256"
+	"gno.land/p/onbloc/uint256"
 )
 
 func getByteCopyFromMemory(memory []byte, offset *uint256.Uint, size *uint256.Uint) []byte {

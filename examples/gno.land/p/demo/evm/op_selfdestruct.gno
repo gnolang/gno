@@ -3,7 +3,7 @@ package evm
 import (
 	"errors"
 
-	"gno.land/p/demo/uint256"
+	"gno.land/p/onbloc/uint256"
 )
 
 func opSelfDestruct(s *state) error {

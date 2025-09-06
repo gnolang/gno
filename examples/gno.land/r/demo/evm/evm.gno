@@ -8,10 +8,10 @@ import (
 	"strings"
 
 	"gno.land/p/demo/evm"
-	"gno.land/p/demo/uint256"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/onbloc/uint256"
 )
 
 // global

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/evm/keccak256"
-	"gno.land/p/demo/uint256"
+	"gno.land/p/onbloc/uint256"
 )
 
 func opPush0(s *state) error {

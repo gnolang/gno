@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"gno.land/p/demo/evm/keccak256"
-	"gno.land/p/demo/uint256"
+	"gno.land/p/onbloc/uint256"
 )
 
 func opCreate(s *state) error {

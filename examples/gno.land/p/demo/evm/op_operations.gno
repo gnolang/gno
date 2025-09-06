@@ -3,7 +3,7 @@ package evm
 import (
 	"errors"
 
-	"gno.land/p/demo/uint256"
+	"gno.land/p/onbloc/uint256"
 )
 
 func opOperation(f func(a, b *uint256.Uint) *uint256.Uint) func(s *state) error {

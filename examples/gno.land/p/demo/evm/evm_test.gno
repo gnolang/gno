@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/demo/uint256"
+	"gno.land/p/onbloc/uint256"
 )
 
 func TestExecuteEvm(t *testing.T) {

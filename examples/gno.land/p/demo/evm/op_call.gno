@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math"
 
-	"gno.land/p/demo/uint256"
+	"gno.land/p/onbloc/uint256"
 )
 
 func getCallsVariables(stack *evmStack) (gas *uint256.Uint, addr *uint256.Uint, moneyToGive *uint256.Uint, argsOffset *uint256.Uint, argsSize *uint256.Uint, retOffset *uint256.Uint, retSize *uint256.Uint, err error) {

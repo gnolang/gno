@@ -1,7 +1,7 @@
 package evm
 
 import (
-	"gno.land/p/demo/uint256"
+	"gno.land/p/onbloc/uint256"
 )
 
 type OpCode byte

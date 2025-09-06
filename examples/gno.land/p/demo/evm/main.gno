@@ -3,7 +3,7 @@ package evm
 import (
 	"encoding/binary"
 
-	"gno.land/p/demo/uint256"
+	"gno.land/p/onbloc/uint256"
 )
 
 // for `gno run`

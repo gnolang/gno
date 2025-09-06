@@ -5,7 +5,7 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/uint256"
+	"gno.land/p/onbloc/uint256"
 )
 
 func TestCallSha256(t *testing.T) {
