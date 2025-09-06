@@ -3,44 +3,36 @@ package gauge
 
 import (
 	"gno.land/p/demo/svg"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
-// TODO: Doc
+// Render generates an SVG gauge bar.
+// Parameters:
+// - value: current value (must be <= total)
+// - total: maximum value (must be > 0)
+// - label: text label to display on the left side of the gauge
+// - color: color of the filled part of the gauge (e.g., "#4caf50")
+// - percentOnly: if true, only display the percentage on the right side; otherwise, display "value / total · percentage"
+// - width: width of the gauge in pixels
 func Render(value int, total int, label string, color string, percentOnly bool, width int) string {
-	if total <= 0 {
-		return "jauge fails: total must be greater than 0"
-	}
-	if value > total {
-		return "jauge fails: value cannot be greater than total"
-	}
-
 	canvasWidth := width
 	const (
 		canvasHeight = 30
 		fontSize     = 16
 		padding      = 6
 	)
-
-	println("total", total)
-	println("value", value)
+	canvas := svg.NewCanvas(canvasWidth, canvasHeight)
 
 	ratio := 0.0
 	if total > 0 {
 		ratio = float64(value) / float64(total)
-		println("value / total", value/total)
-
 	}
-
-	println("ratio", ratio)
 
 	leftText := label
 	rightText := ufmt.Sprintf("%d / %d · %0.0f%%", value, total, ratio*100)
 	if percentOnly {
 		rightText = ufmt.Sprintf("%0.0f%%", ratio*100)
 	}
-
-	canvas := svg.NewCanvas(canvasWidth, canvasHeight)
 
 	// Background
 	canvas.Append(svg.Rectangle{
@@ -52,7 +44,6 @@ func Render(value int, total int, label string, color string, percentOnly bool, 
 		RX:     2,
 		RY:     2,
 	})
-
 	// Filled bar
 	canvas.Append(svg.Rectangle{
 		X:      0,
@@ -63,7 +54,6 @@ func Render(value int, total int, label string, color string, percentOnly bool, 
 		RX:     2,
 		RY:     2,
 	})
-
 	// Left text (label)
 	canvas.Append(svg.Text{
 		X:    padding,
@@ -77,7 +67,6 @@ func Render(value int, total int, label string, color string, percentOnly bool, 
 			),
 		},
 	})
-
 	// Right text (ratio + %)
 	canvas.Append(svg.Text{
 		X:    canvasWidth - padding,

@@ -8,6 +8,7 @@ import (
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/avl/pager"
 	"gno.land/p/nt/ufmt"
+	"gno.land/p/samcrew/gauge"
 	"gno.land/p/samcrew/urlfilter"
 )
 
@@ -16,6 +17,10 @@ func RenderMembers(path string, members MembersByTier) string {
 	u, _ := url.Parse(path)
 	mdFilters, items := urlfilter.ApplyFilters(u, members.Tree, "filter")
 	var sb strings.Builder
+
+	sb.WriteString("\n\n\n")
+	sb.WriteString("\n\n\n" + gauge.Render(2, 1, "a", "#4caf50", false, 300))
+	sb.WriteString("\n\n\n")
 
 	sb.WriteString(md.Link("> Go to Tiers summary <", "/r/gov/dao/v3/memberstore") + "\n\n")
 	sb.WriteString(md.Bold("Filter members by tiers:"))
