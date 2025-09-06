@@ -6,16 +6,26 @@ import (
 	"gno.land/p/nt/ufmt"
 )
 
+type Config struct {
+	PercentOnly bool
+	Width       int
+}
+
+var DefaultConfig = Config{false, 300}
+
 // Render generates an SVG gauge bar.
 // Parameters:
 // - value: current value (must be <= total)
 // - total: maximum value (must be > 0)
 // - label: text label to display on the left side of the gauge
 // - color: color of the filled part of the gauge (e.g., "#4caf50")
-// - percentOnly: if true, only display the percentage on the right side; otherwise, display "value / total · percentage"
-// - width: width of the gauge in pixels
-func Render(value int, total int, label string, color string, percentOnly bool, width int) string {
-	canvasWidth := width
+// - config: configuration options:
+//   - PercentOnly: if true, only display the percentage on the right side; otherwise, display "value / total · percentage"
+//   - Width: width of the gauge in pixels
+//
+// Example usage: gauge.Render(30, 100, "Progress", "#4caf50", &gauge.Config{PercentOnly: true, Width: 400})
+func Render(value int, total int, label string, color string, config *Config) string {
+	canvasWidth := config.Width
 	const (
 		canvasHeight = 30
 		fontSize     = 16
@@ -30,7 +40,7 @@ func Render(value int, total int, label string, color string, percentOnly bool, 
 
 	leftText := label
 	rightText := ufmt.Sprintf("%d / %d · %0.0f%%", value, total, ratio*100)
-	if percentOnly {
+	if config.PercentOnly {
 		rightText = ufmt.Sprintf("%0.0f%%", ratio*100)
 	}
 
