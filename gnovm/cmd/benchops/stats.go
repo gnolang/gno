@@ -53,6 +53,10 @@ func stats(binFile string) {
 					opName = bm.StoreCodeString(record[1])
 				}
 
+				if record[2] != 0 {
+					opName = bm.NativeCodeString(record[2])
+				}
+
 				elapsedTime := binary.LittleEndian.Uint32(record[2:])
 				size := binary.LittleEndian.Uint32(record[6:])
 				outputCh <- codeRecord{opName, elapsedTime, size}

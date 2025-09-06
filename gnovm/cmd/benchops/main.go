@@ -46,6 +46,11 @@ func main() {
 	if bm.StorageEnabled {
 		benchmarkStorage(bstore, dir)
 	}
+
+	if bm.NativeEnabled {
+		benchmarkNative(bstore.gnoStore, dir)
+	}
+
 	bm.Finish()
 	stats(tmpFile)
 	err = os.Remove(tmpFile)

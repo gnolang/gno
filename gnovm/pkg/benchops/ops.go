@@ -63,6 +63,7 @@ var storeCodeNames = []string{
 }
 
 var nativeCodeNames = []string{
+	invalidNativeCode,
 	"NativePrint",
 	"NativePrintln",
 }

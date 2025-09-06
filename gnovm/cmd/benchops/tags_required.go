@@ -1,4 +1,4 @@
-//go:build !benchmarkingops && !benchmarkingstorage
+//go:build !benchmarkingops && !benchmarkingstorage && !benchmarkingnative
 
 package main
 

@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -852,7 +853,20 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
-			m.GasMeter.ConsumeGas(NativeCPUUversePrint, "CPUCycles")
+			if bm.NativeEnabled {
+				bm.StartNative(bm.NativePrint)
+				prevOutput := m.Output
+				m.Output = os.Stdout
+				defer func() {
+					bm.StopNative()
+					m.Output = prevOutput
+				}()
+			}
+
+			if m.GasMeter != nil {
+				m.GasMeter.ConsumeGas(NativeCPUUversePrint, "CPUCycles")
+			}
+
 			arg0 := m.LastBlock().GetParams1(m.Store)
 			uversePrint(m, arg0, false)
 		},
@@ -863,6 +877,20 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
+			if bm.NativeEnabled {
+				bm.StartNative(bm.NativePrintln)
+				prevOutput := m.Output
+				m.Output = os.Stdout
+				defer func() {
+					bm.StopNative()
+					m.Output = prevOutput
+				}()
+			}
+
+			if m.GasMeter != nil {
+				m.GasMeter.ConsumeGas(NativeCPUUversePrint, "CPUCycles")
+			}
+
 			arg0 := m.LastBlock().GetParams1(m.Store)
 			uversePrint(m, arg0, true)
 		},
