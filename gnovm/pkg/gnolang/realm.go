@@ -854,6 +854,11 @@ func (rlm *Realm) clearMarks() {
 		// but its state was not unset. see `processNewCreatedMarks`.
 		// (As a result, it will be garbage collected.)
 		// therefore, new real is allowed to exist here.
+		for _, oo := range rlm.newCreated {
+			if oo.GetIsNewReal() && oo.GetRefCount() != 0 {
+				panic("cannot clear marks if new created exist with refCount not zero")
+			}
+		}
 
 		for _, oo := range rlm.newEscaped {
 			if oo.GetIsNewEscaped() {
@@ -1449,7 +1454,10 @@ func fillTypesOfValue(store Store, val Value) Value {
 			fillTypesTV(store, &cur.Value)
 
 			fillValueTV(store, &cur.Key)
-			cv.vmap[cur.Key.ComputeMapKey(store, false)] = cur
+			mk, isNaN := cur.Key.ComputeMapKey(store, false)
+			if !isNaN {
+				cv.vmap[mk] = cur
+			}
 		}
 		return cv
 	case TypeValue:

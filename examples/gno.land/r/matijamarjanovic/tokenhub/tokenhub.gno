@@ -3,13 +3,13 @@ package tokenhub
 import (
 	"std"
 
-	"gno.land/p/demo/fqname"
-	"gno.land/p/demo/grc/grc20"
-	"gno.land/r/demo/grc20reg"
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/fqname"
+	"gno.land/r/demo/defi/grc20reg"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/grc/grc1155"
-	"gno.land/p/demo/grc/grc721"
+	"gno.land/p/demo/tokens/grc1155"
+	"gno.land/p/demo/tokens/grc721"
+	"gno.land/p/nt/avl"
 
 	"gno.land/r/leon/hor"
 )
@@ -31,7 +31,7 @@ func init() {
 	hor.Register(cross, "Token Hub", "Registry for tokens and NFTs on gno.land")
 }
 
-// RegisterToken is a function that uses gno.land/r/demo/grc20reg to register a token
+// RegisterToken is a function that uses gno.land/r/demo/defi/grc20reg to register a token
 // It uses the slug to construct a key and then registers the token in the registry
 // The logic is the same as in grc20reg, but it's done here so the key path is callers pkgpath and not of this realm
 // After doing so, the token hub realm uses grc20reg's registry as a read-only avl.Tree
