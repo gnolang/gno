@@ -20,7 +20,7 @@ import (
 
 // extractDependenciesFromTxs extracts dependencies from transactions and adds them to the paths slice and config.BalancesList.
 func extractDependenciesFromTxs(nodeConfig *gnodev.NodeConfig, paths *[]string) {
-	var defaultPremineBalance = std.Coins{std.NewCoin(ugnot.Denom, 10e12)}
+	defaultPremineBalance := std.Coins{std.NewCoin(ugnot.Denom, 10e12)}
 
 	for _, tx := range nodeConfig.InitialTxs {
 		for _, msg := range tx.Tx.Msgs {

@@ -84,7 +84,20 @@ func NewSysParamStringsPropRequestWithTitle(module, submodule, name, title strin
 		title,
 	)
 }
-
+func NewSysParamStringsAddPropRequestWithTitle(module, submodule, name, title string, value []string) dao.ProposalRequest {
+	return newPropRequest(
+		syskey(module, submodule, name),
+		func() { prms.UpdateSysParamStrings(module, submodule, name, value, true) },
+		title,
+	)
+}
+func NewSysParamStringsRemovePropRequestWithTitle(module, submodule, name, title string, value []string) dao.ProposalRequest {
+	return newPropRequest(
+		syskey(module, submodule, name),
+		func() { prms.UpdateSysParamStrings(module, submodule, name, value, false) },
+		title,
+	)
+}
 func newPropRequest(key string, fn func(), title string) dao.ProposalRequest {
 	callback := func(cur realm) error {
 		fn()

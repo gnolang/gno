@@ -18,6 +18,7 @@ type ParamsInterface interface {
 	SetUint64(key string, val uint64)
 	SetBytes(key string, val []byte)
 	SetStrings(key string, val []string)
+	UpdateStrings(key string, val []string, add bool)
 }
 
 func X_setParamString(m *gno.Machine, key, val string) {
@@ -48,6 +49,10 @@ func X_setParamBytes(m *gno.Machine, key string, val []byte) {
 func X_setParamStrings(m *gno.Machine, key string, val []string) {
 	pk := pkey(m, key)
 	GetContext(m).Params.SetStrings(pk, val)
+}
+func X_updateParamStrings(m *gno.Machine, key string, val []string, add bool) {
+	pk := pkey(m, key)
+	GetContext(m).Params.UpdateStrings(pk, val, add)
 }
 
 // NOTE: further validation must happen by implementor of ParamsInterface.
