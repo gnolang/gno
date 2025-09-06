@@ -30,7 +30,6 @@ type bench struct {
 	nativeStartTime [256]time.Time
 	isNativeStarted bool
 	curNativeCode   byte
-	timeZeroNative  time.Time
 }
 
 func InitMeasure() {
