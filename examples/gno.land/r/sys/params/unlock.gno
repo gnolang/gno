@@ -2,7 +2,6 @@ package params
 
 import (
 	"std"
-	"sys/params"
 
 	"gno.land/r/gov/dao"
 )
@@ -25,42 +24,19 @@ func ProposeLockTransferRequest() dao.ProposalRequest {
 }
 
 func ProposeAddUnrestrictedAcctsRequest(addrs ...std.Address) dao.ProposalRequest {
-
-	addrStrings := params.GetSysParamStrings(authModulePrefix, "p", unrestrictedAddrsKey)
-
-	// Temporary map for duplicate detection
-	existing := make(map[string]struct{}, len(addrStrings))
-	for _, s := range addrStrings {
-		existing[s] = struct{}{}
-	}
-
-	// Append only non-duplicate addresses
+	addrStrings := make([]string, 0, len(addrs))
 	for _, addr := range addrs {
 		s := addr.String()
-		if _, found := existing[s]; !found {
-			addrStrings = append(addrStrings, s)
-			existing[s] = struct{}{}
-		}
+		addrStrings = append(addrStrings, s)
 	}
-
-	return NewSysParamStringsPropRequestWithTitle(authModulePrefix, "p", unrestrictedAddrsKey, "Add unrestricted transfer accounts", addrStrings)
+	return NewSysParamStringsAddPropRequestWithTitle(authModulePrefix, "p", unrestrictedAddrsKey, "Add unrestricted transfer accounts", addrStrings)
 }
 
 func ProposeRemoveUnrestrictedAcctsRequest(addrs ...std.Address) dao.ProposalRequest {
-	addrStrings := params.GetSysParamStrings(authModulePrefix, "p", unrestrictedAddrsKey)
-
-	removeSet := make(map[string]struct{}, len(addrs))
-
+	addrStrings := make([]string, 0, len(addrs))
 	for _, addr := range addrs {
-		removeSet[addr.String()] = struct{}{}
+		s := addr.String()
+		addrStrings = append(addrStrings, s)
 	}
-
-	result := addrStrings[:0] // reuse original memory
-	for _, s := range addrStrings {
-		if _, found := removeSet[s]; !found {
-			result = append(result, s)
-		}
-	}
-
-	return NewSysParamStringsPropRequestWithTitle(authModulePrefix, "p", unrestrictedAddrsKey, "Remove unrestricted transfer accounts", result)
+	return NewSysParamStringsRemovePropRequestWithTitle(authModulePrefix, "p", unrestrictedAddrsKey, "Add unrestricted transfer accounts", addrStrings)
 }

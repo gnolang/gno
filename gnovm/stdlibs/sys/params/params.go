@@ -43,9 +43,10 @@ func X_setSysParamStrings(m *gno.Machine, module, submodule, name string, val []
 	std.GetContext(m).Params.SetStrings(pk, val)
 }
 
-func X_getSysParamStrings(m *gno.Machine, module, submodule, name string) []string {
+func X_updateSysParamStrings(m *gno.Machine, module, submodule, name string, val []string, add bool) {
+	assertSysParamsRealm(m)
 	pk := prmkey(module, submodule, name)
-	return std.GetContext(m).Params.GetStrings(pk)
+	std.GetContext(m).Params.UpdateStrings(pk, val, add)
 }
 
 func assertSysParamsRealm(m *gno.Machine) {
