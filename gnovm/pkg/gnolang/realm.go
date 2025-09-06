@@ -823,9 +823,9 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 	// NOTE: also sets the hash to object.
 	rlm.sumDiff += store.SetObject(oo)
 	// set index.
-	if oo.GetIsEscaped() {
-		// XXX save oid->hash to iavl.
-	}
+	// if oo.GetIsEscaped() {
+	// XXX save oid->hash to iavl.
+	// }
 }
 
 //----------------------------------------
@@ -854,6 +854,11 @@ func (rlm *Realm) clearMarks() {
 		// but its state was not unset. see `processNewCreatedMarks`.
 		// (As a result, it will be garbage collected.)
 		// therefore, new real is allowed to exist here.
+		for _, oo := range rlm.newCreated {
+			if oo.GetIsNewReal() && oo.GetRefCount() != 0 {
+				panic("cannot clear marks if new created exist with refCount not zero")
+			}
+		}
 
 		for _, oo := range rlm.newEscaped {
 			if oo.GetIsNewEscaped() {
@@ -1448,7 +1453,11 @@ func fillTypesOfValue(store Store, val Value) Value {
 			fillTypesTV(store, &cur.Key)
 			fillTypesTV(store, &cur.Value)
 
-			cv.vmap[cur.Key.ComputeMapKey(store, false)] = cur
+			fillValueTV(store, &cur.Key)
+			mk, isNaN := cur.Key.ComputeMapKey(store, false)
+			if !isNaN {
+				cv.vmap[mk] = cur
+			}
 		}
 		return cv
 	case TypeValue:
@@ -1531,11 +1540,12 @@ func toRefValue(val Value) RefValue {
 			}
 		} else if !oo.GetIsReal() {
 			panic("unexpected unreal object")
-		} else if oo.GetIsDirty() {
-			// This can happen with some circular
-			// references.
-			// panic("unexpected dirty object")
 		}
+		// This can happen with some circular
+		// references.
+		// else if oo.GetIsDirty() {
+		// panic("unexpected dirty object")
+		// }
 		if oo.GetIsNewEscaped() {
 			// NOTE: oo.GetOwnerID() will become zero.
 			return RefValue{

@@ -5,14 +5,14 @@ import (
 	"std"
 	"time"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/helplink"
+	"gno.land/p/nt/ufmt"
 )
 
 var posts []*Post // inefficient for large amounts of posts; see v2
 
 // CreatePost creates a new post
-func CreatePost(cur realm, text string) error {
+func CreatePost(_ realm, text string) error {
 	// If the body of the post is empty, return an error
 	if text == "" {
 		return errors.New("empty post text")

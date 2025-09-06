@@ -25,7 +25,7 @@ func TestParamsSetCmd(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		cfg := &paramsCfg{}
@@ -58,7 +58,7 @@ func TestParamsSetCmd(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		appState := genesis.AppState.(gnoland.GnoGenesisState)
 		appState.VM.Params.ChainDomain = "gno.land"
 		genesis.AppState = appState
@@ -86,7 +86,7 @@ func TestParamsSetCmd(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		appState := genesis.AppState.(gnoland.GnoGenesisState)
 		appState.Auth.Params.FeeCollector = crypto.Address{}
 		genesis.AppState = appState
@@ -98,7 +98,7 @@ func TestParamsSetCmd(t *testing.T) {
 		io := commands.NewTestIO()
 		cmd := newParamsSetCmd(cfg, io)
 
-		addr := common.GetDummyKey(t)
+		addr := common.DummyKey(t)
 		args := []string{"auth.fee_collector", addr.Address().String()}
 		err := cmd.ParseAndRun(context.Background(), args)
 		require.NoError(t, err)
@@ -115,7 +115,7 @@ func TestParamsSetCmd(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		appState := genesis.AppState.(gnoland.GnoGenesisState)
 		appState.Auth.Params.UnrestrictedAddrs = []crypto.Address{}
 		genesis.AppState = appState
@@ -127,7 +127,7 @@ func TestParamsSetCmd(t *testing.T) {
 		io := commands.NewTestIO()
 		cmd := newParamsSetCmd(cfg, io)
 
-		addr1, addr2 := common.GetDummyKey(t), common.GetDummyKey(t)
+		addr1, addr2 := common.DummyKey(t), common.DummyKey(t)
 		args := []string{"auth.unrestricted_addrs", addr1.Address().String(), addr2.Address().String()}
 		err := cmd.ParseAndRun(context.Background(), args)
 		require.NoError(t, err)
@@ -145,7 +145,7 @@ func TestParamsSetCmd(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		appState := genesis.AppState.(gnoland.GnoGenesisState)
 		appState.Auth.Params.MaxMemoBytes = 2048
 		genesis.AppState = appState
@@ -172,7 +172,7 @@ func TestParamsSetCmd(t *testing.T) {
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		appState := genesis.AppState.(gnoland.GnoGenesisState)
 		appState.Auth.Params.InitialGasPrice = std.GasPrice{
 			Gas: 10, Price: std.MustParseCoin("3ugnot"),

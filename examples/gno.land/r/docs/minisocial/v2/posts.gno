@@ -6,11 +6,11 @@ import (
 	"strconv"
 	"time"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/avl/pager"
-	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/pager"
+	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/ufmt"
 
 	"gno.land/r/sys/users"
 )
@@ -28,7 +28,7 @@ var (
 )
 
 // CreatePost creates a new post
-func CreatePost(cur realm, text string) error {
+func CreatePost(_ realm, text string) error {
 	if text == "" {
 		return ErrEmptyPost
 	}
@@ -54,7 +54,7 @@ func CreatePost(cur realm, text string) error {
 
 // UpdatePost allows the author to update a post
 // The post can only be updated up to 10 minutes after posting
-func UpdatePost(cur realm, id string, text string) error {
+func UpdatePost(_ realm, id string, text string) error {
 	// Try to get the post
 	raw, ok := posts.Get(id)
 	if !ok {
@@ -80,7 +80,7 @@ func UpdatePost(cur realm, id string, text string) error {
 
 // DeletePost deletes a post with a specific id
 // Only the creator of a post can delete the post
-func DeletePost(cur realm, id string) error {
+func DeletePost(_ realm, id string) error {
 	// Try to get the post
 	raw, ok := posts.Get(id)
 	if !ok {

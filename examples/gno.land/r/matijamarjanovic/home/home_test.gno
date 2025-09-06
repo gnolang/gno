@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 )
 
 func TestUpdatePFP(t *testing.T) {

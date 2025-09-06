@@ -3,7 +3,7 @@ package home
 import (
 	"std"
 
-	"gno.land/p/demo/ownable"
+	"gno.land/p/nt/ownable"
 )
 
 type Config struct {
@@ -24,7 +24,7 @@ func GetConfig() Config {
 	return config
 }
 
-func UpdateConfig(newTitle, newDescription, newGithub string) {
+func UpdateConfig(_ realm, newTitle, newDescription, newGithub string) {
 	Ownable.AssertOwnedByPrevious()
 	config.Title = newTitle
 	config.Description = newDescription

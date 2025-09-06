@@ -11,9 +11,9 @@ Standard libraries differ from on-chain packages in terms of their import path s
 Unlike on-chain [packages](./gno-packages.md), standard libraries do not incorporate
 a domain-like format at the beginning of their import path. For example:
 - `import "strings"` refers to a standard library
-- `import "gno.land/p/demo/avl"` refers to an on-chain package.
+- `import "gno.land/p/nt/avl"` refers to an on-chain pure package.
 
-To see concrete implementation details & API references of the `std` pacakge,
+To see concrete implementation details & API references of the `std` package,
 see the reference section.
 
 ## Accessing documentation

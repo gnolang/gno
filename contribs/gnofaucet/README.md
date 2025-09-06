@@ -4,7 +4,7 @@
 
 Make sure you have started gnoland
     
-    ../../gno.land/build/gnoland start -lazy
+    ../../gno.land/build/gnoland start -lazy -skip-genesis-sig-verification
 
 ## Step2:
 
