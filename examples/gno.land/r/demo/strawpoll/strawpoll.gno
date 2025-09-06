@@ -60,7 +60,7 @@ func Render(_ string) string {
 
 	for id, poll := range polls[startIdx:] {
 		pollNumber := 1 + startIdx + id
-		result += "## " + strconv.Itoa(pollNumber) + ") " + poll.Markdown()
+		result += "# " + strconv.Itoa(pollNumber) + ")\n" + poll.Markdown()
 		result += "\n---\n\n"
 	}
 
