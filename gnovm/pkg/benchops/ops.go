@@ -1,5 +1,7 @@
 package benchops
 
+import "fmt"
+
 // store code
 const (
 	// gno store
@@ -32,11 +34,26 @@ const (
 
 // native code
 const (
-	NativePrint   byte = 0x01 // print to console
-	NativePrintln byte = 0x02 // print line to console
+	NativePrint      byte = 0x01 // print to console
+	NativePrint_1    byte = 0x02 // print to console
+	NativePrint_10   byte = 0x03
+	NativePrint_1000 byte = 0x04 // print 1000 times to console
 
 	invalidNativeCode string = "NativeInvalid"
 )
+
+func GetNativePrintCode(size int) byte {
+	switch size {
+	case 1:
+		return NativePrint_1
+	case 10:
+		return NativePrint_10
+	case 1000:
+		return NativePrint_1000
+	default:
+		panic(fmt.Sprintf("invalid print size: %d", size))
+	}
+}
 
 // the index of the code string should match with the constant code number above.
 var storeCodeNames = []string{
@@ -65,7 +82,9 @@ var storeCodeNames = []string{
 var nativeCodeNames = []string{
 	invalidNativeCode,
 	"NativePrint",
-	"NativePrintln",
+	"NativePrint_1",
+	"NativePrint_10",
+	"NativePrint_1000",
 }
 
 type Code [3]byte
