@@ -157,7 +157,7 @@ func TestStart_Lazy(t *testing.T) {
 
 			// Check that rpc endpoint is correctly listening on our socket
 			require.EventuallyWithT(t, func(c *assert.CollectT) {
-				info, qerr := cli.ABCIInfo()
+				info, qerr := cli.ABCIInfo(gCtx)
 				require.NoError(c, qerr)
 				require.NoError(c, info.Response.Error)
 			}, time.Until(deadline), time.Millisecond*500, "rpc: unable get node infos")
@@ -166,7 +166,7 @@ func TestStart_Lazy(t *testing.T) {
 
 			// Check the node as fully loaded by checking rpc qpaths endpoint
 			require.EventuallyWithT(t, func(c *assert.CollectT) {
-				qres, qerr := cli.ABCIQuery("vm/qpaths", []byte("gno.land"))
+				qres, qerr := cli.ABCIQuery(gCtx, "vm/qpaths", []byte("gno.land"))
 				require.NoError(c, qerr)
 				require.NoError(c, qres.Response.Error)
 				paths := strings.Split(string(qres.Response.Data), "\n")

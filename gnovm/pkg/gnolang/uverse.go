@@ -1120,7 +1120,7 @@ func makeUverseNode() {
 			}
 		},
 	)
-	uverseValue = uverseNode.NewPackage()
+	uverseValue = uverseNode.NewPackage(nilAllocator)
 }
 
 func copyDataToList(dst []TypedValue, data []byte, et Type) {

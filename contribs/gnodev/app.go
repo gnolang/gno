@@ -467,7 +467,7 @@ func (ds *App) handleKeyPress(ctx context.Context, key rawterm.KeyPress) {
 		ds.logger.Info("Gno Dev Helper", "helper", helper)
 
 	case rawterm.KeyA: // Accounts
-		logAccounts(ds.logger.WithGroup(AccountsLogName), ds.book, ds.devNode)
+		logAccounts(ctx, ds.logger.WithGroup(AccountsLogName), ds.book, ds.devNode)
 
 	case rawterm.KeyR: // Reload
 		ds.logger.WithGroup(NodeLogName).Info("reloading...")
