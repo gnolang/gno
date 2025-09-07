@@ -158,7 +158,7 @@ repay-gns:
 	@echo
 
 	# THEN REPAY
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos/core -func Repay -args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000:0" -args 50 -args 0 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos/core -func Repay -args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000:0" -args 37000000000 -args 0 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
 	@echo
 
 # Test liquidating GNS position
@@ -260,4 +260,10 @@ test-flashloan:
 get-volos-address:
 	$(info ************ Getting Volos Contract Address ************)
 	gnokey query vm/qeval -remote $(GNOLAND_RPC_URL) -data "gno.land/r/volos/core.GetAddress()"
+	@echo
+
+# Test calculate borrow APR for GNS-WUGNOT market
+test-calculate-borrow-apr:
+	$(info ************ Testing Calculate Borrow APR ************)
+	gnokey query vm/qeval -remote $(GNOLAND_RPC_URL) -data "gno.land/r/volos/core.CalculateBorrowAPR(\"gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000:0\")"
 	@echo
