@@ -89,17 +89,12 @@ func CalculateSupplyRate(marketId string) *u256.Uint {
 	irm := GetIRM(params.IRM)
 	borrowRate := irm.BorrowRate(market.TotalSupplyAssets, market.TotalBorrowAssets)
 
-	// Calculate utilization rate: totalBorrow / totalSupply
-	utilizationRate := math.WDivDown(market.TotalBorrowAssets, market.TotalSupplyAssets)
-
 	// Calculate fee-adjusted borrow rate
 	feeFactor := new(u256.Uint).Sub(consts.WAD, market.Fee) // (1 - fee)
 
-	// Supply rate = borrow rate * utilization rate * (1 - fee)
-	// This formula accounts for:
-	// 1. Interest is only earned on the portion of funds being borrowed (utilization)
-	// 2. A portion of interest (the fee) goes to the fee recipient
-	return math.WMulDown(math.WMulDown(borrowRate, utilizationRate), feeFactor)
+	// Supply rate = borrow rate * (1 - fee)
+	// This is the base supply rate before utilization adjustment
+	return math.WMulDown(borrowRate, feeFactor)
 }
 
 // CalculateBorrowAPR returns the current borrow APR (scaled by WAD)
