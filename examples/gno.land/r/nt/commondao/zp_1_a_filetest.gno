@@ -43,7 +43,7 @@ func main() {
 		panic("expected proposal to be created")
 	}
 
-	println(p.Status() == pcommondao.StatusActive)
+	println(string(p.Status()))
 	println(p.Creator() == user)
 	println(p.Definition().Title() == title)
 	println(p.VotingDeadline())
@@ -51,7 +51,7 @@ func main() {
 }
 
 // Output:
-// true
+// active
 // true
 // true
 // 2009-02-14 23:31:30 +0000 UTC
