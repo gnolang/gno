@@ -208,9 +208,9 @@ on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/nt/se
 
 ## Exploring Deployed Packages
 
-You can explore all deployed packages using gnoweb.
-
-<!--XXX: link to package listing when the feature will be released.-->
+You can explore all deployed packages using gnoweb. For example, you can visit the
+[`gnoland`](https://gno.land/r/gnoland/) namespace to see all packages that have 
+been deployed there.
 
 This provides transparency and allows you to learn from existing code.
 
