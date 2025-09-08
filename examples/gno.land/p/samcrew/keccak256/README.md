@@ -1,6 +1,6 @@
 # `keccak256` - Keccak-256 hashing
 
-Keccak-256 cryptographic hash function implementation, commonly used in Ethereum. This is a port of Go's x/crypto/sha3 package.
+Keccak-256 cryptographic hash function implementation. There is a port of Go's x/crypto/sha3 package.
 
 ## Usage
 
