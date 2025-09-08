@@ -20,3 +20,6 @@ func TestTest(t *testing.T) {
 }
 
 -- stderr.golden --
+
+-- gnomod.toml --
+module = 'gno.test/r/integ/main'
