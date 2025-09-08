@@ -3,7 +3,7 @@ package client
 import (
 	"bytes"
 	"crypto/sha256"
-	"io"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -22,10 +22,11 @@ type mockPasswordIO struct {
 
 func (m *mockPasswordIO) GetPassword(prompt string, insecure bool) (string, error) {
 	if m.pwIndex >= len(m.passwords) {
-		return "", io.EOF
+		return "", fmt.Errorf("no more passwords in mock (prompt: %q, index: %d/%d)", prompt, m.pwIndex, len(m.passwords))
 	}
 	pw := m.passwords[m.pwIndex]
 	m.pwIndex++
+	// fmt.Printf("DEBUG: GetPassword[%d] prompt=%q, returning: %q\n", m.pwIndex-1, prompt, pw)
 	return pw, nil
 }
 
