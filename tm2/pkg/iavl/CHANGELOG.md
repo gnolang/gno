@@ -12,6 +12,7 @@
   - Remove `iavl/cmd/legacydump` which was used for a past migration
   - Remove `iavl/proto`, define `KVPair` and `Changeset` types in `diff.go` w/o using protobuf
   - Remove `iavl/internal/rand`, use `tm2/pkg/random` instead
+  - Remove `iavl/internal/color`, use `tm2/pkg/colors` instead
 
 ## 0.12.4 (July 31, 2019)
 
