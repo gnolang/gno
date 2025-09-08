@@ -61,15 +61,17 @@ func NewRepl(opts ...ReplOption) *Repl {
 	r.input = os.Stdin
 	r.output = os.Stdout
 	r.errput = os.Stderr
-	_, r.store = test.TestStore(gnoenv.RootDir(), test.OutputWithError(r.output, r.errput))
+	_, r.store = test.TestStore(gnoenv.RootDir(), test.OutputWithError(r.output, r.errput), nil)
+
+	var nilAllocator = (*gno.Allocator)(nil)
 	r.pn = gno.NewPackageNode("repl", r.pkgPath, &gno.FileSet{})
-	r.pv = r.pn.NewPackage()
+	r.pv = r.pn.NewPackage(nilAllocator)
 	r.fn = &gno.FileNode{
 		FileName: "<repl>",
 		PkgName:  "repl",
 		Decls:    nil,
 	}
-	r.fb = gno.NewBlock(r.fn, r.pv.GetBlock(r.store))
+	r.fb = gno.NewBlock(nilAllocator, r.fn, r.pv.GetBlock(r.store))
 	for _, opt := range opts {
 		opt(r)
 	}

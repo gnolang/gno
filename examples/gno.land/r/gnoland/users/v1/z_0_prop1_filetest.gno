@@ -6,7 +6,7 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/testutils"
+	"gno.land/p/nt/testutils"
 	users "gno.land/r/gnoland/users/v1"
 	"gno.land/r/gov/dao"
 	daov3init "gno.land/r/gov/dao/v3/init"
@@ -62,7 +62,10 @@ func main() {
 
 // Output:
 // --
-// # GovDAO Proposals
+// # GovDAO
+// ## Members
+// [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
+// ## Proposals
 // ### [Prop #0 - User Registry V1: Rename user `alice123` to `alice_new123`](/r/gov/dao:0)
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
