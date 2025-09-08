@@ -293,7 +293,7 @@ main purpose in Gno is for discoverability. This shift towards user-centric
 documentation reflects the broader shift in Gno towards making code more
 accessible and understandable for all users, not just developers.
 
-Here's an example from [grc20](https://gno.land/p/demo/grc/grc20$source&file=types.gno)
+Here's an example from [grc20](https://gno.land/p/demo/tokens/grc20$source&file=types.gno)
 to illustrate the concept:
 
 ```go
@@ -399,13 +399,13 @@ don't expect that other people will use your helpers, then you should probably
 use subdirectories like `p/NAMESPACE/DAPP/foo/bar/baz`.
 
 Packages which contain `internal` as an element of the path (ie. at the end, or
-in between, like `gno.land/p/demo/seqid/internal`, or
-`gno.land/p/demo/seqid/internal/base32`) can only be imported by packages
+in between, like `gno.land/p/nt/seqid/internal`, or
+`gno.land/p/nt/seqid/internal/base32`) can only be imported by packages
 sharing the same root as the `internal` package. That is, given a package
 structure as follows:
 
 ```
-gno.land/p/demo/seqid
+gno.land/p/nt/seqid
 ├── generator
 └── internal
     ├── base32
@@ -765,7 +765,7 @@ Coins, or flexibility and control with GRC20 tokens. And if you want the
 best of both worlds, you can wrap a Coins into a GRC20 compatible token.
 
 ```go
-import "gno.land/p/demo/grc/grc20"
+import "gno.land/p/demo/tokens/grc20"
 
 var fooToken = grc20.NewBanker("Foo Token", "FOO", 4)
 
@@ -775,7 +775,7 @@ func MyBalance(_ realm) uint64 {
 }
 ```
 
-See also: https://gno.land/r/demo/foo20
+See also: https://gno.land/r/demo/defi/foo20
 
 #### Wrapping Coins
 
@@ -784,7 +784,7 @@ your coins the flexibility of GRC20 while keeping the security of Coins.
 It's a bit more complex, but it's a powerful option that offers great
 versatility.
 
-See also: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/wugnot
+See also: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland/wugnot
 
 <!-- TODO:
 

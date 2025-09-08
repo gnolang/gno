@@ -3,7 +3,7 @@ package disperse
 import (
 	"std"
 
-	tokens "gno.land/r/demo/grc20factory"
+	tokens "gno.land/r/demo/defi/grc20factory"
 )
 
 var realmAddr = std.CurrentRealm().Address()

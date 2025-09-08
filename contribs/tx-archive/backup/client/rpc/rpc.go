@@ -48,7 +48,7 @@ func NewWSClient(remote string) (*Client, error) {
 }
 
 func (c *Client) GetLatestBlockNumber() (uint64, error) {
-	status, err := c.client.Status(context.Background())
+	status, err := c.client.Status(context.Background(), nil)
 	if err != nil {
 		return 0, fmt.Errorf(
 			"unable to fetch latest block number, %w",

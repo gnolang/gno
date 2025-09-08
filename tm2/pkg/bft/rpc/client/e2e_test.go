@@ -176,7 +176,7 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 				},
 			},
 			func(client *RPCClient, expectedResult any) {
-				status, err := client.Status(context.Background())
+				status, err := client.Status(context.Background(), nil)
 				require.NoError(t, err)
 
 				assert.Equal(t, expectedResult, status)

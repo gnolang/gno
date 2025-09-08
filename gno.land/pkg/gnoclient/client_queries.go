@@ -107,7 +107,7 @@ func (c *Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCI
 // QEval evaluates the given expression with the realm code at pkgPath. The pkgPath should
 // include the prefix like "gno.land/". The expression is usually a function call like
 // "GetBoardIDFromName(\"testboard\")". The return value is a typed expression like
-// "(1 gno.land/r/demo/boards.BoardID)\n(true bool)".
+// "(1 gno.land/r/archive/boards.BoardID)\n(true bool)".
 func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return "", nil, err
@@ -171,7 +171,7 @@ func (c *Client) LatestBlockHeight() (int64, error) {
 		return 0, ErrMissingRPCClient
 	}
 
-	status, err := c.RPCClient.Status(context.Background())
+	status, err := c.RPCClient.Status(context.Background(), nil)
 	if err != nil {
 		return 0, fmt.Errorf("block number query failed: %w", err)
 	}

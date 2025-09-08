@@ -526,8 +526,8 @@ func TestDataLoad(t *testing.T) {
 
 			res, err := Load(conf, tc.patterns...)
 
-			fmt.Println("loader output:")
-			fmt.Println(outBuf.String())
+			t.Log("loader output:")
+			t.Log(outBuf.String())
 
 			if tc.errShouldContain == "" {
 				require.NoError(t, err)

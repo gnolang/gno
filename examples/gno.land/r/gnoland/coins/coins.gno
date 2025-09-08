@@ -22,12 +22,12 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/demo/mux"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/leon/coinsort"
 	"gno.land/p/leon/ctg"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
+	"gno.land/p/nt/mux"
+	"gno.land/p/nt/ufmt"
 
 	"gno.land/r/sys/users"
 )

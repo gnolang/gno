@@ -4,8 +4,8 @@
 adduser regular1
 
 
-loadpkg gno.land/r/demo/wugnot
-loadpkg gno.land/r/demo/echo
+loadpkg gno.land/r/gnoland/wugnot
+loadpkg gno.land/r/archive/echo
 
 ## start a new node.
 ## The -lock-transfer flag is intended for integration testing purposes
@@ -24,7 +24,7 @@ stdout 'OK!'
 stderr 'restricted token transfer error'
 
 ## Restricted token transfer by calling a realm deposit function.
-! gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Deposit -gas-fee 1000000ugnot -send "10000ugnot" -gas-wanted 2000000 -broadcast -chainid=tendermint_test regular1
+! gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Deposit -gas-fee 1000000ugnot -send "10000ugnot" -gas-wanted 2000000 -broadcast -chainid=tendermint_test regular1
 stderr 'restricted token transfer error'
 
 
@@ -37,7 +37,7 @@ gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/bank2 -gas-fee 1000000ugn
 stdout 'OK!'
 
 ## paying gas fees to call a realm function is acceptable.
-gnokey query vm/qrender --data 'gno.land/r/demo/echo:Hello!'
+gnokey query vm/qrender --data 'gno.land/r/archive/echo:Hello!'
 stdout 'Hello!'
 
 -- gnomod.toml --

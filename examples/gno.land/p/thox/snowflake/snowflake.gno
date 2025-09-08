@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/entropy"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 const (
