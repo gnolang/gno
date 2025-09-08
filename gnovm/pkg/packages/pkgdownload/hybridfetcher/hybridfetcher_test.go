@@ -96,7 +96,7 @@ func Hello() string {
 						}
 					}
 					require.NotNil(t, testFile, "test.gno file should exist")
-					assert.Contains(t, string(testFile.Body), "Hello from test")
+					assert.Contains(t, testFile.Body, "Hello from test")
 				}
 			} else {
 				require.Error(t, err)
@@ -116,7 +116,6 @@ func (m *mockPackageFetcher) FetchPackage(pkgPath string) ([]*std.MemFile, error
 	return nil, nil
 }
 
-// Ensure interfaces are implemented
 var _ pkgdownload.PackageFetcher = (*HybridFetcher)(nil)
 var _ pkgdownload.PackageFetcher = (*localDirFetcher)(nil)
 var _ pkgdownload.PackageFetcher = (*mockPackageFetcher)(nil)
