@@ -196,6 +196,8 @@ func emitRepay(marketId string, caller std.Address, onBehalf std.Address, assets
 	// Calculate APRs after repay operation
 	supplyAPR := CalculateSupplyAPR(marketId)
 	borrowAPR := CalculateBorrowAPR(marketId)
+	utilization := calculateUtilization(marketId)
+
 
 	std.Emit(
 		RepayEvent,
@@ -207,6 +209,7 @@ func emitRepay(marketId string, caller std.Address, onBehalf std.Address, assets
 		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 		EventSupplyAPRKey, supplyAPR.ToString(),
 		EventBorrowAPRKey, borrowAPR.ToString(),
+		EventUtilizationKey, utilization.ToString(),
 	)
 }
 
