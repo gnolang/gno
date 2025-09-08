@@ -17,6 +17,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/hybridfetcher"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -191,8 +192,14 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		cmd.rootDir = gnoenv.RootDir()
 	}
 
+	// Use hybrid fetcher for tests if no test fetcher is set
+	fetcher := testPackageFetcher
+	if fetcher == nil {
+		fetcher = hybridfetcher.New(nil, cmd.verbose)
+	}
+
 	loadConf := packages.LoadConfig{
-		Fetcher:    testPackageFetcher,
+		Fetcher:    fetcher,
 		Out:        io.Err(),
 		Deps:       true,
 		Test:       true,
