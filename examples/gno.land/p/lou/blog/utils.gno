@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/ufmt"
 )
 
 func renderLinks(prefix, kind string, values []string, labelPrefix string) string {

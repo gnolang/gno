@@ -9,18 +9,18 @@ package blog
 // 	"gno.land/p/demo/urequire"
 // )
 
-// func testUserResolver(input string) (string, bool) {
-// 	switch input {
-// 	case "g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs":
-// 		return "authorone", true
-// 	case "g14x2crt492f84shxa9s7e5ulk7lnf2p3euz7r9n":
-// 		return "commenter1", true
-// 	case "g1ffzxha57dh0qgv9ma5v393ur0zexfvp6lsjpae":
-// 		return "replyuser", true
-// 	default:
-// 		return "", false
-// 	}
-// }
+func testUserResolver(input string) (string, bool) {
+	switch input {
+	case "g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs":
+		return "authorone", true
+	case "g14x2crt492f84shxa9s7e5ulk7lnf2p3euz7r9n":
+		return "commenter1", true
+	case "g1ffzxha57dh0qgv9ma5v393ur0zexfvp6lsjpae":
+		return "replyuser", true
+	default:
+		return "", false
+	}
+}
 
 // func TestBlogRenderBasic(t *testing.T) { // authorizable
 // 	user := std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs")

@@ -3,7 +3,7 @@ package blog
 import (
 	"testing"
 
-	"gno.land/p/demo/uassert"
+	"gno.land/p/nt/uassert"
 )
 
 func TestParseRenderOptions(t *testing.T) {

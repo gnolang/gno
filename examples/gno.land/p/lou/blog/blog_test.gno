@@ -8,27 +8,27 @@ package blog
 
 // Blog renders correctly with one post and no comments.
 
-
 import (
 	"std"
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 )
 
 func clearState(t *testing.T) {
 	t.Helper()
 
-// 	b = &blog.Blog{
-// 		Title:  "gno.land's blog",
-// 		Prefix: "/r/gnoland/blog:",
-// 	}
-// 	adminAddr = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
-// 	inPause = false
-// 	moderatorList = avl.NewTree()
-// 	commenterList = avl.NewTree()
+	//	b = &blog.Blog{
+	//		Title:  "gno.land's blog",
+	//		Prefix: "/r/gnoland/blog:",
+	//	}
+	//
+	// adminAddr = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+	// inPause = false
+	// moderatorList = avl.NewTree()
+	// commenterList = avl.NewTree()
 }
 
 func TestBlogRenderBasicB(t *testing.T) {
