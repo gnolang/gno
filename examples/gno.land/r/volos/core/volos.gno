@@ -861,7 +861,7 @@ func accrueInterest(marketId string) {
 	market.LastUpdate = now
 	markets.Set(marketId, market)
 
-	emitAccrueInterest(marketId, borrowRate, interest)
+	emitAccrueInterest(marketId, borrowRate, interest, market.TotalSupplyAssets, market.TotalBorrowAssets)
 }
 
 /* HEALTH CALCULATIONS */

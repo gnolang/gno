@@ -5,6 +5,7 @@ import (
 
 	"gno.land/p/demo/grc/grc20"
 	u256 "gno.land/p/gnoswap/uint256"
+	"gno.land/p/volos/math"
 
 	"gno.land/r/demo/grc20reg"
 	"gno.land/r/gnoswap/v1/pool"
@@ -148,4 +149,16 @@ func IsIRMEnabled(irm string) {
 	if !exists {
 		panic(ErrIRMNotEnabled)
 	}
+}
+
+// calculateUtilization calculates the utilization rate for a market
+// Returns utilization as a WAD-scaled value (totalBorrow / totalSupply)
+func calculateUtilization(marketId string) *u256.Uint {
+	market, _ := GetMarket(marketId)
+	
+	if market.TotalSupplyAssets.IsZero() {
+		return u256.Zero()
+	}
+	
+	return math.WDivDown(market.TotalBorrowAssets, market.TotalSupplyAssets)
 }
