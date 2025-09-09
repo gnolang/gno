@@ -4,7 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/aib/ibc/lightclient"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 type client struct {

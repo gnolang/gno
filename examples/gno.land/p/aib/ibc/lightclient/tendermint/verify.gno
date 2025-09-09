@@ -3,7 +3,7 @@ package tendermint
 import (
 	"bytes"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 func (tm *TMLightClient) verifyHeader(header *MsgHeader) error {
