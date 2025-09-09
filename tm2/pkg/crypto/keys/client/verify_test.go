@@ -92,6 +92,7 @@ func Test_execVerify(t *testing.T) {
 			},
 		},
 		DocPath:         "",
+		Signature:       signedTxBase64,
 		AccountNumber:   accountNumber,
 		AccountSequence: accountSequence,
 		ChainID:         chainID,
@@ -104,25 +105,26 @@ func Test_execVerify(t *testing.T) {
 	assert.NoError(t, err)
 
 	// good signature passes test.
-	args := []string{fakeKeyName1, signedTxBase64}
+	args := []string{fakeKeyName1}
 	io.SetIn(
 		strings.NewReader(
 			fmt.Sprintf("%s\n", encodedTx),
 		),
 	)
-	err = execVerify(cfg, args, io)
+	err = execVerify(context.Background(), cfg, args, io)
 	assert.NoError(t, err)
 
 	// mutated bad signature fails test.
 	testBadSig := testutils.MutateByteSlice(signedTx.PubKey.Bytes())
 	badSignedTxBase64 := base64.StdEncoding.EncodeToString(testBadSig)
-	args = []string{fakeKeyName1, badSignedTxBase64}
+	cfg.Signature = badSignedTxBase64
+	args = []string{fakeKeyName1}
 	io.SetIn(
 		strings.NewReader(
 			fmt.Sprintf("%s\n", encodedTx),
 		),
 	)
-	err = execVerify(cfg, args, io)
+	err = execVerify(context.Background(), cfg, args, io)
 	assert.Error(t, err)
 }
 
@@ -250,9 +252,6 @@ func Test_VerifyMultisig(t *testing.T) {
 	require.NoError(t, amino.UnmarshalJSON(signedRaw, &signedTx))
 	require.Len(t, signedTx.Signatures, 1)
 
-	aggSig := signedTx.Signatures[0]
-	aggSigB64 := base64.StdEncoding.EncodeToString(aggSig.Signature)
-
 	// Prepare the verify function
 	cfg := &VerifyCfg{
 		RootCfg: &BaseCfg{
@@ -264,12 +263,12 @@ func Test_VerifyMultisig(t *testing.T) {
 		AccountSequence: 0,
 	}
 
-	vargs := []string{multisigName, aggSigB64}
+	vargs := []string{multisigName}
 	io.SetIn(
 		strings.NewReader(
-			fmt.Sprintf("%s\n", rawTx),
+			fmt.Sprintf("%s\n", signedRaw),
 		),
 	)
-	err = execVerify(cfg, vargs, io)
+	err = execVerify(context.Background(), cfg, vargs, io)
 	assert.NoError(t, err)
 }
