@@ -21,15 +21,15 @@ func InviteMember(_ realm, boardID BoardID, user std.Address, role Role) {
 	}
 
 	caller := std.PreviousRealm().Address()
-	args := Args{boardID, user, role}
-	perms.WithPermission(caller, PermissionMemberInvite, args, func(Args) {
+	args := Args{caller, boardID, user, role}
+	perms.WithPermission(cross, caller, PermissionMemberInvite, args, func(realm, Args) {
 		assertMembersUpdateIsEnabled(boardID)
 
 		if perms.HasUser(user) {
 			panic("user is already a member")
 		}
 
-		if err := perms.SetUserRoles(user, role); err != nil {
+		if err := perms.SetUserRoles(cross, user, role); err != nil {
 			panic(err)
 		}
 
@@ -86,8 +86,8 @@ func AcceptInvite(_ realm, boardID BoardID, user std.Address) {
 	}
 
 	caller := std.PreviousRealm().Address()
-	args := Args{boardID, user, RoleGuest}
-	board.perms.WithPermission(caller, PermissionMemberInvite, args, func(Args) {
+	args := Args{caller, boardID, user, RoleGuest}
+	board.perms.WithPermission(cross, caller, PermissionMemberInvite, args, func(realm, Args) {
 		assertMembersUpdateIsEnabled(boardID)
 
 		invitee := user.String()
@@ -101,7 +101,7 @@ func AcceptInvite(_ realm, boardID BoardID, user std.Address) {
 			panic("user is already a member")
 		}
 
-		if err := board.perms.SetUserRoles(user); err != nil {
+		if err := board.perms.SetUserRoles(cross, user); err != nil {
 			panic(err)
 		}
 
@@ -123,7 +123,7 @@ func RevokeInvite(_ realm, boardID BoardID, user std.Address) {
 	board := mustGetBoard(boardID)
 	caller := std.PreviousRealm().Address()
 	args := Args{boardID, user, RoleGuest}
-	board.perms.WithPermission(caller, PermissionMemberInviteRevoke, args, func(Args) {
+	board.perms.WithPermission(cross, caller, PermissionMemberInviteRevoke, args, func(realm, Args) {
 		invitee := user.String()
 		requests, found := getInviteRequests(boardID)
 		if !found || !requests.Has(invitee) {
