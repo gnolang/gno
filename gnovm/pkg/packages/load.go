@@ -59,7 +59,7 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 
 	lctxs := make([]*loaderContext, len(patterns))
 	for i, pattern := range patterns {
-		loaderCtx, err := findLoaderContextForPattern(wd, pattern)
+		loaderCtx, err := findLoaderContextForPattern(wd, pattern, conf.GnoRoot)
 		if err != nil {
 			return nil, err
 		}
@@ -175,32 +175,62 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 }
 
 type loaderContext struct {
-	Pattern     string
-	Root        string
-	IsWorkspace bool
+	Pattern       string // Original pattern used to load this context
+	Root          string // Root directory (package dir or workspace root)
+	IsWorkspace   bool   // Whether this context represents a workspace
+	WorkspaceRoot string // Workspace root directory for dependency resolution
 }
 
-func findLoaderContextForPattern(wd string, pattern string) (*loaderContext, error) {
+func findLoaderContextForPattern(wd, pattern, gnoRoot string) (*loaderContext, error) {
 	targetDir, isRecursive := resolveTargetDir(wd, pattern)
 
-	// For recursive patterns, try workspace first
-	if isRecursive {
-		if root, err := findWorkspaceRootDir(targetDir); err == nil {
-			return &loaderContext{Pattern: pattern, Root: root, IsWorkspace: true}, nil
-		} else if !errors.Is(err, ErrGnoworkNotFound) {
-			return nil, err
+	// Check if within stdlibs directory
+	// XXX: There is probably a better way to do this.
+	if gnoRoot != "" {
+		stdlibsDir := filepath.Join(gnoRoot, "gnovm", "stdlibs")
+		if strings.HasPrefix(targetDir, stdlibsDir) {
+			return &loaderContext{
+				Pattern:       pattern,
+				Root:          stdlibsDir,
+				IsWorkspace:   true,
+				WorkspaceRoot: stdlibsDir,
+			}, nil
 		}
 	}
 
-	// Check for gnomod.toml in target directory
+	// Find workspace root (if any)
+	workspaceRoot, wsErr := findWorkspaceRootDir(targetDir)
+	hasWorkspace := wsErr == nil
+
+	// For recursive patterns, prefer workspace if found
+	if isRecursive && hasWorkspace {
+		return &loaderContext{
+			Pattern:       pattern,
+			Root:          workspaceRoot,
+			IsWorkspace:   true,
+			WorkspaceRoot: workspaceRoot,
+		}, nil
+	}
+
+	// Check for package (gnomod.toml exists)
 	if _, err := os.Stat(filepath.Join(targetDir, "gnomod.toml")); err == nil {
-		return &loaderContext{Pattern: pattern, Root: targetDir}, nil
+		return &loaderContext{
+			Pattern:       pattern,
+			Root:          targetDir,
+			IsWorkspace:   false,
+			WorkspaceRoot: workspaceRoot,
+		}, nil
 	}
 
 	// For non-recursive patterns in subdirectories, try workspace from cwd
 	if targetDir != wd && !isRecursive {
 		if root, err := findWorkspaceRootDir(wd); err == nil {
-			return &loaderContext{Pattern: pattern, Root: root, IsWorkspace: true}, nil
+			return &loaderContext{
+				Pattern:       pattern,
+				Root:          root,
+				IsWorkspace:   true,
+				WorkspaceRoot: root,
+			}, nil
 		}
 	}
 
@@ -217,7 +247,10 @@ func resolveTargetDir(wd, pattern string) (string, bool) {
 	}
 
 	// Check the original pattern to determine type, not the cleaned path
-	firstPart, _, _ := strings.Cut(pattern, string(filepath.Separator))
+	firstPart := pattern
+	if i := strings.IndexRune(pattern, filepath.Separator); i >= 0 {
+		firstPart = firstPart[:i]
+	}
 
 	// Determine target directory
 	targetDir := wd
@@ -301,6 +334,9 @@ func discoverPkgsForLocalDeps(conf LoadConfig, loaderCtx *loaderContext, deps ma
 	roots := []string{}
 	if loaderCtx.IsWorkspace {
 		roots = append(roots, loaderCtx.Root)
+	} else if loaderCtx.WorkspaceRoot != "" {
+		// Use workspace for dependency resolution for individual packages
+		roots = append(roots, loaderCtx.WorkspaceRoot)
 	}
 	roots = append(roots, conf.ExtraWorkspaceRoots...)
 
