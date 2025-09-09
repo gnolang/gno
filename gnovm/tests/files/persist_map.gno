@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/demo/tests
+// PKGPATH: gno.land/r/tests
 package tests
 
 var amap map[string]string = map[string]string{"a": "1"}

@@ -1,0 +1,2 @@
+module = "gno.land/r/demo/defi/atomicswap"
+gno = "0.9"

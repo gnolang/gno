@@ -172,3 +172,12 @@ func DisableDebug() {
 func EnableDebug() {
 	enabled = true
 }
+
+func PrintCaller(start, end int) {
+	for i := start; i < end; i++ {
+		_, file, line, _ := runtime.Caller(i)
+		caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
+		prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
+		fmt.Println(append([]any{prefix}, "")...)
+	}
+}
