@@ -19,7 +19,7 @@ func main() {
 			UnbondingPeriod:              time.Hour * 3,
 			TrustingPeriod:               time.Hour,
 			MaxClockDrift:                time.Hour,
-			LatestHeight:                 types.Height{2, 100},
+			LatestHeight:                 types.Height{2, 1},
 			ProofSpecs:                   types.GetSDKProofSpecs(),
 			AllowUpdateAfterExpiry:       false,
 			AllowUpdateAfterMisbehaviour: false,
@@ -45,6 +45,61 @@ func main() {
 	println(core.Render("clients/1"))
 	println("-----------")
 	println(core.Render("clients/" + clientID1))
+
+	// Update clientID1
+	// TODO move it to an other filetest
+	var (
+		blockhash     = sha256.Sum256([]byte("block-5"))
+		parsethash    = sha256.Sum256([]byte("parset"))
+		nextvalhash   = sha256.Sum256([]byte("nextval"))
+		consensushash = sha256.Sum256([]byte("consensus"))
+
+		header = &tendermint.MsgHeader{
+			Header: &tendermint.Header{
+				Version: tendermint.Consensus{
+					Block: tendermint.BlockProtocol,
+					App:   1, //NOTE no idea what to put there, sounds unused
+				},
+				ChainID: "chain-id-2",
+				Height:  5,
+				Time:    time.Now(),
+				LastBlockID: tendermint.BlockID{
+					Hash: blockhash[:],
+					PartSetHeader: tendermint.PartSetHeader{
+						Total: 2,
+						Hash:  parsethash[:],
+					},
+				},
+				LastCommitHash:     apphash[:], //FIXME
+				DataHash:           apphash[:], //FIXME
+				ValidatorsHash:     valhash[:],
+				NextValidatorsHash: nextvalhash[:],
+				ConsensusHash:      consensushash[:],
+				AppHash:            apphash[:],
+				LastResultsHash:    nil,                            //FIXME?
+				EvidenceHash:       nil,                            //FIXME?
+				ProposerAddress:    []byte("proposer__0123456789"), // NOTE: must size 20bytes
+			},
+			Commit: &tendermint.Commit{
+				Height: 5,
+				Round:  1,
+				BlockID: tendermint.BlockID{
+					Hash: blockhash[:],
+					PartSetHeader: tendermint.PartSetHeader{
+						Total: 5,
+						Hash:  parsethash[:], //FIXME
+					},
+				},
+				Signatures: []tendermint.CommitSig{}, // FIXME
+			},
+			ValidatorSet:      &tendermint.ValidatorSet{},
+			TrustedHeight:     types.Height{2, 1},
+			TrustedValidators: &tendermint.ValidatorSet{}, // hash of this must correspond to consensusState.NextValidatorHash passed in CreateClient
+		}
+	)
+	core.UpdateClient(cross, clientID1, header)
+	// TODO assertion of updated client
+
 }
 
 // Output:
