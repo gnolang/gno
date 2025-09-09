@@ -1,6 +1,7 @@
 package tendermint
 
 import (
+	"bytes"
 	"errors"
 	"time"
 
@@ -34,7 +35,7 @@ type MsgHeader struct {
 // with MsgCreateClient
 func (h MsgHeader) ValidateBasic() error {
 	if h.Header == nil {
-		return ufmt.Errorf("tendermint header cannot be nil")
+		return ufmt.Errorf("missing header")
 	}
 	if h.Commit == nil {
 		return errors.New("missing commit")
@@ -45,14 +46,12 @@ func (h MsgHeader) ValidateBasic() error {
 	if err := h.Commit.ValidateBasic(); err != nil {
 		return ufmt.Errorf("invalid commit: %w", err)
 	}
-	// TODO deal with
-	// tmSignedHeader, err := cmttypes.SignedHeaderFromProto(h.SignedHeader)
-	// if err != nil {
-	// return errorsmod.Wrap(err, "header is not a tendermint header")
-	// }
-	// if err := tmSignedHeader.ValidateBasic(h.Header.GetChainID()); err != nil {
-	// return errorsmod.Wrap(err, "header failed basic validation")
-	// }
+	if h.Header.Height != h.Commit.Height {
+		return ufmt.Errorf("header and commit height mismatch: %d vs %d", h.Header.Height, h.Commit.Height)
+	}
+	if hhash, chash := h.Header.Hash(), h.Commit.BlockID.Hash; !bytes.Equal(hhash, chash) {
+		return ufmt.Errorf("commit signs block %X, header is block %X", chash, hhash)
+	}
 
 	// TrustedHeight is less than Header for updates and misbehaviour
 	if h.TrustedHeight.GTE(h.GetHeight()) {
@@ -153,7 +152,8 @@ func (h Header) ValidateBasic() error {
 
 	if h.Height < 0 {
 		return errors.New("negative Height")
-	} else if h.Height == 0 {
+	}
+	if h.Height == 0 {
 		return errors.New("zero Height")
 	}
 
@@ -196,6 +196,14 @@ func (h Header) ValidateBasic() error {
 		return ufmt.Errorf("wrong LastResultsHash: %v", err)
 	}
 
+	return nil
+}
+
+func (h *Header) Hash() []byte {
+	if h == nil || len(h.ValidatorsHash) == 0 {
+		return nil
+	}
+	// TODO Use a source of bytes that is not protobuf
 	return nil
 }
 
