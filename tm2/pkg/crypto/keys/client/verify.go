@@ -305,7 +305,7 @@ func getSignature(cfg *VerifyCfg, tx *std.Tx) ([]byte, error) {
 	}
 
 	// default: from tx
-	if tx.Signatures != nil && len(tx.Signatures) > 0 {
+	if len(tx.Signatures) > 0 {
 		return tx.Signatures[0].Signature, nil
 	}
 

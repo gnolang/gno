@@ -81,51 +81,356 @@ func Test_execVerify(t *testing.T) {
 
 	signedTx, err := generateSignature(&tx, kb, signOpts, keyOpts)
 	assert.NoError(t, err)
-	signedTxBase64 := base64.StdEncoding.EncodeToString(signedTx.Signature)
-
-	// Prepare the verification
-	cfg := &VerifyCfg{
-		RootCfg: &BaseCfg{
-			BaseOptions: BaseOptions{
-				Home:                  kbHome,
-				InsecurePasswordStdin: true,
-			},
-		},
-		DocPath:         "",
-		Signature:       signedTxBase64,
-		AccountNumber:   accountNumber,
-		AccountSequence: accountSequence,
-		ChainID:         chainID,
-	}
-
-	io := commands.NewTestIO()
+	sigb64 := base64.StdEncoding.EncodeToString(signedTx.Signature)
 
 	// Marshal the tx
-	encodedTx, err := amino.MarshalJSON(tx)
+	rawTxWithoutSig, err := amino.MarshalJSON(tx)
 	assert.NoError(t, err)
 
-	// good signature passes test.
-	args := []string{fakeKeyName1}
-	io.SetIn(
-		strings.NewReader(
-			fmt.Sprintf("%s\n", encodedTx),
-		),
-	)
-	err = execVerify(context.Background(), cfg, args, io)
+	// Add signature to the transaction
+	tx.Signatures = []std.Signature{*signedTx}
+
+	// Marshal the tx with signature
+	rawTxWithSig, err := amino.MarshalJSON(tx)
 	assert.NoError(t, err)
 
-	// mutated bad signature fails test.
-	testBadSig := testutils.MutateByteSlice(signedTx.PubKey.Bytes())
-	badSignedTxBase64 := base64.StdEncoding.EncodeToString(testBadSig)
-	cfg.Signature = badSignedTxBase64
-	args = []string{fakeKeyName1}
-	io.SetIn(
-		strings.NewReader(
-			fmt.Sprintf("%s\n", encodedTx),
-		),
-	)
-	err = execVerify(context.Background(), cfg, args, io)
-	assert.Error(t, err)
+	t.Run("test stdin: signature ok", func(t *testing.T) {
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+				},
+			},
+			DocPath:         "",
+			AccountNumber:   accountNumber,
+			AccountSequence: accountSequence,
+			ChainID:         chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1}
+
+		io.SetIn(
+			strings.NewReader(
+				fmt.Sprintf("%s\n", rawTxWithSig),
+			),
+		)
+
+		err = execVerify(context.Background(), cfg, args, io)
+		assert.NoError(t, err)
+	})
+
+	t.Run("test stdin: missing signature", func(t *testing.T) {
+		// no signature in tx and no -signature or -sigpath flag
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+				},
+			},
+			DocPath:         "",
+			AccountNumber:   accountNumber,
+			AccountSequence: accountSequence,
+			ChainID:         chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1}
+
+		io.SetIn(
+			strings.NewReader(
+				fmt.Sprintf("%s\n", rawTxWithoutSig),
+			),
+		)
+
+		err = execVerify(context.Background(), cfg, args, io)
+		assert.Error(t, err)
+	})
+
+	t.Run("test stdin: -signature flag: ok", func(t *testing.T) {
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+				},
+			},
+			DocPath:         "",
+			Signature:       sigb64,
+			AccountNumber:   accountNumber,
+			AccountSequence: accountSequence,
+			ChainID:         chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1}
+
+		io.SetIn(
+			strings.NewReader(
+				fmt.Sprintf("%s\n", rawTxWithSig),
+			),
+		)
+
+		err = execVerify(context.Background(), cfg, args, io)
+		assert.NoError(t, err)
+	})
+
+	t.Run("test stdin: -signature flag: bad signature", func(t *testing.T) {
+		// mutated bad signature fails test.
+		testBadSig := testutils.MutateByteSlice(signedTx.PubKey.Bytes())
+		badSigb64 := base64.StdEncoding.EncodeToString(testBadSig)
+
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+				},
+			},
+			DocPath:         "",
+			Signature:       badSigb64, // BAD SIGNATURE
+			AccountNumber:   accountNumber,
+			AccountSequence: accountSequence,
+			ChainID:         chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1}
+
+		io.SetIn(
+			strings.NewReader(
+				fmt.Sprintf("%s\n", rawTxWithSig),
+			),
+		)
+
+		err = execVerify(context.Background(), cfg, args, io)
+		assert.Error(t, err)
+	})
+
+	t.Run("test stdin: -sigpath flag: no signature", func(t *testing.T) {
+		txFile, err := os.CreateTemp("", "tx-*.json")
+		require.NoError(t, err)
+
+		// rawTxWithSig in std.Tx, not std.Signature
+		require.NoError(t, os.WriteFile(txFile.Name(), rawTxWithSig, 0o644))
+
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+				},
+			},
+			DocPath:         "",
+			SigPath:         txFile.Name(),
+			AccountNumber:   accountNumber,
+			AccountSequence: accountSequence,
+			ChainID:         chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1}
+
+		io.SetIn(
+			strings.NewReader(
+				fmt.Sprintf("%s\n", rawTxWithSig),
+			),
+		)
+
+		err = execVerify(context.Background(), cfg, args, io)
+		assert.Error(t, err)
+	})
+
+	t.Run("test stdint: -sigpath flag: ok", func(t *testing.T) {
+		// Marshal the signature
+		rawSig, err := amino.MarshalJSON(tx.Signatures[0])
+		assert.NoError(t, err)
+
+		sigFile, err := os.CreateTemp("", "sig-*.json")
+		require.NoError(t, err)
+
+		require.NoError(t, os.WriteFile(sigFile.Name(), rawSig, 0o644))
+
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+				},
+			},
+			DocPath:         "",
+			SigPath:         sigFile.Name(),
+			AccountNumber:   accountNumber,
+			AccountSequence: accountSequence,
+			ChainID:         chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1}
+
+		io.SetIn(
+			strings.NewReader(
+				fmt.Sprintf("%s\n", rawTxWithSig),
+			),
+		)
+
+		err = execVerify(context.Background(), cfg, args, io)
+		assert.NoError(t, err)
+	})
+
+	t.Run("test stdin: bad -account-sequence flag", func(t *testing.T) {
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+				},
+			},
+			DocPath:         "",
+			AccountNumber:   accountNumber,
+			AccountSequence: accountSequence + 1, // BAD NUMBER
+			ChainID:         chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1}
+
+		io.SetIn(
+			strings.NewReader(
+				fmt.Sprintf("%s\n", rawTxWithSig),
+			),
+		)
+
+		err = execVerify(context.Background(), cfg, args, io)
+		assert.Error(t, err)
+	})
+
+	t.Run("test stdin: bad -account-number flag", func(t *testing.T) {
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+				},
+			},
+			DocPath:         "",
+			AccountNumber:   accountNumber + 1, // BAD NUMBER
+			AccountSequence: accountSequence,
+			ChainID:         chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1}
+
+		io.SetIn(
+			strings.NewReader(
+				fmt.Sprintf("%s\n", rawTxWithSig),
+			),
+		)
+
+		err = execVerify(context.Background(), cfg, args, io)
+		assert.Error(t, err)
+	})
+
+	t.Run("test stdin: bad -chain-id flag", func(t *testing.T) {
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+				},
+			},
+			DocPath:         "",
+			AccountNumber:   accountNumber,
+			AccountSequence: accountSequence,
+			ChainID:         "bad-chain-id", // BAD CHAIN ID
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1}
+
+		io.SetIn(
+			strings.NewReader(
+				fmt.Sprintf("%s\n", rawTxWithSig),
+			),
+		)
+
+		err = execVerify(context.Background(), cfg, args, io)
+		assert.Error(t, err)
+	})
+
+	t.Run("test: -docpath flag: ok", func(t *testing.T) {
+		txFile, err := os.CreateTemp("", "tx-*.json")
+		require.NoError(t, err)
+
+		require.NoError(t, os.WriteFile(txFile.Name(), rawTxWithSig, 0o644))
+
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+				},
+			},
+			DocPath:         txFile.Name(),
+			AccountNumber:   accountNumber,
+			AccountSequence: accountSequence,
+			ChainID:         chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1}
+
+		io.SetIn(
+			strings.NewReader(
+				fmt.Sprintf("%s\n", rawTxWithSig),
+			),
+		)
+
+		err = execVerify(context.Background(), cfg, args, io)
+		assert.NoError(t, err)
+	})
+
+	// both -sigpath and -signature flags cannot be used at the same time
+	t.Run("test: -sigpath and -signature flags error", func(t *testing.T) {
+		// Marshal the signature
+		rawSig, err := amino.MarshalJSON(tx.Signatures[0])
+		assert.NoError(t, err)
+
+		sigFile, err := os.CreateTemp("", "sig-*.json")
+		require.NoError(t, err)
+
+		require.NoError(t, os.WriteFile(sigFile.Name(), rawSig, 0o644))
+
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+				},
+			},
+			DocPath:         "",
+			SigPath:         sigFile.Name(), // both flags used
+			Signature:       sigb64,         // both flags used
+			AccountNumber:   accountNumber,
+			AccountSequence: accountSequence,
+			ChainID:         chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1}
+
+		io.SetIn(
+			strings.NewReader(
+				fmt.Sprintf("%s\n", rawTxWithSig),
+			),
+		)
+
+		err = execVerify(context.Background(), cfg, args, io)
+		assert.Error(t, err)
+	})
 }
 
 func Test_VerifyMultisig(t *testing.T) {
