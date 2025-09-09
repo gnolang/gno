@@ -155,7 +155,8 @@ func renderActionBar(sPid string) string {
 	out += proxy.Func("Vote ABSTAIN", "MustVoteOnProposalSimple", "pid", sPid, "option", "ABSTAIN")
 
 	out += "\n\n"
-	out += "WARNING: Please double check transaction data before voting."
+	out += "WARNING: Please double check transaction data before voting.\n\n"
+	out += "**New**: Members **must** have a namespace to vote to enforce simpler tracking."
 	return out
 }
 
