@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -51,22 +52,38 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 
 	// XXX: allow loading only stdlibs without a workspace (like go allow loading stdlibs without a go.mod)
 
-	loaderCtx, err := findLoaderContext()
+	wd, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
 
-	// sanity assert
-	if !filepath.IsAbs(loaderCtx.Root) {
-		panic(fmt.Errorf("context root should be absolute at this point, got %q", loaderCtx.Root))
+	lctxs := make([]*loaderContext, len(patterns))
+	for i, pattern := range patterns {
+		loaderCtx, err := findLoaderContextForPattern(wd, pattern)
+		if err != nil {
+			return nil, err
+		}
+
+		lctxs[i] = loaderCtx
 	}
 
-	expanded, err := expandPatterns(conf.GnoRoot, loaderCtx, conf.Out, patterns...)
-	if err != nil {
-		return nil, err
+	// Process each pattern and gather all expanded packages
+	var allExpanded []*pkgMatch
+	for _, lctx := range lctxs {
+
+		// sanity assert
+		if !filepath.IsAbs(lctx.Root) {
+			panic(fmt.Errorf("context root should be absolute at this point, got %q", lctx.Root))
+		}
+
+		expanded, err := expandPatterns(conf.GnoRoot, lctx, conf.Out, lctx.Pattern)
+		if err != nil {
+			return nil, err
+		}
+		allExpanded = append(allExpanded, expanded...)
 	}
 
-	pkgs, err := loadMatches(conf.Out, conf.Fetcher, expanded, conf.Fset)
+	pkgs, err := loadMatches(conf.Out, conf.Fetcher, allExpanded, conf.Fset)
 	if err != nil {
 		return nil, err
 	}
@@ -80,8 +97,10 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 	}
 
 	// load deps
-
-	localDeps := discoverPkgsForLocalDeps(conf, loaderCtx)
+	localDeps := make(map[string]string)
+	for _, lctx := range lctxs {
+		discoverPkgsForLocalDeps(conf, lctx, localDeps)
+	}
 
 	// mark all pattern packages for visit
 	toVisit := []*Package(pkgs)
@@ -156,45 +175,82 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 }
 
 type loaderContext struct {
+	Pattern     string
 	Root        string
 	IsWorkspace bool
 }
 
-func findLoaderContext() (*loaderContext, error) {
-	wd, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
+func findLoaderContextForPattern(wd string, pattern string) (*loaderContext, error) {
+	targetDir, isRecursive := resolveTargetDir(wd, pattern)
 
-	{
-		dir, err := findWorkspaceRootDir(wd)
-		switch {
-		case err == nil:
-			return &loaderContext{Root: dir, IsWorkspace: true}, nil
-		case errors.Is(err, ErrGnoworkNotFound):
-			// continue
-		default:
+	// For recursive patterns, try workspace first
+	if isRecursive {
+		if root, err := findWorkspaceRootDir(targetDir); err == nil {
+			return &loaderContext{Pattern: pattern, Root: root, IsWorkspace: true}, nil
+		} else if !errors.Is(err, ErrGnoworkNotFound) {
 			return nil, err
 		}
 	}
 
-	gnomodPath := filepath.Join(wd, "gnomod.toml")
-	_, err = os.Stat(gnomodPath)
-	switch {
-	case err == nil:
-		return &loaderContext{Root: wd}, nil
-	case os.IsNotExist(err):
-		return nil, ErrGnoContextNotFound
-	default:
-		return nil, err
+	// Check for gnomod.toml in target directory
+	if _, err := os.Stat(filepath.Join(targetDir, "gnomod.toml")); err == nil {
+		return &loaderContext{Pattern: pattern, Root: targetDir}, nil
 	}
+
+	// For non-recursive patterns in subdirectories, try workspace from cwd
+	if targetDir != wd && !isRecursive {
+		if root, err := findWorkspaceRootDir(wd); err == nil {
+			return &loaderContext{Pattern: pattern, Root: root, IsWorkspace: true}, nil
+		}
+	}
+
+	return nil, ErrGnoContextNotFound
+}
+
+func resolveTargetDir(wd, pattern string) (string, bool) {
+	isRecursive := false
+	path, file := filepath.Split(pattern)
+	if file == "..." {
+		isRecursive = true
+	} else {
+		path = filepath.Clean(pattern)
+	}
+
+	// Check the original pattern to determine type, not the cleaned path
+	firstPart, _, _ := strings.Cut(pattern, string(filepath.Separator))
+
+	// Determine target directory
+	targetDir := wd
+
+	switch {
+	case pattern == "." || pattern == "":
+		// Current directory
+		targetDir = wd
+	case filepath.IsAbs(pattern):
+		// Absolute path
+		targetDir = path
+	case firstPart == ".":
+		// Relative to current directory (./...)
+		if abs, err := filepath.Abs(path); err == nil {
+			targetDir = abs
+		}
+	default:
+		targetDir = wd
+	}
+
+	// Ensure we have a directory, not a file
+	if info, err := os.Stat(targetDir); err == nil && !info.IsDir() {
+		targetDir = filepath.Dir(targetDir)
+	}
+
+	return targetDir, isRecursive
 }
 
 // ErrGnoworkNotFound is returned by [findRootDir] when, even after traversing
 // up to the root directory, a gnowork.toml file could not be found.
 var ErrGnoworkNotFound = errors.New("gnowork.toml file not found in current or any parent directory")
 
-var ErrGnoContextNotFound = errors.New("gnowork.toml file not found in current or any parent directory and gnomod.toml doesn't exists in current directory")
+var ErrGnoContextNotFound = errors.New("no gnowork.toml in parent directories and no gnomod.toml in target directory")
 
 // findWorkspaceRootDir determines the root directory of the project.
 // The given path must be absolute.
@@ -208,14 +264,14 @@ func findWorkspaceRootDir(absPath string) (string, error) {
 	for absPath != root {
 		modPath := filepath.Join(absPath, "gnowork.toml")
 		_, err := os.Stat(modPath)
-		if errors.Is(err, os.ErrNotExist) {
+		switch {
+		case err == nil: // ok
+			return absPath, nil
+		case errors.Is(err, os.ErrNotExist):
 			absPath = filepath.Dir(absPath)
-			continue
-		}
-		if err != nil {
+		default:
 			return "", err
 		}
-		return absPath, nil
 	}
 
 	return "", ErrGnoworkNotFound
@@ -240,16 +296,14 @@ func setAdd[T comparable](set map[T]struct{}, val T) bool {
 	return true
 }
 
-func discoverPkgsForLocalDeps(conf LoadConfig, loaderCtx *loaderContext) map[string]string {
+func discoverPkgsForLocalDeps(conf LoadConfig, loaderCtx *loaderContext, deps map[string]string) {
 	// we swallow errors in this routine as we want the most packages we can get
-
 	roots := []string{}
 	if loaderCtx.IsWorkspace {
 		roots = append(roots, loaderCtx.Root)
 	}
 	roots = append(roots, conf.ExtraWorkspaceRoots...)
 
-	byPkgPath := make(map[string]string)
 	byDir := make(map[string]string)
 
 	for _, root := range roots {
@@ -298,12 +352,12 @@ func discoverPkgsForLocalDeps(conf LoadConfig, loaderCtx *loaderContext) map[str
 				pkgPath := gm.Module
 
 				// skip this file if we already found this package
-				if _, ok := byPkgPath[pkgPath]; ok {
+				if _, ok := deps[pkgPath]; ok {
 					return nil
 				}
 
 				// store ref
-				byPkgPath[pkgPath] = dir
+				deps[pkgPath] = dir
 				byDir[dir] = pkgPath
 
 				return nil
@@ -312,6 +366,4 @@ func discoverPkgsForLocalDeps(conf LoadConfig, loaderCtx *loaderContext) map[str
 			return nil
 		})
 	}
-
-	return byPkgPath
 }
