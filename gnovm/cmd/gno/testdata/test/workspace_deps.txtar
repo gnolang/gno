@@ -1,0 +1,45 @@
+# Test workspace-aware dependency resolution for individual packages
+# Individual packages should be able to resolve dependencies from the workspace
+
+gno test -v ./mypackage
+
+! stdout .+
+stderr 'ok      \./mypackage 	\d+\.\d+s'
+
+-- gnowork.toml --
+-- mypackage/mypackage.gno --
+package mypackage
+
+import "gno.land/p/demo/testutils"
+
+func Hello() string {
+	return testutils.SayHello("World")
+}
+
+-- mypackage/mypackage_test.gno --
+package mypackage
+
+import "testing"
+
+func TestHello(t *testing.T) {
+	result := Hello()
+	expected := "Hello, World!"
+	if result != expected {
+		t.Errorf("Hello() = %q, want %q", result, expected)
+	}
+}
+
+-- mypackage/gnomod.toml --
+module = "gno.land/p/test/mypackage"
+gno = "0.9"
+
+-- gno.land/p/demo/testutils/testutils.gno --
+package testutils
+
+func SayHello(name string) string {
+	return "Hello, " + name + "!"
+}
+
+-- gno.land/p/demo/testutils/gnomod.toml --
+module = "gno.land/p/demo/testutils"
+gno = "0.9"
