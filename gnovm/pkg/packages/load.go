@@ -70,7 +70,6 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 	// Process each pattern and gather all expanded packages
 	var allExpanded []*pkgMatch
 	for _, lctx := range lctxs {
-
 		// sanity assert
 		if !filepath.IsAbs(lctx.Root) {
 			panic(fmt.Errorf("context root should be absolute at this point, got %q", lctx.Root))
