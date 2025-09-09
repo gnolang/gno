@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package rand
+package rand_test
 
 import (
+	"math/rand"
 	"testing"
 )
 
@@ -18,14 +19,14 @@ func TestAuto(t *testing.T) {
 	// order in the deterministic seeded result.
 	var out []int64
 	for i := 0; i < 10; i++ {
-		out = append(out, Int64())
+		out = append(out, rand.Int64())
 	}
 
 	// Look for out in seeded output.
 	// Strictly speaking, we should look for them in order,
 	// but this is good enough and not significantly more
 	// likely to have a false positive.
-	r := New(NewPCG(1, 0))
+	r := rand.New(rand.NewPCG(1, 0))
 	found := 0
 	for i := 0; i < 1000; i++ {
 		x := r.Int64()

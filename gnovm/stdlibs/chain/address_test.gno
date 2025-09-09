@@ -1,12 +1,13 @@
-package chain
+package chain_test
 
 import (
+	"chain"
 	"testing"
 )
 
 func TestValid(t *testing.T) {
 	type test struct {
-		inputAddress Address
+		inputAddress address
 		expected     bool
 	}
 
@@ -52,7 +53,7 @@ func TestDerivePkgAddr(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		result := DerivePkgAddr(tc.inputPath)
+		result := chain.DerivePkgAddr(tc.inputPath)
 		if result.String() != tc.expected {
 			t.Fatalf("Expected: %t, got: %t", tc.expected, result)
 		}
