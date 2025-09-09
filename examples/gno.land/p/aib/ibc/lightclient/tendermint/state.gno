@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"gno.land/p/aib/ibc/types"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 // ClientState from Tendermint tracks the current validator set, latest height,

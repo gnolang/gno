@@ -5,7 +5,7 @@ import (
 
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/types"
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 type TMLightClient struct {
