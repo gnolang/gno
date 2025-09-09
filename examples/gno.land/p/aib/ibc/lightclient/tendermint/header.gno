@@ -41,10 +41,10 @@ func (h MsgHeader) ValidateBasic() error {
 		return errors.New("missing commit")
 	}
 	if err := h.Header.ValidateBasic(); err != nil {
-		return ufmt.Errorf("invalid header: %w", err)
+		return ufmt.Errorf("invalid header: %v", err)
 	}
 	if err := h.Commit.ValidateBasic(); err != nil {
-		return ufmt.Errorf("invalid commit: %w", err)
+		return ufmt.Errorf("invalid commit: %v", err)
 	}
 	if h.Header.Height != h.Commit.Height {
 		return ufmt.Errorf("header and commit height mismatch: %d vs %d", h.Header.Height, h.Commit.Height)
@@ -112,7 +112,7 @@ type Header struct {
 	Height  int64     `json:"height,omitempty"`
 	Time    time.Time `json:"time"`
 	// prev block info
-	LastBlockId BlockID `json:"last_block_id"`
+	LastBlockID BlockID `json:"last_block_id"`
 	// hashes of block data
 	LastCommitHash []byte `json:"last_commit_hash,omitempty"`
 	DataHash       []byte `json:"data_hash,omitempty"`
@@ -157,7 +157,7 @@ func (h Header) ValidateBasic() error {
 		return errors.New("zero Height")
 	}
 
-	if err := h.LastBlockId.ValidateBasic(); err != nil {
+	if err := h.LastBlockID.ValidateBasic(); err != nil {
 		return ufmt.Errorf("wrong LastBlockID: %w", err)
 	}
 
