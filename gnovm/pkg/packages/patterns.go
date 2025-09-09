@@ -129,7 +129,14 @@ func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, pat
 				panic(fmt.Errorf("unexpected recursive pattern at this point"))
 			}
 
-			dirs, err := expandRecursive(loaderCtx.Root, pat)
+			// Check if we're in stdlibs context
+			isStdlibs := false
+			if gnoRoot != "" {
+				stdlibsDir := filepath.Join(gnoRoot, "gnovm", "stdlibs")
+				isStdlibs = loaderCtx.Root == stdlibsDir
+			}
+
+			dirs, err := expandRecursive(loaderCtx.Root, pat, isStdlibs)
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", match, err)
 			}
@@ -149,7 +156,7 @@ func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, pat
 	return pkgMatches, nil
 }
 
-func expandRecursive(workspaceRoot string, pattern string) ([]string, error) {
+func expandRecursive(workspaceRoot string, pattern string, isStdlibs bool) ([]string, error) {
 	// this works because we only support ... at the end of patterns for now
 	patternRoot, _ := filepath.Split(pattern)
 
@@ -190,9 +197,14 @@ func expandRecursive(workspaceRoot string, pattern string) ([]string, error) {
 		parentDir, base := filepath.Split(path)
 		parentDir = filepath.Join(patternRoot, parentDir)
 
-		switch base {
-		case "gnomod.toml", "gno.mod":
+		switch {
+		case base == "gnomod.toml" || base == "gno.mod":
 			// add directories that contain gnomods as package dirs
+			if !slices.Contains(pkgDirs, parentDir) {
+				pkgDirs = append(pkgDirs, parentDir)
+			}
+		case isStdlibs && strings.HasSuffix(base, ".gno"):
+			// For stdlibs, any directory with .gno files is a package
 			if !slices.Contains(pkgDirs, parentDir) {
 				pkgDirs = append(pkgDirs, parentDir)
 			}

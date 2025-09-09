@@ -197,6 +197,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		Deps:       true,
 		Test:       true,
 		AllowEmpty: true,
+		GnoRoot:    cmd.rootDir,
 	}
 	pkgs, err := packages.Load(loadConf, args...)
 	if err != nil {
