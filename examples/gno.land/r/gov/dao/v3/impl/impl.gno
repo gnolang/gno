@@ -4,6 +4,7 @@ import (
 	"std"
 
 	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/sys/users"
 )
 
 var govDAO *GovDAO = NewGovDAO()
@@ -29,6 +30,10 @@ func AddMember(cur realm, addr std.Address) {
 	m, t := memberstore.Get().GetMember(caller.Address())
 	if m == nil {
 		panic("caller is not a member")
+	}
+
+	if users.ResolveAddress(caller.Address()) == nil {
+		panic("voter should have a namespace")
 	}
 
 	if t != memberstore.T1 && t != memberstore.T2 {
