@@ -1,2 +1,2 @@
 module = "gno.land/p/aib/ibc/app"
-gno = 0.9
+gno = "0.9"

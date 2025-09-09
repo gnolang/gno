@@ -1,8 +1,8 @@
 package core
 
 import (
-	"gno.land/p/demo/mux"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/mux"
+	"gno.land/p/nt/ufmt"
 )
 
 func Render(path string) string {
