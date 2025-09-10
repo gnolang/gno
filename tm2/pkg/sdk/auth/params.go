@@ -172,49 +172,47 @@ func (ak AccountKeeper) applyUnrestrictedAddrsChange(ctx sdk.Context, newAddrs [
 	if !ok {
 		panic("missing or invalid AuthParams in context")
 	}
-
+	// Build sets once.
 	oldSet := make(map[string]struct{}, len(params.UnrestrictedAddrs))
 	for _, addr := range params.UnrestrictedAddrs {
 		oldSet[addr.String()] = struct{}{}
 	}
-
 	newSet := make(map[string]struct{}, len(newAddrs))
-	for _, a := range newAddrs {
-		newSet[a] = struct{}{}
+	for _, s := range newAddrs {
+		newSet[s] = struct{}{}
 	}
-
-	unionSet := make(map[string]struct{}, len(oldSet)+len(newSet))
-	for k := range oldSet {
-		unionSet[k] = struct{}{}
-	}
-	for k := range newSet {
-		unionSet[k] = struct{}{}
-	}
-
-	for addrStr := range unionSet {
-		_, wasUnrestricted := oldSet[addrStr]
-		_, shouldBeUnrestricted := newSet[addrStr]
-
-		if wasUnrestricted == shouldBeUnrestricted {
-			continue
+	// addition
+	for s := range newSet {
+		if _, ok := oldSet[s]; ok {
+			continue // in both, no change
 		}
-
-		addr, err := crypto.AddressFromString(addrStr)
+		addr, err := crypto.AddressFromString(s)
 		if err != nil {
 			panic(fmt.Sprintf("invalid address: %v", err))
 		}
-
 		acc := ak.GetAccount(ctx, addr)
 		uacc, ok := acc.(std.AccountUnrestricter)
 		if !ok {
 			continue
 		}
-
-		if shouldBeUnrestricted {
-			uacc.SetTokenLockWhitelisted(true)
-		} else {
-			uacc.SetTokenLockWhitelisted(false)
+		uacc.SetTokenLockWhitelisted(true)
+		ak.SetAccount(ctx, acc)
+	}
+	// removal
+	for s := range oldSet {
+		if _, ok := newSet[s]; ok {
+			continue // in both, no change
 		}
+		addr, err := crypto.AddressFromString(s)
+		if err != nil {
+			panic(fmt.Sprintf("invalid address: %v", err))
+		}
+		acc := ak.GetAccount(ctx, addr)
+		uacc, ok := acc.(std.AccountUnrestricter)
+		if !ok {
+			continue
+		}
+		uacc.SetTokenLockWhitelisted(false)
 		ak.SetAccount(ctx, acc)
 	}
 }

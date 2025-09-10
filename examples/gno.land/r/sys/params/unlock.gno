@@ -29,7 +29,7 @@ func ProposeAddUnrestrictedAcctsRequest(addrs ...std.Address) dao.ProposalReques
 		s := addr.String()
 		addrStrings = append(addrStrings, s)
 	}
-	return NewSysParamStringsAddPropRequestWithTitle(authModulePrefix, "p", unrestrictedAddrsKey, "Add unrestricted transfer accounts", addrStrings)
+	return NewSysParamStringsPropRequestAddWithTitle(authModulePrefix, "p", unrestrictedAddrsKey, "Add unrestricted transfer accounts", addrStrings)
 }
 
 func ProposeRemoveUnrestrictedAcctsRequest(addrs ...std.Address) dao.ProposalRequest {
@@ -38,5 +38,5 @@ func ProposeRemoveUnrestrictedAcctsRequest(addrs ...std.Address) dao.ProposalReq
 		s := addr.String()
 		addrStrings = append(addrStrings, s)
 	}
-	return NewSysParamStringsRemovePropRequestWithTitle(authModulePrefix, "p", unrestrictedAddrsKey, "Add unrestricted transfer accounts", addrStrings)
+	return NewSysParamStringsPropRequestRemoveWithTitle(authModulePrefix, "p", unrestrictedAddrsKey, "Add unrestricted transfer accounts", addrStrings)
 }
