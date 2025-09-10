@@ -446,6 +446,11 @@ func (p *Profiler) buildCallStack(m MachineInfo) []ProfileLocation {
 			if loc.File == "" {
 				// Use package path as file hint
 				loc.File = pkgPath
+			} else if loc.File != "" && !strings.Contains(loc.File, "/") {
+				// If File is just a filename (no path), prepend the package path
+				// Convert package path to file path format
+				// e.g., "gno.land/p/nt/ufmt" -> "gno.land/p/nt/ufmt/ufmt.gno"
+				loc.File = pkgPath + "/" + loc.File
 			}
 		}
 

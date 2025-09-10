@@ -210,7 +210,7 @@ func (p *Profile) writeFunctionFileList(w io.Writer, funcName, file string, line
 }
 
 // writeLineStatsOnly writes just the statistics when source is not available
-func (p *Profile) writeLineStatsOnly(w io.Writer, lineStats map[int]*lineStat, totalCycles int64) {
+func (p *Profile) writeLineStatsOnly(w io.Writer, lineStats map[int]*lineStat, _ int64) {
 	// Sort lines
 	lines := make([]int, 0, len(lineStats))
 	for line := range lineStats {
@@ -252,38 +252,19 @@ func readSourceFile(file string, store Store) (string, error) {
 			if memFile := store.GetMemFile(pkgPath, fileName); memFile != nil {
 				return memFile.Body, nil
 			}
-		}
-	}
-
-	// Try various common paths for Gno examples
-	// This is necessary because the profiler only has the filename (e.g., "print.gno")
-	// but needs to find the actual file location in the filesystem
-	// Extract just the filename
-	filename := filepath.Base(file)
-
-	possiblePaths := []string{
-		// Direct file path
-		file,
-		// Common Gno paths with filename
-		filepath.Join("examples", "gno.land", "p", "demo", "ufmt", filename),
-		filepath.Join("examples", "gno.land", "p", "demo", "int256", filename),
-		filepath.Join("examples", "gno.land", "p", "demo", "avl", filename),
-		filepath.Join("gnovm", "stdlibs", filename),
-		filepath.Join("gnovm", "tests", "stdlibs", filename),
-		// Try with package name in path (e.g., fmt/print.gno)
-		// These paths were added to fix "<source not available>" for stdlib packages
-		filepath.Join("gnovm", "tests", "stdlibs", "fmt", filename),
-		filepath.Join("gnovm", "stdlibs", "fmt", filename),
-		// Try to reconstruct path from package structure
-		filepath.Join("examples", "gno.land", "p", "demo", filepath.Dir(file), filename),
-		filepath.Join("gnovm", "stdlibs", filepath.Dir(file), filename),
-		filepath.Join("gnovm", "tests", "stdlibs", filepath.Dir(file), filename),
-	}
-
-	for _, path := range possiblePaths {
-		content, err = os.ReadFile(path)
-		if err == nil {
-			return string(content), nil
+		} else {
+			// Handle cases where we only have a filename without a package path.
+			// This commonly occurs with standard library files where the profiler
+			// receives just "print.gno" instead of "fmt/print.gno".
+			if strings.HasSuffix(file, ".gno") {
+				// Try common stdlib paths
+				stdlibPaths := []string{"fmt", "std", "strings", "strconv", "math"}
+				for _, pkg := range stdlibPaths {
+					if memFile := store.GetMemFile(pkg, file); memFile != nil {
+						return memFile.Body, nil
+					}
+				}
+			}
 		}
 	}
 
