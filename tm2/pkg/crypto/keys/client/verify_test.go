@@ -34,6 +34,8 @@ func Test_execVerify(t *testing.T) {
 	)
 
 	prepare := func(t *testing.T) (string, std.Tx, func()) {
+		t.Helper()
+
 		// make new test dir
 		kbHome, kbCleanUp := testutils.NewTestCaseDir(t)
 		assert.NotNil(t, kbHome)
@@ -184,7 +186,7 @@ func Test_execVerify(t *testing.T) {
 				},
 			},
 			DocPath:         "",
-			Signature:       string(sigb64),
+			Signature:       sigb64,
 			AccountNumber:   accountNumber,
 			AccountSequence: accountSequence,
 			ChainID:         chainID,
@@ -460,6 +462,41 @@ func Test_execVerify(t *testing.T) {
 			},
 			DocPath: "",
 			ChainID: "bad-chain-id", // BAD CHAIN ID
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1}
+
+		io.SetIn(
+			strings.NewReader(
+				fmt.Sprintf("%s\n", rawTx),
+			),
+		)
+
+		err = execVerify(context.Background(), cfg, args, io)
+		assert.Error(t, err)
+	})
+
+	t.Run("test stdin: no -account-sequence and -account-number flags and -offline: error", func(t *testing.T) {
+		t.Parallel()
+
+		kbHome, tx, cleanUp := prepare(t)
+		defer cleanUp()
+
+		// Marshal the tx with signature
+		rawTx, err := amino.MarshalJSON(tx)
+		assert.NoError(t, err)
+
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+				},
+			},
+			DocPath: "",
+			ChainID: "bad-chain-id", // BAD CHAIN ID
+			Offline: true,
 		}
 
 		io := commands.NewTestIO()
