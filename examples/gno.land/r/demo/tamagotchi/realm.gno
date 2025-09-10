@@ -4,7 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/tamagotchi"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 var t *tamagotchi.Tamagotchi

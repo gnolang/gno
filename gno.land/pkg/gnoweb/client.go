@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -19,8 +20,8 @@ var (
 	ErrClientFileNotFound      = errors.New("file not found")
 	ErrClientRenderNotDeclared = errors.New("render function not declared")
 	ErrClientBadRequest        = errors.New("bad request")
-	ErrClientResponse          = errors.New("node response error")
-	ErrClientFile              = errors.New("unknown or invalid filename for path")
+	ErrClientTimeout           = errors.New("RPC node request timeout")
+	ErrClientResponse          = errors.New("RPC node response error")
 )
 
 type FileMeta struct {
@@ -31,22 +32,22 @@ type FileMeta struct {
 type ClientAdapter interface {
 	// Realm fetch the content of a realm from a given path and
 	// return the data.
-	Realm(path, args string) ([]byte, error) // raw Render() bytes
+	Realm(ctx context.Context, path, args string) ([]byte, error) // raw Render() bytes
 
 	// File fetche the source file from a given
 	// package path and filename.
-	File(path, filename string) ([]byte, FileMeta, error)
+	File(ctx context.Context, path, filename string) ([]byte, FileMeta, error)
 
 	// Sources lists all source files available in a specified
 	// package path.
-	ListFiles(path string) ([]string, error)
+	ListFiles(ctx context.Context, path string) ([]string, error)
 
 	// QueryPath list any path given the specified prefix
-	ListPaths(prefix string, limit int) ([]string, error)
+	ListPaths(ctx context.Context, prefix string, limit int) ([]string, error)
 
 	// Doc retrieves the JSON doc suitable for printing from a
 	// specified package path.
-	Doc(path string) (*doc.JSONDocumentation, error)
+	Doc(ctx context.Context, path string) (*doc.JSONDocumentation, error)
 }
 
 type rpcClient struct {
@@ -70,19 +71,19 @@ func NewRPCClientAdapter(logger *slog.Logger, cli *client.RPCClient, domain stri
 // RenderRealm renders the content of a realm from a given path
 // and arguments into the provided writer. It uses Goldmark for
 // Markdown processing to generate HTML content.
-func (c *rpcClient) Realm(path, args string) ([]byte, error) {
+func (c *rpcClient) Realm(ctx context.Context, path, args string) ([]byte, error) {
 	const qpath = "vm/qrender"
 
 	path = strings.Trim(path, "/")
 	data := fmt.Sprintf("%s/%s:%s", c.domain, path, args)
 
-	return c.query(qpath, []byte(data))
+	return c.query(ctx, qpath, []byte(data))
 }
 
 // SourceFile fetches and writes the source file from a given
 // package path and file name to the provided writer. It uses
 // Chroma for syntax highlighting or Raw style source.
-func (c *rpcClient) File(path, fileName string) (out []byte, meta FileMeta, err error) {
+func (c *rpcClient) File(ctx context.Context, path, fileName string) (out []byte, meta FileMeta, err error) {
 	const qpath = "vm/qfile"
 
 	fileName = strings.TrimSpace(fileName)
@@ -93,7 +94,7 @@ func (c *rpcClient) File(path, fileName string) (out []byte, meta FileMeta, err 
 	// XXX: Consider moving this into gnoclient
 	fullPath := gopath.Join(c.domain, strings.Trim(path, "/"), fileName)
 
-	source, err := c.query(qpath, []byte(fullPath))
+	source, err := c.query(ctx, qpath, []byte(fullPath))
 	if err != nil {
 		// XXX: this is a bit ugly, we should make the keeper return an
 		// assertable error.
@@ -115,13 +116,13 @@ func (c *rpcClient) File(path, fileName string) (out []byte, meta FileMeta, err 
 
 // ListFiles lists all source files available in a specified
 // package path by querying the RPC client.
-func (c *rpcClient) ListFiles(path string) ([]string, error) {
+func (c *rpcClient) ListFiles(ctx context.Context, path string) ([]string, error) {
 	const qpath = "vm/qfile"
 
 	// XXX: Consider moving this into gnoclient
 	pkgPath := strings.Trim(path, "/")
 	fullPath := fmt.Sprintf("%s/%s", c.domain, pkgPath)
-	res, err := c.query(qpath, []byte(fullPath))
+	res, err := c.query(ctx, qpath, []byte(fullPath))
 	if err != nil {
 		return nil, err
 	}
@@ -132,11 +133,11 @@ func (c *rpcClient) ListFiles(path string) ([]string, error) {
 
 // Sources lists all source files available in a specified
 // package path by querying the RPC client.
-func (c *rpcClient) ListPaths(prefix string, limit int) ([]string, error) {
+func (c *rpcClient) ListPaths(ctx context.Context, prefix string, limit int) ([]string, error) {
 	const qpath = "vm/qpaths"
 
 	// XXX: Consider moving this into gnoclient
-	res, err := c.query(qpath, []byte(prefix))
+	res, err := c.query(ctx, qpath, []byte(prefix))
 	if err != nil {
 		return nil, err
 	}
@@ -152,11 +153,11 @@ func (c *rpcClient) ListPaths(prefix string, limit int) ([]string, error) {
 
 // Doc retrieves the JSON doc suitable for printing from a
 // specified package path.
-func (c *rpcClient) Doc(pkgPath string) (*doc.JSONDocumentation, error) {
+func (c *rpcClient) Doc(ctx context.Context, pkgPath string) (*doc.JSONDocumentation, error) {
 	const qpath = "vm/qdoc"
 
 	args := fmt.Sprintf("%s/%s", c.domain, strings.Trim(pkgPath, "/"))
-	res, err := c.query(qpath, []byte(args))
+	res, err := c.query(ctx, qpath, []byte(args))
 	if err != nil {
 		return nil, fmt.Errorf("unable to query qdoc: %w", err)
 	}
@@ -172,11 +173,11 @@ func (c *rpcClient) Doc(pkgPath string) (*doc.JSONDocumentation, error) {
 
 // query sends a query to the RPC client and returns the response
 // data.
-func (c *rpcClient) query(qpath string, data []byte) ([]byte, error) {
+func (c *rpcClient) query(ctx context.Context, qpath string, data []byte) ([]byte, error) {
 	c.logger.Info("querying node", "path", qpath, "data", string(data))
 
 	start := time.Now()
-	qres, err := c.client.ABCIQuery(qpath, data)
+	qres, err := c.client.ABCIQuery(ctx, qpath, data)
 	took := time.Since(start)
 	if err != nil {
 		// Unexpected error from the RPC client itself
@@ -186,6 +187,11 @@ func (c *rpcClient) query(qpath string, data []byte) ([]byte, error) {
 			"error", err,
 			"took", took,
 		)
+
+		if errors.Is(err, context.DeadlineExceeded) {
+			return nil, fmt.Errorf("%w: %s", ErrClientTimeout, err.Error())
+		}
+
 		return nil, fmt.Errorf("%w: %s", ErrClientBadRequest, err.Error())
 	}
 
