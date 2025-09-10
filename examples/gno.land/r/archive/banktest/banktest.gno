@@ -1,15 +1,14 @@
 package banktest
 
 import (
-	"chain/banker"
-	"chain/runtime"
+	"std"
 	"time"
 )
 
 type activity struct {
-	caller   address
-	sent     banker.Coins
-	returned banker.Coins
+	caller   std.Address
+	sent     std.Coins
+	returned std.Coins
 	time     time.Time
 }
 
@@ -32,37 +31,37 @@ func addActivity(act *activity) {
 // Deposit will take the coins (to the realm's pkgaddr) if returnAmount is 0,
 // or return the specified return amount back to user.
 func Deposit(cur realm, returnDenom string, returnAmount int64) string {
-	runtime.AssertOriginCall()
-	caller := runtime.OriginCaller()
-	send := banker.Coins{{returnDenom, returnAmount}}
+	std.AssertOriginCall()
+	caller := std.OriginCaller()
+	send := std.Coins{{returnDenom, returnAmount}}
 	// record activity
 	act := &activity{
 		caller:   caller,
-		sent:     banker.OriginSend(),
+		sent:     std.OriginSend(),
 		returned: send,
 		time:     time.Now(),
 	}
 	addActivity(act)
 	// return if any.
 	if returnAmount > 0 {
-		banker_ := banker.NewBanker(banker.BankerTypeOriginSend)
-		pkgaddr := runtime.CurrentRealm().Address()
+		banker := std.NewBanker(std.BankerTypeOriginSend)
+		pkgaddr := std.CurrentRealm().Address()
 		// TODO: use std.Coins constructors, this isn't generally safe.
-		banker_.SendCoins(pkgaddr, caller, send)
+		banker.SendCoins(pkgaddr, caller, send)
 		return "returned!"
 	} else {
 		return "thank you!"
 	}
 }
 
-func bankerAddr(cur realm) address {
-	return runtime.CurrentRealm().Address()
+func bankerAddr(cur realm) std.Address {
+	return std.CurrentRealm().Address()
 }
 
 func Render(path string) string {
 	// get realm coins.
-	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
-	coins := banker_.GetCoins(bankerAddr(cross))
+	banker := std.NewBanker(std.BankerTypeReadonly)
+	coins := banker.GetCoins(bankerAddr(cross))
 
 	// render
 	res := ""

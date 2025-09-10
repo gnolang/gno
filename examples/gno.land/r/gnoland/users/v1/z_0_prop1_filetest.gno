@@ -3,7 +3,7 @@ package main
 // SEND: 1000000ugnot
 
 import (
-	"chain/runtime"
+	"std"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -14,15 +14,15 @@ import (
 )
 
 // Test updating a name via GovDAO
-var c address = runtime.OriginCaller()
+var c std.Address = std.OriginCaller()
 
 const gUsersV1Path = "gno.land/r/gnoland/users/v1"
 
 // Register a namespace for every addresses
 // Necessary to test GovDAO Vote
-func registerTestUser(addrs ...address) {
+func registerTestUser(addrs ...std.Address) {
 	// Set realm to users admin to register test user
-	testing.SetRealm(runtime.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
 	for _, addr := range addrs {
 		err := susers.RegisterUser(cross, addr.String()[1:], addr)
 		if err != nil {
@@ -39,12 +39,12 @@ func init() {
 
 	// Register alice
 	testing.SetOriginCaller(alice)
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 	users.Register(cross, "alice123")
 
 	// Prop to change name
 	testing.SetOriginCaller(c)
-	testing.SetRealm(runtime.NewUserRealm(c))
+	testing.SetRealm(std.NewUserRealm(c))
 	pr := users.ProposeNewName(alice, "alice_new123")
 	dao.MustCreateProposal(cross, pr)
 }

@@ -1,6 +1,8 @@
 package commondao
 
 import (
+	"std"
+
 	"gno.land/p/moul/addrset"
 )
 
@@ -10,15 +12,15 @@ type MemberStorage interface {
 	Size() int
 
 	// Has checks if a member exists in the storage.
-	Has(address) bool
+	Has(std.Address) bool
 
 	// Add adds a member to the storage.
 	// Returns true if the member is added, or false if it already existed.
-	Add(address) bool
+	Add(std.Address) bool
 
 	// Remove removes a member from the storage.
 	// Returns true if member was removed, or false if it was not found.
-	Remove(address) bool
+	Remove(std.Address) bool
 
 	// Grouping returns member groups when supported.
 	// When nil is returned it means that grouping of members is not supported.
@@ -28,7 +30,7 @@ type MemberStorage interface {
 
 	// IterateByOffset iterates members starting at the given offset.
 	// The callback can return true to stop iteration.
-	IterateByOffset(offset, count int, fn func(address) bool)
+	IterateByOffset(offset, count int, fn func(std.Address) bool)
 }
 
 // NewMemberStorage creates a new member storage.

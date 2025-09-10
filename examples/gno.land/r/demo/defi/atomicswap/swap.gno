@@ -1,9 +1,9 @@
 package atomicswap
 
 import (
-	"chain/runtime"
 	"crypto/sha256"
 	"encoding/hex"
+	"std"
 	"time"
 
 	"gno.land/p/nt/ufmt"
@@ -11,23 +11,23 @@ import (
 
 // Swap represents an atomic swap contract.
 type Swap struct {
-	sender    address
-	recipient address
+	sender    std.Address
+	recipient std.Address
 	hashlock  string
 	timelock  time.Time
 	claimed   bool
 	refunded  bool
 	amountStr string
-	sendFn    func(cur realm, to address)
+	sendFn    func(cur realm, to std.Address)
 }
 
 func newSwap(
-	sender address,
-	recipient address,
+	sender std.Address,
+	recipient std.Address,
 	hashlock string,
 	timelock time.Time,
 	amountStr string,
-	sendFn func(realm, address),
+	sendFn func(realm, std.Address),
 ) *Swap {
 	require(time.Now().Before(timelock), "timelock must be in the future")
 	require(hashlock != "", "hashlock must not be empty")
@@ -47,7 +47,7 @@ func newSwap(
 func (s *Swap) Claim(preimage string) {
 	require(!s.claimed, "already claimed")
 	require(!s.refunded, "already refunded")
-	require(runtime.PreviousRealm().Address() == s.recipient, "unauthorized")
+	require(std.PreviousRealm().Address() == s.recipient, "unauthorized")
 
 	hashlock := sha256.Sum256([]byte(preimage))
 	hashlockHex := hex.EncodeToString(hashlock[:])
@@ -61,7 +61,7 @@ func (s *Swap) Claim(preimage string) {
 func (s *Swap) Refund() {
 	require(!s.claimed, "already claimed")
 	require(!s.refunded, "already refunded")
-	require(runtime.PreviousRealm().Address() == s.sender, "unauthorized")
+	require(std.PreviousRealm().Address() == s.sender, "unauthorized")
 	require(time.Now().After(s.timelock), "timelock not expired")
 
 	s.refunded = true

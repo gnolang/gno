@@ -3,7 +3,7 @@
 package foo20
 
 import (
-	"chain/runtime"
+	"std"
 	"strings"
 
 	"gno.land/p/demo/tokens/grc20"
@@ -27,40 +27,40 @@ func TotalSupply() int64 {
 	return UserTeller.TotalSupply()
 }
 
-func BalanceOf(owner address) int64 {
+func BalanceOf(owner std.Address) int64 {
 	return UserTeller.BalanceOf(owner)
 }
 
-func Allowance(owner, spender address) int64 {
+func Allowance(owner, spender std.Address) int64 {
 	return UserTeller.Allowance(owner, spender)
 }
 
-func Transfer(cur realm, to address, amount int64) {
+func Transfer(cur realm, to std.Address, amount int64) {
 	checkErr(UserTeller.Transfer(to, amount))
 }
 
-func Approve(cur realm, spender address, amount int64) {
+func Approve(cur realm, spender std.Address, amount int64) {
 	checkErr(UserTeller.Approve(spender, amount))
 }
 
-func TransferFrom(cur realm, from, to address, amount int64) {
+func TransferFrom(cur realm, from, to std.Address, amount int64) {
 	checkErr(UserTeller.TransferFrom(from, to, amount))
 }
 
 // Faucet is distributing foo20 tokens without restriction (unsafe).
 // For a real token faucet, you should take care of setting limits are asking payment.
 func Faucet(cur realm) {
-	caller := runtime.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 	amount := int64(1_000 * 10_000) // 1k
 	checkErr(privateLedger.Mint(caller, amount))
 }
 
-func Mint(cur realm, to address, amount int64) {
+func Mint(cur realm, to std.Address, amount int64) {
 	Ownable.AssertOwnedByPrevious()
 	checkErr(privateLedger.Mint(to, amount))
 }
 
-func Burn(cur realm, from address, amount int64) {
+func Burn(cur realm, from std.Address, amount int64) {
 	Ownable.AssertOwnedByPrevious()
 	checkErr(privateLedger.Burn(from, amount))
 }
@@ -73,7 +73,7 @@ func Render(path string) string {
 	case path == "":
 		return Token.RenderHome()
 	case c == 2 && parts[0] == "balance":
-		owner := address(parts[1])
+		owner := std.Address(parts[1])
 		balance := UserTeller.BalanceOf(owner)
 		return ufmt.Sprintf("%d\n", balance)
 	default:

@@ -2,6 +2,7 @@ package glicko2
 
 import (
 	"math"
+	"std"
 )
 
 // http://www.glicko.net/glicko/glicko2.pdf
@@ -27,7 +28,7 @@ const (
 )
 
 type PlayerRating struct {
-	ID address
+	ID std.Address
 
 	Rating           float64
 	RatingDeviation  float64
@@ -37,7 +38,7 @@ type PlayerRating struct {
 	wr, wrd, wrv float64
 }
 
-func NewPlayerRating(addr address) *PlayerRating {
+func NewPlayerRating(addr std.Address) *PlayerRating {
 	return &PlayerRating{
 		ID:               addr,
 		Rating:           GlickoInitialRating,
@@ -48,11 +49,11 @@ func NewPlayerRating(addr address) *PlayerRating {
 
 // RatingScore is the outcome of a game between two players.
 type RatingScore struct {
-	White, Black address
+	White, Black std.Address
 	Score        float64 // 0 = black win, 0.5 = draw, 1 = white win
 }
 
-func getRatingScore(scores []RatingScore, player, opponent address) float64 {
+func getRatingScore(scores []RatingScore, player, opponent std.Address) float64 {
 	for _, score := range scores {
 		if score.White == player && score.Black == opponent {
 			return score.Score

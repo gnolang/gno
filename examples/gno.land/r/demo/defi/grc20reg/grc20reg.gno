@@ -1,8 +1,7 @@
 package grc20reg
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/nt/avl"
@@ -13,10 +12,10 @@ import (
 
 var registry = avl.NewTree() // rlmPath[.slug] -> *Token (slug is optional)
 func Register(cur realm, token *grc20.Token, slug string) {
-	rlmPath := runtime.PreviousRealm().PkgPath()
+	rlmPath := std.PreviousRealm().PkgPath()
 	key := fqname.Construct(rlmPath, slug)
 	registry.Set(key, token)
-	chain.Emit(
+	std.Emit(
 		registerEvent,
 		"pkgpath", rlmPath,
 		"slug", slug,

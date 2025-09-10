@@ -3,8 +3,7 @@
 package main
 
 import (
-	"chain"
-	"chain/banker"
+	"std"
 	"testing"
 
 	"gno.land/p/nt/treasury"
@@ -12,12 +11,12 @@ import (
 
 func main() {
 	// Define addresses for the sender (owner) and destination.
-	ownerAddr := chain.DerivePkgAddr("gno.land/r/treasury/main")
-	destAddr := chain.DerivePkgAddr("gno.land/r/dest/main")
+	ownerAddr := std.DerivePkgAddr("gno.land/r/treasury/main")
+	destAddr := std.DerivePkgAddr("gno.land/r/dest/main")
 
 	// Create a CoinsBanker.
-	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
-	cbanker, err := treasury.NewCoinsBanker(banker_)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
+	cbanker, err := treasury.NewCoinsBanker(banker)
 	if err != nil {
 		panic("failed to create CoinsBanker: " + err.Error())
 	}
@@ -33,14 +32,14 @@ func main() {
 	println("CoinsBanker Balances count:", len(cbanker.Balances()))
 
 	// Issue some coins to the owner address.
-	testing.IssueCoins(ownerAddr, banker.NewCoins(banker.NewCoin("ugnot", 42)))
+	testing.IssueCoins(ownerAddr, std.NewCoins(std.NewCoin("ugnot", 42)))
 
 	println("CoinsBanker Balances count:", len(cbanker.Balances()))
 	println("Ugnot balance:", cbanker.Balances()[0].Amount)
 
 	// Send a valid payment.
 	validPayment := treasury.NewCoinsPayment(
-		banker.NewCoins(banker.NewCoin("ugnot", 10)),
+		std.NewCoins(std.NewCoin("ugnot", 10)),
 		destAddr,
 	)
 	err = cbanker.Send(validPayment)
@@ -60,7 +59,7 @@ func main() {
 	}
 
 	// Issue another coin to the owner address to test the Balances method.
-	testing.IssueCoins(ownerAddr, banker.NewCoins(banker.NewCoin("anothercoin", 1337)))
+	testing.IssueCoins(ownerAddr, std.NewCoins(std.NewCoin("anothercoin", 1337)))
 
 	println("CoinsBanker Balances count:", len(cbanker.Balances()))
 }

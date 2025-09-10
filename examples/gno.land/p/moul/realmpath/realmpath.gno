@@ -27,12 +27,12 @@
 package realmpath
 
 import (
-	"chain/runtime"
 	"net/url"
+	"std"
 	"strings"
 )
 
-var chainDomain = runtime.ChainDomain()
+var chainDomain = std.ChainDomain()
 
 // Request represents a parsed request.
 type Request struct {
@@ -77,7 +77,7 @@ func (r *Request) PathPart(index int) string {
 func (r *Request) String() string {
 	// Automatically set the Realm if it is not already defined
 	if r.Realm == "" {
-		r.Realm = runtime.CurrentRealm().PkgPath() // Get the current realm path
+		r.Realm = std.CurrentRealm().PkgPath() // Get the current realm path
 	}
 
 	// Rebuild the path using the realm and path parts

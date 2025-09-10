@@ -1,6 +1,7 @@
 package boards
 
 import (
+	"std"
 	"strconv"
 	"time"
 
@@ -22,7 +23,7 @@ func (pid PostID) String() string {
 type Post struct {
 	board       *Board
 	id          PostID
-	creator     address
+	creator     std.Address
 	title       string // optional
 	body        string
 	replies     avl.Tree // Post.id -> *Post
@@ -35,7 +36,7 @@ type Post struct {
 	updatedAt   time.Time
 }
 
-func newPost(board *Board, id PostID, creator address, title, body string, threadID, parentID PostID, repostBoard BoardID) *Post {
+func newPost(board *Board, id PostID, creator std.Address, title, body string, threadID, parentID PostID, repostBoard BoardID) *Post {
 	return &Post{
 		board:       board,
 		id:          id,
@@ -60,7 +61,7 @@ func (post *Post) GetPostID() PostID {
 	return post.id
 }
 
-func (post *Post) AddReply(creator address, body string) *Post {
+func (post *Post) AddReply(creator std.Address, body string) *Post {
 	board := post.board
 	pid := board.incGetPostID()
 	pidkey := postIDKey(pid)
@@ -91,7 +92,7 @@ func (thread *Post) GetReply(pid PostID) *Post {
 	}
 }
 
-func (post *Post) AddRepostTo(creator address, title, body string, dst *Board) *Post {
+func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Board) *Post {
 	if !post.IsThread() {
 		panic("cannot repost non-thread post")
 	}
@@ -124,7 +125,7 @@ func (thread *Post) DeletePost(pid PostID) {
 	}
 }
 
-func (post *Post) HasPermission(addr address, perm Permission) bool {
+func (post *Post) HasPermission(addr std.Address, perm Permission) bool {
 	if post.creator == addr {
 		switch perm {
 		case EditPermission:

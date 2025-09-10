@@ -1,13 +1,13 @@
 package registry
 
 import (
-	"chain/runtime"
 	"errors"
+	"std"
 )
 
 var (
-	mainAddress   address
-	backupAddress address
+	mainAddress   std.Address
+	backupAddress std.Address
 
 	ErrInvalidAddr  = errors.New("Ivan's registry: Invalid address")
 	ErrUnauthorized = errors.New("Ivan's registry: Unauthorized")
@@ -18,15 +18,15 @@ func init() {
 	backupAddress = "g1mw2xft3eava9kfhqw3fjj3kkf3pkammty0mtv7"
 }
 
-func MainAddress() address {
+func MainAddress() std.Address {
 	return mainAddress
 }
 
-func BackupAddress() address {
+func BackupAddress() std.Address {
 	return backupAddress
 }
 
-func SetMainAddress(_ realm, addr address) error {
+func SetMainAddress(_ realm, addr std.Address) error {
 	assertAuthorized()
 
 	if !addr.IsValid() {
@@ -37,7 +37,7 @@ func SetMainAddress(_ realm, addr address) error {
 	return nil
 }
 
-func SetBackupAddress(_ realm, addr address) error {
+func SetBackupAddress(_ realm, addr std.Address) error {
 	assertAuthorized()
 
 	if !addr.IsValid() {
@@ -50,7 +50,7 @@ func SetBackupAddress(_ realm, addr address) error {
 
 // It will stay here for now, might be useful later
 func assertAuthorized() {
-	caller := runtime.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 	isAuthorized := caller == mainAddress || caller == backupAddress
 
 	if !isAuthorized {

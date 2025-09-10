@@ -1,7 +1,7 @@
 package ownable
 
 import (
-	"chain/runtime"
+	"std"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -15,8 +15,8 @@ var (
 )
 
 func TestNew(t *testing.T) {
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/test/test"))
-	current := runtime.CurrentRealm().Address()
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
+	current := std.CurrentRealm().Address()
 
 	o := New()
 	got := o.Owner()
@@ -25,7 +25,7 @@ func TestNew(t *testing.T) {
 
 func TestNewWithOriginPanic(t *testing.T) {
 	testing.SetOriginCaller(alice)
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 
 	uassert.PanicsWithMessage(t, "frame not found: cannot seek beyond origin caller override", func() {
 		NewWithOrigin()
@@ -33,8 +33,8 @@ func TestNewWithOriginPanic(t *testing.T) {
 }
 
 func TestNewWithOrigin(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
-	crossThrough(runtime.NewCodeRealm("gno.land/r/test/test"), func() {
+	testing.SetRealm(std.NewUserRealm(alice))
+	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
 		// This is the only way to test crosses from a p package for now.
 		o := NewWithOrigin()
 		got := o.Owner()
@@ -50,7 +50,7 @@ func TestNewWithAddress(t *testing.T) {
 }
 
 func TestTransferOwnership(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 
 	o := New()
 	err := o.TransferOwnership(bob)
@@ -63,72 +63,72 @@ func TestTransferOwnership(t *testing.T) {
 func TestTransferOwnershipUnauthorized(t *testing.T) {
 	var o *Ownable
 
-	testing.SetRealm(runtime.NewUserRealm(alice))
-	crossThrough(runtime.NewCodeRealm("gno.land/r/test/test"), func() {
+	testing.SetRealm(std.NewUserRealm(alice))
+	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
 		o = NewWithOrigin() // owned by alice
 	})
 
 	// Try unauthorized transfer from non-alice realm.
-	crossThrough(runtime.NewCodeRealm("gno.land/r/test/test"), func() {
+	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
 		uassert.ErrorContains(t, o.TransferOwnership(alice), ErrUnauthorized.Error())
 		uassert.ErrorContains(t, o.DropOwnershipByCurrent(), ErrUnauthorized.Error())
 	})
 
 	// Set realm to an unauthorized user bob.
-	testing.SetRealm(runtime.NewUserRealm(bob))
+	testing.SetRealm(std.NewUserRealm(bob))
 	// current is gno.land/r/test/test so of course errors.
 	uassert.ErrorContains(t, o.TransferOwnership(bob), ErrUnauthorized.Error())
 	uassert.ErrorContains(t, o.DropOwnershipByCurrent(), ErrUnauthorized.Error())
 	// Reset realm to alice.
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 	uassert.NoError(t, o.TransferOwnership(alice))
 	uassert.NoError(t, o.DropOwnershipByCurrent())
 }
 
 func TestOwnedByCurrent(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 	o := New()
 	uassert.True(t, o.OwnedByCurrent())
 }
 
 func TestOwnedByCurrentUnauthorized(t *testing.T) {
 	testing.SetOriginCaller(alice)
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 
 	var o *Ownable
-	crossThrough(runtime.NewCodeRealm("gno.land/r/test/test"), func() {
+	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
 		o = NewWithOrigin()
 	})
 
 	uassert.True(t, o.OwnedByCurrent())
 
 	unauthorizedCaller := bob
-	testing.SetRealm(runtime.NewUserRealm(unauthorizedCaller))
+	testing.SetRealm(std.NewUserRealm(unauthorizedCaller))
 	uassert.False(t, o.OwnedByCurrent())
 }
 
 func TestOwnedByPrevious(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 	o := New()
 
-	crossThrough(runtime.NewCodeRealm("gno.land/r/test/test"), func() {
+	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
 		uassert.True(t, o.OwnedByPrevious())
 	})
 }
 
 func TestOwnedByPreviousUnauthorized(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 	o := New()
 
 	unauthorizedCaller := bob
-	testing.SetRealm(runtime.NewUserRealm(unauthorizedCaller))
-	crossThrough(runtime.NewCodeRealm("gno.land/r/test/test"), func() {
+	testing.SetRealm(std.NewUserRealm(unauthorizedCaller))
+	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
 		uassert.False(t, o.OwnedByPrevious())
 	})
 }
 
 func TestDropOwnershipByCurrent(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 
 	o := New()
 
@@ -140,7 +140,7 @@ func TestDropOwnershipByCurrent(t *testing.T) {
 }
 
 func TestErrInvalidAddress(t *testing.T) {
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/test/test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
 
 	o := New()
 	err := o.TransferOwnership("")
@@ -151,7 +151,7 @@ func TestErrInvalidAddress(t *testing.T) {
 }
 
 func TestAssertOwnedByCurrent(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 
 	o := New()
 
@@ -159,22 +159,22 @@ func TestAssertOwnedByCurrent(t *testing.T) {
 	o.AssertOwnedByCurrent()
 
 	// Should panic when caller is not owner
-	testing.SetRealm(runtime.NewUserRealm(bob))
+	testing.SetRealm(std.NewUserRealm(bob))
 	uassert.PanicsWithMessage(t, ErrUnauthorized.Error(), func() {
 		o.AssertOwnedByCurrent()
 	})
 }
 
 func TestAssertOwnedByPrevious(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 
 	o := New()
-	crossThrough(runtime.NewCodeRealm("gno.land/r/test/test"), func() {
+	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
 		// Should not panic when previous is owner
 		o.AssertOwnedByPrevious()
 
 		// Should panic when previous is not owner
-		testing.SetRealm(runtime.NewUserRealm(bob))
+		testing.SetRealm(std.NewUserRealm(bob))
 		uassert.PanicsWithMessage(t, ErrUnauthorized.Error(), func() {
 			o.AssertOwnedByCurrent()
 		})
@@ -185,7 +185,7 @@ func TestNilReceiver(t *testing.T) {
 	var o *Ownable
 
 	owner := o.Owner()
-	if owner != address("") {
+	if owner != std.Address("") {
 		t.Errorf("expected empty address but got %v", owner)
 	}
 
@@ -204,7 +204,7 @@ func TestNilReceiver(t *testing.T) {
 	o.AssertOwnedByPrevious()
 }
 
-func crossThrough(rlm runtime.Realm, cr func()) {
+func crossThrough(rlm std.Realm, cr func()) {
 	testing.SetRealm(rlm)
 	cr()
 }

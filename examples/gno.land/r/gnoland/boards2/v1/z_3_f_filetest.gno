@@ -3,7 +3,7 @@ package main
 // SEND: 1000000ugnot
 
 import (
-	"chain/runtime"
+	"std"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	owner   = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	member  = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
+	owner   = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	member  = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
 	name    = "foo123"
 	newName = "barbaz123"
 )
@@ -20,19 +20,19 @@ const (
 var bid boards2.BoardID // Operate on board DAO
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(std.NewUserRealm(owner))
 
 	bid = boards2.CreateBoard(cross, name, false)
 	boards2.InviteMember(cross, bid, member, boards2.RoleOwner)
 
 	// Test1 is the boards owner and its address has a user already registered
 	// so a new member must register a user with the new board name.
-	testing.SetRealm(runtime.NewUserRealm(member))
+	testing.SetRealm(std.NewUserRealm(member))
 	users.Register(cross, newName)
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(member))
+	testing.SetRealm(std.NewUserRealm(member))
 
 	boards2.RenameBoard(cross, name, newName)
 

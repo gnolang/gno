@@ -2,6 +2,7 @@ package grc20
 
 import (
 	"math"
+	"std"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -97,7 +98,7 @@ func TestTransferFromAtomicity(t *testing.T) {
 		owner   = testutils.TestAddress("owner")
 		spender = testutils.TestAddress("spender")
 
-		invalidRecipient = address("")
+		invalidRecipient = std.Address("")
 	)
 
 	token, admin := NewToken("Test", "TEST", 6)
@@ -130,7 +131,7 @@ func TestMintUntilOverflow(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		addr           address
+		addr           std.Address
 		amount         int64
 		expectedError  error
 		expectedSupply int64

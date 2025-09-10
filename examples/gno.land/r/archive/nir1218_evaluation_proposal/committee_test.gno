@@ -1,13 +1,14 @@
 package evaluation
 
 import (
+	"std"
 	"testing"
 
 	"gno.land/p/nt/testutils"
 )
 
 func TestCommitteeMembers(t *testing.T) {
-	members := []address{testutils.TestAddress("member1"), testutils.TestAddress("member2"), testutils.TestAddress("member3")}
+	members := []std.Address{testutils.TestAddress("member1"), testutils.TestAddress("member2"), testutils.TestAddress("member3")}
 	c := NewCommittee()
 
 	t.Run("Designate Committee Members", func(t *testing.T) {
@@ -32,7 +33,7 @@ func TestCategoryEvaluationCriteria(t *testing.T) {
 	expectedGategory2 := NewCategory(category2, criteria2)
 
 	c := NewCommittee()
-	c.DesignateMembers([]address{member})
+	c.DesignateMembers([]std.Address{member})
 
 	t.Run("Add First Committee Category and Evaluation Criteria", func(t *testing.T) {
 		testing.SetOriginCaller(member)
@@ -83,7 +84,7 @@ func isEqualStringSlice(a, b []string) bool {
 	return true
 }
 
-func isEqualAddressSlice(a, b []address) bool {
+func isEqualAddressSlice(a, b []std.Address) bool {
 	if len(a) != len(b) {
 		return false
 	}

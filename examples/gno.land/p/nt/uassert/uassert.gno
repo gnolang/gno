@@ -2,6 +2,7 @@
 package uassert
 
 import (
+	"std"
 	"strconv"
 	"strings"
 
@@ -302,8 +303,8 @@ func Equal(t TestingT, expected, actual any, msgs ...string) bool {
 				return fail(t, msgs, "uassert.Equal: strings are different\n\tDiff: %s", diff.Format(dif))
 			}
 		}
-	case address:
-		if av, ok := actual.(address); ok {
+	case std.Address:
+		if av, ok := actual.(std.Address); ok {
 			equal = ev == av
 			ok_ = true
 			es, as = string(ev), string(av)
@@ -436,8 +437,8 @@ func NotEqual(t TestingT, expected, actual any, msgs ...string) bool {
 			ok_ = true
 			es, as = ev, av
 		}
-	case address:
-		if av, ok := actual.(address); ok {
+	case std.Address:
+		if av, ok := actual.(std.Address); ok {
 			notEqual = ev != av
 			ok_ = true
 			es, as = string(ev), string(av)
@@ -594,10 +595,10 @@ func Empty(t TestingT, obj any, msgs ...string) bool {
 			if val != "" {
 				return fail(t, msgs, "uassert.Empty: not empty string: %s", val)
 			}
-		case address:
-			var zeroAddr address
+		case std.Address:
+			var zeroAddr std.Address
 			if val != zeroAddr {
-				return fail(t, msgs, "uassert.Empty: not empty address: %s", string(val))
+				return fail(t, msgs, "uassert.Empty: not empty std.Address: %s", string(val))
 			}
 		default:
 			return fail(t, msgs, "uassert.Empty: unsupported type")
@@ -619,10 +620,10 @@ func NotEmpty(t TestingT, obj any, msgs ...string) bool {
 			if val == "" {
 				return fail(t, msgs, "uassert.NotEmpty: empty string: %s", val)
 			}
-		case address:
-			var zeroAddr address
+		case std.Address:
+			var zeroAddr std.Address
 			if val == zeroAddr {
-				return fail(t, msgs, "uassert.NotEmpty: empty address: %s", string(val))
+				return fail(t, msgs, "uassert.NotEmpty: empty std.Address: %s", string(val))
 			}
 		default:
 			return fail(t, msgs, "uassert.NotEmpty: unsupported type")

@@ -12,7 +12,7 @@
 package genesis
 
 import (
-	"chain/runtime"
+	"std"
 	"time"
 )
 
@@ -21,10 +21,10 @@ var (
 	Time = time.Now()
 
 	// Height is the height of the genesis block (usually 0).
-	Height = runtime.ChainHeight()
+	Height = std.ChainHeight()
 
 	// Domain is the domain of the chain.
-	Domain = runtime.ChainDomain()
+	Domain = std.ChainDomain()
 
 	// XXX: TZ
 	// XXX: Supply = std.Coins{{"ugnot", std.NewBanker(std.BankerTypeReadonly).TotalSupply("ugnot")}}
@@ -37,5 +37,5 @@ func Uptime() time.Duration {
 
 // Upheight returns the height of the chain.
 func Upheight() int64 {
-	return runtime.ChainHeight() - Height
+	return std.ChainHeight() - Height
 }

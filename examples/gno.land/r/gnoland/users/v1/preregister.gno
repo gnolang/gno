@@ -1,13 +1,15 @@
 package users
 
 import (
+	"std"
+
 	susers "gno.land/r/sys/users"
 )
 
 // pre-registered users
 var preRegisteredUsers = []struct {
 	Name    string
-	Address address
+	Address std.Address
 }{
 	// system names.
 	// the goal is to make them either team/DAO-owned or ownerless.

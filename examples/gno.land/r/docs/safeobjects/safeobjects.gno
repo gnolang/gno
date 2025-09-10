@@ -1,8 +1,6 @@
 package safeobjects
 
-import (
-	"chain/runtime"
-)
+import "std"
 
 // ExposedSafeObject methods exposed to the public. However, the methods all
 // contain a caller check - making them, and the object itself "safe".
@@ -10,7 +8,7 @@ import (
 // A prime example of a safe object can be found in "p/demo/ownable".
 var ExposedSafeObject = SafeObject{
 	privilegedData: "This message can only be set by the admin.",
-	admin:          address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"),
+	admin:          std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"),
 }
 
 // SafeObject is an object that contains some privileged data
@@ -18,12 +16,12 @@ var ExposedSafeObject = SafeObject{
 // have the edit rights, or for other reasons.
 type SafeObject struct {
 	privilegedData string
-	admin          address
+	admin          std.Address
 }
 
 // Set is a function only the admin can call
 func (so SafeObject) Set(value string) {
-	if runtime.CurrentRealm().Address() != so.admin {
+	if std.CurrentRealm().Address() != so.admin {
 		panic("caller is not authorized")
 	}
 
@@ -31,8 +29,8 @@ func (so SafeObject) Set(value string) {
 }
 
 // UpdateAdmin is a function only the admin can call
-func (so SafeObject) UpdateAdmin(newAdmin address) {
-	if runtime.CurrentRealm().Address() != so.admin {
+func (so SafeObject) UpdateAdmin(newAdmin std.Address) {
+	if std.CurrentRealm().Address() != so.admin {
 		panic("caller is not authorized")
 	}
 

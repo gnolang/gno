@@ -1,13 +1,13 @@
 package main
 
 import (
-	"chain/runtime"
+	"std"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
 var (
 	bid boards2.BoardID
@@ -16,7 +16,7 @@ var (
 )
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(std.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test123", false)
 	tid = boards2.CreateThread(cross, bid, "foo", "bar")
 	rid = boards2.CreateReply(cross, bid, tid, 0, "reply")
@@ -25,7 +25,7 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(std.NewUserRealm(owner))
 
 	// Attempt to freeze a reply on frozen thread
 	boards2.FreezeReply(cross, bid, tid, rid)

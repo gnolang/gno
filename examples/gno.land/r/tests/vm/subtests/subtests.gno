@@ -1,13 +1,15 @@
 package subtests
 
-import "chain/runtime"
+import (
+	"std"
+)
 
-func GetCurrentRealm(cur realm) runtime.Realm {
-	return runtime.CurrentRealm()
+func GetCurrentRealm(cur realm) std.Realm {
+	return std.CurrentRealm()
 }
 
-func GetPreviousRealm(cur realm) runtime.Realm {
-	return runtime.PreviousRealm()
+func GetPreviousRealm(cur realm) std.Realm {
+	return std.PreviousRealm()
 }
 
 func Exec(fn func()) {
@@ -15,9 +17,9 @@ func Exec(fn func()) {
 }
 
 func CallAssertOriginCall(cur realm) {
-	runtime.AssertOriginCall()
+	std.AssertOriginCall()
 }
 
 func CallIsOriginCall(cur realm) bool {
-	return runtime.PreviousRealm().IsUser()
+	return std.PreviousRealm().IsUser()
 }

@@ -1,8 +1,7 @@
 package boards2
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 	"strings"
 	"time"
 
@@ -19,7 +18,7 @@ const (
 // Ban bans a user from a board for a period of time.
 // Only invited guest members and external users can be banned.
 // Banning board owners, admins and moderators is not allowed.
-func Ban(_ realm, boardID BoardID, user address, hours uint, reason string) {
+func Ban(_ realm, boardID BoardID, user std.Address, hours uint, reason string) {
 	assertAddressIsValid(user)
 
 	if hours == 0 {
@@ -32,7 +31,7 @@ func Ban(_ realm, boardID BoardID, user address, hours uint, reason string) {
 	}
 
 	board := mustGetBoard(boardID)
-	caller := runtime.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 	until := time.Now().Add(time.Minute * 60 * time.Duration(hours))
 	args := Args{boardID, user, until, reason}
 	board.perms.WithPermission(caller, PermissionUserBan, args, func(Args) {
@@ -51,7 +50,7 @@ func Ban(_ realm, boardID BoardID, user address, hours uint, reason string) {
 
 		banned.Set(user.String(), until)
 
-		chain.Emit(
+		std.Emit(
 			"UserBanned",
 			"bannedBy", caller.String(),
 			"boardID", boardID.String(),
@@ -63,11 +62,11 @@ func Ban(_ realm, boardID BoardID, user address, hours uint, reason string) {
 }
 
 // Unban unbans a user from a board.
-func Unban(_ realm, boardID BoardID, user address, reason string) {
+func Unban(_ realm, boardID BoardID, user std.Address, reason string) {
 	assertAddressIsValid(user)
 
 	board := mustGetBoard(boardID)
-	caller := runtime.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 	args := Args{boardID, user, reason}
 	board.perms.WithPermission(caller, PermissionUserUnban, args, func(Args) {
 		banned, found := getBannedUsers(boardID)
@@ -77,7 +76,7 @@ func Unban(_ realm, boardID BoardID, user address, reason string) {
 
 		banned.Remove(user.String())
 
-		chain.Emit(
+		std.Emit(
 			"UserUnbanned",
 			"bannedBy", caller.String(),
 			"boardID", boardID.String(),
@@ -88,18 +87,18 @@ func Unban(_ realm, boardID BoardID, user address, reason string) {
 }
 
 // IsBanned checks if a user is banned from a board.
-func IsBanned(boardID BoardID, user address) bool {
+func IsBanned(boardID BoardID, user std.Address) bool {
 	banned, found := getBannedUsers(boardID)
 	return found && banned.Has(user.String())
 }
 
-func assertAddressIsValid(addr address) {
+func assertAddressIsValid(addr std.Address) {
 	if !addr.IsValid() {
 		panic("invalid address: " + addr.String())
 	}
 }
 
-func assertUserIsNotBanned(boardID BoardID, user address) {
+func assertUserIsNotBanned(boardID BoardID, user std.Address) {
 	banned, found := getBannedUsers(boardID)
 	if !found {
 		return

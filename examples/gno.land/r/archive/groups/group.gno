@@ -1,6 +1,7 @@
 package groups
 
 import (
+	"std"
 	"strconv"
 	"time"
 
@@ -19,11 +20,11 @@ type Group struct {
 	name         string
 	lastMemberID MemberID
 	members      avl.Tree
-	creator      address
+	creator      std.Address
 	createdAt    time.Time
 }
 
-func newGroup(url string, name string, creator address) *Group {
+func newGroup(url string, name string, creator std.Address) *Group {
 	if !reName.MatchString(name) {
 		panic("invalid name: " + name)
 	}
@@ -40,7 +41,7 @@ func newGroup(url string, name string, creator address) *Group {
 	}
 }
 
-func (group *Group) newMember(id MemberID, address_XXX address, weight int, metadata string) *Member {
+func (group *Group) newMember(id MemberID, address_XXX std.Address, weight int, metadata string) *Member {
 	if group.members.Has(address_XXX.String()) {
 		panic("this member for this group already exists")
 	}
@@ -53,7 +54,7 @@ func (group *Group) newMember(id MemberID, address_XXX address, weight int, meta
 	}
 }
 
-func (group *Group) HasPermission(addr address, perm Permission) bool {
+func (group *Group) HasPermission(addr std.Address, perm Permission) bool {
 	if group.creator != addr {
 		return false
 	}

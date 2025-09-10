@@ -1,5 +1,7 @@
 package commondao
 
+import "std"
+
 // NewMemberSet creates a new readonly memberset.
 func NewMemberSet(s MemberStorage) MemberSet {
 	return MemberSet{s}
@@ -16,12 +18,12 @@ func (s MemberSet) Size() int {
 }
 
 // Has checks if an address exists in the set.
-func (s MemberSet) Has(member address) bool {
+func (s MemberSet) Has(member std.Address) bool {
 	return s.storage.Has(member)
 }
 
 // IterateByOffset walks through addresses starting at the given offset.
 // The callback should return true to stop iteration.
-func (s MemberSet) IterateByOffset(offset, count int, fn func(address) bool) {
+func (s MemberSet) IterateByOffset(offset, count int, fn func(std.Address) bool) {
 	s.storage.IterateByOffset(offset, count, fn)
 }

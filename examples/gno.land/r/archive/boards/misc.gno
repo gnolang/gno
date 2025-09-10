@@ -1,6 +1,7 @@
 package boards
 
 import (
+	"std"
 	"strconv"
 	"strings"
 
@@ -76,7 +77,7 @@ func summaryOf(str string, length int) string {
 	return line
 }
 
-func displayAddressMD(addr address) string {
+func displayAddressMD(addr std.Address) string {
 	user := users.ResolveAddress(addr)
 	if user == nil {
 		return "[" + addr.String() + "](/u/" + addr.String() + ")"
@@ -85,7 +86,7 @@ func displayAddressMD(addr address) string {
 	}
 }
 
-func usernameOf(addr address) string {
+func usernameOf(addr std.Address) string {
 	user := users.ResolveAddress(addr)
 	if user == nil {
 		return ""

@@ -1,7 +1,7 @@
 package home
 
 import (
-	"chain/runtime"
+	"std"
 	"strconv"
 
 	"gno.land/p/moul/dynreplacer"
@@ -35,7 +35,7 @@ func Render(_ string) string {
 		return users.RenderLatestUsersWidget(5)
 	})
 	r.RegisterCallback(":chain-height:", func() string {
-		return strconv.Itoa(int(runtime.ChainHeight()))
+		return strconv.Itoa(int(std.ChainHeight()))
 	})
 
 	template := `# Welcome to Gno.land
@@ -208,7 +208,7 @@ func quoteOfTheBlock() string {
 		"Now, you Gno.",
 		"Come for the Go, Stay for the Gno.",
 	}
-	height := runtime.ChainHeight()
+	height := std.ChainHeight()
 	idx := int(height) % len(quotes)
 	qotb := quotes[idx]
 	return qotb

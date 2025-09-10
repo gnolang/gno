@@ -1,7 +1,7 @@
 package home
 
 import (
-	"chain/runtime"
+	"std"
 	"strconv"
 	"time"
 
@@ -61,7 +61,7 @@ func init() {
 }
 
 func Render(path string) string {
-	height := runtime.ChainHeight()
+	height := std.ChainHeight()
 
 	output := "# " + config.Title + "\n\n"
 

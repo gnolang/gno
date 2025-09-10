@@ -1,6 +1,8 @@
 package validators
 
 import (
+	"std"
+
 	"gno.land/p/sys/validators"
 	"gno.land/r/gov/dao"
 )
@@ -38,12 +40,12 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 
 // IsValidator returns a flag indicating if the given bech32 address
 // is part of the validator set
-func IsValidator(addr address) bool {
+func IsValidator(addr std.Address) bool {
 	return vp.IsValidator(addr)
 }
 
 // GetValidator returns the typed validator
-func GetValidator(addr address) validators.Validator {
+func GetValidator(addr std.Address) validators.Validator {
 	if validator, err := vp.GetValidator(addr); err == nil {
 		return validator
 	}

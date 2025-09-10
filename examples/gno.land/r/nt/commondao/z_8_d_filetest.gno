@@ -1,30 +1,30 @@
 package main
 
 import (
-	"chain/runtime"
+	"std"
 	"testing"
 
 	"gno.land/r/nt/commondao"
 )
 
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	user  = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
 var rootID uint64
 
 func init() {
 	// Invite a user to be able to start creating DAOs
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(std.NewUserRealm(owner))
 	commondao.Invite(cross, user)
 
 	// The origin must be the invited user where invitation
 	// is removed after the first user call to create a DAO
-	testing.SetRealm(runtime.NewUserRealm(user))
+	testing.SetRealm(std.NewUserRealm(user))
 
 	// Create root DAO with subDAOs
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
 	rootDAO := commondao.New(cross, "Root DAO")
 	fooDAO := commondao.NewSubDAO(cross, "A", rootDAO.ID())
 	barDAO := commondao.NewSubDAO(cross, "B", fooDAO.ID())
@@ -35,7 +35,7 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
 
 	iter := commondao.NewIterator(rootID, commondao.WithOffset(1), commondao.WithCount(2))
 

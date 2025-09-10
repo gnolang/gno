@@ -1,6 +1,7 @@
 package main
 
 import (
+	"std"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -8,7 +9,7 @@ import (
 )
 
 func main() {
-	var admin = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+	var admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 	testing.SetOriginCaller(admin)
 	home.AdminSetOverride(cross, "Hello World!")
 	println("---")

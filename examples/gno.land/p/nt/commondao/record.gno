@@ -3,6 +3,7 @@ package commondao
 import (
 	"errors"
 	"math"
+	"std"
 
 	"gno.land/p/nt/avl"
 )
@@ -20,7 +21,7 @@ type (
 	// Vote defines a single vote.
 	Vote struct {
 		// Address is the address of the user that this vote belons to.
-		Address address
+		Address std.Address
 
 		// Choice contains the voted choice.
 		Choice VoteChoice
@@ -73,12 +74,12 @@ func (r ReadonlyVotingRecord) VoteCount(c VoteChoice) int {
 }
 
 // HasVoted checks if an account already voted.
-func (r ReadonlyVotingRecord) HasVoted(user address) bool {
+func (r ReadonlyVotingRecord) HasVoted(user std.Address) bool {
 	return r.votes.Has(user.String())
 }
 
 // GetVote returns a vote.
-func (r ReadonlyVotingRecord) GetVote(user address) (_ Vote, found bool) {
+func (r ReadonlyVotingRecord) GetVote(user std.Address) (_ Vote, found bool) {
 	if v, found := r.votes.Get(user.String()); found {
 		return v.(Vote), true
 	}

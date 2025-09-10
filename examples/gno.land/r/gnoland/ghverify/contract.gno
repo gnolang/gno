@@ -1,9 +1,8 @@
 package ghverify
 
 import (
-	"chain"
-	"chain/runtime"
 	"errors"
+	"std"
 
 	"gno.land/p/demo/gnorkle/feeds/static"
 	"gno.land/p/demo/gnorkle/gnorkle"
@@ -17,7 +16,7 @@ const (
 )
 
 var (
-	ownerAddress = runtime.OriginCaller()
+	ownerAddress = std.OriginCaller()
 	oracle       *gnorkle.Instance
 	postHandler  postGnorkleMessageHandler
 
@@ -71,7 +70,7 @@ func (h postGnorkleMessageHandler) Handle(i *gnorkle.Instance, funcType message.
 // RequestVerification creates a new static feed with a single task that will
 // instruct an agent to verify the github handle / gno address pair.
 func RequestVerification(cur realm, githubHandle string) {
-	gnoAddress := string(runtime.OriginCaller())
+	gnoAddress := string(std.OriginCaller())
 	if err := oracle.AddFeeds(
 		static.NewSingleValueFeed(
 			gnoAddress,
@@ -84,7 +83,7 @@ func RequestVerification(cur realm, githubHandle string) {
 	); err != nil {
 		panic(err)
 	}
-	chain.Emit(
+	std.Emit(
 		"verification_requested",
 		"from", gnoAddress,
 		"handle", githubHandle,
@@ -102,8 +101,8 @@ func GnorkleEntrypoint(cur realm, message string) string {
 }
 
 // SetOwner transfers ownership of the contract to the given address.
-func SetOwner(_ realm, owner address) {
-	if ownerAddress != runtime.OriginCaller() {
+func SetOwner(_ realm, owner std.Address) {
+	if ownerAddress != std.OriginCaller() {
 		panic("only the owner can set a new owner")
 	}
 

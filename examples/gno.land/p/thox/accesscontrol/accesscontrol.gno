@@ -1,8 +1,7 @@
 package accesscontrol
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/ownable"
@@ -19,14 +18,14 @@ const (
 // Role struct to store role information
 type Role struct {
 	Name    string
-	Holders *avl.Tree // address -> struct{}
+	Holders *avl.Tree // std.Address -> struct{}
 	Ownable *ownable.Ownable
 }
 
 // Roles struct to store all Roles information
 type Roles struct {
 	Roles       []*Role
-	UserToRoles avl.Tree // address -> []*Role
+	UserToRoles avl.Tree // std.Address -> []*Role
 	Ownable     *ownable.Ownable
 }
 
@@ -38,7 +37,7 @@ func validRoleName(name string) error {
 }
 
 // NewRole creates a new instance of Role
-func NewRole(name string, admin address) (*Role, error) {
+func NewRole(name string, admin std.Address) (*Role, error) {
 	if err := validRoleName(name); err != nil {
 		return nil, ErrNameRole
 	}
@@ -73,7 +72,7 @@ func (rs *Roles) CreateRole(name string) (*Role, error) {
 
 	rs.Roles = append(rs.Roles, role)
 
-	chain.Emit(
+	std.Emit(
 		RoleCreatedEvent,
 		"roleName", name,
 		"sender", rs.Ownable.Owner().String(),
@@ -83,7 +82,7 @@ func (rs *Roles) CreateRole(name string) (*Role, error) {
 }
 
 // HasAccount check if an account has a specific role
-func (r *Role) HasAccount(account address) bool {
+func (r *Role) HasAccount(account std.Address) bool {
 	return r.Holders.Has(account.String())
 }
 
@@ -99,7 +98,7 @@ func (rs *Roles) FindRole(name string) (*Role, error) {
 }
 
 // GrantRole grants a role to an account
-func (rs *Roles) GrantRole(name string, account address) error {
+func (rs *Roles) GrantRole(name string, account std.Address) error {
 	r, err := rs.FindRole(name)
 	if err != nil {
 		return ErrRoleNotFound
@@ -119,18 +118,18 @@ func (rs *Roles) GrantRole(name string, account address) error {
 	roles = append(roles.([]*Role), r)
 	rs.UserToRoles.Set(account.String(), roles)
 
-	chain.Emit(
+	std.Emit(
 		RoleGrantedEvent,
 		"roleName", r.Name,
 		"account", account.String(),
-		"sender", runtime.CurrentRealm().Address().String(),
+		"sender", std.CurrentRealm().Address().String(),
 	)
 
 	return nil
 }
 
 // RevokeRole revokes a role from an account
-func (rs *Roles) RevokeRole(name string, account address) error {
+func (rs *Roles) RevokeRole(name string, account std.Address) error {
 	r, err := rs.FindRole(name)
 	if err != nil {
 		return ErrRoleNotFound
@@ -154,11 +153,11 @@ func (rs *Roles) RevokeRole(name string, account address) error {
 		rs.UserToRoles.Set(account.String(), updatedRoles)
 	}
 
-	chain.Emit(
+	std.Emit(
 		RoleRevokedEvent,
 		"roleName", r.Name,
 		"account", account.String(),
-		"sender", runtime.CurrentRealm().Address().String(),
+		"sender", std.CurrentRealm().Address().String(),
 	)
 
 	return nil
@@ -171,7 +170,7 @@ func (rs *Roles) RenounceRole(name string) error {
 		return ErrRoleNotFound
 	}
 
-	caller := runtime.OriginCaller()
+	caller := std.OriginCaller()
 
 	if !r.HasAccount(caller) {
 		return ErrAccountNotRole
@@ -179,7 +178,7 @@ func (rs *Roles) RenounceRole(name string) error {
 
 	r.Holders.Remove(caller.String())
 
-	chain.Emit(
+	std.Emit(
 		RoleRenouncedEvent,
 		"roleName", r.Name,
 		"account", caller.String(),
@@ -190,12 +189,12 @@ func (rs *Roles) RenounceRole(name string) error {
 }
 
 // SetRoleAdmin transfers the ownership of the role to a new administrator
-func (r *Role) SetRoleAdmin(admin address) error {
+func (r *Role) SetRoleAdmin(admin std.Address) error {
 	if err := r.Ownable.TransferOwnership(admin); err != nil {
 		return err
 	}
 
-	chain.Emit(
+	std.Emit(
 		RoleSetEvent,
 		"roleName", r.Name,
 		"newAdminRole", r.Ownable.Owner().String(),

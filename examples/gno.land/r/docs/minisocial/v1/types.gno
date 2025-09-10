@@ -1,7 +1,7 @@
 package minisocial
 
 import (
-	// The standard Gno package
+	"std"  // The standard Gno package
 	"time" // For handling time operations
 
 	"gno.land/p/nt/ufmt" // For string formatting, like `fmt`
@@ -9,9 +9,9 @@ import (
 
 // Post defines the main data we keep about each post
 type Post struct {
-	text      string    // Main text body
-	author    address   // Address of the post author, provided by the execution context
-	createdAt time.Time // When the post was created
+	text      string      // Main text body
+	author    std.Address // Address of the post author, provided by the execution context
+	createdAt time.Time   // When the post was created
 }
 
 // String stringifies a Post

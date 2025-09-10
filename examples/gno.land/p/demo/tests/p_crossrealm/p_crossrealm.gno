@@ -1,6 +1,6 @@
 package p_crossrealm
 
-import "chain/runtime"
+import "std"
 
 type Stringer interface {
 	String() string
@@ -25,6 +25,6 @@ func (c *Container) Print() {
 	}
 }
 
-func CurrentRealm() runtime.Realm {
-	return runtime.CurrentRealm()
+func CurrentRealm() std.Realm {
+	return std.CurrentRealm()
 }

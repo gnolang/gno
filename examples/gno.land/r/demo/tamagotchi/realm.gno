@@ -1,7 +1,7 @@
 package tamagotchi
 
 import (
-	"chain/runtime"
+	"std"
 
 	"gno.land/p/demo/tamagotchi"
 	"gno.land/p/nt/ufmt"
@@ -16,7 +16,7 @@ func init(cur realm) {
 func Reset(cur realm, optionalName string) string {
 	name := optionalName
 	if name == "" {
-		height := runtime.ChainHeight()
+		height := std.ChainHeight()
 		name = ufmt.Sprintf("gnome#%d", height)
 	}
 

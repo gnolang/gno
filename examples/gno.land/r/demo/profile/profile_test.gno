@@ -1,7 +1,7 @@
 package profile
 
 import (
-	"chain/runtime"
+	"std"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -21,7 +21,7 @@ var (
 )
 
 func TestStringFields(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 
 	// Get before setting
 	name := GetStringField(alice, DisplayName, "anon")
@@ -48,7 +48,7 @@ func TestStringFields(t *testing.T) {
 }
 
 func TestIntFields(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(bob))
+	testing.SetRealm(std.NewUserRealm(bob))
 
 	// Get before setting
 	age := GetIntField(bob, Age, 25)
@@ -68,7 +68,7 @@ func TestIntFields(t *testing.T) {
 }
 
 func TestBoolFields(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(charlie))
+	testing.SetRealm(std.NewUserRealm(charlie))
 
 	// Get before setting
 	hiring := GetBoolField(charlie, AvailableForHiring, false)
@@ -89,19 +89,19 @@ func TestBoolFields(t *testing.T) {
 
 func TestMultipleProfiles(t *testing.T) {
 	// Set profile for user1
-	testing.SetRealm(runtime.NewUserRealm(user1))
+	testing.SetRealm(std.NewUserRealm(user1))
 	updated := SetStringField(cross, DisplayName, "User One")
 	uassert.Equal(t, updated, false)
 
 	// Set profile for user2
-	testing.SetRealm(runtime.NewUserRealm(user2))
+	testing.SetRealm(std.NewUserRealm(user2))
 	updated = SetStringField(cross, DisplayName, "User Two")
 	uassert.Equal(t, updated, false)
 
 	// Get profiles
-	testing.SetRealm(runtime.NewUserRealm(user1)) // Switch back to user1
+	testing.SetRealm(std.NewUserRealm(user1)) // Switch back to user1
 	name1 := GetStringField(user1, DisplayName, "anon")
-	testing.SetRealm(runtime.NewUserRealm(user2)) // Switch back to user2
+	testing.SetRealm(std.NewUserRealm(user2)) // Switch back to user2
 	name2 := GetStringField(user2, DisplayName, "anon")
 
 	uassert.Equal(t, "User One", name1)
@@ -109,7 +109,7 @@ func TestMultipleProfiles(t *testing.T) {
 }
 
 func TestArbitraryStringField(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(user1))
+	testing.SetRealm(std.NewUserRealm(user1))
 
 	// Set arbitrary string field
 	updated := SetStringField(cross, "MyEmail", "my@email.com")
@@ -120,7 +120,7 @@ func TestArbitraryStringField(t *testing.T) {
 }
 
 func TestArbitraryIntField(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(user1))
+	testing.SetRealm(std.NewUserRealm(user1))
 
 	// Set arbitrary int field
 	updated := SetIntField(cross, "MyIncome", 100_000)
@@ -131,7 +131,7 @@ func TestArbitraryIntField(t *testing.T) {
 }
 
 func TestArbitraryBoolField(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(user1))
+	testing.SetRealm(std.NewUserRealm(user1))
 
 	// Set arbitrary bool field
 	updated := SetBoolField(cross, "IsWinner", true)

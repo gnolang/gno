@@ -1,7 +1,7 @@
 package minisocial
 
 import (
-	"chain/runtime"
+	"std"
 	"strings"
 	"testing"
 
@@ -13,7 +13,7 @@ func TestCreatePostSingle(t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
 	// TestSetRealm sets the realm caller, in this case Alice
-	testing.SetRealm(runtime.NewUserRealm(aliceAddr))
+	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
 	err := CreatePost(cross, text1)
@@ -42,7 +42,7 @@ func TestCreatePostMultiple(t *testing.T) {
 	for _, p := range posts {
 		// Set the appropriate caller realm based on the author
 		authorAddr := testutils.TestAddress(p.author)
-		testing.SetRealm(runtime.NewUserRealm(authorAddr))
+		testing.SetRealm(std.NewUserRealm(authorAddr))
 
 		// Create the post
 		err := CreatePost(cross, p.text)
@@ -63,7 +63,7 @@ func TestCreatePostMultiple(t *testing.T) {
 
 func TestReset(t *testing.T) {
 	aliceAddr := testutils.TestAddress("alice")
-	testing.SetRealm(runtime.NewUserRealm(aliceAddr))
+	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
 	_ = CreatePost(cross, text1)
@@ -72,7 +72,7 @@ func TestReset(t *testing.T) {
 	uassert.True(t, strings.Contains(got, text1), "expected render to contain text1")
 
 	// Set admin
-	testing.SetRealm(runtime.NewUserRealm(Ownable.Owner()))
+	testing.SetRealm(std.NewUserRealm(Ownable.Owner()))
 	ResetPosts(cross)
 
 	got = Render("")

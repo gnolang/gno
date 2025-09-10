@@ -1,9 +1,7 @@
 package eventix
 
 import (
-	"chain"
-	"chain/banker"
-	"chain/runtime"
+	"std"
 	"testing"
 
 	"gno.land/p/demo/tokens/grc20"
@@ -52,7 +50,7 @@ func TestBuyTicket(t *testing.T) {
 	)
 
 	// Setup test buyer
-	buyer := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	buyer := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	testing.SetOriginCaller(buyer)
 
 	uassert.AbortsWithMessage(t, "Invalid payment amount: needs to be 1000000ugnot", func() {
@@ -60,7 +58,7 @@ func TestBuyTicket(t *testing.T) {
 	})
 
 	// Test successful purchase
-	testing.SetOriginSend(banker.NewCoins(banker.NewCoin("ugnot", 1000000)))
+	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 1000000)))
 	BuyTicket(cross, eventId)
 
 	event, _ := getEvent(eventId)
@@ -75,7 +73,7 @@ func TestBuyTicket(t *testing.T) {
 	urequire.Equal(t, buyer, owner)
 
 	// Test buying sold out event
-	testing.SetOriginSend(banker.NewCoins(banker.NewCoin("ugnot", 1000000)))
+	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 1000000)))
 	BuyTicket(cross, eventId) // Buy second ticket
 
 	uassert.AbortsWithMessage(t, "Event is sold out", func() {
@@ -84,27 +82,27 @@ func TestBuyTicket(t *testing.T) {
 }
 
 func TestBuyTicketWithGRC20(t *testing.T) {
-	pkgAddr := chain.DerivePkgAddr("gno.land/r/jjoptimist/eventix")
+	pkgAddr := std.DerivePkgAddr("gno.land/r/jjoptimist/eventix")
 	alice := testutils.TestAddress("alice")
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 
 	// Create a test GRC20 token and set up addresses
 	token, ledger := grc20.NewToken("Test Token", "TEST", 6)
-	buyer := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	adminAddr := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf6")
+	buyer := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	adminAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf6")
 
 	// Set up admin and mint tokens
 	testing.SetOriginCaller(adminAddr)
-	testing.SetRealm(runtime.NewUserRealm(adminAddr))
+	testing.SetRealm(std.NewUserRealm(adminAddr))
 	err := ledger.Mint(buyer, 2000000) // Use ledger to mint
 	urequire.NoError(t, err)
 
 	// Create event with GRC20 token payment
 	testing.SetOriginCaller(buyer)
-	testing.SetRealm(runtime.NewUserRealm(buyer))
+	testing.SetRealm(std.NewUserRealm(buyer))
 
 	var eventId uint64
-	crossThrough(runtime.NewCodeRealm("gno.land/r/jjoptimist/eventix"), func() {
+	crossThrough(std.NewCodeRealm("gno.land/r/jjoptimist/eventix"), func() {
 		eventId = CreateEvent(
 			cross,
 			"GRC20 Event",
@@ -118,7 +116,7 @@ func TestBuyTicketWithGRC20(t *testing.T) {
 
 	// Set up for approval
 	testing.SetOriginCaller(buyer)
-	testing.SetRealm(runtime.NewUserRealm(buyer))
+	testing.SetRealm(std.NewUserRealm(buyer))
 
 	// Approve using the ledger (following grc20factory_test pattern)
 	err = ledger.Approve(buyer, pkgAddr, 1000000)
@@ -129,7 +127,7 @@ func TestBuyTicketWithGRC20(t *testing.T) {
 	urequire.Equal(t, int64(1000000), allowance, "Approval should be set correctly")
 
 	testing.SetOriginCaller(buyer)
-	testing.SetRealm(runtime.NewUserRealm(buyer))
+	testing.SetRealm(std.NewUserRealm(buyer))
 
 	// Buy ticket
 	BuyTicket(cross, eventId)
@@ -150,7 +148,7 @@ func TestBuyTicketWithGRC20(t *testing.T) {
 	urequire.Equal(t, int64(1000000), buyerBalance) // Should have 1M left after spending 1M
 }
 
-func crossThrough(rlm runtime.Realm, cr func()) {
+func crossThrough(rlm std.Realm, cr func()) {
 	testing.SetRealm(rlm)
 	cr()
 }

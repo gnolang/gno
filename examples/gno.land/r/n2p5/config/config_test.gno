@@ -1,6 +1,7 @@
 package config
 
 import (
+	"std"
 	"testing"
 
 	"gno.land/p/nt/ownable"
@@ -8,7 +9,7 @@ import (
 )
 
 func TestAddBackupOwner(t *testing.T) {
-	owner := address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
+	owner := std.Address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
 	u1 := testutils.TestAddress("u1")
 	u2 := testutils.TestAddress("u2")
 
@@ -32,7 +33,7 @@ func TestAddBackupOwner(t *testing.T) {
 }
 
 func TestRemoveBackupOwner(t *testing.T) {
-	owner := address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
+	owner := std.Address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
 	u1 := testutils.TestAddress("u1")
 	u2 := testutils.TestAddress("u2")
 
@@ -56,7 +57,7 @@ func TestRemoveBackupOwner(t *testing.T) {
 }
 
 func TestClaimOwnership(t *testing.T) {
-	owner := address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
+	owner := std.Address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
 	u1 := testutils.TestAddress("u1")
 
 	if owner != Owner() {
@@ -78,7 +79,7 @@ func TestClaimOwnership(t *testing.T) {
 }
 
 func TestAddAdmin(t *testing.T) {
-	owner := address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
+	owner := std.Address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
 	u1 := testutils.TestAddress("u1")
 	u2 := testutils.TestAddress("u2")
 
@@ -102,7 +103,7 @@ func TestAddAdmin(t *testing.T) {
 }
 
 func TestRemoveAdmin(t *testing.T) {
-	owner := address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
+	owner := std.Address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
 	u1 := testutils.TestAddress("u1")
 	u2 := testutils.TestAddress("u2")
 
@@ -126,7 +127,7 @@ func TestRemoveAdmin(t *testing.T) {
 }
 
 func TestIsAdmin(t *testing.T) {
-	owner := address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
+	owner := std.Address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
 	u1 := testutils.TestAddress("u1")
 	u2 := testutils.TestAddress("u2")
 

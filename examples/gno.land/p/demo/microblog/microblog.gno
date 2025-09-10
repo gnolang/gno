@@ -1,9 +1,9 @@
 package microblog
 
 import (
-	"chain/runtime"
 	"errors"
 	"sort"
+	"std"
 	"strings"
 	"time"
 
@@ -48,7 +48,7 @@ func (m *Microblog) GetPages() []*Page {
 }
 
 func (m *Microblog) NewPost(text string) error {
-	author := runtime.OriginCaller()
+	author := std.OriginCaller()
 	_, found := m.Pages.Get(author.String())
 	if !found {
 		// make a new page for the new author
@@ -75,7 +75,7 @@ func (m *Microblog) GetPage(author string) (*Page, error) {
 
 type Page struct {
 	ID         int
-	Author     address
+	Author     std.Address
 	CreatedAt  time.Time
 	LastPosted time.Time
 	Posts      avl.Tree // time -> Post

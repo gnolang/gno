@@ -1,7 +1,7 @@
 package tokenhub
 
 import (
-	"chain/runtime"
+	"std"
 	"strings"
 	"testing"
 
@@ -17,7 +17,7 @@ const testRealmPkgPath = "gno.land/r/matijamarjanovic/testrealm"
 
 func TestTokenRegistration(t *testing.T) {
 	resetState(t)
-	testing.SetRealm(runtime.NewCodeRealm(testRealmPkgPath))
+	testing.SetRealm(std.NewCodeRealm(testRealmPkgPath))
 
 	token, _ := grc20.NewToken("Test Token", "TEST", 6)
 	RegisterToken(cross, token, "test_token")
@@ -31,10 +31,10 @@ func TestTokenRegistration(t *testing.T) {
 
 func TestNFTRegistration(t *testing.T) {
 	resetState(t)
-	testing.SetRealm(runtime.NewCodeRealm(testRealmPkgPath))
+	testing.SetRealm(std.NewCodeRealm(testRealmPkgPath))
 
 	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
-	nft.Mint(runtime.CurrentRealm().Address(), grc721.TokenID("1"))
+	nft.Mint(std.CurrentRealm().Address(), grc721.TokenID("1"))
 	err := RegisterNFT(cross, nft.Getter(), "test_nft", "1")
 
 	urequire.NoError(t, err, "Should register NFT without error")
@@ -51,7 +51,7 @@ func TestNFTRegistration(t *testing.T) {
 
 func TestGRC1155Registration(t *testing.T) {
 	resetState(t)
-	testing.SetRealm(runtime.NewCodeRealm(testRealmPkgPath))
+	testing.SetRealm(std.NewCodeRealm(testRealmPkgPath))
 
 	mt := grc1155.NewBasicGRC1155Token("test-uri")
 	err := RegisterMultiToken(cross, mt.Getter(), "1")
@@ -68,38 +68,38 @@ func TestGRC1155Registration(t *testing.T) {
 
 func TestBalanceRetrieval(t *testing.T) {
 	resetState(t)
-	testing.SetRealm(runtime.NewCodeRealm(testRealmPkgPath))
+	testing.SetRealm(std.NewCodeRealm(testRealmPkgPath))
 
 	token, ledger := grc20.NewToken("Test Token", "TEST", 6)
 	RegisterToken(cross, token, "test_token")
-	ledger.Mint(runtime.CurrentRealm().Address(), 1000)
+	ledger.Mint(std.CurrentRealm().Address(), 1000)
 
-	balances := GetUserTokenBalances(runtime.CurrentRealm().Address().String())
+	balances := GetUserTokenBalances(std.CurrentRealm().Address().String())
 	uassert.True(t, strings.Contains(balances,
 		"Token:gno.land/r/matijamarjanovic/tokenhub."+testRealmPkgPath+".test_token:1000"), "Should show correct GRC20 balance")
 
 	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
-	nft.Mint(runtime.CurrentRealm().Address(), grc721.TokenID("1"))
+	nft.Mint(std.CurrentRealm().Address(), grc721.TokenID("1"))
 	uassert.NoError(t, RegisterNFT(cross, nft.Getter(), "test_nft", "1"))
 
-	balances = GetUserNFTBalances(runtime.CurrentRealm().Address().String())
+	balances = GetUserNFTBalances(std.CurrentRealm().Address().String())
 	uassert.True(t, strings.Contains(balances, "NFT:"+testRealmPkgPath+".test_nft.1"), "Should show correct NFT balance")
 
 	mt := grc1155.NewBasicGRC1155Token("test-uri")
 	err := RegisterMultiToken(cross, mt.Getter(), "1")
 	urequire.NoError(t, err, "Should register multi-token without error")
 
-	balances = GetUserMultiTokenBalances(runtime.CurrentRealm().Address().String())
+	balances = GetUserMultiTokenBalances(std.CurrentRealm().Address().String())
 	uassert.True(t, strings.Contains(balances, "MultiToken:"+testRealmPkgPath+".1:0"), "Should show multi-token balance")
 
-	nonZeroBalances := GetUserTokenBalancesNonZero(runtime.CurrentRealm().Address().String())
+	nonZeroBalances := GetUserTokenBalancesNonZero(std.CurrentRealm().Address().String())
 	uassert.True(t, strings.Contains(nonZeroBalances,
 		"Token:gno.land/r/matijamarjanovic/tokenhub."+testRealmPkgPath+".test_token:1000"), "Should show non-zero GRC20 balance")
 }
 
 func TestErrorCases(t *testing.T) {
 	resetState(t)
-	testing.SetRealm(runtime.NewCodeRealm(testRealmPkgPath))
+	testing.SetRealm(std.NewCodeRealm(testRealmPkgPath))
 
 	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
 	err := RegisterNFT(cross, nft.Getter(), "test_nft", "1")
@@ -116,7 +116,7 @@ func TestErrorCases(t *testing.T) {
 
 func TestTokenListingFunctions(t *testing.T) {
 	resetState(t)
-	testing.SetRealm(runtime.NewCodeRealm(testRealmPkgPath))
+	testing.SetRealm(std.NewCodeRealm(testRealmPkgPath))
 
 	grc20Token, _ := grc20.NewToken("Test Token", "TEST", 6)
 	RegisterToken(cross, grc20Token, "listing_token")
@@ -126,7 +126,7 @@ func TestTokenListingFunctions(t *testing.T) {
 		"GetAllGRC20Tokens should list registered token")
 
 	nftToken := grc721.NewBasicNFT("Listing NFT", "LNFT")
-	nftToken.Mint(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"), grc721.TokenID("1"))
+	nftToken.Mint(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"), grc721.TokenID("1"))
 	RegisterNFT(cross, nftToken.Getter(), "listing_nft", "1")
 
 	nftList := GetAllNFTs()
@@ -150,7 +150,7 @@ func TestTokenListingFunctions(t *testing.T) {
 }
 
 func TestMustGetFunctions(t *testing.T) {
-	testing.SetRealm(runtime.NewCodeRealm(testRealmPkgPath))
+	testing.SetRealm(std.NewCodeRealm(testRealmPkgPath))
 
 	token, _ := grc20.NewToken("Must Token", "MUST", 6)
 	RegisterToken(cross, token, "must_token")
@@ -166,7 +166,7 @@ func TestMustGetFunctions(t *testing.T) {
 	MustGetToken("non_existent_token")
 
 	nft := grc721.NewBasicNFT("Must NFT", "MNFT")
-	nft.Mint(runtime.CurrentRealm().Address(), grc721.TokenID("1"))
+	nft.Mint(std.CurrentRealm().Address(), grc721.TokenID("1"))
 	RegisterNFT(cross, nft.Getter(), "must_nft", "1")
 
 	retrievedNFT := MustGetNFT("gno.land/r/matijamarjanovic/home.must_nft.1")

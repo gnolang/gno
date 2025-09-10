@@ -3,8 +3,7 @@ package main
 // SEND: 1000000ugnot
 
 import (
-	"chain/banker"
-	"chain/runtime"
+	"std"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -13,7 +12,7 @@ import (
 )
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
 	users.Register(cross, "gnouser123")
 	// create a post via registered user
 	bid1 := boards.CreateBoard(cross, "test_board1")
@@ -23,7 +22,7 @@ func main() {
 	// create a repost via anon user
 	test2 := testutils.TestAddress("test2")
 	testing.SetOriginCaller(test2)
-	testing.SetOriginSend(banker.Coins{{"ugnot", 9000000}})
+	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}})
 
 	rid := boards.CreateRepost(cross, bid1, pid, "", "Check this out", bid2)
 	println(rid)

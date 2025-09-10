@@ -1,7 +1,7 @@
 package boards2
 
 import (
-	"chain/runtime"
+	"std"
 
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
@@ -18,8 +18,8 @@ var (
 	gBoardsByID       avl.Tree // string(id) -> *Board
 	gListedBoardsByID avl.Tree // string(id) -> *Board
 	gBoardsByName     avl.Tree // string(name) -> *Board
-	gInviteRequests   avl.Tree // string(board id) -> *avl.Tree(address -> time.Time)
-	gBannedUsers      avl.Tree // string(board id) -> *avl.Tree(address -> time.Time)
+	gInviteRequests   avl.Tree // string(board id) -> *avl.Tree(std.Address -> time.Time)
+	gBannedUsers      avl.Tree // string(board id) -> *avl.Tree(std.Address -> time.Time)
 	gLocked           struct {
 		realm        bool
 		realmMembers bool
@@ -28,7 +28,7 @@ var (
 
 func init() {
 	// Save current realm path so it's available during render calls
-	gRealmLink = txlink.Realm(runtime.CurrentRealm().PkgPath())
+	gRealmLink = txlink.Realm(std.CurrentRealm().PkgPath())
 
 	// Initialize default realm permissions
 	gPerms = initRealmPermissions(
@@ -38,7 +38,7 @@ func init() {
 }
 
 // initRealmPermissions returns the default realm permissions.
-func initRealmPermissions(owners ...address) *BasicPermissions {
+func initRealmPermissions(owners ...std.Address) *BasicPermissions {
 	perms := createBasicPermissions(owners...)
 	perms.ValidateFunc(PermissionBoardCreate, validateBoardCreate)
 	perms.ValidateFunc(PermissionMemberInvite, validateMemberInvite)

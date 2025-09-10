@@ -1,14 +1,14 @@
 package txlink
 
 import (
-	"chain/runtime"
+	"std"
 	"testing"
 
 	"gno.land/p/nt/urequire"
 )
 
 func TestCall(t *testing.T) {
-	cd := runtime.ChainDomain()
+	cd := std.ChainDomain()
 
 	tests := []struct {
 		fn        string

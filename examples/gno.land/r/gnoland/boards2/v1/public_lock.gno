@@ -1,8 +1,7 @@
 package boards2
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 	"strconv"
 )
 
@@ -23,12 +22,12 @@ func LockRealm(_ realm, lockRealmMembers bool) {
 		assertRealmIsNotLocked()
 	}
 
-	caller := runtime.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 	gPerms.WithPermission(caller, PermissionRealmLock, Args{}, func(Args) {
 		gLocked.realm = true
 		gLocked.realmMembers = lockRealmMembers
 
-		chain.Emit(
+		std.Emit(
 			"RealmLocked",
 			"caller", caller.String(),
 			"lockRealmMembers", strconv.FormatBool(lockRealmMembers),

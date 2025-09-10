@@ -1,8 +1,7 @@
 package timelock
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 	"strconv"
 	"time"
 
@@ -77,7 +76,7 @@ func (tl *TimeLock) Schedule(id seqid.ID, delay uint64) error {
 	status := OperationStatus{sheduleTime: timestamp, isDone: false}
 	tl.timestamps.Set(id.Binary(), status)
 
-	chain.Emit(
+	std.Emit(
 		"TimeLockScheduled",
 		"id", id.String(),
 		"delay", strconv.FormatInt(int64(delay), 10),
@@ -90,7 +89,7 @@ func (tl *TimeLock) Schedule(id seqid.ID, delay uint64) error {
 func (tl *TimeLock) Remove(id seqid.ID) {
 	tl.timestamps.Remove(id.Binary())
 
-	chain.Emit(
+	std.Emit(
 		"TimeLockRemoved",
 		"id", id.String(),
 	)
@@ -104,7 +103,7 @@ func (tl *TimeLock) Cancel(id seqid.ID) error {
 
 	tl.timestamps.Remove(id.Binary())
 
-	chain.Emit(
+	std.Emit(
 		"TimeLockCancelled",
 		"id", id.String(),
 	)
@@ -124,7 +123,7 @@ func (tl *TimeLock) Execute(id seqid.ID) error {
 	status.isDone = true
 	tl.timestamps.Set(id.Binary(), status)
 
-	chain.Emit(
+	std.Emit(
 		"TimeLockExecuted",
 		"id", id.String(),
 	)
@@ -134,11 +133,11 @@ func (tl *TimeLock) Execute(id seqid.ID) error {
 
 // Update the minimum lead time for future operations
 func (tl *TimeLock) UpdateDelay(newDelay uint64) error {
-	if runtime.PreviousRealm().Address() != tl.accessControl.Ownable.Owner() {
+	if std.PreviousRealm().Address() != tl.accessControl.Ownable.Owner() {
 		return ErrUpadateDelay
 	}
 
-	chain.Emit(
+	std.Emit(
 		"TimeLockMinDelayChanged",
 		"oldDelay", strconv.FormatInt(int64(tl.minDelay), 10),
 		"newDelay", strconv.FormatInt(int64(newDelay), 10),

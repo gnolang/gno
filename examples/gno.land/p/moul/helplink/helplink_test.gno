@@ -1,14 +1,14 @@
 package helplink
 
 import (
-	"chain/runtime"
+	"std"
 	"testing"
 
 	"gno.land/p/nt/urequire"
 )
 
 func TestFunc(t *testing.T) {
-	cd := runtime.ChainDomain()
+	cd := std.ChainDomain()
 	tests := []struct {
 		title     string
 		fn        string
@@ -43,7 +43,7 @@ func TestFunc(t *testing.T) {
 }
 
 func TestFuncURL(t *testing.T) {
-	cd := runtime.ChainDomain()
+	cd := std.ChainDomain()
 	tests := []struct {
 		fn        string
 		args      []string
@@ -85,7 +85,7 @@ func TestFuncURL(t *testing.T) {
 }
 
 func TestHome(t *testing.T) {
-	cd := runtime.ChainDomain()
+	cd := std.ChainDomain()
 	tests := []struct {
 		realm_XXX Realm
 		want      string

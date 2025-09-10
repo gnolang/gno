@@ -1,8 +1,7 @@
 package proposal
 
 import (
-	"chain/banker"
-	"chain/runtime"
+	"std"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -25,9 +24,9 @@ const gUsersV1Path = "gno.land/r/gnoland/users/v1"
 
 // Register a namespace for every addresses
 // Necessary to test GovDAO Vote
-func registerTestUsers(addrs ...address) {
+func registerTestUsers(addrs ...std.Address) {
 	// Set realm to users admin to register test user
-	testing.SetRealm(runtime.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
 	for _, addr := range addrs {
 		err := susers.RegisterUser(cross, addr.String()[1:], addr)
 		if err != nil {
@@ -47,11 +46,11 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 	)
 
 	// Set origin caller
-	testing.SetRealm(runtime.NewUserRealm(g1user))
+	testing.SetRealm(std.NewUserRealm(g1user))
 
 	t.Run("remove an unexisting validator", func(t *testing.T) {
 		// Send coins to be able to register a valoper
-		testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", registerMinFee)})
+		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)})
 
 		urequire.NotPanics(t, func() {
 			valopers.Register(cross, moniker, description, g1user, pubKey)
@@ -63,7 +62,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		})
 
 		// Send coins to be able to make a proposal
-		testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", proposalMinFee)})
+		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 		urequire.AbortsWithMessage(t, ErrValidatorMissing.Error(), func(cur realm) {
 			pr := NewValidatorProposalRequest(cur, g1user)
@@ -74,7 +73,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 	t.Run("proposal successfully created", func(t *testing.T) {
 		// Send coins to be able to register a valoper
-		testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", registerMinFee)})
+		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)})
 
 		urequire.NotPanics(t, func() {
 			valopers.UpdateKeepRunning(cross, g1user, true)
@@ -87,11 +86,11 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		})
 
 		// Send coins to be able to make a proposal
-		testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", proposalMinFee)})
+		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 		var pid dao.ProposalID
 		urequire.NotPanics(t, func(cur realm) {
-			testing.SetRealm(runtime.NewUserRealm(g1user))
+			testing.SetRealm(std.NewUserRealm(g1user))
 			pr := NewValidatorProposalRequest(cur, g1user)
 
 			pid = dao.MustCreateProposal(cross, pr)
@@ -112,7 +111,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 	t.Run("try to update a validator with the same values", func(t *testing.T) {
 		// Send coins to be able to register a valoper
-		testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", registerMinFee)})
+		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)})
 
 		urequire.NotPanics(t, func() {
 			valopers.GetByAddr(g1user)
@@ -130,7 +129,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		})
 
 		// Send coins to be able to make a proposal
-		testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", proposalMinFee)})
+		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 		urequire.AbortsWithMessage(t, ErrSameValues.Error(), func() {
 			pr := NewValidatorProposalRequest(cross, g1user)
@@ -146,10 +145,10 @@ func TestValopers_ProposeNewInstructions(t *testing.T) {
 	description := ufmt.Sprintf("Update the instructions to: \n\n%s", newInstructions)
 
 	// Set origin caller
-	testing.SetRealm(runtime.NewUserRealm(g1user))
+	testing.SetRealm(std.NewUserRealm(g1user))
 
 	// Send coins to be able to make a proposal
-	testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", proposalMinFee)})
+	testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 	var pid dao.ProposalID
 	urequire.NotPanics(t, func() {
@@ -174,10 +173,10 @@ func TestValopers_ProposeNewMinFee(t *testing.T) {
 	description := ufmt.Sprintf("Update the minimum register fee to: %d ugnot", newMinFee)
 
 	// Set origin caller
-	testing.SetRealm(runtime.NewUserRealm(g1user))
+	testing.SetRealm(std.NewUserRealm(g1user))
 
 	// Send coins to be able to make a proposal
-	testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", proposalMinFee)})
+	testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 	var pid dao.ProposalID
 	urequire.NotPanics(t, func() {

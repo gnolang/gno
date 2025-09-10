@@ -1,7 +1,7 @@
 package home
 
 import (
-	"chain/runtime"
+	"std"
 	"strings"
 
 	"gno.land/p/n2p5/chonk"
@@ -53,7 +53,7 @@ func Render(path string) string {
 
 // assertAdmin panics if the caller is not an admin as defined in the config realm.
 func assertAdmin() {
-	caller := runtime.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 	if !config.IsAdmin(caller) {
 		panic("forbidden: must be admin")
 	}

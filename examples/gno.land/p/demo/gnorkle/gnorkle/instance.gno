@@ -1,8 +1,8 @@
 package gnorkle
 
 import (
-	"chain/runtime"
 	"errors"
+	"std"
 	"strings"
 
 	"gno.land/p/demo/gnorkle/agent"
@@ -106,7 +106,7 @@ type PostMessageHandler interface {
 // TODO: Consider further message types that could allow administrative action such as modifying
 // a feed's whitelist without the owner of this oracle having to maintain a reference to it.
 func (i *Instance) HandleMessage(msg string, postHandler PostMessageHandler) (string, error) {
-	caller := string(runtime.OriginCaller())
+	caller := string(std.OriginCaller())
 
 	funcType, msg := message.ParseFunc(msg)
 

@@ -152,7 +152,7 @@ import (
 )
 
 dao := commondao.New()
-creator := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+creator := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 propDef := mydao.NewGeneralProposalDefinition("Title", "Description")
 proposal := dao.MustPropose(creator, propDef)
 ```
@@ -197,7 +197,7 @@ Vote type is defined as:
 ```go
 type Vote struct {
     // Address is the address of the user that this vote belons to.
-    Address address
+    Address std.Address
 
     // Choice contains the voted choice.
     Choice VoteChoice
@@ -234,19 +234,19 @@ type MemberStorage interface {
 	Size() int
 
 	// Has checks if a member exists in the storage.
-	Has(address) bool
+	Has(std.Address) bool
 
 	// Add adds a member to the storage.
-	Add(address) bool
+	Add(std.Address) bool
 
 	// Remove removes a member from the storage.
-	Remove(address) bool
+	Remove(std.Address) bool
 
 	// Grouping returns member groups when supported.
 	Grouping() MemberGrouping
 
 	// IterateByOffset iterates members starting at the given offset.
-	IterateByOffset(offset, count int, fn func(address) bool)
+	IterateByOffset(offset, count int, fn func(std.Address) bool)
 }
 
 type ProposalStorage interface {

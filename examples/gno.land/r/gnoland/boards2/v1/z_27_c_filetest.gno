@@ -1,30 +1,30 @@
 package main
 
 import (
-	"chain/runtime"
+	"std"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	user  = address("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5")
+	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	user  = std.Address("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5")
 )
 
 var bid boards2.BoardID
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(std.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test123", false)
 
-	testing.SetRealm(runtime.NewUserRealm(user))
+	testing.SetRealm(std.NewUserRealm(user))
 	boards2.RequestInvite(cross, bid)
 }
 
 func main() {
 	// Caller is not a member and has no permission to revoke invites
-	testing.SetRealm(runtime.NewUserRealm(user))
+	testing.SetRealm(std.NewUserRealm(user))
 
 	boards2.RevokeInvite(cross, bid, user)
 }

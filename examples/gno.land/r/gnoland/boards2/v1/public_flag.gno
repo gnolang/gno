@@ -1,8 +1,7 @@
 package boards2
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 	"strconv"
 )
 
@@ -19,7 +18,7 @@ func SetFlaggingThreshold(_ realm, boardID BoardID, threshold int) {
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
-	caller := runtime.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 	args := Args{boardID, threshold}
 	board.perms.WithPermission(caller, PermissionBoardFlaggingUpdate, args, func(Args) {
 		assertRealmIsNotLocked()
@@ -28,7 +27,7 @@ func SetFlaggingThreshold(_ realm, boardID BoardID, threshold int) {
 		assertBoardIsNotFrozen(board)
 
 		gFlaggingThresholds.Set(boardID.String(), threshold)
-		chain.Emit(
+		std.Emit(
 			"FlaggingThresholdUpdated",
 			"caller", caller.String(),
 			"boardID", boardID.String(),
@@ -51,7 +50,7 @@ func FlagThread(_ realm, boardID BoardID, threadID PostID, reason string) {
 	board := mustGetBoard(boardID)
 
 	// Realm owners should be able to flag without permissions even when board is frozen
-	caller := runtime.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
 	if !isRealmOwner {
 		assertRealmIsNotLocked()
@@ -71,7 +70,7 @@ func FlagThread(_ realm, boardID BoardID, threadID PostID, reason string) {
 		t.Hidden = true
 	}
 
-	chain.Emit(
+	std.Emit(
 		"ThreadFlagged",
 		"caller", caller.String(),
 		"boardID", boardID.String(),
@@ -88,7 +87,7 @@ func FlagReply(_ realm, boardID BoardID, threadID, replyID PostID, reason string
 	board := mustGetBoard(boardID)
 
 	// Realm owners should be able to flag without permissions even when board is frozen
-	caller := runtime.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
 	if !isRealmOwner {
 		assertRealmIsNotLocked()
@@ -108,7 +107,7 @@ func FlagReply(_ realm, boardID BoardID, threadID, replyID PostID, reason string
 		reply.Hidden = true
 	}
 
-	chain.Emit(
+	std.Emit(
 		"ReplyFlagged",
 		"caller", caller.String(),
 		"boardID", boardID.String(),

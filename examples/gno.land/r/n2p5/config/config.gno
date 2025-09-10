@@ -1,6 +1,8 @@
 package config
 
 import (
+	"std"
+
 	"gno.land/p/n2p5/mgroup"
 	"gno.land/p/nt/ufmt"
 )
@@ -16,7 +18,7 @@ var (
 
 // AddBackupOwner adds a backup owner to the Owner Group.
 // A backup owner can claim ownership of the contract.
-func AddBackupOwner(cur realm, addr address) {
+func AddBackupOwner(cur realm, addr std.Address) {
 	if err := adminGroup.AddBackupOwner(addr); err != nil {
 		panic(err)
 	}
@@ -24,7 +26,7 @@ func AddBackupOwner(cur realm, addr address) {
 
 // RemoveBackupOwner removes a backup owner from the Owner Group.
 // The primary owner cannot be removed.
-func RemoveBackupOwner(cur realm, addr address) {
+func RemoveBackupOwner(cur realm, addr std.Address) {
 	if err := adminGroup.RemoveBackupOwner(addr); err != nil {
 		panic(err)
 	}
@@ -39,7 +41,7 @@ func ClaimOwnership(cur realm) {
 }
 
 // AddAdmin adds an admin to the Admin Group.
-func AddAdmin(cur realm, addr address) {
+func AddAdmin(cur realm, addr std.Address) {
 	if err := adminGroup.AddMember(addr); err != nil {
 		panic(err)
 	}
@@ -47,14 +49,14 @@ func AddAdmin(cur realm, addr address) {
 
 // RemoveAdmin removes an admin from the Admin Group.
 // The primary owner cannot be removed.
-func RemoveAdmin(cur realm, addr address) {
+func RemoveAdmin(cur realm, addr std.Address) {
 	if err := adminGroup.RemoveMember(addr); err != nil {
 		panic(err)
 	}
 }
 
 // Owner returns the current owner of the claims contract.
-func Owner() address {
+func Owner() std.Address {
 	return adminGroup.Owner()
 }
 
@@ -69,7 +71,7 @@ func Admins() []string {
 }
 
 // IsAdmin checks if an address is in the config adminGroup.
-func IsAdmin(addr address) bool {
+func IsAdmin(addr std.Address) bool {
 	return adminGroup.IsMember(addr)
 }
 

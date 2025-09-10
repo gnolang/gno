@@ -1,8 +1,8 @@
 package realmpath_test
 
 import (
-	"chain/runtime"
 	"net/url"
+	"std"
 	"testing"
 
 	"gno.land/p/moul/realmpath"
@@ -11,8 +11,8 @@ import (
 )
 
 func TestExample(t *testing.T) {
-	cd := runtime.ChainDomain()
-	testing.SetRealm(runtime.NewCodeRealm(cd + "/r/lorem/ipsum"))
+	cd := std.ChainDomain()
+	testing.SetRealm(std.NewCodeRealm(cd + "/r/lorem/ipsum"))
 
 	// initial parsing
 	path := "hello/world?foo=bar&baz=foobar"
@@ -33,8 +33,8 @@ func TestExample(t *testing.T) {
 }
 
 func TestParse(t *testing.T) {
-	cd := runtime.ChainDomain()
-	testing.SetRealm(runtime.NewCodeRealm(cd + "/r/lorem/ipsum"))
+	cd := std.ChainDomain()
+	testing.SetRealm(std.NewCodeRealm(cd + "/r/lorem/ipsum"))
 
 	tests := []struct {
 		rawPath        string

@@ -1,8 +1,7 @@
 package lifetime
 
 import (
-	"chain/banker"
-	"chain/runtime"
+	"std"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -16,22 +15,22 @@ var (
 )
 
 func TestLifetimeSubscription(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
-	testing.SetOriginSend([]banker.Coin{{Denom: "ugnot", Amount: 1000}})
+	testing.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}})
 	err := ls.Subscribe()
 	uassert.NoError(t, err, "Expected ProcessPayment to succeed")
 
-	err = ls.HasValidSubscription(runtime.CurrentRealm().Address())
+	err = ls.HasValidSubscription(std.CurrentRealm().Address())
 	uassert.NoError(t, err, "Expected Alice to have access")
 }
 
 func TestLifetimeSubscriptionGift(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
-	testing.SetOriginSend([]banker.Coin{{Denom: "ugnot", Amount: 1000}})
+	testing.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}})
 	err := ls.GiftSubscription(bob)
 	uassert.NoError(t, err, "Expected ProcessPaymentGift to succeed for Bob")
 
@@ -43,45 +42,45 @@ func TestLifetimeSubscriptionGift(t *testing.T) {
 }
 
 func TestUpdateAmountAuthorization(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
 	err := ls.UpdateAmount(2000)
 	uassert.NoError(t, err, "Expected Alice to succeed in updating amount")
 
-	testing.SetRealm(runtime.NewUserRealm(bob))
+	testing.SetRealm(std.NewUserRealm(bob))
 
 	err = ls.UpdateAmount(3000)
 	uassert.Error(t, err, "Expected Bob to fail when updating amount")
 }
 
 func TestIncorrectPaymentAmount(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
-	testing.SetOriginSend([]banker.Coin{{Denom: "ugnot", Amount: 500}})
+	testing.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 500}})
 	err := ls.Subscribe()
 	uassert.Error(t, err, "Expected payment to fail with incorrect amount")
 }
 
 func TestMultipleSubscriptionAttempts(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
-	testing.SetOriginSend([]banker.Coin{{Denom: "ugnot", Amount: 1000}})
+	testing.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}})
 	err := ls.Subscribe()
 	uassert.NoError(t, err, "Expected first subscription to succeed")
 
-	testing.SetOriginSend([]banker.Coin{{Denom: "ugnot", Amount: 1000}})
+	testing.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}})
 	err = ls.Subscribe()
 	uassert.Error(t, err, "Expected second subscription to fail as Alice is already subscribed")
 }
 
 func TestGiftSubscriptionWithIncorrectAmount(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
-	testing.SetOriginSend([]banker.Coin{{Denom: "ugnot", Amount: 500}})
+	testing.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 500}})
 	err := ls.GiftSubscription(bob)
 	uassert.Error(t, err, "Expected gift subscription to fail with incorrect amount")
 
@@ -90,17 +89,17 @@ func TestGiftSubscriptionWithIncorrectAmount(t *testing.T) {
 }
 
 func TestUpdateAmountEffectiveness(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
 	err := ls.UpdateAmount(2000)
 	uassert.NoError(t, err, "Expected Alice to succeed in updating amount")
 
-	testing.SetOriginSend([]banker.Coin{{Denom: "ugnot", Amount: 1000}})
+	testing.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}})
 	err = ls.Subscribe()
 	uassert.Error(t, err, "Expected subscription to fail with old amount after update")
 
-	testing.SetOriginSend([]banker.Coin{{Denom: "ugnot", Amount: 2000}})
+	testing.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 2000}})
 	err = ls.Subscribe()
 	uassert.NoError(t, err, "Expected subscription to succeed with new amount")
 }

@@ -1,13 +1,13 @@
 package config
 
 import (
-	"chain/runtime"
 	"errors"
+	"std"
 )
 
 var (
-	main   address
-	backup address
+	main   std.Address
+	backup std.Address
 
 	ErrInvalidAddr  = errors.New("Invalid address")
 	ErrUnauthorized = errors.New("Unauthorized")
@@ -17,15 +17,15 @@ func init() {
 	main = "g1x9qyf6f34v2g52k4q5smn5tctmj3hl2kj7l2ql"
 }
 
-func Address() address {
+func Address() std.Address {
 	return main
 }
 
-func Backup() address {
+func Backup() std.Address {
 	return backup
 }
 
-func SetAddress(_ realm, a address) error {
+func SetAddress(_ realm, a std.Address) error {
 	if !a.IsValid() {
 		return ErrInvalidAddr
 	}
@@ -38,7 +38,7 @@ func SetAddress(_ realm, a address) error {
 	return nil
 }
 
-func SetBackup(_ realm, a address) error {
+func SetBackup(_ realm, a std.Address) error {
 	if !a.IsValid() {
 		return ErrInvalidAddr
 	}
@@ -52,7 +52,7 @@ func SetBackup(_ realm, a address) error {
 }
 
 func checkAuthorized() error {
-	caller := runtime.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 	isAuthorized := caller == main || caller == backup
 
 	if !isAuthorized {

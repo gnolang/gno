@@ -19,13 +19,13 @@ import (
 type (
 	// game represents a Dice Roller game between two players
 	game struct {
-		player1, player2 address
+		player1, player2 std.Address
 		roll1, roll2     int
 	}
 
 	// player holds the information about each player including their stats
 	player struct {
-		addr                        address
+		addr                        std.Address
 		wins, losses, draws, points int
 	}
 
@@ -57,7 +57,7 @@ func rollDice() int {
 }
 
 // NewGame initializes a new game with the provided opponent's address
-func NewGame(addr address) int {
+func NewGame(addr std.Address) int {
 	if !addr.IsValid() {
 		panic("invalid opponent's address")
 	}
@@ -110,7 +110,7 @@ func Play(idx int) int {
 }
 
 // play processes a player's roll and updates their score
-func (g *game) play(player address, roll int) error {
+func (g *game) play(player std.Address, roll int) error {
 	if player != g.player1 && player != g.player2 {
 		return errors.New("invalid player")
 	}
@@ -222,7 +222,7 @@ The top players are ranked by performance. Games played against oneself are not 
 }
 
 // shortName returns a shortened name for the given address
-func shortName(addr address) string {
+func shortName(addr std.Address) string {
 	user := users.ResolveAddress(addr)
 	if user != nil {
 		return user.Name()
@@ -257,7 +257,7 @@ func (p *player) updateStats(result int) {
 }
 
 // getPlayer retrieves a player or initializes a new one if they don't exist
-func getPlayer(addr address) *player {
+func getPlayer(addr std.Address) *player {
 	v, ok := players.Get(addr.String())
 	if !ok {
 		player := &player{

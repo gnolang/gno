@@ -2,12 +2,13 @@
 package test
 
 import (
+	"std"
 	"time"
 
 	"gno.land/p/nt/commondao"
 )
 
-const member = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+const member = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
 var (
 	dao      *commondao.CommonDAO

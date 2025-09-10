@@ -1,7 +1,7 @@
 package commondao
 
 import (
-	"chain/runtime"
+	"std"
 
 	"gno.land/p/nt/avl/rotree"
 	"gno.land/p/nt/commondao"
@@ -9,7 +9,7 @@ import (
 
 // NewIterator returns a SubDAO iterator.
 func NewIterator(rootID uint64, options ...IteratorOption) Iterator {
-	assertIsOwner(runtime.CurrentRealm().Address(), rootID)
+	assertIsOwner(std.CurrentRealm().Address(), rootID)
 
 	tree := getTree(rootID)
 	if tree == nil {

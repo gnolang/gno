@@ -1,7 +1,7 @@
 package chess
 
 import (
-	"chain/runtime"
+	"std"
 	"time"
 
 	"gno.land/p/nt/avl"
@@ -74,7 +74,7 @@ func LobbyJoin(cur realm, seconds, increment int) {
 	}
 
 	// Ensure that user's previous games are finished (or timed out).
-	caller := runtime.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 
 	games := getUserGames(caller)
 	// XXX: temporary to avoid ever prohibiting a user from joining the lobby.
@@ -97,7 +97,7 @@ func LobbyJoin(cur realm, seconds, increment int) {
 	refreshLobby(tc)
 }
 
-func assertUserNotInLobby(caller address) {
+func assertUserNotInLobby(caller std.Address) {
 	for _, sublob := range lobby {
 		for _, pl := range sublob {
 			if pl.player.Address == caller {
@@ -110,7 +110,7 @@ func assertUserNotInLobby(caller address) {
 // refreshLobby serves to run through the lobby, kick timed out users, and see if any users
 // can be matched with the current user.
 func refreshLobby(tc tcLobby) {
-	callerAddr := runtime.PreviousRealm().Address()
+	callerAddr := std.PreviousRealm().Address()
 	now := time.Now()
 	for idx, player := range lobby[tc] {
 		if player.player.Address == callerAddr {
@@ -220,7 +220,7 @@ func LobbyGameFound(cur realm) string {
 	refreshLobby(tcLobby5p0)
 	refreshLobby(tcLobby10p5)
 
-	val, ok := lobbyPlayer2Game.Get(runtime.PreviousRealm().Address().String())
+	val, ok := lobbyPlayer2Game.Get(std.PreviousRealm().Address().String())
 	if !ok {
 		return "null"
 	}
@@ -228,7 +228,7 @@ func LobbyGameFound(cur realm) string {
 }
 
 func LobbyQuit(cur realm) {
-	caller := runtime.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 	for tc, sublob := range lobby {
 		for i, pl := range sublob {
 			if pl.player.Address == caller {

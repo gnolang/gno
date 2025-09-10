@@ -1,8 +1,7 @@
 package recurring
 
 import (
-	"chain/banker"
-	"chain/runtime"
+	"std"
 	"time"
 
 	"gno.land/p/nt/avl"
@@ -15,7 +14,7 @@ type RecurringSubscription struct {
 	ownable.Ownable
 	duration time.Duration
 	amount   int64
-	subs     *avl.Tree // chain.Address -> time.Time
+	subs     *avl.Tree // std.Address -> time.Time
 }
 
 // NewRecurringSubscription creates and returns a new recurring subscription.
@@ -29,7 +28,7 @@ func NewRecurringSubscription(duration time.Duration, amount int64) *RecurringSu
 }
 
 // HasValidSubscription verifies if the caller has an active recurring subscription.
-func (rs *RecurringSubscription) HasValidSubscription(addr address) error {
+func (rs *RecurringSubscription) HasValidSubscription(addr std.Address) error {
 	expTime, exists := rs.subs.Get(addr.String())
 	if !exists {
 		return ErrNoSub
@@ -43,8 +42,8 @@ func (rs *RecurringSubscription) HasValidSubscription(addr address) error {
 }
 
 // processSubscription processes the payment for a given receiver and renews or adds their subscription.
-func (rs *RecurringSubscription) processSubscription(receiver address) error {
-	amount := banker.OriginSend()
+func (rs *RecurringSubscription) processSubscription(receiver std.Address) error {
+	amount := std.OriginSend()
 
 	if amount.AmountOf("ugnot") != rs.amount {
 		return ErrAmt
@@ -69,18 +68,18 @@ func (rs *RecurringSubscription) processSubscription(receiver address) error {
 
 // Subscribe handles the payment for the caller's subscription.
 func (rs *RecurringSubscription) Subscribe() error {
-	caller := runtime.CurrentRealm().Address()
+	caller := std.CurrentRealm().Address()
 
 	return rs.processSubscription(caller)
 }
 
 // GiftSubscription allows the user to pay for a subscription for another user (receiver).
-func (rs *RecurringSubscription) GiftSubscription(receiver address) error {
+func (rs *RecurringSubscription) GiftSubscription(receiver std.Address) error {
 	return rs.processSubscription(receiver)
 }
 
 // GetExpiration returns the expiration date of the recurring subscription for a given caller.
-func (rs *RecurringSubscription) GetExpiration(addr address) (time.Time, error) {
+func (rs *RecurringSubscription) GetExpiration(addr std.Address) (time.Time, error) {
 	expTime, exists := rs.subs.Get(addr.String())
 	if !exists {
 		return time.Time{}, ErrNoSub

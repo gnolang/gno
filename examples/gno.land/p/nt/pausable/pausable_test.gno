@@ -1,6 +1,7 @@
 package pausable
 
 import (
+	"std"
 	"testing"
 
 	"gno.land/p/nt/ownable"
@@ -9,7 +10,7 @@ import (
 )
 
 var (
-	firstCaller = address("g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de")
+	firstCaller = std.Address("g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de")
 	o           = ownable.NewWithAddress(firstCaller)
 )
 

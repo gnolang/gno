@@ -1,7 +1,7 @@
 package main
 
 import (
-	"chain/runtime"
+	"std"
 	"strings"
 	"testing"
 
@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	owner     = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	moderator = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
+	owner     = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	moderator = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
 )
 
 var (
@@ -20,7 +20,7 @@ var (
 
 func init() {
 	// Created a board with flagging threshold greater than 1
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(std.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test-board", false)
 	boards2.SetFlaggingThreshold(cross, bid, 2)
 
@@ -32,7 +32,7 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(std.NewUserRealm(owner))
 
 	boards2.FlagReply(cross, bid, tid, rid, "")
 

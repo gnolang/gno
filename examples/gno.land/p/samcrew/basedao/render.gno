@@ -1,6 +1,7 @@
 package basedao
 
 import (
+	"std"
 	"strconv"
 	"strings"
 
@@ -130,7 +131,7 @@ func (d *DAOPrivate) HomeMembersView() string {
 	i := 1
 	d.Members.Members.Iterate("", "", func(key string, value interface{}) bool {
 		s += ufmt.Sprintf("- **Member %d: [%s](%s:%s/%s)**\n\n", i, key, linkPath, "member", key)
-		s += ufmt.Sprintf("	- **Profile:** %s\n", d.GetProfileString(address(key), "DisplayName", FALLBACK_DISPLAY_NAME))
+		s += ufmt.Sprintf("	- **Profile:** %s\n", d.GetProfileString(std.Address(key), "DisplayName", FALLBACK_DISPLAY_NAME))
 		s += ufmt.Sprintf(" 	- **Roles:** %s\n\n", strings.Join(d.Members.GetMemberRoles(key), ", "))
 		i += 1
 		return false
@@ -252,13 +253,13 @@ func (d *DAOPrivate) MemberDetailHeaderView() string {
 	return s
 }
 
-func (d *DAOPrivate) MemberDetailView(addr string) string {
+func (d *DAOPrivate) MemberDetailView(address string) string {
 	pkgPath := d.Realm.PkgPath()
 	linkPath := getLinkPath(pkgPath)
-	roles := d.Members.GetMemberRoles(addr)
-	displayName := d.GetProfileString(address(addr), "DisplayName", FALLBACK_DISPLAY_NAME)
-	bio := d.GetProfileString(address(addr), "Bio", "No bio")
-	pp := d.GetProfileString(address(addr), "Avatar", "")
+	roles := d.Members.GetMemberRoles(address)
+	displayName := d.GetProfileString(std.Address(address), "DisplayName", FALLBACK_DISPLAY_NAME)
+	bio := d.GetProfileString(std.Address(address), "Bio", "No bio")
+	pp := d.GetProfileString(std.Address(address), "Avatar", "")
 	s := ""
 	s += ufmt.Sprintf("## Profile 👤\n\n")
 	s += ufmt.Sprintf("- **Display Name:** %s\n\n", displayName)

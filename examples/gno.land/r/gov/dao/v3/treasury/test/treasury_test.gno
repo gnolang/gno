@@ -1,10 +1,8 @@
 package test
 
 import (
-	"chain"
-	"chain/banker"
-	"chain/runtime"
 	"sort"
+	"std"
 	"strings"
 	"testing"
 
@@ -23,9 +21,9 @@ import (
 var (
 	user1Addr       = testutils.TestAddress("g1user1")
 	user2Addr       = testutils.TestAddress("g1user2")
-	treasuryAddr    = chain.DerivePkgAddr("gno.land/r/gov/dao/v3/treasury")
-	allowedRealm    = runtime.NewCodeRealm("gno.land/r/test/allowed")
-	notAllowedRealm = runtime.NewCodeRealm("gno.land/r/test/notallowed")
+	treasuryAddr    = std.DerivePkgAddr("gno.land/r/gov/dao/v3/treasury")
+	allowedRealm    = std.NewCodeRealm("gno.land/r/test/allowed")
+	notAllowedRealm = std.NewCodeRealm("gno.land/r/test/notallowed")
 	mintAmount      = int64(1000)
 )
 
@@ -48,19 +46,19 @@ func init() {
 	})
 }
 
-func ugnotCoins(t *testing.T, amount int64) banker.Coins {
+func ugnotCoins(t *testing.T, amount int64) std.Coins {
 	t.Helper()
 
 	// Create a new coin with the ugnot denomination.
-	return banker.NewCoins(banker.NewCoin("ugnot", amount))
+	return std.NewCoins(std.NewCoin("ugnot", amount))
 }
 
-func ugnotBalance(t *testing.T, addr address) int64 {
+func ugnotBalance(t *testing.T, addr std.Address) int64 {
 	t.Helper()
 
 	// Get the balance of ugnot coins for the given address.
-	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
-	coins := banker_.GetCoins(addr)
+	banker := std.NewBanker(std.BankerTypeReadonly)
+	coins := banker.GetCoins(addr)
 
 	return coins.AmountOf("ugnot")
 }
@@ -71,7 +69,7 @@ type keyedToken struct {
 	token *grc20.Token
 }
 
-func registerGRC20Tokens(t *testing.T, tokenNames []string, toMint address) []keyedToken {
+func registerGRC20Tokens(t *testing.T, tokenNames []string, toMint std.Address) []keyedToken {
 	t.Helper()
 
 	var (
@@ -91,7 +89,7 @@ func registerGRC20Tokens(t *testing.T, tokenNames []string, toMint address) []ke
 		ledger.Mint(toMint, mintAmount)
 
 		// Add the token and key to the lists.
-		key := fqname.Construct(runtime.CurrentRealm().PkgPath(), symbol)
+		key := fqname.Construct(std.CurrentRealm().PkgPath(), symbol)
 		keyedTokens = append(keyedTokens, keyedToken{key: key, token: token})
 		keys = append(keys, key)
 	}
@@ -186,7 +184,7 @@ func TestSendGRC20Payment(t *testing.T) {
 	const txAmount = 42
 
 	// For each token-user pair.
-	for i, userAddr := range []address{user1Addr, user2Addr} {
+	for i, userAddr := range []std.Address{user1Addr, user2Addr} {
 		for _, keyed := range keyedTokens {
 			// Check that the treasury has the expected balance before sending.
 			uassert.Equal(t, keyed.token.BalanceOf(treasuryAddr), mintAmount-int64(txAmount*i))

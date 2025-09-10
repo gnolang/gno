@@ -1,9 +1,8 @@
 package impl
 
 import (
-	"chain"
-	"chain/runtime"
 	"errors"
+	"std"
 
 	"gno.land/p/nt/ufmt"
 	"gno.land/r/gov/dao"
@@ -58,14 +57,14 @@ func NewGovDAO() *GovDAO {
 // realm. TODO replace with future `attach()`.
 var _govdao *GovDAO
 
-func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (address, error) {
+func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (std.Address, error) {
 	if !g.isValidCall() {
 		return "", errors.New(ufmt.Sprintf("proposal creation must be done directly by a user or through the r/gov/dao proxy. current realm: %v; previous realm: %v",
-			runtime.CurrentRealm(), runtime.PreviousRealm()))
+			std.CurrentRealm(), std.PreviousRealm()))
 	}
 
 	// Verify that the one creating the proposal is a member.
-	caller := runtime.OriginCaller()
+	caller := std.OriginCaller()
 	mem, _ := getMembers(cross).GetMember(caller)
 	if mem == nil {
 		return caller, errors.New("only members can create new proposals")
@@ -97,7 +96,7 @@ func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
 		return errors.New("proposal voting must be done directly by a user")
 	}
 
-	caller := runtime.OriginCaller()
+	caller := std.OriginCaller()
 	mem, tie := getMembers(cross).GetMember(caller)
 	if mem == nil {
 		return ErrMemberNotFound
@@ -176,12 +175,12 @@ func (g *GovDAO) isValidCall() bool {
 	// 2: r/gov/dao/v3/impl methods called directly by an user
 
 	// case 1
-	if runtime.CurrentRealm().PkgPath() == "gno.land/r/gov/dao" {
+	if std.CurrentRealm().PkgPath() == "gno.land/r/gov/dao" {
 		// called directly by an user through MsgCall
-		if runtime.PreviousRealm().IsUser() {
+		if std.PreviousRealm().IsUser() {
 			return true
 		}
-		isMsgRun := chain.DerivePkgAddr(runtime.PreviousRealm().PkgPath()) == runtime.OriginCaller()
+		isMsgRun := std.DerivePkgAddr(std.PreviousRealm().PkgPath()) == std.OriginCaller()
 		// called directly by an user through MsgRun
 		if isMsgRun {
 			return true
@@ -189,7 +188,7 @@ func (g *GovDAO) isValidCall() bool {
 	}
 
 	// case 2
-	if runtime.CurrentRealm().IsUser() {
+	if std.CurrentRealm().IsUser() {
 		return true
 	}
 

@@ -1,12 +1,12 @@
 package forms
 
 import (
-	"chain/runtime"
+	"std"
 	"testing"
 )
 
 func TestAnswerFormInvalidForm(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm("g1user"))
+	testing.SetRealm(std.NewUserRealm("g1user"))
 	db := NewDB()
 
 	dataAllTypes := `[

@@ -1,11 +1,9 @@
 package coinflip
 
-import (
-	"chain/banker"
-)
+import "std"
 
 type Bet struct {
-	Address address
+	Address std.Address
 	Result  bool
-	Amount  banker.Coin
+	Amount  std.Coin
 }

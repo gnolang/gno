@@ -4,7 +4,7 @@
 package bar20
 
 import (
-	"chain/runtime"
+	"std"
 	"strings"
 
 	"gno.land/p/demo/tokens/grc20"
@@ -22,7 +22,7 @@ func init() {
 }
 
 func Faucet(cur realm) string {
-	caller := runtime.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 	if err := adm.Mint(caller, 1_000_000); err != nil {
 		return "error: " + err.Error()
 	}
@@ -37,7 +37,7 @@ func Render(path string) string {
 	case path == "":
 		return Token.RenderHome()
 	case c == 2 && parts[0] == "balance":
-		owner := address(parts[1])
+		owner := std.Address(parts[1])
 		balance := Token.BalanceOf(owner)
 		return ufmt.Sprintf("%d\n", balance)
 	default:

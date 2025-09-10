@@ -1,7 +1,7 @@
 package users
 
 import (
-	"chain/runtime"
+	"std"
 	"strings"
 
 	"gno.land/p/demo/releases"
@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	cd        = runtime.ChainDomain()
+	cd        = std.ChainDomain()
 	changelog = releases.NewChangelog("r/gnoland/users")
 )
 

@@ -1,7 +1,7 @@
 package microposts
 
 import (
-	"chain/runtime"
+	"std"
 	"strconv"
 	"time"
 )
@@ -11,7 +11,7 @@ var posts []*Post
 func CreatePost(_ realm, text string) {
 	posts = append(posts, &Post{
 		text:      text,
-		author:    runtime.PreviousRealm().Address(), // provided by env
+		author:    std.PreviousRealm().Address(), // provided by env
 		createdAt: time.Now(),
 	})
 }

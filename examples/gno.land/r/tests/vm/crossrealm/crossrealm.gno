@@ -1,7 +1,7 @@
 package crossrealm
 
 import (
-	"chain/runtime"
+	"std"
 
 	"gno.land/p/demo/tests/p_crossrealm"
 	"gno.land/p/nt/ownable"
@@ -124,8 +124,8 @@ func ExecuteClosureCross(cur realm) {
 
 // Closure -> FooUpdate
 func PrintRealms(cur realm) {
-	ufmt.Printf("current realm: %s\n", runtime.CurrentRealm())
-	ufmt.Printf("previous realm: %s\n", runtime.PreviousRealm())
+	ufmt.Printf("current realm: %s\n", std.CurrentRealm())
+	ufmt.Printf("previous realm: %s\n", std.PreviousRealm())
 }
 
 // -------------------------------------------------
@@ -140,8 +140,8 @@ func GetObject() any {
 }
 
 func EntryPoint() (noCros *ownable.Ownable) {
-	println("crossrealm  EntryPoint: " + runtime.PreviousRealm().PkgPath())
-	println("crossrealm  EntryPoint: " + runtime.PreviousRealm().Address())
+	println("crossrealm  EntryPoint: " + std.PreviousRealm().PkgPath())
+	println("crossrealm  EntryPoint: " + std.PreviousRealm().Address())
 	println()
 	return PrevRealmNoCrossing()
 }
@@ -151,30 +151,30 @@ func EntryPointWithCrossing() (withCros *ownable.Ownable) {
 }
 
 func PrevRealmNoCrossing() *ownable.Ownable {
-	println("crossrealm PreviousRealm no crossing: " + runtime.PreviousRealm().PkgPath())
-	println("crossrealm PreviousRealm no crossing: " + runtime.PreviousRealm().Address())
+	println("crossrealm PreviousRealm no crossing: " + std.PreviousRealm().PkgPath())
+	println("crossrealm PreviousRealm no crossing: " + std.PreviousRealm().Address())
 	return ownable.New()
 }
 
 func PrevRealmCrossing(cur realm) *ownable.Ownable {
-	println("crossrealm PreviousRealm with crossing: " + runtime.PreviousRealm().PkgPath())
-	println("crossrealm PreviousRealm with crossing: " + runtime.PreviousRealm().Address())
+	println("crossrealm PreviousRealm with crossing: " + std.PreviousRealm().PkgPath())
+	println("crossrealm PreviousRealm with crossing: " + std.PreviousRealm().Address())
 	return ownable.New()
 }
 
-func CurRealmNoCrossing() runtime.Realm {
-	return runtime.CurrentRealm()
+func CurRealmNoCrossing() std.Realm {
+	return std.CurrentRealm()
 }
-func CurRealmCrossing(cur realm) runtime.Realm {
-	return runtime.CurrentRealm()
+func CurRealmCrossing(cur realm) std.Realm {
+	return std.CurrentRealm()
 }
 
 // call the package that returns current realm
-func PkgCurRealmNoCrossing() runtime.Realm {
+func PkgCurRealmNoCrossing() std.Realm {
 	return p_crossrealm.CurrentRealm()
 }
 
 // call the package that returns current realm
-func PkgCurRealmCrossing(cur realm) runtime.Realm {
-	return runtime.CurrentRealm()
+func PkgCurRealmCrossing(cur realm) std.Realm {
+	return std.CurrentRealm()
 }

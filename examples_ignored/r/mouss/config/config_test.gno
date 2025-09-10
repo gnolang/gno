@@ -1,6 +1,7 @@
 package config
 
 import (
+	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -9,8 +10,8 @@ import (
 )
 
 var (
-	mainAddr   = address("g1wq2h93ppkf2gkgncz5unayrsmt7pl8npktnznd")
-	backupAddr = address("g1hrfvdh7jdvnlxpk2y20tp3scj9jqal3zzu7wjz")
+	mainAddr   = std.Address("g1wq2h93ppkf2gkgncz5unayrsmt7pl8npktnznd")
+	backupAddr = std.Address("g1hrfvdh7jdvnlxpk2y20tp3scj9jqal3zzu7wjz")
 
 	addr1 = testutils.TestAddress("addr1")
 	addr2 = testutils.TestAddress("addr2")
@@ -25,7 +26,7 @@ func TestInitialOwnership(t *testing.T) {
 func TestIsAuthorized(t *testing.T) {
 	tests := []struct {
 		name string
-		addr address
+		addr std.Address
 		want bool
 	}{
 		{"main address is authorized", mainAddr, true},

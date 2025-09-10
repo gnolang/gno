@@ -4,8 +4,7 @@
 package hor
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 	"strconv"
 	"strings"
 
@@ -70,7 +69,7 @@ func Register(cur realm, title, description string) {
 		return
 	}
 
-	submission := runtime.PreviousRealm()
+	submission := std.PreviousRealm()
 	pkgpath := submission.PkgPath()
 
 	// Must be called from code
@@ -99,7 +98,7 @@ func Register(cur realm, title, description string) {
 		title:       title,
 		description: description,
 		pkgpath:     pkgpath,
-		blockNum:    runtime.ChainHeight(),
+		blockNum:    std.ChainHeight(),
 		upvote:      &addrset.Set{},
 		downvote:    &addrset.Set{},
 	}
@@ -109,7 +108,7 @@ func Register(cur realm, title, description string) {
 	exhibition.itemsSortedByUpvotes.Set(getVoteSortKey(i.upvote.Size(), i.id), i)
 	exhibition.itemsSortedByDownvotes.Set(getVoteSortKey(i.downvote.Size(), i.id), i)
 
-	chain.Emit("Registration")
+	std.Emit("Registration")
 }
 
 func Upvote(cur realm, pkgpath string) {
@@ -119,7 +118,7 @@ func Upvote(cur realm, pkgpath string) {
 	}
 
 	item := rawItem.(*Item)
-	caller := runtime.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 
 	if item.upvote.Has(caller) {
 		panic(ErrDoubleUpvote)
@@ -141,7 +140,7 @@ func Downvote(cur realm, pkgpath string) {
 	}
 
 	item := rawItem.(*Item)
-	caller := runtime.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 
 	if item.downvote.Has(caller) {
 		panic(ErrDoubleDownvote)

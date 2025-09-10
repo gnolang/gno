@@ -1,6 +1,7 @@
 package groups
 
 import (
+	"std"
 	"strconv"
 	"time"
 )
@@ -9,7 +10,7 @@ type MemberID uint64
 
 type Member struct {
 	id          MemberID
-	address_XXX address
+	address_XXX std.Address
 	weight      int
 	metadata    string
 	createdAt   time.Time

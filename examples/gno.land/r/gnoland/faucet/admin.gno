@@ -1,9 +1,8 @@
 package faucet
 
 import (
-	"chain/banker"
-	"chain/runtime"
 	"errors"
+	"std"
 )
 
 func AdminSetInPause(cur realm, inPause bool) string {
@@ -26,11 +25,11 @@ func AdminSetTransferLimit(cur realm, amount int64) string {
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
-	gLimit = banker.NewCoin("ugnot", amount)
+	gLimit = std.NewCoin("ugnot", amount)
 	return ""
 }
 
-func AdminSetAdminAddr(cur realm, addr address) string {
+func AdminSetAdminAddr(cur realm, addr std.Address) string {
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
@@ -38,7 +37,7 @@ func AdminSetAdminAddr(cur realm, addr address) string {
 	return ""
 }
 
-func AdminAddController(cur realm, addr address) string {
+func AdminAddController(cur realm, addr std.Address) string {
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
@@ -58,7 +57,7 @@ func AdminAddController(cur realm, addr address) string {
 	return ""
 }
 
-func AdminRemoveController(cur realm, addr address) string {
+func AdminRemoveController(cur realm, addr std.Address) string {
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
@@ -80,7 +79,7 @@ func AdminRemoveController(cur realm, addr address) string {
 }
 
 func assertIsAdmin() error {
-	caller := runtime.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 	if caller != gAdminAddr {
 		return errors.New("restricted for admin")
 	}

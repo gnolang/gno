@@ -1,6 +1,10 @@
 package acl
 
-import "gno.land/p/nt/avl"
+import (
+	"std"
+
+	"gno.land/p/nt/avl"
+)
 
 func New() *Directory {
 	return &Directory{
@@ -11,10 +15,10 @@ func New() *Directory {
 
 type Directory struct {
 	permBuckets avl.Tree // identifier -> perms
-	userGroups  avl.Tree // chain.Address -> []string
+	userGroups  avl.Tree // std.Address -> []string
 }
 
-func (d *Directory) HasPerm(addr address, verb, resource string) bool {
+func (d *Directory) HasPerm(addr std.Address, verb, resource string) bool {
 	// FIXME: consider memoize.
 
 	// user perms
@@ -48,11 +52,11 @@ func (d *Directory) getBucketPerms(bucket string) perms {
 	return perms{}
 }
 
-func (d *Directory) HasRole(addr address, role string) bool {
+func (d *Directory) HasRole(addr std.Address, role string) bool {
 	return d.HasPerm(addr, "role", role)
 }
 
-func (d *Directory) AddUserPerm(addr address, verb, resource string) {
+func (d *Directory) AddUserPerm(addr std.Address, verb, resource string) {
 	bucket := "u:" + addr.String()
 	p := perm{
 		verbs:     []string{verb},
@@ -82,7 +86,7 @@ func (d *Directory) addPermToBucket(bucket string, p perm) {
 	d.permBuckets.Set(bucket, ps)
 }
 
-func (d *Directory) AddUserToGroup(user address, group string) {
+func (d *Directory) AddUserToGroup(user std.Address, group string) {
 	existing, ok := d.userGroups.Get(user.String())
 	var groups []string
 	if ok {

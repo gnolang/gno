@@ -2,7 +2,7 @@
 package test
 
 import (
-	"chain/runtime"
+	"std"
 	"strings"
 	"testing"
 
@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	caller = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
+	caller = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
 	msg    = "Boom!"
 )
 
@@ -24,7 +24,7 @@ func Fail(realm) {
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(caller))
+	testing.SetRealm(std.NewUserRealm(caller))
 
 	expect.Func(t, func() { Fail(cross) }).Not().ToCrossPanic()
 	expect.Func(t, func() { Fail(cross) }).ToCrossPanic().Not().WithMessage(msg)

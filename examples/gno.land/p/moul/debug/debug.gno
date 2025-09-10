@@ -10,7 +10,7 @@
 package debug
 
 import (
-	"chain/runtime"
+	"std"
 	"time"
 
 	"gno.land/p/moul/md"
@@ -49,11 +49,11 @@ func (d Debug) Render(path string) string {
 		table := mdtable.Table{
 			Headers: []string{"Key", "Value"},
 		}
-		table.Append([]string{"`std.CurrentRealm().PkgPath()`", string(runtime.CurrentRealm().PkgPath())})
-		table.Append([]string{"`std.CurrentRealm().Address()`", string(runtime.CurrentRealm().Address())})
-		table.Append([]string{"`std.PreviousRealm().PkgPath()`", string(runtime.PreviousRealm().PkgPath())})
-		table.Append([]string{"`std.PreviousRealm().Address()`", string(runtime.PreviousRealm().Address())})
-		table.Append([]string{"`std.ChainHeight()`", ufmt.Sprintf("%d", runtime.ChainHeight())})
+		table.Append([]string{"`std.CurrentRealm().PkgPath()`", string(std.CurrentRealm().PkgPath())})
+		table.Append([]string{"`std.CurrentRealm().Address()`", string(std.CurrentRealm().Address())})
+		table.Append([]string{"`std.PreviousRealm().PkgPath()`", string(std.PreviousRealm().PkgPath())})
+		table.Append([]string{"`std.PreviousRealm().Address()`", string(std.PreviousRealm().Address())})
+		table.Append([]string{"`std.ChainHeight()`", ufmt.Sprintf("%d", std.ChainHeight())})
 		table.Append([]string{"`time.Now().Format(time.RFC3339)`", time.Now().Format(time.RFC3339)})
 		content += table.String()
 	}

@@ -1,13 +1,13 @@
 package main
 
 import (
-	"chain/runtime"
+	"std"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
 var (
 	srcBID boards2.BoardID
@@ -16,13 +16,13 @@ var (
 )
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(std.NewUserRealm(owner))
 	srcBID = boards2.CreateBoard(cross, "src-board", false)
 	dstBID = boards2.CreateBoard(cross, "dst-board", false)
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(std.NewUserRealm(owner))
 
 	// Repost should fail if source thread doesn't exist
 	boards2.CreateRepost(cross, srcBID, srcTID, "foo", "bar", dstBID)

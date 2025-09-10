@@ -1,8 +1,8 @@
 package impl
 
 import (
-	"chain/runtime"
 	"fmt"
+	"std"
 	"strings"
 	"testing"
 
@@ -41,9 +41,9 @@ const gUsersV1Path = "gno.land/r/gnoland/users/v1"
 
 // Register a namespace for every addresses
 // Necessary to test GovDAO Vote
-func registerTestUser(addrs ...address) {
+func registerTestUser(addrs ...std.Address) {
 	// Set realm to users admin to register test user
-	testing.SetRealm(runtime.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
 	for _, addr := range addrs {
 		err := susers.RegisterUser(cross, addr.String()[1:], addr)
 		if err != nil {
@@ -80,7 +80,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	portfolio := "# This is my portfolio:\n\n- THINGS"
 
 	testing.SetOriginCaller(noMember)
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	nm1 := testutils.TestAddress("nm1")
 
@@ -93,7 +93,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m1)
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	proposalRequest := NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio)
 
@@ -171,7 +171,7 @@ func TestProposalPagination(cur realm, t *testing.T) {
 	portfolio := "### This is my portfolio:\n\n- THINGS"
 
 	testing.SetOriginCaller(m1)
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	nm1 := testutils.TestAddress("nm1")
 
@@ -215,14 +215,14 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	loadMembers()
 
 	testing.SetOriginCaller(noMember)
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	urequire.PanicsWithMessage(t, "proposer is not a member", func() {
 		NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
 	})
 
 	testing.SetOriginCaller(m1)
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	preq := NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
 

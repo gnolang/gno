@@ -1,7 +1,7 @@
 package basedao
 
 import (
-	"chain"
+	"std"
 
 	"gno.land/p/nt/avl"
 	"gno.land/p/onbloc/json"
@@ -176,7 +176,7 @@ func (m *MembersStore) AddMember(member string, roles []string) {
 	}
 	m.Members.Set(member, membersRoles)
 
-	chain.Emit(EventAddMember,
+	std.Emit(EventAddMember,
 		"address", member,
 	)
 }
@@ -209,7 +209,7 @@ func (m *MembersStore) RemoveMember(member string) {
 	})
 	m.Members.Remove(member)
 
-	chain.Emit(EventRemoveMember,
+	std.Emit(EventRemoveMember,
 		"address", member,
 	)
 }

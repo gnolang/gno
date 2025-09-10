@@ -1,7 +1,7 @@
 package params
 
 import (
-	"chain/runtime"
+	"std"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -11,10 +11,12 @@ import (
 	susers "gno.land/r/sys/users"
 )
 
-var g1user = testutils.TestAddress("g1user")
+var (
+	g1user = testutils.TestAddress("g1user")
+)
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(g1user))
+	testing.SetRealm(std.NewUserRealm(g1user))
 	ini.InitWithUsers(g1user)
 	registerTestUsers(g1user)
 }
@@ -23,9 +25,9 @@ const gUsersV1Path = "gno.land/r/gnoland/users/v1"
 
 // Register a namespace for every addresses
 // Necessary to test GovDAO Vote
-func registerTestUsers(addrs ...address) {
+func registerTestUsers(addrs ...std.Address) {
 	// Set realm to users admin to register test user
-	testing.SetRealm(runtime.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
 	for _, addr := range addrs {
 		err := susers.RegisterUser(cross, addr.String()[1:], addr)
 		if err != nil {
@@ -35,7 +37,7 @@ func registerTestUsers(addrs ...address) {
 }
 
 func TestProUnlockTransfer(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(g1user))
+	testing.SetRealm(std.NewUserRealm(g1user))
 
 	pr := ProposeUnlockTransferRequest()
 	id := dao.MustCreateProposal(cross, pr)
@@ -45,7 +47,7 @@ func TestProUnlockTransfer(t *testing.T) {
 }
 
 func TestFailUnlockTransfer(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(g1user))
+	testing.SetRealm(std.NewUserRealm(g1user))
 
 	pr := ProposeUnlockTransferRequest()
 	id := dao.MustCreateProposal(cross, pr)
@@ -59,7 +61,7 @@ func TestFailUnlockTransfer(t *testing.T) {
 }
 
 func TestExeUnlockTransfer(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(g1user))
+	testing.SetRealm(std.NewUserRealm(g1user))
 
 	pr := ProposeUnlockTransferRequest()
 	id := dao.MustCreateProposal(cross, pr)

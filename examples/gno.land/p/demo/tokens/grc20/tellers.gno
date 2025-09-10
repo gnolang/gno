@@ -1,8 +1,7 @@
 package grc20
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 )
 
 // CallerTeller returns a GRC20 compatible teller that checks the PreviousRealm
@@ -14,8 +13,8 @@ func (tok *Token) CallerTeller() Teller {
 	}
 
 	return &fnTeller{
-		accountFn: func() address {
-			caller := runtime.PreviousRealm().Address()
+		accountFn: func() std.Address {
+			caller := std.PreviousRealm().Address()
 			return caller
 		},
 		Token: tok,
@@ -47,10 +46,10 @@ func (tok *Token) RealmTeller() Teller {
 		panic("Token cannot be nil")
 	}
 
-	caller := runtime.CurrentRealm().Address()
+	caller := std.CurrentRealm().Address()
 
 	return &fnTeller{
-		accountFn: func() address {
+		accountFn: func() std.Address {
 			return caller
 		},
 		Token: tok,
@@ -66,11 +65,11 @@ func (tok *Token) RealmSubTeller(slug string) Teller {
 		panic("Token cannot be nil")
 	}
 
-	caller := runtime.CurrentRealm().Address()
+	caller := std.CurrentRealm().Address()
 	account := accountSlugAddr(caller, slug)
 
 	return &fnTeller{
-		accountFn: func() address {
+		accountFn: func() std.Address {
 			return account
 		},
 		Token: tok,
@@ -90,13 +89,13 @@ func (tok *Token) RealmSubTeller(slug string) Teller {
 //
 // This method should be used with caution, as it allows for potentially
 // sensitive operations to be performed under the guise of another address.
-func (ledger *PrivateLedger) ImpersonateTeller(addr address) Teller {
+func (ledger *PrivateLedger) ImpersonateTeller(addr std.Address) Teller {
 	if ledger == nil {
 		panic("Ledger cannot be nil")
 	}
 
 	return &fnTeller{
-		accountFn: func() address {
+		accountFn: func() std.Address {
 			return addr
 		},
 		Token: ledger.token,
@@ -106,7 +105,7 @@ func (ledger *PrivateLedger) ImpersonateTeller(addr address) Teller {
 // generic tellers methods.
 //
 
-func (ft *fnTeller) Transfer(to address, amount int64) error {
+func (ft *fnTeller) Transfer(to std.Address, amount int64) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
@@ -114,7 +113,7 @@ func (ft *fnTeller) Transfer(to address, amount int64) error {
 	return ft.Token.ledger.Transfer(caller, to, amount)
 }
 
-func (ft *fnTeller) Approve(spender address, amount int64) error {
+func (ft *fnTeller) Approve(spender std.Address, amount int64) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
@@ -122,7 +121,7 @@ func (ft *fnTeller) Approve(spender address, amount int64) error {
 	return ft.Token.ledger.Approve(caller, spender, amount)
 }
 
-func (ft *fnTeller) TransferFrom(owner, to address, amount int64) error {
+func (ft *fnTeller) TransferFrom(owner, to std.Address, amount int64) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
@@ -134,11 +133,11 @@ func (ft *fnTeller) TransferFrom(owner, to address, amount int64) error {
 //
 
 // accountSlugAddr returns the address derived from the specified address and slug.
-func accountSlugAddr(addr address, slug string) address {
+func accountSlugAddr(addr std.Address, slug string) std.Address {
 	// XXX: use a new `std.XXX` call for this.
 	if slug == "" {
 		return addr
 	}
 	key := addr.String() + "/" + slug
-	return chain.DerivePkgAddr(key) // temporarily using this helper
+	return std.DerivePkgAddr(key) // temporarily using this helper
 }

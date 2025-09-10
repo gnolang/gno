@@ -1,9 +1,8 @@
 package tests_test
 
 import (
-	"chain"
-	"chain/runtime"
 	"fmt"
+	"std"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -13,13 +12,13 @@ import (
 func TestAssertOriginCall(t *testing.T) {
 	// CallAssertOriginCall(): no panic
 	caller := testutils.TestAddress("caller")
-	testing.SetRealm(runtime.NewUserRealm(caller))
+	testing.SetRealm(std.NewUserRealm(caller))
 	tests.CallAssertOriginCall(cross)
 	if !tests.CallIsOriginCall(cross) {
 		t.Errorf("expected IsOriginCall=true but got false")
 	}
 
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/tests/vm"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/tests/vm"))
 	// CallAssertOriginCall() from a block: abort
 	r := revive(func() {
 		// if called inside a function literal, this is no longer an origin call
@@ -44,12 +43,13 @@ func TestAssertOriginCall(t *testing.T) {
 	if fmt.Sprintf("%v", r) != "invalid non-origin call" {
 		t.Error("expected abort but did not")
 	}
+
 }
 
 func TestPreviousRealm(t *testing.T) {
 	var (
-		firstRealm = chain.DerivePkgAddr("gno.land/r/tests/vm_test")
-		rTestsAddr = chain.DerivePkgAddr("gno.land/r/tests/vm")
+		firstRealm = std.DerivePkgAddr("gno.land/r/tests/vm_test")
+		rTestsAddr = std.DerivePkgAddr("gno.land/r/tests/vm")
 	)
 	// When only one realm in the frames, PreviousRealm returns the same realm
 	if addr := tests.GetPreviousRealm(cross).Address(); addr != firstRealm {

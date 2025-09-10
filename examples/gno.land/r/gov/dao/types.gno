@@ -1,8 +1,8 @@
 package dao
 
 import (
-	"chain/runtime"
 	"errors"
+	"std"
 
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/seqid"
@@ -70,7 +70,7 @@ func (p *ProposalRequest) Filter() Filter {
 }
 
 type Proposal struct {
-	author address
+	author std.Address
 
 	title       string
 	description string
@@ -79,7 +79,7 @@ type Proposal struct {
 	allowedDAOs []string
 }
 
-func (p *Proposal) Author() address {
+func (p *Proposal) Author() std.Address {
 	return p.author
 }
 
@@ -172,7 +172,7 @@ type SafeExecutor struct {
 
 func (e *SafeExecutor) Execute(cur realm) error {
 	// Verify the caller is an adequate Realm
-	if !InAllowedDAOs(runtime.PreviousRealm().PkgPath()) {
+	if !InAllowedDAOs(std.PreviousRealm().PkgPath()) {
 		return errors.New("execution only allowed by validated govDAOs")
 	}
 
@@ -185,10 +185,10 @@ func (e *SafeExecutor) String() string {
 
 type DAO interface {
 	// PreCreateProposal is called just before creating a new Proposal
-	// It is intended to be used to get the address of the proposal, that
+	// It is intended to be used to get the std.Address of the proposal, that
 	// may vary depending on the DAO implementation, and to validate that
 	// the requester is allowed to do a proposal
-	PreCreateProposal(r ProposalRequest) (address, error)
+	PreCreateProposal(r ProposalRequest) (std.Address, error)
 
 	// PostCreateProposal is called after creating the Proposal. It is
 	// intended to be used as a way to store a new proposal status, that

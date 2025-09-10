@@ -1,28 +1,29 @@
 package addrset
 
 import (
+	"std"
 	"testing"
 
 	"gno.land/p/nt/uassert"
 )
 
 func TestSet(t *testing.T) {
-	addr1 := address("addr1")
-	addr2 := address("addr2")
-	addr3 := address("addr3")
+	addr1 := std.Address("addr1")
+	addr2 := std.Address("addr2")
+	addr3 := std.Address("addr3")
 
 	tests := []struct {
 		name    string
 		actions func(s *Set)
 		size    int
-		has     map[address]bool
-		addrs   []address // for iteration checks
+		has     map[std.Address]bool
+		addrs   []std.Address // for iteration checks
 	}{
 		{
 			name:    "empty set",
 			actions: func(s *Set) {},
 			size:    0,
-			has:     map[address]bool{addr1: false},
+			has:     map[std.Address]bool{addr1: false},
 		},
 		{
 			name: "single address",
@@ -30,11 +31,11 @@ func TestSet(t *testing.T) {
 				s.Add(addr1)
 			},
 			size: 1,
-			has: map[address]bool{
+			has: map[std.Address]bool{
 				addr1: true,
 				addr2: false,
 			},
-			addrs: []address{addr1},
+			addrs: []std.Address{addr1},
 		},
 		{
 			name: "multiple addresses",
@@ -44,12 +45,12 @@ func TestSet(t *testing.T) {
 				s.Add(addr3)
 			},
 			size: 3,
-			has: map[address]bool{
+			has: map[std.Address]bool{
 				addr1: true,
 				addr2: true,
 				addr3: true,
 			},
-			addrs: []address{addr1, addr2, addr3},
+			addrs: []std.Address{addr1, addr2, addr3},
 		},
 		{
 			name: "remove address",
@@ -59,11 +60,11 @@ func TestSet(t *testing.T) {
 				s.Remove(addr1)
 			},
 			size: 1,
-			has: map[address]bool{
+			has: map[std.Address]bool{
 				addr1: false,
 				addr2: true,
 			},
-			addrs: []address{addr2},
+			addrs: []std.Address{addr2},
 		},
 		{
 			name: "duplicate adds",
@@ -74,7 +75,7 @@ func TestSet(t *testing.T) {
 				uassert.False(t, s.Remove(addr1)) // remove non-existing returns false
 			},
 			size: 0,
-			has: map[address]bool{
+			has: map[std.Address]bool{
 				addr1: false,
 			},
 		},
@@ -97,8 +98,8 @@ func TestSet(t *testing.T) {
 
 			// Check iteration if addresses are specified
 			if tt.addrs != nil {
-				collected := []address{}
-				set.IterateByOffset(0, 10, func(addr address) bool {
+				collected := []std.Address{}
+				set.IterateByOffset(0, 10, func(addr std.Address) bool {
 					collected = append(collected, addr)
 					return false
 				})
@@ -118,28 +119,28 @@ func TestSet(t *testing.T) {
 func TestSetIterationLimits(t *testing.T) {
 	tests := []struct {
 		name     string
-		addrs    []address
+		addrs    []std.Address
 		offset   int
 		limit    int
 		expected int
 	}{
 		{
 			name:     "zero offset full list",
-			addrs:    []address{"a1", "a2", "a3"},
+			addrs:    []std.Address{"a1", "a2", "a3"},
 			offset:   0,
 			limit:    10,
 			expected: 3,
 		},
 		{
 			name:     "offset with limit",
-			addrs:    []address{"a1", "a2", "a3", "a4"},
+			addrs:    []std.Address{"a1", "a2", "a3", "a4"},
 			offset:   1,
 			limit:    2,
 			expected: 2,
 		},
 		{
 			name:     "offset beyond size",
-			addrs:    []address{"a1", "a2"},
+			addrs:    []std.Address{"a1", "a2"},
 			offset:   3,
 			limit:    1,
 			expected: 0,
@@ -155,7 +156,7 @@ func TestSetIterationLimits(t *testing.T) {
 
 			// Test forward iteration
 			count := 0
-			set.IterateByOffset(tt.offset, tt.limit, func(addr address) bool {
+			set.IterateByOffset(tt.offset, tt.limit, func(addr std.Address) bool {
 				count++
 				return false
 			})
@@ -163,7 +164,7 @@ func TestSetIterationLimits(t *testing.T) {
 
 			// Test reverse iteration
 			count = 0
-			set.ReverseIterateByOffset(tt.offset, tt.limit, func(addr address) bool {
+			set.ReverseIterateByOffset(tt.offset, tt.limit, func(addr std.Address) bool {
 				count++
 				return false
 			})

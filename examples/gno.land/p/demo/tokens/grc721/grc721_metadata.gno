@@ -1,6 +1,10 @@
 package grc721
 
-import "gno.land/p/nt/avl"
+import (
+	"std"
+
+	"gno.land/p/nt/avl"
+)
 
 // metadataNFT represents an NFT with metadata extensions.
 type metadataNFT struct {
@@ -55,11 +59,11 @@ func (s *metadataNFT) TokenCount() int64 {
 	return s.basicNFT.TokenCount()
 }
 
-func (s *metadataNFT) BalanceOf(addr address) (int64, error) {
+func (s *metadataNFT) BalanceOf(addr std.Address) (int64, error) {
 	return s.basicNFT.BalanceOf(addr)
 }
 
-func (s *metadataNFT) OwnerOf(tid TokenID) (address, error) {
+func (s *metadataNFT) OwnerOf(tid TokenID) (std.Address, error) {
 	return s.basicNFT.OwnerOf(tid)
 }
 
@@ -71,35 +75,35 @@ func (s *metadataNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
 	return s.basicNFT.SetTokenURI(tid, tURI)
 }
 
-func (s *metadataNFT) IsApprovedForAll(owner, operator address) bool {
+func (s *metadataNFT) IsApprovedForAll(owner, operator std.Address) bool {
 	return s.basicNFT.IsApprovedForAll(owner, operator)
 }
 
-func (s *metadataNFT) Approve(to address, tid TokenID) error {
+func (s *metadataNFT) Approve(to std.Address, tid TokenID) error {
 	return s.basicNFT.Approve(to, tid)
 }
 
-func (s *metadataNFT) GetApproved(tid TokenID) (address, error) {
+func (s *metadataNFT) GetApproved(tid TokenID) (std.Address, error) {
 	return s.basicNFT.GetApproved(tid)
 }
 
-func (s *metadataNFT) SetApprovalForAll(operator address, approved bool) error {
+func (s *metadataNFT) SetApprovalForAll(operator std.Address, approved bool) error {
 	return s.basicNFT.SetApprovalForAll(operator, approved)
 }
 
-func (s *metadataNFT) SafeTransferFrom(from, to address, tid TokenID) error {
+func (s *metadataNFT) SafeTransferFrom(from, to std.Address, tid TokenID) error {
 	return s.basicNFT.SafeTransferFrom(from, to, tid)
 }
 
-func (s *metadataNFT) TransferFrom(from, to address, tid TokenID) error {
+func (s *metadataNFT) TransferFrom(from, to std.Address, tid TokenID) error {
 	return s.basicNFT.TransferFrom(from, to, tid)
 }
 
-func (s *metadataNFT) Mint(to address, tid TokenID) error {
+func (s *metadataNFT) Mint(to std.Address, tid TokenID) error {
 	return s.basicNFT.Mint(to, tid)
 }
 
-func (s *metadataNFT) SafeMint(to address, tid TokenID) error {
+func (s *metadataNFT) SafeMint(to std.Address, tid TokenID) error {
 	return s.basicNFT.SafeMint(to, tid)
 }
 

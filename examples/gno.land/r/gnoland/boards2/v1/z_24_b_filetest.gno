@@ -1,28 +1,28 @@
 package main
 
 import (
-	"chain/runtime"
+	"std"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	admin = address("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5")
+	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	admin = std.Address("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5")
 )
 
 var bid boards2.BoardID
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(std.NewUserRealm(owner))
 
 	bid = boards2.CreateBoard(cross, "test123", false)
 	boards2.InviteMember(cross, bid, admin, boards2.RoleAdmin)
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(admin))
+	testing.SetRealm(std.NewUserRealm(admin))
 
 	// Calling as a non owner member should fail
 	boards2.GetBoard(bid)

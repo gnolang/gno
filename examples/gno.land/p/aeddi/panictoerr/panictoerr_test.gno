@@ -1,8 +1,8 @@
 package panictoerr_test
 
 import (
-	"chain/runtime"
 	"errors"
+	"std"
 	"testing"
 
 	pte "gno.land/p/aeddi/panictoerr"
@@ -30,7 +30,7 @@ func TestSimplePanicToError(t *testing.T) {
 
 func TestRealmPanicToError(t *testing.T) {
 	// Set a test realm to be able to call a realm.
-	testRealm := runtime.NewCodeRealm("gno.land/r/aeddi/panictoerr/test")
+	testRealm := std.NewCodeRealm("gno.land/r/aeddi/panictoerr/test")
 	testing.SetRealm(testRealm)
 
 	const message = "token instance does not exist"

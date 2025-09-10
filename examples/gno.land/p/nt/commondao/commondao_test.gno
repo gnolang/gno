@@ -2,6 +2,7 @@ package commondao
 
 import (
 	"errors"
+	"std"
 	"testing"
 	"time"
 
@@ -14,20 +15,20 @@ func TestNew(t *testing.T) {
 	cases := []struct {
 		name    string
 		parent  *CommonDAO
-		members []address
+		members []std.Address
 	}{
 		{
 			name:    "with parent",
 			parent:  New(),
-			members: []address{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},
+			members: []std.Address{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},
 		},
 		{
 			name:    "without parent",
-			members: []address{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},
+			members: []std.Address{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},
 		},
 		{
 			name: "multiple members",
-			members: []address{
+			members: []std.Address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -58,7 +59,7 @@ func TestNew(t *testing.T) {
 			urequire.Equal(t, membersCount, dao.Members().Size(), "dao members")
 
 			var i int
-			dao.Members().IterateByOffset(0, membersCount, func(addr address) bool {
+			dao.Members().IterateByOffset(0, membersCount, func(addr std.Address) bool {
 				uassert.Equal(t, tc.members[i], addr)
 				i++
 				return false
@@ -68,7 +69,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestCommonDAOMembersAdd(t *testing.T) {
-	member := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	member := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	dao := New(WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"))
 
 	added := dao.Members().Add(member)
@@ -82,7 +83,7 @@ func TestCommonDAOMembersAdd(t *testing.T) {
 }
 
 func TestCommonDAOMembersRemove(t *testing.T) {
-	member := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	member := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	dao := New(WithMember(member))
 
 	removed := dao.Members().Remove(member)
@@ -95,7 +96,7 @@ func TestCommonDAOMembersRemove(t *testing.T) {
 func TestCommonDAOMembersHas(t *testing.T) {
 	cases := []struct {
 		name   string
-		member address
+		member std.Address
 		dao    *CommonDAO
 		want   bool
 	}{
@@ -124,7 +125,7 @@ func TestCommonDAOPropose(t *testing.T) {
 	cases := []struct {
 		name    string
 		setup   func() *CommonDAO
-		creator address
+		creator std.Address
 		def     ProposalDefinition
 		err     error
 	}{
@@ -182,7 +183,7 @@ func TestCommonDAOVote(t *testing.T) {
 	cases := []struct {
 		name       string
 		setup      func() *CommonDAO
-		member     address
+		member     std.Address
 		choice     VoteChoice
 		proposalID uint64
 		err        error
@@ -190,7 +191,7 @@ func TestCommonDAOVote(t *testing.T) {
 		{
 			name: "success",
 			setup: func() *CommonDAO {
-				member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
+				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 				dao := New(WithMember(member))
 				dao.Propose(member, testPropDef{votingPeriod: time.Hour})
 				return dao
@@ -202,7 +203,7 @@ func TestCommonDAOVote(t *testing.T) {
 		{
 			name: "success with custom vote choice",
 			setup: func() *CommonDAO {
-				member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
+				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 				dao := New(WithMember(member))
 				dao.Propose(member, testPropDef{
 					votingPeriod: time.Hour,
@@ -217,7 +218,7 @@ func TestCommonDAOVote(t *testing.T) {
 		{
 			name: "success with deadline check disabled",
 			setup: func() *CommonDAO {
-				member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
+				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 				dao := New(
 					WithMember(member),
 					DisableVotingDeadlineCheck(),
@@ -232,7 +233,7 @@ func TestCommonDAOVote(t *testing.T) {
 		{
 			name: "invalid vote choice",
 			setup: func() *CommonDAO {
-				member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
+				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 				dao := New(WithMember(member))
 				dao.Propose(member, testPropDef{votingPeriod: time.Hour})
 				return dao
@@ -286,7 +287,7 @@ func TestCommonDAOVote(t *testing.T) {
 
 func TestCommonDAOTally(t *testing.T) {
 	errTest := errors.New("test")
-	member := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	member := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	cases := []struct {
 		name   string
 		setup  func(*CommonDAO) (proposalID uint64)
@@ -358,7 +359,7 @@ func TestCommonDAOTally(t *testing.T) {
 
 func TestCommonDAOExecute(t *testing.T) {
 	errTest := errors.New("test")
-	member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
+	member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 	cases := []struct {
 		name         string
 		setup        func() *CommonDAO

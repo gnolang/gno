@@ -1,16 +1,15 @@
 package derive
 
 import (
-	"chain"
-	"chain/runtime"
 	"net/url"
+	"std"
 	"strings"
 
 	"gno.land/p/nt/ufmt"
 	"gno.land/r/leon/hor"
 )
 
-var cd = runtime.ChainDomain()
+var cd = std.ChainDomain()
 
 func Render(path string) string {
 	out := "# Derive Realm Address\n\n"
@@ -26,7 +25,7 @@ func Render(path string) string {
 			out += "Please input a valid pkgpath."
 			return out
 		}
-		out += ufmt.Sprintf("### [%s](%s) matches %s", parsed, strings.TrimPrefix(parsed, "gno.land"), chain.DerivePkgAddr(parsed))
+		out += ufmt.Sprintf("### [%s](%s) matches %s", parsed, strings.TrimPrefix(parsed, "gno.land"), std.DerivePkgAddr(parsed))
 	}
 
 	return out

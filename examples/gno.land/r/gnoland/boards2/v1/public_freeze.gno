@@ -1,8 +1,7 @@
 package boards2
 
 import (
-	"chain"
-	"chain/runtime"
+	"std"
 	"strconv"
 )
 
@@ -82,7 +81,7 @@ func setReplyReadonly(boardID BoardID, threadID, replyID PostID, isReadonly bool
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
-	caller := runtime.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 	assertHasPermission(board.perms, caller, PermissionReplyFreeze)
 
 	thread := mustGetThread(board, threadID)
@@ -98,7 +97,7 @@ func setReplyReadonly(boardID BoardID, threadID, replyID PostID, isReadonly bool
 
 	reply.Readonly = isReadonly
 
-	chain.Emit(
+	std.Emit(
 		"ReplyFreeze",
 		"caller", caller.String(),
 		"boardID", boardID.String(),
@@ -114,7 +113,7 @@ func setThreadReadonly(boardID BoardID, threadID PostID, isReadonly bool) {
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
-	caller := runtime.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 	assertHasPermission(board.perms, caller, PermissionThreadFreeze)
 
 	thread := mustGetThread(board, threadID)
@@ -124,7 +123,7 @@ func setThreadReadonly(boardID BoardID, threadID PostID, isReadonly bool) {
 
 	thread.Readonly = isReadonly
 
-	chain.Emit(
+	std.Emit(
 		"ThreadFreeze",
 		"caller", caller.String(),
 		"boardID", boardID.String(),
@@ -141,12 +140,12 @@ func setBoardReadonly(boardID BoardID, isReadonly bool) {
 		assertBoardIsNotFrozen(board)
 	}
 
-	caller := runtime.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 	assertHasPermission(board.perms, caller, PermissionBoardFreeze)
 
 	board.Readonly = isReadonly
 
-	chain.Emit(
+	std.Emit(
 		"BoardFreeze",
 		"caller", caller.String(),
 		"boardID", boardID.String(),

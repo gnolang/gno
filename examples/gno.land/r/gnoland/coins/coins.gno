@@ -17,9 +17,8 @@
 package coins
 
 import (
-	"chain/banker"
-	"chain/runtime"
 	"net/url"
+	"std"
 	"strconv"
 	"strings"
 
@@ -110,7 +109,7 @@ func renderBalances(req *mux.Request) string {
 	var wasConverted bool
 
 	// Try to validate or convert
-	if !address(input).IsValid() {
+	if !std.Address(input).IsValid() {
 		addr, err := ctg.ConvertAnyToGno(input)
 		if err != nil {
 			return out + ufmt.Sprintf("Tried converting `%s` to a Gno address but failed. Please try with a valid bech32 address.\n\n", input)
@@ -123,8 +122,8 @@ func renderBalances(req *mux.Request) string {
 		out += ufmt.Sprintf("> [!NOTE]\n>  Automatically converted `%s` to its Gno equivalent.\n\n", originalInput)
 	}
 
-	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
-	balances := banker_.GetCoins(address(input))
+	banker := std.NewBanker(std.BankerTypeReadonly)
+	balances := banker.GetCoins(std.Address(input))
 
 	if len(balances) == 0 {
 		out += "This address currently has no coins."
@@ -142,7 +141,7 @@ func renderBalances(req *mux.Request) string {
 	}
 
 	out += ufmt.Sprintf("This page shows full coin balances of %s at block #%d\n\n",
-		name, runtime.ChainHeight())
+		name, std.ChainHeight())
 
 	// Determine sorting
 	if getSortField(req) == "balance" {
@@ -172,7 +171,7 @@ func renderBalances(req *mux.Request) string {
 
 func renderSingleCoinBalance(denom, addr, origInput string, wasConverted bool) string {
 	out := "# Coin balance\n\n"
-	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+	banker := std.NewBanker(std.BankerTypeReadonly)
 
 	if wasConverted {
 		out += ufmt.Sprintf("> [!NOTE]\n>  Automatically converted `%s` to its Gno equivalent.\n\n", origInput)
@@ -185,7 +184,7 @@ func renderSingleCoinBalance(denom, addr, origInput string, wasConverted bool) s
 	}
 
 	out += ufmt.Sprintf("%s has `%d%s` at block #%d\n\n",
-		name, banker_.GetCoins(address(addr)).AmountOf(denom), denom, runtime.ChainHeight())
+		name, banker.GetCoins(std.Address(addr)).AmountOf(denom), denom, std.ChainHeight())
 
 	out += "[View full balance list for this address](/r/gnoland/coins:balances?address=" + addr + ")"
 

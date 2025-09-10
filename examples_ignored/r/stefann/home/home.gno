@@ -20,7 +20,7 @@ type City struct {
 }
 
 type Sponsor struct {
-	Address address
+	Address std.Address
 	Amount  std.Coins
 }
 
@@ -169,7 +169,7 @@ func GetTopSponsors() []Sponsor {
 	var sponsorSlice SponsorSlice
 
 	sponsorship.sponsors.Iterate("", "", func(key string, value any) bool {
-		addr := address(key)
+		addr := std.Address(key)
 		amount := value.(std.Coins)
 		sponsorSlice = append(sponsorSlice, Sponsor{Address: addr, Amount: amount})
 		return false
@@ -230,7 +230,7 @@ func formatAddress(address string) string {
 	return address[:4] + "..." + address[len(address)-4:]
 }
 
-func getDisplayName(addr address) string {
+func getDisplayName(addr std.Address) string {
 	if user := users.ResolveAddress(addr); user != nil {
 		return user.Name()
 	}

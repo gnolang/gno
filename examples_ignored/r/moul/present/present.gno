@@ -25,7 +25,7 @@ type Presentation struct {
 	Title     string
 	Event     string
 	Author    string
-	Uploader  address
+	Uploader  std.Address
 	Date      time.Time
 	Content   string
 	EditDate  time.Time

@@ -1,9 +1,8 @@
 package users
 
 import (
-	"chain"
-	"chain/runtime"
 	"regexp"
+	"std"
 
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/ufmt"
@@ -24,7 +23,7 @@ const (
 )
 
 type UserData struct {
-	addr     address
+	addr     std.Address
 	username string // contains the latest name of a user
 	deleted  bool
 }
@@ -33,7 +32,7 @@ func (u UserData) Name() string {
 	return u.username
 }
 
-func (u UserData) Addr() address {
+func (u UserData) Addr() std.Address {
 	return u.addr
 }
 
@@ -52,9 +51,9 @@ func (u UserData) RenderLink(linkText string) string {
 }
 
 // RegisterUser adds a new user to the system.
-func RegisterUser(cur realm, name string, address_XXX address) error {
+func RegisterUser(cur realm, name string, address_XXX std.Address) error {
 	// Validate caller
-	if !controllers.Has(runtime.PreviousRealm().Address()) {
+	if !controllers.Has(std.PreviousRealm().Address()) {
 		return NewErrNotWhitelisted()
 	}
 
@@ -95,7 +94,7 @@ func RegisterUser(cur realm, name string, address_XXX address) error {
 	nameStore.Set(name, data)
 	addressStore.Set(address_XXX.String(), data)
 
-	chain.Emit(RegisterUserEvent,
+	std.Emit(RegisterUserEvent,
 		"name", name,
 		"address", address_XXX.String(),
 	)
@@ -111,7 +110,7 @@ func (u *UserData) UpdateName(newName string) error {
 	}
 
 	// Validate caller
-	if !controllers.Has(runtime.CurrentRealm().Address()) {
+	if !controllers.Has(std.CurrentRealm().Address()) {
 		return NewErrNotWhitelisted()
 	}
 
@@ -128,7 +127,7 @@ func (u *UserData) UpdateName(newName string) error {
 	u.username = newName
 	nameStore.Set(newName, u)
 
-	chain.Emit(UpdateNameEvent,
+	std.Emit(UpdateNameEvent,
 		"alias", newName,
 		"address", u.addr.String(),
 	)
@@ -142,13 +141,13 @@ func (u *UserData) Delete() error {
 	}
 
 	// Validate caller
-	if !controllers.Has(runtime.CurrentRealm().Address()) {
+	if !controllers.Has(std.CurrentRealm().Address()) {
 		return NewErrNotWhitelisted()
 	}
 
 	u.deleted = true
 
-	chain.Emit(DeleteUserEvent, "address", u.addr.String())
+	std.Emit(DeleteUserEvent, "address", u.addr.String())
 	return nil
 }
 
@@ -165,7 +164,7 @@ func validateName(username string) error {
 	}
 
 	// Check if the username can be decoded or looks like a valid address
-	if address(username).IsValid() || reAddressLookalike.MatchString(username) {
+	if std.Address(username).IsValid() || reAddressLookalike.MatchString(username) {
 		return ErrNameLikeAddress
 	}
 

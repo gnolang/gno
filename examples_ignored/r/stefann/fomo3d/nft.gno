@@ -1,12 +1,15 @@
 package fomo3d
 
 import (
+	"std"
 	"strconv"
 
 	"gno.land/p/demo/grc/grc721"
 )
 
-var fomo3dNFT = grc721.NewNFTWithMetadata("Fomo3D Winner", "FOMO")
+var (
+	fomo3dNFT = grc721.NewNFTWithMetadata("Fomo3D Winner", "FOMO")
+)
 
 // Public getters
 
@@ -18,11 +21,11 @@ func Symbol() string {
 	return fomo3dNFT.Symbol()
 }
 
-func BalanceOf(owner address) (uint64, error) {
+func BalanceOf(owner std.Address) (uint64, error) {
 	return fomo3dNFT.BalanceOf(owner)
 }
 
-func OwnerOf(tokenID grc721.TokenID) (address, error) {
+func OwnerOf(tokenID grc721.TokenID) (std.Address, error) {
 	return fomo3dNFT.OwnerOf(tokenID)
 }
 
@@ -32,32 +35,32 @@ func TokenMetadata(tokenID grc721.TokenID) (grc721.Metadata, error) {
 
 // Transfer and approval methods
 
-func TransferFrom(from, to address, tokenID grc721.TokenID) error {
+func TransferFrom(from, to std.Address, tokenID grc721.TokenID) error {
 	return fomo3dNFT.TransferFrom(from, to, tokenID)
 }
 
-func SafeTransferFrom(from, to address, tokenID grc721.TokenID) error {
+func SafeTransferFrom(from, to std.Address, tokenID grc721.TokenID) error {
 	return fomo3dNFT.SafeTransferFrom(from, to, tokenID)
 }
 
-func Approve(approved address, tokenID grc721.TokenID) error {
+func Approve(approved std.Address, tokenID grc721.TokenID) error {
 	return fomo3dNFT.Approve(approved, tokenID)
 }
 
-func GetApproved(tokenID grc721.TokenID) (address, error) {
+func GetApproved(tokenID grc721.TokenID) (std.Address, error) {
 	return fomo3dNFT.GetApproved(tokenID)
 }
 
-func SetApprovalForAll(operator address, approved bool) error {
+func SetApprovalForAll(operator std.Address, approved bool) error {
 	return fomo3dNFT.SetApprovalForAll(operator, approved)
 }
 
-func IsApprovedForAll(owner, operator address) bool {
+func IsApprovedForAll(owner, operator std.Address) bool {
 	return fomo3dNFT.IsApprovedForAll(owner, operator)
 }
 
 // Mints a new NFT for the round winner
-func mintRoundWinnerNFT(winner address, roundNumber int64) error {
+func mintRoundWinnerNFT(winner std.Address, roundNumber int64) error {
 	if winner == "" {
 		return ErrZeroAddress
 	}

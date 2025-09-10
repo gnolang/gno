@@ -1,7 +1,7 @@
 package impl
 
 import (
-	"chain/runtime"
+	"std"
 
 	"gno.land/r/gov/dao/v3/memberstore"
 	"gno.land/r/sys/users"
@@ -9,7 +9,7 @@ import (
 
 var govDAO *GovDAO = NewGovDAO()
 var law *Law
-var gRealm = runtime.CurrentRealm()
+var gRealm = std.CurrentRealm()
 
 func init() {
 	law = &Law{
@@ -22,8 +22,8 @@ func Render(in string) string {
 }
 
 // AddMember allows T1 and T2 members to freely add T3 members using their invitation points.
-func AddMember(cur realm, addr address) {
-	caller := runtime.PreviousRealm()
+func AddMember(cur realm, addr std.Address) {
+	caller := std.PreviousRealm()
 	if !caller.IsUser() {
 		panic("this function must be called by an EOA through msg call or msg run")
 	}
@@ -48,7 +48,7 @@ func AddMember(cur realm, addr address) {
 }
 
 func GetInstance() *GovDAO {
-	if runtime.CurrentRealm().PkgPath() != "gno.land/r/gov/dao/v3/loader" {
+	if std.CurrentRealm().PkgPath() != "gno.land/r/gov/dao/v3/loader" {
 		panic("not allowed")
 	}
 

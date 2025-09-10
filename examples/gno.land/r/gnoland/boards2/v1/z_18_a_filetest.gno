@@ -1,7 +1,7 @@
 package main
 
 import (
-	"chain/runtime"
+	"std"
 	"testing"
 
 	"gno.land/p/nt/commondao"
@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	bid   = boards2.BoardID(0)                                  // Operate on realm instead of individual boards
+	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	bid   = boards2.BoardID(0)                                      // Operate on realm instead of individual boards
 )
 
 var perms boards2.Permissions
@@ -22,7 +22,7 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(std.NewUserRealm(owner))
 
 	boards2.SetPermissions(cross, bid, perms)
 

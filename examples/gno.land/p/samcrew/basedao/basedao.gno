@@ -1,9 +1,8 @@
 package basedao
 
 import (
-	"chain"
-	"chain/runtime"
 	"errors"
+	"std"
 
 	"gno.land/p/nt/mux"
 	"gno.land/p/samcrew/daocond"
@@ -32,7 +31,7 @@ type DAOPrivate struct {
 	Members          *MembersStore
 	RenderRouter     *mux.Router
 	GetProfileString ProfileStringGetter
-	Realm            runtime.Realm
+	Realm            std.Realm
 }
 
 type Config struct {
@@ -49,7 +48,7 @@ type Config struct {
 }
 
 type ProfileStringSetter func(cur realm, field string, value string) bool
-type ProfileStringGetter func(addr address, field string, def string) string
+type ProfileStringGetter func(addr std.Address, field string, def string) string
 
 const EventBaseDAOCreated = "BaseDAOCreated"
 
@@ -70,7 +69,7 @@ func New(conf *Config) (daokit.DAO, *DAOPrivate) {
 		Core:             core,
 		Members:          members,
 		GetProfileString: conf.GetProfileString,
-		Realm:            runtime.CurrentRealm(),
+		Realm:            std.CurrentRealm(),
 	}
 	dao.initRenderingRouter()
 
@@ -130,7 +129,7 @@ func New(conf *Config) (daokit.DAO, *DAOPrivate) {
 	}
 
 	if !conf.NoCreationEvent {
-		chain.Emit(EventBaseDAOCreated)
+		std.Emit(EventBaseDAOCreated)
 	}
 
 	return &daoPublic{impl: dao}, dao
@@ -156,7 +155,7 @@ func (d *DAOPrivate) Propose(req daokit.ProposalRequest) uint64 {
 }
 
 func (d *DAOPrivate) assertCallerIsMember() string {
-	id := runtime.PreviousRealm().Address().String()
+	id := std.PreviousRealm().Address().String()
 	if !d.Members.IsMember(id) {
 		panic(errors.New("caller is not a member"))
 	}

@@ -1,6 +1,7 @@
 package foo20
 
 import (
+	"std"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -9,7 +10,7 @@ import (
 
 func TestReadOnlyPublicMethods(t *testing.T) {
 	var (
-		admin = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+		admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 		alice = testutils.TestAddress("alice")
 		bob   = testutils.TestAddress("bob")
 	)
@@ -57,8 +58,8 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 
 func TestErrConditions(t *testing.T) {
 	var (
-		admin = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
-		empty = address("")
+		admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+		empty = std.Address("")
 	)
 
 	type test struct {
@@ -68,14 +69,14 @@ func TestErrConditions(t *testing.T) {
 		fn      func()
 	}
 
-	privateLedger.Mint(address(admin), 10000)
+	privateLedger.Mint(std.Address(admin), 10000)
 	{
 		tests := []test{
 			{"Transfer(admin, 1)", "cannot send transfer to self", false, func() {
 				// XXX: should replace with: Transfer(admin, 1)
 				// but there is currently a limitation in manipulating the frame stack and simulate
 				// calling this package from an outside point of view.
-				adminAddr := address(admin)
+				adminAddr := std.Address(admin)
 				if err := privateLedger.Transfer(adminAddr, adminAddr, 1); err != nil {
 					panic(err)
 				}

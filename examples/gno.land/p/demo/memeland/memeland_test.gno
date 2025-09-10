@@ -1,7 +1,7 @@
 package memeland
 
 import (
-	"chain/runtime"
+	"std"
 	"strings"
 	"testing"
 	"time"
@@ -123,7 +123,7 @@ func TestGetPostsInRangeByUpvote(t *testing.T) {
 
 	// Change caller so avoid double upvote panic
 	alice := testutils.TestAddress("alice")
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 	m.Upvote(id1)
 
 	// Final upvote count:
@@ -237,21 +237,21 @@ func TestUpvote(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 
 	// Alice is admin
 	m := NewMemeland()
 
 	// Set caller to Bob
 	bob := testutils.TestAddress("bob")
-	testing.SetRealm(runtime.NewUserRealm(bob))
+	testing.SetRealm(std.NewUserRealm(bob))
 
 	// Bob adds post to Memeland
 	now := time.Now()
 	postID := m.PostMeme("Meme #1", now.Unix())
 
 	// Alice removes Bob's post
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 
 	id := m.RemovePost(postID)
 	uassert.Equal(t, postID, id, "post IDs not matching")
@@ -260,7 +260,7 @@ func TestDelete(t *testing.T) {
 
 func TestDeleteByNonAdmin(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 
 	m := NewMemeland()
 
@@ -270,7 +270,7 @@ func TestDeleteByNonAdmin(t *testing.T) {
 
 	// Bob will try to delete meme posted by Alice, which should fail
 	bob := testutils.TestAddress("bob")
-	testing.SetRealm(runtime.NewUserRealm(bob))
+	testing.SetRealm(std.NewUserRealm(bob))
 
 	defer func() {
 		if r := recover(); r == nil {

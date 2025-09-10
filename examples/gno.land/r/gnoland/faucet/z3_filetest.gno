@@ -1,9 +1,7 @@
 package main
 
 import (
-	"chain"
-	"chain/banker"
-	"chain/runtime"
+	"std"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -12,20 +10,20 @@ import (
 
 // mints coints to current realm
 func init() {
-	faucetaddr := chain.DerivePkgAddr("gno.land/r/gnoland/faucet")
-	testing.IssueCoins(faucetaddr, banker.Coins{{"ugnot", 200_000_000}})
+	faucetaddr := std.DerivePkgAddr("gno.land/r/gnoland/faucet")
+	testing.IssueCoins(faucetaddr, std.Coins{{"ugnot", 200_000_000}})
 }
 
 // assert render with 2 controllers and 2 transfers
 func main() {
 	var (
-		adminaddr       = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+		adminaddr       = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 		controlleraddr1 = testutils.TestAddress("controller1")
 		controlleraddr2 = testutils.TestAddress("controller2")
 		testaddr1       = testutils.TestAddress("test1")
 		_               = testutils.TestAddress("test2")
 	)
-	testing.SetRealm(runtime.NewUserRealm(adminaddr))
+	testing.SetRealm(std.NewUserRealm(adminaddr))
 	err := faucet.AdminAddController(cross, controlleraddr1)
 	if err != "" {
 		panic(err)
@@ -34,12 +32,12 @@ func main() {
 	if err != "" {
 		panic(err)
 	}
-	testing.SetRealm(runtime.NewUserRealm(controlleraddr1))
+	testing.SetRealm(std.NewUserRealm(controlleraddr1))
 	err = faucet.Transfer(cross, testaddr1, 1_000_000)
 	if err != "" {
 		panic(err)
 	}
-	testing.SetRealm(runtime.NewUserRealm(controlleraddr2))
+	testing.SetRealm(std.NewUserRealm(controlleraddr2))
 	err = faucet.Transfer(cross, testaddr1, 2_000_000)
 	if err != "" {
 		panic(err)

@@ -1,7 +1,7 @@
 package grc1155
 
 import (
-	"chain/runtime"
+	"std"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -25,8 +25,8 @@ func TestBalanceOf(t *testing.T) {
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	addr1 := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
-	addr2 := address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
@@ -57,13 +57,13 @@ func TestBalanceOfBatch(t *testing.T) {
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	addr1 := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
-	addr2 := address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
 
-	balanceBatch, err := dummy.BalanceOfBatch([]address{addr1, addr2}, []TokenID{tid1, tid2})
+	balanceBatch, err := dummy.BalanceOfBatch([]std.Address{addr1, addr2}, []TokenID{tid1, tid2})
 	uassert.NoError(t, err, "should not result in error")
 	uassert.Equal(t, int64(0), balanceBatch[0])
 	uassert.Equal(t, int64(0), balanceBatch[1])
@@ -71,7 +71,7 @@ func TestBalanceOfBatch(t *testing.T) {
 	dummy.mintBatch(addr1, []TokenID{tid1}, []int64{10})
 	dummy.mintBatch(addr2, []TokenID{tid2}, []int64{20})
 
-	balanceBatch, err = dummy.BalanceOfBatch([]address{addr1, addr2}, []TokenID{tid1, tid2})
+	balanceBatch, err = dummy.BalanceOfBatch([]std.Address{addr1, addr2}, []TokenID{tid1, tid2})
 	uassert.NoError(t, err, "should not result in error")
 	uassert.Equal(t, int64(10), balanceBatch[0])
 	uassert.Equal(t, int64(20), balanceBatch[1])
@@ -81,8 +81,8 @@ func TestIsApprovedForAll(t *testing.T) {
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	addr1 := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
-	addr2 := address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 	isApprovedForAll := dummy.IsApprovedForAll(addr1, addr2)
 	uassert.False(t, isApprovedForAll)
@@ -95,8 +95,8 @@ func TestSetApprovalForAll(t *testing.T) {
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := runtime.OriginCaller()
-	addr := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	caller := std.OriginCaller()
+	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	isApprovedForAll := dummy.IsApprovedForAll(caller, addr)
 	uassert.False(t, isApprovedForAll)
@@ -121,8 +121,8 @@ func TestSafeTransferFrom(t *testing.T) {
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := runtime.OriginCaller()
-	addr := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	caller := std.OriginCaller()
+	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	tid := TokenID("1")
 
@@ -155,8 +155,8 @@ func TestSafeBatchTransferFrom(t *testing.T) {
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := runtime.OriginCaller()
-	addr := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	caller := std.OriginCaller()
+	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
@@ -172,7 +172,7 @@ func TestSafeBatchTransferFrom(t *testing.T) {
 	err = dummy.SafeBatchTransferFrom(caller, addr, []TokenID{tid1, tid2}, []int64{4, 60})
 	uassert.NoError(t, err, "should not result in error")
 
-	balanceBatch, err := dummy.BalanceOfBatch([]address{caller, addr, caller, addr}, []TokenID{tid1, tid1, tid2, tid2})
+	balanceBatch, err := dummy.BalanceOfBatch([]std.Address{caller, addr, caller, addr}, []TokenID{tid1, tid1, tid2, tid2})
 	uassert.NoError(t, err, "should not result in error")
 
 	// Check token1's balance of caller after batch transfer
@@ -192,8 +192,8 @@ func TestSafeMint(t *testing.T) {
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	addr1 := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
-	addr2 := address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
@@ -207,7 +207,7 @@ func TestSafeMint(t *testing.T) {
 	err = dummy.SafeMint(addr2, tid1, 50)
 	uassert.NoError(t, err, "should not result in error")
 
-	balanceBatch, err := dummy.BalanceOfBatch([]address{addr1, addr2, addr1}, []TokenID{tid1, tid1, tid2})
+	balanceBatch, err := dummy.BalanceOfBatch([]std.Address{addr1, addr2, addr1}, []TokenID{tid1, tid1, tid2})
 	uassert.NoError(t, err, "should not result in error")
 	// Check token1's balance of addr1 after mint
 	uassert.Equal(t, int64(100), balanceBatch[0])
@@ -221,8 +221,8 @@ func TestSafeBatchMint(t *testing.T) {
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	addr1 := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
-	addr2 := address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
@@ -234,7 +234,7 @@ func TestSafeBatchMint(t *testing.T) {
 	err = dummy.SafeBatchMint(addr2, []TokenID{tid1, tid2}, []int64{300, 400})
 	uassert.NoError(t, err, "should not result in error")
 
-	balanceBatch, err := dummy.BalanceOfBatch([]address{addr1, addr2, addr1, addr2}, []TokenID{tid1, tid1, tid2, tid2})
+	balanceBatch, err := dummy.BalanceOfBatch([]std.Address{addr1, addr2, addr1, addr2}, []TokenID{tid1, tid1, tid2, tid2})
 	uassert.NoError(t, err, "should not result in error")
 	// Check token1's balance of addr1 after batch mint
 	uassert.Equal(t, int64(100), balanceBatch[0])
@@ -250,7 +250,7 @@ func TestBurn(t *testing.T) {
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	addr := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
@@ -264,7 +264,7 @@ func TestBurn(t *testing.T) {
 	uassert.NoError(t, err, "should not result in error")
 	err = dummy.Burn(addr, tid2, int64(60))
 	uassert.NoError(t, err, "should not result in error")
-	balanceBatch, err := dummy.BalanceOfBatch([]address{addr, addr}, []TokenID{tid1, tid2})
+	balanceBatch, err := dummy.BalanceOfBatch([]std.Address{addr, addr}, []TokenID{tid1, tid2})
 	uassert.NoError(t, err, "should not result in error")
 
 	// Check token1's balance of addr after burn
@@ -277,7 +277,7 @@ func TestBatchBurn(t *testing.T) {
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	addr := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
@@ -289,7 +289,7 @@ func TestBatchBurn(t *testing.T) {
 	uassert.Error(t, err, "should result in error")
 	err = dummy.BatchBurn(addr, []TokenID{tid1, tid2}, []int64{60, 60})
 	uassert.NoError(t, err, "should not result in error")
-	balanceBatch, err := dummy.BalanceOfBatch([]address{addr, addr}, []TokenID{tid1, tid2})
+	balanceBatch, err := dummy.BalanceOfBatch([]std.Address{addr, addr}, []TokenID{tid1, tid2})
 	uassert.NoError(t, err, "should not result in error")
 
 	// Check token1's balance of addr after batch burn

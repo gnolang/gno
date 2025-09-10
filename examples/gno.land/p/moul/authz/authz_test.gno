@@ -1,9 +1,8 @@
 package authz
 
 import (
-	"chain"
-	"chain/runtime"
 	"errors"
+	"std"
 	"strings"
 	"testing"
 
@@ -13,7 +12,7 @@ import (
 
 func TestNewWithCurrent(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 
 	auth := NewWithCurrent()
 
@@ -40,7 +39,7 @@ func TestNewWithAuthority(t *testing.T) {
 
 func TestAuthorizerAuthorize(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 
 	auth := NewWithCurrent()
 
@@ -56,7 +55,7 @@ func TestAuthorizerAuthorize(t *testing.T) {
 	uassert.True(t, executed, "action should have been executed")
 
 	// Test unauthorized action with args
-	testing.SetRealm(runtime.NewUserRealm(testutils.TestAddress("bob")))
+	testing.SetRealm(std.NewUserRealm(testutils.TestAddress("bob")))
 
 	executed = false
 	err = auth.DoByCurrent("test_action", func() error {
@@ -68,7 +67,7 @@ func TestAuthorizerAuthorize(t *testing.T) {
 	uassert.False(t, executed, "action should not have been executed")
 
 	// Test action returning error
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 	expectedErr := errors.New("test error")
 
 	err = auth.DoByCurrent("test_action", func() error {
@@ -80,7 +79,7 @@ func TestAuthorizerAuthorize(t *testing.T) {
 
 func TestAuthorizerTransfer(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 
 	auth := NewWithCurrent()
 
@@ -93,7 +92,7 @@ func TestAuthorizerTransfer(t *testing.T) {
 	uassert.True(t, auth.Authority() == newAuth, "expected new authority")
 
 	// Test unauthorized transfer
-	testing.SetRealm(runtime.NewUserRealm(bob)) // doesn't matter that it's bob
+	testing.SetRealm(std.NewUserRealm(bob)) // doesn't matter that it's bob
 	carol := testutils.TestAddress("carol")
 
 	err = auth.Transfer(carol, NewMemberAuthority(alice))
@@ -111,7 +110,7 @@ func TestAuthorizerTransfer(t *testing.T) {
 
 func TestAuthorizerTransferChain(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 
 	// Create a chain of transfers
 	auth := NewWithCurrent()
@@ -132,7 +131,7 @@ func TestAuthorizerTransferChain(t *testing.T) {
 
 	// Finally transfer to an auto-accept authority
 	autoAuth := NewAutoAcceptAuthority()
-	codeRealm := runtime.NewCodeRealm("gno.land/r/test")
+	codeRealm := std.NewCodeRealm("gno.land/r/test")
 	code := codeRealm.Address()
 	testing.SetRealm(codeRealm)
 	err = auth.Transfer(code, autoAuth)
@@ -145,7 +144,7 @@ func TestAuthorizerTransferVulnerability(t *testing.T) {
 	attacker := testutils.TestAddress("attacker")
 
 	// Setup: Authorizer controlled by 'admin'
-	testing.SetRealm(runtime.NewUserRealm(admin))
+	testing.SetRealm(std.NewUserRealm(admin))
 	auth := NewWithCurrent() // 'admin' is the initial authority
 
 	// Check initial state
@@ -155,7 +154,7 @@ func TestAuthorizerTransferVulnerability(t *testing.T) {
 	uassert.False(t, initialAuth.Has(attacker))
 
 	// Simulate attacker's context
-	testing.SetRealm(runtime.NewUserRealm(attacker))
+	testing.SetRealm(std.NewUserRealm(attacker))
 
 	// Vulnerability: Attacker calls Transfer, providing 'admin' as the 'caller'
 	// argument, even though the actual caller is 'attacker'.
@@ -188,7 +187,7 @@ func TestAuthorizerTransferVulnerability(t *testing.T) {
 
 func TestAuthorizerWithDroppedAuthority(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 
 	auth := NewWithCurrent()
 
@@ -227,7 +226,7 @@ func TestContractAuthorityHandlerExecutionOnce(t *testing.T) {
 	})
 
 	// Set caller to contract address
-	codeRealm := runtime.NewCodeRealm("gno.land/r/test")
+	codeRealm := std.NewCodeRealm("gno.land/r/test")
 	testing.SetRealm(codeRealm)
 	code := codeRealm.Address()
 
@@ -250,7 +249,7 @@ func TestContractAuthorityExecutionTwice(t *testing.T) {
 	})
 
 	// Set caller to contract address
-	codeRealm := runtime.NewCodeRealm("gno.land/r/test")
+	codeRealm := std.NewCodeRealm("gno.land/r/test")
 	testing.SetRealm(codeRealm)
 	code := codeRealm.Address()
 	testArgs := []any{"proposal_id", 42, "metadata", map[string]string{"key": "value"}}
@@ -283,7 +282,7 @@ func TestContractAuthorityWithProposer(t *testing.T) {
 	contractAuth := NewRestrictedContractAuthority("gno.land/r/test", func(title string, action PrivilegedAction) error {
 		handlerCalled = true
 		// Set caller to contract address before executing action
-		testing.SetRealm(runtime.NewCodeRealm("gno.land/r/test"))
+		testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
 		return action()
 	}, memberAuth)
 
@@ -365,7 +364,7 @@ func TestMemberAuthorityMultipleMembers(t *testing.T) {
 	auth := NewMemberAuthority(alice, bob)
 
 	// Test that both members can execute actions
-	for _, member := range []address{alice, bob} {
+	for _, member := range []std.Address{alice, bob} {
 		err := auth.Authorize(member, "test_action", func() error {
 			return nil
 		})
@@ -383,9 +382,9 @@ func TestMemberAuthorityMultipleMembers(t *testing.T) {
 	uassert.True(t, tree.Size() == 2, "tree should have 2 members")
 
 	// Verify both members are in the tree
-	found := make(map[address]bool)
+	found := make(map[std.Address]bool)
 	tree.Iterate("", "", func(key string, _ any) bool {
-		found[address(key)] = true
+		found[std.Address(key)] = true
 		return false
 	})
 	uassert.True(t, found[alice], "alice should be in the tree")
@@ -402,7 +401,7 @@ func TestMemberAuthorityMultipleMembers(t *testing.T) {
 
 func TestAuthorizerCurrentNeverNil(t *testing.T) {
 	auth := NewWithCurrent()
-	addr := runtime.CurrentRealm().Address()
+	addr := std.CurrentRealm().Address()
 
 	// Authority should never be nil after initialization
 	uassert.True(t, auth.Authority() != nil, "current authority should not be nil")
@@ -430,7 +429,7 @@ func TestContractAuthorityValidation(t *testing.T) {
 
 	// Test nil handler - should return error on Authorize
 	auth := NewContractAuthority("gno.land/r/test", nil)
-	code := runtime.NewCodeRealm("gno.land/r/test").Address()
+	code := std.NewCodeRealm("gno.land/r/test").Address()
 	err := auth.Authorize(code, "test", func() error {
 		return nil
 	})
@@ -449,7 +448,7 @@ func TestContractAuthorityValidation(t *testing.T) {
 
 func TestAuthorizerString(t *testing.T) {
 	auth := NewWithCurrent()
-	addr := runtime.CurrentRealm().Address()
+	addr := std.CurrentRealm().Address()
 
 	// Test initial string representation
 	str := auth.String()
@@ -474,7 +473,7 @@ func TestAuthorizerString(t *testing.T) {
 type mockAuthority struct{}
 
 func (c mockAuthority) String() string { return "mock" }
-func (a mockAuthority) Authorize(caller address, title string, action PrivilegedAction, args ...any) error {
+func (a mockAuthority) Authorize(caller std.Address, title string, action PrivilegedAction, args ...any) error {
 	// autoaccept
 	return action()
 }
@@ -509,14 +508,14 @@ func TestAuthorityString(t *testing.T) {
 
 func TestContractAuthorityUnauthorizedCaller(t *testing.T) {
 	contractPath := "gno.land/r/testcontract"
-	contractAddr := chain.DerivePkgAddr(contractPath)
+	contractAddr := std.DerivePkgAddr(contractPath)
 	unauthorizedAddr := testutils.TestAddress("unauthorized")
 
 	// Handler that checks the caller before proceeding
 	handlerExecutedCorrectly := false // Tracks if handler logic ran correctly
 	handlerErrorMsg := "handler: caller is not the contract"
 	contractHandler := func(title string, action PrivilegedAction) error {
-		caller := runtime.CurrentRealm().Address()
+		caller := std.CurrentRealm().Address()
 		if caller != contractAddr {
 			return errors.New(handlerErrorMsg)
 		}
@@ -535,7 +534,7 @@ func TestContractAuthorityUnauthorizedCaller(t *testing.T) {
 	}
 
 	// 1. Attempt action from unauthorized user
-	testing.SetRealm(runtime.NewUserRealm(unauthorizedAddr))
+	testing.SetRealm(std.NewUserRealm(unauthorizedAddr))
 	err := authorizer.DoByCurrent("test_action_unauthorized", privilegedAction)
 
 	// Assertions for unauthorized call
@@ -547,7 +546,7 @@ func TestContractAuthorityUnauthorizedCaller(t *testing.T) {
 	// 2. Attempt action from the correct contract
 	handlerExecutedCorrectly = false // Reset flag
 	actionExecuted = false           // Reset flag
-	testing.SetRealm(runtime.NewCodeRealm(contractPath))
+	testing.SetRealm(std.NewCodeRealm(contractPath))
 	err = authorizer.DoByCurrent("test_action_authorized", privilegedAction)
 
 	// Assertions for authorized call
@@ -556,7 +555,7 @@ func TestContractAuthorityUnauthorizedCaller(t *testing.T) {
 	uassert.True(t, actionExecuted, "Privileged action should have executed for authorized caller")
 }
 
-func crossThrough(rlm runtime.Realm, cr func()) {
+func crossThrough(rlm std.Realm, cr func()) {
 	testing.SetRealm(rlm)
 	cr()
 }
@@ -567,9 +566,9 @@ func TestAuthorizerDoByPrevious(t *testing.T) {
 
 	auth := NewWithMembers(alice)
 
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 
-	crossThrough(runtime.NewCodeRealm("gno.land/r/test/test"), func() {
+	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
 		executed := false
 		args := []any{"test_arg", 123}
 		err := auth.DoByPrevious("test_action", func() error {
@@ -586,8 +585,8 @@ func TestAuthorizerDoByPrevious(t *testing.T) {
 		uassert.ErrorContains(t, err, expectedErr.Error(), "expected error")
 	})
 
-	testing.SetRealm(runtime.NewUserRealm(bob))
-	crossThrough(runtime.NewCodeRealm("gno.land/r/test/test"), func() {
+	testing.SetRealm(std.NewUserRealm(bob))
+	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
 		executed := false
 		err := auth.DoByPrevious("test_action", func() error {
 			executed = true

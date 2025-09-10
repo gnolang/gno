@@ -1,6 +1,7 @@
 package commondao
 
 import (
+	"std"
 	"testing"
 
 	"gno.land/p/moul/addrset"
@@ -14,14 +15,14 @@ var _ commondao.ProposalDefinition = (*subDAOPropDefinition)(nil)
 func TestSubDAOPropDefinitionTally(t *testing.T) {
 	cases := []struct {
 		name    string
-		members []address
+		members []std.Address
 		votes   []commondao.Vote
 		err     error
 		success bool
 	}{
 		{
 			name: "succeed",
-			members: []address{
+			members: []std.Address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
@@ -44,7 +45,7 @@ func TestSubDAOPropDefinitionTally(t *testing.T) {
 		},
 		{
 			name: "fail",
-			members: []address{
+			members: []std.Address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
@@ -66,7 +67,7 @@ func TestSubDAOPropDefinitionTally(t *testing.T) {
 		},
 		{
 			name: "fail with no votes",
-			members: []address{
+			members: []std.Address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
@@ -75,7 +76,7 @@ func TestSubDAOPropDefinitionTally(t *testing.T) {
 		},
 		{
 			name: "no quorum",
-			members: []address{
+			members: []std.Address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
@@ -149,9 +150,9 @@ func TestSubDAOPropDefinitionExecute(t *testing.T) {
 	uassert.Equal(t, 2, subDAO.Members().Size(), "expected SubDAO to have two members")
 
 	var i int
-	subDAO.Members().IterateByOffset(0, subDAO.Members().Size(), func(addr address) bool {
+	subDAO.Members().IterateByOffset(0, subDAO.Members().Size(), func(addr std.Address) bool {
 		s, _ := members.Tree().GetByIndex(i)
-		urequire.Equal(t, address(s), addr, "expected member to be found")
+		urequire.Equal(t, std.Address(s), addr, "expected member to be found")
 		i++
 		return false
 	})
@@ -160,14 +161,14 @@ func TestSubDAOPropDefinitionExecute(t *testing.T) {
 func TestDissolvePropDefinitionTally(t *testing.T) {
 	cases := []struct {
 		name    string
-		members []address
+		members []std.Address
 		votes   []commondao.Vote
 		err     error
 		success bool
 	}{
 		{
 			name: "succeed",
-			members: []address{
+			members: []std.Address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
@@ -190,7 +191,7 @@ func TestDissolvePropDefinitionTally(t *testing.T) {
 		},
 		{
 			name: "fail",
-			members: []address{
+			members: []std.Address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
@@ -212,7 +213,7 @@ func TestDissolvePropDefinitionTally(t *testing.T) {
 		},
 		{
 			name: "fail with no votes",
-			members: []address{
+			members: []std.Address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
@@ -221,7 +222,7 @@ func TestDissolvePropDefinitionTally(t *testing.T) {
 		},
 		{
 			name: "no quorum",
-			members: []address{
+			members: []std.Address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",

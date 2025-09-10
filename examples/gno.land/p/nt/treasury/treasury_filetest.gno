@@ -3,8 +3,7 @@
 package main
 
 import (
-	"chain"
-	"chain/banker"
+	"std"
 	"strings"
 	"testing"
 
@@ -30,8 +29,8 @@ func checkBalanceAndHistory(t *treasury.Treasury, bankerIDs []string) {
 
 func main() {
 	// Define addresses for the sender (owner) and destination.
-	ownerAddr := chain.DerivePkgAddr("gno.land/r/treasury/main")
-	destAddr := chain.DerivePkgAddr("gno.land/r/dest/main")
+	ownerAddr := std.DerivePkgAddr("gno.land/r/treasury/main")
+	destAddr := std.DerivePkgAddr("gno.land/r/dest/main")
 
 	// Try to create a Treasury instance with no bankers.
 	_, err := treasury.New(nil)
@@ -52,8 +51,8 @@ func main() {
 
 	// Try to create a Treasury instance with a duplicate banker.
 	var (
-		banker_           = banker.NewBanker(banker.BankerTypeRealmSend)
-		coinsBanker, _    = treasury.NewCoinsBanker(banker_)
+		banker            = std.NewBanker(std.BankerTypeRealmSend)
+		coinsBanker, _    = treasury.NewCoinsBanker(banker)
 		grc20Banker, _    = treasury.NewGRC20Banker(grc20Lister)
 		grc20BankerDup, _ = treasury.NewGRC20Banker(grc20Lister)
 	)
@@ -80,22 +79,22 @@ func main() {
 	}
 
 	// Check if the addresses of the bankers matches the owner address.
-	for _, banker_ := range bankers {
-		addr, err := t.Address(banker_.ID())
+	for _, banker := range bankers {
+		addr, err := t.Address(banker.ID())
 		if err != nil {
 			panic("failed to get banker address: " + err.Error())
 		}
-		println("Banker", banker_.ID(), "Address:", addr)
+		println("Banker", banker.ID(), "Address:", addr)
 	}
 
 	// Check if the balances and history of the bankers match the expected values.
-	testing.IssueCoins(ownerAddr, banker.NewCoins(banker.NewCoin("ugnot", amount)))
+	testing.IssueCoins(ownerAddr, std.NewCoins(std.NewCoin("ugnot", amount)))
 	bankerIDs := []string{coinsBanker.ID(), grc20Banker.ID()}
 	checkBalanceAndHistory(t, bankerIDs)
 
 	// Send 3 valid payments using the CoinsBanker.
 	validCoinsPayment := treasury.NewCoinsPayment(
-		banker.NewCoins(banker.NewCoin("ugnot", 100)),
+		std.NewCoins(std.NewCoin("ugnot", 100)),
 		destAddr,
 	)
 	for i := 0; i < 3; i++ {
