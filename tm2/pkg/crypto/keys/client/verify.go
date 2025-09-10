@@ -220,29 +220,25 @@ func getSignature(cfg *VerifyCfg, tx *std.Tx) ([]byte, error) {
 }
 
 func getTxParameters(ctx context.Context, cfg *VerifyCfg, info keys.Info, io commands.IO) {
-	// Query the chain if -offline=false and account number or sequence are equal to 0.
-	if !cfg.Offline && (cfg.AccountNumber == 0 || cfg.AccountSequence == 0) {
-		if !cfg.RootCfg.BaseOptions.Quiet {
-			io.Println("Querying account from chain...")
-		}
-		// Query the account from the chain.
-		baseAccount, err := queryBaseAccount(ctx, cfg, info)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: could not query account from chain, use default values: %v\n", err)
-		} else {
-			if cfg.AccountNumber == 0 {
-				if !cfg.RootCfg.BaseOptions.Quiet {
-					io.Printf("account-number set to %d\n", baseAccount.AccountNumber)
-				}
-				cfg.AccountNumber = baseAccount.AccountNumber
-			}
-			if cfg.AccountSequence == 0 {
-				if !cfg.RootCfg.BaseOptions.Quiet {
-					io.Printf("account-sequence set to %d\n", baseAccount.Sequence)
-				}
-				cfg.AccountSequence = baseAccount.Sequence
-			}
-		}
+	if cfg.Offline || cfg.AccountNumber != 0 && cfg.AccountSequence != 0 {
+		return
+	}
+
+	if !cfg.RootCfg.BaseOptions.Quiet {
+		io.Println("Querying account from chain...")
+	}
+	// Query the account from the chain.
+	baseAccount, err := queryBaseAccount(ctx, cfg, info)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not query account from chain, use default values: %v\n", err)
+		return
+	}
+
+	cfg.AccountNumber = baseAccount.AccountNumber
+	cfg.AccountSequence = baseAccount.Sequence
+	if !cfg.RootCfg.BaseOptions.Quiet {
+		io.Printf("account-number set to %d\n", cfg.AccountNumber)
+		io.Printf("account-sequence set to %d\n", cfg.AccountSequence)
 	}
 }
 
