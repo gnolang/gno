@@ -500,12 +500,12 @@
 		display: none;
 	}
 
-	.realm-view:has(.realm-view__btns:only-child) {
+	/* .realm-view:has(.realm-view__btns:only-child) {
 		@apply hidden;
 	}
 	.realm-view__btns:only-child {
 		@apply hidden;
-	}
+	} */
 }
 
 @layer components {

@@ -63,6 +63,14 @@
 	font-family: var(--g-font-family-mono);
 }
 
+.u-capitalize {
+	text-transform: capitalize;
+}
+
+.u-text-center {
+	text-align: center;
+}
+
 /* ===== SCROLLBAR UTILITIES ===== */
 .u-no-scrollbar::-webkit-scrollbar {
 	display: none;
@@ -75,8 +83,7 @@
 
 /* ===== STATE UTILITIES ===== */
 .u-is-loading {
-	opacity: 0.6;
-	pointer-events: none;
+	opacity: 0;
 }
 
 .u-pointer-events-none {
@@ -112,11 +119,29 @@
 	gap: 0;
 }
 
+.u-mt-4 {
+	margin-block-start: var(--g-space-4);
+}
+
+.u-mb-0 {
+	margin-block-end: 0;
+}
+
 .u-mb-2 {
 	margin-block-end: var(--g-space-2);
 }
-.u-mb-4 {
-	margin-block-end: var(--g-space-4);
+.u-lg-mb-4 {
+	@media (--lg) {
+		margin-block-end: var(--g-space-4);
+	}
+}
+
+.u-grid-row-1 {
+	grid-row-start: 1;
+}
+
+.u-grid-full {
+	grid-column: 1 / -1;
 }
 
 /* ===== FOCUS UTILITIES ===== */

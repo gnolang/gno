@@ -1,10 +1,13 @@
+{{/* ===================================================================================
+LAYOUT - Source component
+=================================================================================== */}}
 {{ define "renderSource" }}
 <!-- Source ToC -->
 {{ with render .ComponentTOC }} {{ template "layout/aside" . }} {{ end }}
 
 <!-- Source Info -->
-<header class="b-content-header u-gap-0 u-mb-4">
-  <h1 class="title">{{ .FileName }}</h1>
+<header class="b-content-header u-gap-0 u-mb-0 u-lg-mb-4">
+  <h1 class="title b-content-h1">{{ .FileName }}</h1>
   <div class="header-info">
     <span>{{ .FileSize }} · {{ .FileLines }} lines</span>
     <div class="b-btns">
@@ -25,3 +28,10 @@
 
 <!-- Source Content -->
 {{ template "layout/article" .Article }} {{ end }}
+
+{{/* ===================================================================================
+UI - Code wrapper
+=================================================================================== */}}
+{{ define "ui/code_wrapper" }}
+<div class="b-source-code" data-copy-target="source-code">{{ render . }}</div>
+{{ end }}

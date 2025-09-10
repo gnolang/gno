@@ -9,7 +9,7 @@ type ListItem = {
 
 export class ListController extends BaseController {
 	private static STORAGE_KEY = "gno_display_mode";
-	private static LOADING_CLASS = "is-loading";
+	private static LOADING_CLASS = "u-is-loading";
 
 	declare currentFilter: string;
 	declare items: Array<ListItem>;

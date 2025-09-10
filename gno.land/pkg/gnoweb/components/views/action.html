@@ -5,7 +5,7 @@ LAYOUT - Action component
 {{ $data := . }}
 <!-- Help Settings-->
 <header data-controller="action-header" class="b-content-header">
-  <h1 class="title">
+  <h1 class="title b-content-h1">
     <span>{{ .RealmName }}</span>
     <span class="b-tag">
       package
@@ -67,7 +67,7 @@ UI - Help Function component
         <h2 id="func-{{ .Name }}">
           {{ .Name }}
         </h2>
-        <span class="signature c-with-icon">
+        <span class="signature c-with-icon--inline">
           <code data-copy-target="func-{{ .Name }}">
               {{ .Signature }}
             </code>
@@ -78,7 +78,7 @@ UI - Help Function component
         </span>
       </span>
       <span class="b-btns">
-        <button class="b-inline-btn c-with-icon" aria-label="Copy Function" data-controller="copy"
+        <button class="b-btn b-btn--secondary c-with-icon" aria-label="Copy Function" data-controller="copy"
           data-action="click->copy#copy" data-copy-text-value="{{ buildHelpURL $data . }}" title="Function anchor link">
           <svg class="c-icon">
             <use href="#ico-link" data-copy-target="icon"></use>
@@ -87,7 +87,7 @@ UI - Help Function component
           <span>Link</span>
         </button>
         <a href="{{ buildHelpURL $data . }}" data-action-function-target="function-link"
-          title="Function transaction link" class="b-inline-btn c-with-icon">
+          title="Function transaction link" class="b-btn b-btn--secondary c-with-icon">
           <svg class="c-icon">
             <use href="#ico-tx-link"></use>
           </svg>
