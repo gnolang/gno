@@ -133,7 +133,7 @@ type Options struct {
 
 // NewProfiler creates a new profiler instance
 // Optional parameters: profileType (default: ProfileCPU), sampleRate (default: 1000)
-func NewProfiler(params ...interface{}) *Profiler {
+func NewProfiler(params ...any) *Profiler {
 	// Default values
 	profileType := ProfileCPU
 	sampleRate := 1000
@@ -157,7 +157,7 @@ func NewProfiler(params ...interface{}) *Profiler {
 		sampleRate:    sampleRate,
 		excludeTests:  true, // Exclude test files by default
 		locationPool: sync.Pool{
-			New: func() interface{} {
+			New: func() any {
 				return &profileLocation{}
 			},
 		},
@@ -351,7 +351,7 @@ func (p *Profiler) RecordFuncExit(m MachineInfo, funcName string, cycles int64) 
 }
 
 // RecordAlloc records memory allocation
-func (p *Profiler) RecordAlloc(m MachineInfo, size int64, count int64, allocType string) {
+func (p *Profiler) RecordAlloc(m MachineInfo, size, count int64, allocType string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -546,6 +546,35 @@ func (cw *countingWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
+// extractSampleValues extracts flat and cumulative values from a sample based on profile type
+func (p *Profile) extractSampleValues(sample *ProfileSample) (flatValue, cumValue int64) {
+	labelPrefix := "cycles"
+	fallbackLabel := "cycles"
+
+	if p.Type == ProfileGas {
+		labelPrefix = "gas"
+		fallbackLabel = "gas"
+	}
+
+	// Get flat value
+	flatLabel := fmt.Sprintf("flat_%s", labelPrefix)
+	if val, ok := sample.NumLabel[flatLabel]; ok && len(val) > 0 {
+		flatValue = val[0]
+	} else if val, ok := sample.NumLabel[fallbackLabel]; ok && len(val) > 0 {
+		flatValue = val[0]
+	}
+
+	// Get cumulative value
+	cumLabel := fmt.Sprintf("cum_%s", labelPrefix)
+	if val, ok := sample.NumLabel[cumLabel]; ok && len(val) > 0 {
+		cumValue = val[0]
+	} else if val, ok := sample.NumLabel[fallbackLabel]; ok && len(val) > 0 {
+		cumValue = val[0]
+	}
+
+	return flatValue, cumValue
+}
+
 // WriteTo writes the profile in a human-readable format
 // Implements io.WriterTo interface
 func (p *Profile) WriteTo(w io.Writer) (int64, error) {
@@ -600,33 +629,7 @@ func (p *Profile) WriteTo(w io.Writer) (int64, error) {
 			}
 		}
 
-		var flatValue, cumValue int64
-
-		if p.Type == ProfileGas {
-			if flatVal, ok := sample.NumLabel["flat_gas"]; ok && len(flatVal) > 0 {
-				flatValue = flatVal[0]
-			} else if gasVal, ok := sample.NumLabel["gas"]; ok && len(gasVal) > 0 {
-				flatValue = gasVal[0]
-			}
-
-			if cumVal, ok := sample.NumLabel["cum_gas"]; ok && len(cumVal) > 0 {
-				cumValue = cumVal[0]
-			} else if gasVal, ok := sample.NumLabel["gas"]; ok && len(gasVal) > 0 {
-				cumValue = gasVal[0]
-			}
-		} else {
-			if flatVal, ok := sample.NumLabel["flat_cycles"]; ok && len(flatVal) > 0 {
-				flatValue = flatVal[0]
-			} else if cyclesVal, ok := sample.NumLabel["cycles"]; ok && len(cyclesVal) > 0 {
-				flatValue = cyclesVal[0]
-			}
-
-			if cumVal, ok := sample.NumLabel["cum_cycles"]; ok && len(cumVal) > 0 {
-				cumValue = cumVal[0]
-			} else if cyclesVal, ok := sample.NumLabel["cycles"]; ok && len(cyclesVal) > 0 {
-				cumValue = cyclesVal[0]
-			}
-		}
+		flatValue, cumValue := p.extractSampleValues(&sample)
 
 		flatPercent := float64(0)
 		cumPercent := float64(0)
@@ -674,19 +677,23 @@ func (p *Profile) totalCycles() int64 {
 	seen := make(map[string]bool)
 
 	for _, sample := range p.Samples {
-		if len(sample.Location) > 0 {
-			funcName := sample.Location[0].Function
-			if !seen[funcName] {
-				seen[funcName] = true
-				if cumVal, ok := sample.NumLabel["cum_cycles"]; ok && len(cumVal) > 0 {
-					// For top-level functions only
-					if len(sample.Location) == 1 {
-						total += cumVal[0]
-					}
-				} else if len(sample.Value) > 1 && len(sample.Location) == 1 {
-					total += sample.Value[1]
-				}
+		if len(sample.Location) <= 0 {
+			continue
+		}
+
+		funcName := sample.Location[0].Function
+		if seen[funcName] {
+			continue
+		}
+
+		seen[funcName] = true
+		if cumVal, ok := sample.NumLabel["cum_cycles"]; ok && len(cumVal) > 0 {
+			// For top-level functions only
+			if len(sample.Location) == 1 {
+				total += cumVal[0]
 			}
+		} else if len(sample.Value) > 1 && len(sample.Location) == 1 {
+			total += sample.Value[1]
 		}
 	}
 
@@ -699,50 +706,24 @@ func (p *Profile) totalGas() int64 {
 	seen := make(map[string]bool)
 
 	for _, sample := range p.Samples {
-		if len(sample.Location) > 0 {
-			funcName := sample.Location[0].Function
-			if !seen[funcName] {
-				seen[funcName] = true
-				if cumVal, ok := sample.NumLabel["cum_gas"]; ok && len(cumVal) > 0 {
-					// For top-level functions only
-					if len(sample.Location) == 1 {
-						total += cumVal[0]
-					}
-				} else if sample.GasUsed > 0 && len(sample.Location) == 1 {
-					total += sample.GasUsed
-				}
-			}
+		if len(sample.Location) <= 0 {
+			continue
+		}
+
+		funcName := sample.Location[0].Function
+		if seen[funcName] {
+			continue
+		}
+
+		seen[funcName] = true
+		if cumVal, ok := sample.NumLabel["cum_gas"]; ok && len(cumVal) > 0 {
+			total += cumVal[0]
+		} else if sample.GasUsed > 0 {
+			total += sample.GasUsed
 		}
 	}
 
 	return total
-}
-
-// GetProfile returns the current profile without stopping profiling
-func (p *Profiler) GetProfile() *Profile {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if !p.enabled || p.profile == nil {
-		return nil
-	}
-
-	// Create a copy of the current profile
-	profileCopy := &Profile{
-		Type:          p.profile.Type,
-		TimeNanos:     p.profile.TimeNanos,
-		DurationNanos: time.Since(p.startTime).Nanoseconds(),
-		Samples:       make([]ProfileSample, 0),
-		CPUHz:         p.profile.CPUHz,
-	}
-
-	// Build samples from current data
-	savedProfile := p.profile
-	p.profile = profileCopy
-	p.generateSamples()
-	p.profile = savedProfile
-
-	return profileCopy
 }
 
 // EnableLineProfiling enables line-level profiling
@@ -750,13 +731,6 @@ func (p *Profiler) EnableLineProfiling() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.lineLevel = true
-}
-
-// DisableLineProfiling disables line-level profiling
-func (p *Profiler) DisableLineProfiling() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.lineLevel = false
 }
 
 // IsLineProfilingEnabled returns whether line-level profiling is enabled

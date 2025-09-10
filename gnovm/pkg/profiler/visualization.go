@@ -11,7 +11,8 @@ import (
 type ProfileFormat int
 
 const (
-	FormatText ProfileFormat = iota
+	_ ProfileFormat = iota
+	FormatText
 	FormatCallTree
 	FormatTopList
 	FormatJSON
@@ -108,7 +109,7 @@ func (p *Profile) WriteCallTree(w io.Writer) error {
 }
 
 // printNode recursively prints a call tree node
-func printNode(w io.Writer, n *node, prefix string, isLast bool, totalCycles int64, totalGas int64, depth int, profileType ProfileType) {
+func printNode(w io.Writer, n *node, prefix string, isLast bool, totalCycles, totalGas int64, depth int, profileType ProfileType) {
 	if n.name != "<root>" {
 		// Print current node
 		connector := "├─"

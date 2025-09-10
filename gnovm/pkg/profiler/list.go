@@ -125,7 +125,7 @@ func (p *Profile) WriteFunctionList(w io.Writer, funcName string, store Store) e
 				}
 				fmt.Fprintf(w, "%10d %10d (flat, cum) %.2f%% of Total\n", fileCycles, fileCycles,
 					float64(fileCycles)/float64(totalCycles)*100)
-				p.writeLineStatsOnly(w, lineStats, totalCycles)
+				p.writeLineStatsOnly(w, lineStats)
 			}
 		}
 	}
@@ -210,7 +210,7 @@ func (p *Profile) writeFunctionFileList(w io.Writer, funcName, file string, line
 }
 
 // writeLineStatsOnly writes just the statistics when source is not available
-func (p *Profile) writeLineStatsOnly(w io.Writer, lineStats map[int]*lineStat, _ int64) {
+func (p *Profile) writeLineStatsOnly(w io.Writer, lineStats map[int]*lineStat) {
 	// Sort lines
 	lines := make([]int, 0, len(lineStats))
 	for line := range lineStats {
@@ -225,6 +225,8 @@ func (p *Profile) writeLineStatsOnly(w io.Writer, lineStats map[int]*lineStat, _
 			stat.cycles, stat.cycles, line)
 	}
 }
+
+var stdlibPaths = []string{"fmt", "std", "strings", "strconv", "math"}
 
 // readSourceFile attempts to read a source file
 func readSourceFile(file string, store Store) (string, error) {
@@ -253,16 +255,16 @@ func readSourceFile(file string, store Store) (string, error) {
 				return memFile.Body, nil
 			}
 		} else {
+			if !strings.HasSuffix(file, ".gno") {
+				return "", fmt.Errorf("could not read source file: %s", file)
+			}
 			// Handle cases where we only have a filename without a package path.
 			// This commonly occurs with standard library files where the profiler
 			// receives just "print.gno" instead of "fmt/print.gno".
-			if strings.HasSuffix(file, ".gno") {
-				// Try common stdlib paths
-				stdlibPaths := []string{"fmt", "std", "strings", "strconv", "math"}
-				for _, pkg := range stdlibPaths {
-					if memFile := store.GetMemFile(pkg, file); memFile != nil {
-						return memFile.Body, nil
-					}
+			// Try common stdlib paths
+			for _, pkg := range stdlibPaths {
+				if memFile := store.GetMemFile(pkg, file); memFile != nil {
+					return memFile.Body, nil
 				}
 			}
 		}

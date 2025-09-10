@@ -36,20 +36,7 @@ func newProfileLocation(function, file string, line, column int) *profileLocatio
 }
 
 func (pl *profileLocation) Function() string { return pl.function }
-func (pl *profileLocation) File() string {
-	// Convert .gno files to .go for compatibility with go tool pprof
-	if strings.HasSuffix(pl.file, ".gno") {
-		return pl.file[:len(pl.file)-4] + ".go"
-	}
-	return pl.file
-}
-func (pl *profileLocation) Line() int          { return pl.line }
-func (pl *profileLocation) Column() int        { return pl.column }
-func (pl *profileLocation) PC() uintptr        { return pl.pc }
-func (pl *profileLocation) IsInlineCall() bool { return pl.inlineCall }
-
-func (pl *profileLocation) SetPC(pc uintptr)          { pl.pc = pc }
-func (pl *profileLocation) SetInlineCall(inline bool) { pl.inlineCall = inline }
+func (pl *profileLocation) Line() int        { return pl.line }
 
 // setValues sets all values at once (useful for pooling)
 func (pl *profileLocation) setValues(function, file string, line, column int) {
@@ -124,17 +111,20 @@ func (lc *locationCache) size() int {
 
 // lineStats tracks statistics for a single line
 type lineStats struct {
-	count       int64
-	cycles      int64
-	gas         int64
+	lineStat
 	allocations int64
 	allocBytes  int64
 	mu          sync.Mutex
 }
 
-func newLineStats() *lineStats {
-	return &lineStats{}
+// lineStat is a simplified version for WriteSourceAnnotated
+type lineStat struct {
+	count  int64
+	cycles int64
+	gas    int64
 }
+
+func newLineStats() *lineStats { return &lineStats{} }
 
 func (ls *lineStats) addSample(cycles int64, allocations, allocBytes int64) {
 	ls.mu.Lock()
@@ -146,29 +136,36 @@ func (ls *lineStats) addSample(cycles int64, allocations, allocBytes int64) {
 	ls.allocBytes += allocBytes
 }
 
-// Getters (thread-safe)
-func (ls *lineStats) GetCount() int64 {
+func (ls *lineStats) Count() int64 {
 	ls.mu.Lock()
 	defer ls.mu.Unlock()
 	return ls.count
 }
 
-func (ls *lineStats) GetCycles() int64 {
+func (ls *lineStats) Cycles() int64 {
 	ls.mu.Lock()
 	defer ls.mu.Unlock()
 	return ls.cycles
 }
 
-func (ls *lineStats) GetAllocations() int64 {
+func (ls *lineStats) Allocations() int64 {
 	ls.mu.Lock()
 	defer ls.mu.Unlock()
 	return ls.allocations
 }
 
-func (ls *lineStats) GetAllocBytes() int64 {
+func (ls *lineStats) AllocBytes() int64 {
 	ls.mu.Lock()
 	defer ls.mu.Unlock()
 	return ls.allocBytes
+}
+
+// LineStats returns line statistics for a file
+func (p *Profiler) LineStats(filename string) map[int]*lineStats {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.lineSamples[filename]
 }
 
 // EnableLineLevel enables or disables line-level profiling
@@ -232,14 +229,6 @@ func (p *Profiler) updateLineStatsUnlocked(loc *profileLocation, cycles, allocat
 	stats.addSample(cycles, allocations, allocBytes)
 }
 
-// GetLineStats returns line statistics for a file
-func (p *Profiler) GetLineStats(filename string) map[int]*lineStats {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	return p.lineSamples[filename]
-}
-
 // Memory pool methods
 func (p *Profiler) getLocationFromPool() *profileLocation {
 	loc := p.locationPool.Get().(*profileLocation)
@@ -267,17 +256,21 @@ func (p *Profile) WriteSourceAnnotated(w io.Writer, filename string, source io.R
 	for _, sample := range p.Samples {
 		if len(sample.Location) > 0 && sample.Location[0].File == filename {
 			line := sample.Location[0].Line
-			if line > 0 {
-				if lineStats[line] == nil {
-					lineStats[line] = &lineStat{}
-				}
-				if len(sample.Value) > 1 {
-					lineStats[line].cycles += sample.Value[1]
-					totalCycles += sample.Value[1]
-				}
-				if len(sample.Value) > 0 {
-					lineStats[line].count += sample.Value[0]
-				}
+			if line <= 0 {
+				continue
+			}
+
+			if lineStats[line] == nil {
+				lineStats[line] = &lineStat{}
+			}
+
+			if len(sample.Value) > 1 {
+				lineStats[line].cycles += sample.Value[1]
+				totalCycles += sample.Value[1]
+			}
+
+			if len(sample.Value) > 0 {
+				lineStats[line].count += sample.Value[0]
 			}
 		}
 	}
@@ -321,11 +314,4 @@ func (p *Profile) WriteSourceAnnotated(w io.Writer, filename string, source io.R
 	}
 
 	return nil
-}
-
-// lineStat is a simplified version for WriteSourceAnnotated
-type lineStat struct {
-	count  int64
-	cycles int64
-	gas    int64
 }

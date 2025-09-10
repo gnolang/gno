@@ -36,6 +36,9 @@ type ProfilerCLI struct {
 	unit       string // display unit (cycles, ms, etc)
 }
 
+func (p *ProfilerCLI) SetInput(r io.Reader)  { p.in = r }
+func (p *ProfilerCLI) SetOutput(w io.Writer) { p.out = w }
+
 // ProfilerCommand describes a profiler command
 type profilerCommand struct {
 	execFunc           func(*ProfilerCLI, string) error // command function
@@ -202,14 +205,4 @@ func (p *ProfilerCLI) execCommand(cmd, arg string) error {
 	p.lastArg = arg
 
 	return c.execFunc(p, arg)
-}
-
-// SetInput sets the input reader
-func (p *ProfilerCLI) SetInput(r io.Reader) {
-	p.in = r
-}
-
-// SetOutput sets the output writer
-func (p *ProfilerCLI) SetOutput(w io.Writer) {
-	p.out = w
 }

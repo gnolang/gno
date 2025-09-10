@@ -2,87 +2,10 @@ package profiler
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
 	"testing"
 )
 
-type MachineMock struct {
-	Cycles  int64
-	GasUsed int64
-}
-
-func (m *MachineMock) GetCycles() int64       { return m.Cycles }
-func (m *MachineMock) GetGasUsed() int64      { return m.GasUsed }
-func (m *MachineMock) GetFrames() []FrameInfo { return nil }
-
-// Test for enhanced ProfileLocation with getters/setters
-func TestProfileLocation(t *testing.T) {
-	tests := []struct {
-		name     string
-		setup    func() *profileLocation
-		validate func(t *testing.T, loc *profileLocation)
-	}{
-		{
-			name: "basic location creation",
-			setup: func() *profileLocation {
-				return newProfileLocation("main.foo", "/path/to/file.gno", 42, 10)
-			},
-			validate: func(t *testing.T, loc *profileLocation) {
-				t.Helper()
-				if loc.Function() != "main.foo" {
-					t.Errorf("expected function 'main.foo', got '%s'", loc.Function())
-				}
-				if loc.File() != "/path/to/file.go" {
-					t.Errorf("expected file '/path/to/file.go', got '%s'", loc.File())
-				}
-				if loc.Line() != 42 {
-					t.Errorf("expected line 42, got %d", loc.Line())
-				}
-				if loc.Column() != 10 {
-					t.Errorf("expected column 10, got %d", loc.Column())
-				}
-			},
-		},
-		{
-			name: "location with PC",
-			setup: func() *profileLocation {
-				loc := newProfileLocation("test.bar", "test.go", 10, 5)
-				loc.SetPC(0x1234)
-				return loc
-			},
-			validate: func(t *testing.T, loc *profileLocation) {
-				t.Helper()
-				if loc.PC() != 0x1234 {
-					t.Errorf("expected PC 0x1234, got 0x%x", loc.PC())
-				}
-			},
-		},
-		{
-			name: "inline call location",
-			setup: func() *profileLocation {
-				loc := newProfileLocation("inline.func", "inline.go", 20, 0)
-				loc.SetInlineCall(true)
-				return loc
-			},
-			validate: func(t *testing.T, loc *profileLocation) {
-				t.Helper()
-				if !loc.IsInlineCall() {
-					t.Error("expected inline call to be true")
-				}
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			loc := tt.setup()
-			tt.validate(t, loc)
-		})
-	}
-}
-
-// Test for LocationKey and caching
 func TestLocationCaching(t *testing.T) {
 	cache := newLocationCache()
 
@@ -125,46 +48,44 @@ func TestLocationCaching(t *testing.T) {
 	}
 }
 
-// Test for line-level statistics
 func TestLineStats(t *testing.T) {
 	stats := newLineStats()
 
 	// Test initial state
-	if stats.GetCount() != 0 {
-		t.Errorf("expected initial count 0, got %d", stats.GetCount())
+	if stats.Count() != 0 {
+		t.Errorf("expected initial count 0, got %d", stats.Count())
 	}
-	if stats.GetCycles() != 0 {
-		t.Errorf("expected initial cycles 0, got %d", stats.GetCycles())
+	if stats.Cycles() != 0 {
+		t.Errorf("expected initial cycles 0, got %d", stats.Cycles())
 	}
 
 	// Test updating stats
 	stats.addSample(100, 1, 1024)
 
-	if stats.GetCount() != 1 {
-		t.Errorf("expected count 1, got %d", stats.GetCount())
+	if stats.Count() != 1 {
+		t.Errorf("expected count 1, got %d", stats.Count())
 	}
-	if stats.GetCycles() != 100 {
-		t.Errorf("expected cycles 100, got %d", stats.GetCycles())
+	if stats.Cycles() != 100 {
+		t.Errorf("expected cycles 100, got %d", stats.Cycles())
 	}
-	if stats.GetAllocations() != 1 {
-		t.Errorf("expected allocations 1, got %d", stats.GetAllocations())
+	if stats.Allocations() != 1 {
+		t.Errorf("expected allocations 1, got %d", stats.Allocations())
 	}
-	if stats.GetAllocBytes() != 1024 {
-		t.Errorf("expected alloc bytes 1024, got %d", stats.GetAllocBytes())
+	if stats.AllocBytes() != 1024 {
+		t.Errorf("expected alloc bytes 1024, got %d", stats.AllocBytes())
 	}
 
 	// Test multiple samples
 	stats.addSample(50, 2, 512)
 
-	if stats.GetCount() != 2 {
-		t.Errorf("expected count 2, got %d", stats.GetCount())
+	if stats.Count() != 2 {
+		t.Errorf("expected count 2, got %d", stats.Count())
 	}
-	if stats.GetCycles() != 150 {
-		t.Errorf("expected cycles 150, got %d", stats.GetCycles())
+	if stats.Cycles() != 150 {
+		t.Errorf("expected cycles 150, got %d", stats.Cycles())
 	}
 }
 
-// Test for enhanced profiler with line-level support
 func TestProfilerWithLineLevel(t *testing.T) {
 	profiler := NewProfiler(ProfileCPU, 1) // Sample every operation
 
@@ -174,7 +95,7 @@ func TestProfilerWithLineLevel(t *testing.T) {
 	profiler.Start()
 
 	// Simulate some operations with location info
-	m := &MachineMock{Cycles: 0}
+	m := &machineMock{Cycles: 0}
 
 	// Mock location 1
 	loc1 := newProfileLocation("test.func1", "test.gno", 10, 5)
@@ -191,18 +112,18 @@ func TestProfilerWithLineLevel(t *testing.T) {
 	_ = profiler.Stop()
 
 	// Verify line stats were collected
-	lineStats := profiler.GetLineStats("test.gno")
+	lineStats := profiler.LineStats("test.gno")
 	if lineStats == nil {
 		t.Fatal("expected line stats for test.gno")
 	}
 
 	// Check line 10 stats (should combine both columns)
 	if stats, exists := lineStats[10]; exists {
-		if stats.GetCount() != 2 {
-			t.Errorf("expected 2 samples for line 10, got %d", stats.GetCount())
+		if stats.Count() != 2 {
+			t.Errorf("expected 2 samples for line 10, got %d", stats.Count())
 		}
-		if stats.GetCycles() != 150 {
-			t.Errorf("expected 150 cycles for line 10, got %d", stats.GetCycles())
+		if stats.Cycles() != 150 {
+			t.Errorf("expected 150 cycles for line 10, got %d", stats.Cycles())
 		}
 	} else {
 		t.Error("expected stats for line 10")
@@ -210,25 +131,24 @@ func TestProfilerWithLineLevel(t *testing.T) {
 
 	// Check line 20 stats
 	if stats, exists := lineStats[20]; exists {
-		if stats.GetCount() != 1 {
-			t.Errorf("expected 1 sample for line 20, got %d", stats.GetCount())
+		if stats.Count() != 1 {
+			t.Errorf("expected 1 sample for line 20, got %d", stats.Count())
 		}
-		if stats.GetCycles() != 200 {
-			t.Errorf("expected 200 cycles for line 20, got %d", stats.GetCycles())
+		if stats.Cycles() != 200 {
+			t.Errorf("expected 200 cycles for line 20, got %d", stats.Cycles())
 		}
 	} else {
 		t.Error("expected stats for line 20")
 	}
 }
 
-// Test for source code annotation
 func TestSourceAnnotation(t *testing.T) {
 	profiler := NewProfiler(ProfileCPU, 1)
 	profiler.EnableLineLevel(true)
 	profiler.Start()
 
 	// Add some line stats
-	m := &MachineMock{Cycles: 0}
+	m := &machineMock{Cycles: 0}
 	profiler.RecordLineLevel(m, newProfileLocation("test", "mock.gno", 1, 0), 1000)
 	profiler.RecordLineLevel(m, newProfileLocation("test", "mock.gno", 3, 0), 5000)
 	profiler.RecordLineLevel(m, newProfileLocation("test", "mock.gno", 3, 0), 3000)
@@ -272,7 +192,6 @@ func hotFunction() {  // This is a hot line
 	}
 }
 
-// Test for memory pooling
 func TestMemoryPooling(t *testing.T) {
 	profiler := NewProfiler(ProfileCPU, 1)
 	profiler.EnableLineLevel(true)
@@ -298,27 +217,5 @@ func TestMemoryPooling(t *testing.T) {
 	// Verify it's the same instance (pooling works)
 	if loc1 != loc2 {
 		t.Error("expected same instance from pool")
-	}
-}
-
-// Benchmark for location caching
-func BenchmarkLocationCaching(b *testing.B) {
-	cache := newLocationCache()
-	keys := make([]LocationKey, 100)
-
-	// Create diverse keys
-	for i := 0; i < 100; i++ {
-		keys[i] = LocationKey{
-			PkgPath:  "gno.land/p/demo/test",
-			Function: fmt.Sprintf("Func%d", i%10),
-			File:     fmt.Sprintf("file%d.gno", i%5),
-			Line:     i,
-		}
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		key := keys[i%100]
-		_ = cache.getOrCreate(key)
 	}
 }

@@ -110,28 +110,6 @@ func (m *Machine) RecordProfileSample() {
 	}
 }
 
-// GetProfile returns the current profile without stopping profiling
-func (m *Machine) GetProfile() *profiler.Profile {
-	if m.profiler == nil {
-		return nil
-	}
-	return m.profiler.GetProfile()
-}
-
-// EnableLineProfiling enables line-level profiling
-func (m *Machine) EnableLineProfiling() {
-	if m.profiler != nil {
-		m.profiler.EnableLineProfiling()
-	}
-}
-
-// DisableLineProfiling disables line-level profiling
-func (m *Machine) DisableLineProfiling() {
-	if m.profiler != nil {
-		m.profiler.DisableLineProfiling()
-	}
-}
-
 // IsProfilingEnabled returns true if profiling is currently enabled
 func (m *Machine) IsProfilingEnabled() bool {
 	return m.profiler != nil && m.profiler.IsEnabled()
