@@ -237,6 +237,11 @@ func emitLiquidate(marketId string, caller std.Address, borrower std.Address, re
 }
 
 func emitAccrueInterest(marketId string, borrowRate, interest, totalSupplyAssets, totalBorrowAssets *u256.Uint) {
+	// Calculate current APRs and utilization for the event
+	supplyAPR := CalculateSupplyAPR(marketId)
+	borrowAPR := CalculateBorrowAPR(marketId)
+	utilization := calculateUtilization(marketId)
+
 	std.Emit(
 		AccrueInterestEvent,
 		EventMarketIDKey, marketId,
@@ -244,6 +249,9 @@ func emitAccrueInterest(marketId string, borrowRate, interest, totalSupplyAssets
 		EventInterestKey, interest.ToString(),
 		EventTotalSupplyAssetsKey, totalSupplyAssets.ToString(),
 		EventTotalBorrowAssetsKey, totalBorrowAssets.ToString(),
+		EventSupplyAPRKey, supplyAPR.ToString(),
+		EventBorrowAPRKey, borrowAPR.ToString(),
+		EventUtilizationKey, utilization.ToString(),
 		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }
