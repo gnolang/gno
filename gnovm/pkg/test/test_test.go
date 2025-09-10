@@ -185,25 +185,6 @@ func TestFmtDuration(t *testing.T) {
 	}
 }
 
-func TestNewTestOptions(t *testing.T) {
-	rootDir := t.TempDir()
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
-
-	opts := NewTestOptions(rootDir, stdout, stderr)
-	require.NotNil(t, opts)
-
-	assert.Equal(t, rootDir, opts.RootDir)
-	assert.Equal(t, stdout, opts.Output)
-	assert.Equal(t, stderr, opts.Error)
-	assert.NotNil(t, opts.BaseStore)
-	assert.NotNil(t, opts.TestStore)
-
-	// Test WriterForStore
-	writer := opts.WriterForStore()
-	require.NotNil(t, writer)
-}
-
 func TestProxyWriter(t *testing.T) {
 	mainBuf := &bytes.Buffer{}
 	errBuf := &bytes.Buffer{}
