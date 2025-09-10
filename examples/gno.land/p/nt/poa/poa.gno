@@ -18,7 +18,7 @@ var ErrInvalidVotingPower = errors.New("invalid voting power")
 // To remove:
 // - proposed validator must be part of the set already
 type PoA struct {
-	validators *avl.Tree // std.Address -> validators.Validator
+	validators *avl.Tree // address -> validators.Validator
 }
 
 // NewPoA creates a new empty Proof of Authority validator set

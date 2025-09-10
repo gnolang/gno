@@ -47,7 +47,7 @@ func New(ownerAddress address) *ManagedGroup {
 	return g
 }
 
-// AddBackupOwner adds a backup owner to the group by std.Address.
+// AddBackupOwner adds a backup owner to the group by address.
 // If the caller is not the owner, an error is returned.
 func (g *ManagedGroup) AddBackupOwner(addr address) error {
 	if !g.owner.OwnedByPrevious() {
@@ -64,7 +64,7 @@ func (g *ManagedGroup) addBackupOwner(addr address) error {
 	return nil
 }
 
-// RemoveBackupOwner removes a backup owner from the group by std.Address.
+// RemoveBackupOwner removes a backup owner from the group by address.
 // The owner cannot be removed. If the caller is not the owner, an error is returned.
 func (g *ManagedGroup) RemoveBackupOwner(addr address) error {
 	if !g.owner.OwnedByPrevious() {
@@ -97,7 +97,7 @@ func (g *ManagedGroup) ClaimOwnership() error {
 	return err
 }
 
-// AddMember adds a member to the group by std.Address.
+// AddMember adds a member to the group by address.
 // If the caller is not the owner, an error is returned.
 func (g *ManagedGroup) AddMember(addr address) error {
 	if !g.owner.OwnedByPrevious() {
@@ -114,7 +114,7 @@ func (g *ManagedGroup) addMember(addr address) error {
 	return nil
 }
 
-// RemoveMember removes a member from the group by std.Address.
+// RemoveMember removes a member from the group by address.
 // The owner cannot be removed. If the caller is not the owner,
 // an error is returned.
 func (g *ManagedGroup) RemoveMember(addr address) error {

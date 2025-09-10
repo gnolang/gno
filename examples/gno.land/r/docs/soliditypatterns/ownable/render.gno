@@ -44,7 +44,7 @@ package onlyownercanchange
 
 import "std"
 
-var owner std.Address = ""
+var owner address = ""
 
 func InitOwner(cur realm) {
 	if len(owner) != 0 {
@@ -65,7 +65,7 @@ func ChangeOwner(cur realm, newOwner address) {
 }
 ^^^
 
-* We declare a persistent global variable ^owner^ of type ^std.Address^ (an alias for ^string^ in Gno), initialized to the empty string ^""^. This holds the address of the contract owner.
+* We declare a persistent global variable ^owner^ of type ^address^ (an alias for ^string^ in Gno), initialized to the empty string ^""^. This holds the address of the contract owner.
 * The function ^InitOwner^ is used to initialize the ^owner^. It can only be called once: if ^owner^ is already set (non-empty), it throws an error using ^panic^. It sets the ^owner^ to the address of the previous realm (the caller) via ^std.PreviousRealm().Address()^, which is similar to ^msg.sender^ in Solidity.
 * The helper function ^assertOnlyOwner^ checks that the caller is the current ^owner^ by comparing ^std.PreviousRealm().Address()^ with ^owner^. If not, it panics. This is equivalent to a Solidity ^modifier onlyOwner^.
 * The function ^ChangeOwner^ allows the current owner to transfer ownership to a new address. It first calls ^assertOnlyOwner()^ to ensure that only the current owner can do this.

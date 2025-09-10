@@ -1,4 +1,4 @@
-// Package coinsort provides helpers to sort a slice of std.Coins using the
+// Package coinsort provides helpers to sort a slice of banker.Coins using the
 // classic sort.Sort API (without relying on sort.Slice).
 //
 // Usage examples:
@@ -13,7 +13,7 @@
 //	    return a.Amount > b.Amount // descending
 //	})
 //
-// Note: when getting std.Coins from the banker, it's sorted by denom by default.
+// Note: when getting banker.Coins from the banker, it's sorted by denom by default.
 package coinsort
 
 import (
@@ -57,7 +57,7 @@ func (cs customSorter) Less(i, j int) bool {
 //
 // Example – descending by Amount:
 //
-//	coinsort.SortBy(coins, func(a, b std.Coin) bool {
+//	coinsort.SortBy(coins, func(a, b banker.Coin) bool {
 //	    return a.Amount > b.Amount
 //	})
 func SortBy(c banker.Coins, less LessFunc) {

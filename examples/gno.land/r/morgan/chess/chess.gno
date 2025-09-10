@@ -18,7 +18,7 @@ var (
 	gameIDCounter seqid.ID
 
 	// Value must be sorted by game ID, descending
-	user2Games avl.Tree // std.Address -> []*Game
+	user2Games avl.Tree // address -> []*Game
 )
 
 // Game represents a chess game.

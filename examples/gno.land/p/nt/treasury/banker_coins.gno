@@ -10,7 +10,7 @@ import (
 
 var ErrNoStdBankerProvided = errors.New("no std banker provided")
 
-// CoinsBanker is a Banker that sends std.Coins.
+// CoinsBanker is a Banker that sends banker.Coins.
 type CoinsBanker struct {
 	owner  address       // The address of this coins banker owner.
 	banker banker.Banker // The underlying std banker, must be a BankerTypeRealmSend.
@@ -45,7 +45,7 @@ func (cb *CoinsBanker) Balances() []Balance {
 	// Get the coins from the banker.
 	coins := cb.banker.GetCoins(cb.owner)
 
-	// Convert std.Coins to []Balance.
+	// Convert banker.Coins to []Balance.
 	balances := make([]Balance, len(coins))
 	for i := range coins {
 		balances[i] = Balance{

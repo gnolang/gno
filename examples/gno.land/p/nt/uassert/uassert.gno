@@ -597,7 +597,7 @@ func Empty(t TestingT, obj any, msgs ...string) bool {
 		case address:
 			var zeroAddr address
 			if val != zeroAddr {
-				return fail(t, msgs, "uassert.Empty: not empty std.Address: %s", string(val))
+				return fail(t, msgs, "uassert.Empty: not empty address: %s", string(val))
 			}
 		default:
 			return fail(t, msgs, "uassert.Empty: unsupported type")
@@ -622,7 +622,7 @@ func NotEmpty(t TestingT, obj any, msgs ...string) bool {
 		case address:
 			var zeroAddr address
 			if val == zeroAddr {
-				return fail(t, msgs, "uassert.NotEmpty: empty std.Address: %s", string(val))
+				return fail(t, msgs, "uassert.NotEmpty: empty address: %s", string(val))
 			}
 		default:
 			return fail(t, msgs, "uassert.NotEmpty: unsupported type")

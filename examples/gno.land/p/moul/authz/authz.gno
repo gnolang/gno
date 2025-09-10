@@ -20,7 +20,7 @@
 // Quick Start
 //
 //	// Initialize with contract deployer as authority
-//	var member std.Address(...)
+//	var member address(...)
 //	var auth = authz.NewWithMembers(member)
 //
 //	// Create functions that require authorization
@@ -101,7 +101,7 @@ func NewWithOrigin() *Authorizer {
 	origin := runtime.OriginCaller()
 	previous := runtime.PreviousRealm()
 	if origin != previous.Address() {
-		panic("NewWithOrigin() should be called from init() where std.PreviousRealm() is origin")
+		panic("NewWithOrigin() should be called from init() where runtime.PreviousRealm() is origin")
 	}
 	return &Authorizer{
 		auth: NewMemberAuthority(origin),

@@ -185,7 +185,7 @@ func (e *SafeExecutor) String() string {
 
 type DAO interface {
 	// PreCreateProposal is called just before creating a new Proposal
-	// It is intended to be used to get the std.Address of the proposal, that
+	// It is intended to be used to get the address of the proposal, that
 	// may vary depending on the DAO implementation, and to validate that
 	// the requester is allowed to do a proposal
 	PreCreateProposal(r ProposalRequest) (address, error)

@@ -41,9 +41,9 @@ const gUsersV1Path = "gno.land/r/gnoland/users/v1"
 
 // Register a namespace for every addresses
 // Necessary to test GovDAO Vote
-func registerTestUser(addrs ...std.Address) {
+func registerTestUser(addrs ...address) {
 	// Set realm to users admin to register test user
-	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(runtime.NewCodeRealm(gUsersV1Path))
 	for _, addr := range addrs {
 		err := susers.RegisterUser(cross, addr.String()[1:], addr)
 		if err != nil {

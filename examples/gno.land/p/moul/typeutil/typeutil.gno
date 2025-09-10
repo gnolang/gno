@@ -20,7 +20,7 @@ type stringer interface {
 // It supports a wide range of Go types including:
 //   - Basic: string, bool
 //   - Numbers: int, int8-64, uint, uint8-64, float32, float64
-//   - Special: time.Time, std.Address, []byte
+//   - Special: time.Time, address, []byte
 //   - Slices: []T for most basic types
 //   - Maps: map[string]string, map[string]any
 //   - Interface: types implementing String() string
@@ -335,7 +335,7 @@ func ToBool(val any) bool {
 //   - nil: true
 //   - bool: false
 //   - time.Time: IsZero()
-//   - std.Address: empty string
+//   - address: empty string
 func IsZero(val any) bool {
 	if val == nil {
 		return true

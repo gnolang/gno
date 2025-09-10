@@ -4,6 +4,7 @@
 package proposal_test
 
 import (
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -14,9 +15,7 @@ import (
 	susers "gno.land/r/sys/users"
 )
 
-var (
-	g1user = testutils.TestAddress("g1user")
-)
+var g1user = testutils.TestAddress("g1user")
 
 const (
 	validMoniker     = "test-1"
@@ -36,9 +35,9 @@ const gUsersV1Path = "gno.land/r/gnoland/users/v1"
 
 // Register a namespace for every addresses
 // Necessary to test GovDAO Vote
-func registerTestUsers(addrs ...std.Address) {
+func registerTestUsers(addrs ...address) {
 	// Set realm to users admin to register test user
-	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(runtime.NewCodeRealm(gUsersV1Path))
 	for _, addr := range addrs {
 		err := susers.RegisterUser(cross, addr.String()[1:], addr)
 		if err != nil {

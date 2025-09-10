@@ -71,7 +71,7 @@ func (tc *TimeControl) Category() Category {
 
 // realm state
 var (
-	playerStore   avl.Tree // std.Address -> *Player
+	playerStore   avl.Tree // address -> *Player
 	leaderboard   [CategoryMax]leaderboardType
 	playerRatings [CategoryMax][]*glicko2.PlayerRating
 )

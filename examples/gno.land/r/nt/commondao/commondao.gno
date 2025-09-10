@@ -16,8 +16,8 @@ var (
 	daoID     seqid.ID
 	realmLink txlink.Realm
 	daos      = avl.NewTree() // string(ID) -> *commondao.CommonDAO
-	ownership = avl.NewTree() // string(std.Address) -> []uint64(DAO ID)
-	invites   = avl.NewTree() // string(std.Address) -> std.Address(inviter)
+	ownership = avl.NewTree() // string(address) -> []uint64(DAO ID)
+	invites   = avl.NewTree() // string(address) -> address(inviter)
 	trees     = avl.NewTree() // string(root ID) -> avl.Tree(string(DAO ID) -> *commondao.CommonDAO)
 	options   = avl.NewTree() // string(ID) -> *Options
 )

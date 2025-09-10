@@ -51,7 +51,7 @@ func newBoard(id BoardID, url string, name string, creator address) *Board {
 // but must be persisted by the caller's realm.
 // Private boards have 0 id and does not ping
 // back the remote board on reposts.
-func NewPrivateBoard(_ realm, url string, name string, creator std.Address) *Board {
+func NewPrivateBoard(_ realm, url string, name string, creator address) *Board {
 	return newBoard(0, url, name, creator)
 }
 */

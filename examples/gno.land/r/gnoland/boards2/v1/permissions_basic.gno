@@ -17,7 +17,7 @@ type ValidatorFunc func(Permissions, Args) error
 type BasicPermissions struct {
 	superRole  Role
 	dao        *commondao.CommonDAO
-	users      *avl.Tree // string(std.Address) -> []Role
+	users      *avl.Tree // string(address) -> []Role
 	roles      *avl.Tree // string(role) -> []Permission
 	validators *avl.Tree // string(Permission) -> BasicPermissionValidator
 }

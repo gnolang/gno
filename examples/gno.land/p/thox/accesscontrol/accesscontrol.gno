@@ -19,14 +19,14 @@ const (
 // Role struct to store role information
 type Role struct {
 	Name    string
-	Holders *avl.Tree // std.Address -> struct{}
+	Holders *avl.Tree // address -> struct{}
 	Ownable *ownable.Ownable
 }
 
 // Roles struct to store all Roles information
 type Roles struct {
 	Roles       []*Role
-	UserToRoles avl.Tree // std.Address -> []*Role
+	UserToRoles avl.Tree // address -> []*Role
 	Ownable     *ownable.Ownable
 }
 
