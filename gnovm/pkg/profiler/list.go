@@ -50,6 +50,11 @@ func (p *Profile) WriteFunctionList(w io.Writer, funcName string, store Store) e
 					continue
 				}
 
+				// Skip test files when displaying function list
+				if strings.HasSuffix(file, "_test.gno") {
+					continue
+				}
+
 				if fd.fileSamples[file] == nil {
 					fd.fileSamples[file] = make(map[int]*lineStat)
 				}

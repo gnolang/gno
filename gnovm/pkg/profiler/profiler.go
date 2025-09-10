@@ -93,6 +93,9 @@ type Profiler struct {
 	lineSamples   map[string]map[int]*lineStats // file -> line -> stats
 	locationPool  sync.Pool
 
+	// Test file filtering
+	excludeTests bool // whether to exclude *_test.gno files from profiling
+
 	mu sync.Mutex
 }
 
@@ -152,6 +155,7 @@ func NewProfiler(params ...interface{}) *Profiler {
 		lineSamples:   make(map[string]map[int]*lineStats),
 		locationCache: newLocationCache(),
 		sampleRate:    sampleRate,
+		excludeTests:  true, // Exclude test files by default
 		locationPool: sync.Pool{
 			New: func() interface{} {
 				return &profileLocation{}
@@ -257,7 +261,8 @@ func (p *Profiler) RecordSample(m MachineInfo) {
 	// Update line-level profiling if enabled
 	if p.lineLevel && len(stack) > 0 {
 		loc := stack[0]
-		if loc.File != "" && loc.Line > 0 {
+		// Skip test files if excludeTests is enabled
+		if loc.File != "" && loc.Line > 0 && !(p.excludeTests && strings.HasSuffix(loc.File, "_test.gno")) {
 			if p.lineSamples[loc.File] == nil {
 				p.lineSamples[loc.File] = make(map[int]*lineStats)
 			}
@@ -416,9 +421,15 @@ func (p *Profiler) buildCallStack(m MachineInfo) []ProfileLocation {
 			continue
 		}
 
+		// Skip test files if excludeTests is enabled
+		fileName := frame.GetFileName()
+		if p.excludeTests && strings.HasSuffix(fileName, "_test.gno") {
+			continue
+		}
+
 		loc := ProfileLocation{
 			Function: frame.GetFuncName(),
-			File:     frame.GetFileName(),
+			File:     fileName,
 			Line:     0, // Default line
 			Column:   0,
 		}
@@ -474,6 +485,11 @@ func (p *Profiler) generateSamples() {
 
 	// Then add individual function summaries
 	for _, prof := range p.funcProfiles {
+		// Skip test functions when generating samples
+		if p.excludeTests && strings.Contains(prof.Name, "_test.") {
+			continue
+		}
+
 		sample := ProfileSample{
 			Location: []ProfileLocation{{
 				Function: prof.Name,
@@ -569,6 +585,10 @@ func (p *Profile) WriteTo(w io.Writer) (int64, error) {
 
 		funcName := "unknown"
 		if len(sample.Location) > 0 {
+			// Skip samples from test files
+			if len(sample.Location) > 0 && strings.HasSuffix(sample.Location[0].File, "_test.gno") {
+				continue
+			}
 			funcName = sample.Location[0].Function
 			if len(funcName) > 50 {
 				funcName = funcName[:47] + "..."
@@ -749,6 +769,11 @@ func (p *Profiler) RecordLineSample(funcName, file string, line int, cycles int6
 	defer p.mu.Unlock()
 
 	if !p.enabled || !p.lineLevel {
+		return
+	}
+
+	// Skip test files if excludeTests is enabled
+	if p.excludeTests && strings.HasSuffix(file, "_test.gno") {
 		return
 	}
 
