@@ -10,14 +10,30 @@ import (
 	"time"
 )
 
-// ProfileType represents the type of profiling data
+// ProfileType represents the type of profiling data that can be collected.
 type ProfileType int
 
 const (
 	_ ProfileType = iota
+
+	// ProfileCPU tracks CPU cycle consumption during program execution.
+	// This is the default profiling mode and measures computational cost.
 	ProfileCPU
+
+	// ProfileMemory tracks memory allocations and usage patterns.
+	// It helps identify memory-intensive operations and potential leaks.
 	ProfileMemory
-	ProfileGoroutine // TODO: not supported yet
+
+	// ProfileGas tracks gas consumption for blockchain operations.
+	//
+	// Note: Although gas price itself appears to have a one-to-one correspondence
+	// with the number of CPU cycles, this ratio may change in the future
+	// and it seems better to distinguish it from CPU, so it's added as a separate type.
+	ProfileGas
+
+	// ProfileGoroutine tracks goroutine creation and lifecycle.
+	// TODO: not supported yet
+	ProfileGoroutine
 )
 
 // ProfileSample represents a single sample in the profile
@@ -27,6 +43,7 @@ type ProfileSample struct {
 	Label      map[string][]string `json:"label,omitempty"`
 	NumLabel   map[string][]int64  `json:"numLabel,omitempty"`
 	SampleType ProfileType         `json:"sampleType"`
+	GasUsed    int64               `json:"gasUsed,omitempty"` // Gas consumed at this sample
 }
 
 // ProfileLocation represents a location in the call stack
@@ -81,8 +98,9 @@ type Profiler struct {
 
 // stackSample represents a single stack trace sample
 type stackSample struct {
-	stack  []string
-	cycles int64
+	stack   []string
+	cycles  int64
+	gasUsed int64
 }
 
 // FuncProfile represents profiling data for a single function
@@ -91,14 +109,17 @@ type FuncProfile struct {
 	CallCount    int64
 	TotalCycles  int64 // Cumulative: includes time in called functions
 	SelfCycles   int64 // Flat: only time spent in this function
+	TotalGas     int64 // Cumulative: includes gas in called functions
+	SelfGas      int64 // Flat: only gas spent in this function
 	TotalTime    time.Duration
 	SelfTime     time.Duration
 	AllocBytes   int64
 	AllocObjects int64
 	Children     map[string]*FuncProfile
 
-	// Track entry cycles for calculating self time
+	// Track entry cycles and gas for calculating self time/gas
 	entryCycles int64
+	entryGas    int64
 }
 
 // Options for starting profiling
@@ -220,12 +241,18 @@ func (p *Profiler) RecordSample(m MachineInfo) {
 
 	// Record stack sample
 	p.stackSamples = append(p.stackSamples, stackSample{
-		stack:  p.callStackToStrings(stack),
-		cycles: m.GetCycles(),
+		stack:   p.callStackToStrings(stack),
+		cycles:  m.GetCycles(),
+		gasUsed: m.GetGasUsed(),
 	})
 
 	// Update function profiles
 	p.updateFunctionProfiles(stack, m.GetCycles())
+
+	// For gas profiling, also track gas in function profiles
+	if p.profile.Type == ProfileGas {
+		p.updateFunctionGasProfiles(stack, m.GetGasUsed())
+	}
 
 	// Update line-level profiling if enabled
 	if p.lineLevel && len(stack) > 0 {
@@ -239,6 +266,10 @@ func (p *Profiler) RecordSample(m MachineInfo) {
 			}
 			p.lineSamples[loc.File][loc.Line].count++
 			p.lineSamples[loc.File][loc.Line].cycles += m.GetCycles()
+			// Track gas for gas profiling
+			if p.profile.Type == ProfileGas {
+				p.lineSamples[loc.File][loc.Line].gas += m.GetGasUsed()
+			}
 		}
 	}
 }
@@ -264,6 +295,7 @@ func (p *Profiler) RecordFuncEnter(m MachineInfo, funcName string) {
 	}
 	prof.CallCount++
 	prof.entryCycles = m.GetCycles() // Store entry cycles
+	prof.entryGas = m.GetGasUsed()   // Store entry gas
 
 	// Update parent-child relationships
 	if len(p.callStack) > 1 {
@@ -292,8 +324,9 @@ func (p *Profiler) RecordFuncExit(m MachineInfo, funcName string, cycles int64) 
 		copy(stackCopy, p.callStack)
 
 		p.stackSamples = append(p.stackSamples, stackSample{
-			stack:  stackCopy,
-			cycles: cycles,
+			stack:   stackCopy,
+			cycles:  cycles,
+			gasUsed: m.GetGasUsed(),
 		})
 	}
 
@@ -302,10 +335,13 @@ func (p *Profiler) RecordFuncExit(m MachineInfo, funcName string, cycles int64) 
 	}
 
 	if prof, ok := p.funcProfiles[funcName]; ok {
-		// Calculate self cycles (flat time)
+		// Calculate self cycles and gas (flat time/gas)
 		selfCycles := m.GetCycles() - prof.entryCycles
+		selfGas := m.GetGasUsed() - prof.entryGas
 		prof.SelfCycles += selfCycles
+		prof.SelfGas += selfGas
 		prof.TotalCycles += cycles // This should be the total including sub-calls
+		prof.TotalGas += selfGas   // Add the gas consumed in this function
 	}
 }
 
@@ -430,6 +466,7 @@ func (p *Profiler) generateSamples() {
 			Label:      make(map[string][]string),
 			NumLabel:   make(map[string][]int64),
 			SampleType: p.profile.Type,
+			GasUsed:    stackSample.gasUsed,
 		}
 
 		p.profile.Samples = append(p.profile.Samples, sample)
@@ -452,9 +489,17 @@ func (p *Profiler) generateSamples() {
 			SampleType: p.profile.Type,
 		}
 
-		if p.profile.Type == ProfileMemory {
+		switch p.profile.Type {
+		case ProfileMemory:
 			sample.NumLabel["bytes"] = []int64{prof.AllocBytes}
 			sample.NumLabel["objects"] = []int64{prof.AllocObjects}
+		case ProfileGas:
+			// For gas profiling, use gas values instead of cycles
+			sample.Value = []int64{prof.CallCount, prof.TotalGas}
+			sample.NumLabel["gas"] = []int64{prof.TotalGas}
+			sample.NumLabel["flat_gas"] = []int64{prof.SelfGas}
+			sample.NumLabel["cum_gas"] = []int64{prof.TotalGas}
+			sample.GasUsed = prof.TotalGas
 		}
 
 		p.profile.Samples = append(p.profile.Samples, sample)
@@ -503,10 +548,19 @@ func (p *Profile) WriteTo(w io.Writer) (int64, error) {
 
 	// Print top functions
 	fmt.Fprintf(cw, "Top Functions:\n")
-	fmt.Fprintf(cw, "%-50s %12s %12s %12s %12s\n", "Function", "Flat", "Flat%", "Cum", "Cum%")
+	if p.Type == ProfileGas {
+		fmt.Fprintf(cw, "%-50s %12s %12s %12s %12s\n", "Function", "Flat Gas", "Flat%", "Cum Gas", "Cum%")
+	} else {
+		fmt.Fprintf(cw, "%-50s %12s %12s %12s %12s\n", "Function", "Flat", "Flat%", "Cum", "Cum%")
+	}
 	fmt.Fprintf(cw, "%s\n", strings.Repeat("-", 100))
 
-	totalCycles := p.totalCycles()
+	var totalValue int64
+	if p.Type == ProfileGas {
+		totalValue = p.totalGas()
+	} else {
+		totalValue = p.totalCycles()
+	}
 
 	for i, sample := range p.Samples {
 		if i >= 20 { // Show top 20
@@ -521,30 +575,43 @@ func (p *Profile) WriteTo(w io.Writer) (int64, error) {
 			}
 		}
 
-		flatCycles := int64(0)
-		cumCycles := int64(0)
+		var flatValue, cumValue int64
 
-		if flatVal, ok := sample.NumLabel["flat_cycles"]; ok && len(flatVal) > 0 {
-			flatCycles = flatVal[0]
-		} else if cyclesVal, ok := sample.NumLabel["cycles"]; ok && len(cyclesVal) > 0 {
-			flatCycles = cyclesVal[0]
-		}
+		if p.Type == ProfileGas {
+			if flatVal, ok := sample.NumLabel["flat_gas"]; ok && len(flatVal) > 0 {
+				flatValue = flatVal[0]
+			} else if gasVal, ok := sample.NumLabel["gas"]; ok && len(gasVal) > 0 {
+				flatValue = gasVal[0]
+			}
 
-		if cumVal, ok := sample.NumLabel["cum_cycles"]; ok && len(cumVal) > 0 {
-			cumCycles = cumVal[0]
-		} else if cyclesVal, ok := sample.NumLabel["cycles"]; ok && len(cyclesVal) > 0 {
-			cumCycles = cyclesVal[0]
+			if cumVal, ok := sample.NumLabel["cum_gas"]; ok && len(cumVal) > 0 {
+				cumValue = cumVal[0]
+			} else if gasVal, ok := sample.NumLabel["gas"]; ok && len(gasVal) > 0 {
+				cumValue = gasVal[0]
+			}
+		} else {
+			if flatVal, ok := sample.NumLabel["flat_cycles"]; ok && len(flatVal) > 0 {
+				flatValue = flatVal[0]
+			} else if cyclesVal, ok := sample.NumLabel["cycles"]; ok && len(cyclesVal) > 0 {
+				flatValue = cyclesVal[0]
+			}
+
+			if cumVal, ok := sample.NumLabel["cum_cycles"]; ok && len(cumVal) > 0 {
+				cumValue = cumVal[0]
+			} else if cyclesVal, ok := sample.NumLabel["cycles"]; ok && len(cyclesVal) > 0 {
+				cumValue = cyclesVal[0]
+			}
 		}
 
 		flatPercent := float64(0)
 		cumPercent := float64(0)
-		if totalCycles > 0 {
-			flatPercent = float64(flatCycles) / float64(totalCycles) * 100
-			cumPercent = float64(cumCycles) / float64(totalCycles) * 100
+		if totalValue > 0 {
+			flatPercent = float64(flatValue) / float64(totalValue) * 100
+			cumPercent = float64(cumValue) / float64(totalValue) * 100
 		}
 
 		fmt.Fprintf(cw, "%-50s %12d %11.2f%% %12d %11.2f%%\n",
-			funcName, flatCycles, flatPercent, cumCycles, cumPercent)
+			funcName, flatValue, flatPercent, cumValue, cumPercent)
 	}
 
 	return cw.n, cw.err
@@ -566,6 +633,8 @@ func (p *Profile) typeString() string {
 		return "CPU"
 	case ProfileMemory:
 		return "Memory"
+	case ProfileGas:
+		return "Gas"
 	// TODO: gno does not support goroutine for now.
 	case ProfileGoroutine:
 		return "Goroutine"
@@ -591,6 +660,31 @@ func (p *Profile) totalCycles() int64 {
 					}
 				} else if len(sample.Value) > 1 && len(sample.Location) == 1 {
 					total += sample.Value[1]
+				}
+			}
+		}
+	}
+
+	return total
+}
+
+// totalGas calculates total gas across all samples
+func (p *Profile) totalGas() int64 {
+	total := int64(0)
+	seen := make(map[string]bool)
+
+	for _, sample := range p.Samples {
+		if len(sample.Location) > 0 {
+			funcName := sample.Location[0].Function
+			if !seen[funcName] {
+				seen[funcName] = true
+				if cumVal, ok := sample.NumLabel["cum_gas"]; ok && len(cumVal) > 0 {
+					// For top-level functions only
+					if len(sample.Location) == 1 {
+						total += cumVal[0]
+					}
+				} else if sample.GasUsed > 0 && len(sample.Location) == 1 {
+					total += sample.GasUsed
 				}
 			}
 		}
@@ -757,6 +851,36 @@ func (p *Profiler) updateFunctionProfiles(stack []ProfileLocation, cycles int64)
 		// Update self cycles (only for the top of stack)
 		if i == 0 {
 			prof.SelfCycles += cycles
+		}
+	}
+}
+
+// updateFunctionGasProfiles updates function gas profiling data
+func (p *Profiler) updateFunctionGasProfiles(stack []ProfileLocation, gasUsed int64) {
+	seen := make(map[string]bool)
+
+	for i, loc := range stack {
+		funcName := loc.Function
+		if seen[funcName] {
+			continue
+		}
+		seen[funcName] = true
+
+		prof := p.funcProfiles[funcName]
+		if prof == nil {
+			prof = &FuncProfile{
+				Name:     funcName,
+				Children: make(map[string]*FuncProfile),
+			}
+			p.funcProfiles[funcName] = prof
+		}
+
+		// Update cumulative gas (appears anywhere in stack)
+		prof.TotalGas += gasUsed
+
+		// Update self gas (only for the top of stack)
+		if i == 0 {
+			prof.SelfGas += gasUsed
 		}
 	}
 }

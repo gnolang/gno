@@ -31,6 +31,7 @@ func TestContext(t *testing.T) {
 			pkgPath: "gno.land/p/demo/test",
 			send:    std.Coins{std.Coin{Denom: "ugnot", Amount: 1000}},
 			validate: func(t *testing.T, ctx *teststd.TestExecContext) {
+				t.Helper()
 				assert.Equal(t, "dev", ctx.ChainID)
 				assert.Equal(t, "gno.land", ctx.ChainDomain)
 				assert.Equal(t, int64(DefaultHeight), ctx.Height)
@@ -47,6 +48,7 @@ func TestContext(t *testing.T) {
 			pkgPath: "gno.land/p/demo/test",
 			send:    nil,
 			validate: func(t *testing.T, ctx *teststd.TestExecContext) {
+				t.Helper()
 				assert.Equal(t, crypto.Bech32Address(""), ctx.OriginCaller)
 				assert.Nil(t, ctx.OriginSend)
 			},
@@ -57,6 +59,7 @@ func TestContext(t *testing.T) {
 			pkgPath: "gno.land/p/demo/test",
 			send:    std.Coins{std.Coin{Denom: "ugnot", Amount: 5000}},
 			validate: func(t *testing.T, ctx *teststd.TestExecContext) {
+				t.Helper()
 				assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 5000}}, ctx.OriginSend)
 				// Verify banker has coins for package address
 				pkgAddr := gnolang.DerivePkgBech32Addr("gno.land/p/demo/test")

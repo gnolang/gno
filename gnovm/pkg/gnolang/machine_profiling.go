@@ -23,6 +23,13 @@ func (ma *machineAdapter) GetCycles() int64 {
 	return ma.m.Cycles
 }
 
+func (ma *machineAdapter) GetGasUsed() int64 {
+	if ma.m.GasMeter == nil {
+		return 0
+	}
+	return ma.m.GasMeter.GasConsumed()
+}
+
 // frameAdapter adapts Frame to profiler.FrameInfo
 type frameAdapter struct {
 	f *Frame
@@ -83,7 +90,7 @@ func adaptMachine(m *Machine) profiler.MachineInfo {
 // StartProfiling starts profiling the VM
 func (m *Machine) StartProfiling(options profiler.Options) {
 	if m.profiler == nil {
-		m.profiler = profiler.NewProfiler()
+		m.profiler = profiler.NewProfiler(options.Type, options.SampleRate)
 	}
 	m.profiler.StartProfiling(adaptMachine(m), options)
 }

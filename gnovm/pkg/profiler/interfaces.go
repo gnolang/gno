@@ -4,6 +4,7 @@ package profiler
 type MachineInfo interface {
 	GetFrames() []FrameInfo
 	GetCycles() int64
+	GetGasUsed() int64 // Total gas used so far
 }
 
 // FrameInfo provides access to stack frame information

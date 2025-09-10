@@ -21,6 +21,7 @@ const (
 type node struct {
 	name     string
 	cycles   int64
+	gas      int64
 	calls    int64
 	children map[string]*node
 }
@@ -57,8 +58,12 @@ func (p *Profile) WriteCallTree(w io.Writer) error {
 		}
 
 		cycles := int64(0)
+		gas := int64(0)
 		if len(sample.Value) > 1 {
 			cycles = sample.Value[1]
+		}
+		if sample.GasUsed > 0 {
+			gas = sample.GasUsed
 		}
 
 		// Traverse/build tree from root to leaf
@@ -69,12 +74,14 @@ func (p *Profile) WriteCallTree(w io.Writer) error {
 			funcName := sample.Location[i].Function
 			if child, ok := current.children[funcName]; ok {
 				child.cycles += cycles
+				child.gas += gas
 				child.calls++
 				current = child
 			} else {
 				newNode := &node{
 					name:     funcName,
 					cycles:   cycles,
+					gas:      gas,
 					calls:    1,
 					children: make(map[string]*node),
 				}
@@ -85,24 +92,25 @@ func (p *Profile) WriteCallTree(w io.Writer) error {
 	}
 
 	// Print tree
-	fmt.Fprintf(w, "Call Tree (CPU Cycles)\n")
-	fmt.Fprintf(w, "======================\n\n")
+	if p.Type == ProfileGas {
+		fmt.Fprintf(w, "Call Tree (Gas Usage)\n")
+		fmt.Fprintf(w, "=====================\n\n")
+	} else {
+		fmt.Fprintf(w, "Call Tree (CPU Cycles)\n")
+		fmt.Fprintf(w, "======================\n\n")
+	}
 
 	totalCycles := p.totalCycles()
-	printNode(w, root, "", true, totalCycles, 0)
+	totalGas := p.totalGas()
+	printNode(w, root, "", true, totalCycles, totalGas, 0, p.Type)
 
 	return nil
 }
 
 // printNode recursively prints a call tree node
-func printNode(w io.Writer, n *node, prefix string, isLast bool, totalCycles int64, depth int) {
+func printNode(w io.Writer, n *node, prefix string, isLast bool, totalCycles int64, totalGas int64, depth int, profileType ProfileType) {
 	if n.name != "<root>" {
 		// Print current node
-		percent := float64(0)
-		if totalCycles > 0 {
-			percent = float64(n.cycles) / float64(totalCycles) * 100
-		}
-
 		connector := "├─"
 		if isLast {
 			connector = "└─"
@@ -111,18 +119,37 @@ func printNode(w io.Writer, n *node, prefix string, isLast bool, totalCycles int
 			connector = ""
 		}
 
-		fmt.Fprintf(w, "%s%s %s: %d cycles (%.1f%%), %d calls\n",
-			prefix, connector, n.name, n.cycles, percent, n.calls)
+		if profileType == ProfileGas {
+			percent := float64(0)
+			if totalGas > 0 {
+				percent = float64(n.gas) / float64(totalGas) * 100
+			}
+			fmt.Fprintf(w, "%s%s %s: %d gas (%.1f%%), %d calls\n",
+				prefix, connector, n.name, n.gas, percent, n.calls)
+		} else {
+			percent := float64(0)
+			if totalCycles > 0 {
+				percent = float64(n.cycles) / float64(totalCycles) * 100
+			}
+			fmt.Fprintf(w, "%s%s %s: %d cycles (%.1f%%), %d calls\n",
+				prefix, connector, n.name, n.cycles, percent, n.calls)
+		}
 	}
 
-	// Sort children by cycles
+	// Sort children by cycles or gas
 	children := make([]*node, 0, len(n.children))
 	for _, child := range n.children {
 		children = append(children, child)
 	}
-	sort.Slice(children, func(i, j int) bool {
-		return children[i].cycles > children[j].cycles
-	})
+	if profileType == ProfileGas {
+		sort.Slice(children, func(i, j int) bool {
+			return children[i].gas > children[j].gas
+		})
+	} else {
+		sort.Slice(children, func(i, j int) bool {
+			return children[i].cycles > children[j].cycles
+		})
+	}
 
 	// Print children
 	childPrefix := prefix
@@ -136,7 +163,7 @@ func printNode(w io.Writer, n *node, prefix string, isLast bool, totalCycles int
 
 	for i, child := range children {
 		isLastChild := i == len(children)-1
-		printNode(w, child, childPrefix, isLastChild, totalCycles, depth+1)
+		printNode(w, child, childPrefix, isLastChild, totalCycles, totalGas, depth+1, profileType)
 	}
 }
 

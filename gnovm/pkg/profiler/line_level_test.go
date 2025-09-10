@@ -7,6 +7,15 @@ import (
 	"testing"
 )
 
+type MachineMock struct {
+	Cycles  int64
+	GasUsed int64
+}
+
+func (m *MachineMock) GetCycles() int64       { return m.Cycles }
+func (m *MachineMock) GetGasUsed() int64      { return m.GasUsed }
+func (m *MachineMock) GetFrames() []FrameInfo { return nil }
+
 // Test for enhanced ProfileLocation with getters/setters
 func TestProfileLocation(t *testing.T) {
 	tests := []struct {
@@ -165,7 +174,7 @@ func TestProfilerWithLineLevel(t *testing.T) {
 	profiler.Start()
 
 	// Simulate some operations with location info
-	m := &Machine{Cycles: 0}
+	m := &MachineMock{Cycles: 0}
 
 	// Mock location 1
 	loc1 := newProfileLocation("test.func1", "test.gno", 10, 5)
@@ -219,7 +228,7 @@ func TestSourceAnnotation(t *testing.T) {
 	profiler.Start()
 
 	// Add some line stats
-	m := &Machine{Cycles: 0}
+	m := &MachineMock{Cycles: 0}
 	profiler.RecordLineLevel(m, newProfileLocation("test", "mock.gno", 1, 0), 1000)
 	profiler.RecordLineLevel(m, newProfileLocation("test", "mock.gno", 3, 0), 5000)
 	profiler.RecordLineLevel(m, newProfileLocation("test", "mock.gno", 3, 0), 3000)

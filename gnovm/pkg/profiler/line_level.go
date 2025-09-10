@@ -126,6 +126,7 @@ func (lc *locationCache) size() int {
 type lineStats struct {
 	count       int64
 	cycles      int64
+	gas         int64
 	allocations int64
 	allocBytes  int64
 	mu          sync.Mutex
@@ -326,4 +327,5 @@ func (p *Profile) WriteSourceAnnotated(w io.Writer, filename string, source io.R
 type lineStat struct {
 	count  int64
 	cycles int64
+	gas    int64
 }

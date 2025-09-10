@@ -217,7 +217,7 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		&c.profileType,
 		"profile-type",
 		"cpu",
-		"profile type: cpu, memory",
+		"profile type: cpu, memory, gas",
 	)
 
 	fs.StringVar(

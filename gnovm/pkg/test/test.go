@@ -163,10 +163,17 @@ func (pc *ProfileConfig) GetFormat() profiler.ProfileFormat {
 
 // GetProfileType returns the profile type, defaulting to CPU
 func (pc *ProfileConfig) GetProfileType() profiler.ProfileType {
-	if pc == nil || pc.Type != "memory" {
+	if pc == nil {
 		return profiler.ProfileCPU
 	}
-	return profiler.ProfileMemory
+	switch pc.Type {
+	case "memory":
+		return profiler.ProfileMemory
+	case "gas":
+		return profiler.ProfileGas
+	default:
+		return profiler.ProfileCPU
+	}
 }
 
 // GetSampleRate returns the appropriate sample rate for the profile type
@@ -237,7 +244,7 @@ func initializeProfiling(pc *ProfileConfig) (*profiler.Profiler, error) {
 		return nil, nil
 	}
 
-	globalProfiler := profiler.NewProfiler()
+	globalProfiler := profiler.NewProfiler(pc.GetProfileType(), pc.GetSampleRate())
 
 	// Enable line-level profiling if list option is used
 	if pc.FunctionList != "" {
@@ -397,9 +404,8 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		if opts.Profile.profiler != nil {
 			writer := &DefaultProfileWriter{}
 			defer func() {
-				if err := finalizeProfiling(opts.Profile, opts, writer); err != nil {
-					// Error already printed in finalizeProfiling
-				}
+				// Error already printed in finalizeProfiling
+				finalizeProfiling(opts.Profile, opts, writer)
 			}()
 		}
 	}
@@ -567,6 +573,12 @@ func (opts *TestOptions) runTestFiles(
 	// Enable profiling on the machine if profiling is enabled
 	if opts.Profile != nil && opts.Profile.profiler != nil {
 		m.SetProfiler(opts.Profile.profiler)
+		// Set up gas meter for gas profiling
+		// In normal unit test environment, the gas meter is not set by default
+		// Therefore, we need to set it here.
+		if opts.Profile.Type == "gas" && m.GasMeter == nil {
+			m.GasMeter = storetypes.NewInfiniteGasMeter()
+		}
 	}
 	if tgs.GetMemPackage(mpkg.Path) == nil {
 		m.RunMemPackage(mpkg, false)
@@ -596,6 +608,10 @@ func (opts *TestOptions) runTestFiles(
 		// Enable profiling on the test machine if profiling is enabled
 		if opts.Profile != nil && opts.Profile.profiler != nil {
 			m.SetProfiler(opts.Profile.profiler)
+			// Set up gas meter for gas profiling
+			if opts.Profile.Type == "gas" && m.GasMeter == nil {
+				m.GasMeter = storetypes.NewInfiniteGasMeter()
+			}
 		}
 
 		testingpv := m.Store.GetPackage("testing/base", false)

@@ -22,6 +22,7 @@ func (p *Profile) WriteFunctionList(w io.Writer, funcName string, store Store) e
 		funcName    string
 		fileSamples map[string]map[int]*lineStat // file -> line -> stats
 		totalCycles int64
+		totalGas    int64
 	}
 
 	matchedFunctions := make(map[string]*functionData)
@@ -64,6 +65,11 @@ func (p *Profile) WriteFunctionList(w io.Writer, funcName string, store Store) e
 					fd.fileSamples[file][line].cycles += sample.Value[1]
 					fd.totalCycles += sample.Value[1]
 				}
+				// Add gas info if available
+				if sample.GasUsed > 0 {
+					fd.fileSamples[file][line].gas += sample.GasUsed
+					fd.totalGas += sample.GasUsed
+				}
 
 				// Only count the first matching location in the stack
 				break
@@ -83,10 +89,12 @@ func (p *Profile) WriteFunctionList(w io.Writer, funcName string, store Store) e
 	}
 	sort.Strings(sortedFuncs)
 
-	// Calculate total cycles across all matched functions
+	// Calculate total cycles and gas across all matched functions
 	totalCycles := int64(0)
+	totalGas := int64(0)
 	for _, fd := range matchedFunctions {
 		totalCycles += fd.totalCycles
+		totalGas += fd.totalGas
 	}
 
 	// Print results for each matched function
@@ -102,7 +110,7 @@ func (p *Profile) WriteFunctionList(w io.Writer, funcName string, store Store) e
 
 		// Print results for each file in this function
 		for file, lineStats := range fd.fileSamples {
-			if err := p.writeFunctionFileList(w, fd.funcName, file, lineStats, totalCycles, store); err != nil {
+			if err := p.writeFunctionFileList(w, fd.funcName, file, lineStats, totalCycles, totalGas, store); err != nil {
 				// If we can't read the source file, still show the statistics
 				fmt.Fprintf(w, "\nTotal: %d\n", totalCycles)
 				fmt.Fprintf(w, "%s %s in %s\n", ROUTINE_SEPARATOR, fd.funcName, file)
@@ -121,7 +129,7 @@ func (p *Profile) WriteFunctionList(w io.Writer, funcName string, store Store) e
 }
 
 // writeFunctionFileList writes the profile for a single file
-func (p *Profile) writeFunctionFileList(w io.Writer, funcName, file string, lineStats map[int]*lineStat, totalCycles int64, store Store) error {
+func (p *Profile) writeFunctionFileList(w io.Writer, funcName, file string, lineStats map[int]*lineStat, totalCycles int64, totalGas int64, store Store) error {
 	// Try to read the source file
 	source, err := readSourceFile(file, store)
 	if err != nil {
@@ -138,17 +146,27 @@ func (p *Profile) writeFunctionFileList(w io.Writer, funcName, file string, line
 		endLine = len(lines)
 	}
 
-	// Calculate total cycles for this file
+	// Calculate total cycles and gas for this file
 	fileCycles := int64(0)
+	fileGas := int64(0)
 	for _, stat := range lineStats {
 		fileCycles += stat.cycles
+		fileGas += stat.gas
 	}
 
-	// Write header - match go tool pprof format
-	fmt.Fprintf(w, "\nTotal: %d\n", totalCycles)
+	// Write header - enhanced with gas info
+	fmt.Fprintf(w, "\nTotal: %d cycles", totalCycles)
+	if totalGas > 0 {
+		fmt.Fprintf(w, ", %d gas", totalGas)
+	}
+	fmt.Fprintf(w, "\n")
 	fmt.Fprintf(w, "%s %s in %s\n", ROUTINE_SEPARATOR, funcName, file)
-	fmt.Fprintf(w, "%10d %10d (flat, cum) %.2f%% of Total\n", fileCycles, fileCycles,
+	fmt.Fprintf(w, "%10d %10d (flat, cum) %.2f%% of Total", fileCycles, fileCycles,
 		float64(fileCycles)/float64(totalCycles)*100)
+	if fileGas > 0 {
+		fmt.Fprintf(w, " | Gas: %d (%.2f%%)", fileGas, float64(fileGas)/float64(totalGas)*100)
+	}
+	fmt.Fprintf(w, "\n")
 
 	// Show context lines before and after
 	contextLines := 5
@@ -164,8 +182,13 @@ func (p *Profile) writeFunctionFileList(w io.Writer, funcName, file string, line
 
 		if stat, exists := lineStats[i]; exists {
 			// Line with profile data
-			fmt.Fprintf(w, "%10d %10d %4d:%s\n",
-				stat.cycles, stat.cycles, i, line)
+			if stat.gas > 0 {
+				fmt.Fprintf(w, "%10d %10d %4d:%s [gas: %d]\n",
+					stat.cycles, stat.cycles, i, line, stat.gas)
+			} else {
+				fmt.Fprintf(w, "%10d %10d %4d:%s\n",
+					stat.cycles, stat.cycles, i, line)
+			}
 		} else {
 			// Lines without samples
 			if i >= startLine && i <= endLine {
