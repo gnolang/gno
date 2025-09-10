@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -90,6 +91,152 @@ func Test_execVerify(t *testing.T) {
 		return kbHome, tx, kbCleanUp
 	}
 
+	t.Run("test number of argument", func(t *testing.T) {
+		t.Parallel()
+
+		kbHome, tx, cleanUp := prepare(t)
+		defer cleanUp()
+
+		// Marshal the tx with signature
+		rawTx, err := amino.MarshalJSON(tx)
+		assert.NoError(t, err)
+
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+				},
+			},
+			DocPath:         "",
+			AccountNumber:   accountNumber,
+			AccountSequence: accountSequence,
+			ChainID:         chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{} // NO ARGUMENTS
+
+		io.SetIn(
+			strings.NewReader(
+				fmt.Sprintf("%s\n", rawTx),
+			),
+		)
+
+		err = execVerify(context.Background(), cfg, args, io)
+		assert.Error(t, err)
+	})
+
+	t.Run("test: bad key name", func(t *testing.T) {
+		t.Parallel()
+
+		kbHome, tx, cleanUp := prepare(t)
+		defer cleanUp()
+
+		// Marshal the tx with signature
+		rawTx, err := amino.MarshalJSON(tx)
+		assert.NoError(t, err)
+
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+				},
+			},
+			DocPath:         "",
+			AccountNumber:   accountNumber,
+			AccountSequence: accountSequence,
+			ChainID:         chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{"bad-key-name"} // BAD KEY NAME
+
+		io.SetIn(
+			strings.NewReader(
+				fmt.Sprintf("%s\n", rawTx),
+			),
+		)
+
+		err = execVerify(context.Background(), cfg, args, io)
+		assert.Error(t, err)
+	})
+
+	t.Run("test stdin: bad transaction", func(t *testing.T) {
+		t.Parallel()
+
+		kbHome, tx, cleanUp := prepare(t)
+		defer cleanUp()
+
+		// Marshal the tx with signature
+		rawTx, err := amino.MarshalJSON(tx)
+		assert.NoError(t, err)
+		// mutate the raw tx to make it bad
+		badRawTx := testutils.MutateByteSlice(rawTx)
+
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+				},
+			},
+			DocPath:         "",
+			AccountNumber:   accountNumber,
+			AccountSequence: accountSequence,
+			ChainID:         chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1}
+
+		io.SetIn(
+			strings.NewReader(
+				fmt.Sprintf("%s\n", badRawTx), // BAD RAW TX
+			),
+		)
+
+		err = execVerify(context.Background(), cfg, args, io)
+		assert.Error(t, err)
+	})
+
+	t.Run("test stdin: bad newline", func(t *testing.T) {
+		t.Parallel()
+
+		kbHome, tx, cleanUp := prepare(t)
+		defer cleanUp()
+
+		// Marshal the tx with signature
+		rawTx, err := amino.MarshalJSON(tx)
+		assert.NoError(t, err)
+
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+				},
+			},
+			DocPath:         "",
+			AccountNumber:   accountNumber,
+			AccountSequence: accountSequence,
+			ChainID:         chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1}
+
+		io.SetIn(
+			strings.NewReader(
+				fmt.Sprintf("%s", rawTx), // NO NEWLINE
+			),
+		)
+
+		err = execVerify(context.Background(), cfg, args, io)
+		assert.Error(t, err)
+	})
+
 	t.Run("test stdin: signature ok", func(t *testing.T) {
 		t.Parallel()
 
@@ -159,6 +306,45 @@ func Test_execVerify(t *testing.T) {
 		io.SetIn(
 			strings.NewReader(
 				fmt.Sprintf("%s\n", rawTxWithoutSig),
+			),
+		)
+
+		err = execVerify(context.Background(), cfg, args, io)
+		assert.Error(t, err)
+	})
+
+	t.Run("test stdin: -signature flag: bad format", func(t *testing.T) {
+		t.Parallel()
+
+		kbHome, tx, cleanUp := prepare(t)
+		defer cleanUp()
+
+		sigHex := hex.EncodeToString(tx.Signatures[0].Signature)
+
+		// Marshal the tx with signature
+		rawTx, err := amino.MarshalJSON(tx)
+		assert.NoError(t, err)
+
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+				},
+			},
+			DocPath:         "",
+			Signature:       sigHex,
+			AccountNumber:   accountNumber,
+			AccountSequence: accountSequence,
+			ChainID:         chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1}
+
+		io.SetIn(
+			strings.NewReader(
+				fmt.Sprintf("%s\n", rawTx),
 			),
 		)
 
@@ -443,7 +629,7 @@ func Test_execVerify(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("test stdin: no -account-sequence and -account-number flags: error", func(t *testing.T) {
+	t.Run("test stdin: try to query network: bad verification", func(t *testing.T) {
 		t.Parallel()
 
 		kbHome, tx, cleanUp := prepare(t)
@@ -458,10 +644,11 @@ func Test_execVerify(t *testing.T) {
 				BaseOptions: BaseOptions{
 					Home:                  kbHome,
 					InsecurePasswordStdin: true,
+					Remote:                "http://localhost:26657", // needs remote to fetch account info
 				},
 			},
 			DocPath: "",
-			ChainID: "bad-chain-id", // BAD CHAIN ID
+			ChainID: chainID,
 		}
 
 		io := commands.NewTestIO()
@@ -473,7 +660,7 @@ func Test_execVerify(t *testing.T) {
 			),
 		)
 
-		err = execVerify(context.Background(), cfg, args, io)
+		err = execVerify(context.Background(), cfg, args, io) // account-number and account-sequence wrong
 		assert.Error(t, err)
 	})
 
@@ -551,6 +738,49 @@ func Test_execVerify(t *testing.T) {
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.NoError(t, err)
+	})
+
+	t.Run("test: -docpath flag: bad transaction", func(t *testing.T) {
+		t.Parallel()
+
+		kbHome, tx, cleanUp := prepare(t)
+		defer cleanUp()
+
+		// Marshal the tx with signature
+		rawTx, err := amino.MarshalJSON(tx)
+		assert.NoError(t, err)
+		// mutate the raw tx to make it bad
+		badRawTx := testutils.MutateByteSlice(rawTx)
+
+		txFile, err := os.CreateTemp("", "tx-*.json")
+		require.NoError(t, err)
+
+		require.NoError(t, os.WriteFile(txFile.Name(), badRawTx, 0o644))
+
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+				},
+			},
+			DocPath:         txFile.Name(),
+			AccountNumber:   accountNumber,
+			AccountSequence: accountSequence,
+			ChainID:         chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1}
+
+		io.SetIn(
+			strings.NewReader(
+				fmt.Sprintf("%s\n", rawTx),
+			),
+		)
+
+		err = execVerify(context.Background(), cfg, args, io)
+		assert.Error(t, err)
 	})
 
 	// both -sigpath and -signature flags cannot be used at the same time
