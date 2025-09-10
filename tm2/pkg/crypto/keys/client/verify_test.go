@@ -173,7 +173,7 @@ func Test_execVerify(t *testing.T) {
 		rawTx, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
 		// mutate the raw tx to make it bad
-		badRawTx := testutils.MutateByteSlice(rawTx)
+		rawTx[0] = 0xFF
 
 		cfg := &VerifyCfg{
 			RootCfg: &BaseCfg{
@@ -193,7 +193,7 @@ func Test_execVerify(t *testing.T) {
 
 		io.SetIn(
 			strings.NewReader(
-				fmt.Sprintf("%s\n", badRawTx), // BAD RAW TX
+				fmt.Sprintf("%s\n", rawTx), // BAD RAW TX
 			),
 		)
 
@@ -227,11 +227,7 @@ func Test_execVerify(t *testing.T) {
 		io := commands.NewTestIO()
 		args := []string{fakeKeyName1}
 
-		io.SetIn(
-			strings.NewReader(
-				fmt.Sprintf("%s", rawTx), // NO NEWLINE
-			),
-		)
+		io.SetIn(strings.NewReader(string(rawTx)))
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.Error(t, err)
