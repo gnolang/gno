@@ -746,12 +746,12 @@ func Test_execVerify(t *testing.T) {
 		rawTx, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
 		// mutate the raw tx to make it bad
-		badRawTx := testutils.MutateByteSlice(rawTx)
+		rawTx[0] = 0xFF
 
 		txFile, err := os.CreateTemp("", "tx-*.json")
 		require.NoError(t, err)
 
-		require.NoError(t, os.WriteFile(txFile.Name(), badRawTx, 0o644))
+		require.NoError(t, os.WriteFile(txFile.Name(), rawTx, 0o644))
 
 		cfg := &VerifyCfg{
 			RootCfg: &BaseCfg{
