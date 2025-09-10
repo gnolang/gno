@@ -59,37 +59,37 @@ func (c *VerifyCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.SigPath,
 		"sigpath",
 		"",
-		"path of signature file in Amino JSON format",
+		"path of signature file in Amino JSON format (mutually exclusive with -signature flag)",
 	)
 	fs.StringVar(
 		&c.Signature,
 		"signature",
 		"",
-		"base64-encoded signature string",
+		"base64-encoded signature string (mutually exclusive with -sigpath flag)",
 	)
 	fs.StringVar(
 		&c.ChainID,
 		"chain-id",
 		"dev",
-		"The network chain ID",
+		"network chain ID used for signing",
 	)
 	fs.Uint64Var(
 		&c.AccountNumber,
 		"account-number",
 		0,
-		"The account number of the signing account. If not provided, it will be queried from the chain unless --offline is set.",
+		"account number of the signing account",
 	)
 	fs.Uint64Var(
 		&c.AccountSequence,
 		"account-sequence",
 		0,
-		"The account sequence of the signing account. If not provided, it will be queried from the chain unless --offline is set.",
+		"account sequence of the signing account",
 	)
 	fs.BoolVar(
 		&c.Offline,
 		"offline",
 		false,
-		"Offline mode. Do not query the chain for account number and account sequence.",
+		"offline mode: do not query the chain for account number and account sequence",
 	)
 }
 
