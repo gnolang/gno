@@ -146,7 +146,7 @@ func printColumns(left, right string) {
 }
 
 // Error:
-// zrealm_crossrealm11.gno:25:47: missing ',' in composite literal (and 3 more errors)
+// zrealm_crossrealm11.gno:26:47: missing ',' in composite literal (and 3 more errors)
 
 // TypeCheckError:
 // gno.land/r/crossrealm/zrealm_crossrealm11.gno:25:47: missing ',' in composite literal (and 3 more errors)
