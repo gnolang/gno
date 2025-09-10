@@ -3,7 +3,7 @@ package expect
 import (
 	"strconv"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 // NewUintChecker creates a new checker of uint64 values.

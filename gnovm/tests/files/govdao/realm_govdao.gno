@@ -8,6 +8,7 @@ import (
 	"gno.land/r/gov/dao"
 	daoimpl "gno.land/r/gov/dao/v3/impl"
 	daoinit "gno.land/r/gov/dao/v3/init"
+	susers "gno.land/r/sys/users"
 )
 
 var (
@@ -18,11 +19,27 @@ var (
 
 func init() {
 	daoinit.InitWithUsers(user1, user2, user3)
+	registerTestUsers(user1, user2, user3)
 	govDAO := daoimpl.NewGovDAO() // A DAO object without an attached realm.
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO: govDAO,
 	})
+}
+
+const gUsersV1Path = "gno.land/r/gnoland/users/v1"
+
+// Register a namespace for every addresses
+// Necessary to test GovDAO Vote
+func registerTestUsers(addrs ...std.Address) {
+	// Set realm to users admin to register test user
+	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	for _, addr := range addrs {
+		err := susers.RegisterUser(cross, addr.String()[1:], addr)
+		if err != nil {
+			panic(err.Error() + " : " + addr.String())
+		}
+	}
 }
 
 func main() {
@@ -71,9 +88,12 @@ func Render() {
 
 // Output:
 // true
-// # GovDAO Proposals
+// # GovDAO
+// ## Members
+// [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
+// ## Proposals
 // ### [Prop #0 - Proposal Title: Dummy proposal](/r/gov/dao:0)
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// Author: [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
 //
 // Status: ACCEPTED
 //
