@@ -7,10 +7,8 @@ import (
 	"time"
 )
 
-// TestProfilerCLI_BasicCommands tests basic profiler CLI commands
 func TestProfilerCLI_BasicCommands(t *testing.T) {
-	// Create a test profile
-	profile := createTestProfileForCLI()
+	profile := createTestProfileForCLI(t)
 
 	tests := []struct {
 		name    string
@@ -119,7 +117,6 @@ func TestProfilerCLI_BasicCommands(t *testing.T) {
 				}
 			}
 
-			// Check error expectation
 			if tt.wantErr && err == nil && !strings.Contains(output, "Error:") {
 				t.Errorf("expected error but got none")
 			}
@@ -127,9 +124,8 @@ func TestProfilerCLI_BasicCommands(t *testing.T) {
 	}
 }
 
-// TestProfilerCLI_Filtering tests focus/ignore/hide functionality
 func TestProfilerCLI_Filtering(t *testing.T) {
-	profile := createTestProfileForCLI()
+	profile := createTestProfileForCLI(t)
 
 	tests := []struct {
 		name    string
@@ -212,9 +208,8 @@ func TestProfilerCLI_Filtering(t *testing.T) {
 	}
 }
 
-// TestProfilerCLI_ToggleCommands tests toggle commands
 func TestProfilerCLI_ToggleCommands(t *testing.T) {
-	profile := createTestProfileForCLI()
+	profile := createTestProfileForCLI(t)
 
 	tests := []struct {
 		name    string
@@ -276,9 +271,8 @@ func TestProfilerCLI_ToggleCommands(t *testing.T) {
 	}
 }
 
-// TestProfilerCLI_EmptyLineRepeat tests that empty line repeats last command
 func TestProfilerCLI_EmptyLineRepeat(t *testing.T) {
-	profile := createTestProfileForCLI()
+	profile := createTestProfileForCLI(t)
 
 	in := strings.NewReader("top 3\n\nquit\n")
 	out := &bytes.Buffer{}
@@ -297,9 +291,8 @@ func TestProfilerCLI_EmptyLineRepeat(t *testing.T) {
 	}
 }
 
-// TestProfilerCLI_Aliases tests command aliases
 func TestProfilerCLI_Aliases(t *testing.T) {
-	profile := createTestProfileForCLI()
+	profile := createTestProfileForCLI(t)
 
 	tests := []struct {
 		alias   string
@@ -314,11 +307,12 @@ func TestProfilerCLI_Aliases(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.alias, func(t *testing.T) {
 			var input string
-			if tt.alias == "l" {
+			switch tt.alias {
+			case "l":
 				input = tt.alias + " main.main\nquit\n"
-			} else if tt.alias == "q" {
+			case "q":
 				input = tt.alias + "\n"
-			} else {
+			default:
 				input = tt.alias + "\nquit\n"
 			}
 
@@ -340,8 +334,8 @@ func TestProfilerCLI_Aliases(t *testing.T) {
 	}
 }
 
-// Helper function to create a test profile
-func createTestProfileForCLI() *Profile {
+func createTestProfileForCLI(t *testing.T) *Profile {
+	t.Helper()
 	p := &Profile{
 		Type:          ProfileCPU,
 		TimeNanos:     time.Now().UnixNano(),

@@ -286,13 +286,16 @@ func findFunctionBounds(lines []string, funcName string) (start, end int) {
 		if inFunction {
 			// Count braces to find end
 			for _, ch := range line {
-				if ch == '{' {
+				switch ch {
+				case '{':
 					braceCount++
-				} else if ch == '}' {
+				case '}':
 					braceCount--
 					if braceCount == 0 {
 						return start, i + 1 // Convert to 1-based
 					}
+				default:
+					continue
 				}
 			}
 		}
