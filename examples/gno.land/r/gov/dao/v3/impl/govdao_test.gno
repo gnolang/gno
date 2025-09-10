@@ -6,14 +6,17 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/urequire"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
+	susers "gno.land/r/sys/users"
 )
 
 func init() {
 	loadMembers()
+	registerTestUser(m1, m11, m111, m1111, m2, m3, m4, m5, m6, noMember)
+
 	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO:         govDAO,
 		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
@@ -33,6 +36,21 @@ var (
 
 	noMember = testutils.TestAddress("nm1")
 )
+
+const gUsersV1Path = "gno.land/r/gnoland/users/v1"
+
+// Register a namespace for every addresses
+// Necessary to test GovDAO Vote
+func registerTestUser(addrs ...std.Address) {
+	// Set realm to users admin to register test user
+	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	for _, addr := range addrs {
+		err := susers.RegisterUser(cross, addr.String()[1:], addr)
+		if err != nil {
+			panic(err.Error() + " : " + addr.String())
+		}
+	}
+}
 
 func loadMembers() {
 	// This is needed because state is saved between unit tests,
@@ -129,7 +147,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	dao.MustVoteOnProposalSimple(cross, 0, "NO")
 
 	urequire.Equal(t, true, strings.Contains(dao.Render(""), "Prop #0 - New T2 Member Proposal"))
-	//urequire.Equal(t, true, strings.Contains(dao.Render(""), "Author: "+m1.String()))
+	// urequire.Equal(t, true, strings.Contains(dao.Render(""), "Author: "+m1.String()))
 
 	urequire.AbortsWithMessage(t, "proposal didn't reach supermajority yet: 66", func() {
 		dao.ExecuteProposal(cross, dao.ProposalID(0))

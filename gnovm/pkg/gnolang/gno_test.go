@@ -22,9 +22,7 @@ func setupMachine(b *testing.B, numValues, numStmts, numExprs, numBlocks, numFra
 
 	m := &Machine{
 		Ops:       make([]Op, 100),
-		NumOps:    100,
 		Values:    make([]TypedValue, numValues),
-		NumValues: numValues,
 		Exprs:     make([]Expr, numExprs),
 		Stmts:     make([]Stmt, numStmts),
 		Blocks:    make([]*Block, numBlocks),
@@ -330,7 +328,7 @@ func TestConvertTo(t *testing.T) {
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a int = -1
 		   println(uint(a))
@@ -339,7 +337,7 @@ func TestConvertTo(t *testing.T) {
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a int = -1
 		   println(uint8(a))
@@ -348,7 +346,7 @@ func TestConvertTo(t *testing.T) {
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a int = -1
 		   println(uint16(a))
@@ -357,7 +355,7 @@ func TestConvertTo(t *testing.T) {
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a int = -1
 		   println(uint32(a))
@@ -366,7 +364,7 @@ func TestConvertTo(t *testing.T) {
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a int = -1
 		   println(uint64(a))
@@ -375,7 +373,7 @@ func TestConvertTo(t *testing.T) {
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a float32 = 1.5
 		   println(int32(a))
@@ -384,7 +382,7 @@ func TestConvertTo(t *testing.T) {
 		},
 		{
 			`package test
-		
+
 		func main() {
 		   println(int32(1.5))
 		}`,
@@ -392,7 +390,7 @@ func TestConvertTo(t *testing.T) {
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const a float64 = 1.5
 		   println(int64(a))
@@ -401,7 +399,7 @@ func TestConvertTo(t *testing.T) {
 		},
 		{
 			`package test
-		
+
 		func main() {
 		   println(int64(1.5))
 		}`,
@@ -409,7 +407,7 @@ func TestConvertTo(t *testing.T) {
 		},
 		{
 			`package test
-		
+
 				func main() {
 					const f = float64(1.0)
 				   println(int64(f))
@@ -600,7 +598,7 @@ func assertOutput(t *testing.T, input string, output string) {
 	n := MustParseFile("main.go", input)
 	m.RunFiles(n)
 	m.RunMain()
-	assert.Equal(t, output, string(buf.Bytes()))
+	assert.Equal(t, output, buf.String())
 	err := m.CheckEmpty()
 	assert.Nil(t, err)
 }
@@ -634,6 +632,7 @@ func BenchmarkPreprocess(b *testing.B) {
 		// initStaticBlocks is always performed before a Preprocess
 		initStaticBlocks(nil, pn, copies[i])
 		main = Preprocess(nil, pkg, copies[i]).(*FuncDecl)
+		_ = main
 	}
 }
 

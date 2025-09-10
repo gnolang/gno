@@ -3,10 +3,10 @@ package treasury
 import (
 	"std"
 
-	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/tokens/grc20"
 	t "gno.land/p/nt/treasury"
 
-	"gno.land/r/demo/grc20reg"
+	"gno.land/r/demo/defi/grc20reg"
 	"gno.land/r/gov/dao"
 )
 
@@ -55,14 +55,25 @@ func init() {
 	}
 }
 
+// SetTokenKeys sets the GRC20 token registry keys that the treasury will use.
+func SetTokenKeys(_ realm, keys []string) {
+	caller := std.PreviousRealm().PkgPath()
+
+	// Check if the caller realm is allowed to set token keys.
+	if !dao.InAllowedDAOs(caller) {
+		panic("this Realm is not allowed to send payment: " + caller)
+	}
+
+	tokenKeys = keys
+}
+
 // Send sends a payment using the treasury instance.
 func Send(_ realm, payment t.Payment) {
-	// NOTE: Replace this by cur.Previous().PkgPath() when it will be implemented.
-	pkgPath := std.PreviousRealm().PkgPath()
+	caller := std.PreviousRealm().PkgPath()
 
-	// Check if the current realm is allowed to send payments.
-	if !dao.InAllowedDAOs(pkgPath) {
-		panic("this Realm is not allowed to send payment: " + pkgPath)
+	// Check if the caller realm is allowed to send payments.
+	if !dao.InAllowedDAOs(caller) {
+		panic("this Realm is not allowed to send payment: " + caller)
 	}
 
 	// Send the payment using the treasury instance.
@@ -71,10 +82,10 @@ func Send(_ realm, payment t.Payment) {
 	}
 }
 
-// History returns the n last payments sent by the banker with the given ID.
-// Returns the full history if n is 0 or greater than the number of payments.
-func History(bankerID string, n uint) []t.Payment {
-	history, err := treasury.History(bankerID, n)
+// History returns the payment history sent by the banker with the given ID.
+// Payments are paginated, with the most recent payments first.
+func History(bankerID string, pageNumber int, pageSize int) []t.Payment {
+	history, err := treasury.History(bankerID, pageNumber, pageSize)
 	if err != nil {
 		panic("failed to get history: " + err.Error())
 	}
@@ -114,15 +125,4 @@ func ListBankerIDs() []string {
 
 func Render(path string) string {
 	return treasury.Render(path)
-}
-
-// TestingSetTokenKeys sets the token registry keys for testing purposes.
-func TestingSetTokenKeys(_ realm, keys []string) {
-	// Ensure that this function can only be called from the treasury/test realm.
-	caller := std.PreviousRealm().PkgPath()
-	if caller != "gno.land/r/gov/dao/v3/treasury/test" {
-		panic("only the treasury/test realm can set token keys, current:" + caller)
-	}
-
-	tokenKeys = keys
 }

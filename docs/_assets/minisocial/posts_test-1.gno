@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/testutils" // Provides testing utilities
+	"gno.land/p/nt/testutils" // Provides testing utilities
 )
 
 func TestCreatePostSingle(t *testing.T) {
@@ -15,7 +15,7 @@ func TestCreatePostSingle(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	err := CreatePost(text1)
+	err := CreatePost(cross, text1)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -47,7 +47,9 @@ func TestCreatePostMultiple(t *testing.T) {
 		testing.SetRealm(std.NewUserRealm(authorAddr))
 
 		// Create the post
-		err := CreatePost(p.text)
+		// To call a crossing function, we specify the `cross` keyword
+		// This matches the first argument of type realm in the function itself
+		err := CreatePost(cross, p.text)
 		if err != nil {
 			t.Fatalf("expected no error for post '%s', got %v", p.text, err)
 		}

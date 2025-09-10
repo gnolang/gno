@@ -38,7 +38,7 @@ func StartOpCode(code byte) {
 	if code == invalidCode {
 		panic("the OpCode is invalid")
 	}
-	if measure.opStartTime[code] != measure.timeZero {
+	if !measure.opStartTime[code].Equal(measure.timeZero) {
 		panic("Can not start a non-stopped timer")
 	}
 	measure.opStartTime[code] = time.Now()
@@ -51,7 +51,7 @@ func StartOpCode(code byte) {
 // Stop the current measurement
 func StopOpCode() {
 	code := measure.curOpCode
-	if measure.opStartTime[code] == measure.timeZero {
+	if measure.opStartTime[code].Equal(measure.timeZero) {
 		panic("Can not stop a stopped timer")
 	}
 	measure.opAccumDur[code] += time.Since(measure.opStartTime[code])
@@ -61,14 +61,14 @@ func StopOpCode() {
 
 // Pause current opcode measurement
 func PauseOpCode() {
-	if measure.isOpCodeStarted == false {
+	if !measure.isOpCodeStarted {
 		return
 	}
 	if measure.curOpCode == invalidCode {
 		panic("Can not Pause timer of an invalid OpCode")
 	}
 	code := measure.curOpCode
-	if measure.opStartTime[code] == measure.timeZero {
+	if measure.opStartTime[code].Equal(measure.timeZero) {
 		panic("Should not pause a stopped timer")
 	}
 	measure.opAccumDur[code] += time.Since(measure.opStartTime[code])
@@ -77,7 +77,7 @@ func PauseOpCode() {
 
 // Resume resumes current measurement
 func ResumeOpCode() {
-	if measure.isOpCodeStarted == false {
+	if !measure.isOpCodeStarted {
 		return
 	}
 	if measure.curOpCode == invalidCode {
@@ -105,7 +105,7 @@ func StartStore(code byte) {
 func StopStore(size int) {
 	code := measure.curStoreCode
 
-	if measure.storeStartTime[code] == measure.timeZero {
+	if measure.storeStartTime[code].Equal(measure.timeZero) {
 		panic("Can not stop a stopped timer")
 	}
 

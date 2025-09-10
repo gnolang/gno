@@ -9,13 +9,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // initializeTestConfig initializes a default configuration
@@ -169,7 +170,7 @@ func TestConfig_Set_Base(t *testing.T) {
 			"db backend updated",
 			[]string{
 				"db_backend",
-				db.GoLevelDBBackend.String(),
+				db.PebbleDBBackend.String(),
 			},
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.DBBackend)
@@ -186,33 +187,23 @@ func TestConfig_Set_Base(t *testing.T) {
 			},
 		},
 		{
-			"validator key updated",
+			"validator sign state updated",
 			[]string{
-				"priv_validator_key_file",
+				"consensus.priv_validator.sign_state",
 				"example path",
 			},
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.PrivValidatorKey)
+				assert.Equal(t, value, loadedCfg.Consensus.PrivValidator.SignState)
 			},
 		},
 		{
-			"validator state file updated",
+			"validator local signer updated",
 			[]string{
-				"priv_validator_state_file",
+				"consensus.priv_validator.local_signer",
 				"example path",
 			},
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.PrivValidatorState)
-			},
-		},
-		{
-			"validator listen addr updated",
-			[]string{
-				"priv_validator_laddr",
-				"0.0.0.0:0",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.PrivValidatorListenAddr)
+				assert.Equal(t, value, loadedCfg.Consensus.PrivValidator.LocalSigner)
 			},
 		},
 		{
@@ -612,7 +603,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 				"0.0.0.0:0",
 			},
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, strings.SplitN(value, ",", -1), loadedCfg.RPC.CORSAllowedOrigins)
+				assert.Equal(t, strings.Split(value, ","), loadedCfg.RPC.CORSAllowedOrigins)
 			},
 		},
 		{
@@ -622,7 +613,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 				"POST,GET",
 			},
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, strings.SplitN(value, ",", -1), loadedCfg.RPC.CORSAllowedMethods)
+				assert.Equal(t, strings.Split(value, ","), loadedCfg.RPC.CORSAllowedMethods)
 			},
 		},
 		{
@@ -632,7 +623,7 @@ func TestConfig_Set_RPC(t *testing.T) {
 				"*",
 			},
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, strings.SplitN(value, ",", -1), loadedCfg.RPC.CORSAllowedHeaders)
+				assert.Equal(t, strings.Split(value, ","), loadedCfg.RPC.CORSAllowedHeaders)
 			},
 		},
 		{

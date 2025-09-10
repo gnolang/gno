@@ -2,14 +2,21 @@ package treasury
 
 import (
 	"net/url"
+	"std"
 	"strconv"
+	"strings"
 
-	"gno.land/p/demo/mux"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
+	"gno.land/p/nt/avl/pager"
+	"gno.land/p/nt/mux"
+	"gno.land/p/nt/ufmt"
 )
 
-const DefaultHistorySize = 5 // Number of last payments to show in the history.
+const (
+	DefaultHistoryPreviewSize = 5  // Number of payments in the history preview.
+	DefaultHistoryPageSize    = 20 // Number of payments per page in the history.
+)
 
 // Render renders content based on the given path.
 func (t *Treasury) Render(path string) string {
@@ -17,19 +24,19 @@ func (t *Treasury) Render(path string) string {
 }
 
 // RenderLanding renders the landing page of the treasury.
-func (t *Treasury) RenderLanding(historySize uint) string {
+func (t *Treasury) RenderLanding(path string) string {
 	var out string
 
 	// Render each banker.
 	for _, bankerID := range t.ListBankerIDs() {
-		out += t.RenderBanker(bankerID, historySize)
+		out += t.RenderBanker(bankerID, path)
 	}
 
 	return out
 }
 
 // RenderBanker renders the details of a specific banker.
-func (t *Treasury) RenderBanker(bankerID string, historySize uint) string {
+func (t *Treasury) RenderBanker(bankerID string, path string) string {
 	// Get the banker associated to this ID.
 	br, ok := t.bankers.Get(bankerID)
 	if !ok {
@@ -57,6 +64,16 @@ func (t *Treasury) RenderBanker(bankerID string, historySize uint) string {
 		out += table.String()
 	}
 
+	historySize := DefaultHistoryPreviewSize
+
+	// Check if the query parameter "history_size" is present and parse it.
+	if req, err := url.Parse(path); err == nil && req.Query() != nil {
+		size, err := strconv.Atoi(req.Query().Get("history_size"))
+		if err == nil && size >= 0 {
+			historySize = size
+		}
+	}
+
 	// Skip history rendering if historySize is 0.
 	if historySize == 0 {
 		return out
@@ -64,7 +81,7 @@ func (t *Treasury) RenderBanker(bankerID string, historySize uint) string {
 
 	// Render history section.
 	out += md.H3("History")
-	history, _ := t.History(bankerID, historySize)
+	history, _ := t.History(bankerID, 1, historySize)
 	if len(history) == 0 {
 		out += md.Paragraph("No payments sent yet.")
 	} else {
@@ -74,43 +91,63 @@ func (t *Treasury) RenderBanker(bankerID string, historySize uint) string {
 			count := strconv.FormatInt(int64(len(history)), 10)
 			out += md.Paragraph("Last " + count + " payments:")
 		}
+
+		// Render each payment in the history.
 		for _, payment := range history {
 			out += md.BulletItem(payment.String())
 		}
-		out += md.Link(
-			"See full history",
-			"/r/gov/dao/v3/treasury:"+bankerID+"/history",
-		)
+		out += "\n"
+
+		// Get the current Realm's package path for linking.
+		curRealm := std.CurrentRealm().PkgPath()
+		if from := strings.IndexRune(curRealm, '/'); from >= 0 {
+			out += md.Link(
+				"See full history",
+				ufmt.Sprintf("%s:%s/history", curRealm[from:], bankerID),
+			)
+		}
 	}
 
 	return out
 }
 
 // RenderBankerHistory renders the payment history of a specific banker.
-func (t *Treasury) RenderBankerHistory(bankerID string) string {
-	// Check if the banker exists.
-	if !t.HasBanker(bankerID) {
+func (t *Treasury) RenderBankerHistory(bankerID string, path string) string {
+	// Get the banker record corresponding to this ID if it exists.
+	br, ok := t.bankers.Get(bankerID)
+	if !ok {
 		return md.Paragraph("Banker not found: " + bankerID)
 	}
+	history := br.(*bankerRecord).history
 
 	// Render banker history title.
 	out := md.H2(bankerID + " Banker History")
 
+	// Get the current page of tokens based on the request path.
+	p := pager.NewPager(history.Tree(), DefaultHistoryPageSize, true)
+	page, err := p.GetPageByPath(path)
+	if err != nil {
+		return md.Paragraph("Error retrieving page: " + err.Error())
+	}
+
 	// Render full history section.
-	history, _ := t.History(bankerID, 0) // Get full history.
-	if len(history) == 0 {
+	if history.Len() == 0 {
 		out += md.Paragraph("No payments sent yet.")
 	} else {
-		if len(history) == 1 {
+		if history.Len() == 1 {
 			out += md.Paragraph("1 payment:")
 		} else {
-			count := strconv.FormatInt(int64(len(history)), 10)
+			count := strconv.FormatInt(int64(history.Len()), 10)
 			out += md.Paragraph(count + " payments (sorted by latest, descending):")
 		}
-		for _, payment := range history {
-			out += md.BulletItem(payment.String())
+		for _, item := range page.Items {
+			out += md.BulletItem(item.Value.(Payment).String())
 		}
 	}
+	out += "\n"
+
+	// Add the page picker.
+	out += md.Paragraph(page.Picker(path))
 
 	return out
 }
@@ -119,31 +156,18 @@ func (t *Treasury) RenderBankerHistory(bankerID string) string {
 func (t *Treasury) initRenderRouter() {
 	t.router = mux.NewRouter()
 
-	// getHistorySize retrieves the history size from the query parameters.
-	getHistorySize := func(query url.Values) uint {
-		// Check if the query parameter "history_size" is present and parse it.
-		if size, err := strconv.Atoi(query.Get("history_size")); err == nil && size >= 0 {
-			return uint(size)
-		}
-
-		// If not present, return the default history size.
-		return DefaultHistorySize
-	}
-
 	// Landing page.
 	t.router.HandleFunc("", func(res *mux.ResponseWriter, req *mux.Request) {
-		historySize := getHistorySize(req.Query)
-		res.Write(t.RenderLanding(historySize))
+		res.Write(t.RenderLanding(req.RawPath))
 	})
 
 	// Banker details.
 	t.router.HandleFunc("{banker}", func(res *mux.ResponseWriter, req *mux.Request) {
-		historySize := getHistorySize(req.Query)
-		res.Write(t.RenderBanker(req.GetVar("banker"), historySize))
+		res.Write(t.RenderBanker(req.GetVar("banker"), req.RawPath))
 	})
 
 	// Banker full history.
 	t.router.HandleFunc("{banker}/history", func(res *mux.ResponseWriter, req *mux.Request) {
-		res.Write(t.RenderBankerHistory(req.GetVar("banker")))
+		res.Write(t.RenderBankerHistory(req.GetVar("banker"), req.RawPath))
 	})
 }

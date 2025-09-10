@@ -126,8 +126,12 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 					Content: "",
 				})
 			} else {
-				return "", fmt.Errorf("unexpected panic: %s\noutput:\n%s\nstacktrace:\n%s\nstack:\n%v",
-					result.Error, result.Output, result.GnoStacktrace, string(result.GoPanicStack))
+				mstate := ""
+				if opts.DumpMachineState {
+					mstate = result.MachineState
+				}
+				return "", fmt.Errorf("unexpected panic: %s\noutput:\n%s\nstacktrace:\n%s\nstack:\n%v\nMachine state: %s",
+					result.Error, result.Output, result.GnoStacktrace, string(result.GoPanicStack), mstate)
 			}
 		}
 	} else if result.Output != "" {
@@ -249,8 +253,9 @@ func unifiedDiff(wanted, actual string) string {
 }
 
 type runResult struct {
-	Output string
-	Error  string
+	Output       string
+	Error        string
+	MachineState string
 	// Set if there was an issue with type-checking.
 	TypeCheckError string
 	// Set if there was a panic within gno code.
@@ -299,6 +304,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			rr.Output = opts.filetestBuffer.String()
 			rr.GoPanicStack = debug.Stack()
 			rr.TypeCheckError = tcError
+			rr.MachineState = m.String()
 			switch v := r.(type) {
 			case *gno.TypedValue:
 				rr.Error = v.Sprint(m)
@@ -310,6 +316,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			default:
 				rr.Error = fmt.Sprint(v)
 				rr.GnoStacktrace = m.Stacktrace().String()
+				rr.MachineState = m.String()
 			}
 		}
 	}()
@@ -338,7 +345,11 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		// Validate Gno syntax and type check.
 		if tcheck {
 			if _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
-				Getter:     m.Store,
+				// Use Teststore to load imported packages,
+				// mimicing the loading behavior with on-chain.
+				// (if using m.Store, the realm package will
+				// be preloaded during typecheck)
+				Getter:     opts.TestStore,
 				TestGetter: m.Store,
 				Mode:       gno.TCLatestRelaxed,
 				Cache:      opts.tcCache,
@@ -348,7 +359,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 		// Construct throwaway package and parse file.
 		pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
-		pv := pn.NewPackage()
+		pv := pn.NewPackage(m.Alloc)
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 		m.SetActivePackage(pv)

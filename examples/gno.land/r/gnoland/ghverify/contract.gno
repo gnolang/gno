@@ -4,10 +4,10 @@ import (
 	"errors"
 	"std"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/gnorkle/feeds/static"
 	"gno.land/p/demo/gnorkle/gnorkle"
 	"gno.land/p/demo/gnorkle/message"
+	"gno.land/p/nt/avl"
 )
 
 const (
@@ -101,7 +101,7 @@ func GnorkleEntrypoint(cur realm, message string) string {
 }
 
 // SetOwner transfers ownership of the contract to the given address.
-func SetOwner(owner std.Address) {
+func SetOwner(_ realm, owner std.Address) {
 	if ownerAddress != std.OriginCaller() {
 		panic("only the owner can set a new owner")
 	}
