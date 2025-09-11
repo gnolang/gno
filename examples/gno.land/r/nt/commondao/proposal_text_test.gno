@@ -149,8 +149,8 @@ func TestTextPropDefinitionTally(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var (
-				record  commondao.VotingRecord
 				p       = TextPropDefinition{quorum: commondao.QuorumTwoThirds}
+				record  commondao.VotingRecord
 				members = commondao.NewMemberStorage()
 			)
 
@@ -162,7 +162,9 @@ func TestTextPropDefinitionTally(t *testing.T) {
 				record.AddVote(v)
 			}
 
-			success, err := p.Tally(record.Readonly(), commondao.NewMemberSet(members))
+			ctx := commondao.MustNewVotingContext(&record, members)
+
+			success, err := p.Tally(ctx)
 
 			if tc.err != nil {
 				urequire.ErrorIs(t, err, tc.err, "expect an error")
