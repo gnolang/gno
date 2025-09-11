@@ -62,6 +62,14 @@ type (
 		createdAt      time.Time
 	}
 
+	// VotingContext contains current voting context, which includes a voting
+	// record for the votes that has been submitted for a proposal and also
+	// the list of DAO members.
+	VotingContext struct {
+		VotingRecord ReadonlyVotingRecord
+		Members      ReadonlyMemberStorage
+	}
+
 	// ProposalDefinition defines an interface for custom proposal definitions.
 	// These definitions define proposal content and behavior, they esentially
 	// allow the definition for different proposal types.
@@ -80,9 +88,9 @@ type (
 		VotingPeriod() time.Duration
 
 		// Tally counts the number of votes and verifies if proposal passes.
-		// It receives a readonly record containing the votes that has been
-		// submitted for the proposal and also the list of current DAO members.
-		Tally(ReadonlyVotingRecord, ReadonlyMemberStorage) (passes bool, _ error) // TODO: Use a single type
+		// It receives a voting context containing a readonly record with the votes
+		// that has been submitted for the proposal and also the list of DAO members.
+		Tally(VotingContext) (passes bool, _ error)
 	}
 
 	// Validable defines an interface for proposal definitions that require state validation.

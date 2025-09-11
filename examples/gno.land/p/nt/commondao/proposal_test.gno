@@ -319,7 +319,7 @@ func (testPropDef) Body() string                  { return "" }
 func (d testPropDef) VotingPeriod() time.Duration { return d.votingPeriod }
 func (d testPropDef) Validate() error             { return d.validationErr }
 
-func (d testPropDef) Tally(ReadonlyVotingRecord, ReadonlyMemberStorage) (bool, error) {
+func (d testPropDef) Tally(VotingContext) (bool, error) {
 	return d.tallyResult, d.tallyErr
 }
 

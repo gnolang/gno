@@ -17,14 +17,11 @@ var (
 
 type testPropDef struct{}
 
-func (testPropDef) Title() string               { return "" }
-func (testPropDef) Body() string                { return "" }
-func (testPropDef) VotingPeriod() time.Duration { return 0 }
-func (testPropDef) Execute(cur realm) error     { return nil }
-
-func (testPropDef) Tally(commondao.ReadonlyVotingRecord, commondao.ReadonlyMemberStorage) (bool, error) {
-	return true, nil
-}
+func (testPropDef) Title() string                               { return "" }
+func (testPropDef) Body() string                                { return "" }
+func (testPropDef) VotingPeriod() time.Duration                 { return 0 }
+func (testPropDef) Execute(cur realm) error                     { return nil }
+func (testPropDef) Tally(commondao.VotingContext) (bool, error) { return true, nil }
 
 func init() {
 	dao = commondao.New(commondao.WithMember(member))
