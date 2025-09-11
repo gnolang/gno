@@ -140,5 +140,5 @@ func accountSlugAddr(addr address, slug string) address {
 		return addr
 	}
 	key := addr.String() + "/" + slug
-	return chain.DerivePkgAddr(key) // temporarily using this helper
+	return chain.DerivePkgAddress(key) // temporarily using this helper
 }

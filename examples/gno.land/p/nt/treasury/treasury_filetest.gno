@@ -30,8 +30,8 @@ func checkBalanceAndHistory(t *treasury.Treasury, bankerIDs []string) {
 
 func main() {
 	// Define addresses for the sender (owner) and destination.
-	ownerAddr := chain.DerivePkgAddr("gno.land/r/treasury/main")
-	destAddr := chain.DerivePkgAddr("gno.land/r/dest/main")
+	ownerAddr := chain.DerivePkgAddress("gno.land/r/treasury/main")
+	destAddr := chain.DerivePkgAddress("gno.land/r/dest/main")
 
 	// Try to create a Treasury instance with no bankers.
 	_, err := treasury.New(nil)

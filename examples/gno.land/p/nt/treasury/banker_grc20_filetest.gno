@@ -26,8 +26,8 @@ func createToken(name string, toMint address) *grc20.Token {
 
 func main() {
 	// Define addresses for the sender (owner) and destination.
-	ownerAddr := chain.DerivePkgAddr("gno.land/r/treasury/main")
-	destAddr := chain.DerivePkgAddr("gno.land/r/dest/main")
+	ownerAddr := chain.DerivePkgAddress("gno.land/r/treasury/main")
+	destAddr := chain.DerivePkgAddress("gno.land/r/dest/main")
 
 	// Try to create a GRC20Banker using a nil lister.
 	gbanker, err := treasury.NewGRC20Banker(nil)

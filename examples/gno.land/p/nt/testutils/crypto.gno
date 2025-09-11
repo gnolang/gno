@@ -1,16 +1,20 @@
 package testutils
 
-import "chain"
+import "crypto/bech32"
 
 func TestAddress(name string) address {
 	if len(name) > 20 {
 		panic("address name cannot be greater than 20 bytes")
 	}
-	addr := [20]byte{}
-	// TODO: use strings.RepeatString or similar.
-	// NOTE: I miss python's "".Join().
-	blanks := "____________________"
-	copy(addr[:], []byte(blanks))
-	copy(addr[:], []byte(name))
-	return address(chain.EncodeBech32("g", addr))
+	addr := []byte("____________________")
+	copy(addr[:], name)
+	converted, err := bech32.ConvertBits(addr, 8, 5, true)
+	if err != nil {
+		panic(err)
+	}
+	enc, err := bech32.Encode("g", converted)
+	if err != nil {
+		panic(err)
+	}
+	return address(enc)
 }

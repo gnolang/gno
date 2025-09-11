@@ -1,7 +1,6 @@
 package ctg
 
 import (
-	"chain"
 	"testing"
 )
 
@@ -20,21 +19,21 @@ func TestConvertKnownAddress(t *testing.T) {
 }
 
 func TestConvertCosmosToGno(t *testing.T) {
-	decoded := [20]byte{
-		0x01, 0x02, 0x03, 0x04, 0x05,
-		0x06, 0x07, 0x08, 0x09, 0x0a,
-		0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-		0x10, 0x11, 0x12, 0x13, 0x14,
+	decoded := []byte{
+		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+		0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
+		0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+		0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x00,
 	}
 
-	cosmosAddr := chain.EncodeBech32("cosmos", decoded)
-	wantGno := chain.EncodeBech32("g", decoded)
+	cosmosAddr := mustEncode("cosmos", decoded)
+	wantGno := mustEncode("g", decoded)
 
-	got, err := ConvertCosmosToGno(cosmosAddr.String())
+	got, err := ConvertCosmosToGno(cosmosAddr)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got != wantGno {
+	if string(got) != wantGno {
 		t.Fatalf("got %s, want %s", got, wantGno)
 	}
 
@@ -44,46 +43,46 @@ func TestConvertCosmosToGno(t *testing.T) {
 	}
 
 	// wrong prefix
-	gAddr := chain.EncodeBech32("g", decoded)
-	if _, err := ConvertCosmosToGno(gAddr.String()); err == nil {
+	gAddr := mustEncode("g", decoded)
+	if _, err := ConvertCosmosToGno(gAddr); err == nil {
 		t.Fatalf("expected error for non-cosmos prefix")
 	}
 }
 
 func TestConvertAnyToGno(t *testing.T) {
-	payload := [20]byte{
-		0x01, 0x02, 0x03, 0x04, 0x05,
-		0x06, 0x07, 0x08, 0x09, 0x0a,
-		0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-		0x10, 0x11, 0x12, 0x13, 0x14,
+	payload := []byte{
+		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+		0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
+		0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+		0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x00,
 	}
 
 	tests := []struct {
 		name    string
-		input   address
-		want    address
+		input   string
+		want    string
 		wantErr bool
 	}{
 		{
 			name:  "cosmos→g",
-			input: chain.EncodeBech32("cosmos", payload),
-			want:  chain.EncodeBech32("g", payload),
+			input: mustEncode("cosmos", payload),
+			want:  mustEncode("g", payload),
 		},
 		{
 			name:  "osmo→g",
-			input: chain.EncodeBech32("osmo", payload),
-			want:  chain.EncodeBech32("g", payload),
+			input: mustEncode("osmo", payload),
+			want:  mustEncode("g", payload),
 		},
 		{
 			name:    "invalid bech32",
-			input:   address("xyz123"),
+			input:   "xyz123",
 			wantErr: true,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := ConvertAnyToGno(tc.input.String())
+			got, err := ConvertAnyToGno(tc.input)
 			if tc.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got nil")
@@ -93,7 +92,7 @@ func TestConvertAnyToGno(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if got != tc.want {
+			if string(got) != tc.want {
 				t.Fatalf("got %s, want %s", got, tc.want)
 			}
 		})
@@ -101,21 +100,21 @@ func TestConvertAnyToGno(t *testing.T) {
 }
 
 func TestConvertGnoToAny(t *testing.T) {
-	payload := [20]byte{
-		0x01, 0x02, 0x03, 0x04, 0x05,
-		0x06, 0x07, 0x08, 0x09, 0x0a,
-		0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-		0x10, 0x11, 0x12, 0x13, 0x14,
+	payload := []byte{
+		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+		0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
+		0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+		0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x00,
 	}
 
-	gno := chain.EncodeBech32("g", payload)
+	gno := address(mustEncode("g", payload))
 
 	t.Run("g→cosmos", func(t *testing.T) {
 		got, err := ConvertGnoToAny("cosmos", gno)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if got != chain.EncodeBech32("cosmos", payload).String() {
+		if got != mustEncode("cosmos", payload) {
 			t.Fatalf("conversion incorrect: %s", got)
 		}
 	})
@@ -125,7 +124,7 @@ func TestConvertGnoToAny(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if got != chain.EncodeBech32("foobar", payload).String() {
+		if got != mustEncode("foobar", payload) {
 			t.Fatalf("conversion incorrect: %s", got)
 		}
 	})
@@ -135,14 +134,14 @@ func TestConvertGnoToAny(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if got != chain.EncodeBech32("osmo", payload).String() {
+		if got != mustEncode("osmo", payload) {
 			t.Fatalf("conversion incorrect: %s", got)
 		}
 	})
 
 	t.Run("wrong source prefix", func(t *testing.T) {
-		cosmos := chain.EncodeBech32("cosmos", payload)
-		if _, err := ConvertGnoToAny("g", cosmos); err == nil {
+		cosmos := mustEncode("cosmos", payload)
+		if _, err := ConvertGnoToAny("g", address(cosmos)); err == nil {
 			t.Fatalf("expected error for non-g source prefix")
 		}
 	})

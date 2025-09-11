@@ -242,7 +242,7 @@ type ContractAuthority struct {
 func NewContractAuthority(path string, handler PrivilegedActionHandler) *ContractAuthority {
 	return &ContractAuthority{
 		contractPath:    path,
-		contractAddr:    chain.DerivePkgAddr(path),
+		contractAddr:    chain.DerivePkgAddress(path),
 		contractHandler: handler,
 		proposer:        NewAutoAcceptAuthority(), // default: anyone can propose
 	}
@@ -262,7 +262,7 @@ func NewRestrictedContractAuthority(path string, handler PrivilegedActionHandler
 	}
 	return &ContractAuthority{
 		contractPath:    path,
-		contractAddr:    chain.DerivePkgAddr(path),
+		contractAddr:    chain.DerivePkgAddress(path),
 		contractHandler: handler,
 		proposer:        proposer,
 	}

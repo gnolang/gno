@@ -13,7 +13,7 @@ import (
 
 var (
 	addr1 = testutils.TestAddress("test1")
-	addrc = chain.DerivePkgAddr("gno.land/r/gnoland/wugnot")
+	addrc = chain.DerivePkgAddress("gno.land/r/gnoland/wugnot")
 )
 
 func main() {

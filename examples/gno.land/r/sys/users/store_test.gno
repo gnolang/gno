@@ -17,7 +17,7 @@ var (
 	bob       = "bob"
 	bobAddr   = testutils.TestAddress(bob)
 
-	whitelistedCallerAddr = chain.DerivePkgAddr(gUsersV1Path)
+	whitelistedCallerAddr = chain.DerivePkgAddress(gUsersV1Path)
 )
 
 func TestRegister(t *testing.T) {

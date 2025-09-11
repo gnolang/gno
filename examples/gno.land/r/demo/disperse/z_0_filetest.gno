@@ -12,8 +12,8 @@ import (
 )
 
 func main() {
-	mainAddr := chain.DerivePkgAddr("gno.land/r/demo/main")
-	disperseAddr := chain.DerivePkgAddr("gno.land/r/demo/disperse")
+	mainAddr := chain.DerivePkgAddress("gno.land/r/demo/main")
+	disperseAddr := chain.DerivePkgAddress("gno.land/r/demo/disperse")
 	beneficiary1 := address("g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0")
 	beneficiary2 := address("g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c")
 

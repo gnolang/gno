@@ -4,7 +4,7 @@
 package faker
 
 import (
-	"chain"
+	"crypto/bech32"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -171,15 +171,17 @@ func (f *Faker) Phone() string {
 	return ufmt.Sprintf("(%d) %d-%d", area, exchange, number)
 }
 
-// StdAddress returns a random schain.Address.
+// StdAddress returns a random chain.Address.
 func (f *Faker) StdAddress() address {
-	var rawAddr [20]byte
-
-	for i := 0; i < 20; i++ {
-		rawAddr[i] = byte(f.rng.IntN(256))
+	rawAddr := make([]byte, 32)
+	for i := 0; i < 32; i++ {
+		rawAddr[i] = byte(f.rng.IntN(32))
 	}
 
-	addr := chain.EncodeBech32("g", rawAddr)
+	addr, err := bech32.Encode("g", rawAddr)
+	if err != nil {
+		panic(err)
+	}
 
 	return address(addr)
 }

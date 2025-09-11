@@ -12,8 +12,8 @@ import (
 
 func main() {
 	// Define addresses for the sender (owner) and destination.
-	ownerAddr := chain.DerivePkgAddr("gno.land/r/treasury/main")
-	destAddr := chain.DerivePkgAddr("gno.land/r/dest/main")
+	ownerAddr := chain.DerivePkgAddress("gno.land/r/treasury/main")
+	destAddr := chain.DerivePkgAddress("gno.land/r/dest/main")
 
 	// Create a CoinsBanker.
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)

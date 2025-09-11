@@ -12,7 +12,7 @@ const gUsersV1Path = "gno.land/r/gnoland/users/v1" // preregistered with store w
 var controllers = addrset.Set{} // caller whitelist
 
 func init() {
-	controllers.Add(chain.DerivePkgAddr(gUsersV1Path)) // initially whitelisted
+	controllers.Add(chain.DerivePkgAddress(gUsersV1Path)) // initially whitelisted
 }
 
 // ProposeNewController allows GovDAO to add a whitelisted caller

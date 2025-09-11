@@ -9,9 +9,9 @@ import (
 )
 
 func main() {
-	banktestAddr := chain.DerivePkgAddr("gno.land/r/archive/banktest")
+	banktestAddr := chain.DerivePkgAddress("gno.land/r/archive/banktest")
 
-	mainaddr := chain.DerivePkgAddr("gno.land/r/demo/bank1")
+	mainaddr := chain.DerivePkgAddress("gno.land/r/demo/bank1")
 	testing.SetOriginCaller(mainaddr)
 
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)

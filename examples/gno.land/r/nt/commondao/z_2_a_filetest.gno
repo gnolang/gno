@@ -14,7 +14,7 @@ const (
 	name  = "Foo"
 )
 
-var realmAddr = chain.DerivePkgAddr("gno.land/r/demo/test")
+var realmAddr = chain.DerivePkgAddress("gno.land/r/demo/test")
 
 func init() {
 	// Invite a user to be able to start creating DAOs

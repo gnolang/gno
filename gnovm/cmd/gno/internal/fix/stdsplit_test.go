@@ -553,7 +553,7 @@ func main() {
 
 	// These should be converted
 	std.AssertOriginCall()
-	std.DecodeBech32("g1337")
+	std.DerivePkgAddr("g1337")
 }`
 
 	expected := `package test
@@ -571,7 +571,7 @@ func main() {
 
 	// These should be converted
 	runtime.AssertOriginCall()
-	chain.DecodeBech32("g1337")
+	chain.DerivePkgAddress("g1337")
 }`
 
 	fset := token.NewFileSet()
