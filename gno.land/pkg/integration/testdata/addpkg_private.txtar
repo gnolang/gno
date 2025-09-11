@@ -161,7 +161,7 @@ private = true
 package privaterealm
 
 import (
-    "gno.land/p/demo/avl"
+    "gno.land/p/nt/avl"
     "gno.land/r/foobar/publicrealm"
 )
 
@@ -519,7 +519,7 @@ gno = "0.9"
 package publicrealm
 
 import (
-    "gno.land/p/demo/avl"
+    "gno.land/p/nt/avl"
 )
 
 var savedTree *avl.Tree
