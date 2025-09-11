@@ -1956,42 +1956,39 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	// Not cross nor crossing.
 	// DO NOT set DidCrossing for any implicit crossing.
 	if recv.IsDefined() { // method call
-		obj := recv.GetFirstObject(m.Store)
-		if obj == nil { // nil receiver
-			if pv.IsRealm() {
-				// cross into fv's realm
-				m.Realm = pv.Realm
-			}
-			return
+		// Cross into fv's Realm
+		if pv.IsRealm() {
+			m.Realm = pv.Realm
 		} else {
-			// Cross into fv's Realm
-			if pv.IsRealm() {
-				m.Realm = pv.Realm
-			} else {
-				recvOID := obj.GetObjectInfo().ID
-				if recvOID.IsZero() {
-					// do nothing
-					return
-				}
-
-				// same realm
-				if m.Realm != nil && recvOID.PkgID == m.Realm.ID {
-					// no switch
-					return
-				}
-				// Otherwise implicit switch to storage realm.
-				// Neither cross nor didswitch.
-				var rlm *Realm
-				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
-				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				// XXX, consider this. it's possible to cross into nil realm(for p),
-				// mutating global var and discared.
-				// see files/zrealm_borrow7.gno, files/import4.gno
-				rlm = objpv.GetRealm()
-				m.Realm = rlm
+			obj := recv.GetFirstObject(m.Store)
+			if obj == nil {
+				// do nothing
+				return
 			}
-			return
+
+			recvOID := obj.GetObjectInfo().ID
+			if recvOID.IsZero() {
+				// do nothing
+				return
+			}
+
+			// same realm
+			if m.Realm != nil && recvOID.PkgID == m.Realm.ID {
+				// no switch
+				return
+			}
+			// Otherwise implicit switch to storage realm.
+			// Neither cross nor didswitch.
+			var rlm *Realm
+			recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
+			objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
+			// XXX, consider this. it's possible to cross into nil realm(for p),
+			// mutating global var and discared.
+			// see files/zrealm_borrow7.gno, files/import4.gno
+			rlm = objpv.GetRealm()
+			m.Realm = rlm
 		}
+		return
 	} else { // function without receiver, nor explicit cross
 		if pv.Realm == m.Realm {
 			return
