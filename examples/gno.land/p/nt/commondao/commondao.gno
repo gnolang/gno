@@ -267,12 +267,7 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 }
 
 func (dao *CommonDAO) checkProposalPasses(p *Proposal) error {
-	members := MustNewReadonlyMemberStorage(dao.Members())
-	ctx := VotingContext{
-		VotingRecord: p.VotingRecord().Readonly(),
-		Members:      *members,
-	}
-
+	ctx := MustNewVotingContext(p.VotingRecord(), dao.Members())
 	passes, err := p.Definition().Tally(ctx)
 	if err != nil {
 		return err

@@ -62,14 +62,6 @@ type (
 		createdAt      time.Time
 	}
 
-	// VotingContext contains current voting context, which includes a voting
-	// record for the votes that has been submitted for a proposal and also
-	// the list of DAO members.
-	VotingContext struct {
-		VotingRecord ReadonlyVotingRecord
-		Members      ReadonlyMemberStorage
-	}
-
 	// ProposalDefinition defines an interface for custom proposal definitions.
 	// These definitions define proposal content and behavior, they esentially
 	// allow the definition for different proposal types.
