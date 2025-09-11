@@ -5,17 +5,20 @@ include gov_test.mk
 include multi_ops_test.mk
 
 # Complete flow that includes both GNS-WUGNOT and BAR-WUGNOT operations
-full-workflow: transfer-base-token wrap-ugnot wrap-ugnot-all pool-create-gns-wugnot-default mint-gns-gnot enable-irm enable-lltv transfer-ownership market-create-gns-wugnot supply-assets-gns-wugnot supply-collateral-gns-wugnot borrow-gns \
+full-workflow: transfer-base-token wrap-ugnot wrap-ugnot-all pool-create-gns-wugnot-default mint-gns-gnot enable-irms enable-lltv transfer-ownership market-create-gns-wugnot supply-assets-gns-wugnot supply-collateral-gns-wugnot borrow-gns \
 	pool-create-bar-wugnot-default mint-bar-wugnot market-create-bar-wugnot supply-assets-bar-wugnot supply-collateral-bar-wugnot borrow-bar \
 	check-position-gns-wugnot check-position-bar-wugnot
 	@echo "************ WORKFLOW FINISHED ************"
 
-tokens-markets: transfer-base-token wrap-ugnot wrap-ugnot-all pool-create-gns-wugnot-default mint-gns-gnot enable-irm enable-lltv transfer-ownership market-create-gns-wugnot pool-create-bar-wugnot-default mint-bar-wugnot market-create-bar-wugnot
+tokens-markets: transfer-base-token wrap-ugnot wrap-ugnot-all pool-create-gns-wugnot-default mint-gns-gnot enable-irms enable-lltv transfer-ownership market-create-gns-wugnot pool-create-bar-wugnot-default mint-bar-wugnot market-create-bar-wugnot
 
-# Enable the linear IRM
-enable-irm:
+# Enable both linear and kink IRMs
+enable-irms:
 	$(info ************ Enable linear IRM ************)
 	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos/core -func EnableIRM -args "linear" -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	@echo
+	$(info ************ Enable kink IRM ************)
+	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos/core -func EnableIRM -args "kink" -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
 	@echo
 
 # Enable LLTV (75% = 75 as int64)
@@ -33,7 +36,7 @@ transfer-ownership:
 # Test market creation with GNS and WUGNOT
 market-create-gns-wugnot:
 	$(info ************ Test creating market with GNS (supply/borrow) and WUGNOT (collateral) ************)
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos/core -func CreateMarket -args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" -args false -args "linear" -args 75 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos/core -func CreateMarket -args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" -args false -args "kink" -args 75 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
 	@echo
 
 set-fee-gns-wugnot:

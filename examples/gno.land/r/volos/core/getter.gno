@@ -377,11 +377,6 @@ func GetBorrowRate(marketId string) *u256.Uint {
 
 	market, params := GetMarket(marketId)
 
-	// If no borrows or no IRM, rate is zero
-	if market.TotalBorrowAssets.IsZero() || params.IRM == "" {
-		return u256.Zero()
-	}
-
 	// Get IRM and calculate current borrow rate
 	irm := GetIRM(params.IRM)
 	return irm.BorrowRate(market.TotalSupplyAssets, market.TotalBorrowAssets)

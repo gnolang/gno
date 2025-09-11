@@ -80,8 +80,8 @@ func CalculateSupplyRate(marketId string) *u256.Uint {
 
 	market, params := GetMarket(marketId)
 
-	// If no borrows or no supply or no IRM, rate is zero
-	if market.TotalBorrowAssets.IsZero() || market.TotalSupplyAssets.IsZero() || params.IRM == "" {
+	// If total borrow is zero, supply rate is zero (no utilization)
+	if market.TotalBorrowAssets.IsZero() {
 		return u256.Zero()
 	}
 
@@ -102,9 +102,6 @@ func CalculateSupplyRate(marketId string) *u256.Uint {
 func CalculateBorrowAPR(marketId string) *u256.Uint {
 	// Get the per-second borrow rate
 	borrowRatePerSecond := GetBorrowRate(marketId)
-	if borrowRatePerSecond.IsZero() {
-		return u256.Zero()
-	}
 
 	// Multiply by seconds per year to get APR
 	secondsPerYear := u256.NewUint(365 * 24 * 60 * 60)
