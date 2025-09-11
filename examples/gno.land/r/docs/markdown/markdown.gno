@@ -785,7 +785,7 @@ gno.land/r/docs/markdown$source
 
 ### Mathematics
 
-Gno-Flavored Markdown supports mathematical expressions using LaTeX syntax, which are rendered as MathML for proper mathematical display.
+Supports mathematical expressions using LaTeX syntax, which are rendered as MathML for proper mathematical display.
 
 #### Inline Math
 
