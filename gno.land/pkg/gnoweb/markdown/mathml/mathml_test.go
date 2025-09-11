@@ -658,13 +658,6 @@ func TestMMLNode_Write(t *testing.T) {
 	}
 }
 
-
-
-
-
-
-
-
 func TestCmdText(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -676,7 +669,6 @@ func TestCmdText(t *testing.T) {
 	args := []*TokenBuffer{}
 	cmd_text(converter, "text", false, ctxVarNormal, args, NewTokenBuffer([]Token{}))
 }
-
 
 func TestCmdSideset(t *testing.T) {
 	defer func() {
@@ -699,7 +691,6 @@ func TestCmdUndersetOverset(t *testing.T) {
 	args := []*TokenBuffer{}
 	cmd_undersetOverset(converter, "undersetOverset", false, ctxVarNormal, args, NewTokenBuffer([]Token{}))
 }
-
 
 func TestCmdMod(t *testing.T) {
 	defer func() {
@@ -954,7 +945,6 @@ func TestCmdMod_Extended(t *testing.T) {
 	cmd_mod(converter, "mod", false, ctxVarNormal, args, NewTokenBuffer([]Token{{Value: "z"}}))
 }
 
-
 func TestParseAlignmentString(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -976,7 +966,6 @@ func TestParseAlignmentString(t *testing.T) {
 	}
 }
 
-
 func TestSetAlignmentStyle(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -994,7 +983,6 @@ func TestSetAlignmentStyle(t *testing.T) {
 		})
 	}
 }
-
 
 func TestMathMLConverter_Render(t *testing.T) {
 	tests := []struct {
@@ -2357,7 +2345,6 @@ func TestExtMath_DelimiterDetection(t *testing.T) {
 	}
 }
 
-
 func TestParseTex_EnvironmentWithArgs(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -2388,7 +2375,7 @@ func TestParseTex_EnvironmentWithArgs(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ConvertInline failed: %v", err)
 			}
-			
+
 			if !strings.Contains(output, tt.expected) {
 				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
 			}
@@ -2441,7 +2428,7 @@ func TestParseTex_FenceDelimiters(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ConvertInline failed: %v", err)
 			}
-			
+
 			for _, expected := range tt.expected {
 				if !strings.Contains(output, expected) {
 					t.Errorf("Expected output to contain %q, got %q", expected, output)
@@ -2481,7 +2468,7 @@ func TestParseTex_FenceForms(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ConvertInline failed: %v", err)
 			}
-			
+
 			for _, expected := range tt.expected {
 				if !strings.Contains(output, expected) {
 					t.Errorf("Expected output to contain %q, got %q", expected, output)
@@ -2521,14 +2508,13 @@ func TestParseTex_StretchyFences(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ConvertInline failed: %v", err)
 			}
-			
+
 			if !strings.Contains(output, tt.expected) {
 				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
 			}
 		})
 	}
 }
-
 
 func TestCmdNot(t *testing.T) {
 	tests := []struct {
@@ -2595,14 +2581,13 @@ func TestCmdNot(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ConvertInline failed: %v", err)
 			}
-			
+
 			if !strings.Contains(output, tt.expected) {
 				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
 			}
 		})
 	}
 }
-
 
 func TestCmdPrescript(t *testing.T) {
 	tests := []struct {
@@ -2639,14 +2624,13 @@ func TestCmdPrescript(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ConvertInline failed: %v", err)
 			}
-			
+
 			if !strings.Contains(output, tt.expected) {
 				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
 			}
 		})
 	}
 }
-
 
 func TestCmdCancel(t *testing.T) {
 	tests := []struct {
@@ -2683,14 +2667,13 @@ func TestCmdCancel(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ConvertInline failed: %v", err)
 			}
-			
+
 			if !strings.Contains(output, tt.expected) {
 				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
 			}
 		})
 	}
 }
-
 
 func TestCmdMultirow(t *testing.T) {
 	tests := []struct {
@@ -2727,14 +2710,13 @@ func TestCmdMultirow(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ConvertInline failed: %v", err)
 			}
-			
+
 			if !strings.Contains(output, tt.expected) {
 				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
 			}
 		})
 	}
 }
-
 
 func TestCmdSubstack(t *testing.T) {
 	tests := []struct {
@@ -2771,14 +2753,13 @@ func TestCmdSubstack(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ConvertInline failed: %v", err)
 			}
-			
+
 			if !strings.Contains(output, tt.expected) {
 				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
 			}
 		})
 	}
 }
-
 
 func TestCmdSqrt(t *testing.T) {
 	tests := []struct {
@@ -2820,14 +2801,13 @@ func TestCmdSqrt(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ConvertInline failed: %v", err)
 			}
-			
+
 			if !strings.Contains(output, tt.expected) {
 				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
 			}
 		})
 	}
 }
-
 
 func TestCmdUnderOverBrace(t *testing.T) {
 	tests := []struct {
@@ -2874,14 +2854,13 @@ func TestCmdUnderOverBrace(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ConvertInline failed: %v", err)
 			}
-			
+
 			if !strings.Contains(output, tt.expected) {
 				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
 			}
 		})
 	}
 }
-
 
 func TestProcessTable(t *testing.T) {
 	tests := []struct {
@@ -2933,7 +2912,7 @@ func TestProcessTable(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ConvertInline failed: %v", err)
 			}
-			
+
 			if !strings.Contains(output, tt.expected) {
 				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
 			}
@@ -2981,7 +2960,7 @@ func TestProcessEnv(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ConvertInline failed: %v", err)
 			}
-			
+
 			if !strings.Contains(output, tt.expected) {
 				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
 			}
@@ -3029,7 +3008,7 @@ func TestCmdTextcolor(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ConvertInline failed: %v", err)
 			}
-			
+
 			if !strings.Contains(output, tt.expected) {
 				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
 			}
@@ -3072,7 +3051,7 @@ func TestCmdClass(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ConvertInline failed: %v", err)
 			}
-			
+
 			if !strings.Contains(output, tt.expected) {
 				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
 			}
@@ -3115,7 +3094,7 @@ func TestCmdRaisebox(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ConvertInline failed: %v", err)
 			}
-			
+
 			if !strings.Contains(output, tt.expected) {
 				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
 			}
@@ -3158,7 +3137,7 @@ func TestCmdMathop(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ConvertInline failed: %v", err)
 			}
-			
+
 			if !strings.Contains(output, tt.expected) {
 				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
 			}
