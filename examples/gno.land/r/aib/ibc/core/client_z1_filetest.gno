@@ -76,9 +76,9 @@ func main() {
 				NextValidatorsHash: nextvalhash[:],
 				ConsensusHash:      consensushash[:],
 				AppHash:            apphash[:],
-				LastResultsHash:    nil,                            //FIXME?
-				EvidenceHash:       nil,                            //FIXME?
-				ProposerAddress:    []byte("proposer__0123456789"), // NOTE: must size 20bytes
+				LastResultsHash:    nil, //FIXME?
+				EvidenceHash:       nil, //FIXME?
+				ProposerAddress:    genAddr("proposer"),
 			},
 			Commit: &tendermint.Commit{
 				Height: 5,
@@ -90,7 +90,13 @@ func main() {
 						Hash:  parsethash[:], //FIXME
 					},
 				},
-				Signatures: []tendermint.CommitSig{}, // FIXME
+				Signatures: []tendermint.CommitSig{
+					{
+						BlockIdFlag:      tendermint.BlockIDFlagCommit,
+						ValidatorAddress: genAddr("val1"),
+						Signature:        genSignature("valsign1"), // XXX need more than random bytes ?
+					},
+				},
 			},
 			ValidatorSet:      &tendermint.ValidatorSet{},
 			TrustedHeight:     types.Height{2, 1},
@@ -100,6 +106,24 @@ func main() {
 	core.UpdateClient(cross, clientID1, header)
 	// TODO assertion of updated client
 
+}
+
+// TODO move this in a testing package
+func genAddr(prefix string) []byte {
+	return genBytes(prefix, tendermint.AddressSize)
+}
+
+func genSignature(prefix string) []byte {
+	return genBytes(prefix, tendermint.MaxSignatureSize)
+}
+
+func genBytes(prefix string, size int) []byte {
+	bz := []byte(prefix)
+	// suffix with zeros to make it size bytes long
+	for len(bz) < size {
+		bz = append(bz, 0)
+	}
+	return bz
 }
 
 // Output:
