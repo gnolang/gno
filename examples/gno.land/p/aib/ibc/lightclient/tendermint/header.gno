@@ -2,6 +2,7 @@ package tendermint
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"time"
 
@@ -50,7 +51,8 @@ func (h MsgHeader) ValidateBasic() error {
 		return ufmt.Errorf("header and commit height mismatch: %d vs %d", h.Header.Height, h.Commit.Height)
 	}
 	if hhash, chash := h.Header.Hash(), h.Commit.BlockID.Hash; !bytes.Equal(hhash, chash) {
-		return ufmt.Errorf("commit signs block %X, header is block %X", chash, hhash)
+		cs, hs := hex.EncodeToString(chash), hex.EncodeToString(hhash)
+		return ufmt.Errorf("commit signs block %q, header is block %q", cs, hs)
 	}
 
 	// TrustedHeight is less than Header for updates and misbehaviour
