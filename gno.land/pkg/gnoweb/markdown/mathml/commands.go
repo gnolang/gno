@@ -218,8 +218,8 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 		return makeSymbol(sym, tok, context)
 	}
 	if node, ok := precompiled_commands[tok.Value]; ok {
-		// we must wrap this node in a new mrow since all instances point to the same memory location. Thius way, we can
-		// perform modifcations on the newly created mrow without affecting all other instances of the precompiled
+		// We must wrap this node in a new mrow since all instances point to the same memory location. This way, we can
+		// perform modifications on the newly created mrow without affecting all other instances of the precompiled
 		// command.
 		return NewMMLNode("mrow").AppendChild(node).SetProps(node.Properties)
 	}
@@ -327,7 +327,7 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 	} else if ch, ok := accents[name]; ok {
 		n = NewMMLNode("mover").SetTrue("accent")
 		acc := NewMMLNode("mo", string(ch))
-		acc.SetTrue("stretchy") // once more for chrome...
+		acc.SetTrue("stretchy")
 		tempbuf, err := b.GetNextExpr()
 		if errors.Is(err, ErrTokenBufferSingle) {
 			tempbuf, _ = b.GetNextN(1, true)
@@ -340,7 +340,7 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 	} else if ch, ok := accents_below[name]; ok {
 		n = NewMMLNode("munder").SetTrue("accent")
 		acc := NewMMLNode("mo", string(ch))
-		acc.SetTrue("stretchy") // once more for chrome...
+		acc.SetTrue("stretchy")
 		tempbuf, err := b.GetNextExpr()
 		if errors.Is(err, ErrTokenBufferSingle) {
 			tempbuf, _ = b.GetNextN(1, true)

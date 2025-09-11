@@ -207,7 +207,7 @@ func cmd_substack(converter *MathMLConverter, name string, star bool, ctx parseC
 	}
 	n := converter.ParseTex(args[0], ctx|ctxTable)
 	processTable(n)
-	n.SetAttr("rowspacing", "0") // Incredibly, chrome does this by default
+	n.SetAttr("rowspacing", "0")
 	n.SetFalse("displaystyle")
 	return n
 }

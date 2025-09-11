@@ -137,7 +137,7 @@ func (converter *MathMLConverter) ParseTex(b *TokenBuffer, context parseContext,
 		if context&ctxTable > 0 {
 			switch tok.Value {
 			case "&":
-				// dont count an escaped \& command!
+				// Do not count an escaped \& command
 				if tok.Kind&tokReserved > 0 {
 					child = NewMMLNode()
 					child.Properties = propCellSep

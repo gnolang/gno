@@ -189,7 +189,6 @@ func (p *texBlockRegionParser) Open(parent ast.Node, reader text.Reader, pc pars
 		return node, parser.NoChildren
 	}
 
-	// If the closing delimiter is on the same line THEN THIS IS NOT A BLOCK. IT IS INLINE!!!!
 	if flavor&delimeter_ams > 0 {
 		if bytes.Contains(line, _inlineclose) {
 			return nil, parser.NoChildren

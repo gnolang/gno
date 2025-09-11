@@ -702,7 +702,7 @@ func postProcessTokens(toks []Token) ([]Token, error) {
 	if err != nil {
 		return out, err
 	}
-	// Indicies could have changed after processing environments!!
+	// Indices could have changed after processing environments
 	err = matchBracesCritical(out, tokCurly)
 	if err != nil {
 		return out, err

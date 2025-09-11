@@ -3274,7 +3274,6 @@ var symbolTable = map[string]symbol{
 		entity: "&zeta;",
 		kind:   sym_alphabetic,
 	},
-	// TODO: quality check these; scraped from Temml
 	"AA":                      {char: "Å"},
 	"AE":                      {char: "Æ"},
 	"Angstrom":                {char: "Å"},
@@ -3467,33 +3466,6 @@ func init() {
 	symbolTable["unicodecdots"] = symbolTable["cdots"]
 	symbolTable["unlhd"] = symbolTable["trianglelefteq"]
 	symbolTable["unrhd"] = symbolTable["trianglerighteq"]
-	// TODO: Quality check these
-	// symbolTable["leftmoon"] = symbolTable["rightmoon"] // TODO: Implement mirroring
-	// symbolTable["smallfrown"] = symbolTable["frown"]
-	//symbolTable["thetasym"] = symbolTable["vartheta"]
-	//symbolTable["upalpha"] = symbolTable["alpha"]
-	//symbolTable["upbeta"] = symbolTable["beta"]
-	//symbolTable["upchi"] = symbolTable["chi"]
-	//symbolTable["updelta"] = symbolTable["delta"]
-	//symbolTable["upepsilon"] = symbolTable["epsilon"]
-	//symbolTable["upeta"] = symbolTable["eta"]
-	//symbolTable["upgamma"] = symbolTable["gamma"]
-	//symbolTable["upiota"] = symbolTable["iota"]
-	//symbolTable["upkappa"] = symbolTable["kappa"]
-	//symbolTable["upmu"] = symbolTable["mu"]
-	//symbolTable["upnu"] = symbolTable["nu"]
-	//symbolTable["upomega"] = symbolTable["omega"]
-	//symbolTable["upomicron"] = symbolTable["omicron"]
-	//symbolTable["upphi"] = symbolTable["phi"]
-	//symbolTable["uppi"] = symbolTable["pi"]
-	//symbolTable["uppsi"] = symbolTable["psi"]
-	//symbolTable["uprho"] = symbolTable["rho"]
-	//symbolTable["upsigma"] = symbolTable["sigma"]
-	//symbolTable["uptau"] = symbolTable["tau"]
-	//symbolTable["uptheta"] = symbolTable["theta"]
-	//symbolTable["upupsilon"] = symbolTable["upsilon"]
-	//symbolTable["upxi"] = symbolTable["xi"]
-	//symbolTable["upzeta"] = symbolTable["zeta"]
 	symbolTable["And"] = symbolTable["with"]
 	symbolTable["Box"] = symbolTable["square"]
 	symbolTable["Dagger"] = symbolTable["ddagger"]
