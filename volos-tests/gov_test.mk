@@ -1,8 +1,7 @@
-include _info.mk
-include ../gnoswap-tests/test.mk
+VLS_PATH := gno.land/r/volos/gov/vls
 
 # Basic governance setup and test
-gov-test-flow: faucet-vls approve-vls-for-staking stake-vls faucet-all-voters approve-all-voters stake-all-voters create-test-proposal vote-all-on-all-proposals
+gov-test-flow: faucet-vls approve-vls-for-staking stake-vls transfer-vls approve-all-voters stake-all-voters create-test-proposal vote-all-on-all-proposals
 	@echo "************ GOVERNANCE ENVIRONMENT SETUP COMPLETE ************"
 
 # Basic governance setup and test
@@ -12,7 +11,7 @@ gov-test-flow-no-voting: faucet-vls approve-vls-for-staking stake-vls faucet-all
 # Faucet VLS tokens
 faucet-vls:
 	$(info ************ Faucet VLS tokens ************)
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos/gov/vls -func Faucet -args 1000000 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos/gov/vls -func Faucet -args 5000000 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
 	@echo
 
 # Approve VLS for staking
@@ -27,20 +26,20 @@ stake-vls:
 	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos/gov/staker -func Stake -args 5000 -args $(ADMIN) -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
 	@echo
 
-# Faucet VLS to all voters
-faucet-all-voters:
-	$(info ************ Faucet VLS tokens to all voters ************)
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos/gov/vls -func Faucet -args 1000000 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" voter1
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos/gov/vls -func Faucet -args 1000000 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" voter2
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos/gov/vls -func Faucet -args 1000000 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" voter3
+# Transfer VLS to all voters
+transfer-vls:
+	$(info ************ Transfer VLS tokens to all voters ************)
+	@echo "" | gnokey maketx call -pkgpath $(VLS_PATH) -func Transfer -args $(ADDR_USER_1) -args 1000000 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "transfer 1_000_000 VLS to $(ADDR_USER_1)" gnoswap_admin
+	@echo "" | gnokey maketx call -pkgpath $(VLS_PATH) -func Transfer -args $(ADDR_USER_2) -args 1000000 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "transfer 1_000_000 VLS to $(ADDR_USER_2)" gnoswap_admin
+	@echo "" | gnokey maketx call -pkgpath $(VLS_PATH) -func Transfer -args $(ADDR_USER_3) -args 1000000 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "transfer 1_000_000 VLS to $(ADDR_USER_3)" gnoswap_admin
 	@echo
 
 # Approve VLS for staking for all voters
 approve-all-voters:
 	$(info ************ Approve VLS for staking for all voters ************)
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos/gov/vls -func Approve -args $(ADDR_STAKER) -args 10000 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" $(ADDR_USER_1)
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos/gov/vls -func Approve -args $(ADDR_STAKER) -args 10000 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" $(ADDR_USER_2)
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos/gov/vls -func Approve -args $(ADDR_STAKER) -args 10000 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" $(ADDR_USER_3)
+	@echo "" | gnokey maketx call -pkgpath $(VLS_PATH) -func Approve -args $(ADDR_STAKER) -args 10000 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" $(ADDR_USER_1)
+	@echo "" | gnokey maketx call -pkgpath $(VLS_PATH) -func Approve -args $(ADDR_STAKER) -args 10000 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" $(ADDR_USER_2)
+	@echo "" | gnokey maketx call -pkgpath $(VLS_PATH) -func Approve -args $(ADDR_STAKER) -args 10000 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" $(ADDR_USER_3)
 	@echo
 
 # Stake VLS to mint xVLS for all voters

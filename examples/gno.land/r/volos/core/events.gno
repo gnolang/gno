@@ -23,6 +23,7 @@ const (
 	WithdrawCollateralEvent = "WithdrawCollateral"
 	FlashLoanEvent          = "FlashLoan"
 	SetFeeEvent             = "SetFee"
+	TransferOwnershipEvent  = "TransferOwnership"
 
 	// Event names
 	EventAccrueInterest     = "accrue_interest"
@@ -75,6 +76,8 @@ const (
 	EventIsAuthorizedKey = "is_authorized"
 	EventTokenKey        = "token"
 	EventTimestampKey    = "currentTimestamp"
+	EventFromKey         = "from"
+	EventToKey           = "to"
 	EventSupplyAPRKey    = "supplyAPR"
 	EventBorrowAPRKey    = "borrowAPR"
 	EventBadDebtAssetsKey = "badDebtAssets"
@@ -316,6 +319,16 @@ func emitSetFee(marketId string, fee string) {
 		SetFeeEvent,
 		EventMarketIDKey, marketId,
 		EventFeeKey, fee,
+		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
+	)
+}
+
+// emitTransferOwnership emits an event when ownership is transferred
+func emitTransferOwnership(from std.Address, to std.Address) {
+	std.Emit(
+		TransferOwnershipEvent,
+		EventFromKey, from.String(),
+		EventToKey, to.String(),
 		EventTimestampKey, strconv.FormatInt(time.Now().Unix(), 10),
 	)
 }

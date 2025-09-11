@@ -10,6 +10,7 @@ var (
 	ErrMarketAlreadyCreated  = errors.New("market already created")
 	ErrTokenPairNotInGnoswap = errors.New("token pair not in gnoswap pools")
 	ErrZeroAddress           = errors.New("zero address")
+	ErrInvalidAddress        = errors.New("invalid address")
 	ErrSameToken             = errors.New("loan and collateral tokens cannot be the same")
 	ErrIRMNotEnabled         = errors.New("IRM not enabled")
 	ErrIRMAlreadyRegistered  = errors.New("IRM already registered")

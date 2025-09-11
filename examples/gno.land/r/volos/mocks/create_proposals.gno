@@ -1,17 +1,26 @@
 package mocks
 
 import (
-	"time"
 	"std"
+	"time"
 	"gno.land/r/volos/gov/governance"
 	"gno.land/r/volos/gov/vls"
 	"gno.land/r/volos/gov/staker"
+	"gno.land/r/volos/core"
 )
 
 // callback function that will be executed if the proposal passes
-func callback() {
-	// This is a simple test callback that doesn't do anything
-	// In a real scenario, this could update governance parameters, mint tokens, etc.
+// This sets the fee to 25%
+func setFeeCallback() {
+	core.SetFee(cross, "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000:0", 25)
+}
+
+func setProposalThresholdCallback() {
+	governance.SetProposalThreshold(50000)
+}
+
+func setVotingPowerQuorumCallback() {
+	governance.SetVotingPowerQuorum(500)
 }
 
 func CreateProposals(cur realm) {
@@ -21,25 +30,25 @@ func CreateProposals(cur realm) {
 
 	governance.CreateProposal(
 		cross,
-		"Test Proposal 1", 
-		"This is a test proposal to verify governance functionality",
+		"Set Fee to 15% - Short Duration", 
+		"This proposal sets the market fee to 15% with a short voting period",
 		time.Duration(1*time.Minute),
-		callback,
+		setFeeCallback,
 	)
 
 	governance.CreateProposal(
 		cross,
-		"Test Proposal 2", 
-		"This is a test proposal to verify governance functionality",
-		time.Duration(1*time.Minute),
-		callback,
+		"Set Proposal Threshold to 50000", 
+		"This proposal sets the proposal threshold to 50000",
+		time.Duration(1*time.Hour),
+		setProposalThresholdCallback,
 	)
 
 	governance.CreateProposal(
 		cross,
-		"Test Proposal 3", 
-		"This is a test proposal to verify governance functionality",
+		"Set Voting Power Quorum to 500", 
+		"This proposal sets the voting power quorum to 500",
 		time.Duration(5*time.Hour),
-		callback,
+		setVotingPowerQuorumCallback,
 	)
 } 

@@ -1,12 +1,16 @@
 include _info.mk
 include ../gnoswap-tests/_info.mk
 include ../gnoswap-tests/test.mk
+include gov_test.mk
+include multi_ops_test.mk
 
 # Complete flow that includes both GNS-WUGNOT and BAR-WUGNOT operations
-full-workflow: pool-create-gns-wugnot-default mint-gns-gnot enable-irm enable-lltv market-create-gns-wugnot supply-assets-gns-wugnot supply-collateral-gns-wugnot borrow-gns \
+full-workflow: transfer-base-token wrap-ugnot wrap-ugnot-all pool-create-gns-wugnot-default mint-gns-gnot enable-irm enable-lltv transfer-ownership market-create-gns-wugnot supply-assets-gns-wugnot supply-collateral-gns-wugnot borrow-gns \
 	pool-create-bar-wugnot-default mint-bar-wugnot market-create-bar-wugnot supply-assets-bar-wugnot supply-collateral-bar-wugnot borrow-bar \
 	check-position-gns-wugnot check-position-bar-wugnot
 	@echo "************ WORKFLOW FINISHED ************"
+
+tokens-markets: transfer-base-token wrap-ugnot wrap-ugnot-all pool-create-gns-wugnot-default mint-gns-gnot enable-irm enable-lltv transfer-ownership market-create-gns-wugnot pool-create-bar-wugnot-default mint-bar-wugnot market-create-bar-wugnot
 
 # Enable the linear IRM
 enable-irm:
@@ -20,10 +24,21 @@ enable-lltv:
 	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos/core -func EnableLLTV -args 75 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
 	@echo
 
+# Transfer ownership to governance address
+transfer-ownership:
+	$(info ************ Transfer Ownership to Governance ************)
+	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos/core -func TransferOwnership -args "g1kp52puf7vuqptdg2kdqjmy45v70sh2s6g984f8" -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	@echo
+
 # Test market creation with GNS and WUGNOT
 market-create-gns-wugnot:
 	$(info ************ Test creating market with GNS (supply/borrow) and WUGNOT (collateral) ************)
 	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos/core -func CreateMarket -args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" -args false -args "linear" -args 75 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	@echo
+
+set-fee-gns-wugnot:
+	$(info ************ Testing Set Fee to 30% ************)
+	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos/core -func SetFee -args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000:0" -args 30 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
 	@echo
 
 # Test market creation with GNS and WUGNOT
@@ -142,6 +157,15 @@ check-wugnot-balance:
 wrap-ugnot:
 	$(info ************ Wrap UGNOT to WUGNOT ************)
 	@echo "" | gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Deposit -send "1000000000ugnot" -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	@echo
+
+# Wrap UGNOT to WUGNOT for all users
+wrap-ugnot-all:
+	$(info ************ Wrap UGNOT to WUGNOT for all users ************)
+	@echo "" | gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Deposit -send "1000000000ugnot" -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" $(ADDR_USER_1)
+	@echo "" | gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Deposit -send "1000000000ugnot" -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" $(ADDR_USER_2)
+	@echo "" | gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Deposit -send "1000000000ugnot" -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" $(ADDR_USER_3)
+	@echo "" | gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Deposit -send "1000000000ugnot" -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" $(ADDR_USER_4)
 	@echo
 
 # Test borrowing GNS tokens

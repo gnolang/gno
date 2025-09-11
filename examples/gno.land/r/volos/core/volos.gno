@@ -52,6 +52,25 @@ func init() {
 	Ownable = ownable.NewWithAddress(std.Address("g1tzl3sgre0c2zgxfpws9xhq0c069wf7zqh6aqqy"))
 }
 
+// TransferOwnership transfers ownership of the Volos contract to a new owner
+func TransferOwnership(cur realm, newOwner std.Address) {
+	Ownable.AssertOwnedByPrevious()
+
+	// Manually transfer ownership since ownable.TransferOwnership() checks OwnedByCurrent()
+	// but we want to check OwnedByPrevious() (the caller, not the current realm)
+	if !newOwner.IsValid() {
+		panic(ErrInvalidAddress)
+	}
+	
+	prevOwner := Ownable.Owner()
+	
+	// Create a new ownable with the new owner
+	Ownable = ownable.NewWithAddress(newOwner)
+	
+	// Emit ownership transfer event
+	emitTransferOwnership(prevOwner, newOwner)
+}
+
 // RegisterIRM registers a new interest rate model
 func RegisterIRM(cur realm, irm IRM) {
 	// Get IRM name
@@ -119,19 +138,26 @@ func SetFeeRecipient(cur realm, newFeeRecipient std.Address) {
 }
 
 // setFee sets the fee for a specific market
-func SetFee(cur realm, marketId string, newFee *u256.Uint) {
+func SetFee(cur realm, marketId string, newFee int64) {
+
+	print("Current address: ", std.CurrentRealm().Address())
+	print("Previous address: ", std.PreviousRealm().Address())
 	Ownable.AssertOwnedByPrevious()
+
+	// Convert fee percentage to WAD-scaled value (e.g., 5% -> 0.05 * 1e18)
+	feeUint := u256.NewUint(uint64(newFee))
+	feeWad := math.MulDivDown(feeUint, consts.WAD, u256.NewUint(100)) // This will give us (fee * 1e18) / 100
 
 	// Get market (will panic if not found)
 	market, _ := GetMarket(marketId)
 
 	// Check if fee is already set to the same value
-	if market.Fee.Cmp(newFee) == 0 {
+	if market.Fee.Cmp(feeWad) == 0 {
 		panic(ErrAlreadySet)
 	}
 
 	// Check fee doesn't exceed maximum
-	if newFee.Cmp(consts.MAX_FEE) > 0 {
+	if feeWad.Cmp(consts.MAX_FEE) > 0 {
 		panic(ErrMaxFeeExceeded)
 	}
 
@@ -139,10 +165,10 @@ func SetFee(cur realm, marketId string, newFee *u256.Uint) {
 	accrueInterest(marketId)
 
 	// Update market fee
-	market.Fee = newFee
+	market.Fee = feeWad
 	markets.Set(marketId, market)
 
-	emitSetFee(marketId, newFee.ToString())
+	emitSetFee(marketId, feeWad.ToString())
 }
 
 /* MARKET CREATION */
