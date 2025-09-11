@@ -7,11 +7,14 @@ import (
 )
 
 type Config struct {
-	PercentOnly bool
-	Width       int
+	PercentOnly  bool
+	Width        int
+	CanvasHeight int
+	FontSize     int
+	PaddingH     int
 }
 
-var DefaultConfig = Config{false, 300}
+var DefaultConfig = Config{false, 300, 30, 16, 6}
 
 // Render generates an SVG gauge bar.
 // Parameters:
@@ -22,6 +25,9 @@ var DefaultConfig = Config{false, 300}
 // - config: configuration options:
 //   - PercentOnly: if true, only display the percentage on the right side; otherwise, display "value / total · percentage"
 //   - Width: width of the gauge in pixels
+//   - CanvasHeight: height of the gauge in pixels
+//   - FontSize: font size of the text in pixels
+//   - PaddingH: horizontal padding (for the text) in pixels
 //
 // Example usage: gauge.Render(30, 100, "Progress", "#4caf50", &gauge.Config{PercentOnly: true, Width: 400})
 func Render(value int, total int, label string, color string, config Config) string {
@@ -33,11 +39,9 @@ func Render(value int, total int, label string, color string, config Config) str
 	}
 
 	canvasWidth := config.Width
-	const (
-		canvasHeight = 30
-		fontSize     = 16
-		padding      = 6
-	)
+	canvasHeight := config.CanvasHeight
+	fontSize := config.FontSize
+	paddingH := config.PaddingH
 	canvas := svg.NewCanvas(canvasWidth, canvasHeight)
 
 	ratio := 0.0
@@ -73,7 +77,7 @@ func Render(value int, total int, label string, color string, config Config) str
 	})
 	// Left text (label)
 	canvas.Append(svg.Text{
-		X:    padding,
+		X:    paddingH,
 		Y:    canvasHeight / 2,
 		Text: leftText,
 		Fill: "#000000",
@@ -86,7 +90,7 @@ func Render(value int, total int, label string, color string, config Config) str
 	})
 	// Right text (ratio + %)
 	canvas.Append(svg.Text{
-		X:    canvasWidth - padding,
+		X:    canvasWidth - paddingH,
 		Y:    canvasHeight / 2,
 		Text: rightText,
 		Fill: "#000000",
