@@ -37,17 +37,17 @@ func Test_execVerify(t *testing.T) {
 	prepare := func(t *testing.T) (string, std.Tx, func()) {
 		t.Helper()
 
-		// make new test dir
+		// Make new test dir.
 		kbHome, kbCleanUp := testutils.NewTestCaseDir(t)
 		assert.NotNil(t, kbHome)
 
-		// add test account to keybase.
+		// Add test account to keybase.
 		kb, err := keys.NewKeyBaseFromDir(kbHome)
 		assert.NoError(t, err)
 		info, err := kb.CreateAccount(fakeKeyName1, testMnemonic, "", encPassword, 0, 0)
 		assert.NoError(t, err)
 
-		// Prepare the signature
+		// Prepare the signature.
 		signOpts := signOpts{
 			chainID:         chainID,
 			accountSequence: accountSequence,
@@ -59,7 +59,7 @@ func Test_execVerify(t *testing.T) {
 			decryptPass: "",
 		}
 
-		// construct msg & tx and marshal.
+		// Construct msg & tx and marshal.
 		msg := bank.MsgSend{
 			FromAddress: info.GetAddress(),
 			ToAddress:   info.GetAddress(),
@@ -85,7 +85,7 @@ func Test_execVerify(t *testing.T) {
 		sig, err := generateSignature(&tx, kb, signOpts, keyOpts)
 		assert.NoError(t, err)
 
-		// Add signature to the transaction
+		// Add signature to the transaction.
 		tx.Signatures = []std.Signature{*sig}
 
 		return kbHome, tx, kbCleanUp
@@ -97,7 +97,7 @@ func Test_execVerify(t *testing.T) {
 		kbHome, tx, cleanUp := prepare(t)
 		defer cleanUp()
 
-		// Marshal the tx with signature
+		// Marshal the tx with signature.
 		rawTx, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
 
@@ -115,7 +115,7 @@ func Test_execVerify(t *testing.T) {
 		}
 
 		io := commands.NewTestIO()
-		args := []string{} // NO ARGUMENTS
+		args := []string{} // No argument.
 
 		io.SetIn(
 			strings.NewReader(
@@ -133,7 +133,7 @@ func Test_execVerify(t *testing.T) {
 		kbHome, tx, cleanUp := prepare(t)
 		defer cleanUp()
 
-		// Marshal the tx with signature
+		// Marshal the tx with signature.
 		rawTx, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
 
@@ -151,7 +151,7 @@ func Test_execVerify(t *testing.T) {
 		}
 
 		io := commands.NewTestIO()
-		args := []string{"bad-key-name"} // BAD KEY NAME
+		args := []string{"bad-key-name"} // Bad key name.
 
 		io.SetIn(
 			strings.NewReader(
@@ -169,10 +169,10 @@ func Test_execVerify(t *testing.T) {
 		kbHome, tx, cleanUp := prepare(t)
 		defer cleanUp()
 
-		// Marshal the tx with signature
+		// Marshal the tx with signature.
 		rawTx, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
-		// mutate the raw tx to make it bad
+		// Mutate the raw tx to make it bad.
 		rawTx[0] = 0xFF
 
 		cfg := &VerifyCfg{
@@ -193,7 +193,7 @@ func Test_execVerify(t *testing.T) {
 
 		io.SetIn(
 			strings.NewReader(
-				fmt.Sprintf("%s\n", rawTx), // BAD RAW TX
+				fmt.Sprintf("%s\n", rawTx), // Bad raw tx.
 			),
 		)
 
@@ -207,7 +207,7 @@ func Test_execVerify(t *testing.T) {
 		kbHome, tx, cleanUp := prepare(t)
 		defer cleanUp()
 
-		// Marshal the tx with signature
+		// Marshal the tx with signature.
 		rawTx, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
 
@@ -239,7 +239,7 @@ func Test_execVerify(t *testing.T) {
 		kbHome, tx, cleanUp := prepare(t)
 		defer cleanUp()
 
-		// Marshal the tx with signature
+		// Marshal the tx with signature.
 		rawTx, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
 
@@ -275,14 +275,14 @@ func Test_execVerify(t *testing.T) {
 		kbHome, tx, cleanUp := prepare(t)
 		defer cleanUp()
 
-		// Remove any signatures from the tx
+		// Remove any signatures from the tx.
 		tx.Signatures = nil
 
-		// Marshal the tx
+		// Marshal the tx.
 		rawTxWithoutSig, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
 
-		// no signature in tx and no -signature or -sigpath flag
+		// No signature in tx and no -signature or -sigpath flag.
 		cfg := &VerifyCfg{
 			RootCfg: &BaseCfg{
 				BaseOptions: BaseOptions{
@@ -317,7 +317,7 @@ func Test_execVerify(t *testing.T) {
 
 		sigHex := hex.EncodeToString(tx.Signatures[0].Signature)
 
-		// Marshal the tx with signature
+		// Marshal the tx with signature.
 		rawTx, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
 
@@ -356,7 +356,7 @@ func Test_execVerify(t *testing.T) {
 
 		sigb64 := base64.StdEncoding.EncodeToString(tx.Signatures[0].Signature)
 
-		// Marshal the tx with signature
+		// Marshal the tx with signature.
 		rawTx, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
 
@@ -393,11 +393,11 @@ func Test_execVerify(t *testing.T) {
 		kbHome, tx, cleanUp := prepare(t)
 		defer cleanUp()
 
-		// Marshal the tx with signature
+		// Marshal the tx with signature.
 		rawTx, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
 
-		// mutated bad signature fails test.
+		// Mutated bad signature fails test.
 		testBadSig := testutils.MutateByteSlice(tx.Signatures[0].PubKey.Bytes())
 		badSigb64 := base64.StdEncoding.EncodeToString(testBadSig)
 
@@ -409,7 +409,7 @@ func Test_execVerify(t *testing.T) {
 				},
 			},
 			DocPath:         "",
-			Signature:       badSigb64, // BAD SIGNATURE
+			Signature:       badSigb64, // Bad signature.
 			AccountNumber:   accountNumber,
 			AccountSequence: accountSequence,
 			ChainID:         chainID,
@@ -434,14 +434,14 @@ func Test_execVerify(t *testing.T) {
 		kbHome, tx, cleanUp := prepare(t)
 		defer cleanUp()
 
-		// Marshal the tx with signature
+		// Marshal the tx with signature.
 		rawTx, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
 
 		txFile, err := os.CreateTemp("", "tx-*.json")
 		require.NoError(t, err)
 
-		// rawTxWithSig in std.Tx, not std.Signature
+		// Write std.Tx, not std.Signature.
 		require.NoError(t, os.WriteFile(txFile.Name(), rawTx, 0o644))
 
 		cfg := &VerifyCfg{
@@ -477,11 +477,11 @@ func Test_execVerify(t *testing.T) {
 		kbHome, tx, cleanUp := prepare(t)
 		defer cleanUp()
 
-		// Marshal the tx with signature
+		// Marshal the tx with signature.
 		rawTx, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
 
-		// Marshal the signature
+		// Marshal the signature.
 		rawSig, err := amino.MarshalJSON(tx.Signatures[0])
 		assert.NoError(t, err)
 
@@ -523,7 +523,7 @@ func Test_execVerify(t *testing.T) {
 		kbHome, tx, cleanUp := prepare(t)
 		defer cleanUp()
 
-		// Marshal the tx with signature
+		// Marshal the tx with signature.
 		rawTx, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
 
@@ -536,7 +536,7 @@ func Test_execVerify(t *testing.T) {
 			},
 			DocPath:         "",
 			AccountNumber:   accountNumber,
-			AccountSequence: accountSequence + 1, // BAD NUMBER
+			AccountSequence: accountSequence + 1, // Bad number.
 			ChainID:         chainID,
 		}
 
@@ -559,7 +559,7 @@ func Test_execVerify(t *testing.T) {
 		kbHome, tx, cleanUp := prepare(t)
 		defer cleanUp()
 
-		// Marshal the tx with signature
+		// Marshal the tx with signature.
 		rawTx, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
 
@@ -571,7 +571,7 @@ func Test_execVerify(t *testing.T) {
 				},
 			},
 			DocPath:         "",
-			AccountNumber:   accountNumber + 1, // BAD NUMBER
+			AccountNumber:   accountNumber + 1, // Bad number.
 			AccountSequence: accountSequence,
 			ChainID:         chainID,
 		}
@@ -595,7 +595,7 @@ func Test_execVerify(t *testing.T) {
 		kbHome, tx, cleanUp := prepare(t)
 		defer cleanUp()
 
-		// Marshal the tx with signature
+		// Marshal the tx with signature.
 		rawTx, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
 
@@ -609,7 +609,7 @@ func Test_execVerify(t *testing.T) {
 			DocPath:         "",
 			AccountNumber:   accountNumber,
 			AccountSequence: accountSequence,
-			ChainID:         "bad-chain-id", // BAD CHAIN ID
+			ChainID:         "bad-chain-id", // Bad chain ID.
 		}
 
 		io := commands.NewTestIO()
@@ -631,7 +631,7 @@ func Test_execVerify(t *testing.T) {
 		kbHome, tx, cleanUp := prepare(t)
 		defer cleanUp()
 
-		// Marshal the tx with signature
+		// Marshal the tx with signature.
 		rawTx, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
 
@@ -640,7 +640,7 @@ func Test_execVerify(t *testing.T) {
 				BaseOptions: BaseOptions{
 					Home:                  kbHome,
 					InsecurePasswordStdin: true,
-					Remote:                "http://localhost:26657", // needs remote to fetch account info
+					Remote:                "http://localhost:26657", // Needs remote to fetch account info.
 				},
 			},
 			DocPath: "",
@@ -656,7 +656,7 @@ func Test_execVerify(t *testing.T) {
 			),
 		)
 
-		err = execVerify(context.Background(), cfg, args, io) // account-number and account-sequence wrong
+		err = execVerify(context.Background(), cfg, args, io) // Account-number and account-sequence wrong.
 		assert.Error(t, err)
 	})
 
@@ -666,7 +666,7 @@ func Test_execVerify(t *testing.T) {
 		kbHome, tx, cleanUp := prepare(t)
 		defer cleanUp()
 
-		// Marshal the tx with signature
+		// Marshal the tx with signature.
 		rawTx, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
 
@@ -678,7 +678,7 @@ func Test_execVerify(t *testing.T) {
 				},
 			},
 			DocPath: "",
-			ChainID: "bad-chain-id", // BAD CHAIN ID
+			ChainID: "bad-chain-id", // Bad chain ID.
 			Offline: true,
 		}
 
@@ -701,7 +701,7 @@ func Test_execVerify(t *testing.T) {
 		kbHome, tx, cleanUp := prepare(t)
 		defer cleanUp()
 
-		// Marshal the tx with signature
+		// Marshal the tx with signature.
 		rawTx, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
 
@@ -742,10 +742,10 @@ func Test_execVerify(t *testing.T) {
 		kbHome, tx, cleanUp := prepare(t)
 		defer cleanUp()
 
-		// Marshal the tx with signature
+		// Marshal the tx with signature.
 		rawTx, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
-		// mutate the raw tx to make it bad
+		// Mutate the raw tx to make it bad.
 		rawTx[0] = 0xFF
 
 		txFile, err := os.CreateTemp("", "tx-*.json")
@@ -779,18 +779,18 @@ func Test_execVerify(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	// both -sigpath and -signature flags cannot be used at the same time
+	// Both -sigpath and -signature flags cannot be used at the same time.
 	t.Run("test: -sigpath and -signature flags error", func(t *testing.T) {
 		t.Parallel()
 
 		kbHome, tx, cleanUp := prepare(t)
 		defer cleanUp()
 
-		// Marshal the tx with signature
+		// Marshal the tx with signature.
 		rawTx, err := amino.MarshalJSON(tx)
 		assert.NoError(t, err)
 
-		// Marshal the signature
+		// Marshal the signature.
 		rawSig, err := amino.MarshalJSON(tx.Signatures[0])
 		assert.NoError(t, err)
 
@@ -807,8 +807,8 @@ func Test_execVerify(t *testing.T) {
 				},
 			},
 			DocPath:         "",
-			SigPath:         sigFile.Name(), // both flags used
-			Signature:       string(rawSig), // both flags used
+			SigPath:         sigFile.Name(), // Both flags used.
+			Signature:       string(rawSig), // Both flags used.
 			AccountNumber:   accountNumber,
 			AccountSequence: accountSequence,
 			ChainID:         chainID,
@@ -842,7 +842,7 @@ func Test_VerifyMultisig(t *testing.T) {
 		multisigName    = "multisig-012"
 	)
 
-	// Generate 3 keys, for the multisig
+	// Generate 3 keys, for the multisig.
 	privKeys := []secp256k1.PrivKeySecp256k1{
 		secp256k1.GenPrivKey(),
 		secp256k1.GenPrivKey(),
@@ -852,14 +852,14 @@ func Test_VerifyMultisig(t *testing.T) {
 	kb, err := keys.NewKeyBaseFromDir(kbHome)
 	require.NoError(t, err)
 
-	// Import the (public) keys into the keybase
+	// Import the (public) keys into the keybase.
 	require.NoError(t, kb.ImportPrivKey("k0", privKeys[0], encryptPassword))
 	require.NoError(t, kb.ImportPrivKey("k1", privKeys[1], encryptPassword))
 	require.NoError(t, kb.ImportPrivKey("k2", privKeys[2], encryptPassword))
 
-	// Build the multisig pub-key (2 of 3)
+	// Build the multisig pub-key (2 of 3).
 	msPub := multisig.NewPubKeyMultisigThreshold(
-		2, // threshold
+		2, // Threshold.
 		[]crypto.PubKey{
 			privKeys[0].PubKey(),
 			privKeys[1].PubKey(),
@@ -870,7 +870,7 @@ func Test_VerifyMultisig(t *testing.T) {
 	msInfo, err := kb.CreateMulti(multisigName, msPub)
 	require.NoError(t, err)
 
-	// Generate a minimal tx
+	// Generate a minimal tx.
 	tx := std.Tx{
 		Fee: std.Fee{
 			GasWanted: 10,
@@ -881,7 +881,7 @@ func Test_VerifyMultisig(t *testing.T) {
 		},
 		Msgs: []std.Msg{
 			bank.MsgSend{
-				FromAddress: msInfo.GetAddress(), // multisig account is the signer
+				FromAddress: msInfo.GetAddress(), // Multisig account is the signer.
 			},
 		},
 	}
@@ -893,9 +893,9 @@ func Test_VerifyMultisig(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(txFile.Name(), rawTx, 0o644))
 
-	// Have 2 out of 3 key sign the tx, with `gnokey sign`
+	// Have 2 out of 3 key sign the tx, with `gnokey sign`.
 	genSignature := func(keyName, sigOut string) {
-		// each invocation needs its own root command
+		// Each invocation needs its own root command.
 		io := commands.NewTestIO()
 		io.SetIn(
 			strings.NewReader(
@@ -929,7 +929,7 @@ func Test_VerifyMultisig(t *testing.T) {
 	genSignature("k0", sigs[0])
 	genSignature("k1", sigs[1])
 
-	// Generate the multisig
+	// Generate the multisig.
 	io := commands.NewTestIO()
 	multiCmd := NewRootCmdWithBaseConfig(io, baseOptions)
 
@@ -944,7 +944,7 @@ func Test_VerifyMultisig(t *testing.T) {
 	}
 	require.NoError(t, multiCmd.ParseAndRun(context.Background(), args))
 
-	// Get the multisig from the transaction file
+	// Get the multisig from the transaction file.
 	signedRaw, err := os.ReadFile(txFile.Name())
 	require.NoError(t, err)
 
@@ -952,7 +952,7 @@ func Test_VerifyMultisig(t *testing.T) {
 	require.NoError(t, amino.UnmarshalJSON(signedRaw, &signedTx))
 	require.Len(t, signedTx.Signatures, 1)
 
-	// Prepare the verify function
+	// Prepare the verify function.
 	cfg := &VerifyCfg{
 		RootCfg: &BaseCfg{
 			BaseOptions: baseOptions,

@@ -182,7 +182,7 @@ func getSignature(cfg *VerifyCfg, tx *std.Tx) ([]byte, error) {
 			return nil, err
 		}
 
-		// Unmarshal Amino JSON transaction.
+		// Unmarshal Amino JSON signature.
 		var sig std.Signature
 		if err := amino.UnmarshalJSON(sigbz, &sig); err != nil {
 			return nil, fmt.Errorf("unable to unmarshal signature, %w", err)
