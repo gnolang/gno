@@ -18,8 +18,8 @@ var DefaultConfig = Config{false, 300, 30, 16, 6}
 
 // Render generates an SVG gauge bar.
 // Parameters:
-// - value: current value (must be <= total)
-// - total: maximum value (must be > 0)
+// - value: current value (must be <= total and > 0)
+// - total: maximum value (must be > value and > 0)
 // - label: text label to display on the left side of the gauge
 // - color: color of the filled part of the gauge (e.g., "#4caf50")
 // - config: configuration options:
@@ -33,6 +33,9 @@ var DefaultConfig = Config{false, 300, 30, 16, 6}
 func Render(value int, total int, label string, color string, config Config) string {
 	if total <= 0 {
 		return "jauge fails: total must be greater than 0"
+	}
+	if value <= 0 {
+		return "jauge fails: value must be greater than 0"
 	}
 	if value > total {
 		return "jauge fails: value cannot be greater than total"

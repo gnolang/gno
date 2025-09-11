@@ -20,6 +20,19 @@ func TestRender(t *testing.T) {
 		wantSubstr   string
 	}{
 		{
+			name:         "fails when value <= 0",
+			value:        0,
+			total:        5,
+			label:        "Yes",
+			color:        "#a6da95",
+			percentOnly:  false,
+			width:        100,
+			canvasHeight: 30,
+			fontSize:     16,
+			paddingH:     6,
+			wantSubstr:   "jauge fails: value must be greater than 0",
+		},
+		{
 			name:         "fails when total <= 0",
 			value:        5,
 			total:        0,
