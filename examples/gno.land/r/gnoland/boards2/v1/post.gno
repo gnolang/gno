@@ -42,7 +42,7 @@ type Post struct {
 	RepostBoardID BoardID // Original Board.ID (if repost)
 	UpdatedAt     time.Time
 
-	flags      avl.Tree // address -> string(reason)
+	flags      avl.Tree // std.Address -> string(reason)
 	replies    avl.Tree // Post.ID -> *Post
 	repliesAll avl.Tree // Post.ID -> *Post (all replies, for top-level posts)
 	reposts    avl.Tree // Board.ID -> Post.ID

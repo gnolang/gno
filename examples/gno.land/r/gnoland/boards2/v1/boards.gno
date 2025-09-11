@@ -18,8 +18,8 @@ var (
 	gBoardsByID       avl.Tree // string(id) -> *Board
 	gListedBoardsByID avl.Tree // string(id) -> *Board
 	gBoardsByName     avl.Tree // string(name) -> *Board
-	gInviteRequests   avl.Tree // string(board id) -> *avl.Tree(address -> time.Time)
-	gBannedUsers      avl.Tree // string(board id) -> *avl.Tree(address -> time.Time)
+	gInviteRequests   avl.Tree // string(board id) -> *avl.Tree(std.Address -> time.Time)
+	gBannedUsers      avl.Tree // string(board id) -> *avl.Tree(std.Address -> time.Time)
 	gLocked           struct {
 		realm        bool
 		realmMembers bool
