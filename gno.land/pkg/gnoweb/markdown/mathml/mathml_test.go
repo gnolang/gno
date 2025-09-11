@@ -1789,3 +1789,699 @@ func TestTokenBuffer_Unget(t *testing.T) {
 		})
 	}
 }
+
+func TestCmdFrac_Variants(t *testing.T) {
+	tests := []struct {
+		name     string
+		command  string
+		args     []*TokenBuffer
+		expected string
+	}{
+		{
+			name:    "basic_frac",
+			command: "frac",
+			args: []*TokenBuffer{
+				NewTokenBuffer([]Token{{Value: "1", Kind: tokNumber}}),
+				NewTokenBuffer([]Token{{Value: "2", Kind: tokNumber}}),
+			},
+			expected: "mfrac",
+		},
+		{
+			name:    "cfrac",
+			command: "cfrac",
+			args: []*TokenBuffer{
+				NewTokenBuffer([]Token{{Value: "1", Kind: tokNumber}}),
+				NewTokenBuffer([]Token{{Value: "2", Kind: tokNumber}}),
+			},
+			expected: "displaystyle",
+		},
+		{
+			name:    "dfrac",
+			command: "dfrac",
+			args: []*TokenBuffer{
+				NewTokenBuffer([]Token{{Value: "1", Kind: tokNumber}}),
+				NewTokenBuffer([]Token{{Value: "2", Kind: tokNumber}}),
+			},
+			expected: "displaystyle",
+		},
+		{
+			name:    "tfrac",
+			command: "tfrac",
+			args: []*TokenBuffer{
+				NewTokenBuffer([]Token{{Value: "1", Kind: tokNumber}}),
+				NewTokenBuffer([]Token{{Value: "2", Kind: tokNumber}}),
+			},
+			expected: "displaystyle=\"false\"",
+		},
+		{
+			name:    "binom",
+			command: "binom",
+			args: []*TokenBuffer{
+				NewTokenBuffer([]Token{{Value: "n", Kind: tokLetter}}),
+				NewTokenBuffer([]Token{{Value: "k", Kind: tokLetter}}),
+			},
+			expected: "linethickness=\"0\"",
+		},
+		{
+			name:    "tbinom",
+			command: "tbinom",
+			args: []*TokenBuffer{
+				NewTokenBuffer([]Token{{Value: "n", Kind: tokLetter}}),
+				NewTokenBuffer([]Token{{Value: "k", Kind: tokLetter}}),
+			},
+			expected: "linethickness=\"0\"",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			result := cmd_frac(converter, tt.command, false, ctxVarNormal, tt.args, nil)
+			if result == nil {
+				t.Fatal("Expected non-nil result")
+			}
+
+			output, _ := converter.ConvertInline("\\" + tt.command + "{1}{2}")
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+func TestCmdFrac_BinomWrapper(t *testing.T) {
+	tests := []struct {
+		name     string
+		command  string
+		args     []*TokenBuffer
+		expected []string
+	}{
+		{
+			name:    "binom_has_wrapper",
+			command: "binom",
+			args: []*TokenBuffer{
+				NewTokenBuffer([]Token{{Value: "n", Kind: tokLetter}}),
+				NewTokenBuffer([]Token{{Value: "k", Kind: tokLetter}}),
+			},
+			expected: []string{"mrow", "mfrac", "linethickness=\"0\"", "mo", "("},
+		},
+		{
+			name:    "tbinom_has_wrapper",
+			command: "tbinom",
+			args: []*TokenBuffer{
+				NewTokenBuffer([]Token{{Value: "n", Kind: tokLetter}}),
+				NewTokenBuffer([]Token{{Value: "k", Kind: tokLetter}}),
+			},
+			expected: []string{"mrow", "mfrac", "linethickness=\"0\"", "displaystyle=\"false\"", "mo", "("},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			result := cmd_frac(converter, tt.command, false, ctxVarNormal, tt.args, nil)
+
+			if result == nil {
+				t.Fatal("Expected non-nil result")
+			}
+
+			output, _ := converter.ConvertInline("\\" + tt.command + "{n}{k}")
+			for _, expected := range tt.expected {
+				if !strings.Contains(output, expected) {
+					t.Errorf("Expected output to contain %q, got %q", expected, output)
+				}
+			}
+		})
+	}
+}
+
+func TestPostProcessChars_CombinePrimes(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "single_prime",
+			input:    "x'",
+			expected: "′",
+		},
+		{
+			name:     "double_prime",
+			input:    "x''",
+			expected: "″",
+		},
+		{
+			name:     "triple_prime",
+			input:    "x'''",
+			expected: "‴",
+		},
+		{
+			name:     "quadruple_prime",
+			input:    "x''''",
+			expected: "⁗",
+		},
+		{
+			name:     "five_primes",
+			input:    "x'''''",
+			expected: "⁗",
+		},
+		{
+			name:     "six_primes",
+			input:    "x''''''",
+			expected: "⁗",
+		},
+		{
+			name:     "seven_primes",
+			input:    "x'''''''",
+			expected: "⁗",
+		},
+		{
+			name:     "eight_primes",
+			input:    "x''''''''",
+			expected: "⁗",
+		},
+		{
+			name:     "mixed_with_other_chars",
+			input:    "f'(x)''",
+			expected: "′",
+		},
+		{
+			name:     "command_prime",
+			input:    "x\\prime",
+			expected: "prime",
+		},
+		{
+			name:     "unicode_prime",
+			input:    "x'",
+			expected: "′",
+		},
+		{
+			name:     "unicode_apostrophe",
+			input:    "x'",
+			expected: "′",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("Failed to convert: %v", err)
+			}
+
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+func TestPostProcessChars_CharacterReplacements(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "hyphen_to_minus",
+			input:    "x-y",
+			expected: "−",
+		},
+		{
+			name:     "less_than",
+			input:    "x<y",
+			expected: "&lt;",
+		},
+		{
+			name:     "greater_than",
+			input:    "x>y",
+			expected: "&gt;",
+		},
+		{
+			name:     "ampersand",
+			input:    "x&y",
+			expected: "&amp;",
+		},
+		{
+			name:     "multiple_replacements",
+			input:    "x<y&z>w",
+			expected: "&lt;",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("Failed to convert: %v", err)
+			}
+
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+func TestPostProcessChars_ComplexPrimeCombinations(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected []string
+	}{
+		{
+			name:     "multiple_prime_groups",
+			input:    "f'(x)'' + g'(y)'''",
+			expected: []string{"′", "″", "‴"},
+		},
+		{
+			name:     "primes_with_spaces",
+			input:    "f' ' '",
+			expected: []string{"‴"},
+		},
+		{
+			name:     "primes_with_numbers",
+			input:    "x'1'2'3'",
+			expected: []string{"′"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("Failed to convert: %v", err)
+			}
+
+			for _, expected := range tt.expected {
+				if !strings.Contains(output, expected) {
+					t.Errorf("Expected output to contain %q, got %q", expected, output)
+				}
+			}
+		})
+	}
+}
+
+func TestNewCommand_StyleSwitches(t *testing.T) {
+	tests := []struct {
+		name     string
+		command  string
+		expected string
+	}{
+		{
+			name:     "displaystyle",
+			command:  "\\displaystyle{x + y}",
+			expected: "displaystyle",
+		},
+		{
+			name:     "textstyle",
+			command:  "\\textstyle{x + y}",
+			expected: "displaystyle=\"false\"",
+		},
+		{
+			name:     "scriptstyle",
+			command:  "\\scriptstyle{x + y}",
+			expected: "scriptlevel=\"1\"",
+		},
+		{
+			name:     "scriptscriptstyle",
+			command:  "\\scriptscriptstyle{x + y}",
+			expected: "scriptlevel=\"2\"",
+		},
+		{
+			name:     "rm_command",
+			command:  "\\rm{x + y}",
+			expected: "mathvariant=\"normal\"",
+		},
+		{
+			name:     "tiny_command",
+			command:  "\\tiny{x + y}",
+			expected: "mathsize=\"050.0%\"",
+		},
+		{
+			name:     "scriptsize_command",
+			command:  "\\scriptsize{x + y}",
+			expected: "mathsize=\"070.0%\"",
+		},
+		{
+			name:     "footnotesize_command",
+			command:  "\\footnotesize{x + y}",
+			expected: "mathsize=\"080.0%\"",
+		},
+		{
+			name:     "small_command",
+			command:  "\\small{x + y}",
+			expected: "mathsize=\"090.0%\"",
+		},
+		{
+			name:     "normalsize_command",
+			command:  "\\normalsize{x + y}",
+			expected: "mathsize=\"100.0%\"",
+		},
+		{
+			name:     "large_command",
+			command:  "\\large{x + y}",
+			expected: "mathsize=\"120.0%\"",
+		},
+		{
+			name:     "Large_command",
+			command:  "\\Large{x + y}",
+			expected: "mathsize=\"144.0%\"",
+		},
+		{
+			name:     "LARGE_command",
+			command:  "\\LARGE{x + y}",
+			expected: "mathsize=\"172.8%\"",
+		},
+		{
+			name:     "huge_command",
+			command:  "\\huge{x + y}",
+			expected: "mathsize=\"207.4%\"",
+		},
+		{
+			name:     "Huge_command",
+			command:  "\\Huge{x + y}",
+			expected: "mathsize=\"248.8%\"",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.command)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+func TestNewCommand_ColorCommand(t *testing.T) {
+	tests := []struct {
+		name     string
+		command  string
+		expected string
+	}{
+		{
+			name:     "color_red",
+			command:  "\\color{red}{x + y}",
+			expected: "mathcolor=\"red\"",
+		},
+		{
+			name:     "color_blue",
+			command:  "\\color{blue}{x + y}",
+			expected: "mathcolor=\"blue\"",
+		},
+		{
+			name:     "color_hex",
+			command:  "\\color{#FF0000}{x + y}",
+			expected: "mathcolor=\"#FF0000\"",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.command)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+func TestVariantTransform_AllVariants(t *testing.T) {
+	tests := []struct {
+		name     string
+		command  string
+		expected string
+	}{
+		{
+			name:     "mathbb_double_struck",
+			command:  "\\mathbb{A}",
+			expected: "𝔸",
+		},
+		{
+			name:     "mathbf_bold",
+			command:  "\\mathbf{A}",
+			expected: "𝐀",
+		},
+		{
+			name:     "mathbfit_bold_italic",
+			command:  "\\mathbfit{A}",
+			expected: "𝑨",
+		},
+		{
+			name:     "mathcal_script_chancery",
+			command:  "\\mathcal{A}",
+			expected: "𝒜",
+		},
+		{
+			name:     "mathscr_script_roundhand",
+			command:  "\\mathscr{A}",
+			expected: "𝒜",
+		},
+		{
+			name:     "mathfrak_fraktur",
+			command:  "\\mathfrak{A}",
+			expected: "𝔄",
+		},
+		{
+			name:     "mathit_italic",
+			command:  "\\mathit{A}",
+			expected: "𝐴",
+		},
+		{
+			name:     "mathsf_sans_serif",
+			command:  "\\mathsf{A}",
+			expected: "𝖠",
+		},
+		{
+			name:     "mathsfbf_bold_sans_serif",
+			command:  "\\mathsfbf{A}",
+			expected: "𝗔",
+		},
+		{
+			name:     "mathsfbfsl_sans_serif_bold_italic",
+			command:  "\\mathsfbfsl{A}",
+			expected: "𝘼",
+		},
+		{
+			name:     "mathsfsl_sans_serif_italic",
+			command:  "\\mathsfsl{A}",
+			expected: "𝘈",
+		},
+		{
+			name:     "mathtt_monospace",
+			command:  "\\mathtt{A}",
+			expected: "𝙰",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.command)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+func TestVariantTransform_CharacterTransformation(t *testing.T) {
+	tests := []struct {
+		name     string
+		command  string
+		expected []string
+	}{
+		{
+			name:     "mathbb_numbers",
+			command:  "\\mathbb{123}",
+			expected: []string{"𝟙", "𝟚", "𝟛"},
+		},
+		{
+			name:     "mathbf_letters",
+			command:  "\\mathbf{ABC}",
+			expected: []string{"𝐀", "𝐁", "𝐂"},
+		},
+		{
+			name:     "mathit_letters",
+			command:  "\\mathit{abc}",
+			expected: []string{"𝑎", "𝑏", "𝑐"},
+		},
+		{
+			name:     "mathsf_letters",
+			command:  "\\mathsf{ABC}",
+			expected: []string{"𝖠", "𝖡", "𝖢"},
+		},
+		{
+			name:     "mathtt_letters",
+			command:  "\\mathtt{ABC}",
+			expected: []string{"𝙰", "𝙱", "𝙲"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.command)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+
+			for _, expected := range tt.expected {
+				if !strings.Contains(output, expected) {
+					t.Errorf("Expected output to contain %q, got %q", expected, output)
+				}
+			}
+		})
+	}
+}
+
+func TestVariantTransform_SpecialCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		command  string
+		expected []string
+	}{
+		{
+			name:     "mathcal_special_chars",
+			command:  "\\mathcal{BEFHILMR}",
+			expected: []string{"ℬ", "ℰ", "ℱ", "ℋ", "ℐ", "ℒ", "ℳ", "ℛ"},
+		},
+		{
+			name:     "mathbb_special_chars",
+			command:  "\\mathbb{CHNPQRZ}",
+			expected: []string{"ℂ", "ℍ", "ℕ", "ℙ", "ℚ", "ℝ", "ℤ"},
+		},
+		{
+			name:     "mathfrak_special_chars",
+			command:  "\\mathfrak{CHIRZ}",
+			expected: []string{"ℭ", "ℌ", "ℑ", "ℜ", "ℨ"},
+		},
+		{
+			name:     "mathscr_special_chars",
+			command:  "\\mathscr{BEFHILMR}",
+			expected: []string{"ℬ", "ℰ", "ℱ", "ℋ", "ℐ", "ℒ", "ℳ", "ℛ"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.command)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+
+			for _, expected := range tt.expected {
+				if !strings.Contains(output, expected) {
+					t.Errorf("Expected output to contain %q, got %q", expected, output)
+				}
+			}
+		})
+	}
+}
+
+func TestVariantTransform_CombinedVariants(t *testing.T) {
+	tests := []struct {
+		name     string
+		command  string
+		expected string
+	}{
+		{
+			name:     "bold_italic_combined",
+			command:  "\\mathbfit{ABC}",
+			expected: "𝑨",
+		},
+		{
+			name:     "sans_serif_bold_combined",
+			command:  "\\mathsfbf{ABC}",
+			expected: "𝗔",
+		},
+		{
+			name:     "sans_serif_italic_combined",
+			command:  "\\mathsfsl{ABC}",
+			expected: "𝘈",
+		},
+		{
+			name:     "sans_serif_bold_italic_combined",
+			command:  "\\mathsfbfsl{ABC}",
+			expected: "𝘼",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.command)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+func TestExtMath_DelimiterDetection(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "ams_inline",
+			input:    "\\(x + y\\)",
+			expected: "math",
+		},
+		{
+			name:     "ams_display",
+			input:    "\\[x + y\\]",
+			expected: "math",
+		},
+		{
+			name:     "tex_inline",
+			input:    "$x + y$",
+			expected: "math",
+		},
+		{
+			name:     "tex_display",
+			input:    "$$x + y$$",
+			expected: "math",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+
+			if !strings.Contains(output, "math") {
+				t.Errorf("Expected output to contain math, got %q", output)
+			}
+		})
+	}
+}
