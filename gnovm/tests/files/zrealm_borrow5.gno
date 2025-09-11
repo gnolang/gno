@@ -2,7 +2,7 @@
 package borrow
 
 import (
-	"gno.land/r/demo/tests/crossrealm"
+	"gno.land/r/tests/vm/crossrealm"
 )
 
 func main() {

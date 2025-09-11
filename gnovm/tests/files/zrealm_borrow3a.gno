@@ -2,7 +2,7 @@
 package borrow
 
 import (
-	"gno.land/r/demo/tests/crossrealm"
+	"gno.land/r/tests/vm/crossrealm"
 )
 
 func main() {
@@ -17,4 +17,4 @@ func main() {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): (const (ref(gno.land/r/demo/tests/crossrealm) package{})).AllowedList
+// cannot directly modify readonly tainted object (w/o method): (const (ref(gno.land/r/tests/vm/crossrealm) package{})).AllowedList

@@ -14,7 +14,7 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 // pkgErr is a custom error type that prepends the current
