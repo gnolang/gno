@@ -272,6 +272,7 @@ func TestIsQuorumReached(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			members := NewMemberStorage()
+			storage := MustNewReadonlyMemberStorage(members)
 			for _, m := range tc.members {
 				members.Add(m)
 			}
@@ -281,7 +282,7 @@ func TestIsQuorumReached(t *testing.T) {
 				record.AddVote(v)
 			}
 
-			success := IsQuorumReached(tc.quorum, record.Readonly(), NewMemberSet(members))
+			success := IsQuorumReached(tc.quorum, record.Readonly(), *storage)
 
 			if tc.fail {
 				uassert.False(t, success, "expect quorum to fail")
@@ -318,7 +319,7 @@ func (testPropDef) Body() string                  { return "" }
 func (d testPropDef) VotingPeriod() time.Duration { return d.votingPeriod }
 func (d testPropDef) Validate() error             { return d.validationErr }
 
-func (d testPropDef) Tally(ReadonlyVotingRecord, MemberSet) (bool, error) {
+func (d testPropDef) Tally(ReadonlyVotingRecord, ReadonlyMemberStorage) (bool, error) {
 	return d.tallyResult, d.tallyErr
 }
 

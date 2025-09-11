@@ -82,7 +82,7 @@ type (
 		// Tally counts the number of votes and verifies if proposal passes.
 		// It receives a readonly record containing the votes that has been
 		// submitted for the proposal and also the list of current DAO members.
-		Tally(ReadonlyVotingRecord, MemberSet) (passes bool, _ error)
+		Tally(ReadonlyVotingRecord, ReadonlyMemberStorage) (passes bool, _ error) // TODO: Use a single type
 	}
 
 	// Validable defines an interface for proposal definitions that require state validation.
@@ -249,7 +249,7 @@ func (p Proposal) IsVoteChoiceValid(c VoteChoice) bool {
 }
 
 // IsQuorumReached checks if a participation quorum is reach.
-func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members MemberSet) bool {
+func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members ReadonlyMemberStorage) bool {
 	if members.Size() <= 0 || quorum <= 0 {
 		return false
 	}

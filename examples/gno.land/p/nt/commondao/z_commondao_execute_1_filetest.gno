@@ -22,7 +22,7 @@ func (testPropDef) Title() string               { return "" }
 func (testPropDef) Body() string                { return "" }
 func (testPropDef) VotingPeriod() time.Duration { return 0 }
 
-func (testPropDef) Tally(commondao.ReadonlyVotingRecord, commondao.MemberSet) (bool, error) {
+func (testPropDef) Tally(commondao.ReadonlyVotingRecord, commondao.ReadonlyMemberStorage) (bool, error) {
 	return true, nil
 }
 
