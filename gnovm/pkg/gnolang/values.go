@@ -733,7 +733,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key TypedVal
 			// https://go.dev/play/p/iNPDR4FQlRv
 			mli.Key = key
 			return PointerValue{
-				TV:    fillValueTV(store, &mli.Value),
+				TV:    &mli.Value,
 				Base:  mv,
 				Index: PointerIndexMap,
 			}
@@ -743,7 +743,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key TypedVal
 
 	mv.vmap[kmk] = mli
 	return PointerValue{
-		TV:    fillValueTV(store, &mli.Value),
+		TV:    &mli.Value,
 		Base:  mv,
 		Index: PointerIndexMap,
 	}

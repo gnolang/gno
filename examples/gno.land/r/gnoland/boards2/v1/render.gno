@@ -148,6 +148,8 @@ func renderBoardMenu(board *Board, req *mux.Request) string {
 	} else {
 		b.WriteString(md.Link("Create Thread", makeCreateThreadURI(board)))
 		b.WriteString(" • ")
+		b.WriteString(md.Link("Request Invite", makeRequestInviteURI(board)))
+		b.WriteString(" • ")
 
 		menu := getCurrentMenu(req.RawPath)
 		if menu == menuManageBoard {
