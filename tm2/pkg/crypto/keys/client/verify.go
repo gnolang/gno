@@ -215,7 +215,6 @@ func getSignature(cfg *VerifyCfg, tx *std.Tx) ([]byte, error) {
 func getSignBytes(ctx context.Context, cfg *VerifyCfg, info keys.Info, tx *std.Tx, io commands.IO) ([]byte, error) {
 	// Query account number and sequence if needed.
 	if !cfg.Offline && cfg.AccountNumber == 0 && cfg.AccountSequence == 0 {
-
 		if !cfg.RootCfg.BaseOptions.Quiet {
 			io.Println("Querying account from chain...")
 		}
