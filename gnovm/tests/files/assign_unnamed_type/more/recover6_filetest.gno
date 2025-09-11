@@ -28,3 +28,4 @@ func q(dopanic bool) {
 // Output:
 // undefined
 // wtf
+

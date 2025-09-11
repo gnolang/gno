@@ -26,3 +26,4 @@ func main() {
 // Output:
 // 0
 // seed...
+

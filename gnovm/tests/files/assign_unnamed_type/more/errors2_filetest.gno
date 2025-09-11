@@ -13,8 +13,8 @@ func main() {
 	println(a)
 }
 
-// Output:
-// some error
-
 // TypeCheckError:
 // main/errors2.gno:12:2: declared and not used: b
+
+// Output:
+// some error

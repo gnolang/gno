@@ -40,4 +40,4 @@ func main() {
 }
 
 // Error:
-// invalid call: sb<VPBlock(1,0)>.Set(sa<VPBlock(1,1)>), method realm: RIDDC8307F7BBE97FDB07B2D0FA6907B8D67517C02A does not match receiver realm: RID0EDC46CAF30C00EFD87B6C272673239EAFBD051E
+// cannot directly modify readonly tainted object (w/o method): sb<VPBlock(1,0)>.B

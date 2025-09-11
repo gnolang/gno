@@ -176,6 +176,14 @@ func main(cur realm) {
 //              "RefCount": "1"
 //          },
 // d[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:54](-618)
+// finalizerealm["gno.land/r/demo/tests_foo"]
+// finalizerealm["gno.land/r/demo/tests_foo"]
+// finalizerealm["gno.land/r/demo/tests_foo"]
+// finalizerealm["gno.land/r/demo/tests0"]
 
-// Error:
-// invalid call: stringer<VPBlock(1,1)>.String(), method realm: RIDF643AF0964F4FC0BFA4D9D204506CC75A00FAC2D does not match receiver realm: RID0FFE7732B4D549B4CF9EC18BD68641CD2C75AD0A
+// Output:
+// 0: &FooStringer{one}
+// 1: &FooStringer{two}
+// 2: &FooStringer{three}
+//
+// end

@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// invalid call: MockMutator<~VPBlock(3,35)>.Mutate(), method realm: RIDC459C7103CD5303D426ED1E6E642FFFCFFD55F7C does not match receiver realm: RID1712AC7ADCFDC8E58A67E5615E20FB312394C4DF
+// cannot directly modify readonly tainted object (w/o method): (const (ref(gno.land/r/demo/tests/crossrealm) package{})).AllowedList

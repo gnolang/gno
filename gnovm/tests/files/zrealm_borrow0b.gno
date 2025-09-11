@@ -38,5 +38,7 @@ func main(cur realm) {
 	p.Mutate() // cross into current realm where method Mutate is declared
 }
 
-// Error:
-// invalid call: p<~VPBlock(3,3)>.Mutate(), method realm: RIDC459C7103CD5303D426ED1E6E642FFFCFFD55F7C does not match receiver realm: RID1712AC7ADCFDC8E58A67E5615E20FB312394C4DF
+// Output:
+// s.A: 101
+// current realm:  CodeRealm{ g1mdevzlw3defhhew53zsky80lhqnk94ew8grqdt, gno.land/r/borrow }
+// previous realm:  UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
