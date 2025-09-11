@@ -1,6 +1,6 @@
 package expect
 
-import "gno.land/p/demo/ufmt"
+import "gno.land/p/nt/ufmt"
 
 type (
 	// Fn defines a type for generic functions.
