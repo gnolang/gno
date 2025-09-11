@@ -15,13 +15,8 @@ func main(cur realm) {
 	print(".")
 }
 
-<<<<<<< HEAD
 //     +        "ModTime": "53",
 //              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:3",
-=======
-//     +        "ModTime": "43",
-//              "OwnerID": "46279d1e03ecb38b84822f9caf584bd16913470d:3",
->>>>>>> main/master
 //     -        "RefCount": "1"
 //     +        "RefCount": "2"
 //          },
@@ -52,8 +47,7 @@ func main(cur realm) {
 // finalizerealm["gno.land/r/tests/vm/crossrealm"]
 // finalizerealm["gno.land/r/crossrealm"]
 
-// Error:
-// zrealm_crossrealm21.gno:18:1: expected declaration, found '<<'
-
-// TypeCheckError:
-// gno.land/r/crossrealm/zrealm_crossrealm21.gno:18:1: expected declaration, found '<<'
+// Output:
+// hello A cur=gno.land/r/tests/vm/crossrealm_b prev=gno.land/r/tests/vm/crossrealm
+// hello B cur=gno.land/r/tests/vm/crossrealm_b prev=gno.land/r/tests/vm/crossrealm
+// .
