@@ -39,7 +39,7 @@ func NewVerifyCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 			Name:       "verify",
 			ShortUsage: "verify [flags] <key-name or address>",
 			ShortHelp:  "verifies the transaction signature",
-			LongHelp:   "Verifies a std.Tx signature against <key-name or address> in your local keybase. The sign bytes are derived from the tx using --chain-id, --account-number, and --account-sequence; these must match the values used when the signature was created. If --account-number or --account-sequence is 0 and --offline=false, the command queries the chain (via --remote) to fill them; if the query fails, 0 is used. Provide the signature via --sigpath or --signature (mutually exclusive); otherwise the first signature in the tx (tx.Signatures[0]) is used. The tx is read from --docpath or stdin.",
+			LongHelp:   "Verifies a std.Tx signature against <key-name or address> in your local keybase. The sign bytes are derived from the tx using --chain-id, --account-number, and --account-sequence; these must match the values used when the signature was created. If --account-number and --account-sequence are 0 and --offline=false, the command queries the chain (via --remote) to fill them; if the query fails, 0 is used. Provide the signature via --sigpath or --signature (mutually exclusive); otherwise the first signature in the tx (tx.Signatures[0]) is used. The tx is read from --docpath or stdin.",
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
@@ -53,7 +53,7 @@ func (c *VerifyCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.DocPath,
 		"docpath",
 		"",
-		"path of transaction file to verify in amino JSON format (if empty, read from stdin)",
+		"path of transaction file to verify in Amino JSON format (if empty, read from stdin)",
 	)
 	fs.StringVar(
 		&c.SigPath,
@@ -103,7 +103,7 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 		return flag.ErrHelp
 	}
 
-	// Fetch the key info from the keybase
+	// Fetch the key info from the keybase.
 	kb, err = keys.NewKeyBaseFromDir(cfg.RootCfg.Home)
 	if err != nil {
 		return err
@@ -114,13 +114,13 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 		return fmt.Errorf("unable to get key from keybase, %w", err)
 	}
 
-	// get the transaction to verify.
+	// Get the transaction to verify.
 	tx, err := getTransaction(cfg, io)
 	if err != nil {
 		return err
 	}
 
-	// verify signature.
+	// Verify signature.
 	sig, err := getSignature(cfg, tx)
 	if err != nil {
 		return err
@@ -151,8 +151,8 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 func getTransaction(cfg *VerifyCfg, io commands.IO) (*std.Tx, error) {
 	var msg []byte
 
-	// read document to sign
-	if cfg.DocPath == "" { // from stdin.
+	// Read document to sign.
+	if cfg.DocPath == "" { // From stdin.
 		msgstr, err := io.GetString(
 			"Enter document to sign.",
 		)
@@ -168,7 +168,7 @@ func getTransaction(cfg *VerifyCfg, io commands.IO) (*std.Tx, error) {
 		}
 	}
 
-	// Unmarshal transaction Amino JSON
+	// Unmarshal Amino JSON transaction.
 	var tx std.Tx
 	if err := amino.UnmarshalJSON(msg, &tx); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal transaction, %w", err)
@@ -182,14 +182,14 @@ func getSignature(cfg *VerifyCfg, tx *std.Tx) ([]byte, error) {
 		return nil, errors.New("only one of -sigpath or -signature flags can be set")
 	}
 
-	// from -sigpath flag
+	// From -sigpath flag.
 	if cfg.SigPath != "" {
 		sigbz, err := os.ReadFile(cfg.SigPath)
 		if err != nil {
 			return nil, err
 		}
 
-		// Unmarshal transaction Amino JSON
+		// Unmarshal Amino JSON transaction.
 		var sig std.Signature
 		if err := amino.UnmarshalJSON(sigbz, &sig); err != nil {
 			return nil, fmt.Errorf("unable to unmarshal signature, %w", err)
@@ -202,7 +202,7 @@ func getSignature(cfg *VerifyCfg, tx *std.Tx) ([]byte, error) {
 		return sig.Signature, nil
 	}
 
-	// from -signature flag
+	// From -signature flag.
 	if cfg.Signature != "" {
 		sig, err := base64.StdEncoding.DecodeString(cfg.Signature)
 		if err != nil {
@@ -211,7 +211,7 @@ func getSignature(cfg *VerifyCfg, tx *std.Tx) ([]byte, error) {
 		return sig, nil
 	}
 
-	// default: from tx
+	// Default: from tx.
 	if len(tx.Signatures) > 0 {
 		return tx.Signatures[0].Signature, nil
 	}
