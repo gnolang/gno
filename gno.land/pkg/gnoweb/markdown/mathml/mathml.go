@@ -2,14 +2,8 @@ package mathml
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"strings"
 )
-
-func init() {
-	logger = log.New(os.Stderr, "MathML: ", log.LstdFlags)
-}
 
 // TexToMML converts LaTeX to MathML
 func TexToMML(tex string, macros map[string]string, block, displaystyle bool) (result string, err error) {
@@ -28,7 +22,7 @@ func TexToMML(tex string, macros map[string]string, block, displaystyle bool) (r
 			}
 			ast.Write(&builder, 0)
 			result = builder.String()
-			err = fmt.Errorf("MathML encountered an unexpected error while processing\n%s\n", tex)
+			err = fmt.Errorf("MathML encountered an unexpected error while processing %s", tex)
 		}
 	}()
 	converter := NewMathMLConverter()
@@ -212,6 +206,8 @@ func (converter *MathMLConverter) SemanticsOnly(tex string) (string, error) {
 	tokens, err := tokenize(converter.currentExpr)
 	defer func() {
 		if r := recover(); r != nil {
+			// Handle panic gracefully
+			_ = r
 		}
 	}()
 	if err != nil {

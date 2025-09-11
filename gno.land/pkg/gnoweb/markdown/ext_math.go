@@ -142,8 +142,6 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, _ pars
 var mathBlockInfoKey = parser.NewContextKey()
 
 type mathBlockData struct {
-	start  int
-	end    int
 	flavor int
 }
 
@@ -248,13 +246,13 @@ func (p *texBlockRegionParser) Close(node ast.Node, reader text.Reader, pc parse
 	pc.Set(mathBlockInfoKey, nil)
 }
 
-func (b *texBlockRegionParser) CanInterruptParagraph() bool { return true }
+func (p *texBlockRegionParser) CanInterruptParagraph() bool { return true }
 
-func (b *texBlockRegionParser) CanAcceptIndentedLine() bool { return true }
+func (p *texBlockRegionParser) CanAcceptIndentedLine() bool { return true }
 
-func (b *texInlineRegionParser) CanInterruptParagraph() bool { return true }
+func (p *texInlineRegionParser) CanInterruptParagraph() bool { return true }
 
-func (b *texInlineRegionParser) CanAcceptIndentedLine() bool { return true }
+func (p *texInlineRegionParser) CanAcceptIndentedLine() bool { return true }
 
 type MathRenderer struct {
 	converter *mathml.MathMLConverter

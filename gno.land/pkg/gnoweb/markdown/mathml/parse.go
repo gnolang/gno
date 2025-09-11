@@ -3,7 +3,6 @@ package mathml
 import (
 	"errors"
 	"fmt"
-	"log"
 )
 
 type NodeClass uint64
@@ -61,7 +60,6 @@ const (
 )
 
 var (
-	logger            *log.Logger
 	self_closing_tags = map[string]bool{
 		"malignmark":  true,
 		"maligngroup": true,
@@ -330,70 +328,70 @@ func (converter *MathMLConverter) ParseTex(b *TokenBuffer, context parseContext,
 	return node
 }
 
-func (node *MMLNode) doPostProcess() {
-	if node != nil {
-		node.postProcessInfix()
-		node.postProcessLimitSwitch()
-		node.postProcessScripts()
-		node.postProcessSpace()
-		node.postProcessChars()
+func (n *MMLNode) doPostProcess() {
+	if n != nil {
+		n.postProcessInfix()
+		n.postProcessLimitSwitch()
+		n.postProcessScripts()
+		n.postProcessSpace()
+		n.postProcessChars()
 	}
 	begin := 0
-	for node.Children[begin] == nil && begin < len(node.Children)-1 {
+	for n.Children[begin] == nil && begin < len(n.Children)-1 {
 		begin++
 	}
-	node.Children = node.Children[begin:]
+	n.Children = n.Children[begin:]
 }
 
-func (node *MMLNode) postProcessLimitSwitch() {
+func (n *MMLNode) postProcessLimitSwitch() {
 	var i int
-	for i = 1; i < len(node.Children); i++ {
-		child := node.Children[i]
+	for i = 1; i < len(n.Children); i++ {
+		child := n.Children[i]
 		if child == nil {
 			continue
 		}
 		if child.Properties&propLimits > 0 {
-			node.Children[i-1].Properties |= propLimitsunderover
-			node.Children[i-1].Properties &= ^propMovablelimits
-			node.Children[i-1].SetFalse("movablelimits")
+			n.Children[i-1].Properties |= propLimitsunderover
+			n.Children[i-1].Properties &= ^propMovablelimits
+			n.Children[i-1].SetFalse("movablelimits")
 			placeholder := NewMMLNode()
 			placeholder.Properties = propNonprint
-			node.Children[i-1], node.Children[i] = placeholder, node.Children[i-1]
+			n.Children[i-1], n.Children[i] = placeholder, n.Children[i-1]
 		} else if child.Properties&propNolimits > 0 {
-			node.Children[i-1].Properties &= ^propLimitsunderover
-			node.Children[i-1].Properties &= ^propMovablelimits
+			n.Children[i-1].Properties &= ^propLimitsunderover
+			n.Children[i-1].Properties &= ^propMovablelimits
 			placeholder := NewMMLNode()
 			placeholder.Properties = propNonprint
-			node.Children[i-1], node.Children[i] = placeholder, node.Children[i-1]
+			n.Children[i-1], n.Children[i] = placeholder, n.Children[i-1]
 		}
 	}
 }
 
-func (node *MMLNode) postProcessSpace() {
+func (n *MMLNode) postProcessSpace() {
 	i := 0
-	limit := len(node.Children)
+	limit := len(n.Children)
 	for ; i < limit; i++ {
-		if node.Children[i] == nil || space_widths[node.Children[i].Tok.Value] == 0 {
+		if n.Children[i] == nil || space_widths[n.Children[i].Tok.Value] == 0 {
 			continue
 		}
-		if node.Children[i].Tok.Kind&tokCommand == 0 {
+		if n.Children[i].Tok.Kind&tokCommand == 0 {
 			continue
 		}
 		j := i + 1
-		width := space_widths[node.Children[i].Tok.Value]
-		for j < limit && space_widths[node.Children[j].Tok.Value] > 0 && node.Children[j].Tok.Kind&tokCommand > 0 {
-			width += space_widths[node.Children[j].Tok.Value]
-			node.Children[j] = nil
+		width := space_widths[n.Children[i].Tok.Value]
+		for j < limit && space_widths[n.Children[j].Tok.Value] > 0 && n.Children[j].Tok.Kind&tokCommand > 0 {
+			width += space_widths[n.Children[j].Tok.Value]
+			n.Children[j] = nil
 			j++
 		}
-		node.Children[i].SetAttr("width", fmt.Sprintf("%.2fem", float64(width)/18.0))
+		n.Children[i].SetAttr("width", fmt.Sprintf("%.2fem", float64(width)/18.0))
 		i = j
 	}
 }
 
-func (node *MMLNode) postProcessChars() {
+func (n *MMLNode) postProcessChars() {
 	combinePrimes := func(idx int) int {
-		children := node.Children
+		children := n.Children
 		var i, nillifyUpTo int
 		count := 1
 		nillifyUpTo = idx
@@ -425,31 +423,31 @@ func (node *MMLNode) postProcessChars() {
 			text = append(text, temp)
 		}
 		for _, primes := range text {
-			node.Children[idx] = NewMMLNode("mo", string(primes))
+			n.Children[idx] = NewMMLNode("mo", string(primes))
 			idx++
 		}
 		for i = idx; i <= nillifyUpTo; i++ {
-			node.Children[i] = nil
+			n.Children[i] = nil
 		}
 		return i
 	}
 	i := 0
-	var n *MMLNode
-	for i < len(node.Children) {
-		n = node.Children[i]
-		if n == nil {
+	var child *MMLNode
+	for i < len(n.Children) {
+		child = n.Children[i]
+		if child == nil {
 			i++
 			continue
 		}
-		switch n.Text {
+		switch child.Text {
 		case "-":
-			node.Children[i].Text = "−"
+			n.Children[i].Text = "−"
 		case "<":
-			node.Children[i].Text = "&lt;"
+			n.Children[i].Text = "&lt;"
 		case ">":
-			node.Children[i].Text = "&gt;"
+			n.Children[i].Text = "&gt;"
 		case "&":
-			node.Children[i].Text = "&amp;"
+			n.Children[i].Text = "&amp;"
 		case "'", "’", "ʹ":
 			combinePrimes(i)
 		}
@@ -458,11 +456,11 @@ func (node *MMLNode) postProcessChars() {
 }
 
 // Look for any ^ or _ among siblings and convert to a msub, msup, or msubsup
-func (node *MMLNode) postProcessScripts() {
+func (n *MMLNode) postProcessScripts() {
 	var base, super, sub *MMLNode
 	var i int
-	for i = 0; i < len(node.Children); i++ {
-		child := node.Children[i]
+	for i = 0; i < len(n.Children); i++ {
+		child := n.Children[i]
 		if child == nil {
 			continue
 		}
@@ -472,11 +470,11 @@ func (node *MMLNode) postProcessScripts() {
 		var hasSuper, hasSub, hasBoth bool
 		var script, next *MMLNode
 		skip := 0
-		if i < len(node.Children)-1 {
-			next = node.Children[i+1]
+		if i < len(n.Children)-1 {
+			next = n.Children[i+1]
 		}
 		if i > 0 {
-			base = node.Children[i-1]
+			base = n.Children[i-1]
 		}
 		if child.Properties&propSubscript > 0 {
 			hasSub = true
@@ -534,17 +532,17 @@ func (node *MMLNode) postProcessScripts() {
 			continue
 		}
 		if needs_mrow {
-			node.Children[pos] = NewMMLNode("mrow").AppendChild(script)
+			n.Children[pos] = NewMMLNode("mrow").AppendChild(script)
 		} else {
-			node.Children[pos] = script
+			n.Children[pos] = script
 		}
-		for j := pos + 1; j <= skip+pos && j < len(node.Children); j++ {
-			node.Children[j] = nil
+		for j := pos + 1; j <= skip+pos && j < len(n.Children); j++ {
+			n.Children[j] = nil
 		}
 	}
 }
 
-func (node *MMLNode) postProcessInfix() {
+func (n *MMLNode) postProcessInfix() {
 	doFraction := func(name string, numerator *MMLNode, denominator *MMLNode) *MMLNode {
 		// for a binomial coefficient, we need to wrap it in parentheses, so the "fraction" must
 		// be a child of parent, and parent must be an mrow.
@@ -570,21 +568,21 @@ func (node *MMLNode) postProcessInfix() {
 		}
 		return wrapper
 	}
-	for i := 1; i < len(node.Children); i++ {
-		a := node.Children[i-1]
-		b := node.Children[i]
+	for i := 1; i < len(n.Children); i++ {
+		a := n.Children[i-1]
+		b := n.Children[i]
 		if b == nil {
 			continue
 		}
 		if b.Properties&propInfixOver > 0 {
-			node.Children[i-1] = doFraction("frac", a, b)
+			n.Children[i-1] = doFraction("frac", a, b)
 		} else if b.Properties&propInfixChoose > 0 {
-			node.Children[i-1] = doFraction("binom", a, b)
+			n.Children[i-1] = doFraction("binom", a, b)
 		} else if b.Properties&propInfixAtop > 0 {
-			node.Children[i-1] = doFraction("frac", a, b).SetAttr("linethickness", "0")
+			n.Children[i-1] = doFraction("frac", a, b).SetAttr("linethickness", "0")
 		}
 		if b.Properties&(propInfixOver|propInfixChoose|propInfixAtop) > 0 {
-			node.Children[i] = nil
+			n.Children[i] = nil
 		}
 	}
 }

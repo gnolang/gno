@@ -3,18 +3,24 @@ package mathml
 import "unicode"
 
 func cmd_multirow(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
+	if len(args) < 3 {
+		return NewMMLNode("mtext", "Error: insufficient arguments")
+	}
 	var attr string
 	if name == "multirow" {
 		attr = "rowspan"
 	} else {
 		attr = "columnspan"
 	}
-	n := converter.ParseTex(args[2], ctx)
-	n.SetAttr(attr, StringifyTokens(args[0].Expr))
+	n := converter.ParseTex(args[2], ctx)          // #nosec G602 - bounds checked above
+	n.SetAttr(attr, StringifyTokens(args[0].Expr)) // #nosec G602 - bounds checked above
 	return n
 }
 
 func cmd_prescript(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
+	if len(args) < 3 {
+		return NewMMLNode("mtext", "Error: insufficient arguments")
+	}
 	super := args[0]
 	sub := args[1]
 	base := args[2]
@@ -33,6 +39,9 @@ func cmd_prescript(converter *MathMLConverter, name string, star bool, ctx parse
 }
 
 func cmd_sideset(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
+	if len(args) < 3 {
+		return NewMMLNode("mtext", "Error: insufficient arguments")
+	}
 	left := args[0]
 	right := args[1]
 	base := args[2]
@@ -55,7 +64,7 @@ func cmd_sideset(converter *MathMLConverter, name string, star bool, ctx parseCo
 				}
 				expr, err := side.GetNextExpr()
 				if err != nil {
-					expr, err = side.GetNextN(1, true)
+					expr, _ = side.GetNextN(1, true)
 				}
 				superscripts = append(superscripts, converter.ParseTex(expr, ctx))
 				last = t.Value
@@ -65,7 +74,7 @@ func cmd_sideset(converter *MathMLConverter, name string, star bool, ctx parseCo
 				}
 				expr, err := side.GetNextExpr()
 				if err != nil {
-					expr, err = side.GetNextN(1, true)
+					expr, _ = side.GetNextN(1, true)
 				}
 				subscripts = append(subscripts, converter.ParseTex(expr, ctx))
 				last = t.Value
@@ -91,12 +100,18 @@ func cmd_sideset(converter *MathMLConverter, name string, star bool, ctx parseCo
 }
 
 func cmd_textcolor(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
+	if len(args) < 2 {
+		return NewMMLNode("mtext", "Error: insufficient arguments")
+	}
 	n := converter.ParseTex(args[1], ctx)
 	n.SetAttr("mathcolor", StringifyTokens(args[0].Expr))
 	return n
 }
 
 func cmd_undersetOverset(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
+	if len(args) < 2 {
+		return NewMMLNode("mtext", "Error: insufficient arguments")
+	}
 	var base, embellishment *MMLNode
 	base = converter.ParseTex(args[1], ctx)
 	embellishment = converter.ParseTex(args[0], ctx)
@@ -115,18 +130,27 @@ func cmd_undersetOverset(converter *MathMLConverter, name string, star bool, ctx
 }
 
 func cmd_class(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
+	if len(args) < 2 {
+		return NewMMLNode("mtext", "Error: insufficient arguments")
+	}
 	n := converter.ParseTex(args[1], ctx)
 	n.SetAttr("class", StringifyTokens(args[0].Expr))
 	return n
 }
 
 func cmd_raisebox(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
+	if len(args) < 2 {
+		return NewMMLNode("mtext", "Error: insufficient arguments")
+	}
 	n := NewMMLNode("mpadded").SetAttr("voffset", StringifyTokens(args[0].Expr))
 	converter.ParseTex(args[1], ctx, n)
 	return n
 }
 
 func cmd_cancel(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
+	if len(args) < 1 {
+		return NewMMLNode("mtext", "Error: insufficient arguments")
+	}
 	var notation string
 	switch name {
 	case "cancel":
@@ -144,12 +168,18 @@ func cmd_cancel(converter *MathMLConverter, name string, star bool, ctx parseCon
 }
 
 func cmd_mathop(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
+	if len(args) < 1 {
+		return NewMMLNode("mtext", "Error: insufficient arguments")
+	}
 	n := NewMMLNode("mo", StringifyTokens(args[0].Expr)).SetAttr("rspace", "0")
 	n.Properties |= propLimitsunderover | propMovablelimits
 	return n
 }
 
 func cmd_mod(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
+	if len(args) < 1 {
+		return NewMMLNode("mtext", "Error: insufficient arguments")
+	}
 	n := NewMMLNode("mrow")
 	if name == "pmod" {
 		space := NewMMLNode("mspace").SetAttr("width", "0.7em")
@@ -172,6 +202,9 @@ func cmd_mod(converter *MathMLConverter, name string, star bool, ctx parseContex
 }
 
 func cmd_substack(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
+	if len(args) < 1 {
+		return NewMMLNode("mtext", "Error: insufficient arguments")
+	}
 	n := converter.ParseTex(args[0], ctx|ctxTable)
 	processTable(n)
 	n.SetAttr("rowspacing", "0") // Incredibly, chrome does this by default
@@ -180,6 +213,9 @@ func cmd_substack(converter *MathMLConverter, name string, star bool, ctx parseC
 }
 
 func cmd_underOverBrace(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
+	if len(args) < 1 {
+		return NewMMLNode("mtext", "Error: insufficient arguments")
+	}
 	annotation := converter.ParseTex(args[0], ctx)
 	n := NewMMLNode()
 	brace := NewMMLNode("mo")
@@ -195,10 +231,12 @@ func cmd_underOverBrace(converter *MathMLConverter, name string, star bool, ctx 
 	}
 	n.AppendChild(annotation, brace)
 	return n
-
 }
 
 func cmd_not(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
+	if len(args) < 1 {
+		return NewMMLNode("mtext", "Error: insufficient arguments")
+	}
 	if len(args[0].Expr) < 1 {
 		return NewMMLNode("merror", name).SetAttr("title", " requires an argument")
 	} else if len(args[0].Expr) == 1 {
@@ -230,6 +268,9 @@ func cmd_not(converter *MathMLConverter, name string, star bool, ctx parseContex
 }
 
 func cmd_sqrt(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
+	if len(args) < 1 {
+		return NewMMLNode("mtext", "Error: insufficient arguments")
+	}
 	n := NewMMLNode("msqrt")
 	n.AppendChild(converter.ParseTex(args[0], ctx))
 	if opt != nil {
@@ -240,10 +281,16 @@ func cmd_sqrt(converter *MathMLConverter, name string, star bool, ctx parseConte
 }
 
 func cmd_text(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
+	if len(args) < 1 {
+		return NewMMLNode("mtext", "Error: insufficient arguments")
+	}
 	return NewMMLNode("mtext", stringifyTokensHtml(args[0].Expr))
 }
 
 func cmd_frac(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
+	if len(args) < 2 {
+		return NewMMLNode("mtext", "Error: insufficient arguments")
+	}
 	// for a binomial coefficient, we need to wrap it in parentheses, so the "fraction" must
 	// be a child of parent, and parent must be an mrow.
 	wrapper := NewMMLNode("mrow")

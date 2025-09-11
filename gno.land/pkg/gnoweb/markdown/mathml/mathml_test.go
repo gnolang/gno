@@ -7,10 +7,10 @@ import (
 
 func TestMathMLConverter_NewCommand(t *testing.T) {
 	tests := []struct {
-		name     string
-		command  string
-		context  parseContext
-		input    []Token
+		name    string
+		command string
+		context parseContext
+		input   []Token
 	}{
 		{"empty_command", "", ctxVarNormal, []Token{}},
 		{"simple_command", "frac", ctxVarNormal, []Token{{Value: "1"}, {Value: "2"}}},
@@ -32,8 +32,8 @@ func TestMathMLConverter_NewCommand(t *testing.T) {
 
 func TestMathMLConverter_OriginalString(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    []Token
+		name  string
+		input []Token
 	}{
 		{"empty_tokens", []Token{}},
 		{"simple_math", []Token{{Value: "x"}, {Value: "^"}, {Value: "2"}}},
@@ -54,9 +54,9 @@ func TestMathMLConverter_OriginalString(t *testing.T) {
 
 func TestMathMLConverter_WrapInMathTag(t *testing.T) {
 	tests := []struct {
-		name     string
-		node     *MMLNode
-		tex      string
+		name string
+		node *MMLNode
+		tex  string
 	}{
 		{"nil_node", nil, ""},
 		{"simple_node", NewMMLNode("mi", "x"), "x"},
@@ -75,10 +75,10 @@ func TestMathMLConverter_WrapInMathTag(t *testing.T) {
 
 func TestMathMLConverter_ProcessCommand(t *testing.T) {
 	tests := []struct {
-		name     string
-		context  parseContext
-		token    Token
-		input    []Token
+		name    string
+		context parseContext
+		token   Token
+		input   []Token
 	}{
 		{"empty_command", ctxVarNormal, Token{Value: ""}, []Token{}},
 		{"simple_command", ctxVarNormal, Token{Value: "frac"}, []Token{{Value: "1"}, {Value: "2"}}},
@@ -124,10 +124,10 @@ func TestMathMLConverter_ProcessCommand(t *testing.T) {
 
 func TestMakeSymbol(t *testing.T) {
 	tests := []struct {
-		name     string
-		symbol   symbol
-		token    Token
-		context  parseContext
+		name    string
+		symbol  symbol
+		token   Token
+		context parseContext
 	}{
 		{"empty_symbol", symbol{char: "", entity: "", kind: 0, properties: 0}, Token{Value: ""}, ctxVarNormal},
 		{"simple_symbol", symbol{char: "x", entity: "x", kind: 0, properties: 0}, Token{Value: "x"}, ctxVarNormal},
@@ -150,8 +150,8 @@ func TestMakeSymbol(t *testing.T) {
 // Tests for static functions
 func TestTexToMML(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
+		name  string
+		input string
 	}{
 		{"empty_string", ""},
 		{"simple_math", "x^2"},
@@ -171,9 +171,9 @@ func TestTexToMML(t *testing.T) {
 
 func TestWrapInMathTag_Static(t *testing.T) {
 	tests := []struct {
-		name     string
-		node     *MMLNode
-		tex      string
+		name string
+		node *MMLNode
+		tex  string
 	}{
 		{"nil_node", nil, ""},
 		{"simple_node", NewMMLNode("mi", "x"), "x"},
@@ -190,8 +190,8 @@ func TestWrapInMathTag_Static(t *testing.T) {
 
 func TestNewDocument(t *testing.T) {
 	tests := []struct {
-		name     string
-		macros   map[string]string
+		name      string
+		macros    map[string]string
 		numbering bool
 	}{
 		{"empty_macros", nil, false},
@@ -209,7 +209,7 @@ func TestNewDocument(t *testing.T) {
 
 func TestMakeMMLError(t *testing.T) {
 	tests := []struct {
-		name     string
+		name string
 	}{
 		{"test_error"},
 	}
@@ -226,8 +226,8 @@ func TestMakeMMLError(t *testing.T) {
 
 func TestMMLNode_UnsetAttr(t *testing.T) {
 	tests := []struct {
-		name     string
-		attr     string
+		name string
+		attr string
 	}{
 		{"existing_attr", "class"},
 		{"non_existing_attr", "nonexistent"},
@@ -245,8 +245,8 @@ func TestMMLNode_UnsetAttr(t *testing.T) {
 
 func TestMMLNode_AddProps(t *testing.T) {
 	tests := []struct {
-		name     string
-		props    NodeProperties
+		name  string
+		props NodeProperties
 	}{
 		{"zero_props", 0},
 		{"single_prop", 1},
@@ -264,8 +264,8 @@ func TestMMLNode_AddProps(t *testing.T) {
 
 func TestMakeTexLogo(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    bool
+		name  string
+		input bool
 	}{
 		{"false", false},
 		{"true", true},
@@ -281,8 +281,8 @@ func TestMakeTexLogo(t *testing.T) {
 
 func TestInlineStyle(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
+		name  string
+		input string
 	}{
 		{"empty_string", ""},
 		{"simple_math", "x^2"},
@@ -300,9 +300,9 @@ func TestInlineStyle(t *testing.T) {
 
 func TestDisplayStyle_Static(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		macros   map[string]string
+		name   string
+		input  string
+		macros map[string]string
 	}{
 		{"empty_string", "", nil},
 		{"simple_math", "x^2", nil},
@@ -321,10 +321,10 @@ func TestDisplayStyle_Static(t *testing.T) {
 
 func TestNewMismatchedBraceError(t *testing.T) {
 	tests := []struct {
-		name     string
-		kind     string
-		context  string
-		pos      int
+		name    string
+		kind    string
+		context string
+		pos     int
 	}{
 		{"empty_error", "", "", 0},
 		{"simple_error", "}", "test", 5},
@@ -342,8 +342,8 @@ func TestNewMismatchedBraceError(t *testing.T) {
 
 func TestTokenBuffer_Advance(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    []Token
+		name  string
+		input []Token
 	}{
 		{"empty_tokens", []Token{}},
 		{"single_token", []Token{{Value: "x"}}},
@@ -360,9 +360,9 @@ func TestTokenBuffer_Advance(t *testing.T) {
 
 func TestGetNextExpr_Static(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    []Token
-		idx      int
+		name  string
+		input []Token
+		idx   int
 	}{
 		{"empty_tokens", []Token{}, 0},
 		{"simple_math", []Token{{Value: "x"}, {Value: "^"}, {Value: "2"}}, 0},
@@ -379,11 +379,11 @@ func TestGetNextExpr_Static(t *testing.T) {
 	}
 }
 
-func TestTokenBufferErr_Error(t *testing.T) {
+func TestTokenBufferError_Error(t *testing.T) {
 	tests := []struct {
-		name     string
-		code     int
-		err      error
+		name string
+		code int
+		err  error
 	}{
 		{"simple_error", 1, &MismatchedBraceError{kind: "}", context: "test", pos: 5}},
 		{"complex_error", 5, &MismatchedBraceError{kind: "}", context: "\\frac{1}{2", pos: 10}},
@@ -391,7 +391,7 @@ func TestTokenBufferErr_Error(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := &TokenBufferErr{code: tt.code, err: tt.err}
+			err := &TokenBufferError{code: tt.code, err: tt.err}
 			result := err.Error()
 			_ = result
 		})
@@ -400,10 +400,10 @@ func TestTokenBufferErr_Error(t *testing.T) {
 
 func TestMismatchedBraceError_Error(t *testing.T) {
 	tests := []struct {
-		name     string
-		kind     string
-		context  string
-		pos      int
+		name    string
+		kind    string
+		context string
+		pos     int
 	}{
 		{"empty_error", "", "", 0},
 		{"simple_error", "}", "test", 5},
@@ -425,8 +425,8 @@ func TestMismatchedBraceError_Error(t *testing.T) {
 
 func TestMatchBracesLazy(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    []Token
+		name  string
+		input []Token
 	}{
 		{"empty_tokens", []Token{}},
 		{"simple_braces", []Token{{Value: "{"}, {Value: "x"}, {Value: "}"}}},
@@ -443,8 +443,8 @@ func TestMatchBracesLazy(t *testing.T) {
 
 func TestSetAttribsFromProperties(t *testing.T) {
 	tests := []struct {
-		name     string
-		props    NodeProperties
+		name  string
+		props NodeProperties
 	}{
 		{"zero_props", 0},
 		{"single_prop", 1},
@@ -463,9 +463,9 @@ func TestSetAttribsFromProperties(t *testing.T) {
 
 func TestErrorContext(t *testing.T) {
 	tests := []struct {
-		name     string
-		token    Token
-		context  string
+		name    string
+		token   Token
+		context string
 	}{
 		{"empty_token", Token{Value: ""}, ""},
 		{"simple_token", Token{Value: "x"}, "test"},
@@ -482,8 +482,8 @@ func TestErrorContext(t *testing.T) {
 
 func TestTransformByVariant(t *testing.T) {
 	tests := []struct {
-		name     string
-		variant  string
+		name    string
+		variant string
 	}{
 		{"normal_variant", "normal"},
 		{"bold_variant", "bold"},
@@ -500,9 +500,9 @@ func TestTransformByVariant(t *testing.T) {
 
 func TestNewMMLNode(t *testing.T) {
 	tests := []struct {
-		name     string
-		tag      string
-		text     string
+		name string
+		tag  string
+		text string
 	}{
 		{"empty_node", "", ""},
 		{"simple_node", "mi", "x"},
@@ -522,9 +522,9 @@ func TestNewMMLNode(t *testing.T) {
 
 func TestMMLNode_SetAttr(t *testing.T) {
 	tests := []struct {
-		name     string
-		attr     string
-		value    string
+		name  string
+		attr  string
+		value string
 	}{
 		{"class_attr", "class", "math"},
 		{"id_attr", "id", "test"},
@@ -542,8 +542,8 @@ func TestMMLNode_SetAttr(t *testing.T) {
 
 func TestMMLNode_SetTrue(t *testing.T) {
 	tests := []struct {
-		name     string
-		attr     string
+		name string
+		attr string
 	}{
 		{"class_attr", "class"},
 		{"id_attr", "id"},
@@ -561,8 +561,8 @@ func TestMMLNode_SetTrue(t *testing.T) {
 
 func TestMMLNode_SetFalse(t *testing.T) {
 	tests := []struct {
-		name     string
-		attr     string
+		name string
+		attr string
 	}{
 		{"class_attr", "class"},
 		{"id_attr", "id"},
@@ -580,9 +580,9 @@ func TestMMLNode_SetFalse(t *testing.T) {
 
 func TestMMLNode_SetCssProp(t *testing.T) {
 	tests := []struct {
-		name     string
-		prop     string
-		value    string
+		name  string
+		prop  string
+		value string
 	}{
 		{"color_prop", "color", "red"},
 		{"font_size_prop", "font-size", "12px"},
@@ -600,8 +600,8 @@ func TestMMLNode_SetCssProp(t *testing.T) {
 
 func TestMMLNode_AppendChild(t *testing.T) {
 	tests := []struct {
-		name     string
-		child    *MMLNode
+		name  string
+		child *MMLNode
 	}{
 		{"nil_child", nil},
 		{"simple_child", NewMMLNode("mi", "x")},
@@ -618,9 +618,9 @@ func TestMMLNode_AppendChild(t *testing.T) {
 
 func TestMMLNode_AppendNew(t *testing.T) {
 	tests := []struct {
-		name     string
-		tag      string
-		text     string
+		name string
+		tag  string
+		text string
 	}{
 		{"empty_tag", "", ""},
 		{"simple_tag", "mi", "x"},
@@ -638,9 +638,9 @@ func TestMMLNode_AppendNew(t *testing.T) {
 
 func TestMMLNode_Write(t *testing.T) {
 	tests := []struct {
-		name     string
-		tag      string
-		text     string
+		name string
+		tag  string
+		text string
 	}{
 		{"empty_node", "", ""},
 		{"simple_node", "mi", "x"},
@@ -662,6 +662,7 @@ func TestCmdPrescript(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			// Expected to panic with invalid input, that's ok for coverage
+			_ = r
 		}
 	}()
 	converter := NewMathMLConverter()
@@ -673,6 +674,7 @@ func TestCmdTextcolor(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			// Expected to panic with invalid input, that's ok for coverage
+			_ = r
 		}
 	}()
 	converter := NewMathMLConverter()
@@ -684,6 +686,7 @@ func TestCmdClass(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			// Expected to panic with invalid input, that's ok for coverage
+			_ = r
 		}
 	}()
 	converter := NewMathMLConverter()
@@ -695,6 +698,7 @@ func TestCmdRaisebox(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			// Expected to panic with invalid input, that's ok for coverage
+			_ = r
 		}
 	}()
 	converter := NewMathMLConverter()
@@ -706,6 +710,7 @@ func TestCmdMathop(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			// Expected to panic with invalid input, that's ok for coverage
+			_ = r
 		}
 	}()
 	converter := NewMathMLConverter()
@@ -717,6 +722,7 @@ func TestCmdSubstack(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			// Expected to panic with invalid input, that's ok for coverage
+			_ = r
 		}
 	}()
 	converter := NewMathMLConverter()
@@ -728,6 +734,7 @@ func TestCmdNot(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			// Expected to panic with invalid input, that's ok for coverage
+			_ = r
 		}
 	}()
 	converter := NewMathMLConverter()
@@ -739,6 +746,7 @@ func TestCmdText(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			// Expected to panic with invalid input, that's ok for coverage
+			_ = r
 		}
 	}()
 	converter := NewMathMLConverter()
@@ -750,6 +758,7 @@ func TestCmdMultirow(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			// Expected to panic with invalid input, that's ok for coverage
+			_ = r
 		}
 	}()
 	converter := NewMathMLConverter()
@@ -760,6 +769,7 @@ func TestCmdMultirow(t *testing.T) {
 func TestCmdSideset(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
+			_ = r
 		}
 	}()
 	converter := NewMathMLConverter()
@@ -770,6 +780,7 @@ func TestCmdSideset(t *testing.T) {
 func TestCmdUndersetOverset(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
+			_ = r
 		}
 	}()
 	converter := NewMathMLConverter()
@@ -780,6 +791,7 @@ func TestCmdUndersetOverset(t *testing.T) {
 func TestCmdCancel(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
+			_ = r
 		}
 	}()
 	converter := NewMathMLConverter()
@@ -791,6 +803,7 @@ func TestCmdMod(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			// Expected to panic with invalid input, that's ok for coverage
+			_ = r
 		}
 	}()
 	converter := NewMathMLConverter()
@@ -800,10 +813,10 @@ func TestCmdMod(t *testing.T) {
 
 func TestMathMLConverter_ProcessCommand_Extended(t *testing.T) {
 	tests := []struct {
-		name     string
-		context  parseContext
-		token    Token
-		input    []Token
+		name    string
+		context parseContext
+		token   Token
+		input   []Token
 	}{
 		{"empty_command", ctxVarNormal, Token{Value: ""}, []Token{}},
 		{"simple_command", ctxVarNormal, Token{Value: "frac"}, []Token{{Value: "1"}, {Value: "2"}}},
@@ -923,10 +936,10 @@ func TestMathMLConverter_ProcessCommand_Extended(t *testing.T) {
 
 func TestProcessCommand_ExtendedCases(t *testing.T) {
 	tests := []struct {
-		name     string
-		context  parseContext
-		token    Token
-		input    []Token
+		name    string
+		context parseContext
+		token   Token
+		input   []Token
 	}{
 		{"frac_with_args", ctxVarNormal, Token{Value: "frac"}, []Token{{Value: "1"}, {Value: "2"}}},
 		{"sqrt_with_args", ctxVarNormal, Token{Value: "sqrt"}, []Token{{Value: "x"}}},
@@ -1007,6 +1020,7 @@ func TestCmdSideset_Extended(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			// Expected to panic with invalid input, that's ok for coverage
+			_ = r
 		}
 	}()
 	converter := NewMathMLConverter()
@@ -1018,6 +1032,7 @@ func TestCmdUndersetOverset_Extended(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			// Expected to panic with invalid input, that's ok for coverage
+			_ = r
 		}
 	}()
 	converter := NewMathMLConverter()
@@ -1029,6 +1044,7 @@ func TestCmdMod_Extended(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			// Expected to panic with invalid input, that's ok for coverage
+			_ = r
 		}
 	}()
 	converter := NewMathMLConverter()
@@ -1040,6 +1056,7 @@ func TestCmdUnderOverBrace(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			// Expected to panic with invalid input, that's ok for coverage
+			_ = r
 		}
 	}()
 	converter := NewMathMLConverter()
@@ -1049,8 +1066,8 @@ func TestCmdUnderOverBrace(t *testing.T) {
 
 func TestParseAlignmentString(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
+		name  string
+		input string
 	}{
 		{"empty_string", ""},
 		{"simple_alignment", "c"},
@@ -1072,6 +1089,7 @@ func TestProcessTable(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			// Expected to panic with invalid input, that's ok for coverage
+			_ = r
 		}
 	}()
 	node := NewMMLNode("table")
@@ -1080,8 +1098,8 @@ func TestProcessTable(t *testing.T) {
 
 func TestSetAlignmentStyle(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
+		name  string
+		input string
 	}{
 		{"empty_string", ""},
 		{"simple_style", "c"},
@@ -1100,6 +1118,7 @@ func TestProcessEnv(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			// Expected to panic with invalid input, that's ok for coverage
+			_ = r
 		}
 	}()
 	node := NewMMLNode("env")
@@ -1108,8 +1127,8 @@ func TestProcessEnv(t *testing.T) {
 
 func TestMathMLConverter_Render(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
+		name  string
+		input string
 	}{
 		{"empty_string", ""},
 		{"simple_math", "x^2"},
@@ -1128,8 +1147,8 @@ func TestMathMLConverter_Render(t *testing.T) {
 
 func TestMathMLConverter_DisplayStyle_Method(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
+		name  string
+		input string
 	}{
 		{"empty_string", ""},
 		{"simple_math", "x^2"},
@@ -1148,8 +1167,8 @@ func TestMathMLConverter_DisplayStyle_Method(t *testing.T) {
 
 func TestMathMLConverter_TextStyle(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
+		name  string
+		input string
 	}{
 		{"empty_string", ""},
 		{"simple_math", "x^2"},
@@ -1168,8 +1187,8 @@ func TestMathMLConverter_TextStyle(t *testing.T) {
 
 func TestMathMLConverter_ConvertInline(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
+		name  string
+		input string
 	}{
 		{"empty_string", ""},
 		{"simple_math", "x^2"},
@@ -1188,8 +1207,8 @@ func TestMathMLConverter_ConvertInline(t *testing.T) {
 
 func TestMathMLConverter_ConvertDisplay(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
+		name  string
+		input string
 	}{
 		{"empty_string", ""},
 		{"simple_math", "x^2"},
@@ -1208,8 +1227,8 @@ func TestMathMLConverter_ConvertDisplay(t *testing.T) {
 
 func TestMathMLConverter_SemanticsOnly(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
+		name  string
+		input string
 	}{
 		{"empty_string", ""},
 		{"simple_math", "x^2"},
@@ -1252,10 +1271,10 @@ func TestStringifyTokens(t *testing.T) {
 
 func TestProcessCommand_Extended(t *testing.T) {
 	tests := []struct {
-		name     string
-		context  parseContext
-		token    Token
-		input    []Token
+		name    string
+		context parseContext
+		token   Token
+		input   []Token
 	}{
 		{"frac_command", ctxVarNormal, Token{Value: "frac"}, []Token{{Value: "1"}, {Value: "2"}}},
 		{"sqrt_command", ctxVarNormal, Token{Value: "sqrt"}, []Token{{Value: "x"}}},
@@ -1427,9 +1446,9 @@ func TestProcessCommand_Extended(t *testing.T) {
 
 func TestCmdSideset_Extended2(t *testing.T) {
 	tests := []struct {
-		name     string
-		context  parseContext
-		args     []*TokenBuffer
+		name    string
+		context parseContext
+		args    []*TokenBuffer
 	}{
 		{"basic_sideset", ctxVarNormal, []*TokenBuffer{NewTokenBuffer([]Token{{Value: "x"}}), NewTokenBuffer([]Token{{Value: "y"}})}},
 		{"empty_args", ctxVarNormal, []*TokenBuffer{}},
@@ -1448,6 +1467,7 @@ func TestCmdSideset_Extended2(t *testing.T) {
 			defer func() {
 				if r := recover(); r != nil {
 					// Expected to panic with invalid input, that's ok for coverage
+					_ = r
 				}
 			}()
 			converter := NewMathMLConverter()
@@ -1458,10 +1478,10 @@ func TestCmdSideset_Extended2(t *testing.T) {
 
 func TestNewCommand_Extended(t *testing.T) {
 	tests := []struct {
-		name     string
-		context  parseContext
-		command  string
-		args     []*TokenBuffer
+		name    string
+		context parseContext
+		command string
+		args    []*TokenBuffer
 	}{
 		{"basic_command", ctxVarNormal, "test", []*TokenBuffer{NewTokenBuffer([]Token{{Value: "x"}})}},
 		{"empty_args", ctxVarNormal, "test", []*TokenBuffer{}},
@@ -1554,8 +1574,8 @@ func TestNewCommand_Extended(t *testing.T) {
 
 func TestIsolateEnvironmentContext(t *testing.T) {
 	tests := []struct {
-		name     string
-		context  parseContext
+		name    string
+		context parseContext
 	}{
 		{"normal_context", ctxVarNormal},
 		{"display_context", ctxDisplay},
@@ -1578,9 +1598,9 @@ func TestSetEnvironmentContext(t *testing.T) {
 
 func TestSplitByFunc(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    []string
-		fn       func(string) bool
+		name  string
+		input []string
+		fn    func(string) bool
 	}{
 		{"empty_input", []string{}, func(s string) bool { return s == "x" }},
 		{"simple_split", []string{"x", "y", "z"}, func(s string) bool { return s == "y" }},
@@ -1598,8 +1618,8 @@ func TestSplitByFunc(t *testing.T) {
 
 func TestTrim(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    []string
+		name  string
+		input []string
 	}{
 		{"empty_input", []string{}},
 		{"simple_input", []string{"x", "y", "z"}},
@@ -1617,8 +1637,8 @@ func TestTrim(t *testing.T) {
 
 func TestStrechyOP(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
+		name  string
+		input string
 	}{
 		{"empty_string", ""},
 		{"simple_string", "x"},
@@ -1636,8 +1656,8 @@ func TestStrechyOP(t *testing.T) {
 
 func TestNewTokenBuffer(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    []Token
+		name  string
+		input []Token
 	}{
 		{"empty_tokens", []Token{}},
 		{"single_token", []Token{{Value: "x"}}},
@@ -1657,8 +1677,8 @@ func TestNewTokenBuffer(t *testing.T) {
 
 func TestTokenBuffer_Empty(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    []Token
+		name  string
+		input []Token
 	}{
 		{"empty_tokens", []Token{}},
 		{"single_token", []Token{{Value: "x"}}},
@@ -1676,8 +1696,8 @@ func TestTokenBuffer_Empty(t *testing.T) {
 
 func TestTokenBuffer_GetNextToken(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    []Token
+		name  string
+		input []Token
 	}{
 		{"empty_tokens", []Token{}},
 		{"single_token", []Token{{Value: "x"}}},
@@ -1695,8 +1715,8 @@ func TestTokenBuffer_GetNextToken(t *testing.T) {
 
 func TestTokenBuffer_GetNextExpr(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    []Token
+		name  string
+		input []Token
 	}{
 		{"empty_tokens", []Token{}},
 		{"single_token", []Token{{Value: "x"}}},
@@ -1715,8 +1735,8 @@ func TestTokenBuffer_GetNextExpr(t *testing.T) {
 
 func TestTokenBuffer_GetOptions(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    []Token
+		name  string
+		input []Token
 	}{
 		{"empty_tokens", []Token{}},
 		{"single_token", []Token{{Value: "x"}}},
@@ -1735,8 +1755,8 @@ func TestTokenBuffer_GetOptions(t *testing.T) {
 
 func TestTokenBuffer_GetUntil(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    []Token
+		name  string
+		input []Token
 	}{
 		{"empty_tokens", []Token{}},
 		{"single_token", []Token{{Value: "x"}}},
@@ -1754,8 +1774,8 @@ func TestTokenBuffer_GetUntil(t *testing.T) {
 
 func TestTokenBuffer_Unget(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    []Token
+		name  string
+		input []Token
 	}{
 		{"empty_tokens", []Token{}},
 		{"single_token", []Token{{Value: "x"}}},

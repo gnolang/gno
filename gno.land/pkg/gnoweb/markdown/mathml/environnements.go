@@ -178,7 +178,6 @@ func processTable(table *MMLNode) {
 						colspan = int(span) - 1
 					}
 					if len(cell) == 1 && c.Properties&propHorzArrow > 0 {
-
 						arrowWidth := strconv.FormatFloat(float64(2*span-1), 'f', 1, 32) + "em"
 						// THIS IS A BAD HACK. Arrows do not like to stretch.
 						// Hope browsers get this fixed soon.

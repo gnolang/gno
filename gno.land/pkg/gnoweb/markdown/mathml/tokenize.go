@@ -2,8 +2,6 @@ package mathml
 
 import (
 	"errors"
-	"log"
-	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -65,10 +63,6 @@ var (
 	char_close    = []rune(")]}")
 	char_reserved = []rune(`#$%^&_{}~\`)
 )
-
-func init() {
-	logger = log.New(os.Stderr, "MathML: ", log.LstdFlags)
-}
 
 type Token struct {
 	Kind        TokenKind
@@ -253,7 +247,6 @@ func GetNextExpr(tokens []Token, idx int) ([]Token, int, ExprKind) {
 		return nil, idx, kind
 	}
 	if tokens[idx].MatchOffset > 0 && tokens[idx].Kind&tokEscaped == 0 {
-
 		switch tokens[idx].Value {
 		case "{":
 			kind = expr_group
@@ -277,7 +270,7 @@ type TokenBuffer struct {
 	jump int
 }
 
-type TokenBufferErr struct {
+type TokenBufferError struct {
 	code int
 	err  error
 }
@@ -294,13 +287,13 @@ var (
 	ErrTokenBufferSingle = errors.New("expected expression, got token")
 )
 
-// Error the TokenBufferErr
-func (e *TokenBufferErr) Error() string {
+// Error the TokenBufferError
+func (e *TokenBufferError) Error() string {
 	return e.err.Error()
 }
 
-// Unwrap the TokenBufferErr
-func (e *TokenBufferErr) Unwrap() error {
+// Unwrap the TokenBufferError
+func (e *TokenBufferError) Unwrap() error {
 	return e.err
 }
 
@@ -345,11 +338,11 @@ func (b *TokenBuffer) GetNextToken(skipWhitespace ...bool) (Token, error) {
 	}
 	if b.idx >= len(b.Expr) {
 		b.idx = temp
-		return result, &TokenBufferErr{tbEndErr, ErrTokenBufferEnd}
+		return result, &TokenBufferError{tbEndErr, ErrTokenBufferEnd}
 	}
 	if b.Expr[b.idx].Kind&(tokEscaped|tokCurly|tokOpen) == (tokCurly | tokOpen) {
 		b.idx = temp
-		return result, &TokenBufferErr{tbIsExprErr, ErrTokenBufferExpr}
+		return result, &TokenBufferError{tbIsExprErr, ErrTokenBufferExpr}
 	}
 	result = b.Expr[b.idx]
 	b.idx++
@@ -367,7 +360,7 @@ func (b *TokenBuffer) GetNextExpr() (*TokenBuffer, error) {
 	}
 	if b.idx >= len(b.Expr) {
 		b.idx = temp
-		return nil, &TokenBufferErr{tbEndErr, ErrTokenBufferEnd}
+		return nil, &TokenBufferError{tbEndErr, ErrTokenBufferEnd}
 	}
 	if b.Expr[b.idx].MatchOffset > 0 && b.Expr[b.idx].Kind&tokEscaped == 0 && b.Expr[b.idx].Value == "{" {
 		end := b.idx + b.Expr[b.idx].MatchOffset
@@ -375,7 +368,7 @@ func (b *TokenBuffer) GetNextExpr() (*TokenBuffer, error) {
 		b.idx = end + 1
 	} else {
 		b.idx = temp
-		return nil, &TokenBufferErr{tbIsSingleErr, ErrTokenBufferSingle}
+		return nil, &TokenBufferError{tbIsSingleErr, ErrTokenBufferSingle}
 	}
 	b.jump = b.idx - temp
 	return result, nil
@@ -393,7 +386,7 @@ func (b *TokenBuffer) GetOptions(skipWhitespace ...bool) (*TokenBuffer, error) {
 	}
 	if b.idx >= len(b.Expr) {
 		b.idx = temp
-		return nil, &TokenBufferErr{tbEndErr, ErrTokenBufferEnd}
+		return nil, &TokenBufferError{tbEndErr, ErrTokenBufferEnd}
 	}
 	if b.Expr[b.idx].MatchOffset > 0 && b.Expr[b.idx].Kind&tokEscaped == 0 && b.Expr[b.idx].Value == "[" {
 		end := b.idx + b.Expr[b.idx].MatchOffset
@@ -401,7 +394,7 @@ func (b *TokenBuffer) GetOptions(skipWhitespace ...bool) (*TokenBuffer, error) {
 		b.idx = end + 1 // Don't parse closing "]"
 	} else {
 		b.idx = temp
-		return nil, &TokenBufferErr{}
+		return nil, &TokenBufferError{}
 	}
 	b.jump = b.idx - temp
 	return result, nil
@@ -420,7 +413,7 @@ func (b *TokenBuffer) GetUntil(f func(Token) bool) *TokenBuffer {
 // Get the next n tokens
 func (b *TokenBuffer) GetNextN(n int, skipWhitespace ...bool) (*TokenBuffer, error) {
 	if b.idx+n > len(b.Expr) {
-		return NewTokenBuffer(b.Expr[b.idx:len(b.Expr)]), &TokenBufferErr{tbEndErr, ErrTokenBufferEnd}
+		return NewTokenBuffer(b.Expr[b.idx:len(b.Expr)]), &TokenBufferError{tbEndErr, ErrTokenBufferEnd}
 	}
 	for b.idx < len(b.Expr) && b.Expr[b.idx].Kind&tokComment > 0 {
 		b.idx++

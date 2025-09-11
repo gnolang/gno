@@ -140,7 +140,7 @@ func (n *MMLNode) Write(w *strings.Builder, indent int) {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
-	
+
 	for _, key := range keys {
 		val := n.Attrib[key]
 		w.WriteRune(' ')

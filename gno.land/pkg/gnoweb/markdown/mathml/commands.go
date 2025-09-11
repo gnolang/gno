@@ -226,7 +226,6 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 	if variant, ok := math_variants[name]; ok {
 		nextExpr, err := b.GetNextExpr()
 		if errors.Is(err, ErrTokenBufferSingle) {
-
 			nextExpr, err = b.GetNextN(1, true)
 		}
 		var wrapper *MMLNode
@@ -236,7 +235,6 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 		if err != nil {
 			// treat the remainder of the buffer as argument
 			return converter.ParseTex(b, context|variant, wrapper)
-
 		}
 		return converter.ParseTex(nextExpr, context|variant, wrapper)
 	}
