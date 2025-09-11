@@ -5,9 +5,12 @@ import (
 	"strconv"
 	"strings"
 
+	u256 "gno.land/p/gnoswap/uint256"
 	"gno.land/p/matijamarjanovic/charts"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
+	"gno.land/p/volos/consts"
+	"gno.land/p/volos/math"
 	"gno.land/r/demo/grc20reg"
 	"gno.land/r/sys/users"
 	volos "gno.land/r/volos/core"
@@ -30,6 +33,7 @@ func renderUserPage(path string) string {
 	}
 
 	out := md.H1("👤 User Page")
+	out += md.H4(displayName)
 
 	markets := volos.GetUserMarkets(userAddr)
 	loans := volos.GetUserLoans(userAddr)
@@ -39,18 +43,19 @@ func renderUserPage(path string) string {
 		return out
 	}
 
-	totalSupplied := 0.0
-	totalBorrowed := 0.0
-
 	table := mdtable.Table{
 		Headers: []string{"Market", "Supplied", "Borrowed", "Collateral", "Health Factor"},
 	}
 
 	anyRisk := false
 
+	var marketLabels []string
+	var chartSupplied []float64
+	var chartBorrowed []float64
+
 	for _, marketId := range markets {
 		pos := volos.GetPosition(marketId, userAddr)
-		_, params := volos.GetMarket(marketId)
+		market, params := volos.GetMarket(marketId)
 		loanToken := grc20reg.Get(params.GetLoanToken())
 		collateralToken := grc20reg.Get(params.GetCollateralToken())
 		marketLabel := marketId
@@ -58,58 +63,83 @@ func renderUserPage(path string) string {
 			marketLabel = loanToken.GetSymbol() + "/" + collateralToken.GetSymbol()
 		}
 		marketLink := md.Link(marketLabel, "?market="+marketId)
-		supplied := pos.SupplyShares.ToString()
-		borrowed := pos.BorrowShares.ToString()
-		collateral := pos.Collateral.ToString()
-		hf := volos.GetHealthFactor(marketId, userAddr)
 
-		suppliedF, _ := strconv.ParseFloat(supplied, 64)
-		borrowedF, _ := strconv.ParseFloat(borrowed, 64)
-		hfF, _ := strconv.ParseFloat(hf, 64)
-		totalSupplied += suppliedF
-		totalBorrowed += borrowedF
-		if hfF < 1.0 {
+		suppliedAssets := math.ToAssetsUp(pos.SupplyShares, market.TotalSupplyAssets, market.TotalSupplyShares)
+		borrowedAssets := math.ToAssetsUp(pos.BorrowShares, market.TotalBorrowAssets, market.TotalBorrowShares)
+		collateralAssets := pos.Collateral
+
+		supplied := formatTokenAmount(suppliedAssets, loanToken.GetDecimals())
+		borrowed := formatTokenAmount(borrowedAssets, loanToken.GetDecimals())
+		collateral := formatTokenAmount(collateralAssets, collateralToken.GetDecimals())
+
+		hfRaw := u256.MustFromDecimal(volos.GetHealthFactor(marketId, userAddr))
+		hf := formatPercentage(hfRaw)
+		if hfRaw.Lt(consts.WAD) { // < 1.00
 			anyRisk = true
 		}
-		table.Append([]string{marketLink, supplied, borrowed, collateral, hf})
+		hfString := hf
+
+		threeWad := new(u256.Uint).Mul(consts.WAD, u256.NewUint(3))
+		if hfRaw.Gt(threeWad) {
+			hfString = "🔥 3.00+"
+		}
+
+		oneFiveWad := new(u256.Uint).Mul(consts.WAD, u256.NewUint(15))
+		oneFiveWad = new(u256.Uint).Div(oneFiveWad, u256.NewUint(10))
+		if hfRaw.Lt(oneFiveWad) {
+			hfString = "⚠️ " + hf
+		}
+
+		table.Append([]string{marketLink, supplied, borrowed, collateral, hfString})
+
+		marketLabels = append(marketLabels, marketLabel)
+		if v, err := strconv.ParseFloat(supplied, 64); err == nil {
+			chartSupplied = append(chartSupplied, v)
+		} else {
+			chartSupplied = append(chartSupplied, 0)
+		}
+		if v, err := strconv.ParseFloat(borrowed, 64); err == nil {
+			chartBorrowed = append(chartBorrowed, v)
+		} else {
+			chartBorrowed = append(chartBorrowed, 0)
+		}
+	}
+
+	if len(loans) > 0 {
+		out += md.H2("📊 Loans by Token")
+		loansTable := mdtable.Table{Headers: []string{"Token", "Amount"}}
+		for i := 0; i < len(loans); i += 2 {
+			tokenPath := loans[i]
+			amountStr := loans[i+1]
+			token := grc20reg.Get(tokenPath)
+			label := tokenPath
+			dec := 0
+			if token != nil {
+				label = token.GetSymbol()
+				dec = token.GetDecimals()
+			}
+			amt := formatTokenAmount(u256.MustFromDecimal(amountStr), dec)
+			loansTable.Append([]string{label, amt})
+		}
+		out += loansTable.String()
 	}
 
 	if len(markets) > 0 {
 		out += md.H2("📈 Positions")
 		out += table.String()
 		out += "\n"
-		out += md.Blockquote("These fiat values are mocked: 1 token denom = $1.")
-		out += "\n"
-		out += md.Paragraph("💰 **Total Supplied:** $" + formatMoney(totalSupplied))
-		out += md.Paragraph("💰 **Total Borrowed:** $" + formatMoney(totalBorrowed))
 		if anyRisk {
 			out += md.Paragraph("⚠️ " + md.Bold("Warning: One or more positions are at risk of liquidation!"))
 		}
-	}
 
-	if len(loans) > 0 {
-		var (
-			labels []string
-			values []float64
-		)
-		for i := 0; i < len(loans); i += 2 {
-			tokenPath := loans[i]
-			amountStr := loans[i+1]
-			amount, err := strconv.ParseFloat(amountStr, 64)
-			if err != nil {
-				continue
-			}
-			token := grc20reg.Get(tokenPath)
-			label := tokenPath
-			if token != nil {
-				label = token.GetSymbol()
-			}
-			labels = append(labels, label)
-			values = append(values, amount)
+		if len(chartSupplied) > 0 {
+			out += md.H3("Supplied per Market")
+			out += charts.GenerateBarChart(chartSupplied, marketLabels, 30, "")
 		}
-		chart := charts.GenerateBarChart(values, labels, 30, "Loans for "+displayName)
-		out += md.H2("📊 Loans by Token")
-		out += chart
+		if len(chartBorrowed) > 0 {
+			out += md.H3("Borrowed per Market")
+			out += charts.GenerateBarChart(chartBorrowed, marketLabels, 30, "")
+		}
 	}
 
 	return out

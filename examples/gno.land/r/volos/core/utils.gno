@@ -151,9 +151,9 @@ func IsIRMEnabled(irm string) {
 	}
 }
 
-// calculateUtilization calculates the utilization rate for a market
+// CalculateUtilization calculates the utilization rate for a market
 // Returns utilization as a WAD-scaled value (totalBorrow / totalSupply)
-func calculateUtilization(marketId string) *u256.Uint {
+func CalculateUtilization(marketId string) *u256.Uint {
 	market, _ := GetMarket(marketId)
 	
 	if market.TotalSupplyAssets.IsZero() {

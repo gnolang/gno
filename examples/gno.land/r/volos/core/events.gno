@@ -137,7 +137,7 @@ func emitSupply(marketId string, caller std.Address, onBehalf std.Address, asset
 	// Calculate APRs and utilization after supply operation
 	supplyAPR := CalculateSupplyAPR(marketId)
 	borrowAPR := CalculateBorrowAPR(marketId)
-	utilization := calculateUtilization(marketId)
+	utilization := CalculateUtilization(marketId)
 
 	std.Emit(
 		SupplyEvent,
@@ -157,7 +157,7 @@ func emitWithdraw(marketId string, caller std.Address, onBehalf std.Address, rec
 	// Calculate APRs and utilization after withdraw operation
 	supplyAPR := CalculateSupplyAPR(marketId)
 	borrowAPR := CalculateBorrowAPR(marketId)
-	utilization := calculateUtilization(marketId)
+	utilization := CalculateUtilization(marketId)
 
 	std.Emit(
 		WithdrawEvent,
@@ -178,7 +178,7 @@ func emitBorrow(marketId string, caller std.Address, onBehalf std.Address, recei
 	// Calculate APRs and utilization after borrow operation
 	supplyAPR := CalculateSupplyAPR(marketId)
 	borrowAPR := CalculateBorrowAPR(marketId)
-	utilization := calculateUtilization(marketId)
+	utilization := CalculateUtilization(marketId)
 
 	std.Emit(
 		BorrowEvent,
@@ -199,7 +199,7 @@ func emitRepay(marketId string, caller std.Address, onBehalf std.Address, assets
 	// Calculate APRs after repay operation
 	supplyAPR := CalculateSupplyAPR(marketId)
 	borrowAPR := CalculateBorrowAPR(marketId)
-	utilization := calculateUtilization(marketId)
+	utilization := CalculateUtilization(marketId)
 
 
 	std.Emit(
@@ -220,7 +220,7 @@ func emitLiquidate(marketId string, caller std.Address, borrower std.Address, re
 	// Calculate APRs and utilization after liquidation operation
 	supplyAPR := CalculateSupplyAPR(marketId)
 	borrowAPR := CalculateBorrowAPR(marketId)
-	utilization := calculateUtilization(marketId)
+	utilization := CalculateUtilization(marketId)
 
 	std.Emit(
 		EventLiquidate,
@@ -243,7 +243,7 @@ func emitAccrueInterest(marketId string, borrowRate, interest, totalSupplyAssets
 	// Calculate current APRs and utilization for the event
 	supplyAPR := CalculateSupplyAPR(marketId)
 	borrowAPR := CalculateBorrowAPR(marketId)
-	utilization := calculateUtilization(marketId)
+	utilization := CalculateUtilization(marketId)
 
 	std.Emit(
 		AccrueInterestEvent,
