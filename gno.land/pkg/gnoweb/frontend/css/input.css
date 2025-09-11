@@ -221,7 +221,7 @@
 	}
 
 	.realm-view math {
-		@apply font-mono;
+		@apply font-mono text-300;
 	}
 
 	.realm-view small {

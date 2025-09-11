@@ -1,0 +1,169 @@
+-- input.md --
+# Math Test
+
+## Inline Math
+
+Simple inline math: $x = 1$
+
+Complex inline math: $x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$
+
+LaTeX delimiters: \(A = \pi r^2\)
+
+## Display Math
+
+Simple display math:
+$$
+E = mc^2
+$$
+
+Complex display math:
+$$
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+$$
+
+Matrix:
+$$
+\begin{pmatrix}
+a & b \\
+c & d
+\end{pmatrix}
+$$
+
+-- output.html --
+<h1>Math Test</h1>
+<h2>Inline Math</h2>
+<p>Simple inline math: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>x</mi>
+      <mo>=</mo>
+      <mn>1</mn>
+    </mrow>
+    <annotation encoding="application/x-tex">x = 1</annotation>
+  </semantics>
+</math>
+</p>
+<p>Complex inline math: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>x</mi>
+      <mo>=</mo>
+      <mfrac>
+        <mrow>
+          <mo>−</mo>
+          <mi>b</mi>
+          <mo>±</mo>
+          <msqrt>
+            <mrow>
+              <msup>
+                <mi>b</mi>
+                <mn>2</mn>
+              </msup>
+              <mo>−</mo>
+              <mn>4</mn>
+              <mi>a</mi>
+              <mi>c</mi>
+            </mrow>
+          </msqrt>
+        </mrow>
+        <mrow>
+          <mn>2</mn>
+          <mi>a</mi>
+        </mrow>
+      </mfrac>
+    </mrow>
+    <annotation encoding="application/x-tex">x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}</annotation>
+  </semantics>
+</math>
+</p>
+<p>LaTeX delimiters: (A = \pi r^2)</p>
+<h2>Display Math</h2>
+<p>Simple display math:</p>
+
+<math class="math-displaystyle" display="block" displaystyle="true" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>E</mi>
+      <mo>=</mo>
+      <mi>m</mi>
+      <msup>
+        <mi>c</mi>
+        <mn>2</mn>
+      </msup>
+    </mrow>
+    <annotation encoding="application/x-tex">
+E = mc^2
+</annotation>
+  </semantics>
+</math>
+<p>Complex display math:</p>
+
+<math class="math-displaystyle" display="block" displaystyle="true" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msubsup>
+        <mo largeop="true" movablelimits="true">∫</mo>
+        <mrow>
+          <mo>−</mo>
+          <mi>∞</mi>
+        </mrow>
+        <mi>∞</mi>
+      </msubsup>
+      <msup>
+        <mi>e</mi>
+        <mrow>
+          <mo>−</mo>
+          <msup>
+            <mi>x</mi>
+            <mn>2</mn>
+          </msup>
+        </mrow>
+      </msup>
+      <mi>d</mi>
+      <mi>x</mi>
+      <mo>=</mo>
+      <msqrt>
+        <mi>π</mi>
+      </msqrt>
+    </mrow>
+    <annotation encoding="application/x-tex">
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+</annotation>
+  </semantics>
+</math>
+<p>Matrix:</p>
+
+<math class="math-displaystyle" display="block" displaystyle="true" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo fence="true" strechy="true">(</mo>
+      <mtable columnalign="center" rowalign="center">
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>a</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>b</mi>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>c</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>d</mi>
+          </mtd>
+        </mtr>
+      </mtable>
+      <mo fence="true" strechy="true">)</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">
+\begin{pmatrix}
+a & b \\
+c & d
+\end{pmatrix}
+</annotation>
+  </semantics>
+</math>

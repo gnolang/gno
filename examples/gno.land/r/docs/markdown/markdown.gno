@@ -783,6 +783,129 @@ gno.land/r/boards
 gno.land/r/boards:foo/bar
 gno.land/r/docs/markdown$source
 
+### Mathematics
+
+Gno-Flavored Markdown supports mathematical expressions using LaTeX syntax, which are rendered as MathML for proper mathematical display.
+
+#### Inline Math
+
+Mathematical expressions can be written inline using single dollar signs:
+
+±±±markdown
+Einstein's famous equation is $E = mc^2$.
+±±±
+
+Einstein's famous equation is $E = mc^2$.
+
+Greek letters and symbols:
+
+±±±markdown
+Greek letters: $\alpha, \beta, \gamma, \Delta, \Omega$
+
+Mathematical operators: $+ - \times \div \pm \mp = \neq < > \leq \geq$
+
+Functions: $\sin, \cos, \tan, \log, \ln, \exp, \max, \min$
+±±±
+
+Greek letters: $\alpha, \beta, \gamma, \Delta, \Omega$
+
+Mathematical operators: $+ - \times \div \pm \mp = \neq < > \leq \geq$
+
+Functions: $\sin, \cos, \tan, \log, \ln, \exp, \max, \min$
+
+#### Display Math
+
+For larger mathematical expressions, use double dollar signs:
+
+±±±markdown
+$$
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+$$
+±±±
+
+$$
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+$$
+
+#### Advanced Examples
+
+Matrices:
+
+±±±markdown
+$$
+\begin{pmatrix}
+a & b \\
+c & d
+\end{pmatrix}
+\begin{pmatrix}
+x \\
+y
+\end{pmatrix} = 
+\begin{pmatrix}
+ax + by \\
+cx + dy
+\end{pmatrix}
+$$
+±±±
+
+$$
+\begin{pmatrix}
+a & b \\
+c & d
+\end{pmatrix}
+\begin{pmatrix}
+x \\
+y
+\end{pmatrix} = 
+\begin{pmatrix}
+ax + by \\
+cx + dy
+\end{pmatrix}
+$$
+
+Complex equations with Greek letters:
+
+±±±markdown
+$$
+\nabla \times \vec{E} = -\frac{\partial \vec{B}}{\partial t}
+$$
+±±±
+
+$$
+\nabla \times \vec{E} = -\frac{\partial \vec{B}}{\partial t}
+$$
+
+Fractions and roots:
+
+±±±markdown
+Fractions: $\frac{a}{b}$, $\frac{x^2 + y^2}{z^3}$
+
+Square roots: $\sqrt{x}$, $\sqrt[3]{x}$, $\sqrt[n]{x}$
+
+Superscripts and subscripts: $x^2$, $x_1$, $x^{2+3}$, $x_{i+1}$
+±±±
+
+Fractions: $\frac{a}{b}$, $\frac{x^2 + y^2}{z^3}$
+
+Square roots: $\sqrt{x}$, $\sqrt[3]{x}$, $\sqrt[n]{x}$
+
+Superscripts and subscripts: $x^2$, $x_1$, $x^{2+3}$, $x_{i+1}$
+
+#### Supported Features
+
+- **Fractions**: ±\frac{numerator}{denominator}±
+- **Superscripts and subscripts**: ±x^2±, ±x_1±, ±x^{2+3}±, ±x_{i+1}±
+- **Square roots**: ±\sqrt{x}±, ±\sqrt[n]{x}±
+- **Greek letters**: ±\alpha±, ±\beta±, ±\gamma±, ±\Delta±, ±\Omega±, etc.
+- **Mathematical operators**: ±\times±, ±\div±, ±\pm±, ±\mp±, ±\leq±, ±\geq±, ±\neq±, ±\approx±, ±\equiv±
+- **Arrows**: ±\rightarrow±, ±\leftarrow±, ±\leftrightarrow±, ±\Rightarrow±, ±\Leftarrow±, ±\Leftrightarrow±
+- **Set theory**: ±\in±, ±\notin±, ±\subset±, ±\supset±, ±\cup±, ±\cap±, ±\emptyset±
+- **Logical operators**: ±\land±, ±\lor±, ±\lnot±, ±\forall±, ±\exists±
+- **Integrals and sums**: ±\int±, ±\sum±, ±\prod±, ±\lim±
+- **Functions**: ±\sin±, ±\cos±, ±\tan±, ±\log±, ±\ln±, ±\exp±, ±\max±, ±\min±
+- **Matrices**: ±\begin{matrix}...\end{matrix}±, ±\begin{pmatrix}...\end{pmatrix}±
+- **Complex equations**: Schrödinger, Maxwell, Fourier transforms, etc.
+
 ### And more...
 
 XXX: TODO
