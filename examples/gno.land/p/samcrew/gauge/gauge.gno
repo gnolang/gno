@@ -24,7 +24,14 @@ var DefaultConfig = Config{false, 300}
 //   - Width: width of the gauge in pixels
 //
 // Example usage: gauge.Render(30, 100, "Progress", "#4caf50", &gauge.Config{PercentOnly: true, Width: 400})
-func Render(value int, total int, label string, color string, config *Config) string {
+func Render(value int, total int, label string, color string, config Config) string {
+	if total <= 0 {
+		return "jauge fails: total must be greater than 0"
+	}
+	if value > total {
+		return "jauge fails: value cannot be greater than total"
+	}
+
 	canvasWidth := config.Width
 	const (
 		canvasHeight = 30
