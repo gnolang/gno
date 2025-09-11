@@ -13,8 +13,8 @@ gnokey maketx addpkg -pkgdir $WORK/callerrealm -pkgpath gno.land/r/test/callerre
 ## validate initial state
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 0, value = 0'
-! gnokey query "vm/qrender" --data "gno.land/r/test/callerrealm:"
-stderr 'invalid call: obj<~VPBlock\(3,0\)>.String\(\)'
+gnokey query "vm/qrender" --data "gno.land/r/test/callerrealm:"
+stdout 'obj\.value = 0'
 
 ## execute NonCrossingMutation
 ! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func NonCrossingMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
@@ -34,7 +34,7 @@ stdout 'Object\.value = 1, value = 1'
 
 ## execute ObjectMutationRootedAtCaller
 ! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func ObjectMutationRootedAtCaller -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
-stderr 'invalid call: obj<~VPBlock\(3,0\)>.Mutate\(\)'
+stderr 'cannot directly modify readonly tainted object \(w/o method\): o<VPBlock\(1,0\)>.value'
 
 ## execute CallMutateObject
 gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CallMutateObject -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2

@@ -5,9 +5,8 @@ gnoland start
 
 gnokey maketx call -pkgpath gno.land/r/testing/caller_realm -func SaveObject -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
-gnokey maketx call -pkgpath gno.land/r/testing/caller_realm -func Mutate -args "hello" -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test test1
-stdout 'OK!'
-stdout '("reply from ext realm" string)'
+! gnokey maketx call -pkgpath gno.land/r/testing/caller_realm -func Mutate -args "hello" -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test test1
+stderr 'cannot directly modify readonly tainted object \(w/o method\): o<VPBlock\(1,0\)>.value'
 
 
 -- ext_realm/ext_realm.gno --
