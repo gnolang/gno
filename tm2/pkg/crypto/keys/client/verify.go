@@ -115,7 +115,7 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 	}
 
 	// Get the transaction to verify.
-	tx, err := getTransaction(cfg, io)
+	tx, err := getTransaction(cfg.DocPath, io)
 	if err != nil {
 		return err
 	}
@@ -127,16 +127,9 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 	}
 
 	// Get account number and sequence if needed.
-	getTxParameters(ctx, cfg, info, io)
-
-	// Get the bytes to verify
-	signBytes, err := tx.GetSignBytes(
-		cfg.ChainID,
-		cfg.AccountNumber,
-		cfg.AccountSequence,
-	)
+	signBytes, err := getSignBytes(ctx, cfg, info, tx, io)
 	if err != nil {
-		return fmt.Errorf("unable to get signature bytes, %w", err)
+		return err
 	}
 
 	err = kb.Verify(info.GetName(), signBytes, sig)
@@ -148,11 +141,11 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 	return err
 }
 
-func getTransaction(cfg *VerifyCfg, io commands.IO) (*std.Tx, error) {
+func getTransaction(docPath string, io commands.IO) (*std.Tx, error) {
 	var msg []byte
 
 	// Read document to sign.
-	if cfg.DocPath == "" { // From stdin.
+	if docPath == "" { // From stdin.
 		msgstr, err := io.GetString(
 			"Enter document to sign.",
 		)
@@ -162,7 +155,7 @@ func getTransaction(cfg *VerifyCfg, io commands.IO) (*std.Tx, error) {
 		msg = []byte(msgstr)
 	} else { // from file
 		var err error
-		msg, err = os.ReadFile(cfg.DocPath)
+		msg, err = os.ReadFile(docPath)
 		if err != nil {
 			return nil, err
 		}
@@ -219,27 +212,40 @@ func getSignature(cfg *VerifyCfg, tx *std.Tx) ([]byte, error) {
 	return nil, errors.New("no signature found in the transaction")
 }
 
-func getTxParameters(ctx context.Context, cfg *VerifyCfg, info keys.Info, io commands.IO) {
-	if cfg.Offline || cfg.AccountNumber != 0 && cfg.AccountSequence != 0 {
-		return
+func getSignBytes(ctx context.Context, cfg *VerifyCfg, info keys.Info, tx *std.Tx, io commands.IO) ([]byte, error) {
+	// Query account number and sequence if needed.
+	if !cfg.Offline && cfg.AccountNumber == 0 && cfg.AccountSequence == 0 {
+
+		if !cfg.RootCfg.BaseOptions.Quiet {
+			io.Println("Querying account from chain...")
+		}
+
+		// Query the account from the chain.
+		baseAccount, err := queryBaseAccount(ctx, cfg, info)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not query account from chain, use default values: %v\n", err)
+		} else {
+			// Update cfg with queried account number and sequence.
+			cfg.AccountNumber = baseAccount.AccountNumber
+			cfg.AccountSequence = baseAccount.Sequence
+			if !cfg.RootCfg.BaseOptions.Quiet {
+				io.Printf("account-number set to %d\n", cfg.AccountNumber)
+				io.Printf("account-sequence set to %d\n", cfg.AccountSequence)
+			}
+		}
 	}
 
-	if !cfg.RootCfg.BaseOptions.Quiet {
-		io.Println("Querying account from chain...")
-	}
-	// Query the account from the chain.
-	baseAccount, err := queryBaseAccount(ctx, cfg, info)
+	// Get the bytes to verify.
+	signBytes, err := tx.GetSignBytes(
+		cfg.ChainID,
+		cfg.AccountNumber,
+		cfg.AccountSequence,
+	)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: could not query account from chain, use default values: %v\n", err)
-		return
+		return nil, fmt.Errorf("unable to get signature bytes, %w", err)
 	}
 
-	cfg.AccountNumber = baseAccount.AccountNumber
-	cfg.AccountSequence = baseAccount.Sequence
-	if !cfg.RootCfg.BaseOptions.Quiet {
-		io.Printf("account-number set to %d\n", cfg.AccountNumber)
-		io.Printf("account-sequence set to %d\n", cfg.AccountSequence)
-	}
+	return signBytes, nil
 }
 
 func queryBaseAccount(ctx context.Context, cfg *VerifyCfg, info keys.Info) (*std.BaseAccount, error) {
