@@ -18,24 +18,24 @@
 //	c := collection.New()
 //
 //	// Add indexes with different options
-//	c.AddIndex("name", func(v interface{}) string {
+//	c.AddIndex("name", func(v any) string {
 //	    return v.(*User).Name
 //	}, UniqueIndex)
 //
-//	c.AddIndex("email", func(v interface{}) string {
+//	c.AddIndex("email", func(v any) string {
 //	    return v.(*User).Email
 //	}, UniqueIndex|CaseInsensitiveIndex)
 //
-//	c.AddIndex("age", func(v interface{}) string {
+//	c.AddIndex("age", func(v any) string {
 //	    return strconv.Itoa(v.(*User).Age)
 //	}, DefaultIndex)  // Non-unique index
 //
-//	c.AddIndex("username", func(v interface{}) string {
+//	c.AddIndex("username", func(v any) string {
 //	    return v.(*User).Username
 //	}, UniqueIndex|SparseIndex)  // Allow empty usernames
 //
 //	// For tags, we index all tags for the user
-//	c.AddIndex("tag", func(v interface{}) []string {
+//	c.AddIndex("tag", func(v any) []string {
 //	    return v.(*User).Tags
 //	}, DefaultIndex)  // Non-unique to allow multiple users with same tag
 //
@@ -66,8 +66,8 @@ import (
 	"errors"
 	"strings"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/seqid"
 )
 
 // New creates a new Collection instance with an initialized ID index.
@@ -121,7 +121,7 @@ const (
 //
 // The backing tree stores either a single ID or []string for multiple IDs per key.
 type Index struct {
-	fn      interface{}
+	fn      any
 	options IndexOption
 	tree    avl.ITree
 }
@@ -132,7 +132,7 @@ type Index struct {
 //   - name: the unique name of the index (e.g., "tags")
 //   - indexFn: a function that extracts either a string or []string from an object
 //   - options: bit flags for index configuration (e.g., UniqueIndex)
-func (c *Collection) AddIndex(name string, indexFn interface{}, options IndexOption) {
+func (c *Collection) AddIndex(name string, indexFn any, options IndexOption) {
 	if name == IDIndex {
 		panic("_id is a reserved index name")
 	}
@@ -202,17 +202,17 @@ func (idx *Index) remove(key string, idStr string) {
 }
 
 // generateKeys extracts one or more keys from an object for a given index.
-func generateKeys(idx *Index, obj interface{}) ([]string, bool) {
+func generateKeys(idx *Index, obj any) ([]string, bool) {
 	if obj == nil {
 		return nil, false
 	}
 
 	switch fnTyped := idx.fn.(type) {
-	case func(interface{}) string:
+	case func(any) string:
 		// Single-value index
 		key := fnTyped(obj)
 		return []string{key}, true
-	case func(interface{}) []string:
+	case func(any) []string:
 		// Multi-value index
 		keys := fnTyped(obj)
 		return keys, true
@@ -227,7 +227,7 @@ func generateKeys(idx *Index, obj interface{}) ([]string, bool) {
 //   - The object is nil
 //   - A uniqueness constraint would be violated
 //   - Index generation fails for any index
-func (c *Collection) Set(obj interface{}) uint64 {
+func (c *Collection) Set(obj any) uint64 {
 	if obj == nil {
 		return 0
 	}
@@ -368,7 +368,7 @@ func (c *Collection) Delete(id uint64) bool {
 //   - Index generation fails for any index
 //
 // If the update fails, the collection remains unchanged.
-func (c *Collection) Update(id uint64, obj interface{}) bool {
+func (c *Collection) Update(id uint64, obj any) bool {
 	if obj == nil {
 		return false
 	}

@@ -11,8 +11,8 @@ import (
 	"errors"
 	"std"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ownable"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/ownable"
 )
 
 var (
@@ -36,17 +36,27 @@ func New(ownerAddress std.Address) *ManagedGroup {
 		backupOwners: avl.NewTree(),
 		members:      avl.NewTree(),
 	}
-	g.AddBackupOwner(ownerAddress)
-	g.AddMember(ownerAddress)
+	err := g.addBackupOwner(ownerAddress)
+	if err != nil {
+		panic(err)
+	}
+	err = g.addMember(ownerAddress)
+	if err != nil {
+		panic(err)
+	}
 	return g
 }
 
 // AddBackupOwner adds a backup owner to the group by std.Address.
 // If the caller is not the owner, an error is returned.
 func (g *ManagedGroup) AddBackupOwner(addr std.Address) error {
-	if !g.owner.CallerIsOwner() {
+	if !g.owner.OwnedByPrevious() {
 		return ownable.ErrUnauthorized
 	}
+	return g.addBackupOwner(addr)
+}
+
+func (g *ManagedGroup) addBackupOwner(addr std.Address) error {
 	if !addr.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -57,7 +67,7 @@ func (g *ManagedGroup) AddBackupOwner(addr std.Address) error {
 // RemoveBackupOwner removes a backup owner from the group by std.Address.
 // The owner cannot be removed. If the caller is not the owner, an error is returned.
 func (g *ManagedGroup) RemoveBackupOwner(addr std.Address) error {
-	if !g.owner.CallerIsOwner() {
+	if !g.owner.OwnedByPrevious() {
 		return ownable.ErrUnauthorized
 	}
 	if !addr.IsValid() {
@@ -74,7 +84,7 @@ func (g *ManagedGroup) RemoveBackupOwner(addr std.Address) error {
 // If the caller is not a backup owner, an error is returned.
 // The caller is automatically added as a member of the group.
 func (g *ManagedGroup) ClaimOwnership() error {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	// already owner, skip
 	if caller == g.Owner() {
 		return nil
@@ -83,16 +93,20 @@ func (g *ManagedGroup) ClaimOwnership() error {
 		return ErrNotMember
 	}
 	g.owner = ownable.NewWithAddress(caller)
-	g.AddMember(caller)
-	return nil
+	err := g.addMember(caller)
+	return err
 }
 
 // AddMember adds a member to the group by std.Address.
 // If the caller is not the owner, an error is returned.
 func (g *ManagedGroup) AddMember(addr std.Address) error {
-	if !g.owner.CallerIsOwner() {
+	if !g.owner.OwnedByPrevious() {
 		return ownable.ErrUnauthorized
 	}
+	return g.addMember(addr)
+}
+
+func (g *ManagedGroup) addMember(addr std.Address) error {
 	if !addr.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -104,7 +118,7 @@ func (g *ManagedGroup) AddMember(addr std.Address) error {
 // The owner cannot be removed. If the caller is not the owner,
 // an error is returned.
 func (g *ManagedGroup) RemoveMember(addr std.Address) error {
-	if !g.owner.CallerIsOwner() {
+	if !g.owner.OwnedByPrevious() {
 		return ownable.ErrUnauthorized
 	}
 	if !addr.IsValid() {
@@ -173,7 +187,7 @@ func (g *ManagedGroup) MembersWithOffset(offset, count int) []string {
 // sliceWithOffset is a helper function to iterate over an avl.Tree with an offset and count.
 func sliceWithOffset(t *avl.Tree, offset, count int) []string {
 	var result []string
-	t.IterateByOffset(offset, count, func(k string, _ interface{}) bool {
+	t.IterateByOffset(offset, count, func(k string, _ any) bool {
 		if k == "" {
 			return true
 		}

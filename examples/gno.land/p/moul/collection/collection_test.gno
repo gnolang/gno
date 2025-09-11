@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/ufmt"
 )
 
 type Person struct {
@@ -43,10 +43,10 @@ func TestBasicOperations(t *testing.T) {
 	c := New()
 
 	// Add indexes
-	c.AddIndex("name", func(v interface{}) string {
+	c.AddIndex("name", func(v any) string {
 		return v.(*Person).Name
 	}, UniqueIndex)
-	c.AddIndex("age", func(v interface{}) string {
+	c.AddIndex("age", func(v any) string {
 		return strconv.Itoa(v.(*Person).Age)
 	}, DefaultIndex)
 
@@ -92,7 +92,7 @@ func TestUniqueConstraints(t *testing.T) {
 		{
 			name: "Same age (non-unique index)",
 			setup: func(c *Collection) uint64 {
-				c.AddIndex("age", func(v interface{}) string {
+				c.AddIndex("age", func(v any) string {
 					return strconv.Itoa(v.(*Person).Age)
 				}, DefaultIndex)
 				c.Set(&Person{Name: "Alice", Age: 30})
@@ -105,7 +105,7 @@ func TestUniqueConstraints(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := New()
-			c.AddIndex("name", func(v interface{}) string {
+			c.AddIndex("name", func(v any) string {
 				return v.(*Person).Name
 			}, UniqueIndex)
 
@@ -119,10 +119,10 @@ func TestUniqueConstraints(t *testing.T) {
 
 func TestUpdates(t *testing.T) {
 	c := New()
-	c.AddIndex("name", func(v interface{}) string {
+	c.AddIndex("name", func(v any) string {
 		return v.(*Person).Name
 	}, UniqueIndex)
-	c.AddIndex("username", func(v interface{}) string {
+	c.AddIndex("username", func(v any) string {
 		return strings.ToLower(v.(*Person).Username)
 	}, UniqueIndex|CaseInsensitiveIndex)
 
@@ -131,7 +131,7 @@ func TestUpdates(t *testing.T) {
 	p2 := &Person{Name: "Bob", Username: "bob456"}
 
 	id1 := c.Set(p1)
-	id2 := c.Set(p2)
+	c.Set(p2)
 
 	tests := []struct {
 		name      string
@@ -171,7 +171,7 @@ func TestUpdates(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	c := New()
-	c.AddIndex("name", func(v interface{}) string {
+	c.AddIndex("name", func(v any) string {
 		return v.(*Person).Name
 	}, UniqueIndex)
 
@@ -212,7 +212,7 @@ func TestDelete(t *testing.T) {
 
 func TestEdgeCases(t *testing.T) {
 	c := New()
-	c.AddIndex("name", func(v interface{}) string {
+	c.AddIndex("name", func(v any) string {
 		return v.(*Person).Name
 	}, UniqueIndex)
 
@@ -254,7 +254,7 @@ func TestEdgeCases(t *testing.T) {
 				if entry == nil {
 					return false
 				}
-				id, err := seqid.FromString(entry.ID)
+				_, err := seqid.FromString(entry.ID)
 				if err != nil {
 					return false
 				}
@@ -292,12 +292,12 @@ func TestIndexTypes(t *testing.T) {
 	c := New()
 
 	// Test different types of indexes
-	c.AddIndex("composite", func(v interface{}) string {
+	c.AddIndex("composite", func(v any) string {
 		p := v.(*Person)
 		return p.Name + ":" + strconv.Itoa(p.Age)
 	}, UniqueIndex)
 
-	c.AddIndex("case_insensitive", func(v interface{}) string {
+	c.AddIndex("case_insensitive", func(v any) string {
 		return strings.ToLower(v.(*Person).Username)
 	}, UniqueIndex|CaseInsensitiveIndex)
 
@@ -326,11 +326,11 @@ func TestIndexOptions(t *testing.T) {
 		{
 			name: "Unique case-sensitive index",
 			setup: func(c *Collection) uint64 {
-				c.AddIndex("username", func(v interface{}) string {
+				c.AddIndex("username", func(v any) string {
 					return v.(*Person).Username
 				}, UniqueIndex)
 
-				id1 := c.Set(&Person{Username: "Alice"})
+				c.Set(&Person{Username: "Alice"})
 				return c.Set(&Person{Username: "Alice"}) // Should fail
 			},
 			wantID: false,
@@ -338,11 +338,11 @@ func TestIndexOptions(t *testing.T) {
 		{
 			name: "Unique case-insensitive index",
 			setup: func(c *Collection) uint64 {
-				c.AddIndex("email", func(v interface{}) string {
+				c.AddIndex("email", func(v any) string {
 					return v.(*Person).Email
 				}, UniqueIndex|CaseInsensitiveIndex)
 
-				id1 := c.Set(&Person{Email: "test@example.com"})
+				c.Set(&Person{Email: "test@example.com"})
 				return c.Set(&Person{Email: "TEST@EXAMPLE.COM"}) // Should fail
 			},
 			wantID: false,
@@ -350,7 +350,7 @@ func TestIndexOptions(t *testing.T) {
 		{
 			name: "Default index",
 			setup: func(c *Collection) uint64 {
-				c.AddIndex("age", func(v interface{}) string {
+				c.AddIndex("age", func(v any) string {
 					return strconv.Itoa(v.(*Person).Age)
 				}, DefaultIndex)
 
@@ -368,11 +368,11 @@ func TestIndexOptions(t *testing.T) {
 		{
 			name: "Multiple options",
 			setup: func(c *Collection) uint64 {
-				c.AddIndex("name", func(v interface{}) string {
+				c.AddIndex("name", func(v any) string {
 					return v.(*Person).Name
 				}, UniqueIndex|CaseInsensitiveIndex|SparseIndex)
 
-				id1 := c.Set(&Person{Name: "Alice"})
+				c.Set(&Person{Name: "Alice"})
 				return c.Set(&Person{Name: "ALICE"}) // Should fail
 			},
 			wantID: false,
@@ -392,7 +392,7 @@ func TestIndexOptions(t *testing.T) {
 
 func TestConcurrentOperations(t *testing.T) {
 	c := New()
-	c.AddIndex("name", func(v interface{}) string {
+	c.AddIndex("name", func(v any) string {
 		return v.(*Person).Name
 	}, UniqueIndex)
 
@@ -408,7 +408,7 @@ func TestConcurrentOperations(t *testing.T) {
 
 func TestSparseIndexBehavior(t *testing.T) {
 	c := New()
-	c.AddIndex("optional_field", func(v interface{}) string {
+	c.AddIndex("optional_field", func(v any) string {
 		return v.(*Person).Username
 	}, SparseIndex)
 
@@ -446,7 +446,7 @@ func TestSparseIndexBehavior(t *testing.T) {
 
 func TestIndexKeyGeneration(t *testing.T) {
 	c := New()
-	c.AddIndex("composite", func(v interface{}) string {
+	c.AddIndex("composite", func(v any) string {
 		p := v.(*Person)
 		return p.Name + ":" + strconv.Itoa(p.Age)
 	}, UniqueIndex)
@@ -485,7 +485,7 @@ func TestIndexKeyGeneration(t *testing.T) {
 
 func TestGetIndex(t *testing.T) {
 	c := New()
-	c.AddIndex("name", func(v interface{}) string {
+	c.AddIndex("name", func(v any) string {
 		return v.(*Person).Name
 	}, UniqueIndex)
 
@@ -529,14 +529,14 @@ func TestAddIndexPanic(t *testing.T) {
 		}
 	}()
 
-	c.AddIndex(IDIndex, func(v interface{}) string {
+	c.AddIndex(IDIndex, func(v any) string {
 		return ""
 	}, DefaultIndex)
 }
 
 func TestCaseInsensitiveOperations(t *testing.T) {
 	c := New()
-	c.AddIndex("email", func(v interface{}) string {
+	c.AddIndex("email", func(v any) string {
 		return v.(*Person).Email
 	}, UniqueIndex|CaseInsensitiveIndex)
 
@@ -604,13 +604,13 @@ func TestGetInvalidID(t *testing.T) {
 
 func TestGetAll(t *testing.T) {
 	c := New()
-	c.AddIndex("tags", func(v interface{}) []string {
+	c.AddIndex("tags", func(v any) []string {
 		return v.(*Person).Tags
 	}, DefaultIndex)
-	c.AddIndex("age", func(v interface{}) string {
+	c.AddIndex("age", func(v any) string {
 		return strconv.Itoa(v.(*Person).Age)
 	}, DefaultIndex)
-	c.AddIndex("name", func(v interface{}) string {
+	c.AddIndex("name", func(v any) string {
 		return v.(*Person).Name
 	}, UniqueIndex)
 
@@ -704,7 +704,7 @@ func TestIndexOperations(t *testing.T) {
 		{
 			name: "Basic set and get",
 			setup: func(c *Collection) (uint64, error) {
-				c.AddIndex("name", func(v interface{}) string {
+				c.AddIndex("name", func(v any) string {
 					return v.(*Person).Name
 				}, UniqueIndex)
 				return c.Set(&Person{Name: "Alice", Age: 30}), nil
@@ -724,7 +724,7 @@ func TestIndexOperations(t *testing.T) {
 		{
 			name: "Composite index",
 			setup: func(c *Collection) (uint64, error) {
-				c.AddIndex("composite", func(v interface{}) string {
+				c.AddIndex("composite", func(v any) string {
 					p := v.(*Person)
 					return p.Name + ":" + strconv.Itoa(p.Age)
 				}, UniqueIndex)
@@ -760,7 +760,7 @@ func TestIndexOperations(t *testing.T) {
 
 func TestMultiValueIndexes(t *testing.T) {
 	c := New()
-	c.AddIndex("tags", func(v interface{}) []string {
+	c.AddIndex("tags", func(v any) []string {
 		return v.(*Person).Tags
 	}, DefaultIndex)
 
@@ -812,7 +812,7 @@ func TestMultiValueIndexes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := New()
-			c.AddIndex("tags", func(v interface{}) []string {
+			c.AddIndex("tags", func(v any) []string {
 				return v.(*Person).Tags
 			}, DefaultIndex)
 
@@ -838,10 +838,10 @@ func TestMultiValueIndexes(t *testing.T) {
 
 func TestGetOperations(t *testing.T) {
 	c := New()
-	c.AddIndex("name", func(v interface{}) string {
+	c.AddIndex("name", func(v any) string {
 		return v.(*Person).Name
 	}, UniqueIndex)
-	c.AddIndex("age", func(v interface{}) string {
+	c.AddIndex("age", func(v any) string {
 		return strconv.Itoa(v.(*Person).Age)
 	}, DefaultIndex)
 

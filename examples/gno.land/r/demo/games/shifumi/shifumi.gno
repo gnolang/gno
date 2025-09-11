@@ -5,10 +5,10 @@ import (
 	"std"
 	"strconv"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/seqid"
 
-	"gno.land/r/demo/users"
+	"gno.land/r/sys/users"
 )
 
 const (
@@ -62,19 +62,19 @@ func (g *game) winner() int {
 
 // NewGame creates a new game where player1 is the caller and player2 the argument.
 // A new game index is returned.
-func NewGame(player std.Address) int {
-	games.Set(id.Next().String(), &game{player1: std.PrevRealm().Addr(), player2: player})
+func NewGame(_ realm, player std.Address) int {
+	games.Set(id.Next().String(), &game{player1: std.PreviousRealm().Address(), player2: player})
 	return int(id)
 }
 
 // Play executes a move for the game at index idx, where move can be:
 // 1 (rock), 2 (paper), 3 (scissors).
-func Play(idx, move int) {
+func Play(_ realm, idx, move int) {
 	v, ok := games.Get(seqid.ID(idx).String())
 	if !ok {
 		panic("game not found")
 	}
-	if err := v.(*game).play(std.PrevRealm().Addr(), move); err != nil {
+	if err := v.(*game).play(std.PreviousRealm().Address(), move); err != nil {
 		panic(err)
 	}
 }
@@ -109,9 +109,9 @@ Actions:
 }
 
 func shortName(addr std.Address) string {
-	user := users.GetUserByAddress(addr)
+	user := users.ResolveAddress(addr)
 	if user != nil {
-		return user.Name
+		return user.Name()
 	}
 	if len(addr) < 10 {
 		return string(addr)

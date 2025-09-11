@@ -52,7 +52,7 @@ func (p *Press) SetNewlineStr(s string) *Press {
 }
 
 // Main function for printing something on the press.
-func (p *Press) P(s string, args ...interface{}) *Press {
+func (p *Press) P(s string, args ...any) *Press {
 	var l *line
 	if len(p.lines) == 0 {
 		// Make a new line.
@@ -73,7 +73,7 @@ func (p *Press) Ln() *Press {
 }
 
 // Convenience for P() followed by Nl().
-func (p *Press) Pl(s string, args ...interface{}) *Press {
+func (p *Press) Pl(s string, args ...any) *Press {
 	return p.P(s, args...).Ln()
 }
 
@@ -133,7 +133,7 @@ func (p *Press) RandStr(length int) string {
 MAIN_LOOP:
 	for {
 		val := p.rnd.Int63()
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			v := int(val & 0x3f) // rightmost 6 bits
 			if v >= 62 {         // only 62 characters in strChars
 				val >>= 6

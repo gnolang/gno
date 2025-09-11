@@ -1,8 +1,6 @@
 // PKGPATH: gno.land/r/ptr_map
 package ptr_map
 
-import "fmt"
-
 type S struct {
 	i int
 }
@@ -19,7 +17,7 @@ func init() {
 	println(&b == sArr[1])
 }
 
-func main() {
+func main(cur realm,) {
 	// Create a new slice without reallocating memory for existing elements
 	newArr := append(sArr[:1], sArr[2:]...)
 

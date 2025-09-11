@@ -15,7 +15,7 @@ func (m *Machine) doOpValueDecl() {
 	if s.Values != nil {
 		rvs = m.PopValues(len(s.NameExprs))
 	}
-	for i := 0; i < len(s.NameExprs); i++ {
+	for i := range s.NameExprs {
 		var tv TypedValue
 		if rvs == nil {
 			// NOTE: Go/Gno wart.
@@ -23,41 +23,39 @@ func (m *Machine) doOpValueDecl() {
 			// requiring the consideration of the typed-nil case.
 			if nt == nil {
 				tv = TypedValue{}
+			} else if nt.Kind() == InterfaceKind {
+				tv = TypedValue{}
 			} else {
-				tv = TypedValue{T: nt, V: defaultValue(m.Alloc, nt)}
+				tv = defaultTypedValue(m.Alloc, nt)
 			}
 		} else {
 			tv = rvs[i]
 		}
-		if nt != nil {
-			if nt.Kind() == InterfaceKind {
-				if isUntyped(tv.T) {
-					ConvertUntypedTo(&tv, nil)
-				} else {
-					// keep type as is.
+
+		if isUntyped(tv.T) {
+			if !s.Const {
+				if m.Stage != StagePre && rvs[i].T.Kind() != BoolKind {
+					panic("untyped conversion should not happen at runtime")
 				}
-			} else {
-				if isUntyped(tv.T) {
-					ConvertUntypedTo(&tv, nt)
-				} else {
-					if debug {
-						if nt.TypeID() != tv.T.TypeID() &&
-							baseOf(nt).TypeID() != tv.T.TypeID() {
-							panic(fmt.Sprintf(
-								"type mismatch: %s vs %s",
-								nt.TypeID(),
-								tv.T.TypeID(),
-							))
-						}
-					}
-					tv.T = nt
-				}
+				ConvertUntypedTo(&tv, nil)
 			}
-		} else if s.Const {
-			// leave untyped as is.
-		} else if isUntyped(tv.T) {
-			ConvertUntypedTo(&tv, nil)
+		} else if nt != nil {
+			// if nt.T is an interface, maintain tv.T as-is.
+			if nt.Kind() != InterfaceKind {
+				if debug {
+					if nt.TypeID() != tv.T.TypeID() &&
+						baseOf(nt).TypeID() != tv.T.TypeID() {
+						panic(fmt.Sprintf(
+							"type mismatch: %s vs %s",
+							nt.TypeID(),
+							tv.T.TypeID(),
+						))
+					}
+				}
+				tv.T = nt
+			}
 		}
+
 		nx := &s.NameExprs[i]
 		ptr := lb.GetPointerToMaybeHeapDefine(m.Store, nx)
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, tv, false)

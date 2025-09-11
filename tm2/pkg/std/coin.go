@@ -3,6 +3,7 @@ package std
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -63,7 +64,7 @@ func (coin Coin) String() string {
 // validate returns an error if the Coin has a negative amount or if
 // the denom is invalid.
 func validate(denom string, amount int64) error {
-	if err := validateDenom(denom); err != nil {
+	if err := ValidateDenom(denom); err != nil {
 		return err
 	}
 
@@ -129,7 +130,7 @@ func (coin Coin) AddUnsafe(coinB Coin) Coin {
 	if coin.Denom != coinB.Denom {
 		panic(fmt.Sprintf("invalid coin denominations; %s, %s", coin.Denom, coinB.Denom))
 	}
-	sum, ok := overflow.Add64(coin.Amount, coinB.Amount)
+	sum, ok := overflow.Add(coin.Amount, coinB.Amount)
 	if !ok {
 		panic(fmt.Sprintf("coin add overflow/underflow: %v, %v", coin, coinB))
 	}
@@ -152,7 +153,7 @@ func (coin Coin) SubUnsafe(coinB Coin) Coin {
 	if coin.Denom != coinB.Denom {
 		panic(fmt.Sprintf("invalid coin denominations; %s, %s", coin.Denom, coinB.Denom))
 	}
-	dff, ok := overflow.Sub64(coin.Amount, coinB.Amount)
+	dff, ok := overflow.Sub(coin.Amount, coinB.Amount)
 	if !ok {
 		panic(fmt.Sprintf("coin subtract overflow/underflow: %v, %v", coin, coinB))
 	}
@@ -229,7 +230,7 @@ func (coins Coins) IsValid() bool {
 	case 0:
 		return true
 	case 1:
-		if err := validateDenom(coins[0].Denom); err != nil {
+		if err := ValidateDenom(coins[0].Denom); err != nil {
 			return false
 		}
 		return coins[0].IsPositive()
@@ -326,6 +327,21 @@ func (coins Coins) AddUnsafe(coinsB Coins) Coins {
 			indexB++
 		}
 	}
+}
+
+// ContainOneOfDenom check if a Coins instance contains a denom in the provided denomos
+func (coins Coins) ContainOneOfDenom(denoms map[string]struct{}) bool {
+	if len(denoms) == 0 {
+		return false
+	}
+
+	for _, coin := range coins {
+		if _, ok := denoms[coin.Denom]; ok && coin.IsPositive() {
+			return true
+		}
+	}
+
+	return false
 }
 
 // DenomsSubsetOf returns true if receiver's denom set
@@ -489,7 +505,7 @@ func (coins Coins) IsEqual(coinsB Coins) bool {
 	coins = coins.Sort()
 	coinsB = coinsB.Sort()
 
-	for i := 0; i < len(coins); i++ {
+	for i := range coins {
 		if !coins[i].IsEqual(coinsB[i]) {
 			return false
 		}
@@ -587,7 +603,7 @@ func removeZeroCoins(coins Coins) Coins {
 	for i < l {
 		if coins[i].IsZero() {
 			// remove coin
-			coins = append(coins[:i], coins[i+1:]...)
+			coins = slices.Delete(coins, i, i+1)
 			l--
 		} else {
 			i++
@@ -623,7 +639,7 @@ var (
 	reCoin      = regexp.MustCompile(fmt.Sprintf(`^(%s)%s(%s)$`, reAmt, reSpc, reDnmString))
 )
 
-func validateDenom(denom string) error {
+func ValidateDenom(denom string) error {
 	if !reDnm.MatchString(denom) {
 		return fmt.Errorf("invalid denom: %s", denom)
 	}
@@ -631,7 +647,7 @@ func validateDenom(denom string) error {
 }
 
 func mustValidateDenom(denom string) {
-	if err := validateDenom(denom); err != nil {
+	if err := ValidateDenom(denom); err != nil {
 		panic(err)
 	}
 }
@@ -661,7 +677,7 @@ func ParseCoin(coinStr string) (coin Coin, err error) {
 		return Coin{}, errors.Wrapf(err, "failed to parse coin amount: %s", amountStr)
 	}
 
-	if err := validateDenom(denomStr); err != nil {
+	if err := ValidateDenom(denomStr); err != nil {
 		return Coin{}, fmt.Errorf("invalid denom cannot contain upper case characters or spaces: %w", err)
 	}
 

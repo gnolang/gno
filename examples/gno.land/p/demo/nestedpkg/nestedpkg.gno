@@ -2,10 +2,10 @@
 // It is useful for upgrade patterns relying on namespaces.
 package nestedpkg
 
-// To test this from a realm and have std.CurrentRealm/PrevRealm work correctly,
-// this file is tested from gno.land/r/demo/tests/nestedpkg_test.gno
+// To test this from a realm and have std.CurrentRealm/PreviousRealm work correctly,
+// this file is tested from gno.land/r/tests/vm/nestedpkg_test.gno
 // XXX: move test to ths directory once we support testing a package and
-// specifying values for both PrevRealm and CurrentRealm.
+// specifying values for both PreviousRealm and CurrentRealm.
 
 import (
 	"std"
@@ -16,7 +16,7 @@ import (
 func IsCallerSubPath() bool {
 	var (
 		cur  = std.CurrentRealm().PkgPath() + "/"
-		prev = std.PrevRealm().PkgPath() + "/"
+		prev = std.PreviousRealm().PkgPath() + "/"
 	)
 	return strings.HasPrefix(prev, cur)
 }
@@ -25,7 +25,7 @@ func IsCallerSubPath() bool {
 func AssertCallerIsSubPath() {
 	var (
 		cur  = std.CurrentRealm().PkgPath() + "/"
-		prev = std.PrevRealm().PkgPath() + "/"
+		prev = std.PreviousRealm().PkgPath() + "/"
 	)
 	if !strings.HasPrefix(prev, cur) {
 		panic("call restricted to nested packages. current realm is " + cur + ", previous realm is " + prev)
@@ -36,7 +36,7 @@ func AssertCallerIsSubPath() {
 func IsCallerParentPath() bool {
 	var (
 		cur  = std.CurrentRealm().PkgPath() + "/"
-		prev = std.PrevRealm().PkgPath() + "/"
+		prev = std.PreviousRealm().PkgPath() + "/"
 	)
 	return strings.HasPrefix(cur, prev)
 }
@@ -45,7 +45,7 @@ func IsCallerParentPath() bool {
 func AssertCallerIsParentPath() {
 	var (
 		cur  = std.CurrentRealm().PkgPath() + "/"
-		prev = std.PrevRealm().PkgPath() + "/"
+		prev = std.PreviousRealm().PkgPath() + "/"
 	)
 	if !strings.HasPrefix(cur, prev) {
 		panic("call restricted to parent packages. current realm is " + cur + ", previous realm is " + prev)
@@ -56,7 +56,7 @@ func AssertCallerIsParentPath() {
 func IsSameNamespace() bool {
 	var (
 		cur  = nsFromPath(std.CurrentRealm().PkgPath()) + "/"
-		prev = nsFromPath(std.PrevRealm().PkgPath()) + "/"
+		prev = nsFromPath(std.PreviousRealm().PkgPath()) + "/"
 	)
 	return cur == prev
 }
@@ -65,7 +65,7 @@ func IsSameNamespace() bool {
 func AssertIsSameNamespace() {
 	var (
 		cur  = nsFromPath(std.CurrentRealm().PkgPath()) + "/"
-		prev = nsFromPath(std.PrevRealm().PkgPath()) + "/"
+		prev = nsFromPath(std.PreviousRealm().PkgPath()) + "/"
 	)
 	if cur != prev {
 		panic("call restricted to packages from the same namespace. current realm is " + cur + ", previous realm is " + prev)

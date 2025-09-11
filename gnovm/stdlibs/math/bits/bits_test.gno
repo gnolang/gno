@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package bits
+package bits_test
 
 import (
-	"testing"
+	"math/bits"
+	testing "testing/base"
 )
 
 func TestLeadingZeros(t *testing.T) {
@@ -14,7 +15,7 @@ func TestLeadingZeros(t *testing.T) {
 		for k := 0; k < 64-8; k++ {
 			x := uint64(i) << uint(k)
 			if x <= 1<<8-1 {
-				got := LeadingZeros8(uint8(x))
+				got := bits.LeadingZeros8(uint8(x))
 				want := nlz - k + (8 - 8)
 				if x == 0 {
 					want = 8
@@ -25,7 +26,7 @@ func TestLeadingZeros(t *testing.T) {
 			}
 
 			if x <= 1<<16-1 {
-				got := LeadingZeros16(uint16(x))
+				got := bits.LeadingZeros16(uint16(x))
 				want := nlz - k + (16 - 8)
 				if x == 0 {
 					want = 16
@@ -36,7 +37,7 @@ func TestLeadingZeros(t *testing.T) {
 			}
 
 			if x <= 1<<32-1 {
-				got := LeadingZeros32(uint32(x))
+				got := bits.LeadingZeros32(uint32(x))
 				want := nlz - k + (32 - 8)
 				if x == 0 {
 					want = 32
@@ -44,8 +45,8 @@ func TestLeadingZeros(t *testing.T) {
 				if got != want {
 					t.Fatalf("LeadingZeros32(%#08x) == %d; want %d", x, got, want)
 				}
-				if UintSize == 32 {
-					got = LeadingZeros(uint(x))
+				if bits.UintSize == 32 {
+					got = bits.LeadingZeros(uint(x))
 					if got != want {
 						t.Fatalf("LeadingZeros(%#08x) == %d; want %d", x, got, want)
 					}
@@ -53,7 +54,7 @@ func TestLeadingZeros(t *testing.T) {
 			}
 
 			if x <= 1<<64-1 {
-				got := LeadingZeros64(uint64(x))
+				got := bits.LeadingZeros64(uint64(x))
 				want := nlz - k + (64 - 8)
 				if x == 0 {
 					want = 64
@@ -61,8 +62,8 @@ func TestLeadingZeros(t *testing.T) {
 				if got != want {
 					t.Fatalf("LeadingZeros64(%#016x) == %d; want %d", x, got, want)
 				}
-				if UintSize == 64 {
-					got = LeadingZeros(uint(x))
+				if bits.UintSize == 64 {
+					got = bits.LeadingZeros(uint(x))
 					if got != want {
 						t.Fatalf("LeadingZeros(%#016x) == %d; want %d", x, got, want)
 					}
@@ -75,7 +76,7 @@ func TestLeadingZeros(t *testing.T) {
 // Exported (global) variable serving as input for some
 // of the benchmarks to ensure side-effect free calls
 // are not optimized away.
-var Input uint64 = DeBruijn64
+var Input uint64 = bits.DeBruijn64
 
 // Exported (global) variable to store function results
 // during benchmarking to ensure side-effect free calls
@@ -85,7 +86,7 @@ var Output int
 func BenchmarkLeadingZeros(b *testing.B) {
 	var s int
 	for i := 0; i < b.N; i++ {
-		s += LeadingZeros(uint(Input) >> (uint(i) % UintSize))
+		s += bits.LeadingZeros(uint(Input) >> (uint(i) % bits.UintSize))
 	}
 	Output = s
 }
@@ -93,7 +94,7 @@ func BenchmarkLeadingZeros(b *testing.B) {
 func BenchmarkLeadingZeros8(b *testing.B) {
 	var s int
 	for i := 0; i < b.N; i++ {
-		s += LeadingZeros8(uint8(Input) >> (uint(i) % 8))
+		s += bits.LeadingZeros8(uint8(Input) >> (uint(i) % 8))
 	}
 	Output = s
 }
@@ -101,7 +102,7 @@ func BenchmarkLeadingZeros8(b *testing.B) {
 func BenchmarkLeadingZeros16(b *testing.B) {
 	var s int
 	for i := 0; i < b.N; i++ {
-		s += LeadingZeros16(uint16(Input) >> (uint(i) % 16))
+		s += bits.LeadingZeros16(uint16(Input) >> (uint(i) % 16))
 	}
 	Output = s
 }
@@ -109,7 +110,7 @@ func BenchmarkLeadingZeros16(b *testing.B) {
 func BenchmarkLeadingZeros32(b *testing.B) {
 	var s int
 	for i := 0; i < b.N; i++ {
-		s += LeadingZeros32(uint32(Input) >> (uint(i) % 32))
+		s += bits.LeadingZeros32(uint32(Input) >> (uint(i) % 32))
 	}
 	Output = s
 }
@@ -117,7 +118,7 @@ func BenchmarkLeadingZeros32(b *testing.B) {
 func BenchmarkLeadingZeros64(b *testing.B) {
 	var s int
 	for i := 0; i < b.N; i++ {
-		s += LeadingZeros64(uint64(Input) >> (uint(i) % 64))
+		s += bits.LeadingZeros64(uint64(Input) >> (uint(i) % 64))
 	}
 	Output = s
 }
@@ -129,7 +130,7 @@ func TestTrailingZeros(t *testing.T) {
 			x := uint64(i) << uint(k)
 			want := ntz + k
 			if x <= 1<<8-1 {
-				got := TrailingZeros8(uint8(x))
+				got := bits.TrailingZeros8(uint8(x))
 				if x == 0 {
 					want = 8
 				}
@@ -139,7 +140,7 @@ func TestTrailingZeros(t *testing.T) {
 			}
 
 			if x <= 1<<16-1 {
-				got := TrailingZeros16(uint16(x))
+				got := bits.TrailingZeros16(uint16(x))
 				if x == 0 {
 					want = 16
 				}
@@ -149,15 +150,15 @@ func TestTrailingZeros(t *testing.T) {
 			}
 
 			if x <= 1<<32-1 {
-				got := TrailingZeros32(uint32(x))
+				got := bits.TrailingZeros32(uint32(x))
 				if x == 0 {
 					want = 32
 				}
 				if got != want {
 					t.Fatalf("TrailingZeros32(%#08x) == %d; want %d", x, got, want)
 				}
-				if UintSize == 32 {
-					got = TrailingZeros(uint(x))
+				if bits.UintSize == 32 {
+					got = bits.TrailingZeros(uint(x))
 					if got != want {
 						t.Fatalf("TrailingZeros(%#08x) == %d; want %d", x, got, want)
 					}
@@ -165,15 +166,15 @@ func TestTrailingZeros(t *testing.T) {
 			}
 
 			if x <= 1<<64-1 {
-				got := TrailingZeros64(uint64(x))
+				got := bits.TrailingZeros64(uint64(x))
 				if x == 0 {
 					want = 64
 				}
 				if got != want {
 					t.Fatalf("TrailingZeros64(%#016x) == %d; want %d", x, got, want)
 				}
-				if UintSize == 64 {
-					got = TrailingZeros(uint(x))
+				if bits.UintSize == 64 {
+					got = bits.TrailingZeros(uint(x))
 					if got != want {
 						t.Fatalf("TrailingZeros(%#016x) == %d; want %d", x, got, want)
 					}
@@ -186,7 +187,7 @@ func TestTrailingZeros(t *testing.T) {
 func BenchmarkTrailingZeros(b *testing.B) {
 	var s int
 	for i := 0; i < b.N; i++ {
-		s += TrailingZeros(uint(Input) << (uint(i) % UintSize))
+		s += bits.TrailingZeros(uint(Input) << (uint(i) % bits.UintSize))
 	}
 	Output = s
 }
@@ -194,7 +195,7 @@ func BenchmarkTrailingZeros(b *testing.B) {
 func BenchmarkTrailingZeros8(b *testing.B) {
 	var s int
 	for i := 0; i < b.N; i++ {
-		s += TrailingZeros8(uint8(Input) << (uint(i) % 8))
+		s += bits.TrailingZeros8(uint8(Input) << (uint(i) % 8))
 	}
 	Output = s
 }
@@ -202,7 +203,7 @@ func BenchmarkTrailingZeros8(b *testing.B) {
 func BenchmarkTrailingZeros16(b *testing.B) {
 	var s int
 	for i := 0; i < b.N; i++ {
-		s += TrailingZeros16(uint16(Input) << (uint(i) % 16))
+		s += bits.TrailingZeros16(uint16(Input) << (uint(i) % 16))
 	}
 	Output = s
 }
@@ -210,7 +211,7 @@ func BenchmarkTrailingZeros16(b *testing.B) {
 func BenchmarkTrailingZeros32(b *testing.B) {
 	var s int
 	for i := 0; i < b.N; i++ {
-		s += TrailingZeros32(uint32(Input) << (uint(i) % 32))
+		s += bits.TrailingZeros32(uint32(Input) << (uint(i) % 32))
 	}
 	Output = s
 }
@@ -218,7 +219,7 @@ func BenchmarkTrailingZeros32(b *testing.B) {
 func BenchmarkTrailingZeros64(b *testing.B) {
 	var s int
 	for i := 0; i < b.N; i++ {
-		s += TrailingZeros64(uint64(Input) << (uint(i) % 64))
+		s += bits.TrailingZeros64(uint64(Input) << (uint(i) % 64))
 	}
 	Output = s
 }
@@ -244,26 +245,26 @@ func TestOnesCount(t *testing.T) {
 
 func testOnesCount(t *testing.T, x uint64, want int) {
 	if x <= 1<<8-1 {
-		got := OnesCount8(uint8(x))
+		got := bits.OnesCount8(uint8(x))
 		if got != want {
 			t.Fatalf("OnesCount8(%#02x) == %d; want %d", uint8(x), got, want)
 		}
 	}
 
 	if x <= 1<<16-1 {
-		got := OnesCount16(uint16(x))
+		got := bits.OnesCount16(uint16(x))
 		if got != want {
 			t.Fatalf("OnesCount16(%#04x) == %d; want %d", uint16(x), got, want)
 		}
 	}
 
 	if x <= 1<<32-1 {
-		got := OnesCount32(uint32(x))
+		got := bits.OnesCount32(uint32(x))
 		if got != want {
 			t.Fatalf("OnesCount32(%#08x) == %d; want %d", uint32(x), got, want)
 		}
-		if UintSize == 32 {
-			got = OnesCount(uint(x))
+		if bits.UintSize == 32 {
+			got = bits.OnesCount(uint(x))
 			if got != want {
 				t.Fatalf("OnesCount(%#08x) == %d; want %d", uint32(x), got, want)
 			}
@@ -271,12 +272,12 @@ func testOnesCount(t *testing.T, x uint64, want int) {
 	}
 
 	if x <= 1<<64-1 {
-		got := OnesCount64(uint64(x))
+		got := bits.OnesCount64(uint64(x))
 		if got != want {
 			t.Fatalf("OnesCount64(%#016x) == %d; want %d", x, got, want)
 		}
-		if UintSize == 64 {
-			got = OnesCount(uint(x))
+		if bits.UintSize == 64 {
+			got = bits.OnesCount(uint(x))
 			if got != want {
 				t.Fatalf("OnesCount(%#016x) == %d; want %d", x, got, want)
 			}
@@ -287,7 +288,7 @@ func testOnesCount(t *testing.T, x uint64, want int) {
 func BenchmarkOnesCount(b *testing.B) {
 	var s int
 	for i := 0; i < b.N; i++ {
-		s += OnesCount(uint(Input))
+		s += bits.OnesCount(uint(Input))
 	}
 	Output = s
 }
@@ -295,7 +296,7 @@ func BenchmarkOnesCount(b *testing.B) {
 func BenchmarkOnesCount8(b *testing.B) {
 	var s int
 	for i := 0; i < b.N; i++ {
-		s += OnesCount8(uint8(Input))
+		s += bits.OnesCount8(uint8(Input))
 	}
 	Output = s
 }
@@ -303,7 +304,7 @@ func BenchmarkOnesCount8(b *testing.B) {
 func BenchmarkOnesCount16(b *testing.B) {
 	var s int
 	for i := 0; i < b.N; i++ {
-		s += OnesCount16(uint16(Input))
+		s += bits.OnesCount16(uint16(Input))
 	}
 	Output = s
 }
@@ -311,7 +312,7 @@ func BenchmarkOnesCount16(b *testing.B) {
 func BenchmarkOnesCount32(b *testing.B) {
 	var s int
 	for i := 0; i < b.N; i++ {
-		s += OnesCount32(uint32(Input))
+		s += bits.OnesCount32(uint32(Input))
 	}
 	Output = s
 }
@@ -319,78 +320,78 @@ func BenchmarkOnesCount32(b *testing.B) {
 func BenchmarkOnesCount64(b *testing.B) {
 	var s int
 	for i := 0; i < b.N; i++ {
-		s += OnesCount64(uint64(Input))
+		s += bits.OnesCount64(uint64(Input))
 	}
 	Output = s
 }
 
 func TestRotateLeft(t *testing.T) {
-	var m uint64 = DeBruijn64
+	var m uint64 = bits.DeBruijn64
 
 	for k := uint(0); k < 128; k++ {
 		x8 := uint8(m)
-		got8 := RotateLeft8(x8, int(k))
+		got8 := bits.RotateLeft8(x8, int(k))
 		want8 := x8<<(k&0x7) | x8>>(8-k&0x7)
 		if got8 != want8 {
 			t.Fatalf("RotateLeft8(%#02x, %d) == %#02x; want %#02x", x8, k, got8, want8)
 		}
-		got8 = RotateLeft8(want8, -int(k))
+		got8 = bits.RotateLeft8(want8, -int(k))
 		if got8 != x8 {
 			t.Fatalf("RotateLeft8(%#02x, -%d) == %#02x; want %#02x", want8, k, got8, x8)
 		}
 
 		x16 := uint16(m)
-		got16 := RotateLeft16(x16, int(k))
+		got16 := bits.RotateLeft16(x16, int(k))
 		want16 := x16<<(k&0xf) | x16>>(16-k&0xf)
 		if got16 != want16 {
 			t.Fatalf("RotateLeft16(%#04x, %d) == %#04x; want %#04x", x16, k, got16, want16)
 		}
-		got16 = RotateLeft16(want16, -int(k))
+		got16 = bits.RotateLeft16(want16, -int(k))
 		if got16 != x16 {
 			t.Fatalf("RotateLeft16(%#04x, -%d) == %#04x; want %#04x", want16, k, got16, x16)
 		}
 
 		x32 := uint32(m)
-		got32 := RotateLeft32(x32, int(k))
+		got32 := bits.RotateLeft32(x32, int(k))
 		want32 := x32<<(k&0x1f) | x32>>(32-k&0x1f)
 		if got32 != want32 {
 			t.Fatalf("RotateLeft32(%#08x, %d) == %#08x; want %#08x", x32, k, got32, want32)
 		}
-		got32 = RotateLeft32(want32, -int(k))
+		got32 = bits.RotateLeft32(want32, -int(k))
 		if got32 != x32 {
 			t.Fatalf("RotateLeft32(%#08x, -%d) == %#08x; want %#08x", want32, k, got32, x32)
 		}
-		if UintSize == 32 {
+		if bits.UintSize == 32 {
 			x := uint(m)
-			got := RotateLeft(x, int(k))
+			got := bits.RotateLeft(x, int(k))
 			want := x<<(k&0x1f) | x>>(32-k&0x1f)
 			if got != want {
 				t.Fatalf("RotateLeft(%#08x, %d) == %#08x; want %#08x", x, k, got, want)
 			}
-			got = RotateLeft(want, -int(k))
+			got = bits.RotateLeft(want, -int(k))
 			if got != x {
 				t.Fatalf("RotateLeft(%#08x, -%d) == %#08x; want %#08x", want, k, got, x)
 			}
 		}
 
 		x64 := uint64(m)
-		got64 := RotateLeft64(x64, int(k))
+		got64 := bits.RotateLeft64(x64, int(k))
 		want64 := x64<<(k&0x3f) | x64>>(64-k&0x3f)
 		if got64 != want64 {
 			t.Fatalf("RotateLeft64(%#016x, %d) == %#016x; want %#016x", x64, k, got64, want64)
 		}
-		got64 = RotateLeft64(want64, -int(k))
+		got64 = bits.RotateLeft64(want64, -int(k))
 		if got64 != x64 {
 			t.Fatalf("RotateLeft64(%#016x, -%d) == %#016x; want %#016x", want64, k, got64, x64)
 		}
-		if UintSize == 64 {
+		if bits.UintSize == 64 {
 			x := uint(m)
-			got := RotateLeft(x, int(k))
+			got := bits.RotateLeft(x, int(k))
 			want := x<<(k&0x3f) | x>>(64-k&0x3f)
 			if got != want {
 				t.Fatalf("RotateLeft(%#016x, %d) == %#016x; want %#016x", x, k, got, want)
 			}
-			got = RotateLeft(want, -int(k))
+			got = bits.RotateLeft(want, -int(k))
 			if got != x {
 				t.Fatalf("RotateLeft(%#08x, -%d) == %#08x; want %#08x", want, k, got, x)
 			}
@@ -401,7 +402,7 @@ func TestRotateLeft(t *testing.T) {
 func BenchmarkRotateLeft(b *testing.B) {
 	var s uint
 	for i := 0; i < b.N; i++ {
-		s += RotateLeft(uint(Input), i)
+		s += bits.RotateLeft(uint(Input), i)
 	}
 	Output = int(s)
 }
@@ -409,7 +410,7 @@ func BenchmarkRotateLeft(b *testing.B) {
 func BenchmarkRotateLeft8(b *testing.B) {
 	var s uint8
 	for i := 0; i < b.N; i++ {
-		s += RotateLeft8(uint8(Input), i)
+		s += bits.RotateLeft8(uint8(Input), i)
 	}
 	Output = int(s)
 }
@@ -417,7 +418,7 @@ func BenchmarkRotateLeft8(b *testing.B) {
 func BenchmarkRotateLeft16(b *testing.B) {
 	var s uint16
 	for i := 0; i < b.N; i++ {
-		s += RotateLeft16(uint16(Input), i)
+		s += bits.RotateLeft16(uint16(Input), i)
 	}
 	Output = int(s)
 }
@@ -425,7 +426,7 @@ func BenchmarkRotateLeft16(b *testing.B) {
 func BenchmarkRotateLeft32(b *testing.B) {
 	var s uint32
 	for i := 0; i < b.N; i++ {
-		s += RotateLeft32(uint32(Input), i)
+		s += bits.RotateLeft32(uint32(Input), i)
 	}
 	Output = int(s)
 }
@@ -433,7 +434,7 @@ func BenchmarkRotateLeft32(b *testing.B) {
 func BenchmarkRotateLeft64(b *testing.B) {
 	var s uint64
 	for i := 0; i < b.N; i++ {
-		s += RotateLeft64(uint64(Input), i)
+		s += bits.RotateLeft64(uint64(Input), i)
 	}
 	Output = int(s)
 }
@@ -474,41 +475,41 @@ func TestReverse(t *testing.T) {
 
 func testReverse(t *testing.T, x64, want64 uint64) {
 	x8 := uint8(x64)
-	got8 := Reverse8(x8)
+	got8 := bits.Reverse8(x8)
 	want8 := uint8(want64 >> (64 - 8))
 	if got8 != want8 {
 		t.Fatalf("Reverse8(%#02x) == %#02x; want %#02x", x8, got8, want8)
 	}
 
 	x16 := uint16(x64)
-	got16 := Reverse16(x16)
+	got16 := bits.Reverse16(x16)
 	want16 := uint16(want64 >> (64 - 16))
 	if got16 != want16 {
 		t.Fatalf("Reverse16(%#04x) == %#04x; want %#04x", x16, got16, want16)
 	}
 
 	x32 := uint32(x64)
-	got32 := Reverse32(x32)
+	got32 := bits.Reverse32(x32)
 	want32 := uint32(want64 >> (64 - 32))
 	if got32 != want32 {
 		t.Fatalf("Reverse32(%#08x) == %#08x; want %#08x", x32, got32, want32)
 	}
-	if UintSize == 32 {
+	if bits.UintSize == 32 {
 		x := uint(x32)
-		got := Reverse(x)
+		got := bits.Reverse(x)
 		want := uint(want32)
 		if got != want {
 			t.Fatalf("Reverse(%#08x) == %#08x; want %#08x", x, got, want)
 		}
 	}
 
-	got64 := Reverse64(x64)
+	got64 := bits.Reverse64(x64)
 	if got64 != want64 {
 		t.Fatalf("Reverse64(%#016x) == %#016x; want %#016x", x64, got64, want64)
 	}
-	if UintSize == 64 {
+	if bits.UintSize == 64 {
 		x := uint(x64)
-		got := Reverse(x)
+		got := bits.Reverse(x)
 		want := uint(want64)
 		if got != want {
 			t.Fatalf("Reverse(%#08x) == %#016x; want %#016x", x, got, want)
@@ -519,7 +520,7 @@ func testReverse(t *testing.T, x64, want64 uint64) {
 func BenchmarkReverse(b *testing.B) {
 	var s uint
 	for i := 0; i < b.N; i++ {
-		s += Reverse(uint(i))
+		s += bits.Reverse(uint(i))
 	}
 	Output = int(s)
 }
@@ -527,7 +528,7 @@ func BenchmarkReverse(b *testing.B) {
 func BenchmarkReverse8(b *testing.B) {
 	var s uint8
 	for i := 0; i < b.N; i++ {
-		s += Reverse8(uint8(i))
+		s += bits.Reverse8(uint8(i))
 	}
 	Output = int(s)
 }
@@ -535,7 +536,7 @@ func BenchmarkReverse8(b *testing.B) {
 func BenchmarkReverse16(b *testing.B) {
 	var s uint16
 	for i := 0; i < b.N; i++ {
-		s += Reverse16(uint16(i))
+		s += bits.Reverse16(uint16(i))
 	}
 	Output = int(s)
 }
@@ -543,7 +544,7 @@ func BenchmarkReverse16(b *testing.B) {
 func BenchmarkReverse32(b *testing.B) {
 	var s uint32
 	for i := 0; i < b.N; i++ {
-		s += Reverse32(uint32(i))
+		s += bits.Reverse32(uint32(i))
 	}
 	Output = int(s)
 }
@@ -551,7 +552,7 @@ func BenchmarkReverse32(b *testing.B) {
 func BenchmarkReverse64(b *testing.B) {
 	var s uint64
 	for i := 0; i < b.N; i++ {
-		s += Reverse64(uint64(i))
+		s += bits.Reverse64(uint64(i))
 	}
 	Output = int(s)
 }
@@ -577,34 +578,34 @@ func TestReverseBytes(t *testing.T) {
 
 func testReverseBytes(t *testing.T, x64, want64 uint64) {
 	x16 := uint16(x64)
-	got16 := ReverseBytes16(x16)
+	got16 := bits.ReverseBytes16(x16)
 	want16 := uint16(want64 >> (64 - 16))
 	if got16 != want16 {
 		t.Fatalf("ReverseBytes16(%#04x) == %#04x; want %#04x", x16, got16, want16)
 	}
 
 	x32 := uint32(x64)
-	got32 := ReverseBytes32(x32)
+	got32 := bits.ReverseBytes32(x32)
 	want32 := uint32(want64 >> (64 - 32))
 	if got32 != want32 {
 		t.Fatalf("ReverseBytes32(%#08x) == %#08x; want %#08x", x32, got32, want32)
 	}
-	if UintSize == 32 {
+	if bits.UintSize == 32 {
 		x := uint(x32)
-		got := ReverseBytes(x)
+		got := bits.ReverseBytes(x)
 		want := uint(want32)
 		if got != want {
 			t.Fatalf("ReverseBytes(%#08x) == %#08x; want %#08x", x, got, want)
 		}
 	}
 
-	got64 := ReverseBytes64(x64)
+	got64 := bits.ReverseBytes64(x64)
 	if got64 != want64 {
 		t.Fatalf("ReverseBytes64(%#016x) == %#016x; want %#016x", x64, got64, want64)
 	}
-	if UintSize == 64 {
+	if bits.UintSize == 64 {
 		x := uint(x64)
-		got := ReverseBytes(x)
+		got := bits.ReverseBytes(x)
 		want := uint(want64)
 		if got != want {
 			t.Fatalf("ReverseBytes(%#016x) == %#016x; want %#016x", x, got, want)
@@ -615,7 +616,7 @@ func testReverseBytes(t *testing.T, x64, want64 uint64) {
 func BenchmarkReverseBytes(b *testing.B) {
 	var s uint
 	for i := 0; i < b.N; i++ {
-		s += ReverseBytes(uint(i))
+		s += bits.ReverseBytes(uint(i))
 	}
 	Output = int(s)
 }
@@ -623,7 +624,7 @@ func BenchmarkReverseBytes(b *testing.B) {
 func BenchmarkReverseBytes16(b *testing.B) {
 	var s uint16
 	for i := 0; i < b.N; i++ {
-		s += ReverseBytes16(uint16(i))
+		s += bits.ReverseBytes16(uint16(i))
 	}
 	Output = int(s)
 }
@@ -631,7 +632,7 @@ func BenchmarkReverseBytes16(b *testing.B) {
 func BenchmarkReverseBytes32(b *testing.B) {
 	var s uint32
 	for i := 0; i < b.N; i++ {
-		s += ReverseBytes32(uint32(i))
+		s += bits.ReverseBytes32(uint32(i))
 	}
 	Output = int(s)
 }
@@ -639,7 +640,7 @@ func BenchmarkReverseBytes32(b *testing.B) {
 func BenchmarkReverseBytes64(b *testing.B) {
 	var s uint64
 	for i := 0; i < b.N; i++ {
-		s += ReverseBytes64(uint64(i))
+		s += bits.ReverseBytes64(uint64(i))
 	}
 	Output = int(s)
 }
@@ -654,26 +655,26 @@ func TestLen(t *testing.T) {
 				want = length + k
 			}
 			if x <= 1<<8-1 {
-				got := Len8(uint8(x))
+				got := bits.Len8(uint8(x))
 				if got != want {
 					t.Fatalf("Len8(%#02x) == %d; want %d", x, got, want)
 				}
 			}
 
 			if x <= 1<<16-1 {
-				got := Len16(uint16(x))
+				got := bits.Len16(uint16(x))
 				if got != want {
 					t.Fatalf("Len16(%#04x) == %d; want %d", x, got, want)
 				}
 			}
 
 			if x <= 1<<32-1 {
-				got := Len32(uint32(x))
+				got := bits.Len32(uint32(x))
 				if got != want {
 					t.Fatalf("Len32(%#08x) == %d; want %d", x, got, want)
 				}
-				if UintSize == 32 {
-					got := Len(uint(x))
+				if bits.UintSize == 32 {
+					got := bits.Len(uint(x))
 					if got != want {
 						t.Fatalf("Len(%#08x) == %d; want %d", x, got, want)
 					}
@@ -681,12 +682,12 @@ func TestLen(t *testing.T) {
 			}
 
 			if x <= 1<<64-1 {
-				got := Len64(uint64(x))
+				got := bits.Len64(uint64(x))
 				if got != want {
 					t.Fatalf("Len64(%#016x) == %d; want %d", x, got, want)
 				}
-				if UintSize == 64 {
-					got := Len(uint(x))
+				if bits.UintSize == 64 {
+					got := bits.Len(uint(x))
 					if got != want {
 						t.Fatalf("Len(%#016x) == %d; want %d", x, got, want)
 					}
@@ -697,7 +698,7 @@ func TestLen(t *testing.T) {
 }
 
 const (
-	_M   = 1<<UintSize - 1
+	_M   = 1<<bits.UintSize - 1
 	_M32 = 1<<32 - 1
 	_M64 = 1<<64 - 1
 )
@@ -722,16 +723,16 @@ func TestAddSubUint(t *testing.T) {
 		{_M, _M, 0, _M - 1, 1},
 		{_M, _M, 1, _M, 1},
 	} {
-		test("Add", Add, a.x, a.y, a.c, a.z, a.cout)
-		test("Add symmetric", Add, a.y, a.x, a.c, a.z, a.cout)
-		test("Sub", Sub, a.z, a.x, a.c, a.y, a.cout)
-		test("Sub symmetric", Sub, a.z, a.y, a.c, a.x, a.cout)
+		test("Add", bits.Add, a.x, a.y, a.c, a.z, a.cout)
+		test("Add symmetric", bits.Add, a.y, a.x, a.c, a.z, a.cout)
+		test("Sub", bits.Sub, a.z, a.x, a.c, a.y, a.cout)
+		test("Sub symmetric", bits.Sub, a.z, a.y, a.c, a.x, a.cout)
 		// The above code can't test intrinsic implementation, because the passed function is not called directly.
 		// The following code uses a closure to test the intrinsic version in case the function is intrinsified.
-		test("Add intrinsic", func(x, y, c uint) (uint, uint) { return Add(x, y, c) }, a.x, a.y, a.c, a.z, a.cout)
-		test("Add intrinsic symmetric", func(x, y, c uint) (uint, uint) { return Add(x, y, c) }, a.y, a.x, a.c, a.z, a.cout)
-		test("Sub intrinsic", func(x, y, c uint) (uint, uint) { return Sub(x, y, c) }, a.z, a.x, a.c, a.y, a.cout)
-		test("Sub intrinsic symmetric", func(x, y, c uint) (uint, uint) { return Sub(x, y, c) }, a.z, a.y, a.c, a.x, a.cout)
+		test("Add intrinsic", func(x, y, c uint) (uint, uint) { return bits.Add(x, y, c) }, a.x, a.y, a.c, a.z, a.cout)
+		test("Add intrinsic symmetric", func(x, y, c uint) (uint, uint) { return bits.Add(x, y, c) }, a.y, a.x, a.c, a.z, a.cout)
+		test("Sub intrinsic", func(x, y, c uint) (uint, uint) { return bits.Sub(x, y, c) }, a.z, a.x, a.c, a.y, a.cout)
+		test("Sub intrinsic symmetric", func(x, y, c uint) (uint, uint) { return bits.Sub(x, y, c) }, a.z, a.y, a.c, a.x, a.cout)
 
 	}
 }
@@ -756,10 +757,10 @@ func TestAddSubUint32(t *testing.T) {
 		{_M32, _M32, 0, _M32 - 1, 1},
 		{_M32, _M32, 1, _M32, 1},
 	} {
-		test("Add32", Add32, a.x, a.y, a.c, a.z, a.cout)
-		test("Add32 symmetric", Add32, a.y, a.x, a.c, a.z, a.cout)
-		test("Sub32", Sub32, a.z, a.x, a.c, a.y, a.cout)
-		test("Sub32 symmetric", Sub32, a.z, a.y, a.c, a.x, a.cout)
+		test("Add32", bits.Add32, a.x, a.y, a.c, a.z, a.cout)
+		test("Add32 symmetric", bits.Add32, a.y, a.x, a.c, a.z, a.cout)
+		test("Sub32", bits.Sub32, a.z, a.x, a.c, a.y, a.cout)
+		test("Sub32 symmetric", bits.Sub32, a.z, a.y, a.c, a.x, a.cout)
 	}
 }
 
@@ -783,16 +784,16 @@ func TestAddSubUint64(t *testing.T) {
 		{_M64, _M64, 0, _M64 - 1, 1},
 		{_M64, _M64, 1, _M64, 1},
 	} {
-		test("Add64", Add64, a.x, a.y, a.c, a.z, a.cout)
-		test("Add64 symmetric", Add64, a.y, a.x, a.c, a.z, a.cout)
-		test("Sub64", Sub64, a.z, a.x, a.c, a.y, a.cout)
-		test("Sub64 symmetric", Sub64, a.z, a.y, a.c, a.x, a.cout)
+		test("Add64", bits.Add64, a.x, a.y, a.c, a.z, a.cout)
+		test("Add64 symmetric", bits.Add64, a.y, a.x, a.c, a.z, a.cout)
+		test("Sub64", bits.Sub64, a.z, a.x, a.c, a.y, a.cout)
+		test("Sub64 symmetric", bits.Sub64, a.z, a.y, a.c, a.x, a.cout)
 		// The above code can't test intrinsic implementation, because the passed function is not called directly.
 		// The following code uses a closure to test the intrinsic version in case the function is intrinsified.
-		test("Add64 intrinsic", func(x, y, c uint64) (uint64, uint64) { return Add64(x, y, c) }, a.x, a.y, a.c, a.z, a.cout)
-		test("Add64 intrinsic symmetric", func(x, y, c uint64) (uint64, uint64) { return Add64(x, y, c) }, a.y, a.x, a.c, a.z, a.cout)
-		test("Sub64 intrinsic", func(x, y, c uint64) (uint64, uint64) { return Sub64(x, y, c) }, a.z, a.x, a.c, a.y, a.cout)
-		test("Sub64 intrinsic symmetric", func(x, y, c uint64) (uint64, uint64) { return Sub64(x, y, c) }, a.z, a.y, a.c, a.x, a.cout)
+		test("Add64 intrinsic", func(x, y, c uint64) (uint64, uint64) { return bits.Add64(x, y, c) }, a.x, a.y, a.c, a.z, a.cout)
+		test("Add64 intrinsic symmetric", func(x, y, c uint64) (uint64, uint64) { return bits.Add64(x, y, c) }, a.y, a.x, a.c, a.z, a.cout)
+		test("Sub64 intrinsic", func(x, y, c uint64) (uint64, uint64) { return bits.Sub64(x, y, c) }, a.z, a.x, a.c, a.y, a.cout)
+		test("Sub64 intrinsic symmetric", func(x, y, c uint64) (uint64, uint64) { return bits.Sub64(x, y, c) }, a.z, a.y, a.c, a.x, a.cout)
 	}
 }
 
@@ -801,35 +802,35 @@ func TestAdd64OverflowPanic(t *testing.T) {
 	// These are designed to improve coverage of compiler intrinsics.
 	tests := []func(uint64, uint64) uint64{
 		func(a, b uint64) uint64 {
-			x, c := Add64(a, b, 0)
+			x, c := bits.Add64(a, b, 0)
 			if c > 0 {
 				panic("overflow")
 			}
 			return x
 		},
 		func(a, b uint64) uint64 {
-			x, c := Add64(a, b, 0)
+			x, c := bits.Add64(a, b, 0)
 			if c != 0 {
 				panic("overflow")
 			}
 			return x
 		},
 		func(a, b uint64) uint64 {
-			x, c := Add64(a, b, 0)
+			x, c := bits.Add64(a, b, 0)
 			if c == 1 {
 				panic("overflow")
 			}
 			return x
 		},
 		func(a, b uint64) uint64 {
-			x, c := Add64(a, b, 0)
+			x, c := bits.Add64(a, b, 0)
 			if c != 1 {
 				return x
 			}
 			panic("overflow")
 		},
 		func(a, b uint64) uint64 {
-			x, c := Add64(a, b, 0)
+			x, c := bits.Add64(a, b, 0)
 			if c == 0 {
 				return x
 			}
@@ -863,35 +864,35 @@ func TestSub64OverflowPanic(t *testing.T) {
 	// These are designed to improve coverage of compiler intrinsics.
 	tests := []func(uint64, uint64) uint64{
 		func(a, b uint64) uint64 {
-			x, c := Sub64(a, b, 0)
+			x, c := bits.Sub64(a, b, 0)
 			if c > 0 {
 				panic("overflow")
 			}
 			return x
 		},
 		func(a, b uint64) uint64 {
-			x, c := Sub64(a, b, 0)
+			x, c := bits.Sub64(a, b, 0)
 			if c != 0 {
 				panic("overflow")
 			}
 			return x
 		},
 		func(a, b uint64) uint64 {
-			x, c := Sub64(a, b, 0)
+			x, c := bits.Sub64(a, b, 0)
 			if c == 1 {
 				panic("overflow")
 			}
 			return x
 		},
 		func(a, b uint64) uint64 {
-			x, c := Sub64(a, b, 0)
+			x, c := bits.Sub64(a, b, 0)
 			if c != 1 {
 				return x
 			}
 			panic("overflow")
 		},
 		func(a, b uint64) uint64 {
-			x, c := Sub64(a, b, 0)
+			x, c := bits.Sub64(a, b, 0)
 			if c == 0 {
 				return x
 			}
@@ -937,19 +938,19 @@ func TestMulDiv(t *testing.T) {
 		x, y      uint
 		hi, lo, r uint
 	}{
-		{1 << (UintSize - 1), 2, 1, 0, 1},
+		{1 << (bits.UintSize - 1), 2, 1, 0, 1},
 		{_M, _M, _M - 1, 1, 42},
 	} {
-		testMul("Mul", Mul, a.x, a.y, a.hi, a.lo)
-		testMul("Mul symmetric", Mul, a.y, a.x, a.hi, a.lo)
-		testDiv("Div", Div, a.hi, a.lo+a.r, a.y, a.x, a.r)
-		testDiv("Div symmetric", Div, a.hi, a.lo+a.r, a.x, a.y, a.r)
+		testMul("Mul", bits.Mul, a.x, a.y, a.hi, a.lo)
+		testMul("Mul symmetric", bits.Mul, a.y, a.x, a.hi, a.lo)
+		testDiv("Div", bits.Div, a.hi, a.lo+a.r, a.y, a.x, a.r)
+		testDiv("Div symmetric", bits.Div, a.hi, a.lo+a.r, a.x, a.y, a.r)
 		// The above code can't test intrinsic implementation, because the passed function is not called directly.
 		// The following code uses a closure to test the intrinsic version in case the function is intrinsified.
-		testMul("Mul intrinsic", func(x, y uint) (uint, uint) { return Mul(x, y) }, a.x, a.y, a.hi, a.lo)
-		testMul("Mul intrinsic symmetric", func(x, y uint) (uint, uint) { return Mul(x, y) }, a.y, a.x, a.hi, a.lo)
-		testDiv("Div intrinsic", func(hi, lo, y uint) (uint, uint) { return Div(hi, lo, y) }, a.hi, a.lo+a.r, a.y, a.x, a.r)
-		testDiv("Div intrinsic symmetric", func(hi, lo, y uint) (uint, uint) { return Div(hi, lo, y) }, a.hi, a.lo+a.r, a.x, a.y, a.r)
+		testMul("Mul intrinsic", func(x, y uint) (uint, uint) { return bits.Mul(x, y) }, a.x, a.y, a.hi, a.lo)
+		testMul("Mul intrinsic symmetric", func(x, y uint) (uint, uint) { return bits.Mul(x, y) }, a.y, a.x, a.hi, a.lo)
+		testDiv("Div intrinsic", func(hi, lo, y uint) (uint, uint) { return bits.Div(hi, lo, y) }, a.hi, a.lo+a.r, a.y, a.x, a.r)
+		testDiv("Div intrinsic symmetric", func(hi, lo, y uint) (uint, uint) { return bits.Div(hi, lo, y) }, a.hi, a.lo+a.r, a.x, a.y, a.r)
 	}
 }
 
@@ -974,10 +975,10 @@ func TestMulDiv32(t *testing.T) {
 		{0xc47dfa8c, 50911, 0x98a4, 0x998587f4, 13},
 		{_M32, _M32, _M32 - 1, 1, 42},
 	} {
-		testMul("Mul32", Mul32, a.x, a.y, a.hi, a.lo)
-		testMul("Mul32 symmetric", Mul32, a.y, a.x, a.hi, a.lo)
-		testDiv("Div32", Div32, a.hi, a.lo+a.r, a.y, a.x, a.r)
-		testDiv("Div32 symmetric", Div32, a.hi, a.lo+a.r, a.x, a.y, a.r)
+		testMul("Mul32", bits.Mul32, a.x, a.y, a.hi, a.lo)
+		testMul("Mul32 symmetric", bits.Mul32, a.y, a.x, a.hi, a.lo)
+		testDiv("Div32", bits.Div32, a.hi, a.lo+a.r, a.y, a.x, a.r)
+		testDiv("Div32 symmetric", bits.Div32, a.hi, a.lo+a.r, a.x, a.y, a.r)
 	}
 }
 
@@ -1002,16 +1003,16 @@ func TestMulDiv64(t *testing.T) {
 		{0x3626229738a3b9, 0xd8988a9f1cc4a61, 0x2dd0712657fe8, 0x9dd6a3364c358319, 13},
 		{_M64, _M64, _M64 - 1, 1, 42},
 	} {
-		testMul("Mul64", Mul64, a.x, a.y, a.hi, a.lo)
-		testMul("Mul64 symmetric", Mul64, a.y, a.x, a.hi, a.lo)
-		testDiv("Div64", Div64, a.hi, a.lo+a.r, a.y, a.x, a.r)
-		testDiv("Div64 symmetric", Div64, a.hi, a.lo+a.r, a.x, a.y, a.r)
+		testMul("Mul64", bits.Mul64, a.x, a.y, a.hi, a.lo)
+		testMul("Mul64 symmetric", bits.Mul64, a.y, a.x, a.hi, a.lo)
+		testDiv("Div64", bits.Div64, a.hi, a.lo+a.r, a.y, a.x, a.r)
+		testDiv("Div64 symmetric", bits.Div64, a.hi, a.lo+a.r, a.x, a.y, a.r)
 		// The above code can't test intrinsic implementation, because the passed function is not called directly.
 		// The following code uses a closure to test the intrinsic version in case the function is intrinsified.
-		testMul("Mul64 intrinsic", func(x, y uint64) (uint64, uint64) { return Mul64(x, y) }, a.x, a.y, a.hi, a.lo)
-		testMul("Mul64 intrinsic symmetric", func(x, y uint64) (uint64, uint64) { return Mul64(x, y) }, a.y, a.x, a.hi, a.lo)
-		testDiv("Div64 intrinsic", func(hi, lo, y uint64) (uint64, uint64) { return Div64(hi, lo, y) }, a.hi, a.lo+a.r, a.y, a.x, a.r)
-		testDiv("Div64 intrinsic symmetric", func(hi, lo, y uint64) (uint64, uint64) { return Div64(hi, lo, y) }, a.hi, a.lo+a.r, a.x, a.y, a.r)
+		testMul("Mul64 intrinsic", func(x, y uint64) (uint64, uint64) { return bits.Mul64(x, y) }, a.x, a.y, a.hi, a.lo)
+		testMul("Mul64 intrinsic symmetric", func(x, y uint64) (uint64, uint64) { return bits.Mul64(x, y) }, a.y, a.x, a.hi, a.lo)
+		testDiv("Div64 intrinsic", func(hi, lo, y uint64) (uint64, uint64) { return bits.Div64(hi, lo, y) }, a.hi, a.lo+a.r, a.y, a.x, a.r)
+		testDiv("Div64 intrinsic symmetric", func(hi, lo, y uint64) (uint64, uint64) { return bits.Div64(hi, lo, y) }, a.hi, a.lo+a.r, a.x, a.y, a.r)
 	}
 }
 
@@ -1020,11 +1021,11 @@ func TestDivPanicOverflow(t *testing.T) {
 	defer func() {
 		if err := recover(); err == nil {
 			t.Error("Div should have panicked when y<=hi")
-		} else if err != overflowError {
-			t.Errorf("Div expected panic: %q, got: %v ", overflowError, err)
+		} else if err != bits.OverflowError {
+			t.Errorf("Div expected panic: %q, got: %v ", bits.OverflowError, err)
 		}
 	}()
-	q, r := Div(1, 0, 1)
+	q, r := bits.Div(1, 0, 1)
 	t.Errorf("undefined q, r = %v, %v calculated when Div should have panicked", q, r)
 }
 
@@ -1033,11 +1034,11 @@ func TestDiv32PanicOverflow(t *testing.T) {
 	defer func() {
 		if err := recover(); err == nil {
 			t.Error("Div32 should have panicked when y<=hi")
-		} else if err != overflowError {
-			t.Errorf("Div32 expected panic: %q, got: %v ", overflowError, err)
+		} else if err != bits.OverflowError {
+			t.Errorf("Div32 expected panic: %q, got: %v ", bits.OverflowError, err)
 		}
 	}()
-	q, r := Div32(1, 0, 1)
+	q, r := bits.Div32(1, 0, 1)
 	t.Errorf("undefined q, r = %v, %v calculated when Div32 should have panicked", q, r)
 }
 
@@ -1046,11 +1047,11 @@ func TestDiv64PanicOverflow(t *testing.T) {
 	defer func() {
 		if err := recover(); err == nil {
 			t.Error("Div64 should have panicked when y<=hi")
-		} else if err != overflowError {
-			t.Errorf("Div64 expected panic: %q, got: %v ", overflowError, err)
+		} else if err != bits.OverflowError {
+			t.Errorf("Div64 expected panic: %q, got: %v ", bits.OverflowError, err)
 		}
 	}()
-	q, r := Div64(1, 0, 1)
+	q, r := bits.Div64(1, 0, 1)
 	t.Errorf("undefined q, r = %v, %v calculated when Div64 should have panicked", q, r)
 }
 
@@ -1059,11 +1060,11 @@ func TestDivPanicZero(t *testing.T) {
 	defer func() {
 		if err := recover(); err == nil {
 			t.Error("Div should have panicked when y==0")
-		} else if err != divideError {
-			t.Errorf("Div expected panic: %q, got: %q ", divideError, err)
+		} else if err != bits.DivideError {
+			t.Errorf("Div expected panic: %q, got: %q ", bits.DivideError, err)
 		}
 	}()
-	q, r := Div(1, 1, 0)
+	q, r := bits.Div(1, 1, 0)
 	t.Errorf("undefined q, r = %v, %v calculated when Div should have panicked", q, r)
 }
 
@@ -1072,11 +1073,11 @@ func TestDiv32PanicZero(t *testing.T) {
 	defer func() {
 		if err := recover(); err == nil {
 			t.Error("Div32 should have panicked when y==0")
-		} else if err != divideError {
-			t.Errorf("Div32 expected panic: %q, got: %q ", divideError, err)
+		} else if err != bits.DivideError {
+			t.Errorf("Div32 expected panic: %q, got: %q ", bits.DivideError, err)
 		}
 	}()
-	q, r := Div32(1, 1, 0)
+	q, r := bits.Div32(1, 1, 0)
 	t.Errorf("undefined q, r = %v, %v calculated when Div32 should have panicked", q, r)
 }
 
@@ -1085,11 +1086,11 @@ func TestDiv64PanicZero(t *testing.T) {
 	defer func() {
 		if err := recover(); err == nil {
 			t.Error("Div64 should have panicked when y==0")
-		} else if err != divideError {
-			t.Errorf("Div64 expected panic: %q, got: %q ", divideError, err)
+		} else if err != bits.DivideError {
+			t.Errorf("Div64 expected panic: %q, got: %q ", bits.DivideError, err)
 		}
 	}()
-	q, r := Div64(1, 1, 0)
+	q, r := bits.Div64(1, 1, 0)
 	t.Errorf("undefined q, r = %v, %v calculated when Div64 should have panicked", q, r)
 }
 
@@ -1098,8 +1099,8 @@ func TestRem32(t *testing.T) {
 	// same as the rem returned by Div32
 	hi, lo, y := uint32(510510), uint32(9699690), uint32(510510+1) // ensure hi < y
 	for i := 0; i < 1000; i++ {
-		r := Rem32(hi, lo, y)
-		_, r2 := Div32(hi, lo, y)
+		r := bits.Rem32(hi, lo, y)
+		_, r2 := bits.Div32(hi, lo, y)
 		if r != r2 {
 			t.Errorf("Rem32(%v, %v, %v) returned %v, but Div32 returned rem %v", hi, lo, y, r, r2)
 		}
@@ -1111,8 +1112,8 @@ func TestRem32Overflow(t *testing.T) {
 	// To trigger a quotient overflow, we need y <= hi
 	hi, lo, y := uint32(510510), uint32(9699690), uint32(7)
 	for i := 0; i < 1000; i++ {
-		r := Rem32(hi, lo, y)
-		_, r2 := Div64(0, uint64(hi)<<32|uint64(lo), uint64(y))
+		r := bits.Rem32(hi, lo, y)
+		_, r2 := bits.Div64(0, uint64(hi)<<32|uint64(lo), uint64(y))
 		if r != uint32(r2) {
 			t.Errorf("Rem32(%v, %v, %v) returned %v, but Div64 returned rem %v", hi, lo, y, r, r2)
 		}
@@ -1125,8 +1126,8 @@ func TestRem64(t *testing.T) {
 	// same as the rem returned by Div64
 	hi, lo, y := uint64(510510), uint64(9699690), uint64(510510+1) // ensure hi < y
 	for i := 0; i < 1000; i++ {
-		r := Rem64(hi, lo, y)
-		_, r2 := Div64(hi, lo, y)
+		r := bits.Rem64(hi, lo, y)
+		_, r2 := bits.Div64(hi, lo, y)
 		if r != r2 {
 			t.Errorf("Rem64(%v, %v, %v) returned %v, but Div64 returned rem %v", hi, lo, y, r, r2)
 		}
@@ -1155,7 +1156,7 @@ func TestRem64Overflow(t *testing.T) {
 		if rt.hi < rt.y {
 			t.Fatalf("Rem64(%v, %v, %v) is not a test with quo overflow", rt.hi, rt.lo, rt.y)
 		}
-		rem := Rem64(rt.hi, rt.lo, rt.y)
+		rem := bits.Rem64(rt.hi, rt.lo, rt.y)
 		if rem != rt.rem {
 			t.Errorf("Rem64(%v, %v, %v) returned %v, wanted %v",
 				rt.hi, rt.lo, rt.y, rem, rt.rem)
@@ -1166,7 +1167,7 @@ func TestRem64Overflow(t *testing.T) {
 func BenchmarkAdd(b *testing.B) {
 	var z, c uint
 	for i := 0; i < b.N; i++ {
-		z, c = Add(uint(Input), uint(i), c)
+		z, c = bits.Add(uint(Input), uint(i), c)
 	}
 	Output = int(z + c)
 }
@@ -1174,7 +1175,7 @@ func BenchmarkAdd(b *testing.B) {
 func BenchmarkAdd32(b *testing.B) {
 	var z, c uint32
 	for i := 0; i < b.N; i++ {
-		z, c = Add32(uint32(Input), uint32(i), c)
+		z, c = bits.Add32(uint32(Input), uint32(i), c)
 	}
 	Output = int(z + c)
 }
@@ -1182,7 +1183,7 @@ func BenchmarkAdd32(b *testing.B) {
 func BenchmarkAdd64(b *testing.B) {
 	var z, c uint64
 	for i := 0; i < b.N; i++ {
-		z, c = Add64(uint64(Input), uint64(i), c)
+		z, c = bits.Add64(uint64(Input), uint64(i), c)
 	}
 	Output = int(z + c)
 }
@@ -1194,10 +1195,10 @@ func BenchmarkAdd64multiple(b *testing.B) {
 	z3 := uint64(Input)
 	for i := 0; i < b.N; i++ {
 		var c uint64
-		z0, c = Add64(z0, uint64(i), c)
-		z1, c = Add64(z1, uint64(i), c)
-		z2, c = Add64(z2, uint64(i), c)
-		z3, _ = Add64(z3, uint64(i), c)
+		z0, c = bits.Add64(z0, uint64(i), c)
+		z1, c = bits.Add64(z1, uint64(i), c)
+		z2, c = bits.Add64(z2, uint64(i), c)
+		z3, _ = bits.Add64(z3, uint64(i), c)
 	}
 	Output = int(z0 + z1 + z2 + z3)
 }
@@ -1205,7 +1206,7 @@ func BenchmarkAdd64multiple(b *testing.B) {
 func BenchmarkSub(b *testing.B) {
 	var z, c uint
 	for i := 0; i < b.N; i++ {
-		z, c = Sub(uint(Input), uint(i), c)
+		z, c = bits.Sub(uint(Input), uint(i), c)
 	}
 	Output = int(z + c)
 }
@@ -1213,7 +1214,7 @@ func BenchmarkSub(b *testing.B) {
 func BenchmarkSub32(b *testing.B) {
 	var z, c uint32
 	for i := 0; i < b.N; i++ {
-		z, c = Sub32(uint32(Input), uint32(i), c)
+		z, c = bits.Sub32(uint32(Input), uint32(i), c)
 	}
 	Output = int(z + c)
 }
@@ -1221,7 +1222,7 @@ func BenchmarkSub32(b *testing.B) {
 func BenchmarkSub64(b *testing.B) {
 	var z, c uint64
 	for i := 0; i < b.N; i++ {
-		z, c = Sub64(uint64(Input), uint64(i), c)
+		z, c = bits.Sub64(uint64(Input), uint64(i), c)
 	}
 	Output = int(z + c)
 }
@@ -1233,10 +1234,10 @@ func BenchmarkSub64multiple(b *testing.B) {
 	z3 := uint64(Input)
 	for i := 0; i < b.N; i++ {
 		var c uint64
-		z0, c = Sub64(z0, uint64(i), c)
-		z1, c = Sub64(z1, uint64(i), c)
-		z2, c = Sub64(z2, uint64(i), c)
-		z3, _ = Sub64(z3, uint64(i), c)
+		z0, c = bits.Sub64(z0, uint64(i), c)
+		z1, c = bits.Sub64(z1, uint64(i), c)
+		z2, c = bits.Sub64(z2, uint64(i), c)
+		z3, _ = bits.Sub64(z3, uint64(i), c)
 	}
 	Output = int(z0 + z1 + z2 + z3)
 }
@@ -1244,7 +1245,7 @@ func BenchmarkSub64multiple(b *testing.B) {
 func BenchmarkMul(b *testing.B) {
 	var hi, lo uint
 	for i := 0; i < b.N; i++ {
-		hi, lo = Mul(uint(Input), uint(i))
+		hi, lo = bits.Mul(uint(Input), uint(i))
 	}
 	Output = int(hi + lo)
 }
@@ -1252,7 +1253,7 @@ func BenchmarkMul(b *testing.B) {
 func BenchmarkMul32(b *testing.B) {
 	var hi, lo uint32
 	for i := 0; i < b.N; i++ {
-		hi, lo = Mul32(uint32(Input), uint32(i))
+		hi, lo = bits.Mul32(uint32(Input), uint32(i))
 	}
 	Output = int(hi + lo)
 }
@@ -1260,7 +1261,7 @@ func BenchmarkMul32(b *testing.B) {
 func BenchmarkMul64(b *testing.B) {
 	var hi, lo uint64
 	for i := 0; i < b.N; i++ {
-		hi, lo = Mul64(uint64(Input), uint64(i))
+		hi, lo = bits.Mul64(uint64(Input), uint64(i))
 	}
 	Output = int(hi + lo)
 }
@@ -1268,7 +1269,7 @@ func BenchmarkMul64(b *testing.B) {
 func BenchmarkDiv(b *testing.B) {
 	var q, r uint
 	for i := 0; i < b.N; i++ {
-		q, r = Div(1, uint(i), uint(Input))
+		q, r = bits.Div(1, uint(i), uint(Input))
 	}
 	Output = int(q + r)
 }
@@ -1276,7 +1277,7 @@ func BenchmarkDiv(b *testing.B) {
 func BenchmarkDiv32(b *testing.B) {
 	var q, r uint32
 	for i := 0; i < b.N; i++ {
-		q, r = Div32(1, uint32(i), uint32(Input))
+		q, r = bits.Div32(1, uint32(i), uint32(Input))
 	}
 	Output = int(q + r)
 }
@@ -1284,7 +1285,7 @@ func BenchmarkDiv32(b *testing.B) {
 func BenchmarkDiv64(b *testing.B) {
 	var q, r uint64
 	for i := 0; i < b.N; i++ {
-		q, r = Div64(1, uint64(i), uint64(Input))
+		q, r = bits.Div64(1, uint64(i), uint64(Input))
 	}
 	Output = int(q + r)
 }

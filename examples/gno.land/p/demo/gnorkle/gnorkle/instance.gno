@@ -5,10 +5,10 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/gnorkle/agent"
 	"gno.land/p/demo/gnorkle/feed"
 	"gno.land/p/demo/gnorkle/message"
+	"gno.land/p/nt/avl"
 )
 
 // Instance is a single instance of an oracle.
@@ -106,7 +106,7 @@ type PostMessageHandler interface {
 // TODO: Consider further message types that could allow administrative action such as modifying
 // a feed's whitelist without the owner of this oracle having to maintain a reference to it.
 func (i *Instance) HandleMessage(msg string, postHandler PostMessageHandler) (string, error) {
-	caller := string(std.GetOrigCaller())
+	caller := string(std.OriginCaller())
 
 	funcType, msg := message.ParseFunc(msg)
 
@@ -193,7 +193,7 @@ func (i *Instance) GetFeedDefinitions(forAddress string) (string, error) {
 	var err error
 
 	// The boolean value returned by this callback function indicates whether to stop iterating.
-	i.feeds.Iterate("", "", func(_ string, value interface{}) bool {
+	i.feeds.Iterate("", "", func(_ string, value any) bool {
 		feedWithWhitelist, ok := value.(FeedWithWhitelist)
 		if !ok {
 			err = errors.New("invalid feed type")

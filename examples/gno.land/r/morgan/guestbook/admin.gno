@@ -1,18 +1,17 @@
 package guestbook
 
 import (
-	"gno.land/p/demo/ownable"
-	"gno.land/p/demo/seqid"
+	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/seqid"
 )
 
-var owner = ownable.New()
+var owner = ownable.NewWithOrigin()
 
 // AdminDelete removes the guestbook message with the given ID.
 // The user will still be marked as having submitted a message, so they
 // won't be able to re-submit a new message.
-func AdminDelete(signatureID string) {
-	owner.AssertCallerIsOwner()
-
+func AdminDelete(cur realm, signatureID string) {
+	owner.AssertOwnedByPrevious()
 	id, err := seqid.FromString(signatureID)
 	if err != nil {
 		panic(err)

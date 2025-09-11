@@ -67,6 +67,10 @@ stdout '"sequence": "5"'
 gnokey query vm/qeval --data "gno.land/r/hello.Hello()"
 stdout 'Hello, George!'
 
+# simulate should panic if gas-wanted is beyond the max block gas.
+! gnokey maketx call -pkgpath gno.land/r/hello -func SetName -args Paul -gas-wanted 100_000_000_000_000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate only test1
+stderr 'invalid gas wanted'
+
 -- test/test.gno --
 package test
 
@@ -79,7 +83,7 @@ package hello
 
 var name = "Ringo"
 
-func SetName(newName string) {
+func SetName(cur realm, newName string) {
 	name = newName
 }
 

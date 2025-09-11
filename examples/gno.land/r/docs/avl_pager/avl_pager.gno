@@ -3,8 +3,8 @@ package avl_pager
 import (
 	"strconv"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/avl/pager"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/pager"
 )
 
 // Tree instance for 100 items
@@ -28,13 +28,13 @@ func Render(path string) string {
 	// Header and pagination info
 	result := "# Paginated Items\n"
 	result += "Page " + strconv.Itoa(page.PageNumber) + " of " + strconv.Itoa(page.TotalPages) + "\n\n"
-	result += page.Picker() + "\n\n"
+	result += page.Picker(path) + "\n\n"
 
 	// Display items on the current page
 	for _, item := range page.Items {
 		result += "- " + item.Key + ": " + item.Value.(string) + "\n"
 	}
 
-	result += "\n" + page.Picker() // Repeat page picker for ease of navigation
+	result += "\n" + page.Picker(path) // Repeat page picker for ease of navigation
 	return result
 }

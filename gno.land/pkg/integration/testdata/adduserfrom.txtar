@@ -15,19 +15,19 @@ gnoland start
 
 ## check users initial balance
 gnokey query bank/balances/$user1_user_addr
-stdout '10000000ugnot'
+stdout '1000000000ugnot'
 
 gnokey query bank/balances/g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4
-stdout '10000000ugnot'
+stdout '1000000000ugnot'
 
 gnokey query auth/accounts/$user3_user_addr
 stdout 'height: 0'
 stdout 'data: {'
 stdout '  "BaseAccount": {'
 stdout '    "address": "g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp",'
-stdout '    "coins": "10000000ugnot",'
+stdout '    "coins": "1000000000ugnot",'
 stdout '    "public_key": null,'
-stdout '    "account_number": "59",'
+stdout '    "account_number": "60",'
 stdout '    "sequence": "0"'
 stdout '  }'
 stdout '}'

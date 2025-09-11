@@ -36,7 +36,7 @@ func TestMarshalJSON(t *testing.T) {
 	cdc := amino.NewCodec()
 	registerTransports(cdc)
 	cases := []struct {
-		in      interface{}
+		in      any
 		want    string
 		wantErr string
 	}{
@@ -49,7 +49,7 @@ func TestMarshalJSON(t *testing.T) {
 		{&oneExportedField{A: "Z"}, `{"A":"Z"}`, ""},   // #6
 		{[]string{"a", "bc"}, `["a","bc"]`, ""},        // #7
 		{
-			[]interface{}{"a", "bc", 10, 10.93, 1e3},
+			[]any{"a", "bc", 10, 10.93, 1e3},
 			``, "unregistered",
 		}, // #8
 		{
@@ -259,8 +259,8 @@ func TestJSONUnmarshal(t *testing.T) {
 	registerTransports(cdc)
 	cases := []struct {
 		blob    string
-		in      interface{}
-		want    interface{}
+		in      any
+		want    any
 		wantErr string
 	}{
 		{ // #0
@@ -290,20 +290,20 @@ func TestJSONUnmarshal(t *testing.T) {
 			`"Bugatti"`, new(Car), func() *Car { c := Car("Bugatti"); return &c }(), "",
 		},
 		{ // #7
-			`["1", "2", "3"]`, new([]int), func() interface{} {
+			`["1", "2", "3"]`, new([]int), func() any {
 				v := []int{1, 2, 3}
 				return &v
 			}(), "",
 		},
 		{ // #8
-			`["1", "2", "3"]`, new([]string), func() interface{} {
+			`["1", "2", "3"]`, new([]string), func() any {
 				v := []string{"1", "2", "3"}
 				return &v
 			}(), "",
 		},
 		{ // #9
 			`[{"@type":"/google.protobuf.Int32Value","value":1},{"@type":"/google.protobuf.StringValue","value":"2"}]`,
-			new([]interface{}), &([]interface{}{int32(1), string("2")}), "",
+			new([]any), &([]any{int32(1), string("2")}), "",
 		},
 		{ // #10
 			`2.34`, floatPtr(2.34), nil, "float* support requires",
@@ -359,9 +359,9 @@ func TestJSONCodecRoundTrip(t *testing.T) {
 	}
 
 	cases := []struct {
-		in      interface{}
-		want    interface{}
-		out     interface{}
+		in      any
+		want    any
+		out     any
 		wantErr string
 	}{
 		0: {
@@ -512,7 +512,7 @@ func (c Car) Move() error   { return nil }
 func (b Boat) Move() error  { return nil }
 func (p Plane) Move() error { return nil }
 
-func interfacePtr(v interface{}) *interface{} {
+func interfacePtr(v any) *any {
 	return &v
 }
 
@@ -549,13 +549,13 @@ func TestMarshalJSONIndent(t *testing.T) {
 	cdc := amino.NewCodec()
 	registerTransports(cdc)
 	obj := Transport{Vehicle: Car("Tesla")}
-	expected := fmt.Sprintf(`{
+	expected := `{
   "Vehicle": {
     "@type": "/amino_test.Car",
     "value": "Tesla"
   },
   "Capacity": "0"
-}`)
+}`
 
 	blob, err := cdc.MarshalJSONIndent(obj, "", "  ")
 	assert.Nil(t, err)

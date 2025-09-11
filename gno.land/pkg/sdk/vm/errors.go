@@ -16,10 +16,13 @@ func (abciError) AssertABCIError() {}
 // NOTE: these are meant to be used in conjunction with pkgs/errors.
 type (
 	InvalidPkgPathError   struct{ abciError }
+	NoRenderDeclError     struct{ abciError }
 	PkgExistError         struct{ abciError }
 	InvalidStmtError      struct{ abciError }
 	InvalidExprError      struct{ abciError }
 	UnauthorizedUserError struct{ abciError }
+	InvalidPackageError   struct{ abciError }
+	InvalidFileError      struct{ abciError }
 	TypeCheckError        struct {
 		abciError
 		Errors []string `json:"errors"`
@@ -27,10 +30,13 @@ type (
 )
 
 func (e InvalidPkgPathError) Error() string   { return "invalid package path" }
+func (e NoRenderDeclError) Error() string     { return "render function not declared" }
 func (e PkgExistError) Error() string         { return "package already exists" }
 func (e InvalidStmtError) Error() string      { return "invalid statement" }
+func (e InvalidFileError) Error() string      { return "file is not available" }
 func (e InvalidExprError) Error() string      { return "invalid expression" }
 func (e UnauthorizedUserError) Error() string { return "unauthorized user" }
+func (e InvalidPackageError) Error() string   { return "invalid package" }
 func (e TypeCheckError) Error() string {
 	var bld strings.Builder
 	bld.WriteString("invalid gno package; type check errors:\n")
@@ -50,12 +56,20 @@ func ErrInvalidPkgPath(msg string) error {
 	return errors.Wrap(InvalidPkgPathError{}, msg)
 }
 
+func ErrInvalidFile(msg string) error {
+	return errors.Wrap(InvalidFileError{}, msg)
+}
+
 func ErrInvalidStmt(msg string) error {
 	return errors.Wrap(InvalidStmtError{}, msg)
 }
 
 func ErrInvalidExpr(msg string) error {
 	return errors.Wrap(InvalidExprError{}, msg)
+}
+
+func ErrInvalidPackage(msg string) error {
+	return errors.Wrap(InvalidPackageError{}, msg)
 }
 
 func ErrTypeCheck(err error) error {

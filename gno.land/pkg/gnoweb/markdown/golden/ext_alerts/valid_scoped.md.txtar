@@ -1,0 +1,21 @@
+-- input.md --
+> [!NOTE]
+> > [!NOTE]
+> > This is a scoped note
+
+-- output.html --
+<details class="gno-alert gno-alert-note" open>
+<summary>
+<svg><use href="#ico-note"></use></svg>Note<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<details class="gno-alert gno-alert-note" open>
+<summary>
+<svg><use href="#ico-note"></use></svg>Note<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>This is a scoped note</p>
+</div>
+</details>
+</div>
+</details>

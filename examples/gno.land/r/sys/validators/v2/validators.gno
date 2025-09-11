@@ -3,9 +3,9 @@ package validators
 import (
 	"std"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/ufmt"
 	"gno.land/p/sys/validators"
 )
 
@@ -30,7 +30,7 @@ func addValidator(validator validators.Validator) {
 
 	// Validator added, note the change
 	ch := change{
-		blockNum:  std.GetHeight(),
+		blockNum:  std.ChainHeight(),
 		validator: val,
 	}
 
@@ -42,15 +42,15 @@ func addValidator(validator validators.Validator) {
 
 // removeValidator removes the given validator from the set.
 // If the validator is not present in the set, the method errors out
-func removeValidator(address std.Address) {
-	val, err := vp.RemoveValidator(address)
+func removeValidator(address_XXX std.Address) {
+	val, err := vp.RemoveValidator(address_XXX)
 	if err != nil {
 		panic(err)
 	}
 
 	// Validator removed, note the change
 	ch := change{
-		blockNum: std.GetHeight(),
+		blockNum: std.ChainHeight(),
 		validator: validators.Validator{
 			Address:     val.Address,
 			PubKey:      val.PubKey,
@@ -98,7 +98,7 @@ func Render(_ string) string {
 	}
 
 	output := "Valset changes:\n"
-	changes.ReverseIterateByOffset(size-maxDisplay, maxDisplay, func(_ string, value interface{}) bool {
+	changes.ReverseIterateByOffset(size-maxDisplay, maxDisplay, func(_ string, value any) bool {
 		chs := value.([]change)
 
 		for _, ch := range chs {

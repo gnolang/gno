@@ -17,7 +17,7 @@ package softfloat
 
 // This file mostly exports the functions from runtime_softfloat64.go
 
-//go:generate sh copy.sh
+//go:generate go run github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat/gen
 
 const (
 	mask  = 0x7FF

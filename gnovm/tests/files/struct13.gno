@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/gnolang/gno/_test/net/http"
+	"filetests/extern/net/http"
 )
 
 type Fromage struct {
@@ -16,4 +16,4 @@ func main() {
 }
 
 // Output:
-// 0
+// 0s

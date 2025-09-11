@@ -1,37 +1,39 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
 	"fmt"
 	"std"
 
 	psubtests "gno.land/p/demo/tests/subtests"
-	rsubtests "gno.land/r/demo/tests/subtests"
+	rsubtests "gno.land/r/tests/vm/subtests"
 )
 
-func main() {
+func main(cur realm) {
 	tests := []struct {
 		fn func() std.Realm
 	}{
 		{std.CurrentRealm},
 		{psubtests.GetCurrentRealm},
-		{rsubtests.GetCurrentRealm},
+		{func() std.Realm {
+			return rsubtests.GetCurrentRealm(cross)
+		}},
 	}
 
 	for _, test := range tests {
 		r := test.fn()
 
-		if std.DerivePkgAddr(r.PkgPath()) != r.Addr() {
+		if std.DerivePkgAddr(r.PkgPath()) != r.Address() {
 			panic(fmt.Sprintf("ERROR: expected: %v, got: %v",
-				std.DerivePkgAddr(r.PkgPath()), r.Addr(),
+				std.DerivePkgAddr(r.PkgPath()), r.Address(),
 			))
 		}
 
-		println(r.PkgPath(), r.Addr())
+		println(r.PkgPath(), r.Address())
 	}
 }
 
 // Output:
-// gno.land/r/crossrealm_test g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p
-// gno.land/r/crossrealm_test g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p
-// gno.land/r/demo/tests/subtests g13g48xnr7lzxsrvny0uf6lhx0cfaxy4n0n5geuf
+// gno.land/r/crossrealm g1h2y7mn4d8w5ed08kqt8sdd7tp4j96eahyn6yan
+// gno.land/r/crossrealm g1h2y7mn4d8w5ed08kqt8sdd7tp4j96eahyn6yan
+// gno.land/r/tests/vm/subtests g17j8t4d9ner7wd2ezftsp3px32d5qfhv0mcfdcn

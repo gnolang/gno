@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/mux"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/mux"
+	"gno.land/p/nt/ufmt"
 )
 
 type Blog struct {
@@ -27,7 +27,7 @@ func (b Blog) RenderLastPostsWidget(limit int) string {
 
 	output := ""
 	i := 0
-	b.PostsPublished.ReverseIterate("", "", func(key string, value interface{}) bool {
+	b.PostsPublished.ReverseIterate("", "", func(key string, value any) bool {
 		p := value.(*Post)
 		output += ufmt.Sprintf("- [%s](%s)\n", p.Title, p.URL())
 		i++
@@ -36,7 +36,7 @@ func (b Blog) RenderLastPostsWidget(limit int) string {
 	return output
 }
 
-func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
+func (b Blog) RenderHome(res *mux.ResponseWriter, _ *mux.Request) {
 	if !b.NoBreadcrumb {
 		res.Write(breadcrumb([]string{b.Title}))
 	}
@@ -46,15 +46,27 @@ func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	res.Write("<div class='columns-3'>")
-	b.PostsPublished.ReverseIterate("", "", func(key string, value interface{}) bool {
+	const maxCol = 3
+	var rowItems []string
+
+	b.PostsPublished.ReverseIterate("", "", func(key string, value any) bool {
 		post := value.(*Post)
-		res.Write(post.RenderListItem())
+		rowItems = append(rowItems, post.RenderListItem())
+
+		if len(rowItems) == maxCol {
+			res.Write("<gno-columns>" + strings.Join(rowItems, "|||") + "</gno-columns>\n")
+			rowItems = []string{}
+		}
 		return false
 	})
-	res.Write("</div>")
 
-	// FIXME: tag list/cloud.
+	// Pad and flush any remaining items
+	if len(rowItems) > 0 {
+		for len(rowItems) < maxCol {
+			rowItems = append(rowItems, "")
+		}
+		res.Write("<gno-columns>" + strings.Join(rowItems, "\n|||\n") + "</gno-columns>\n")
+	}
 }
 
 func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
@@ -81,7 +93,7 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write("<details><summary>Comment section</summary>\n\n")
 
 	// comments
-	p.Comments.ReverseIterate("", "", func(key string, value interface{}) bool {
+	p.Comments.ReverseIterate("", "", func(key string, value any) bool {
 		comment := value.(*Comment)
 		res.Write(comment.RenderListItem())
 		return false
@@ -109,7 +121,7 @@ func (b Blog) RenderTag(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	nb := 0
-	b.Posts.Iterate("", "", func(key string, value interface{}) bool {
+	b.Posts.Iterate("", "", func(key string, value any) bool {
 		post := value.(*Post)
 		if !post.HasTag(slug) {
 			return false
@@ -295,15 +307,13 @@ func (p *Post) RenderListItem() string {
 	if p == nil {
 		return "error: no such post\n"
 	}
-	output := "<div>\n\n"
-	output += ufmt.Sprintf("### [%s](%s)\n", p.Title, p.URL())
+	output := ufmt.Sprintf("\n### [%s](%s)\n", p.Title, p.URL())
 	// output += ufmt.Sprintf("**[Learn More](%s)**\n\n", p.URL())
 
-	output += " " + p.CreatedAt.Format("02 Jan 2006")
+	output += p.CreatedAt.Format("02 Jan 2006")
 	// output += p.Summary() + "\n\n"
 	// output += p.RenderTagList() + "\n\n"
 	output += "\n"
-	output += "</div>"
 	return output
 }
 

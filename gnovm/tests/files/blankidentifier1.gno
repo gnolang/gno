@@ -1,6 +1,6 @@
 package main
 
-type zilch interface{}
+type zilch any
 
 func main() {
 	_ = zilch(nil)

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// Realm functions can call std.GetBanker(options) to get
+// Realm functions can call std.NewBanker(options) to get
 // a banker instance. Banker objects cannot be persisted,
 // but can be passed onto other functions to be transacted
 // on. A banker instance can be passed onto other realm
@@ -28,7 +28,7 @@ type Banker interface {
 }
 
 // BankerType represents the "permission level" requested for a banker,
-// retrievable through [GetBanker].
+// retrievable through [NewBanker].
 type BankerType uint8
 
 // Available types of banker.
@@ -36,7 +36,7 @@ const (
 	// Can only read state.
 	BankerTypeReadonly BankerType = iota
 	// Can only send from tx send.
-	BankerTypeOrigSend
+	BankerTypeOriginSend
 	// Can send from all realm coins.
 	BankerTypeRealmSend
 	// Can issue and remove realm coins.
@@ -49,8 +49,8 @@ func (b BankerType) String() string {
 	switch b {
 	case BankerTypeReadonly:
 		return "BankerTypeReadonly"
-	case BankerTypeOrigSend:
-		return "BankerTypeOrigSend"
+	case BankerTypeOriginSend:
+		return "BankerTypeOriginSend"
 	case BankerTypeRealmSend:
 		return "BankerTypeRealmSend"
 	case BankerTypeRealmIssue:
@@ -63,22 +63,22 @@ func (b BankerType) String() string {
 //----------------------------------------
 // adapter for native banker
 
-// GetBanker returns a new Banker, with its capabilities matching the given
+// NewBanker returns a new Banker, with its capabilities matching the given
 // [BankerType].
-func GetBanker(bt BankerType) Banker {
+func NewBanker(bt BankerType) Banker {
 	assertCallerIsRealm()
 	if bt >= maxBanker {
 		panic("invalid banker type")
 	}
 
 	var pkgAddr Address
-	if bt == BankerTypeOrigSend {
-		pkgAddr = GetOrigPkgAddr()
-		if pkgAddr != CurrentRealm().Addr() {
-			panic("banker with type BankerTypeOrigSend can only be instantiated by the origin package")
+	if bt == BankerTypeOriginSend {
+		pkgAddr = CurrentRealm().Address()
+		if PreviousRealm().PkgPath() != "" {
+			panic("banker with type BankerTypeOriginSend can only be instantiated by the origin package")
 		}
 	} else if bt == BankerTypeRealmSend || bt == BankerTypeRealmIssue {
-		pkgAddr = CurrentRealm().Addr()
+		pkgAddr = CurrentRealm().Address()
 	}
 	return banker{
 		bt,

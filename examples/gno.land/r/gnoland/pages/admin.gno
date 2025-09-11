@@ -4,7 +4,7 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 var (
@@ -14,34 +14,34 @@ var (
 )
 
 func init() {
-	// adminAddr = std.GetOrigCaller() // FIXME: find a way to use this from the main's genesis.
+	// adminAddr = std.OriginCaller() // FIXME: find a way to use this from the main's genesis.
 	adminAddr = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
 }
 
-func AdminSetAdminAddr(addr std.Address) {
+func AdminSetAdminAddr(_ realm, addr std.Address) {
 	assertIsAdmin()
 	adminAddr = addr
 }
 
-func AdminSetInPause(state bool) {
+func AdminSetInPause(_ realm, state bool) {
 	assertIsAdmin()
 	inPause = state
 }
 
-func AdminAddModerator(addr std.Address) {
+func AdminAddModerator(_ realm, addr std.Address) {
 	assertIsAdmin()
 	moderatorList.Set(addr.String(), true)
 }
 
-func AdminRemoveModerator(addr std.Address) {
+func AdminRemoveModerator(_ realm, addr std.Address) {
 	assertIsAdmin()
 	moderatorList.Set(addr.String(), false) // XXX: delete instead?
 }
 
-func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
+func ModAddPost(_ realm, slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
 
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	tagList := strings.Split(tags, ",")
 	authorList := strings.Split(authors, ",")
 
@@ -49,7 +49,7 @@ func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
 	checkErr(err)
 }
 
-func ModEditPost(slug, title, body, publicationDate, authors, tags string) {
+func ModEditPost(_ realm, slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
 
 	tagList := strings.Split(tags, ",")
@@ -69,14 +69,14 @@ func isModerator(addr std.Address) bool {
 }
 
 func assertIsAdmin() {
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	if !isAdmin(caller) {
 		panic("access restricted.")
 	}
 }
 
 func assertIsModerator() {
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	if isAdmin(caller) || isModerator(caller) {
 		return
 	}

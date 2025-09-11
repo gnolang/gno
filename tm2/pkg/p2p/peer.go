@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"slices"
 
 	"github.com/gnolang/gno/tm2/pkg/cmap"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
@@ -160,7 +161,7 @@ func (p *peer) OnStop() {
 
 // ID returns the peer's ID - the hex encoded hash of its pubkey.
 func (p *peer) ID() types.ID {
-	return p.nodeInfo.PeerID
+	return p.nodeInfo.ID()
 }
 
 // NodeInfo returns a copy of the peer's NodeInfo.
@@ -208,13 +209,7 @@ func (p *peer) Set(key string, data any) {
 // hasChannel returns true if the peer reported
 // knowing about the given chID.
 func (p *peer) hasChannel(chID byte) bool {
-	for _, ch := range p.nodeInfo.Channels {
-		if ch == chID {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(p.nodeInfo.Channels, chID)
 }
 
 func (p *peer) createMConnection(

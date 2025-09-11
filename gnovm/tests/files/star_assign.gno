@@ -2,7 +2,7 @@
 package test
 
 import (
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 type A struct {
@@ -21,7 +21,7 @@ func init() {
 	New()
 }
 
-func main() {
+func main(cur realm) {
 	Delta()
 	println(Values())
 }

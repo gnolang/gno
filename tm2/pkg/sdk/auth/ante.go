@@ -67,7 +67,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			}
 		}
 
-		newCtx = SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+		newCtx = SetGasMeter(ctx, tx.Fee.GasWanted)
 
 		// AnteHandlers must have their own defer/recover in order for the BaseApp
 		// to know how much gas was used! This is because the GasMeter is created in
@@ -122,7 +122,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 
 		// deduct the fees
 		if !tx.Fee.GasFee.IsZero() {
-			res = DeductFees(bank, newCtx, signerAccs[0], std.Coins{tx.Fee.GasFee})
+			res = DeductFees(bank, newCtx, signerAccs[0], ak.FeeCollectorAddress(ctx), std.Coins{tx.Fee.GasFee})
 			if !res.IsOK() {
 				return newCtx, res, true
 			}
@@ -135,7 +135,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		// When simulating, this would just be a 0-length slice.
 		stdSigs := tx.GetSignatures()
 
-		for i := 0; i < len(stdSigs); i++ {
+		for i := range stdSigs {
 			// skip the fee payer, account is cached and fees were deducted already
 			if i != 0 {
 				signerAccs[i], res = GetSignerAcc(newCtx, ak, signerAddrs[i])
@@ -182,7 +182,7 @@ func ValidateSigCount(tx std.Tx, params Params) sdk.Result {
 	stdSigs := tx.GetSignatures()
 
 	sigCount := 0
-	for i := 0; i < len(stdSigs); i++ {
+	for i := range stdSigs {
 		sigCount += std.CountSubKeys(stdSigs[i].PubKey)
 		if int64(sigCount) > params.TxSigLimit {
 			return abciResult(std.ErrTooManySignatures(
@@ -295,7 +295,7 @@ func consumeMultisignatureVerificationGas(meter store.GasMeter,
 ) {
 	size := sig.BitArray.Size()
 	sigIndex := 0
-	for i := 0; i < size; i++ {
+	for i := range size {
 		if sig.BitArray.GetIndex(i) {
 			DefaultSigVerificationGasConsumer(meter, sig.Sigs[sigIndex], pubkey.PubKeys[i], params)
 			sigIndex++
@@ -307,7 +307,7 @@ func consumeMultisignatureVerificationGas(meter store.GasMeter,
 //
 // NOTE: We could use the CoinKeeper (in addition to the AccountKeeper, because
 // the CoinKeeper doesn't give us accounts), but it seems easier to do this.
-func DeductFees(bank BankKeeperI, ctx sdk.Context, acc std.Account, fees std.Coins) sdk.Result {
+func DeductFees(bk BankKeeperI, ctx sdk.Context, acc std.Account, collector crypto.Address, fees std.Coins) sdk.Result {
 	coins := acc.GetCoins()
 
 	if !fees.IsValid() {
@@ -322,7 +322,8 @@ func DeductFees(bank BankKeeperI, ctx sdk.Context, acc std.Account, fees std.Coi
 		))
 	}
 
-	err := bank.SendCoins(ctx, acc.GetAddress(), FeeCollectorAddress(), fees)
+	// Sending coins is unrestricted to pay for gas fees
+	err := bk.SendCoinsUnrestricted(ctx, acc.GetAddress(), collector, fees)
 	if err != nil {
 		return abciResult(err)
 	}
@@ -406,10 +407,10 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 }
 
 // SetGasMeter returns a new context with a gas meter set from a given context.
-func SetGasMeter(simulate bool, ctx sdk.Context, gasLimit int64) sdk.Context {
+func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
 	// In various cases such as simulation and during the genesis block, we do not
 	// meter any gas utilization.
-	if simulate || ctx.BlockHeight() == 0 {
+	if ctx.BlockHeight() == 0 {
 		return ctx.WithGasMeter(store.NewInfiniteGasMeter())
 	}
 

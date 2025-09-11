@@ -1,17 +1,20 @@
 @font-face {
-  font-family: "Roboto";
-  font-style: normal;
-  font-weight: 900;
-  font-display: swap;
-  src: url("./fonts/roboto/roboto-mono-normal.woff2") format("woff2"), url("./fonts/roboto/roboto-mono-normal.woff") format("woff");
+	font-family: "Roboto";
+	font-style: normal;
+	font-weight: 900;
+	font-display: swap;
+	src:
+		url("./fonts/roboto/roboto-mono-normal.woff2") format("woff2"),
+		url("./fonts/roboto/roboto-mono-normal.woff") format("woff");
 }
 
 @font-face {
-  font-family: "Inter var";
-  font-weight: 100 900;
-  font-display: block;
-  font-style: oblique 0deg 10deg;
-  src: url("./fonts/intervar/Intervar.woff2") format("woff2");
+	font-family: "Inter var";
+	font-weight: 100 900;
+	font-display: block;
+	font-variant: normal;
+	font-style: oblique 0deg 10deg;
+	src: url("./fonts/intervar/Intervar.woff2") format("woff2");
 }
 
 @tailwind base;
@@ -19,328 +22,895 @@
 @tailwind utilities;
 
 @layer base {
-  html {
-    @apply font-interVar text-gray-600 bg-light text-200;
-    font-feature-settings: "kern" on, "liga" on, "calt" on, "zero" on;
-    -webkit-font-feature-settings: "kern" on, "liga" on, "calt" on, "zero" on;
-    text-size-adjust: 100%;
-    -moz-osx-font-smoothing: grayscale;
-    font-smoothing: antialiased;
-    font-variant-ligatures: contextual common-ligatures;
-    font-kerning: normal;
-    text-rendering: optimizeLegibility;
-  }
+	html {
+		@apply font-interVar text-gray-600 bg-light text-200;
+		font-feature-settings:
+			"kern" on,
+			"liga" on,
+			"calt" off,
+			"zero" on;
+		-webkit-font-feature-settings:
+			"kern" on,
+			"liga" on,
+			"calt" off,
+			"zero" on;
+		text-size-adjust: 100%;
+		-moz-osx-font-smoothing: grayscale;
+		-webkit-font-smoothing: antialiased;
+		font-variant-ligatures: contextual common-ligatures;
+		font-kerning: normal;
+		text-rendering: optimizeLegibility;
+	}
 
-  svg {
-    @apply max-w-full max-h-full;
-  }
+	svg {
+		@apply max-w-full max-h-full;
+	}
 
-  form {
-    @apply my-0;
-  }
+	form {
+		@apply my-0;
+	}
 
-  .realm-view {
-    @apply text-200 break-words pt-6 lg:pt-10;
-  }
+	.realm-view {
+		@apply text-200 break-words;
+	}
 
-  .realm-view > *:first-child {
-    @apply !mt-0;
-  }
+	.realm-view a {
+		@apply relative inline-block text-green-600 font-medium hover:underline text-balance align-top;
+	}
 
-  .realm-view a {
-    @apply text-green-600 font-medium hover:underline;
-  }
+	.realm-view h1,
+	.realm-view h2,
+	.realm-view h3,
+	.realm-view h4 {
+		@apply text-gray-900 mt-8 md:mt-12 leading-tight;
+	}
 
-  .realm-view h1,
-  .realm-view h2,
-  .realm-view h3,
-  .realm-view h4 {
-    @apply text-gray-900 mt-12 leading-tight;
-  }
+	.realm-view h1 + h2,
+	.realm-view h2 + h3,
+	.realm-view h3 + h4 {
+		@apply mt-4;
+	}
 
-  .realm-view h2,
-  .realm-view h2 * {
-    @apply font-bold;
-  }
+	.realm-view h1 {
+		@apply text-700 md:text-800 font-bold;
+	}
 
-  .realm-view h3,
-  .realm-view h3 *,
-  .realm-view h4,
-  .realm-view h4 * {
-    @apply font-semibold;
-  }
+	.realm-view h2 {
+		@apply text-500 md:text-600;
+	}
+	.realm-view h2,
+	.realm-view h2 * {
+		@apply font-bold;
+	}
 
-  .realm-view h1 + h2,
-  .realm-view h2 + h3,
-  .realm-view h3 + h4 {
-    @apply mt-4;
-  }
+	.realm-view h3 {
+		@apply text-300 md:text-400 text-gray-600 mt-10;
+	}
 
-  .realm-view h1 {
-    @apply text-800 font-bold;
-  }
+	.realm-view h3,
+	.realm-view h3 *,
+	.realm-view h4,
+	.realm-view h4 * {
+		@apply font-semibold;
+	}
 
-  .realm-view h2 {
-    @apply text-600;
-  }
+	.realm-view h4 {
+		@apply text-200 md:text-300 text-gray-600 font-medium my-6;
+	}
 
-  .realm-view h3 {
-    @apply text-400 text-gray-600 mt-10;
-  }
+	.realm-view p {
+		@apply my-5;
+	}
 
-  .realm-view h4 {
-    @apply text-300 text-gray-600 font-medium my-6;
-  }
+	.realm-view img {
+		@apply inline-block max-w-full border border-gray-100 select-none rounded;
+	}
 
-  .realm-view p {
-    @apply my-5;
-  }
+	.realm-view p:has(img) {
+		@apply my-8;
+	}
 
-  .realm-view strong {
-    @apply font-bold text-gray-900;
-  }
+	.realm-view strong {
+		@apply font-bold;
+	}
 
-  .realm-view strong * {
-    @apply font-bold;
-  }
+	.realm-view strong * {
+		@apply font-bold;
+	}
 
-  .realm-view em {
-    @apply italic-subtle;
-  }
+	.realm-view em {
+		@apply italic-subtle;
+	}
 
-  .realm-view blockquote {
-    @apply border-l-4 border-gray-300 pl-4 text-gray-600 italic-subtle my-4;
-  }
+	.realm-view blockquote {
+		@apply border-l-4 border-gray-300 pl-4 text-gray-600 italic-subtle my-4;
+	}
 
-  .realm-view ul,
-  .realm-view ol {
-    @apply pl-4 my-6;
-  }
+	.realm-view ul,
+	.realm-view ol {
+		@apply pl-4 my-6;
+	}
 
-  .realm-view ul li,
-  .realm-view ol li {
-    @apply mb-2;
-  }
+	.realm-view ul li,
+	.realm-view ol li {
+		@apply mb-2;
+	}
 
-  .realm-view img {
-    @apply max-w-full my-8;
-  }
+	.realm-view figure {
+		@apply my-6 text-center;
+	}
 
-  .realm-view figure {
-    @apply my-6 text-center;
-  }
+	.realm-view figcaption {
+		@apply text-100 text-gray-600;
+	}
 
-  .realm-view figcaption {
-    @apply text-100 text-gray-600;
-  }
+	.realm-view :not(pre) > code {
+		@apply bg-gray-100 px-1 py-0.5 rounded-sm text-[.96em] font-mono;
+	}
 
-  .realm-view :not(pre) > code {
-    @apply bg-gray-100 px-1 py-0.5 rounded-sm text-[.96em] font-mono;
-  }
+	.realm-view pre {
+		@apply bg-gray-50 p-4 my-5 rounded overflow-x-auto font-mono;
+	}
 
-  .realm-view pre {
-    @apply bg-gray-50 p-4 rounded overflow-x-auto font-mono;
-  }
+	.realm-view hr {
+		@apply border-t border-gray-100 my-10;
+	}
 
-  .realm-view hr {
-    @apply border-t border-gray-100 my-10;
-  }
+	.realm-view table {
+		@apply my-8 block w-full max-w-full overflow-x-auto border-collapse;
+	}
 
-  .realm-view table {
-    @apply my-8 block w-full max-w-full overflow-x-auto border-collapse;
-  }
+	.realm-view th,
+	.realm-view td {
+		@apply border px-4 py-2 break-words whitespace-normal;
+	}
 
-  .realm-view th,
-  .realm-view td {
-    @apply border px-4 py-2 break-words whitespace-normal;
-  }
+	.realm-view th {
+		@apply bg-gray-100 font-bold;
+	}
 
-  .realm-view th {
-    @apply bg-gray-100 font-bold;
-  }
+	.realm-view caption {
+		@apply mt-2 text-100 text-gray-600 text-left;
+	}
 
-  .realm-view caption {
-    @apply mt-2 text-100 text-gray-600 text-left;
-  }
+	.realm-view q {
+		@apply quotes;
+	}
 
-  .realm-view q {
-    @apply quotes;
-  }
+	.realm-view q::before {
+		content: open-quote;
+	}
 
-  .realm-view q::before {
-    content: open-quote;
-  }
+	.realm-view q::after {
+		content: close-quote;
+	}
 
-  .realm-view q::after {
-    content: close-quote;
-  }
+	.realm-view ul ul,
+	.realm-view ul ol,
+	.realm-view ol ul,
+	.realm-view ol ol {
+		@apply my-2 pl-4;
+	}
 
-  .realm-view ul ul,
-  .realm-view ul ol,
-  .realm-view ol ul,
-  .realm-view ol ol {
-    @apply mt-3 mb-2 pl-4;
-  }
+	.realm-view ul {
+		@apply list-disc;
+	}
 
-  .realm-view ul {
-    @apply list-disc;
-  }
+	.realm-view ol {
+		@apply list-decimal;
+	}
 
-  .realm-view ol {
-    @apply list-decimal;
-  }
+	.realm-view abbr[title] {
+		@apply border-b border-dotted cursor-help;
+	}
 
-  .realm-view abbr[title] {
-    @apply border-b border-dotted cursor-help;
-  }
+	.realm-view details {
+		@apply my-5;
+	}
 
-  .realm-view details {
-    @apply my-5;
-  }
+	.realm-view summary {
+		@apply font-bold cursor-pointer;
+	}
 
-  .realm-view summary {
-    @apply font-bold cursor-pointer;
-  }
+	.realm-view a code {
+		@apply text-inherit;
+	}
 
-  .realm-view a code {
-    @apply text-inherit;
-  }
+	.realm-view video {
+		@apply max-w-full my-8;
+	}
 
-  .realm-view video {
-    @apply max-w-full my-8;
-  }
+	.realm-view math {
+		@apply font-mono;
+	}
 
-  .realm-view math {
-    @apply font-mono;
-  }
+	.realm-view small {
+		@apply text-100;
+	}
 
-  .realm-view small {
-    @apply text-100;
-  }
+	.realm-view del {
+		@apply line-through;
+	}
 
-  .realm-view del {
-    @apply line-through;
-  }
+	.realm-view sub {
+		@apply text-50 align-sub;
+	}
 
-  .realm-view sub {
-    @apply text-50 align-sub;
-  }
+	.realm-view sup {
+		@apply text-50 align-middle pl-px;
+	}
 
-  .realm-view sup {
-    @apply text-50 align-super;
-  }
+	.realm-view sup > a {
+		@apply align-middle;
+	}
 
-  .realm-view input,
-  .realm-view button {
-    @apply px-4 py-2 border border-gray-300;
-  }
+	.realm-view input,
+	.realm-view button,
+	.realm-view textarea,
+	.realm-view select {
+		@apply appearance-none px-4 py-2 border border-gray-300 bg-light;
+	}
 
-  main :is(h1, h2, h3, h4) {
-    @apply scroll-mt-24;
-  }
+	.realm-view > *:first-child:not(.realm-view__btns),
+	.realm-view > .realm-view__btns:first-child + * {
+		@apply !mt-0;
+	}
 
-  ::-moz-selection {
-    @apply bg-green-600 text-light;
-  }
-  ::selection {
-    @apply bg-green-600 text-light;
-  }
+	.realm-view :is(h1, h2, h3, h4, sup, .footnote-backref) {
+		@apply scroll-mt-24;
+	}
+
+	::-moz-selection {
+		@apply bg-green-600 text-light;
+	}
+	::selection {
+		@apply bg-green-600 text-light;
+	}
+
+	summary::-webkit-details-marker {
+		display: none;
+	}
+
+	summary::marker {
+		display: none;
+	}
+
+	/* MD components */
+	/* Checkbox */
+	.realm-view ul:has(li > input[type="checkbox"]:first-child) {
+		@apply list-none pl-0;
+	}
+
+	.realm-view li:has(> input[type="checkbox"]:first-child) {
+		@apply flex items-center gap-2;
+	}
+
+	.realm-view li > input[type="checkbox"]:first-child {
+		@apply relative appearance-none h-5 w-5 shrink-0 border border-gray-200 p-0 rounded-sm checked:bg-green-600 checked:border-transparent;
+	}
+
+	.realm-view li > input[type="checkbox"]:first-child:disabled {
+		@apply cursor-not-allowed bg-gray-50 checked:bg-gray-50 border-gray-200;
+	}
+
+	.realm-view li > input[type="checkbox"]:first-child::after {
+		content: "";
+		@apply absolute m-auto w-3 h-3 bg-light opacity-0 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2;
+		clip-path: polygon(25% 36%, 43% 54%, 76% 18%, 89% 29%, 44% 78%, 13% 49%);
+	}
+
+	.realm-view li > input[type="checkbox"]:first-child:disabled::after {
+		@apply bg-green-600;
+	}
+
+	.realm-view li > input[type="checkbox"]:first-child:checked::after {
+		@apply opacity-100;
+	}
+
+	/* Footnote */
+	.realm-view .footnote-backref {
+		@apply align-middle;
+	}
+
+	.realm-view li[id^="fn:"] {
+		@apply relative z-1;
+	}
+
+	.realm-view li[id^="fn:"]::before {
+		content: "";
+		@apply absolute block -top-0.5 bottom-0 -left-0.5 -right-0.5 bg-green-600/10 rounded-sm z-min opacity-0;
+	}
+
+	.realm-view li[id^="fn:"]:target::before {
+		@apply opacity-100 duration-75 delay-150;
+	}
+
+	/* Columns */
+	.realm-view .gno-columns {
+		@apply flex flex-wrap gap-x-10 xxl:gap-x-12;
+	}
+	.realm-view .gno-columns > * {
+		@apply grow shrink basis-52 lg:basis-44;
+	}
+
+	.realm-view .gno-columns > * {
+		@apply grow shrink basis-52 lg:basis-44;
+	}
+
+	.realm-view .gno-form {
+		@apply block border rounded pt-2 pb-4 px-4 my-12;
+	}
+	.realm-view .gno-form_header {
+		@apply flex justify-between text-gray-300 text-50 mb-6;
+	}
+	.realm-view .gno-form_input label,
+	.realm-view .gno-form_select label {
+		@apply absolute top-0 left-2 -translate-y-1/2 text-gray-300 text-50 bg-light px-1 hidden;
+	}
+	.realm-view .gno-form_input,
+	.realm-view .gno-form_select {
+		@apply relative;
+	}
+	.realm-view .gno-form_input:has(input:focus) label,
+	.realm-view .gno-form_input:has(input:not(:placeholder-shown)) label,
+	.realm-view .gno-form_input:has(textarea:not(:placeholder-shown)) label,
+	.realm-view .gno-form_input:has(textarea:focus) label,
+	.realm-view .gno-form_select:has(select:focus) label,
+	.realm-view
+		.gno-form_select:has(select option:not([value=""]):checked)
+		label {
+		@apply block;
+	}
+
+	.realm-view .gno-form_input input,
+	.realm-view .gno-form_input textarea,
+	.realm-view .gno-form_select select {
+		@apply block p-2 rounded-sm border-gray-200 focus:border-gray-300 hover:border-gray-300 text-gray-600 outline-none my-4 w-full placeholder:text-gray-400;
+	}
+
+	.realm-view .gno-form_input input:focus,
+	.realm-view .gno-form_input textarea:focus {
+		@apply placeholder-transparent;
+	}
+
+	.realm-view .gno-form textarea {
+		@apply resize-none;
+	}
+
+	.realm-view .gno-form_select select:has(option[value=""]:checked) {
+		@apply text-gray-400;
+	}
+
+	.realm-view .gno-form_description {
+		@apply text-gray-400 mt-5 mb-2 font-semibold;
+	}
+
+	.realm-view .gno-form_selectable {
+		@apply flex gap-x-2;
+	}
+
+	.realm-view .gno-form_selectable input {
+		@apply w-auto;
+	}
+
+	.realm-view .gno-form_selectable label {
+		@apply relative cursor-pointer block text-gray-600 first-letter:uppercase;
+	}
+
+	.realm-view .gno-form_selectable input[type="radio"],
+	.realm-view .gno-form_selectable input[type="checkbox"] {
+		@apply relative appearance-none h-5 w-5 shrink-0 border border-gray-200 p-0 rounded-full checked:bg-green-600 checked:border-transparent focus:outline-none hover:border-gray-300;
+	}
+
+	.realm-view .gno-form_selectable input[type="radio"]::after {
+		content: "";
+		@apply absolute top-1/2 left-1/2 w-4 h-4 bg-green-600 border-2 border-light rounded-full opacity-0 -translate-x-1/2 -translate-y-1/2;
+	}
+
+	.realm-view .gno-form_selectable input[type="checkbox"] {
+		@apply rounded-sm;
+	}
+
+	.realm-view .gno-form_selectable input[type="checkbox"]::after {
+		content: "";
+		@apply absolute m-auto w-3 h-3 bg-light opacity-0 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2;
+		clip-path: polygon(25% 36%, 43% 54%, 76% 18%, 89% 29%, 44% 78%, 13% 49%);
+	}
+
+	.realm-view .gno-form_selectable input[type="radio"]:checked::after,
+	.realm-view .gno-form_selectable input[type="checkbox"]:checked::after {
+		@apply opacity-100;
+	}
+
+	.realm-view .gno-form_selectable label:hover,
+	.realm-view .gno-form_selectable input:hover + label {
+		@apply text-green-600 underline;
+	}
+
+	.realm-view .gno-form_selectable {
+		@apply mb-1;
+	}
+	.realm-view .gno-form input[type="submit"] {
+		@apply bg-green-600 w-full rounded-sm text-light border-green-600 cursor-pointer font-interVar mb-2 mt-4 hover:opacity-90;
+	}
+
+	/* Alert */
+	.realm-view .gno-alert {
+		@apply border-l-4 border-l-gray-300 px-4 py-3 text-gray-600 rounded my-10;
+	}
+	.realm-view .gno-alert > div > *:first-child {
+		@apply mt-2;
+	}
+	.realm-view .gno-alert > div > *:last-child {
+		@apply mb-0;
+	}
+	.realm-view .gno-alert > summary {
+		@apply flex items-center gap-x-2 my-1 font-bold list-none;
+	}
+	.realm-view .gno-alert > summary svg {
+		@apply h-6 w-6;
+	}
+	.realm-view .gno-alert > summary svg:last-of-type {
+		@apply h-4 w-4 ml-auto -rotate-90;
+	}
+	.realm-view .gno-alert[open] > summary svg:last-of-type {
+		@apply rotate-0;
+	}
+
+	.realm-view .gno-alert > summary::marker,
+	.realm-view .gno-alert > summary::-webkit-details-marker {
+		@apply hidden;
+	}
+
+	.realm-view .gno-alert .gno-alert {
+		@apply mt-5;
+	}
+
+	/* Alert variants */
+	.realm-view .gno-alert-info {
+		@apply border-l-gray-600 bg-gray-600/10 text-gray-900;
+	}
+	.realm-view .gno-alert-info summary svg,
+	.realm-view .gno-alert-info a {
+		@apply text-gray-600;
+	}
+
+	.realm-view .gno-alert-note {
+		@apply border-l-blue-600 bg-blue-600/10 text-blue-900;
+	}
+	.realm-view .gno-alert-note summary svg,
+	.realm-view .gno-alert-note a {
+		@apply text-blue-600;
+	}
+
+	.realm-view .gno-alert-success {
+		@apply border-l-green-600 bg-green-600/10 text-green-900;
+	}
+	.realm-view .gno-alert-success summary svg,
+	.realm-view .gno-alert-success a {
+		@apply text-green-600;
+	}
+
+	.realm-view .gno-alert-warning {
+		@apply border-l-yellow-600 bg-yellow-600/10 text-yellow-900;
+	}
+	.realm-view .gno-alert-warning summary svg,
+	.realm-view .gno-alert-warning a {
+		@apply text-yellow-600;
+	}
+
+	.realm-view .gno-alert-caution {
+		@apply border-l-red-600 bg-red-600/10 text-red-900;
+	}
+	.realm-view .gno-alert-caution summary svg,
+	.realm-view .gno-alert-caution a {
+		@apply text-red-600;
+	}
+
+	.realm-view .gno-alert-tip {
+		@apply border-l-purple-600 bg-purple-600/10 text-purple-900;
+	}
+	.realm-view .gno-alert-tip summary svg,
+	.realm-view .gno-alert-tip a {
+		@apply text-purple-600;
+	}
+
+	*:empty + .prev-empty {
+		display: none;
+	}
+
+	.realm-view:has(.realm-view__btns:only-child) {
+		@apply hidden;
+	}
+	.realm-view__btns:only-child {
+		@apply hidden;
+	}
 }
 
 @layer components {
-  /* header */
-  .sidemenu .peer:checked + label > svg {
-    @apply text-green-600;
-  }
+	/* header */
+	.sidemenu .peer:checked + label > svg {
+		@apply text-green-600;
+	}
 
-  /* toc */
-  .toc-expend-btn:has(#toc-expend:checked) + nav {
-    @apply block;
-  }
-  .toc-expend-btn:has(#toc-expend:checked) .toc-expend-btn_ico {
-    @apply rotate-180;
-  }
+	/* filter */
+	.filter-list :is(li, article) {
+		@apply hidden;
+	}
 
-  /* sidebar */
-  .main-header:has(#sidemenu-summary:checked) + main #sidebar #sidebar-summary,
-  .main-header:has(#sidemenu-source:checked) + main #sidebar #sidebar-source,
-  .main-header:has(#sidemenu-docs:checked) + main #sidebar #sidebar-docs,
-  .main-header:has(#sidemenu-meta:checked) + main #sidebar #sidebar-meta {
-    @apply block;
-  }
+	.filter-list:has(input[value="packages"]:checked) :is(li, article) {
+		@apply flex;
+	}
 
-  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main .realm-view,
-  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) .main-navigation {
-    @apply md:col-span-6;
-  }
-  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main #sidebar,
-  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) .sidemenu {
-    @apply md:col-span-4;
-  }
-  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main #sidebar::before {
-    @apply absolute block content-[''] top-0 w-[50vw] h-full -left-7 bg-gray-100 z-min;
-  }
+	.filter-list:has(input[value="realms"]:checked)
+		:is(li[data-type="realm"], article[data-type="realm"]) {
+		@apply flex;
+	}
 
-  /* chroma */
-  main :is(.source-code) > pre {
-    @apply !bg-light overflow-scroll rounded py-4 md:py-8 px-1 md:px-3 font-mono text-100 md:text-200;
-  }
-  main .realm-view > pre a {
-    @apply hover:no-underline;
-  }
+	.filter-list:has(input[value="pures"]:checked)
+		:is(li[data-type="pure"], article[data-type="pure"]) {
+		@apply flex;
+	}
 
-  main :is(.realm-view, .source-code) > pre .chroma-ln:target {
-    @apply !bg-transparent;
-  }
-  main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-ln:target),
-  main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-lnlinks:hover),
-  main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-ln:target) .chroma-cl,
-  main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-lnlinks:hover) .chroma-cl {
-    @apply !bg-gray-100 rounded;
-  }
-  main :is(.realm-view, .source-code) > pre .chroma-ln {
-    @apply scroll-mt-24;
-  }
+	.filter-list label:has(input:checked) {
+		@apply text-gray-600;
+	}
 
-  .dev-mode .toc-expend-btn {
-    @apply bg-gray-100 hover:bg-gray-50 cursor-pointer border lg:border-none lg:bg-transparent;
-  }
-  .dev-mode #sidebar-summary {
-    @apply bg-light lg:bg-transparent;
-  }
-  .dev-mode .toc-nav {
-    @apply font-mono;
-  }
+	.filter-list label:has(input:checked)::after {
+		@apply absolute content-[''] -bottom-2 left-0 w-full h-1 bg-green-600 rounded-t-sm;
+	}
+
+	.range {
+		@apply grid grid-cols-1 gap-2;
+	}
+
+	.range::before {
+		@apply hidden col-span-full text-200 font-bold text-gray-600 pt-2 pb-2 w-full text-center;
+	}
+	.range::after {
+		@apply hidden col-span-full text-100 pb-2 w-full text-center;
+		content: "Add a package to your namespace to get started";
+	}
+
+	.range:empty::before {
+		@apply block;
+		content: "No packages found";
+	}
+
+	.range:empty::after {
+		@apply block;
+		content: "Add a package to your namespace to get started";
+	}
+
+	.filter-list:has(input[value="realms"]:checked)
+		.range:not(:has(> [data-type="realm"]))::before {
+		@apply block;
+		content: "No realms found";
+	}
+
+	.filter-list:has(input[value="realms"]:checked)
+		.range:not(:has(> [data-type="realm"]))::after {
+		@apply block;
+		content: "Add a realm to your namespace to get started";
+	}
+
+	.filter-list:has(input[value="realms"]:checked)
+		.range:not(:has(> [data-type="realm"])),
+	.filter-list:has(input[value="pures"]:checked)
+		.range:not(:has(> [data-type="pure"])),
+	.range:empty {
+		@apply block;
+	}
+
+	.filter-list:has(input[value="pures"]:checked)
+		.range:not(:has(> [data-type="pure"]))::before {
+		@apply block;
+		content: "No pures found";
+	}
+
+	.filter-list:has(input[value="pures"]:checked)
+		.range:not(:has(> [data-type="pure"]))::after {
+		@apply block;
+		content: "Add a pure to your namespace to get started";
+	}
+
+	.filter-list:has(input[value="display-grid"]:checked) .range {
+		@apply md:grid-cols-2 xl:grid-cols-4 md:gap-3;
+	}
+
+	.list-item {
+		@apply flex flex-col gap-6 md:gap-2 p-1 rounded bg-gray-50;
+	}
+
+	.list-item__content {
+		@apply flex flex-col bg-light rounded-sm h-full w-full p-2;
+	}
+
+	.list-item__title {
+		@apply flex gap-2 items-center overflow-hidden w-full mb-1;
+	}
+
+	.list-item__description {
+		@apply w-full overflow-hidden text-ellipsis;
+	}
+
+	.list-item__footer {
+		@apply flex gap-1 w-full justify-between px-2 pb-1 text-50;
+	}
+
+	.list-item__size {
+		@apply text-right;
+	}
+
+	.list-item__date {
+		@apply whitespace-nowrap overflow-hidden text-ellipsis;
+	}
+
+	.filter-list:has(input[value="display-list"]:checked) .range .list-item {
+		@apply flex-row md:gap-4;
+	}
+
+	.filter-list:has(input[value="display-list"]:checked)
+		.range
+		.list-item__content {
+		@apply flex-row gap-2 lg:flex-[5] flex-none min-w-0;
+	}
+
+	.filter-list:has(input[value="display-list"]:checked)
+		.range
+		.list-item__title {
+		@apply mb-0 w-1/3 overflow-hidden text-ellipsis whitespace-nowrap;
+	}
+
+	.filter-list:has(input[value="display-grid"]:checked)
+		.list-item__description {
+		@apply line-clamp-2;
+	}
+
+	.filter-list:has(input[value="display-list"]:checked)
+		.list-item__description {
+		@apply whitespace-nowrap;
+	}
+
+	.filter-list:has(input[value="display-list"]:checked)
+		.range
+		.list-item__footer {
+		@apply hidden lg:flex items-center pb-0 md:flex-[1] pl-0 min-w-0;
+	}
+
+	.filter-list:has(input[value="display-list"]:checked) .list-item__size {
+		@apply hidden xl:block xl:flex-[2] min-w-0;
+	}
+
+	.filter-list:has(input[value="display-list"]:checked) .list-item__date {
+		@apply xl:flex-[5] min-w-0;
+	}
+
+	/* toc */
+
+	.toc-expend-btn:has(#toc-expend:checked) + nav {
+		@apply block;
+	}
+	.toc-expend-btn:has(#toc-expend:checked) .toc-expend-btn_ico {
+		@apply rotate-180;
+	}
+
+	/* sidebar */
+	.sidebar__container:has(ul:empty) {
+		@apply hidden;
+	}
+
+	.dev-mode .toc-expend-btn {
+		@apply bg-gray-100 hover:bg-gray-50 cursor-pointer border lg:border-none lg:bg-transparent;
+	}
+
+	.dev-mode #sidebar-summary {
+		@apply bg-light lg:bg-transparent;
+	}
+
+	.main-header:has(#sidemenu-summary:checked) + main #sidebar #sidebar-summary,
+	.main-header:has(#sidemenu-source:checked) + main #sidebar #sidebar-source,
+	.main-header:has(#sidemenu-docs:checked) + main #sidebar #sidebar-docs,
+	.main-header:has(#sidemenu-meta:checked) + main #sidebar #sidebar-meta {
+		@apply block;
+	}
+
+	:is(
+			.main-header:has(#sidemenu-source:checked),
+			.main-header:has(#sidemenu-docs:checked),
+			.main-header:has(#sidemenu-meta:checked)
+		)
+		+ main
+		.realm-view,
+	:is(
+			.main-header:has(#sidemenu-source:checked),
+			.main-header:has(#sidemenu-docs:checked),
+			.main-header:has(#sidemenu-meta:checked)
+		)
+		.main-navigation {
+		@apply md:col-span-6;
+	}
+	:is(
+			.main-header:has(#sidemenu-source:checked),
+			.main-header:has(#sidemenu-docs:checked),
+			.main-header:has(#sidemenu-meta:checked)
+		)
+		+ main
+		#sidebar,
+	:is(
+			.main-header:has(#sidemenu-source:checked),
+			.main-header:has(#sidemenu-docs:checked),
+			.main-header:has(#sidemenu-meta:checked)
+		)
+		.sidemenu {
+		@apply md:col-span-4;
+	}
+	:is(
+			.main-header:has(#sidemenu-source:checked),
+			.main-header:has(#sidemenu-docs:checked),
+			.main-header:has(#sidemenu-meta:checked)
+		)
+		+ main
+		#sidebar::before {
+		@apply absolute block content-[''] top-0 w-[50vw] h-full -left-7 bg-gray-100 z-min;
+	}
+
+	/* Tooltip */
+	.tooltip {
+		--tooltip-left: 0;
+		--tooltip-right: initial;
+	}
+
+	.tooltip::after {
+		content: attr(data-tooltip);
+		left: var(--tooltip-left);
+		right: var(--tooltip-right);
+		@apply absolute z-max scale-0 invisible px-2 py-1 bg-light rounded border border-gray-100 w-fit min-w-32 max-w-48 top-full text-center text-100 text-gray-600 font-normal transition-opacity opacity-0;
+	}
+
+	.tooltip:hover::after {
+		@apply visible opacity-100 delay-300 scale-100;
+	}
+
+	/* chroma */
+	main :is(.source-code) > pre {
+		@apply !bg-light overflow-scroll rounded py-4 md:py-8 px-1 md:px-3 font-mono text-100 md:text-200;
+	}
+	main .realm-view > pre a {
+		@apply hover:no-underline;
+	}
+
+	main :is(.realm-view, .source-code) > pre .chroma-ln:target {
+		@apply !bg-transparent;
+	}
+	main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-ln:target),
+	main
+		:is(.realm-view, .source-code)
+		> pre
+		.chroma-line:has(.chroma-lnlinks:hover),
+	main
+		:is(.realm-view, .source-code)
+		> pre
+		.chroma-line:has(.chroma-ln:target)
+		.chroma-cl,
+	main
+		:is(.realm-view, .source-code)
+		> pre
+		.chroma-line:has(.chroma-lnlinks:hover)
+		.chroma-cl {
+		@apply !bg-gray-100 rounded;
+	}
+	main :is(.realm-view, .source-code) > pre .chroma-ln {
+		@apply scroll-mt-24;
+	}
 }
 
 @layer utilities {
-  .italic-subtle {
-    font-style: oblique 14deg;
-  }
+	.italic-subtle {
+		font-style: oblique 14deg;
+	}
 
-  .quotes {
-    @apply italic-subtle text-[#555] border-l-4 border-l-[#ccc] pl-4 my-6 [quotes:"“"_"”"_"‘"_"’"];
-  }
+	.word-break {
+		overflow-wrap: break-word;
+		word-break: break-word;
+	}
 
-  .quotes::before,
-  .quotes::after {
-    @apply [content:open-quote] text-600 text-gray-300 mr-1 [vertical-align:-0.4rem];
-  }
+	.quotes {
+		@apply italic-subtle text-gray-600 border-l-4 border-l-gray-300 pl-4 my-6 [quotes:"""_""""_"''_"''"];
+	}
 
-  .quotes::after {
-    @apply [content:close-quote];
-  }
+	.quotes::before,
+	.quotes::after {
+		@apply [content:open-quote] text-600 text-gray-300 mr-1 [vertical-align:-0.4rem];
+	}
 
-  .text-stroke {
-    -webkit-text-stroke: currentColor;
-    -webkit-text-stroke-width: 0.6px;
-  }
+	.quotes::after {
+		@apply [content:close-quote];
+	}
 
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+	.text-stroke {
+		-webkit-text-stroke: currentColor;
+		-webkit-text-stroke-width: 0.6px;
+	}
+
+	.no-scrollbar::-webkit-scrollbar {
+		display: none;
+	}
+	.no-scrollbar {
+		-ms-overflow-style: none;
+		scrollbar-width: none;
+	}
+
+	.is-loading {
+		@apply opacity-0;
+	}
+
+	.link-external {
+		@apply text-[.65em];
+	}
+	.link-internal {
+		@apply font-[400] text-[.75em];
+	}
+	.link-tx {
+		@apply text-[.75em] align-top;
+	}
+	.link-user {
+		@apply text-[.75em];
+	}
+
+	.tooltip {
+		@apply relative inline-flex items-center justify-center align-middle rounded-full text-gray-400 w-4 h-4 border border-gray-400 mb-px;
+	}
+
+	/* link with image only shoud display the link badge on the image */
+	.realm-view a:has(> img:first-child):has(.tooltip:last-child):not(
+			:has(> :nth-child(3))
+		)
+		> .tooltip,
+	.realm-view
+		a:has(> img:first-child):has(.tooltip + .tooltip:last-child):not(
+			:has(> :nth-child(4))
+		)
+		> .tooltip {
+		@apply absolute bottom-2 left-2 bg-light rounded-full ml-0;
+	}
+	.realm-view
+		a:has(> img:first-child):has(.tooltip + .tooltip:last-child):not(
+			:has(> :nth-child(4))
+		)
+		> .tooltip:first-of-type {
+		@apply absolute bottom-2 left-7;
+	}
+
+	/* spacing between link badge */
+	.realm-view a > span {
+		margin-block-end: 0.1em;
+	}
+
+	.realm-view a .tooltip:only-of-type {
+		margin-inline: 0.3em;
+	}
+
+	.realm-view a .tooltip:has(+ span) {
+		margin-inline-start: 0.3em;
+	}
+
+	.realm-view a > .tooltip + .tooltip {
+		margin-inline-start: 0.2em;
+	}
+
+	.realm-view a > .tooltip:last-of-type {
+		margin-inline-end: 0.2em;
+	}
+
+	.field-content {
+		field-sizing: content;
+	}
+}
+
+/* supports rules */
+@supports not (field-sizing: content) {
+	.focus-no-field-sizing\:w-20:focus {
+		width: 5rem !important;
+	}
 }

@@ -1,27 +1,43 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
 	"std"
 
-	crossrealm "gno.land/r/demo/tests/crossrealm"
+	crossrealm "gno.land/r/tests/vm/crossrealm"
 )
 
 type fooer struct{}
 
-func (fooer) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
+func (fooer) Foo(cur realm) {
+	println("hello " + std.CurrentRealm().PkgPath())
+}
+
+func (fooer) Bar() {
+	println("hello " + std.CurrentRealm().PkgPath())
+}
 
 var f *fooer
 
 func init() {
+	println("init")
 	f = &fooer{}
-	crossrealm.SetFooer(f)
-	crossrealm.CallFooerFoo()
+	crossrealm.SetFooer(cross, f)
+	// crossrealm.CallFooerFooCur(cross) <-- panics: cannot cur-call to
+	// external realm function gno.land/r/crossrealm_test.Foo from
+	// gno.land/r/tests/vm/crossrealm
+	crossrealm.CallFooerFooCross(cross)
+	crossrealm.CallFooerBar()
+	crossrealm.CallFooerBarCrossing(cross)
 }
 
-func main() {
+func main(cur realm) {
 	print(".")
 }
 
-// Error:
-// new escaped mark has no object ID
+// Output:
+// init
+// hello gno.land/r/crossrealm
+// hello gno.land/r/crossrealm
+// hello gno.land/r/tests/vm/crossrealm
+// .

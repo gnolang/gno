@@ -7,167 +7,140 @@ func main() {
 }
 
 // Output:
-// <main class='gno-tmpl-section'>
+// # Welcome to Gno.land
 //
-// # Welcome to gno.land
+// We’re building Gno.land, set to become the leading open-source smart contract
+// platform, using Gno, an interpreted and fully deterministic variation of the
+// Go programming language for succinct and composable smart contracts.
 //
-// **We’re building gno.land, set to become the leading open-source smart contract platform, using Gno, an interpreted and fully deterministic variation of the Go programming language for succinct and composable smart contracts.**
+// With transparent and timeless code, Gno.land is the next generation of smart
+// contract platforms, serving as the “GitHub” of the ecosystem, with realms built
+// using fully transparent, auditable code that anyone can inspect and reuse.
 //
-// With transparent and timeless code, gno.land is the next generation of smart contract platforms, serving as the “GitHub” of the ecosystem, with realms built using fully transparent, auditable code that anyone can inspect and reuse.
+// Intuitive and easy to use, Gno.land lowers the barrier to web3 and makes
+// censorship-resistant platforms accessible to everyone. If you want to help lay
+// the foundations of a fairer and freer world, join us today.
 //
 //
-// Intuitive and easy to use, gno.land lowers the barrier to web3 and makes censorship-resistant platforms accessible to everyone. If you want to help lay the foundations of a fairer and freer world, join us today.
-//
-// <div class="jumbotron">
-//
-// <div class="columns-3">
-// <div class="column">
-//
-// ## Learn about gno.land
+// <gno-columns>
+// ## Learn about Gno.land
 //
 // - [About](/about)
 // - [GitHub](https://github.com/gnolang)
 // - [Blog](/blog)
 // - [Events](/events)
-// - Tokenomics (soon)
 // - [Partners, Fund, Grants](/partners)
 // - [Explore the Ecosystem](/ecosystem)
 // - [Careers](https://jobs.ashbyhq.com/allinbits)
 //
-// </div><!-- end column-->
-//
-// <div class="column">
+// |||
 //
 // ## Build with Gno
 //
 // - [Write Gno in the browser](https://play.gno.land)
 // - [Read about the Gno Language](/gnolang)
 // - [Visit the official documentation](https://docs.gno.land)
-// - [Gno by Example](https://gno-by-example.com/)
-// - [Efficient local development for Gno](https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev)
+// - [Gno by Example](/r/docs/home)
+// - [Efficient local development for Gno](https://docs.gno.land/builders/local-dev-with-gnodev)
 // - [Get testnet GNOTs](https://faucet.gno.land)
 //
-// </div><!-- end column-->
-// <div class="column">
+// |||
 //
 // ## Explore the universe
 //
 // - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 // - [Gnoscan](https://gnoscan.io)
-// - [Portal Loop](https://docs.gno.land/concepts/portal-loop)
-// - [Testnet 4](https://test4.gno.land/)
+// - [Staging chain](https://docs.gno.land/resources/gnoland-networks/#staging-environments-portal-loops)
+// - [Testnet 7](https://test7.testnets.gno.land/)
 // - [Faucet Hub](https://faucet.gno.land)
 //
-// </div><!-- end column-->
-// </div><!-- end columns-3-->
-// </div><!-- /jumbotron -->
+// </gno-columns>
 //
-// <div class="columns-3">
-// <div class="column">
+// <gno-columns>
 //
 // ## [Latest Blogposts](/r/gnoland/blog)
 //
 // No posts.
-// </div><!-- /column-->
-// <div class="column">
+//
+// |||
 //
 // ## [Latest Events](/r/gnoland/events)
 //
 // No events.
-// </div><!-- /column-->
-// <div class="column">
 //
-// ## [Hall of Fame](/r/leon/hof)
+// |||
+//
+// ## [Hall of Realms](/r/leon/hor)
+//
+// No items in the Hall of Realms.
 //
 //
-// </div><!-- /column-->
-// </div><!-- /columns-3 -->
 //
+// </gno-columns>
 //
 // ---
 //
 // ## [Gno Playground](https://play.gno.land)
 //
+// Gno Playground is a web application designed for building, running, testing, and
+// interacting with your Gno code, enhancing your understanding of the Gno
+// language. With Gno Playground, you can share your code, execute tests, deploy
+// your realms and packages to Gno.land, and explore a multitude of other features.
 //
-// Gno Playground is a web application designed for building, running, testing, and interacting
-// with your Gno code, enhancing your understanding of the Gno language. With Gno Playground, you can share your code,
-// execute tests, deploy your realms and packages to gno.land, and explore a multitude of other features.
-//
-//
-// Experience the convenience of code sharing and rapid experimentation with [Gno Playground](https://play.gno.land).
-//
+// Experience the convenience of code sharing and rapid experimentation with
+// [Gno Playground](https://play.gno.land).
 //
 // ---
 //
 // ## Explore New Packages and Realms
 //
-// <div class="columns-3">
-// <div class="column">
+// All code in Gno.land is organized in packages, and each package lives at a unique package path like
+// "r/gnoland/home". You can browse packages, inspect their source, and use them in your own libraries and realms.
 //
-// ### [r/gnoland](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland)
+// <gno-columns>
 //
-// - [r/gnoland/blog](r/gnoland/blog)
-// - [r/gnoland/dao](r/gnoland/dao)
-// - [r/gnoland/faucet](r/gnoland/faucet)
-// - [r/gnoland/home](r/gnoland/home)
-// - [r/gnoland/pages](r/gnoland/pages)
+// ### r/gnoland
 //
-// ### [r/sys](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/sys)
+// Official realm packages developed by the Gno.land core team.
 //
-// - [r/sys/names](r/sys/names)
-// - [r/sys/rewards](r/sys/rewards)
-// - [/r/sys/validators/v2](/r/sys/validators/v2)
+// [-> Browse](/r/gnoland)
 //
-// </div><!-- /column-->
-// <div class="column">
+// |||
 //
-// ### [r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)
+// ### r/sys
 //
-// - [r/demo/boards](r/demo/boards)
-// - [r/demo/users](r/demo/users)
-// - [r/demo/banktest](r/demo/banktest)
-// - [r/demo/foo20](r/demo/foo20)
-// - [r/demo/foo721](r/demo/foo721)
-// - [r/demo/microblog](r/demo/microblog)
-// - [r/demo/nft](r/demo/nft)
-// - [r/demo/types](r/demo/types)
-// - [r/demo/art/gnoface](r/demo/art/gnoface)
-// - [r/demo/art/millipede](r/demo/art/millipede)
-// - [r/demo/groups](r/demo/groups)
-// - ...
+// System-level realm packages used by the chain.
 //
-// </div><!-- /column-->
-// <div class="column">
+// [-> Browse](/r/sys)
 //
-// ### [p/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo)
+// |||
 //
-// - [p/demo/avl](p/demo/avl)
-// - [p/demo/blog](p/demo/blog)
-// - [p/demo/ui](p/demo/ui)
-// - [p/demo/ufmt](p/demo/ufmt)
-// - [p/demo/merkle](p/demo/merkle)
-// - [p/demo/bf](p/demo/bf)
-// - [p/demo/flow](p/demo/flow)
-// - [p/demo/gnode](p/demo/gnode)
-// - [p/demo/grc/grc20](p/demo/grc/grc20)
-// - [p/demo/grc/grc721](p/demo/grc/grc721)
-// - ...
+// ### r/demo
 //
-// </div><!-- /column-->
-// </div><!-- /columns-3 -->
+// Demo realm packages showcasing what’s possible.
 //
+// [-> Browse](/r/demo)
+//
+// |||
+//
+// ### p/demo
+//
+// Pure packages for demo purposes.
+//
+// [-> Browse](/p/demo)
+//
+// </gno-columns>
 //
 // ---
 //
-// ## Contributions (WorxDAO & GoR)
+// <gno-columns>
+// ## Latest Gnomes
 //
-// coming soon
+// Latest Gnomes in the [registry](/r/gnoland/users/v1).
 //
-// ---
+// No registered users.
 //
-//
-// <div class="columns-2">
-// <div class="column">
+// |||
 //
 // ## Socials
 //
@@ -177,20 +150,15 @@ func main() {
 // - [Youtube](https://www.youtube.com/@_gnoland)
 // - [Telegram](https://t.me/gnoland)
 //
-// </div><!-- /column-->
-// <div class="column">
+// |||
 //
-// ## Quote of the ~Day~ Block#123
+// ## Quote of the ~Day~ Block #123
 //
 // > Now, you Gno.
 //
-// </div><!-- /column-->
-// </div><!-- /columns-2 -->
-//
+// </gno-columns>
 //
 // ---
 //
 // **This is a testnet.**
 // Package names are not guaranteed to be available for production.
-//
-// </main>

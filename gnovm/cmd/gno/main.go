@@ -3,11 +3,26 @@ package main
 import (
 	"context"
 	"os"
+	"runtime/pprof"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 func main() {
+	cpup := os.Getenv("CPUPROFILE")
+	if cpup != "" {
+		f, err := os.Create(cpup)
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+		err = pprof.StartCPUProfile(f)
+		if err != nil {
+			panic(err)
+		}
+		defer pprof.StopCPUProfile()
+	}
+
 	cmd := newGnocliCmd(commands.NewDefaultIO())
 
 	cmd.Execute(context.Background(), os.Args[1:])
@@ -16,33 +31,35 @@ func main() {
 func newGnocliCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
-			ShortUsage: "<subcommand> [flags] [<arg>...]",
-			LongHelp:   "Runs the gno development toolkit",
+			ShortUsage: "gno <command> [arguments]",
 		},
 		commands.NewEmptyConfig(),
 		commands.HelpExec,
 	)
 
 	cmd.AddSubCommands(
-		newModCmd(io),
-		newTestCmd(io),
-		newLintCmd(io),
-		newRunCmd(io),
-		newTranspileCmd(io),
+		newBugCmd(io),
+		// build
 		newCleanCmd(io),
-		newReplCmd(),
 		newDocCmd(io),
 		newEnvCmd(io),
-		newBugCmd(io),
+		newFixCmd(io),
 		newFmtCmd(io),
-		// graph
-		// vendor -- download deps from the chain in vendor/
-		// list -- list packages
-		// render -- call render()?
-		// publish/release
 		// generate
-		// "vm" -- starts an in-memory chain that can be interacted with?
+		// get
+		// install
+		newListCmd(io),
+		newLintCmd(io),
+		newModCmd(io),
+		// work
+		newReplCmd(),
+		newRunCmd(io),
+		// telemetry
+		newTestCmd(io),
+		newToolCmd(io),
 		// version -- show cmd/gno, golang versions
+		newGnoVersionCmd(io),
+		// vet
 	)
 
 	return cmd

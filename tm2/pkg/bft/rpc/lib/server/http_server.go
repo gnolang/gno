@@ -119,18 +119,14 @@ func WriteRPCResponseHTTP(w http.ResponseWriter, res types.RPCResponse) {
 // can write arrays of responses for batched request/response interactions via
 // the JSON RPC.
 func WriteRPCResponseArrayHTTP(w http.ResponseWriter, res types.RPCResponses) {
-	if len(res) == 1 {
-		WriteRPCResponseHTTP(w, res[0])
-	} else {
-		jsonBytes, err := json.MarshalIndent(res, "", "  ")
-		if err != nil {
-			panic(err)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		if _, err := w.Write(jsonBytes); err != nil {
-			panic(err)
-		}
+	jsonBytes, err := json.MarshalIndent(res, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	if _, err := w.Write(jsonBytes); err != nil {
+		panic(err)
 	}
 }
 

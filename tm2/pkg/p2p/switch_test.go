@@ -727,7 +727,7 @@ func TestMultiplexSwitch_DialPeers(t *testing.T) {
 		// as the transport (node)
 		p.NodeInfoFn = func() types.NodeInfo {
 			return types.NodeInfo{
-				PeerID: addr.ID,
+				NetAddress: &addr,
 			}
 		}
 
@@ -822,4 +822,102 @@ func TestMultiplexSwitch_DialPeers(t *testing.T) {
 			assert.True(t, sw.dialQueue.Has(p.SocketAddr()))
 		}
 	})
+}
+
+func TestCalculateBackoff(t *testing.T) {
+	t.Parallel()
+
+	checkJitterRange := func(t *testing.T, expectedAbs, actual time.Duration) {
+		t.Helper()
+		require.LessOrEqual(t, actual, expectedAbs)
+		require.GreaterOrEqual(t, actual, expectedAbs*-1)
+	}
+
+	// Test that the default jitter factor is 10% of the backoff duration.
+	t.Run("percentage jitter", func(t *testing.T) {
+		t.Parallel()
+
+		for range 1000 {
+			checkJitterRange(t, 100*time.Millisecond, calculateBackoff(0, time.Second, 10*time.Minute)-time.Second)
+			checkJitterRange(t, 200*time.Millisecond, calculateBackoff(1, time.Second, 10*time.Minute)-2*time.Second)
+			checkJitterRange(t, 400*time.Millisecond, calculateBackoff(2, time.Second, 10*time.Minute)-4*time.Second)
+			checkJitterRange(t, 800*time.Millisecond, calculateBackoff(3, time.Second, 10*time.Minute)-8*time.Second)
+			checkJitterRange(t, 1600*time.Millisecond, calculateBackoff(4, time.Second, 10*time.Minute)-16*time.Second)
+		}
+	})
+
+	// Test that the jitter factor is capped at 10 sec.
+	t.Run("capped jitter", func(t *testing.T) {
+		t.Parallel()
+
+		for range 1000 {
+			checkJitterRange(t, 10*time.Second, calculateBackoff(7, time.Second, 10*time.Minute)-128*time.Second)
+			checkJitterRange(t, 10*time.Second, calculateBackoff(10, time.Second, 20*time.Minute)-1024*time.Second)
+			checkJitterRange(t, 10*time.Second, calculateBackoff(20, time.Second, 300*time.Hour)-1048576*time.Second)
+		}
+	})
+
+	// Test that the backoff interval is based on the baseInterval.
+	t.Run("base interval", func(t *testing.T) {
+		t.Parallel()
+
+		for range 1000 {
+			checkJitterRange(t, 4800*time.Millisecond, calculateBackoff(4, 3*time.Second, 10*time.Minute)-48*time.Second)
+			checkJitterRange(t, 8*time.Second, calculateBackoff(3, 10*time.Second, 10*time.Minute)-80*time.Second)
+			checkJitterRange(t, 10*time.Second, calculateBackoff(5, 3*time.Hour, 100*time.Hour)-96*time.Hour)
+		}
+	})
+
+	// Test that the backoff interval is capped at maxInterval +/- jitter factor.
+	t.Run("max interval", func(t *testing.T) {
+		t.Parallel()
+
+		for range 1000 {
+			checkJitterRange(t, 100*time.Millisecond, calculateBackoff(10, 10*time.Hour, time.Second)-time.Second)
+			checkJitterRange(t, 1600*time.Millisecond, calculateBackoff(10, 10*time.Hour, 16*time.Second)-16*time.Second)
+			checkJitterRange(t, 10*time.Second, calculateBackoff(10, 10*time.Hour, 128*time.Second)-128*time.Second)
+		}
+	})
+
+	// Test parameters sanitization for base and max intervals.
+	t.Run("parameters sanitization", func(t *testing.T) {
+		t.Parallel()
+
+		for range 1000 {
+			checkJitterRange(t, 100*time.Millisecond, calculateBackoff(0, -10, -10)-time.Second)
+			checkJitterRange(t, 1600*time.Millisecond, calculateBackoff(4, -10, -10)-16*time.Second)
+			checkJitterRange(t, 10*time.Second, calculateBackoff(7, -10, 10*time.Minute)-128*time.Second)
+		}
+	})
+}
+
+func TestSwitchAcceptLoopTransportClosed(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var transportClosed bool
+	mockTransport := &mockTransport{
+		acceptFn: func(context.Context, PeerBehavior) (PeerConn, error) {
+			transportClosed = true
+			return nil, errTransportClosed
+		},
+	}
+
+	sw := NewMultiplexSwitch(mockTransport)
+
+	// Run the accept loop
+	done := make(chan struct{})
+	go func() {
+		sw.runAcceptLoop(ctx)
+		close(done) // signal that accept loop as ended
+	}()
+
+	select {
+	case <-time.After(time.Second * 2):
+		require.FailNow(t, "timeout while waiting for running loop to stop")
+	case <-done:
+		assert.True(t, transportClosed)
+	}
 }

@@ -7,7 +7,7 @@ package math_test
 import (
 	"fmt"
 	"math"
-	"testing"
+	testing "testing/base"
 )
 
 // XXX: The dot import for "math" is replaced to a normal import.
@@ -3347,7 +3347,7 @@ func TestTrigReduce(t *testing.T) {
 // https://golang.org/issue/201
 
 type floatTest struct {
-	val  interface{}
+	val  any
 	name string
 	str  string
 }

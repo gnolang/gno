@@ -1,6 +1,6 @@
 package main
 
-func gen() interface{} {
+func gen() any {
 	return false
 }
 
@@ -9,4 +9,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/runtime_a3.gno:8:2: operator ++ not defined on: InterfaceKind
+// main/runtime_a3.gno:8:2-9: operator ++ not defined on: InterfaceKind
+
+// TypeCheckError:
+// main/runtime_a3.gno:8:2: invalid operation: gen()++ (non-numeric type any)

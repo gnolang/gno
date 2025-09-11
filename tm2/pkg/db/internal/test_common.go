@@ -20,7 +20,7 @@ MAIN_LOOP:
 	for {
 		//nolint:gosec
 		val := rand.Int63()
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			v := int(val & 0x3f) // rightmost 6 bits
 			if v >= 62 {         // only 62 characters in strChars
 				val >>= 6
@@ -65,7 +65,45 @@ func (MockIterator) Value() []byte {
 func (MockIterator) Close() {
 }
 
-func BenchmarkRandomReadsWrites(b *testing.B, db db.DB) {
+func BenchmarkIterator(b *testing.B, db db.DB) {
+	b.Helper()
+
+	b.StopTimer()
+
+	// create dummy data
+	batch := db.NewBatch()
+
+	const numItems = int64(10000)
+
+	for i := 0; i < int(numItems); i++ {
+		idxBytes := int642Bytes(int64(i))
+		valBytes := int642Bytes(0)
+		batch.Set(idxBytes, valBytes)
+	}
+
+	batch.Write()
+
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		it := db.Iterator(int642Bytes(0), int642Bytes(numItems))
+		for {
+			it.Next()
+
+			if !it.Valid() {
+				break
+			}
+
+			kn := bytes2Int64(it.Key())
+			if kn < 0 || kn > numItems {
+				b.Fatal("key out of expected values")
+			}
+		}
+		it.Close()
+	}
+}
+
+func BenchmarkBatchWrites(b *testing.B, db db.DB) {
 	b.Helper()
 
 	b.StopTimer()
@@ -74,6 +112,38 @@ func BenchmarkRandomReadsWrites(b *testing.B, db db.DB) {
 	const numItems = int64(1000000)
 	internal := map[int64]int64{}
 	for i := 0; i < int(numItems); i++ {
+		internal[int64(i)] = int64(0)
+	}
+
+	batch := db.NewBatch()
+
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		{
+			//nolint:gosec
+			idx := int64(rand.Int()) % numItems
+			internal[idx]++
+			val := internal[idx]
+			idxBytes := int642Bytes(idx)
+			valBytes := int642Bytes(val)
+			// fmt.Printf("Set %X -> %X\n", idxBytes, valBytes)
+			batch.Set(idxBytes, valBytes)
+		}
+	}
+
+	batch.Write()
+}
+
+func BenchmarkRandomReadsWrites(b *testing.B, db db.DB) {
+	b.Helper()
+
+	b.StopTimer()
+
+	// create dummy data
+	const numItems = int64(1000000)
+	internal := map[int64]int64{}
+	for i := range int(numItems) {
 		internal[int64(i)] = int64(0)
 	}
 
@@ -89,7 +159,6 @@ func BenchmarkRandomReadsWrites(b *testing.B, db db.DB) {
 			val := internal[idx]
 			idxBytes := int642Bytes(idx)
 			valBytes := int642Bytes(val)
-			// fmt.Printf("Set %X -> %X\n", idxBytes, valBytes)
 			db.Set(idxBytes, valBytes)
 		}
 
@@ -100,7 +169,6 @@ func BenchmarkRandomReadsWrites(b *testing.B, db db.DB) {
 			valExp := internal[idx]
 			idxBytes := int642Bytes(idx)
 			valBytes := db.Get(idxBytes)
-			// fmt.Printf("Get %X -> %X\n", idxBytes, valBytes)
 			if valExp == 0 {
 				if !bytes.Equal(valBytes, nil) {
 					b.Errorf("Expected %v for %v, got %X", nil, idx, valBytes)

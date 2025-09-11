@@ -15,11 +15,6 @@ rundep=go run -modfile ../misc/devdeps/go.mod
 # cases, and is not strictly required by any tm2 code.
 CGO_ENABLED ?= 0
 export CGO_ENABLED
-# flags for `make fmt`. -w will write the result to the destination files.
-GOFMT_FLAGS ?= -w
-GNOFMT_FLAGS ?= -w
-# flags for `make imports`.
-GOIMPORTS_FLAGS ?= $(GOFMT_FLAGS)
 # test suite flags.
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 # used to set the default GNOROOT. This helps on local development, as it sets
@@ -27,10 +22,13 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 GNOROOT_DIR ?= $(abspath $(lastword $(MAKEFILE_LIST))/../../)
 # We can't use '-trimpath' yet as amino use absolute path from call stack
 # to find some directory: see #1236
-GOBUILD_FLAGS ?= -ldflags "-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=$(GNOROOT_DIR)"
+GOBUILD_FLAGS ?= -ldflags "-X github.com/gnolang/gno/gnovm/pkg/version.Version=$(VERSION) -X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=$(GNOROOT_DIR)"
 # file where to place cover profile; used for coverage commands which are
 # more complex than adding -coverprofile, like test.cmd.coverage.
 GOTEST_COVER_PROFILE ?= cmd-profile.out
+
+# user for gno version [branch].[N]+[hash]
+VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || echo "$(shell git rev-parse --abbrev-ref HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)")
 
 ########################################
 # Dev tools
@@ -50,16 +48,13 @@ clean:
 # Dev tools
 .PHONY: lint
 lint:
-	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config ../.github/golangci.yml ./...
+	$(rundep) github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --config ../.github/golangci.yml ./...
 
 .PHONY: fmt
 fmt:
-	go run ./cmd/gno fmt $(GNOFMT_FLAGS) ./stdlibs/... ./tests/stdlibs/...
-	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
-
-.PHONY: imports
-imports:
-	$(rundep) golang.org/x/tools/cmd/goimports $(GOIMPORTS_FLAGS) .
+	go fmt ./...
+	go run ./cmd/gno fmt -w ./stdlibs/... ./tests/stdlibs/...
+	$(rundep) golang.org/x/tools/cmd/goimports -w .
 
 # Benchmarking the VM's opcode and storage access
 .PHONY: opcode storage build_opcode build_storage
@@ -114,28 +109,27 @@ _test.pkg:
 
 .PHONY: _test.stdlibs
 _test.stdlibs:
-	go run ./cmd/gno test -v ./stdlibs/...
+	go test -v ./stdlibs/...
+	# 'gno test ./stdlibs/...' is different from TestStdlibs in 'go test ./pkg/..'
+	# TestStdlibs does not include tests from *_test packages.
+	cd stdlibs && go run ../cmd/gno test -v ./...
+
 
 .PHONY: _test.filetest
-_test.filetest:;
+_test.filetest:
+	@echo "use 'go test pkg/gnolang/files_test.go -test.short --update-golden-tests' to update filetest expectations"
 	go test pkg/gnolang/files_test.go -test.short -run 'TestFiles$$/' $(GOTEST_FLAGS)
 
 ########################################
 # Code gen
-# TODO: move _dev.stringer to go:generate instructions, simplify generate
-#       to just go generate.
 .PHONY: generate
-generate: _dev.stringer _dev.generate
+generate: _dev.generate _dev.docs fmt
 
-stringer_cmd=$(rundep) golang.org/x/tools/cmd/stringer
-.PHONY: _dev.stringer
-_dev.stringer:
-	$(stringer_cmd) -type=Kind       ./pkg/gnolang
-	$(stringer_cmd) -type=Op         ./pkg/gnolang
-	$(stringer_cmd) -type=TransCtrl  ./pkg/gnolang
-	$(stringer_cmd) -type=TransField ./pkg/gnolang
-	$(stringer_cmd) -type=VPType     ./pkg/gnolang
-	$(stringer_cmd) -type=Word       ./pkg/gnolang
+.PHONY: _dev.docs
+_dev.docs:
+	mkdir -p .tmp
+	(go run ./cmd/gno -h 2>&1 || true) | grep -v "exit status 1" > .tmp/gno-help.txt
+	$(rundep) github.com/campoy/embedmd -w `find . -name "*.md"`
 
 .PHONY: _dev.generate
 _dev.generate:

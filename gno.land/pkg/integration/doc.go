@@ -24,7 +24,7 @@
 //
 // 3. `adduser`:
 //   - Must be run before `gnoland start`.
-//   - Creates a new user in the default keybase directory.
+//   - Creates a new user in the default keybase directory. ( Optionally, an std.Coins string can be provided, e.g. `1337ugnot,42foo,24bar` )
 //
 // 4. `adduserfrom`:
 //   - Must be run before `gnoland start`.
@@ -40,7 +40,7 @@
 //     and the second (optional) argument is the path to the package(s).
 //     Examples:
 //     -- # Load a package from the 'examples' directory:
-//     -- loadpkg gno.land/p/demo/ufmt
+//     -- loadpkg gno.land/p/nt/ufmt
 //     -- # Load a package `./bar` from the testscript's working directory with the name `gno.land/r/foobar/bar`:
 //     -- loadpkg gno.land/r/foobar/bar $WORK/bar
 //   - If the path is not prefixed with the working directory, it is assumed to be relative to the

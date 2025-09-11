@@ -3,9 +3,9 @@ package profile
 import (
 	"std"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/mux"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/mux"
+	"gno.land/p/nt/ufmt"
 )
 
 var (
@@ -69,8 +69,8 @@ var boolFields = map[string]bool{
 
 // Setters
 
-func SetStringField(field, value string) bool {
-	addr := std.PrevRealm().Addr()
+func SetStringField(cur realm, field, value string) bool {
+	addr := std.PreviousRealm().Address()
 	key := addr.String() + ":" + field
 	updated := fields.Set(key, value)
 
@@ -84,8 +84,8 @@ func SetStringField(field, value string) bool {
 	return updated
 }
 
-func SetIntField(field string, value int) bool {
-	addr := std.PrevRealm().Addr()
+func SetIntField(cur realm, field string, value int) bool {
+	addr := std.PreviousRealm().Address()
 	key := addr.String() + ":" + field
 	updated := fields.Set(key, value)
 
@@ -99,8 +99,8 @@ func SetIntField(field string, value int) bool {
 	return updated
 }
 
-func SetBoolField(field string, value bool) bool {
-	addr := std.PrevRealm().Addr()
+func SetBoolField(cur realm, field string, value bool) bool {
+	addr := std.PreviousRealm().Address()
 	key := addr.String() + ":" + field
 	updated := fields.Set(key, value)
 

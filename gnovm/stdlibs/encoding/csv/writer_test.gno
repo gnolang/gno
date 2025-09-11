@@ -6,7 +6,6 @@ package csv
 
 import (
 	"bytes"
-	"encoding/csv"
 	"errors"
 	"strings"
 	"testing"
@@ -21,7 +20,7 @@ func TestWriteCSV(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	w := csv.NewWriter(&buf)
+	w := NewWriter(&buf)
 	err := w.WriteAll(records)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -74,7 +73,7 @@ var writeTests = []struct {
 func TestWrite(t *testing.T) {
 	for n, tt := range writeTests {
 		b := &strings.Builder{}
-		f := csv.NewWriter(b)
+		f := NewWriter(b)
 		f.UseCRLF = tt.UseCRLF
 		if tt.Comma != 0 {
 			f.Comma = tt.Comma
@@ -98,7 +97,7 @@ func (e errorWriter) Write(b []byte) (int, error) {
 
 func TestError(t *testing.T) {
 	b := &bytes.Buffer{}
-	f := csv.NewWriter(b)
+	f := NewWriter(b)
 	f.Write([]string{"abc"})
 	f.Flush()
 	err := f.Error()
@@ -106,7 +105,7 @@ func TestError(t *testing.T) {
 		t.Errorf("Unexpected error: %s\n", err)
 	}
 
-	f = csv.NewWriter(errorWriter{})
+	f = NewWriter(errorWriter{})
 	f.Write([]string{"abc"})
 	f.Flush()
 	err = f.Error()
@@ -124,7 +123,7 @@ var benchmarkWriteData = [][]string{
 
 func BenchmarkWrite(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		w := csv.NewWriter(&bytes.Buffer{})
+		w := NewWriter(&bytes.Buffer{})
 		err := w.WriteAll(benchmarkWriteData)
 		if err != nil {
 			b.Fatal(err)

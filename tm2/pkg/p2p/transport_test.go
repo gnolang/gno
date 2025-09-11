@@ -21,7 +21,7 @@ func generateNetAddr(t *testing.T, count int) []*types.NetAddress {
 
 	addrs := make([]*types.NetAddress, 0, count)
 
-	for i := 0; i < count; i++ {
+	for range count {
 		key := types.GenerateNodeKey()
 
 		// Grab a random port
@@ -122,14 +122,12 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 
 		transport := NewMultiplexTransport(ni, nk, mCfg, logger)
 
-		p, err := transport.Accept(context.Background(), nil)
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
 
+		p, err := transport.Accept(ctx, nil)
 		assert.Nil(t, p)
-		assert.ErrorIs(
-			t,
-			err,
-			errTransportInactive,
-		)
+		assert.ErrorIs(t, err, context.DeadlineExceeded)
 	})
 
 	t.Run("transport closed", func(t *testing.T) {
@@ -227,19 +225,15 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 			addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 			require.NoError(t, err)
 
-			id := key.ID()
-
-			if index%1 == 0 {
-				// Hijack the key value
-				id = types.GenerateNodeKey().ID()
-			}
+			// Hijack the key value
+			id := types.GenerateNodeKey().ID()
 
 			na, err := types.NewNetAddress(id, addr)
 			require.NoError(t, err)
 
 			ni := types.NodeInfo{
 				Network:    network, // common network
-				PeerID:     id,
+				NetAddress: na,
 				Version:    "v1.0.0-rc.0",
 				Moniker:    fmt.Sprintf("node-%d", index),
 				VersionSet: make(versionset.VersionSet, 0), // compatible version set
@@ -319,7 +313,7 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 
 			ni := types.NodeInfo{
 				Network:    chainID,
-				PeerID:     id,
+				NetAddress: na,
 				Version:    "v1.0.0-rc.0",
 				Moniker:    fmt.Sprintf("node-%d", index),
 				VersionSet: make(versionset.VersionSet, 0), // compatible version set
@@ -391,7 +385,7 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 
 			ni := types.NodeInfo{
 				Network:    network, // common network
-				PeerID:     key.ID(),
+				NetAddress: na,
 				Version:    "v1.0.0-rc.0",
 				Moniker:    fmt.Sprintf("node-%d", index),
 				VersionSet: make(versionset.VersionSet, 0), // compatible version set
@@ -469,7 +463,7 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 
 			ni := types.NodeInfo{
 				Network:    network, // common network
-				PeerID:     key.ID(),
+				NetAddress: na,
 				Version:    "v1.0.0-rc.0",
 				Moniker:    fmt.Sprintf("node-%d", index),
 				VersionSet: make(versionset.VersionSet, 0), // compatible version set

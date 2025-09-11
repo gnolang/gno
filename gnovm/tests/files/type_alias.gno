@@ -1,12 +1,13 @@
-// PKGPATH: gno.land/r/type_alias_test
-package type_alias_test
+// PKGPATH: gno.land/r/type_alias
+package type_alias
 
-import "gno.land/p/demo/uassert"
+import "gno.land/p/nt/uassert"
 
 type TestingT = uassert.TestingT
 
-func main() {
-	println(TestingT)
+func main(cur realm) {
+	println("ok")
 }
 
-// No need for output; not panicking is passing.
+// Output:
+// ok

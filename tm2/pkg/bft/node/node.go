@@ -12,9 +12,8 @@ import (
 	"sync"
 	"time"
 
-	goErrors "errors"
-
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
+	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/discovery"
@@ -26,7 +25,6 @@ import (
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	cs "github.com/gnolang/gno/tm2/pkg/bft/consensus"
 	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	rpccore "github.com/gnolang/gno/tm2/pkg/bft/rpc/core"
 	_ "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -108,14 +106,10 @@ func DefaultNewNode(
 	logger *slog.Logger,
 ) (*Node, error) {
 	// Generate node PrivKey
-	nodeKey, err := p2pTypes.LoadOrGenNodeKey(config.NodeKeyFile())
+	nodeKey, err := p2pTypes.LoadOrMakeNodeKey(config.NodeKeyFile())
 	if err != nil {
 		return nil, err
 	}
-
-	// Get privValKeys.
-	newPrivValKey := config.PrivValidatorKeyFile()
-	newPrivValState := config.PrivValidatorStateFile()
 
 	// Get app client creator.
 	appClientCreator := proxy.DefaultClientCreator(
@@ -125,8 +119,19 @@ func DefaultNewNode(
 		config.DBDir(),
 	)
 
-	return NewNode(config,
-		privval.LoadOrGenFilePV(newPrivValKey, newPrivValState),
+	// Initialize the privValidator
+	privVal, err := privval.NewPrivValidatorFromConfig(
+		config.Consensus.PrivValidator,
+		nodeKey.PrivKey,
+		logger.With("module", "remote_signer_client"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewNode(
+		config,
+		privVal,
 		nodeKey,
 		appClientCreator,
 		DefaultGenesisDocProviderFunc(genesisFile),
@@ -264,7 +269,7 @@ func onlyValidatorIsUs(state sm.State, privVal types.PrivValidator) bool {
 		return false
 	}
 	addr, _ := state.Validators.GetByIndex(0)
-	return privVal.GetPubKey().Address() == addr
+	return privVal.PubKey().Address() == addr
 }
 
 func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp appconn.AppConns,
@@ -400,23 +405,7 @@ func NewNode(config *cfg.Config,
 	// what happened during block replay).
 	state = sm.LoadState(stateDB)
 
-	// If an address is provided, listen on the socket for a connection from an
-	// external signing process.
-	if config.PrivValidatorListenAddr != "" {
-		// FIXME: we should start services inside OnStart
-		privValidator, err = createAndStartPrivValidatorSocketClient(config.PrivValidatorListenAddr, logger)
-		if err != nil {
-			return nil, errors.Wrap(err, "error with private validator socket client")
-		}
-	}
-
-	pubKey := privValidator.GetPubKey()
-	if pubKey == nil {
-		// TODO: GetPubKey should return errors - https://github.com/gnolang/gno/tm2/pkg/bft/issues/3602
-		return nil, errors.New("could not retrieve public key from private validator")
-	}
-
-	logNodeStartupInfo(state, pubKey, logger, consensusLogger)
+	logNodeStartupInfo(state, privValidator.PubKey(), logger, consensusLogger)
 
 	// Decide whether to fast-sync or not
 	// We don't fast-sync when the only validator is us.
@@ -604,12 +593,10 @@ func (n *Node) OnStart() error {
 	}
 
 	// Start the transport.
-	lAddr := n.config.P2P.ExternalAddress
-	if lAddr == "" {
-		lAddr = n.config.P2P.ListenAddress
-	}
+	// The listen address for the transport needs to be an address within reach of the machine NIC
+	listenAddress := p2pTypes.NetAddressString(n.nodeKey.ID(), n.config.P2P.ListenAddress)
 
-	addr, err := p2pTypes.NewNetAddressFromString(p2pTypes.NetAddressString(n.nodeKey.ID(), lAddr))
+	addr, err := p2pTypes.NewNetAddressFromString(listenAddress)
 	if err != nil {
 		return fmt.Errorf("unable to parse network address, %w", err)
 	}
@@ -655,7 +642,12 @@ func (n *Node) OnStop() {
 
 	n.Logger.Info("Stopping Node")
 
-	// first stop the non-reactor services
+	// Fist close the private validator
+	if err := n.privValidator.Close(); err != nil {
+		n.Logger.Error("Error closing private validator", "err", err)
+	}
+
+	// Stop the non-reactor services
 	n.evsw.Stop()
 	n.eventStoreService.Stop()
 
@@ -683,10 +675,6 @@ func (n *Node) OnStop() {
 			n.Logger.Error("Error closing listener", "listener", l, "err", err)
 		}
 	}
-
-	if pvsc, ok := n.privValidator.(service.Service); ok {
-		pvsc.Stop()
-	}
 }
 
 // Ready signals that the node is ready by returning a blocking channel. This channel is closed when the node receives its first block.
@@ -703,8 +691,7 @@ func (n *Node) configureRPC() {
 	rpccore.SetMempool(n.mempool)
 	rpccore.SetP2PPeers(n.sw)
 	rpccore.SetP2PTransport(n)
-	pubKey := n.privValidator.GetPubKey()
-	rpccore.SetPubKey(pubKey)
+	rpccore.SetPubKey(n.privValidator.PubKey())
 	rpccore.SetGenesisDoc(n.genesisDoc)
 	rpccore.SetProxyAppQuery(n.proxyApp.Query())
 	rpccore.SetGetFastSync(n.consensusReactor.FastSync)
@@ -713,7 +700,17 @@ func (n *Node) configureRPC() {
 	rpccore.SetConfig(*n.config.RPC)
 }
 
-func (n *Node) startRPC() ([]net.Listener, error) {
+func (n *Node) startRPC() (listeners []net.Listener, err error) {
+	defer func() {
+		if err != nil {
+			// Close all the created listeners on any error, instead of
+			// leaking them: https://github.com/gnolang/gno/issues/3639
+			for _, ln := range listeners {
+				ln.Close()
+			}
+		}
+	}()
+
 	listenAddrs := splitAndTrimEmpty(n.config.RPC.ListenAddress, ",", " ")
 
 	config := rpcserver.DefaultConfig()
@@ -729,8 +726,8 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 
 	// we may expose the rpc over both a unix and tcp socket
 	var rebuildAddresses bool
-	listeners := make([]net.Listener, len(listenAddrs))
-	for i, listenAddr := range listenAddrs {
+	listeners = make([]net.Listener, 0, len(listenAddrs))
+	for _, listenAddr := range listenAddrs {
 		mux := http.NewServeMux()
 		rpcLogger := n.Logger.With("module", "rpc-server")
 		wmLogger := rpcLogger.With("protocol", "websocket")
@@ -782,7 +779,7 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 			)
 		}
 
-		listeners[i] = listener
+		listeners = append(listeners, listener)
 	}
 	if rebuildAddresses {
 		n.config.RPC.ListenAddress = joinListenerAddresses(listeners)
@@ -893,7 +890,7 @@ func makeNodeInfo(
 
 	nodeInfo := p2pTypes.NodeInfo{
 		VersionSet: vset,
-		PeerID:     nodeKey.ID(),
+		NetAddress: nil, // The shared address depends on the configuration
 		Network:    genDoc.ChainID,
 		Version:    version.Version,
 		Channels: []byte{
@@ -908,13 +905,44 @@ func makeNodeInfo(
 		},
 	}
 
+	// Make sure the discovery channel is shared with peers
+	// in case peer discovery is enabled
 	if config.P2P.PeerExchange {
 		nodeInfo.Channels = append(nodeInfo.Channels, discovery.Channel)
 	}
 
+	// Grab the supplied listen address.
+	// This address needs to be valid, but it can be unspecified.
+	// If the listen address is unspecified (port / IP unbound),
+	// then this address cannot be used by peers for dialing
+	addr, err := p2pTypes.NewNetAddressFromString(
+		p2pTypes.NetAddressString(nodeKey.ID(), config.P2P.ListenAddress),
+	)
+	if err != nil {
+		return p2pTypes.NodeInfo{}, fmt.Errorf("unable to parse network address, %w", err)
+	}
+
+	// Use the transport listen address as the advertised address
+	nodeInfo.NetAddress = addr
+
+	// Prepare the advertised dial address (if any)
+	// for the node, which other peers can use to dial
+	if config.P2P.ExternalAddress != "" {
+		addr, err = p2pTypes.NewNetAddressFromString(
+			p2pTypes.NetAddressString(
+				nodeKey.ID(),
+				config.P2P.ExternalAddress,
+			),
+		)
+		if err != nil {
+			return p2pTypes.NodeInfo{}, fmt.Errorf("invalid p2p external address: %w", err)
+		}
+
+		nodeInfo.NetAddress = addr
+	}
+
 	// Validate the node info
-	err := nodeInfo.Validate()
-	if err != nil && !goErrors.Is(err, p2pTypes.ErrUnspecifiedIP) {
+	if err := nodeInfo.Validate(); err != nil {
 		return p2pTypes.NodeInfo{}, fmt.Errorf("unable to validate node info, %w", err)
 	}
 
@@ -971,23 +999,6 @@ func saveGenesisDoc(db dbm.DB, genDoc *types.GenesisDoc) {
 	db.SetSync(genesisDocKey, b)
 }
 
-func createAndStartPrivValidatorSocketClient(
-	listenAddr string,
-	logger *slog.Logger,
-) (types.PrivValidator, error) {
-	pve, err := privval.NewSignerListener(listenAddr, logger)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to start private validator")
-	}
-
-	pvsc, err := privval.NewSignerClient(pve)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to start private validator")
-	}
-
-	return pvsc, nil
-}
-
 // splitAndTrimEmpty slices s into all subslices separated by sep and returns a
 // slice of the string s with all leading and trailing Unicode code points
 // contained in cutset removed. If sep is empty, SplitAndTrim splits after each
@@ -1000,7 +1011,7 @@ func splitAndTrimEmpty(s, sep, cutset string) []string {
 
 	spl := strings.Split(s, sep)
 	nonEmptyStrings := make([]string, 0, len(spl))
-	for i := 0; i < len(spl); i++ {
+	for i := range spl {
 		element := strings.Trim(spl[i], cutset)
 		if element != "" {
 			nonEmptyStrings = append(nonEmptyStrings, element)

@@ -614,11 +614,11 @@ func TestDeliverTx(t *testing.T) {
 	nBlocks := 3
 	txPerHeight := 5
 
-	for blockN := 0; blockN < nBlocks; blockN++ {
+	for blockN := range nBlocks {
 		header := &bft.Header{ChainID: "test-chain", Height: int64(blockN) + 1}
 		app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
-		for i := 0; i < txPerHeight; i++ {
+		for i := range txPerHeight {
 			counter := int64(blockN*txPerHeight + i)
 			tx := newTxCounter(counter, counter)
 
@@ -757,7 +757,7 @@ func TestSimulateTx(t *testing.T) {
 	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
 
 	nBlocks := 3
-	for blockN := 0; blockN < nBlocks; blockN++ {
+	for blockN := range nBlocks {
 		count := int64(blockN + 1)
 		header := &bft.Header{ChainID: "test-chain", Height: count}
 		app.BeginBlock(abci.RequestBeginBlock{Header: header})
@@ -1013,7 +1013,7 @@ func TestMaxBlockGasLimits(t *testing.T) {
 		app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
 		// execute the transaction multiple times
-		for j := 0; j < tc.numDelivers; j++ {
+		for j := range tc.numDelivers {
 			res := app.Deliver(tx)
 
 			ctx := app.getState(RunTxModeDeliver).ctx

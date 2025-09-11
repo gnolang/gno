@@ -8,12 +8,15 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
 )
@@ -33,7 +36,8 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 	err = node.Start()
 	require.NoError(t, err)
 
-	ourAddress := config.PrivValidator.GetPubKey().Address()
+	ourAddress := config.PrivValidator.PubKey().Address()
+
 	isValidator := slices.ContainsFunc(config.Genesis.Validators, func(val bft.GenesisValidator) bool {
 		return val.Address == ourAddress
 	})
@@ -56,21 +60,18 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 // It will return the default creator address of the loaded packages.
 func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...gnoland.TxWithMetadata) (*gnoland.InMemoryNodeConfig, bft.Address) {
 	cfg := TestingMinimalNodeConfig(gnoroot)
-	cfg.SkipGenesisVerification = true
+	cfg.SkipGenesisSigVerification = true
 
 	creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
-
-	params := LoadDefaultGenesisParamFile(t, gnoroot)
 	balances := LoadDefaultGenesisBalanceFile(t, gnoroot)
 	txs := make([]gnoland.TxWithMetadata, 0)
 	txs = append(txs, LoadDefaultPackages(t, creator, gnoroot)...)
 	txs = append(txs, additionalTxs...)
-
-	cfg.Genesis.AppState = gnoland.GnoGenesisState{
-		Balances: balances,
-		Txs:      txs,
-		Params:   params,
-	}
+	ggs := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
+	ggs.Balances = balances
+	ggs.Txs = txs
+	LoadDefaultGenesisParamFile(t, gnoroot, &ggs)
+	cfg.Genesis.AppState = ggs
 
 	return cfg, creator
 }
@@ -80,10 +81,13 @@ func TestingMinimalNodeConfig(gnoroot string) *gnoland.InMemoryNodeConfig {
 	tmconfig := DefaultTestingTMConfig(gnoroot)
 
 	// Create Mocked Identity
-	pv := gnoland.NewMockedPrivValidator()
+	pv := bft.NewMockPV()
+
+	// Get identity pubkey
+	pk := pv.PubKey()
 
 	// Generate genesis config
-	genesis := DefaultTestingGenesisConfig(gnoroot, pv.GetPubKey(), tmconfig)
+	genesis := DefaultTestingGenesisConfig(gnoroot, pk, tmconfig)
 
 	return &gnoland.InMemoryNodeConfig{
 		PrivValidator: pv,
@@ -97,16 +101,31 @@ func TestingMinimalNodeConfig(gnoroot string) *gnoland.InMemoryNodeConfig {
 	}
 }
 
+// XXX shouldn't this use GenerateTestingGenesisState?
 func DefaultTestingGenesisConfig(gnoroot string, self crypto.PubKey, tmconfig *tmcfg.Config) *bft.GenesisDoc {
+	authGen := auth.DefaultGenesisState()
+	authGen.Params.UnrestrictedAddrs = []crypto.Address{crypto.MustAddressFromString(DefaultAccount_Address)}
+	authGen.Params.InitialGasPrice = std.GasPrice{Gas: 1000, Price: std.Coin{Amount: 1, Denom: "ugnot"}}
+	genState := gnoland.DefaultGenState()
+	genState.Balances = []gnoland.Balance{
+		{
+			Address: crypto.MustAddressFromString(DefaultAccount_Address),
+			Amount:  std.MustParseCoins(ugnot.ValueString(10000000000000)),
+		},
+	}
+	genState.Txs = []gnoland.TxWithMetadata{}
+	genState.Auth = authGen
+	genState.Bank = bank.DefaultGenesisState()
+	genState.VM = vmm.DefaultGenesisState()
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     tmconfig.ChainID(),
 		ConsensusParams: abci.ConsensusParams{
 			Block: &abci.BlockParams{
-				MaxTxBytes:   1_000_000,   // 1MB,
-				MaxDataBytes: 2_000_000,   // 2MB,
-				MaxGas:       100_000_000, // 100M gas
-				TimeIotaMS:   100,         // 100ms
+				MaxTxBytes:   1_000_000,     // 1MB,
+				MaxDataBytes: 2_000_000,     // 2MB,
+				MaxGas:       3_000_000_000, // 3B gas
+				TimeIotaMS:   100,           // 100ms
 			},
 		},
 		Validators: []bft.GenesisValidator{
@@ -117,16 +136,7 @@ func DefaultTestingGenesisConfig(gnoroot string, self crypto.PubKey, tmconfig *t
 				Name:    "self",
 			},
 		},
-		AppState: gnoland.GnoGenesisState{
-			Balances: []gnoland.Balance{
-				{
-					Address: crypto.MustAddressFromString(DefaultAccount_Address),
-					Amount:  std.MustParseCoins(ugnot.ValueString(10_000_000_000_000)),
-				},
-			},
-			Txs:    []gnoland.TxWithMetadata{},
-			Params: []gnoland.Param{},
-		},
+		AppState: genState,
 	}
 }
 
@@ -152,13 +162,11 @@ func LoadDefaultGenesisBalanceFile(t TestingTS, gnoroot string) []gnoland.Balanc
 }
 
 // LoadDefaultGenesisParamFile loads the default genesis balance file for testing.
-func LoadDefaultGenesisParamFile(t TestingTS, gnoroot string) []gnoland.Param {
+func LoadDefaultGenesisParamFile(t TestingTS, gnoroot string, ggs *gnoland.GnoGenesisState) {
 	paramFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_params.toml")
 
-	genesisParams, err := gnoland.LoadGenesisParamsFile(paramFile)
+	err := gnoland.LoadGenesisParamsFile(paramFile, ggs)
 	require.NoError(t, err)
-
-	return genesisParams
 }
 
 // LoadDefaultGenesisTXsFile loads the default genesis transactions file for testing.
@@ -179,10 +187,39 @@ func DefaultTestingTMConfig(gnoroot string) *tmcfg.Config {
 
 	tmconfig := tmcfg.TestConfig().SetRootDir(gnoroot)
 	tmconfig.Consensus.WALDisabled = true
-	tmconfig.Consensus.SkipTimeoutCommit = true
-	tmconfig.Consensus.CreateEmptyBlocks = true
-	tmconfig.Consensus.CreateEmptyBlocksInterval = time.Millisecond * 100
+	tmconfig.Consensus.SkipTimeoutCommit = false
+	tmconfig.Consensus.CreateEmptyBlocks = false
 	tmconfig.RPC.ListenAddress = defaultListner
 	tmconfig.P2P.ListenAddress = defaultListner
 	return tmconfig
+}
+
+func GenerateTestingGenesisState(creator crypto.PrivKey, pkgs ...std.MemPackage) gnoland.GnoGenesisState {
+	txs := make([]gnoland.TxWithMetadata, len(pkgs))
+	for i, pkg := range pkgs {
+		// Create transaction
+		var tx std.Tx
+		tx.Fee = std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}}
+		tx.Msgs = []std.Msg{
+			vmm.MsgAddPackage{
+				Creator: creator.PubKey().Address(),
+				Package: &pkg,
+			},
+		}
+
+		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
+		txs[i] = gnoland.TxWithMetadata{Tx: tx}
+	}
+
+	gnoland.SignGenesisTxs(txs, creator, "tendermint_test")
+	return gnoland.GnoGenesisState{
+		Txs: txs,
+		Balances: []gnoland.Balance{{
+			Address: creator.PubKey().Address(),
+			Amount:  std.MustParseCoins(ugnot.ValueString(10_000_000_000_000)),
+		}},
+		Auth: auth.DefaultGenesisState(),
+		Bank: bank.DefaultGenesisState(),
+		VM:   vmm.DefaultGenesisState(),
+	}
 }

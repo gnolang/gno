@@ -152,7 +152,9 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io commands.IO) e
 	finalBalances.LeftMerge(genesisBalances)
 
 	// Save the balances
-	state.Balances = finalBalances.List()
+	sortedBalances := finalBalances.List()
+
+	state.Balances = sortedBalances
 	genesis.AppState = state
 
 	// Save the updated genesis
@@ -160,16 +162,16 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io commands.IO) e
 		return fmt.Errorf("unable to save genesis.json, %w", err)
 	}
 
-	io.Printfln(
-		"%d pre-mines saved",
-		len(finalBalances),
-	)
+	for _, balance := range sortedBalances {
+		io.Printfln("%s=%s", balance.Address.String(), balance.Amount.String())
+	}
 
 	io.Println()
 
-	for address, balance := range finalBalances {
-		io.Printfln("%s:%d%s", address.String(), balance, ugnot.Denom)
-	}
+	io.Printfln(
+		"%d balances saved",
+		len(finalBalances),
+	)
 
 	return nil
 }

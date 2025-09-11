@@ -53,113 +53,124 @@ func init() {
 
 // XXX reorder global and cdc methods for consistency and logic.
 
-func Marshal(o interface{}) ([]byte, error) {
+func Marshal(o any) ([]byte, error) {
 	return gcdc.Marshal(o)
 }
 
-func MustMarshal(o interface{}) []byte {
+func MustMarshal(o any) []byte {
 	return gcdc.MustMarshal(o)
 }
 
-func MarshalSized(o interface{}) ([]byte, error) {
+func MarshalSized(o any) ([]byte, error) {
 	return gcdc.MarshalSized(o)
 }
 
-func MarshalSizedWriter(w io.Writer, o interface{}) (n int64, err error) {
+func MarshalSizedWriter(w io.Writer, o any) (n int64, err error) {
 	return gcdc.MarshalSizedWriter(w, o)
 }
 
-func MustMarshalSized(o interface{}) []byte {
+func MustMarshalSized(o any) []byte {
 	return gcdc.MustMarshalSized(o)
 }
 
-func MarshalAny(o interface{}) ([]byte, error) {
+func MarshalAny(o any) ([]byte, error) {
 	return gcdc.MarshalAny(o)
 }
 
-func MustMarshalAny(o interface{}) []byte {
+func MustMarshalAny(o any) []byte {
 	return gcdc.MustMarshalAny(o)
 }
 
-func MarshalAnySized(o interface{}) ([]byte, error) {
+func MarshalAnySized(o any) ([]byte, error) {
 	return gcdc.MarshalAnySized(o)
 }
 
-func MustMarshalAnySized(o interface{}) []byte {
+func MustMarshalAnySized(o any) []byte {
 	return gcdc.MustMarshalAnySized(o)
 }
 
-func MarshalAnySizedWriter(w io.Writer, o interface{}) (n int64, err error) {
+func MarshalAnySizedWriter(w io.Writer, o any) (n int64, err error) {
 	return gcdc.MarshalAnySizedWriter(w, o)
 }
 
-func Unmarshal(bz []byte, ptr interface{}) error {
+func Unmarshal(bz []byte, ptr any) error {
 	return gcdc.Unmarshal(bz, ptr)
 }
 
-func MustUnmarshal(bz []byte, ptr interface{}) {
+func MustUnmarshal(bz []byte, ptr any) {
 	gcdc.MustUnmarshal(bz, ptr)
 }
 
-func UnmarshalSized(bz []byte, ptr interface{}) error {
+func UnmarshalSized(bz []byte, ptr any) error {
 	return gcdc.UnmarshalSized(bz, ptr)
 }
 
-func UnmarshalSizedReader(r io.Reader, ptr interface{}, maxSize int64) (n int64, err error) {
+func UnmarshalSizedReader(r io.Reader, ptr any, maxSize int64) (n int64, err error) {
 	return gcdc.UnmarshalSizedReader(r, ptr, maxSize)
 }
 
-func MustUnmarshalSized(bz []byte, ptr interface{}) {
+func MustUnmarshalSized(bz []byte, ptr any) {
 	gcdc.MustUnmarshalSized(bz, ptr)
 }
 
-func UnmarshalAny(bz []byte, ptr interface{}) error {
+func UnmarshalAny(bz []byte, ptr any) error {
 	return gcdc.UnmarshalAny(bz, ptr)
 }
 
-func UnmarshalAny2(typeURL string, value []byte, ptr interface{}) error {
+func UnmarshalAny2(typeURL string, value []byte, ptr any) error {
 	return gcdc.UnmarshalAny2(typeURL, value, ptr)
 }
 
-func MustUnmarshalAny(bz []byte, ptr interface{}) {
+func MustUnmarshalAny(bz []byte, ptr any) {
 	gcdc.MustUnmarshalAny(bz, ptr)
 }
 
-func UnmarshalAnySized(bz []byte, ptr interface{}) error {
+func UnmarshalAnySized(bz []byte, ptr any) error {
 	return gcdc.UnmarshalAnySized(bz, ptr)
 }
 
-func MarshalJSON(o interface{}) ([]byte, error) {
+func MarshalJSON(o any) ([]byte, error) {
 	return gcdc.JSONMarshal(o)
 }
 
-func MarshalJSONAny(o interface{}) ([]byte, error) {
+func MarshalJSONAny(o any) ([]byte, error) {
 	return gcdc.MarshalJSONAny(o)
 }
 
-func MustMarshalJSON(o interface{}) []byte {
+func MustMarshalJSON(o any) []byte {
 	return gcdc.MustMarshalJSON(o)
 }
 
-func MustMarshalJSONAny(o interface{}) []byte {
+func MustMarshalJSONAny(o any) []byte {
 	return gcdc.MustMarshalJSONAny(o)
 }
 
-func UnmarshalJSON(bz []byte, ptr interface{}) error {
+func UnmarshalJSON(bz []byte, ptr any) error {
 	return gcdc.JSONUnmarshal(bz, ptr)
 }
 
-func MustUnmarshalJSON(bz []byte, ptr interface{}) {
+func MustUnmarshalJSON(bz []byte, ptr any) {
 	gcdc.MustUnmarshalJSON(bz, ptr)
 }
 
-func MarshalJSONIndent(o interface{}, prefix, indent string) ([]byte, error) {
+func MarshalJSONIndent(o any, prefix, indent string) ([]byte, error) {
 	return gcdc.MarshalJSONIndent(o, prefix, indent)
 }
 
 // XXX unstable API.
-func GetTypeURL(o interface{}) string {
+func GetTypeURL(o any) string {
 	return gcdc.GetTypeURL(o)
+}
+
+// Returns a new TypeInfo instance.
+// NOTE: it uses a new codec for security's sake.
+// (*TypeInfo of gcdc should not be exposed)
+// Therefore it may be inefficient.  If you need efficiency, implement with a
+// new method that takes as argument a non-global codec instance.
+func GetTypeInfo(rt reflect.Type) (info *TypeInfo, err error) {
+	cdc := NewCodec().WithPBBindings().Autoseal()
+	ti, err := cdc.GetTypeInfo(rt)
+	return ti, err
 }
 
 // ----------------------------------------
@@ -215,11 +226,12 @@ func (typ Typ3) String() string {
 // For consistency, MarshalSized will first dereference pointers
 // before encoding.  MarshalSized will panic if o is a nil-pointer,
 // or if o is invalid.
-func (cdc *Codec) MarshalSized(o interface{}) ([]byte, error) {
+func (cdc *Codec) MarshalSized(o any) ([]byte, error) {
 	cdc.doAutoseal()
 
 	// Write the bytes here.
-	buf := new(bytes.Buffer)
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
 
 	// Write the bz without length-prefixing.
 	bz, err := cdc.Marshal(o)
@@ -239,12 +251,12 @@ func (cdc *Codec) MarshalSized(o interface{}) ([]byte, error) {
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return copyBytes(buf.Bytes()), nil
 }
 
 // MarshalSizedWriter writes the bytes as would be returned from
 // MarshalSized to the writer w.
-func (cdc *Codec) MarshalSizedWriter(w io.Writer, o interface{}) (n int64, err error) {
+func (cdc *Codec) MarshalSizedWriter(w io.Writer, o any) (n int64, err error) {
 	var (
 		bz []byte
 		_n int
@@ -259,7 +271,7 @@ func (cdc *Codec) MarshalSizedWriter(w io.Writer, o interface{}) (n int64, err e
 }
 
 // Panics if error.
-func (cdc *Codec) MustMarshalSized(o interface{}) []byte {
+func (cdc *Codec) MustMarshalSized(o any) []byte {
 	bz, err := cdc.MarshalSized(o)
 	if err != nil {
 		panic(err)
@@ -267,12 +279,12 @@ func (cdc *Codec) MustMarshalSized(o interface{}) []byte {
 	return bz
 }
 
-func (cdc *Codec) MarshalAnySized(o interface{}) ([]byte, error) {
+func (cdc *Codec) MarshalAnySized(o any) ([]byte, error) {
 	cdc.doAutoseal()
 
 	// Write the bytes here.
-	buf := new(bytes.Buffer)
-
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
 	// Write the bz without length-prefixing.
 	bz, err := cdc.MarshalAny(o)
 	if err != nil {
@@ -291,10 +303,10 @@ func (cdc *Codec) MarshalAnySized(o interface{}) ([]byte, error) {
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return copyBytes(buf.Bytes()), nil
 }
 
-func (cdc *Codec) MustMarshalAnySized(o interface{}) []byte {
+func (cdc *Codec) MustMarshalAnySized(o any) []byte {
 	bz, err := cdc.MarshalAnySized(o)
 	if err != nil {
 		panic(err)
@@ -302,7 +314,7 @@ func (cdc *Codec) MustMarshalAnySized(o interface{}) []byte {
 	return bz
 }
 
-func (cdc *Codec) MarshalAnySizedWriter(w io.Writer, o interface{}) (n int64, err error) {
+func (cdc *Codec) MarshalAnySizedWriter(w io.Writer, o any) (n int64, err error) {
 	var (
 		bz []byte
 		_n int
@@ -324,23 +336,22 @@ func (cdc *Codec) MarshalAnySizedWriter(w io.Writer, o interface{}) (n int64, er
 // NOTE: nil-struct-pointers have no encoding. In the context of a struct,
 // the absence of a field does denote a nil-struct-pointer, but in general
 // this is not the case, so unlike MarshalJSON.
-func (cdc *Codec) Marshal(o interface{}) ([]byte, error) {
+func (cdc *Codec) Marshal(o any) ([]byte, error) {
 	cdc.doAutoseal()
 
 	if cdc.usePBBindings {
 		pbm, ok := o.(PBMessager)
 		if ok {
 			return cdc.MarshalPBBindings(pbm)
-		} else {
-			// Fall back to using reflection for native primitive types.
 		}
+		// Else, fall back to using reflection for native primitive types.
 	}
 
 	return cdc.MarshalReflect(o)
 }
 
 // Use reflection.
-func (cdc *Codec) MarshalReflect(o interface{}) ([]byte, error) {
+func (cdc *Codec) MarshalReflect(o any) ([]byte, error) {
 	// Dereference value if pointer.
 	rv := reflect.ValueOf(o)
 	if rv.Kind() == reflect.Ptr {
@@ -357,7 +368,9 @@ func (cdc *Codec) MarshalReflect(o interface{}) ([]byte, error) {
 
 	// Encode Amino:binary bytes.
 	var bz []byte
-	buf := new(bytes.Buffer)
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
+
 	rt := rv.Type()
 	info, err := cdc.getTypeInfoWLock(rt)
 	if err != nil {
@@ -377,7 +390,7 @@ func (cdc *Codec) MarshalReflect(o interface{}) ([]byte, error) {
 		if err = cdc.writeFieldIfNotEmpty(buf, 1, info, FieldOptions{}, FieldOptions{}, rv, writeEmpty); err != nil {
 			return nil, err
 		}
-		bz = buf.Bytes()
+		bz = copyBytes(buf.Bytes())
 	} else {
 		// The passed in BinFieldNum is only relevant for when the type is to
 		// be encoded unpacked (elements are Typ3_ByteLength).  In that case,
@@ -387,7 +400,7 @@ func (cdc *Codec) MarshalReflect(o interface{}) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		bz = buf.Bytes()
+		bz = copyBytes(buf.Bytes())
 	}
 	// If bz is empty, prefer nil.
 	if len(bz) == 0 {
@@ -407,7 +420,7 @@ func (cdc *Codec) MarshalPBBindings(pbm PBMessager) ([]byte, error) {
 }
 
 // Panics if error.
-func (cdc *Codec) MustMarshal(o interface{}) []byte {
+func (cdc *Codec) MustMarshal(o any) []byte {
 	bz, err := cdc.Marshal(o)
 	if err != nil {
 		panic(err)
@@ -417,7 +430,7 @@ func (cdc *Codec) MustMarshal(o interface{}) []byte {
 
 // MarshalAny encodes the registered object
 // wrapped with google.protobuf.Any.
-func (cdc *Codec) MarshalAny(o interface{}) ([]byte, error) {
+func (cdc *Codec) MarshalAny(o any) ([]byte, error) {
 	cdc.doAutoseal()
 
 	// o cannot be nil, otherwise we don't know what type it is.
@@ -443,18 +456,25 @@ func (cdc *Codec) MarshalAny(o interface{}) ([]byte, error) {
 	}
 
 	// Encode as interface.
-	buf := new(bytes.Buffer)
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
 	err = cdc.encodeReflectBinaryInterface(buf, iinfo, reflect.ValueOf(&ivar).Elem(), FieldOptions{}, true)
 	if err != nil {
 		return nil, err
 	}
-	bz := buf.Bytes()
+	bz := copyBytes(buf.Bytes())
 
 	return bz, nil
 }
 
+func copyBytes(bz []byte) []byte {
+	cp := make([]byte, len(bz))
+	copy(cp, bz)
+	return cp
+}
+
 // Panics if error.
-func (cdc *Codec) MustMarshalAny(o interface{}) []byte {
+func (cdc *Codec) MustMarshalAny(o any) []byte {
 	bz, err := cdc.MarshalAny(o)
 	if err != nil {
 		panic(err)
@@ -468,7 +488,7 @@ func (cdc *Codec) MustMarshalAny(o interface{}) []byte {
 // Like Unmarshal, but will first decode the byte-length prefix.
 // UnmarshalSized will panic if ptr is a nil-pointer.
 // Returns an error if not all of bz is consumed.
-func (cdc *Codec) UnmarshalSized(bz []byte, ptr interface{}) error {
+func (cdc *Codec) UnmarshalSized(bz []byte, ptr any) error {
 	if len(bz) == 0 {
 		return errors.New("unmarshalSized cannot decode empty bytes")
 	}
@@ -494,7 +514,7 @@ func (cdc *Codec) UnmarshalSized(bz []byte, ptr interface{}) error {
 // Like Unmarshal, but will first read the byte-length prefix.
 // UnmarshalSizedReader will panic if ptr is a nil-pointer.
 // If maxSize is 0, there is no limit (not recommended).
-func (cdc *Codec) UnmarshalSizedReader(r io.Reader, ptr interface{},
+func (cdc *Codec) UnmarshalSizedReader(r io.Reader, ptr any,
 	maxSize int64,
 ) (n int64, err error) {
 	if maxSize < 0 {
@@ -504,7 +524,7 @@ func (cdc *Codec) UnmarshalSizedReader(r io.Reader, ptr interface{},
 	// Read byte-length prefix.
 	var l int64
 	var buf [binary.MaxVarintLen64]byte
-	for i := 0; i < len(buf); i++ {
+	for i := range len(buf) {
 		_, err = r.Read(buf[i : i+1])
 		if err != nil {
 			return
@@ -558,7 +578,7 @@ func (cdc *Codec) UnmarshalSizedReader(r io.Reader, ptr interface{},
 }
 
 // Panics if error.
-func (cdc *Codec) MustUnmarshalSized(bz []byte, ptr interface{}) {
+func (cdc *Codec) MustUnmarshalSized(bz []byte, ptr any) {
 	err := cdc.UnmarshalSized(bz, ptr)
 	if err != nil {
 		panic(err)
@@ -566,7 +586,7 @@ func (cdc *Codec) MustUnmarshalSized(bz []byte, ptr interface{}) {
 }
 
 // Like UnmarshalAny, but will first decode the byte-length prefix.
-func (cdc *Codec) UnmarshalAnySized(bz []byte, ptr interface{}) error {
+func (cdc *Codec) UnmarshalAnySized(bz []byte, ptr any) error {
 	if len(bz) == 0 {
 		return errors.New("unmarshalSized cannot decode empty bytes")
 	}
@@ -590,23 +610,22 @@ func (cdc *Codec) UnmarshalAnySized(bz []byte, ptr interface{}) error {
 }
 
 // Unmarshal will panic if ptr is a nil-pointer.
-func (cdc *Codec) Unmarshal(bz []byte, ptr interface{}) error {
+func (cdc *Codec) Unmarshal(bz []byte, ptr any) error {
 	cdc.doAutoseal()
 
 	if cdc.usePBBindings {
 		pbm, ok := ptr.(PBMessager)
 		if ok {
 			return cdc.unmarshalPBBindings(bz, pbm)
-		} else {
-			// Fall back to using reflection for native primitive types.
 		}
+		// Else, fall back to using reflection for native primitive types.
 	}
 
 	return cdc.unmarshalReflect(bz, ptr)
 }
 
 // Use reflection.
-func (cdc *Codec) unmarshalReflect(bz []byte, ptr interface{}) error {
+func (cdc *Codec) unmarshalReflect(bz []byte, ptr any) error {
 	rv := reflect.ValueOf(ptr)
 	if rv.Kind() != reflect.Ptr {
 		return ErrNoPointer
@@ -706,7 +725,7 @@ func (cdc *Codec) unmarshalPBBindings(bz []byte, pbm PBMessager) error {
 }
 
 // Panics if error.
-func (cdc *Codec) MustUnmarshal(bz []byte, ptr interface{}) {
+func (cdc *Codec) MustUnmarshal(bz []byte, ptr any) {
 	err := cdc.Unmarshal(bz, ptr)
 	if err != nil {
 		panic(err)
@@ -715,7 +734,7 @@ func (cdc *Codec) MustUnmarshal(bz []byte, ptr interface{}) {
 
 // UnmarshalAny decodes the registered object
 // from an Any.
-func (cdc *Codec) UnmarshalAny(bz []byte, ptr interface{}) (err error) {
+func (cdc *Codec) UnmarshalAny(bz []byte, ptr any) (err error) {
 	cdc.doAutoseal()
 
 	// Dereference ptr which must be pointer to interface.
@@ -736,7 +755,7 @@ func (cdc *Codec) UnmarshalAny(bz []byte, ptr interface{}) (err error) {
 }
 
 // like UnmarshalAny() but with typeURL and value destructured.
-func (cdc *Codec) UnmarshalAny2(typeURL string, value []byte, ptr interface{}) (err error) {
+func (cdc *Codec) UnmarshalAny2(typeURL string, value []byte, ptr any) (err error) {
 	cdc.doAutoseal()
 
 	rv := reflect.ValueOf(ptr)
@@ -748,15 +767,14 @@ func (cdc *Codec) UnmarshalAny2(typeURL string, value []byte, ptr interface{}) (
 	return
 }
 
-func (cdc *Codec) MustUnmarshalAny(bz []byte, ptr interface{}) {
+func (cdc *Codec) MustUnmarshalAny(bz []byte, ptr any) {
 	err := cdc.UnmarshalAny(bz, ptr)
 	if err != nil {
 		panic(err)
 	}
-	return
 }
 
-func (cdc *Codec) JSONMarshal(o interface{}) ([]byte, error) {
+func (cdc *Codec) JSONMarshal(o any) ([]byte, error) {
 	cdc.doAutoseal()
 
 	rv := reflect.ValueOf(o)
@@ -764,7 +782,8 @@ func (cdc *Codec) JSONMarshal(o interface{}) ([]byte, error) {
 		return []byte("null"), nil
 	}
 	rt := rv.Type()
-	w := new(bytes.Buffer)
+	w := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(w)
 	info, err := cdc.getTypeInfoWLock(rt)
 	if err != nil {
 		return nil, err
@@ -772,10 +791,11 @@ func (cdc *Codec) JSONMarshal(o interface{}) ([]byte, error) {
 	if err = cdc.encodeReflectJSON(w, info, rv, FieldOptions{}); err != nil {
 		return nil, err
 	}
-	return w.Bytes(), nil
+
+	return copyBytes(w.Bytes()), nil
 }
 
-func (cdc *Codec) MarshalJSONAny(o interface{}) ([]byte, error) {
+func (cdc *Codec) MarshalJSONAny(o any) ([]byte, error) {
 	// o cannot be nil, otherwise we don't know what type it is.
 	if o == nil {
 		return nil, errors.New("MarshalJSONAny() requires non-nil argument")
@@ -802,18 +822,20 @@ func (cdc *Codec) MarshalJSONAny(o interface{}) ([]byte, error) {
 	}
 
 	// Encode as interface.
-	buf := new(bytes.Buffer)
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
+
 	err = cdc.encodeReflectJSONInterface(buf, iinfo, reflect.ValueOf(&ivar).Elem(), FieldOptions{})
 	if err != nil {
 		return nil, err
 	}
-	bz := buf.Bytes()
+	bz := copyBytes(buf.Bytes())
 
 	return bz, nil
 }
 
-// MustMarshalJSON panics if an error occurs. Besides tha behaves exactly like MarshalJSON.
-func (cdc *Codec) MustMarshalJSON(o interface{}) []byte {
+// MustMarshalJSON panics if an error occurs. Besides that behaves exactly like MarshalJSON.
+func (cdc *Codec) MustMarshalJSON(o any) []byte {
 	bz, err := cdc.JSONMarshal(o)
 	if err != nil {
 		panic(err)
@@ -821,8 +843,8 @@ func (cdc *Codec) MustMarshalJSON(o interface{}) []byte {
 	return bz
 }
 
-// MustMarshalJSONAny panics if an error occurs. Besides tha behaves exactly like MarshalJSONAny.
-func (cdc *Codec) MustMarshalJSONAny(o interface{}) []byte {
+// MustMarshalJSONAny panics if an error occurs. Besides that behaves exactly like MarshalJSONAny.
+func (cdc *Codec) MustMarshalJSONAny(o any) []byte {
 	bz, err := cdc.MarshalJSONAny(o)
 	if err != nil {
 		panic(err)
@@ -830,7 +852,7 @@ func (cdc *Codec) MustMarshalJSONAny(o interface{}) []byte {
 	return bz
 }
 
-func (cdc *Codec) JSONUnmarshal(bz []byte, ptr interface{}) error {
+func (cdc *Codec) JSONUnmarshal(bz []byte, ptr any) error {
 	cdc.doAutoseal()
 	if len(bz) == 0 {
 		return errors.New("cannot decode empty bytes")
@@ -849,8 +871,8 @@ func (cdc *Codec) JSONUnmarshal(bz []byte, ptr interface{}) error {
 	return cdc.decodeReflectJSON(bz, info, rv, FieldOptions{})
 }
 
-// MustUnmarshalJSON panics if an error occurs. Besides tha behaves exactly like UnmarshalJSON.
-func (cdc *Codec) MustUnmarshalJSON(bz []byte, ptr interface{}) {
+// MustUnmarshalJSON panics if an error occurs. Besides that behaves exactly like UnmarshalJSON.
+func (cdc *Codec) MustUnmarshalJSON(bz []byte, ptr any) {
 	if err := cdc.JSONUnmarshal(bz, ptr); err != nil {
 		panic(err)
 	}
@@ -858,33 +880,41 @@ func (cdc *Codec) MustUnmarshalJSON(bz []byte, ptr interface{}) {
 
 // MarshalJSONIndent calls json.Indent on the output of cdc.MarshalJSON
 // using the given prefix and indent string.
-func (cdc *Codec) MarshalJSONIndent(o interface{}, prefix, indent string) ([]byte, error) {
+func (cdc *Codec) MarshalJSONIndent(o any, prefix, indent string) ([]byte, error) {
 	bz, err := cdc.JSONMarshal(o)
 	if err != nil {
 		return nil, err
 	}
+
 	var out bytes.Buffer
-	err = json.Indent(&out, bz, prefix, indent)
-	if err != nil {
+	if err := json.Indent(&out, bz, prefix, indent); err != nil {
 		return nil, err
 	}
-	return out.Bytes(), nil
+	return copyBytes(out.Bytes()), nil
 }
 
 // ----------------------------------------
 // Other
 
+// Given amino package `pi`, register it with the global codec.
 // NOTE: do not modify the result.
 func RegisterPackage(pi *pkg.Package) *Package {
 	gcdc.RegisterPackage(pi)
 	return pi
 }
 
+// Create an unregistered amino package with args:
+// - (gopkg string) The Go package path, e.g. "github.com/gnolang/gno/tm2/pkg/std"
+// - (p3pkg string) The (shorter) Proto3 package path (no slashes), e.g. "std"
+// - (dirname string) Package directory this is called from. Typical is to use `amino.GetCallersDirname()`
 func NewPackage(gopkg string, p3pkg string, dirname string) *Package {
 	return pkg.NewPackage(gopkg, p3pkg, dirname)
 }
 
-// NOTE: duplicated in pkg/pkg.go
+// Get caller's package directory.
+// Implementation uses `filepath.Dir(runtime.Caller(1))`.
+// NOTE: duplicated in pkg/pkg.go; given what it does and how,
+// both are probably needed.
 func GetCallersDirname() string {
 	dirname := "" // derive from caller.
 	_, filename, _, ok := runtime.Caller(1)
@@ -912,7 +942,7 @@ type Object interface {
 // Returns the default type url for the given concrete type.
 // NOTE: It must be fast, as it is used in pbbindings.
 // XXX Unstable API.
-func (cdc *Codec) GetTypeURL(o interface{}) string {
+func (cdc *Codec) GetTypeURL(o any) string {
 	if obj, ok := o.(Object); ok {
 		return obj.GetTypeURL()
 	}

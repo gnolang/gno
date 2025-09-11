@@ -14,4 +14,4 @@ func main() {
 
 -- stdout.golden --
 -- stderr.golden --
-./.: parsing gno.mod at ./.: gno.mod file not found in current or any parent directory (code=1)
+gnowork.toml file not found in current or any parent directory and gnomod.toml doesn't exists in current directory

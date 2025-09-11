@@ -1,14 +1,13 @@
 package validators
 
 import (
+	"std"
 	"testing"
 
-	"std"
-
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/ufmt"
 	"gno.land/p/sys/validators"
 )
 
@@ -45,7 +44,7 @@ func TestValidators_AddRemove(t *testing.T) {
 		// Make sure the validator is added
 		uassert.True(t, vp.IsValidator(val.Address))
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	}
 
 	for i := initialHeight; i < initialHeight+int64(len(vals)); i++ {
@@ -67,7 +66,7 @@ func TestValidators_AddRemove(t *testing.T) {
 	}
 
 	// Save the beginning height for the removal
-	initialRemoveHeight := std.GetHeight()
+	initialRemoveHeight := std.ChainHeight()
 
 	// Clear any changes
 	changes = avl.NewTree()
@@ -79,7 +78,7 @@ func TestValidators_AddRemove(t *testing.T) {
 		// Make sure the validator is removed
 		uassert.False(t, vp.IsValidator(val.Address))
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	}
 
 	for i := initialRemoveHeight; i < initialRemoveHeight+int64(len(vals)); i++ {

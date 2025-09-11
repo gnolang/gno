@@ -3,8 +3,8 @@ package buttons
 import (
 	"std"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/nt/ufmt"
 )
 
 var (
@@ -12,9 +12,9 @@ var (
 	lastCaller std.Address
 )
 
-func UpdateMOTD(newmotd string) {
+func UpdateMOTD(_ realm, newmotd string) {
 	motd = newmotd
-	lastCaller = std.PrevRealm().Addr()
+	lastCaller = std.PreviousRealm().Address()
 }
 
 func Render(path string) string {

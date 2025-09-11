@@ -3,89 +3,52 @@ package gnolang
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
 
 // ----------------------------------------
-// Functions centralizing definitions
-
-// ReRealmPath and RePackagePath are the regexes used to identify pkgpaths which are meant to
-// be realms with persisted states and pure packages.
-var (
-	ReRealmPath   = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/[a-z0-9_/]+`)
-	RePackagePath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/p/[a-z0-9_/]+`)
-)
-
-// ReGnoRunPath is the path used for realms executed in maketx run.
-// These are not considered realms, as an exception to the ReRealmPathPrefix rule.
-var ReGnoRunPath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/g[a-z0-9]+/run$`)
-
-// IsRealmPath determines whether the given pkgpath is for a realm, and as such
-// should persist the global state.
-func IsRealmPath(pkgPath string) bool {
-	return ReRealmPath.MatchString(pkgPath) &&
-		!ReGnoRunPath.MatchString(pkgPath)
-}
-
-// IsPurePackagePath determines whether the given pkgpath is for a published Gno package.
-// It only considers "pure" those starting with gno.land/p/, so it returns false for
-// stdlib packages and MsgRun paths.
-func IsPurePackagePath(pkgPath string) bool {
-	return RePackagePath.MatchString(pkgPath)
-}
-
-// IsStdlib determines whether s is a pkgpath for a standard library.
-func IsStdlib(s string) bool {
-	idx := strings.IndexByte(s, '/')
-	if idx < 0 {
-		// If no '/' is found, consider the whole string
-		return strings.IndexByte(s, '.') < 0
-	}
-	return strings.IndexByte(s[:idx+1], '.') < 0
-}
-
-// ----------------------------------------
 // AST Construction (Expr)
 // These are copied over from go-amino-x, but produces Gno ASTs.
 
-func N(n interface{}) Name {
+func N(n any) Name {
 	switch n := n.(type) {
 	case string:
 		return Name(n)
 	case Name:
 		return n
 	default:
-		panic("unexpected name arg")
+		panic("unexpected name type")
 	}
 }
 
-func Nx(n interface{}) *NameExpr {
+func Nx(n any) *NameExpr {
 	return &NameExpr{Name: N(n)}
 }
 
-func ArrayT(l, elt interface{}) *ArrayTypeExpr {
+func ArrayT(l, elt any) *ArrayTypeExpr {
 	return &ArrayTypeExpr{
 		Len: X(l),
 		Elt: X(elt),
 	}
 }
 
-func SliceT(elt interface{}) *SliceTypeExpr {
+func SliceT(elt any) *SliceTypeExpr {
 	return &SliceTypeExpr{
 		Elt: X(elt),
 		Vrd: false,
 	}
 }
 
-func MapT(key, value interface{}) *MapTypeExpr {
+func MapT(key, value any) *MapTypeExpr {
 	return &MapTypeExpr{
 		Key:   X(key),
 		Value: X(value),
 	}
 }
 
-func Vrd(elt interface{}) *SliceTypeExpr {
+func Vrd(elt any) *SliceTypeExpr {
 	return &SliceTypeExpr{
 		Elt: X(elt),
 		Vrd: true,
@@ -116,30 +79,31 @@ func FuncT(params, results FieldTypeExprs) *FuncTypeExpr {
 	}
 }
 
-func Flds(args ...interface{}) FieldTypeExprs {
+func Flds(args ...any) FieldTypeExprs {
 	list := FieldTypeExprs{}
 	for i := 0; i < len(args); i += 2 {
 		list = append(list, FieldTypeExpr{
-			Name: N(args[i]),
-			Type: X(args[i+1]),
+			NameExpr: *Nx(args[i]),
+			Type:     X(args[i+1]),
 		})
 	}
 	return list
 }
 
-func Recv(n, t interface{}) FieldTypeExpr {
+func Fld(n, t any) FieldTypeExpr {
+	return FieldTypeExpr{
+		NameExpr: *Nx(n),
+		Type:     X(t),
+	}
+}
+
+func Recv(n, t any) FieldTypeExpr {
 	if n == "" {
 		n = blankIdentifier
 	}
 	return FieldTypeExpr{
-		Name: N(n),
-		Type: X(t),
-	}
-}
-
-func MaybeNativeT(tx interface{}) *MaybeNativeTypeExpr {
-	return &MaybeNativeTypeExpr{
-		Type: X(tx),
+		NameExpr: *Nx(n),
+		Type:     X(t),
 	}
 }
 
@@ -149,7 +113,7 @@ func MaybeNativeT(tx interface{}) *MaybeNativeTypeExpr {
 // nil means that the curly brackets are missing in the source code, indicating
 // a declaration for an externally-defined function, while []Stmt{} is simply a
 // functions with no statements (func() {}).
-func FuncD(name interface{}, params, results FieldTypeExprs, body []Stmt) *FuncDecl {
+func FuncD(name any, params, results FieldTypeExprs, body []Stmt) *FuncDecl {
 	return &FuncDecl{
 		NameExpr: *Nx(name),
 		Type: FuncTypeExpr{
@@ -160,7 +124,7 @@ func FuncD(name interface{}, params, results FieldTypeExprs, body []Stmt) *FuncD
 	}
 }
 
-func MthdD(name interface{}, recv FieldTypeExpr, params, results FieldTypeExprs, body []Stmt) *FuncDecl {
+func MthdD(name any, recv FieldTypeExpr, params, results FieldTypeExprs, body []Stmt) *FuncDecl {
 	return &FuncDecl{
 		NameExpr: *Nx(name),
 		Recv:     recv,
@@ -180,7 +144,7 @@ func Fn(params, results FieldTypeExprs, body []Stmt) *FuncLitExpr {
 	}
 }
 
-func Kv(n, v interface{}) KeyValueExpr {
+func Kv(n, v any) KeyValueExpr {
 	var kx, vx Expr
 	if ns, ok := n.(string); ok {
 		kx = X(ns) // key expr
@@ -199,7 +163,7 @@ func Kv(n, v interface{}) KeyValueExpr {
 }
 
 // Tries to infer statement from args.
-func S(args ...interface{}) Stmt {
+func S(args ...any) Stmt {
 	if len(args) == 1 {
 		switch arg0 := args[0].(type) {
 		case Expr:
@@ -238,7 +202,7 @@ func S(args ...interface{}) Stmt {
 //
 // If the first argument is an expression, returns it.
 // TODO replace this with rewrite of Joeson parser.
-func X(x interface{}, args ...interface{}) Expr {
+func X(x any, args ...any) Expr {
 	switch cx := x.(type) {
 	case Expr:
 		return cx
@@ -495,7 +459,7 @@ func Xs(exprs ...Expr) []Expr {
 // Usage: A(lhs1, lhs2, ..., ":=", rhs1, rhs2, ...)
 // Operation can be like ":=", "=", "+=", etc.
 // Other strings are automatically parsed as X(arg).
-func A(args ...interface{}) *AssignStmt {
+func A(args ...any) *AssignStmt {
 	lhs := []Expr(nil)
 	op := ILLEGAL
 	rhs := []Expr(nil)
@@ -541,7 +505,7 @@ func Not(x Expr) *UnaryExpr {
 }
 
 // Binary expression.  x, y can be Expr or string.
-func Bx(lx interface{}, op string, rx interface{}) Expr {
+func Bx(lx any, op string, rx any) Expr {
 	return &BinaryExpr{
 		Left:  X(lx),
 		Op:    Op2Word(op),
@@ -549,9 +513,9 @@ func Bx(lx interface{}, op string, rx interface{}) Expr {
 	}
 }
 
-func Call(fn interface{}, args ...interface{}) *CallExpr {
+func Call(fn any, args ...any) *CallExpr {
 	argz := make([]Expr, len(args))
-	for i := 0; i < len(args); i++ {
+	for i := range args {
 		argz[i] = X(args[i])
 	}
 	return &CallExpr{
@@ -560,21 +524,21 @@ func Call(fn interface{}, args ...interface{}) *CallExpr {
 	}
 }
 
-func TypeAssert(x interface{}, t interface{}) *TypeAssertExpr {
+func TypeAssert(x any, t any) *TypeAssertExpr {
 	return &TypeAssertExpr{
 		X:    X(x),
 		Type: X(t),
 	}
 }
 
-func Sel(x interface{}, sel interface{}) *SelectorExpr {
+func Sel(x any, sel any) *SelectorExpr {
 	return &SelectorExpr{
 		X:   X(x),
 		Sel: N(sel),
 	}
 }
 
-func Idx(x interface{}, idx interface{}) *IndexExpr {
+func Idx(x any, idx any) *IndexExpr {
 	return &IndexExpr{
 		X:     X(x),
 		Index: X(idx),
@@ -595,20 +559,20 @@ func Num(s string) *BasicLitExpr {
 	}
 }
 
-func Ref(x interface{}) *RefExpr {
+func Ref(x any) *RefExpr {
 	return &RefExpr{
 		X: X(x),
 	}
 }
 
-func Deref(x interface{}) *StarExpr {
+func Deref(x any) *StarExpr {
 	return &StarExpr{
 		X: X(x),
 	}
 }
 
 // NOTE: Same as DEREF, but different context.
-func Ptr(x interface{}) *StarExpr {
+func Ptr(x any) *StarExpr {
 	return &StarExpr{
 		X: X(x),
 	}
@@ -650,42 +614,42 @@ func Return(results ...Expr) *ReturnStmt {
 	}
 }
 
-func Continue(label interface{}) *BranchStmt {
+func Continue(label any) *BranchStmt {
 	return &BranchStmt{
 		Op:    CONTINUE,
 		Label: N(label),
 	}
 }
 
-func Break(label interface{}) *BranchStmt {
+func Break(label any) *BranchStmt {
 	return &BranchStmt{
 		Op:    BREAK,
 		Label: N(label),
 	}
 }
 
-func Goto(label interface{}) *BranchStmt {
+func Goto(label any) *BranchStmt {
 	return &BranchStmt{
 		Op:    GOTO,
 		Label: N(label),
 	}
 }
 
-func Fallthrough(label interface{}) *BranchStmt {
+func Fallthrough(label any) *BranchStmt {
 	return &BranchStmt{
 		Op:    FALLTHROUGH,
 		Label: N(label),
 	}
 }
 
-func ImportD(name interface{}, path string) *ImportDecl {
+func ImportD(name any, path string) *ImportDecl {
 	return &ImportDecl{
 		NameExpr: *Nx(name),
 		PkgPath:  path,
 	}
 }
 
-func For(init, cond, post interface{}, b ...Stmt) *ForStmt {
+func For(init, cond, post any, b ...Stmt) *ForStmt {
 	return &ForStmt{
 		Init: S(init).(SimpleStmt),
 		Cond: X(cond),
@@ -707,7 +671,7 @@ func Len(x Expr) *CallExpr {
 	return Call(Nx("len"), x)
 }
 
-func Var(name interface{}, typ Expr, value Expr) *DeclStmt {
+func Var(name any, typ Expr, value Expr) *DeclStmt {
 	return &DeclStmt{
 		Body: []Stmt{&ValueDecl{
 			NameExprs: []NameExpr{*Nx(name)},
@@ -718,7 +682,7 @@ func Var(name interface{}, typ Expr, value Expr) *DeclStmt {
 	}
 }
 
-func Inc(x interface{}) *IncDecStmt {
+func Inc(x any) *IncDecStmt {
 	var xx Expr
 	if xs, ok := x.(string); ok {
 		xx = X(xs)
@@ -729,7 +693,7 @@ func Inc(x interface{}) *IncDecStmt {
 	}
 }
 
-func Dec(x interface{}) *IncDecStmt {
+func Dec(x any) *IncDecStmt {
 	var xx Expr
 	if xs, ok := x.(string); ok {
 		xx = X(xs)
@@ -834,6 +798,24 @@ func SIf(cond bool, then_, else_ Stmt) Stmt {
 }
 
 // ----------------------------------------
+// AST Query
+
+// Unwraps IndexExpr and SelectorExpr only.
+// (defensive, in case malformed exprs that mix).
+func LeftmostX(x Expr) Expr {
+	for {
+		switch x := x.(type) {
+		case *IndexExpr:
+			return x.X
+		case *SelectorExpr:
+			return x.X
+		default:
+			return x
+		}
+	}
+}
+
+// ----------------------------------------
 // chop functions
 
 // ----------------------------------------
@@ -841,10 +823,8 @@ func chopBinary(expr string) (left, op, right string, ok bool) {
 	// 0 for prec1... -1 if no match.
 	matchOp := func(op string) int {
 		for i, prec := range precs {
-			for _, op2 := range prec {
-				if op == op2 {
-					return i
-				}
+			if slices.Contains(prec, op) {
+				return i
 			}
 		}
 		return -1
@@ -869,7 +849,7 @@ func chopBinary(expr string) (left, op, right string, ok bool) {
 					}
 					// advance, so we don't match a substring
 					// operator.
-					for i := 0; i < len(op2); i++ {
+					for range len(op2) {
 						ss.advance()
 					}
 					break

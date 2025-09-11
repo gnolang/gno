@@ -1,6 +1,6 @@
 package datasource
 
-import "gno.land/p/demo/avl"
+import "gno.land/p/nt/avl"
 
 // DefaultQueryRecords defines the default number of records returned by queries.
 const DefaultQueryRecords = 50
@@ -54,7 +54,7 @@ func ByTag(tag string) QueryOption {
 // WithFilter assigns a new filter argument to a query.
 // This option can be used multiple times if more than one
 // filter has to be given to the query.
-func WithFilter(field string, value interface{}) QueryOption {
+func WithFilter(field string, value any) QueryOption {
 	return func(q *Query) {
 		q.Filters.Set(field, value)
 	}

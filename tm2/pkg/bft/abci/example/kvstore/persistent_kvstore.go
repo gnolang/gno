@@ -12,7 +12,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db"
-	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
+	_ "github.com/gnolang/gno/tm2/pkg/db/pebbledb"
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
@@ -21,7 +21,7 @@ const (
 	ValidatorKeyPrefix    string = "/val/"
 )
 
-const dbBackend = db.GoLevelDBBackend
+const dbBackend = db.PebbleDBBackend
 
 // -----------------------------------------
 
@@ -162,7 +162,7 @@ func (app *PersistentKVStoreApplication) Validators() (validators []abci.Validat
 }
 
 func makeValidatorKey(val abci.ValidatorUpdate) []byte {
-	return []byte(fmt.Sprintf("%s%X", ValidatorKeyPrefix, val.PubKey.Address()))
+	return fmt.Appendf(nil, "%s%X", ValidatorKeyPrefix, val.PubKey.Address())
 }
 
 func isValidatorKey(tx []byte) bool {
@@ -171,7 +171,7 @@ func isValidatorKey(tx []byte) bool {
 
 func MakeValSetChangeTx(pubkey crypto.PubKey, power int64) []byte {
 	pubkeyS := base64.StdEncoding.EncodeToString(pubkey.Bytes())
-	return []byte(fmt.Sprintf("%s%s!%d", ValidatorUpdatePrefix, pubkeyS, power))
+	return fmt.Appendf(nil, "%s%s!%d", ValidatorUpdatePrefix, pubkeyS, power)
 }
 
 func isValidatorTx(tx []byte) bool {

@@ -155,7 +155,7 @@ func (bcR *BlockchainReactor) AddPeer(peer p2p.PeerConn) {
 }
 
 // RemovePeer implements Reactor by removing peer from the pool.
-func (bcR *BlockchainReactor) RemovePeer(peer p2p.PeerConn, reason interface{}) {
+func (bcR *BlockchainReactor) RemovePeer(peer p2p.PeerConn, reason any) {
 	bcR.pool.RemovePeer(peer.ID())
 }
 
