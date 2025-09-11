@@ -89,11 +89,12 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 	}
 
 	for _, targ := range targets {
-		txtars, err := txtarsFromArgs(targ)
+		// txtar file must be an explicit target and not a directory.
+		txtarFile, err := txtarFileFromArg(targ)
 		if err != nil {
-			return fmt.Errorf("unable to gather txtar files: %w", err)
+			return fmt.Errorf("unable to gather txtar file: %w", err)
 		}
-		for _, txtarFile := range txtars {
+		if txtarFile != "" {
 			if err := cmd.processFixTxtar(txtarFile); err != nil {
 				return fmt.Errorf("unable to process txtar %q: %w", txtarFile, err)
 			}
@@ -154,33 +155,17 @@ func gnoFixParseGnomod(dir string) (mod *gnomod.File, isDotMod bool) {
 	return
 }
 
-func txtarsFromArgs(target string) ([]string, error) {
-	var paths []string
-
+func txtarFileFromArg(target string) (string, error) {
 	info, err := os.Stat(target)
 	if err != nil {
-		return []string{}, fmt.Errorf("gno: invalid file %q: %w", target, err)
+		return "", fmt.Errorf("invalid file %q: %w", target, err)
 	}
 
-	if !info.IsDir() {
-		if isTxtarFile(fs.FileInfoToDirEntry(info)) {
-			paths = append(paths, cleanPath(target))
-		}
-		return paths, nil
+	if !info.IsDir() && isTxtarFile(fs.FileInfoToDirEntry(info)) {
+		return cleanPath(target), nil
 	}
 
-	files, err := os.ReadDir(target)
-	if err != nil {
-		return nil, err
-	}
-	for _, f := range files {
-		if isTxtarFile(f) {
-			path := filepath.Join(target, f.Name())
-			paths = append(paths, cleanPath(path))
-		}
-	}
-
-	return paths, nil
+	return "", nil
 }
 
 func isTxtarFile(f fs.DirEntry) bool {
@@ -199,18 +184,9 @@ func (c *fixCmd) processFixTxtar(file string) error {
 		filesByDir[dir] = append(filesByDir[dir], f)
 	}
 	for _, files := range filesByDir {
-		res, err := c.processFixTxtarDir(files)
+		err = c.processFixTxtarDir(files)
 		if err != nil {
 			return err
-		}
-		// This keep orders to limit diff noise.
-		// NOTE: this is due to processing txtars by folders breaking the order.
-		for _, mf := range res {
-			for i := range archive.Files {
-				if archive.Files[i].Name == mf.Name {
-					archive.Files[i].Data = mf.Data
-				}
-			}
 		}
 	}
 	if !c.diff {
@@ -227,89 +203,42 @@ func (c *fixCmd) processFixTxtar(file string) error {
 	return nil
 }
 
-func (c *fixCmd) processFixTxtarDir(files []txtar.File) ([]txtar.File, error) {
+func (c *fixCmd) processFixTxtarDir(files []txtar.File) error {
 	var gm *gnomod.File
-	var res []txtar.File
 	for _, f := range files {
 		if f.Name == "gnomod.toml" {
 			gm, _ = gnomod.ParseBytes("gnomod.toml", f.Data)
 			break
 		}
 	}
-	for _, f := range files {
+	for i := range files {
+		f := &files[i]
 		if !strings.HasSuffix(f.Name, ".gno") {
 			continue
 		}
-		fset := token.NewFileSet()
-		parsed, err := parser.ParseFile(
-			fset, f.Name, f.Data,
-			parser.SkipObjectResolution|parser.ParseComments,
-		)
-		if err != nil {
+		buf, fixed, err := c.applyFixesToFile(f.Name, f.Data, gm)
+		if err != nil || !fixed {
+			// NOTE: some txtar voluntarily expose invalid gno files.
 			continue
 		}
-		// set if any of the fixes changed the AST.
-		fixed := false
-		for _, fx := range fix.Fixes {
-			if fx.F == nil || !c.fixFilter(fx) {
-				continue
-			}
-			if fx.Version != "" && gm != nil {
-				cmpv, ok := gno.CompareVersions(fx.Version, gm.Gno)
-				if ok && cmpv <= 0 {
-					if c.verbose {
-						fmt.Printf(
-							"%s: %s: skipping fix (fix version %q <= gnomod version %q)\n",
-							f.Name, fx.Name, fx.Version, gm.Gno,
-						)
-					}
-					continue
+		if fixed {
+			if c.diff {
+				err := difflib.WriteUnifiedDiff(os.Stdout, difflib.UnifiedDiff{
+					FromFile: f.Name,
+					ToFile:   f.Name,
+					A:        difflib.SplitLines(string(f.Data)),
+					B:        difflib.SplitLines(string(buf)),
+					Context:  3,
+				})
+				if err != nil {
+					return err
 				}
+			} else {
+				f.Data = buf
 			}
-			// wrap in anonymous func so we can recover and wrap errors with file name.
-			func() {
-				defer func() {
-					rec := recover()
-					switch rec := rec.(type) {
-					case nil:
-					case error:
-						panic(fmt.Errorf("%s: %s: %w", f.Name, fx.Name, rec))
-					default:
-						panic(fmt.Errorf("%s: %s: %v", f.Name, fx.Name, rec))
-					}
-				}()
-				fixed = fx.F(parsed) || fixed
-			}()
-		}
-		if !fixed {
-			// onto the next file.
-			continue
-		}
-		if c.diff {
-			var buf bytes.Buffer
-			if err := format.Node(&buf, fset, parsed); err != nil {
-				return nil, fmt.Errorf("error formatting: %w", err)
-			}
-			err := difflib.WriteUnifiedDiff(os.Stdout, difflib.UnifiedDiff{
-				FromFile: f.Name,
-				ToFile:   f.Name,
-				A:        difflib.SplitLines(string(f.Data)),
-				B:        difflib.SplitLines(buf.String()),
-				Context:  3,
-			})
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			var buf bytes.Buffer
-			if err := format.Node(&buf, fset, parsed); err != nil {
-				return nil, fmt.Errorf("error formatting: %w", err)
-			}
-			f.Data = buf.Bytes()
-			res = append(res, f)
 		}
 	}
-	return res, nil
+	return nil
 }
 
 func (c *fixCmd) processFix(cio commands.IO, files []string, gm *gnomod.File) error {
@@ -318,83 +247,33 @@ func (c *fixCmd) processFix(cio commands.IO, files []string, gm *gnomod.File) er
 		if c.verbose {
 			cio.ErrPrintln(file)
 		}
-		fset := token.NewFileSet()
 		src, err := os.ReadFile(file)
 		if err != nil {
 			return fmt.Errorf("error reading file: %w", err)
 		}
-		parsed, err := parser.ParseFile(
-			fset, file, src,
-			parser.SkipObjectResolution|parser.ParseComments,
-		)
+		buf, fixed, err := c.applyFixesToFile(file, src, gm)
 		if err != nil {
 			return err
-		}
-		// set if any of the fixes changed the AST.
-		fixed := false
-		for _, fx := range fix.Fixes {
-			if fx.F == nil || !c.fixFilter(fx) {
-				continue
-			}
-			if fx.Version != "" && gm != nil {
-				cmpv, ok := gno.CompareVersions(fx.Version, gm.Gno)
-				if ok && cmpv <= 0 {
-					if c.verbose {
-						cio.ErrPrintfln(
-							"%s: %s: skipping fix (fix version %q <= gnomod version %q)",
-							file, fx.Name, fx.Version, gm.Gno,
-						)
-					}
-					continue
-				}
-				newVersion = fx.Version
-			}
-			// wrap in anonymous func so we can recover and wrap errors with file name.
-			func() {
-				defer func() {
-					rec := recover()
-					switch rec := rec.(type) {
-					case nil:
-					case error:
-						panic(fmt.Errorf("%s: %s: %w", file, fx.Name, rec))
-					default:
-						panic(fmt.Errorf("%s: %s: %v", file, fx.Name, rec))
-					}
-				}()
-				fixed = fx.F(parsed) || fixed
-			}()
 		}
 		if !fixed {
 			// onto the next file.
 			continue
 		}
 		if c.diff {
-			var buf bytes.Buffer
-			if err := format.Node(&buf, fset, parsed); err != nil {
-				return fmt.Errorf("error formatting: %w", err)
-			}
 			err := difflib.WriteUnifiedDiff(cio.Out(), difflib.UnifiedDiff{
 				FromFile: file,
 				ToFile:   file,
 				A:        difflib.SplitLines(string(src)),
-				B:        difflib.SplitLines(buf.String()),
+				B:        difflib.SplitLines(string(buf)),
 				Context:  3,
 			})
 			if err != nil {
 				return err
 			}
 		} else {
-			f, err := os.Create(file)
+			err = os.WriteFile(file, buf, 0o644)
 			if err != nil {
 				return fmt.Errorf("cannot write to dst file: %w", err)
-			}
-			err = format.Node(f, fset, parsed)
-			closeErr := f.Close()
-			if err != nil {
-				return fmt.Errorf("error formatting: %w", err)
-			}
-			if closeErr != nil {
-				return fmt.Errorf("error closing file: %w", err)
 			}
 		}
 	}
@@ -402,4 +281,60 @@ func (c *fixCmd) processFix(cio commands.IO, files []string, gm *gnomod.File) er
 		gm.Gno = newVersion
 	}
 	return nil
+}
+
+func (c *fixCmd) applyFixesToFile(
+	filename string,
+	src []byte,
+	gm *gnomod.File,
+) ([]byte, bool, error) {
+	fset := token.NewFileSet()
+	parsed, err := parser.ParseFile(
+		fset, filename, src,
+		parser.SkipObjectResolution|parser.ParseComments,
+	)
+	if err != nil {
+		return nil, false, err
+	}
+
+	fixed := false
+	for _, fx := range fix.Fixes {
+		if fx.F == nil || !c.fixFilter(fx) {
+			continue
+		}
+		if fx.Version != "" && gm != nil {
+			cmpv, ok := gno.CompareVersions(fx.Version, gm.Gno)
+			if ok && cmpv <= 0 {
+				if c.verbose {
+					fmt.Printf("%s: %s: skipping fix (fix version %q <= gnomod version %q)\n",
+						filename, fx.Name, fx.Version, gm.Gno)
+				}
+				continue
+			}
+		}
+		func() {
+			defer func() {
+				if rec := recover(); rec != nil {
+					switch rec := rec.(type) {
+					case error:
+						panic(fmt.Errorf("%s: %s: %w", filename, fx.Name, rec))
+					default:
+						panic(fmt.Errorf("%s: %s: %v", filename, fx.Name, rec))
+					}
+				}
+			}()
+			fixed = fx.F(parsed) || fixed
+		}()
+	}
+
+	if !fixed {
+		return nil, false, nil
+	}
+
+	var buf bytes.Buffer
+	if err := format.Node(&buf, fset, parsed); err != nil {
+		return nil, false, fmt.Errorf("error formatting: %w", err)
+	}
+
+	return buf.Bytes(), true, nil
 }
