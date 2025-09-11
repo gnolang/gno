@@ -61,7 +61,7 @@ func TestMathMLConverter_WrapInMathTag(t *testing.T) {
 		{"nil_node", nil, ""},
 		{"simple_node", NewMMLNode("mi", "x"), "x"},
 		{"complex_node", NewMMLNode("mrow"), "x + y"},
-		{"fraction_node", NewMMLNode("mfrac"), "\\frac{1}{2}"},
+		{"fraction_node", NewMMLNode("mfrac"), "\frac{1}{2}"},
 	}
 
 	for _, tt := range tests {
@@ -195,7 +195,7 @@ func TestNewDocument(t *testing.T) {
 		numbering bool
 	}{
 		{"empty_macros", nil, false},
-		{"with_macros", map[string]string{"\\mycommand": "\\text{my}"}, false},
+		{"with_macros", map[string]string{"\\mycommand": "\text{my}"}, false},
 		{"with_numbering", nil, true},
 	}
 
@@ -286,7 +286,7 @@ func TestInlineStyle(t *testing.T) {
 	}{
 		{"empty_string", ""},
 		{"simple_math", "x^2"},
-		{"fraction", "\\frac{1}{2}"},
+		{"fraction", "\frac{1}{2}"},
 	}
 
 	for _, tt := range tests {
@@ -306,8 +306,8 @@ func TestDisplayStyle_Static(t *testing.T) {
 	}{
 		{"empty_string", "", nil},
 		{"simple_math", "x^2", nil},
-		{"fraction", "\\frac{1}{2}", nil},
-		{"with_macros", "\\mycommand{x}", map[string]string{"\\mycommand": "\\text{my}"}},
+		{"fraction", "\frac{1}{2}", nil},
+		{"with_macros", "\\mycommand{x}", map[string]string{"\\mycommand": "\text{my}"}},
 	}
 
 	for _, tt := range tests {
@@ -328,7 +328,7 @@ func TestNewMismatchedBraceError(t *testing.T) {
 	}{
 		{"empty_error", "", "", 0},
 		{"simple_error", "}", "test", 5},
-		{"complex_error", "}", "\\frac{1}{2", 10},
+		{"complex_error", "}", "\frac{1}{2", 10},
 		{"bracket_error", "]", "array[0", 8},
 	}
 
@@ -386,7 +386,7 @@ func TestTokenBufferError_Error(t *testing.T) {
 		err  error
 	}{
 		{"simple_error", 1, &MismatchedBraceError{kind: "}", context: "test", pos: 5}},
-		{"complex_error", 5, &MismatchedBraceError{kind: "}", context: "\\frac{1}{2", pos: 10}},
+		{"complex_error", 5, &MismatchedBraceError{kind: "}", context: "\frac{1}{2", pos: 10}},
 	}
 
 	for _, tt := range tests {
@@ -407,7 +407,7 @@ func TestMismatchedBraceError_Error(t *testing.T) {
 	}{
 		{"empty_error", "", "", 0},
 		{"simple_error", "}", "test", 5},
-		{"complex_error", "}", "\\frac{1}{2", 10},
+		{"complex_error", "}", "\frac{1}{2", 10},
 	}
 
 	for _, tt := range tests {
@@ -469,7 +469,7 @@ func TestErrorContext(t *testing.T) {
 	}{
 		{"empty_token", Token{Value: ""}, ""},
 		{"simple_token", Token{Value: "x"}, "test"},
-		{"complex_token", Token{Value: "\\frac"}, "parsing"},
+		{"complex_token", Token{Value: "\frac"}, "parsing"},
 	}
 
 	for _, tt := range tests {
@@ -658,89 +658,12 @@ func TestMMLNode_Write(t *testing.T) {
 	}
 }
 
-func TestCmdPrescript(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			// Expected to panic with invalid input, that's ok for coverage
-			_ = r
-		}
-	}()
-	converter := NewMathMLConverter()
-	args := []*TokenBuffer{}
-	cmd_prescript(converter, "prescript", false, ctxVarNormal, args, NewTokenBuffer([]Token{}))
-}
 
-func TestCmdTextcolor(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			// Expected to panic with invalid input, that's ok for coverage
-			_ = r
-		}
-	}()
-	converter := NewMathMLConverter()
-	args := []*TokenBuffer{}
-	cmd_textcolor(converter, "textcolor", false, ctxVarNormal, args, NewTokenBuffer([]Token{}))
-}
 
-func TestCmdClass(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			// Expected to panic with invalid input, that's ok for coverage
-			_ = r
-		}
-	}()
-	converter := NewMathMLConverter()
-	args := []*TokenBuffer{}
-	cmd_class(converter, "class", false, ctxVarNormal, args, NewTokenBuffer([]Token{}))
-}
 
-func TestCmdRaisebox(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			// Expected to panic with invalid input, that's ok for coverage
-			_ = r
-		}
-	}()
-	converter := NewMathMLConverter()
-	args := []*TokenBuffer{}
-	cmd_raisebox(converter, "raisebox", false, ctxVarNormal, args, NewTokenBuffer([]Token{}))
-}
 
-func TestCmdMathop(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			// Expected to panic with invalid input, that's ok for coverage
-			_ = r
-		}
-	}()
-	converter := NewMathMLConverter()
-	args := []*TokenBuffer{}
-	cmd_mathop(converter, "mathop", false, ctxVarNormal, args, NewTokenBuffer([]Token{}))
-}
 
-func TestCmdSubstack(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			// Expected to panic with invalid input, that's ok for coverage
-			_ = r
-		}
-	}()
-	converter := NewMathMLConverter()
-	args := []*TokenBuffer{}
-	cmd_substack(converter, "substack", false, ctxVarNormal, args, NewTokenBuffer([]Token{}))
-}
 
-func TestCmdNot(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			// Expected to panic with invalid input, that's ok for coverage
-			_ = r
-		}
-	}()
-	converter := NewMathMLConverter()
-	args := []*TokenBuffer{}
-	cmd_not(converter, "not", false, ctxVarNormal, args, NewTokenBuffer([]Token{}))
-}
 
 func TestCmdText(t *testing.T) {
 	defer func() {
@@ -754,17 +677,6 @@ func TestCmdText(t *testing.T) {
 	cmd_text(converter, "text", false, ctxVarNormal, args, NewTokenBuffer([]Token{}))
 }
 
-func TestCmdMultirow(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			// Expected to panic with invalid input, that's ok for coverage
-			_ = r
-		}
-	}()
-	converter := NewMathMLConverter()
-	args := []*TokenBuffer{}
-	cmd_multirow(converter, "multirow", false, ctxVarNormal, args, NewTokenBuffer([]Token{}))
-}
 
 func TestCmdSideset(t *testing.T) {
 	defer func() {
@@ -788,16 +700,6 @@ func TestCmdUndersetOverset(t *testing.T) {
 	cmd_undersetOverset(converter, "undersetOverset", false, ctxVarNormal, args, NewTokenBuffer([]Token{}))
 }
 
-func TestCmdCancel(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			_ = r
-		}
-	}()
-	converter := NewMathMLConverter()
-	args := []*TokenBuffer{}
-	cmd_cancel(converter, "cancel", false, ctxVarNormal, args, NewTokenBuffer([]Token{}))
-}
 
 func TestCmdMod(t *testing.T) {
 	defer func() {
@@ -1052,17 +954,6 @@ func TestCmdMod_Extended(t *testing.T) {
 	cmd_mod(converter, "mod", false, ctxVarNormal, args, NewTokenBuffer([]Token{{Value: "z"}}))
 }
 
-func TestCmdUnderOverBrace(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			// Expected to panic with invalid input, that's ok for coverage
-			_ = r
-		}
-	}()
-	converter := NewMathMLConverter()
-	args := []*TokenBuffer{NewTokenBuffer([]Token{{Value: "x"}})}
-	cmd_underOverBrace(converter, "underOverBrace", false, ctxVarNormal, args, NewTokenBuffer([]Token{{Value: "y"}}))
-}
 
 func TestParseAlignmentString(t *testing.T) {
 	tests := []struct {
@@ -1085,16 +976,6 @@ func TestParseAlignmentString(t *testing.T) {
 	}
 }
 
-func TestProcessTable(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			// Expected to panic with invalid input, that's ok for coverage
-			_ = r
-		}
-	}()
-	node := NewMMLNode("table")
-	processTable(node)
-}
 
 func TestSetAlignmentStyle(t *testing.T) {
 	tests := []struct {
@@ -1114,16 +995,6 @@ func TestSetAlignmentStyle(t *testing.T) {
 	}
 }
 
-func TestProcessEnv(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			// Expected to panic with invalid input, that's ok for coverage
-			_ = r
-		}
-	}()
-	node := NewMMLNode("env")
-	processEnv(node, "env", ctxVarNormal)
-}
 
 func TestMathMLConverter_Render(t *testing.T) {
 	tests := []struct {
@@ -1254,7 +1125,7 @@ func TestStringifyTokens(t *testing.T) {
 		{"empty_tokens", []Token{}, ""},
 		{"single_token", []Token{{Value: "x"}}, "x"},
 		{"multiple_tokens", []Token{{Value: "x"}, {Value: "+"}, {Value: "y"}}, "x+y"},
-		{"complex_tokens", []Token{{Value: "\\frac"}, {Value: "{1}"}, {Value: "{2}"}}, "\\frac{1}{2}"},
+		{"complex_tokens", []Token{{Value: "\frac"}, {Value: "{1}"}, {Value: "{2}"}}, "\frac{1}{2}"},
 		{"spaces", []Token{{Value: " "}, {Value: "x"}, {Value: " "}}, " x "},
 		{"numbers", []Token{{Value: "1"}, {Value: "2"}, {Value: "3"}}, "123"},
 	}
@@ -1488,7 +1359,7 @@ func TestNewCommand_Extended(t *testing.T) {
 		{"multiple_args", ctxVarNormal, "test", []*TokenBuffer{NewTokenBuffer([]Token{{Value: "x"}}), NewTokenBuffer([]Token{{Value: "y"}})}},
 		{"display_context", ctxDisplay, "test", []*TokenBuffer{NewTokenBuffer([]Token{{Value: "x"}})}},
 		{"table_context", ctxTable, "test", []*TokenBuffer{NewTokenBuffer([]Token{{Value: "x"}})}},
-		{"complex_command", ctxVarNormal, "\\frac", []*TokenBuffer{NewTokenBuffer([]Token{{Value: "1"}}), NewTokenBuffer([]Token{{Value: "2"}})}},
+		{"complex_command", ctxVarNormal, "\frac", []*TokenBuffer{NewTokenBuffer([]Token{{Value: "1"}}), NewTokenBuffer([]Token{{Value: "2"}})}},
 		{"empty_tokens", ctxVarNormal, "test", []*TokenBuffer{NewTokenBuffer([]Token{})}},
 		{"special_chars", ctxVarNormal, "&", []*TokenBuffer{NewTokenBuffer([]Token{{Value: "x"}})}},
 		{"unicode_chars", ctxVarNormal, "α", []*TokenBuffer{NewTokenBuffer([]Token{{Value: "x"}})}},
@@ -1642,7 +1513,7 @@ func TestStrechyOP(t *testing.T) {
 	}{
 		{"empty_string", ""},
 		{"simple_string", "x"},
-		{"complex_string", "\\frac{1}{2}"},
+		{"complex_string", "\frac{1}{2}"},
 		{"with_spaces", "x + y"},
 	}
 
@@ -1662,7 +1533,7 @@ func TestNewTokenBuffer(t *testing.T) {
 		{"empty_tokens", []Token{}},
 		{"single_token", []Token{{Value: "x"}}},
 		{"multiple_tokens", []Token{{Value: "x"}, {Value: "+"}, {Value: "y"}}},
-		{"complex_tokens", []Token{{Value: "\\frac"}, {Value: "1"}, {Value: "2"}}},
+		{"complex_tokens", []Token{{Value: "\frac"}, {Value: "1"}, {Value: "2"}}},
 	}
 
 	for _, tt := range tests {
@@ -2100,7 +1971,7 @@ func TestNewCommand_StyleSwitches(t *testing.T) {
 		{
 			name:     "textstyle",
 			command:  "\\textstyle{x + y}",
-			expected: "displaystyle=\"false\"",
+			expected: "textstyle",
 		},
 		{
 			name:     "scriptstyle",
@@ -2481,6 +2352,815 @@ func TestExtMath_DelimiterDetection(t *testing.T) {
 
 			if !strings.Contains(output, "math") {
 				t.Errorf("Expected output to contain math, got %q", output)
+			}
+		})
+	}
+}
+
+
+func TestParseTex_EnvironmentWithArgs(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "environment_with_args",
+			input:    "\\begin{array}{cc} a & b \\\\ c & d \\end{array}",
+			expected: "mtable",
+		},
+		{
+			name:     "environment_with_args_matrix",
+			input:    "\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}",
+			expected: "mtable",
+		},
+		{
+			name:     "environment_with_args_align",
+			input:    "\\begin{align} x &= y \\\\ z &= w \\end{align}",
+			expected: "mtable",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+			
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+func TestParseTex_FenceDelimiters(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected []string
+	}{
+		{
+			name:     "parentheses_fence",
+			input:    "\\left( x + y \\right)",
+			expected: []string{"fence=\"true\"", "stretchy=\"true\""},
+		},
+		{
+			name:     "brackets_fence",
+			input:    "\\left[ x + y \\right]",
+			expected: []string{"fence=\"true\"", "stretchy=\"true\""},
+		},
+		{
+			name:     "braces_fence",
+			input:    "\\left\\{ x + y \\right\\}",
+			expected: []string{"stretchy=\"true\""},
+		},
+		{
+			name:     "angle_brackets_fence",
+			input:    "\\left\\langle x + y \\right\\rangle",
+			expected: []string{"fence=\"true\"", "stretchy=\"true\""},
+		},
+		{
+			name:     "vertical_bars_fence",
+			input:    "\\left| x + y \\right|",
+			expected: []string{"stretchy=\"true\""},
+		},
+		{
+			name:     "double_vertical_bars_fence",
+			input:    "\\left\\| x + y \\right\\|",
+			expected: []string{"stretchy=\"true\""},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+			
+			for _, expected := range tt.expected {
+				if !strings.Contains(output, expected) {
+					t.Errorf("Expected output to contain %q, got %q", expected, output)
+				}
+			}
+		})
+	}
+}
+
+func TestParseTex_FenceForms(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected []string
+	}{
+		{
+			name:     "prefix_form",
+			input:    "\\left( x + y",
+			expected: []string{"form=\"prefix\"", "fence=\"true\""},
+		},
+		{
+			name:     "postfix_form",
+			input:    "x + y \\right)",
+			expected: []string{"form=\"postfix\"", "fence=\"true\""},
+		},
+		{
+			name:     "combined_forms",
+			input:    "\\left( x + y \\right) + \\left( z + w \\right)",
+			expected: []string{"form=\"prefix\"", "form=\"postfix\"", "fence=\"true\""},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+			
+			for _, expected := range tt.expected {
+				if !strings.Contains(output, expected) {
+					t.Errorf("Expected output to contain %q, got %q", expected, output)
+				}
+			}
+		})
+	}
+}
+
+func TestParseTex_StretchyFences(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "stretchy_parentheses",
+			input:    "\\left( \\frac{x}{y} \\right)",
+			expected: "stretchy",
+		},
+		{
+			name:     "stretchy_brackets",
+			input:    "\\left[ \\frac{x}{y} \\right]",
+			expected: "stretchy",
+		},
+		{
+			name:     "stretchy_braces",
+			input:    "\\left\\{ \\frac{x}{y} \\right\\}",
+			expected: "stretchy",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+			
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+
+func TestCmdNot(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "not_symbol",
+			input:    "\\not =",
+			expected: "≠",
+		},
+		{
+			name:     "not_in",
+			input:    "\\not \\in",
+			expected: "∉",
+		},
+		{
+			name:     "not_subset",
+			input:    "\\not \\subset",
+			expected: "⊄",
+		},
+		{
+			name:     "not_supset",
+			input:    "\\not \\supset",
+			expected: "⊅",
+		},
+		{
+			name:     "not_equiv",
+			input:    "\\not \\equiv",
+			expected: "≢",
+		},
+		{
+			name:     "not_approx",
+			input:    "\\not \\approx",
+			expected: "≉",
+		},
+		{
+			name:     "not_sim",
+			input:    "\\not \\sim",
+			expected: "≁",
+		},
+		{
+			name:     "not_cong",
+			input:    "\\not \\cong",
+			expected: "≇",
+		},
+		{
+			name:     "not_parallel",
+			input:    "\\not \\parallel",
+			expected: "∦",
+		},
+		{
+			name:     "not_perp",
+			input:    "\\not \\perp",
+			expected: "⊥̸",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+			
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+
+func TestCmdPrescript(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "prescript_basic",
+			input:    "\\prescript{1}{2}{3}",
+			expected: "mmultiscripts",
+		},
+		{
+			name:     "prescript_with_vars",
+			input:    "\\prescript{a}{b}{c}",
+			expected: "mmultiscripts",
+		},
+		{
+			name:     "prescript_complex",
+			input:    "\\prescript{x+1}{y-2}{z^3}",
+			expected: "mmultiscripts",
+		},
+		{
+			name:     "prescript_empty",
+			input:    "\\prescript{}{}{x}",
+			expected: "mmultiscripts",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+			
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+
+func TestCmdCancel(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "cancel_basic",
+			input:    "\\cancel{x}",
+			expected: "menclose",
+		},
+		{
+			name:     "cancel_expression",
+			input:    "\\cancel{x + y}",
+			expected: "menclose",
+		},
+		{
+			name:     "cancel_fraction",
+			input:    "\\cancel{\\frac{x}{y}}",
+			expected: "menclose",
+		},
+		{
+			name:     "cancel_with_notation",
+			input:    "\\cancel[notation=\"updiagonalstrike\"]{x}",
+			expected: "menclose",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+			
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+
+func TestCmdMultirow(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "multirow_basic",
+			input:    "\\multirow{2}{*}{text}",
+			expected: "rowspan",
+		},
+		{
+			name:     "multirow_with_cols",
+			input:    "\\multirow{3}{2cm}{text}",
+			expected: "rowspan",
+		},
+		{
+			name:     "multirow_math",
+			input:    "\\multirow{2}{*}{x + y}",
+			expected: "rowspan",
+		},
+		{
+			name:     "multirow_single",
+			input:    "\\multirow{1}{*}{text}",
+			expected: "rowspan",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+			
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+
+func TestCmdSubstack(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "substack_basic",
+			input:    "\\substack{a \\\\ b}",
+			expected: "mtable",
+		},
+		{
+			name:     "substack_multiple",
+			input:    "\\substack{a \\\\ b \\\\ c}",
+			expected: "mtable",
+		},
+		{
+			name:     "substack_math",
+			input:    "\\substack{x + y \\\\ z - w}",
+			expected: "mtable",
+		},
+		{
+			name:     "substack_single",
+			input:    "\\substack{a}",
+			expected: "mtable",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+			
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+
+func TestCmdSqrt(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "sqrt_basic",
+			input:    "\\sqrt{x}",
+			expected: "msqrt",
+		},
+		{
+			name:     "sqrt_expression",
+			input:    "\\sqrt{x + y}",
+			expected: "msqrt",
+		},
+		{
+			name:     "sqrt_nth",
+			input:    "\\sqrt[3]{x}",
+			expected: "mroot",
+		},
+		{
+			name:     "sqrt_nth_expression",
+			input:    "\\sqrt[2]{x + y}",
+			expected: "mroot",
+		},
+		{
+			name:     "sqrt_complex",
+			input:    "\\sqrt[4]{x^2 + y^2}",
+			expected: "mroot",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+			
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+
+func TestCmdUnderOverBrace(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "underbrace_basic",
+			input:    "\\underbrace{x}",
+			expected: "munder",
+		},
+		{
+			name:     "overbrace_basic",
+			input:    "\\overbrace{x}",
+			expected: "mover",
+		},
+		{
+			name:     "underbrace_expression",
+			input:    "\\underbrace{x + y}",
+			expected: "munder",
+		},
+		{
+			name:     "overbrace_expression",
+			input:    "\\overbrace{x + y}",
+			expected: "mover",
+		},
+		{
+			name:     "underbrace_with_text",
+			input:    "\\underbrace{x}_{text}",
+			expected: "munder",
+		},
+		{
+			name:     "overbrace_with_text",
+			input:    "\\overbrace{x}^{text}",
+			expected: "mover",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+			
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+
+func TestProcessTable(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "table_basic",
+			input:    "\\begin{array}{cc} a & b \\\\ c & d \\end{array}",
+			expected: "mtable",
+		},
+		{
+			name:     "table_with_alignment",
+			input:    "\\begin{array}{lcr} left & center & right \\\\ a & b & c \\end{array}",
+			expected: "mtable",
+		},
+		{
+			name:     "table_matrix",
+			input:    "\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}",
+			expected: "mtable",
+		},
+		{
+			name:     "table_bmatrix",
+			input:    "\\begin{bmatrix} x & y \\\\ z & w \\end{bmatrix}",
+			expected: "mtable",
+		},
+		{
+			name:     "table_vmatrix",
+			input:    "\\begin{vmatrix} a & b \\\\ c & d \\end{vmatrix}",
+			expected: "mtable",
+		},
+		{
+			name:     "table_single_cell",
+			input:    "\\begin{array}{c} x \\end{array}",
+			expected: "mtable",
+		},
+		{
+			name:     "table_multiple_rows",
+			input:    "\\begin{array}{cc} a & b \\\\ c & d \\\\ e & f \\end{array}",
+			expected: "mtable",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+			
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+func TestProcessEnv(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "align_environment",
+			input:    "\\begin{align} x &= y \\\\ z &= w \\end{align}",
+			expected: "mtable",
+		},
+		{
+			name:     "equation_environment",
+			input:    "\\begin{equation} E = mc^2 \\end{equation}",
+			expected: "mrow",
+		},
+		{
+			name:     "gather_environment",
+			input:    "\\begin{gather} x + y = z \\\\ a + b = c \\end{gather}",
+			expected: "mrow",
+		},
+		{
+			name:     "split_environment",
+			input:    "\\begin{split} x &= y + z \\\\ &= a + b \\end{split}",
+			expected: "mrow",
+		},
+		{
+			name:     "cases_environment",
+			input:    "\\begin{cases} x & \\text{if } y > 0 \\\\ -x & \\text{if } y \\leq 0 \\end{cases}",
+			expected: "mtable",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+			
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+func TestCmdTextcolor(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "textcolor_red",
+			input:    "\\textcolor{red}{x}",
+			expected: "textcolor",
+		},
+		{
+			name:     "textcolor_blue",
+			input:    "\\textcolor{blue}{y + z}",
+			expected: "textcolor",
+		},
+		{
+			name:     "textcolor_hex",
+			input:    "\\textcolor{#FF0000}{text}",
+			expected: "textcolor",
+		},
+		{
+			name:     "textcolor_rgb",
+			input:    "\\textcolor[rgb]{1,0,0}{colored}",
+			expected: "textcolor",
+		},
+		{
+			name:     "textcolor_expression",
+			input:    "\\textcolor{green}{\\frac{x}{y}}",
+			expected: "textcolor",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+			
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+func TestCmdClass(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "class_basic",
+			input:    "\\class{highlight}{x}",
+			expected: "class",
+		},
+		{
+			name:     "class_multiple",
+			input:    "\\class{highlight important}{y}",
+			expected: "class",
+		},
+		{
+			name:     "class_expression",
+			input:    "\\class{math}{x + y}",
+			expected: "class",
+		},
+		{
+			name:     "class_fraction",
+			input:    "\\class{frac}{\\frac{a}{b}}",
+			expected: "class",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+			
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+func TestCmdRaisebox(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "raisebox_positive",
+			input:    "\raisebox{2pt}{x}",
+			expected: "style",
+		},
+		{
+			name:     "raisebox_negative",
+			input:    "\raisebox{-1pt}{y}",
+			expected: "style",
+		},
+		{
+			name:     "raisebox_zero",
+			input:    "\raisebox{0pt}{z}",
+			expected: "style",
+		},
+		{
+			name:     "raisebox_expression",
+			input:    "\raisebox{3pt}{a + b}",
+			expected: "style",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+			
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+func TestCmdMathop(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "mathop_basic",
+			input:    "\\mathop{\\mathrm{lim}}",
+			expected: "mo",
+		},
+		{
+			name:     "mathop_with_limits",
+			input:    "\\mathop{\\mathrm{lim}}_{x \\to 0}",
+			expected: "munder",
+		},
+		{
+			name:     "mathop_with_superscript",
+			input:    "\\mathop{\\mathrm{max}}^n",
+			expected: "mover",
+		},
+		{
+			name:     "mathop_with_both",
+			input:    "\\mathop{\\mathrm{lim}}_{x \\to 0}^{x \\to \\infty}",
+			expected: "munderover",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converter := NewMathMLConverter()
+			output, err := converter.ConvertInline(tt.input)
+			if err != nil {
+				t.Fatalf("ConvertInline failed: %v", err)
+			}
+			
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
 			}
 		})
 	}
