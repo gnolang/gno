@@ -37,7 +37,7 @@ func TestTreeGetWithProof(t *testing.T) {
 	err = proof.VerifyItem(key, val)
 	require.NoError(err, "%+v", err)
 
-	key = []byte{0x1}
+	key = []byte{0x11, 0}
 	val, proof, err = tree.GetWithProof(key)
 	require.NoError(err)
 	require.Empty(val)
