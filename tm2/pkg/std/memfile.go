@@ -35,7 +35,7 @@ var (
 //
 // File Name must contain a single dot and extension.
 // File Name may be ALLCAPS.xxx or lowercase.xxx; extensions lowercase.
-// e.g. OK:     README.md, readme.md, readme.txt, READ.me
+// e.g. OK:     README.md, README.md, readme.txt, READ.me
 // e.g. NOT OK: Readme.md, readme.MD, README, .readme
 // File Body can be any string.
 //
