@@ -50,7 +50,7 @@ jobs:
     name: Run gno fmt on examples
     uses: ./.github/workflows/template_gnofmt.yml
     with:
-      path: "examples/..."
+      path: "examples"
 
   generate:
     name: Check generated files are up to date

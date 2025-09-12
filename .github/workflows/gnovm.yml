@@ -27,9 +27,9 @@ jobs:
     name: Run gno fmt on stdlibs
     uses: ./.github/workflows/template_gnofmt.yml
     with:
-      path: "gnovm/stdlibs/..."
+      path: "gnovm/stdlibs"
   stdlibs-test:
     name: Run gno test on stdlibs
     uses: ./.github/workflows/template_gnofmt.yml
     with:
-      path: "gnovm/stdlibs/..."
+      path: "gnovm/stdlibs"
