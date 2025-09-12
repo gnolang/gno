@@ -31,4 +31,4 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: Run gno lint
-        run: go run ./gnovm/cmd/gno lint -C ${{ inputs.path }} -v .
+        run: go run ./gnovm/cmd/gno lint -C ${{ inputs.path }} -v ./...
