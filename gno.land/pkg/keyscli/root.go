@@ -4,7 +4,7 @@ package keyscli
 import (
 	"encoding/base64"
 
-	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
+	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -91,9 +91,9 @@ func PrintTxInfo(tx std.Tx, res *ctypes.ResultBroadcastTxCommit, io commands.IO)
 func GetStorageInfo(events []abci.Event) (int64, std.Coin, bool) {
 	for _, event := range events {
 		switch storageEvent := event.(type) {
-		case gnostd.StorageDepositEvent:
+		case chain.StorageDepositEvent:
 			return storageEvent.BytesDelta, storageEvent.FeeDelta, true
-		case gnostd.StorageUnlockEvent:
+		case chain.StorageUnlockEvent:
 			fee := storageEvent.FeeRefund
 			fee.Amount *= -1
 			// For unlock, BytesDelta is negative

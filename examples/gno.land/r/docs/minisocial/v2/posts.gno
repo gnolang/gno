@@ -1,8 +1,8 @@
 package minisocial
 
 import (
+	"chain/runtime"
 	"errors"
-	"std"
 	"strconv"
 	"time"
 
@@ -42,10 +42,10 @@ func CreatePost(_ realm, text string) error {
 	// avl.Tree.Set takes a string for a key, and anything as a value.
 	// Stringify the key, and set the pointer to a new Post struct
 	posts.Set(id.String(), &Post{
-		id:        id,                            // Set the ID, used later for editing or deletion
-		text:      text,                          // Set the input text
-		author:    std.PreviousRealm().Address(), // The author of the address is the previous realm, the realm that called this one
-		createdAt: time.Now(),                    // Capture the time of the transaction, in this case the block timestamp
+		id:        id,                                // Set the ID, used later for editing or deletion
+		text:      text,                              // Set the input text
+		author:    runtime.PreviousRealm().Address(), // The author of the address is the previous realm, the realm that called this one
+		createdAt: time.Now(),                        // Capture the time of the transaction, in this case the block timestamp
 		updatedAt: time.Now(),
 	})
 
@@ -63,7 +63,7 @@ func UpdatePost(_ realm, id string, text string) error {
 
 	// Cast post from AVL tree
 	post := raw.(*Post)
-	if std.PreviousRealm().Address() != post.author {
+	if runtime.PreviousRealm().Address() != post.author {
 		return ErrUnauthorized
 	}
 
@@ -89,7 +89,7 @@ func DeletePost(_ realm, id string) error {
 
 	// Cast post from AVL tree
 	post := raw.(*Post)
-	if std.PreviousRealm().Address() != post.author {
+	if runtime.PreviousRealm().Address() != post.author {
 		return ErrUnauthorized
 	}
 

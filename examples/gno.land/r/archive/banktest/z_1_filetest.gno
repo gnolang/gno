@@ -3,20 +3,22 @@
 package bank1
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/r/archive/banktest"
 )
 
 func main() {
-	banktestAddr := std.DerivePkgAddr("gno.land/r/archive/banktest")
-	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
+	banktestAddr := chain.DerivePkgAddress("gno.land/r/archive/banktest")
+	mainaddr := chain.DerivePkgAddress("gno.land/r/demo/bank1")
 
 	// simulate a Deposit call.
-	testing.IssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
-	testing.SetOriginSend(std.Coins{{"ugnot", 100000000}})
-	testing.SetRealm(std.NewUserRealm(mainaddr))
+	testing.IssueCoins(banktestAddr, banker.Coins{{"ugnot", 100000000}})
+	testing.SetOriginSend(banker.Coins{{"ugnot", 100000000}})
+	testing.SetRealm(runtime.NewUserRealm(mainaddr))
 
 	res := banktest.Deposit(cross, "ugnot", 101000000)
 	println(res)

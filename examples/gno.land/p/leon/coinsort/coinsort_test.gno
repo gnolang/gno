@@ -1,21 +1,21 @@
 package coinsort
 
 import (
-	"std"
+	"chain/banker"
 	"testing"
 )
 
 func TestSortByBalance(t *testing.T) {
-	coins := std.Coins{
-		std.Coin{Denom: "b", Amount: 50},
-		std.Coin{Denom: "c", Amount: 10},
-		std.Coin{Denom: "a", Amount: 100},
+	coins := banker.Coins{
+		banker.Coin{Denom: "b", Amount: 50},
+		banker.Coin{Denom: "c", Amount: 10},
+		banker.Coin{Denom: "a", Amount: 100},
 	}
 
-	expected := std.Coins{
-		std.Coin{Denom: "c", Amount: 10},
-		std.Coin{Denom: "b", Amount: 50},
-		std.Coin{Denom: "a", Amount: 100},
+	expected := banker.Coins{
+		banker.Coin{Denom: "c", Amount: 10},
+		banker.Coin{Denom: "b", Amount: 50},
+		banker.Coin{Denom: "a", Amount: 100},
 	}
 
 	SortByBalance(coins)
@@ -28,19 +28,19 @@ func TestSortByBalance(t *testing.T) {
 }
 
 func TestSortByCustomDescendingAmount(t *testing.T) {
-	coins := std.Coins{
-		std.Coin{Denom: "a", Amount: 2},
-		std.Coin{Denom: "b", Amount: 3},
-		std.Coin{Denom: "c", Amount: 1},
+	coins := banker.Coins{
+		banker.Coin{Denom: "a", Amount: 2},
+		banker.Coin{Denom: "b", Amount: 3},
+		banker.Coin{Denom: "c", Amount: 1},
 	}
 
-	expected := std.Coins{
-		std.Coin{Denom: "b", Amount: 3},
-		std.Coin{Denom: "a", Amount: 2},
-		std.Coin{Denom: "c", Amount: 1},
+	expected := banker.Coins{
+		banker.Coin{Denom: "b", Amount: 3},
+		banker.Coin{Denom: "a", Amount: 2},
+		banker.Coin{Denom: "c", Amount: 1},
 	}
 
-	SortBy(coins, func(a, b std.Coin) bool {
+	SortBy(coins, func(a, b banker.Coin) bool {
 		return a.Amount > b.Amount // descending
 	})
 
@@ -52,16 +52,16 @@ func TestSortByCustomDescendingAmount(t *testing.T) {
 }
 
 func TestSortByNilFunc(t *testing.T) {
-	coins := std.Coins{
-		std.Coin{Denom: "x", Amount: 5},
-		std.Coin{Denom: "z", Amount: 20},
-		std.Coin{Denom: "y", Amount: 10},
+	coins := banker.Coins{
+		banker.Coin{Denom: "x", Amount: 5},
+		banker.Coin{Denom: "z", Amount: 20},
+		banker.Coin{Denom: "y", Amount: 10},
 	}
 
-	expected := std.Coins{
-		std.Coin{Denom: "x", Amount: 5},
-		std.Coin{Denom: "z", Amount: 20},
-		std.Coin{Denom: "y", Amount: 10},
+	expected := banker.Coins{
+		banker.Coin{Denom: "x", Amount: 5},
+		banker.Coin{Denom: "z", Amount: 20},
+		banker.Coin{Denom: "y", Amount: 10},
 	}
 
 	SortBy(coins, nil)

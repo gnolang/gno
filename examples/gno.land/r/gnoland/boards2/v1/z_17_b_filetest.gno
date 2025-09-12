@@ -1,24 +1,24 @@
 package main
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+const owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
 var bid boards2.BoardID
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(runtime.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test123", false)
 	boards2.FreezeBoard(cross, bid)
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(runtime.NewUserRealm(owner))
 
 	boards2.FreezeBoard(cross, bid)
 }

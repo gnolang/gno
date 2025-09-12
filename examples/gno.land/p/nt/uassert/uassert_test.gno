@@ -3,7 +3,6 @@ package uassert_test
 import (
 	"errors"
 	"fmt"
-	"std"
 	"testing"
 
 	"gno.land/p/nt/uassert"
@@ -263,7 +262,7 @@ func TestEqual(t *testing.T) {
 		{nil, nil, true, ""},
 		{int32(123), int32(123), true, ""},
 		{uint64(123), uint64(123), true, ""},
-		{std.Address("g12345"), std.Address("g12345"), true, ""},
+		{address("g12345"), address("g12345"), true, ""},
 		// XXX: continue
 
 		// not expected to be equal
@@ -304,7 +303,7 @@ func TestNotEqual(t *testing.T) {
 		{nil, 123, true, ""},
 		{int32(123), int32(124), true, ""},
 		{uint64(123), uint64(124), true, ""},
-		{std.Address("g12345"), std.Address("g67890"), true, ""},
+		{address("g12345"), address("g67890"), true, ""},
 		// XXX: continue
 
 		// not expected to be not equal
@@ -314,7 +313,7 @@ func TestNotEqual(t *testing.T) {
 		{nil, nil, false, ""},
 		{int32(123), int32(123), false, ""},
 		{uint64(123), uint64(123), false, ""},
-		{std.Address("g12345"), std.Address("g12345"), false, ""},
+		{address("g12345"), address("g12345"), false, ""},
 		// XXX: continue
 
 		// expected to raise errors
@@ -359,7 +358,7 @@ func TestEmpty(t *testing.T) {
 		{1, false},
 		{int32(1), false},
 		{uint64(1), false},
-		{std.Address("g12345"), false},
+		{address("g12345"), false},
 
 		// unsupported
 		{nil, false},
@@ -470,14 +469,14 @@ func TestNotEmpty(t *testing.T) {
 		{int32(0), false},
 		{int64(0), false},
 		{uint(0), false},
-		{std.Address(""), false},
+		{address(""), false},
 
 		// not expected to be empty
 		{"Hello World", true},
 		{1, true},
 		{int32(1), true},
 		{uint64(1), true},
-		{std.Address("g12345"), true},
+		{address("g12345"), true},
 
 		// unsupported
 		{nil, false},

@@ -1,7 +1,7 @@
 package groups
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/r/sys/users"
 )
@@ -18,8 +18,8 @@ func GetGroupIDFromName(name string) (GroupID, bool) {
 }
 
 func CreateGroup(cur realm, name string) GroupID {
-	std.AssertOriginCall()
-	caller := std.OriginCaller()
+	runtime.AssertOriginCall()
+	caller := runtime.OriginCaller()
 	usernameOf(caller)
 	url := "/r/demo/groups:" + name
 	group := newGroup(url, name, caller)
@@ -30,19 +30,19 @@ func CreateGroup(cur realm, name string) GroupID {
 }
 
 func AddMember(cur realm, gid GroupID, address_XXX string, weight int, metadata string) MemberID {
-	std.AssertOriginCall()
-	caller := std.OriginCaller()
+	runtime.AssertOriginCall()
+	caller := runtime.OriginCaller()
 	usernameOf(caller)
 	group := getGroup(gid)
 	if !group.HasPermission(caller, EditPermission) {
 		panic("unauthorized to edit group")
 	}
-	user := users.ResolveAddress(std.Address(address_XXX))
+	user := users.ResolveAddress(address(address_XXX))
 	if user == nil {
 		panic("unknown address " + address_XXX)
 	}
 	mid := group.lastMemberID
-	member := group.newMember(mid, std.Address(address_XXX), weight, metadata)
+	member := group.newMember(mid, address(address_XXX), weight, metadata)
 	midkey := memberIDKey(mid)
 	group.members.Set(midkey, member)
 	mid++
@@ -51,8 +51,8 @@ func AddMember(cur realm, gid GroupID, address_XXX string, weight int, metadata 
 }
 
 func DeleteGroup(cur realm, gid GroupID) {
-	std.AssertOriginCall()
-	caller := std.OriginCaller()
+	runtime.AssertOriginCall()
+	caller := runtime.OriginCaller()
 	group := getGroup(gid)
 	if !group.HasPermission(caller, DeletePermission) {
 		panic("unauthorized to delete group")
@@ -61,8 +61,8 @@ func DeleteGroup(cur realm, gid GroupID) {
 }
 
 func DeleteMember(cur realm, gid GroupID, mid MemberID) {
-	std.AssertOriginCall()
-	caller := std.OriginCaller()
+	runtime.AssertOriginCall()
+	caller := runtime.OriginCaller()
 	group := getGroup(gid)
 	if !group.HasPermission(caller, DeletePermission) {
 		panic("unauthorized to delete member")

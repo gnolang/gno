@@ -1,7 +1,7 @@
 package main
 
 import (
-	"std"
+	"chain/runtime"
 	"strings"
 	"testing"
 
@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 	name  = "foo123"
 )
 
@@ -18,12 +18,12 @@ var newName string
 func init() {
 	newName = strings.Repeat("A", boards2.MaxBoardNameLength+1)
 
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(runtime.NewUserRealm(owner))
 	boards2.CreateBoard(cross, name, false)
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(runtime.NewUserRealm(owner))
 
 	boards2.RenameBoard(cross, name, newName)
 }

@@ -1,8 +1,8 @@
 package pkgerr
 
 import (
+	"chain/runtime"
 	"errors"
-	"std"
 	"strings"
 	"testing"
 )
@@ -17,7 +17,7 @@ func TestNew(t *testing.T) {
 		t.Fatal("Expected an error, got nil")
 	}
 
-	testing.SetRealm(std.NewCodeRealm(pkgPath))
+	testing.SetRealm(runtime.NewCodeRealm(pkgPath))
 
 	expected := prefix + ": my error message"
 
@@ -27,7 +27,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestWrap(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm(pkgPath))
+	testing.SetRealm(runtime.NewCodeRealm(pkgPath))
 
 	originalErr := errors.New("original error")
 	wrappedErr := Wrap(originalErr)
@@ -42,7 +42,7 @@ func TestWrap(t *testing.T) {
 }
 
 func TestUnwrap(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm(pkgPath))
+	testing.SetRealm(runtime.NewCodeRealm(pkgPath))
 	originalErr := errors.New("original error")
 	wrappedErr := Wrap(originalErr)
 
@@ -53,7 +53,7 @@ func TestUnwrap(t *testing.T) {
 }
 
 func TestErrorMethod(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm(pkgPath))
+	testing.SetRealm(runtime.NewCodeRealm(pkgPath))
 	originalErr := errors.New("original error")
 	pkgErr := &pkgErr{originalErr: originalErr}
 
@@ -71,7 +71,7 @@ func TestWrapNilError(t *testing.T) {
 }
 
 func TestNewWithEmptyMessage(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm(pkgPath))
+	testing.SetRealm(runtime.NewCodeRealm(pkgPath))
 	err := New("")
 	if err == nil {
 		t.Fatal("Expected an error, got nil")
