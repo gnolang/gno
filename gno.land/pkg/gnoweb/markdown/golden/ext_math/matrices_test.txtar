@@ -48,7 +48,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
 <math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
-      <mo fence="true" strechy="true">(</mo>
+      <mo fence="true" stretchy="true">(</mo>
       <mtable columnalign="center" rowalign="center">
         <mtr>
           <mtd style="text-align:center;">
@@ -67,7 +67,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
           </mtd>
         </mtr>
       </mtable>
-      <mo fence="true" strechy="true">)</mo>
+      <mo fence="true" stretchy="true">)</mo>
     </mrow>
     <annotation encoding="application/x-tex">\begin{pmatrix} a & b \\ c & d \end{pmatrix}</annotation>
   </semantics>
@@ -77,7 +77,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
 <math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
-      <mo fence="true" strechy="true">[</mo>
+      <mo fence="true" stretchy="true">[</mo>
       <mtable columnalign="center" rowalign="center">
         <mtr>
           <mtd style="text-align:center;">
@@ -96,7 +96,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
           </mtd>
         </mtr>
       </mtable>
-      <mo fence="true" strechy="true">]</mo>
+      <mo fence="true" stretchy="true">]</mo>
     </mrow>
     <annotation encoding="application/x-tex">\begin{bmatrix} a & b \\ c & d \end{bmatrix}</annotation>
   </semantics>
@@ -106,7 +106,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
 <math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
-      <mo fence="true" strechy="true">{</mo>
+      <mo fence="true" stretchy="true">{</mo>
       <mtable columnalign="center" rowalign="center">
         <mtr>
           <mtd style="text-align:center;">
@@ -125,7 +125,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
           </mtd>
         </mtr>
       </mtable>
-      <mo fence="true" strechy="true">}</mo>
+      <mo fence="true" stretchy="true">}</mo>
     </mrow>
     <annotation encoding="application/x-tex">\begin{Bmatrix} a & b \\ c & d \end{Bmatrix}</annotation>
   </semantics>
@@ -135,7 +135,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
 <math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
-      <mo fence="true" strechy="true">|</mo>
+      <mo fence="true" stretchy="true">|</mo>
       <mtable columnalign="center" rowalign="center">
         <mtr>
           <mtd style="text-align:center;">
@@ -154,7 +154,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
           </mtd>
         </mtr>
       </mtable>
-      <mo fence="true" strechy="true">|</mo>
+      <mo fence="true" stretchy="true">|</mo>
     </mrow>
     <annotation encoding="application/x-tex">\begin{vmatrix} a & b \\ c & d \end{vmatrix}</annotation>
   </semantics>
@@ -164,7 +164,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
 <math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
-      <mo fence="true" strechy="true">‖</mo>
+      <mo fence="true" stretchy="true">‖</mo>
       <mtable columnalign="center" rowalign="center">
         <mtr>
           <mtd style="text-align:center;">
@@ -183,7 +183,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
           </mtd>
         </mtr>
       </mtable>
-      <mo fence="true" strechy="true">‖</mo>
+      <mo fence="true" stretchy="true">‖</mo>
     </mrow>
     <annotation encoding="application/x-tex">\begin{Vmatrix} a & b \\ c & d \end{Vmatrix}</annotation>
   </semantics>
@@ -193,7 +193,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
 <math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
-      <mo fence="true" strechy="true">(</mo>
+      <mo fence="true" stretchy="true">(</mo>
       <mtable columnalign="center" rowalign="center">
         <mtr>
           <mtd style="text-align:center;">
@@ -229,7 +229,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
           </mtd>
         </mtr>
       </mtable>
-      <mo fence="true" strechy="true">)</mo>
+      <mo fence="true" stretchy="true">)</mo>
     </mrow>
     <annotation encoding="application/x-tex">\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}</annotation>
   </semantics>

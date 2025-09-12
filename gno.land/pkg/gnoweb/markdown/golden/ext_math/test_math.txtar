@@ -138,7 +138,7 @@ E = mc^2
 <math class="math-displaystyle" display="block" displaystyle="true" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
-      <mo fence="true" strechy="true">(</mo>
+      <mo fence="true" stretchy="true">(</mo>
       <mtable columnalign="center" rowalign="center">
         <mtr>
           <mtd style="text-align:center;">
@@ -157,7 +157,7 @@ E = mc^2
           </mtd>
         </mtr>
       </mtable>
-      <mo fence="true" strechy="true">)</mo>
+      <mo fence="true" stretchy="true">)</mo>
     </mrow>
     <annotation encoding="application/x-tex">
 \begin{pmatrix}

@@ -227,12 +227,12 @@ Taylor series: $f(x) = \sum_{n=0}^{\infty} \frac{f^{(n)}(a)}{n!} (x-a)^n$
         </munderover>
       </mrow>
       <mrow>
-        <mo fence="true" strechy="true">(</mo>
+        <mo fence="true" stretchy="true">(</mo>
         <mfrac linethickness="0">
           <mi>n</mi>
           <mi>k</mi>
         </mfrac>
-        <mo fence="true" strechy="true">)</mo>
+        <mo fence="true" stretchy="true">)</mo>
       </mrow>
       <msup>
         <mi>a</mi>

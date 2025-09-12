@@ -221,7 +221,11 @@
 	}
 
 	.realm-view math {
-		@apply font-mono text-300;
+		@apply text-200;
+	}
+
+	.realm-view math[display="block"] {
+		@apply my-4;
 	}
 
 	.realm-view small {

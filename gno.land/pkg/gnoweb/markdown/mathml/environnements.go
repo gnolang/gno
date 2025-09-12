@@ -209,7 +209,7 @@ func processTable(table *MMLNode) {
 // Create a strechy opening or closing parenthesis
 func strechyOP(c string) *MMLNode {
 	n := NewMMLNode("mo", c)
-	n.Attrib["strechy"] = "true"
+	n.Attrib["stretchy"] = "true"
 	n.Attrib["fence"] = "true"
 	return n
 }
@@ -281,6 +281,7 @@ func processEnv(node *MMLNode, env string, ctx parseContext) *MMLNode {
 		right = strechyOP("‖")
 	case "cases":
 		left = strechyOP("{")
+		right = NewMMLNode("mo") // Empty mo for proper fence pairing
 		attrib["columnalign"] = "left"
 	case "align", "align*", "aligned":
 		attrib["displaystyle"] = "true"

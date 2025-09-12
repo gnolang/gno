@@ -1,0 +1,833 @@
+-- input.md --
+Advanced matrices and linear algebra test:
+
+## Basic Matrices
+
+Simple 2x2 matrix: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}$
+
+3x3 matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}$
+
+## Determinants
+
+2x2 determinant: $\det\begin{pmatrix} a & b \\ c & d \end{pmatrix} = ad - bc$
+
+3x3 determinant: $\det\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix} = a(ei - fh) - b(di - fg) + c(dh - eg)$
+
+## Matrix Operations
+
+Matrix multiplication: $\begin{pmatrix} a & b \\ c & d \end{pmatrix} \begin{pmatrix} e & f \\ g & h \end{pmatrix} = \begin{pmatrix} ae + bg & af + bh \\ ce + dg & cf + dh \end{pmatrix}$
+
+Matrix transpose: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^T = \begin{pmatrix} a & c \\ b & d \end{pmatrix}$
+
+## Advanced Matrix Structures
+
+Block matrix: $\begin{pmatrix} A & B \\ C & D \end{pmatrix}$ where $A$, $B$, $C$, $D$ are submatrices
+
+Vandermonde matrix: $\begin{pmatrix} 1 & x_1 & x_1^2 & \cdots & x_1^{n-1} \\ 1 & x_2 & x_2^2 & \cdots & x_2^{n-1} \\ \vdots & \vdots & \vdots & \ddots & \vdots \\ 1 & x_n & x_n^2 & \cdots & x_n^{n-1} \end{pmatrix}$
+
+## Eigenvalues and Eigenvectors
+
+Characteristic polynomial: $\det(A - \lambda I) = 0$
+
+Eigenvalue equation: $A\mathbf{v} = \lambda\mathbf{v}$
+
+## Matrix Decompositions
+
+LU decomposition: $A = LU$ where $L$ is lower triangular and $U$ is upper triangular
+
+QR decomposition: $A = QR$ where $Q$ is orthogonal and $R$ is upper triangular
+
+SVD decomposition: $A = U\Sigma V^T$ where $U$ and $V$ are orthogonal and $\Sigma$ is diagonal
+
+## Complex Matrices
+
+Complex matrix: $\begin{pmatrix} a + bi & c + di \\ e + fi & g + hi \end{pmatrix}$
+
+Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \begin{pmatrix} \bar{a} & \bar{c} \\ \bar{b} & \bar{d} \end{pmatrix}$
+
+-- output.html --
+<p>Advanced matrices and linear algebra test:</p>
+<h2>Basic Matrices</h2>
+<p>Simple 2x2 matrix: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo fence="true" stretchy="true">(</mo>
+      <mtable columnalign="center" rowalign="center">
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>a</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>b</mi>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>c</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>d</mi>
+          </mtd>
+        </mtr>
+      </mtable>
+      <mo fence="true" stretchy="true">)</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">\begin{pmatrix} a & b \\ c & d \end{pmatrix}</annotation>
+  </semantics>
+</math>
+</p>
+<p>3x3 matrix: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo fence="true" stretchy="true">(</mo>
+      <mtable columnalign="center" rowalign="center">
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>a</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>b</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>c</mi>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>d</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>e</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>f</mi>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>g</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>h</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>i</mi>
+          </mtd>
+        </mtr>
+      </mtable>
+      <mo fence="true" stretchy="true">)</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}</annotation>
+  </semantics>
+</math>
+</p>
+<h2>Determinants</h2>
+<p>2x2 determinant: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi lspace="0.11111em" movablelimits="true">det</mi>
+      <mrow>
+        <mo fence="true" stretchy="true">(</mo>
+        <mtable columnalign="center" rowalign="center">
+          <mtr>
+            <mtd style="text-align:center;">
+              <mi>a</mi>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mi>b</mi>
+            </mtd>
+          </mtr>
+          <mtr>
+            <mtd style="text-align:center;">
+              <mi>c</mi>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mi>d</mi>
+            </mtd>
+          </mtr>
+        </mtable>
+        <mo fence="true" stretchy="true">)</mo>
+      </mrow>
+      <mo>=</mo>
+      <mi>a</mi>
+      <mi>d</mi>
+      <mo>−</mo>
+      <mi>b</mi>
+      <mi>c</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">\det\begin{pmatrix} a & b \\ c & d \end{pmatrix} = ad - bc</annotation>
+  </semantics>
+</math>
+</p>
+<p>3x3 determinant: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi lspace="0.11111em" movablelimits="true">det</mi>
+      <mrow>
+        <mo fence="true" stretchy="true">(</mo>
+        <mtable columnalign="center" rowalign="center">
+          <mtr>
+            <mtd style="text-align:center;">
+              <mi>a</mi>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mi>b</mi>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mi>c</mi>
+            </mtd>
+          </mtr>
+          <mtr>
+            <mtd style="text-align:center;">
+              <mi>d</mi>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mi>e</mi>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mi>f</mi>
+            </mtd>
+          </mtr>
+          <mtr>
+            <mtd style="text-align:center;">
+              <mi>g</mi>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mi>h</mi>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mi>i</mi>
+            </mtd>
+          </mtr>
+        </mtable>
+        <mo fence="true" stretchy="true">)</mo>
+      </mrow>
+      <mo>=</mo>
+      <mi>a</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>e</mi>
+      <mi>i</mi>
+      <mo>−</mo>
+      <mi>f</mi>
+      <mi>h</mi>
+      <mo form="postfix" stretchy="false">)</mo>
+      <mo>−</mo>
+      <mi>b</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>d</mi>
+      <mi>i</mi>
+      <mo>−</mo>
+      <mi>f</mi>
+      <mi>g</mi>
+      <mo form="postfix" stretchy="false">)</mo>
+      <mo>+</mo>
+      <mi>c</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>d</mi>
+      <mi>h</mi>
+      <mo>−</mo>
+      <mi>e</mi>
+      <mi>g</mi>
+      <mo form="postfix" stretchy="false">)</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">\det\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix} = a(ei - fh) - b(di - fg) + c(dh - eg)</annotation>
+  </semantics>
+</math>
+</p>
+<h2>Matrix Operations</h2>
+<p>Matrix multiplication: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mrow>
+        <mo fence="true" stretchy="true">(</mo>
+        <mtable columnalign="center" rowalign="center">
+          <mtr>
+            <mtd style="text-align:center;">
+              <mi>a</mi>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mi>b</mi>
+            </mtd>
+          </mtr>
+          <mtr>
+            <mtd style="text-align:center;">
+              <mi>c</mi>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mi>d</mi>
+            </mtd>
+          </mtr>
+        </mtable>
+        <mo fence="true" stretchy="true">)</mo>
+      </mrow>
+      <mrow>
+        <mo fence="true" stretchy="true">(</mo>
+        <mtable columnalign="center" rowalign="center">
+          <mtr>
+            <mtd style="text-align:center;">
+              <mi>e</mi>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mi>f</mi>
+            </mtd>
+          </mtr>
+          <mtr>
+            <mtd style="text-align:center;">
+              <mi>g</mi>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mi>h</mi>
+            </mtd>
+          </mtr>
+        </mtable>
+        <mo fence="true" stretchy="true">)</mo>
+      </mrow>
+      <mo>=</mo>
+      <mrow>
+        <mo fence="true" stretchy="true">(</mo>
+        <mtable columnalign="center" rowalign="center">
+          <mtr>
+            <mtd style="text-align:center;">
+              <mi>a</mi>
+              <mi>e</mi>
+              <mo>+</mo>
+              <mi>b</mi>
+              <mi>g</mi>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mi>a</mi>
+              <mi>f</mi>
+              <mo>+</mo>
+              <mi>b</mi>
+              <mi>h</mi>
+            </mtd>
+          </mtr>
+          <mtr>
+            <mtd style="text-align:center;">
+              <mi>c</mi>
+              <mi>e</mi>
+              <mo>+</mo>
+              <mi>d</mi>
+              <mi>g</mi>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mi>c</mi>
+              <mi>f</mi>
+              <mo>+</mo>
+              <mi>d</mi>
+              <mi>h</mi>
+            </mtd>
+          </mtr>
+        </mtable>
+        <mo fence="true" stretchy="true">)</mo>
+      </mrow>
+    </mrow>
+    <annotation encoding="application/x-tex">\begin{pmatrix} a & b \\ c & d \end{pmatrix} \begin{pmatrix} e & f \\ g & h \end{pmatrix} = \begin{pmatrix} ae + bg & af + bh \\ ce + dg & cf + dh \end{pmatrix}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Matrix transpose: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msup>
+        <mrow>
+          <mo fence="true" stretchy="true">(</mo>
+          <mtable columnalign="center" rowalign="center">
+            <mtr>
+              <mtd style="text-align:center;">
+                <mi>a</mi>
+              </mtd>
+              <mtd style="text-align:center;">
+                <mi>b</mi>
+              </mtd>
+            </mtr>
+            <mtr>
+              <mtd style="text-align:center;">
+                <mi>c</mi>
+              </mtd>
+              <mtd style="text-align:center;">
+                <mi>d</mi>
+              </mtd>
+            </mtr>
+          </mtable>
+          <mo fence="true" stretchy="true">)</mo>
+        </mrow>
+        <mi>T</mi>
+      </msup>
+      <mo>=</mo>
+      <mrow>
+        <mo fence="true" stretchy="true">(</mo>
+        <mtable columnalign="center" rowalign="center">
+          <mtr>
+            <mtd style="text-align:center;">
+              <mi>a</mi>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mi>c</mi>
+            </mtd>
+          </mtr>
+          <mtr>
+            <mtd style="text-align:center;">
+              <mi>b</mi>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mi>d</mi>
+            </mtd>
+          </mtr>
+        </mtable>
+        <mo fence="true" stretchy="true">)</mo>
+      </mrow>
+    </mrow>
+    <annotation encoding="application/x-tex">\begin{pmatrix} a & b \\ c & d \end{pmatrix}^T = \begin{pmatrix} a & c \\ b & d \end{pmatrix}</annotation>
+  </semantics>
+</math>
+</p>
+<h2>Advanced Matrix Structures</h2>
+<p>Block matrix: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo fence="true" stretchy="true">(</mo>
+      <mtable columnalign="center" rowalign="center">
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>A</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>B</mi>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>C</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>D</mi>
+          </mtd>
+        </mtr>
+      </mtable>
+      <mo fence="true" stretchy="true">)</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">\begin{pmatrix} A & B \\ C & D \end{pmatrix}</annotation>
+  </semantics>
+</math>
+ where 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>A</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">A</annotation>
+  </semantics>
+</math>
+, 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>B</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">B</annotation>
+  </semantics>
+</math>
+, 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>C</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">C</annotation>
+  </semantics>
+</math>
+, 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>D</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">D</annotation>
+  </semantics>
+</math>
+ are submatrices</p>
+<p>Vandermonde matrix: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo fence="true" stretchy="true">(</mo>
+      <mtable columnalign="center" rowalign="center">
+        <mtr>
+          <mtd style="text-align:center;">
+            <mn>1</mn>
+          </mtd>
+          <mtd style="text-align:center;">
+            <msub>
+              <mi>x</mi>
+              <mn>1</mn>
+            </msub>
+          </mtd>
+          <mtd style="text-align:center;">
+            <msubsup>
+              <mi>x</mi>
+              <mn>1</mn>
+              <mn>2</mn>
+            </msubsup>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>⋯</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <msubsup>
+              <mi>x</mi>
+              <mn>1</mn>
+              <mrow>
+                <mi>n</mi>
+                <mo>−</mo>
+                <mn>1</mn>
+              </mrow>
+            </msubsup>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd style="text-align:center;">
+            <mn>1</mn>
+          </mtd>
+          <mtd style="text-align:center;">
+            <msub>
+              <mi>x</mi>
+              <mn>2</mn>
+            </msub>
+          </mtd>
+          <mtd style="text-align:center;">
+            <msubsup>
+              <mi>x</mi>
+              <mn>2</mn>
+              <mn>2</mn>
+            </msubsup>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>⋯</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <msubsup>
+              <mi>x</mi>
+              <mn>2</mn>
+              <mrow>
+                <mi>n</mi>
+                <mo>−</mo>
+                <mn>1</mn>
+              </mrow>
+            </msubsup>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>⋮</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>⋮</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>⋮</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>⋱</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>⋮</mi>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd style="text-align:center;">
+            <mn>1</mn>
+          </mtd>
+          <mtd style="text-align:center;">
+            <msub>
+              <mi>x</mi>
+              <mi>n</mi>
+            </msub>
+          </mtd>
+          <mtd style="text-align:center;">
+            <msubsup>
+              <mi>x</mi>
+              <mi>n</mi>
+              <mn>2</mn>
+            </msubsup>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>⋯</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <msubsup>
+              <mi>x</mi>
+              <mi>n</mi>
+              <mrow>
+                <mi>n</mi>
+                <mo>−</mo>
+                <mn>1</mn>
+              </mrow>
+            </msubsup>
+          </mtd>
+        </mtr>
+      </mtable>
+      <mo fence="true" stretchy="true">)</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">\begin{pmatrix} 1 & x_1 & x_1^2 & \cdots & x_1^{n-1} \\ 1 & x_2 & x_2^2 & \cdots & x_2^{n-1} \\ \vdots & \vdots & \vdots & \ddots & \vdots \\ 1 & x_n & x_n^2 & \cdots & x_n^{n-1} \end{pmatrix}</annotation>
+  </semantics>
+</math>
+</p>
+<h2>Eigenvalues and Eigenvectors</h2>
+<p>Characteristic polynomial: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi lspace="0.11111em" movablelimits="true">det</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>A</mi>
+      <mo>−</mo>
+      <mi>λ</mi>
+      <mi>I</mi>
+      <mo form="postfix" stretchy="false">)</mo>
+      <mo>=</mo>
+      <mn>0</mn>
+    </mrow>
+    <annotation encoding="application/x-tex">\det(A - \lambda I) = 0</annotation>
+  </semantics>
+</math>
+</p>
+<p>Eigenvalue equation: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>A</mi>
+      <mi>𝐯</mi>
+      <mo>=</mo>
+      <mi>λ</mi>
+      <mi>𝐯</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">A\mathbf{v} = \lambda\mathbf{v}</annotation>
+  </semantics>
+</math>
+</p>
+<h2>Matrix Decompositions</h2>
+<p>LU decomposition: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>A</mi>
+      <mo>=</mo>
+      <mi>L</mi>
+      <mi>U</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">A = LU</annotation>
+  </semantics>
+</math>
+ where 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>L</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">L</annotation>
+  </semantics>
+</math>
+ is lower triangular and 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>U</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">U</annotation>
+  </semantics>
+</math>
+ is upper triangular</p>
+<p>QR decomposition: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>A</mi>
+      <mo>=</mo>
+      <mi>Q</mi>
+      <mi>R</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">A = QR</annotation>
+  </semantics>
+</math>
+ where 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>Q</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">Q</annotation>
+  </semantics>
+</math>
+ is orthogonal and 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>R</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">R</annotation>
+  </semantics>
+</math>
+ is upper triangular</p>
+<p>SVD decomposition: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>A</mi>
+      <mo>=</mo>
+      <mi>U</mi>
+      <mi mathvariant="normal">Σ</mi>
+      <msup>
+        <mi>V</mi>
+        <mi>T</mi>
+      </msup>
+    </mrow>
+    <annotation encoding="application/x-tex">A = U\Sigma V^T</annotation>
+  </semantics>
+</math>
+ where 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>U</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">U</annotation>
+  </semantics>
+</math>
+ and 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>V</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">V</annotation>
+  </semantics>
+</math>
+ are orthogonal and 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi mathvariant="normal">Σ</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">\Sigma</annotation>
+  </semantics>
+</math>
+ is diagonal</p>
+<h2>Complex Matrices</h2>
+<p>Complex matrix: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo fence="true" stretchy="true">(</mo>
+      <mtable columnalign="center" rowalign="center">
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>a</mi>
+            <mo>+</mo>
+            <mi>b</mi>
+            <mi>i</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>c</mi>
+            <mo>+</mo>
+            <mi>d</mi>
+            <mi>i</mi>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>e</mi>
+            <mo>+</mo>
+            <mi>f</mi>
+            <mi>i</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>g</mi>
+            <mo>+</mo>
+            <mi>h</mi>
+            <mi>i</mi>
+          </mtd>
+        </mtr>
+      </mtable>
+      <mo fence="true" stretchy="true">)</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">\begin{pmatrix} a + bi & c + di \\ e + fi & g + hi \end{pmatrix}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Hermitian conjugate: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msup>
+        <mrow>
+          <mo fence="true" stretchy="true">(</mo>
+          <mtable columnalign="center" rowalign="center">
+            <mtr>
+              <mtd style="text-align:center;">
+                <mi>a</mi>
+              </mtd>
+              <mtd style="text-align:center;">
+                <mi>b</mi>
+              </mtd>
+            </mtr>
+            <mtr>
+              <mtd style="text-align:center;">
+                <mi>c</mi>
+              </mtd>
+              <mtd style="text-align:center;">
+                <mi>d</mi>
+              </mtd>
+            </mtr>
+          </mtable>
+          <mo fence="true" stretchy="true">)</mo>
+        </mrow>
+        <mi>†</mi>
+      </msup>
+      <mo>=</mo>
+      <mrow>
+        <mo fence="true" stretchy="true">(</mo>
+        <mtable columnalign="center" rowalign="center">
+          <mtr>
+            <mtd style="text-align:center;">
+              <mover accent="true">
+                <mi style="font-feature-settings: 'dtls' on;">a</mi>
+                <mo stretchy="true">¯</mo>
+              </mover>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mover accent="true">
+                <mi style="font-feature-settings: 'dtls' on;">c</mi>
+                <mo stretchy="true">¯</mo>
+              </mover>
+            </mtd>
+          </mtr>
+          <mtr>
+            <mtd style="text-align:center;">
+              <mover accent="true">
+                <mi style="font-feature-settings: 'dtls' on;">b</mi>
+                <mo stretchy="true">¯</mo>
+              </mover>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mover accent="true">
+                <mi style="font-feature-settings: 'dtls' on;">d</mi>
+                <mo stretchy="true">¯</mo>
+              </mover>
+            </mtd>
+          </mtr>
+        </mtable>
+        <mo fence="true" stretchy="true">)</mo>
+      </mrow>
+    </mrow>
+    <annotation encoding="application/x-tex">\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \begin{pmatrix} \bar{a} & \bar{c} \\ \bar{b} & \bar{d} \end{pmatrix}</annotation>
+  </semantics>
+</math>
+</p>

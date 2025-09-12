@@ -1,0 +1,474 @@
+-- input.md --
+Advanced calculus and differential equations test:
+
+## Complex Integrals
+
+Gaussian integral: $\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}$
+
+Fresnel integrals: $C(x) = \int_0^x \cos\left(\frac{\pi t^2}{2}\right) dt$, $S(x) = \int_0^x \sin\left(\frac{\pi t^2}{2}\right) dt$
+
+Beta function: $B(x,y) = \int_0^1 t^{x-1}(1-t)^{y-1} dt = \frac{\Gamma(x)\Gamma(y)}{\Gamma(x+y)}$
+
+## Partial Differential Equations
+
+Heat equation: $\frac{\partial u}{\partial t} = \alpha \frac{\partial^2 u}{\partial x^2}$
+
+Wave equation: $\frac{\partial^2 u}{\partial t^2} = c^2 \frac{\partial^2 u}{\partial x^2}$
+
+Laplace equation: $\nabla^2 u = 0$
+
+Poisson equation: $\nabla^2 u = f(x,y,z)$
+
+## Complex Analysis
+
+Cauchy-Riemann equations: $\frac{\partial u}{\partial x} = \frac{\partial v}{\partial y}$, $\frac{\partial u}{\partial y} = -\frac{\partial v}{\partial x}$
+
+Cauchy integral formula: $f(z_0) = \frac{1}{2\pi i} \oint_C \frac{f(z)}{z - z_0} dz$
+
+Residue theorem: $\oint_C f(z) dz = 2\pi i \sum_{k=1}^n \text{Res}(f, z_k)$
+
+-- output.html --
+<p>Advanced calculus and differential equations test:</p>
+<h2>Complex Integrals</h2>
+<p>Gaussian integral: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msubsup>
+        <mo largeop="true" movablelimits="true">∫</mo>
+        <mrow>
+          <mo>−</mo>
+          <mi>∞</mi>
+        </mrow>
+        <mi>∞</mi>
+      </msubsup>
+      <msup>
+        <mi>e</mi>
+        <mrow>
+          <mo>−</mo>
+          <msup>
+            <mi>x</mi>
+            <mn>2</mn>
+          </msup>
+        </mrow>
+      </msup>
+      <mi>d</mi>
+      <mi>x</mi>
+      <mo>=</mo>
+      <msqrt>
+        <mi>π</mi>
+      </msqrt>
+    </mrow>
+    <annotation encoding="application/x-tex">\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Fresnel integrals: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>C</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>x</mi>
+      <mo form="postfix" stretchy="false">)</mo>
+      <mo>=</mo>
+      <msubsup>
+        <mo largeop="true" movablelimits="true">∫</mo>
+        <mn>0</mn>
+        <mi>x</mi>
+      </msubsup>
+      <mi lspace="0.11111em">cos</mi>
+      <mrow>
+        <mo fence="true" form="prefix" stretchy="true">(</mo>
+        <mfrac>
+          <mrow>
+            <mi>π</mi>
+            <msup>
+              <mi>t</mi>
+              <mn>2</mn>
+            </msup>
+          </mrow>
+          <mn>2</mn>
+        </mfrac>
+        <mo fence="true" form="postfix" stretchy="true">)</mo>
+      </mrow>
+      <mi>d</mi>
+      <mi>t</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">C(x) = \int_0^x \cos\left(\frac{\pi t^2}{2}\right) dt</annotation>
+  </semantics>
+</math>
+, 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>S</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>x</mi>
+      <mo form="postfix" stretchy="false">)</mo>
+      <mo>=</mo>
+      <msubsup>
+        <mo largeop="true" movablelimits="true">∫</mo>
+        <mn>0</mn>
+        <mi>x</mi>
+      </msubsup>
+      <mi lspace="0.11111em">sin</mi>
+      <mrow>
+        <mo fence="true" form="prefix" stretchy="true">(</mo>
+        <mfrac>
+          <mrow>
+            <mi>π</mi>
+            <msup>
+              <mi>t</mi>
+              <mn>2</mn>
+            </msup>
+          </mrow>
+          <mn>2</mn>
+        </mfrac>
+        <mo fence="true" form="postfix" stretchy="true">)</mo>
+      </mrow>
+      <mi>d</mi>
+      <mi>t</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">S(x) = \int_0^x \sin\left(\frac{\pi t^2}{2}\right) dt</annotation>
+  </semantics>
+</math>
+</p>
+<p>Beta function: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>B</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>x</mi>
+      <mo>,</mo>
+      <mi>y</mi>
+      <mo form="postfix" stretchy="false">)</mo>
+      <mo>=</mo>
+      <msubsup>
+        <mo largeop="true" movablelimits="true">∫</mo>
+        <mn>0</mn>
+        <mn>1</mn>
+      </msubsup>
+      <msup>
+        <mi>t</mi>
+        <mrow>
+          <mi>x</mi>
+          <mo>−</mo>
+          <mn>1</mn>
+        </mrow>
+      </msup>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mn>1</mn>
+      <mo>−</mo>
+      <mi>t</mi>
+      <msup>
+        <mo form="postfix" stretchy="false">)</mo>
+        <mrow>
+          <mi>y</mi>
+          <mo>−</mo>
+          <mn>1</mn>
+        </mrow>
+      </msup>
+      <mi>d</mi>
+      <mi>t</mi>
+      <mo>=</mo>
+      <mfrac>
+        <mrow>
+          <mi mathvariant="normal">Γ</mi>
+          <mo form="prefix" stretchy="false">(</mo>
+          <mi>x</mi>
+          <mo form="postfix" stretchy="false">)</mo>
+          <mi mathvariant="normal">Γ</mi>
+          <mo form="prefix" stretchy="false">(</mo>
+          <mi>y</mi>
+          <mo form="postfix" stretchy="false">)</mo>
+        </mrow>
+        <mrow>
+          <mi mathvariant="normal">Γ</mi>
+          <mo form="prefix" stretchy="false">(</mo>
+          <mi>x</mi>
+          <mo>+</mo>
+          <mi>y</mi>
+          <mo form="postfix" stretchy="false">)</mo>
+        </mrow>
+      </mfrac>
+    </mrow>
+    <annotation encoding="application/x-tex">B(x,y) = \int_0^1 t^{x-1}(1-t)^{y-1} dt = \frac{\Gamma(x)\Gamma(y)}{\Gamma(x+y)}</annotation>
+  </semantics>
+</math>
+</p>
+<h2>Partial Differential Equations</h2>
+<p>Heat equation: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mfrac>
+        <mrow>
+          <mi>∂</mi>
+          <mi>u</mi>
+        </mrow>
+        <mrow>
+          <mi>∂</mi>
+          <mi>t</mi>
+        </mrow>
+      </mfrac>
+      <mo>=</mo>
+      <mi>α</mi>
+      <mfrac>
+        <mrow>
+          <msup>
+            <mi>∂</mi>
+            <mn>2</mn>
+          </msup>
+          <mi>u</mi>
+        </mrow>
+        <mrow>
+          <mi>∂</mi>
+          <msup>
+            <mi>x</mi>
+            <mn>2</mn>
+          </msup>
+        </mrow>
+      </mfrac>
+    </mrow>
+    <annotation encoding="application/x-tex">\frac{\partial u}{\partial t} = \alpha \frac{\partial^2 u}{\partial x^2}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Wave equation: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mfrac>
+        <mrow>
+          <msup>
+            <mi>∂</mi>
+            <mn>2</mn>
+          </msup>
+          <mi>u</mi>
+        </mrow>
+        <mrow>
+          <mi>∂</mi>
+          <msup>
+            <mi>t</mi>
+            <mn>2</mn>
+          </msup>
+        </mrow>
+      </mfrac>
+      <mo>=</mo>
+      <msup>
+        <mi>c</mi>
+        <mn>2</mn>
+      </msup>
+      <mfrac>
+        <mrow>
+          <msup>
+            <mi>∂</mi>
+            <mn>2</mn>
+          </msup>
+          <mi>u</mi>
+        </mrow>
+        <mrow>
+          <mi>∂</mi>
+          <msup>
+            <mi>x</mi>
+            <mn>2</mn>
+          </msup>
+        </mrow>
+      </mfrac>
+    </mrow>
+    <annotation encoding="application/x-tex">\frac{\partial^2 u}{\partial t^2} = c^2 \frac{\partial^2 u}{\partial x^2}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Laplace equation: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msup>
+        <mi mathvariant="normal">∇</mi>
+        <mn>2</mn>
+      </msup>
+      <mi>u</mi>
+      <mo>=</mo>
+      <mn>0</mn>
+    </mrow>
+    <annotation encoding="application/x-tex">\nabla^2 u = 0</annotation>
+  </semantics>
+</math>
+</p>
+<p>Poisson equation: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msup>
+        <mi mathvariant="normal">∇</mi>
+        <mn>2</mn>
+      </msup>
+      <mi>u</mi>
+      <mo>=</mo>
+      <mi>f</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>x</mi>
+      <mo>,</mo>
+      <mi>y</mi>
+      <mo>,</mo>
+      <mi>z</mi>
+      <mo form="postfix" stretchy="false">)</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">\nabla^2 u = f(x,y,z)</annotation>
+  </semantics>
+</math>
+</p>
+<h2>Complex Analysis</h2>
+<p>Cauchy-Riemann equations: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mfrac>
+        <mrow>
+          <mi>∂</mi>
+          <mi>u</mi>
+        </mrow>
+        <mrow>
+          <mi>∂</mi>
+          <mi>x</mi>
+        </mrow>
+      </mfrac>
+      <mo>=</mo>
+      <mfrac>
+        <mrow>
+          <mi>∂</mi>
+          <mi>v</mi>
+        </mrow>
+        <mrow>
+          <mi>∂</mi>
+          <mi>y</mi>
+        </mrow>
+      </mfrac>
+    </mrow>
+    <annotation encoding="application/x-tex">\frac{\partial u}{\partial x} = \frac{\partial v}{\partial y}</annotation>
+  </semantics>
+</math>
+, 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mfrac>
+        <mrow>
+          <mi>∂</mi>
+          <mi>u</mi>
+        </mrow>
+        <mrow>
+          <mi>∂</mi>
+          <mi>y</mi>
+        </mrow>
+      </mfrac>
+      <mo>=</mo>
+      <mo>−</mo>
+      <mfrac>
+        <mrow>
+          <mi>∂</mi>
+          <mi>v</mi>
+        </mrow>
+        <mrow>
+          <mi>∂</mi>
+          <mi>x</mi>
+        </mrow>
+      </mfrac>
+    </mrow>
+    <annotation encoding="application/x-tex">\frac{\partial u}{\partial y} = -\frac{\partial v}{\partial x}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Cauchy integral formula: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>f</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <msub>
+        <mi>z</mi>
+        <mn>0</mn>
+      </msub>
+      <mo form="postfix" stretchy="false">)</mo>
+      <mo>=</mo>
+      <mfrac>
+        <mn>1</mn>
+        <mrow>
+          <mn>2</mn>
+          <mi>π</mi>
+          <mi>i</mi>
+        </mrow>
+      </mfrac>
+      <msub>
+        <mo largeop="true" movablelimits="true">∮</mo>
+        <mi>C</mi>
+      </msub>
+      <mfrac>
+        <mrow>
+          <mi>f</mi>
+          <mo form="prefix" stretchy="false">(</mo>
+          <mi>z</mi>
+          <mo form="postfix" stretchy="false">)</mo>
+        </mrow>
+        <mrow>
+          <mi>z</mi>
+          <mo>−</mo>
+          <msub>
+            <mi>z</mi>
+            <mn>0</mn>
+          </msub>
+        </mrow>
+      </mfrac>
+      <mi>d</mi>
+      <mi>z</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">f(z_0) = \frac{1}{2\pi i} \oint_C \frac{f(z)}{z - z_0} dz</annotation>
+  </semantics>
+</math>
+</p>
+<p>Residue theorem: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msub>
+        <mo largeop="true" movablelimits="true">∮</mo>
+        <mi>C</mi>
+      </msub>
+      <mi>f</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>z</mi>
+      <mo form="postfix" stretchy="false">)</mo>
+      <mi>d</mi>
+      <mi>z</mi>
+      <mo>=</mo>
+      <mn>2</mn>
+      <mi>π</mi>
+      <mi>i</mi>
+      <mrow>
+        <munderover>
+          <mo largeop="true" movablelimits="true">∑</mo>
+          <mrow>
+            <mi>k</mi>
+            <mo>=</mo>
+            <mn>1</mn>
+          </mrow>
+          <mi>n</mi>
+        </munderover>
+      </mrow>
+      <mtext>Res</mtext>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>f</mi>
+      <mo>,</mo>
+      <msub>
+        <mi>z</mi>
+        <mi>k</mi>
+      </msub>
+      <mo form="postfix" stretchy="false">)</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">\oint_C f(z) dz = 2\pi i \sum_{k=1}^n \text{Res}(f, z_k)</annotation>
+  </semantics>
+</math>
+</p>
