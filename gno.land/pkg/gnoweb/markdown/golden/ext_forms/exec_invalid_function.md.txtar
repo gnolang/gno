@@ -1,0 +1,7 @@
+-- input.md --
+
+<gno-form exec="NonExistentFunction">
+</gno-form>
+
+-- output.html --
+<!-- Error: unexpected or invalid tag -->

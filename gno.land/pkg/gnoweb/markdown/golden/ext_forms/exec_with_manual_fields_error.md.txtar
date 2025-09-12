@@ -1,0 +1,22 @@
+-- input.md --
+
+<gno-form exec="Vote">
+<gno-input name="manual_field" placeholder="This should error" />
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
+<div class="gno-form_header">
+<span><span class="font-bold">/r/test</span> Form</span>
+<span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
+</div>
+<!-- Error: manual fields not allowed when &#39;exec&#39; is specified -->
+<div class="gno-form_input"><label for="proposal_id"> Enter proposal_id </label>
+<input type="number" id="proposal_id" name="proposal_id" placeholder="Enter proposal_id" />
+</div>
+<div class="gno-form_selectable">
+<input type="checkbox" id="vote_2" name="vote" value="true" />
+<label for="vote_2"> true </label>
+</div>
+<input type="submit" value="Submit to /r/test Realm" />
+</form>
