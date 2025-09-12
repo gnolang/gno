@@ -34,7 +34,7 @@ jobs:
     with:
       path: "gnovm/stdlibs"
   stdlibs-lint:
-    name: Run gno test on stdlibs
+    name: Run gno lint on stdlibs
     uses: ./.github/workflows/template_gnolint.yml
     with:
       path: "gnovm/stdlibs"
