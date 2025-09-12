@@ -203,7 +203,7 @@ query GetSendTransactions($address: String!) {
 
 **Understanding the data:**
 - Each transaction has a unique `hash` (like a fingerprint)
-- `block_height` tells you when it happened (higher = more recent)
+- `block_height` tells you when it happened
 - `amount` is in "ugnot" - divide by 1,000,000 to get GNOT (`1_000_000ugnot = 1 GNOT`)
 - Addresses starting with "g1" are Gno addresses
 
