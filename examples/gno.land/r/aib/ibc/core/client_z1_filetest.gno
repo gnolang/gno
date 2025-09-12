@@ -54,7 +54,7 @@ func main() {
 		nextvalhash   = sha256.Sum256([]byte("nextval"))
 		consensushash = sha256.Sum256([]byte("consensus"))
 
-		header = &tendermint.MsgHeader{
+		msgHeader = &tendermint.MsgHeader{
 			Header: &tendermint.Header{
 				Version: tendermint.Consensus{
 					Block: tendermint.BlockProtocol,
@@ -103,7 +103,7 @@ func main() {
 			TrustedValidators: &tendermint.ValidatorSet{}, // hash of this must correspond to consensusState.NextValidatorHash passed in CreateClient
 		}
 	)
-	core.UpdateClient(cross, clientID1, header)
+	core.UpdateClient(cross, clientID1, msgHeader)
 	// TODO assertion of updated client
 
 }
