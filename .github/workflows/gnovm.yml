@@ -24,17 +24,17 @@ jobs:
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
   stdlibs-fmt:
-    name: stdlibs - fmt
+    name: stdlibs - Run fmt
     uses: ./.github/workflows/template_gnofmt.yml
     with:
       path: "gnovm/stdlibs"
   stdlibs-test:
-    name: stdlibs - test
-    uses: ./.github/workflows/template_gnofmt.yml
+    name: stdlibs - Run tests
+    uses: ./.github/workflows/template_gnotest.yml
     with:
       path: "gnovm/stdlibs"
   stdlibs-lint:
-    name: stdlibs - lint
+    name: stdlibs - Run lint
     uses: ./.github/workflows/template_gnolint.yml
     with:
       path: "gnovm/stdlibs"
