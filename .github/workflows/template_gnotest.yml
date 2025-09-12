@@ -12,6 +12,7 @@ on:
       debug:
         description: "Enable debug logs"
         required: false
+        type: boolean
 
 jobs:
   test:

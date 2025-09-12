@@ -34,6 +34,7 @@ jobs:
     name: Run gno test
     uses: ./.github/workflows/template_gnotest.yml
     with:
+      debug: env.ACTIONS_STEP_DEBUG == 'true'
       path: "examples"
       go-version: "1.23.x"
 
