@@ -86,3 +86,15 @@ private = true
 
 Note that this example isn't realistic because we should either replace,
 configure addpkg settings, or do neither, but never both at the same time.
+
+## `gnowork.toml`
+
+`gnomod.toml` is fine for working on a single package but when you want to work on multiple packages depending on each other, you will need a `gnowork.toml`.
+
+For now it is only used to delimit your workspace root and is empty. So in most cases, just `touch gnowork.toml` at your project root and you're good to go.
+
+Packages that import other packages present in your workspace will use the ones present in your workspace instead of attempting to download them.
+
+There is no rules on the project hierarchy for dependencies resolution, so you can freely move your packages around.
+
+Packages in directories that contain other `gnowork.toml`s down your hierarchy will be ignored.
