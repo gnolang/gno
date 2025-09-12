@@ -42,4 +42,4 @@ func main(cur realm) {
 // hello A gno.land/r/crossrealm
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): f<VPBlock(1,0)>.s
+// invalid call: fooer<~VPBlock(3,5)>.Bar(), method realm: RIDDC8307F7BBE97FDB07B2D0FA6907B8D67517C02A does not match receiver realm: RIDA7E973C6AEAB1F1CB747D0903CB1E4D369226376

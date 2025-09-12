@@ -19,4 +19,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): t<VPBlock(1,0)>.Field
+// invalid call: &(somevalue<~VPBlock(3,0)>).Modify(), method realm: RID87878546FB8F1E4C09BE337A32C14E2E64A869D3 does not match receiver realm: RIDDC8307F7BBE97FDB07B2D0FA6907B8D67517C02A

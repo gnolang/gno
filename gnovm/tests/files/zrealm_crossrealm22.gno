@@ -174,7 +174,7 @@ func main(cur realm) {
 //              "ID": "46279d1e03ecb38b84822f9caf584bd16913470d:5",
 //              "LastObjectSize": "239",
 //     -        "ModTime": "0",
-//     +        "ModTime": "15",
+//     +        "ModTime": "19",
 //              "OwnerID": "46279d1e03ecb38b84822f9caf584bd16913470d:4",
 //              "RefCount": "1"
 //          }
@@ -244,7 +244,7 @@ func main(cur realm) {
 //              "V": {
 //                  "@type": "/gno.RefValue",
 //     -            "Hash": "23c79341f8583900b8e4138982dda98181fc2d8c",
-//     +            "Hash": "a4a24b877058de8352091982ecaec27ac9000646",
+//     +            "Hash": "3e859f7d2f9cfb290642bb81275f8e357e1ac4f7",
 //                  "ObjectID": "46279d1e03ecb38b84822f9caf584bd16913470d:5"
 //              }
 //          }

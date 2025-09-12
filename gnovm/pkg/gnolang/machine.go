@@ -1955,21 +1955,32 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 
 	// Not cross nor crossing.
 	// DO NOT set DidCrossing for any implicit crossing.
+
 	if recv.IsDefined() { // method call
-		// Cross into fv's Realm
-		if pv.IsRealm() {
-			m.Realm = pv.Realm
+		obj := recv.GetFirstObject(m.Store)
+		if obj == nil { // nil receiver
+			if pv.IsRealm() {
+				// cross into fv's realm
+				m.Realm = pv.Realm
+			}
+			return
 		} else {
-			obj := recv.GetFirstObject(m.Store)
-			if obj == nil {
-				// do nothing
+			recvOID := obj.GetObjectInfo().ID
+			if recvOID.IsZero() {
+				if pv.IsRealm() {
+					// cross into fv's realm for unreal receiver
+					// see realm_dao.gno
+					m.Realm = pv.Realm
+				}
 				return
 			}
 
-			recvOID := obj.GetObjectInfo().ID
-			if recvOID.IsZero() {
-				// do nothing
-				return
+			// is recv is real, method realm and storage realm should be same
+			if IsRealmPath(fv.PkgPath) {
+				if fvPkgID := PkgIDFromPkgPath(fv.PkgPath); fvPkgID != recvOID.PkgID {
+					panic(fmt.Sprintf("invalid call: %v, method realm: %v does not match receiver realm: %v\n",
+						cx, fvPkgID, recvOID.PkgID))
+				}
 			}
 
 			// same realm
@@ -1977,15 +1988,20 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				// no switch
 				return
 			}
-			// Otherwise implicit switch to storage realm.
+
+			// Implicit switch to storage realm.
 			// Neither cross nor didswitch.
 			var rlm *Realm
 			recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 			objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-			// XXX, consider this. it's possible to cross into nil realm(for p),
+			if objpv.IsRealm() && objpv.Realm == nil {
+				rlm = m.Store.GetPackageRealm(objpv.PkgPath)
+			} else {
+				rlm = objpv.GetRealm()
+			}
+			// Note it's possible to cross into nil realm(for p),
 			// mutating global var and discared.
 			// see files/zrealm_borrow7.gno, files/import4.gno
-			rlm = objpv.GetRealm()
 			m.Realm = rlm
 		}
 		return
