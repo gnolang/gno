@@ -7,8 +7,9 @@ on:
         type: string
       go-version:
         description: "Go version to use"
-        required: true
+        required: false
         type: string
+        default: "1.23.x"
       debug:
         description: "Enable debug logs"
         required: false
