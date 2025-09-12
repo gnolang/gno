@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  main:
     name: Run GnoVM suite
     uses: ./.github/workflows/templates/main_template.yml
     with:
@@ -25,6 +25,11 @@ jobs:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
   stdlibs-fmt:
     name: Run gno fmt on stdlibs
+    uses: ./.github/workflows/templates/gnofmt_template.yml
+    with:
+      path: "gnovm/stdlibs/..."
+  stdlibs-test:
+    name: Run gno test on stdlibs
     uses: ./.github/workflows/templates/gnofmt_template.yml
     with:
       path: "gnovm/stdlibs/..."
