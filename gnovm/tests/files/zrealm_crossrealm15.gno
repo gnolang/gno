@@ -41,3 +41,4 @@ func main(cur realm) {
 // hello gno.land/r/crossrealm
 // hello gno.land/r/tests/vm/crossrealm
 // .
+

@@ -45,4 +45,4 @@ func main() {
 }
 
 // Error:
-// success: this panic should surface
+// invalid call: sb<~VPBlock(1,0)>.Panic(), method realm: RIDDC8307F7BBE97FDB07B2D0FA6907B8D67517C02A does not match receiver realm: RID46279D1E03ECB38B84822F9CAF584BD16913470D

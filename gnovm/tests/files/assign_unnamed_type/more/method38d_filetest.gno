@@ -19,3 +19,4 @@ func main() {
 // Output:
 // (slice[(0 main.Word)] main.nat)
 // (slice[(0 main.Word)] main.nat)
+
