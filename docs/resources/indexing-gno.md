@@ -46,7 +46,7 @@ In order, we will:
 
 #### Step 1: Getting Started - Launch your own indexer
 
-Before we can query transaction data, we need to get `tx-indexer` running.
+Before we can query transaction data, we need to get `tx-indexer` running. This means setting up a local process and allowing it to fetch and index data from a live Gno.land chain. This usually takes some time, but for this tutorial, we will index our own, local chain, which will be extremely quick. 
 
 **Quick Setup:**
 
