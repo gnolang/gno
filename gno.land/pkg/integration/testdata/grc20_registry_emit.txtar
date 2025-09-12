@@ -25,13 +25,9 @@ gno = "0.9"
 -- grc20transfer.gno --
 package grc20transfer
 
-import (
-	"std"
+import "gno.land/r/demo/defi/grc20reg"
 
-	"gno.land/r/demo/defi/grc20reg"
-)
-
-func TransferBy(cur realm, path string, to std.Address, amount int64) {
+func TransferBy(cur realm, path string, to address, amount int64) {
 	grc20 := grc20reg.MustGet(path)
 	err := grc20.CallerTeller().Transfer(to, amount)
 	if err != nil {

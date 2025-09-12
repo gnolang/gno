@@ -48,13 +48,15 @@ gno = "0.9"
 package proxywugnot
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 
 	"gno.land/r/gnoland/wugnot"
 )
 
 func ProxyWrap(cur realm) {
-	sent := std.OriginSend()
+	sent := banker.OriginSend()
 	ugnotSent := int64(sent.AmountOf("ugnot"))
 
 	if ugnotSent == 0 {
@@ -62,13 +64,13 @@ func ProxyWrap(cur realm) {
 	}
 
 	// WRAP IT
-	wugnotAddr := std.DerivePkgAddr("gno.land/r/gnoland/wugnot")
-	banker := std.NewBanker(std.BankerTypeRealmSend)
-	banker.SendCoins(std.CurrentRealm().Address(), wugnotAddr, std.Coins{{"ugnot", int64(ugnotSent)}})
+	wugnotAddr := chain.DerivePkgAddr("gno.land/r/gnoland/wugnot")
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_.SendCoins(runtime.CurrentRealm().Address(), wugnotAddr, banker.Coins{{"ugnot", int64(ugnotSent)}})
 	wugnot.Deposit(cross) // `proxywugnot` has ugnot
 
 	// SEND WUGNOT: PROXY_WUGNOT -> USER
-	wugnot.Transfer(cross, std.OriginCaller(), ugnotSent)
+	wugnot.Transfer(cross, runtime.OriginCaller(), ugnotSent)
 }
 
 func ProxyUnwrap(cur realm, wugnotAmount int64) {
@@ -77,12 +79,12 @@ func ProxyUnwrap(cur realm, wugnotAmount int64) {
 	}
 
 	// SEND WUGNOT: USER -> PROXY_WUGNOT
-	wugnot.TransferFrom(cross, std.OriginCaller(), std.CurrentRealm().Address(), wugnotAmount)
+	wugnot.TransferFrom(cross, runtime.OriginCaller(), runtime.CurrentRealm().Address(), wugnotAmount)
 
 	// UNWRAP IT
 	wugnot.Withdraw(cross, wugnotAmount)
 
 	// SEND GNOT: PROXY_WUGNOT -> USER
-	banker := std.NewBanker(std.BankerTypeRealmSend)
-	banker.SendCoins(std.CurrentRealm().Address(), std.OriginCaller(), std.Coins{{"ugnot", int64(wugnotAmount)}})
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_.SendCoins(runtime.CurrentRealm().Address(), runtime.OriginCaller(), banker.Coins{{"ugnot", int64(wugnotAmount)}})
 }
