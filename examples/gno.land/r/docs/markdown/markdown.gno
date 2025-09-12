@@ -813,7 +813,7 @@ Mathematical operators: $+ - \times \div \pm \mp = \neq < > \leq \geq$
 
 Functions: $\sin, \cos, \tan, \log, \ln, \exp, \max, \min$
 
-#### Display Math
+#### Block Math
 
 For larger mathematical expressions, use double dollar signs:
 
@@ -891,86 +891,13 @@ Square roots: $\sqrt{x}$, $\sqrt[3]{x}$, $\sqrt[n]{x}$
 
 Superscripts and subscripts: $x^2$, $x_1$, $x^{2+3}$, $x_{i+1}$
 
-Another complex example with display style and more complex equations:
-
-±±±markdown
-$$
-D_{t+1} = \max(D_{\min}, D_t \times (1 + \alpha \times \sigma))
-$$
-
-$$
-\alpha = \begin{cases} \alpha_{up} & n_t \geq N \\
--\alpha_{down} & n_t \lt N
-\end{cases}
-$$
-
-$$
-\sigma = \begin{cases} 1 & n_t \geq N \\
-\sqrt[k]{| n_t - N |} & n_t \lt N
-\end{cases}
-$$
-
-$$ k \in {1, 2, 3, ...}$$
-$$ 0 \lt \alpha_{down} \lt 1$$
-$$ 0 \lt \alpha_{up} \lt 1$$
-$$ \alpha_{down} \lt \alpha_{up}$$
-±±±
-
-$$
-D_{t+1} = \max(D_{\min}, D_t \times (1 + \alpha \times \sigma))
-$$
-
-$$
-\alpha = \begin{cases} \alpha_{up} & n_t \geq N \\
--\alpha_{down} & n_t \lt N
-\end{cases}
-$$
-
-$$
-\sigma = \begin{cases} 1 & n_t \geq N \\
-\sqrt[k]{| n_t - N |} & n_t \lt N
-\end{cases}
-$$
-
-$$ k \in {1, 2, 3, ...}$$
-$$ 0 \lt \alpha_{down} \lt 1$$
-$$ 0 \lt \alpha_{up} \lt 1$$
-$$ \alpha_{down} \lt \alpha_{up}$$
-
+#### More complex examples:
 
 Characteristic polynomial: $\det(A - \lambda I) = 0$
 
 Eigenvalue equation: $A\mathbf{v} = \lambda\mathbf{v}$
 
-## Matrix Decompositions
-
-LU decomposition: $A = LU$ where $L$ is lower triangular and $U$ is upper triangular
-
-QR decomposition: $A = QR$ where $Q$ is orthogonal and $R$ is upper triangular
-
-SVD decomposition: $A = U\Sigma V^T$ where $U$ and $V$ are orthogonal and $\Sigma$ is diagonal
-
-## Complex Matrices
-
-Complex matrix: $\begin{pmatrix} a + bi & c + di \\ e + fi & g + hi \end{pmatrix}$
-
-Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \begin{pmatrix} \bar{a} & \bar{c} \\ \bar{b} & \bar{d} \end{pmatrix}$
-
-Quantum physics and relativity equations test:
-
-## Quantum Mechanics
-
-Schrödinger equation (time-dependent): $i\hbar\frac{\partial}{\partial t}|\psi\rangle = \hat{H}|\psi\rangle$
-
 Schrödinger equation (time-independent): $\hat{H}|\psi\rangle = E|\psi\rangle$
-
-Heisenberg uncertainty principle: $\Delta x \Delta p \geq \frac{\hbar}{2}$
-
-Commutator: $[\hat{A}, \hat{B}] = \hat{A}\hat{B} - \hat{B}\hat{A}$
-
-Pauli matrices: $\sigma_x = \begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}$, $\sigma_y = \begin{pmatrix} 0 & -i \\ i & 0 \end{pmatrix}$, $\sigma_z = \begin{pmatrix} 1 & 0 \\ 0 & -1 \end{pmatrix}$
-
-## Quantum Field Theory
 
 Dirac equation: $(i\gamma^\mu\partial_\mu - m)\psi = 0$
 
@@ -978,41 +905,19 @@ Klein-Gordon equation: $(\partial_\mu\partial^\mu + m^2)\phi = 0$
 
 Maxwell equations in tensor form: $\partial_\mu F^{\mu\nu} = \mu_0 J^\nu$
 
-## Special Relativity
-
-Lorentz transformation: $x' = \gamma(x - vt)$, $t' = \gamma(t - \frac{vx}{c^2})$
-
-Time dilation: $\Delta t' = \gamma \Delta t$
-
-Length contraction: $L' = \frac{L}{\gamma}$
-
-Relativistic energy: $E = \sqrt{(pc)^2 + (mc^2)^2}$
-
-## General Relativity
-
 Einstein field equations: $R_{\mu\nu} - \frac{1}{2}Rg_{\mu\nu} + \Lambda g_{\mu\nu} = \frac{8\pi G}{c^4}T_{\mu\nu}$
 
 Schwarzschild metric: $ds^2 = -\left(1 - \frac{2GM}{c^2r}\right)dt^2 + \left(1 - \frac{2GM}{c^2r}\right)^{-1}dr^2 + r^2(d\theta^2 + \sin^2\theta d\phi^2)$
-
-## Statistical Mechanics
 
 Boltzmann distribution: $P(E) = \frac{1}{Z}e^{-\beta E}$
 
 Partition function: $Z = \sum_i e^{-\beta E_i}$
 
-Fermi-Dirac distribution: $f(E) = \frac{1}{e^{\beta(E-\mu)} + 1}$
-
 Bose-Einstein distribution: $f(E) = \frac{1}{e^{\beta(E-\mu)} - 1}$
-
-## Thermodynamics
 
 First law: $dU = \delta Q - \delta W$
 
 Second law: $dS \geq \frac{\delta Q}{T}$
-
-Gibbs free energy: $G = H - TS$
-
-Helmholtz free energy: $F = U - TS$
 
 #### Supported Features
 
