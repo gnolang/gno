@@ -18,6 +18,8 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+
+	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 )
 
 // testPackageFetcher allows to override the package fetcher during tests.
