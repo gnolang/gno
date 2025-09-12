@@ -38,9 +38,12 @@ type ClientAdapter interface {
 	// package path and filename.
 	File(ctx context.Context, path, filename string) ([]byte, FileMeta, error)
 
-	// Sources lists all source files available in a specified
+	// ListFiles lists all source files available in a specified
 	// package path.
 	ListFiles(ctx context.Context, path string) ([]string, error)
+
+	// ListFuncs lists all exposed funcs in a specified package path.
+	ListFuncs(ctx context.Context, path string) (vm.FunctionSignatures, error)
 
 	// QueryPath list any path given the specified prefix
 	ListPaths(ctx context.Context, prefix string, limit int) ([]string, error)
@@ -169,6 +172,25 @@ func (c *rpcClient) Doc(ctx context.Context, pkgPath string) (*doc.JSONDocumenta
 	}
 
 	return jdoc, nil
+}
+
+func (c *rpcClient) ListFuncs(ctx context.Context, pkgPath string) (vm.FunctionSignatures, error) {
+	const qpath = "vm/qfuncs"
+
+	args := fmt.Sprintf("%s/%s", c.domain, strings.Trim(pkgPath, "/"))
+	res, err := c.query(ctx, qpath, []byte(args))
+	if err != nil {
+		return nil, fmt.Errorf("unable to query qdoc: %w", err)
+	}
+
+	fsigs := vm.FunctionSignatures{}
+	if err := amino.UnmarshalJSON(res, &fsigs); err != nil {
+		c.logger.Warn("unable to unmarshal qdoc, client is probably outdated")
+		return nil, fmt.Errorf("unable to unmarshal qdoc: %w", err)
+	}
+
+	return fsigs, nil
+
 }
 
 // query sends a query to the RPC client and returns the response

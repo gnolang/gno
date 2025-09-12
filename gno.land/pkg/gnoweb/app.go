@@ -116,7 +116,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 			mdhtml.WithXHTML(), mdhtml.WithUnsafe(),
 		))
 	}
-	renderer := NewHTMLRenderer(logger, rcfg)
+	renderer := NewHTMLRenderer(logger, rcfg, adpcli)
 
 	// Configure HTTPHandler
 	if cfg.Aliases == nil {

@@ -11,7 +11,7 @@ import (
 )
 
 func newTestRenderer() *HTMLRenderer {
-	return NewHTMLRenderer(slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)), NewDefaultRenderConfig())
+	return NewHTMLRenderer(slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)), NewDefaultRenderConfig(), nil)
 }
 
 func TestRenderer_RenderRealm_Markdown(t *testing.T) {

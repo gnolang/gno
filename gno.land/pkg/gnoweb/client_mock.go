@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
 
@@ -136,6 +137,46 @@ func (m *MockClient) Doc(ctx context.Context, path string) (*doc.JSONDocumentati
 		return nil, ErrClientPackageNotFound
 	}
 	return &doc.JSONDocumentation{Funcs: pkg.Functions}, nil
+}
+
+// ListFuncs retrieves the function signatures for a specified package path.
+func (m *MockClient) ListFuncs(ctx context.Context, path string) (vm.FunctionSignatures, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context error: %w", err)
+	}
+
+	pkg, exists := m.Packages[path]
+	if !exists {
+		return nil, ErrClientPackageNotFound
+	}
+
+	// Convert JSONFunc to FunctionSignature
+	var sigs vm.FunctionSignatures
+	for _, fn := range pkg.Functions {
+		sig := vm.FunctionSignature{
+			FuncName: fn.Name,
+		}
+		
+		// Convert parameters
+		for _, param := range fn.Params {
+			sig.Params = append(sig.Params, vm.NamedType{
+				Name: param.Name,
+				Type: param.Type,
+			})
+		}
+		
+		// Convert results
+		for _, result := range fn.Results {
+			sig.Results = append(sig.Results, vm.NamedType{
+				Name: result.Name,
+				Type: result.Type,
+			})
+		}
+		
+		sigs = append(sigs, sig)
+	}
+	
+	return sigs, nil
 }
 
 // Helper: check if package has a Render(string) string function.
