@@ -1,8 +1,6 @@
 package tendermint
 
 import (
-	"bytes"
-	"encoding/hex"
 	"errors"
 	"time"
 
@@ -47,17 +45,21 @@ func (h MsgHeader) ValidateBasic() error {
 	if err := h.Commit.ValidateBasic(); err != nil {
 		return ufmt.Errorf("invalid commit: %v", err)
 	}
+	// Make sure the header is consistent with the commit.
 	if h.Header.Height != h.Commit.Height {
 		return ufmt.Errorf("header and commit height mismatch: %d vs %d", h.Header.Height, h.Commit.Height)
 	}
-	if hhash, chash := h.Header.Hash(), h.Commit.BlockID.Hash; !bytes.Equal(hhash, chash) {
-		cs, hs := hex.EncodeToString(chash), hex.EncodeToString(hhash)
-		return ufmt.Errorf("commit signs block %q, header is block %q", cs, hs)
-	}
+	// TODO(tb): computing the block hash from header is difficult in Gno because
+	// it requires to use protobuf and other merkle libraries, we need to ensure
+	// that this check is really necessary in terms of security.
+	// if hhash, chash := h.Header.Hash(), h.Commit.BlockID.Hash; !bytes.Equal(hhash, chash) {
+	// cs, hs := hex.EncodeToString(chash), hex.EncodeToString(hhash)
+	// return ufmt.Errorf("commit signs block %q, header is block %q", cs, hs)
+	// }
 
 	// TrustedHeight is less than Header for updates and misbehaviour
 	if h.TrustedHeight.GTE(h.GetHeight()) {
-		return ufmt.Errorf("TrustedHeight %d must be less than header height %d",
+		return ufmt.Errorf("TrustedHeight %s must be less than header height %s",
 			h.TrustedHeight, h.GetHeight())
 	}
 

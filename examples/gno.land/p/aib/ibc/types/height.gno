@@ -41,15 +41,17 @@ func (h Height) GTE(other Height) bool {
 // It first compares based on revision numbers, whichever has the higher revision number is the higher height
 // If revision number is the same, then the revision height is compared
 func (h Height) Compare(height Height) int64 {
-	// TODO
-	// var a, b big.Int
-	// if h.RevisionNumber != height.RevisionNumber {
-	// a.SetUint64(h.RevisionNumber)
-	// b.SetUint64(height.RevisionNumber)
-	// } else {
-	// a.SetUint64(h.RevisionHeight)
-	// b.SetUint64(height.RevisionHeight)
-	// }
-	// return int64(a.Cmp(&b))
+	if h.RevisionNumber < height.RevisionNumber {
+		return -1
+	}
+	if h.RevisionNumber > height.RevisionNumber {
+		return 1
+	}
+	if h.RevisionHeight < height.RevisionHeight {
+		return -1
+	}
+	if h.RevisionHeight > height.RevisionHeight {
+		return 1
+	}
 	return 0
 }
