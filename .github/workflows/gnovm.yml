@@ -15,16 +15,16 @@ on:
   workflow_dispatch:
 
 jobs:
-  main:
+  test:
     name: Run GnoVM suite
-    uses: ./.github/workflows/main_template.yml
+    uses: ./.github/workflows/templates/main_template.yml
     with:
       modulepath: "gnovm"
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/gnovm/..."
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
-  fmt:
+  stdlibs-fmt:
     name: Run gno fmt on stdlibs
-    uses: ./.github/workflows/gnofmt_template.yml
+    uses: ./.github/workflows/templates/gnofmt_template.yml
     with:
       path: "gnovm/stdlibs/..."
