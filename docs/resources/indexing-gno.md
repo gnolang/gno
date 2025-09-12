@@ -70,7 +70,7 @@ make build
 ./build/tx-indexer start --remote https://rpc.test7.testnets.gno.land --db-path indexer-db
 ```
 
-Or if you prefer running directly with Go:
+Or if you prefer avoiding installation and running the services directly with Go:
 ```bash
 go run cmd/main.go cmd/start.go cmd/waiter.go start --remote http://127.0.0.1:26657 --db-path indexer-db
 ```
