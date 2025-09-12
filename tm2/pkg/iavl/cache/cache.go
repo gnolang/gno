@@ -34,16 +34,7 @@ type Cache interface {
 	Len() int
 }
 
-// lruCache is an LRU cache implementation.
-// The motivation for using a custom cache implementation is to
-// allow for a custom max policy.
-//
-// Currently, the cache maximum is implemented in terms of the
-// number of nodes which is not intuitive to configure.
-// Instead, we are planning to add a byte maximum.
-// The alternative implementations do not allow for
-// customization and the ability to estimate the byte
-// size of the cache.
+// lruCache is a wrapper around hashicorp/golang-lru that implements Cache.
 type lruCache struct {
 	c *lru.Cache[string, Node]
 }
