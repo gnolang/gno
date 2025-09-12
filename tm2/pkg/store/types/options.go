@@ -3,7 +3,6 @@ package types
 // (Global) Store options are used to construct new stores.
 type StoreOptions struct {
 	PruningOptions
-	LazyLoad  bool
 	Immutable bool
 }
 
