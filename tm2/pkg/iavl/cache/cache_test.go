@@ -25,8 +25,7 @@ type testNode struct {
 }
 
 type cacheOp struct {
-	testNodexIdx   int
-	expectedResult expectedResult
+	testNodexIdx int
 }
 
 type testcase struct {
@@ -64,49 +63,22 @@ func Test_Cache_Add(t *testing.T) {
 			cacheMax: 1,
 			cacheOps: []cacheOp{
 				{
-					testNodexIdx:   0,
-					expectedResult: noneRemoved,
+					testNodexIdx: 0,
 				},
 			},
 			expectedNodeIndexes: []int{0},
-		},
-		"add 1 node twice, cache max 2 - only one added": {
-			cacheMax: 2,
-			cacheOps: []cacheOp{
-				{
-					testNodexIdx:   0,
-					expectedResult: noneRemoved,
-				},
-				{
-					testNodexIdx:   0,
-					expectedResult: 0,
-				},
-			},
-			expectedNodeIndexes: []int{0},
-		},
-		"add 1 node with 0 max - not added and return itself": {
-			cacheMax: 0,
-			cacheOps: []cacheOp{
-				{
-					testNodexIdx:   0,
-					expectedResult: 0,
-				},
-			},
 		},
 		"add 3 nodes with 1 max - first 2 removed": {
 			cacheMax: 1,
 			cacheOps: []cacheOp{
 				{
-					testNodexIdx:   0,
-					expectedResult: noneRemoved,
+					testNodexIdx: 0,
 				},
 				{
-					testNodexIdx:   1,
-					expectedResult: 0,
+					testNodexIdx: 1,
 				},
 				{
-					testNodexIdx:   2,
-					expectedResult: 1,
+					testNodexIdx: 2,
 				},
 			},
 			expectedNodeIndexes: []int{2},
@@ -115,16 +87,13 @@ func Test_Cache_Add(t *testing.T) {
 			cacheMax: 2,
 			cacheOps: []cacheOp{
 				{
-					testNodexIdx:   0,
-					expectedResult: noneRemoved,
+					testNodexIdx: 0,
 				},
 				{
-					testNodexIdx:   1,
-					expectedResult: noneRemoved,
+					testNodexIdx: 1,
 				},
 				{
-					testNodexIdx:   2,
-					expectedResult: 0,
+					testNodexIdx: 2,
 				},
 			},
 			expectedNodeIndexes: []int{1, 2},
@@ -133,16 +102,13 @@ func Test_Cache_Add(t *testing.T) {
 			cacheMax: 10,
 			cacheOps: []cacheOp{
 				{
-					testNodexIdx:   0,
-					expectedResult: noneRemoved,
+					testNodexIdx: 0,
 				},
 				{
-					testNodexIdx:   1,
-					expectedResult: noneRemoved,
+					testNodexIdx: 1,
 				},
 				{
-					testNodexIdx:   2,
-					expectedResult: noneRemoved,
+					testNodexIdx: 2,
 				},
 			},
 			expectedNodeIndexes: []int{0, 1, 2},
@@ -156,18 +122,10 @@ func Test_Cache_Add(t *testing.T) {
 			expectedCurSize := 0
 
 			for _, op := range tc.cacheOps {
-				actualResult := cache.Add(testNodes[op.testNodexIdx])
+				evicted := cache.Add(testNodes[op.testNodexIdx])
 
-				expectedResult := op.expectedResult
-
-				if expectedResult == noneRemoved {
-					require.Nil(t, actualResult)
+				if !evicted {
 					expectedCurSize++
-				} else {
-					require.NotNil(t, actualResult)
-
-					// Here, op.expectedResult represents the index of the removed node in tc.cacheOps
-					require.Equal(t, testNodes[int(op.expectedResult)], actualResult)
 				}
 				require.Equal(t, expectedCurSize, cache.Len())
 			}
@@ -183,75 +141,67 @@ func Test_Cache_Remove(t *testing.T) {
 			cacheMax: 0,
 			cacheOps: []cacheOp{
 				{
-					testNodexIdx:   0,
-					expectedResult: noneRemoved,
+					testNodexIdx: 0,
 				},
 			},
 		},
 		"remove non-existent key, cache max 1 - nil returned": {
 			setup: func(c cache.Cache) {
-				require.Nil(t, c.Add(testNodes[1]))
+				c.Add(testNodes[1])
 				require.Equal(t, 1, c.Len())
 			},
 			cacheMax: 1,
 			cacheOps: []cacheOp{
 				{
-					testNodexIdx:   0,
-					expectedResult: noneRemoved,
+					testNodexIdx: 0,
 				},
 			},
 			expectedNodeIndexes: []int{1},
 		},
 		"remove existent key, cache max 1 - removed": {
 			setup: func(c cache.Cache) {
-				require.Nil(t, c.Add(testNodes[0]))
+				c.Add(testNodes[0])
 				require.Equal(t, 1, c.Len())
 			},
 			cacheMax: 1,
 			cacheOps: []cacheOp{
 				{
-					testNodexIdx:   0,
-					expectedResult: 0,
+					testNodexIdx: 0,
 				},
 			},
 		},
 		"remove twice, cache max 1 - removed first time, then nil": {
 			setup: func(c cache.Cache) {
-				require.Nil(t, c.Add(testNodes[0]))
+				c.Add(testNodes[0])
 				require.Equal(t, 1, c.Len())
 			},
 			cacheMax: 1,
 			cacheOps: []cacheOp{
 				{
-					testNodexIdx:   0,
-					expectedResult: 0,
+					testNodexIdx: 0,
 				},
 				{
-					testNodexIdx:   0,
-					expectedResult: noneRemoved,
+					testNodexIdx: 0,
 				},
 			},
 		},
 		"remove all, cache max 3": {
 			setup: func(c cache.Cache) {
-				require.Nil(t, c.Add(testNodes[0]))
-				require.Nil(t, c.Add(testNodes[1]))
-				require.Nil(t, c.Add(testNodes[2]))
+				c.Add(testNodes[0])
+				c.Add(testNodes[1])
+				c.Add(testNodes[2])
 				require.Equal(t, 3, c.Len())
 			},
 			cacheMax: 3,
 			cacheOps: []cacheOp{
 				{
-					testNodexIdx:   2,
-					expectedResult: 2,
+					testNodexIdx: 2,
 				},
 				{
-					testNodexIdx:   0,
-					expectedResult: 0,
+					testNodexIdx: 0,
 				},
 				{
-					testNodexIdx:   1,
-					expectedResult: 1,
+					testNodexIdx: 1,
 				},
 			},
 		},
@@ -268,18 +218,10 @@ func Test_Cache_Remove(t *testing.T) {
 			expectedCurSize := cache.Len()
 
 			for _, op := range tc.cacheOps {
-				actualResult := cache.Remove(testNodes[op.testNodexIdx].GetKey())
+				present := cache.Remove(testNodes[op.testNodexIdx].GetKey())
 
-				expectedResult := op.expectedResult
-
-				if expectedResult == noneRemoved {
-					require.Nil(t, actualResult)
-				} else {
+				if present {
 					expectedCurSize--
-					require.NotNil(t, actualResult)
-
-					// Here, op.expectedResult represents the index of the removed node in tc.cacheOps
-					require.Equal(t, testNodes[int(op.expectedResult)], actualResult)
 				}
 				require.Equal(t, expectedCurSize, cache.Len())
 			}

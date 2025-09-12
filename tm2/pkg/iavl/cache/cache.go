@@ -1,7 +1,7 @@
 package cache
 
 import (
-	"container/list"
+	lru "github.com/hashicorp/golang-lru/v2"
 
 	ibytes "github.com/gnolang/gno/tm2/pkg/iavl/internal/bytes"
 )
@@ -15,10 +15,10 @@ type Node interface {
 // Please see lruCache for more details about why we need a custom
 // cache implementation.
 type Cache interface {
-	// Adds node to cache. If full and had to remove the oldest element,
-	// returns the oldest, otherwise nil.
+	// Adds node to cache.
+	// Returns true of eviction occurred, false otherwise.
 	// CONTRACT: node can never be nil. Otherwise, cache panics.
-	Add(node Node) Node
+	Add(node Node) bool
 
 	// Returns Node for the key, if exists. nil otherwise.
 	Get(key []byte) Node
@@ -26,9 +26,9 @@ type Cache interface {
 	// Has returns true if node with key exists in cache, false otherwise.
 	Has(key []byte) bool
 
-	// Remove removes node with key from cache. The removed node is returned.
-	// if not in cache, return nil.
-	Remove(key []byte) Node
+	// Remove removes node with key from cache.
+	// Returns true if removal occurred, false otherwise.
+	Remove(key []byte) bool
 
 	// Len returns the cache length.
 	Len() int
@@ -45,72 +45,58 @@ type Cache interface {
 // customization and the ability to estimate the byte
 // size of the cache.
 type lruCache struct {
-	dict            map[string]*list.Element // FastNode cache.
-	maxElementCount int                      // FastNode the maximum number of nodes in the cache.
-	ll              *list.List               // LRU queue of cache elements. Used for deletion.
+	c *lru.Cache[string, Node]
 }
 
 var _ Cache = (*lruCache)(nil)
 
 func New(maxElementCount int) Cache {
-	return &lruCache{
-		dict:            make(map[string]*list.Element),
-		maxElementCount: maxElementCount,
-		ll:              list.New(),
+	if maxElementCount <= 0 {
+		return &lruCache{} // disabled cache
 	}
+	c, err := lru.New[string, Node](maxElementCount)
+	if err != nil {
+		panic(err)
+	}
+	return &lruCache{c}
 }
 
-func (c *lruCache) Add(node Node) Node {
-	key := node.GetKey()
-	if e, exists := c.dict[string(key)]; exists {
-		c.ll.MoveToFront(e)
-		old := e.Value
-		e.Value = node
-		return old.(Node)
+func (c *lruCache) Add(node Node) bool {
+	if c.c == nil {
+		return false // cache is disabled
 	}
-
-	elem := c.ll.PushFront(node)
-	c.dict[string(key)] = elem
-
-	if c.ll.Len() > c.maxElementCount {
-		oldest := c.ll.Back()
-		return c.remove(oldest)
-	}
-	return nil
+	key := ibytes.UnsafeBytesToStr(node.GetKey())
+	return c.c.Add(key, node)
 }
 
 func (c *lruCache) Get(key []byte) Node {
-	if ele, hit := c.dict[string(key)]; hit {
-		c.ll.MoveToFront(ele)
-		return ele.Value.(Node)
+	if c.c == nil {
+		return nil // cache is disabled
 	}
-	return nil
+	n, ok := c.c.Get(ibytes.UnsafeBytesToStr(key))
+	if !ok {
+		return nil
+	}
+	return n
 }
 
 func (c *lruCache) Has(key []byte) bool {
-	_, exists := c.dict[string(key)]
-	return exists
+	if c.c == nil {
+		return false // cache is disabled
+	}
+	return c.c.Contains(ibytes.UnsafeBytesToStr(key))
 }
 
 func (c *lruCache) Len() int {
-	return c.ll.Len()
-}
-
-func (c *lruCache) Remove(key []byte) Node {
-	if elem, exists := c.dict[string(key)]; exists {
-		return c.removeWithKey(elem, string(key))
+	if c.c == nil {
+		return 0 // cache is disabled
 	}
-	return nil
+	return c.c.Len()
 }
 
-func (c *lruCache) remove(e *list.Element) Node {
-	removed := c.ll.Remove(e).(Node)
-	delete(c.dict, ibytes.UnsafeBytesToStr(removed.GetKey()))
-	return removed
-}
-
-func (c *lruCache) removeWithKey(e *list.Element, key string) Node {
-	removed := c.ll.Remove(e).(Node)
-	delete(c.dict, key)
-	return removed
+func (c *lruCache) Remove(key []byte) bool {
+	if c.c == nil {
+		return false // cache is disabled
+	}
+	return c.c.Remove(ibytes.UnsafeBytesToStr(key))
 }
