@@ -24,7 +24,7 @@ jobs:
       - name: Create a dummy tag to avoid goreleaser failure
         run: git tag v0.0.0 master
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
