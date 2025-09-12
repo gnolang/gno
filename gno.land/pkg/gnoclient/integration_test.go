@@ -25,7 +25,7 @@ func TestCallSingle_Integration(t *testing.T) {
 	// Setup packages
 	rootdir := gnoenv.RootDir()
 	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
-	meta := loadpkgs(t, rootdir, "gno.land/r/demo/deep/very/deep")
+	meta := loadpkgs(t, rootdir, "gno.land/r/tests/vm/deep/very/deep")
 	state := config.Genesis.AppState.(gnoland.GnoGenesisState)
 	state.Txs = append(state.Txs, meta...)
 	config.Genesis.AppState = state
@@ -59,7 +59,7 @@ func TestCallSingle_Integration(t *testing.T) {
 	// Make Msg config
 	msg := vm.MsgCall{
 		Caller:  caller.GetAddress(),
-		PkgPath: "gno.land/r/demo/deep/very/deep",
+		PkgPath: "gno.land/r/tests/vm/deep/very/deep",
 		Func:    "RenderCrossing",
 		Args:    []string{"test argument"},
 		Send:    nil,
@@ -84,7 +84,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 	// Setup packages
 	rootdir := gnoenv.RootDir()
 	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
-	meta := loadpkgs(t, rootdir, "gno.land/r/demo/deep/very/deep")
+	meta := loadpkgs(t, rootdir, "gno.land/r/tests/vm/deep/very/deep")
 	state := config.Genesis.AppState.(gnoland.GnoGenesisState)
 	state.Txs = append(state.Txs, meta...)
 	config.Genesis.AppState = state
@@ -118,7 +118,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 	// Make Msg configs
 	msg1 := vm.MsgCall{
 		Caller:  caller.GetAddress(),
-		PkgPath: "gno.land/r/demo/deep/very/deep",
+		PkgPath: "gno.land/r/tests/vm/deep/very/deep",
 		Func:    "RenderCrossing",
 		Args:    []string{""},
 		Send:    nil,
@@ -127,7 +127,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 	// Same call, different argument
 	msg2 := vm.MsgCall{
 		Caller:  caller.GetAddress(),
-		PkgPath: "gno.land/r/demo/deep/very/deep",
+		PkgPath: "gno.land/r/tests/vm/deep/very/deep",
 		Func:    "RenderCrossing",
 		Args:    []string{"test argument"},
 		Send:    nil,
@@ -289,7 +289,7 @@ func TestRunSingle_Integration(t *testing.T) {
 	// Setup packages
 	rootdir := gnoenv.RootDir()
 	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
-	meta := loadpkgs(t, rootdir, "gno.land/p/demo/ufmt", "gno.land/r/demo/tests")
+	meta := loadpkgs(t, rootdir, "gno.land/p/nt/ufmt", "gno.land/r/tests/vm")
 	state := config.Genesis.AppState.(gnoland.GnoGenesisState)
 	state.Txs = append(state.Txs, meta...)
 	config.Genesis.AppState = state
@@ -319,8 +319,8 @@ func TestRunSingle_Integration(t *testing.T) {
 
 	fileBody := `package main
 import (
-	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/tests"
+	"gno.land/p/nt/ufmt"
+	tests "gno.land/r/tests/vm"
 )
 func main() {
 	println(ufmt.Sprintf("- before: %d", tests.Counter(cross)))
@@ -366,9 +366,9 @@ func TestRunMultiple_Integration(t *testing.T) {
 	rootdir := gnoenv.RootDir()
 	config := integration.TestingMinimalNodeConfig(rootdir)
 	meta := loadpkgs(t, rootdir,
-		"gno.land/p/demo/ufmt",
-		"gno.land/r/demo/tests",
-		"gno.land/r/demo/deep/very/deep",
+		"gno.land/p/nt/ufmt",
+		"gno.land/r/tests/vm",
+		"gno.land/r/tests/vm/deep/very/deep",
 	)
 	state := config.Genesis.AppState.(gnoland.GnoGenesisState)
 	state.Txs = append(state.Txs, meta...)
@@ -398,8 +398,8 @@ func TestRunMultiple_Integration(t *testing.T) {
 
 	fileBody1 := `package main
 import (
-	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/tests"
+	"gno.land/p/nt/ufmt"
+	tests "gno.land/r/tests/vm"
 )
 func main() {
 	println(ufmt.Sprintf("- before: %d", tests.Counter(cross)))
@@ -411,8 +411,8 @@ func main() {
 
 	fileBody2 := `package main
 import (
-	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/deep/very/deep"
+	"gno.land/p/nt/ufmt"
+	"gno.land/r/tests/vm/deep/very/deep"
 )
 func main() {
 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))

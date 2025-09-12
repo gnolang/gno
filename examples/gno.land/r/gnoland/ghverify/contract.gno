@@ -4,10 +4,10 @@ import (
 	"errors"
 	"std"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/gnorkle/feeds/static"
 	"gno.land/p/demo/gnorkle/gnorkle"
 	"gno.land/p/demo/gnorkle/message"
+	"gno.land/p/nt/avl"
 )
 
 const (

@@ -233,7 +233,7 @@ does not use gas.
 
 For this example, we will call the `wugnot` realm, which wraps GNOTs to a
 GRC20-compatible token called `wugnot`. We can find this realm deployed on the
-[Staging](../resources/gnoland-networks.md) chain, under the `gno.land/r/demo/wugnot` path.
+[Staging](../resources/gnoland-networks.md) chain, under the `gno.land/r/gnoland/wugnot` path.
 
 We will wrap `1000ugnot` into the equivalent in `wugnot`. To do this, we can call
 the `Deposit()` function found in the `wugnot` realm. As previously, we will
@@ -241,7 +241,7 @@ configure the `maketx call` subcommand:
 
 ```bash
 gnokey maketx call \
--pkgpath "gno.land/r/demo/wugnot" \
+-pkgpath "gno.land/r/gnoland/wugnot" \
 -func "Deposit" \
 -send "1000ugnot" \
 -gas-fee 10000000ugnot \
@@ -266,7 +266,7 @@ OK!
 GAS WANTED: 2000000
 GAS USED:   489528
 HEIGHT:     24142
-EVENTS:     [{"type":"Transfer","attrs":[{"key":"from","value":""},{"key":"to","value":"g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"},{"key":"value","value":"1000"}],"pkg_path":"gno.land/r/demo/wugnot","func":"Mint"}]
+EVENTS:     [{"type":"Transfer","attrs":[{"key":"from","value":""},{"key":"to","value":"g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"},{"key":"value","value":"1000"}],"pkg_path":"gno.land/r/gnoland/wugnot","func":"Mint"}]
 TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
 ```
 
@@ -279,7 +279,7 @@ can call the `BalanceOf()` function in the same realm:
 
 ```bash
 gnokey maketx call \
--pkgpath "gno.land/r/demo/wugnot" \
+-pkgpath "gno.land/r/gnoland/wugnot" \
 -func "BalanceOf" \
 -args "<your_address>" \
 -gas-fee 10000000ugnot \
@@ -416,7 +416,7 @@ to the following example realm:
 ```go
 package foo
 
-import "gno.land/p/demo/ufmt"
+import "gno.land/p/nt/ufmt"
 
 var (
 	MainFoo *Foo
@@ -724,7 +724,7 @@ Using the `vm/qfuncs` query, we can fetch exported functions from a specific pac
 path. To specify the path we want to query, we can use the `-data` flag:
 
 ```bash
-gnokey query vm/qfuncs --data "gno.land/r/demo/wugnot" -remote https://rpc.gno.land:443
+gnokey query vm/qfuncs --data "gno.land/r/gnoland/wugnot" -remote https://rpc.gno.land:443
 ```
 
 The output is a string containing all exported functions for the `wugnot` realm:
@@ -759,7 +759,7 @@ specific package path. To specify the path we want to query, we can use the
 `-data` flag:
 
 ```bash
-gnokey query vm/qfile -data "gno.land/r/demo/wugnot" -remote https://rpc.gno.land:443
+gnokey query vm/qfile -data "gno.land/r/gnoland/wugnot" -remote https://rpc.gno.land:443
 ```
 
 If the `-data` field contains only the package path, the output is a list of all
@@ -776,7 +776,7 @@ If the `-data` field also specifies a file name after the path, the source code
 of the file will be retrieved:
 
 ```bash
-gnokey query vm/qfile -data "gno.land/r/demo/wugnot/wugnot.gno" -remote https://rpc.gno.land:443
+gnokey query vm/qfile -data "gno.land/r/gnoland/wugnot/wugnot.gno" -remote https://rpc.gno.land:443
 ```
 
 Output:
@@ -788,8 +788,8 @@ import (
         "std"
         "strings"
 
-        "gno.land/p/demo/grc/grc20"
-        "gno.land/p/demo/ufmt"
+        "gno.land/p/nt/grc/grc20"
+        "gno.land/p/nt/ufmt"
         pusers "gno.land/p/demo/users"
         "gno.land/r/demo/users"
 )
@@ -882,7 +882,7 @@ data: {
 in read-only mode. For example:
 
 ```bash
-gnokey query vm/qeval -remote https://rpc.gno.land:443 -data "gno.land/r/demo/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
+gnokey query vm/qeval -remote https://rpc.gno.land:443 -data "gno.land/r/gnoland/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
 ```
 
 This command will return the `wugnot` balance of the above address without using gas.
@@ -896,11 +896,11 @@ Currently, `vm/qeval` only supports primitive types in expressions.
 We can use it like this:
 
 ```bash
-gnokey query vm/qrender --data "gno.land/r/demo/wugnot:" -remote https://rpc.gno.land:443
+gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:" -remote https://rpc.gno.land:443
 ```
 
 Running this command will display the current `Render()` output of the WUGNOT
-realm, which is also displayed by default on the [realm's page](https://gno.land/r/demo/wugnot):
+realm, which is also displayed by default on the [realm's page](https://gno.land/r/gnoland/wugnot):
 
 ```bash
 height: 0
@@ -919,7 +919,7 @@ address in its `Render()` function. We can fetch the balance of an account by
 providing the following custom pattern to the `wugnot` realm:
 
 ```bash
-gnokey query vm/qrender --data "gno.land/r/demo/wugnot:balance/g125em6arxsnj49vx35f0n0z34putv5ty3376fg5" -remote https://rpc.gno.land:443
+gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:balance/g125em6arxsnj49vx35f0n0z34putv5ty3376fg5" -remote https://rpc.gno.land:443
 ```
 
 To see how this was achieved, check out `wugnot`'s `Render()` function.

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 

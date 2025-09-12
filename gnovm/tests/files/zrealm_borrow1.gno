@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"std"
 
-	"gno.land/r/demo/tests/crossrealm"
+	"gno.land/r/tests/vm/crossrealm"
 )
 
 type Struct struct {

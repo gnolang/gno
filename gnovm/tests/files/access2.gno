@@ -2,7 +2,7 @@
 package access
 
 import (
-	"gno.land/p/demo/testutils"
+	"gno.land/p/nt/testutils"
 )
 
 func main(cur realm) {
@@ -11,4 +11,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): (const (ref(gno.land/p/demo/testutils) package{})).TestVar1
+// cannot directly modify readonly tainted object (w/o method): (const (ref(gno.land/p/nt/testutils) package{})).TestVar1

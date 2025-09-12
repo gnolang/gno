@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"testing"
 
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 )
 
 func TestResolveName(t *testing.T) {

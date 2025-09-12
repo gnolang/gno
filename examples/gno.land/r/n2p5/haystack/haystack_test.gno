@@ -4,10 +4,10 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/urequire"
 	"gno.land/p/n2p5/haystack"
 	"gno.land/p/n2p5/haystack/needle"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/urequire"
 )
 
 func TestHaystack(t *testing.T) {

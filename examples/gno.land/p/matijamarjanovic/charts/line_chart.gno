@@ -3,7 +3,7 @@ package charts
 import (
 	"strings"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 // GenerateLineChart creates an ASCII line chart in markdown format

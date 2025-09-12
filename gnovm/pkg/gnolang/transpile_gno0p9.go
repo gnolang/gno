@@ -1,3 +1,5 @@
+// XXX: DEPRECATED, see cmd/gno/fix
+
 package gnolang
 
 import (

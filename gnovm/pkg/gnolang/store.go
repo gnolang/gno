@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -47,6 +48,8 @@ type Store interface {
 	GetObject(oid ObjectID) Object
 	GetObjectSafe(oid ObjectID) Object
 	SetObject(Object) int64 // returns size difference of the object
+	GetStagingPackage() *PackageValue
+	SetStagingPackage(pv *PackageValue)
 	DelObject(Object) int64 // returns size difference of the object
 	GetType(tid TypeID) Type
 	GetTypeSafe(tid TypeID) Type
@@ -60,6 +63,7 @@ type Store interface {
 
 	// UNSTABLE
 	GetAllocator() *Allocator
+	SetAllocator(alloc *Allocator)
 	NumMemPackages() int64
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
@@ -140,6 +144,10 @@ type defaultStore struct {
 	cacheTypes   txlog.Map[TypeID, Type]        // this re-uses the parent store's.
 	cacheNodes   txlog.Map[Location, BlockNode] // until BlockNode persistence is implemented, this is an actual store.
 	alloc        *Allocator                     // for accounting for cached items
+
+	// Partially restored package; occupies memory and tracked for GC,
+	// this is more efficient than iterating over cacheObjects.
+	stagingPackage *PackageValue
 
 	// store configuration; cannot be modified in a transaction
 	pkgGetter      PackageGetter  // non-realm packages
@@ -266,6 +274,10 @@ func (ds *defaultStore) GetAllocator() *Allocator {
 	return ds.alloc
 }
 
+func (ds *defaultStore) SetAllocator(alloc *Allocator) {
+	ds.alloc = alloc
+}
+
 // Used by cmd/gno (e.g. lint) to inject target package as MPTest.
 func (ds *defaultStore) GetPackageGetter() (pg PackageGetter) {
 	return ds.pkgGetter
@@ -275,8 +287,20 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 	ds.pkgGetter = pg
 }
 
+func (ds *defaultStore) GetStagingPackage() *PackageValue {
+	return ds.stagingPackage
+}
+
+func (ds *defaultStore) SetStagingPackage(pv *PackageValue) {
+	ds.stagingPackage = pv
+}
+
 // Gets package from cache, or loads it from baseStore, or gets it from package getter.
 func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
+	defer func() {
+		ds.stagingPackage = nil
+	}()
+
 	// helper to detect circular imports
 	if isImport {
 		if slices.Contains(ds.current, pkgPath) {
@@ -287,26 +311,12 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 			ds.current = ds.current[:len(ds.current)-1]
 		}()
 	}
-	// first, check cache.
+
 	oid := ObjectIDFromPkgPath(pkgPath)
-	if oo, exists := ds.cacheObjects[oid]; exists {
-		pv := oo.(*PackageValue)
-		return pv
-	}
-	// else, load package.
-	if ds.baseStore != nil {
-		if oo := ds.loadObjectSafe(oid); oo != nil {
-			pv := oo.(*PackageValue)
-			_ = pv.GetBlock(ds) // preload
-			// get package associated realm if nil.
-			if pv.IsRealm() && pv.Realm == nil {
-				rlm := ds.GetPackageRealm(pkgPath)
-				pv.Realm = rlm
-			}
-			// Rederive pv.fBlocksMap.
-			pv.deriveFBlocksMap(ds)
-			return pv
-		}
+	// Get package from cache or baseStore
+	oo := ds.GetObjectSafe(oid)
+	if oo != nil {
+		return oo.(*PackageValue)
 	}
 	// otherwise, fetch from pkgGetter.
 	if ds.pkgGetter != nil {
@@ -401,8 +411,8 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 	size = len(bz)
 }
 
-// NOTE: does not consult the packageGetter, so instead
-// call GetPackage() for packages.
+// NOTE: it can be use to retrieve a package by ObjectID, but
+// does not consult the packageGetter, only lookup the cache/store.
 // NOTE: current implementation behavior requires
 // all []TypedValue types and TypeValue{} types to be
 // loaded (non-ref) types.
@@ -419,6 +429,10 @@ func (ds *defaultStore) GetObject(oid ObjectID) Object {
 }
 
 func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
 	// check cache.
 	if oo, exists := ds.cacheObjects[oid]; exists {
 		return oo
@@ -426,11 +440,6 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	// check baseStore.
 	if ds.baseStore != nil {
 		if oo := ds.loadObjectSafe(oid); oo != nil {
-			if debug {
-				if _, ok := oo.(*PackageValue); ok {
-					panic("packages must be fetched with GetPackage()")
-				}
-			}
 			return oo
 		}
 	}
@@ -463,7 +472,15 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		gas := overflow.Mulp(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasGetObjectDesc)
 		amino.MustUnmarshal(bz, &oo)
+		if debug {
+			debug.Printf("loadObjectSafe by oid: %v, type of oo: %v\n", oid, reflect.TypeOf(oo))
+		}
+
 		ds.alloc.Allocate(oo.GetShallowSize())
+		// Alloc values other than shallow value,
+		// RefValue, e.g. keep sync with copyValueWithRefs().
+		AllocExpanded(ds.alloc, oo)
+
 		if debug {
 			if oo.GetObjectID() != oid {
 				panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
@@ -471,12 +488,122 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 			}
 		}
 		oo.SetHash(ValueHash{NewHashlet(hash)})
+
+		if pv, ok := oo.(*PackageValue); ok {
+			ds.SetStagingPackage(pv)
+			ds.fillPackage(pv)
+		}
+
 		ds.cacheObjects[oid] = oo
 		oo.GetObjectInfo().LastObjectSize = int64(size)
 		_ = fillTypesOfValue(ds, oo)
 		return oo
 	}
 	return nil
+}
+
+func (ds *defaultStore) fillPackage(pv *PackageValue) {
+	pv.GetBlock(ds) // preload
+	if pv.IsRealm() && pv.Realm == nil {
+		rlm := ds.GetPackageRealm(pv.PkgPath)
+		pv.Realm = rlm
+	}
+	// Rederive pv.fBlocksMap.
+	pv.deriveFBlocksMap(ds)
+}
+
+func AllocExpanded(alloc *Allocator, val Value) {
+	var size int64
+	defer func() {
+		alloc.Allocate(size)
+	}()
+
+	switch v := val.(type) {
+	case *PackageValue:
+		if _, ok := v.Block.(RefValue); ok {
+			size += allocRefValue // .Block ref
+		}
+
+		// include RefValue size
+		for _, fb := range v.FBlocks {
+			if _, ok := fb.(RefValue); !ok {
+				continue
+			}
+			size += allocRefValue
+		}
+	case *Block:
+		for _, v := range v.Values {
+			if _, ok := v.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+
+		if _, ok := v.Parent.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *ArrayValue:
+		if v.Data == nil {
+			for _, tv := range v.List {
+				if _, ok := tv.V.(RefValue); ok {
+					size += allocRefValue
+				}
+			}
+		}
+	case *StructValue:
+		for _, tv := range v.Fields {
+			if _, ok := tv.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+	case *MapValue:
+		for cur := v.List.Head; cur != nil; cur = cur.Next {
+			if _, ok := cur.Key.V.(RefValue); ok {
+				size += allocRefValue
+			}
+
+			if _, ok := cur.Value.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+	case *BoundMethodValue:
+		if _, ok := v.Receiver.V.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *HeapItemValue:
+		if _, ok := v.Value.V.(RefValue); ok {
+			size += allocRefValue
+		}
+	case RefValue:
+		// do nothing
+	case *PointerValue:
+		if _, ok := v.Base.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *SliceValue:
+		if _, ok := v.Base.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *FuncValue:
+		for _, tv := range v.Captures {
+			if _, ok := tv.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+
+		if _, ok := v.Parent.(RefValue); ok {
+			size += allocRefValue
+		}
+	case StringValue:
+		// do nothing
+	case BigintValue:
+		// do nothing
+	case BigdecValue:
+		// do nothing
+	case DataByteValue:
+		// do nothing
+	case TypeValue:
+		// do nothing
+	}
 }
 
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated

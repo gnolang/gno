@@ -3,7 +3,7 @@ package table
 import (
 	"strings"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 // Table defines the structure for a markdown table

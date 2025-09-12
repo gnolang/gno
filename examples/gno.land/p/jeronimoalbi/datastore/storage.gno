@@ -4,8 +4,8 @@ import (
 	"errors"
 	"strings"
 
-	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/collection"
+	"gno.land/p/nt/seqid"
 )
 
 // NewStorage creates a new records storage.

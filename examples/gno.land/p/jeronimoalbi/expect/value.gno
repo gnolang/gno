@@ -1,6 +1,6 @@
 package expect
 
-import "gno.land/p/demo/ufmt"
+import "gno.land/p/nt/ufmt"
 
 // Value creates a new checker values of different types.
 func Value(t TestingT, value any) ValueChecker {

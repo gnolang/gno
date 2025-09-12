@@ -5,9 +5,9 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/svg"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/ufmt"
 
 	"gno.land/r/demo/art/gnoface"
 	"gno.land/r/demo/art/millipede"

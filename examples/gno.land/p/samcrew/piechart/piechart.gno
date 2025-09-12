@@ -7,7 +7,7 @@ import (
 	"math"
 
 	"gno.land/p/demo/svg"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 	"gno.land/p/sunspirit/md"
 )
 

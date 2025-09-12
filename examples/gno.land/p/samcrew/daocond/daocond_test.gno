@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/urequire"
 	"gno.land/p/samcrew/daocond"
 )
 

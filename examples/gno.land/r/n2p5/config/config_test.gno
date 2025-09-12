@@ -4,8 +4,8 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/ownable"
-	"gno.land/p/demo/testutils"
+	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/testutils"
 )
 
 func TestAddBackupOwner(t *testing.T) {

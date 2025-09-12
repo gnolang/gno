@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/uassert"
+	"gno.land/p/nt/uassert"
 )
 
 func TestNew(t *testing.T) {

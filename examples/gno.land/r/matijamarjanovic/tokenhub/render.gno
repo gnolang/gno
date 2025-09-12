@@ -4,13 +4,13 @@ import (
 	"regexp"
 	"strings"
 
-	"gno.land/p/demo/avl/pager"
-	"gno.land/p/demo/fqname"
-	"gno.land/p/demo/grc/grc20"
-	"gno.land/p/demo/grc/grc721"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/demo/tokens/grc721"
 	"gno.land/p/moul/md"
-	"gno.land/r/demo/grc20reg"
+	"gno.land/p/nt/avl/pager"
+	"gno.land/p/nt/fqname"
+	"gno.land/p/nt/ufmt"
+	"gno.land/r/demo/defi/grc20reg"
 )
 
 const (
@@ -56,9 +56,9 @@ func renderHome() string {
 	registerCode := `// Import packages
 import (
 	"gno.land/r/matijamarjanovic/tokenhub"
-	"gno.land/p/demo/grc/grc20"
-	"gno.land/p/demo/grc/grc721"
-	"gno.land/p/demo/grc/grc1155"
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/demo/tokens/grc721"
+	"gno.land/p/demo/tokens/grc1155"
 )
 
 // GRC20 token

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/avl"
 )
 
 const dateFormat = "2006-01-02 3:04pm MST"

@@ -30,7 +30,7 @@ See [Third-party wallets](../users/third-party-wallets.md).
 
 ### AVL Tree
 Data structure in Gno which is commonly used instead of the native `map`. Found
-at `gno.land/p/demo/avl`.
+at `gno.land/p/nt/avl`.
 
 ## B
 

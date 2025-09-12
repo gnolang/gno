@@ -4,10 +4,11 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/testutils"
+	"gno.land/p/nt/testutils"
 	"gno.land/r/gnoland/users"
 	"gno.land/r/gov/dao"
 	ini "gno.land/r/gov/dao/v3/init"
+	susers "gno.land/r/sys/users"
 )
 
 var (
@@ -18,10 +19,26 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(alice))
 	c := std.OriginCaller()
 	ini.InitWithUsers(c)
+	registerTestUsers(c)
 
 	pReq := users.ProposeNewRelease("gno.land/r/gnoland/users/v2", "This is a note!")
 
 	dao.MustCreateProposal(cross, pReq)
+}
+
+const gUsersV1Path = "gno.land/r/gnoland/users/v1"
+
+// Register a namespace for every addresses
+// Necessary to test GovDAO Vote
+func registerTestUsers(addrs ...std.Address) {
+	// Set realm to users admin to register test user
+	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	for _, addr := range addrs {
+		err := susers.RegisterUser(cross, addr.String()[1:], addr)
+		if err != nil {
+			panic(err.Error() + " : " + addr.String())
+		}
+	}
 }
 
 func main() {

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gno.land/p/demo/testutils"
+	"gno.land/p/nt/testutils"
 )
 
 func main() {
@@ -9,7 +9,7 @@ func main() {
 }
 
 // Error:
-// main/access1.gno:8:10-28: cannot access gno.land/p/demo/testutils.testVar2 from main
+// main/access1.gno:8:10-28: cannot access gno.land/p/nt/testutils.testVar2 from main
 
 // TypeCheckError:
 // main/access1.gno:8:20: name testVar2 not exported by package testutils

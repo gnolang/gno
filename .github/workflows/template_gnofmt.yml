@@ -1,0 +1,27 @@
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: "Path to run gno fmt on"
+        required: true
+        type: string
+      go-version:
+        description: "Go version to use"
+        required: false
+        type: string
+        default: "1.23.x"
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: Format code with gno fmt
+        run: go run ./gnovm/cmd/gno -C ${{ inputs.path }} fmt -diff ./...
