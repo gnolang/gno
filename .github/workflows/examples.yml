@@ -32,14 +32,14 @@ jobs:
       - run: go run ./gnovm/cmd/gno tool transpile -v --gobuild ./examples
   test:
     name: Run gno test
-    uses: ./.github/workflows/templates/gnotest_template.yml
+    uses: ./.github/workflows/template_gnotest.yml
     with:
       path: "examples"
       go-version: "1.23.x"
 
   lint:
     name: Run gno lint
-    uses: ./.github/workflows/templates/gnolint_template.yml
+    uses: ./.github/workflows/template_gnolint.yml
     with:
       path: "examples"
       go-version: "1.23.x"
@@ -48,13 +48,13 @@ jobs:
 
   fmt:
     name: Run gno fmt on examples
-    uses: ./.github/workflows/templates/gnofmt_template.yml
+    uses: ./.github/workflows/template_gnofmt.yml
     with:
       path: "examples/..."
 
   generate:
     name: Check generated files are up to date
-    uses: ./.github/workflows/templates/build_template.yml
+    uses: ./.github/workflows/template_build.yml
     with:
       modulepath: "examples"
       go-version: "1.23.x"

@@ -1,0 +1,40 @@
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: "Path to run gno test on"
+        required: true
+        type: string
+      go-version:
+        description: "Go version to use"
+        required: true
+        type: string
+      debug:
+        description: "Enable debug logs"
+        required: false
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install Go
+        uses: ./.github/actions/setup-go
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: Setup debug env
+        if: ${{ inputs.debug }}
+        run: |
+          export LOG_PATH_DIR=${{ runner.temp }}/logs
+          mkdir -p $LOG_PATH_DIR
+          echo "LOG_LEVEL=debug" >> $GITHUB_ENV
+          echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> $GITHUB_ENV
+
+      - name: Run gno test
+        run: go run ./gnovm/cmd/gno test -C ${{ inputs.path }} -v -print-runtime-metrics -print-events ./...

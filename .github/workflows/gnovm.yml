@@ -17,7 +17,7 @@ on:
 jobs:
   main:
     name: Run GnoVM suite
-    uses: ./.github/workflows/templates/main_template.yml
+    uses: ./.github/workflows/template_main.yml
     with:
       modulepath: "gnovm"
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/gnovm/..."
@@ -25,11 +25,11 @@ jobs:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
   stdlibs-fmt:
     name: Run gno fmt on stdlibs
-    uses: ./.github/workflows/templates/gnofmt_template.yml
+    uses: ./.github/workflows/template_gnofmt.yml
     with:
       path: "gnovm/stdlibs/..."
   stdlibs-test:
     name: Run gno test on stdlibs
-    uses: ./.github/workflows/templates/gnofmt_template.yml
+    uses: ./.github/workflows/template_gnofmt.yml
     with:
       path: "gnovm/stdlibs/..."

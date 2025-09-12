@@ -52,7 +52,7 @@ jobs:
       matrix:
         program: ${{ fromJson(needs.setup.outputs.programs) }}
     name: Run Main
-    uses: ./.github/workflows/templates/main_template.yml
+    uses: ./.github/workflows/template_main.yml
     with:
       modulepath: contribs/${{ matrix.program }}
       go-version: ${{ (fromJson(needs.setup.outputs.go-versions))[matrix.program] }}

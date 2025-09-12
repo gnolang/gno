@@ -1,0 +1,32 @@
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: "Path to run gno lint on"
+        required: true
+        type: string
+      go-version:
+        description: "Go version to use"
+        required: true
+        type: string
+      debug:
+        description: "Enable debug logs"
+        required: false
+
+jobs:
+  lint:
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install Go
+        uses: ./.github/actions/setup-go
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: Run gno lint
+        run: go run ./gnovm/cmd/gno lint -C ${{ inputs.path }} -v .
