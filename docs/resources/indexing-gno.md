@@ -26,7 +26,7 @@ This creates a "database view" of the blockchain while preserving its decentrali
 - **Embedded Storage**: PebbleDB engine
 
 ## Examples
-For example of queries, refers to the [tx-indexer](https://github.com/gnolang/tx-indexer?tab=readme-ov-file#examples) documentation.
+To find query examples, refer to the [tx-indexer](https://github.com/gnolang/tx-indexer?tab=readme-ov-file#examples) documentation.
 
 ## Installation
 Follow official [installation guide](https://github.com/gnolang/tx-indexer?tab=readme-ov-file#getting-started) on `tx-indexer` repository.
