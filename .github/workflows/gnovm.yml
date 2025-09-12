@@ -33,3 +33,8 @@ jobs:
     uses: ./.github/workflows/template_gnofmt.yml
     with:
       path: "gnovm/stdlibs"
+  stdlibs-lint:
+    name: Run gno test on stdlibs
+    uses: ./.github/workflows/template_gnolint.yml
+    with:
+      path: "gnovm/stdlibs"
