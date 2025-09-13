@@ -77,6 +77,8 @@ type StorageUnlockEvent struct {
 	BytesDelta int64    `json:"bytes_delta"`
 	FeeRefund  std.Coin `json:"fee_refund"`
 	PkgPath    string   `json:"pkg_path"`
+	// RefundWithheld is true if the refund was retained because of token lock
+	RefundWithheld bool `json:"refund_withheld"`
 }
 
 func (e StorageUnlockEvent) AssertABCIEvent() {}

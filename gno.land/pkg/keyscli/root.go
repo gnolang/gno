@@ -68,6 +68,8 @@ func PrintTxInfo(tx std.Tx, res *ctypes.ResultBroadcastTxCommit, io commands.IO)
 	io.Println("HEIGHT:    ", res.Height)
 	if delta, storageFee, ok := GetStorageInfo(res.DeliverTx.Events); ok {
 		io.Printfln("STORAGE DELTA:  %d bytes", delta)
+		total := tx.Fee.GasFee.Amount
+
 		if storageFee.Amount >= 0 {
 			io.Println("STORAGE FEE:   ", storageFee)
 		} else {
@@ -79,6 +81,8 @@ func PrintTxInfo(tx std.Tx, res *ctypes.ResultBroadcastTxCommit, io commands.IO)
 			total := tx.Fee.GasFee.Amount + storageFee.Amount
 			io.Printfln("TOTAL TX COST:  %d%v", total, tx.Fee.GasFee.Denom)
 		}
+
+		io.Printfln("TOTAL TX COST:  %d%v", total, tx.Fee.GasFee.Denom)
 	}
 	io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
 	io.Println("INFO:      ", res.DeliverTx.Info)
@@ -96,6 +100,11 @@ func GetStorageInfo(events []abci.Event) (int64, std.Coin, bool) {
 		case gnostd.StorageUnlockEvent:
 			fee := storageEvent.FeeRefund
 			fee.Amount *= -1
+			// If true it means the refund was withheld
+			// due to token lock, so the refund visible to user is 0
+			if storageEvent.RefundWithheld {
+				fee.Amount = 0
+			}
 			// For unlock, BytesDelta is negative
 			return storageEvent.BytesDelta, fee, true
 		}
