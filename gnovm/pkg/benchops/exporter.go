@@ -9,7 +9,7 @@ import (
 )
 
 // the byte size of a exported record
-const RecordSize int = 10
+const RecordSize int = 11
 
 var fileWriter *exporter
 
@@ -31,8 +31,9 @@ type exporter struct {
 // export code, duration, size in a 10 bytes record
 // byte 1: OpCode
 // byte 2: StoreCode
-// byte 3-6: Duration
-// byte 7-10: Size
+// byte 3: NativeCode
+// byte 4-7: Duration
+// byte 8-11: Size
 func (e *exporter) export(code Code, elapsedTime time.Duration, size int64) {
 	// the MaxUint32 is 4294967295. It represents 4.29 seconds in duration or 4G bytes.
 	// It panics not only for overflow protection, but also for abnormal measurements.
@@ -43,9 +44,9 @@ func (e *exporter) export(code Code, elapsedTime time.Duration, size int64) {
 		log.Fatalf("size %d out of uint32 range", size)
 	}
 
-	buf := []byte{code[0], code[1], 0, 0, 0, 0, 0, 0, 0, 0}
-	binary.LittleEndian.PutUint32(buf[2:], uint32(elapsedTime))
-	binary.LittleEndian.PutUint32(buf[6:], uint32(size))
+	buf := []byte{code[0], code[1], code[2], 0, 0, 0, 0, 0, 0, 0, 0}
+	binary.LittleEndian.PutUint32(buf[3:], uint32(elapsedTime))
+	binary.LittleEndian.PutUint32(buf[7:], uint32(size))
 	_, err := e.file.Write(buf)
 	if err != nil {
 		panic("could not write to benchmark file: " + err.Error())
@@ -69,7 +70,7 @@ func FinishStore() {
 			panic("timer should have stopped before FinishRun")
 		}
 
-		code := [2]byte{0x00, byte(i)}
+		code := [3]byte{0x00, byte(i), 0x00}
 
 		fileWriter.export(
 			code,
@@ -89,10 +90,32 @@ func FinishRun() {
 			panic("timer should have stopped before FinishRun")
 		}
 
-		code := [2]byte{byte(i), 0x00}
+		code := [3]byte{byte(i), 0x00, 0x00}
 		fileWriter.export(code, measure.opAccumDur[i]/time.Duration(measure.opCounts[i]), 0)
 	}
 	ResetRun()
+}
+
+func FinishNative() {
+	for i := range 256 {
+		count := measure.nativeCounts[i]
+
+		if count == 0 {
+			continue
+		}
+		// check unstopped timer
+		if measure.nativeStartTime[i] != measure.timeZero {
+			panic("timer should have stopped before FinishRun")
+		}
+
+		code := [3]byte{0x00, 0x00, byte(i)}
+
+		fileWriter.export(
+			code,
+			measure.nativeAccumDur[i]/time.Duration(count),
+			0,
+		)
+	}
 }
 
 // It reset each machine Runs

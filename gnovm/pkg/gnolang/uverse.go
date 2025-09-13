@@ -6,9 +6,17 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
+)
+
+const (
+	NativeCPUUversePrintInit    = 3084
+	NativeCPUUversePrintPerChar = 1
 )
 
 // ----------------------------------------
@@ -848,6 +856,17 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
+			if bm.NativeEnabled {
+				arg0 := m.LastBlock().GetParams1(m.Store)
+				bm.StartNative(bm.GetNativePrintCode(uverseLen(m, arg0, false)))
+				prevOutput := m.Output
+				m.Output = os.Stdout
+				defer func() {
+					bm.StopNative()
+					m.Output = prevOutput
+				}()
+			}
+
 			arg0 := m.LastBlock().GetParams1(m.Store)
 			uversePrint(m, arg0, false)
 		},
@@ -858,6 +877,16 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
+			if bm.NativeEnabled {
+				arg0 := m.LastBlock().GetParams1(m.Store)
+				bm.StartNative(bm.GetNativePrintCode(uverseLen(m, arg0, true)))
+				prevOutput := m.Output
+				m.Output = os.Stdout
+				defer func() {
+					bm.StopNative()
+					m.Output = prevOutput
+				}()
+			}
 			arg0 := m.LastBlock().GetParams1(m.Store)
 			uversePrint(m, arg0, true)
 		},
@@ -1113,22 +1142,67 @@ func copyListToRunes(dst []rune, tvs []TypedValue) {
 	}
 }
 
+func consumerGas(m *Machine, amount types.Gas) {
+	if m.GasMeter != nil {
+		m.GasMeter.ConsumeGas(amount, "CPUCycles")
+	}
+}
+
 // uversePrint is used for the print and println functions.
 // println passes newline = true.
 // xv contains the variadic argument passed to the function.
 func uversePrint(m *Machine, xv PointerValue, newline bool) {
+	consumerGas(m, NativeCPUUversePrintInit)
 	xvl := xv.TV.GetLength()
 	switch xvl {
 	case 0:
 		if newline {
+			consumerGas(m, NativeCPUUversePrintPerChar)
 			m.Output.Write(bNewline)
 		}
 	case 1:
 		ev := xv.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 		res := ev.Sprint(m)
+		consumerGas(m, overflow.Mulp(NativeCPUUversePrintPerChar, types.Gas(len(res))))
 		io.WriteString(m.Output, res)
 		if newline {
+			consumerGas(m, NativeCPUUversePrintPerChar)
 			m.Output.Write(bNewline)
+		}
+	default:
+		var buf bytes.Buffer
+		for i := range xvl {
+			if i != 0 { // Not the last item.
+				buf.WriteByte(' ')
+			}
+			ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
+			res := ev.Sprint(m)
+			consumerGas(m, overflow.Mulp(NativeCPUUversePrintPerChar, types.Gas(len(res))))
+			buf.WriteString(res)
+		}
+		if newline {
+			consumerGas(m, NativeCPUUversePrintPerChar)
+			buf.WriteByte('\n')
+		}
+		m.Output.Write(buf.Bytes())
+	}
+}
+
+func uverseLen(m *Machine, xv PointerValue, newline bool) int {
+	var length int
+	xvl := xv.TV.GetLength()
+	switch xvl {
+	case 0:
+		length = 0
+		if newline {
+			length += 1
+		}
+	case 1:
+		ev := xv.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
+		res := ev.Sprint(m)
+		length = len(res)
+		if newline {
+			length += 1
 		}
 	default:
 		var buf bytes.Buffer
@@ -1139,11 +1213,12 @@ func uversePrint(m *Machine, xv PointerValue, newline bool) {
 			ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
 			buf.WriteString(ev.Sprint(m))
 		}
+		length = buf.Len()
 		if newline {
-			buf.WriteByte('\n')
+			length += 1
 		}
-		m.Output.Write(buf.Bytes())
 	}
+	return length
 }
 
 var bNewline = []byte("\n")
