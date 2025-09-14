@@ -235,32 +235,32 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 
 	// If only -show flag is specified, try to load from cache
 	if cmd.show != "" && cmd.coverage && !cmd.verbose {
-		cache, err := vmcoverage.NewCache()
-		if err == nil {
-			defer cache.Close()
+		// cache, err := vmcoverage.NewCache()
+		// if err == nil {
+		// 	defer cache.Close()
 
-			// Try to load cached coverage for each path
-			for _, path := range paths {
-				entry, err := cache.Load(path)
-				if err == nil && entry != nil {
-					// Create a tracker with cached data
-					tracker := vmcoverage.NewTracker()
-					tracker.SetCoverageData(entry.Coverage)
-					tracker.SetExecutableLines(entry.ExecutableLines)
-					tracker.SetEnabled(true)
+		// 	// Try to load cached coverage for each path
+		// 	for _, path := range paths {
+		// 		entry, err := cache.Load(path)
+		// 		if err == nil && entry != nil {
+		// 			// Create a tracker with cached data
+		// 			tracker := vmcoverage.NewTracker()
+		// 			tracker.SetCoverageData(entry.Coverage)
+		// 			tracker.SetExecutableLines(entry.ExecutableLines)
+		// 			tracker.SetEnabled(true)
 
-					// Show the cached coverage
-					if err := tracker.ShowFileCoverage(cmd.rootDir, cmd.show, io.Err()); err != nil {
-						io.ErrPrintfln("Error showing cached coverage: %v", err)
-					} else {
-						io.ErrPrintfln("(Using cached coverage data)")
-						return nil
-					}
-				}
-			}
-			// If cache miss, continue with regular test execution
-			io.ErrPrintfln("No cached coverage data found, running tests...")
-		}
+		// 			// Show the cached coverage
+		// 			if err := tracker.ShowFileCoverage(cmd.rootDir, cmd.show, io.Err()); err != nil {
+		// 				io.ErrPrintfln("Error showing cached coverage: %v", err)
+		// 			} else {
+		// 				io.ErrPrintfln("(Using cached coverage data)")
+		// 				return nil
+		// 			}
+		// 		}
+		// 	}
+		// 	// If cache miss, continue with regular test execution
+		// 	io.ErrPrintfln("No cached coverage data found, running tests...")
+		// }
 	}
 
 	if cmd.timeout > 0 {
@@ -431,23 +431,23 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 
 		// Save coverage data to cache
 		if opts.CoverageTracker != nil {
-			if tracker, ok := opts.CoverageTracker.(*vmcoverage.Tracker); ok {
-				cache, err := vmcoverage.NewCache()
-				if err == nil {
-					defer cache.Close()
+			// if tracker, ok := opts.CoverageTracker.(*vmcoverage.Tracker); ok {
+			// 	cache, err := vmcoverage.NewCache()
+			// 	if err == nil {
+			// 		defer cache.Close()
 
-					// Save coverage data for each tested path
-					for _, path := range paths {
-						covData := tracker.GetCoverageData()
-						execLines := tracker.GetExecutableLines()
-						if err := cache.Save(path, covData, execLines); err != nil {
-							if cmd.verbose {
-								io.ErrPrintfln("Warning: failed to cache coverage data: %v", err)
-							}
-						}
-					}
-				}
-			}
+			// 		// Save coverage data for each tested path
+			// 		for _, path := range paths {
+			// 			covData := tracker.GetCoverageData()
+			// 			execLines := tracker.GetExecutableLines()
+			// 			if err := cache.Save(path, covData, execLines); err != nil {
+			// 				if cmd.verbose {
+			// 					io.ErrPrintfln("Warning: failed to cache coverage data: %v", err)
+			// 				}
+			// 			}
+			// 		}
+			// 	}
+			// }
 		}
 
 		// Show coverage visualization for specific files
