@@ -326,7 +326,6 @@ func (m *Machine) doOpEval() {
 		// nodes may be more persistent than values in a tx.
 		// (currently all nodes are cached, but we don't want to cache
 		// all packages too).
-		fillValueTV(m.Store, &tv)
 		m.PushValue(tv)
 	case *constTypeExpr:
 		m.PopExpr()

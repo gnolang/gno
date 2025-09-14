@@ -3674,7 +3674,7 @@ func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, x Expr) (tv Typ
 	if cx, ok := x.(*ConstExpr); ok {
 		return cx.TypedValue, nil
 	}
-	pv := pn.NewPackage() // throwaway
+	pv := pn.NewPackage(nilAllocator) // throwaway
 	store = store.BeginTransaction(nil, nil, nil)
 	store.SetCachePackage(pv)
 	m := NewMachine(pn.PkgPath, store)

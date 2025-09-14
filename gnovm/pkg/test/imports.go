@@ -143,21 +143,7 @@ func StoreWithOptions(
 				panic(fmt.Errorf("test store parsing gno.mod: %w", err))
 			}
 			if mod == nil || mod.GetGno() == gno.GnoVerMissing {
-				// In order to translate into a newer Gno version with
-				// the preprocessor make a slight modifications to the
-				// AST. This needs to happen even for imports, because
-				// the preprocessor requires imports also preprocessed.
-				// This is because the linter uses pkg/test/imports.go.
-				gofset, _, gofs, _gofs, tgofs, errs := gno.GoParseMemPackage(mpkg)
-				if errs != nil {
-					panic(fmt.Errorf("test store parsing: %w", errs))
-				}
-				allgofs := append(gofs, _gofs...)
-				allgofs = append(allgofs, tgofs...)
-				errs = gno.PrepareGno0p9(gofset, allgofs, mpkg)
-				if errs != nil {
-					panic(fmt.Errorf("test store preparing AST: %w", errs))
-				}
+				panic(fmt.Errorf("cannot parse %q: transpile to %s first", mpkg.Path, gno.GnoVerLatest))
 			}
 			m.Store.AddMemPackage(mpkg, mptype)
 			return m.PreprocessFiles(

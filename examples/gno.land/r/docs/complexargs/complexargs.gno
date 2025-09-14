@@ -3,7 +3,7 @@ package complexargs
 import (
 	"strings"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 // Some example complex types, ie a slice, and a custom type
@@ -21,12 +21,12 @@ type CustomType struct {
 }
 
 // SetSlice takes a complex argument that must be called using MsgRun or from another contract that imports this one.
-func SetSlice(newSlice []int) {
+func SetSlice(_ realm, newSlice []int) {
 	slice = newSlice
 }
 
 // SetMyObject takes a complex argument that must be called using MsgRun or from another contract that imports this one.
-func SetMyObject(newCoolObject CustomType) {
+func SetMyObject(_ realm, newCoolObject CustomType) {
 	myObject = &newCoolObject
 }
 
@@ -74,7 +74,7 @@ func main() {
 	// Create the complex arguments to pass:
 	slice := []int{1, 2, 3}
 	// Call the function
-	complexargs.SetSlice(slice)
+	complexargs.SetSlice(cross, slice)
 
 	// The same can be done with custom types:
 	obj := complexargs.CustomType{Name: "whatever", Numbers: []int{1, 10, 100}}
