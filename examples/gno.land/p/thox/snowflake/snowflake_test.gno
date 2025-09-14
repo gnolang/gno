@@ -3,7 +3,7 @@ package snowflake
 import (
 	"testing"
 
-	"gno.land/p/demo/uassert"
+	"gno.land/p/nt/uassert"
 )
 
 func TestID(t *testing.T) {

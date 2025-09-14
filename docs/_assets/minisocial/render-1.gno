@@ -1,6 +1,6 @@
 package minisocial
 
-import "gno.land/p/demo/ufmt" // Gno counterpart to `fmt`, for formatting strings
+import "gno.land/p/nt/ufmt" // Gno counterpart to `fmt`, for formatting strings
 
 func Render(_ string) string {
 	output := "# MiniSocial\n\n" // \n is needed just like in standard Markdown

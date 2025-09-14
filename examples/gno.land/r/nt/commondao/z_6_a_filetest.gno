@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/demo/testutils"
 	pdao "gno.land/p/nt/commondao"
+	"gno.land/p/nt/testutils"
 
 	"gno.land/r/nt/commondao"
 )
@@ -19,8 +19,6 @@ var (
 	proposal *pdao.Proposal
 	executed bool
 	user1    = testutils.TestAddress("user1")
-	user2    = testutils.TestAddress("user2")
-	user3    = testutils.TestAddress("user3")
 )
 
 type propDef struct{}
@@ -44,23 +42,13 @@ func init() {
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(std.NewUserRealm(user1))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
-	dao = commondao.New("Foo")
+	dao = commondao.New(cross, "Foo")
 
 	// Configure DAO
 	dao.Members().Add(user1)
-	dao.Members().Add(user2)
-	dao.Members().Add(user3)
 
 	// Create a new proposal
 	proposal, _ = dao.Propose(user1, propDef{})
-
-	// Submit user1 vote
-	testing.SetRealm(std.NewUserRealm(user1))
-	commondao.Vote(cross, dao.ID(), proposal.ID(), pdao.ChoiceYes, "")
-
-	// Submit user2 vote
-	testing.SetRealm(std.NewUserRealm(user2))
-	commondao.Vote(cross, dao.ID(), proposal.ID(), pdao.ChoiceYes, "")
 }
 
 func main() {

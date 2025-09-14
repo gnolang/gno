@@ -3,8 +3,8 @@ package foo1155
 import (
 	"std"
 
-	"gno.land/p/demo/grc/grc1155"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/tokens/grc1155"
+	"gno.land/p/nt/ufmt"
 )
 
 var (
@@ -50,21 +50,21 @@ func IsApprovedForAll(owner, user std.Address) bool {
 
 // Setters
 
-func SetApprovalForAll(user std.Address, approved bool) {
+func SetApprovalForAll(_ realm, user std.Address, approved bool) {
 	err := foo.SetApprovalForAll(user, approved)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func TransferFrom(from, to std.Address, tid grc1155.TokenID, amount int64) {
+func TransferFrom(_ realm, from, to std.Address, tid grc1155.TokenID, amount int64) {
 	err := foo.SafeTransferFrom(from, to, tid, amount)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func BatchTransferFrom(from, to std.Address, batch []grc1155.TokenID, amounts []int64) {
+func BatchTransferFrom(_ realm, from, to std.Address, batch []grc1155.TokenID, amounts []int64) {
 	err := foo.SafeBatchTransferFrom(from, to, batch, amounts)
 	if err != nil {
 		panic(err)
@@ -73,7 +73,7 @@ func BatchTransferFrom(from, to std.Address, batch []grc1155.TokenID, amounts []
 
 // Admin
 
-func Mint(to std.Address, tid grc1155.TokenID, amount int64) {
+func Mint(_ realm, to std.Address, tid grc1155.TokenID, amount int64) {
 	caller := std.OriginCaller()
 	assertIsAdmin(caller)
 	err := foo.SafeMint(to, tid, amount)
@@ -82,7 +82,7 @@ func Mint(to std.Address, tid grc1155.TokenID, amount int64) {
 	}
 }
 
-func MintBatch(to std.Address, batch []grc1155.TokenID, amounts []int64) {
+func MintBatch(_ realm, to std.Address, batch []grc1155.TokenID, amounts []int64) {
 	caller := std.OriginCaller()
 	assertIsAdmin(caller)
 	err := foo.SafeBatchMint(to, batch, amounts)
@@ -91,7 +91,7 @@ func MintBatch(to std.Address, batch []grc1155.TokenID, amounts []int64) {
 	}
 }
 
-func Burn(from std.Address, tid grc1155.TokenID, amount int64) {
+func Burn(_ realm, from std.Address, tid grc1155.TokenID, amount int64) {
 	caller := std.OriginCaller()
 	assertIsAdmin(caller)
 	err := foo.Burn(from, tid, amount)
@@ -100,7 +100,7 @@ func Burn(from std.Address, tid grc1155.TokenID, amount int64) {
 	}
 }
 
-func BurnBatch(from std.Address, batch []grc1155.TokenID, amounts []int64) {
+func BurnBatch(_ realm, from std.Address, batch []grc1155.TokenID, amounts []int64) {
 	caller := std.OriginCaller()
 	assertIsAdmin(caller)
 	err := foo.BatchBurn(from, batch, amounts)
