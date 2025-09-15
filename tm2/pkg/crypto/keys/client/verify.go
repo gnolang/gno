@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"os"
@@ -61,7 +62,7 @@ func (c *VerifyCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.ChainID,
 		"chain-id",
-		"dev",
+		"",
 		"network chain ID used for signing",
 	)
 	fs.Var(
@@ -118,7 +119,7 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 	err = kb.Verify(info.GetName(), signBytes, sig)
 	if err == nil {
 		if !cfg.RootCfg.BaseOptions.Quiet {
-			io.Printf("Valid signature!\nSigning Address: %s\nPublic key: %s\nSignature: %s\n", info.GetAddress(), info.GetPubKey().String(), sig)
+			io.Printf("Valid signature!\nSigning Address: %s\nPublic key: %s\nSignature: %s\n", info.GetAddress(), info.GetPubKey().String(), base64.StdEncoding.EncodeToString(sig))
 		}
 	}
 	return err
@@ -174,22 +175,36 @@ func getSignature(cfg *VerifyCfg, tx *std.Tx) ([]byte, error) {
 
 func getSignBytes(ctx context.Context, cfg *VerifyCfg, info keys.Info, tx *std.Tx, io commands.IO) ([]byte, error) {
 	// Query account number and sequence if needed.
-	if !cfg.AccountNumber.Defined || !cfg.AccountSequence.Defined {
+	if !cfg.AccountNumber.Defined || !cfg.AccountSequence.Defined || cfg.ChainID == "" {
 		if !cfg.RootCfg.BaseOptions.Quiet {
 			io.Println("Querying account from chain...")
 		}
 
 		// Query the account from the chain.
-		baseAccount, err := queryBaseAccount(ctx, cfg, info)
+		baseAccount, chainID, err := queryBaseAccount(ctx, cfg, info)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: could not query account from chain, use default values: %v\n", err)
 		} else {
 			// Update cfg with queried account number and sequence.
-			cfg.AccountNumber.V = baseAccount.AccountNumber
-			cfg.AccountSequence.V = baseAccount.Sequence
-			if !cfg.RootCfg.BaseOptions.Quiet {
-				io.Printf("account-number set to %d\n", cfg.AccountNumber)
-				io.Printf("account-sequence set to %d\n", cfg.AccountSequence)
+			if !cfg.AccountNumber.Defined {
+				if !cfg.RootCfg.BaseOptions.Quiet {
+					io.Printf("Queried account number: %d\n", baseAccount.AccountNumber)
+				}
+				cfg.AccountNumber.V = baseAccount.AccountNumber
+			}
+
+			if !cfg.AccountSequence.Defined {
+				if !cfg.RootCfg.BaseOptions.Quiet {
+					io.Printf("Queried account sequence: %d\n", baseAccount.Sequence)
+				}
+				cfg.AccountSequence.V = baseAccount.Sequence
+			}
+
+			if cfg.ChainID == "" {
+				if !cfg.RootCfg.BaseOptions.Quiet {
+					io.Printf("Queried chain-id: %s\n", chainID)
+				}
+				cfg.ChainID = chainID
 			}
 		}
 	}
@@ -207,15 +222,26 @@ func getSignBytes(ctx context.Context, cfg *VerifyCfg, info keys.Info, tx *std.T
 	return signBytes, nil
 }
 
-func queryBaseAccount(ctx context.Context, cfg *VerifyCfg, info keys.Info) (*std.BaseAccount, error) {
+func queryBaseAccount(ctx context.Context, cfg *VerifyCfg, info keys.Info) (*std.BaseAccount, string, error) {
+	var chainID string
+
 	remote := cfg.RootCfg.Remote
 	if remote == "" {
-		return nil, errors.New("missing remote url")
+		return nil, "", errors.New("missing remote url")
 	}
 
 	cli, err := client.NewHTTPClient(remote)
 	if err != nil {
-		return nil, errors.Wrap(err, "new http client")
+		return nil, "", errors.Wrap(err, "new http client")
+	}
+
+	// Get the node status to query the chain ID if needed.
+	if cfg.ChainID == "" {
+		nodeStatus, err := cli.Status(ctx, nil)
+		if err != nil {
+			return nil, "", errors.Wrap(err, "query node status")
+		}
+		chainID = nodeStatus.NodeInfo.Network
 	}
 
 	address := crypto.AddressToBech32(info.GetAddress())
@@ -224,17 +250,17 @@ func queryBaseAccount(ctx context.Context, cfg *VerifyCfg, info keys.Info) (*std
 
 	qres, err := cli.ABCIQuery(ctx, path, data)
 	if err != nil {
-		return nil, errors.Wrap(err, "query account")
+		return nil, "", errors.Wrap(err, "query account")
 	}
 	if len(qres.Response.Data) == 0 || string(qres.Response.Data) == "null" {
-		return nil, errors.Wrap(err, "unknown address: "+address)
+		return nil, "", errors.Wrap(err, "unknown address: "+address)
 	}
 
 	var qret struct{ BaseAccount std.BaseAccount }
 	err = amino.UnmarshalJSON(qres.Response.Data, &qret)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return &qret.BaseAccount, nil
+	return &qret.BaseAccount, chainID, nil
 }
