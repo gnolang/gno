@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/base64"
 	"flag"
 	"fmt"
 	"os"
@@ -19,9 +18,8 @@ import (
 type VerifyCfg struct {
 	RootCfg *BaseCfg
 
-	DocPath   string
-	SigPath   string
-	Signature string
+	DocPath string
+	SigPath string
 
 	ChainID         string
 	AccountNumber   uint64
@@ -39,7 +37,7 @@ func NewVerifyCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 			Name:       "verify",
 			ShortUsage: "verify [flags] <key-name or address>",
 			ShortHelp:  "verifies the transaction signature",
-			LongHelp:   "Verifies a std.Tx signature against <key-name or address> in your local keybase. The sign bytes are derived from the tx using --chain-id, --account-number, and --account-sequence; these must match the values used when the signature was created. If --account-number and --account-sequence are 0 and --offline=false, the command queries the chain (via --remote) to fill them; if the query fails, 0 is used. Provide the signature via --sigpath or --signature (mutually exclusive); otherwise the first signature in the tx (tx.Signatures[0]) is used. The tx is read from --docpath.",
+			LongHelp:   "Verifies a std.Tx signature against <key-name or address> in your local keybase. The sign bytes are derived from the tx using --chain-id, --account-number, and --account-sequence; these must match the values used when the signature was created. If --account-number and --account-sequence are 0 and --offline=false, the command queries the chain (via --remote) to fill them; if the query fails, 0 is used. Provide the signature via --sigpath; otherwise the first signature in the tx (tx.Signatures[0]) is used. The tx is read from --docpath.",
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
@@ -60,12 +58,6 @@ func (c *VerifyCfg) RegisterFlags(fs *flag.FlagSet) {
 		"sigpath",
 		"",
 		"path of signature file in Amino JSON format (mutually exclusive with -signature flag)",
-	)
-	fs.StringVar(
-		&c.Signature,
-		"signature",
-		"",
-		"base64-encoded signature string (mutually exclusive with -sigpath flag)",
 	)
 	fs.StringVar(
 		&c.ChainID,
@@ -161,11 +153,6 @@ func getTransaction(docPath string, io commands.IO) (*std.Tx, error) {
 }
 
 func getSignature(cfg *VerifyCfg, tx *std.Tx) ([]byte, error) {
-	// Exclude -sigpath and -signature flags set at the same time.
-	if cfg.SigPath != "" && cfg.Signature != "" {
-		return nil, errors.New("only one of -sigpath or -signature flags can be set")
-	}
-
 	// From -sigpath flag.
 	if cfg.SigPath != "" {
 		sigbz, err := os.ReadFile(cfg.SigPath)
@@ -184,15 +171,6 @@ func getSignature(cfg *VerifyCfg, tx *std.Tx) ([]byte, error) {
 		}
 
 		return sig.Signature, nil
-	}
-
-	// From -signature flag.
-	if cfg.Signature != "" {
-		sig, err := base64.StdEncoding.DecodeString(cfg.Signature)
-		if err != nil {
-			return nil, fmt.Errorf("unable to decode signature, %w", err)
-		}
-		return sig, nil
 	}
 
 	// Default: from tx.

@@ -2,8 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -272,128 +270,6 @@ func Test_execVerify(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("test: -signature flag: bad format", func(t *testing.T) {
-		t.Parallel()
-
-		kbHome, tx, cleanUp := prepare(t)
-		defer cleanUp()
-
-		sigHex := hex.EncodeToString(tx.Signatures[0].Signature)
-
-		// Marshal the tx with signature.
-		rawTx, err := amino.MarshalJSON(tx)
-		assert.NoError(t, err)
-
-		txFile, err := os.CreateTemp("", "tx-*.json")
-		require.NoError(t, err)
-
-		require.NoError(t, os.WriteFile(txFile.Name(), rawTx, 0o644))
-
-		cfg := &VerifyCfg{
-			RootCfg: &BaseCfg{
-				BaseOptions: BaseOptions{
-					Home:                  kbHome,
-					InsecurePasswordStdin: true,
-				},
-			},
-			DocPath:         txFile.Name(),
-			Signature:       sigHex,
-			AccountNumber:   accountNumber,
-			AccountSequence: accountSequence,
-			ChainID:         chainID,
-		}
-
-		io := commands.NewTestIO()
-		args := []string{fakeKeyName1}
-
-		err = execVerify(context.Background(), cfg, args, io)
-		assert.Error(t, err)
-	})
-
-	t.Run("test: -signature flag: ok", func(t *testing.T) {
-		t.Parallel()
-
-		kbHome, tx, cleanUp := prepare(t)
-		defer cleanUp()
-
-		sigb64 := base64.StdEncoding.EncodeToString(tx.Signatures[0].Signature)
-
-		// Marshal the tx with signature.
-		rawTx, err := amino.MarshalJSON(tx)
-		assert.NoError(t, err)
-
-		txFile, err := os.CreateTemp("", "tx-*.json")
-		require.NoError(t, err)
-
-		require.NoError(t, os.WriteFile(txFile.Name(), rawTx, 0o644))
-
-		cfg := &VerifyCfg{
-			RootCfg: &BaseCfg{
-				BaseOptions: BaseOptions{
-					Home:                  kbHome,
-					InsecurePasswordStdin: true,
-				},
-			},
-			DocPath:         txFile.Name(),
-			Signature:       sigb64,
-			AccountNumber:   accountNumber,
-			AccountSequence: accountSequence,
-			ChainID:         chainID,
-		}
-
-		io := commands.NewTestIO()
-		args := []string{fakeKeyName1}
-
-		err = execVerify(context.Background(), cfg, args, io)
-		assert.NoError(t, err)
-	})
-
-	t.Run("test: -signature flag: bad signature", func(t *testing.T) {
-		t.Parallel()
-
-		kbHome, tx, cleanUp := prepare(t)
-		defer cleanUp()
-
-		// Marshal the tx with signature.
-		rawTx, err := amino.MarshalJSON(tx)
-		assert.NoError(t, err)
-
-		txFile, err := os.CreateTemp("", "tx-*.json")
-		require.NoError(t, err)
-
-		require.NoError(t, os.WriteFile(txFile.Name(), rawTx, 0o644))
-
-		// Mutated bad signature fails test.
-		testBadSig := testutils.MutateByteSlice(tx.Signatures[0].PubKey.Bytes())
-		badSigb64 := base64.StdEncoding.EncodeToString(testBadSig)
-
-		cfg := &VerifyCfg{
-			RootCfg: &BaseCfg{
-				BaseOptions: BaseOptions{
-					Home:                  kbHome,
-					InsecurePasswordStdin: true,
-				},
-			},
-			DocPath:         txFile.Name(),
-			Signature:       badSigb64, // Bad signature.
-			AccountNumber:   accountNumber,
-			AccountSequence: accountSequence,
-			ChainID:         chainID,
-		}
-
-		io := commands.NewTestIO()
-		args := []string{fakeKeyName1}
-
-		io.SetIn(
-			strings.NewReader(
-				fmt.Sprintf("%s\n", rawTx),
-			),
-		)
-
-		err = execVerify(context.Background(), cfg, args, io)
-		assert.Error(t, err)
-	})
-
 	t.Run("test: -sigpath flag: no signature", func(t *testing.T) {
 		t.Parallel()
 
@@ -656,53 +532,6 @@ func Test_execVerify(t *testing.T) {
 				fmt.Sprintf("%s\n", rawTx),
 			),
 		)
-
-		err = execVerify(context.Background(), cfg, args, io)
-		assert.Error(t, err)
-	})
-
-	// Both -sigpath and -signature flags cannot be used at the same time.
-	t.Run("test: -sigpath and -signature flags error", func(t *testing.T) {
-		t.Parallel()
-
-		kbHome, tx, cleanUp := prepare(t)
-		defer cleanUp()
-
-		// Marshal the tx with signature.
-		rawTx, err := amino.MarshalJSON(tx)
-		assert.NoError(t, err)
-
-		txFile, err := os.CreateTemp("", "tx-*.json")
-		require.NoError(t, err)
-
-		require.NoError(t, os.WriteFile(txFile.Name(), rawTx, 0o644))
-
-		// Marshal the signature.
-		rawSig, err := amino.MarshalJSON(tx.Signatures[0])
-		assert.NoError(t, err)
-
-		sigFile, err := os.CreateTemp("", "sig-*.json")
-		require.NoError(t, err)
-
-		require.NoError(t, os.WriteFile(sigFile.Name(), rawSig, 0o644))
-
-		cfg := &VerifyCfg{
-			RootCfg: &BaseCfg{
-				BaseOptions: BaseOptions{
-					Home:                  kbHome,
-					InsecurePasswordStdin: true,
-				},
-			},
-			DocPath:         txFile.Name(),
-			SigPath:         sigFile.Name(), // Both flags used.
-			Signature:       string(rawSig), // Both flags used.
-			AccountNumber:   accountNumber,
-			AccountSequence: accountSequence,
-			ChainID:         chainID,
-		}
-
-		io := commands.NewTestIO()
-		args := []string{fakeKeyName1}
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.Error(t, err)
