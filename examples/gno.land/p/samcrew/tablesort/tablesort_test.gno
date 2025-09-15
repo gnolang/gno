@@ -17,14 +17,14 @@ func TestRender(t *testing.T) {
 		},
 	}
 
-	u, _ := url.Parse("/test?members-sort-desc=Role")
+	u, _ := url.Parse("/test?members-sort-desc=Tier")
 	md := Render(u, table, "members-")
 
-	expected := "| [Tier](/test?members-sort-desc=Tier) | [Member](/test?members-sort-desc=Member) | [Role ↓](/test?members-sort-asc=Role) |\n" +
+	expected := "| [Tier ↓](/test?members-sort-asc=Tier) | [Member](/test?members-sort-desc=Member) | [Role](/test?members-sort-desc=Role) |\n" +
 		"| --- | --- | --- |\n" +
-		"| T1 | g11111 | finance-officer |\n" +
+		"| T3 | g33333 | developer |\n" +
 		"| T2 | g22222 | developer |\n" +
-		"| T3 | g33333 | developer |\n"
+		"| T1 | g11111 | finance-officer |\n"
 
 	// Trim spaces for comparison
 	md = strings.TrimSpace(md)
