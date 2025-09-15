@@ -111,14 +111,13 @@ func Test_execVerify(t *testing.T) {
 					InsecurePasswordStdin: true,
 				},
 			},
-			DocPath:         txFile.Name(),
 			AccountNumber:   commands.Uint64Flag{V: accountNumber},
 			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         chainID,
 		}
 
 		io := commands.NewTestIO()
-		args := []string{} // No argument.
+		args := []string{fakeKeyName1} // Only one argument.
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.Error(t, err)
@@ -146,14 +145,13 @@ func Test_execVerify(t *testing.T) {
 					InsecurePasswordStdin: true,
 				},
 			},
-			DocPath:         txFile.Name(),
 			AccountNumber:   commands.Uint64Flag{V: accountNumber},
 			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         chainID,
 		}
 
 		io := commands.NewTestIO()
-		args := []string{"bad-key-name"} // Bad key name.
+		args := []string{"bad-key-name", txFile.Name()} // Bad key name.
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.Error(t, err)
@@ -183,14 +181,13 @@ func Test_execVerify(t *testing.T) {
 					InsecurePasswordStdin: true,
 				},
 			},
-			DocPath:         txFile.Name(),
 			AccountNumber:   commands.Uint64Flag{V: accountNumber},
 			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         chainID,
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1}
+		args := []string{fakeKeyName1, txFile.Name()}
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.Error(t, err)
@@ -218,14 +215,13 @@ func Test_execVerify(t *testing.T) {
 					InsecurePasswordStdin: true,
 				},
 			},
-			DocPath:         txFile.Name(),
 			AccountNumber:   commands.Uint64Flag{V: accountNumber},
 			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         chainID,
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1}
+		args := []string{fakeKeyName1, txFile.Name()}
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.NoError(t, err)
@@ -257,14 +253,13 @@ func Test_execVerify(t *testing.T) {
 					InsecurePasswordStdin: true,
 				},
 			},
-			DocPath:         txFile.Name(),
 			AccountNumber:   commands.Uint64Flag{V: accountNumber},
 			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         chainID,
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1}
+		args := []string{fakeKeyName1, txFile.Name()}
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.Error(t, err)
@@ -293,7 +288,6 @@ func Test_execVerify(t *testing.T) {
 					InsecurePasswordStdin: true,
 				},
 			},
-			DocPath:         txFile.Name(),
 			SigPath:         txFile.Name(),
 			AccountNumber:   commands.Uint64Flag{V: accountNumber},
 			AccountSequence: commands.Uint64Flag{V: accountSequence},
@@ -301,7 +295,7 @@ func Test_execVerify(t *testing.T) {
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1}
+		args := []string{fakeKeyName1, txFile.Name()}
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.Error(t, err)
@@ -338,7 +332,6 @@ func Test_execVerify(t *testing.T) {
 					InsecurePasswordStdin: true,
 				},
 			},
-			DocPath:         txFile.Name(),
 			SigPath:         sigFile.Name(),
 			AccountNumber:   commands.Uint64Flag{V: accountNumber},
 			AccountSequence: commands.Uint64Flag{V: accountSequence},
@@ -346,7 +339,7 @@ func Test_execVerify(t *testing.T) {
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1}
+		args := []string{fakeKeyName1, txFile.Name()}
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.NoError(t, err)
@@ -374,14 +367,13 @@ func Test_execVerify(t *testing.T) {
 					InsecurePasswordStdin: true,
 				},
 			},
-			DocPath:         txFile.Name(),
 			AccountNumber:   commands.Uint64Flag{V: accountNumber},
 			AccountSequence: commands.Uint64Flag{V: accountSequence + 1}, // Bad sequence.
 			ChainID:         chainID,
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1}
+		args := []string{fakeKeyName1, txFile.Name()}
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.Error(t, err)
@@ -409,14 +401,13 @@ func Test_execVerify(t *testing.T) {
 					InsecurePasswordStdin: true,
 				},
 			},
-			DocPath:         txFile.Name(),
 			AccountNumber:   commands.Uint64Flag{V: accountNumber + 1}, // Bad account number.
 			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         chainID,
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1}
+		args := []string{fakeKeyName1, txFile.Name()}
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.Error(t, err)
@@ -444,14 +435,13 @@ func Test_execVerify(t *testing.T) {
 					InsecurePasswordStdin: true,
 				},
 			},
-			DocPath:         txFile.Name(),
 			AccountNumber:   commands.Uint64Flag{V: accountNumber},
 			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         "bad-chain-id", // Bad chain ID.
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1}
+		args := []string{fakeKeyName1, txFile.Name()}
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.Error(t, err)
@@ -480,12 +470,11 @@ func Test_execVerify(t *testing.T) {
 					Remote:                "http://localhost:26657", // Needs remote to fetch account info.
 				},
 			},
-			DocPath: txFile.Name(),
 			ChainID: chainID,
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1}
+		args := []string{fakeKeyName1, txFile.Name()}
 
 		io.SetIn(
 			strings.NewReader(
@@ -519,12 +508,11 @@ func Test_execVerify(t *testing.T) {
 					InsecurePasswordStdin: true,
 				},
 			},
-			DocPath: txFile.Name(),
 			ChainID: chainID,
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1}
+		args := []string{fakeKeyName1, txFile.Name()}
 
 		io.SetIn(
 			strings.NewReader(
@@ -666,13 +654,12 @@ func Test_VerifyMultisig(t *testing.T) {
 		RootCfg: &BaseCfg{
 			BaseOptions: baseOptions,
 		},
-		DocPath:         txFile.Name(),
 		ChainID:         "dev",
 		AccountNumber:   commands.Uint64Flag{V: 0},
 		AccountSequence: commands.Uint64Flag{V: 0},
 	}
 
-	vargs := []string{multisigName}
+	vargs := []string{multisigName, txFile.Name()}
 	err = execVerify(context.Background(), cfg, vargs, io)
 	assert.NoError(t, err)
 }

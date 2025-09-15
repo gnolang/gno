@@ -19,7 +19,6 @@ import (
 type VerifyCfg struct {
 	RootCfg *BaseCfg
 
-	DocPath string
 	SigPath string
 
 	ChainID         string
@@ -35,9 +34,9 @@ func NewVerifyCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "verify",
-			ShortUsage: "verify [flags] <key-name or address>",
+			ShortUsage: "verify [flags] <key-name or address> <transaction path>",
 			ShortHelp:  "verifies the transaction signature",
-			LongHelp:   "Verifies a std.Tx signature against <key-name or address> in your local keybase. The sign bytes are derived from the tx using --chain-id, --account-number, and --account-sequence; these must match the values used when the signature was created. If --account-number, --account-sequence or --chain-id are not set, the command queries the chain (via --remote) to fill them; if the query fails, default values are used. Provide the signature via --sigpath; otherwise the first signature in the tx (tx.Signatures[0]) is used. The tx is read from --docpath.",
+			LongHelp:   "Verifies a signature of a <Amino JSON format transaction> against <key-name or address> in your local keybase. The sign bytes are derived from the tx using --chain-id, --account-number, and --account-sequence; these must match the values used when the signature was created. If --account-number, --account-sequence or --chain-id are not set, the command queries the chain (via --remote) to fill them; if the query fails, default values are used. Provide the signature via --sigpath; otherwise the first signature in the tx (tx.Signatures[0]) is used.",
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
@@ -47,12 +46,6 @@ func NewVerifyCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 }
 
 func (c *VerifyCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(
-		&c.DocPath,
-		"docpath",
-		"",
-		"path of transaction file to verify in Amino JSON format",
-	)
 	fs.StringVar(
 		&c.SigPath,
 		"sigpath",
@@ -83,7 +76,7 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 		err error
 	)
 
-	if len(args) != 1 {
+	if len(args) != 2 {
 		return flag.ErrHelp
 	}
 
@@ -99,7 +92,7 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 	}
 
 	// Get the transaction to verify.
-	tx, err := getTransaction(cfg.DocPath, io)
+	tx, err := getTransaction(args[1], io)
 	if err != nil {
 		return err
 	}
@@ -125,13 +118,9 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 	return err
 }
 
-func getTransaction(docPath string, io commands.IO) (*std.Tx, error) {
-	if docPath == "" {
-		return nil, errors.New("missing -docpath flag")
-	}
-
+func getTransaction(txPath string, io commands.IO) (*std.Tx, error) {
 	// Read document to sign.
-	msg, err := os.ReadFile(docPath)
+	msg, err := os.ReadFile(txPath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read the transaction file, %w", err)
 	}
