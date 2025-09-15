@@ -44,7 +44,7 @@ func (u *Uint64Flag) String() string {
 func (u *Uint64Flag) Set(value string) error {
 	v, err := strconv.ParseUint(value, 10, 64)
 	if err != nil {
-		return fmt.Errorf("invalid uint64 value: %v", err)
+		return fmt.Errorf("invalid uint64 value: %w", err)
 	}
 
 	u.V, u.Defined = v, true
