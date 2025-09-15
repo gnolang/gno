@@ -311,27 +311,12 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 			ds.current = ds.current[:len(ds.current)-1]
 		}()
 	}
-	// first, check cache.
+
 	oid := ObjectIDFromPkgPath(pkgPath)
-	if oo, exists := ds.cacheObjects[oid]; exists {
-		pv := oo.(*PackageValue)
-		return pv
-	}
-	// else, load package.
-	if ds.baseStore != nil {
-		if oo := ds.loadObjectSafe(oid); oo != nil {
-			pv := oo.(*PackageValue)
-			ds.SetStagingPackage(pv)
-			_ = pv.GetBlock(ds) // preload
-			// get package associated realm if nil.
-			if pv.IsRealm() && pv.Realm == nil {
-				rlm := ds.GetPackageRealm(pkgPath)
-				pv.Realm = rlm
-			}
-			// Rederive pv.fBlocksMap.
-			pv.deriveFBlocksMap(ds)
-			return pv
-		}
+	// Get package from cache or baseStore
+	oo := ds.GetObjectSafe(oid)
+	if oo != nil {
+		return oo.(*PackageValue)
 	}
 	// otherwise, fetch from pkgGetter.
 	if ds.pkgGetter != nil {
@@ -426,8 +411,8 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 	size = len(bz)
 }
 
-// NOTE: does not consult the packageGetter, so instead
-// call GetPackage() for packages.
+// NOTE: it can be use to retrieve a package by ObjectID, but
+// does not consult the packageGetter, only lookup the cache/store.
 // NOTE: current implementation behavior requires
 // all []TypedValue types and TypeValue{} types to be
 // loaded (non-ref) types.
@@ -444,6 +429,10 @@ func (ds *defaultStore) GetObject(oid ObjectID) Object {
 }
 
 func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
 	// check cache.
 	if oo, exists := ds.cacheObjects[oid]; exists {
 		return oo
@@ -451,11 +440,6 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	// check baseStore.
 	if ds.baseStore != nil {
 		if oo := ds.loadObjectSafe(oid); oo != nil {
-			if debug {
-				if _, ok := oo.(*PackageValue); ok {
-					panic("packages must be fetched with GetPackage()")
-				}
-			}
 			return oo
 		}
 	}
@@ -504,12 +488,28 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 			}
 		}
 		oo.SetHash(ValueHash{NewHashlet(hash)})
+
+		if pv, ok := oo.(*PackageValue); ok {
+			ds.SetStagingPackage(pv)
+			ds.fillPackage(pv)
+		}
+
 		ds.cacheObjects[oid] = oo
 		oo.GetObjectInfo().LastObjectSize = int64(size)
 		_ = fillTypesOfValue(ds, oo)
 		return oo
 	}
 	return nil
+}
+
+func (ds *defaultStore) fillPackage(pv *PackageValue) {
+	pv.GetBlock(ds) // preload
+	if pv.IsRealm() && pv.Realm == nil {
+		rlm := ds.GetPackageRealm(pv.PkgPath)
+		pv.Realm = rlm
+	}
+	// Rederive pv.fBlocksMap.
+	pv.deriveFBlocksMap(ds)
 }
 
 func AllocExpanded(alloc *Allocator, val Value) {
