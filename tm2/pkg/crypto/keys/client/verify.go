@@ -22,9 +22,8 @@ type VerifyCfg struct {
 	SigPath string
 
 	ChainID         string
-	AccountNumber   uint64
-	AccountSequence uint64
-	Offline         bool
+	AccountNumber   commands.Uint64Flag
+	AccountSequence commands.Uint64Flag
 }
 
 func NewVerifyCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -37,7 +36,7 @@ func NewVerifyCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 			Name:       "verify",
 			ShortUsage: "verify [flags] <key-name or address>",
 			ShortHelp:  "verifies the transaction signature",
-			LongHelp:   "Verifies a std.Tx signature against <key-name or address> in your local keybase. The sign bytes are derived from the tx using --chain-id, --account-number, and --account-sequence; these must match the values used when the signature was created. If --account-number and --account-sequence are 0 and --offline=false, the command queries the chain (via --remote) to fill them; if the query fails, 0 is used. Provide the signature via --sigpath; otherwise the first signature in the tx (tx.Signatures[0]) is used. The tx is read from --docpath.",
+			LongHelp:   "Verifies a std.Tx signature against <key-name or address> in your local keybase. The sign bytes are derived from the tx using --chain-id, --account-number, and --account-sequence; these must match the values used when the signature was created. If --account-number, --account-sequence or --chain-id are not set, the command queries the chain (via --remote) to fill them; if the query fails, default values are used. Provide the signature via --sigpath; otherwise the first signature in the tx (tx.Signatures[0]) is used. The tx is read from --docpath.",
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
@@ -65,23 +64,15 @@ func (c *VerifyCfg) RegisterFlags(fs *flag.FlagSet) {
 		"dev",
 		"network chain ID used for signing",
 	)
-	fs.Uint64Var(
+	fs.Var(
 		&c.AccountNumber,
 		"account-number",
-		0,
 		"account number of the signing account",
 	)
-	fs.Uint64Var(
+	fs.Var(
 		&c.AccountSequence,
 		"account-sequence",
-		0,
 		"account sequence of the signing account",
-	)
-	fs.BoolVar(
-		&c.Offline,
-		"offline",
-		false,
-		"offline mode: do not query the chain for account number and account sequence",
 	)
 }
 
@@ -127,7 +118,7 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 	err = kb.Verify(info.GetName(), signBytes, sig)
 	if err == nil {
 		if !cfg.RootCfg.BaseOptions.Quiet {
-			io.Println("Valid signature!")
+			io.Printf("Valid signature!\nSigning Address: %s\nPublic key: %s\nSignature: %s\n", info.GetAddress(), info.GetPubKey().String(), sig)
 		}
 	}
 	return err
@@ -183,7 +174,7 @@ func getSignature(cfg *VerifyCfg, tx *std.Tx) ([]byte, error) {
 
 func getSignBytes(ctx context.Context, cfg *VerifyCfg, info keys.Info, tx *std.Tx, io commands.IO) ([]byte, error) {
 	// Query account number and sequence if needed.
-	if !cfg.Offline && cfg.AccountNumber == 0 && cfg.AccountSequence == 0 {
+	if !cfg.AccountNumber.Defined || !cfg.AccountSequence.Defined {
 		if !cfg.RootCfg.BaseOptions.Quiet {
 			io.Println("Querying account from chain...")
 		}
@@ -194,8 +185,8 @@ func getSignBytes(ctx context.Context, cfg *VerifyCfg, info keys.Info, tx *std.T
 			fmt.Fprintf(os.Stderr, "Warning: could not query account from chain, use default values: %v\n", err)
 		} else {
 			// Update cfg with queried account number and sequence.
-			cfg.AccountNumber = baseAccount.AccountNumber
-			cfg.AccountSequence = baseAccount.Sequence
+			cfg.AccountNumber.V = baseAccount.AccountNumber
+			cfg.AccountSequence.V = baseAccount.Sequence
 			if !cfg.RootCfg.BaseOptions.Quiet {
 				io.Printf("account-number set to %d\n", cfg.AccountNumber)
 				io.Printf("account-sequence set to %d\n", cfg.AccountSequence)
@@ -206,8 +197,8 @@ func getSignBytes(ctx context.Context, cfg *VerifyCfg, info keys.Info, tx *std.T
 	// Get the bytes to verify.
 	signBytes, err := tx.GetSignBytes(
 		cfg.ChainID,
-		cfg.AccountNumber,
-		cfg.AccountSequence,
+		cfg.AccountNumber.V,
+		cfg.AccountSequence.V,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get signature bytes, %w", err)

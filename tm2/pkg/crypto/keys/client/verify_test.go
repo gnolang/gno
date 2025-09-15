@@ -112,8 +112,8 @@ func Test_execVerify(t *testing.T) {
 				},
 			},
 			DocPath:         txFile.Name(),
-			AccountNumber:   accountNumber,
-			AccountSequence: accountSequence,
+			AccountNumber:   commands.Uint64Flag{V: accountNumber},
+			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         chainID,
 		}
 
@@ -147,8 +147,8 @@ func Test_execVerify(t *testing.T) {
 				},
 			},
 			DocPath:         txFile.Name(),
-			AccountNumber:   accountNumber,
-			AccountSequence: accountSequence,
+			AccountNumber:   commands.Uint64Flag{V: accountNumber},
+			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         chainID,
 		}
 
@@ -184,8 +184,8 @@ func Test_execVerify(t *testing.T) {
 				},
 			},
 			DocPath:         txFile.Name(),
-			AccountNumber:   accountNumber,
-			AccountSequence: accountSequence,
+			AccountNumber:   commands.Uint64Flag{V: accountNumber},
+			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         chainID,
 		}
 
@@ -219,8 +219,8 @@ func Test_execVerify(t *testing.T) {
 				},
 			},
 			DocPath:         txFile.Name(),
-			AccountNumber:   accountNumber,
-			AccountSequence: accountSequence,
+			AccountNumber:   commands.Uint64Flag{V: accountNumber},
+			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         chainID,
 		}
 
@@ -258,8 +258,8 @@ func Test_execVerify(t *testing.T) {
 				},
 			},
 			DocPath:         txFile.Name(),
-			AccountNumber:   accountNumber,
-			AccountSequence: accountSequence,
+			AccountNumber:   commands.Uint64Flag{V: accountNumber},
+			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         chainID,
 		}
 
@@ -295,8 +295,8 @@ func Test_execVerify(t *testing.T) {
 			},
 			DocPath:         txFile.Name(),
 			SigPath:         txFile.Name(),
-			AccountNumber:   accountNumber,
-			AccountSequence: accountSequence,
+			AccountNumber:   commands.Uint64Flag{V: accountNumber},
+			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         chainID,
 		}
 
@@ -340,8 +340,8 @@ func Test_execVerify(t *testing.T) {
 			},
 			DocPath:         txFile.Name(),
 			SigPath:         sigFile.Name(),
-			AccountNumber:   accountNumber,
-			AccountSequence: accountSequence,
+			AccountNumber:   commands.Uint64Flag{V: accountNumber},
+			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         chainID,
 		}
 
@@ -375,8 +375,8 @@ func Test_execVerify(t *testing.T) {
 				},
 			},
 			DocPath:         txFile.Name(),
-			AccountNumber:   accountNumber,
-			AccountSequence: accountSequence + 1, // Bad number.
+			AccountNumber:   commands.Uint64Flag{V: accountNumber},
+			AccountSequence: commands.Uint64Flag{V: accountSequence + 1}, // Bad sequence.
 			ChainID:         chainID,
 		}
 
@@ -410,8 +410,8 @@ func Test_execVerify(t *testing.T) {
 				},
 			},
 			DocPath:         txFile.Name(),
-			AccountNumber:   accountNumber + 1, // Bad number.
-			AccountSequence: accountSequence,
+			AccountNumber:   commands.Uint64Flag{V: accountNumber + 1}, // Bad account number.
+			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         chainID,
 		}
 
@@ -445,8 +445,8 @@ func Test_execVerify(t *testing.T) {
 				},
 			},
 			DocPath:         txFile.Name(),
-			AccountNumber:   accountNumber,
-			AccountSequence: accountSequence,
+			AccountNumber:   commands.Uint64Flag{V: accountNumber},
+			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         "bad-chain-id", // Bad chain ID.
 		}
 
@@ -497,7 +497,7 @@ func Test_execVerify(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("test: no -account-sequence and -account-number flags and -offline: error", func(t *testing.T) {
+	t.Run("test: no -account-sequence and -account-number flags: error", func(t *testing.T) {
 		t.Parallel()
 
 		kbHome, tx, cleanUp := prepare(t)
@@ -520,8 +520,7 @@ func Test_execVerify(t *testing.T) {
 				},
 			},
 			DocPath: txFile.Name(),
-			ChainID: "bad-chain-id", // Bad chain ID.
-			Offline: true,
+			ChainID: chainID,
 		}
 
 		io := commands.NewTestIO()
@@ -669,8 +668,8 @@ func Test_VerifyMultisig(t *testing.T) {
 		},
 		DocPath:         txFile.Name(),
 		ChainID:         "dev",
-		AccountNumber:   0,
-		AccountSequence: 0,
+		AccountNumber:   commands.Uint64Flag{V: 0},
+		AccountSequence: commands.Uint64Flag{V: 0},
 	}
 
 	vargs := []string{multisigName}
