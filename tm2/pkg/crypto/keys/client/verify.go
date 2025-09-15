@@ -39,7 +39,7 @@ func NewVerifyCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 			Name:       "verify",
 			ShortUsage: "verify [flags] <key-name or address>",
 			ShortHelp:  "verifies the transaction signature",
-			LongHelp:   "Verifies a std.Tx signature against <key-name or address> in your local keybase. The sign bytes are derived from the tx using --chain-id, --account-number, and --account-sequence; these must match the values used when the signature was created. If --account-number and --account-sequence are 0 and --offline=false, the command queries the chain (via --remote) to fill them; if the query fails, 0 is used. Provide the signature via --sigpath or --signature (mutually exclusive); otherwise the first signature in the tx (tx.Signatures[0]) is used. The tx is read from --docpath or stdin.",
+			LongHelp:   "Verifies a std.Tx signature against <key-name or address> in your local keybase. The sign bytes are derived from the tx using --chain-id, --account-number, and --account-sequence; these must match the values used when the signature was created. If --account-number and --account-sequence are 0 and --offline=false, the command queries the chain (via --remote) to fill them; if the query fails, 0 is used. Provide the signature via --sigpath or --signature (mutually exclusive); otherwise the first signature in the tx (tx.Signatures[0]) is used. The tx is read from --docpath.",
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
@@ -53,7 +53,7 @@ func (c *VerifyCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.DocPath,
 		"docpath",
 		"",
-		"path of transaction file to verify in Amino JSON format (if empty, read from stdin)",
+		"path of transaction file to verify in Amino JSON format",
 	)
 	fs.StringVar(
 		&c.SigPath,
@@ -142,23 +142,14 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 }
 
 func getTransaction(docPath string, io commands.IO) (*std.Tx, error) {
-	var msg []byte
+	if docPath == "" {
+		return nil, errors.New("missing -docpath flag")
+	}
 
 	// Read document to sign.
-	if docPath == "" { // From stdin.
-		msgstr, err := io.GetString(
-			"Enter document to sign.",
-		)
-		if err != nil {
-			return nil, err
-		}
-		msg = []byte(msgstr)
-	} else { // from file
-		var err error
-		msg, err = os.ReadFile(docPath)
-		if err != nil {
-			return nil, err
-		}
+	msg, err := os.ReadFile(docPath)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read the transaction file, %w", err)
 	}
 
 	// Unmarshal Amino JSON transaction.
