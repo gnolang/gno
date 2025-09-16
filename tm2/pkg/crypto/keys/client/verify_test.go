@@ -86,8 +86,8 @@ func Test_execVerify(t *testing.T) {
 	t.Parallel()
 
 	const (
-		accountNumber   = 10
-		accountSequence = 2
+		accountNumber   = uint64(10)
+		accountSequence = uint64(2)
 		fakeKeyName1    = "verifyApp_Key1"
 		encPassword     = ""
 		chainID         = "dev"
@@ -305,11 +305,13 @@ func Test_execVerify(t *testing.T) {
 
 		// Initialize the account number flag.
 		flagAccountNumber := &commands.Uint64Flag{}
-		flagAccountNumber.Set(strconv.FormatInt(accountNumber, 10))
+		flagAccountNumber.Set(strconv.FormatUint(accountNumber, 10))
+		require.Equal(t, accountNumber, flagAccountNumber.V)
 
 		// Initialize the account sequence flag.
 		flagAccountSequence := &commands.Uint64Flag{}
-		flagAccountSequence.Set(strconv.FormatInt(accountSequence, 10))
+		flagAccountSequence.Set(strconv.FormatUint(accountSequence, 10))
+		require.Equal(t, accountSequence, flagAccountSequence.V)
 
 		cfg := &VerifyCfg{
 			RootCfg: &BaseCfg{
@@ -465,11 +467,11 @@ func Test_execVerify(t *testing.T) {
 
 		// Initialize the account number flag.
 		flagAccountNumber := &commands.Uint64Flag{}
-		flagAccountNumber.Set(strconv.FormatInt(accountNumber, 10))
+		flagAccountNumber.Set(strconv.FormatUint(accountNumber, 10))
 
 		// Initialize the account sequence flag.
 		flagAccountSequence := &commands.Uint64Flag{}
-		flagAccountSequence.Set(strconv.FormatInt(accountSequence+1, 10)) // Bad sequence.
+		flagAccountSequence.Set(strconv.FormatUint(accountSequence+1, 10)) // Bad sequence.
 
 		cfg := &VerifyCfg{
 			RootCfg: &BaseCfg{
@@ -507,11 +509,11 @@ func Test_execVerify(t *testing.T) {
 
 		// Initialize the account number flag.
 		flagAccountNumber := &commands.Uint64Flag{}
-		flagAccountNumber.Set(strconv.FormatInt(accountNumber+1, 10)) // Bad account number.
+		flagAccountNumber.Set(strconv.FormatUint(accountNumber+1, 10)) // Bad account number.
 
 		// Initialize the account sequence flag.
 		flagAccountSequence := &commands.Uint64Flag{}
-		flagAccountSequence.Set(strconv.FormatInt(accountSequence, 10))
+		flagAccountSequence.Set(strconv.FormatUint(accountSequence, 10))
 
 		cfg := &VerifyCfg{
 			RootCfg: &BaseCfg{
@@ -549,11 +551,11 @@ func Test_execVerify(t *testing.T) {
 
 		// Initialize the account number flag.
 		flagAccountNumber := &commands.Uint64Flag{}
-		flagAccountNumber.Set(strconv.FormatInt(accountNumber+1, 10)) // Bad account number.
+		flagAccountNumber.Set(strconv.FormatUint(accountNumber+1, 10)) // Bad account number.
 
 		// Initialize the account sequence flag.
 		flagAccountSequence := &commands.Uint64Flag{}
-		flagAccountSequence.Set(strconv.FormatInt(accountSequence, 10))
+		flagAccountSequence.Set(strconv.FormatUint(accountSequence, 10))
 
 		cfg := &VerifyCfg{
 			RootCfg: &BaseCfg{
@@ -591,11 +593,11 @@ func Test_execVerify(t *testing.T) {
 
 		// Initialize the account number flag.
 		flagAccountNumber := &commands.Uint64Flag{}
-		flagAccountNumber.Set(strconv.FormatInt(accountNumber, 10))
+		flagAccountNumber.Set(strconv.FormatUint(accountNumber, 10))
 
 		// Initialize the account sequence flag.
 		flagAccountSequence := &commands.Uint64Flag{}
-		flagAccountSequence.Set(strconv.FormatInt(accountSequence, 10))
+		flagAccountSequence.Set(strconv.FormatUint(accountSequence, 10))
 
 		// Create a test server that will return the account number and sequence.
 		handler := defaultHTTPHandler(t, "status", &ctypes.ResultStatus{
@@ -643,7 +645,7 @@ func Test_execVerify(t *testing.T) {
 
 		// Initialize the account sequence flag.
 		flagAccountSequence := &commands.Uint64Flag{}
-		flagAccountSequence.Set(strconv.FormatInt(accountSequence, 10))
+		flagAccountSequence.Set(strconv.FormatUint(accountSequence, 10))
 
 		cfg := &VerifyCfg{
 			RootCfg: &BaseCfg{
@@ -681,7 +683,7 @@ func Test_execVerify(t *testing.T) {
 
 		// Initialize the account sequence flag.
 		flagAccountSequence := &commands.Uint64Flag{}
-		flagAccountSequence.Set(strconv.FormatInt(accountSequence, 10))
+		flagAccountSequence.Set(strconv.FormatUint(accountSequence, 10))
 
 		baseAccount, err := amino.MarshalJSON(
 			struct{ BaseAccount std.BaseAccount }{
@@ -741,7 +743,7 @@ func Test_execVerify(t *testing.T) {
 
 		// Initialize the account number flag.
 		flagAccountNumber := &commands.Uint64Flag{}
-		flagAccountNumber.Set(strconv.FormatInt(accountNumber, 10))
+		flagAccountNumber.Set(strconv.FormatUint(accountNumber, 10))
 
 		cfg := &VerifyCfg{
 			RootCfg: &BaseCfg{
@@ -779,7 +781,7 @@ func Test_execVerify(t *testing.T) {
 
 		// Initialize the account number flag.
 		flagAccountNumber := &commands.Uint64Flag{}
-		flagAccountNumber.Set(strconv.FormatInt(accountNumber, 10))
+		flagAccountNumber.Set(strconv.FormatUint(accountNumber, 10))
 
 		baseAccount, err := amino.MarshalJSON(
 			struct{ BaseAccount std.BaseAccount }{
@@ -839,7 +841,7 @@ func Test_execVerify(t *testing.T) {
 
 		// Initialize the account number flag.
 		flagAccountNumber := &commands.Uint64Flag{}
-		flagAccountNumber.Set(strconv.FormatInt(accountNumber, 10))
+		flagAccountNumber.Set(strconv.FormatUint(accountNumber, 10))
 
 		baseAccount, err := amino.MarshalJSON(
 			struct{ BaseAccount std.BaseAccount }{
