@@ -50,7 +50,7 @@ func (c *VerifyCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.SigPath,
 		"sigpath",
 		"",
-		"path of signature file in Amino JSON format (mutually exclusive with -signature flag)",
+		"path of signature file in Amino JSON format. If omitted, the signature in the tx itself is verified instead",
 	)
 	fs.StringVar(
 		&c.ChainID,
@@ -92,47 +92,100 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 	}
 
 	// Get the transaction to verify.
-	tx, err := getTransaction(args[1], io)
+	tx, err := readTransaction(args[1])
 	if err != nil {
 		return err
 	}
 
-	// Verify signature.
-	sig, err := getSignature(cfg, tx)
-	if err != nil {
-		return err
+	// Fetch the signature
+	var sig []byte
+
+	if cfg.SigPath != "" {
+		// The signature is in a separate file
+		sig, err = readSignature(cfg.SigPath)
+	} else {
+		// The signature is in the tx itself
+		sig, err = extractSignature(tx)
 	}
 
-	// Update cfg.ChainID if empty.
-	if cfg.ChainID == "" {
-		if err := updateCfgChainID(ctx, cfg, io); err != nil {
-			return err
+	if err != nil {
+		return fmt.Errorf("unable to get tx signature: %w", err)
+	}
+
+	var (
+		remote = cfg.RootCfg.Remote
+
+		chainID         = cfg.ChainID
+		accountNumber   = cfg.AccountNumber.V
+		accountSequence = cfg.AccountSequence.V
+	)
+
+	// Fetch the chain from the node if unset
+	if chainID == "" {
+		remoteChainID, err := fetchChainID(ctx, remote)
+		if err != nil {
+			return fmt.Errorf("unable to fetch chain ID: %w", err)
 		}
+
+		chainID = remoteChainID
 	}
 
 	// Update account number and sequence if needed.
 	if !cfg.AccountNumber.Defined || !cfg.AccountSequence.Defined {
-		updateCfgAccountParams(ctx, cfg, info, io)
-	}
+		// Fetch the latest account information
+		account, err := fetchAccount(ctx, remote, info.GetAddress())
+		if err != nil {
+			return fmt.Errorf("unable to fetch account: %w", err)
+		}
 
-	// Get account number and sequence if needed.
-	signBytes, err := getSignBytes(cfg, tx)
-	if err != nil {
-		return err
-	}
+		// Update cfg with queried account number and sequence.
+		if !cfg.AccountNumber.Defined {
+			if !cfg.RootCfg.BaseOptions.Quiet {
+				io.Printfln("Queried account number from chain: %d", account.AccountNumber)
+			}
 
-	err = kb.Verify(info.GetName(), signBytes, sig)
-	if err == nil {
-		if !cfg.RootCfg.BaseOptions.Quiet {
-			io.Printf("Valid signature!\nSigning Address: %s\nPublic key: %s\nSignature: %s\n", info.GetAddress(), info.GetPubKey().String(), base64.StdEncoding.EncodeToString(sig))
+			accountNumber = account.AccountNumber
+		}
+
+		if !cfg.AccountSequence.Defined {
+			if !cfg.RootCfg.BaseOptions.Quiet {
+				io.Printfln("Queried account sequence from chain: %d", account.Sequence)
+			}
+
+			accountSequence = account.Sequence
 		}
 	}
-	return err
+
+	// Get the bytes to verify
+	signBytes, err := tx.GetSignBytes(
+		chainID,
+		accountNumber,
+		accountSequence,
+	)
+	if err != nil {
+		return fmt.Errorf("unable to get signature bytes, %w", err)
+	}
+
+	if err = kb.Verify(info.GetName(), signBytes, sig); err != nil {
+		return fmt.Errorf("unable to verify signature: %w", err)
+	}
+
+	if !cfg.RootCfg.BaseOptions.Quiet {
+		io.Printf(
+			"Valid signature!\nSigning Address: %s\nPublic key: %s\nSignature: %s\n",
+			info.GetAddress(),
+			info.GetPubKey().String(),
+			base64.StdEncoding.EncodeToString(sig),
+		)
+	}
+
+	return nil
 }
 
-func getTransaction(txPath string, io commands.IO) (*std.Tx, error) {
+// readTransaction loads the transaction from the given path
+func readTransaction(path string) (*std.Tx, error) {
 	// Read document to sign.
-	msg, err := os.ReadFile(txPath)
+	msg, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read the transaction file, %w", err)
 	}
@@ -142,137 +195,93 @@ func getTransaction(txPath string, io commands.IO) (*std.Tx, error) {
 	if err := amino.UnmarshalJSON(msg, &tx); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal transaction, %w", err)
 	}
+
 	return &tx, nil
 }
 
-func getSignature(cfg *VerifyCfg, tx *std.Tx) ([]byte, error) {
-	// From -sigpath flag.
-	if cfg.SigPath != "" {
-		sigbz, err := os.ReadFile(cfg.SigPath)
-		if err != nil {
-			return nil, err
-		}
-
-		// Unmarshal Amino JSON signature.
-		var sig std.Signature
-		if err := amino.UnmarshalJSON(sigbz, &sig); err != nil {
-			return nil, fmt.Errorf("unable to unmarshal signature, %w", err)
-		}
-
-		if sig.Signature == nil {
-			return nil, errors.New("no signature found in the signature file")
-		}
-
-		return sig.Signature, nil
+// readSignature reads the signature from the given path
+func readSignature(path string) ([]byte, error) {
+	// Read the signature file (separate, for multisigs)
+	sigbz, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
 	}
 
-	// Default: from tx.
+	// Unmarshal Amino JSON signature.
+	var sig std.Signature
+	if err := amino.UnmarshalJSON(sigbz, &sig); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal signature, %w", err)
+	}
+
+	if sig.Signature == nil {
+		return nil, errors.New("no signature found in the signature file")
+	}
+
+	return sig.Signature, nil
+}
+
+// extractSignature extracts the transaction signature
+func extractSignature(tx *std.Tx) ([]byte, error) {
 	if len(tx.Signatures) > 0 {
+		// By default, TM2 always verifies and handles the first signature in the set
 		return tx.Signatures[0].Signature, nil
 	}
 
 	return nil, errors.New("no signature found in the transaction")
 }
 
-func updateCfgChainID(ctx context.Context, cfg *VerifyCfg, io commands.IO) error {
-	chainID, err := queryNodeStatus(ctx, cfg.RootCfg.Remote)
-	if err != nil {
-		return fmt.Errorf("could not query chain-id from chain, use default value: %w", err)
-	}
-
-	if !cfg.RootCfg.BaseOptions.Quiet {
-		io.Printf("Queried chain-id from network: %s\n", chainID)
-	}
-
-	cfg.ChainID = chainID
-
-	return nil
-}
-
-func queryNodeStatus(ctx context.Context, remote string) (string, error) {
+// fetchChainID fetches the chain ID from the given remote
+func fetchChainID(ctx context.Context, remote string) (string, error) {
 	if remote == "" {
 		return "", errors.New("missing remote url")
 	}
 
+	// Create the client
 	cli, err := client.NewHTTPClient(remote)
 	if err != nil {
-		return "", errors.Wrap(err, "new http client")
+		return "", fmt.Errorf("unable to create HTTP client: %w", err)
 	}
 
-	// Get the node status to query the chain ID if needed.
+	// Fetch the node status
 	nodeStatus, err := cli.Status(ctx, nil)
 	if err != nil {
-		return "", errors.Wrap(err, "query node status")
+		return "", fmt.Errorf("unable to query node status: %w", err)
 	}
 
 	return nodeStatus.NodeInfo.Network, nil
 }
 
-func updateCfgAccountParams(ctx context.Context, cfg *VerifyCfg, info keys.Info, io commands.IO) {
-	// Query the account from the chain.
-	baseAccount, err := queryBaseAccount(ctx, cfg.RootCfg.Remote, info)
-
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: could not query account from chain, use default values: %v\n", err)
-	} else {
-		// Update cfg with queried account number and sequence.
-		if !cfg.AccountNumber.Defined {
-			if !cfg.RootCfg.BaseOptions.Quiet {
-				io.ErrPrintfln("Queried account number from chain: %d", baseAccount.AccountNumber)
-			}
-			cfg.AccountNumber.V = baseAccount.AccountNumber
-		}
-
-		if !cfg.AccountSequence.Defined {
-			if !cfg.RootCfg.BaseOptions.Quiet {
-				io.Printf("Queried account sequence from chain: %d\n", baseAccount.Sequence)
-			}
-			cfg.AccountSequence.V = baseAccount.Sequence
-		}
-	}
-}
-
-func queryBaseAccount(ctx context.Context, remote string, info keys.Info) (*std.BaseAccount, error) {
+// fetchAccount fetches the account from the given remote
+func fetchAccount(
+	ctx context.Context,
+	remote string,
+	address crypto.Address,
+) (*std.BaseAccount, error) {
 	if remote == "" {
 		return nil, errors.New("missing remote url")
 	}
 
+	// Create the client
 	cli, err := client.NewHTTPClient(remote)
 	if err != nil {
-		return nil, errors.Wrap(err, "new http client")
+		return nil, fmt.Errorf("unable to create HTTP client: %w", err)
 	}
 
-	address := crypto.AddressToBech32(info.GetAddress())
-	path := fmt.Sprintf("auth/accounts/%s", address)
-	data := []byte{}
-
-	qres, err := cli.ABCIQuery(ctx, path, data)
+	// Query the account
+	qres, err := cli.ABCIQuery(ctx, fmt.Sprintf("auth/accounts/%s", address), []byte{})
 	if err != nil {
-		return nil, errors.Wrap(err, "query account")
+		return nil, fmt.Errorf("unable to query account: %w", err)
 	}
+
 	if len(qres.Response.Data) == 0 || string(qres.Response.Data) == "null" {
-		return nil, errors.Wrap(err, "unknown address: "+address)
+		return nil, fmt.Errorf("account is not initialized: %s", address.String())
 	}
 
 	var qret struct{ BaseAccount std.BaseAccount }
-	err = amino.UnmarshalJSON(qres.Response.Data, &qret)
-	if err != nil {
-		return nil, err
+
+	if err = amino.UnmarshalJSON(qres.Response.Data, &qret); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal Amino JSON: %w", err)
 	}
 
 	return &qret.BaseAccount, nil
-}
-
-func getSignBytes(cfg *VerifyCfg, tx *std.Tx) ([]byte, error) {
-	// Get the bytes to verify.
-	signBytes, err := tx.GetSignBytes(
-		cfg.ChainID,
-		cfg.AccountNumber.V,
-		cfg.AccountSequence.V,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get signature bytes, %w", err)
-	}
-
-	return signBytes, nil
 }

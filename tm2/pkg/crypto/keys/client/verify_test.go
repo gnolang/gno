@@ -276,8 +276,8 @@ func Test_execVerify(t *testing.T) {
 					InsecurePasswordStdin: true,
 				},
 			},
-			AccountNumber:   commands.Uint64Flag{V: accountNumber},
-			AccountSequence: commands.Uint64Flag{V: accountSequence},
+			AccountNumber:   commands.Uint64Flag{V: accountNumber, Defined: true},
+			AccountSequence: commands.Uint64Flag{V: accountSequence, Defined: true},
 			ChainID:         chainID,
 		}
 
@@ -438,8 +438,8 @@ func Test_execVerify(t *testing.T) {
 				},
 			},
 			SigPath:         sigFile.Name(),
-			AccountNumber:   commands.Uint64Flag{V: accountNumber},
-			AccountSequence: commands.Uint64Flag{V: accountSequence},
+			AccountNumber:   commands.Uint64Flag{V: accountNumber, Defined: true},
+			AccountSequence: commands.Uint64Flag{V: accountSequence, Defined: true},
 			ChainID:         chainID,
 		}
 
@@ -1047,8 +1047,8 @@ func Test_VerifyMultisig(t *testing.T) {
 			BaseOptions: baseOptions,
 		},
 		ChainID:         "dev",
-		AccountNumber:   commands.Uint64Flag{V: 0},
-		AccountSequence: commands.Uint64Flag{V: 0},
+		AccountNumber:   commands.Uint64Flag{V: 0, Defined: true},
+		AccountSequence: commands.Uint64Flag{V: 0, Defined: true},
 	}
 
 	vargs := []string{multisigName, txFile.Name()}
