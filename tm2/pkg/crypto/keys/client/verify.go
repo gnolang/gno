@@ -105,7 +105,9 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 
 	// Update cfg.ChainID if empty.
 	if cfg.ChainID == "" {
-		updateCfgChainID(ctx, cfg, io)
+		if err := updateCfgChainID(ctx, cfg, io); err != nil {
+			return err
+		}
 	}
 
 	// Update account number and sequence if needed.
@@ -172,18 +174,19 @@ func getSignature(cfg *VerifyCfg, tx *std.Tx) ([]byte, error) {
 	return nil, errors.New("no signature found in the transaction")
 }
 
-func updateCfgChainID(ctx context.Context, cfg *VerifyCfg, io commands.IO) {
-	if cfg.ChainID == "" {
-		chainID, err := queryNodeStatus(ctx, cfg.RootCfg.Remote)
-		if err != nil {
-			io.ErrPrintfln("Warning: could not query chain-id from chain, use default value: %v", err)
-		} else {
-			if !cfg.RootCfg.BaseOptions.Quiet {
-				io.Printf("Queried chain-id from network: %s\n", chainID)
-			}
-			cfg.ChainID = chainID
-		}
+func updateCfgChainID(ctx context.Context, cfg *VerifyCfg, io commands.IO) error {
+	chainID, err := queryNodeStatus(ctx, cfg.RootCfg.Remote)
+	if err != nil {
+		return fmt.Errorf("could not query chain-id from chain, use default value: %w", err)
 	}
+
+	if !cfg.RootCfg.BaseOptions.Quiet {
+		io.Printf("Queried chain-id from network: %s\n", chainID)
+	}
+
+	cfg.ChainID = chainID
+
+	return nil
 }
 
 func queryNodeStatus(ctx context.Context, remote string) (string, error) {
