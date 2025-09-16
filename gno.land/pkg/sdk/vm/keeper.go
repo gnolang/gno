@@ -1178,16 +1178,25 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 					rlmPath, rlm.Deposit, ugnot.Denom, depositUnlocked, ugnot.Denom))
 			}
 
-			err := vm.refundStorageDeposit(ctx, caller, rlm, depositUnlocked, released)
+			isRestricted := slices.Contains(vm.bank.RestrictedDenoms(ctx), ugnot.Denom)
+			receiver := caller
+			if isRestricted {
+				// If gnot tokens are locked, sent them to the storageFeeCollector address
+				// If unlocked, sent them to memory releaser
+				receiver = params.StorageFeeCollector
+			}
+
+			err := vm.refundStorageDeposit(ctx, receiver, rlm, depositUnlocked, released)
 			if err != nil {
 				return err
 			}
 			d := std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}
 			evt := gnostd.StorageUnlockEvent{
 				// For unlock, BytesDelta is negative
-				BytesDelta: diff,
-				FeeRefund:  d,
-				PkgPath:    rlmPath,
+				BytesDelta:     diff,
+				FeeRefund:      d,
+				PkgPath:        rlmPath,
+				RefundWithheld: isRestricted,
 			}
 			ctx.EventLogger().EmitEvent(evt)
 		}
@@ -1214,10 +1223,11 @@ func (vm *VMKeeper) lockStorageDeposit(ctx sdk.Context, caller crypto.Address, r
 	return nil
 }
 
-func (vm *VMKeeper) refundStorageDeposit(ctx sdk.Context, caller crypto.Address, rlm *gno.Realm, depositUnlocked int64, released int64) error {
+func (vm *VMKeeper) refundStorageDeposit(ctx sdk.Context, refundReceiver crypto.Address, rlm *gno.Realm, depositUnlocked int64, released int64) error {
 	storageDepositAddr := gno.DeriveStorageDepositCryptoAddr(rlm.Path)
 	d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}}
-	err := vm.bank.SendCoinsUnrestricted(ctx, storageDepositAddr, caller, d)
+
+	err := vm.bank.SendCoinsUnrestricted(ctx, storageDepositAddr, refundReceiver, d)
 	if err != nil {
 		return fmt.Errorf("unable to return deposit %s, %w", rlm.Path, err)
 	}
