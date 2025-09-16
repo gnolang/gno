@@ -14,6 +14,10 @@ import (
 type Allocator struct {
 	maxBytes  int64
 	bytes     int64
+    // `peakBytes` represents the maximum memory 
+    // usage during a single transaction, and is used  
+    // to calculate the corresponding gas usage.
+    // It increases monotonically.
 	peakBytes int64
 	collect   func() (left int64, ok bool) // gc callback
 	gasMeter  store.GasMeter
