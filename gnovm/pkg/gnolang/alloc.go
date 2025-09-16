@@ -151,6 +151,8 @@ func (alloc *Allocator) Allocate(size int64) {
 	} else {
 		alloc.bytes += size
 	}
+    // The value of `bytes` decreases during GC, and fees
+    // are only charged when it exceeds peakBytes (again).
 	if alloc.bytes > alloc.peakBytes {
 		if alloc.gasMeter != nil {
 			change := alloc.bytes - alloc.peakBytes
