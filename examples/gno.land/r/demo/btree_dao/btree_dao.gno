@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"gno.land/p/demo/btree"
-	"gno.land/p/demo/grc/grc721"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/tokens/grc721"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/ufmt"
 )
 
 // RegistrationDetails holds the details of a user's registration in the BTree DAO.
