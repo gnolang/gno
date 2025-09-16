@@ -1,14 +1,22 @@
 #!/bin/bash
 set -e
 
-# Usage: curl -sSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | bash
+# Usage: curl -sSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | bash [-s -- [--gno] [--gnokey] [--gnodev] [--gnobro]]
 # Optional: GNO_DIR=/custom/path curl -sSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | bash
 # Uninstall: curl -sSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | bash -s -- --uninstall
+# If no flags are provided, all tools will be installed
 #
 # This script is temporarily located in misc/ as we expect more official installation
 # methods to emerge. It provides a convenient one-liner for installing gno, which is
 # particularly useful when working with go.mod files containing replace directives
 # that might conflict with direct `go install` commands.
+
+# Tool (un)installation flags
+INSTALL_GNO=true
+INSTALL_GNOKEY=true
+INSTALL_GNODEV=true
+INSTALL_GNOBRO=true
+UNINSTALL=false
 
 # Colors for output
 RED='\033[0;31m'
@@ -61,6 +69,41 @@ check_go() {
     fi
 }
 
+# Parse command line arguments
+parse_args() {
+    if [ $# -eq 0 ]; then
+        return
+    fi
+
+    # Reset all install flags to false
+    read -r INSTALL_GNO INSTALL_GNOKEY INSTALL_GNODEV INSTALL_GNOBRO <<< 'false false false false'
+
+    for arg in "$@"; do
+        case $arg in
+            --gno)
+                INSTALL_GNO=true
+                ;;
+            --gnokey)
+                INSTALL_GNOKEY=true
+                ;;
+            --gnodev)
+                INSTALL_GNODEV=true
+                ;;
+            --gnobro)
+                INSTALL_GNOBRO=true
+                ;;
+            --uninstall)
+                UNINSTALL=true
+                ;;
+            *)
+                error "Unknown flag: $arg"
+                error "Valid flags are: --gno, --gnokey, --gnodev, --gnobro, --uninstall"
+                exit 1
+                ;;
+        esac
+    done
+}
+
 # Function to install gno
 install_gno() {
     local GNO_DIR
@@ -86,32 +129,53 @@ install_gno() {
         cd "$GNO_DIR"
     fi
 
-    # Build and install
-    log "Building gno, gnokey, gnodev..."
-    make install
-    
-    # Build and install gnobro
-    log "Building gnobro..."
-    make install.gnobro
+    # Build and install Gno tools
+    if [ "$INSTALL_GNO" = true ]; then
+        log "Building gno..."
+        make install.gno
+    fi
+
+    if [ "$INSTALL_GNOKEY" = true ]; then
+        log "Building gnokey..."
+        make install.gnokey
+    fi
+
+    if [ "$INSTALL_GNODEV" = true ]; then
+        log "Building gnodev..."
+        make install.gnodev
+    fi
+
+    if [ "$INSTALL_GNOBRO" = true ]; then
+        log "Building gnobro..."
+        make install.gnobro
+    fi
 
     # Verify installation
-    if ! command_exists gno; then
-        error "Installation failed. gno command not found."
-        log "Is $GOBIN set in your $PATH? See https://go.dev/doc/install/source#environment"
-        exit 1
-    fi
-    
-    if ! command_exists gnobro; then
-        warn "gnobro installation failed. gnobro command not found."
-        warn "You can install it manually later with: make install.gnobro"
+    local failed_tools=()
+
+    if [ "$INSTALL_GNO" = true ] && ! command_exists gno; then
+        failed_tools+=("gno")
     fi
 
-    log "Installation successful! gno is now available."
-    gno version
-    
-    if command_exists gnobro; then
-        log "gnobro is also available."
+    if [ "$INSTALL_GNOKEY" = true ] && ! command_exists gnokey; then
+        failed_tools+=("gnokey")
     fi
+
+    if [ "$INSTALL_GNODEV" = true ] && ! command_exists gnodev; then
+        failed_tools+=("gnodev")
+    fi
+
+    if [ "$INSTALL_GNOBRO" = true ] && ! command_exists gnobro; then
+        failed_tools+=("gnobro")
+    fi
+
+    if [ ${#failed_tools[@]} -gt 0 ]; then
+        error "Installation failed. The following tools were not found: ${failed_tools[*]}"
+        log "Is \$GOBIN set in your \$PATH? See https://go.dev/doc/install/source#environment"
+        exit 1
+    fi
+
+    log "Installation complete."
 }
 
 # Function to uninstall gno
@@ -134,14 +198,15 @@ uninstall_gno() {
     log "Uninstallation complete."
 }
 
-# Main script
-if [ "$1" = "--uninstall" ]; then
-    uninstall_gno
-    exit 0
-fi
+# Parse arguments and validate flags
+parse_args "$@"
 
 # Check Go installation
 check_go
 
-# Install gno
-install_gno
+# Install or uninstall Gno tools
+if [ "$UNINSTALL" = true ]; then
+    uninstall_gno
+else
+    install_gno
+fi
