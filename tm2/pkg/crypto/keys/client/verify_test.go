@@ -150,7 +150,7 @@ func Test_execVerify(t *testing.T) {
 		return kbHome, tx, kbCleanUp
 	}
 
-	t.Run("test number of argument", func(t *testing.T) {
+	t.Run("tx path not specified", func(t *testing.T) {
 		t.Parallel()
 
 		kbHome, tx, cleanUp := prepare(t)
@@ -175,10 +175,11 @@ func Test_execVerify(t *testing.T) {
 			AccountNumber:   commands.Uint64Flag{V: accountNumber},
 			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         chainID,
+			TxPath:          "", // unset
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1} // Only one argument.
+		args := []string{fakeKeyName1}
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.Error(t, err)
@@ -209,10 +210,11 @@ func Test_execVerify(t *testing.T) {
 			AccountNumber:   commands.Uint64Flag{V: accountNumber},
 			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         chainID,
+			TxPath:          txFile.Name(),
 		}
 
 		io := commands.NewTestIO()
-		args := []string{"bad-key-name", txFile.Name()} // Bad key name.
+		args := []string{"bad-key-name"} // Bad key name.
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.Error(t, err)
@@ -245,10 +247,11 @@ func Test_execVerify(t *testing.T) {
 			AccountNumber:   commands.Uint64Flag{V: accountNumber},
 			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         chainID,
+			TxPath:          txFile.Name(),
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1, txFile.Name()}
+		args := []string{fakeKeyName1}
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.Error(t, err)
@@ -279,10 +282,11 @@ func Test_execVerify(t *testing.T) {
 			AccountNumber:   commands.Uint64Flag{V: accountNumber, Defined: true},
 			AccountSequence: commands.Uint64Flag{V: accountSequence, Defined: true},
 			ChainID:         chainID,
+			TxPath:          txFile.Name(),
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1, txFile.Name()}
+		args := []string{fakeKeyName1}
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.NoError(t, err)
@@ -323,10 +327,11 @@ func Test_execVerify(t *testing.T) {
 			AccountNumber:   *flagAccountNumber,
 			AccountSequence: *flagAccountSequence,
 			ChainID:         chainID,
+			TxPath:          txFile.Name(),
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1, txFile.Name()}
+		args := []string{fakeKeyName1}
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.NoError(t, err)
@@ -350,7 +355,7 @@ func Test_execVerify(t *testing.T) {
 
 		require.NoError(t, os.WriteFile(txFile.Name(), rawTxWithoutSig, 0o644))
 
-		// No signature in tx and no -signature or -sigpath flag.
+		// No signature in tx and no -signature or -sig-path flag.
 		cfg := &VerifyCfg{
 			RootCfg: &BaseCfg{
 				BaseOptions: BaseOptions{
@@ -361,16 +366,17 @@ func Test_execVerify(t *testing.T) {
 			AccountNumber:   commands.Uint64Flag{V: accountNumber},
 			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         chainID,
+			TxPath:          txFile.Name(),
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1, txFile.Name()}
+		args := []string{fakeKeyName1}
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.Error(t, err)
 	})
 
-	t.Run("test: -sigpath flag: no signature", func(t *testing.T) {
+	t.Run("test: -sig-path flag: no signature", func(t *testing.T) {
 		t.Parallel()
 
 		kbHome, tx, cleanUp := prepare(t)
@@ -397,16 +403,17 @@ func Test_execVerify(t *testing.T) {
 			AccountNumber:   commands.Uint64Flag{V: accountNumber},
 			AccountSequence: commands.Uint64Flag{V: accountSequence},
 			ChainID:         chainID,
+			TxPath:          txFile.Name(),
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1, txFile.Name()}
+		args := []string{fakeKeyName1}
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.Error(t, err)
 	})
 
-	t.Run("test: -sigpath flag: ok", func(t *testing.T) {
+	t.Run("test: -sig-path flag: ok", func(t *testing.T) {
 		t.Parallel()
 
 		kbHome, tx, cleanUp := prepare(t)
@@ -441,10 +448,11 @@ func Test_execVerify(t *testing.T) {
 			AccountNumber:   commands.Uint64Flag{V: accountNumber, Defined: true},
 			AccountSequence: commands.Uint64Flag{V: accountSequence, Defined: true},
 			ChainID:         chainID,
+			TxPath:          txFile.Name(),
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1, txFile.Name()}
+		args := []string{fakeKeyName1}
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.NoError(t, err)
@@ -483,10 +491,11 @@ func Test_execVerify(t *testing.T) {
 			AccountNumber:   *flagAccountNumber,
 			AccountSequence: *flagAccountSequence,
 			ChainID:         chainID,
+			TxPath:          txFile.Name(),
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1, txFile.Name()}
+		args := []string{fakeKeyName1}
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.Error(t, err)
@@ -525,10 +534,11 @@ func Test_execVerify(t *testing.T) {
 			AccountNumber:   *flagAccountNumber,
 			AccountSequence: *flagAccountSequence,
 			ChainID:         chainID,
+			TxPath:          txFile.Name(),
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1, txFile.Name()}
+		args := []string{fakeKeyName1}
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.Error(t, err)
@@ -567,10 +577,11 @@ func Test_execVerify(t *testing.T) {
 			AccountNumber:   *flagAccountNumber,
 			AccountSequence: *flagAccountSequence,
 			ChainID:         "bad-chainid", // Bad chain ID.
+			TxPath:          txFile.Name(),
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1, txFile.Name()}
+		args := []string{fakeKeyName1}
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.Error(t, err)
@@ -619,10 +630,11 @@ func Test_execVerify(t *testing.T) {
 			},
 			AccountNumber:   *flagAccountNumber,
 			AccountSequence: *flagAccountSequence,
+			TxPath:          txFile.Name(),
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1, txFile.Name()}
+		args := []string{fakeKeyName1}
 
 		err = execVerify(context.Background(), cfg, args, io) // Account-number and account-sequence wrong.
 		assert.NoError(t, err)
@@ -657,10 +669,11 @@ func Test_execVerify(t *testing.T) {
 			},
 			AccountSequence: *flagAccountSequence,
 			ChainID:         chainID,
+			TxPath:          txFile.Name(),
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1, txFile.Name()}
+		args := []string{fakeKeyName1}
 
 		err = execVerify(context.Background(), cfg, args, io) // Account-number and account-sequence wrong.
 		assert.Error(t, err)
@@ -717,10 +730,11 @@ func Test_execVerify(t *testing.T) {
 			},
 			AccountSequence: *flagAccountSequence,
 			ChainID:         chainID,
+			TxPath:          txFile.Name(),
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1, txFile.Name()}
+		args := []string{fakeKeyName1}
 
 		err = execVerify(context.Background(), cfg, args, io) // Account-number and account-sequence wrong.
 		assert.NoError(t, err)
@@ -755,10 +769,11 @@ func Test_execVerify(t *testing.T) {
 			},
 			AccountNumber: *flagAccountNumber,
 			ChainID:       chainID,
+			TxPath:        txFile.Name(),
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1, txFile.Name()}
+		args := []string{fakeKeyName1}
 
 		err = execVerify(context.Background(), cfg, args, io) // Account-number and account-sequence wrong.
 		assert.Error(t, err)
@@ -815,10 +830,11 @@ func Test_execVerify(t *testing.T) {
 			},
 			AccountNumber: *flagAccountNumber,
 			ChainID:       chainID,
+			TxPath:        txFile.Name(),
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1, txFile.Name()}
+		args := []string{fakeKeyName1}
 
 		err = execVerify(context.Background(), cfg, args, io) // Account-number and account-sequence wrong.
 		assert.NoError(t, err)
@@ -875,10 +891,11 @@ func Test_execVerify(t *testing.T) {
 			},
 			AccountNumber: *flagAccountNumber,
 			ChainID:       chainID,
+			TxPath:        txFile.Name(),
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1, txFile.Name()}
+		args := []string{fakeKeyName1}
 
 		err = execVerify(context.Background(), cfg, args, io) // Account-number and account-sequence wrong.
 		assert.Error(t, err)
@@ -907,10 +924,11 @@ func Test_execVerify(t *testing.T) {
 				},
 			},
 			ChainID: chainID,
+			TxPath:  txFile.Name(),
 		}
 
 		io := commands.NewTestIO()
-		args := []string{fakeKeyName1, txFile.Name()}
+		args := []string{fakeKeyName1}
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.Error(t, err)
@@ -1049,9 +1067,10 @@ func Test_VerifyMultisig(t *testing.T) {
 		ChainID:         "dev",
 		AccountNumber:   commands.Uint64Flag{V: 0, Defined: true},
 		AccountSequence: commands.Uint64Flag{V: 0, Defined: true},
+		TxPath:          txFile.Name(),
 	}
 
-	vargs := []string{multisigName, txFile.Name()}
+	vargs := []string{multisigName}
 	err = execVerify(context.Background(), cfg, vargs, io)
 	assert.NoError(t, err)
 }

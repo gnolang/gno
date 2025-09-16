@@ -20,6 +20,7 @@ type VerifyCfg struct {
 	RootCfg *BaseCfg
 
 	SigPath string
+	TxPath  string
 
 	ChainID         string
 	AccountNumber   commands.Uint64Flag
@@ -34,7 +35,7 @@ func NewVerifyCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "verify",
-			ShortUsage: "verify [flags] <key-name or address> <transaction path>",
+			ShortUsage: "verify [flags] <key-name or address>",
 			ShortHelp:  "verifies the transaction signature",
 			LongHelp:   "Verifies a signature of a <Amino JSON format transaction> against <key-name or address> in your local keybase. The sign bytes are derived from the tx using --chain-id, --account-number, and --account-sequence; these must match the values used when the signature was created. If --account-number, --account-sequence or --chain-id are not set, the command queries the chain (via --remote) to fill them; if the query fails, default values are used. Provide the signature via --sigpath; otherwise the first signature in the tx (tx.Signatures[0]) is used.",
 		},
@@ -47,8 +48,14 @@ func NewVerifyCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 
 func (c *VerifyCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
+		&c.TxPath,
+		"tx-path",
+		"",
+		"path of transaction file in Amino JSON format",
+	)
+	fs.StringVar(
 		&c.SigPath,
-		"sigpath",
+		"sig-path",
 		"",
 		"path of signature file in Amino JSON format. If omitted, the signature in the tx itself is verified instead",
 	)
@@ -76,7 +83,7 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 		err error
 	)
 
-	if len(args) != 2 {
+	if len(args) != 1 {
 		return flag.ErrHelp
 	}
 
@@ -92,9 +99,9 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 	}
 
 	// Get the transaction to verify.
-	tx, err := readTransaction(args[1])
+	tx, err := readTransaction(cfg.TxPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to read transaction from disk: %w", err)
 	}
 
 	// Fetch the signature
