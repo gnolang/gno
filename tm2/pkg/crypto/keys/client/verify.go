@@ -103,8 +103,18 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 		return err
 	}
 
+	// Update cfg.ChainID if empty.
+	if cfg.ChainID == "" {
+		updateCfgChainID(ctx, cfg, io)
+	}
+
+	// Update account number and sequence if needed.
+	if !cfg.AccountNumber.Defined || !cfg.AccountSequence.Defined {
+		updateCfgAccountParams(ctx, cfg, info, io)
+	}
+
 	// Get account number and sequence if needed.
-	signBytes, err := getSignBytes(ctx, cfg, info, tx, io)
+	signBytes, err := getSignBytes(cfg, tx)
 	if err != nil {
 		return err
 	}
@@ -162,42 +172,95 @@ func getSignature(cfg *VerifyCfg, tx *std.Tx) ([]byte, error) {
 	return nil, errors.New("no signature found in the transaction")
 }
 
-func getSignBytes(ctx context.Context, cfg *VerifyCfg, info keys.Info, tx *std.Tx, io commands.IO) ([]byte, error) {
-	// Query account number and sequence if needed.
-	if !cfg.AccountNumber.Defined || !cfg.AccountSequence.Defined || cfg.ChainID == "" {
-		if !cfg.RootCfg.BaseOptions.Quiet {
-			io.Println("Querying account from chain...")
-		}
-
-		// Query the account from the chain.
-		baseAccount, chainID, err := queryBaseAccount(ctx, cfg, info)
+func updateCfgChainID(ctx context.Context, cfg *VerifyCfg, io commands.IO) {
+	if cfg.ChainID == "" {
+		chainID, err := queryNodeStatus(ctx, cfg.RootCfg.Remote)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: could not query account from chain, use default values: %v\n", err)
+			io.ErrPrintfln("Warning: could not query chain-id from chain, use default value: %v", err)
 		} else {
-			// Update cfg with queried account number and sequence.
-			if !cfg.AccountNumber.Defined {
-				if !cfg.RootCfg.BaseOptions.Quiet {
-					io.Printf("Queried account number: %d\n", baseAccount.AccountNumber)
-				}
-				cfg.AccountNumber.V = baseAccount.AccountNumber
+			if !cfg.RootCfg.BaseOptions.Quiet {
+				io.Printf("Queried chain-id from network: %s\n", chainID)
 			}
-
-			if !cfg.AccountSequence.Defined {
-				if !cfg.RootCfg.BaseOptions.Quiet {
-					io.Printf("Queried account sequence: %d\n", baseAccount.Sequence)
-				}
-				cfg.AccountSequence.V = baseAccount.Sequence
-			}
-
-			if cfg.ChainID == "" {
-				if !cfg.RootCfg.BaseOptions.Quiet {
-					io.Printf("Queried chain-id: %s\n", chainID)
-				}
-				cfg.ChainID = chainID
-			}
+			cfg.ChainID = chainID
 		}
 	}
+}
 
+func queryNodeStatus(ctx context.Context, remote string) (string, error) {
+	if remote == "" {
+		return "", errors.New("missing remote url")
+	}
+
+	cli, err := client.NewHTTPClient(remote)
+	if err != nil {
+		return "", errors.Wrap(err, "new http client")
+	}
+
+	// Get the node status to query the chain ID if needed.
+	nodeStatus, err := cli.Status(ctx, nil)
+	if err != nil {
+		return "", errors.Wrap(err, "query node status")
+	}
+
+	return nodeStatus.NodeInfo.Network, nil
+}
+
+func updateCfgAccountParams(ctx context.Context, cfg *VerifyCfg, info keys.Info, io commands.IO) {
+	// Query the account from the chain.
+	baseAccount, err := queryBaseAccount(ctx, cfg.RootCfg.Remote, info)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not query account from chain, use default values: %v\n", err)
+	} else {
+		// Update cfg with queried account number and sequence.
+		if !cfg.AccountNumber.Defined {
+			if !cfg.RootCfg.BaseOptions.Quiet {
+				io.ErrPrintfln("Queried account number from chain: %d", baseAccount.AccountNumber)
+			}
+			cfg.AccountNumber.V = baseAccount.AccountNumber
+		}
+
+		if !cfg.AccountSequence.Defined {
+			if !cfg.RootCfg.BaseOptions.Quiet {
+				io.Printf("Queried account sequence from chain: %d\n", baseAccount.Sequence)
+			}
+			cfg.AccountSequence.V = baseAccount.Sequence
+		}
+	}
+}
+
+func queryBaseAccount(ctx context.Context, remote string, info keys.Info) (*std.BaseAccount, error) {
+	if remote == "" {
+		return nil, errors.New("missing remote url")
+	}
+
+	cli, err := client.NewHTTPClient(remote)
+	if err != nil {
+		return nil, errors.Wrap(err, "new http client")
+	}
+
+	address := crypto.AddressToBech32(info.GetAddress())
+	path := fmt.Sprintf("auth/accounts/%s", address)
+	data := []byte{}
+
+	qres, err := cli.ABCIQuery(ctx, path, data)
+	if err != nil {
+		return nil, errors.Wrap(err, "query account")
+	}
+	if len(qres.Response.Data) == 0 || string(qres.Response.Data) == "null" {
+		return nil, errors.Wrap(err, "unknown address: "+address)
+	}
+
+	var qret struct{ BaseAccount std.BaseAccount }
+	err = amino.UnmarshalJSON(qres.Response.Data, &qret)
+	if err != nil {
+		return nil, err
+	}
+
+	return &qret.BaseAccount, nil
+}
+
+func getSignBytes(cfg *VerifyCfg, tx *std.Tx) ([]byte, error) {
 	// Get the bytes to verify.
 	signBytes, err := tx.GetSignBytes(
 		cfg.ChainID,
@@ -209,47 +272,4 @@ func getSignBytes(ctx context.Context, cfg *VerifyCfg, info keys.Info, tx *std.T
 	}
 
 	return signBytes, nil
-}
-
-func queryBaseAccount(ctx context.Context, cfg *VerifyCfg, info keys.Info) (*std.BaseAccount, string, error) {
-	var chainID string
-
-	remote := cfg.RootCfg.Remote
-	if remote == "" {
-		return nil, "", errors.New("missing remote url")
-	}
-
-	cli, err := client.NewHTTPClient(remote)
-	if err != nil {
-		return nil, "", errors.Wrap(err, "new http client")
-	}
-
-	// Get the node status to query the chain ID if needed.
-	if cfg.ChainID == "" {
-		nodeStatus, err := cli.Status(ctx, nil)
-		if err != nil {
-			return nil, "", errors.Wrap(err, "query node status")
-		}
-		chainID = nodeStatus.NodeInfo.Network
-	}
-
-	address := crypto.AddressToBech32(info.GetAddress())
-	path := fmt.Sprintf("auth/accounts/%s", address)
-	data := []byte{}
-
-	qres, err := cli.ABCIQuery(ctx, path, data)
-	if err != nil {
-		return nil, "", errors.Wrap(err, "query account")
-	}
-	if len(qres.Response.Data) == 0 || string(qres.Response.Data) == "null" {
-		return nil, "", errors.Wrap(err, "unknown address: "+address)
-	}
-
-	var qret struct{ BaseAccount std.BaseAccount }
-	err = amino.UnmarshalJSON(qres.Response.Data, &qret)
-	if err != nil {
-		return nil, "", err
-	}
-
-	return &qret.BaseAccount, chainID, nil
 }

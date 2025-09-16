@@ -2,24 +2,85 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// createTestServer creates a test RPC server.
+func createTestServer(
+	t *testing.T,
+	handler http.Handler,
+) *httptest.Server {
+	t.Helper()
+
+	s := httptest.NewServer(handler)
+	t.Cleanup(s.Close)
+
+	return s
+}
+
+// defaultHTTPHandler generates a default HTTP test handler.
+func defaultHTTPHandler(
+	t *testing.T,
+	method string,
+	responseResult any,
+) http.HandlerFunc {
+	t.Helper()
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodPost, r.Method)
+		require.Equal(t, "application/json", r.Header.Get("content-type"))
+
+		// Parse the message
+		var req types.RPCRequest
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+
+		// Basic request validation
+		require.Equal(t, req.JSONRPC, "2.0")
+		require.Equal(t, req.Method, method)
+
+		// Marshal the result data to Amino JSON
+		result, err := amino.MarshalJSON(responseResult)
+		require.NoError(t, err)
+
+		// Send a response back
+		response := types.RPCResponse{
+			JSONRPC: "2.0",
+			ID:      req.ID,
+			Result:  result,
+		}
+
+		// Marshal the response
+		marshalledResponse, err := json.Marshal(response)
+		require.NoError(t, err)
+
+		_, err = w.Write(marshalledResponse)
+		require.NoError(t, err)
+	}
+}
 
 func Test_execVerify(t *testing.T) {
 	t.Parallel()
@@ -227,6 +288,48 @@ func Test_execVerify(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("test: signature ok with Uint64Flag", func(t *testing.T) {
+		t.Parallel()
+
+		kbHome, tx, cleanUp := prepare(t)
+		defer cleanUp()
+
+		// Marshal the tx with signature.
+		rawTx, err := amino.MarshalJSON(tx)
+		assert.NoError(t, err)
+
+		txFile, err := os.CreateTemp("", "tx-*.json")
+		require.NoError(t, err)
+
+		require.NoError(t, os.WriteFile(txFile.Name(), rawTx, 0o644))
+
+		// Initialize the account number flag.
+		flagAccountNumber := &commands.Uint64Flag{}
+		flagAccountNumber.Set(strconv.FormatInt(accountNumber, 10))
+
+		// Initialize the account sequence flag.
+		flagAccountSequence := &commands.Uint64Flag{}
+		flagAccountSequence.Set(strconv.FormatInt(accountSequence, 10))
+
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+				},
+			},
+			AccountNumber:   *flagAccountNumber,
+			AccountSequence: *flagAccountSequence,
+			ChainID:         chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1, txFile.Name()}
+
+		err = execVerify(context.Background(), cfg, args, io)
+		assert.NoError(t, err)
+	})
+
 	t.Run("test: missing signature", func(t *testing.T) {
 		t.Parallel()
 
@@ -360,6 +463,14 @@ func Test_execVerify(t *testing.T) {
 
 		require.NoError(t, os.WriteFile(txFile.Name(), rawTx, 0o644))
 
+		// Initialize the account number flag.
+		flagAccountNumber := &commands.Uint64Flag{}
+		flagAccountNumber.Set(strconv.FormatInt(accountNumber, 10))
+
+		// Initialize the account sequence flag.
+		flagAccountSequence := &commands.Uint64Flag{}
+		flagAccountSequence.Set(strconv.FormatInt(accountSequence+1, 10)) // Bad sequence.
+
 		cfg := &VerifyCfg{
 			RootCfg: &BaseCfg{
 				BaseOptions: BaseOptions{
@@ -367,8 +478,8 @@ func Test_execVerify(t *testing.T) {
 					InsecurePasswordStdin: true,
 				},
 			},
-			AccountNumber:   commands.Uint64Flag{V: accountNumber},
-			AccountSequence: commands.Uint64Flag{V: accountSequence + 1}, // Bad sequence.
+			AccountNumber:   *flagAccountNumber,
+			AccountSequence: *flagAccountSequence,
 			ChainID:         chainID,
 		}
 
@@ -394,6 +505,14 @@ func Test_execVerify(t *testing.T) {
 
 		require.NoError(t, os.WriteFile(txFile.Name(), rawTx, 0o644))
 
+		// Initialize the account number flag.
+		flagAccountNumber := &commands.Uint64Flag{}
+		flagAccountNumber.Set(strconv.FormatInt(accountNumber+1, 10)) // Bad account number.
+
+		// Initialize the account sequence flag.
+		flagAccountSequence := &commands.Uint64Flag{}
+		flagAccountSequence.Set(strconv.FormatInt(accountSequence, 10))
+
 		cfg := &VerifyCfg{
 			RootCfg: &BaseCfg{
 				BaseOptions: BaseOptions{
@@ -401,8 +520,8 @@ func Test_execVerify(t *testing.T) {
 					InsecurePasswordStdin: true,
 				},
 			},
-			AccountNumber:   commands.Uint64Flag{V: accountNumber + 1}, // Bad account number.
-			AccountSequence: commands.Uint64Flag{V: accountSequence},
+			AccountNumber:   *flagAccountNumber,
+			AccountSequence: *flagAccountSequence,
 			ChainID:         chainID,
 		}
 
@@ -428,6 +547,14 @@ func Test_execVerify(t *testing.T) {
 
 		require.NoError(t, os.WriteFile(txFile.Name(), rawTx, 0o644))
 
+		// Initialize the account number flag.
+		flagAccountNumber := &commands.Uint64Flag{}
+		flagAccountNumber.Set(strconv.FormatInt(accountNumber+1, 10)) // Bad account number.
+
+		// Initialize the account sequence flag.
+		flagAccountSequence := &commands.Uint64Flag{}
+		flagAccountSequence.Set(strconv.FormatInt(accountSequence, 10))
+
 		cfg := &VerifyCfg{
 			RootCfg: &BaseCfg{
 				BaseOptions: BaseOptions{
@@ -435,8 +562,8 @@ func Test_execVerify(t *testing.T) {
 					InsecurePasswordStdin: true,
 				},
 			},
-			AccountNumber:   commands.Uint64Flag{V: accountNumber},
-			AccountSequence: commands.Uint64Flag{V: accountSequence},
+			AccountNumber:   *flagAccountNumber,
+			AccountSequence: *flagAccountSequence,
 			ChainID:         "bad-chain-id", // Bad chain ID.
 		}
 
@@ -447,7 +574,7 @@ func Test_execVerify(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("test: try to query network: bad verification", func(t *testing.T) {
+	t.Run("test: no -chain-id: ok", func(t *testing.T) {
 		t.Parallel()
 
 		kbHome, tx, cleanUp := prepare(t)
@@ -462,25 +589,294 @@ func Test_execVerify(t *testing.T) {
 
 		require.NoError(t, os.WriteFile(txFile.Name(), rawTx, 0o644))
 
+		// Initialize the account number flag.
+		flagAccountNumber := &commands.Uint64Flag{}
+		flagAccountNumber.Set(strconv.FormatInt(accountNumber, 10))
+
+		// Initialize the account sequence flag.
+		flagAccountSequence := &commands.Uint64Flag{}
+		flagAccountSequence.Set(strconv.FormatInt(accountSequence, 10))
+
+		// Create a test server that will return the account number and sequence.
+		handler := defaultHTTPHandler(t, "status", &ctypes.ResultStatus{
+			NodeInfo: p2pTypes.NodeInfo{
+				Network: chainID,
+			},
+		})
+
+		server := createTestServer(t, handler)
+		defer server.Close()
+
 		cfg := &VerifyCfg{
 			RootCfg: &BaseCfg{
 				BaseOptions: BaseOptions{
 					Home:                  kbHome,
 					InsecurePasswordStdin: true,
-					Remote:                "http://localhost:26657", // Needs remote to fetch account info.
+					Remote:                server.URL, // Needs remote to fetch account info.
 				},
 			},
-			ChainID: chainID,
+			AccountNumber:   *flagAccountNumber,
+			AccountSequence: *flagAccountSequence,
 		}
 
 		io := commands.NewTestIO()
 		args := []string{fakeKeyName1, txFile.Name()}
 
-		io.SetIn(
-			strings.NewReader(
-				fmt.Sprintf("%s\n", rawTx),
-			),
+		err = execVerify(context.Background(), cfg, args, io) // Account-number and account-sequence wrong.
+		assert.NoError(t, err)
+	})
+
+	t.Run("test: no -account-number: bad default value", func(t *testing.T) {
+		t.Parallel()
+
+		kbHome, tx, cleanUp := prepare(t)
+		defer cleanUp()
+
+		// Marshal the tx with signature.
+		rawTx, err := amino.MarshalJSON(tx)
+		assert.NoError(t, err)
+
+		txFile, err := os.CreateTemp("", "tx-*.json")
+		require.NoError(t, err)
+
+		require.NoError(t, os.WriteFile(txFile.Name(), rawTx, 0o644))
+
+		// Initialize the account sequence flag.
+		flagAccountSequence := &commands.Uint64Flag{}
+		flagAccountSequence.Set(strconv.FormatInt(accountSequence, 10))
+
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+					Remote:                "http://localhost:26657", // The node doesn't exist.
+				},
+			},
+			AccountSequence: *flagAccountSequence,
+			ChainID:         chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1, txFile.Name()}
+
+		err = execVerify(context.Background(), cfg, args, io) // Account-number and account-sequence wrong.
+		assert.Error(t, err)
+	})
+
+	t.Run("test: no -account-number: ok", func(t *testing.T) {
+		t.Parallel()
+
+		kbHome, tx, cleanUp := prepare(t)
+		defer cleanUp()
+
+		// Marshal the tx with signature.
+		rawTx, err := amino.MarshalJSON(tx)
+		assert.NoError(t, err)
+
+		txFile, err := os.CreateTemp("", "tx-*.json")
+		require.NoError(t, err)
+
+		require.NoError(t, os.WriteFile(txFile.Name(), rawTx, 0o644))
+
+		// Initialize the account sequence flag.
+		flagAccountSequence := &commands.Uint64Flag{}
+		flagAccountSequence.Set(strconv.FormatInt(accountSequence, 10))
+
+		baseAccount, err := amino.MarshalJSON(
+			struct{ BaseAccount std.BaseAccount }{
+				std.BaseAccount{
+					AccountNumber: accountNumber,
+					Sequence:      accountSequence,
+				},
+			},
 		)
+		require.NoError(t, err)
+
+		// Create a test server that will return the account number and sequence.
+		handler := defaultHTTPHandler(t, "abci_query", &ctypes.ResultABCIQuery{
+			Response: abci.ResponseQuery{
+				ResponseBase: abci.ResponseBase{
+					Data: baseAccount,
+				},
+			},
+		},
+		)
+		server := createTestServer(t, handler)
+		defer server.Close()
+
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+					Remote:                server.URL, // Needs remote to fetch account info.
+				},
+			},
+			AccountSequence: *flagAccountSequence,
+			ChainID:         chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1, txFile.Name()}
+
+		err = execVerify(context.Background(), cfg, args, io) // Account-number and account-sequence wrong.
+		assert.NoError(t, err)
+	})
+
+	t.Run("test: no -account-sequence: bad default value", func(t *testing.T) {
+		t.Parallel()
+
+		kbHome, tx, cleanUp := prepare(t)
+		defer cleanUp()
+
+		// Marshal the tx with signature.
+		rawTx, err := amino.MarshalJSON(tx)
+		assert.NoError(t, err)
+
+		txFile, err := os.CreateTemp("", "tx-*.json")
+		require.NoError(t, err)
+
+		require.NoError(t, os.WriteFile(txFile.Name(), rawTx, 0o644))
+
+		// Initialize the account number flag.
+		flagAccountNumber := &commands.Uint64Flag{}
+		flagAccountNumber.Set(strconv.FormatInt(accountNumber, 10))
+
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+					Remote:                "http://localhost:26657", // The node doesn't exist.
+				},
+			},
+			AccountNumber: *flagAccountNumber,
+			ChainID:       chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1, txFile.Name()}
+
+		err = execVerify(context.Background(), cfg, args, io) // Account-number and account-sequence wrong.
+		assert.Error(t, err)
+	})
+
+	t.Run("test: no -account-sequence: ok", func(t *testing.T) {
+		t.Parallel()
+
+		kbHome, tx, cleanUp := prepare(t)
+		defer cleanUp()
+
+		// Marshal the tx with signature.
+		rawTx, err := amino.MarshalJSON(tx)
+		assert.NoError(t, err)
+
+		txFile, err := os.CreateTemp("", "tx-*.json")
+		require.NoError(t, err)
+
+		require.NoError(t, os.WriteFile(txFile.Name(), rawTx, 0o644))
+
+		// Initialize the account number flag.
+		flagAccountNumber := &commands.Uint64Flag{}
+		flagAccountNumber.Set(strconv.FormatInt(accountNumber, 10))
+
+		baseAccount, err := amino.MarshalJSON(
+			struct{ BaseAccount std.BaseAccount }{
+				std.BaseAccount{
+					AccountNumber: accountNumber,
+					Sequence:      accountSequence,
+				},
+			},
+		)
+		require.NoError(t, err)
+
+		// Create a test server that will return the account number and sequence.
+		handler := defaultHTTPHandler(t, "abci_query", &ctypes.ResultABCIQuery{
+			Response: abci.ResponseQuery{
+				ResponseBase: abci.ResponseBase{
+					Data: baseAccount,
+				},
+			},
+		},
+		)
+		server := createTestServer(t, handler)
+		defer server.Close()
+
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+					Remote:                server.URL, // Needs remote to fetch account info.
+				},
+			},
+			AccountNumber: *flagAccountNumber,
+			ChainID:       chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1, txFile.Name()}
+
+		err = execVerify(context.Background(), cfg, args, io) // Account-number and account-sequence wrong.
+		assert.NoError(t, err)
+	})
+
+	t.Run("test: no -account-sequence: bad sequence response", func(t *testing.T) {
+		t.Parallel()
+
+		kbHome, tx, cleanUp := prepare(t)
+		defer cleanUp()
+
+		// Marshal the tx with signature.
+		rawTx, err := amino.MarshalJSON(tx)
+		assert.NoError(t, err)
+
+		txFile, err := os.CreateTemp("", "tx-*.json")
+		require.NoError(t, err)
+
+		require.NoError(t, os.WriteFile(txFile.Name(), rawTx, 0o644))
+
+		// Initialize the account number flag.
+		flagAccountNumber := &commands.Uint64Flag{}
+		flagAccountNumber.Set(strconv.FormatInt(accountNumber, 10))
+
+		baseAccount, err := amino.MarshalJSON(
+			struct{ BaseAccount std.BaseAccount }{
+				std.BaseAccount{
+					AccountNumber: accountNumber,
+					Sequence:      accountSequence + 1,
+				},
+			},
+		)
+		require.NoError(t, err)
+
+		// Create a test server that will return the account number and sequence.
+		handler := defaultHTTPHandler(t, "abci_query", &ctypes.ResultABCIQuery{
+			Response: abci.ResponseQuery{
+				ResponseBase: abci.ResponseBase{
+					Data: baseAccount,
+				},
+			},
+		},
+		)
+		server := createTestServer(t, handler)
+		defer server.Close()
+
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+					Remote:                server.URL, // Needs remote to fetch account info.
+				},
+			},
+			AccountNumber: *flagAccountNumber,
+			ChainID:       chainID,
+		}
+
+		io := commands.NewTestIO()
+		args := []string{fakeKeyName1, txFile.Name()}
 
 		err = execVerify(context.Background(), cfg, args, io) // Account-number and account-sequence wrong.
 		assert.Error(t, err)
@@ -513,12 +909,6 @@ func Test_execVerify(t *testing.T) {
 
 		io := commands.NewTestIO()
 		args := []string{fakeKeyName1, txFile.Name()}
-
-		io.SetIn(
-			strings.NewReader(
-				fmt.Sprintf("%s\n", rawTx),
-			),
-		)
 
 		err = execVerify(context.Background(), cfg, args, io)
 		assert.Error(t, err)
