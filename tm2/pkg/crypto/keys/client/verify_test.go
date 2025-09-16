@@ -534,7 +534,7 @@ func Test_execVerify(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("test: bad -chain-id flag", func(t *testing.T) {
+	t.Run("test: bad -chainid flag", func(t *testing.T) {
 		t.Parallel()
 
 		kbHome, tx, cleanUp := prepare(t)
@@ -566,7 +566,7 @@ func Test_execVerify(t *testing.T) {
 			},
 			AccountNumber:   *flagAccountNumber,
 			AccountSequence: *flagAccountSequence,
-			ChainID:         "bad-chain-id", // Bad chain ID.
+			ChainID:         "bad-chainid", // Bad chain ID.
 		}
 
 		io := commands.NewTestIO()
@@ -576,7 +576,7 @@ func Test_execVerify(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("test: no -chain-id: ok", func(t *testing.T) {
+	t.Run("test: no -chainid: ok", func(t *testing.T) {
 		t.Parallel()
 
 		kbHome, tx, cleanUp := prepare(t)

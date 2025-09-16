@@ -54,7 +54,7 @@ func (c *VerifyCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 	fs.StringVar(
 		&c.ChainID,
-		"chain-id",
+		"chainid",
 		"",
 		"network chain ID used for signing",
 	)
