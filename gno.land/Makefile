@@ -17,7 +17,7 @@ CGO_ENABLED ?= 0
 export CGO_ENABLED
 # test suite flags.
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
-# user for gnokey version [branch].[N]+[hash]
+# used for gnokey version [branch].[N]+[hash]
 VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || echo "$(shell git rev-parse --abbrev-ref HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)")
 
 GOBUILD_FLAGS ?= -ldflags "-X github.com/gnolang/gno/tm2/pkg/version.Version=$(VERSION)"
