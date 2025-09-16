@@ -2,6 +2,7 @@ package tendermint
 
 import (
 	"bytes"
+	"encoding/hex"
 
 	"gno.land/p/nt/ufmt"
 )
@@ -46,9 +47,10 @@ func checkTrustedHeader(header *MsgHeader, consState *ConsensusState) error {
 	// to do this, we check that trustedVals.Hash() == consState.NextValidatorsHash
 	tvalHash := []byte("XXX") // header.TrustedValidators.Hash()
 	if !bytes.Equal(consState.NextValidatorsHash, tvalHash) {
+		h1, h2 := hex.EncodeToString(consState.NextValidatorsHash), hex.EncodeToString(tvalHash)
 		return ufmt.Errorf(
-			"trusted validators %s, does not hash to latest trusted validators. Expected: %X, got: %X",
-			header.TrustedValidators, consState.NextValidatorsHash, tvalHash,
+			"trusted validators does not hash to latest trusted validators. Expected: %q, got: %q",
+			h1, h2,
 		)
 	}
 	return nil
