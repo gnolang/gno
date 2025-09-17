@@ -97,16 +97,14 @@ func GetStorageInfo(events []abci.Event) (int64, std.Coins, bool) {
 		case gnostd.StorageDepositEvent:
 			bytesDelta += storageEvent.BytesDelta
 			coinsDelta = coinsDelta.AddUnsafe(std.Coins{storageEvent.FeeDelta})
+			hasEvents = true
 		case gnostd.StorageUnlockEvent:
 			bytesDelta += storageEvent.BytesDelta
 			if !storageEvent.RefundWithheld {
 				coinsDelta = coinsDelta.SubUnsafe(std.Coins{storageEvent.FeeRefund})
 			}
-		default:
-			// skip hasEvents toggle
-			continue
+			hasEvents = true
 		}
-		hasEvents = true
 	}
 
 	return bytesDelta, coinsDelta, hasEvents
