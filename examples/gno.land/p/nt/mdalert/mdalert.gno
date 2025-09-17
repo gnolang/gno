@@ -4,7 +4,7 @@
 // called to generate Markdown for different alert types.
 //
 // The different alert types are documented in the Markdown docs realm:
-// https://gno.land/r/docs/markdown
+// https://gno.land/r/docs/markdown#alerts
 package mdalert
 
 import (
