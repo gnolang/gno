@@ -17,5 +17,3 @@
 @import "./05-composition.css";
 @import "./06-blocks.css";
 @import "./07-utilities.css";
-
-purge-test { color: red; }

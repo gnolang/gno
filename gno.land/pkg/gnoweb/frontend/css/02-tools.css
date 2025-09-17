@@ -40,20 +40,24 @@
 	--s-color-bg-success-action: var(--g-color-green-400, #60AB96); /* Light success */
 
 	--s-color-bg-info-default: var(--g-color-blue-600, #21506B); /* Info state */
-	--s-color-bg-info-weak: var(--g-color-blue-50, #F0F9FF); /* Light info */
+	--s-color-bg-info-weak: var(--g-color-blue-50, #0.46); /* Light info */
 	--s-color-bg-info-action: var(--g-color-blue-400, #49AFEB); /* Light info */
 
 	--s-color-bg-warning-default: var(--g-color-yellow-600, #665100); /* Warning state */
 	--s-color-bg-warning-weak: var(--g-color-yellow-50, #F9D985); /* Light warning */
 	--s-color-bg-warning-action: var(--g-color-yellow-400, #F9D985); /* Light warning */
 
-	--s-color-bg-error-default: var(--g-color-red-600, #661100); /* Error state */
-	--s-color-bg-error-weak: var(--g-color-red-50, #F98585); /* Light error */
-	--s-color-bg-error-action: var(--g-color-red-400, #F98585); /* Light error */
+	--s-color-bg-caution-default: var(--g-color-red-600, #661100); /* Error state */
+	--s-color-bg-caution-weak: var(--g-color-red-50, #F98585); /* Light error */
+	--s-color-bg-caution-action: var(--g-color-red-400, #F98585); /* Light error */
 
 	--s-color-bg-tip-default: var(--g-color-purple-600, #49216B); /* Tip state */
 	--s-color-bg-tip-weak: var(--g-color-purple-50, #F0F9FF); /* Light tip */
 	--s-color-bg-tip-action: var(--g-color-purple-400, #9660AB); /* Light tip */
+
+	--s-color-bg-note-default: var(--g-color-gray-600, #21506B); /* Note state */
+	--s-color-bg-note-weak: var(--g-color-gray-50, #F0F9FF); /* Light note */
+	--s-color-bg-note-action: var(--g-color-gray-400, #49AFEB); /* Light note */
 
 	/* Form backgrounds */
 	--s-color-bg-input: var(--g-color-light, #FFFFFF); /* Input background */
@@ -91,7 +95,7 @@
 	--s-color-text-success: var(--g-color-green-900, #144134); /* Success text */
 	--s-color-text-info: var(--g-color-blue-900, #21506B); /* Info text */
 	--s-color-text-warning: var(--g-color-yellow-900, #665100); /* Warning text */
-	--s-color-text-error: var(--g-color-red-900, #661100); /* Error text */
+	--s-color-text-caution: var(--g-color-red-900, #661100); /* Error text */
 	--s-color-text-tip: var(--g-color-purple-900, #49216B); /* Tip text */
 
 	/* ===== BORDER COLORS ===== */
@@ -117,8 +121,9 @@
 	--s-color-border-success: var(--g-color-green-600, #144134); /* Success border */
 	--s-color-border-info: var(--g-color-blue-600, #21506B); /* Info border */
 	--s-color-border-warning: var(--g-color-yellow-600, #665100); /* Warning border */
-	--s-color-border-error: var(--g-color-red-600, #661100); /* Error border */
+	--s-color-border-error: var(--g-color-red-600, #661100); /* Caution border */
 	--s-color-border-tip: var(--g-color-purple-600, #49216B); /* Tip border */
+	--s-color-border-note: var(--g-color-gray-600, #21506B); /* Note border */
 
 	/* ===== INTERACTIVE STATES ===== */
 	/* Focus states */

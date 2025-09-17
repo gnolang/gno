@@ -111,3 +111,21 @@ md-renderer {
 		grid-column: span 7;
 	}
 }
+
+/* ===== SELECTION & DETAILS ===== */
+::-moz-selection {
+	background-color: var(--s-color-bg-brand-default);
+	color: var(--s-color-text-base);
+}
+::selection {
+	background-color: var(--s-color-bg-brand-default);
+	color: var(--s-color-text-base);
+}
+
+summary::-webkit-details-marker {
+	display: none;
+}
+
+summary::marker {
+	display: none;
+}

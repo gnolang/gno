@@ -2,18 +2,6 @@
    07-UTILITIES - Utility classes and overrides (CUBE CSS: Utility + Exception)
    ========================================================================== */
 
-/* ===== DEV MODE UTILITIES ===== */
-/* Ces règles sont déplacées vers 06-blocks.css car elles définissent 
-   des comportements de composants, pas des utilitaires */
-
-/* ===== RESPONSIVE HIDING UTILITIES ===== */
-/* :is(
-		.c-main-header:has(#sidemenu-summary:checked) + main #sidebar,
-		.c-main-header:has(#sidemenu-summary:checked) + main #sidebar *
-	) {
-	display: block;
-} */
-
 .u-hidden {
 	display: none;
 }
@@ -95,26 +83,7 @@
 	height: var(--g-space-4);
 }
 
-/* ===== LINK TYPE UTILITIES ===== */
-/* .u-link-external {
-	color: var(--color-blue-600);
-}
-
-.u-link-internal {
-	color: var(--color-green-600);
-}
-
-.u-link-tx {
-	color: var(--color-purple-600);
-}
-
-.u-link-user {
-	color: var(--color-yellow-600);
-	font-weight: var(--font-weight-medium);
-} */
-
 /* ===== SPACE UTILITIES ===== */
-
 .u-gap-0 {
 	gap: 0;
 }
@@ -153,11 +122,3 @@
 *:empty + .u-prev-empty {
 	margin-top: var(--space-4);
 }
-
-/* ===== COMPONENT-SPECIFIC UTILITIES ===== */
-.c-realm-view__btns:only-child {
-	margin-top: var(--space-8);
-	margin-bottom: var(--space-8);
-}
-
-

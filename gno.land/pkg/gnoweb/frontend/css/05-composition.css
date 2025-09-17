@@ -94,6 +94,21 @@
 	}
 }
 
+/* Toggle button - update content after checked */
+.c-toggle-btn {
+	& > input {
+		display: none;
+	}
+
+	label {
+		visibility: hidden;
+	}
+
+	input:checked + label {
+		visibility: visible;
+	}
+}
+
 /* ===== REALM VIEW ===== */
 .c-realm-view,
 .c-readme-view  {
@@ -145,12 +160,9 @@
 	padding-block-start: var(--g-space-4);
 
 	/* Hide when empty */
-	&:empty {
-		display: none;
-	}
-
+	&:empty,
 	&:has(.b-btn:only-child) {
-		@apply hidden;
+		display: none;
 	}
 
 	@media (--lg) {
@@ -168,6 +180,45 @@
 
 		&:hover {
 			text-decoration: underline;
+		}
+
+		/* spacing between link badge */
+		& > span {
+			margin-block-end: 0.1em;
+		}
+
+		& > .tooltip + .tooltip {
+			margin-inline-start: 0.2em;
+		}
+
+		& > .tooltip:last-of-type {
+			margin-inline-end: 0.2em;
+		}
+
+		/* link with image only shoud display the link badge on the image */
+		&:has(> img:first-child):has(.tooltip:last-child):not(
+			:has(> :nth-child(3))
+		)
+		> .tooltip,
+		&:has(> img:first-child):has(.tooltip + .tooltip:last-child):not(
+			:has(> :nth-child(4))
+		)
+		> .tooltip {
+			position: absolute;
+			bottom: var(--g-space-2);
+			left: var(--g-space-2);
+			background-color: var(--s-color-bg-base);
+			border-radius: var(--g-border-radius-full);
+			margin-left: 0;
+		}
+
+		&:has(> img:first-child):has(.tooltip + .tooltip:last-child):not(
+			:has(> :nth-child(4))
+		)
+		> .tooltip:first-of-type {
+			position: absolute;
+			bottom: var(--g-space-2);
+			left: var(--g-space-7);
 		}
 	}
 
@@ -286,7 +337,7 @@
 	}
 
 	blockquote {
-		border-inline-start: var(--g-border-gray-300);
+		border-inline-start: solid var(--g-space-1) var(--s-color-border-tertiary);
 		padding-inline-start: var(--g-space-4);
 		color: var(--g-color-gray-600);
 		font-style: var(--g-italic);
@@ -405,7 +456,7 @@
 	}
 
 	hr {
-		border-top: var(--g-border-gray-100);
+		border-top: var(--s-border-secondary);
 		margin-block: var(--cr-space-10);
 	}
 
@@ -421,8 +472,8 @@
 
 	th,
 	td {
-		border: var(--g-border-gray-100);
-		padding: var(--cr-space-4) var(--cr-space-2);
+		border: var(--s-border);
+		padding: var(--cr-space-2) var(--cr-space-4);
 		white-space: normal;
 		word-break: break-word;
 	}
@@ -475,7 +526,7 @@
 	}
 }
 
-.c-readme-view{
+.c-readme-view {
 	background-color: var(--s-color-bg-base);
 	padding-inline: var(--g-space-4);
 	padding-block-start: var(--g-space-6);

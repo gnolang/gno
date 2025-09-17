@@ -28,6 +28,7 @@
 
 	/* Z-index layers */
 	--g-z-auto: auto;
+	--g-z-min: -1;
 	--g-z-0: 0;
 	--g-z-1: 1;
 	--g-z-2: 2;
@@ -258,7 +259,7 @@
 	--g-color-gray-900: oklch(0.1349 0.0024 286.07); /* #080809 - Title color */
 
 	/* Green scale */
-	--g-color-green-50: oklch(0.9771 0.0125 236.62); /* #F0F9FF */
+	--g-color-green-50: oklch(94.553% 0.00891 180.286); /* #F0F9FF */
 	--g-color-green-400: oklch(0.6863 0.0819 173.69); /* #60AB96 - Primary dark color */
 	--g-color-green-600: oklch(0.4798 0.0801 170.52); /* #226C57 - Primary light color */
 	--g-color-green-900: oklch(0.3401 0.0544 170.75); /* #144134 */
