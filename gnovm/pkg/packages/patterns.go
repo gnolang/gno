@@ -20,7 +20,7 @@ type pkgMatch struct {
 	Match []string
 }
 
-func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, patterns ...string) ([]*pkgMatch, error) {
+func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, fsys fs.FS, patterns ...string) ([]*pkgMatch, error) {
 	pkgMatches := []*pkgMatch(nil)
 
 	addPkgDir := func(dir string, match *string) {
@@ -104,13 +104,14 @@ func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, pat
 
 		pat, err := cleanPattern(match, patKind)
 		if err != nil {
-			return nil, fmt.Errorf("%s: %w", match, err)
+			return nil, fmt.Errorf("%s: clean: %w", match, err)
 		}
 
 		switch patKind {
 		case patternKindDirectory:
-			if _, err := os.Stat(pat); err != nil {
-				return nil, fmt.Errorf("%s: %w", match, err)
+			// XXX: fs.FS expect slash-separated paths
+			if _, err := fs.Stat(fsys, pat); err != nil {
+				return nil, fmt.Errorf("%s: stat dir: %w", match, err)
 			}
 			addPkgDir(pat, &match)
 
@@ -129,9 +130,9 @@ func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, pat
 				panic(fmt.Errorf("unexpected recursive pattern at this point"))
 			}
 
-			dirs, err := expandRecursive(loaderCtx.Root, pat)
+			dirs, err := expandRecursive(loaderCtx.Root, fsys, pat)
 			if err != nil {
-				return nil, fmt.Errorf("%s: %w", match, err)
+				return nil, fmt.Errorf("%s: expand: %w", match, err)
 			}
 			if len(dirs) == 0 {
 				fmt.Fprintf(out, "gno: warning: %q matched no packages\n", match)
@@ -149,21 +150,25 @@ func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, pat
 	return pkgMatches, nil
 }
 
-func expandRecursive(workspaceRoot string, pattern string) ([]string, error) {
+func expandRecursive(workspaceRoot string, fsys fs.FS, pattern string) ([]string, error) {
 	// this works because we only support ... at the end of patterns for now
 	patternRoot, _ := filepath.Split(pattern)
 
 	// check that the pattern root is a directory
-	rootInfo, err := os.Stat(patternRoot)
+	rootInfo, err := fs.Stat(fsys, patternRoot)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("stat pattern root %q: %w", patternRoot, err)
 	}
 	if !rootInfo.IsDir() {
 		return nil, fmt.Errorf("recursive pattern root %q is not a directory", patternRoot)
 	}
 
 	pkgDirs := []string{}
-	if err := fs.WalkDir(os.DirFS(patternRoot), ".", func(path string, d fs.DirEntry, err error) error {
+	subFS, err := fs.Sub(fsys, patternRoot)
+	if err != nil {
+		return nil, fmt.Errorf("create sub fsys at %q: %w", patternRoot, err)
+	}
+	if err := fs.WalkDir(subFS, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -174,7 +179,7 @@ func expandRecursive(workspaceRoot string, pattern string) ([]string, error) {
 				return nil
 			}
 			subwork := filepath.Join(dir, "gnowork.toml")
-			_, err := os.Stat(subwork)
+			_, err := fs.Stat(fsys, subwork)
 			switch {
 			case os.IsNotExist(err):
 				// not a sub-workspace, continue walking
@@ -202,7 +207,7 @@ func expandRecursive(workspaceRoot string, pattern string) ([]string, error) {
 
 		return nil
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("walk: %w", err)
 	}
 
 	return pkgDirs, nil
@@ -251,7 +256,20 @@ func getPatternKind(pat string) (patternKind, error) {
 func cleanPattern(pat string, kind patternKind) (string, error) {
 	switch kind {
 	case patternKindSingleFile, patternKindDirectory, patternKindRecursiveLocal:
-		return filepath.Abs(pat)
+		if !filepath.IsAbs(pat) {
+			absPat, err := filepath.Abs(pat)
+			if err != nil {
+				return "", err
+			}
+			pat = absPat
+		}
+		volName := filepath.VolumeName(pat)
+		pat = strings.TrimPrefix(pat, volName)
+		pat := path.Clean(filepath.ToSlash(pat))
+		if path.IsAbs(pat) {
+			return pat[1:], nil
+		}
+		return pat, nil
 	case patternKindRemote, patternKindRecursiveRemote:
 		return path.Clean(pat), nil
 	default:

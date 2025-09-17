@@ -130,6 +130,7 @@ func TestDataExpandPatterns(t *testing.T) {
 		res               []*pkgMatch
 		errShouldContain  string
 		warnShouldContain string
+		overlay           map[string][]byte
 	}{
 		{
 			name:     "workspace-1-root",
@@ -288,7 +289,7 @@ func TestDataExpandPatterns(t *testing.T) {
 
 			warn := &strings.Builder{}
 			// TODO: test single-package mode
-			res, err := expandPatterns(gnoRoot, &loaderContext{IsWorkspace: true, Root: workroot}, warn, tc.patterns...)
+			res, err := expandPatterns(gnoRoot, &loaderContext{IsWorkspace: true, Root: workroot}, warn, os.DirFS("/"), tc.patterns...)
 			if tc.errShouldContain == "" {
 				require.NoError(t, err)
 			} else {

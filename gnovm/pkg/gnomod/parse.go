@@ -3,6 +3,7 @@ package gnomod
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,6 +15,11 @@ var ErrNoModFile = errors.New("gnomod.toml doesn't exist")
 
 // ParseDir parses, validates and returns a gno.mod or gnomod.toml file located at dir (does not search parents).
 func ParseDir(dir string) (*File, error) {
+	return ParseFSDir(os.DirFS("."), dir)
+}
+
+// ParseDir parses, validates and returns a gno.mod or gnomod.toml file located at dir (does not search parents).
+func ParseFSDir(fsys fs.FS, dir string) (*File, error) {
 	ferr := func(err error) (*File, error) {
 		return nil, fmt.Errorf("parsing gno.mod/gnomod.toml at %s: %w", dir, err)
 	}
@@ -25,8 +31,8 @@ func ParseDir(dir string) (*File, error) {
 
 	for _, fname := range []string{"gnomod.toml", "gno.mod"} {
 		fpath := filepath.Join(absDir, fname)
-		if _, err := os.Stat(fpath); err == nil {
-			b, err := os.ReadFile(fpath)
+		if _, err := fs.Stat(fsys, fpath); err == nil {
+			b, err := fs.ReadFile(fsys, fpath)
 			if err != nil {
 				return ferr(err)
 			}
