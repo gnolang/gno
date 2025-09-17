@@ -12,12 +12,12 @@ import (
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
-	maxBytes  int64
-	bytes     int64
-    // `peakBytes` represents the maximum memory 
-    // usage during a single transaction, and is used  
-    // to calculate the corresponding gas usage.
-    // It increases monotonically.
+	maxBytes int64
+	bytes    int64
+	// `peakBytes` represents the maximum memory
+	// usage during a single transaction, and is used
+	// to calculate the corresponding gas usage.
+	// It increases monotonically.
 	peakBytes int64
 	collect   func() (left int64, ok bool) // gc callback
 	gasMeter  store.GasMeter
@@ -151,8 +151,8 @@ func (alloc *Allocator) Allocate(size int64) {
 	} else {
 		alloc.bytes += size
 	}
-    // The value of `bytes` decreases during GC, and fees
-    // are only charged when it exceeds peakBytes (again).
+	// The value of `bytes` decreases during GC, and fees
+	// are only charged when it exceeds peakBytes (again).
 	if alloc.bytes > alloc.peakBytes {
 		if alloc.gasMeter != nil {
 			change := alloc.bytes - alloc.peakBytes
