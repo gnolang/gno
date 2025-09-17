@@ -288,7 +288,7 @@ func (c *fixCmd) applyFixesToFile(
 	filename string,
 	src []byte,
 	gm *gnomod.File,
-) ([]byte, bool, error) {
+) (rewritten []byte, fixed bool, err error) {
 	fset := token.NewFileSet()
 	parsed, err := parser.ParseFile(
 		fset, filename, src,
