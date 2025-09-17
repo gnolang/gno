@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/demo/mux"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
+	"gno.land/p/nt/mux"
 )
 
 const (
@@ -147,6 +147,8 @@ func renderBoardMenu(board *Board, req *mux.Request) string {
 		b.WriteString("\n")
 	} else {
 		b.WriteString(md.Link("Create Thread", makeCreateThreadURI(board)))
+		b.WriteString(" • ")
+		b.WriteString(md.Link("Request Invite", makeRequestInviteURI(board)))
 		b.WriteString(" • ")
 
 		menu := getCurrentMenu(req.RawPath)

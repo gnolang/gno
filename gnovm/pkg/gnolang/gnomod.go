@@ -1,8 +1,10 @@
 package gnolang
 
 import (
+	"cmp"
 	"fmt"
 	"html/template"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -73,4 +75,29 @@ func ParseCheckGnoMod(mpkg *std.MemPackage) (mod *gnomod.File, err error) {
 		panic("unsupported gno version " + mod.Gno)
 	}
 	return
+}
+
+func CompareVersions(a, b string) (int, bool) {
+	amaj, amin, aok := cutAndConvert(a, ".")
+	bmaj, bmin, bok := cutAndConvert(b, ".")
+	if !aok || !bok {
+		return 0, false
+	}
+	if c := cmp.Compare(amaj, bmaj); c != 0 {
+		return c, true
+	}
+	return cmp.Compare(amin, bmin), true
+}
+
+func cutAndConvert(s, sep string) (int, int, bool) {
+	x, y, ok := strings.Cut(s, sep)
+	if !ok {
+		return 0, 0, false
+	}
+	cx, errx := strconv.Atoi(x)
+	cy, erry := strconv.Atoi(y)
+	if errx != nil || erry != nil {
+		return 0, 0, false
+	}
+	return cx, cy, true
 }

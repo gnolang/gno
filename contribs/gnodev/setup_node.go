@@ -8,12 +8,53 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
+
+// extractDependenciesFromTxs extracts dependencies from transactions and adds them to the paths slice and config.BalancesList.
+func extractDependenciesFromTxs(nodeConfig *gnodev.NodeConfig, paths *[]string) {
+	defaultPremineBalance := std.Coins{std.NewCoin(ugnot.Denom, 10e12)}
+
+	for _, tx := range nodeConfig.InitialTxs {
+		for _, msg := range tx.Tx.Msgs {
+			// TODO: Support MsgRun
+			callMsg, ok := msg.(vm.MsgCall)
+			if !ok {
+				continue
+			}
+			// Add package path to paths slice if not already present
+			if !slices.Contains(*paths, callMsg.PkgPath) {
+				*paths = append(*paths, callMsg.PkgPath)
+			}
+
+			// Check if address exists in config.BalancesList
+			addressExists := false
+			for _, balance := range nodeConfig.BalancesList {
+				if balance.Address == callMsg.Caller {
+					addressExists = true
+					break
+				}
+			}
+
+			// If address does not exist, add it to config.BalancesList
+			if !addressExists {
+				newBalance := gnoland.Balance{
+					Address: callMsg.Caller,
+					Amount:  defaultPremineBalance,
+				}
+				nodeConfig.BalancesList = append(nodeConfig.BalancesList, newBalance)
+			}
+		}
+	}
+}
 
 // setupDevNode initializes and returns a new DevNode.
 func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeConfig, paths ...string) (*gnodev.Node, error) {
@@ -25,6 +66,8 @@ func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeCo
 		if err != nil {
 			return nil, fmt.Errorf("unable to load transactions: %w", err)
 		}
+
+		extractDependenciesFromTxs(nodeConfig, &paths)
 	} else if cfg.genesisFile != "" { // Load genesis file
 		state, err := extractAppStateFromGenesisFile(cfg.genesisFile)
 		if err != nil {
@@ -56,7 +99,8 @@ func setupDevNodeConfig(
 	emitter emitter.Emitter,
 	balances gnoland.Balances,
 	loader packages.Loader,
-) *gnodev.NodeConfig {
+	book *address.Book,
+) (*gnodev.NodeConfig, error) {
 	config := gnodev.DefaultNodeConfig(cfg.root, cfg.chainDomain)
 	config.Loader = loader
 
@@ -72,7 +116,18 @@ func setupDevNodeConfig(
 	config.TMConfig.P2P.ListenAddress = defaultLocalAppConfig.nodeP2PListenerAddr
 	config.TMConfig.ProxyApp = defaultLocalAppConfig.nodeProxyAppListenerAddr
 
-	return config
+	// Setup deploy key as default creator
+	if cfg.deployKey == "" {
+		return nil, fmt.Errorf("no deploy key provided")
+	}
+
+	dkey, _, ok := book.GetFromNameOrAddress(cfg.deployKey)
+	if !ok {
+		return nil, fmt.Errorf("unable to get deploy key %q", cfg.deployKey)
+	}
+	config.DefaultCreator = dkey
+
+	return config, nil
 }
 
 func extractAppStateFromGenesisFile(path string) (*gnoland.GnoGenesisState, error) {
@@ -92,9 +147,8 @@ func extractAppStateFromGenesisFile(path string) (*gnoland.GnoGenesisState, erro
 func resolveUnixOrTCPAddr(in string) (addr net.Addr) {
 	var err error
 
-	if strings.HasPrefix(in, "unix://") {
-		in = strings.TrimPrefix(in, "unix://")
-		if addr, err = net.ResolveUnixAddr("unix", in); err == nil {
+	if saddr, ok := strings.CutPrefix(in, "unix://"); ok {
+		if addr, err = net.ResolveUnixAddr("unix", saddr); err == nil {
 			return addr
 		}
 

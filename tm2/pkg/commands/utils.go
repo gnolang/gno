@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"errors"
 	"os"
 	"strings"
 
@@ -51,10 +50,11 @@ func readPassword() (string, error) {
 
 // GetConfirmation will request user give the confirmation from stdin.
 // "y", "Y", "yes", "YES", and "Yes" all count as confirmations.
+// If the input is empty (just Enter), it defaults to "yes".
 // If the input is not recognized, it returns false and a nil error.
 func (io *IOImpl) GetConfirmation(prompt string) (bool, error) {
 	// On stderr so it isn't part of bash output.
-	io.ErrPrintfln("%s [y/n]:", prompt)
+	io.ErrPrintfln("%s [Y/n]:", prompt)
 
 	response, err := io.readLine()
 	if err != nil {
@@ -63,7 +63,7 @@ func (io *IOImpl) GetConfirmation(prompt string) (bool, error) {
 
 	response = strings.TrimSpace(response)
 	if len(response) == 0 {
-		return false, nil
+		return true, nil // Default to yes when Enter is pressed
 	}
 
 	response = strings.ToLower(response)
@@ -72,31 +72,6 @@ func (io *IOImpl) GetConfirmation(prompt string) (bool, error) {
 	}
 
 	return false, nil
-}
-
-// GetCheckPassword will prompt for a password twice to verify they
-// match (for creating a new password).
-// It enforces the password length. Only parses password once if
-// input is piped in.
-func (io *IOImpl) GetCheckPassword(
-	prompts [2]string,
-	insecure bool,
-) (string, error) {
-	pass, err := io.GetPassword(prompts[0], insecure)
-	if err != nil {
-		return "", err
-	}
-
-	pass2, err := io.GetPassword(prompts[1], insecure)
-	if err != nil {
-		return "", err
-	}
-
-	if pass != pass2 {
-		return "", errors.New("passphrases don't match")
-	}
-
-	return pass, nil
 }
 
 // GetString simply returns the trimmed string output of a given reader.
