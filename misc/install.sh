@@ -62,9 +62,9 @@ check_go() {
     fi
 
     # Check Go version
-    GO_VERSION=$(go version | awk '{print $3}' | sed 's/go//')
-    if [ "$(echo "$GO_VERSION 1.18" | awk '{print ($1 < $2)}')" -eq 1 ]; then
-        error "Go version 1.18 or higher is required. Current version: $GO_VERSION"
+    local go_version=$(go version | awk '{print $3}' | sed 's/go//')
+    if [ "$(echo "$go_version 1.18" | awk '{print ($1 < $2)}')" -eq 1 ]; then
+        error "Go version 1.18 or higher is required. Current version: $go_version"
         exit 1
     fi
 }
