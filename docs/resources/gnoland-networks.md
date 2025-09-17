@@ -144,11 +144,6 @@ The latest Gno.land testnet, released on the 5th of September, 2025.
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
 
-### Test7
-
-Test7 is the latest testnet released on the 25th of July, 2025.
-
-
 ### TestX
 
 These testnets are deprecated and currently serve as archives of previous progress.
