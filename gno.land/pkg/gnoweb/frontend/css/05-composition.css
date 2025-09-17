@@ -111,7 +111,7 @@
 
 /* ===== REALM VIEW ===== */
 .c-realm-view,
-.c-readme-view  {
+.c-readme-view {
 	--cr-px-base: var(--g-px-base);
 	--cr-space-mult: 1;
 	--cr-space-base: calc(1em / var(--g-space-mult) * var(--cr-space-mult));
@@ -196,14 +196,12 @@
 		}
 
 		/* link with image only shoud display the link badge on the image */
-		&:has(> img:first-child):has(.tooltip:last-child):not(
-			:has(> :nth-child(3))
-		)
-		> .tooltip,
+		&:has(> img:first-child):has(.tooltip:last-child):not(:has(> :nth-child(3)))
+			> .tooltip,
 		&:has(> img:first-child):has(.tooltip + .tooltip:last-child):not(
-			:has(> :nth-child(4))
-		)
-		> .tooltip {
+				:has(> :nth-child(4))
+			)
+			> .tooltip {
 			position: absolute;
 			bottom: var(--g-space-2);
 			left: var(--g-space-2);
@@ -213,9 +211,9 @@
 		}
 
 		&:has(> img:first-child):has(.tooltip + .tooltip:last-child):not(
-			:has(> :nth-child(4))
-		)
-		> .tooltip:first-of-type {
+				:has(> :nth-child(4))
+			)
+			> .tooltip:first-of-type {
 			position: absolute;
 			bottom: var(--g-space-2);
 			left: var(--g-space-7);
@@ -520,7 +518,7 @@
 		}
 	}
 
-	& >.b-btn:first-child + *,
+	& > .b-btn:first-child + *,
 	& > :first-child:not(.b-btn) {
 		margin-block-start: 0;
 	}

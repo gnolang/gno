@@ -44,7 +44,7 @@
 
 .u-text-stroke {
 	-webkit-text-stroke: currentColor;
-    -webkit-text-stroke-width: .6px;
+	-webkit-text-stroke-width: 0.6px;
 }
 
 .u-font-mono {

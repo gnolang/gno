@@ -256,7 +256,7 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 			{"data-tooltip", icon.tooltip},
 			{"title", icon.tooltip},
 		})
-		w.WriteString(`<svg class="w-3 h-3"><use href="#` + icon.iconID + `"></use></svg>`)
+		w.WriteString(`<svg class="c-icon"><use href="#` + icon.iconID + `"></use></svg>`)
 		w.WriteString("</span>")
 	}
 

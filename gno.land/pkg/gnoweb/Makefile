@@ -13,14 +13,10 @@ golangci_lint := go run -modfile ../../../misc/devdeps/go.mod github.com/golangc
 ## node tools
 node_modules := ./frontend/node_modules
 esbuild := $(node_modules)/.bin/esbuild
-tailwind := $(node_modules)/.bin/tailwindcss
 postcss := $(node_modules)/.bin/postcss
 biome := $(node_modules)/.bin/biome
 
 # css config
-input_css := frontend/css/input.css
-output_css := $(PUBLIC_DIR)/styles.css
-tw_config_path := frontend/css/tx.config.js
 css_config_path := frontend/css/main.css
 
 # main css config
@@ -74,12 +70,8 @@ lint.go:; $(golangci_lint) --config ../../../.github/golangci.yml run ./...
 lint.front:; $(MAKE) -C frontend lint
 
 # Generate process
-generate: css maincss ts static
+generate: maincss ts static
 
-css: $(tailwind) $(output_css)
-$(output_css): $(input_css) $(templates_files)
-	$(tailwind) -c $(tw_config_path) -i $(input_css) -o $@ --minify # tailwind
-	touch $@
 
 # Main CSS
 maincss: $(output_maincss)
@@ -103,9 +95,9 @@ $(out_dir_static)/%: $(src_dir_static)/%
 .PHONY: dev.all dev.server dev.css dev.ts
 
 # Run the development dependencies in parallel
-dev.all: $(esbuild) $(tailwind) $(PUBLIC_DIR)
+dev.all: $(esbuild) $(PUBLIC_DIR)
 	@echo "-- starting development tools"
-	PUBLIC_DIR=$(cache_dir)/public $(MAKE) -j 4 dev.gnoweb dev.ts dev.css dev.maincss
+	PUBLIC_DIR=$(cache_dir)/public $(MAKE) -j 3 dev.gnoweb dev.ts dev.maincss
 
 # Go server in development mode
 dev.gnoweb: generate
@@ -114,10 +106,6 @@ dev.gnoweb: generate
 		-v -no-strict -chainid=${CHAIN_ID} -remote=${DEV_REMOTE} \
 		2>&1 | $(logname) gnoweb
 
-# Tailwind CSS in development mode
-dev.css: $(tailwind) generate | $(PUBLIC_DIR)
-	$(tailwind) -c $(tw_config_path) --verbose -i $(input_css) -o $(output_css) --watch \
-		2>&1 | $(logname) tailwind
 
 # Main CSS in development mode
 dev.maincss: generate | $(PUBLIC_DIR)
@@ -130,7 +118,7 @@ dev.ts: $(esbuild) generate | $(PUBLIC_DIR)
 		2>&1 | $(logname) esbuild
 
 # Install node modules deps located in ./tools
-$(esbuild) $(tailwind): $(node_modules)
+$(esbuild): $(node_modules)
 $(node_modules):
 	$(MAKE) -C frontend node_modules
 
