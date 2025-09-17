@@ -3,7 +3,6 @@ package keyscli
 
 import (
 	"encoding/base64"
-	"slices"
 
 	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -76,9 +75,9 @@ func PrintTxInfo(tx std.Tx, res *ctypes.ResultBroadcastTxCommit, io commands.IO)
 			// For example if a tx contains a storage cost param change message sandwiched by storage movement messages.
 			// These will fall in this case and print confusing information but it's so rare that we don't
 			// really care about this possibility here.
-			io.Println("STORAGE REFUND:", negateCoins(coinsDelta))
+			io.Println("STORAGE REFUND:", std.Coins{}.SubUnsafe(coinsDelta))
 		}
-		io.Printfln("TOTAL TX COST:  %s", combineCoins(std.Coins{tx.Fee.GasFee}, coinsDelta))
+		io.Printfln("TOTAL TX COST:  %s", coinsDelta.AddUnsafe(std.Coins{tx.Fee.GasFee}))
 	}
 	io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
 	io.Println("INFO:      ", res.DeliverTx.Info)
@@ -96,43 +95,14 @@ func GetStorageInfo(events []abci.Event) (int64, std.Coins) {
 		switch storageEvent := event.(type) {
 		case gnostd.StorageDepositEvent:
 			bytesDelta += storageEvent.BytesDelta
-			coinsDelta = combineCoins(coinsDelta, std.Coins{storageEvent.FeeDelta})
+			coinsDelta = coinsDelta.AddUnsafe(std.Coins{storageEvent.FeeDelta})
 		case gnostd.StorageUnlockEvent:
 			bytesDelta += storageEvent.BytesDelta
 			if !storageEvent.RefundWithheld {
-				coinsDelta = combineCoins(coinsDelta, negateCoins(std.Coins{storageEvent.FeeRefund}))
+				coinsDelta = coinsDelta.SubUnsafe(std.Coins{storageEvent.FeeRefund})
 			}
 		}
 	}
 
 	return bytesDelta, coinsDelta
-}
-
-func combineCoins(bags ...std.Coins) std.Coins {
-	res := std.Coins{}
-	for _, bag := range bags {
-		for _, coin := range bag {
-			if coin.Amount == 0 {
-				continue
-			}
-			indexInRes := slices.IndexFunc(res, func(resElem std.Coin) bool { return resElem.Denom == coin.Denom })
-			if indexInRes == -1 {
-				res = append(res, coin)
-				continue
-			}
-			res[indexInRes].Amount += coin.Amount
-		}
-	}
-	if len(res) == 0 {
-		return nil
-	}
-	return res.Sort()
-}
-
-func negateCoins(coins std.Coins) std.Coins {
-	res := make(std.Coins, len(coins))
-	for i, coin := range coins {
-		res[i] = std.Coin{Denom: coin.Denom, Amount: -coin.Amount}
-	}
-	return res
 }
