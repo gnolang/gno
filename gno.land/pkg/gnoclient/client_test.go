@@ -1575,9 +1575,9 @@ func TestClient_EstimateGas(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, gasUsed, estimate)
 
-		delta, fee, ok := keyscli.GetStorageInfo(events)
-		assert.Equal(t, ok, true)
-		assert.Equal(t, delta, int64(10))
-		assert.Equal(t, fee.Amount, int64(1000))
+		bytesDelta, coinsDelta, hasStorageEvents := keyscli.GetStorageInfo(events)
+		assert.Equal(t, hasStorageEvents, true)
+		assert.Equal(t, bytesDelta, int64(10))
+		assert.Equal(t, coinsDelta.String(), "1000ugnot")
 	})
 }
