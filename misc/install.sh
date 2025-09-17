@@ -2,7 +2,7 @@
 set -e
 
 # Usage: curl -sSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | bash [-s -- [--gno] [--gnokey] [--gnodev] [--gnobro]]
-# Optional: GNO_DIR=/custom/path curl -sSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | bash
+# Optional: GNOROOT=/custom/path curl -sSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | bash
 # Uninstall: curl -sSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | bash -s -- --uninstall
 # If no flags are provided, all tools will be installed
 #
@@ -43,9 +43,9 @@ command_exists() {
 }
 
 # Function to determine gno source directory
-get_gno_dir() {
-    if [ -n "$GNO_DIR" ]; then
-        echo "$GNO_DIR"
+get_gno_root() {
+    if [ -n "$GNOROOT" ]; then
+        echo "$GNOROOT"
     elif [ -n "$HOME" ]; then
         echo "$HOME/.gno/src"
     else
@@ -106,26 +106,26 @@ parse_args() {
 
 # Function to install gno
 install_gno() {
-    local gno_dir=$(get_gno_dir)
+    local gnoroot=$(get_gno_root)
 
     if ! command_exists git; then
       error "git is not installed. Please install git first."
       exit 1
     fi
 
-    log "Installing gno source to $gno_dir"
+    log "Installing gno source to $gnoroot"
 
-    mkdir -p "$gno_dir"
+    mkdir -p "$gnoroot"
     # Clone or update repository
-    if [ -d "$gno_dir/.git" ]; then
+    if [ -d "$gnoroot/.git" ]; then
         log "Updating existing gno repository..."
-        cd "$gno_dir"
+        cd "$gnoroot"
         git fetch --depth 1
         git reset --hard origin/master
     else
         log "Cloning gno repository..."
-        git clone --depth 1 https://github.com/gnolang/gno.git "$gno_dir"
-        cd "$gno_dir"
+        git clone --depth 1 https://github.com/gnolang/gno.git "$gnoroot"
+        cd "$gnoroot"
     fi
 
     # Build and install Gno tools
@@ -179,7 +179,7 @@ install_gno() {
 
 # Function to uninstall gno
 uninstall_gno() {
-    local gno_dir=$(get_gno_dir)
+    local gnoroot=$(get_gno_root)
     local gobin=$(go env GOBIN)
 
     log "Uninstalling gno binaries from $gobin"
@@ -189,8 +189,8 @@ uninstall_gno() {
     rm -f "$gobin/gnobro"
 
     # Remove source directory
-    log "Removing gno source from $gno_dir"
-    rm -rf "$gno_dir"
+    log "Removing gno source from $gnoroot"
+    rm -rf "$gnoroot"
 
     log "Uninstallation complete."
 }

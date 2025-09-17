@@ -156,27 +156,27 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Test custom GNO_DIR installation
+      - name: Test custom GNOROOT installation
         env:
-          GNO_DIR: /tmp/custom-gno
+          GNOROOT: /tmp/custom-gno
         run: |
           bash misc/install.sh --gno
 
-      - name: Verify custom GNO_DIR is used
+      - name: Verify custom GNOROOT is used
         run: |
           if [ ! -d "/tmp/custom-gno" ]; then
-            echo "ERROR: Custom GNO_DIR not created"
+            echo "ERROR: Custom GNOROOT not created"
             exit 1
           fi
           if [ ! -d "/tmp/custom-gno/.git" ]; then
-            echo "ERROR: Git repository not found in custom GNO_DIR"
+            echo "ERROR: Git repository not found in custom GNOROOT"
             exit 1
           fi
           if ! gno env GNOROOT | grep -q '/tmp/custom-gno'; then
-            echo "ERROR: GNOROOT does not point to custom GNO_DIR"
+            echo "ERROR: gno env does not point to custom GNOROOT"
             exit 1
           fi
-          echo "SUCCESS: Custom GNO_DIR correctly used"
+          echo "SUCCESS: Custom GNOROOT correctly used"
 
   test-mixed-flags:
     runs-on: ubuntu-latest
