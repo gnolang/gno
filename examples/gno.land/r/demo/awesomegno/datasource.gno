@@ -32,7 +32,7 @@ func (ds ItemDatasource) Records(q datasource.Query) datasource.Iterator {
 func (ds ItemDatasource) Record(id string) (datasource.Record, error) {
 	v, found := ds.items.Get(id)
 	if !found {
-		return nil, errors.New("item not found")
+		return nil, errors.New(ErrItemNotFound + ": " + id)
 	}
 	return itemRecord{v.(*Item)}, nil
 }
@@ -110,7 +110,7 @@ func (ds CategoryDatasource) Records(q datasource.Query) datasource.Iterator {
 func (ds CategoryDatasource) Record(id string) (datasource.Record, error) {
 	v, found := ds.categories.Get(id)
 	if !found {
-		return nil, errors.New("category not found")
+		return nil, errors.New(ErrCategoryNotFound + ": " + id)
 	}
 	return categoryRecord{v.(*Category)}, nil
 }

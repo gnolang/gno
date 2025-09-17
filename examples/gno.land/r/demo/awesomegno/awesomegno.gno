@@ -39,12 +39,12 @@ func init() {
 
 func AddItem(cur realm, title, description, url, authorAddress string) {
 	if title == "" {
-		panic("item title cannot be empty")
+		panic(ErrItemTitleEmpty)
 	}
 
 	author := std.Address(authorAddress)
 	if !author.IsValid() {
-		panic("invalid author address: " + authorAddress)
+		panic(ErrItemInvalidAddress + ": " + authorAddress)
 	}
 
 	if err := Auth.DoByPrevious("add_item", func() error {
@@ -87,12 +87,12 @@ func AddItemToCategory(cur realm, itemID seqid.ID, categoryID seqid.ID) {
 
 func UpdateItemsAuthors(cur realm, itemID seqid.ID, authors []std.Address) {
 	if len(authors) == 0 {
-		panic("authors cannot be empty")
+		panic(ErrItemAuthorsEmpty)
 	}
 
 	for _, author := range authors {
 		if !author.IsValid() {
-			panic("invalid author address: " + author.String())
+			panic(ErrItemInvalidAddress + ": " + author.String())
 		}
 	}
 
@@ -115,7 +115,7 @@ func DeleteItem(cur realm, itemID seqid.ID) {
 
 func AddCategory(cur realm, name, description string) {
 	if name == "" {
-		panic("category name cannot be empty")
+		panic(ErrCategoryNameEmpty)
 	}
 
 	if err := Auth.DoByPrevious("add_category", func() error {
@@ -206,7 +206,7 @@ func addItem(name, description, url string, author std.Address) seqid.ID {
 func updateItem(itemID seqid.ID, title, description, url string, authors []std.Address, categoryIDs ...seqid.ID) {
 	item, found := items.Get(itemID.String())
 	if !found {
-		panic("item not found: " + itemID.String())
+		panic(ErrItemNotFound + ": " + itemID.String())
 	}
 
 	d := item.(*Item)
@@ -235,7 +235,7 @@ func updateItem(itemID seqid.ID, title, description, url string, authors []std.A
 		for _, categoryID := range categoryIDs {
 			category, found := categories.Get(categoryID.String())
 			if !found {
-				panic("category not found: " + categoryID.String())
+				panic(ErrCategoryNotFound + ": " + categoryID.String())
 			}
 			category.(*Category).items.Set(itemID.String(), item)
 		}
@@ -259,7 +259,7 @@ func updateItem(itemID seqid.ID, title, description, url string, authors []std.A
 func addItemToCategory(itemID seqid.ID, categoryID seqid.ID) {
 	itemVal, found := items.Get(itemID.String())
 	if !found {
-		panic("item not found: " + itemID.String())
+		panic(ErrItemNotFound + ": " + itemID.String())
 	}
 	item := itemVal.(*Item)
 
@@ -288,7 +288,7 @@ func authorsToString(authors []std.Address) string {
 func deleteItem(itemID seqid.ID) {
 	item, found := items.Get(itemID.String())
 	if !found {
-		panic("item not found: " + itemID.String())
+		panic(ErrItemNotFound + ": " + itemID.String())
 	}
 
 	for _, catID := range item.(*Item).Categories {
@@ -333,7 +333,7 @@ func addCategory(name, description string) seqid.ID {
 func updateCategory(categoryID seqid.ID, name, description string) {
 	category, found := categories.Get(categoryID.String())
 	if !found {
-		panic("category not found: " + categoryID.String())
+		panic(ErrCategoryNotFound + ": " + categoryID.String())
 	}
 
 	c := category.(*Category)
@@ -355,7 +355,7 @@ func updateCategory(categoryID seqid.ID, name, description string) {
 func deleteCategory(categoryID seqid.ID) {
 	category, found := categories.Get(categoryID.String())
 	if !found {
-		panic("category not found: " + categoryID.String())
+		panic(ErrCategoryNotFound + ": " + categoryID.String())
 	}
 
 	category.(*Category).items.Iterate("", "", func(itemID string, value any) bool {

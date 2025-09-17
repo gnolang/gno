@@ -20,7 +20,7 @@ func TestAddItem(t *testing.T) {
 		AddItem(cross, "Test Item", "A test description", "https://test.com", validAddr.String())
 	})
 
-	uassert.AbortsWithMessage(t, "item title cannot be empty", func() {
+	uassert.AbortsWithMessage(t, ErrItemTitleEmpty, func() {
 		AddItem(cross, "", "description", "url", validAddr.String())
 	})
 }
@@ -43,7 +43,7 @@ func TestUpdateItem(t *testing.T) {
 	})
 
 	invalidID := seqid.ID(999999)
-	uassert.AbortsWithMessage(t, "item not found: "+invalidID.String(), func() {
+	uassert.AbortsWithMessage(t, ErrItemNotFound + ": " + invalidID.String(), func() {
 		UpdateItem(cross, invalidID, "title", "desc", "url")
 	})
 }
@@ -82,7 +82,7 @@ func TestDeleteItem(t *testing.T) {
 		DeleteItem(cross, item.ID)
 	})
 
-	uassert.AbortsWithMessage(t, "item not found: "+item.ID.String(), func() {
+	uassert.AbortsWithMessage(t, ErrItemNotFound + ": " + item.ID.String(), func() {
 		DeleteItem(cross, item.ID)
 	})
 }
@@ -95,7 +95,7 @@ func TestAddCategory(t *testing.T) {
 		AddCategory(cross, "Test Category", "A test category description")
 	})
 
-	uassert.AbortsWithMessage(t, "category name cannot be empty", func() {
+	uassert.AbortsWithMessage(t, ErrCategoryNameEmpty, func() {
 		AddCategory(cross, "", "description")
 	})
 }
@@ -114,7 +114,7 @@ func TestUpdateCategory(t *testing.T) {
 	})
 
 	invalidID := seqid.ID(999999)
-	uassert.AbortsWithMessage(t, "category not found: "+invalidID.String(), func() {
+	uassert.AbortsWithMessage(t, ErrCategoryNotFound + ": " + invalidID.String(), func() {
 		UpdateCategory(cross, invalidID, "name", "desc")
 	})
 }
@@ -132,7 +132,7 @@ func TestDeleteCategory(t *testing.T) {
 		DeleteCategory(cross, category.ID)
 	})
 
-	uassert.AbortsWithMessage(t, "category not found: "+category.ID.String(), func() {
+	uassert.AbortsWithMessage(t, ErrCategoryNotFound + ": " + category.ID.String(), func() {
 		DeleteCategory(cross, category.ID)
 	})
 }
@@ -157,7 +157,7 @@ func TestItemCategoryRelationship(t *testing.T) {
 
 	DeleteCategory(cross, category.ID)
 
-	uassert.AbortsWithMessage(t, "category not found: "+category.ID.String(), func() {
+	uassert.AbortsWithMessage(t, ErrCategoryNotFound + ": " + category.ID.String(), func() {
 		UpdateItemWithCategories(cross, item.ID, "", "", "", category.ID)
 	})
 }
@@ -184,7 +184,7 @@ func TestUpdateItemWithCategories(t *testing.T) {
 	})
 
 	invalidID := seqid.ID(999999)
-	uassert.AbortsWithMessage(t, "item not found: "+invalidID.String(), func() {
+	uassert.AbortsWithMessage(t, ErrItemNotFound + ": " + invalidID.String(), func() {
 		UpdateItemWithCategories(cross, invalidID, "title", "desc", "url", cat1.ID)
 	})
 }
@@ -205,7 +205,7 @@ func TestUpdateItemNoCategories(t *testing.T) {
 	})
 
 	invalidID := seqid.ID(999999)
-	uassert.AbortsWithMessage(t, "item not found: "+invalidID.String(), func() {
+	uassert.AbortsWithMessage(t, ErrItemNotFound + ": " + invalidID.String(), func() {
 		UpdateItem(cross, invalidID, "title", "desc", "url")
 	})
 }

@@ -103,7 +103,7 @@ func TestItemDatasourceRecord(t *testing.T) {
 			name:  "not found",
 			items: []*Item{{ID: 1}, {ID: 2}, {ID: 3}},
 			id:    "42",
-			err:   "item not found",
+			err:   ErrItemNotFound + ": 42",
 		},
 	}
 
