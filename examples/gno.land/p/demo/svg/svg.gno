@@ -241,11 +241,16 @@ func (p *Polygon) WithClass(class string) *Polygon {
 type Polyline struct { // polygon but not necessarily closed
 	Points string
 	Fill   string
+	Stroke string
 	Attr   BaseAttrs
 }
 
 func (p Polyline) String() string {
-	return ufmt.Sprintf(`<polyline points="%s" fill="%s" %s/>`, p.Points, p.Fill, p.Attr.String())
+	strokeAttr := ""
+	if p.Stroke != "" {
+		strokeAttr = ufmt.Sprintf(` stroke="%s"`, p.Stroke)
+	}
+	return ufmt.Sprintf(`<polyline points="%s" fill="%s"%s %s/>`, p.Points, p.Fill, strokeAttr, p.Attr.String())
 }
 
 func NewPolyline(points, fill string) *Polyline {
@@ -253,6 +258,11 @@ func NewPolyline(points, fill string) *Polyline {
 		Points: points,
 		Fill:   fill,
 	}
+}
+
+func (p *Polyline) WithStroke(stroke string) *Polyline {
+	p.Stroke = stroke
+	return p
 }
 
 func (p *Polyline) WithClass(class string) *Polyline {
@@ -284,6 +294,39 @@ func NewText(x, y int, text, fill string) *Text {
 func (c *Text) WithClass(class string) *Text {
 	c.Attr.Class = class
 	return c
+}
+
+type Line struct {
+	X1, Y1, X2, Y2 int
+	Stroke         string
+	Attr           BaseAttrs
+}
+
+func (l Line) String() string {
+	return ufmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" %s/>`, l.X1, l.Y1, l.X2, l.Y2, l.Stroke, l.Attr.String())
+}
+
+func NewLine(x1, y1, x2, y2 int, stroke string) *Line {
+	return &Line{
+		X1:     x1,
+		Y1:     y1,
+		X2:     x2,
+		Y2:     y2,
+		Stroke: stroke,
+	}
+}
+
+func (l *Line) WithClass(class string) *Line {
+	l.Attr.Class = class
+	return l
+}
+
+type Point struct {
+	X, Y int
+}
+
+func (p Point) String() string {
+	return ufmt.Sprintf("%d,%d", p.X, p.Y)
 }
 
 type Group struct {
