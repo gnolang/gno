@@ -75,7 +75,7 @@ generate: maincss ts static
 
 # Main CSS
 maincss: $(output_maincss)
-$(output_maincss): $(main_css_files) $(templates_files)
+$(output_maincss): $(main_css_files) $(templates_files) $(postcss)
 	$(postcss) $(css_config_path) -o $@ --env production
 	touch $@
 
