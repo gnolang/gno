@@ -148,7 +148,7 @@ The latest Gno.land testnet, released on the 5th of September, 2025.
 
 These testnets are deprecated and currently serve as archives of previous progress.
 
-### Test7
+### Test7 (archive)
 
 Test7 is the testnet released on the 25th of July, 2025.
 
