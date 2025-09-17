@@ -1,0 +1,47 @@
+loadpkg gno.land/r/demo/crossrealm $WORK/crossrealm
+loadpkg gno.land/r/demo/main $WORK/main
+gnoland start
+
+
+gnokey maketx call -pkgpath gno.land/r/demo/main -func Exec -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+-- crossrealm/crossrealm.gno --
+package crossrealm
+
+
+type S struct {
+    AllowedList []int
+}
+
+var Allowed = S{
+    AllowedList: []int{1,2},
+}
+
+func Get() []int {
+    return Allowed.AllowedList
+}
+
+func Set(cur realm, v []int) {
+     Allowed.AllowedList = v
+    //Allowed.AllowedList = append(Allowed.AllowedList, 3)
+}
+
+func Edit(cur realm, i, v int) {
+    Allowed.AllowedList[i] = v
+}
+
+
+
+-- main/main.gno --
+package main
+
+import (
+	"gno.land/r/demo/crossrealm"
+)
+
+func Exec(cur realm) []int {
+	crossrealm.Set(cross, crossrealm.Allowed.AllowedList)
+	crossrealm.Edit(cross,0, 5)
+	return crossrealm.Allowed.AllowedList
+}

@@ -950,7 +950,8 @@ func (tv *TypedValue) SetReadonly(ro bool) {
 		tv.N = N_Readonly
 		return
 	} else {
-		return // preserve prior tv.N
+		tv.N = [8]byte{} // unset
+		return           // preserve prior tv.N
 	}
 }
 
