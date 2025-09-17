@@ -34,7 +34,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"math"
 	"os"
 	"reflect"
 	"strconv"
@@ -42,7 +41,6 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/gnovm/pkg/parser"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -189,12 +187,17 @@ func ParseFilePackageName(fname string) (string, error) {
 	return f.Name.Name, nil
 }
 
+const (
+	tokenCostFactor   = 1 // To be adjusted from benchmarks.
+	nestingCostFactor = 1 // To be adjusted from benchmarks.
+)
+
 // parseCost computes and returns the cost of parsing from the parser stats.
 func parseCost(stats *parser.Stats) types.Gas {
 	// The parsing cost is a function of the number of tokens and the
 	// nesting level reached during the parsing, which reflect both the size
 	// and the complexity of the AST.
-	return types.Gas(overflow.Mulp(stats.NumTok, math.Ilogb(float64(1+stats.TopNest))))
+	return types.Gas(stats.NumTok*tokenCostFactor + stats.TopNest*nestingCostFactor)
 }
 
 // ParseFile uses the Go parser to parse body. It then runs [Go2Gno] on the
