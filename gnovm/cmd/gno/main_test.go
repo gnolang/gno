@@ -136,7 +136,8 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 
 			testPackageFetcher = examplespkgfetcher.New("")
 
-			err := newGnocliCmd(io).ParseAndRun(context.Background(), test.args)
+			cmd, _ := newGnocliCmd(io)
+			err := cmd.ParseAndRun(context.Background(), test.args)
 
 			if errShouldBeEmpty {
 				require.Nil(t, err, "err should be nil")
