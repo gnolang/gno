@@ -48,7 +48,7 @@ clean:
 # Dev tools
 .PHONY: lint
 lint:
-	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config ../.github/golangci.yml ./...
+	$(rundep) github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --config ../.github/golangci.yml ./...
 
 .PHONY: fmt
 fmt:
@@ -112,7 +112,7 @@ _test.stdlibs:
 	go test -v ./stdlibs/...
 	# 'gno test ./stdlibs/...' is different from TestStdlibs in 'go test ./pkg/..'
 	# TestStdlibs does not include tests from *_test packages.
-	go run ../gnovm/cmd/gno test -v ./stdlibs/...
+	cd stdlibs && go run ../cmd/gno test -v ./...
 
 
 .PHONY: _test.filetest

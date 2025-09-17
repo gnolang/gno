@@ -4,11 +4,11 @@ import (
 	"std"
 	"strconv"
 
-	"gno.land/p/demo/ownable"
 	"gno.land/p/moul/dynreplacer"
+	"gno.land/p/nt/ownable"
 	blog "gno.land/r/gnoland/blog"
 
-	"gno.land/r/gnoland/events"
+	"gno.land/r/devrels/events"
 	users "gno.land/r/gnoland/users/v1"
 	"gno.land/r/leon/hor"
 )
@@ -82,7 +82,7 @@ the foundations of a fairer and freer world, join us today.
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
 - [Staging chain](https://docs.gno.land/resources/gnoland-networks/#staging-environments-portal-loops)
-- [Testnet 6](https://test6.testnets.gno.land/)
+- [Testnet 7](https://test7.testnets.gno.land/)
 - [Faucet Hub](https://faucet.gno.land)
 
 </gno-columns>

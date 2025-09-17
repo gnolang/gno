@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 )
 
 func TestNew(t *testing.T) {
@@ -193,7 +193,7 @@ func TestCommonDAOVote(t *testing.T) {
 			setup: func() *CommonDAO {
 				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 				dao := New(WithMember(member))
-				dao.Propose(member, testPropDef{})
+				dao.Propose(member, testPropDef{votingPeriod: time.Hour})
 				return dao
 			},
 			member:     "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
@@ -206,7 +206,8 @@ func TestCommonDAOVote(t *testing.T) {
 				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 				dao := New(WithMember(member))
 				dao.Propose(member, testPropDef{
-					voteChoices: []VoteChoice{"FOO", "BAR"},
+					votingPeriod: time.Hour,
+					voteChoices:  []VoteChoice{"FOO", "BAR"},
 				})
 				return dao
 			},
@@ -215,11 +216,26 @@ func TestCommonDAOVote(t *testing.T) {
 			proposalID: 1,
 		},
 		{
+			name: "success with deadline check disabled",
+			setup: func() *CommonDAO {
+				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
+				dao := New(
+					WithMember(member),
+					DisableVotingDeadlineCheck(),
+				)
+				dao.Propose(member, testPropDef{})
+				return dao
+			},
+			member:     "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+			choice:     ChoiceYes,
+			proposalID: 1,
+		},
+		{
 			name: "invalid vote choice",
 			setup: func() *CommonDAO {
 				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 				dao := New(WithMember(member))
-				dao.Propose(member, testPropDef{})
+				dao.Propose(member, testPropDef{votingPeriod: time.Hour})
 				return dao
 			},
 			member:     "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",

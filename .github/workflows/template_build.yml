@@ -1,0 +1,36 @@
+on:
+    workflow_call:
+        inputs:
+            modulepath:
+              required: true
+              type: string
+            go-version:
+              required: true
+              type: string
+
+jobs:
+    generated:
+        runs-on: ubuntu-latest
+        steps:
+          - name: Checkout code
+            uses: actions/checkout@v5
+
+          - name: Install Go
+            uses: actions/setup-go@v5
+            with:
+              go-version: ${{ inputs.go-version }}
+
+          - name: Check generated files are up to date
+            working-directory: ${{ inputs.modulepath }}
+            run: |
+              if make -qp | grep -q '^generate:'; then
+                make generate
+                if [ "$(git status -s)" != "" ]; then
+                  echo "command 'make generate' creates files that differ from the git tree, please run 'make generate' and commit:"
+                  git status -s
+                  git diff
+                  exit 1
+                fi
+              else
+                echo "'make generate' rule not found, skipping."
+              fi

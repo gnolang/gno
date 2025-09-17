@@ -263,7 +263,7 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 	}()
 	// In a vast majority of cases, we can use the permCache if it is set.
 	canPerm := gimp.permCache != nil &&
-		((!gimp.testing && pkgPath != gimp.pkgPath) || IsStdlib(pkgPath))
+		((!gimp.testing && pkgPath != gimp.pkgPath) || (IsStdlib(pkgPath) && !IsStdlib(gimp.pkgPath)))
 	if canPerm {
 		pkg := gimp.permCache[ck]
 		if pkg != nil {
@@ -424,9 +424,10 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 			if IsStdlib(mpkg.Path) {
 				panic("expected ParseCheckGnoMod() to auto-generate a gno.mod for stdlibs")
 			}
-			if gimp.tcmode == TCGno0p0 {
+			switch gimp.tcmode {
+			case TCGno0p0:
 				gnoVersion = GnoVerMissing
-			} else if gimp.tcmode == TCLatestRelaxed {
+			case TCLatestRelaxed:
 				gnoVersion = GnoVerLatest
 			}
 		} else {

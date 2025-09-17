@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"gno.land/p/demo/btree"
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 )
 
 func setupTest() {
@@ -33,7 +33,7 @@ func TestPlantTree(t *testing.T) {
 		tree.Insert(&TestElement{value: val})
 	}
 
-	err := PlantTree(tree)
+	err := PlantTree(cross, tree)
 	urequire.NoError(t, err)
 
 	found := false
@@ -47,18 +47,18 @@ func TestPlantTree(t *testing.T) {
 	})
 	uassert.True(t, found)
 
-	err = PlantTree(tree)
+	err = PlantTree(cross, tree)
 	uassert.Error(t, err)
 
 	emptyTree := btree.New()
-	err = PlantTree(emptyTree)
+	err = PlantTree(cross, emptyTree)
 	uassert.Error(t, err)
 }
 
 func TestPlantSeed(t *testing.T) {
 	setupTest()
 
-	err := PlantSeed("Hello DAO!")
+	err := PlantSeed(cross, "Hello DAO!")
 	urequire.NoError(t, err)
 
 	found := false
@@ -74,7 +74,7 @@ func TestPlantSeed(t *testing.T) {
 	})
 	uassert.True(t, found)
 
-	err = PlantSeed("")
+	err = PlantSeed(cross, "")
 	uassert.Error(t, err)
 }
 
