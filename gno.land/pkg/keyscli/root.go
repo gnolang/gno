@@ -66,49 +66,46 @@ func PrintTxInfo(tx std.Tx, res *ctypes.ResultBroadcastTxCommit, io commands.IO)
 	io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
 	io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
 	io.Println("HEIGHT:    ", res.Height)
-	if delta, storageFee, ok := GetStorageInfo(res.DeliverTx.Events); ok {
-		io.Printfln("STORAGE DELTA:  %d bytes", delta)
-		total := tx.Fee.GasFee.Amount
-
-		if storageFee.Amount >= 0 {
-			io.Println("STORAGE FEE:   ", storageFee)
+	if bytesDelta, coinsDelta, hasStorageEvents := GetStorageInfo(res.DeliverTx.Events); hasStorageEvents {
+		io.Printfln("STORAGE DELTA:  %d bytes", bytesDelta)
+		if coinsDelta.IsAllPositive() || coinsDelta.IsZero() {
+			io.Println("STORAGE FEE:   ", coinsDelta)
 		} else {
-			refund := storageFee
-			refund.Amount = -refund.Amount
-			io.Println("STORAGE REFUND:", refund)
+			// NOTE: there is edge cases where coinsDelta can be a mixture of positive and negative coins.
+			// For example if the keeper respects the storage price param denom and a tx contains a storage cost param change message sandwiched by storage movement messages.
+			// These will fall in this case and print confusing information but it's so rare that we don't
+			// really care about this possibility here.
+			io.Println("STORAGE REFUND:", std.Coins{}.SubUnsafe(coinsDelta))
 		}
-		if tx.Fee.GasFee.Denom == storageFee.Denom {
-			total := tx.Fee.GasFee.Amount + storageFee.Amount
-			io.Printfln("TOTAL TX COST:  %d%v", total, tx.Fee.GasFee.Denom)
-		}
-
-		io.Printfln("TOTAL TX COST:  %d%v", total, tx.Fee.GasFee.Denom)
+		io.Printfln("TOTAL TX COST:  %s", coinsDelta.AddUnsafe(std.Coins{tx.Fee.GasFee}))
 	}
 	io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
 	io.Println("INFO:      ", res.DeliverTx.Info)
 	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
 }
 
-// GetStorageInfo searches events for StorageDepositEvent or StorageUnlockEvent and returns the bytes delta and fee.
-// If this is "unlock", then bytes delta and fee are negative.
-// The third return is true if found, else false.
-func GetStorageInfo(events []abci.Event) (int64, std.Coin, bool) {
+// GetStorageInfo searches events for StorageDepositEvent or StorageUnlockEvent and returns the bytes delta and coins delta. The coins delta omits RefundWithheld.
+func GetStorageInfo(events []abci.Event) (int64, std.Coins, bool) {
+	var (
+		bytesDelta int64
+		coinsDelta std.Coins
+		hasEvents  bool
+	)
+
 	for _, event := range events {
 		switch storageEvent := event.(type) {
 		case gnostd.StorageDepositEvent:
-			return storageEvent.BytesDelta, storageEvent.FeeDelta, true
+			bytesDelta += storageEvent.BytesDelta
+			coinsDelta = coinsDelta.AddUnsafe(std.Coins{storageEvent.FeeDelta})
+			hasEvents = true
 		case gnostd.StorageUnlockEvent:
-			fee := storageEvent.FeeRefund
-			fee.Amount *= -1
-			// If true it means the refund was withheld
-			// due to token lock, so the refund visible to user is 0
-			if storageEvent.RefundWithheld {
-				fee.Amount = 0
+			bytesDelta += storageEvent.BytesDelta
+			if !storageEvent.RefundWithheld {
+				coinsDelta = coinsDelta.SubUnsafe(std.Coins{storageEvent.FeeRefund})
 			}
-			// For unlock, BytesDelta is negative
-			return storageEvent.BytesDelta, fee, true
+			hasEvents = true
 		}
 	}
 
-	return 0, std.Coin{}, false
+	return bytesDelta, coinsDelta, hasEvents
 }
