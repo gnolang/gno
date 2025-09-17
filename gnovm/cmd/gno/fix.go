@@ -162,14 +162,14 @@ func txtarFileFromArg(target string) (string, error) {
 		return "", fmt.Errorf("invalid file %q: %w", target, err)
 	}
 
-	if !info.IsDir() && isTxtarFile(fs.FileInfoToDirEntry(info)) {
+	if !info.IsDir() && isTxtarFile(info) {
 		return cleanPath(target), nil
 	}
 
 	return "", nil
 }
 
-func isTxtarFile(f fs.DirEntry) bool {
+func isTxtarFile(f fs.FileInfo) bool {
 	return strings.HasSuffix(f.Name(), ".txtar") && !f.IsDir()
 }
 
@@ -298,7 +298,7 @@ func (c *fixCmd) applyFixesToFile(
 		return nil, false, err
 	}
 
-	fixed := false
+	fixed = false
 	for _, fx := range fix.Fixes {
 		if fx.F == nil || !c.fixFilter(fx) {
 			continue
