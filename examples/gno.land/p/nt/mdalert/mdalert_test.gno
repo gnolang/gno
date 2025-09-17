@@ -15,17 +15,22 @@ func TestAlertString(t *testing.T) {
 		{
 			name:     "alert",
 			expected: "> [!INFO] Title\n> Message\n",
-			alert:    mdalert.New(mdalert.TypeInfo, "Title", "Message"),
+			alert:    mdalert.New(mdalert.TypeInfo, "Title", "Message", false),
 		},
 		{
 			name:     "alert with empty title",
 			expected: "> [!INFO]\n> Message\n",
-			alert:    mdalert.New(mdalert.TypeInfo, "", "Message"),
+			alert:    mdalert.New(mdalert.TypeInfo, "", "Message", false),
 		},
 		{
 			name:     "alert multiline",
 			expected: "> [!INFO]\n> Line1\n> Line2\n",
-			alert:    mdalert.New(mdalert.TypeInfo, "", "Line1\nLine2"),
+			alert:    mdalert.New(mdalert.TypeInfo, "", "Line1\nLine2", false),
+		},
+		{
+			name:     "folded alert",
+			expected: "> [!INFO]- Title\n> Message\n",
+			alert:    mdalert.New(mdalert.TypeInfo, "Title", "Message", true),
 		},
 		{
 			name: "empty alert",

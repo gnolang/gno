@@ -37,6 +37,10 @@ type (
 
 		// Message contains alerts's message.
 		Message string
+
+		// Folded indicates that the alert must be folded on render.
+		// Message is not initially visible when folded, only title is visible.
+		Folded bool
 	}
 )
 
@@ -48,9 +52,15 @@ func (a Alert) String() string {
 		return ""
 	}
 
+	// Init alert fold marker
+	var fold string
+	if a.Folded {
+		fold = "-"
+	}
+
 	// Write alert header
 	var b strings.Builder
-	header := ufmt.Sprintf("> [!%s] %s", alertType, a.Title)
+	header := ufmt.Sprintf("> [!%s]%s %s", alertType, fold, a.Title)
 	b.WriteString(strings.TrimSpace(header) + "\n")
 
 	// Write alert message
@@ -62,70 +72,71 @@ func (a Alert) String() string {
 }
 
 // New creates a new alert.
-func New(t Type, title, msg string) Alert {
+func New(t Type, title, msg string, folded bool) Alert {
 	return Alert{
 		Type:    t,
 		Title:   title,
 		Message: msg,
+		Folded:  folded,
 	}
 }
 
 // Caution returns an alert Markdown of type caution.
 func Caution(title, msg string) string {
-	return New(TypeCaution, title, msg).String()
+	return New(TypeCaution, title, msg, false).String()
 }
 
 // Cautionf returns an alert Markdown of type caution with a formatted message.
 func Cautionf(title, format string, a ...any) string {
-	return New(TypeCaution, title, ufmt.Sprintf(format, a...)).String()
+	return New(TypeCaution, title, ufmt.Sprintf(format, a...), false).String()
 }
 
 // Info returns an alert Markdown of type info.
 func Info(title, msg string) string {
-	return New(TypeInfo, title, msg).String()
+	return New(TypeInfo, title, msg, false).String()
 }
 
 // Infof returns an alert Markdown of type info with a formatted message.
 func Infof(title, format string, a ...any) string {
-	return New(TypeInfo, title, ufmt.Sprintf(format, a...)).String()
+	return New(TypeInfo, title, ufmt.Sprintf(format, a...), false).String()
 }
 
 // Note returns an alert Markdown of type note.
 func Note(title, msg string) string {
-	return New(TypeNote, title, msg).String()
+	return New(TypeNote, title, msg, false).String()
 }
 
 // Notef returns an alert Markdown of type note with a formatted message.
 func Notef(title, format string, a ...any) string {
-	return New(TypeNote, title, ufmt.Sprintf(format, a...)).String()
+	return New(TypeNote, title, ufmt.Sprintf(format, a...), false).String()
 }
 
 // Success returns an alert Markdown of type success.
 func Success(title, msg string) string {
-	return New(TypeSuccess, title, msg).String()
+	return New(TypeSuccess, title, msg, false).String()
 }
 
 // Notef returns an alert Markdown of type success with a formatted message.
 func Successf(title, format string, a ...any) string {
-	return New(TypeSuccess, title, ufmt.Sprintf(format, a...)).String()
+	return New(TypeSuccess, title, ufmt.Sprintf(format, a...), false).String()
 }
 
 // Tip returns an alert Markdown of type tip.
 func Tip(title, msg string) string {
-	return New(TypeTip, title, msg).String()
+	return New(TypeTip, title, msg, false).String()
 }
 
 // Tipf returns an alert Markdown of type tip with a formatted message.
 func Tipf(title, format string, a ...any) string {
-	return New(TypeTip, title, ufmt.Sprintf(format, a...)).String()
+	return New(TypeTip, title, ufmt.Sprintf(format, a...), false).String()
 }
 
 // Warning returns an alert Markdown of type warning.
 func Warning(title, msg string) string {
-	return New(TypeWarning, title, msg).String()
+	return New(TypeWarning, title, msg, false).String()
 }
 
 // Warningf returns an alert Markdown of type warning with a formatted message.
 func Warningf(title, format string, a ...any) string {
-	return New(TypeWarning, title, ufmt.Sprintf(format, a...)).String()
+	return New(TypeWarning, title, ufmt.Sprintf(format, a...), false).String()
 }
