@@ -53,6 +53,25 @@ get_gno_root() {
     fi
 }
 
+# Function to determine where go install binaries
+# When using `go install` (as done in the gnolang/gno Makefiles),
+# go will install binaries to $GOBIN if set, otherwise to $GOPATH/bin.
+# `go env GOBIN` does not return a default value, so we need to check both.
+# A lot of issues exists on the Go GitHub about this, e.g.: https://github.com/golang/go/issues/34522
+get_go_bin() {
+    local gobin="$(go env GOBIN 2>/dev/null || echo '')"
+    local gopath="$(go env GOPATH 2>/dev/null || echo '')"
+
+    if [ -n "$gobin" ]; then
+        echo "$gobin"
+    elif [ -n "$gopath" ]; then
+        echo "$gopath/bin"
+    else
+      error "Could not determine Go binary installation path. Please ensure Go is installed correctly."
+      exit 1
+    fi
+}
+
 # Function to check Go installation
 check_go() {
     if ! command_exists go; then
@@ -180,7 +199,7 @@ install_gno() {
 # Function to uninstall gno
 uninstall_gno() {
     local gnoroot=$(get_gno_root)
-    local gobin=$(go env GOBIN)
+    local gobin=$(get_go_bin)
 
     log "Uninstalling gno binaries from $gobin"
     rm -f "$gobin/gno"
