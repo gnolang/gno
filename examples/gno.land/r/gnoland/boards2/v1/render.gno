@@ -20,7 +20,11 @@ const (
 const menuManageBoard = "manageBoard"
 
 func Render(path string) string {
-	router := mux.NewRouter()
+	var (
+		b      strings.Builder
+		router = mux.NewRouter()
+	)
+
 	router.HandleFunc("", renderBoardsList)
 	router.HandleFunc("help", renderHelp)
 	router.HandleFunc("admin-users", renderMembers)
@@ -32,10 +36,18 @@ func Render(path string) string {
 	router.HandleFunc("{board}/{thread}/{reply}", renderReply)
 
 	router.NotFoundHandler = func(res *mux.ResponseWriter, _ *mux.Request) {
-		res.Write("Path not found")
+		res.Write(md.Blockquote("Path not found"))
 	}
 
-	return router.Render(path)
+	// Render common realm header before resolving render path
+	if gNotice != "" {
+		b.WriteString(infoAlert("Notice", gNotice))
+	}
+
+	// Render view for current path
+	b.WriteString(router.Render(path))
+
+	return b.String()
 }
 
 func renderHelp(res *mux.ResponseWriter, _ *mux.Request) {
@@ -51,8 +63,6 @@ func renderHelp(res *mux.ResponseWriter, _ *mux.Request) {
 }
 
 func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
-	renderNotice(res)
-
 	res.Write(md.H1("Boards"))
 	renderBoardListMenu(res, req)
 	res.Write(md.HorizontalRule())
@@ -117,8 +127,6 @@ func renderBoardListMenu(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
-	renderNotice(res)
-
 	name := req.GetVar("board")
 	v, found := gBoardsByName.Get(name)
 	if !found {
@@ -179,8 +187,6 @@ func renderBoardMenu(board *Board, req *mux.Request) string {
 }
 
 func renderThread(res *mux.ResponseWriter, req *mux.Request) {
-	renderNotice(res)
-
 	name := req.GetVar("board")
 	v, found := gBoardsByName.Get(name)
 	if !found {
@@ -207,8 +213,6 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderReply(res *mux.ResponseWriter, req *mux.Request) {
-	renderNotice(res)
-
 	name := req.GetVar("board")
 	v, found := gBoardsByName.Get(name)
 	if !found {
@@ -418,10 +422,9 @@ func renderBannedUsers(res *mux.ResponseWriter, req *mux.Request) {
 	}
 }
 
-func renderNotice(res *mux.ResponseWriter) {
-	if gNotice != "" {
-		res.Write(md.Blockquote(gNotice))
-	}
+func infoAlert(title, msg string) string {
+	header := strings.TrimSpace("[!INFO] " + title)
+	return md.Blockquote(header + "\n" + msg)
 }
 
 func rolesToString(roles []Role) string {
