@@ -222,18 +222,18 @@
 
 	/* ===== HEADINGS ===== */
 
+	/* Adjacent heading spacing - must come first due to higher specificity */
+	h1 + h2,
+	h2 + h3,
+	h3 + h4 {
+		margin-block-start: var(--cr-space-4);
+	}
+
 	/* Base styles for all headings */
 	:is(h1, h2, h3, h4) {
 		color: var(--g-color-gray-900);
 		margin-block-start: var(--cr-space-8);
 		line-height: var(--g-line-height-tight);
-	}
-
-	/* Adjacent heading spacing */
-	h1 + h2,
-	h2 + h3,
-	h3 + h4 {
-		margin-block-start: var(--cr-space-4);
 	}
 
 	/* H1 - Main heading */
@@ -254,10 +254,11 @@
 		@media (--md) {
 			font-size: var(--g-font-size-600);
 		}
+	}
 
-		* {
-			font-weight: var(--g-font-bold);
-		}
+	/* H2 children styling - moved after h2 to avoid specificity issues */
+	h2 * {
+		font-weight: var(--g-font-bold);
 	}
 
 	/* H3 & H4 - Subsection headings with common properties */

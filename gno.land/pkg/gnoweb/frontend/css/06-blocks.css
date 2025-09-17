@@ -1791,7 +1791,6 @@ pre.chroma-chroma {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		align-items: center;
 		border-radius: var(--s-rounded-full);
 		color: var(--s-color-text-tertiary);
 		width: var(--g-space-4);
@@ -1881,7 +1880,6 @@ pre.chroma-chroma {
 			border: var(--s-border-secondary);
 			border-radius: var(--s-rounded-sm);
 			padding: 0;
-			border-radius: var(--s-rounded-sm);
 
 			&:disabled {
 				cursor: not-allowed;

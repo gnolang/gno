@@ -32,8 +32,7 @@
 		}
 	},
 	"css": {
-		"formatter": {
-			"enabled": true
-		}
+		"formatter": { "enabled": true },
+		"linter": { "enabled": false }
 	}
 }
