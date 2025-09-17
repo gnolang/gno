@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/urequire"
 	"gno.land/p/jeronimoalbi/datasource"
 	"gno.land/p/moul/md"
 )

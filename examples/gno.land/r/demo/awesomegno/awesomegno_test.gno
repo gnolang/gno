@@ -4,8 +4,8 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/uassert"
+	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/uassert"
 )
 
 var adminAddr = std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
