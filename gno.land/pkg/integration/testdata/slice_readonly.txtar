@@ -24,7 +24,6 @@ func Get() []int {
 
 func Set(cur realm, v []int) {
      Allowed.AllowedList = v
-    //Allowed.AllowedList = append(Allowed.AllowedList, 3)
 }
 
 func Edit(cur realm, i, v int) {
