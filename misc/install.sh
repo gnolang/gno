@@ -106,27 +106,26 @@ parse_args() {
 
 # Function to install gno
 install_gno() {
-    local GNO_DIR
-    GNO_DIR=$(get_gno_dir)
+    local gno_dir=$(get_gno_dir)
 
     if ! command_exists git; then
       error "git is not installed. Please install git first."
       exit 1
     fi
 
-    log "Installing gno source to $GNO_DIR"
+    log "Installing gno source to $gno_dir"
 
-    mkdir -p "$GNO_DIR"
+    mkdir -p "$gno_dir"
     # Clone or update repository
-    if [ -d "$GNO_DIR/.git" ]; then
+    if [ -d "$gno_dir/.git" ]; then
         log "Updating existing gno repository..."
-        cd "$GNO_DIR"
+        cd "$gno_dir"
         git fetch --depth 1
         git reset --hard origin/master
     else
         log "Cloning gno repository..."
-        git clone --depth 1 https://github.com/gnolang/gno.git "$GNO_DIR"
-        cd "$GNO_DIR"
+        git clone --depth 1 https://github.com/gnolang/gno.git "$gno_dir"
+        cd "$gno_dir"
     fi
 
     # Build and install Gno tools
@@ -180,20 +179,18 @@ install_gno() {
 
 # Function to uninstall gno
 uninstall_gno() {
-    local GNO_DIR
-    local GOPATH
-    GNO_DIR=$(get_gno_dir)
-    GOPATH=$(go env GOPATH)
+    local gno_dir=$(get_gno_dir)
+    local gopath=$(go env GOPATH)
 
-    log "Uninstalling gno binaries from $GOPATH/bin"
-    rm -f "$GOPATH/bin/gno"
-    rm -f "$GOPATH/bin/gnokey"
-    rm -f "$GOPATH/bin/gnodev"
-    rm -f "$GOPATH/bin/gnobro"
+    log "Uninstalling gno binaries from $gopath/bin"
+    rm -f "$gopath/bin/gno"
+    rm -f "$gopath/bin/gnokey"
+    rm -f "$gopath/bin/gnodev"
+    rm -f "$gopath/bin/gnobro"
 
     # Remove source directory
-    log "Removing gno source from $GNO_DIR"
-    rm -rf "$GNO_DIR"
+    log "Removing gno source from $gno_dir"
+    rm -rf "$gno_dir"
 
     log "Uninstallation complete."
 }
