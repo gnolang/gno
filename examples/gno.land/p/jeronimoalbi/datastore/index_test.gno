@@ -3,8 +3,8 @@ package datastore
 import (
 	"testing"
 
-	"gno.land/p/demo/uassert"
 	"gno.land/p/moul/collection"
+	"gno.land/p/nt/uassert"
 )
 
 func TestNewIndex(t *testing.T) {

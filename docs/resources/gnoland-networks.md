@@ -5,9 +5,10 @@
 | Network | RPC Endpoint                            | Chain ID  |
 |---------|-----------------------------------------|-----------|
 | Staging | https://rpc.gno.land:443                | `staging` |
-| Test7   | https://rpc.test7.testnets.gno.land:443 | `test7`   |
+| Test7   | https://rpc.test7.testnets.gno.land:443 | `test7.2` |
 
 ### WebSocket endpoints
+
 All networks follow the same pattern for websocket connections:
 
 ```shell
@@ -15,8 +16,6 @@ wss://<rpc-endpoint:port>/websocket
 ```
 
 ## Staging Environments
-
-XXX: tell that staging is currently using a custom code but will switch to a gnodev powered alternative, usable by anyone to run a staging
 
 Staging is an always-up-to-date staging testnet that allows for using
 the latest version of Gno, gno.land, and TM2. By utilizing the power of Docker
@@ -71,8 +70,6 @@ After genesis has been replayed, the chain continues working as normal.
 
 The Staging network deployment can be found at [gno.land](https://gno.land), while
 the exposed RPC endpoints can be found on `https://rpc.gno.land:443`.
-
-XXX: list or link to the list of available RPC endpoints.
 
 #### A warning note
 

@@ -993,8 +993,5 @@ func parseIgnore(block *modfile.CommentBlock) bool {
 		return false
 	}
 	comment := block.Before[0]
-	if strings.TrimSpace(strings.TrimPrefix(comment.Token, "//")) != "Ignore" {
-		return false
-	}
-	return true
+	return strings.TrimSpace(strings.TrimPrefix(comment.Token, "//")) == "Ignore"
 }

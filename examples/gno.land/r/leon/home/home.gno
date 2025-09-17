@@ -5,9 +5,9 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/svg"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/ufmt"
 
 	"gno.land/r/demo/art/gnoface"
 	"gno.land/r/demo/art/millipede"
@@ -47,7 +47,7 @@ func Render(path string) string {
 
 func init() {
 	hor.Register(cross, "Leon's Home Realm", "")
-	mirror.Register(std.CurrentRealm().PkgPath(), Render)
+	mirror.Register(cross, std.CurrentRealm().PkgPath(), Render)
 
 	pfp = "https://i.imgflip.com/91vskx.jpg"
 	pfpCaption = "[My favourite painting & pfp](https://en.wikipedia.org/wiki/Wanderer_above_the_Sea_of_Fog)"

@@ -9,7 +9,7 @@ package loci
 import (
 	"std"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 // LociStore is a simple key-value store that uses
