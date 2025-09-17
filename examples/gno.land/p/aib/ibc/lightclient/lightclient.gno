@@ -37,13 +37,19 @@ const (
 // LightClientModule is an interface which core IBC uses to interact with light
 // client modules.  Light client modules must implement this interface to
 // integrate with core IBC.
+//
+// TODO rename to Interface? The way it is implemented in Gno is quite
+// different from how it's implemented in IBC-go. The later handles multiple
+// clients, while the former handles a single client, hence it's not really a
+// module.
+// TODO remove all clientID parameter?
 type LightClientModule interface {
 	// Initialize is called upon client creation, it allows the client to perform
 	// validation on the client state and initial consensus state.  The light
 	// client module is responsible for setting any client-specific data in the
 	// store. This includes the client state, initial consensus state and any
 	// associated metadata.
-	Initialize(clientID string, clientState, consensusState any) error
+	Initialize(clientState, consensusState any) error
 
 	// VerifyClientMessage must verify a ClientMessage. A ClientMessage could be
 	// a Header, Misbehaviour, or batch update.  It must handle each type of
@@ -51,7 +57,7 @@ type LightClientModule interface {
 	// and UpdateStateOnMisbehaviour will assume that the content of the
 	// ClientMessage has been verified and can be trusted. An error should be
 	// returned if the ClientMessage fails to verify.
-	VerifyClientMessage(clientID string, clientMsg any) error
+	VerifyClientMessage(clientMsg any) error
 
 	// Checks for evidence of a misbehaviour in Header or Misbehaviour type. It
 	// assumes the ClientMessage has already been verified.
@@ -65,7 +71,7 @@ type LightClientModule interface {
 	// an IBC client, such as the ClientState and corresponding ConsensusState.
 	// Upon successful update, a list of consensus heights is returned. It
 	// assumes the ClientMessage has already been verified.
-	UpdateState(clientID string, clientMsg any) []int64
+	UpdateState(clientMsg any) []types.Height
 
 	// VerifyMembership is a generic proof verification method which verifies a
 	// proof of the existence of a value at a given CommitmentPath at the
@@ -89,7 +95,7 @@ type LightClientModule interface {
 	// LatestHeight returns the latest height of the client. If no client is
 	// present for the provided client identifier a zero value height may be
 	// returned.
-	LatestHeight(clientID string) int64
+	LatestHeight() types.Height
 
 	// TimestampAtHeight must return the timestamp for the consensus state
 	// associated with the provided height.

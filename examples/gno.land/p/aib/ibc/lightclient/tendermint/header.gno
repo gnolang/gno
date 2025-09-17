@@ -1,6 +1,8 @@
 package tendermint
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"time"
 
@@ -101,11 +103,32 @@ type ValidatorSet struct {
 	TotalVotingPower int64        `json:"total_voting_power,omitempty"`
 }
 
+func (vals ValidatorSet) Hash() []byte {
+	var bz []byte
+	for _, v := range vals.Validators {
+		bz = append(bz, v.Bytes()...)
+	}
+	// TODO: ibc-go returns a merkle hash, ensure we can just use a simple hash
+	// -> see p/demo/merkle
+	// return merkle.HashFromByteSlices(bzs)
+	h := sha256.Sum256(bz)
+	return h[:]
+}
+
 type Validator struct {
 	Address          []byte `json:"address,omitempty"`
 	PubKey           []byte `json:"pub_key"`
 	VotingPower      int64  `json:"voting_power,omitempty"`
 	ProposerPriority int64  `json:"proposer_priority,omitempty"`
+}
+
+// Bytes returns a bytes representation of v, composed as follow:
+// 32bytes: Pubkey
+// varint: VotingPower
+func (v Validator) Bytes() (bz []byte) {
+	bz = append(bz, v.PubKey...)
+	bz = binary.AppendVarint(bz, v.VotingPower)
+	return
 }
 
 // Header defines the structure of a block header.

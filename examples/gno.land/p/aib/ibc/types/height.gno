@@ -32,6 +32,11 @@ func (h Height) GTE(other Height) bool {
 	return cmp >= 0
 }
 
+// GT Helper comparison function returns true if h > other
+func (h Height) GT(other Height) bool {
+	return h.Compare(other) == 1
+}
+
 // Compare implements a method to compare two heights. When comparing two heights a, b
 // we can call a.Compare(b) which will return
 // -1 if a < b

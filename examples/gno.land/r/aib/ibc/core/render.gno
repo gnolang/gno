@@ -1,6 +1,10 @@
 package core
 
 import (
+	"encoding/hex"
+
+	"gno.land/p/aib/ibc/lightclient"
+	"gno.land/p/aib/ibc/lightclient/tendermint"
 	"gno.land/p/nt/mux"
 	"gno.land/p/nt/ufmt"
 )
@@ -37,7 +41,7 @@ func RenderClient(w *mux.ResponseWriter, r *mux.Request) {
 
 func (c *client) Render() string {
 	var s string
-	s += ufmt.Sprintf("\n## Client %s\n", c.id)
+	s += ufmt.Sprintf("## Client %s\n", c.id)
 	s += ufmt.Sprintf("- Type: %s\n", c.typ)
 	s += ufmt.Sprintf("- Creator: %s\n", c.creator)
 	s += ufmt.Sprintf("- CounterpartyClientID: %s\n", c.counterpartyClientID)
@@ -46,5 +50,21 @@ func (c *client) Render() string {
 		merklePrefix += "'" + string(m) + "' "
 	}
 	s += ufmt.Sprintf("- CounterpartyMerklePrefix: %s\n", merklePrefix)
+	switch c.typ {
+	case lightclient.Tendermint:
+		lc := c.lightClient.(*tendermint.TMLightClient)
+		latestHeight := lc.LatestHeight().String()
+		x, found := lc.ConsensusStateByHeight.Get(latestHeight)
+		if !found {
+			s += "Latest consensus state not found\n"
+			return s
+		}
+		latestConsState := x.(*tendermint.ConsensusState)
+		s += "- Latest consensus state:\n"
+		s += ufmt.Sprintf("  - Height: %s\n", latestHeight)
+		s += ufmt.Sprintf("  - Timestamp: %s\n", latestConsState.Timestamp)
+		s += ufmt.Sprintf("  - Root: %s\n", hex.EncodeToString(latestConsState.Root.Hash))
+		s += ufmt.Sprintf("  - NextValidatorsHash: %s\n", hex.EncodeToString(latestConsState.NextValidatorsHash))
+	}
 	return s
 }

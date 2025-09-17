@@ -20,7 +20,7 @@ type client struct {
 // light client module in order to initialize the client.
 func CreateClient(cur realm, clientType string, clientState, consensusState any) string {
 	c := store.addClient(clientType, std.OriginCaller())
-	err := c.lightClient.Initialize(c.id, clientState, consensusState)
+	err := c.lightClient.Initialize(clientState, consensusState)
 	if err != nil {
 		panic(err)
 	}
@@ -50,23 +50,27 @@ func UpdateClient(cur realm, clientID string, clientMessage any) {
 	if c == nil {
 		panic(ufmt.Sprintf("client %s not found", clientID))
 	}
+	// TODO check client state status
 	// TODO check if relayer address is in whitelist
 	// Similarly to ibc-v2 go implementation, for safety we're going to restrict
 	// the UpdateClient call to a set of predefined relayers addresses.
 
-	err := c.lightClient.VerifyClientMessage(c.id, clientMessage)
+	err := c.lightClient.VerifyClientMessage(clientMessage)
 	if err != nil {
 		panic(err)
 	}
 
 	// TODO check for misbehavior
+
+	consensusHeights := c.lightClient.UpdateState(clientMessage)
+
 	// TODO emit events for updated client
+	_ = consensusHeights
 }
 
 // UpdateClient upgrades the client to a new client state if this new client
 // was committed to by the old client at the specified upgrade height.
-func UpgradeClient(cur realm, clientID string, clientState, consensusState []byte,
-	proofUpgradeClient, proofUpgradeConsensusState []byte) {
+func UpgradeClient(cur realm, clientID string, clientState, consensusState, proofUpgradeClient, proofUpgradeConsensusState any) {
 	// TODO
 }
 
