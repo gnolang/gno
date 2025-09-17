@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"gno.land/p/jeronimoalbi/datasource"
+	"gno.land/p/moul/md"
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/seqid"
 	"gno.land/p/nt/uassert"
 	"gno.land/p/nt/ufmt"
 	"gno.land/p/nt/urequire"
-	"gno.land/p/jeronimoalbi/datasource"
-	"gno.land/p/moul/md"
 )
 
 var (

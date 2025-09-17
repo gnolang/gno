@@ -3,10 +3,10 @@ package awesomegno
 import (
 	"errors"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ufmt"
 	"gno.land/p/jeronimoalbi/datasource"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/ufmt"
 )
 
 // Items

@@ -4,11 +4,11 @@ import (
 	"std"
 	"time"
 
+	"gno.land/p/moul/authz"
+	"gno.land/p/moul/fifo"
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/avl/rotree"
 	"gno.land/p/nt/seqid"
-	"gno.land/p/moul/authz"
-	"gno.land/p/moul/fifo"
 
 	"gno.land/r/leon/hor"
 )
