@@ -40,12 +40,9 @@ func (tm *TMLightClient) verifyHeader(header *MsgHeader) error {
 
 // checkTrustedHeader checks that consensus state matches trusted fields of Header
 func checkTrustedHeader(header *MsgHeader, consState *ConsensusState) error {
-	// TODO define a way to hash validator set that is affordable for gnovm
-	// TODO check ibc-go checkTrustedHeader to implements all the checks
-
 	// assert that trustedVals is NextValidators of last trusted header
 	// to do this, we check that trustedVals.Hash() == consState.NextValidatorsHash
-	tvalHash := []byte("XXX") // header.TrustedValidators.Hash()
+	tvalHash := header.TrustedValidators.Hash()
 	if !bytes.Equal(consState.NextValidatorsHash, tvalHash) {
 		h1, h2 := hex.EncodeToString(consState.NextValidatorsHash), hex.EncodeToString(tvalHash)
 		return ufmt.Errorf(

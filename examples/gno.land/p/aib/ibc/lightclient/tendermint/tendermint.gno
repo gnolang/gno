@@ -15,8 +15,8 @@ type TMLightClient struct {
 
 var _ lightclient.LightClientModule = (*TMLightClient)(nil)
 
-// TODO remove clientID ?
-func (tm *TMLightClient) Initialize(clientID string, clientState, consensusState any) error {
+// Implements lightclient.LightClientModule
+func (tm *TMLightClient) Initialize(clientState, consensusState any) error {
 	cs := clientState.(ClientState)
 	if err := cs.Validate(); err != nil {
 		return err
@@ -30,7 +30,8 @@ func (tm *TMLightClient) Initialize(clientID string, clientState, consensusState
 	return nil
 }
 
-func (tm *TMLightClient) VerifyClientMessage(clientID string, clientMsg any) error {
+// Implements lightclient.LightClientModule
+func (tm *TMLightClient) VerifyClientMessage(clientMsg any) error {
 	switch msg := clientMsg.(type) {
 	case *MsgHeader:
 		return tm.verifyHeader(msg)
@@ -41,20 +42,43 @@ func (tm *TMLightClient) VerifyClientMessage(clientID string, clientMsg any) err
 	}
 }
 
+// Implements lightclient.LightClientModule
 func (tm *TMLightClient) CheckForMisbehaviour(clientID string, clientMsg any) bool {
 	// TODO
 	return false
 }
 
+// Implements lightclient.LightClientModule
 func (tm *TMLightClient) UpdateStateOnMisbehaviour(clientID string, clientMsg any) {
 	// TODO
 }
 
-func (tm *TMLightClient) UpdateState(clientID string, clientMsg any) []int64 {
-	// TODO
-	return nil
+// Implements lightclient.LightClientModule
+func (tm *TMLightClient) UpdateState(clientMsg any) []types.Height {
+	msg := clientMsg.(*MsgHeader)
+	// check for duplicate update
+	msgHeight := msg.GetHeight()
+	if tm.ConsensusStateByHeight.Has(msgHeight.String()) {
+		// perform no-op
+		return []types.Height{msgHeight}
+	}
+	// Update latestHeight if required
+	if msgHeight.GT(tm.ClientState.LatestHeight) {
+		tm.ClientState.LatestHeight = msgHeight
+	}
+	// Build and store new consensus state from clientMsg
+	consState := &ConsensusState{
+		Timestamp:          msg.Header.Time,
+		Root:               MerkleRoot{Hash: msg.Header.AppHash},
+		NextValidatorsHash: msg.Header.NextValidatorsHash,
+	}
+	tm.ConsensusStateByHeight.Set(msgHeight.String(), consState)
+	// TODO what about consensus metadata ?
+
+	return []types.Height{msgHeight}
 }
 
+// Implements lightclient.LightClientModule
 func (tm *TMLightClient) VerifyMembership(clientID string, height types.Height,
 	delayTimePeriod uint64, delayBlockPeriod uint64, proof []byte, path string,
 	value []byte) error {
@@ -62,32 +86,37 @@ func (tm *TMLightClient) VerifyMembership(clientID string, height types.Height,
 	return nil
 }
 
+// Implements lightclient.LightClientModule
 func (tm *TMLightClient) VerifyNonMembership(clientID string, height types.Height,
 	delayTimePeriod uint64, delayBlockPeriod uint64, proof []byte, path string) error {
 	// TODO
 	return nil
 }
 
+// Implements lightclient.LightClientModule
 func (tm *TMLightClient) Status(clientID string) lightclient.Status {
 	// TODO
 	return lightclient.Unknown
 }
 
-func (tm *TMLightClient) LatestHeight(clientID string) int64 {
-	// TODO
-	return 0
+// Implements lightclient.LightClientModule
+func (tm *TMLightClient) LatestHeight() types.Height {
+	return tm.ClientState.LatestHeight
 }
 
+// Implements lightclient.LightClientModule
 func (tm *TMLightClient) TimestampAtHeight(clientID string, height types.Height) (uint64, error) {
 	// TODO
 	return 0, nil
 }
 
+// Implements lightclient.LightClientModule
 func (tm *TMLightClient) RecoverClient(clientID, substituteClientID string) error {
 	// TODO
 	return nil
 }
 
+// Implements lightclient.LightClientModule
 func (tm *TMLightClient) VerifyUpgradeAndUpdateState(clientID string,
 	newClient []byte, newConsState []byte, upgradeClientProof,
 	upgradeConsensusStateProof []byte) error {
