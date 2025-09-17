@@ -12,7 +12,7 @@ func NewChangeTiersRequest(tiers TiersByName) dao.ProposalRequest {
 		panic("proposer is not a member")
 	}
 
-	callback := func() error {
+	callback := func(cur realm) error {
 		Tiers = tiers
 
 		return nil

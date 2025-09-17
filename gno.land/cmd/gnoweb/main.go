@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
 	"os"
@@ -44,12 +45,13 @@ var cspImgHost = []string{
 type webCfg struct {
 	chainid          string
 	remote           string
+	remoteTimeout    time.Duration
 	remoteHelp       string
 	bind             string
 	faucetURL        string
 	aliases          string
 	noDefaultAliases bool
-	assetsDir        string
+	noCache          bool
 	timeout          time.Duration
 	analytics        bool
 	json             bool
@@ -59,10 +61,11 @@ type webCfg struct {
 }
 
 var defaultWebOptions = webCfg{
-	chainid: "dev",
-	remote:  "127.0.0.1:26657",
-	bind:    ":8888",
-	timeout: time.Minute,
+	chainid:       "dev",
+	remote:        "127.0.0.1:26657",
+	bind:          ":8888",
+	remoteTimeout: time.Minute,
+	timeout:       time.Minute,
 }
 
 func main() {
@@ -97,6 +100,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"remote gno.land node address",
 	)
 
+	fs.DurationVar(
+		&c.remoteTimeout,
+		"remote-timeout",
+		defaultWebOptions.remoteTimeout,
+		"defined how much time a request to the node should live before timeout",
+	)
+
 	fs.StringVar(
 		&c.remoteHelp,
 		"help-remote",
@@ -116,13 +126,6 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"no-default-aliases",
 		defaultWebOptions.noDefaultAliases,
 		"discard default aliases",
-	)
-
-	fs.StringVar(
-		&c.assetsDir,
-		"assets-dir",
-		defaultWebOptions.assetsDir,
-		"if not empty, will be use as assets directory",
 	)
 
 	fs.StringVar(
@@ -182,6 +185,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
+		&c.noCache,
+		"no-cache",
+		defaultWebOptions.noCache,
+		"disable assets caching",
+	)
+
+	fs.BoolVar(
 		&c.verbose,
 		"v",
 		defaultWebOptions.verbose,
@@ -216,6 +226,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg := gnoweb.NewDefaultAppConfig()
 	appcfg.ChainID = cfg.chainid
 	appcfg.NodeRemote = cfg.remote
+	appcfg.NodeRequestTimeout = cfg.remoteTimeout
 	appcfg.RemoteHelp = cfg.remoteHelp
 	if appcfg.RemoteHelp == "" {
 		appcfg.RemoteHelp = appcfg.NodeRemote
@@ -223,7 +234,6 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
-	appcfg.AssetsDir = cfg.assetsDir
 
 	if cfg.noDefaultAliases {
 		appcfg.Aliases = map[string]gnoweb.AliasTarget{}
@@ -234,9 +244,8 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse aliases: %w", err)
 		}
-		for alias, value := range aliases {
-			appcfg.Aliases[alias] = value
-		}
+
+		maps.Copy(appcfg.Aliases, aliases)
 	}
 
 	app, err := gnoweb.NewRouter(logger, appcfg)
@@ -295,10 +304,7 @@ func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
 		parts[1] = strings.TrimSpace(parts[1])
 
 		// Check if the value is a path to a static file.
-		if strings.HasPrefix(parts[1], "static:") {
-			// If it is, load the static file content and set it as the alias.
-			staticFilePath := strings.TrimPrefix(parts[1], "static:")
-
+		if staticFilePath, found := strings.CutPrefix(parts[1], "static:"); found {
 			content, err := os.ReadFile(staticFilePath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to read static file %s: %w", staticFilePath, err)

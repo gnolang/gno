@@ -21,20 +21,15 @@ import (
 )
 
 type InMemoryNodeConfig struct {
-	PrivValidator           bft.PrivValidator // identity of the validator
-	Genesis                 *bft.GenesisDoc
-	TMConfig                *tmcfg.Config
-	DB                      db.DB     // will be initialized if nil
-	VMOutput                io.Writer // optional
-	SkipGenesisVerification bool
+	PrivValidator              bft.PrivValidator // identity of the validator
+	Genesis                    *bft.GenesisDoc
+	TMConfig                   *tmcfg.Config
+	DB                         db.DB     // will be initialized if nil
+	VMOutput                   io.Writer // optional
+	SkipGenesisSigVerification bool
 
 	// If StdlibDir not set, then it's filepath.Join(TMConfig.RootDir, "gnovm", "stdlibs")
 	InitChainerConfig
-}
-
-// NewMockedPrivValidator generate a new key
-func NewMockedPrivValidator() bft.PrivValidator {
-	return bft.NewMockPVWithParams(ed25519.GenPrivKey(), false, false)
 }
 
 // NewDefaultGenesisConfig creates a default configuration for an in-memory node.
@@ -112,12 +107,12 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 
 	// Initialize the application with the provided options
 	gnoApp, err := NewAppWithOptions(&AppOptions{
-		Logger:                  logger,
-		DB:                      cfg.DB,
-		EventSwitch:             evsw,
-		InitChainerConfig:       cfg.InitChainerConfig,
-		VMOutput:                cfg.VMOutput,
-		SkipGenesisVerification: cfg.SkipGenesisVerification,
+		Logger:                     logger,
+		DB:                         cfg.DB,
+		EventSwitch:                evsw,
+		InitChainerConfig:          cfg.InitChainerConfig,
+		VMOutput:                   cfg.VMOutput,
+		SkipGenesisSigVerification: cfg.SkipGenesisSigVerification,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)
@@ -142,8 +137,10 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 	nodekey := &types.NodeKey{PrivKey: ed25519.GenPrivKey()}
 
 	// Create and return the in-memory node instance
-	return node.NewNode(cfg.TMConfig,
-		cfg.PrivValidator, nodekey,
+	return node.NewNode(
+		cfg.TMConfig,
+		cfg.PrivValidator,
+		nodekey,
 		appClientCreator,
 		genProvider,
 		dbProvider,

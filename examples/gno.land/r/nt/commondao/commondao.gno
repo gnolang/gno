@@ -3,10 +3,10 @@ package commondao
 import (
 	"std"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/nt/avl"
 	"gno.land/p/nt/commondao"
+	"gno.land/p/nt/seqid"
 )
 
 // CommonDAOID is the ID of the realm's DAO.
@@ -19,7 +19,7 @@ var (
 	ownership = avl.NewTree() // string(std.Address) -> []uint64(DAO ID)
 	invites   = avl.NewTree() // string(std.Address) -> std.Address(inviter)
 	trees     = avl.NewTree() // string(root ID) -> avl.Tree(string(DAO ID) -> *commondao.CommonDAO)
-	options   = avl.NewTree() // string(root ID) -> *Options
+	options   = avl.NewTree() // string(ID) -> *Options
 )
 
 func init() {
@@ -70,22 +70,27 @@ func makeIDKey(daoID uint64) string {
 	return seqid.ID(daoID).String()
 }
 
-func createDAO(name string, owner std.Address) *commondao.CommonDAO {
+func createDAO(name string, owner std.Address, o []Option) *commondao.CommonDAO {
 	id := daoID.Next()
 	dao := commondao.New(
 		commondao.WithID(uint64(id)),
 		commondao.WithName(name),
 	)
-	ids := append(getOwnership(owner), uint64(id))
-	daoOptions := defaultOptions
 
+	daoOptions := defaultOptions
+	for _, apply := range o {
+		apply(&daoOptions)
+	}
+
+	ids := append(getOwnership(owner), uint64(id))
 	ownership.Set(owner.String(), ids)
+
 	daos.Set(id.String(), dao)
 	options.Set(id.String(), &daoOptions)
 	return dao
 }
 
-func createSubDAO(parent *commondao.CommonDAO, name string) *commondao.CommonDAO {
+func createSubDAO(parent *commondao.CommonDAO, name string, o []Option) *commondao.CommonDAO {
 	id := daoID.Next()
 	dao := commondao.New(
 		commondao.WithID(uint64(id)),
@@ -94,8 +99,11 @@ func createSubDAO(parent *commondao.CommonDAO, name string) *commondao.CommonDAO
 	)
 
 	daoOptions := defaultOptions
-	options.Set(id.String(), &daoOptions)
+	for _, apply := range o {
+		apply(&daoOptions)
+	}
 
+	options.Set(id.String(), &daoOptions)
 	daos.Set(id.String(), dao)
 
 	rootID := parent.TopParent().ID()

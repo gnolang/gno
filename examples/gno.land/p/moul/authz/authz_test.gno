@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/uassert"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/uassert"
 )
 
 func TestNewWithCurrent(t *testing.T) {
@@ -553,4 +553,47 @@ func TestContractAuthorityUnauthorizedCaller(t *testing.T) {
 	uassert.NoError(t, err, "DoByCurrent should succeed for authorized contract caller")
 	uassert.True(t, handlerExecutedCorrectly, "Handler should have executed successfully for authorized caller")
 	uassert.True(t, actionExecuted, "Privileged action should have executed for authorized caller")
+}
+
+func crossThrough(rlm std.Realm, cr func()) {
+	testing.SetRealm(rlm)
+	cr()
+}
+
+func TestAuthorizerDoByPrevious(t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+
+	auth := NewWithMembers(alice)
+
+	testing.SetRealm(std.NewUserRealm(alice))
+
+	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
+		executed := false
+		args := []any{"test_arg", 123}
+		err := auth.DoByPrevious("test_action", func() error {
+			executed = true
+			return nil
+		}, args...)
+		uassert.NoError(t, err, "expected no error")
+		uassert.True(t, executed, "action should have been executed")
+
+		expectedErr := errors.New("test error")
+		err = auth.DoByPrevious("test_action", func() error {
+			return expectedErr
+		})
+		uassert.ErrorContains(t, err, expectedErr.Error(), "expected error")
+	})
+
+	testing.SetRealm(std.NewUserRealm(bob))
+	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
+		executed := false
+		err := auth.DoByPrevious("test_action", func() error {
+			executed = true
+			return nil
+		}, "unauthorized_arg")
+
+		uassert.ErrorContains(t, err, "unauthorized", "expected error")
+		uassert.False(t, executed, "action should not have been executed")
+	})
 }

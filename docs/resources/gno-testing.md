@@ -19,8 +19,9 @@ mkdir counter
 cd counter
 ```
 
-First, we should initialize a `gno.mod` file. This file declares the package path
-of your realm, and is used by Gno tools. We can do this by using the following command:
+First, we should initialize a `gnomod.toml` file. This file declares the package path
+of your realm & the Gno language version, and is used by Gno tools. We can do
+this by using the following command:
 
 ```
 gno mod init gno.land/r/<namespace>/counter
@@ -49,7 +50,7 @@ import "strconv"
 
 var count int
 
-func Increment(change int) int {
+func Increment(_ realm, change int) int {
 	count += change
 	return count
 }
@@ -72,7 +73,7 @@ func TestIncrement(t *testing.T) {
 	}
 
 	// Call Increment
-	value := Increment(42)
+	value := Increment(cross, 42)
 
 	// Check result
 	if value != 42 {
@@ -136,7 +137,7 @@ import "strconv"
 
 var count int
 
-func Increment(change int) int {
+func Increment(_ realm, change int) int {
 	count += change
 	return count
 }
@@ -166,5 +167,3 @@ All possible imports in your code are resolved from the GnoVM's installation fol
 That's it 🎉
 
 You've successfully run local tests and expressions using the `gno` binary.
-Next, let's jump into how to create a Gno key pair, which is crucial to deploying
-your code and interacting with the gno.land blockchain.

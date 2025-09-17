@@ -31,12 +31,12 @@ group "misc" {
   targets = ["portalloopd", "autocounterd"]
 }
 
-group "_gno" { # overlaps the gno single target
+group "gnocore" {
     targets = ["default", "contribs"]
 }
 
 group "_all" {
-    targets = ["gno", "misc"]
+    targets = ["gnocore", "misc"]
 }
 
 #########################################

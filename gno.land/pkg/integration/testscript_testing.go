@@ -12,7 +12,7 @@ import (
 // This error is from testscript.Fatalf and is needed to correctly
 // handle the FailNow method.
 // see: https://github.com/rogpeppe/go-internal/blob/32ae33786eccde1672d4ba373c80e1bc282bfbf6/testscript/testscript.go#L799-L812
-var errFailNow = errors.New("fail now!") //nolint:stylecheck
+var errFailNow = errors.New("fail now")
 
 var (
 	_ require.TestingT = (*testingTS)(nil)

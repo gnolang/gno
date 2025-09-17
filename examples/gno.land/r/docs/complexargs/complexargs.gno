@@ -3,7 +3,7 @@ package complexargs
 import (
 	"strings"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 // Some example complex types, ie a slice, and a custom type
@@ -21,12 +21,12 @@ type CustomType struct {
 }
 
 // SetSlice takes a complex argument that must be called using MsgRun or from another contract that imports this one.
-func SetSlice(newSlice []int) {
+func SetSlice(_ realm, newSlice []int) {
 	slice = newSlice
 }
 
 // SetMyObject takes a complex argument that must be called using MsgRun or from another contract that imports this one.
-func SetMyObject(newCoolObject CustomType) {
+func SetMyObject(_ realm, newCoolObject CustomType) {
 	myObject = &newCoolObject
 }
 
@@ -37,7 +37,7 @@ cannot be called via a standard "MsgCall" transaction. To call these functions, 
 
 Check out the source code to see example functions and objects.
 
-In this case, the following "MsgRun" code would be used to call the function:  
+In this case, the following "MsgRun" code would be used to call the function:
 `
 	out += ufmt.Sprintf("```go\n%s\n```\n\n", msgrun)
 
@@ -61,7 +61,7 @@ In this case, the following "MsgRun" code would be used to call the function:
 		out += ufmt.Sprintf("Value of myObject: `CustomObject{Name: %s, Numbers: %s}`", myObject.Name, s)
 	}
 
-	out = strings.Replace(out, "\"", "`", -1)
+	out = strings.ReplaceAll(out, "\"", "`")
 	return out
 }
 
@@ -74,7 +74,7 @@ func main() {
 	// Create the complex arguments to pass:
 	slice := []int{1, 2, 3}
 	// Call the function
-	complexargs.SetSlice(slice)
+	complexargs.SetSlice(cross, slice)
 
 	// The same can be done with custom types:
 	obj := complexargs.CustomType{Name: "whatever", Numbers: []int{1, 10, 100}}

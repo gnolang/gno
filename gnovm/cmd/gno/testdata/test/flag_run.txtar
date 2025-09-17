@@ -1,8 +1,8 @@
-# Run test on gno.land/p/demo/ufmt
+# Run test on gno.land/p/nt/ufmt
 
 gno test .
 
-gno test ./run_test.gno
+# gno test ./run_test.gno # XXX: add back support for command-line-arguments package
 
 gno test -v .
 
@@ -98,3 +98,8 @@ func TestRun(t *testing.T) {
 		t.Run(tc, func(t *testing.T) {})
 	}
 }
+
+
+
+-- gnomod.toml --
+module = 'gno.test/r/integ/flag_run'

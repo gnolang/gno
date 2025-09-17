@@ -11,7 +11,7 @@ type Pkg struct {
 	Dir     string   // absolute path to package dir
 	Name    string   // package name
 	Imports []string // direct imports of this pkg
-	Draft   bool     // whether the package is a draft
+	Ignore  bool     // whether the package is a ignored package
 }
 
 type SubPkg struct {
@@ -81,26 +81,26 @@ func visitPackage(pkg Pkg, pkgs []Pkg, visited, onStack map[string]bool, sortedP
 	return nil
 }
 
-// GetNonDraftPkgs returns packages that are not draft
-// and have no direct or indirect draft dependencies.
-func (sp SortedPkgList) GetNonDraftPkgs() SortedPkgList {
+// GetNonIgnorePkgs returns packages that are not ignored
+// and have no direct or indirect ignore dependencies.
+func (sp SortedPkgList) GetNonIgnoredPkgs() SortedPkgList {
 	res := make([]Pkg, 0, len(sp))
-	draft := make(map[string]bool)
+	ignored := make(map[string]bool)
 
 	for _, pkg := range sp {
-		if pkg.Draft {
-			draft[pkg.Name] = true
+		if pkg.Ignore {
+			ignored[pkg.Name] = true
 			continue
 		}
-		dependsOnDraft := false
+		dependsOnIgnored := false
 		for _, req := range pkg.Imports {
-			if draft[req] {
-				dependsOnDraft = true
-				draft[pkg.Name] = true
+			if ignored[req] {
+				dependsOnIgnored = true
+				ignored[pkg.Name] = true
 				break
 			}
 		}
-		if !dependsOnDraft {
+		if !dependsOnIgnored {
 			res = append(res, pkg)
 		}
 	}

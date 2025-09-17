@@ -23,7 +23,8 @@ func (m *Machine) doOpIndex1() {
 			*xv = defaultTypedValue(m.Alloc, vt) // reuse as result
 		}
 	default:
-		res := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
+		// NOTE: nilRealm is OK, not setting a map (w/ new key).
+		res := xv.GetPointerAtIndex(nilRealm, m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result
 	}
 	xv.SetReadonly(ro)
@@ -73,7 +74,7 @@ func (m *Machine) doOpSelector() {
 
 func (m *Machine) doOpSlice() {
 	sx := m.PopExpr().(*SliceExpr)
-	var lowVal, highVal, maxVal int = -1, -1, -1
+	lowVal, highVal, maxVal := -1, -1, -1
 	// max
 	if sx.Max != nil {
 		maxVal = int(m.PopValue().ConvertGetInt())
@@ -297,8 +298,7 @@ func (m *Machine) doOpTypeAssert2() {
 
 			// t is Gno interface.
 			// assert that x implements type.
-			var impl bool
-			impl = it.IsImplementedBy(xt)
+			impl := it.IsImplementedBy(xt)
 			if impl {
 				// *xv = *xv
 				*tv = untypedBool(true)
@@ -544,13 +544,9 @@ func (m *Machine) doOpMapLit() {
 		// TODO: future optimization
 		// omitType := baseOf(mt).Elem().Kind() != InterfaceKind
 		for i := range ne {
-			ktv := &kvs[i*2]
+			ktv := kvs[i*2].Copy(m.Alloc)
 			vtv := kvs[i*2+1]
 			ptr := mv.GetPointerForKey(m.Alloc, m.Store, ktv)
-			if ptr.TV.IsDefined() && isConst(x.Elts[i].Key) {
-				// map key has already been assigned
-				panic(fmt.Sprintf("duplicate key %s in map literal", ktv.V))
-			}
 			*ptr.TV = vtv.Copy(m.Alloc)
 		}
 	}
@@ -601,9 +597,8 @@ func (m *Machine) doOpStructLit() {
 					panic(fmt.Sprintf(
 						"Cannot initialize imported struct %s.%s with nameless composite lit expression (has unexported fields) from package %s",
 						st.PkgPath, st.String(), m.Package.PkgPath))
-				} else {
-					// this is fine.
 				}
+				// else, this is fine.
 			}
 		}
 		m.PopCopyValues(fs)
@@ -650,10 +645,10 @@ func (m *Machine) doOpFuncLit() {
 	// to *FuncValue. Later during doOpCall a block
 	// will be created that copies these values for
 	// every invocation of the function.
-	var captures []TypedValue
+	captures := make([]TypedValue, 0, len(x.HeapCaptures))
 	if m.Stage == StagePre {
 		// TODO static block items aren't heap items.
-		captures = append(captures, make([]TypedValue, len(x.HeapCaptures))...)
+		// continue
 	} else {
 		for _, nx := range x.HeapCaptures {
 			ptr := lb.GetPointerToDirect(m.Store, nx.Path)

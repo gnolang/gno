@@ -5,8 +5,8 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/ufmt"
 	"gno.land/r/gov/dao"
 )
 
@@ -46,7 +46,7 @@ func AdminRemoveModerator(_ realm, addr std.Address) {
 func NewPostProposalRequest(_ realm, slug, title, body, publicationDate, authors, tags string) dao.ProposalRequest {
 	caller := std.PreviousRealm().Address()
 	e := dao.NewSimpleExecutor(
-		func() error {
+		func(realm) error {
 			addPost(caller, slug, title, body, publicationDate, authors, tags)
 
 			return nil
