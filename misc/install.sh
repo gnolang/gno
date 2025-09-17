@@ -180,13 +180,13 @@ install_gno() {
 # Function to uninstall gno
 uninstall_gno() {
     local gno_dir=$(get_gno_dir)
-    local gopath=$(go env GOPATH)
+    local gobin=$(go env GOBIN)
 
-    log "Uninstalling gno binaries from $gopath/bin"
-    rm -f "$gopath/bin/gno"
-    rm -f "$gopath/bin/gnokey"
-    rm -f "$gopath/bin/gnodev"
-    rm -f "$gopath/bin/gnobro"
+    log "Uninstalling gno binaries from $gobin"
+    rm -f "$gobin/gno"
+    rm -f "$gobin/gnokey"
+    rm -f "$gobin/gnodev"
+    rm -f "$gobin/gnobro"
 
     # Remove source directory
     log "Removing gno source from $gno_dir"
