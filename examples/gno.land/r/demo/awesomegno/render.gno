@@ -38,12 +38,12 @@ func Render(path string) string {
 }
 
 func renderHome() string {
-	out := md.H1("AwesomeGno")
-	out += md.Paragraph("Welcome to AwesomeGno - A curated list of awesome items built on gno.land. Here you can discover and explore the growing ecosystem of decentralized applications.")
+    out := md.H1("🚀 AwesomeGno")
+    out += md.Paragraph("Welcome to AwesomeGno – a curated list of awesome items built on gno.land. Discover and explore the growing ecosystem of decentralized applications ✨")
 
 	out += md.Paragraph(md.Link("Browse categories →", "/r/demo/awesomegno:categories"))
 
-	out += md.H2("Recent Additions")
+    out += md.H2("🆕 Recent Additions")
 	var recentItems []string
 	count := 0
 	items.ReverseIterateByOffset(0, 5, func(key string, value interface{}) bool {
@@ -59,9 +59,9 @@ func renderHome() string {
 	if len(recentItems) > 0 {
 		out += md.BulletList(recentItems)
 		out += "\n"
-		out += md.Paragraph(md.Link("See all items →", "/r/demo/awesomegno:items"))
+        out += md.Paragraph(md.Link("See all items →", "/r/demo/awesomegno:items"))
 	} else {
-		out += md.Italic("No items added yet.")
+        out += md.Italic("No items added yet. Be the first to add one! 🌱")
 		out += "\n\n"
 		addItemLink := txlink.NewLink("AddItem").
 			AddArgs(
@@ -70,24 +70,24 @@ func renderHome() string {
 				"url", "",
 				"author", "",
 			).URL()
-		out += md.Paragraph(md.Link("➕ Add New Item", addItemLink))
+        out += md.Paragraph(md.Link("➕ Add New Item", addItemLink))
 	}
 
-	out += md.H2("Quick Stats")
+    out += md.H2("📊 Quick Stats")
 	stats := []string{
 		ufmt.Sprintf("Total Items: %d", items.Size()),
 		ufmt.Sprintf("Categories: %d", categories.Size()),
 	}
 	out += md.BulletList(stats)
 	out += "\n"
-	out += md.Italic("AwesomeGno is a community-driven project that aims to showcase and promote the best items built on gno.land. Each item is carefully categorized and reviewed to ensure quality and usefulness.")
+    out += md.Italic("AwesomeGno is a community-driven project that showcases and promotes the best items built on gno.land. Each item is carefully categorized and reviewed to ensure quality and usefulness. 💎")
 
 	return out
 }
 
 func renderItems(path string) string {
-	out := md.H1("Items")
-	out += md.Paragraph("Browse through all the awesome items built on gno.land.")
+    out := md.H1("📦 Items")
+    out += md.Paragraph("Browse through all the awesome items built on gno.land.")
 
 	addItemLink := txlink.NewLink("AddItem").
 		AddArgs(
@@ -97,7 +97,7 @@ func renderItems(path string) string {
 			"author", "",
 		).URL()
 	out += "\n\n"
-	out += md.Paragraph(md.Link("➕ Add New Item", addItemLink))
+    out += md.Paragraph(md.Link("➕ Add New Item", addItemLink))
 	out += "\n"
 
 	var itemItems []string
@@ -110,13 +110,13 @@ func renderItems(path string) string {
 		}
 	}
 
-	out += renderItemsList(itemItems, page, "No items registered yet")
+    out += renderItemsList(itemItems, page, "No items registered yet 💤")
 	return out
 }
 
 func renderCategories(path string) string {
-	out := md.H1("Categories")
-	out += md.Paragraph("Browse items by category.")
+    out := md.H1("🗂️ Categories")
+    out += md.Paragraph("Browse items by category.")
 
 	addCategoryLink := txlink.NewLink("AddCategory").
 		AddArgs(
@@ -124,7 +124,7 @@ func renderCategories(path string) string {
 			"description", "",
 		).URL()
 	out += "\n\n"
-	out += md.Paragraph(md.Link("➕ Add New Category", addCategoryLink))
+    out += md.Paragraph(md.Link("➕ Add New Category", addCategoryLink))
 	out += "\n"
 	var categoryItems []string
 	categoryPager := pager.NewPager(categories, pageSize, false)
@@ -135,7 +135,7 @@ func renderCategories(path string) string {
 		categoryItems = append(categoryItems, formatCategoryListItem(category))
 	}
 
-	out += renderItemsList(categoryItems, page, "No categories available")
+    out += renderItemsList(categoryItems, page, "No categories available 🏷️")
 	return out
 }
 
@@ -146,29 +146,29 @@ func renderSingleItem(id string) string {
 	}
 
 	item := v.(*Item)
-	out := md.H1(item.Title)
+    out := md.H1("📌 " + item.Title)
 	out += md.Paragraph(item.Description)
 
 	itemAuthors := []string{}
 	for _, author := range item.Authors {
-		displayName := author.String()
+        displayName := author.String()
 		if userData, _ := users.ResolveAny(author.String()); userData != nil && userData.Name() != "" {
 			displayName = userData.Name()
 		}
 
-		authorLink := md.Link(displayName, "/r/gnoland/users/v1:"+author.String())
+        authorLink := md.Link("👤 "+displayName, "/r/gnoland/users/v1:"+author.String())
 		itemAuthors = append(itemAuthors, authorLink)
 	}
 
 	metadata := []string{
-		ufmt.Sprintf("Authors: %s", func() string {
+        ufmt.Sprintf("👥 Authors: %s", func() string {
 			if len(itemAuthors) == 0 || (len(itemAuthors) == 1 && itemAuthors[0] == "") {
-				return md.Italic("Not available")
+                return md.Italic("Not available")
 			}
 			return strings.Join(itemAuthors, ", ")
 		}()),
-		ufmt.Sprintf("Created: %s", item.CreatedAt.Format("02 Jan 2006")),
-		ufmt.Sprintf("URL: %s", md.Link("Visit Item", item.URL)),
+        ufmt.Sprintf("📅 Created: %s", item.CreatedAt.Format("02 Jan 2006")),
+        ufmt.Sprintf("🔗 URL: %s", md.Link("Visit Item", item.URL)),
 	}
 	out += md.BulletList(metadata)
 
@@ -188,7 +188,7 @@ func renderSingleItem(id string) string {
 		out += "\n"
 	}
 
-	out += md.H2("Management")
+    out += md.H2("🛠️ Management")
 	out += "\n"
 	out += md.Paragraph("Use these actions to manage the item:")
 
@@ -203,10 +203,10 @@ func renderSingleItem(id string) string {
 	deleteLink := txlink.NewLink("DeleteItem").
 		AddArgs("itemID", item.ID.String()).URL()
 
-	actions := []string{
-		md.Link("📝 Update Item", updateLink),
-		md.Link("🗑️ Delete Item", deleteLink),
-	}
+    actions := []string{
+        md.Link("📝 Update Item", updateLink),
+        md.Link("🗑️ Delete Item", deleteLink),
+    }
 	out += md.BulletList(actions)
 
 	return out
@@ -219,11 +219,11 @@ func renderSingleCategory(id string) string {
 	}
 
 	category := v.(*Category)
-	out := md.H1(category.Name)
+    out := md.H1("🏷️ " + category.Name)
 	out += md.Paragraph(category.Description)
-	out += md.Paragraph(ufmt.Sprintf("Created: %s", category.CreatedAt.Format("02 Jan 2006")))
+    out += md.Paragraph(ufmt.Sprintf("📅 Created: %s", category.CreatedAt.Format("02 Jan 2006")))
 
-	out += md.H2("Items in this category")
+    out += md.H2("📚 Items in this category")
 	var itemsList []string
 	category.items.Iterate("", "", func(key string, value interface{}) bool {
 		item := value.(*Item)
@@ -234,11 +234,11 @@ func renderSingleCategory(id string) string {
 	if len(itemsList) > 0 {
 		out += md.BulletList(itemsList)
 	} else {
-		out += md.Italic("No items in this category yet")
+        out += md.Italic("No items in this category yet 💤")
 		out += "\n"
 	}
 
-	out += md.H2("Management")
+    out += md.H2("🛠️ Management")
 	out += "\n"
 	out += md.Paragraph("Use these actions to manage the category:")
 
