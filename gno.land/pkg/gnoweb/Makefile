@@ -119,6 +119,7 @@ dev.ts: $(esbuild) generate | $(PUBLIC_DIR)
 
 # Install node modules deps located in ./tools
 $(esbuild): $(node_modules)
+$(postcss): $(node_modules)
 $(node_modules):
 	$(MAKE) -C frontend node_modules
 
