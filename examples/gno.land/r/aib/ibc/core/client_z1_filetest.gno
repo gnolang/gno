@@ -24,12 +24,27 @@ func main() {
 			AllowUpdateAfterExpiry:       false,
 			AllowUpdateAfterMisbehaviour: false,
 		}
-		apphash        = sha256.Sum256([]byte("apphash"))
-		valhash        = sha256.Sum256([]byte("validators"))
+		apphash = sha256.Sum256([]byte("apphash"))
+		val1    = &tendermint.Validator{
+			Address:     genAddr("val1"),
+			PubKey:      genPubkey("val1_pubkey"),
+			VotingPower: 2,
+		}
+		val2 = &tendermint.Validator{
+			Address:     genAddr("val2"),
+			PubKey:      genPubkey("val2_pubkey"),
+			VotingPower: 3,
+		}
+		valset = &tendermint.ValidatorSet{
+			Validators:       []*tendermint.Validator{val1, val2},
+			Proposer:         val1,
+			TotalVotingPower: 5,
+		}
+		valsethash     = valset.Hash()
 		consensusState = tendermint.ConsensusState{
 			Timestamp:          time.Now(),
 			Root:               tendermint.MerkleRoot{Hash: apphash[:]},
-			NextValidatorsHash: valhash[:],
+			NextValidatorsHash: valsethash,
 		}
 	)
 	clientID1 := core.CreateClient(cross, lightclient.Tendermint, clientState, consensusState)
@@ -40,19 +55,20 @@ func main() {
 	// RegisterCounterparty on clientID1
 	core.RegisterCounterparty(cross, clientID1, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "counter-party-id")
 
+	println("\n----------- assert render clients")
 	println(core.Render("clients"))
-	println("-----------")
-	println(core.Render("clients/1"))
-	println("-----------")
+	println("----------- assert render clients/unknown")
+	println(core.Render("clients/unknown"))
+	println("\n----------- assert render clients/07-tendermint-1")
 	println(core.Render("clients/" + clientID1))
 
 	// Update clientID1
 	// TODO move it to an other filetest
 	var (
-		blockhash     = sha256.Sum256([]byte("block-5"))
-		parsethash    = sha256.Sum256([]byte("parset"))
-		nextvalhash   = sha256.Sum256([]byte("nextval"))
-		consensushash = sha256.Sum256([]byte("consensus"))
+		blockhash      = sha256.Sum256([]byte("block-5"))
+		parsethash     = sha256.Sum256([]byte("parset"))
+		nextValsethash = valsethash
+		consensushash  = sha256.Sum256([]byte("consensus"))
 
 		msgHeader = &tendermint.MsgHeader{
 			Header: &tendermint.Header{
@@ -72,8 +88,8 @@ func main() {
 				},
 				LastCommitHash:     apphash[:], //FIXME
 				DataHash:           apphash[:], //FIXME
-				ValidatorsHash:     valhash[:],
-				NextValidatorsHash: nextvalhash[:],
+				ValidatorsHash:     valsethash,
+				NextValidatorsHash: nextValsethash,
 				ConsensusHash:      consensushash[:],
 				AppHash:            apphash[:],
 				LastResultsHash:    nil, //FIXME?
@@ -98,13 +114,15 @@ func main() {
 					},
 				},
 			},
-			ValidatorSet:      &tendermint.ValidatorSet{},
+			ValidatorSet:      valset, // validator set hasn't changed
 			TrustedHeight:     types.Height{2, 1},
-			TrustedValidators: &tendermint.ValidatorSet{}, // hash of this must correspond to consensusState.NextValidatorHash passed in CreateClient
+			TrustedValidators: valset, // hash of this must correspond to consensusState.NextValidatorHash passed in CreateClient
 		}
 	)
 	core.UpdateClient(cross, clientID1, msgHeader)
-	// TODO assertion of updated client
+
+	println("----------- assert render clients/07-tendermint-1 after update client")
+	println(core.Render("clients/" + clientID1))
 
 }
 
@@ -115,6 +133,10 @@ func genAddr(prefix string) []byte {
 
 func genSignature(prefix string) []byte {
 	return genBytes(prefix, tendermint.MaxSignatureSize)
+}
+
+func genPubkey(prefix string) []byte {
+	return genBytes(prefix, 32)
 }
 
 func genBytes(prefix string, size int) []byte {
@@ -130,24 +152,51 @@ func genBytes(prefix string, size int) []byte {
 // CreateClient 07-tendermint-1
 // CreateClient 07-tendermint-2
 //
+// ----------- assert render clients
 // ## Client 07-tendermint-1
 // - Type: 07-tendermint
 // - Creator: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // - CounterpartyClientID: counter-party-id
 // - CounterpartyMerklePrefix: 'prefix1' 'prefix2'
-//
+// - Latest consensus state:
+//   - Height: 2/1
+//   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
+//   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
+//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
 // ## Client 07-tendermint-2
 // - Type: 07-tendermint
 // - Creator: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // - CounterpartyClientID:
 // - CounterpartyMerklePrefix:
+// - Latest consensus state:
+//   - Height: 2/1
+//   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
+//   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
+//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
 //
-// -----------
-// client 1 not found
-// -----------
+// ----------- assert render clients/unknown
+// client unknown not found
 //
+// ----------- assert render clients/07-tendermint-1
 // ## Client 07-tendermint-1
 // - Type: 07-tendermint
 // - Creator: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // - CounterpartyClientID: counter-party-id
 // - CounterpartyMerklePrefix: 'prefix1' 'prefix2'
+// - Latest consensus state:
+//   - Height: 2/1
+//   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
+//   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
+//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
+//
+// ----------- assert render clients/07-tendermint-1 after update client
+// ## Client 07-tendermint-1
+// - Type: 07-tendermint
+// - Creator: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// - CounterpartyClientID: counter-party-id
+// - CounterpartyMerklePrefix: 'prefix1' 'prefix2'
+// - Latest consensus state:
+//   - Height: 2/5
+//   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
+//   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
+//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
