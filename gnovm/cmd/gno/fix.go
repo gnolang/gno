@@ -98,6 +98,7 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 			if err := cmd.processFixTxtar(txtarFile); err != nil {
 				return fmt.Errorf("unable to process txtar %q: %w", txtarFile, err)
 			}
+			continue
 		}
 		files, err := gnoFilesFromArgs([]string{targ})
 		if err != nil {
