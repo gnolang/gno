@@ -3,6 +3,7 @@ package keyscli
 
 import (
 	"encoding/base64"
+	"slices"
 
 	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -66,49 +67,72 @@ func PrintTxInfo(tx std.Tx, res *ctypes.ResultBroadcastTxCommit, io commands.IO)
 	io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
 	io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
 	io.Println("HEIGHT:    ", res.Height)
-	if delta, storageFee, ok := GetStorageInfo(res.DeliverTx.Events); ok {
-		io.Printfln("STORAGE DELTA:  %d bytes", delta)
-		total := tx.Fee.GasFee.Amount
-
-		if storageFee.Amount >= 0 {
-			io.Println("STORAGE FEE:   ", storageFee)
+	if bytesDelta, coinsDelta := GetStorageInfo(res.DeliverTx.Events); bytesDelta != 0 {
+		io.Printfln("STORAGE DELTA:  %d bytes", bytesDelta)
+		if coinsDelta.IsAllPositive() || coinsDelta.IsZero() {
+			io.Println("STORAGE FEE:   ", coinsDelta)
 		} else {
-			refund := storageFee
-			refund.Amount = -refund.Amount
-			io.Println("STORAGE REFUND:", refund)
+			// NOTE: there is edge cases where coinsDelta can be a mixture of positive and negative coins.
+			// For example if a tx contains a storage cost param change message sandwiched by storage movement messages.
+			// These will fall in this case and print confusing information but it's so rare that we don't
+			// really care about this possibility here.
+			io.Println("STORAGE REFUND:", negateCoins(coinsDelta))
 		}
-		if tx.Fee.GasFee.Denom == storageFee.Denom {
-			total := tx.Fee.GasFee.Amount + storageFee.Amount
-			io.Printfln("TOTAL TX COST:  %d%v", total, tx.Fee.GasFee.Denom)
-		}
-
-		io.Printfln("TOTAL TX COST:  %d%v", total, tx.Fee.GasFee.Denom)
+		io.Printfln("TOTAL TX COST:  %s", combineCoins(std.Coins{tx.Fee.GasFee}, coinsDelta))
 	}
 	io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
 	io.Println("INFO:      ", res.DeliverTx.Info)
 	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
 }
 
-// GetStorageInfo searches events for StorageDepositEvent or StorageUnlockEvent and returns the bytes delta and fee.
-// If this is "unlock", then bytes delta and fee are negative.
-// The third return is true if found, else false.
-func GetStorageInfo(events []abci.Event) (int64, std.Coin, bool) {
+// GetStorageInfo searches events for StorageDepositEvent or StorageUnlockEvent and returns the bytes delta and coins delta.
+func GetStorageInfo(events []abci.Event) (int64, std.Coins) {
+	var (
+		bytesDelta int64
+		coinsDelta std.Coins
+	)
+
 	for _, event := range events {
 		switch storageEvent := event.(type) {
 		case gnostd.StorageDepositEvent:
-			return storageEvent.BytesDelta, storageEvent.FeeDelta, true
+			bytesDelta += storageEvent.BytesDelta
+			coinsDelta = combineCoins(coinsDelta, std.Coins{storageEvent.FeeDelta})
 		case gnostd.StorageUnlockEvent:
-			fee := storageEvent.FeeRefund
-			fee.Amount *= -1
-			// If true it means the refund was withheld
-			// due to token lock, so the refund visible to user is 0
-			if storageEvent.RefundWithheld {
-				fee.Amount = 0
+			bytesDelta += storageEvent.BytesDelta
+			if !storageEvent.RefundWithheld {
+				coinsDelta = combineCoins(coinsDelta, negateCoins(std.Coins{storageEvent.FeeRefund}))
 			}
-			// For unlock, BytesDelta is negative
-			return storageEvent.BytesDelta, fee, true
 		}
 	}
 
-	return 0, std.Coin{}, false
+	return bytesDelta, coinsDelta
+}
+
+func combineCoins(bags ...std.Coins) std.Coins {
+	res := std.Coins{}
+	for _, bag := range bags {
+		for _, coin := range bag {
+			if coin.Amount == 0 {
+				continue
+			}
+			indexInRes := slices.IndexFunc(res, func(resElem std.Coin) bool { return resElem.Denom == coin.Denom })
+			if indexInRes == -1 {
+				res = append(res, coin)
+				continue
+			}
+			res[indexInRes].Amount += coin.Amount
+		}
+	}
+	if len(res) == 0 {
+		return nil
+	}
+	return res.Sort()
+}
+
+func negateCoins(coins std.Coins) std.Coins {
+	res := make(std.Coins, len(coins))
+	for i, coin := range coins {
+		res[i] = std.Coin{Denom: coin.Denom, Amount: -coin.Amount}
+	}
+	return res
 }
