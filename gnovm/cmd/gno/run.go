@@ -90,7 +90,7 @@ func packageNameFromFirstFile(args []string) (string, error) {
 				if isGnoFile(f) &&
 					!strings.HasSuffix(n, "_test.gno") &&
 					!strings.HasSuffix(n, "_filetest.gno") {
-					return gno.ParseFilePackageName(n)
+					return gno.ParseFilePackageName(filepath.Join(arg, n))
 				}
 			}
 		} else if err != nil {
