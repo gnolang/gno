@@ -72,7 +72,7 @@ func PrintTxInfo(tx std.Tx, res *ctypes.ResultBroadcastTxCommit, io commands.IO)
 			io.Println("STORAGE FEE:   ", coinsDelta)
 		} else {
 			// NOTE: there is edge cases where coinsDelta can be a mixture of positive and negative coins.
-			// For example if a tx contains a storage cost param change message sandwiched by storage movement messages.
+			// For example if the keeper respects the storage price param denom and a tx contains a storage cost param change message sandwiched by storage movement messages.
 			// These will fall in this case and print confusing information but it's so rare that we don't
 			// really care about this possibility here.
 			io.Println("STORAGE REFUND:", std.Coins{}.SubUnsafe(coinsDelta))
