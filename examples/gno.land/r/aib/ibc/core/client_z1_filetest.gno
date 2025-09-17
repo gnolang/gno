@@ -78,7 +78,7 @@ func main() {
 				},
 				ChainID: "chain-id-2",
 				Height:  5,
-				Time:    time.Now(),
+				Time:    time.Now().Add(time.Minute),
 				LastBlockID: tendermint.BlockID{
 					Hash: blockhash[:],
 					PartSetHeader: tendermint.PartSetHeader{
@@ -116,7 +116,7 @@ func main() {
 			},
 			ValidatorSet:      valset, // validator set hasn't changed
 			TrustedHeight:     types.Height{2, 1},
-			TrustedValidators: valset, // hash of this must correspond to consensusState.NextValidatorHash passed in CreateClient
+			TrustedValidators: valset, // hash of this must correspond to the consensusState.NextValidatorHash mapped to TrustedHeight
 		}
 	)
 	core.UpdateClient(cross, clientID1, msgHeader)
@@ -158,8 +158,12 @@ func genBytes(prefix string, size int) []byte {
 // - Creator: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // - CounterpartyClientID: counter-party-id
 // - CounterpartyMerklePrefix: 'prefix1' 'prefix2'
+// - Client state:
+//   - ChainId: chain-id-2
+//   - TrustingPeriod: 1h0m0s
+//   - UnbondingPeriod: 3h0m0s
+//   - LatestHeight: 2/1
 // - Latest consensus state:
-//   - Height: 2/1
 //   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
 //   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
 //   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
@@ -168,8 +172,12 @@ func genBytes(prefix string, size int) []byte {
 // - Creator: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // - CounterpartyClientID:
 // - CounterpartyMerklePrefix:
+// - Client state:
+//   - ChainId: chain-id-2
+//   - TrustingPeriod: 1h0m0s
+//   - UnbondingPeriod: 3h0m0s
+//   - LatestHeight: 2/1
 // - Latest consensus state:
-//   - Height: 2/1
 //   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
 //   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
 //   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
@@ -183,8 +191,12 @@ func genBytes(prefix string, size int) []byte {
 // - Creator: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // - CounterpartyClientID: counter-party-id
 // - CounterpartyMerklePrefix: 'prefix1' 'prefix2'
+// - Client state:
+//   - ChainId: chain-id-2
+//   - TrustingPeriod: 1h0m0s
+//   - UnbondingPeriod: 3h0m0s
+//   - LatestHeight: 2/1
 // - Latest consensus state:
-//   - Height: 2/1
 //   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
 //   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
 //   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
@@ -195,8 +207,12 @@ func genBytes(prefix string, size int) []byte {
 // - Creator: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // - CounterpartyClientID: counter-party-id
 // - CounterpartyMerklePrefix: 'prefix1' 'prefix2'
+// - Client state:
+//   - ChainId: chain-id-2
+//   - TrustingPeriod: 1h0m0s
+//   - UnbondingPeriod: 3h0m0s
+//   - LatestHeight: 2/5
 // - Latest consensus state:
-//   - Height: 2/5
-//   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
+//   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
 //   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
 //   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c

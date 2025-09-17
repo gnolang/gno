@@ -53,7 +53,12 @@ func (c *client) Render() string {
 	switch c.typ {
 	case lightclient.Tendermint:
 		lc := c.lightClient.(*tendermint.TMLightClient)
+		s += "- Client state:\n"
+		s += ufmt.Sprintf("  - ChainId: %s\n", lc.ClientState.ChainId)
+		s += ufmt.Sprintf("  - TrustingPeriod: %s\n", lc.ClientState.TrustingPeriod)
+		s += ufmt.Sprintf("  - UnbondingPeriod: %s\n", lc.ClientState.UnbondingPeriod)
 		latestHeight := lc.LatestHeight().String()
+		s += ufmt.Sprintf("  - LatestHeight: %s\n", latestHeight)
 		x, found := lc.ConsensusStateByHeight.Get(latestHeight)
 		if !found {
 			s += "Latest consensus state not found\n"
@@ -61,7 +66,6 @@ func (c *client) Render() string {
 		}
 		latestConsState := x.(*tendermint.ConsensusState)
 		s += "- Latest consensus state:\n"
-		s += ufmt.Sprintf("  - Height: %s\n", latestHeight)
 		s += ufmt.Sprintf("  - Timestamp: %s\n", latestConsState.Timestamp)
 		s += ufmt.Sprintf("  - Root: %s\n", hex.EncodeToString(latestConsState.Root.Hash))
 		s += ufmt.Sprintf("  - NextValidatorsHash: %s\n", hex.EncodeToString(latestConsState.NextValidatorsHash))
