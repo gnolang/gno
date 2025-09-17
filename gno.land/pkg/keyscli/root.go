@@ -66,7 +66,7 @@ func PrintTxInfo(tx std.Tx, res *ctypes.ResultBroadcastTxCommit, io commands.IO)
 	io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
 	io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
 	io.Println("HEIGHT:    ", res.Height)
-	if bytesDelta, coinsDelta := GetStorageInfo(res.DeliverTx.Events); bytesDelta != 0 {
+	if bytesDelta, coinsDelta, hasStorageEvents := GetStorageInfo(res.DeliverTx.Events); hasStorageEvents {
 		io.Printfln("STORAGE DELTA:  %d bytes", bytesDelta)
 		if coinsDelta.IsAllPositive() || coinsDelta.IsZero() {
 			io.Println("STORAGE FEE:   ", coinsDelta)
@@ -85,10 +85,11 @@ func PrintTxInfo(tx std.Tx, res *ctypes.ResultBroadcastTxCommit, io commands.IO)
 }
 
 // GetStorageInfo searches events for StorageDepositEvent or StorageUnlockEvent and returns the bytes delta and coins delta.
-func GetStorageInfo(events []abci.Event) (int64, std.Coins) {
+func GetStorageInfo(events []abci.Event) (int64, std.Coins, bool) {
 	var (
 		bytesDelta int64
 		coinsDelta std.Coins
+		hasEvents  bool
 	)
 
 	for _, event := range events {
@@ -101,8 +102,12 @@ func GetStorageInfo(events []abci.Event) (int64, std.Coins) {
 			if !storageEvent.RefundWithheld {
 				coinsDelta = coinsDelta.SubUnsafe(std.Coins{storageEvent.FeeRefund})
 			}
+		default:
+			// skip hasEvents toggle
+			continue
 		}
+		hasEvents = true
 	}
 
-	return bytesDelta, coinsDelta
+	return bytesDelta, coinsDelta, hasEvents
 }
