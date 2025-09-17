@@ -24,8 +24,8 @@ func init() {
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	boards2.ChangeMemberRole(cross, bid, "invalid address", boards2.RoleModerator)
+	boards2.ChangeMemberRole(cross, bid, "foo", boards2.RoleModerator)
 }
 
 // Error:
-// invalid member address
+// invalid member address: foo

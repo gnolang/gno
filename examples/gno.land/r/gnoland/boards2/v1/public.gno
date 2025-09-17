@@ -41,13 +41,10 @@ func SetHelp(_ realm, content string) {
 // SetPermissions sets a permissions implementation for boards2 realm or a board.
 func SetPermissions(_ realm, bid BoardID, p Permissions) {
 	assertRealmIsNotLocked()
+	assertBoardExists(bid)
 
 	if p == nil {
 		panic("permissions is required")
-	}
-
-	if bid != 0 {
-		assertBoardExists(bid)
 	}
 
 	caller := std.PreviousRealm().Address()
@@ -554,13 +551,13 @@ func GetBoard(boardID BoardID) *Board {
 
 func assertMemberAddressIsValid(member std.Address) {
 	if !member.IsValid() {
-		panic("invalid member address")
+		panic("invalid member address: " + member.String())
 	}
 }
 
 func assertUserAddressIsValid(user std.Address) {
 	if !user.IsValid() {
-		panic("invalid user address")
+		panic("invalid user address: " + user.String())
 	}
 }
 
@@ -571,6 +568,10 @@ func assertHasPermission(perms Permissions, user std.Address, p Permission) {
 }
 
 func assertBoardExists(id BoardID) {
+	if id == 0 { // ID zero is used to refer to the realm
+		return
+	}
+
 	if _, found := getBoard(id); !found {
 		panic("board not found: " + id.String())
 	}
