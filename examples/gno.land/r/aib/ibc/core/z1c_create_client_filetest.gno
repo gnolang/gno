@@ -4,8 +4,8 @@ import (
 	"gno.land/r/aib/ibc/core"
 )
 
+// RegisterCounterparty w/o existing client
 func main() {
-	// RegisterCounterparty
 	core.RegisterCounterparty(cross, "unknown-client", [][]byte{[]byte("prefix1"), []byte("prefix2")}, "07-tendermint-2")
 	println(core.Render(""))
 }
