@@ -92,11 +92,11 @@ func SetRealmNotice(_ realm, message string) {
 
 // GetBoardIDFromName searches a board by name and returns it's ID.
 func GetBoardIDFromName(_ realm, name string) (_ BoardID, found bool) {
-	v, found := gBoardsByName.Get(name)
+	board, found := getBoardByName(name)
 	if !found {
 		return 0, false
 	}
-	return v.(*Board).ID, true
+	return board.ID, true
 }
 
 // CreateBoard creates a new board.
@@ -120,7 +120,7 @@ func CreateBoard(_ realm, name string, listed bool) BoardID {
 		board := newBoard(id, name, caller, perms)
 		key := id.Key()
 		gBoardsByID.Set(key, board)
-		gBoardsByName.Set(name, board)
+		gBoardsByName.Set(strings.ToLower(name), board)
 
 		// Listed boards are also indexed separately for easier iteration and pagination
 		if listed {
@@ -163,7 +163,7 @@ func RenameBoard(_ realm, name, newName string) {
 		board.Name = newName
 
 		// Index board for the new name keeping previous indexes for older names
-		gBoardsByName.Set(newName, board)
+		gBoardsByName.Set(strings.ToLower(newName), board)
 
 		std.Emit(
 			"BoardRenamed",
@@ -639,6 +639,7 @@ func assertBodyIsNotEmpty(body string) {
 }
 
 func assertBoardNameNotExists(name string) {
+	name = strings.ToLower(name)
 	if gBoardsByName.Has(name) {
 		panic("board already exists")
 	}
