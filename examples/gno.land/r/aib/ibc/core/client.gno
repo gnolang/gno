@@ -24,6 +24,10 @@ func CreateClient(cur realm, clientType string, clientState, consensusState any)
 	if err != nil {
 		panic(err)
 	}
+	if status := c.lightClient.Status(); status != lightclient.Active {
+		panic(ufmt.Sprintf("cannot create client (%s) with status %s", c.id, status))
+	}
+	// TODO emit create client event with latestHeight
 	return c.id
 }
 
@@ -50,7 +54,9 @@ func UpdateClient(cur realm, clientID string, clientMessage any) {
 	if c == nil {
 		panic(ufmt.Sprintf("client %s not found", clientID))
 	}
-	// TODO check client state status
+	if status := c.lightClient.Status(); status != lightclient.Active {
+		panic(ufmt.Sprintf("cannot update client (%s) with status %s", c.id, status))
+	}
 	// TODO check if relayer address is in whitelist
 	// Similarly to ibc-v2 go implementation, for safety we're going to restrict
 	// the UpdateClient call to a set of predefined relayers addresses.

@@ -43,6 +43,7 @@ func main() {
 // ## Client 07-tendermint-1
 // - Type: 07-tendermint
 // - Creator: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// - Status: Active
 // - CounterpartyClientID: counter-party-id
 // - CounterpartyMerklePrefix: 'prefix1' 'prefix2'
 // - Client state:

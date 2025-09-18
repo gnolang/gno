@@ -44,6 +44,7 @@ func (c *client) Render() string {
 	s += ufmt.Sprintf("## Client %s\n", c.id)
 	s += ufmt.Sprintf("- Type: %s\n", c.typ)
 	s += ufmt.Sprintf("- Creator: %s\n", c.creator)
+	s += ufmt.Sprintf("- Status: %s\n", c.lightClient.Status())
 	s += ufmt.Sprintf("- CounterpartyClientID: %s\n", c.counterpartyClientID)
 	var merklePrefix string
 	for _, m := range c.counterpartyMerklePrefix {
@@ -57,14 +58,12 @@ func (c *client) Render() string {
 		s += ufmt.Sprintf("  - ChainId: %s\n", lc.ClientState.ChainId)
 		s += ufmt.Sprintf("  - TrustingPeriod: %s\n", lc.ClientState.TrustingPeriod)
 		s += ufmt.Sprintf("  - UnbondingPeriod: %s\n", lc.ClientState.UnbondingPeriod)
-		latestHeight := lc.LatestHeight().String()
-		s += ufmt.Sprintf("  - LatestHeight: %s\n", latestHeight)
-		x, found := lc.ConsensusStateByHeight.Get(latestHeight)
+		s += ufmt.Sprintf("  - LatestHeight: %s\n", lc.LatestHeight().String())
+		latestConsState, found := lc.GetConsensusState(lc.LatestHeight())
 		if !found {
 			s += "Latest consensus state not found\n"
 			return s
 		}
-		latestConsState := x.(*tendermint.ConsensusState)
 		s += "- Latest consensus state:\n"
 		s += ufmt.Sprintf("  - Timestamp: %s\n", latestConsState.Timestamp)
 		s += ufmt.Sprintf("  - Root: %s\n", hex.EncodeToString(latestConsState.Root.Hash))

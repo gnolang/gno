@@ -3,7 +3,7 @@ package lightclient
 import "gno.land/p/aib/ibc/types"
 
 // Status represents the status of a client
-type Status string
+type Status = string
 
 const (
 	// Solomachine is used to indicate that the light client is a solo machine.
@@ -90,7 +90,7 @@ type LightClientModule interface {
 
 	// Status must return the status of the client. Only Active clients are
 	// allowed to process packets.
-	Status(clientID string) Status
+	Status() Status
 
 	// LatestHeight returns the latest height of the client. If no client is
 	// present for the provided client identifier a zero value height may be
