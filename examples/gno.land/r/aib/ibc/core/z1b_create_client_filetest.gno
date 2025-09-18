@@ -5,8 +5,8 @@ import (
 	"gno.land/r/aib/ibc/core"
 )
 
+// CreateClient w/ unhandled light client type
 func main() {
-	// CreateClient
 	core.CreateClient(cross, lightclient.Solomachine, nil, nil)
 }
 

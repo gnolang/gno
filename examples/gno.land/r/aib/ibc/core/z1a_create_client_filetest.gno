@@ -9,8 +9,8 @@ import (
 	"gno.land/r/aib/ibc/core/testing"
 )
 
+// CreateClient success
 func main() {
-	// CreateClient
 	var (
 		clientState    = testing.GenClientState("chain-id-2")
 		apphash        = sha256.Sum256([]byte("apphash"))
