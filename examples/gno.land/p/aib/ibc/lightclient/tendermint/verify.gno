@@ -23,24 +23,24 @@ func (tm *TMLightClient) verifyHeader(header *MsgHeader) error {
 
 	// UpdateClient only accepts updates with a header at the same revision
 	// as the trusted consensus state
-	// TODO deal with that
-	// if header.GetHeight().GetRevisionNumber() != header.TrustedHeight.RevisionNumber {
-	// if header.Header.Height != header.TrustedHeight.RevisionNumber {
-	// return ufmt.Errorf(
-	// "header height revision %d does not match trusted header revision %d",
-	// header.GetHeight().GetRevisionNumber(), header.TrustedHeight.RevisionNumber,
-	// )
-	// }
+	if header.GetHeight().RevisionNumber != header.TrustedHeight.RevisionNumber {
+		return ufmt.Errorf(
+			"header height revision %d does not match trusted header revision %d",
+			header.GetHeight().RevisionNumber, header.TrustedHeight.RevisionNumber,
+		)
+	}
 
 	// TODO remaining of verifyHeader
 
 	return nil
 }
 
-// checkTrustedHeader checks that consensus state matches trusted fields of Header
+// checkTrustedHeader checks that consensus state matches trusted fields of
+// Header
 func checkTrustedHeader(header *MsgHeader, consState *ConsensusState) error {
 	// assert that trustedVals is NextValidators of last trusted header
-	// to do this, we check that trustedVals.Hash() == consState.NextValidatorsHash
+	// to do this, we check that
+	// trustedVals.Hash() == consState.NextValidatorsHash
 	tvalHash := header.TrustedValidators.Hash()
 	if !bytes.Equal(consState.NextValidatorsHash, tvalHash) {
 		h1, h2 := hex.EncodeToString(consState.NextValidatorsHash), hex.EncodeToString(tvalHash)
