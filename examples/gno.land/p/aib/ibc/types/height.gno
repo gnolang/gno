@@ -37,6 +37,22 @@ func (h Height) GT(other Height) bool {
 	return h.Compare(other) == 1
 }
 
+// LTE Helper comparison function returns true if h <= other
+func (h Height) LTE(other Height) bool {
+	cmp := h.Compare(other)
+	return cmp <= 0
+}
+
+// LT Helper comparison function returns true if h < other
+func (h Height) LT(other Height) bool {
+	return h.Compare(other) == -1
+}
+
+// EQ Helper comparison function returns true if h == other
+func (h Height) EQ(other Height) bool {
+	return h.Compare(other) == 0
+}
+
 // IsZero returns true if height revision and revision-height are both 0
 func (h Height) IsZero() bool {
 	return h.RevisionNumber == 0 && h.RevisionHeight == 0
