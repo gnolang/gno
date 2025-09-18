@@ -109,11 +109,13 @@ project/
             └─ app_test.gno
 ```
 
-In this setup, the app package cannot use library as a dependency during local 
+In this setup, the `app` package cannot use `library` as a dependency during local 
 development. The tooling has no way of knowing that both live inside the same
-workspace.
+workspace - only dependencies usable are the ones found in `gnohome`, where the 
+tooling was initially installed.
 
-By adding a `gnowork.toml` file at the root, the tooling can properly link the packages together:
+By adding a `gnowork.toml` file at the root, Gno tooling can properly link the 
+packages together:
 
 ```text
 project/
@@ -129,17 +131,14 @@ project/
             └─ app_test.gno
 ```
 
-Packages that import other packages inside your workspace will use the local 
-versions, rather than attempting to download them from other sources, such as 
-a remote chain.
-
-<!-- TODO: add a way to configure dependency source hierarchy  -->
-
-There are no strict rules on project hierarchy for dependency resolution—you can
-freely move your packages around.
-
 At the moment, `gnowork.toml` does not have any configuration options and should be
 an empty file. In the future, workspace-level configuration options may be added to
 support more advanced use cases.
 
-`gnowork.toml` support is planned for `gnodev`, and `gnopls`.
+Gno tooling resolves dependencies by first using the packages available in your workspace.
+If a dependency cannot be found locally, it will then fall back to other sources,
+such as a remote chain.
+
+<!-- TODO: allow configuration of dependency source priority/hierarchy -->
+
+Note: `gnowork.toml` support is a work in progress for `gnodev` and `gnopls`.
