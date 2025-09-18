@@ -37,6 +37,8 @@ builds:
   - id: gnokey
     main: ./gno.land/cmd/gnokey
     binary: gnokey
+    ldflags:
+      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Version }}
     env:
       - CGO_ENABLED=0
     goos:

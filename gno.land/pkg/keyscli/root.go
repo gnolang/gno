@@ -50,6 +50,7 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 		client.NewQueryCmd(cfg, io),
 		client.NewBroadcastCmd(cfg, io),
 		client.NewMultisignCmd(cfg, io),
+		client.NewVersionCmd(cfg, io),
 
 		// Custom MakeTX command
 		NewMakeTxCmd(cfg, io),
@@ -84,7 +85,7 @@ func PrintTxInfo(tx std.Tx, res *ctypes.ResultBroadcastTxCommit, io commands.IO)
 	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
 }
 
-// GetStorageInfo searches events for StorageDepositEvent or StorageUnlockEvent and returns the bytes delta and coins delta.
+// GetStorageInfo searches events for StorageDepositEvent or StorageUnlockEvent and returns the bytes delta and coins delta. The coins delta omits RefundWithheld.
 func GetStorageInfo(events []abci.Event) (int64, std.Coins, bool) {
 	var (
 		bytesDelta int64
