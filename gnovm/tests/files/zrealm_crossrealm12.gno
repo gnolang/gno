@@ -24,9 +24,9 @@ func main(cur realm) {
 	for _, test := range tests {
 		r := test.fn()
 
-		if chain.DerivePkgAddr(r.PkgPath()) != r.Address() {
+		if chain.DerivePkgAddress(r.PkgPath()) != r.Address() {
 			panic(fmt.Sprintf("ERROR: expected: %v, got: %v",
-				chain.DerivePkgAddr(r.PkgPath()), r.Address(),
+				chain.DerivePkgAddress(r.PkgPath()), r.Address(),
 			))
 		}
 

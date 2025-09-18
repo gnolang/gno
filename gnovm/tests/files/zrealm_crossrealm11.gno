@@ -25,7 +25,7 @@ func main(cur realm) {
 	for _, caller := range []string{
 		"user1.gno", "gno.land/r/crossrealm", tests "gno.land/r/tests/vm",
 	} {
-		addr := chain.DerivePkgAddr(caller)
+		addr := chain.DerivePkgAddress(caller)
 		callersByAddr[addr] = caller
 	}
 
