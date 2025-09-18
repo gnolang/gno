@@ -5,12 +5,47 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 )
 
 type overlayFS struct {
+	dirs  map[string][]string
 	files map[string][]byte
 	root  string
+}
+
+func newOverlayFS(files map[string][]byte, root string) *overlayFS {
+	ofs := &overlayFS{files: files, root: root}
+	ofs.fillDirs()
+	return ofs
+}
+
+// ReadDir implements fs.ReadDirFS.
+func (o *overlayFS) ReadDir(name string) ([]fs.DirEntry, error) {
+	overlayName, err := o.overlayName(name)
+	if err != nil {
+		return nil, err
+	}
+	overlayEntries := o.dirs[overlayName]
+	osEntries, err := os.ReadDir(name)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	fsEntries := append([]fs.DirEntry{}, osEntries...)
+	for _, entryName := range overlayEntries {
+		osIdx := slices.IndexFunc(osEntries, func(entry os.DirEntry) bool {
+			return entry.Name() == name
+		})
+		_, entryIsDir := o.dirs[filepath.Join(name, entryName)]
+		entry := &overlayDirEntry{name: entryName, isDir: entryIsDir}
+		if osIdx == -1 {
+			fsEntries = append(fsEntries, entry)
+			continue
+		}
+		fsEntries[osIdx] = entry
+	}
+	return fsEntries, nil
 }
 
 // Stat implements fs.StatFS.
@@ -24,13 +59,9 @@ func (o *overlayFS) Stat(name string) (fs.FileInfo, error) {
 
 // Open implements fs.FS.
 func (o *overlayFS) Open(name string) (fs.File, error) {
-	overlayName := name
-	if filepath.IsAbs(overlayName) {
-		rel, err := filepath.Rel(o.root, name) // QUESTION: should use path lib or filepath lib?
-		if err != nil {
-			return nil, err
-		}
-		overlayName = rel
+	overlayName, err := o.overlayName(name)
+	if err != nil {
+		return nil, err
 	}
 	body, ok := o.files[overlayName]
 	if ok {
@@ -42,7 +73,41 @@ func (o *overlayFS) Open(name string) (fs.File, error) {
 	return os.Open(name)
 }
 
+func (ofs *overlayFS) fillDirs() {
+	ofs.dirs = map[string][]string{}
+
+	for file := range ofs.files {
+		var (
+			prefix = file
+			name   string
+		)
+		for prefix != "." {
+			prefix, name = filepath.Split(prefix) // QUESTION: should use path lib or filepath lib?
+			prefix = filepath.Clean(prefix)
+			if _, hasDir := ofs.dirs[prefix]; !hasDir {
+				ofs.dirs[prefix] = []string{}
+			}
+			if !slices.Contains(ofs.dirs[prefix], name) {
+				ofs.dirs[prefix] = append(ofs.dirs[prefix], name)
+			}
+		}
+	}
+}
+
+func (ofs *overlayFS) overlayName(name string) (string, error) {
+	overlayName := name
+	if filepath.IsAbs(overlayName) {
+		rel, err := filepath.Rel(ofs.root, name) // QUESTION: should use path lib or filepath lib?
+		if err != nil {
+			return "", err
+		}
+		overlayName = rel
+	}
+	return filepath.Clean(overlayName), nil
+}
+
 var _ fs.StatFS = (*overlayFS)(nil)
+var _ fs.ReadDirFS = (*overlayFS)(nil)
 
 type overlayFile struct {
 	buf  *bytes.Buffer
@@ -102,3 +167,30 @@ func (o *overlayFileInfo) Sys() any {
 }
 
 var _ fs.FileInfo = (*overlayFileInfo)(nil)
+
+type overlayDirEntry struct {
+	isDir bool
+	name  string
+}
+
+// Info implements fs.DirEntry.
+func (o *overlayDirEntry) Info() (fs.FileInfo, error) {
+	return &overlayFileInfo{isDir: true}, nil
+}
+
+// IsDir implements fs.DirEntry.
+func (o *overlayDirEntry) IsDir() bool {
+	return o.isDir
+}
+
+// Name implements fs.DirEntry.
+func (o *overlayDirEntry) Name() string {
+	return o.name
+}
+
+// Type implements fs.DirEntry.
+func (o *overlayDirEntry) Type() fs.FileMode {
+	panic("unimplemented")
+}
+
+var _ fs.DirEntry = (*overlayDirEntry)(nil)

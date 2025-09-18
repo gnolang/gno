@@ -154,7 +154,13 @@ func TestDataExpandPatterns(t *testing.T) {
 			}, {
 				Dir:   filepath.Join(cwd, "testdata", "workspace-1", "invalidpkg"),
 				Match: []string{"./..."},
+			}, {
+				Dir:   filepath.Join(cwd, "testdata", "workspace-1", "overlaypkg"),
+				Match: []string{"./..."},
 			}},
+			overlay: map[string][]byte{
+				"overlaypkg/gnomod.toml": []byte("module = \"gno.example.com/r/wspace1/overlaypkg\"\ngno = \"0.9\"\n"),
+			},
 		},
 		{
 			name:     "workspace-1-abs-root",
@@ -178,7 +184,13 @@ func TestDataExpandPatterns(t *testing.T) {
 			}, {
 				Dir:   filepath.Join(cwd, "testdata", "workspace-1", "invalidpkg"),
 				Match: []string{filepath.Join(cwd, "testdata", "workspace-1", "...")},
+			}, {
+				Dir:   filepath.Join(cwd, "testdata", "workspace-1", "overlaypkg"),
+				Match: []string{filepath.Join(cwd, "testdata", "workspace-1", "...")},
 			}},
+			overlay: map[string][]byte{
+				"overlaypkg/gnomod.toml": []byte("module = \"gno.example.com/r/wspace1/overlaypkg\"\ngno = \"0.9\"\n"),
+			},
 		},
 		{
 			name:     "workspace-2-root",
@@ -288,8 +300,9 @@ func TestDataExpandPatterns(t *testing.T) {
 			testChdir(t, workroot)
 
 			warn := &strings.Builder{}
+			ofs := newOverlayFS(tc.overlay, workroot)
 			// TODO: test single-package mode
-			res, err := expandPatterns(gnoRoot, &loaderContext{IsWorkspace: true, Root: workroot}, warn, &overlayFS{root: workroot, files: tc.overlay}, tc.patterns...)
+			res, err := expandPatterns(gnoRoot, &loaderContext{IsWorkspace: true, Root: workroot}, warn, ofs, tc.patterns...)
 			if tc.errShouldContain == "" {
 				require.NoError(t, err)
 			} else {
