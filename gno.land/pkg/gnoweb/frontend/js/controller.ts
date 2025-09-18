@@ -223,6 +223,13 @@ export abstract class BaseController {
 	// get the controller name
 	// eg. getControllerName() -> "Copy" (no Controller suffix) PascalCase
 	private getControllerName(): string {
+		// Use data-controller attribute for minified code
+		const controllerAttr = this.element.getAttribute("data-controller");
+		if (controllerAttr) {
+			return controllerAttr;
+		}
+
+		// Fallback to constructor name (for non-minified code)
 		const className = this.constructor.name;
 		return className
 			.replace(/^_/, "") // remove leading underscore
