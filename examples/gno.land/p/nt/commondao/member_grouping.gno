@@ -30,7 +30,8 @@ type (
 		Delete(name string) error
 
 		// IterateByOffset iterates all member groups.
-		IterateByOffset(offset, count int, fn MemberGroupIterFn)
+		// The callback can return true to stop iteration.
+		IterateByOffset(offset, count int, fn MemberGroupIterFn) (stopped bool)
 	}
 )
 
@@ -84,8 +85,8 @@ func (g *memberGrouping) Delete(name string) error {
 }
 
 // IterateByOffset iterates all member groups.
-func (g memberGrouping) IterateByOffset(offset, count int, fn MemberGroupIterFn) {
-	g.groups.IterateByOffset(offset, count, func(_ string, v any) bool {
+func (g memberGrouping) IterateByOffset(offset, count int, fn MemberGroupIterFn) bool {
+	return g.groups.IterateByOffset(offset, count, func(_ string, v any) bool {
 		return fn(v.(MemberGroup))
 	})
 }
@@ -142,12 +143,12 @@ func (g ReadonlyMemberGrouping) Get(name string) (_ *ReadonlyMemberGroup, found 
 }
 
 // IterateByOffset iterates all member groups.
-func (g ReadonlyMemberGrouping) IterateByOffset(offset, count int, fn func(*ReadonlyMemberGroup) bool) {
+func (g ReadonlyMemberGrouping) IterateByOffset(offset, count int, fn func(*ReadonlyMemberGroup) bool) bool {
 	if g.grouping == nil {
-		return
+		return false
 	}
 
-	g.grouping.IterateByOffset(offset, count, func(group MemberGroup) bool {
+	return g.grouping.IterateByOffset(offset, count, func(group MemberGroup) bool {
 		return fn(MustNewReadonlyMemberGroup(group))
 	})
 }

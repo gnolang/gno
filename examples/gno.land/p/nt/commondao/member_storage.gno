@@ -35,7 +35,7 @@ type (
 
 		// IterateByOffset iterates members starting at the given offset.
 		// The callback can return true to stop iteration.
-		IterateByOffset(offset, count int, fn MemberIterFn)
+		IterateByOffset(offset, count int, fn MemberIterFn) (stopped bool)
 	}
 )
 
@@ -66,8 +66,13 @@ func (s memberStorage) Grouping() MemberGrouping {
 
 // IterateByOffset iterates members starting at the given offset.
 // The callback can return true to stop iteration.
-func (s memberStorage) IterateByOffset(offset, count int, fn MemberIterFn) {
-	s.Set.IterateByOffset(offset, count, fn)
+func (s memberStorage) IterateByOffset(offset, count int, fn MemberIterFn) bool {
+	var stopped bool
+	s.Set.IterateByOffset(offset, count, func(member std.Address) bool {
+		stopped = fn(member)
+		return stopped
+	})
+	return stopped
 }
 
 // NewReadonlyMemberStorage creates a new readonly member storage.
@@ -122,10 +127,11 @@ func (s ReadonlyMemberStorage) Grouping() *ReadonlyMemberGrouping {
 
 // IterateByOffset iterates members starting at the given offset.
 // The callback can return true to stop iteration.
-func (s ReadonlyMemberStorage) IterateByOffset(offset, count int, fn MemberIterFn) {
+func (s ReadonlyMemberStorage) IterateByOffset(offset, count int, fn MemberIterFn) bool {
 	if s.storage != nil {
-		s.storage.IterateByOffset(offset, count, fn)
+		return s.storage.IterateByOffset(offset, count, fn)
 	}
+	return false
 }
 
 // CountStorageMembers returns the total number of members in the storage.
