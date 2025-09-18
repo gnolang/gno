@@ -64,7 +64,7 @@ func ProxyWrap(cur realm) {
 	}
 
 	// WRAP IT
-	wugnotAddr := chain.DerivePkgAddr("gno.land/r/gnoland/wugnot")
+	wugnotAddr := chain.DerivePkgAddress("gno.land/r/gnoland/wugnot")
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
 	banker_.SendCoins(runtime.CurrentRealm().Address(), wugnotAddr, banker.Coins{{"ugnot", int64(ugnotSent)}})
 	wugnot.Deposit(cross) // `proxywugnot` has ugnot

@@ -41,7 +41,7 @@ func TestValid(t *testing.T) {
 	}
 }
 
-func TestDerivePkgAddr(t *testing.T) {
+func TestDerivePkgAddress(t *testing.T) {
 	type test struct {
 		inputPath string
 		expected  string
@@ -53,7 +53,7 @@ func TestDerivePkgAddr(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		result := chain.DerivePkgAddr(tc.inputPath)
+		result := chain.DerivePkgAddress(tc.inputPath)
 		if result.String() != tc.expected {
 			t.Fatalf("Expected: %t, got: %t", tc.expected, result)
 		}

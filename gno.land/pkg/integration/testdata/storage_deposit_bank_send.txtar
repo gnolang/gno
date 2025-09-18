@@ -112,7 +112,7 @@ func Clear(cur realm) {
 	record = Foo{}
 }
 func PkgAddress(cur realm) string {
-	return string(chain.DerivePkgAddr("gno.land/r/foo"))
+	return string(chain.DerivePkgAddress("gno.land/r/foo"))
 }
 
 func StorageDepositAddress(cur realm) string {

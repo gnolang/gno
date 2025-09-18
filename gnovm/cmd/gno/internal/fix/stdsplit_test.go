@@ -297,7 +297,7 @@ type (
 	I int
 )
 
-func (S) String() { return string(std.DerivePkgAddr("123")) }
+func (S) String() { return string(std.DerivePkgAddress("123")) }
 func (I) String() { return std.RawAddressSize + 123 }`,
 			expected: `package main
 
@@ -308,7 +308,7 @@ type (
 	I int
 )
 
-func (S) String() { return string(chain.DerivePkgAddr("123")) }
+func (S) String() { return string(chain.DerivePkgAddress("123")) }
 func (I) String() { return 20 + 123 }`,
 		},
 		{
@@ -547,13 +547,13 @@ import (
 )
 func main() {
 	// Already using chain packages along with std
-	std.DerivePkgAddr("g1337")
+	std.DerivePkgAddress("g1337")
 	chain.Emit("event", "data")
 	runtime.CurrentRealm()
 
 	// These should be converted
 	std.AssertOriginCall()
-	std.DecodeBech32("g1337")
+	std.DerivePkgAddress("g1337")
 }`
 
 	expected := `package test
@@ -565,13 +565,13 @@ import (
 
 func main() {
 	// Already using chain packages along with std
-	chain.DerivePkgAddr("g1337")
+	chain.DerivePkgAddress("g1337")
 	chain.Emit("event", "data")
 	runtime.CurrentRealm()
 
 	// These should be converted
 	runtime.AssertOriginCall()
-	chain.DecodeBech32("g1337")
+	chain.DerivePkgAddress("g1337")
 }`
 
 	fset := token.NewFileSet()

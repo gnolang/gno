@@ -40,7 +40,7 @@ func (n *NativeFunc) HasMachineParam() bool {
 var nativeFuncs = [...]NativeFunc{
 	{
 		"chain",
-		"derivePkgAddr",
+		"derivePkgAddress",
 		[]gno.FieldTypeExpr{
 			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
 		},
@@ -59,7 +59,7 @@ var nativeFuncs = [...]NativeFunc{
 			tv0.DeepFill(m.Store)
 			gno.Gno2GoValue(tv0, rp0)
 
-			r0 := libs_chain.X_derivePkgAddr(p0)
+			r0 := libs_chain.X_derivePkgAddress(p0)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -1245,7 +1245,6 @@ var initOrder = [...]string{
 	"bytes",
 	"strings",
 	"bufio",
-	"crypto/bech32",
 	"chain",
 	"chain/runtime",
 	"math/overflow",
@@ -1254,6 +1253,7 @@ var initOrder = [...]string{
 	"strconv",
 	"chain/banker",
 	"chain/params",
+	"crypto/bech32",
 	"encoding/binary",
 	"crypto/chacha20/chacha",
 	"crypto/cipher",
