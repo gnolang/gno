@@ -86,7 +86,7 @@ declare const process: { env: { NODE_ENV: string } };
 		});
 
 		if (process.env.NODE_ENV === "development")
-			console.log(`✅ Loaded: ${controllerName} (${path})`);
+			console.log(`✅ js - Loaded: ${controllerName} (${path})`);
 	};
 
 	// Collect controllers once and pass elements directly
@@ -191,10 +191,6 @@ declare const process: { env: { NODE_ENV: string } };
 			attributes: true,
 			attributeFilter: ["data-controller"],
 		});
-
-		if (process.env.NODE_ENV === "development") {
-			console.log("👀 controllers observer started");
-		}
 	};
 
 	// Init modules and start observer after DOMContentLoaded
