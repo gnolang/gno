@@ -31,13 +31,14 @@ func init() {
 
 func main() {
 	err := dao.Execute(proposal.ID())
+	if err != nil {
+		panic(err)
+	}
 
-	println(err == nil)
 	println(string(proposal.Status()))
 	println(proposal.StatusReason())
 }
 
 // Output:
-// true
 // failed
 // test error
