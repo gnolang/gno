@@ -3,6 +3,8 @@ package boards2
 import (
 	"errors"
 	"std"
+
+	"gno.land/r/sys/users"
 )
 
 // validateBoardCreate validates PermissionBoardCreate.
@@ -121,6 +123,23 @@ func validateRoleChange(perms Permissions, args Args) error {
 				return errors.New("admins are not allowed to remove the Owner role")
 			}
 		}
+	}
+	return nil
+}
+
+func checkBoardNameIsNotAddress(s string) error {
+	if std.Address(s).IsValid() {
+		return errors.New("addresses are not allowed as board name")
+	}
+	return nil
+}
+
+func checkBoardNameBelongsToAddress(owner std.Address, name string) error {
+	// When the board name is the name of a registered user
+	// check that caller is the owner of the name.
+	user, _ := users.ResolveName(name)
+	if user != nil && user.Addr() != owner {
+		return errors.New("board name is a user name registered to a different user")
 	}
 	return nil
 }
