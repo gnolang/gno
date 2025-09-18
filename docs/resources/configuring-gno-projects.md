@@ -87,7 +87,7 @@ private = true
 Note that this example isn't realistic because we should either replace,
 configure addpkg settings, or do neither, but never both at the same time.
 
-## Workspaces with `gnowork.toml
+## Workspaces with `gnowork.toml`
 
 Adding a `gnowork.toml` file to the root of your workspace allows Gno tooling to 
 better understand your local environment and resolve dependencies between packages.
@@ -113,7 +113,7 @@ In this setup, the app package cannot use library as a dependency during local
 development. The tooling has no way of knowing that both live inside the same
 workspace.
 
-By adding a `gnowork.toml` file at the root, the tooling can properly link the modules together:
+By adding a `gnowork.toml` file at the root, the tooling can properly link the packages together:
 
 ```text
 project/
