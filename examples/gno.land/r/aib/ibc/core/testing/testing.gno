@@ -65,7 +65,7 @@ func GenMsgHeader(chainID string, timestamp time.Time, apphash []byte,
 				App:   1, //NOTE no idea what to put there, sounds unused
 			},
 			ChainID: chainID,
-			Height:  int64(height.RevisionHeight),
+			Height:  height.RevisionHeight,
 			Time:    timestamp,
 			LastBlockID: tendermint.BlockID{
 				Hash: blockhash[:],
@@ -85,7 +85,7 @@ func GenMsgHeader(chainID string, timestamp time.Time, apphash []byte,
 			ProposerAddress:    GenAddr("proposer"),
 		},
 		Commit: &tendermint.Commit{
-			Height: int64(height.RevisionHeight),
+			Height: height.RevisionHeight,
 			Round:  1,
 			BlockID: tendermint.BlockID{
 				Hash: blockhash[:],

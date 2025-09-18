@@ -1,6 +1,7 @@
 package tendermint
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
@@ -68,14 +69,9 @@ func (h MsgHeader) ValidateBasic() error {
 	if h.ValidatorSet == nil {
 		return ufmt.Errorf("validator set is nil")
 	}
-	// TODO deal with that
-	// tmValset, err := cmttypes.ValidatorSetFromProto(h.ValidatorSet)
-	// if err != nil {
-	// return ufmt.Errorf("validator set is not tendermint validator set")
-	// }
-	// if !bytes.Equal(h.Header.ValidatorsHash, tmValset.Hash()) {
-	// return ufmt.Errorf("validator set does not match hash")
-	// }
+	if !bytes.Equal(h.Header.ValidatorsHash, h.ValidatorSet.Hash()) {
+		return ufmt.Errorf("validator set does not match hash")
+	}
 	return nil
 }
 
@@ -86,7 +82,7 @@ func (h MsgHeader) GetHeight() types.Height {
 	revision := ParseChainID(h.Header.ChainID)
 	return types.Height{
 		RevisionNumber: revision,
-		RevisionHeight: uint64(h.Header.Height),
+		RevisionHeight: h.Header.Height,
 	}
 }
 
@@ -136,7 +132,7 @@ type Header struct {
 	// basic block info
 	Version Consensus `json:"version"`
 	ChainID string    `json:"chain_id,omitempty"`
-	Height  int64     `json:"height,omitempty"`
+	Height  uint64    `json:"height,omitempty"`
 	Time    time.Time `json:"time"`
 	// prev block info
 	LastBlockID BlockID `json:"last_block_id"`
@@ -236,7 +232,7 @@ func (h *Header) Hash() []byte {
 
 // Commit contains the evidence that a block was committed by a set of validators.
 type Commit struct {
-	Height     int64       `json:"height,omitempty"`
+	Height     uint64      `json:"height,omitempty"`
 	Round      int32       `json:"round,omitempty"`
 	BlockID    BlockID     `json:"block_id"`
 	Signatures []CommitSig `json:"signatures"`
