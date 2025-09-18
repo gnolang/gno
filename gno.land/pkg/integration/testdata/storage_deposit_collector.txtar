@@ -83,31 +83,25 @@ stdout 'storage: 3800, deposit: 380000'
 -- run/load_user.gno --
 package main
 
-import (
-	i "gno.land/r/gov/dao/v3/init"
-	"std"
-)
+import i "gno.land/r/gov/dao/v3/init"
 
 func main() {
-	i.InitWithUsers(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	i.InitWithUsers(address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
-
 -- run/propose_collector.gno --
 package main
 
 import (
-	"std"
 	"gno.land/r/gov/dao"
 	"gno.land/r/sys/params"
 )
 
 func main() {
-	storage_collector := std.Address("g1x5zmkv7gws200q887ahhvztvh833d5wpej3f52")
+	storage_collector := address("g1x5zmkv7gws200q887ahhvztvh833d5wpej3f52")
 	pr := params.NewSysParamStringPropRequest("vm", "p", "storage_fee_collector", storage_collector.String())
 	pid := dao.MustCreateProposal(cross, pr)
 	println(pid.String())
 }
-
 -- bytesbank/gnomod.toml --
 module = "gno.land/r/bytesbank"
 gno = "0.9"
@@ -115,38 +109,36 @@ gno = "0.9"
 -- bytesbank/bytesbank.gno --
 package bytesbank
 
-import (
-  "std"
-)
+import "chain/runtime"
 
 type unspent struct {
-  dst std.Address
-  load []byte
+	dst  address
+	load []byte
 }
 
 var unspents []*unspent
 
-func Credit(cur realm, dst std.Address, size int) int {
-  unspents = append(unspents, &unspent{
-    dst: dst,
-    load: make([]byte, size), // lock storage deposit
-  })
-  return len(unspents)-1
+func Credit(cur realm, dst address, size int) int {
+	unspents = append(unspents, &unspent{
+		dst:  dst,
+		load: make([]byte, size), // lock storage deposit
+	})
+	return len(unspents) - 1
 }
 
 func Debit(cur realm, idx int) {
-  if len(unspents) <= idx {
-    panic("no such index")
-  }
+	if len(unspents) <= idx {
+		panic("no such index")
+	}
 
-  u := unspents[idx]
-  if u == nil {
-    panic("already spent")
-  }
+	u := unspents[idx]
+	if u == nil {
+		panic("already spent")
+	}
 
-  if std.PreviousRealm().Address() != u.dst {
-    panic("not for you")
-  }
-  
-  unspents[idx] = nil // reclaim storage deposit
+	if runtime.PreviousRealm().Address() != u.dst {
+		panic("not for you")
+	}
+
+	unspents[idx] = nil // reclaim storage deposit
 }
