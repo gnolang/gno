@@ -22,7 +22,7 @@ func init() {
 
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
-	dao = commondao.New("Foo")
+	dao = commondao.New(cross, "Foo")
 	dao.Members().Add(user)
 
 	options := commondao.GetOptions(dao.ID())
@@ -50,6 +50,6 @@ func main() {
 // true
 // true
 // true
-// 2009-02-20 23:31:30 +0000 UTC m=+1235172690.000000001
+// 2009-02-20 23:31:30 +0000 UTC
 // **DAO:**
 // [Foo](/r/nt/commondao:2)

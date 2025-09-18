@@ -383,7 +383,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 
 	// call sysNamesPkg.IsAuthorizedAddressForName("<user>")
 	// We only need to check by name here, as addresses have already been checked
-	mpv := gno.NewPackageNode("main", "main", nil).NewPackage()
+	mpv := gno.NewPackageNode("main", "main", nil).NewPackage(m.Alloc)
 	m.SetActivePackage(mpv)
 	m.RunDeclaration(gno.ImportD("names", sysNamesPkg))
 	x := gno.Call(
@@ -452,7 +452,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if _, ok := gno.IsGnoRunPath(pkgPath); ok {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
-
 	opts := gno.TypeCheckOptions{
 		Getter:     gnostore,
 		TestGetter: vm.testStdlibCache.memPackageGetter(gnostore),
@@ -568,7 +567,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// Make main Package with imports.
 	mpn := gno.NewPackageNode("main", "", nil)
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
-	mpv := mpn.NewPackage()
+	mpv := mpn.NewPackage(gnostore.GetAllocator())
 	// Parse expression.
 	argslist := ""
 	for i := range msg.Args {
@@ -707,8 +706,8 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 	}
 	*e = errors.Wrapf(
 		fmt.Errorf("%v", r),
-		"VM panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
-		r, m.String(), m.Stacktrace().String(),
+		"VM panic: %v\nStacktrace:\n%s\n",
+		r, m.Stacktrace().String(),
 	)
 }
 
@@ -772,6 +771,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	buf := new(bytes.Buffer)
 	output := io.Writer(buf)
 
+	alloc := gnostore.GetAllocator()
 	// Run as self-executing closure to have own function for doRecover / m.Release defers.
 	pv := func() *gno.PackageValue {
 		// Parse and run the files, construct *PV.
@@ -783,7 +783,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 				PkgPath:  "",
 				Output:   output,
 				Store:    gnostore,
-				Alloc:    gnostore.GetAllocator(),
+				Alloc:    alloc,
 				Context:  msgCtx,
 				GasMeter: ctx.GasMeter(),
 			})
@@ -803,7 +803,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 			PkgPath:  "",
 			Output:   output,
 			Store:    gnostore,
-			Alloc:    gnostore.GetAllocator(),
+			Alloc:    alloc,
 			Context:  msgCtx,
 			GasMeter: ctx.GasMeter(),
 		})
@@ -1146,14 +1146,11 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			}
 			depositAmt -= requiredDeposit
 			// Emit event for storage deposit lock
-			d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}}
-			evt := gnostd.GnoEvent{
-				Type: "StorageDeposit",
-				Attributes: []gnostd.GnoEventAttribute{
-					{Key: "Deposit", Value: d.String()},
-					{Key: "Storage", Value: fmt.Sprintf("%d bytes", diff)},
-				},
-				PkgPath: rlmPath,
+			d := std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}
+			evt := gnostd.StorageDepositEvent{
+				BytesDelta: diff,
+				FeeDelta:   d,
+				PkgPath:    rlmPath,
 			}
 			ctx.EventLogger().EmitEvent(evt)
 		} else {
@@ -1171,19 +1168,25 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 					rlmPath, rlm.Deposit, ugnot.Denom, depositUnlocked, ugnot.Denom))
 			}
 
-			err := vm.refundStorageDeposit(ctx, caller, rlm, depositUnlocked, released)
+			isRestricted := slices.Contains(vm.bank.RestrictedDenoms(ctx), ugnot.Denom)
+			receiver := caller
+			if isRestricted {
+				// If gnot tokens are locked, sent them to the storageFeeCollector address
+				// If unlocked, sent them to memory releaser
+				receiver = params.StorageFeeCollector
+			}
+
+			err := vm.refundStorageDeposit(ctx, receiver, rlm, depositUnlocked, released)
 			if err != nil {
 				return err
 			}
-			// Emit event for deposit return
-			d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}}
-			evt := gnostd.GnoEvent{
-				Type: "UnlockDeposit",
-				Attributes: []gnostd.GnoEventAttribute{
-					{Key: "Deposit", Value: d.String()},
-					{Key: "ReleaseStorage", Value: fmt.Sprintf("%d bytes", released)},
-				},
-				PkgPath: rlmPath,
+			d := std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}
+			evt := gnostd.StorageUnlockEvent{
+				// For unlock, BytesDelta is negative
+				BytesDelta:     diff,
+				FeeRefund:      d,
+				PkgPath:        rlmPath,
+				RefundWithheld: isRestricted,
 			}
 			ctx.EventLogger().EmitEvent(evt)
 		}
@@ -1210,10 +1213,11 @@ func (vm *VMKeeper) lockStorageDeposit(ctx sdk.Context, caller crypto.Address, r
 	return nil
 }
 
-func (vm *VMKeeper) refundStorageDeposit(ctx sdk.Context, caller crypto.Address, rlm *gno.Realm, depositUnlocked int64, released int64) error {
+func (vm *VMKeeper) refundStorageDeposit(ctx sdk.Context, refundReceiver crypto.Address, rlm *gno.Realm, depositUnlocked int64, released int64) error {
 	storageDepositAddr := gno.DeriveStorageDepositCryptoAddr(rlm.Path)
 	d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}}
-	err := vm.bank.SendCoinsUnrestricted(ctx, storageDepositAddr, caller, d)
+
+	err := vm.bank.SendCoinsUnrestricted(ctx, storageDepositAddr, refundReceiver, d)
 	if err != nil {
 		return fmt.Errorf("unable to return deposit %s, %w", rlm.Path, err)
 	}

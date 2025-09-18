@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/demo/testutils"
 	pdao "gno.land/p/nt/commondao"
+	"gno.land/p/nt/testutils"
 
 	"gno.land/r/nt/commondao"
 )
@@ -42,7 +42,7 @@ func init() {
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(std.NewUserRealm(user1))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
-	dao = commondao.New("Foo")
+	dao = commondao.New(cross, "Foo")
 
 	// Configure DAO
 	dao.Members().Add(user1)

@@ -21,13 +21,13 @@ func init() {
 
 	// Create a DAO
 	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/nt/commondao"))
-	daoID = commondao.New("Foo").ID()
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
+	daoID = commondao.New(cross, "Foo").ID()
 }
 
 func main() {
 	// Use a caller that is not the owner of the DAO
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/tests/vm"))
 
 	commondao.Get(daoID)
 }

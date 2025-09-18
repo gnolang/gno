@@ -2,7 +2,7 @@
 package test
 
 import (
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 type A struct {
