@@ -59,6 +59,31 @@ type memberStorage struct {
 	grouping MemberGrouping
 }
 
+// Size returns the number of members in the storage.
+// The result is the number of members within the base underlying storage,
+// grouped members are not included, they must be counted separately.
+func (s memberStorage) Size() int {
+	return s.Set.Size()
+}
+
+// Has checks if a member exists in the storage.
+// Member is also searched within all defined member groups.
+func (s memberStorage) Has(member std.Address) bool {
+	// Check underlying member address storage
+	if s.Set.Has(member) {
+		return true
+	}
+
+	if s.grouping == nil {
+		return false
+	}
+
+	// Check groups when member is not found in underlying storage
+	return s.grouping.IterateByOffset(0, s.grouping.Size(), func(g MemberGroup) bool {
+		return g.Members().Has(member)
+	})
+}
+
 // Grouping returns member groups.
 func (s memberStorage) Grouping() MemberGrouping {
 	return s.grouping
