@@ -37,6 +37,11 @@ func (h Height) GT(other Height) bool {
 	return h.Compare(other) == 1
 }
 
+// IsZero returns true if height revision and revision-height are both 0
+func (h Height) IsZero() bool {
+	return h.RevisionNumber == 0 && h.RevisionHeight == 0
+}
+
 // Compare implements a method to compare two heights. When comparing two heights a, b
 // we can call a.Compare(b) which will return
 // -1 if a < b

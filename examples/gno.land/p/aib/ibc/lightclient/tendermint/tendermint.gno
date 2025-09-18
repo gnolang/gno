@@ -2,6 +2,7 @@ package tendermint
 
 import (
 	"errors"
+	"time"
 
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/types"
@@ -94,9 +95,21 @@ func (tm *TMLightClient) VerifyNonMembership(clientID string, height types.Heigh
 }
 
 // Implements lightclient.LightClientModule
-func (tm *TMLightClient) Status(clientID string) lightclient.Status {
-	// TODO
-	return lightclient.Unknown
+func (tm *TMLightClient) Status() lightclient.Status {
+	if !tm.ClientState.FrozenHeight.IsZero() {
+		return lightclient.Frozen
+	}
+	// get latest consensus state to check for expiry
+	lastConsState, found := tm.GetConsensusState(tm.LatestHeight())
+	if !found {
+		// if the client state does not have an associated consensus state for its
+		// latest height then it must be expired
+		return lightclient.Expired
+	}
+	if tm.IsExpired(lastConsState.Timestamp, time.Now()) {
+		return lightclient.Expired
+	}
+	return lightclient.Active
 }
 
 // Implements lightclient.LightClientModule
@@ -122,4 +135,20 @@ func (tm *TMLightClient) VerifyUpgradeAndUpdateState(clientID string,
 	upgradeConsensusStateProof []byte) error {
 	// TODO
 	return nil
+}
+
+// GetConsensusState returns the consensus state mapped at height, if any.
+func (tm *TMLightClient) GetConsensusState(height types.Height) (*ConsensusState, bool) {
+	x, found := tm.ConsensusStateByHeight.Get(height.String())
+	if !found {
+		return nil, false
+	}
+	return x.(*ConsensusState), true
+}
+
+// IsExpired returns whether or not the client has passed the trusting period
+// since the last update (in which case no headers are considered valid).
+func (tm *TMLightClient) IsExpired(latestTimestamp, now time.Time) bool {
+	expirationTime := latestTimestamp.Add(tm.ClientState.TrustingPeriod)
+	return !expirationTime.After(now)
 }
