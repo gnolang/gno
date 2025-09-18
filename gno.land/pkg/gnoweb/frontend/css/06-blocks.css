@@ -619,7 +619,8 @@
 	border-radius: var(--s-rounded-sm);
 	border: var(--s-border);
 	padding: var(--g-space-1) var(--g-space-2);
-	gap: var(--g-space-2);
+	gap: var(--g-space-1-5);
+	cursor: pointer;
 
 	&:hover {
 		background-color: var(--s-color-bg-surface-primary-hover);
@@ -636,6 +637,7 @@
 
 .b-inline-btn {
 	color: var(--s-color-text-tertiary);
+	cursor: pointer;
 
 	&:hover {
 		color: var(--s-color-text-tertiary-hover);
