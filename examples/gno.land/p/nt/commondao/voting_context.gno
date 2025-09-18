@@ -1,6 +1,11 @@
 package commondao
 
-import "errors"
+import (
+	"errors"
+	"std"
+
+	"gno.land/p/nt/avl"
+)
 
 // VotingContext contains current voting context, which includes a voting
 // record for the votes that has been submitted for a proposal and also
@@ -34,4 +39,33 @@ func MustNewVotingContext(r *VotingRecord, s MemberStorage) VotingContext {
 		panic(err)
 	}
 	return ctx
+}
+
+// CollectVotes returns an AVL tree containing votes of members from one or more groups.
+// Returned tree uses member account address as key and `commondao.Vote` as value.
+func CollectVotes(ctx VotingContext, groups ...string) (avl.Tree, error) {
+	if len(groups) == 0 {
+		return avl.Tree{}, errors.New("one or more group names are required to collect votes")
+	}
+
+	var (
+		votes    avl.Tree
+		grouping = ctx.Members.Grouping()
+	)
+
+	for _, name := range groups {
+		group, found := grouping.Get(name)
+		if !found {
+			return avl.Tree{}, errors.New("member group not found: " + name)
+		}
+
+		group.Members().IterateByOffset(0, group.Members().Size(), func(member std.Address) bool {
+			v, found := ctx.VotingRecord.GetVote(member)
+			if found {
+				votes.Set(member.String(), v)
+			}
+			return false
+		})
+	}
+	return votes, nil
 }
