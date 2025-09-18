@@ -12,11 +12,10 @@ func (tm *TMLightClient) verifyHeader(header *MsgHeader) error {
 		return ufmt.Errorf("header validate: %v", err)
 	}
 	// Retrieve trusted consensus states for trusted height
-	x, found := tm.ConsensusStateByHeight.Get(header.TrustedHeight.String())
+	consState, found := tm.GetConsensusState(header.TrustedHeight)
 	if !found {
 		return ufmt.Errorf("could not get trusted consensus state for Header at TrustedHeight: %s", header.TrustedHeight.String())
 	}
-	consState := x.(*ConsensusState)
 
 	if err := checkTrustedHeader(header, consState); err != nil {
 		return err
