@@ -10,6 +10,11 @@ type PackageFetcher interface {
 	FetchPackage(pkgPath string) ([]*std.MemFile, error)
 }
 
+type RPCPackageFetcher interface {
+	PackageFetcher
+	OverrideDomainsRPCs(map[string]string)
+}
+
 func NewNoopFetcher() PackageFetcher {
 	return &noopFetcher{}
 }
