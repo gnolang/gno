@@ -51,7 +51,7 @@ type GnoAccount struct {
 }
 
 // validFlags defines the set of all valid flags that can be used with BitSet.
-var validFlags = flagTokenLockWhitelisted | flagValidatorAccount | flagRealmAccount | flagFrozen
+const validFlags = flagTokenLockWhitelisted | flagValidatorAccount | flagRealmAccount | flagFrozen
 
 func (ga *GnoAccount) setFlag(flag BitSet) {
 	if !isValidFlag(flag) {
