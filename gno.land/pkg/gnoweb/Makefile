@@ -35,6 +35,9 @@ output_static := $(patsubst $(src_dir_static)/%, $(out_dir_static)/%, $(input_st
 src_dir_js := frontend/js
 out_dir_js := $(PUBLIC_DIR)/js
 input_js := $(shell find $(src_dir_js) -name '*.ts')
+# Separate shared and controller files
+shared_js := $(src_dir_js)/controller.ts
+controller_js := $(filter-out $(shared_js),$(input_js))
 output_js := $(patsubst $(src_dir_js)/%.ts,$(out_dir_js)/%.js,$(input_js))
 
 # cache
@@ -80,8 +83,14 @@ $(output_maincss): $(main_css_files) $(templates_files) $(postcss)
 	touch $@
 
 ts: $(esbuild) $(output_js)
-$(out_dir_js)/%.js: $(src_dir_js)/%.ts
-	NODE_ENV=production $(esbuild) $< --log-level=error --bundle --outdir=$(out_dir_js) --format=esm --define:process.env.NODE_ENV="\"production\"" --splitting --minify
+
+# Build shared chunk first (always loaded)
+$(out_dir_js)/controller.js: $(shared_js) $(esbuild)
+	NODE_ENV=production $(esbuild) $< --log-level=error --bundle --outfile=$@ --format=esm --define:process.env.NODE_ENV="\"production\"" --minify
+
+# Build controller files with shared chunk reference
+$(out_dir_js)/%.js: $(src_dir_js)/%.ts $(out_dir_js)/controller.js
+	NODE_ENV=production $(esbuild) $< --log-level=error --bundle --outdir=$(out_dir_js) --format=esm --define:process.env.NODE_ENV="\"production\"" --minify --external:./controller.js
 
 # Rule to copy static files while preserving directory structure
 static: $(output_static)
@@ -114,7 +123,7 @@ dev.maincss: generate | $(PUBLIC_DIR)
 
 # TS in development mode
 dev.ts: $(esbuild) generate | $(PUBLIC_DIR)
-	NODE_ENV=development $(esbuild) $(input_js) --bundle --outdir=$(out_dir_js) --sourcemap --define:process.env.NODE_ENV="\"development\"" --format=esm --splitting --watch \
+	NODE_ENV=development $(esbuild) $(input_js) --bundle --outdir=$(out_dir_js) --sourcemap --define:process.env.NODE_ENV="\"development\"" --format=esm --watch \
 		2>&1 | $(logname) esbuild
 
 # Install node modules deps located in ./tools

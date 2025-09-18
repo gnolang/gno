@@ -1,6 +1,9 @@
-import { BaseController } from "./controller.js";
+import {
+	BaseController,
+	debounce,
+	escapeShellSpecialChars,
+} from "./controller.js";
 import type { ActionMode } from "./controller-action-header.js";
-import { debounce, escapeShellSpecialChars } from "./utils.js";
 
 export class ActionFunctionController extends BaseController {
 	protected sendValue: string | null = null;

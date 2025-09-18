@@ -3,6 +3,8 @@ import {
 	findFirstInclusive,
 	toCamelCase,
 	toKebabCase,
+	debounce,
+	escapeShellSpecialChars,
 } from "./utils.js";
 
 export abstract class BaseController {
@@ -227,3 +229,13 @@ export abstract class BaseController {
 			.replace(/Controller$/, ""); // remove Controller suffix
 	}
 }
+
+// Re-export utilities for convenience
+export {
+	debounce,
+	escapeShellSpecialChars,
+	findAllInclusive,
+	findFirstInclusive,
+	toCamelCase,
+	toKebabCase,
+};

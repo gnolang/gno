@@ -1,5 +1,4 @@
-import { BaseController } from "./controller.js";
-import { debounce } from "./utils.js";
+import { BaseController, debounce } from "./controller.js";
 
 type ListItem = {
 	element: HTMLElement;
