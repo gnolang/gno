@@ -87,14 +87,59 @@ private = true
 Note that this example isn't realistic because we should either replace,
 configure addpkg settings, or do neither, but never both at the same time.
 
-## `gnowork.toml`
+## Workspaces with `gnowork.toml
 
-`gnomod.toml` is fine for working on a single package but when you want to work on multiple packages depending on each other, you will need a `gnowork.toml`.
+Adding a `gnowork.toml` file to the root of your workspace allows Gno tooling to 
+better understand your local environment and resolve dependencies between packages.
+This is especially useful during local development and testing with tools like 
+`gno test` & `gno lint`. 
 
-For now it is only used to delimit your workspace root and is empty. So in most cases, just `touch gnowork.toml` at your project root and you're good to go.
+Consider the following project structure:
 
-Packages that import other packages present in your workspace will use the ones present in your workspace instead of attempting to download them.
+```text
+project/
+    ├─ p/
+    │   └─ library/
+    │       ├─ gnomod.toml
+    │       └─ lib.gno
+    └─ r/
+        └─ app/
+            ├─ gnomod.toml
+            ├─ app.gno
+            └─ app_test.gno
+```
 
-There is no rules on the project hierarchy for dependencies resolution, so you can freely move your packages around.
+In this setup, the app package cannot use library as a dependency during local 
+development. The tooling has no way of knowing that both live inside the same
+workspace.
 
-Packages in directories that contain other `gnowork.toml`s down your hierarchy will be ignored.
+By adding a `gnowork.toml` file at the root, the tooling can properly link the modules together:
+
+```text
+project/
+    ├─ gnowork.toml
+    ├─ p/
+    │   └─ library/
+    │       ├─ gnomod.toml
+    │       └─ lib.gno
+    └─ r/
+        └─ app/
+            ├─ gnomod.toml
+            ├─ app.gno
+            └─ app_test.gno
+```
+
+Packages that import other packages inside your workspace will use the local 
+versions, rather than attempting to download them from other sources, such as 
+a remote chain.
+
+<!-- TODO: add a way to configure dependency source hierarchy  -->
+
+There are no strict rules on project hierarchy for dependency resolution—you can
+freely move your packages around.
+
+At the moment, `gnowork.toml` does not have any configuration options and should be
+an empty file. In the future, workspace-level configuration options may be added to
+support more advanced use cases.
+
+`gnowork.toml` support is planned for `gnodev`, and `gnopls`.
