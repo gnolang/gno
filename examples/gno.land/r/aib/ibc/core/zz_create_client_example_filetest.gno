@@ -13,21 +13,27 @@ import (
 func main() {
 	// CreateClient
 	var (
+		chainID      = "chain-id-2"  // TODO update
+		latestHeight = types.Height{ // TODO update
+			RevisionNumber: 2,
+			RevisionHeight: 100,
+		}
 		clientState = tendermint.ClientState{
-			ChainId:                      "chain-id-2",
+			ChainId:                      chainID,
 			TrustLevel:                   tendermint.Fraction{2, 3},
-			UnbondingPeriod:              time.Hour * 3,
-			TrustingPeriod:               time.Hour,
-			MaxClockDrift:                time.Hour,
-			LatestHeight:                 types.Height{2, 100},
+			UnbondingPeriod:              time.Hour * 3, // TODO update
+			TrustingPeriod:               time.Hour,     // TODO update
+			MaxClockDrift:                time.Hour,     // TODO update
+			LatestHeight:                 latestHeight,
 			ProofSpecs:                   types.GetSDKProofSpecs(),
 			AllowUpdateAfterExpiry:       false,
 			AllowUpdateAfterMisbehaviour: false,
 		}
-		apphash        = sha256.Sum256([]byte("apphash"))
-		valhash        = sha256.Sum256([]byte("validators"))
+		apphash        = sha256.Sum256([]byte("apphash"))    // TODO update
+		valhash        = sha256.Sum256([]byte("validators")) // TODO update
+		timestamp      = time.Now()                          // TODO update
 		consensusState = tendermint.ConsensusState{
-			Timestamp:          time.Now(),
+			Timestamp:          timestamp,
 			Root:               tendermint.MerkleRoot{Hash: apphash[:]},
 			NextValidatorsHash: valhash[:],
 		}
