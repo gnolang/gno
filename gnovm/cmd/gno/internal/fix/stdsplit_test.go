@@ -297,7 +297,7 @@ type (
 	I int
 )
 
-func (S) String() { return string(std.DerivePkgAddress("123")) }
+func (S) String() { return string(std.DerivePkgAddr("123")) }
 func (I) String() { return std.RawAddressSize + 123 }`,
 			expected: `package main
 
@@ -547,13 +547,13 @@ import (
 )
 func main() {
 	// Already using chain packages along with std
-	std.DerivePkgAddress("g1337")
+	std.DerivePkgAddr("g1337")
 	chain.Emit("event", "data")
 	runtime.CurrentRealm()
 
 	// These should be converted
 	std.AssertOriginCall()
-	std.DerivePkgAddress("g1337")
+	std.DerivePkgAddr("g1337")
 }`
 
 	expected := `package test
