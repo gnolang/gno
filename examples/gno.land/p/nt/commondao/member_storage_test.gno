@@ -87,5 +87,6 @@ func TestCountStorageMembers(t *testing.T) {
 
 	g.Members().Add("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // Add a member that exists in other group
 
-	uassert.Equal(t, 4, commondao.CountStorageMembers(storage))
+	s := commondao.MustNewReadonlyMemberStorage(storage)
+	uassert.Equal(t, 4, commondao.CountStorageMembers(s))
 }

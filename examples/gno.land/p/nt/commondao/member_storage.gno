@@ -130,13 +130,13 @@ func (s ReadonlyMemberStorage) IterateByOffset(offset, count int, fn MemberIterF
 
 // CountStorageMembers returns the total number of members in the storage.
 // It counts all members in each group and the ones without group.
-func CountStorageMembers(s MemberStorage) int {
+func CountStorageMembers(s *ReadonlyMemberStorage) int {
 	if s == nil {
 		return 0
 	}
 
 	c := s.Size()
-	s.Grouping().IterateByOffset(0, s.Grouping().Size(), func(g MemberGroup) bool {
+	s.Grouping().IterateByOffset(0, s.Grouping().Size(), func(g *ReadonlyMemberGroup) bool {
 		c += g.Members().Size()
 		return false
 	})
