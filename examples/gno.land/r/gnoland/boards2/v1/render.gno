@@ -2,6 +2,7 @@ package boards2
 
 import (
 	"net/url"
+	"std"
 	"strconv"
 	"strings"
 	"time"
@@ -82,7 +83,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 
 	render := func(_ string, v any) bool {
 		board := v.(*Board)
-		userLink := md.UserLink(board.Creator.String())
+		userLink := userLink(board.Creator)
 		date := board.CreatedAt().Format(dateFormat)
 
 		res.Write(md.Bold(md.Link(board.Name, makeBoardURI(board))) + "  \n")
@@ -303,7 +304,7 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 		}
 
 		table.Append([]string{
-			md.UserLink(u.Address.String()),
+			userLink(u.Address),
 			rolesToString(u.Roles),
 			strings.Join(actions, " • "),
 		})
@@ -359,7 +360,7 @@ func renderInvites(res *mux.ResponseWriter, req *mux.Request) {
 		}
 
 		table.Append([]string{
-			md.UserLink(addr),
+			userLink(std.Address(addr)),
 			v.(time.Time).Format(dateFormat),
 			strings.Join(actions, " • "),
 		})
@@ -403,7 +404,7 @@ func renderBannedUsers(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.H3("These users have been banned from the board"))
 	banned.ReverseIterateByOffset(p.Offset(), p.PageSize(), func(addr string, v any) bool {
 		table.Append([]string{
-			md.UserLink(addr),
+			userLink(std.Address(addr)),
 			v.(time.Time).Format(dateFormat),
 			md.Link("unban", gRealmLink.Call(
 				"Unban",

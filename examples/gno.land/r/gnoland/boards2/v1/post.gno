@@ -181,7 +181,7 @@ func (post *Post) RenderSummary() string {
 		b             strings.Builder
 		postURI       = makeThreadURI(post)
 		threadSummary = summaryOf(post.Title, 80)
-		creatorLink   = md.UserLink(post.Creator.String())
+		creatorLink   = userLink(post.Creator)
 		date          = post.CreatedAt().Format(dateFormat)
 	)
 
@@ -260,7 +260,7 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels i
 		sb.WriteString(indent)
 	}
 
-	creatorLink := md.UserLink(post.Creator.String())
+	creatorLink := userLink(post.Creator)
 	date := post.CreatedAt().Format(dateFormat)
 	sb.WriteString("Created by " + creatorLink + " on " + date)
 
