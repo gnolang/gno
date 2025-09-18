@@ -10,6 +10,7 @@ import (
 	"gno.land/r/aib/ibc/core/testing"
 )
 
+// UpdateClient success
 func main() {
 	// CreateClient and RegisterCounterparty
 	var (
@@ -19,10 +20,10 @@ func main() {
 		valset         = testing.GenValset()
 		consensusState = testing.GenConsensusState(time.Now(), apphash[:], valset.Hash())
 	)
-	clientID1 := core.CreateClient(cross, lightclient.Tendermint, clientState, consensusState)
-	core.RegisterCounterparty(cross, clientID1, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "counter-party-id")
+	clientID := core.CreateClient(cross, lightclient.Tendermint, clientState, consensusState)
+	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "counter-party-id")
 
-	// Update clientID1
+	// Update clientID
 	var (
 		newHeight     = types.Height{2, 5}
 		newTimestamp  = consensusState.Timestamp.Add(time.Minute)
@@ -32,7 +33,7 @@ func main() {
 			newHeight, clientState.LatestHeight, valset, trustedValset,
 		)
 	)
-	core.UpdateClient(cross, clientID1, msgHeader)
+	core.UpdateClient(cross, clientID, msgHeader)
 
 	println("----------- assert render clients")
 	println(core.Render("clients"))
