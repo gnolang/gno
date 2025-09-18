@@ -289,7 +289,7 @@ func TestDataExpandPatterns(t *testing.T) {
 
 			warn := &strings.Builder{}
 			// TODO: test single-package mode
-			res, err := expandPatterns(gnoRoot, &loaderContext{IsWorkspace: true, Root: workroot}, warn, os.DirFS("/"), tc.patterns...)
+			res, err := expandPatterns(gnoRoot, &loaderContext{IsWorkspace: true, Root: workroot}, warn, &overlayFS{root: workroot, files: tc.overlay}, tc.patterns...)
 			if tc.errShouldContain == "" {
 				require.NoError(t, err)
 			} else {

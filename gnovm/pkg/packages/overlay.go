@@ -3,19 +3,23 @@ package packages
 import (
 	"bytes"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"time"
 )
 
 type overlayFS struct {
 	files map[string][]byte
-	base  fs.FS
 	root  string
 }
 
-// ReadDir implements fs.ReadDirFS.
-func (o *overlayFS) ReadDir(name string) ([]fs.DirEntry, error) {
-	panic("ReadDir unimplemented")
+// Stat implements fs.StatFS.
+func (o *overlayFS) Stat(name string) (fs.FileInfo, error) {
+	f, err := o.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	return f.Stat()
 }
 
 // Open implements fs.FS.
@@ -35,10 +39,10 @@ func (o *overlayFS) Open(name string) (fs.File, error) {
 			size: int64(len(body)),
 		}, nil
 	}
-	return o.base.Open(name)
+	return os.Open(name)
 }
 
-var _ fs.ReadDirFS = (*overlayFS)(nil)
+var _ fs.StatFS = (*overlayFS)(nil)
 
 type overlayFile struct {
 	buf  *bytes.Buffer
