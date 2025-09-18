@@ -207,6 +207,118 @@ func TestAdd_Base_Add(t *testing.T) {
 		// Make sure the key is not overwritten
 		assert.Equal(t, original.GetAddress(), newKey.GetAddress())
 	})
+
+	t.Run("valid key addition, provided mnemonic with masked flag", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			kbHome      = t.TempDir()
+			baseOptions = BaseOptions{
+				InsecurePasswordStdin: false, // Not using insecure mode
+				Home:                  kbHome,
+			}
+
+			keyName  = "key-name"
+			mnemonic = "equip will roof matter pink blind book anxiety banner elbow sun young"
+		)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		// Create base IO
+		baseIO := commands.NewTestIO()
+		var outBuf, errBuf bytes.Buffer
+		baseIO.SetOut(commands.WriteNopCloser(&outBuf))
+		baseIO.SetErr(commands.WriteNopCloser(&errBuf))
+
+		// Create mock IO that handles all password calls
+		// The order is: encryption password, repeat password, then mnemonic
+		mockIO := &mockPasswordIO{
+			IO:        baseIO,
+			passwords: []string{"test1234", "test1234", mnemonic},
+		}
+
+		// Create the command
+		cmd := NewRootCmdWithBaseConfig(mockIO, baseOptions)
+
+		args := []string{
+			"add",
+			"--home",
+			kbHome,
+			"--recover",
+			"--masked",
+			keyName,
+		}
+
+		// This uses our mock GetPassword for all password inputs
+		require.NoError(t, cmd.ParseAndRun(ctx, args))
+
+		// Check the keybase
+		kb, err := keys.NewKeyBaseFromDir(kbHome)
+		require.NoError(t, err)
+
+		key, err := kb.GetByName(keyName)
+		require.NoError(t, err)
+		require.NotNil(t, key)
+
+		// Verify the key was created correctly
+		assert.NotNil(t, key)
+	})
+
+	t.Run("valid key addition, entropy with masked flag", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			kbHome      = t.TempDir()
+			baseOptions = BaseOptions{
+				InsecurePasswordStdin: false, // Not using insecure mode
+				Home:                  kbHome,
+			}
+
+			keyName = "entropy-key"
+			entropy = "this is test entropy that is long enough to meet the minimum requirement"
+		)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		// Create base IO
+		baseIO := commands.NewTestIO()
+		var outBuf, errBuf bytes.Buffer
+		baseIO.SetOut(commands.WriteNopCloser(&outBuf))
+		baseIO.SetErr(commands.WriteNopCloser(&errBuf))
+
+		// Create mock that handles password input for entropy
+		// Order: encryption password, repeat password, entropy
+		mockIO := &mockPasswordIO{
+			IO:        baseIO,
+			passwords: []string{"test1234", "test1234", entropy},
+		}
+		// For confirmation prompt after entropy
+		mockIO.SetIn(strings.NewReader("y\n"))
+
+		// Create the command
+		cmd := NewRootCmdWithBaseConfig(mockIO, baseOptions)
+
+		args := []string{
+			"add",
+			"--home",
+			kbHome,
+			"--entropy",
+			"--masked",
+			keyName,
+		}
+
+		require.NoError(t, cmd.ParseAndRun(ctx, args))
+
+		// Check the keybase
+		kb, err := keys.NewKeyBaseFromDir(kbHome)
+		require.NoError(t, err)
+
+		key, err := kb.GetByName(keyName)
+		require.NoError(t, err)
+		require.NotNil(t, key)
+	})
 }
 
 func generateDerivationPaths(count int) []string {

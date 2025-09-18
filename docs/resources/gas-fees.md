@@ -45,12 +45,12 @@ You will be charged the gas fee you specified.
 
 Here are some recommended gas values for common operations:
 
-| Operation | Recommended Gas Wanted | Typical Gas Fee |
-|-----------|------------------------|----------------|
-| Simple transfer | 100,000 | 1000000ugnot |
-| Calling a realm function | 2,000,000 | 1000000ugnot |
-| Deploying a small package | 5,000,000 | 1000000ugnot |
-| Deploying a complex realm | 10,000,000+ | 1000000ugnot |
+| Operation                 | Recommended Gas Wanted | Typical Gas Fee |
+| ------------------------- | ---------------------- | --------------- |
+| Simple transfer           | 100,000                | 1000000ugnot    |
+| Calling a realm function  | 2,000,000              | 1000000ugnot    |
+| Deploying a small package | 5,000,000              | 1000000ugnot    |
+| Deploying a complex realm | 10,000,000+            | 1000000ugnot    |
 
 These values may vary based on network conditions and the specific
 implementation of your code.
@@ -77,7 +77,7 @@ You will see output similar to the following:
 ```
 GAS WANTED: 2000000
 GAS USED:   268994
-INFO:       estimated gas usage: 268994, gas fee: 282ugnot, current gas price: 1000gas/1ugnot
+INFO:       estimated gas usage: 268994, gas fee: 282ugnot, current gas price: 1ugnot/1000gas
 ```
 You can then use the estimated gas as the -gas-wanted and -gas-fee values in your
 actual transaction.
