@@ -134,7 +134,7 @@ func (bank BankKeeper) canSendCoins(ctx sdk.Context, addr crypto.Address, amt st
 	if amt.ContainOneOfDenom(toSet(rds)) {
 		acc := bank.acck.GetAccount(ctx, addr)
 		accr, ok := acc.(std.AccountUnrestricter)
-		if ok && accr.IsUnrestricted() {
+		if ok && accr.IsTokenLockWhitelisted() {
 			return true
 		}
 		return false
