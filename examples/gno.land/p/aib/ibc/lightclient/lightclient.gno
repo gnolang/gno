@@ -49,7 +49,7 @@ type LightClientModule interface {
 	// client module is responsible for setting any client-specific data in the
 	// store. This includes the client state, initial consensus state and any
 	// associated metadata.
-	Initialize(clientState, consensusState any) error
+	Initialize(ClientState, ConsensusState) error
 
 	// VerifyClientMessage must verify a ClientMessage. A ClientMessage could be
 	// a Header, Misbehaviour, or batch update.  It must handle each type of
@@ -57,21 +57,21 @@ type LightClientModule interface {
 	// and UpdateStateOnMisbehaviour will assume that the content of the
 	// ClientMessage has been verified and can be trusted. An error should be
 	// returned if the ClientMessage fails to verify.
-	VerifyClientMessage(clientMsg any) error
+	VerifyClientMessage(ClientMessage) error
 
 	// Checks for evidence of a misbehaviour in Header or Misbehaviour type. It
 	// assumes the ClientMessage has already been verified.
-	CheckForMisbehaviour(clientID string, clientMsg any) bool
+	CheckForMisbehaviour(clientID string, clientMsg ClientMessage) bool
 
 	// UpdateStateOnMisbehaviour should perform appropriate state changes on a
 	// client state given that misbehaviour has been detected and verified
-	UpdateStateOnMisbehaviour(clientID string, clientMsg any)
+	UpdateStateOnMisbehaviour(clientID string, clientMsg ClientMessage)
 
 	// UpdateState updates and stores as necessary any associated information for
 	// an IBC client, such as the ClientState and corresponding ConsensusState.
 	// Upon successful update, a list of consensus heights is returned. It
 	// assumes the ClientMessage has already been verified.
-	UpdateState(clientMsg any) []types.Height
+	UpdateState(clientMsg ClientMessage) []types.Height
 
 	// VerifyMembership is a generic proof verification method which verifies a
 	// proof of the existence of a value at a given CommitmentPath at the
@@ -116,4 +116,24 @@ type LightClientModule interface {
 	// upgraded client and consensus states must be set in the client store.
 	VerifyUpgradeAndUpdateState(clientID string, newClient []byte,
 		newConsState []byte, upgradeClientProof, upgradeConsensusStateProof []byte) error
+}
+
+// ClientState defines the required common functions for light clients.
+type ClientState interface {
+	ClientType() string
+	Validate() error
+}
+
+// ConsensusState is the state of the consensus process
+type ConsensusState interface {
+	ClientType() string // Consensus kind
+	Validate() error
+}
+
+// ClientMessage is an interface used to update an IBC client.
+// The update may be done by a single header, a batch of headers, misbehaviour,
+// or any type which when verified produces a change to state of the IBC client
+type ClientMessage interface {
+	ClientType() string
+	Validate() error
 }

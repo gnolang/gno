@@ -1,10 +1,12 @@
 package tendermint_test
 
 import (
+	"crypto/sha256"
 	"strings"
 	"testing"
 	"time"
 
+	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/lightclient/tendermint"
 	"gno.land/p/aib/ibc/types"
 )
@@ -127,6 +129,10 @@ func TestClientStateValidate(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			if lightclient.Tendermint != tc.clientState.ClientType() {
+				t.Fatal("client type is not tendermint")
+			}
+
 			err := tc.clientState.Validate()
 
 			if tc.expErr == "" && err != nil {
@@ -135,6 +141,92 @@ func TestClientStateValidate(t *testing.T) {
 			}
 			if tc.expErr != "" && !strings.Contains(err.Error(), tc.expErr) {
 				t.Errorf("expected error %s, got %s", tc.expErr, err)
+			}
+		})
+	}
+}
+
+func TestConsensusStateValidate(t *testing.T) {
+	var (
+		now      = time.Now()
+		valshash = sha256.Sum256([]byte("valhash"))
+	)
+	testCases := []struct {
+		msg            string
+		consensusState *tendermint.ConsensusState
+		expectPass     bool
+	}{
+		{
+			"success",
+			&tendermint.ConsensusState{
+				Timestamp:          now,
+				Root:               tendermint.NewMerkleRoot([]byte("app_hash")),
+				NextValidatorsHash: valshash[:],
+			},
+			true,
+		},
+		{
+			"success with sentinel",
+			&tendermint.ConsensusState{
+				Timestamp:          now,
+				Root:               tendermint.NewMerkleRoot([]byte(tendermint.SentinelRoot)),
+				NextValidatorsHash: valshash[:],
+			},
+			true,
+		},
+		{
+			"root is nil",
+			&tendermint.ConsensusState{
+				Timestamp:          now,
+				Root:               tendermint.MerkleRoot{},
+				NextValidatorsHash: valshash[:],
+			},
+			false,
+		},
+		{
+			"root is empty",
+			&tendermint.ConsensusState{
+				Timestamp:          now,
+				Root:               tendermint.MerkleRoot{},
+				NextValidatorsHash: valshash[:],
+			},
+			false,
+		},
+		{
+			"nextvalshash is invalid",
+			&tendermint.ConsensusState{
+				Timestamp:          now,
+				Root:               tendermint.NewMerkleRoot([]byte("app_hash")),
+				NextValidatorsHash: []byte("hi"),
+			},
+			false,
+		},
+
+		{
+			"timestamp is zero",
+			&tendermint.ConsensusState{
+				Timestamp:          time.Time{},
+				Root:               tendermint.NewMerkleRoot([]byte("app_hash")),
+				NextValidatorsHash: valshash[:],
+			},
+			false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.msg, func(t *testing.T) {
+			if lightclient.Tendermint != tc.consensusState.ClientType() {
+				t.Fatal("client type is not tendermint")
+			}
+
+			err := tc.consensusState.Validate()
+
+			if tc.expectPass && err != nil {
+				t.Errorf("expected pass but got error %s", err)
+				return
+			}
+			if !tc.expectPass && err == nil {
+				t.Errorf("expected fail but got not error")
 			}
 		})
 	}

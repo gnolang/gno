@@ -17,7 +17,7 @@ type TMLightClient struct {
 var _ lightclient.LightClientModule = (*TMLightClient)(nil)
 
 // Implements lightclient.LightClientModule
-func (tm *TMLightClient) Initialize(clientState, consensusState any) error {
+func (tm *TMLightClient) Initialize(clientState lightclient.ClientState, consensusState lightclient.ConsensusState) error {
 	cs := clientState.(ClientState)
 	if err := cs.Validate(); err != nil {
 		return err
@@ -32,7 +32,7 @@ func (tm *TMLightClient) Initialize(clientState, consensusState any) error {
 }
 
 // Implements lightclient.LightClientModule
-func (tm *TMLightClient) VerifyClientMessage(clientMsg any) error {
+func (tm *TMLightClient) VerifyClientMessage(clientMsg lightclient.ClientMessage) error {
 	switch msg := clientMsg.(type) {
 	case *MsgHeader:
 		return tm.verifyHeader(msg)
@@ -44,18 +44,18 @@ func (tm *TMLightClient) VerifyClientMessage(clientMsg any) error {
 }
 
 // Implements lightclient.LightClientModule
-func (tm *TMLightClient) CheckForMisbehaviour(clientID string, clientMsg any) bool {
+func (tm *TMLightClient) CheckForMisbehaviour(clientID string, clientMsg lightclient.ClientMessage) bool {
 	// TODO
 	return false
 }
 
 // Implements lightclient.LightClientModule
-func (tm *TMLightClient) UpdateStateOnMisbehaviour(clientID string, clientMsg any) {
+func (tm *TMLightClient) UpdateStateOnMisbehaviour(clientID string, clientMsg lightclient.ClientMessage) {
 	// TODO
 }
 
 // Implements lightclient.LightClientModule
-func (tm *TMLightClient) UpdateState(clientMsg any) []types.Height {
+func (tm *TMLightClient) UpdateState(clientMsg lightclient.ClientMessage) []types.Height {
 	msg := clientMsg.(*MsgHeader)
 	// check for duplicate update
 	msgHeight := msg.GetHeight()
@@ -70,7 +70,7 @@ func (tm *TMLightClient) UpdateState(clientMsg any) []types.Height {
 	// Build and store new consensus state from clientMsg
 	consState := &ConsensusState{
 		Timestamp:          msg.Header.Time,
-		Root:               MerkleRoot{Hash: msg.Header.AppHash},
+		Root:               NewMerkleRoot(msg.Header.AppHash),
 		NextValidatorsHash: msg.Header.NextValidatorsHash,
 	}
 	tm.ConsensusStateByHeight.Set(msgHeight.String(), consState)

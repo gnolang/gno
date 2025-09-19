@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"time"
 
-	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/r/aib/ibc/core"
 	"gno.land/r/aib/ibc/core/testing"
 )
@@ -20,7 +19,7 @@ func main() {
 	// consensusState.Timestamp is older than now + clientState.TrustingPeriod
 	consensusState.Timestamp = time.Now().Add(-clientState.TrustingPeriod)
 
-	core.CreateClient(cross, lightclient.Tendermint, clientState, consensusState)
+	core.CreateClient(cross, clientState, consensusState)
 }
 
 // Error:

@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"time"
 
-	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/r/aib/ibc/core"
 	"gno.land/r/aib/ibc/core/testing"
 )
@@ -18,9 +17,9 @@ func main() {
 		consensusState = testing.GenConsensusState(time.Now(), apphash[:], valset.Hash())
 	)
 
-	clientID1 := core.CreateClient(cross, lightclient.Tendermint, clientState, consensusState)
+	clientID1 := core.CreateClient(cross, clientState, consensusState)
 	println("CreateClient", clientID1)
-	clientID2 := core.CreateClient(cross, lightclient.Tendermint, clientState, consensusState)
+	clientID2 := core.CreateClient(cross, clientState, consensusState)
 	println("CreateClient", clientID2)
 
 	// RegisterCounterparty on clientID1

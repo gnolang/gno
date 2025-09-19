@@ -7,6 +7,7 @@ import (
 	"errors"
 	"time"
 
+	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/types"
 	"gno.land/p/nt/ufmt"
 )
@@ -31,11 +32,15 @@ type MsgHeader struct {
 	TrustedValidators *ValidatorSet `json:"trusted_validators,omitempty"`
 }
 
-// ValidateBasic calls the SignedHeader ValidateBasic function and checks
-// that validatorsets are not nil.
+// Implements lightclient.ClientMessage
+func (*MsgHeader) ClientType() string {
+	return lightclient.Tendermint
+}
+
+// Implements lightclient.ClientMessage
 // NOTE: TrustedHeight and TrustedValidators may be empty when creating client
 // with MsgCreateClient
-func (h MsgHeader) ValidateBasic() error {
+func (h *MsgHeader) Validate() error {
 	if h.Header == nil {
 		return ufmt.Errorf("missing header")
 	}
@@ -88,6 +93,17 @@ func (h MsgHeader) GetHeight() types.Height {
 type Misbehaviour struct {
 	Header1 *MsgHeader `json:"header_1,omitempty"`
 	Header2 *MsgHeader `json:"header_2,omitempty"`
+}
+
+// Implements lightclient.ClientMessage
+func (Misbehaviour) ClientType() string {
+	return lightclient.Tendermint
+}
+
+// Implements lightclient.ClientMessage
+func (m Misbehaviour) Validate() error {
+	// TODO
+	return nil
 }
 
 type ValidatorSet struct {
