@@ -43,3 +43,22 @@ func SetObject(cur realm, x any) {
 func GetObject() any {
 	return Object
 }
+
+// ---------------------------------------------------------
+var allowedList = []int{1, 2}
+
+type NoopMutator struct{}
+
+func (nm *NoopMutator) Mutate() {
+	allowedList = append(allowedList, 3)
+}
+
+func Passthrough() {
+	var nm = &NoopMutator{}
+	crossrealm.SetMutator(cross, nm)
+	crossrealm.DoMutate()
+}
+
+func Render() {
+	println(allowedList)
+}

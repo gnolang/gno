@@ -33,15 +33,8 @@ func main(cur realm) {
 
 	crossrealm.SetObject(cross, p) // saved in crossrealm.
 
-	p.Mutate()
+	p.Mutate() // cross into current realm where method Mutate is declared
 }
 
-// Note: 1. p and s are stored in `crossrealm`, so no borrow to `borrow_test`.
-//       2. the `CurrentRealm` and `PreviousRealm` are `borrow_test`
-//          and the origin user realm. which means the borrowed realm
-//          is excluded from CurrentRealm and PreviousRealm.
-
-// Output:
-// s.A: 101
-// current realm:  CodeRealm{ g1mdevzlw3defhhew53zsky80lhqnk94ew8grqdt, gno.land/r/borrow }
-// previous realm:  UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
+// Error:
+// invalid call: p<VPBlock(1,2)>.Mutate(), method realm: RIDC459C7103CD5303D426ED1E6E642FFFCFFD55F7C does not match receiver realm: RIDA7E973C6AEAB1F1CB747D0903CB1E4D369226376
