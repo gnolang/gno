@@ -18,8 +18,11 @@ type client struct {
 
 // CreateClient generates a new client identifier and invokes the associated
 // light client module in order to initialize the client.
-func CreateClient(cur realm, clientType string, clientState, consensusState any) string {
-	c := store.addClient(clientType, std.OriginCaller())
+func CreateClient(cur realm, clientState lightclient.ClientState, consensusState lightclient.ConsensusState) string {
+	if clientState.ClientType() != consensusState.ClientType() {
+		panic("client type for client state and consensus state do not match")
+	}
+	c := store.addClient(clientState.ClientType(), std.OriginCaller())
 	err := c.lightClient.Initialize(clientState, consensusState)
 	if err != nil {
 		panic(err)
@@ -49,10 +52,13 @@ func RegisterCounterparty(cur realm, clientID string, counterpartyMerklePrefix [
 // UpdateClient will update the given IBC v2 light client with a new header.
 // Can also be used to submit a misbehavior (clientMessage can be a header or
 // a misbehavior, maybe split into 2 functions would make more sense here).
-func UpdateClient(cur realm, clientID string, clientMessage any) {
+func UpdateClient(cur realm, clientID string, clientMessage lightclient.ClientMessage) {
 	c := store.getClient(clientID)
 	if c == nil {
 		panic(ufmt.Sprintf("client %s not found", clientID))
+	}
+	if c.typ != clientMessage.ClientType() {
+		panic("client type for client state and client message do not match")
 	}
 	if status := c.lightClient.Status(); status != lightclient.Active {
 		panic(ufmt.Sprintf("cannot update client (%s) with status %s", c.id, status))
