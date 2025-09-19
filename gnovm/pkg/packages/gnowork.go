@@ -15,6 +15,9 @@ type Gnowork struct {
 }
 
 func (gw *Gnowork) rpcOverrides() map[string]string {
+	if gw == nil {
+		return nil
+	}
 	res := map[string]string{}
 	for domainName, domain := range gw.Domains {
 		if domain.RPC == "" {
