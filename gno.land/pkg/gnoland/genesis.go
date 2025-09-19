@@ -252,12 +252,11 @@ func DefaultGenState() GnoGenesisState {
 	authGen.Params.InitialGasPrice = gp
 
 	gs := GnoGenesisState{
-		Balances: []Balance{},
-		Txs:      []TxWithMetadata{},
-		Auth:     authGen,
-		Bank:     bank.DefaultGenesisState(),
-		VM:       vmm.DefaultGenesisState(),
+		Auth: authGen,
+		Bank: bank.DefaultGenesisState(),
+		VM:   vmm.DefaultGenesisState(),
 	}
+	gs.Bank.Params.RestrictedDenoms = nil
 	return gs
 }
 
