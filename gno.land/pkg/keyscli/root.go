@@ -80,9 +80,9 @@ func PrintTxInfo(tx std.Tx, res *ctypes.ResultBroadcastTxCommit, io commands.IO)
 		if tx.Fee.GasFee.Denom == storageFee.Denom {
 			total := tx.Fee.GasFee.Amount + storageFee.Amount
 			io.Printfln("TOTAL TX COST:  %d%v", total, tx.Fee.GasFee.Denom)
+		} else {
+			io.Printfln("TOTAL TX COST:  %d%v", total, tx.Fee.GasFee.Denom)
 		}
-
-		io.Printfln("TOTAL TX COST:  %d%v", total, tx.Fee.GasFee.Denom)
 	}
 	io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
 	io.Println("INFO:      ", res.DeliverTx.Info)
