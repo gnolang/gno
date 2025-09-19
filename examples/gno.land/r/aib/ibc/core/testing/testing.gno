@@ -11,11 +11,11 @@ import (
 func GenClientState(chainID string) tendermint.ClientState {
 	return tendermint.ClientState{
 		ChainId:                      chainID,
-		TrustLevel:                   tendermint.Fraction{2, 3},
+		TrustLevel:                   tendermint.DefaultTrustLevel,
 		UnbondingPeriod:              time.Hour * 3,
 		TrustingPeriod:               time.Hour,
 		MaxClockDrift:                time.Hour,
-		LatestHeight:                 types.Height{2, 1},
+		LatestHeight:                 types.NewHeight(2, 1),
 		ProofSpecs:                   types.GetSDKProofSpecs(),
 		AllowUpdateAfterExpiry:       false,
 		AllowUpdateAfterMisbehaviour: false,
