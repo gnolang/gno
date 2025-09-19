@@ -142,3 +142,9 @@ such as a remote chain.
 <!-- TODO: allow configuration of dependency source priority/hierarchy -->
 
 Note: `gnowork.toml` support is a work in progress for `gnodev` and `gnopls`.
+
+#### Cleaning the dependency cache
+
+Once downloaded, dependencies live locally under `$GNOHOME/pkg/mod`. They can be
+fully deleted with the `gno clean -modcache` command, so that newer versions can 
+be downloaded later.
