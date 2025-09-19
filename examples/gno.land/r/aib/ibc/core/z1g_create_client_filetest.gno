@@ -1,0 +1,43 @@
+package main
+
+import (
+	"crypto/sha256"
+	stdtesting "testing"
+	"time"
+
+	"gno.land/r/aib/ibc/core"
+	"gno.land/r/aib/ibc/core/testing"
+)
+
+// CreateClient and RegisterCounterparty have different signer
+func main() {
+	var (
+		clientState    = testing.GenClientState("chain-id-2")
+		apphash        = sha256.Sum256([]byte("apphash"))
+		valset         = testing.GenValset()
+		consensusState = testing.GenConsensusState(time.Now(), apphash[:], valset.Hash())
+	)
+
+	clientID1 := core.CreateClient(cross, clientState, consensusState)
+	println("CreateClient", clientID1)
+	clientID2 := core.CreateClient(cross, clientState, consensusState)
+	println("CreateClient", clientID2)
+
+	// Change OriginCaller for the call to RegisterCounterparty
+	ctx := stdtesting.GetContext()
+	ctx.OriginCaller = "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsx"
+	stdtesting.SetContext(ctx)
+
+	// RegisterCounterparty on clientID1
+	core.RegisterCounterparty(cross, clientID1, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "counter-party-id")
+
+	println("\n----------- assert render clients")
+	println(core.Render("clients"))
+	println("----------- assert render clients/unknown")
+	println(core.Render("clients/unknown"))
+	println("\n----------- assert render clients/07-tendermint-1")
+	println(core.Render("clients/" + clientID1))
+}
+
+// Error:
+// expected same signer as CreateClient submittor g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm, got g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsx
