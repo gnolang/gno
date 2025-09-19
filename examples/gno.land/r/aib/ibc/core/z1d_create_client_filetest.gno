@@ -1,0 +1,27 @@
+package main
+
+import (
+	"crypto/sha256"
+	"time"
+
+	"gno.land/p/aib/ibc/lightclient"
+	"gno.land/p/aib/ibc/types"
+	"gno.land/r/aib/ibc/core"
+	"gno.land/r/aib/ibc/core/testing"
+)
+
+// CreateClient with Status Frozen
+func main() {
+	var (
+		clientState    = testing.GenClientState("chain-id-2")
+		apphash        = sha256.Sum256([]byte("apphash"))
+		valset         = testing.GenValset()
+		consensusState = testing.GenConsensusState(time.Now(), apphash[:], valset.Hash())
+	)
+	clientState.FrozenHeight = types.Height{2, 1}
+
+	core.CreateClient(cross, lightclient.Tendermint, clientState, consensusState)
+}
+
+// Error:
+// cannot create client (07-tendermint-1) with status Frozen
