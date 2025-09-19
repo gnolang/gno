@@ -1,11 +1,9 @@
 package main
 
-import "std"
-
 func main() {
-	println(std.RawAddressSize)
+	println(20)
 	name := "test1"
-	if len(name) > std.RawAddressSize {
+	if len(name) > 20 {
 		panic("should not happen")
 	}
 	println("done")

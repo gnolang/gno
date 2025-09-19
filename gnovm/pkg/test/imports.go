@@ -276,13 +276,11 @@ func loadStdlib(
 		// Normal stdlib path.
 		stdlibLocation(rootDir, pkgPath),
 	}
-	var mPkgType gno.MemPackageType
+	mPkgType := gno.MPStdlibProd
 	if testing {
 		// Override path. Definitions here override the previous if duplicate.
 		dirs = append(dirs, testStdlibLocation(rootDir, pkgPath))
 		mPkgType = gno.MPStdlibTest
-	} else {
-		mPkgType = gno.MPStdlibProd
 	}
 	files := make([]string, 0, 32) // pre-alloc 32 as a likely high number of files
 	for _, path := range dirs {

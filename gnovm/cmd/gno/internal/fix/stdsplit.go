@@ -33,11 +33,11 @@ var splitFuncs map[string]splitFunc
 
 func makeSplitFuncs() {
 	splitFuncs = map[string]splitFunc{
-		"std.Address":       newSplitFunc("chain.Address"),
-		"std.Emit":          newSplitFunc("chain.Emit"),
-		"std.EncodeBech32":  newSplitFunc("chain.EncodeBech32"),
-		"std.DecodeBech32":  newSplitFunc("chain.DecodeBech32"),
-		"std.DerivePkgAddr": newSplitFunc("chain.DerivePkgAddr"),
+		// chain.Address & std.Address are converted separately to `address`
+		// std.{Encode,Decode}Bech32 are removed and should be manually converted
+		"std.Emit":            newSplitFunc("chain.Emit"),
+		"std.DerivePkgAddr":   newSplitFunc("chain.DerivePkgAddress"),
+		"chain.DerivePkgAddr": newSplitFunc("chain.DerivePkgAddress"),
 
 		"std.AssertOriginCall": newSplitFunc("chain/runtime.AssertOriginCall"),
 		"std.PreviousRealm":    newSplitFunc("chain/runtime.PreviousRealm"),
@@ -128,7 +128,16 @@ func stdsplit(f *ast.File) (fixed bool) {
 				}
 				ip := importPath(def)
 				joined := ip + "." + n.Sel.Name
-				if joined == "std.RawAddressSize" {
+				switch joined {
+				case "chain.Address", "std.Address":
+					// Replace both with simple `address`.
+					c.Replace(&ast.Ident{
+						NamePos: n.Pos(),
+						Name:    "address",
+					})
+					fixed = true
+					return false
+				case "std.RawAddressSize":
 					// Special case: this no longer exists, but provide a simple
 					// replacement as a direct literal.
 					c.Replace(&ast.BasicLit{
@@ -136,6 +145,23 @@ func stdsplit(f *ast.File) (fixed bool) {
 						Kind:     token.INT,
 						Value:    "20",
 					})
+					fixed = true
+					return false
+				case "std.RawAddress":
+					// Special case: this no longer exists, substitute with a [20]byte.
+					c.Replace(&ast.ArrayType{
+						Lbrack: n.Pos(),
+						Len: &ast.BasicLit{
+							ValuePos: n.Pos() + 1,
+							Kind:     token.INT,
+							Value:    "20",
+						},
+						Elt: &ast.Ident{
+							NamePos: n.Pos() + 2,
+							Name:    "byte",
+						},
+					})
+					fixed = true
 					return false
 				}
 				target, ok := splitFuncs[joined]
