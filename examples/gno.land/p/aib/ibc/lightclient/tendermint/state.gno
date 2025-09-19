@@ -45,10 +45,36 @@ type ClientState struct {
 	AllowUpdateAfterMisbehaviour bool `json:"allow_update_after_misbehaviour,omitempty"` // Deprecated: Do not use.
 }
 
+func NewClientState(chainID string, trustLevel Fraction,
+	trustingPeriod, ubdPeriod, maxClockDrift time.Duration,
+	latestHeight types.Height, specs []*types.ProofSpec, upgradePath []string) *ClientState {
+	return &ClientState{
+		ChainId:         chainID,
+		TrustLevel:      trustLevel,
+		TrustingPeriod:  trustingPeriod,
+		UnbondingPeriod: ubdPeriod,
+		MaxClockDrift:   maxClockDrift,
+		LatestHeight:    latestHeight,
+		FrozenHeight:    types.ZeroHeight(),
+		ProofSpecs:      specs,
+		UpgradePath:     upgradePath,
+	}
+}
+
 type Fraction struct {
 	Numerator   uint64 `json:"numerator,omitempty"`
 	Denominator uint64 `json:"denominator,omitempty"`
 }
+
+func NewFraction(numerator, denominator uint64) Fraction {
+	return Fraction{
+		Numerator:   numerator,
+		Denominator: denominator,
+	}
+}
+
+// DefaultTrustLevel is the tendermint light client default trust level
+var DefaultTrustLevel = NewFraction(1, 3)
 
 // ConsensusState defines the consensus state from Tendermint.
 type ConsensusState struct {
@@ -77,14 +103,9 @@ const (
 // Validate performs a basic validation of the client state fields.
 func (cs ClientState) Validate() error {
 	if strings.TrimSpace(cs.ChainId) == "" {
-		return ufmt.Errorf("chain id cannot be empty string")
+		return ufmt.Errorf("chainID cannot be empty string")
 	}
 
-	// NOTE: the value of cmttypes.MaxChainIDLen may change in the future.
-	// If this occurs, the code here must account for potential difference
-	// between the tendermint version being run by the counterparty chain
-	// and the tendermint version used by this light client.
-	// https://github.com/cosmos/ibc-go/issues/177
 	if len(cs.ChainId) > MaxChainIDLen {
 		return ufmt.Errorf("chainID is too long; got: %d, max: %d", len(cs.ChainId), MaxChainIDLen)
 	}
