@@ -146,11 +146,12 @@ func (bp BasicPermissions) IterateUsers(start, count int, fn UsersIterFn) (stopp
 // WithPermission calls a callback when a user has a specific permission.
 // It panics on error or when a handler panics.
 // Callbacks are by default called when there is no handle registered for the permission.
-func (bp *BasicPermissions) WithPermission(_ realm, user std.Address, p Permission, args Args, cb func(realm, Args)) {
+func (bp *BasicPermissions) WithPermission(_ realm, user std.Address, p Permission, args Args, cb func(realm)) {
 	if !bp.HasPermission(user, p) || !bp.dao.Members().Has(user) {
 		panic("unauthorized")
 	}
 
+	// Execute custom validation before calling the callback
 	v, found := bp.validators.Get(string(p))
 	if found {
 		err := v.(ValidatorFunc)(bp, args)
@@ -159,7 +160,7 @@ func (bp *BasicPermissions) WithPermission(_ realm, user std.Address, p Permissi
 		}
 	}
 
-	cb(cross, args)
+	cb(cross)
 }
 
 func createBasicPermissions(owners ...std.Address) *BasicPermissions {

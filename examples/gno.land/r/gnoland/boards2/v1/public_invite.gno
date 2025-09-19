@@ -84,7 +84,7 @@ func AcceptInvite(_ realm, boardID BoardID, user std.Address) {
 		Role: RoleGuest,
 	}
 	args := Args{caller, boardID, []Invite{invite}}
-	board.perms.WithPermission(cross, caller, PermissionMemberInvite, args, func(realm, Args) {
+	board.perms.WithPermission(cross, caller, PermissionMemberInvite, args, func(realm) {
 		assertMembersUpdateIsEnabled(boardID)
 
 		invitee := user.String()
@@ -117,7 +117,7 @@ func RevokeInvite(_ realm, boardID BoardID, user std.Address) {
 	board := mustGetBoard(boardID)
 	caller := std.PreviousRealm().Address()
 	args := Args{boardID, user, RoleGuest}
-	board.perms.WithPermission(cross, caller, PermissionMemberInviteRevoke, args, func(realm, Args) {
+	board.perms.WithPermission(cross, caller, PermissionMemberInviteRevoke, args, func(realm) {
 		invitee := user.String()
 		requests, found := getInviteRequests(boardID)
 		if !found || !requests.Has(invitee) {
@@ -145,7 +145,7 @@ func inviteMembers(boardID BoardID, invites ...Invite) {
 	perms := mustGetPermissions(boardID)
 	caller := std.PreviousRealm().Address()
 	args := Args{caller, boardID, invites}
-	perms.WithPermission(cross, caller, PermissionMemberInvite, args, func(realm, Args) {
+	perms.WithPermission(cross, caller, PermissionMemberInvite, args, func(realm) {
 		assertMembersUpdateIsEnabled(boardID)
 
 		perms := mustGetPermissions(boardID)

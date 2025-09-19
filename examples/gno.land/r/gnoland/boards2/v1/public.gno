@@ -33,7 +33,7 @@ func SetHelp(_ realm, content string) {
 	content = strings.TrimSpace(content)
 	caller := std.PreviousRealm().Address()
 	args := Args{content}
-	gPerms.WithPermission(cross, caller, PermissionRealmHelp, args, func(realm, Args) {
+	gPerms.WithPermission(cross, caller, PermissionRealmHelp, args, func(realm) {
 		gHelp = content
 	})
 }
@@ -49,7 +49,7 @@ func SetPermissions(_ realm, bid BoardID, p Permissions) {
 
 	caller := std.PreviousRealm().Address()
 	args := Args{bid}
-	gPerms.WithPermission(cross, caller, PermissionPermissionsUpdate, args, func(realm, Args) {
+	gPerms.WithPermission(cross, caller, PermissionPermissionsUpdate, args, func(realm) {
 		assertRealmIsNotLocked()
 
 		// When board ID is zero it means that realm permissions are being updated
@@ -112,7 +112,7 @@ func CreateBoard(_ realm, name string, listed bool) BoardID {
 	caller := std.PreviousRealm().Address()
 	id := reserveBoardID()
 	args := Args{caller, name, id, listed}
-	gPerms.WithPermission(cross, caller, PermissionBoardCreate, args, func(realm, Args) {
+	gPerms.WithPermission(cross, caller, PermissionBoardCreate, args, func(realm) {
 		assertRealmIsNotLocked()
 		assertBoardNameNotExists(name)
 
@@ -154,7 +154,7 @@ func RenameBoard(_ realm, name, newName string) {
 	bid := board.ID
 	caller := std.PreviousRealm().Address()
 	args := Args{caller, bid, name, newName}
-	board.perms.WithPermission(cross, caller, PermissionBoardRename, args, func(realm, Args) {
+	board.perms.WithPermission(cross, caller, PermissionBoardRename, args, func(realm) {
 		assertRealmIsNotLocked()
 		assertBoardNameNotExists(newName)
 
@@ -462,7 +462,7 @@ func RemoveMember(_ realm, boardID BoardID, member std.Address) {
 
 	perms := mustGetPermissions(boardID)
 	caller := std.PreviousRealm().Address()
-	perms.WithPermission(cross, caller, PermissionMemberRemove, Args{member}, func(realm, Args) {
+	perms.WithPermission(cross, caller, PermissionMemberRemove, Args{member}, func(realm) {
 		assertMembersUpdateIsEnabled(boardID)
 
 		if !perms.RemoveUser(cross, member) {
@@ -518,7 +518,7 @@ func ChangeMemberRole(_ realm, boardID BoardID, member std.Address, role Role) {
 	perms := mustGetPermissions(boardID)
 	caller := std.PreviousRealm().Address()
 	args := Args{caller, boardID, member, role}
-	perms.WithPermission(cross, caller, PermissionRoleChange, args, func(realm, Args) {
+	perms.WithPermission(cross, caller, PermissionRoleChange, args, func(realm) {
 		assertMembersUpdateIsEnabled(boardID)
 
 		perms.SetUserRoles(cross, member, role)

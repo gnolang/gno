@@ -71,16 +71,10 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var (
-				called bool
-				args   Args
-			)
+			var called bool
 
 			perms := tc.setup()
-			callback := func(_ realm, a Args) {
-				args = a
-				called = true
-			}
+			callback := func(realm) { called = true }
 
 			testCaseFn := func() {
 				perms.WithPermission(cross, tc.user, tc.permission, tc.args, callback)
@@ -94,10 +88,6 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 			}
 
 			urequire.Equal(t, tc.called, called, "callback called")
-			urequire.Equal(t, len(tc.args), len(args), "args count")
-			for i, a := range args {
-				uassert.Equal(t, tc.args[i].(string), a.(string))
-			}
 		})
 	}
 }
