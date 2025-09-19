@@ -8,7 +8,8 @@ import (
 )
 
 func (tm *TMLightClient) verifyHeader(header *MsgHeader) error {
-	if err := header.ValidateBasic(); err != nil {
+	// TODO move Validate call sooner since there is an interface now
+	if err := header.Validate(); err != nil {
 		return ufmt.Errorf("header validate: %v", err)
 	}
 	// Retrieve trusted consensus states for trusted height
