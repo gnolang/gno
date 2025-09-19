@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/govdao_test
-package govdao_test
+// PKGPATH: gno.land/r/govdao
+package govdao
 
 import (
 	"std"
@@ -8,6 +8,7 @@ import (
 	"gno.land/r/gov/dao"
 	daoimpl "gno.land/r/gov/dao/v3/impl"
 	daoinit "gno.land/r/gov/dao/v3/init"
+	susers "gno.land/r/sys/users"
 )
 
 var (
@@ -18,11 +19,27 @@ var (
 
 func init() {
 	daoinit.InitWithUsers(user1, user2, user3)
+	registerTestUsers(user1, user2, user3)
 	govDAO := daoimpl.NewGovDAO() // A DAO object without an attached realm.
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO: govDAO,
 	})
+}
+
+const gUsersV1Path = "gno.land/r/gnoland/users/v1"
+
+// Register a namespace for every addresses
+// Necessary to test GovDAO Vote
+func registerTestUsers(addrs ...std.Address) {
+	// Set realm to users admin to register test user
+	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	for _, addr := range addrs {
+		err := susers.RegisterUser(cross, addr.String()[1:], addr)
+		if err != nil {
+			panic(err.Error() + " : " + addr.String())
+		}
+	}
 }
 
 func main() {
@@ -42,7 +59,7 @@ func main() {
 
 func CreateProposal() dao.ProposalID {
 	e := dao.NewSimpleExecutor(
-		func() error {
+		func(realm) error {
 			return nil
 		},
 		"",
@@ -71,19 +88,15 @@ func Render() {
 
 // Output:
 // true
-// # Active Proposals:
-// ## Proposal with id: 0
-// ### Title: Proposal Title: Dummy proposal
+// # GovDAO
+// ## Members
+// [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
+// ## Proposals
+// ### [Prop #0 - Proposal Title: Dummy proposal](/r/gov/dao:0)
+// Author: [@1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm](/u/1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
 //
-// ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// Status: ACCEPTED
 //
-// Description: Do nothing
+// Tiers eligible to vote: T1, T2, T3
 //
-//
-// ### Proposal Status:
-//
-// - **PROPOSAL HAS BEEN ACCEPTED**
-// - Allowed tiers to vote: T1 T2 T3
-// - YES PERCENT: 66.66666666666666%
-// - NO PERCENT: 0%
-// - [Go to votes list](/r/gov/dao:0/votes).
+// ---

@@ -6,9 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
-	"gno.land/p/moul/addrset"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 )
 
 func TestProposalNew(t *testing.T) {
@@ -272,7 +271,7 @@ func TestIsQuorumReached(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var members addrset.Set
+			members := NewMemberStorage()
 			for _, m := range tc.members {
 				members.Add(m)
 			}
@@ -282,7 +281,7 @@ func TestIsQuorumReached(t *testing.T) {
 				record.AddVote(v)
 			}
 
-			success := IsQuorumReached(tc.quorum, record.Readonly(), NewMemberSet(&members))
+			success := IsQuorumReached(tc.quorum, record.Readonly(), NewMemberSet(members))
 
 			if tc.fail {
 				uassert.False(t, success, "expect quorum to fail")

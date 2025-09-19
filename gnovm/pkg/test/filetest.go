@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"runtime/debug"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -20,20 +21,31 @@ import (
 	"go.uber.org/multierr"
 )
 
-// RunFiletest executes the program in source as a filetest.
+// RunFiletest executes a gnovm internal filetest in test/files.
 // If opts.Sync is enabled, and the filetest's golden output has changed,
 // the first string is set to the new generated content of the file.
-func (opts *TestOptions) RunFiletest(fname string, source []byte) (string, error) {
+// Before the filetest is run it will be type-checked.
+func (opts *TestOptions) RunFiletest(fname string, source []byte, tgs gno.Store) (string, error) {
 	opts.outWriter.w = opts.Output
 	opts.outWriter.errW = opts.Error
-
-	return opts.runFiletest(fname, source)
+	tcheck := true // Go type-check filetests in test/files.
+	return opts.runFiletest(fname, source, tgs, tcheck)
 }
 
-func (opts *TestOptions) runFiletest(fname string, source []byte) (string, error) {
+// tcheck: only set to false pkg/test.Test(), since `gno test`
+// (cmd/gno/test.go) already type-checked the whole package.
+// Go type-checking in filetests is only available for gnovm internal filetests
+// in test/files.
+func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store, tcheck bool) (string, error) {
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
 		return "", fmt.Errorf("error parsing directives: %w", err)
+	}
+
+	// Sanity check: type-check directives are not available
+	// with `gno test` of user packages.
+	if !tcheck && dirs.FirstDefault(DirectiveTypeCheckError, "") != "" {
+		panic("type-check error directive is only available for gnovm internal test files")
 	}
 
 	// Initialize Machine.Context and Machine.Alloc according to the input directives.
@@ -55,17 +67,19 @@ func (opts *TestOptions) runFiletest(fname string, source []byte) (string, error
 	}
 
 	// Create machine for execution and run test
-	cw := opts.BaseStore.CacheWrap()
+	tcw := opts.BaseStore.CacheWrap()
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Output:        &opts.outWriter,
-		Store:         opts.TestStore.BeginTransaction(cw, cw, nil),
+		Store:         tgs.BeginTransaction(tcw, tcw, nil),
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
 		Debug:         opts.Debug,
 		ReviveEnabled: true,
 	})
 	defer m.Release()
-	result := opts.runTest(m, pkgPath, fname, source, opslog)
+
+	// RUN THE FILETEST /////////////////////////////////////
+	result := opts.runTest(m, pkgPath, fname, source, opslog, tcheck)
 
 	// updated tells whether the directives have been updated, and as such
 	// a new generated filetest should be returned.
@@ -169,6 +183,9 @@ func (opts *TestOptions) runFiletest(fname string, source []byte) (string, error
 			match(dir, pre)
 		case DirectiveStacktrace:
 			match(dir, result.GnoStacktrace)
+		case DirectiveStorage:
+			rlmDiff := realmDiffsString(m.Store.RealmStorageDiffs())
+			match(dir, rlmDiff)
 		case DirectiveTypeCheckError:
 			hasTypeCheckErrorDirective = true
 			match(dir, result.TypeCheckError)
@@ -189,6 +206,21 @@ func (opts *TestOptions) runFiletest(fname string, source []byte) (string, error
 	}
 
 	return "", returnErr
+}
+
+// returns a sorted string representation of realm diffs map
+func realmDiffsString(m map[string]int64) string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var sb strings.Builder
+	for _, k := range keys {
+		sb.WriteString(fmt.Sprintf("%s: %d\n", k, m[k]))
+	}
+	return sb.String()
 }
 
 func trimTrailingSpaces(in string) string {
@@ -227,10 +259,13 @@ type runResult struct {
 	GoPanicStack []byte
 }
 
-func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content []byte, opslog io.Writer) (rr runResult) {
+func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content []byte, opslog io.Writer, tcheck bool) (rr runResult) {
 	pkgName := gno.Name(pkgPath[strings.LastIndexByte(pkgPath, '/')+1:])
 	tcError := ""
 	fname = filepath.Base(fname)
+	if opts.tcCache == nil {
+		opts.tcCache = make(gno.TypeCheckCache)
+	}
 
 	// Eagerly load imports.
 	// LoadImports is run using opts.Store, rather than the transaction store;
@@ -239,6 +274,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 	// don't get the parent store dirty.
 	abortOnError := true
 	if err := LoadImports(opts.TestStore, &std.MemPackage{
+		Type: gno.MPFiletests,
 		Name: string(pkgName),
 		Path: pkgPath,
 		Files: []*std.MemFile{
@@ -278,10 +314,20 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 	}()
 
+	// Remove filetest from name, as that can lead to the package not being
+	// parsed correctly when using RunMemPackage.
+	fname = strings.ReplaceAll(fname, "_filetest", "")
+
 	// Use last element after / (works also if slash is missing).
-	if !gno.IsRealmPath(pkgPath) {
-		// Type check.
+	if !gno.IsRealmPath(pkgPath) { // Simple case - pure package.
+		// Determine package type based on path
+		mptype := gno.MPUserProd
+		if strings.HasSuffix(pkgPath, "_test") {
+			mptype = gno.MPUserIntegration
+		}
+		// Construct mem package for single filetest.
 		mpkg := &std.MemPackage{
+			Type: mptype,
 			Name: string(pkgName),
 			Path: pkgPath,
 			Files: []*std.MemFile{
@@ -290,35 +336,38 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			},
 		}
 		// Validate Gno syntax and type check.
-		if _, err := gno.TypeCheckMemPackageWithOptions(mpkg, m.Store, gno.TypeCheckOptions{
-			ParseMode: gno.ParseModeAll,
-			Mode:      gno.TCLatestRelaxed,
-			Cache:     opts.Cache,
-		}); err != nil {
-			tcError = fmt.Sprintf("%v", err.Error())
+		if tcheck {
+			if _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
+				// Use Teststore to load imported packages,
+				// mimicing the loading behavior with on-chain.
+				// (if using m.Store, the realm package will
+				// be preloaded during typecheck)
+				Getter:     opts.TestStore,
+				TestGetter: m.Store,
+				Mode:       gno.TCLatestRelaxed,
+				Cache:      opts.tcCache,
+			}); err != nil {
+				tcError = fmt.Sprintf("%v", err.Error())
+			}
 		}
-
-		// Simple case - pure package.
+		// Construct throwaway package and parse file.
 		pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
-		pv := pn.NewPackage()
+		pv := pn.NewPackage(m.Alloc)
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 		m.SetActivePackage(pv)
 		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
-		n := gno.MustParseFile(fname, string(content))
-
-		m.RunFiles(n)
+		fn := gno.MustParseFile(fname, string(content))
+		// Run (add) file, and then run main().
+		m.RunFiles(fn)
 		m.RunMain()
-	} else {
-		// Realm case.
+	} else { // Realm case.
 		gno.DisableDebug() // until main call.
 
-		// Remove filetest from name, as that can lead to the package not being
-		// parsed correctly when using RunMemPackage.
-		fname = strings.ReplaceAll(fname, "_filetest", "")
-
 		// Save package using realm crawl procedure.
+		// Realms are always MPUserProd because they need to be stored
 		mpkg := &std.MemPackage{
+			Type: gno.MPUserProd,
 			Name: string(pkgName),
 			Path: pkgPath,
 			Files: []*std.MemFile{
@@ -326,23 +375,30 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 				{Name: fname, Body: string(content)},
 			},
 		}
-		orig, tx := m.Store, m.Store.BeginTransaction(nil, nil, nil)
-		m.Store = tx
-
+		// Start transaction store.
+		orig, txs := m.Store, m.Store.BeginTransaction(nil, nil, nil)
+		m.Store = txs
 		// Validate Gno syntax and type check.
-		if _, err := gno.TypeCheckMemPackage(mpkg, m.Store, gno.ParseModeAll, gno.TCLatestRelaxed); err != nil {
-			tcError = fmt.Sprintf("%v", err.Error())
+		if tcheck {
+			if _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
+				Getter:     m.Store,
+				TestGetter: m.Store,
+				Mode:       gno.TCLatestRelaxed,
+				Cache:      opts.tcCache,
+			}); err != nil {
+				tcError = fmt.Sprintf("%v", err.Error())
+			}
 		}
-
 		// Run decls and init functions.
 		m.RunMemPackage(mpkg, true)
 
 		// Clear store cache and reconstruct machine from committed info
 		// (mimicking on-chain behaviour).
-		tx.Write()
+		// (jae) why is this needed?
+		txs.Write()
 		m.Store = orig
 		pv2 := m.Store.GetPackage(pkgPath, false)
-		m.SetActivePackage(pv2) // XXX should it set the realm?
+		m.SetActivePackage(pv2)
 		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
 		gno.EnableDebug()
 
@@ -350,7 +406,6 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.Store.SetLogStoreOps(opslog) // resets.
 		m.RunMainMaybeCrossing()
 	}
-
 	return runResult{
 		Output:         opts.filetestBuffer.String(),
 		GnoStacktrace:  m.Stacktrace().String(),
@@ -376,6 +431,7 @@ const (
 	DirectiveEvents         = "Events"
 	DirectivePreprocessed   = "Preprocessed"
 	DirectiveStacktrace     = "Stacktrace"
+	DirectiveStorage        = "Storage"
 	DirectiveTypeCheckError = "TypeCheckError"
 )
 
@@ -389,6 +445,7 @@ var allDirectives = []string{
 	DirectiveEvents,
 	DirectivePreprocessed,
 	DirectiveStacktrace,
+	DirectiveStorage,
 	DirectiveTypeCheckError,
 }
 

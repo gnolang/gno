@@ -4,10 +4,10 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
 	"gno.land/p/moul/addrset"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 )
 
 const (
@@ -25,10 +25,14 @@ const (
 )
 
 var (
-	admin      = Ownable.Owner()
-	adminRealm = std.NewUserRealm(admin)
+	admin      std.Address = "g125em6arxsnj49vx35f0n0z34putv5ty3376fg5" // hardcoded from config.OwnableMain
+	adminRealm std.Realm
 	alice      = testutils.TestAddress("alice")
 )
+
+func init() {
+	adminRealm = std.NewUserRealm(admin)
+}
 
 func TestRegister(t *testing.T) {
 	// Test user realm register
@@ -40,7 +44,8 @@ func TestRegister(t *testing.T) {
 
 	// Test register while paused
 	testing.SetRealm(adminRealm)
-	Pausable.Pause()
+	err := Pausable.Pause()
+	uassert.NoError(t, err)
 
 	// Set legitimate caller
 	testing.SetRealm(std.NewCodeRealm(rlmPath))
@@ -50,7 +55,8 @@ func TestRegister(t *testing.T) {
 
 	// Unpause
 	testing.SetRealm(adminRealm)
-	Pausable.Unpause()
+	err = Pausable.Unpause()
+	uassert.NoError(t, err)
 
 	// Set legitimate caller
 	testing.SetRealm(std.NewCodeRealm(rlmPath))

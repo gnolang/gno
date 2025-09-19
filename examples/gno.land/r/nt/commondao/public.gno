@@ -11,7 +11,7 @@ import (
 
 // Invite invites a user to the realm.
 // A user invitation is required to start creating new DAOs.
-func Invite(cur realm, invitee std.Address) {
+func Invite(_ realm, invitee std.Address) {
 	if !invitee.IsValid() {
 		panic("invalid address")
 	}
@@ -32,23 +32,23 @@ func IsInvited(addr std.Address) bool {
 
 // New creates a new CommonDAO.
 // An invitation is required to be able to create new DAOs.
-func New(name string) *commondao.CommonDAO {
+func New(_ realm, name string, options ...Option) *commondao.CommonDAO {
 	name = strings.TrimSpace(name)
 	assertDAONameIsValid(name)
 
-	caller := std.CurrentRealm().Address()
+	caller := std.PreviousRealm().Address()
 	if !hasOwnership(caller) {
 		orig := std.OriginCaller()
 		assertIsInvited(orig)
 		invites.Remove(orig.String())
 	}
 
-	return createDAO(name, caller)
+	return createDAO(name, caller, options)
 }
 
 // NewSubDAO creates a new SubDAO.
-func NewSubDAO(name string, parentID uint64) *commondao.CommonDAO {
-	caller := std.CurrentRealm().Address()
+func NewSubDAO(_ realm, name string, parentID uint64, options ...Option) *commondao.CommonDAO {
+	caller := std.PreviousRealm().Address()
 	assertIsOwner(caller, parentID)
 
 	parentOptions := getOptions(parentID)
@@ -60,7 +60,7 @@ func NewSubDAO(name string, parentID uint64) *commondao.CommonDAO {
 	assertDAONameIsValid(name)
 
 	parent := getDAO(parentID)
-	subDAO := createSubDAO(parent, name)
+	subDAO := createSubDAO(parent, name, options)
 	parent.Children().Append(subDAO)
 	return subDAO
 }
@@ -120,7 +120,7 @@ func GetSize(rootID uint64) int {
 }
 
 // Vote submits a vote for a DAO proposal.
-func Vote(cur realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
+func Vote(_ realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
 	dao := mustGetDAO(daoID)
 	o := getOptions(dao.ID())
 	if !o.AllowVoting {
@@ -137,7 +137,7 @@ func Vote(cur realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason
 }
 
 // Execute executes a DAO proposal.
-func Execute(cur realm, daoID, proposalID uint64) {
+func Execute(_ realm, daoID, proposalID uint64) {
 	dao := mustGetDAO(daoID)
 	o := getOptions(dao.ID())
 	if !o.AllowExecution {

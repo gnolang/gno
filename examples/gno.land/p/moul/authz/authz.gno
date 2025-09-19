@@ -40,11 +40,11 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/avl/rotree"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/addrset"
 	"gno.land/p/moul/once"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/rotree"
+	"gno.land/p/nt/ufmt"
 )
 
 // Authorizer is the main wrapper object that handles authority management.
@@ -137,7 +137,7 @@ func (a *Authorizer) DoByCurrent(title string, action PrivilegedAction, args ...
 
 // DoByPrevious executes a privileged action by the previous realm.
 func (a *Authorizer) DoByPrevious(title string, action PrivilegedAction, args ...any) error {
-	previous := std.CurrentRealm()
+	previous := std.PreviousRealm()
 	caller := previous.Address()
 	return a.auth.Authorize(caller, title, action, args...)
 }

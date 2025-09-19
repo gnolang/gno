@@ -4,6 +4,7 @@ import (
 	"std"
 
 	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/sys/users"
 )
 
 var govDAO *GovDAO = NewGovDAO()
@@ -21,14 +22,21 @@ func Render(in string) string {
 }
 
 // AddMember allows T1 and T2 members to freely add T3 members using their invitation points.
-func AddMember(addr std.Address) {
-	caller := std.OriginCaller()
-	m, t := memberstore.Get().GetMember(caller)
+func AddMember(cur realm, addr std.Address) {
+	caller := std.PreviousRealm()
+	if !caller.IsUser() {
+		panic("this function must be called by an EOA through msg call or msg run")
+	}
+	m, t := memberstore.Get().GetMember(caller.Address())
 	if m == nil {
 		panic("caller is not a member")
 	}
 
-	if t != memberstore.T1 || t != memberstore.T2 {
+	if users.ResolveAddress(caller.Address()) == nil {
+		panic("voter should have a namespace")
+	}
+
+	if t != memberstore.T1 && t != memberstore.T2 {
 		panic("caller is not on T1 or T2. To add members, propose them through proposals")
 	}
 

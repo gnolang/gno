@@ -1,10 +1,10 @@
-// PKGPATH: gno.land/r/demo/tests_test
-package tests_test
+// PKGPATH: gno.land/r/demo/testinit
+package testinit
 
 import (
 	"std"
 
-	"gno.land/r/demo/tests"
+	tests "gno.land/r/tests/vm"
 )
 
 var addr = std.Address("test")
@@ -29,4 +29,4 @@ func main(cur realm) {
 // .
 
 // Realm:
-// finalizerealm["gno.land/r/demo/tests_test"]
+// finalizerealm["gno.land/r/demo/testinit"]

@@ -17,6 +17,9 @@ type File struct {
 	// It is intended to be set by the `gno` cli when initializing or upgrading a module.
 	Gno string `toml:"gno" json:"gno"`
 
+	// Ignore indicate that the module will be ignored by the gno toolchain but still usable in development environments.
+	Ignore bool `toml:"ignore,omitempty" json:"ignore,omitempty"`
+
 	// Draft indicates that the module isn't ready for production use.
 	// Draft modules:
 	// - are added to the chain at genesis time and cannot be added after.
@@ -33,18 +36,18 @@ type File struct {
 	// If this value is set, the module cannot be added to the chain.
 	Replace []Replace `toml:"replace,omitempty" json:"replace,omitempty"`
 
-	// UploadMetadata is the upload metadata section of the gnomod.toml file.
+	// AddPkg is the addpkg section of the gnomod.toml file.
 	// It is filled by the vmkeeper when a module is added.
 	// It is not intended to be used offchain.
-	UploadMetadata UploadMetadata `toml:"upload_metadata,omitempty" json:"upload_metadata,omitempty"`
+	AddPkg AddPkg `toml:"addpkg,omitempty" json:"addpkg,omitempty"`
 }
 
-type UploadMetadata struct {
-	// Uploader is the address of the uploader.
-	Uploader string `toml:"uploader,omitempty" json:"uploader,omitempty"`
-	// Height is the block height at which the module was uploaded.
+type AddPkg struct {
+	// Creator is the address of the creator.
+	Creator string `toml:"creator,omitempty" json:"creator,omitempty"`
+	// Height is the block height at which the module was added.
 	Height int `toml:"height,omitempty" json:"height,omitempty"`
-	// XXX: GnoVersion // gno version at upload time?
+	// XXX: GnoVersion // gno version at add time?
 	// XXX: Consider things like IsUsingBanker or other security-awareness flags
 }
 

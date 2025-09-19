@@ -35,7 +35,10 @@ func extractUrls(fileContent []byte) []string {
 		// Look for http & https only
 		if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
 			// Ignore localhost
-			if !strings.Contains(url, "localhost") && !strings.Contains(url, "127.0.0.1") {
+			if !strings.Contains(url, "localhost") &&
+				!strings.Contains(url, "127.0.0.1") &&
+				// placeholder for examples
+				!strings.Contains(url, "example.land") {
 				urls = append(urls, url)
 			}
 		}

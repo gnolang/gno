@@ -16,19 +16,27 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/empty_dir",
 			simulateExternalRepo: true,
-			errShouldContain:     "gnomod.toml doesn't exist",
+			errShouldContain:     "gnowork.toml file not found in current or any parent directory",
+		},
+		{
+			args:                 []string{"mod", "download"},
+			testDir:              "../../tests/integ/empty_workspace",
+			simulateExternalRepo: true,
+			stderrShouldBe:       "gno: warning: \"./...\" matched no packages\n",
 		},
 		{
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/empty_gnomod",
 			simulateExternalRepo: true,
-			errShouldBe:          "invalid gnomod.toml: 'module' is required",
+			errShouldBe:          "1 build error(s)",
+			stderrShouldContain:  "invalid gnomod.toml: 'module' is required",
 		},
 		{
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/invalid_module_name",
 			simulateExternalRepo: true,
-			errShouldContain:     "usage: module module/path",
+			errShouldBe:          "1 build error(s)",
+			stderrShouldContain:  "invalid gnomod.toml: 'module' is required (type: *errors.errorString)",
 		},
 		{
 			args:                 []string{"mod", "download"},
@@ -39,14 +47,14 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/require_remote_module",
 			simulateExternalRepo: true,
-			stderrShouldContain:  "gno: downloading gno.land/p/demo/avl",
+			stderrShouldContain:  "gno: downloading gno.land/p/nt/avl",
 		},
 		{
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/require_invalid_module",
 			simulateExternalRepo: true,
-			stderrShouldContain:  "gno: downloading gno.land/p/demo/notexists",
-			errShouldContain:     "query files list for pkg \"gno.land/p/demo/notexists\": package \"gno.land/p/demo/notexists\" is not available",
+			stderrShouldContain:  "query files list for pkg \"gno.land/p/demo/notexists\": package \"gno.land/p/demo/notexists\" is not available",
+			errShouldBe:          "1 build error(s)",
 		},
 		{
 			args:                 []string{"mod", "download"},
@@ -62,7 +70,7 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/replace_with_module",
 			simulateExternalRepo: true,
-			stderrShouldContain:  "gno: downloading gno.land/p/demo/avl",
+			stderrShouldContain:  "gno: downloading gno.land/p/nt/avl",
 		},
 		// TODO: that functionality is not available on gnomod.toml anymore. should we remove this?
 		// {
@@ -154,7 +162,7 @@ func TestModApp(t *testing.T) {
 			testDir:              "../../tests/integ/minimalist_gnomod",
 			simulateExternalRepo: true,
 			stdoutShouldBe: `# std
-(module minim does not need package std)
+(module gno.land/t/minim does not need package std)
 `,
 		},
 		{
@@ -162,17 +170,17 @@ func TestModApp(t *testing.T) {
 			testDir:              "../../tests/integ/require_remote_module",
 			simulateExternalRepo: true,
 			stdoutShouldBe: `# std
-(module gno.land/tests/importavl does not need package std)
+(module gno.land/t/importavl does not need package std)
 `,
 		},
 		{
-			args:                 []string{"mod", "why", "std", "gno.land/p/demo/avl"},
+			args:                 []string{"mod", "why", "std", "gno.land/p/nt/avl"},
 			testDir:              "../../tests/integ/valid2",
 			simulateExternalRepo: true,
 			stdoutShouldBe: `# std
 (module gno.land/p/integ/valid does not need package std)
 
-# gno.land/p/demo/avl
+# gno.land/p/nt/avl
 valid.gno
 `,
 		},
@@ -188,23 +196,37 @@ valid.gno
 			args:                 []string{"mod", "graph"},
 			testDir:              "../../tests/integ/valid1",
 			simulateExternalRepo: true,
-			stdoutShouldBe:       ``,
+			stdoutShouldBe: `gno.vm/r/tests/integ/valid1 testing
+`,
 		},
-		// TODO: gno mod graph should disappear?
-		// 		{
-		// 			args:                 []string{"mod", "graph"},
-		// 			testDir:              "../../tests/integ/valid2",
-		// 			simulateExternalRepo: true,
-		// 			stdoutShouldBe: `gno.land/p/integ/valid gno.land/p/demo/avl
-		// `,
-		// 		},
-		// 		{
-		// 			args:                 []string{"mod", "graph"},
-		// 			testDir:              "../../tests/integ/require_remote_module",
-		// 			simulateExternalRepo: true,
-		// 			stdoutShouldBe: `gno.land/tests/importavl gno.land/p/demo/avl
-		// `,
-		// 		},
+		{
+			args:                 []string{"mod", "graph"},
+			testDir:              "../../tests/integ/valid2",
+			simulateExternalRepo: true,
+			stderrShouldBe:       "gno: downloading gno.land/p/nt/avl\n",
+			stdoutShouldBe: `gno.land/p/integ/valid gno.land/p/integ/valid
+gno.land/p/integ/valid gno.land/p/nt/avl
+gno.land/p/integ/valid testing
+gno.land/p/nt/avl gno.land/p/nt/avl
+gno.land/p/nt/avl gno.land/p/nt/ufmt
+gno.land/p/nt/avl sort
+gno.land/p/nt/avl strings
+gno.land/p/nt/avl testing
+`,
+		},
+		{
+			args:                 []string{"mod", "graph"},
+			testDir:              "../../tests/integ/require_remote_module",
+			simulateExternalRepo: true,
+			stderrShouldBe:       "gno: downloading gno.land/p/nt/avl\n",
+			stdoutShouldBe: `gno.land/t/importavl gno.land/p/nt/avl
+gno.land/p/nt/avl gno.land/p/nt/avl
+gno.land/p/nt/avl gno.land/p/nt/ufmt
+gno.land/p/nt/avl sort
+gno.land/p/nt/avl strings
+gno.land/p/nt/avl testing
+`,
+		},
 	}
 
 	testMainCaseRun(t, tc)

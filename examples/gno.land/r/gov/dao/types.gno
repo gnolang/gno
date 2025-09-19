@@ -4,15 +4,14 @@ import (
 	"errors"
 	"std"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/seqid"
 )
 
 type ProposalID int64
 
 func (pid ProposalID) String() string {
-	return ufmt.Sprintf("%v", int64(pid))
+	return seqid.ID(pid).String()
 }
 
 // VoteOption is the limited voting option for a DAO proposal
@@ -119,9 +118,7 @@ func (ps *Proposals) SetProposal(p *Proposal) ProposalID {
 	if updated {
 		panic("fatal error: Override proposals is not allowed")
 	}
-
 	ps.seq = ps.seq.Next()
-
 	return pid
 }
 
@@ -135,11 +132,11 @@ func (ps *Proposals) GetProposal(pid ProposalID) *Proposal {
 }
 
 type Executor interface {
-	Execute() error
+	Execute(cur realm) error
 	String() string
 }
 
-func NewSimpleExecutor(callback func() error, description string) *SimpleExecutor {
+func NewSimpleExecutor(callback func(realm) error, description string) *SimpleExecutor {
 	return &SimpleExecutor{
 		callback: callback,
 		desc:     description,
@@ -149,12 +146,12 @@ func NewSimpleExecutor(callback func() error, description string) *SimpleExecuto
 // SimpleExecutor implements the Executor interface using
 // a callback function and a description string.
 type SimpleExecutor struct {
-	callback func() error
+	callback func(realm) error
 	desc     string
 }
 
-func (e *SimpleExecutor) Execute() error {
-	return e.callback()
+func (e *SimpleExecutor) Execute(cur realm) error {
+	return e.callback(cross)
 }
 
 func (e *SimpleExecutor) String() string {
@@ -173,13 +170,13 @@ type SafeExecutor struct {
 	e Executor
 }
 
-func (e *SafeExecutor) Execute() error {
+func (e *SafeExecutor) Execute(cur realm) error {
 	// Verify the caller is an adequate Realm
-	if !InAllowedDAOs(std.CurrentRealm().PkgPath()) {
+	if !InAllowedDAOs(std.PreviousRealm().PkgPath()) {
 		return errors.New("execution only allowed by validated govDAOs")
 	}
 
-	return e.e.Execute()
+	return e.e.Execute(cross)
 }
 
 func (e *SafeExecutor) String() string {

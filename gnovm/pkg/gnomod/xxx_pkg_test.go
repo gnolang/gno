@@ -10,16 +10,17 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
 
-func TestListAndNonDraftPkgs(t *testing.T) {
+func TestListAndNonIgnorePkgs(t *testing.T) {
 	for _, tc := range []struct {
 		desc string
 		in   []struct{ name, modfile string }
 
-		outPkgList      []string
-		outNonDraftPkgs []string
+		outPkgList       []string
+		outNonIgnorePkgs []string
 	}{
 		{
 			desc: "no packages",
@@ -43,11 +44,11 @@ gno = "0.9"`,
 gno = "0.9"`,
 				},
 			},
-			outPkgList:      []string{"foo", "bar", "baz"},
-			outNonDraftPkgs: []string{"foo", "bar", "baz"},
+			outPkgList:       []string{"foo", "bar", "baz"},
+			outNonIgnorePkgs: []string{"foo", "bar", "baz"},
 		},
 		{
-			desc: "no package depends on draft package",
+			desc: "no package depends on ignore package",
 			in: []struct{ name, modfile string }{
 				{
 					"foo",
@@ -62,12 +63,12 @@ gno = "0.9"`,
 				{
 					"qux",
 					`module = "qux"
-draft = true
+ignore = true
 gno = "0.9"`,
 				},
 			},
-			outPkgList:      []string{"foo", "baz", "qux"},
-			outNonDraftPkgs: []string{"foo", "baz"},
+			outPkgList:       []string{"foo", "baz", "qux"},
+			outNonIgnorePkgs: []string{"foo", "baz"},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -82,7 +83,7 @@ gno = "0.9"`,
 			}
 
 			// List packages
-			pkgs, err := gno.ReadPkgListFromDir(dirPath)
+			pkgs, err := packages.ReadPkgListFromDir(dirPath, gno.MPAnyAll)
 			require.NoError(t, err)
 			assert.Equal(t, len(tc.outPkgList), len(pkgs))
 			for _, p := range pkgs {
@@ -93,11 +94,11 @@ gno = "0.9"`,
 			sorted, err := pkgs.Sort()
 			require.NoError(t, err)
 
-			// Non draft packages
-			nonDraft := sorted.GetNonDraftPkgs()
-			assert.Equal(t, len(tc.outNonDraftPkgs), len(nonDraft))
-			for _, p := range nonDraft {
-				assert.Contains(t, tc.outNonDraftPkgs, p.Name)
+			// Non ignore packages
+			nonIgnore := sorted.GetNonIgnoredPkgs()
+			assert.Equal(t, len(tc.outNonIgnorePkgs), len(nonIgnore))
+			for _, p := range nonIgnore {
+				assert.Contains(t, tc.outNonIgnorePkgs, p.Name)
 			}
 		})
 	}
