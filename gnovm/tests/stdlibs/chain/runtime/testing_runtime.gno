@@ -13,7 +13,7 @@ func NewCodeRealm(pkgPath string) Realm {
 	if !isRealm(pkgPath) {
 		panic("should only be called for Realms")
 	}
-	return Realm{pkgPath: pkgPath, addr: chain.DerivePkgAddress(pkgPath)}
+	return Realm{pkgPath: pkgPath, addr: chain.PackageAddress(pkgPath)}
 }
 
 func AssertOriginCall() // injected

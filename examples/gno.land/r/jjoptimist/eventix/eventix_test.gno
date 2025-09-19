@@ -84,7 +84,7 @@ func TestBuyTicket(t *testing.T) {
 }
 
 func TestBuyTicketWithGRC20(t *testing.T) {
-	pkgAddr := chain.DerivePkgAddress("gno.land/r/jjoptimist/eventix")
+	pkgAddr := chain.PackageAddress("gno.land/r/jjoptimist/eventix")
 	alice := testutils.TestAddress("alice")
 	testing.SetRealm(runtime.NewUserRealm(alice))
 

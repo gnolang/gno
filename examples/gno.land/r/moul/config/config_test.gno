@@ -226,7 +226,7 @@ func TestTransferToContractAuthority(cur realm, t *testing.T) {
 	contractAuth := authz.NewContractAuthority(contractPath, func(title string, action authz.PrivilegedAction) error {
 		// Simulate contract checking the caller *before* executing
 		caller := runtime.CurrentRealm().Address()
-		expectedContractAddr := chain.DerivePkgAddress(contractPath)
+		expectedContractAddr := chain.PackageAddress(contractPath)
 		if caller != expectedContractAddr {
 			// Fail before marking executed or running action
 			// Note: In a real scenario, this handler might just ignore the call

@@ -9,7 +9,7 @@ import (
 	"gno.land/p/nt/testutils"
 )
 
-var coinflipAddr = chain.DerivePkgAddress("gno.land/r/sacha/coinflip")
+var coinflipAddr = chain.PackageAddress("gno.land/r/sacha/coinflip")
 
 func TestGetRealmBalance(t *testing.T) {
 	value := GetRealmBalance(cross)

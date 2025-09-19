@@ -53,7 +53,7 @@ func TestDerivePkgAddress(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		result := chain.DerivePkgAddress(tc.inputPath)
+		result := chain.PackageAddress(tc.inputPath)
 		if result.String() != tc.expected {
 			t.Fatalf("Expected: %t, got: %t", tc.expected, result)
 		}

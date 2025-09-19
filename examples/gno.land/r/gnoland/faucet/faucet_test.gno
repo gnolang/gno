@@ -12,7 +12,7 @@ import (
 func TestPackage(t *testing.T) {
 	var (
 		adminaddr        = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-		faucetaddr       = chain.DerivePkgAddress("gno.land/r/gnoland/faucet")
+		faucetaddr       = chain.PackageAddress("gno.land/r/gnoland/faucet")
 		controlleraddr1  = testutils.TestAddress("controller1")
 		controlleraddr2  = testutils.TestAddress("controller2")
 		controlleraddr3  = testutils.TestAddress("controller3")

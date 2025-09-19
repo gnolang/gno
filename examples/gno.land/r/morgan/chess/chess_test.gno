@@ -29,7 +29,7 @@ func cleanup() {
 func TestNewGame(cur realm, t *testing.T) {
 	cleanup()
 
-	g := xNewGame(cur, chain.DerivePkgAddress("xx").String(), 0, 0)
+	g := xNewGame(cur, chain.PackageAddress("xx").String(), 0, 0)
 	println(g)
 }
 

@@ -509,7 +509,7 @@ func TestAuthorityString(t *testing.T) {
 
 func TestContractAuthorityUnauthorizedCaller(t *testing.T) {
 	contractPath := "gno.land/r/testcontract"
-	contractAddr := chain.DerivePkgAddress(contractPath)
+	contractAddr := chain.PackageAddress(contractPath)
 	unauthorizedAddr := testutils.TestAddress("unauthorized")
 
 	// Handler that checks the caller before proceeding

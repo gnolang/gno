@@ -10,7 +10,7 @@ import (
 
 // mints ugnot to current realm
 func init() {
-	faucetaddr := chain.DerivePkgAddress("gno.land/r/gnoland/faucet")
+	faucetaddr := chain.PackageAddress("gno.land/r/gnoland/faucet")
 	testing.IssueCoins(faucetaddr, banker.Coins{{"ugnot", 200_000_000}})
 }
 

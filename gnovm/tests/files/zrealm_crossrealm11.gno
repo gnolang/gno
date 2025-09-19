@@ -23,9 +23,9 @@ func main(cur realm) {
 	// output than the bech32 addresses.
 	callersByAddr := make(map[address]string)
 	for _, caller := range []string{
-		"user1.gno", "gno.land/r/crossrealm", tests "gno.land/r/tests/vm",
+		"user1.gno", "gno.land/r/crossrealm", "gno.land/r/tests/vm",
 	} {
-		addr := chain.DerivePkgAddress(caller)
+		addr := chain.PackageAddress(caller)
 		callersByAddr[addr] = caller
 	}
 
@@ -145,8 +145,37 @@ func printColumns(left, right string) {
 	println(output)
 }
 
-// Error:
-// zrealm_crossrealm11.gno:26:47: missing ',' in composite literal (and 3 more errors)
-
-// TypeCheckError:
-// gno.land/r/crossrealm/zrealm_crossrealm11.gno:26:47: missing ',' in composite literal (and 3 more errors)
+// Output:
+// ---
+//                                                                                                     STACK = std.PreviousRealm
+//                                                                                                     ----- = ------------------
+//                                                      user1.gno !> r/crossrealm.main2 -> std.PreviousRealm = user1.gno
+//                                 user1.gno !> r/crossrealm.main2 -> r/crossrealm.Exec -> std.PreviousRealm = user1.gno
+//                                 user1.gno !> r/crossrealm.main2 -> r/demo/tests.Exec -> std.PreviousRealm = user1.gno
+//                           user1.gno !> r/crossrealm.main2 !> r/demo/tests.ExecSwitch -> std.PreviousRealm = gno.land/r/crossrealm
+//                                 user1.gno !> r/crossrealm.main2 -> p/demo/tests.Exec -> std.PreviousRealm = user1.gno
+//                                          user1.gno !> r/crossrealm.main2 -> r/crossrealm.getPreviousRealm = user1.gno
+//                     user1.gno !> r/crossrealm.main2 -> r/crossrealm.Exec -> r/crossrealm.getPreviousRealm = user1.gno
+//                     user1.gno !> r/crossrealm.main2 -> r/demo/tests.Exec -> r/crossrealm.getPreviousRealm = user1.gno
+//               user1.gno !> r/crossrealm.main2 !> r/demo/tests.ExecSwitch -> r/crossrealm.getPreviousRealm = gno.land/r/crossrealm
+//                     user1.gno !> r/crossrealm.main2 -> p/demo/tests.Exec -> r/crossrealm.getPreviousRealm = user1.gno
+//                                                           user1.gno !> r/crossrealm.main2 -> p/demo/tests = user1.gno
+//                                      user1.gno !> r/crossrealm.main2 -> r/crossrealm.Exec -> p/demo/tests = user1.gno
+//                                      user1.gno !> r/crossrealm.main2 -> r/demo/tests.Exec -> p/demo/tests = user1.gno
+//                                user1.gno !> r/crossrealm.main2 !> r/demo/tests.ExecSwitch -> p/demo/tests = gno.land/r/crossrealm
+//                                      user1.gno !> r/crossrealm.main2 -> p/demo/tests.Exec -> p/demo/tests = user1.gno
+//                                  user1.gno !> r/crossrealm.main2 -> p/demo/tests -> p/demo/tests/subtests = user1.gno
+//             user1.gno !> r/crossrealm.main2 -> r/crossrealm.Exec -> p/demo/tests -> p/demo/tests/subtests = user1.gno
+//             user1.gno !> r/crossrealm.main2 -> r/demo/tests.Exec -> p/demo/tests -> p/demo/tests/subtests = user1.gno
+//       user1.gno !> r/crossrealm.main2 !> r/demo/tests.ExecSwitch -> p/demo/tests -> p/demo/tests/subtests = gno.land/r/crossrealm
+//             user1.gno !> r/crossrealm.main2 -> p/demo/tests.Exec -> p/demo/tests -> p/demo/tests/subtests = user1.gno
+//                                                           user1.gno !> r/crossrealm.main2 !> r/demo/tests = gno.land/r/crossrealm
+//                                      user1.gno !> r/crossrealm.main2 -> r/crossrealm.Exec !> r/demo/tests = gno.land/r/crossrealm
+//                                      user1.gno !> r/crossrealm.main2 -> r/demo/tests.Exec !> r/demo/tests = gno.land/r/crossrealm
+//                                user1.gno !> r/crossrealm.main2 !> r/demo/tests.ExecSwitch !> r/demo/tests = gno.land/r/tests/vm
+//                                      user1.gno !> r/crossrealm.main2 -> p/demo/tests.Exec !> r/demo/tests = gno.land/r/crossrealm
+//                                  user1.gno !> r/crossrealm.main2 !> r/demo/tests !> r/demo/tests/subtests = gno.land/r/tests/vm
+//             user1.gno !> r/crossrealm.main2 -> r/crossrealm.Exec !> r/demo/tests !> r/demo/tests/subtests = gno.land/r/tests/vm
+//             user1.gno !> r/crossrealm.main2 -> r/demo/tests.Exec !> r/demo/tests !> r/demo/tests/subtests = gno.land/r/tests/vm
+//       user1.gno !> r/crossrealm.main2 !> r/demo/tests.ExecSwitch !> r/demo/tests !> r/demo/tests/subtests = gno.land/r/tests/vm
+//             user1.gno !> r/crossrealm.main2 -> p/demo/tests.Exec !> r/demo/tests !> r/demo/tests/subtests = gno.land/r/tests/vm

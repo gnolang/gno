@@ -181,7 +181,7 @@ func (g *GovDAO) isValidCall() bool {
 		if runtime.PreviousRealm().IsUser() {
 			return true
 		}
-		isMsgRun := chain.DerivePkgAddress(runtime.PreviousRealm().PkgPath()) == runtime.OriginCaller()
+		isMsgRun := chain.PackageAddress(runtime.PreviousRealm().PkgPath()) == runtime.OriginCaller()
 		// called directly by an user through MsgRun
 		if isMsgRun {
 			return true

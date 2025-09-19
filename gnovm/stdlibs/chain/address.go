@@ -4,7 +4,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
-func X_derivePkgAddress(pkgPath string) string {
+func X_packageAddress(pkgPath string) string {
 	return string(gno.DerivePkgBech32Addr(pkgPath))
 }
 

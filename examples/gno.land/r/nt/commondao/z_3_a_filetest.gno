@@ -16,7 +16,7 @@ const (
 
 var (
 	daoID     uint64
-	realmAddr = chain.DerivePkgAddress("gno.land/r/test")
+	realmAddr = chain.PackageAddress("gno.land/r/test")
 )
 
 func init() {

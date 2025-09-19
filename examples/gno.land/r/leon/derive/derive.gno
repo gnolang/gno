@@ -26,7 +26,7 @@ func Render(path string) string {
 			out += "Please input a valid pkgpath."
 			return out
 		}
-		out += ufmt.Sprintf("### [%s](%s) matches %s", parsed, strings.TrimPrefix(parsed, "gno.land"), chain.DerivePkgAddress(parsed))
+		out += ufmt.Sprintf("### [%s](%s) matches %s", parsed, strings.TrimPrefix(parsed, "gno.land"), chain.PackageAddress(parsed))
 	}
 
 	return out
