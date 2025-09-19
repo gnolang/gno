@@ -16,8 +16,8 @@ func main() {
 	mainaddr := chain.PackageAddress("gno.land/r/demo/bank1")
 
 	// simulate a Deposit call.
-	testing.IssueCoins(banktestAddr, banker.Coins{{"ugnot", 100000000}})
-	testing.SetOriginSend(banker.Coins{{"ugnot", 100000000}})
+	testing.IssueCoins(banktestAddr, chain.Coins{{"ugnot", 100000000}})
+	testing.SetOriginSend(chain.Coins{{"ugnot", 100000000}})
 	testing.SetRealm(runtime.NewUserRealm(mainaddr))
 
 	res := banktest.Deposit(cross, "ugnot", 101000000)

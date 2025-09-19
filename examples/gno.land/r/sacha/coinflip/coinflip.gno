@@ -58,7 +58,7 @@ func Withdrawal(cur realm, amount int64) {
 		panic("insufficient balance")
 	}
 
-	banker_.SendCoins(runtime.CurrentRealm().Address(), runtime.OriginCaller(), banker.NewCoins(banker.NewCoin(denom, amount)))
+	banker_.SendCoins(runtime.CurrentRealm().Address(), runtime.OriginCaller(), chain.NewCoins(chain.NewCoin(denom, amount)))
 }
 
 func flip(choice int) bool {
@@ -71,7 +71,7 @@ func flip(choice int) bool {
 	return result == choice
 }
 
-func getBet() banker.Coin {
+func getBet() chain.Coin {
 	bet := banker.OriginSend()
 	if len(bet) != 1 || bet[0].Denom != denom {
 		panic("bet is invalid")
@@ -91,7 +91,7 @@ func getBet() banker.Coin {
 
 func sendPrize(cur realm, caller address, amount int64) {
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
-	wonCoins := banker.NewCoins(banker.NewCoin(denom, amount))
+	wonCoins := chain.NewCoins(chain.NewCoin(denom, amount))
 
 	banker_.SendCoins(runtime.CurrentRealm().Address(), caller, wonCoins)
 }

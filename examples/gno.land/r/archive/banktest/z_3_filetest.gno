@@ -15,7 +15,7 @@ func main() {
 	testing.SetOriginCaller(mainaddr)
 
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
-	send := banker.Coins{{"ugnot", 123}}
+	send := chain.Coins{{"ugnot", 123}}
 	banker_.SendCoins(banktestAddr, mainaddr, send)
 }
 

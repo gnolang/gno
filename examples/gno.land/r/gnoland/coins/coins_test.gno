@@ -1,6 +1,7 @@
 package coins
 
 import (
+	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"strings"
@@ -20,16 +21,16 @@ func TestBalanceChecker(t *testing.T) {
 	coinsRealm := runtime.NewCodeRealm("gno.land/r/gnoland/coins")
 	testing.SetRealm(coinsRealm)
 
-	testing.IssueCoins(addr1, banker.NewCoins(banker.NewCoin(denom1, 1000000)))
-	testing.IssueCoins(addr2, banker.NewCoins(banker.NewCoin(denom1, 501)))
+	testing.IssueCoins(addr1, chain.NewCoins(chain.NewCoin(denom1, 1000000)))
+	testing.IssueCoins(addr2, chain.NewCoins(chain.NewCoin(denom1, 501)))
 
-	testing.IssueCoins(addr2, banker.NewCoins(banker.NewCoin(denom2, 12345)))
+	testing.IssueCoins(addr2, chain.NewCoins(chain.NewCoin(denom2, 12345)))
 
 	gnoAddr, _ := ctg.ConvertCosmosToGno("cosmos1s2v4tdskccx2p3yyvzem4mw5nn5fprwcku77hr")
 	osmoAddr := "osmo1fl48vsnmsdzcv85q5d2q4z5ajdha8yu3aq6l09"
 	gnoAddr1, _ := ctg.ConvertAnyToGno(osmoAddr)
 
-	testing.IssueCoins(gnoAddr1, banker.NewCoins(banker.NewCoin(denom2, 12345)))
+	testing.IssueCoins(gnoAddr1, chain.NewCoins(chain.NewCoin(denom2, 12345)))
 
 	tests := []struct {
 		name      string

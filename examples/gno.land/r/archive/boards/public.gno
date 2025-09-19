@@ -1,6 +1,7 @@
 package boards
 
 import (
+	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"strconv"
@@ -37,7 +38,7 @@ func CreateBoard(cur realm, name string) BoardID {
 
 func checkAnonFee() bool {
 	sent := banker.OriginSend()
-	anonFeeCoin := banker.NewCoin("ugnot", int64(gDefaultAnonFee))
+	anonFeeCoin := chain.NewCoin("ugnot", int64(gDefaultAnonFee))
 	if len(sent) == 1 && sent[0].IsGTE(anonFeeCoin) {
 		return true
 	}

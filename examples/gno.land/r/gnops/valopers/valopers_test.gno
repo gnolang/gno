@@ -1,6 +1,7 @@
 package valopers
 
 import (
+	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"strings"
@@ -56,7 +57,7 @@ func TestValopers_Register(t *testing.T) {
 		valopers.Set(v.Address.String(), v)
 
 		// Send coins
-		testing.SetOriginSend(banker.Coins{minFee})
+		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.AbortsWithMessage(t, ErrValoperExists.Error(), func() {
 			Register(cross, info.Moniker, info.Description, info.Address, info.PubKey)
@@ -70,7 +71,7 @@ func TestValopers_Register(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send no coins
-		testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", 0)})
+		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", 0)})
 
 		uassert.AbortsWithMessage(t, ufmt.Sprintf("payment must not be less than %d%s", minFee.Amount, minFee.Denom), func() {
 			Register(cross, info.Moniker, info.Description, info.Address, info.PubKey)
@@ -84,7 +85,7 @@ func TestValopers_Register(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send invalid coins
-		testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", minFee.Amount-1)})
+		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", minFee.Amount-1)})
 
 		uassert.AbortsWithMessage(t, ufmt.Sprintf("payment must not be less than %d%s", minFee.Amount, minFee.Denom), func() {
 			Register(cross, info.Moniker, info.Description, info.Address, info.PubKey)
@@ -98,7 +99,7 @@ func TestValopers_Register(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send invalid coins
-		testing.SetOriginSend(banker.Coins{banker.NewCoin("gnogno", minFee.Amount)})
+		testing.SetOriginSend(chain.Coins{chain.NewCoin("gnogno", minFee.Amount)})
 
 		uassert.AbortsWithMessage(t, "incompatible coin denominations: gnogno, ugnot", func() {
 			Register(cross, info.Moniker, info.Description, info.Address, info.PubKey)
@@ -112,7 +113,7 @@ func TestValopers_Register(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send coins
-		testing.SetOriginSend(banker.Coins{minFee})
+		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.NotAborts(t, func() {
 			Register(cross, info.Moniker, info.Description, info.Address, info.PubKey)
@@ -141,7 +142,7 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send coins
-		testing.SetOriginSend(banker.Coins{minFee})
+		testing.SetOriginSend(chain.Coins{minFee})
 
 		testing.SetRealm(runtime.NewUserRealm(test1Address))
 
@@ -165,7 +166,7 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send coins
-		testing.SetOriginSend(banker.Coins{minFee})
+		testing.SetOriginSend(chain.Coins{minFee})
 
 		testing.SetRealm(runtime.NewUserRealm(test1Address))
 
@@ -194,7 +195,7 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send coins
-		testing.SetOriginSend(banker.Coins{minFee})
+		testing.SetOriginSend(chain.Coins{minFee})
 
 		testing.SetRealm(runtime.NewUserRealm(test1Address))
 
@@ -248,7 +249,7 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send coins
-		testing.SetOriginSend(banker.Coins{minFee})
+		testing.SetOriginSend(chain.Coins{minFee})
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -284,7 +285,7 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		testing.SetOriginCaller(test1Address)
 
 		// Send coins
-		testing.SetOriginSend(banker.Coins{minFee})
+		testing.SetOriginSend(chain.Coins{minFee})
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -309,7 +310,7 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		testing.SetOriginCaller(test1Address)
 
 		// Send coins
-		testing.SetOriginSend(banker.Coins{minFee})
+		testing.SetOriginSend(chain.Coins{minFee})
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -332,7 +333,7 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		testing.SetOriginCaller(test1Address)
 
 		// Send coins
-		testing.SetOriginSend(banker.Coins{minFee})
+		testing.SetOriginSend(chain.Coins{minFee})
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -378,7 +379,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		testing.SetOriginSend(banker.Coins{minFee})
+		testing.SetOriginSend(chain.Coins{minFee})
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -404,7 +405,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		testing.SetOriginCaller(test1Address)
 
 		// Send coins
-		testing.SetOriginSend(banker.Coins{minFee})
+		testing.SetOriginSend(chain.Coins{minFee})
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -428,7 +429,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		testing.SetOriginCaller(test1Address)
 
 		// Send coins
-		testing.SetOriginSend(banker.Coins{minFee})
+		testing.SetOriginSend(chain.Coins{minFee})
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -451,7 +452,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		testing.SetOriginCaller(test1Address)
 
 		// Send coins
-		testing.SetOriginSend(banker.Coins{minFee})
+		testing.SetOriginSend(chain.Coins{minFee})
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -497,7 +498,7 @@ func TestValopers_UpdateKeepRunning(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send coins
-		testing.SetOriginSend(banker.Coins{minFee})
+		testing.SetOriginSend(chain.Coins{minFee})
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -523,7 +524,7 @@ func TestValopers_UpdateKeepRunning(t *testing.T) {
 		testing.SetOriginCaller(test1Address)
 
 		// Send coins
-		testing.SetOriginSend(banker.Coins{minFee})
+		testing.SetOriginSend(chain.Coins{minFee})
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {

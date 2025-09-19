@@ -1,6 +1,7 @@
 package users
 
 import (
+	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"testing"
@@ -26,7 +27,7 @@ func TestRegister_Valid(t *testing.T) {
 		// Simulate a proper user call with the required 1GNOT fee.
 		testing.SetRealm(runtime.NewUserRealm(addr))
 		testing.SetOriginCaller(addr)
-		testing.SetOriginSend(banker.NewCoins(banker.NewCoin("ugnot", registerPrice)))
+		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
 
 		urequire.NotPanics(t, func() {
 			Register(cross, username)
@@ -36,7 +37,7 @@ func TestRegister_Valid(t *testing.T) {
 
 func TestRegister_Invalid(t *testing.T) {
 	t.Run("invalid usernames", func(t *testing.T) {
-		testing.SetOriginSend(banker.NewCoins(banker.NewCoin("ugnot", registerPrice)))
+		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
 		testing.SetRealm(runtime.NewUserRealm(testutils.TestAddress("bob123")))
 
 		invalidUsernames := []string{
@@ -59,7 +60,7 @@ func TestRegister_Invalid(t *testing.T) {
 	})
 
 	t.Run("taken username", func(t *testing.T) {
-		testing.SetOriginSend(banker.NewCoins(banker.NewCoin("ugnot", registerPrice)))
+		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
 		testing.SetRealm(runtime.NewUserRealm(testutils.TestAddress("bob123")))
 
 		username := "bob123"
@@ -79,7 +80,7 @@ func TestRegister_Invalid(t *testing.T) {
 		testing.SetRealm(runtime.NewUserRealm(addr))
 		testing.SetOriginCaller(addr)
 
-		testing.SetOriginSend(banker.NewCoins(banker.NewCoin("ugnot", 12))) // invalid payment amount
+		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 12))) // invalid payment amount
 
 		uassert.AbortsWithMessage(t, ErrInvalidPayment.Error(), func() {
 			Register(cross, "alice123")

@@ -1,6 +1,7 @@
 package faucet
 
 import (
+	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"errors"
@@ -18,11 +19,11 @@ var (
 	gMessage                    = "# Community Faucet.\n\n"
 
 	// internal vars, for stats.
-	gTotalTransferred banker.Coins
+	gTotalTransferred chain.Coins
 	gTotalTransfers   = uint(0)
 
 	// per request limit, 350 gnot
-	gLimit banker.Coin = banker.NewCoin("ugnot", 350_000_000)
+	gLimit chain.Coin = chain.NewCoin("ugnot", 350_000_000)
 )
 
 func Transfer(cur realm, to address, send int64) string {
@@ -38,7 +39,7 @@ func Transfer(cur realm, to address, send int64) string {
 	if send > gLimit.Amount {
 		return errors.New("Per request limit " + gLimit.String() + " exceed").Error()
 	}
-	sendCoins := banker.Coins{banker.NewCoin("ugnot", send)}
+	sendCoins := chain.Coins{chain.NewCoin("ugnot", send)}
 
 	gTotalTransferred = gTotalTransferred.Add(sendCoins)
 	gTotalTransfers++

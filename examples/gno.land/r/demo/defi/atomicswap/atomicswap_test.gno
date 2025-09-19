@@ -29,11 +29,11 @@ func TestNewCustomCoinSwap_Claim(cur realm, t *testing.T) {
 	pkgAddr := chain.PackageAddress("gno.land/r/demo/defi/atomicswap")
 	sender := testutils.TestAddress("sender1")
 	recipient := testutils.TestAddress("recipient1")
-	amount := banker.Coins{{Denom: "ugnot", Amount: 1}}
+	amount := chain.Coins{{Denom: "ugnot", Amount: 1}}
 	hashlock := sha256.Sum256([]byte("secret"))
 	hashlockHex := hex.EncodeToString(hashlock[:])
 	timelock := time.Now().Add(1 * time.Hour)
-	testing.IssueCoins(pkgAddr, banker.Coins{{"ugnot", 100000000}})
+	testing.IssueCoins(pkgAddr, chain.Coins{{"ugnot", 100000000}})
 
 	// Create a new swap
 	testing.SetRealm(runtime.NewUserRealm(sender))
@@ -94,7 +94,7 @@ func TestNewCustomCoinSwap_Refund(cur realm, t *testing.T) {
 	pkgAddr := chain.PackageAddress("gno.land/r/demo/defi/atomicswap")
 	sender := testutils.TestAddress("sender2")
 	recipient := testutils.TestAddress("recipient2")
-	amount := banker.Coins{{Denom: "ugnot", Amount: 1}}
+	amount := chain.Coins{{Denom: "ugnot", Amount: 1}}
 	hashlock := sha256.Sum256([]byte("secret"))
 	hashlockHex := hex.EncodeToString(hashlock[:])
 	timelock := time.Now().Add(1 * time.Hour)
@@ -118,7 +118,7 @@ func TestNewCustomCoinSwap_Refund(cur realm, t *testing.T) {
 	// Test Refund
 	// testing.SetRealm(runtime.NewUserRealm(recipient))
 	crossThrough(runtime.NewCodeRealm("gno.land/r/atomicswap/test"), func() {
-		testing.IssueCoins(pkgAddr, banker.Coins{{"ugnot", 100000000}})
+		testing.IssueCoins(pkgAddr, chain.Coins{{"ugnot", 100000000}})
 		uassert.PanicsWithMessage(t, "timelock not expired", swap.Refund)
 	})
 	swap.timelock = time.Now().Add(-1 * time.Hour) // override timelock
@@ -259,7 +259,7 @@ func TestNewCustomGRC20Swap_Refund(t *testing.T) {
 
 	// Test Refund
 	crossThrough(runtime.NewCodeRealm("gno.land/r/atomicswap/test"), func() {
-		testing.IssueCoins(pkgAddr, banker.Coins{{"ugnot", 100000000}})
+		testing.IssueCoins(pkgAddr, chain.Coins{{"ugnot", 100000000}})
 		uassert.PanicsWithMessage(t, "timelock not expired", swap.Refund)
 	})
 
@@ -403,7 +403,7 @@ func TestNewGRC20Swap_Refund(t *testing.T) {
 
 	// Test Refund
 	crossThrough(runtime.NewCodeRealm("gno.land/r/atomicswap/test"), func() {
-		testing.IssueCoins(pkgAddr, banker.Coins{{"ugnot", 100000000}})
+		testing.IssueCoins(pkgAddr, chain.Coins{{"ugnot", 100000000}})
 		uassert.PanicsWithMessage(t, "timelock not expired", swap.Refund)
 	})
 

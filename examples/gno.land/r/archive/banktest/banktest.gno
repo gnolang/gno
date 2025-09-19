@@ -1,6 +1,7 @@
 package banktest
 
 import (
+	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"time"
@@ -8,8 +9,8 @@ import (
 
 type activity struct {
 	caller   address
-	sent     banker.Coins
-	returned banker.Coins
+	sent     chain.Coins
+	returned chain.Coins
 	time     time.Time
 }
 
@@ -34,7 +35,7 @@ func addActivity(act *activity) {
 func Deposit(cur realm, returnDenom string, returnAmount int64) string {
 	runtime.AssertOriginCall()
 	caller := runtime.OriginCaller()
-	send := banker.Coins{{returnDenom, returnAmount}}
+	send := chain.Coins{{returnDenom, returnAmount}}
 	// record activity
 	act := &activity{
 		caller:   caller,

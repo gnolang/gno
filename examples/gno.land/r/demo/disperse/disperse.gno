@@ -1,6 +1,7 @@
 package disperse
 
 import (
+	"chain"
 	"chain/banker"
 	"chain/runtime"
 
@@ -12,7 +13,7 @@ var realmAddr = runtime.CurrentRealm().Address()
 // DisperseUgnot parses receivers and amounts and sends out ugnot
 // The function will send out the coins to the addresses and return the leftover coins to the caller
 // if there are any to return
-func DisperseUgnot(cur realm, addresses []address, coins banker.Coins) {
+func DisperseUgnot(cur realm, addresses []address, coins chain.Coins) {
 	coinSent := banker.OriginSend()
 	caller := runtime.PreviousRealm().Address()
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
@@ -33,14 +34,14 @@ func DisperseUgnot(cur realm, addresses []address, coins banker.Coins) {
 
 	// Send coins
 	for i := range addresses {
-		banker_.SendCoins(realmAddr, addresses[i], banker.NewCoins(coins[i]))
+		banker_.SendCoins(realmAddr, addresses[i], chain.NewCoins(coins[i]))
 	}
 
 	// Return possible leftover coins
 	for _, coin := range coinSent {
 		leftoverAmt := banker_.GetCoins(realmAddr).AmountOf(coin.Denom)
 		if leftoverAmt > 0 {
-			send := banker.Coins{banker.NewCoin(coin.Denom, leftoverAmt)}
+			send := chain.Coins{chain.NewCoin(coin.Denom, leftoverAmt)}
 			banker_.SendCoins(realmAddr, caller, send)
 		}
 	}
@@ -59,9 +60,9 @@ func DisperseUgnotString(cur realm, addresses string, amounts string) {
 		panic(err)
 	}
 
-	coins := make(banker.Coins, len(parsedAmounts))
+	coins := make(chain.Coins, len(parsedAmounts))
 	for i, amount := range parsedAmounts {
-		coins[i] = banker.NewCoin("ugnot", amount)
+		coins[i] = chain.NewCoin("ugnot", amount)
 	}
 
 	DisperseUgnot(cur, parsedAddresses, coins)

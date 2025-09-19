@@ -33,14 +33,14 @@ func main() {
 	println("CoinsBanker Balances count:", len(cbanker.Balances()))
 
 	// Issue some coins to the owner address.
-	testing.IssueCoins(ownerAddr, banker.NewCoins(banker.NewCoin("ugnot", 42)))
+	testing.IssueCoins(ownerAddr, chain.NewCoins(chain.NewCoin("ugnot", 42)))
 
 	println("CoinsBanker Balances count:", len(cbanker.Balances()))
 	println("Ugnot balance:", cbanker.Balances()[0].Amount)
 
 	// Send a valid payment.
 	validPayment := treasury.NewCoinsPayment(
-		banker.NewCoins(banker.NewCoin("ugnot", 10)),
+		chain.NewCoins(chain.NewCoin("ugnot", 10)),
 		destAddr,
 	)
 	err = cbanker.Send(validPayment)
@@ -60,7 +60,7 @@ func main() {
 	}
 
 	// Issue another coin to the owner address to test the Balances method.
-	testing.IssueCoins(ownerAddr, banker.NewCoins(banker.NewCoin("anothercoin", 1337)))
+	testing.IssueCoins(ownerAddr, chain.NewCoins(chain.NewCoin("anothercoin", 1337)))
 
 	println("CoinsBanker Balances count:", len(cbanker.Balances()))
 }

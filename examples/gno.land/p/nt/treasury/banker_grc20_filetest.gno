@@ -115,7 +115,7 @@ func main() {
 	}
 
 	// Send a payment with an invalid type.
-	invalidPaymentType := treasury.NewCoinsPayment(banker.Coins{}, destAddr)
+	invalidPaymentType := treasury.NewCoinsPayment(chain.Coins{}, destAddr)
 	err = gbanker.Send(invalidPaymentType)
 	println("Invalid payment type error:", err)
 	if err == nil {

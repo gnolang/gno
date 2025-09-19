@@ -28,7 +28,7 @@ func TestPackage(t *testing.T) {
 		test1addr = testutils.TestAddress("test1")
 	)
 	// deposit 1000gnot to faucet contract
-	testing.IssueCoins(faucetaddr, banker.Coins{{"ugnot", 1_000_000_000}})
+	testing.IssueCoins(faucetaddr, chain.Coins{{"ugnot", 1_000_000_000}})
 	assertBalance(t, faucetaddr, 1_000_000_000)
 
 	// by default, balance is empty, and as a user I cannot call Transfer, or Admin commands.

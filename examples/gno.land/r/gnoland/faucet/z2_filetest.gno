@@ -13,7 +13,7 @@ import (
 // mints ugnot to current realm
 func init() {
 	faucetaddr := chain.PackageAddress("gno.land/r/gnoland/faucet")
-	testing.IssueCoins(faucetaddr, banker.Coins{{"ugnot", 200_000_000}})
+	testing.IssueCoins(faucetaddr, chain.Coins{{"ugnot", 200_000_000}})
 }
 
 // assert render with empty path and 2 controllers

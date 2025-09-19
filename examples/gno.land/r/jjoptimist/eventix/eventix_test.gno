@@ -60,7 +60,7 @@ func TestBuyTicket(t *testing.T) {
 	})
 
 	// Test successful purchase
-	testing.SetOriginSend(banker.NewCoins(banker.NewCoin("ugnot", 1000000)))
+	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
 	BuyTicket(cross, eventId)
 
 	event, _ := getEvent(eventId)
@@ -75,7 +75,7 @@ func TestBuyTicket(t *testing.T) {
 	urequire.Equal(t, buyer, owner)
 
 	// Test buying sold out event
-	testing.SetOriginSend(banker.NewCoins(banker.NewCoin("ugnot", 1000000)))
+	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
 	BuyTicket(cross, eventId) // Buy second ticket
 
 	uassert.AbortsWithMessage(t, "Event is sold out", func() {

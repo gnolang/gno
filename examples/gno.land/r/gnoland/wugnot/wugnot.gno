@@ -1,6 +1,7 @@
 package wugnot
 
 import (
+	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"strings"
@@ -41,7 +42,7 @@ func Withdraw(cur realm, amount int64) {
 
 	// send swapped ugnots to qcaller
 	stdBanker := banker.NewBanker(banker.BankerTypeRealmSend)
-	send := banker.Coins{{"ugnot", int64(amount)}}
+	send := chain.Coins{{"ugnot", int64(amount)}}
 	stdBanker.SendCoins(pkgaddr, caller, send)
 	checkErr(adm.Burn(caller, amount))
 }

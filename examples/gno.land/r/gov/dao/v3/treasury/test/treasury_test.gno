@@ -48,11 +48,11 @@ func init() {
 	})
 }
 
-func ugnotCoins(t *testing.T, amount int64) banker.Coins {
+func ugnotCoins(t *testing.T, amount int64) chain.Coins {
 	t.Helper()
 
 	// Create a new coin with the ugnot denomination.
-	return banker.NewCoins(banker.NewCoin("ugnot", amount))
+	return chain.NewCoins(chain.NewCoin("ugnot", amount))
 }
 
 func ugnotBalance(t *testing.T, addr address) int64 {

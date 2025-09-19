@@ -3,6 +3,7 @@ package main
 // SEND: 1000000ugnot
 
 import (
+	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"strconv"
@@ -25,7 +26,7 @@ func main() {
 	// create reply via anon user
 	test2 := testutils.TestAddress("test2")
 	testing.SetOriginCaller(test2)
-	testing.SetOriginSend(banker.Coins{{"ugnot", 9000000}})
+	testing.SetOriginSend(chain.Coins{{"ugnot", 9000000}})
 	boards.CreateReply(cross, bid, pid, pid, "Reply of the first post")
 
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))

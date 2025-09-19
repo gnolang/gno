@@ -1,6 +1,7 @@
 package home
 
 import (
+	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"strings"
@@ -34,8 +35,8 @@ func TestVoteModern(t *testing.T) {
 	testing.SetRealm(runtime.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
-	coinsSent := banker.NewCoins(banker.NewCoin("ugnot", 75000000))
-	coinsSpent := banker.NewCoins(banker.NewCoin("ugnot", 1))
+	coinsSent := chain.NewCoins(chain.NewCoin("ugnot", 75000000))
+	coinsSpent := chain.NewCoins(chain.NewCoin("ugnot", 1))
 
 	testing.SetOriginSend(coinsSent)
 	testing.SetOriginSpend(coinsSpent)
@@ -49,8 +50,8 @@ func TestVoteClassic(t *testing.T) {
 	testing.SetRealm(runtime.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
-	coinsSent := banker.NewCoins(banker.NewCoin("ugnot", 75000000))
-	coinsSpent := banker.NewCoins(banker.NewCoin("ugnot", 1))
+	coinsSent := chain.NewCoins(chain.NewCoin("ugnot", 75000000))
+	coinsSpent := chain.NewCoins(chain.NewCoin("ugnot", 1))
 
 	testing.SetOriginSend(coinsSent)
 	testing.SetOriginSpend(coinsSpent)
@@ -64,8 +65,8 @@ func TestVoteMinimal(t *testing.T) {
 	testing.SetRealm(runtime.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
-	coinsSent := banker.NewCoins(banker.NewCoin("ugnot", 75000000))
-	coinsSpent := banker.NewCoins(banker.NewCoin("ugnot", 1))
+	coinsSent := chain.NewCoins(chain.NewCoin("ugnot", 75000000))
+	coinsSpent := chain.NewCoins(chain.NewCoin("ugnot", 1))
 
 	testing.SetOriginSend(coinsSent)
 	testing.SetOriginSpend(coinsSpent)

@@ -37,7 +37,7 @@ func TestWithdrawal(t *testing.T) {
 	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
 	sachaAddr := address("g1jpg2hmsh8j4f60u4vkseqh5azeupns8vhrstfm")
 
-	testing.IssueCoins(coinflipAddr, banker.Coins{{"ugnot", 100000000}})
+	testing.IssueCoins(coinflipAddr, chain.Coins{{"ugnot", 100000000}})
 
 	testing.SetRealm(runtime.NewUserRealm(sachaAddr))
 
@@ -55,7 +55,7 @@ func TestSendPrize(t *testing.T) {
 	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
 	aliceAddr := testutils.TestAddress("alice")
 
-	testing.IssueCoins(coinflipAddr, banker.Coins{{"ugnot", 100000000}})
+	testing.IssueCoins(coinflipAddr, chain.Coins{{"ugnot", 100000000}})
 
 	testing.SetRealm(runtime.NewUserRealm(aliceAddr))
 

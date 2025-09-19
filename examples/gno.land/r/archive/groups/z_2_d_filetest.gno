@@ -4,6 +4,7 @@ package groups_test
 // SEND: 200000000ugnot
 
 import (
+	"chain"
 	"chain/banker"
 	"testing"
 
@@ -22,7 +23,7 @@ func main() {
 	// delete member via anon user
 	test2 := testutils.TestAddress("test2")
 	testing.SetOriginCaller(test2)
-	testing.SetOriginSend(banker.Coins{{"ugnot", 9000000}})
+	testing.SetOriginSend(chain.Coins{{"ugnot", 9000000}})
 
 	groups.DeleteMember(cross, gid, 0)
 	println(groups.Render(""))

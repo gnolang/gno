@@ -89,13 +89,13 @@ func main() {
 	}
 
 	// Check if the balances and history of the bankers match the expected values.
-	testing.IssueCoins(ownerAddr, banker.NewCoins(banker.NewCoin("ugnot", amount)))
+	testing.IssueCoins(ownerAddr, chain.NewCoins(chain.NewCoin("ugnot", amount)))
 	bankerIDs := []string{coinsBanker.ID(), grc20Banker.ID()}
 	checkBalanceAndHistory(t, bankerIDs)
 
 	// Send 3 valid payments using the CoinsBanker.
 	validCoinsPayment := treasury.NewCoinsPayment(
-		banker.NewCoins(banker.NewCoin("ugnot", 100)),
+		chain.NewCoins(chain.NewCoin("ugnot", 100)),
 		destAddr,
 	)
 	for i := 0; i < 3; i++ {

@@ -21,7 +21,7 @@ func main() {
 	println("main balance before send:", banker_.GetCoins(mainAddr))
 	println("disperse balance before send:", banker_.GetCoins(disperseAddr))
 
-	banker_.SendCoins(mainAddr, disperseAddr, banker.Coins{{"ugnot", 250}})
+	banker_.SendCoins(mainAddr, disperseAddr, chain.Coins{{"ugnot", 250}})
 	println("main balance after send:", banker_.GetCoins(mainAddr))
 	println("disperse balance after send:", banker_.GetCoins(disperseAddr))
 

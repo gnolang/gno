@@ -1,6 +1,7 @@
 package home
 
 import (
+	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"strings"
@@ -16,7 +17,7 @@ type SocialLink struct {
 
 type Sponsor struct {
 	Address address
-	Amount  banker.Coins
+	Amount  chain.Coins
 }
 
 type Project struct {
@@ -34,7 +35,7 @@ var (
 	socialLinks    map[string]SocialLink
 	gnoProjects    map[string]Project
 	otherProjects  map[string]Project
-	totalDonations banker.Coins
+	totalDonations chain.Coins
 )
 
 func init() {

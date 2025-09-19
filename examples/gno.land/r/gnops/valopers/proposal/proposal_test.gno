@@ -1,6 +1,7 @@
 package proposal
 
 import (
+	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"testing"
@@ -51,7 +52,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 	t.Run("remove an unexisting validator", func(t *testing.T) {
 		// Send coins to be able to register a valoper
-		testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", registerMinFee)})
+		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", registerMinFee)})
 
 		urequire.NotPanics(t, func() {
 			valopers.Register(cross, moniker, description, g1user, pubKey)
@@ -63,7 +64,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		})
 
 		// Send coins to be able to make a proposal
-		testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", proposalMinFee)})
+		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", proposalMinFee)})
 
 		urequire.AbortsWithMessage(t, ErrValidatorMissing.Error(), func(cur realm) {
 			pr := NewValidatorProposalRequest(cur, g1user)
@@ -74,7 +75,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 	t.Run("proposal successfully created", func(t *testing.T) {
 		// Send coins to be able to register a valoper
-		testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", registerMinFee)})
+		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", registerMinFee)})
 
 		urequire.NotPanics(t, func() {
 			valopers.UpdateKeepRunning(cross, g1user, true)
@@ -87,7 +88,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		})
 
 		// Send coins to be able to make a proposal
-		testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", proposalMinFee)})
+		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", proposalMinFee)})
 
 		var pid dao.ProposalID
 		urequire.NotPanics(t, func(cur realm) {
@@ -112,7 +113,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 	t.Run("try to update a validator with the same values", func(t *testing.T) {
 		// Send coins to be able to register a valoper
-		testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", registerMinFee)})
+		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", registerMinFee)})
 
 		urequire.NotPanics(t, func() {
 			valopers.GetByAddr(g1user)
@@ -130,7 +131,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		})
 
 		// Send coins to be able to make a proposal
-		testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", proposalMinFee)})
+		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", proposalMinFee)})
 
 		urequire.AbortsWithMessage(t, ErrSameValues.Error(), func() {
 			pr := NewValidatorProposalRequest(cross, g1user)
@@ -149,7 +150,7 @@ func TestValopers_ProposeNewInstructions(t *testing.T) {
 	testing.SetRealm(runtime.NewUserRealm(g1user))
 
 	// Send coins to be able to make a proposal
-	testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", proposalMinFee)})
+	testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", proposalMinFee)})
 
 	var pid dao.ProposalID
 	urequire.NotPanics(t, func() {
@@ -177,7 +178,7 @@ func TestValopers_ProposeNewMinFee(t *testing.T) {
 	testing.SetRealm(runtime.NewUserRealm(g1user))
 
 	// Send coins to be able to make a proposal
-	testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", proposalMinFee)})
+	testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", proposalMinFee)})
 
 	var pid dao.ProposalID
 	urequire.NotPanics(t, func() {

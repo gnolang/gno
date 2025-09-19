@@ -25,8 +25,8 @@ func main() {
 	println("main before:", mainbal)
 
 	// simulate a Deposit call. use Send + OriginSend to simulate -send.
-	banker_.SendCoins(mainaddr, banktestAddr, banker.Coins{{"ugnot", 100_000_000}})
-	testing.SetOriginSend(banker.Coins{{"ugnot", 100_000_000}})
+	banker_.SendCoins(mainaddr, banktestAddr, chain.Coins{{"ugnot", 100_000_000}})
+	testing.SetOriginSend(chain.Coins{{"ugnot", 100_000_000}})
 	testing.SetRealm(runtime.NewUserRealm(mainaddr))
 	res := banktest.Deposit(cross, "ugnot", 50_000_000) // bank1 can't send? should be r/demo/bank1 to r/demo/banktest, is bank1 -> bank1.
 	println("Deposit():", res)

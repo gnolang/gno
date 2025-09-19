@@ -1,6 +1,7 @@
 package faucet
 
 import (
+	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"errors"
@@ -26,7 +27,7 @@ func AdminSetTransferLimit(cur realm, amount int64) string {
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
-	gLimit = banker.NewCoin("ugnot", amount)
+	gLimit = chain.NewCoin("ugnot", amount)
 	return ""
 }
 

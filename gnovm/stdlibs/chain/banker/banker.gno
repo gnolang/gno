@@ -1,6 +1,7 @@
 package banker
 
 import (
+	"chain"
 	"chain/runtime"
 	"strconv"
 	"strings"
@@ -21,8 +22,8 @@ import (
 // type, and those can't return non-primitive objects
 // (without confusion).
 type Banker interface {
-	GetCoins(addr address) (dst Coins)
-	SendCoins(from, to address, amt Coins)
+	GetCoins(addr address) (dst chain.Coins)
+	SendCoins(from, to address, amt chain.Coins)
 	TotalCoin(denom string) int64
 	IssueCoin(addr address, denom string, amount int64)
 	RemoveCoin(addr address, denom string, amount int64)
@@ -99,16 +100,16 @@ type banker struct {
 	pkgAddr address
 }
 
-func (b banker) GetCoins(addr address) (dst Coins) {
+func (b banker) GetCoins(addr address) (dst chain.Coins) {
 	denoms, amounts := bankerGetCoins(uint8(b.bt), string(addr))
-	dst = make(Coins, len(denoms))
+	dst = make(chain.Coins, len(denoms))
 	for i := range dst {
-		dst[i] = Coin{denoms[i], amounts[i]}
+		dst[i] = chain.Coin{denoms[i], amounts[i]}
 	}
 	return dst
 }
 
-func (b banker) SendCoins(from, to address, amt Coins) {
+func (b banker) SendCoins(from, to address, amt chain.Coins) {
 	if b.bt == BankerTypeReadonly {
 		panic("BankerTypeReadonly cannot send coins")
 	}
@@ -116,7 +117,7 @@ func (b banker) SendCoins(from, to address, amt Coins) {
 		msg := `can only send coins from realm that created banker "` + b.pkgAddr + `", not "` + from + `"`
 		panic(msg)
 	}
-	denoms, amounts := amt.expandNative()
+	denoms, amounts := expandNative(amt)
 	bankerSendCoins(uint8(b.bt), string(from), string(to), denoms, amounts)
 }
 
@@ -169,14 +170,26 @@ func isValidBaseDenom(denom string) bool {
 	return true
 }
 
-func OriginSend() Coins {
+func OriginSend() chain.Coins {
 	den, amt := originSend()
-	coins := make(Coins, len(den))
+	coins := make(chain.Coins, len(den))
 	for i := range coins {
-		coins[i] = Coin{Denom: den[i], Amount: amt[i]}
+		coins[i] = chain.Coin{Denom: den[i], Amount: amt[i]}
 	}
 	return coins
 }
 
 func assertCallerIsRealm()
 func originSend() (denoms []string, amounts []int64)
+
+// expandNative expands coins for usage within natively bound functions.
+func expandNative(cz chain.Coins) (denoms []string, amounts []int64) {
+	denoms = make([]string, len(cz))
+	amounts = make([]int64, len(cz))
+	for i, coin := range cz {
+		denoms[i] = coin.Denom
+		amounts[i] = coin.Amount
+	}
+
+	return denoms, amounts
+}

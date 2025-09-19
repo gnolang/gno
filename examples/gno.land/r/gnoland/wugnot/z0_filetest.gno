@@ -18,14 +18,14 @@ var (
 
 func main() {
 	// issue ugnots
-	testing.IssueCoins(addr1, banker.Coins{{"ugnot", 100000001}})
+	testing.IssueCoins(addr1, chain.Coins{{"ugnot", 100000001}})
 	printBalances()
 	// println(wugnot.Render("queues"))
 	// println("A -", wugnot.Render(""))
 
 	// deposit of 123400ugnot from addr1
 	// origin send must be simulated
-	coins := banker.Coins{{"ugnot", 123_400}}
+	coins := chain.Coins{{"ugnot", 123_400}}
 	testing.SetOriginCaller(addr1)
 	testing.SetOriginSend(coins)
 	banker.NewBanker(banker.BankerTypeRealmSend).SendCoins(addr1, addrc, coins)

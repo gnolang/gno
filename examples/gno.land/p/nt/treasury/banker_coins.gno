@@ -1,6 +1,7 @@
 package treasury
 
 import (
+	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"errors"
@@ -93,8 +94,8 @@ func NewCoinsBankerWithOwner(owner address, banker_ banker.Banker) (*CoinsBanker
 
 // coinsPayment represents a payment that is issued by a CoinsBanker.
 type coinsPayment struct {
-	coins     banker.Coins // The coins being sent.
-	toAddress address      // The recipient of the payment.
+	coins     chain.Coins // The coins being sent.
+	toAddress address     // The recipient of the payment.
 }
 
 var _ Payment = (*coinsPayment)(nil)
@@ -110,7 +111,7 @@ func (cp coinsPayment) String() string {
 }
 
 // NewCoinsPayment creates a new coinsPayment.
-func NewCoinsPayment(coins banker.Coins, toAddress address) Payment {
+func NewCoinsPayment(coins chain.Coins, toAddress address) Payment {
 	return coinsPayment{
 		coins:     coins,
 		toAddress: toAddress,
