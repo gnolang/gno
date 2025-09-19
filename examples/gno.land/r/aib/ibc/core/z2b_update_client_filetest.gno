@@ -26,9 +26,6 @@ func main() {
 		)
 	)
 	core.UpdateClient(cross, clientID, msgHeader)
-
-	println("----------- assert render clients")
-	println(core.Render("clients"))
 }
 
 // Error:
