@@ -1,6 +1,6 @@
 package types
 
-import "gno.land/p/demo/ufmt"
+import "gno.land/p/nt/ufmt"
 
 // Height is a monotonically increasing data type
 // that can be compared against another Height for the purposes of updating and
