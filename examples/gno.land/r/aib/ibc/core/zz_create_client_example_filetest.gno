@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"time"
 
-	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/lightclient/tendermint"
 	"gno.land/p/aib/ibc/types"
 	"gno.land/r/aib/ibc/core"
@@ -38,7 +37,7 @@ func main() {
 			NextValidatorsHash: valhash[:],
 		}
 	)
-	id := core.CreateClient(cross, lightclient.Tendermint, clientState, consensusState)
+	id := core.CreateClient(cross, clientState, consensusState)
 	println(id)
 }
 
