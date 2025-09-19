@@ -33,6 +33,7 @@ type testCmd struct {
 	printEvents         bool
 	debug               bool
 	debugAddr           string
+	dumpMachineState    bool
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -166,6 +167,13 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
+		&c.dumpMachineState,
+		"dump-machine-state",
+		false,
+		"dump machine state...",
+	)
+
+	fs.BoolVar(
 		&c.debug,
 		"debug",
 		false,
@@ -181,6 +189,7 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execTest(cmd *testCmd, args []string, io commands.IO) error {
+	fmt.Println("execTest...")
 	// Default to current directory if no args provided
 	if len(args) == 0 {
 		args = []string{"."}
@@ -228,6 +237,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Events = cmd.printEvents
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
+	opts.DumpMachineState = cmd.dumpMachineState
 	cache := make(gno.TypeCheckCache, 64)
 
 	// test.ProdStore() is suitable for type-checking prod (non-test) files.

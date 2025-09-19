@@ -273,6 +273,7 @@ func (b *Block) StringIndented(indent string) string {
 					lines = append(lines,
 						fmt.Sprintf("%s%s: %s static:%s",
 							indent, n, b.Values[i].String(), types[i]))
+
 				}
 			}
 		}
@@ -493,6 +494,10 @@ func (tv TypedValue) ProtectedString(seen *seenValues) string {
 	} else {
 		vs = tv.ProtectedSprint(seen, false)
 		if base := baseOf(tv.T); base == StringType || base == UntypedStringType {
+			const maxLen = 10
+			if len(vs) > maxLen {
+				vs = vs[:maxLen] + "..."
+			}
 			vs = strconv.Quote(vs)
 		}
 	}
