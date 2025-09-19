@@ -6,7 +6,7 @@ func GetSDKProofSpecs() []*ProofSpec {
 }
 
 // var representing the proofspecs for an SDK chain
-var sdkSpecs = []*ProofSpec{iavlSpec, tendermintSpec}
+var sdkSpecs = []*ProofSpec{iavlSpec, TendermintSpec}
 
 // IavlSpec constrains the format from proofs-iavl (iavl merkle proofs)
 var iavlSpec = &ProofSpec{
@@ -28,7 +28,7 @@ var iavlSpec = &ProofSpec{
 }
 
 // TendermintSpec constrains the format from proofs-tendermint (crypto/merkle SimpleProof)
-var tendermintSpec = &ProofSpec{
+var TendermintSpec = &ProofSpec{
 	LeafSpec: &LeafOp{
 		Prefix:       []byte{0},
 		PrehashKey:   HashOp_NO_HASH,

@@ -80,10 +80,7 @@ func (h MsgHeader) ValidateBasic() error {
 // NOTE: the header.Header is checked to be non nil in ValidateBasic.
 func (h MsgHeader) GetHeight() types.Height {
 	revision := ParseChainID(h.Header.ChainID)
-	return types.Height{
-		RevisionNumber: revision,
-		RevisionHeight: h.Header.Height,
-	}
+	return types.NewHeight(revision, h.Header.Height)
 }
 
 // Misbehaviour is a wrapper over two conflicting Headers
