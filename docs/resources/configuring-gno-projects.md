@@ -145,6 +145,9 @@ Note: `gnowork.toml` support is a work in progress for `gnodev` and `gnopls`.
 
 #### Cleaning the dependency cache
 
-Once downloaded, dependencies live locally under `$GNOHOME/pkg/mod`. They can be
-fully deleted with the `gno clean -modcache` command, so that newer versions can 
-be downloaded later.
+Downloaded dependencies are stored locally under `$GNOHOME/pkg/mod/`.
+If you want to remove them and fetch fresh versions, you can run:
+
+```bash
+gno clean -modcache
+```
