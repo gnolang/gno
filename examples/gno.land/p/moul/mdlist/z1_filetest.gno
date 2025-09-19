@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	list := mdlist.List{
+	list := mdlist.Entries{
 		mdlist.Entry{
 			Title: "Entry 1",
 			Body:  "Body 1",
@@ -40,15 +40,19 @@ func main() {
 			},
 		},
 	}
-	println("Grid:")
-	println(list.Grid())
-	println("UL:")
-	println(list.UL())
+	println("Columns:")
+	println(list.Columns())
+	println("BulletList:")
+	println(list.BulletList())
+	println("NumberedList:")
+	println(list.NumberedList())
+	println("Paragraphs:")
+	println(list.Paragraphs())
 	println("Done.")
 }
 
 // Output:
-// Grid:
+// Columns:
 // <gno-columns>
 // ## Entry 1
 // Body 1
@@ -72,11 +76,28 @@ func main() {
 // [Example3](https://example.com/3)
 // </gno-columns>
 //
-// UL:
+// BulletList:
 // - **Entry 1**: *Body 1* [Example](https://example.com)
 // - **Entry 2**: *Body 2*
 // - **Entry 3**: *Body 3* [Example1](https://example.com/1) [Example2](https://example.com/2)
 // - **[Entry 4](https://example.com/4)**: *Body 4*
 // - **[Entry 5](https://example.com/5)**: *Body 5* [Example3](https://example.com/3)
 //
+// NumberedList:
+// 1. **Entry 1**: *Body 1* [Example](https://example.com)
+// 2. **Entry 2**: *Body 2*
+// 3. **Entry 3**: *Body 3* [Example1](https://example.com/1) [Example2](https://example.com/2)
+// 4. **[Entry 4](https://example.com/4)**: *Body 4*
+// 5. **[Entry 5](https://example.com/5)**: *Body 5* [Example3](https://example.com/3)
+//
+// Paragraphs:
+// **Entry 1**. Body 1 [Example](https://example.com)
+//
+// **Entry 2**. Body 2
+//
+// **Entry 3**. Body 3 [Example1](https://example.com/1) [Example2](https://example.com/2)
+//
+// **[Entry 4](https://example.com/4)**. Body 4
+//
+// **[Entry 5](https://example.com/5)**. Body 5 [Example3](https://example.com/3)
 // Done.

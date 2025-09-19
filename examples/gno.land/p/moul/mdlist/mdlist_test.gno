@@ -8,8 +8,8 @@ import (
 	"gno.land/p/demo/urequire"
 )
 
-func TestUL(t *testing.T) {
-	list := List{
+func TestBulletList(t *testing.T) {
+	list := Entries{
 		{Title: "First", Body: "Body1", Links: []string{"[link1](url1)"}},
 		{Title: "Second", Body: "Body2", Links: []string{"[link2](url2)", "[link3](url3)"}},
 		{Title: "Third", Body: "Body3", Link: "https://example.com"},
@@ -20,11 +20,11 @@ func TestUL(t *testing.T) {
 	col3 := "- **[Third](https://example.com)**: *Body3*"
 	col4 := "- **[Fourth](https://example.com)**: *Body4* [link4](url4) [link5](url5)"
 	expected := strings.Join([]string{col1, col2, col3, col4}, "\n") + "\n"
-	uassert.Equal(t, expected, list.UL())
+	uassert.Equal(t, expected, list.BulletList())
 }
 
-func TestGrid(t *testing.T) {
-	list := List{
+func TestColumns(t *testing.T) {
+	list := Entries{
 		{Title: "First", Body: "Body1", Links: []string{"[link1](url1)"}},
 		{Title: "Second", Body: "Body2", Links: []string{"[link2](url2)", "[link3](url3)"}},
 		{Title: "Third", Body: "Body3", Link: "https://example.com"},
@@ -35,7 +35,37 @@ func TestGrid(t *testing.T) {
 	col3 := "## [Third](https://example.com)\nBody3\n"
 	col4 := "## [Fourth](https://example.com)\nBody4\n\n[link4](url4) [link5](url5)\n"
 	expected := "<gno-columns>\n" + col1 + "|||\n" + col2 + "|||\n" + col3 + "|||\n" + col4 + "</gno-columns>\n"
-	uassert.Equal(t, expected, list.Grid())
+	uassert.Equal(t, expected, list.Columns())
+}
+
+func TestBulletListTruncated(t *testing.T) {
+	list := Entries{
+		{Title: "Very long title that should be truncated", Body: "Very long body that should also be truncated because it is too long", Links: []string{"[link1](url1)"}},
+		{Title: "Short", Body: "Short body"},
+	}
+	// Test truncation
+	result := list.BulletListTruncated(10, 20)
+	// Should contain truncated text
+	expected := "- **Very lo...**: *Very long body th...* [link1](url1)\n- **Short**: *Short body*\n"
+	uassert.Equal(t, expected, result)
+}
+
+func TestNumberedList(t *testing.T) {
+	list := Entries{
+		{Title: "First", Body: "Body1"},
+		{Title: "Second", Body: "Body2", Link: "https://example.com"},
+	}
+	expected := "1. **First**: *Body1*\n2. **[Second](https://example.com)**: *Body2*\n"
+	uassert.Equal(t, expected, list.NumberedList())
+}
+
+func TestParagraphs(t *testing.T) {
+	list := Entries{
+		{Title: "First", Body: "Body1", Links: []string{"[link1](url1)"}},
+		{Title: "Second", Body: "Body2", Link: "https://example.com"},
+	}
+	expected := "**First**. Body1 [link1](url1)\n\n**[Second](https://example.com)**. Body2"
+	uassert.Equal(t, expected, list.Paragraphs())
 }
 
 func TestTruncateText(t *testing.T) {

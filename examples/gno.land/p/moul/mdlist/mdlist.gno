@@ -15,9 +15,7 @@ import (
 // XXX: func (l List) Render(path string) string {
 // XXX: add .Table()
 
-var defaultEncoder = NewEncoder()
-
-type List []Entry
+type Entries []Entry
 
 type Entry struct {
 	// Title is the title of the entry. Required.
@@ -30,14 +28,20 @@ type Entry struct {
 	Links []string
 }
 
-func (l List) UL() string {
+// BulletList returns entries as a markdown bullet list without truncation.
+func (l Entries) BulletList() string {
+	return l.BulletListTruncated(-1, -1)
+}
+
+// BulletListTruncated returns entries as a markdown bullet list with truncation.
+func (l Entries) BulletListTruncated(titleMaxLength, bodyMaxLength int) string {
 	items := make([]string, len(l))
 	for i, entry := range l {
-		title := truncateText(entry.Title, 40, false)
+		title := truncateText(entry.Title, titleMaxLength, false)
 		if entry.Link != "" {
 			title = md.Link(title, entry.Link)
 		}
-		body := truncateText(entry.Body, 80, true)
+		body := truncateText(entry.Body, bodyMaxLength, true)
 		links := strings.Join(entry.Links, " ")
 		item := md.Bold(title) + ": " + md.Italic(body) + " " + links
 		items[i] = strings.TrimSpace(item)
@@ -45,7 +49,45 @@ func (l List) UL() string {
 	return md.BulletList(items)
 }
 
-func (l List) Grid() string {
+// NumberedList returns entries as a markdown numbered list without truncation.
+func (l Entries) NumberedList() string {
+	return l.NumberedListTruncated(-1, -1)
+}
+
+// NumberedListTruncated returns entries as a markdown numbered list with truncation.
+func (l Entries) NumberedListTruncated(titleMaxLength, bodyMaxLength int) string {
+	items := make([]string, len(l))
+	for i, entry := range l {
+		title := truncateText(entry.Title, titleMaxLength, false)
+		if entry.Link != "" {
+			title = md.Link(title, entry.Link)
+		}
+		body := truncateText(entry.Body, bodyMaxLength, true)
+		links := strings.Join(entry.Links, " ")
+		item := md.Bold(title) + ": " + md.Italic(body) + " " + links
+		items[i] = strings.TrimSpace(item)
+	}
+	return md.OrderedList(items)
+}
+
+// Paragraphs returns entries as simple paragraphs with bold titles.
+func (l Entries) Paragraphs() string {
+	paragraphs := make([]string, len(l))
+	for i, entry := range l {
+		title := entry.Title
+		if entry.Link != "" {
+			title = md.Link(title, entry.Link)
+		}
+		paragraph := md.Bold(title) + ". " + entry.Body
+		if len(entry.Links) > 0 {
+			paragraph += " " + strings.Join(entry.Links, " ")
+		}
+		paragraphs[i] = paragraph
+	}
+	return strings.Join(paragraphs, "\n\n")
+}
+
+func (l Entries) Columns() string {
 	columns := make([]string, len(l))
 	for i, entry := range l {
 		title := entry.Title
@@ -56,10 +98,17 @@ func (l List) Grid() string {
 		links := strings.Join(entry.Links, " ")
 		columns[i] = md.H2(title) + md.Paragraph(body) + md.Paragraph(links)
 	}
-	return md.Columns(columns)
+	return md.Columns(columns, false)
 }
 
 func truncateText(content string, maxLength int, withNewLines bool) string {
+	// If maxLength is -1, don't truncate
+	if maxLength < 0 {
+		if !withNewLines {
+			content = strings.ReplaceAll(content, "\n", " ")
+		}
+		return content
+	}
 	if !withNewLines {
 		content = strings.ReplaceAll(content, "\n", " ")
 	}
@@ -67,17 +116,4 @@ func truncateText(content string, maxLength int, withNewLines bool) string {
 		return content[:maxLength-3] + "..."
 	}
 	return content
-}
-
-type Encoder struct {
-	MaxWidth int
-	Mode     string
-	Page     int
-	Limit    int
-}
-
-func NewEncoder() *Encoder {
-	return &Encoder{
-		MaxWidth: 80,
-	}
 }
