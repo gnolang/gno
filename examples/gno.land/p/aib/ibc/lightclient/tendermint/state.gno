@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/types"
 	"gno.land/p/nt/ufmt"
 )
@@ -90,6 +91,10 @@ type MerkleRoot struct {
 	Hash []byte `json:"hash,omitempty"`
 }
 
+func NewMerkleRoot(hash []byte) MerkleRoot {
+	return MerkleRoot{Hash: hash}
+}
+
 // Empty returns true if the root is empty
 func (mr MerkleRoot) Empty() bool {
 	return len(mr.Hash) == 0
@@ -98,9 +103,16 @@ func (mr MerkleRoot) Empty() bool {
 const (
 	// MaxChainIDLen is a maximum length of the chain ID.
 	MaxChainIDLen = 50
+	// SentinelRoot is used as a stand-in root value for the consensus state set at the upgrade height
+	SentinelRoot = "sentinel_root"
 )
 
-// Validate performs a basic validation of the client state fields.
+// Implements lightclient.ClientState
+func (ClientState) ClientType() string {
+	return lightclient.Tendermint
+}
+
+// Implements lightclient.ClientState
 func (cs ClientState) Validate() error {
 	if strings.TrimSpace(cs.ChainId) == "" {
 		return ufmt.Errorf("chainID cannot be empty string")
@@ -187,9 +199,12 @@ func ParseChainID(chainID string) uint64 {
 	return revision
 }
 
-// Validate defines a validation for the tendermint consensus state.
-// NOTE: ProcessedTimestamp may be zero if this is an initial consensus state passed in by relayer
-// as opposed to a consensus state constructed by the chain.
+// Implements lightclient.ConsensusState
+func (ConsensusState) ClientType() string {
+	return lightclient.Tendermint
+}
+
+// Implements lightclient.ConsensusState
 func (cs ConsensusState) Validate() error {
 	if cs.Root.Empty() {
 		return errors.New("root cannot be empty")
