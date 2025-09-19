@@ -98,10 +98,7 @@ func AcceptInvite(_ realm, boardID BoardID, user std.Address) {
 			panic("user is already a member")
 		}
 
-		if err := board.perms.SetUserRoles(cross, user); err != nil {
-			panic(err)
-		}
-
+		board.perms.SetUserRoles(cross, user)
 		requests.Remove(invitee)
 
 		std.Emit(
@@ -161,10 +158,7 @@ func inviteMembers(boardID BoardID, invites ...Invite) {
 			}
 
 			// NOTE: Permissions implementation should check that role is valid
-			if err := perms.SetUserRoles(cross, v.User, v.Role); err != nil {
-				panic(err)
-			}
-
+			perms.SetUserRoles(cross, v.User, v.Role)
 			users = append(users, v.User.String()+":"+string(v.Role))
 		}
 

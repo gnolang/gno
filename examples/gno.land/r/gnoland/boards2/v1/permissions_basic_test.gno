@@ -392,14 +392,15 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			perms := tc.setup()
 
-			err := perms.SetUserRoles(cross, tc.user, tc.roles...)
+			setUserRoles := func() {
+				perms.SetUserRoles(cross, tc.user, tc.roles...)
+			}
 
 			if tc.err != "" {
-				urequire.Error(t, err, "expected an error")
-				uassert.Equal(t, tc.err, err.Error())
+				urequire.AbortsWithMessage(t, tc.err, setUserRoles, "expected an error")
 				return
 			} else {
-				urequire.NoError(t, err)
+				urequire.NotAborts(t, setUserRoles, "expected no error")
 			}
 
 			roles := perms.GetUserRoles(tc.user)

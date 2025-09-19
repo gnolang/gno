@@ -159,6 +159,8 @@ func RenameBoard(_ realm, name, newName string) {
 		assertBoardNameNotExists(newName)
 
 		board := mustGetBoard(bid)
+		assertBoardIsNotFrozen(board)
+
 		board.Aliases = append(board.Aliases, board.Name)
 		board.Name = newName
 
@@ -519,9 +521,7 @@ func ChangeMemberRole(_ realm, boardID BoardID, member std.Address, role Role) {
 	perms.WithPermission(cross, caller, PermissionRoleChange, args, func(realm, Args) {
 		assertMembersUpdateIsEnabled(boardID)
 
-		if err := perms.SetUserRoles(cross, member, role); err != nil {
-			panic(err)
-		}
+		perms.SetUserRoles(cross, member, role)
 
 		std.Emit(
 			"RoleChanged",

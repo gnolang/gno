@@ -1,7 +1,6 @@
 package boards2
 
 import (
-	"errors"
 	"std"
 
 	"gno.land/p/nt/avl"
@@ -100,19 +99,18 @@ func (bp BasicPermissions) HasPermission(user std.Address, perm Permission) bool
 // SetUserRoles adds a new user when it doesn't exist and sets its roles.
 // Method can also be called to change the roles of an existing user.
 // All user's roles can be removed by calling this method without roles.
-func (bp *BasicPermissions) SetUserRoles(_ realm, user std.Address, roles ...Role) error {
+func (bp *BasicPermissions) SetUserRoles(_ realm, user std.Address, roles ...Role) {
 	if !bp.HasUser(user) {
 		bp.dao.Members().Add(user)
 	}
 
 	for _, r := range roles {
 		if !bp.RoleExists(r) {
-			return errors.New("invalid role: " + string(r))
+			panic("invalid role: " + string(r))
 		}
 	}
 
 	bp.users.Set(user.String(), append([]Role(nil), roles...))
-	return nil
 }
 
 // RemoveUser removes a user from permissions.
