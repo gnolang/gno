@@ -17,6 +17,7 @@ func main() {
 		valset         = testing.GenValset()
 		consensusState = testing.GenConsensusState(time.Now(), apphash[:], valset.Hash())
 	)
+
 	clientID1 := core.CreateClient(cross, lightclient.Tendermint, clientState, consensusState)
 	println("CreateClient", clientID1)
 	clientID2 := core.CreateClient(cross, lightclient.Tendermint, clientState, consensusState)
