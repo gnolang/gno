@@ -17,6 +17,7 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
+	"github.com/gnolang/gno/gnovm/pkg/profiler"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -25,6 +26,20 @@ import (
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"go.uber.org/multierr"
 )
+
+// getProfileFormat converts string format to ProfileFormat
+func getProfileFormat(format string) profiler.ProfileFormat {
+	switch format {
+	case "toplist":
+		return profiler.FormatTopList
+	case "calltree":
+		return profiler.FormatCallTree
+	case "json":
+		return profiler.FormatJSON
+	default:
+		return profiler.FormatText
+	}
+}
 
 const (
 	// DefaultHeight is the default height used in the [Context].
@@ -113,6 +128,159 @@ func (tp *testParams) SetString(key string, val string)    { /* noop */ }
 func (tp *testParams) SetStrings(key string, val []string) { /* noop */ }
 
 // ----------------------------------------
+// Profiling abstraction
+
+// ProfileConfig contains all profiling-related configuration
+type ProfileConfig struct {
+	// Enable profiling for performance analysis
+	Enabled bool
+	// File to write profiling output
+	OutputFile string
+	// Print profiling output to stdout instead of file
+	PrintToStdout bool
+	// Profile output format (text, json, toplist, calltree)
+	Format string
+	// Profile type (cpu, memory)
+	Type string
+	// Function name for line-by-line profile listing
+	FunctionList string
+	// Global profiler instance (internal use)
+	profiler *profiler.Profiler
+}
+
+// IsEnabled returns true if profiling is enabled
+func (pc *ProfileConfig) IsEnabled() bool {
+	return pc != nil && pc.Enabled
+}
+
+// GetFormat returns the profile format, defaulting to text if not specified
+func (pc *ProfileConfig) GetFormat() profiler.ProfileFormat {
+	if pc == nil {
+		return profiler.FormatText
+	}
+	return getProfileFormat(pc.Format)
+}
+
+// GetProfileType returns the profile type, defaulting to CPU
+func (pc *ProfileConfig) GetProfileType() profiler.ProfileType {
+	if pc == nil {
+		return profiler.ProfileCPU
+	}
+	switch pc.Type {
+	case "memory":
+		return profiler.ProfileMemory
+	case "gas":
+		return profiler.ProfileGas
+	default:
+		return profiler.ProfileCPU
+	}
+}
+
+// GetSampleRate returns the appropriate sample rate for the profile type
+func (pc *ProfileConfig) GetSampleRate() int {
+	if pc.GetProfileType() == profiler.ProfileMemory {
+		return 1 // Sample every allocation for memory
+	}
+	return 100 // Default CPU sampling rate
+}
+
+// ProfilerInterface abstracts the profiler for testing
+type ProfilerInterface interface {
+	EnableLineProfiling()
+	StartProfiling(machine any, opts profiler.Options) error
+	StopProfiling() *profiler.Profile
+	SetProfiler(p *profiler.Profiler)
+}
+
+// ProfileWriter handles writing profile data to various outputs
+type ProfileWriter interface {
+	WriteProfile(profile *profiler.Profile, pc *ProfileConfig, output, errOutput io.Writer, testStore gno.Store) error
+}
+
+// DefaultProfileWriter implements ProfileWriter for production use
+type DefaultProfileWriter struct{}
+
+func (w *DefaultProfileWriter) WriteProfile(profile *profiler.Profile, pc *ProfileConfig, output, errOutput io.Writer, testStore gno.Store) error {
+	if profile == nil || pc == nil {
+		return nil
+	}
+
+	if pc.FunctionList != "" {
+		// Show line-by-line profile for specific function
+		fmt.Fprintln(output, "\n=== FUNCTION PROFILE ===")
+		err := profile.WriteFunctionList(output, pc.FunctionList, NewStoreAdapter(testStore))
+		if err != nil {
+			return fmt.Errorf("failed to write function profile: %w", err)
+		}
+	} else if pc.PrintToStdout {
+		// Print to stdout
+		fmt.Fprintln(output, "\n=== PROFILING RESULTS ===")
+		format := pc.GetFormat()
+		err := profile.WriteFormat(output, format)
+		if err != nil {
+			return fmt.Errorf("failed to write profile: %w", err)
+		}
+	} else {
+		// Write to file
+		file, err := os.Create(pc.OutputFile)
+		if err != nil {
+			return fmt.Errorf("failed to create profile output file: %w", err)
+		}
+		defer file.Close()
+
+		format := pc.GetFormat()
+		err = profile.WriteFormat(file, format)
+		if err != nil {
+			return fmt.Errorf("failed to write profile: %w", err)
+		}
+		fmt.Fprintf(errOutput, "Profile written to %s\n", pc.OutputFile)
+	}
+	return nil
+}
+
+// initializeProfiling sets up profiling based on test options
+func initializeProfiling(pc *ProfileConfig) (*profiler.Profiler, error) {
+	if !pc.IsEnabled() {
+		return nil, nil
+	}
+
+	globalProfiler := profiler.NewProfiler(pc.GetProfileType(), pc.GetSampleRate())
+
+	// Enable line-level profiling if list option is used
+	if pc.FunctionList != "" {
+		globalProfiler.EnableLineProfiling()
+	}
+
+	globalProfiler.StartProfiling(nil, profiler.Options{
+		Type:       pc.GetProfileType(),
+		SampleRate: pc.GetSampleRate(),
+	})
+
+	pc.profiler = globalProfiler
+	return globalProfiler, nil
+}
+
+// finalizeProfiling stops profiling and writes results
+func finalizeProfiling(pc *ProfileConfig, opts *TestOptions, writer ProfileWriter) error {
+	if pc == nil || pc.profiler == nil {
+		return nil
+	}
+
+	profile := pc.profiler.StopProfiling()
+	if profile == nil {
+		return nil
+	}
+
+	err := writer.WriteProfile(profile, pc, opts.Output, opts.Error, opts.TestStore)
+	if err != nil {
+		fmt.Fprintf(opts.Error, "Profiling error: %v\n", err)
+		return err
+	}
+
+	return nil
+}
+
+// ----------------------------------------
 // main test function
 
 // TestOptions is a list of options that must be passed to [Test].
@@ -144,6 +312,8 @@ type TestOptions struct {
 	Metrics bool
 	// Uses Error to print the events emitted.
 	Events bool
+	// Profile configuration
+	Profile *ProfileConfig
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -225,6 +395,21 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 	var errs error
 
+	// Initialize profiling if enabled
+	if opts.Profile != nil {
+		_, err := initializeProfiling(opts.Profile)
+		if err != nil {
+			return fmt.Errorf("failed to initialize profiling: %w", err)
+		}
+		if opts.Profile.profiler != nil {
+			writer := &DefaultProfileWriter{}
+			defer func() {
+				// Error already printed in finalizeProfiling
+				finalizeProfiling(opts.Profile, opts, writer)
+			}()
+		}
+	}
+
 	// Create a common tcw/tgs for both the `pkg` tests as well as the
 	// `pkg_test` tests. This allows us to "export" symbols from the pkg
 	// tests and import them from the `pkg_test` tests.
@@ -247,6 +432,10 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		// will run the mempackage ourselves in the next line.
 		SkipPackage: true,
 	})
+	// Enable profiling on the machine if profiling is enabled
+	if opts.Profile != nil && opts.Profile.profiler != nil {
+		m2.SetProfiler(opts.Profile.profiler)
+	}
 	// Filter out xxx_test *_test.gno and *_filetest.gno and run.
 	// If testing with only filetests, there will be no files.
 	tmpkg := gno.MPFTest.FilterMemPackage(mpkg)
@@ -369,7 +558,7 @@ func (opts *TestOptions) runTestFiles(
 	tests := loadTestFuncs(mpkg.Name, files)
 
 	var alloc *gno.Allocator
-	if opts.Metrics {
+	if opts.Metrics || (opts.Profile != nil && opts.Profile.Type == "memory") {
 		alloc = gno.NewAllocator(math.MaxInt64)
 	}
 	// reset store ops, if any - we only need them for some filetests.
@@ -378,6 +567,19 @@ func (opts *TestOptions) runTestFiles(
 	// Check if we already have the package - it may have been eagerly loaded.
 	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
 	m.Alloc = alloc
+	if m.Alloc != nil {
+		m.Alloc.SetMachine(m)
+	}
+	// Enable profiling on the machine if profiling is enabled
+	if opts.Profile != nil && opts.Profile.profiler != nil {
+		m.SetProfiler(opts.Profile.profiler)
+		// Set up gas meter for gas profiling
+		// In normal unit test environment, the gas meter is not set by default
+		// Therefore, we need to set it here.
+		if opts.Profile.Type == "gas" && m.GasMeter == nil {
+			m.GasMeter = storetypes.NewInfiniteGasMeter()
+		}
+	}
 	if tgs.GetMemPackage(mpkg.Path) == nil {
 		m.RunMemPackage(mpkg, false)
 	} else {
@@ -399,7 +601,18 @@ func (opts *TestOptions) runTestFiles(
 		// - Wrap here.
 		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
 		m.Alloc = alloc.Reset()
+		if m.Alloc != nil {
+			m.Alloc.SetMachine(m)
+		}
 		m.SetActivePackage(pv)
+		// Enable profiling on the test machine if profiling is enabled
+		if opts.Profile != nil && opts.Profile.profiler != nil {
+			m.SetProfiler(opts.Profile.profiler)
+			// Set up gas meter for gas profiling
+			if opts.Profile.Type == "gas" && m.GasMeter == nil {
+				m.GasMeter = storetypes.NewInfiniteGasMeter()
+			}
+		}
 
 		testingpv := m.Store.GetPackage("testing/base", false)
 		testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
