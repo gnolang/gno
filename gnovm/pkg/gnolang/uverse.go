@@ -553,7 +553,6 @@ func makeUverseNode() {
 			}
 			res0.SetInt(int64(arg0.TV.GetCapacity()))
 			m.PushValue(res0)
-			return
 		},
 	)
 	defNative("copy",
@@ -689,7 +688,6 @@ func makeUverseNode() {
 			}
 			res0.SetInt(int64(arg0.TV.GetLength()))
 			m.PushValue(res0)
-			return
 		},
 	)
 	defNative("make",
@@ -708,7 +706,8 @@ func makeUverseNode() {
 			switch bt := baseOf(tt).(type) {
 			case *SliceType:
 				et := bt.Elem()
-				if vargsl == 1 {
+				switch vargsl {
+				case 1:
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 					li := int(lv.ConvertGetInt())
 					if et.Kind() == Uint8Kind {
@@ -734,7 +733,7 @@ func makeUverseNode() {
 						})
 						return
 					}
-				} else if vargsl == 2 {
+				case 2:
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 					li := int(lv.ConvertGetInt())
 					cv := vargs.TV.GetPointerAtIndexInt(m.Store, 1).Deref()
@@ -779,18 +778,19 @@ func makeUverseNode() {
 						})
 						return
 					}
-				} else {
+				default:
 					panic("make() of slice type takes 2 or 3 arguments")
 				}
 			case *MapType:
 				// NOTE: the type is not used.
-				if vargsl == 0 {
+				switch vargsl {
+				case 0:
 					m.PushValue(TypedValue{
 						T: tt,
 						V: m.Alloc.NewMap(0),
 					})
 					return
-				} else if vargsl == 1 {
+				case 1:
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 					li := int(lv.ConvertGetInt())
 					m.PushValue(TypedValue{
@@ -798,15 +798,14 @@ func makeUverseNode() {
 						V: m.Alloc.NewMap(li),
 					})
 					return
-				} else {
+				default:
 					panic("make() of map type takes 1 or 2 arguments")
 				}
 			case *ChanType:
-				if vargsl == 0 {
+				switch vargsl {
+				case 0, 1:
 					panic("not yet implemented")
-				} else if vargsl == 1 {
-					panic("not yet implemented")
-				} else {
+				default:
 					panic("make() of chan type takes 1 or 2 arguments")
 				}
 			default:
@@ -839,7 +838,6 @@ func makeUverseNode() {
 					Index: 0,
 				},
 			})
-			return
 		},
 	)
 
@@ -905,7 +903,6 @@ func makeUverseNode() {
 			arg0 := m.LastBlock().GetParams1(nil)
 			res0 := typedString(arg0.TV.GetString())
 			m.PushValue(res0)
-			return
 		},
 	)
 	defNativeMethod("address", "IsValid",
@@ -921,12 +918,8 @@ func makeUverseNode() {
 				m.PushValue(typedBool(false))
 				return
 			}
-			if len(addr) != 20 {
-				m.PushValue(typedBool(false))
-				return
-			}
-			m.PushValue(typedBool(true))
-			return
+			_ = addr
+			m.PushValue(typedBool(len(addr) == 20))
 		},
 	)
 	def("gnocoin", asValue(gCoinType))
@@ -1098,7 +1091,7 @@ func makeUverseNode() {
 			}
 		},
 	)
-	uverseValue = uverseNode.NewPackage()
+	uverseValue = uverseNode.NewPackage(nilAllocator)
 }
 
 func copyDataToList(dst []TypedValue, data []byte, et Type) {

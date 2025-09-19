@@ -3,6 +3,7 @@ package users
 import (
 	"std"
 
+	"gno.land/p/nt/ufmt"
 	"gno.land/r/gov/dao"
 	susers "gno.land/r/sys/users"
 )
@@ -35,14 +36,18 @@ func setRegisterPrice(cur realm, newPrice int64) {
 
 // NewSetPausedExecutor allows GovDAO to pause or unpause this realm
 func NewSetPausedExecutor(newPausedValue bool) dao.ProposalRequest {
-	cb := func() error {
-		setPaused(cross, newPausedValue)
+	cb := func(cur realm) error {
+		setPaused(cur, newPausedValue)
 		return nil
 	}
 
 	e := dao.NewSimpleExecutor(cb, "")
 
-	return dao.NewProposalRequest("Pause users/v1 realm", "", e)
+	if newPausedValue {
+		return dao.NewProposalRequest("User Registry V1: Pause", "", e)
+	}
+
+	return dao.NewProposalRequest("User Registry V1: Unpause", "", e)
 }
 
 // ProposeNewName allows GovDAO to propose a new name for an existing user
@@ -58,32 +63,40 @@ func ProposeNewName(addr std.Address, newName string) dao.ProposalRequest {
 		panic(susers.ErrUserNotExistOrDeleted)
 	}
 
-	cb := func() error {
-		err := updateUsername(cross, userData, newName)
+	cb := func(cur realm) error {
+		err := updateUsername(cur, userData, newName)
 		return err
 	}
 
 	e := dao.NewSimpleExecutor(cb, "")
 
-	return dao.NewProposalRequest("Propose a new name using users/v1 realm", "", e)
+	return dao.NewProposalRequest(
+		ufmt.Sprintf("User Registry V1: Rename user `%s` to `%s`", userData.Name(), newName),
+		"",
+		e,
+	)
 }
 
 // ProposeDeleteUser allows GovDAO to propose deletion of a user
 // This will make the associated address and names unresolvable.
 // WARN: After deletion, the same address WILL NOT be able to register a new name.
-func ProposeDeleteUser(addr std.Address, desc string) dao.ProposalRequest {
+func ProposeDeleteUser(addr std.Address, reason string) dao.ProposalRequest {
 	userData := susers.ResolveAddress(addr)
 	if userData == nil {
 		panic(susers.ErrUserNotExistOrDeleted)
 	}
 
-	cb := func() error {
-		return deleteUserdata(cross, userData)
+	cb := func(cur realm) error {
+		return deleteUserdata(cur, userData)
 	}
 
 	e := dao.NewSimpleExecutor(cb, "")
 
-	return dao.NewProposalRequest("Propose deleting a name using users/v1 realm", desc, e)
+	return dao.NewProposalRequest(
+		ufmt.Sprintf("User Registry V1: Delete user `%s`", userData.Name()),
+		reason,
+		e,
+	)
 }
 
 // ProposeNewRegisterPrice allows GovDAO to update the price of registration
@@ -92,15 +105,15 @@ func ProposeNewRegisterPrice(newPrice int64) dao.ProposalRequest {
 		panic("invalid price")
 	}
 
-	cb := func() error {
-		setRegisterPrice(cross, newPrice)
+	cb := func(cur realm) error {
+		setRegisterPrice(cur, newPrice)
 		return nil
 	}
 
 	e := dao.NewSimpleExecutor(cb, "")
 
 	return dao.NewProposalRequest(
-		"Propose change the price for name registration using users/v1 realm",
+		ufmt.Sprintf("User Registry V1: Update registration price to `%d`", newPrice),
 		"",
 		e,
 	)

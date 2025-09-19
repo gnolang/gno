@@ -1,11 +1,11 @@
-// PKGPATH: gno.land/r/borrow_test
-package borrow_test
+// PKGPATH: gno.land/r/borrow
+package borrow
 
 import (
 	"fmt"
 	"std"
 
-	"gno.land/r/demo/tests/crossrealm"
+	"gno.land/r/tests/vm/crossrealm"
 )
 
 type Struct struct {
@@ -56,13 +56,11 @@ func init() {
 }
 
 func main(cur realm) {
-	// cross(crossrealm_b.SetObject)(s) // saved in crossrealm_b
-
 	p := &Passthrough{S: s}
 
 	crossrealm.SetObject(cross, p) // saved in crossrealm.
 
-	p.Mutate() // receiver method borrows crossrealm_b.
+	p.Mutate() // receiver method borrows crossrealm.
 
 	println(p.Get())
 
@@ -71,5 +69,5 @@ func main(cur realm) {
 
 // Output:
 // 101
-// CodeRealm{ g1evmgnh6rmk8vgahd4p2pc3reh0dw26twaz3rqq, gno.land/r/borrow_test }
-// CodeRealm{ g1evmgnh6rmk8vgahd4p2pc3reh0dw26twaz3rqq, gno.land/r/borrow_test }
+// CodeRealm{ g1mdevzlw3defhhew53zsky80lhqnk94ew8grqdt, gno.land/r/borrow }
+// CodeRealm{ g1mdevzlw3defhhew53zsky80lhqnk94ew8grqdt, gno.land/r/borrow }

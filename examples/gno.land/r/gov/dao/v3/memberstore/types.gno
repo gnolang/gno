@@ -4,7 +4,7 @@ import (
 	"errors"
 	"std"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 type ErrMemberAlreadyExists struct {
@@ -123,7 +123,9 @@ func (mbt MembersByTier) RemoveMember(addr std.Address) (t string) {
 		}
 
 		_, removed := mst.Remove(string(addr))
-		t = tn
+		if removed {
+			t = tn
+		}
 		return removed
 	})
 

@@ -1,10 +1,10 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
 	"std"
 
-	crossrealm "gno.land/r/demo/tests/crossrealm"
+	crossrealm "gno.land/r/tests/vm/crossrealm"
 )
 
 type fooer struct {
@@ -40,10 +40,10 @@ func main(cur realm) {
 }
 
 // Output:
-// hello Foo gno.land/r/crossrealm_test
-// hello Foo gno.land/r/crossrealm_test
-// hello Bar gno.land/r/crossrealm_test
+// hello Foo gno.land/r/crossrealm
+// hello Foo gno.land/r/crossrealm
+// hello Bar gno.land/r/crossrealm
 // .
 
 // Realm:
-// finalizerealm["gno.land/r/crossrealm_test"]
+// finalizerealm["gno.land/r/crossrealm"]
