@@ -22,6 +22,15 @@ type Height struct {
 	RevisionHeight uint64 `protobuf:"varint,2,opt,name=revision_height,json=revisionHeight,proto3" json:"revision_height"`
 }
 
+func NewHeight(revision, height uint64) Height {
+	return Height{
+		RevisionNumber: revision,
+		RevisionHeight: height,
+	}
+}
+
+func ZeroHeight() Height { return Height{} }
+
 func (h Height) String() string {
 	return ufmt.Sprintf("%d/%d", h.RevisionNumber, h.RevisionHeight)
 }
