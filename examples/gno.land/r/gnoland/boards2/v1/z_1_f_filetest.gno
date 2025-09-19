@@ -26,4 +26,4 @@ func main() {
 }
 
 // Error:
-// user is already a member
+// user is already a member: g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj

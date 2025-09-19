@@ -1,13 +1,10 @@
 package boards2
 
 import (
-	"errors"
 	"std"
 
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/commondao"
-
-	"gno.land/r/sys/users"
 )
 
 // ValidatorFunc defines a function type for permissions validators.
@@ -102,19 +99,18 @@ func (bp BasicPermissions) HasPermission(user std.Address, perm Permission) bool
 // SetUserRoles adds a new user when it doesn't exist and sets its roles.
 // Method can also be called to change the roles of an existing user.
 // All user's roles can be removed by calling this method without roles.
-func (bp *BasicPermissions) SetUserRoles(_ realm, user std.Address, roles ...Role) error {
+func (bp *BasicPermissions) SetUserRoles(_ realm, user std.Address, roles ...Role) {
 	if !bp.HasUser(user) {
 		bp.dao.Members().Add(user)
 	}
 
 	for _, r := range roles {
 		if !bp.RoleExists(r) {
-			return errors.New("invalid role: " + string(r))
+			panic("invalid role: " + string(r))
 		}
 	}
 
 	bp.users.Set(user.String(), append([]Role(nil), roles...))
-	return nil
 }
 
 // RemoveUser removes a user from permissions.
@@ -150,11 +146,12 @@ func (bp BasicPermissions) IterateUsers(start, count int, fn UsersIterFn) (stopp
 // WithPermission calls a callback when a user has a specific permission.
 // It panics on error or when a handler panics.
 // Callbacks are by default called when there is no handle registered for the permission.
-func (bp *BasicPermissions) WithPermission(_ realm, user std.Address, p Permission, args Args, cb func(realm, Args)) {
+func (bp *BasicPermissions) WithPermission(_ realm, user std.Address, p Permission, args Args, cb func(realm)) {
 	if !bp.HasPermission(user, p) || !bp.dao.Members().Has(user) {
 		panic("unauthorized")
 	}
 
+	// Execute custom validation before calling the callback
 	v, found := bp.validators.Get(string(p))
 	if found {
 		err := v.(ValidatorFunc)(bp, args)
@@ -163,7 +160,7 @@ func (bp *BasicPermissions) WithPermission(_ realm, user std.Address, p Permissi
 		}
 	}
 
-	cb(cross, args)
+	cb(cross)
 }
 
 func createBasicPermissions(owners ...std.Address) *BasicPermissions {
@@ -174,21 +171,4 @@ func createBasicPermissions(owners ...std.Address) *BasicPermissions {
 		perms.SetUserRoles(cross, owner, RoleOwner)
 	}
 	return perms
-}
-
-func checkBoardNameIsNotAddress(s string) error {
-	if std.Address(s).IsValid() {
-		return errors.New("addresses are not allowed as board name")
-	}
-	return nil
-}
-
-func checkBoardNameBelongsToAddress(owner std.Address, name string) error {
-	// When the board name is the name of a registered user
-	// check that caller is the owner of the name.
-	user, _ := users.ResolveName(name)
-	if user != nil && user.Addr() != owner {
-		return errors.New("board name is a user name registered to a different user")
-	}
-	return nil
 }
