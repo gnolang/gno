@@ -1,8 +1,8 @@
 package daokit
 
 import (
+	"chain/runtime"
 	"errors"
-	"std"
 	"time"
 
 	"gno.land/p/nt/avl"
@@ -76,7 +76,7 @@ func (p *ProposalsStore) newProposal(proposer string, req ProposalRequest, condi
 		Condition:     condition,
 		Ballot:        daocond.NewBallot(),
 		CreatedAt:     time.Now(),
-		CreatedHeight: std.ChainHeight(),
+		CreatedHeight: runtime.ChainHeight(),
 	}
 	p.Tree.Set(id.String(), proposal)
 	return proposal

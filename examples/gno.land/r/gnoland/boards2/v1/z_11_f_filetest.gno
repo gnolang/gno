@@ -1,15 +1,15 @@
 package main
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
 const (
-	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	user  = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
+	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	user  = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
 )
 
 var (
@@ -18,13 +18,13 @@ var (
 )
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(runtime.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test-board", false)
 	pid = boards2.CreateThread(cross, bid, "Foo", "bar")
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(user))
+	testing.SetRealm(runtime.NewUserRealm(user))
 
 	boards2.EditThread(cross, bid, pid, "Foo", "bar")
 }

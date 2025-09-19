@@ -1,7 +1,6 @@
 package faker
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/nt/uassert"
@@ -87,7 +86,7 @@ type goldenValues struct {
 	dateTime       string
 	email          string
 	phone          string
-	stdAddress     std.Address
+	stdAddress     address
 	username       string
 }
 

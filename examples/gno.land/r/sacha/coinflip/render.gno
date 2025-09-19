@@ -1,7 +1,8 @@
 package coinflip
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
 	"strconv"
 
 	"gno.land/p/moul/md"
@@ -19,7 +20,7 @@ func init() {
 	pocInnovationName = "PoCInnovation"
 }
 
-func renderResult(address std.Address, result bool, amount std.Coin) string {
+func renderResult(address address, result bool, amount chain.Coin) string {
 	addressFmt := "**" + address.String()[:30] + "**: "
 	resultFmt := "lost"
 	amountFmt := " **" + amount.String() + "** "

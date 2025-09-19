@@ -4,7 +4,8 @@ package groups_test
 // SEND: 200000000ugnot
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -20,7 +21,7 @@ func main() {
 	// add member via anon user
 	test2 := testutils.TestAddress("test2")
 	testing.SetOriginCaller(test2)
-	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}})
+	testing.SetOriginSend(chain.Coins{{"ugnot", 9000000}})
 
 	groups.AddMember(cross, gid, test2.String(), 42, "metadata3")
 }

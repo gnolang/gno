@@ -1,7 +1,8 @@
 package ownable2step
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 )
 
 const OwnershipTransferEvent = "OwnershipTransfer"
@@ -10,20 +11,20 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 // It allows the current owner to set a new owner and the new owner will need to accept the ownership before it is transferred
 // XXX Implement using Ownable instead of replicating it.
 type Ownable2Step struct {
-	owner        std.Address
-	pendingOwner std.Address
+	owner        address
+	pendingOwner address
 }
 
 func New() *Ownable2Step {
 	return &Ownable2Step{
-		owner:        std.CurrentRealm().Address(),
+		owner:        runtime.CurrentRealm().Address(),
 		pendingOwner: "",
 	}
 }
 
 func NewWithOrigin() *Ownable2Step {
-	origin := std.OriginCaller()
-	previous := std.PreviousRealm()
+	origin := runtime.OriginCaller()
+	previous := runtime.PreviousRealm()
 	if origin != previous.Address() {
 		panic("NewWithOrigin() should be called from init() where std.PreviousRealm() is origin")
 	}
@@ -32,7 +33,7 @@ func NewWithOrigin() *Ownable2Step {
 	}
 }
 
-func NewWithAddress(addr std.Address) *Ownable2Step {
+func NewWithAddress(addr address) *Ownable2Step {
 	return &Ownable2Step{
 		owner:        addr,
 		pendingOwner: "",
@@ -40,7 +41,7 @@ func NewWithAddress(addr std.Address) *Ownable2Step {
 }
 
 // TransferOwnership initiate the transfer of the ownership to a new address by setting the PendingOwner
-func (o *Ownable2Step) TransferOwnership(newOwner std.Address) error {
+func (o *Ownable2Step) TransferOwnership(newOwner address) error {
 	if !o.OwnedByCurrent() {
 		return ErrUnauthorized
 	}
@@ -57,7 +58,7 @@ func (o *Ownable2Step) AcceptOwnership() error {
 	if o.pendingOwner.String() == "" {
 		return ErrNoPendingOwner
 	}
-	if std.CurrentRealm().Address() != o.pendingOwner {
+	if runtime.CurrentRealm().Address() != o.pendingOwner {
 		return ErrPendingUnauthorized
 	}
 
@@ -79,7 +80,7 @@ func (o *Ownable2Step) DropOwnership() error {
 	o.owner = ""
 	o.pendingOwner = ""
 
-	std.Emit(
+	chain.Emit(
 		OwnershipTransferEvent,
 		"from", prevOwner.String(),
 		"to", "",
@@ -89,35 +90,35 @@ func (o *Ownable2Step) DropOwnership() error {
 }
 
 // Owner returns the owner address from Ownable
-func (o *Ownable2Step) Owner() std.Address {
+func (o *Ownable2Step) Owner() address {
 	return o.owner
 }
 
 // PendingOwner returns the pending owner address from Ownable2Step
-func (o *Ownable2Step) PendingOwner() std.Address {
+func (o *Ownable2Step) PendingOwner() address {
 	return o.pendingOwner
 }
 
 // OwnedByCurrent checks if the caller of the function is the Realm's owner
 func (o *Ownable2Step) OwnedByCurrent() bool {
-	return std.CurrentRealm().Address() == o.owner
+	return runtime.CurrentRealm().Address() == o.owner
 }
 
 // AssertOwnedByCurrent panics if the caller is not the owner
 func (o *Ownable2Step) AssertOwnedByCurrent() {
-	if std.CurrentRealm().Address() != o.owner {
+	if runtime.CurrentRealm().Address() != o.owner {
 		panic(ErrUnauthorized)
 	}
 }
 
 // OwnedByPrevious checks if the caller of the function is the Realm's owner
 func (o *Ownable2Step) OwnedByPrevious() bool {
-	return std.PreviousRealm().Address() == o.owner
+	return runtime.PreviousRealm().Address() == o.owner
 }
 
 // AssertOwnedByPrevious panics if the caller is not the owner
 func (o *Ownable2Step) AssertOwnedByPrevious() {
-	if std.PreviousRealm().Address() != o.owner {
+	if runtime.PreviousRealm().Address() != o.owner {
 		panic(ErrUnauthorized)
 	}
 }

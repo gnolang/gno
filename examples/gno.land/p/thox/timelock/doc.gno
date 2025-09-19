@@ -12,7 +12,7 @@
 //
 //	Initialize timelock utility with an AVL tree and access control.
 //	timestamps := avl.NewTree()
-//	adminRole := accesscontrol.NewRole("admin", std.Address("admin-address"))
+//	adminRole := accesscontrol.NewRole("admin", address("admin-address"))
 //	timeLockUtil := timelock.NewTimeLockUtil(timestamps, adminRole, 30)
 //
 //	Schedule an operation with a delay of 60 seconds.

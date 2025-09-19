@@ -1,18 +1,20 @@
 package treasury
 
 import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 	"errors"
-	"std"
 
 	"gno.land/p/aeddi/panictoerr"
 )
 
 var ErrNoStdBankerProvided = errors.New("no std banker provided")
 
-// CoinsBanker is a Banker that sends std.Coins.
+// CoinsBanker is a Banker that sends banker.Coins.
 type CoinsBanker struct {
-	owner  std.Address // The address of this coins banker owner.
-	banker std.Banker  // The underlying std banker, must be a BankerTypeRealmSend.
+	owner  address       // The address of this coins banker owner.
+	banker banker.Banker // The underlying std banker, must be a BankerTypeRealmSend.
 }
 
 var _ Banker = (*CoinsBanker)(nil)
@@ -24,7 +26,7 @@ func (CoinsBanker) ID() string {
 
 // Send implements Banker.
 func (cb *CoinsBanker) Send(p Payment) error {
-	if std.CurrentRealm().Address() != cb.owner {
+	if runtime.CurrentRealm().Address() != cb.owner {
 		return ErrCurrentRealmIsNotOwner
 	}
 	// Check if payment is of type coinsPayment.
@@ -44,7 +46,7 @@ func (cb *CoinsBanker) Balances() []Balance {
 	// Get the coins from the banker.
 	coins := cb.banker.GetCoins(cb.owner)
 
-	// Convert std.Coins to []Balance.
+	// Convert banker.Coins to []Balance.
 	balances := make([]Balance, len(coins))
 	for i := range coins {
 		balances[i] = Balance{
@@ -63,14 +65,14 @@ func (cb *CoinsBanker) Address() string {
 
 // NewCoinsBanker creates a new CoinsBanker with the current Realm's address
 // as the owner.
-func NewCoinsBanker(banker std.Banker) (*CoinsBanker, error) {
-	owner := std.CurrentRealm().Address()
+func NewCoinsBanker(banker_ banker.Banker) (*CoinsBanker, error) {
+	owner := runtime.CurrentRealm().Address()
 
-	return NewCoinsBankerWithOwner(owner, banker)
+	return NewCoinsBankerWithOwner(owner, banker_)
 }
 
 // NewCoinsBankerWithOwner creates a new CoinsBanker with the given address.
-func NewCoinsBankerWithOwner(owner std.Address, banker std.Banker) (*CoinsBanker, error) {
+func NewCoinsBankerWithOwner(owner address, banker_ banker.Banker) (*CoinsBanker, error) {
 	if owner == "" {
 		return nil, ErrNoOwnerProvided
 	}
@@ -80,20 +82,20 @@ func NewCoinsBankerWithOwner(owner std.Address, banker std.Banker) (*CoinsBanker
 	// For example:
 	// if banker.Type() != std.BankerTypeRealmSend { panic("banker must be of type std.BankerTypeRealmSend") }
 	// if banker.Realm().Address() != owner { panic("banker must be owned by the given owner address") }
-	if banker == nil {
+	if banker_ == nil {
 		return nil, ErrNoStdBankerProvided
 	}
 
 	return &CoinsBanker{
 		owner:  owner,
-		banker: banker,
+		banker: banker_,
 	}, nil
 }
 
 // coinsPayment represents a payment that is issued by a CoinsBanker.
 type coinsPayment struct {
-	coins     std.Coins   // The coins being sent.
-	toAddress std.Address // The recipient of the payment.
+	coins     chain.Coins // The coins being sent.
+	toAddress address     // The recipient of the payment.
 }
 
 var _ Payment = (*coinsPayment)(nil)
@@ -109,7 +111,7 @@ func (cp coinsPayment) String() string {
 }
 
 // NewCoinsPayment creates a new coinsPayment.
-func NewCoinsPayment(coins std.Coins, toAddress std.Address) Payment {
+func NewCoinsPayment(coins chain.Coins, toAddress address) Payment {
 	return coinsPayment{
 		coins:     coins,
 		toAddress: toAddress,
