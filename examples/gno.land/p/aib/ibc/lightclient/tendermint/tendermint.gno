@@ -19,14 +19,8 @@ var _ lightclient.LightClientModule = (*TMLightClient)(nil)
 // Implements lightclient.LightClientModule
 func (tm *TMLightClient) Initialize(clientState lightclient.ClientState, consensusState lightclient.ConsensusState) error {
 	cs := clientState.(ClientState)
-	if err := cs.Validate(); err != nil {
-		return err
-	}
 	tm.ClientState = &cs
 	consState := consensusState.(ConsensusState)
-	if err := consState.Validate(); err != nil {
-		return err
-	}
 	tm.ConsensusStateByHeight.Set(cs.LatestHeight.String(), &consState)
 	return nil
 }
