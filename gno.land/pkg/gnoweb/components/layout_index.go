@@ -40,6 +40,7 @@ type HeadData struct {
 	Analytics   bool
 	Remote      string
 	ChainId     string
+	BuildTime   string
 }
 
 type IndexData struct {

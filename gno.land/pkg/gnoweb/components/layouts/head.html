@@ -41,7 +41,7 @@
   <link rel="stylesheet" href="{{ .ChromaPath }}" />
 
   <!-- web assets -->
-  <link rel="stylesheet" href="{{ .AssetsPath }}main.css" />
+  <link rel="stylesheet" href="{{ .AssetsPath }}main.css?v={{ .BuildTime }}" />
 
   <!-- wallet integrations -->
   <meta name="gnoconnect:rpc" content="{{ .Remote }}" />
