@@ -51,8 +51,12 @@ func RegisterCounterparty(cur realm, clientID string, counterpartyMerklePrefix [
 	if c.creator != std.OriginCaller() {
 		panic(ufmt.Sprintf("expected same signer as CreateClient submittor %s, got %s", c.creator, std.OriginCaller()))
 	}
+	if c.counterpartyClientID != "" {
+		panic("cannot register counterparty once it is already set")
+	}
 	c.counterpartyClientID = counterpartyClientID
 	c.counterpartyMerklePrefix = counterpartyMerklePrefix
+	// TODO initialize next sequence to 1
 }
 
 // UpdateClient will update the given IBC v2 light client with a new header.
