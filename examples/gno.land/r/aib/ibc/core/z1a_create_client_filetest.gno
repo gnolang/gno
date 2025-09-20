@@ -31,6 +31,8 @@ func main() {
 	println(core.Render("clients/unknown"))
 	println("\n----------- assert render clients/07-tendermint-1")
 	println(core.Render("clients/" + clientID1))
+	println("----------- assert render clients/07-tendermint-1/consensus_states")
+	println(core.Render("clients/" + clientID1 + "/consensus_states"))
 }
 
 // Output:
@@ -87,4 +89,11 @@ func main() {
 // - Latest consensus state:
 //   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
 //   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
+//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
+//
+//----------- assert render clients/07-tendermint-1/consensus_states
+// ## Client 07-tendermint-1 consensus states
+// - ConsensusState height 2/2:
+//   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
+//   - RootHash: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
 //   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
