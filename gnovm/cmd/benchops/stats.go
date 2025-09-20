@@ -57,8 +57,8 @@ func stats(binFile string) {
 					opName = bm.NativeCodeString(record[2])
 				}
 
-				elapsedTime := binary.LittleEndian.Uint32(record[2:])
-				size := binary.LittleEndian.Uint32(record[6:])
+				elapsedTime := binary.LittleEndian.Uint32(record[3:])
+				size := binary.LittleEndian.Uint32(record[7:])
 				outputCh <- codeRecord{opName, elapsedTime, size}
 			}
 			wg.Done()
