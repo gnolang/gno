@@ -28,6 +28,7 @@ func (tm *TMLightClient) verifyHeader(header *MsgHeader) error {
 	}
 
 	// assert header height is newer than consensus state
+	// NOTE: this is already asserted in MsgHeader.Validate, remove?
 	if header.GetHeight().LTE(header.TrustedHeight) {
 		return ufmt.Errorf(
 			"header height ≤ consensus state height (%s ≤ %s)",

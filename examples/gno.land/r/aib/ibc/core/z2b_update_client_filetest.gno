@@ -25,6 +25,7 @@ func main() {
 			newHeight, latestHeight, valset, trustedValset,
 		)
 	)
+
 	core.UpdateClient(cross, clientID, msgHeader)
 }
 

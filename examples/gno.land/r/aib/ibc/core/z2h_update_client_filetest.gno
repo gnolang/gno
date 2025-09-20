@@ -34,6 +34,7 @@ func main() {
 	)
 	// Alter chainID to change the revision number
 	msgHeader.Header.ChainID = "chain-id-3"
+
 	core.UpdateClient(cross, clientID, msgHeader)
 }
 

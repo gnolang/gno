@@ -14,6 +14,7 @@ func Render(path string) string {
 	router.HandleFunc("", RenderHome)
 	router.HandleFunc("clients", RenderClients)
 	router.HandleFunc("clients/{id}", RenderClient)
+	router.HandleFunc("clients/{id}/consensus_states", RenderClientConsensusStates)
 	return router.Render(path)
 }
 
@@ -37,6 +38,16 @@ func RenderClient(w *mux.ResponseWriter, r *mux.Request) {
 		return
 	}
 	w.Write(c.(*client).Render())
+}
+
+func RenderClientConsensusStates(w *mux.ResponseWriter, r *mux.Request) {
+	id := r.GetVar("id")
+	c, found := store.clientByID.Get(id)
+	if !found {
+		w.Write(ufmt.Sprintf("client %s not found", id))
+		return
+	}
+	w.Write(c.(*client).RenderConsensusStates())
 }
 
 func (c *client) Render() string {
@@ -68,6 +79,24 @@ func (c *client) Render() string {
 		s += ufmt.Sprintf("  - Timestamp: %s\n", latestConsState.Timestamp)
 		s += ufmt.Sprintf("  - Root: %s\n", hex.EncodeToString(latestConsState.Root.Hash))
 		s += ufmt.Sprintf("  - NextValidatorsHash: %s\n", hex.EncodeToString(latestConsState.NextValidatorsHash))
+	}
+	return s
+}
+
+func (c *client) RenderConsensusStates() string {
+	var s string
+	s += ufmt.Sprintf("## Client %s consensus states\n", c.id)
+	switch c.typ {
+	case lightclient.Tendermint:
+		lc := c.lightClient.(*tendermint.TMLightClient)
+		lc.ConsensusStateByHeight.Iterate("", "", func(key string, v any) bool {
+			s += ufmt.Sprintf("- ConsensusState height %s:\n", key)
+			cs := v.(*tendermint.ConsensusState)
+			s += ufmt.Sprintf("  - Timestamp: %s\n", cs.Timestamp)
+			s += ufmt.Sprintf("  - RootHash: %s\n", hex.EncodeToString(cs.Root.Hash))
+			s += ufmt.Sprintf("  - NextValidatorsHash: %s\n", hex.EncodeToString(cs.NextValidatorsHash))
+			return false
+		})
 	}
 	return s
 }
