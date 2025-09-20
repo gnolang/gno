@@ -2,14 +2,13 @@ package main
 
 import (
 	"crypto/sha256"
-	stdtesting "testing"
 	"time"
 
 	"gno.land/r/aib/ibc/core"
 	"gno.land/r/aib/ibc/core/testing"
 )
 
-// UpdateClient on expired lightclient
+// UpdateClient consensusState.NextValidatorHash and trustedValset mismatch
 func main() {
 	// CreateClient and RegisterCounterparty
 	var (
@@ -22,24 +21,21 @@ func main() {
 	clientID := core.CreateClient(cross, clientState, consensusState)
 	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "counter-party-id")
 
-	// Change block time to expire the lightclient
-	ctx := stdtesting.GetContext()
-	ctx.Time = time.Now().Add(clientState.TrustingPeriod)
-	stdtesting.SetContext(ctx)
-
 	// Update clientID
 	var (
 		newHeight     = uint64(5)
 		newTimestamp  = consensusState.Timestamp.Add(time.Minute)
-		trustedValset = valset
+		trustedValset = testing.GenValset()
 		trustedHeight = clientState.LatestHeight
 		msgHeader     = testing.GenMsgHeader(
 			chainID, newTimestamp, apphash[:],
 			newHeight, trustedHeight, valset, trustedValset,
 		)
 	)
+	// Alter trustedvalset
+	trustedValset.Validators[0].VotingPower = 42
 	core.UpdateClient(cross, clientID, msgHeader)
 }
 
 // Error:
-// cannot update client (07-tendermint-1) with status Expired
+// trusted validators does not hash to latest trusted validators. Expected: "4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c", got: "6429cc1fe212aa6abef2565ac6e9abcfd8171f2a7cdce6cf64a0c321d5ea1145"
