@@ -8,7 +8,7 @@ func init() {
 	mapus[9] = "nine"
 }
 
-func DeleteMap(k uint64) {
+func DeleteMap(_ realm, k uint64) {
 	delete(mapus, k)
 }
 

@@ -4,7 +4,7 @@
 
 ! stdout .+
 # XXX catch and convert to gnoImportError
-stderr 'contract.gno:3:8: could not import foobarbaz \(unknown import path "foobarbaz"\) \(code=gnoImportError\)'
+stderr 'contract\.gno:3:8: package foobarbaz is not in std'
 
 -- contract.gno --
 package contract
@@ -23,3 +23,7 @@ import "testing"
 func TestFoo(t *testing.T) {
 	Foo()
 }
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/unknown_package"

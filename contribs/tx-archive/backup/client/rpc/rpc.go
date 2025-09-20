@@ -110,7 +110,7 @@ func (c *Client) GetBlocks(ctx context.Context, from, to uint64) ([]*client.Bloc
 			for _, encodedTx := range blockRes.Block.Data.Txs {
 				var tx std.Tx
 
-				if unmarshalErr := amino.Unmarshal(encodedTx, &tx); unmarshalErr != nil {
+				if err := amino.Unmarshal(encodedTx, &tx); err != nil {
 					return nil, fmt.Errorf(
 						"unable to unmarshal amino tx, %w",
 						err,

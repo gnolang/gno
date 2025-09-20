@@ -52,7 +52,6 @@ jobs:
           echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> $GITHUB_ENV
       - run: go install -v ./gnovm/cmd/gno
       - run: cd examples && go run ../gnovm/cmd/gno test -v -print-runtime-metrics -print-events -covermode=count ./...
-
   lint:
     strategy:
       fail-fast: false

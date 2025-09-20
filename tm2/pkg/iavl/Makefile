@@ -1,4 +1,4 @@
-GOTOOLS := github.com/golangci/golangci-lint/cmd/golangci-lint
+GOTOOLS := github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 
 PDFFLAGS := -pdf --nodefraction=0.1
 

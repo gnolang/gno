@@ -110,8 +110,8 @@ func isUpper(s string) bool {
 
 const sizeOfUintPtr = unsafe.Sizeof(uintptr(0))
 
-func uintptrToBytes(u *uintptr) []byte {
-	return (*[sizeOfUintPtr]byte)(unsafe.Pointer(u))[:]
+func uintptrToBytes(u *uintptr) [sizeOfUintPtr]byte {
+	return *(*[sizeOfUintPtr]byte)(unsafe.Pointer(u))
 }
 
 func defaultPkgName(gopkgPath string) Name {

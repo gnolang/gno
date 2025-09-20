@@ -85,7 +85,7 @@ func isNonstructDefaultValue(rv reflect.Value) (isDefault bool) {
 			return isNonstructDefaultValue(erv)
 		}
 	case reflect.Bool:
-		return rv.Bool() == false
+		return rv.Bool() == false //nolint:staticcheck
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return rv.Int() == 0
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:

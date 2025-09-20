@@ -179,14 +179,14 @@ func (m mapKV) Less(i, j int) bool {
 }
 
 func compareKeys(ki, kj gnolang.TypedValue) bool {
-	if ki.T.Kind() != kj.T.Kind() {
+	if ki.T == nil || kj.T == nil || ki.T.Kind() != kj.T.Kind() {
 		return false
 	}
 	switch ki.T.Kind() {
 	case gnolang.BoolKind:
 		bi, bj := ki.GetBool(), kj.GetBool()
 		// use == just to make it more explicit
-		return bi == false && bj == true
+		return bi == false && bj == true //nolint:staticcheck
 	case gnolang.Float32Kind:
 		return math.Float32frombits(ki.GetFloat32()) < math.Float32frombits(kj.GetFloat32())
 	case gnolang.Float64Kind:

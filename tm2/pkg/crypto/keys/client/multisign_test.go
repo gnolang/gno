@@ -448,6 +448,7 @@ func TestSign_MultisignTx(t *testing.T) {
 
 		// Verify the signature
 		signBytes, err := signedTx.GetSignBytes("dev", 0, 0)
+		assert.NoError(t, err)
 		assert.True(t, msPub.VerifyBytes(signBytes, aggSig.Signature))
 	})
 }

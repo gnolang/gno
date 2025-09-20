@@ -28,7 +28,7 @@ func BackupAddr() std.Address {
 	return backupAddr
 }
 
-func SetMainAddr(addr std.Address) error {
+func SetMainAddr(_ realm, addr std.Address) error {
 	if !addr.IsValid() {
 		return errors.New("config: invalid address")
 	}
@@ -39,7 +39,7 @@ func SetMainAddr(addr std.Address) error {
 	return nil
 }
 
-func SetBackupAddr(addr std.Address) error {
+func SetBackupAddr(_ realm, addr std.Address) error {
 	if !addr.IsValid() {
 		return errors.New("config: invalid address")
 	}

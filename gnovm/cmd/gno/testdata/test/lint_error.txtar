@@ -23,3 +23,7 @@ import "testing"
 func TestAlwaysValid(t *testing.T) {
 	fn()
 }
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/lint_error"

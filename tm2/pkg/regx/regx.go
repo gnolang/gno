@@ -6,20 +6,19 @@ import (
 	"strings"
 )
 
-// regx is composed from the Go functions below, meaning they are declared in
-// the code, thus not arbitrary and unbounded, so this cache is reasonable, as
-// long as there is no usage like regx(<client_provided_pattern>).
-// That's why regx isn't exposed; you can't do the above without reflect.
-var cache = make(map[regx]*regexp.Regexp)
-
 type regx string // do not expose.
 
 func (rx regx) String() string { return string(rx) }
 
-func (rx regx) Compile() *regexp.Regexp {
+func (rx regx) Compile() *compiledRegx {
+	if !strings.HasPrefix(string(rx), `^`) {
+		rx = `^` + rx
+	}
+	if !strings.HasSuffix(string(rx), `$`) {
+		rx = rx + `$`
+	}
 	rr := regexp.MustCompile(string(rx))
-	cache[rx] = rr
-	return rr
+	return &compiledRegx{rx, *rr}
 }
 
 type match struct {
@@ -36,31 +35,28 @@ func (mm match) Get(name string) string {
 	panic(fmt.Sprintf("no named subexpression %q", name))
 }
 
+type compiledRegx struct {
+	src regx
+	re  regexp.Regexp
+}
+
 // Matches a string by default, adding ^$ if not already present.
 // If you need to match a part of the string, implement "Find()".
-func (rx regx) Match(s string) *match {
-	if !strings.HasPrefix(string(rx), `^`) {
-		rx = `^` + rx
-	}
-	if !strings.HasSuffix(string(rx), `$`) {
-		rx = rx + `$`
-	}
+func (cr *compiledRegx) Match(s string) *match {
 	// s is now canonical w/ ^$.
-	rr, ok := cache[rx]
-	if !ok {
-		rr = rx.Compile()
-	}
-	matches := rr.FindStringSubmatch(s)
+	matches := cr.re.FindStringSubmatch(s)
 	if matches == nil {
 		return nil
 	}
-	return &match{rr.SubexpNames(), matches}
+	return &match{cr.re.SubexpNames(), matches}
 }
 
 // Returns true if matches.
-func (rx regx) Matches(s string) bool {
-	return rx.Match(s) != nil
+func (cr *compiledRegx) Matches(s string) bool {
+	return cr.re.MatchString(s)
 }
+
+func (cr *compiledRegx) Regx() regx { return cr.src }
 
 func r2s(xx regx) string                         { return string(xx) }                     // regx -> string
 func sj(sz ...string) string                     { return strings.Join(sz, ``) }           // string join
@@ -83,25 +79,29 @@ func N(nn string, xs ...regx) regx { return `(?P<` + regx(nn) + `>` + G(xs...) +
 func L(xs ...regx) regx            { return `^` + G(xs...) + `$` }                                   // line
 func O(xs ...regx) regx            { return G(regx(sjd(`|`, mab(r2s, xs)...))) }                     // or
 
-var C_d regx = `\d` // Matches any digit (0-9).
-var C_D regx = `\D` // Matches any non-digit character.
-var C_w regx = `\w` // Matches any alphanumeric character plus "_" (word character).
-var C_W regx = `\W` // Matches any non-word character.
-var C_s regx = `\s` // Matches any whitespace character (space, tab, newline, etc.).
-var C_S regx = `\S` // Matches any non-whitespace character.
+var (
+	C_d regx = `\d` // Matches any digit (0-9).
+	C_D regx = `\D` // Matches any non-digit character.
+	C_w regx = `\w` // Matches any alphanumeric character plus "_" (word character).
+	C_W regx = `\W` // Matches any non-word character.
+	C_s regx = `\s` // Matches any whitespace character (space, tab, newline, etc.).
+	C_S regx = `\S` // Matches any non-whitespace character.
+)
 
-var C_alnum regx = `[:alnum:]`
-var C_cntrl regx = `[:cntrl:]`
-var C_lower regx = `[:lower:]`
-var C_space regx = `[:space:]`
-var C_alpha regx = `[:alpha:]`
-var C_digit regx = `[:digit:]`
-var C_print regx = `[:print:]`
-var C_upper regx = `[:upper:]`
-var C_blank regx = `[:blank:]`
-var C_graph regx = `[:graph:]`
-var C_punct regx = `[:punct:]`
-var C_hexad regx = `[:xdigit:]`
+var (
+	C_alnum regx = `[:alnum:]`
+	C_cntrl regx = `[:cntrl:]`
+	C_lower regx = `[:lower:]`
+	C_space regx = `[:space:]`
+	C_alpha regx = `[:alpha:]`
+	C_digit regx = `[:digit:]`
+	C_print regx = `[:print:]`
+	C_upper regx = `[:upper:]`
+	C_blank regx = `[:blank:]`
+	C_graph regx = `[:graph:]`
+	C_punct regx = `[:punct:]`
+	C_hexad regx = `[:xdigit:]`
+)
 
 // aka "reduce".
 func fab[F func(A, B) B, A any, B any](f F, aa []A, b B) B {

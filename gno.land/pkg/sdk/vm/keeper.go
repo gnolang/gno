@@ -19,7 +19,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -271,9 +270,7 @@ func (tsg testStdlibGetter) GetMemPackage(pkgPath string) *std.MemPackage {
 	if sourceMpkg != nil {
 		testMpkg.Files = slices.Concat(sourceMpkg.Files, testMpkg.Files)
 	}
-	if pkgPath == "testing" {
-		spew.Dump(sourceMpkg)
-	}
+
 	tsg.cacheMtx.Lock()
 	tsg.cache[pkgPath] = testMpkg
 	tsg.cacheMtx.Unlock()
@@ -710,8 +707,8 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 	}
 	*e = errors.Wrapf(
 		fmt.Errorf("%v", r),
-		"VM panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
-		r, m.String(), m.Stacktrace().String(),
+		"VM panic: %v\nStacktrace:\n%s\n",
+		r, m.Stacktrace().String(),
 	)
 }
 
@@ -1082,7 +1079,7 @@ func (vm *VMKeeper) QueryDoc(ctx sdk.Context, pkgPath string) (*doc.JSONDocument
 	if err != nil {
 		return nil, err
 	}
-	return d.WriteJSONDocumentation()
+	return d.WriteJSONDocumentation(nil)
 }
 
 // QueryStorage returns storage and deposit for a realm.
@@ -1116,8 +1113,17 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 		depositAmt = std.MustParseCoin(params.DefaultDeposit).Amount
 	}
 	price := std.MustParseCoin(params.StoragePrice)
+
+	// Sort paths for determinism
+	sortedRealm := make([]string, 0, len(realmDiffs))
+	for path := range realmDiffs {
+		sortedRealm = append(sortedRealm, path)
+	}
+	slices.SortFunc(sortedRealm, strings.Compare)
+
 	var allErrs error
-	for rlmPath, diff := range realmDiffs {
+	for _, rlmPath := range sortedRealm {
+		diff := realmDiffs[rlmPath]
 		if diff == 0 {
 			continue
 		}

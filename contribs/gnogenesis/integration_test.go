@@ -65,7 +65,7 @@ func TestIntegration(t *testing.T) {
 	)
 
 	// Dummy account
-	dKeys := common.GetDummyKeys(t, 3)
+	dKeys := common.DummyKeys(t, 3)
 
 	// Generate balance sheet
 	defaultBalanceAmount := std.Coins{std.NewCoin(ugnot.Denom, 10e8)}
@@ -77,7 +77,7 @@ func TestIntegration(t *testing.T) {
 	}
 
 	balanceSheet := filepath.Join(t.TempDir(), "balance-sheet.txt")
-	err = os.WriteFile(balanceSheet, []byte(strings.Join(balances, "\n")), 0644)
+	err = os.WriteFile(balanceSheet, []byte(strings.Join(balances, "\n")), 0o644)
 	require.NoError(t, err)
 
 	// Add balance sheet

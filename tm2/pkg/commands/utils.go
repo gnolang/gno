@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"errors"
 	"os"
 	"strings"
 
@@ -72,31 +71,6 @@ func (io *IOImpl) GetConfirmation(prompt string) (bool, error) {
 	}
 
 	return false, nil
-}
-
-// GetCheckPassword will prompt for a password twice to verify they
-// match (for creating a new password).
-// It enforces the password length. Only parses password once if
-// input is piped in.
-func (io *IOImpl) GetCheckPassword(
-	prompts [2]string,
-	insecure bool,
-) (string, error) {
-	pass, err := io.GetPassword(prompts[0], insecure)
-	if err != nil {
-		return "", err
-	}
-
-	pass2, err := io.GetPassword(prompts[1], insecure)
-	if err != nil {
-		return "", err
-	}
-
-	if pass != pass2 {
-		return "", errors.New("passphrases don't match")
-	}
-
-	return pass, nil
 }
 
 // GetString simply returns the trimmed string output of a given reader.

@@ -14,11 +14,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        testnet: [ ] # Currently, all active testnet deployment genesis.json are legacy
+        testnet: ["test7.gno.land"] # Currently, all active testnet deployment genesis.json are legacy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Get changed files
         id: changed-files

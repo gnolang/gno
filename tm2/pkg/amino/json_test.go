@@ -549,13 +549,13 @@ func TestMarshalJSONIndent(t *testing.T) {
 	cdc := amino.NewCodec()
 	registerTransports(cdc)
 	obj := Transport{Vehicle: Car("Tesla")}
-	expected := fmt.Sprintf(`{
+	expected := `{
   "Vehicle": {
     "@type": "/amino_test.Car",
     "value": "Tesla"
   },
   "Capacity": "0"
-}`)
+}`
 
 	blob, err := cdc.MarshalJSONIndent(obj, "", "  ")
 	assert.Nil(t, err)

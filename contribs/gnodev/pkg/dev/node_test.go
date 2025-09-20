@@ -39,6 +39,7 @@ func TestNewNode_NoPackages(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, node.ListPkgs(), 0)
+	assert.Len(t, node.Paths(), 0)
 
 	require.NoError(t, node.Close())
 }
@@ -73,6 +74,7 @@ func Render(_ string) string { return "foo" }
 	node, err := NewDevNode(ctx, cfg, pkg.Path)
 	require.NoError(t, err)
 	assert.Len(t, node.ListPkgs(), 1)
+	assert.Len(t, node.Paths(), 1)
 
 	// Test rendering
 	render, err := testingRenderRealm(t, node, pkg.Path)
@@ -124,6 +126,7 @@ func Render(_ string) string { return "bar" }
 	// Call NewDevNode with no package should work
 	node, emitter := newTestingDevNodeWithConfig(t, cfg, fooPkg.Path)
 	assert.Len(t, node.ListPkgs(), 1)
+	assert.Len(t, node.Paths(), 1)
 
 	// Test render
 	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foo")
@@ -131,7 +134,7 @@ func Render(_ string) string { return "bar" }
 	require.Equal(t, render, "foo")
 
 	// Render should fail as the node hasn't reloaded
-	render, err = testingRenderRealm(t, node, "gno.land/r/dev/bar")
+	_, err = testingRenderRealm(t, node, "gno.land/r/dev/bar")
 	require.Error(t, err)
 
 	// Add bar package
@@ -178,6 +181,7 @@ func Render(_ string) string { return "bar" }
 
 	node, emitter := newTestingDevNode(t, &foorbarPkg)
 	assert.Len(t, node.ListPkgs(), 1)
+	assert.Len(t, node.Paths(), 1)
 
 	// Test that render is correct
 	render, err := testingRenderRealm(t, node, foorbarPkg.Path)
@@ -228,6 +232,7 @@ func Render(_ string) string { return str }
 
 	node, emitter := newTestingDevNode(t, &fooPkg)
 	assert.Len(t, node.ListPkgs(), 1)
+	assert.Len(t, node.Paths(), 1)
 
 	// Test rendering
 	render, err := testingRenderRealm(t, node, fooPkg.Path)
@@ -293,6 +298,7 @@ func Render(_ string) string { return strconv.Itoa(i) }
 
 	node, emitter := newTestingDevNode(t, &fooPkg)
 	assert.Len(t, node.ListPkgs(), 1)
+	assert.Len(t, node.Paths(), 1)
 
 	// Test rendering
 	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foo")
@@ -328,7 +334,7 @@ func Render(_ string) string { return strconv.Itoa(i) }
 		GasWanted: 100_000,
 	}
 
-	res, err = testingCallRealmWithConfig(t, node, callCfg, msg)
+	_, err = testingCallRealmWithConfig(t, node, callCfg, msg)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &std.OutOfGasError{})
 

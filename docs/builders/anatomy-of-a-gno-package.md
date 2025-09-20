@@ -67,7 +67,7 @@ package counter
 
 var count int
 
-func Increment(change int) int {
+func Increment(_ realm, change int) int {
 	count += change
 	return count
 }
@@ -75,10 +75,15 @@ func Increment(change int) int {
 
 The `Increment()` function has a few important features:
 - When written with the first letter in uppercase, the function is
-  exported. This means that calls to this function from outside the `counter`
-  package are allowed - be it from off-chain clients or from other Gno programs
-- It takes an argument of type `int`, called `change`. This is how the caller
-  will provide a specific number which will be used to increment the `counter`
+exported. This means that calls to this function from outside the `counter`
+package are allowed - be it from off-chain clients, users, or from other Gno programs
+- As this function intends to change the state of the realm (incrementing the 
+`count` variable), it needs to be ["crossing"](../resources/gno-interrealm.md). 
+To declare the function crossing, the first argument must be of type `realm`, 
+which is a custom Gno built-in keyword. In this case, as we won't be using the 
+argument for anything, we can leave it unnamed (i.e., `_`).
+- It takes a second argument of type `int`, called `change`. This is how the caller
+will provide a specific number which will be used to increment the `counter`
 - Returns the value of `count` after a successful call
 
 Next, to make our application more user-friendly, we should define a `Render()`
@@ -92,7 +97,7 @@ import "strconv"
 
 var count int
 
-func Increment(change int) int {
+func Increment(_ realm, change int) int {
 	count += change
 	return count
 }
@@ -135,7 +140,7 @@ func TestIncrement(t *testing.T) {
 	}
 
 	// Call Increment
-	value := Increment(42)
+	value := Increment(cross, 42)
 
 	// Check result
 	if value != 42 {
@@ -146,6 +151,8 @@ func TestIncrement(t *testing.T) {
 
 By using the `testing` package from the standard library, we can access the
 `testing.T` object that exposes methods which can help us terminate tests in specific cases.
+Next, to satisfy the first argument of the `Increment()` function, we will use the
+built-in `cross`.
 
 :::info
 Common testing patterns found in Go, such as [TDT](https://go.dev/wiki/TableDrivenTests),

@@ -10,3 +10,8 @@ package minim
 
 -- minim_test.gno --
 package minim
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/minim2"
+gno = "0.9"
