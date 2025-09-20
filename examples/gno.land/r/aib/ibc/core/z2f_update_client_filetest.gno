@@ -41,6 +41,7 @@ func main() {
 
 	// Update clientID
 	println("clientMessage.Validate():",
+		// NOTE: panics in explicit cross realm can only be caught by revive.
 		revive(func() {
 			core.UpdateClient(cross, clientID, validateError{})
 		}))
