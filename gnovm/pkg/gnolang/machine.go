@@ -138,7 +138,7 @@ func (m *Machine) trackStatementCoverage(s Stmt) {
 		return
 	}
 
-	// Determine filename from current frame's function location if available
+	// Determine filename from current frame's function location
 	filename := "unknown"
 	if n := len(m.Frames); n > 0 && m.Frames[n-1].Func != nil {
 		funcLoc := m.Frames[n-1].Func.GetSource(m.Store).GetLocation()

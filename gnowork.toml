@@ -1,0 +1,5 @@
+[workspace]
+
+[workspace.dirs]
+examples = "./examples"
+test_coverage = "./test_coverage"
