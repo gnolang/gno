@@ -32,9 +32,13 @@ func main() {
 			newHeight, trustedHeight, valset, trustedValset,
 		)
 	)
+
 	core.UpdateClient(cross, clientID, msgHeader)
+
 	println("----------- assert render clients")
 	println(core.Render("clients"))
+	println("----------- assert render clients/07-tendermint-1/consensus_states")
+	println(core.Render("clients/" + clientID + "/consensus_states"))
 
 	// Second Update with height older than clientState.LatestHeight
 	newHeight = newHeight - 1
@@ -42,10 +46,13 @@ func main() {
 		chainID, newTimestamp, apphash[:],
 		newHeight, trustedHeight, valset, trustedValset,
 	)
+
 	core.UpdateClient(cross, clientID, msgHeader)
+
 	println("----------- assert render clients")
 	println(core.Render("clients"))
-	// TODO assert all consensus states
+	println("----------- assert render clients/07-tendermint-1/consensus_states")
+	println(core.Render("clients/" + clientID + "/consensus_states"))
 }
 
 // Output:
@@ -66,6 +73,17 @@ func main() {
 //   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
 //   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
 //
+// ----------- assert render clients/07-tendermint-1/consensus_states
+// ## Client 07-tendermint-1 consensus states
+// - ConsensusState height 2/2:
+//   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
+//   - RootHash: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
+//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
+// - ConsensusState height 2/5:
+//   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
+//   - RootHash: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
+//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
+//
 // ----------- assert render clients
 // ## Client 07-tendermint-1
 // - Type: 07-tendermint
@@ -81,4 +99,19 @@ func main() {
 // - Latest consensus state:
 //   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
 //   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
+//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
+//
+// ----------- assert render clients/07-tendermint-1/consensus_states
+// ## Client 07-tendermint-1 consensus states
+// - ConsensusState height 2/2:
+//   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
+//   - RootHash: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
+//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
+// - ConsensusState height 2/4:
+//   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
+//   - RootHash: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
+//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
+// - ConsensusState height 2/5:
+//   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
+//   - RootHash: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
 //   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c

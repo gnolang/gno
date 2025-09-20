@@ -38,6 +38,7 @@ func main() {
 			newHeight, trustedHeight, valset, trustedValset,
 		)
 	)
+
 	core.UpdateClient(cross, clientID, msgHeader)
 }
 
