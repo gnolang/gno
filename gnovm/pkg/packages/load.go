@@ -54,7 +54,7 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 	if err != nil {
 		return nil, err
 	}
-	ofs := &overlayFS{files: conf.Overlay, root: wd}
+	ofs := newOverlayFS(conf.Overlay, wd)
 
 	// XXX: allow loading only stdlibs without a workspace (like go allow loading stdlibs without a go.mod)
 

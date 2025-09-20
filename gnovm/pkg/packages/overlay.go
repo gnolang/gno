@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -45,6 +46,9 @@ func (o *overlayFS) ReadDir(name string) ([]fs.DirEntry, error) {
 		}
 		fsEntries[osIdx] = entry
 	}
+	slices.SortFunc(fsEntries, func(a, b fs.DirEntry) int {
+		return strings.Compare(a.Name(), b.Name())
+	})
 	return fsEntries, nil
 }
 
