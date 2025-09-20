@@ -231,6 +231,7 @@ func TestDataLoad(t *testing.T) {
 		errShouldContain string
 		outShouldContain string
 		deps             bool
+		overlay          map[string][]byte
 	}{
 		{
 			name:     "workspace-1-root",
@@ -274,6 +275,10 @@ func TestDataLoad(t *testing.T) {
 			name:     "workspace-1-recursive",
 			workdir:  localFromSlash("./testdata/workspace-1"),
 			patterns: []string{"./..."},
+			overlay: map[string][]byte{
+				"overlaypkg/gnomod.toml":    []byte("module = \"gno.example.com/r/wspace1/overlaypkg\"\ngno = \"0.9\"\n"),
+				"overlaypkg/overlaypkg.gno": []byte("package overlaypkg\n"),
+			},
 			res: PkgList{{
 				ImportPath: "gno.example.com/r/wspace1/foo",
 				Name:       "foo",
@@ -304,6 +309,15 @@ func TestDataLoad(t *testing.T) {
 					Pos: filepath.Join(workspace1Abs, "invalidpkg"),
 					Msg: fmt.Sprintf("%s/b.gno:0: expected package name \"invalidpkga\" but got \"invalidpkgb\" (type: *errors.errorString)", filepath.Join(workspace1Abs, "invalidpkg")),
 				}},
+			}, {
+				ImportPath: "gno.example.com/r/wspace1/overlaypkg",
+				Name:       "overlaypkg",
+				Dir:        filepath.Join(workspace1Abs, "overlaypkg"),
+				Match:      []string{"./..."},
+				Files: FilesMap{
+					FileKindOther:         []string{"gnomod.toml"},
+					FileKindPackageSource: []string{"overlaypkg.gno"},
+				},
 			}},
 		},
 		{
@@ -522,6 +536,7 @@ func TestDataLoad(t *testing.T) {
 				Deps:    tc.deps,
 				Out:     outBuf,
 				Fetcher: examplespkgfetcher.New(testExamplesAbs),
+				Overlay: tc.overlay,
 			}
 
 			res, err := Load(conf, tc.patterns...)
