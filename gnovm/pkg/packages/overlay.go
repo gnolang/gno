@@ -36,7 +36,7 @@ func (o *overlayFS) ReadDir(name string) ([]fs.DirEntry, error) {
 	fsEntries := append([]fs.DirEntry{}, osEntries...)
 	for _, entryName := range overlayEntries {
 		osIdx := slices.IndexFunc(osEntries, func(entry os.DirEntry) bool {
-			return entry.Name() == name
+			return entry.Name() == entryName
 		})
 		_, entryIsDir := o.dirs[filepath.Join(name, entryName)]
 		entry := &overlayDirEntry{name: entryName, isDir: entryIsDir}
