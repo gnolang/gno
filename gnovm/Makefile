@@ -64,6 +64,9 @@ build.bench.opcode:
 build.bench.storage:
 	go build -tags "benchmarkingstorage" -o build/gnobench ./cmd/benchops
 
+build.bench.native:
+	go build -tags "benchmarkingnative" -o build/gnobench ./cmd/benchops
+
 # Extract the latest commit hash
 COMMIT_HASH := $(shell git rev-parse --short=7 HEAD)
 
@@ -75,6 +78,8 @@ run.bench.opcode: build.bench.opcode
 run.bench.storage: build.bench.storage
 	./build/gnobench -out store_results_$(COMMIT_HASH).csv
 
+run.bench.native: build.bench.native
+	./build/gnobench -out native_results_$(COMMIT_HASH).csv
 
 ########################################
 # Test suite

@@ -1,5 +1,7 @@
 package benchops
 
+import "fmt"
+
 // store code
 const (
 	// gno store
@@ -30,6 +32,29 @@ const (
 	invalidStoreCode string = "StoreInvalid"
 )
 
+// native code
+const (
+	NativePrint      byte = 0x01 // print to console
+	NativePrint_1    byte = 0x02 // print to console
+	NativePrint_10   byte = 0x03
+	NativePrint_1000 byte = 0x04 // print 1000 times to console
+
+	invalidNativeCode string = "NativeInvalid"
+)
+
+func GetNativePrintCode(size int) byte {
+	switch size {
+	case 1:
+		return NativePrint_1
+	case 10:
+		return NativePrint_10
+	case 1000:
+		return NativePrint_1000
+	default:
+		panic(fmt.Sprintf("invalid print size: %d", size))
+	}
+}
+
 // the index of the code string should match with the constant code number above.
 var storeCodeNames = []string{
 	invalidStoreCode,
@@ -54,14 +79,26 @@ var storeCodeNames = []string{
 	"FinalizeTx",
 }
 
-type Code [2]byte
+var nativeCodeNames = []string{
+	invalidNativeCode,
+	"NativePrint",
+	"NativePrint_1",
+	"NativePrint_10",
+	"NativePrint_1000",
+}
+
+type Code [3]byte
 
 func VMOpCode(opCode byte) Code {
-	return [2]byte{opCode, 0x00}
+	return [3]byte{opCode, 0x00, 0x00}
 }
 
 func StoreCode(storeCode byte) Code {
-	return [2]byte{0x00, storeCode}
+	return [3]byte{0x00, storeCode, 0x00}
+}
+
+func NativeCode(nativeCode byte) Code {
+	return [3]byte{0x00, 0x00, nativeCode}
 }
 
 func StoreCodeString(storeCode byte) string {
@@ -69,4 +106,11 @@ func StoreCodeString(storeCode byte) string {
 		return invalidStoreCode
 	}
 	return storeCodeNames[storeCode]
+}
+
+func NativeCodeString(nativeCode byte) string {
+	if int(nativeCode) >= len(nativeCodeNames) {
+		return invalidNativeCode
+	}
+	return nativeCodeNames[nativeCode]
 }
