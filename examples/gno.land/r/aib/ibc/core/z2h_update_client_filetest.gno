@@ -2,14 +2,13 @@ package main
 
 import (
 	"crypto/sha256"
-	stdtesting "testing"
 	"time"
 
 	"gno.land/r/aib/ibc/core"
 	"gno.land/r/aib/ibc/core/testing"
 )
 
-// UpdateClient on expired lightclient
+// UpdateClient revision number mismatch
 func main() {
 	// CreateClient and RegisterCounterparty
 	var (
@@ -22,11 +21,6 @@ func main() {
 	clientID := core.CreateClient(cross, clientState, consensusState)
 	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "counter-party-id")
 
-	// Change block time to expire the lightclient
-	ctx := stdtesting.GetContext()
-	ctx.Time = time.Now().Add(clientState.TrustingPeriod)
-	stdtesting.SetContext(ctx)
-
 	// Update clientID
 	var (
 		newHeight     = uint64(5)
@@ -38,8 +32,10 @@ func main() {
 			newHeight, trustedHeight, valset, trustedValset,
 		)
 	)
+	// Alter chainID to change the revision number
+	msgHeader.Header.ChainID = "chain-id-3"
 	core.UpdateClient(cross, clientID, msgHeader)
 }
 
 // Error:
-// cannot update client (07-tendermint-1) with status Expired
+// header height revision 3 does not match trusted header revision 2

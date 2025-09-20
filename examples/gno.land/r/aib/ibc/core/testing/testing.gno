@@ -51,7 +51,7 @@ func GenConsensusState(timestamp time.Time, apphash, valsethash []byte) tendermi
 }
 
 func GenMsgHeader(chainID string, timestamp time.Time, apphash []byte,
-	height, trustedHeight types.Height,
+	height uint64, trustedHeight types.Height,
 	valset, trustedValset *tendermint.ValidatorSet) *tendermint.MsgHeader {
 	var (
 		blockhash     = sha256.Sum256([]byte("block-5"))
@@ -65,7 +65,7 @@ func GenMsgHeader(chainID string, timestamp time.Time, apphash []byte,
 				App:   1, //NOTE no idea what to put there, sounds unused
 			},
 			ChainID: chainID,
-			Height:  height.RevisionHeight,
+			Height:  height,
 			Time:    timestamp,
 			LastBlockID: tendermint.BlockID{
 				Hash: blockhash[:],
@@ -85,7 +85,7 @@ func GenMsgHeader(chainID string, timestamp time.Time, apphash []byte,
 			ProposerAddress:    GenAddr("proposer"),
 		},
 		Commit: &tendermint.Commit{
-			Height: height.RevisionHeight,
+			Height: height,
 			Round:  1,
 			BlockID: tendermint.BlockID{
 				Hash: blockhash[:],

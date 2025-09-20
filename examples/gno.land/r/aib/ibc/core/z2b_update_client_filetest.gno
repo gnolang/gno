@@ -16,7 +16,7 @@ func main() {
 		chainID       = "chain-id-2"
 		apphash       = sha256.Sum256([]byte("apphash"))
 		latestHeight  = types.Height{2, 3}
-		newHeight     = types.Height{2, 5}
+		newHeight     = uint64(5)
 		newTimestamp  = time.Now()
 		valset        = testing.GenValset()
 		trustedValset = valset // no change in valset between the 2 heights
