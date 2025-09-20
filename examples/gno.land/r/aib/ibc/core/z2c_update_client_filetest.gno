@@ -24,9 +24,9 @@ func main() {
 
 	// Update clientID
 	var (
-		newHeight     = types.Height{2, 5}
+		newHeight     = uint64(5)
 		newTimestamp  = consensusState.Timestamp.Add(time.Minute)
-		trustedValset = valset // no change in valset between the 2 heights
+		trustedValset = valset
 		trustedHeight = types.NewHeight(2, 3)
 		msgHeader     = testing.GenMsgHeader(
 			chainID, newTimestamp, apphash[:],
