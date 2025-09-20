@@ -48,7 +48,7 @@ func main() {
 //   - ChainId: chain-id-2
 //   - TrustingPeriod: 1h0m0s
 //   - UnbondingPeriod: 3h0m0s
-//   - LatestHeight: 2/1
+//   - LatestHeight: 2/2
 // - Latest consensus state:
 //   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
 //   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
@@ -63,7 +63,7 @@ func main() {
 //   - ChainId: chain-id-2
 //   - TrustingPeriod: 1h0m0s
 //   - UnbondingPeriod: 3h0m0s
-//   - LatestHeight: 2/1
+//   - LatestHeight: 2/2
 // - Latest consensus state:
 //   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
 //   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
@@ -83,7 +83,7 @@ func main() {
 //   - ChainId: chain-id-2
 //   - TrustingPeriod: 1h0m0s
 //   - UnbondingPeriod: 3h0m0s
-//   - LatestHeight: 2/1
+//   - LatestHeight: 2/2
 // - Latest consensus state:
 //   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
 //   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f

@@ -15,7 +15,7 @@ func GenClientState(chainID string) tendermint.ClientState {
 		UnbondingPeriod:              time.Hour * 3,
 		TrustingPeriod:               time.Hour,
 		MaxClockDrift:                time.Hour,
-		LatestHeight:                 types.NewHeight(2, 1),
+		LatestHeight:                 types.NewHeight(2, 2),
 		ProofSpecs:                   types.GetSDKProofSpecs(),
 		AllowUpdateAfterExpiry:       false,
 		AllowUpdateAfterMisbehaviour: false,
