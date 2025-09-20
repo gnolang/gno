@@ -7,7 +7,6 @@ import (
 	"gno.land/p/nt/uassert"
 	"gno.land/p/nt/ufmt"
 	"gno.land/p/nt/urequire"
-	"gno.land/p/moul/pageable"
 )
 
 func TestPager_GetPage(t *testing.T) {
@@ -27,15 +26,15 @@ func TestPager_GetPage(t *testing.T) {
 		tests := []struct {
 			pageNumber int
 			pageSize   int
-			expected   []pageable.Item
+			expected   []Item
 		}{
-			{1, 2, []pageable.Item{{Index: "a", Value: 1}, {Index: "b", Value: 2}}},
-			{2, 2, []pageable.Item{{Index: "c", Value: 3}, {Index: "d", Value: 4}}},
-			{3, 2, []pageable.Item{{Index: "e", Value: 5}}},
-			{1, 3, []pageable.Item{{Index: "a", Value: 1}, {Index: "b", Value: 2}, {Index: "c", Value: 3}}},
-			{2, 3, []pageable.Item{{Index: "d", Value: 4}, {Index: "e", Value: 5}}},
-			{1, 5, []pageable.Item{{Index: "a", Value: 1}, {Index: "b", Value: 2}, {Index: "c", Value: 3}, {Index: "d", Value: 4}, {Index: "e", Value: 5}}},
-			{2, 5, []pageable.Item{}},
+			{1, 2, []Item{{Key: "a", Value: 1}, {Key: "b", Value: 2}}},
+			{2, 2, []Item{{Key: "c", Value: 3}, {Key: "d", Value: 4}}},
+			{3, 2, []Item{{Key: "e", Value: 5}}},
+			{1, 3, []Item{{Key: "a", Value: 1}, {Key: "b", Value: 2}, {Key: "c", Value: 3}}},
+			{2, 3, []Item{{Key: "d", Value: 4}, {Key: "e", Value: 5}}},
+			{1, 5, []Item{{Key: "a", Value: 1}, {Key: "b", Value: 2}, {Key: "c", Value: 3}, {Key: "d", Value: 4}, {Key: "e", Value: 5}}},
+			{2, 5, []Item{}},
 		}
 
 		for _, tt := range tests {
@@ -44,7 +43,7 @@ func TestPager_GetPage(t *testing.T) {
 			uassert.Equal(t, len(tt.expected), len(page.Items))
 
 			for i, item := range page.Items {
-				uassert.Equal(t, tt.expected[i].Index, item.Index)
+				uassert.Equal(t, tt.expected[i].Key, item.Key)
 				uassert.Equal(t, tt.expected[i].Value, item.Value)
 			}
 		}
@@ -58,15 +57,15 @@ func TestPager_GetPage(t *testing.T) {
 		tests := []struct {
 			pageNumber int
 			pageSize   int
-			expected   []pageable.Item
+			expected   []Item
 		}{
-			{1, 2, []pageable.Item{{Index: "e", Value: 5}, {Index: "d", Value: 4}}},
-			{2, 2, []pageable.Item{{Index: "c", Value: 3}, {Index: "b", Value: 2}}},
-			{3, 2, []pageable.Item{{Index: "a", Value: 1}}},
-			{1, 3, []pageable.Item{{Index: "e", Value: 5}, {Index: "d", Value: 4}, {Index: "c", Value: 3}}},
-			{2, 3, []pageable.Item{{Index: "b", Value: 2}, {Index: "a", Value: 1}}},
-			{1, 5, []pageable.Item{{Index: "e", Value: 5}, {Index: "d", Value: 4}, {Index: "c", Value: 3}, {Index: "b", Value: 2}, {Index: "a", Value: 1}}},
-			{2, 5, []pageable.Item{}},
+			{1, 2, []Item{{Key: "e", Value: 5}, {Key: "d", Value: 4}}},
+			{2, 2, []Item{{Key: "c", Value: 3}, {Key: "b", Value: 2}}},
+			{3, 2, []Item{{Key: "a", Value: 1}}},
+			{1, 3, []Item{{Key: "e", Value: 5}, {Key: "d", Value: 4}, {Key: "c", Value: 3}}},
+			{2, 3, []Item{{Key: "b", Value: 2}, {Key: "a", Value: 1}}},
+			{1, 5, []Item{{Key: "e", Value: 5}, {Key: "d", Value: 4}, {Key: "c", Value: 3}, {Key: "b", Value: 2}, {Key: "a", Value: 1}}},
+			{2, 5, []Item{}},
 		}
 
 		for _, tt := range tests {
@@ -75,7 +74,7 @@ func TestPager_GetPage(t *testing.T) {
 			uassert.Equal(t, len(tt.expected), len(page.Items))
 
 			for i, item := range page.Items {
-				uassert.Equal(t, tt.expected[i].Index, item.Index)
+				uassert.Equal(t, tt.expected[i].Key, item.Key)
 				uassert.Equal(t, tt.expected[i].Value, item.Value)
 			}
 		}
@@ -224,56 +223,59 @@ func TestPager_ParseQuery(t *testing.T) {
 	}
 }
 
-func TestWrapper_IterateByOffset(t *testing.T) {
+func TestPage_PickerQueryParamPreservation(t *testing.T) {
 	tree := avl.NewTree()
-	tree.Set("a", 1)
-	tree.Set("b", 2)
-	wrapper := NewWrapper(tree)
-
-	t.Run("empty count", func(t *testing.T) {
-		result := wrapper.IterateByOffset(0, 0, func(k, v interface{}) bool { return true })
-		uassert.Equal(t, false, result)
-	})
-
-	t.Run("empty tree", func(t *testing.T) {
-		emptyWrapper := NewWrapper(avl.NewTree())
-		result := emptyWrapper.IterateByOffset(0, 1, func(k, v interface{}) bool { return true })
-		uassert.Equal(t, false, result)
-	})
-
-	t.Run("offset beyond size", func(t *testing.T) {
-		result := wrapper.IterateByOffset(3, 1, func(k, v interface{}) bool { return true })
-		uassert.Equal(t, false, result)
-	})
-}
-
-func TestPager_ReversedWithDifferentSizes(t *testing.T) {
-	tree := avl.NewTree()
-	for i := 0; i < 10; i++ {
+	for i := 1; i <= 6; i++ {
 		tree.Set(ufmt.Sprintf("key%d", i), i)
 	}
 
-	pager := NewPager(tree, 3, true) // Default page size of 3, reversed order
+	pager := NewPager(tree, 2, false)
 
 	tests := []struct {
+		name       string
 		pageNumber int
-		pageSize   int
-		wantFirst  string
-		wantLast   string
+		path       string
+		expected   string
 	}{
-		{1, 4, "key9", "key6"},
-		{2, 4, "key5", "key2"},
-		{3, 4, "key1", "key0"},
-		{4, 4, "", ""}, // Empty page
+		{
+			name:       "single query param",
+			pageNumber: 1,
+			path:       "/test?foo=bar",
+			expected:   "**1** | [2](?page=2&foo=bar) | [3](?page=3&foo=bar)",
+		},
+		{
+			name:       "multiple query params",
+			pageNumber: 2,
+			path:       "/test?foo=bar&baz=qux",
+			expected:   "[1](?page=1&baz=qux&foo=bar) | **2** | [3](?page=3&baz=qux&foo=bar)",
+		},
+		{
+			name:       "overwrite existing page param",
+			pageNumber: 1,
+			path:       "/test?param1=value1&page=999&param2=value2",
+			expected:   "**1** | [2](?page=2&param1=value1&param2=value2) | [3](?page=3&param1=value1&param2=value2)",
+		},
+		{
+			name:       "empty query string",
+			pageNumber: 2,
+			path:       "/test",
+			expected:   "[1](?page=1) | **2** | [3](?page=3)",
+		},
+		{
+			name:       "query string with only page param",
+			pageNumber: 2,
+			path:       "/test?page=2",
+			expected:   "[1](?page=1) | **2** | [3](?page=3)",
+		},
 	}
 
 	for _, tt := range tests {
-		page := pager.GetPageWithSize(tt.pageNumber, tt.pageSize)
-		if len(page.Items) > 0 {
-			uassert.Equal(t, tt.wantFirst, page.Items[0].Index)
-			uassert.Equal(t, tt.wantLast, page.Items[len(page.Items)-1].Index)
-		} else {
-			uassert.Equal(t, 0, len(page.Items))
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			page := pager.GetPageWithSize(tt.pageNumber, 2)
+			result := page.Picker(tt.path)
+			if result != tt.expected {
+				t.Errorf("\nwant: %s\ngot:  %s", tt.expected, result)
+			}
+		})
 	}
 }

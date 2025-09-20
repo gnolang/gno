@@ -378,3 +378,33 @@ func TestMustGetPageByPath(t *testing.T) {
 		pager.MustGetPageByPath(":%invalid")
 	})
 }
+
+func TestPickerWithPath(t *testing.T) {
+	mock := &MockPageable{
+		items: []int{1, 2, 3, 4, 5, 6},
+	}
+
+	tests := []struct {
+		name     string
+		pageSize int
+		pageNum  int
+		path     string
+		want     string
+	}{
+		{"with query params", 2, 1, "/test?foo=bar&baz=qux", "**1** | [2](?page=2&baz=qux&foo=bar) | [3](?page=3&baz=qux&foo=bar)"},
+		{"existing page param", 2, 2, "/test?page=999&other=value", "[1](?page=1&other=value) | **2** | [3](?page=3&other=value)"},
+		{"no query params", 2, 3, "/test", "[1](?page=1) | [2](?page=2) | **3**"},
+		{"empty path", 2, 2, "", "[1](?page=1) | **2** | [3](?page=3)"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pager := NewPager(mock, tt.pageSize, false)
+			page := pager.GetPageWithSize(tt.pageNum, tt.pageSize)
+			got := page.PickerWithPath(tt.path)
+			if got != tt.want {
+				t.Errorf("\ngot:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}

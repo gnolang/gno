@@ -17,7 +17,7 @@ import (
 	"net/url"
 	"strconv"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 // Pageable defines the minimal interface required for pagination.
@@ -181,8 +181,14 @@ func (p *Pager) GetPageByPath(rawURL string) (*Page, error) {
 	return p.GetPageWithSize(pageNumber, pageSize), nil
 }
 
-// Picker generates the Markdown UI for the page Picker
+// Picker generates the Markdown UI for the page picker using default query string format
 func (p *Page) Picker() string {
+	return p.PickerWithPath("")
+}
+
+// PickerWithPath generates the Markdown UI for the page picker with optional path
+// If path is provided, it preserves existing query parameters (except page)
+func (p *Page) PickerWithPath(path string) string {
 	pageNumber := p.PageNumber
 	pageNumber = max(pageNumber, 1)
 
@@ -190,11 +196,27 @@ func (p *Page) Picker() string {
 		return ""
 	}
 
+	// Parse existing query parameters if path is provided
+	baseQuery := ""
+	if path != "" {
+		u, _ := url.Parse(path)
+		if u != nil {
+			query := u.Query()
+			// Remove existing page query parameter
+			query.Del(p.Pager.PageQueryParam)
+			// Encode remaining query parameters
+			baseQuery = query.Encode()
+			if baseQuery != "" {
+				baseQuery = "&" + baseQuery
+			}
+		}
+	}
+
 	md := ""
 
 	if p.HasPrev {
 		// Always show the first page link
-		md += ufmt.Sprintf("[%d](?%s=%d) | ", 1, p.Pager.PageQueryParam, 1)
+		md += ufmt.Sprintf("[%d](?%s=%d%s) | ", 1, p.Pager.PageQueryParam, 1, baseQuery)
 
 		// Before
 		if p.PageNumber > 4 {
@@ -202,11 +224,11 @@ func (p *Page) Picker() string {
 		}
 
 		if p.PageNumber > 3 {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber-2, p.Pager.PageQueryParam, p.PageNumber-2)
+			md += ufmt.Sprintf("[%d](?%s=%d%s) | ", p.PageNumber-2, p.Pager.PageQueryParam, p.PageNumber-2, baseQuery)
 		}
 
 		if p.PageNumber > 2 {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber-1, p.Pager.PageQueryParam, p.PageNumber-1)
+			md += ufmt.Sprintf("[%d](?%s=%d%s) | ", p.PageNumber-1, p.Pager.PageQueryParam, p.PageNumber-1, baseQuery)
 		}
 	}
 
@@ -221,11 +243,11 @@ func (p *Page) Picker() string {
 		md += " | "
 
 		if p.PageNumber < p.TotalPages-1 {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber+1, p.Pager.PageQueryParam, p.PageNumber+1)
+			md += ufmt.Sprintf("[%d](?%s=%d%s) | ", p.PageNumber+1, p.Pager.PageQueryParam, p.PageNumber+1, baseQuery)
 		}
 
 		if p.PageNumber < p.TotalPages-2 {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber+2, p.Pager.PageQueryParam, p.PageNumber+2)
+			md += ufmt.Sprintf("[%d](?%s=%d%s) | ", p.PageNumber+2, p.Pager.PageQueryParam, p.PageNumber+2, baseQuery)
 		}
 
 		if p.PageNumber < p.TotalPages-3 {
@@ -233,7 +255,7 @@ func (p *Page) Picker() string {
 		}
 
 		// Always show the last page link
-		md += ufmt.Sprintf("[%d](?%s=%d)", p.TotalPages, p.Pager.PageQueryParam, p.TotalPages)
+		md += ufmt.Sprintf("[%d](?%s=%d%s)", p.TotalPages, p.Pager.PageQueryParam, p.TotalPages, baseQuery)
 	}
 
 	return md

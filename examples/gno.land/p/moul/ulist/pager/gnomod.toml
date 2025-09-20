@@ -1,2 +1,6 @@
-module = "gno.land/p/moul/ulist/pager"
-gno = "0.9"
+module gno.land/p/moul/ulist/pager
+
+require (
+	gno.land/p/moul/pageable v0.0.0-latest
+	gno.land/p/moul/ulist v0.0.0-latest
+)
