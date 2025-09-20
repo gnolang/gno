@@ -4,6 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/aib/ibc/lightclient"
+	"gno.land/p/aib/ibc/types"
 	"gno.land/p/nt/ufmt"
 )
 
@@ -36,7 +37,12 @@ func CreateClient(cur realm, clientState lightclient.ClientState, consensusState
 	if status := c.lightClient.Status(); status != lightclient.Active {
 		panic(ufmt.Sprintf("cannot create client (%s) with status %s", c.id, status))
 	}
-	// TODO emit create client event with latestHeight
+	// Emit create client event
+	std.Emit(types.EventTypeCreateClient,
+		types.AttributeKeyClientID, c.id,
+		types.AttributeKeyClientType, c.typ,
+		types.AttributeKeyConsensusHeights, c.lightClient.LatestHeight().String(),
+	)
 	return c.id
 }
 
@@ -89,8 +95,19 @@ func UpdateClient(cur realm, clientID string, clientMessage lightclient.ClientMe
 
 	consensusHeights := c.lightClient.UpdateState(clientMessage)
 
-	// TODO emit events for updated client
-	_ = consensusHeights
+	// Emit update client event
+	var consensusHeightsStr string
+	for i, h := range consensusHeights {
+		consensusHeightsStr += h.String()
+		if i < len(consensusHeights)-1 {
+			consensusHeightsStr += ", "
+		}
+	}
+	std.Emit(types.EventTypeUpdateClient,
+		types.AttributeKeyClientID, c.id,
+		types.AttributeKeyClientType, c.typ,
+		types.AttributeKeyConsensusHeights, consensusHeightsStr,
+	)
 }
 
 // UpdateClient upgrades the client to a new client state if this new client

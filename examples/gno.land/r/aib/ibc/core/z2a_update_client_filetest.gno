@@ -69,3 +69,43 @@ func main() {
 //   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
 //   - RootHash: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
 //   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
+
+// Events:
+// [
+//   {
+//     "type": "create_client",
+//     "attrs": [
+//       {
+//         "key": "client_id",
+//         "value": "07-tendermint-1"
+//       },
+//       {
+//         "key": "client_type",
+//         "value": "07-tendermint"
+//       },
+//       {
+//         "key": "consensus_heights",
+//         "value": "2/2"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/aib/ibc/core"
+//   },
+//   {
+//     "type": "update_client",
+//     "attrs": [
+//       {
+//         "key": "client_id",
+//         "value": "07-tendermint-1"
+//       },
+//       {
+//         "key": "client_type",
+//         "value": "07-tendermint"
+//       },
+//       {
+//         "key": "consensus_heights",
+//         "value": "2/5"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/aib/ibc/core"
+//   }
+// ]
