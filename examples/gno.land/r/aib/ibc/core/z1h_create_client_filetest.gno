@@ -16,11 +16,10 @@ func main() {
 		valset         = testing.GenValset()
 		consensusState = testing.GenConsensusState(time.Now(), apphash[:], valset.Hash())
 	)
-
 	clientID := core.CreateClient(cross, clientState, consensusState)
-
-	// RegisterCounterparty on clientID
 	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "counter-party-id")
+
+	// Second RegisterCounterparty on clientID
 	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "counter-party-id")
 }
 
