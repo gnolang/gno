@@ -191,18 +191,18 @@ func (h Header) ValidateBasic() error {
 	}
 
 	if err := h.LastBlockID.ValidateBasic(); err != nil {
-		return ufmt.Errorf("wrong LastBlockID: %w", err)
+		return ufmt.Errorf("wrong LastBlockID: %v", err)
 	}
 
-	if err := ValidateHash(h.LastCommitHash); err != nil {
+	if err := validateHash(h.LastCommitHash); err != nil {
 		return ufmt.Errorf("wrong LastCommitHash: %v", err)
 	}
 
-	if err := ValidateHash(h.DataHash); err != nil {
+	if err := validateHash(h.DataHash); err != nil {
 		return ufmt.Errorf("wrong DataHash: %v", err)
 	}
 
-	if err := ValidateHash(h.EvidenceHash); err != nil {
+	if err := validateHash(h.EvidenceHash); err != nil {
 		return ufmt.Errorf("wrong EvidenceHash: %v", err)
 	}
 
@@ -215,17 +215,17 @@ func (h Header) ValidateBasic() error {
 
 	// Basic validation of hashes related to application data.
 	// Will validate fully against state in state#ValidateBlock.
-	if err := ValidateHash(h.ValidatorsHash); err != nil {
+	if err := validateHash(h.ValidatorsHash); err != nil {
 		return ufmt.Errorf("wrong ValidatorsHash: %v", err)
 	}
-	if err := ValidateHash(h.NextValidatorsHash); err != nil {
+	if err := validateHash(h.NextValidatorsHash); err != nil {
 		return ufmt.Errorf("wrong NextValidatorsHash: %v", err)
 	}
-	if err := ValidateHash(h.ConsensusHash); err != nil {
+	if err := validateHash(h.ConsensusHash); err != nil {
 		return ufmt.Errorf("wrong ConsensusHash: %v", err)
 	}
 	// NOTE: AppHash is arbitrary length
-	if err := ValidateHash(h.LastResultsHash); err != nil {
+	if err := validateHash(h.LastResultsHash); err != nil {
 		return ufmt.Errorf("wrong LastResultsHash: %v", err)
 	}
 
@@ -348,8 +348,8 @@ func (blockID BlockID) IsZero() bool {
 // ValidateBasic performs basic validation.
 func (blockID BlockID) ValidateBasic() error {
 	// Hash can be empty in case of POLBlockID in Proposal.
-	if err := ValidateHash(blockID.Hash); err != nil {
-		return ufmt.Errorf("wrong Hash")
+	if err := validateHash(blockID.Hash); err != nil {
+		return ufmt.Errorf("wrong blockID Hash: %v", err)
 	}
 	if err := blockID.PartSetHeader.ValidateBasic(); err != nil {
 		return ufmt.Errorf("wrong PartSetHeader: %v", err)
@@ -370,8 +370,8 @@ func (psh PartSetHeader) IsZero() bool {
 // ValidateBasic performs basic validation.
 func (psh PartSetHeader) ValidateBasic() error {
 	// Hash can be empty in case of POLBlockID.PartSetHeader in Proposal.
-	if err := ValidateHash(psh.Hash); err != nil {
-		return ufmt.Errorf("wrong Hash: %w", err)
+	if err := validateHash(psh.Hash); err != nil {
+		return ufmt.Errorf("wrong parSetHeader Hash: %v", err)
 	}
 	return nil
 }
