@@ -4,9 +4,9 @@ import (
 	"crypto/sha256"
 	"time"
 
+	"gno.land/p/aib/ibc/lightclient/tendermint/testing"
 	"gno.land/p/aib/ibc/types"
 	"gno.land/r/aib/ibc/core"
-	"gno.land/r/aib/ibc/core/testing"
 )
 
 // UpdateClient trustedHeight not found
