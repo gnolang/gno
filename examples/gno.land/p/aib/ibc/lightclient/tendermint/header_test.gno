@@ -46,6 +46,20 @@ func TestMsgHeaderValidate(t *testing.T) {
 			malleate:      func() { msg.Header.Height = 0 },
 			expectedError: "zero Height",
 		},
+		{
+			name: "header lastBlockID hash invalid",
+			malleate: func() {
+				msg.Header.LastBlockID.Hash = invalidHash
+			},
+			expectedError: "wrong blockID Hash",
+		},
+		{
+			name: "header lastBlockID ParSetHeader hash invalid",
+			malleate: func() {
+				msg.Header.LastBlockID.PartSetHeader.Hash = invalidHash
+			},
+			expectedError: "wrong parSetHeader Hash",
+		},
 		// TODO add more cases from Header.ValidateBasic
 		{
 			name:          "commit is nil",
