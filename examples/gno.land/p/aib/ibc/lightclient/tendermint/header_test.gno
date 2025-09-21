@@ -30,9 +30,33 @@ func TestMsgHeaderValidate(t *testing.T) {
 			expectedError: "missing header",
 		},
 		{
+			name:          "header version block invalid",
+			malleate:      func() { msg.Header.Version.Block-- },
+			expectedError: "block protocol is incorrect",
+		},
+		{
+			name: "header chainId too long",
+			malleate: func() {
+				msg.Header.ChainID = fiftyOneCharChainID
+			},
+			expectedError: "chainID is too long",
+		},
+		{
+			name:          "header height is zero",
+			malleate:      func() { msg.Header.Height = 0 },
+			expectedError: "zero Height",
+		},
+		// TODO add more cases from Header.ValidateBasic
+		{
 			name:          "commit is nil",
 			malleate:      func() { msg.Commit = nil },
 			expectedError: "missing commit",
+		},
+		// TODO add more cases from Commit.ValidateBasic
+		{
+			name:          "commit and header height mismatch",
+			malleate:      func() { msg.Commit.Height-- },
+			expectedError: "header and commit height mismatch: 3 vs 2",
 		},
 		{
 			name: "trusted height is equal to header height",
@@ -40,6 +64,14 @@ func TestMsgHeaderValidate(t *testing.T) {
 				msg.TrustedHeight = msg.GetHeight()
 			},
 			expectedError: "trustedHeight 0/3 must be less than header height 0/3",
+		},
+		{
+			name: "trusted height is lower to header height",
+			malleate: func() {
+				msg.TrustedHeight = msg.GetHeight()
+				msg.TrustedHeight.RevisionHeight++
+			},
+			expectedError: "trustedHeight 0/4 must be less than header height 0/3",
 		},
 		{
 			name:          "validator set nil",
@@ -53,7 +85,6 @@ func TestMsgHeaderValidate(t *testing.T) {
 			},
 			expectedError: "validator set does not match hash",
 		},
-		// TODO add more cases
 	}
 
 	if lightclient.Tendermint != msg.ClientType() {
