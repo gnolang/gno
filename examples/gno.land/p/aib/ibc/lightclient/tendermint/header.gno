@@ -42,7 +42,7 @@ func (*MsgHeader) ClientType() string {
 // with MsgCreateClient
 func (h *MsgHeader) Validate() error {
 	if h.Header == nil {
-		return ufmt.Errorf("missing header")
+		return errors.New("missing header")
 	}
 	if h.Commit == nil {
 		return errors.New("missing commit")
@@ -67,7 +67,7 @@ func (h *MsgHeader) Validate() error {
 
 	// TrustedHeight is less than Header for updates and misbehaviour
 	if h.TrustedHeight.GTE(h.GetHeight()) {
-		return ufmt.Errorf("TrustedHeight %s must be less than header height %s",
+		return ufmt.Errorf("trustedHeight %s must be less than header height %s",
 			h.TrustedHeight, h.GetHeight())
 	}
 

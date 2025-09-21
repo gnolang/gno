@@ -1,7 +1,5 @@
 package testing
 
-// TODO remove in favor of p/aib/ibc/lightclient/tendermint/testing
-
 import (
 	"crypto/sha256"
 	"time"

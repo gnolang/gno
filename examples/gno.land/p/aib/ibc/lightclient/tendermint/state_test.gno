@@ -139,8 +139,10 @@ func TestClientStateValidate(t *testing.T) {
 				t.Errorf("expected no error, got %s", err)
 				return
 			}
-			if tc.expErr != "" && !strings.Contains(err.Error(), tc.expErr) {
-				t.Errorf("expected error %s, got %s", tc.expErr, err)
+			if tc.expErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.expErr) {
+					t.Errorf("expected error %s, got %s", tc.expErr, err)
+				}
 			}
 		})
 	}

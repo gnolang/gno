@@ -3,57 +3,157 @@ package tendermint
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
+	"time"
 
 	"gno.land/p/nt/ufmt"
 )
 
-func (tm *TMLightClient) verifyHeader(header *MsgHeader) error {
+func (tm *TMLightClient) verifyHeader(msg *MsgHeader) error {
 	// Retrieve trusted consensus states for trusted height
-	consState, found := tm.GetConsensusState(header.TrustedHeight)
+	consState, found := tm.GetConsensusState(msg.TrustedHeight)
 	if !found {
-		return ufmt.Errorf("could not get trusted consensus state for Header at TrustedHeight: %s", header.TrustedHeight)
-	}
-
-	if err := checkTrustedHeader(header, consState); err != nil {
-		return err
+		return ufmt.Errorf("could not get trusted consensus state for Header at TrustedHeight: %s", msg.TrustedHeight)
 	}
 
 	// UpdateClient only accepts updates with a header at the same revision
 	// as the trusted consensus state
-	if header.GetHeight().RevisionNumber != header.TrustedHeight.RevisionNumber {
+	if msg.GetHeight().RevisionNumber != msg.TrustedHeight.RevisionNumber {
 		return ufmt.Errorf(
 			"header height revision %d does not match trusted header revision %d",
-			header.GetHeight().RevisionNumber, header.TrustedHeight.RevisionNumber,
+			msg.GetHeight().RevisionNumber, msg.TrustedHeight.RevisionNumber,
 		)
 	}
 
 	// assert header height is newer than consensus state
-	// NOTE: this is already asserted in MsgHeader.Validate, remove?
-	if header.GetHeight().LTE(header.TrustedHeight) {
+	// TODO: this is already asserted in MsgHeader.Validate, remove?
+	if msg.GetHeight().LTE(msg.TrustedHeight) {
 		return ufmt.Errorf(
 			"header height ≤ consensus state height (%s ≤ %s)",
-			header.GetHeight(), header.TrustedHeight,
+			msg.GetHeight(), msg.TrustedHeight,
 		)
 	}
 
 	// TODO remaining of verifyHeader
+	var (
+		now             = time.Now()
+		untrustedHeader = msg.Header
+		untrustedValset = msg.ValidatorSet
+		trustedHeader   = &Header{
+			ChainID:            tm.ClientState.ChainId,
+			Height:             msg.TrustedHeight.RevisionHeight,
+			Time:               consState.Timestamp,
+			NextValidatorsHash: consState.NextValidatorsHash,
+		}
+		trustedValset = msg.TrustedValidators
+	)
 
-	return nil
+	if !untrustedHeader.Time.After(trustedHeader.Time) {
+		return ufmt.Errorf(
+			"expected new header time %v to be after old header time %v",
+			untrustedHeader.Time, trustedHeader.Time,
+		)
+	}
+
+	if !untrustedHeader.Time.Before(now.Add(tm.ClientState.MaxClockDrift)) {
+		return ufmt.Errorf(
+			"new header has a time from the future %v (now: %v; max clock drift: %v)",
+			untrustedHeader.Time, now, tm.ClientState.MaxClockDrift,
+		)
+	}
+
+	if err := checkTrustedHeader(trustedHeader, trustedValset); err != nil {
+		return err
+	}
+
+	// TODO remaining of verifyHeader
+	if untrustedHeader.Height == trustedHeader.Height+1 {
+		return tm.verifyAdjacent(
+			trustedHeader, untrustedHeader, untrustedValset,
+		)
+	}
+	return tm.verifyNonAdjacent(
+		trustedHeader, trustedValset,
+		untrustedHeader, untrustedValset,
+	)
 }
 
-// checkTrustedHeader checks that consensus state matches trusted fields of
-// Header
-func checkTrustedHeader(header *MsgHeader, consState *ConsensusState) error {
+// checkTrustedHeader checks that trustedHeader.NextValidatorsHash matches
+// trusted validator set hash.
+func checkTrustedHeader(trustedHeader *Header, trustedValset *ValidatorSet) error {
 	// assert that trustedVals is NextValidators of last trusted header
 	// to do this, we check that
 	// trustedVals.Hash() == consState.NextValidatorsHash
-	tvalHash := header.TrustedValidators.Hash()
-	if !bytes.Equal(consState.NextValidatorsHash, tvalHash) {
-		h1, h2 := hex.EncodeToString(consState.NextValidatorsHash), hex.EncodeToString(tvalHash)
+	tvalHash := trustedValset.Hash()
+	if !bytes.Equal(trustedHeader.NextValidatorsHash, tvalHash) {
+		h1, h2 := hex.EncodeToString(trustedHeader.NextValidatorsHash), hex.EncodeToString(tvalHash)
 		return ufmt.Errorf(
 			"trusted validators does not hash to latest trusted validators. Expected: %q, got: %q",
 			h1, h2,
 		)
+	}
+	return nil
+}
+
+// verifyAdjacent verifies directly adjacent untrustedHeader against
+// trustedHeader. It ensures that:
+//
+// a) trustedHeader can still be trusted
+// b) untrustedHeader is valid
+// c) untrustedHeader.ValidatorsHash equals trustedHeader.NextValidatorsHash
+// d) more than 2/3 of new validators (untrustedVals) have signed h2
+// e) headers are adjacent.
+//
+// maxClockDrift defines how much untrustedHeader.Time can drift into the
+// future.
+func (tm TMLightClient) verifyAdjacent(
+	trustedHeader *Header, //height=X
+	untrustedHeader *Header, //height=X+1
+	untrustedValset *ValidatorSet, //height=X+1
+) error {
+	// TODO consider skip some checks that have been already done before
+	if untrustedHeader.Height != trustedHeader.Height+1 {
+		return errors.New("headers must be adjacent in height")
+	}
+	if err := headerExpired(trustedHeader, tm.ClientState.TrustingPeriod); err != nil {
+		return err
+	}
+	// TODO remaining
+	return nil
+}
+
+// verifyNonAdjacent verifies non-adjacent untrustedHeader against
+// trustedHeader. It ensures that:
+//
+// a) trustedHeader can still be trusted
+// b) untrustedHeader is valid
+// c) trustLevel ([1/3, 1]) of trustedHeaderVals (or trustedHeaderNextVals)
+//
+//	signed correctly
+//
+// d) more than 2/3 of untrustedVals have signed h2
+// e) headers are non-adjacent.
+//
+// maxClockDrift defines how much untrustedHeader.Time can drift into the
+// future.
+func (tm TMLightClient) verifyNonAdjacent(
+	trustedHeader *Header, //height=X
+	trustedValset *ValidatorSet, //height=X or height=X+1
+	untrustedHeader *Header, //height=Y
+	untrustedValset *ValidatorSet, //height=Y
+) error {
+	// TODO
+	return nil
+}
+
+// headerExpired return true if the given header expired.
+func headerExpired(h *Header, trustingPeriod time.Duration) error {
+	var (
+		expirationTime = h.Time.Add(trustingPeriod)
+		now            = time.Now()
+	)
+	if !expirationTime.After(now) {
+		return ufmt.Errorf("header %d has expired at %v (now: %v)", h.Height, expirationTime, now)
 	}
 	return nil
 }
