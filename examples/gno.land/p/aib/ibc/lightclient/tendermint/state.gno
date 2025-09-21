@@ -209,7 +209,7 @@ func (cs ConsensusState) Validate() error {
 	if cs.Root.Empty() {
 		return errors.New("root cannot be empty")
 	}
-	if err := ValidateHash(cs.NextValidatorsHash); err != nil {
+	if err := validateHash(cs.NextValidatorsHash); err != nil {
 		return ufmt.Errorf("next validators hash is invalid: %v", err)
 	}
 	if cs.Timestamp.Unix() <= 0 {
@@ -218,9 +218,9 @@ func (cs ConsensusState) Validate() error {
 	return nil
 }
 
-// ValidateHash returns an error if the hash is not empty, but its
+// validateHash returns an error if the hash is not empty, but its
 // size != tmhash.Size.
-func ValidateHash(h []byte) error {
+func validateHash(h []byte) error {
 	if len(h) > 0 && len(h) != sha256.Size {
 		return ufmt.Errorf("expected size to be %d bytes, got %d bytes",
 			sha256.Size,
