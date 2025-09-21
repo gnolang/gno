@@ -23,7 +23,7 @@ const (
 )
 
 var (
-	invalidProof       = []byte("invalid proof")
+	invalidHash        = []byte("hash_too_small")
 	height             = types.NewHeight(0, 4)
 	upgradePath        = []string{"upgrade", "upgradedIBCState"}
 	invalidUpgradePath = []string{"upgrade", ""}
