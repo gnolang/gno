@@ -87,18 +87,25 @@ var nativeCodeNames = []string{
 	"NativePrint_1000",
 }
 
-type Code [3]byte
+type Code [2]byte
+type Type byte
+
+const (
+	TypeOpCode Type = 0x01
+	TypeStore  Type = 0x02
+	TypeNative Type = 0x03
+)
 
 func VMOpCode(opCode byte) Code {
-	return [3]byte{opCode, 0x00, 0x00}
+	return [2]byte{byte(TypeOpCode), opCode}
 }
 
 func StoreCode(storeCode byte) Code {
-	return [3]byte{0x00, storeCode, 0x00}
+	return [2]byte{byte(TypeStore), storeCode}
 }
 
 func NativeCode(nativeCode byte) Code {
-	return [3]byte{0x00, 0x00, nativeCode}
+	return [2]byte{byte(TypeNative), nativeCode}
 }
 
 func StoreCodeString(storeCode byte) string {
