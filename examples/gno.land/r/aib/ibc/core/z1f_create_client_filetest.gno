@@ -2,8 +2,8 @@ package main
 
 import (
 	"gno.land/p/aib/ibc/lightclient"
+	"gno.land/p/aib/ibc/lightclient/tendermint/testing"
 	"gno.land/r/aib/ibc/core"
-	"gno.land/r/aib/ibc/core/testing"
 )
 
 type SoloMachine struct{}

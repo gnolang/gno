@@ -5,8 +5,8 @@ import (
 	stdtesting "testing"
 	"time"
 
+	"gno.land/p/aib/ibc/lightclient/tendermint/testing"
 	"gno.land/r/aib/ibc/core"
-	"gno.land/r/aib/ibc/core/testing"
 )
 
 // UpdateClient on expired lightclient
