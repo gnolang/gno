@@ -1,34 +1,26 @@
-# `keccak256` - Keccak-256 hashing
+# `keccak256` 
 
-Keccak-256 cryptographic hash function implementation. There is a port of Go's x/crypto/sha3 package.
+Keccak-256 hash (32‑byte output). Port of Go's x/crypto/sha3 (legacy Keccak variant).
 
 ## Usage
-
 ```go
-// Simple hash
 data := []byte("hello world")
-hash := keccak256.Hash(data)
-// Returns [32]byte
+digest := keccak256.Hash(data) // [32]byte
 
-// Using hash.Hash interface
-hasher := keccak256.NewLegacyKeccak256()
-hasher.Write(data)
-result := hasher.Sum(nil)
+h := keccak256.NewLegacyKeccak256() // streaming
+h.Write([]byte("hello "))
+h.Write([]byte("world"))
+full := h.Sum(nil) // []byte len 32
 ```
 
 ## API
-
 ```go
 func Hash(data []byte) [32]byte
 func NewLegacyKeccak256() hash.Hash
 ```
 
-`Hash()` returns a 32-byte array. `NewLegacyKeccak256()` returns a `hash.Hash` interface for incremental hashing.
+`Hash` = one-shot helper. `NewLegacyKeccak256` = streaming (implements hash.Hash).
 
-## Example Output
-
-```go
-data := []byte("hello")
-hash := keccak256.Hash(data)
-// hash = [29 87 201 85 113 215 164 4 ...]
-```
+## Notes
+- Fixed size: 32 bytes (256 bits).
+- Uses legacy Keccak padding (differs from finalized SHA3-256 padding).
