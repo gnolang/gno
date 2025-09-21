@@ -186,9 +186,6 @@ func (h Header) ValidateBasic() error {
 		return ufmt.Errorf("chainID is too long; got: %d, max: %d", len(h.ChainID), MaxChainIDLen)
 	}
 
-	if h.Height < 0 {
-		return errors.New("negative Height")
-	}
 	if h.Height == 0 {
 		return errors.New("zero Height")
 	}
