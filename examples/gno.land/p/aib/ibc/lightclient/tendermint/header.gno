@@ -251,9 +251,6 @@ type Commit struct {
 // ValidateBasic performs basic validation that doesn't involve state data.
 // Does not actually check the cryptographic signatures.
 func (commit *Commit) ValidateBasic() error {
-	if commit.Height < 0 {
-		return errors.New("negative Height")
-	}
 	if commit.Round < 0 {
 		return errors.New("negative Round")
 	}
