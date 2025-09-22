@@ -3,7 +3,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
@@ -17,7 +16,7 @@ const (
 var threadID boards2.PostID
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a readonly board and then add a thread
 	boardID := boards2.CreateBoard(cross, boardName, false)

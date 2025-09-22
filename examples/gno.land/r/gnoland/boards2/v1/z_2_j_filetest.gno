@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"strings"
 	"testing"
 
@@ -20,14 +19,14 @@ var (
 )
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test-board", false)
 	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
 	rid = boards2.CreateReply(cross, bid, tid, 0, "First comment")
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	rid2 := boards2.CreateReply(cross, bid, tid, rid, comment)
 

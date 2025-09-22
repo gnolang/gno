@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
@@ -18,7 +17,7 @@ var (
 )
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test-board", false)
 
 	// Invite a moderator to the new board
@@ -29,7 +28,7 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	boards2.FlagThread(cross, bid, pid, "")
 

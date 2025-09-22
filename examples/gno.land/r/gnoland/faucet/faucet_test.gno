@@ -3,7 +3,6 @@ package faucet
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -33,20 +32,20 @@ func TestPackage(t *testing.T) {
 
 	// by default, balance is empty, and as a user I cannot call Transfer, or Admin commands.
 	assertBalance(t, test1addr, 0)
-	testing.SetRealm(runtime.NewUserRealm(test1addr))
+	testing.SetRealm(testing.NewUserRealm(test1addr))
 	assertErr(t, Transfer(cross, test1addr, 1_000_000))
 
 	assertErr(t, AdminAddController(cross, controlleraddr1))
-	testing.SetRealm(runtime.NewUserRealm(controlleraddr1))
+	testing.SetRealm(testing.NewUserRealm(controlleraddr1))
 	assertErr(t, Transfer(cross, test1addr, 1_000_000))
 
 	// as an admin, add the controller to contract and deposit more 2000gnot to contract
-	testing.SetRealm(runtime.NewUserRealm(adminaddr))
+	testing.SetRealm(testing.NewUserRealm(adminaddr))
 	assertNoErr(t, AdminAddController(cross, controlleraddr1))
 	assertBalance(t, faucetaddr, 1_000_000_000)
 
 	// now, send some tokens as controller.
-	testing.SetRealm(runtime.NewUserRealm(controlleraddr1))
+	testing.SetRealm(testing.NewUserRealm(controlleraddr1))
 	assertNoErr(t, Transfer(cross, test1addr, 1_000_000))
 	assertBalance(t, test1addr, 1_000_000)
 	assertNoErr(t, Transfer(cross, test1addr, 1_000_000))
@@ -55,13 +54,13 @@ func TestPackage(t *testing.T) {
 
 	// remove controller
 	// as an admin, remove controller
-	testing.SetRealm(runtime.NewUserRealm(adminaddr))
+	testing.SetRealm(testing.NewUserRealm(adminaddr))
 	assertNoErr(t, AdminRemoveController(cross, controlleraddr1))
-	testing.SetRealm(runtime.NewUserRealm(controlleraddr1))
+	testing.SetRealm(testing.NewUserRealm(controlleraddr1))
 	assertErr(t, Transfer(cross, test1addr, 1_000_000))
 
 	// duplicate controller
-	testing.SetRealm(runtime.NewUserRealm(adminaddr))
+	testing.SetRealm(testing.NewUserRealm(adminaddr))
 	assertNoErr(t, AdminAddController(cross, controlleraddr1))
 	assertErr(t, AdminAddController(cross, controlleraddr1))
 	// add more than more than allowed controllers
@@ -77,13 +76,13 @@ func TestPackage(t *testing.T) {
 	assertErr(t, AdminAddController(cross, controlleraddr11))
 
 	// send more than per transfer limit
-	testing.SetRealm(runtime.NewUserRealm(adminaddr))
+	testing.SetRealm(testing.NewUserRealm(adminaddr))
 	assertNoErr(t, AdminSetTransferLimit(cross, 300_000_000))
-	testing.SetRealm(runtime.NewUserRealm(controlleraddr1))
+	testing.SetRealm(testing.NewUserRealm(controlleraddr1))
 	assertErr(t, Transfer(cross, test1addr, 301_000_000))
 
 	// block transefer from the address not on the controllers list.
-	testing.SetRealm(runtime.NewUserRealm(controlleraddr11))
+	testing.SetRealm(testing.NewUserRealm(controlleraddr11))
 	assertErr(t, Transfer(cross, test1addr, 1_000_000))
 }
 

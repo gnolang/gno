@@ -2,7 +2,6 @@ package main
 
 import (
 	"chain"
-	"chain/runtime"
 	"testing"
 
 	"gno.land/r/nt/commondao"
@@ -18,15 +17,15 @@ var realmAddr = chain.PackageAddress("gno.land/r/demo/test")
 
 func init() {
 	// Invite a user to be able to start creating DAOs
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	commondao.Invite(cross, user)
 }
 
 func main() {
 	// The origin must be the invited user where invitation
 	// is removed after the first user call to create a DAO
-	testing.SetRealm(runtime.NewUserRealm(user))
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/demo/test"))
+	testing.SetRealm(testing.NewUserRealm(user))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
 
 	dao := commondao.New(cross, name)
 	if dao == nil {

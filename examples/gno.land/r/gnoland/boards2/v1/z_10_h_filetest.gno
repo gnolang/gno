@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
@@ -16,7 +15,7 @@ var (
 
 func init() {
 	// Created a board with flagging threshold greater than 1
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test-board", false)
 	boards2.SetFlaggingThreshold(cross, bid, 2)
 
@@ -27,7 +26,7 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	boards2.FlagThread(cross, bid, pid, "")
 

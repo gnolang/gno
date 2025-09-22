@@ -2,7 +2,6 @@ package valopers
 
 import (
 	"chain"
-	"chain/runtime"
 	"strings"
 	"testing"
 
@@ -36,7 +35,7 @@ func validValidatorInfo(t *testing.T) struct {
 
 func TestValopers_Register(t *testing.T) {
 	test1 := testutils.TestAddress("test1")
-	testing.SetRealm(runtime.NewUserRealm(test1))
+	testing.SetRealm(testing.NewUserRealm(test1))
 
 	t.Run("already a valoper", func(t *testing.T) {
 		// Clear the set for the test
@@ -143,14 +142,14 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		// Send coins
 		testing.SetOriginSend(chain.Coins{minFee})
 
-		testing.SetRealm(runtime.NewUserRealm(test1Address))
+		testing.SetRealm(testing.NewUserRealm(test1Address))
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
 			Register(cross, info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
-		testing.SetRealm(runtime.NewUserRealm(info.Address))
+		testing.SetRealm(testing.NewUserRealm(info.Address))
 
 		// try to add member without being authorized
 		uassert.AbortsWithMessage(t, authorizable.ErrNotSuperuser.Error(), func() {
@@ -167,7 +166,7 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		// Send coins
 		testing.SetOriginSend(chain.Coins{minFee})
 
-		testing.SetRealm(runtime.NewUserRealm(test1Address))
+		testing.SetRealm(testing.NewUserRealm(test1Address))
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -179,7 +178,7 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 			AddToAuthList(cross, info.Address, test2Address)
 		})
 
-		testing.SetRealm(runtime.NewUserRealm(info.Address))
+		testing.SetRealm(testing.NewUserRealm(info.Address))
 
 		// try to add member without being authorized
 		uassert.AbortsWithMessage(t, authorizable.ErrNotSuperuser.Error(), func() {
@@ -196,7 +195,7 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		// Send coins
 		testing.SetOriginSend(chain.Coins{minFee})
 
-		testing.SetRealm(runtime.NewUserRealm(test1Address))
+		testing.SetRealm(testing.NewUserRealm(test1Address))
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -207,7 +206,7 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 			AddToAuthList(cross, info.Address, test2Address)
 		})
 
-		testing.SetRealm(runtime.NewUserRealm(test2Address))
+		testing.SetRealm(testing.NewUserRealm(test2Address))
 
 		newMoniker := "new moniker"
 		// Update the valoper

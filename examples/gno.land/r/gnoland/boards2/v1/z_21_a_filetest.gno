@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"strings"
 	"testing"
 
@@ -11,7 +10,7 @@ import (
 const owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	boards2.SetRealmNotice(cross, "This is a test realm message")
 

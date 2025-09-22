@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
@@ -18,14 +17,14 @@ var (
 )
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test-board", false)
 	pid = boards2.CreateThread(cross, bid, "Foo", "bar")
 }
 
 func main() {
 	// Make the next call as an uninvited user
-	testing.SetRealm(runtime.NewUserRealm(user))
+	testing.SetRealm(testing.NewUserRealm(user))
 
 	boards2.FlagThread(cross, bid, pid, "")
 }

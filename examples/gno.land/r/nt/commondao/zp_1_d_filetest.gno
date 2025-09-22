@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"testing"
 
 	pcommondao "gno.land/p/nt/commondao"
@@ -17,11 +16,11 @@ const (
 var dao *pcommondao.CommonDAO
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	commondao.Invite(cross, user)
 
-	testing.SetRealm(runtime.NewUserRealm(user))
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/demo/test"))
+	testing.SetRealm(testing.NewUserRealm(user))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
 	dao = commondao.New(cross, "Foo")
 	dao.Members().Add(user)
 	dao.Members().Add(owner)
@@ -31,7 +30,7 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(user))
+	testing.SetRealm(testing.NewUserRealm(user))
 
 	commondao.CreateTextProposal(cross, dao.ID(), "", "", 31)
 }

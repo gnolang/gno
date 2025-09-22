@@ -4,7 +4,6 @@ package main
 
 import (
 	"chain"
-	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -13,7 +12,7 @@ import (
 )
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	testing.SetRealm(testing.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
 	users.Register(cross, "gnouser123")
 	// create a post via registered user
 	bid1 := boards.CreateBoard(cross, "test_board1")

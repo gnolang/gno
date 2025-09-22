@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/commondao"
@@ -20,12 +19,12 @@ func init() {
 	// Create a new permissions instance without users
 	perms = boards2.NewBasicPermissions(commondao.New())
 
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "foobar", false)
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	boards2.SetPermissions(cross, bid, perms)
 

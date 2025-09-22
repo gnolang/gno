@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"testing"
 
 	"gno.land/r/nt/commondao"
@@ -14,12 +13,12 @@ const (
 
 func init() {
 	// Invite a user to be able to start creating DAOs
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	commondao.Invite(cross, user)
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(user))
+	testing.SetRealm(testing.NewUserRealm(user))
 
 	commondao.NewSubDAO(cross, "Foo", 404)
 }

@@ -3,7 +3,6 @@ package main
 // SEND: 1000000ugnot
 
 import (
-	"chain/runtime"
 	"strconv"
 	"testing"
 
@@ -17,7 +16,7 @@ var (
 )
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	testing.SetRealm(testing.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
 	users.Register(cross, "gnouser123")
 
 	bid = boards.CreateBoard(cross, "test_board")
@@ -26,7 +25,7 @@ func init() {
 
 func main() {
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
-	testing.SetRealm(runtime.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
+	testing.SetRealm(testing.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
 	boards.EditPost(cross, bid, pid, pid, "Edited: First Post in (title)", "Edited: Body of the first post. (body)")
 	println("----------------------------------------------------")
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))

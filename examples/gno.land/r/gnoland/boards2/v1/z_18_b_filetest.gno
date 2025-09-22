@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/commondao"
@@ -22,7 +21,7 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(user))
+	testing.SetRealm(testing.NewUserRealm(user))
 
 	boards2.SetPermissions(cross, bid, perms)
 }

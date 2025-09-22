@@ -65,7 +65,7 @@ func testIssueCoins(addr string, denom []string, amt []int64)
 func SetOriginCaller(origCaller address) {
 	ctx := GetContext()
 	ctx.OriginCaller = origCaller
-	ctx.CurrentRealm = runtime.NewUserRealm(origCaller)
+	ctx.CurrentRealm = NewUserRealm(origCaller)
 	SetContext(ctx)
 }
 
@@ -134,3 +134,20 @@ func compactNative(denoms []string, amounts []int64) chain.Coins {
 	}
 	return coins
 }
+
+// NewUserRealm creates a new "user" realm with the given address.
+func NewUserRealm(user address) runtime.Realm {
+	return newRealm(string(user), "")
+}
+
+// NewCodeRealm creates a new realm for a published code realm with the given
+// pkgPath.
+func NewCodeRealm(pkgPath string) runtime.Realm {
+	if !isRealm(pkgPath) {
+		panic("should only be called for Realms")
+	}
+	return newRealm(string(chain.PackageAddress(pkgPath)), pkgPath)
+}
+
+func newRealm(addr, pkgPath string) runtime.Realm // injected
+func isRealm(pkgPath string) bool

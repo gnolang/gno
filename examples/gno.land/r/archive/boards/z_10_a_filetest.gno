@@ -2,7 +2,6 @@ package main
 
 // SEND: 1000000ugnot
 import (
-	"chain/runtime"
 	"strconv"
 	"testing"
 
@@ -16,7 +15,7 @@ var (
 )
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	testing.SetRealm(testing.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
 	users.Register(cross, "gnouser123")
 
 	bid = boards.CreateBoard(cross, "test_board")

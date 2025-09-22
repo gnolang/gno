@@ -1,7 +1,6 @@
 package names
 
 import (
-	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/ownable"
@@ -29,7 +28,7 @@ func TestDefaultVerifier(t *testing.T) {
 	uassert.False(t, verifier(true, address(""), ""))
 
 	// Register proper username
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/gnoland/users/v1")) // authorized write
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/users/v1")) // authorized write
 	urequire.NoError(t, users.RegisterUser(cross, "alice", alice))
 
 	// Proper namespace
@@ -37,7 +36,7 @@ func TestDefaultVerifier(t *testing.T) {
 }
 
 func TestEnable(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
+	testing.SetRealm(testing.NewUserRealm("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
 
 	uassert.NotPanics(t, func() {
 		Enable(cross)

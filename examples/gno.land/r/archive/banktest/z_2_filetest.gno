@@ -5,7 +5,6 @@ package bank1
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
 	"testing"
 
 	"gno.land/r/archive/banktest"
@@ -25,7 +24,7 @@ func main() {
 	// simulate a Deposit call.
 	testing.IssueCoins(banktestAddr, chain.Coins{{"ugnot", 100000000}})
 	testing.SetOriginSend(chain.Coins{{"ugnot", 100000000}})
-	testing.SetRealm(runtime.NewUserRealm(mainaddr))
+	testing.SetRealm(testing.NewUserRealm(mainaddr))
 	res := banktest.Deposit(cross, "ugnot", 55000000)
 	println("Deposit():", res)
 

@@ -4,7 +4,6 @@ package boards_test
 // SEND: 1000000ugnot
 
 import (
-	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -15,7 +14,7 @@ var bid boards.BoardID
 
 func init() {
 	caller := testutils.TestAddress("caller")
-	testing.SetRealm(runtime.NewUserRealm(caller))
+	testing.SetRealm(testing.NewUserRealm(caller))
 	bid = boards.CreateBoard(cross, "test_board")
 	boards.CreateThread(cross, bid, "First Post (title)", "Body of the first post. (body)")
 	pid := boards.CreateThread(cross, bid, "Second Post (title)", "Body of the second post. (body)")

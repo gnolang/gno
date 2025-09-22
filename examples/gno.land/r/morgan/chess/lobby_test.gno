@@ -1,7 +1,6 @@
 package chess
 
 import (
-	"chain/runtime"
 	"os"
 	"testing"
 	"time"
@@ -11,10 +10,10 @@ import (
 
 func TestLobbyJoin(t *testing.T) {
 	cleanup()
-	testing.SetRealm(runtime.NewUserRealm(white))
+	testing.SetRealm(testing.NewUserRealm(white))
 	LobbyJoin(cross, 10*60, 5)
 	os.Sleep(time.Second * 5)
-	testing.SetRealm(runtime.NewUserRealm(black))
+	testing.SetRealm(testing.NewUserRealm(black))
 	LobbyJoin(cross, 10*60, 5)
 	res := LobbyGameFound(cross)
 	if res == "null" {
@@ -152,7 +151,7 @@ func TestLobbyGameFound(t *testing.T) {
 				})
 			}
 
-			testing.SetRealm(runtime.NewUserRealm(tc.caller))
+			testing.SetRealm(testing.NewUserRealm(tc.caller))
 			LobbyGameFound(cross)
 
 			if tc.check != nil {
@@ -174,7 +173,7 @@ func TestLobbyJoin_HasOpenGames(t *testing.T) {
 	addToUser2Games(white, g)
 	addToUser2Games(black, g)
 
-	testing.SetRealm(runtime.NewUserRealm(white))
+	testing.SetRealm(testing.NewUserRealm(white))
 	LobbyJoin(cross, 10*60, 5)
 	if g.State != GameStateAborted {
 		t.Errorf("state wrong: want %d got %d", GameStateAborted, g.State)

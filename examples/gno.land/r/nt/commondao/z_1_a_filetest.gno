@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"testing"
 
 	"gno.land/r/nt/commondao"
@@ -13,7 +12,7 @@ const (
 )
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	commondao.Invite(cross, user)
 

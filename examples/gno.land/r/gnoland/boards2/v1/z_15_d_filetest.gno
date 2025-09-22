@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"strings"
 	"testing"
 
@@ -18,7 +17,7 @@ var (
 )
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	srcBID = boards2.CreateBoard(cross, "src-board", false)
 	dstBID = boards2.CreateBoard(cross, "dst-board", false)
 
@@ -26,7 +25,7 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Success case
 	tID := boards2.CreateRepost(cross, srcBID, srcTID, "repost title", "repost text", dstBID)

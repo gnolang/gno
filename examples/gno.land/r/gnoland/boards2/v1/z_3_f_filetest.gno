@@ -3,7 +3,6 @@ package main
 // SEND: 1000000ugnot
 
 import (
-	"chain/runtime"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
@@ -20,19 +19,19 @@ const (
 var bid boards2.BoardID // Operate on board DAO
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	bid = boards2.CreateBoard(cross, name, false)
 	boards2.InviteMember(cross, bid, member, boards2.RoleOwner)
 
 	// Test1 is the boards owner and its address has a user already registered
 	// so a new member must register a user with the new board name.
-	testing.SetRealm(runtime.NewUserRealm(member))
+	testing.SetRealm(testing.NewUserRealm(member))
 	users.Register(cross, newName)
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(member))
+	testing.SetRealm(testing.NewUserRealm(member))
 
 	boards2.RenameBoard(cross, name, newName)
 

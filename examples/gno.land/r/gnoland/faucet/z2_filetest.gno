@@ -2,7 +2,6 @@ package main
 
 import (
 	"chain"
-	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -22,7 +21,7 @@ func main() {
 		controlleraddr1 = testutils.TestAddress("controller1")
 		controlleraddr2 = testutils.TestAddress("controller2")
 	)
-	testing.SetRealm(runtime.NewUserRealm(adminaddr))
+	testing.SetRealm(testing.NewUserRealm(adminaddr))
 	err := faucet.AdminAddController(cross, controlleraddr1)
 	if err != "" {
 		panic(err)

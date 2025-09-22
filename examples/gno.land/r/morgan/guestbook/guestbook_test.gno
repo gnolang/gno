@@ -1,7 +1,6 @@
 package guestbook
 
 import (
-	"chain/runtime"
 	"strings"
 	"testing"
 
@@ -13,10 +12,10 @@ func TestSign(t *testing.T) {
 	guestbook = avl.Tree{}
 	hasSigned = avl.Tree{}
 
-	testing.SetRealm(runtime.NewUserRealm("g1user"))
+	testing.SetRealm(testing.NewUserRealm("g1user"))
 	Sign(cross, "Hello!")
 
-	testing.SetRealm(runtime.NewUserRealm("g1user2"))
+	testing.SetRealm(testing.NewUserRealm("g1user2"))
 	Sign(cross, "Hello2!")
 
 	res := Render("")
@@ -33,7 +32,7 @@ func TestSign(t *testing.T) {
 }
 
 func TestSign_FromRealm(t *testing.T) {
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/gnoland/users/v1"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/users/v1"))
 
 	rec := revive(func() { Sign(cross, "Hey!") })
 	if rec == nil {
@@ -52,7 +51,7 @@ func TestSign_Double(t *testing.T) {
 	guestbook = avl.Tree{}
 	hasSigned = avl.Tree{}
 
-	testing.SetRealm(runtime.NewUserRealm("g1user"))
+	testing.SetRealm(testing.NewUserRealm("g1user"))
 	Sign(cross, "Hello!")
 
 	rec := revive(func() { Sign(cross, "Hello again!") })
@@ -72,7 +71,7 @@ func TestSign_InvalidMessage(t *testing.T) {
 	guestbook = avl.Tree{}
 	hasSigned = avl.Tree{}
 
-	testing.SetRealm(runtime.NewUserRealm("g1user"))
+	testing.SetRealm(testing.NewUserRealm("g1user"))
 
 	rec := revive(func() { Sign(cross, "\x00Hello!") })
 	if rec == nil {
@@ -97,7 +96,7 @@ func TestAdminDelete(t *testing.T) {
 	owner = ownable.NewWithAddress(adminAddr)
 	signatureID = 0
 
-	testing.SetRealm(runtime.NewUserRealm(userAddr))
+	testing.SetRealm(testing.NewUserRealm(userAddr))
 
 	const bad = "Very Bad Message! Nyeh heh heh!"
 	Sign(cross, bad)
@@ -106,7 +105,7 @@ func TestAdminDelete(t *testing.T) {
 		t.Fatal("render does not contain bad message", rnd)
 	}
 
-	testing.SetRealm(runtime.NewUserRealm(adminAddr))
+	testing.SetRealm(testing.NewUserRealm(adminAddr))
 	AdminDelete(cross, signatureID.String())
 
 	if rnd := Render(""); strings.Contains(rnd, bad) {

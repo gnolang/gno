@@ -2,7 +2,6 @@ package main
 
 import (
 	"chain"
-	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -24,7 +23,7 @@ func main() {
 		testaddr1       = testutils.TestAddress("test1")
 		_               = testutils.TestAddress("test2")
 	)
-	testing.SetRealm(runtime.NewUserRealm(adminaddr))
+	testing.SetRealm(testing.NewUserRealm(adminaddr))
 	err := faucet.AdminAddController(cross, controlleraddr1)
 	if err != "" {
 		panic(err)
@@ -33,12 +32,12 @@ func main() {
 	if err != "" {
 		panic(err)
 	}
-	testing.SetRealm(runtime.NewUserRealm(controlleraddr1))
+	testing.SetRealm(testing.NewUserRealm(controlleraddr1))
 	err = faucet.Transfer(cross, testaddr1, 1_000_000)
 	if err != "" {
 		panic(err)
 	}
-	testing.SetRealm(runtime.NewUserRealm(controlleraddr2))
+	testing.SetRealm(testing.NewUserRealm(controlleraddr2))
 	err = faucet.Transfer(cross, testaddr1, 2_000_000)
 	if err != "" {
 		panic(err)

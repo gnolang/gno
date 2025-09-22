@@ -9,7 +9,7 @@ import (
 
 func TestLociStore(t *testing.T) {
 	t.Run("TestSet", func(t *testing.T) {
-		testing.SetRealm(runtime.NewCodeRealm("gno.land/r/test/test"))
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 		caller := runtime.PreviousRealm()
 		store := New()
 		// Ensure that the value is nil before setting it.
@@ -26,7 +26,7 @@ func TestLociStore(t *testing.T) {
 		}
 	})
 	t.Run("TestGet", func(t *testing.T) {
-		testing.SetRealm(runtime.NewCodeRealm("gno.land/r/test/test"))
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 		caller := runtime.PreviousRealm()
 		store := New()
 		store.Set([]byte("hello"))

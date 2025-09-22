@@ -4,7 +4,6 @@
 package proposal_test
 
 import (
-	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -37,7 +36,7 @@ const gUsersV1Path = "gno.land/r/gnoland/users/v1"
 // Necessary to test GovDAO Vote
 func registerTestUsers(addrs ...address) {
 	// Set realm to users admin to register test user
-	testing.SetRealm(runtime.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
 	for _, addr := range addrs {
 		err := susers.RegisterUser(cross, addr.String()[1:], addr)
 		if err != nil {

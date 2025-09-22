@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
@@ -15,12 +14,12 @@ const (
 var bid boards2.BoardID
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test123", false)
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(user))
+	testing.SetRealm(testing.NewUserRealm(user))
 
 	// Try to ban a user without banning permissions
 	boards2.Ban(cross, bid, "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", boards2.BanDay, "Reason")

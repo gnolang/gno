@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"testing"
 
 	"gno.land/r/nt/commondao"
@@ -17,21 +16,21 @@ var parentID uint64
 
 func init() {
 	// Invite a user to be able to start creating DAOs
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	commondao.Invite(cross, user)
 
 	// The origin must be the invited user where invitation
 	// is removed after the first user call to create a DAO
-	testing.SetRealm(runtime.NewUserRealm(user))
+	testing.SetRealm(testing.NewUserRealm(user))
 
 	// Create the root DAO
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/test"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
 	parentID = commondao.New(cross, "Parent DAO").ID()
 }
 
 func main() {
 	// Call with a realm that is not the owner of the parent DAO
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/demo/test"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
 
 	commondao.NewSubDAO(cross, "Foo", parentID)
 }

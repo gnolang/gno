@@ -2,7 +2,6 @@ package proposal
 
 import (
 	"chain"
-	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -27,7 +26,7 @@ const gUsersV1Path = "gno.land/r/gnoland/users/v1"
 // Necessary to test GovDAO Vote
 func registerTestUsers(addrs ...address) {
 	// Set realm to users admin to register test user
-	testing.SetRealm(runtime.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
 	for _, addr := range addrs {
 		err := susers.RegisterUser(cross, addr.String()[1:], addr)
 		if err != nil {
@@ -47,7 +46,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 	)
 
 	// Set origin caller
-	testing.SetRealm(runtime.NewUserRealm(g1user))
+	testing.SetRealm(testing.NewUserRealm(g1user))
 
 	t.Run("remove an unexisting validator", func(t *testing.T) {
 		// Send coins to be able to register a valoper
@@ -91,7 +90,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 		var pid dao.ProposalID
 		urequire.NotPanics(t, func(cur realm) {
-			testing.SetRealm(runtime.NewUserRealm(g1user))
+			testing.SetRealm(testing.NewUserRealm(g1user))
 			pr := NewValidatorProposalRequest(cur, g1user)
 
 			pid = dao.MustCreateProposal(cross, pr)
@@ -146,7 +145,7 @@ func TestValopers_ProposeNewInstructions(t *testing.T) {
 	description := ufmt.Sprintf("Update the instructions to: \n\n%s", newInstructions)
 
 	// Set origin caller
-	testing.SetRealm(runtime.NewUserRealm(g1user))
+	testing.SetRealm(testing.NewUserRealm(g1user))
 
 	// Send coins to be able to make a proposal
 	testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", proposalMinFee)})
@@ -174,7 +173,7 @@ func TestValopers_ProposeNewMinFee(t *testing.T) {
 	description := ufmt.Sprintf("Update the minimum register fee to: %d ugnot", newMinFee)
 
 	// Set origin caller
-	testing.SetRealm(runtime.NewUserRealm(g1user))
+	testing.SetRealm(testing.NewUserRealm(g1user))
 
 	// Send coins to be able to make a proposal
 	testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", proposalMinFee)})

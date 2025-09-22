@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"strings"
 	"testing"
 
@@ -18,12 +17,12 @@ const (
 var bid boards2.BoardID
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test-board", false)
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	tid := boards2.CreateThread(cross, bid, title, body)
 

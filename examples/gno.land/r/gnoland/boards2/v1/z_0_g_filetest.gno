@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"strings"
 	"testing"
 
@@ -13,7 +12,7 @@ const owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 var name = strings.Repeat("X", boards2.MaxBoardNameLength+1)
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	boards2.CreateBoard(cross, name, false)
 }

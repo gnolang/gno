@@ -1,7 +1,6 @@
 package basedao
 
 import (
-	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -33,7 +32,7 @@ func TestNewDAO(t *testing.T) {
 		GetProfileString: func(addr address, field, def string) string { return "" },
 	}
 
-	daoRealm := runtime.NewCodeRealm("gno.land/r/testing/daorealm")
+	daoRealm := testing.NewCodeRealm("gno.land/r/testing/daorealm")
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(daoRealm)
 	_, dao := New(conf)
@@ -687,7 +686,7 @@ func newTestingDAO(t *testing.T, threshold float64, members []Member) *testingDA
 		GetProfileString: func(addr address, field, def string) string { return "" },
 	}
 
-	daoRealm := runtime.NewCodeRealm("gno.land/r/testing/daorealm")
+	daoRealm := testing.NewCodeRealm("gno.land/r/testing/daorealm")
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(daoRealm)
 	pubdao, dao := New(conf)

@@ -1,7 +1,6 @@
 package debug
 
 import (
-	"chain/runtime"
 	"strings"
 	"testing"
 
@@ -9,13 +8,13 @@ import (
 )
 
 func TestPackage(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm("g1user"))
+	testing.SetRealm(testing.NewUserRealm("g1user"))
 
 	testPackage(t)
 }
 
 func testPackage(t *testing.T) {
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/test/test"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 
 	// no debug
 	got := Render("")

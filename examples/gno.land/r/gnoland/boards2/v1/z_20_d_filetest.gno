@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
@@ -16,14 +15,14 @@ var (
 )
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test123", false)
 	tid = boards2.CreateThread(cross, bid, "foo", "bar")
 	rid = boards2.CreateReply(cross, bid, tid, 0, "reply")
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// unfrozen thread - should work
 	boards2.CreateReply(cross, bid, tid, rid, "child 1")

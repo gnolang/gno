@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
@@ -19,7 +18,7 @@ var (
 
 func init() {
 	// Created a board with a specific flagging threshold
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test-board", false)
 	boards2.SetFlaggingThreshold(cross, bid, 2)
 
@@ -27,13 +26,13 @@ func init() {
 	boards2.InviteMember(cross, bid, moderator, boards2.RoleModerator)
 
 	// Create a new thread and flag it as a moderator
-	testing.SetRealm(runtime.NewUserRealm(moderator))
+	testing.SetRealm(testing.NewUserRealm(moderator))
 	pid = boards2.CreateThread(cross, bid, "Foo", "bar")
 	boards2.FlagThread(cross, bid, pid, "")
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(moderator))
+	testing.SetRealm(testing.NewUserRealm(moderator))
 
 	boards2.FlagThread(cross, bid, pid, "")
 }

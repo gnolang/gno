@@ -4,7 +4,6 @@ package main
 
 import (
 	"chain"
-	"chain/runtime"
 	"strconv"
 	"testing"
 
@@ -16,7 +15,7 @@ import (
 const admin = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	testing.SetRealm(testing.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
 	users.Register(cross, "gnouser123")
 	// create board via registered user
 	bid := boards.CreateBoard(cross, "test_board")

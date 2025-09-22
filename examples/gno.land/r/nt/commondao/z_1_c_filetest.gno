@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"testing"
 
 	"gno.land/r/nt/commondao"
@@ -14,7 +13,7 @@ const (
 
 func main() {
 	// Call as a users which is not a Common DAO member
-	testing.SetRealm(runtime.NewUserRealm(user))
+	testing.SetRealm(testing.NewUserRealm(user))
 
 	commondao.Invite(cross, invitee)
 }

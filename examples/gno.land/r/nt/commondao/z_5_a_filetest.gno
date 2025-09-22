@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"testing"
 	"time"
 
@@ -32,12 +31,12 @@ var (
 
 func init() {
 	// Invite a user to be able to start creating DAOs
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	commondao.Invite(cross, user)
 
 	// Create a new DAO which gives ownership to `test`
-	testing.SetRealm(runtime.NewUserRealm(user))
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/demo/test"))
+	testing.SetRealm(testing.NewUserRealm(user))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
 	dao := commondao.New(cross, "Foo")
 	daoID = dao.ID()
 
@@ -50,7 +49,7 @@ func init() {
 
 func main() {
 	// User must be the caller to Vote()
-	testing.SetRealm(runtime.NewUserRealm(user))
+	testing.SetRealm(testing.NewUserRealm(user))
 
 	commondao.Vote(cross, daoID, proposal.ID(), vote, "")
 

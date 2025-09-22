@@ -2,7 +2,6 @@ package chess
 
 import (
 	"chain"
-	"chain/runtime"
 	"fmt"
 	"os"
 	"strconv"
@@ -265,7 +264,7 @@ func newTestCommandColorID(fn func(realm, string) string, s string, addr string)
 }
 
 func (tc *testCommandColorID) Run(t *testing.T, bufs map[string]string) {
-	testing.SetRealm(runtime.NewUserRealm(tc.addr))
+	testing.SetRealm(testing.NewUserRealm(tc.addr))
 	bufs["result"] = tc.fn(cross, bufs["id"])
 }
 
@@ -275,7 +274,7 @@ type testCommandNewGame struct {
 }
 
 func (tc *testCommandNewGame) Run(t *testing.T, bufs map[string]string) {
-	testing.SetRealm(runtime.NewUserRealm(tc.w))
+	testing.SetRealm(testing.NewUserRealm(tc.w))
 	res := xNewGame(cross, string(tc.b), tc.seconds, tc.incr)
 	bufs["result"] = res
 
@@ -296,7 +295,7 @@ type testCommandMove struct {
 }
 
 func (tc *testCommandMove) Run(t *testing.T, bufs map[string]string) {
-	testing.SetRealm(runtime.NewUserRealm(tc.addr))
+	testing.SetRealm(testing.NewUserRealm(tc.addr))
 	bufs["result"] = MakeMove(cross, bufs["id"], tc.from, tc.to, tc.promotion)
 }
 

@@ -16,7 +16,7 @@ var (
 )
 
 func TestLifetimeSubscription(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
 	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 1000}})
@@ -28,7 +28,7 @@ func TestLifetimeSubscription(t *testing.T) {
 }
 
 func TestLifetimeSubscriptionGift(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
 	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 1000}})
@@ -43,20 +43,20 @@ func TestLifetimeSubscriptionGift(t *testing.T) {
 }
 
 func TestUpdateAmountAuthorization(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
 	err := ls.UpdateAmount(2000)
 	uassert.NoError(t, err, "Expected Alice to succeed in updating amount")
 
-	testing.SetRealm(runtime.NewUserRealm(bob))
+	testing.SetRealm(testing.NewUserRealm(bob))
 
 	err = ls.UpdateAmount(3000)
 	uassert.Error(t, err, "Expected Bob to fail when updating amount")
 }
 
 func TestIncorrectPaymentAmount(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
 	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 500}})
@@ -65,7 +65,7 @@ func TestIncorrectPaymentAmount(t *testing.T) {
 }
 
 func TestMultipleSubscriptionAttempts(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
 	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 1000}})
@@ -78,7 +78,7 @@ func TestMultipleSubscriptionAttempts(t *testing.T) {
 }
 
 func TestGiftSubscriptionWithIncorrectAmount(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
 	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 500}})
@@ -90,7 +90,7 @@ func TestGiftSubscriptionWithIncorrectAmount(t *testing.T) {
 }
 
 func TestUpdateAmountEffectiveness(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	ls := NewLifetimeSubscription(1000)
 
 	err := ls.UpdateAmount(2000)

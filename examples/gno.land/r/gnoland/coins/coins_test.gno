@@ -2,7 +2,6 @@ package coins
 
 import (
 	"chain"
-	"chain/runtime"
 	"strings"
 	"testing"
 
@@ -17,7 +16,7 @@ func TestBalanceChecker(t *testing.T) {
 	addr1 := testutils.TestAddress("user1")
 	addr2 := testutils.TestAddress("user2")
 
-	coinsRealm := runtime.NewCodeRealm("gno.land/r/gnoland/coins")
+	coinsRealm := testing.NewCodeRealm("gno.land/r/gnoland/coins")
 	testing.SetRealm(coinsRealm)
 
 	testing.IssueCoins(addr1, chain.NewCoins(chain.NewCoin(denom1, 1000000)))

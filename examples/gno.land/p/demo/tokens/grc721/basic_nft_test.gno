@@ -121,7 +121,7 @@ func TestSetApprovalForAll(t *testing.T) {
 	uassert.False(t, isApprovedForAll)
 
 	// set beyond origin caller
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/test/test"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 	err := dummy.SetApprovalForAll(addr, true)
 	uassert.NoError(t, err, "should not result in error")
 
@@ -160,9 +160,9 @@ func TestApprove(t *testing.T) {
 	_, err = dummy.GetApproved(TokenID("1"))
 	uassert.Error(t, err, "should result in error")
 
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	func() {
-		testing.SetRealm(runtime.NewCodeRealm("gno.land/r/test/test"))
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 		err = dummy.Approve(addr, TokenID("1"))
 		uassert.NoError(t, err, "should not result in error")
 
@@ -185,9 +185,9 @@ func TestTransferFrom(t *testing.T) {
 	dummy.mint(caller, TokenID("1"))
 	dummy.mint(caller, TokenID("2"))
 
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	func() {
-		testing.SetRealm(runtime.NewCodeRealm("gno.land/r/test/test"))
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 
 		err := dummy.TransferFrom(caller, addr, TokenID("1"))
 		uassert.NoError(t, err, "should result in error")
@@ -222,9 +222,9 @@ func TestSafeTransferFrom(t *testing.T) {
 	dummy.mint(caller, TokenID("1"))
 	dummy.mint(caller, TokenID("2"))
 
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	func() {
-		testing.SetRealm(runtime.NewCodeRealm("gno.land/r/test/test"))
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 
 		err := dummy.SafeTransferFrom(caller, addr, TokenID("1"))
 		uassert.NoError(t, err, "should not result in error")
@@ -299,9 +299,9 @@ func TestSetTokenURI(t *testing.T) {
 
 	dummy.mint(addr1, TokenID("1"))
 
-	testing.SetRealm(runtime.NewUserRealm(addr1))
+	testing.SetRealm(testing.NewUserRealm(addr1))
 	func() {
-		testing.SetRealm(runtime.NewCodeRealm("gno.land/r/test/test"))
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 
 		_, derr := dummy.SetTokenURI(TokenID("1"), TokenURI(tokenURI))
 		uassert.NoError(t, derr, "should not result in error")
@@ -312,7 +312,7 @@ func TestSetTokenURI(t *testing.T) {
 
 		testing.SetOriginCaller(addr2) // addr2
 		func() {
-			testing.SetRealm(runtime.NewCodeRealm("gno.land/r/test/test"))
+			testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 			_, cerr := dummy.SetTokenURI(TokenID("1"), TokenURI(tokenURI)) // addr2 trying to set URI for token 1
 			uassert.ErrorIs(t, cerr, ErrCallerIsNotOwner)
 
@@ -349,7 +349,7 @@ func TestIsApprovedOrOwner(t *testing.T) {
 	// check operator
 	testing.SetOriginCaller(owner)
 	func() {
-		testing.SetRealm(runtime.NewCodeRealm("gno.land/r/test/test"))
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 
 		err = dummy.SetApprovalForAll(operator, true)
 		uassert.NoError(t, err)
@@ -359,7 +359,7 @@ func TestIsApprovedOrOwner(t *testing.T) {
 		// check approved
 		testing.SetOriginCaller(owner)
 		func() {
-			testing.SetRealm(runtime.NewCodeRealm("gno.land/r/test/test"))
+			testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 			err = dummy.Approve(approved, tid)
 			uassert.NoError(t, err)
 			isApprovedOrOwner = dummy.isApprovedOrOwner(approved, tid)

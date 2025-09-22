@@ -3,7 +3,6 @@ package coinflip
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -39,7 +38,7 @@ func TestWithdrawal(t *testing.T) {
 
 	testing.IssueCoins(coinflipAddr, chain.Coins{{"ugnot", 100000000}})
 
-	testing.SetRealm(runtime.NewUserRealm(sachaAddr))
+	testing.SetRealm(testing.NewUserRealm(sachaAddr))
 
 	Withdrawal(cross, 1000)
 
@@ -57,7 +56,7 @@ func TestSendPrize(t *testing.T) {
 
 	testing.IssueCoins(coinflipAddr, chain.Coins{{"ugnot", 100000000}})
 
-	testing.SetRealm(runtime.NewUserRealm(aliceAddr))
+	testing.SetRealm(testing.NewUserRealm(aliceAddr))
 
 	sendPrize(cross, aliceAddr, 1000)
 

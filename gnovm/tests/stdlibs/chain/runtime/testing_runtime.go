@@ -163,10 +163,6 @@ func X_getRealm(m *gno.Machine, height int) (addr string, pkgPath string) {
 	}
 }
 
-func X_isRealm(m *gno.Machine, pkgPath string) bool {
-	return gno.IsRealmPath(pkgPath)
-}
-
 // TestBanker is a banker that can be used as a mock banker in test contexts.
 type TestBanker struct {
 	CoinTable map[crypto.Bech32Address]tm2std.Coins

@@ -2,7 +2,6 @@ package users
 
 import (
 	"chain"
-	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -24,7 +23,7 @@ func TestRegister_Valid(t *testing.T) {
 		addr := testutils.TestAddress(username)
 
 		// Simulate a proper user call with the required 1GNOT fee.
-		testing.SetRealm(runtime.NewUserRealm(addr))
+		testing.SetRealm(testing.NewUserRealm(addr))
 		testing.SetOriginCaller(addr)
 		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
 
@@ -37,7 +36,7 @@ func TestRegister_Valid(t *testing.T) {
 func TestRegister_Invalid(t *testing.T) {
 	t.Run("invalid usernames", func(t *testing.T) {
 		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
-		testing.SetRealm(runtime.NewUserRealm(testutils.TestAddress("bob123")))
+		testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("bob123")))
 
 		invalidUsernames := []string{
 			"alice",                 // vanity
@@ -60,7 +59,7 @@ func TestRegister_Invalid(t *testing.T) {
 
 	t.Run("taken username", func(t *testing.T) {
 		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
-		testing.SetRealm(runtime.NewUserRealm(testutils.TestAddress("bob123")))
+		testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("bob123")))
 
 		username := "bob123"
 
@@ -76,7 +75,7 @@ func TestRegister_Invalid(t *testing.T) {
 	t.Run("invalid payment", func(t *testing.T) {
 		addr := testutils.TestAddress("bob123")
 
-		testing.SetRealm(runtime.NewUserRealm(addr))
+		testing.SetRealm(testing.NewUserRealm(addr))
 		testing.SetOriginCaller(addr)
 
 		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 12))) // invalid payment amount

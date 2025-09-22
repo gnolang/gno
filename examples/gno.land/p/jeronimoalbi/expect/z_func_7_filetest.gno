@@ -2,7 +2,6 @@
 package test
 
 import (
-	"chain/runtime"
 	"strings"
 	"testing"
 
@@ -30,7 +29,7 @@ func Success(realm) {
 func main() {
 	wantMsg := "Tick Tock"
 
-	testing.SetRealm(runtime.NewUserRealm(caller))
+	testing.SetRealm(testing.NewUserRealm(caller))
 
 	expect.Func(t, func() { Success(cross) }).ToCrossPanic()
 	expect.Func(t, func() { Fail(cross) }).ToCrossPanic().WithMessage(wantMsg)

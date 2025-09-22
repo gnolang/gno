@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"strings"
 	"testing"
 
@@ -18,12 +17,12 @@ var newName string
 func init() {
 	newName = strings.Repeat("A", boards2.MaxBoardNameLength+1)
 
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	boards2.CreateBoard(cross, name, false)
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	boards2.RenameBoard(cross, name, newName)
 }

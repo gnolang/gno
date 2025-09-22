@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"testing"
 
 	pcommondao "gno.land/p/nt/commondao"
@@ -12,7 +11,7 @@ import (
 const user = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(user))
+	testing.SetRealm(testing.NewUserRealm(user))
 
 	commondao.Vote(cross, 404, 1, pcommondao.ChoiceYes, "")
 }

@@ -2,7 +2,6 @@ package users
 
 import (
 	"chain"
-	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/avl"
@@ -21,7 +20,7 @@ var (
 )
 
 func TestRegister(t *testing.T) {
-	testing.SetRealm(runtime.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
 
 	t.Run("valid_registration", func(t *testing.T) {
 		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
@@ -89,7 +88,7 @@ func TestRegister(t *testing.T) {
 }
 
 func TestUpdateName(t *testing.T) {
-	testing.SetRealm(runtime.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
 
 	t.Run("valid_direct_alias", func(t *testing.T) {
 		cleanStore(t)
@@ -99,7 +98,7 @@ func TestUpdateName(t *testing.T) {
 		{
 			testing.SetOriginCaller(whitelistedCallerAddr)
 			uassert.NoError(t, data.UpdateName("alice1"))
-			testing.SetRealm(runtime.NewCodeRealm("gno.land/r/sys/users"))
+			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 		}
 	})
 
@@ -112,7 +111,7 @@ func TestUpdateName(t *testing.T) {
 			testing.SetOriginCaller(whitelistedCallerAddr)
 			uassert.NoError(t, data.UpdateName("alice2"))
 			uassert.NoError(t, data.UpdateName("alice3"))
-			testing.SetRealm(runtime.NewCodeRealm("gno.land/r/sys/users"))
+			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 		}
 		uassert.Equal(t, ResolveAddress(aliceAddr).username, "alice3")
 	})
@@ -140,13 +139,13 @@ func TestUpdateName(t *testing.T) {
 		data := ResolveAddress(aliceAddr)
 		{
 			urequire.NoError(t, data.Delete())
-			testing.SetRealm(runtime.NewCodeRealm("gno.land/r/sys/users"))
+			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 		}
 
 		data = ResolveAddress(aliceAddr)
 		{
 			uassert.ErrorContains(t, data.UpdateName("newalice"), ErrUserNotExistOrDeleted.Error())
-			testing.SetRealm(runtime.NewCodeRealm("gno.land/r/sys/users"))
+			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 		}
 	})
 
@@ -163,7 +162,7 @@ func TestUpdateName(t *testing.T) {
 				data.UpdateName("verylongusernameverylongusernameverylongusernameverylongusername1"),
 				ErrInvalidUsername.Error())
 			uassert.ErrorContains(t, data.UpdateName("namewith^&()"), ErrInvalidUsername.Error())
-			testing.SetRealm(runtime.NewCodeRealm("gno.land/r/sys/users"))
+			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 		}
 	})
 
@@ -179,13 +178,13 @@ func TestUpdateName(t *testing.T) {
 			// Beginning of address as username
 			uassert.ErrorContains(t, data.UpdateName("g1jg8mtutu9khhfwc4nxmu"), ErrNameLikeAddress.Error())
 			uassert.NoError(t, data.UpdateName("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5longerthananaddress"))
-			testing.SetRealm(runtime.NewCodeRealm("gno.land/r/sys/users"))
+			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 		}
 	})
 }
 
 func TestDelete(t *testing.T) {
-	testing.SetRealm(runtime.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
 
 	t.Run("non_existent_user", func(t *testing.T) {
 		cleanStore(t)

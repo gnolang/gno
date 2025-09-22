@@ -2,7 +2,6 @@ package home
 
 import (
 	"chain"
-	"chain/runtime"
 	"strings"
 	"testing"
 
@@ -11,7 +10,7 @@ import (
 )
 
 func TestUpdatePFP(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
+	testing.SetRealm(testing.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	pfp = ""
 	pfpCaption = ""
 
@@ -22,7 +21,7 @@ func TestUpdatePFP(t *testing.T) {
 }
 
 func TestUpdateAboutMe(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
+	testing.SetRealm(testing.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	abtMe = ""
 
 	UpdateAboutMe(cross, "This is my new bio.")
@@ -31,7 +30,7 @@ func TestUpdateAboutMe(t *testing.T) {
 }
 
 func TestVoteModern(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
+	testing.SetRealm(testing.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
 	coinsSent := chain.NewCoins(chain.NewCoin("ugnot", 75000000))
@@ -46,7 +45,7 @@ func TestVoteModern(t *testing.T) {
 }
 
 func TestVoteClassic(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
+	testing.SetRealm(testing.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
 	coinsSent := chain.NewCoins(chain.NewCoin("ugnot", 75000000))
@@ -61,7 +60,7 @@ func TestVoteClassic(t *testing.T) {
 }
 
 func TestVoteMinimal(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
+	testing.SetRealm(testing.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
 	coinsSent := chain.NewCoins(chain.NewCoin("ugnot", 75000000))
@@ -76,7 +75,7 @@ func TestVoteMinimal(t *testing.T) {
 }
 
 func TestRender(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
+	testing.SetRealm(testing.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 	currentTheme = "classic"
 	pfp = "https://example.com/pic.png"
@@ -96,7 +95,7 @@ func TestRender(t *testing.T) {
 }
 
 func TestRenderModernTheme(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
+	testing.SetRealm(testing.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 100, 0, 0
 	currentTheme = "modern"
 	updateCurrentTheme()
@@ -106,7 +105,7 @@ func TestRenderModernTheme(t *testing.T) {
 }
 
 func TestRenderMinimalTheme(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
+	testing.SetRealm(testing.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 100
 	currentTheme = "minimal"
 	updateCurrentTheme()

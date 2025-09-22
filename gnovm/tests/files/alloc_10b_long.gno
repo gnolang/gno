@@ -16,7 +16,7 @@ func main() {
 	aliceAddr := testutils.TestAddress("alice")
 
 	// TestSetRealm sets the realm caller, in this case Alice
-	testing.SetRealm(runtime.NewUserRealm(aliceAddr))
+	testing.SetRealm(testing.NewUserRealm(aliceAddr))
 
 	users.Register(cross, "alice_123")
 

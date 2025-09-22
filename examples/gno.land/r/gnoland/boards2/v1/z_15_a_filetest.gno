@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
@@ -16,7 +15,7 @@ var (
 )
 
 func init() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	srcBID = boards2.CreateBoard(cross, "src-board", false)
 	dstBID = boards2.CreateBoard(cross, "dst-board", false)
 
@@ -25,7 +24,7 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(runtime.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Repost should fail if source thread is flagged
 	boards2.CreateRepost(cross, srcBID, srcTID, "foo", "bar", dstBID)

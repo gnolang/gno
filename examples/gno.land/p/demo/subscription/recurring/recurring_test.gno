@@ -17,7 +17,7 @@ var (
 )
 
 func TestRecurringSubscription(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	rs := NewRecurringSubscription(time.Hour*24, 1000)
 
 	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 1000}})
@@ -32,7 +32,7 @@ func TestRecurringSubscription(t *testing.T) {
 }
 
 func TestRecurringSubscriptionGift(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	rs := NewRecurringSubscription(time.Hour*24, 1000)
 
 	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 1000}})
@@ -47,7 +47,7 @@ func TestRecurringSubscriptionGift(t *testing.T) {
 }
 
 func TestRecurringSubscriptionExpiration(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	rs := NewRecurringSubscription(time.Hour, 1000)
 
 	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 1000}})
@@ -65,19 +65,19 @@ func TestRecurringSubscriptionExpiration(t *testing.T) {
 }
 
 func TestUpdateAmountAuthorization(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	rs := NewRecurringSubscription(time.Hour*24, 1000)
 
 	err := rs.UpdateAmount(2000)
 	uassert.NoError(t, err, "Expected Alice to succeed in updating amount")
 
-	testing.SetRealm(runtime.NewUserRealm(bob))
+	testing.SetRealm(testing.NewUserRealm(bob))
 	err = rs.UpdateAmount(3000)
 	uassert.Error(t, err, "Expected Bob to fail when updating amount")
 }
 
 func TestGetAmount(t *testing.T) {
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	rs := NewRecurringSubscription(time.Hour*24, 1000)
 
 	amount := rs.GetAmount()
@@ -92,7 +92,7 @@ func TestGetAmount(t *testing.T) {
 
 func TestIncorrectPaymentAmount(t *testing.T) {
 	testing.SetOriginCaller(alice)
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	rs := NewRecurringSubscription(time.Hour*24, 1000)
 
 	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 500}})
@@ -102,7 +102,7 @@ func TestIncorrectPaymentAmount(t *testing.T) {
 
 func TestMultiplePaymentsForSameUser(t *testing.T) {
 	testing.SetOriginCaller(alice)
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	rs := NewRecurringSubscription(time.Hour*24, 1000)
 
 	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 1000}})
@@ -116,7 +116,7 @@ func TestMultiplePaymentsForSameUser(t *testing.T) {
 
 func TestRecurringSubscriptionWithMultiplePayments(t *testing.T) {
 	testing.SetOriginCaller(alice)
-	testing.SetRealm(runtime.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	rs := NewRecurringSubscription(time.Hour, 1000)
 
 	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 1000}})

@@ -24,8 +24,8 @@ var (
 	user1Addr       = testutils.TestAddress("g1user1")
 	user2Addr       = testutils.TestAddress("g1user2")
 	treasuryAddr    = chain.PackageAddress("gno.land/r/gov/dao/v3/treasury")
-	allowedRealm    = runtime.NewCodeRealm("gno.land/r/test/allowed")
-	notAllowedRealm = runtime.NewCodeRealm("gno.land/r/test/notallowed")
+	allowedRealm    = testing.NewCodeRealm("gno.land/r/test/allowed")
+	notAllowedRealm = testing.NewCodeRealm("gno.land/r/test/notallowed")
 	mintAmount      = int64(1000)
 )
 

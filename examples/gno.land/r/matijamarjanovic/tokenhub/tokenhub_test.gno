@@ -17,7 +17,7 @@ const testRealmPkgPath = "gno.land/r/matijamarjanovic/testrealm"
 
 func TestTokenRegistration(t *testing.T) {
 	resetState(t)
-	testing.SetRealm(runtime.NewCodeRealm(testRealmPkgPath))
+	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
 	token, _ := grc20.NewToken("Test Token", "TEST", 6)
 	RegisterToken(cross, token, "test_token")
@@ -31,7 +31,7 @@ func TestTokenRegistration(t *testing.T) {
 
 func TestNFTRegistration(t *testing.T) {
 	resetState(t)
-	testing.SetRealm(runtime.NewCodeRealm(testRealmPkgPath))
+	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
 	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
 	nft.Mint(runtime.CurrentRealm().Address(), grc721.TokenID("1"))
@@ -51,7 +51,7 @@ func TestNFTRegistration(t *testing.T) {
 
 func TestGRC1155Registration(t *testing.T) {
 	resetState(t)
-	testing.SetRealm(runtime.NewCodeRealm(testRealmPkgPath))
+	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
 	mt := grc1155.NewBasicGRC1155Token("test-uri")
 	err := RegisterMultiToken(cross, mt.Getter(), "1")
@@ -68,7 +68,7 @@ func TestGRC1155Registration(t *testing.T) {
 
 func TestBalanceRetrieval(t *testing.T) {
 	resetState(t)
-	testing.SetRealm(runtime.NewCodeRealm(testRealmPkgPath))
+	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
 	token, ledger := grc20.NewToken("Test Token", "TEST", 6)
 	RegisterToken(cross, token, "test_token")
@@ -99,7 +99,7 @@ func TestBalanceRetrieval(t *testing.T) {
 
 func TestErrorCases(t *testing.T) {
 	resetState(t)
-	testing.SetRealm(runtime.NewCodeRealm(testRealmPkgPath))
+	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
 	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
 	err := RegisterNFT(cross, nft.Getter(), "test_nft", "1")
@@ -116,7 +116,7 @@ func TestErrorCases(t *testing.T) {
 
 func TestTokenListingFunctions(t *testing.T) {
 	resetState(t)
-	testing.SetRealm(runtime.NewCodeRealm(testRealmPkgPath))
+	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
 	grc20Token, _ := grc20.NewToken("Test Token", "TEST", 6)
 	RegisterToken(cross, grc20Token, "listing_token")
@@ -150,7 +150,7 @@ func TestTokenListingFunctions(t *testing.T) {
 }
 
 func TestMustGetFunctions(t *testing.T) {
-	testing.SetRealm(runtime.NewCodeRealm(testRealmPkgPath))
+	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
 	token, _ := grc20.NewToken("Must Token", "MUST", 6)
 	RegisterToken(cross, token, "must_token")

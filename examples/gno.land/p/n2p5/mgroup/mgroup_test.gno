@@ -1,7 +1,6 @@
 package mgroup
 
 import (
-	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/avl"
@@ -10,15 +9,15 @@ import (
 )
 
 func TestManagedGroup(t *testing.T) {
-	u1 := runtime.NewCodeRealm("gno.land/r/test/test/u1")
-	u2 := runtime.NewCodeRealm("gno.land/r/test/test/u2")
-	u3 := runtime.NewCodeRealm("gno.land/r/test/test/u3")
-	u4 := runtime.NewCodeRealm("gno.land/r/test/test/u4")
+	u1 := testing.NewCodeRealm("gno.land/r/test/test/u1")
+	u2 := testing.NewCodeRealm("gno.land/r/test/test/u2")
+	u3 := testing.NewCodeRealm("gno.land/r/test/test/u3")
+	u4 := testing.NewCodeRealm("gno.land/r/test/test/u4")
 
 	// testUsingPreviousRealm sets the realm to "gno.land/r/test/test"
 	// and uses the SetRealm in the test as the previous caller
 	testUsingPreviousRealm := func(fn func()) {
-		testing.SetRealm(runtime.NewCodeRealm("gno.land/r/test/test"))
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 		fn()
 	}
 

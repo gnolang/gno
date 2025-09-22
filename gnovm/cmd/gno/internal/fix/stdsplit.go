@@ -35,24 +35,18 @@ func makeSplitFuncs() {
 	splitFuncs = map[string]splitFunc{
 		// chain.Address & std.Address are converted separately to `address`
 		// std.{Encode,Decode}Bech32 are removed and should be manually converted
-		"std.Emit":               newSplitFunc("chain.Emit"),
-		"std.DerivePkgAddr":      newSplitFunc("chain.PackageAddress"),
-		"chain.DerivePkgAddr":    newSplitFunc("chain.PackageAddress"),
-		"chain.DerivePkgAddress": newSplitFunc("chain.PackageAddress"),
-		"std.Coin":               newSplitFunc("chain.Coin"),
-		"std.Coins":              newSplitFunc("chain.Coins"),
-		"std.NewCoin":            newSplitFunc("chain.NewCoin"),
-		"std.NewCoins":           newSplitFunc("chain.NewCoins"),
-		"chain/banker.Coin":      newSplitFunc("chain.Coin"),
-		"chain/banker.Coins":     newSplitFunc("chain.Coins"),
-		"chain/banker.NewCoin":   newSplitFunc("chain.NewCoin"),
-		"chain/banker.NewCoins":  newSplitFunc("chain.NewCoins"),
+		"std.Emit":          newSplitFunc("chain.Emit"),
+		"std.DerivePkgAddr": newSplitFunc("chain.PackageAddress"),
+		"std.Coin":          newSplitFunc("chain.Coin"),
+		"std.Coins":         newSplitFunc("chain.Coins"),
+		"std.NewCoin":       newSplitFunc("chain.NewCoin"),
+		"std.NewCoins":      newSplitFunc("chain.NewCoins"),
 
 		"std.AssertOriginCall": newSplitFunc("chain/runtime.AssertOriginCall"),
 		"std.PreviousRealm":    newSplitFunc("chain/runtime.PreviousRealm"),
 		"std.CurrentRealm":     newSplitFunc("chain/runtime.CurrentRealm"),
-		"std.NewUserRealm":     newSplitFunc("chain/runtime.NewUserRealm"),
-		"std.NewCodeRealm":     newSplitFunc("chain/runtime.NewCodeRealm"),
+		"std.NewUserRealm":     newSplitFunc("testing.NewUserRealm"),
+		"std.NewCodeRealm":     newSplitFunc("testing.NewCodeRealm"),
 		"std.OriginCaller":     newSplitFunc("chain/runtime.OriginCaller"),
 		"std.ChainDomain":      newSplitFunc("chain/runtime.ChainDomain"),
 		"std.ChainHeight":      newSplitFunc("chain/runtime.ChainHeight"),
@@ -76,6 +70,15 @@ func makeSplitFuncs() {
 		"std.SetParamString":  newSplitFunc("chain/params.SetString"),
 		"std.SetParamStrings": newSplitFunc("chain/params.SetStrings"),
 		"std.SetParamUint64":  newSplitFunc("chain/params.SetUint64"),
+
+		"chain.DerivePkgAddr":        newSplitFunc("chain.PackageAddress"),
+		"chain.DerivePkgAddress":     newSplitFunc("chain.PackageAddress"),
+		"chain/runtime.NewUserRealm": newSplitFunc("testing.NewUserRealm"),
+		"chain/runtime.NewCodeRealm": newSplitFunc("testing.NewCodeRealm"),
+		"chain/banker.Coin":          newSplitFunc("chain.Coin"),
+		"chain/banker.Coins":         newSplitFunc("chain.Coins"),
+		"chain/banker.NewCoin":       newSplitFunc("chain.NewCoin"),
+		"chain/banker.NewCoins":      newSplitFunc("chain.NewCoins"),
 	}
 
 	// From a previous batch of std changes: https://github.com/gnolang/gno/pull/3374
@@ -100,6 +103,7 @@ func stdsplit(f *ast.File) (fixed bool) {
 		"chain/runtime": "runtime",
 		"chain/params":  "params",
 		"chain/banker":  "banker",
+		"testing":       "testing",
 	}
 
 	var toRename []string

@@ -2,7 +2,6 @@ package tests_test
 
 import (
 	"chain"
-	"chain/runtime"
 	"fmt"
 	"testing"
 
@@ -13,13 +12,13 @@ import (
 func TestAssertOriginCall(t *testing.T) {
 	// CallAssertOriginCall(): no panic
 	caller := testutils.TestAddress("caller")
-	testing.SetRealm(runtime.NewUserRealm(caller))
+	testing.SetRealm(testing.NewUserRealm(caller))
 	tests.CallAssertOriginCall(cross)
 	if !tests.CallIsOriginCall(cross) {
 		t.Errorf("expected IsOriginCall=true but got false")
 	}
 
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/tests/vm"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/tests/vm"))
 	// CallAssertOriginCall() from a block: abort
 	r := revive(func() {
 		// if called inside a function literal, this is no longer an origin call
