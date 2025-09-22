@@ -77,6 +77,9 @@ func (h *MsgHeader) Validate() error {
 	if !bytes.Equal(h.Header.ValidatorsHash, h.ValidatorSet.Hash()) {
 		return ufmt.Errorf("validator set does not match hash")
 	}
+	if !bytes.Equal(h.Header.NextValidatorsHash, h.TrustedValidators.Hash()) {
+		return ufmt.Errorf("trusted validator set does not match hash")
+	}
 	return nil
 }
 
