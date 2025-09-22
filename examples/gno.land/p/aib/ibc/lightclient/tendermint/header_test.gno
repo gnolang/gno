@@ -1,6 +1,7 @@
 package tendermint_test
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"strings"
 	"testing"
@@ -143,13 +144,57 @@ func TestMsgHeaderValidate(t *testing.T) {
 			expectedError: "no signatures in commit",
 		},
 		{
-			name: "commit signature blockIdFlag is invaliad",
+			name: "commit signature blockIdFlag is invalid",
 			malleate: func() {
 				msg.Commit.Signatures[0].BlockIdFlag = tendermint.BlockIDFlagUnknown
 			},
 			expectedError: "unknown BlockIDFlag",
 		},
-		// TODO add more cases from Commit.ValidateBasic
+		{
+			name: "commit signature blockIdAbsent validatorAddress is not empty",
+			malleate: func() {
+				msg.Commit.Signatures[0].BlockIdFlag = tendermint.BlockIDFlagAbsent
+			},
+			expectedError: "validator address is present",
+		},
+		{
+			name: "commit signature blockIdAbsent timestamp is not empty",
+			malleate: func() {
+				msg.Commit.Signatures[0].BlockIdFlag = tendermint.BlockIDFlagAbsent
+				msg.Commit.Signatures[0].ValidatorAddress = nil
+			},
+			expectedError: "time is present",
+		},
+		{
+			name: "commit signature blockIdAbsent signature is not empty",
+			malleate: func() {
+				msg.Commit.Signatures[0].BlockIdFlag = tendermint.BlockIDFlagAbsent
+				msg.Commit.Signatures[0].ValidatorAddress = nil
+				msg.Commit.Signatures[0].Timestamp = time.Time{}
+			},
+			expectedError: "signature is present",
+		},
+		{
+			name: "commit signature validatorAddress is invalid",
+			malleate: func() {
+				msg.Commit.Signatures[0].ValidatorAddress = []byte("addr_too_short")
+			},
+			expectedError: "expected ValidatorAddress size to be",
+		},
+		{
+			name: "commit signature is missing",
+			malleate: func() {
+				msg.Commit.Signatures[0].Signature = nil
+			},
+			expectedError: "signature is missing",
+		},
+		{
+			name: "commit signature is invalid",
+			malleate: func() {
+				msg.Commit.Signatures[0].Signature = bytes.Repeat([]byte{1}, tendermint.MaxSignatureSize+1)
+			},
+			expectedError: "signature is too big",
+		},
 		{
 			name:          "commit and header height mismatch",
 			malleate:      func() { msg.Commit.Height-- },
@@ -182,6 +227,13 @@ func TestMsgHeaderValidate(t *testing.T) {
 			},
 			expectedError: "validator set does not match hash",
 		},
+		{
+			name: "trusted validator set hash mismatch",
+			malleate: func() {
+				msg.TrustedValidators.Validators[0].PubKey = []byte{}
+			},
+			expectedError: "trusted validator set does not match hash",
+		},
 	}
 
 	if lightclient.Tendermint != msg.ClientType() {
@@ -194,7 +246,7 @@ func TestMsgHeaderValidate(t *testing.T) {
 				newHeight     = uint64(3)
 				newTimestamp  = time.Now()
 				valset        = ibctesting.GenValset()
-				trustedValset = valset
+				trustedValset = ibctesting.GenValset()
 				trustedHeight = types.NewHeight(0, 1)
 				apphash       = sha256.Sum256([]byte("apphash"))
 			)

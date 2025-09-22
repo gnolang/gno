@@ -34,6 +34,7 @@ func main() {
 	)
 	// Alter trustedvalset
 	trustedValset.Validators[0].VotingPower = 42
+	msgHeader.Header.NextValidatorsHash = trustedValset.Hash()
 
 	core.UpdateClient(cross, clientID, msgHeader)
 }
