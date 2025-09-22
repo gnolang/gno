@@ -411,6 +411,7 @@ func TestVMKeeperRealmSend1(t *testing.T) {
 package test
 
 import (
+	"chain"
 	"chain/banker"
 	"chain/runtime"
 )
@@ -421,7 +422,7 @@ func init() {
 func Echo(cur realm, msg string) string {
 	addr := runtime.OriginCaller()
 	pkgAddr := runtime.CurrentRealm().Address()
-	send := banker.Coins{{"ugnot", 1000000}}
+	send := chain.Coins{{"ugnot", 1000000}}
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
 	banker_.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:" + msg
@@ -464,6 +465,7 @@ func TestVMKeeperRealmSend2(t *testing.T) {
 package test
 
 import (
+	"chain"
 	"chain/banker"
 	"chain/runtime"
 )
@@ -474,7 +476,7 @@ func init() {
 func Echo(cur realm, msg string) string {
 	addr := runtime.OriginCaller()
 	pkgAddr := runtime.CurrentRealm().Address()
-	send := banker.Coins{{"ugnot", 10000000}}
+	send := chain.Coins{{"ugnot", 10000000}}
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
 	banker_.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:" + msg
