@@ -2,7 +2,6 @@ package users
 
 import (
 	"chain"
-	"chain/banker"
 	"chain/runtime"
 	"testing"
 

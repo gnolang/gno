@@ -4,7 +4,6 @@ package main
 
 import (
 	"chain"
-	"chain/banker"
 	"strings"
 
 	"gno.land/p/demo/tokens/grc20"

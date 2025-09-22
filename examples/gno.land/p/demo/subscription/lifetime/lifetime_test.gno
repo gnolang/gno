@@ -2,7 +2,6 @@ package lifetime
 
 import (
 	"chain"
-	"chain/banker"
 	"chain/runtime"
 	"testing"
 

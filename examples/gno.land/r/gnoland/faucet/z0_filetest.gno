@@ -2,7 +2,6 @@ package main
 
 import (
 	"chain"
-	"chain/banker"
 	"testing"
 
 	"gno.land/r/gnoland/faucet"

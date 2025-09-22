@@ -2,7 +2,6 @@ package proposal
 
 import (
 	"chain"
-	"chain/banker"
 	"chain/runtime"
 	"testing"
 

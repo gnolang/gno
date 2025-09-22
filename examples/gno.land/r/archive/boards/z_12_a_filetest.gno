@@ -4,7 +4,6 @@ package main
 
 import (
 	"chain"
-	"chain/banker"
 	"chain/runtime"
 	"testing"
 

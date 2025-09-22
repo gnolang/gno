@@ -2,7 +2,6 @@ package coinflip
 
 import (
 	"chain"
-	"chain/banker"
 	"strconv"
 
 	"gno.land/p/moul/md"

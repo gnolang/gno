@@ -2,7 +2,6 @@ package recurring
 
 import (
 	"chain"
-	"chain/banker"
 	"chain/runtime"
 	"testing"
 	"time"

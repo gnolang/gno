@@ -2,7 +2,6 @@ package faucet
 
 import (
 	"chain"
-	"chain/banker"
 	"chain/runtime"
 	"errors"
 )

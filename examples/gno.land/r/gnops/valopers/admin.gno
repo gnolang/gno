@@ -2,7 +2,6 @@ package valopers
 
 import (
 	"chain"
-	"chain/banker"
 
 	"gno.land/p/moul/authz"
 )

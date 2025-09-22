@@ -18,7 +18,6 @@ package coinsort
 
 import (
 	"chain"
-	"chain/banker"
 	"sort"
 )
 

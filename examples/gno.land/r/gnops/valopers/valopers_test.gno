@@ -2,7 +2,6 @@ package valopers
 
 import (
 	"chain"
-	"chain/banker"
 	"chain/runtime"
 	"strings"
 	"testing"

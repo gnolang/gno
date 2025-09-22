@@ -2,7 +2,6 @@ package coinsort
 
 import (
 	"chain"
-	"chain/banker"
 	"testing"
 )
 

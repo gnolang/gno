@@ -5,7 +5,6 @@ package groups_test
 
 import (
 	"chain"
-	"chain/banker"
 	"testing"
 
 	"gno.land/p/nt/testutils"

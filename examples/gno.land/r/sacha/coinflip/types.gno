@@ -2,7 +2,6 @@ package coinflip
 
 import (
 	"chain"
-	"chain/banker"
 )
 
 type Bet struct {

@@ -2,7 +2,6 @@ package coins
 
 import (
 	"chain"
-	"chain/banker"
 	"chain/runtime"
 	"strings"
 	"testing"

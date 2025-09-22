@@ -2,7 +2,6 @@ package atomicswap
 
 import (
 	"chain"
-	"chain/banker"
 	"chain/runtime"
 	"crypto/sha256"
 	"encoding/hex"

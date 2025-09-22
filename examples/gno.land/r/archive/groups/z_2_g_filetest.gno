@@ -5,7 +5,6 @@ package groups_test
 
 import (
 	"chain"
-	"chain/banker"
 	"chain/runtime"
 	"testing"
 
