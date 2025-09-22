@@ -47,10 +47,10 @@ func (h *MsgHeader) Validate() error {
 	if h.Commit == nil {
 		return errors.New("missing commit")
 	}
-	if err := h.Header.ValidateBasic(); err != nil {
+	if err := h.Header.Validate(); err != nil {
 		return ufmt.Errorf("invalid header: %v", err)
 	}
-	if err := h.Commit.ValidateBasic(); err != nil {
+	if err := h.Commit.Validate(); err != nil {
 		return ufmt.Errorf("invalid commit: %v", err)
 	}
 	// Make sure the header is consistent with the commit.
@@ -85,7 +85,7 @@ func (h *MsgHeader) Validate() error {
 
 // GetHeight returns the current height. It returns 0 if the tendermint
 // header is nil.
-// NOTE: the header.Header is checked to be non nil in ValidateBasic.
+// NOTE: the header.Header is checked to be non nil in Validate.
 func (h MsgHeader) GetHeight() types.Height {
 	revision := ParseChainID(h.Header.ChainID)
 	return types.NewHeight(revision, h.Header.Height)
@@ -177,11 +177,11 @@ const (
 	MaxSignatureSize = 64
 )
 
-// ValidateBasic performs stateless validation on a Header returning an error
-// if any validation fails.
+// Validate performs stateless validation on a Header returning an error if any
+// validation fails.
 //
 // NOTE: Timestamp validation is subtle and handled elsewhere.
-func (h Header) ValidateBasic() error {
+func (h Header) Validate() error {
 	if h.Version.Block != BlockProtocol {
 		return ufmt.Errorf("block protocol is incorrect: got: %d, want: %d ", h.Version.Block, BlockProtocol)
 	}
@@ -193,7 +193,7 @@ func (h Header) ValidateBasic() error {
 		return errors.New("zero Height")
 	}
 
-	if err := h.LastBlockID.ValidateBasic(); err != nil {
+	if err := h.LastBlockID.Validate(); err != nil {
 		return ufmt.Errorf("wrong LastBlockID: %v", err)
 	}
 
@@ -251,9 +251,9 @@ type Commit struct {
 	Signatures []CommitSig `json:"signatures"`
 }
 
-// ValidateBasic performs basic validation that doesn't involve state data.
+// Validate performs basic validation that doesn't involve state data.
 // Does not actually check the cryptographic signatures.
-func (commit *Commit) ValidateBasic() error {
+func (commit *Commit) Validate() error {
 	if commit.Round < 0 {
 		return errors.New("negative Round")
 	}
@@ -267,7 +267,7 @@ func (commit *Commit) ValidateBasic() error {
 			return errors.New("no signatures in commit")
 		}
 		for i, commitSig := range commit.Signatures {
-			if err := commitSig.ValidateBasic(); err != nil {
+			if err := commitSig.Validate(); err != nil {
 				return ufmt.Errorf("wrong CommitSig #%d: %v", i, err)
 			}
 		}
@@ -283,8 +283,8 @@ type CommitSig struct {
 	Signature        []byte      `json:"signature,omitempty"`
 }
 
-// ValidateBasic performs basic validation.
-func (cs CommitSig) ValidateBasic() error {
+// Validate performs basic validation.
+func (cs CommitSig) Validate() error {
 	switch cs.BlockIdFlag {
 	case BlockIDFlagAbsent:
 	case BlockIDFlagCommit:
@@ -345,13 +345,13 @@ func (blockID BlockID) IsZero() bool {
 		blockID.PartSetHeader.IsZero()
 }
 
-// ValidateBasic performs basic validation.
-func (blockID BlockID) ValidateBasic() error {
+// Validate performs basic validation.
+func (blockID BlockID) Validate() error {
 	// Hash can be empty in case of POLBlockID in Proposal.
 	if err := validateHash(blockID.Hash); err != nil {
 		return ufmt.Errorf("wrong blockID Hash: %v", err)
 	}
-	if err := blockID.PartSetHeader.ValidateBasic(); err != nil {
+	if err := blockID.PartSetHeader.Validate(); err != nil {
 		return ufmt.Errorf("wrong PartSetHeader: %v", err)
 	}
 	return nil
@@ -367,8 +367,8 @@ func (psh PartSetHeader) IsZero() bool {
 	return psh.Total == 0 && len(psh.Hash) == 0
 }
 
-// ValidateBasic performs basic validation.
-func (psh PartSetHeader) ValidateBasic() error {
+// Validate performs basic validation.
+func (psh PartSetHeader) Validate() error {
 	// Hash can be empty in case of POLBlockID.PartSetHeader in Proposal.
 	if err := validateHash(psh.Hash); err != nil {
 		return ufmt.Errorf("wrong parSetHeader Hash: %v", err)
