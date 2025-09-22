@@ -169,6 +169,7 @@ gno = "0.9"
 package users
 
 import (
+	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"regexp"
@@ -209,7 +210,7 @@ func Register(cur realm, inviter address, name string, profile string) {
 	}
 
 	sentCoins := banker.OriginSend()
-	minCoin := banker.NewCoin("ugnot", minFee)
+	minCoin := chain.NewCoin("ugnot", minFee)
 
 	if inviter == "" {
 		// banker := std.GetBanker(std.BankerTypeOrigSend)
@@ -586,6 +587,7 @@ gno = "0.9"
 package boards
 
 import (
+	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"regexp"
@@ -1109,7 +1111,7 @@ func CreateBoard(name string) BoardID {
 
 func checkAnonFee() bool {
 	sent := banker.OriginSend()
-	anonFeeCoin := banker.NewCoin("ugnot", int64(gDefaultAnonFee))
+	anonFeeCoin := chain.NewCoin("ugnot", int64(gDefaultAnonFee))
 	if len(sent) == 1 && sent[0].IsGTE(anonFeeCoin) {
 		return true
 	}

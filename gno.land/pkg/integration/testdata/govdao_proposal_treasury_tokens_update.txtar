@@ -72,7 +72,7 @@ func main() {
 	factory.Mint(
 		cross,
 		"TOKEN1",
-		chain.DerivePkgAddress("gno.land/r/gov/dao/v3/treasury"),
+		chain.PackageAddress("gno.land/r/gov/dao/v3/treasury"),
 		42,
 	)
 }
