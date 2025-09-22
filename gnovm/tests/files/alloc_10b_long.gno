@@ -4,7 +4,6 @@
 package main
 
 import (
-	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/testutils"
