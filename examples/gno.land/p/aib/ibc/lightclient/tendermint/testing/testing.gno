@@ -77,7 +77,7 @@ func GenMsgHeader(chainID string, timestamp time.Time, apphash []byte,
 			LastCommitHash:     apphash, //FIXME
 			DataHash:           apphash, //FIXME
 			ValidatorsHash:     valset.Hash(),
-			NextValidatorsHash: valset.Hash(),
+			NextValidatorsHash: trustedValset.Hash(),
 			ConsensusHash:      consensushash[:],
 			AppHash:            apphash,
 			LastResultsHash:    nil, //FIXME?
@@ -98,6 +98,7 @@ func GenMsgHeader(chainID string, timestamp time.Time, apphash []byte,
 				{
 					BlockIdFlag:      tendermint.BlockIDFlagCommit,
 					ValidatorAddress: GenAddr("val1"),
+					Timestamp:        time.Now(),
 					Signature:        GenSignature("valsign1"), // XXX need more than random bytes ?
 				},
 			},
