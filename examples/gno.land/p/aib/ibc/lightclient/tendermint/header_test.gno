@@ -60,11 +60,94 @@ func TestMsgHeaderValidate(t *testing.T) {
 			},
 			expectedError: "wrong parSetHeader Hash",
 		},
-		// TODO add more cases from Header.ValidateBasic
+		{
+			name: "header lastCommitHash invalid",
+			malleate: func() {
+				msg.Header.LastCommitHash = invalidHash
+			},
+			expectedError: "wrong LastCommitHash",
+		},
+		{
+			name: "header dataHash invalid",
+			malleate: func() {
+				msg.Header.DataHash = invalidHash
+			},
+			expectedError: "wrong DataHash",
+		},
+		{
+			name: "header evidenceHash invalid",
+			malleate: func() {
+				msg.Header.EvidenceHash = invalidHash
+			},
+			expectedError: "wrong EvidenceHash",
+		},
+		{
+			name: "header proposerAddress invalid",
+			malleate: func() {
+				msg.Header.ProposerAddress = []byte("adr_too_short")
+			},
+			expectedError: "invalid ProposerAddress",
+		},
+		{
+			name: "header validatorHash invalid",
+			malleate: func() {
+				msg.Header.ValidatorsHash = invalidHash
+			},
+			expectedError: "wrong ValidatorsHash",
+		},
+		{
+			name: "header nextValidatorHash invalid",
+			malleate: func() {
+				msg.Header.NextValidatorsHash = invalidHash
+			},
+			expectedError: "wrong NextValidatorsHash",
+		},
+		{
+			name: "header consensusHash invalid",
+			malleate: func() {
+				msg.Header.ConsensusHash = invalidHash
+			},
+			expectedError: "wrong ConsensusHash",
+		},
+		{
+			name: "header lastResultHash invalid",
+			malleate: func() {
+				msg.Header.LastResultsHash = invalidHash
+			},
+			expectedError: "wrong LastResultsHash",
+		},
 		{
 			name:          "commit is nil",
 			malleate:      func() { msg.Commit = nil },
 			expectedError: "missing commit",
+		},
+		{
+			name:          "commit round negative",
+			malleate:      func() { msg.Commit.Round = -1 },
+			expectedError: "negative Round",
+		},
+		{
+			name: "commit blockId is zero",
+			malleate: func() {
+				msg.Commit.BlockID.Hash = nil
+				msg.Commit.BlockID.PartSetHeader.Total = 0
+				msg.Commit.BlockID.PartSetHeader.Hash = nil
+			},
+			expectedError: "commit cannot be for nil block",
+		},
+		{
+			name: "commit signatures are empty",
+			malleate: func() {
+				msg.Commit.Signatures = nil
+			},
+			expectedError: "no signatures in commit",
+		},
+		{
+			name: "commit signature blockIdFlag is invaliad",
+			malleate: func() {
+				msg.Commit.Signatures[0].BlockIdFlag = tendermint.BlockIDFlagUnknown
+			},
+			expectedError: "unknown BlockIDFlag",
 		},
 		// TODO add more cases from Commit.ValidateBasic
 		{
