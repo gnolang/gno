@@ -100,10 +100,10 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	// Setup StaticMetadata
 	chromaStylePath := path.Join(assetsBase, "_chroma", "style.css")
-	
+
 	// Build time for cache busting
 	buildTime := time.Now().Format("20060102150405") // YYYYMMDDHHMMSS
-	
+
 	staticMeta := StaticMetadata{
 		Domain:     cfg.Domain,
 		AssetsPath: assetsBase,

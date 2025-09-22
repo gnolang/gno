@@ -1,10 +1,10 @@
 import {
+	debounce,
+	escapeShellSpecialChars,
 	findAllInclusive,
 	findFirstInclusive,
 	toCamelCase,
 	toKebabCase,
-	debounce,
-	escapeShellSpecialChars,
 } from "./utils.js";
 
 export abstract class BaseController {
