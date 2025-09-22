@@ -11,6 +11,7 @@ import (
 	"go.uber.org/multierr"
 	"golang.org/x/mod/module"
 
+	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm" // Register vm error types with Amino
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
