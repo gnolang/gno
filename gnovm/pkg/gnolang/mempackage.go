@@ -92,9 +92,9 @@ func IsEphemeralPath(pkgPath string) bool {
 }
 
 // IsGnoRunPath returns true if it's a run (MsgRun) package path.
-// DerivePkgAddr() returns the embedded address such that the run package can
+// DerivePkgAddress() returns the embedded address such that the run package can
 // receive coins on behalf of the user.
-// XXX XXX XXX XXX change DerivePkgAddr().
+// XXX XXX XXX XXX change DerivePkgAddress().
 func IsGnoRunPath(pkgPath string) (addr string, ok bool) {
 	match := ReGnoUserPkgPath.Match(pkgPath)
 	if match == nil || match.Get("LETTER") != "e" || match.Get("REPO") != "run" {

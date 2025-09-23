@@ -2,7 +2,7 @@
 package test
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/p/n2p5/loci"
 )
@@ -14,7 +14,7 @@ func init() {
 }
 
 func main() {
-	caller := std.PreviousRealm()
+	caller := runtime.PreviousRealm()
 
 	store.Set([]byte("hello, world"))
 	println(string(store.Get(caller.Address())))

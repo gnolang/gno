@@ -2,19 +2,18 @@
 package main
 
 import (
-	"std"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
 const (
-	owner     = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	owner     = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 	boardName = "BoardName"
 )
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	boards2.CreateBoard(cross, boardName, false)
 }
@@ -27,7 +26,7 @@ func main() {
 // # BoardName
 // Board created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, #1
 //
-// [Create Thread](/r/gnoland/boards2/v1$help&func=CreateThread&boardID=1&body=&title=) • [Request Invite](/r/gnoland/boards2/v1$help&func=RequestInvite&boardID=1) • [Manage Board](?menu=manageBoard)
+// [Create Thread](/r/gnoland/boards2/v1$help&func=CreateThread&boardID=1&body=&title=) • [Manage Board](?menu=manageBoard)
 //
 // ---
 // ### This board doesn't have any threads

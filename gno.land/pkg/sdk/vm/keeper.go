@@ -25,7 +25,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/stdlibs"
-	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
+	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -1147,7 +1147,7 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			depositAmt -= requiredDeposit
 			// Emit event for storage deposit lock
 			d := std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}
-			evt := gnostd.StorageDepositEvent{
+			evt := chain.StorageDepositEvent{
 				BytesDelta: diff,
 				FeeDelta:   d,
 				PkgPath:    rlmPath,
@@ -1181,7 +1181,7 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 				return err
 			}
 			d := std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}
-			evt := gnostd.StorageUnlockEvent{
+			evt := chain.StorageUnlockEvent{
 				// For unlock, BytesDelta is negative
 				BytesDelta:     diff,
 				FeeRefund:      d,

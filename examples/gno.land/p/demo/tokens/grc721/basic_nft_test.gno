@@ -1,7 +1,7 @@
 package grc721
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -52,8 +52,8 @@ func TestBalanceOf(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
-	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	addr1 := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 	balanceAddr1, err := dummy.BalanceOf(addr1)
 	uassert.NoError(t, err, "should not result in error")
@@ -77,8 +77,8 @@ func TestOwnerOf(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
-	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	addr1 := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 	owner, err := dummy.OwnerOf(TokenID("invalid"))
 	uassert.Error(t, err, "should not result in error")
@@ -101,8 +101,8 @@ func TestIsApprovedForAll(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
-	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	addr1 := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 	isApprovedForAll := dummy.IsApprovedForAll(addr1, addr2)
 	uassert.False(t, isApprovedForAll)
@@ -112,16 +112,16 @@ func TestSetApprovalForAll(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.CurrentRealm().Address()
+	caller := runtime.CurrentRealm().Address()
 	testing.SetOriginCaller(caller)
-	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	// Test setting approval to true
 	isApprovedForAll := dummy.IsApprovedForAll(caller, addr)
 	uassert.False(t, isApprovedForAll)
 
 	// set beyond origin caller
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 	err := dummy.SetApprovalForAll(addr, true)
 	uassert.NoError(t, err, "should not result in error")
 
@@ -151,8 +151,8 @@ func TestApprove(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.CurrentRealm().Address()
-	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	caller := runtime.CurrentRealm().Address()
+	addr := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	err := dummy.mint(caller, TokenID("1"))
 	uassert.NoError(t, err, "failed to mint")
@@ -160,9 +160,9 @@ func TestApprove(t *testing.T) {
 	_, err = dummy.GetApproved(TokenID("1"))
 	uassert.Error(t, err, "should result in error")
 
-	testing.SetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	func() {
-		testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 		err = dummy.Approve(addr, TokenID("1"))
 		uassert.NoError(t, err, "should not result in error")
 
@@ -179,15 +179,15 @@ func TestTransferFrom(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.CurrentRealm().Address()
-	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	caller := runtime.CurrentRealm().Address()
+	addr := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	dummy.mint(caller, TokenID("1"))
 	dummy.mint(caller, TokenID("2"))
 
-	testing.SetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	func() {
-		testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 
 		err := dummy.TransferFrom(caller, addr, TokenID("1"))
 		uassert.NoError(t, err, "should result in error")
@@ -216,15 +216,15 @@ func TestSafeTransferFrom(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.CurrentRealm().Address()
-	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	caller := runtime.CurrentRealm().Address()
+	addr := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	dummy.mint(caller, TokenID("1"))
 	dummy.mint(caller, TokenID("2"))
 
-	testing.SetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 	func() {
-		testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 
 		err := dummy.SafeTransferFrom(caller, addr, TokenID("1"))
 		uassert.NoError(t, err, "should not result in error")
@@ -250,8 +250,8 @@ func TestMint(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
-	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	addr1 := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 	err := dummy.Mint(addr1, TokenID("1"))
 	uassert.NoError(t, err, "should not result in error")
@@ -274,7 +274,7 @@ func TestBurn(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	dummy.mint(addr, TokenID("1"))
 	dummy.mint(addr, TokenID("2"))
@@ -291,17 +291,17 @@ func TestSetTokenURI(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
-	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	addr1 := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 	tokenURI := "http://example.com/token"
 
 	testing.SetOriginCaller(addr1) // addr1
 
 	dummy.mint(addr1, TokenID("1"))
 
-	testing.SetRealm(std.NewUserRealm(addr1))
+	testing.SetRealm(testing.NewUserRealm(addr1))
 	func() {
-		testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 
 		_, derr := dummy.SetTokenURI(TokenID("1"), TokenURI(tokenURI))
 		uassert.NoError(t, derr, "should not result in error")
@@ -312,7 +312,7 @@ func TestSetTokenURI(t *testing.T) {
 
 		testing.SetOriginCaller(addr2) // addr2
 		func() {
-			testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
+			testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 			_, cerr := dummy.SetTokenURI(TokenID("1"), TokenURI(tokenURI)) // addr2 trying to set URI for token 1
 			uassert.ErrorIs(t, cerr, ErrCallerIsNotOwner)
 
@@ -349,7 +349,7 @@ func TestIsApprovedOrOwner(t *testing.T) {
 	// check operator
 	testing.SetOriginCaller(owner)
 	func() {
-		testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 
 		err = dummy.SetApprovalForAll(operator, true)
 		uassert.NoError(t, err)
@@ -359,7 +359,7 @@ func TestIsApprovedOrOwner(t *testing.T) {
 		// check approved
 		testing.SetOriginCaller(owner)
 		func() {
-			testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
+			testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
 			err = dummy.Approve(approved, tid)
 			uassert.NoError(t, err)
 			isApprovedOrOwner = dummy.isApprovedOrOwner(approved, tid)

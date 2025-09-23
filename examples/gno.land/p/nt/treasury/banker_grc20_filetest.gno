@@ -3,7 +3,7 @@
 package main
 
 import (
-	"std"
+	"chain"
 	"strings"
 
 	"gno.land/p/demo/tokens/grc20"
@@ -12,7 +12,7 @@ import (
 
 const amount = int64(1000)
 
-func createToken(name string, toMint std.Address) *grc20.Token {
+func createToken(name string, toMint address) *grc20.Token {
 	// Create the token.
 	symbol := strings.ToUpper(name)
 	token, ledger := grc20.NewToken(name, symbol, 0)
@@ -25,8 +25,8 @@ func createToken(name string, toMint std.Address) *grc20.Token {
 
 func main() {
 	// Define addresses for the sender (owner) and destination.
-	ownerAddr := std.DerivePkgAddr("gno.land/r/treasury/main")
-	destAddr := std.DerivePkgAddr("gno.land/r/dest/main")
+	ownerAddr := chain.PackageAddress("gno.land/r/treasury/main")
+	destAddr := chain.PackageAddress("gno.land/r/dest/main")
 
 	// Try to create a GRC20Banker using a nil lister.
 	gbanker, err := treasury.NewGRC20Banker(nil)
@@ -114,7 +114,7 @@ func main() {
 	}
 
 	// Send a payment with an invalid type.
-	invalidPaymentType := treasury.NewCoinsPayment(std.Coins{}, destAddr)
+	invalidPaymentType := treasury.NewCoinsPayment(chain.Coins{}, destAddr)
 	err = gbanker.Send(invalidPaymentType)
 	println("Invalid payment type error:", err)
 	if err == nil {

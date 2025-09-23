@@ -1,18 +1,20 @@
 package ownable
 
-import "std"
+import (
+	"chain/runtime"
+)
 
-var owner std.Address = ""
+var owner address = ""
 
 func InitOwner(cur realm) {
 	if len(owner) != 0 {
 		panic("owner already defined")
 	}
-	owner = std.PreviousRealm().Address()
+	owner = runtime.PreviousRealm().Address()
 }
 
 func assertOnlyOwner() {
-	if std.PreviousRealm().Address() != owner {
+	if runtime.PreviousRealm().Address() != owner {
 		panic("caller isn't the owner")
 	}
 }
