@@ -41,6 +41,7 @@ func makeSplitFuncs() {
 		"std.Coins":         newSplitFunc("chain.Coins"),
 		"std.NewCoin":       newSplitFunc("chain.NewCoin"),
 		"std.NewCoins":      newSplitFunc("chain.NewCoins"),
+		"std.CoinDenom":     newSplitFunc("chain.CoinDenom"),
 
 		"std.AssertOriginCall": newSplitFunc("chain/runtime.AssertOriginCall"),
 		"std.PreviousRealm":    newSplitFunc("chain/runtime.PreviousRealm"),
@@ -51,7 +52,6 @@ func makeSplitFuncs() {
 		"std.ChainDomain":      newSplitFunc("chain/runtime.ChainDomain"),
 		"std.ChainHeight":      newSplitFunc("chain/runtime.ChainHeight"),
 		"std.ChainID":          newSplitFunc("chain/runtime.ChainID"),
-		"std.CoinDenom":        newSplitFunc("chain/runtime.CoinDenom"),
 		"std.CallerAt":         newSplitFunc("chain/runtime.CallerAt"),
 		"std.Realm":            newSplitFunc("chain/runtime.Realm"),
 
@@ -75,6 +75,7 @@ func makeSplitFuncs() {
 		"chain.DerivePkgAddress":     newSplitFunc("chain.PackageAddress"),
 		"chain/runtime.NewUserRealm": newSplitFunc("testing.NewUserRealm"),
 		"chain/runtime.NewCodeRealm": newSplitFunc("testing.NewCodeRealm"),
+		"chain/runtime.CoinDenom":    newSplitFunc("chain.CoinDenom"),
 		"chain/banker.Coin":          newSplitFunc("chain.Coin"),
 		"chain/banker.Coins":         newSplitFunc("chain.Coins"),
 		"chain/banker.NewCoin":       newSplitFunc("chain.NewCoin"),
