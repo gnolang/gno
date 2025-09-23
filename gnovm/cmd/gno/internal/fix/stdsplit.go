@@ -35,6 +35,7 @@ func makeSplitFuncs() {
 	splitFuncs = map[string]splitFunc{
 		// chain.Address & std.Address are converted separately to `address`
 		// std.{Encode,Decode}Bech32 are removed and should be manually converted
+		// RawAddress / RawAddressSize handled separately
 		"std.Emit":          newSplitFunc("chain.Emit"),
 		"std.DerivePkgAddr": newSplitFunc("chain.PackageAddress"),
 		"std.Coin":          newSplitFunc("chain.Coin"),
@@ -71,6 +72,7 @@ func makeSplitFuncs() {
 		"std.SetParamStrings": newSplitFunc("chain/params.SetStrings"),
 		"std.SetParamUint64":  newSplitFunc("chain/params.SetUint64"),
 
+		// Previous stdsplit iterations.
 		"chain.DerivePkgAddr":        newSplitFunc("chain.PackageAddress"),
 		"chain.DerivePkgAddress":     newSplitFunc("chain.PackageAddress"),
 		"chain/runtime.NewUserRealm": newSplitFunc("testing.NewUserRealm"),
