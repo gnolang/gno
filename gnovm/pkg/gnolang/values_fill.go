@@ -1,15 +1,24 @@
 package gnolang
 
 func (sv StringValue) DeepFill(store Store) Value {
-	return sv
+	//if debug {
+	panic("DeepFill should not be called on StringValue")
+	//}
+	//	return sv
 }
 
 func (biv BigintValue) DeepFill(store Store) Value {
-	return biv
+	//if debug {
+	panic("DeepFill should not be called on BigintValue")
+	//}
+	//return biv
 }
 
 func (bdv BigdecValue) DeepFill(store Store) Value {
-	return bdv
+	//if debug {
+	panic("DeepFill should not be called on BigdecValue")
+	//}
+	//return bdv
 }
 
 func (dbv DataByteValue) DeepFill(store Store) Value {
