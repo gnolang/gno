@@ -14,9 +14,9 @@ type TMLightClient struct {
 	ConsensusStateByHeight avl.Tree // key: height, value: *ConsensusState
 }
 
-var _ lightclient.LightClientModule = (*TMLightClient)(nil)
+var _ lightclient.Interface = (*TMLightClient)(nil)
 
-// Implements lightclient.LightClientModule
+// Implements lightclient.Interface
 func (tm *TMLightClient) Initialize(clientState lightclient.ClientState, consensusState lightclient.ConsensusState) error {
 	cs := clientState.(ClientState)
 	tm.ClientState = &cs
@@ -25,7 +25,7 @@ func (tm *TMLightClient) Initialize(clientState lightclient.ClientState, consens
 	return nil
 }
 
-// Implements lightclient.LightClientModule
+// Implements lightclient.Interface
 func (tm *TMLightClient) VerifyClientMessage(clientMsg lightclient.ClientMessage) error {
 	switch msg := clientMsg.(type) {
 	case *MsgHeader:
@@ -37,18 +37,18 @@ func (tm *TMLightClient) VerifyClientMessage(clientMsg lightclient.ClientMessage
 	}
 }
 
-// Implements lightclient.LightClientModule
-func (tm *TMLightClient) CheckForMisbehaviour(clientID string, clientMsg lightclient.ClientMessage) bool {
+// Implements lightclient.Interface
+func (tm *TMLightClient) CheckForMisbehaviour(clientMsg lightclient.ClientMessage) bool {
 	// TODO
 	return false
 }
 
-// Implements lightclient.LightClientModule
-func (tm *TMLightClient) UpdateStateOnMisbehaviour(clientID string, clientMsg lightclient.ClientMessage) {
+// Implements lightclient.Interface
+func (tm *TMLightClient) UpdateStateOnMisbehaviour(clientMsg lightclient.ClientMessage) {
 	// TODO
 }
 
-// Implements lightclient.LightClientModule
+// Implements lightclient.Interface
 func (tm *TMLightClient) UpdateState(clientMsg lightclient.ClientMessage) []types.Height {
 	msg := clientMsg.(*MsgHeader)
 	// check for duplicate update
@@ -73,22 +73,23 @@ func (tm *TMLightClient) UpdateState(clientMsg lightclient.ClientMessage) []type
 	return []types.Height{msgHeight}
 }
 
-// Implements lightclient.LightClientModule
-func (tm *TMLightClient) VerifyMembership(clientID string, height types.Height,
+// Implements lightclient.Interface
+func (tm *TMLightClient) VerifyMembership(height types.Height,
 	delayTimePeriod uint64, delayBlockPeriod uint64, proof []byte, path string,
 	value []byte) error {
 	// TODO
 	return nil
 }
 
-// Implements lightclient.LightClientModule
-func (tm *TMLightClient) VerifyNonMembership(clientID string, height types.Height,
-	delayTimePeriod uint64, delayBlockPeriod uint64, proof []byte, path string) error {
+// Implements lightclient.Interface
+func (tm *TMLightClient) VerifyNonMembership(height types.Height,
+	delayTimePeriod uint64, delayBlockPeriod uint64, proof []byte,
+	path string) error {
 	// TODO
 	return nil
 }
 
-// Implements lightclient.LightClientModule
+// Implements lightclient.Interface
 func (tm *TMLightClient) Status() lightclient.Status {
 	if !tm.ClientState.FrozenHeight.IsZero() {
 		return lightclient.Frozen
@@ -106,27 +107,26 @@ func (tm *TMLightClient) Status() lightclient.Status {
 	return lightclient.Active
 }
 
-// Implements lightclient.LightClientModule
+// Implements lightclient.Interface
 func (tm *TMLightClient) LatestHeight() types.Height {
 	return tm.ClientState.LatestHeight
 }
 
-// Implements lightclient.LightClientModule
-func (tm *TMLightClient) TimestampAtHeight(clientID string, height types.Height) (uint64, error) {
+// Implements lightclient.Interface
+func (tm *TMLightClient) TimestampAtHeight(height types.Height) (uint64, error) {
 	// TODO
 	return 0, nil
 }
 
-// Implements lightclient.LightClientModule
-func (tm *TMLightClient) RecoverClient(clientID, substituteClientID string) error {
+// Implements lightclient.Interface
+func (tm *TMLightClient) RecoverClient(substituteClientID string) error {
 	// TODO
 	return nil
 }
 
-// Implements lightclient.LightClientModule
-func (tm *TMLightClient) VerifyUpgradeAndUpdateState(clientID string,
-	newClient []byte, newConsState []byte, upgradeClientProof,
-	upgradeConsensusStateProof []byte) error {
+// Implements lightclient.Interface
+func (tm *TMLightClient) VerifyUpgradeAndUpdateState(newClient, newConsState,
+	upgradeClientProof, upgradeConsensusStateProof []byte) error {
 	// TODO
 	return nil
 }

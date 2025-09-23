@@ -34,16 +34,12 @@ const (
 	Unauthorized Status = "Unauthorized"
 )
 
-// LightClientModule is an interface which core IBC uses to interact with light
+// Interface is an interface which core IBC uses to interact with light
 // client modules.  Light client modules must implement this interface to
 // integrate with core IBC.
 //
-// TODO rename to Interface? The way it is implemented in Gno is quite
-// different from how it's implemented in IBC-go. The later handles multiple
-// clients, while the former handles a single client, hence it's not really a
-// module.
 // TODO remove all clientID parameter?
-type LightClientModule interface {
+type Interface interface {
 	// Initialize is called upon client creation, it allows the client to perform
 	// validation on the client state and initial consensus state.  The light
 	// client module is responsible for setting any client-specific data in the
@@ -61,31 +57,31 @@ type LightClientModule interface {
 
 	// Checks for evidence of a misbehaviour in Header or Misbehaviour type. It
 	// assumes the ClientMessage has already been verified.
-	CheckForMisbehaviour(clientID string, clientMsg ClientMessage) bool
+	CheckForMisbehaviour(ClientMessage) bool
 
 	// UpdateStateOnMisbehaviour should perform appropriate state changes on a
 	// client state given that misbehaviour has been detected and verified
-	UpdateStateOnMisbehaviour(clientID string, clientMsg ClientMessage)
+	UpdateStateOnMisbehaviour(ClientMessage)
 
 	// UpdateState updates and stores as necessary any associated information for
 	// an IBC client, such as the ClientState and corresponding ConsensusState.
 	// Upon successful update, a list of consensus heights is returned. It
 	// assumes the ClientMessage has already been verified.
-	UpdateState(clientMsg ClientMessage) []types.Height
+	UpdateState(ClientMessage) []types.Height
 
 	// VerifyMembership is a generic proof verification method which verifies a
 	// proof of the existence of a value at a given CommitmentPath at the
 	// specified height.  The caller is expected to construct the full
 	// CommitmentPath from a CommitmentPrefix and a standardized path (as defined
 	// in ICS 24).
-	VerifyMembership(clientID string, height types.Height, delayTimePeriod uint64,
+	VerifyMembership(height types.Height, delayTimePeriod uint64,
 		delayBlockPeriod uint64, proof []byte, path string, value []byte) error
 
 	// VerifyNonMembership is a generic proof verification method which verifies
 	// the absence of a given CommitmentPath at a specified height.  The caller
 	// is expected to construct the full CommitmentPath from a CommitmentPrefix
 	// and a standardized path (as defined in ICS 24).
-	VerifyNonMembership(clientID string, height types.Height, delayTimePeriod uint64,
+	VerifyNonMembership(height types.Height, delayTimePeriod uint64,
 		delayBlockPeriod uint64, proof []byte, path string) error
 
 	// Status must return the status of the client. Only Active clients are
@@ -99,12 +95,12 @@ type LightClientModule interface {
 
 	// TimestampAtHeight must return the timestamp for the consensus state
 	// associated with the provided height.
-	TimestampAtHeight(clientID string, height types.Height) (uint64, error)
+	TimestampAtHeight(types.Height) (uint64, error)
 
 	// RecoverClient must verify that the provided substitute may be used to
 	// update the subject client.  The light client module must set the updated
 	// client and consensus states within the clientStore for the subject client.
-	RecoverClient(clientID, substituteClientID string) error
+	RecoverClient(substituteClientID string) error
 
 	// Upgrade functions NOTE: proof heights are not included as upgrade to a new
 	// revision is expected to pass only on the last height committed by the
@@ -114,8 +110,8 @@ type LightClientModule interface {
 	// since upgrade plans committed to by the counterparty may be cancelled or
 	// modified before the last planned height.  If the upgrade is verified, the
 	// upgraded client and consensus states must be set in the client store.
-	VerifyUpgradeAndUpdateState(clientID string, newClient []byte,
-		newConsState []byte, upgradeClientProof, upgradeConsensusStateProof []byte) error
+	VerifyUpgradeAndUpdateState(newClient, newConsState, upgradeClientProof,
+		upgradeConsensusStateProof []byte) error
 }
 
 // ClientState defines the required common functions for light clients.

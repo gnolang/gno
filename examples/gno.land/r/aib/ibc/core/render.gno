@@ -23,7 +23,7 @@ func RenderHome(w *mux.ResponseWriter, r *mux.Request) {
 }
 
 func RenderClients(w *mux.ResponseWriter, r *mux.Request) {
-	store.clientByID.Iterate("", "", func(key string, v any) bool {
+	store.clientByID.Iterate("", "", func(_ string, v any) bool {
 		c := v.(*client)
 		w.Write(c.Render())
 		return false

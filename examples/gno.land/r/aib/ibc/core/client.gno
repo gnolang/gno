@@ -14,7 +14,7 @@ type client struct {
 	creator                  std.Address
 	counterpartyClientID     string
 	counterpartyMerklePrefix [][]byte
-	lightClient              lightclient.LightClientModule
+	lightClient              lightclient.Interface
 }
 
 // CreateClient generates a new client identifier and invokes the associated
