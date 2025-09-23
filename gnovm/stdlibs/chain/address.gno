@@ -1,11 +1,11 @@
 package chain
 
-func derivePkgAddress(string) string
+func packageAddress(string) string
 
 // Returns a crypto hash derived pkgPath, unless pkgPath is a MsgRun run path,
 // in which case the address is extracted from the path.
-func DerivePkgAddress(pkgPath string) address {
-	addr := derivePkgAddress(pkgPath)
+func PackageAddress(pkgPath string) address {
+	addr := packageAddress(pkgPath)
 	return address(addr)
 }
 

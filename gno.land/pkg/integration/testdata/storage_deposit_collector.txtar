@@ -1,4 +1,4 @@
-## This tests changes  storage_fee_collector and assert that storage_fees are corretly collected 
+## This tests changes  storage_fee_collector and assert that storage_fees are corretly collected
 ## by this address when releasing memory on a realm
 
 adduserfrom storage_collector 'post settle extend broken surface clump pulse cook afford forum civil oppose bid raise hello wave deer bar vital vacant evolve junior safe script'
@@ -42,14 +42,14 @@ gnokey query bank/balances/$storage_collector_user_addr
 stdout '1000000000ugnot'
 
 gnokey maketx addpkg -pkgdir $WORK/bytesbank -pkgpath gno.land/r/bytesbank -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 502500ugnot -broadcast -chainid=tendermint_test test1
-stdout 'EVENTS:     \[{\"bytes_delta\":3401,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":340100},\"pkg_path\":\"gno.land/r/bytesbank\"}]'
-stdout 'STORAGE DELTA:  3401 bytes'
-stdout 'STORAGE FEE:    340100ugnot'
-stdout 'TOTAL TX COST:  1340100ugnot'
+stdout 'EVENTS:     \[{\"bytes_delta\":3411,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":341100},\"pkg_path\":\"gno.land/r/bytesbank\"}]'
+stdout 'STORAGE DELTA:  3411 bytes'
+stdout 'STORAGE FEE:    341100ugnot'
+stdout 'TOTAL TX COST:  1341100ugnot'
 
 gnokey query vm/qstorage --data gno.land/r/bytesbank
 
-stdout 'storage: 3401, deposit: 340100'
+stdout 'storage: 3411, deposit: 341100'
 
 ## Set an object with a smaller size. Exactly 2 bytes are released when we update the realm record from 'hello' to 'foo'.
 gnokey maketx call -pkgpath gno.land/r/bytesbank -func Credit -args $norman_user_addr -args 500000  -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test alice
@@ -59,7 +59,7 @@ stdout 'STORAGE FEE:    50153100ugnot'
 stdout 'TOTAL TX COST:  51153100ugnot'
 
 gnokey query vm/qstorage --data gno.land/r/bytesbank
-stdout 'storage: 504932, deposit: 50493200'
+stdout 'storage: 504942, deposit: 50494200'
 
 ## Norman frees the storage of bytes bank, but storage deposit goes to storage fee collector
 ## instead of him
@@ -78,7 +78,7 @@ stdout '1050113200ugnot'
 
 ## storage should have been released from realm
 gnokey query vm/qstorage --data gno.land/r/bytesbank
-stdout 'storage: 3800, deposit: 380000'
+stdout 'storage: 3810, deposit: 381000'
 
 -- run/load_user.gno --
 package main

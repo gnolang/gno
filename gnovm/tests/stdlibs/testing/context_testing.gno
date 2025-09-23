@@ -1,7 +1,7 @@
 package testing
 
 import (
-	"chain/banker"
+	"chain"
 	"chain/runtime"
 	"time"
 )
@@ -65,17 +65,17 @@ func testIssueCoins(addr string, denom []string, amt []int64)
 func SetOriginCaller(origCaller address) {
 	ctx := GetContext()
 	ctx.OriginCaller = origCaller
-	ctx.CurrentRealm = runtime.NewUserRealm(origCaller)
+	ctx.CurrentRealm = NewUserRealm(origCaller)
 	SetContext(ctx)
 }
 
-func SetOriginSend(send banker.Coins) {
+func SetOriginSend(send chain.Coins) {
 	ctx := GetContext()
 	ctx.OriginSend = send
 	SetContext(ctx)
 }
 
-func SetOriginSpend(spend banker.Coins) {
+func SetOriginSpend(spend chain.Coins) {
 	ctx := GetContext()
 	ctx.OriginSpend = spend
 	SetContext(ctx)
@@ -109,13 +109,13 @@ func SkipHeights(count int64) {
 	SetContext(Context{Height: toHeight, Time: toTime})
 }
 
-func IssueCoins(addr address, coins banker.Coins) {
+func IssueCoins(addr address, coins chain.Coins) {
 	denom, amt := expandNative(coins)
 	testIssueCoins(addr.String(), denom, amt)
 }
 
 // expandNative expands for usage within natively bound functions.
-func expandNative(coins banker.Coins) (denoms []string, amounts []int64) {
+func expandNative(coins chain.Coins) (denoms []string, amounts []int64) {
 	denoms = make([]string, len(coins))
 	amounts = make([]int64, len(coins))
 	for i, coin := range coins {
@@ -127,10 +127,27 @@ func expandNative(coins banker.Coins) (denoms []string, amounts []int64) {
 }
 
 // compactNative compacts coins for usage within natively bound functions.
-func compactNative(denoms []string, amounts []int64) banker.Coins {
-	coins := make(banker.Coins, len(denoms))
+func compactNative(denoms []string, amounts []int64) chain.Coins {
+	coins := make(chain.Coins, len(denoms))
 	for i := range coins {
-		coins[i] = banker.Coin{Denom: denoms[i], Amount: amounts[i]}
+		coins[i] = chain.Coin{Denom: denoms[i], Amount: amounts[i]}
 	}
 	return coins
 }
+
+// NewUserRealm creates a new "user" realm with the given address.
+func NewUserRealm(user address) runtime.Realm {
+	return newRealm(string(user), "")
+}
+
+// NewCodeRealm creates a new realm for a published code realm with the given
+// pkgPath.
+func NewCodeRealm(pkgPath string) runtime.Realm {
+	if !isRealm(pkgPath) {
+		panic("should only be called for Realms")
+	}
+	return newRealm(string(chain.PackageAddress(pkgPath)), pkgPath)
+}
+
+func newRealm(addr, pkgPath string) runtime.Realm // injected
+func isRealm(pkgPath string) bool

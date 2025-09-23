@@ -93,3 +93,20 @@ func X_testIssueCoins(m *gno.Machine, addr string, denom []string, amt []int64) 
 		banker.IssueCoin(crypto.Bech32Address(addr), denom[i], amt[i])
 	}
 }
+
+func X_newRealm(m *gno.Machine, addr, pkgPath string) gno.TypedValue {
+	return gno.TypedValue{
+		// testing imports chain/runtime, so this type is always available.
+		T: m.Store.GetType("chain/runtime.Realm"),
+		V: m.Alloc.NewStructWithFields(
+			// addr address
+			gno.TypedValue{T: m.Store.GetType(".uverse.address"), V: gno.StringValue(addr)},
+			// pkgPath string
+			gno.TypedValue{T: gno.StringType, V: gno.StringValue(pkgPath)},
+		),
+	}
+}
+
+func X_isRealm(m *gno.Machine, pkgPath string) bool {
+	return gno.IsRealmPath(pkgPath)
+}

@@ -112,7 +112,7 @@ func Clear(cur realm) {
 	record = Foo{}
 }
 func PkgAddress(cur realm) string {
-	return string(chain.DerivePkgAddress("gno.land/r/foo"))
+	return string(chain.PackageAddress("gno.land/r/foo"))
 }
 
 func StorageDepositAddress(cur realm) string {
@@ -121,12 +121,12 @@ func StorageDepositAddress(cur realm) string {
 
 func RealmSend(cur realm, to address, amt int64) {
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
-	banker_.SendCoins(runtime.CurrentRealm().Address(), to, banker.Coins{{"ugnot", amt}})
+	banker_.SendCoins(runtime.CurrentRealm().Address(), to, chain.Coins{{"ugnot", amt}})
 }
 
 func OriginSend(cur realm, to address, amt int64) {
 	banker_ := banker.NewBanker(banker.BankerTypeOriginSend)
-	banker_.SendCoins(runtime.CurrentRealm().Address(), to, banker.Coins{{"ugnot", amt}})
+	banker_.SendCoins(runtime.CurrentRealm().Address(), to, chain.Coins{{"ugnot", amt}})
 }
 -- run/realm_send.gno --
 package main

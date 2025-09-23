@@ -3,7 +3,6 @@ package govdao
 
 import (
 	"chain"
-	"chain/runtime"
 	"testing"
 
 	"gno.land/r/gov/dao"
@@ -13,16 +12,16 @@ import (
 )
 
 var (
-	user1 address = chain.DerivePkgAddress("user1.gno")
-	user2 address = chain.DerivePkgAddress("user2.gno")
-	user3 address = chain.DerivePkgAddress("user3.gno")
+	user1 address = chain.PackageAddress("user1.gno")
+	user2 address = chain.PackageAddress("user2.gno")
+	user3 address = chain.PackageAddress("user3.gno")
 )
 
 func init() {
 	daoinit.InitWithUsers(user1, user2, user3)
 	registerTestUsers(user1, user2, user3)
 	govDAO := daoimpl.NewGovDAO() // A DAO object without an attached realm.
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO: govDAO,
 	})
@@ -34,7 +33,7 @@ const gUsersV1Path = "gno.land/r/gnoland/users/v1"
 // Necessary to test GovDAO Vote
 func registerTestUsers(addrs ...address) {
 	// Set realm to users admin to register test user
-	testing.SetRealm(runtime.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
 	for _, addr := range addrs {
 		err := susers.RegisterUser(cross, addr.String()[1:], addr)
 		if err != nil {
@@ -45,12 +44,12 @@ func registerTestUsers(addrs ...address) {
 
 func main() {
 	// run the test as end user instead of the testing realm
-	testing.SetRealm(runtime.NewUserRealm(user1))
+	testing.SetRealm(testing.NewUserRealm(user1))
 	pid := CreateProposal()
 	VoteProposal(pid)
 	// run the test as another user
 	func() {
-		testing.SetRealm(runtime.NewUserRealm(user2))
+		testing.SetRealm(testing.NewUserRealm(user2))
 		VoteProposal(pid)
 	}()
 	accepted := ExecuteProposal(pid)

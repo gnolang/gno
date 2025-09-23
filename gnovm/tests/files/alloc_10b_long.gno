@@ -1,10 +1,9 @@
-// MAXALLOC: 50000000
+// MAXALLOC: 20000000
 // SEND: 1000000ugnot
 
 package main
 
 import (
-	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -16,7 +15,7 @@ func main() {
 	aliceAddr := testutils.TestAddress("alice")
 
 	// TestSetRealm sets the realm caller, in this case Alice
-	testing.SetRealm(runtime.NewUserRealm(aliceAddr))
+	testing.SetRealm(testing.NewUserRealm(aliceAddr))
 
 	users.Register(cross, "alice_123")
 
@@ -29,5 +28,5 @@ func main() {
 	println("ok")
 }
 
-// Output:
-// ok
+// Error:
+// allocation limit exceeded

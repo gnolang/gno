@@ -31,7 +31,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: Setup debug env
-        if: ${{ inputs.debug }}
+        if: inputs.debug
         run: |
           export LOG_PATH_DIR=${{ runner.temp }}/logs
           mkdir -p $LOG_PATH_DIR

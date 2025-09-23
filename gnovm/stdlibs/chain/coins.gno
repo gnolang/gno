@@ -1,11 +1,9 @@
-package banker
+package chain
 
 import (
 	"math/overflow"
 	"strconv"
 )
-
-// NOTE: this is selectively copied over from tm2/pkgs/std/coin.go
 
 // Coin holds some amount of one currency.
 // A negative amount is invalid.
@@ -177,14 +175,10 @@ func (cz Coins) Add(b Coins) Coins {
 	return c
 }
 
-// expandNative expands for usage within natively bound functions.
-func (cz Coins) expandNative() (denoms []string, amounts []int64) {
-	denoms = make([]string, len(cz))
-	amounts = make([]int64, len(cz))
-	for i, coin := range cz {
-		denoms[i] = coin.Denom
-		amounts[i] = coin.Amount
-	}
-
-	return denoms, amounts
+func CoinDenom(pkgPath, coinName string) string {
+	// TODO: Possibly remove after https://github.com/gnolang/gno/issues/3164
+	// Similar to ibc spec
+	// ibc_denom := 'ibc/' + hash('path' + 'base_denom')
+	// gno_qualified_denom := '/' + 'pkg_path' + ':' + 'base_denom'
+	return "/" + pkgPath + ":" + coinName
 }

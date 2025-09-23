@@ -15,7 +15,7 @@ func main(cur realm) {
 	println("")
 
 	println("From g1user origin:")
-	testing.SetRealm(runtime.NewUserRealm("g1user"))
+	testing.SetRealm(testing.NewUserRealm("g1user"))
 	PrintRealm(cross)
 	println(pad("CurrentRealm:"), runtime.CurrentRealm())
 	func() {
@@ -28,7 +28,7 @@ func main(cur realm) {
 	println("")
 
 	println("From gno.land/r/sys/users realm:")
-	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/sys/users"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
 	PrintRealm(cross)
 	println(pad("CurrentRealm:"), runtime.CurrentRealm())
 	println(pad("PreviousRealm:"), runtime.PreviousRealm())

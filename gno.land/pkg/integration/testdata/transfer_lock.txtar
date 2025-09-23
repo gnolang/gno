@@ -48,13 +48,14 @@ gno = "0.9"
 package bank
 
 import (
+	"chain"
 	"chain/banker"
 	"chain/runtime"
 )
 
 func Withdraw(cur realm, denom string, amt int64) string {
 	caller := runtime.OriginCaller()
-	coin := banker.Coins{{denom, amt}}
+	coin := chain.Coins{{denom, amt}}
 	banker_ := banker.NewBanker(banker.BankerTypeOriginSend)
 	pkgaddr := runtime.PreviousRealm().Address()
 	banker_.SendCoins(pkgaddr, caller, coin)
