@@ -144,25 +144,39 @@ func (v Validator) Bytes() (bz []byte) {
 }
 
 // Header defines the structure of a block header.
+// TODO remove json tags everywhere
 type Header struct {
 	// basic block info
 	Version Consensus `json:"version"`
 	ChainID string    `json:"chain_id,omitempty"`
 	Height  uint64    `json:"height,omitempty"`
 	Time    time.Time `json:"time"`
+
 	// prev block info
 	LastBlockID BlockID `json:"last_block_id"`
+
 	// hashes of block data
+	// commit info from validators from the last block
 	LastCommitHash []byte `json:"last_commit_hash,omitempty"`
-	DataHash       []byte `json:"data_hash,omitempty"`
-	// hashes from the app output from the prev block
-	ValidatorsHash     []byte `json:"validators_hash,omitempty"`
+	// transactions
+	DataHash []byte `json:"data_hash,omitempty"`
+
+	// hashes from the app output form the preb block
+	// validators for the current block
+	ValidatorsHash []byte `json:"validators_hash,omitempty"`
+	// validators for the next block
 	NextValidatorsHash []byte `json:"next_validators_hash,omitempty"`
-	ConsensusHash      []byte `json:"consensus_hash,omitempty"`
-	AppHash            []byte `json:"app_hash,omitempty"`
-	LastResultsHash    []byte `json:"last_results_hash,omitempty"`
+	// consensus params for the current block
+	ConsensusHash []byte `json:"consensus_hash,omitempty"`
+	// state afterx txs from the previous block
+	AppHash []byte `json:"app_hash,omitempty"`
+	// root hash of all results from the txs from the previous block
+	LastResultsHash []byte `json:"last_results_hash,omitempty"`
+
 	// consensus info
-	EvidenceHash    []byte `json:"evidence_hash,omitempty"`
+	// evidence included in the block
+	EvidenceHash []byte `json:"evidence_hash,omitempty"`
+	//original proposer of the block
 	ProposerAddress []byte `json:"proposer_address,omitempty"`
 }
 

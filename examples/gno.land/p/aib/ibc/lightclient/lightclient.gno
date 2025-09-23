@@ -60,7 +60,7 @@ type Interface interface {
 	CheckForMisbehaviour(ClientMessage) bool
 
 	// UpdateStateOnMisbehaviour should perform appropriate state changes on a
-	// client state given that misbehaviour has been detected and verified
+	// client state given that misbehaviour has been detected and verified.
 	UpdateStateOnMisbehaviour(ClientMessage)
 
 	// UpdateState updates and stores as necessary any associated information for
@@ -122,7 +122,7 @@ type ClientState interface {
 
 // ConsensusState is the state of the consensus process
 type ConsensusState interface {
-	ClientType() string // Consensus kind
+	ClientType() string
 	Validate() error
 }
 
