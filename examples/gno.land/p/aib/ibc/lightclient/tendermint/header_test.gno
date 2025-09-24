@@ -221,6 +221,11 @@ func TestMsgHeaderValidate(t *testing.T) {
 			expectedError: "validator set is nil",
 		},
 		{
+			name:          "trusted validator set nil",
+			malleate:      func() { msg.TrustedValidators = nil },
+			expectedError: "trusted validator set is nil",
+		},
+		{
 			name: "validator set hash mismatch",
 			malleate: func() {
 				msg.ValidatorSet.Validators[0].PubKey = []byte{}
