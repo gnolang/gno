@@ -8,7 +8,7 @@ import (
 	"gno.land/r/aib/ibc/core"
 )
 
-// UpdateClient revision number mismatch
+// UpdateClient height older than trusted height
 func main() {
 	// CreateClient and RegisterCounterparty
 	var (
@@ -32,11 +32,12 @@ func main() {
 			newHeight, trustedHeight, valset, trustedValset,
 		)
 	)
-	// Alter chainID (same revision number)
-	msgHeader.Header.ChainID = "other-chain-id-2"
+	// Alter height
+	msgHeader.Header.Height = trustedHeight.RevisionHeight - 1
+	msgHeader.Commit.Height = msgHeader.Header.Height
 
 	core.UpdateClient(cross, clientID, msgHeader)
 }
 
 // Error:
-// header belongs to another chain "other-chain-id-2", not "chain-id-2"
+// trustedHeight 2/2 must be less than header height 2/1
