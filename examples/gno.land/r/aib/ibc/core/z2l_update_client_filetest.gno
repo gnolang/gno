@@ -8,7 +8,7 @@ import (
 	"gno.land/r/aib/ibc/core"
 )
 
-// UpdateClient revision number mismatch
+// UpdateClient validatorhash and nextValidatorHash mismatch
 func main() {
 	// CreateClient and RegisterCounterparty
 	var (
@@ -25,18 +25,19 @@ func main() {
 	var (
 		newHeight     = clientState.LatestHeight.RevisionHeight + 1
 		newTimestamp  = consensusState.Timestamp.Add(time.Minute)
-		trustedValset = valset
+		trustedValset = testing.GenValset()
 		trustedHeight = clientState.LatestHeight
 		msgHeader     = testing.GenMsgHeader(
 			chainID, newTimestamp, apphash[:],
 			newHeight, trustedHeight, valset, trustedValset,
 		)
 	)
-	// Alter chainID (same revision number)
-	msgHeader.Header.ChainID = "other-chain-id-2"
+	// Alter ValidateHash
+	msgHeader.ValidatorSet.Validators[0].VotingPower++
+	msgHeader.Header.ValidatorsHash = msgHeader.ValidatorSet.Hash()
 
 	core.UpdateClient(cross, clientID, msgHeader)
 }
 
 // Error:
-// header belongs to another chain "other-chain-id-2", not "chain-id-2"
+// expected old header next validators (4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c) to match those from new header (f8ba5dcf7674c3c1082b8309f0ef20c8d0d44a7c35481256065ae99ee6140c9e)

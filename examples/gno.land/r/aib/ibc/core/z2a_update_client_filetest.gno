@@ -8,7 +8,7 @@ import (
 	"gno.land/r/aib/ibc/core"
 )
 
-// UpdateClient success
+// UpdateClient success with adjacent height
 func main() {
 	// CreateClient and RegisterCounterparty
 	var (
@@ -23,7 +23,7 @@ func main() {
 
 	// Update clientID
 	var (
-		newHeight     = clientState.LatestHeight.RevisionHeight + 3
+		newHeight     = clientState.LatestHeight.RevisionHeight + 1
 		newTimestamp  = consensusState.Timestamp.Add(time.Minute)
 		trustedValset = valset
 		trustedHeight = clientState.LatestHeight
@@ -53,7 +53,7 @@ func main() {
 //   - ChainId: chain-id-2
 //   - TrustingPeriod: 1h0m0s
 //   - UnbondingPeriod: 3h0m0s
-//   - LatestHeight: 2/5
+//   - LatestHeight: 2/3
 // - Latest consensus state:
 //   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
 //   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
@@ -65,7 +65,7 @@ func main() {
 //   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
 //   - RootHash: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
 //   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
-// - ConsensusState height 2/5:
+// - ConsensusState height 2/3:
 //   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
 //   - RootHash: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
 //   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
@@ -103,7 +103,7 @@ func main() {
 //       },
 //       {
 //         "key": "consensus_heights",
-//         "value": "2/5"
+//         "value": "2/3"
 //       }
 //     ],
 //     "pkg_path": "gno.land/r/aib/ibc/core"
