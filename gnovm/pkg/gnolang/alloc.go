@@ -63,8 +63,8 @@ const (
 	allocBoundMethod = _allocBase + _allocPointer + _allocBoundMethodValue
 	allocBlock       = _allocBase + _allocPointer + _allocBlock
 	allocBlockItem   = _allocTypedValue
-	allocRefValue    = _allocBase + +_allocRefValue
-	allocRefNode     = _allocBase + +_allocRefNode
+	allocRefValue    = _allocBase + _allocRefValue
+	allocRefNode     = _allocBase + _allocRefNode
 	allocType        = _allocBase + _allocPointer + _allocType
 	allocDataByte    = 1
 	allocPackage     = _allocBase + _allocPointer + _allocPackageValue
@@ -391,7 +391,7 @@ func (b *Block) GetShallowSize() int64 {
 	// RefNode is not value, put it here
 	// for convinence
 	if _, ok := b.Source.(RefNode); ok {
-		ss += allocRefValue
+		ss += allocRefNode
 	}
 
 	ss = allocBlock + allocBlockItem*int64(len(b.Values))

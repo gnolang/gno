@@ -541,6 +541,10 @@ func AllocExpanded(alloc *Allocator, val Value) {
 		if _, ok := v.Parent.(RefValue); ok {
 			size += allocRefValue
 		}
+
+		if _, ok := v.Source.(RefNode); ok {
+			size += allocRefNode
+		}
 	case *ArrayValue:
 		if v.Data == nil {
 			for _, tv := range v.List {
@@ -593,6 +597,10 @@ func AllocExpanded(alloc *Allocator, val Value) {
 		if _, ok := v.Parent.(RefValue); ok {
 			size += allocRefValue
 		}
+
+		if _, ok := v.Source.(RefNode); ok {
+			size += allocRefNode
+		}
 	case StringValue:
 		// do nothing
 	case BigintValue:
@@ -602,7 +610,11 @@ func AllocExpanded(alloc *Allocator, val Value) {
 	case DataByteValue:
 		// do nothing
 	case TypeValue:
-		// do nothing
+	// do nothing
+	default:
+		panic(fmt.Sprintf(
+			"unexpected type %v",
+			reflect.TypeOf(val)))
 	}
 }
 
