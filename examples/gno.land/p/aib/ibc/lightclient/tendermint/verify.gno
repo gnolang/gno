@@ -39,6 +39,13 @@ func (tm *TMLightClient) verifyHeader(msg *MsgHeader) error {
 		trustedValset = msg.TrustedValidators
 	)
 
+	// UpdateClient only accepts updates with a header at the same revision
+	// as the trusted consensus state
+	if untrustedHeader.ChainID != trustedHeader.ChainID {
+		return ufmt.Errorf("header belongs to another chain %q, not %q",
+			untrustedHeader.ChainID, trustedHeader.ChainID)
+	}
+
 	if !untrustedHeader.Time.After(trustedHeader.Time) {
 		return ufmt.Errorf(
 			"expected new header time %v to be after old header time %v",
@@ -89,11 +96,11 @@ func checkTrustedHeader(trustedHeader *Header, trustedValset *ValidatorSet) erro
 // verifyAdjacent verifies directly adjacent untrustedHeader against
 // trustedHeader. It ensures that:
 //
-// a) trustedHeader can still be trusted
+// a) headers are adjacent.
+// b) trustedHeader is not expired
 // b) untrustedHeader is valid
 // c) untrustedHeader.ValidatorsHash equals trustedHeader.NextValidatorsHash
 // d) more than 2/3 of new validators (untrustedVals) have signed h2
-// e) headers are adjacent.
 //
 // maxClockDrift defines how much untrustedHeader.Time can drift into the
 // future.
