@@ -23,7 +23,7 @@ func main() {
 
 	// Update clientID
 	var (
-		newHeight     = clientState.LatestHeight.RevisionHeight + 3
+		newHeight     = clientState.LatestHeight.RevisionHeight + 1
 		newTimestamp  = consensusState.Timestamp.Add(time.Minute)
 		trustedValset = testing.GenValset()
 		trustedHeight = clientState.LatestHeight

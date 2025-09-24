@@ -101,9 +101,6 @@ func checkTrustedHeader(trustedHeader *Header, trustedValset *ValidatorSet) erro
 // b) untrustedHeader is valid
 // c) untrustedHeader.ValidatorsHash equals trustedHeader.NextValidatorsHash
 // d) more than 2/3 of new validators (untrustedVals) have signed h2
-//
-// maxClockDrift defines how much untrustedHeader.Time can drift into the
-// future.
 func (tm TMLightClient) verifyAdjacent(
 	trustedHeader *Header, //height=X
 	untrustedHeader *Header, //height=X+1
@@ -116,7 +113,16 @@ func (tm TMLightClient) verifyAdjacent(
 	if err := headerExpired(trustedHeader, tm.ClientState.TrustingPeriod); err != nil {
 		return err
 	}
+	// Check the validator hashes are the same
+	if !bytes.Equal(untrustedHeader.ValidatorsHash, trustedHeader.NextValidatorsHash) {
+		h1, h2 := hex.EncodeToString(trustedHeader.NextValidatorsHash), hex.EncodeToString(untrustedHeader.ValidatorsHash)
+		return ufmt.Errorf(
+			"expected old header next validators (%s) to match those from new header (%s)",
+			h1, h2,
+		)
+	}
 	// TODO remaining
+
 	return nil
 }
 
