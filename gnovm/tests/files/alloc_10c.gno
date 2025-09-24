@@ -4,7 +4,7 @@
 package main
 
 import (
-	"chain/runtime"
+	"std"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -16,7 +16,7 @@ func main() {
 	aliceAddr := testutils.TestAddress("alice")
 
 	// TestSetRealm sets the realm caller, in this case Alice
-	testing.SetRealm(runtime.NewUserRealm(aliceAddr))
+	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	users.Register(cross, "alice_123")
 
@@ -29,7 +29,7 @@ func main() {
 	println("ok")
 }
 
-// allocation limit while importing.
+// allocation limit exceeded during importing.
 
 // Error:
-// main/alloc_10c_long.gno:8:2-11: allocation limit exceeded
+// main/alloc_10c.gno:7:2-7: allocation limit exceeded
