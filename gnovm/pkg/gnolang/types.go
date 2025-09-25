@@ -1687,7 +1687,7 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 			}
 			// NOTE: makes code simple but requires preprocessor's
 			// Store to pre-load method types.
-			rt := fv.Type.(*FuncType).Params[0].Type
+			rt := fv.GetType(nil).Params[0].Type
 			var vp ValuePath
 			if _, ok := rt.(*PointerType); ok {
 				vp = NewValuePathPtrMethod(uint16(i), n)
