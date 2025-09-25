@@ -476,10 +476,8 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 			debug.Printf("loadObjectSafe by oid: %v, type of oo: %v\n", oid, reflect.TypeOf(oo))
 		}
 
-		debugGC.Println("======loadObjectSafe, alloc shallowsize, oid: ", oid)
-
 		ss := oo.GetShallowSize()
-		rs := GetRefSize(oo)
+		rs := getRefSize(oo)
 		ds.alloc.Allocate(ss + rs)
 
 		if debug {
@@ -513,103 +511,6 @@ func (ds *defaultStore) fillPackage(pv *PackageValue) {
 	pv.deriveFBlocksMap(ds)
 }
 
-func GetRefSize(val Value) int64 {
-	var size int64
-	switch v := val.(type) {
-	case *PackageValue:
-		if _, ok := v.Block.(RefValue); ok {
-			size += allocRefValue // .Block ref
-		}
-
-		// include RefValue size
-		for _, fb := range v.FBlocks {
-			if _, ok := fb.(RefValue); !ok {
-				continue
-			}
-			size += allocRefValue
-		}
-	case *Block:
-		for _, v := range v.Values {
-			if _, ok := v.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-
-		if _, ok := v.Parent.(RefValue); ok {
-			size += allocRefValue
-		}
-
-	case *ArrayValue:
-		if v.Data == nil {
-			for _, tv := range v.List {
-				if _, ok := tv.V.(RefValue); ok {
-					size += allocRefValue
-				}
-			}
-		}
-	case *StructValue:
-		for _, tv := range v.Fields {
-			if _, ok := tv.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-	case *MapValue:
-		for cur := v.List.Head; cur != nil; cur = cur.Next {
-			if _, ok := cur.Key.V.(RefValue); ok {
-				size += allocRefValue
-			}
-
-			if _, ok := cur.Value.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-	case *BoundMethodValue:
-		if _, ok := v.Receiver.V.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *HeapItemValue:
-		if _, ok := v.Value.V.(RefValue); ok {
-			size += allocRefValue
-		}
-	case RefValue:
-		// do nothing
-	case *PointerValue:
-		if _, ok := v.Base.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *SliceValue:
-		if _, ok := v.Base.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *FuncValue:
-		for _, tv := range v.Captures {
-			if _, ok := tv.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-
-		if _, ok := v.Parent.(RefValue); ok {
-			size += allocRefValue
-		}
-
-	case StringValue:
-		// do nothing
-	case BigintValue:
-		// do nothing
-	case BigdecValue:
-		// do nothing
-	case DataByteValue:
-		// do nothing
-	case TypeValue:
-	// do nothing
-	default:
-		panic(fmt.Sprintf(
-			"unexpected type %v",
-			reflect.TypeOf(val)))
-	}
-	return size
-}
-
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
 // package values.
 func (ds *defaultStore) SetObject(oo Object) int64 {
@@ -625,9 +526,6 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 		}()
 	}
 	oid := oo.GetObjectID()
-	if oid.String() == "cf80cd8aed482d5d1527d7dc72fceff84e632659:53" {
-		debugGC.Println("======match, oo: ", oo)
-	}
 	// replace children/fields with Ref.
 	o2 := copyValueWithRefs(oo)
 	// marshal to binary.

@@ -5,5 +5,3 @@ package gnolang
 const debug debugging = false
 
 const debugRealm debuggingRealm = false
-
-const debugGC debuggingGC = false

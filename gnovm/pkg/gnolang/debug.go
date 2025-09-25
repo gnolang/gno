@@ -23,7 +23,6 @@ import (
 type (
 	debugging      bool
 	debuggingRealm bool
-	debuggingGC    bool
 )
 
 // using a const is probably faster.
@@ -86,28 +85,6 @@ func (debuggingRealm) Println(args ...interface{}) {
 
 func (debuggingRealm) Printf(format string, args ...interface{}) {
 	if debugRealm {
-		if enabled {
-			_, file, line, _ := runtime.Caller(2)
-			caller := fmt.Sprintf("%.12s:%-4d", path.Base(file), line)
-			prefix := fmt.Sprintf("DEBUG_REALM: %17s: ", caller)
-			fmt.Printf(prefix+format, args...)
-		}
-	}
-}
-
-func (debuggingGC) Println(args ...interface{}) {
-	if debugGC {
-		if enabled {
-			_, file, line, _ := runtime.Caller(2)
-			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
-			prefix := fmt.Sprintf("DEBUG_REALM: %17s: ", caller)
-			fmt.Println(append([]interface{}{prefix}, args...)...)
-		}
-	}
-}
-
-func (debuggingGC) Printf(format string, args ...interface{}) {
-	if debugGC {
 		if enabled {
 			_, file, line, _ := runtime.Caller(2)
 			caller := fmt.Sprintf("%.12s:%-4d", path.Base(file), line)
