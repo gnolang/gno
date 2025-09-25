@@ -23,8 +23,8 @@ func TestLoadNativePackage(t *testing.T) {
 	// We call each to benchmark a group of OpCodes.
 	funcValues := []string{
 		"Print_1",
-		"Print_10",
 		"Print_1000",
+		"Print_10000",
 	}
 
 	for i := 0; i < len(funcValues); i++ {
