@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -15,7 +14,7 @@ import (
 )
 
 const (
-	NativeCPUUversePrintInit    = 3084
+	NativeCPUUversePrintInit    = 1800
 	NativeCPUUversePrintPerChar = 1
 )
 
@@ -860,7 +859,7 @@ func makeUverseNode() {
 				arg0 := m.LastBlock().GetParams1(m.Store)
 				bm.StartNative(bm.GetNativePrintCode(uverseLen(m, arg0, false)))
 				prevOutput := m.Output
-				m.Output = os.Stdout
+				m.Output = io.Discard
 				defer func() {
 					bm.StopNative()
 					m.Output = prevOutput
@@ -881,7 +880,7 @@ func makeUverseNode() {
 				arg0 := m.LastBlock().GetParams1(m.Store)
 				bm.StartNative(bm.GetNativePrintCode(uverseLen(m, arg0, true)))
 				prevOutput := m.Output
-				m.Output = os.Stdout
+				m.Output = io.Discard
 				defer func() {
 					bm.StopNative()
 					m.Output = prevOutput

@@ -34,10 +34,10 @@ const (
 
 // native code
 const (
-	NativePrint      byte = 0x01 // print to console
-	NativePrint_1    byte = 0x02 // print to console
-	NativePrint_10   byte = 0x03
-	NativePrint_1000 byte = 0x04 // print 1000 times to console
+	NativePrint       byte = 0x01 // print to console
+	NativePrint_1     byte = 0x02 // print to console
+	NativePrint_1000  byte = 0x03
+	NativePrint_10000 byte = 0x04 // print 1000 times to console
 
 	invalidNativeCode string = "NativeInvalid"
 )
@@ -46,10 +46,10 @@ func GetNativePrintCode(size int) byte {
 	switch size {
 	case 1:
 		return NativePrint_1
-	case 10:
-		return NativePrint_10
 	case 1000:
 		return NativePrint_1000
+	case 10000:
+		return NativePrint_10000
 	default:
 		panic(fmt.Sprintf("invalid print size: %d", size))
 	}
@@ -83,8 +83,8 @@ var nativeCodeNames = []string{
 	invalidNativeCode,
 	"NativePrint",
 	"NativePrint_1",
-	"NativePrint_10",
 	"NativePrint_1000",
+	"NativePrint_10000",
 }
 
 type Code [2]byte

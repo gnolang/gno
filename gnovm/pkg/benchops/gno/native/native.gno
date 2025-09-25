@@ -8,17 +8,17 @@ func Print_1() {
 	print(b)
 }
 
-func Print_10() {
+func Print_1000() {
 	b := ""
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 1000; i++ {
 		b += "a"
 	}
 	print(b)
 }
 
-func Print_1000() {
+func Print_10000() {
 	b := ""
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 10000; i++ {
 		b += "a"
 	}
 	print(b)
