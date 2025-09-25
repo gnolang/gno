@@ -479,7 +479,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		ds.alloc.Allocate(oo.GetShallowSize())
 		// Alloc values other than shallow value,
 		// RefValue, e.g. keep sync with copyValueWithRefs().
-		AllocExpanded(ds.alloc, oo)
+		AllocRefs(ds.alloc, oo)
 
 		if debug {
 			if oo.GetObjectID() != oid {
@@ -512,7 +512,7 @@ func (ds *defaultStore) fillPackage(pv *PackageValue) {
 	pv.deriveFBlocksMap(ds)
 }
 
-func AllocExpanded(alloc *Allocator, val Value) {
+func AllocRefs(alloc *Allocator, val Value) {
 	var size int64
 	defer func() {
 		alloc.Allocate(size)
