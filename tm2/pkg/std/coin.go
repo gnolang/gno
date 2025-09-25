@@ -485,6 +485,15 @@ func (coins Coins) IsAnyGTE(coinsB Coins) bool {
 	return false
 }
 
+func (coins Coins) IsGTE(coinsB Coins) bool {
+	for _, coin := range coins {
+		if coinsB.AmountOf(coin.Denom) < coin.Amount {
+			return false
+		}
+	}
+	return true
+}
+
 // IsZero returns true if there are no coins or all coins are zero.
 func (coins Coins) IsZero() bool {
 	for _, coin := range coins {
