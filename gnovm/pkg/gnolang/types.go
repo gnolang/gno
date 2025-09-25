@@ -1690,7 +1690,7 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 			}
 			// NOTE: makes code simple but requires preprocessor's
 			// Store to pre-load method types.
-			bt := fv.Type.(*FuncType).BoundType()
+			bt := fv.GetType(nil).BoundType()
 			return []ValuePath{vp}, false, rt, bt, false
 		}
 	}
