@@ -151,6 +151,68 @@ func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
 	return params
 }
 
+// WillSetParam defines what needs to be done when the parameter is set.
 func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
-	// XXX validate input?
+	logger := ak.Logger(ctx)
+	switch key {
+	case "p:unrestricted_addrs":
+		addrs, ok := value.([]string)
+		if !ok {
+			return
+		}
+		ak.applyUnrestrictedAddrsChange(ctx, addrs)
+	default:
+		// No-op for unrecognized keys
+		logger.Error("No-op for unrecognized keys", "key", key)
+	}
+}
+
+func (ak AccountKeeper) applyUnrestrictedAddrsChange(ctx sdk.Context, newAddrs []string) {
+	params, ok := ctx.Value(AuthParamsContextKey{}).(Params)
+	if !ok {
+		panic("missing or invalid AuthParams in context")
+	}
+	// Build sets once.
+	oldSet := make(map[string]struct{}, len(params.UnrestrictedAddrs))
+	for _, addr := range params.UnrestrictedAddrs {
+		oldSet[addr.String()] = struct{}{}
+	}
+	newSet := make(map[string]struct{}, len(newAddrs))
+	for _, s := range newAddrs {
+		newSet[s] = struct{}{}
+	}
+	// addition
+	for s := range newSet {
+		if _, ok := oldSet[s]; ok {
+			continue // in both, no change
+		}
+		addr, err := crypto.AddressFromString(s)
+		if err != nil {
+			panic(fmt.Sprintf("invalid address: %v", err))
+		}
+		acc := ak.GetAccount(ctx, addr)
+		uacc, ok := acc.(std.AccountUnrestricter)
+		if !ok {
+			continue
+		}
+		uacc.SetTokenLockWhitelisted(true)
+		ak.SetAccount(ctx, acc)
+	}
+	// removal
+	for s := range oldSet {
+		if _, ok := newSet[s]; ok {
+			continue // in both, no change
+		}
+		addr, err := crypto.AddressFromString(s)
+		if err != nil {
+			panic(fmt.Sprintf("invalid address: %v", err))
+		}
+		acc := ak.GetAccount(ctx, addr)
+		uacc, ok := acc.(std.AccountUnrestricter)
+		if !ok {
+			continue
+		}
+		uacc.SetTokenLockWhitelisted(false)
+		ak.SetAccount(ctx, acc)
+	}
 }

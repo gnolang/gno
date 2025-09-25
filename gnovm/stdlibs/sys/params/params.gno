@@ -31,9 +31,17 @@ func SetSysParamStrings(module, submodule, name string, val []string) {
 	setSysParamStrings(module, submodule, name, val)
 }
 
+func UpdateSysParamStrings(module, submodule, name string, val []string, add bool) {
+	if val == nil {
+		val = []string{}
+	}
+	updateSysParamStrings(module, submodule, name, val, add)
+}
+
 func setSysParamString(module, submodule, name string, val string)
 func setSysParamBool(module, submodule, name string, val bool)
 func setSysParamInt64(module, submodule, name string, val int64)
 func setSysParamUint64(module, submodule, name string, val uint64)
 func setSysParamBytes(module, submodule, name string, val []byte)
 func setSysParamStrings(module, submodule, name string, val []string)
+func updateSysParamStrings(module, submodule, name string, val []string, add bool)
