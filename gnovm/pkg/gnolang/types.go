@@ -847,8 +847,14 @@ func (st *StructType) FindEmbeddedFieldType(callerPath string, n Name, m map[Typ
 				// XXX make test case and check against go
 				return nil, false, nil, nil, true
 			} else if trail2 != nil {
-				vp := NewValuePathField(0, uint16(i), sf.Name)
-				trail, hasPtr, rcvr, field = append([]ValuePath{vp}, trail2...), hasPtr2, rcvr2, field2
+				if trail != nil {
+					// conflict detected. return none.
+					return nil, false, nil, nil, false
+				} else {
+					// remember.
+					vp := NewValuePathField(0, uint16(i), sf.Name)
+					trail, hasPtr, rcvr, field = append([]ValuePath{vp}, trail2...), hasPtr2, rcvr2, field2
+				}
 			}
 		}
 	}
