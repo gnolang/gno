@@ -5,9 +5,10 @@
 | Network | RPC Endpoint                            | Chain ID  |
 |---------|-----------------------------------------|-----------|
 | Staging | https://rpc.gno.land:443                | `staging` |
-| Test7   | https://rpc.test7.testnets.gno.land:443 | `test7.2` |
+| Test8   | https://rpc.test8.testnets.gno.land:443 | `test8`   |
 
 ### WebSocket endpoints
+
 All networks follow the same pattern for websocket connections:
 
 ```shell
@@ -15,8 +16,6 @@ wss://<rpc-endpoint:port>/websocket
 ```
 
 ## Staging Environments
-
-XXX: tell that staging is currently using a custom code but will switch to a gnodev powered alternative, usable by anyone to run a staging
 
 Staging is an always-up-to-date staging testnet that allows for using
 the latest version of Gno, gno.land, and TM2. By utilizing the power of Docker
@@ -71,8 +70,6 @@ After genesis has been replayed, the chain continues working as normal.
 
 The Staging network deployment can be found at [gno.land](https://gno.land), while
 the exposed RPC endpoints can be found on `https://rpc.gno.land:443`.
-
-XXX: list or link to the list of available RPC endpoints.
 
 #### A warning note
 
@@ -134,16 +131,15 @@ is the `gnoweb` render of the Staging testnet.
     [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop) folder in the
     monorepo
 
+### Test8
 
-### Test7
-
-Test7 is the latest testnet released on the 25th of July, 2025.
+The latest Gno.land testnet, released on the 5th of September, 2025.
 
 - **Persistence of state:**
   - State is fully persisted unless there are breaking changes in a new release,
     where persistence partly depends on implementing a migration strategy
 - **Timeliness of code:**
-  - Pre-deployed packages and realms are at release tag [chain/test7.2](https://github.com/gnolang/gno/releases/tag/chain%2Ftest7.2)
+  - Pre-deployed packages and realms are at release tag [chain/test8.0](https://github.com/gnolang/gno/releases/tag/chain%2Ftest8.0)
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
@@ -151,6 +147,10 @@ Test7 is the latest testnet released on the 25th of July, 2025.
 ### TestX
 
 These testnets are deprecated and currently serve as archives of previous progress.
+
+### Test7 (archive)
+
+Test7 is the testnet released on the 25th of July, 2025.
 
 ### Test6 (archive)
 

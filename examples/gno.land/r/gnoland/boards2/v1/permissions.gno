@@ -56,7 +56,6 @@ type (
 	UsersIterFn func(User) bool
 
 	// Permissions define an interface to for permissioned execution.
-	// TODO: Add crossing support to Permissions
 	Permissions interface {
 		// HasRole checks if a user has a specific role assigned.
 		HasRole(std.Address, Role) bool
@@ -66,14 +65,14 @@ type (
 
 		// WithPermission calls a callback when a user has a specific permission.
 		// It panics on error.
-		WithPermission(std.Address, Permission, Args, func(Args))
+		WithPermission(realm, std.Address, Permission, Args, func(realm, Args))
 
 		// SetUserRoles adds a new user when it doesn't exist and sets its roles.
 		// Method can also be called to change the roles of an existing user.
-		SetUserRoles(std.Address, ...Role) error
+		SetUserRoles(realm, std.Address, ...Role) error
 
 		// RemoveUser removes a user from the permissioner.
-		RemoveUser(std.Address) (removed bool)
+		RemoveUser(realm, std.Address) (removed bool)
 
 		// HasUser checks if a user exists.
 		HasUser(std.Address) bool

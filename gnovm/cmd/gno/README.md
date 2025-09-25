@@ -29,6 +29,9 @@ SUBCOMMANDS
   tool     run specified gno tool
   version  display installed gno version
 
+FLAGS
+  -C ...  change to directory before running command
+
 ```
 
 ## Install

@@ -102,7 +102,7 @@ func (bp BasicPermissions) HasPermission(user std.Address, perm Permission) bool
 // SetUserRoles adds a new user when it doesn't exist and sets its roles.
 // Method can also be called to change the roles of an existing user.
 // All user's roles can be removed by calling this method without roles.
-func (bp *BasicPermissions) SetUserRoles(user std.Address, roles ...Role) error {
+func (bp *BasicPermissions) SetUserRoles(_ realm, user std.Address, roles ...Role) error {
 	if !bp.HasUser(user) {
 		bp.dao.Members().Add(user)
 	}
@@ -118,7 +118,7 @@ func (bp *BasicPermissions) SetUserRoles(user std.Address, roles ...Role) error 
 }
 
 // RemoveUser removes a user from permissions.
-func (bp *BasicPermissions) RemoveUser(user std.Address) bool {
+func (bp *BasicPermissions) RemoveUser(_ realm, user std.Address) bool {
 	_, removed := bp.users.Remove(user.String())
 	bp.dao.Members().Remove(user)
 	return removed
@@ -150,7 +150,7 @@ func (bp BasicPermissions) IterateUsers(start, count int, fn UsersIterFn) (stopp
 // WithPermission calls a callback when a user has a specific permission.
 // It panics on error or when a handler panics.
 // Callbacks are by default called when there is no handle registered for the permission.
-func (bp *BasicPermissions) WithPermission(user std.Address, p Permission, args Args, cb func(Args)) {
+func (bp *BasicPermissions) WithPermission(_ realm, user std.Address, p Permission, args Args, cb func(realm, Args)) {
 	if !bp.HasPermission(user, p) || !bp.dao.Members().Has(user) {
 		panic("unauthorized")
 	}
@@ -163,7 +163,7 @@ func (bp *BasicPermissions) WithPermission(user std.Address, p Permission, args 
 		}
 	}
 
-	cb(args)
+	cb(cross, args)
 }
 
 func createBasicPermissions(owners ...std.Address) *BasicPermissions {
@@ -171,7 +171,7 @@ func createBasicPermissions(owners ...std.Address) *BasicPermissions {
 	perms.SetSuperRole(RoleOwner)
 	perms.AddRole(RoleAdmin, PermissionBoardCreate)
 	for _, owner := range owners {
-		perms.SetUserRoles(owner, RoleOwner)
+		perms.SetUserRoles(cross, owner, RoleOwner)
 	}
 	return perms
 }
@@ -183,11 +183,11 @@ func checkBoardNameIsNotAddress(s string) error {
 	return nil
 }
 
-func checkBoardNameBelongsToCaller(name string) error {
+func checkBoardNameBelongsToAddress(owner std.Address, name string) error {
 	// When the board name is the name of a registered user
 	// check that caller is the owner of the name.
 	user, _ := users.ResolveName(name)
-	if user != nil && user.Addr() != std.PreviousRealm().Address() {
+	if user != nil && user.Addr() != owner {
 		return errors.New("board name is a user name registered to a different user")
 	}
 	return nil

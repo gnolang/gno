@@ -15,19 +15,13 @@ jobs:
   fmt:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
       - name: Install Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go-version }}
 
-      - name: Checkout code
-        uses: actions/checkout@v5
-
       - name: Format code with gno fmt
-        env:
-          GNOFMT_PATH: ${{ inputs.path }}
-        run: go run ./gnovm/cmd/gno fmt -v -diff $GNOFMT_PATH
-
-      - name: Check for unformatted code
-        run: |
-          git diff --exit-code || (echo "Some gno files are not formatted, please run 'make fmt'." && exit 1)
+        run: go run ./gnovm/cmd/gno -C ${{ inputs.path }} fmt -diff ./...

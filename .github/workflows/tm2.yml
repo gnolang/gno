@@ -15,7 +15,7 @@ on:
 jobs:
   main:
     name: Run TM2 suite
-    uses: ./.github/workflows/main_template.yml
+    uses: ./.github/workflows/template_main.yml
     with:
       modulepath: "tm2"
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/tm2/..."

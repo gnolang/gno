@@ -8,7 +8,6 @@ import (
 	"gno.land/p/nt/testutils"
 	"gno.land/p/nt/uassert"
 	"gno.land/p/nt/urequire"
-
 	"gno.land/r/sys/users"
 )
 

@@ -43,6 +43,7 @@
           "resources/realms",
           "resources/gno-interrealm",
           "resources/gno-memory-model",
+          "resources/comparison-of-ways-to-interact-with-gnoland",
           "resources/glossary",
           "resources/go-gno-compatibility",
           "resources/gnoconnect",

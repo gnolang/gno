@@ -263,7 +263,7 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 	}()
 	// In a vast majority of cases, we can use the permCache if it is set.
 	canPerm := gimp.permCache != nil &&
-		((!gimp.testing && pkgPath != gimp.pkgPath) || IsStdlib(pkgPath))
+		((!gimp.testing && pkgPath != gimp.pkgPath) || (IsStdlib(pkgPath) && !IsStdlib(gimp.pkgPath)))
 	if canPerm {
 		pkg := gimp.permCache[ck]
 		if pkg != nil {
