@@ -122,7 +122,7 @@ func (alloc *Allocator) Allocate(size int64) {
 		// this can happen for map items just prior to assignment.
 		return
 	}
-	if alloc.bytes+size > alloc.maxBytes {
+	if overflow.Addp(alloc.bytes, size) > alloc.maxBytes {
 		if left, ok := alloc.collect(); !ok {
 			panic("should not happen, allocation limit exceeded while gc.")
 		} else {
@@ -194,7 +194,7 @@ func (alloc *Allocator) AllocateBlock(items int64) {
 }
 
 func (alloc *Allocator) AllocateBlockItems(items int64) {
-	alloc.Allocate(allocBlockItem * items)
+	alloc.Allocate(overflow.Mulp(allocBlockItem, items))
 }
 
 /* NOTE: Not used, account for with AllocatePointer.
