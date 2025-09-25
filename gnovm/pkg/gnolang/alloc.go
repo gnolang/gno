@@ -2,6 +2,8 @@ package gnolang
 
 import (
 	"fmt"
+
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
 // Keeps track of in-memory allocations.
@@ -139,7 +141,7 @@ func (alloc *Allocator) Allocate(size int64) {
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
-	alloc.Allocate(allocString + allocStringByte*size)
+	alloc.Allocate(overflow.Addp(allocString, overflow.Mulp(size, allocStringByte)))
 }
 
 func (alloc *Allocator) AllocatePointer() {
@@ -151,7 +153,7 @@ func (alloc *Allocator) AllocateDataArray(size int64) {
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
-	alloc.Allocate(allocArray + allocArrayItem*items)
+	alloc.Allocate(overflow.Addp(allocArray, overflow.Mulp(allocArrayItem, items)))
 }
 
 func (alloc *Allocator) AllocateSlice() {
@@ -164,7 +166,7 @@ func (alloc *Allocator) AllocateStruct() {
 }
 
 func (alloc *Allocator) AllocateStructFields(fields int64) {
-	alloc.Allocate(allocStructField * fields)
+	alloc.Allocate(overflow.Mulp(allocStructField, fields))
 }
 
 func (alloc *Allocator) AllocateFunc() {
@@ -172,7 +174,7 @@ func (alloc *Allocator) AllocateFunc() {
 }
 
 func (alloc *Allocator) AllocateMap(items int64) {
-	alloc.Allocate(allocMap + allocMapItem*items)
+	alloc.Allocate(overflow.Addp(allocMap, overflow.Mulp(allocMapItem, items)))
 }
 
 func (alloc *Allocator) AllocateMapItem() {
@@ -188,7 +190,7 @@ func (alloc *Allocator) AllocatePackageValue() {
 }
 
 func (alloc *Allocator) AllocateBlock(items int64) {
-	alloc.Allocate(allocBlock + allocBlockItem*items)
+	alloc.Allocate(overflow.Addp(allocBlock, overflow.Mulp(allocBlockItem, items)))
 }
 
 func (alloc *Allocator) AllocateBlockItems(items int64) {
