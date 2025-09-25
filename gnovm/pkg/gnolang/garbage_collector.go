@@ -35,6 +35,7 @@ type Visitor func(v Value) (stop bool)
 // XXX: make sure tv.T isn't bumped from allocation either.
 // XXX: record original value and verify after GC
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
+	debugGC.Println("============GarbageCollect......")
 	// times objects are visited for gc
 	var visitCount int64
 
@@ -134,6 +135,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 		if debug {
 			debug.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
 		}
+		debugGC.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
 
 		if oo, isObject := v.(Object); isObject {
 			// Return if already measured.

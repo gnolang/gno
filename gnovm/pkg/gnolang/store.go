@@ -476,10 +476,11 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 			debug.Printf("loadObjectSafe by oid: %v, type of oo: %v\n", oid, reflect.TypeOf(oo))
 		}
 
-		ds.alloc.Allocate(oo.GetShallowSize())
-		// Alloc values other than shallow value,
-		// RefValue, e.g. keep sync with copyValueWithRefs().
-		AllocRefs(ds.alloc, oo)
+		debugGC.Println("======loadObjectSafe, alloc shallowsize, oid: ", oid)
+
+		ss := oo.GetShallowSize()
+		rs := GetRefSize(oo)
+		ds.alloc.Allocate(ss + rs)
 
 		if debug {
 			if oo.GetObjectID() != oid {
@@ -512,12 +513,8 @@ func (ds *defaultStore) fillPackage(pv *PackageValue) {
 	pv.deriveFBlocksMap(ds)
 }
 
-func AllocRefs(alloc *Allocator, val Value) {
+func GetRefSize(val Value) int64 {
 	var size int64
-	defer func() {
-		alloc.Allocate(size)
-	}()
-
 	switch v := val.(type) {
 	case *PackageValue:
 		if _, ok := v.Block.(RefValue); ok {
@@ -542,9 +539,6 @@ func AllocRefs(alloc *Allocator, val Value) {
 			size += allocRefValue
 		}
 
-		if _, ok := v.Source.(RefNode); ok {
-			size += allocRefNode
-		}
 	case *ArrayValue:
 		if v.Data == nil {
 			for _, tv := range v.List {
@@ -598,9 +592,6 @@ func AllocRefs(alloc *Allocator, val Value) {
 			size += allocRefValue
 		}
 
-		if _, ok := v.Source.(RefNode); ok {
-			size += allocRefNode
-		}
 	case StringValue:
 		// do nothing
 	case BigintValue:
@@ -616,6 +607,7 @@ func AllocRefs(alloc *Allocator, val Value) {
 			"unexpected type %v",
 			reflect.TypeOf(val)))
 	}
+	return size
 }
 
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
@@ -633,6 +625,9 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 		}()
 	}
 	oid := oo.GetObjectID()
+	if oid.String() == "cf80cd8aed482d5d1527d7dc72fceff84e632659:53" {
+		debugGC.Println("======match, oo: ", oo)
+	}
 	// replace children/fields with Ref.
 	o2 := copyValueWithRefs(oo)
 	// marshal to binary.

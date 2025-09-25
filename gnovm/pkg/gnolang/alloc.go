@@ -120,10 +120,13 @@ func (alloc *Allocator) Allocate(size int64) {
 		// this can happen for map items just prior to assignment.
 		return
 	}
+	debugGC.Printf("======Trying to allocate, size: %d, current bytes: %d\n", size, alloc.bytes)
 	if alloc.bytes+size > alloc.maxBytes {
 		if left, ok := alloc.collect(); !ok {
+			debugGC.Printf("============GC finished, current bytes: %d, ok: %t, wanted: %d\n", alloc.maxBytes-left, ok, size)
 			panic("should not happen, allocation limit exceeded while gc.")
 		} else {
+			debugGC.Printf("============GC finished, current bytes: %d, ok: %t, wanted: %d\n", alloc.maxBytes-left, ok, size)
 			if debug {
 				debug.Printf("GC finished, %d left after GC, required size: %d\n", left, size)
 			}
