@@ -65,12 +65,13 @@ func makeSplitFuncs() {
 		"std.BankerTypeRealmSend":  newSplitFunc("chain/banker.BankerTypeRealmSend"),
 		"std.BankerTypeRealmIssue": newSplitFunc("chain/banker.BankerTypeRealmIssue"),
 
-		"std.SetParamBool":    newSplitFunc("chain/params.SetBool"),
-		"std.SetParamBytes":   newSplitFunc("chain/params.SetBytes"),
-		"std.SetParamInt64":   newSplitFunc("chain/params.SetInt64"),
-		"std.SetParamString":  newSplitFunc("chain/params.SetString"),
-		"std.SetParamStrings": newSplitFunc("chain/params.SetStrings"),
-		"std.SetParamUint64":  newSplitFunc("chain/params.SetUint64"),
+		"std.SetParamBool":       newSplitFunc("chain/params.SetBool"),
+		"std.SetParamBytes":      newSplitFunc("chain/params.SetBytes"),
+		"std.SetParamInt64":      newSplitFunc("chain/params.SetInt64"),
+		"std.SetParamString":     newSplitFunc("chain/params.SetString"),
+		"std.SetParamStrings":    newSplitFunc("chain/params.SetStrings"),
+		"std.UpdateParamStrings": newSplitFunc("chain/params.UpdateStrings"),
+		"std.SetParamUint64":     newSplitFunc("chain/params.SetUint64"),
 	}
 
 	// From a previous batch of std changes: https://github.com/gnolang/gno/pull/3374
