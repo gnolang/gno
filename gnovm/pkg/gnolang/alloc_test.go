@@ -30,11 +30,11 @@ func TestAllocSizes(t *testing.T) {
 
 func TestAllocateOverflow(t *testing.T) {
 	defer func() {
-		panic := recover()
-		if panic == nil {
+		panicMsg := recover()
+		if panicMsg == nil {
 			t.Errorf("Expected panic, got none")
 		}
-		require.Equal(t, "addition overflow", panic)
+		require.Equal(t, "addition overflow", panicMsg)
 	}()
 	alloc := NewAllocator(math.MaxInt64)
 	alloc.bytes = math.MaxInt64 - 1
@@ -43,11 +43,11 @@ func TestAllocateOverflow(t *testing.T) {
 
 func TestAllocateStringOverflow(t *testing.T) {
 	defer func() {
-		panic := recover()
-		if panic == nil {
+		panicMsg := recover()
+		if panicMsg == nil {
 			t.Errorf("Expected panic, got none")
 		}
-		require.Equal(t, "addition overflow", panic)
+		require.Equal(t, "addition overflow", panicMsg)
 	}()
 	alloc := NewAllocator(math.MaxInt64)
 	alloc.AllocateString(math.MaxInt64) // Will cause overflow
@@ -55,11 +55,11 @@ func TestAllocateStringOverflow(t *testing.T) {
 
 func TestAllocateBlockItemsOverflow(t *testing.T) {
 	defer func() {
-		panic := recover()
-		if panic == nil {
+		panicMsg := recover()
+		if panicMsg == nil {
 			t.Errorf("Expected panic, got none")
 		}
-		require.Equal(t, "multiplication overflow", panic)
+		require.Equal(t, "multiplication overflow", panicMsg)
 	}()
 	alloc := NewAllocator(math.MaxInt64)
 	alloc.AllocateBlockItems(math.MaxInt64 / 20) // Will cause overflow
@@ -67,11 +67,11 @@ func TestAllocateBlockItemsOverflow(t *testing.T) {
 
 func TestAllocateBlockOverflow(t *testing.T) {
 	defer func() {
-		panic := recover()
-		if panic == nil {
+		panicMsg := recover()
+		if panicMsg == nil {
 			t.Errorf("Expected panic, got none")
 		}
-		require.Equal(t, "multiplication overflow", panic)
+		require.Equal(t, "multiplication overflow", panicMsg)
 	}()
 	alloc := NewAllocator(math.MaxInt64)
 	alloc.AllocateBlock(math.MaxInt64 / 20) // Will cause overflow
@@ -79,11 +79,11 @@ func TestAllocateBlockOverflow(t *testing.T) {
 
 func TestAllocateMapOverflow(t *testing.T) {
 	defer func() {
-		panic := recover()
-		if panic == nil {
+		panicMsg := recover()
+		if panicMsg == nil {
 			t.Errorf("Expected panic, got none")
 		}
-		require.Equal(t, "multiplication overflow", panic)
+		require.Equal(t, "multiplication overflow", panicMsg)
 	}()
 	alloc := NewAllocator(math.MaxInt64)
 	alloc.AllocateMap(math.MaxInt64 / 20) // Will cause overflow
@@ -91,11 +91,11 @@ func TestAllocateMapOverflow(t *testing.T) {
 
 func TestAllocateListArrayOverflow(t *testing.T) {
 	defer func() {
-		panic := recover()
-		if panic == nil {
+		panicMsg := recover()
+		if panicMsg == nil {
 			t.Errorf("Expected panic, got none")
 		}
-		require.Equal(t, "multiplication overflow", panic)
+		require.Equal(t, "multiplication overflow", panicMsg)
 	}()
 	alloc := NewAllocator(math.MaxInt64)
 	alloc.AllocateListArray(math.MaxInt64 / 20) // Will cause overflow
@@ -103,11 +103,11 @@ func TestAllocateListArrayOverflow(t *testing.T) {
 
 func TestAllocateStructFieldsOverflow(t *testing.T) {
 	defer func() {
-		panic := recover()
-		if panic == nil {
+		panicMsg := recover()
+		if panicMsg == nil {
 			t.Errorf("Expected panic, got none")
 		}
-		require.Equal(t, "multiplication overflow", panic)
+		require.Equal(t, "multiplication overflow", panicMsg)
 	}()
 	alloc := NewAllocator(math.MaxInt64)
 	alloc.AllocateStructFields(math.MaxInt64 / 20) // Will cause overflow
