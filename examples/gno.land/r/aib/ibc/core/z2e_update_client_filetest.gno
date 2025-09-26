@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gno.land/p/aib/ibc/lightclient/tendermint/testing"
+	"gno.land/p/aib/ibc/types"
 	"gno.land/r/aib/ibc/core"
 )
 
@@ -14,7 +15,7 @@ func main() {
 	// CreateClient and RegisterCounterparty
 	var (
 		chainID        = "chain-id-2"
-		clientState    = testing.GenClientState(chainID)
+		clientState    = testing.NewClientState(chainID, types.NewHeight(2, 2))
 		apphash        = sha256.Sum256([]byte("apphash"))
 		valset         = testing.GenValset()
 		consensusState = testing.GenConsensusState(time.Now(), apphash[:], valset.Hash())
