@@ -24,13 +24,13 @@ jobs:
       - name: Create a dummy tag to avoid goreleaser failure
         run: git tag v0.0.0 master
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
 
-      - uses: sigstore/cosign-installer@v3.9.2
-      - uses: anchore/sbom-action/download-syft@v0.20.5
+      - uses: sigstore/cosign-installer@v3.10.0
+      - uses: anchore/sbom-action/download-syft@v0.20.6
 
       - uses: docker/login-action@v3
         with:
