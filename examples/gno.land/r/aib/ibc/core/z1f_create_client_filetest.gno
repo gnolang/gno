@@ -3,6 +3,7 @@ package main
 import (
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/lightclient/tendermint/testing"
+	"gno.land/p/aib/ibc/types"
 	"gno.land/r/aib/ibc/core"
 )
 
@@ -18,7 +19,7 @@ func (SoloMachine) Validate() error {
 
 // CreateClient w/ client type mismatch
 func main() {
-	core.CreateClient(cross, testing.GenClientState("chainid"), SoloMachine{})
+	core.CreateClient(cross, testing.NewClientState("chainid", types.Height{}), SoloMachine{})
 }
 
 // Error:

@@ -99,7 +99,7 @@ func main() {
 				},
 				Signatures: []tendermint.CommitSig{
 					{
-						BlockIdFlag:      tendermint.BlockIDFlagCommit,
+						BlockIDFlag:      tendermint.BlockIDFlagCommit,
 						ValidatorAddress: testing.GenAddr("val1"),          // TODO update
 						Signature:        testing.GenSignature("valsign1"), // TODO update
 					},
