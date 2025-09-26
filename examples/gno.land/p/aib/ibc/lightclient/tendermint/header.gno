@@ -130,6 +130,17 @@ func (vals ValidatorSet) Hash() []byte {
 	return h[:]
 }
 
+// GetByAddress returns an index of the validator with address and validator
+// itself (copy) if found. Otherwise, -1 and nil are returned.
+func (vals *ValidatorSet) GetByAddress(address []byte) (index int32, val *Validator) {
+	for idx, val := range vals.Validators {
+		if bytes.Equal(val.Address, address) {
+			return int32(idx), val
+		}
+	}
+	return -1, nil
+}
+
 type Validator struct {
 	Address          []byte `json:"address,omitempty"`
 	PubKey           []byte `json:"pub_key"`
@@ -262,6 +273,7 @@ func (h *Header) Hash() []byte {
 
 // Commit contains the evidence that a block was committed by a set of validators.
 type Commit struct {
+	// TODO revert to int64
 	Height     uint64      `json:"height,omitempty"`
 	Round      int32       `json:"round,omitempty"`
 	BlockID    BlockID     `json:"block_id"`
@@ -294,7 +306,7 @@ func (commit *Commit) Validate() error {
 
 // CommitSig is a part of the Vote included in a Commit.
 type CommitSig struct {
-	BlockIdFlag      BlockIDFlag `json:"block_id_flag,omitempty"`
+	BlockIDFlag      BlockIDFlag `json:"block_id_flag,omitempty"`
 	ValidatorAddress []byte      `json:"validator_address,omitempty"`
 	Timestamp        time.Time   `json:"timestamp"`
 	Signature        []byte      `json:"signature,omitempty"`
@@ -302,15 +314,15 @@ type CommitSig struct {
 
 // Validate performs basic validation.
 func (cs CommitSig) Validate() error {
-	switch cs.BlockIdFlag {
+	switch cs.BlockIDFlag {
 	case BlockIDFlagAbsent:
 	case BlockIDFlagCommit:
 	case BlockIDFlagNil:
 	default:
-		return ufmt.Errorf("unknown BlockIDFlag: %v", cs.BlockIdFlag)
+		return ufmt.Errorf("unknown BlockIDFlag: %v", cs.BlockIDFlag)
 	}
 
-	switch cs.BlockIdFlag {
+	switch cs.BlockIDFlag {
 	case BlockIDFlagAbsent:
 		if len(cs.ValidatorAddress) != 0 {
 			return errors.New("validator address is present")
@@ -341,7 +353,7 @@ func (cs CommitSig) Validate() error {
 }
 
 // BlockIdFlag indicates which BlockID the signature is for
-type BlockIDFlag int32
+type BlockIDFlag byte
 
 const (
 	BlockIDFlagUnknown BlockIDFlag = 0
@@ -354,6 +366,12 @@ const (
 type BlockID struct {
 	Hash          []byte        `json:"hash,omitempty"`
 	PartSetHeader PartSetHeader `json:"part_set_header"`
+}
+
+// Equals returns true if the BlockID matches the given BlockID
+func (blockID BlockID) Equals(other BlockID) bool {
+	return bytes.Equal(blockID.Hash, other.Hash) &&
+		blockID.PartSetHeader.Equals(other.PartSetHeader)
 }
 
 // IsZero returns true if this is the BlockID of a nil block.
@@ -382,6 +400,10 @@ type PartSetHeader struct {
 
 func (psh PartSetHeader) IsZero() bool {
 	return psh.Total == 0 && len(psh.Hash) == 0
+}
+
+func (psh PartSetHeader) Equals(other PartSetHeader) bool {
+	return psh.Total == other.Total && bytes.Equal(psh.Hash, other.Hash)
 }
 
 // Validate performs basic validation.

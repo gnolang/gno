@@ -7,6 +7,7 @@ import (
 
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/lightclient/tendermint/testing"
+	"gno.land/p/aib/ibc/types"
 	"gno.land/r/aib/ibc/core"
 )
 
@@ -28,7 +29,8 @@ func (validateError) ClientType() string {
 // the Validate() method are properly invoked.
 func main() {
 	var (
-		clientState    = testing.GenClientState("chain-id-2")
+		chainID        = "chain-id-2"
+		clientState    = testing.NewClientState(chainID, types.NewHeight(2, 2))
 		apphash        = sha256.Sum256([]byte("apphash"))
 		valset         = testing.GenValset()
 		consensusState = testing.GenConsensusState(time.Now(), apphash[:], valset.Hash())
