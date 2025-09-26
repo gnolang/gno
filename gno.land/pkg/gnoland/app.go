@@ -380,7 +380,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 		}
 
 		accr := acc.(*GnoAccount)
-		accr.SetUnrestricted()
+		accr.SetTokenLockWhitelisted(true)
 		cfg.acck.SetAccount(ctx, acc)
 	}
 
