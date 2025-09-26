@@ -11,7 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -1423,7 +1425,7 @@ func TestClient_EstimateGas(t *testing.T) {
 			RPCClient: nil, // not set
 		}
 
-		estimate, err := c.EstimateGas(&std.Tx{})
+		estimate, _, err := c.EstimateGas(&std.Tx{})
 
 		assert.Zero(t, estimate)
 		assert.ErrorIs(t, err, ErrMissingRPCClient)
@@ -1451,7 +1453,7 @@ func TestClient_EstimateGas(t *testing.T) {
 			RPCClient: mockRPCClient,
 		}
 
-		estimate, err := c.EstimateGas(&std.Tx{})
+		estimate, _, err := c.EstimateGas(&std.Tx{})
 
 		assert.Zero(t, estimate)
 		assert.ErrorIs(t, err, rpcErr)
@@ -1485,7 +1487,7 @@ func TestClient_EstimateGas(t *testing.T) {
 			RPCClient: mockRPCClient,
 		}
 
-		estimate, err := c.EstimateGas(&std.Tx{})
+		estimate, _, err := c.EstimateGas(&std.Tx{})
 
 		assert.Zero(t, estimate)
 		assert.ErrorIs(t, err, abciErrors.UnknownError{})
@@ -1517,7 +1519,7 @@ func TestClient_EstimateGas(t *testing.T) {
 			RPCClient: mockRPCClient,
 		}
 
-		estimate, err := c.EstimateGas(&std.Tx{})
+		estimate, _, err := c.EstimateGas(&std.Tx{})
 
 		assert.Zero(t, estimate)
 		assert.ErrorContains(t, err, "unable to unmarshal gas estimation response")
@@ -1530,6 +1532,14 @@ func TestClient_EstimateGas(t *testing.T) {
 			gasUsed     = int64(100000)
 			deliverResp = &abci.ResponseDeliverTx{
 				GasUsed: gasUsed,
+				ResponseBase: abci.ResponseBase{
+					Events: []abci.Event{
+						&gnostd.StorageDepositEvent{
+							BytesDelta: 10,
+							FeeDelta:   std.Coin{Denom: ugnot.Denom, Amount: 1000},
+						},
+					},
+				},
 			}
 		)
 
@@ -1560,9 +1570,14 @@ func TestClient_EstimateGas(t *testing.T) {
 			RPCClient: mockRPCClient,
 		}
 
-		estimate, err := c.EstimateGas(&std.Tx{})
+		estimate, events, err := c.EstimateGas(&std.Tx{})
 
 		require.NoError(t, err)
 		assert.Equal(t, gasUsed, estimate)
+
+		bytesDelta, coinsDelta, hasStorageEvents := keyscli.GetStorageInfo(events)
+		assert.Equal(t, true, hasStorageEvents)
+		assert.Equal(t, int64(10), bytesDelta)
+		assert.Equal(t, "1000ugnot", coinsDelta.String())
 	})
 }
