@@ -106,6 +106,7 @@ func newGnocliCmd(io commands.IO) (*commands.Command, *rootConfig) {
 		newLintCmd(io),
 		newModCmd(io),
 		// work
+		newPprofCmd(io),
 		newReplCmd(),
 		newRunCmd(io),
 		// telemetry
