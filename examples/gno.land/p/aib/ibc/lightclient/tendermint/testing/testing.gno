@@ -2,20 +2,21 @@ package testing
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"time"
 
 	"gno.land/p/aib/ibc/lightclient/tendermint"
 	"gno.land/p/aib/ibc/types"
 )
 
-func GenClientState(chainID string) tendermint.ClientState {
+func NewClientState(chainID string, height types.Height) tendermint.ClientState {
 	return tendermint.ClientState{
 		ChainId:                      chainID,
 		TrustLevel:                   tendermint.DefaultTrustLevel,
 		UnbondingPeriod:              time.Hour * 3,
 		TrustingPeriod:               time.Hour,
 		MaxClockDrift:                time.Hour,
-		LatestHeight:                 types.NewHeight(2, 2),
+		LatestHeight:                 height,
 		ProofSpecs:                   types.GetSDKProofSpecs(),
 		AllowUpdateAfterExpiry:       false,
 		AllowUpdateAfterMisbehaviour: false,
@@ -35,10 +36,26 @@ func GenValset() *tendermint.ValidatorSet {
 			VotingPower: 3,
 		}
 	)
+	return NewValset(val1, val2)
+}
+
+func NewValset(vals ...*tendermint.Validator) *tendermint.ValidatorSet {
+	var total int64
+	for _, v := range vals {
+		total += v.VotingPower
+	}
 	return &tendermint.ValidatorSet{
-		Validators:       []*tendermint.Validator{val1, val2},
-		Proposer:         val1,
-		TotalVotingPower: 5,
+		Validators:       vals,
+		Proposer:         vals[0],
+		TotalVotingPower: total,
+	}
+}
+
+func NewValidator(addr, pubkey string, vp int64) *tendermint.Validator {
+	return &tendermint.Validator{
+		Address:     B64Dec(addr),
+		PubKey:      B64Dec(pubkey),
+		VotingPower: vp,
 	}
 }
 
@@ -54,54 +71,72 @@ func GenMsgHeader(chainID string, timestamp time.Time, apphash []byte,
 	height uint64, trustedHeight types.Height,
 	valset, trustedValset *tendermint.ValidatorSet) *tendermint.MsgHeader {
 	var (
-		blockhash     = sha256.Sum256([]byte("block-5"))
-		parsethash    = sha256.Sum256([]byte("parset"))
-		consensushash = sha256.Sum256([]byte("consensus"))
+		blockhash     = GenHash("blockhash")
+		parsethash    = GenHash("parsethash")
+		consensushash = GenHash("consensushash")
+		signatures    = []tendermint.CommitSig{
+			{
+				BlockIDFlag:      tendermint.BlockIDFlagCommit,
+				ValidatorAddress: valset.Validators[0].Address,
+				Timestamp:        ToTime("2025-09-25T07:55:57.306746166Z"),
+				Signature:        B64Dec("qtv1z4S2Q6T87vGQo0lrjRZqv9PrHIji4pTyviMnVyGx9td6eySdzwQwCthwmihU48ebNlFiMlFJ0CT891UmDg=="),
+			},
+			{
+				BlockIDFlag:      tendermint.BlockIDFlagCommit,
+				ValidatorAddress: valset.Validators[1].Address,
+				Timestamp:        ToTime("2025-09-25T07:55:57.310583641Z"),
+				Signature:        B64Dec("Q5E6Kjma00n/T98rC9qJmoB6JTGFX/IB+mDVs4Wd1h0eJ8fabY/6oI8zdoU6/7W6VR6wjpHyWBsJrpGT6C0LCg=="),
+			},
+		}
 	)
+	return NewMsgHeader(chainID, timestamp,
+		apphash, blockhash, parsethash, consensushash,
+		height, trustedHeight, valset, trustedValset, signatures,
+	)
+}
+
+func NewMsgHeader(chainID string, timestamp time.Time,
+	apphash, blockhash, parsethash, consensushash []byte,
+	height uint64, trustedHeight types.Height,
+	valset, trustedValset *tendermint.ValidatorSet,
+	signatures []tendermint.CommitSig) *tendermint.MsgHeader {
 	return &tendermint.MsgHeader{
 		Header: &tendermint.Header{
 			Version: tendermint.Consensus{
 				Block: tendermint.BlockProtocol,
-				App:   1, //NOTE no idea what to put there, sounds unused
+				App:   0,
 			},
 			ChainID: chainID,
 			Height:  height,
 			Time:    timestamp,
 			LastBlockID: tendermint.BlockID{
-				Hash: blockhash[:],
+				Hash: blockhash,
 				PartSetHeader: tendermint.PartSetHeader{
-					Total: 2,
-					Hash:  parsethash[:],
+					Total: 1,
+					Hash:  parsethash,
 				},
 			},
 			LastCommitHash:     apphash, //FIXME
 			DataHash:           apphash, //FIXME
 			ValidatorsHash:     valset.Hash(),
 			NextValidatorsHash: trustedValset.Hash(),
-			ConsensusHash:      consensushash[:],
+			ConsensusHash:      consensushash,
 			AppHash:            apphash,
 			LastResultsHash:    nil, //FIXME?
 			EvidenceHash:       nil, //FIXME?
-			ProposerAddress:    GenAddr("proposer"),
+			ProposerAddress:    valset.Proposer.Address,
 		},
 		Commit: &tendermint.Commit{
 			Height: height,
-			Round:  1,
+			Round:  0,
 			BlockID: tendermint.BlockID{
-				Hash: blockhash[:],
+				Hash: blockhash,
 				PartSetHeader: tendermint.PartSetHeader{
-					Total: 5,
-					Hash:  parsethash[:], //FIXME
+					Total: 1,
+					Hash:  parsethash,
 				},
 			},
-			Signatures: []tendermint.CommitSig{
-				{
-					BlockIdFlag:      tendermint.BlockIDFlagCommit,
-					ValidatorAddress: GenAddr("val1"),
-					Timestamp:        time.Now(),
-					Signature:        GenSignature("valsign1"), // XXX need more than random bytes ?
-				},
-			},
+			Signatures: signatures,
 		},
 		ValidatorSet:      valset,
 		TrustedHeight:     trustedHeight,
@@ -128,4 +163,25 @@ func GenBytes(prefix string, size int) []byte {
 		bz = append(bz, 0)
 	}
 	return bz
+}
+
+func GenHash(prefix string) []byte {
+	bz := sha256.Sum256(GenBytes(prefix, 64))
+	return bz[:]
+}
+
+func B64Dec(s string) []byte {
+	bz, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		panic(err)
+	}
+	return bz
+}
+
+func ToTime(s string) time.Time {
+	t, err := time.Parse(time.RFC3339Nano, s)
+	if err != nil {
+		panic(err)
+	}
+	return t
 }

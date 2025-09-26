@@ -5,13 +5,15 @@ import (
 	"time"
 
 	"gno.land/p/aib/ibc/lightclient/tendermint/testing"
+	"gno.land/p/aib/ibc/types"
 	"gno.land/r/aib/ibc/core"
 )
 
 // CreateClient success
 func main() {
 	var (
-		clientState    = testing.GenClientState("chain-id-2")
+		chainID        = "chain-id-2"
+		clientState    = testing.NewClientState(chainID, types.NewHeight(2, 2))
 		apphash        = sha256.Sum256([]byte("apphash"))
 		valset         = testing.GenValset()
 		consensusState = testing.GenConsensusState(time.Now(), apphash[:], valset.Hash())
@@ -91,7 +93,7 @@ func main() {
 //   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
 //   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
 //
-//----------- assert render clients/07-tendermint-1/consensus_states
+// ----------- assert render clients/07-tendermint-1/consensus_states
 // ## Client 07-tendermint-1 consensus states
 // - ConsensusState height 2/2:
 //   - Timestamp: 2009-02-13 23:31:30 +0000 UTC

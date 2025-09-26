@@ -2,7 +2,6 @@ package tendermint_test
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"strings"
 	"testing"
 	"time"
@@ -146,21 +145,21 @@ func TestMsgHeaderValidate(t *testing.T) {
 		{
 			name: "commit signature blockIdFlag is invalid",
 			malleate: func() {
-				msg.Commit.Signatures[0].BlockIdFlag = tendermint.BlockIDFlagUnknown
+				msg.Commit.Signatures[0].BlockIDFlag = tendermint.BlockIDFlagUnknown
 			},
 			expectedError: "unknown BlockIDFlag",
 		},
 		{
 			name: "commit signature blockIdAbsent validatorAddress is not empty",
 			malleate: func() {
-				msg.Commit.Signatures[0].BlockIdFlag = tendermint.BlockIDFlagAbsent
+				msg.Commit.Signatures[0].BlockIDFlag = tendermint.BlockIDFlagAbsent
 			},
 			expectedError: "validator address is present",
 		},
 		{
 			name: "commit signature blockIdAbsent timestamp is not empty",
 			malleate: func() {
-				msg.Commit.Signatures[0].BlockIdFlag = tendermint.BlockIDFlagAbsent
+				msg.Commit.Signatures[0].BlockIDFlag = tendermint.BlockIDFlagAbsent
 				msg.Commit.Signatures[0].ValidatorAddress = nil
 			},
 			expectedError: "time is present",
@@ -168,7 +167,7 @@ func TestMsgHeaderValidate(t *testing.T) {
 		{
 			name: "commit signature blockIdAbsent signature is not empty",
 			malleate: func() {
-				msg.Commit.Signatures[0].BlockIdFlag = tendermint.BlockIDFlagAbsent
+				msg.Commit.Signatures[0].BlockIDFlag = tendermint.BlockIDFlagAbsent
 				msg.Commit.Signatures[0].ValidatorAddress = nil
 				msg.Commit.Signatures[0].Timestamp = time.Time{}
 			},
@@ -253,7 +252,7 @@ func TestMsgHeaderValidate(t *testing.T) {
 				valset        = ibctesting.GenValset()
 				trustedValset = ibctesting.GenValset()
 				trustedHeight = types.NewHeight(0, 1)
-				apphash       = sha256.Sum256([]byte("apphash"))
+				apphash       = ibctesting.GenHash("apphash")
 			)
 			msg = ibctesting.GenMsgHeader(
 				chainID, newTimestamp, apphash[:],

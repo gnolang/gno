@@ -1,13 +1,13 @@
 package tendermint_test
 
 import (
-	"crypto/sha256"
 	"strings"
 	"testing"
 	"time"
 
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/lightclient/tendermint"
+	ibctesting "gno.land/p/aib/ibc/lightclient/tendermint/testing"
 	"gno.land/p/aib/ibc/types"
 )
 
@@ -151,7 +151,7 @@ func TestClientStateValidate(t *testing.T) {
 func TestConsensusStateValidate(t *testing.T) {
 	var (
 		now      = time.Now()
-		valshash = sha256.Sum256([]byte("valhash"))
+		valshash = ibctesting.GenHash("valhash")
 	)
 	testCases := []struct {
 		msg            string

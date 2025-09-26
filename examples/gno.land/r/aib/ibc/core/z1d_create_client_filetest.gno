@@ -12,7 +12,8 @@ import (
 // CreateClient with Status Frozen
 func main() {
 	var (
-		clientState    = testing.GenClientState("chain-id-2")
+		chainID        = "chain-id-2"
+		clientState    = testing.NewClientState(chainID, types.NewHeight(2, 2))
 		apphash        = sha256.Sum256([]byte("apphash"))
 		valset         = testing.GenValset()
 		consensusState = testing.GenConsensusState(time.Now(), apphash[:], valset.Hash())
