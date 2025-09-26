@@ -17,7 +17,7 @@ func main() {
 		chainID     = "atomone-1"
 		height      = uint64(2)
 		clientState = testing.NewClientState(chainID, types.NewHeight(1, height))
-		apphash     = testing.B64Dec("DAHBO3lYaIFu9XmplThmF7ijXG7YwDZawGSDKKCHh7c=")
+		apphash     = testing.GenHash("apphash-2")
 		// priv=8a6cAbQSpDbebmcTEhCMPhhr/SkL/2pizo60yzHRkN9Uyk7RHOZm7g4xW+yeJh147/Z4/6HXF6gBwcFNkLsZ/A==
 		val1 = testing.NewValidator("9DIBYr64rywKO3Kk6+743xDHcEU=",
 			"VMpO0RzmZu4OMVvsniYdeO/2eP+h1xeoAcHBTZC7Gfw=", 2)
@@ -31,6 +31,7 @@ func main() {
 	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "counter-party-id")
 
 	// Update clientID with height=5
+	apphash = testing.GenHash("apphash-5")
 	var (
 		newHeight     = uint64(5)
 		newTimestamp  = consensusState.Timestamp.Add(time.Minute)
@@ -70,6 +71,7 @@ func main() {
 	// Second Update with height older than clientState.LatestHeight
 	newHeight = 3
 	newTimestamp = newTimestamp.Add(time.Minute)
+	apphash = testing.GenHash("apphash-3")
 	// update signatures since height have change
 	signatures[0].Signature = testing.B64Dec("iY9QJIgtUz6AKym75cfycieAOLiO8Y7z12ndOYoEkCAXTba+1r4pt7lTuk+RyhOex9q8wye7kMN1DAF25wL1DQ==")
 	signatures[1].Signature = testing.B64Dec("Dl1baBptDCLku0Ra4IpkA7u0dV1EW5Jh9Ev/iSLcGbIWfn/rABZ3JLGy5sMNu3Xt1aR0StSvzZ/1HQS8IUWbDg==")
@@ -101,18 +103,18 @@ func main() {
 //   - LatestHeight: 1/5
 // - Latest consensus state:
 //   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
-//   - Root: 0c01c13b795868816ef579a995386617b8a35c6ed8c0365ac0648328a08787b7
+//   - Root: 774bfe80005952b99fe0765099c1281ab1e7d4db80013b2a840fd7ff506f898a
 //   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
 //
 // ----------- assert render clients/07-tendermint-1/consensus_states
 // ## Client 07-tendermint-1 consensus states
 // - ConsensusState height 1/2:
 //   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
-//   - RootHash: 0c01c13b795868816ef579a995386617b8a35c6ed8c0365ac0648328a08787b7
+//   - RootHash: fda37a1203142d75e6b9f70159edfb8280674ddc448c7e63c767cf770bfe9b14
 //   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
 // - ConsensusState height 1/5:
 //   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
-//   - RootHash: 0c01c13b795868816ef579a995386617b8a35c6ed8c0365ac0648328a08787b7
+//   - RootHash: 774bfe80005952b99fe0765099c1281ab1e7d4db80013b2a840fd7ff506f898a
 //   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
 //
 // ----------- assert render clients
@@ -129,20 +131,20 @@ func main() {
 //   - LatestHeight: 1/5
 // - Latest consensus state:
 //   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
-//   - Root: 0c01c13b795868816ef579a995386617b8a35c6ed8c0365ac0648328a08787b7
+//   - Root: 774bfe80005952b99fe0765099c1281ab1e7d4db80013b2a840fd7ff506f898a
 //   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
 //
 // ----------- assert render clients/07-tendermint-1/consensus_states
 // ## Client 07-tendermint-1 consensus states
 // - ConsensusState height 1/2:
 //   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
-//   - RootHash: 0c01c13b795868816ef579a995386617b8a35c6ed8c0365ac0648328a08787b7
+//   - RootHash: fda37a1203142d75e6b9f70159edfb8280674ddc448c7e63c767cf770bfe9b14
 //   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
 // - ConsensusState height 1/3:
 //   - Timestamp: 2009-02-13 23:33:30 +0000 UTC
-//   - RootHash: 0c01c13b795868816ef579a995386617b8a35c6ed8c0365ac0648328a08787b7
+//   - RootHash: 2c970bdc7aa83d24aa3f38e90537d3bf44d81b93c53902cbb0633ce654b58c0d
 //   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
 // - ConsensusState height 1/5:
 //   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
-//   - RootHash: 0c01c13b795868816ef579a995386617b8a35c6ed8c0365ac0648328a08787b7
+//   - RootHash: 774bfe80005952b99fe0765099c1281ab1e7d4db80013b2a840fd7ff506f898a
 //   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
