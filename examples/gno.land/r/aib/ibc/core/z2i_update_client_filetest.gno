@@ -1,9 +1,9 @@
 package main
 
 import (
-	"crypto/sha256"
 	"time"
 
+	"gno.land/p/aib/ibc/lightclient/tendermint"
 	"gno.land/p/aib/ibc/lightclient/tendermint/testing"
 	"gno.land/p/aib/ibc/types"
 	"gno.land/r/aib/ibc/core"
@@ -14,24 +14,49 @@ import (
 func main() {
 	// CreateClient and RegisterCounterparty
 	var (
-		chainID        = "chain-id-2"
-		clientState    = testing.NewClientState(chainID, types.NewHeight(2, 2))
-		apphash        = sha256.Sum256([]byte("apphash"))
-		valset         = testing.GenValset()
-		consensusState = testing.GenConsensusState(time.Now(), apphash[:], valset.Hash())
+		chainID     = "atomone-1"
+		height      = uint64(2)
+		clientState = testing.NewClientState(chainID, types.NewHeight(1, height))
+		apphash     = testing.B64Dec("DAHBO3lYaIFu9XmplThmF7ijXG7YwDZawGSDKKCHh7c=")
+		// priv=8a6cAbQSpDbebmcTEhCMPhhr/SkL/2pizo60yzHRkN9Uyk7RHOZm7g4xW+yeJh147/Z4/6HXF6gBwcFNkLsZ/A==
+		val1 = testing.NewValidator("9DIBYr64rywKO3Kk6+743xDHcEU=",
+			"VMpO0RzmZu4OMVvsniYdeO/2eP+h1xeoAcHBTZC7Gfw=", 2)
+		// priv=nWg6ETc62tyxd94lh8fFaQnZKaAW6vlS0L/4lfseJuI14ZXUKp7AZROkflLFVF+SBg4wJVfzgzIKyWq3D066+g==
+		val2 = testing.NewValidator("y+naL3ubs9q1bXrY9+uRxY9c+J8=",
+			"NeGV1CqewGUTpH5SxVRfkgYOMCVX84MyCslqtw9Ouvo=", 3)
+		valset         = testing.NewValset(val1, val2)
+		consensusState = testing.GenConsensusState(time.Now(), apphash, valset.Hash())
 	)
 	clientID := core.CreateClient(cross, clientState, consensusState)
 	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "counter-party-id")
 
-	// Update clientID
+	// Update clientID with height=5
 	var (
-		newHeight     = clientState.LatestHeight.RevisionHeight + 3
+		newHeight     = uint64(5)
 		newTimestamp  = consensusState.Timestamp.Add(time.Minute)
-		trustedValset = valset
+		blockhash     = testing.B64Dec("NpiImIJoaSaIucwNs5cqpgMsL/8wxEPYC3P0jA5aQSI=")
+		parsethash    = testing.B64Dec("QqzwnLzvixIcUz+hPeUQjDV6NaLkFRKXACCxJIrBHzw=")
+		consensushash = testing.B64Dec("JIS7qLmeUx4aP2QiNi59PuuZqDJRGZaKNV8FwJ7t1As=")
+		trustedValset = testing.NewValset(val1, val2)
 		trustedHeight = clientState.LatestHeight
-		msgHeader     = testing.GenMsgHeader(
-			chainID, newTimestamp, apphash[:],
-			newHeight, trustedHeight, valset, trustedValset,
+		signatures    = []tendermint.CommitSig{
+			{
+				BlockIDFlag:      tendermint.BlockIDFlagCommit,
+				ValidatorAddress: valset.Validators[0].Address,
+				Timestamp:        testing.ToTime("2025-09-25T07:55:57.306746166Z"),
+				Signature:        testing.B64Dec("dXO4Y8p5cKwubGLT0vkSVu4UpJRfrocMVeD02r9FP6w+WzOT2WIars/BJH1xvIM0x9MutOF6utFbqwi9YFQ+CA=="),
+			},
+			{
+				BlockIDFlag:      tendermint.BlockIDFlagCommit,
+				ValidatorAddress: valset.Validators[1].Address,
+				Timestamp:        testing.ToTime("2025-09-25T07:55:57.306746166Z"),
+				Signature:        testing.B64Dec("TwSjd4gWQExpna4o7WmfgjuhVr3gWD14dcxEez7kxt9Fd3eUChDOj/lGFNkllLJvX3lcSuHtsRK2KPsIfRaKBQ=="),
+			},
+		}
+
+		msgHeader = testing.NewMsgHeader(
+			chainID, newTimestamp, apphash, blockhash, parsethash, consensushash,
+			newHeight, trustedHeight, valset, trustedValset, signatures,
 		)
 	)
 
@@ -43,10 +68,14 @@ func main() {
 	println(core.Render("clients/" + clientID + "/consensus_states"))
 
 	// Second Update with height older than clientState.LatestHeight
-	newHeight = newHeight - 1
-	msgHeader = testing.GenMsgHeader(
-		chainID, newTimestamp, apphash[:],
-		newHeight, trustedHeight, valset, trustedValset,
+	newHeight = 3
+	newTimestamp = newTimestamp.Add(time.Minute)
+	// update signatures since height have change
+	signatures[0].Signature = testing.B64Dec("iY9QJIgtUz6AKym75cfycieAOLiO8Y7z12ndOYoEkCAXTba+1r4pt7lTuk+RyhOex9q8wye7kMN1DAF25wL1DQ==")
+	signatures[1].Signature = testing.B64Dec("Dl1baBptDCLku0Ra4IpkA7u0dV1EW5Jh9Ev/iSLcGbIWfn/rABZ3JLGy5sMNu3Xt1aR0StSvzZ/1HQS8IUWbDg==")
+	msgHeader = testing.NewMsgHeader(
+		chainID, newTimestamp, apphash, blockhash, parsethash, consensushash,
+		newHeight, trustedHeight, valset, trustedValset, signatures,
 	)
 
 	core.UpdateClient(cross, clientID, msgHeader)
@@ -66,25 +95,25 @@ func main() {
 // - CounterpartyClientID: counter-party-id
 // - CounterpartyMerklePrefix: 'prefix1' 'prefix2'
 // - Client state:
-//   - ChainId: chain-id-2
+//   - ChainId: atomone-1
 //   - TrustingPeriod: 1h0m0s
 //   - UnbondingPeriod: 3h0m0s
-//   - LatestHeight: 2/5
+//   - LatestHeight: 1/5
 // - Latest consensus state:
 //   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
-//   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
-//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
+//   - Root: 0c01c13b795868816ef579a995386617b8a35c6ed8c0365ac0648328a08787b7
+//   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
 //
 // ----------- assert render clients/07-tendermint-1/consensus_states
 // ## Client 07-tendermint-1 consensus states
-// - ConsensusState height 2/2:
+// - ConsensusState height 1/2:
 //   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
-//   - RootHash: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
-//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
-// - ConsensusState height 2/5:
+//   - RootHash: 0c01c13b795868816ef579a995386617b8a35c6ed8c0365ac0648328a08787b7
+//   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
+// - ConsensusState height 1/5:
 //   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
-//   - RootHash: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
-//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
+//   - RootHash: 0c01c13b795868816ef579a995386617b8a35c6ed8c0365ac0648328a08787b7
+//   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
 //
 // ----------- assert render clients
 // ## Client 07-tendermint-1
@@ -94,26 +123,26 @@ func main() {
 // - CounterpartyClientID: counter-party-id
 // - CounterpartyMerklePrefix: 'prefix1' 'prefix2'
 // - Client state:
-//   - ChainId: chain-id-2
+//   - ChainId: atomone-1
 //   - TrustingPeriod: 1h0m0s
 //   - UnbondingPeriod: 3h0m0s
-//   - LatestHeight: 2/5
+//   - LatestHeight: 1/5
 // - Latest consensus state:
 //   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
-//   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
-//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
+//   - Root: 0c01c13b795868816ef579a995386617b8a35c6ed8c0365ac0648328a08787b7
+//   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
 //
 // ----------- assert render clients/07-tendermint-1/consensus_states
 // ## Client 07-tendermint-1 consensus states
-// - ConsensusState height 2/2:
+// - ConsensusState height 1/2:
 //   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
-//   - RootHash: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
-//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
-// - ConsensusState height 2/4:
+//   - RootHash: 0c01c13b795868816ef579a995386617b8a35c6ed8c0365ac0648328a08787b7
+//   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
+// - ConsensusState height 1/3:
+//   - Timestamp: 2009-02-13 23:33:30 +0000 UTC
+//   - RootHash: 0c01c13b795868816ef579a995386617b8a35c6ed8c0365ac0648328a08787b7
+//   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
+// - ConsensusState height 1/5:
 //   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
-//   - RootHash: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
-//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
-// - ConsensusState height 2/5:
-//   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
-//   - RootHash: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
-//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
+//   - RootHash: 0c01c13b795868816ef579a995386617b8a35c6ed8c0365ac0648328a08787b7
+//   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
