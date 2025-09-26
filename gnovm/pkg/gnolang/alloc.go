@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"reflect"
 )
 
 // Keeps track of in-memory allocations.
@@ -63,8 +64,8 @@ const (
 	allocBoundMethod = _allocBase + _allocPointer + _allocBoundMethodValue
 	allocBlock       = _allocBase + _allocPointer + _allocBlock
 	allocBlockItem   = _allocTypedValue
-	allocRefValue    = _allocBase + +_allocRefValue
-	allocRefNode     = _allocBase + +_allocRefNode
+	allocRefValue    = _allocBase + _allocRefValue
+	allocRefNode     = _allocBase + _allocRefNode
 	allocType        = _allocBase + _allocPointer + _allocType
 	allocDataByte    = 1
 	allocPackage     = _allocBase + _allocPointer + _allocPackageValue
@@ -391,7 +392,7 @@ func (b *Block) GetShallowSize() int64 {
 	// RefNode is not value, put it here
 	// for convinence
 	if _, ok := b.Source.(RefNode); ok {
-		ss += allocRefValue
+		ss += allocRefNode
 	}
 
 	ss = allocBlock + allocBlockItem*int64(len(b.Values))
@@ -475,4 +476,102 @@ func (dbv DataByteValue) GetShallowSize() int64 {
 // as the type should  pre-exist.
 func (tv TypeValue) GetShallowSize() int64 {
 	return 0
+}
+
+// returns the size of object's refvalues
+func getRefSize(val Value) int64 {
+	var size int64
+	switch v := val.(type) {
+	case *PackageValue:
+		if _, ok := v.Block.(RefValue); ok {
+			size += allocRefValue // .Block ref
+		}
+
+		// include RefValue size
+		for _, fb := range v.FBlocks {
+			if _, ok := fb.(RefValue); !ok {
+				continue
+			}
+			size += allocRefValue
+		}
+	case *Block:
+		for _, v := range v.Values {
+			if _, ok := v.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+
+		if _, ok := v.Parent.(RefValue); ok {
+			size += allocRefValue
+		}
+
+	case *ArrayValue:
+		if v.Data == nil {
+			for _, tv := range v.List {
+				if _, ok := tv.V.(RefValue); ok {
+					size += allocRefValue
+				}
+			}
+		}
+	case *StructValue:
+		for _, tv := range v.Fields {
+			if _, ok := tv.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+	case *MapValue:
+		for cur := v.List.Head; cur != nil; cur = cur.Next {
+			if _, ok := cur.Key.V.(RefValue); ok {
+				size += allocRefValue
+			}
+
+			if _, ok := cur.Value.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+	case *BoundMethodValue:
+		if _, ok := v.Receiver.V.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *HeapItemValue:
+		if _, ok := v.Value.V.(RefValue); ok {
+			size += allocRefValue
+		}
+	case RefValue:
+		// do nothing
+	case *PointerValue:
+		if _, ok := v.Base.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *SliceValue:
+		if _, ok := v.Base.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *FuncValue:
+		for _, tv := range v.Captures {
+			if _, ok := tv.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+
+		if _, ok := v.Parent.(RefValue); ok {
+			size += allocRefValue
+		}
+
+	case StringValue:
+		// do nothing
+	case BigintValue:
+		// do nothing
+	case BigdecValue:
+		// do nothing
+	case DataByteValue:
+		// do nothing
+	case TypeValue:
+	// do nothing
+	default:
+		panic(fmt.Sprintf(
+			"unexpected type %v",
+			reflect.TypeOf(val)))
+	}
+	return size
 }

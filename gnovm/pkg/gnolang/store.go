@@ -476,10 +476,9 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 			debug.Printf("loadObjectSafe by oid: %v, type of oo: %v\n", oid, reflect.TypeOf(oo))
 		}
 
-		ds.alloc.Allocate(oo.GetShallowSize())
-		// Alloc values other than shallow value,
-		// RefValue, e.g. keep sync with copyValueWithRefs().
-		AllocExpanded(ds.alloc, oo)
+		ss := oo.GetShallowSize()
+		rs := getRefSize(oo)
+		ds.alloc.Allocate(ss + rs)
 
 		if debug {
 			if oo.GetObjectID() != oid {
@@ -510,100 +509,6 @@ func (ds *defaultStore) fillPackage(pv *PackageValue) {
 	}
 	// Rederive pv.fBlocksMap.
 	pv.deriveFBlocksMap(ds)
-}
-
-func AllocExpanded(alloc *Allocator, val Value) {
-	var size int64
-	defer func() {
-		alloc.Allocate(size)
-	}()
-
-	switch v := val.(type) {
-	case *PackageValue:
-		if _, ok := v.Block.(RefValue); ok {
-			size += allocRefValue // .Block ref
-		}
-
-		// include RefValue size
-		for _, fb := range v.FBlocks {
-			if _, ok := fb.(RefValue); !ok {
-				continue
-			}
-			size += allocRefValue
-		}
-	case *Block:
-		for _, v := range v.Values {
-			if _, ok := v.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-
-		if _, ok := v.Parent.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *ArrayValue:
-		if v.Data == nil {
-			for _, tv := range v.List {
-				if _, ok := tv.V.(RefValue); ok {
-					size += allocRefValue
-				}
-			}
-		}
-	case *StructValue:
-		for _, tv := range v.Fields {
-			if _, ok := tv.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-	case *MapValue:
-		for cur := v.List.Head; cur != nil; cur = cur.Next {
-			if _, ok := cur.Key.V.(RefValue); ok {
-				size += allocRefValue
-			}
-
-			if _, ok := cur.Value.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-	case *BoundMethodValue:
-		if _, ok := v.Receiver.V.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *HeapItemValue:
-		if _, ok := v.Value.V.(RefValue); ok {
-			size += allocRefValue
-		}
-	case RefValue:
-		// do nothing
-	case *PointerValue:
-		if _, ok := v.Base.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *SliceValue:
-		if _, ok := v.Base.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *FuncValue:
-		for _, tv := range v.Captures {
-			if _, ok := tv.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-
-		if _, ok := v.Parent.(RefValue); ok {
-			size += allocRefValue
-		}
-	case StringValue:
-		// do nothing
-	case BigintValue:
-		// do nothing
-	case BigdecValue:
-		// do nothing
-	case DataByteValue:
-		// do nothing
-	case TypeValue:
-		// do nothing
-	}
 }
 
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
