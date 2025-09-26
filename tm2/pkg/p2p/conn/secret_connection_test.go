@@ -119,7 +119,6 @@ func TestShareLowOrderPubkey(t *testing.T) {
 
 	// all blacklisted low order points:
 	for _, remLowOrderPubKey := range blacklist {
-		remLowOrderPubKey := remLowOrderPubKey
 		_, _ = async.Parallel(
 			func(_ int) (val any, err error, abort bool) {
 				_, err = shareEphPubKey(fooConn, locEphPub)
@@ -149,7 +148,6 @@ func TestComputeDHFailsOnLowOrder(t *testing.T) {
 
 	_, locPrivKey := genEphKeys()
 	for _, remLowOrderPubKey := range blacklist {
-		remLowOrderPubKey := remLowOrderPubKey
 		shared, err := computeDHSecret(&remLowOrderPubKey, locPrivKey)
 		_ = assert.Error(t, err) &&
 			assert.Equal(t, lowOrderPointError, err.Error())

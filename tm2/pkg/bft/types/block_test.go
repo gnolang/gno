@@ -56,8 +56,6 @@ func TestBlockValidateBasic(t *testing.T) {
 		}, true},
 	}
 	for i, tc := range testCases {
-		tc := tc
-		i := i
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
@@ -201,7 +199,6 @@ func TestCommitValidateBasic(t *testing.T) {
 		{"Incorrect round", func(com *Commit) { com.Precommits[0].Round = 100 }, true},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
@@ -390,7 +387,6 @@ func TestSignedHeaderValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
@@ -434,7 +430,6 @@ func TestBlockIDValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
