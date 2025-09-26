@@ -77,10 +77,11 @@ func (fr *Frame) PushDefer(dfr Defer) {
 }
 
 func (fr *Frame) PopDefer() (res Defer, ok bool) {
-	if len(fr.Defers) > 0 {
+	lenDefers := len(fr.Defers)
+	if lenDefers > 0 {
 		ok = true
-		res = fr.Defers[len(fr.Defers)-1]
-		fr.Defers = fr.Defers[:len(fr.Defers)-1]
+		res = fr.Defers[lenDefers-1]
+		fr.Defers = fr.Defers[:lenDefers-1]
 	}
 	return
 }
