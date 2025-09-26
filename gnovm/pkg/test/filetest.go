@@ -17,6 +17,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/pmezard/go-difflib/difflib"
 	"go.uber.org/multierr"
 )
@@ -65,14 +66,15 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	if dirs.First(DirectiveRealm) != nil {
 		opslog = new(bytes.Buffer)
 	}
-
+	gasMeter := store.NewInfiniteGasMeter()
 	// Create machine for execution and run test
 	tcw := opts.BaseStore.CacheWrap()
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Output:        &opts.outWriter,
-		Store:         tgs.BeginTransaction(tcw, tcw, nil),
+		Store:         tgs.BeginTransaction(tcw, tcw, gasMeter),
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
+		GasMeter:      gasMeter,
 		Debug:         opts.Debug,
 		ReviveEnabled: true,
 	})
@@ -183,6 +185,8 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			match(dir, pre)
 		case DirectiveStacktrace:
 			match(dir, result.GnoStacktrace)
+		case DirectiveGas:
+			match(dir, strconv.FormatInt(m.GasMeter.GasConsumed(), 10))
 		case DirectiveStorage:
 			rlmDiff := realmDiffsString(m.Store.RealmStorageDiffs())
 			match(dir, rlmDiff)
@@ -431,6 +435,7 @@ const (
 	DirectiveEvents         = "Events"
 	DirectivePreprocessed   = "Preprocessed"
 	DirectiveStacktrace     = "Stacktrace"
+	DirectiveGas            = "Gas"
 	DirectiveStorage        = "Storage"
 	DirectiveTypeCheckError = "TypeCheckError"
 )
@@ -445,6 +450,7 @@ var allDirectives = []string{
 	DirectiveEvents,
 	DirectivePreprocessed,
 	DirectiveStacktrace,
+	DirectiveGas,
 	DirectiveStorage,
 	DirectiveTypeCheckError,
 }
