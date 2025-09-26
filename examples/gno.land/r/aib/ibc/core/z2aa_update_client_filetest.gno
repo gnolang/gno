@@ -13,14 +13,16 @@ import (
 func main() {
 	// CreateClient and RegisterCounterparty
 	var (
-		chainID     = "osmosis-1"
-		height      = uint64(44873550)
+		chainID     = "atomone-1"
+		height      = uint64(2)
 		clientState = testing.NewClientState(chainID, types.NewHeight(1, height))
-		apphash     = testing.B64Dec("DAHBO3lYaIFu9XmplThmF7ijXG7YwDZawGSDKKCHh7c=")
-		val1        = testing.NewValidator("y1pjuR6PTujbk1lCy+JXJGNkeeA=",
-			"6Nz09YGHzwWxjczG0IhK4Iv0qY2IcX0P/5KitvRXTUc=", 2)
-		val2 = testing.NewValidator("ZraWZuv3dufry+GXq6RmpxLicHY=",
-			"wB25StLxbzmD0uTiFiH6xySZd0H13kyanNUvvlUpa34=", 3)
+		apphash     = testing.GenHash("apphash-2")
+		// priv=8a6cAbQSpDbebmcTEhCMPhhr/SkL/2pizo60yzHRkN9Uyk7RHOZm7g4xW+yeJh147/Z4/6HXF6gBwcFNkLsZ/A==
+		val1 = testing.NewValidator("9DIBYr64rywKO3Kk6+743xDHcEU=",
+			"VMpO0RzmZu4OMVvsniYdeO/2eP+h1xeoAcHBTZC7Gfw=", 2)
+		// priv=nWg6ETc62tyxd94lh8fFaQnZKaAW6vlS0L/4lfseJuI14ZXUKp7AZROkflLFVF+SBg4wJVfzgzIKyWq3D066+g==
+		val2 = testing.NewValidator("y+naL3ubs9q1bXrY9+uRxY9c+J8=",
+			"NeGV1CqewGUTpH5SxVRfkgYOMCVX84MyCslqtw9Ouvo=", 3)
 		valset         = testing.NewValset(val1, val2)
 		consensusState = testing.GenConsensusState(time.Now(), apphash, valset.Hash())
 	)
@@ -28,8 +30,9 @@ func main() {
 	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "counter-party-id")
 
 	// Update clientID
+	apphash = testing.GenHash("apphash-5")
 	var (
-		newHeight     = clientState.LatestHeight.RevisionHeight + 2 // non adjacent heigth
+		newHeight     = height + 3 // non adjacent heigth 5
 		newTimestamp  = consensusState.Timestamp.Add(time.Minute)
 		blockhash     = testing.B64Dec("NpiImIJoaSaIucwNs5cqpgMsL/8wxEPYC3P0jA5aQSI=")
 		parsethash    = testing.B64Dec("QqzwnLzvixIcUz+hPeUQjDV6NaLkFRKXACCxJIrBHzw=")
@@ -41,13 +44,13 @@ func main() {
 				BlockIDFlag:      tendermint.BlockIDFlagCommit,
 				ValidatorAddress: valset.Validators[0].Address,
 				Timestamp:        testing.ToTime("2025-09-25T07:55:57.306746166Z"),
-				Signature:        testing.B64Dec("qtv1z4S2Q6T87vGQo0lrjRZqv9PrHIji4pTyviMnVyGx9td6eySdzwQwCthwmihU48ebNlFiMlFJ0CT891UmDg=="),
+				Signature:        testing.B64Dec("dXO4Y8p5cKwubGLT0vkSVu4UpJRfrocMVeD02r9FP6w+WzOT2WIars/BJH1xvIM0x9MutOF6utFbqwi9YFQ+CA=="),
 			},
 			{
 				BlockIDFlag:      tendermint.BlockIDFlagCommit,
 				ValidatorAddress: valset.Validators[1].Address,
-				Timestamp:        testing.ToTime("2025-09-25T07:55:57.310583641Z"),
-				Signature:        testing.B64Dec("Q5E6Kjma00n/T98rC9qJmoB6JTGFX/IB+mDVs4Wd1h0eJ8fabY/6oI8zdoU6/7W6VR6wjpHyWBsJrpGT6C0LCg=="),
+				Timestamp:        testing.ToTime("2025-09-25T07:55:57.306746166Z"),
+				Signature:        testing.B64Dec("TwSjd4gWQExpna4o7WmfgjuhVr3gWD14dcxEez7kxt9Fd3eUChDOj/lGFNkllLJvX3lcSuHtsRK2KPsIfRaKBQ=="),
 			},
 		}
 
@@ -74,25 +77,25 @@ func main() {
 // - CounterpartyClientID: counter-party-id
 // - CounterpartyMerklePrefix: 'prefix1' 'prefix2'
 // - Client state:
-//   - ChainId: osmosis-1
+//   - ChainId: atomone-1
 //   - TrustingPeriod: 1h0m0s
 //   - UnbondingPeriod: 3h0m0s
-//   - LatestHeight: 1/44873552
+//   - LatestHeight: 1/5
 // - Latest consensus state:
 //   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
-//   - Root: 0c01c13b795868816ef579a995386617b8a35c6ed8c0365ac0648328a08787b7
-//   - NextValidatorsHash: f2a14f0ea269dc5c07f035c3be55d5d01fd1532736d38c722ad17e58b1d7182c
+//   - Root: 774bfe80005952b99fe0765099c1281ab1e7d4db80013b2a840fd7ff506f898a
+//   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
 //
 // ----------- assert render clients/07-tendermint-1/consensus_states
 // ## Client 07-tendermint-1 consensus states
-// - ConsensusState height 1/44873550:
+// - ConsensusState height 1/2:
 //   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
-//   - RootHash: 0c01c13b795868816ef579a995386617b8a35c6ed8c0365ac0648328a08787b7
-//   - NextValidatorsHash: f2a14f0ea269dc5c07f035c3be55d5d01fd1532736d38c722ad17e58b1d7182c
-// - ConsensusState height 1/44873552:
+//   - RootHash: fda37a1203142d75e6b9f70159edfb8280674ddc448c7e63c767cf770bfe9b14
+//   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
+// - ConsensusState height 1/5:
 //   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
-//   - RootHash: 0c01c13b795868816ef579a995386617b8a35c6ed8c0365ac0648328a08787b7
-//   - NextValidatorsHash: f2a14f0ea269dc5c07f035c3be55d5d01fd1532736d38c722ad17e58b1d7182c
+//   - RootHash: 774bfe80005952b99fe0765099c1281ab1e7d4db80013b2a840fd7ff506f898a
+//   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
 
 // Events:
 // [
@@ -109,7 +112,7 @@ func main() {
 //       },
 //       {
 //         "key": "consensus_heights",
-//         "value": "1/44873550"
+//         "value": "1/2"
 //       }
 //     ],
 //     "pkg_path": "gno.land/r/aib/ibc/core"
@@ -127,7 +130,7 @@ func main() {
 //       },
 //       {
 //         "key": "consensus_heights",
-//         "value": "1/44873552"
+//         "value": "1/5"
 //       }
 //     ],
 //     "pkg_path": "gno.land/r/aib/ibc/core"
