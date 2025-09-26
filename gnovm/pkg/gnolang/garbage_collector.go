@@ -39,9 +39,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	var visitCount int64
 
 	defer func() {
-		// Note: GasFactorCPU is only 1 at the moment, so multiplying any
-		// expression by this factor cannot overflow.
-		gasCPU := overflow.Mulp(visitCount, VisitCpuFactor) * GasFactorCPU
+		gasCPU := overflow.Mulp(overflow.Mulp(visitCount, VisitCpuFactor), GasFactorCPU)
 		if debug {
 			debug.Printf("GasConsumed for GC: %v\n", gasCPU)
 		}
