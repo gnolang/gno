@@ -56,6 +56,7 @@ func TestNewAppWithOptions(t *testing.T) {
 			Amount:  []std.Coin{{Amount: 1e15, Denom: "ugnot"}},
 		},
 	}
+	appState.Bank.Params.TotalSupply = TotalBalance(appState.Balances)
 	appState.Txs = []TxWithMetadata{
 		{
 			Tx: std.Tx{
@@ -149,7 +150,8 @@ func TestNewApp(t *testing.T) {
 
 	app, err := NewApp(td, NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger())
 	require.NoError(t, err, "NewApp should be successful")
-
+	gs := DefaultGenState()
+	gs.Bank.Params.TotalSupply = std.NewCoins()
 	resp := app.InitChain(abci.RequestInitChain{
 		RequestBase: abci.RequestBase{},
 		Time:        time.Time{},
@@ -161,7 +163,7 @@ func TestNewApp(t *testing.T) {
 			},
 		},
 		Validators: []abci.ValidatorUpdate{},
-		AppState:   DefaultGenState(),
+		AppState:   gs,
 	})
 	assert.True(t, resp.IsOK(), "resp is not OK: %v", resp)
 }
@@ -327,6 +329,8 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 		laterTimestamp   = currentTimestamp.Add(10 * 24 * time.Hour) // 10 days
 
 		getMetadataState = func(tx std.Tx, balances []Balance) GnoGenesisState {
+			genBank := bank.DefaultGenesisState()
+			genBank.Params.TotalSupply = TotalBalance(balances)
 			return GnoGenesisState{
 				// Set the package deployment as the genesis tx
 				Txs: []TxWithMetadata{
@@ -340,12 +344,14 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 				// Make sure the deployer account has a balance
 				Balances: balances,
 				Auth:     auth.DefaultGenesisState(),
-				Bank:     bank.DefaultGenesisState(),
+				Bank:     genBank,
 				VM:       vm.DefaultGenesisState(),
 			}
 		}
 
 		getNonMetadataState = func(tx std.Tx, balances []Balance) GnoGenesisState {
+			genBank := bank.DefaultGenesisState()
+			genBank.Params.TotalSupply = TotalBalance(balances)
 			return GnoGenesisState{
 				Txs: []TxWithMetadata{
 					{
@@ -354,7 +360,7 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 				},
 				Balances: balances,
 				Auth:     auth.DefaultGenesisState(),
-				Bank:     bank.DefaultGenesisState(),
+				Bank:     genBank,
 				VM:       vm.DefaultGenesisState(),
 			}
 		}
@@ -533,7 +539,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](&mockEventSwitch{}, noFilter)
 
 		// Create the EndBlocker
-		eb := EndBlocker(c, nil, nil, nil, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, nil, nil, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
@@ -577,8 +583,7 @@ func TestEndBlocker(t *testing.T) {
 		mockEventSwitch.FireEvent(gnostd.GnoEvent{})
 
 		// Create the EndBlocker
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
-
+		eb := EndBlocker(c, nil, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
 		// Run the EndBlocker
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
 			Validator: &abci.ValidatorParams{
@@ -624,7 +629,7 @@ func TestEndBlocker(t *testing.T) {
 		mockEventSwitch.FireEvent(gnostd.GnoEvent{})
 
 		// Create the EndBlocker
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
@@ -696,7 +701,7 @@ func TestEndBlocker(t *testing.T) {
 		mockEventSwitch.FireEvent(txEvent)
 
 		// Create the EndBlocker
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
@@ -770,7 +775,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](mockEventSwitch, validatorEventFilter)
 		mockEventSwitch.FireEvent(txEvent)
 
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
 			Validator: &abci.ValidatorParams{
 				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
@@ -835,7 +840,7 @@ func TestEndBlocker(t *testing.T) {
 
 		c := newCollector[validatorUpdate](mockEventSwitch, validatorEventFilter)
 		mockEventSwitch.FireEvent(txEvent)
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
 			Validator: &abci.ValidatorParams{
 				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
@@ -889,7 +894,7 @@ func TestEndBlocker(t *testing.T) {
 
 		c := newCollector[validatorUpdate](mockEventSwitch, validatorEventFilter)
 		mockEventSwitch.FireEvent(txEvent)
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
 			Validator: &abci.ValidatorParams{
 				PubKeyTypeURLs: []string{"/tm.PubKeyEd25519"},
@@ -906,6 +911,7 @@ func TestGasPriceUpdate(t *testing.T) {
 
 	// with default initial gas price 0.1 ugnot per gas
 	gnoGen := gnoGenesisState(t)
+	gnoGen.Bank.Params.TotalSupply = std.NewCoins()
 
 	// abci inintChain
 	app.InitChain(abci.RequestInitChain{
@@ -1064,7 +1070,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	prmk := params.NewParamsKeeper(mainKey)
 	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount)
 	gpk := auth.NewGasPriceKeeper(mainKey)
-	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
+	bankk := bank.NewBankKeeper(mainKey, acck, prmk.ForModule(bank.ModuleName))
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(bank.ModuleName, bankk)
@@ -1118,6 +1124,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 			c,
 			acck,
 			gpk,
+			nil,
 			nil,
 			baseApp,
 		),
@@ -1264,7 +1271,8 @@ func TestPruneStrategyNothing(t *testing.T) {
 	require.NoError(t, err)
 
 	base := app.(*sdk.BaseApp)
-
+	gs := DefaultGenState()
+	gs.Bank.Params.TotalSupply = std.NewCoins()
 	// Run the genesis initialization, and commit it
 	base.InitChain(abci.RequestInitChain{
 		ChainID: chainID,
@@ -1272,7 +1280,7 @@ func TestPruneStrategyNothing(t *testing.T) {
 		ConsensusParams: &abci.ConsensusParams{
 			Block: &abci.BlockParams{MaxGas: 1_000_000},
 		},
-		AppState: DefaultGenState(),
+		AppState: gs,
 	})
 	base.Commit()
 
