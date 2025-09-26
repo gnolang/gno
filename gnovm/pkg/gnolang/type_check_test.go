@@ -41,7 +41,6 @@ func TestCheckAssignableTo(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			err := checkAssignableTo(nil, tt.xt, tt.dt, tt.autoNative)

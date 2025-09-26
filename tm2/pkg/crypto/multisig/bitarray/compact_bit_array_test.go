@@ -75,7 +75,6 @@ func TestJSONMarshalUnmarshal(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.bA.String(), func(t *testing.T) {
 			t.Parallel()
 
@@ -139,7 +138,6 @@ func TestCompactMarshalUnmarshal(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.bA.String(), func(t *testing.T) {
 			t.Parallel()
 
@@ -178,8 +176,6 @@ func TestCompactBitArrayNumOfTrueBitsBefore(t *testing.T) {
 		{`"______________xx"`, []int{14, 15}, []int{0, 1}},
 	}
 	for tcIndex, tc := range testCases {
-		tc := tc
-		tcIndex := tcIndex
 		t.Run(tc.marshalledBA, func(t *testing.T) {
 			t.Parallel()
 
