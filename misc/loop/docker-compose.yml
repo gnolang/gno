@@ -55,6 +55,8 @@ services:
       - traefik.http.routers.gnoweb.rule=Host(`gno.land`) || Host(`www.gno.land`) || Host(`staging.gno.land`)
       - traefik.http.routers.gnoweb.tls=true
       - traefik.http.routers.gnoweb.tls.certresolver=le
+      # # secure headers
+      - traefik.http.routers.gnoweb.middlewares=secure-headers@file
       - com.centurylinklabs.watchtower.enable=true
 
   gnofaucet:
