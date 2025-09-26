@@ -271,6 +271,17 @@ func (h *Header) Hash() []byte {
 	return nil
 }
 
+func (h Header) Expired(trustingPeriod time.Duration) error {
+	var (
+		expirationTime = h.Time.Add(trustingPeriod)
+		now            = time.Now()
+	)
+	if !expirationTime.After(now) {
+		return ufmt.Errorf("header %d has expired at %v (now: %v)", h.Height, expirationTime, now)
+	}
+	return nil
+}
+
 // Commit contains the evidence that a block was committed by a set of validators.
 type Commit struct {
 	// TODO revert to int64

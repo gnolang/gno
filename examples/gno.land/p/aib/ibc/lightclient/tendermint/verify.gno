@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"encoding/hex"
-	"errors"
 	"time"
 
 	"gno.land/p/nt/ufmt"
@@ -26,7 +25,6 @@ func (tm *TMLightClient) verifyHeader(msg *MsgHeader) error {
 		)
 	}
 
-	// TODO remaining of verifyHeader
 	var (
 		now             = time.Now()
 		untrustedHeader = msg.Header
@@ -60,20 +58,44 @@ func (tm *TMLightClient) verifyHeader(msg *MsgHeader) error {
 			untrustedHeader.Time, now, tm.ClientState.MaxClockDrift,
 		)
 	}
+	// Check the validator hashes are the same
+	// TODO isn't it already done somewhere else?
+	if !bytes.Equal(untrustedHeader.ValidatorsHash, trustedHeader.NextValidatorsHash) {
+		h1, h2 := hex.EncodeToString(trustedHeader.NextValidatorsHash), hex.EncodeToString(untrustedHeader.ValidatorsHash)
+		return ufmt.Errorf(
+			"expected old header next validators (%s) to match those from new header (%s)",
+			h1, h2,
+		)
+	}
 
+	if err := trustedHeader.Expired(tm.ClientState.TrustingPeriod); err != nil {
+		return err
+	}
 	if err := checkTrustedHeader(trustedHeader, trustedValset); err != nil {
 		return err
 	}
 
-	if untrustedHeader.Height == trustedHeader.Height+1 {
-		return tm.verifyAdjacent(
-			trustedHeader, untrustedHeader, untrustedValset, msg.Commit,
+	if untrustedHeader.Height != trustedHeader.Height+1 {
+		// Heights aren't adjacent, this requires additionnal checks.
+		var (
+			trustLevel = tm.ClientState.TrustLevel
+			// calculate voting power needed.
+			// TODO recompute total voting power ? how to ensure it is correct ?
+			votingPowerNeeded = trustedValset.TotalVotingPower *
+				int64(trustLevel.Numerator) / int64(trustLevel.Denominator)
 		)
+		// To accept non-adjacent heights, trustLevel ([1/3, 1]) of
+		// trustedValset must have signed correctly.
+		if err := verifyCommitSingle(tm.ClientState.ChainId, trustedValset,
+			msg.Commit, votingPowerNeeded, true, false); err != nil {
+			return err
+		}
 	}
-	return tm.verifyNonAdjacent(
-		trustedHeader, trustedValset,
-		untrustedHeader, untrustedValset,
-	)
+	// Ensure that +2/3 of untrustedValset signed correctly.
+	//
+	// NOTE: this should always be the last check because untrustedValset can be
+	// intentionally made very large to DOS the light client.
+	return tm.verifyCommit(untrustedValset, msg.Commit)
 }
 
 func (tm *TMLightClient) verifyMisbehavior(msg *Misbehaviour) error {
@@ -86,6 +108,7 @@ func checkTrustedHeader(trustedHeader *Header, trustedValset *ValidatorSet) erro
 	// assert that trustedVals is NextValidators of last trusted header
 	// to do this, we check that
 	// trustedVals.Hash() == consState.NextValidatorsHash
+	// TODO move to validate (if not already there), then call trustedHeader.Validate
 	tvalHash := trustedValset.Hash()
 	if !bytes.Equal(trustedHeader.NextValidatorsHash, tvalHash) {
 		h1, h2 := hex.EncodeToString(trustedHeader.NextValidatorsHash), hex.EncodeToString(tvalHash)
@@ -97,118 +120,24 @@ func checkTrustedHeader(trustedHeader *Header, trustedValset *ValidatorSet) erro
 	return nil
 }
 
-// verifyAdjacent verifies directly adjacent untrustedHeader against
-// trustedHeader. It ensures that:
-//
-// a) headers are adjacent.
-// b) trustedHeader is not expired
-// c) untrustedHeader.ValidatorsHash equals trustedHeader.NextValidatorsHash
-// d) more than 2/3 of new validators (untrustedVals) have signed h2
-func (tm TMLightClient) verifyAdjacent(
-	trustedHeader *Header, //height=X
-	untrustedHeader *Header, //height=X+1
-	untrustedValset *ValidatorSet, //height=X+1
-	commit *Commit, //height=X+1
-) error {
-	// TODO remove, already done earlier
-	if untrustedHeader.Height != trustedHeader.Height+1 {
-		return errors.New("headers must be adjacent in height")
-	}
-	// TODO could be done earlier too
-	if err := headerExpired(trustedHeader, tm.ClientState.TrustingPeriod); err != nil {
-		return err
-	}
-	// Check the validator hashes are the same
-	// TODO isn't it already done somewhere else?
-	if !bytes.Equal(untrustedHeader.ValidatorsHash, trustedHeader.NextValidatorsHash) {
-		h1, h2 := hex.EncodeToString(trustedHeader.NextValidatorsHash), hex.EncodeToString(untrustedHeader.ValidatorsHash)
-		return ufmt.Errorf(
-			"expected old header next validators (%s) to match those from new header (%s)",
-			h1, h2,
-		)
-	}
-
-	// Ensure that +2/3 of new validators signed correctly.
-	return tm.verifyCommit(untrustedValset, commit)
-}
-
-// verifyNonAdjacent verifies non-adjacent untrustedHeader against
-// trustedHeader. It ensures that:
-//
-// a) trustedHeader can still be trusted
-// b) untrustedHeader is valid
-// c) trustLevel ([1/3, 1]) of trustedHeaderVals (or trustedHeaderNextVals)
-//
-//	signed correctly
-//
-// d) more than 2/3 of untrustedVals have signed h2
-// e) headers are non-adjacent.
-//
-// maxClockDrift defines how much untrustedHeader.Time can drift into the
-// future.
-func (tm TMLightClient) verifyNonAdjacent(
-	trustedHeader *Header, //height=X
-	trustedValset *ValidatorSet, //height=X or height=X+1
-	untrustedHeader *Header, //height=Y
-	untrustedValset *ValidatorSet, //height=Y
-) error {
-	// TODO
-	return errors.New("not implemented")
-}
-
-// headerExpired return true if the given header expired.
-func headerExpired(h *Header, trustingPeriod time.Duration) error {
-	var (
-		expirationTime = h.Time.Add(trustingPeriod)
-		now            = time.Now()
-	)
-	if !expirationTime.After(now) {
-		return ufmt.Errorf("header %d has expired at %v (now: %v)", h.Height, expirationTime, now)
-	}
-	return nil
-}
-
 func (tm TMLightClient) verifyCommit(
 	vals *ValidatorSet,
 	commit *Commit,
 ) error {
-	// run a basic validation of the arguments
-	if err := verifyBasicValsAndCommit(vals, commit); err != nil {
-		return err
+	// TODO move to MsgHeader.Validate
+	if len(vals.Validators) != len(commit.Signatures) {
+		return ufmt.Errorf("Invalid commit -- wrong set size: %v vs %v",
+			len(vals.Validators), len(commit.Signatures))
 	}
-
 	var (
 		// calculate voting power needed
 		votingPowerNeeded = vals.TotalVotingPower * 2 / 3
-
-		// ignore all commit signatures that are not for the block
-		ignore = func(c CommitSig) bool { return c.BlockIDFlag != BlockIDFlagCommit }
-
-		// count all the remaining signatures
-		count = func(c CommitSig) bool { return true }
-
-		chainID = tm.ClientState.ChainId
+		chainID           = tm.ClientState.ChainId
 	)
-
-	return verifyCommitSingle(chainID, vals, commit, votingPowerNeeded,
-		ignore, count, false, true)
+	return verifyCommitSingle(chainID, vals, commit, votingPowerNeeded, false, true)
 }
-
-func verifyBasicValsAndCommit(vals *ValidatorSet, commit *Commit) error {
-	// TODO move to MsgHeader.Validate
-	if len(vals.Validators) != len(commit.Signatures) {
-		return ufmt.Errorf(
-			"Invalid commit -- wrong set size: %v vs %v",
-			len(vals.Validators), len(commit.Signatures),
-		)
-	}
-	return nil
-}
-
-// Single Verification
 
 // verifyCommitSingle single verifies commits.
-// If a key does not support batch verification, or batch verification fails this will be used
 // This method is used to check all the signatures included in a commit.
 // It is used in consensus for validating a block LastCommit.
 // CONTRACT: both commit and validator set should have passed validate basic
@@ -216,10 +145,7 @@ func verifyCommitSingle(
 	chainID string,
 	vals *ValidatorSet,
 	commit *Commit,
-	// TODO check if we can remove the following params
 	votingPowerNeeded int64,
-	ignoreSig func(CommitSig) bool,
-	countSig func(CommitSig) bool,
 	countAllSignatures bool,
 	lookUpByIndex bool,
 ) error {
@@ -231,7 +157,7 @@ func verifyCommitSingle(
 		voteSignBytes      []byte
 	)
 	for idx, commitSig := range commit.Signatures {
-		if ignoreSig(commitSig) {
+		if commitSig.BlockIDFlag != BlockIDFlagCommit {
 			continue
 		}
 
@@ -278,11 +204,7 @@ func verifyCommitSingle(
 			return ufmt.Errorf("verify signature fail (#%d)", idx)
 		}
 
-		// If this signature counts then add the voting power of the validator
-		// to the tally
-		if countSig(commitSig) {
-			talliedVotingPower += val.VotingPower
-		}
+		talliedVotingPower += val.VotingPower
 
 		// check if we have enough signatures and can thus exit early
 		if !countAllSignatures && talliedVotingPower > votingPowerNeeded {
