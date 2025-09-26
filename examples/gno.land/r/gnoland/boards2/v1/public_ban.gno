@@ -34,7 +34,7 @@ func Ban(_ realm, boardID BoardID, user std.Address, hours uint, reason string) 
 	caller := std.PreviousRealm().Address()
 	until := time.Now().Add(time.Minute * 60 * time.Duration(hours))
 	args := Args{boardID, user, until, reason}
-	board.perms.WithPermission(cross, caller, PermissionUserBan, args, func(realm, Args) {
+	board.perms.WithPermission(cross, caller, PermissionUserBan, args, func(realm) {
 		// When banning invited members make sure they are guests, otherwise
 		// disallow banning. Only guest or external users can be banned.
 		board := mustGetBoard(boardID)
@@ -68,7 +68,7 @@ func Unban(_ realm, boardID BoardID, user std.Address, reason string) {
 	board := mustGetBoard(boardID)
 	caller := std.PreviousRealm().Address()
 	args := Args{boardID, user, reason}
-	board.perms.WithPermission(cross, caller, PermissionUserUnban, args, func(realm, Args) {
+	board.perms.WithPermission(cross, caller, PermissionUserUnban, args, func(realm) {
 		banned, found := getBannedUsers(boardID)
 		if !found || !banned.Has(user.String()) {
 			panic("user is not banned")
