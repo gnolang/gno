@@ -104,6 +104,7 @@ func (dh *DockerHandler) StartGnoPortalLoopContainer(ctx context.Context, contai
 			"MONIKER=the-staging-chain",
 			"GENESIS_BACKUP_FILE=/backups/backup.jsonl",
 			"GENESIS_BALANCES_FILE=/backups/balances.jsonl",
+			"FAUCET_ADDRESS=g1qhuef2450xh7g7na8s865nreu2xw8j84kgkvt5",
 		},
 		Entrypoint: []string{"/scripts/start.sh"},
 		ExposedPorts: nat.PortSet{
