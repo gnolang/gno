@@ -3,7 +3,7 @@ package v1
 import (
 	"gno.land/p/nt/ufmt"
 
-	"gno.land/r/docs/upgradeable/pattern1/proxy"
+	"gno.land/r/docs/upgradeable/simpleproxy/proxy"
 )
 
 var app = &App{
@@ -12,7 +12,7 @@ var app = &App{
 }
 
 func init() {
-	proxy.SetApp(cross, app)
+	proxy.SetImplementation(cross, app)
 }
 
 type App struct {
