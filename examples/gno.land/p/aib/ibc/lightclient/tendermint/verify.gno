@@ -24,6 +24,9 @@ func (tm *TMLightClient) verifyHeader(msg *MsgHeader) error {
 			msg.GetHeight().RevisionNumber, msg.TrustedHeight.RevisionNumber,
 		)
 	}
+	if err := checkTrustedHeader(msg, consState); err != nil {
+		return err
+	}
 
 	var (
 		now             = time.Now()
@@ -59,7 +62,6 @@ func (tm *TMLightClient) verifyHeader(msg *MsgHeader) error {
 		)
 	}
 	// Check the validator hashes are the same
-	// TODO isn't it already done somewhere else?
 	if !bytes.Equal(untrustedHeader.ValidatorsHash, trustedHeader.NextValidatorsHash) {
 		h1, h2 := hex.EncodeToString(trustedHeader.NextValidatorsHash), hex.EncodeToString(untrustedHeader.ValidatorsHash)
 		return ufmt.Errorf(
@@ -69,9 +71,6 @@ func (tm *TMLightClient) verifyHeader(msg *MsgHeader) error {
 	}
 
 	if err := trustedHeader.Expired(tm.ClientState.TrustingPeriod); err != nil {
-		return err
-	}
-	if err := checkTrustedHeader(trustedHeader, trustedValset); err != nil {
 		return err
 	}
 
@@ -102,16 +101,11 @@ func (tm *TMLightClient) verifyMisbehavior(msg *Misbehaviour) error {
 	panic("TODO verifyMisbehavior unimplemented")
 }
 
-// checkTrustedHeader checks that trustedHeader.NextValidatorsHash matches
-// trusted validator set hash.
-func checkTrustedHeader(trustedHeader *Header, trustedValset *ValidatorSet) error {
-	// assert that trustedVals is NextValidators of last trusted header
-	// to do this, we check that
-	// trustedVals.Hash() == consState.NextValidatorsHash
-	// TODO move to validate (if not already there), then call trustedHeader.Validate
-	tvalHash := trustedValset.Hash()
-	if !bytes.Equal(trustedHeader.NextValidatorsHash, tvalHash) {
-		h1, h2 := hex.EncodeToString(trustedHeader.NextValidatorsHash), hex.EncodeToString(tvalHash)
+// checkTrustedHeader checks that consensus state matches trusted fields of Header
+func checkTrustedHeader(msg *MsgHeader, consensusState *ConsensusState) error {
+	tvalHash := msg.TrustedValidators.Hash()
+	if !bytes.Equal(consensusState.NextValidatorsHash, tvalHash) {
+		h1, h2 := hex.EncodeToString(consensusState.NextValidatorsHash), hex.EncodeToString(tvalHash)
 		return ufmt.Errorf(
 			"trusted validators does not hash to latest trusted validators. Expected: %q, got: %q",
 			h1, h2,
