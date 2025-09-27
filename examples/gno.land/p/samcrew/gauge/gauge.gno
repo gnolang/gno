@@ -14,7 +14,13 @@ type Config struct {
 	PaddingH     int
 }
 
-var DefaultConfig = Config{false, 300, 30, 16, 6}
+var DefaultConfig = Config{
+	PercentOnly:  false,
+	Width:        300,
+	CanvasHeight: 30,
+	FontSize:     16,
+	PaddingH:     6,
+}
 
 // Render generates an SVG gauge bar.
 // Parameters:
@@ -23,11 +29,11 @@ var DefaultConfig = Config{false, 300, 30, 16, 6}
 // - label: text label to display on the left side of the gauge
 // - color: color of the filled part of the gauge (e.g., "#4caf50")
 // - config: configuration options:
-//   - PercentOnly: if true, only display the percentage on the right side; otherwise, display "value / total · percentage"
-//   - Width: width of the gauge in pixels
-//   - CanvasHeight: height of the gauge in pixels
-//   - FontSize: font size of the text in pixels
-//   - PaddingH: horizontal padding (for the text) in pixels
+//   - PercentOnly: Only display the percentage on the right side; otherwise, display "value / total · percentage"
+//   - Width: Width of the gauge in pixels
+//   - CanvasHeight: Height of the gauge in pixels
+//   - FontSize: Font size of the text in pixels
+//   - PaddingH: Horizontal padding (for the text) in pixels
 //
 // Example usage: gauge.Render(30, 100, "Progress", "#4caf50", &gauge.Config{PercentOnly: true, Width: 400})
 func Render(value int, total int, label string, color string, config Config) string {

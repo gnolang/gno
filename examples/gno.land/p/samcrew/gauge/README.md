@@ -10,11 +10,11 @@ gauge := gauge.Render(75, 100, "Progress", "#4caf50", gauge.DefaultConfig)
 
 // Custom configuration
 config := gauge.Config{
-    PercentOnly:  true, // Show only percentage
-    Width:        400,  // Custom width in pixels
-    CanvasHeight: 40,   // Custom height in pixels
-    FontSize:     18,   // Larger font size
-    PaddingH:     10,   // More horizontal padding
+    PercentOnly:  true,
+    Width:        400,
+    CanvasHeight: 40,
+    FontSize:     18,
+    PaddingH:     10,
 }
 gauge := gauge.Render(33, 50, "Loading", "#2196f3", config)
 
@@ -26,14 +26,20 @@ progress := gauge.Render(8, 10, "Health", "#f44336", gauge.DefaultConfig)
 
 ```go
 type Config struct {
-    PercentOnly  bool // Show only percentage vs "value / total · percentage"
-    Width        int  // Gauge width in pixels
+    PercentOnly  bool // Only display the percentage on the right side; otherwise, display "value / total · percentage"
+    Width        int  // Width of the gauge in pixels
     CanvasHeight int  // Height of the gauge in pixels
     FontSize     int  // Font size of the text in pixels
     PaddingH     int  // Horizontal padding (for the text) in pixels
 }
 
-var DefaultConfig = Config{false, 300, 30, 16, 6}
+var DefaultConfig = Config{
+    PercentOnly:  false,
+    Width:        300,
+    CanvasHeight: 30,
+    FontSize:     16,
+    PaddingH:     6,
+}
 
 // `value`: Current value (must be ≤ total)
 // `total`: Maximum value (must be > 0)
@@ -47,3 +53,8 @@ func Render(value int, total int, label string, color string, config Config) str
 **Output formats:**
 - Default: `"Progress 75 / 100 · 75%"`
 - PercentOnly: `"Progress 75%"`
+
+
+## Example
+
+[/r/docs/charts](/r/docs/charts)
