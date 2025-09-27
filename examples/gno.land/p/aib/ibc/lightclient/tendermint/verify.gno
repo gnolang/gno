@@ -75,18 +75,15 @@ func (tm *TMLightClient) verifyHeader(msg *MsgHeader) error {
 	}
 
 	if untrustedHeader.Height != trustedHeader.Height+1 {
-		// Heights aren't adjacent, this requires additionnal checks.
+		// Heights aren't adjacent, this requires to check if at least trustlevel
+		// ([1/3, 1]) of trusted validators have signed correctly.
 		var (
-			trustLevel = tm.ClientState.TrustLevel
-			// calculate voting power needed.
+			tl = tm.ClientState.TrustLevel
 			// TODO recompute total voting power ? how to ensure it is correct ?
 			votingPowerNeeded = trustedValset.TotalVotingPower *
-				int64(trustLevel.Numerator) / int64(trustLevel.Denominator)
+				int64(tl.Numerator) / int64(tl.Denominator)
 		)
-		// To accept non-adjacent heights, trustLevel ([1/3, 1]) of
-		// trustedValset must have signed correctly.
-		if err := verifyCommitSingle(tm.ClientState.ChainId, trustedValset,
-			msg.Commit, votingPowerNeeded, true, false); err != nil {
+		if err := tm.verifyCommit(trustedValset, msg.Commit, votingPowerNeeded, true, false); err != nil {
 			return err
 		}
 	}
@@ -94,7 +91,8 @@ func (tm *TMLightClient) verifyHeader(msg *MsgHeader) error {
 	//
 	// NOTE: this should always be the last check because untrustedValset can be
 	// intentionally made very large to DOS the light client.
-	return tm.verifyCommit(untrustedValset, msg.Commit)
+	votingPowerNeeded := untrustedValset.TotalVotingPower * 2 / 3
+	return tm.verifyCommit(untrustedValset, msg.Commit, votingPowerNeeded, false, true)
 }
 
 func (tm *TMLightClient) verifyMisbehavior(msg *Misbehaviour) error {
@@ -114,24 +112,10 @@ func checkTrustedHeader(msg *MsgHeader, consensusState *ConsensusState) error {
 	return nil
 }
 
+// verifyCommit verifies the signatures included in a commit. Returns an error
+// if votingPowerNeeded is not reached with the verified signatures.
+// CONTRACT: both commit and validator set should have passed validate basic.
 func (tm TMLightClient) verifyCommit(
-	vals *ValidatorSet,
-	commit *Commit,
-) error {
-	var (
-		// calculate voting power needed
-		votingPowerNeeded = vals.TotalVotingPower * 2 / 3
-		chainID           = tm.ClientState.ChainId
-	)
-	return verifyCommitSingle(chainID, vals, commit, votingPowerNeeded, false, true)
-}
-
-// verifyCommitSingle single verifies commits.
-// This method is used to check all the signatures included in a commit.
-// It is used in consensus for validating a block LastCommit.
-// CONTRACT: both commit and validator set should have passed validate basic
-func verifyCommitSingle(
-	chainID string,
 	vals *ValidatorSet,
 	commit *Commit,
 	votingPowerNeeded int64,
@@ -143,7 +127,6 @@ func verifyCommitSingle(
 		valIdx             int32
 		seenVals           = make(map[int32]int, len(commit.Signatures))
 		talliedVotingPower int64
-		voteSignBytes      []byte
 	)
 	for idx, commitSig := range commit.Signatures {
 		if commitSig.BlockIDFlag != BlockIDFlagCommit {
@@ -176,11 +159,7 @@ func verifyCommitSingle(
 			return ufmt.Errorf("validator %v has a nil PubKey at index %d", val, idx)
 		}
 
-		voteSignBytes = VoteBytesToSign(
-			chainID, int64(commit.Height), int64(commit.Round), commit.BlockID.Hash,
-			commit.BlockID.PartSetHeader.Total, commit.BlockID.PartSetHeader.Hash,
-			commit.Signatures[idx].BlockIDFlag, commit.Signatures[idx].Timestamp,
-		)
+		voteSignBytes := commit.BytesToSign(tm.ClientState.ChainId, idx)
 
 		// CONTRACT: all validators use ed25519 keys
 		if !ed25519.Verify(val.PubKey, voteSignBytes, commitSig.Signature) {

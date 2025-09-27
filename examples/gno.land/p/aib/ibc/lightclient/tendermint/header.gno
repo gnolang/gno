@@ -296,22 +296,31 @@ type Commit struct {
 	Signatures []CommitSig `json:"signatures"`
 }
 
+func (c *Commit) BytesToSign(chainID string, valIdx int) []byte {
+	return VoteBytesToSign(
+		chainID, int64(c.Height), int64(c.Round),
+		c.BlockID.Hash, c.BlockID.PartSetHeader.Total,
+		c.BlockID.PartSetHeader.Hash, c.Signatures[valIdx].BlockIDFlag,
+		c.Signatures[valIdx].Timestamp,
+	)
+}
+
 // Validate performs basic validation that doesn't involve state data.
 // Does not actually check the cryptographic signatures.
-func (commit *Commit) Validate() error {
-	if commit.Round < 0 {
+func (c *Commit) Validate() error {
+	if c.Round < 0 {
 		return errors.New("negative Round")
 	}
 
-	if commit.Height >= 1 {
-		if commit.BlockID.IsZero() {
+	if c.Height >= 1 {
+		if c.BlockID.IsZero() {
 			return errors.New("commit cannot be for nil block")
 		}
 
-		if len(commit.Signatures) == 0 {
+		if len(c.Signatures) == 0 {
 			return errors.New("no signatures in commit")
 		}
-		for i, commitSig := range commit.Signatures {
+		for i, commitSig := range c.Signatures {
 			if err := commitSig.Validate(); err != nil {
 				return ufmt.Errorf("wrong CommitSig #%d: %v", i, err)
 			}
