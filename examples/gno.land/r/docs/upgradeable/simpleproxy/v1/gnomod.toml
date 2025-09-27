@@ -1,2 +1,2 @@
-module = "gno.land/r/docs/pattern1/v1"
+module = "gno.land/r/docs/upgradeable/simpleproxy/v1"
 gno = "0.9"

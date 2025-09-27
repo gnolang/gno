@@ -20,6 +20,8 @@ type App struct {
 	field   string
 }
 
+// var _ App = (*proxy.MyApp)(nil) -> implements common interface
+
 func (app *App) Render() string {
 	return ufmt.Sprintf("This is the %s of the App!\n\nField: %s\n\n", app.version, app.field)
 }
