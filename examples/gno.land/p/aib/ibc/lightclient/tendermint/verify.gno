@@ -150,13 +150,15 @@ func (tm TMLightClient) verifyCommit(
 			// that the same validator doesn't commit twice
 			if firstIndex, ok := seenVals[valIdx]; ok {
 				secondIndex := idx
-				return ufmt.Errorf("double vote from %v (%d and %d)", val, firstIndex, secondIndex)
+				addr := hex.EncodeToString(val.Address)
+				return ufmt.Errorf("double vote from %s (%d and %d)", addr, firstIndex, secondIndex)
 			}
 			seenVals[valIdx] = idx
 		}
 
-		if val.PubKey == nil {
-			return ufmt.Errorf("validator %v has a nil PubKey at index %d", val, idx)
+		if len(val.PubKey) == 0 {
+			addr := hex.EncodeToString(val.Address)
+			return ufmt.Errorf("validator %s has a nil PubKey at index %d", addr, idx)
 		}
 
 		voteSignBytes := commit.BytesToSign(tm.ClientState.ChainId, idx)
