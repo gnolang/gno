@@ -890,7 +890,7 @@ func (rlm *Realm) clearMarks() {
 func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[TypeID]struct{}) {
 	objID := obj.GetObjectID()
 	if objID.PkgID != rlm.ID && isPkgPrivateFromPkgID(store, objID.PkgID) {
-		panic("cannot persist reference of object from private realm")
+		panic("cannot persist reference of object from the private realm " + pkgPathFromPkgID(store, objID.PkgID))
 	}
 
 	// NOTE: should i set the visited tids map at the higher level so it's set one time.
@@ -923,7 +923,7 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[Type
 		}
 	case *FuncValue:
 		if v.PkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, v.PkgPath) {
-			panic("cannot persist function or method from private realm")
+			panic("cannot persist function or method from the private realm " + v.PkgPath)
 		}
 		if v.Type != nil {
 			rlm.assertTypeIsPublic(store, v.Type, visited)
@@ -935,7 +935,7 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[Type
 		}
 	case *BoundMethodValue:
 		if v.Func.PkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, v.Func.PkgPath) {
-			panic("cannot persist bound method from private realm")
+			panic("cannot persist bound method from the private realm " + v.Func.PkgPath)
 		}
 		if v.Receiver.T != nil {
 			rlm.assertTypeIsPublic(store, v.Receiver.T, visited)
@@ -951,7 +951,7 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[Type
 		}
 	case *PackageValue:
 		if v.PkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, v.PkgPath) {
-			panic("cannot persist package from private realm")
+			panic("cannot persist package from the private realm " + v.PkgPath)
 		}
 	default:
 		panic(fmt.Sprintf("assertNoPrivateDeps: unhandled object type %T", v))
@@ -1015,7 +1015,7 @@ func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]str
 		panic(fmt.Sprintf("assertTypeIsPublic: unhandled type %T", tt))
 	}
 	if pkgPath != "" && pkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, pkgPath) {
-		panic("cannot persist object of type defined in a private realm")
+		panic("cannot persist object of type defined in the private realm " + pkgPath)
 	}
 }
 
@@ -1794,6 +1794,16 @@ func isPkgPrivateFromPkgID(store Store, pkgID PkgID) bool {
 		panic("oid with time set at 1 does not refer to package value")
 	}
 	return pv.Private
+}
+
+func pkgPathFromPkgID(store Store, pkgID PkgID) string {
+	oid := ObjectIDFromPkgID(pkgID)
+	oo := store.GetObject(oid)
+	pv, ok := oo.(*PackageValue)
+	if !ok {
+		panic("oid with time set at 1 does not refer to package value")
+	}
+	return pv.PkgPath
 }
 
 func isPkgPrivateFromPkgPath(store Store, pkgPath string) bool {
