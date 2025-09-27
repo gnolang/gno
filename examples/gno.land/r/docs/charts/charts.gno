@@ -1,52 +1,48 @@
 package charts
 
-import (
-	"gno.land/p/samcrew/piechart"
-)
-
-// RenderPieChartExample creates a simple data distribution pie chart example
-func RenderPieChartExample() string {
-	data := []piechart.PieSlice{
-		{Value: 35, Color: "#e74c3c", Label: "Category A"},
-		{Value: 25, Color: "#3498db", Label: "Category B"},
-		{Value: 20, Color: "#2ecc71", Label: "Category C"},
-		{Value: 15, Color: "#f39c12", Label: "Category D"},
-		{Value: 5, Color: "#9b59b6", Label: "Category E"},
+func Render(path string) string {
+	// Handle subroutes for specific chart types
+	switch path {
+	case "piechart":
+		return RenderPieChart()
+	case "gauge":
+		return RenderGauge()
+	default:
+		return RenderMainDocs()
 	}
-	return piechart.Render(data, "Data Distribution Example")
 }
 
-func Render(path string) string {
+// RenderMainDocs renders the main charts documentation page
+func RenderMainDocs() string {
 	// Generate live examples
 	pieChartExample := RenderPieChartExample()
+	gaugeExample := RenderGaugeExample()
 
 	return `
 # Chart Packages Documentation
 
 ## Available Packages
 
-- [Charts](/p/matijamarjanovic/charts) - SVG Chart Library
-- [Gauge](/p/samcrew/gauge) - SVG Gauge Charts
-- [Piechart](/p/samcrew/piechart) - SVG Pie Charts
+- **[Piechart](/p/samcrew/piechart)** - SVG Pie Charts
+  - [View All Examples](/r/docs/charts:piechart) - Detailed documentation with multiple examples
+- **[Gauge](/p/samcrew/gauge)** - SVG Gauge Charts  
+  - [View All Examples](/r/docs/charts:gauge) - Detailed documentation with multiple examples
 
-## Live Examples
+## Examples
+
 ### [Piechart](/p/samcrew/piechart) - SVG Pie Charts
-
-**Usage:**
-` + "```go" + `
-import "gno.land/p/samcrew/piechart"
-
-data := []piechart.PieSlice{
-    {Value: 35, Color: "#e74c3c", Label: "Category A"},
-    {Value: 25, Color: "#3498db", Label: "Category B"},
-    {Value: 20, Color: "#2ecc71", Label: "Category C"},
-    {Value: 15, Color: "#f39c12", Label: "Category D"},
-    {Value: 5, Color: "#9b59b6", Label: "Category E"},
-}
-chart := piechart.Render(data, "Data Distribution Example")
-` + "```" + `
+Generate pie charts with label as SVG images .
 
 ` + pieChartExample + `
+
+[→ View all Piechart examples](/r/docs/charts:piechart)
+
+### [Gauge](/p/samcrew/gauge) - SVG Gauge Charts  
+Generate progress bars and gauges as SVG images with customizable styling and labels.
+
+` + gaugeExample + `
+
+[→ View all Gauge examples](/r/docs/charts:gauge)
 
 ---
 
