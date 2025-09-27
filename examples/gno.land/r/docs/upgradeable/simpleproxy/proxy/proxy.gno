@@ -28,7 +28,7 @@ func SetImplementation(cur realm, a MyApp) {
 	std.Emit("UpgradeEvent", "to", a.Version())
 }
 
-func CheckSet() bool {
+func IsImplSet() bool {
 	return App != nil
 }
 
@@ -47,9 +47,17 @@ func Render(_ string) string {
 // The app is fully functional without them via MsgRun transactions
 
 func Do(cur realm, arg string) {
+	if !IsImplSet() {
+		panic("implementation currently not available")
+	}
+
 	App.Do(arg)
 }
 
 func Version() string {
+	if !IsImplSet() {
+		panic("implementation currently not available")
+	}
+
 	return App.Version()
 }
