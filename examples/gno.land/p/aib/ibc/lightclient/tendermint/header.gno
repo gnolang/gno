@@ -151,6 +151,7 @@ type Validator struct {
 // Bytes returns a bytes representation of v, composed as follow:
 // 32bytes: Pubkey
 // varint: VotingPower
+// TODO implement manual proto just like Vote ?
 func (v Validator) Bytes() (bz []byte) {
 	bz = append(bz, v.PubKey...)
 	bz = binary.AppendVarint(bz, v.VotingPower)
@@ -284,7 +285,6 @@ func (h Header) Expired(trustingPeriod time.Duration) error {
 
 // Commit contains the evidence that a block was committed by a set of validators.
 type Commit struct {
-	// TODO revert to int64
 	Height     uint64      `json:"height,omitempty"`
 	Round      int32       `json:"round,omitempty"`
 	BlockID    BlockID     `json:"block_id"`
