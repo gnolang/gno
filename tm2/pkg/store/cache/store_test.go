@@ -127,6 +127,8 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 		i++
 	}
 	require.Equal(t, nItems, i)
+	require.NoError(t, itr.Error())
+	require.NoError(t, itr.Close())
 
 	// iterate over none
 	itr = st.Iterator(bz("money"), nil)
@@ -135,6 +137,8 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 		i++
 	}
 	require.Equal(t, 0, i)
+	require.NoError(t, itr.Error())
+	require.NoError(t, itr.Close())
 
 	// iterate over lower
 	itr = st.Iterator(keyFmt(0), keyFmt(3))
@@ -146,6 +150,8 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 		i++
 	}
 	require.Equal(t, 3, i)
+	require.NoError(t, itr.Error())
+	require.NoError(t, itr.Close())
 
 	// iterate over upper
 	itr = st.Iterator(keyFmt(2), keyFmt(4))
@@ -157,6 +163,8 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 		i++
 	}
 	require.Equal(t, 4, i)
+	require.NoError(t, itr.Error())
+	require.NoError(t, itr.Close())
 }
 
 func TestCacheKVReverseIteratorBounds(t *testing.T) {
@@ -449,6 +457,8 @@ func assertIterateDomain(t *testing.T, st types.Store, expectedN int) {
 		i++
 	}
 	require.Equal(t, expectedN, i)
+	require.NoError(t, itr.Error())
+	require.NoError(t, itr.Close())
 }
 
 func assertIterateDomainCheck(t *testing.T, st types.Store, mem dbm.DB, r []keyRange) {
@@ -456,7 +466,8 @@ func assertIterateDomainCheck(t *testing.T, st types.Store, mem dbm.DB, r []keyR
 
 	// iterate over each and check they match the other
 	itr := st.Iterator(nil, nil)
-	itr2 := mem.Iterator(nil, nil) // ground truth
+	itr2, err := mem.Iterator(nil, nil) // ground truth
+	require.NoError(t, err)
 
 	krc := newKeyRangeCounter(r)
 	i := 0
@@ -488,7 +499,8 @@ func assertIterateDomainCompare(t *testing.T, st types.Store, mem dbm.DB) {
 
 	// iterate over each and check they match the other
 	itr := st.Iterator(nil, nil)
-	itr2 := mem.Iterator(nil, nil) // ground truth
+	itr2, err := mem.Iterator(nil, nil) // ground truth
+	require.NoError(t, err)
 	checkIterators(t, itr, itr2)
 	checkIterators(t, itr2, itr)
 }

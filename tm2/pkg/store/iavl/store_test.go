@@ -12,8 +12,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/iavl"
 	"github.com/gnolang/gno/tm2/pkg/random"
-
-	// "github.com/gnolang/gno/tm2/pkg/store/errors"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -35,7 +33,7 @@ var (
 func newAlohaTree(t *testing.T, db dbm.DB) (*iavl.MutableTree, types.CommitID) {
 	t.Helper()
 
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())
 	for k, v := range treeData {
 		tree.Set([]byte(k), []byte(v))
 	}
@@ -56,7 +54,9 @@ func TestGetImmutable(t *testing.T) {
 	tree, cID := newAlohaTree(t, db)
 	store := UnsafeNewStore(tree, storeOptions(10, 10))
 
-	require.True(t, tree.Set([]byte("hello"), []byte("adios")))
+	updated, err := tree.Set([]byte("hello"), []byte("adios"))
+	require.NoError(t, err)
+	require.True(t, updated)
 	hash, ver, err := tree.SaveVersion()
 	cID = types.CommitID{Version: ver, Hash: hash}
 	require.Nil(t, err)
@@ -221,7 +221,7 @@ func TestIAVLReverseIterator(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
 
 	iavlStore.Set([]byte{0x00}, []byte("0"))
@@ -256,7 +256,7 @@ func TestIAVLPrefixIterator(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
 
 	iavlStore.Set([]byte("test1"), []byte("test1"))
@@ -320,7 +320,7 @@ func TestIAVLReversePrefixIterator(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
 
 	iavlStore.Set([]byte("test1"), []byte("test1"))
@@ -400,12 +400,12 @@ func TestIAVLDefaultPruning(t *testing.T) {
 		{[]int64{2, 3, 4, 5, 6, 7}, []int64{1}},
 		{[]int64{3, 4, 5, 6, 7, 8}, []int64{1, 2}},
 		{[]int64{3, 4, 5, 6, 7, 8, 9}, []int64{1, 2}},
-		{[]int64{3, 5, 6, 7, 8, 9, 10}, []int64{1, 2, 4}},
-		{[]int64{3, 6, 7, 8, 9, 10, 11}, []int64{1, 2, 4, 5}},
-		{[]int64{3, 6, 7, 8, 9, 10, 11, 12}, []int64{1, 2, 4, 5}},
-		{[]int64{3, 6, 8, 9, 10, 11, 12, 13}, []int64{1, 2, 4, 5, 7}},
-		{[]int64{3, 6, 9, 10, 11, 12, 13, 14}, []int64{1, 2, 4, 5, 7, 8}},
-		{[]int64{3, 6, 9, 10, 11, 12, 13, 14, 15}, []int64{1, 2, 4, 5, 7, 8}},
+		{[]int64{5, 6, 7, 8, 9, 10}, []int64{1, 2, 3, 4}},
+		{[]int64{6, 7, 8, 9, 10, 11}, []int64{1, 2, 3, 4, 5}},
+		{[]int64{6, 7, 8, 9, 10, 11, 12}, []int64{1, 2, 3, 4, 5}},
+		{[]int64{8, 9, 10, 11, 12, 13}, []int64{1, 2, 3, 4, 5, 6, 7}},
+		{[]int64{9, 10, 11, 12, 13, 14}, []int64{1, 2, 3, 4, 5, 6, 7, 8}},
+		{[]int64{9, 10, 11, 12, 13, 14, 15}, []int64{1, 2, 3, 4, 5, 6, 7, 8}},
 	}
 	testPruning(t, int64(5), int64(3), states)
 }
@@ -426,12 +426,12 @@ func TestIAVLAlternativePruning(t *testing.T) {
 		{[]int64{4, 5, 6, 7}, []int64{1, 2, 3}},
 		{[]int64{5, 6, 7, 8}, []int64{1, 2, 3, 4}},
 		{[]int64{5, 6, 7, 8, 9}, []int64{1, 2, 3, 4}},
-		{[]int64{5, 7, 8, 9, 10}, []int64{1, 2, 3, 4, 6}},
-		{[]int64{5, 8, 9, 10, 11}, []int64{1, 2, 3, 4, 6, 7}},
-		{[]int64{5, 9, 10, 11, 12}, []int64{1, 2, 3, 4, 6, 7, 8}},
-		{[]int64{5, 10, 11, 12, 13}, []int64{1, 2, 3, 4, 6, 7, 8, 9}},
-		{[]int64{5, 10, 11, 12, 13, 14}, []int64{1, 2, 3, 4, 6, 7, 8, 9}},
-		{[]int64{5, 10, 12, 13, 14, 15}, []int64{1, 2, 3, 4, 6, 7, 8, 9, 11}},
+		{[]int64{7, 8, 9, 10}, []int64{1, 2, 3, 4, 5, 6}},
+		{[]int64{8, 9, 10, 11}, []int64{1, 2, 3, 4, 5, 6, 7}},
+		{[]int64{9, 10, 11, 12}, []int64{1, 2, 3, 4, 5, 6, 7, 8}},
+		{[]int64{10, 11, 12, 13}, []int64{1, 2, 3, 4, 5, 6, 7, 8, 9}},
+		{[]int64{10, 11, 12, 13, 14}, []int64{1, 2, 3, 4, 5, 6, 7, 8, 9}},
+		{[]int64{12, 13, 14, 15}, []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}},
 	}
 	testPruning(t, int64(3), int64(5), states)
 }
@@ -445,7 +445,7 @@ func testPruning(t *testing.T, numRecent int64, storeEvery int64, states []prune
 	t.Helper()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
 	for step, state := range states {
 		for _, ver := range state.stored {
@@ -466,7 +466,7 @@ func TestIAVLNoPrune(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, int64(1)))
 	nextVersion(iavlStore)
 	for i := 1; i < 100; i++ {
@@ -483,7 +483,7 @@ func TestIAVLPruneEverything(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(int64(0), int64(0)))
 	nextVersion(iavlStore)
 	for i := 1; i < 100; i++ {
@@ -503,7 +503,7 @@ func TestIAVLStoreQuery(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())
 	iavlStore := UnsafeNewStore(tree, storeOptions(numRecent, storeEvery))
 
 	k1, v1 := []byte("key1"), []byte("val1")
@@ -594,7 +594,7 @@ func TestIAVLStoreQuery(t *testing.T) {
 func BenchmarkIAVLIteratorNext(b *testing.B) {
 	db := memdb.NewMemDB()
 	treeSize := 1000
-	tree := iavl.NewMutableTree(db, cacheSize)
+	tree := iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())
 	for range treeSize {
 		key := random.RandBytes(4)
 		value := random.RandBytes(50)
