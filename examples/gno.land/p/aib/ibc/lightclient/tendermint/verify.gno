@@ -118,11 +118,6 @@ func (tm TMLightClient) verifyCommit(
 	vals *ValidatorSet,
 	commit *Commit,
 ) error {
-	// TODO move to MsgHeader.Validate
-	if len(vals.Validators) != len(commit.Signatures) {
-		return ufmt.Errorf("Invalid commit -- wrong set size: %v vs %v",
-			len(vals.Validators), len(commit.Signatures))
-	}
 	var (
 		// calculate voting power needed
 		votingPowerNeeded = vals.TotalVotingPower * 2 / 3

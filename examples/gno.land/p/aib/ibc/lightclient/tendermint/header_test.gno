@@ -238,6 +238,13 @@ func TestMsgHeaderValidate(t *testing.T) {
 			},
 			expectedError: "trusted validator set does not match hash",
 		},
+		{
+			name: "commit signatures and validators count are different",
+			malleate: func() {
+				msg.Commit.Signatures = msg.Commit.Signatures[:1]
+			},
+			expectedError: "Invalid commit -- wrong set size: 2 vs 1",
+		},
 	}
 
 	if lightclient.Tendermint != msg.ClientType() {
