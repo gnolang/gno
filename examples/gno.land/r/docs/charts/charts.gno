@@ -21,19 +21,14 @@ func Render(path string) string {
 	pieChartExample := RenderPieChartExample()
 
 	return `
-# Samcrew Package Documentation
+# Chart Packages Documentation
 
 ## Available Packages
 
-### 1. [Piechart](/p/samcrew/piechart) - SVG Pie Charts
+- [Piechart](/p/samcrew/piechart) - SVG Pie Charts
 
-Generate pie charts with legends as SVG markup for gnoweb rendering.
-
-**Key Features:**
-- SVG-based rendering with crisp graphics
-- Customizable colors and labels
-- Automatic legend generation with color swatches
-- Mathematical precision for arc calculations
+## Live Examples
+### [Piechart](/p/samcrew/piechart) - SVG Pie Charts
 
 **Usage:**
 ` + "```go" + `
@@ -48,8 +43,6 @@ data := []piechart.PieSlice{
 }
 chart := piechart.Render(data, "Data Distribution Example")
 ` + "```" + `
-
-**Live Example:**
 
 ` + pieChartExample + `
 
