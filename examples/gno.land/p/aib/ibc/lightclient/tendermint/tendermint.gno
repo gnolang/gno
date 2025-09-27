@@ -40,12 +40,13 @@ func (tm *TMLightClient) VerifyClientMessage(clientMsg lightclient.ClientMessage
 // Implements lightclient.Interface
 func (tm *TMLightClient) CheckForMisbehaviour(clientMsg lightclient.ClientMessage) bool {
 	// TODO
-	return false
+	panic("not implemented")
 }
 
 // Implements lightclient.Interface
 func (tm *TMLightClient) UpdateStateOnMisbehaviour(clientMsg lightclient.ClientMessage) {
 	// TODO
+	panic("not implemented")
 }
 
 // Implements lightclient.Interface
@@ -78,7 +79,7 @@ func (tm *TMLightClient) VerifyMembership(height types.Height,
 	delayTimePeriod uint64, delayBlockPeriod uint64, proof []byte, path string,
 	value []byte) error {
 	// TODO
-	return nil
+	panic("not implemented")
 }
 
 // Implements lightclient.Interface
@@ -86,7 +87,7 @@ func (tm *TMLightClient) VerifyNonMembership(height types.Height,
 	delayTimePeriod uint64, delayBlockPeriod uint64, proof []byte,
 	path string) error {
 	// TODO
-	return nil
+	panic("not implemented")
 }
 
 // Implements lightclient.Interface
@@ -115,20 +116,20 @@ func (tm *TMLightClient) LatestHeight() types.Height {
 // Implements lightclient.Interface
 func (tm *TMLightClient) TimestampAtHeight(height types.Height) (uint64, error) {
 	// TODO
-	return 0, nil
+	panic("not implemented")
 }
 
 // Implements lightclient.Interface
 func (tm *TMLightClient) RecoverClient(substituteClientID string) error {
 	// TODO
-	return nil
+	panic("not implemented")
 }
 
 // Implements lightclient.Interface
 func (tm *TMLightClient) VerifyUpgradeAndUpdateState(newClient, newConsState,
 	upgradeClientProof, upgradeConsensusStateProof []byte) error {
 	// TODO
-	return nil
+	panic("not implemented")
 }
 
 // GetConsensusState returns the consensus state mapped at height, if any.

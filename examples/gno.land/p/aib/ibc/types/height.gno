@@ -17,9 +17,9 @@ import "gno.land/p/nt/ufmt"
 // This enforces the Go json marshaller to always emit zero values for both revision_number and revision_height.
 type Height struct {
 	// the revision that the client is currently on
-	RevisionNumber uint64 `protobuf:"varint,1,opt,name=revision_number,json=revisionNumber,proto3" json:"revision_number"`
+	RevisionNumber uint64
 	// the height within the given revision
-	RevisionHeight uint64 `protobuf:"varint,2,opt,name=revision_height,json=revisionHeight,proto3" json:"revision_height"`
+	RevisionHeight uint64
 }
 
 func NewHeight(revision, height uint64) Height {

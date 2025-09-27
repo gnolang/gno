@@ -61,11 +61,6 @@ func main() {
 	)
 
 	core.UpdateClient(cross, clientID, msgHeader)
-
-	println("----------- assert render clients")
-	println(core.Render("clients"))
-	println("----------- assert render clients/07-tendermint-1/consensus_states")
-	println(core.Render("clients/" + clientID + "/consensus_states"))
 }
 
 // Error:

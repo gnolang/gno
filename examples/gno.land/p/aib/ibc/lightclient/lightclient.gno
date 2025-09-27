@@ -37,8 +37,6 @@ const (
 // Interface is an interface which core IBC uses to interact with light
 // client modules.  Light client modules must implement this interface to
 // integrate with core IBC.
-//
-// TODO remove all clientID parameter?
 type Interface interface {
 	// Initialize is called upon client creation, it allows the client to perform
 	// validation on the client state and initial consensus state.  The light
