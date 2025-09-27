@@ -36,27 +36,7 @@ func GenValset() *tendermint.ValidatorSet {
 			VotingPower: 3,
 		}
 	)
-	return NewValset(val1, val2)
-}
-
-func NewValset(vals ...*tendermint.Validator) *tendermint.ValidatorSet {
-	var total int64
-	for _, v := range vals {
-		total += v.VotingPower
-	}
-	return &tendermint.ValidatorSet{
-		Validators:       vals,
-		Proposer:         vals[0],
-		TotalVotingPower: total,
-	}
-}
-
-func NewValidator(addr, pubkey string, vp int64) *tendermint.Validator {
-	return &tendermint.Validator{
-		Address:     B64Dec(addr),
-		PubKey:      B64Dec(pubkey),
-		VotingPower: vp,
-	}
+	return tendermint.NewValset(val1, val2)
 }
 
 func GenConsensusState(timestamp time.Time, apphash, valsethash []byte) tendermint.ConsensusState {
@@ -89,59 +69,10 @@ func GenMsgHeader(chainID string, timestamp time.Time, apphash []byte,
 			},
 		}
 	)
-	return NewMsgHeader(chainID, timestamp,
+	return tendermint.NewMsgHeader(chainID, timestamp,
 		apphash, blockhash, parsethash, consensushash,
 		height, trustedHeight, valset, trustedValset, signatures,
 	)
-}
-
-func NewMsgHeader(chainID string, timestamp time.Time,
-	apphash, blockhash, parsethash, consensushash []byte,
-	height uint64, trustedHeight types.Height,
-	valset, trustedValset *tendermint.ValidatorSet,
-	signatures []tendermint.CommitSig) *tendermint.MsgHeader {
-	return &tendermint.MsgHeader{
-		Header: &tendermint.Header{
-			Version: tendermint.Consensus{
-				Block: tendermint.BlockProtocol,
-				App:   0,
-			},
-			ChainID: chainID,
-			Height:  height,
-			Time:    timestamp,
-			LastBlockID: tendermint.BlockID{
-				Hash: blockhash,
-				PartSetHeader: tendermint.PartSetHeader{
-					Total: 1,
-					Hash:  parsethash,
-				},
-			},
-			LastCommitHash:     apphash, //FIXME
-			DataHash:           apphash, //FIXME
-			ValidatorsHash:     valset.Hash(),
-			NextValidatorsHash: trustedValset.Hash(),
-			ConsensusHash:      consensushash,
-			AppHash:            apphash,
-			LastResultsHash:    nil, //FIXME?
-			EvidenceHash:       nil, //FIXME?
-			ProposerAddress:    valset.Proposer.Address,
-		},
-		Commit: &tendermint.Commit{
-			Height: height,
-			Round:  0,
-			BlockID: tendermint.BlockID{
-				Hash: blockhash,
-				PartSetHeader: tendermint.PartSetHeader{
-					Total: 1,
-					Hash:  parsethash,
-				},
-			},
-			Signatures: signatures,
-		},
-		ValidatorSet:      valset,
-		TrustedHeight:     trustedHeight,
-		TrustedValidators: trustedValset,
-	}
 }
 
 func GenAddr(prefix string) []byte {
