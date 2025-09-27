@@ -41,8 +41,6 @@ import "gno.land/p/samcrew/gauge"
 gauge := gauge.Render(75, 100, "Progress", "#2ecc71", gauge.DefaultConfig)
 ` + "```" + `
 
-**Example Output:**
-
 ` + basicExample + `
 
 ## Custom Configuration Example
@@ -58,8 +56,6 @@ config := gauge.Config{
 gauge := gauge.Render(90, 100, "Loading", "#3498db", config)
 ` + "```" + `
 
-**Example Output:**
-
 ` + customExample + `
 
 ## Different Progress Example
@@ -67,8 +63,6 @@ gauge := gauge.Render(90, 100, "Loading", "#3498db", config)
 ` + "```go" + `
 healthGauge := gauge.Render(33, 50, "Health", "#e74c3c", gauge.DefaultConfig)
 ` + "```" + `
-
-**Example Output:**
 
 ` + progressExample + `
 
@@ -83,7 +77,13 @@ type Config struct {
     PaddingH     int  // Horizontal padding (for the text) in pixels
 }
 
-var DefaultConfig = Config{false, 300, 30, 16, 6}
+var DefaultConfig = Config{
+    PercentOnly:  false,
+    Width:        300,
+    CanvasHeight: 30,
+    FontSize:     16,
+    PaddingH:     6,
+}
 
 // value: Current value (must be ≤ total)
 // total: Maximum value (must be > 0)
