@@ -2,8 +2,6 @@ package tendermint
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/binary"
 	"errors"
 	"time"
 
@@ -30,6 +28,55 @@ type MsgHeader struct {
 	ValidatorSet      *ValidatorSet `json:"validator_set,omitempty"`
 	TrustedHeight     types.Height  `json:"trusted_height"`
 	TrustedValidators *ValidatorSet `json:"trusted_validators,omitempty"`
+}
+
+func NewMsgHeader(chainID string, timestamp time.Time,
+	apphash, blockhash, parsethash, consensushash []byte,
+	height uint64, trustedHeight types.Height,
+	valset, trustedValset *ValidatorSet,
+	signatures []CommitSig) *MsgHeader {
+	return &MsgHeader{
+		Header: &Header{
+			Version: Consensus{
+				Block: BlockProtocol,
+				App:   0,
+			},
+			ChainID: chainID,
+			Height:  height,
+			Time:    timestamp,
+			LastBlockID: BlockID{
+				Hash: blockhash,
+				PartSetHeader: PartSetHeader{
+					Total: 1,
+					Hash:  parsethash,
+				},
+			},
+			LastCommitHash:     apphash, //FIXME
+			DataHash:           apphash, //FIXME
+			ValidatorsHash:     valset.Hash(),
+			NextValidatorsHash: trustedValset.Hash(),
+			ConsensusHash:      consensushash,
+			AppHash:            apphash,
+			LastResultsHash:    nil, //FIXME?
+			EvidenceHash:       nil, //FIXME?
+			ProposerAddress:    valset.Proposer.Address,
+		},
+		Commit: &Commit{
+			Height: height,
+			Round:  0,
+			BlockID: BlockID{
+				Hash: blockhash,
+				PartSetHeader: PartSetHeader{
+					Total: 1,
+					Hash:  parsethash,
+				},
+			},
+			Signatures: signatures,
+		},
+		ValidatorSet:      valset,
+		TrustedHeight:     trustedHeight,
+		TrustedValidators: trustedValset,
+	}
 }
 
 // Implements lightclient.ClientMessage
@@ -114,52 +161,6 @@ func (Misbehaviour) ClientType() string {
 func (m Misbehaviour) Validate() error {
 	// TODO
 	return nil
-}
-
-type ValidatorSet struct {
-	Validators       []*Validator `json:"validators,omitempty"`
-	Proposer         *Validator   `json:"proposer,omitempty"`
-	TotalVotingPower int64        `json:"total_voting_power,omitempty"`
-}
-
-func (vals ValidatorSet) Hash() []byte {
-	var bz []byte
-	for _, v := range vals.Validators {
-		bz = append(bz, v.Bytes()...)
-	}
-	// TODO: ibc-go returns a merkle hash, ensure we can just use a simple hash
-	// -> see p/demo/merkle
-	// return merkle.HashFromByteSlices(bzs)
-	h := sha256.Sum256(bz)
-	return h[:]
-}
-
-// GetByAddress returns an index of the validator with address and validator
-// itself (copy) if found. Otherwise, -1 and nil are returned.
-func (vals *ValidatorSet) GetByAddress(address []byte) (index int32, val *Validator) {
-	for idx, val := range vals.Validators {
-		if bytes.Equal(val.Address, address) {
-			return int32(idx), val
-		}
-	}
-	return -1, nil
-}
-
-type Validator struct {
-	Address          []byte `json:"address,omitempty"`
-	PubKey           []byte `json:"pub_key"`
-	VotingPower      int64  `json:"voting_power,omitempty"`
-	ProposerPriority int64  `json:"proposer_priority,omitempty"`
-}
-
-// Bytes returns a bytes representation of v, composed as follow:
-// 32bytes: Pubkey
-// varint: VotingPower
-// TODO implement manual proto just like Vote ?
-func (v Validator) Bytes() (bz []byte) {
-	bz = append(bz, v.PubKey...)
-	bz = binary.AppendVarint(bz, v.VotingPower)
-	return
 }
 
 // Header defines the structure of a block header.
