@@ -1141,7 +1141,7 @@ func copyListToRunes(dst []rune, tvs []TypedValue) {
 	}
 }
 
-func consumerGas(m *Machine, amount types.Gas) {
+func consumeGas(m *Machine, amount types.Gas) {
 	if m.GasMeter != nil {
 		m.GasMeter.ConsumeGas(amount, "CPUCycles")
 	}
