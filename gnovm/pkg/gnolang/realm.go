@@ -1007,9 +1007,6 @@ func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]str
 			}
 		}
 		pkgPath = tt.GetPkgPath()
-	case *RefType:
-		t2 := store.GetType(tt.TypeID())
-		rlm.assertTypeIsPublic(store, t2, visited)
 	case PrimitiveType, *TypeType, *PackageType, blockType, heapItemType:
 		// these types do not have a package path.
 		// NOTE: PackageType have a TypeID, should i loat it from store and check it?
