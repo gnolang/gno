@@ -150,11 +150,6 @@ func verifyCommitSingle(
 			continue
 		}
 
-		// TODO check should be done before
-		if commitSig.Validate() != nil {
-			return ufmt.Errorf("invalid signatures from %v at index %d", val, idx)
-		}
-
 		// If the vals and commit have a 1-to-1 correspondence we can retrieve
 		// them by index else we need to retrieve them by address
 		if lookUpByIndex {
@@ -177,7 +172,6 @@ func verifyCommitSingle(
 			seenVals[valIdx] = idx
 		}
 
-		// TODO move to validate
 		if val.PubKey == nil {
 			return ufmt.Errorf("validator %v has a nil PubKey at index %d", val, idx)
 		}
@@ -188,7 +182,7 @@ func verifyCommitSingle(
 			commit.Signatures[idx].BlockIDFlag, commit.Signatures[idx].Timestamp,
 		)
 
-		// CONTRACT: all validators have ed25519 keys
+		// CONTRACT: all validators use ed25519 keys
 		if !ed25519.Verify(val.PubKey, voteSignBytes, commitSig.Signature) {
 			return ufmt.Errorf("verify signature fail (#%d)", idx)
 		}
