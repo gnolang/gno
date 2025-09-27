@@ -14,8 +14,10 @@ import (
 )
 
 const (
-	NativeCPUUversePrintInit    = 1800
-	NativeCPUUversePrintPerChar = 1
+	// NativeCPUUversePrintInit is the base cost for Print.
+	NativeCPUUversePrintInit = 1800
+	// NativeCPUUversePrintPerChar is now chars per gas unit.
+	NativeCPUUversePrintCharsPerGas = 10
 )
 
 // ----------------------------------------
@@ -1151,38 +1153,44 @@ func consumeGas(m *Machine, amount types.Gas) {
 // println passes newline = true.
 // xv contains the variadic argument passed to the function.
 func uversePrint(m *Machine, xv PointerValue, newline bool) {
-	consumerGas(m, NativeCPUUversePrintInit)
+	consumeGas(m, NativeCPUUversePrintInit)
 	xvl := xv.TV.GetLength()
 	switch xvl {
 	case 0:
 		if newline {
-			consumerGas(m, NativeCPUUversePrintPerChar)
+			consumeGas(m, overflow.Divp(types.Gas(1), NativeCPUUversePrintCharsPerGas))
 			m.Output.Write(bNewline)
 		}
 	case 1:
 		ev := xv.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 		res := ev.Sprint(m)
-		consumerGas(m, overflow.Mulp(NativeCPUUversePrintPerChar, types.Gas(len(res))))
+		lenChars := types.Gas(len(res))
 		io.WriteString(m.Output, res)
 		if newline {
-			consumerGas(m, NativeCPUUversePrintPerChar)
+			lenChars = overflow.Addp(lenChars, 1)
 			m.Output.Write(bNewline)
 		}
+		consumeGas(m, overflow.Divp(lenChars, NativeCPUUversePrintCharsPerGas))
 	default:
-		var buf bytes.Buffer
+		var (
+			buf      bytes.Buffer
+			lenChars types.Gas
+		)
+
 		for i := range xvl {
 			if i != 0 { // Not the last item.
 				buf.WriteByte(' ')
 			}
 			ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
 			res := ev.Sprint(m)
-			consumerGas(m, overflow.Mulp(NativeCPUUversePrintPerChar, types.Gas(len(res))))
+			lenChars = overflow.Addp(lenChars, types.Gas(len(res)))
 			buf.WriteString(res)
 		}
 		if newline {
-			consumerGas(m, NativeCPUUversePrintPerChar)
+			lenChars = overflow.Addp(lenChars, 1)
 			buf.WriteByte('\n')
 		}
+		consumeGas(m, overflow.Divp(lenChars, NativeCPUUversePrintCharsPerGas))
 		m.Output.Write(buf.Bytes())
 	}
 }
