@@ -230,7 +230,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // NOTE: Does not validate the mpkg. Caller must validate the mpkg before
 // calling.
 func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
-	if bm.OpsEnabled || bm.StorageEnabled {
+	if bm.OpsEnabled || bm.StorageEnabled || bm.NativeEnabled {
 		bm.InitMeasure()
 	}
 	if bm.StorageEnabled {
@@ -1244,6 +1244,12 @@ func (m *Machine) Run(st Stage) {
 		defer func() {
 			// output each machine run results to file
 			bm.FinishRun()
+		}()
+	}
+	if bm.NativeEnabled {
+		defer func() {
+			// output each machine run results to file
+			bm.FinishNative()
 		}()
 	}
 	defer func() {
