@@ -25,6 +25,8 @@ func Render(path string) string {
 
 ## Available Packages
 
+- [Charts](/p/matijamarjanovic/charts) - SVG Pie Charts
+- [Gauge](/p/samcrew/piechart) - SVG Pie Charts
 - [Piechart](/p/samcrew/piechart) - SVG Pie Charts
 
 ## Live Examples
