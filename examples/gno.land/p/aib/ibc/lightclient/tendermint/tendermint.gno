@@ -69,8 +69,6 @@ func (tm *TMLightClient) UpdateState(clientMsg lightclient.ClientMessage) []type
 		NextValidatorsHash: msg.Header.NextValidatorsHash,
 	}
 	tm.ConsensusStateByHeight.Set(msgHeight.String(), consState)
-	// TODO what about consensus metadata ?
-
 	return []types.Height{msgHeight}
 }
 
