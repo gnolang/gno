@@ -1,13 +1,13 @@
 package tendermint_test
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 	"time"
 
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/lightclient/tendermint"
-	ibctesting "gno.land/p/aib/ibc/lightclient/tendermint/testing"
 	"gno.land/p/aib/ibc/types"
 )
 
@@ -151,7 +151,7 @@ func TestClientStateValidate(t *testing.T) {
 func TestConsensusStateValidate(t *testing.T) {
 	var (
 		now      = time.Now()
-		valshash = ibctesting.GenHash("valhash")
+		valshash = bytes.Repeat([]byte{1}, 32)
 	)
 	testCases := []struct {
 		msg            string
