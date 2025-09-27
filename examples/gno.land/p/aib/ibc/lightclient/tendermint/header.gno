@@ -83,6 +83,10 @@ func (h *MsgHeader) Validate() error {
 	if !bytes.Equal(h.Header.NextValidatorsHash, h.TrustedValidators.Hash()) {
 		return ufmt.Errorf("trusted validator set does not match hash")
 	}
+	if len(h.ValidatorSet.Validators) != len(h.Commit.Signatures) {
+		return ufmt.Errorf("Invalid commit -- wrong set size: %v vs %v",
+			len(h.ValidatorSet.Validators), len(h.Commit.Signatures))
+	}
 	return nil
 }
 
