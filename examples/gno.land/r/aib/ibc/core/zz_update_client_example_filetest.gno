@@ -103,6 +103,11 @@ func main() {
 						ValidatorAddress: testing.GenAddr("val1"),          // TODO update
 						Signature:        testing.GenSignature("valsign1"), // TODO update
 					},
+					{
+						BlockIDFlag:      tendermint.BlockIDFlagCommit,
+						ValidatorAddress: testing.GenAddr("val2"),          // TODO update
+						Signature:        testing.GenSignature("valsign2"), // TODO update
+					},
 				},
 			},
 			ValidatorSet:      valset,
