@@ -2,13 +2,14 @@ package tendermint_test
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/base64"
 	"strings"
 	"testing"
 	"time"
 
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/lightclient/tendermint"
-	ibctesting "gno.land/p/aib/ibc/lightclient/tendermint/testing"
 	"gno.land/p/aib/ibc/types"
 )
 
@@ -254,16 +255,53 @@ func TestMsgHeaderValidate(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var (
-				newHeight     = uint64(3)
-				newTimestamp  = time.Now()
-				valset        = ibctesting.GenValset()
-				trustedValset = ibctesting.GenValset()
+				newHeight    = uint64(3)
+				newTimestamp = time.Now()
+				val1         = &tendermint.Validator{
+					Address:     genAddr("val1"),
+					PubKey:      genPubkey("val1_pubkey"),
+					VotingPower: 2,
+				}
+				val2 = &tendermint.Validator{
+					Address:     genAddr("val2"),
+					PubKey:      genPubkey("val2_pubkey"),
+					VotingPower: 3,
+				}
+				valset      = tendermint.NewValset(val1, val2)
+				trustedval1 = &tendermint.Validator{
+					Address:     genAddr("val1"),
+					PubKey:      genPubkey("val1_pubkey"),
+					VotingPower: 2,
+				}
+				trustedval2 = &tendermint.Validator{
+					Address:     genAddr("val2"),
+					PubKey:      genPubkey("val2_pubkey"),
+					VotingPower: 3,
+				}
+				trustedValset = tendermint.NewValset(trustedval1, trustedval2)
 				trustedHeight = types.NewHeight(0, 1)
-				apphash       = ibctesting.GenHash("apphash")
+				apphash       = genHash("apphash")
+				blockhash     = genHash("blockhash")
+				parsethash    = genHash("parsethash")
+				consensushash = genHash("consensushash")
+				signatures    = []tendermint.CommitSig{
+					{
+						BlockIDFlag:      tendermint.BlockIDFlagCommit,
+						ValidatorAddress: valset.Validators[0].Address,
+						Timestamp:        toTime("2025-09-25T07:55:57.306746166Z"),
+						Signature:        b64Dec("qtv1z4S2Q6T87vGQo0lrjRZqv9PrHIji4pTyviMnVyGx9td6eySdzwQwCthwmihU48ebNlFiMlFJ0CT891UmDg=="),
+					},
+					{
+						BlockIDFlag:      tendermint.BlockIDFlagCommit,
+						ValidatorAddress: valset.Validators[1].Address,
+						Timestamp:        toTime("2025-09-25T07:55:57.310583641Z"),
+						Signature:        b64Dec("Q5E6Kjma00n/T98rC9qJmoB6JTGFX/IB+mDVs4Wd1h0eJ8fabY/6oI8zdoU6/7W6VR6wjpHyWBsJrpGT6C0LCg=="),
+					},
+				}
 			)
-			msg = ibctesting.GenMsgHeader(
-				chainID, newTimestamp, apphash[:],
-				newHeight, trustedHeight, valset, trustedValset,
+			msg = tendermint.NewMsgHeader(
+				chainID, newTimestamp, apphash, blockhash, parsethash, consensushash,
+				newHeight, trustedHeight, valset, trustedValset, signatures,
 			)
 			tc.malleate()
 
@@ -280,4 +318,46 @@ func TestMsgHeaderValidate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func b64Dec(s string) []byte {
+	bz, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		panic(err)
+	}
+	return bz
+}
+
+func toTime(s string) time.Time {
+	t, err := time.Parse(time.RFC3339Nano, s)
+	if err != nil {
+		panic(err)
+	}
+	return t
+}
+
+func genAddr(prefix string) []byte {
+	return genBytes(prefix, tendermint.AddressSize)
+}
+
+func genSignature(prefix string) []byte {
+	return genBytes(prefix, tendermint.MaxSignatureSize)
+}
+
+func genPubkey(prefix string) []byte {
+	return genBytes(prefix, 32)
+}
+
+func genBytes(prefix string, size int) []byte {
+	bz := []byte(prefix)
+	// suffix with zeros to make it size bytes long
+	for len(bz) < size {
+		bz = append(bz, 0)
+	}
+	return bz
+}
+
+func genHash(prefix string) []byte {
+	bz := sha256.Sum256(genBytes(prefix, 64))
+	return bz[:]
 }

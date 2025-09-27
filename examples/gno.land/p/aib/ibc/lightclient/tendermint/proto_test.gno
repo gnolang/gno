@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"gno.land/p/aib/ibc/lightclient/tendermint"
-	ibctesting "gno.land/p/aib/ibc/lightclient/tendermint/testing"
 	"gno.land/p/aib/ibc/types"
 )
 
@@ -139,36 +138,36 @@ func TestVoteBytesToSign(t *testing.T) {
 			//  "signer": "atone14d0ka5jcuhf9v3n7qpdpmc9qhgsd6uae2g7jxy"
 			//}
 			chainID       = "osmosis-1"
-			timestamp     = ibctesting.ToTime("2025-09-25T07:55:56.299553312Z")
-			apphash       = ibctesting.B64Dec("DAHBO3lYaIFu9XmplThmF7ijXG7YwDZawGSDKKCHh7c=")
+			timestamp     = toTime("2025-09-25T07:55:56.299553312Z")
+			apphash       = b64Dec("DAHBO3lYaIFu9XmplThmF7ijXG7YwDZawGSDKKCHh7c=")
 			height        = uint64(44873552)
-			blockhash     = ibctesting.B64Dec("NpiImIJoaSaIucwNs5cqpgMsL/8wxEPYC3P0jA5aQSI=")
-			parsethash    = ibctesting.B64Dec("QqzwnLzvixIcUz+hPeUQjDV6NaLkFRKXACCxJIrBHzw=")
-			consensushash = ibctesting.B64Dec("JIS7qLmeUx4aP2QiNi59PuuZqDJRGZaKNV8FwJ7t1As=")
-			val1          = ibctesting.NewValidator(
+			blockhash     = b64Dec("NpiImIJoaSaIucwNs5cqpgMsL/8wxEPYC3P0jA5aQSI=")
+			parsethash    = b64Dec("QqzwnLzvixIcUz+hPeUQjDV6NaLkFRKXACCxJIrBHzw=")
+			consensushash = b64Dec("JIS7qLmeUx4aP2QiNi59PuuZqDJRGZaKNV8FwJ7t1As=")
+			val1          = tendermint.NewValidator(
 				"y1pjuR6PTujbk1lCy+JXJGNkeeA=", "6Nz09YGHzwWxjczG0IhK4Iv0qY2IcX0P/5KitvRXTUc=", 2,
 			)
-			val2 = ibctesting.NewValidator(
+			val2 = tendermint.NewValidator(
 				"ZraWZuv3dufry+GXq6RmpxLicHY=", "wB25StLxbzmD0uTiFiH6xySZd0H13kyanNUvvlUpa34=", 3,
 			)
-			valset        = ibctesting.NewValset(val1, val2)
-			trustedValset = ibctesting.NewValset(val1, val2)
+			valset        = tendermint.NewValset(val1, val2)
+			trustedValset = tendermint.NewValset(val1, val2)
 			signatures    = []tendermint.CommitSig{
 				{
 					BlockIDFlag:      tendermint.BlockIDFlagCommit,
 					ValidatorAddress: valset.Validators[0].Address,
-					Timestamp:        ibctesting.ToTime("2025-09-25T07:55:57.306746166Z"),
-					Signature:        ibctesting.B64Dec("qtv1z4S2Q6T87vGQo0lrjRZqv9PrHIji4pTyviMnVyGx9td6eySdzwQwCthwmihU48ebNlFiMlFJ0CT891UmDg=="),
+					Timestamp:        toTime("2025-09-25T07:55:57.306746166Z"),
+					Signature:        b64Dec("qtv1z4S2Q6T87vGQo0lrjRZqv9PrHIji4pTyviMnVyGx9td6eySdzwQwCthwmihU48ebNlFiMlFJ0CT891UmDg=="),
 				},
 				{
 					BlockIDFlag:      tendermint.BlockIDFlagCommit,
 					ValidatorAddress: valset.Validators[1].Address,
-					Timestamp:        ibctesting.ToTime("2025-09-25T07:55:57.310583641Z"),
-					Signature:        ibctesting.B64Dec("Q5E6Kjma00n/T98rC9qJmoB6JTGFX/IB+mDVs4Wd1h0eJ8fabY/6oI8zdoU6/7W6VR6wjpHyWBsJrpGT6C0LCg=="),
+					Timestamp:        toTime("2025-09-25T07:55:57.310583641Z"),
+					Signature:        b64Dec("Q5E6Kjma00n/T98rC9qJmoB6JTGFX/IB+mDVs4Wd1h0eJ8fabY/6oI8zdoU6/7W6VR6wjpHyWBsJrpGT6C0LCg=="),
 				},
 			}
 
-			msg = ibctesting.NewMsgHeader(
+			msg = tendermint.NewMsgHeader(
 				chainID, timestamp, apphash, blockhash, parsethash, consensushash,
 				height, types.Height{}, valset, trustedValset, signatures,
 			)
@@ -332,23 +331,23 @@ func TestVoteBytesToSign(t *testing.T) {
 			//  "signer": "atone1z7p3628vmw8psjwwzlcak0xqvgyssmwpa3guqm"
 			//}
 			chainID       = "beezee-1"
-			timestamp     = ibctesting.ToTime("2025-09-25T14:00:43.469479971Z")
-			apphash       = ibctesting.B64Dec("XI9E+rmDbjwfn/EvQVp7CAqygaEI8Fingdh3xR+7aKw=")
+			timestamp     = toTime("2025-09-25T14:00:43.469479971Z")
+			apphash       = b64Dec("XI9E+rmDbjwfn/EvQVp7CAqygaEI8Fingdh3xR+7aKw=")
 			height        = uint64(19282029)
-			blockhash     = ibctesting.B64Dec("q82PBaLn4Vg3oLm0v670BOm1Ay+CR69DyBqNA/V//l4=")
-			parsethash    = ibctesting.B64Dec("PqBqLFCb6YhCQZFDnOeHzp1kHAbKs7fwHqOwnn8ha2s=")
-			consensushash = ibctesting.B64Dec("BOEs4QnQgrOaBfgH2qUBI3M1r0rPLx++gYSRGuYVAns=")
-			val1          = ibctesting.NewValidator(
+			blockhash     = b64Dec("q82PBaLn4Vg3oLm0v670BOm1Ay+CR69DyBqNA/V//l4=")
+			parsethash    = b64Dec("PqBqLFCb6YhCQZFDnOeHzp1kHAbKs7fwHqOwnn8ha2s=")
+			consensushash = b64Dec("BOEs4QnQgrOaBfgH2qUBI3M1r0rPLx++gYSRGuYVAns=")
+			val1          = tendermint.NewValidator(
 				"h9mY0OvyfYUX7rMfkXO+9bpEWdo=", "wF3Daj7tqX8nVOJd2WCkMVvqyx/lPzuI5/y3wwSRwbY=", 2,
 			)
-			val2 = ibctesting.NewValidator(
+			val2 = tendermint.NewValidator(
 				"mYLjIF9AxwR+BBlkD9M3f+xqKNE=", "dzCYrLu2sjpWSiEd2MVqsr+Q6ocBDUUUrRKBehGOeLM=", 3,
 			)
-			val3 = ibctesting.NewValidator(
+			val3 = tendermint.NewValidator(
 				"ysbGRHeOh4hD9fUbkM1RHP9bVfc=", "tYyou2DP3JWDrvKPtbAZpTCEtzqr9h1nsi/srNZwLiY=", 4,
 			)
-			valset        = ibctesting.NewValset(val1, val2, val3)
-			trustedValset = ibctesting.NewValset(val1, val2, val3)
+			valset        = tendermint.NewValset(val1, val2, val3)
+			trustedValset = tendermint.NewValset(val1, val2, val3)
 			signatures    = []tendermint.CommitSig{
 				{
 					BlockIDFlag:      tendermint.BlockIDFlagAbsent,
@@ -359,18 +358,18 @@ func TestVoteBytesToSign(t *testing.T) {
 				{
 					BlockIDFlag:      tendermint.BlockIDFlagCommit,
 					ValidatorAddress: valset.Validators[1].Address,
-					Timestamp:        ibctesting.ToTime("2025-09-25T14:00:49.373544902Z"),
-					Signature:        ibctesting.B64Dec("rgUFLD3Yk9JdcfWSqcscXeUZVY+Q7E1jQ1Eumkh/LT2fUI4dsk2NBeOhjyKaF5Ey/q6DwoINss6iSxNPj8s2Ag=="),
+					Timestamp:        toTime("2025-09-25T14:00:49.373544902Z"),
+					Signature:        b64Dec("rgUFLD3Yk9JdcfWSqcscXeUZVY+Q7E1jQ1Eumkh/LT2fUI4dsk2NBeOhjyKaF5Ey/q6DwoINss6iSxNPj8s2Ag=="),
 				},
 				{
 					BlockIDFlag:      tendermint.BlockIDFlagCommit,
 					ValidatorAddress: valset.Validators[2].Address,
-					Timestamp:        ibctesting.ToTime("2025-09-25T14:00:49.396076476Z"),
-					Signature:        ibctesting.B64Dec("thHpLNT6555JHoNr10iBpp8NJemRMPKMwnV4QDL6gLpaYChqrQND+8K4hQrC8Ld2IAuIT92ZHFWOmoVH9bIcBw=="),
+					Timestamp:        toTime("2025-09-25T14:00:49.396076476Z"),
+					Signature:        b64Dec("thHpLNT6555JHoNr10iBpp8NJemRMPKMwnV4QDL6gLpaYChqrQND+8K4hQrC8Ld2IAuIT92ZHFWOmoVH9bIcBw=="),
 				},
 			}
 
-			msg = ibctesting.NewMsgHeader(
+			msg = tendermint.NewMsgHeader(
 				chainID, timestamp, apphash, blockhash, parsethash, consensushash,
 				height, types.Height{}, valset, trustedValset, signatures,
 			)
