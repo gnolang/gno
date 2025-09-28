@@ -12,10 +12,10 @@ import (
 )
 
 // validateError implements ClientState or ConsensusState in order to returns
-// an error when Validate() is invoked.
+// an error when ValidateBasic() is invoked.
 type validateError struct{}
 
-func (validateError) Validate() error {
+func (validateError) ValidateBasic() error {
 	return errors.New("validate error")
 }
 
@@ -23,10 +23,10 @@ func (validateError) ClientType() string {
 	return lightclient.Tendermint
 }
 
-// Assert calls to clientState.Validate and consensusState.Validate
-// NOTE: We don't want to test Validate() checks in filetest because it has too
-// many cases, hence Validate is tested in unittests and we only ensure that
-// the Validate() method are properly invoked.
+// Assert calls to clientState.ValidateBasic and consensusState.ValidateBasic
+// NOTE: We don't want to test ValidateBasic() checks in filetest because it
+// has too many cases, hence ValidateBasic is tested in unittests and we only
+// ensure that the ValidateBasic() method are properly invoked.
 func main() {
 	var (
 		chainID        = "chain-id-2"
@@ -36,17 +36,17 @@ func main() {
 		consensusState = testing.GenConsensusState(time.Now(), apphash[:], valset.Hash())
 	)
 
-	println("clientState.Validate:",
+	println("clientState.ValidateBasic:",
 		// NOTE: panics in explicit cross realm can only be caught by revive.
 		revive(func() {
 			core.CreateClient(cross, validateError{}, consensusState)
 		}))
-	println("consensusState.Validate:",
+	println("consensusState.ValidateBasic:",
 		revive(func() {
 			core.CreateClient(cross, clientState, validateError{})
 		}))
 }
 
 // Output:
-// clientState.Validate: validate error
-// consensusState.Validate: validate error
+// clientState.ValidateBasic: validate error
+// consensusState.ValidateBasic: validate error

@@ -29,7 +29,7 @@ var (
 	invalidUpgradePath = []string{"upgrade", ""}
 )
 
-func TestClientStateValidate(t *testing.T) {
+func TestClientStateValidateBasic(t *testing.T) {
 	testCases := []struct {
 		name        string
 		clientState *tendermint.ClientState
@@ -133,7 +133,7 @@ func TestClientStateValidate(t *testing.T) {
 				t.Fatal("client type is not tendermint")
 			}
 
-			err := tc.clientState.Validate()
+			err := tc.clientState.ValidateBasic()
 
 			if tc.expErr == "" && err != nil {
 				t.Errorf("expected no error, got %s", err)
@@ -148,7 +148,7 @@ func TestClientStateValidate(t *testing.T) {
 	}
 }
 
-func TestConsensusStateValidate(t *testing.T) {
+func TestConsensusStateValidateBasic(t *testing.T) {
 	var (
 		now      = time.Now()
 		valshash = bytes.Repeat([]byte{1}, 32)
@@ -221,7 +221,7 @@ func TestConsensusStateValidate(t *testing.T) {
 				t.Fatal("client type is not tendermint")
 			}
 
-			err := tc.consensusState.Validate()
+			err := tc.consensusState.ValidateBasic()
 
 			if tc.expectPass && err != nil {
 				t.Errorf("expected pass but got error %s", err)

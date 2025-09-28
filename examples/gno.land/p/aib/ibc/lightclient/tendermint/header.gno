@@ -87,17 +87,17 @@ func (*MsgHeader) ClientType() string {
 // Implements lightclient.ClientMessage
 // NOTE: TrustedHeight and TrustedValidators may be empty when creating client
 // with MsgCreateClient
-func (h *MsgHeader) Validate() error {
+func (h *MsgHeader) ValidateBasic() error {
 	if h.Header == nil {
 		return errors.New("missing header")
 	}
 	if h.Commit == nil {
 		return errors.New("missing commit")
 	}
-	if err := h.Header.Validate(); err != nil {
+	if err := h.Header.ValidateBasic(); err != nil {
 		return ufmt.Errorf("invalid header: %v", err)
 	}
-	if err := h.Commit.Validate(); err != nil {
+	if err := h.Commit.ValidateBasic(); err != nil {
 		return ufmt.Errorf("invalid commit: %v", err)
 	}
 	// Make sure the header is consistent with the commit.
@@ -139,7 +139,7 @@ func (h *MsgHeader) Validate() error {
 
 // GetHeight returns the current height. It returns 0 if the tendermint
 // header is nil.
-// NOTE: the header.Header is checked to be non nil in Validate.
+// NOTE: the header.Header is checked to be non nil in ValidateBasic.
 func (h MsgHeader) GetHeight() types.Height {
 	revision := ParseChainID(h.Header.ChainID)
 	return types.NewHeight(revision, h.Header.Height)
@@ -158,7 +158,7 @@ func (Misbehaviour) ClientType() string {
 }
 
 // Implements lightclient.ClientMessage
-func (m Misbehaviour) Validate() error {
+func (m Misbehaviour) ValidateBasic() error {
 	// TODO
 	return nil
 }
@@ -211,11 +211,11 @@ const (
 	MaxSignatureSize = 64
 )
 
-// Validate performs stateless validation on a Header returning an error if any
+// ValidateBasic performs stateless validation on a Header returning an error if any
 // validation fails.
 //
 // NOTE: Timestamp validation is subtle and handled elsewhere.
-func (h Header) Validate() error {
+func (h Header) ValidateBasic() error {
 	if h.Version.Block != BlockProtocol {
 		return ufmt.Errorf("block protocol is incorrect: got: %d, want: %d ", h.Version.Block, BlockProtocol)
 	}
@@ -227,7 +227,7 @@ func (h Header) Validate() error {
 		return errors.New("zero Height")
 	}
 
-	if err := h.LastBlockID.Validate(); err != nil {
+	if err := h.LastBlockID.ValidateBasic(); err != nil {
 		return ufmt.Errorf("wrong LastBlockID: %v", err)
 	}
 
@@ -305,9 +305,9 @@ func (c *Commit) BytesToSign(chainID string, valIdx int) []byte {
 	)
 }
 
-// Validate performs basic validation that doesn't involve state data.
+// ValidateBasic performs basic validation that doesn't involve state data.
 // Does not actually check the cryptographic signatures.
-func (c *Commit) Validate() error {
+func (c *Commit) ValidateBasic() error {
 	if c.Round < 0 {
 		return errors.New("negative Round")
 	}
@@ -321,7 +321,7 @@ func (c *Commit) Validate() error {
 			return errors.New("no signatures in commit")
 		}
 		for i, commitSig := range c.Signatures {
-			if err := commitSig.Validate(); err != nil {
+			if err := commitSig.ValidateBasic(); err != nil {
 				return ufmt.Errorf("wrong CommitSig #%d: %v", i, err)
 			}
 		}
@@ -337,8 +337,8 @@ type CommitSig struct {
 	Signature        []byte      `json:"signature,omitempty"`
 }
 
-// Validate performs basic validation.
-func (cs CommitSig) Validate() error {
+// ValidateBasic performs basic validation.
+func (cs CommitSig) ValidateBasic() error {
 	switch cs.BlockIDFlag {
 	case BlockIDFlagAbsent:
 	case BlockIDFlagCommit:
@@ -405,13 +405,13 @@ func (blockID BlockID) IsZero() bool {
 		blockID.PartSetHeader.IsZero()
 }
 
-// Validate performs basic validation.
-func (blockID BlockID) Validate() error {
+// ValidateBasic performs basic validation.
+func (blockID BlockID) ValidateBasic() error {
 	// Hash can be empty in case of POLBlockID in Proposal.
 	if err := validateHash(blockID.Hash); err != nil {
 		return ufmt.Errorf("wrong blockID Hash: %v", err)
 	}
-	if err := blockID.PartSetHeader.Validate(); err != nil {
+	if err := blockID.PartSetHeader.ValidateBasic(); err != nil {
 		return ufmt.Errorf("wrong PartSetHeader: %v", err)
 	}
 	return nil
@@ -431,8 +431,8 @@ func (psh PartSetHeader) Equals(other PartSetHeader) bool {
 	return psh.Total == other.Total && bytes.Equal(psh.Hash, other.Hash)
 }
 
-// Validate performs basic validation.
-func (psh PartSetHeader) Validate() error {
+// ValidateBasic performs basic validation.
+func (psh PartSetHeader) ValidateBasic() error {
 	// Hash can be empty in case of POLBlockID.PartSetHeader in Proposal.
 	if err := validateHash(psh.Hash); err != nil {
 		return ufmt.Errorf("wrong parSetHeader Hash: %v", err)
