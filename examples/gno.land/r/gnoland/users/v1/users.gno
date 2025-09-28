@@ -32,9 +32,9 @@ func Register(_ realm, username string) {
 		panic(ErrPaused)
 	}
 
-	if std.OriginSend().AmountOf("ugnot") != registerPrice {
-		panic(ErrInvalidPayment)
-	}
+	// if std.OriginSend().AmountOf("ugnot") != registerPrice {
+	// 	panic(ErrInvalidPayment)
+	// }
 
 	if matched := reUsername.MatchString(username); !matched {
 		panic(ErrInvalidUsername)
