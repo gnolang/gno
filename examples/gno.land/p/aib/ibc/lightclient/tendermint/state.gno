@@ -109,7 +109,7 @@ func (ClientState) ClientType() string {
 }
 
 // Implements lightclient.ClientState
-func (cs ClientState) Validate() error {
+func (cs ClientState) ValidateBasic() error {
 	if strings.TrimSpace(cs.ChainID) == "" {
 		return ufmt.Errorf("chainID cannot be empty string")
 	}
@@ -201,7 +201,7 @@ func (ConsensusState) ClientType() string {
 }
 
 // Implements lightclient.ConsensusState
-func (cs ConsensusState) Validate() error {
+func (cs ConsensusState) ValidateBasic() error {
 	if cs.Root.Empty() {
 		return errors.New("root cannot be empty")
 	}

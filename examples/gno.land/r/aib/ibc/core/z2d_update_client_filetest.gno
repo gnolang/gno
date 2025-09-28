@@ -16,7 +16,7 @@ func (SoloMachine) ClientType() string {
 	return lightclient.Solomachine
 }
 
-func (SoloMachine) Validate() error {
+func (SoloMachine) ValidateBasic() error {
 	return nil
 }
 

@@ -23,10 +23,10 @@ func CreateClient(cur realm, clientState lightclient.ClientState, consensusState
 	if clientState.ClientType() != consensusState.ClientType() {
 		panic("client type for client state and consensus state do not match")
 	}
-	if err := clientState.Validate(); err != nil {
+	if err := clientState.ValidateBasic(); err != nil {
 		panic(err)
 	}
-	if err := consensusState.Validate(); err != nil {
+	if err := consensusState.ValidateBasic(); err != nil {
 		panic(err)
 	}
 	c := store.addClient(clientState.ClientType(), std.OriginCaller())
@@ -69,7 +69,7 @@ func RegisterCounterparty(cur realm, clientID string, counterpartyMerklePrefix [
 // Can also be used to submit a misbehavior (clientMessage can be a header or
 // a misbehavior, maybe split into 2 functions would make more sense here).
 func UpdateClient(cur realm, clientID string, clientMessage lightclient.ClientMessage) {
-	if err := clientMessage.Validate(); err != nil {
+	if err := clientMessage.ValidateBasic(); err != nil {
 		panic(err)
 	}
 	c := store.getClient(clientID)
