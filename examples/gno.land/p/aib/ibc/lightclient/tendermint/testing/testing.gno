@@ -11,15 +11,13 @@ import (
 
 func NewClientState(chainID string, height types.Height) tendermint.ClientState {
 	return tendermint.ClientState{
-		ChainId:                      chainID,
-		TrustLevel:                   tendermint.DefaultTrustLevel,
-		UnbondingPeriod:              time.Hour * 3,
-		TrustingPeriod:               time.Hour,
-		MaxClockDrift:                time.Hour,
-		LatestHeight:                 height,
-		ProofSpecs:                   types.GetSDKProofSpecs(),
-		AllowUpdateAfterExpiry:       false,
-		AllowUpdateAfterMisbehaviour: false,
+		ChainID:         chainID,
+		TrustLevel:      tendermint.DefaultTrustLevel,
+		UnbondingPeriod: time.Hour * 3,
+		TrustingPeriod:  time.Hour,
+		MaxClockDrift:   time.Hour,
+		LatestHeight:    height,
+		ProofSpecs:      types.GetSDKProofSpecs(),
 	}
 }
 

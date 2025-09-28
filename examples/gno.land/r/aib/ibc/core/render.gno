@@ -66,7 +66,7 @@ func (c *client) Render() string {
 	case lightclient.Tendermint:
 		lc := c.lightClient.(*tendermint.TMLightClient)
 		s += "- Client state:\n"
-		s += ufmt.Sprintf("  - ChainId: %s\n", lc.ClientState.ChainId)
+		s += ufmt.Sprintf("  - ChainId: %s\n", lc.ClientState.ChainID)
 		s += ufmt.Sprintf("  - TrustingPeriod: %s\n", lc.ClientState.TrustingPeriod)
 		s += ufmt.Sprintf("  - UnbondingPeriod: %s\n", lc.ClientState.UnbondingPeriod)
 		s += ufmt.Sprintf("  - LatestHeight: %s\n", lc.LatestHeight().String())
