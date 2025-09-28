@@ -58,17 +58,17 @@ var TendermintSpec = &ProofSpec{
 type ProofSpec struct {
 	// any field in the ExistenceProof must be the same as in this spec.
 	// except Prefix, which is just the first bytes of prefix (spec can be longer)
-	LeafSpec  *LeafOp    `protobuf:"bytes,1,opt,name=leaf_spec,json=leafSpec,proto3" json:"leaf_spec,omitempty"`
-	InnerSpec *InnerSpec `protobuf:"bytes,2,opt,name=inner_spec,json=innerSpec,proto3" json:"inner_spec,omitempty"`
+	LeafSpec  *LeafOp    `json:"leaf_spec,omitempty"`
+	InnerSpec *InnerSpec `json:"inner_spec,omitempty"`
 	// max_depth (if > 0) is the maximum number of InnerOps allowed (mainly for fixed-depth tries)
 	// the max_depth is interpreted as 128 if set to 0
-	MaxDepth int32 `protobuf:"varint,3,opt,name=max_depth,json=maxDepth,proto3" json:"max_depth,omitempty"`
+	MaxDepth int32 `json:"max_depth,omitempty"`
 	// min_depth (if > 0) is the minimum number of InnerOps allowed (mainly for fixed-depth tries)
-	MinDepth int32 `protobuf:"varint,4,opt,name=min_depth,json=minDepth,proto3" json:"min_depth,omitempty"`
+	MinDepth int32 `json:"min_depth,omitempty"`
 	// prehash_key_before_comparison is a flag that indicates whether to use the
 	// prehash_key specified by LeafOp to compare lexical ordering of keys for
 	// non-existence proofs.
-	PrehashKeyBeforeComparison bool `protobuf:"varint,5,opt,name=prehash_key_before_comparison,json=prehashKeyBeforeComparison,proto3" json:"prehash_key_before_comparison,omitempty"`
+	PrehashKeyBeforeComparison bool `json:"prehash_key_before_comparison,omitempty"`
 }
 
 // LeafOp represents the raw key-value data we wish to prove, and
@@ -86,13 +86,13 @@ type ProofSpec struct {
 // Then combine the bytes, and hash it
 // output = hash(prefix || length(hkey) || hkey || length(hvalue) || hvalue)
 type LeafOp struct {
-	Hash         HashOp   `protobuf:"varint,1,opt,name=hash,proto3,enum=cosmos.ics23.v1.HashOp" json:"hash,omitempty"`
-	PrehashKey   HashOp   `protobuf:"varint,2,opt,name=prehash_key,json=prehashKey,proto3,enum=cosmos.ics23.v1.HashOp" json:"prehash_key,omitempty"`
-	PrehashValue HashOp   `protobuf:"varint,3,opt,name=prehash_value,json=prehashValue,proto3,enum=cosmos.ics23.v1.HashOp" json:"prehash_value,omitempty"`
-	Length       LengthOp `protobuf:"varint,4,opt,name=length,proto3,enum=cosmos.ics23.v1.LengthOp" json:"length,omitempty"`
+	Hash         HashOp   `json:"hash,omitempty"`
+	PrehashKey   HashOp   `json:"prehash_key,omitempty"`
+	PrehashValue HashOp   `json:"prehash_value,omitempty"`
+	Length       LengthOp `json:"length,omitempty"`
 	// prefix is a fixed bytes that may optionally be included at the beginning to differentiate
 	// a leaf node from an inner node.
-	Prefix []byte `protobuf:"bytes,5,opt,name=prefix,proto3" json:"prefix,omitempty"`
+	Prefix []byte `json:"prefix,omitempty"`
 }
 
 type HashOp int32
@@ -150,12 +150,12 @@ type InnerSpec struct {
 	// Child order is the ordering of the children node, must count from 0
 	// iavl tree is [0, 1] (left then right)
 	// merk is [0, 2, 1] (left, right, here)
-	ChildOrder      []int32 `protobuf:"varint,1,rep,packed,name=child_order,json=childOrder,proto3" json:"child_order,omitempty"`
-	ChildSize       int32   `protobuf:"varint,2,opt,name=child_size,json=childSize,proto3" json:"child_size,omitempty"`
-	MinPrefixLength int32   `protobuf:"varint,3,opt,name=min_prefix_length,json=minPrefixLength,proto3" json:"min_prefix_length,omitempty"`
-	MaxPrefixLength int32   `protobuf:"varint,4,opt,name=max_prefix_length,json=maxPrefixLength,proto3" json:"max_prefix_length,omitempty"`
+	ChildOrder      []int32 `json:"child_order,omitempty"`
+	ChildSize       int32   `json:"child_size,omitempty"`
+	MinPrefixLength int32   `json:"min_prefix_length,omitempty"`
+	MaxPrefixLength int32   `json:"max_prefix_length,omitempty"`
 	// empty child is the prehash image that is used when one child is nil (eg. 20 bytes of 0)
-	EmptyChild []byte `protobuf:"bytes,5,opt,name=empty_child,json=emptyChild,proto3" json:"empty_child,omitempty"`
+	EmptyChild []byte `json:"empty_child,omitempty"`
 	// hash is the algorithm that must be used for each InnerOp
-	Hash HashOp `protobuf:"varint,6,opt,name=hash,proto3,enum=cosmos.ics23.v1.HashOp" json:"hash,omitempty"`
+	Hash HashOp `json:"hash,omitempty"`
 }

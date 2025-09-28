@@ -40,10 +40,6 @@ type ClientState struct {
 	// the default upgrade module, upgrade_path should be []string{"upgrade",
 	// "upgradedIBCState"}`
 	UpgradePath []string `json:"upgrade_path,omitempty"`
-	// allow_update_after_expiry is deprecated
-	AllowUpdateAfterExpiry bool `json:"allow_update_after_expiry,omitempty"` // Deprecated: Do not use.
-	// allow_update_after_misbehaviour is deprecated
-	AllowUpdateAfterMisbehaviour bool `json:"allow_update_after_misbehaviour,omitempty"` // Deprecated: Do not use.
 }
 
 func NewClientState(chainID string, trustLevel Fraction,
