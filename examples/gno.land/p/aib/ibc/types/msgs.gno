@@ -7,7 +7,8 @@ import (
 
 // MsgSendPacket sends an outgoing IBC packet.
 type MsgSendPacket struct {
-	SourceClient     string    `json:"source_client,omitempty"`
+	SourceClient string `json:"source_client,omitempty"`
+	// TimeoutTimestamp holds the seconds after which the packet times out.
 	TimeoutTimestamp uint64    `json:"timeout_timestamp,omitempty"`
 	Payloads         []Payload `json:"payloads"`
 }
