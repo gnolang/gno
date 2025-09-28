@@ -18,15 +18,13 @@ func main() {
 			RevisionHeight: 100,
 		}
 		clientState = tendermint.ClientState{
-			ChainId:                      chainID,
-			TrustLevel:                   tendermint.Fraction{2, 3},
-			UnbondingPeriod:              time.Hour * 3, // TODO update
-			TrustingPeriod:               time.Hour,     // TODO update
-			MaxClockDrift:                time.Hour,     // TODO update
-			LatestHeight:                 latestHeight,
-			ProofSpecs:                   types.GetSDKProofSpecs(),
-			AllowUpdateAfterExpiry:       false,
-			AllowUpdateAfterMisbehaviour: false,
+			ChainID:         chainID,
+			TrustLevel:      tendermint.Fraction{2, 3},
+			UnbondingPeriod: time.Hour * 3, // TODO update
+			TrustingPeriod:  time.Hour,     // TODO update
+			MaxClockDrift:   time.Hour,     // TODO update
+			LatestHeight:    latestHeight,
+			ProofSpecs:      types.GetSDKProofSpecs(),
 		}
 		apphash        = sha256.Sum256([]byte("apphash"))    // TODO update
 		valhash        = sha256.Sum256([]byte("validators")) // TODO update
