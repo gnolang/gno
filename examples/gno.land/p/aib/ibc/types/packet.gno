@@ -1,5 +1,12 @@
 package types
 
+import (
+	"strings"
+
+	"gno.land/p/aib/ibc/host"
+	"gno.land/p/nt/ufmt"
+)
+
 // FIXME: does p/demo/json handles field annotations ?
 
 // PacketStatus specifies the status of a RecvPacketResult.
@@ -43,6 +50,26 @@ type Payload struct {
 	Encoding string `json:"encoding,omitempty"`
 	// the raw bytes for the payload.
 	Value []byte `json:"value,omitempty"`
+}
+
+// ValidateBasic validates a Payload.
+func (p Payload) ValidateBasic() error {
+	if err := host.PortIdentifierValidator(p.SourcePort); err != nil {
+		return ufmt.Errorf("invalid source port: %v", err)
+	}
+	if err := host.PortIdentifierValidator(p.DestinationPort); err != nil {
+		return ufmt.Errorf("invalid destination port: %v", err)
+	}
+	if strings.TrimSpace(p.Version) == "" {
+		return ufmt.Errorf("payload version cannot be empty")
+	}
+	if strings.TrimSpace(p.Encoding) == "" {
+		return ufmt.Errorf("payload encoding cannot be empty")
+	}
+	if len(p.Value) == 0 {
+		return ufmt.Errorf("payload value cannot be empty")
+	}
+	return nil
 }
 
 // RecvPacketResult speecifies the status of a packet as well as the acknowledgement bytes.
