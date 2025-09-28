@@ -112,3 +112,15 @@ func TestAllocateStructFieldsOverflow(t *testing.T) {
 	alloc := NewAllocator(math.MaxInt64)
 	alloc.AllocateStructFields(math.MaxInt64 / 20) // Will cause overflow
 }
+
+func TestNewDataArrayOverflow(t *testing.T) {
+	defer func() {
+		panicMsg := recover()
+		if panicMsg == nil {
+			t.Errorf("Expected panic, got none")
+		}
+		require.Equal(t, "addition overflow", panicMsg)
+	}()
+	alloc := NewAllocator(math.MaxInt64)
+	alloc.AllocateDataArray(math.MaxInt64 - 2) // Will cause overflow
+}
