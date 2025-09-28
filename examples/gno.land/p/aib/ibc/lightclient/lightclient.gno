@@ -115,13 +115,13 @@ type Interface interface {
 // ClientState defines the required common functions for light clients.
 type ClientState interface {
 	ClientType() string
-	Validate() error
+	ValidateBasic() error
 }
 
 // ConsensusState is the state of the consensus process
 type ConsensusState interface {
 	ClientType() string
-	Validate() error
+	ValidateBasic() error
 }
 
 // ClientMessage is an interface used to update an IBC client.
@@ -129,5 +129,5 @@ type ConsensusState interface {
 // or any type which when verified produces a change to state of the IBC client
 type ClientMessage interface {
 	ClientType() string
-	Validate() error
+	ValidateBasic() error
 }

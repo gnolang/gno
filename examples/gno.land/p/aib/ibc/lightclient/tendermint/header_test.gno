@@ -13,7 +13,7 @@ import (
 	"gno.land/p/aib/ibc/types"
 )
 
-func TestMsgHeaderValidate(t *testing.T) {
+func TestMsgHeaderValidateBasic(t *testing.T) {
 	var msg *tendermint.MsgHeader
 	testCases := []struct {
 		name          string
@@ -305,7 +305,7 @@ func TestMsgHeaderValidate(t *testing.T) {
 			)
 			tc.malleate()
 
-			err := msg.Validate()
+			err := msg.ValidateBasic()
 
 			if tc.expectedError == "" && err != nil {
 				t.Errorf("expected no error got %v", err)
