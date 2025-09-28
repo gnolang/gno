@@ -7,6 +7,7 @@ import (
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/types"
 	"gno.land/p/nt/avl"
+	"gno.land/p/nt/ufmt"
 )
 
 type TMLightClient struct {
@@ -113,8 +114,11 @@ func (tm *TMLightClient) LatestHeight() types.Height {
 
 // Implements lightclient.Interface
 func (tm *TMLightClient) TimestampAtHeight(height types.Height) (uint64, error) {
-	// TODO
-	panic("not implemented")
+	cs, found := tm.GetConsensusState(height)
+	if !found {
+		return 0, ufmt.Errorf("no consensus state found for height %s", height.String())
+	}
+	return uint64(cs.Timestamp.UnixNano()), nil
 }
 
 // Implements lightclient.Interface

@@ -91,8 +91,10 @@ type Interface interface {
 	// returned.
 	LatestHeight() types.Height
 
-	// TimestampAtHeight must return the timestamp for the consensus state
-	// associated with the provided height.
+	// TimestampAtHeight must return the timestamp in nanoseconds for the
+	// consensus state associated with the provided height.
+	// TODO consider return the timestamp in second ? Looks like the IBCv2 specs
+	// refers to that.
 	TimestampAtHeight(types.Height) (uint64, error)
 
 	// RecoverClient must verify that the provided substitute may be used to

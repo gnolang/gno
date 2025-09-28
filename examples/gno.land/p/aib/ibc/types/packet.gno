@@ -39,6 +39,54 @@ type Packet struct {
 	Payloads []Payload `json:"payloads"`
 }
 
+// NewPacket constructs a new packet.
+func NewPacket(sequence uint64, sourceClient, destinationClient string, timeoutTimestamp uint64, payloads ...Payload) Packet {
+	return Packet{
+		Sequence:          sequence,
+		SourceClient:      sourceClient,
+		DestinationClient: destinationClient,
+		TimeoutTimestamp:  timeoutTimestamp,
+		Payloads:          payloads,
+	}
+}
+
+const MaximumPayloadsSize = 262144 // 256 KiB. This is the maximum size of all payloads combined
+
+// ValidateBasic validates that a Packet satisfies the basic requirements.
+func (p Packet) ValidateBasic() error {
+	if len(p.Payloads) == 0 {
+		return ufmt.Errorf("payload length must be greater than 0")
+	}
+
+	totalPayloadsSize := 0
+	for i, pd := range p.Payloads {
+		if err := pd.ValidateBasic(); err != nil {
+			return ufmt.Errorf("invalid Payload #%d: %v", i, err)
+		}
+		totalPayloadsSize += len(pd.Value)
+	}
+
+	if totalPayloadsSize > MaximumPayloadsSize {
+		return ufmt.Errorf("packet data bytes cannot exceed %d bytes", MaximumPayloadsSize)
+	}
+
+	if err := host.ChannelIdentifierValidator(p.SourceClient); err != nil {
+		return ufmt.Errorf("invalid source ID: %v", err)
+	}
+	if err := host.ChannelIdentifierValidator(p.DestinationClient); err != nil {
+		return ufmt.Errorf("invalid destination ID: %v", err)
+	}
+
+	if p.Sequence == 0 {
+		return ufmt.Errorf("packet sequence cannot be 0")
+	}
+	if p.TimeoutTimestamp == 0 {
+		return ufmt.Errorf("packet timeout timestamp cannot be 0")
+	}
+
+	return nil
+}
+
 type Payload struct {
 	// specifies the source port of the packet.
 	SourcePort string `json:"source_port,omitempty"`
@@ -50,6 +98,17 @@ type Payload struct {
 	Encoding string `json:"encoding,omitempty"`
 	// the raw bytes for the payload.
 	Value []byte `json:"value,omitempty"`
+}
+
+// NewPayload constructs a new Payload
+func NewPayload(sourcePort, destPort, version, encoding string, value []byte) Payload {
+	return Payload{
+		SourcePort:      sourcePort,
+		DestinationPort: destPort,
+		Version:         version,
+		Encoding:        encoding,
+		Value:           value,
+	}
 }
 
 // ValidateBasic validates a Payload.
