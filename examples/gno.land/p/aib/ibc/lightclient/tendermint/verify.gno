@@ -33,7 +33,7 @@ func (tm *TMLightClient) verifyHeader(msg *MsgHeader) error {
 		untrustedHeader = msg.Header
 		untrustedValset = msg.ValidatorSet
 		trustedHeader   = &Header{
-			ChainID:            tm.ClientState.ChainId,
+			ChainID:            tm.ClientState.ChainID,
 			Height:             msg.TrustedHeight.RevisionHeight,
 			Time:               consState.Timestamp,
 			NextValidatorsHash: consState.NextValidatorsHash,
@@ -161,7 +161,7 @@ func (tm TMLightClient) verifyCommit(
 			return ufmt.Errorf("validator %s has a nil PubKey at index %d", addr, idx)
 		}
 
-		voteSignBytes := commit.BytesToSign(tm.ClientState.ChainId, idx)
+		voteSignBytes := commit.BytesToSign(tm.ClientState.ChainID, idx)
 
 		// CONTRACT: all validators use ed25519 keys
 		if !ed25519.Verify(val.PubKey, voteSignBytes, commitSig.Signature) {

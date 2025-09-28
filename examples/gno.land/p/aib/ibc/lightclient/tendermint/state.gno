@@ -16,7 +16,7 @@ import (
 // ClientState from Tendermint tracks the current validator set, latest height,
 // and a possible frozen height.
 type ClientState struct {
-	ChainId    string   `json:"chain_id,omitempty"`
+	ChainID    string   `json:"chain_id,omitempty"`
 	TrustLevel Fraction `json:"trust_level"`
 	// duration of the period since the LatestTimestamp during which the
 	// submitted headers are valid for upgrade
@@ -46,7 +46,7 @@ func NewClientState(chainID string, trustLevel Fraction,
 	trustingPeriod, ubdPeriod, maxClockDrift time.Duration,
 	latestHeight types.Height, specs []*types.ProofSpec, upgradePath []string) *ClientState {
 	return &ClientState{
-		ChainId:         chainID,
+		ChainID:         chainID,
 		TrustLevel:      trustLevel,
 		TrustingPeriod:  trustingPeriod,
 		UnbondingPeriod: ubdPeriod,
@@ -110,12 +110,12 @@ func (ClientState) ClientType() string {
 
 // Implements lightclient.ClientState
 func (cs ClientState) Validate() error {
-	if strings.TrimSpace(cs.ChainId) == "" {
+	if strings.TrimSpace(cs.ChainID) == "" {
 		return ufmt.Errorf("chainID cannot be empty string")
 	}
 
-	if len(cs.ChainId) > MaxChainIDLen {
-		return ufmt.Errorf("chainID is too long; got: %d, max: %d", len(cs.ChainId), MaxChainIDLen)
+	if len(cs.ChainID) > MaxChainIDLen {
+		return ufmt.Errorf("chainID is too long; got: %d, max: %d", len(cs.ChainID), MaxChainIDLen)
 	}
 
 	if err := ValidateTrustLevel(cs.TrustLevel); err != nil {
@@ -132,8 +132,8 @@ func (cs ClientState) Validate() error {
 	}
 
 	// the latest height revision number must match the chain id revision number
-	if cs.LatestHeight.RevisionNumber != ParseChainID(cs.ChainId) {
-		return ufmt.Errorf("latest height revision number must match chain id revision number (%d != %d)", cs.LatestHeight.RevisionNumber, ParseChainID(cs.ChainId))
+	if cs.LatestHeight.RevisionNumber != ParseChainID(cs.ChainID) {
+		return ufmt.Errorf("latest height revision number must match chain id revision number (%d != %d)", cs.LatestHeight.RevisionNumber, ParseChainID(cs.ChainID))
 	}
 	if cs.LatestHeight.RevisionHeight == 0 {
 		return ufmt.Errorf("tendermint client's latest height revision height cannot be zero")
