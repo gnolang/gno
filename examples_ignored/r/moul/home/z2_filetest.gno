@@ -1,14 +1,13 @@
 package main
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/r/moul/home"
 )
 
 func main() {
-	testing.SetOriginCaller(std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
+	testing.SetOriginCaller(address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
 	home.AddTodo("aaa")
 	home.AddTodo("bbb")
 	home.AddTodo("ccc")

@@ -10,7 +10,7 @@ import (
 )
 
 func TestUpdateAboutMe(t *testing.T) {
-	owner := std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	owner := address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
 	testing.SetOriginCaller(owner)
 
 	profile.aboutMe = []string{}
@@ -31,7 +31,7 @@ func TestUpdateAboutMe(t *testing.T) {
 }
 
 func TestUpdateCities(t *testing.T) {
-	owner := std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	owner := address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
 	testing.SetOriginCaller(owner)
 
 	travel.cities = []City{}
@@ -53,7 +53,7 @@ func TestUpdateCities(t *testing.T) {
 }
 
 func TestUpdateJarLink(t *testing.T) {
-	owner := std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	owner := address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
 	testing.SetOriginCaller(owner)
 
 	travel.jarLink = ""
@@ -66,7 +66,7 @@ func TestUpdateJarLink(t *testing.T) {
 }
 
 func TestUpdateMaxSponsors(t *testing.T) {
-	owner := std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	owner := address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
 	testing.SetOriginCaller(owner)
 
 	sponsorship.maxSponsors = 0
@@ -86,7 +86,7 @@ func TestUpdateMaxSponsors(t *testing.T) {
 }
 
 func TestAddCities(t *testing.T) {
-	owner := std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	owner := address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
 	testing.SetOriginCaller(owner)
 
 	travel.cities = []City{}
@@ -114,7 +114,7 @@ func TestAddCities(t *testing.T) {
 }
 
 func TestAddAboutMeRows(t *testing.T) {
-	owner := std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	owner := address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
 	testing.SetOriginCaller(owner)
 
 	profile.aboutMe = []string{}

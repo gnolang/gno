@@ -1,7 +1,7 @@
 package valopers
 
 import (
-	"std"
+	"chain"
 
 	"gno.land/p/moul/authz"
 )
@@ -24,7 +24,7 @@ func updateInstructions(newInstructions string) {
 
 func updateMinFee(newMinFee int64) {
 	err := auth.DoByCurrent("update-min-fee", func() error {
-		minFee = std.NewCoin("ugnot", newMinFee)
+		minFee = chain.NewCoin("ugnot", newMinFee)
 		return nil
 	})
 	if err != nil {

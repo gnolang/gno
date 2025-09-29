@@ -2323,6 +2323,10 @@ func (m *Machine) CheckEmpty() error {
 	}
 }
 
+func (m *Machine) PanicString(ex string) {
+	m.Panic(typedString(ex))
+}
+
 // This function does go-panic.
 // To stop execution immediately stdlib native code MUST use this rather than
 // pushPanic().

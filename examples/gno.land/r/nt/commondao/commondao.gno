@@ -1,7 +1,7 @@
 package commondao
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/p/moul/txlink"
 	"gno.land/p/nt/avl"
@@ -16,15 +16,15 @@ var (
 	daoID     seqid.ID
 	realmLink txlink.Realm
 	daos      = avl.NewTree() // string(ID) -> *commondao.CommonDAO
-	ownership = avl.NewTree() // string(std.Address) -> []uint64(DAO ID)
-	invites   = avl.NewTree() // string(std.Address) -> std.Address(inviter)
+	ownership = avl.NewTree() // string(address) -> []uint64(DAO ID)
+	invites   = avl.NewTree() // string(address) -> address(inviter)
 	trees     = avl.NewTree() // string(root ID) -> avl.Tree(string(DAO ID) -> *commondao.CommonDAO)
 	options   = avl.NewTree() // string(ID) -> *Options
 )
 
 func init() {
 	// Save current realm path so it's available during render calls
-	realmLink = txlink.Realm(std.CurrentRealm().PkgPath())
+	realmLink = txlink.Realm(runtime.CurrentRealm().PkgPath())
 }
 
 func getDAO(daoID uint64) *commondao.CommonDAO {
@@ -51,7 +51,7 @@ func getTree(rootID uint64) *avl.Tree {
 	return nil
 }
 
-func getOwnership(addr std.Address) []uint64 {
+func getOwnership(addr address) []uint64 {
 	if v, ok := ownership.Get(addr.String()); ok {
 		return v.([]uint64)
 	}
@@ -70,7 +70,7 @@ func makeIDKey(daoID uint64) string {
 	return seqid.ID(daoID).String()
 }
 
-func createDAO(name string, owner std.Address, o []Option) *commondao.CommonDAO {
+func createDAO(name string, owner address, o []Option) *commondao.CommonDAO {
 	id := daoID.Next()
 	dao := commondao.New(
 		commondao.WithID(uint64(id)),

@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.3.5 (August 4, 2025)
+
+### BREAKING CHANGES
+
+- [#4656](https://github.com/gnolang/gno/pull/4656) Replace all existing code with `cosmos/iavl@v1.3.5` with the following modifications:
+  - Change package path from `cosmos/iavl` to `gnolang/gno/tm2/pkg/iavl`
+  - Remove import of `cosmossdk.io/store`, use `tm2/pkg/db` instead
+  - Remove `iavl/db` package, use `tm2/pkg/db` instead
+  - Remove `iavl/mock` package, use `tm2/pkg/db/mockdb` instead
+  - Remove `iavl/cmd/legacydump` which was used for a past migration
+  - Remove `iavl/proto`, define `KVPair` and `Changeset` types in `diff.go` w/o using protobuf
+  - Remove `iavl/internal/rand`, use `tm2/pkg/random` instead
+  - Remove `iavl/internal/color`, use `tm2/pkg/colors` instead
+
 ## 0.12.4 (July 31, 2019)
 
 ### IMPROVEMENTS

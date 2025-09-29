@@ -2,7 +2,6 @@ package expect
 
 import (
 	"errors"
-	"std"
 
 	"gno.land/p/nt/ufmt"
 )
@@ -74,7 +73,7 @@ func asString(value any) (string, error) {
 		return string(v), nil
 	case Stringer:
 		return v.String(), nil
-	case std.Address:
+	case address:
 		return v.String(), nil
 	default:
 		return "", ErrIncompatibleType

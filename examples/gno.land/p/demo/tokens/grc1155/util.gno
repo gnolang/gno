@@ -1,12 +1,8 @@
 package grc1155
 
-import (
-	"std"
-)
+const zeroAddress address = ""
 
-const zeroAddress std.Address = ""
-
-func isValidAddress(addr std.Address) bool {
+func isValidAddress(addr address) bool {
 	if !addr.IsValid() {
 		return false
 	}
