@@ -22,3 +22,4 @@ func main() {
 // (slice[] main.nat)
 // slice[(0 int)]
 // (slice[(1 int)] main.nat)
+

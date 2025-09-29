@@ -15,54 +15,8 @@ func main(cur realm) {
 	print(".")
 }
 
-// Output:
-// hello A cur=gno.land/r/tests/vm/crossrealm_b prev=gno.land/r/tests/vm/crossrealm
-// hello B cur=gno.land/r/tests/vm/crossrealm_b prev=gno.land/r/tests/vm/crossrealm
-// .
-
-// Realm:
-// finalizerealm["gno.land/r/tests/vm/crossrealm"]
-// u[a7e973c6aeab1f1cb747d0903cb1e4d369226376:7](217)=
-//     @@ -2,9 +2,27 @@
-//          "ObjectInfo": {
-//              "ID": "a7e973c6aeab1f1cb747d0903cb1e4d369226376:7",
-//              "LastObjectSize": "190",
-//     -        "ModTime": "0",
-//     +        "ModTime": "43",
-//              "OwnerID": "a7e973c6aeab1f1cb747d0903cb1e4d369226376:2",
-//              "RefCount": "1"
-//          },
-//     -    "Value": {}
-//     +    "Value": {
-//     +        "T": {
-//     +            "@type": "/gno.PointerType",
-//     +            "Elt": {
-//     +                "@type": "/gno.RefType",
-//     +                "ID": "gno.land/r/tests/vm/crossrealm_b.fooer"
-//     +            }
-//     +        },
-//     +        "V": {
-//     +            "@type": "/gno.PointerValue",
-//     +            "Base": {
-//     +                "@type": "/gno.RefValue",
-//     +                "Escaped": true,
-//     +                "ObjectID": "46279d1e03ecb38b84822f9caf584bd16913470d:4"
-//     +            },
-//     +            "Index": "0",
-//     +            "TV": null
-//     +        }
-//     +    }
-//      }
-// u[46279d1e03ecb38b84822f9caf584bd16913470d:4](7)=
-//     @@ -1,10 +1,11 @@
-//      {
-//          "ObjectInfo": {
-//              "ID": "46279d1e03ecb38b84822f9caf584bd16913470d:4",
-//     +        "IsEscaped": true,
-//              "LastObjectSize": "354",
-//     -        "ModTime": "0",
-//     +        "ModTime": "43",
-//              "OwnerID": "46279d1e03ecb38b84822f9caf584bd16913470d:3",
+//     +        "ModTime": "53",
+//              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:3",
 //     -        "RefCount": "1"
 //     +        "RefCount": "2"
 //          },
@@ -92,3 +46,8 @@ func main(cur realm) {
 // finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
 // finalizerealm["gno.land/r/tests/vm/crossrealm"]
 // finalizerealm["gno.land/r/crossrealm"]
+
+// Output:
+// hello A cur=gno.land/r/tests/vm/crossrealm_b prev=gno.land/r/tests/vm/crossrealm
+// hello B cur=gno.land/r/tests/vm/crossrealm_b prev=gno.land/r/tests/vm/crossrealm
+// .

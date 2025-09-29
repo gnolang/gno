@@ -53,21 +53,19 @@ func (p *Passthrough) printRealm() {
 var s *Struct
 
 func main(cur realm) {
-	s = &Struct{A: 100}              // saved in borrow_test.
+	s = &Struct{A: 100}              // saved in current realm.
 	crossrealm_b.SetObject(cross, s) // saved in crossrealm_b
 
 	p := &Passthrough{S: s}
 
 	crossrealm.SetObject(cross, p) // saved in crossrealm.
 
-	p.Mutate() // receiver method borrows crossrealm, then crossrealm_b, but does not impact prev, current realm.
+	p.Mutate() // cross into current realm where method Mutate is declared
 
 	println(p.Get())
 
 	p.PrintRealms()
 }
 
-// Output:
-// 101
-// CodeRealm{ g1mdevzlw3defhhew53zsky80lhqnk94ew8grqdt, gno.land/r/borrow }
-// UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
+// Error:
+// invalid call: p<VPBlock(1,1)>.Mutate(), method realm: RIDC459C7103CD5303D426ED1E6E642FFFCFFD55F7C does not match receiver realm: RIDA7E973C6AEAB1F1CB747D0903CB1E4D369226376
