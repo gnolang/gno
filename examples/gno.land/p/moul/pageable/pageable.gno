@@ -36,7 +36,7 @@ type Pageable interface {
 	// For reverse iteration, the implementation should handle the direction internally
 	// by adjusting how it interprets the offset and count parameters. For example:
 	// - In forward mode: offset 0, count 5 would return items [0,1,2,3,4]
-	// - In reverse mode: offset 0, count 5 would return items [4,3,2,1,0]
+	// - In reverse mode: offset 0, count -5 would return items [4,3,2,1,0]
 	//
 	// This approach allows the interface to remain simple while supporting
 	// bidirectional iteration through the implementation layer.
