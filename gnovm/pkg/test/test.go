@@ -105,12 +105,13 @@ func newTestParams() *testParams {
 	return &testParams{}
 }
 
-func (tp *testParams) SetBool(key string, val bool)        { /* noop */ }
-func (tp *testParams) SetBytes(key string, val []byte)     { /* noop */ }
-func (tp *testParams) SetInt64(key string, val int64)      { /* noop */ }
-func (tp *testParams) SetUint64(key string, val uint64)    { /* noop */ }
-func (tp *testParams) SetString(key string, val string)    { /* noop */ }
-func (tp *testParams) SetStrings(key string, val []string) { /* noop */ }
+func (tp *testParams) SetBool(key string, val bool)                     { /* noop */ }
+func (tp *testParams) SetBytes(key string, val []byte)                  { /* noop */ }
+func (tp *testParams) SetInt64(key string, val int64)                   { /* noop */ }
+func (tp *testParams) SetUint64(key string, val uint64)                 { /* noop */ }
+func (tp *testParams) SetString(key string, val string)                 { /* noop */ }
+func (tp *testParams) SetStrings(key string, val []string)              { /* noop */ }
+func (tp *testParams) UpdateStrings(key string, val []string, add bool) { /* noop */ }
 
 // ----------------------------------------
 // main test function
