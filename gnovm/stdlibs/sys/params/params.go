@@ -46,7 +46,7 @@ func X_setSysParamStrings(m *gno.Machine, module, submodule, name string, val []
 func X_updateSysParamStrings(m *gno.Machine, module, submodule, name string, val []string, add bool) {
 	assertSysParamsRealm(m)
 	pk := prmkey(module, submodule, name)
-	std.GetContext(m).Params.UpdateStrings(pk, val, add)
+	execctx.GetContext(m).Params.UpdateStrings(pk, val, add)
 }
 
 func assertSysParamsRealm(m *gno.Machine) {
