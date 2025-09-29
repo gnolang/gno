@@ -179,10 +179,10 @@ func (c *fixCmd) processFixTxtar(file string) error {
 		return err
 	}
 	// group files by folder to handle error gnomod versions.
-	var filesByDir = map[string][]txtar.File{}
-	for _, f := range archive.Files {
+	filesByDir := map[string][]*txtar.File{}
+	for i, f := range archive.Files {
 		dir := filepath.Dir(f.Name)
-		filesByDir[dir] = append(filesByDir[dir], f)
+		filesByDir[dir] = append(filesByDir[dir], &archive.Files[i])
 	}
 	for _, files := range filesByDir {
 		err = c.processFixTxtarDir(files)
@@ -204,7 +204,7 @@ func (c *fixCmd) processFixTxtar(file string) error {
 	return nil
 }
 
-func (c *fixCmd) processFixTxtarDir(files []txtar.File) error {
+func (c *fixCmd) processFixTxtarDir(files []*txtar.File) error {
 	var gm *gnomod.File
 	for _, f := range files {
 		if f.Name == "gnomod.toml" {
@@ -212,8 +212,7 @@ func (c *fixCmd) processFixTxtarDir(files []txtar.File) error {
 			break
 		}
 	}
-	for i := range files {
-		f := &files[i]
+	for _, f := range files {
 		if !strings.HasSuffix(f.Name, ".gno") {
 			continue
 		}

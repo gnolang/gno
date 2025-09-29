@@ -72,7 +72,7 @@ func ParseCheckGnoMod(mpkg *std.MemPackage) (mod *gnomod.File, err error) {
 	} else if mod.Gno == GnoVerLatest {
 		// current version, nothing to do.
 	} else {
-		panic("unsupported gno version " + mod.Gno)
+		panic("unsupported gno version " + mod.Gno + " in package " + mpkg.Path)
 	}
 	return
 }
