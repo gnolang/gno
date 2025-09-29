@@ -65,10 +65,7 @@ func (r *royaltyNFT) RoyaltyInfo(tid TokenID, salePrice int64) (std.Address, int
 		return "", 0, ErrInvalidTokenId
 	}
 
-	royaltyInfo, ok := val.(RoyaltyInfo)
-	if !ok {
-		return "", 0, ErrInvalidRoyaltyInfo
-	}
+	royaltyInfo := val.(RoyaltyInfo)
 
 	// Calculate royalty amount
 	royaltyAmount, _ := r.calculateRoyaltyAmount(salePrice, royaltyInfo.Percentage)

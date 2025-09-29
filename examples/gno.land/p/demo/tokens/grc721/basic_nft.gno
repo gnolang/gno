@@ -151,12 +151,7 @@ func (s *basicNFT) GetApproved(tid TokenID) (std.Address, error) {
 		return zeroAddress, ErrTokenIdNotHasApproved
 	}
 
-	addrStr, ok := addr.(string)
-	if !ok {
-		return zeroAddress, ErrInvalidAddress
-	}
-
-	return std.Address(addrStr), nil
+	return addr.(std.Address), nil
 }
 
 // SetApprovalForAll can approve the operator to operate on all tokens
@@ -389,10 +384,7 @@ func (s *basicNFT) isApprovedOrOwner(addr std.Address, tid TokenID) bool {
 		return false
 	}
 
-	ownerAddr, ok := owner.(std.Address)
-	if !ok {
-		return false
-	}
+	ownerAddr := owner.(std.Address)
 	if addr == ownerAddr || s.IsApprovedForAll(ownerAddr, addr) {
 		return true
 	}

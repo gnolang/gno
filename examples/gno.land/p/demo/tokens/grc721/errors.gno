@@ -5,7 +5,6 @@ import "errors"
 var (
 	ErrInvalidTokenId              = errors.New("invalid token id")
 	ErrInvalidAddress              = errors.New("invalid address")
-	ErrInvalidRoyaltyInfo          = errors.New("invalid royalty info")
 	ErrTokenIdNotHasApproved       = errors.New("token id not approved for anyone")
 	ErrApprovalToCurrentOwner      = errors.New("approval to current owner")
 	ErrCallerIsNotOwner            = errors.New("caller is not token owner")
