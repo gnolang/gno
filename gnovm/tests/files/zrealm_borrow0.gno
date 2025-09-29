@@ -2,8 +2,8 @@
 package borrow
 
 import (
+	"chain/runtime"
 	"fmt"
-	"std"
 
 	"gno.land/r/tests/vm/crossrealm"
 )
@@ -34,8 +34,8 @@ func (s *Struct) printRealms() {
 	// Should this be allowed?
 	// Whether it panics or not is determined by
 	// 'fr.DidCrossing = true' in PushFrameCall.
-	fmt.Println(std.CurrentRealm())
-	fmt.Println(std.PreviousRealm())
+	fmt.Println(runtime.CurrentRealm())
+	fmt.Println(runtime.PreviousRealm())
 }
 
 type Passthrough struct {

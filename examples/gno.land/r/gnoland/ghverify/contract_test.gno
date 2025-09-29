@@ -1,16 +1,16 @@
 package ghverify
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/testutils"
 )
 
 func TestVerificationLifecycle(cur realm, t *testing.T) {
-	defaultAddress := std.OriginCaller()
-	user1Address := std.Address(testutils.TestAddress("user 1"))
-	user2Address := std.Address(testutils.TestAddress("user 2"))
+	defaultAddress := runtime.OriginCaller()
+	user1Address := address(testutils.TestAddress("user 1"))
+	user2Address := address(testutils.TestAddress("user 2"))
 
 	// Verify request returns no feeds.
 	result := GnorkleEntrypoint(cur, "request")

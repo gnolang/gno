@@ -628,7 +628,7 @@ var fmtTests = []struct {
 	// go syntax
 	{"%#v", A{1, 2, "a", []int{1, 2}}, `fmt_test.A{i:1, j:0x2, s:"a", x:[]int{1, 2}}`},
 	{"%#v", new(byte), "(*uint8)(0xPTR)"},
-	{"%#v", TestFmtInterface, "(func(*testing/base.T))(0xPTR)"},
+	{"%#v", TestFmtInterface, "(func(*testing.T))(0xPTR)"},
 	{"%#v", uint64(1<<64 - 1), "0xffffffffffffffff"},
 	{"%#v", 1000000000, "1000000000"},
 	{"%#v", map[string]int{"a": 1}, `map[string]int{"a":1}`},

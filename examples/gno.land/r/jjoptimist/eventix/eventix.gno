@@ -1,7 +1,9 @@
 package eventix
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 	"strconv"
 	"time"
 
@@ -64,7 +66,7 @@ func CreateEvent(_ realm, name, description, dateStr string, paymentToken any, m
 	}
 	events.Set(strconv.Itoa(int(newID)), event)
 	eventCounter = newID
-	std.Emit("EventCreated", "id", strconv.FormatUint(newID, 10), "name", name)
+	chain.Emit("EventCreated", "id", strconv.FormatUint(newID, 10), "name", name)
 	return newID
 }
 
@@ -78,18 +80,18 @@ func BuyTicket(_ realm, eventId uint64) {
 		panic("Event is sold out")
 	}
 
-	buyer := std.PreviousRealm().Address()
+	buyer := runtime.PreviousRealm().Address()
 
 	switch pt := event.paymentToken.(type) {
 	case string:
 		if pt != "ugnot" {
 			panic("Unsupported native token")
 		}
-		if std.OriginSend().AmountOf("ugnot") != int64(event.price) {
+		if banker.OriginSend().AmountOf("ugnot") != int64(event.price) {
 			panic(ufmt.Sprintf("Invalid payment amount: needs to be %dugnot", event.price))
 		}
 	case *grc20.Token:
-		if err := pt.CallerTeller().Transfer(std.CurrentRealm().Address(), int64(event.price)); err != nil {
+		if err := pt.CallerTeller().Transfer(runtime.CurrentRealm().Address(), int64(event.price)); err != nil {
 			panic("GRC20 transfer error: " + err.Error())
 		}
 	default:
