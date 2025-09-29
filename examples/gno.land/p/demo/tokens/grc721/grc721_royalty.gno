@@ -52,7 +52,7 @@ func (r *royaltyNFT) SetTokenRoyalty(tid TokenID, royaltyInfo RoyaltyInfo) error
 	}
 
 	// Set royalty information for the token
-	r.tokenRoyaltyInfo.Set(string(tid), royaltyInfo)
+	r.tokenRoyaltyInfo.Set(tid.String(), royaltyInfo)
 
 	return nil
 }
@@ -60,7 +60,7 @@ func (r *royaltyNFT) SetTokenRoyalty(tid TokenID, royaltyInfo RoyaltyInfo) error
 // RoyaltyInfo returns the royalty information for the given token ID and sale price.
 func (r *royaltyNFT) RoyaltyInfo(tid TokenID, salePrice int64) (address, int64, error) {
 	// Retrieve royalty information for the token
-	val, found := r.tokenRoyaltyInfo.Get(string(tid))
+	val, found := r.tokenRoyaltyInfo.Get(tid.String())
 	if !found {
 		return "", 0, ErrInvalidTokenId
 	}

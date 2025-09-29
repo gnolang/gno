@@ -26,14 +26,14 @@ func NewNFTWithMetadata(name string, symbol string) *metadataNFT {
 // SetTokenMetadata sets metadata for a given token ID.
 func (s *metadataNFT) SetTokenMetadata(tid TokenID, metadata Metadata) error {
 	// Set the metadata for the token ID in the extensions AVL tree
-	s.extensions.Set(string(tid), metadata)
+	s.extensions.Set(tid.String(), metadata)
 	return nil
 }
 
 // TokenMetadata retrieves metadata for a given token ID.
 func (s *metadataNFT) TokenMetadata(tid TokenID) (Metadata, error) {
 	// Retrieve metadata from the extensions AVL tree
-	metadata, found := s.extensions.Get(string(tid))
+	metadata, found := s.extensions.Get(tid.String())
 	if !found {
 		return Metadata{}, ErrInvalidTokenId
 	}
