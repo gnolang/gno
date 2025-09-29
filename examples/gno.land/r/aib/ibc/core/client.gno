@@ -1,7 +1,8 @@
 package core
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/types"
@@ -11,7 +12,7 @@ import (
 type client struct {
 	id                       string
 	typ                      string
-	creator                  std.Address
+	creator                  address
 	counterpartyClientID     string
 	counterpartyMerklePrefix [][]byte
 	lightClient              lightclient.Interface
@@ -29,7 +30,7 @@ func CreateClient(cur realm, clientState lightclient.ClientState, consensusState
 	if err := consensusState.ValidateBasic(); err != nil {
 		panic(err)
 	}
-	c := store.addClient(clientState.ClientType(), std.OriginCaller())
+	c := store.addClient(clientState.ClientType(), runtime.OriginCaller())
 	err := c.lightClient.Initialize(clientState, consensusState)
 	if err != nil {
 		panic(err)
@@ -38,7 +39,7 @@ func CreateClient(cur realm, clientState lightclient.ClientState, consensusState
 		panic(ufmt.Sprintf("cannot create client (%s) with status %s", c.id, status))
 	}
 	// Emit create client event
-	std.Emit(types.EventTypeCreateClient,
+	chain.Emit(types.EventTypeCreateClient,
 		types.AttributeKeyClientID, c.id,
 		types.AttributeKeyClientType, c.typ,
 		types.AttributeKeyConsensusHeights, c.lightClient.LatestHeight().String(),
@@ -54,8 +55,8 @@ func RegisterCounterparty(cur realm, clientID string, counterpartyMerklePrefix [
 	if c == nil {
 		panic(ufmt.Sprintf("client %s not found", clientID))
 	}
-	if c.creator != std.OriginCaller() {
-		panic(ufmt.Sprintf("expected same signer as CreateClient submittor %s, got %s", c.creator, std.OriginCaller()))
+	if c.creator != runtime.OriginCaller() {
+		panic(ufmt.Sprintf("expected same signer as CreateClient submittor %s, got %s", c.creator, runtime.OriginCaller()))
 	}
 	if c.counterpartyClientID != "" {
 		panic("cannot register counterparty once it is already set")
@@ -103,7 +104,7 @@ func UpdateClient(cur realm, clientID string, clientMessage lightclient.ClientMe
 			consensusHeightsStr += ", "
 		}
 	}
-	std.Emit(types.EventTypeUpdateClient,
+	chain.Emit(types.EventTypeUpdateClient,
 		types.AttributeKeyClientID, c.id,
 		types.AttributeKeyClientType, c.typ,
 		types.AttributeKeyConsensusHeights, consensusHeightsStr,

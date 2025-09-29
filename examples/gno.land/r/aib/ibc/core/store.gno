@@ -1,8 +1,6 @@
 package core
 
 import (
-	"std"
-
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/lightclient/tendermint"
 	"gno.land/p/nt/avl"
@@ -27,7 +25,7 @@ func newStore() *Store {
 	}
 }
 
-func (cs *Store) addClient(typ string, creator std.Address) *client {
+func (cs *Store) addClient(typ string, creator address) *client {
 	id := ufmt.Sprintf("%s-%d", typ, uint64(cs.clientSeq.Next()))
 	c := &client{
 		id:      id,
