@@ -1,7 +1,6 @@
 package main
 
 import (
-	"std"
 	"strings"
 	"testing"
 
@@ -9,8 +8,8 @@ import (
 )
 
 const (
-	owner     = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	moderator = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
+	owner     = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	moderator = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
 )
 
 var (
@@ -19,7 +18,7 @@ var (
 )
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test-board", false)
 	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
 	rid = boards2.CreateReply(cross, bid, tid, 0, "body")
@@ -29,7 +28,7 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(moderator))
+	testing.SetRealm(testing.NewUserRealm(moderator))
 
 	boards2.FlagReply(cross, bid, tid, rid, "")
 

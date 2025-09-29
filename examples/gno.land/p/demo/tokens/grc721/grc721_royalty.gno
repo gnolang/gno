@@ -1,8 +1,8 @@
 package grc721
 
 import (
+	"chain/runtime"
 	"math/overflow"
-	"std"
 
 	"gno.land/p/nt/avl"
 )
@@ -46,7 +46,7 @@ func (r *royaltyNFT) SetTokenRoyalty(tid TokenID, royaltyInfo RoyaltyInfo) error
 	if err != nil {
 		return err
 	}
-	caller := std.CurrentRealm().Address()
+	caller := runtime.CurrentRealm().Address()
 	if caller != owner {
 		return ErrCallerIsNotOwner
 	}
@@ -58,7 +58,7 @@ func (r *royaltyNFT) SetTokenRoyalty(tid TokenID, royaltyInfo RoyaltyInfo) error
 }
 
 // RoyaltyInfo returns the royalty information for the given token ID and sale price.
-func (r *royaltyNFT) RoyaltyInfo(tid TokenID, salePrice int64) (std.Address, int64, error) {
+func (r *royaltyNFT) RoyaltyInfo(tid TokenID, salePrice int64) (address, int64, error) {
 	// Retrieve royalty information for the token
 	val, found := r.tokenRoyaltyInfo.Get(string(tid))
 	if !found {
