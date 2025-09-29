@@ -15,13 +15,13 @@
 package helplink
 
 import (
-	"std"
+	"chain/runtime"
 	"strings"
 
 	"gno.land/p/moul/txlink"
 )
 
-var chainDomain = std.ChainDomain()
+var chainDomain = runtime.ChainDomain()
 
 // Func returns a markdown link for the specific function with optional
 // key-value arguments, for the current realm.

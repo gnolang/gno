@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
+	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/pmezard/go-difflib/difflib"
 	"go.uber.org/multierr"
@@ -167,7 +167,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			res := opslog.(*bytes.Buffer).String()
 			match(dir, res)
 		case DirectiveEvents:
-			events := m.Context.(*teststd.TestExecContext).EventLogger.Events()
+			events := m.Context.(*teststdlibs.TestExecContext).EventLogger.Events()
 			evtjson, err := json.MarshalIndent(events, "", "  ")
 			if err != nil {
 				panic(err)
@@ -356,7 +356,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 		m.SetActivePackage(pv)
-		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
+		m.Context.(*teststdlibs.TestExecContext).OriginCaller = DefaultCaller
 		fn := m.MustParseFile(fname, string(content))
 		// Run (add) file, and then run main().
 		m.RunFiles(fn)
@@ -399,7 +399,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.Store = orig
 		pv2 := m.Store.GetPackage(pkgPath, false)
 		m.SetActivePackage(pv2)
-		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
+		m.Context.(*teststdlibs.TestExecContext).OriginCaller = DefaultCaller
 		gno.EnableDebug()
 
 		// Clear store.opslog from init function(s).
