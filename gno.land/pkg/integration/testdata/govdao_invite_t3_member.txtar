@@ -25,7 +25,7 @@ gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -fu
 stdout 'OK!'
 
 # Register member with a namespace first
-gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "newmem123" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test newmember
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "newmem123" -gas-fee 1000000ugnot -gas-wanted 11000000 -broadcast -chainid=tendermint_test newmember
 stdout 'OK!'
 
 # Call from a non-member

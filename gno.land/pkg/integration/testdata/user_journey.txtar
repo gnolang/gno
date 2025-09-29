@@ -176,7 +176,7 @@ stdout 'OK!'
 ######################
 
 # Enable `sys/names` to deploy packages to user namespace
-gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 100000ugnot -gas-wanted 1400000 -broadcast -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test test1
 stdout 'OK!'
 
 # user2 publishes a custom home package to its namespace

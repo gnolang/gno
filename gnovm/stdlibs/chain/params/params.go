@@ -42,6 +42,11 @@ func SetStrings(m *gno.Machine, key string, val []string) {
 	execctx.GetContext(m).Params.SetStrings(pk, val)
 }
 
+func UpdateParamStrings(m *gno.Machine, key string, val []string, add bool) {
+	pk := pkey(m, key)
+	execctx.GetContext(m).Params.UpdateStrings(pk, val, add)
+}
+
 // NOTE: further validation must happen by implementor of ParamsInterface.
 func pkey(m *gno.Machine, key string) string {
 	if len(key) == 0 {
