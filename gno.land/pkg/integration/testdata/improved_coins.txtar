@@ -35,49 +35,51 @@ stdout '(false bool)'
 -- coins.gno --
 package coins
 
-import "std"
+import (
+	"chain"
+)
 
-func MakeNewCoins(cur realm) std.Coins {
-	coin1 := std.NewCoin("ugnot", 123)
-	coin2 := std.NewCoin("example", 321)
-	coin3 := std.NewCoin("ugnot", 177)
-	return std.NewCoins(coin1, coin2, coin3)
+func MakeNewCoins(cur realm) chain.Coins {
+	coin1 := chain.NewCoin("ugnot", 123)
+	coin2 := chain.NewCoin("example", 321)
+	coin3 := chain.NewCoin("ugnot", 177)
+	return chain.NewCoins(coin1, coin2, coin3)
 }
 
-func AddCoin(cur realm) std.Coin {
-	coin1 := std.NewCoin("ugnot", 123)
-	coin2 := std.NewCoin("ugnot", 177)
+func AddCoin(cur realm) chain.Coin {
+	coin1 := chain.NewCoin("ugnot", 123)
+	coin2 := chain.NewCoin("ugnot", 177)
 	return coin1.Add(coin2)
 }
 
-func SubCoin(cur realm) std.Coin {
-	coin1 := std.NewCoin("ugnot", 300)
-	coin2 := std.NewCoin("ugnot", 177)
+func SubCoin(cur realm) chain.Coin {
+	coin1 := chain.NewCoin("ugnot", 300)
+	coin2 := chain.NewCoin("ugnot", 177)
 	return coin1.Sub(coin2)
 }
 
 func StringZeroCoin(cur realm) string {
-	coin1 := std.NewCoin("ugnot", 0)
+	coin1 := chain.NewCoin("ugnot", 0)
 	return coin1.String()
 }
 
 func IsZero(cur realm) (bool, bool, bool) {
-	coin1 := std.NewCoin("ugnot", 0)
-	coin2 := std.NewCoin("ugnot", 123)
-	coin3 := std.NewCoin("ugnot", -123)
+	coin1 := chain.NewCoin("ugnot", 0)
+	coin2 := chain.NewCoin("ugnot", 123)
+	coin3 := chain.NewCoin("ugnot", -123)
 	return coin1.IsZero(), coin2.IsZero(), coin3.IsZero()
 }
 
 func IsPositive(cur realm) (bool, bool, bool) {
-	coin1 := std.NewCoin("ugnot", -123)
-	coin2 := std.NewCoin("ugnot", 0)
-	coin3 := std.NewCoin("ugnot", 123)
+	coin1 := chain.NewCoin("ugnot", -123)
+	coin2 := chain.NewCoin("ugnot", 0)
+	coin3 := chain.NewCoin("ugnot", 123)
 	return coin1.IsPositive(), coin2.IsPositive(), coin3.IsPositive()
 }
 
 func IsNegative(cur realm) (bool, bool, bool) {
-	coin1 := std.NewCoin("ugnot", -123)
-	coin2 := std.NewCoin("ugnot", 0)
-	coin3 := std.NewCoin("ugnot", 123)
+	coin1 := chain.NewCoin("ugnot", -123)
+	coin2 := chain.NewCoin("ugnot", 0)
+	coin3 := chain.NewCoin("ugnot", 123)
 	return coin1.IsNegative(), coin2.IsNegative(), coin3.IsNegative()
 }

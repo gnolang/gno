@@ -7,7 +7,7 @@ package math_test
 import (
 	"fmt"
 	"math"
-	testing "testing/base"
+	"testing"
 )
 
 // XXX: The dot import for "math" is replaced to a normal import.
