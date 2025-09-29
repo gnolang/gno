@@ -6,6 +6,7 @@ import (
 
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/types"
+	"gno.land/p/nt/seqid"
 	"gno.land/p/nt/ufmt"
 )
 
@@ -15,7 +16,10 @@ type client struct {
 	creator                  address
 	counterpartyClientID     string
 	counterpartyMerklePrefix [][]byte
-	lightClient              lightclient.Interface
+
+	lightClient lightclient.Interface
+
+	sendSeq seqid.ID
 }
 
 // CreateClient generates a new client identifier and invokes the associated

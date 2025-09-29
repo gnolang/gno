@@ -1,8 +1,11 @@
 package core
 
 import (
+	"chain"
+	"chain/params"
 	"time"
 
+	"gno.land/p/aib/ibc/host"
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/types"
 	"gno.land/p/nt/ufmt"
@@ -10,7 +13,7 @@ import (
 
 const maxTimeoutDelta time.Duration = 24 * time.Hour
 
-func SendPacket(cur realm, msg types.MsgSendPacket) uint64 /*sequence*/ {
+func SendPacket(cur realm, msg types.MsgSendPacket) (sequence uint64) {
 	if err := msg.ValidateBasic(); err != nil {
 		panic(err)
 	}
@@ -25,7 +28,7 @@ func SendPacket(cur realm, msg types.MsgSendPacket) uint64 /*sequence*/ {
 
 	// Ensure counterparty has been registered
 	if c.counterpartyClientID == "" {
-		panic(ufmt.Sprintf("counterparty not found for client: %s", clientID))
+		panic(ufmt.Sprintf("counterparty not found for client %s", clientID))
 	}
 
 	// timeoutTimestamp must be greater than current block time and less or equal
@@ -60,15 +63,32 @@ func SendPacket(cur realm, msg types.MsgSendPacket) uint64 /*sequence*/ {
 	}
 
 	// construct packet from given fields and channel state
-	// TODO generate sequence
-	sequence := uint64(1)
+	sequence = uint64(c.sendSeq.Next())
 	packet := types.NewPacket(sequence, msg.SourceClient, c.counterpartyClientID, msg.TimeoutTimestamp, msg.Payloads...)
 	if err := packet.ValidateBasic(); err != nil {
 		panic(ufmt.Errorf("constructed packet failed basic validation: %v", err))
 	}
 
-	// TODO remaining of SendPacket
-	return 0
+	// set the packet commitment, so it is provable by the counterparty
+	commitment := types.CommitPacket(packet)
+	// The param key will be:
+	// "vm:gno.land/r/aib/ibc/core:" + clientID + "1" + sequence
+	key := host.PacketCommitmentKey(clientID, sequence)
+	// TODO make host.PacketCommitmentKey returns string ?
+	params.SetBytes(string(key), commitment)
+
+	chain.Emit(types.EventTypeSendPacket,
+		types.AttributeKeySrcClient, packet.SourceClient,
+		types.AttributeKeyDstClient, packet.DestinationClient,
+		types.AttributeKeySequence, ufmt.Sprintf("%d", packet.Sequence),
+		types.AttributeKeyTimeoutTimestamp, ufmt.Sprintf("%d", packet.TimeoutTimestamp),
+		// TODO write proto serialization of packet to fill this event attribute ?
+		// types.AttributeKeyEncodedPacketHex, hex.EncodeToString(encodedPacket),
+	)
+
+	// TODO forward payloads to registered app
+
+	return sequence
 }
 
 func RecvPacket(cur realm, msg types.MsgRecvPacket) types.ResponseResultType {

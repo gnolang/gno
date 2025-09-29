@@ -35,4 +35,4 @@ func main() {
 }
 
 // Error:
-// counterparty not found for client: 07-tendermint-1
+// counterparty not found for client 07-tendermint-1
