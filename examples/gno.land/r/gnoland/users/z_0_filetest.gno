@@ -1,7 +1,7 @@
 package main
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -11,13 +11,11 @@ import (
 	susers "gno.land/r/sys/users"
 )
 
-var (
-	alice = testutils.TestAddress("g1alice")
-)
+var alice = testutils.TestAddress("g1alice")
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(alice))
-	c := std.OriginCaller()
+	testing.SetRealm(testing.NewUserRealm(alice))
+	c := runtime.OriginCaller()
 	ini.InitWithUsers(c)
 	registerTestUsers(c)
 
@@ -30,9 +28,9 @@ const gUsersV1Path = "gno.land/r/gnoland/users/v1"
 
 // Register a namespace for every addresses
 // Necessary to test GovDAO Vote
-func registerTestUsers(addrs ...std.Address) {
+func registerTestUsers(addrs ...address) {
 	// Set realm to users admin to register test user
-	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
 	for _, addr := range addrs {
 		err := susers.RegisterUser(cross, addr.String()[1:], addr)
 		if err != nil {
@@ -42,7 +40,7 @@ func registerTestUsers(addrs ...std.Address) {
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(testing.NewUserRealm(alice))
 
 	dao.MustVoteOnProposal(cross, dao.VoteRequest{
 		Option:     dao.YesVote,

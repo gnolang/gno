@@ -1,8 +1,8 @@
 package grc1155
 
 import (
+	"chain/runtime"
 	"math/overflow"
-	"std"
 
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/ufmt"
@@ -28,7 +28,7 @@ func NewBasicGRC1155Token(uri string) *basicGRC1155Token {
 func (s *basicGRC1155Token) Uri() string { return s.uri }
 
 // BalanceOf returns the input address's balance of the token type requested
-func (s *basicGRC1155Token) BalanceOf(addr std.Address, tid TokenID) (int64, error) {
+func (s *basicGRC1155Token) BalanceOf(addr address, tid TokenID) (int64, error) {
 	if !isValidAddress(addr) {
 		return 0, ErrInvalidAddress
 	}
@@ -43,7 +43,7 @@ func (s *basicGRC1155Token) BalanceOf(addr std.Address, tid TokenID) (int64, err
 }
 
 // BalanceOfBatch returns the balance of multiple account/token pairs
-func (s *basicGRC1155Token) BalanceOfBatch(owners []std.Address, batch []TokenID) ([]int64, error) {
+func (s *basicGRC1155Token) BalanceOfBatch(owners []address, batch []TokenID) ([]int64, error) {
 	if len(owners) != len(batch) {
 		return nil, ErrMismatchLength
 	}
@@ -58,18 +58,18 @@ func (s *basicGRC1155Token) BalanceOfBatch(owners []std.Address, batch []TokenID
 }
 
 // SetApprovalForAll can approve the operator to operate on all tokens
-func (s *basicGRC1155Token) SetApprovalForAll(operator std.Address, approved bool) error {
+func (s *basicGRC1155Token) SetApprovalForAll(operator address, approved bool) error {
 	if !isValidAddress(operator) {
 		return ErrInvalidAddress
 	}
 
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	return s.setApprovalForAll(caller, operator, approved)
 }
 
 // IsApprovedForAll returns true if operator is the owner or is approved for all by the owner.
 // Otherwise, returns false
-func (s *basicGRC1155Token) IsApprovedForAll(owner, operator std.Address) bool {
+func (s *basicGRC1155Token) IsApprovedForAll(owner, operator address) bool {
 	if operator == owner {
 		return true
 	}
@@ -85,8 +85,8 @@ func (s *basicGRC1155Token) IsApprovedForAll(owner, operator std.Address) bool {
 // Safely transfers `tokenId` token from `from` to `to`, checking that
 // contract recipients are aware of the GRC1155 protocol to prevent
 // tokens from being forever locked.
-func (s *basicGRC1155Token) SafeTransferFrom(from, to std.Address, tid TokenID, amount int64) error {
-	caller := std.OriginCaller()
+func (s *basicGRC1155Token) SafeTransferFrom(from, to address, tid TokenID, amount int64) error {
+	caller := runtime.OriginCaller()
 	if !s.IsApprovedForAll(caller, from) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -108,8 +108,8 @@ func (s *basicGRC1155Token) SafeTransferFrom(from, to std.Address, tid TokenID, 
 // Safely transfers a `batch` of tokens from `from` to `to`, checking that
 // contract recipients are aware of the GRC1155 protocol to prevent
 // tokens from being forever locked.
-func (s *basicGRC1155Token) SafeBatchTransferFrom(from, to std.Address, batch []TokenID, amounts []int64) error {
-	caller := std.OriginCaller()
+func (s *basicGRC1155Token) SafeBatchTransferFrom(from, to address, batch []TokenID, amounts []int64) error {
+	caller := runtime.OriginCaller()
 	if !s.IsApprovedForAll(caller, from) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -130,8 +130,8 @@ func (s *basicGRC1155Token) SafeBatchTransferFrom(from, to std.Address, batch []
 
 // Creates `amount` tokens of token type `id`, and assigns them to `to`. Also checks that
 // contract recipients are using GRC1155 protocol.
-func (s *basicGRC1155Token) SafeMint(to std.Address, tid TokenID, amount int64) error {
-	caller := std.OriginCaller()
+func (s *basicGRC1155Token) SafeMint(to address, tid TokenID, amount int64) error {
+	caller := runtime.OriginCaller()
 
 	err := s.mintBatch(to, []TokenID{tid}, []int64{amount})
 	if err != nil {
@@ -149,8 +149,8 @@ func (s *basicGRC1155Token) SafeMint(to std.Address, tid TokenID, amount int64) 
 
 // Batch version of `SafeMint()`. Also checks that
 // contract recipients are using GRC1155 protocol.
-func (s *basicGRC1155Token) SafeBatchMint(to std.Address, batch []TokenID, amounts []int64) error {
-	caller := std.OriginCaller()
+func (s *basicGRC1155Token) SafeBatchMint(to address, batch []TokenID, amounts []int64) error {
+	caller := runtime.OriginCaller()
 
 	err := s.mintBatch(to, batch, amounts)
 	if err != nil {
@@ -167,8 +167,8 @@ func (s *basicGRC1155Token) SafeBatchMint(to std.Address, batch []TokenID, amoun
 }
 
 // Destroys `amount` tokens of token type `id` from `from`.
-func (s *basicGRC1155Token) Burn(from std.Address, tid TokenID, amount int64) error {
-	caller := std.OriginCaller()
+func (s *basicGRC1155Token) Burn(from address, tid TokenID, amount int64) error {
+	caller := runtime.OriginCaller()
 
 	err := s.burnBatch(from, []TokenID{tid}, []int64{amount})
 	if err != nil {
@@ -181,8 +181,8 @@ func (s *basicGRC1155Token) Burn(from std.Address, tid TokenID, amount int64) er
 }
 
 // Batch version of `Burn()`
-func (s *basicGRC1155Token) BatchBurn(from std.Address, batch []TokenID, amounts []int64) error {
-	caller := std.OriginCaller()
+func (s *basicGRC1155Token) BatchBurn(from address, batch []TokenID, amounts []int64) error {
+	caller := runtime.OriginCaller()
 
 	err := s.burnBatch(from, batch, amounts)
 	if err != nil {
@@ -197,7 +197,7 @@ func (s *basicGRC1155Token) BatchBurn(from std.Address, batch []TokenID, amounts
 /* Helper methods */
 
 // Helper for SetApprovalForAll(): approve `operator` to operate on all of `owner` tokens
-func (s *basicGRC1155Token) setApprovalForAll(owner, operator std.Address, approved bool) error {
+func (s *basicGRC1155Token) setApprovalForAll(owner, operator address, approved bool) error {
 	if owner == operator {
 		return nil
 	}
@@ -215,7 +215,7 @@ func (s *basicGRC1155Token) setApprovalForAll(owner, operator std.Address, appro
 }
 
 // Helper for SafeTransferFrom() and SafeBatchTransferFrom()
-func (s *basicGRC1155Token) safeBatchTransferFrom(from, to std.Address, batch []TokenID, amounts []int64) error {
+func (s *basicGRC1155Token) safeBatchTransferFrom(from, to address, batch []TokenID, amounts []int64) error {
 	if len(batch) != len(amounts) {
 		return ErrMismatchLength
 	}
@@ -231,7 +231,7 @@ func (s *basicGRC1155Token) safeBatchTransferFrom(from, to std.Address, batch []
 		}
 	}
 
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	s.beforeTokenTransfer(caller, from, to, batch, amounts)
 
 	for i := 0; i < len(batch); i++ {
@@ -263,7 +263,7 @@ func (s *basicGRC1155Token) safeBatchTransferFrom(from, to std.Address, batch []
 }
 
 // Helper for SafeMint() and SafeBatchMint()
-func (s *basicGRC1155Token) mintBatch(to std.Address, batch []TokenID, amounts []int64) error {
+func (s *basicGRC1155Token) mintBatch(to address, batch []TokenID, amounts []int64) error {
 	if len(batch) != len(amounts) {
 		return ErrMismatchLength
 	}
@@ -276,7 +276,7 @@ func (s *basicGRC1155Token) mintBatch(to std.Address, batch []TokenID, amounts [
 		}
 	}
 
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	s.beforeTokenTransfer(caller, zeroAddress, to, batch, amounts)
 
 	for i := 0; i < len(batch); i++ {
@@ -297,7 +297,7 @@ func (s *basicGRC1155Token) mintBatch(to std.Address, batch []TokenID, amounts [
 }
 
 // Helper for Burn() and BurnBatch()
-func (s *basicGRC1155Token) burnBatch(from std.Address, batch []TokenID, amounts []int64) error {
+func (s *basicGRC1155Token) burnBatch(from address, batch []TokenID, amounts []int64) error {
 	if len(batch) != len(amounts) {
 		return ErrMismatchLength
 	}
@@ -310,7 +310,7 @@ func (s *basicGRC1155Token) burnBatch(from std.Address, batch []TokenID, amounts
 		}
 	}
 
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	s.beforeTokenTransfer(caller, from, zeroAddress, batch, amounts)
 
 	for i := 0; i < len(batch); i++ {
@@ -338,20 +338,20 @@ func (s *basicGRC1155Token) setUri(newUri string) {
 	emit(&UpdateURIEvent{newUri})
 }
 
-func (s *basicGRC1155Token) beforeTokenTransfer(operator, from, to std.Address, batch []TokenID, amounts []int64) {
+func (s *basicGRC1155Token) beforeTokenTransfer(operator, from, to address, batch []TokenID, amounts []int64) {
 	// TODO: Implementation
 }
 
-func (s *basicGRC1155Token) afterTokenTransfer(operator, from, to std.Address, batch []TokenID, amounts []int64) {
+func (s *basicGRC1155Token) afterTokenTransfer(operator, from, to address, batch []TokenID, amounts []int64) {
 	// TODO: Implementation
 }
 
-func (s *basicGRC1155Token) doSafeTransferAcceptanceCheck(operator, from, to std.Address, tid TokenID, amount int64) bool {
+func (s *basicGRC1155Token) doSafeTransferAcceptanceCheck(operator, from, to address, tid TokenID, amount int64) bool {
 	// TODO: Implementation
 	return true
 }
 
-func (s *basicGRC1155Token) doSafeBatchTransferAcceptanceCheck(operator, from, to std.Address, batch []TokenID, amounts []int64) bool {
+func (s *basicGRC1155Token) doSafeBatchTransferAcceptanceCheck(operator, from, to address, batch []TokenID, amounts []int64) bool {
 	// TODO: Implementation
 	return true
 }
