@@ -204,21 +204,18 @@ gno = "0.9"
 -- home.gno --
 package home
 
-import (
-	"std"
-
-	"gno.land/p/nt/ownable"
-)
+import "gno.land/p/nt/ownable"
 
 var admin = ownable.NewWithOrigin()
 
-func TransferOwnership(cur realm, newOwner std.Address) {
-// Wait for https://github.com/gnolang/gno/pull/4278 to be merged
-//	if err := admin.TransferOwnershipByPrevious(newOwner); err != nil {
-//		panic(err)
-//	}
+func TransferOwnership(cur realm, newOwner address) {
+	// Wait for https://github.com/gnolang/gno/pull/4278 to be merged
+	//
+	//	if err := admin.TransferOwnershipByPrevious(newOwner); err != nil {
+	//		panic(err)
+	//	}
 }
 
 func Render(path string) string {
-    return "# My awesome home package with admin: " + admin.Owner().String()
+	return "# My awesome home package with admin: " + admin.Owner().String()
 }
