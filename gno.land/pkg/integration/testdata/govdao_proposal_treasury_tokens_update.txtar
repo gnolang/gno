@@ -59,7 +59,7 @@ stdout '| gno.land/r/demo/defi/grc20factory.TOKEN3 | 0 |'
 package main
 
 import (
-	"std"
+	"chain"
 
 	factory "gno.land/r/demo/defi/grc20factory"
 )
@@ -72,11 +72,10 @@ func main() {
 	factory.Mint(
 		cross,
 		"TOKEN1",
-		std.DerivePkgAddr("gno.land/r/gov/dao/v3/treasury"),
+		chain.PackageAddress("gno.land/r/gov/dao/v3/treasury"),
 		42,
 	)
 }
-
 -- proposer/create_proposal.gno --
 package main
 
@@ -100,8 +99,6 @@ func main() {
 package load_govdao
 
 import (
-	"std"
-
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
 	"gno.land/r/gov/dao/v3/memberstore"
@@ -114,7 +111,7 @@ func init() {
 
 	memberstore.Get().SetMember(
 		memberstore.T1,
-		std.Address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), // member address
+		address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), // member address
 		&memberstore.Member{InvitationPoints: 3},
 	)
 

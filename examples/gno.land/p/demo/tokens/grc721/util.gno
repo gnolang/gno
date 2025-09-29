@@ -1,12 +1,8 @@
 package grc721
 
-import (
-	"std"
-)
+var zeroAddress = address("")
 
-var zeroAddress = std.Address("")
-
-func isValidAddress(addr std.Address) error {
+func isValidAddress(addr address) error {
 	if !addr.IsValid() {
 		return ErrInvalidAddress
 	}

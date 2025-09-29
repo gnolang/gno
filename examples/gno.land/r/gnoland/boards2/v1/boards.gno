@@ -1,7 +1,7 @@
 package boards2
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
@@ -28,7 +28,7 @@ var (
 
 func init() {
 	// Save current realm path so it's available during render calls
-	gRealmLink = txlink.Realm(std.CurrentRealm().PkgPath())
+	gRealmLink = txlink.Realm(runtime.CurrentRealm().PkgPath())
 
 	// Initialize default realm permissions
 	gPerms = initRealmPermissions(
@@ -38,7 +38,7 @@ func init() {
 }
 
 // initRealmPermissions returns the default realm permissions.
-func initRealmPermissions(owners ...std.Address) *BasicPermissions {
+func initRealmPermissions(owners ...address) *BasicPermissions {
 	perms := createBasicPermissions(owners...)
 	perms.ValidateFunc(PermissionBoardCreate, validateBoardCreate)
 	perms.ValidateFunc(PermissionMemberInvite, validateMemberInvite)

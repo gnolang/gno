@@ -2,14 +2,13 @@ package commondao
 
 import (
 	"errors"
-	"std"
 
 	"gno.land/p/moul/addrset"
 )
 
 type (
 	// MemberIterFn defines a callback to iterate DAO members.
-	MemberIterFn func(std.Address) bool
+	MemberIterFn func(address) bool
 
 	// MemberStorage defines an interface for member storages.
 	MemberStorage interface {
@@ -17,15 +16,15 @@ type (
 		Size() int
 
 		// Has checks if a member exists in the storage.
-		Has(std.Address) bool
+		Has(address) bool
 
 		// Add adds a member to the storage.
 		// Returns true if the member is added, or false if it already existed.
-		Add(std.Address) bool
+		Add(address) bool
 
 		// Remove removes a member from the storage.
 		// Returns true if member was removed, or false if it was not found.
-		Remove(std.Address) bool
+		Remove(address) bool
 
 		// Grouping returns member groups when supported.
 		// When nil is returned it means that grouping of members is not supported.
@@ -68,7 +67,7 @@ func (s memberStorage) Size() int {
 
 // Has checks if a member exists in the storage.
 // Member is also searched within all defined member groups.
-func (s memberStorage) Has(member std.Address) bool {
+func (s memberStorage) Has(member address) bool {
 	// Check underlying member address storage
 	if s.Set.Has(member) {
 		return true
@@ -93,7 +92,7 @@ func (s memberStorage) Grouping() MemberGrouping {
 // The callback can return true to stop iteration.
 func (s memberStorage) IterateByOffset(offset, count int, fn MemberIterFn) bool {
 	var stopped bool
-	s.Set.IterateByOffset(offset, count, func(member std.Address) bool {
+	s.Set.IterateByOffset(offset, count, func(member address) bool {
 		stopped = fn(member)
 		return stopped
 	})
@@ -131,7 +130,7 @@ func (s ReadonlyMemberStorage) Size() int {
 }
 
 // Has checks if a member exists in the storage.
-func (s ReadonlyMemberStorage) Has(member std.Address) bool {
+func (s ReadonlyMemberStorage) Has(member address) bool {
 	if s.storage == nil {
 		return false
 	}

@@ -43,10 +43,3 @@ func makeCreateThreadURI(b *Board) string {
 		"body", "",
 	)
 }
-
-func makeRequestInviteURI(b *Board) string {
-	return gRealmLink.Call(
-		"RequestInvite",
-		"boardID", b.ID.String(),
-	)
-}

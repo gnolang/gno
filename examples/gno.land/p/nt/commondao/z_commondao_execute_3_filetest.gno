@@ -3,15 +3,14 @@ package test
 
 import (
 	"errors"
-	"std"
 	"time"
 
 	"gno.land/p/nt/commondao"
 )
 
 const (
-	member    = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	groupName = "admin"
+	member    address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devxZ
+	groupName         = "admin"
 )
 
 var (
@@ -33,7 +32,7 @@ func (testPropDef) Tally(ctx commondao.VotingContext) (bool, error) {
 	}
 
 	admins, _ := ctx.Members.Grouping().Get(groupName)
-	return admins.Members().IterateByOffset(0, admins.Members().Size(), func(member std.Address) bool {
+	return admins.Members().IterateByOffset(0, admins.Members().Size(), func(member address) bool {
 		v, found := ctx.VotingRecord.GetVote(member)
 		// Proposal passes when a YES vote is found
 		return (found && v.Choice == commondao.ChoiceYes)

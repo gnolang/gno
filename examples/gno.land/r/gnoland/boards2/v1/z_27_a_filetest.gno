@@ -1,29 +1,28 @@
 package main
 
 import (
-	"std"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
 const (
-	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	user  = std.Address("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5")
+	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	user  = address("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5")
 )
 
 var bid boards2.BoardID
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test123", false)
 
-	testing.SetRealm(std.NewUserRealm(user))
+	testing.SetRealm(testing.NewUserRealm(user))
 	boards2.RequestInvite(cross, bid)
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	boards2.RevokeInvite(cross, bid, user)
 
