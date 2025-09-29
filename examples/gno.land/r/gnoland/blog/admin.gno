@@ -23,6 +23,10 @@ var (
 	inPause       bool
 )
 
+func init() {
+	moderatorList.Set("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5", true) // @leohhhn
+}
+
 func AdminSetAdminAddr(_ realm, addr std.Address) {
 	assertIsAdmin()
 	adminAddr = addr

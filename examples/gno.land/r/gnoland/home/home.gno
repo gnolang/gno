@@ -95,7 +95,7 @@ the foundations of a fairer and freer world, join us today.
 
 |||
 
-## [Latest Events](/r/gnoland/events)
+## [Latest Events](/r/devrels/events)
 
 :upcoming-events:
 
@@ -132,7 +132,7 @@ All code in Gno.land is organized in packages, and each package lives at a uniqu
 
 Official realm packages developed by the Gno.land core team.
 
-[-> Browse](/r/gnoland)
+[Browse](/r/gnoland)
 
 |||
 
@@ -140,7 +140,7 @@ Official realm packages developed by the Gno.land core team.
 
 System-level realm packages used by the chain.
 
-[-> Browse](/r/sys)
+[Browse](/r/sys)
 
 |||
 
@@ -148,7 +148,7 @@ System-level realm packages used by the chain.
 
 Demo realm packages showcasing what’s possible.
 
-[-> Browse](/r/demo)
+[Browse](/r/demo)
 
 |||
 
@@ -156,7 +156,7 @@ Demo realm packages showcasing what’s possible.
 
 Pure packages for demo purposes.
 
-[-> Browse](/p/demo)
+[Browse](/p/demo)
 
 </gno-columns>
 

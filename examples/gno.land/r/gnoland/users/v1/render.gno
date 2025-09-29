@@ -26,7 +26,7 @@ func Render(path string) string {
 func renderHomePage() string {
 	var out string
 
-	out += "# gno.land user registry\n"
+	out += "# Gno.land User Registry\n"
 
 	if paused {
 		out += md.HorizontalRule()
