@@ -23,7 +23,7 @@ func (m *mockApp) Version() string { return m.v }
 
 func TestRender_NoImplementation(t *testing.T) {
 	// Ensure a clean slate
-	App = nil
+	app = nil
 	got := Render("")
 	uassert.Equal(t, got, "No implementation currently available.")
 }
@@ -55,7 +55,7 @@ func TestSetImplementation_Authorized_AndRouting(t *testing.T) {
 	m := &mockApp{v: "v1", field: "hello"}
 	SetImplementation(cross, m)
 
-	uassert.True(t, IsImplSet(), "App should be set")
+	uassert.True(t, IsImplSet(), "app should be set")
 
 	// Render routes to impl
 	uassert.Equal(t, Render(""), "mock(hello)")
