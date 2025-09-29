@@ -1,8 +1,6 @@
 package boards2
 
 import (
-	"std"
-
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/commondao"
 )
@@ -14,7 +12,7 @@ type ValidatorFunc func(Permissions, Args) error
 type BasicPermissions struct {
 	superRole  Role
 	dao        *commondao.CommonDAO
-	users      *avl.Tree // string(std.Address) -> []Role
+	users      *avl.Tree // string(address) -> []Role
 	roles      *avl.Tree // string(role) -> []Permission
 	validators *avl.Tree // string(Permission) -> BasicPermissionValidator
 }
@@ -57,7 +55,7 @@ func (bp BasicPermissions) RoleExists(r Role) bool {
 }
 
 // GetUserRoles returns the list of roles assigned to a user.
-func (bp BasicPermissions) GetUserRoles(user std.Address) []Role {
+func (bp BasicPermissions) GetUserRoles(user address) []Role {
 	v, found := bp.users.Get(user.String())
 	if !found {
 		return nil
@@ -66,7 +64,7 @@ func (bp BasicPermissions) GetUserRoles(user std.Address) []Role {
 }
 
 // HasRole checks if a user has a specific role assigned.
-func (bp BasicPermissions) HasRole(user std.Address, r Role) bool {
+func (bp BasicPermissions) HasRole(user address, r Role) bool {
 	for _, role := range bp.GetUserRoles(user) {
 		if role == r {
 			return true
@@ -76,7 +74,7 @@ func (bp BasicPermissions) HasRole(user std.Address, r Role) bool {
 }
 
 // HasPermission checks if a user has a specific permission.
-func (bp BasicPermissions) HasPermission(user std.Address, perm Permission) bool {
+func (bp BasicPermissions) HasPermission(user address, perm Permission) bool {
 	for _, r := range bp.GetUserRoles(user) {
 		if bp.superRole == r {
 			return true
@@ -99,7 +97,7 @@ func (bp BasicPermissions) HasPermission(user std.Address, perm Permission) bool
 // SetUserRoles adds a new user when it doesn't exist and sets its roles.
 // Method can also be called to change the roles of an existing user.
 // All user's roles can be removed by calling this method without roles.
-func (bp *BasicPermissions) SetUserRoles(_ realm, user std.Address, roles ...Role) {
+func (bp *BasicPermissions) SetUserRoles(_ realm, user address, roles ...Role) {
 	if !bp.HasUser(user) {
 		bp.dao.Members().Add(user)
 	}
@@ -114,14 +112,14 @@ func (bp *BasicPermissions) SetUserRoles(_ realm, user std.Address, roles ...Rol
 }
 
 // RemoveUser removes a user from permissions.
-func (bp *BasicPermissions) RemoveUser(_ realm, user std.Address) bool {
+func (bp *BasicPermissions) RemoveUser(_ realm, user address) bool {
 	_, removed := bp.users.Remove(user.String())
 	bp.dao.Members().Remove(user)
 	return removed
 }
 
 // HasUser checks if a user exists.
-func (bp BasicPermissions) HasUser(user std.Address) bool {
+func (bp BasicPermissions) HasUser(user address) bool {
 	return bp.dao.Members().Has(user)
 }
 
@@ -132,7 +130,7 @@ func (bp BasicPermissions) UsersCount() int {
 
 // IterateUsers iterates permissions' users.
 func (bp BasicPermissions) IterateUsers(start, count int, fn UsersIterFn) (stopped bool) {
-	bp.dao.Members().IterateByOffset(start, count, func(addr std.Address) bool {
+	bp.dao.Members().IterateByOffset(start, count, func(addr address) bool {
 		roles := bp.GetUserRoles(addr)
 		stopped = fn(User{
 			Address: addr,
@@ -146,7 +144,7 @@ func (bp BasicPermissions) IterateUsers(start, count int, fn UsersIterFn) (stopp
 // WithPermission calls a callback when a user has a specific permission.
 // It panics on error or when a handler panics.
 // Callbacks are by default called when there is no handle registered for the permission.
-func (bp *BasicPermissions) WithPermission(_ realm, user std.Address, p Permission, args Args, cb func(realm)) {
+func (bp *BasicPermissions) WithPermission(_ realm, user address, p Permission, args Args, cb func(realm)) {
 	if !bp.HasPermission(user, p) || !bp.dao.Members().Has(user) {
 		panic("unauthorized")
 	}
@@ -163,7 +161,7 @@ func (bp *BasicPermissions) WithPermission(_ realm, user std.Address, p Permissi
 	cb(cross)
 }
 
-func createBasicPermissions(owners ...std.Address) *BasicPermissions {
+func createBasicPermissions(owners ...address) *BasicPermissions {
 	perms := NewBasicPermissions(commondao.New())
 	perms.SetSuperRole(RoleOwner)
 	perms.AddRole(RoleAdmin, PermissionBoardCreate)

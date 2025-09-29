@@ -2,7 +2,6 @@ package boards2
 
 import (
 	"errors"
-	"std"
 
 	"gno.land/r/sys/users"
 )
@@ -15,7 +14,7 @@ import (
 // 3. Board ID
 // 4. Is board listed
 func validateBoardCreate(_ Permissions, args Args) error {
-	caller, ok := args[0].(std.Address)
+	caller, ok := args[0].(address)
 	if !ok {
 		return errors.New("expected a valid caller address")
 	}
@@ -43,7 +42,7 @@ func validateBoardCreate(_ Permissions, args Args) error {
 // 3. Current board name
 // 4. New board name
 func validateBoardRename(_ Permissions, args Args) error {
-	caller, ok := args[0].(std.Address)
+	caller, ok := args[0].(address)
 	if !ok {
 		return errors.New("expected a valid caller address")
 	}
@@ -70,7 +69,7 @@ func validateBoardRename(_ Permissions, args Args) error {
 // 2. Board ID
 // 3. Invites
 func validateMemberInvite(perms Permissions, args Args) error {
-	caller, ok := args[0].(std.Address)
+	caller, ok := args[0].(address)
 	if !ok {
 		return errors.New("expected a valid caller address")
 	}
@@ -98,7 +97,7 @@ func validateMemberInvite(perms Permissions, args Args) error {
 // 3. Member address
 // 4. Role
 func validateRoleChange(perms Permissions, args Args) error {
-	caller, ok := args[0].(std.Address)
+	caller, ok := args[0].(address)
 	if !ok {
 		return errors.New("expected a valid caller address")
 	}
@@ -114,7 +113,7 @@ func validateRoleChange(perms Permissions, args Args) error {
 		if role == RoleOwner {
 			return errors.New("admins are not allowed to promote members to Owner")
 		} else {
-			member, ok := args[2].(std.Address)
+			member, ok := args[2].(address)
 			if !ok {
 				return errors.New("expected a valid member address")
 			}
@@ -128,13 +127,13 @@ func validateRoleChange(perms Permissions, args Args) error {
 }
 
 func checkBoardNameIsNotAddress(s string) error {
-	if std.Address(s).IsValid() {
+	if address(s).IsValid() {
 		return errors.New("addresses are not allowed as board name")
 	}
 	return nil
 }
 
-func checkBoardNameBelongsToAddress(owner std.Address, name string) error {
+func checkBoardNameBelongsToAddress(owner address, name string) error {
 	// When the board name is the name of a registered user
 	// check that caller is the owner of the name.
 	user, _ := users.ResolveName(name)

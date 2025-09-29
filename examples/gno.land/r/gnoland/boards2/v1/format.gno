@@ -1,7 +1,6 @@
 package boards2
 
 import (
-	"std"
 	"strconv"
 	"strings"
 
@@ -50,7 +49,7 @@ func summaryOf(text string, length int) string {
 	return line
 }
 
-func userLink(addr std.Address) string {
+func userLink(addr address) string {
 	if u := users.ResolveAddress(addr); u != nil {
 		return md.UserLink(u.Name())
 	}

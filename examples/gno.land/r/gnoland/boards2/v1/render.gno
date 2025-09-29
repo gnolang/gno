@@ -2,7 +2,6 @@ package boards2
 
 import (
 	"net/url"
-	"std"
 	"strconv"
 	"strings"
 	"time"
@@ -154,8 +153,6 @@ func renderBoardMenu(board *Board, req *mux.Request) string {
 		b.WriteString("\n")
 	} else {
 		b.WriteString(md.Link("Create Thread", makeCreateThreadURI(board)))
-		b.WriteString(" • ")
-		b.WriteString(md.Link("Request Invite", makeRequestInviteURI(board)))
 		b.WriteString(" • ")
 
 		menu := getCurrentMenu(req.RawPath)
@@ -354,7 +351,7 @@ func renderInvites(res *mux.ResponseWriter, req *mux.Request) {
 		}
 
 		table.Append([]string{
-			userLink(std.Address(addr)),
+			userLink(address(addr)),
 			v.(time.Time).Format(dateFormat),
 			strings.Join(actions, " • "),
 		})
@@ -397,7 +394,7 @@ func renderBannedUsers(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.H3("These users have been banned from the board"))
 	banned.ReverseIterateByOffset(p.Offset(), p.PageSize(), func(addr string, v any) bool {
 		table.Append([]string{
-			userLink(std.Address(addr)),
+			userLink(address(addr)),
 			v.(time.Time).Format(dateFormat),
 			md.Link("unban", gRealmLink.Call(
 				"Unban",
