@@ -64,7 +64,7 @@ func (s *basicNFT) OwnerOf(tid TokenID) (address, error) {
 
 // TokenURI returns the URI of input token id
 func (s *basicNFT) TokenURI(tid TokenID) (string, error) {
-	uri, found := s.tokenURIs.Get(string(tid))
+	uri, found := s.tokenURIs.Get(tid.String())
 	if !found {
 		return "", ErrInvalidTokenId
 	}
@@ -87,7 +87,7 @@ func (s *basicNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
 	if caller != owner {
 		return false, ErrCallerIsNotOwner
 	}
-	s.tokenURIs.Set(string(tid), string(tURI))
+	s.tokenURIs.Set(tid.String(), tURI.String())
 	return true, nil
 }
 
@@ -122,12 +122,15 @@ func (s *basicNFT) Approve(to address, tid TokenID) error {
 		return ErrCallerIsNotOwnerOrApproved
 	}
 
-	s.tokenApprovals.Set(string(tid), to.String())
+	tidStr := tid.String()
+	s.tokenApprovals.Set(tidStr, to)
+
 	chain.Emit(
 		ApprovalEvent,
-		"owner", string(owner),
-		"to", string(to),
-		"tokenId", string(tid),
+		"slug", s.symbol,
+		"owner", owner.String(),
+		"to", to.String(),
+		"tokenId", tidStr,
 	)
 
 	return nil
@@ -135,12 +138,12 @@ func (s *basicNFT) Approve(to address, tid TokenID) error {
 
 // GetApproved return the approved address for token
 func (s *basicNFT) GetApproved(tid TokenID) (address, error) {
-	addr, found := s.tokenApprovals.Get(string(tid))
+	addr, found := s.tokenApprovals.Get(tid.String())
 	if !found {
 		return zeroAddress, ErrTokenIdNotHasApproved
 	}
 
-	return address(addr.(string)), nil
+	return addr.(address), nil
 }
 
 // SetApprovalForAll can approve the operator to operate on all tokens
@@ -217,19 +220,23 @@ func (s *basicNFT) Burn(tid TokenID) error {
 
 	s.beforeTokenTransfer(owner, zeroAddress, tid, 1)
 
-	s.tokenApprovals.Remove(string(tid))
+	tidStr := tid.String()
+	s.tokenApprovals.Remove(tidStr)
 	balance, err := s.BalanceOf(owner)
 	if err != nil {
 		return err
 	}
 	balance = overflow.Sub64p(balance, 1)
-	s.balances.Set(owner.String(), balance)
-	s.owners.Remove(string(tid))
+
+	ownerStr := owner.String()
+	s.balances.Set(ownerStr, balance)
+	s.owners.Remove(tidStr)
 
 	chain.Emit(
 		BurnEvent,
-		"from", string(owner),
-		"tokenId", string(tid),
+		"slug", s.symbol,
+		"from", ownerStr,
+		"tokenId", tidStr,
 	)
 
 	s.afterTokenTransfer(owner, zeroAddress, tid, 1)
@@ -250,8 +257,9 @@ func (s *basicNFT) setApprovalForAll(owner, operator address, approved bool) err
 
 	chain.Emit(
 		ApprovalForAllEvent,
-		"owner", string(owner),
-		"to", string(operator),
+		"slug", s.symbol,
+		"owner", owner.String(),
+		"to", operator.String(),
 		"approved", strconv.FormatBool(approved),
 	)
 
@@ -290,7 +298,8 @@ func (s *basicNFT) transfer(from, to address, tid TokenID) error {
 		return ErrTransferFromIncorrectOwner
 	}
 
-	s.tokenApprovals.Remove(string(tid))
+	tidStr := tid.String()
+	s.tokenApprovals.Remove(tidStr)
 	fromBalance, err := s.BalanceOf(from)
 	if err != nil {
 		return err
@@ -301,15 +310,20 @@ func (s *basicNFT) transfer(from, to address, tid TokenID) error {
 	}
 	fromBalance = overflow.Sub64p(fromBalance, 1)
 	toBalance = overflow.Add64p(toBalance, 1)
-	s.balances.Set(from.String(), fromBalance)
-	s.balances.Set(to.String(), toBalance)
-	s.owners.Set(string(tid), to)
+
+	fromStr := from.String()
+	toStr := to.String()
+
+	s.balances.Set(fromStr, fromBalance)
+	s.balances.Set(toStr, toBalance)
+	s.owners.Set(tidStr, to)
 
 	chain.Emit(
 		TransferEvent,
-		"from", string(from),
-		"to", string(to),
-		"tokenId", string(tid),
+		"slug", s.symbol,
+		"from", fromStr,
+		"to", toStr,
+		"tokenId", tidStr,
 	)
 
 	s.afterTokenTransfer(from, to, tid, 1)
@@ -339,13 +353,16 @@ func (s *basicNFT) mint(to address, tid TokenID) error {
 		return err
 	}
 	toBalance = overflow.Add64p(toBalance, 1)
-	s.balances.Set(to.String(), toBalance)
-	s.owners.Set(string(tid), to)
+	toStr := to.String()
+	tidStr := tid.String()
+	s.balances.Set(toStr, toBalance)
+	s.owners.Set(tidStr, to)
 
 	chain.Emit(
 		MintEvent,
-		"to", string(to),
-		"tokenId", string(tid),
+		"slug", s.symbol,
+		"to", toStr,
+		"tokenId", tidStr,
 	)
 
 	s.afterTokenTransfer(zeroAddress, to, tid, 1)
@@ -354,12 +371,13 @@ func (s *basicNFT) mint(to address, tid TokenID) error {
 }
 
 func (s *basicNFT) isApprovedOrOwner(addr address, tid TokenID) bool {
-	owner, found := s.owners.Get(string(tid))
+	owner, found := s.owners.Get(tid.String())
 	if !found {
 		return false
 	}
 
-	if addr == owner.(address) || s.IsApprovedForAll(owner.(address), addr) {
+	ownerAddr := owner.(address)
+	if addr == ownerAddr || s.IsApprovedForAll(ownerAddr, addr) {
 		return true
 	}
 
@@ -373,7 +391,7 @@ func (s *basicNFT) isApprovedOrOwner(addr address, tid TokenID) bool {
 
 // Checks if token id already exists
 func (s *basicNFT) exists(tid TokenID) bool {
-	_, found := s.owners.Get(string(tid))
+	_, found := s.owners.Get(tid.String())
 	return found
 }
 
