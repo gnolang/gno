@@ -17,7 +17,7 @@ func TestPackage(cur realm, t *testing.T) {
 	{
 		got := Render("")
 		expected := `
-# gno.land's blog
+# Gno.land's Blog
 
 No posts.
 `
@@ -30,7 +30,7 @@ No posts.
 		ModAddPost(cross, "slug2", "title2", "body2", "2022-05-20T13:17:23Z", "moul", "tag1,tag3")
 		got := Render("")
 		expected := `
-			# gno.land's blog
+			# Gno.land's Blog
 
 <gno-columns>
 ### [title2](/r/gnoland/blog:p/slug2)

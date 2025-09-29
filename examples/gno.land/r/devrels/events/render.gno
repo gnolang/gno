@@ -43,7 +43,7 @@ func RenderEventWidget(eventsToRender int) (string, error) {
 
 // renderHome renders the home page of the events realm
 func renderHome(admin bool) string {
-	output := "# gno.land events\n\n"
+	output := "# Gno.land Events\n\n"
 
 	if len(events) == 0 {
 		output += "No upcoming or past events."
