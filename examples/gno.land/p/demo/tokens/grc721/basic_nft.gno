@@ -17,15 +17,13 @@ type basicNFT struct {
 	tokenApprovals    avl.Tree // TokenId -> ApprovedAddress
 	tokenURIs         avl.Tree // TokenId -> URIs
 	operatorApprovals avl.Tree // "OwnerAddress:OperatorAddress" -> bool
-	origRealm         string   // Original realm path for ID
 }
 
 // Returns new basic NFT
 func NewBasicNFT(name string, symbol string) *basicNFT {
 	return &basicNFT{
-		name:      name,
-		symbol:    symbol,
-		origRealm: std.CurrentRealm().PkgPath(),
+		name:   name,
+		symbol: symbol,
 
 		owners:            avl.Tree{},
 		balances:          avl.Tree{},
@@ -38,12 +36,6 @@ func NewBasicNFT(name string, symbol string) *basicNFT {
 func (s *basicNFT) Name() string      { return s.name }
 func (s *basicNFT) Symbol() string    { return s.symbol }
 func (s *basicNFT) TokenCount() int64 { return int64(s.owners.Size()) }
-
-// ID returns the Identifier of the token collection.
-// It is composed of the original realm and the provided symbol.
-func (s *basicNFT) ID() string {
-	return s.origRealm + "." + s.symbol
-}
 
 // BalanceOf returns balance of input address
 func (s *basicNFT) BalanceOf(addr std.Address) (int64, error) {
@@ -130,14 +122,13 @@ func (s *basicNFT) Approve(to std.Address, tid TokenID) error {
 	}
 
 	tidStr := tid.String()
-	toStr := to.String()
-	s.tokenApprovals.Set(tidStr, toStr)
+	s.tokenApprovals.Set(tidStr, to)
 
 	std.Emit(
 		ApprovalEvent,
-		"token", s.ID(),
+		"slug", s.symbol,
 		"owner", owner.String(),
-		"to", toStr,
+		"to", to.String(),
 		"tokenId", tidStr,
 	)
 
@@ -242,7 +233,7 @@ func (s *basicNFT) Burn(tid TokenID) error {
 
 	std.Emit(
 		BurnEvent,
-		"token", s.ID(),
+		"slug", s.symbol,
 		"from", ownerStr,
 		"tokenId", tidStr,
 	)
@@ -265,7 +256,7 @@ func (s *basicNFT) setApprovalForAll(owner, operator std.Address, approved bool)
 
 	std.Emit(
 		ApprovalForAllEvent,
-		"token", s.ID(),
+		"slug", s.symbol,
 		"owner", owner.String(),
 		"to", operator.String(),
 		"approved", strconv.FormatBool(approved),
@@ -328,7 +319,7 @@ func (s *basicNFT) transfer(from, to std.Address, tid TokenID) error {
 
 	std.Emit(
 		TransferEvent,
-		"token", s.ID(),
+		"slug", s.symbol,
 		"from", fromStr,
 		"to", toStr,
 		"tokenId", tidStr,
@@ -368,7 +359,7 @@ func (s *basicNFT) mint(to std.Address, tid TokenID) error {
 
 	std.Emit(
 		MintEvent,
-		"token", s.ID(),
+		"slug", s.symbol,
 		"to", toStr,
 		"tokenId", tidStr,
 	)
