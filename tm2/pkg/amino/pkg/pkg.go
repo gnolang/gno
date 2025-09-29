@@ -261,7 +261,7 @@ func (pkg *Package) WithComments(filename string) *Package {
 				continue
 			}
 			for _, field := range structType.Fields.List {
-				if field.Names != nil && len(field.Names) == 1 && field.Doc != nil {
+				if len(field.Names) == 1 && field.Doc != nil {
 					// Set the field comment.
 					if pkgType.FieldComments == nil {
 						pkgType.FieldComments = make(map[string]string)

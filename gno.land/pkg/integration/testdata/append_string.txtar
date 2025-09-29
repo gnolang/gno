@@ -1,0 +1,33 @@
+loadpkg gno.land/r/append $WORK
+
+gnoland start
+
+! gnokey maketx call -pkgpath gno.land/r/append -func Doappend -gas-fee 1000000ugnot -gas-wanted 2900000000 -broadcast -chainid=tendermint_test test1
+
+stdout 'TX HASH:'
+stderr 'Data: allocation limit exceeded'
+
+! gnokey maketx call -pkgpath gno.land/r/append -func Doappend2 -gas-fee 1000000ugnot -gas-wanted 2900000000 -broadcast -chainid=tendermint_test test1
+
+stdout 'TX HASH:'
+stderr 'Data: allocation limit exceeded'
+
+
+-- append.gno --
+package append
+
+func Doappend(_ realm) {
+    var hugeString string
+    for i := 0; ; i++ {
+        // bypass alloc.maxBytes ("allocation limit exceeded") //
+        hugeString += string(make([]byte, 150_000_000))
+    }
+}
+
+func Doappend2(_ realm) {
+    var hugeString string
+    for i := 0; ; i++ {
+        // bypass alloc.maxBytes ("allocation limit exceeded") //
+        hugeString += string(make([]byte, 100_000_000))
+    }
+}

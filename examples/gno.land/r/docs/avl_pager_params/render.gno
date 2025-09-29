@@ -1,11 +1,11 @@
 package avl_pager_params
 
 import (
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/avl/pager"
-	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/realmpath"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/pager"
+	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/ufmt"
 )
 
 // We'll keep some demo data in an AVL tree to showcase pagination.

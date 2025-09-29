@@ -236,34 +236,29 @@ func (mpfilter MemPackageFilter) FilterGno(mfile *std.MemFile, pname Name) bool 
 		if endsWithAny(fname, []string{"_filetest.gno"}) {
 			return true
 		}
-		pname2, err := PackageNameFromFileBody(fname, fbody)
-		if err != nil {
-			panic(err)
-		}
-		if pname2 == pname {
-			return false
-		} else if pname2 == pname+"_test" {
-			return true
-		} else {
-			panic(fmt.Sprintf("unexpected package name %q in package (for MPFTest filter)", pname2))
-		}
+		return isIntegrationTestFile(pname, fname, fbody)
 	case MPFIntegration:
 		if !endsWithAny(fname, []string{"_test.gno"}) {
 			return true
 		}
-		pname2, err := PackageNameFromFileBody(fname, fbody)
-		if err != nil {
-			panic(err)
-		}
-		if pname2 == pname {
-			return true
-		} else if pname2 == pname+"_test" {
-			return false
-		} else {
-			panic(fmt.Sprintf("unexpected package name %q in package (for MPFIntegration filter)", pname2))
-		}
+		return !isIntegrationTestFile(pname, fname, fbody)
 	default:
 		panic("should not happen")
+	}
+}
+
+func isIntegrationTestFile(pname Name, fname, fbody string) bool {
+	pname2, err := PackageNameFromFileBody(fname, fbody)
+	if err != nil {
+		panic(err)
+	}
+	switch pname2 {
+	case pname:
+		return false
+	case pname + "_test":
+		return true
+	default:
+		panic(fmt.Sprintf("unexpected package name %q in package with name %q", pname2, pname))
 	}
 }
 
@@ -575,25 +570,15 @@ func (mptype MemPackageType) Validate(pkgPath string) {
 	default:
 		panic("should not happen")
 	}
-	if mptype.IsUserlib() {
-	}
 	switch mptype {
 	case MPAnyAll, MPAnyProd, MPAnyTest:
-		if strings.HasSuffix(pkgPath, "_test") {
-		}
 	case MPAnyIntegration:
 	case MPUserAll, MPUserProd, MPUserTest:
 	case MPUserIntegration:
 	case MPStdlibAll, MPStdlibProd, MPStdlibTest:
 	case MPStdlibIntegration:
 	case MPFiletests:
-	}
-	if !slices.Contains([]MemPackageType{
-		MPAnyAll, MPAnyProd, MPAnyTest, MPAnyIntegration,
-		MPStdlibAll, MPStdlibProd, MPStdlibTest, MPStdlibIntegration,
-		MPUserAll, MPUserProd, MPUserTest, MPUserIntegration,
-		MPFiletests,
-	}, mptype) {
+	default:
 		panic(fmt.Sprintf("invalid mem package type %q", mptype))
 	}
 }

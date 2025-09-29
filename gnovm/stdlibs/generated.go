@@ -912,6 +912,42 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
+		"std",
+		"updateParamStrings",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("[]string")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("bool")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  []string
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  bool
+				rp2 = reflect.ValueOf(&p2).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+
+			libs_std.X_updateParamStrings(
+				m,
+				p0, p1, p2)
+		},
+	},
+	{
 		"sys/params",
 		"setSysParamString",
 		[]gno.FieldTypeExpr{
@@ -1164,6 +1200,54 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
+		"sys/params",
+		"updateSysParamStrings",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p3"), Type: gno.X("[]string")},
+			{NameExpr: *gno.Nx("p4"), Type: gno.X("bool")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  string
+				rp2 = reflect.ValueOf(&p2).Elem()
+				p3  []string
+				rp3 = reflect.ValueOf(&p3).Elem()
+				p4  bool
+				rp4 = reflect.ValueOf(&p4).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
+			tv3.DeepFill(m.Store)
+			gno.Gno2GoValue(tv3, rp3)
+			tv4 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 4, "")).TV
+			tv4.DeepFill(m.Store)
+			gno.Gno2GoValue(tv4, rp4)
+
+			libs_sys_params.X_updateSysParamStrings(
+				m,
+				p0, p1, p2, p3, p4)
+		},
+	},
+	{
 		"time",
 		"now",
 		[]gno.FieldTypeExpr{},
@@ -1253,6 +1337,7 @@ var initOrder = [...]string{
 	"crypto/chacha20/rand",
 	"crypto/ed25519",
 	"crypto/sha256",
+	"crypto/subtle",
 	"encoding",
 	"encoding/base32",
 	"encoding/base64",
