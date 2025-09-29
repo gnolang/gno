@@ -8,7 +8,7 @@
 //   - Markdown-based pagination UI
 //
 // This package is currently used by:
-//   - gno.land/p/demo/avl/pager: implementation for AVL trees.
+//   - gno.land/p/nt/avl/pager: implementation for AVL trees.
 //   - gno.land/p/moul/ulist/pager: implementation for ulist
 package pageable
 
