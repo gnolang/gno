@@ -160,7 +160,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 			return true
 		}
 
-		alloc.Allocate(size)
+		alloc.Account(size)
 
 		// bump before visiting associated,
 		// this avoids infinite recursion.
@@ -406,7 +406,7 @@ func (tv TypeValue) VisitAssociated(vis Visitor) (stop bool) {
 func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 	// vis receiver
 	if fr.Receiver.IsDefined() {
-		alloc.Allocate(allocTypedValue) // alloc shallowly
+		alloc.Account(allocTypedValue) // alloc shallowly
 
 		if v := fr.Receiver.V; v != nil {
 			stop = vis(v)
@@ -435,7 +435,7 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 		}
 
 		for _, arg := range dfr.Args {
-			alloc.Allocate(allocTypedValue)
+			alloc.Account(allocTypedValue)
 
 			if arg.V != nil {
 				stop = vis(arg.V)
@@ -466,7 +466,7 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 
 func (e *Exception) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 	// vis value
-	alloc.Allocate(allocTypedValue)
+	alloc.Account(allocTypedValue)
 	if v := e.Value.V; v != nil {
 		stop = vis(v)
 	}

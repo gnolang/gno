@@ -476,7 +476,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 			debug.Printf("loadObjectSafe by oid: %v, type of oo: %v\n", oid, reflect.TypeOf(oo))
 		}
 
-		ds.alloc.Allocate(oo.GetShallowSize())
+		ds.alloc.Account(oo.GetShallowSize())
 		// Alloc values other than shallow value,
 		// RefValue, e.g. keep sync with copyValueWithRefs().
 		AllocExpanded(ds.alloc, oo)
@@ -515,7 +515,7 @@ func (ds *defaultStore) fillPackage(pv *PackageValue) {
 func AllocExpanded(alloc *Allocator, val Value) {
 	var size int64
 	defer func() {
-		alloc.Allocate(size)
+		alloc.Account(size)
 	}()
 
 	switch v := val.(type) {
