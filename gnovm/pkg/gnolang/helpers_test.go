@@ -202,6 +202,21 @@ func TestLeftmostX(t *testing.T) {
 			in:   sel(idx(sel(name("a"), "b"), sel(name("c"), "d")), "e"),
 			want: name("a"),
 		},
+		{
+			name: "type assert boundary v.(T).field -> v.(T)",
+			in:   sel(TypeAssert(name("v"), "T"), "field"),
+			want: TypeAssert(name("v"), "T"),
+		},
+		{
+			name: "map index then selector m[k].field -> m",
+			in:   sel(idx(name("m"), name("k")), "field"),
+			want: name("m"),
+		},
+		{
+			name: "method call boundary ptr.Method().field -> ptr.Method()",
+			in:   sel(call(sel(name("ptr"), "Method")), "field"),
+			want: call(sel(name("ptr"), "Method")),
+		},
 	}
 
 	for _, tc := range cases {
