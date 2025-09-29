@@ -1425,7 +1425,7 @@ func TestClient_EstimateGas(t *testing.T) {
 			RPCClient: nil, // not set
 		}
 
-		estimate, _, err := c.EstimateGas(&std.Tx{})
+		estimate, err := c.EstimateGas(&std.Tx{})
 
 		assert.Zero(t, estimate)
 		assert.ErrorIs(t, err, ErrMissingRPCClient)
@@ -1453,7 +1453,7 @@ func TestClient_EstimateGas(t *testing.T) {
 			RPCClient: mockRPCClient,
 		}
 
-		estimate, _, err := c.EstimateGas(&std.Tx{})
+		estimate, err := c.EstimateGas(&std.Tx{})
 
 		assert.Zero(t, estimate)
 		assert.ErrorIs(t, err, rpcErr)
@@ -1487,7 +1487,7 @@ func TestClient_EstimateGas(t *testing.T) {
 			RPCClient: mockRPCClient,
 		}
 
-		estimate, _, err := c.EstimateGas(&std.Tx{})
+		estimate, err := c.EstimateGas(&std.Tx{})
 
 		assert.Zero(t, estimate)
 		assert.ErrorIs(t, err, abciErrors.UnknownError{})
@@ -1519,13 +1519,56 @@ func TestClient_EstimateGas(t *testing.T) {
 			RPCClient: mockRPCClient,
 		}
 
-		estimate, _, err := c.EstimateGas(&std.Tx{})
+		estimate, err := c.EstimateGas(&std.Tx{})
 
 		assert.Zero(t, estimate)
-		assert.ErrorContains(t, err, "unable to unmarshal gas estimation response")
+		assert.ErrorContains(t, err, "unable to unmarshal simulation response")
 	})
 
 	t.Run("valid gas estimation", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			gasUsed     = int64(100000)
+			deliverResp = &abci.ResponseDeliverTx{
+				GasUsed: gasUsed,
+			}
+		)
+
+		// Encode the response
+		encodedResp, err := amino.Marshal(deliverResp)
+		require.NoError(t, err)
+
+		var (
+			response = &ctypes.ResultABCIQuery{
+				Response: abci.ResponseQuery{
+					Value: encodedResp, // valid amino binary
+				},
+			}
+			mockRPCClient = &mockRPCClient{
+				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+					require.Equal(t, simulatePath, path)
+
+					var tx std.Tx
+
+					require.NoError(t, amino.Unmarshal(data, &tx))
+
+					return response, nil
+				},
+			}
+		)
+
+		c := &Client{
+			RPCClient: mockRPCClient,
+		}
+
+		estimate, err := c.EstimateGas(&std.Tx{})
+
+		require.NoError(t, err)
+		assert.Equal(t, gasUsed, estimate)
+	})
+
+	t.Run("valid simulate", func(t *testing.T) {
 		t.Parallel()
 
 		var (
@@ -1570,12 +1613,12 @@ func TestClient_EstimateGas(t *testing.T) {
 			RPCClient: mockRPCClient,
 		}
 
-		estimate, events, err := c.EstimateGas(&std.Tx{})
+		deliverTx, err := c.Simulate(&std.Tx{})
 
 		require.NoError(t, err)
-		assert.Equal(t, gasUsed, estimate)
+		assert.Equal(t, gasUsed, deliverTx.GasUsed)
 
-		bytesDelta, coinsDelta, hasStorageEvents := keyscli.GetStorageInfo(events)
+		bytesDelta, coinsDelta, hasStorageEvents := keyscli.GetStorageInfo(deliverTx.Events)
 		assert.Equal(t, true, hasStorageEvents)
 		assert.Equal(t, int64(10), bytesDelta)
 		assert.Equal(t, "1000ugnot", coinsDelta.String())
