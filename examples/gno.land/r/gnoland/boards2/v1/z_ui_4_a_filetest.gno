@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	owner     = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	boardName = "BoardName"
+	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	boardName         = "BoardName"
 )
 
 var threadID boards2.PostID

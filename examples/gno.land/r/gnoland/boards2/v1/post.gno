@@ -42,7 +42,7 @@ type Post struct {
 	RepostBoardID BoardID // Original Board.ID (if repost)
 	UpdatedAt     time.Time
 
-	flags      avl.Tree // std.Address -> string(reason)
+	flags      avl.Tree // string(address) -> string(reason)
 	replies    avl.Tree // Post.ID -> *Post
 	repliesAll avl.Tree // Post.ID -> *Post (all replies, for top-level posts)
 	reposts    avl.Tree // Board.ID -> Post.ID
@@ -180,7 +180,7 @@ func (post *Post) RenderSummary() string {
 		b             strings.Builder
 		postURI       = makeThreadURI(post)
 		threadSummary = summaryOf(post.Title, 80)
-		creatorLink   = md.UserLink(post.Creator.String())
+		creatorLink   = userLink(post.Creator)
 		date          = post.CreatedAt().Format(dateFormat)
 	)
 
@@ -259,7 +259,7 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels i
 		sb.WriteString(indent)
 	}
 
-	creatorLink := md.UserLink(post.Creator.String())
+	creatorLink := userLink(post.Creator)
 	date := post.CreatedAt().Format(dateFormat)
 	sb.WriteString("Created by " + creatorLink + " on " + date)
 

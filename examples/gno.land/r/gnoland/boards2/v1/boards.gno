@@ -2,6 +2,7 @@ package boards2
 
 import (
 	"chain/runtime"
+	"strings"
 
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
@@ -17,9 +18,9 @@ var (
 	gLastReservedID   BoardID
 	gBoardsByID       avl.Tree // string(id) -> *Board
 	gListedBoardsByID avl.Tree // string(id) -> *Board
-	gBoardsByName     avl.Tree // string(name) -> *Board
-	gInviteRequests   avl.Tree // string(board id) -> *avl.Tree(std.Address -> time.Time)
-	gBannedUsers      avl.Tree // string(board id) -> *avl.Tree(std.Address -> time.Time)
+	gBoardsByName     avl.Tree // string(lowercase name) -> *Board
+	gInviteRequests   avl.Tree // string(board id) -> *avl.Tree(address -> time.Time)
+	gBannedUsers      avl.Tree // string(board id) -> *avl.Tree(address -> time.Time)
 	gLocked           struct {
 		realm        bool
 		realmMembers bool
@@ -80,13 +81,22 @@ func getBannedUsers(boardID BoardID) (_ *avl.Tree, found bool) {
 	return v.(*avl.Tree), true
 }
 
+// getBoardByName returns a board that matches a name.
+func getBoardByName(name string) (_ *Board, found bool) {
+	name = strings.ToLower(name)
+	if v, found := gBoardsByName.Get(name); found {
+		return v.(*Board), true
+	}
+	return nil, false
+}
+
 // mustGetBoardByName returns a board or panics when it's not found.
 func mustGetBoardByName(name string) *Board {
-	v, found := gBoardsByName.Get(name)
+	board, found := getBoardByName(name)
 	if !found {
 		panic("board does not exist with name: " + name)
 	}
-	return v.(*Board)
+	return board
 }
 
 // mustGetBoard returns a board or panics when it's not found.
