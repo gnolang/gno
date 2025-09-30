@@ -21,6 +21,8 @@ func main() {
 	clientID := core.CreateClient(cross, clientState, consensusState)
 	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "counter-party-id")
 
+	println("next sequence:", core.Render("clients/"+clientID+"/next_sequence_send"))
+
 	packet := types.MsgSendPacket{
 		SourceClient:     clientID,
 		TimeoutTimestamp: uint64(time.Now().Add(time.Hour).Unix()),
@@ -35,11 +37,14 @@ func main() {
 
 	sequence := core.SendPacket(cross, packet)
 
-	println("sequence", sequence)
+	println("returned sequence:", sequence)
+	println("next sequence:", core.Render("clients/"+clientID+"/next_sequence_send"))
 }
 
 // Output:
-// sequence 1
+// next sequence: 1
+// returned sequence: 1
+// next sequence: 2
 
 // Events:
 // [
