@@ -1,6 +1,7 @@
 package types_test
 
 import (
+	"encoding/hex"
 	"strings"
 	"testing"
 	"time"
@@ -241,5 +242,41 @@ func TestPacketValidateBasic(t *testing.T) {
 			}
 			urequire.ErrorContains(t, err, tc.expErr)
 		})
+	}
+}
+
+func TestPacketProtoMarshal(t *testing.T) {
+	timeout, err := time.Parse(time.RFC3339Nano, "2018-07-01T00:00:00Z")
+	if err != nil {
+		panic(err)
+	}
+	packet := types.Packet{
+		SourceClient:      "sourceClient",
+		DestinationClient: "destClient",
+		Sequence:          42,
+		TimeoutTimestamp:  uint64(timeout.Unix()),
+		Payloads: []types.Payload{
+			{
+				SourcePort:      "sourcePort",
+				DestinationPort: "destinationPort",
+				Version:         "ics20-v2",
+				Encoding:        "application/json",
+				Value:           []byte("value"),
+			},
+			{
+				SourcePort:      "sourcePort",
+				DestinationPort: "destinationPort",
+				Version:         "ics20-v2",
+				Encoding:        "application/json",
+				Value:           []byte("value2"),
+			},
+		},
+	}
+
+	bz := packet.ProtoMarshal()
+
+	expected := "082a120c736f75726365436c69656e741a0a64657374436c69656e742080b3e0d9052a400a0a736f75726365506f7274120f64657374696e6174696f6e506f72741a0869637332302d763222106170706c69636174696f6e2f6a736f6e2a0576616c75652a410a0a736f75726365506f7274120f64657374696e6174696f6e506f72741a0869637332302d763222106170706c69636174696f6e2f6a736f6e2a0676616c756532"
+	if h := hex.EncodeToString(bz); h != expected {
+		t.Fatalf("expected %s got %s", expected, h)
 	}
 }
