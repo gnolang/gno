@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	owner  = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	member = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
-	name   = "test123"
+	owner  address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	member address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
+	name           = "test123"
 )
 
 func init() {

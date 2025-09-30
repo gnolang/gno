@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	admin = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
+	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	admin address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 )
 
 var bid boards2.BoardID // Operate on board DAO
@@ -23,8 +23,8 @@ func init() {
 func main() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.ChangeMemberRole(cross, bid, "invalid address", boards2.RoleModerator)
+	boards2.ChangeMemberRole(cross, bid, "foo", boards2.RoleModerator)
 }
 
 // Error:
-// invalid member address
+// invalid member address: foo
