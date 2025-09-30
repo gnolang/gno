@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	admin = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
-	user  = address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
+	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	admin address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
+	user  address = "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"
 )
 
 var bid boards2.BoardID // Operate on board DAO

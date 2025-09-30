@@ -20,7 +20,11 @@ const (
 const menuManageBoard = "manageBoard"
 
 func Render(path string) string {
-	router := mux.NewRouter()
+	var (
+		b      strings.Builder
+		router = mux.NewRouter()
+	)
+
 	router.HandleFunc("", renderBoardsList)
 	router.HandleFunc("help", renderHelp)
 	router.HandleFunc("admin-users", renderMembers)
@@ -32,10 +36,18 @@ func Render(path string) string {
 	router.HandleFunc("{board}/{thread}/{reply}", renderReply)
 
 	router.NotFoundHandler = func(res *mux.ResponseWriter, _ *mux.Request) {
-		res.Write("Path not found")
+		res.Write(md.Blockquote("Path not found"))
 	}
 
-	return router.Render(path)
+	// Render common realm header before resolving render path
+	if gNotice != "" {
+		b.WriteString(infoAlert("Notice", gNotice))
+	}
+
+	// Render view for current path
+	b.WriteString(router.Render(path))
+
+	return b.String()
 }
 
 func renderHelp(res *mux.ResponseWriter, _ *mux.Request) {
@@ -51,8 +63,6 @@ func renderHelp(res *mux.ResponseWriter, _ *mux.Request) {
 }
 
 func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
-	renderNotice(res)
-
 	res.Write(md.H1("Boards"))
 	renderBoardListMenu(res, req)
 	res.Write(md.HorizontalRule())
@@ -72,7 +82,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 
 	render := func(_ string, v any) bool {
 		board := v.(*Board)
-		userLink := md.UserLink(board.Creator.String())
+		userLink := userLink(board.Creator)
 		date := board.CreatedAt().Format(dateFormat)
 
 		res.Write(md.Bold(md.Link(board.Name, makeBoardURI(board))) + "  \n")
@@ -117,10 +127,8 @@ func renderBoardListMenu(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
-	renderNotice(res)
-
 	name := req.GetVar("board")
-	v, found := gBoardsByName.Get(name)
+	board, found := getBoardByName(name)
 	if !found {
 		link := md.Link("create a new board", gRealmLink.Call("CreateBoard", "name", name, "listed", "true"))
 		res.Write(md.H3("The board you are looking for does not exist"))
@@ -128,9 +136,7 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	board := v.(*Board)
 	menu := renderBoardMenu(board, req)
-
 	res.Write(board.Render(req.RawPath, menu))
 }
 
@@ -177,10 +183,8 @@ func renderBoardMenu(board *Board, req *mux.Request) string {
 }
 
 func renderThread(res *mux.ResponseWriter, req *mux.Request) {
-	renderNotice(res)
-
 	name := req.GetVar("board")
-	v, found := gBoardsByName.Get(name)
+	board, found := getBoardByName(name)
 	if !found {
 		res.Write("Board does not exist: " + name)
 		return
@@ -193,7 +197,6 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	board := v.(*Board)
 	thread, found := board.GetThread(PostID(tID))
 	if !found {
 		res.Write("Thread does not exist with ID: " + rawID)
@@ -205,10 +208,8 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderReply(res *mux.ResponseWriter, req *mux.Request) {
-	renderNotice(res)
-
 	name := req.GetVar("board")
-	v, found := gBoardsByName.Get(name)
+	board, found := getBoardByName(name)
 	if !found {
 		res.Write("Board does not exist: " + name)
 		return
@@ -228,7 +229,6 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	board := v.(*Board)
 	thread, found := board.GetThread(PostID(tID))
 	if !found {
 		res.Write("Thread does not exist with ID: " + req.GetVar("thread"))
@@ -252,13 +252,12 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 	perms := gPerms
 	name := req.GetVar("board")
 	if name != "" {
-		v, found := gBoardsByName.Get(name)
+		board, found := getBoardByName(name)
 		if !found {
 			res.Write(md.H3("Board not found"))
 			return
 		}
 
-		board := v.(*Board)
 		boardID = board.ID
 		perms = board.perms
 
@@ -297,7 +296,7 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 		}
 
 		table.Append([]string{
-			md.UserLink(u.Address.String()),
+			userLink(u.Address),
 			rolesToString(u.Roles),
 			strings.Join(actions, " • "),
 		})
@@ -312,13 +311,12 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 
 func renderInvites(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
-	v, found := gBoardsByName.Get(name)
+	board, found := getBoardByName(name)
 	if !found {
 		res.Write(md.H3("Board not found"))
 		return
 	}
 
-	board := v.(*Board)
 	res.Write(md.H1(board.Name + " Invite Requests"))
 
 	requests, found := getInviteRequests(board.ID)
@@ -353,7 +351,7 @@ func renderInvites(res *mux.ResponseWriter, req *mux.Request) {
 		}
 
 		table.Append([]string{
-			md.UserLink(addr),
+			userLink(address(addr)),
 			v.(time.Time).Format(dateFormat),
 			strings.Join(actions, " • "),
 		})
@@ -369,13 +367,12 @@ func renderInvites(res *mux.ResponseWriter, req *mux.Request) {
 
 func renderBannedUsers(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
-	v, found := gBoardsByName.Get(name)
+	board, found := getBoardByName(name)
 	if !found {
 		res.Write(md.H3("Board not found"))
 		return
 	}
 
-	board := v.(*Board)
 	res.Write(md.H1(board.Name + " Banned Users"))
 
 	banned, found := getBannedUsers(board.ID)
@@ -397,7 +394,7 @@ func renderBannedUsers(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.H3("These users have been banned from the board"))
 	banned.ReverseIterateByOffset(p.Offset(), p.PageSize(), func(addr string, v any) bool {
 		table.Append([]string{
-			md.UserLink(addr),
+			userLink(address(addr)),
 			v.(time.Time).Format(dateFormat),
 			md.Link("unban", gRealmLink.Call(
 				"Unban",
@@ -416,10 +413,9 @@ func renderBannedUsers(res *mux.ResponseWriter, req *mux.Request) {
 	}
 }
 
-func renderNotice(res *mux.ResponseWriter) {
-	if gNotice != "" {
-		res.Write(md.Blockquote(gNotice))
-	}
+func infoAlert(title, msg string) string {
+	header := strings.TrimSpace("[!INFO] " + title)
+	return md.Blockquote(header + "\n" + msg)
 }
 
 func rolesToString(roles []Role) string {

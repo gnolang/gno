@@ -21,7 +21,7 @@ func SetFlaggingThreshold(_ realm, boardID BoardID, threshold int) {
 
 	caller := runtime.PreviousRealm().Address()
 	args := Args{boardID, threshold}
-	board.perms.WithPermission(caller, PermissionBoardFlaggingUpdate, args, func(Args) {
+	board.perms.WithPermission(cross, caller, PermissionBoardFlaggingUpdate, args, func(realm) {
 		assertRealmIsNotLocked()
 
 		board := mustGetBoard(boardID)
