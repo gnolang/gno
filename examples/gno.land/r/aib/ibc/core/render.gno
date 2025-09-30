@@ -6,6 +6,7 @@ import (
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/lightclient/tendermint"
 	"gno.land/p/nt/mux"
+	"gno.land/p/nt/seqid"
 	"gno.land/p/nt/ufmt"
 )
 
@@ -16,6 +17,7 @@ func Render(path string) string {
 	router.HandleFunc("clients/{id}", RenderClient)
 	router.HandleFunc("clients/{id}/consensus_states", RenderClientConsensusStates)
 	router.HandleFunc("clients/{id}/next_sequence_send", RenderClientNextSequenceSend)
+	router.HandleFunc("clients/{id}/packet_commitments", RenderClientPacketCommitments)
 	return router.Render(path)
 }
 
@@ -61,6 +63,23 @@ func RenderClientNextSequenceSend(w *mux.ResponseWriter, r *mux.Request) {
 	w.Write(ufmt.Sprint(uint64(c.sendSeq) + 1))
 }
 
+func RenderClientPacketCommitments(w *mux.ResponseWriter, r *mux.Request) {
+	id := r.GetVar("id")
+	c := store.getClient(id)
+	if c == nil {
+		w.Write(ufmt.Sprintf("client %s not found", id))
+		return
+	}
+	w.Write(ufmt.Sprintf("## Client %s packet commitments\n", c.id))
+	c.packetCommitmentsBySeq.Iterate("", "", func(key string, v any) bool {
+		// TODO paginate
+		seq, _ := seqid.FromBinary(key)
+		w.Write(ufmt.Sprintf("- Sequence %s\n", seq))
+		w.Write(ufmt.Sprintf("  - %s\n", hex.EncodeToString(v.([]byte))))
+		return false
+	})
+}
+
 func (c *client) Render() string {
 	var s string
 	s += ufmt.Sprintf("## Client %s\n", c.id)
@@ -101,6 +120,7 @@ func (c *client) RenderConsensusStates() string {
 	case lightclient.Tendermint:
 		lc := c.lightClient.(*tendermint.TMLightClient)
 		lc.ConsensusStateByHeight.Iterate("", "", func(key string, v any) bool {
+			// TODO paginate
 			s += ufmt.Sprintf("- ConsensusState height %s:\n", key)
 			cs := v.(*tendermint.ConsensusState)
 			s += ufmt.Sprintf("  - Timestamp: %s\n", cs.Timestamp)
