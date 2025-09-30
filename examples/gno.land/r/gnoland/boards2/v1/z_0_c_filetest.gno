@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	owner     = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	boardName = "test123"
+	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	boardName         = "test123"
 )
 
 func init() {

@@ -8,20 +8,17 @@ import (
 
 const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
 
-var bid boards2.BoardID
-
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false)
+	boards2.CreateBoard(cross, "TEST123", false)
 }
 
 func main() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.FreezeBoard(cross, bid)
-
-	println(boards2.IsBoardFrozen(bid))
+	// Should fail because board name already exists with a different casing
+	boards2.CreateBoard(cross, "test123", false)
 }
 
-// Output:
-// true
+// Error:
+// board already exists
