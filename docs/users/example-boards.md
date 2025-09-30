@@ -33,7 +33,8 @@ you'll need:
 
 1. A Gno.land account with some GNOT tokens
 2. A way to sign and send transactions to the Gno.land network
-3. For the time being - an invite to use the Boards2 app.
+3. For the time being - an invite to use a board within the Boards2 app. You can
+request an invite from the creator on the board page. 
 
 You can interact with Boards through the command line using `gnokey`. For
 detailed instructions on sending transactions to realms, see
