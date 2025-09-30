@@ -8,7 +8,7 @@ interacting with the Boards realm.
 ## Finding Boards
 
 The main Boards application can be found at
-[gno.land/r/demo/boards](https://gno.land/r/demo/boards). When you visit this
+[gno.land/r/gnoland/boards2/v1](https://gno.land/r/gnoland/boards2/v1). When you visit this
 URL, you'll see the rendered output of the Boards realm's `Render()` function,
 which displays the current state of the forum.
 
@@ -33,6 +33,7 @@ you'll need:
 
 1. A Gno.land account with some GNOT tokens
 2. A way to sign and send transactions to the Gno.land network
+3. For the time being - an invite to use the Boards2 app.
 
 You can interact with Boards through the command line using `gnokey`. For
 detailed instructions on sending transactions to realms, see
@@ -48,7 +49,7 @@ list.
 
 Inspired by the Boards realm? You can create your own version by:
 
-1. Studying the [source code](https://gno.land/r/demo/boards:files/boards.gno)
+1. Studying the [source code](https://gno.land/r/gnoland/boards2/v1$source&file=public.gno)
 2. Deploying a modified version to your own namespace
 3. Adding your own features and improvements
 
