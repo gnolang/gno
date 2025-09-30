@@ -1,7 +1,7 @@
 package valopers
 
 import (
-	"std"
+	"chain"
 	"testing"
 
 	"gno.land/p/moul/authz"
@@ -24,7 +24,7 @@ func TestUpdateInstructions(t *testing.T) {
 		updateInstructions(newInstructions)
 	})
 
-	testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/gov/dao"))
+	testing.SetOriginCaller(chain.PackageAddress("gno.land/r/gov/dao"))
 
 	uassert.NotPanics(t, func() {
 		updateInstructions(newInstructions)
@@ -49,7 +49,7 @@ func TestUpdateMinFee(t *testing.T) {
 		updateMinFee(newMinFee)
 	})
 
-	testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/gov/dao"))
+	testing.SetOriginCaller(chain.PackageAddress("gno.land/r/gov/dao"))
 
 	uassert.NotPanics(t, func() {
 		updateMinFee(newMinFee)

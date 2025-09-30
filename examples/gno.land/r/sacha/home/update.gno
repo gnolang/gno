@@ -1,13 +1,13 @@
 package home
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/r/sacha/config"
 )
 
 func UpdateTitle(cur realm, newTitle string) {
-	if !config.IsAuthorized(std.PreviousRealm().Address()) {
+	if !config.IsAuthorized(runtime.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -15,7 +15,7 @@ func UpdateTitle(cur realm, newTitle string) {
 }
 
 func UpdateBanner(cur realm, newBanner string) {
-	if !config.IsAuthorized(std.PreviousRealm().Address()) {
+	if !config.IsAuthorized(runtime.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -23,7 +23,7 @@ func UpdateBanner(cur realm, newBanner string) {
 }
 
 func UpdateStory(cur realm, newStory string) {
-	if !config.IsAuthorized(std.PreviousRealm().Address()) {
+	if !config.IsAuthorized(runtime.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -31,7 +31,7 @@ func UpdateStory(cur realm, newStory string) {
 }
 
 func UpdateArt(cur realm, newArt string) {
-	if !config.IsAuthorized(std.PreviousRealm().Address()) {
+	if !config.IsAuthorized(runtime.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -39,7 +39,7 @@ func UpdateArt(cur realm, newArt string) {
 }
 
 func UpdateFooter(cur realm, newGitHubUsername string, newPocInnovationName string) {
-	if !config.IsAuthorized(std.PreviousRealm().Address()) {
+	if !config.IsAuthorized(runtime.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -48,7 +48,7 @@ func UpdateFooter(cur realm, newGitHubUsername string, newPocInnovationName stri
 }
 
 func RemoveGame(cur realm, name string) {
-	if !config.IsAuthorized(std.PreviousRealm().Address()) {
+	if !config.IsAuthorized(runtime.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -60,7 +60,7 @@ func RemoveGame(cur realm, name string) {
 }
 
 func AddGame(cur realm, name string, title string) {
-	if !config.IsAuthorized(std.PreviousRealm().Address()) {
+	if !config.IsAuthorized(runtime.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 

@@ -2,8 +2,8 @@
 package borrow
 
 import (
+	"chain/runtime"
 	"fmt"
-	"std"
 
 	"gno.land/r/tests/vm/crossrealm"
 )
@@ -25,8 +25,8 @@ func (s *Struct) PrintRealms(cur realm) {
 }
 
 func (s *Struct) printRealms(cur realm) {
-	fmt.Println(std.CurrentRealm())
-	fmt.Println(std.PreviousRealm())
+	fmt.Println(runtime.CurrentRealm())
+	fmt.Println(runtime.PreviousRealm())
 }
 
 type Passthrough struct {

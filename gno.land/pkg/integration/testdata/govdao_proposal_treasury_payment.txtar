@@ -25,7 +25,7 @@ stdout 'OK!'
 # 1/3 verify receiver and treasury balances
 gnokey query bank/balances/${receiver_user_addr}
 stdout 'data: "1000000000ugnot"'
-gnokey query bank/balances/g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm 
+gnokey query bank/balances/g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm
 stdout 'data: ""'
 
 # member send 42 ugnot to treasury realm
@@ -34,7 +34,7 @@ gnokey maketx send -send 42ugnot -to g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm -g
 # 2/3 verify receiver and treasury balances
 gnokey query bank/balances/${receiver_user_addr}
 stdout 'data: "1000000000ugnot"'
-gnokey query bank/balances/g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm 
+gnokey query bank/balances/g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm
 stdout 'data: "42ugnot"'
 
 # add the proposal
@@ -62,14 +62,14 @@ stdout '- 42ugnot to g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
 # 3/3 verify receiver and treasury balances
 gnokey query bank/balances/${receiver_user_addr}
 stdout 'data: "1000000042ugnot"'
-gnokey query bank/balances/g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm 
+gnokey query bank/balances/g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm
 stdout 'data: ""'
 
 -- proposer/create_proposal.gno --
 package main
 
 import (
-	"std"
+	"chain"
 
 	"gno.land/p/nt/treasury"
 
@@ -79,8 +79,8 @@ import (
 
 func main() {
 	payment := treasury.NewCoinsPayment(
-		std.NewCoins(std.NewCoin("ugnot", 42)),
-		std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), // receiver address
+		chain.NewCoins(chain.NewCoin("ugnot", 42)),
+		address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), // receiver address
 	)
 	preq := impl.NewTreasuryPaymentRequest(
 		payment,
@@ -88,13 +88,10 @@ func main() {
 	)
 	dao.MustCreateProposal(cross, preq)
 }
-
 -- loader/load_govdao.gno --
 package load_govdao
 
 import (
-	"std"
-
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
 	"gno.land/r/gov/dao/v3/memberstore"
@@ -107,7 +104,7 @@ func init() {
 
 	memberstore.Get().SetMember(
 		memberstore.T1,
-		std.Address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), // member address
+		address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), // member address
 		&memberstore.Member{InvitationPoints: 3},
 	)
 
