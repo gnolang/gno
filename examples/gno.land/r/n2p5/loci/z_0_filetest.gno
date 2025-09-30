@@ -2,13 +2,13 @@
 package test
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/r/n2p5/loci"
 )
 
 func main(cur realm) {
-	caller := std.CurrentRealm()
+	caller := runtime.CurrentRealm()
 	println("caller: " + string(caller.Address()))
 
 	// test nothing being set, yet.
