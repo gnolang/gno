@@ -3,6 +3,7 @@ package core
 import (
 	"chain"
 	"chain/params"
+	"encoding/hex"
 	"time"
 
 	"gno.land/p/aib/ibc/host"
@@ -75,6 +76,7 @@ func SendPacket(cur realm, msg types.MsgSendPacket) (sequence uint64) {
 	// "vm:gno.land/r/aib/ibc/core:" + clientID + "1" + sequence
 	key := host.PacketCommitmentKey(clientID, sequence)
 	// TODO make host.PacketCommitmentKey returns string ?
+	// TODO find a way to assert this write in tests
 	params.SetBytes(string(key), commitment)
 
 	chain.Emit(types.EventTypeSendPacket,
@@ -82,11 +84,11 @@ func SendPacket(cur realm, msg types.MsgSendPacket) (sequence uint64) {
 		types.AttributeKeyDstClient, packet.DestinationClient,
 		types.AttributeKeySequence, ufmt.Sprintf("%d", packet.Sequence),
 		types.AttributeKeyTimeoutTimestamp, ufmt.Sprintf("%d", packet.TimeoutTimestamp),
-		// TODO write proto serialization of packet to fill this event attribute ?
-		// types.AttributeKeyEncodedPacketHex, hex.EncodeToString(encodedPacket),
+		types.AttributeKeyEncodedPacketHex, hex.EncodeToString(packet.ProtoMarshal()),
 	)
 
 	// TODO forward payloads to registered app
+	// TODO test render with packet
 
 	return sequence
 }
