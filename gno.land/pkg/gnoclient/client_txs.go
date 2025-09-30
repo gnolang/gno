@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -351,46 +349,4 @@ func (c *Client) Simulate(tx *std.Tx) (*abci.ResponseDeliverTx, error) {
 	}
 
 	return deliverTx, nil
-}
-
-// Simulate the transaction and fetch the gas price. Return the gasUsed, gasFee, storageBytesDelta and storageFeeDelta.
-// For "unlock" storage, the storageBytesDelta is negative and storageFeeDelta is negative (or zero if unlock fees are withheld).
-// The total transaction fee is gasFee plus storageFeeDelta
-func (c *Client) EstimateTxFees(tx *std.Tx) (gasUsed int64, gasFee std.Coins, storageBytesDelta int64, storageFeeDelta std.Coins, err error) {
-	gasUsed = 0
-	gasFee = std.Coins{}
-	storageBytesDelta = 0
-	storageFeeDelta = std.Coins{}
-	err = nil
-
-	deliverTx, err := c.Simulate(tx)
-	if err != nil {
-		return
-	}
-
-	gp := std.GasPrice{}
-	_, qres, err := c.QEval("auth/gasprice", "")
-	if err != nil {
-		err = errors.Wrap(err, "query gas price")
-		return
-	}
-	err = amino.UnmarshalJSON(qres.Response.Data, &gp)
-	if err != nil {
-		err = errors.Wrap(err, "unmarshaling query gas price result")
-		return
-	}
-
-	fee := deliverTx.GasUsed/gp.Gas + 1
-	fee = overflow.Mulp(fee, gp.Price.Amount)
-	// 5% fee buffer to cover the sudden change of gas price
-	feeBuffer := overflow.Mulp(fee, 5) / 100
-	fee = overflow.Addp(fee, feeBuffer)
-	gasFee = std.Coins{std.NewCoin(gp.Price.Denom, fee)}
-
-	if bytesDelta, coinsDelta, hasStorageEvents := keyscli.GetStorageInfo(deliverTx.Events); hasStorageEvents {
-		storageBytesDelta = bytesDelta
-		storageFeeDelta = coinsDelta
-	}
-
-	return
 }
