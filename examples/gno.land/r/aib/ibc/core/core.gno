@@ -2,11 +2,9 @@ package core
 
 import (
 	"chain"
-	"chain/params"
 	"encoding/hex"
 	"time"
 
-	"gno.land/p/aib/ibc/host"
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/types"
 	"gno.land/p/nt/ufmt"
@@ -70,14 +68,8 @@ func SendPacket(cur realm, msg types.MsgSendPacket) (sequence uint64) {
 		panic(ufmt.Errorf("constructed packet failed basic validation: %v", err))
 	}
 
-	// set the packet commitment, so it is provable by the counterparty
-	commitment := types.CommitPacket(packet)
-	// The param key will be:
-	// "vm:gno.land/r/aib/ibc/core:" + clientID + "1" + sequence
-	key := host.PacketCommitmentKey(clientID, sequence)
-	// TODO make host.PacketCommitmentKey returns string ?
-	// TODO find a way to assert this write in tests
-	params.SetBytes(string(key), commitment)
+	// set the packet commitment
+	c.setPacketCommitment(packet)
 
 	chain.Emit(types.EventTypeSendPacket,
 		types.AttributeKeySrcClient, packet.SourceClient,
@@ -88,7 +80,6 @@ func SendPacket(cur realm, msg types.MsgSendPacket) (sequence uint64) {
 	)
 
 	// TODO forward payloads to registered app
-	// TODO test render with packet
 
 	return sequence
 }

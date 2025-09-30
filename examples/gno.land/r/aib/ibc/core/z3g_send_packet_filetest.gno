@@ -39,12 +39,27 @@ func main() {
 
 	println("returned sequence:", sequence)
 	println("next sequence:", core.Render("clients/"+clientID+"/next_sequence_send"))
+
+	sequence = core.SendPacket(cross, packet)
+
+	println("returned sequence:", sequence)
+	println("next sequence:", core.Render("clients/"+clientID+"/next_sequence_send"))
+	println("----------- assert render clients/07-tendermint-1/packet_commitments")
+	println(core.Render("clients/" + clientID + "/packet_commitments"))
 }
 
 // Output:
 // next sequence: 1
 // returned sequence: 1
 // next sequence: 2
+// returned sequence: 2
+// next sequence: 3
+// ----------- assert render clients/07-tendermint-1/packet_commitments
+// ## Client 07-tendermint-1 packet commitments
+// - Sequence 0000001
+//   - a314fec55341c6039b133df518b8b2d9180f45c7dd9a9bdc2fdab208f05197f1
+// - Sequence 0000002
+//   - a314fec55341c6039b133df518b8b2d9180f45c7dd9a9bdc2fdab208f05197f1
 
 // Events:
 // [
@@ -88,6 +103,32 @@ func main() {
 //       {
 //         "key": "encoded_packet_hex",
 //         "value": "0801120f30372d74656e6465726d696e742d311a10636f756e7465722d70617274792d696420e2a1d8cc042a2e0a087472616e7366657212087472616e736665721a02763122106170706c69636174696f6e2f6a736f6e2a027b7d"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/aib/ibc/core"
+//   },
+//   {
+//     "type": "send_packet",
+//     "attrs": [
+//       {
+//         "key": "packet_source_client",
+//         "value": "07-tendermint-1"
+//       },
+//       {
+//         "key": "packet_dest_client",
+//         "value": "counter-party-id"
+//       },
+//       {
+//         "key": "packet_sequence",
+//         "value": "2"
+//       },
+//       {
+//         "key": "packet_timeout_timestamp",
+//         "value": "1234571490"
+//       },
+//       {
+//         "key": "encoded_packet_hex",
+//         "value": "0802120f30372d74656e6465726d696e742d311a10636f756e7465722d70617274792d696420e2a1d8cc042a2e0a087472616e7366657212087472616e736665721a02763122106170706c69636174696f6e2f6a736f6e2a027b7d"
 //       }
 //     ],
 //     "pkg_path": "gno.land/r/aib/ibc/core"
