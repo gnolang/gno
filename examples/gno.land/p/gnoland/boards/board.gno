@@ -2,7 +2,6 @@ package boards
 
 import (
 	"errors"
-	"std"
 	"time"
 
 	"gno.land/p/nt/avl"
@@ -16,7 +15,7 @@ type (
 	PostIterFn func(*Post) bool
 
 	// MemberIterFn defines a function type to iterate board members.
-	MemberIterFn func(std.Address, []Role) bool
+	MemberIterFn func(address, []Role) bool
 
 	// Board defines a type for boards.
 	Board struct {
@@ -29,7 +28,7 @@ type (
 		aliasesEnabled bool
 		aliases        []string
 		readonly       bool
-		creator        std.Address
+		creator        address
 		createdAt      time.Time
 	}
 )
@@ -98,7 +97,7 @@ func (board *Board) SetReadonly(readonly bool) {
 }
 
 // Creator returns the address of the account that created the board.
-func (board Board) Creator() std.Address {
+func (board Board) Creator() address {
 	return board.creator
 }
 

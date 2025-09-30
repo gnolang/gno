@@ -2,7 +2,6 @@ package boards
 
 import (
 	"errors"
-	"std"
 	"strings"
 )
 
@@ -18,7 +17,7 @@ func WithName(name string) Option {
 }
 
 // WithCreator assigns a creator address to the board.
-func WithCreator(addr std.Address) Option {
+func WithCreator(addr address) Option {
 	return func(b *Board) error {
 		if !addr.IsValid() {
 			return errors.New("invalid board creator address: " + addr.String())

@@ -2,13 +2,12 @@ package boards
 
 import (
 	"errors"
-	"std"
 	"strings"
 	"time"
 )
 
 // NewReply creates a new reply to a thread or another reply.
-func NewReply(parent *Post, creator std.Address, body string) (*Post, error) {
+func NewReply(parent *Post, creator address, body string) (*Post, error) {
 	if parent == nil {
 		return nil, errors.New("reply requires a parent thread or reply")
 	}
@@ -37,7 +36,7 @@ func NewReply(parent *Post, creator std.Address, body string) (*Post, error) {
 }
 
 // MustNewReply creates a new reply or panics on error.
-func MustNewReply(parent *Post, creator std.Address, body string) *Post {
+func MustNewReply(parent *Post, creator address, body string) *Post {
 	p, err := NewReply(parent, creator, body)
 	if err != nil {
 		panic(err)

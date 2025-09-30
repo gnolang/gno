@@ -4,8 +4,6 @@
 package test
 
 import (
-	"std"
-
 	"gno.land/p/gnoland/boards"
 )
 
@@ -25,7 +23,7 @@ func main() {
 
 	println(board.MembersCount())
 
-	stopped := board.IterateMembers(0, board.MembersCount(), func(addr std.Address, roles []boards.Role) bool {
+	stopped := board.IterateMembers(0, board.MembersCount(), func(addr address, roles []boards.Role) bool {
 		println(addr)
 		for _, r := range roles {
 			println("role", string(r))
@@ -37,13 +35,13 @@ func main() {
 
 type perms struct{}
 
-func (perms) HasRole(std.Address, boards.Role) bool                                          { return false }
-func (perms) HasPermission(std.Address, boards.Permission) bool                              { return false }
-func (perms) SetUserRoles(realm, std.Address, ...boards.Role)                                {}
-func (perms) RemoveUser(realm, std.Address) bool                                             { return false }
-func (perms) HasUser(std.Address) bool                                                       { return false }
-func (perms) UsersCount() int                                                                { return len(members) }
-func (perms) WithPermission(realm, std.Address, boards.Permission, boards.Args, func(realm)) {}
+func (perms) HasRole(address, boards.Role) bool                                          { return false }
+func (perms) HasPermission(address, boards.Permission) bool                              { return false }
+func (perms) SetUserRoles(realm, address, ...boards.Role)                                {}
+func (perms) RemoveUser(realm, address) bool                                             { return false }
+func (perms) HasUser(address) bool                                                       { return false }
+func (perms) UsersCount() int                                                            { return len(members) }
+func (perms) WithPermission(realm, address, boards.Permission, boards.Args, func(realm)) {}
 
 func (perms) IterateUsers(start, count int, fn boards.UsersIterFn) bool {
 	for _, u := range members {

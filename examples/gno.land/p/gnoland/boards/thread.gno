@@ -2,13 +2,12 @@ package boards
 
 import (
 	"errors"
-	"std"
 	"strings"
 	"time"
 )
 
 // NewThread creates a new board thread.
-func NewThread(b *Board, creator std.Address, title, body string) (*Post, error) {
+func NewThread(b *Board, creator address, title, body string) (*Post, error) {
 	if b == nil {
 		return nil, errors.New("thread requires a parent board")
 	}
@@ -41,7 +40,7 @@ func NewThread(b *Board, creator std.Address, title, body string) (*Post, error)
 }
 
 // MustNewThread creates a new thread or panics on error.
-func MustNewThread(b *Board, creator std.Address, title, body string) *Post {
+func MustNewThread(b *Board, creator address, title, body string) *Post {
 	t, err := NewThread(b, creator, title, body)
 	if err != nil {
 		panic(err)
@@ -71,7 +70,7 @@ func (thread *Post) GetReply(replyID ID) (_ *Post, found bool) {
 }
 
 // Repost reposts a thread into another board.
-func (thread *Post) Repost(creator std.Address, dst *Board, title, body string) (*Post, error) {
+func (thread *Post) Repost(creator address, dst *Board, title, body string) (*Post, error) {
 	if !IsThread(thread) {
 		return nil, errors.New("post must be a thread to be reposted to another board")
 	}

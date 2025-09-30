@@ -4,8 +4,6 @@
 package test
 
 import (
-	"std"
-
 	"gno.land/p/gnoland/boards"
 )
 
@@ -29,14 +27,14 @@ func main() {
 
 type perms struct{}
 
-func (perms) HasRole(std.Address, boards.Role) bool                                          { return false }
-func (perms) HasPermission(std.Address, boards.Permission) bool                              { return false }
-func (perms) SetUserRoles(realm, std.Address, ...boards.Role)                                {}
-func (perms) RemoveUser(realm, std.Address) bool                                             { return false }
-func (perms) HasUser(std.Address) bool                                                       { return false }
-func (perms) UsersCount() int                                                                { return 0 }
-func (perms) IterateUsers(start, count int, fn boards.UsersIterFn) bool                      { return false }
-func (perms) WithPermission(realm, std.Address, boards.Permission, boards.Args, func(realm)) {}
+func (perms) HasRole(address, boards.Role) bool                                          { return false }
+func (perms) HasPermission(address, boards.Permission) bool                              { return false }
+func (perms) SetUserRoles(realm, address, ...boards.Role)                                {}
+func (perms) RemoveUser(realm, address) bool                                             { return false }
+func (perms) HasUser(address) bool                                                       { return false }
+func (perms) UsersCount() int                                                            { return 0 }
+func (perms) IterateUsers(start, count int, fn boards.UsersIterFn) bool                  { return false }
+func (perms) WithPermission(realm, address, boards.Permission, boards.Args, func(realm)) {}
 
 // Output:
 // ok

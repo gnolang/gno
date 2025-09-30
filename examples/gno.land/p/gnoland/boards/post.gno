@@ -2,7 +2,6 @@ package boards
 
 import (
 	"errors"
-	"std"
 	"strings"
 	"time"
 
@@ -23,11 +22,11 @@ type Post struct {
 	threadID        ID // Post.ID of the thread where reply is created
 	originalBoardID ID // Original Board.ID when thread is a repost
 	board           *Board
-	flags           avl.Tree // std.Address -> string(reason)
+	flags           avl.Tree // address -> string(reason)
 	replies         avl.Tree // string(Post.ID) -> *Post (direct post replies)
 	repliesAll      avl.Tree // string(Post.ID) -> *Post (all thread replies)
 	reposts         avl.Tree // string(Board.ID) -> Post.ID
-	creator         std.Address
+	creator         address
 	createdAt       time.Time
 }
 
@@ -47,7 +46,7 @@ func (post Post) Board() *Board {
 }
 
 // Creator returns the address of the account that created the post.
-func (post Post) Creator() std.Address {
+func (post Post) Creator() address {
 	return post.creator
 }
 
@@ -64,7 +63,7 @@ func (post Post) Summary() string {
 
 // Flag add a flag to the post.
 // It returns false when the user flagging the post already flagged it.
-func (post *Post) Flag(user std.Address, reason string) bool {
+func (post *Post) Flag(user address, reason string) bool {
 	if post.flags.Has(user.String()) {
 		return false
 	}
