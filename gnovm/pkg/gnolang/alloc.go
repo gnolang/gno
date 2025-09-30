@@ -130,8 +130,7 @@ func (alloc *Allocator) Fork() *Allocator {
 	}
 }
 
-// Account records a requested change in memory usage for the VM.
-func (alloc *Allocator) Account(size int64) {
+func (alloc *Allocator) Allocate(size int64) {
 	if alloc == nil {
 		// this can happen for map items just prior to assignment.
 		return
@@ -165,60 +164,60 @@ func (alloc *Allocator) Account(size int64) {
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
-	alloc.Account(allocString + allocStringByte*size)
+	alloc.Allocate(allocString + allocStringByte*size)
 }
 
 func (alloc *Allocator) AllocatePointer() {
-	alloc.Account(allocPointer)
+	alloc.Allocate(allocPointer)
 }
 
 func (alloc *Allocator) AllocateDataArray(size int64) {
-	alloc.Account(allocArray + size)
+	alloc.Allocate(allocArray + size)
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
-	alloc.Account(allocArray + allocArrayItem*items)
+	alloc.Allocate(allocArray + allocArrayItem*items)
 }
 
 func (alloc *Allocator) AllocateSlice() {
-	alloc.Account(allocSlice)
+	alloc.Allocate(allocSlice)
 }
 
 // NOTE: fields must be allocated separately.
 func (alloc *Allocator) AllocateStruct() {
-	alloc.Account(allocStruct)
+	alloc.Allocate(allocStruct)
 }
 
 func (alloc *Allocator) AllocateStructFields(fields int64) {
-	alloc.Account(allocStructField * fields)
+	alloc.Allocate(allocStructField * fields)
 }
 
 func (alloc *Allocator) AllocateFunc() {
-	alloc.Account(allocFunc)
+	alloc.Allocate(allocFunc)
 }
 
 func (alloc *Allocator) AllocateMap(items int64) {
-	alloc.Account(allocMap + allocMapItem*items)
+	alloc.Allocate(allocMap + allocMapItem*items)
 }
 
 func (alloc *Allocator) AllocateMapItem() {
-	alloc.Account(allocMapItem)
+	alloc.Allocate(allocMapItem)
 }
 
 func (alloc *Allocator) AllocateBoundMethod() {
-	alloc.Account(allocBoundMethod)
+	alloc.Allocate(allocBoundMethod)
 }
 
 func (alloc *Allocator) AllocatePackageValue() {
-	alloc.Account(allocPackage)
+	alloc.Allocate(allocPackage)
 }
 
 func (alloc *Allocator) AllocateBlock(items int64) {
-	alloc.Account(allocBlock + allocBlockItem*items)
+	alloc.Allocate(allocBlock + allocBlockItem*items)
 }
 
 func (alloc *Allocator) AllocateBlockItems(items int64) {
-	alloc.Account(allocBlockItem * items)
+	alloc.Allocate(allocBlockItem * items)
 }
 
 /* NOTE: Not used, account for with AllocatePointer.
@@ -228,11 +227,11 @@ func (alloc *Allocator) AllocateDataByte() {
 */
 
 func (alloc *Allocator) AllocateType() {
-	alloc.Account(allocType)
+	alloc.Allocate(allocType)
 }
 
 func (alloc *Allocator) AllocateHeapItem() {
-	alloc.Account(allocHeapItem)
+	alloc.Allocate(allocHeapItem)
 }
 
 //----------------------------------------
