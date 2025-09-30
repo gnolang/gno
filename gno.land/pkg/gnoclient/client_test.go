@@ -13,7 +13,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
+	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -1577,7 +1577,7 @@ func TestClient_EstimateGas(t *testing.T) {
 				GasUsed: gasUsed,
 				ResponseBase: abci.ResponseBase{
 					Events: []abci.Event{
-						&gnostd.StorageDepositEvent{
+						&chain.StorageDepositEvent{
 							BytesDelta: 10,
 							FeeDelta:   std.Coin{Denom: ugnot.Denom, Amount: 1000},
 						},
