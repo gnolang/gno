@@ -15,6 +15,7 @@ func Render(path string) string {
 	router.HandleFunc("clients", RenderClients)
 	router.HandleFunc("clients/{id}", RenderClient)
 	router.HandleFunc("clients/{id}/consensus_states", RenderClientConsensusStates)
+	router.HandleFunc("clients/{id}/next_sequence_send", RenderClientNextSequenceSend)
 	return router.Render(path)
 }
 
@@ -32,22 +33,32 @@ func RenderClients(w *mux.ResponseWriter, r *mux.Request) {
 
 func RenderClient(w *mux.ResponseWriter, r *mux.Request) {
 	id := r.GetVar("id")
-	c, found := store.clientByID.Get(id)
-	if !found {
+	c := store.getClient(id)
+	if c == nil {
 		w.Write(ufmt.Sprintf("client %s not found", id))
 		return
 	}
-	w.Write(c.(*client).Render())
+	w.Write(c.Render())
 }
 
 func RenderClientConsensusStates(w *mux.ResponseWriter, r *mux.Request) {
 	id := r.GetVar("id")
-	c, found := store.clientByID.Get(id)
-	if !found {
+	c := store.getClient(id)
+	if c == nil {
 		w.Write(ufmt.Sprintf("client %s not found", id))
 		return
 	}
-	w.Write(c.(*client).RenderConsensusStates())
+	w.Write(c.RenderConsensusStates())
+}
+
+func RenderClientNextSequenceSend(w *mux.ResponseWriter, r *mux.Request) {
+	id := r.GetVar("id")
+	c := store.getClient(id)
+	if c == nil {
+		w.Write(ufmt.Sprintf("client %s not found", id))
+		return
+	}
+	w.Write(ufmt.Sprint(uint64(c.sendSeq) + 1))
 }
 
 func (c *client) Render() string {
