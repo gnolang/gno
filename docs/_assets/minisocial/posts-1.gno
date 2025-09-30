@@ -1,7 +1,7 @@
 package minisocial
 
 import (
-	"chain/runtime" // Special Gno package allowing access to the caller
+	"chain/runtime" // Special Gno package providing access to the caller
 	"errors"        // For handling errors
 	"time"          // For handling time
 )
