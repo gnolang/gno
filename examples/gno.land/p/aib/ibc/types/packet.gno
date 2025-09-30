@@ -3,6 +3,7 @@ package types
 import (
 	"strings"
 
+	"gno.land/p/aib/encoding/proto"
 	"gno.land/p/aib/ibc/host"
 	"gno.land/p/nt/ufmt"
 )
@@ -87,6 +88,38 @@ func (p Packet) ValidateBasic() error {
 	return nil
 }
 
+// ProtoMarshal returns the protobuf encoding of a Packet.
+//
+//	message Packet {
+//	  uint64 sequence = 1;
+//	  string source_client = 2;
+//	  string destination_client = 3;
+//	  uint64 timeout_timestamp = 4;
+//	  repeated Payload payloads = 5 [(gogoproto.nullable) = false];
+//	}
+func (p Packet) ProtoMarshal() []byte {
+	var buf []byte
+
+	// Field 1: sequence (varint)
+	buf = proto.AppendVarint(buf, 1, uint64(p.Sequence))
+
+	// Field 2: source_client (length-delimited)
+	buf = proto.AppendLengthDelimited(buf, 2, []byte(p.SourceClient))
+
+	// Field 3: destination_client (length-delimited)
+	buf = proto.AppendLengthDelimited(buf, 3, []byte(p.DestinationClient))
+
+	// Field 4: timeout_timestamp (varint)
+	buf = proto.AppendVarint(buf, 4, p.TimeoutTimestamp)
+
+	// Field 5: payloads
+	for _, payload := range p.Payloads {
+		bz := payload.ProtoMarshal()
+		buf = proto.AppendLengthDelimited(buf, 5, bz)
+	}
+	return buf
+}
+
 type Payload struct {
 	// specifies the source port of the packet.
 	SourcePort string `json:"source_port,omitempty"`
@@ -129,6 +162,36 @@ func (p Payload) ValidateBasic() error {
 		return ufmt.Errorf("payload value cannot be empty")
 	}
 	return nil
+}
+
+// ProtoMarshal returns the protobuf encoding of a Payload.
+//
+//	message Payload {
+//	  string source_port = 1;
+//	  string destination_port = 2;
+//	  string version = 3;
+//	  string encoding = 4;
+//	  bytes value = 5;
+//	}
+func (p Payload) ProtoMarshal() []byte {
+	var buf []byte
+
+	// Field 1: source_port (length-delimited)
+	buf = proto.AppendLengthDelimited(buf, 1, []byte(p.SourcePort))
+
+	// Field 2: destination_port (length-delimited)
+	buf = proto.AppendLengthDelimited(buf, 2, []byte(p.DestinationPort))
+
+	// Field 3: version (length-delimited)
+	buf = proto.AppendLengthDelimited(buf, 3, []byte(p.Version))
+
+	// Field 4: encoding (length-delimited)
+	buf = proto.AppendLengthDelimited(buf, 4, []byte(p.Encoding))
+
+	// Field 5: value (length-delimited)
+	buf = proto.AppendLengthDelimited(buf, 5, p.Value)
+
+	return buf
 }
 
 // RecvPacketResult speecifies the status of a packet as well as the acknowledgement bytes.

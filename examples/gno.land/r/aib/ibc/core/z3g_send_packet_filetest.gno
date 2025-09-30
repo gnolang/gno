@@ -79,6 +79,10 @@ func main() {
 //       {
 //         "key": "packet_timeout_timestamp",
 //         "value": "1234571490"
+//       },
+//       {
+//         "key": "encoded_packet_hex",
+//         "value": "0801120f30372d74656e6465726d696e742d311a10636f756e7465722d70617274792d696420e2a1d8cc042a2e0a087472616e7366657212087472616e736665721a02763122106170706c69636174696f6e2f6a736f6e2a027b7d"
 //       }
 //     ],
 //     "pkg_path": "gno.land/r/aib/ibc/core"
