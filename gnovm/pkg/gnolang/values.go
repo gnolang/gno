@@ -527,8 +527,6 @@ func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
 
 func (fv *FuncValue) GetType(store Store) *FuncType {
 	switch ct := fv.Type.(type) {
-	case nil:
-		return nil
 	case RefType:
 		typ := store.GetType(ct.ID).(*FuncType)
 		fv.Type = typ
