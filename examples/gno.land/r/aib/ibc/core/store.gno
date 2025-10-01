@@ -3,6 +3,7 @@ package core
 import (
 	"chain/params"
 
+	"gno.land/p/aib/ibc/app"
 	"gno.land/p/aib/ibc/host"
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/lightclient/tendermint"
@@ -21,11 +22,14 @@ func init() {
 type Store struct {
 	clientSeq  seqid.ID
 	clientByID *avl.Tree // id:client
+
+	routes map[string]app.IBCApp
 }
 
 func newStore() *Store {
 	return &Store{
 		clientByID: avl.NewTree(),
+		routes:     make(map[string]app.IBCApp),
 	}
 }
 
