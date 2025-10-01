@@ -118,7 +118,7 @@ func (tm *TMLightClient) TimestampAtHeight(height types.Height) (uint64, error) 
 	if !found {
 		return 0, ufmt.Errorf("no consensus state found for height %s", height.String())
 	}
-	return uint64(cs.Timestamp.UnixNano()), nil
+	return uint64(cs.Timestamp.Unix()), nil
 }
 
 // Implements lightclient.Interface

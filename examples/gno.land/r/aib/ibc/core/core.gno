@@ -51,17 +51,16 @@ func SendPacket(cur realm, msg types.MsgSendPacket) (sequence uint64) {
 	}
 
 	// check if the latest consensus timestamp is lower than timeoutTimestamp
-	latestTimestampNano, err := c.lightClient.TimestampAtHeight(c.lightClient.LatestHeight())
+	latestTimestamp, err := c.lightClient.TimestampAtHeight(c.lightClient.LatestHeight())
 	if err != nil {
 		panic(err)
 	}
-	latestTimestamp := uint64(time.Unix(0, int64(latestTimestampNano)).Unix())
 	if latestTimestamp >= msg.TimeoutTimestamp {
 		panic(ufmt.Errorf("latest timestamp: %d, timeout timestamp: %d",
 			latestTimestamp, msg.TimeoutTimestamp))
 	}
 
-	// construct packet from given fields and channel state
+	// construct packet from given fields
 	sequence = uint64(c.sendSeq.Next())
 	packet := types.NewPacket(sequence, msg.SourceClient, c.counterpartyClientID, msg.TimeoutTimestamp, msg.Payloads...)
 	if err := packet.ValidateBasic(); err != nil {
@@ -71,6 +70,7 @@ func SendPacket(cur realm, msg types.MsgSendPacket) (sequence uint64) {
 	// set the packet commitment
 	c.setPacketCommitment(packet)
 
+	// emit events
 	chain.Emit(types.EventTypeSendPacket,
 		types.AttributeKeySrcClient, packet.SourceClient,
 		types.AttributeKeyDstClient, packet.DestinationClient,
