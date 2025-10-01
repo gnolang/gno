@@ -1,3 +1,0 @@
-module = "gno.land/r/demo/privaterealm"
-gno = "0.9"
-private = true
