@@ -1,11 +1,10 @@
-package extrealm
+package extensions
 
 import (
 	"bytes"
 	"fmt"
 	"strconv"
 
-	utils "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/utils"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
@@ -110,7 +109,7 @@ func parseLineTag(line []byte) GnoColumnTag {
 	}
 
 	// Parse the line into HTML tokens
-	toks, err := utils.ParseHTMLTokens(bytes.NewReader(line))
+	toks, err := ParseHTMLTokens(bytes.NewReader(line))
 	if err != nil || len(toks) != 1 {
 		return GnoColumnTagUndefined // Return early if error or no tokens
 	}

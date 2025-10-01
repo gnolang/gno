@@ -1,9 +1,0 @@
--- input.md --
-[External link](https://example.com)
-[External link with title](https://example.com "my title")
-[Transaction with domain](https://example.com/r/docs/hello$help)
-
--- output.html --
-<p><a href="https://example.com" rel="noopener nofollow ugc">External link<span class="link-external js-tooltip tooltip" data-tooltip="External link"><svg class="w-3 h-3"><use href="#ico-external-link"></use></svg></span></a>
-<a href="https://example.com" rel="noopener nofollow ugc" title="my title">External link with title<span class="link-external js-tooltip tooltip" data-tooltip="External link"><svg class="w-3 h-3"><use href="#ico-external-link"></use></svg></span></a>
-<a href="https://example.com/r/docs/hello$help" rel="noopener nofollow ugc">Transaction with domain<span class="link-external js-tooltip tooltip" data-tooltip="External link"><svg class="w-3 h-3"><use href="#ico-external-link"></use></svg></span></a></p>

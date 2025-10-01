@@ -1,4 +1,4 @@
-package extrealm
+package extensions
 
 import (
 	"bytes"
@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	utils "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/utils"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
@@ -220,7 +219,7 @@ func (n *FormNode) NewErrorSelect(err error) (sel *FormSelect) {
 func parseFormTag(line []byte) (tok html.Token, ok bool) {
 	line = bytes.TrimSpace(line)
 	if len(line) > 0 {
-		toks, err := utils.ParseHTMLTokens(bytes.NewReader(line))
+		toks, err := ParseHTMLTokens(bytes.NewReader(line))
 		if err == nil && len(toks) == 1 {
 			return toks[0], true
 		}
@@ -261,8 +260,8 @@ func (p *formParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 		return fn, parser.NoChildren // skip, not our tag
 	}
 
-	fn.RenderPath, _ = utils.ExtractAttr(tok.Attr, "path")
-	if gnourl, ok := utils.GetUrlFromContext(pc); ok {
+	fn.RenderPath, _ = ExtractAttr(tok.Attr, "path")
+	if gnourl, ok := GetUrlFromContext(pc); ok {
 		fn.RealmName = gnourl.Path // Use full path instead of just namespace
 	}
 
@@ -478,7 +477,7 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 	}
 
 	if n.Error != nil {
-		fmt.Fprintf(w, "<!-- Error: %s -->\n", utils.HTMLEscapeString(n.Error.Error()))
+		fmt.Fprintf(w, "<!-- Error: %s -->\n", HTMLEscapeString(n.Error.Error()))
 		return ast.WalkContinue, nil
 	}
 
@@ -489,10 +488,10 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 	}
 
 	// Render form opening and header
-	fmt.Fprintf(w, `<form class="gno-form" method="post" action="%s" autocomplete="off" spellcheck="false">`+"\n", utils.HTMLEscapeString(formAction))
+	fmt.Fprintf(w, `<form class="gno-form" method="post" action="%s" autocomplete="off" spellcheck="false">`+"\n", HTMLEscapeString(formAction))
 	fmt.Fprintln(w, `<div class="gno-form_header">`)
-	fmt.Fprintf(w, `<span><span class="font-bold">%s</span> Form</span>`+"\n", utils.HTMLEscapeString(n.RealmName))
-	fmt.Fprintf(w, `<span class="tooltip" data-tooltip="Processed securely by %s"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>`+"\n", utils.HTMLEscapeString(n.RealmName))
+	fmt.Fprintf(w, `<span><span class="font-bold">%s</span> Form</span>`+"\n", HTMLEscapeString(n.RealmName))
+	fmt.Fprintf(w, `<span class="tooltip" data-tooltip="Processed securely by %s"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>`+"\n", HTMLEscapeString(n.RealmName))
 	fmt.Fprintln(w, `</div>`)
 
 	// Render all form elements in order of appearance
@@ -500,7 +499,7 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 
 	for i, element := range n.Elements {
 		if element.GetError() != nil {
-			fmt.Fprintf(w, "<!-- Error: %s -->\n", utils.HTMLEscapeString(element.GetError().Error()))
+			fmt.Fprintf(w, "<!-- Error: %s -->\n", HTMLEscapeString(element.GetError().Error()))
 			continue
 		}
 
@@ -510,7 +509,7 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 			if e.Description != "" {
 				descID := fmt.Sprintf("desc_%s_%d", e.Name, i)
 				fmt.Fprintf(w, `<div id="%s" class="gno-form_description">%s</div>`+"\n",
-					utils.HTMLEscapeString(descID), utils.HTMLEscapeString(e.Description))
+					HTMLEscapeString(descID), HTMLEscapeString(e.Description))
 				lastDescID = descID // Update last description ID
 			}
 
@@ -522,12 +521,12 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 
 				fmt.Fprintf(w, `<div class="gno-form_selectable">`+"\n")
 				fmt.Fprintf(w, `<input type="%s" id="%s" name="%s" value="%s"`,
-					utils.HTMLEscapeString(e.Type),
-					utils.HTMLEscapeString(uniqueID),
-					utils.HTMLEscapeString(e.Name),
-					utils.HTMLEscapeString(e.Value))
+					HTMLEscapeString(e.Type),
+					HTMLEscapeString(uniqueID),
+					HTMLEscapeString(e.Name),
+					HTMLEscapeString(e.Value))
 				if lastDescID != "" {
-					fmt.Fprintf(w, ` aria-labelledby="%s"`, utils.HTMLEscapeString(lastDescID))
+					fmt.Fprintf(w, ` aria-labelledby="%s"`, HTMLEscapeString(lastDescID))
 				}
 				if e.Checked {
 					fmt.Fprintf(w, ` checked`)
@@ -541,20 +540,20 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 				}
 
 				fmt.Fprintf(w, `<label for="%s"> %s </label>`+"\n",
-					utils.HTMLEscapeString(uniqueID),
-					utils.HTMLEscapeString(labelText))
+					HTMLEscapeString(uniqueID),
+					HTMLEscapeString(labelText))
 				fmt.Fprintln(w, "</div>")
 
 			default:
 				// Render standard input
 				fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s"> %s </label>`+"\n",
-					utils.HTMLEscapeString(e.Name),
-					utils.HTMLEscapeString(e.Placeholder))
+					HTMLEscapeString(e.Name),
+					HTMLEscapeString(e.Placeholder))
 				fmt.Fprintf(w, `<input type="%s" id="%s" name="%s" placeholder="%s" />`+"\n",
-					utils.HTMLEscapeString(e.Type),
-					utils.HTMLEscapeString(e.Name),
-					utils.HTMLEscapeString(e.Name),
-					utils.HTMLEscapeString(e.Placeholder))
+					HTMLEscapeString(e.Type),
+					HTMLEscapeString(e.Name),
+					HTMLEscapeString(e.Name),
+					HTMLEscapeString(e.Placeholder))
 				fmt.Fprintln(w, "</div>")
 			}
 
@@ -563,17 +562,17 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 			if e.Description != "" {
 				descID := fmt.Sprintf("desc_%s_%d", e.Name, i)
 				fmt.Fprintf(w, `<div id="%s" class="gno-form_description">%s</div>`+"\n",
-					utils.HTMLEscapeString(descID), utils.HTMLEscapeString(e.Description))
+					HTMLEscapeString(descID), HTMLEscapeString(e.Description))
 				lastDescID = descID // Update last description ID
 			}
 
 			fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s"> %s </label>`+"\n",
-				utils.HTMLEscapeString(e.Name),
-				utils.HTMLEscapeString(e.Placeholder))
+				HTMLEscapeString(e.Name),
+				HTMLEscapeString(e.Placeholder))
 			fmt.Fprintf(w, `<textarea id="%s" name="%s" placeholder="%s" rows="%d"></textarea>`+"\n",
-				utils.HTMLEscapeString(e.Name),
-				utils.HTMLEscapeString(e.Name),
-				utils.HTMLEscapeString(e.Placeholder),
+				HTMLEscapeString(e.Name),
+				HTMLEscapeString(e.Name),
+				HTMLEscapeString(e.Placeholder),
 				e.Rows)
 			fmt.Fprintln(w, "</div>")
 
@@ -593,7 +592,7 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 				if e.Description != "" {
 					descID := fmt.Sprintf("desc_%s_%d", e.Name, i)
 					fmt.Fprintf(w, `<div id="%s" class="gno-form_description">%s</div>`+"\n",
-						utils.HTMLEscapeString(descID), utils.HTMLEscapeString(e.Description))
+						HTMLEscapeString(descID), HTMLEscapeString(e.Description))
 					lastDescID = descID // Update last description ID
 				}
 
@@ -601,30 +600,30 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 				// Format the name to be more readable (capitalize first letter, replace underscores with spaces)
 				labelText := strings.Title(strings.ReplaceAll(e.Name, "_", " "))
 				fmt.Fprintf(w, `<div class="gno-form_select"><label for="%s"> %s </label>`+"\n",
-					utils.HTMLEscapeString(e.Name),
-					utils.HTMLEscapeString(labelText))
+					HTMLEscapeString(e.Name),
+					HTMLEscapeString(labelText))
 				fmt.Fprintf(w, `<select id="%s" name="%s"`,
-					utils.HTMLEscapeString(e.Name),
-					utils.HTMLEscapeString(e.Name))
+					HTMLEscapeString(e.Name),
+					HTMLEscapeString(e.Name))
 				if lastDescID != "" {
-					fmt.Fprintf(w, ` aria-labelledby="%s"`, utils.HTMLEscapeString(lastDescID))
+					fmt.Fprintf(w, ` aria-labelledby="%s"`, HTMLEscapeString(lastDescID))
 				}
 				fmt.Fprintf(w, `>`+"\n")
 
 				// Add a default option with the label
-				article := utils.GetWordArticle(labelText)
-				fmt.Fprintf(w, `<option value="" >Select %s %s</option>`+"\n", article, utils.HTMLEscapeString(labelText))
+				article := GetWordArticle(labelText)
+				fmt.Fprintf(w, `<option value="" >Select %s %s</option>`+"\n", article, HTMLEscapeString(labelText))
 
 				// Collect all options for this select name
 				for k := i; k < len(n.Elements); k++ {
 					if optionElement, ok := n.Elements[k].(*FormSelect); ok && optionElement.Name == e.Name {
 						fmt.Fprintf(w, `<option value="%s"`,
-							utils.HTMLEscapeString(optionElement.Value))
+							HTMLEscapeString(optionElement.Value))
 						if optionElement.Selected {
 							fmt.Fprintf(w, ` selected`)
 						}
 						fmt.Fprintf(w, `>%s</option>`+"\n",
-							utils.HTMLEscapeString(optionElement.Value))
+							HTMLEscapeString(optionElement.Value))
 					}
 				}
 
@@ -641,7 +640,7 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 
 	// Display submit button only if there is at least one input or textarea
 	if len(n.Elements) > 0 {
-		fmt.Fprintf(w, `<input type="submit" value="Submit to %s Realm" />`+"\n", utils.HTMLEscapeString(n.RealmName))
+		fmt.Fprintf(w, `<input type="submit" value="Submit to %s Realm" />`+"\n", HTMLEscapeString(n.RealmName))
 	}
 
 	fmt.Fprintln(w, "</form>")
