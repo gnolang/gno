@@ -54,7 +54,6 @@ func RegisterCounterparty(cur realm, clientID string, counterpartyMerklePrefix [
 	}
 	c.counterpartyClientID = counterpartyClientID
 	c.counterpartyMerklePrefix = counterpartyMerklePrefix
-	// TODO initialize next sequence to 1
 }
 
 // UpdateClient will update the given IBC v2 light client with a new header.

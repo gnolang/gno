@@ -10,7 +10,6 @@ import (
 )
 
 // UpdateClient success with height older than clientState.LatestHeight
-// TODO fix that one, require an other set of well-signed commits
 func main() {
 	// CreateClient and RegisterCounterparty
 	var (
