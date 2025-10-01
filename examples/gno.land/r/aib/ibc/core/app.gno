@@ -6,6 +6,7 @@ import (
 )
 
 func RegisterApp(cur realm, portID string, app app.IBCApp) {
+	// TODO assert this call cannot come from a user
 	if _, ok := store.routes[portID]; ok {
 		panic(ufmt.Errorf("route %s has already been registered", portID))
 
