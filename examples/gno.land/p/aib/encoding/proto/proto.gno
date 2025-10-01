@@ -1,7 +1,6 @@
 package proto
 
 import (
-	"bytes"
 	"encoding/binary"
 	"time"
 )
@@ -21,7 +20,7 @@ func AppendVarint(buf []byte, fieldNum int, v uint64) []byte {
 		return buf
 	}
 	buf = AppendTag(buf, fieldNum, VARINT)
-	return append(buf, Varint(v)...)
+	return binary.AppendUvarint(buf, v)
 }
 
 // AppendFixed64 appends a fixed 64-bit field.
@@ -41,7 +40,7 @@ func AppendLengthDelimited(buf []byte, fieldNum int, bz []byte) []byte {
 		return buf
 	}
 	buf = AppendTag(buf, fieldNum, LEN)
-	buf = append(buf, Varint(uint64(len(bz)))...)
+	buf = binary.AppendUvarint(buf, uint64(len(bz)))
 	return append(buf, bz...)
 }
 
@@ -63,16 +62,5 @@ func AppendTime(buf []byte, fieldNum int, t time.Time) []byte {
 // AppendTag appends a protobuf tag (field number and wire type)
 func AppendTag(buf []byte, fieldNum int, wireType WireType) []byte {
 	tag := (fieldNum << 3) | int(wireType)
-	return append(buf, Varint(uint64(tag))...)
-}
-
-// Varint encodes a uint64 as a varint.
-func Varint(v uint64) []byte {
-	var buf bytes.Buffer
-	for v >= 0x80 {
-		buf.WriteByte(byte(v) | 0x80)
-		v >>= 7
-	}
-	buf.WriteByte(byte(v))
-	return buf.Bytes()
+	return binary.AppendUvarint(buf, uint64(tag))
 }

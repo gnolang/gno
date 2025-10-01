@@ -1,6 +1,7 @@
 package tendermint
 
 import (
+	"encoding/binary"
 	"time"
 
 	"gno.land/p/aib/encoding/proto"
@@ -45,7 +46,7 @@ func VoteBytesToSign(
 
 	// Prefix with total length
 	length := len(buf)
-	buf = append(proto.Varint(uint64(length)), buf...)
+	buf = append(binary.AppendUvarint(nil, uint64(length)), buf...)
 
 	return buf
 }
