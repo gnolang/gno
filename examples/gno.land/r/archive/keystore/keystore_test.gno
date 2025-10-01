@@ -1,7 +1,6 @@
 package keystore
 
 import (
-	"std"
 	"strings"
 	"testing"
 
@@ -12,13 +11,13 @@ import (
 
 func TestRender(t *testing.T) {
 	var (
-		author1 std.Address = testutils.TestAddress("author1")
-		author2 std.Address = testutils.TestAddress("author2")
+		author1 address = testutils.TestAddress("author1")
+		author2 address = testutils.TestAddress("author2")
 	)
 
 	tt := []struct {
-		caller std.Address
-		owner  std.Address
+		caller address
+		owner  address
 		ps     []string
 		exp    string
 	}{

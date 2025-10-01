@@ -1,7 +1,6 @@
 package boards2
 
 import (
-	"std"
 	"strconv"
 	"strings"
 	"time"
@@ -36,7 +35,7 @@ type Board struct {
 	ID       BoardID
 	Name     string
 	Aliases  []string
-	Creator  std.Address
+	Creator  address
 	Readonly bool
 
 	perms     Permissions
@@ -45,7 +44,7 @@ type Board struct {
 	createdAt time.Time
 }
 
-func newBoard(id BoardID, name string, creator std.Address, p Permissions) *Board {
+func newBoard(id BoardID, name string, creator address, p Permissions) *Board {
 	return &Board{
 		ID:        id,
 		Name:      name,
@@ -67,7 +66,7 @@ func (board *Board) MembersCount() int {
 }
 
 // IterateMembers iterates board members.
-func (board *Board) IterateMembers(start, count int, fn func(std.Address, []Role)) {
+func (board *Board) IterateMembers(start, count int, fn func(address, []Role)) {
 	board.perms.IterateUsers(start, count, func(u User) bool {
 		fn(u.Address, u.Roles)
 		return false
@@ -105,7 +104,7 @@ func (board *Board) GetThread(threadID PostID) (_ *Post, found bool) {
 }
 
 // AddThread adds a new thread to the board.
-func (board *Board) AddThread(creator std.Address, title, body string) *Post {
+func (board *Board) AddThread(creator address, title, body string) *Post {
 	pid := board.generateNextPostID()
 	thread := newPost(board, pid, pid, creator, title, body)
 	board.threads.Set(pid.Key(), thread)
@@ -126,7 +125,7 @@ func (board *Board) DeleteThread(pid PostID) {
 func (board *Board) Render(path, menu string) string {
 	var (
 		sb          strings.Builder
-		creatorLink = md.UserLink(board.Creator.String())
+		creatorLink = userLink(board.Creator)
 		date        = board.CreatedAt().Format(dateFormat)
 	)
 
@@ -192,7 +191,7 @@ func (board *Board) generateNextPostID() PostID {
 	return PostID(board.postsCtr)
 }
 
-func createBasicBoardPermissions(owner std.Address) *BasicPermissions {
+func createBasicBoardPermissions(owner address) *BasicPermissions {
 	dao := commondao.New(commondao.WithMember(owner))
 	perms := NewBasicPermissions(dao)
 	perms.SetSuperRole(RoleOwner)

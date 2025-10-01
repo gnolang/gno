@@ -129,6 +129,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Alloc = alloc
 	if mm.Alloc != nil {
 		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
+		mm.Alloc.SetGasMeter(vmGasMeter)
 	}
 	mm.Output = output
 	mm.Store = store
@@ -2320,6 +2321,10 @@ func (m *Machine) CheckEmpty() error {
 	} else {
 		return nil
 	}
+}
+
+func (m *Machine) PanicString(ex string) {
+	m.Panic(typedString(ex))
 }
 
 // This function does go-panic.
