@@ -126,9 +126,6 @@ func (mpkg *MemPackage) ValidateBasic() error {
 		},
 	)
 	if !sorted {
-		for i := 0; i < len(mpkg.Files); i++ {
-			fmt.Println("memfile", i, ":", mpkg.Files[i].Name)
-		}
 		return fmt.Errorf("mempackage %q has unsorted files", mpkg.Path)
 	}
 
