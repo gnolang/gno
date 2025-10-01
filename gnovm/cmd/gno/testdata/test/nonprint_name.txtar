@@ -1,0 +1,25 @@
+gno test -v .
+
+! stdout .+
+stderr '^=== RUN   TestTest/\\x1b$'
+stderr '^hello123$'
+stderr '^--- PASS: TestTest/\\x1b'
+
+-- main.gno --
+package main
+
+-- main_test.gno --
+package main
+
+import "testing"
+
+func TestTest(t *testing.T) {
+	t.Run("\x1b", func(t *testing.T) {
+		t.Log("hello123")
+	})
+}
+
+-- stderr.golden --
+
+-- gnomod.toml --
+module = 'gno.test/r/integ/main'

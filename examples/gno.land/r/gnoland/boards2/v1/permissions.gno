@@ -1,7 +1,5 @@
 package boards2
 
-import "std"
-
 const (
 	PermissionBoardCreate         Permission = "board:create"
 	PermissionBoardFlaggingUpdate            = "board:flagging-update"
@@ -48,7 +46,7 @@ type (
 
 	// User contains user info.
 	User struct {
-		Address std.Address
+		Address address
 		Roles   []Role
 	}
 
@@ -59,24 +57,26 @@ type (
 	// TODO: Add crossing support to Permissions
 	Permissions interface {
 		// HasRole checks if a user has a specific role assigned.
-		HasRole(std.Address, Role) bool
+		HasRole(address, Role) bool
 
 		// HasPermission checks if a user has a specific permission.
-		HasPermission(std.Address, Permission) bool
+		HasPermission(address, Permission) bool
 
 		// WithPermission calls a callback when a user has a specific permission.
 		// It panics on error.
-		WithPermission(std.Address, Permission, Args, func(Args))
+		WithPermission(realm, address, Permission, Args, func(realm))
 
 		// SetUserRoles adds a new user when it doesn't exist and sets its roles.
 		// Method can also be called to change the roles of an existing user.
-		SetUserRoles(std.Address, ...Role) error
+		// It panics on error.
+		SetUserRoles(realm, address, ...Role)
 
 		// RemoveUser removes a user from the permissioner.
-		RemoveUser(std.Address) (removed bool)
+		// It panics on error.
+		RemoveUser(realm, address) (removed bool)
 
 		// HasUser checks if a user exists.
-		HasUser(std.Address) bool
+		HasUser(address) bool
 
 		// UsersCount returns the total number of users the permissioner contains.
 		UsersCount() int

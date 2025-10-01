@@ -2,14 +2,13 @@ package boards2
 
 import (
 	"errors"
-	"std"
 	"strconv"
 	"strings"
 	"time"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/avl"
 )
 
 const dateFormat = "2006-01-02 3:04pm MST"
@@ -33,7 +32,7 @@ func (id PostID) Key() string {
 type Post struct {
 	ID            PostID
 	Board         *Board
-	Creator       std.Address
+	Creator       address
 	Title         string
 	Body          string
 	Hidden        bool
@@ -43,14 +42,14 @@ type Post struct {
 	RepostBoardID BoardID // Original Board.ID (if repost)
 	UpdatedAt     time.Time
 
-	flags      avl.Tree // std.Address -> string(reason)
+	flags      avl.Tree // string(address) -> string(reason)
 	replies    avl.Tree // Post.ID -> *Post
 	repliesAll avl.Tree // Post.ID -> *Post (all replies, for top-level posts)
 	reposts    avl.Tree // Board.ID -> Post.ID
 	createdAt  time.Time
 }
 
-func newPost(board *Board, threadID, id PostID, creator std.Address, title, body string) *Post {
+func newPost(board *Board, threadID, id PostID, creator address, title, body string) *Post {
 	return &Post{
 		Board:     board,
 		ThreadID:  threadID,
@@ -80,7 +79,7 @@ func (post *Post) IsThread() bool {
 
 // Flag add a flag to the post.
 // It returns false when the user flagging the post already flagged it.
-func (post *Post) Flag(user std.Address, reason string) bool {
+func (post *Post) Flag(user address, reason string) bool {
 	if post.flags.Has(user.String()) {
 		return false
 	}
@@ -96,7 +95,7 @@ func (post *Post) FlagsCount() int {
 
 // AddReply adds a new reply to the post.
 // Replies can be added to threads and also to other replies.
-func (post *Post) AddReply(creator std.Address, body string) *Post {
+func (post *Post) AddReply(creator address, body string) *Post {
 	board := post.Board
 	pid := board.generateNextPostID()
 	pKey := pid.Key()
@@ -128,7 +127,7 @@ func (thread *Post) GetReply(pid PostID) (_ *Post, found bool) {
 }
 
 // Repost reposts a thread into another boards.
-func (post *Post) Repost(creator std.Address, dst *Board, title, body string) *Post {
+func (post *Post) Repost(creator address, dst *Board, title, body string) *Post {
 	if !post.IsThread() {
 		panic("post must be a thread to be reposted to another board")
 	}
@@ -181,7 +180,7 @@ func (post *Post) RenderSummary() string {
 		b             strings.Builder
 		postURI       = makeThreadURI(post)
 		threadSummary = summaryOf(post.Title, 80)
-		creatorLink   = md.UserLink(post.Creator.String())
+		creatorLink   = userLink(post.Creator)
 		date          = post.CreatedAt().Format(dateFormat)
 	)
 
@@ -260,7 +259,7 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels i
 		sb.WriteString(indent)
 	}
 
-	creatorLink := md.UserLink(post.Creator.String())
+	creatorLink := userLink(post.Creator)
 	date := post.CreatedAt().Format(dateFormat)
 	sb.WriteString("Created by " + creatorLink + " on " + date)
 

@@ -3,6 +3,8 @@ package errors
 import (
 	"errors"
 	fmt "fmt"
+	"os"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -125,4 +127,125 @@ func TestWrapError(t *testing.T) {
 	err2 = Wrap(err1, "another message")
 	assert.NotEqual(t, err1, err2)
 	assert.True(t, errors.Is(err2, err1))
+}
+
+func TestStripBuildDir(t *testing.T) {
+	// Save original env and restore after test
+	origGOMOD := os.Getenv("GOMOD")
+	defer func() {
+		os.Setenv("GOMOD", origGOMOD)
+		// Reset the build dir cache
+		buildDir = ""
+		buildDirOnce = sync.Once{}
+	}()
+
+	tests := []struct {
+		name     string
+		setupEnv func()
+		input    string
+		expected string
+	}{
+		// Project paths
+		{
+			name: "project file with GOMOD set",
+			setupEnv: func() {
+				os.Setenv("GOMOD", "/home/user/go/src/github.com/gnolang/gno/go.mod")
+			},
+			input:    "/home/user/go/src/github.com/gnolang/gno/tm2/pkg/errors/errors.go",
+			expected: "gno/tm2/pkg/errors/errors.go",
+		},
+		{
+			name: "project file in subdirectory",
+			setupEnv: func() {
+				os.Setenv("GOMOD", "/home/user/go/src/github.com/gnolang/gno/go.mod")
+			},
+			input:    "/home/user/go/src/github.com/gnolang/gno/gno.land/pkg/gnoland/app.go",
+			expected: "gno/gno.land/pkg/gnoland/app.go",
+		},
+		{
+			name: "project file when GOMOD is /dev/null",
+			setupEnv: func() {
+				os.Setenv("GOMOD", "/dev/null")
+			},
+			input:    "/home/user/go/src/github.com/gnolang/gno/tm2/pkg/errors/errors.go",
+			expected: "/home/user/go/src/github.com/gnolang/gno/tm2/pkg/errors/errors.go",
+		},
+
+		// Go module paths
+		{
+			name: "go module dependency",
+			setupEnv: func() {
+				os.Setenv("GOMOD", "/home/user/project/go.mod")
+			},
+			input:    "/home/user/go/pkg/mod/golang.org/x/sync@v0.13.0/errgroup/errgroup.go",
+			expected: "mod/golang.org/x/sync@v0.13.0/errgroup/errgroup.go",
+		},
+		{
+			name: "go module with complex version",
+			setupEnv: func() {
+				os.Setenv("GOMOD", "/home/user/project/go.mod")
+			},
+			input:    "/usr/local/go/pkg/mod/github.com/stretchr/testify@v1.8.4/assert/assertions.go",
+			expected: "mod/github.com/stretchr/testify@v1.8.4/assert/assertions.go",
+		},
+		{
+			name: "go toolchain path",
+			setupEnv: func() {
+				os.Setenv("GOMOD", "/home/user/project/go.mod")
+			},
+			input:    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.1.linux-amd64/src/runtime/asm_amd64.s",
+			expected: "toolchain/runtime/asm_amd64.s",
+		},
+		{
+			name: "go toolchain internal path",
+			setupEnv: func() {
+				os.Setenv("GOMOD", "/home/user/project/go.mod")
+			},
+			input:    "/usr/local/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.1.linux-amd64/src/runtime/proc.go",
+			expected: "toolchain/runtime/proc.go",
+		},
+
+		// Edge cases
+		{
+			name: "path without any known prefix",
+			setupEnv: func() {
+				os.Setenv("GOMOD", "/home/user/project/go.mod")
+			},
+			input:    "/usr/lib/system/file.go",
+			expected: "/usr/lib/system/file.go",
+		},
+		{
+			name: "empty path",
+			setupEnv: func() {
+				os.Setenv("GOMOD", "/home/user/project/go.mod")
+			},
+			input:    "",
+			expected: "",
+		},
+		{
+			name: "relative path",
+			setupEnv: func() {
+				os.Setenv("GOMOD", "/home/user/project/go.mod")
+			},
+			input:    "relative/path/file.go",
+			expected: "relative/path/file.go",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset the build dir cache for each test
+			buildDir = ""
+			buildDirOnce = sync.Once{}
+
+			// Setup environment
+			tt.setupEnv()
+
+			// Test
+			got := stripBuildDir(tt.input)
+			if got != tt.expected {
+				t.Errorf("stripBuildDir(%q) = %q, want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
 }

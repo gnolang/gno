@@ -1,10 +1,12 @@
 package home
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 	"strings"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 	"gno.land/r/nemanya/config"
 )
 
@@ -14,8 +16,8 @@ type SocialLink struct {
 }
 
 type Sponsor struct {
-	Address std.Address
-	Amount  std.Coins
+	Address address
+	Amount  chain.Coins
 }
 
 type Project struct {
@@ -23,7 +25,7 @@ type Project struct {
 	Description string
 	URL         string
 	ImageURL    string
-	Sponsors    map[std.Address]Sponsor
+	Sponsors    map[address]Sponsor
 }
 
 var (
@@ -33,7 +35,7 @@ var (
 	socialLinks    map[string]SocialLink
 	gnoProjects    map[string]Project
 	otherProjects  map[string]Project
-	totalDonations std.Coins
+	totalDonations chain.Coins
 )
 
 func init() {
@@ -55,7 +57,7 @@ func init() {
 		Description: "Liberty Bridge was my first Web3 project, developed as part of the Web3 Bootcamp at Petnica. This project served as a centralized bridge between Ethereum and gno.land, enabling seamless asset transfers and fostering interoperability between the two ecosystems.\n\n The primary objective of Liberty Bridge was to address the challenges of connecting decentralized networks by implementing a user-friendly solution that simplified the process for users. The project incorporated mechanisms to securely transfer assets between the Ethereum and gno.land blockchains, ensuring efficiency and reliability while maintaining a centralized framework for governance and operations.\n\n Through this project, I gained hands-on knowledge of blockchain interoperability, Web3 protocols, and the intricacies of building solutions that bridge different blockchain ecosystems.\n\n",
 		URL:         "https://gno.land",
 		ImageURL:    "https://github.com/Milosevic02/LibertyBridge/raw/main/lb_banner.png",
-		Sponsors:    make(map[std.Address]Sponsor),
+		Sponsors:    make(map[address]Sponsor),
 	}
 
 	otherProjects["Incognito"] = Project{
@@ -63,7 +65,7 @@ func init() {
 		Description: "Incognito is a Web3 platform built for Ethereum-based chains, designed to connect advertisers with users in a privacy-first and mutually beneficial way. Its modular architecture makes it easily expandable to other blockchains. Developed during the ETH Sofia Hackathon, it was recognized as a winning project for its innovation and impact.\n\n The platform allows advertisers to send personalized ads while sharing a portion of the marketing budget with users. It uses machine learning to match users based on wallet activity, ensuring precise targeting. User emails are stored securely on-chain and never shared, prioritizing privacy and transparency.\n\n With all campaign data stored on-chain, Incognito ensures decentralization and accountability. By rewarding users and empowering advertisers, it sets a new standard for fair and transparent blockchain-based advertising.",
 		URL:         "https://github.com/Milosevic02/Incognito-ETHSofia",
 		ImageURL:    "",
-		Sponsors:    make(map[std.Address]Sponsor),
+		Sponsors:    make(map[address]Sponsor),
 	}
 }
 
@@ -137,7 +139,7 @@ func renderProjects(projectsMap map[string]Project, title string) string {
 }
 
 func UpdateLink(_ realm, name, newURL string) {
-	if !isAuthorized(std.PreviousRealm().Address()) {
+	if !isAuthorized(runtime.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -152,7 +154,7 @@ func UpdateLink(_ realm, name, newURL string) {
 }
 
 func UpdateAboutMe(_ realm, text string) {
-	if !isAuthorized(std.PreviousRealm().Address()) {
+	if !isAuthorized(runtime.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -160,7 +162,7 @@ func UpdateAboutMe(_ realm, text string) {
 }
 
 func AddGnoProject(_ realm, name, description, url, imageURL string) {
-	if !isAuthorized(std.PreviousRealm().Address()) {
+	if !isAuthorized(runtime.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 	project := Project{
@@ -168,13 +170,13 @@ func AddGnoProject(_ realm, name, description, url, imageURL string) {
 		Description: description,
 		URL:         url,
 		ImageURL:    imageURL,
-		Sponsors:    make(map[std.Address]Sponsor),
+		Sponsors:    make(map[address]Sponsor),
 	}
 	gnoProjects[name] = project
 }
 
 func DeleteGnoProject(_ realm, projectName string) {
-	if !isAuthorized(std.PreviousRealm().Address()) {
+	if !isAuthorized(runtime.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -186,7 +188,7 @@ func DeleteGnoProject(_ realm, projectName string) {
 }
 
 func AddOtherProject(_ realm, name, description, url, imageURL string) {
-	if !isAuthorized(std.PreviousRealm().Address()) {
+	if !isAuthorized(runtime.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 	project := Project{
@@ -194,13 +196,13 @@ func AddOtherProject(_ realm, name, description, url, imageURL string) {
 		Description: description,
 		URL:         url,
 		ImageURL:    imageURL,
-		Sponsors:    make(map[std.Address]Sponsor),
+		Sponsors:    make(map[address]Sponsor),
 	}
 	otherProjects[name] = project
 }
 
 func RemoveOtherProject(_ realm, projectName string) {
-	if !isAuthorized(std.PreviousRealm().Address()) {
+	if !isAuthorized(runtime.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -211,13 +213,13 @@ func RemoveOtherProject(_ realm, projectName string) {
 	delete(otherProjects, projectName)
 }
 
-func isAuthorized(addr std.Address) bool {
+func isAuthorized(addr address) bool {
 	return addr == config.Address() || addr == config.Backup()
 }
 
 func SponsorGnoProject(_ realm, projectName string) {
-	address_XXX := std.OriginCaller()
-	amount := std.OriginSend()
+	address_XXX := runtime.OriginCaller()
+	amount := banker.OriginSend()
 
 	if amount.AmountOf("ugnot") == 0 {
 		panic("Donation must include GNOT")
@@ -239,8 +241,8 @@ func SponsorGnoProject(_ realm, projectName string) {
 }
 
 func SponsorOtherProject(_ realm, projectName string) {
-	address_XXX := std.OriginCaller()
-	amount := std.OriginSend()
+	address_XXX := runtime.OriginCaller()
+	amount := banker.OriginSend()
 
 	if amount.AmountOf("ugnot") == 0 {
 		panic("Donation must include GNOT")
@@ -262,19 +264,19 @@ func SponsorOtherProject(_ realm, projectName string) {
 }
 
 func Withdraw(_ realm) string {
-	realmAddress := std.PreviousRealm().Address()
+	realmAddress := runtime.PreviousRealm().Address()
 	if !isAuthorized(realmAddress) {
 		panic(config.ErrUnauthorized)
 	}
 
-	banker := std.NewBanker(std.BankerTypeRealmSend)
-	coins := banker.GetCoins(realmAddress)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	coins := banker_.GetCoins(realmAddress)
 
 	if len(coins) == 0 {
 		return "No coins available to withdraw"
 	}
 
-	banker.SendCoins(realmAddress, config.Address(), coins)
+	banker_.SendCoins(realmAddress, config.Address(), coins)
 
 	return "Successfully withdrew all coins to config address"
 }

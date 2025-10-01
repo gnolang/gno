@@ -13,25 +13,24 @@ cmp stderr stderr.golden
 package testdata
 
 import (
-	"std"
+	"chain/banker"
 
 	// This comment should stay above the declaration
 	avl "gno.land/my/import/does/not/exist"
 	"doesnotexist"
 )
 
-
 // Pkg Is already imported
 var myVar = avl.Node{}
 
 // Pkg exist and should be imported
-   var myVar2 = std.Banker{}
+var myVar2 = banker.Banker{}
 
 // This one doesn't exist
 var myVar3 = doesnotexistpkg.Bis{}
 
 // Package should exist but not the declaration
-    var myVar4 = io.DoesnNotExist{}
+var myVar4 = io.DoesnNotExist{}
 
 // Declaration exist in a side file and should not be imported
 var myVar5 = math.Sqrt(42)
@@ -46,7 +45,6 @@ func myBlog() *blog.Blog {
 
 	return &blog.Blog{}
 }
-
 -- file2.gno --
 package testdata
 
@@ -58,20 +56,20 @@ var math = MathS{}
 package testdata
 
 import (
-	"std"
+	"chain/banker"
 	"time"
 
 	// This comment should stay above the declaration
 	avl "gno.land/my/import/does/not/exist"
 	"gno.land/p/demo/blog"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 // Pkg Is already imported
 var myVar = avl.Node{}
 
 // Pkg exist and should be imported
-var myVar2 = std.Banker{}
+var myVar2 = banker.Banker{}
 
 // This one doesn't exist
 var myVar3 = doesnotexistpkg.Bis{}

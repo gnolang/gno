@@ -1,18 +1,17 @@
 package btree_dao
 
 import (
-	"std"
 	"strings"
 	"testing"
 	"time"
 
 	"gno.land/p/demo/btree"
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 )
 
 func setupTest() {
-	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
+	testing.SetOriginCaller(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
 	members = btree.New()
 }
 
@@ -82,12 +81,12 @@ func TestRegistrationDetailsOrdering(t *testing.T) {
 	setupTest()
 
 	rd1 := &RegistrationDetails{
-		Address: std.Address("test1"),
+		Address: address("test1"),
 		RegTime: time.Now(),
 		NFTID:   "0",
 	}
 	rd2 := &RegistrationDetails{
-		Address: std.Address("test2"),
+		Address: address("test2"),
 		RegTime: time.Now().Add(time.Hour),
 		NFTID:   "1",
 	}

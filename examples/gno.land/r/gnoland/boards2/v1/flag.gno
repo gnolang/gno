@@ -1,10 +1,9 @@
 package boards2
 
 import (
-	"std"
 	"strconv"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 // DefaultFlaggingThreshold defines the default number of flags that hides flaggable items.
@@ -15,7 +14,7 @@ var gFlaggingThresholds avl.Tree // string(board ID) -> int
 type Flaggable interface {
 	// Flag adds a new flag to an item.
 	// It returns false when the user flagging already flagged the item.
-	Flag(user std.Address, reason string) bool
+	Flag(user address, reason string) bool
 
 	// FlagsCount returns number of times item was flagged.
 	FlagsCount() int
@@ -24,7 +23,7 @@ type Flaggable interface {
 // flagItem adds a flag to a flaggable item.
 // Returns whether flag count threshold is reached and item can be hidden.
 // Panics if flag count threshold was already reached.
-func flagItem(item Flaggable, user std.Address, reason string, threshold int) bool {
+func flagItem(item Flaggable, user address, reason string, threshold int) bool {
 	if item.FlagsCount() >= threshold {
 		panic("item flag count threshold exceeded: " + strconv.Itoa(threshold))
 	}
