@@ -1,16 +1,16 @@
 package home
 
 import (
-	"std"
+	"chain"
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 )
 
 func TestUpdatePFP(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
+	testing.SetRealm(testing.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	pfp = ""
 	pfpCaption = ""
 
@@ -21,7 +21,7 @@ func TestUpdatePFP(t *testing.T) {
 }
 
 func TestUpdateAboutMe(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
+	testing.SetRealm(testing.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	abtMe = ""
 
 	UpdateAboutMe(cross, "This is my new bio.")
@@ -30,11 +30,11 @@ func TestUpdateAboutMe(t *testing.T) {
 }
 
 func TestVoteModern(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
+	testing.SetRealm(testing.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
-	coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
-	coinsSpent := std.NewCoins(std.NewCoin("ugnot", 1))
+	coinsSent := chain.NewCoins(chain.NewCoin("ugnot", 75000000))
+	coinsSpent := chain.NewCoins(chain.NewCoin("ugnot", 1))
 
 	testing.SetOriginSend(coinsSent)
 	testing.SetOriginSpend(coinsSpent)
@@ -45,11 +45,11 @@ func TestVoteModern(t *testing.T) {
 }
 
 func TestVoteClassic(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
+	testing.SetRealm(testing.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
-	coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
-	coinsSpent := std.NewCoins(std.NewCoin("ugnot", 1))
+	coinsSent := chain.NewCoins(chain.NewCoin("ugnot", 75000000))
+	coinsSpent := chain.NewCoins(chain.NewCoin("ugnot", 1))
 
 	testing.SetOriginSend(coinsSent)
 	testing.SetOriginSpend(coinsSpent)
@@ -60,11 +60,11 @@ func TestVoteClassic(t *testing.T) {
 }
 
 func TestVoteMinimal(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
+	testing.SetRealm(testing.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
-	coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
-	coinsSpent := std.NewCoins(std.NewCoin("ugnot", 1))
+	coinsSent := chain.NewCoins(chain.NewCoin("ugnot", 75000000))
+	coinsSpent := chain.NewCoins(chain.NewCoin("ugnot", 1))
 
 	testing.SetOriginSend(coinsSent)
 	testing.SetOriginSpend(coinsSpent)
@@ -75,7 +75,7 @@ func TestVoteMinimal(t *testing.T) {
 }
 
 func TestRender(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
+	testing.SetRealm(testing.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 	currentTheme = "classic"
 	pfp = "https://example.com/pic.png"
@@ -95,7 +95,7 @@ func TestRender(t *testing.T) {
 }
 
 func TestRenderModernTheme(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
+	testing.SetRealm(testing.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 100, 0, 0
 	currentTheme = "modern"
 	updateCurrentTheme()
@@ -105,7 +105,7 @@ func TestRenderModernTheme(t *testing.T) {
 }
 
 func TestRenderMinimalTheme(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
+	testing.SetRealm(testing.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 100
 	currentTheme = "minimal"
 	updateCurrentTheme()

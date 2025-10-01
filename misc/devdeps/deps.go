@@ -29,4 +29,7 @@ import (
 
 	// embedmd
 	_ "github.com/campoy/embedmd/embedmd"
+
+	// required to generate mocks (see `make mocks`)
+	_ "github.com/golang/mock/mockgen"
 )

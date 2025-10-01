@@ -1,6 +1,6 @@
 package emitevents
 
-import "std"
+import "chain"
 
 func Render(_ string) string {
 	out := "# Emitting events in Gno\n\n"
@@ -15,11 +15,11 @@ This function takes in string arguments as follows:
 	out += "The function takes in a variadic number of key:value pairs after the event name.\n\n"
 	out += "Events are stored in block results, and can be listened to via the [tx-indexer](https://github.com/gnolang/tx-indexer).\n\n"
 
-	out += "Click [here](/r/docs/events$help&func=Emit&CustomEventValue=) to submit a transaction that will emit an event."
+	out += "Click [here](/r/docs/events$help&func=Emit&customEventValue=) to submit a transaction that will emit an event."
 
 	return out
 }
 
-func Emit(CustomEventValue string) {
-	std.Emit("ExampleEvent", "key", CustomEventValue)
+func Emit(customEventValue string) {
+	chain.Emit("ExampleEvent", "key", customEventValue)
 }
