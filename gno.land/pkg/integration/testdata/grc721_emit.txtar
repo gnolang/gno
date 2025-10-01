@@ -1,67 +1,61 @@
 # Test for https://github.com/gnolang/gno/pull/3102
-loadpkg gno.land/p/demo/grc/grc721
+loadpkg gno.land/p/demo/tokens/grc721
 loadpkg gno.land/r/foo721 $WORK/foo721
 
 gnoland start
 
 # Mint
 gnokey maketx call -pkgpath gno.land/r/foo721 -func Mint -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args 1  -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test test1
-stdout '\[{\"type\":\"Mint\",\"attrs\":\[{\"key\":\"to\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/grc/grc721\"}\]'
+stdout '\[{\"type\":\"Mint\",\"attrs\":\[{\"key\":\"slug\",\"value\":\"FNFT\"},{\"key\":\"to\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
 
 # Approve
 gnokey maketx call -pkgpath gno.land/r/foo721 -func Approve -args g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj -args 1  -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test test1
-stdout '\[{\"type\":\"Approval\",\"attrs\":\[{\"key\":\"owner\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"to\",\"value\":\"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/grc/grc721\"}\]'
+stdout '\[{\"type\":\"Approval\",\"attrs\":\[{\"key\":\"slug\",\"value\":\"FNFT\"},{\"key\":\"owner\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"to\",\"value\":\"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
 
 # SetApprovalForAll
 gnokey maketx call -pkgpath gno.land/r/foo721 -func SetApprovalForAll -args g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj -args false  -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test test1
-stdout '\[{\"type\":\"ApprovalForAll\",\"attrs\":\[{\"key\":\"owner\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"to\",\"value\":\"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj\"},{\"key\":\"approved\",\"value\":\"false\"}\],\"pkg_path\":\"gno.land/p/demo/grc/grc721\"}\]'
+stdout '\[{\"type\":\"ApprovalForAll\",\"attrs\":\[{\"key\":\"slug\",\"value\":\"FNFT\"},{\"key\":\"owner\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"to\",\"value\":\"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj\"},{\"key\":\"approved\",\"value\":\"false\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
 
 # TransferFrom
 gnokey maketx call -pkgpath gno.land/r/foo721 -func TransferFrom -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj -args 1  -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test test1
-stdout '\[{\"type\":\"Transfer\",\"attrs\":\[{\"key\":\"from\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"to\",\"value\":\"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/grc/grc721\"}\]'
+stdout '\[{\"type\":\"Transfer\",\"attrs\":\[{\"key\":\"slug\",\"value\":\"FNFT\"},{\"key\":\"from\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"to\",\"value\":\"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
 
 # Burn
 gnokey maketx call -pkgpath gno.land/r/foo721 -func Burn -args 1  -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test test1
-stdout '\[{\"type\":\"Burn\",\"attrs\":\[{\"key\":\"from\",\"value\":\"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/grc/grc721\"}\]'
+stdout '\[{\"type\":\"Burn\",\"attrs\":\[{\"key\":\"slug\",\"value\":\"FNFT\"},{\"key\":\"from\",\"value\":\"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
 
 
 -- foo721/foo721.gno --
 package foo721
 
 import (
-	"std"
+	"chain/runtime"
 
-	"gno.land/p/demo/grc/grc721"
+	"gno.land/p/demo/tokens/grc721"
 )
 
 var (
-	admin std.Address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
-	foo               = grc721.NewBasicNFT("FooNFT", "FNFT")
+	admin address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+	foo           = grc721.NewBasicNFT("FooNFT", "FNFT")
 )
 
 // Setters
 
-func Approve(user std.Address, tid grc721.TokenID) {
-	crossing()
-
+func Approve(cur realm, user address, tid grc721.TokenID) {
 	err := foo.Approve(user, tid)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func SetApprovalForAll(user std.Address, approved bool) {
-	crossing()
-
+func SetApprovalForAll(cur realm, user address, approved bool) {
 	err := foo.SetApprovalForAll(user, approved)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func TransferFrom(from, to std.Address, tid grc721.TokenID) {
-	crossing()
-
+func TransferFrom(cur realm, from, to address, tid grc721.TokenID) {
 	err := foo.TransferFrom(from, to, tid)
 	if err != nil {
 		panic(err)
@@ -70,10 +64,8 @@ func TransferFrom(from, to std.Address, tid grc721.TokenID) {
 
 // Admin
 
-func Mint(to std.Address, tid grc721.TokenID) {
-	crossing()
-
-	caller := std.PreviousRealm().Address()
+func Mint(cur realm, to address, tid grc721.TokenID) {
+	caller := runtime.PreviousRealm().Address()
 	assertIsAdmin(caller)
 	err := foo.Mint(to, tid)
 	if err != nil {
@@ -81,10 +73,8 @@ func Mint(to std.Address, tid grc721.TokenID) {
 	}
 }
 
-func Burn(tid grc721.TokenID) {
-	crossing()
-
-	caller := std.PreviousRealm().Address()
+func Burn(cur realm, tid grc721.TokenID) {
+	caller := runtime.PreviousRealm().Address()
 	assertIsAdmin(caller)
 	err := foo.Burn(tid)
 	if err != nil {
@@ -94,8 +84,8 @@ func Burn(tid grc721.TokenID) {
 
 // Util
 
-func assertIsAdmin(address std.Address) {
-	if address != admin {
+func assertIsAdmin(address_XXX address) {
+	if address_XXX != admin {
 		panic("restricted access")
 	}
 }

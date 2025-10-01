@@ -19,6 +19,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"text/template"
 
@@ -100,6 +101,10 @@ type pkgData struct {
 
 	// for determining initialization order
 	imports map[string]struct{}
+
+	// whether there are gno files in this package; if not, it's not a valid gno
+	// package and should be ignored ie. in the initialization order.
+	hasGno bool
 }
 
 type funcDecl struct {
@@ -121,6 +126,9 @@ func addImports(fds []*ast.FuncDecl, imports []*ast.ImportSpec) []funcDecl {
 func walkStdlibs(stdlibsPath string) ([]*pkgData, error) {
 	pkgs := make([]*pkgData, 0, 64)
 	err := WalkDir(stdlibsPath, func(fpath string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
 		// skip dirs and top-level directory.
 		if d.IsDir() || filepath.Dir(fpath) == stdlibsPath {
 			return nil
@@ -165,7 +173,10 @@ func walkStdlibs(stdlibsPath string) ([]*pkgData, error) {
 			return nil
 		}
 
-		// ext == ".gno"
+		// this is a gno file; ensure to mark that there are gno files in this
+		// package.
+		pkg.hasGno = true
+
 		if bd := filterBodylessFuncDecls(f); len(bd) > 0 {
 			// gno file -- keep track of function declarations without body.
 			pkg.gnoBodyless = append(pkg.gnoBodyless, addImports(bd, f.Imports)...)
@@ -176,6 +187,10 @@ func walkStdlibs(stdlibsPath string) ([]*pkgData, error) {
 		}
 
 		return nil
+	})
+	// Remove packages which don't have gno files within.
+	pkgs = slices.DeleteFunc(pkgs, func(p *pkgData) bool {
+		return !p.hasGno
 	})
 	return pkgs, err
 }

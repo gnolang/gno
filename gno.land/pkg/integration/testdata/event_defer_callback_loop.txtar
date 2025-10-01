@@ -13,33 +13,30 @@ stdout 'EVENTS:     \[{\"type\":\"ForLoopEvent\",\"attrs\":\[{\"key\":\"iteratio
 stdout 'TX HASH:    '
 
 -- edcl.gno --
-
 package edcl
 
 import (
-	"std"
-    "strconv"
+	"chain"
+	"strconv"
 )
 
-func Main() {
-	crossing()
-
+func Main(cur realm) {
 	deferEmitExample()
 }
 
 func deferEmitExample() {
 	defer func() {
-		std.Emit("DeferEvent", "key1", "value1", "key2", "value2")
+		chain.Emit("DeferEvent", "key1", "value1", "key2", "value2")
 		println("Defer emit executed")
 	}()
 
 	forLoopEmitExample(3, func(i int) {
-		std.Emit("ForLoopEvent", "iteration", strconv.Itoa(i), "key", "value")
-	    println("For loop emit executed: iteration ", i)
+		chain.Emit("ForLoopEvent", "iteration", strconv.Itoa(i), "key", "value")
+		println("For loop emit executed: iteration ", i)
 	})
 
 	callbackEmitExample(func() {
-		std.Emit("CallbackEvent", "key1", "value1", "key2", "value2")
+		chain.Emit("CallbackEvent", "key1", "value1", "key2", "value2")
 		println("Callback emit executed")
 	})
 
@@ -48,7 +45,7 @@ func deferEmitExample() {
 
 func forLoopEmitExample(count int, callback func(int)) {
 	defer func() {
-		std.Emit("ForLoopCompletionEvent", "count", strconv.Itoa(count))
+		chain.Emit("ForLoopCompletionEvent", "count", strconv.Itoa(count))
 		println("For loop completion emit executed ", count)
 	}()
 
@@ -59,7 +56,7 @@ func forLoopEmitExample(count int, callback func(int)) {
 
 func callbackEmitExample(callback func()) {
 	defer func() {
-		std.Emit("CallbackCompletionEvent", "key", "value")
+		chain.Emit("CallbackCompletionEvent", "key", "value")
 		println("Callback completion emit executed")
 	}()
 

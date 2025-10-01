@@ -4,8 +4,8 @@ import (
 	"encoding/base64"
 	"strings"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/ufmt"
 )
 
 type Canvas struct {
@@ -36,6 +36,12 @@ func (c *Canvas) AddStyle(key, value string) *Canvas {
 func (c *Canvas) WithViewBox(x, y, width, height int) *Canvas {
 	c.ViewBox = ufmt.Sprintf("%d %d %d %d", x, y, width, height)
 	return c
+}
+
+// Render renders your canvas
+func (c Canvas) Render(alt string) string {
+	base64SVG := base64.StdEncoding.EncodeToString([]byte(c.String()))
+	return ufmt.Sprintf("![%s](data:image/svg+xml;base64,%s)", alt, base64SVG)
 }
 
 func (c Canvas) String() string {

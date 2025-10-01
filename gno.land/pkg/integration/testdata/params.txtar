@@ -68,43 +68,38 @@ gnokey maketx call -pkgpath gno.land/r/myrealm -func SetValidString -args ugnot 
 gnokey query params/vm:gno.land/r/myrealm:bank_lockTransfer
 stdout 'data: "ugnot"'
 
+-- params/gnomod.toml --
+module = "gno.land/r/sys/params"
+gno = "0.9"
 
 -- params/setter.gno --
 package params
 
-import (
-	"std"
-)
+import params_ "chain/params"
 
-func SetFoo(newFoo string) {
-	crossing()
-	std.SetParamString("foo", newFoo)
+func SetFoo(cur realm, newFoo string) {
+	params_.SetString("foo", newFoo)
 }
 
-func SetBar(newBar bool)   {
-	crossing()
-	std.SetParamBool("bar", newBar)
+func SetBar(cur realm, newBar bool) {
+	params_.SetBool("bar", newBar)
 }
 
-func SetBaz(newBaz int64)  {
-	crossing()
-	std.SetParamInt64("baz", newBaz)
+func SetBaz(cur realm, newBaz int64) {
+	params_.SetInt64("baz", newBaz)
 }
 
-func SetUint64(newBaz uint64)  { std.SetParamUint64("baz", newBaz) }
-func SetBytes()  { std.SetParamBytes("baz", []byte{255,255}) }
+func SetUint64(newBaz uint64) { params_.SetUint64("baz", newBaz) }
+func SetBytes()               { params_.SetBytes("baz", []byte{255, 255}) }
 
-func SetLockTransfer(denom string)  {
-	crossing()
-	std.SetParamString("bank:p:lockTransfer", denom)
+func SetLockTransfer(cur realm, denom string) {
+	params_.SetString("bank:p:lockTransfer", denom)
 }
 
-func SetInvalidString(denom string)  {
-	crossing()
-	std.SetParamString("bank:p:lockTransfer", denom)
+func SetInvalidString(cur realm, denom string) {
+	params_.SetString("bank:p:lockTransfer", denom)
 }
 
-func SetValidString(denom string)  {
-	crossing()
-	std.SetParamString("bank_lockTransfer", denom)
+func SetValidString(cur realm, denom string) {
+	params_.SetString("bank_lockTransfer", denom)
 }

@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 // This tests for realm finalization upon implicit (borrow) realm switches.
 // This is like zrealm_crossrealm30.gno, but with `return x` for doOpReturnAfterCopy.
@@ -8,7 +8,7 @@ package crossrealm_test
 // `return` calls doOpReturnFromBlock.
 
 import (
-	"gno.land/r/demo/tests/crossrealm_b"
+	"gno.land/r/tests/vm/crossrealm_b"
 )
 
 type StructA struct {
@@ -32,7 +32,7 @@ func (sb *StructB) Set(sa *StructA) (r struct{}) { // <-- the named result names
 func init() {
 	// save StructB{} in crossrealm_b.
 	sb := &StructB{}
-	cross(crossrealm_b.SetObject)(sb)
+	crossrealm_b.SetObject(cross, sb)
 }
 
 func main() {

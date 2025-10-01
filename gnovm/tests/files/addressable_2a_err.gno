@@ -8,4 +8,4 @@ func main() {
 // illegal assignment X expression type *gnolang.SliceExpr
 
 // TypeCheckError:
-// main/files/addressable_2a_err.gno:4:7: invalid operation: cannot take address of []int{…}[:] (value of type []int)
+// main/addressable_2a_err.gno:4:7: invalid operation: cannot take address of []int{…}[:] (value of type []int)

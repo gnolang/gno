@@ -1,43 +1,37 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+package main
 
 import (
-	"std"
 	"testing"
-
-	pcommondao "gno.land/p/nt/commondao"
 
 	"gno.land/r/nt/commondao"
 )
 
 const (
-	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	user  = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
-var rootDAO *pcommondao.CommonDAO
+var parentID uint64
 
 func init() {
 	// Invite a user to be able to start creating DAOs
-	testing.SetRealm(std.NewUserRealm(owner))
-	cross(commondao.Invite)(user)
+	testing.SetRealm(testing.NewUserRealm(owner))
+	commondao.Invite(cross, user)
 
 	// The origin must be the invited user
-	testing.SetRealm(std.NewUserRealm(user))
+	testing.SetRealm(testing.NewUserRealm(user))
 
 	// Create the root DAO
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
-	rootDAO = commondao.New("Parent DAO")
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/nt/commondao"))
+	parentDAO := commondao.New(cross, "Parent DAO", commondao.AllowChildren(false)) // Disallow SubDAOs
+	parentID = parentDAO.ID()
 }
 
 func main() {
-	crossing()
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/nt/commondao"))
 
-	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
-
-	commondao.NewSubDAO("", "foo", rootDAO)
+	commondao.NewSubDAO(cross, "Foo", parentID)
 }
 
 // Error:
-// DAO name is empty
+// SubDAO support is not enabled

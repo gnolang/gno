@@ -1,21 +1,17 @@
-// PKGPATH: gno.land/r/std_test
-package std_test
+// PKGPATH: gno.land/r/std
+package std
 
-import (
-	"std"
-)
+import "chain/runtime"
 
 func foo() {
-	println("foo", std.CurrentRealm().PkgPath())
+	println("foo", runtime.CurrentRealm().PkgPath())
 }
 
-func main() {
-	crossing()
-
-	println("main", std.CurrentRealm().PkgPath())
+func main(cur realm) {
+	println("main", runtime.CurrentRealm().PkgPath())
 	foo()
 }
 
 // Output:
-// main gno.land/r/std_test
-// foo gno.land/r/std_test
+// main gno.land/r/std
+// foo gno.land/r/std

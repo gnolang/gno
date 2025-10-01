@@ -4,12 +4,12 @@ import (
 	"net/url"
 	"strings"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/avl/pager"
-	"gno.land/p/demo/fqname"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/pager"
+	"gno.land/p/nt/fqname"
+	"gno.land/p/nt/ufmt"
 
 	"gno.land/r/sys/users"
 )
@@ -120,6 +120,10 @@ func RenderExhibWidget(itemsToRender int) string {
 		return ""
 	}
 
+	if exhibition.items.Size() == 0 {
+		return "No items in the Hall of Realms.\n\n"
+	}
+
 	out := ""
 	i := 0
 	exhibition.items.Iterate("", "", func(key string, value any) bool {
@@ -154,12 +158,12 @@ func renderAbout() string {
 	out := `
 Welcome, gnomes!
 
-The Hall of Realms is a simple & permissionless dashboard for gnomes to share 
+The Hall of Realms is a simple & permissionless dashboard for gnomes to share
 their work with the community.
 
 Here, anyone is welcome to submit their own code. This realm utilizes a common
-Gno pattern - the registry pattern - to allow anyone to programmatically submit 
-their work. 
+Gno pattern - the registry pattern - to allow anyone to programmatically submit
+their work.
 
 Simply import the Hall of Realms in your code, and call the "Register()" function
 inside your realm init, as shown below:
@@ -170,17 +174,14 @@ package myrealm
 import "gno.land/r/leon/hor"
 
 func init() {
-	cross(hor.Register)("My Gnome App", "This is my submission to the Hall of Realms.")
+	hor.Register(cross, "My Gnome App", "This is my submission to the Hall of Realms.")
 }
 ...
 """
 
-%s
+## [Visit The Hall ->](/r/leon/hor:hall)
 
 `
-
-	out = ufmt.Sprintf(out, "## [Visit The Hall ->](/r/leon/hor:hall)")
-
 	out = strings.ReplaceAll(out, "\"", "`")
 
 	return out

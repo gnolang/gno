@@ -7,9 +7,7 @@ func init() {
 	m = make(map[string]int)
 }
 
-func main() {
-	crossing()
-
+func main(cur realm,) {
 	m["foobar"] = 1
 	println(m)
 }

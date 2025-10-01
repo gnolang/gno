@@ -1,17 +1,16 @@
 package commondao
 
 import (
-	"std"
 	"testing"
 
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 )
 
 func TestVotingRecordDefaults(t *testing.T) {
 	var (
 		record VotingRecord
-		user   = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+		user   = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	)
 
 	uassert.Equal(t, record.Size(), 0)
@@ -99,7 +98,7 @@ func TestVotingRecordAddVote(t *testing.T) {
 			urequire.Equal(t, record.Size(), len(tc.votes), "expect record size to match")
 
 			var i int
-			record.Iterate(0, record.Size(), func(v Vote) bool {
+			record.Iterate(0, record.Size(), false, func(v Vote) bool {
 				uassert.Equal(t, v.Address, tc.votes[i].Address)
 				uassert.Equal(t, string(v.Choice), string(tc.votes[i].Choice))
 				uassert.True(t, record.HasVoted(v.Address))

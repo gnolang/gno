@@ -10,7 +10,7 @@ gnoland start
 gnokey maketx addpkg -pkgdir $WORK/short -pkgpath gno.land/r/test/realm_banker -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 
 ## add realm_banker with long package_name
-gnokey maketx addpkg -pkgdir $WORK/long -pkgpath gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890 -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/long -pkgpath gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890 -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 
 ## add invalid realm_denom
 gnokey maketx addpkg -pkgdir $WORK/invalid_realm_denom -pkgpath gno.land/r/test/invalid_realm_denom -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
@@ -51,9 +51,9 @@ gnokey query bank/balances/g1yr0dpfgthph7y6mepdx8afuec4q3ga2lg8tjt0
 stdout '"1330/gno.land/r/test/realm_banker:ugnot"'
 
 ## mint coin from long named package with banker
-gnokey maketx call -pkgpath gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890 -func Mint -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "ugnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890 -func Mint -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "ugnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 gnokey query bank/balances/g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7
-stdout '"100/gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890:ugnot"'
+stdout '"100/gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890:ugnot"'
 
 ## mint invalid base denom
 ! gnokey maketx call -pkgpath gno.land/r/test/realm_banker -func Mint -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "2gnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
@@ -71,66 +71,64 @@ stderr 'invalid denom, can only issue/remove coins with the realm.s prefix'
 ! gnokey maketx call -pkgpath gno.land/r/test/invalid_realm_denom -func Burn -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "ugnot" -args "100" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 stderr 'invalid denom, can only issue/remove coins with the realm.s prefix'
 
+-- short/gnomod.toml --
+module = "gno.land/r/test/realm_banker"
+gno = "0.9"
+
 -- short/realm_banker.gno --
 package realm_banker
 
 import (
-	"std"
+	"chain/banker"
+	"chain/runtime"
 )
 
-func Mint(addr std.Address, denom string, amount int64) {
-	crossing()
-
-	banker := std.NewBanker(std.BankerTypeRealmIssue)
-	banker.IssueCoin(addr, std.CurrentRealm().CoinDenom(denom), amount)
+func Mint(cur realm, addr address, denom string, amount int64) {
+	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue)
+	banker_.IssueCoin(addr, runtime.CurrentRealm().CoinDenom(denom), amount)
 }
 
-func Burn(addr std.Address, denom string, amount int64) {
-	crossing()
-
-  banker := std.NewBanker(std.BankerTypeRealmIssue)
-  banker.RemoveCoin(addr, std.CurrentRealm().CoinDenom(denom), amount)
+func Burn(cur realm, addr address, denom string, amount int64) {
+	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue)
+	banker_.RemoveCoin(addr, runtime.CurrentRealm().CoinDenom(denom), amount)
 }
+-- long/gnomod.toml --
+module = "gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890"
+gno = "0.9"
 
 -- long/realm_banker.gno --
 // package name is 130 characters long
-package package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890
+package package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890
 
 import (
-	"std"
+	"chain/banker"
+	"chain/runtime"
 )
 
-func Mint(addr std.Address, denom string, amount int64) {
-	crossing()
-
-	banker := std.NewBanker(std.BankerTypeRealmIssue)
-	banker.IssueCoin(addr, std.CurrentRealm().CoinDenom(denom), amount)
+func Mint(cur realm, addr address, denom string, amount int64) {
+	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue)
+	banker_.IssueCoin(addr, runtime.CurrentRealm().CoinDenom(denom), amount)
 }
 
-func Burn(addr std.Address, denom string, amount int64) {
-	crossing()
-
-  banker := std.NewBanker(std.BankerTypeRealmIssue)
-  banker.RemoveCoin(addr, std.CurrentRealm().CoinDenom(denom), amount)
+func Burn(cur realm, addr address, denom string, amount int64) {
+	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue)
+	banker_.RemoveCoin(addr, runtime.CurrentRealm().CoinDenom(denom), amount)
 }
+-- invalid_realm_denom/gnomod.toml --
+module = "gno.land/r/test/invalid_realm_denom"
+gno = "0.9"
 
 -- invalid_realm_denom/realm_banker.gno --
 package invalid_realm_denom
 
-import (
-	"std"
-)
+import "chain/banker"
 
-func Mint(addr std.Address, denom string, amount int64) {
-	crossing()
-
-	banker := std.NewBanker(std.BankerTypeRealmIssue)
-	banker.IssueCoin(addr, denom, amount)
+func Mint(cur realm, addr address, denom string, amount int64) {
+	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue)
+	banker_.IssueCoin(addr, denom, amount)
 }
 
-func Burn(addr std.Address, denom string, amount int64) {
-	crossing()
-
-  banker := std.NewBanker(std.BankerTypeRealmIssue)
-  banker.RemoveCoin(addr, denom, amount)
+func Burn(cur realm, addr address, denom string, amount int64) {
+	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue)
+	banker_.RemoveCoin(addr, denom, amount)
 }

@@ -1,11 +1,12 @@
 package validators
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/ufmt"
 	"gno.land/p/sys/validators"
 )
 
@@ -30,27 +31,27 @@ func addValidator(validator validators.Validator) {
 
 	// Validator added, note the change
 	ch := change{
-		blockNum:  std.ChainHeight(),
+		blockNum:  runtime.ChainHeight(),
 		validator: val,
 	}
 
 	saveChange(ch)
 
 	// Emit the validator set change
-	std.Emit(validators.ValidatorAddedEvent)
+	chain.Emit(validators.ValidatorAddedEvent)
 }
 
 // removeValidator removes the given validator from the set.
 // If the validator is not present in the set, the method errors out
-func removeValidator(address std.Address) {
-	val, err := vp.RemoveValidator(address)
+func removeValidator(address_XXX address) {
+	val, err := vp.RemoveValidator(address_XXX)
 	if err != nil {
 		panic(err)
 	}
 
 	// Validator removed, note the change
 	ch := change{
-		blockNum: std.ChainHeight(),
+		blockNum: runtime.ChainHeight(),
 		validator: validators.Validator{
 			Address:     val.Address,
 			PubKey:      val.PubKey,
@@ -61,7 +62,7 @@ func removeValidator(address std.Address) {
 	saveChange(ch)
 
 	// Emit the validator set change
-	std.Emit(validators.ValidatorRemovedEvent)
+	chain.Emit(validators.ValidatorRemovedEvent)
 }
 
 // saveChange saves the valset change

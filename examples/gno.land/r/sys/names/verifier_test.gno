@@ -1,14 +1,12 @@
 package names
 
 import (
-	"std"
 	"testing"
 
-	"gno.land/p/demo/ownable"
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
-
+	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 	"gno.land/r/sys/users"
 )
 
@@ -27,26 +25,26 @@ func TestDefaultVerifier(t *testing.T) {
 	uassert.True(t, verifier(true, alice, alice.String()))
 
 	// Empty name/address
-	uassert.False(t, verifier(true, std.Address(""), ""))
+	uassert.False(t, verifier(true, address(""), ""))
 
 	// Register proper username
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/users/v1")) // authorized write
-	urequire.NoError(t, cross(users.RegisterUser)("alice", alice))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/users/v1")) // authorized write
+	urequire.NoError(t, users.RegisterUser(cross, "alice", alice))
 
 	// Proper namespace
 	uassert.True(t, verifier(true, alice, "alice"))
 }
 
 func TestEnable(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
+	testing.SetRealm(testing.NewUserRealm("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
 
 	uassert.NotPanics(t, func() {
-		cross(Enable)()
+		Enable(cross)
 	})
 
 	// Confirm enable drops ownerships
 	uassert.Equal(t, Ownable.Owner().String(), "")
 	uassert.AbortsWithMessage(t, ownable.ErrUnauthorized.Error(), func() {
-		cross(Enable)()
+		Enable(cross)
 	})
 }

@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/gnolang/gno/tm2/pkg/db"
 	_ "github.com/gnolang/gno/tm2/pkg/db/_all"
 	"github.com/gnolang/gno/tm2/pkg/db/internal"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func testBackendGetSetDelete(t *testing.T, backend db.BackendType) {
@@ -18,29 +19,34 @@ func testBackendGetSetDelete(t *testing.T, backend db.BackendType) {
 	db, err := db.NewDB("testdb", backend, t.TempDir())
 	require.NoError(t, err)
 
+	must := func(bz []byte, err error) []byte {
+		require.NoError(t, err)
+		return bz
+	}
+
 	// A nonexistent key should return nil, even if the key is empty
-	require.Nil(t, db.Get([]byte("")))
+	require.Nil(t, must(db.Get([]byte(""))))
 
 	// A nonexistent key should return nil, even if the key is nil
-	require.Nil(t, db.Get(nil))
+	require.Nil(t, must(db.Get(nil)))
 
 	// A nonexistent key should return nil.
 	key := []byte("abc")
-	require.Nil(t, db.Get(key))
+	require.Nil(t, must(db.Get(key)))
 
 	// Set empty value.
 	db.SetSync(key, []byte(""))
-	require.NotNil(t, db.Get(key))
-	require.Empty(t, db.Get(key))
+	require.NotNil(t, must(db.Get(key)))
+	require.Empty(t, must(db.Get(key)))
 
 	// Set nil value.
 	db.SetSync(key, nil)
-	require.NotNil(t, db.Get(key))
-	require.Empty(t, db.Get(key))
+	require.NotNil(t, must(db.Get(key)))
+	require.Empty(t, must(db.Get(key)))
 
 	// Delete.
 	db.DeleteSync(key)
-	require.Nil(t, db.Get(key))
+	require.Nil(t, must(db.Get(key)))
 }
 
 func TestBackendsGetSetDelete(t *testing.T) {
@@ -62,7 +68,8 @@ func withDB(t *testing.T, dbType db.BackendType, fn func(db.DB)) {
 	db, err := db.NewDB(name, dbType, t.TempDir())
 	require.Nil(t, err)
 	fn(db)
-	db.Close()
+
+	require.NoError(t, db.Close())
 }
 
 func TestBackendsNilKeys(t *testing.T) {
@@ -75,11 +82,23 @@ func TestBackendsNilKeys(t *testing.T) {
 				// Nil keys are treated as the empty key for most operations.
 				expect := func(key, value []byte) {
 					if len(key) == 0 { // nil or empty
-						assert.Equal(t, db.Get(nil), db.Get([]byte("")))
-						assert.Equal(t, db.Has(nil), db.Has([]byte("")))
+						exp, err := db.Get(nil)
+						require.NoError(t, err)
+						got, err := db.Get([]byte(""))
+						require.NoError(t, err)
+						assert.Equal(t, exp, got)
+						exp2, err := db.Has(nil)
+						require.NoError(t, err)
+						got2, err := db.Has([]byte(""))
+						require.NoError(t, err)
+						assert.Equal(t, exp2, got2)
 					}
-					assert.Equal(t, db.Get(key), value)
-					assert.Equal(t, db.Has(key), value != nil)
+					v, err := db.Get(key)
+					require.NoError(t, err)
+					assert.Equal(t, v, value)
+					h, err := db.Has(key)
+					require.NoError(t, err)
+					assert.Equal(t, h, value != nil)
 				}
 
 				// Not set
@@ -160,6 +179,11 @@ func TestDBIterator(t *testing.T) {
 func testDBIterator(t *testing.T, backend db.BackendType) {
 	t.Helper()
 
+	mustIterator := func(it db.Iterator, err error) db.Iterator {
+		require.NoError(t, err)
+		return it
+	}
+
 	name := fmt.Sprintf("test_%x", internal.RandStr(12))
 	db, err := db.NewDB(name, backend, t.TempDir())
 	require.NoError(t, err)
@@ -170,46 +194,46 @@ func testDBIterator(t *testing.T, backend db.BackendType) {
 		}
 	}
 
-	verifyIterator(t, db.Iterator(nil, nil), []int64{0, 1, 2, 3, 4, 5, 7, 8, 9}, "forward iterator")
-	verifyIterator(t, db.ReverseIterator(nil, nil), []int64{9, 8, 7, 5, 4, 3, 2, 1, 0}, "reverse iterator")
+	verifyIterator(t, mustIterator(db.Iterator(nil, nil)), []int64{0, 1, 2, 3, 4, 5, 7, 8, 9}, "forward iterator")
+	verifyIterator(t, mustIterator(db.ReverseIterator(nil, nil)), []int64{9, 8, 7, 5, 4, 3, 2, 1, 0}, "reverse iterator")
 
-	verifyIterator(t, db.Iterator(nil, int642Bytes(0)), []int64(nil), "forward iterator to 0")
-	verifyIterator(t, db.ReverseIterator(int642Bytes(10), nil), []int64(nil), "reverse iterator from 10 (ex)")
+	verifyIterator(t, mustIterator(db.Iterator(nil, int642Bytes(0))), []int64(nil), "forward iterator to 0")
+	verifyIterator(t, mustIterator(db.ReverseIterator(int642Bytes(10), nil)), []int64(nil), "reverse iterator from 10 (ex)")
 
-	verifyIterator(t, db.Iterator(int642Bytes(0), nil), []int64{0, 1, 2, 3, 4, 5, 7, 8, 9}, "forward iterator from 0")
-	verifyIterator(t, db.Iterator(int642Bytes(1), nil), []int64{1, 2, 3, 4, 5, 7, 8, 9}, "forward iterator from 1")
-	verifyIterator(t, db.ReverseIterator(nil, int642Bytes(10)),
+	verifyIterator(t, mustIterator(db.Iterator(int642Bytes(0), nil)), []int64{0, 1, 2, 3, 4, 5, 7, 8, 9}, "forward iterator from 0")
+	verifyIterator(t, mustIterator(db.Iterator(int642Bytes(1), nil)), []int64{1, 2, 3, 4, 5, 7, 8, 9}, "forward iterator from 1")
+	verifyIterator(t, mustIterator(db.ReverseIterator(nil, int642Bytes(10))),
 		[]int64{9, 8, 7, 5, 4, 3, 2, 1, 0}, "reverse iterator from 10 (ex)")
-	verifyIterator(t, db.ReverseIterator(nil, int642Bytes(9)),
+	verifyIterator(t, mustIterator(db.ReverseIterator(nil, int642Bytes(9))),
 		[]int64{8, 7, 5, 4, 3, 2, 1, 0}, "reverse iterator from 9 (ex)")
-	verifyIterator(t, db.ReverseIterator(nil, int642Bytes(8)),
+	verifyIterator(t, mustIterator(db.ReverseIterator(nil, int642Bytes(8))),
 		[]int64{7, 5, 4, 3, 2, 1, 0}, "reverse iterator from 8 (ex)")
 
-	verifyIterator(t, db.Iterator(int642Bytes(5), int642Bytes(6)), []int64{5}, "forward iterator from 5 to 6")
-	verifyIterator(t, db.Iterator(int642Bytes(5), int642Bytes(7)), []int64{5}, "forward iterator from 5 to 7")
-	verifyIterator(t, db.Iterator(int642Bytes(5), int642Bytes(8)), []int64{5, 7}, "forward iterator from 5 to 8")
-	verifyIterator(t, db.Iterator(int642Bytes(6), int642Bytes(7)), []int64(nil), "forward iterator from 6 to 7")
-	verifyIterator(t, db.Iterator(int642Bytes(6), int642Bytes(8)), []int64{7}, "forward iterator from 6 to 8")
-	verifyIterator(t, db.Iterator(int642Bytes(7), int642Bytes(8)), []int64{7}, "forward iterator from 7 to 8")
+	verifyIterator(t, mustIterator(db.Iterator(int642Bytes(5), int642Bytes(6))), []int64{5}, "forward iterator from 5 to 6")
+	verifyIterator(t, mustIterator(db.Iterator(int642Bytes(5), int642Bytes(7))), []int64{5}, "forward iterator from 5 to 7")
+	verifyIterator(t, mustIterator(db.Iterator(int642Bytes(5), int642Bytes(8))), []int64{5, 7}, "forward iterator from 5 to 8")
+	verifyIterator(t, mustIterator(db.Iterator(int642Bytes(6), int642Bytes(7))), []int64(nil), "forward iterator from 6 to 7")
+	verifyIterator(t, mustIterator(db.Iterator(int642Bytes(6), int642Bytes(8))), []int64{7}, "forward iterator from 6 to 8")
+	verifyIterator(t, mustIterator(db.Iterator(int642Bytes(7), int642Bytes(8))), []int64{7}, "forward iterator from 7 to 8")
 
-	verifyIterator(t, db.ReverseIterator(int642Bytes(4), int642Bytes(5)), []int64{4}, "reverse iterator from 5 (ex) to 4")
-	verifyIterator(t, db.ReverseIterator(int642Bytes(4), int642Bytes(6)),
+	verifyIterator(t, mustIterator(db.ReverseIterator(int642Bytes(4), int642Bytes(5))), []int64{4}, "reverse iterator from 5 (ex) to 4")
+	verifyIterator(t, mustIterator(db.ReverseIterator(int642Bytes(4), int642Bytes(6))),
 		[]int64{5, 4}, "reverse iterator from 6 (ex) to 4")
-	verifyIterator(t, db.ReverseIterator(int642Bytes(4), int642Bytes(7)),
+	verifyIterator(t, mustIterator(db.ReverseIterator(int642Bytes(4), int642Bytes(7))),
 		[]int64{5, 4}, "reverse iterator from 7 (ex) to 4")
-	verifyIterator(t, db.ReverseIterator(int642Bytes(5), int642Bytes(6)), []int64{5}, "reverse iterator from 6 (ex) to 5")
-	verifyIterator(t, db.ReverseIterator(int642Bytes(5), int642Bytes(7)), []int64{5}, "reverse iterator from 7 (ex) to 5")
-	verifyIterator(t, db.ReverseIterator(int642Bytes(6), int642Bytes(7)),
+	verifyIterator(t, mustIterator(db.ReverseIterator(int642Bytes(5), int642Bytes(6))), []int64{5}, "reverse iterator from 6 (ex) to 5")
+	verifyIterator(t, mustIterator(db.ReverseIterator(int642Bytes(5), int642Bytes(7))), []int64{5}, "reverse iterator from 7 (ex) to 5")
+	verifyIterator(t, mustIterator(db.ReverseIterator(int642Bytes(6), int642Bytes(7))),
 		[]int64(nil), "reverse iterator from 7 (ex) to 6")
 
-	verifyIterator(t, db.Iterator(int642Bytes(0), int642Bytes(1)), []int64{0}, "forward iterator from 0 to 1")
-	verifyIterator(t, db.ReverseIterator(int642Bytes(8), int642Bytes(9)), []int64{8}, "reverse iterator from 9 (ex) to 8")
+	verifyIterator(t, mustIterator(db.Iterator(int642Bytes(0), int642Bytes(1))), []int64{0}, "forward iterator from 0 to 1")
+	verifyIterator(t, mustIterator(db.ReverseIterator(int642Bytes(8), int642Bytes(9))), []int64{8}, "reverse iterator from 9 (ex) to 8")
 
-	verifyIterator(t, db.Iterator(int642Bytes(2), int642Bytes(4)), []int64{2, 3}, "forward iterator from 2 to 4")
-	verifyIterator(t, db.Iterator(int642Bytes(4), int642Bytes(2)), []int64(nil), "forward iterator from 4 to 2")
-	verifyIterator(t, db.ReverseIterator(int642Bytes(2), int642Bytes(4)),
+	verifyIterator(t, mustIterator(db.Iterator(int642Bytes(2), int642Bytes(4))), []int64{2, 3}, "forward iterator from 2 to 4")
+	verifyIterator(t, mustIterator(db.Iterator(int642Bytes(4), int642Bytes(2))), []int64(nil), "forward iterator from 4 to 2")
+	verifyIterator(t, mustIterator(db.ReverseIterator(int642Bytes(2), int642Bytes(4))),
 		[]int64{3, 2}, "reverse iterator from 4 (ex) to 2")
-	verifyIterator(t, db.ReverseIterator(int642Bytes(4), int642Bytes(2)),
+	verifyIterator(t, mustIterator(db.ReverseIterator(int642Bytes(4), int642Bytes(2))),
 		[]int64(nil), "reverse iterator from 2 (ex) to 4")
 }
 
@@ -234,7 +258,8 @@ func TestDBIteratorSingleKey(t *testing.T) {
 			db := newTempDB(t, backend)
 
 			db.SetSync(bz("1"), bz("value_1"))
-			itr := db.Iterator(nil, nil)
+			itr, err := db.Iterator(nil, nil)
+			require.NoError(t, err)
 
 			checkValid(t, itr, true)
 			checkNext(t, itr, false)
@@ -260,7 +285,8 @@ func TestDBIteratorTwoKeys(t *testing.T) {
 			db.SetSync(bz("2"), bz("value_1"))
 
 			{ // Fail by calling Next too much
-				itr := db.Iterator(nil, nil)
+				itr, err := db.Iterator(nil, nil)
+				require.NoError(t, err)
 				checkValid(t, itr, true)
 
 				checkNext(t, itr, true)
@@ -297,10 +323,13 @@ func TestDBIteratorMany(t *testing.T) {
 				db.Set(k, value)
 			}
 
-			itr := db.Iterator(nil, nil)
+			itr, err := db.Iterator(nil, nil)
+			require.NoError(t, err)
 			defer itr.Close()
 			for ; itr.Valid(); itr.Next() {
-				assert.Equal(t, db.Get(itr.Key()), itr.Value())
+				v, err := db.Get(itr.Key())
+				require.NoError(t, err)
+				assert.Equal(t, v, itr.Value())
 			}
 		})
 	}
@@ -315,7 +344,8 @@ func TestDBIteratorEmpty(t *testing.T) {
 
 			db := newTempDB(t, backend)
 
-			itr := db.Iterator(nil, nil)
+			itr, err := db.Iterator(nil, nil)
+			require.NoError(t, err)
 
 			checkInvalid(t, itr)
 		})
@@ -331,7 +361,8 @@ func TestDBIteratorEmptyBeginAfter(t *testing.T) {
 
 			db := newTempDB(t, backend)
 
-			itr := db.Iterator(bz("1"), nil)
+			itr, err := db.Iterator(bz("1"), nil)
+			require.NoError(t, err)
 
 			checkInvalid(t, itr)
 		})
@@ -348,7 +379,8 @@ func TestDBIteratorNonemptyBeginAfter(t *testing.T) {
 			db := newTempDB(t, backend)
 
 			db.SetSync(bz("1"), bz("value_1"))
-			itr := db.Iterator(bz("2"), nil)
+			itr, err := db.Iterator(bz("2"), nil)
+			require.NoError(t, err)
 
 			checkInvalid(t, itr)
 		})

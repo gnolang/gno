@@ -1,12 +1,10 @@
 package memberstore
 
 import (
-	"std"
 	"strconv"
 	"testing"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/urequire"
 )
 
 func TestPower(t *testing.T) {
@@ -101,24 +99,24 @@ func TestCreateMembers(t *testing.T) {
 	addMembers(ms, 1000, "T3")
 	println("added T3")
 
-	m, tier := ms.GetMember(std.Address("11T3"))
+	m, tier := ms.GetMember(address("11T3"))
 	urequire.Equal(t, "T3", tier)
 
-	m, tier = ms.GetMember(std.Address("2000T1"))
+	m, tier = ms.GetMember(address("2000T1"))
 	urequire.Equal(t, "", tier)
 	if m != nil {
 		t.Fatal("member must be nil if not found")
 	}
 
-	tier = ms.RemoveMember(std.Address("1T1"))
+	tier = ms.RemoveMember(address("1T1"))
 	urequire.Equal(t, "T1", tier)
 }
 
 func addMembers(ms MembersByTier, c int, tier string) {
-	mt := avl.NewTree()
+	// mt := avl.NewTree() XXX
 	ms.SetTier(tier)
 	for i := 0; i < c; i++ {
-		addr := std.Address(strconv.Itoa(i) + tier)
+		addr := address(strconv.Itoa(i) + tier)
 		if err := ms.SetMember(tier, addr, &Member{}); err != nil {
 			panic(err.Error())
 		}

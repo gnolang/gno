@@ -3,9 +3,8 @@ package commondao
 import (
 	"errors"
 	"math"
-	"std"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 // ErrVoteExists indicates that a user already voted.
@@ -15,15 +14,18 @@ type (
 	// VoteIterFn defines a callback to iterate votes.
 	VoteIterFn func(Vote) (stop bool)
 
+	// VotesCountIterFn defines a callback to iterate voted choices.
+	VotesCountIterFn func(_ VoteChoice, voteCount int) (stop bool)
+
 	// Vote defines a single vote.
 	Vote struct {
 		// Address is the address of the user that this vote belons to.
-		Address std.Address
+		Address address
 
 		// Choice contains the voted choice.
 		Choice VoteChoice
 
-		// Reason contains the reason for the vote.
+		// Reason contains an optional reason for the vote.
 		Reason string
 
 		// Context can store any custom voting values related to the vote.
@@ -46,20 +48,19 @@ func (r ReadonlyVotingRecord) Size() int {
 	return r.votes.Size()
 }
 
-// Choices returns the voting choices that has been voted.
-func (r ReadonlyVotingRecord) Choices() []VoteChoice {
-	choices := make([]VoteChoice, 0, r.count.Size())
-	r.count.Iterate("", "", func(k string, v any) bool {
-		choices = append(choices, VoteChoice(k))
-		return false
-	})
-	return choices
+// Iterate iterates voting record votes.
+func (r ReadonlyVotingRecord) Iterate(offset, count int, reverse bool, fn VoteIterFn) bool {
+	cb := func(_ string, v any) bool { return fn(v.(Vote)) }
+	if reverse {
+		return r.votes.ReverseIterateByOffset(offset, count, cb)
+	}
+	return r.votes.IterateByOffset(offset, count, cb)
 }
 
-// Iterate iterates voting record votes.
-func (r ReadonlyVotingRecord) Iterate(offset, count int, fn VoteIterFn) bool {
-	return r.votes.IterateByOffset(offset, count, func(_ string, v any) bool {
-		return fn(v.(Vote))
+// IterateVotesCount iterates voted choices with the amount of votes submited for each.
+func (r ReadonlyVotingRecord) IterateVotesCount(fn VotesCountIterFn) bool {
+	return r.count.Iterate("", "", func(k string, v any) bool {
+		return fn(VoteChoice(k), v.(int))
 	})
 }
 
@@ -72,8 +73,16 @@ func (r ReadonlyVotingRecord) VoteCount(c VoteChoice) int {
 }
 
 // HasVoted checks if an account already voted.
-func (r ReadonlyVotingRecord) HasVoted(user std.Address) bool {
+func (r ReadonlyVotingRecord) HasVoted(user address) bool {
 	return r.votes.Has(user.String())
+}
+
+// GetVote returns a vote.
+func (r ReadonlyVotingRecord) GetVote(user address) (_ Vote, found bool) {
+	if v, found := r.votes.Get(user.String()); found {
+		return v.(Vote), true
+	}
+	return Vote{}, false
 }
 
 // VotingRecord stores accounts that voted and vote choices.
@@ -112,14 +121,14 @@ func FindMostVotedChoice(r ReadonlyVotingRecord) VoteChoice {
 		currentCount, prevCount int
 	)
 
-	for _, c := range r.Choices() {
-		count := r.VoteCount(c)
+	r.IterateVotesCount(func(c VoteChoice, count int) bool {
 		if currentCount <= count {
 			choice = c
 			prevCount = currentCount
 			currentCount = count
 		}
-	}
+		return false
+	})
 
 	if prevCount < currentCount {
 		return choice
@@ -162,12 +171,12 @@ func SelectChoiceByPlurality(r ReadonlyVotingRecord) (VoteChoice, bool) {
 		isMajority   bool
 	)
 
-	for _, c := range r.Choices() {
+	r.IterateVotesCount(func(c VoteChoice, count int) bool {
+		// Don't consider explicit abstentions or invalid votes
 		if c == ChoiceAbstain || c == ChoiceNone {
-			continue
+			return false
 		}
 
-		count := r.VoteCount(c)
 		if currentCount < count {
 			choice = c
 			currentCount = count
@@ -175,7 +184,8 @@ func SelectChoiceByPlurality(r ReadonlyVotingRecord) (VoteChoice, bool) {
 		} else if currentCount == count {
 			isMajority = false
 		}
-	}
+		return false
+	})
 
 	if isMajority {
 		return choice, true

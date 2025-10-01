@@ -1,7 +1,7 @@
 package commondao
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/p/nt/commondao"
 )
@@ -12,6 +12,9 @@ func init() {
 	dao := commondao.New(
 		commondao.WithID(uint64(id)),
 		commondao.WithName("Common DAO"),
+		commondao.WithDescription(
+			"This DAO is responsible for managing `commondao` realm functionalities.",
+		),
 	)
 
 	// Add initial members
@@ -22,6 +25,15 @@ func init() {
 	daos.Set(id.String(), dao)
 
 	// Make commondao realm the owner of Common DAO
-	realm := std.CurrentRealm()
-	ownership.Set(realm.Address().String(), []uint64{CommonDAOID})
+	commonRealm := runtime.CurrentRealm()
+	ownership.Set(commonRealm.Address().String(), []uint64{CommonDAOID})
+
+	// Save DAO configuration
+	options.Set(id.String(), &Options{
+		AllowListing:       true,
+		AllowRender:        true,
+		AllowVoting:        true,
+		AllowExecution:     true,
+		AllowMembersUpdate: true,
+	})
 }

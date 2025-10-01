@@ -1,10 +1,10 @@
 package users
 
 import (
+	"chain/runtime"
 	"errors"
-	"std"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 const prefix = "r/sys/users: "
@@ -26,14 +26,14 @@ var (
 )
 
 type ErrNotWhitelisted struct {
-	Current  std.Realm // not whitelisted
-	Previous std.Realm // for context
+	Current  runtime.Realm // not whitelisted
+	Previous runtime.Realm // for context
 }
 
 func NewErrNotWhitelisted() ErrNotWhitelisted {
 	return ErrNotWhitelisted{
-		Current:  std.CurrentRealm(),
-		Previous: std.PreviousRealm(),
+		Current:  runtime.CurrentRealm(),
+		Previous: runtime.PreviousRealm(),
 	}
 }
 

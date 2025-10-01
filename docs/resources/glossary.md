@@ -1,6 +1,6 @@
 # Glossary of Gno Terms
 
-A reference guide to common terminology used throughout the gno.land
+A reference guide to common terminology used throughout the Gno.land
 ecosystem. Terms are listed in alphabetical order.
 
 ## A
@@ -10,27 +10,27 @@ Application Blockchain Interface - the interface that connects the Tendermint
 consensus engine with the Gno application logic.
 
 ### ABCI Queries
-A set of queries that can be executed to retrieve data from the gno.land
+A set of queries that can be executed to retrieve data from the Gno.land
 blockchain without changing state.
-See [Querying a network](../users/interact-with-gnokey.md#querying-the-blockchain).
+See [Querying a network](../users/interact-with-gnokey.md#querying-a-gnoland-network).
 
 ### Account Number
 A unique number given to each address on a given network, used for transaction
 processing and authentication.
 
 ### Address
-A unique identifier derived from a public key, prefixed with 'g1' on gno.land
+A unique identifier derived from a public key, prefixed with 'g1' on Gno.land
 networks, representing an account that can own assets and interact with the
 blockchain.
 
 ### Adena
-A browser extension wallet designed specifically for interacting with gno.land
+A browser extension wallet designed specifically for interacting with Gno.land
 networks.
 See [Third-party wallets](../users/third-party-wallets.md).
 
 ### AVL Tree
 Data structure in Gno which is commonly used instead of the native `map`. Found
-at `gno.land/p/demo/avl`.
+at `gno.land/p/nt/avl`.
 
 ## B
 
@@ -50,37 +50,59 @@ a timestamp, and a hash of the previous block, forming a continuous chain of
 immutable records.
 
 ### Boards
-A popular on-chain forum application on gno.land that demonstrates social
+A popular on-chain forum application on Gno.land that demonstrates social
 functionality. See [Example Boards](../users/example-boards.md).
 
 ## C
 
 ### Chain ID
 A unique identifier for a blockchain network (e.g., "staging" for the main
-gno.land testnet).
+Gno.land testnet).
 
 ### Coins vs Tokens
-In gno.land, coins are native assets created by the Banker, such as `ugnot`. On
+In Gno.land, coins are native assets created by the Banker, such as `ugnot`. On
 the other hand, tokens are created with packages such as GRC20, GRC721, etc.
 
 ### Contract
 See [Realm](#realm).
 
+### Crossing
+Refers to the way context is switched during interrealm interactions. Check out
+the [Interrealm Specification](./gno-interrealm.md).
+
 ## D
 
 ### dApp
 Decentralized Application - an application built on blockchain technology,
-typically consisting of smart contracts (realms in gno.land) and a frontend
+typically consisting of smart contracts (realms in Gno.land) and a frontend
 interface.
 
 ### Deploy
-The process of uploading code to the blockchain. On gno.land, this is done using
+The process of uploading code to the blockchain. On Gno.land, this is done using
 the `gnokey maketx addpkg` command or through compatible wallets.
+
+## E
+
+### Ephemeral Package
+A temporary, user-executed code package created when using `gnokey maketx run`. 
+Ephemeral packages are stored under the `/e/` path with the pattern 
+`domain/e/{user-address}/run`. They execute in the user's realm context and 
+allow complex interactions that aren't possible with simple function calls. 
+Unlike realms and pure packages, ephemeral packages are not permanently stored 
+on-chain.
+
+### EOA
+See [Externally Owned Account](#externally-owned-account-eoa).
+
+### Externally Owned Account (EOA)
+A user account controlled by a private key, as opposed to a smart contract 
+account. EOAs can initiate transactions and are the only accounts that can 
+sign transactions on Gno.land.
 
 ## F
 
 ### Faucet Hub
-A web service that provides test tokens for gno.land testnets, allowing
+A web service that provides test tokens for Gno.land testnets, allowing
 developers to try out realms and test transactions.
 Visit the [Gno Faucet Hub](https://faucet.gno.land/).
 
@@ -101,7 +123,7 @@ The maximum amount of gas a transaction is allowed to consume. If a transaction
 exceeds this limit, it fails without changing state.
 
 ### Gno
-1. The programming language used for writing smart contracts on gno.land.
+1. The programming language used for writing smart contracts on Gno.land.
 2. The broader platform and ecosystem built around the language.
 
 ### Gno Debugger
@@ -122,7 +144,7 @@ Try out [Gno Playground](https://play.gno.land/).
 
 ### Gno Studio Connect
 A tool that provides seamless access to realms, making it simple to explore,
-interact, and engage with gno.land's smart contracts through function calls.
+interact, and engage with Gno.land's smart contracts through function calls.
 Try out [Gno Studio Connect](https://gno.studio/connect).
 
 ### Gno Test
@@ -130,21 +152,21 @@ Gno.land's built-in testing framework that enables developers to write and
 execute unit tests for their Gno smart contracts (realms). It provides a
 structured way to verify contract logic and simulate on-chain execution.
 
-### gno.land
+### Gno.land
 The blockchain platform and ecosystem built on the Gno language and GnoVM.
 
 ### GnoConnect
 A protocol that allows external wallets and applications to interact with
-gno.land networks, similar to WalletConnect in Ethereum.
+Gno.land networks, similar to WalletConnect in Ethereum.
 
 ### gnodev
-A development tool which provides a local gno.land node with hot-reloading,
+A development tool which provides a local Gno.land node with hot-reloading,
 state preservation, and a `gnoweb` interface for testing.
 See [Local Development with gnodev](../builders/local-dev-with-gnodev.md).
 
 ### gnokey
-The official command-line keychain and client for gno.land, allowing keypair
-management, transaction signing and sending queries to gno.land chains.
+The official command-line keychain and client for Gno.land, allowing keypair
+management, transaction signing and sending queries to Gno.land chains.
 See [Interacting with gnokey](../users/interact-with-gnokey.md).
 
 ### GnoVM
@@ -155,24 +177,24 @@ directly rather than using bytecode.
 
 ### gnoweb
 The web interface component of the Gno ecosystem that allows users to browse Gno
-source code, realms, and packages deployed to a gno.land chain using ABCI
+source code, realms, and packages deployed to a Gno.land chain using ABCI
 queries.
 See [Exploring with gnoweb](../users/explore-with-gnoweb.md).
 
 ### GNOT
-The native token of gno.land networks, used for paying transaction fees and
+The native token of Gno.land networks, used for paying transaction fees and
 other on-chain operations.
 
 ### GRC20
-A token standard in gno.land that defines rules for creating and managing
+A token standard in Gno.land that defines rules for creating and managing
 fungible tokens. It ensures compatibility for transfers, approvals, and
-interactions within gno.land realms.
+interactions within Gno.land realms.
 
 ## K
 
 ### Key Pair
 A combination of a private key (for signing transactions) and a public key (from
-which the address is derived) that represents an account on gno.land.
+which the address is derived) that represents an account on Gno.land.
 
 ## M
 
@@ -199,22 +221,23 @@ libraries in other languages. Pure packages don't maintain state.
 See [Gno Packages](../resources/gno-packages.md).
 
 ### Package Path
-A unique identifier of code on the gno.land blockchain, following the format:
-`gno.land/[r|p]/[namespace]/[name]`. The package path determines where the code
-is stored and how it can be imported or accessed.
+A unique identifier of code on the Gno.land blockchain, following the format:
+`gno.land/[r|p|e]/[namespace]/[name]`. The package path determines where the code
+is stored and how it can be imported or accessed. The first component indicates
+the package type: `r` for realms, `p` for pure packages, and `e` for ephemeral packages.
 
 ### Portal Loop
 Former testing network that was replaced by the Staging network.
 
 ### Pure Package
-A stateless, importable, and reusable code (library) on the gno.land
+A stateless, importable, and reusable code (library) on the Gno.land
 blockchain. Pure packages are stored under the `/p/` path and don't maintain
 state.
 
 ## R
 
 ### Realm
-A stateful application or smart contract on the gno.land blockchain. Realms are
+A stateful application or smart contract on the Gno.land blockchain. Realms are
 stored under the `/r/` path and can maintain state across transactions.
 
 ### Render Function
@@ -233,7 +256,7 @@ nonce. Used to protect against replay attacks.
 See [Realm](#realm).
 
 ### Staging network
-The main gno.land chain for testing, accessible at [gno.land](https://gno.land).
+The main Gno.land chain for testing, accessible at [gno.land](https://gno.land).
 
 ### Standard Library
 Built-in packages that provide core functionality to Gno programs without
@@ -247,19 +270,19 @@ that can only be modified by functions within that realm.
 ## T
 
 ### Tendermint
-The consensus engine used by gno.land to secure the network and validate
+The consensus engine used by Gno.land to secure the network and validate
 transactions.
 
 ### Tendermint 2
 Minimalistic version of Tendermint created by Jae Kwon, used as the consensus
-layer for gno.land.
+layer for Gno.land.
 
 ### Testnet
 A blockchain network used for testing purposes, where tokens have no real-world
-value. gno.land currently operates several testnets.
+value. Gno.land currently operates several testnets.
 
 ### Transaction
-A state-changing action on the gno.land blockchain, such as transferring tokens
+A state-changing action on the Gno.land blockchain, such as transferring tokens
 or calling a realm function.
 
 ## U

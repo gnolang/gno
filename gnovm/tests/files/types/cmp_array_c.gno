@@ -12,7 +12,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/cmp_array_c.gno:10:25: [2][]int is not comparable
+// main/cmp_array_c.gno:10:25-31: [2][]int is not comparable
 
 // TypeCheckError:
-// main/files/types/cmp_array_c.gno:10:25: invalid operation: a == b ([2][2][]int cannot be compared); main/files/types/cmp_array_c.gno:11:25: invalid operation: a == c ([2][2][]int cannot be compared)
+// main/cmp_array_c.gno:10:25: invalid operation: a == b ([2][2][]int cannot be compared); main/cmp_array_c.gno:11:25: invalid operation: a == c ([2][2][]int cannot be compared)

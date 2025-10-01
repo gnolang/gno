@@ -1,14 +1,13 @@
 package blog
 
 import (
-	"std"
 	"strconv"
 	"strings"
 	"time"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/mux"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/mux"
+	"gno.land/p/nt/ufmt"
 )
 
 type Blog struct {
@@ -36,7 +35,7 @@ func (b Blog) RenderLastPostsWidget(limit int) string {
 	return output
 }
 
-func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
+func (b Blog) RenderHome(res *mux.ResponseWriter, _ *mux.Request) {
 	if !b.NoBreadcrumb {
 		res.Write(breadcrumb([]string{b.Title}))
 	}
@@ -46,33 +45,27 @@ func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	columnCount := 0
-	maxCol := 3
-	if maxCol > b.Posts.Size() {
-		maxCol = b.Posts.Size()
-	}
+	const maxCol = 3
+	var rowItems []string
 
-	rowBuffer := ""
 	b.PostsPublished.ReverseIterate("", "", func(key string, value any) bool {
 		post := value.(*Post)
-		content := post.RenderListItem()
+		rowItems = append(rowItems, post.RenderListItem())
 
-		if columnCount > 0 {
-			rowBuffer += "|||"
+		if len(rowItems) == maxCol {
+			res.Write("<gno-columns>" + strings.Join(rowItems, "|||") + "</gno-columns>\n")
+			rowItems = []string{}
 		}
-		rowBuffer += content
-		columnCount++
-
-		if columnCount == maxCol {
-			res.Write("<gno-columns>" + rowBuffer + "</gno-columns>\n")
-			columnCount = 0
-			rowBuffer = ""
-		}
-
 		return false
 	})
 
-	// FIXME: tag list/cloud.
+	// Pad and flush any remaining items
+	if len(rowItems) > 0 {
+		for len(rowItems) < maxCol {
+			rowItems = append(rowItems, "")
+		}
+		res.Write("<gno-columns>" + strings.Join(rowItems, "\n|||\n") + "</gno-columns>\n")
+	}
 }
 
 func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
@@ -149,7 +142,7 @@ func (b Blog) Render(path string) string {
 	return router.Render(path)
 }
 
-func (b *Blog) NewPost(publisher std.Address, slug, title, body, pubDate string, authors, tags []string) error {
+func (b *Blog) NewPost(publisher address, slug, title, body, pubDate string, authors, tags []string) error {
 	if _, found := b.Posts.Get(slug); found {
 		return ErrPostSlugExists
 	}
@@ -251,7 +244,7 @@ type Post struct {
 	UpdatedAt    time.Time
 	Comments     avl.Tree
 	Authors      []string
-	Publisher    std.Address
+	Publisher    address
 	Tags         []string
 	CommentIndex int
 }
@@ -271,7 +264,7 @@ func (p *Post) Update(title, body, publicationDate string, authors, tags []strin
 	return p.Blog.prepareAndSetPost(p, true)
 }
 
-func (p *Post) AddComment(author std.Address, comment string) error {
+func (p *Post) AddComment(author address, comment string) error {
 	if p == nil {
 		return ErrNoSuchPost
 	}
@@ -395,7 +388,7 @@ func (p *Post) Summary() string {
 type Comment struct {
 	Post      *Post
 	CreatedAt time.Time
-	Author    std.Address
+	Author    address
 	Comment   string
 }
 

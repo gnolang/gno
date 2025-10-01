@@ -1,16 +1,16 @@
 package minisocial
 
 import (
+	"chain/runtime"
 	"errors"
-	"std"
 	"strconv"
 	"time"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/avl/pager"
-	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/pager"
+	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/ufmt"
 
 	"gno.land/r/sys/users"
 )
@@ -28,8 +28,7 @@ var (
 )
 
 // CreatePost creates a new post
-func CreatePost(text string) error {
-	crossing()
+func CreatePost(_ realm, text string) error {
 	if text == "" {
 		return ErrEmptyPost
 	}
@@ -43,10 +42,10 @@ func CreatePost(text string) error {
 	// avl.Tree.Set takes a string for a key, and anything as a value.
 	// Stringify the key, and set the pointer to a new Post struct
 	posts.Set(id.String(), &Post{
-		id:        id,                            // Set the ID, used later for editing or deletion
-		text:      text,                          // Set the input text
-		author:    std.PreviousRealm().Address(), // The author of the address is the previous realm, the realm that called this one
-		createdAt: time.Now(),                    // Capture the time of the transaction, in this case the block timestamp
+		id:        id,                                // Set the ID, used later for editing or deletion
+		text:      text,                              // Set the input text
+		author:    runtime.PreviousRealm().Address(), // The author of the address is the previous realm, the realm that called this one
+		createdAt: time.Now(),                        // Capture the time of the transaction, in this case the block timestamp
 		updatedAt: time.Now(),
 	})
 
@@ -55,8 +54,7 @@ func CreatePost(text string) error {
 
 // UpdatePost allows the author to update a post
 // The post can only be updated up to 10 minutes after posting
-func UpdatePost(id string, text string) error {
-	crossing()
+func UpdatePost(_ realm, id string, text string) error {
 	// Try to get the post
 	raw, ok := posts.Get(id)
 	if !ok {
@@ -65,7 +63,7 @@ func UpdatePost(id string, text string) error {
 
 	// Cast post from AVL tree
 	post := raw.(*Post)
-	if std.PreviousRealm().Address() != post.author {
+	if runtime.PreviousRealm().Address() != post.author {
 		return ErrUnauthorized
 	}
 
@@ -82,8 +80,7 @@ func UpdatePost(id string, text string) error {
 
 // DeletePost deletes a post with a specific id
 // Only the creator of a post can delete the post
-func DeletePost(id string) error {
-	crossing()
+func DeletePost(_ realm, id string) error {
 	// Try to get the post
 	raw, ok := posts.Get(id)
 	if !ok {
@@ -92,7 +89,7 @@ func DeletePost(id string) error {
 
 	// Cast post from AVL tree
 	post := raw.(*Post)
-	if std.PreviousRealm().Address() != post.author {
+	if runtime.PreviousRealm().Address() != post.author {
 		return ErrUnauthorized
 	}
 
@@ -109,9 +106,7 @@ func DeletePost(id string) error {
 
 // Render renders the main page of threads
 func Render(path string) string {
-	crossing()
 	out := md.H1("MiniSocial")
-
 	if posts.Size() == 0 {
 		out += "No posts yet!\n\n"
 		return out

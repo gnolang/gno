@@ -7,13 +7,13 @@ func main() {
 	var a = func() int {
 		return 1
 	}
+	if false {
+		a()
+	}
 
 	runtime.GC()
 	println("memstats in main after GC: ", runtime.MemStats())
 }
 
 // Output:
-// memstats in main after GC:  Allocator{maxBytes:100000000, bytes:6048}
-
-// TypeCheckError:
-// main/files/alloc_6.gno:7:6: declared and not used: a
+// memstats in main after GC:  Allocator{maxBytes:100000000, bytes:6088}

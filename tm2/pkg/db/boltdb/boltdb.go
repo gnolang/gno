@@ -8,9 +8,10 @@ import (
 	"path/filepath"
 	"slices"
 
+	"go.etcd.io/bbolt"
+
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/internal"
-	"go.etcd.io/bbolt"
 )
 
 var bucket = []byte("tm")
@@ -67,73 +68,62 @@ func NewWithOptions(name string, dir string, opts *bbolt.Options) (db.DB, error)
 	return &BoltDB{db: db}, nil
 }
 
-func (bdb *BoltDB) Get(key []byte) (value []byte) {
+func (bdb *BoltDB) Get(key []byte) (value []byte, err error) {
 	key = nonEmptyKey(internal.NonNilBytes(key))
-	err := bdb.db.View(func(tx *bbolt.Tx) error {
+	err = bdb.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(bucket)
 		if v := b.Get(key); v != nil {
 			value = slices.Clone(v)
 		}
 		return nil
 	})
-	if err != nil {
-		panic(err)
-	}
 	return
 }
 
-func (bdb *BoltDB) Has(key []byte) bool {
-	return bdb.Get(key) != nil
+func (bdb *BoltDB) Has(key []byte) (bool, error) {
+	v, err := bdb.Get(key)
+	return v != nil, err
 }
 
-func (bdb *BoltDB) Set(key, value []byte) {
+func (bdb *BoltDB) Set(key, value []byte) error {
 	key = nonEmptyKey(internal.NonNilBytes(key))
 	value = internal.NonNilBytes(value)
-	err := bdb.db.Update(func(tx *bbolt.Tx) error {
+	return bdb.db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(bucket)
 		return b.Put(key, value)
 	})
-	if err != nil {
-		panic(err)
-	}
 }
 
-func (bdb *BoltDB) SetSync(key, value []byte) {
-	bdb.Set(key, value)
+func (bdb *BoltDB) SetSync(key, value []byte) error {
+	return bdb.Set(key, value)
 }
 
-func (bdb *BoltDB) Delete(key []byte) {
+func (bdb *BoltDB) Delete(key []byte) error {
 	key = nonEmptyKey(internal.NonNilBytes(key))
-	err := bdb.db.Update(func(tx *bbolt.Tx) error {
+	return bdb.db.Update(func(tx *bbolt.Tx) error {
 		return tx.Bucket(bucket).Delete(key)
 	})
-	if err != nil {
-		panic(err)
-	}
 }
 
-func (bdb *BoltDB) DeleteSync(key []byte) {
-	bdb.Delete(key)
+func (bdb *BoltDB) DeleteSync(key []byte) error {
+	return bdb.Delete(key)
 }
 
-func (bdb *BoltDB) Close() {
-	bdb.db.Close()
+func (bdb *BoltDB) Close() error {
+	return bdb.db.Close()
 }
 
-func (bdb *BoltDB) Print() {
+func (bdb *BoltDB) Print() error {
 	stats := bdb.db.Stats()
 	fmt.Printf("%v\n", stats)
 
-	err := bdb.db.View(func(tx *bbolt.Tx) error {
+	return bdb.db.View(func(tx *bbolt.Tx) error {
 		tx.Bucket(bucket).ForEach(func(k, v []byte) error {
 			fmt.Printf("[%X]:\t[%X]\n", k, v)
 			return nil
 		})
 		return nil
 	})
-	if err != nil {
-		panic(err)
-	}
 }
 
 func (bdb *BoltDB) Stats() map[string]string {
@@ -156,33 +146,50 @@ func (bdb *BoltDB) Stats() map[string]string {
 // boltDBBatch stores key values in sync.Map and dumps them to the underlying
 // DB upon Write call.
 type boltDBBatch struct {
-	db  *BoltDB
-	ops []internal.Operation
+	db   *BoltDB
+	ops  []internal.Operation
+	size int
 }
 
 // NewBatch returns a new batch.
 func (bdb *BoltDB) NewBatch() db.Batch {
+	bdb.db.MaxBatchSize = bbolt.DefaultMaxBatchSize
 	return &boltDBBatch{
-		ops: nil,
-		db:  bdb,
+		ops:  nil,
+		db:   bdb,
+		size: 0,
+	}
+}
+
+// NewBatchWithSize returns a new batch.
+func (bdb *BoltDB) NewBatchWithSize(size int) db.Batch {
+	bdb.db.MaxBatchSize = size
+	return &boltDBBatch{
+		ops:  nil,
+		db:   bdb,
+		size: 0,
 	}
 }
 
 // It is safe to modify the contents of the argument after Set returns but not
 // before.
-func (bdb *boltDBBatch) Set(key, value []byte) {
+func (bdb *boltDBBatch) Set(key, value []byte) error {
+	bdb.size += len(key) + len(value)
 	bdb.ops = append(bdb.ops, internal.Operation{OpType: internal.OpTypeSet, Key: key, Value: value})
+	return nil
 }
 
 // It is safe to modify the contents of the argument after Delete returns but
 // not before.
-func (bdb *boltDBBatch) Delete(key []byte) {
+func (bdb *boltDBBatch) Delete(key []byte) error {
+	bdb.size += len(key)
 	bdb.ops = append(bdb.ops, internal.Operation{OpType: internal.OpTypeDelete, Key: key})
+	return nil
 }
 
 // NOTE: the operation is synchronous (see BoltDB for reasons)
-func (bdb *boltDBBatch) Write() {
-	err := bdb.db.db.Batch(func(tx *bbolt.Tx) error {
+func (bdb *boltDBBatch) Write() error {
+	return bdb.db.db.Batch(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(bucket)
 		for _, op := range bdb.ops {
 			key := nonEmptyKey(internal.NonNilBytes(op.Key))
@@ -199,35 +206,42 @@ func (bdb *boltDBBatch) Write() {
 		}
 		return nil
 	})
-	if err != nil {
-		panic(err)
-	}
 }
 
-func (bdb *boltDBBatch) WriteSync() {
-	bdb.Write()
+func (bdb *boltDBBatch) WriteSync() error {
+	return bdb.Write()
 }
 
-func (bdb *boltDBBatch) Close() {}
+func (bdb *boltDBBatch) Close() error {
+	bdb.size = 0
+	return nil
+}
 
-// WARNING: Any concurrent writes or reads will block until the iterator is
-// closed.
-func (bdb *BoltDB) Iterator(start, end []byte) db.Iterator {
-	tx, err := bdb.db.Begin(false)
-	if err != nil {
-		panic(err)
+func (bdb *boltDBBatch) GetByteSize() (int, error) {
+	if bdb.ops == nil {
+		return 0, errors.New("boltdb: batch has been written or closed")
 	}
-	return newBoltDBIterator(tx, start, end, false)
+	return bdb.size, nil
 }
 
 // WARNING: Any concurrent writes or reads will block until the iterator is
 // closed.
-func (bdb *BoltDB) ReverseIterator(start, end []byte) db.Iterator {
+func (bdb *BoltDB) Iterator(start, end []byte) (db.Iterator, error) {
 	tx, err := bdb.db.Begin(false)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return newBoltDBIterator(tx, start, end, true)
+	return newBoltDBIterator(tx, start, end, false), nil
+}
+
+// WARNING: Any concurrent writes or reads will block until the iterator is
+// closed.
+func (bdb *BoltDB) ReverseIterator(start, end []byte) (db.Iterator, error) {
+	tx, err := bdb.db.Begin(false)
+	if err != nil {
+		return nil, err
+	}
+	return newBoltDBIterator(tx, start, end, true), nil
 }
 
 // boltDBIterator allows you to iterate on range of keys/values given some
@@ -331,11 +345,12 @@ func (itr *boltDBIterator) Value() []byte {
 	return value
 }
 
-func (itr *boltDBIterator) Close() {
-	err := itr.tx.Rollback()
-	if err != nil {
-		panic(err)
-	}
+func (*boltDBIterator) Error() error {
+	return nil // famous last words
+}
+
+func (itr *boltDBIterator) Close() error {
+	return itr.tx.Rollback()
 }
 
 func (itr *boltDBIterator) assertIsValid() {

@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/demo/tests_test
-package tests_test
+// PKGPATH: gno.land/r/tests
+package tests
 
 var amap map[string]string = map[string]string{"a": "1"}
 
@@ -9,9 +9,7 @@ func init() {
 	println("postinit", amap)
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	println("premain", amap)
 	amap["c"] = "3"
 	println("postmain", amap)

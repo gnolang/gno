@@ -6,7 +6,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0f30.gno:5:10: []uint8 can only be compared to nil
+// main/eql_0f30.gno:5:10-36: []uint8 can only be compared to nil
 
 // TypeCheckError:
-// main/files/types/eql_0f30.gno:5:10: invalid operation: []byte("a") == []byte("b") (slice can only be compared to nil)
+// main/eql_0f30.gno:5:10: invalid operation: []byte("a") == []byte("b") (slice can only be compared to nil)

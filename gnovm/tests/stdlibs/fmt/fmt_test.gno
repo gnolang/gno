@@ -1328,7 +1328,7 @@ func TestStructPrinter(t *testing.T) {
 	}{
 		{"%v", "{abc def 123}"},
 		{"%+v", "{a:abc b:def c:123}"},
-		{"%#v", `fmt_test[fmt_test/fmt_test.gno:1315:1].T{a:"abc", b:"def", c:123}`},
+		{"%#v", `fmt_test[fmt_test/fmt_test.gno:1315:1-1344:2].T{a:"abc", b:"def", c:123}`},
 	}
 	for _, tt := range tests {
 		out := fmt.Sprintf(tt.fmt, s)
@@ -1591,7 +1591,7 @@ func TestNilDoesNotBecomeTyped(t *testing.T) {
 	var a *A = nil
 	var b B = B{}
 	got := fmt.Sprintf(hideFromVet("%s %s %s %s %s"), nil, a, nil, b, nil)
-	const expect = "%!s(<nil>) %!s(*fmt_test[fmt_test/fmt_test.gno:1588:1].A=<nil>) %!s(<nil>) {} %!s(<nil>)"
+	const expect = "%!s(<nil>) %!s(*fmt_test[fmt_test/fmt_test.gno:1588:1-1598:2].A=<nil>) %!s(<nil>) {} %!s(<nil>)"
 	if got != expect {
 		t.Errorf("expected:\n\t%q\ngot:\n\t%q", expect, got)
 	}

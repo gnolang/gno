@@ -9,7 +9,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/unary_a6.gno:7:7: operator ^ not defined on: Float64Kind
+// main/unary_a6.gno:7:7-9: operator ^ not defined on: Float64Kind
 
 // TypeCheckError:
-// main/files/types/unary_a6.gno:7:8: invalid operation: operator ^ not defined on x (variable of type float64)
+// main/unary_a6.gno:7:8: invalid operation: operator ^ not defined on x (variable of type float64)

@@ -1,15 +1,14 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+// PKGPATH: gno.land/r/test
+package test
 
 import (
 	"errors"
-	"std"
 	"time"
 
 	"gno.land/p/nt/commondao"
 )
 
-const member = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+const member = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
 var (
 	dao      *commondao.CommonDAO
@@ -26,9 +25,7 @@ func (testPropDef) Tally(commondao.ReadonlyVotingRecord, commondao.MemberSet) (b
 	return true, nil
 }
 
-func (testPropDef) Execute() error {
-	crossing()
-
+func (testPropDef) Execute(cur realm) error {
 	return errors.New("test error")
 }
 

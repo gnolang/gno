@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/map_delete"
+gno = "0.9"

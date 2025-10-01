@@ -21,9 +21,9 @@ func main() {
 	)
 
 	cmd.AddSubCommands(
-		newServeCmd(cliIO),
-		newBackupCmd(cliIO),
-		newSwitchCmd(cliIO),
+		NewBackupCmd(cliIO),
+		NewServeCmd(cliIO),
+		NewSwitchCmd(cliIO),
 	)
 
 	cmd.Execute(context.Background(), os.Args[1:])

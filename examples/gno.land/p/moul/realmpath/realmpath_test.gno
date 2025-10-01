@@ -1,18 +1,18 @@
 package realmpath_test
 
 import (
+	"chain/runtime"
 	"net/url"
-	"std"
 	"testing"
 
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
 	"gno.land/p/moul/realmpath"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 )
 
 func TestExample(t *testing.T) {
-	cd := std.ChainDomain()
-	testing.SetRealm(std.NewCodeRealm(cd + "/r/lorem/ipsum"))
+	cd := runtime.ChainDomain()
+	testing.SetRealm(testing.NewCodeRealm(cd + "/r/lorem/ipsum"))
 
 	// initial parsing
 	path := "hello/world?foo=bar&baz=foobar"
@@ -33,12 +33,12 @@ func TestExample(t *testing.T) {
 }
 
 func TestParse(t *testing.T) {
-	cd := std.ChainDomain()
-	testing.SetRealm(std.NewCodeRealm(cd + "/r/lorem/ipsum"))
+	cd := runtime.ChainDomain()
+	testing.SetRealm(testing.NewCodeRealm(cd + "/r/lorem/ipsum"))
 
 	tests := []struct {
 		rawPath        string
-		realm          string // optional
+		realm_XXX      string // optional
 		expectedPath   string
 		expectedQuery  url.Values
 		expectedString string
@@ -128,7 +128,7 @@ func TestParse(t *testing.T) {
 		},
 		{
 			rawPath:      "custom/realm?foo=bar&baz=foobar",
-			realm:        cd + "/r/foo/bar",
+			realm_XXX:    cd + "/r/foo/bar",
 			expectedPath: "custom/realm",
 			expectedQuery: url.Values{
 				"foo": []string{"bar"},
@@ -141,7 +141,7 @@ func TestParse(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.rawPath, func(t *testing.T) {
 			req := realmpath.Parse(tt.rawPath)
-			req.Realm = tt.realm // set optional realm
+			req.Realm = tt.realm_XXX // set optional realm
 			urequire.False(t, req == nil, "req should not be nil")
 			uassert.Equal(t, req.Path, tt.expectedPath)
 			urequire.Equal(t, len(req.Query), len(tt.expectedQuery))

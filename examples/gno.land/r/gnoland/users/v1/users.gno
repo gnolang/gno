@@ -1,8 +1,10 @@
 package users
 
 import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 	"regexp"
-	"std"
 
 	"gno.land/p/moul/fifo"
 	susers "gno.land/r/sys/users"
@@ -23,10 +25,8 @@ var (
 // end with a minimum of 3 numbers, and be less than 20 chars long.
 // All letters must be lowercase, and the only valid special char is `_`.
 // Only calls from EOAs are supported.
-func Register(username string) {
-	crossing()
-
-	if !std.PreviousRealm().IsUser() {
+func Register(_ realm, username string) {
+	if !runtime.PreviousRealm().IsUser() {
 		panic(ErrNonUserCall)
 	}
 
@@ -34,7 +34,7 @@ func Register(username string) {
 		panic(ErrPaused)
 	}
 
-	if std.OriginSend().AmountOf("ugnot") != registerPrice {
+	if banker.OriginSend().AmountOf("ugnot") != registerPrice {
 		panic(ErrInvalidPayment)
 	}
 
@@ -42,11 +42,11 @@ func Register(username string) {
 		panic(ErrInvalidUsername)
 	}
 
-	registrant := std.PreviousRealm().Address()
-	if err := cross(susers.RegisterUser)(username, registrant); err != nil {
+	registrant := runtime.PreviousRealm().Address()
+	if err := susers.RegisterUser(cross, username, registrant); err != nil {
 		panic(err)
 	}
 
 	latestUsers.Append(username)
-	std.Emit("Registeration", "address", registrant.String(), "name", username)
+	chain.Emit("Registration", "address", registrant.String(), "name", username)
 }

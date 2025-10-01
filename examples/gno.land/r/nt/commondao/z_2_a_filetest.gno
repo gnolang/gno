@@ -1,49 +1,45 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+package main
 
 import (
-	"std"
+	"chain"
 	"testing"
 
 	"gno.land/r/nt/commondao"
 )
 
 const (
-	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	user  = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 	name  = "Foo"
 )
 
-var realm std.Address
+var realmAddr = chain.PackageAddress("gno.land/r/demo/test")
 
 func init() {
-	// Init `commondao_test` realm address
-	realm = std.CurrentRealm().Address()
-
 	// Invite a user to be able to start creating DAOs
-	testing.SetRealm(std.NewUserRealm(owner))
-	cross(commondao.Invite)(user)
+	testing.SetRealm(testing.NewUserRealm(owner))
+	commondao.Invite(cross, user)
 }
 
 func main() {
-	crossing()
-
 	// The origin must be the invited user where invitation
 	// is removed after the first user call to create a DAO
-	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(testing.NewUserRealm(user))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
 
-	dao := commondao.New(name)
+	dao := commondao.New(cross, name)
 	if dao == nil {
 		panic("expected DAO to be created")
 	}
 
 	println(dao.Name() == name)
-	println(commondao.IsOwner(realm, dao.ID()))
+	println(commondao.IsOwner(realmAddr, dao.ID()))
 	println(commondao.IsInvited(user))
+	println(commondao.GetOptions(dao.ID()) != nil)
 }
 
 // Output:
 // true
 // true
 // false
+// true

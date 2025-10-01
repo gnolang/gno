@@ -9,56 +9,55 @@ gnoland start
 
 gnokey maketx call -pkgpath gno.land/r/testing/resource -func Edit -args edited -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test alice
 
-gnokey maketx call -pkgpath gno.land/r/testing/admin -func ExecuteAction -args 0 -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test alice
+gnokey maketx call -pkgpath gno.land/r/testing/admin -func ExecuteAction -args 0 -gas-fee 100000ugnot -gas-wanted 2100000 -broadcast -chainid tendermint_test alice
 
 gnokey maketx call -pkgpath gno.land/r/testing/resource -func Value -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test alice
 stdout 'edited'
 
 
--- admin/gno.mod --
-module gno.land/r/testing/admin
+-- admin/gnomod.toml --
+module = "gno.land/r/demo/admin"
 
+gno "0.9"
 -- admin/admin.gno --
 package admin
 
 import (
-    "std"
-    "errors"
-    "gno.land/p/moul/authz"
+	"chain/runtime"
+	"errors"
+
+	"gno.land/p/moul/authz"
 )
 
 type prop struct {
-    title string
-    action authz.PrivilegedAction
+	title  string
+	action authz.PrivilegedAction
 }
 
 var props []*prop
 
 func HandlePrivilegedAction(title string, action authz.PrivilegedAction) error {
-    if std.CurrentRealm().PkgPath() != "gno.land/r/testing/resource" {
-        return errors.New("unauthorized proposer")
-    }
-    cross(func() {
-    	crossing()
-	    props = append(props, &prop{title: title, action: action})
-	})()
-    return nil
+	if runtime.CurrentRealm().PkgPath() != "gno.land/r/testing/resource" {
+		return errors.New("unauthorized proposer")
+	}
+	func(cur realm) {
+		props = append(props, &prop{title: title, action: action})
+	}(cross)
+	return nil
 }
 
-func ExecuteAction(index int) {
-	crossing()
-
-    if std.PreviousRealm().Address() != "g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0" {
-        panic(errors.New("not alice"))
-    }
-    if err := props[index].action(); err != nil {
-        panic(err)
-    }
+func ExecuteAction(cur realm, index int) {
+	if runtime.PreviousRealm().Address() != "g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0" {
+		panic(errors.New("not alice"))
+	}
+	if err := props[index].action(); err != nil {
+		panic(err)
+	}
 }
+-- resource/gnomod.toml --
+module = "gno.land/r/demo/resource"
 
--- resource/gno.mod --
-module gno.land/r/testing/resource
-
+gno "0.9"
 -- resource/resource.gno --
 package resource
 
@@ -71,20 +70,15 @@ var a *authz.Authorizer = authz.NewWithAuthority(authz.NewContractAuthority("gno
 
 var value = "init"
 
-func Value() string {
-	crossing()
-
+func Value(cur realm) string {
 	return value
 }
 
-func Edit(newValue string) {
-	crossing()
-
+func Edit(cur realm, newValue string) {
 	doEdit := func() error {
-		cross(func() {
-			crossing()
+		func(cur realm) {
 			value = newValue
-		})()
+		}(cross)
 		return nil
 	}
 	if err := a.DoByPrevious("Edit", doEdit); err != nil {

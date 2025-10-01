@@ -1,11 +1,12 @@
 package users
 
 import (
+	"chain"
+	"chain/runtime"
 	"regexp"
-	"std"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/ufmt"
 )
 
 var (
@@ -23,7 +24,7 @@ const (
 )
 
 type UserData struct {
-	addr     std.Address
+	addr     address
 	username string // contains the latest name of a user
 	deleted  bool
 }
@@ -32,7 +33,7 @@ func (u UserData) Name() string {
 	return u.username
 }
 
-func (u UserData) Addr() std.Address {
+func (u UserData) Addr() address {
 	return u.addr
 }
 
@@ -43,20 +44,17 @@ func (u UserData) IsDeleted() bool {
 // RenderLink provides a render link to the user page on gnoweb
 // `linkText` is optional
 func (u UserData) RenderLink(linkText string) string {
-	// TODO switch to /u/username once the gnoweb page is ready.
 	if linkText == "" {
-		return ufmt.Sprintf("[@%s](/r/gnoland/users/v1:%s)", u.username, u.username)
+		return ufmt.Sprintf("[@%s](/u/%s)", u.username, u.username)
 	}
 
-	return ufmt.Sprintf("[%s](/r/gnoland/users/v1:%s)", linkText, u.username)
+	return ufmt.Sprintf("[%s](/u/%s)", linkText, u.username)
 }
 
 // RegisterUser adds a new user to the system.
-func RegisterUser(name string, address std.Address) error {
-	crossing()
-
+func RegisterUser(cur realm, name string, address_XXX address) error {
 	// Validate caller
-	if !controllers.Has(std.PreviousRealm().Address()) {
+	if !controllers.Has(runtime.PreviousRealm().Address()) {
 		return NewErrNotWhitelisted()
 	}
 
@@ -66,7 +64,7 @@ func RegisterUser(name string, address std.Address) error {
 	}
 
 	// Validate address
-	if !address.IsValid() {
+	if !address_XXX.IsValid() {
 		return ErrInvalidAddress
 	}
 
@@ -75,7 +73,7 @@ func RegisterUser(name string, address std.Address) error {
 		return ErrNameTaken
 	}
 
-	raw, ok := addressStore.Get(address.String())
+	raw, ok := addressStore.Get(address_XXX.String())
 	if ok {
 		// Cannot re-register after deletion
 		if raw.(*UserData).IsDeleted() {
@@ -88,18 +86,18 @@ func RegisterUser(name string, address std.Address) error {
 
 	// Create UserData
 	data := &UserData{
-		addr:     address,
+		addr:     address_XXX,
 		username: name,
 		deleted:  false,
 	}
 
 	// Set corresponding stores
 	nameStore.Set(name, data)
-	addressStore.Set(address.String(), data)
+	addressStore.Set(address_XXX.String(), data)
 
-	std.Emit(RegisterUserEvent,
+	chain.Emit(RegisterUserEvent,
 		"name", name,
-		"address", address.String(),
+		"address", address_XXX.String(),
 	)
 	return nil
 }
@@ -113,8 +111,7 @@ func (u *UserData) UpdateName(newName string) error {
 	}
 
 	// Validate caller
-	if !controllers.Has(std.CurrentRealm().Address()) {
-		panic(NewErrNotWhitelisted())
+	if !controllers.Has(runtime.CurrentRealm().Address()) {
 		return NewErrNotWhitelisted()
 	}
 
@@ -131,7 +128,7 @@ func (u *UserData) UpdateName(newName string) error {
 	u.username = newName
 	nameStore.Set(newName, u)
 
-	std.Emit(UpdateNameEvent,
+	chain.Emit(UpdateNameEvent,
 		"alias", newName,
 		"address", u.addr.String(),
 	)
@@ -145,13 +142,13 @@ func (u *UserData) Delete() error {
 	}
 
 	// Validate caller
-	if !controllers.Has(std.CurrentRealm().Address()) {
+	if !controllers.Has(runtime.CurrentRealm().Address()) {
 		return NewErrNotWhitelisted()
 	}
 
 	u.deleted = true
 
-	std.Emit(DeleteUserEvent, "address", u.addr.String())
+	chain.Emit(DeleteUserEvent, "address", u.addr.String())
 	return nil
 }
 
@@ -168,7 +165,7 @@ func validateName(username string) error {
 	}
 
 	// Check if the username can be decoded or looks like a valid address
-	if std.Address(username).IsValid() || reAddressLookalike.MatchString(username) {
+	if address(username).IsValid() || reAddressLookalike.MatchString(username) {
 		return ErrNameLikeAddress
 	}
 

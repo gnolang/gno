@@ -1,11 +1,12 @@
-// PKGPATH: gno.land/r/borrow_test
-package borrow_test
+// PKGPATH: gno.land/r/borrow
+package borrow
 
 import (
+	"chain/runtime"
 	"fmt"
-	"std"
 
-	"gno.land/r/demo/tests/crossrealm"
+	"gno.land/r/tests/vm/crossrealm"
+	"gno.land/r/tests/vm/crossrealm_b"
 )
 
 type Struct struct {
@@ -25,8 +26,8 @@ func (s *Struct) PrintRealms() {
 }
 
 func (s *Struct) printRealms() {
-	fmt.Println(std.CurrentRealm())
-	fmt.Println(std.PreviousRealm())
+	fmt.Println(runtime.CurrentRealm())
+	fmt.Println(runtime.PreviousRealm())
 }
 
 type Passthrough struct {
@@ -51,20 +52,15 @@ func (p *Passthrough) printRealm() {
 
 var s *Struct
 
-func init() {
-	s = &Struct{A: 100} // saved in borrow_test.
-}
-
-func main() {
-	crossing()
-
-	// cross(crossrealm_b.SetObject)(s) // saved in crossrealm_b
+func main(cur realm) {
+	s = &Struct{A: 100}              // saved in borrow_test.
+	crossrealm_b.SetObject(cross, s) // saved in crossrealm_b
 
 	p := &Passthrough{S: s}
 
-	cross(crossrealm.SetObject)(p) // saved in crossrealm.
+	crossrealm.SetObject(cross, p) // saved in crossrealm.
 
-	p.Mutate() // receiver method borrows crossrealm_b.
+	p.Mutate() // receiver method borrows crossrealm, then crossrealm_b, but does not impact prev, current realm.
 
 	println(p.Get())
 
@@ -73,5 +69,5 @@ func main() {
 
 // Output:
 // 101
-// CodeRealm{ g1evmgnh6rmk8vgahd4p2pc3reh0dw26twaz3rqq, gno.land/r/borrow_test }
+// CodeRealm{ g1mdevzlw3defhhew53zsky80lhqnk94ew8grqdt, gno.land/r/borrow }
 // UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }

@@ -7,11 +7,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
-	tiavl "github.com/gnolang/gno/tm2/pkg/iavl"
-
+	"github.com/gnolang/gno/tm2/pkg/iavl"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/gas"
-	"github.com/gnolang/gno/tm2/pkg/store/iavl"
+	storeiavl "github.com/gnolang/gno/tm2/pkg/store/iavl"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -91,8 +90,8 @@ func TestIAVLStorePrefix(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := tiavl.NewMutableTree(db, cacheSize)
-	iavlStore := iavl.UnsafeNewStore(tree, types.StoreOptions{
+	tree := iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())
+	iavlStore := storeiavl.UnsafeNewStore(tree, types.StoreOptions{
 		PruningOptions: types.PruningOptions{
 			KeepRecent: numRecent,
 			KeepEvery:  storeEvery,

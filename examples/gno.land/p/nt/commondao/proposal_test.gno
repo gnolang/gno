@@ -1,19 +1,18 @@
 package commondao
 
 import (
-	"std"
+	"errors"
 	"testing"
 	"time"
 
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
-	"gno.land/p/moul/addrset"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 )
 
 func TestProposalNew(t *testing.T) {
 	cases := []struct {
 		name       string
-		creator    std.Address
+		creator    address
 		definition ProposalDefinition
 		err        error
 	}{
@@ -105,14 +104,14 @@ func TestIsQuorumReached(t *testing.T) {
 	cases := []struct {
 		name    string
 		quorum  float64
-		members []std.Address
+		members []address
 		votes   []Vote
 		fail    bool
 	}{
 		{
 			name:   "one third",
 			quorum: QuorumOneThird,
-			members: []std.Address{
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -124,7 +123,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "one third no quorum",
 			quorum: QuorumOneThird,
-			members: []std.Address{
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -134,7 +133,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "half",
 			quorum: QuorumHalf,
-			members: []std.Address{
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -148,7 +147,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "half no quorum",
 			quorum: QuorumHalf,
-			members: []std.Address{
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -162,7 +161,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "two thirds",
 			quorum: QuorumTwoThirds,
-			members: []std.Address{
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -175,7 +174,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "two thirds no quorum",
 			quorum: QuorumTwoThirds,
-			members: []std.Address{
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -188,7 +187,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "three fourths",
 			quorum: QuorumThreeFourths,
-			members: []std.Address{
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -203,7 +202,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "three fourths no quorum",
 			quorum: QuorumThreeFourths,
-			members: []std.Address{
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -217,7 +216,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "full",
 			quorum: QuorumFull,
-			members: []std.Address{
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 			},
@@ -229,7 +228,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "full no quorum",
 			quorum: QuorumFull,
-			members: []std.Address{
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 			},
@@ -241,7 +240,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "no quorum with empty vote",
 			quorum: QuorumHalf,
-			members: []std.Address{
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 			},
@@ -253,7 +252,7 @@ func TestIsQuorumReached(t *testing.T) {
 		{
 			name:   "no quorum with abstention",
 			quorum: QuorumHalf,
-			members: []std.Address{
+			members: []address{
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 			},
@@ -271,7 +270,7 @@ func TestIsQuorumReached(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var members addrset.Set
+			members := NewMemberStorage()
 			for _, m := range tc.members {
 				members.Add(m)
 			}
@@ -281,7 +280,7 @@ func TestIsQuorumReached(t *testing.T) {
 				record.AddVote(v)
 			}
 
-			success := IsQuorumReached(tc.quorum, record.Readonly(), NewMemberSet(&members))
+			success := IsQuorumReached(tc.quorum, record.Readonly(), NewMemberSet(members))
 
 			if tc.fail {
 				uassert.False(t, success, "expect quorum to fail")
@@ -292,18 +291,31 @@ func TestIsQuorumReached(t *testing.T) {
 	}
 }
 
+func TestMustValidate(t *testing.T) {
+	uassert.NotPanics(t, func() {
+		MustValidate(testPropDef{})
+	}, "expect validation to succeed")
+
+	uassert.PanicsWithMessage(t, "validable proposal definition is nil", func() {
+		MustValidate(nil)
+	}, "expect validation to panic with nil definition")
+
+	uassert.PanicsWithMessage(t, "boom!", func() {
+		MustValidate(testPropDef{validationErr: errors.New("boom!")})
+	}, "expect validation to panic")
+}
+
 type testPropDef struct {
-	votingPeriod                          time.Duration
-	tallyResult                           bool
-	validationErr, tallyErr, executionErr error
-	voteChoices                           []VoteChoice
+	votingPeriod            time.Duration
+	tallyResult             bool
+	validationErr, tallyErr error
+	voteChoices             []VoteChoice
 }
 
 func (testPropDef) Title() string                 { return "" }
 func (testPropDef) Body() string                  { return "" }
 func (d testPropDef) VotingPeriod() time.Duration { return d.votingPeriod }
 func (d testPropDef) Validate() error             { return d.validationErr }
-func (d testPropDef) Execute() error              { return d.executionErr }
 
 func (d testPropDef) Tally(ReadonlyVotingRecord, MemberSet) (bool, error) {
 	return d.tallyResult, d.tallyErr

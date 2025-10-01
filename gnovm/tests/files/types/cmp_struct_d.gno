@@ -16,7 +16,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/cmp_struct_d.gno:15:10: main.bar is not comparable
+// main/cmp_struct_d.gno:15:10-18: main.bar is not comparable
 
 // TypeCheckError:
-// main/files/types/cmp_struct_d.gno:15:16: invalid operation: fa == bb (mismatched types foo and bar)
+// main/cmp_struct_d.gno:15:16: invalid operation: fa == bb (mismatched types foo and bar)

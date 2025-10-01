@@ -7,13 +7,14 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/gnolang/gno/tm2/pkg/colors"
-	"github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/gnolang/gno/tm2/pkg/db/internal"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+
+	"github.com/gnolang/gno/tm2/pkg/colors"
+	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/internal"
 )
 
 func init() {
@@ -46,59 +47,48 @@ func NewGoLevelDBWithOpts(name string, dir string, o *opt.Options) (*GoLevelDB, 
 }
 
 // Implements DB.
-func (db *GoLevelDB) Get(key []byte) []byte {
+func (db *GoLevelDB) Get(key []byte) ([]byte, error) {
 	key = internal.NonNilBytes(key)
 	res, err := db.db.Get(key, nil)
 	if err != nil {
 		if goerrors.Is(err, errors.ErrNotFound) {
-			return nil
+			return nil, nil
 		}
-		panic(err)
+		return nil, err
 	}
-	return res
+	return res, nil
 }
 
 // Implements DB.
-func (db *GoLevelDB) Has(key []byte) bool {
-	return db.Get(key) != nil
+func (db *GoLevelDB) Has(key []byte) (bool, error) {
+	v, err := db.Get(key)
+	return v != nil, err
 }
 
 // Implements DB.
-func (db *GoLevelDB) Set(key []byte, value []byte) {
+func (db *GoLevelDB) Set(key []byte, value []byte) error {
 	key = internal.NonNilBytes(key)
 	value = internal.NonNilBytes(value)
-	err := db.db.Put(key, value, nil)
-	if err != nil {
-		panic(err)
-	}
+	return db.db.Put(key, value, nil)
 }
 
 // Implements DB.
-func (db *GoLevelDB) SetSync(key []byte, value []byte) {
+func (db *GoLevelDB) SetSync(key []byte, value []byte) error {
 	key = internal.NonNilBytes(key)
 	value = internal.NonNilBytes(value)
-	err := db.db.Put(key, value, &opt.WriteOptions{Sync: true})
-	if err != nil {
-		panic(err)
-	}
+	return db.db.Put(key, value, &opt.WriteOptions{Sync: true})
 }
 
 // Implements DB.
-func (db *GoLevelDB) Delete(key []byte) {
+func (db *GoLevelDB) Delete(key []byte) error {
 	key = internal.NonNilBytes(key)
-	err := db.db.Delete(key, nil)
-	if err != nil {
-		panic(err)
-	}
+	return db.db.Delete(key, nil)
 }
 
 // Implements DB.
-func (db *GoLevelDB) DeleteSync(key []byte) {
+func (db *GoLevelDB) DeleteSync(key []byte) error {
 	key = internal.NonNilBytes(key)
-	err := db.db.Delete(key, &opt.WriteOptions{Sync: true})
-	if err != nil {
-		panic(err)
-	}
+	return db.db.Delete(key, &opt.WriteOptions{Sync: true})
 }
 
 func (db *GoLevelDB) DB() *leveldb.DB {
@@ -106,12 +96,12 @@ func (db *GoLevelDB) DB() *leveldb.DB {
 }
 
 // Implements DB.
-func (db *GoLevelDB) Close() {
-	db.db.Close()
+func (db *GoLevelDB) Close() error {
+	return db.db.Close()
 }
 
 // Implements DB.
-func (db *GoLevelDB) Print() {
+func (db *GoLevelDB) Print() error {
 	str, _ := db.db.GetProperty("leveldb.stats")
 	fmt.Printf("%v\n", str)
 
@@ -121,6 +111,7 @@ func (db *GoLevelDB) Print() {
 		value := colors.DefaultColoredBytesN(itr.Value(), 100)
 		fmt.Printf("%v: %v\n", key, value)
 	}
+	return nil
 }
 
 // Implements DB.
@@ -155,40 +146,50 @@ func (db *GoLevelDB) NewBatch() db.Batch {
 	return &goLevelDBBatch{db, batch}
 }
 
+// Implements DB.
+func (db *GoLevelDB) NewBatchWithSize(size int) db.Batch {
+	batch := leveldb.MakeBatch(size)
+	return &goLevelDBBatch{db, batch}
+}
+
 type goLevelDBBatch struct {
 	db    *GoLevelDB
 	batch *leveldb.Batch
 }
 
 // Implements Batch.
-func (mBatch *goLevelDBBatch) Set(key, value []byte) {
+func (mBatch *goLevelDBBatch) Set(key, value []byte) error {
 	mBatch.batch.Put(key, value)
+	return nil
 }
 
 // Implements Batch.
-func (mBatch *goLevelDBBatch) Delete(key []byte) {
+func (mBatch *goLevelDBBatch) Delete(key []byte) error {
 	mBatch.batch.Delete(key)
+	return nil
 }
 
 // Implements Batch.
-func (mBatch *goLevelDBBatch) Write() {
-	err := mBatch.db.db.Write(mBatch.batch, &opt.WriteOptions{Sync: false})
-	if err != nil {
-		panic(err)
-	}
+func (mBatch *goLevelDBBatch) Write() error {
+	return mBatch.db.db.Write(mBatch.batch, &opt.WriteOptions{Sync: false})
 }
 
 // Implements Batch.
-func (mBatch *goLevelDBBatch) WriteSync() {
-	err := mBatch.db.db.Write(mBatch.batch, &opt.WriteOptions{Sync: true})
-	if err != nil {
-		panic(err)
-	}
+func (mBatch *goLevelDBBatch) WriteSync() error {
+	return mBatch.db.db.Write(mBatch.batch, &opt.WriteOptions{Sync: true})
 }
 
 // Implements Batch.
 // Close is no-op for goLevelDBBatch.
-func (mBatch *goLevelDBBatch) Close() {}
+func (mBatch *goLevelDBBatch) Close() error { return nil }
+
+// Implements Batch
+func (mBatch *goLevelDBBatch) GetByteSize() (int, error) {
+	if mBatch.batch == nil {
+		return 0, errors.New("goleveldb: batch has been written or closed")
+	}
+	return len(mBatch.batch.Dump()), nil
+}
 
 // ----------------------------------------
 // Iterator
@@ -196,15 +197,15 @@ func (mBatch *goLevelDBBatch) Close() {}
 // Before creating a third version, refactor.
 
 // Implements DB.
-func (db *GoLevelDB) Iterator(start, end []byte) db.Iterator {
+func (db *GoLevelDB) Iterator(start, end []byte) (db.Iterator, error) {
 	itr := db.db.NewIterator(nil, nil)
-	return newGoLevelDBIterator(itr, start, end, false)
+	return newGoLevelDBIterator(itr, start, end, false), nil
 }
 
 // Implements DB.
-func (db *GoLevelDB) ReverseIterator(start, end []byte) db.Iterator {
+func (db *GoLevelDB) ReverseIterator(start, end []byte) (db.Iterator, error) {
 	itr := db.db.NewIterator(nil, nil)
-	return newGoLevelDBIterator(itr, start, end, true)
+	return newGoLevelDBIterator(itr, start, end, true), nil
 }
 
 type goLevelDBIterator struct {
@@ -319,9 +320,14 @@ func (itr *goLevelDBIterator) Next() {
 	}
 }
 
+func (itr *goLevelDBIterator) Error() error {
+	return itr.source.Error()
+}
+
 // Implements Iterator.
-func (itr *goLevelDBIterator) Close() {
+func (itr *goLevelDBIterator) Close() error {
 	itr.source.Release()
+	return nil
 }
 
 func (itr *goLevelDBIterator) assertNoError() {

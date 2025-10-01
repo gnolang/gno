@@ -21,16 +21,13 @@ stdout 'EVENTS:     \[{\"type\":\"Foo\",\"attrs\":\[{\"key\":\"k1\",\"value\":\"
 stdout 'TX HASH:    '
 
 -- foree.gno --
-
 package foree
 
-import "std"
+import "chain"
 
-func Foo() {
-	crossing()
-
+func Foo(cur realm) {
 	for i := 0; i < 10; i++ {
-		std.Emit("testing", "foo", "bar")
+		chain.Emit("testing", "foo", "bar")
 	}
 }
 
@@ -41,30 +38,26 @@ const (
 
 type contractA struct{}
 
-func (c *contractA) Foo(cb func()) {
-	crossing()
-
+func (c *contractA) Foo(cur realm, cb func()) {
 	subFoo()
 	cb()
 }
 
 func subFoo() {
-	std.Emit(eventFoo, "k1", "v1", "k2", "v2")
+	chain.Emit(eventFoo, "k1", "v1", "k2", "v2")
 }
 
 type contractB struct{}
 
 func (c *contractB) subBar() {
-	std.Emit(eventBar, "bar", "baz")
+	chain.Emit(eventBar, "bar", "baz")
 }
 
-func Bar() {
-	crossing()
-
+func Bar(cur realm) {
 	a := &contractA{}
 	b := &contractB{}
 	for i := 0; i < 2; i++ {
-		cross(a.Foo)(func() {
+		a.Foo(cross, func() {
 			b.subBar()
 		})
 	}

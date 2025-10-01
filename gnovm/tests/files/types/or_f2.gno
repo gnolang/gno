@@ -28,7 +28,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/or_f2.gno:27:10: operator | not defined on: InterfaceKind
+// main/or_f2.gno:27:10-17: operator | not defined on: InterfaceKind
 
 // TypeCheckError:
-// main/files/types/or_f2.gno:27:10: invalid operation: operator | not defined on e1 (variable of interface type E)
+// main/or_f2.gno:27:10: invalid operation: operator | not defined on e1 (variable of interface type E)

@@ -6,9 +6,9 @@ import (
 
 	"gno.land/r/sys/users"
 
-	"gno.land/p/demo/avl/pager"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/nt/avl/pager"
+	"gno.land/p/nt/ufmt"
 )
 
 const usersLink = "/r/gnoland/users/v1"
@@ -24,9 +24,9 @@ func Render(path string) string {
 
 	for _, item := range page.Items {
 		signup := item.Value.(*Signup)
-		user := signup.address.String()
+		user := signup.address_XXX.String()
 
-		if data := users.ResolveAddress(signup.address); data != nil {
+		if data := users.ResolveAddress(signup.address_XXX); data != nil {
 			user = ufmt.Sprintf("[%s](%s:%s)", data.Name(), usersLink, data.Name())
 		}
 
