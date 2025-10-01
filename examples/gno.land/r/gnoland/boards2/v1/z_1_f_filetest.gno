@@ -7,10 +7,10 @@ import (
 )
 
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	user  = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
-	bid   = boards2.BoardID(0)                                  // Operate on realm DAO instead of individual boards
-	role  = boards2.RoleOwner
+	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	user  address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
+	bid           = boards2.BoardID(0)                         // Operate on realm DAO instead of individual boards
+	role          = boards2.RoleOwner
 )
 
 func init() {
@@ -25,4 +25,4 @@ func main() {
 }
 
 // Error:
-// user is already a member
+// user is already a member: g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj

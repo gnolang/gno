@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	title = "Test Thread"
-	body  = "Test body"
+	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	title         = "Test Thread"
+	body          = "Test body"
 )
 
 var (

@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	user  = address("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5")
+	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	user  address = "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5"
 )
 
 func main() {

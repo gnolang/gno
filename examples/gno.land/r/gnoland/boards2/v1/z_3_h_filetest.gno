@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	name  = "foo123"
+	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	name          = "foo123"
 )
 
 var newName string

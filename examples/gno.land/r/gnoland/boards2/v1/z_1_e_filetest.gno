@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	user  = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
-	role  = boards2.RoleOwner
+	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	user  address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
+	role          = boards2.RoleOwner
 )
 
 var bid boards2.BoardID

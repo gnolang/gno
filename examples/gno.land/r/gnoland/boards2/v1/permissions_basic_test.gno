@@ -27,7 +27,7 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("foo", "bar")
-				perms.SetUserRoles("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
+				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
 				return perms
 			},
 			called: true,
@@ -40,7 +40,7 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("foo", "bar")
-				perms.SetUserRoles("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
+				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
 				return perms
 			},
 			called: true,
@@ -52,7 +52,7 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("foo", "bar")
-				perms.SetUserRoles("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				return perms
 			},
 			err: "unauthorized",
@@ -70,33 +70,23 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var (
-				called bool
-				args   Args
-			)
+			var called bool
 
 			perms := tc.setup()
-			callback := func(a Args) {
-				args = a
-				called = true
-			}
+			callback := func(realm) { called = true }
 
 			testCaseFn := func() {
-				perms.WithPermission(tc.user, tc.permission, tc.args, callback)
+				perms.WithPermission(cross, tc.user, tc.permission, tc.args, callback)
 			}
 
 			if tc.err != "" {
-				urequire.PanicsWithMessage(t, tc.err, testCaseFn, "panic")
+				urequire.AbortsWithMessage(t, tc.err, testCaseFn, "expect panic with message")
 				return
 			} else {
-				urequire.NotPanics(t, testCaseFn, "no panic")
+				urequire.NotAborts(t, testCaseFn, "expect no panic")
 			}
 
-			urequire.Equal(t, tc.called, called, "callback called")
-			urequire.Equal(t, len(tc.args), len(args), "args count")
-			for i, a := range args {
-				uassert.Equal(t, tc.args[i].(string), a.(string))
-			}
+			urequire.Equal(t, tc.called, called, "expect callback to be called")
 		})
 	}
 }
@@ -115,7 +105,7 @@ func TestBasicPermissionsGetUserRoles(t *testing.T) {
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("admin", "x")
-				perms.SetUserRoles("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin")
+				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin")
 				return perms
 			},
 		},
@@ -128,7 +118,7 @@ func TestBasicPermissionsGetUserRoles(t *testing.T) {
 				perms.AddRole("admin", "x")
 				perms.AddRole("foo", "x")
 				perms.AddRole("bar", "x")
-				perms.SetUserRoles("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin", "foo", "bar")
+				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin", "foo", "bar")
 				return perms
 			},
 		},
@@ -137,7 +127,7 @@ func TestBasicPermissionsGetUserRoles(t *testing.T) {
 			user: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
-				perms.SetUserRoles("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				return perms
 			},
 		},
@@ -156,9 +146,9 @@ func TestBasicPermissionsGetUserRoles(t *testing.T) {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("admin", "x")
 				perms.AddRole("bar", "x")
-				perms.SetUserRoles("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin")
-				perms.SetUserRoles("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", "admin")
-				perms.SetUserRoles("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc", "admin", "bar")
+				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin")
+				perms.SetUserRoles(cross, "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", "admin")
+				perms.SetUserRoles(cross, "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc", "admin", "bar")
 				return perms
 			},
 		},
@@ -192,7 +182,7 @@ func TestBasicPermissionsHasRole(t *testing.T) {
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("admin", "x")
-				perms.SetUserRoles("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin")
+				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin")
 				return perms
 			},
 			want: true,
@@ -205,7 +195,7 @@ func TestBasicPermissionsHasRole(t *testing.T) {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("admin", "x")
 				perms.AddRole("foo", "x")
-				perms.SetUserRoles("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin", "foo")
+				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin", "foo")
 				return perms
 			},
 			want: true,
@@ -215,7 +205,7 @@ func TestBasicPermissionsHasRole(t *testing.T) {
 			user: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
-				perms.SetUserRoles("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				return perms
 			},
 		},
@@ -226,7 +216,7 @@ func TestBasicPermissionsHasRole(t *testing.T) {
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("foo", "x")
-				perms.SetUserRoles("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
+				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
 				return perms
 			},
 		},
@@ -256,7 +246,7 @@ func TestBasicPermissionsHasPermission(t *testing.T) {
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("foo", "bar")
-				perms.SetUserRoles("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
+				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
 				return perms
 			},
 			want: true,
@@ -268,8 +258,8 @@ func TestBasicPermissionsHasPermission(t *testing.T) {
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("foo", "bar")
-				perms.SetUserRoles("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
-				perms.SetUserRoles("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", "foo")
+				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
+				perms.SetUserRoles(cross, "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", "foo")
 				return perms
 			},
 			want: true,
@@ -282,7 +272,7 @@ func TestBasicPermissionsHasPermission(t *testing.T) {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("foo", "bar")
 				perms.AddRole("baz", "other")
-				perms.SetUserRoles("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo", "baz")
+				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo", "baz")
 				return perms
 			},
 			want: true,
@@ -294,7 +284,7 @@ func TestBasicPermissionsHasPermission(t *testing.T) {
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("foo", "bar")
-				perms.SetUserRoles("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
+				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
 				return perms
 			},
 		},
@@ -345,8 +335,8 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("a", "permission1")
-				perms.SetUserRoles("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", "a")
-				perms.SetUserRoles("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc")
+				perms.SetUserRoles(cross, "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", "a")
+				perms.SetUserRoles(cross, "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc")
 				return perms
 			},
 		},
@@ -358,7 +348,7 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("a", "permission1")
 				perms.AddRole("b", "permission2")
-				perms.SetUserRoles("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "a")
+				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "a")
 				return perms
 			},
 		},
@@ -370,7 +360,7 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("a", "permission1")
 				perms.AddRole("b", "permission2")
-				perms.SetUserRoles("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "a", "b")
+				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "a", "b")
 				return perms
 			},
 		},
@@ -391,14 +381,15 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			perms := tc.setup()
 
-			err := perms.SetUserRoles(tc.user, tc.roles...)
+			setUserRoles := func() {
+				perms.SetUserRoles(cross, tc.user, tc.roles...)
+			}
 
 			if tc.err != "" {
-				urequire.Error(t, err, "expected an error")
-				uassert.Equal(t, tc.err, err.Error())
+				urequire.AbortsWithMessage(t, tc.err, setUserRoles, "expected an error")
 				return
 			} else {
-				urequire.NoError(t, err)
+				urequire.NotAborts(t, setUserRoles, "expected no error")
 			}
 
 			roles := perms.GetUserRoles(tc.user)
@@ -422,7 +413,7 @@ func TestBasicPermissionsRemoveUser(t *testing.T) {
 			user: address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
-				perms.SetUserRoles("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				return perms
 			},
 			want: true,
@@ -439,7 +430,7 @@ func TestBasicPermissionsRemoveUser(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			perms := tc.setup()
-			got := perms.RemoveUser(tc.user)
+			got := perms.RemoveUser(cross, tc.user)
 			uassert.Equal(t, tc.want, got)
 		})
 	}
@@ -465,7 +456,7 @@ func TestBasicPermissionsIterateUsers(t *testing.T) {
 	perms.AddRole("foo", "perm1")
 	perms.AddRole("bar", "perm2")
 	for _, u := range users {
-		perms.SetUserRoles(u.Address, u.Roles...)
+		perms.SetUserRoles(cross, u.Address, u.Roles...)
 	}
 
 	cases := []struct {
