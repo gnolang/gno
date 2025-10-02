@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gno.land/p/nt/avl"
+	"gno.land/p/nt/ufmt"
 )
 
 // A Post is a "thread" or a "reply" depending on context.
@@ -20,14 +21,13 @@ type Post struct {
 	Body            string
 	Hidden          bool
 	Readonly        bool
+	Replies         PostStorage
 	Creator         address
 	CreatedAt       time.Time
 
 	// TODO: Make these properties public introducing optional support for them (storages)
-	flags      avl.Tree // address -> string(reason)
-	replies    avl.Tree // string(Post.ID) -> *Post (direct post replies)
-	repliesAll avl.Tree // string(Post.ID) -> *Post (all thread replies)
-	reposts    avl.Tree // string(Board.ID) -> Post.ID
+	flags   avl.Tree // address -> string(reason)
+	reposts avl.Tree // string(Board.ID) -> Post.ID
 }
 
 // Summary return a summary of the post's body.
@@ -52,11 +52,6 @@ func (post Post) FlagsCount() int {
 	return post.flags.Size()
 }
 
-// HasReplies checks if a thread or reply has replies.
-func (post Post) HasReplies() bool {
-	return post.replies.Size() > 0
-}
-
 // Save stores the thread (or repost) within it's parent board, or
 // if post is a reply it stores the reply within it's parent thread.
 func (post *Post) Save() error {
@@ -64,47 +59,70 @@ func (post *Post) Save() error {
 		return errors.New("board is required to save a post")
 	}
 
+	if post.Board.Threads == nil {
+		return ufmt.Errorf("save error, threads support not available in board ID %s", post.Board.ID)
+	}
+
+	// Post is a thread
 	if IsThread(post) {
-		return post.Board.Threads.Save(post)
+		return post.saveThread()
 	}
 
+	// Post is a repost of a thread
 	if IsRepost(post) {
-		thread, found := post.Board.Threads.Get(post.ParentID)
-		if !found {
-			return errors.New("repost origin thread not found: ID " + post.ParentID.String())
-		}
-
-		if err := post.Board.Threads.Save(post); err != nil {
-			return err
-		}
-		return thread.saveRepost(post) // TODO: Replace by thread.Reposts.Save(post)
+		return post.saveRepost()
 	}
 
-	// Post is a reply, so get the thread where reply has been created
-	thread, found := post.Board.Threads.Get(post.ThreadID)
+	// Post is a reply
+	return post.saveReply()
+}
+
+func (thread *Post) saveThread() error {
+	// Add current thread to the board
+	return thread.Board.Threads.Add(thread)
+}
+
+func (repost *Post) saveRepost() error {
+	thread, found := repost.Board.Threads.Get(repost.ParentID)
 	if !found {
-		return errors.New("reply's thread not found: ID " + post.ThreadID.String())
+		return ufmt.Errorf("repost save error, origin thread ID %s not found", repost.ParentID)
+	}
+
+	// TODO: Check if thread support reposts
+	thread.reposts.Set(repost.Board.ID.Key(), repost.ID) // TODO: Replace by thread.Reposts.Add(post)
+
+	return repost.Board.Threads.Add(repost)
+}
+
+func (reply *Post) saveReply() error {
+	// Get the thread where reply has been created
+	thread, found := reply.Board.Threads.Get(reply.ThreadID)
+	if !found {
+		return ufmt.Errorf("reply save error, thread ID %s not found", reply.ThreadID)
+	}
+
+	if err := checkPostSupportsReplies(thread); err != nil {
+		return err
 	}
 
 	// Add reply to the flat replies index. This index allows listing all thread
 	// replies without needing to recursively explore the child replies of each reply.
-	key := makePostKey(post.ID)
-	thread.repliesAll.Set(key, post)
+	thread.Replies.Add(reply)
 
-	// Add reply to it's parent index.
+	// Add reply to it's parent reply.
 	// Reply parent can be a thread or another reply.
-	parent := thread
-	if post.ParentID != thread.ID {
-		parentKey := makePostKey(post.ParentID)
-		v, found := thread.repliesAll.Get(parentKey)
+	if reply.ParentID != thread.ID {
+		parent, found := thread.Replies.Get(reply.ParentID)
 		if !found {
-			return errors.New("reply's parent post not found: ID " + post.ParentID.String())
+			return ufmt.Errorf("reply save error, parent reply ID %s not found", reply.ParentID)
 		}
 
-		parent = v.(*Post)
-	}
+		if err := checkPostSupportsReplies(parent); err != nil {
+			return err
+		}
 
-	parent.replies.Set(key, post)
+		parent.Replies.Add(reply)
+	}
 	return nil
 }
 
@@ -127,6 +145,11 @@ func IsRepost(thread *Post) bool {
 
 // SummaryOf returns a summary of a text.
 func SummaryOf(text string, length int) string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return ""
+	}
+
 	lines := strings.SplitN(text, "\n", 2)
 	line := lines[0]
 	if len(line) > length {
@@ -135,4 +158,11 @@ func SummaryOf(text string, length int) string {
 		line = line + "..."
 	}
 	return line
+}
+
+func checkPostSupportsReplies(p *Post) error {
+	if p.Replies == nil {
+		return ufmt.Errorf("replies support not available in post ID %s", p.ID)
+	}
+	return nil
 }

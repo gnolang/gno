@@ -18,8 +18,8 @@ type (
 		// Remove removes a post from the storage.
 		Remove(ID) (_ *Post, removed bool)
 
-		// Save saves a post in the storage.
-		Save(*Post) error
+		// Add adds a post in the storage.
+		Add(*Post) error
 
 		// Iterate iterates posts.
 		// To reverse iterate posts use a negative count.
@@ -58,8 +58,9 @@ func (s *postStorage) Remove(id ID) (*Post, bool) {
 	return v.(*Post), true
 }
 
-// Save saves a post in the storage.
-func (s *postStorage) Save(p *Post) error {
+// Add adds a post in the storage.
+// It updates existing posts when storage contains one with the same ID.
+func (s *postStorage) Add(p *Post) error {
 	if p == nil {
 		return errors.New("saving a nil post is not supported")
 	}

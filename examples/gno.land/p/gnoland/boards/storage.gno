@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"gno.land/p/nt/avl"
+	"gno.land/p/nt/ufmt"
 )
 
 // Storage defines an interface for boards storage.
@@ -94,7 +95,7 @@ func (s *storage) Save(board *Board) error {
 	// Index by name when the optional board name is not empty
 	if key = makeBoardNameKey(board.Name); key != "" {
 		if s.byName.Has(key) {
-			return errors.New("duplicated board name: " + board.Name)
+			return ufmt.Errorf("duplicated board name: %s", board.Name)
 		}
 
 		s.byName.Set(key, board.ID)

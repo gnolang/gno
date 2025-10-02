@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"gno.land/p/nt/ufmt"
 )
 
 // NewReply creates a new reply to a thread or another reply.
@@ -13,7 +15,7 @@ func NewReply(parent *Post, creator address, body string) (*Post, error) {
 	}
 
 	if !creator.IsValid() {
-		return nil, errors.New("invalid reply creator address: " + creator.String())
+		return nil, ufmt.Errorf("invalid reply creator address: %s", creator)
 	}
 
 	body = strings.TrimSpace(body)

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"gno.land/p/nt/ufmt"
 )
 
 // NewThread creates a new board thread.
@@ -13,7 +15,7 @@ func NewThread(b *Board, creator address, title, body string) (*Post, error) {
 	}
 
 	if !creator.IsValid() {
-		return nil, errors.New("invalid thread creator address: " + creator.String())
+		return nil, ufmt.Errorf("invalid thread creator address: %s", creator)
 	}
 
 	title = strings.TrimSpace(title)
@@ -66,7 +68,7 @@ func NewRepost(thread *Post, dst *Board, creator address) (*Post, error) {
 	}
 
 	if !creator.IsValid() {
-		return nil, errors.New("invalid thread repost creator address: " + creator.String())
+		return nil, ufmt.Errorf("invalid thread repost creator address: %s", creator)
 	}
 
 	id := dst.ThreadsSequence.Next()
@@ -90,21 +92,6 @@ func MustNewRepost(thread *Post, dst *Board, creator address) *Post {
 	return r
 }
 
-// Get returns a reply from a thread.
-// No reply is returned if post is not a thread.
-func (thread *Post) GetReply(replyID ID) (_ *Post, found bool) {
-	if !IsThread(thread) {
-		return nil, false
-	}
-
-	key := makePostKey(replyID)
-	v, found := thread.repliesAll.Get(key)
-	if !found {
-		return nil, false
-	}
-	return v.(*Post), true
-}
-
 // DeleteReply deletes a reply from a thread.
 func (thread *Post) DeleteReply(replyID ID) error {
 	if !IsThread(thread) {
@@ -112,32 +99,28 @@ func (thread *Post) DeleteReply(replyID ID) error {
 		return errors.New("post must be a thread to remove a reply")
 	}
 
-	key := makePostKey(replyID)
-	v, removed := thread.repliesAll.Remove(key)
+	if err := checkPostSupportsReplies(thread); err != nil {
+		return err
+	}
+
+	// Remove reply from the thread
+	reply, removed := thread.Replies.Remove(replyID)
 	if !removed {
 		return errors.New("reply not found")
 	}
 
-	// TODO: Shouldn't reply be hidden instead of deleted? Maybe replace reply by a deleted message.
-	reply := v.(*Post)
-	if reply.ParentID == thread.ID {
-		thread.replies.Remove(key)
-	} else {
-		parent, found := thread.GetReply(reply.ParentID)
+	// Remove reply from parent reply
+	if reply.ParentID != thread.ID {
+		parent, found := thread.Replies.Get(reply.ParentID)
 		if !found {
-			return errors.New("parent reply not found, ID=" + reply.ParentID.String())
+			return ufmt.Errorf("parent reply ID %s not found", reply.ParentID)
 		}
 
-		parent.replies.Remove(key)
-	}
-	return nil
-}
+		if err := checkPostSupportsReplies(parent); err != nil {
+			return err
+		}
 
-func (thread *Post) saveRepost(repost *Post) error {
-	if thread.Board == nil {
-		return errors.New("board is required to save a thread repost")
+		parent.Replies.Remove(replyID)
 	}
-
-	thread.reposts.Set(thread.Board.ID.Key(), repost.ID)
 	return nil
 }
