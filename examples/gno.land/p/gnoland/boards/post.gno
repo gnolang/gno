@@ -11,11 +11,10 @@ import (
 // A Post is a "thread" or a "reply" depending on context.
 // A thread is a Post of a board that holds other replies.
 type Post struct {
-	Title     string
-	Body      string
-	Hidden    bool
-	Readonly  bool
-	UpdatedAt time.Time
+	Title    string
+	Body     string
+	Hidden   bool
+	Readonly bool
 
 	id              ID
 	parentID        ID // Parent Post.ID for all replies or reposted thread
