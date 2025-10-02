@@ -1,7 +1,6 @@
 package typeutil
 
 import (
-	"std"
 	"strings"
 	"testing"
 	"time"
@@ -21,7 +20,7 @@ func TestToString(t *testing.T) {
 	num := 42
 	b := true
 	now := time.Now()
-	addr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	addr := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	stringer := testStringer{value: "hello"}
 
 	type testCase struct {
@@ -72,7 +71,7 @@ func TestToString(t *testing.T) {
 		{"float64_slice", []float64{1.1, 2.2}, "[1.1 2.2]"},
 		{"bytes_slice", [][]byte{[]byte("a"), []byte("b")}, "[a b]"},
 		{"time_slice", []time.Time{now, now}, "[" + now.String() + " " + now.String() + "]"},
-		{"address_slice", []std.Address{addr, addr}, "[" + string(addr) + " " + string(addr) + "]"},
+		{"address_slice", []address{addr, addr}, "[" + string(addr) + " " + string(addr) + "]"},
 		{"interface_slice", []any{1, "a", true}, "[1 a true]"},
 
 		// empty slices
@@ -84,7 +83,7 @@ func TestToString(t *testing.T) {
 		{"empty_float64_slice", []float64{}, "[]"},
 		{"empty_bytes_slice", [][]byte{}, "[]"},
 		{"empty_time_slice", []time.Time{}, "[]"},
-		{"empty_address_slice", []std.Address{}, "[]"},
+		{"empty_address_slice", []address{}, "[]"},
 		{"empty_interface_slice", []any{}, "[]"},
 
 		// maps
@@ -108,7 +107,7 @@ func TestToString(t *testing.T) {
 		{"bool_ptr", &b, "true"},
 		// {"nil_time_ptr", (*time.Time)(nil), ""}, // TODO: fix this
 		{"time_ptr", &now, now.String()},
-		// {"nil_address_ptr", (*std.Address)(nil), ""}, // TODO: fix this
+		// {"nil_address_ptr", (*address)(nil), ""}, // TODO: fix this
 		{"address_ptr", &addr, string(addr)},
 	}
 
@@ -127,7 +126,7 @@ func TestToBool(t *testing.T) {
 	num := 42
 	b := true
 	now := time.Now()
-	addr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	addr := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	zero := 0
 	empty := ""
 	falseVal := false
@@ -169,7 +168,7 @@ func TestToBool(t *testing.T) {
 		{"empty_bytes", []byte{}, false},
 		{"non_empty_bytes", []byte{1}, true},
 		/*{"zero_time", time.Time{}, false},*/ // TODO: fix this
-		{"empty_address", std.Address(""), false},
+		{"empty_address", address(""), false},
 
 		// slices
 		{"empty_slice", []string{}, false},
@@ -191,7 +190,7 @@ func TestToBool(t *testing.T) {
 		{"zero_int_ptr", &zero, false},
 		// {"nil_time_ptr", (*time.Time)(nil), false}, // TODO: fix this
 		{"time_ptr", &now, true},
-		// {"nil_address_ptr", (*std.Address)(nil), false}, // TODO: fix this
+		// {"nil_address_ptr", (*address)(nil), false}, // TODO: fix this
 		{"address_ptr", &addr, true},
 	}
 
@@ -210,7 +209,7 @@ func TestIsZero(t *testing.T) {
 	num := 42
 	b := true
 	now := time.Now()
-	addr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	addr := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	zero := 0
 	empty := ""
 	falseVal := false
@@ -241,7 +240,7 @@ func TestIsZero(t *testing.T) {
 		{"empty_bytes", []byte{}, true},
 		{"non_empty_bytes", []byte{1}, false},
 		/*{"zero_time", time.Time{}, true},*/ // TODO: fix this
-		{"empty_address", std.Address(""), true},
+		{"empty_address", address(""), true},
 
 		// slices
 		{"empty_slice", []string{}, true},
@@ -263,7 +262,7 @@ func TestIsZero(t *testing.T) {
 		{"int_ptr", &num, false},
 		// {"nil_time_ptr", (*time.Time)(nil), true}, // TODO: fix this
 		{"time_ptr", &now, false},
-		// {"nil_address_ptr", (*std.Address)(nil), true}, // TODO: fix this
+		// {"nil_address_ptr", (*address)(nil), true}, // TODO: fix this
 		{"address_ptr", &addr, false},
 	}
 
@@ -352,7 +351,7 @@ func TestToInterfaceSlice(t *testing.T) {
 		}, */ // TODO: fix this
 		/* {
 			name:     "address_slice",
-			input:    []std.Address{addr},
+			input:    []address{addr},
 			expected: []any{addr},
 			compare:  compareAddresses,
 		},*/ // TODO: fix this
@@ -511,8 +510,8 @@ func compareAddresses(a, b []any) bool {
 		return false
 	}
 	for i := range a {
-		aa, ok1 := a[i].(std.Address)
-		ba, ok2 := b[i].(std.Address)
+		aa, ok1 := a[i].(address)
+		ba, ok2 := b[i].(address)
 		if !ok1 || !ok2 || aa != ba {
 			return false
 		}
@@ -973,7 +972,7 @@ func TestToStringSlice(t *testing.T) {
 		},
 		{
 			name:     "address slice",
-			input:    []std.Address{"addr1", "addr2"},
+			input:    []address{"addr1", "addr2"},
 			expected: []string{"addr1", "addr2"},
 		},
 		{

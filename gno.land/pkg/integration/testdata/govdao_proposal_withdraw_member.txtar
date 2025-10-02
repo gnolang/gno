@@ -23,7 +23,7 @@ gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -fu
 stdout 'OK!'
 
 # Register withdrawmember with a namespace first
-gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "withdraw456" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test withdrawmember
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "withdraw456" -gas-fee 1000000ugnot -gas-wanted 11000000 -broadcast -chainid=tendermint_test withdrawmember
 stdout 'OK!'
 
 # add the proposal
@@ -54,26 +54,21 @@ stdout 'Tier T2 contains 0 members'
 package main
 
 import (
-	"std"
-
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
 )
 
 func main() {
-	addr := std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0")
+	addr := address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0")
 	reason := "not responding"
-	
+
 	preq := impl.NewWithdrawMemberRequest(cross, addr, reason)
 	dao.MustCreateProposal(cross, preq)
 }
-
 -- loader/load_govdao.gno --
 package load_govdao
 
 import (
-	"std"
-
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
 	"gno.land/r/gov/dao/v3/memberstore"
@@ -84,8 +79,8 @@ func init() {
 	memberstore.Get().SetTier(memberstore.T2)
 	memberstore.Get().SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(memberstore.T1, std.Address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3}) // member address
-	memberstore.Get().SetMember(memberstore.T2, std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), &memberstore.Member{InvitationPoints: 2}) // member to withdraw
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3}) // member address
+	memberstore.Get().SetMember(memberstore.T2, address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), &memberstore.Member{InvitationPoints: 2}) // member to withdraw
 
 	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO:         impl.GetInstance(),
