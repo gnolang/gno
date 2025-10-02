@@ -145,7 +145,7 @@ func TestFlagStorageSize(t *testing.T) {
 			size: 0,
 		},
 		{
-			name: "on flag",
+			name: "one flag",
 			setup: func() boards.FlagStorage {
 				s := boards.NewFlagStorage()
 				s.Add(boards.Flag{User: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"})
