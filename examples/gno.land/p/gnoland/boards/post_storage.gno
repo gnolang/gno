@@ -21,6 +21,9 @@ type (
 		// Add adds a post in the storage.
 		Add(*Post) error
 
+		// Size returns the number of posts in the storage.
+		Size() int
+
 		// Iterate iterates posts.
 		// To reverse iterate posts use a negative count.
 		// If the callback returns true, the iteration is stopped.
@@ -40,8 +43,8 @@ type postStorage struct {
 
 // Get retruns a post that matches an ID.
 func (s postStorage) Get(id ID) (*Post, bool) {
-	key := makePostKey(id)
-	v, found := s.posts.Get(key)
+	k := makePostKey(id)
+	v, found := s.posts.Get(k)
 	if !found {
 		return nil, false
 	}
@@ -50,8 +53,8 @@ func (s postStorage) Get(id ID) (*Post, bool) {
 
 // Remove removes a post from the storage.
 func (s *postStorage) Remove(id ID) (*Post, bool) {
-	key := makePostKey(id)
-	v, removed := s.posts.Remove(key)
+	k := makePostKey(id)
+	v, removed := s.posts.Remove(k)
 	if !removed {
 		return nil, false
 	}
@@ -62,11 +65,16 @@ func (s *postStorage) Remove(id ID) (*Post, bool) {
 // It updates existing posts when storage contains one with the same ID.
 func (s *postStorage) Add(p *Post) error {
 	if p == nil {
-		return errors.New("saving a nil post is not supported")
+		return errors.New("saving nil posts is not allowed")
 	}
 
 	s.posts.Set(makePostKey(p.ID), p)
 	return nil
+}
+
+// Size returns the number of posts in the storage.
+func (s postStorage) Size() int {
+	return s.posts.Size()
 }
 
 // Iterate iterates posts.

@@ -30,6 +30,8 @@ func NewReply(parent *Post, creator address, body string) (*Post, error) {
 		ThreadID:  parent.ThreadID, // TODO: Check
 		Board:     parent.Board,    // TODO: Check
 		Body:      body,
+		Replies:   NewPostStorage(),
+		Flags:     NewFlagStorage(),
 		Creator:   creator,
 		CreatedAt: time.Now(),
 	}, nil

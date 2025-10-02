@@ -5,29 +5,58 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/nt/avl"
 	"gno.land/p/nt/ufmt"
 )
 
-// A Post is a "thread" or a "reply" depending on context.
-// A thread is a Post of a board that holds other replies.
+// Post defines a generic type for posts.
+// A post can be either a thread or a reply.
 type Post struct {
-	ID              ID
-	ParentID        ID     // Parent Post.ID for all replies or reposted thread
-	ThreadID        ID     // Post.ID of the thread where reply is created
-	OriginalBoardID ID     // Original Board.ID when thread is a repost
-	Board           *Board // Board where post was created
-	Title           string
-	Body            string
-	Hidden          bool
-	Readonly        bool
-	Replies         PostStorage
-	Flags           FlagStorage
-	Creator         address
-	CreatedAt       time.Time
+	// ID is the unique identifier of the post.
+	ID ID
 
-	// TODO: Make this property public using a RepostStorage
-	reposts avl.Tree // string(Board.ID) -> Post.ID
+	// ParentID is the ID of the parent post.
+	ParentID ID
+
+	// ThreadID contains the post ID of the thread where current post is created.
+	// It should be used when current post is a reply within a thread.
+	ThreadID ID
+
+	// OriginalBoardID contains the board ID of the original post when current post is a repost.
+	OriginalBoardID ID
+
+	//  Board contains the board where post is created.
+	Board *Board
+
+	// Title contains the post's title.
+	Title string
+
+	// Body contains content of the post.
+	Body string
+
+	// Hidden indicates that the post is hidden.
+	Hidden bool
+
+	// Readonly indicates that the post is readonly.
+	Readonly bool
+
+	// Replies stores post replies.
+	Replies PostStorage
+
+	// Reposts stores reposts of the current post.
+	// It should be used when post is a thread.
+	Reposts RepostStorage
+
+	// Flags stores users flags for the current post.
+	Flags FlagStorage
+
+	// Creator is the account address that created the post.
+	Creator address
+
+	// CreatedAt is the post's creation time.
+	CreatedAt time.Time
+
+	// UpdatedAt is the post's update time.
+	UpdatedAt time.Time
 }
 
 // Summary return a summary of the post's body.
@@ -44,7 +73,7 @@ func (post *Post) Save() error {
 	}
 
 	if post.Board.Threads == nil {
-		return ufmt.Errorf("save error, threads support not available in board ID %s", post.Board.ID)
+		return ufmt.Errorf("save error, threads are not supported board ID %s", post.Board.ID)
 	}
 
 	// Post is a thread
@@ -62,7 +91,6 @@ func (post *Post) Save() error {
 }
 
 func (thread *Post) saveThread() error {
-	// Add current thread to the board
 	return thread.Board.Threads.Add(thread)
 }
 
@@ -72,9 +100,11 @@ func (repost *Post) saveRepost() error {
 		return ufmt.Errorf("repost save error, origin thread ID %s not found", repost.ParentID)
 	}
 
-	// TODO: Check if thread support reposts
-	thread.reposts.Set(repost.Board.ID.Key(), repost.ID) // TODO: Replace by thread.Reposts.Add(post)
+	if thread.Reposts == nil {
+		return ufmt.Errorf("repost save error, reposts are not supported in thread ID %s", thread.ID)
+	}
 
+	thread.Reposts.Add(repost)
 	return repost.Board.Threads.Add(repost)
 }
 
@@ -146,7 +176,7 @@ func SummaryOf(text string, length int) string {
 
 func checkPostSupportsReplies(p *Post) error {
 	if p.Replies == nil {
-		return ufmt.Errorf("replies support not available in post ID %s", p.ID)
+		return ufmt.Errorf("replies are not supported in post ID %s", p.ID)
 	}
 	return nil
 }

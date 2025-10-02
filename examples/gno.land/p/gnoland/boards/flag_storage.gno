@@ -31,8 +31,11 @@ type (
 		// Remove removes a user flag.
 		Remove(address) (removed bool)
 
+		// Size returns the number of flags in the storage.
+		Size() int
+
 		// Iterate iterates post flags.
-		// To reverse iterate posts use a negative count.
+		// To reverse iterate flags use a negative count.
 		// If the callback returns true, the iteration is stopped.
 		Iterate(start, count int, fn FlagIterFn) bool
 	}
@@ -75,8 +78,13 @@ func (s *flagStorage) Remove(addr address) bool {
 	return removed
 }
 
+// Size returns the number of flags in the storage.
+func (s flagStorage) Size() int {
+	return s.flags.Size()
+}
+
 // Iterate iterates post flags.
-// To reverse iterate posts use a negative count.
+// To reverse iterate flags use a negative count.
 // If the callback returns true, the iteration is stopped.
 func (s flagStorage) Iterate(start, count int, fn FlagIterFn) bool {
 	if count < 0 {

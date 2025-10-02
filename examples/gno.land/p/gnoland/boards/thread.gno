@@ -35,6 +35,9 @@ func NewThread(b *Board, creator address, title, body string) (*Post, error) {
 		Board:     b,
 		Title:     title,
 		Body:      body,
+		Replies:   NewPostStorage(),
+		Reposts:   NewRepostStorage(),
+		Flags:     NewFlagStorage(),
 		Creator:   creator,
 		CreatedAt: time.Now(),
 	}, nil
