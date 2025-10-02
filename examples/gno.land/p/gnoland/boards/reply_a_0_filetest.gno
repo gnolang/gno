@@ -27,6 +27,7 @@ func main() {
 
 	println("thread ID:", reply.ThreadID())
 	println("reply ID:", reply.ID())
+	println(reply.Creator())
 	println(reply.Body)
 }
 
@@ -44,4 +45,5 @@ func (perms) WithPermission(realm, address, boards.Permission, boards.Args, func
 // Output:
 // thread ID: 1
 // reply ID: 2
+// g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 // Message

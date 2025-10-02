@@ -82,11 +82,19 @@ func (post Post) HasReplies() bool {
 	return post.replies.Size() > 0
 }
 
-// Save stores the thread within it's parent board, or if post
-// is a reply it stores the reply within it's parent thread.
+// Save stores the thread (or repost) within it's parent board, or
+// if post is a reply it stores the reply within it's parent thread.
 func (post *Post) Save() error {
 	if IsThread(post) {
 		post.board.saveThread(post)
+	} else if IsRepost(post) {
+		thread, found := post.board.GetThread(post.parentID)
+		if !found {
+			return errors.New("repost origin thread not found, ID=" + post.parentID.String())
+		}
+
+		post.board.saveThread(post)
+		thread.saveRepost(post)
 	} else {
 		thread, found := post.board.GetThread(post.threadID)
 		if !found {
@@ -113,6 +121,25 @@ func (post *Post) Save() error {
 		parent.replies.Set(key, post)
 	}
 	return nil
+}
+
+// IsThread checks if a post is a thread.
+// When a post is not a thread it's considered a thread's reply/comment.
+func IsThread(p *Post) bool {
+	if p == nil {
+		return false
+	}
+
+	return p.threadID == p.id
+}
+
+// IsRepost checks if a thread is a repost.
+func IsRepost(thread *Post) bool {
+	if thread == nil {
+		return false
+	}
+
+	return thread.originalBoardID != 0
 }
 
 func makePostKey(postID ID) string {

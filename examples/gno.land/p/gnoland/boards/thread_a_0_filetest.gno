@@ -1,41 +1,32 @@
 // PKGPATH: gno.land/r/demo/test
 //
-// Test creating a reply to a reply.
+// Test creating a thread.
 package test
 
 import (
 	"gno.land/p/gnoland/boards"
 )
 
-var parentReply *boards.Post
+var board *boards.Board
 
 func init() {
-	board := boards.MustNew(1, perms{})
-	thread := boards.MustNewThread(board, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "Title", "Body")
-	err := thread.Save()
-	if err != nil {
-		panic(err)
-	}
-
-	parentReply = boards.MustNewReply(thread, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "Message")
-	err = parentReply.Save()
-	if err != nil {
-		panic(err)
-	}
+	board = boards.MustNew(1, perms{})
 }
 
 func main() {
-	reply := boards.MustNewReply(parentReply, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "Message")
-	err := reply.Save()
-	if err != nil {
-		panic(err)
+	thread := boards.MustNewThread(board, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "Title", "Body")
+
+	if thread.Board() == nil {
+		panic("expected board to be assigned")
 	}
 
-	println("thread ID:", reply.ThreadID())
-	println("parent reply ID:", parentReply.ID())
-	println("reply ID:", reply.ID())
-	println(reply.Creator())
-	println(reply.Body)
+	println(thread.Board().ID())
+	println(thread.ID())
+	println(thread.ID() == thread.ThreadID())
+	println(thread.Creator())
+	println(thread.OriginalBoardID())
+	println(thread.Title)
+	println(thread.Body)
 }
 
 type perms struct{}
@@ -50,8 +41,10 @@ func (perms) IterateUsers(start, count int, fn boards.UsersIterFn) bool         
 func (perms) WithPermission(realm, address, boards.Permission, boards.Args, func(realm)) {}
 
 // Output:
-// thread ID: 1
-// parent reply ID: 2
-// reply ID: 3
+// 1
+// 1
+// true
 // g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
-// Message
+// 0
+// Title
+// Body

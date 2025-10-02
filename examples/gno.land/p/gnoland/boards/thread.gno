@@ -48,6 +48,49 @@ func MustNewThread(b *Board, creator address, title, body string) *Post {
 	return t
 }
 
+// NewRepost creates a new thread that is a repost of a thread from another board.
+func NewRepost(thread *Post, dst *Board, creator address) (*Post, error) {
+	if thread == nil {
+		return nil, errors.New("thread to repost is required")
+	}
+
+	if !IsThread(thread) {
+		return nil, errors.New("post must be a thread to be reposted to another board")
+	}
+
+	if IsRepost(thread) {
+		return nil, errors.New("reposting a thread that is a repost is not allowed")
+	}
+
+	if dst == nil {
+		return nil, errors.New("thread repost requires a destination board")
+	}
+
+	if !creator.IsValid() {
+		return nil, errors.New("invalid thread repost creator address: " + creator.String())
+	}
+
+	id := dst.generateNextPostID()
+	return &Post{
+		id:              id,
+		threadID:        id,
+		board:           dst,
+		parentID:        thread.id,
+		originalBoardID: thread.board.ID(),
+		creator:         creator,
+		createdAt:       time.Now(),
+	}, nil
+}
+
+// MustNewRepost creates a new thread that is a repost of a thread from another board or panics on error.
+func MustNewRepost(thread *Post, dst *Board, creator address) *Post {
+	r, err := NewRepost(thread, dst, creator)
+	if err != nil {
+		panic(err)
+	}
+	return r
+}
+
 // OriginalBoardID returns the unique identifier of the original thread's board.
 // This ID is only available when the thread is a repost.
 func (thread Post) OriginalBoardID() ID {
@@ -67,27 +110,6 @@ func (thread *Post) GetReply(replyID ID) (_ *Post, found bool) {
 		return nil, false
 	}
 	return v.(*Post), true
-}
-
-// Repost reposts a thread into another board.
-func (thread *Post) Repost(creator address, dst *Board, title, body string) (*Post, error) {
-	if !IsThread(thread) {
-		return nil, errors.New("post must be a thread to be reposted to another board")
-	}
-
-	repost, err := NewThread(dst, creator, title, body)
-	if err != nil {
-		return nil, err
-	}
-
-	repost.parentID = thread.id
-	repost.originalBoardID = thread.board.ID()
-
-	// TODO: Ideally we should handle this on Save()
-	dst.saveThread(repost)
-	thread.saveRepost(repost)
-
-	return repost, nil
 }
 
 // DeleteReply deletes a reply from a thread.
@@ -121,15 +143,4 @@ func (thread *Post) DeleteReply(replyID ID) error {
 func (thread *Post) saveRepost(repost *Post) {
 	key := thread.Board().ID().Key()
 	thread.reposts.Set(key, repost.ID())
-}
-
-// IsThread checks if a post is a thread.
-// When a post is not a thread it's considered a thread's reply/comment.
-func IsThread(p *Post) bool {
-	return p.threadID == p.id
-}
-
-// IsRepost checks if a thread is a repost.
-func IsRepost(thread *Post) bool {
-	return thread.originalBoardID != 0
 }

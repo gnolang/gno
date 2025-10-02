@@ -1,41 +1,23 @@
 // PKGPATH: gno.land/r/demo/test
 //
-// Test creating a reply to a reply.
+// Test getting a reply that doesn't exist from a thread.
 package test
 
 import (
 	"gno.land/p/gnoland/boards"
 )
 
-var parentReply *boards.Post
+var thread *boards.Post
 
 func init() {
 	board := boards.MustNew(1, perms{})
-	thread := boards.MustNewThread(board, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "Title", "Body")
-	err := thread.Save()
-	if err != nil {
-		panic(err)
-	}
-
-	parentReply = boards.MustNewReply(thread, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "Message")
-	err = parentReply.Save()
-	if err != nil {
-		panic(err)
-	}
+	thread = boards.MustNewThread(board, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "Title", "Body")
 }
 
 func main() {
-	reply := boards.MustNewReply(parentReply, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "Message")
-	err := reply.Save()
-	if err != nil {
-		panic(err)
-	}
+	_, found := thread.GetReply(404)
 
-	println("thread ID:", reply.ThreadID())
-	println("parent reply ID:", parentReply.ID())
-	println("reply ID:", reply.ID())
-	println(reply.Creator())
-	println(reply.Body)
+	println(found)
 }
 
 type perms struct{}
@@ -50,8 +32,4 @@ func (perms) IterateUsers(start, count int, fn boards.UsersIterFn) bool         
 func (perms) WithPermission(realm, address, boards.Permission, boards.Args, func(realm)) {}
 
 // Output:
-// thread ID: 1
-// parent reply ID: 2
-// reply ID: 3
-// g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
-// Message
+// false

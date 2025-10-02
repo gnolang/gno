@@ -1,17 +1,21 @@
 // PKGPATH: gno.land/r/demo/test
 //
-// Test creating a reply to a reply.
+// Test deleting a reply of a reply from a thread.
 package test
 
 import (
 	"gno.land/p/gnoland/boards"
 )
 
-var parentReply *boards.Post
+var (
+	thread      *boards.Post
+	parentReply *boards.Post
+	replyID     boards.ID
+)
 
 func init() {
 	board := boards.MustNew(1, perms{})
-	thread := boards.MustNewThread(board, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "Title", "Body")
+	thread = boards.MustNewThread(board, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "Title", "Body")
 	err := thread.Save()
 	if err != nil {
 		panic(err)
@@ -22,20 +26,27 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-}
 
-func main() {
 	reply := boards.MustNewReply(parentReply, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "Message")
-	err := reply.Save()
+	err = reply.Save()
 	if err != nil {
 		panic(err)
 	}
 
-	println("thread ID:", reply.ThreadID())
-	println("parent reply ID:", parentReply.ID())
-	println("reply ID:", reply.ID())
-	println(reply.Creator())
-	println(reply.Body)
+	replyID = reply.ID()
+}
+
+func main() {
+	err := thread.DeleteReply(replyID)
+	if err != nil {
+		panic(err)
+	}
+
+	_, found := thread.GetReply(replyID)
+	println(found)
+
+	_, found = parentReply.GetReply(replyID)
+	println(found)
 }
 
 type perms struct{}
@@ -50,8 +61,5 @@ func (perms) IterateUsers(start, count int, fn boards.UsersIterFn) bool         
 func (perms) WithPermission(realm, address, boards.Permission, boards.Args, func(realm)) {}
 
 // Output:
-// thread ID: 1
-// parent reply ID: 2
-// reply ID: 3
-// g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
-// Message
+// false
+// false
