@@ -31,7 +31,7 @@ type (
 // NewPostStorage creates a new storage for posts.
 // The new storage uses an AVL tree to store posts.
 func NewPostStorage() PostStorage {
-	return &postStorage{posts: avl.NewTree()}
+	return &postStorage{avl.NewTree()}
 }
 
 type postStorage struct {

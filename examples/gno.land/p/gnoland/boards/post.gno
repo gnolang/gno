@@ -22,11 +22,11 @@ type Post struct {
 	Hidden          bool
 	Readonly        bool
 	Replies         PostStorage
+	Flags           FlagStorage
 	Creator         address
 	CreatedAt       time.Time
 
-	// TODO: Make these properties public introducing optional support for them (storages)
-	flags   avl.Tree // address -> string(reason)
+	// TODO: Make this property public using a RepostStorage
 	reposts avl.Tree // string(Board.ID) -> Post.ID
 }
 
@@ -34,22 +34,6 @@ type Post struct {
 // It returns the body making sure that the length is limited to 80 characters.
 func (post Post) Summary() string {
 	return SummaryOf(post.Body, 80)
-}
-
-// Flag add a flag to the post.
-// It returns false when the user flagging the post already flagged it.
-func (post *Post) Flag(user address, reason string) bool {
-	if post.flags.Has(user.String()) {
-		return false
-	}
-
-	post.flags.Set(user.String(), reason)
-	return true
-}
-
-// FlagsCount returns the number of times post was flagged.
-func (post Post) FlagsCount() int {
-	return post.flags.Size()
 }
 
 // Save stores the thread (or repost) within it's parent board, or
