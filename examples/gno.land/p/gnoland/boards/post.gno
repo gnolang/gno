@@ -18,7 +18,8 @@ type Post struct {
 	ParentID ID
 
 	// ThreadID contains the post ID of the thread where current post is created.
-	// It should be used when current post is a reply within a thread.
+	// If current post is a thread it contains post's ID.
+	// It should be used when current post is a thread or reply.
 	ThreadID ID
 
 	// OriginalBoardID contains the board ID of the original post when current post is a repost.

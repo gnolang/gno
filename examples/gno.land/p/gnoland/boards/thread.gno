@@ -58,16 +58,20 @@ func NewRepost(thread *Post, dst *Board, creator address) (*Post, error) {
 		return nil, errors.New("thread to repost is required")
 	}
 
+	if thread.Board == nil {
+		return nil, errors.New("original thread has no board assigned")
+	}
+
+	if dst == nil {
+		return nil, errors.New("thread repost requires a destination board")
+	}
+
 	if !IsThread(thread) {
 		return nil, errors.New("post must be a thread to be reposted to another board")
 	}
 
 	if IsRepost(thread) {
 		return nil, errors.New("reposting a thread that is a repost is not allowed")
-	}
-
-	if dst == nil {
-		return nil, errors.New("thread repost requires a destination board")
 	}
 
 	if !creator.IsValid() {
@@ -79,8 +83,8 @@ func NewRepost(thread *Post, dst *Board, creator address) (*Post, error) {
 		ID:              id,
 		ThreadID:        id,
 		Board:           dst,
-		ParentID:        thread.ID,       // TODO: Check
-		OriginalBoardID: thread.Board.ID, // TODO: Check
+		ParentID:        thread.ID,
+		OriginalBoardID: thread.Board.ID,
 		Creator:         creator,
 		CreatedAt:       time.Now(),
 	}, nil
@@ -98,7 +102,6 @@ func MustNewRepost(thread *Post, dst *Board, creator address) *Post {
 // DeleteReply deletes a reply from a thread.
 func (thread *Post) DeleteReply(replyID ID) error {
 	if !IsThread(thread) {
-		// TODO: Allow removing replies from parent replies too
 		return errors.New("post must be a thread to remove a reply")
 	}
 

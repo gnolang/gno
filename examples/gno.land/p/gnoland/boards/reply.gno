@@ -14,6 +14,14 @@ func NewReply(parent *Post, creator address, body string) (*Post, error) {
 		return nil, errors.New("reply requires a parent thread or reply")
 	}
 
+	if parent.ThreadID == 0 {
+		return nil, errors.New("parent has no thread ID assigned")
+	}
+
+	if parent.Board == nil {
+		return nil, errors.New("parent has no board assigned")
+	}
+
 	if !creator.IsValid() {
 		return nil, ufmt.Errorf("invalid reply creator address: %s", creator)
 	}
@@ -26,9 +34,9 @@ func NewReply(parent *Post, creator address, body string) (*Post, error) {
 	id := parent.Board.ThreadsSequence.Next()
 	return &Post{
 		ID:        id,
-		ParentID:  parent.ID,       // TODO: Check
-		ThreadID:  parent.ThreadID, // TODO: Check
-		Board:     parent.Board,    // TODO: Check
+		ParentID:  parent.ID,
+		ThreadID:  parent.ThreadID,
+		Board:     parent.Board,
 		Body:      body,
 		Replies:   NewPostStorage(),
 		Flags:     NewFlagStorage(),
