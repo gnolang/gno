@@ -64,7 +64,7 @@ func (s *storage) Remove(boardID ID) (*Board, bool) {
 	}
 
 	// Remove indexes for current and previous board names
-	names := append([]string{board.Name()}, board.Aliases()...)
+	names := append([]string{board.Name}, board.Aliases...)
 	for _, name := range names {
 		key := makeBoardNameKey(name)
 
@@ -75,7 +75,7 @@ func (s *storage) Remove(boardID ID) (*Board, bool) {
 		}
 	}
 
-	key := makeBoardKey(board.ID())
+	key := makeBoardKey(board.ID)
 	_, removed := s.byID.Remove(key)
 	return board, removed
 }
@@ -88,16 +88,16 @@ func (s *storage) Save(board *Board) error {
 		return errors.New("save failed, board is nil")
 	}
 
-	key := makeBoardKey(board.ID())
+	key := makeBoardKey(board.ID)
 	s.byID.Set(key, board)
 
 	// Index by name when the optional board name is not empty
-	if key = makeBoardNameKey(board.Name()); key != "" {
+	if key = makeBoardNameKey(board.Name); key != "" {
 		if s.byName.Has(key) {
-			return errors.New("duplicated board name: " + board.Name())
+			return errors.New("duplicated board name: " + board.Name)
 		}
 
-		s.byName.Set(key, board.ID())
+		s.byName.Set(key, board.ID)
 	}
 	return nil
 }

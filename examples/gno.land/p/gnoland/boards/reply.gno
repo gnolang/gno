@@ -21,17 +21,15 @@ func NewReply(parent *Post, creator address, body string) (*Post, error) {
 		return nil, errors.New("reply body is required")
 	}
 
-	board := parent.Board()
-	id := board.generateNextPostID()
+	id := parent.Board.ThreadsSequence.Next()
 	return &Post{
-		Body: body,
-
-		id:        id,
-		parentID:  parent.ID(),
-		threadID:  parent.ThreadID(),
-		board:     board,
-		creator:   creator,
-		createdAt: time.Now(),
+		ID:        id,
+		ParentID:  parent.ID,       // TODO: Check
+		ThreadID:  parent.ThreadID, // TODO: Check
+		Board:     parent.Board,    // TODO: Check
+		Body:      body,
+		Creator:   creator,
+		CreatedAt: time.Now(),
 	}, nil
 }
 
@@ -42,10 +40,4 @@ func MustNewReply(parent *Post, creator address, body string) *Post {
 		panic(err)
 	}
 	return p
-}
-
-// ThreadID returns the unique identified of the thread where reply was created.
-// If post is a thread it returns the unique identifier of the thread, same as ID().
-func (reply Post) ThreadID() ID {
-	return reply.threadID
 }

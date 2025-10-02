@@ -28,3 +28,31 @@ func (id ID) PaddedString() string {
 func (id ID) Key() string {
 	return seqid.ID(id).String()
 }
+
+// IdentifierGenerator defines an interface for sequential unique identifier generators.
+type IdentifierGenerator interface {
+	// Current returns the last generated ID.
+	Last() ID
+
+	// Next generates a new ID or panics if increasing ID overflows.
+	Next() ID
+}
+
+// NewIdentifierGenerator creates a new sequential unique identifier generator.
+func NewIdentifierGenerator() IdentifierGenerator {
+	return &idGenerator{}
+}
+
+type idGenerator struct {
+	last seqid.ID
+}
+
+// Current returns the last generated ID.
+func (g idGenerator) Last() ID {
+	return ID(g.last)
+}
+
+// Next generates a new ID or panics if increasing ID overflows.
+func (g *idGenerator) Next() ID {
+	return ID(g.last.Next())
+}

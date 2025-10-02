@@ -26,16 +26,15 @@ func NewThread(b *Board, creator address, title, body string) (*Post, error) {
 		return nil, errors.New("thread body is required")
 	}
 
-	id := b.generateNextPostID()
+	id := b.ThreadsSequence.Next()
 	return &Post{
-		Title: title,
-		Body:  body,
-
-		id:        id,
-		threadID:  id,
-		board:     b,
-		creator:   creator,
-		createdAt: time.Now(),
+		ID:        id,
+		ThreadID:  id,
+		Board:     b,
+		Title:     title,
+		Body:      body,
+		Creator:   creator,
+		CreatedAt: time.Now(),
 	}, nil
 }
 
@@ -70,15 +69,15 @@ func NewRepost(thread *Post, dst *Board, creator address) (*Post, error) {
 		return nil, errors.New("invalid thread repost creator address: " + creator.String())
 	}
 
-	id := dst.generateNextPostID()
+	id := dst.ThreadsSequence.Next()
 	return &Post{
-		id:              id,
-		threadID:        id,
-		board:           dst,
-		parentID:        thread.id,
-		originalBoardID: thread.board.ID(),
-		creator:         creator,
-		createdAt:       time.Now(),
+		ID:              id,
+		ThreadID:        id,
+		Board:           dst,
+		ParentID:        thread.ID,       // TODO: Check
+		OriginalBoardID: thread.Board.ID, // TODO: Check
+		Creator:         creator,
+		CreatedAt:       time.Now(),
 	}, nil
 }
 
@@ -89,12 +88,6 @@ func MustNewRepost(thread *Post, dst *Board, creator address) *Post {
 		panic(err)
 	}
 	return r
-}
-
-// OriginalBoardID returns the unique identifier of the original thread's board.
-// This ID is only available when the thread is a repost.
-func (thread Post) OriginalBoardID() ID {
-	return thread.originalBoardID
 }
 
 // Get returns a reply from a thread.
@@ -127,12 +120,12 @@ func (thread *Post) DeleteReply(replyID ID) error {
 
 	// TODO: Shouldn't reply be hidden instead of deleted? Maybe replace reply by a deleted message.
 	reply := v.(*Post)
-	if reply.ParentID() == thread.id {
+	if reply.ParentID == thread.ID {
 		thread.replies.Remove(key)
 	} else {
-		parent, found := thread.GetReply(reply.ParentID())
+		parent, found := thread.GetReply(reply.ParentID)
 		if !found {
-			return errors.New("parent reply not found, ID=" + reply.ParentID().String())
+			return errors.New("parent reply not found, ID=" + reply.ParentID.String())
 		}
 
 		parent.replies.Remove(key)
@@ -140,7 +133,11 @@ func (thread *Post) DeleteReply(replyID ID) error {
 	return nil
 }
 
-func (thread *Post) saveRepost(repost *Post) {
-	key := thread.Board().ID().Key()
-	thread.reposts.Set(key, repost.ID())
+func (thread *Post) saveRepost(repost *Post) error {
+	if thread.Board == nil {
+		return errors.New("board is required to save a thread repost")
+	}
+
+	thread.reposts.Set(thread.Board.ID.Key(), repost.ID)
+	return nil
 }
