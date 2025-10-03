@@ -15,6 +15,12 @@ func CreateClient(cur realm, clientState lightclient.ClientState, consensusState
 	if clientState.ClientType() != consensusState.ClientType() {
 		panic("client type for client state and consensus state do not match")
 	}
+	if err := types.ValidateClientType(clientState.ClientType()); err != nil {
+		panic(ufmt.Sprintf(
+			"client type does not meet naming constraints: %v", err,
+		))
+	}
+
 	if err := clientState.ValidateBasic(); err != nil {
 		panic(err)
 	}
