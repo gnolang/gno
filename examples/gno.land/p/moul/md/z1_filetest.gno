@@ -101,11 +101,13 @@ func main() {
 // line1
 // line2
 // ```
+//
 // ```go
 // func main() {
 // println("Hello, world!")
 // }
 // ```
+//
 // ---
 //
 // [Gno](http://gno.land)
