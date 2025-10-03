@@ -9,7 +9,7 @@ import (
 
 type (
 	// RepostIterFn defines a function type to iterate reposts.
-	RepostIterFn func(board ID, repost ID) bool
+	RepostIterFn func(board, repost ID) bool
 
 	// RepostStorage defines an interface for storing reposts.
 	RepostStorage interface {
