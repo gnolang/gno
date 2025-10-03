@@ -5,23 +5,35 @@ import (
 	"strings"
 
 	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ufmt"
 )
 
-// Storage defines an interface for boards storage.
-type Storage interface {
-	// Get retruns a boards that matches an ID.
-	Get(ID) (_ *Board, found bool)
+type (
+	// BoardIterFn defines a function type to iterate boards.
+	BoardIterFn func(*Board) bool
 
-	// GetByName retruns a boards that matches a name.
-	GetByName(name string) (_ *Board, found bool)
+	// Storage defines an interface for boards storage.
+	Storage interface {
+		// Get retruns a boards that matches an ID.
+		Get(ID) (_ *Board, found bool)
 
-	// Remove removes a board from the storage.
-	Remove(ID) (_ *Board, removed bool)
+		// GetByName retruns a boards that matches a name.
+		GetByName(name string) (_ *Board, found bool)
 
-	// Save saves a board in the storage.
-	Save(*Board) error
-}
+		// Remove removes a board from the storage.
+		Remove(ID) (_ *Board, removed bool)
+
+		// Add adds a board to the storage.
+		Add(*Board) error
+
+		// Size returns the number of boards in the storage.
+		Size() int
+
+		// Iterate iterates boards.
+		// To reverse iterate boards use a negative count.
+		// If the callback returns true, the iteration is stopped.
+		Iterate(start, count int, fn BoardIterFn) bool
+	}
+)
 
 // NewStorage creates a new boards storage.
 func NewStorage() Storage {
@@ -81,12 +93,12 @@ func (s *storage) Remove(boardID ID) (*Board, bool) {
 	return board, removed
 }
 
-// Save saves a board in the storage.
+// Add adds a board to the storage.
 // If board already exists it updates storage by reindexing the board by ID and name.
 // When board name changes it's indexed so it can be found with the new and previous names.
-func (s *storage) Save(board *Board) error {
+func (s *storage) Add(board *Board) error {
 	if board == nil {
-		return errors.New("save failed, board is nil")
+		return errors.New("adding nil boards to the storage is not allowed")
 	}
 
 	key := makeBoardKey(board.ID)
@@ -94,13 +106,29 @@ func (s *storage) Save(board *Board) error {
 
 	// Index by name when the optional board name is not empty
 	if key = makeBoardNameKey(board.Name); key != "" {
-		if s.byName.Has(key) {
-			return ufmt.Errorf("duplicated board name: %s", board.Name)
-		}
-
 		s.byName.Set(key, board.ID)
 	}
 	return nil
+}
+
+// Size returns the number of boards in the storage.
+func (s storage) Size() int {
+	return s.byID.Size()
+}
+
+// Iterate iterates boards.
+// To reverse iterate boards use a negative count.
+// If the callback returns true, the iteration is stopped.
+func (s storage) Iterate(start, count int, fn BoardIterFn) bool {
+	if count < 0 {
+		return s.byID.ReverseIterateByOffset(start, -count, func(_ string, v any) bool {
+			return fn(v.(*Board))
+		})
+	}
+
+	return s.byID.IterateByOffset(start, count, func(_ string, v any) bool {
+		return fn(v.(*Board))
+	})
 }
 
 func makeBoardKey(boardID ID) string {
