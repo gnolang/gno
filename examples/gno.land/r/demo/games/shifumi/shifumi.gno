@@ -1,8 +1,8 @@
 package shifumi
 
 import (
+	"chain/runtime"
 	"errors"
-	"std"
 	"strconv"
 
 	"gno.land/p/nt/avl"
@@ -20,14 +20,14 @@ const (
 )
 
 type game struct {
-	player1, player2 std.Address // shifumi is a 2 players game
-	move1, move2     int         // can be empty, rock, paper, or scissors
+	player1, player2 address // shifumi is a 2 players game
+	move1, move2     int     // can be empty, rock, paper, or scissors
 }
 
 var games avl.Tree
 var id seqid.ID
 
-func (g *game) play(player std.Address, move int) error {
+func (g *game) play(player address, move int) error {
 	if !(move > empty && move < last) {
 		return errors.New("invalid move")
 	}
@@ -62,8 +62,8 @@ func (g *game) winner() int {
 
 // NewGame creates a new game where player1 is the caller and player2 the argument.
 // A new game index is returned.
-func NewGame(_ realm, player std.Address) int {
-	games.Set(id.Next().String(), &game{player1: std.PreviousRealm().Address(), player2: player})
+func NewGame(_ realm, player address) int {
+	games.Set(id.Next().String(), &game{player1: runtime.PreviousRealm().Address(), player2: player})
 	return int(id)
 }
 
@@ -74,7 +74,7 @@ func Play(_ realm, idx, move int) {
 	if !ok {
 		panic("game not found")
 	}
-	if err := v.(*game).play(std.PreviousRealm().Address(), move); err != nil {
+	if err := v.(*game).play(runtime.PreviousRealm().Address(), move); err != nil {
 		panic(err)
 	}
 }
@@ -108,7 +108,7 @@ Actions:
 	return output
 }
 
-func shortName(addr std.Address) string {
+func shortName(addr address) string {
 	user := users.ResolveAddress(addr)
 	if user != nil {
 		return user.Name()

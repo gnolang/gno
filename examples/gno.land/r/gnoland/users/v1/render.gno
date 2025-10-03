@@ -1,8 +1,6 @@
 package users
 
 import (
-	"std"
-
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
@@ -77,8 +75,8 @@ will gain permission to deploy packages and realms to package paths with the pat
 
 // resolveUser resolves the user based on the path, determining if it's a name or address
 func resolveUser(path string) (*susers.UserData, bool, bool) {
-	if std.Address(path).IsValid() {
-		return susers.ResolveAddress(std.Address(path)), false, false
+	if address(path).IsValid() {
+		return susers.ResolveAddress(address(path)), false, false
 	}
 
 	data, isLatest := susers.ResolveName(path)

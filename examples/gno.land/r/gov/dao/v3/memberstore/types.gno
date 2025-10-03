@@ -2,8 +2,6 @@ package memberstore
 
 import (
 	"errors"
-	"std"
-	"time"
 
 	"gno.land/p/nt/avl"
 )
@@ -78,7 +76,7 @@ func (mbt MembersByTier) GetTierSize(tn string) int {
 }
 
 // SetMember adds a new member to the specified tier. The tier index is created on the fly if it does not exists.
-func (mbt MembersByTier) SetMember(tier string, addr std.Address, member *Member) error {
+func (mbt MembersByTier) SetMember(tier string, addr address, member *Member) error {
 	_, t := mbt.GetMember(addr)
 	if t != "" {
 		return &ErrMemberAlreadyExists{Tier: t}
@@ -97,7 +95,7 @@ func (mbt MembersByTier) SetMember(tier string, addr std.Address, member *Member
 }
 
 // GetMember iterate over all tiers to try to find a member by its address. The tier ID is also returned if the Member is found.
-func (mbt MembersByTier) GetMember(addr std.Address) (m *Member, t string) {
+func (mbt MembersByTier) GetMember(addr address) (m *Member, t string) {
 	mbt.Iterate("", "", func(tn string, msv interface{}) bool {
 		mst, ok := msv.(*avl.Tree)
 		if !ok {
@@ -124,7 +122,7 @@ func (mbt MembersByTier) GetMember(addr std.Address) (m *Member, t string) {
 }
 
 // RemoveMember removes a member from any tier
-func (mbt MembersByTier) RemoveMember(addr std.Address) (t string) {
+func (mbt MembersByTier) RemoveMember(addr address) (t string) {
 	mbt.Iterate("", "", func(tn string, msv interface{}) bool {
 		mst, ok := msv.(*avl.Tree)
 		if !ok {

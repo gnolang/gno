@@ -11,13 +11,9 @@ import (
 	"std"
 
 	"gno.land/r/hello"
-
-
-
 )
 
-   var    yes  = rand.Val
-
+var yes = rand.Val
 -- otherfile.gno --
 package testdata
 

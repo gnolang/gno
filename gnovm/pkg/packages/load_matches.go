@@ -68,7 +68,9 @@ func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir str
 
 	// derive import path
 	stdlibDir := filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs")
-	if strings.HasPrefix(pkg.Dir, stdlibDir) {
+	testStdlibDir := filepath.Join(gnoenv.RootDir(), "gnovm", "tests", "stdlibs")
+	switch {
+	case strings.HasPrefix(pkg.Dir, stdlibDir):
 		// get package path from dir
 		rel, err := filepath.Rel(stdlibDir, pkg.Dir)
 		if err != nil {
@@ -78,7 +80,17 @@ func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir str
 		}
 		pkg.ImportPath = filepath.ToSlash(rel)
 		mptype = gnolang.MPStdlibAll
-	} else {
+	case strings.HasPrefix(pkg.Dir, testStdlibDir):
+		// get package path from dir
+		rel, err := filepath.Rel(testStdlibDir, pkg.Dir)
+		if err != nil {
+			// return partial package if can't find lib pkgpath
+			pkg.Errors = append(pkg.Errors, fromErr(err, pkg.Dir, false)...)
+			return pkg
+		}
+		pkg.ImportPath = filepath.ToSlash(rel)
+		mptype = gnolang.MPStdlibAll
+	default:
 		// attempt to load gnomod.toml if package is not stdlib
 		// get import path and flags from gnomod
 		mod, err := gnomod.ParseDir(pkg.Dir)

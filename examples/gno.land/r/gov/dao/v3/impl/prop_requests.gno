@@ -1,7 +1,7 @@
 package impl
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/p/aeddi/panictoerr"
 	"gno.land/p/moul/md"
@@ -14,7 +14,7 @@ import (
 )
 
 func NewChangeLawRequest(_ realm, newLaw *Law) dao.ProposalRequest {
-	member, _ := memberstore.Get().GetMember(std.OriginCaller())
+	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
@@ -30,7 +30,7 @@ func NewChangeLawRequest(_ realm, newLaw *Law) dao.ProposalRequest {
 }
 
 func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.ProposalRequest {
-	member, _ := memberstore.Get().GetMember(std.OriginCaller())
+	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
@@ -52,7 +52,7 @@ func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.Propo
 	return dao.NewProposalRequest("Change DAO implementation", "This proposal is looking to change the actual govDAO implementation. Reason: "+reason, e)
 }
 
-func NewAddMemberRequest(_ realm, addr std.Address, tier string, portfolio string) dao.ProposalRequest {
+func NewAddMemberRequest(_ realm, addr address, tier string, portfolio string) dao.ProposalRequest {
 	_, ok := memberstore.Tiers.GetTier(tier)
 	if !ok {
 		panic("provided tier does not exists")
@@ -66,7 +66,7 @@ func NewAddMemberRequest(_ realm, addr std.Address, tier string, portfolio strin
 		panic("A portfolio for the proposed member is required")
 	}
 
-	member, _ := memberstore.Get().GetMember(std.OriginCaller())
+	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
@@ -93,7 +93,7 @@ func NewAddMemberRequest(_ realm, addr std.Address, tier string, portfolio strin
 	)
 }
 
-func NewWithdrawMemberRequest(_ realm, addr std.Address, reason string) dao.ProposalRequest {
+func NewWithdrawMemberRequest(_ realm, addr address, reason string) dao.ProposalRequest {
 	member, tier := memberstore.Get().GetMember(addr)
 	if member == nil {
 		panic("user we want to remove not found")
@@ -117,7 +117,7 @@ func NewWithdrawMemberRequest(_ realm, addr std.Address, reason string) dao.Prop
 	)
 }
 
-func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) dao.ProposalRequest {
+func NewPromoteMemberRequest(addr address, fromTier string, toTier string) dao.ProposalRequest {
 	cb := func(_ realm) error {
 		prevTier := memberstore.Get().RemoveMember(addr)
 		if prevTier == "" {

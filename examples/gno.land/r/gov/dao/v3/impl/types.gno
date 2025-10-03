@@ -1,7 +1,6 @@
 package impl
 
 import (
-	"std"
 	"strings"
 	"time"
 
@@ -226,7 +225,7 @@ func writeVotes(sb *strings.Builder, t memberstore.MembersByTier, title string) 
 		ms, _ := value.(*avl.Tree)
 		ms.Iterate("", "", func(addr string, _ interface{}) bool {
 			sb.WriteString("\n")
-			sb.WriteString("- " + tryResolveAddr(std.Address(addr)) + "\n")
+			sb.WriteString("- " + tryResolveAddr(address(addr)) + "\n")
 
 			return false
 		})

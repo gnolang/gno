@@ -1,10 +1,6 @@
 package params
 
-import (
-	"std"
-
-	"gno.land/r/gov/dao"
-)
+import "gno.land/r/gov/dao"
 
 const (
 	bankModulePrefix     = "bank"
@@ -23,7 +19,7 @@ func ProposeLockTransferRequest() dao.ProposalRequest {
 	return NewSysParamStringsPropRequestWithTitle(bankModulePrefix, "p", restrictedDenomsKey, lockTransferTitle, []string{"ugnot"})
 }
 
-func ProposeAddUnrestrictedAcctsRequest(addrs ...std.Address) dao.ProposalRequest {
+func ProposeAddUnrestrictedAcctsRequest(addrs ...address) dao.ProposalRequest {
 	addrStrings := make([]string, 0, len(addrs))
 	for _, addr := range addrs {
 		s := addr.String()
@@ -32,7 +28,7 @@ func ProposeAddUnrestrictedAcctsRequest(addrs ...std.Address) dao.ProposalReques
 	return NewSysParamStringsPropRequestAddWithTitle(authModulePrefix, "p", unrestrictedAddrsKey, "Add unrestricted transfer accounts", addrStrings)
 }
 
-func ProposeRemoveUnrestrictedAcctsRequest(addrs ...std.Address) dao.ProposalRequest {
+func ProposeRemoveUnrestrictedAcctsRequest(addrs ...address) dao.ProposalRequest {
 	addrStrings := make([]string, 0, len(addrs))
 	for _, addr := range addrs {
 		s := addr.String()
