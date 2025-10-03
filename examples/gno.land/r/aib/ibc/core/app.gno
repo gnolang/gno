@@ -16,7 +16,7 @@ func RegisterApp(cur realm, app app.IBCApp) string {
 		panic("RegisterApp can only be called from an other realm")
 	}
 	// NOTE portID cannot contain '/'
-	portID := strings.ReplaceAll(caller.PkgPath(), "/", "|")
+	portID := strings.ReplaceAll(caller.PkgPath(), "/", "_")
 	if _, ok := store.routes[portID]; ok {
 		panic(ufmt.Errorf("route %s has already been registered", portID))
 	}
