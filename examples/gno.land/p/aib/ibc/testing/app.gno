@@ -1,6 +1,9 @@
 package testing
 
-import "gno.land/p/aib/ibc/types"
+import (
+	"gno.land/p/aib/ibc/app"
+	"gno.land/p/aib/ibc/types"
+)
 
 type App struct {
 	Calls struct {
@@ -11,13 +14,14 @@ type App struct {
 	}
 }
 
+var _ app.IBCApp = &App{}
+
 // Implements app.IBCApp
 func (a *App) OnSendPacket(
 	sourceClient string,
 	destinationClient string,
 	sequence uint64,
 	payload types.Payload,
-	signer []byte,
 ) error {
 	a.Calls.OnSendPacket++
 	return nil
@@ -29,7 +33,6 @@ func (a *App) OnRecvPacket(
 	destinationClient string,
 	sequence uint64,
 	payload types.Payload,
-	relayer []byte,
 ) types.RecvPacketResult {
 	a.Calls.OnRecvPacket++
 	return types.RecvPacketResult{}
@@ -41,7 +44,6 @@ func (a *App) OnTimeoutPacket(
 	destinationClient string,
 	sequence uint64,
 	payload types.Payload,
-	relayer []byte,
 ) error {
 	a.Calls.OnTimeoutPacket++
 	return nil
@@ -54,7 +56,6 @@ func (a *App) OnAcknowledgementPacket(
 	sequence uint64,
 	acknowledgement []byte,
 	payload types.Payload,
-	relayer []byte,
 ) error {
 	a.Calls.OnAcknowledgementPacket++
 	return nil
