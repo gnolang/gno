@@ -19,7 +19,7 @@ var gErrorType = &DeclaredType{
 	Name:    "error",
 	Base: &InterfaceType{
 		PkgPath: uversePkgPath,
-		Methods: []FieldType{
+		FieldTypes: []FieldType{
 			{
 				Name: "Error",
 				Type: &FuncType{
@@ -42,7 +42,7 @@ var gStringerType = &DeclaredType{
 	Name:    "stringer",
 	Base: &InterfaceType{
 		PkgPath: uversePkgPath,
-		Methods: []FieldType{
+		FieldTypes: []FieldType{
 			{
 				Name: "String",
 				Type: &FuncType{
@@ -93,7 +93,7 @@ var gRealmType = &DeclaredType{
 	Name:    "realm",
 	Base: &InterfaceType{
 		PkgPath: uversePkgPath,
-		Methods: []FieldType{
+		FieldTypes: []FieldType{
 			{
 				Name: "Address",
 				Type: &FuncType{
