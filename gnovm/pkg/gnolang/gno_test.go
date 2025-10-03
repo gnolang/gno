@@ -117,7 +117,7 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 			}()
 
 			m := NewMachine("test", nil)
-			nn := MustParseFile("main.go", s)
+			nn := m.MustParseFile("main.go", s)
 			m.RunFiles(nn)
 			m.RunMain()
 		})
@@ -148,7 +148,7 @@ func TestConvertTo(t *testing.T) {
 
 		m := NewMachine("test", nil)
 
-		n := MustParseFile("main.go", source)
+		n := m.MustParseFile("main.go", source)
 		m.RunFiles(n)
 		m.RunMain()
 	}
@@ -443,7 +443,7 @@ func main() {
 		}
 	}
 }`
-	n := MustParseFile("main.go", c)
+	n := m.MustParseFile("main.go", c)
 	m.RunFiles(n)
 	m.RunMain()
 }
@@ -454,7 +454,7 @@ func BenchmarkPreprocessForLoop(b *testing.B) {
 func main() {
 	for i:=0; i<10000; i++ {}
 }`
-	n := MustParseFile("main.go", c)
+	n := m.MustParseFile("main.go", c)
 	m.RunFiles(n)
 
 	for i := 0; i < b.N; i++ {
@@ -473,7 +473,7 @@ func foo(a int) {
     b := int(a)
     println(b)
 }`
-	n := MustParseFile("main.go", c)
+	n := m.MustParseFile("main.go", c)
 	m.RunFiles(n)
 	fn := n.Decls[1].(*FuncDecl)
 	as := fn.Body[0].(*AssignStmt)
@@ -493,7 +493,7 @@ func main() {
 		}
 	}
 }`
-	n := MustParseFile("main.go", c)
+	n := m.MustParseFile("main.go", c)
 	m.RunFiles(n)
 
 	for i := 0; i < b.N; i++ {
@@ -578,7 +578,7 @@ func TestEval(t *testing.T) {
 func next(i int) int {
 	return i+1
 }`
-	n := MustParseFile("main.go", c)
+	n := m.MustParseFile("main.go", c)
 	m.RunFiles(n)
 	res := m.Eval(Call("next", "1"))
 	fmt.Println(res)
@@ -592,7 +592,7 @@ func assertOutput(t *testing.T, input string, output string) {
 		PkgPath: "test",
 		Output:  buf,
 	})
-	n := MustParseFile("main.go", input)
+	n := m.MustParseFile("main.go", input)
 	m.RunFiles(n)
 	m.RunMain()
 	assert.Equal(t, output, buf.String())
@@ -679,7 +679,7 @@ func BenchmarkBenchdata(b *testing.B) {
 					PkgPath: "main",
 					Output:  io.Discard,
 				})
-				n := MustParseFile("main.go", buf.String())
+				n := m.MustParseFile("main.go", buf.String())
 				m.RunFiles(n)
 
 				b.ResetTimer()
