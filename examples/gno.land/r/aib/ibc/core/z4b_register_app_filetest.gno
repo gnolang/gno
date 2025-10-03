@@ -7,9 +7,9 @@ import (
 
 // RegisterApp error when already registered
 func main() {
-	core.RegisterApp(cross, "testing-app", &testing.App{})
-	core.RegisterApp(cross, "testing-app", &testing.App{})
+	core.RegisterApp(cross, &testing.App{})
+	core.RegisterApp(cross, &testing.App{})
 }
 
 // Error:
-// route testing-app has already been registered
+// route main has already been registered
