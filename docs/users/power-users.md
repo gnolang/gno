@@ -22,7 +22,7 @@ Stay updated and connected with the Gno.land community:
 
 - [Twitter/X](https://twitter.com/_gnoland) - Latest announcements and updates
 - [GitHub](https://github.com/gnolang) - Repositories for all Gno.land projects
-- [Forum](https://gno.land/r/demo/boards/) - Long-form discussions and proposals
+- [Forum](https://gno.land/r/gnoland/boards2/v1) - Long-form discussions and proposals
 
 ## Tools
 
