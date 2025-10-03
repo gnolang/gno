@@ -91,3 +91,12 @@ func (cs *Store) getClient(id string) *client {
 	}
 	return x.(*client)
 }
+
+// Route returns an IBCApp for the given portID.
+func (cs *Store) Route(portID string) app.IBCApp {
+	app, ok := cs.routes[portID]
+	if !ok {
+		panic(ufmt.Sprintf("no registered app for port %s", portID))
+	}
+	return app
+}

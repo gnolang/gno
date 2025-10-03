@@ -79,7 +79,17 @@ func SendPacket(cur realm, msg types.MsgSendPacket) (sequence uint64) {
 		types.AttributeKeyEncodedPacketHex, hex.EncodeToString(packet.ProtoMarshal()),
 	)
 
-	// TODO forward payloads to registered app
+	for _, payload := range msg.Payloads {
+		app := store.Route(payload.SourcePort)
+		err := app.OnSendPacket(
+			msg.SourceClient, c.counterpartyClientID, sequence, payload,
+		)
+		if err != nil {
+			panic(ufmt.Sprintf(
+				"send packet failed for app %s: %v", payload.SourcePort, err,
+			))
+		}
+	}
 
 	return sequence
 }

@@ -21,8 +21,8 @@ func main() {
 
 // Output:
 // portID: main
-// portID: gno.land|r|aib|ibc|transfer
+// portID: gno.land_r_aib_ibc_transfer
 // ----------- assert render app
 // ## Registered apps
 // - main
-// - gno.land|r|aib|ibc|transfer
+// - gno.land_r_aib_ibc_transfer
