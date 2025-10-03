@@ -8,7 +8,6 @@ type IBCApp interface {
 		destinationClient string,
 		sequence uint64,
 		payload types.Payload,
-		signer []byte,
 	) error
 
 	OnRecvPacket(
@@ -16,7 +15,6 @@ type IBCApp interface {
 		destinationClient string,
 		sequence uint64,
 		payload types.Payload,
-		relayer []byte,
 	) types.RecvPacketResult
 
 	// OnTimeoutPacket is executed when a packet has timed out on the receiving chain.
@@ -25,7 +23,6 @@ type IBCApp interface {
 		destinationClient string,
 		sequence uint64,
 		payload types.Payload,
-		relayer []byte,
 	) error
 
 	// OnAcknowledgementPacket is executed when a packet gets acknowledged
@@ -35,6 +32,5 @@ type IBCApp interface {
 		sequence uint64,
 		acknowledgement []byte,
 		payload types.Payload,
-		relayer []byte,
 	) error
 }
