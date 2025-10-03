@@ -2,6 +2,7 @@ package core
 
 import (
 	"chain/runtime"
+	"strings"
 
 	"gno.land/p/aib/ibc/app"
 	"gno.land/p/nt/ufmt"
@@ -14,7 +15,8 @@ func RegisterApp(cur realm, app app.IBCApp) {
 	if caller.IsUser() {
 		panic("RegisterApp can only be called from an other realm")
 	}
-	portID := caller.PkgPath()
+	// NOTE portID cannot contain '/'
+	portID := strings.ReplaceAll(caller.PkgPath(), "/", "|")
 	if _, ok := store.routes[portID]; ok {
 		panic(ufmt.Errorf("route %s has already been registered", portID))
 	}
