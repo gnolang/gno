@@ -40,6 +40,9 @@ func Render(value int, total int, label string, color string, config Config) str
 	if total <= 0 {
 		return "jauge fails: total must be greater than 0"
 	}
+	if value <= 0 {
+		return "jauge fails: value must be greater than 0"
+	}
 	if value > total {
 		return "jauge fails: value cannot be greater than total"
 	}
