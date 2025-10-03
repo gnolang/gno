@@ -48,9 +48,16 @@ func stats(binFile string) {
 				if !ok {
 					break
 				}
-				opName := gno.Op(record[0]).String()
-				if record[1] != 0 {
+				var opName string
+				switch record[0] {
+				case byte(bm.TypeOpCode):
+					opName = gno.Op(record[1]).String()
+				case byte(bm.TypeStore):
 					opName = bm.StoreCodeString(record[1])
+				case byte(bm.TypeNative):
+					opName = bm.NativeCodeString(record[1])
+				default:
+					panic(fmt.Sprintf("invalid record type: %d", record[0]))
 				}
 
 				elapsedTime := binary.LittleEndian.Uint32(record[2:])
