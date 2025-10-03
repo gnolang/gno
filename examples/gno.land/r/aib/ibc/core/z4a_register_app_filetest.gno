@@ -7,5 +7,5 @@ import (
 
 // RegisterApp success
 func main() {
-	core.RegisterApp(cross, "testing-app", &testing.App{})
+	core.RegisterApp(cross, &testing.App{})
 }
