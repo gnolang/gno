@@ -82,9 +82,12 @@ func NewRepost(thread *Post, dst *Board, creator address) (*Post, error) {
 	return &Post{
 		ID:              id,
 		ThreadID:        id,
-		Board:           dst,
 		ParentID:        thread.ID,
 		OriginalBoardID: thread.Board.ID,
+		Board:           dst,
+		Replies:         NewPostStorage(),
+		Reposts:         NewRepostStorage(),
+		Flags:           NewFlagStorage(),
 		Creator:         creator,
 		CreatedAt:       time.Now(),
 	}, nil
@@ -119,7 +122,7 @@ func (thread *Post) DeleteReply(replyID ID) error {
 	if reply.ParentID != thread.ID {
 		parent, found := thread.Replies.Get(reply.ParentID)
 		if !found {
-			return ufmt.Errorf("parent reply ID %s not found", reply.ParentID)
+			return nil
 		}
 
 		if err := checkPostSupportsReplies(parent); err != nil {
