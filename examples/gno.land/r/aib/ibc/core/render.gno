@@ -13,6 +13,7 @@ import (
 func Render(path string) string {
 	router := mux.NewRouter()
 	router.HandleFunc("", RenderHome)
+	router.HandleFunc("apps", RenderApps)
 	router.HandleFunc("clients", RenderClients)
 	router.HandleFunc("clients/{id}", RenderClient)
 	router.HandleFunc("clients/{id}/consensus_states", RenderClientConsensusStates)
@@ -23,6 +24,13 @@ func Render(path string) string {
 
 func RenderHome(w *mux.ResponseWriter, r *mux.Request) {
 	w.Write("Hello IBC!")
+}
+
+func RenderApps(w *mux.ResponseWriter, r *mux.Request) {
+	w.Write("## Registered apps\n")
+	for port, _ := range store.routes {
+		w.Write(ufmt.Sprintf("- %s\n", port))
+	}
 }
 
 func RenderClients(w *mux.ResponseWriter, r *mux.Request) {
