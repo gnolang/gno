@@ -247,7 +247,6 @@ func TestDirLinkType_LinkPrefix(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			result := tc.linkType.LinkPrefix(tc.pkgPath)
 			assert.Equal(t, tc.expected, result)
@@ -293,7 +292,6 @@ func TestGetFullLinks(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			result := GetFullLinks(tc.files, tc.linkType, tc.pkgPath)
 			assert.Equal(t, tc.expected, result)

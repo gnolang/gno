@@ -410,7 +410,6 @@ func testfunc() {
 		},
 	}
 	for _, c := range cases {
-		c := c // scopelint
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			// "\n" is added for better test case readability, now trim it
