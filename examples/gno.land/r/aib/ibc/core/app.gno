@@ -10,7 +10,7 @@ import (
 
 // RegisterApp registers an IBCApp, the portID is determined using the package
 // path of the caller, hence it must an other realm.
-func RegisterApp(cur realm, app app.IBCApp) {
+func RegisterApp(cur realm, app app.IBCApp) string {
 	caller := runtime.PreviousRealm()
 	if caller.IsUser() {
 		panic("RegisterApp can only be called from an other realm")
@@ -21,4 +21,5 @@ func RegisterApp(cur realm, app app.IBCApp) {
 		panic(ufmt.Errorf("route %s has already been registered", portID))
 	}
 	store.routes[portID] = app
+	return portID
 }

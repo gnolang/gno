@@ -9,14 +9,20 @@ import (
 
 // RegisterApp success
 func main() {
-	core.RegisterApp(cross, &testing.App{})
+	portID := core.RegisterApp(cross, &testing.App{})
+	println("portID:", portID)
 	stdtesting.SetRealm(stdtesting.NewCodeRealm("gno.land/r/aib/ibc/transfer"))
-	core.RegisterApp(cross, &testing.App{})
+	portID = core.RegisterApp(cross, &testing.App{})
+	println("portID:", portID)
 
+	println("----------- assert render app")
 	println(core.Render("apps"))
 }
 
 // Output:
+// portID: main
+// portID: gno.land|r|aib|ibc|transfer
+// ----------- assert render app
 // ## Registered apps
 // - main
 // - gno.land|r|aib|ibc|transfer
