@@ -1,0 +1,2 @@
+module = "gno.land/r/aib/ibc/apps/transfer"
+gno = "0.9"
