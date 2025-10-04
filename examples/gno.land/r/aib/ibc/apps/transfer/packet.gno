@@ -1,7 +1,11 @@
 package transfer
 
 import (
+	"strconv"
+	"strings"
+
 	"gno.land/p/aib/encoding/proto"
+	"gno.land/p/aib/ibc/host"
 	"gno.land/p/nt/ufmt"
 )
 
@@ -21,7 +25,7 @@ type FungibleTokenPacketData struct {
 	Memo string
 }
 
-// DecodeFungibleTokenPacketData decodes the protobuf message from bytes
+// ProtoUnmarshal reads the protobuf encoded bz into f.
 //
 //	message FungibleTokenPacketData {
 //		string denom = 1;
@@ -30,16 +34,13 @@ type FungibleTokenPacketData struct {
 //		string receiver = 4;
 //		string memo = 5;
 //	}
-func DecodeFungibleTokenPacketData(bz []byte) (*FungibleTokenPacketData, error) {
-	var (
-		data = &FungibleTokenPacketData{}
-		pos  int
-	)
+func (f *FungibleTokenPacketData) ProtoUnmarshal(bz []byte) error {
+	var pos int
 	for pos < len(bz) {
 		// Read field tag (key)
 		key, newPos, err := proto.DecodeVarint(bz, pos)
 		if err != nil {
-			return nil, ufmt.Errorf("error reading field tag: %v", err)
+			return ufmt.Errorf("error reading field tag: %v", err)
 		}
 		pos = newPos
 
@@ -47,32 +48,153 @@ func DecodeFungibleTokenPacketData(bz []byte) (*FungibleTokenPacketData, error) 
 		wireType := key & 0x07
 
 		if wireType != 2 { // All fields are strings (wire type 2)
-			return nil, ufmt.Errorf("unexpected wire type %d for field %d", wireType, fieldNum)
+			return ufmt.Errorf("unexpected wire type %d for field %d", wireType, fieldNum)
 		}
 
 		// Read string value
 		value, newPos, err := proto.DecodeString(bz, pos)
 		if err != nil {
-			return nil, ufmt.Errorf("error reading string value: %v", err)
+			return ufmt.Errorf("error reading string value: %v", err)
 		}
 		pos = newPos
 
 		// Assign to appropriate field
 		switch fieldNum {
 		case 1:
-			data.Denom = value
+			f.Denom = value
 		case 2:
-			data.Amount = value
+			f.Amount = value
 		case 3:
-			data.Sender = value
+			f.Sender = value
 		case 4:
-			data.Receiver = value
+			f.Receiver = value
 		case 5:
-			data.Memo = value
+			f.Memo = value
 		default:
-			// Skip unknown fields (proto3 behavior)
-			continue
+			return ufmt.Errorf("unknown field aren't authorized in FungibleTokenPacketData")
 		}
 	}
-	return data, nil
+	return nil
+}
+
+// ValidateBasic is used for validating the token transfer.
+// NOTE: The addresses formats are not validated as the sender and recipient
+// can have different formats defined by their corresponding chains that are
+// not known to IBC.
+func (ftpd FungibleTokenPacketData) ValidateBasic() error {
+	amount, err := strconv.Atoi(ftpd.Amount)
+	if err != nil {
+		return ufmt.Errorf("unable to parse transfer amount (%s): %v", ftpd.Amount, err)
+	}
+	if amount <= 0 {
+		return ufmt.Errorf("amount must be strictly positive: got %d", amount)
+	}
+	if strings.TrimSpace(ftpd.Sender) == "" {
+		return ufmt.Errorf("sender address cannot be blank")
+	}
+	if strings.TrimSpace(ftpd.Receiver) == "" {
+		return ufmt.Errorf("receiver address cannot be blank")
+	}
+	denom := ExtractDenomFromPath(ftpd.Denom)
+	return denom.Validate()
+}
+
+// Denom holds the base denom of a Token and a trace of the chains it was sent through.
+type Denom struct {
+	// the base token denomination
+	Base string
+	// the trace of the token
+	Trace []Hop
+}
+
+// NewDenom creates a new Denom instance given the base denomination and a variable number of hops.
+func NewDenom(base string, trace ...Hop) Denom {
+	return Denom{
+		Base:  base,
+		Trace: trace,
+	}
+}
+
+// Validate performs a basic validation of the Denom fields.
+func (d Denom) Validate() error {
+	// NOTE: base denom validation cannot be performed as each chain may define
+	// its own base denom validation
+	if strings.TrimSpace(d.Base) == "" {
+		return ufmt.Errorf("base denomination cannot be blank")
+	}
+
+	for _, hop := range d.Trace {
+		if err := hop.Validate(); err != nil {
+			return ufmt.Errorf("invalid trace")
+		}
+	}
+
+	return nil
+}
+
+// ExtractDenomFromPath returns the denom from the full path.
+func ExtractDenomFromPath(fullPath string) Denom {
+	denomSplit := strings.Split(fullPath, "/")
+
+	if denomSplit[0] == fullPath {
+		return Denom{
+			Base: fullPath,
+		}
+	}
+
+	var (
+		trace          []Hop
+		baseDenomSlice []string
+	)
+
+	length := len(denomSplit)
+	for i := 0; i < length; i += 2 {
+		// The IBC specification does not guarantee the expected format of the
+		// destination port or destination channel identifier. A short term solution
+		// to determine base denomination is to expect the channel identifier to be the
+		// one ibc-go specifies. A longer term solution is to separate the path and base
+		// denomination in the ICS20 packet. If an intermediate hop prefixes the full denom
+		// with a channel identifier format different from our own, the base denomination
+		// will be incorrectly parsed, but the token will continue to be treated correctly
+		// as an IBC denomination. The hash used to store the token internally on our chain
+		// will be the same value as the base denomination being correctly parsed.
+		// nolint:revive // Early return possible, but not needed here
+		if i < length-1 && length > 2 && (types.IsValidChannelID(denomSplit[i+1]) || clienttypes.IsValidClientID(denomSplit[i+1])) {
+			trace = append(trace, NewHop(denomSplit[i], denomSplit[i+1]))
+		} else {
+			baseDenomSlice = denomSplit[i:]
+			break
+		}
+	}
+
+	base := strings.Join(baseDenomSlice, "/")
+
+	return Denom{
+		Base:  base,
+		Trace: trace,
+	}
+}
+
+// Hop defines a port ID, channel ID pair specifying a unique "hop" in a trace
+type Hop struct {
+	PortId    string
+	ChannelId string
+}
+
+// Validate performs a basic validation of the Hop fields.
+func (h Hop) Validate() error {
+	if err := host.PortIdentifierValidator(h.PortId); err != nil {
+		return ufmt.Errorf("invalid hop source port ID %s", h.PortId)
+	}
+	if err := host.ChannelIdentifierValidator(h.ChannelId); err != nil {
+		return ufmt.Errorf("invalid hop source channel ID %s", h.ChannelId)
+	}
+
+	return nil
+}
+
+// String returns the Hop in the format:
+// <portID>/<channelID>
+func (h Hop) String() string {
+	return ufmt.Sprintf("%s/%s", h.PortId, h.ChannelId)
 }
