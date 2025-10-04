@@ -1,6 +1,7 @@
 package transfer
 
 import (
+	"crypto/sha256"
 	"strings"
 
 	"gno.land/p/aib/ibc/host"
@@ -43,6 +44,49 @@ func (d Denom) ValidateBasic() error {
 	return nil
 }
 
+// IsNative returns true if the denomination is native, thus containing no
+// trace history.
+func (d Denom) IsNative() bool {
+	return len(d.Trace) == 0
+}
+
+// Path returns the full denomination according to the ICS20 specification:
+// trace + "/" + baseDenom
+// If there exists no trace then the base denomination is returned.
+func (d Denom) Path() string {
+	if d.IsNative() {
+		return d.Base
+	}
+
+	var sb strings.Builder
+	for _, t := range d.Trace {
+		sb.WriteString(t.String())
+		sb.WriteByte('/')
+	}
+	sb.WriteString(d.Base)
+	return sb.String()
+}
+
+// Hash returns the hex bytes of the SHA256 hash of the Denom fields using the
+// following formula:
+//
+// hash = sha256(trace + "/" + baseDenom)
+func (d Denom) Hash() []byte {
+	hash := sha256.Sum256([]byte(d.Path()))
+	return hash[:]
+}
+
+// IBCDenom a coin denomination for an ICS20 fungible token in the format
+// 'ibc/{hash(trace + baseDenom)}'. If the trace is empty, it will return the
+// base denomination.
+func (d Denom) IBCDenom() string {
+	if d.IsNative() {
+		return d.Base
+	}
+
+	return ufmt.Sprintf("%s/%s", DenomPrefix, d.Hash())
+}
+
 // ExtractDenomFromPath returns the denom from the full path.
 func ExtractDenomFromPath(fullPath string) Denom {
 	denomSplit := strings.Split(fullPath, "/")
@@ -70,7 +114,6 @@ func ExtractDenomFromPath(fullPath string) Denom {
 		// parsed, but the token will continue to be treated correctly as an IBC
 		// denomination. The hash used to store the token internally on our chain
 		// will be the same value as the base denomination being correctly parsed.
-		// nolint:revive // Early return possible, but not needed here
 		if i < length-1 && length > 2 && types.IsValidClientID(denomSplit[i+1]) {
 			trace = append(trace, NewHop(denomSplit[i], denomSplit[i+1]))
 		} else {
