@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/test"
+	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -23,6 +24,7 @@ type runCmd struct {
 	expr      string
 	debug     bool
 	debugAddr string
+	pkgPath   string
 }
 
 func newRunCmd(cio commands.IO) *commands.Command {
@@ -76,6 +78,13 @@ func (c *runCmd) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"enable interactive debugger using tcp address in the form [host]:port",
 	)
+
+	fs.StringVar(
+		&c.pkgPath,
+		"pkgpath",
+		"",
+		"value of realm pkgPath",
+	)
 }
 
 func execRun(cfg *runCmd, args []string, cio commands.IO) error {
@@ -93,8 +102,7 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 
 	// init store and machine
 	output := test.OutputWithError(stdout, stderr)
-	_, testStore := test.ProdStore(
-		cfg.rootDir, output, nil)
+	_, testStore := test.ProdStore(cfg.rootDir, output, nil)
 
 	if len(args) == 0 {
 		args = []string{"."}
@@ -112,6 +120,57 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 
 	var send std.Coins
 	pkgPath := string(files[0].PkgName)
+	if cfg.pkgPath != "" {
+		// Run in realm mode.
+		pkgPath = cfg.pkgPath
+		ctx := test.Context("", pkgPath, send)
+		m := gno.NewMachineWithOptions(gno.MachineOptions{
+			PkgPath: pkgPath,
+			Output:  output,
+			Input:   stdin,
+			Store:   testStore.BeginTransaction(nil, nil, nil),
+			Context: ctx,
+			Debug:   cfg.debug || cfg.debugAddr != "",
+		})
+
+		defer m.Release()
+
+		if cfg.debug {
+			m.Debugger.Enable(stdin, output, func(ppath, name string) string {
+				p := filepath.Join(cfg.rootDir, ppath, name)
+				b, err := os.ReadFile(p)
+				if err != nil {
+					p = filepath.Join(cfg.rootDir, "gnovm", "stdlibs", ppath, name)
+					b, err = os.ReadFile(p)
+				}
+				if err != nil {
+					p = filepath.Join(cfg.rootDir, "examples", ppath, name)
+					b, err = os.ReadFile(p)
+				}
+				if err != nil {
+					return ""
+				}
+				return string(b)
+			})
+		}
+
+		// If the debug address is set, the debugger waits for a remote client to connect to it.
+		if cfg.debugAddr != "" {
+			if err := m.Debugger.Serve(cfg.debugAddr); err != nil {
+				return err
+			}
+		}
+
+		// run files
+		m.RunFiles(files...)
+		pv2 := m.Store.GetPackage(pkgPath, false)
+		m.SetActivePackage(pv2) // XXX should it set the realm?
+		m.Context.(*teststd.TestExecContext).OriginCaller = test.DefaultCaller
+		m.RunMainMaybeCrossing()
+		return nil
+	}
+
+	// Run in non-realm mode.
 	ctx := test.Context("", pkgPath, send)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath:       pkgPath,
