@@ -99,6 +99,9 @@ func (gov *GovDAO) GetMemberActivity(addr address) (uint32, uint32) {
 	var available_proposal uint32 = 0
 
 	member, _ := memberstore.Get().GetMember(addr)
+	if member == nil {
+		return activity, available_proposal
+	}
 	joinTime := member.JoinTime
 	gov.pss.Iterate("", "", func(id string, proposalValue interface{}) bool {
 		proposal, ok := proposalValue.(proposalStatus)
@@ -115,7 +118,7 @@ func (gov *GovDAO) GetMemberActivity(addr address) (uint32, uint32) {
 			return false
 		}
 		// Check if member voted on this proposal
-		m, _ := proposal.AllVotes.Get(addr.String())
+		m, _ := proposal.AllVotes.GetMember(addr)
 		if m != nil {
 			activity++
 		}

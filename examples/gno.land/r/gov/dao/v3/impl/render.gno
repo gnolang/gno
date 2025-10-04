@@ -2,15 +2,18 @@ package impl
 
 import (
 	"chain/runtime"
+	"sort"
 	"strconv"
 	"strings"
 
 	"gno.land/p/moul/helplink"
+	"gno.land/p/nt/avl"
 	"gno.land/p/nt/avl/pager"
 	"gno.land/p/nt/mux"
 	"gno.land/p/nt/seqid"
 	"gno.land/p/nt/ufmt"
 	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/memberstore"
 	"gno.land/r/sys/users"
 )
 
@@ -125,21 +128,86 @@ Executor created in: %s
 	return out
 }
 
+type memberActivity struct {
+	addr       address
+	activity   uint32
+	available  uint32
+	percentage float64
+}
+
+// memberActivitySorter implements sort.Interface for sorting member activities by participation percentage
+type memberActivitySorter []memberActivity
+
+func (mas memberActivitySorter) Len() int {
+	return len(mas)
+}
+
+func (mas memberActivitySorter) Less(i, j int) bool {
+	// Sort by percentage descending (highest first)
+	if mas[i].percentage != mas[j].percentage {
+		return mas[i].percentage > mas[j].percentage
+	}
+	// If percentages are equal, sort by activity count descending as tiebreaker
+	return mas[i].activity > mas[j].activity
+}
+
+func (mas memberActivitySorter) Swap(i, j int) {
+	mas[i], mas[j] = mas[j], mas[i]
+}
+
 func (ren *render) renderActivityPage(d *GovDAO) string {
 	out := "# GovDAO Activity\n\n"
-	out += "## Member Activity\n"
+	out += "## Members Activity\n"
 
-	members := getMembers(cross)
+	members := memberstore.Get()
 	if members.Size() == 0 {
 		out += "\n\n### No data available"
+		return out
 	}
 
-	members.Iterate("", "", func(key string, _ any) bool {
-		activity, available_proposal := d.GetMemberActivity(address(key))
-		out += ufmt.Sprintf("**%s**: %d/%d\n", tryResolveAddr(address(key)), activity, available_proposal)
+	var memberActivities []memberActivity
+	members.Iterate("", "", func(tierName string, tierValue any) bool {
+		memberTree, ok := tierValue.(*avl.Tree)
+		if !ok {
+			return false
+		}
+
+		// Iterate over all members in this tier
+		memberTree.Iterate("", "", func(addrKey string, _ any) bool {
+			memberAddr := address(addrKey)
+			activity, available_proposal := d.GetMemberActivity(memberAddr)
+
+			var percentage float64
+			if available_proposal > 0 {
+				percentage = float64(activity) / float64(available_proposal) * 100.0
+			}
+
+			memberActivities = append(memberActivities, memberActivity{
+				addr:       memberAddr,
+				activity:   activity,
+				available:  available_proposal,
+				percentage: percentage,
+			})
+			return false
+		})
 		return false
 	})
-	out += "\n---\n\n"
+
+	// Sort by percentage (highest first), then by activity count as tiebreaker
+	sort.Sort(memberActivitySorter(memberActivities))
+
+	// Render sorted member activities
+	for _, ma := range memberActivities {
+		if ma.available > 0 {
+			out += ufmt.Sprintf("**%s**: %d/%d (%.1f%%)\n",
+				tryResolveAddr(ma.addr), ma.activity, ma.available, ma.percentage)
+		} else {
+			out += ufmt.Sprintf("**%s**: %d/%d\n",
+				tryResolveAddr(ma.addr), ma.activity, ma.available)
+		}
+	}
+
+	out += "\n\n"
 
 	return out
 }
