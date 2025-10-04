@@ -94,7 +94,7 @@ func newProposalStatus(allowedToVote []string) *proposalStatus {
 	}
 }
 
-func (gov *GovDAO) GetMemberActivity(addr std.Address) (uint32, uint32) {
+func (gov *GovDAO) GetMemberActivity(addr address) (uint32, uint32) {
 	var activity uint32 = 0
 	var available_proposal uint32 = 0
 

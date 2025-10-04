@@ -131,12 +131,12 @@ func (ren *render) renderActivityPage(d *GovDAO) string {
 
 	members := getMembers(cross)
 	if members.Size() == 0 {
-		out += "\n\nNo data available"
+		out += "\n\n### No data available"
 	}
 
 	members.Iterate("", "", func(key string, _ any) bool {
-		activity, available_proposal := d.GetMemberActivity(std.Address(key))
-		out += ufmt.Sprintf("**%s**: %d/%d\n", tryResolveAddr(std.Address(key)), activity, available_proposal)
+		activity, available_proposal := d.GetMemberActivity(address(key))
+		out += ufmt.Sprintf("**%s**: %d/%d\n", tryResolveAddr(address(key)), activity, available_proposal)
 		return false
 	})
 	out += "\n---\n\n"
