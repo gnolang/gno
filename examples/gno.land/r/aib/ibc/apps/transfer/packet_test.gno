@@ -12,13 +12,14 @@ import (
 func TestDecodeFungibleTokenPacketData(t *testing.T) {
 	bz, err := hex.DecodeString("0a0575676e6f7412033130301a06673175736572220a61746f6e6531757365722a046d656d6f")
 	urequire.NoError(t, err)
+	var f transfer.FungibleTokenPacketData
 
-	data, err := transfer.DecodeFungibleTokenPacketData(bz)
+	err = f.ProtoUnmarshal(bz)
 
 	urequire.NoError(t, err)
-	uassert.Equal(t, "ugnot", data.Denom)
-	uassert.Equal(t, "100", data.Amount)
-	uassert.Equal(t, "g1user", data.Sender)
-	uassert.Equal(t, "atone1user", data.Receiver)
-	uassert.Equal(t, "memo", data.Memo)
+	uassert.Equal(t, "ugnot", f.Denom)
+	uassert.Equal(t, "100", f.Amount)
+	uassert.Equal(t, "g1user", f.Sender)
+	uassert.Equal(t, "atone1user", f.Receiver)
+	uassert.Equal(t, "memo", f.Memo)
 }

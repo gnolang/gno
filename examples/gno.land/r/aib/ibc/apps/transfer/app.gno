@@ -1,6 +1,8 @@
 package transfer
 
 import (
+	"chain/runtime"
+
 	"gno.land/p/aib/ibc/app"
 	"gno.land/p/aib/ibc/types"
 	"gno.land/p/nt/ufmt"
@@ -8,6 +10,12 @@ import (
 )
 
 type App struct{}
+
+const (
+	// V1 defines first version of the IBC transfer module
+	V1               = "ics20-1"
+	EncodingProtobuf = "application/x-protobuf"
+)
 
 var portID string
 
@@ -25,34 +33,41 @@ func (a *App) OnSendPacket(
 	payload types.Payload,
 ) error {
 	// Enforce that the source and destination portIDs are the same and equal to
-	// the transfer portID
+	// the transfer portID.
 	// Enforce that the source and destination clientIDs are also in the clientID
-	// format that transfer expects: {clientid}-{sequence}
+	// format that transfer expects: {clientid}-{sequence}.
 	// This is necessary for IBC v2 since the portIDs (and thus the
 	// application-application connection) is not prenegotiated by the channel
 	// handshake.
 	// This restriction can be removed in a future where the trace hop on receive
 	// commits to **both** the source and destination portIDs rather than just
-	// the destination port
+	// the destination port.
+	// TODO change RegisterApp so it can take an abitrary portID.
 	if payload.SourcePort != portID || payload.DestinationPort != portID {
 		return ufmt.Errorf("payload port ID is invalid: expected %s, got sourcePort: %s destPort: %s", portID, payload.SourcePort, payload.DestinationPort)
 	}
 	if !types.IsValidClientID(sourceClient) || !types.IsValidClientID(destinationClient) {
 		return ufmt.Errorf("client IDs must be in valid format: {string}-{number}")
 	}
+	if payload.Version != V1 {
+		return ufmt.Errorf("invalid ICS20 version: expected %s, got %s", V1, payload.Version)
+	}
+	if payload.Encoding != EncodingProtobuf {
+		return ufmt.Errorf("invalid encoding: expected %s, got %s", EncodingProtobuf, payload.Encoding)
+	}
 
-	// TODO decode payload.Value
-	// data, err := types.UnmarshalPacketData(payload.Value, payload.Version, payload.Encoding)
-	// if err != nil {
-	// return err
-	// }
+	var data FungibleTokenPacketData
+	if err := data.ProtoUnmarshal(payload.Value); err != nil {
+		return ufmt.Errorf("decoding FungibleTokenPacketData: %v", err)
+	}
+	if err := data.ValidateBasic(); err != nil {
+		return ufmt.Errorf("invalid FungibleTokenPacketData: %v", err)
+	}
 
-	// TODO check sender
-	// sender := data.Sender
-	// signer := runtime.OriginCaller()
-	// if sender != signer {
-	// return ufmt.Errorf("sender %s is different from signer %s", sender, signer)
-	// }
+	signer := runtime.OriginCaller().String()
+	if data.Sender != signer {
+		return ufmt.Errorf("invalid FungibleTokenPacketData: sender %s is different from signer %s", data.Sender, signer)
+	}
 
 	// Enforce that the base denom does not contain any slashes
 	// Since IBC v2 packets will no longer have channel identifiers, we cannot
