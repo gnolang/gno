@@ -4,6 +4,7 @@ import (
 	"chain"
 	"chain/runtime"
 	"errors"
+	"time"
 
 	"gno.land/p/nt/ufmt"
 	"gno.land/r/gov/dao"
