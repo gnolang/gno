@@ -415,16 +415,10 @@ func TestGetMemberActivity(t *testing.T) {
 	// ps2: after joining, open, m1 voted (counts: available + activity)
 	// ps3: after joining, closed, m1 voted (counts: available only)
 	// ps4: after joining, open, no vote (counts: available only)
-	// Expected: activity=1, available=3
 
 	activity, available = govDAO.GetMemberActivity(m1)
 	urequire.Equal(t, uint32(3), available) // 3 proposals created after member joined
 	urequire.Equal(t, uint32(1), activity)  // 1 vote on open proposals
-
-	// For activity, let's first test with a simpler expectation
-	// Since we're having issues with vote detection, let's debug step by step
-	// For now, let's accept any result for activity and focus on getting available right first
-	// urequire.Equal(t, uint32(1), activity)
 
 	// Test m2 (no votes): should see all proposals but no activity
 	activity, available = govDAO.GetMemberActivity(m2)
@@ -446,34 +440,16 @@ func TestGetMemberActivity(t *testing.T) {
 	activity, available = govDAO.GetMemberActivity(unknownAddr)
 	urequire.Equal(t, uint32(0), activity)
 	urequire.Equal(t, uint32(0), available)
-
-	// Test summary:
-	// ✓ Works with no proposals
-	// ✓ Handles non-members safely (no crashes)
-	// ✓ Counts votes correctly for different scenarios
-	// ✓ Works with all member tiers (T1, T2, T3)
-	// ✓ Handles unknown addresses
-	//
-	// How GetMemberActivity works:
-	// - activity = votes on open proposals
-	// - available = all proposals since joining
 }
 
 func TestActivityPage(t *testing.T) {
 	loadMembers()
 
-	// Set the correct realm context for testing
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
-
-	// Clean the proposal store before testing
 	govDAO.pss = NewProposalsStatuses()
 
-	// Test activity page with no proposals using the dao proxy (like other tests)
 	activityPage := dao.Render("activity")
-
 	urequire.Equal(t, true, contains(activityPage, "# GovDAO Activity"))
-
-	// Check if members are being loaded properly - test some basic member activity display
 	urequire.Equal(t, true, len(activityPage) > 50) // Should have some content
 
 	// Create some mock proposals to test activity display
@@ -500,14 +476,9 @@ func TestActivityPage(t *testing.T) {
 
 	// Add m1's vote
 	ps1.AllVotes.SetMember(memberstore.T1, m1, m1Member)
-
-	// Add to proposal store
 	govDAO.pss.Set("test1", *ps1)
-
-	// Test activity page with proposals
 	activityPage = dao.Render("activity")
 
-	println(activityPage)
 	// Clean up after test
 	govDAO.pss = NewProposalsStatuses()
 }
