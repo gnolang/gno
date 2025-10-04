@@ -2,6 +2,7 @@ package transfer
 
 import (
 	"chain/runtime"
+	"crypto/bech32"
 	"strings"
 
 	"gno.land/p/aib/ibc/app"
@@ -14,8 +15,10 @@ type App struct{}
 
 const (
 	// V1 defines first version of the IBC transfer module
-	V1               = "ics20-1"
-	EncodingProtobuf = "application/x-protobuf"
+	V1                   = "ics20-1"
+	EncodingProtobuf     = "application/x-protobuf"
+	escrowAddressVersion = V1
+	DenomPrefix          = "ibc"
 )
 
 var portID string
@@ -87,12 +90,18 @@ func (a *App) OnSendPacket(
 	if strings.Contains(denom.Base, "/") {
 		return ufmt.Errorf("base denomination %s cannot contain slashes for IBC v2 packet", denom.Base)
 	}
+	token := Token{Denom: denom, Amount: data.Amount}
 
-	// TODO use banker to escrow the funds
-	// if err := im.keeper.SendTransfer(ctx, payload.SourcePort, sourceChannel, data.Token, signer); err != nil {
-	// return err
-	// }
-	//
+	_, senderAddr, err := bech32.Decode(data.Sender)
+	if err != nil {
+		return ufmt.Errorf("cannot decode sender addr: %v", data.Sender)
+	}
+	err = SendTransfer(payload.SourcePort, sourceClient, token, address(senderAddr))
+	if err != nil {
+		return ufmt.Errorf("sendTransfer error: %v", err)
+	}
+
+	// TODO emit events
 	// events.EmitTransferEvent(ctx, data.Sender, data.Receiver, data.Token, data.Memo)
 
 	return nil
