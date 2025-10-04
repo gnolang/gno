@@ -113,10 +113,7 @@ func (gov *GovDAO) GetMemberActivity(addr address) (uint32, uint32) {
 			return false
 		}
 		available_proposal++
-		// Skip if proposal is already closed
-		if proposal.Accepted || proposal.Denied {
-			return false
-		}
+
 		// Check if member voted on this proposal
 		m, _ := proposal.AllVotes.GetMember(addr)
 		if m != nil {

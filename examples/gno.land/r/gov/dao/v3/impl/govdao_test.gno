@@ -306,10 +306,15 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	urequire.Equal(t, true, contains(dao.Render("8"), "YES PERCENT: 68.42105263157895%"))
 }
 
+// Test with 4 proposals:
+// ps1: before joining (ignored)
+// ps2: after joining, open, m1 voted (counts: available + activity)
+// ps3: after joining, closed, m1 voted (counts: available only)
+// ps4: after joining, open, no vote (counts: available only)
 func TestGetMemberActivity(t *testing.T) {
 	loadMembers()
 
-	// First, test when no proposals exist
+	// Test when no proposals exist
 	activity, available := govDAO.GetMemberActivity(m1)
 	urequire.Equal(t, uint32(0), activity)
 	urequire.Equal(t, uint32(0), available) // No proposals exist yet
@@ -331,8 +336,8 @@ func TestGetMemberActivity(t *testing.T) {
 		Denied:             false,
 		TiersAllowedToVote: []string{memberstore.T1, memberstore.T2},
 		TotalPower:         100.0,
-		CreatedAt:          m1Member.JoinTime.Add(-24 * 60 * 60 * 1000000000), // 1 day before member joined
-		ClosedAt:           m1Member.JoinTime.Add(-12 * 60 * 60 * 1000000000), // 12 hours before member joined
+		CreatedAt:          m1Member.JoinTime.Add(-24 * 60 * 60 * 1000000000),
+		ClosedAt:           m1Member.JoinTime.Add(-12 * 60 * 60 * 1000000000),
 	}
 	ps1.YesVotes.SetTier(memberstore.T1)
 	ps1.YesVotes.SetTier(memberstore.T2)
@@ -350,8 +355,8 @@ func TestGetMemberActivity(t *testing.T) {
 		Denied:             false,
 		TiersAllowedToVote: []string{memberstore.T1, memberstore.T2},
 		TotalPower:         100.0,
-		CreatedAt:          m1Member.JoinTime.Add(24 * 60 * 60 * 1000000000), // 1 day after member joined
-		ClosedAt:           m1Member.JoinTime.Add(48 * 60 * 60 * 1000000000), // 2 days after member joined (not closed yet)
+		CreatedAt:          m1Member.JoinTime.Add(24 * 60 * 60 * 1000000000),
+		ClosedAt:           m1Member.JoinTime.Add(48 * 60 * 60 * 1000000000),
 	}
 	ps2.YesVotes.SetTier(memberstore.T1)
 	ps2.YesVotes.SetTier(memberstore.T2)
@@ -372,8 +377,8 @@ func TestGetMemberActivity(t *testing.T) {
 		Denied:             false,
 		TiersAllowedToVote: []string{memberstore.T1, memberstore.T2},
 		TotalPower:         100.0,
-		CreatedAt:          m1Member.JoinTime.Add(12 * 60 * 60 * 1000000000), // 12 hours after member joined
-		ClosedAt:           m1Member.JoinTime.Add(36 * 60 * 60 * 1000000000), // 36 hours after member joined
+		CreatedAt:          m1Member.JoinTime.Add(12 * 60 * 60 * 1000000000),
+		ClosedAt:           m1Member.JoinTime.Add(36 * 60 * 60 * 1000000000),
 	}
 	ps3.YesVotes.SetTier(memberstore.T1)
 	ps3.YesVotes.SetTier(memberstore.T2)
@@ -394,8 +399,8 @@ func TestGetMemberActivity(t *testing.T) {
 		Denied:             false,
 		TiersAllowedToVote: []string{memberstore.T1, memberstore.T2},
 		TotalPower:         100.0,
-		CreatedAt:          m1Member.JoinTime.Add(6 * 60 * 60 * 1000000000),  // 6 hours after member joined
-		ClosedAt:           m1Member.JoinTime.Add(72 * 60 * 60 * 1000000000), // 3 days after member joined (not closed yet)
+		CreatedAt:          m1Member.JoinTime.Add(6 * 60 * 60 * 1000000000),
+		ClosedAt:           m1Member.JoinTime.Add(72 * 60 * 60 * 1000000000),
 	}
 	ps4.YesVotes.SetTier(memberstore.T1)
 	ps4.YesVotes.SetTier(memberstore.T2)
@@ -410,15 +415,10 @@ func TestGetMemberActivity(t *testing.T) {
 	govDAO.pss.Set("2", *ps3) // Closed proposal with m1's vote
 	govDAO.pss.Set("3", *ps4) // Open proposal without m1's vote
 
-	// Test with 4 proposals:
-	// ps1: before joining (ignored)
-	// ps2: after joining, open, m1 voted (counts: available + activity)
-	// ps3: after joining, closed, m1 voted (counts: available only)
-	// ps4: after joining, open, no vote (counts: available only)
-
+	// Test m1: should see all proposals with 2 votes
 	activity, available = govDAO.GetMemberActivity(m1)
 	urequire.Equal(t, uint32(3), available) // 3 proposals created after member joined
-	urequire.Equal(t, uint32(1), activity)  // 1 vote on open proposals
+	urequire.Equal(t, uint32(2), activity)  // 2 votes on open proposals
 
 	// Test m2 (no votes): should see all proposals but no activity
 	activity, available = govDAO.GetMemberActivity(m2)
