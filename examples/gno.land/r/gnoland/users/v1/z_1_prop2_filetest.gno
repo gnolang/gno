@@ -80,7 +80,7 @@ func main() {
 
 // Output:
 // --
-//  # GovDAO
+// # GovDAO
 // [> View Activity <](/r/gov/dao:activity)
 //
 // ## Members
