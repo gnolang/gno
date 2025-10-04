@@ -23,3 +23,130 @@ func TestDecodeFungibleTokenPacketData(t *testing.T) {
 	uassert.Equal(t, "atone1user", f.Receiver)
 	uassert.Equal(t, "memo", f.Memo)
 }
+
+func TestFungibleTokenPacketDataValidateBasic(t *testing.T) {
+	const (
+		sender             = "sender"
+		receiver           = "receiver"
+		denom              = "transfer/gaiachannel/atom"
+		amount             = "100"
+		largeAmount        = "18446744073709551616"                                                           // one greater than largest uint64 (^uint64(0))
+		invalidLargeAmount = "115792089237316195423570985008687907853269984665640564039457584007913129639936" // 2^256
+	)
+	testCases := []struct {
+		name       string
+		packetData transfer.FungibleTokenPacketData
+		expErr     string
+	}{
+		{
+			name:       "valid packet",
+			packetData: transfer.NewFungibleTokenPacketData(denom, amount, sender, receiver, ""),
+			expErr:     "",
+		},
+		{
+			name:       "valid packet with memo",
+			packetData: transfer.NewFungibleTokenPacketData(denom, amount, sender, receiver, "memo"),
+			expErr:     "",
+		},
+		{
+			name:       "valid packet with large amount",
+			packetData: transfer.NewFungibleTokenPacketData(denom, largeAmount, sender, receiver, ""),
+			expErr:     "",
+		},
+		{
+			name:       "invalid denom",
+			packetData: transfer.NewFungibleTokenPacketData("", amount, sender, receiver, ""),
+			expErr:     "base denomination cannot be blank",
+		},
+		{
+			name:       "invalid denom, invalid portID",
+			packetData: transfer.NewFungibleTokenPacketData("(transfer)/channel-1/uatom", amount, sender, receiver, ""),
+			expErr:     "invalid trace",
+		},
+		{
+			name:       "invalid empty amount",
+			packetData: transfer.NewFungibleTokenPacketData(denom, "", sender, receiver, ""),
+			expErr:     "unable to parse transfer amount \"\"",
+		},
+		{
+			name:       "invalid zero amount",
+			packetData: transfer.NewFungibleTokenPacketData(denom, "0", sender, receiver, ""),
+			expErr:     "amount must be strictly positive: got 0",
+		},
+		{
+			name:       "invalid negative amount",
+			packetData: transfer.NewFungibleTokenPacketData(denom, "-1", sender, receiver, ""),
+			expErr:     "amount must be strictly positive: got -1",
+		},
+		{
+			name:       "invalid large amount",
+			packetData: transfer.NewFungibleTokenPacketData(denom, invalidLargeAmount, sender, receiver, ""),
+			expErr:     "unable to parse transfer amount \"" + invalidLargeAmount + "\"",
+		},
+		{
+			name:       "missing sender address",
+			packetData: transfer.NewFungibleTokenPacketData(denom, amount, "", receiver, ""),
+			expErr:     "sender address cannot be blank",
+		},
+		{
+			name:       "missing receiver address",
+			packetData: transfer.NewFungibleTokenPacketData(denom, amount, sender, "", ""),
+			expErr:     "receiver address cannot be blank",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			err := tc.packetData.ValidateBasic()
+
+			if tc.expErr == "" {
+				urequire.NoError(t, err)
+				return
+			}
+			urequire.ErrorContains(t, err, tc.expErr)
+		})
+	}
+}
+
+func TestDenomsValidate(t *testing.T) {
+	testCases := []struct {
+		name     string
+		denom    transfer.Denom
+		expError string
+	}{
+		{
+			"valid trace with client id",
+			transfer.NewDenom("uatone",
+				transfer.NewHop("transfer", "07-tendermint-0"),
+			),
+			"",
+		},
+		{
+			"valid multiple trace info",
+			transfer.NewDenom("uatom",
+				transfer.NewHop("transfer", "channel-1"),
+				transfer.NewHop("transfer", "channel-2"),
+			),
+			"",
+		},
+		{
+			"empty base denom with trace",
+			transfer.NewDenom("", transfer.NewHop("transfer", "channel-1")),
+			"base denomination cannot be blank",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			err := tc.denom.Validate()
+
+			if tc.expError == "" {
+				urequire.NoError(t, err)
+				return
+			}
+			urequire.ErrorContains(t, err, tc.expError)
+		})
+	}
+}

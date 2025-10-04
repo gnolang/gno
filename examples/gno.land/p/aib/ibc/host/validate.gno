@@ -85,6 +85,7 @@ func ConnectionIdentifierValidator(id string) error {
 // ChannelIdentifierValidator is the default validator function for Channel identifiers.
 // A valid Identifier must be between 8-64 characters and only contain alphanumeric and some allowed
 // special characters (see IsValidID).
+// TODO remove ? there's no channel in IBCv2
 func ChannelIdentifierValidator(id string) error {
 	err := defaultIdentifierValidator(id, 8, DefaultMaxCharacterLength)
 	if err != nil {

@@ -2,6 +2,7 @@ package transfer
 
 import (
 	"chain/runtime"
+	"strings"
 
 	"gno.land/p/aib/ibc/app"
 	"gno.land/p/aib/ibc/types"
@@ -20,12 +21,14 @@ const (
 var portID string
 
 func init() {
+	// Register the app in the IBC router.
 	portID = core.RegisterApp(cross, &App{})
 }
 
 var _ app.IBCApp = &App{}
 
 // Implements app.IBCApp
+// TODO write filetests
 func (a *App) OnSendPacket(
 	sourceClient string,
 	destinationClient string,
@@ -80,11 +83,12 @@ func (a *App) OnSendPacket(
 	// If we enforce that IBC v2 packets are sent with ICS20 v2 and above
 	// versions that separate the trace from the base denomination in the packet
 	// data, then we can remove this restriction.
-	// TODO
-	// if strings.Contains(data.Token.Denom.Base, "/") {
-	//   return errorsmod.Wrapf(types.ErrInvalidDenomForTransfer, "base denomination %s cannot contain slashes for IBC v2 packet", data.Token.Denom.Base)
-	// }
-	//
+	denom := ExtractDenomFromPath(data.Denom)
+	if strings.Contains(denom.Base, "/") {
+		return ufmt.Errorf("base denomination %s cannot contain slashes for IBC v2 packet", denom.Base)
+	}
+
+	// TODO use banker to escrow the funds
 	// if err := im.keeper.SendTransfer(ctx, payload.SourcePort, sourceChannel, data.Token, signer); err != nil {
 	// return err
 	// }
