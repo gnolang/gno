@@ -14,7 +14,7 @@ import (
 	"gno.land/r/aib/ibc/core"
 )
 
-// OnSendPacket:
+// OnSendPacket: TODO
 func main() {
 	var (
 		chainID        = "chain-id-2"
@@ -26,10 +26,11 @@ func main() {
 	clientID := core.CreateClient(cross, clientState, consensusState)
 	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "07-tendermint-2")
 
+	signer := runtime.OriginCaller()
 	payload := transfer.FungibleTokenPacketData{
 		Denom:    "ugnot",
 		Amount:   "100",
-		Sender:   runtime.OriginCaller().String(),
+		Sender:   signer.String(),
 		Receiver: "atone1user",
 	}
 	packet := types.MsgSendPacket{
@@ -46,6 +47,7 @@ func main() {
 		},
 	}
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 100)))
+	testing.SetRealm(testing.NewUserRealm(signer))
 
 	core.SendPacket(cross, packet)
 }
