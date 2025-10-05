@@ -44,6 +44,9 @@ In order, we will:
 5. [Build a very simple dashboard that serves processed informations](#step-5-api-implementation-example)
 6. [Store data permanently with SQLite](#step-6-storing-data-permanently-with-sqlite)
 
+**Hosted version:**
+If you just want to experiment without setting up your own indexer, you can use the hosted version at [Test 8 GraphQL Playground](https://indexer.test8.testnets.gno.land/graphql).
+
 #### Step 1: Getting Started - Launch your own indexer
 
 Before we can query transaction data, we need to get `tx-indexer` running. This means setting up a local process and allowing it to fetch and index data from a live Gno.land chain. This usually takes some time, but for this tutorial, we will index our own, local chain, which will be extremely quick. 
@@ -67,7 +70,7 @@ make build
 ./build/tx-indexer start --remote http://127.0.0.1:26657 --db-path indexer-db
 
 # For testnets development
-./build/tx-indexer start --remote https://rpc.test7.testnets.gno.land --db-path indexer-db
+./build/tx-indexer start --remote https://rpc.test8.testnets.gno.land --db-path indexer-db
 ```
 
 Or if you prefer avoiding installation and running the services directly with Go:
@@ -90,9 +93,6 @@ go run cmd/main.go cmd/start.go cmd/waiter.go start --remote http://127.0.0.1:26
 **Tip:** Run `./build/tx-indexer start --help` to see flags for rate limiting, chunk sizes, log levels, and more.
 
 Once you see the indexer syncing blocks, you're ready to query transaction data! The indexer will keep running in the background, processing new transactions as they happen on the chain.
-
-**Alternative: Use the hosted version**
-If you just want to experiment without setting up your own indexer, you can use the hosted version at [Test 7 GraphQL Playground](https://indexer.test7.testnets.gno.land/graphql).
 
 #### Step 2: Querying for send transactions
 
@@ -130,6 +130,9 @@ query GetSendTransactions {
   }
 }
 ```
+
+**Tip:**
+In GraphQL, press `Ctrl` + `Space` to autocomplete available fields through the built-in documentations.
 
 **What you'll get back:**
 The indexer will return a JSON response that looks like this:
@@ -208,7 +211,7 @@ query GetSendTransactions($address: String!) {
 - Addresses starting with "g1" are Gno addresses
 
 **Try it yourself!**
-Copy that GraphQL query into the [playground](https://indexer.test7.testnets.gno.land/graphql) and execute it. You'll see real send transactions from the Gno network. 
+Copy that GraphQL query into the [playground](https://indexer.test8.testnets.gno.land/graphql) and execute it. You'll see real send transactions from the Gno network. 
 
 #### Step 3: Processing the transaction data with Go
 
@@ -595,6 +598,7 @@ func handleStats(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 ```
+
 #### Step 6: Storing data permanently with SQLite
 
 Our dashboard only works with data in memory - nothing is persisted. Let's fix that by adding a database to store transactions permanently.
