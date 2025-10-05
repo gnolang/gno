@@ -71,12 +71,10 @@ func (p Packet) ValidateBasic() error {
 		return ufmt.Errorf("packet data bytes cannot exceed %d bytes", MaximumPayloadsSize)
 	}
 
-	// TODO shouldn't we used host.ClientIdentifierValidator since we're IBCv2
-	// compatible only?
-	if err := host.ChannelIdentifierValidator(p.SourceClient); err != nil {
+	if err := host.ClientIdentifierValidator(p.SourceClient); err != nil {
 		return ufmt.Errorf("invalid source ID: %v", err)
 	}
-	if err := host.ChannelIdentifierValidator(p.DestinationClient); err != nil {
+	if err := host.ClientIdentifierValidator(p.DestinationClient); err != nil {
 		return ufmt.Errorf("invalid destination ID: %v", err)
 	}
 

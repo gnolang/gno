@@ -70,30 +70,6 @@ func ClientIdentifierValidator(id string) error {
 	return nil
 }
 
-// ConnectionIdentifierValidator is the default validator function for Connection identifiers.
-// A valid Identifier must be between 10-64 characters and only contain alphanumeric and some allowed
-// special characters (see IsValidID).
-// TODO probably not needed remove
-func ConnectionIdentifierValidator(id string) error {
-	err := defaultIdentifierValidator(id, 10, DefaultMaxCharacterLength)
-	if err != nil {
-		return ufmt.Errorf("validate connection identifier: %v", err)
-	}
-	return nil
-}
-
-// ChannelIdentifierValidator is the default validator function for Channel identifiers.
-// A valid Identifier must be between 8-64 characters and only contain alphanumeric and some allowed
-// special characters (see IsValidID).
-// TODO remove ? there's no channel in IBCv2
-func ChannelIdentifierValidator(id string) error {
-	err := defaultIdentifierValidator(id, 8, DefaultMaxCharacterLength)
-	if err != nil {
-		return ufmt.Errorf("validate channel identifier: %v", err)
-	}
-	return nil
-}
-
 // PortIdentifierValidator is the default validator function for Port identifiers.
 // A valid Identifier must be between 2-64 characters and only contain alphanumeric and some allowed
 // special characters (see IsValidID).
