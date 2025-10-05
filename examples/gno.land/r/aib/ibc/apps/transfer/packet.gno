@@ -39,6 +39,34 @@ func NewFungibleTokenPacketData(
 	}
 }
 
+// ProtoMarshal returns the protobuf encoding of f.
+//
+//	message FungibleTokenPacketData {
+//		string denom = 1;
+//		string amount = 2;
+//		string sender = 3;
+//		string receiver = 4;
+//		string memo = 5;
+//	}
+func (f *FungibleTokenPacketData) ProtoMarshal() (buf []byte) {
+	// Field 1: denom (length-delimited)
+	buf = proto.AppendLengthDelimited(buf, 1, []byte(f.Denom))
+
+	// Field 2: amount (length-delimited)
+	buf = proto.AppendLengthDelimited(buf, 2, []byte(f.Amount))
+
+	// Field 3: sender (length-delimited)
+	buf = proto.AppendLengthDelimited(buf, 3, []byte(f.Sender))
+
+	// Field 4: receiver (length-delimited)
+	buf = proto.AppendLengthDelimited(buf, 4, []byte(f.Receiver))
+
+	// Field 5: memo (length-delimited)
+	buf = proto.AppendLengthDelimited(buf, 5, []byte(f.Memo))
+
+	return
+}
+
 // ProtoUnmarshal reads the protobuf encoded bz into f.
 //
 //	message FungibleTokenPacketData {
