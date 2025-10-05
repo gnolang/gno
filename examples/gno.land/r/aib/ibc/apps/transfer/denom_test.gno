@@ -89,7 +89,7 @@ func TestExtractDenomFromPath(t *testing.T) {
 				for i := range tc.expDenom.Trace {
 					uassert.Equal(t, tc.expDenom.Trace[i].PortId, denom.Trace[i].PortId,
 						ufmt.Sprintf("unexpected hop #%d portId", i))
-					uassert.Equal(t, tc.expDenom.Trace[i].ChannelId, denom.Trace[i].ChannelId,
+					uassert.Equal(t, tc.expDenom.Trace[i].ClientId, denom.Trace[i].ClientId,
 						ufmt.Sprintf("unexpected hop #%d channelId", i))
 				}
 			}

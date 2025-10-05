@@ -25,7 +25,7 @@ func main() {
 	println("CreateClient", clientID2)
 
 	// RegisterCounterparty on clientID1
-	core.RegisterCounterparty(cross, clientID1, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "counter-party-id")
+	core.RegisterCounterparty(cross, clientID1, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "07-tendermint-2")
 
 	println("\n----------- assert render clients")
 	println(core.Render("clients"))
@@ -46,7 +46,7 @@ func main() {
 // - Type: 07-tendermint
 // - Creator: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // - Status: Active
-// - CounterpartyClientID: counter-party-id
+// - CounterpartyClientID: 07-tendermint-2
 // - CounterpartyMerklePrefix: 'prefix1' 'prefix2'
 // - Client state:
 //   - ChainId: chain-id-2
@@ -81,7 +81,7 @@ func main() {
 // - Type: 07-tendermint
 // - Creator: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // - Status: Active
-// - CounterpartyClientID: counter-party-id
+// - CounterpartyClientID: 07-tendermint-2
 // - CounterpartyMerklePrefix: 'prefix1' 'prefix2'
 // - Client state:
 //   - ChainId: chain-id-2
