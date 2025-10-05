@@ -2,7 +2,6 @@ package transfer
 
 import (
 	"chain/runtime"
-	"crypto/bech32"
 	"strings"
 
 	"gno.land/p/aib/ibc/app"
@@ -97,13 +96,7 @@ func (a *App) OnSendPacket(
 	}
 	token := Token{Denom: denom, Amount: data.Amount}
 
-	_, senderAddr, err := bech32.Decode(data.Sender)
-	if err != nil {
-		return ufmt.Errorf("cannot decode sender addr: %v", data.Sender)
-	}
-	if err := sendTransfer(
-		payload.SourcePort, sourceClient, token, address(senderAddr),
-	); err != nil {
+	if err := sendTransfer(payload.SourcePort, sourceClient, token); err != nil {
 		return err
 	}
 
