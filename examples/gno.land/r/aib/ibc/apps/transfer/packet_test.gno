@@ -9,7 +9,23 @@ import (
 	"gno.land/r/aib/ibc/apps/transfer"
 )
 
-func TestDecodeFungibleTokenPacketData(t *testing.T) {
+func TestFungibleTokenPacketDataProtoMarshal(t *testing.T) {
+	f := transfer.FungibleTokenPacketData{
+		Denom:    "ugnot",
+		Amount:   "100",
+		Sender:   "g1user",
+		Receiver: "atone1user",
+		Memo:     "memo",
+	}
+
+	bz := f.ProtoMarshal()
+
+	expected := "0a0575676e6f7412033130301a06673175736572220a61746f6e6531757365722a046d656d6f"
+	got := hex.EncodeToString(bz)
+	uassert.Equal(t, expected, got)
+}
+
+func TestFungibleTokenPacketDataProtoUnmarshal(t *testing.T) {
 	bz, err := hex.DecodeString("0a0575676e6f7412033130301a06673175736572220a61746f6e6531757365722a046d656d6f")
 	urequire.NoError(t, err)
 	var f transfer.FungibleTokenPacketData

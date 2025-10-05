@@ -97,9 +97,7 @@ func (p Packet) ValidateBasic() error {
 //	  uint64 timeout_timestamp = 4;
 //	  repeated Payload payloads = 5 [(gogoproto.nullable) = false];
 //	}
-func (p Packet) ProtoMarshal() []byte {
-	var buf []byte
-
+func (p Packet) ProtoMarshal() (buf []byte) {
 	// Field 1: sequence (varint)
 	buf = proto.AppendVarint(buf, 1, uint64(p.Sequence))
 
@@ -117,7 +115,7 @@ func (p Packet) ProtoMarshal() []byte {
 		bz := payload.ProtoMarshal()
 		buf = proto.AppendLengthDelimited(buf, 5, bz)
 	}
-	return buf
+	return
 }
 
 type Payload struct {
