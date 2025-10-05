@@ -1,0 +1,41 @@
+loadpkg gno.land/r/demo/crossrealm $WORK/crossrealm
+loadpkg gno.land/r/demo/main $WORK/main
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/demo/main -func Exec -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+-- crossrealm/gnomod.toml --
+module = "gno.land/r/demo/crossrealm"
+gno = "0.9"
+
+-- crossrealm/crossrealm.gno --
+package crossrealm
+
+var msg  = []byte("hello bug")
+
+func Message() []byte {
+	return msg
+}
+
+
+
+-- main/gnomod.toml --
+module = "gno.land/r/demo/main"
+gno = "0.9"
+-- main/main.gno --
+package main
+
+import (
+	"gno.land/r/demo/crossrealm"
+	"bytes"
+)
+
+var msgLocal []byte = []byte{104, 101, 108, 108, 111, 32, 98, 117, 103}
+
+func Exec(cur realm) {
+	msg := crossrealm.Message()
+	if bytes.Equal([]byte(msg), msgLocal){
+		println("Equals")
+	}
+}
