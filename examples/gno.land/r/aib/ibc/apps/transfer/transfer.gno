@@ -8,28 +8,39 @@ import (
 	"gno.land/p/nt/ufmt"
 )
 
-func SendTransfer(sourcePort, sourceClient string, token Token, senderAddr address) error {
-	// TODO check transfer keeper.SendTransfer for the usecases
+// sendTransfer sends the specified amount of tokens from the sender to the
+// escrow account. It ensures that the packet amount matches the origin send
+// (using origin send tx parameter is the only way for a contract to transfer
+// funds from signer).
+func sendTransfer(sourcePort, sourceClient string, token Token, senderAddr address) error {
+	// TODO handle when token is an IBC denom
 	coin, err := token.ToCoin()
 	if err != nil {
 		return ufmt.Errorf("token to coin error: %v", err)
 	}
-	var (
-		banker     = banker.NewBanker(banker.BankerTypeRealmSend)
-		escrowAddr = getEscrowAddress(sourcePort, sourceClient)
-		amt        = chain.NewCoins(coin)
-	)
-	banker.SendCoins(senderAddr, escrowAddr, amt)
+	amt := chain.NewCoins(coin)
+	sent := banker.OriginSend()
+	if sent.String() != amt.String() {
+		return ufmt.Errorf("packet amount and origin send do not match, %s != %s", amt, sent)
+	}
+	escrowAddr := getEscrowAddress(sourcePort, sourceClient)
+
+	banker.NewBanker(banker.BankerTypeOriginSend).
+		SendCoins(senderAddr, escrowAddr, sent)
+
+	// TODO track escrowed coins by denom in store?
+
 	return nil
 }
 
-// getEscrowAddress returns the escrow address for the specified channel.
+// getEscrowAddress returns the escrow address for the specified client.
 // The escrow address follows the format as outlined in ADR 028:
 // https://github.com/cosmos/cosmos-sdk/blob/master/docs/architecture/adr-028-public-key-addresses.md
-func getEscrowAddress(portID, channelID string) address {
-	// a slash is used to create domain separation between port and channel identifiers to
-	// prevent address collisions between escrow addresses created for different channels
-	contents := ufmt.Sprintf("%s/%s", portID, channelID)
+func getEscrowAddress(portID, clientID string) address {
+	// a slash is used to create domain separation between port and client
+	// identifiers to prevent address collisions between escrow addresses created
+	// for different clients.
+	contents := ufmt.Sprintf("%s/%s", portID, clientID)
 
 	// ADR 028 AddressHash construction
 	preImage := []byte(escrowAddressVersion)

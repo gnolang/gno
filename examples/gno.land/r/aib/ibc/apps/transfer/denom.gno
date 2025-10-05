@@ -84,7 +84,7 @@ func (d Denom) IBCDenom() string {
 		return d.Base
 	}
 
-	return ufmt.Sprintf("%s/%s", DenomPrefix, d.Hash())
+	return ufmt.Sprintf("%s/%s", denomPrefix, d.Hash())
 }
 
 // ExtractDenomFromPath returns the denom from the full path.

@@ -11,18 +11,18 @@ import (
 func main() {
 	portID := core.RegisterApp(cross, &testing.App{})
 	println("portID:", portID)
-	stdtesting.SetRealm(stdtesting.NewCodeRealm("gno.land/r/aib/ibc/transfer"))
+	stdtesting.SetRealm(stdtesting.NewCodeRealm("gno.land/r/aib/ibc/apps/xxx"))
 	portID = core.RegisterApp(cross, &testing.App{})
 	println("portID:", portID)
 
-	println("----------- assert render app")
+	println("----------- assert render apps")
 	println(core.Render("apps"))
 }
 
 // Output:
 // portID: main
-// portID: gno.land_r_aib_ibc_transfer
-// ----------- assert render app
+// portID: gno.land_r_aib_ibc_apps_xxx
+// ----------- assert render apps
 // ## Registered apps
 // - main
-// - gno.land_r_aib_ibc_transfer
+// - gno.land_r_aib_ibc_apps_xxx
