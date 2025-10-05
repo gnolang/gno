@@ -9,7 +9,7 @@ gnoland start
 
 gnokey maketx call -pkgpath gno.land/r/testing/resource -func Edit -args edited -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test alice
 
-gnokey maketx call -pkgpath gno.land/r/testing/admin -func ExecuteAction -args 0 -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test alice
+gnokey maketx call -pkgpath gno.land/r/testing/admin -func ExecuteAction -args 0 -gas-fee 100000ugnot -gas-wanted 2100000 -broadcast -chainid tendermint_test alice
 
 gnokey maketx call -pkgpath gno.land/r/testing/resource -func Value -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test alice
 stdout 'edited'
@@ -23,8 +23,8 @@ gno "0.9"
 package admin
 
 import (
+	"chain/runtime"
 	"errors"
-	"std"
 
 	"gno.land/p/moul/authz"
 )
@@ -37,7 +37,7 @@ type prop struct {
 var props []*prop
 
 func HandlePrivilegedAction(title string, action authz.PrivilegedAction) error {
-	if std.CurrentRealm().PkgPath() != "gno.land/r/testing/resource" {
+	if runtime.CurrentRealm().PkgPath() != "gno.land/r/testing/resource" {
 		return errors.New("unauthorized proposer")
 	}
 	func(cur realm) {
@@ -47,7 +47,7 @@ func HandlePrivilegedAction(title string, action authz.PrivilegedAction) error {
 }
 
 func ExecuteAction(cur realm, index int) {
-	if std.PreviousRealm().Address() != "g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0" {
+	if runtime.PreviousRealm().Address() != "g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0" {
 		panic(errors.New("not alice"))
 	}
 	if err := props[index].action(); err != nil {

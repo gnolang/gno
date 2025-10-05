@@ -1,7 +1,6 @@
 package monit
 
 import (
-	"std"
 	"testing"
 	"time"
 
@@ -13,16 +12,16 @@ import (
 func initTest() {
 	counter = 0
 	lastUpdate = time.Time{}
-	lastCaller = std.Address("")
+	lastCaller = address("")
 	wd = watchdog.Watchdog{Duration: watchdogDuration}
-	creator := std.Address("g1creator")
+	creator := address("g1creator")
 	Ownable = ownable.NewWithAddress(creator)
 }
 
 func TestPackage(t *testing.T) {
 	initTest()
 
-	testing.SetRealm(std.NewUserRealm("g1user"))
+	testing.SetRealm(testing.NewUserRealm("g1user"))
 
 	// initial state, watchdog is KO.
 	{
@@ -81,8 +80,8 @@ func TestReset(t *testing.T) {
 	initialStatus := wd.Status()
 
 	// Call Incr to change the state
-	user := std.Address("g1user")
-	testing.SetRealm(std.NewUserRealm(user))
+	user := address("g1user")
+	testing.SetRealm(testing.NewUserRealm(user))
 	Incr(cross)
 	uassert.True(t, counter > initialCounter, "counter should have increased after Incr")
 	uassert.True(t, lastUpdate.After(initialLastUpdate), "lastUpdate should have been updated after Incr")
@@ -91,7 +90,7 @@ func TestReset(t *testing.T) {
 
 	// Call Reset as the owner
 	ownerAddr := Ownable.Owner()
-	testing.SetRealm(std.NewUserRealm(ownerAddr)) // Simulate call from the owner
+	testing.SetRealm(testing.NewUserRealm(ownerAddr)) // Simulate call from the owner
 	Reset(cross)
 	uassert.Equal(t, 0, counter, "counter should be 0 after Reset")
 	uassert.Equal(t, ownerAddr, lastCaller, "lastCaller should be the owner address after Reset")

@@ -2,16 +2,15 @@
 package main
 
 import (
-	"std"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
 const (
-	owner        = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	srcBoardName = "BoardName"
-	dstBoardName = "BoardName2"
+	owner        address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	srcBoardName         = "BoardName"
+	dstBoardName         = "BoardName2"
 )
 
 var (
@@ -20,7 +19,7 @@ var (
 )
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a board and a thread
 	boardID := boards2.CreateBoard(cross, srcBoardName, false)

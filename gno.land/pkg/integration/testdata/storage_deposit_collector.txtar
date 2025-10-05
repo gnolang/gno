@@ -1,0 +1,144 @@
+## This tests changes  storage_fee_collector and assert that storage_fees are corretly collected
+## by this address when releasing memory on a realm
+
+adduserfrom storage_collector 'post settle extend broken surface clump pulse cook afford forum civil oppose bid raise hello wave deer bar vital vacant evolve junior safe script'
+stdout 'g1x5zmkv7gws200q887ahhvztvh833d5wpej3f52'
+
+adduserfrom norman 'pass call damage increase favorite blush pottery nut genre meadow useless crater champion zebra student just puzzle hard myself offer arctic grit eight large'
+stdout 'g18l7avzhhlwfhaks22765y3mr8qhjh4aqvw4lpd'
+
+adduserfrom alice 'relax garment load shy garden video prepare edge churn noodle frequent grass priority half merge honey cousin industry panda forward brand taste village verb'
+stdout 'g1ss6w8xfy7vnp595yely63jqa8553k03mjcglen'
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/gov/dao/v3/init
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/sys/users
+loadpkg gno.land/r/gnoland/users/v1
+
+
+## start a new node with token lock
+gnoland start -lock-transfer
+
+## Load member as T1 to be able to vote afterwards
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/load_user.gno
+
+## Submit a proposal to change storage_fee_collector to storage_collector
+
+## pay the fee and submit a proposal to change the fee collector.
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_collector.gno
+stdout '0'
+
+## Vote change proposal with unrestricted account test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+## Execute change proposal with unrestricted account test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+## Check storage_collector balance
+gnokey query bank/balances/$storage_collector_user_addr
+stdout '1000000000ugnot'
+
+gnokey maketx addpkg -pkgdir $WORK/bytesbank -pkgpath gno.land/r/bytesbank -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 502500ugnot -broadcast -chainid=tendermint_test test1
+stdout 'EVENTS:     \[{\"bytes_delta\":3411,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":341100},\"pkg_path\":\"gno.land/r/bytesbank\"}]'
+stdout 'STORAGE DELTA:  3411 bytes'
+stdout 'STORAGE FEE:    341100ugnot'
+stdout 'TOTAL TX COST:  1341100ugnot'
+
+gnokey query vm/qstorage --data gno.land/r/bytesbank
+
+stdout 'storage: 3411, deposit: 341100'
+
+## Set an object with a smaller size. Exactly 2 bytes are released when we update the realm record from 'hello' to 'foo'.
+gnokey maketx call -pkgpath gno.land/r/bytesbank -func Credit -args $norman_user_addr -args 500000  -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test alice
+stdout OK!
+stdout 'STORAGE DELTA:  501531 bytes'
+stdout 'STORAGE FEE:    50153100ugnot'
+stdout 'TOTAL TX COST:  51153100ugnot'
+
+gnokey query vm/qstorage --data gno.land/r/bytesbank
+stdout 'storage: 504942, deposit: 50494200'
+
+## Norman frees the storage of bytes bank, but storage deposit goes to storage fee collector
+## instead of him
+gnokey maketx call -pkgpath gno.land/r/bytesbank -func Debit -args 0  -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test norman
+stdout OK!
+stdout 'STORAGE DELTA:  -501132 bytes'
+
+stdout 'TOTAL TX COST:  1000000ugnot'
+stdout 'EVENTS: .*refund_withheld\":true.*'
+
+
+# balance from storage_collector should be base storage + 501132 ugnot refunded by storage
+## Check storage_collector balance
+gnokey query bank/balances/$storage_collector_user_addr
+stdout '1050113200ugnot'
+
+## storage should have been released from realm
+gnokey query vm/qstorage --data gno.land/r/bytesbank
+stdout 'storage: 3810, deposit: 381000'
+
+-- run/load_user.gno --
+package main
+
+import i "gno.land/r/gov/dao/v3/init"
+
+func main() {
+	i.InitWithUsers(address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+}
+-- run/propose_collector.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main() {
+	storage_collector := address("g1x5zmkv7gws200q887ahhvztvh833d5wpej3f52")
+	pr := params.NewSysParamStringPropRequest("vm", "p", "storage_fee_collector", storage_collector.String())
+	pid := dao.MustCreateProposal(cross, pr)
+	println(pid.String())
+}
+-- bytesbank/gnomod.toml --
+module = "gno.land/r/bytesbank"
+gno = "0.9"
+
+-- bytesbank/bytesbank.gno --
+package bytesbank
+
+import "chain/runtime"
+
+type unspent struct {
+	dst  address
+	load []byte
+}
+
+var unspents []*unspent
+
+func Credit(cur realm, dst address, size int) int {
+	unspents = append(unspents, &unspent{
+		dst:  dst,
+		load: make([]byte, size), // lock storage deposit
+	})
+	return len(unspents) - 1
+}
+
+func Debit(cur realm, idx int) {
+	if len(unspents) <= idx {
+		panic("no such index")
+	}
+
+	u := unspents[idx]
+	if u == nil {
+		panic("already spent")
+	}
+
+	if runtime.PreviousRealm().Address() != u.dst {
+		panic("not for you")
+	}
+
+	unspents[idx] = nil // reclaim storage deposit
+}

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"std"
 	"testing"
 
 	pcommondao "gno.land/p/nt/commondao"
@@ -9,10 +8,10 @@ import (
 	"gno.land/r/nt/commondao"
 )
 
-const user = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+const user = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(user))
+	testing.SetRealm(testing.NewUserRealm(user))
 
 	commondao.Vote(cross, 404, 1, pcommondao.ChoiceYes, "")
 }

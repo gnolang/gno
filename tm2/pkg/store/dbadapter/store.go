@@ -16,7 +16,59 @@ func StoreConstructor(db dbm.DB, opts types.StoreOptions) types.CommitStore {
 
 // Wrapper type for dbm.Db with implementation of Store
 type Store struct {
-	dbm.DB
+	DB dbm.DB
+}
+
+// Get returns nil iff key doesn't exist. Panics on nil key.
+func (dsa Store) Get(key []byte) []byte {
+	v, err := dsa.DB.Get(key)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// Has checks if a key exists. Panics on nil key.
+func (dsa Store) Has(key []byte) bool {
+	v, err := dsa.DB.Has(key)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+// Set sets the key. Panics on nil key or value.
+func (dsa Store) Set(key, value []byte) {
+	err := dsa.DB.Set(key, value)
+	if err != nil {
+		panic(err)
+	}
+}
+
+// Delete deletes the key. Panics on nil key.
+func (dsa Store) Delete(key []byte) {
+	err := dsa.DB.Delete(key)
+	if err != nil {
+		panic(err)
+	}
+}
+
+// Iterator over a domain of keys in ascending order.
+func (dsa Store) Iterator(start, end []byte) types.Iterator {
+	it, err := dsa.DB.Iterator(start, end)
+	if err != nil {
+		panic(err)
+	}
+	return it
+}
+
+// Iterator over a domain of keys in descending order.
+func (dsa Store) ReverseIterator(start, end []byte) types.Iterator {
+	it, err := dsa.DB.ReverseIterator(start, end)
+	if err != nil {
+		panic(err)
+	}
+	return it
 }
 
 // CacheWrap cache wraps the underlying store.

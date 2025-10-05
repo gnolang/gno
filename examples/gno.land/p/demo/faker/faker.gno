@@ -4,8 +4,8 @@
 package faker
 
 import (
+	"crypto/bech32"
 	"math/rand"
-	"std"
 	"strconv"
 	"strings"
 	"unicode"
@@ -171,17 +171,19 @@ func (f *Faker) Phone() string {
 	return ufmt.Sprintf("(%d) %d-%d", area, exchange, number)
 }
 
-// StdAddress returns a random std.Address.
-func (f *Faker) StdAddress() std.Address {
-	var rawAddr std.RawAddress
-
-	for i := 0; i < std.RawAddressSize; i++ {
-		rawAddr[i] = byte(f.rng.IntN(256))
+// StdAddress returns a random chain.Address.
+func (f *Faker) StdAddress() address {
+	rawAddr := make([]byte, 32)
+	for i := 0; i < 32; i++ {
+		rawAddr[i] = byte(f.rng.IntN(32))
 	}
 
-	addr := std.EncodeBech32("g", rawAddr)
+	addr, err := bech32.Encode("g", rawAddr)
+	if err != nil {
+		panic(err)
+	}
 
-	return std.Address(addr)
+	return address(addr)
 }
 
 // Username returns a random gno username following the rules:
@@ -331,8 +333,8 @@ func Phone() string {
 	return defaultFaker.Phone()
 }
 
-// StdAddress returns a random std.Address using the default faker.
-func StdAddress() std.Address {
+// StdAddress returns a random chain.Address using the default faker.
+func StdAddress() address {
 	return defaultFaker.StdAddress()
 }
 

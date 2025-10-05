@@ -79,3 +79,7 @@ lint:
 .PHONY: tidy
 tidy:
 	$(MAKE) --no-print-directory -C misc     tidy
+
+.PHONY: mocks
+mocks:
+	$(rundep) github.com/golang/mock/mockgen -source=tm2/pkg/db/types.go -package mockdb -destination tm2/pkg/db/mockdb/mockdb.go

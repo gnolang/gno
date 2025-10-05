@@ -2,7 +2,6 @@ package grc20
 
 import (
 	"errors"
-	"std"
 
 	"gno.land/p/nt/avl"
 )
@@ -28,19 +27,19 @@ type Teller interface {
 	TotalSupply() int64
 
 	// Returns the amount of tokens owned by `account`.
-	BalanceOf(account std.Address) int64
+	BalanceOf(account address) int64
 
 	// Moves `amount` tokens from the caller's account to `to`.
 	//
 	// Returns an error if the operation failed.
-	Transfer(to std.Address, amount int64) error
+	Transfer(to address, amount int64) error
 
 	// Returns the remaining number of tokens that `spender` will be
 	// allowed to spend on behalf of `owner` through {transferFrom}. This is
 	// zero by default.
 	//
 	// This value changes when {approve} or {transferFrom} are called.
-	Allowance(owner, spender std.Address) int64
+	Allowance(owner, spender address) int64
 
 	// Sets `amount` as the allowance of `spender` over the caller's tokens.
 	//
@@ -52,14 +51,14 @@ type Teller interface {
 	// this race condition is to first reduce the spender's allowance to 0
 	// and set the desired value afterwards:
 	// https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-	Approve(spender std.Address, amount int64) error
+	Approve(spender address, amount int64) error
 
 	// Moves `amount` tokens from `from` to `to` using the
 	// allowance mechanism. `amount` is then deducted from the caller's
 	// allowance.
 	//
 	// Returns an error if the operation failed.
-	TransferFrom(from, to std.Address, amount int64) error
+	TransferFrom(from, to address, amount int64) error
 }
 
 // Token represents a fungible token with a name, symbol, and a certain number
@@ -92,9 +91,9 @@ type Token struct {
 type PrivateLedger struct {
 	// Total supply of the token managed by this ledger.
 	totalSupply int64
-	// std.Address -> int64
+	// chain.Address -> int64
 	balances avl.Tree
-	// owner.(std.Address)+":"+spender.(std.Address)) -> int64
+	// owner.(chain.Address)+":"+spender.(chain.Address)) -> int64
 	allowances avl.Tree
 	// Pointer to the associated Token struct
 	token *Token
@@ -119,7 +118,7 @@ const (
 )
 
 type fnTeller struct {
-	accountFn func() std.Address
+	accountFn func() address
 	*Token
 }
 

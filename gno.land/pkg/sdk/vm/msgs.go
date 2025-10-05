@@ -19,7 +19,7 @@ type MsgAddPackage struct {
 	Creator    crypto.Address  `json:"creator" yaml:"creator"`
 	Package    *std.MemPackage `json:"package" yaml:"package"`
 	Send       std.Coins       `json:"send" yaml:"send"`
-	MaxDeposit std.Coins       `json:"max_deposit,omitempty" yaml:"max_deposit"`
+	MaxDeposit std.Coins       `json:"max_deposit" yaml:"max_deposit"`
 }
 
 var _ std.Msg = MsgAddPackage{}
@@ -92,10 +92,10 @@ func (msg MsgAddPackage) GetReceived() std.Coins {
 type MsgCall struct {
 	Caller     crypto.Address `json:"caller" yaml:"caller"`
 	Send       std.Coins      `json:"send" yaml:"send"`
-	MaxDeposit std.Coins      `json:"max_deposit,omitempty" yaml:"max_deposit"`
+	MaxDeposit std.Coins      `json:"max_deposit" yaml:"max_deposit"`
 	PkgPath    string         `json:"pkg_path" yaml:"pkg_path"`
 	Func       string         `json:"func" yaml:"func"`
-	Args       []string       `json:"args" yaml:"args"`
+	Args       []string       `json:"args,omitempty" yaml:"args"`
 }
 
 var _ std.Msg = MsgCall{}
@@ -164,7 +164,7 @@ func (msg MsgCall) GetReceived() std.Coins {
 type MsgRun struct {
 	Caller     crypto.Address  `json:"caller" yaml:"caller"`
 	Send       std.Coins       `json:"send" yaml:"send"`
-	MaxDeposit std.Coins       `json:"max_deposit,omitempty" yaml:"max_deposit"`
+	MaxDeposit std.Coins       `json:"max_deposit" yaml:"max_deposit"`
 	Package    *std.MemPackage `json:"package" yaml:"package"`
 }
 
