@@ -7,7 +7,8 @@ import (
 	tmtesting "gno.land/p/aib/ibc/lightclient/tendermint/testing"
 	"gno.land/p/aib/ibc/types"
 
-	"gno.land/r/aib/ibc/apps/transfer"
+	// Import to trigger the init and register the app
+	_ "gno.land/r/aib/ibc/apps/transfer"
 	"gno.land/r/aib/ibc/core"
 )
 
@@ -23,31 +24,11 @@ func main() {
 	clientID := core.CreateClient(cross, clientState, consensusState)
 	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "counter-party-id")
 
-	println("portID:", transfer.PortID)
 	println("----------- assert render apps")
 	println(core.Render("apps"))
-
-	/*
-	   	packet := types.MsgSendPacket{
-	   		SourceClient:     clientID,
-	   		TimeoutTimestamp: uint64(time.Now().Add(time.Hour).Unix()),
-	   		Payloads: []types.Payload{
-	   			{
-	   				SourcePort:      "gno.land_r_aib_ibc_apps_transfer",
-	   				DestinationPort: "destinationPort",
-	   				Encoding:        "application/json",
-	   				Value:           []byte("{}"),
-	   				Version:         "v1",
-	   			},
-	   		},
-	   	}
-
-	   core.SendPacket(cross, packet)
-	*/
 }
 
 // Output:
-// portID: gno.land_r_aib_ibc_apps_transfer
 // ----------- assert render apps
 // ## Registered apps
-// - gno.land_r_aib_ibc_apps_transfer
+// - transfer
