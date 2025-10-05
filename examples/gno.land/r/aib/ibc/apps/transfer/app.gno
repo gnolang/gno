@@ -15,17 +15,18 @@ type App struct{}
 
 const (
 	// V1 defines first version of the IBC transfer module
-	V1                   = "ics20-1"
-	EncodingProtobuf     = "application/x-protobuf"
+	V1               = "ics20-1"
+	EncodingProtobuf = "application/x-protobuf"
+
+	denomPrefix          = "ibc"
 	escrowAddressVersion = V1
-	DenomPrefix          = "ibc"
 )
 
-var portID string
+var PortID string
 
 func init() {
 	// Register the app in the IBC router.
-	portID = core.RegisterApp(cross, &App{})
+	PortID = core.RegisterApp(cross, &App{})
 }
 
 var _ app.IBCApp = &App{}
@@ -38,6 +39,9 @@ func (a *App) OnSendPacket(
 	sequence uint64,
 	payload types.Payload,
 ) error {
+	// TODO add parameter to disable the app
+	// TODO add parameter to block sender addr
+
 	// Enforce that the source and destination portIDs are the same and equal to
 	// the transfer portID.
 	// Enforce that the source and destination clientIDs are also in the clientID
@@ -49,8 +53,8 @@ func (a *App) OnSendPacket(
 	// commits to **both** the source and destination portIDs rather than just
 	// the destination port.
 	// TODO change RegisterApp so it can take an abitrary portID.
-	if payload.SourcePort != portID || payload.DestinationPort != portID {
-		return ufmt.Errorf("payload port ID is invalid: expected %s, got sourcePort: %s destPort: %s", portID, payload.SourcePort, payload.DestinationPort)
+	if payload.SourcePort != PortID || payload.DestinationPort != PortID {
+		return ufmt.Errorf("payload port ID is invalid: expected %s, got sourcePort: %s destPort: %s", PortID, payload.SourcePort, payload.DestinationPort)
 	}
 	if !types.IsValidClientID(sourceClient) || !types.IsValidClientID(destinationClient) {
 		return ufmt.Errorf("client IDs must be in valid format: {string}-{number}")
@@ -75,6 +79,8 @@ func (a *App) OnSendPacket(
 		return ufmt.Errorf("invalid FungibleTokenPacketData: sender %s is different from signer %s", data.Sender, signer)
 	}
 
+	// TODO review comment: maybe not relevant in a pure IBCv2 impl.
+	//
 	// Enforce that the base denom does not contain any slashes
 	// Since IBC v2 packets will no longer have channel identifiers, we cannot
 	// rely on the channel format to easily divide the trace from the base
@@ -96,9 +102,10 @@ func (a *App) OnSendPacket(
 	if err != nil {
 		return ufmt.Errorf("cannot decode sender addr: %v", data.Sender)
 	}
-	err = SendTransfer(payload.SourcePort, sourceClient, token, address(senderAddr))
-	if err != nil {
-		return ufmt.Errorf("sendTransfer error: %v", err)
+	if err := sendTransfer(
+		payload.SourcePort, sourceClient, token, address(senderAddr),
+	); err != nil {
+		return err
 	}
 
 	// TODO emit events
