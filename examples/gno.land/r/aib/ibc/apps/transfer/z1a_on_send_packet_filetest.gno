@@ -41,4 +41,4 @@ func main() {
 }
 
 // Error:
-// send packet failed for app gno.land_r_aib_ibc_apps_transfer: payload port ID is invalid: expected gno.land_r_aib_ibc_apps_transfer, got sourcePort: gno.land_r_aib_ibc_apps_transfer destPort: destinationPort
+// send packet failed for app transfer: payload port ID is invalid: expected transfer, got sourcePort: transfer destPort: destinationPort

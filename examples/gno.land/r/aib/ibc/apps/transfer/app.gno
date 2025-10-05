@@ -14,6 +14,8 @@ import (
 type App struct{}
 
 const (
+	// NOTE we must use the same portID as the ibc-go transfer IBC app
+	PortID = "transfer"
 	// V1 defines first version of the IBC transfer module
 	V1               = "ics20-1"
 	EncodingProtobuf = "application/x-protobuf"
@@ -22,11 +24,9 @@ const (
 	escrowAddressVersion = V1
 )
 
-var PortID string
-
 func init() {
 	// Register the app in the IBC router.
-	PortID = core.RegisterApp(cross, &App{})
+	core.RegisterApp(cross, PortID, &App{})
 }
 
 var _ app.IBCApp = &App{}
@@ -52,7 +52,6 @@ func (a *App) OnSendPacket(
 	// This restriction can be removed in a future where the trace hop on receive
 	// commits to **both** the source and destination portIDs rather than just
 	// the destination port.
-	// TODO change RegisterApp so it can take an abitrary portID.
 	if payload.SourcePort != PortID || payload.DestinationPort != PortID {
 		return ufmt.Errorf("payload port ID is invalid: expected %s, got sourcePort: %s destPort: %s", PortID, payload.SourcePort, payload.DestinationPort)
 	}

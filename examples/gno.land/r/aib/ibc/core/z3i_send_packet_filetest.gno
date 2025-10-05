@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/sha256"
 	"errors"
-	"testing"
 	"time"
 
 	tmtesting "gno.land/p/aib/ibc/lightclient/tendermint/testing"
@@ -26,16 +25,18 @@ func main() {
 
 	println("next sequence:", core.Render("clients/"+clientID+"/next_sequence_send"))
 	// Register app
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/ibcapp"))
-	app := &ibctesting.App{}
+	var (
+		app       = &ibctesting.App{}
+		appPortID = "app1"
+	)
 	app.Calls.OnSendPacketReturn = errors.New("app error")
-	sourcePortApp := core.RegisterApp(cross, app)
+	core.RegisterApp(cross, appPortID, app)
 
 	packet := types.MsgSendPacket{
 		SourceClient:     clientID,
 		TimeoutTimestamp: uint64(time.Now().Add(time.Hour).Unix()),
 		Payloads: []types.Payload{{
-			SourcePort:      sourcePortApp,
+			SourcePort:      appPortID,
 			DestinationPort: "destinationPort",
 			Encoding:        "application/json",
 			Value:           []byte("{}"),
@@ -47,4 +48,4 @@ func main() {
 }
 
 // Error:
-// send packet failed for app gno.land_r_ibcapp: app error
+// send packet failed for app app1: app error
