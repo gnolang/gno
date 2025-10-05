@@ -10,7 +10,7 @@ import (
 // RegisterApp fail because caller is not a realm
 func main() {
 	stdtesting.SetRealm(stdtesting.NewUserRealm("g1user"))
-	core.RegisterApp(cross, &testing.App{})
+	core.RegisterApp(cross, "app1", &testing.App{})
 }
 
 // Error:

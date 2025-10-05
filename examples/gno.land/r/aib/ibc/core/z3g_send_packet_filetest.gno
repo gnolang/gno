@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/sha256"
-	"testing"
 	"time"
 
 	tmtesting "gno.land/p/aib/ibc/lightclient/tendermint/testing"
@@ -25,26 +24,30 @@ func main() {
 
 	println("next sequence:", core.Render("clients/"+clientID+"/next_sequence_send"))
 	// Register 2 apps
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/ibcapp1"))
-	app1 := &ibctesting.App{}
-	sourcePortApp1 := core.RegisterApp(cross, app1)
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/ibcapp2"))
-	app2 := &ibctesting.App{}
-	sourcePortApp2 := core.RegisterApp(cross, app2)
+	var (
+		app1       = &ibctesting.App{}
+		app1PortID = "app1"
+	)
+	core.RegisterApp(cross, app1PortID, app1)
+	var (
+		app2       = &ibctesting.App{}
+		app2PortID = "app2"
+	)
+	core.RegisterApp(cross, app2PortID, app2)
 
 	packet := types.MsgSendPacket{
 		SourceClient:     clientID,
 		TimeoutTimestamp: uint64(time.Now().Add(time.Hour).Unix()),
 		Payloads: []types.Payload{
 			{
-				SourcePort:      sourcePortApp1,
+				SourcePort:      app1PortID,
 				DestinationPort: "destinationPort",
 				Encoding:        "application/json",
 				Value:           []byte("{}"),
 				Version:         "v1",
 			},
 			{
-				SourcePort:      sourcePortApp2,
+				SourcePort:      app2PortID,
 				DestinationPort: "destinationPort",
 				Encoding:        "application/json",
 				Value:           []byte("{}"),
@@ -81,7 +84,7 @@ func main() {
 // - destinationClient: counter-party-id
 // - sequence: 1
 // - payload:
-//   - sourcePort: gno.land_r_ibcapp1
+//   - sourcePort: app1
 //   - destinationPort: destinationPort
 //   - version: v1
 //   - encoding: application/json
@@ -97,7 +100,7 @@ func main() {
 // - destinationClient: counter-party-id
 // - sequence: 1
 // - payload:
-//   - sourcePort: gno.land_r_ibcapp2
+//   - sourcePort: app2
 //   - destinationPort: destinationPort
 //   - version: v1
 //   - encoding: application/json
@@ -112,9 +115,9 @@ func main() {
 // ----------- assert render clients/07-tendermint-1/packet_commitments
 // ## Client 07-tendermint-1 packet commitments
 // - Sequence 0000001
-//   - daf71f20b3e8ae8b47f6cead4acd7a5fcb68ce6253d7d14556ed08c522ea125a
+//   - 236a341ea1706b54be9cab66d873d388d3d1abfa4115ef551d01e245fc73882f
 // - Sequence 0000002
-//   - daf71f20b3e8ae8b47f6cead4acd7a5fcb68ce6253d7d14556ed08c522ea125a
+//   - 236a341ea1706b54be9cab66d873d388d3d1abfa4115ef551d01e245fc73882f
 
 // Events:
 // [
@@ -157,7 +160,7 @@ func main() {
 //       },
 //       {
 //         "key": "encoded_packet_hex",
-//         "value": "0801120f30372d74656e6465726d696e742d311a10636f756e7465722d70617274792d696420e2a1d8cc042a3f0a12676e6f2e6c616e645f725f69626361707031120f64657374696e6174696f6e506f72741a02763122106170706c69636174696f6e2f6a736f6e2a027b7d2a3f0a12676e6f2e6c616e645f725f69626361707032120f64657374696e6174696f6e506f72741a02763122106170706c69636174696f6e2f6a736f6e2a027b7d"
+//         "value": "0801120f30372d74656e6465726d696e742d311a10636f756e7465722d70617274792d696420e2a1d8cc042a310a0461707031120f64657374696e6174696f6e506f72741a02763122106170706c69636174696f6e2f6a736f6e2a027b7d2a310a0461707032120f64657374696e6174696f6e506f72741a02763122106170706c69636174696f6e2f6a736f6e2a027b7d"
 //       }
 //     ],
 //     "pkg_path": "gno.land/r/aib/ibc/core"
@@ -183,7 +186,7 @@ func main() {
 //       },
 //       {
 //         "key": "encoded_packet_hex",
-//         "value": "0802120f30372d74656e6465726d696e742d311a10636f756e7465722d70617274792d696420e2a1d8cc042a3f0a12676e6f2e6c616e645f725f69626361707031120f64657374696e6174696f6e506f72741a02763122106170706c69636174696f6e2f6a736f6e2a027b7d2a3f0a12676e6f2e6c616e645f725f69626361707032120f64657374696e6174696f6e506f72741a02763122106170706c69636174696f6e2f6a736f6e2a027b7d"
+//         "value": "0802120f30372d74656e6465726d696e742d311a10636f756e7465722d70617274792d696420e2a1d8cc042a310a0461707031120f64657374696e6174696f6e506f72741a02763122106170706c69636174696f6e2f6a736f6e2a027b7d2a310a0461707032120f64657374696e6174696f6e506f72741a02763122106170706c69636174696f6e2f6a736f6e2a027b7d"
 //       }
 //     ],
 //     "pkg_path": "gno.land/r/aib/ibc/core"
