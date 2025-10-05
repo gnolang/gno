@@ -20,7 +20,7 @@ func main() {
 		consensusState = tmtesting.GenConsensusState(time.Now(), apphash[:], valset.Hash())
 	)
 	clientID := core.CreateClient(cross, clientState, consensusState)
-	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "counter-party-id")
+	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "07-tendermint-2")
 
 	println("next sequence:", core.Render("clients/"+clientID+"/next_sequence_send"))
 	// Register 2 apps
@@ -81,7 +81,7 @@ func main() {
 // ----------- app1 report
 // OnSendPacket (1)
 // - sourceClient: 07-tendermint-1
-// - destinationClient: counter-party-id
+// - destinationClient: 07-tendermint-2
 // - sequence: 1
 // - payload:
 //   - sourcePort: app1
@@ -97,7 +97,7 @@ func main() {
 // ----------- app2 report
 // OnSendPacket (1)
 // - sourceClient: 07-tendermint-1
-// - destinationClient: counter-party-id
+// - destinationClient: 07-tendermint-2
 // - sequence: 1
 // - payload:
 //   - sourcePort: app2
@@ -115,9 +115,9 @@ func main() {
 // ----------- assert render clients/07-tendermint-1/packet_commitments
 // ## Client 07-tendermint-1 packet commitments
 // - Sequence 0000001
-//   - 236a341ea1706b54be9cab66d873d388d3d1abfa4115ef551d01e245fc73882f
+//   - 22b9c6bbaa72797cdb5a51f682c52fe9c665c446634c66b939f30a002158b381
 // - Sequence 0000002
-//   - 236a341ea1706b54be9cab66d873d388d3d1abfa4115ef551d01e245fc73882f
+//   - 22b9c6bbaa72797cdb5a51f682c52fe9c665c446634c66b939f30a002158b381
 
 // Events:
 // [
@@ -148,7 +148,7 @@ func main() {
 //       },
 //       {
 //         "key": "packet_dest_client",
-//         "value": "counter-party-id"
+//         "value": "07-tendermint-2"
 //       },
 //       {
 //         "key": "packet_sequence",
@@ -160,7 +160,7 @@ func main() {
 //       },
 //       {
 //         "key": "encoded_packet_hex",
-//         "value": "0801120f30372d74656e6465726d696e742d311a10636f756e7465722d70617274792d696420e2a1d8cc042a310a0461707031120f64657374696e6174696f6e506f72741a02763122106170706c69636174696f6e2f6a736f6e2a027b7d2a310a0461707032120f64657374696e6174696f6e506f72741a02763122106170706c69636174696f6e2f6a736f6e2a027b7d"
+//         "value": "0801120f30372d74656e6465726d696e742d311a0f30372d74656e6465726d696e742d3220e2a1d8cc042a310a0461707031120f64657374696e6174696f6e506f72741a02763122106170706c69636174696f6e2f6a736f6e2a027b7d2a310a0461707032120f64657374696e6174696f6e506f72741a02763122106170706c69636174696f6e2f6a736f6e2a027b7d"
 //       }
 //     ],
 //     "pkg_path": "gno.land/r/aib/ibc/core"
@@ -174,7 +174,7 @@ func main() {
 //       },
 //       {
 //         "key": "packet_dest_client",
-//         "value": "counter-party-id"
+//         "value": "07-tendermint-2"
 //       },
 //       {
 //         "key": "packet_sequence",
@@ -186,7 +186,7 @@ func main() {
 //       },
 //       {
 //         "key": "encoded_packet_hex",
-//         "value": "0802120f30372d74656e6465726d696e742d311a10636f756e7465722d70617274792d696420e2a1d8cc042a310a0461707031120f64657374696e6174696f6e506f72741a02763122106170706c69636174696f6e2f6a736f6e2a027b7d2a310a0461707032120f64657374696e6174696f6e506f72741a02763122106170706c69636174696f6e2f6a736f6e2a027b7d"
+//         "value": "0802120f30372d74656e6465726d696e742d311a0f30372d74656e6465726d696e742d3220e2a1d8cc042a310a0461707031120f64657374696e6174696f6e506f72741a02763122106170706c69636174696f6e2f6a736f6e2a027b7d2a310a0461707032120f64657374696e6174696f6e506f72741a02763122106170706c69636174696f6e2f6a736f6e2a027b7d"
 //       }
 //     ],
 //     "pkg_path": "gno.land/r/aib/ibc/core"

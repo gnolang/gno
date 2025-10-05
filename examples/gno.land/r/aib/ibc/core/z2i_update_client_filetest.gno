@@ -27,7 +27,7 @@ func main() {
 		consensusState = testing.GenConsensusState(time.Now(), apphash, valset.Hash())
 	)
 	clientID := core.CreateClient(cross, clientState, consensusState)
-	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "counter-party-id")
+	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "07-tendermint-2")
 
 	// Update clientID with height=5
 	apphash = testing.GenHash("apphash-5")
@@ -93,7 +93,7 @@ func main() {
 // - Type: 07-tendermint
 // - Creator: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // - Status: Active
-// - CounterpartyClientID: counter-party-id
+// - CounterpartyClientID: 07-tendermint-2
 // - CounterpartyMerklePrefix: 'prefix1' 'prefix2'
 // - Client state:
 //   - ChainId: atomone-1
@@ -121,7 +121,7 @@ func main() {
 // - Type: 07-tendermint
 // - Creator: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // - Status: Active
-// - CounterpartyClientID: counter-party-id
+// - CounterpartyClientID: 07-tendermint-2
 // - CounterpartyMerklePrefix: 'prefix1' 'prefix2'
 // - Client state:
 //   - ChainId: atomone-1

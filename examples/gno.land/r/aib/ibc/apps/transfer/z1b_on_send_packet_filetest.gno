@@ -11,7 +11,7 @@ import (
 	"gno.land/r/aib/ibc/core"
 )
 
-// OnSendPacket: invalid destinationClientID
+// OnSendPacket: invalid version
 func main() {
 	var (
 		chainID        = "chain-id-2"
@@ -21,7 +21,7 @@ func main() {
 		consensusState = tmtesting.GenConsensusState(time.Now(), apphash[:], valset.Hash())
 	)
 	clientID := core.CreateClient(cross, clientState, consensusState)
-	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "counter-party-id")
+	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "07-tendermint-2")
 
 	packet := types.MsgSendPacket{
 		SourceClient:     clientID,
@@ -41,4 +41,4 @@ func main() {
 }
 
 // Error:
-// send packet failed for app transfer: client IDs must be in valid format: {string}-{number}
+// send packet failed for app transfer: invalid ICS20 version: expected ics20-1, got v1

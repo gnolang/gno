@@ -22,7 +22,7 @@ func main() {
 		consensusState = tmtesting.GenConsensusState(time.Now(), apphash[:], valset.Hash())
 	)
 	clientID := core.CreateClient(cross, clientState, consensusState)
-	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "counter-party-id")
+	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "07-tendermint-2")
 
 	println("----------- assert render apps")
 	println(core.Render("apps"))

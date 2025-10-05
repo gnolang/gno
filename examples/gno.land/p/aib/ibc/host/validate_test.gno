@@ -37,19 +37,13 @@ func TestDefaultIdentifierValidator(t *testing.T) {
 
 	for _, tc := range testCases {
 		err := host.ClientIdentifierValidator(tc.id)
-		err1 := host.ConnectionIdentifierValidator(tc.id)
-		err2 := host.ChannelIdentifierValidator(tc.id)
-		err3 := host.PortIdentifierValidator(tc.id)
+		err2 := host.PortIdentifierValidator(tc.id)
 		if tc.expErr == nil {
 			urequire.NoError(t, err, tc.msg)
-			urequire.NoError(t, err1, tc.msg)
 			urequire.NoError(t, err2, tc.msg)
-			urequire.NoError(t, err3, tc.msg)
 		} else {
 			urequire.Error(t, err, tc.msg)
-			urequire.Error(t, err1, tc.msg)
 			urequire.Error(t, err2, tc.msg)
-			urequire.Error(t, err3, tc.msg)
 		}
 	}
 }

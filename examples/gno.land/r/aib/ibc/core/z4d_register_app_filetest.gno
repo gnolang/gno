@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// portID can only contain alphanumeric characters
+// invalid portID: validate port identifier: identifier gno.land/r/aib/ibc cannot contain separator '/'

@@ -48,6 +48,9 @@ func CreateClient(cur realm, clientState lightclient.ClientState, consensusState
 // given clientID. It must be called by the same relayer that called
 // CreateClient.
 func RegisterCounterparty(cur realm, clientID string, counterpartyMerklePrefix [][]byte, counterpartyClientID string) {
+	if !types.IsValidClientID(counterpartyClientID) {
+		panic("invalid counterparty client id")
+	}
 	c := store.getClient(clientID)
 	if c == nil {
 		panic(ufmt.Sprintf("client %s not found", clientID))

@@ -134,7 +134,7 @@ func ExtractDenomFromPath(fullPath string) Denom {
 type Hop struct {
 	PortId string
 	// TODO replace channelID by clientiD ?
-	ChannelId string
+	ClientId string
 }
 
 // NewHop creates a Hop with the given port ID and channel ID.
@@ -147,8 +147,8 @@ func (h Hop) ValidateBasic() error {
 	if err := host.PortIdentifierValidator(h.PortId); err != nil {
 		return ufmt.Errorf("invalid hop source port ID %s", h.PortId)
 	}
-	if err := host.ChannelIdentifierValidator(h.ChannelId); err != nil {
-		return ufmt.Errorf("invalid hop source channel ID %s", h.ChannelId)
+	if err := host.ClientIdentifierValidator(h.ClientId); err != nil {
+		return ufmt.Errorf("invalid hop source client ID %s", h.ClientId)
 	}
 
 	return nil
@@ -157,5 +157,5 @@ func (h Hop) ValidateBasic() error {
 // String returns the Hop in the format:
 // <portID>/<channelID>
 func (h Hop) String() string {
-	return ufmt.Sprintf("%s/%s", h.PortId, h.ChannelId)
+	return ufmt.Sprintf("%s/%s", h.PortId, h.ClientId)
 }

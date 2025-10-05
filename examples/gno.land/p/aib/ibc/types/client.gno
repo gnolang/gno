@@ -53,6 +53,7 @@ var IsClientIDFormat = regexp.MustCompile(`^\w+([\w-]+\w)?-[0-9]{1,20}$`).MatchS
 
 // IsValidClientID checks if the clientID is valid and can be parsed into the client
 // identifier format.
+// TODO merge with host.PortIdentifierValidator?
 func IsValidClientID(clientID string) bool {
 	_, _, err := ParseClientIdentifier(clientID)
 	return err == nil
