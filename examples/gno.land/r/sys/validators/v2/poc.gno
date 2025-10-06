@@ -1,11 +1,23 @@
 package validators
 
 import (
+	"errors"
+	"time"
+
 	"gno.land/p/sys/validators"
 	"gno.land/r/gov/dao"
 )
 
-const errNoChangesProposed = "no set changes proposed"
+var (
+	lastValsetUpdate     time.Time                       // last time the valset was updated
+	valsetUpdateCooldown = time.Duration(24 * time.Hour) // cooldown period between valset updates
+)
+
+const (
+	errNoChangesProposed    = "no set changes proposed"
+	errValsetUpdateCooldown = "valset update cooldown in effect"
+	errTooManyChanges       = "too many changes proposed; must be less than 2/3 of current validator set"
+)
 
 // NewPropRequest creates a new proposal request that wraps a changes closure
 // proposal. This wrapper is required to ensure the GovDAO Realm actually
@@ -16,7 +28,18 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 	}
 
 	callback := func(cur realm) error {
-		for _, change := range changesFn() {
+		// Ensure the valset update cooldown period has elapsed
+		if time.Since(lastValsetUpdate) < valsetUpdateCooldown {
+			return errors.New(errValsetUpdateCooldown)
+		}
+
+		changes := changesFn()
+
+		if len(changes) >= ((vp.LenValidators() * 2) / 3) {
+			return errors.New(errTooManyChanges)
+		}
+
+		for _, change := range changes {
 			if change.VotingPower == 0 {
 				// This change request is to remove the validator
 				removeValidator(change.Address)
@@ -28,6 +51,8 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 			addValidator(change)
 		}
 
+		// Update the last valset update time
+		lastValsetUpdate = time.Now()
 		return nil
 	}
 

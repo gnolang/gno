@@ -27,6 +27,9 @@ type ValsetProtocol interface {
 
 	// GetValidators returns the currently active validator set
 	GetValidators() []Validator
+
+	// LenValidators returns the number of currently active validators
+	LenValidators() int
 }
 
 // Validator represents a single chain validator

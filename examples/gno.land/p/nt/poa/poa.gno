@@ -103,3 +103,8 @@ func (p *PoA) GetValidators() []validators.Validator {
 
 	return vals
 }
+
+// LenValidators returns the number of validators in the set
+func (p *PoA) LenValidators() int {
+	return p.validators.Size()
+}
