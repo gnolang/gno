@@ -8,6 +8,7 @@ import type { ActionMode } from "./controller-action-header.js";
 export class ActionFunctionController extends BaseController {
 	protected sendValue: string | null = null;
 	declare _funcName: string | null;
+	declare _pkgPath: string | null;
 
 	protected connect(): void {
 		this.initializeDOM({
@@ -15,6 +16,7 @@ export class ActionFunctionController extends BaseController {
 		});
 
 		this._funcName = this.getValue("name") || null;
+		this._pkgPath = this.getValue("pkgpath") || null;
 
 		this._initializeArgs();
 		this._listenForEvents();
@@ -118,6 +120,51 @@ export class ActionFunctionController extends BaseController {
 			u.searchParams.set(paramName, paramValue);
 			functionLink.href = u.toString();
 		}
+
+		this._updateQEvalResult();
+	}
+
+	// Fetch the qeval result and update the "qeval-result" target.
+	// If there is no "qeval-result" target, then do nothing.
+	private _updateQEvalResult(): void {
+		const resultTarget = this.getTarget("qeval-result") as HTMLElement;
+		if (!resultTarget) {
+			// This is a crossing function
+			return;
+		}
+
+		let args = "";
+		let haveAllArgs = true;
+		for (const arg of this.getTargets("arg")) {
+			if (arg.textContent === "") {
+				haveAllArgs = false;
+				break;
+			}
+			if (args !== "") {
+				args += ",";
+			}
+			// Unescape
+			args += arg.textContent.replace(/\\(.)/g, "$1");
+		}
+
+		if (!haveAllArgs) {
+			resultTarget.textContent = "(enter param values)";
+			return;
+		}
+
+		const data = `${this._pkgPath}.${this._funcName}(${args})`;
+		fetch(`/qeval?data=${encodeURIComponent(data)}`)
+			.then(async (response) => {
+				if (response.ok) {
+					const result = await response.text();
+					resultTarget.textContent = result;
+				} else {
+					resultTarget.textContent = "";
+				}
+			})
+			.catch((_e) => {
+				resultTarget.textContent = "";
+			});
 	}
 
 	// DOM ACTIONS

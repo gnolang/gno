@@ -61,7 +61,7 @@ UI - Help Function component
 </h2>
 <div class="c-stack">
   {{ range .Functions }}
-  <article class="b-action-function" data-controller="action-function" data-action-function-name-value="{{ .Name }}">
+  <article class="b-action-function" data-controller="action-function" data-action-function-name-value="{{ .Name }}" data-action-function-pkgpath-value="{{ $.PkgPath }}">
     <header>
       <span class="title">
         <h2 id="func-{{ .Name }}">
@@ -154,7 +154,8 @@ UI - Help Function component
           {{ template "ui/copy" }}
         </button>
         {{/* prettier-ignore-start */}}
-        <pre><code><span data-action-function-target="mode" data-action-function-mode-value="fast" class="u-hidden" data-copy-target="action-function-{{ .Name }}"># WARNING: This command is running in an INSECURE mode.
+        {{ if .Crossing }}
+          <pre><code><span data-action-function-target="mode" data-action-function-mode-value="fast" class="u-hidden" data-copy-target="action-function-{{ .Name }}"># WARNING: This command is running in an INSECURE mode.
 # It is strongly recommended to use a hardware device for signing
 # and avoid trusting any computer connected to the internet,
 # as your private keys could be exposed.
@@ -163,6 +164,11 @@ gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .Name }}"{{ range .Param
 gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .Name }}"{{ range .Params }} -args "<span data-action-function-target="arg" data-action-function-arg-value="{{ .Name }}"></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -send "<span data-action-function-target="send-code"></span>" <span data-action-function-target="address">ADDRESS</span> > call.tx
 gnokey sign -tx-path call.tx -chainid "{{ $.ChainId }}" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-action-function-target="address">ADDRESS</span>
 gnokey broadcast -remote "{{ $.Remote }}" call.tx</span></code></pre>
+        {{ else }}
+          <pre><code><span data-copy-target="action-function-{{ .Name }}">gnokey query vm/qeval -remote "{{ $.Remote }}" -data "{{ $.PkgPath }}.{{ .Name }}({{ range $i, $p := .Params }}{{ if gt $i 0 }},{{ end }}<span data-action-function-target="arg" data-action-function-arg-value="{{ $p.Name }}"></span>{{ end }})"</span>
+Result:
+<span data-action-function-target="qeval-result"></span></code></pre>  
+        {{ end }}
         {{/* prettier-ignore-end */}}
       </div>
     </div>
