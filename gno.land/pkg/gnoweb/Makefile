@@ -56,7 +56,7 @@ dev: dev.all
 
 # Run gnodev instance
 node-start:
-	go -C ../../../contribs/gnodev run . -no-web
+	go -C ../../../contribs/gnodev run -tags=noembed . -no-web
 
 # Test process
 test:
@@ -75,7 +75,6 @@ lint.front:; $(MAKE) -C frontend lint
 # Generate process
 generate: maincss ts static
 
-
 # Main CSS
 maincss: $(output_maincss)
 $(output_maincss): $(main_css_files) $(templates_files) $(postcss)
@@ -83,10 +82,9 @@ $(output_maincss): $(main_css_files) $(templates_files) $(postcss)
 	touch $@
 
 ts: $(esbuild) $(output_js)
-
 # Build shared chunk first (always loaded)
 $(out_dir_js)/controller.js: $(shared_js) $(esbuild)
-	NODE_ENV=production $(esbuild) $< --log-level=error --bundle --outfile=$@ --format=esm --define:process.env.NODE_ENV="\"production\"" --minify
+	NODE_ENV=production $(esbuild) $< --log-level=error --bundle --outfile=$@ --format=esm --minify
 
 # Build controller files with shared chunk reference
 $(out_dir_js)/%.js: $(src_dir_js)/%.ts $(out_dir_js)/controller.js
@@ -123,12 +121,11 @@ dev.maincss: generate | $(PUBLIC_DIR)
 
 # TS in development mode
 dev.ts: $(esbuild) generate | $(PUBLIC_DIR)
-	NODE_ENV=development $(esbuild) $(input_js) --bundle --outdir=$(out_dir_js) --sourcemap --define:process.env.NODE_ENV="\"development\"" --format=esm --watch \
+	NODE_ENV=development $(esbuild) $(input_js) --bundle --outdir=$(out_dir_js) --sourcemap --format=esm --watch \
 		2>&1 | $(logname) esbuild
 
 # Install node modules deps located in ./tools
-$(esbuild): $(node_modules)
-$(postcss): $(node_modules)
+$(esbuild) $(postcss): $(node_modules)
 $(node_modules):
 	$(MAKE) -C frontend node_modules
 
