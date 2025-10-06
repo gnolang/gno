@@ -1,9 +1,14 @@
 package app
 
-import "gno.land/p/aib/ibc/types"
+import (
+	"chain/banker"
+
+	"gno.land/p/aib/ibc/types"
+)
 
 type IBCApp interface {
 	OnSendPacket(
+		banker banker.Banker,
 		sourceClient string,
 		destinationClient string,
 		sequence uint64,

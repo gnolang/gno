@@ -2,6 +2,7 @@ package core
 
 import (
 	"chain"
+	"chain/banker"
 	"encoding/hex"
 	"time"
 
@@ -79,10 +80,12 @@ func SendPacket(cur realm, msg types.MsgSendPacket) (sequence uint64) {
 		types.AttributeKeyEncodedPacketHex, hex.EncodeToString(packet.ProtoMarshal()),
 	)
 
+	banker := banker.NewBanker(banker.BankerTypeRealmSend)
+	// println("BALANCE", from, banker.GetCoins(runtime.CurrentRealm().Address()))
 	for _, payload := range msg.Payloads {
-		app := store.Route(payload.SourcePort)
+		app := store.route(payload.SourcePort)
 		err := app.OnSendPacket(
-			msg.SourceClient, c.counterpartyClientID, sequence, payload,
+			banker, msg.SourceClient, c.counterpartyClientID, sequence, payload,
 		)
 		if err != nil {
 			panic(ufmt.Sprintf(
