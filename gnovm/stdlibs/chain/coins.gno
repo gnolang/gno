@@ -175,6 +175,16 @@ func (cz Coins) Add(b Coins) Coins {
 	return c
 }
 
+// IsZero returns true if there are no coins or all coins are zero.
+func (coins Coins) IsZero() bool {
+	for _, coin := range coins {
+		if !coin.IsZero() {
+			return false
+		}
+	}
+	return true
+}
+
 func CoinDenom(pkgPath, coinName string) string {
 	// TODO: Possibly remove after https://github.com/gnolang/gno/issues/3164
 	// Similar to ibc spec
