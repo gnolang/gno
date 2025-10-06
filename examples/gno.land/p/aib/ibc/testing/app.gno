@@ -5,10 +5,12 @@ import (
 
 	"gno.land/p/aib/ibc/app"
 	"gno.land/p/aib/ibc/types"
+	"gno.land/p/aib/limitedbanker"
 	"gno.land/p/nt/ufmt"
 )
 
 type Args struct {
+	Banker            banker.Banker
 	SourceClient      string
 	DestinationClient string
 	Sequence          uint64
@@ -32,7 +34,7 @@ var _ app.IBCApp = &App{}
 
 // Implements app.IBCApp
 func (a *App) OnSendPacket(
-	_ banker.Banker,
+	banker banker.Banker,
 	sourceClient string,
 	destinationClient string,
 	sequence uint64,
@@ -40,6 +42,7 @@ func (a *App) OnSendPacket(
 ) error {
 	a.Calls.OnSendPacket = append(a.Calls.OnSendPacket,
 		Args{
+			Banker:            banker,
 			SourceClient:      sourceClient,
 			DestinationClient: destinationClient,
 			Sequence:          sequence,
@@ -123,6 +126,10 @@ func (a *App) Report() string {
 
 func (a *Args) Report() string {
 	var s string
+	// Report banker if provided and of type LimitedBanker.
+	if banker, ok := a.Banker.(*limitedbanker.LimitedBanker); ok {
+		s += ufmt.Sprintf("- spendable: %s\n", banker.SpendableCoins())
+	}
 	s += ufmt.Sprintf("- sourceClient: %s\n", a.SourceClient)
 	s += ufmt.Sprintf("- destinationClient: %s\n", a.DestinationClient)
 	s += ufmt.Sprintf("- sequence: %d\n", a.Sequence)
