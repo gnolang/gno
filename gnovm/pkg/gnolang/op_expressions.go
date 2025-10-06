@@ -699,7 +699,7 @@ func (m *Machine) doOpConvert() {
 			// XXX do we need/want this?
 		} else {
 			sliceType, ok := xv.T.(*SliceType)
-			isBytesArray := ok && sliceType.Elem().Kind() == Uint8Kind
+			isBytesArray := ok && (sliceType.Elem().Kind() == Uint8Kind || sliceType.Elem().Kind() == Int32Kind)
 			if isBytesArray && t.Kind() == StringKind {
 				// Allow conversion from []byte to string
 				// As it does not modify the value stored in the slice.
