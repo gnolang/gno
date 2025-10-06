@@ -80,6 +80,7 @@ func main() {
 // next sequence: 2
 // ----------- app1 report
 // OnSendPacket (1)
+// - spendable: 0ugnot
 // - sourceClient: 07-tendermint-1
 // - destinationClient: 07-tendermint-2
 // - sequence: 1
@@ -96,6 +97,7 @@ func main() {
 //
 // ----------- app2 report
 // OnSendPacket (1)
+// - spendable: 0ugnot
 // - sourceClient: 07-tendermint-1
 // - destinationClient: 07-tendermint-2
 // - sequence: 1
