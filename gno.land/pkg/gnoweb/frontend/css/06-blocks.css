@@ -390,7 +390,7 @@
 
 	/* Argument specific styles */
 	.argument {
-		&:first-of-type::before {
+		&:not(:first-child)::before {
 			content: ":";
 		}
 
@@ -402,8 +402,8 @@
 
 	/* Query specific styles */
 	.query {
-		&:first-of-type::before {
-			content: "?";
+		&:not(:first-child)::before  {
+			content: "&";
 		}
 
 		&:nth-child(1 of .query)::before {
