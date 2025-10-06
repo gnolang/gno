@@ -1,16 +1,17 @@
 package faucet
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
 	"testing"
 
-	"gno.land/p/demo/testutils"
+	"gno.land/p/nt/testutils"
 )
 
 func TestPackage(t *testing.T) {
 	var (
-		adminaddr        = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-		faucetaddr       = std.DerivePkgAddr("gno.land/r/gnoland/faucet")
+		adminaddr        = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+		faucetaddr       = chain.PackageAddress("gno.land/r/gnoland/faucet")
 		controlleraddr1  = testutils.TestAddress("controller1")
 		controlleraddr2  = testutils.TestAddress("controller2")
 		controlleraddr3  = testutils.TestAddress("controller3")
@@ -26,25 +27,25 @@ func TestPackage(t *testing.T) {
 		test1addr = testutils.TestAddress("test1")
 	)
 	// deposit 1000gnot to faucet contract
-	testing.IssueCoins(faucetaddr, std.Coins{{"ugnot", 1_000_000_000}})
+	testing.IssueCoins(faucetaddr, chain.Coins{{"ugnot", 1_000_000_000}})
 	assertBalance(t, faucetaddr, 1_000_000_000)
 
 	// by default, balance is empty, and as a user I cannot call Transfer, or Admin commands.
 	assertBalance(t, test1addr, 0)
-	testing.SetRealm(std.NewUserRealm(test1addr))
+	testing.SetRealm(testing.NewUserRealm(test1addr))
 	assertErr(t, Transfer(cross, test1addr, 1_000_000))
 
 	assertErr(t, AdminAddController(cross, controlleraddr1))
-	testing.SetRealm(std.NewUserRealm(controlleraddr1))
+	testing.SetRealm(testing.NewUserRealm(controlleraddr1))
 	assertErr(t, Transfer(cross, test1addr, 1_000_000))
 
 	// as an admin, add the controller to contract and deposit more 2000gnot to contract
-	testing.SetRealm(std.NewUserRealm(adminaddr))
+	testing.SetRealm(testing.NewUserRealm(adminaddr))
 	assertNoErr(t, AdminAddController(cross, controlleraddr1))
 	assertBalance(t, faucetaddr, 1_000_000_000)
 
 	// now, send some tokens as controller.
-	testing.SetRealm(std.NewUserRealm(controlleraddr1))
+	testing.SetRealm(testing.NewUserRealm(controlleraddr1))
 	assertNoErr(t, Transfer(cross, test1addr, 1_000_000))
 	assertBalance(t, test1addr, 1_000_000)
 	assertNoErr(t, Transfer(cross, test1addr, 1_000_000))
@@ -53,13 +54,13 @@ func TestPackage(t *testing.T) {
 
 	// remove controller
 	// as an admin, remove controller
-	testing.SetRealm(std.NewUserRealm(adminaddr))
+	testing.SetRealm(testing.NewUserRealm(adminaddr))
 	assertNoErr(t, AdminRemoveController(cross, controlleraddr1))
-	testing.SetRealm(std.NewUserRealm(controlleraddr1))
+	testing.SetRealm(testing.NewUserRealm(controlleraddr1))
 	assertErr(t, Transfer(cross, test1addr, 1_000_000))
 
 	// duplicate controller
-	testing.SetRealm(std.NewUserRealm(adminaddr))
+	testing.SetRealm(testing.NewUserRealm(adminaddr))
 	assertNoErr(t, AdminAddController(cross, controlleraddr1))
 	assertErr(t, AdminAddController(cross, controlleraddr1))
 	// add more than more than allowed controllers
@@ -75,13 +76,13 @@ func TestPackage(t *testing.T) {
 	assertErr(t, AdminAddController(cross, controlleraddr11))
 
 	// send more than per transfer limit
-	testing.SetRealm(std.NewUserRealm(adminaddr))
+	testing.SetRealm(testing.NewUserRealm(adminaddr))
 	assertNoErr(t, AdminSetTransferLimit(cross, 300_000_000))
-	testing.SetRealm(std.NewUserRealm(controlleraddr1))
+	testing.SetRealm(testing.NewUserRealm(controlleraddr1))
 	assertErr(t, Transfer(cross, test1addr, 301_000_000))
 
 	// block transefer from the address not on the controllers list.
-	testing.SetRealm(std.NewUserRealm(controlleraddr11))
+	testing.SetRealm(testing.NewUserRealm(controlleraddr11))
 	assertErr(t, Transfer(cross, test1addr, 1_000_000))
 }
 
@@ -101,10 +102,10 @@ func assertNoErr(t *testing.T, err string) {
 	}
 }
 
-func assertBalance(t *testing.T, addr std.Address, expectedBal int64) {
+func assertBalance(t *testing.T, addr address, expectedBal int64) {
 	t.Helper()
-	banker := std.NewBanker(std.BankerTypeReadonly)
-	coins := banker.GetCoins(addr)
+	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+	coins := banker_.GetCoins(addr)
 	got := coins.AmountOf("ugnot")
 
 	if expectedBal != got {

@@ -2,17 +2,24 @@ package boards2
 
 import (
 	"errors"
-	"std"
+
+	"gno.land/r/sys/users"
 )
 
 // validateBoardCreate validates PermissionBoardCreate.
 //
 // Expected `args` values:
-// 1. Board name
-// 2. Board ID
-// 3. Is board listed
+// 1. Caller address
+// 2. Board name
+// 3. Board ID
+// 4. Is board listed
 func validateBoardCreate(_ Permissions, args Args) error {
-	name, ok := args[0].(string)
+	caller, ok := args[0].(address)
+	if !ok {
+		return errors.New("expected a valid caller address")
+	}
+
+	name, ok := args[1].(string)
 	if !ok {
 		return errors.New("expected board name to be a string")
 	}
@@ -21,7 +28,7 @@ func validateBoardCreate(_ Permissions, args Args) error {
 		return err
 	}
 
-	if err := checkBoardNameBelongsToCaller(name); err != nil {
+	if err := checkBoardNameBelongsToAddress(caller, name); err != nil {
 		return err
 	}
 	return nil
@@ -30,11 +37,17 @@ func validateBoardCreate(_ Permissions, args Args) error {
 // validateBoardRename validates PermissionBoardRename.
 //
 // Expected `args` values:
-// 1. Board ID
-// 2. Current board name
-// 3. New board name
+// 1. Caller address
+// 2. Board ID
+// 3. Current board name
+// 4. New board name
 func validateBoardRename(_ Permissions, args Args) error {
-	newName, ok := args[2].(string)
+	caller, ok := args[0].(address)
+	if !ok {
+		return errors.New("expected a valid caller address")
+	}
+
+	newName, ok := args[3].(string)
 	if !ok {
 		return errors.New("expected new board name to be a string")
 	}
@@ -43,7 +56,7 @@ func validateBoardRename(_ Permissions, args Args) error {
 		return err
 	}
 
-	if err := checkBoardNameBelongsToCaller(newName); err != nil {
+	if err := checkBoardNameBelongsToAddress(caller, newName); err != nil {
 		return err
 	}
 	return nil
@@ -52,18 +65,24 @@ func validateBoardRename(_ Permissions, args Args) error {
 // validateMemberInvite validates PermissionMemberInvite.
 //
 // Expected `args` values:
-// 1. Board ID
-// 2. User address
-// 3. Role
+// 1. Caller address
+// 2. Board ID
+// 3. Invites
 func validateMemberInvite(perms Permissions, args Args) error {
-	// Make sure that only owners invite other owners
-	role, ok := args[2].(Role)
+	caller, ok := args[0].(address)
 	if !ok {
-		return errors.New("expected a valid new member role")
+		return errors.New("expected a valid caller address")
 	}
 
-	if role == RoleOwner {
-		if !perms.HasRole(std.PreviousRealm().Address(), RoleOwner) {
+	invites, ok := args[2].([]Invite)
+	if !ok {
+		return errors.New("expected valid user invites")
+	}
+
+	// Make sure that only owners invite other owners
+	callerIsOwner := perms.HasRole(caller, RoleOwner)
+	for _, v := range invites {
+		if v.Role == RoleOwner && !callerIsOwner {
 			return errors.New("only owners are allowed to invite other owners")
 		}
 	}
@@ -73,14 +92,20 @@ func validateMemberInvite(perms Permissions, args Args) error {
 // validateRoleChange validates PermissionRoleChange.
 //
 // Expected `args` values:
-// 1. Board ID
-// 2. Member address
-// 3. Role
+// 1. Caller address
+// 2. Board ID
+// 3. Member address
+// 4. Role
 func validateRoleChange(perms Permissions, args Args) error {
+	caller, ok := args[0].(address)
+	if !ok {
+		return errors.New("expected a valid caller address")
+	}
+
 	// Owners and Admins can change roles.
 	// Admins should not be able to assign or remove the Owner role from members.
-	if perms.HasRole(std.PreviousRealm().Address(), RoleAdmin) {
-		role, ok := args[2].(Role)
+	if perms.HasRole(caller, RoleAdmin) {
+		role, ok := args[3].(Role)
 		if !ok {
 			return errors.New("expected a valid member role")
 		}
@@ -88,7 +113,7 @@ func validateRoleChange(perms Permissions, args Args) error {
 		if role == RoleOwner {
 			return errors.New("admins are not allowed to promote members to Owner")
 		} else {
-			member, ok := args[1].(std.Address)
+			member, ok := args[2].(address)
 			if !ok {
 				return errors.New("expected a valid member address")
 			}
@@ -97,6 +122,23 @@ func validateRoleChange(perms Permissions, args Args) error {
 				return errors.New("admins are not allowed to remove the Owner role")
 			}
 		}
+	}
+	return nil
+}
+
+func checkBoardNameIsNotAddress(s string) error {
+	if address(s).IsValid() {
+		return errors.New("addresses are not allowed as board name")
+	}
+	return nil
+}
+
+func checkBoardNameBelongsToAddress(owner address, name string) error {
+	// When the board name is the name of a registered user
+	// check that caller is the owner of the name.
+	user, _ := users.ResolveName(name)
+	if user != nil && user.Addr() != owner {
+		return errors.New("board name is a user name registered to a different user")
 	}
 	return nil
 }

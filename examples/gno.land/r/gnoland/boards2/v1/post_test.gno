@@ -1,13 +1,12 @@
 package boards2
 
 import (
-	"std"
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/ufmt"
 )
 
 func TestPostFlag(t *testing.T) {
@@ -74,7 +73,7 @@ func TestPostRepost(t *testing.T) {
 }
 
 func TestNewThread(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/boards2/v1"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/v1"))
 
 	creator := testutils.TestAddress("creator")
 	title := "Test Title"
@@ -252,7 +251,7 @@ func TestThreadRenderInner(t *testing.T) {
 }
 
 func TestNewReply(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/boards2/v1"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/v1"))
 
 	creator := testutils.TestAddress("creator")
 	body := strings.Repeat("A", 82)

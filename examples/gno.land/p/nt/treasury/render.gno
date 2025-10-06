@@ -1,16 +1,16 @@
 package treasury
 
 import (
+	"chain/runtime"
 	"net/url"
-	"std"
 	"strconv"
 	"strings"
 
-	"gno.land/p/demo/avl/pager"
-	"gno.land/p/demo/mux"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
+	"gno.land/p/nt/avl/pager"
+	"gno.land/p/nt/mux"
+	"gno.land/p/nt/ufmt"
 )
 
 const (
@@ -99,7 +99,7 @@ func (t *Treasury) RenderBanker(bankerID string, path string) string {
 		out += "\n"
 
 		// Get the current Realm's package path for linking.
-		curRealm := std.CurrentRealm().PkgPath()
+		curRealm := runtime.CurrentRealm().PkgPath()
 		if from := strings.IndexRune(curRealm, '/'); from >= 0 {
 			out += md.Link(
 				"See full history",

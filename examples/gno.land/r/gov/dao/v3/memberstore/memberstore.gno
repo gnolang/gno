@@ -1,14 +1,14 @@
 package memberstore
 
 import (
-	"std"
+	"chain/runtime"
 	"strings"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/mux"
 	"gno.land/p/demo/svg"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/mux"
+	"gno.land/p/nt/ufmt"
 	"gno.land/r/gov/dao"
 )
 
@@ -173,7 +173,7 @@ func Render(path string) string {
 
 // Get gets the Members store
 func Get() MembersByTier {
-	currealm := std.CurrentRealm().PkgPath()
+	currealm := runtime.CurrentRealm().PkgPath()
 	if !dao.InAllowedDAOs(currealm) {
 		panic("this Realm is not allowed to get the Members data: " + currealm)
 	}

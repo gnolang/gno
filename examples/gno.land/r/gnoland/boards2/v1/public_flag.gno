@@ -1,7 +1,8 @@
 package boards2
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"strconv"
 )
 
@@ -18,16 +19,16 @@ func SetFlaggingThreshold(_ realm, boardID BoardID, threshold int) {
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	args := Args{boardID, threshold}
-	board.perms.WithPermission(caller, PermissionBoardFlaggingUpdate, args, func(Args) {
+	board.perms.WithPermission(cross, caller, PermissionBoardFlaggingUpdate, args, func(realm) {
 		assertRealmIsNotLocked()
 
 		board := mustGetBoard(boardID)
 		assertBoardIsNotFrozen(board)
 
 		gFlaggingThresholds.Set(boardID.String(), threshold)
-		std.Emit(
+		chain.Emit(
 			"FlaggingThresholdUpdated",
 			"caller", caller.String(),
 			"boardID", boardID.String(),
@@ -50,7 +51,7 @@ func FlagThread(_ realm, boardID BoardID, threadID PostID, reason string) {
 	board := mustGetBoard(boardID)
 
 	// Realm owners should be able to flag without permissions even when board is frozen
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
 	if !isRealmOwner {
 		assertRealmIsNotLocked()
@@ -70,7 +71,7 @@ func FlagThread(_ realm, boardID BoardID, threadID PostID, reason string) {
 		t.Hidden = true
 	}
 
-	std.Emit(
+	chain.Emit(
 		"ThreadFlagged",
 		"caller", caller.String(),
 		"boardID", boardID.String(),
@@ -87,7 +88,7 @@ func FlagReply(_ realm, boardID BoardID, threadID, replyID PostID, reason string
 	board := mustGetBoard(boardID)
 
 	// Realm owners should be able to flag without permissions even when board is frozen
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
 	if !isRealmOwner {
 		assertRealmIsNotLocked()
@@ -107,7 +108,7 @@ func FlagReply(_ realm, boardID BoardID, threadID, replyID PostID, reason string
 		reply.Hidden = true
 	}
 
-	std.Emit(
+	chain.Emit(
 		"ReplyFlagged",
 		"caller", caller.String(),
 		"boardID", boardID.String(),
