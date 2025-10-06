@@ -1,0 +1,146 @@
+/* ==========================================================================
+   02-TOOLS - Default mixins and functions
+   ========================================================================== */
+
+/* ===== UTILITIES MIXINS ===== */
+
+/* Mixin for media queries */
+@custom-media --xs (min-width: 0);
+@custom-media --sm (min-width: calc(480 / 16 * 1rem));
+@custom-media --md (min-width: calc(640 / 16 * 1rem));
+@custom-media --lg (min-width: calc(820 / 16 * 1rem));
+@custom-media --xl (min-width: calc(1020 / 16 * 1rem));
+@custom-media --2xl (min-width: calc(1366 / 16 * 1rem));
+@custom-media --max (min-width: calc(1580 / 16 * 1rem));
+
+/* ===== SEMANTIC TOKENS ===== */
+:root {
+	/* ===== COLORS BACKGROUNDS ===== */
+	/* Base surfaces (page level) */
+	--s-color-bg-base: var(--g-color-light, white); /* Page background */
+	--s-color-bg-base-dev: var(--g-color-gray-50, #f0f0f0); /* Stronger page background */
+
+	/* Component surfaces (elevation levels) */
+	--s-color-bg-surface-primary: var(--g-color-gray-50, #f0f0f0); /* Lightest surface */
+	--s-color-bg-surface-primary-hover: var(--g-color-gray-100, #f0f0f0); /* Hover state */
+	--s-color-bg-surface-secondary: var(--g-color-gray-100, #e2e2e2); /* Medium surface */
+	--s-color-bg-surface-secondary-hover: var(--g-color-gray-200, #e2e2e2); /* Hover state */
+	--s-color-bg-surface-tertiary: var(--g-color-gray-200, #bdbdbd); /* Darkest surface */
+	--s-color-bg-surface-tertiary-hover: var(--g-color-gray-300, #bdbdbd); /* Lightest surface */
+	--s-color-bg-surface-quaternary: var(--g-color-gray-400, #7c7c7c); /* Darkest surface */
+	--s-color-bg-surface-quaternary-hover: var(--g-color-gray-600, #454a4e); /* Lightest surface */
+
+	/* Semantic backgrounds */
+	--s-color-bg-brand-default: var(--g-color-green-600, #226c57); /* Primary brand */
+	--s-color-bg-brand-weak: var(--g-color-green-50, #f0f9ff); /* Light brand */
+	--s-color-bg-brand-action: var(--g-color-green-400, #60ab96); /* Brand hover */
+
+	--s-color-bg-success-default: var(--g-color-green-600, #144134); /* Success state */
+	--s-color-bg-success-weak: var(--g-color-green-50, #f0f9ff); /* Light success */
+	--s-color-bg-success-action: var(--g-color-green-400, #60ab96); /* Light success */
+
+	--s-color-bg-info-default: var(--g-color-blue-600, #21506b); /* Info state */
+	--s-color-bg-info-weak: var(--g-color-blue-50, #f0f9ff); /* Light info */
+	--s-color-bg-info-action: var(--g-color-blue-400, #49afeb); /* Light info */
+
+	--s-color-bg-warning-default: var(--g-color-yellow-600, #665100); /* Warning state */
+	--s-color-bg-warning-weak: var(--g-color-yellow-50, #f9d985); /* Light warning */
+	--s-color-bg-warning-action: var(--g-color-yellow-400, #f9d985); /* Light warning */
+
+	--s-color-bg-caution-default: var(--g-color-red-600, #661100); /* Error state */
+	--s-color-bg-caution-weak: var(--g-color-red-50, #f98585); /* Light error */
+	--s-color-bg-caution-action: var(--g-color-red-400, #f98585); /* Light error */
+
+	--s-color-bg-tip-default: var(--g-color-purple-600, #49216b); /* Tip state */
+	--s-color-bg-tip-weak: var(--g-color-purple-50, #f0f9ff); /* Light tip */
+	--s-color-bg-tip-action: var(--g-color-purple-400, #9660ab); /* Light tip */
+
+	--s-color-bg-note-default: var(--g-color-gray-600, #21506b); /* Note state */
+	--s-color-bg-note-weak: var(--g-color-gray-50, #f0f9ff); /* Light note */
+	--s-color-bg-note-action: var(--g-color-gray-400, #49afeb); /* Light note */
+
+	/* Form backgrounds */
+	--s-color-bg-input: var(--g-color-light, #ffffff); /* Input background */
+	--s-color-bg-input-disabled: var(--g-color-gray-50, #f0f0f0); /* Disabled input */
+	--s-color-bg-input-focus: var(--g-color-light, #ffffff); /* Focused input */
+
+	/* Interactive backgrounds */
+	--s-color-bg-hover: var(--g-color-gray-100, #e2e2e2); /* Generic hover */
+	--s-color-bg-active: var(--g-color-gray-100, #e2e2e2); /* Generic active */
+	--s-color-bg-selected: var(--g-color-gray-100, #e2e2e2); /* Selected state */
+
+	/* ===== TEXT COLORS ===== */
+	/* Text hierarchy */
+	--s-color-text-base: var(--g-color-light, #ffffff); /* Base text - default */
+	--s-color-text-primary: var(--g-color-gray-900, #080809); /* Darkest text - headings */
+	--s-color-text-secondary: var(--g-color-gray-600, #454a4e); /* Medium text - body */
+	--s-color-text-secondary-hover: var(--g-color-gray-400, #7c7c7c); /* Medium text - body */
+	--s-color-text-tertiary: var(--g-color-gray-400, #f0f0f0); /* Light text - muted */
+	--s-color-text-tertiary-hover: var(--g-color-gray-600, #e2e2e2);
+	--s-color-text-quaternary: var(--g-color-gray-100, #f0f0f0); /* Muted text - captions */
+	--s-color-text-quaternary-hover: var(--g-color-gray-200, #e2e2e2); /* Muted text - captions */
+	--s-color-text-muted: var(--g-color-gray-300, #999999); /* Muted text - captions */
+
+	/* Interactive text */
+	--s-color-text-link: var(--g-color-green-600, #226c57); /* Link color */
+	--s-color-text-link-hover: var(--g-color-green-600, #226c57); /* Link hover */
+	--s-color-text-link-active: var(--g-color-green-600, #226c57); /* Link active */
+
+	/* Form text */
+	--s-color-text-input: var(--g-color-gray-600, #54595d); /* Input text */
+	--s-color-text-input-placeholder: var(--g-color-gray-400, #7c7c7c); /* Placeholder */
+	--s-color-text-input-disabled: var(--g-color-gray-300, #999999); /* Disabled input */
+
+	/* Semantic text */
+	--s-color-text-success: var(--g-color-green-900, #144134); /* Success text */
+	--s-color-text-info: var(--g-color-blue-900, #21506b); /* Info text */
+	--s-color-text-warning: var(--g-color-yellow-900, #665100); /* Warning text */
+	--s-color-text-caution: var(--g-color-red-900, #661100); /* Error text */
+	--s-color-text-tip: var(--g-color-purple-900, #49216b); /* Tip text */
+
+	/* ===== BORDER COLORS ===== */
+	/* Border hierarchy (light to dark) */
+	--s-color-border-primary: var(--g-color-gray-200, #bdbdbd); /* Lightest border */
+	--s-color-border-secondary: var(--g-color-gray-100, #e2e2e2); /* Medium border */
+	--s-color-border-tertiary: var(--g-color-gray-300, #999999); /* Darkest border */
+	--s-color-border-quaternary: var(--g-color-gray-400, #7c7c7c); /* Darkest border */
+	--s-color-border-transparent: var(--g-color-transparent, transparent); /* Transparent border */
+
+	/* Interactive borders */
+	--s-color-border-hover: var(--g-color-gray-300, #999999); /* Hover border */
+	--s-color-border-focus: var(--g-color-green-600, #226c57); /* Focus border */
+	--s-color-border-active: var(--g-color-gray-400, #7c7c7c); /* Active border */
+
+	/* Form borders */
+	--s-color-border-input: var(--g-color-gray-300, #999999); /* Input border */
+	--s-color-border-input-hover: var(--g-color-gray-400, #7c7c7c); /* Input hover */
+	--s-color-border-input-focus: var(--g-color-green-600, #226c57); /* Input focus */
+	--s-color-border-input-disabled: var(--g-color-gray-200, #bdbdbd); /* Input disabled */
+
+	/* Semantic borders */
+	--s-color-border-success: var(--g-color-green-600, #144134); /* Success border */
+	--s-color-border-info: var(--g-color-blue-600, #21506b); /* Info border */
+	--s-color-border-warning: var(--g-color-yellow-600, #665100); /* Warning border */
+	--s-color-border-error: var(--g-color-red-600, #661100); /* Caution border */
+	--s-color-border-tip: var(--g-color-purple-600, #49216b); /* Tip border */
+	--s-color-border-note: var(--g-color-gray-600, #21506b); /* Note border */
+
+	/* ===== INTERACTIVE STATES ===== */
+	/* Focus states */
+	--s-color-focus-ring: var(--s-color-bg-brand-default, #226c57); /* Focus ring */
+	--s-color-focus-ring-opacity: 0.2; /* Focus ring opacity */
+
+	/* Selection colors */
+	--s-color-selection-bg: var(--s-color-bg-brand-default, #226c57); /* Selection background */
+	--s-color-selection-text: var(--g-color-light, #ffffff); /* Selection text */
+
+	/* ===== BORDER RADIUS ===== */
+	--s-rounded-sm: var(--g-border-radius-sm, 4px); /* Small border radius */
+	--s-rounded: var(--g-border-radius, 6px); /* Medium border radius */
+	--s-rounded-full: var(--g-border-radius-full, 9999px); /* Full border radius */
+
+	/* ===== BORDER ===== */
+	--s-border: var(--g-space-px, 1px) solid var(--s-color-border-primary); /* Small border width */
+	--s-border-secondary: var(--g-space-px, 1px) solid
+		var(--s-color-border-secondary); /* Small border width */
+}
