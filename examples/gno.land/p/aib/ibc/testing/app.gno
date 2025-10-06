@@ -1,6 +1,8 @@
 package testing
 
 import (
+	"chain/banker"
+
 	"gno.land/p/aib/ibc/app"
 	"gno.land/p/aib/ibc/types"
 	"gno.land/p/nt/ufmt"
@@ -30,6 +32,7 @@ var _ app.IBCApp = &App{}
 
 // Implements app.IBCApp
 func (a *App) OnSendPacket(
+	_ banker.Banker,
 	sourceClient string,
 	destinationClient string,
 	sequence uint64,
