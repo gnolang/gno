@@ -1,11 +1,8 @@
 package boards
 
 import (
-	"errors"
 	"strings"
 	"time"
-
-	"gno.land/p/nt/ufmt"
 )
 
 // Post defines a generic type for posts.
@@ -66,81 +63,6 @@ func (post Post) Summary() string {
 	return SummaryOf(post.Body, 80)
 }
 
-// Save stores the thread (or repost) within it's parent board, or
-// if post is a reply it stores the reply within it's parent thread.
-func (post *Post) Save() error {
-	if post.Board == nil {
-		return errors.New("board is required to save a post")
-	}
-
-	if post.Board.Threads == nil {
-		return ufmt.Errorf("save error, threads are not supported board ID %s", post.Board.ID)
-	}
-
-	// Post is a thread
-	if IsThread(post) {
-		return post.saveThread()
-	}
-
-	// Post is a repost of a thread
-	if IsRepost(post) {
-		return post.saveRepost()
-	}
-
-	// Post is a reply
-	return post.saveReply()
-}
-
-func (thread *Post) saveThread() error {
-	return thread.Board.Threads.Add(thread)
-}
-
-func (repost *Post) saveRepost() error {
-	thread, found := repost.Board.Threads.Get(repost.ParentID)
-	if !found {
-		return ufmt.Errorf("repost save error, origin thread ID %s not found", repost.ParentID)
-	}
-
-	if thread.Reposts == nil {
-		return ufmt.Errorf("repost save error, reposts are not supported in thread ID %s", thread.ID)
-	}
-
-	thread.Reposts.Add(repost)
-	return repost.Board.Threads.Add(repost)
-}
-
-func (reply *Post) saveReply() error {
-	// Get the thread where reply has been created
-	thread, found := reply.Board.Threads.Get(reply.ThreadID)
-	if !found {
-		return ufmt.Errorf("reply save error, thread ID %s not found", reply.ThreadID)
-	}
-
-	if err := checkPostSupportsReplies(thread); err != nil {
-		return err
-	}
-
-	// Add reply to the flat replies index. This index allows listing all thread
-	// replies without needing to recursively explore the child replies of each reply.
-	thread.Replies.Add(reply)
-
-	// Add reply to it's parent reply.
-	// Reply parent can be a thread or another reply.
-	if reply.ParentID != thread.ID {
-		parent, found := thread.Replies.Get(reply.ParentID)
-		if !found {
-			return ufmt.Errorf("reply save error, parent reply ID %s not found", reply.ParentID)
-		}
-
-		if err := checkPostSupportsReplies(parent); err != nil {
-			return err
-		}
-
-		parent.Replies.Add(reply)
-	}
-	return nil
-}
-
 // IsThread checks if a post is a thread.
 // When a post is not a thread it's considered a thread's reply/comment.
 func IsThread(p *Post) bool {
@@ -173,11 +95,4 @@ func SummaryOf(text string, length int) string {
 		line = line + "..."
 	}
 	return line
-}
-
-func checkPostSupportsReplies(p *Post) error {
-	if p.Replies == nil {
-		return ufmt.Errorf("replies are not supported in post ID %s", p.ID)
-	}
-	return nil
 }
