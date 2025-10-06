@@ -1,6 +1,6 @@
 package collection
 
-import "gno.land/p/demo/ufmt"
+import "gno.land/p/nt/ufmt"
 
 // Entry represents a single object in the collection with its ID
 type Entry struct {

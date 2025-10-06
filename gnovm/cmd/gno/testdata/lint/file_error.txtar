@@ -1,6 +1,6 @@
 # gno lint: test file error
 
-! gno lint ./i_have_error_test.gno
+! gno lint .
 
 cmp stdout stdout.golden
 cmp stderr stderr.golden

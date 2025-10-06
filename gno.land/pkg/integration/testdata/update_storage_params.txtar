@@ -2,6 +2,8 @@
 loadpkg gno.land/r/gov/dao
 loadpkg gno.land/r/gov/dao/v3/impl
 loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/users
+loadpkg gno.land/r/gnoland/users/v1
 
 patchpkg "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 
@@ -16,7 +18,6 @@ stdout OK!
 
 ## Propose to update default deposit.
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/submit_proposal.gno
-
 stdout OK!
 
 ## Vote "update default deposit"
@@ -62,8 +63,6 @@ func main() {
 package load_govdao
 
 import (
-	"std"
-
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
 	"gno.land/r/gov/dao/v3/memberstore"
@@ -74,14 +73,13 @@ func init() {
 	memberstore.Get().SetTier(memberstore.T2)
 	memberstore.Get().SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(memberstore.T1, std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), &memberstore.Member{InvitationPoints: 3}) // member address
+	memberstore.Get().SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), &memberstore.Member{InvitationPoints: 3}) // member address
 
-	dao.UpdateImpl(cross,dao.UpdateRequest{
+	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO:         impl.GetInstance(),
 		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
 	})
 }
-
 -- run/vote_proposal.gno --
 package main
 

@@ -123,12 +123,14 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 				{Name: "hello.gno", Body: `
 package hello
 
-import "std"
-import "time"
+import (
+	"chain/runtime"
+	"time"
+)
 
 var _ = time.RFC3339
-func caller() std.Address { return std.OriginCaller() }
-var GetHeight = std.ChainHeight
+func caller() address { return runtime.OriginCaller() }
+var GetHeight = runtime.ChainHeight
 var sl = []int{1,2,3,4,5}
 func fn() func(string) string { return Echo }
 type myStruct struct{a int}
@@ -272,16 +274,22 @@ func TestVmHandlerQuery_File(t *testing.T) {
 		// valid queries
 		{input: []byte(`gno.land/r/hello/hello.gno`), expectedResult: "package hello\n\nfunc Hello() string { return \"hello\" }\n"},
 		{input: []byte(`gno.land/r/hello/README.md`), expectedResult: "# Hello"},
-		{input: []byte(`gno.land/r/hello/doesnotexist.gno`),
+		{
+			input:            []byte(`gno.land/r/hello/doesnotexist.gno`),
 			expectedError:    &InvalidFileError{},
-			expectedLogMatch: `file "gno.land/r/hello/doesnotexist.gno" is not available`},
+			expectedLogMatch: `file "gno.land/r/hello/doesnotexist.gno" is not available`,
+		},
 		{input: []byte(`gno.land/r/hello`), expectedResult: "README.md\ngnomod.toml\nhello.gno"},
-		{input: []byte(`gno.land/r/doesnotexist`),
+		{
+			input:            []byte(`gno.land/r/doesnotexist`),
 			expectedError:    &InvalidPackageError{},
-			expectedLogMatch: `package "gno.land/r/doesnotexist" is not available`},
-		{input: []byte(`gno.land/r/doesnotexist/hello.gno`),
+			expectedLogMatch: `package "gno.land/r/doesnotexist" is not available`,
+		},
+		{
+			input:            []byte(`gno.land/r/doesnotexist/hello.gno`),
 			expectedError:    &InvalidFileError{},
-			expectedLogMatch: `file "gno.land/r/doesnotexist/hello.gno" is not available`},
+			expectedLogMatch: `file "gno.land/r/doesnotexist/hello.gno" is not available`,
+		},
 	}
 
 	for _, tc := range tt {

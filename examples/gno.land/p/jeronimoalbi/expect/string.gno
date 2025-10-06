@@ -2,9 +2,8 @@ package expect
 
 import (
 	"errors"
-	"std"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 // ErrIncompatibleType indicates that a value can't be casted to a different type.
@@ -74,7 +73,7 @@ func asString(value any) (string, error) {
 		return string(v), nil
 	case Stringer:
 		return v.String(), nil
-	case std.Address:
+	case address:
 		return v.String(), nil
 	default:
 		return "", ErrIncompatibleType
