@@ -8,9 +8,7 @@ cmp stderr empty
 -- main.gno --
 package main
 
-import (
-	"std"
-)
+import "std"
 
 func main() {
 	addr := std.Address("g1337")
@@ -22,13 +20,10 @@ func hello(i std.Address) {
 
 	println(i)
 }
-
 -- main.gno.golden --
 package main
 
-import (
-	"std"
-)
+import "std"
 
 func main() {
 	addr := std.Address("g1337")
