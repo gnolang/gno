@@ -1,6 +1,7 @@
 package transfer
 
 import (
+	"chain/banker"
 	"chain/runtime"
 	"strings"
 
@@ -31,8 +32,8 @@ func init() {
 var _ app.IBCApp = &App{}
 
 // Implements app.IBCApp
-// TODO write filetests
 func (a *App) OnSendPacket(
+	banker banker.Banker,
 	sourceClient string,
 	destinationClient string,
 	sequence uint64,
@@ -96,7 +97,7 @@ func (a *App) OnSendPacket(
 	}
 	token := Token{Denom: denom, Amount: data.Amount}
 
-	if err := sendTransfer(payload.SourcePort, sourceClient, token); err != nil {
+	if err := sendTransfer(banker, payload.SourcePort, sourceClient, token); err != nil {
 		return err
 	}
 
