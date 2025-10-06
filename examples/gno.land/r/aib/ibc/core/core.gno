@@ -8,6 +8,7 @@ import (
 
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/types"
+	"gno.land/p/aib/limitedbanker"
 	"gno.land/p/nt/ufmt"
 )
 
@@ -80,8 +81,12 @@ func SendPacket(cur realm, msg types.MsgSendPacket) (sequence uint64) {
 		types.AttributeKeyEncodedPacketHex, hex.EncodeToString(packet.ProtoMarshal()),
 	)
 
-	banker := banker.NewBanker(banker.BankerTypeRealmSend)
-	// println("BALANCE", from, banker.GetCoins(runtime.CurrentRealm().Address()))
+	// Build a banker limited to spend OriginSend.
+	banker := limitedbanker.New(
+		banker.NewBanker(banker.BankerTypeRealmSend),
+		banker.OriginSend(),
+	)
+	// Invoke registed app OnSendPacket() for each payload.SourcePort.
 	for _, payload := range msg.Payloads {
 		app := store.route(payload.SourcePort)
 		err := app.OnSendPacket(
