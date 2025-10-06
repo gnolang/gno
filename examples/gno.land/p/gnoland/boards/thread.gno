@@ -66,12 +66,12 @@ func NewRepost(thread *Post, dst *Board, creator address) (*Post, error) {
 		return nil, errors.New("thread repost requires a destination board")
 	}
 
-	if !IsThread(thread) {
-		return nil, errors.New("post must be a thread to be reposted to another board")
-	}
-
 	if IsRepost(thread) {
 		return nil, errors.New("reposting a thread that is a repost is not allowed")
+	}
+
+	if !IsThread(thread) {
+		return nil, errors.New("post must be a thread to be reposted to another board")
 	}
 
 	if !creator.IsValid() {

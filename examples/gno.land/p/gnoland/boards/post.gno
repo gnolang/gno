@@ -69,7 +69,7 @@ func IsThread(p *Post) bool {
 	if p == nil {
 		return false
 	}
-	return p.ThreadID == p.ID
+	return !IsRepost(p) && p.ThreadID == p.ID
 }
 
 // IsRepost checks if a thread is a repost.
