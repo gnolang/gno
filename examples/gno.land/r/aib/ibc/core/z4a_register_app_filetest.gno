@@ -17,5 +17,9 @@ func main() {
 // Output:
 // ----------- assert render apps
 // ## Registered apps
-// - app1
-// - app2
+// - PortID: app1
+//   - PkgPath: main
+//   - Address: g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4
+// - PortID: app2
+//   - PkgPath: main
+//   - Address: g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4

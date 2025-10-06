@@ -28,8 +28,10 @@ func RenderHome(w *mux.ResponseWriter, r *mux.Request) {
 
 func RenderApps(w *mux.ResponseWriter, r *mux.Request) {
 	w.Write("## Registered apps\n")
-	for port, _ := range store.routes {
-		w.Write(ufmt.Sprintf("- %s\n", port))
+	for port, app := range store.routes {
+		w.Write(ufmt.Sprintf("- PortID: %s\n", port))
+		w.Write(ufmt.Sprintf("  - PkgPath: %s\n", app.pkgPath))
+		w.Write(ufmt.Sprintf("  - Address: %s\n", app.address))
 	}
 }
 
