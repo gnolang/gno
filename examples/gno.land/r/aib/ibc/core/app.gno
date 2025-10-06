@@ -21,5 +21,9 @@ func RegisterApp(cur realm, portID string, app app.IBCApp) {
 	if _, ok := store.routes[portID]; ok {
 		panic(ufmt.Errorf("portID %s has already been registered", portID))
 	}
-	store.routes[portID] = app
+	store.routes[portID] = ibcApp{
+		IBCApp:  app,
+		pkgPath: caller.PkgPath(),
+		address: caller.Address(),
+	}
 }
