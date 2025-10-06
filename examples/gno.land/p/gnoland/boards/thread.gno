@@ -101,35 +101,3 @@ func MustNewRepost(thread *Post, dst *Board, creator address) *Post {
 	}
 	return r
 }
-
-// DeleteReply deletes a reply from a thread.
-func (thread *Post) DeleteReply(replyID ID) error {
-	if !IsThread(thread) {
-		return errors.New("post must be a thread to remove a reply")
-	}
-
-	if err := checkPostSupportsReplies(thread); err != nil {
-		return err
-	}
-
-	// Remove reply from the thread
-	reply, removed := thread.Replies.Remove(replyID)
-	if !removed {
-		return errors.New("reply not found")
-	}
-
-	// Remove reply from parent reply
-	if reply.ParentID != thread.ID {
-		parent, found := thread.Replies.Get(reply.ParentID)
-		if !found {
-			return nil
-		}
-
-		if err := checkPostSupportsReplies(parent); err != nil {
-			return err
-		}
-
-		parent.Replies.Remove(replyID)
-	}
-	return nil
-}
