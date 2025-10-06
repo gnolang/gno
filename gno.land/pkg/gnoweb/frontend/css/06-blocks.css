@@ -402,7 +402,7 @@
 
 	/* Query specific styles */
 	.query {
-		&:not(:first-child)::before  {
+		&:not(:first-child)::before {
 			content: "&";
 		}
 
