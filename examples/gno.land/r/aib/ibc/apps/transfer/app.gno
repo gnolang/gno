@@ -97,7 +97,7 @@ func (a *App) OnSendPacket(
 	}
 	token := Token{Denom: denom, Amount: data.Amount}
 
-	if err := sendTransfer(banker, payload.SourcePort, sourceClient, token); err != nil {
+	if err := sendTransfer(banker, sourceClient, token); err != nil {
 		return err
 	}
 

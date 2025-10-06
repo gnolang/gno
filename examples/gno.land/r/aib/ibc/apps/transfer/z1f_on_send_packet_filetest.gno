@@ -1,10 +1,12 @@
+// PKGPATH: gno.land/r/aib/main
+// SEND: 10ugnot
 package main
 
 import (
 	"chain"
+	"chain/banker"
 	"chain/runtime"
 	"crypto/sha256"
-	"testing"
 	"time"
 
 	tmtesting "gno.land/p/aib/ibc/lightclient/tendermint/testing"
@@ -14,7 +16,7 @@ import (
 	"gno.land/r/aib/ibc/core"
 )
 
-// OnSendPacket: amount and send mismatch
+// OnSendPacket: insufficient SEND
 func main() {
 	var (
 		chainID        = "chain-id-2"
@@ -26,10 +28,11 @@ func main() {
 	clientID := core.CreateClient(cross, clientState, consensusState)
 	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "07-tendermint-2")
 
+	signer := runtime.OriginCaller()
 	payload := transfer.FungibleTokenPacketData{
 		Denom:    "ugnot",
 		Amount:   "100",
-		Sender:   runtime.OriginCaller().String(),
+		Sender:   signer.String(),
 		Receiver: "atone1user",
 	}
 	packet := types.MsgSendPacket{
@@ -45,10 +48,16 @@ func main() {
 			},
 		},
 	}
-	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 1)))
+
+	// Send the coins sent to this filetest to the r/aib/ibc/core realm
+	bank := banker.NewBanker(banker.BankerTypeRealmSend)
+	ibcCoreAddr := chain.PackageAddress("gno.land/r/aib/ibc/core")
+	bank.SendCoins(
+		runtime.CurrentRealm().Address(), ibcCoreAddr, banker.OriginSend(),
+	)
 
 	core.SendPacket(cross, packet)
 }
 
 // Error:
-// send packet failed for app transfer: packet amount and origin send do not match, 100ugnot != 1ugnot
+// send packet failed for app transfer: send coins: spendLimit 10ugnot exceeded for coins 100ugnot
