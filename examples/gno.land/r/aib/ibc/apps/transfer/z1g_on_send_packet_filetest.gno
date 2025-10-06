@@ -1,10 +1,12 @@
+// PKGPATH: gno.land/r/aib/main
+// SEND: 100ugnot
 package main
 
 import (
 	"chain"
+	"chain/banker"
 	"chain/runtime"
 	"crypto/sha256"
-	"testing"
 	"time"
 
 	tmtesting "gno.land/p/aib/ibc/lightclient/tendermint/testing"
@@ -14,7 +16,7 @@ import (
 	"gno.land/r/aib/ibc/core"
 )
 
-// OnSendPacket: TODO
+// OnSendPacket: success
 func main() {
 	var (
 		chainID        = "chain-id-2"
@@ -46,11 +48,26 @@ func main() {
 			},
 		},
 	}
-	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 100)))
-	testing.SetRealm(testing.NewUserRealm(signer))
+
+	// Send the coins sent to this filetest to the r/aib/ibc/core realm
+	bank := banker.NewBanker(banker.BankerTypeRealmSend)
+	ibcCoreAddr := chain.PackageAddress("gno.land/r/aib/ibc/core")
+	bank.SendCoins(
+		runtime.CurrentRealm().Address(), ibcCoreAddr, banker.OriginSend(),
+	)
+	escrowAddr := transfer.GetEscrowAddress(clientID)
+	println("r/aib/ibc/core before balance:", bank.GetCoins(ibcCoreAddr))
+	println("escrowAddr before balance:", bank.GetCoins(escrowAddr))
 
 	core.SendPacket(cross, packet)
+
+	println("\nr/aib/ibc/core after balance:", bank.GetCoins(ibcCoreAddr))
+	println("escrowAddr after balance:", bank.GetCoins(escrowAddr))
 }
 
-// Error:
-// send packet failed for app transfer: packet amount and origin send do not match, 100ugnot != 1ugnot
+// Output:
+// r/aib/ibc/core before balance: 100ugnot
+// escrowAddr before balance:
+//
+// r/aib/ibc/core after balance:
+// escrowAddr after balance: 100ugnot
