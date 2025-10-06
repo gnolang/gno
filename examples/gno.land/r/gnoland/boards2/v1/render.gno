@@ -126,26 +126,13 @@ func renderBoardListMenu(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write("\n\n")
 }
 
-func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
-	name := req.GetVar("board")
-	board, found := getBoardByName(name)
-	if !found {
-		link := md.Link("create a new board", gRealmLink.Call("CreateBoard", "name", name, "listed", "true"))
-		res.Write(md.H3("The board you are looking for does not exist"))
-		res.Write("Do you want to " + link + " ?")
-		return
-	}
-
-	menu := renderBoardMenu(board, req)
-	res.Write(board.Render(req.RawPath, menu))
-}
-
 func renderBoardMenu(board *Board, req *mux.Request) string {
 	var (
 		b               strings.Builder
 		boardMembersURL = makeBoardURI(board) + "/members"
 	)
 
+	b.WriteString("\n")
 	if board.Readonly {
 		b.WriteString(md.Link("List Members", boardMembersURL))
 		b.WriteString(" • ")
@@ -181,72 +168,8 @@ func renderBoardMenu(board *Board, req *mux.Request) string {
 		}
 	}
 
+	b.WriteString("\n")
 	return b.String()
-}
-
-func renderThread(res *mux.ResponseWriter, req *mux.Request) {
-	name := req.GetVar("board")
-	board, found := getBoardByName(name)
-	if !found {
-		res.Write("Board does not exist: " + name)
-		return
-	}
-
-	rawID := req.GetVar("thread")
-	tID, err := strconv.Atoi(rawID)
-	if err != nil {
-		res.Write("Invalid thread ID: " + rawID)
-		return
-	}
-
-	thread, found := board.GetThread(PostID(tID))
-	if !found {
-		res.Write("Thread does not exist with ID: " + rawID)
-	} else if thread.Hidden {
-		res.Write("Thread with ID: " + rawID + " has been flagged as inappropriate")
-	} else {
-		res.Write(thread.Render(req.RawPath, "", 5))
-	}
-}
-
-func renderReply(res *mux.ResponseWriter, req *mux.Request) {
-	name := req.GetVar("board")
-	board, found := getBoardByName(name)
-	if !found {
-		res.Write("Board does not exist: " + name)
-		return
-	}
-
-	rawID := req.GetVar("thread")
-	tID, err := strconv.Atoi(rawID)
-	if err != nil {
-		res.Write("Invalid thread ID: " + rawID)
-		return
-	}
-
-	rawID = req.GetVar("reply")
-	rID, err := strconv.Atoi(rawID)
-	if err != nil {
-		res.Write("Invalid reply ID: " + rawID)
-		return
-	}
-
-	thread, found := board.GetThread(PostID(tID))
-	if !found {
-		res.Write("Thread does not exist with ID: " + req.GetVar("thread"))
-		return
-	}
-
-	reply, found := thread.GetReply(PostID(rID))
-	if !found {
-		res.Write("Reply does not exist with ID: " + rawID)
-		return
-	}
-
-	// Call render even for hidden replies to display children.
-	// Original comment content will be hidden under the hood.
-	// See: #3480
-	res.Write(reply.RenderInner())
 }
 
 func renderMembers(res *mux.ResponseWriter, req *mux.Request) {

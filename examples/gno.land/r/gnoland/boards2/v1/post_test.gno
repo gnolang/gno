@@ -238,18 +238,6 @@ func TestThreadDeleteReply(t *testing.T) {
 	}
 }
 
-func TestThreadRenderSummary(t *testing.T) {
-	t.Skip("TODO: implement")
-}
-
-func TestThreadRender(t *testing.T) {
-	t.Skip("TODO: implement")
-}
-
-func TestThreadRenderInner(t *testing.T) {
-	t.Skip("TODO: implement")
-}
-
 func TestNewReply(t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/v1"))
 

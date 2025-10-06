@@ -2,11 +2,8 @@ package boards2
 
 import (
 	"strconv"
-	"strings"
 	"time"
 
-	"gno.land/p/jeronimoalbi/pager"
-	"gno.land/p/moul/md"
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/commondao"
 	"gno.land/p/nt/seqid"
@@ -119,71 +116,6 @@ func (board *Board) DeleteThread(pid PostID) {
 	if !removed {
 		panic("thread does not exist with ID " + pid.String())
 	}
-}
-
-// Render renders a board into Markdown.
-func (board *Board) Render(path, menu string) string {
-	var (
-		sb          strings.Builder
-		creatorLink = userLink(board.Creator)
-		date        = board.CreatedAt().Format(dateFormat)
-	)
-
-	sb.WriteString(md.H1(board.Name))
-	sb.WriteString("Board created by " + creatorLink + " on " + date + ", #" + board.ID.String())
-	if board.Readonly {
-		sb.WriteString("  \n_" + md.Bold("Starting new threads and commenting is disabled") + "_")
-	}
-
-	sb.WriteString("\n")
-
-	// XXX: Menu is rendered by the caller to deal with links and sub-menus
-	// TODO: We should have the render logic separated from boards so avoid sending menu as argument
-	if menu != "" {
-		sb.WriteString("\n" + menu + "\n")
-	}
-
-	sb.WriteString(md.HorizontalRule())
-
-	if board.ThreadsCount() == 0 {
-		sb.WriteString(md.H3("This board doesn't have any threads"))
-		if !board.Readonly {
-			startConversationLink := md.Link("start a new conversation", makeCreateThreadURI(board))
-			sb.WriteString("Do you want to " + startConversationLink + " in this board ?")
-		}
-		return sb.String()
-	}
-
-	p, err := pager.New(path, board.ThreadsCount(), pager.WithPageSize(pageSizeDefault))
-	if err != nil {
-		panic(err)
-	}
-
-	render := func(thread *Post) bool {
-		if !thread.Hidden {
-			sb.WriteString(thread.RenderSummary() + "\n")
-		}
-		return false
-	}
-
-	sb.WriteString("Sort by: ")
-	r := parseRealmPath(path)
-	if r.Query.Get("order") == "desc" {
-		r.Query.Set("order", "asc")
-		sb.WriteString(md.Link("newest first", r.String()) + "\n\n")
-		board.ReverseIterateThreads(p.Offset(), p.PageSize(), render)
-	} else {
-		r.Query.Set("order", "desc")
-		sb.WriteString(md.Link("oldest first", r.String()) + "\n\n")
-		board.IterateThreads(p.Offset(), p.PageSize(), render)
-	}
-
-	if p.HasPages() {
-		sb.WriteString(md.HorizontalRule())
-		sb.WriteString(pager.Picker(p))
-	}
-
-	return sb.String()
 }
 
 func (board *Board) generateNextPostID() PostID {
