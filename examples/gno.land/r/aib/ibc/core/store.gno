@@ -23,13 +23,13 @@ type Store struct {
 	clientSeq  seqid.ID
 	clientByID *avl.Tree // id:client
 
-	routes map[string]app.IBCApp
+	routes map[string]ibcApp
 }
 
 func newStore() *Store {
 	return &Store{
 		clientByID: avl.NewTree(),
-		routes:     make(map[string]app.IBCApp),
+		routes:     make(map[string]ibcApp),
 	}
 }
 
@@ -44,6 +44,12 @@ type client struct {
 
 	sendSeq                seqid.ID
 	packetCommitmentsBySeq *avl.Tree // sequence:commitment
+}
+
+type ibcApp struct {
+	app.IBCApp
+	pkgPath string
+	address address
 }
 
 // setPacketCommitment stores the packet commitment in the client data and in
@@ -92,8 +98,8 @@ func (cs *Store) getClient(id string) *client {
 	return x.(*client)
 }
 
-// Route returns an IBCApp for the given portID.
-func (cs *Store) Route(portID string) app.IBCApp {
+// route returns an IBCApp for the given portID.
+func (cs *Store) route(portID string) ibcApp {
 	app, ok := cs.routes[portID]
 	if !ok {
 		panic(ufmt.Sprintf("no registered app for port %s", portID))
