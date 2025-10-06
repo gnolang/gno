@@ -1,7 +1,5 @@
 package main
 
-// SEND: 1000000ugnot
-
 import (
 	"std"
 	"testing"

@@ -25,7 +25,7 @@ func TestRegister_Valid(t *testing.T) {
 		// Simulate a proper user call with the required 1GNOT fee.
 		testing.SetRealm(std.NewUserRealm(addr))
 		testing.SetOriginCaller(addr)
-		testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", registerPrice)))
+		testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 0)))
 
 		urequire.NotPanics(t, func() {
 			Register(cross, username)
@@ -35,7 +35,7 @@ func TestRegister_Valid(t *testing.T) {
 
 func TestRegister_Invalid(t *testing.T) {
 	t.Run("invalid usernames", func(t *testing.T) {
-		testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", registerPrice)))
+		testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 0)))
 		testing.SetRealm(std.NewUserRealm(testutils.TestAddress("bob123")))
 
 		invalidUsernames := []string{
@@ -58,7 +58,7 @@ func TestRegister_Invalid(t *testing.T) {
 	})
 
 	t.Run("taken username", func(t *testing.T) {
-		testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", registerPrice)))
+		testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 0)))
 		testing.SetRealm(std.NewUserRealm(testutils.TestAddress("bob123")))
 
 		username := "bob123"
