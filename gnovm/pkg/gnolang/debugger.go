@@ -55,6 +55,8 @@ type Debugger struct {
 	nextLoc     Location                    // source location at the 'next' command
 	breakpoints []Location                  // list of breakpoints set by user, as source locations
 	call        []Location                  // for function tracking, ideally should be provided by machine frame
+	blocks      []*Block                    // machine last blocks depth at each call level (for up & down)
+	realms      []*Realm                    // for realm tracking
 	frameLevel  int                         // frame level of the current machine instruction
 	nextDepth   int                         // function call depth at the 'next' command
 	getSrc      func(string, string) string // helper to access source from repl or others
@@ -198,8 +200,12 @@ loop:
 	switch op {
 	case OpCall:
 		m.Debugger.call = append(m.Debugger.call, m.Debugger.loc)
+		m.Debugger.blocks = append(m.Debugger.blocks, m.LastBlock())
+		m.Debugger.realms = append(m.Debugger.realms, m.Realm)
 	case OpReturn, OpReturnFromBlock:
 		m.Debugger.call = m.Debugger.call[:len(m.Debugger.call)-1]
+		m.Debugger.blocks = m.Debugger.blocks[:len(m.Debugger.blocks)-1]
+		m.Debugger.realms = m.Debugger.realms[:len(m.Debugger.realms)-1]
 	}
 }
 
@@ -355,7 +361,7 @@ func debugBreak(m *Machine, arg string) error {
 
 func printBreakpoint(m *Machine, i int) {
 	b := m.Debugger.breakpoints[i]
-	fmt.Fprintf(m.Debugger.out, "Breakpoint %d at %s %s\n", i, b.PkgPath, b)
+	fmt.Fprintf(m.Debugger.out, "Breakpoint %d at %s %s\n", i, b.PkgPath, locString(b))
 }
 
 func parseLocSpec(m *Machine, arg string) (loc Location, err error) {
@@ -553,14 +559,14 @@ func debugList(m *Machine, arg string) (err error) {
 		debugLineInfo(m)
 		if m.Debugger.lastCmd == "up" || m.Debugger.lastCmd == "down" {
 			loc = debugFrameLoc(m, m.Debugger.frameLevel)
-			fmt.Fprintf(m.Debugger.out, "Frame %d: %s\n", m.Debugger.frameLevel, loc)
+			fmt.Fprintf(m.Debugger.out, "Frame %d: %s\n", m.Debugger.frameLevel, locString(loc))
 		}
 	} else {
 		if loc, err = parseLocSpec(m, arg); err != nil {
 			return err
 		}
 		hideCursor = true
-		fmt.Fprintf(m.Debugger.out, "Showing %s\n", loc)
+		fmt.Fprintf(m.Debugger.out, "Showing %s\n", locString(loc))
 	}
 	if loc.File == "" && (m.Debugger.lastCmd == "list" || m.Debugger.lastCmd == "l") {
 		return errors.New("unknown source file")
@@ -597,7 +603,7 @@ func debugLineInfo(m *Machine) {
 			line += "." + string(f.Func.Name) + "()"
 		}
 	}
-	fmt.Fprintf(m.Debugger.out, "> %s %s\n", line, m.Debugger.loc)
+	fmt.Fprintf(m.Debugger.out, "> %s %s\n  Realm: %q\n", line, locString(m.Debugger.loc), m.Realm.Path)
 }
 
 func isMemPackage(st Store, pkgPath string) bool {
@@ -684,10 +690,7 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 		}
 		return tv, fmt.Errorf("invalid basic literal value: %s", n.Value)
 	case *ast.Ident:
-		if tv, ok := debugLookup(m, n.Name); ok {
-			return tv, nil
-		}
-		return tv, fmt.Errorf("could not find symbol value for %s", n.Name)
+		return debugLookup(m, n.Name)
 	case *ast.ParenExpr:
 		return debugEvalExpr(m, n.X)
 	case *ast.StarExpr:
@@ -738,103 +741,22 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 // debugLookup returns the current VM value corresponding to name ident in
 // the current function call frame, or the global frame if not found.
 // Note: the commands 'up' and 'down' change the frame level to start from.
-func debugLookup(m *Machine, name string) (tv TypedValue, ok bool) {
-	// Position to the right frame.
-	ncall := 0
-	var i int
-	var fblocks []BlockNode
-	var funBlock BlockNode
-	for i = len(m.Frames) - 1; i >= 0; i-- {
-		if m.Frames[i].Func != nil {
-			funBlock = m.Frames[i].Func.Source
+func debugLookup(m *Machine, name string) (tv TypedValue, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%v", r)
 		}
-		if ncall == m.Debugger.frameLevel {
-			break
-		}
-		if m.Frames[i].Func != nil {
-			fblocks = append(fblocks, m.Frames[i].Func.Source)
-			ncall++
-		}
-	}
-	if i < 0 {
-		return tv, false
-	}
+	}()
 
-	// XXX The following logic isn't necessary and it isn't correct either.
-	// XXX See `GetPathForName(Store, Name) ValuePath` in node.go,
-	// XXX get the path and pass it into the last block.GetPointerTo().
-	// XXX That function will find the correct block by depth etc.
-	// XXX There was some latent bug for case:
-	// XXX '{in: "b 37\nc\np b\n", out: "(3 int)"},' (debugger test case #51)
-	// XXX which was revealed by some earlier commits regarding lines
-	// XXX (Node now has not just the starting .Pos but also .End.)
-	// XXX and is resolved by the following diff to values.go:
-	// XXX The exact bug probably doesn't matter, as the logic
-	// XXX should be replaced by the aforementioned block.GetPointerTo().
-	//
-	// --- a/gnovm/pkg/gnolang/values.go
-	// +++ b/gnovm/pkg/gnolang/values.go
-	// @@ -2480,6 +2480,7 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
-	//                 }
-	//         }
-	//         b.Values = values
-	// +       b.Source = source // otherwise new variables won't show in print or debugger.
-	//  }
-
-	// Position to the right block, i.e the first after the last fblock (if any).
-	for i = len(m.Blocks) - 1; i >= 0; i-- {
-		if len(fblocks) == 0 {
-			break
-		}
-		if m.Blocks[i].Source == fblocks[0] {
-			fblocks = fblocks[1:]
-		}
+	block := m.LastBlock()
+	if m.Debugger.frameLevel > 0 {
+		// Adjust block to the frameLevel set by 'up' or 'down' command.
+		block = m.Debugger.blocks[len(m.Debugger.blocks)-m.Debugger.frameLevel]
 	}
-	if i < 0 {
-		return tv, false
-	}
-
-	// get SourceBlocks in the same frame level.
-	var sblocks []*Block
-	for ; i >= 0; i-- {
-		sblocks = append(sblocks, m.Blocks[i])
-		if m.Blocks[i].Source == funBlock {
-			break
-		}
-	}
-	if i > 0 {
-		sblocks = append(sblocks, m.Blocks[0]) // Add global block
-	}
-
-	// Search value in current frame level blocks, or main scope.
-	for _, b := range sblocks {
-		switch t := b.Source.(type) {
-		case *IfStmt:
-			for i, s := range ifBody(m, t).Source.GetBlockNames() {
-				if string(s) == name {
-					return b.Values[i], true
-				}
-			}
-		}
-		for i, s := range b.Source.GetBlockNames() {
-			if string(s) == name {
-				return b.Values[i], true
-			}
-		}
-	}
-	// Fallback: search a global value.
-	if v := sblocks[0].Source.GetSlot(m.Store, Name(name), true); v != nil {
-		return *v, true
-	}
-	return tv, false
-}
-
-// ifBody returns the Then or Else body corresponding to the current location.
-func ifBody(m *Machine, ifStmt *IfStmt) IfCaseStmt {
-	if l := ifStmt.Else.GetLocation().Line; l > 0 && debugFrameLoc(m, m.Debugger.frameLevel).Line > l {
-		return ifStmt.Else
-	}
-	return ifStmt.Then
+	// In case of failure, GetPathForName() or GetPointerTo() will panic (recovered above).
+	vp := block.GetSource(m.Store).GetPathForName(m.Store, Name(name))
+	tv = block.GetPointerTo(m.Store, vp).Deref()
+	return tv, err
 }
 
 // ---------------------------------------
@@ -848,6 +770,7 @@ func debugStack(m *Machine, arg string) error {
 	for {
 		ff := debugFrameFunc(m, i)
 		loc := debugFrameLoc(m, i)
+		realm := debugFrameRealm(m, i)
 		if ff == nil {
 			break
 		}
@@ -857,15 +780,22 @@ func debugStack(m *Machine, arg string) error {
 		} else {
 			fname = fmt.Sprintf("%v.%v", ff.PkgPath, ff.Name)
 		}
-		fmt.Fprintf(m.Debugger.out, "%d\tin %s\n\tat %s\n", i, fname, loc)
+		fmt.Fprintf(m.Debugger.out, "%d\tin %s\n\tat %s\n\tRealm: %q\n", i, fname, locString(loc), realm.Path)
 		i++
 	}
 	return nil
 }
 
+func locString(loc Location) string {
+	if loc.File == "" {
+		return fmt.Sprintf("%s:%s", loc.PkgPath, loc.Pos)
+	}
+	return fmt.Sprintf("%s/%s:%s", loc.PkgPath, loc.File, loc.Pos)
+}
+
 func debugFrameFunc(m *Machine, n int) *FuncValue {
-	for ncall, i := 0, len(m.Frames)-1; i >= 0; i-- {
-		f := m.Frames[i]
+	for ncall, i := 0, m.NumFrames()-1; i >= 0; i-- {
+		f := &m.Frames[i]
 		if f.Func == nil {
 			continue
 		}
@@ -881,7 +811,20 @@ func debugFrameLoc(m *Machine, n int) Location {
 	if n == 0 || len(m.Debugger.call) == 0 {
 		return m.Debugger.loc
 	}
-	return m.Debugger.call[len(m.Debugger.call)-n]
+	if i := len(m.Debugger.call) - n; i > 0 {
+		return m.Debugger.call[i]
+	}
+	return m.Debugger.call[0]
+}
+
+func debugFrameRealm(m *Machine, n int) *Realm {
+	if n == 0 || len(m.Debugger.realms) == 0 {
+		return m.Realm
+	}
+	if i := len(m.Debugger.realms) - n; i > 0 {
+		return m.Debugger.realms[i]
+	}
+	return m.Debugger.realms[0]
 }
 
 // ---------------------------------------
