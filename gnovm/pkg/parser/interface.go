@@ -133,13 +133,11 @@ func ParseFile(fset *token.FileSet, filename string, src any, mode Mode) (f *ast
 	return
 }
 
-// Stats contains the statistics collected during parsing: number of tokens and maximum nesting level.
-type Stats struct {
-	TopNest, NumTok int
-}
+// ParserCallback is called during parsing at each new token.
+type ParserCallback func(tok token.Token, nestedLevel int)
 
-// ParseFileStats is indentical to ParseFile execpt it also returns statistics on parsing.
-func ParseFileStats(fset *token.FileSet, filename string, src any, mode Mode) (f *ast.File, s *Stats, err error) {
+// ParseFile2 is indentical to ParseFile except it takes an additional ParserCallback parameter.
+func ParseFile2(fset *token.FileSet, filename string, src any, mode Mode, callback ParserCallback) (f *ast.File, err error) {
 	if fset == nil {
 		panic("parser.ParseFile: no token.FileSet provided (fset == nil)")
 	}
@@ -147,7 +145,7 @@ func ParseFileStats(fset *token.FileSet, filename string, src any, mode Mode) (f
 	// get source
 	text, err := readSource(filename, src)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	file := fset.AddFile(filename, -1, len(text))
@@ -186,8 +184,8 @@ func ParseFileStats(fset *token.FileSet, filename string, src any, mode Mode) (f
 
 	// parse source
 	p.init(file, text, mode)
+	p.callback = callback
 	f = p.parseFile()
-	s = &Stats{p.topNest, p.numTok}
 
 	return
 }
@@ -295,8 +293,8 @@ func ParseExprFrom(fset *token.FileSet, filename string, src any, mode Mode) (ex
 	return
 }
 
-// ParseExprFromStats is identical to ParseExprFrom except it also returns parsing statistics.
-func ParseExprFromStats(fset *token.FileSet, filename string, src any, mode Mode) (expr ast.Expr, s *Stats, err error) {
+// ParseExprFrom2 is identical to ParseExprFrom except it takes an additional ParserCallback parameter.
+func ParseExprFrom2(fset *token.FileSet, filename string, src any, mode Mode, callback ParserCallback) (expr ast.Expr, err error) {
 	if fset == nil {
 		panic("parser.ParseExprFrom: no token.FileSet provided (fset == nil)")
 	}
@@ -304,7 +302,7 @@ func ParseExprFromStats(fset *token.FileSet, filename string, src any, mode Mode
 	// get source
 	text, err := readSource(filename, src)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var p parser
@@ -325,6 +323,7 @@ func ParseExprFromStats(fset *token.FileSet, filename string, src any, mode Mode
 	// parse expr
 	file := fset.AddFile(filename, -1, len(text))
 	p.init(file, text, mode)
+	p.callback = callback
 	expr = p.parseRhs()
 
 	// If a semicolon was inserted, consume it;
@@ -333,7 +332,6 @@ func ParseExprFromStats(fset *token.FileSet, filename string, src any, mode Mode
 		p.next()
 	}
 	p.expect(token.EOF)
-	s = &Stats{p.topNest, p.numTok}
 
 	return
 }
@@ -349,7 +347,7 @@ func ParseExpr(x string) (ast.Expr, error) {
 	return ParseExprFrom(token.NewFileSet(), "", []byte(x), 0)
 }
 
-// ParseExprStats is identical to ParseExpr except it also returns parsing statistics.
-func ParseExprStats(x string) (ast.Expr, *Stats, error) {
-	return ParseExprFromStats(token.NewFileSet(), "", []byte(x), 0)
+// ParseExpr2 is identical to ParseExpr except it takes an additional ParserCallback parameter.
+func ParseExpr2(x string, callback ParserCallback) (ast.Expr, error) {
+	return ParseExprFrom2(token.NewFileSet(), "", []byte(x), 0, callback)
 }

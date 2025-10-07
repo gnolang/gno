@@ -41,7 +41,6 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/gnovm/pkg/parser"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -70,12 +69,9 @@ func (m *Machine) ReadFile(path string) (*FileNode, error) {
 }
 
 func (m *Machine) ParseExpr(code string) (expr Expr, err error) {
-	x, stats, err := parser.ParseExprStats(code)
+	x, err := parser.ParseExpr2(code, newParserCallback(m))
 	if err != nil {
 		return nil, err
-	}
-	if m != nil && m.GasMeter != nil {
-		m.GasMeter.ConsumeGas(parseCost(stats), "parsing")
 	}
 
 	// recover from Go2Gno.
@@ -109,15 +105,11 @@ func (m *Machine) ParseStmts(code string) (stmts []Stmt, err error) {
 	// so wrap in a func body.
 	fset := token.NewFileSet()
 	code = fmt.Sprintf("func(){%s}\n", code)
-	x, stats, err := parser.ParseExprFromStats(fset, "<repl>", code, parser.SkipObjectResolution)
+	x, err := parser.ParseExprFrom2(fset, "<repl>", code, parser.SkipObjectResolution, newParserCallback(m))
 	if err != nil {
 		return nil, err
 	}
 	gostmts := x.(*ast.FuncLit).Body.List
-
-	if m != nil && m.GasMeter != nil {
-		m.GasMeter.ConsumeGas(parseCost(stats), "parsing")
-	}
 
 	// recover from Go2Gno.
 	// NOTE: Go2Gno is best implemented with panics due to inlined toXYZ() calls.
@@ -193,15 +185,13 @@ const (
 	nestingCostFactor = 1 // To be adjusted from benchmarks.
 )
 
-// parseCost computes and returns the cost of parsing from the parser stats.
-func parseCost(stats *parser.Stats) types.Gas {
-	// The parsing cost is a function of the number of tokens and the
-	// nesting level reached during the parsing, which reflect both the size
-	// and the complexity of the AST.
-	gas := overflow.Addp(
-		overflow.Mulp(stats.NumTok, tokenCostFactor),
-		overflow.Mulp(stats.TopNest, nestingCostFactor))
-	return types.Gas(gas)
+func newParserCallback(m *Machine) parser.ParserCallback {
+	if m == nil || m.GasMeter == nil {
+		return nil
+	}
+	return func(tok token.Token, nestLev int) {
+		m.GasMeter.ConsumeGas(types.Gas(tokenCostFactor+nestLev*nestingCostFactor), "parsing")
+	}
 }
 
 // ParseFile uses the Go parser to parse body. It then runs [Go2Gno] on the
@@ -213,16 +203,12 @@ func (m *Machine) ParseFile(fname string, body string) (fn *FileNode, err error)
 	// TODO(morgan): would be nice to add parser.SkipObjectResolution as we don't
 	// seem to be using its features, but this breaks when testing (specifically redeclaration tests).
 	const parseOpts = parser.ParseComments | parser.DeclarationErrors
-	astf, stats, err := parser.ParseFileStats(fs, fname, body, parseOpts)
+	astf, err := parser.ParseFile2(fs, fname, body, parseOpts, newParserCallback(m))
 	if err != nil {
 		return nil, err
 	}
 	// Print the imports from the file's AST.
 	// spew.Dump(f)
-
-	if m != nil && m.GasMeter != nil {
-		m.GasMeter.ConsumeGas(parseCost(stats), "parsing")
-	}
 
 	// NOTE: DO NOT Disable this when running with -debug or similar.
 	// Global environment variables are a vector for attack and should not

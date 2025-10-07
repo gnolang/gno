@@ -64,11 +64,8 @@ type parser struct {
 	// during parsing.
 	nestLev int
 
-	// Gno: topNest is the maximum nesting level reached during parsing.
-	topNest int
-
-	// Gno: numTok is the number of parsed tokens.
-	numTok int
+	// Gno: user callback called at each new token
+	callback func(tok token.Token, nestLev int)
 }
 
 func (p *parser) init(file *token.File, src []byte, mode Mode) {
@@ -113,17 +110,13 @@ func un(p *parser) {
 }
 
 // maxNestLev is the deepest we're willing to recurse during parsing
-// Gno: Changed from 1e5 to 1e4.
-const maxNestLev int = 1e4
+const maxNestLev int = 1e5
 
 func incNestLev(p *parser) *parser {
 	p.nestLev++
 	if p.nestLev > maxNestLev {
 		p.error(p.pos, "exceeded max nesting depth")
 		panic(bailout{})
-	}
-	if p.topNest < p.nestLev {
-		p.topNest = p.nestLev
 	}
 	return p
 }
@@ -154,7 +147,9 @@ func (p *parser) next0() {
 
 	for {
 		p.pos, p.tok, p.lit = p.scanner.Scan()
-		p.numTok++
+		if p.callback != nil {
+			p.callback(p.tok, p.nestLev)
+		}
 		if p.tok == token.COMMENT {
 			if p.top && strings.HasPrefix(p.lit, "//go:build") {
 				if x, err := constraint.Parse(p.lit); err == nil {

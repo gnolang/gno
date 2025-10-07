@@ -1,16 +1,14 @@
 --- ./interface.go
 +++ ./interface.go
-@@ -133,6 +133,65 @@
+@@ -133,6 +133,63 @@
  	return
  }
  
-+// Stats contains the statistics collected during parsing: number of tokens and maximum nesting level.
-+type Stats struct {
-+	TopNest, NumTok int
-+}
++// ParserCallback is called during parsing at each new token.
++type ParserCallback func(tok token.Token, nestedLevel int)
 +
-+// ParseFileStats is indentical to ParseFile execpt it also returns statistics on parsing.
-+func ParseFileStats(fset *token.FileSet, filename string, src any, mode Mode) (f *ast.File, s *Stats, err error) {
++// ParseFile2 is indentical to ParseFile except it takes an additional ParserCallback parameter.
++func ParseFile2(fset *token.FileSet, filename string, src any, mode Mode, callback ParserCallback) (f *ast.File, err error) {
 +	if fset == nil {
 +		panic("parser.ParseFile: no token.FileSet provided (fset == nil)")
 +	}
@@ -18,7 +16,7 @@
 +	// get source
 +	text, err := readSource(filename, src)
 +	if err != nil {
-+		return nil, nil, err
++		return nil, err
 +	}
 +
 +	file := fset.AddFile(filename, -1, len(text))
@@ -57,8 +55,8 @@
 +
 +	// parse source
 +	p.init(file, text, mode)
++	p.callback = callback
 +	f = p.parseFile()
-+	s = &Stats{p.topNest, p.numTok}
 +
 +	return
 +}
@@ -66,12 +64,12 @@
  // ParseDir calls [ParseFile] for all files with names ending in ".go" in the
  // directory specified by path and returns a map of package name -> package
  // AST with all the packages found.
-@@ -236,6 +295,49 @@
+@@ -236,6 +293,49 @@
  	return
  }
  
-+// ParseExprFromStats is identical to ParseExprFrom except it also returns parsing statistics.
-+func ParseExprFromStats(fset *token.FileSet, filename string, src any, mode Mode) (expr ast.Expr, s *Stats, err error) {
++// ParseExprFrom2 is identical to ParseExprFrom except it takes an additional ParserCallback parameter.
++func ParseExprFrom2(fset *token.FileSet, filename string, src any, mode Mode, callback ParserCallback) (expr ast.Expr, err error) {
 +	if fset == nil {
 +		panic("parser.ParseExprFrom: no token.FileSet provided (fset == nil)")
 +	}
@@ -79,7 +77,7 @@
 +	// get source
 +	text, err := readSource(filename, src)
 +	if err != nil {
-+		return nil, nil, err
++		return nil, err
 +	}
 +
 +	var p parser
@@ -100,6 +98,7 @@
 +	// parse expr
 +	file := fset.AddFile(filename, -1, len(text))
 +	p.init(file, text, mode)
++	p.callback = callback
 +	expr = p.parseRhs()
 +
 +	// If a semicolon was inserted, consume it;
@@ -108,7 +107,6 @@
 +		p.next()
 +	}
 +	p.expect(token.EOF)
-+	s = &Stats{p.topNest, p.numTok}
 +
 +	return
 +}
@@ -116,55 +114,34 @@
  // ParseExpr is a convenience function for obtaining the AST of an expression x.
  // The position information recorded in the AST is undefined. The filename used
  // in error messages is the empty string.
-@@ -246,3 +348,8 @@
+@@ -246,3 +346,8 @@
  func ParseExpr(x string) (ast.Expr, error) {
  	return ParseExprFrom(token.NewFileSet(), "", []byte(x), 0)
  }
 +
-+// ParseExprStats is identical to ParseExpr except it also returns parsing statistics.
-+func ParseExprStats(x string) (ast.Expr, *Stats, error) {
-+	return ParseExprFromStats(token.NewFileSet(), "", []byte(x), 0)
++// ParseExpr2 is identical to ParseExpr except it takes an additional ParserCallback parameter.
++func ParseExpr2(x string, callback ParserCallback) (ast.Expr, error) {
++	return ParseExprFrom2(token.NewFileSet(), "", []byte(x), 0, callback)
 +}
 --- ./parser.go
 +++ ./parser.go
-@@ -63,6 +63,12 @@
+@@ -63,6 +63,9 @@
  	// nestLev is used to track and limit the recursion depth
  	// during parsing.
  	nestLev int
 +
-+	// Gno: topNest is the maximum nesting level reached during parsing.
-+	topNest int
-+
-+	// Gno: numTok is the number of parsed tokens.
-+	numTok int
++	// Gno: user callback called at each new token
++	callback func(tok token.Token, nestLev int)
  }
  
  func (p *parser) init(file *token.File, src []byte, mode Mode) {
-@@ -107,7 +113,8 @@
- }
- 
- // maxNestLev is the deepest we're willing to recurse during parsing
--const maxNestLev int = 1e5
-+// Gno: Changed from 1e5 to 1e4.
-+const maxNestLev int = 1e4
- 
- func incNestLev(p *parser) *parser {
- 	p.nestLev++
-@@ -115,6 +122,9 @@
- 		p.error(p.pos, "exceeded max nesting depth")
- 		panic(bailout{})
- 	}
-+	if p.topNest < p.nestLev {
-+		p.topNest = p.nestLev
-+	}
- 	return p
- }
- 
-@@ -144,6 +154,7 @@
+@@ -144,6 +147,9 @@
  
  	for {
  		p.pos, p.tok, p.lit = p.scanner.Scan()
-+		p.numTok++
++		if p.callback != nil {
++			p.callback(p.tok, p.nestLev)
++		}
  		if p.tok == token.COMMENT {
  			if p.top && strings.HasPrefix(p.lit, "//go:build") {
  				if x, err := constraint.Parse(p.lit); err == nil {
