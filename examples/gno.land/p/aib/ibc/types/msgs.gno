@@ -1,6 +1,10 @@
 package types
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"errors"
+
 	"gno.land/p/aib/ibc/host"
 	"gno.land/p/nt/ufmt"
 )
@@ -57,6 +61,46 @@ type MsgAcknowledgement struct {
 	Acknowledgement Acknowledgement `json:"acknowledgement"`
 	ProofAcked      []byte          `json:"proof_acked,omitempty"`
 	ProofHeight     Height          `json:"proof_height"`
+}
+
+// ValidateBasic performs basic checks on a MsgAcknowledgement.
+func (msg *MsgAcknowledgement) ValidateBasic() error {
+	if len(msg.ProofAcked) == 0 {
+		return errors.New("cannot submit an empty acknowledgement proof")
+	}
+
+	if err := msg.Acknowledgement.Validate(); err != nil {
+		return err
+	}
+
+	return msg.Packet.ValidateBasic()
+}
+
+var ErrorAcknowledgement = sha256.Sum256([]byte("UNIVERSAL_ERROR_ACKNOWLEDGEMENT"))
+
+// Validate performs a basic validation of the acknowledgement
+func (ack Acknowledgement) Validate() error {
+	// acknowledgement list should be non-empty
+	if len(ack.AppAcknowledgements) == 0 {
+		return errors.New("app acknowledgements must be non-empty")
+	}
+
+	for _, a := range ack.AppAcknowledgements {
+		// Each app acknowledgement should be non-empty
+		if len(a) == 0 {
+			return errors.New("app acknowledgement cannot be empty")
+		}
+
+		// Ensure that the app acknowledgement contains ErrorAcknowledgement
+		// **if and only if** the app acknowledgement list has a single element
+		if len(ack.AppAcknowledgements) > 1 {
+			if bytes.Equal(a, ErrorAcknowledgement[:]) {
+				return errors.New("cannot have the error acknowledgement in multi acknowledgement list")
+			}
+		}
+	}
+
+	return nil
 }
 
 // MsgTimeout receives timed-out packet

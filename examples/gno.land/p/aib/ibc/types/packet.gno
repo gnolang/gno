@@ -8,8 +8,6 @@ import (
 	"gno.land/p/nt/ufmt"
 )
 
-// FIXME: does p/demo/json handles field annotations ?
-
 // PacketStatus specifies the status of a RecvPacketResult.
 type PacketStatus int32
 
