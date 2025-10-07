@@ -35,7 +35,6 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 
 		// Start with the current total voting power and allowed change threshold.
 		currentVotingPower := vp.TotalVotingPower()
-		maxVotingPowerChange := (currentVotingPower * 2) / 3
 
 		var totalVotingPowerAdded uint64
 
@@ -47,7 +46,6 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 					return errors.New("cannot remove non-existing validator: " + change.Address.String())
 				}
 				currentVotingPower -= existingVal.VotingPower
-				maxVotingPowerChange = (currentVotingPower * 2) / 3
 
 				removeValidator(change.Address)
 				continue
@@ -58,6 +56,7 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 			addValidator(change)
 		}
 
+		maxVotingPowerChange := (currentVotingPower * 2) / 3
 		// Prevent proposals that add too much voting power at once.
 		if maxVotingPowerChange > 1 && totalVotingPowerAdded >= maxVotingPowerChange {
 			return errors.New(errTooManyChanges)
