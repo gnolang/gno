@@ -33,33 +33,41 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 			return errors.New(errValsetUpdateCooldown)
 		}
 
-		// Start with the current total voting power and allowed change threshold.
+		// Get the current total voting power of the validator set.
 		currentVotingPower := vp.TotalVotingPower()
 
-		var totalVotingPowerAdded uint64
+		// Track total voting power removed and added in this proposal.
+		var totalVotingPowerRemoved, totalVotingPowerAdded uint64
 
+		// Iterate through each proposed validator change.
 		for _, change := range changesFn() {
 			if change.VotingPower == 0 {
-				// Remove validator: update voting power and threshold.
+				// If voting power is zero, this is a request to remove a validator.
 				existingVal, err := vp.GetValidator(change.Address)
 				if err != nil {
+					// Cannot remove a validator that does not exist.
 					return errors.New("cannot remove non-existing validator: " + change.Address.String())
 				}
-				currentVotingPower -= existingVal.VotingPower
+				// Accumulate the voting power being removed.
+				totalVotingPowerRemoved += existingVal.VotingPower
 
 				removeValidator(change.Address)
 				continue
 			}
 
-			// Add validator: accumulate added voting power.
+			// Otherwise, this is an addition or update.
+			// Accumulate the voting power being added.
 			totalVotingPowerAdded += change.VotingPower
 			addValidator(change)
 		}
 
-		maxVotingPowerChange := (currentVotingPower * 2) / 3
-		// Prevent proposals that add too much voting power at once.
-		if maxVotingPowerChange > 1 && totalVotingPowerAdded >= maxVotingPowerChange {
-			return errors.New(errTooManyChanges)
+		// Enforce the maximum allowed change threshold (2/3 of current voting power).
+		if currentVotingPower > 0 {
+			maxChanges := (currentVotingPower * 2) / 3
+			if totalVotingPowerAdded > maxChanges || totalVotingPowerRemoved > maxChanges {
+				// Reject the proposal if too much voting power is changed.
+				return errors.New(errTooManyChanges)
+			}
 		}
 
 		// Update the last valset update time
