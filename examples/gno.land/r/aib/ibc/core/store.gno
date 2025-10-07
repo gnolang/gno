@@ -52,6 +52,14 @@ type ibcApp struct {
 	address address
 }
 
+func (c *client) getPacketCommitment(sequence uint64) []byte {
+	v, found := c.packetCommitmentsBySeq.Get(seqid.ID(sequence).Binary())
+	if !found {
+		return nil
+	}
+	return v.([]byte)
+}
+
 // setPacketCommitment stores the packet commitment in the client data and in
 // the params.
 // CONTRACT: c.sendSeq has been incremented and contains the current sequence
@@ -69,6 +77,17 @@ func (c *client) setPacketCommitment(packet types.Packet) {
 	// TODO make host.PacketCommitmentKey returns string ?
 	// TODO find a way to assert this write in tests
 	params.SetBytes(string(key), commitment)
+}
+
+func (c *client) deletePacketCommitment(sequence uint64) {
+	c.packetCommitmentsBySeq.Remove(seqid.ID(sequence).Binary())
+
+	// remove from params, so it is provable by the counterparty
+	// The param key will be:
+	// "vm:gno.land/r/aib/ibc/core:" + clientID + "1" + sequence
+	key := host.PacketCommitmentKey(c.id, uint64(c.sendSeq))
+	// TODO find a way to assert this delete in tests
+	params.SetBytes(string(key), nil)
 }
 
 func (cs *Store) addClient(typ string, creator address) *client {
