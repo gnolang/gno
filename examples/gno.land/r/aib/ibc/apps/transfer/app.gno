@@ -1,6 +1,7 @@
 package transfer
 
 import (
+	"chain"
 	"chain/banker"
 	"chain/runtime"
 	"strings"
@@ -101,9 +102,14 @@ func (a *App) OnSendPacket(
 		return err
 	}
 
-	// TODO emit events
-	// events.EmitTransferEvent(ctx, data.Sender, data.Receiver, data.Token, data.Memo)
-
+	// Emit events
+	chain.Emit(EventTypeTransfer,
+		AttributeKeySender, data.Sender,
+		AttributeKeyReceiver, data.Receiver,
+		AttributeKeyDenom, token.Denom.Path(),
+		AttributeKeyAmount, token.Amount,
+		AttributeKeyMemo, data.Memo,
+	)
 	return nil
 }
 

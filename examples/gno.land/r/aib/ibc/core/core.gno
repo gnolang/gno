@@ -82,6 +82,8 @@ func SendPacket(cur realm, msg types.MsgSendPacket) (sequence uint64) {
 	)
 
 	// Build a banker limited to spend OriginSend.
+	// NOTE: ideally we should use banker.NewBanker(banker.BankerTypeOriginSend)
+	// but it is not authorized to create this kind of banker from a MsgRun.
 	banker := limitedbanker.New(
 		banker.NewBanker(banker.BankerTypeRealmSend),
 		banker.OriginSend(),
