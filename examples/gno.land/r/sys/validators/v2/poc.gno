@@ -33,26 +33,34 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 			return errors.New(errValsetUpdateCooldown)
 		}
 
-		// Get the proposed validator changes.
-		proposedChanges := changesFn()
+		// Start with the current total voting power and allowed change threshold.
+		currentVotingPower := vp.TotalVotingPower()
+		maxVotingPowerChange := (currentVotingPower * 2) / 3
 
-		// Calculate the maximum allowed changes (less than 2/3 of current validator set).
-		maxAllowedChanges := ((vp.LenValidators() * 2) / 3)
-		// If there are more than 1 validator, limit the number of changes.
-		if maxAllowedChanges > 0 && len(proposedChanges) >= maxAllowedChanges {
-			return errors.New(errTooManyChanges)
-		}
+		var totalVotingPowerAdded uint64
 
-		for _, change := range proposedChanges {
+		for _, change := range changesFn() {
 			if change.VotingPower == 0 {
-				// This change request is to remove the validator
-				removeValidator(change.Address)
+				// Remove validator: update voting power and threshold.
+				existingVal, err := vp.GetValidator(change.Address)
+				if err != nil {
+					return errors.New("cannot remove non-existing validator: " + change.Address.String())
+				}
+				currentVotingPower -= existingVal.VotingPower
+				maxVotingPowerChange = (currentVotingPower * 2) / 3
 
+				removeValidator(change.Address)
 				continue
 			}
 
-			// This change request is to add the validator
+			// Add validator: accumulate added voting power.
+			totalVotingPowerAdded += change.VotingPower
 			addValidator(change)
+		}
+
+		// Prevent proposals that add too much voting power at once.
+		if maxVotingPowerChange > 1 && totalVotingPowerAdded >= maxVotingPowerChange {
+			return errors.New(errTooManyChanges)
 		}
 
 		// Update the last valset update time

@@ -99,7 +99,7 @@ func TestValidatorProposals(t *testing.T) {
 					{
 						Address:     testutils.TestAddress("valoper2"),
 						PubKey:      "valoper2_pubkey",
-						VotingPower: 10,
+						VotingPower: 5,
 					},
 				}
 			}
@@ -134,7 +134,7 @@ func TestValidatorProposals(t *testing.T) {
 					{
 						Address:     testutils.TestAddress("valoper3"),
 						PubKey:      "valoper3_pubkey",
-						VotingPower: 10,
+						VotingPower: 5,
 					},
 				}
 			}
@@ -169,12 +169,12 @@ func TestValidatorProposals(t *testing.T) {
 					{
 						Address:     testutils.TestAddress("valoper4"),
 						PubKey:      "valoper4_pubkey",
-						VotingPower: 10,
+						VotingPower: 6,
 					},
 					{
-						Address:     testutils.TestAddress("valoper5"),
-						PubKey:      "valoper5_pubkey",
-						VotingPower: 10,
+						Address:     testutils.TestAddress("valoper3"),
+						PubKey:      "valoper3_pubkey",
+						VotingPower: 0,
 					},
 				}
 			}

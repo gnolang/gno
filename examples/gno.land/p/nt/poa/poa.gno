@@ -104,7 +104,13 @@ func (p *PoA) GetValidators() []validators.Validator {
 	return vals
 }
 
-// LenValidators returns the number of validators in the set
-func (p *PoA) LenValidators() int {
-	return p.validators.Size()
+// TotalVotingPower returns the total voting power of all validators in the set
+func (p *PoA) TotalVotingPower() uint64 {
+	var total uint64
+	p.validators.Iterate("", "", func(_ string, value any) bool {
+		validator := value.(validators.Validator)
+		total += validator.VotingPower
+		return false
+	})
+	return total
 }
