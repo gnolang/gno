@@ -7,6 +7,7 @@ import (
 
 	"gno.land/p/aib/ibc/lightclient/tendermint"
 	"gno.land/p/aib/ibc/types"
+	"gno.land/p/aib/ics23"
 )
 
 func NewClientState(chainID string, height types.Height) tendermint.ClientState {
@@ -17,7 +18,7 @@ func NewClientState(chainID string, height types.Height) tendermint.ClientState 
 		TrustingPeriod:  time.Hour,
 		MaxClockDrift:   time.Hour,
 		LatestHeight:    height,
-		ProofSpecs:      types.GetSDKProofSpecs(),
+		ProofSpecs:      ics23.GetSDKProofSpecs(),
 	}
 }
 

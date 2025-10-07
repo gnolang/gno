@@ -10,6 +10,7 @@ import (
 
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/types"
+	"gno.land/p/aib/ics23"
 	"gno.land/p/nt/ufmt"
 )
 
@@ -30,7 +31,7 @@ type ClientState struct {
 	// Latest height the client was updated to
 	LatestHeight types.Height `json:"latest_height"`
 	// Proof specifications used in verifying counterparty state
-	ProofSpecs []*types.ProofSpec `json:"proof_specs,omitempty"`
+	ProofSpecs []*ics23.ProofSpec `json:"proof_specs,omitempty"`
 
 	// Path at which next upgraded client will be committed.
 	// Each element corresponds to the key for a single CommitmentProof in the
@@ -44,7 +45,7 @@ type ClientState struct {
 
 func NewClientState(chainID string, trustLevel Fraction,
 	trustingPeriod, ubdPeriod, maxClockDrift time.Duration,
-	latestHeight types.Height, specs []*types.ProofSpec, upgradePath []string) *ClientState {
+	latestHeight types.Height, specs []*ics23.ProofSpec, upgradePath []string) *ClientState {
 	return &ClientState{
 		ChainID:         chainID,
 		TrustLevel:      trustLevel,
@@ -81,6 +82,9 @@ type ConsensusState struct {
 	// commitment root (i.e app hash)
 	Root               MerkleRoot `json:"root"`
 	NextValidatorsHash []byte     `json:"next_validator_hash,omitempty"`
+
+	processedTime   time.Time
+	processedHeight types.Height
 }
 
 type MerkleRoot struct {

@@ -1,6 +1,7 @@
 package tendermint
 
 import (
+	"chain/runtime"
 	"errors"
 	"time"
 
@@ -22,8 +23,15 @@ func (tm *TMLightClient) Initialize(clientState lightclient.ClientState, consens
 	cs := clientState.(ClientState)
 	tm.ClientState = &cs
 	consState := consensusState.(ConsensusState)
+	consState.processedTime = time.Now()
+	consState.processedHeight = getSelfHeight()
 	tm.ConsensusStateByHeight.Set(cs.LatestHeight.String(), &consState)
 	return nil
+}
+
+func getSelfHeight() types.Height {
+	revision := ParseChainID(runtime.ChainID())
+	return types.NewHeight(revision, uint64(runtime.ChainHeight()))
 }
 
 // Implements lightclient.Interface
@@ -68,6 +76,8 @@ func (tm *TMLightClient) UpdateState(clientMsg lightclient.ClientMessage) []type
 		Timestamp:          msg.Header.Time,
 		Root:               NewMerkleRoot(msg.Header.AppHash),
 		NextValidatorsHash: msg.Header.NextValidatorsHash,
+		processedTime:      time.Now(),
+		processedHeight:    getSelfHeight(),
 	}
 	tm.ConsensusStateByHeight.Set(msgHeight.String(), consState)
 	return []types.Height{msgHeight}
@@ -75,16 +85,39 @@ func (tm *TMLightClient) UpdateState(clientMsg lightclient.ClientMessage) []type
 
 // Implements lightclient.Interface
 func (tm *TMLightClient) VerifyMembership(height types.Height,
-	delayTimePeriod uint64, delayBlockPeriod uint64, proof []byte, path string,
-	value []byte) error {
+	delayTimePeriod uint64, delayBlockPeriod uint64, proof []byte,
+	path types.MerklePath, value []byte) error {
+	if tm.ClientState.LatestHeight.LT(height) {
+		return ufmt.Errorf(
+			"client state height < proof height (%d < %d), please ensure the client has been updated", tm.ClientState.LatestHeight, height,
+		)
+	}
+	cs, found := tm.GetConsensusState(height)
+	if !found {
+		return ufmt.Errorf("please ensure the proof was constructed against a height that exists on the client")
+	}
+
+	if err := tm.verifyDelayPeriodPassed(cs, delayTimePeriod, delayBlockPeriod); err != nil {
+		return err
+	}
+
 	// TODO
-	panic("not implemented")
+	/*
+		var merkleProof commitmenttypes.MerkleProof
+		if err := cdc.Unmarshal(proof, &merkleProof); err != nil {
+			return errorsmod.Wrap(commitmenttypes.ErrInvalidProof, "failed to unmarshal proof into ICS 23 commitment merkle proof")
+		}
+
+		return merkleProof.VerifyMembership(cs.ProofSpecs, consensusState.GetRoot(), merklePath, value)
+	*/
+	panic("TODO")
+
 }
 
 // Implements lightclient.Interface
 func (tm *TMLightClient) VerifyNonMembership(height types.Height,
 	delayTimePeriod uint64, delayBlockPeriod uint64, proof []byte,
-	path string) error {
+	path types.MerklePath) error {
 	// TODO
 	panic("not implemented")
 }

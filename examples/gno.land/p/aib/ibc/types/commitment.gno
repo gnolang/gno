@@ -33,6 +33,23 @@ func CommitPacket(packet Packet) []byte {
 	return hash[:]
 }
 
+// CommitAcknowledgement returns the V2 acknowledgement commitment bytes.
+// The commitment consists of:
+// sha256_hash(0x02 + sha256_hash(ack1) + sha256_hash(ack2) + ...) from a given
+// acknowledgement.
+func CommitAcknowledgement(acknowledgement Acknowledgement) []byte {
+	var buf []byte
+	for _, ack := range acknowledgement.AppAcknowledgements {
+		hash := sha256.Sum256(ack)
+		buf = append(buf, hash[:]...)
+	}
+
+	buf = append([]byte{byte(2)}, buf...)
+
+	hash := sha256.Sum256(buf)
+	return hash[:]
+}
+
 // hashPayload returns the hash of the payload.
 func hashPayload(data Payload) []byte {
 	var buf []byte

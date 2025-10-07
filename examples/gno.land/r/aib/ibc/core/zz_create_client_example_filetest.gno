@@ -6,6 +6,7 @@ import (
 
 	"gno.land/p/aib/ibc/lightclient/tendermint"
 	"gno.land/p/aib/ibc/types"
+	"gno.land/p/aib/ics23"
 	"gno.land/r/aib/ibc/core"
 )
 
@@ -24,7 +25,7 @@ func main() {
 			TrustingPeriod:  time.Hour,     // TODO update
 			MaxClockDrift:   time.Hour,     // TODO update
 			LatestHeight:    latestHeight,
-			ProofSpecs:      types.GetSDKProofSpecs(),
+			ProofSpecs:      ics23.GetSDKProofSpecs(),
 		}
 		apphash        = sha256.Sum256([]byte("apphash"))    // TODO update
 		valhash        = sha256.Sum256([]byte("validators")) // TODO update
