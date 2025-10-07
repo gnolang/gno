@@ -136,6 +136,7 @@ var (
 	_ Object = &FuncValue{}
 	_ Object = &BoundMethodValue{}
 	_ Object = &MapValue{}
+	_ Object = &PackageValue{}
 	_ Object = &Block{}
 	_ Object = &HeapItemValue{}
 )
