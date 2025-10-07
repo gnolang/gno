@@ -128,7 +128,7 @@ func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn, 
 					Value:    sessionID,
 					MaxAge:   ttlSeconds,
 					HttpOnly: true,
-					Secure:   false,
+					Secure:   true,
 					SameSite: http.SameSiteNoneMode,
 				}
 
