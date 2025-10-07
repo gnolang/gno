@@ -18,7 +18,7 @@
 package params
 
 import (
-	"std"
+	"chain"
 	prms "sys/params"
 
 	"gno.land/r/gov/dao"
@@ -101,7 +101,7 @@ func NewSysParamStringsPropRequestRemoveWithTitle(module, submodule, name, title
 func newPropRequest(key string, fn func(), title string) dao.ProposalRequest {
 	callback := func(cur realm) error {
 		fn()
-		std.Emit("set", "key", key) // TODO document, make const, make consistent. 'k'??
+		chain.Emit("set", "key", key) // TODO document, make const, make consistent. 'k'??
 		return nil
 	}
 

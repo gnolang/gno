@@ -14,7 +14,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
+	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bftCfg "github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -574,7 +574,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](mockEventSwitch, noFilter)
 
 		// Fire a GnoVM event
-		mockEventSwitch.FireEvent(gnostd.GnoEvent{})
+		mockEventSwitch.FireEvent(chain.Event{})
 
 		// Create the EndBlocker
 		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
@@ -621,7 +621,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](mockEventSwitch, noFilter)
 
 		// Fire a GnoVM event
-		mockEventSwitch.FireEvent(gnostd.GnoEvent{})
+		mockEventSwitch.FireEvent(chain.Event{})
 
 		// Create the EndBlocker
 		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
@@ -664,7 +664,7 @@ func TestEndBlocker(t *testing.T) {
 		// Construct the GnoVM events
 		vmEvents := make([]abci.Event, 0, len(changes))
 		for index := range changes {
-			event := gnostd.GnoEvent{
+			event := chain.Event{
 				Type:    validatorAddedEvent,
 				PkgPath: valRealm,
 			}
@@ -673,7 +673,7 @@ func TestEndBlocker(t *testing.T) {
 			if index%2 == 0 {
 				changes[index].Power = 0
 
-				event = gnostd.GnoEvent{
+				event = chain.Event{
 					Type:    validatorRemovedEvent,
 					PkgPath: valRealm,
 				}
@@ -747,11 +747,11 @@ func TestEndBlocker(t *testing.T) {
 			}
 
 			vmEvents = []abci.Event{
-				gnostd.GnoEvent{
+				chain.Event{
 					Type:    validatorAddedEvent,
 					PkgPath: valRealm,
 				},
-				gnostd.GnoEvent{
+				chain.Event{
 					Type:    validatorAddedEvent,
 					PkgPath: valRealm,
 				},
@@ -813,11 +813,11 @@ func TestEndBlocker(t *testing.T) {
 			}
 
 			vmEvents = []abci.Event{
-				gnostd.GnoEvent{
+				chain.Event{
 					Type:    validatorAddedEvent,
 					PkgPath: valRealm,
 				},
-				gnostd.GnoEvent{
+				chain.Event{
 					Type:    validatorAddedEvent,
 					PkgPath: valRealm,
 				},
@@ -859,7 +859,8 @@ func TestEndBlocker(t *testing.T) {
 					Address: key1.PubKey().Address(),
 					PubKey:  key1.PubKey(),
 					Power:   1,
-				}}
+				},
+			}
 
 			mockEventSwitch = newCommonEvSwitch()
 
@@ -876,7 +877,7 @@ func TestEndBlocker(t *testing.T) {
 					Response: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
 							Events: []abci.Event{
-								gnostd.GnoEvent{
+								chain.Event{
 									Type:    validatorAddedEvent,
 									PkgPath: valRealm,
 								},
