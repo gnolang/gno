@@ -35,7 +35,10 @@ const claimRPCMethod = "claim"
 // getClaimRPCMethod is a method that returns the amount that the user will be able to claim
 const getClaimRPCMethod = "checkClaim"
 
-var allowedMethods = []string{faucet.DefaultDripMethod, claimRPCMethod, getClaimRPCMethod}
+// getDropRPCMethod is a method that returns the amount that the user will be able to retrieve when identifying with GitHub
+const getDropRPCMethod = "checkDrop"
+
+var allowedMethods = []string{faucet.DefaultDripMethod, claimRPCMethod, getClaimRPCMethod, getDropRPCMethod}
 
 func getMiddlewares(rr igh.Rewarder, cooldownLimiter cooldownLimiter) []faucet.Middleware {
 	return []faucet.Middleware{
@@ -43,6 +46,7 @@ func getMiddlewares(rr igh.Rewarder, cooldownLimiter cooldownLimiter) []faucet.M
 		gitHubClaimRewardsMiddleware(rr),
 		gitHubClaimMiddleware(cooldownLimiter),
 		gitHubCheckRewardsMiddleware(rr),
+		gitHubCheckDropMiddleware(cooldownLimiter),
 	}
 }
 
@@ -124,7 +128,7 @@ func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn, 
 					Value:    sessionID,
 					MaxAge:   ttlSeconds,
 					HttpOnly: true,
-					Secure:   true,
+					Secure:   false,
 					SameSite: http.SameSiteLaxMode,
 				}
 
@@ -163,6 +167,38 @@ func invalidMethodMiddleware() faucet.Middleware {
 			}
 
 			return next(ctx, req)
+		}
+	}
+}
+
+func gitHubCheckDropMiddleware(coolDownLimiter cooldownLimiter) faucet.Middleware {
+	return func(next faucet.HandlerFunc) faucet.HandlerFunc {
+		return func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
+			if req.Method != getDropRPCMethod {
+				return next(ctx, req)
+			}
+
+			// Grab the username from the context
+			username, ok := ctx.Value(ghUsernameKey).(string)
+			if !ok {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError("invalid username value", spec.InvalidRequestErrorCode),
+				)
+			}
+
+			// Just check if given account have asked for faucet before the cooldown period
+			allowedToClaim, err := coolDownLimiter.checkCooldown(ctx, username, 0)
+			if err != nil {
+				return spec.NewJSONResponse(
+					req.ID,
+					nil,
+					spec.NewJSONError("unable to check cooldown", spec.ServerErrorCode),
+				)
+			}
+
+			return spec.NewJSONResponse(req.ID, allowedToClaim, nil)
 		}
 	}
 }

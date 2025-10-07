@@ -390,3 +390,127 @@ func chainMiddlewares(mw ...faucet.Middleware) faucet.Middleware {
 		return h
 	}
 }
+
+func TestGitHubCheckDropMiddleware(t *testing.T) {
+	t.Parallel()
+
+	testTable := []struct {
+		name            string
+		ctx             context.Context
+		limiter         cooldownLimiter
+		req             *spec.BaseJSONRequest
+		useFullChain    bool
+		nextShouldRun   bool
+		expectedError   string
+		expectedErrCode int
+		expectedResult  any
+	}{
+		{
+			name: "bypass on non-checkDrop method",
+			ctx:  context.WithValue(context.Background(), ghUsernameKey, "carol"),
+			limiter: &mockCooldownLimiter{
+				checkCooldownFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+					return true, nil
+				},
+			},
+			req:           spec.NewJSONRequest(1, faucet.DefaultDripMethod, []any{"addr", "1000ugnot"}),
+			useFullChain:  true, // ensure it's compatible with the full chain
+			nextShouldRun: true,
+		},
+		{
+			name: "no username in ctx",
+			ctx:  context.Background(),
+			limiter: &mockCooldownLimiter{
+				checkCooldownFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+					return false, nil
+				},
+			},
+			req:             spec.NewJSONRequest(2, getDropRPCMethod, nil),
+			nextShouldRun:   false,
+			expectedError:   "invalid username value",
+			expectedErrCode: spec.InvalidRequestErrorCode,
+		},
+		{
+			name: "cooldown check error",
+			ctx:  context.WithValue(context.Background(), ghUsernameKey, "dave"),
+			limiter: &mockCooldownLimiter{
+				checkCooldownFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+					return false, errors.New("boom")
+				},
+			},
+			req:             spec.NewJSONRequest(3, getDropRPCMethod, nil),
+			nextShouldRun:   false,
+			expectedError:   "unable to check cooldown",
+			expectedErrCode: spec.ServerErrorCode,
+		},
+		{
+			name: "cooldown false",
+			ctx:  context.WithValue(context.Background(), ghUsernameKey, "erin"),
+			limiter: &mockCooldownLimiter{
+				checkCooldownFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+					return false, nil
+				},
+			},
+			req:            spec.NewJSONRequest(4, getDropRPCMethod, nil),
+			nextShouldRun:  false,
+			expectedResult: false,
+		},
+		{
+			name: "cooldown true",
+			ctx:  context.WithValue(context.Background(), ghUsernameKey, "frank"),
+			limiter: &mockCooldownLimiter{
+				checkCooldownFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+					return true, nil
+				},
+			},
+			req:            spec.NewJSONRequest(5, getDropRPCMethod, nil),
+			nextShouldRun:  false,
+			expectedResult: true,
+		},
+	}
+
+	for _, tc := range testTable {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var (
+				called bool
+				next   = func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
+					called = true
+					return spec.NewJSONResponse(req.ID, "ok", nil)
+				}
+				handler faucet.HandlerFunc
+			)
+
+			if tc.useFullChain {
+				// Use the full chain as other tests do
+				mw := chainMiddlewares(getMiddlewares(&mockRewarder{}, tc.limiter)...)
+				handler = mw(next)
+			} else {
+				// Isolate gitHubCheckDropMiddleware to bypass invalidMethodMiddleware,
+				// since getDropRPCMethod is not in allowedMethods.
+				mw := gitHubCheckDropMiddleware(tc.limiter)
+				handler = mw(next)
+			}
+
+			resp := handler(tc.ctx, tc.req)
+
+			assert.Equal(t, tc.nextShouldRun, called)
+
+			if tc.expectedError != "" {
+				assert.NotNil(t, resp.Error)
+				assert.Contains(t, resp.Error.Message, tc.expectedError)
+				assert.Equal(t, tc.expectedErrCode, resp.Error.Code)
+				return
+			}
+
+			assert.Nil(t, resp.Error)
+			if tc.expectedResult != nil {
+				assert.Equal(t, tc.expectedResult, resp.Result)
+			}
+			if tc.nextShouldRun {
+				assert.Equal(t, "ok", resp.Result.(string))
+			}
+		})
+	}
+}
