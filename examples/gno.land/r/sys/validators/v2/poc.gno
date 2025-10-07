@@ -28,18 +28,22 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 	}
 
 	callback := func(cur realm) error {
-		// Ensure the valset update cooldown period has elapsed
+		// Enforce cooldown: proposals can only update the validator set after the cooldown period.
 		if time.Since(lastValsetUpdate) < valsetUpdateCooldown {
 			return errors.New(errValsetUpdateCooldown)
 		}
 
-		changes := changesFn()
+		// Get the proposed validator changes.
+		proposedChanges := changesFn()
 
-		if len(changes) >= ((vp.LenValidators() * 2) / 3) {
+		// Calculate the maximum allowed changes (less than 2/3 of current validator set).
+		maxAllowedChanges := ((vp.LenValidators() * 2) / 3)
+		// If there are more than 1 validator, limit the number of changes.
+		if maxAllowedChanges > 0 && len(proposedChanges) >= maxAllowedChanges {
 			return errors.New(errTooManyChanges)
 		}
 
-		for _, change := range changes {
+		for _, change := range proposedChanges {
 			if change.VotingPower == 0 {
 				// This change request is to remove the validator
 				removeValidator(change.Address)
