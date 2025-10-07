@@ -476,6 +476,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if gm.HasReplaces() {
 		return ErrInvalidPackage("development packages are not allowed")
 	}
+	if gm.Private && !gno.IsRealmPath(pkgPath) {
+		return ErrInvalidPackage("private packages must be realm packages")
+	}
 	if gm.Draft && ctx.BlockHeight() > 0 {
 		return ErrInvalidPackage("draft packages can only be deployed at genesis time")
 	}
@@ -770,6 +773,13 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 	buf := new(bytes.Buffer)
 	output := io.Writer(buf)
+
+	// XXX: see reason of private for run msg here: https://github.com/gnolang/gno/pull/4594
+	gm := new(gnomod.File)
+	gm.Module = memPkg.Path
+	gm.Gno = gno.GnoVerLatest
+	gm.Private = true
+	memPkg.SetFile("gnomod.toml", gm.WriteString())
 
 	alloc := gnostore.GetAllocator()
 	// Run as self-executing closure to have own function for doRecover / m.Release defers.
