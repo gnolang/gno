@@ -303,10 +303,10 @@ A lightweight API that returns transaction statistics as JSON.
 
 #### Bonus: Storing data permanently with database
 
-Our dashboard only works with data in memory - nothing is persisted. To store transactions permanently, you can use a database like SQLite.
+Our dashboard currently only works with data in memory - nothing is persisted. To store transactions permanently, you can use a database like SQLite.
 
-We won't implement it in this example because it is little related to the indexer itself, but it is necessary afterward for a full implementation.
-To see an example, you can visit [Gnoverse's repository]().
+We won't implement database persistence in this tutorial since it's unrelated to using the indexer itself, but it's an essential component for production deployments.
+To see a complete implementation example, visit [Gnoverse's repository]().
 
 ### Resources for Continued Learning
 
