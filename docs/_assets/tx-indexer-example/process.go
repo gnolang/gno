@@ -1,118 +1,107 @@
-package txindexerexample
+package main
 
 import (
 	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // Simplified transaction data structure
 // This struct represents a cleaned-up version of the raw GraphQL data
 type Transaction struct {
-	Hash        string  // Transaction ID - unique identifier for each transaction
-	BlockHeight float64 // Block number - tells us when this transaction happened
-	Amount      float64 // Amount in ugnot (1 GNOT = 1,000,000 ugnot)
-	From        string  // Sender address - who initiated the transaction
-	To          string  // Receiver address - who received the funds
+	Hash        string
+	BlockHeight float64
+	Amount      float64 // in ugnot
+	From        string
+	To          string
+}
+
+// GraphQL response typed model (only required fields)
+type gqlResponse struct {
+	Data struct {
+		GetTransactions []struct {
+			Hash        string  `json:"hash"`
+			BlockHeight float64 `json:"block_height"`
+			Messages    []struct {
+				Value struct {
+					FromAddress string `json:"from_address"`
+					ToAddress   string `json:"to_address"`
+					Amount      string `json:"amount"` // e.g. 15000000ugnot
+				} `json:"value"`
+			} `json:"messages"`
+		} `json:"getTransactions"`
+	} `json:"data"`
 }
 
 // Step 1 - Parse JSON from GraphQL into our Transaction structs
 // This function takes raw JSON from the indexer and converts it to Go structs
-func parseTransactions(jsonData []byte) []Transaction {
-	var data map[string]interface{}
-	json.Unmarshal(jsonData, &data)
-
-	// Navigate through the JSON structure
-	// GraphQL returns: {"data": { "getTransactions": [...]}}
-	// We need to drill down to get the actual transaction array
-	txs := data["data"].(map[string]interface{})["getTransactions"]
-	var transactions []Transaction
-
-	// Handle both single transaction and array of transactions
-	// The indexer might return either format depending on the query
-	var txList []interface{}
-	switch v := txs.(type) {
-	case []interface{}:
-		// Multiple transactions - this is the typical case
-		txList = v
-	case map[string]interface{}:
-		// Single transaction - wrap it in an array for consistent processing
-		txList = []interface{}{v}
-	default:
-		// Unexpected format - return empty slice to avoid crashes
-		return transactions
+func parseTransactions(jsonData []byte) ([]Transaction, error) {
+	var resp gqlResponse
+	if err := json.Unmarshal(jsonData, &resp); err != nil {
+		return nil, fmt.Errorf("decode graphql response: %w", err)
 	}
-
-	// Process each transaction in the response
-	for _, tx := range txList {
-		txMap := tx.(map[string]interface{})
-
-		// Extract basic transaction info
-		hash := txMap["hash"].(string)
-		blockHeight := txMap["block_height"].(float64)
-
-		// Navigate to the message data (transaction details)
-		// Each transaction has "messages" array containing the actual operations
-		msg := txMap["messages"].([]interface{})[0]
-		msgMap := msg.(map[string]interface{})["value"].(map[string]interface{})
-
-		// Extract the send transaction details
-		amount := msgMap["amount"].(string)
-		from := msgMap["from_address"].(string)
-		to := msgMap["to_address"].(string)
-
-		// Convert amount from string to number
-		// Remove "ugnot" suffix and parse as float
-		amountStr := amount[:len(amount)-5] // Remove last 5 chars ("ugnot")
-		amountInt, _ := strconv.ParseFloat(amountStr, 64)
-
-		// Create our clean Transaction struct
-		transactions = append(transactions, Transaction{
-			Hash:        hash,
-			Amount:      amountInt,
-			From:        from,
-			To:          to,
-			BlockHeight: blockHeight,
+	if len(resp.Data.GetTransactions) == 0 {
+		return nil, nil
+	}
+	out := make([]Transaction, 0, len(resp.Data.GetTransactions))
+	for _, tx := range resp.Data.GetTransactions {
+		if len(tx.Messages) == 0 {
+			continue
+		}
+		msg := tx.Messages[0].Value
+		amtStr := strings.TrimSuffix(msg.Amount, "ugnot")
+		amt, _ := strconv.ParseFloat(amtStr, 64) // ignore parse error -> 0
+		out = append(out, Transaction{
+			Hash:        tx.Hash,
+			BlockHeight: tx.BlockHeight,
+			Amount:      amt,
+			From:        msg.FromAddress,
+			To:          msg.ToAddress,
 		})
 	}
-	return transactions
+	return out, nil
 }
 
 // Step 2 - Sort transactions by amount (biggest first)
 // This helps us identify the largest transfers on the network
-func sortTransactions(transactions []Transaction) []Transaction {
-	sort.Slice(transactions, func(i, j int) bool {
-		return transactions[i].Amount > transactions[j].Amount
-	})
-	return transactions
+func sortTransactions(txs []Transaction) []Transaction {
+	sort.Slice(txs, func(i, j int) bool { return txs[i].Amount > txs[j].Amount })
+	return txs
 }
 
 // Step 3 - Show the transactions in a nice format
 // Convert raw data into human-readable output
-func displayTransactions(transactions []Transaction) {
+func displayTransactions(txs []Transaction) {
 	fmt.Println("Top GNOT Transactions:")
-
-	for i, tx := range transactions {
+	for i, tx := range txs {
 		if i >= 5 {
 			break
 		} // Limit to top 5
 
 		gnotAmount := tx.Amount
-		fmt.Printf("%d. %.2f uGNOT from %s to %s\n",
-			i+1, gnotAmount, tx.From, tx.To)
+		fmt.Printf("%d. %.2f uGNOT from %s to %s (block %.0f)\n",
+			i+1, gnotAmount, tx.From, tx.To, tx.BlockHeight)
 	}
 }
 
-func main() {
+func RunProcessExample() {
 	// This would be your actual JSON from the GraphQL query
 	// In a real app, you'd get this from an HTTP request to the indexer
-	jsonData := `{ "data": { "getTransactions": [...] } }`
+	jsonData := []byte(`{ "data": { "getTransactions": [] } }`)
 
-	// Process the data in 3 simple steps:
-	transactions := parseTransactions([]byte(jsonData)) // 1. Parse JSON into structs
-	sorted := sortTransactions(transactions)            // 2. Sort by amount (largest first)
-	displayTransactions(sorted)                         // 3. Display results nicely
+	// Process the data in 3 steps:
+	transactions, err := parseTransactions(jsonData)
+	if err != nil || len(transactions) == 0 {
+		return
+	}
+	if len(transactions) == 0 {
+		fmt.Println("no transactions decoded")
+		return
+	}
+	sorted := sortTransactions(transactions) // 2. Sort by amount (largest first)
+	displayTransactions(sorted)              // 3. Display results nicely
 
 	// At this point, you have clean, sorted transaction data ready for:
 	// - Saving to a database
