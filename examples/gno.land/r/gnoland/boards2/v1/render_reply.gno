@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"gno.land/p/gnoland/boards"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/mux"
@@ -11,7 +12,7 @@ import (
 
 func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
-	board, found := getBoardByName(name)
+	board, found := gBoards.GetByName(name)
 	if !found {
 		res.Write("Board does not exist: " + name)
 		return
@@ -31,13 +32,13 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	thread, found := board.GetThread(PostID(tID))
+	thread, found := board.Threads.Get(boards.ID(tID))
 	if !found {
 		res.Write("Thread does not exist with ID: " + req.GetVar("thread"))
 		return
 	}
 
-	reply, found := thread.GetReply(PostID(rID))
+	reply, found := thread.Replies.Get(boards.ID(rID))
 	if !found {
 		res.Write("Reply does not exist with ID: " + rawID)
 		return
@@ -49,8 +50,8 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(renderPostInner(reply))
 }
 
-func renderTopLevelReplies(post *Post, path, indent string, levels int) string {
-	p, err := pager.New(path, post.replies.Size(), pager.WithPageSize(pageSizeReplies))
+func renderTopLevelReplies(post *boards.Post, path, indent string, levels int) string {
+	p, err := pager.New(path, post.Replies.Size(), pager.WithPageSize(pageSizeReplies))
 	if err != nil {
 		panic(err)
 	}
@@ -60,24 +61,30 @@ func renderTopLevelReplies(post *Post, path, indent string, levels int) string {
 		commentsIndent = indent + "> "
 	)
 
-	render := func(_ string, v any) bool {
-		reply := v.(*Post)
+	render := func(reply *boards.Post) bool {
 		b.WriteString(indent + "\n" + renderPost(reply, "", commentsIndent, levels-1))
 		return false
 	}
 
 	b.WriteString("\n" + md.HorizontalRule() + "Sort by: ")
+
 	r := parseRealmPath(path)
-	if r.Query.Get("order") == "desc" {
+	sortOrder := r.Query.Get("order")
+	if sortOrder == "desc" {
 		r.Query.Set("order", "asc")
 		b.WriteString(md.Link("newest first", r.String()) + "\n")
-		post.replies.ReverseIterateByOffset(p.Offset(), p.PageSize(), render)
 
 	} else {
 		r.Query.Set("order", "desc")
 		b.WriteString(md.Link("oldest first", r.String()) + "\n")
-		post.replies.IterateByOffset(p.Offset(), p.PageSize(), render)
 	}
+
+	count := p.PageSize()
+	if sortOrder == "desc" {
+		count = -count // Reverse iterate
+	}
+
+	post.Replies.Iterate(p.Offset(), count, render)
 
 	if p.HasPages() {
 		b.WriteString(md.HorizontalRule())
@@ -86,14 +93,13 @@ func renderTopLevelReplies(post *Post, path, indent string, levels int) string {
 	return b.String()
 }
 
-func renderSubReplies(post *Post, indent string, levels int) string {
+func renderSubReplies(post *boards.Post, indent string, levels int) string {
 	var (
 		b              strings.Builder
 		commentsIndent = indent + "> "
 	)
 
-	post.replies.Iterate("", "", func(_ string, v any) bool {
-		reply := v.(*Post)
+	post.Replies.Iterate(0, post.Replies.Size(), func(reply *boards.Post) bool {
 		b.WriteString(indent + "\n" + renderPost(reply, "", commentsIndent, levels-1))
 		return false
 	})

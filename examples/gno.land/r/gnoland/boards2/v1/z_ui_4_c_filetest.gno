@@ -4,6 +4,8 @@ package main
 import (
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
@@ -14,8 +16,8 @@ const (
 )
 
 var (
-	threadID       boards2.PostID
-	repostThreadID boards2.PostID
+	threadID       boards.ID
+	repostThreadID boards.ID
 )
 
 func init() {

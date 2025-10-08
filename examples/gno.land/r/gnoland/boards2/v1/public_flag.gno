@@ -4,12 +4,14 @@ import (
 	"chain"
 	"chain/runtime"
 	"strconv"
+
+	"gno.land/p/gnoland/boards"
 )
 
 // SetFlaggingThreshold sets the number of flags required to hide a thread or comment.
 //
 // Threshold is only applicable within the board where it's setted.
-func SetFlaggingThreshold(_ realm, boardID BoardID, threshold int) {
+func SetFlaggingThreshold(_ realm, boardID boards.ID, threshold int) {
 	if threshold < 1 {
 		panic("invalid flagging threshold")
 	}
@@ -20,8 +22,8 @@ func SetFlaggingThreshold(_ realm, boardID BoardID, threshold int) {
 	assertBoardIsNotFrozen(board)
 
 	caller := runtime.PreviousRealm().Address()
-	args := Args{boardID, threshold}
-	board.perms.WithPermission(cross, caller, PermissionBoardFlaggingUpdate, args, func(realm) {
+	args := boards.Args{boardID, threshold}
+	board.Permissions.WithPermission(cross, caller, PermissionBoardFlaggingUpdate, args, func(realm) {
 		assertRealmIsNotLocked()
 
 		board := mustGetBoard(boardID)
@@ -31,14 +33,14 @@ func SetFlaggingThreshold(_ realm, boardID BoardID, threshold int) {
 		chain.Emit(
 			"FlaggingThresholdUpdated",
 			"caller", caller.String(),
-			"boardID", boardID.String(),
+			"boardID", board.ID.String(),
 			"threshold", strconv.Itoa(threshold),
 		)
 	})
 }
 
 // GetFlaggingThreshold returns the number of flags required to hide a thread or comment within a board.
-func GetFlaggingThreshold(boardID BoardID) int {
+func GetFlaggingThreshold(boardID boards.ID) int {
 	assertBoardExists(boardID)
 	return getFlaggingThreshold(boardID)
 }
@@ -47,7 +49,7 @@ func GetFlaggingThreshold(boardID BoardID) int {
 //
 // Flagging requires special permissions and hides the thread when
 // the number of flags reaches a pre-defined flagging threshold.
-func FlagThread(_ realm, boardID BoardID, threadID PostID, reason string) {
+func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
 	board := mustGetBoard(boardID)
 
 	// Realm owners should be able to flag without permissions even when board is frozen
@@ -56,26 +58,27 @@ func FlagThread(_ realm, boardID BoardID, threadID PostID, reason string) {
 	if !isRealmOwner {
 		assertRealmIsNotLocked()
 		assertBoardIsNotFrozen(board)
-		assertHasPermission(board.perms, caller, PermissionThreadFlag)
+		assertHasPermission(board.Permissions, caller, PermissionThreadFlag)
 	}
 
-	t, ok := board.GetThread(threadID)
-	if !ok {
-		panic("post doesn't exist")
+	thread, found := board.Threads.Get(threadID)
+	if !found {
+		panic("thread not found")
 	}
-	assertThreadIsNotFrozen(t)
+
+	assertThreadIsNotFrozen(thread)
 
 	// Realm owners can hide with a single flag
-	hide := flagItem(t, caller, reason, getFlaggingThreshold(boardID))
+	hide := flagItem(thread, caller, reason, getFlaggingThreshold(boardID))
 	if hide || isRealmOwner {
-		t.Hidden = true
+		thread.Hidden = true
 	}
 
 	chain.Emit(
 		"ThreadFlagged",
 		"caller", caller.String(),
-		"boardID", boardID.String(),
-		"threadID", threadID.String(),
+		"boardID", board.ID.String(),
+		"threadID", thread.ID.String(),
 		"reason", reason,
 	)
 }
@@ -84,7 +87,7 @@ func FlagThread(_ realm, boardID BoardID, threadID PostID, reason string) {
 //
 // Flagging requires special permissions and hides the comment or reply
 // when the number of flags reaches a pre-defined flagging threshold.
-func FlagReply(_ realm, boardID BoardID, threadID, replyID PostID, reason string) {
+func FlagReply(_ realm, boardID, threadID, replyID boards.ID, reason string) {
 	board := mustGetBoard(boardID)
 
 	// Realm owners should be able to flag without permissions even when board is frozen
@@ -93,7 +96,7 @@ func FlagReply(_ realm, boardID BoardID, threadID, replyID PostID, reason string
 	if !isRealmOwner {
 		assertRealmIsNotLocked()
 		assertBoardIsNotFrozen(board)
-		assertHasPermission(board.perms, caller, PermissionReplyFlag)
+		assertHasPermission(board.Permissions, caller, PermissionReplyFlag)
 	}
 
 	thread := mustGetThread(board, threadID)
@@ -111,9 +114,9 @@ func FlagReply(_ realm, boardID BoardID, threadID, replyID PostID, reason string
 	chain.Emit(
 		"ReplyFlagged",
 		"caller", caller.String(),
-		"boardID", boardID.String(),
-		"threadID", threadID.String(),
-		"replyID", replyID.String(),
+		"boardID", board.ID.String(),
+		"threadID", thread.ID.String(),
+		"replyID", reply.ID.String(),
 		"reason", reason,
 	)
 }

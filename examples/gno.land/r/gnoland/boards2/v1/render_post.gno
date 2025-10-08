@@ -4,17 +4,18 @@ import (
 	"strconv"
 	"strings"
 
+	"gno.land/p/gnoland/boards"
 	"gno.land/p/moul/md"
 )
 
-func renderPost(post *Post, path, indent string, levels int) string {
+func renderPost(post *boards.Post, path, indent string, levels int) string {
 	var b strings.Builder
 
 	// Thread reposts might not have a title, if so get title from source thread
 	title := post.Title
-	if post.IsRepost() && title == "" {
-		if board, ok := getBoard(post.RepostBoardID); ok {
-			if src, ok := board.GetThread(post.ParentID); ok {
+	if boards.IsRepost(post) && title == "" {
+		if board, ok := gBoards.Get(post.OriginalBoardID); ok {
+			if src, ok := board.Threads.Get(post.ParentID); ok {
 				title = src.Title
 			}
 		}
@@ -27,7 +28,7 @@ func renderPost(post *Post, path, indent string, levels int) string {
 	b.WriteString(indent + "\n")
 	b.WriteString(renderPostContent(post, indent, levels))
 
-	if post.replies.Size() == 0 {
+	if post.Replies.Size() == 0 {
 		return b.String()
 	}
 
@@ -45,7 +46,7 @@ func renderPost(post *Post, path, indent string, levels int) string {
 	return b.String()
 }
 
-func renderPostContent(post *Post, indent string, levels int) string {
+func renderPostContent(post *boards.Post, indent string, levels int) string {
 	var b strings.Builder
 
 	if post.Hidden {
@@ -55,14 +56,14 @@ func renderPostContent(post *Post, indent string, levels int) string {
 	}
 
 	srcContent, srcPost := renderSourcePost(post, indent)
-	if post.IsRepost() && srcPost != nil {
+	if boards.IsRepost(post) && srcPost != nil {
 		originLink := md.Link("another thread", makeThreadURI(srcPost))
 		b.WriteString("  \nThis thread is a repost of " + originLink + ": \n")
 	}
 
 	b.WriteString(srcContent)
 
-	if post.IsRepost() && srcPost == nil && len(post.Body) > 0 {
+	if boards.IsRepost(post) && srcPost == nil && len(post.Body) > 0 {
 		// Add a newline to separate source deleted message from repost body content
 		b.WriteString("\n")
 	}
@@ -70,29 +71,27 @@ func renderPostContent(post *Post, indent string, levels int) string {
 	b.WriteString(indentBody(indent, post.Body))
 	b.WriteString("\n")
 
-	if post.IsThread() {
+	if boards.IsThread(post) {
 		// Split content and controls for threads.
 		b.WriteString("\n")
 	}
 
 	// Buttons & counters
 	b.WriteString(indent)
-	if !post.IsThread() {
+	if !boards.IsThread(post) {
 		b.WriteString("  \n")
 		b.WriteString(indent)
 	}
 
 	creatorLink := userLink(post.Creator)
-	date := post.CreatedAt().Format(dateFormat)
+	date := post.CreatedAt.Format(dateFormat)
 	b.WriteString("Created by " + creatorLink + " on " + date)
 
 	// Add a reply view link to each top level reply
-	if !post.IsThread() {
+	if !boards.IsThread(post) {
 		b.WriteString(", " + md.Link("#"+post.ID.String(), makeReplyURI(post)))
-	}
-
-	if post.reposts.Size() > 0 {
-		b.WriteString(", " + strconv.Itoa(post.reposts.Size()) + " repost(s)")
+	} else if post.Reposts.Size() > 0 { // Post is a thread
+		b.WriteString(", " + strconv.Itoa(post.Reposts.Size()) + " repost(s)")
 	}
 
 	b.WriteString("  \n")
@@ -101,7 +100,7 @@ func renderPostContent(post *Post, indent string, levels int) string {
 		md.Link("Flag", makeFlagURI(post)),
 	}
 
-	if post.IsThread() {
+	if boards.IsThread(post) {
 		actions = append(actions, md.Link("Repost", makeCreateRepostURI(post)))
 	}
 
@@ -116,7 +115,7 @@ func renderPostContent(post *Post, indent string, levels int) string {
 	}
 
 	if levels == 0 {
-		if post.IsThread() {
+		if boards.IsThread(post) {
 			actions = append(actions, md.Link("Show all Replies", makeThreadURI(post)))
 		} else {
 			actions = append(actions, md.Link("View Thread", makeThreadURI(post)))
@@ -127,24 +126,24 @@ func renderPostContent(post *Post, indent string, levels int) string {
 	return b.String()
 }
 
-func renderPostInner(post *Post) string {
-	if post.IsThread() {
+func renderPostInner(post *boards.Post) string {
+	if boards.IsThread(post) {
 		return ""
 	}
 
 	var (
 		s         string
 		threadID  = post.ThreadID
-		thread, _ = post.Board.GetThread(threadID)
+		thread, _ = post.Board.Threads.Get(threadID)
 	)
 
 	// Fully render parent if it's not a repost.
-	if !post.IsRepost() {
+	if !boards.IsRepost(post) {
 		parentID := post.ParentID
 		parent := thread
 
 		if thread.ID != parentID {
-			parent, _ = thread.GetReply(parentID)
+			parent, _ = thread.Replies.Get(parentID)
 		}
 
 		s += renderPost(parent, "", "", 0) + "\n"
@@ -154,21 +153,21 @@ func renderPostInner(post *Post) string {
 	return s
 }
 
-func renderSourcePost(post *Post, indent string) (string, *Post) {
-	if !post.IsRepost() {
+func renderSourcePost(post *boards.Post, indent string) (string, *boards.Post) {
+	if !boards.IsRepost(post) {
 		return "", nil
 	}
 
 	indent += "> "
 
 	// TODO: figure out a way to decouple posts from a global storage.
-	board, ok := getBoard(post.RepostBoardID)
+	board, ok := gBoards.Get(post.OriginalBoardID)
 	if !ok {
 		// TODO: Boards can't be deleted so this might be redundant
 		return indentBody(indent, md.Italic("⚠ Source board has been deleted")+"\n"), nil
 	}
 
-	srcPost, ok := board.GetThread(post.ParentID)
+	srcPost, ok := board.Threads.Get(post.ParentID)
 	if !ok {
 		return indentBody(indent, md.Italic("⚠ Source post has been deleted")+"\n"), nil
 	}

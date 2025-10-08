@@ -3,6 +3,7 @@ package main
 import (
 	"testing"
 
+	"gno.land/p/gnoland/boards"
 	"gno.land/p/nt/commondao"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
@@ -11,8 +12,8 @@ import (
 const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
 
 var (
-	perms boards2.Permissions
-	bid   boards2.BoardID
+	perms boards.Permissions
+	bid   boards.ID
 )
 
 func init() {

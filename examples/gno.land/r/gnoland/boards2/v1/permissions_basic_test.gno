@@ -3,19 +3,20 @@ package boards2
 import (
 	"testing"
 
+	"gno.land/p/gnoland/boards"
 	"gno.land/p/nt/commondao"
 	"gno.land/p/nt/uassert"
 	"gno.land/p/nt/urequire"
 )
 
-var _ Permissions = (*BasicPermissions)(nil)
+var _ boards.Permissions = (*BasicPermissions)(nil)
 
 func TestBasicPermissionsWithPermission(t *testing.T) {
 	cases := []struct {
 		name       string
 		user       address
-		permission Permission
-		args       Args
+		permission boards.Permission
+		args       boards.Args
 		setup      func() *BasicPermissions
 		err        string
 		called     bool
@@ -36,7 +37,7 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 			name:       "ok with arguments",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
-			args:       Args{"a", "b"},
+			args:       boards.Args{"a", "b"},
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("foo", "bar")
@@ -171,7 +172,7 @@ func TestBasicPermissionsHasRole(t *testing.T) {
 	cases := []struct {
 		name  string
 		user  address
-		role  Role
+		role  boards.Role
 		setup func() *BasicPermissions
 		want  bool
 	}{
@@ -235,7 +236,7 @@ func TestBasicPermissionsHasPermission(t *testing.T) {
 	cases := []struct {
 		name       string
 		user       address
-		permission Permission
+		permission boards.Permission
 		setup      func() *BasicPermissions
 		want       bool
 	}{
@@ -303,14 +304,14 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 	cases := []struct {
 		name  string
 		user  address
-		roles []Role
+		roles []boards.Role
 		setup func() *BasicPermissions
 		err   string
 	}{
 		{
 			name:  "add user",
 			user:  address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-			roles: []Role{"a"},
+			roles: []boards.Role{"a"},
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("a", "permission1")
@@ -320,7 +321,7 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 		{
 			name:  "add user with multiple roles",
 			user:  address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-			roles: []Role{"a", "b"},
+			roles: []boards.Role{"a", "b"},
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("a", "permission1")
@@ -331,7 +332,7 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 		{
 			name:  "add when other users exists",
 			user:  address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-			roles: []Role{"a"},
+			roles: []boards.Role{"a"},
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("a", "permission1")
@@ -343,7 +344,7 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 		{
 			name:  "update user roles",
 			user:  address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-			roles: []Role{"a", "b"},
+			roles: []boards.Role{"a", "b"},
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("a", "permission1")
@@ -355,7 +356,7 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 		{
 			name:  "clear user roles",
 			user:  address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-			roles: []Role{},
+			roles: []boards.Role{},
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("a", "permission1")
@@ -367,7 +368,7 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 		{
 			name:  "set invalid role",
 			user:  address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-			roles: []Role{"a", "foo"},
+			roles: []boards.Role{"a", "foo"},
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("a", "permission1")
@@ -437,18 +438,18 @@ func TestBasicPermissionsRemoveUser(t *testing.T) {
 }
 
 func TestBasicPermissionsIterateUsers(t *testing.T) {
-	users := []User{
+	users := []boards.User{
 		{
 			Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			Roles:   []Role{"foo"},
+			Roles:   []boards.Role{"foo"},
 		},
 		{
 			Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
-			Roles:   []Role{"foo", "bar"},
+			Roles:   []boards.Role{"foo", "bar"},
 		},
 		{
 			Address: "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5",
-			Roles:   []Role{"bar"},
+			Roles:   []boards.Role{"bar"},
 		},
 	}
 
@@ -494,7 +495,7 @@ func TestBasicPermissionsIterateUsers(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var i int
-			perms.IterateUsers(0, len(users), func(u User) bool {
+			perms.IterateUsers(0, len(users), func(u boards.User) bool {
 				urequire.True(t, i < len(users), "expect iterator to respect number of users")
 				uassert.Equal(t, users[i].Address, u.Address)
 
