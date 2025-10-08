@@ -32,9 +32,9 @@ func (d SourceData) WrappedSource() Component {
 // ArticleClasses returns the CSS classes based on file type.
 func (d SourceData) ArticleClasses() string {
 	if d.FileName == ReadmeFileName {
-		return "realm-view bg-light px-4 pt-6 pb-4 rounded lg:col-span-7"
+		return "c-readme-view"
 	}
-	return "source-view col-span-1 lg:col-span-7 lg:row-start-2 pb-24 text-gray-900"
+	return "c-source-view"
 }
 
 type SourceTocData struct {

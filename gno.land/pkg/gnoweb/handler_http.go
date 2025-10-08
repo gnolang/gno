@@ -30,6 +30,7 @@ type StaticMetadata struct {
 	RemoteHelp string
 	ChainId    string
 	Analytics  bool
+	BuildTime  string
 }
 
 type AliasKind int
@@ -121,10 +122,12 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			ChromaPath: h.Static.ChromaPath,
 			ChainId:    h.Static.ChainId,
 			Remote:     h.Static.RemoteHelp,
+			BuildTime:  h.Static.BuildTime,
 		},
 		FooterData: components.FooterData{
 			Analytics:  h.Static.Analytics,
 			AssetsPath: h.Static.AssetsPath,
+			BuildTime:  h.Static.BuildTime,
 		},
 	}
 
