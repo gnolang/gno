@@ -45,7 +45,7 @@ In order, we will:
 5. [Build a very simple dashboard that serves processed informations](#step-5-api-implementation-example)
 6. [Store data permanently with SQLite](#step-6-storing-data-permanently-with-sqlite)
 
-This tutorial will go through each step, but you can find the full code at [Gnoverse repository].
+This tutorial will go through each step, but you can find the full code at [Gnoverse's repository]().
 
 **Hosted version:**
 If you just want to experiment without setting up your own indexer, you can use the hosted version at [Test 8 GraphQL Playground](https://indexer.test8.testnets.gno.land/graphql).
@@ -301,21 +301,12 @@ A lightweight API that returns transaction statistics as JSON.
 ```go
 ```
 
-#### Step 6: Storing data permanently with SQLite
+#### Bonus: Storing data permanently with database
 
-Our dashboard only works with data in memory - nothing is persisted. Let's fix that by adding a database to store transactions permanently.
-We'll use SQLite for example purpose.
+Our dashboard only works with data in memory - nothing is persisted. To store transactions permanently, you can use a database like SQLite.
 
-**What we're building:**
-A simple web server that provides transaction data through a REST API endpoint, making it easy to integrate with web frontends, mobile apps, or other services.
-
-**Setting up the database:**
-
-[embedmd]:# (../_assets/tx-indexer-example/database.go go)
-```go
-```
-
-Your transaction data is now persistent and ready for productions!
+We won't implement it in this example because it is little related to the indexer itself, but it is necessary afterward for a full implementation.
+To see an example, you can visit [Gnoverse's repository]().
 
 ### Resources for Continued Learning
 
