@@ -62,7 +62,7 @@ func RunWebSocketExample() {
 	subscriptionBytes, _ := json.Marshal(subscription)
 	conn.WriteMessage(websocket.TextMessage, subscriptionBytes)
 
-	fmt.Println("📡 Listening for new send transactions...")
+	fmt.Println("Listening for new send transactions...")
 
 	// Step 4: Listen for incoming messages in an infinite loop
 	for {
@@ -72,9 +72,6 @@ func RunWebSocketExample() {
 			log.Println("Read error:", err)
 			continue
 		}
-
-		// Debug: Show raw message (remove in production)
-		fmt.Printf("Raw message: %s", string(message))
 
 		// Parse JSON message from server
 		var response map[string]interface{}
