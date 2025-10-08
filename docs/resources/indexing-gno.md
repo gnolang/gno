@@ -33,7 +33,6 @@ Follow official [installation guide](https://github.com/gnolang/tx-indexer?tab=r
 
 ### Use case: `send` transactions dashboard 
 
-
 To demonstrate `tx-indexer` implementation workflow, we'll create a **real-time dashboard** that tracks GNOT transfers through the `send` transactions and identifies the biggest movers on the network.
 We'll work during this implementation in local environment, but the same concepts apply when working over a network environment.
 
