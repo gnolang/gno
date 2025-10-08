@@ -1,15 +1,15 @@
 package boards2
 
 import (
+	"errors"
+
 	"gno.land/p/gnoland/boards"
 	"gno.land/p/nt/avl"
 )
 
-// TODO: Add unit tests (add interface assert)
-
 // NewReplyStorage creates a new storage for thread replies.
-// This is a customized post storage that keeps a flat index of all replies that
-// exists within a thread, which allows to find any reply from their thread.
+// This is a customized post storage that also keeps a flat index with all replies
+// that exists within a thread, which allows to get any reply from their thread.
 func NewReplyStorage() boards.PostStorage {
 	return &replyStorage{
 		PostStorage: boards.NewPostStorage(),
@@ -59,6 +59,10 @@ func (s *replyStorage) Remove(id boards.ID) (*boards.Post, bool) {
 // Add adds a post in the storage.
 // It updates existing posts when storage contains one with the same ID.
 func (s *replyStorage) Add(p *boards.Post) error {
+	if p == nil {
+		return errors.New("saving nil replies is not allowed")
+	}
+
 	// If post is a direct thread child add it to the post storage
 	if p.ParentID == p.ThreadID {
 		return s.PostStorage.Add(p)
@@ -68,6 +72,20 @@ func (s *replyStorage) Add(p *boards.Post) error {
 	k := makeReplyKey(p.ID)
 	s.all.Set(k, p)
 	return nil
+}
+
+// Size returns the number of direct replies in the storage.
+// It doesn't includes sub-replies.
+func (s replyStorage) Size() int {
+	return s.PostStorage.Size()
+}
+
+// Iterate iterates direct replies.
+// To reverse iterate posts use a negative count.
+// If the callback returns true, the iteration is stopped.
+// Sub-replies are NOT iterated.
+func (s replyStorage) Iterate(start, count int, fn boards.PostIterFn) bool {
+	return s.PostStorage.Iterate(start, count, fn)
 }
 
 func makeReplyKey(id boards.ID) string {

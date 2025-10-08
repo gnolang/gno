@@ -254,7 +254,6 @@ func CreateReply(_ realm, boardID, threadID, replyID boards.ID, body string) boa
 	// The thread contains all replies and sub-replies, while each
 	// reply only contains direct sub-replies.
 	if parent.ID != thread.ID {
-		// TODO: ACA: Has to index reply in the flat index only
 		if err := thread.Replies.Add(reply); err != nil {
 			panic(err)
 		}
