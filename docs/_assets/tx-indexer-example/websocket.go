@@ -10,7 +10,7 @@ import (
 )
 
 func RunWebSocketExample() {
-	fmt.Println("🔗 Connecting to tx-indexer WebSocket...")
+	fmt.Println("Connecting to tx-indexer WebSocket...")
 
 	// Build WebSocket URL - replace localhost:8546 with your indexer's address
 	u := url.URL{Scheme: "ws", Host: "localhost:8546", Path: "/graphql/query"}
@@ -18,11 +18,11 @@ func RunWebSocketExample() {
 	// Establish WebSocket connection with GraphQL-WS protocol
 	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
-		log.Fatal("❌ WebSocket connection failed:", err)
+		log.Fatal("WebSocket connection failed:", err)
 	}
 	defer conn.Close() // Clean up connection when function exits
 
-	fmt.Println("✅ Connected! Initializing GraphQL-WS connection...")
+	fmt.Println("Connected! Initializing GraphQL-WS connection...")
 
 	// Step 1: Send connection_init message
 	// GraphQL-WS protocol requires this handshake before subscriptions
@@ -36,7 +36,7 @@ func RunWebSocketExample() {
 	// Server must acknowledge our connection before we can subscribe
 	_, ackMessage, err := conn.ReadMessage()
 	if err != nil {
-		log.Fatal("❌ Failed to receive connection ack:", err)
+		log.Fatal("Failed to receive connection ack:", err)
 	}
 
 	var ackResponse map[string]interface{}
@@ -44,10 +44,10 @@ func RunWebSocketExample() {
 
 	// Verify server sent the correct acknowledgment
 	if ackResponse["type"] != "connection_ack" {
-		log.Fatalf("❌ Expected connection_ack, got: %+v", ackResponse)
+		log.Fatalf("Expected connection_ack, got: %+v", ackResponse)
 	}
 
-	fmt.Println("✅ Connection acknowledged! Setting up subscription...")
+	fmt.Println("Connection acknowledged! Setting up subscription...")
 
 	// Step 3: Send subscription message
 	// This give the query to the server
@@ -69,7 +69,7 @@ func RunWebSocketExample() {
 		// Read next message from WebSocket
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Println("❌ Read error:", err)
+			log.Println("Read error:", err)
 			continue
 		}
 
@@ -80,7 +80,7 @@ func RunWebSocketExample() {
 		var response map[string]interface{}
 		err = json.Unmarshal(message, &response)
 		if err != nil {
-			log.Printf("❌ JSON parse error: %v\n", err)
+			log.Printf("JSON parse error: %v\n", err)
 			continue
 		}
 
@@ -88,7 +88,7 @@ func RunWebSocketExample() {
 		switch response["type"] {
 		case "data":
 			// New transaction data received!
-			fmt.Println("🔥 NEW SEND TRANSACTION DETECTED!")
+			fmt.Println("NEW SEND TRANSACTION DETECTED!")
 
 			// Extract payload and process transaction data
 			data := response["payload"]
@@ -101,15 +101,15 @@ func RunWebSocketExample() {
 			displayTransactions(parsedData) // Show formatted transaction details
 		case "error":
 			// GraphQL query/subscription error
-			fmt.Printf("❌ GraphQL error: %+v\n", response["payload"])
+			fmt.Printf("GraphQL error: %+v\n", response["payload"])
 
 		case "complete":
 			// Subscription finished (shouldn't happen for infinite subscriptions)
-			fmt.Println("✅ Subscription completed")
+			fmt.Println("Subscription completed")
 
 		case "connection_error":
 			// WebSocket connection issue
-			fmt.Printf("❌ Connection error: %+v\n", response["payload"])
+			fmt.Printf("Connection error: %+v\n", response["payload"])
 
 		case "ka":
 			// Keep-alive message from server - ignore silently
@@ -118,7 +118,7 @@ func RunWebSocketExample() {
 
 		default:
 			// Unknown message type - log for debugging
-			fmt.Printf("📋 Unknown message type: %s\n", response["type"])
+			fmt.Printf("Unknown message type: %s\n", response["type"])
 		}
 	}
 }
