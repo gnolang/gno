@@ -8,7 +8,6 @@ This folder contains self‑contained example snippets referenced in the `docs/r
 4. Sort and display largest transfers
 5. Subscribe to real‑time transactions over GraphQL WebSocket
 6. Expose a minimal HTTP stats endpoint
-7. Persist transactions with SQLite (demo persistence layer)
 
 Use these snippets as a learning aid or a starting point for building dashboards, analytics pipelines, or monitoring tools on top of Gno.land.
 

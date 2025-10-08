@@ -45,9 +45,5 @@ func handleStats(w http.ResponseWriter, r *http.Request) {
 		"average_amount":     totalVolume / float64(len(sorted)),
 		"top_transactions":   sorted[:min(5, len(sorted))], // Top 5 transactions
 	}
-
-	// Set response headers for JSON API
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*") // Enable CORS for frontend access
 	json.NewEncoder(w).Encode(response)
 }
