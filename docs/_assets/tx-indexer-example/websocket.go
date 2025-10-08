@@ -74,7 +74,7 @@ func RunWebSocketExample() {
 		}
 
 		// Debug: Show raw message (remove in production)
-		fmt.Printf("📨 Raw message: %s", string(message))
+		fmt.Printf("Raw message: %s", string(message))
 
 		// Parse JSON message from server
 		var response map[string]interface{}
@@ -88,8 +88,6 @@ func RunWebSocketExample() {
 		switch response["type"] {
 		case "data":
 			// New transaction data received!
-			fmt.Println("NEW SEND TRANSACTION DETECTED!")
-
 			// Extract payload and process transaction data
 			data := response["payload"]
 			dataBytes, _ := json.Marshal(data)
@@ -104,7 +102,7 @@ func RunWebSocketExample() {
 			fmt.Printf("GraphQL error: %+v\n", response["payload"])
 
 		case "complete":
-			// Subscription finished (shouldn't happen for infinite subscriptions)
+			// Subscription finished
 			fmt.Println("Subscription completed")
 
 		case "connection_error":
@@ -117,7 +115,7 @@ func RunWebSocketExample() {
 			continue
 
 		default:
-			// Unknown message type - log for debugging
+			// Unknown message type
 			fmt.Printf("Unknown message type: %s\n", response["type"])
 		}
 	}
