@@ -89,7 +89,7 @@ func displayTransactions(txs []Transaction) {
 func RunProcessExample() {
 	// This would be your actual JSON from the GraphQL query
 	// In a real app, you'd get this from an HTTP request to the indexer
-	jsonData := []byte(`{ "data": { "getTransactions": [] } }`)
+	jsonData := []byte(`{"data": {"getTransactions": []}}`)
 
 	// Process the data in 3 steps:
 	transactions, err := parseTransactions(jsonData)
