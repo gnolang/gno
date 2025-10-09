@@ -42,7 +42,6 @@ In order, we will:
 3. [Process and analyze transactions to structure and sort relevant informations](#step-3-processing-the-transaction-data-with-go)
 4. [Add real-time monitoring using WebSocket](#step-4-real-time-monitoring-with-websockets)
 5. [Build a very simple dashboard that serves processed informations](#step-5-api-implementation-example)
-6. [Store data permanently with SQLite](#step-6-storing-data-permanently-with-sqlite)
 
 This tutorial will go through each step, but you can find the full code at [Gnoverse's repository]().
 
@@ -304,8 +303,7 @@ A lightweight API that returns transaction statistics as JSON.
 
 Our dashboard currently only works with data in memory - nothing is persisted. To store transactions permanently, you can use a database like SQLite.
 
-We won't implement database persistence in this tutorial since it's unrelated to using the indexer itself, but it's an essential component for production deployments.
-To see a complete implementation example, visit [Gnoverse's repository]().
+To see a complete example implementation, visit [Gnoverse's repository]().
 
 ### Resources for Continued Learning
 
