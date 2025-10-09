@@ -36,38 +36,34 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 		// Get the current total voting power of the validator set.
 		currentVotingPower := vp.TotalVotingPower()
 
-		// Track total voting power removed and added in this proposal.
-		var totalVotingPowerRemoved, totalVotingPowerAdded uint64
+		// Track total voting power to be removed and added in this proposal.
+		var votingPowerToRemove, votingPowerToAdd uint64
 
-		// Iterate through each proposed validator change.
+		// Gather all proposed validator changes.
 		for _, change := range changesFn() {
 			if change.VotingPower == 0 {
-				// If voting power is zero, this is a request to remove a validator.
-				existingVal, err := vp.GetValidator(change.Address)
+				existingValidator, err := vp.GetValidator(change.Address)
 				if err != nil {
-					// Cannot remove a validator that does not exist.
 					return errors.New("cannot remove non-existing validator: " + change.Address.String())
 				}
-				// Accumulate the voting power being removed.
-				totalVotingPowerRemoved += existingVal.VotingPower
+
+				votingPowerToRemove += existingValidator.VotingPower
 
 				removeValidator(change.Address)
 				continue
 			}
 
-			// Otherwise, this is an addition or update.
-			// Accumulate the voting power being added.
-			totalVotingPowerAdded += change.VotingPower
+			votingPowerToAdd += change.VotingPower
 			addValidator(change)
 		}
 
-		// Enforce the maximum allowed change threshold (2/3 of current voting power).
-		if currentVotingPower > 0 {
-			maxChanges := (currentVotingPower * 2) / 3
-			if totalVotingPowerAdded > maxChanges || totalVotingPowerRemoved > maxChanges {
-				// Reject the proposal if too much voting power is changed.
-				return errors.New(errTooManyChanges)
-			}
+		remainingVotingPower := currentVotingPower - votingPowerToRemove
+		totalVotingPower := votingPowerToAdd + remainingVotingPower
+
+		// Enforce the maximum allowed change threshold (must be less than 2/3 of the set).
+		if remainingVotingPower > 0 && remainingVotingPower*3 < totalVotingPower {
+			// Reject the proposal if too much voting power is changed.
+			return errors.New(errTooManyChanges)
 		}
 
 		// Update the last valset update time

@@ -169,7 +169,7 @@ func TestValidatorProposals(t *testing.T) {
 					{
 						Address:     testutils.TestAddress("valoper4"),
 						PubKey:      "valoper4_pubkey",
-						VotingPower: 12,
+						VotingPower: 30,
 					},
 					{
 						Address:     testutils.TestAddress("valoper3"),
