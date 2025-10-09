@@ -78,7 +78,7 @@ func IsReplyFrozen(boardID, threadID, replyID boards.ID) bool {
 	return board.Readonly || thread.Readonly || reply.Readonly
 }
 
-func setReplyReadonly(boardID, threadID, replyID boards.ID, isReadonly bool) {
+func setReplyReadonly(boardID, threadID, replyID boards.ID, readonly bool) {
 	assertRealmIsNotLocked()
 
 	board := mustGetBoard(boardID)
@@ -94,11 +94,11 @@ func setReplyReadonly(boardID, threadID, replyID boards.ID, isReadonly bool) {
 	reply := mustGetReply(thread, replyID)
 	assertReplyIsVisible(reply)
 
-	if isReadonly {
+	if readonly {
 		assertReplyIsNotFrozen(reply)
 	}
 
-	reply.Readonly = isReadonly
+	reply.Readonly = readonly
 
 	chain.Emit(
 		"ReplyFreeze",
@@ -106,52 +106,58 @@ func setReplyReadonly(boardID, threadID, replyID boards.ID, isReadonly bool) {
 		"boardID", board.ID.String(),
 		"threadID", thread.ID.String(),
 		"replyID", reply.ID.String(),
-		"frozen", strconv.FormatBool(isReadonly),
+		"frozen", strconv.FormatBool(readonly),
 	)
 }
 
-func setThreadReadonly(boardID, threadID boards.ID, isReadonly bool) {
+func setThreadReadonly(boardID, threadID boards.ID, readonly bool) {
 	assertRealmIsNotLocked()
 
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
-	caller := runtime.PreviousRealm().Address()
-	assertHasPermission(board.Permissions, caller, PermissionThreadFreeze)
-
 	thread := mustGetThread(board, threadID)
-	if isReadonly {
+	if readonly {
 		assertThreadIsNotFrozen(thread)
 	}
 
-	thread.Readonly = isReadonly
+	caller := runtime.PreviousRealm().Address()
+	args := boards.Args{caller, board.ID, thread.ID, readonly}
+	board.Permissions.WithPermission(cross, caller, PermissionThreadFreeze, args, func(realm) {
+		assertRealmIsNotLocked()
 
-	chain.Emit(
-		"ThreadFreeze",
-		"caller", caller.String(),
-		"boardID", board.ID.String(),
-		"threadID", thread.ID.String(),
-		"frozen", strconv.FormatBool(isReadonly),
-	)
+		thread.Readonly = readonly
+
+		chain.Emit(
+			"ThreadFreeze",
+			"caller", caller.String(),
+			"boardID", board.ID.String(),
+			"threadID", thread.ID.String(),
+			"frozen", strconv.FormatBool(readonly),
+		)
+	})
 }
 
-func setBoardReadonly(boardID boards.ID, isReadonly bool) {
+func setBoardReadonly(boardID boards.ID, readonly bool) {
 	assertRealmIsNotLocked()
 
 	board := mustGetBoard(boardID)
-	if isReadonly {
+	if readonly {
 		assertBoardIsNotFrozen(board)
 	}
 
 	caller := runtime.PreviousRealm().Address()
-	assertHasPermission(board.Permissions, caller, PermissionBoardFreeze)
+	args := boards.Args{caller, board.ID, readonly}
+	board.Permissions.WithPermission(cross, caller, PermissionBoardFreeze, args, func(realm) {
+		assertRealmIsNotLocked()
 
-	board.Readonly = isReadonly
+		board.Readonly = readonly
 
-	chain.Emit(
-		"BoardFreeze",
-		"caller", caller.String(),
-		"boardID", board.ID.String(),
-		"frozen", strconv.FormatBool(isReadonly),
-	)
+		chain.Emit(
+			"BoardFreeze",
+			"caller", caller.String(),
+			"boardID", board.ID.String(),
+			"frozen", strconv.FormatBool(readonly),
+		)
+	})
 }

@@ -39,7 +39,6 @@ func Ban(_ realm, boardID boards.ID, user address, hours uint, reason string) {
 	board.Permissions.WithPermission(cross, caller, PermissionUserBan, args, func(realm) {
 		// When banning invited members make sure they are guests, otherwise
 		// disallow banning. Only guest or external users can be banned.
-		board := mustGetBoard(boardID)
 		if board.Permissions.HasUser(user) && !board.Permissions.HasRole(user, RoleGuest) {
 			panic("owner, admin and moderator banning is not allowed")
 		}

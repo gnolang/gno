@@ -94,7 +94,6 @@ func AcceptInvite(_ realm, boardID boards.ID, user address) {
 			panic("invite request not found")
 		}
 
-		board := mustGetBoard(boardID)
 		if board.Permissions.HasUser(user) {
 			panic("user is already a member")
 		}
@@ -149,7 +148,6 @@ func inviteMembers(boardID boards.ID, invites ...Invite) {
 	perms.WithPermission(cross, caller, PermissionMemberInvite, args, func(realm) {
 		assertMembersUpdateIsEnabled(boardID)
 
-		perms := mustGetPermissions(boardID)
 		users := make([]string, len(invites))
 		for _, v := range invites {
 			assertMemberAddressIsValid(v.User)

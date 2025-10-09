@@ -22,14 +22,12 @@ func SetFlaggingThreshold(_ realm, boardID boards.ID, threshold int) {
 	assertBoardIsNotFrozen(board)
 
 	caller := runtime.PreviousRealm().Address()
-	args := boards.Args{boardID, threshold}
+	args := boards.Args{board.ID, threshold}
 	board.Permissions.WithPermission(cross, caller, PermissionBoardFlaggingUpdate, args, func(realm) {
 		assertRealmIsNotLocked()
 
-		board := mustGetBoard(boardID)
-		assertBoardIsNotFrozen(board)
-
 		gFlaggingThresholds.Set(boardID.String(), threshold)
+
 		chain.Emit(
 			"FlaggingThresholdUpdated",
 			"caller", caller.String(),
@@ -50,15 +48,12 @@ func GetFlaggingThreshold(boardID boards.ID) int {
 // Flagging requires special permissions and hides the thread when
 // the number of flags reaches a pre-defined flagging threshold.
 func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
-	board := mustGetBoard(boardID)
-
-	// Realm owners should be able to flag without permissions even when board is frozen
 	caller := runtime.PreviousRealm().Address()
+	board := mustGetBoard(boardID)
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
 	if !isRealmOwner {
 		assertRealmIsNotLocked()
 		assertBoardIsNotFrozen(board)
-		assertHasPermission(board.Permissions, caller, PermissionThreadFlag)
 	}
 
 	thread, found := board.Threads.Get(threadID)
@@ -68,19 +63,32 @@ func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
 
 	assertThreadIsNotFrozen(thread)
 
-	// Realm owners can hide with a single flag
-	hide := flagItem(thread, caller, reason, getFlaggingThreshold(boardID))
-	if hide || isRealmOwner {
-		thread.Hidden = true
+	flagThread := func() {
+		hide := flagItem(thread, caller, reason, getFlaggingThreshold(board.ID))
+		if hide || isRealmOwner {
+			// Realm owners can hide with a single flag
+			thread.Hidden = true
+		}
+
+		chain.Emit(
+			"ThreadFlagged",
+			"caller", caller.String(),
+			"boardID", board.ID.String(),
+			"threadID", thread.ID.String(),
+			"reason", reason,
+		)
 	}
 
-	chain.Emit(
-		"ThreadFlagged",
-		"caller", caller.String(),
-		"boardID", board.ID.String(),
-		"threadID", thread.ID.String(),
-		"reason", reason,
-	)
+	// Realm owners should be able to flag without permissions even when board is frozen
+	if isRealmOwner {
+		flagThread()
+		return
+	}
+
+	args := boards.Args{caller, board.ID, thread.ID, reason}
+	board.Permissions.WithPermission(cross, caller, PermissionThreadFlag, args, func(realm) {
+		flagThread()
+	})
 }
 
 // FlagReply adds a new flag to a comment or reply.
@@ -88,15 +96,12 @@ func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
 // Flagging requires special permissions and hides the comment or reply
 // when the number of flags reaches a pre-defined flagging threshold.
 func FlagReply(_ realm, boardID, threadID, replyID boards.ID, reason string) {
-	board := mustGetBoard(boardID)
-
-	// Realm owners should be able to flag without permissions even when board is frozen
 	caller := runtime.PreviousRealm().Address()
+	board := mustGetBoard(boardID)
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
 	if !isRealmOwner {
 		assertRealmIsNotLocked()
 		assertBoardIsNotFrozen(board)
-		assertHasPermission(board.Permissions, caller, PermissionReplyFlag)
 	}
 
 	thread := mustGetThread(board, threadID)
@@ -105,18 +110,31 @@ func FlagReply(_ realm, boardID, threadID, replyID boards.ID, reason string) {
 	reply := mustGetReply(thread, replyID)
 	assertReplyIsNotFrozen(thread)
 
-	// Realm owners can hide with a single flag
-	hide := flagItem(reply, caller, reason, getFlaggingThreshold(boardID))
-	if hide || isRealmOwner {
-		reply.Hidden = true
+	flagReply := func() {
+		hide := flagItem(reply, caller, reason, getFlaggingThreshold(board.ID))
+		if hide || isRealmOwner {
+			// Realm owners can hide with a single flag
+			reply.Hidden = true
+		}
+
+		chain.Emit(
+			"ReplyFlagged",
+			"caller", caller.String(),
+			"boardID", board.ID.String(),
+			"threadID", thread.ID.String(),
+			"replyID", reply.ID.String(),
+			"reason", reason,
+		)
 	}
 
-	chain.Emit(
-		"ReplyFlagged",
-		"caller", caller.String(),
-		"boardID", board.ID.String(),
-		"threadID", thread.ID.String(),
-		"replyID", reply.ID.String(),
-		"reason", reason,
-	)
+	// Realm owners should be able to flag without permissions even when board is frozen
+	if isRealmOwner {
+		flagReply()
+		return
+	}
+
+	args := boards.Args{caller, board.ID, thread.ID, reply.ID, reason}
+	board.Permissions.WithPermission(cross, caller, PermissionReplyFlag, args, func(realm) {
+		flagReply()
+	})
 }

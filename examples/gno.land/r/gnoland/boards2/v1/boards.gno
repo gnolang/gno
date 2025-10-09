@@ -16,10 +16,10 @@ var (
 	gRealmLink        txlink.Realm
 	gNotice           string
 	gHelp             string
-	gLastReservedID   boards.ID
-	gListedBoardsByID avl.Tree // string(id) -> *boards.Board
-	gInviteRequests   avl.Tree // string(board id) -> *avl.Tree(address -> time.Time)
-	gBannedUsers      avl.Tree // string(board id) -> *avl.Tree(address -> time.Time)
+	gLastReservedID   boards.ID // TODO: Use gBoardsSequence = boards.NewIdentifierGenerator()
+	gListedBoardsByID avl.Tree  // string(id) -> *boards.Board
+	gInviteRequests   avl.Tree  // string(board id) -> *avl.Tree(address -> time.Time)
+	gBannedUsers      avl.Tree  // string(board id) -> *avl.Tree(address -> time.Time)
 	gLocked           struct {
 		realm        bool
 		realmMembers bool
