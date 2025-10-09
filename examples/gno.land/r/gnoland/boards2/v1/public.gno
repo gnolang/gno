@@ -277,7 +277,7 @@ func CreateReply(_ realm, boardID, threadID, replyID boards.ID, body string) boa
 }
 
 // CreateRepost reposts a thread into another board.
-func CreateRepost(_ realm, boardID, threadID boards.ID, title, body string, destinationBoardID boards.ID) boards.ID {
+func CreateRepost(_ realm, boardID, threadID, destinationBoardID boards.ID, title, body string) boards.ID {
 	assertRealmIsNotLocked()
 
 	title = strings.TrimSpace(title)

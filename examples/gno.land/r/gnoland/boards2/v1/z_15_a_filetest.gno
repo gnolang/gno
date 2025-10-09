@@ -29,7 +29,7 @@ func main() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Repost should fail if source thread is flagged
-	boards2.CreateRepost(cross, srcBID, srcTID, "foo", "bar", dstBID)
+	boards2.CreateRepost(cross, srcBID, srcTID, dstBID, "foo", "bar")
 }
 
 // Error:

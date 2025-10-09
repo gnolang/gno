@@ -26,7 +26,7 @@ func init() {
 
 	// Repost thread into a different board
 	dstBoardID := boards2.CreateBoard(cross, dstBoardName, false)
-	repostThreadID = boards2.CreateRepost(cross, boardID, threadID, "Bar", "Body2", dstBoardID)
+	repostThreadID = boards2.CreateRepost(cross, boardID, threadID, dstBoardID, "Bar", "Body2")
 
 	// Flag original thread
 	boards2.SetFlaggingThreshold(cross, boardID, 1)

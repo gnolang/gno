@@ -30,7 +30,7 @@ func init() {
 func main() {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	boards2.CreateRepost(cross, srcBID, srcTID, "foo", "bar", dstBID)
+	boards2.CreateRepost(cross, srcBID, srcTID, dstBID, "foo", "bar")
 }
 
 // Error:

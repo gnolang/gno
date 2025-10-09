@@ -41,9 +41,9 @@ func makeCreateRepostURI(p *boards.Post) string {
 		"CreateRepost",
 		"boardID", p.Board.ID.String(),
 		"threadID", p.ID.String(),
+		"destinationBoardID", "",
 		"title", "",
 		"body", "",
-		"destinationBoardID", "",
 	)
 }
 

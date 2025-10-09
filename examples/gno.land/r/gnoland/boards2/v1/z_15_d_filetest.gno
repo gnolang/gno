@@ -30,7 +30,7 @@ func main() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Success case
-	tID := boards2.CreateRepost(cross, srcBID, srcTID, "repost title", "repost text", dstBID)
+	tID := boards2.CreateRepost(cross, srcBID, srcTID, dstBID, "repost title", "repost text")
 	p := ufmt.Sprintf("dst-board/%s", tID)
 	out := boards2.Render(p)
 
