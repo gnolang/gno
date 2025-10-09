@@ -1,5 +1,7 @@
 package main
 
+// SEND: 1000000ugnot
+
 import (
 	"chain/runtime"
 	"testing"
