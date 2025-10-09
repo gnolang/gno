@@ -108,8 +108,6 @@ func FlagReply(_ realm, boardID, threadID, replyID boards.ID, reason string) {
 	assertThreadIsNotFrozen(thread)
 
 	reply := mustGetReply(thread, replyID)
-	assertReplyIsNotFrozen(thread)
-
 	flagReply := func() {
 		hide := flagItem(reply, caller, reason, getFlaggingThreshold(board.ID))
 		if hide || isRealmOwner {

@@ -27,7 +27,6 @@ const (
 	PermissionReplyCreate                           = "reply:create"
 	PermissionReplyDelete                           = "reply:delete"
 	PermissionReplyFlag                             = "reply:flag"
-	PermissionReplyFreeze                           = "reply:freeze"
 	PermissionRoleChange                            = "role:change"
 	PermissionThreadCreate                          = "thread:create"
 	PermissionThreadDelete                          = "thread:delete"
@@ -59,7 +58,6 @@ func createBasicBoardPermissions(owner address) *BasicPermissions {
 		PermissionReplyCreate,
 		PermissionReplyDelete,
 		PermissionReplyFlag,
-		PermissionReplyFreeze,
 		PermissionRoleChange,
 		PermissionUserBan,
 		PermissionUserUnban,

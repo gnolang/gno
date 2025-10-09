@@ -500,7 +500,6 @@ func EditReply(_ realm, boardID, threadID, replyID boards.ID, body string) {
 
 	reply := mustGetReply(thread, replyID)
 	assertReplyIsVisible(reply)
-	assertReplyIsNotFrozen(reply)
 
 	if caller != reply.Creator {
 		panic("only the reply creator is allowed to edit it")
@@ -673,12 +672,6 @@ func assertIsValidBoardName(name string) {
 func assertThreadIsNotFrozen(t *boards.Post) {
 	if t.Readonly {
 		panic("thread is frozen")
-	}
-}
-
-func assertReplyIsNotFrozen(r *boards.Post) {
-	if r.Readonly {
-		panic("reply is frozen")
 	}
 }
 
