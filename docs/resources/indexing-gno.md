@@ -220,6 +220,116 @@ Now we have raw JSON data from our GraphQL query. Let's turn that into something
 
 [embedmd]:# (../_assets/tx-indexer-example/process.go go)
 ```go
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"sort"
+	"strconv"
+	"strings"
+)
+
+// Simplified transaction data structure
+// This struct represents a cleaned-up version of the raw GraphQL data
+type Transaction struct {
+	Hash        string
+	BlockHeight float64
+	Amount      float64 // in ugnot
+	From        string
+	To          string
+}
+
+// GraphQL response typed model (only required fields)
+type gqlResponse struct {
+	Data struct {
+		GetTransactions []struct {
+			Hash        string  `json:"hash"`
+			BlockHeight float64 `json:"block_height"`
+			Messages    []struct {
+				Value struct {
+					FromAddress string `json:"from_address"`
+					ToAddress   string `json:"to_address"`
+					Amount      string `json:"amount"` // e.g. 15000000ugnot
+				} `json:"value"`
+			} `json:"messages"`
+		} `json:"getTransactions"`
+	} `json:"data"`
+}
+
+// Step 1 - Parse JSON from GraphQL into our Transaction structs
+// This function takes raw JSON from the indexer and converts it to Go structs
+func parseTransactions(jsonData []byte) ([]Transaction, error) {
+	var resp gqlResponse
+	if err := json.Unmarshal(jsonData, &resp); err != nil {
+		return nil, fmt.Errorf("decode graphql response: %w", err)
+	}
+	if len(resp.Data.GetTransactions) == 0 {
+		return nil, nil
+	}
+	out := make([]Transaction, 0, len(resp.Data.GetTransactions))
+	for _, tx := range resp.Data.GetTransactions {
+		if len(tx.Messages) == 0 {
+			continue
+		}
+		msg := tx.Messages[0].Value
+		amtStr := strings.TrimSuffix(msg.Amount, "ugnot")
+		amt, _ := strconv.ParseFloat(amtStr, 64) // ignore parse error -> 0
+		out = append(out, Transaction{
+			Hash:        tx.Hash,
+			BlockHeight: tx.BlockHeight,
+			Amount:      amt,
+			From:        msg.FromAddress,
+			To:          msg.ToAddress,
+		})
+	}
+	return out, nil
+}
+
+// Step 2 - Sort transactions by amount (biggest first)
+// This helps us identify the largest transfers on the network
+func sortTransactions(txs []Transaction) []Transaction {
+	sort.Slice(txs, func(i, j int) bool { return txs[i].Amount > txs[j].Amount })
+	return txs
+}
+
+// Step 3 - Show the transactions in a nice format
+// Convert raw data into human-readable output
+func displayTransactions(txs []Transaction) {
+	fmt.Println("Top GNOT Transactions:")
+	for i, tx := range txs {
+		if i >= 5 {
+			break
+		} // Limit to top 5
+
+		gnotAmount := tx.Amount
+		fmt.Printf("%d. %.2f uGNOT from %s to %s (block %.0f)\n",
+			i+1, gnotAmount, tx.From, tx.To, tx.BlockHeight)
+	}
+}
+
+func RunProcessExample() {
+	// This would be your actual JSON from the GraphQL query
+	// In a real app, you'd get this from an HTTP request to the indexer
+	jsonData := []byte(`{"data": {"getTransactions": []}}`)
+
+	// Process the data in 3 steps:
+	transactions, err := parseTransactions(jsonData)
+	if err != nil || len(transactions) == 0 {
+		return
+	}
+	if len(transactions) == 0 {
+		fmt.Println("no transactions decoded")
+		return
+	}
+	sorted := sortTransactions(transactions) // 2. Sort by amount (largest first)
+	displayTransactions(sorted)              // 3. Display results nicely
+
+	// At this point, you have clean, sorted transaction data ready for:
+	// - Saving to a database
+	// - Serving via an API
+	// - ...
+}
 ```
 
 **Try it out:**
@@ -267,6 +377,125 @@ Now we need a WebSocket client to receive these real-time updates:
 
 [embedmd]:# (../_assets/tx-indexer-example/websocket.go go)
 ```go
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/url"
+
+	"github.com/gorilla/websocket"
+)
+
+func RunWebSocketExample() {
+	fmt.Println("Connecting to tx-indexer WebSocket...")
+
+	// Build WebSocket URL - replace localhost:8546 with your indexer's address
+	u := url.URL{Scheme: "ws", Host: "localhost:8546", Path: "/graphql/query"}
+
+	// Establish WebSocket connection with GraphQL-WS protocol
+	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	if err != nil {
+		log.Fatal("WebSocket connection failed:", err)
+	}
+	defer conn.Close() // Clean up connection when function exits
+
+	fmt.Println("Connected! Initializing GraphQL-WS connection...")
+
+	// Step 1: Send connection_init message
+	// GraphQL-WS protocol requires this handshake before subscriptions
+	initMsg := map[string]interface{}{
+		"type": "connection_init",
+	}
+	initBytes, _ := json.Marshal(initMsg)
+	conn.WriteMessage(websocket.TextMessage, initBytes)
+
+	// Step 2: Wait for connection_ack from server
+	// Server must acknowledge our connection before we can subscribe
+	_, ackMessage, err := conn.ReadMessage()
+	if err != nil {
+		log.Fatal("Failed to receive connection ack:", err)
+	}
+
+	var ackResponse map[string]interface{}
+	json.Unmarshal(ackMessage, &ackResponse)
+
+	// Verify server sent the correct acknowledgment
+	if ackResponse["type"] != "connection_ack" {
+		log.Fatalf("Expected connection_ack, got: %+v", ackResponse)
+	}
+
+	fmt.Println("Connection acknowledged! Setting up subscription...")
+
+	// Step 3: Send subscription message
+	// This give the query to the server
+	subscription := map[string]interface{}{
+		"id":   "1",     // Unique ID for this subscription
+		"type": "start", // GraphQL-WS message type for subscriptions
+		"payload": map[string]interface{}{
+			"query": `subscription { ... }`, // Your GraphQL subscription here
+		},
+	}
+
+	subscriptionBytes, _ := json.Marshal(subscription)
+	conn.WriteMessage(websocket.TextMessage, subscriptionBytes)
+
+	fmt.Println("Listening for new send transactions...")
+
+	// Step 4: Listen for incoming messages in an infinite loop
+	for {
+		// Read next message from WebSocket
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			log.Println("Read error:", err)
+			continue
+		}
+
+		// Parse JSON message from server
+		var response map[string]interface{}
+		err = json.Unmarshal(message, &response)
+		if err != nil {
+			log.Printf("JSON parse error: %v\n", err)
+			continue
+		}
+
+		// Handle different message types from GraphQL-WS protocol
+		switch response["type"] {
+		case "data":
+			// New transaction data received!
+			// Extract payload and process transaction data
+			data := response["payload"]
+			dataBytes, _ := json.Marshal(data)
+			parsedData, err := parseTransactions(dataBytes)
+			if err != nil {
+				log.Printf("Error parsing transactions: %v", err)
+				continue
+			}
+			displayTransactions(parsedData) // Show formatted transaction details
+		case "error":
+			// GraphQL query/subscription error
+			fmt.Printf("GraphQL error: %+v\n", response["payload"])
+
+		case "complete":
+			// Subscription finished
+			fmt.Println("Subscription completed")
+
+		case "connection_error":
+			// WebSocket connection issue
+			fmt.Printf("Connection error: %+v\n", response["payload"])
+
+		case "ka":
+			// Keep-alive message from server - ignore silently
+			// Server sends these periodically to prevent connection timeouts
+			continue
+
+		default:
+			// Unknown message type
+			fmt.Printf("Unknown message type: %s\n", response["type"])
+		}
+	}
+}
 ```
 
 **Testing our real-time monitoring:**
@@ -297,6 +526,55 @@ A lightweight API that returns transaction statistics as JSON.
 
 [embedmd]:# (../_assets/tx-indexer-example/api.go go)
 ```go
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+)
+
+// Simple dashboard server that serves transaction statistics via JSON API
+func RunApiExample() {
+	http.HandleFunc("/stats", handleStats)
+	fmt.Println("Dashboard running on http://localhost:8080/stats")
+	http.ListenAndServe(":8080", nil)
+}
+
+// HTTP handler function for /stats endpoint
+func handleStats(w http.ResponseWriter, r *http.Request) {
+	// Sample data (in real app, get from indexer or database)
+	// This would typically come from:
+	// 1. Direct GraphQL query to indexer
+	// 2. Your local database
+	// 3. Cached data in memory
+	data := `{"data": {"getTransactions": []}}`
+
+	// Process data using our existing functions
+	transactions, err := parseTransactions([]byte(data))
+	if err != nil {
+		http.Error(w, "Failed to parse transactions", http.StatusInternalServerError)
+		return
+	}
+	sorted := sortTransactions(transactions)
+
+	// Calculate statistics from our transaction data
+	var totalVolume float64
+	for _, tx := range transactions {
+		totalVolume += tx.Amount
+	}
+
+	// Prepare response data structure
+	response := map[string]interface{}{
+		"status":             "success",
+		"total_transactions": len(sorted),
+		"total_volume":       totalVolume,
+		"biggest_amount":     sorted[0].Amount,
+		"average_amount":     totalVolume / float64(len(sorted)),
+		"top_transactions":   sorted[:min(5, len(sorted))], // Top 5 transactions
+	}
+	json.NewEncoder(w).Encode(response)
+}
 ```
 
 #### Bonus: Storing data permanently with database
