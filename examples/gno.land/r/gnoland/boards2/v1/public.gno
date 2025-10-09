@@ -115,7 +115,7 @@ func CreateBoard(_ realm, name string, listed bool) boards.ID {
 	assertBoardNameNotExists(name)
 
 	caller := runtime.PreviousRealm().Address()
-	id := reserveBoardID()
+	id := gBoardsSequence.Next()
 	board := boards.New(id)
 	args := boards.Args{caller, name, board.ID, listed}
 	gPerms.WithPermission(cross, caller, PermissionBoardCreate, args, func(realm) {

@@ -11,48 +11,39 @@ import (
 
 // TODO: Refactor globals in favor of a cleaner pattern
 var (
-	gPerms            boards.Permissions
-	gBoards           boards.Storage
 	gRealmLink        txlink.Realm
 	gNotice           string
 	gHelp             string
-	gLastReservedID   boards.ID // TODO: Use gBoardsSequence = boards.NewIdentifierGenerator()
-	gListedBoardsByID avl.Tree  // string(id) -> *boards.Board
-	gInviteRequests   avl.Tree  // string(board id) -> *avl.Tree(address -> time.Time)
-	gBannedUsers      avl.Tree  // string(board id) -> *avl.Tree(address -> time.Time)
+	gListedBoardsByID avl.Tree // string(id) -> *boards.Board
+	gInviteRequests   avl.Tree // string(board id) -> *avl.Tree(address -> time.Time)
+	gBannedUsers      avl.Tree // string(board id) -> *avl.Tree(address -> time.Time)
 	gLocked           struct {
 		realm        bool
 		realmMembers bool
 	}
 )
 
-func init() {
-	gBoards = boards.NewStorage()
-
-	// Save current realm path so it's available during render calls
-	gRealmLink = txlink.Realm(runtime.CurrentRealm().PkgPath())
-
-	// Initialize default realm permissions
-	gPerms = initRealmPermissions(
+var (
+	gBoards         = boards.NewStorage()
+	gBoardsSequence = boards.NewIdentifierGenerator()
+	gPerms          = initRealmPermissions(
 		"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq", // @devx
 		"g1manfred47kzduec920z88wfr64ylksmdcedlf5", // @moul
 	)
+)
+
+func init() {
+	// Save current realm path so it's available during render calls
+	gRealmLink = txlink.Realm(runtime.CurrentRealm().PkgPath())
 }
 
 // initRealmPermissions returns the default realm permissions.
-func initRealmPermissions(owners ...address) *BasicPermissions {
+func initRealmPermissions(owners ...address) boards.Permissions {
 	perms := createBasicPermissions(owners...)
 	perms.ValidateFunc(PermissionBoardCreate, validateBoardCreate)
 	perms.ValidateFunc(PermissionMemberInvite, validateMemberInvite)
 	perms.ValidateFunc(PermissionRoleChange, validateRoleChange)
 	return perms
-}
-
-// reserveBoardID returns a new board ID which won't be used by another board.
-// Reserving IDs is necessary because boards can be created asynchronically.
-func reserveBoardID() boards.ID {
-	gLastReservedID++
-	return gLastReservedID
 }
 
 // getInvitesRequests returns invite requests for a board.
