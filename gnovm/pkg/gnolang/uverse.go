@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	// NativeCPUUversePrintInit is the base cost for Print.
-	NativeCPUUversePrintInit = 1800
+	// NativeCPUUversePrintInit is the base gas cost for the Print function.
+	// The actual cost is 1800, but we subtract OpCPUCallNativeBody (424), resulting in 1376.
+	NativeCPUUversePrintInit = 1376
 	// NativeCPUUversePrintPerChar is now chars per gas unit.
 	NativeCPUUversePrintCharsPerGas = 10
 )
@@ -857,6 +858,7 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
+			// Todo: should stop op code benchmarking here.
 			if bm.NativeEnabled {
 				arg0 := m.LastBlock().GetParams1(m.Store)
 				bm.StartNative(bm.GetNativePrintCode(len(formatUverseOutput(m, arg0, false))))
@@ -878,6 +880,7 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
+			// Todo: should stop op code benchmarking here.
 			if bm.NativeEnabled {
 				arg0 := m.LastBlock().GetParams1(m.Store)
 				bm.StartNative(bm.GetNativePrintCode(len(formatUverseOutput(m, arg0, false))))
