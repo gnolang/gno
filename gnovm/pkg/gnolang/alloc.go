@@ -135,7 +135,7 @@ func (alloc *Allocator) Allocate(size int64) {
 		// this can happen for map items just prior to assignment.
 		return
 	}
-	if alloc.bytes+size > alloc.maxBytes {
+	if overflow.Addp(alloc.bytes, size) > alloc.maxBytes {
 		if left, ok := alloc.collect(); !ok {
 			panic("should not happen, allocation limit exceeded while gc.")
 		} else {
@@ -164,7 +164,7 @@ func (alloc *Allocator) Allocate(size int64) {
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
-	alloc.Allocate(allocString + allocStringByte*size)
+	alloc.Allocate(overflow.Addp(allocString, overflow.Mulp(size, allocStringByte)))
 }
 
 func (alloc *Allocator) AllocatePointer() {
@@ -172,11 +172,11 @@ func (alloc *Allocator) AllocatePointer() {
 }
 
 func (alloc *Allocator) AllocateDataArray(size int64) {
-	alloc.Allocate(allocArray + size)
+	alloc.Allocate(overflow.Addp(allocArray, size))
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
-	alloc.Allocate(allocArray + allocArrayItem*items)
+	alloc.Allocate(overflow.Addp(allocArray, overflow.Mulp(allocArrayItem, items)))
 }
 
 func (alloc *Allocator) AllocateSlice() {
@@ -189,7 +189,7 @@ func (alloc *Allocator) AllocateStruct() {
 }
 
 func (alloc *Allocator) AllocateStructFields(fields int64) {
-	alloc.Allocate(allocStructField * fields)
+	alloc.Allocate(overflow.Mulp(allocStructField, fields))
 }
 
 func (alloc *Allocator) AllocateFunc() {
@@ -197,7 +197,7 @@ func (alloc *Allocator) AllocateFunc() {
 }
 
 func (alloc *Allocator) AllocateMap(items int64) {
-	alloc.Allocate(allocMap + allocMapItem*items)
+	alloc.Allocate(overflow.Addp(allocMap, overflow.Mulp(allocMapItem, items)))
 }
 
 func (alloc *Allocator) AllocateMapItem() {
@@ -213,11 +213,11 @@ func (alloc *Allocator) AllocatePackageValue() {
 }
 
 func (alloc *Allocator) AllocateBlock(items int64) {
-	alloc.Allocate(allocBlock + allocBlockItem*items)
+	alloc.Allocate(overflow.Addp(allocBlock, overflow.Mulp(allocBlockItem, items)))
 }
 
 func (alloc *Allocator) AllocateBlockItems(items int64) {
-	alloc.Allocate(allocBlockItem * items)
+	alloc.Allocate(overflow.Mulp(allocBlockItem, items))
 }
 
 /* NOTE: Not used, account for with AllocatePointer.
@@ -419,7 +419,7 @@ func (b *Block) GetShallowSize() int64 {
 		ss += allocRefValue
 	}
 
-	ss = allocBlock + allocBlockItem*int64(len(b.Values))
+	ss = overflow.Addp(allocBlock, overflow.Mulp(allocBlockItem, int64(len(b.Values))))
 
 	return ss
 }
@@ -428,16 +428,16 @@ func (av *ArrayValue) GetShallowSize() int64 {
 	if av.Data != nil {
 		return allocArray + int64(len(av.Data))
 	} else {
-		return allocArray + int64(len(av.List)*allocArrayItem)
+		return overflow.Addp(allocArray, overflow.Mulp(int64(len(av.List)), allocArrayItem))
 	}
 }
 
 func (sv *StructValue) GetShallowSize() int64 {
-	return allocStruct + int64(len(sv.Fields))*allocStructField
+	return overflow.Addp(allocStruct, overflow.Mulp(int64(len(sv.Fields)), allocStructField))
 }
 
 func (mv *MapValue) GetShallowSize() int64 {
-	return allocMap + allocMapItem*int64(mv.GetLength())
+	return overflow.Addp(allocMap, overflow.Mulp(allocMapItem, int64(mv.GetLength())))
 }
 
 func (bmv *BoundMethodValue) GetShallowSize() int64 {
@@ -481,7 +481,7 @@ func (fv *FuncValue) GetShallowSize() int64 {
 }
 
 func (sv StringValue) GetShallowSize() int64 {
-	return allocString + allocStringByte*int64(len(sv))
+	return overflow.Addp(allocString, overflow.Mulp(allocStringByte, int64(len(sv))))
 }
 
 func (biv BigintValue) GetShallowSize() int64 {
