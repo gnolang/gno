@@ -2,15 +2,18 @@ package impl
 
 import (
 	"chain/runtime"
+	"sort"
 	"strconv"
 	"strings"
 
 	"gno.land/p/moul/helplink"
+	"gno.land/p/nt/avl"
 	"gno.land/p/nt/avl/pager"
 	"gno.land/p/nt/mux"
 	"gno.land/p/nt/seqid"
 	"gno.land/p/nt/ufmt"
 	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/memberstore"
 	"gno.land/r/sys/users"
 )
 
@@ -29,6 +32,10 @@ func NewRender(d *GovDAO) *render {
 
 	r.HandleFunc("", func(rw *mux.ResponseWriter, req *mux.Request) {
 		rw.Write(ren.renderActiveProposals(req.RawPath, d))
+	})
+
+	r.HandleFunc("activity", func(rw *mux.ResponseWriter, req *mux.Request) {
+		rw.Write(ren.renderActivityPage(d))
 	})
 
 	r.HandleFunc("{pid}", func(rw *mux.ResponseWriter, req *mux.Request) {
@@ -57,6 +64,7 @@ func (ren *render) Render(pkgPath string, path string) string {
 
 func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
 	out := "# GovDAO\n"
+	out += "[> View Activity <](" + ren.relativeRealmPath + ":activity)\n\n"
 	out += "## Members\n"
 	out += "[> Go to Memberstore <](/r/gov/dao/v3/memberstore)\n"
 	out += "## Proposals\n"
@@ -95,6 +103,90 @@ func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 	out += "\n\n---\n\n"
 
 	out += renderActionBar(ufmt.Sprintf("%v", pid))
+
+	return out
+}
+
+type memberActivity struct {
+	addr       address
+	activity   uint32
+	available  uint32
+	percentage float64
+}
+
+// memberActivitySorter implements sort.Interface for sorting member activities by participation percentage
+type memberActivitySorter []memberActivity
+
+func (mas memberActivitySorter) Len() int {
+	return len(mas)
+}
+
+func (mas memberActivitySorter) Less(i, j int) bool {
+	// Sort by percentage descending (highest first)
+	if mas[i].percentage != mas[j].percentage {
+		return mas[i].percentage > mas[j].percentage
+	}
+	// If percentages are equal, sort by activity count descending as tiebreaker
+	return mas[i].activity > mas[j].activity
+}
+
+func (mas memberActivitySorter) Swap(i, j int) {
+	mas[i], mas[j] = mas[j], mas[i]
+}
+
+func (ren *render) renderActivityPage(d *GovDAO) string {
+	out := "# GovDAO Activity\n\n"
+	out += "## Members Activity\n"
+
+	members := memberstore.Get()
+	if members.Size() == 0 {
+		out += "\n\n### No data available"
+		return out
+	}
+
+	var memberActivities []memberActivity
+	members.Iterate("", "", func(tierName string, tierValue any) bool {
+		memberTree, ok := tierValue.(*avl.Tree)
+		if !ok {
+			return false
+		}
+
+		// Iterate over all members in this tier
+		memberTree.Iterate("", "", func(addrKey string, _ any) bool {
+			memberAddr := address(addrKey)
+			activity, available_proposal := d.GetMemberActivity(memberAddr)
+
+			var percentage float64
+			if available_proposal > 0 {
+				percentage = float64(activity) / float64(available_proposal) * 100.0
+			}
+
+			memberActivities = append(memberActivities, memberActivity{
+				addr:       memberAddr,
+				activity:   activity,
+				available:  available_proposal,
+				percentage: percentage,
+			})
+			return false
+		})
+		return false
+	})
+
+	// Sort by percentage (highest first), then by activity count as tiebreaker
+	sort.Sort(memberActivitySorter(memberActivities))
+
+	// Render sorted member activities
+	for _, ma := range memberActivities {
+		if ma.available > 0 {
+			out += ufmt.Sprintf("**%s**: %d/%d (%.1f%%)\n",
+				tryResolveAddr(ma.addr), ma.activity, ma.available, ma.percentage)
+		} else {
+			out += ufmt.Sprintf("**%s**: %d/%d\n",
+				tryResolveAddr(ma.addr), ma.activity, ma.available)
+		}
+	}
+
+	out += "\n\n"
 
 	return out
 }
