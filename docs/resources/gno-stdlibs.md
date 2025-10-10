@@ -3,9 +3,10 @@
 Gno comes with a set of standard libraries which are included to ease development
 and provide extended functionality to the language. These include:
 - standard libraries as we know them in classic Go, i.e. `strings`, `testing`, etc.
-- a special `std` package, which contains types, interfaces, and APIs created to
-handle blockchain-related functionality, such as fetching the last caller,
-fetching coins sent along with a transaction, getting the block timestamp and height, and more.
+- a special `chain` package with subpackages containing types, interfaces, and 
+APIs created to handle blockchain-related functionality, such as fetching the 
+last caller, fetching coins sent along with a transaction, getting the block 
+timestamp and height, and more.
 
 Standard libraries differ from on-chain packages in terms of their import path structure.
 Unlike on-chain [packages](./gno-packages.md), standard libraries do not incorporate
@@ -75,7 +76,11 @@ where you cloned the Gno repository.
 export GNOROOT=$HOME/gno
 ```
 
-## Coin
+
+
+
+
+### Coin
 
 A Coin is a native Gno type that has a denomination and an amount. Coins can be
 issued by the native Gno Banker.
@@ -108,7 +113,7 @@ Read more about coins in the [Effective Gno](./effective-gno.md) section.
 
 The Coin(s) API can be found in the `std` package.
 
-## Banker
+### Banker
 
 The Banker's main purpose is to handle balance changes of [native coins](#coin)
 within Gno chains. This includes issuance, transfers, and burning of coins.
