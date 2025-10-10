@@ -98,6 +98,12 @@ type (
 		Execute(realm) error
 	}
 
+	// RenderableProposal makes sure that the proposal is renderable
+	RenderableProposal interface {
+		ProposalDefinition
+		Render() string
+	}
+
 	// CustomizableVoteChoices defines an interface for proposal definitions that want
 	// to customize the list of allowed voting choices.
 	CustomizableVoteChoices interface {
@@ -246,6 +252,8 @@ func (p Proposal) Validate() error {
 func (p Proposal) IsVoteChoiceValid(c VoteChoice) bool {
 	return p.voteChoices.Has(string(c))
 }
+
+// add default prop render
 
 // IsQuorumReached checks if a participation quorum is reach.
 func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members MemberSet) bool {
