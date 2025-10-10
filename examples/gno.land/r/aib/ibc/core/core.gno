@@ -156,9 +156,9 @@ func Acknowledgement(cur realm, msg types.MsgAcknowledgement) types.ResponseResu
 		))
 	}
 
+	// Verify merkle proof of packet commitment
 	path := host.PacketAcknowledgementKey(msg.Packet.DestinationClient, msg.Packet.Sequence)
 	merklePath := types.BuildMerklePath(c.counterpartyMerklePrefix, path)
-
 	if err := c.lightClient.VerifyMembership(
 		msg.ProofHeight, 0, 0, msg.ProofAcked, merklePath,
 		types.CommitAcknowledgement(msg.Acknowledgement),
