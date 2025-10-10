@@ -194,6 +194,7 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 
 		genesis := gnoland.DefaultGenState()
 		genesis.Balances = LoadDefaultGenesisBalanceFile(t, gnoRootDir)
+		genesis.Bank.Params.TotalSupply = gnoland.TotalBalance(genesis.Balances)
 		genesis.Auth.Params.InitialGasPrice = std.GasPrice{Gas: 0, Price: std.Coin{Amount: 0, Denom: "ugnot"}}
 		genesis.Txs = []gnoland.TxWithMetadata{}
 		LoadDefaultGenesisParamFile(t, gnoRootDir, &genesis)
@@ -296,6 +297,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			genesis := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
 			genesis.Txs = append(genesis.Txs, append(pkgsTxs, tsGenesis.Txs...)...)
 			genesis.Balances = append(genesis.Balances, tsGenesis.Balances...)
+			genesis.Bank.Params.TotalSupply = gnoland.TotalBalance(genesis.Balances)
 			if *lockTransfer {
 				genesis.Bank.Params.RestrictedDenoms = []string{"ugnot"}
 			}
@@ -493,6 +495,7 @@ func adduserCmd(nodesManager *NodesManager) func(ts *testscript.TestScript, neg 
 
 		genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 		genesis.Balances = append(genesis.Balances, balance)
+		genesis.Bank.Params.TotalSupply = gnoland.TotalBalance(genesis.Balances)
 	}
 }
 
@@ -538,6 +541,7 @@ func adduserfromCmd(nodesManager *NodesManager) func(ts *testscript.TestScript, 
 
 		genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 		genesis.Balances = append(genesis.Balances, balance)
+		genesis.Bank.Params.TotalSupply = gnoland.TotalBalance(genesis.Balances)
 
 		fmt.Fprintf(ts.Stdout(), "Added %s(%s) to genesis", args[0], balance.Address)
 	}
