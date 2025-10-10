@@ -11,7 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -1520,7 +1522,7 @@ func TestClient_EstimateGas(t *testing.T) {
 		estimate, err := c.EstimateGas(&std.Tx{})
 
 		assert.Zero(t, estimate)
-		assert.ErrorContains(t, err, "unable to unmarshal gas estimation response")
+		assert.ErrorContains(t, err, "unable to unmarshal simulation response")
 	})
 
 	t.Run("valid gas estimation", func(t *testing.T) {
@@ -1564,5 +1566,61 @@ func TestClient_EstimateGas(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, gasUsed, estimate)
+	})
+
+	t.Run("valid simulate", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			gasUsed     = int64(100000)
+			deliverResp = &abci.ResponseDeliverTx{
+				GasUsed: gasUsed,
+				ResponseBase: abci.ResponseBase{
+					Events: []abci.Event{
+						&chain.StorageDepositEvent{
+							BytesDelta: 10,
+							FeeDelta:   std.Coin{Denom: ugnot.Denom, Amount: 1000},
+						},
+					},
+				},
+			}
+		)
+
+		// Encode the response
+		encodedResp, err := amino.Marshal(deliverResp)
+		require.NoError(t, err)
+
+		var (
+			response = &ctypes.ResultABCIQuery{
+				Response: abci.ResponseQuery{
+					Value: encodedResp, // valid amino binary
+				},
+			}
+			mockRPCClient = &mockRPCClient{
+				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+					require.Equal(t, simulatePath, path)
+
+					var tx std.Tx
+
+					require.NoError(t, amino.Unmarshal(data, &tx))
+
+					return response, nil
+				},
+			}
+		)
+
+		c := &Client{
+			RPCClient: mockRPCClient,
+		}
+
+		deliverTx, err := c.Simulate(&std.Tx{})
+
+		require.NoError(t, err)
+		assert.Equal(t, gasUsed, deliverTx.GasUsed)
+
+		bytesDelta, coinsDelta, hasStorageEvents := keyscli.GetStorageInfo(deliverTx.Events)
+		assert.Equal(t, true, hasStorageEvents)
+		assert.Equal(t, int64(10), bytesDelta)
+		assert.Equal(t, "1000ugnot", coinsDelta.String())
 	})
 }
