@@ -39,13 +39,7 @@ func NewSvgNode() ast.Node {
 type svgBlockParser struct {
 }
 
-var svgInfoKey = parser.NewContextKey()
-
 var defaultSVGParser = &svgBlockParser{}
-
-type svgData struct {
-	node ast.Node
-}
 
 // NewSVGParser returns a new BlockParser that parses SVG blocks.
 func NewSVGParser() parser.BlockParser {
@@ -102,13 +96,10 @@ func (b *svgBlockParser) CanInterruptParagraph() bool {
 }
 
 func (b *svgBlockParser) CanAcceptIndentedLine() bool {
-	return true // Accept indented lines to prevent other parsers from taking them
+	return true
 }
 
 // svgRenderer renders the Svg node.
-// When entering the Svg node, it displays the opening <svg> tag
-// and when exiting (after rendering the child inputs),
-// it displays the submit button and </svg>.
 type svgRenderer struct{}
 
 // NewSvgRenderer creates a new instance of svgRenderer
