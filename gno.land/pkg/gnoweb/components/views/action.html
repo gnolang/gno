@@ -76,6 +76,11 @@ UI - Help Function component
             {{ template "ui/copy" }}
           </button>
         </span>
+        {{- if .Crossing }}
+          <a target="_blank" href="https://github.com/gnolang/blog/blob/dev/moul/crossing/posts/2025-05-xx_crossing_manfred/README.md#understanding-cross-and-crossing">
+            crossing
+          </a>
+        {{- end }}
       </span>
       <span class="b-btns">
         <button class="b-btn b-btn--secondary c-with-icon" aria-label="Copy Function" data-controller="copy"
