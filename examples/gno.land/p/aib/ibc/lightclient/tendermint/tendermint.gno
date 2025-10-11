@@ -110,8 +110,7 @@ func (tm *TMLightClient) VerifyMembership(height types.Height,
 
 		return merkleProof.VerifyMembership(cs.ProofSpecs, consensusState.GetRoot(), merklePath, value)
 	*/
-	panic("TODO")
-
+	panic("not implemented")
 }
 
 // Implements lightclient.Interface
