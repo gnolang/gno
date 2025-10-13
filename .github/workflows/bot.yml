@@ -71,7 +71,7 @@ jobs:
 
       - name: Install Go
         if: steps.cache-bot-bin.outputs.cache-hit != 'true'
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: contribs/github-bot/go.mod
 
@@ -142,7 +142,7 @@ jobs:
 
       - name: Install Go
         if: steps.cache-bot-bin.outputs.cache-hit != 'true'
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: contribs/github-bot/go.mod
 
