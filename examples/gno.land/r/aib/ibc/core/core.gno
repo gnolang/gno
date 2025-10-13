@@ -160,7 +160,7 @@ func Acknowledgement(cur realm, msg types.MsgAcknowledgement) types.ResponseResu
 	path := host.PacketAcknowledgementKey(msg.Packet.DestinationClient, msg.Packet.Sequence)
 	merklePath := types.BuildMerklePath(c.counterpartyMerklePrefix, path)
 	if err := c.lightClient.VerifyMembership(
-		msg.ProofHeight, 0, 0, msg.ProofAcked, merklePath,
+		msg.ProofHeight, msg.ProofAcked, merklePath,
 		types.CommitAcknowledgement(msg.Acknowledgement),
 	); err != nil {
 		panic(ufmt.Sprintf(

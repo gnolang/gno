@@ -285,6 +285,17 @@ func doLengthOp(lengthOp LengthOp, data []byte) ([]byte, error) {
 	return nil, ufmt.Errorf("unsupported lengthop: %d", lengthOp)
 }
 
+func encodeVarintProto(l int) []byte {
+	// avoid multiple allocs for normal case
+	res := make([]byte, 0, 8)
+	for l >= 1<<7 {
+		res = append(res, uint8(l&0x7f|0x80))
+		l >>= 7
+	}
+	res = append(res, uint8(l))
+	return res
+}
+
 // doHashOrNoop will return the preimage untouched if hashOp == NONE,
 // otherwise, perform doHash
 func doHashOrNoop(hashOp HashOp, preimage []byte) ([]byte, error) {

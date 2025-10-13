@@ -7,6 +7,14 @@ import (
 	"gno.land/p/nt/ufmt"
 )
 
+type CommitmentProof_Exist struct {
+	Exist *ExistenceProof
+}
+
+func (c *CommitmentProof_Exist) ProtoUnmarshal(bz []byte) error {
+	panic("not implemented")
+}
+
 // ExistenceProof takes a key and a value and a set of steps to perform on it.
 // The result of peforming all these steps will provide a "root hash", which can
 // be compared to the value in a header.
@@ -100,84 +108,6 @@ func (m *InnerOp) GetPrefix() []byte {
 	return m.Prefix
 }
 
-func encodeVarintProto(l int) []byte {
-	// avoid multiple allocs for normal case
-	res := make([]byte, 0, 8)
-	for l >= 1<<7 {
-		res = append(res, uint8(l&0x7f|0x80))
-		l >>= 7
-	}
-	res = append(res, uint8(l))
-	return res
-}
-
-// CommitmentProof is either an ExistenceProof or a NonExistenceProof, or a Batch of such messages
-type CommitmentProof struct {
-	// Types that are valid to be assigned to Proof:
-	//
-	//	*CommitmentProof_Exist
-	//	*CommitmentProof_Nonexist
-	//	*CommitmentProof_Batch
-	//	*CommitmentProof_Compressed
-	Proof isCommitmentProof_Proof
-}
-
-type isCommitmentProof_Proof interface {
-	isCommitmentProof_Proof()
-	// TODO remove
-	// MarshalTo([]byte) (int, error)
-	// Size() int
-}
-
-type CommitmentProof_Exist struct {
-	Exist *ExistenceProof
-}
-
-func (*CommitmentProof_Exist) isCommitmentProof_Proof() {}
-
-type CommitmentProof_Nonexist struct {
-	Nonexist *NonExistenceProof
-}
-
-func (*CommitmentProof_Nonexist) isCommitmentProof_Proof() {}
-
-func (m *CommitmentProof) GetProof() isCommitmentProof_Proof {
-	if m != nil {
-		return m.Proof
-	}
-	return nil
-}
-
-func (m *CommitmentProof) GetExist() *ExistenceProof {
-	if x, ok := m.GetProof().(*CommitmentProof_Exist); ok {
-		return x.Exist
-	}
-	return nil
-}
-
-func (m *CommitmentProof) GetNonexist() *NonExistenceProof {
-	if x, ok := m.GetProof().(*CommitmentProof_Nonexist); ok {
-		return x.Nonexist
-	}
-	return nil
-}
-
-// Calculate determines the root hash that matches a given Commitment proof
-// by type switching and calculating root based on proof type
-// NOTE: Calculate will return the first calculated root in the proof,
-// you must validate that all other embedded ExistenceProofs commit to the same root.
-// This can be done with the Verify method
-func (p *CommitmentProof) Calculate() (CommitmentRoot, error) {
-	switch v := p.Proof.(type) {
-	case *CommitmentProof_Exist:
-		return v.Exist.Calculate()
-	case *CommitmentProof_Nonexist:
-		return v.Nonexist.Calculate()
-	default:
-		return nil, errors.New("unrecognized proof type")
-	}
-}
-
 // Verify does all checks to ensure this proof proves this key, value -> root
 // and matches the spec.
 func (p *ExistenceProof) Verify(spec *ProofSpec, root CommitmentRoot, key []byte, value []byte) error {
@@ -234,6 +164,14 @@ func (p *ExistenceProof) calculate(spec *ProofSpec) (CommitmentRoot, error) {
 		}
 	}
 	return res, nil
+}
+
+type CommitmentProof_Nonexist struct {
+	Nonexist *NonExistenceProof
+}
+
+func (c *CommitmentProof_Nonexist) ProtoUnmarshal(bz []byte) error {
+	panic("not implemented")
 }
 
 // NonExistenceProof takes a proof of two neighbors, one left of the desired key,

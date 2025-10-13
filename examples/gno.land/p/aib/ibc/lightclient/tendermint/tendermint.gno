@@ -7,6 +7,7 @@ import (
 
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/types"
+	"gno.land/p/aib/ics23"
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/ufmt"
 )
@@ -85,39 +86,55 @@ func (tm *TMLightClient) UpdateState(clientMsg lightclient.ClientMessage) []type
 
 // Implements lightclient.Interface
 func (tm *TMLightClient) VerifyMembership(height types.Height,
-	delayTimePeriod uint64, delayBlockPeriod uint64, proof []byte,
-	path types.MerklePath, value []byte) error {
+	proof []byte, path types.MerklePath, value []byte) error {
 	if tm.ClientState.LatestHeight.LT(height) {
 		return ufmt.Errorf(
 			"client state height < proof height (%d < %d), please ensure the client has been updated", tm.ClientState.LatestHeight, height,
 		)
 	}
+
+	// TODO ensure this is mandatory to have proof bytes encoded using proto
+	// Maybe the relayer can help here.
+	var merkleProof ics23.CommitmentProof_Exist
+	if err := merkleProof.ProtoUnmarshal(proof); err != nil {
+		return ufmt.Errorf("failed to unmarshal proof into ICS 23 commitment merkle proof: %v", err)
+	}
+
 	cs, found := tm.GetConsensusState(height)
 	if !found {
 		return ufmt.Errorf("please ensure the proof was constructed against a height that exists on the client")
 	}
-
-	if err := tm.verifyDelayPeriodPassed(cs, delayTimePeriod, delayBlockPeriod); err != nil {
-		return err
-	}
-
-	// TODO
+	_ = cs
 	/*
-		var merkleProof commitmenttypes.MerkleProof
-		if err := cdc.Unmarshal(proof, &merkleProof); err != nil {
-			return errorsmod.Wrap(commitmenttypes.ErrInvalidProof, "failed to unmarshal proof into ICS 23 commitment merkle proof")
-		}
-
-		return merkleProof.VerifyMembership(cs.ProofSpecs, consensusState.GetRoot(), merklePath, value)
+		TODO
+			return merkleProof.VerifyMembership(cs.ProofSpecs, consensusState.GetRoot(), merklePath, value)
 	*/
 	panic("not implemented")
 }
 
 // Implements lightclient.Interface
 func (tm *TMLightClient) VerifyNonMembership(height types.Height,
-	delayTimePeriod uint64, delayBlockPeriod uint64, proof []byte,
-	path types.MerklePath) error {
-	// TODO
+	proof []byte, path types.MerklePath) error {
+	if tm.ClientState.LatestHeight.LT(height) {
+		return ufmt.Errorf(
+			"client state height < proof height (%d < %d), please ensure the client has been updated", tm.ClientState.LatestHeight, height,
+		)
+	}
+
+	var merkleProof ics23.CommitmentProof_Nonexist
+	if err := merkleProof.ProtoUnmarshal(proof); err != nil {
+		return ufmt.Errorf("failed to unmarshal proof into ICS 23 commitment merkle proof: %v", err)
+	}
+
+	cs, found := tm.GetConsensusState(height)
+	if !found {
+		return ufmt.Errorf("please ensure the proof was constructed against a height that exists on the client")
+	}
+	_ = cs
+	/*
+		TODO
+			return merkleProof.VerifyNonMembership(cs.ProofSpecs, consensusState.GetRoot(), merklePath, value)
+	*/
 	panic("not implemented")
 }
 
