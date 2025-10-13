@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"time"
 
-	"gno.land/p/aib/ibc/types"
 	"gno.land/p/nt/ufmt"
 )
 
@@ -179,43 +178,6 @@ func (tm TMLightClient) verifyCommit(
 
 	if got, needed := talliedVotingPower, votingPowerNeeded; got <= needed {
 		return ufmt.Errorf("not enough voting power, got %v, needed %v", got, needed)
-	}
-
-	return nil
-}
-
-// verifyDelayPeriodPassed will ensure that at least delayTimePeriod amount of
-// time and delayBlockPeriod number of blocks have passed since consensus state
-// was submitted before allowing verification to continue.
-func (tm *TMLightClient) verifyDelayPeriodPassed(cs *ConsensusState, delayTimePeriod, delayBlockPeriod uint64) error {
-	if delayTimePeriod != 0 {
-		// check that executing chain's timestamp has passed consensusState's processed time + delay time period
-
-		validTime := cs.processedTime.Add(time.Duration(delayTimePeriod))
-		currentTime := time.Now()
-
-		// NOTE: delay time period is inclusive, so if currentTimestamp is validTime, then we return no error
-		if currentTime.Before(validTime) {
-			return ufmt.Errorf(
-				"cannot verify packet until time: %d, current time: %d",
-				validTime, currentTime,
-			)
-		}
-	}
-
-	if delayBlockPeriod != 0 {
-		// check that executing chain's height has passed consensusState's processed height + delay block period
-		currentHeight := getSelfHeight()
-		validHeight := types.NewHeight(
-			cs.processedHeight.RevisionNumber,
-			cs.processedHeight.RevisionHeight+delayBlockPeriod,
-		)
-
-		// NOTE: delay block period is inclusive, so if currentHeight is validHeight, then we return no error
-		if currentHeight.LT(validHeight) {
-			return ufmt.Errorf("cannot verify packet until height: %s, current height: %s",
-				validHeight, currentHeight)
-		}
 	}
 
 	return nil

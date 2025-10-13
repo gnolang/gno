@@ -44,13 +44,12 @@ func main() {
 	sequence := core.SendPacket(cross, sendPacket)
 
 	// Acknowledge the packet
-	// TODO make send packet commitment bytes and ackPacket.packet commitment bytes match
 	ackPacket := types.MsgAcknowledgement{
 		Packet: types.Packet{
 			Sequence:          sequence,
 			SourceClient:      clientID,
 			DestinationClient: counterpartyID,
-			TimeoutTimestamp:  1,
+			TimeoutTimestamp:  sendPacket.TimeoutTimestamp,
 			Payloads: []types.Payload{{
 				SourcePort:      appPortID,
 				DestinationPort: "destinationPort",
