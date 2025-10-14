@@ -70,12 +70,12 @@ You can download the full `genesis.json` using the following steps:
 wget -O genesis.json https://gno-testnets-genesis.s3.eu-central-1.amazonaws.com/test9/genesis.json
 ```
 
-The `shasum` hash of the `genesis.json` should be `1fea4796774a0e0dcdff1e6b45b11205b5700fc6450911bece4390fcf711e1ab`.
+The `shasum` hash of the `genesis.json` should be `ebe97d4255a8eea9143661be202af35b4e7763adcb77cfe26eaca7475c1ed0e7`.
 Verify it by running:
 
 ```sh
 shasum -a 256 genesis.json
-1fea4796774a0e0dcdff1e6b45b11205b5700fc6450911bece4390fcf711e1ab  genesis.json
+ebe97d4255a8eea9143661be202af35b4e7763adcb77cfe26eaca7475c1ed0e7  genesis.json
 ```
 
 ---
