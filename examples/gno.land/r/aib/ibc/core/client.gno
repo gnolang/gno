@@ -91,7 +91,16 @@ func UpdateClient(cur realm, clientID string, clientMessage lightclient.ClientMe
 		panic(err)
 	}
 
-	// TODO check for misbehavior
+	foundMisbehavior := c.lightClient.CheckForMisbehaviour(clientMessage)
+	if foundMisbehavior {
+		c.lightClient.UpdateStateOnMisbehaviour(clientMessage)
+
+		chain.Emit(types.EventTypeSubmitMisbehaviour,
+			types.AttributeKeyClientID, c.id,
+			types.AttributeKeyClientType, c.typ,
+		)
+		return
+	}
 
 	consensusHeights := c.lightClient.UpdateState(clientMessage)
 

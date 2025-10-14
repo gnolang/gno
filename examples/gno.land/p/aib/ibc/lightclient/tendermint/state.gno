@@ -1,6 +1,7 @@
 package tendermint
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"errors"
 	"regexp"
@@ -85,6 +86,12 @@ type ConsensusState struct {
 
 	processedTime   time.Time
 	processedHeight types.Height
+}
+
+func (cs ConsensusState) Equal(other ConsensusState) bool {
+	return cs.Timestamp.Equal(other.Timestamp) &&
+		bytes.Equal(cs.Root.Hash, other.Root.Hash) &&
+		bytes.Equal(cs.NextValidatorsHash, other.NextValidatorsHash)
 }
 
 type MerkleRoot struct {
