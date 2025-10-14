@@ -1,0 +1,302 @@
+# Test public realm functionality without privacy enforcement
+# This test verifies that public realms can store any data when privacy is not enforced
+
+loadpkg gno.land/p/nt/avl
+
+# start a new node
+gnoland start
+
+# add the public realm first
+gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/foobar/publicrealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# add the normal realm (not marked as private)
+gnokey maketx addpkg -pkgdir $WORK/normalrealm -pkgpath gno.land/r/foobar/normalrealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveTreeToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveIntToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveSliceToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMapToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmWithoutRef -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmWithRefToStruct -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmWithRefToTree -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmAfterSaving -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveInterfaceToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveArrayToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveNestedToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveNestedToPublicRealmAfterSaving -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveClosureToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveValueFromNormalStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query vm/qeval --data 'gno.land/r/foobar/normalrealm.GetTreePointer()'
+stdout 'gno.land/p/nt/avl.Tree'
+
+-- normalrealm/gnomod.toml --
+module = "gno.land/r/foobar/normalrealm"
+gno = "0.9"
+
+-- normalrealm/normalrealm.gno --
+package normalrealm
+
+import (
+    "gno.land/p/nt/avl"
+    "gno.land/r/foobar/publicrealm"
+)
+
+var tree *avl.Tree = avl.NewTree()
+var integerValue int = 42
+var normalSlice []string
+var normalMap map[string]int
+
+type NormalData struct {
+    Name  string
+    Value int
+    Tree  *avl.Tree
+}
+
+var normalStruct *NormalData
+
+func init() {
+    normalSlice = []string{"normal1", "normal2"}
+    normalMap = make(map[string]int)
+    normalMap["normal"] = 100
+
+    normalStruct = &NormalData{
+        Name:  "normal struct",
+        Value: 999,
+        Tree:  tree,
+    }
+}
+
+func SaveTreeToPublicRealm(cur realm) {
+    publicrealm.SaveYourTree(cross, tree)
+}
+
+func SaveIntToPublicRealm(cur realm) {
+    publicrealm.SaveYourInt(cross, integerValue)
+}
+
+func SaveSliceToPublicRealm(cur realm) {
+    publicrealm.SaveYourSlice(cross, normalSlice)
+}
+
+func SaveMapToPublicRealm(cur realm) {
+    publicrealm.SaveYourMap(cross, normalMap)
+}
+
+func SaveStructToPublicRealm(cur realm) {
+    publicrealm.SaveYourStruct(cross, normalStruct)
+}
+
+func SaveMixedStructToPublicRealmWithoutRef(cur realm) {
+    mixed := publicrealm.CreatePublicStruct(cross, "mixed", nil, nil)
+    publicrealm.SaveYourMixedStruct(cross, mixed)
+}
+
+func SaveMixedStructToPublicRealmWithRefToStruct(cur realm) {
+    mixed := publicrealm.CreatePublicStruct(cross, "mixed", nil, normalStruct)
+    publicrealm.SaveYourMixedStruct(cross, mixed)
+}
+
+func SaveMixedStructToPublicRealmWithRefToTree(cur realm) {
+    mixed := publicrealm.CreatePublicStruct(cross, "mixed", tree, nil)
+    publicrealm.SaveYourMixedStruct(cross, mixed)
+}
+
+var savedMixedInNormal *publicrealm.PublicStruct
+
+func SaveMixedStructToPublicRealmAfterSaving(cur realm) {
+    mixed := publicrealm.CreatePublicStruct(cross, "mixed", tree, normalStruct)
+    savedMixedInNormal = mixed
+    publicrealm.SaveYourMixedStruct(cross, mixed)
+}
+
+func SaveInterfaceToPublicRealm(cur realm) {
+    var iface interface{} = tree
+    publicrealm.SaveYourInterface(cross, iface)
+}
+
+func SaveArrayToPublicRealm(cur realm) {
+    arr := [3]*avl.Tree{tree, tree, tree}
+    publicrealm.SaveYourArray(cross, arr)
+}
+
+func SaveNestedToPublicRealm(cur realm) {
+    nested := publicrealm.CreateNestedStruct(cross)
+    nested.SetNormalRef(tree)
+    publicrealm.SaveYourNested(cross, nested)
+}
+
+var savedNestedInNormal *publicrealm.NestedStruct
+
+func SaveNestedToPublicRealmAfterSaving(cur realm) {
+    nested := publicrealm.CreateNestedStruct(cross)
+    nested.SetNormalRef(tree)
+    savedNestedInNormal = nested
+    publicrealm.SaveYourNested(cross, nested)
+}
+
+func SaveClosureToPublicRealm(cur realm) {
+    publicrealm.SaveYourClosure(cross, GetNewTree)
+}
+
+func GetNewTree() *avl.Tree {
+    return avl.NewTree()
+}
+
+func SaveValueFromNormalStructToPublicRealm(cur realm) {
+    normalData := &NormalData{
+        Name:  "value from normal struct",
+        Value: 0,
+        Tree:  avl.NewTree(),
+    }
+    publicrealm.SaveYourValueFromNormalStruct(cross, normalData)
+}
+
+func GetTreePointer() *avl.Tree {
+    return tree
+}
+
+func GetNormalStruct() *NormalData {
+    return normalStruct
+}
+
+func GetNormalSlice() []string {
+    return normalSlice
+}
+
+-- publicrealm/gnomod.toml --
+module = "gno.land/r/foobar/publicrealm"
+gno = "0.9"
+
+-- publicrealm/publicrealm.gno --
+package publicrealm
+
+import (
+    "gno.land/p/nt/avl"
+)
+
+var savedTree *avl.Tree
+var savedInt int
+var savedSlice []string
+var savedMap map[string]int
+var savedInterface interface{}
+var savedArray [3]*avl.Tree
+var savedChannel chan *avl.Tree
+
+type PublicStruct struct {
+    Name        string
+    NormalTree  *avl.Tree
+    NormalData  interface{}
+}
+
+type NestedStruct struct {
+    Level1 *Level1
+}
+
+type Level1 struct {
+    Level2 *Level2
+}
+
+type Level2 struct {
+    NormalRef *avl.Tree
+}
+
+var savedPublicStruct *PublicStruct
+var savedNested *NestedStruct
+var savedClosure func() *avl.Tree
+
+func SaveYourTree(cur realm, ptr *avl.Tree) {
+    savedTree = ptr
+}
+
+func SaveYourInt(cur realm, value int) {
+    savedInt = value
+}
+
+func SaveYourSlice(cur realm, slice []string) {
+    savedSlice = slice
+}
+
+func SaveYourMap(cur realm, m map[string]int) {
+    savedMap = m
+}
+
+func SaveYourStruct(cur realm, s interface{}) {
+    savedInterface = s
+}
+
+func SaveYourMixedStruct(cur realm, mixed *PublicStruct) {
+    savedPublicStruct = mixed
+}
+
+func SaveYourInterface(cur realm, iface interface{}) {
+    savedInterface = iface
+}
+
+func SaveYourArray(cur realm, arr [3]*avl.Tree) {
+    savedArray = arr
+}
+
+func SaveYourNested(cur realm, nested *NestedStruct) {
+    savedNested = nested
+}
+
+func SaveYourClosure(cur realm, fn func() *avl.Tree) {
+    savedClosure = fn
+}
+
+func SaveYourValueFromNormalStruct(cur realm, normalData interface{}) {
+    savedInterface = normalData
+}
+
+func CreatePublicStruct(cur realm, name string, normalTree *avl.Tree, normalData interface{}) *PublicStruct {
+    return &PublicStruct{
+        Name:       name,
+        NormalTree: normalTree,
+        NormalData: normalData,
+    }
+}
+
+func CreateNestedStruct(cur realm) *NestedStruct {
+    return &NestedStruct{
+        Level1: &Level1{
+            Level2: &Level2{},
+        },
+    }
+}
+
+func (n *NestedStruct) SetNormalRef(ref *avl.Tree) {
+    n.Level1.Level2.NormalRef = ref 
+}

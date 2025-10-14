@@ -476,6 +476,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if gm.HasReplaces() {
 		return ErrInvalidPackage("development packages are not allowed")
 	}
+	if gm.Private && !gno.IsRealmPath(pkgPath) {
+		return ErrInvalidPackage("private packages must be realm packages")
+	}
 	if gm.Draft && ctx.BlockHeight() > 0 {
 		return ErrInvalidPackage("draft packages can only be deployed at genesis time")
 	}
@@ -582,33 +585,12 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	} else {
 		expr = fmt.Sprintf(`pkg.%s(cross,%s)`, fnc, argslist)
 	}
-	xn := gno.MustParseExpr(expr)
-	// Send send-coins to pkg from caller.
-	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
-	caller := msg.Caller
-	send := msg.Send
-	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
-	if err != nil {
-		return "", err
-	}
-	// Convert Args to gno values.
-	cx := xn.(*gno.CallExpr)
-	if cx.Varg {
-		panic("variadic calls not yet supported")
-	}
-	if nargs := len(msg.Args) + 1; nargs != len(ft.Params) { // NOTE: nargs = `cur` + user's len(args)
-		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), nargs))
-	}
-	for i, arg := range msg.Args {
-		argType := ft.Params[i+1].Type
-		atv := convertArgToGno(arg, argType)
-		cx.Args[i+1] = &gno.ConstExpr{
-			TypedValue: atv,
-		}
-	}
 	// Make context.
 	// NOTE: if this is too expensive,
 	// could it be safely partially memoized?
+	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
+	caller := msg.Caller
+	send := msg.Send
 	chainDomain := vm.getChainDomainParam(ctx)
 	msgCtx := stdlibs.ExecContext{
 		ChainID:         ctx.ChainID(),
@@ -632,6 +614,27 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			Alloc:    gnostore.GetAllocator(),
 			GasMeter: ctx.GasMeter(),
 		})
+	xn := m.MustParseExpr(expr)
+	// Send send-coins to pkg from caller.
+	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
+	if err != nil {
+		return "", err
+	}
+	// Convert Args to gno values.
+	cx := xn.(*gno.CallExpr)
+	if cx.Varg {
+		panic("variadic calls not yet supported")
+	}
+	if nargs := len(msg.Args) + 1; nargs != len(ft.Params) { // NOTE: nargs = `cur` + user's len(args)
+		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), nargs))
+	}
+	for i, arg := range msg.Args {
+		argType := ft.Params[i+1].Type
+		atv := convertArgToGno(arg, argType)
+		cx.Args[i+1] = &gno.ConstExpr{
+			TypedValue: atv,
+		}
+	}
 	defer m.Release()
 	m.SetActivePackage(mpv)
 	defer doRecover(m, &err)
@@ -770,6 +773,13 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 	buf := new(bytes.Buffer)
 	output := io.Writer(buf)
+
+	// XXX: see reason of private for run msg here: https://github.com/gnolang/gno/pull/4594
+	gm := new(gnomod.File)
+	gm.Module = memPkg.Path
+	gm.Gno = gno.GnoVerLatest
+	gm.Private = true
+	memPkg.SetFile("gnomod.toml", gm.WriteString())
 
 	alloc := gnostore.GetAllocator()
 	// Run as self-executing closure to have own function for doRecover / m.Release defers.
@@ -1007,11 +1017,6 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 			"package not found: %s", pkgPath))
 		return nil, err
 	}
-	// Parse expression.
-	xx, err := gno.ParseExpr(expr)
-	if err != nil {
-		return nil, err
-	}
 	// Construct new machine.
 	chainDomain := vm.getChainDomainParam(ctx)
 	msgCtx := stdlibs.ExecContext{
@@ -1037,6 +1042,11 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 		})
 	defer m.Release()
 	defer doRecoverQuery(m, &err)
+	// Parse expression.
+	xx, err := m.ParseExpr(expr)
+	if err != nil {
+		return nil, err
+	}
 	return m.Eval(xx), err
 }
 

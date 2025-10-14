@@ -29,8 +29,8 @@ type exporter struct {
 }
 
 // export code, duration, size in a 10 bytes record
-// byte 1: OpCode
-// byte 2: StoreCode
+// byte 1: Type (0=OpCode, 1=StoreCode, 2=NativeCode)
+// byte 2: OpCode, StoreCode, or NativeCode
 // byte 3-6: Duration
 // byte 7-10: Size
 func (e *exporter) export(code Code, elapsedTime time.Duration, size int64) {
@@ -69,7 +69,7 @@ func FinishStore() {
 			panic("timer should have stopped before FinishRun")
 		}
 
-		code := [2]byte{0x00, byte(i)}
+		code := [2]byte{byte(TypeNative), byte(i)}
 
 		fileWriter.export(
 			code,
@@ -89,10 +89,32 @@ func FinishRun() {
 			panic("timer should have stopped before FinishRun")
 		}
 
-		code := [2]byte{byte(i), 0x00}
+		code := [2]byte{byte(TypeOpCode), byte(i)}
 		fileWriter.export(code, measure.opAccumDur[i]/time.Duration(measure.opCounts[i]), 0)
 	}
 	ResetRun()
+}
+
+func FinishNative() {
+	for i := range 256 {
+		count := measure.nativeCounts[i]
+
+		if count == 0 {
+			continue
+		}
+		// check unstopped timer
+		if measure.nativeStartTime[i] != measure.timeZero {
+			panic("timer should have stopped before FinishRun")
+		}
+
+		code := [2]byte{byte(TypeNative), byte(i)}
+
+		fileWriter.export(
+			code,
+			measure.nativeAccumDur[i]/time.Duration(count),
+			0,
+		)
+	}
 }
 
 // It reset each machine Runs
