@@ -35,14 +35,16 @@ gnogenesis generate -chain-id $CHAIN_ID -genesis-time $GENESIS_TIME -output-path
 printf "\nAdding validators...\n"
 
 # Gno Core (2)
-gnogenesis validator add -name gnocore-val-01 -power 1 -address XXX -pub-key XXX # TODO @Sergio
-gnogenesis validator add -name gnocore-val-01 -power 1 -address XXX -pub-key XXX # TODO @Sergio
+gnogenesis validator add -name gnocore-val-01 -power 1 -address g1ek7ftha29qv4ahtv7jzpc0d57lqy7ynzklht7t -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq7kdacwkqquf7j9ywd6c3yaj4vsytkan526knd7nt2z5v4q2mgc6hfkfyu
+gnogenesis validator add -name gnocore-val-01 -power 1 -address g1xwlzxpuh4v3l9fjrl4cq2ylzpk7mhj0598xdy7 -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpnxghmy95x979vyw43073prpzqah9k9sez2mxsfkyfxge02hqczhqy4r4j
+
 # Gno DevX (2)
 gnogenesis validator add -name gnodevx-val-01 -power 1 -address XXX -pub-key XXX # TODO @Salvo
 gnogenesis validator add -name gnodevx-val-01 -power 1 -address XXX -pub-key XXX # TODO @Salvo
+
 # Onbloc (2)
-gnogenesis validator add -name onbloc-val-01 -power 1 -address XXX -pub-key XXX # TODO @Jinseon
-gnogenesis validator add -name onbloc-val-01 -power 1 -address XXX -pub-key XXX # TODO @Jinseon
+gnogenesis validator add -name onbloc-val-01 -power 1 -address g1kntcjkfplj0z44phajajwqkx5q4ry5yaft5q2h -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqxkeawgn93f8jm7wumknjwysg5mm3shyeyh8fky6pwytpcf5uyqk4vwshh
+gnogenesis validator add -name onbloc-val-01 -power 1 -address g1j306jcl4qyhgjw78shl3ajp88vmvdcf7m7ntm2 -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqvpv84g5n8zz7k2m2yenuv73e9r77zxzxzrucj064gzykj2puyvszw8kxc
 
 # Use a temporary directory for intermediary states
 TMP_DIR=./tmp-genesis
