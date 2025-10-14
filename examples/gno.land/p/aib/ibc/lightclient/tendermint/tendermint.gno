@@ -49,14 +49,39 @@ func (tm *TMLightClient) VerifyClientMessage(clientMsg lightclient.ClientMessage
 
 // Implements lightclient.Interface
 func (tm *TMLightClient) CheckForMisbehaviour(clientMsg lightclient.ClientMessage) bool {
-	// TODO
-	panic("not implemented")
+	switch msg := clientMsg.(type) {
+	case *MsgHeader:
+		consState := msg.ConsensusState()
+		// Check if the Client store already has a consensus state for the header's
+		// height.
+		// If the consensus state exists, and it matches the header then we return
+		// early since header has already been submitted in a previous
+		// UpdateClient.
+		if existingConsState, found := tm.GetConsensusState(msg.GetHeight()); found {
+			// This header has already been submitted and the necessary state is
+			// already stored in client store, thus we can return early without
+			// further validation.
+			if existingConsState.Equal(consState) {
+				return false
+			}
+			// A consensus state already exists for this height, but it does not
+			// match the provided header. The assumption is that Header has already
+			// been validated. Thus we can return true as misbehaviour is present
+			return true
+		}
+	case *Misbehaviour:
+		// TODO
+		panic("not implemented")
+	}
+	return false
 }
+
+// FrozenHeight is same for all misbehaviour
+var FrozenHeight = types.NewHeight(0, 1)
 
 // Implements lightclient.Interface
 func (tm *TMLightClient) UpdateStateOnMisbehaviour(clientMsg lightclient.ClientMessage) {
-	// TODO
-	panic("not implemented")
+	tm.ClientState.FrozenHeight = FrozenHeight
 }
 
 // Implements lightclient.Interface

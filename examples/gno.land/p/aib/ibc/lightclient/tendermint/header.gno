@@ -137,6 +137,16 @@ func (h *MsgHeader) ValidateBasic() error {
 	return nil
 }
 
+// ConsensusState returns the updated consensus state associated with the
+// header
+func (h MsgHeader) ConsensusState() ConsensusState {
+	return ConsensusState{
+		Timestamp:          h.Header.Time,
+		Root:               NewMerkleRoot(h.Header.AppHash),
+		NextValidatorsHash: h.Header.NextValidatorsHash,
+	}
+}
+
 // GetHeight returns the current height. It returns 0 if the tendermint
 // header is nil.
 // NOTE: the header.Header is checked to be non nil in ValidateBasic.
