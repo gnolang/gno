@@ -8,6 +8,7 @@ import (
 	tmtesting "gno.land/p/aib/ibc/lightclient/tendermint/testing"
 	ibctesting "gno.land/p/aib/ibc/testing"
 	"gno.land/p/aib/ibc/types"
+	"gno.land/p/aib/ics23"
 	"gno.land/r/aib/ibc/core"
 )
 
@@ -67,7 +68,7 @@ func main() {
 		Acknowledgement: types.Acknowledgement{
 			AppAcknowledgements: [][]byte{[]byte("ack")},
 		},
-		ProofAcked:  []byte("proof"),
+		ProofAcked:  []ics23.CommitmentProof_Exist{{}},
 		ProofHeight: trustedHeight,
 	}
 

@@ -1,6 +1,9 @@
 package lightclient
 
-import "gno.land/p/aib/ibc/types"
+import (
+	"gno.land/p/aib/ibc/types"
+	"gno.land/p/aib/ics23"
+)
 
 // Status represents the status of a client
 type Status = string
@@ -72,13 +75,15 @@ type Interface interface {
 	// specified height.  The caller is expected to construct the full
 	// CommitmentPath from a CommitmentPrefix and a standardized path (as defined
 	// in ICS 24).
-	VerifyMembership(height types.Height, proof []byte, path types.MerklePath, value []byte) error
+	VerifyMembership(height types.Height, proof []ics23.CommitmentProof_Exist,
+		path types.MerklePath, value []byte) error
 
 	// VerifyNonMembership is a generic proof verification method which verifies
 	// the absence of a given CommitmentPath at a specified height.  The caller
 	// is expected to construct the full CommitmentPath from a CommitmentPrefix
 	// and a standardized path (as defined in ICS 24).
-	VerifyNonMembership(height types.Height, proof []byte, path types.MerklePath) error
+	VerifyNonMembership(height types.Height,
+		proof []ics23.CommitmentProof_Nonexist, path types.MerklePath) error
 
 	// Status must return the status of the client. Only Active clients are
 	// allowed to process packets.
