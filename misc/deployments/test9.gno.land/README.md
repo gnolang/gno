@@ -46,10 +46,10 @@ Some configuration params are required, while others are advised to be set.
   reverse-proxy, and keep this value at `tcp://0.0.0.0:<port>`.
 - `p2p.max_num_outbound_peers` - the max number of outbound peer connections. **Advised to be `40`**.
 - `p2p.persistent_peers` - the persistent peers. ⚠️ **Required to be
-  `TODO @Sergio`
+  `g1d60r9u40340kqrt62cffh6yuc0gfmevz60n8s9@gno-core-sen-01.test9.testnets.gno.land:26656`
   ** ⚠️.
 - `p2p.seeds` - the bootnode peers. ⚠️ **Required to be
-  `TODO @Sergio`
+  `g1d60r9u40340kqrt62cffh6yuc0gfmevz60n8s9@gno-core-sen-01.test9.testnets.gno.land:26656`
   ** ⚠️.
 - `p2p.pex` - if using a sentry node architecture, should be `false`. **If not, please set to `true`**.
 - `p2p.external_address` - the advertised peer dial address. If empty, will use the same port as the `p2p.laddr`. This
