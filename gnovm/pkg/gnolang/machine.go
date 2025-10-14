@@ -231,7 +231,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // NOTE: Does not validate the mpkg. Caller must validate the mpkg before
 // calling.
 func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
-	if bm.OpsEnabled || bm.StorageEnabled {
+	if bm.OpsEnabled || bm.StorageEnabled || bm.NativeEnabled {
 		bm.InitMeasure()
 	}
 	if bm.StorageEnabled {
@@ -1131,7 +1131,7 @@ const (
 	OpCPUPrecall             = 207
 	OpCPUEnterCrossing       = 100 // XXX
 	OpCPUCall                = 256
-	OpCPUCallNativeBody      = 424
+	OpCPUCallNativeBody      = 424 // Todo benchmark this properly
 	OpCPUDefer               = 64
 	OpCPUCallDeferNativeBody = 33
 	OpCPUGo                  = 1 // Not yet implemented
@@ -1252,6 +1252,12 @@ func (m *Machine) Run(st Stage) {
 		defer func() {
 			// output each machine run results to file
 			bm.FinishRun()
+		}()
+	}
+	if bm.NativeEnabled {
+		defer func() {
+			// output each machine run results to file
+			bm.FinishNative()
 		}()
 	}
 	defer func() {
