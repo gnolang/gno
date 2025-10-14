@@ -139,7 +139,7 @@ The latest Gno.land testnet, released on the 14th of October, 2025.
   - State is fully persisted unless there are breaking changes in a new release,
     where persistence partly depends on implementing a migration strategy
 - **Timeliness of code:**
-  - Pre-deployed packages and realms are at release tag [chain/test8.0](https://github.com/gnolang/gno/releases/tag/chain%2Ftest8.0)
+  - Pre-deployed packages and realms are at release tag [chain/test9.0](https://github.com/gnolang/gno/releases/tag/chain%2Ftest9.0)
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
@@ -153,7 +153,7 @@ These testnets are deprecated and currently serve as archives of previous progre
 
 ### Test8 (archive)
 
-Test8 is the testnet released on the 25th of September, 2025.
+Test8 is the testnet released on the 5th of September, 2025.
 
 ### Test7 (archive)
 
