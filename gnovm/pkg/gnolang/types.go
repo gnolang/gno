@@ -2397,11 +2397,11 @@ func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
 				for n, t := range lookup {
 					bs.Define(n, asValue(t))
 				}
+				m := NewMachine("", nil)
 				// Parse generic to expr.
-				gx := MustParseExpr(string(generic))
+				gx := m.MustParseExpr(string(generic))
 				gx = Preprocess(nil, bs, gx).(Expr)
 				// Evaluate type from generic expression.
-				m := NewMachine("", nil)
 				tv := m.EvalStatic(bs, gx)
 				m.Release()
 				if isElem {
