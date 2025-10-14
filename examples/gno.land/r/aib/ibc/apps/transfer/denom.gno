@@ -130,10 +130,9 @@ func ExtractDenomFromPath(fullPath string) Denom {
 	}
 }
 
-// Hop defines a port ID, channel ID pair specifying a unique "hop" in a trace
+// Hop defines a port ID, client ID pair specifying a unique "hop" in a trace
 type Hop struct {
-	PortId string
-	// TODO replace channelID by clientiD ?
+	PortId   string
 	ClientId string
 }
 
