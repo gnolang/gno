@@ -6,15 +6,16 @@ import (
 	"errors"
 
 	"gno.land/p/aib/ibc/host"
+	"gno.land/p/aib/ics23"
 	"gno.land/p/nt/ufmt"
 )
 
 // MsgSendPacket sends an outgoing IBC packet.
 type MsgSendPacket struct {
-	SourceClient string `json:"source_client,omitempty"`
+	SourceClient string
 	// TimeoutTimestamp holds the seconds after which the packet times out.
-	TimeoutTimestamp uint64    `json:"timeout_timestamp,omitempty"`
-	Payloads         []Payload `json:"payloads"`
+	TimeoutTimestamp uint64
+	Payloads         []Payload
 }
 
 // NewMsgSendPacket creates a new MsgSendPacket instance.
@@ -50,17 +51,17 @@ func (msg *MsgSendPacket) ValidateBasic() error {
 
 // MsgRecvPacket receives an incoming IBC packet.
 type MsgRecvPacket struct {
-	Packet          Packet `json:"packet"`
-	ProofCommitment []byte `json:"proof_commitment,omitempty"`
-	ProofHeight     Height `json:"proof_height"`
+	Packet          Packet
+	ProofCommitment []byte
+	ProofHeight     Height
 }
 
 // MsgAcknowledgement receives incoming IBC acknowledgement.
 type MsgAcknowledgement struct {
-	Packet          Packet          `json:"packet"`
-	Acknowledgement Acknowledgement `json:"acknowledgement"`
-	ProofAcked      []byte          `json:"proof_acked,omitempty"`
-	ProofHeight     Height          `json:"proof_height"`
+	Packet          Packet
+	Acknowledgement Acknowledgement
+	ProofAcked      []ics23.CommitmentProof_Exist
+	ProofHeight     Height
 }
 
 // ValidateBasic performs basic checks on a MsgAcknowledgement.
@@ -105,7 +106,7 @@ func (ack Acknowledgement) Validate() error {
 
 // MsgTimeout receives timed-out packet
 type MsgTimeout struct {
-	Packet          Packet `json:"packet"`
-	ProofUnreceived []byte `json:"proof_unreceived,omitempty"`
-	ProofHeight     Height `json:"proof_height"`
+	Packet          Packet
+	ProofUnreceived []ics23.CommitmentProof_Nonexist
+	ProofHeight     Height
 }

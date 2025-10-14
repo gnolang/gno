@@ -111,18 +111,12 @@ func (tm *TMLightClient) UpdateState(clientMsg lightclient.ClientMessage) []type
 
 // Implements lightclient.Interface
 func (tm *TMLightClient) VerifyMembership(height types.Height,
-	proof []byte, path types.MerklePath, value []byte) error {
+	proof []ics23.CommitmentProof_Exist, path types.MerklePath,
+	value []byte) error {
 	if tm.ClientState.LatestHeight.LT(height) {
 		return ufmt.Errorf(
 			"client state height < proof height (%d < %d), please ensure the client has been updated", tm.ClientState.LatestHeight, height,
 		)
-	}
-
-	// TODO ensure this is mandatory to have proof bytes encoded using proto
-	// Maybe the relayer can help here.
-	var merkleProof ics23.CommitmentProof_Exist
-	if err := merkleProof.ProtoUnmarshal(proof); err != nil {
-		return ufmt.Errorf("failed to unmarshal proof into ICS 23 commitment merkle proof: %v", err)
 	}
 
 	cs, found := tm.GetConsensusState(height)
@@ -139,16 +133,11 @@ func (tm *TMLightClient) VerifyMembership(height types.Height,
 
 // Implements lightclient.Interface
 func (tm *TMLightClient) VerifyNonMembership(height types.Height,
-	proof []byte, path types.MerklePath) error {
+	proof []ics23.CommitmentProof_Nonexist, path types.MerklePath) error {
 	if tm.ClientState.LatestHeight.LT(height) {
 		return ufmt.Errorf(
 			"client state height < proof height (%d < %d), please ensure the client has been updated", tm.ClientState.LatestHeight, height,
 		)
-	}
-
-	var merkleProof ics23.CommitmentProof_Nonexist
-	if err := merkleProof.ProtoUnmarshal(proof); err != nil {
-		return ufmt.Errorf("failed to unmarshal proof into ICS 23 commitment merkle proof: %v", err)
 	}
 
 	cs, found := tm.GetConsensusState(height)

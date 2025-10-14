@@ -11,10 +11,6 @@ type CommitmentProof_Exist struct {
 	Exist *ExistenceProof
 }
 
-func (c *CommitmentProof_Exist) ProtoUnmarshal(bz []byte) error {
-	panic("not implemented")
-}
-
 // ExistenceProof takes a key and a value and a set of steps to perform on it.
 // The result of peforming all these steps will provide a "root hash", which can
 // be compared to the value in a header.
@@ -168,10 +164,6 @@ func (p *ExistenceProof) calculate(spec *ProofSpec) (CommitmentRoot, error) {
 
 type CommitmentProof_Nonexist struct {
 	Nonexist *NonExistenceProof
-}
-
-func (c *CommitmentProof_Nonexist) ProtoUnmarshal(bz []byte) error {
-	panic("not implemented")
 }
 
 // NonExistenceProof takes a proof of two neighbors, one left of the desired key,
