@@ -5,7 +5,7 @@
 | Network | RPC Endpoint                            | Chain ID  |
 |---------|-----------------------------------------|-----------|
 | Staging | https://rpc.gno.land:443                | `staging` |
-| Test8   | https://rpc.test8.testnets.gno.land:443 | `test8`   |
+| Test9   | https://rpc.test9.testnets.gno.land:443 | `test9`   |
 
 ### WebSocket endpoints
 
@@ -131,22 +131,29 @@ is the `gnoweb` render of the Staging testnet.
     [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop) folder in the
     monorepo
 
-### Test8
+### Test9
 
-The latest Gno.land testnet, released on the 5th of September, 2025.
+The latest Gno.land testnet, released on the 14th of October, 2025.
 
 - **Persistence of state:**
   - State is fully persisted unless there are breaking changes in a new release,
     where persistence partly depends on implementing a migration strategy
 - **Timeliness of code:**
-  - Pre-deployed packages and realms are at release tag [chain/test8.0](https://github.com/gnolang/gno/releases/tag/chain%2Ftest8.0)
+  - Pre-deployed packages and realms are at release tag [chain/test9.0](https://github.com/gnolang/gno/releases/tag/chain%2Ftest9.0)
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
 
+This testnet introduces major changes to the codebase, such as the `std` package 
+split, private realms, the storage fee collector, and more. 
+
 ### TestX
 
 These testnets are deprecated and currently serve as archives of previous progress.
+
+### Test8 (archive)
+
+Test8 is the testnet released on the 5th of September, 2025.
 
 ### Test7 (archive)
 
