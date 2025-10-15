@@ -33,6 +33,23 @@ func TestRegister_Valid(t *testing.T) {
 	}
 }
 
+func TestRegister_Free(t *testing.T) {
+	// Temporarily set the register price to 0 for this test.
+	originalPrice := registerPrice
+	registerPrice = 0
+	defer func() { registerPrice = originalPrice }()
+
+	addr := testutils.TestAddress("alice456")
+
+	// Simulate a proper user call with 0GNOT fee.
+	testing.SetRealm(testing.NewUserRealm(addr))
+	testing.SetOriginCaller(addr)
+	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 0)))
+
+	urequire.NotPanics(t, func() {
+		Register(cross, "alice456")
+	})
+}
 func TestRegister_Invalid(t *testing.T) {
 	t.Run("invalid usernames", func(t *testing.T) {
 		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
