@@ -42,7 +42,7 @@ func validateIavlOps(op opType, layerNum int) error {
 
 	height, err := binary.ReadVarint(r)
 	if err != nil {
-		return ufmt.Errorf("failed to read IAVL height varint: %w", err)
+		return ufmt.Errorf("failed to read IAVL height varint: %v", err)
 	}
 	if int(height) < 0 || int(height) < layerNum {
 		return ufmt.Errorf("IAVL height (%d) must be non-negative and greater than or equal to the layer number (%d)", height, layerNum)
@@ -50,7 +50,7 @@ func validateIavlOps(op opType, layerNum int) error {
 
 	size, err := binary.ReadVarint(r)
 	if err != nil {
-		return ufmt.Errorf("failed to read IAVL size varint: %w", err)
+		return ufmt.Errorf("failed to read IAVL size varint: %v", err)
 	}
 
 	if int(size) < 0 {
@@ -59,7 +59,7 @@ func validateIavlOps(op opType, layerNum int) error {
 
 	version, err := binary.ReadVarint(r)
 	if err != nil {
-		return ufmt.Errorf("failed to read IAVL version varint: %w", err)
+		return ufmt.Errorf("failed to read IAVL version varint: %v", err)
 	}
 
 	if int(version) < 0 {
@@ -127,11 +127,11 @@ func (op *LeafOp) Apply(key []byte, value []byte) ([]byte, error) {
 	}
 	pkey, err := prepareLeafData(op.PrehashKey, op.Length, key)
 	if err != nil {
-		return nil, ufmt.Errorf("prehash key, %w", err)
+		return nil, ufmt.Errorf("prehash key, %v", err)
 	}
 	pvalue, err := prepareLeafData(op.PrehashValue, op.Length, value)
 	if err != nil {
-		return nil, ufmt.Errorf("prehash value, %w", err)
+		return nil, ufmt.Errorf("prehash value, %v", err)
 	}
 
 	data := op.Prefix
