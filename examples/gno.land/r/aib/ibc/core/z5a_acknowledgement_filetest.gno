@@ -62,12 +62,38 @@ func main() {
 		Acknowledgement: types.Acknowledgement{
 			AppAcknowledgements: [][]byte{[]byte("ack")},
 		},
+		//	ROOT 7e2766f175b518c898ecd74c51e80bb1d892cd3ba5265af64bb39714417742e7
+		//  0 LEAF PREFIX 000202
+		//		0 OP PREFIX 0204022035f8ea805390e084854f399b42ccdeaea33a1dedc115638ac48d0600637dba1f20
+		//		0 OP SUFFIX
+		//		1 OP PREFIX 04080220
+		//		1 OP SUFFIX 20798e2caa96fdfba376ddeb47999954d2f47e65162264b0536ab5dff7fc0a2e07
+		//	  2 OP PREFIX 060c02209af37dd595a0190803b5e05aaef42ae3fad499e4fbe37f7cd31cadff22a9ee7420
+		//	  2 OP SUFFIX
+		//  1 LEAF PREFIX 00
 		ProofAcked: []ics23.CommitmentProof_Exist{
 			{
-				Exist: &ics23.ExistenceProof{},
+				// iavl proof
+				Exist: ics23.NewExistenceProof(ics23.IavlSpec,
+					[]byte("prefix207-tendermint-42"), "cf49bb81a77249af41ecbe7792d98ddf24b47b491a177ca5a8b1e82e2eaf011e",
+					"000202",
+					[]string{
+						"0204022035f8ea805390e084854f399b42ccdeaea33a1dedc115638ac48d0600637dba1f20",
+						"04080220",
+						"060c02209af37dd595a0190803b5e05aaef42ae3fad499e4fbe37f7cd31cadff22a9ee7420",
+					},
+					[]string{
+						"",
+						"20798e2caa96fdfba376ddeb47999954d2f47e65162264b0536ab5dff7fc0a2e07",
+						"",
+					},
+				),
 			},
 			{
-				Exist: &ics23.ExistenceProof{},
+				// rootmulti proof
+				Exist: ics23.NewExistenceProof(ics23.IavlSpec,
+					[]byte("iavlStoreKey"), "84c09ad209aabb70c74c97d0d2ca94fb826ab18c89b98e88e6abef2af82fe58c",
+					"00", nil, nil),
 			},
 		},
 		ProofHeight: trustedHeight,
