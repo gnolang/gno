@@ -2,14 +2,13 @@ package boards2
 
 import (
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/nt/commondao"
 )
 
 const (
-	RoleGuest     boards.Role = ""
-	RoleOwner                 = "owner"
+	RoleOwner     boards.Role = "owner"
 	RoleAdmin                 = "admin"
 	RoleModerator             = "moderator"
+	RoleGuest                 = "guest"
 )
 
 const (
@@ -39,8 +38,7 @@ const (
 )
 
 func createBasicBoardPermissions(owner address) *BasicPermissions {
-	dao := commondao.New(commondao.WithMember(owner))
-	perms := NewBasicPermissions(dao)
+	perms := NewBasicPermissions()
 	perms.SetSuperRole(RoleOwner)
 	perms.AddRole(
 		RoleAdmin,

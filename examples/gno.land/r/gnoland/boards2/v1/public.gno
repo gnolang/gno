@@ -581,6 +581,10 @@ func ChangeMemberRole(_ realm, boardID boards.ID, member address, role boards.Ro
 	assertMemberAddressIsValid(member)
 	assertMembersUpdateIsEnabled(boardID)
 
+	if role == "" {
+		role = RoleGuest
+	}
+
 	perms := mustGetPermissions(boardID)
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{caller, boardID, member, role}

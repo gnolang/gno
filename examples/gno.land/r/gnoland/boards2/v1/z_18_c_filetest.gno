@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/nt/commondao"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
@@ -18,7 +17,7 @@ var (
 
 func init() {
 	// Create a new permissions instance without users
-	perms = boards2.NewBasicPermissions(commondao.New())
+	perms = boards2.NewBasicPermissions()
 
 	testing.SetRealm(testing.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "foobar", false)

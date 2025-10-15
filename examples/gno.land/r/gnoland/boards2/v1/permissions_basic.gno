@@ -2,6 +2,7 @@ package boards2
 
 import (
 	"gno.land/p/gnoland/boards"
+	boardsdao "gno.land/p/gnoland/boards/dao"
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/commondao"
 )
@@ -13,24 +14,26 @@ type ValidatorFunc func(boards.Permissions, boards.Args) error
 type BasicPermissions struct {
 	superRole  boards.Role
 	dao        *commondao.CommonDAO
-	users      *avl.Tree // string(address) -> []boards.Role
-	roles      *avl.Tree // string(role) -> []boards.Permission
 	validators *avl.Tree // string(boards.Permission) -> BasicPermissionValidator
 }
 
 // NewBasicPermissions creates a new permissions type.
 // This type is a default implementation to handle users, roles and permissions.
-func NewBasicPermissions(dao *commondao.CommonDAO) *BasicPermissions {
-	if dao == nil {
-		panic("basic permissions require a DAO")
-	}
-
+// It uses an underlying DAO to manage users and roles.
+func NewBasicPermissions() *BasicPermissions {
+	storage := boardsdao.NewMemberStorage()
 	return &BasicPermissions{
-		dao:        dao,
-		roles:      avl.NewTree(),
-		users:      avl.NewTree(),
 		validators: avl.NewTree(),
+		dao: commondao.New(
+			// Use a custom boards member storage
+			commondao.WithMemberStorage(storage),
+		),
 	}
+}
+
+// DAO returns the underlying permissions DAO.
+func (bp BasicPermissions) DAO() *commondao.CommonDAO {
+	return bp.dao
 }
 
 // ValidateFunc add a validator function for a permission.
@@ -42,51 +45,84 @@ func (bp *BasicPermissions) ValidateFunc(p boards.Permission, fn ValidatorFunc) 
 // A super role is one that have all permissions.
 // These type of role doesn't need to be mapped to any permission.
 func (bp *BasicPermissions) SetSuperRole(r boards.Role) {
+	if bp.superRole == r {
+		return
+	}
+
+	name := string(r)
+	bp.dao.Members().Grouping().Add(name)
 	bp.superRole = r
 }
 
 // AddRole add a role with one or more assigned permissions.
+// If role exists its permissions are overwritten with the new ones.
 func (bp *BasicPermissions) AddRole(r boards.Role, p boards.Permission, extra ...boards.Permission) {
-	bp.roles.Set(string(r), append([]boards.Permission{p}, extra...))
+	// Get member group for the role if it exists or otherwise create a new group
+	grouping := bp.dao.Members().Grouping()
+	name := string(r)
+	group, found := grouping.Get(name)
+	if !found {
+		var err error
+		group, err = grouping.Add(name)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	// Save permissions within the member group overwritting any existing permissions
+	group.SetMeta(append([]boards.Permission{p}, extra...))
 }
 
 // RoleExists checks if a role exists.
 func (bp BasicPermissions) RoleExists(r boards.Role) bool {
-	return (bp.superRole != "" && r == bp.superRole) || bp.roles.Has(string(r))
+	return (bp.superRole != "" && r == bp.superRole) || bp.dao.Members().Grouping().Has(string(r))
 }
 
 // GetUserRoles returns the list of roles assigned to a user.
 func (bp BasicPermissions) GetUserRoles(user address) []boards.Role {
-	v, found := bp.users.Get(user.String())
-	if !found {
+	groups := boardsdao.GetMemberGroups(bp.dao.Members(), user)
+	if groups == nil {
 		return nil
 	}
-	return v.([]boards.Role)
+
+	roles := make([]boards.Role, len(groups))
+	for i, name := range groups {
+		roles[i] = boards.Role(name)
+	}
+	return roles
 }
 
 // HasRole checks if a user has a specific role assigned.
 func (bp BasicPermissions) HasRole(user address, r boards.Role) bool {
-	for _, role := range bp.GetUserRoles(user) {
-		if role == r {
-			return true
-		}
+	name := string(r)
+	group, found := bp.dao.Members().Grouping().Get(name)
+	if !found {
+		return false
 	}
-	return false
+	return group.Members().Has(user)
 }
 
 // HasPermission checks if a user has a specific permission.
 func (bp BasicPermissions) HasPermission(user address, perm boards.Permission) bool {
-	for _, r := range bp.GetUserRoles(user) {
-		if bp.superRole == r {
+	groups := boardsdao.GetMemberGroups(bp.dao.Members(), user)
+	if groups == nil {
+		return false
+	}
+
+	grouping := bp.dao.Members().Grouping()
+	for _, name := range groups {
+		role := boards.Role(name)
+		if bp.superRole == role {
 			return true
 		}
 
-		v, found := bp.roles.Get(string(r))
+		group, found := grouping.Get(name)
 		if !found {
 			continue
 		}
 
-		for _, p := range v.([]boards.Permission) {
+		meta := group.GetMeta()
+		for _, p := range meta.([]boards.Permission) {
 			if p == perm {
 				return true
 			}
@@ -99,24 +135,57 @@ func (bp BasicPermissions) HasPermission(user address, perm boards.Permission) b
 // Method can also be called to change the roles of an existing user.
 // All user's roles can be removed by calling this method without roles.
 func (bp *BasicPermissions) SetUserRoles(_ realm, user address, roles ...boards.Role) {
-	if !bp.HasUser(user) {
-		bp.dao.Members().Add(user)
-	}
+	groups := boardsdao.GetMemberGroups(bp.dao.Members(), user)
+	isGuest := len(roles) == 0
 
-	for _, r := range roles {
-		if !bp.RoleExists(r) {
-			panic("invalid role: " + string(r))
+	// If user has roles remove it from the groups its currently assigned
+	grouping := bp.dao.Members().Grouping()
+	if isGuest && groups != nil {
+		for _, name := range groups {
+			group, found := grouping.Get(name)
+			if !found {
+				continue
+			}
+
+			group.Members().Remove(user)
 		}
 	}
 
-	bp.users.Set(user.String(), append([]boards.Role(nil), roles...))
+	// Add user to the storage as guest when no roles are assigned
+	if isGuest {
+		bp.dao.Members().Add(user)
+		return
+	}
+
+	// Add user to role groups
+	for _, r := range roles {
+		name := string(r)
+		group, found := grouping.Get(name)
+		if !found {
+			panic("invalid role: " + name)
+		}
+
+		group.Members().Add(user)
+	}
 }
 
 // RemoveUser removes a user from permissions.
 func (bp *BasicPermissions) RemoveUser(_ realm, user address) bool {
-	_, removed := bp.users.Remove(user.String())
-	bp.dao.Members().Remove(user)
-	return removed
+	groups := boardsdao.GetMemberGroups(bp.dao.Members(), user)
+	if groups == nil {
+		return bp.dao.Members().Remove(user)
+	}
+
+	grouping := bp.dao.Members().Grouping()
+	for _, name := range groups {
+		group, found := grouping.Get(name)
+		if !found {
+			continue
+		}
+
+		group.Members().Remove(user)
+	}
+	return true
 }
 
 // HasUser checks if a user exists.
@@ -132,12 +201,16 @@ func (bp BasicPermissions) UsersCount() int {
 // IterateUsers iterates permissions' users.
 func (bp BasicPermissions) IterateUsers(start, count int, fn boards.UsersIterFn) (stopped bool) {
 	bp.dao.Members().IterateByOffset(start, count, func(addr address) bool {
-		roles := bp.GetUserRoles(addr)
-		stopped = fn(boards.User{
-			Address: addr,
-			Roles:   roles,
-		})
-		return stopped
+		user := boards.User{Address: addr}
+		groups := boardsdao.GetMemberGroups(bp.dao.Members(), addr)
+		if groups != nil {
+			user.Roles = make([]boards.Role, len(groups))
+			for i, name := range groups {
+				user.Roles[i] = boards.Role(name)
+			}
+		}
+
+		return fn(user)
 	})
 	return
 }
@@ -146,7 +219,7 @@ func (bp BasicPermissions) IterateUsers(start, count int, fn boards.UsersIterFn)
 // It panics on error or when a handler panics.
 // Callbacks are by default called when there is no handle registered for the permission.
 func (bp *BasicPermissions) WithPermission(_ realm, user address, p boards.Permission, args boards.Args, cb func(realm)) {
-	if !bp.HasPermission(user, p) || !bp.dao.Members().Has(user) {
+	if !bp.HasPermission(user, p) {
 		panic("unauthorized")
 	}
 
@@ -160,14 +233,4 @@ func (bp *BasicPermissions) WithPermission(_ realm, user address, p boards.Permi
 	}
 
 	cb(cross)
-}
-
-func createBasicPermissions(owners ...address) *BasicPermissions {
-	perms := NewBasicPermissions(commondao.New())
-	perms.SetSuperRole(RoleOwner)
-	perms.AddRole(RoleAdmin, PermissionBoardCreate)
-	for _, owner := range owners {
-		perms.SetUserRoles(cross, owner, RoleOwner)
-	}
-	return perms
 }
