@@ -24,7 +24,7 @@
 //	   panic(err)
 //	}
 //
-//	if !unsibscribed {
+//	if !unsubscribed {
 //	   panic("subscription not found")
 //	}
 //
