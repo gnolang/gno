@@ -157,11 +157,13 @@ func Acknowledgement(cur realm, msg types.MsgAcknowledgement) types.ResponseResu
 	}
 
 	// Verify merkle proof of packet commitment
-	path := host.PacketAcknowledgementKey(msg.Packet.DestinationClient, msg.Packet.Sequence)
-	merklePath := types.BuildMerklePath(c.counterpartyMerklePrefix, path)
+	var (
+		key        = host.PacketAcknowledgementKey(msg.Packet.DestinationClient, msg.Packet.Sequence)
+		merklePath = types.BuildMerklePath(c.counterpartyMerklePrefix, key)
+		value      = types.CommitAcknowledgement(msg.Acknowledgement)
+	)
 	if err := c.lightClient.VerifyMembership(
-		msg.ProofHeight, msg.ProofAcked, merklePath,
-		types.CommitAcknowledgement(msg.Acknowledgement),
+		msg.ProofHeight, msg.ProofAcked, merklePath, value,
 	); err != nil {
 		panic(ufmt.Sprintf(
 			"failed packet acknowledgement verification for client (%s): %v",

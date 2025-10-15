@@ -11,7 +11,7 @@ import (
 	"gno.land/r/aib/ibc/core"
 )
 
-// Acknowledgement TODO
+// Acknowledgement invalid proof
 func main() {
 	var (
 		chainID        = "chain-id-2"
@@ -79,4 +79,4 @@ func main() {
 }
 
 // Error:
-// TODO
+// failed packet acknowledgement verification for client (07-tendermint-1): could not calculate proof root at index 0, merkle tree may be empty. existence Proof needs defined LeafOp

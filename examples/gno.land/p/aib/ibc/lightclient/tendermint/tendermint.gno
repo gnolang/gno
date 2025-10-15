@@ -111,24 +111,32 @@ func (tm *TMLightClient) UpdateState(clientMsg lightclient.ClientMessage) []type
 
 // Implements lightclient.Interface
 func (tm *TMLightClient) VerifyMembership(height types.Height,
-	proof []ics23.CommitmentProof_Exist, path types.MerklePath,
+	proofs []ics23.CommitmentProof_Exist, path types.MerklePath,
 	value []byte) error {
 	if tm.ClientState.LatestHeight.LT(height) {
 		return ufmt.Errorf(
-			"client state height < proof height (%d < %d), please ensure the client has been updated", tm.ClientState.LatestHeight, height,
+			"client state height < proof height (%s < %s), please ensure the client has been updated", tm.ClientState.LatestHeight, height,
 		)
 	}
-
-	cs, found := tm.GetConsensusState(height)
+	if len(value) == 0 {
+		return ufmt.Errorf("empty value in membership proof")
+	}
+	if len(tm.ClientState.ProofSpecs) != len(proofs) {
+		return ufmt.Errorf(
+			"length of specs: %d not equal to length of proof: %d",
+			len(tm.ClientState.ProofSpecs), len(proofs),
+		)
+	}
+	if len(path.KeyPath) != len(proofs) {
+		return ufmt.Errorf(
+			"path length %d not same as proof %d", len(path.KeyPath), len(proofs),
+		)
+	}
+	consState, found := tm.GetConsensusState(height)
 	if !found {
 		return ufmt.Errorf("please ensure the proof was constructed against a height that exists on the client")
 	}
-	_ = cs
-	/*
-		TODO
-			return merkleProof.VerifyMembership(cs.ProofSpecs, consensusState.GetRoot(), merklePath, value)
-	*/
-	panic("not implemented")
+	return tm.verifyChainedMembershipProof(consState.Root.Hash, proofs, path, value, 0)
 }
 
 // Implements lightclient.Interface

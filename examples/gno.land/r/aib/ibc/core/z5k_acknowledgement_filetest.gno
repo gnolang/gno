@@ -11,7 +11,7 @@ import (
 	"gno.land/r/aib/ibc/core"
 )
 
-// Acknowledgement TODO
+// Acknowledgement proof height doesn't exist in client's trusted heights.
 func main() {
 	var (
 		chainID        = "chain-id-2"
@@ -70,7 +70,7 @@ func main() {
 				Exist: &ics23.ExistenceProof{},
 			},
 		},
-		ProofHeight: trustedHeight,
+		ProofHeight: types.NewHeight(2, 1),
 	}
 
 	res := core.Acknowledgement(cross, ackPacket)
@@ -79,4 +79,4 @@ func main() {
 }
 
 // Error:
-// TODO
+// failed packet acknowledgement verification for client (07-tendermint-1): please ensure the proof was constructed against a height that exists on the client
