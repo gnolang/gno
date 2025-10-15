@@ -1,7 +1,6 @@
 package acl
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -109,25 +108,25 @@ func Test(t *testing.T) {
 	shouldHasPerm(t, dir, cst, "read", "r/demo/boards:gnolang/1") // new
 }
 
-func shouldHasRole(t *testing.T, dir *Directory, addr std.Address, role string) {
+func shouldHasRole(t *testing.T, dir *Directory, addr address, role string) {
 	t.Helper()
 	check := dir.HasRole(addr, role)
 	uassert.Equal(t, true, check, ufmt.Sprintf("%s should has role %s", addr.String(), role))
 }
 
-func shouldNotHasRole(t *testing.T, dir *Directory, addr std.Address, role string) {
+func shouldNotHasRole(t *testing.T, dir *Directory, addr address, role string) {
 	t.Helper()
 	check := dir.HasRole(addr, role)
 	uassert.Equal(t, false, check, ufmt.Sprintf("%s should not has role %s", addr.String(), role))
 }
 
-func shouldHasPerm(t *testing.T, dir *Directory, addr std.Address, verb string, resource string) {
+func shouldHasPerm(t *testing.T, dir *Directory, addr address, verb string, resource string) {
 	t.Helper()
 	check := dir.HasPerm(addr, verb, resource)
 	uassert.Equal(t, true, check, ufmt.Sprintf("%s should has perm for %s - %s", addr.String(), verb, resource))
 }
 
-func shouldNotHasPerm(t *testing.T, dir *Directory, addr std.Address, verb string, resource string) {
+func shouldNotHasPerm(t *testing.T, dir *Directory, addr address, verb string, resource string) {
 	t.Helper()
 	check := dir.HasPerm(addr, verb, resource)
 	uassert.Equal(t, false, check, ufmt.Sprintf("%s should not has perm for %s - %s", addr.String(), verb, resource))

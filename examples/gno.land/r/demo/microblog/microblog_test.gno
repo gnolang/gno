@@ -1,7 +1,6 @@
 package microblog
 
 import (
-	"std"
 	"strings"
 	"testing"
 
@@ -11,8 +10,8 @@ import (
 
 func TestMicroblog(t *testing.T) {
 	var (
-		author1 std.Address = testutils.TestAddress("author1")
-		author2 std.Address = testutils.TestAddress("author2")
+		author1 address = testutils.TestAddress("author1")
+		author2 address = testutils.TestAddress("author2")
 	)
 
 	testing.SetOriginCaller(author1)

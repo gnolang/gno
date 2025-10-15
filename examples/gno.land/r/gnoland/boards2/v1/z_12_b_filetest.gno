@@ -1,7 +1,6 @@
 package main
 
 import (
-	"std"
 	"strings"
 	"testing"
 
@@ -9,9 +8,9 @@ import (
 )
 
 const (
-	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	body  = "Test reply"
-	path  = "test-board/1/2"
+	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	body          = "Test reply"
+	path          = "test-board/1/2"
 )
 
 var (
@@ -20,7 +19,7 @@ var (
 )
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test-board", false)
 	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
 
@@ -30,7 +29,7 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 
 	boards2.EditReply(cross, bid, tid, rid, body)
 
