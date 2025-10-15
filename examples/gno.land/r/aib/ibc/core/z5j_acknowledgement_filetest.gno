@@ -11,7 +11,7 @@ import (
 	"gno.land/r/aib/ibc/core"
 )
 
-// Acknowledgement TODO
+// Acknowledgement proof height older than latest height
 func main() {
 	var (
 		chainID        = "chain-id-2"
@@ -62,15 +62,10 @@ func main() {
 		Acknowledgement: types.Acknowledgement{
 			AppAcknowledgements: [][]byte{[]byte("ack")},
 		},
-		ProofAcked: []ics23.CommitmentProof_Exist{
-			{
-				Exist: &ics23.ExistenceProof{},
-			},
-			{
-				Exist: &ics23.ExistenceProof{},
-			},
-		},
-		ProofHeight: trustedHeight,
+		ProofAcked: []ics23.CommitmentProof_Exist{{
+			Exist: &ics23.ExistenceProof{},
+		}},
+		ProofHeight: types.NewHeight(2, 10),
 	}
 
 	res := core.Acknowledgement(cross, ackPacket)
@@ -79,4 +74,4 @@ func main() {
 }
 
 // Error:
-// TODO
+// failed packet acknowledgement verification for client (07-tendermint-1): client state height < proof height (2/2 < 2/10), please ensure the client has been updated

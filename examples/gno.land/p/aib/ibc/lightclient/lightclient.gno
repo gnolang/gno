@@ -75,7 +75,7 @@ type Interface interface {
 	// specified height.  The caller is expected to construct the full
 	// CommitmentPath from a CommitmentPrefix and a standardized path (as defined
 	// in ICS 24).
-	VerifyMembership(height types.Height, proof []ics23.CommitmentProof_Exist,
+	VerifyMembership(height types.Height, proofs []ics23.CommitmentProof_Exist,
 		path types.MerklePath, value []byte) error
 
 	// VerifyNonMembership is a generic proof verification method which verifies
@@ -83,7 +83,7 @@ type Interface interface {
 	// is expected to construct the full CommitmentPath from a CommitmentPrefix
 	// and a standardized path (as defined in ICS 24).
 	VerifyNonMembership(height types.Height,
-		proof []ics23.CommitmentProof_Nonexist, path types.MerklePath) error
+		proofs []ics23.CommitmentProof_Nonexist, path types.MerklePath) error
 
 	// Status must return the status of the client. Only Active clients are
 	// allowed to process packets.

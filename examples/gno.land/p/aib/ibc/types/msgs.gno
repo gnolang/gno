@@ -69,6 +69,11 @@ func (msg *MsgAcknowledgement) ValidateBasic() error {
 	if len(msg.ProofAcked) == 0 {
 		return errors.New("cannot submit an empty acknowledgement proof")
 	}
+	for i, proof := range msg.ProofAcked {
+		if proof.Exist == nil {
+			return ufmt.Errorf("invalid commitment proof #%d: proof.Exist is nil", i)
+		}
+	}
 
 	if err := msg.Acknowledgement.Validate(); err != nil {
 		return err

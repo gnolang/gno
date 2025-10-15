@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"time"
 
+	"gno.land/p/aib/ibc/types"
+	"gno.land/p/aib/ics23"
 	"gno.land/p/nt/ufmt"
 )
 
@@ -95,7 +97,7 @@ func (tm *TMLightClient) verifyHeader(msg *MsgHeader) error {
 	return tm.verifyCommit(untrustedValset, msg.Commit, votingPowerNeeded, false, true)
 }
 
-func (tm *TMLightClient) verifyMisbehavior(msg *Misbehaviour) error {
+func (tm TMLightClient) verifyMisbehavior(msg *Misbehaviour) error {
 	panic("TODO verifyMisbehavior unimplemented")
 }
 
@@ -178,6 +180,60 @@ func (tm TMLightClient) verifyCommit(
 
 	if got, needed := talliedVotingPower, votingPowerNeeded; got <= needed {
 		return ufmt.Errorf("not enough voting power, got %v, needed %v", got, needed)
+	}
+
+	return nil
+}
+
+// verifyChainedMembershipProof takes a list of proofs and specs and verifies
+// each proof sequentially ensuring that the value is committed to by first
+// proof and each subsequent subroot is committed to by the next subroot and
+// checking that the final calculated root is equal to the given roothash.
+// The proofs and specs are passed in from lowest subtree to the highest
+// subtree, but the keys are passed in from highest subtree to lowest.
+// The index specifies what index to start chaining the membership proofs, this
+// is useful since the lowest proof may not be a membership proof, thus we will
+// want to start the membership proof chaining from index 1 with value being
+// the lowest subroot
+func (tm TMLightClient) verifyChainedMembershipProof(root []byte,
+	proofs []ics23.CommitmentProof_Exist, keys types.MerklePath, value []byte,
+	index int) error {
+	var (
+		specs   = tm.ClientState.ProofSpecs
+		subroot []byte
+		err     error
+	)
+	// Initialize subroot to value since the proofs list may be empty.
+	// This may happen if this call is verifying intermediate proofs after the
+	// lowest proof has been executed.
+	// In this case, there may be no intermediate proofs to verify and we just
+	// check that lowest proof root equals final root
+	subroot = value
+	for i := index; i < len(proofs); i++ {
+		subroot, err = proofs[i].Exist.Calculate()
+		if err != nil {
+			return ufmt.Errorf("could not calculate proof root at index %d, merkle tree may be empty. %v", i, err)
+		}
+
+		// Since keys are passed in from highest to lowest, we must grab their
+		// indices in reverse order from the proofs and specs which are lowest to
+		// highest
+		key := keys.KeyPath[len(keys.KeyPath)-1-i]
+
+		// verify membership of the proof at this index with appropriate key and
+		// value
+		if err := proofs[i].Exist.Verify(specs[i], subroot, key, value); err != nil {
+			return ufmt.Errorf("failed to verify membership proof at index %d: %v", i, err)
+		}
+		// Set value to subroot so that we verify next proof in chain commits to
+		// this subroot
+		value = subroot
+	}
+
+	// Check that chained proof root equals passed-in root
+	if !bytes.Equal(root, subroot) {
+		h1, h2 := hex.EncodeToString(root), hex.EncodeToString(subroot)
+		return ufmt.Errorf("proof did not commit to expected root: %s, got: %s. Please ensure proof was submitted with correct proofHeight and to the correct chain.", h1, h2)
 	}
 
 	return nil

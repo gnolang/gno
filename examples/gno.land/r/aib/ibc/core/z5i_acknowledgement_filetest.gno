@@ -11,7 +11,7 @@ import (
 	"gno.land/r/aib/ibc/core"
 )
 
-// Acknowledgement TODO
+// Acknowledgement wrong number of proofs compared to specs
 func main() {
 	var (
 		chainID        = "chain-id-2"
@@ -62,14 +62,9 @@ func main() {
 		Acknowledgement: types.Acknowledgement{
 			AppAcknowledgements: [][]byte{[]byte("ack")},
 		},
-		ProofAcked: []ics23.CommitmentProof_Exist{
-			{
-				Exist: &ics23.ExistenceProof{},
-			},
-			{
-				Exist: &ics23.ExistenceProof{},
-			},
-		},
+		ProofAcked: []ics23.CommitmentProof_Exist{{
+			Exist: &ics23.ExistenceProof{},
+		}},
 		ProofHeight: trustedHeight,
 	}
 
@@ -79,4 +74,4 @@ func main() {
 }
 
 // Error:
-// TODO
+// failed packet acknowledgement verification for client (07-tendermint-1): length of specs: 2 not equal to length of proof: 1

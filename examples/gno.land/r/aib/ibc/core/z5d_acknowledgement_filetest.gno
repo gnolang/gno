@@ -68,7 +68,9 @@ func main() {
 		Acknowledgement: types.Acknowledgement{
 			AppAcknowledgements: [][]byte{[]byte("ack")},
 		},
-		ProofAcked:  []ics23.CommitmentProof_Exist{{}},
+		ProofAcked: []ics23.CommitmentProof_Exist{{
+			Exist: &ics23.ExistenceProof{},
+		}},
 		ProofHeight: trustedHeight,
 	}
 
