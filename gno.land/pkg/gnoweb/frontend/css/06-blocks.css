@@ -1228,7 +1228,30 @@ pre.chroma-chroma {
 	}
 
 	.b-alert {
-		margin-block-end: var(--g-space-2);
+		border-inline-start: var(--g-space-1) solid var(--s-color-border-tertiary);
+		border-radius: var(--s-rounded);
+		color: var(--s-color-text-secondary);
+		padding: var(--g-space-3) var(--g-space-4);
+		margin-block: var(--g-space-5) var(--g-space-10);
+		border-inline-start-color: var(--s-color-border-warning);
+		background-color: var(--s-color-bg-warning-weak);
+		color: var(--s-color-text-warning);
+
+		& > :is(h1,h2,h3):first-child {
+			font-size: var(--g-font-size-200);
+			font-weight: var(--g-font-semibold);
+			margin-block-end: var(--g-space-2);
+		}
+
+		.b-btn, label {
+			border: none;
+			background-color: var(--s-color-bg-warning-action);
+			cursor: pointer;
+		}
+
+		.b-btn {
+			margin-block-start: var(--g-space-4);
+		}
 	}
 }
 
