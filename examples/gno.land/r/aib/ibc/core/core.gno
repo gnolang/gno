@@ -156,12 +156,16 @@ func Acknowledgement(cur realm, msg types.MsgAcknowledgement) types.ResponseResu
 		))
 	}
 
-	// Verify merkle proof of packet commitment
+	// Verify existence of the acknowledgement commitment bytes in the proofs.
 	var (
 		key        = host.PacketAcknowledgementKey(msg.Packet.DestinationClient, msg.Packet.Sequence)
 		merklePath = types.BuildMerklePath(c.counterpartyMerklePrefix, key)
 		value      = types.CommitAcknowledgement(msg.Acknowledgement)
 	)
+	ufmt.Println("KEY", string(key))
+	ufmt.Println("KEY", string(merklePath.KeyPath[0]))
+	ufmt.Println("KEY", string(merklePath.KeyPath[1]))
+	ufmt.Println("VAL", hex.EncodeToString(value))
 	if err := c.lightClient.VerifyMembership(
 		msg.ProofHeight, msg.ProofAcked, merklePath, value,
 	); err != nil {

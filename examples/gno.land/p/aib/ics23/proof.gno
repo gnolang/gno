@@ -120,7 +120,7 @@ func (p *ExistenceProof) Verify(spec *ProofSpec, root CommitmentRoot, key []byte
 
 	calc, err := p.calculate(spec)
 	if err != nil {
-		return ufmt.Errorf("error calculating root, %w", err)
+		return ufmt.Errorf("error calculating root, %v", err)
 	}
 	if !bytes.Equal(root, calc) {
 		return ufmt.Errorf("calculated root doesn't match provided root")
@@ -144,18 +144,18 @@ func (p *ExistenceProof) calculate(spec *ProofSpec) (CommitmentRoot, error) {
 	// leaf step takes the key and value as input
 	res, err := p.Leaf.Apply(p.Key, p.Value)
 	if err != nil {
-		return nil, ufmt.Errorf("leaf, %w", err)
+		return nil, ufmt.Errorf("leaf, %v", err)
 	}
 
 	// the rest just take the output of the last step (reducing it)
 	for _, step := range p.Path {
 		res, err = step.Apply(res)
 		if err != nil {
-			return nil, ufmt.Errorf("inner, %w", err)
+			return nil, ufmt.Errorf("inner, %v", err)
 		}
 		if spec != nil {
 			if len(res) > int(spec.InnerSpec.ChildSize) && int(spec.InnerSpec.ChildSize) >= 32 {
-				return nil, ufmt.Errorf("inner, %w", err)
+				return nil, ufmt.Errorf("inner, %v", err)
 			}
 		}
 	}
@@ -197,7 +197,7 @@ func (p *ExistenceProof) CheckAgainstSpec(spec *ProofSpec) error {
 		return errors.New("existence Proof needs defined LeafOp")
 	}
 	if err := leaf.CheckAgainstSpec(spec); err != nil {
-		return ufmt.Errorf("leaf, %w", err)
+		return ufmt.Errorf("leaf, %v", err)
 	}
 	if spec.MinDepth > 0 && len(p.Path) < int(spec.MinDepth) {
 		return ufmt.Errorf("innerOps depth too short: %d", len(p.Path))
@@ -216,7 +216,7 @@ func (p *ExistenceProof) CheckAgainstSpec(spec *ProofSpec) error {
 
 	for _, inner := range p.Path {
 		if err := inner.CheckAgainstSpec(spec, layerNum); err != nil {
-			return ufmt.Errorf("inner, %w", err)
+			return ufmt.Errorf("inner, %v", err)
 		}
 		layerNum++
 	}
@@ -241,13 +241,13 @@ func (p *NonExistenceProof) Verify(spec *ProofSpec, root CommitmentRoot, key []b
 	var leftKey, rightKey []byte
 	if p.Left != nil {
 		if err := p.Left.Verify(spec, root, p.Left.Key, p.Left.Value); err != nil {
-			return ufmt.Errorf("left proof, %w", err)
+			return ufmt.Errorf("left proof, %v", err)
 		}
 		leftKey = p.Left.Key
 	}
 	if p.Right != nil {
 		if err := p.Right.Verify(spec, root, p.Right.Key, p.Right.Value); err != nil {
-			return ufmt.Errorf("right proof, %w", err)
+			return ufmt.Errorf("right proof, %v", err)
 		}
 		rightKey = p.Right.Key
 	}
