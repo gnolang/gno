@@ -21,7 +21,7 @@ func TestRunApp(t *testing.T) {
 		},
 		{
 			args:             []string{"run", "../../tests/integ/does_not_exist"},
-			errShouldContain: "no valid gno file found",
+			errShouldContain: "no such file or directory",
 		},
 		{
 			args:                []string{"run", "../../tests/integ/run_namedpkg/main.gno"},

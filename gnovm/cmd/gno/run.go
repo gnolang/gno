@@ -88,7 +88,7 @@ func packageNameFromFiles(args []string) (string, error) {
 	for _, arg := range args {
 		s, err := os.Stat(arg)
 		if err != nil {
-			continue
+			return "", err
 		}
 
 		// ---- Directory case ----
