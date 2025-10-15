@@ -1237,13 +1237,14 @@ pre.chroma-chroma {
 		background-color: var(--s-color-bg-warning-weak);
 		color: var(--s-color-text-warning);
 
-		& > :is(h1,h2,h3):first-child {
+		& > :is(h1, h2, h3):first-child {
 			font-size: var(--g-font-size-200);
 			font-weight: var(--g-font-semibold);
 			margin-block-end: var(--g-space-2);
 		}
 
-		.b-btn, label {
+		.b-btn,
+		label {
 			border: none;
 			background-color: var(--s-color-bg-warning-action);
 			cursor: pointer;
