@@ -78,28 +78,99 @@ func (c *runCmd) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func packageNameFromFirstFile(args []string) (string, error) {
+func packageNameFromFiles(args []string) (string, error) {
+	var (
+		firstPkgName string
+		firstPkgFile string
+		foundAny     bool
+	)
+
 	for _, arg := range args {
-		if s, err := os.Stat(arg); err == nil && s.IsDir() {
+		s, err := os.Stat(arg)
+		if err != nil {
+			continue
+		}
+
+		// ---- Directory case ----
+		if s.IsDir() {
 			files, err := os.ReadDir(arg)
 			if err != nil {
 				return "", err
 			}
+
+			dirFoundAny := false
+
 			for _, f := range files {
 				n := f.Name()
-				if isGnoFile(f) &&
-					!strings.HasSuffix(n, "_test.gno") &&
-					!strings.HasSuffix(n, "_filetest.gno") {
-					return gno.ParseFilePackageName(filepath.Join(arg, n))
+				if !isGnoFile(f) ||
+					strings.HasSuffix(n, "_test.gno") ||
+					strings.HasSuffix(n, "_filetest.gno") {
+					continue
 				}
+
+				fullPath := filepath.Join(arg, n)
+				firstPkgName, firstPkgFile, err = updatePackageInfo(fullPath, firstPkgName, firstPkgFile)
+				if err != nil {
+					return "", err
+				}
+				foundAny = true
+				dirFoundAny = true
 			}
-		} else if err != nil {
-			return "", err
-		} else {
-			return gno.ParseFilePackageName(arg)
+
+			// when directory has only test files
+			if !dirFoundAny {
+				return "", fmt.Errorf("gno: no non-test Gno files in %s", arg)
+			}
+
+			continue
 		}
+
+		// ---- File case ----
+		n := filepath.Base(arg)
+		if strings.HasSuffix(n, "_test.gno") || strings.HasSuffix(n, "_filetest.gno") {
+			return "", fmt.Errorf("gno run: cannot run test files (%s), use gno test instead", n)
+		}
+
+		firstPkgName, firstPkgFile, err = updatePackageInfo(arg, firstPkgName, firstPkgFile)
+		if err != nil {
+			return "", err
+		}
+		foundAny = true
 	}
-	return "", nil
+
+	if !foundAny {
+		return "", fmt.Errorf("no valid gno file found")
+	}
+
+	return firstPkgName, nil
+}
+
+// updatePackageInfo parses the package name of a given .gno file
+// and compares it with the first known package. It returns updated values
+// for firstPkgName and firstPkgFile, or an error if a mismatch is found.
+func updatePackageInfo(
+	path string,
+	firstPkgName, firstPkgFile string,
+) (string, string, error) {
+	pkgName, err := gno.ParseFilePackageName(path)
+	if err != nil {
+		return firstPkgName, firstPkgFile, err
+	}
+
+	if firstPkgName == "" {
+		// First valid file sets the base package
+		return pkgName, path, nil
+	}
+
+	if pkgName != firstPkgName {
+		return firstPkgName, firstPkgFile, fmt.Errorf(
+			"found mismatched packages %s (%s) and %s (%s)",
+			firstPkgName, filepath.Base(firstPkgFile),
+			pkgName, filepath.Base(path),
+		)
+	}
+
+	return firstPkgName, firstPkgFile, nil
 }
 
 func execRun(cfg *runCmd, args []string, cio commands.IO) error {
@@ -125,7 +196,7 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	}
 
 	var send std.Coins
-	pkgPath, err := packageNameFromFirstFile(args)
+	pkgPath, err := packageNameFromFiles(args)
 	if err != nil {
 		return err
 	}
