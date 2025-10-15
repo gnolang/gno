@@ -130,7 +130,7 @@ UI - Help Function component
         <div class="content">
           <p>This transaction link is requesting <strong>{{ . }}</strong> from your
             balance. For your safety, you must manually confirm the addition of coins to the transaction.</p>
-          <div class="btn b-switch">
+          <div class="b-btn b-switch">
             <input type="checkbox" id="func-{{ $funcName }}-send-flag" data-action-function-send-value="{{ . }}" />
             <label for="func-{{ $funcName }}-send-flag" data-action="click->action-function#updateAllFunctionsSend"
               data-action-function-send-param="true">
