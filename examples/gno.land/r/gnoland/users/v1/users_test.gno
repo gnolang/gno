@@ -41,7 +41,6 @@ func TestRegister_Free(t *testing.T) {
 	// Simulate a proper user call with 0gnot fee.
 	testing.SetRealm(testing.NewUserRealm(addr))
 	testing.SetOriginCaller(addr)
-	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
 
 	urequire.NotPanics(t, func() {
 		Register(cross, "alice456")
