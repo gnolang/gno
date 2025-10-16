@@ -4,9 +4,9 @@ import (
 	"net/url"
 	"strings"
 
+	"gno.land/p/matijamarjanovic/charts"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
-	"gno.land/p/matijamarjanovic/charts"
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/avl/pager"
 	"gno.land/p/nt/fqname"
