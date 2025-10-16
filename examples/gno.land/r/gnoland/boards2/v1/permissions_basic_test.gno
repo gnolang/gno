@@ -1,7 +1,6 @@
 package boards2
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/nt/commondao"
@@ -14,7 +13,7 @@ var _ Permissions = (*BasicPermissions)(nil)
 func TestBasicPermissionsWithPermission(t *testing.T) {
 	cases := []struct {
 		name       string
-		user       std.Address
+		user       address
 		permission Permission
 		args       Args
 		setup      func() *BasicPermissions
@@ -71,33 +70,23 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var (
-				called bool
-				args   Args
-			)
+			var called bool
 
 			perms := tc.setup()
-			callback := func(_ realm, a Args) {
-				args = a
-				called = true
-			}
+			callback := func(realm) { called = true }
 
 			testCaseFn := func() {
 				perms.WithPermission(cross, tc.user, tc.permission, tc.args, callback)
 			}
 
 			if tc.err != "" {
-				urequire.AbortsWithMessage(t, tc.err, testCaseFn, "panic")
+				urequire.AbortsWithMessage(t, tc.err, testCaseFn, "expect panic with message")
 				return
 			} else {
-				urequire.NotPanics(t, testCaseFn, "no panic")
+				urequire.NotAborts(t, testCaseFn, "expect no panic")
 			}
 
-			urequire.Equal(t, tc.called, called, "callback called")
-			urequire.Equal(t, len(tc.args), len(args), "args count")
-			for i, a := range args {
-				uassert.Equal(t, tc.args[i].(string), a.(string))
-			}
+			urequire.Equal(t, tc.called, called, "expect callback to be called")
 		})
 	}
 }
@@ -105,7 +94,7 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 func TestBasicPermissionsGetUserRoles(t *testing.T) {
 	cases := []struct {
 		name  string
-		user  std.Address
+		user  address
 		roles []string
 		setup func() *BasicPermissions
 	}{
@@ -181,7 +170,7 @@ func TestBasicPermissionsGetUserRoles(t *testing.T) {
 func TestBasicPermissionsHasRole(t *testing.T) {
 	cases := []struct {
 		name  string
-		user  std.Address
+		user  address
 		role  Role
 		setup func() *BasicPermissions
 		want  bool
@@ -245,7 +234,7 @@ func TestBasicPermissionsHasRole(t *testing.T) {
 func TestBasicPermissionsHasPermission(t *testing.T) {
 	cases := []struct {
 		name       string
-		user       std.Address
+		user       address
 		permission Permission
 		setup      func() *BasicPermissions
 		want       bool
@@ -313,14 +302,14 @@ func TestBasicPermissionsHasPermission(t *testing.T) {
 func TestBasicPermissionsSetUserRoles(t *testing.T) {
 	cases := []struct {
 		name  string
-		user  std.Address
+		user  address
 		roles []Role
 		setup func() *BasicPermissions
 		err   string
 	}{
 		{
 			name:  "add user",
-			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			user:  address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			roles: []Role{"a"},
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
@@ -330,7 +319,7 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 		},
 		{
 			name:  "add user with multiple roles",
-			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			user:  address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			roles: []Role{"a", "b"},
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
@@ -341,7 +330,7 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 		},
 		{
 			name:  "add when other users exists",
-			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			user:  address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			roles: []Role{"a"},
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
@@ -353,7 +342,7 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 		},
 		{
 			name:  "update user roles",
-			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			user:  address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			roles: []Role{"a", "b"},
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
@@ -365,7 +354,7 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 		},
 		{
 			name:  "clear user roles",
-			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			user:  address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			roles: []Role{},
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
@@ -377,7 +366,7 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 		},
 		{
 			name:  "set invalid role",
-			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			user:  address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			roles: []Role{"a", "foo"},
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
@@ -392,14 +381,15 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			perms := tc.setup()
 
-			err := perms.SetUserRoles(cross, tc.user, tc.roles...)
+			setUserRoles := func() {
+				perms.SetUserRoles(cross, tc.user, tc.roles...)
+			}
 
 			if tc.err != "" {
-				urequire.Error(t, err, "expected an error")
-				uassert.Equal(t, tc.err, err.Error())
+				urequire.AbortsWithMessage(t, tc.err, setUserRoles, "expected an error")
 				return
 			} else {
-				urequire.NoError(t, err)
+				urequire.NotAborts(t, setUserRoles, "expected no error")
 			}
 
 			roles := perms.GetUserRoles(tc.user)
@@ -414,13 +404,13 @@ func TestBasicPermissionsSetUserRoles(t *testing.T) {
 func TestBasicPermissionsRemoveUser(t *testing.T) {
 	cases := []struct {
 		name  string
-		user  std.Address
+		user  address
 		setup func() *BasicPermissions
 		want  bool
 	}{
 		{
 			name: "ok",
-			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			user: address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			setup: func() *BasicPermissions {
 				perms := NewBasicPermissions(commondao.New())
 				perms.SetUserRoles(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
@@ -430,7 +420,7 @@ func TestBasicPermissionsRemoveUser(t *testing.T) {
 		},
 		{
 			name: "user not found",
-			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			user: address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			setup: func() *BasicPermissions {
 				return NewBasicPermissions(commondao.New())
 			},
