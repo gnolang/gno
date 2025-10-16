@@ -77,6 +77,16 @@ func benchStoreGet(bstore BenchStore, pv *gno.PackageValue) {
 	}
 }
 
+const nativePkgPath = "gno.land/r/x/benchmark/native"
+
+func benchmarkNative(bstore gno.Store, dir string) {
+	nativePkgDir := filepath.Join(dir, "native")
+
+	pv := addPackage(bstore, nativePkgDir, nativePkgPath)
+	for range rounds {
+		callOpsBench(bstore, pv)
+	}
+}
 func callFunc(gstore gno.Store, pv *gno.PackageValue, cx gno.Expr) []gno.TypedValue {
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{

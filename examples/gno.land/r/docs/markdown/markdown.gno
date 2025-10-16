@@ -103,12 +103,12 @@ Blockquotes are created using the > character:
 ±±±markdown
 > This is a blockquote
 >
-> It can span multiple lines
+>> It can span multiple lines
 ±±±
 
 > This is a blockquote
 >
-> It can span multiple lines
+>> It can span multiple lines
 
 ### Code
 
