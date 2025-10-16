@@ -38,7 +38,7 @@ func TestRegister_Free(t *testing.T) {
 
 	addr := testutils.TestAddress("alice456")
 
-	// Simulate a proper user call with no coins sent.
+	// Simulate a proper user call with 0gnot fee.
 	testing.SetRealm(testing.NewUserRealm(addr))
 	testing.SetOriginCaller(addr)
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
