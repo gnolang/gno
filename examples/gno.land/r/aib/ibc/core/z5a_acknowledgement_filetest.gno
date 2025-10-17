@@ -1,7 +1,7 @@
 package main
 
 import (
-	"crypto/sha256"
+	"encoding/hex"
 	"time"
 
 	tmtesting "gno.land/p/aib/ibc/lightclient/tendermint/testing"
@@ -17,7 +17,7 @@ func main() {
 		chainID        = "chain-id-2"
 		trustedHeight  = types.NewHeight(2, 2)
 		clientState    = tmtesting.NewClientState(chainID, trustedHeight)
-		apphash        = sha256.Sum256([]byte("apphash"))
+		apphash, _     = hex.DecodeString("7e2766f175b518c898ecd74c51e80bb1d892cd3ba5265af64bb39714417742e7")
 		valset         = tmtesting.GenValset()
 		consensusState = tmtesting.GenConsensusState(time.Now(), apphash[:], valset.Hash())
 		counterpartyID = "07-tendermint-42"
