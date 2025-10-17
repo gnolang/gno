@@ -526,11 +526,9 @@ func RemoveMember(_ realm, boardID boards.ID, member address) {
 	assertMemberAddressIsValid(member)
 
 	perms := mustGetPermissions(boardID)
+	origin := runtime.OriginCaller()
 	caller := runtime.PreviousRealm().Address()
-	args := boards.Args{boardID, member}
-	perms.WithPermission(cross, caller, PermissionMemberRemove, args, func(realm) {
-		assertMembersUpdateIsEnabled(boardID)
-
+	removeMember := func() {
 		if !perms.RemoveUser(cross, member) {
 			panic("member not found")
 		}
@@ -538,9 +536,22 @@ func RemoveMember(_ realm, boardID boards.ID, member address) {
 		chain.Emit(
 			"MemberRemoved",
 			"caller", caller.String(),
+			"origin", origin.String(), // When origin and caller match it means self removal
 			"boardID", boardID.String(),
 			"member", member.String(),
 		)
+	}
+
+	// Members can remove themselves without permission
+	if origin == member {
+		removeMember()
+		return
+	}
+
+	args := boards.Args{boardID, member}
+	perms.WithPermission(cross, caller, PermissionMemberRemove, args, func(realm) {
+		assertMembersUpdateIsEnabled(boardID)
+		removeMember()
 	})
 }
 
