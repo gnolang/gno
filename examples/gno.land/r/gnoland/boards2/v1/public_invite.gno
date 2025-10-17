@@ -44,6 +44,7 @@ func RequestInvite(_ realm, boardID BoardID) {
 	}
 
 	// TODO: Request a fee (returned on accept) or registered user to avoid spam?
+	// TODO: Make open invite requests optional (per board)
 
 	board := mustGetBoard(boardID)
 	user := runtime.PreviousRealm().Address()

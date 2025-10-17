@@ -3,6 +3,7 @@ package components
 type FooterData struct {
 	Analytics  bool
 	AssetsPath string
+	BuildTime  string
 	Sections   []FooterSection
 }
 
