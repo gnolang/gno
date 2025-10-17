@@ -91,6 +91,29 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 	}
 }
 
+func TestBasicPermissionsSetPublicPermissions(t *testing.T) {
+	user := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	perms := NewBasicPermissions()
+
+	// Add a new role with permissions
+	perms.AddRole("adminRole", "fooPerm", "barPerm", "bazPerm")
+	urequire.False(t, perms.HasPermission(user, "fooPerm"))
+	urequire.False(t, perms.HasPermission(user, "barPerm"))
+	urequire.False(t, perms.HasPermission(user, "bazPerm"))
+
+	// Assign a couple of public permissions
+	perms.SetPublicPermissions("fooPerm", "bazPerm")
+	urequire.True(t, perms.HasPermission(user, "fooPerm"))
+	urequire.False(t, perms.HasPermission(user, "barPerm"))
+	urequire.True(t, perms.HasPermission(user, "bazPerm"))
+
+	// Clear all public permissions
+	perms.SetPublicPermissions()
+	urequire.False(t, perms.HasPermission(user, "fooPerm"))
+	urequire.False(t, perms.HasPermission(user, "barPerm"))
+	urequire.False(t, perms.HasPermission(user, "bazPerm"))
+}
+
 func TestBasicPermissionsGetUserRoles(t *testing.T) {
 	cases := []struct {
 		name  string

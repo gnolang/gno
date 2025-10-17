@@ -15,6 +15,7 @@ type BasicPermissions struct {
 	superRole  boards.Role
 	dao        *commondao.CommonDAO
 	validators *avl.Tree // string(boards.Permission) -> BasicPermissionValidator
+	public     *avl.Tree // string(boards.Permission) -> struct{}{}
 }
 
 // NewBasicPermissions creates a new permissions type.
@@ -24,6 +25,7 @@ func NewBasicPermissions() *BasicPermissions {
 	storage := boardsdao.NewMemberStorage()
 	return &BasicPermissions{
 		validators: avl.NewTree(),
+		public:     avl.NewTree(),
 		dao: commondao.New(
 			// Use a custom boards member storage
 			commondao.WithMemberStorage(storage),
@@ -39,6 +41,16 @@ func (bp BasicPermissions) DAO() *commondao.CommonDAO {
 // ValidateFunc add a validator function for a permission.
 func (bp *BasicPermissions) ValidateFunc(p boards.Permission, fn ValidatorFunc) {
 	bp.validators.Set(string(p), fn)
+}
+
+// SetPublicPermissions assigns permissions that are available to anyone.
+// It removes previous public permissions and assigns the new ones.
+// By default there are no public permissions.
+func (bp *BasicPermissions) SetPublicPermissions(permissions ...boards.Permission) {
+	bp.public = avl.NewTree()
+	for _, p := range permissions {
+		bp.public.Set(string(p), struct{}{})
+	}
 }
 
 // SetSuperRole assigns a super role.
@@ -104,6 +116,10 @@ func (bp BasicPermissions) HasRole(user address, r boards.Role) bool {
 
 // HasPermission checks if a user has a specific permission.
 func (bp BasicPermissions) HasPermission(user address, perm boards.Permission) bool {
+	if bp.public.Has(string(perm)) {
+		return true
+	}
+
 	groups := boardsdao.GetMemberGroups(bp.dao.Members(), user)
 	if groups == nil {
 		return false
