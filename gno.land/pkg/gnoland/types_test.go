@@ -24,7 +24,7 @@ func generateTxs(t *testing.T, count int) []TxWithMetadata {
 
 	txs := make([]TxWithMetadata, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		txs[i] = TxWithMetadata{
 			Tx: std.Tx{
 				Msgs: []std.Msg{
@@ -112,7 +112,7 @@ func TestReadGenesisTxs(t *testing.T) {
 			encodedTx, err := amino.MarshalJSON(tx)
 			require.NoError(t, err)
 
-			_, err = file.WriteString(fmt.Sprintf("%s\n", encodedTx))
+			_, err = fmt.Fprintf(file, "%s\n", encodedTx)
 			require.NoError(t, err)
 		}
 
@@ -129,6 +129,98 @@ func TestReadGenesisTxs(t *testing.T) {
 			assert.Equal(t, txs[index], readTx)
 		}
 	})
+}
+
+func TestGnoAccountRestriction(t *testing.T) {
+	testEnv := setupTestEnv()
+	ctx, acck, bankk := testEnv.ctx, testEnv.acck, testEnv.bankk
+
+	fromAddress := crypto.AddressFromPreimage([]byte("from"))
+	toAddress := crypto.AddressFromPreimage([]byte("to"))
+	fromAccount := acck.NewAccountWithAddress(ctx, fromAddress)
+	toAccount := acck.NewAccountWithAddress(ctx, toAddress)
+
+	// Default account is not unrestricted
+	assert.False(t, fromAccount.(*GnoAccount).IsUnrestricted())
+
+	// Send Unrestricted
+	fromAccount.SetCoins(std.NewCoins(std.NewCoin("foocoin", 10)))
+	acck.SetAccount(ctx, fromAccount)
+	acck.SetAccount(ctx, toAccount)
+
+	err := bankk.SendCoins(ctx, fromAddress, toAddress, std.NewCoins(std.NewCoin("foocoin", 3)))
+	require.NoError(t, err)
+	balance := acck.GetAccount(ctx, toAddress).GetCoins()
+	assert.Equal(t, balance.String(), "3foocoin")
+
+	// Send Restricted
+	bankk.SetRestrictedDenoms(ctx, []string{"foocoin"})
+	err = bankk.SendCoins(ctx, fromAddress, toAddress, std.NewCoins(std.NewCoin("foocoin", 3)))
+	require.Error(t, err)
+	assert.Equal(t, "restricted token transfer error", err.Error())
+
+	// Set unrestrict Account
+	fromAccount.(*GnoAccount).SetUnrestricted()
+	assert.True(t, fromAccount.(*GnoAccount).IsUnrestricted())
+
+	// Persisted unrestricted state
+	acck.SetAccount(ctx, fromAccount)
+	fromAccount = acck.GetAccount(ctx, fromAddress)
+	assert.True(t, fromAccount.(*GnoAccount).IsUnrestricted())
+
+	// Send Restricted
+	bankk.SetRestrictedDenoms(ctx, []string{"foocoin"}) // XXX unnecessary?
+	err = bankk.SendCoins(ctx, fromAddress, toAddress, std.NewCoins(std.NewCoin("foocoin", 3)))
+	require.NoError(t, err)
+	assert.Equal(t, balance.String(), "3foocoin")
+}
+
+func TestGnoAccountSendRestrictions(t *testing.T) {
+	testEnv := setupTestEnv()
+	ctx, acck, bankk := testEnv.ctx, testEnv.acck, testEnv.bankk
+
+	bankk.SetRestrictedDenoms(ctx, []string{"foocoin"})
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	addr2 := crypto.AddressFromPreimage([]byte("addr2"))
+	acc := acck.NewAccountWithAddress(ctx, addr)
+
+	// All accounts are restricted by default when the transfer restriction is applied.
+
+	// Test GetCoins/SetCoins
+	acck.SetAccount(ctx, acc)
+	require.True(t, bankk.GetCoins(ctx, addr).IsEqual(std.NewCoins()))
+
+	bankk.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10)))
+	require.True(t, bankk.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 10))))
+
+	// Test HasCoins
+	require.True(t, bankk.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10))))
+	require.True(t, bankk.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 5))))
+	require.False(t, bankk.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 15))))
+	require.False(t, bankk.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 5))))
+
+	bankk.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 15)))
+
+	// Test sending coins restricted to locked accounts.
+	err := bankk.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("foocoin", 5)))
+	require.ErrorIs(t, err, std.RestrictedTransferError{}, "expected restricted transfer error, got %v", err)
+	require.True(t, bankk.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 15))))
+	require.True(t, bankk.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("foocoin", 0))))
+
+	// Test sending coins unrestricted to locked accounts.
+	bankk.AddCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 30)))
+	err = bankk.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("barcoin", 10)))
+	require.NoError(t, err)
+	require.True(t, bankk.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 20), std.NewCoin("foocoin", 15))))
+	require.True(t, bankk.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10))))
+
+	// Remove the restrictions
+	bankk.SetRestrictedDenoms(ctx, []string{})
+	// Test sending coins restricted to locked accounts.
+	err = bankk.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("foocoin", 5)))
+	require.NoError(t, err)
+	require.True(t, bankk.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 20), std.NewCoin("foocoin", 10))))
+	require.True(t, bankk.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 5))))
 }
 
 func TestSignGenesisTx(t *testing.T) {
@@ -155,4 +247,28 @@ func TestSignGenesisTx(t *testing.T) {
 		assert.True(t, pubKey.Equals(sigs[0].PubKey))
 		assert.True(t, pubKey.VerifyBytes(payload, sigs[0].Signature))
 	}
+}
+
+func TestSetFlag(t *testing.T) {
+	account := &GnoAccount{}
+
+	// Test setting a valid flag
+	account.setFlag(flagUnrestricted)
+	assert.True(t, account.hasFlag(flagUnrestricted), "Expected unrestricted flag to be set")
+
+	// Test setting an invalid flag
+	assert.Panics(t, func() {
+		account.setFlag(BitSet(0x1000)) // Invalid flag
+	}, "Expected panic for invalid flag")
+}
+
+func TestClearFlag(t *testing.T) {
+	account := &GnoAccount{}
+
+	// Set and then clear the flag
+	account.setFlag(flagUnrestricted)
+	assert.True(t, account.hasFlag(flagUnrestricted), "Expected unrestricted flag to be set before clearing")
+
+	account.clearFlag(flagUnrestricted)
+	assert.False(t, account.hasFlag(flagUnrestricted), "Expected unrestricted flag to be cleared")
 }

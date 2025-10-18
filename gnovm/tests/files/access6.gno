@@ -16,4 +16,7 @@ func main() {
 }
 
 // Error:
-// main/files/access6.gno:15:2: main.mystruct does not implement gno.land/p/demo/testutils.PrivateInterface (missing method privateMethod)
+// main/access6.gno:15:2-36: main.mystruct does not implement gno.land/p/demo/testutils.PrivateInterface (missing method privateMethod)
+
+// TypeCheckError:
+// main/access6.gno:15:34: cannot use x (variable of struct type mystruct) as testutils.PrivateInterface value in argument to testutils.PrintPrivateInterface: mystruct does not implement testutils.PrivateInterface (unexported method privateMethod)

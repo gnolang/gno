@@ -44,7 +44,8 @@ func MustAddressFromString(str string) (addr Address) {
 }
 
 func AddressFromPreimage(bz []byte) Address {
-	return AddressFromBytes(tmhash.SumTruncated(bz))
+	addr := AddressFromBytes(tmhash.SumTruncated(bz))
+	return addr
 }
 
 func AddressFromBytes(bz []byte) (ret Address) {

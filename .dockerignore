@@ -1,11 +1,14 @@
 .dockerignore
-build/
 Dockerfile
+docker-compose.yml
+build/
 misc/*
 !misc/loop/
 !misc/autocounterd/
-docker-compose.yml
 tests/docker-integration/
+docs/
+.github/
+*.md
 
 # Copied from .gitignore
 

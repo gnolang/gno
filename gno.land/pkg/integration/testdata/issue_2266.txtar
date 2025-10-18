@@ -1,4 +1,4 @@
-# test issue 
+# test issue
 
 loadpkg gno.land/r/demo/realm $WORK
 
@@ -27,16 +27,15 @@ var (
 	b [2]*B
 )
 
-func Fill(i int) {
- c := B{
+func Fill(cur realm, i int) {
+	c := B{
 		A: a,
 		B: "",
 	}
 	b[i] = &c
 }
 
-func UnFill() {
+func UnFill(cur realm) {
 	b[0] = nil
 	b[1] = nil
 }
-

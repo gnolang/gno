@@ -1,0 +1,23 @@
+-- input.md --
+## Normal image link
+![img1](http://gno.land)
+
+## Data iamge uri
+![svg image](data:image/svg+xml;base64,AAA==)
+
+
+## Empty image uri
+![empty img]()
+
+## Filter any image starting by `https://`, see `ext_text.go`
+![invalid image](https://invalid.land)
+
+-- output.html --
+<h2>Normal image link</h2>
+<p><img src="http://gno.land" alt="img1"></p>
+<h2>Data iamge uri</h2>
+<p><img src="data:image/svg+xml;base64,AAA==" alt="svg image"></p>
+<h2>Empty image uri</h2>
+<p><img src="" alt="empty img"></p>
+<h2>Filter any image starting by <code>https://</code>, see <code>ext_text.go</code></h2>
+<p><img src="" alt="invalid image"></p>

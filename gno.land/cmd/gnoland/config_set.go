@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	storeTypes "github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 var errInvalidConfigSetArgs = errors.New("invalid number of config set arguments provided")
@@ -35,14 +36,15 @@ func newConfigSetCmd(io commands.IO) *commands.Command {
 	)
 
 	// Add subcommand helpers
-	helperGen := metadataHelperGenerator{
+	gen := commands.FieldsGenerator{
 		MetaUpdate: func(meta *commands.Metadata, inputType string) {
 			meta.ShortUsage = fmt.Sprintf("config set %s <%s>", meta.Name, inputType)
 		},
 		TagNameSelector: "json",
 		TreeDisplay:     true,
 	}
-	cmd.AddSubCommands(generateSubCommandHelper(helperGen, config.Config{}, func(_ context.Context, args []string) error {
+
+	cmd.AddSubCommands(gen.GenerateFrom(config.Config{}, func(_ context.Context, args []string) error {
 		return execConfigEdit(cfg, io, args)
 	})...)
 
@@ -99,7 +101,7 @@ func updateConfigField(config *config.Config, key, value string) error {
 	path := strings.Split(key, ".")
 
 	// Get the editable field
-	field, err := getFieldAtPath(configValue, path)
+	field, err := commands.GetFieldByPath(configValue, "toml", path)
 	if err != nil {
 		return err
 	}
@@ -127,7 +129,7 @@ func saveStringToValue(value string, dstValue reflect.Value) error {
 		// they need to be parsed from a custom format.
 		// In this case, the format for a []string is comma separated:
 		// value1,value2,value3 ...
-		val := strings.SplitN(value, ",", -1)
+		val := strings.Split(value, ",")
 
 		dstValue.Set(reflect.ValueOf(val))
 	case time.Duration:
@@ -149,6 +151,17 @@ func saveStringToValue(value string, dstValue reflect.Value) error {
 		val := parseEventStoreParams(value)
 
 		dstValue.Set(reflect.ValueOf(val))
+	case storeTypes.PruneStrategy:
+		var (
+			dstType = dstValue.Type()
+			val     = reflect.ValueOf(value)
+		)
+
+		if !val.CanConvert(dstType) {
+			return fmt.Errorf("unable to cast to type %q", dstType)
+		}
+
+		dstValue.Set(val.Convert(dstType))
 	default:
 		return fmt.Errorf("unsupported type, %s", dstValue.Type().Name())
 	}
@@ -163,7 +176,7 @@ func parseEventStoreParams(values string) types.EventStoreParams {
 	params := make(types.EventStoreParams, len(values))
 
 	// Split the string into different key value pairs
-	keyPairs := strings.SplitN(values, ",", -1)
+	keyPairs := strings.Split(values, ",")
 
 	for _, keyPair := range keyPairs {
 		// Split the string into key and value

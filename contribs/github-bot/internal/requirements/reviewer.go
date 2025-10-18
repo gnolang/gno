@@ -11,6 +11,18 @@ import (
 	"github.com/xlab/treeprint"
 )
 
+// RequestAction controls what to do about the review request.
+type RequestAction byte
+
+const (
+	// RequestApply will request a review from the user/team if not already requested.
+	RequestApply = iota
+	// RequestRemove will remove the review request from the user/team.
+	RequestRemove
+	// RequestIgnore always leaves the review request as it is.
+	RequestIgnore
+)
+
 // deduplicateReviews returns a list of reviews with at most 1 review per
 // author, where approval/changes requested reviews are preferred over comments
 // and later reviews are preferred over earlier ones.
@@ -36,10 +48,21 @@ func deduplicateReviews(reviews []*github.PullRequestReview) []*github.PullReque
 				result = append(result, rev)
 				added[rev.User.GetLogin()] = len(result) - 1
 			}
+		case utils.ReviewStateDismissed:
+			// this state just dismisses any previous review, so remove previous
+			// entry for this user if it exists.
+			if ok {
+				result[idx] = nil
+			}
 		default:
 			panic(fmt.Sprintf("invalid review state %q", rev.GetState()))
 		}
 	}
+	// Remove nil entries from the result (dismissed reviews).
+	result = slices.DeleteFunc(result, func(r *github.PullRequestReview) bool {
+		return r == nil
+	})
+
 	return result
 }
 
@@ -49,6 +72,7 @@ type ReviewByUserRequirement struct {
 	gh           *client.GitHub
 	user         string
 	desiredState string
+	action       RequestAction
 }
 
 var _ Requirement = &ReviewByUserRequirement{}
@@ -77,8 +101,9 @@ func (r *ReviewByUserRequirement) IsSatisfied(pr *github.PullRequest, details tr
 	}
 	r.gh.Logger.Debugf("User %s has not reviewed PR %d yet", r.user, pr.GetNumber())
 
-	// If not a dry run, make the user a reviewer if he's not already.
-	if !r.gh.DryRun {
+	// If not a dry run, change the review request according to the action.
+	if !r.gh.DryRun && r.action != RequestIgnore {
+		// Check if this user is already requested for review.
 		requested := false
 		reviewers, err := r.gh.ListPRReviewers(pr.GetNumber())
 		if err != nil {
@@ -93,20 +118,44 @@ func (r *ReviewByUserRequirement) IsSatisfied(pr *github.PullRequest, details tr
 			}
 		}
 
-		if requested {
-			r.gh.Logger.Debugf("Review of user %s already requested on PR %d", r.user, pr.GetNumber())
-		} else {
-			r.gh.Logger.Debugf("Requesting review from user %s on PR %d", r.user, pr.GetNumber())
-			if _, _, err := r.gh.Client.PullRequests.RequestReviewers(
-				r.gh.Ctx,
-				r.gh.Owner,
-				r.gh.Repo,
-				pr.GetNumber(),
-				github.ReviewersRequest{
-					Reviewers: []string{r.user},
-				},
-			); err != nil {
-				r.gh.Logger.Errorf("Unable to request review from user %s on PR %d: %v", r.user, pr.GetNumber(), err)
+		switch r.action {
+		case RequestApply:
+			switch {
+			case requested:
+				r.gh.Logger.Debugf("Review of user %s already requested on PR %d", r.user, pr.GetNumber())
+			case r.user == pr.GetUser().GetLogin():
+				r.gh.Logger.Debugf("Review of user %s is not requested on PR %d because he's the author", r.user, pr.GetNumber())
+			default:
+				r.gh.Logger.Debugf("Requesting review from user %s on PR %d", r.user, pr.GetNumber())
+				if _, _, err := r.gh.Client.PullRequests.RequestReviewers(
+					r.gh.Ctx,
+					r.gh.Owner,
+					r.gh.Repo,
+					pr.GetNumber(),
+					github.ReviewersRequest{
+						Reviewers: []string{r.user},
+					},
+				); err != nil {
+					r.gh.Logger.Errorf("Unable to request review from user %s on PR %d: %v", r.user, pr.GetNumber(), err)
+				}
+			}
+		case RequestRemove:
+			switch {
+			case !requested:
+				r.gh.Logger.Debugf("Review of user %s already not requested on PR %d", r.user, pr.GetNumber())
+			default:
+				r.gh.Logger.Debugf("Removing review request from user %s on PR %d", r.user, pr.GetNumber())
+				if _, err := r.gh.Client.PullRequests.RemoveReviewers(
+					r.gh.Ctx,
+					r.gh.Owner,
+					r.gh.Repo,
+					pr.GetNumber(),
+					github.ReviewersRequest{
+						Reviewers: []string{r.user},
+					},
+				); err != nil {
+					r.gh.Logger.Errorf("Unable to remove review request from user %s on PR %d: %v", r.user, pr.GetNumber(), err)
+				}
 			}
 		}
 	}
@@ -127,8 +176,12 @@ func (r *ReviewByUserRequirement) WithDesiredState(s utils.ReviewState) *ReviewB
 }
 
 // ReviewByUser asserts that the PR has been reviewed by the given user.
-func ReviewByUser(gh *client.GitHub, user string) *ReviewByUserRequirement {
-	return &ReviewByUserRequirement{gh: gh, user: user}
+func ReviewByUser(gh *client.GitHub, user string, action RequestAction) *ReviewByUserRequirement {
+	return &ReviewByUserRequirement{
+		gh:     gh,
+		user:   user,
+		action: action,
+	}
 }
 
 // ReviewByTeamMembersRequirement asserts that count members of the given team
@@ -139,6 +192,7 @@ type ReviewByTeamMembersRequirement struct {
 	team         string
 	count        uint
 	desiredState string
+	action       RequestAction
 }
 
 var _ Requirement = &ReviewByTeamMembersRequirement{}
@@ -166,7 +220,8 @@ func (r *ReviewByTeamMembersRequirement) IsSatisfied(pr *github.PullRequest, det
 
 	// If not a dry run, request a team review if no member has reviewed yet,
 	// and the team review has not been requested.
-	if !r.gh.DryRun {
+	if !r.gh.DryRun && r.action != RequestIgnore {
+		// Check if the team or any of its members are already requested for review.
 		var teamRequested bool
 		var usersRequested []string
 
@@ -199,24 +254,45 @@ func (r *ReviewByTeamMembersRequirement) IsSatisfied(pr *github.PullRequest, det
 			}
 		}
 
-		switch {
-		case teamRequested:
-			r.gh.Logger.Debugf("Review of team %s already requested on PR %d", r.team, pr.GetNumber())
-		case len(usersRequested) > 0:
-			r.gh.Logger.Debugf("Members %v of team %s already requested on (or reviewed) PR %d",
-				usersRequested, r.team, pr.GetNumber())
-		default:
-			r.gh.Logger.Debugf("Requesting review from team %s on PR %d", r.team, pr.GetNumber())
-			if _, _, err := r.gh.Client.PullRequests.RequestReviewers(
-				r.gh.Ctx,
-				r.gh.Owner,
-				r.gh.Repo,
-				pr.GetNumber(),
-				github.ReviewersRequest{
-					TeamReviewers: []string{r.team},
-				},
-			); err != nil {
-				r.gh.Logger.Errorf("Unable to request review from team %s on PR %d: %v", r.team, pr.GetNumber(), err)
+		switch r.action {
+		case RequestApply:
+			switch {
+			case teamRequested:
+				r.gh.Logger.Debugf("Review of team %s already requested on PR %d", r.team, pr.GetNumber())
+			case len(usersRequested) > 0:
+				r.gh.Logger.Debugf("Members %v of team %s already requested on (or reviewed) PR %d",
+					usersRequested, r.team, pr.GetNumber())
+			default:
+				r.gh.Logger.Debugf("Requesting review from team %s on PR %d", r.team, pr.GetNumber())
+				if _, _, err := r.gh.Client.PullRequests.RequestReviewers(
+					r.gh.Ctx,
+					r.gh.Owner,
+					r.gh.Repo,
+					pr.GetNumber(),
+					github.ReviewersRequest{
+						TeamReviewers: []string{r.team},
+					},
+				); err != nil {
+					r.gh.Logger.Errorf("Unable to request review from team %s on PR %d: %v", r.team, pr.GetNumber(), err)
+				}
+			}
+		case RequestRemove:
+			switch {
+			case !teamRequested:
+				r.gh.Logger.Debugf("Review of team %s already not requested on PR %d", r.team, pr.GetNumber())
+			default:
+				r.gh.Logger.Debugf("Removing review request from team %s on PR %d", r.team, pr.GetNumber())
+				if _, err := r.gh.Client.PullRequests.RemoveReviewers(
+					r.gh.Ctx,
+					r.gh.Owner,
+					r.gh.Repo,
+					pr.GetNumber(),
+					github.ReviewersRequest{
+						TeamReviewers: []string{r.team},
+					},
+				); err != nil {
+					r.gh.Logger.Errorf("Unable to remove review request from team %s on PR %d: %v", r.team, pr.GetNumber(), err)
+				}
 			}
 		}
 	}
@@ -272,11 +348,12 @@ func (r *ReviewByTeamMembersRequirement) WithDesiredState(s utils.ReviewState) *
 //
 // The number of required reviews, or the state of the reviews (e.g., to filter
 // only for approval reviews) can be modified using WithCount and WithDesiredState.
-func ReviewByTeamMembers(gh *client.GitHub, team string) *ReviewByTeamMembersRequirement {
+func ReviewByTeamMembers(gh *client.GitHub, team string, action RequestAction) *ReviewByTeamMembersRequirement {
 	return &ReviewByTeamMembersRequirement{
-		gh:    gh,
-		team:  team,
-		count: 1,
+		gh:     gh,
+		team:   team,
+		count:  1,
+		action: action,
 	}
 }
 
@@ -348,4 +425,60 @@ func (r *ReviewByOrgMembersRequirement) WithDesiredState(s utils.ReviewState) *R
 // reviewed this PR.
 func ReviewByOrgMembers(gh *client.GitHub) *ReviewByOrgMembersRequirement {
 	return &ReviewByOrgMembersRequirement{gh: gh, count: 1}
+}
+
+// ReviewByAnyUserRequirement asserts that the given PR has been reviewed by
+// at least one of the given users, filtering for PR reviews with state desiredState.
+type ReviewByAnyUserRequirement struct {
+	gh           *client.GitHub
+	users        []string
+	desiredState string
+}
+
+var _ Requirement = &ReviewByAnyUserRequirement{}
+
+// IsSatisfied implements [Requirement].
+func (r *ReviewByAnyUserRequirement) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
+	detail := fmt.Sprintf("At least one of these user(s) reviewed the pull request: %v", r.users)
+	if r.desiredState != "" {
+		detail += fmt.Sprintf(" (with state %q)", r.desiredState)
+	}
+
+	// Check if one of the users already approved this PR.
+	reviews, err := r.gh.ListPRReviews(pr.GetNumber())
+	if err != nil {
+		r.gh.Logger.Errorf("unable to check number of reviews on this PR: %v", err)
+		return utils.AddStatusNode(false, detail, details)
+	}
+	reviews = deduplicateReviews(reviews)
+
+	for _, review := range reviews {
+		if r.desiredState == "" || review.GetState() == r.desiredState {
+			for _, user := range r.users {
+				if review.GetUser().GetLogin() == user {
+					detail = fmt.Sprintf("User %s already reviewed PR %d with state %s", user, pr.GetNumber(), review.GetState())
+					r.gh.Logger.Debugf("%s", detail)
+					return utils.AddStatusNode(true, detail, details)
+				}
+			}
+		}
+	}
+
+	return utils.AddStatusNode(false, detail, details)
+}
+
+// WithDesiredState asserts that the matching review should also be of the given ReviewState.
+//
+// If an empty string is passed, then all reviews are counted. This is the default.
+func (r *ReviewByAnyUserRequirement) WithDesiredState(s utils.ReviewState) *ReviewByAnyUserRequirement {
+	if s != "" && !s.Valid() {
+		panic(fmt.Sprintf("invalid state: %q", s))
+	}
+	r.desiredState = string(s)
+	return r
+}
+
+// ReviewByAnyUser asserts that at least one of the given users reviewed this PR.
+func ReviewByAnyUser(gh *client.GitHub, users ...string) *ReviewByAnyUserRequirement {
+	return &ReviewByAnyUserRequirement{gh: gh, users: users}
 }

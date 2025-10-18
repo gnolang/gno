@@ -37,7 +37,7 @@ func Render(path string) (out string) {
 				out += ufmt.Sprintf("- [%s](%s:%s)\n\n", item.Value.(Config).name, absPath, item.Key)
 			}
 
-			out += page.Picker()
+			out += page.Picker(path)
 			out += "\n\n"
 			out += "Page " + strconv.Itoa(page.PageNumber) + " of " + strconv.Itoa(page.TotalPages) + "\n\n"
 		}

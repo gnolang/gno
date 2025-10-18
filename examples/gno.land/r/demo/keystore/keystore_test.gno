@@ -62,7 +62,7 @@ func TestRender(t *testing.T) {
 		}
 		p = strings.TrimSuffix(p, ":")
 		t.Run(p, func(t *testing.T) {
-			std.TestSetOriginCaller(tc.caller)
+			testing.SetOriginCaller(tc.caller)
 			var act string
 			if len(tc.ps) > 0 && tc.ps[0] == "set" {
 				act = strings.TrimSpace(Set(tc.ps[1], tc.ps[2]))

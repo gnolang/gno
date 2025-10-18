@@ -3,7 +3,7 @@ package groups
 import (
 	"std"
 
-	"gno.land/r/demo/users"
+	"gno.land/r/sys/users"
 )
 
 //----------------------------------------
@@ -17,7 +17,7 @@ func GetGroupIDFromName(name string) (GroupID, bool) {
 	return groupI.(*Group).id, true
 }
 
-func CreateGroup(name string) GroupID {
+func CreateGroup(cur realm, name string) GroupID {
 	std.AssertOriginCall()
 	caller := std.OriginCaller()
 	usernameOf(caller)
@@ -29,7 +29,7 @@ func CreateGroup(name string) GroupID {
 	return group.id
 }
 
-func AddMember(gid GroupID, address string, weight int, metadata string) MemberID {
+func AddMember(cur realm, gid GroupID, address_XXX string, weight int, metadata string) MemberID {
 	std.AssertOriginCall()
 	caller := std.OriginCaller()
 	usernameOf(caller)
@@ -37,12 +37,12 @@ func AddMember(gid GroupID, address string, weight int, metadata string) MemberI
 	if !group.HasPermission(caller, EditPermission) {
 		panic("unauthorized to edit group")
 	}
-	user := users.GetUserByAddress(std.Address(address))
+	user := users.ResolveAddress(std.Address(address_XXX))
 	if user == nil {
-		panic("unknown address " + address)
+		panic("unknown address " + address_XXX)
 	}
 	mid := group.lastMemberID
-	member := group.newMember(mid, std.Address(address), weight, metadata)
+	member := group.newMember(mid, std.Address(address_XXX), weight, metadata)
 	midkey := memberIDKey(mid)
 	group.members.Set(midkey, member)
 	mid++
@@ -50,7 +50,7 @@ func AddMember(gid GroupID, address string, weight int, metadata string) MemberI
 	return member.id
 }
 
-func DeleteGroup(gid GroupID) {
+func DeleteGroup(cur realm, gid GroupID) {
 	std.AssertOriginCall()
 	caller := std.OriginCaller()
 	group := getGroup(gid)
@@ -60,7 +60,7 @@ func DeleteGroup(gid GroupID) {
 	group.deleteGroup()
 }
 
-func DeleteMember(gid GroupID, mid MemberID) {
+func DeleteMember(cur realm, gid GroupID, mid MemberID) {
 	std.AssertOriginCall()
 	caller := std.OriginCaller()
 	group := getGroup(gid)

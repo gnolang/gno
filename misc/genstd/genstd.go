@@ -11,6 +11,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -18,16 +19,20 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"text/template"
 
 	_ "embed"
 )
 
+var skipInitOrder = flag.Bool("skip-init-order", false, "skip generating packages initialization order.")
+
 func main() {
+	flag.Parse()
 	path := "."
-	if len(os.Args) > 1 {
-		path = os.Args[1]
+	if a := flag.Arg(0); a != "" {
+		path = a
 	}
 	if err := _main(path); err != nil {
 		fmt.Fprintf(os.Stderr, "%+v\n", err)
@@ -52,9 +57,17 @@ func _main(stdlibsPath string) error {
 		return err
 	}
 
+	// Remove packages which don't have gno files within.
+	pkgs = slices.DeleteFunc(pkgs, func(p *pkgData) bool {
+		return !p.hasGno
+	})
+
 	// Link up each Gno function with its matching Go function.
 	mappings := linkFunctions(pkgs)
-	initOrder := sortPackages(pkgs)
+	var initOrder []string
+	if !*skipInitOrder {
+		initOrder = sortPackages(pkgs)
+	}
 
 	// Create generated file.
 	f, err := os.Create(outputFile)
@@ -93,6 +106,7 @@ type pkgData struct {
 
 	// for determining initialization order
 	imports map[string]struct{}
+	hasGno  bool // if false, should not be considered in init order.
 }
 
 type funcDecl struct {
@@ -114,6 +128,9 @@ func addImports(fds []*ast.FuncDecl, imports []*ast.ImportSpec) []funcDecl {
 func walkStdlibs(stdlibsPath string) ([]*pkgData, error) {
 	pkgs := make([]*pkgData, 0, 64)
 	err := WalkDir(stdlibsPath, func(fpath string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
 		// skip dirs and top-level directory.
 		if d.IsDir() || filepath.Dir(fpath) == stdlibsPath {
 			return nil
@@ -159,6 +176,7 @@ func walkStdlibs(stdlibsPath string) ([]*pkgData, error) {
 		}
 
 		// ext == ".gno"
+		pkg.hasGno = true
 		if bd := filterBodylessFuncDecls(f); len(bd) > 0 {
 			// gno file -- keep track of function declarations without body.
 			pkg.gnoBodyless = append(pkg.gnoBodyless, addImports(bd, f.Imports)...)

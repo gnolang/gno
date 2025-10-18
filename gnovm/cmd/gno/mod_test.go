@@ -16,19 +16,27 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/empty_dir",
 			simulateExternalRepo: true,
-			errShouldBe:          "gno.mod not found",
+			errShouldContain:     "gnowork.toml file not found in current or any parent directory",
+		},
+		{
+			args:                 []string{"mod", "download"},
+			testDir:              "../../tests/integ/empty_workspace",
+			simulateExternalRepo: true,
+			stderrShouldBe:       "gno: warning: \"./...\" matched no packages\n",
 		},
 		{
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/empty_gnomod",
 			simulateExternalRepo: true,
-			errShouldBe:          "validate: requires module",
+			errShouldBe:          "1 build error(s)",
+			stderrShouldContain:  "invalid gnomod.toml: 'module' is required",
 		},
 		{
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/invalid_module_name",
 			simulateExternalRepo: true,
-			errShouldContain:     "usage: module module/path",
+			errShouldBe:          "1 build error(s)",
+			stderrShouldContain:  "usage: module module/path",
 		},
 		{
 			args:                 []string{"mod", "download"},
@@ -45,8 +53,8 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/require_invalid_module",
 			simulateExternalRepo: true,
-			stderrShouldContain:  "gno: downloading gno.land/p/demo/notexists",
-			errShouldContain:     "query files list for pkg \"gno.land/p/demo/notexists\": package \"gno.land/p/demo/notexists\" is not available",
+			stderrShouldContain:  "query files list for pkg \"gno.land/p/demo/notexists\": package \"gno.land/p/demo/notexists\" is not available",
+			errShouldBe:          "1 build error(s)",
 		},
 		{
 			args:                 []string{"mod", "download"},
@@ -62,52 +70,16 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/replace_with_module",
 			simulateExternalRepo: true,
-			stderrShouldContain:  "gno: downloading gno.land/p/demo/users",
+			stderrShouldContain:  "gno: downloading gno.land/p/demo/avl",
 		},
-		{
-			args:                 []string{"mod", "download"},
-			testDir:              "../../tests/integ/replace_with_invalid_module",
-			simulateExternalRepo: true,
-			stderrShouldContain:  "gno: downloading gno.land/p/demo/notexists",
-			errShouldContain:     "query files list for pkg \"gno.land/p/demo/notexists\": package \"gno.land/p/demo/notexists\" is not available",
-		},
-
-		// test `gno mod init` with no module name
-		{
-			args:                 []string{"mod", "init"},
-			testDir:              "../../tests/integ/valid1",
-			simulateExternalRepo: true,
-		},
-		{
-			args:                 []string{"mod", "init"},
-			testDir:              "../../tests/integ/empty_dir",
-			simulateExternalRepo: true,
-			errShouldBe:          "create gno.mod file: cannot determine package name",
-		},
-		{
-			args:                 []string{"mod", "init"},
-			testDir:              "../../tests/integ/empty_gno1",
-			simulateExternalRepo: true,
-			recoverShouldContain: "expected 'package', found 'EOF'",
-		},
-		{
-			args:                 []string{"mod", "init"},
-			testDir:              "../../tests/integ/empty_gno2",
-			simulateExternalRepo: true,
-			recoverShouldContain: "expected 'package', found 'EOF'",
-		},
-		{
-			args:                 []string{"mod", "init"},
-			testDir:              "../../tests/integ/empty_gno3",
-			simulateExternalRepo: true,
-			recoverShouldContain: "expected 'package', found 'EOF'",
-		},
-		{
-			args:                 []string{"mod", "init"},
-			testDir:              "../../tests/integ/empty_gnomod",
-			simulateExternalRepo: true,
-			errShouldBe:          "create gno.mod file: gno.mod file already exists",
-		},
+		// TODO: that functionality is not available on gnomod.toml anymore. should we remove this?
+		// {
+		// 	args:                 []string{"mod", "download"},
+		// 	testDir:              "../../tests/integ/replace_with_invalid_module",
+		// 	simulateExternalRepo: true,
+		// 	stderrShouldContain:  "gno: downloading gno.land/p/demo/notexists",
+		// 	errShouldContain:     "query files list for pkg \"gno.land/p/demo/notexists\": package \"gno.land/p/demo/notexists\" is not available",
+		// },
 
 		// test `gno mod init` with module name
 		{
@@ -134,7 +106,7 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "init", "gno.land/p/demo/foo"},
 			testDir:              "../../tests/integ/empty_gnomod",
 			simulateExternalRepo: true,
-			errShouldBe:          "create gno.mod file: gno.mod file already exists",
+			errShouldBe:          "create gnomod.toml: file already exists",
 		},
 
 		// test `gno mod tidy`
@@ -148,7 +120,7 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "tidy"},
 			testDir:              "../../tests/integ/empty_dir",
 			simulateExternalRepo: true,
-			errShouldContain:     "could not read gno.mod file",
+			errShouldContain:     "gnomod.toml doesn't exist",
 		},
 		{
 			args:                 []string{"mod", "tidy"},
@@ -177,7 +149,7 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "why", "std"},
 			testDir:              "../../tests/integ/empty_dir",
 			simulateExternalRepo: true,
-			errShouldContain:     "could not read gno.mod file",
+			errShouldContain:     "gnomod.toml doesn't exist",
 		},
 		{
 			args:                 []string{"mod", "why", "std"},
@@ -190,7 +162,7 @@ func TestModApp(t *testing.T) {
 			testDir:              "../../tests/integ/minimalist_gnomod",
 			simulateExternalRepo: true,
 			stdoutShouldBe: `# std
-(module minim does not need package std)
+(module gno.land/t/minim does not need package std)
 `,
 		},
 		{
@@ -198,7 +170,7 @@ func TestModApp(t *testing.T) {
 			testDir:              "../../tests/integ/require_remote_module",
 			simulateExternalRepo: true,
 			stdoutShouldBe: `# std
-(module gno.land/tests/importavl does not need package std)
+(module gno.land/t/importavl does not need package std)
 `,
 		},
 		{
@@ -224,20 +196,35 @@ valid.gno
 			args:                 []string{"mod", "graph"},
 			testDir:              "../../tests/integ/valid1",
 			simulateExternalRepo: true,
-			stdoutShouldBe:       ``,
+			stdoutShouldBe: `gno.vm/r/tests/integ/valid1 testing
+`,
 		},
 		{
 			args:                 []string{"mod", "graph"},
 			testDir:              "../../tests/integ/valid2",
 			simulateExternalRepo: true,
+			stderrShouldBe:       "gno: downloading gno.land/p/demo/avl\n",
 			stdoutShouldBe: `gno.land/p/integ/valid gno.land/p/demo/avl
+gno.land/p/integ/valid gno.land/p/integ/valid
+gno.land/p/integ/valid testing
+gno.land/p/demo/avl gno.land/p/demo/avl
+gno.land/p/demo/avl gno.land/p/demo/ufmt
+gno.land/p/demo/avl sort
+gno.land/p/demo/avl strings
+gno.land/p/demo/avl testing
 `,
 		},
 		{
 			args:                 []string{"mod", "graph"},
 			testDir:              "../../tests/integ/require_remote_module",
 			simulateExternalRepo: true,
-			stdoutShouldBe: `gno.land/tests/importavl gno.land/p/demo/avl
+			stderrShouldBe:       "gno: downloading gno.land/p/demo/avl\n",
+			stdoutShouldBe: `gno.land/t/importavl gno.land/p/demo/avl
+gno.land/p/demo/avl gno.land/p/demo/avl
+gno.land/p/demo/avl gno.land/p/demo/ufmt
+gno.land/p/demo/avl sort
+gno.land/p/demo/avl strings
+gno.land/p/demo/avl testing
 `,
 		},
 	}

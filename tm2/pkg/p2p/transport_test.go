@@ -21,7 +21,7 @@ func generateNetAddr(t *testing.T, count int) []*types.NetAddress {
 
 	addrs := make([]*types.NetAddress, 0, count)
 
-	for i := 0; i < count; i++ {
+	for range count {
 		key := types.GenerateNodeKey()
 
 		// Grab a random port
@@ -225,12 +225,8 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 			addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 			require.NoError(t, err)
 
-			id := key.ID()
-
-			if index%1 == 0 {
-				// Hijack the key value
-				id = types.GenerateNodeKey().ID()
-			}
+			// Hijack the key value
+			id := types.GenerateNodeKey().ID()
 
 			na, err := types.NewNetAddress(id, addr)
 			require.NoError(t, err)

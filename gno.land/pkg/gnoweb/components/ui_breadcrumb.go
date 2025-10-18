@@ -9,9 +9,15 @@ type BreadcrumbPart struct {
 	URL  string
 }
 
+type QueryParam struct {
+	Key   string
+	Value string
+}
+
 type BreadcrumbData struct {
-	Parts []BreadcrumbPart
-	Args  string
+	Parts    []BreadcrumbPart
+	ArgParts []BreadcrumbPart
+	Queries  []QueryParam
 }
 
 func RenderBreadcrumpComponent(w io.Writer, data BreadcrumbData) error {

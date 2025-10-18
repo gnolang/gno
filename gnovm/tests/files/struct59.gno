@@ -12,4 +12,4 @@ func main() {
 }
 
 // Output:
-// test struct { v string }{v:"a"}
+// test main.X{v:"a"}

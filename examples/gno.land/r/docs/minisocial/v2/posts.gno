@@ -12,7 +12,7 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 
-	"gno.land/r/demo/users"
+	"gno.land/r/sys/users"
 )
 
 var (
@@ -28,7 +28,7 @@ var (
 )
 
 // CreatePost creates a new post
-func CreatePost(text string) error {
+func CreatePost(cur realm, text string) error {
 	if text == "" {
 		return ErrEmptyPost
 	}
@@ -54,7 +54,7 @@ func CreatePost(text string) error {
 
 // UpdatePost allows the author to update a post
 // The post can only be updated up to 10 minutes after posting
-func UpdatePost(id string, text string) error {
+func UpdatePost(cur realm, id string, text string) error {
 	// Try to get the post
 	raw, ok := posts.Get(id)
 	if !ok {
@@ -80,7 +80,7 @@ func UpdatePost(id string, text string) error {
 
 // DeletePost deletes a post with a specific id
 // Only the creator of a post can delete the post
-func DeletePost(id string) error {
+func DeletePost(cur realm, id string) error {
 	// Try to get the post
 	raw, ok := posts.Get(id)
 	if !ok {
@@ -107,7 +107,6 @@ func DeletePost(id string) error {
 // Render renders the main page of threads
 func Render(path string) string {
 	out := md.H1("MiniSocial")
-
 	if posts.Size() == 0 {
 		out += "No posts yet!\n\n"
 		return out
@@ -122,9 +121,9 @@ func Render(path string) string {
 
 		// Try resolving the address for a username
 		text := post.author.String()
-		user := users.GetUserByAddress(post.author)
+		user := users.ResolveAddress(post.author)
 		if user != nil {
-			text = ufmt.Sprintf("[@%s](/r/demo/users:%s)", user.Name, user.Name)
+			text = user.RenderLink("")
 		}
 
 		out += md.H4(ufmt.Sprintf("Post #%d - %s\n\n", int(post.id), text))
@@ -133,7 +132,7 @@ func Render(path string) string {
 		out += md.HorizontalRule()
 	}
 
-	out += page.Picker()
+	out += page.Picker(path)
 	out += "\n\n"
 	out += "Page " + strconv.Itoa(page.PageNumber) + " of " + strconv.Itoa(page.TotalPages) + "\n\n"
 

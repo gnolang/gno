@@ -48,22 +48,22 @@ func profileHandler(res *mux.ResponseWriter, req *mux.Request) {
 
 	b.WriteString(ufmt.Sprintf("# Profile %s\n", addr))
 
-	address := std.Address(addr)
+	address_XXX := std.Address(addr)
 
 	for field := range stringFields {
-		value := GetStringField(address, field, "n/a")
+		value := GetStringField(address_XXX, field, "n/a")
 		link := ufmt.Sprintf(SetStringFieldURL, field)
 		b.WriteString(ufmt.Sprintf("- %s: %s [Edit](%s)\n", field, value, link))
 	}
 
 	for field := range intFields {
-		value := GetIntField(address, field, 0)
+		value := GetIntField(address_XXX, field, 0)
 		link := ufmt.Sprintf(SetIntFieldURL, field)
 		b.WriteString(ufmt.Sprintf("- %s: %d [Edit](%s)\n", field, value, link))
 	}
 
 	for field := range boolFields {
-		value := GetBoolField(address, field, false)
+		value := GetBoolField(address_XXX, field, false)
 		link := ufmt.Sprintf(SetBoolFieldURL, field)
 		b.WriteString(ufmt.Sprintf("- %s: %t [Edit](%s)\n", field, value, link))
 	}
@@ -78,18 +78,18 @@ func fieldHandler(res *mux.ResponseWriter, req *mux.Request) {
 
 	b.WriteString(ufmt.Sprintf("# Field %s for %s\n", field, addr))
 
-	address := std.Address(addr)
+	address_XXX := std.Address(addr)
 	value := "n/a"
 	var editLink string
 
 	if _, ok := stringFields[field]; ok {
-		value = ufmt.Sprintf("%s", GetStringField(address, field, "n/a"))
+		value = ufmt.Sprintf("%s", GetStringField(address_XXX, field, "n/a"))
 		editLink = ufmt.Sprintf(SetStringFieldURL+"&addr=%s&value=%s", field, addr, url.QueryEscape(value))
 	} else if _, ok := intFields[field]; ok {
-		value = ufmt.Sprintf("%d", GetIntField(address, field, 0))
+		value = ufmt.Sprintf("%d", GetIntField(address_XXX, field, 0))
 		editLink = ufmt.Sprintf(SetIntFieldURL+"&addr=%s&value=%s", field, addr, value)
 	} else if _, ok := boolFields[field]; ok {
-		value = ufmt.Sprintf("%t", GetBoolField(address, field, false))
+		value = ufmt.Sprintf("%t", GetBoolField(address_XXX, field, false))
 		editLink = ufmt.Sprintf(SetBoolFieldURL+"&addr=%s&value=%s", field, addr, value)
 	}
 

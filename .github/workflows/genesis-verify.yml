@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        testnet: [ ] # Currently, all active testnet deployment genesis.json are legacy
+        testnet: ["test7.gno.land"] # Currently, all active testnet deployment genesis.json are legacy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -22,7 +22,7 @@ jobs:
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v45
+        uses: tj-actions/changed-files@v46
         with:
           files: "misc/deployments/${{ matrix.testnet }}/genesis.json"
 

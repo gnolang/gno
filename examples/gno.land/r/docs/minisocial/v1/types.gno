@@ -9,14 +9,14 @@ import (
 
 // Post defines the main data we keep about each post
 type Post struct {
-	text      string
-	author    std.Address
-	createdAt time.Time
+	text      string      // Main text body
+	author    std.Address // Address of the post author, provided by the execution context
+	createdAt time.Time   // When the post was created
 }
 
 // String stringifies a Post
 func (p Post) String() string {
-	out := "**" + p.text + "**"
+	out := p.text
 	out += "\n\n"
 	out += ufmt.Sprintf("_by %s_, ", p.author)
 	// We can use `ufmt` to format strings, and the built-in time library formatting function

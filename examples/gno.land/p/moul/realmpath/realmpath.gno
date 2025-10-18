@@ -32,7 +32,7 @@ import (
 	"strings"
 )
 
-const chainDomain = "gno.land" // XXX: std.ChainDomain (#2911)
+var chainDomain = std.ChainDomain()
 
 // Request represents a parsed request.
 type Request struct {

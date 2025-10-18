@@ -25,4 +25,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0f2c.gno:19:5: operator < not defined on: InterfaceKind
+// main/eql_0f2c.gno:19:5-22: operator < not defined on: InterfaceKind
+
+// TypeCheckError:
+// main/eql_0f2c.gno:19:16: invalid operation: Error(0) < errCmp (operator < not defined on interface)

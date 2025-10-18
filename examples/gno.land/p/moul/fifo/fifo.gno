@@ -73,23 +73,27 @@ func (l *List) Prepend(entry any) {
 
 	if l.size < l.maxSize {
 		l.size++
-	} else {
-		// Remove last element by traversing to second-to-last
-		if l.size == 1 {
-			// Special case: if size is 1, just update both pointers
-			l.head = newNode
-			l.tail = newNode
-			newNode.next = nil
-		} else {
-			// Find second-to-last node
-			current := l.head
-			for current.next != l.tail {
-				current = current.next
-			}
-			current.next = nil
-			l.tail = current
-		}
+		return
 	}
+
+	// Remove last element by traversing to second-to-last
+	if l.size == 1 {
+		// Special case: if size is 1, just update both pointers
+		l.head = newNode
+		l.tail = newNode
+		newNode.next = nil
+		return
+
+	}
+
+	// Find second-to-last node
+	current := l.head
+	for current.next != l.tail {
+		current = current.next
+	}
+	current.next = nil
+	l.tail = current
+
 }
 
 // Append adds a new entry at the end of the list. If the list exceeds maxSize,

@@ -837,7 +837,7 @@ func TestCalculateBackoff(t *testing.T) {
 	t.Run("percentage jitter", func(t *testing.T) {
 		t.Parallel()
 
-		for i := 0; i < 1000; i++ {
+		for range 1000 {
 			checkJitterRange(t, 100*time.Millisecond, calculateBackoff(0, time.Second, 10*time.Minute)-time.Second)
 			checkJitterRange(t, 200*time.Millisecond, calculateBackoff(1, time.Second, 10*time.Minute)-2*time.Second)
 			checkJitterRange(t, 400*time.Millisecond, calculateBackoff(2, time.Second, 10*time.Minute)-4*time.Second)
@@ -850,7 +850,7 @@ func TestCalculateBackoff(t *testing.T) {
 	t.Run("capped jitter", func(t *testing.T) {
 		t.Parallel()
 
-		for i := 0; i < 1000; i++ {
+		for range 1000 {
 			checkJitterRange(t, 10*time.Second, calculateBackoff(7, time.Second, 10*time.Minute)-128*time.Second)
 			checkJitterRange(t, 10*time.Second, calculateBackoff(10, time.Second, 20*time.Minute)-1024*time.Second)
 			checkJitterRange(t, 10*time.Second, calculateBackoff(20, time.Second, 300*time.Hour)-1048576*time.Second)
@@ -861,7 +861,7 @@ func TestCalculateBackoff(t *testing.T) {
 	t.Run("base interval", func(t *testing.T) {
 		t.Parallel()
 
-		for i := 0; i < 1000; i++ {
+		for range 1000 {
 			checkJitterRange(t, 4800*time.Millisecond, calculateBackoff(4, 3*time.Second, 10*time.Minute)-48*time.Second)
 			checkJitterRange(t, 8*time.Second, calculateBackoff(3, 10*time.Second, 10*time.Minute)-80*time.Second)
 			checkJitterRange(t, 10*time.Second, calculateBackoff(5, 3*time.Hour, 100*time.Hour)-96*time.Hour)
@@ -872,7 +872,7 @@ func TestCalculateBackoff(t *testing.T) {
 	t.Run("max interval", func(t *testing.T) {
 		t.Parallel()
 
-		for i := 0; i < 1000; i++ {
+		for range 1000 {
 			checkJitterRange(t, 100*time.Millisecond, calculateBackoff(10, 10*time.Hour, time.Second)-time.Second)
 			checkJitterRange(t, 1600*time.Millisecond, calculateBackoff(10, 10*time.Hour, 16*time.Second)-16*time.Second)
 			checkJitterRange(t, 10*time.Second, calculateBackoff(10, 10*time.Hour, 128*time.Second)-128*time.Second)
@@ -883,7 +883,7 @@ func TestCalculateBackoff(t *testing.T) {
 	t.Run("parameters sanitization", func(t *testing.T) {
 		t.Parallel()
 
-		for i := 0; i < 1000; i++ {
+		for range 1000 {
 			checkJitterRange(t, 100*time.Millisecond, calculateBackoff(0, -10, -10)-time.Second)
 			checkJitterRange(t, 1600*time.Millisecond, calculateBackoff(4, -10, -10)-16*time.Second)
 			checkJitterRange(t, 10*time.Second, calculateBackoff(7, -10, 10*time.Minute)-128*time.Second)

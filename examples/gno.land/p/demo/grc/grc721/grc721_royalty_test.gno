@@ -16,12 +16,12 @@ func TestSetTokenRoyalty(t *testing.T) {
 	addr2 := testutils.TestAddress("bob")
 
 	paymentAddress := testutils.TestAddress("john")
-	percentage := uint64(10) // 10%
+	percentage := int64(10) // 10%
 
-	salePrice := uint64(1000)
-	expectRoyaltyAmount := uint64(100)
+	salePrice := int64(1000)
+	expectRoyaltyAmount := int64(100)
 
-	std.TestSetOriginCaller(addr1) // addr1
+	testing.SetOriginCaller(addr1) // addr1
 
 	dummy.mint(addr1, TokenID("1"))
 
@@ -38,7 +38,7 @@ func TestSetTokenRoyalty(t *testing.T) {
 	})
 	uassert.ErrorIs(t, derr, ErrInvalidTokenId)
 
-	std.TestSetOriginCaller(addr2) // addr2
+	testing.SetOriginCaller(addr2) // addr2
 
 	cerr := dummy.SetTokenRoyalty(TokenID("1"), RoyaltyInfo{
 		PaymentAddress: paymentAddress,
@@ -56,12 +56,12 @@ func TestSetTokenRoyalty(t *testing.T) {
 	// Test case: Invalid percentage
 	perr := dummy.SetTokenRoyalty(TokenID("5"), RoyaltyInfo{
 		PaymentAddress: paymentAddress,
-		Percentage:     uint64(200), // over maxRoyaltyPercentage
+		Percentage:     int64(200), // over maxRoyaltyPercentage
 	})
 	uassert.ErrorIs(t, perr, ErrInvalidRoyaltyPercentage)
 
 	// Test case: Retrieving Royalty Info
-	std.TestSetOriginCaller(addr1) // addr1
+	testing.SetOriginCaller(addr1) // addr1
 
 	dummyPaymentAddress, dummyRoyaltyAmount, rerr := dummy.RoyaltyInfo(TokenID("1"), salePrice)
 	uassert.NoError(t, rerr, "RoyaltyInfo error")

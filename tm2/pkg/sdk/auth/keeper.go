@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"math/big"
@@ -11,14 +12,20 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 // Concrete implementation of AccountKeeper.
 type AccountKeeper struct {
 	// The (unexposed) key used to access the store from the Context.
 	key store.StoreKey
-	// The keeper used to store auth parameters
-	paramk params.ParamsKeeper
+
+	// store module parameters
+	prmk params.ParamsKeeperI
+
 	// The prototypical Account constructor.
 	proto func() std.Account
 }
@@ -26,12 +33,12 @@ type AccountKeeper struct {
 // NewAccountKeeper returns a new AccountKeeper that uses go-amino to
 // (binary) encode and decode concrete std.Accounts.
 func NewAccountKeeper(
-	key store.StoreKey, pk params.ParamsKeeper, proto func() std.Account,
+	key store.StoreKey, pk params.ParamsKeeperI, proto func() std.Account,
 ) AccountKeeper {
 	return AccountKeeper{
-		key:    key,
-		paramk: pk,
-		proto:  proto,
+		key:   key,
+		prmk:  pk,
+		proto: proto,
 	}
 }
 
@@ -198,10 +205,22 @@ func (gk GasPriceKeeper) SetGasPrice(ctx sdk.Context, gp std.GasPrice) {
 func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 	params := ctx.Value(AuthParamsContextKey{}).(Params)
 	gasUsed := ctx.BlockGasMeter().GasConsumed()
+
+	// Only update gas price if gas was consumed to avoid changing AppHash
+	// on empty blocks.
+	if gasUsed <= 0 {
+		return
+	}
+
 	maxBlockGas := ctx.ConsensusParams().Block.MaxGas
 	lgp := gk.LastGasPrice(ctx)
 	newGasPrice := gk.calcBlockGasPrice(lgp, gasUsed, maxBlockGas, params)
 	gk.SetGasPrice(ctx, newGasPrice)
+	logTelemetry(newGasPrice,
+		attribute.KeyValue{
+			Key:   "func",
+			Value: attribute.StringValue("UpdateGasPrice"),
+		})
 }
 
 // calcBlockGasPrice calculates the minGasPrice for the txs to be included in the next block.
@@ -305,5 +324,26 @@ func (gk GasPriceKeeper) LastGasPrice(ctx sdk.Context) std.GasPrice {
 	if err != nil {
 		panic(err)
 	}
+	logTelemetry(gp,
+		attribute.KeyValue{
+			Key:   "func",
+			Value: attribute.StringValue("LastGasPrice"),
+		})
 	return gp
+}
+
+func logTelemetry(gp std.GasPrice, kv attribute.KeyValue) {
+	if !telemetry.MetricsEnabled() {
+		return
+	}
+	a := attribute.KeyValue{
+		Key:   "Coin",
+		Value: attribute.StringValue(gp.Price.String()),
+	}
+	attrs := []attribute.KeyValue{a, kv}
+	metrics.BlockGasPriceAmount.Record(
+		context.Background(),
+		gp.Gas,
+		metric.WithAttributes(attrs...),
+	)
 }

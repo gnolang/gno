@@ -23,4 +23,4 @@ func main() {
 }
 
 // Output:
-// {test 1000000000}
+// {test 1s}

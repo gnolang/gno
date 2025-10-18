@@ -1,29 +1,29 @@
 
-## gno.land
-["gno.land/r/sys/params.sys"]
-  users_pkgpath.string = "gno.land/r/sys/users" # if empty, no namespace support.
-  # TODO: validators_pkgpath.string = "gno.land/r/sys/validators"
-  # TODO: rewards_pkgpath.string = "gno.land/r/sys/rewards"
-  # TODO: token_lock.bool = true
+## gno.land params
 
-## gnovm
-["gno.land/r/sys/params.vm"]
-  chain_domain.string = "gno.land"
-  # TODO: max_gas.int64 = 100_000_000
-  # TODO: chain_tz.string = "UTC"
-  # TODO: default_storage_allowance.string = ""
+["bank"]
+  restricted_denoms = ["gnot"]
 
-## tm2
-["gno.land/r/sys/params.tm2"]
+["vm"]
+  chain_domain = "gno.land"
+  sysnames_pkgpath = "gno.land/r/sys/names"
+  # TODO: Leverage toml unmarshaler to extract these into VM Params struct before writing to genesis
+  # TODO: max_gas = 100_000_000
+  # TODO: chain_tz = "UTC"
+  # TODO: default_storage_allowance = ""
 
-## misc
-["gno.land/r/sys/params.misc"]
+["tm2"]
+  # TODO
 
-## testing
-# do not remove these lines. they are needed for a txtar integration test.
-["gno.land/r/sys/params.test"]
-  foo.string = "bar"
-  foo.int64 = -1337
-  foo.uint64 = 42
-  foo.bool = true
-  #foo.bytes = todo
+#######################################
+## testing realm parameters
+## Do not remove these lines.
+## They are needed for a txtar integration test.
+## XXX copy these (and above) to say genesis_params_test.toml.
+["vm:gno.land/r/sys/testrealm"]
+  foo_string = "bar"
+  foo_int64 = -1337
+  foo_uint64 = 123
+  foo_bool = true
+  "foo_strings.strings" = ["some", "strings"]
+  # foo_bytes = ...?

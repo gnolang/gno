@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
@@ -16,19 +17,45 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// Authorized external image host providers.
+var cspImgHost = []string{
+	// Gno-related hosts
+	"https://gnolang.github.io",
+	"https://assets.gnoteam.com",
+	"https://sa.gno.services",
+
+	// Other providers should respect DMCA guidelines.
+	// NOTE: Feel free to open a PR to add more providers here :)
+
+	// imgur
+	"https://imgur.com",
+	"https://*.imgur.com",
+
+	// GitHub
+	"https://*.github.io",
+	"https://github.com",
+	"https://*.githubusercontent.com",
+
+	// IPFS
+	"https://ipfs.io",
+	"https://cloudflare-ipfs.com",
+}
+
 type webCfg struct {
-	chainid    string
-	remote     string
-	remoteHelp string
-	bind       string
-	faucetURL  string
-	assetsDir  string
-	timeout    time.Duration
-	analytics  bool
-	json       bool
-	html       bool
-	noStrict   bool
-	verbose    bool
+	chainid          string
+	remote           string
+	remoteHelp       string
+	bind             string
+	faucetURL        string
+	aliases          string
+	noDefaultAliases bool
+	noCache          bool
+	timeout          time.Duration
+	analytics        bool
+	json             bool
+	html             bool
+	noStrict         bool
+	verbose          bool
 }
 
 var defaultWebOptions = webCfg{
@@ -78,10 +105,17 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.assetsDir,
-		"assets-dir",
-		defaultWebOptions.assetsDir,
-		"if not empty, will be use as assets directory",
+		&c.aliases,
+		"aliases",
+		defaultWebOptions.aliases,
+		"comma-separated list of aliases in the form: '<path>=<realm-path>' or '<path>=static:<markdown-file>'",
+	)
+
+	fs.BoolVar(
+		&c.noDefaultAliases,
+		"no-default-aliases",
+		defaultWebOptions.noDefaultAliases,
+		"discard default aliases",
 	)
 
 	fs.StringVar(
@@ -141,6 +175,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
+		&c.noCache,
+		"no-cache",
+		defaultWebOptions.noCache,
+		"disable assets caching",
+	)
+
+	fs.BoolVar(
 		&c.verbose,
 		"v",
 		defaultWebOptions.verbose,
@@ -182,7 +223,21 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
-	appcfg.AssetsDir = cfg.assetsDir
+
+	if cfg.noDefaultAliases {
+		appcfg.Aliases = map[string]gnoweb.AliasTarget{}
+	}
+
+	if cfg.aliases != "" {
+		aliases, err := parseAliases(cfg.aliases)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse aliases: %w", err)
+		}
+		for alias, value := range aliases {
+			appcfg.Aliases[alias] = value
+		}
+	}
+
 	app, err := gnoweb.NewRouter(logger, appcfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start gnoweb app: %w", err)
@@ -219,7 +274,60 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	}, nil
 }
 
+// parseAliases parses the given aliases string and return an aliases map.
+// Used by the web handler to resolve path and static file aliases.
+func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
+	var (
+		aliases      = make(map[string]gnoweb.AliasTarget)
+		aliasEntries = strings.Split(aliasesStr, ",")
+	)
+
+	// Add each alias entry to the aliases map.
+	for _, entry := range aliasEntries {
+		parts := strings.Split(entry, "=")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid alias entry: %s", entry)
+		}
+
+		// Trim whitespace from both parts.
+		parts[0] = strings.TrimSpace(parts[0])
+		parts[1] = strings.TrimSpace(parts[1])
+
+		// Check if the value is a path to a static file.
+		if strings.HasPrefix(parts[1], "static:") {
+			// If it is, load the static file content and set it as the alias.
+			staticFilePath := strings.TrimPrefix(parts[1], "static:")
+
+			content, err := os.ReadFile(staticFilePath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read static file %s: %w", staticFilePath, err)
+			}
+
+			aliases[parts[0]] = gnoweb.AliasTarget{Value: string(content), Kind: gnoweb.StaticMarkdown}
+		} else { // Otherwise, treat it as a normal alias.
+			aliases[parts[0]] = gnoweb.AliasTarget{Value: parts[1], Kind: gnoweb.GnowebPath}
+		}
+	}
+
+	return aliases, nil
+}
+
 func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
+	// Build img-src CSP directive
+	imgSrc := "'self' data:"
+
+	for _, host := range cspImgHost {
+		imgSrc += " " + host
+	}
+
+	// Define a Content Security Policy (CSP) to restrict the sources of
+	// scripts, styles, images, and other resources. This helps prevent
+	// cross-site scripting (XSS) and other code injection attacks.
+	csp := fmt.Sprintf(
+		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'",
+		imgSrc,
+	)
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Prevent MIME type sniffing by browsers. This ensures that the browser
 		// does not interpret files as a different MIME type than declared.
@@ -236,13 +344,8 @@ func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
 
 		// In `strict` mode, prevent cross-site ressources forgery and enforce https
 		if strict {
-			// Define a Content Security Policy (CSP) to restrict the sources of
-			// scripts, styles, images, and other resources. This helps prevent
-			// cross-site scripting (XSS) and other code injection attacks.
-			// - 'self' allows resources from the same origin.
-			// - 'data:' allows inline images (e.g., base64-encoded images).
-			// - 'https://gnolang.github.io' allows images from this specific domain - used by gno.land. TODO: use a proper generic whitelisted service
-			w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src 'self' data: https://gnolang.github.io  https://sa.gno.services; font-src 'self'")
+			// Set `csp` defined above.
+			w.Header().Set("Content-Security-Policy", csp)
 
 			// Enforce HTTPS by telling browsers to only access the site over HTTPS
 			// for a specified duration (1 year in this case). This also applies to

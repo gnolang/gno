@@ -196,7 +196,7 @@ func NewMockRandomGoodEvidence(height int64, address crypto.Address, randBytes [
 func (e MockRandomGoodEvidence) AssertABCIEvidence() {}
 
 func (e MockRandomGoodEvidence) Hash() []byte {
-	return []byte(fmt.Sprintf("%d-%x", e.Height, e.randBytes))
+	return fmt.Appendf(nil, "%d-%x", e.Height, e.randBytes)
 }
 
 // UNSTABLE
@@ -214,11 +214,11 @@ func NewMockGoodEvidence(height int64, idx int, address crypto.Address) MockGood
 
 func (e MockGoodEvidence) AssertABCIEvidence() {}
 func (e MockGoodEvidence) Hash() []byte {
-	return []byte(fmt.Sprintf("%d-%x", e.Height, e.Address))
+	return fmt.Appendf(nil, "%d-%x", e.Height, e.Address)
 }
 
 func (e MockGoodEvidence) Bytes() []byte {
-	return []byte(fmt.Sprintf("%d-%x", e.Height, e.Address))
+	return fmt.Appendf(nil, "%d-%x", e.Height, e.Address)
 }
 func (e MockGoodEvidence) Verify(chainID string, pubKey crypto.PubKey) error { return nil }
 func (e MockGoodEvidence) Equal(ev Evidence) bool {
@@ -261,7 +261,7 @@ func (evl EvidenceList) Hash() []byte {
 	// golang slices can't be typed cast. This shouldn't be a performance problem since
 	// the Evidence size is capped.
 	evidenceBzs := make([][]byte, len(evl))
-	for i := 0; i < len(evl); i++ {
+	for i := range evl {
 		evidenceBzs[i] = evl[i].Bytes()
 	}
 	return merkle.SimpleHashFromByteSlices(evidenceBzs)

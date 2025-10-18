@@ -12,4 +12,7 @@ func main() {
 }
 
 // Error:
-// main/files/assign_unnamed_type/more/return_interface1_filetest.gno:10:2: cannot use interface{} as uint
+// main/return_interface1.gno:10:2-10: cannot use interface {} as uint
+
+// TypeCheckError:
+// main/return_interface1.gno:10:6: cannot use x1() (value of interface type any) as uint value in assignment: need type assertion; main/return_interface1.gno:9:6: declared and not used: a

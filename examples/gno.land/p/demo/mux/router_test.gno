@@ -48,6 +48,8 @@ func TestRouter_Render(t *testing.T) {
 					uassert.Equal(t, "bar", val)
 					uassert.Equal(t, "hello/foo/bar?foo=bar&baz", req.RawPath)
 					uassert.Equal(t, "hello/foo/bar", req.Path)
+					uassert.Equal(t, "bar", req.Query.Get("foo"))
+					uassert.Empty(t, req.Query.Get("baz"))
 					rw.Write(key + " " + val)
 				})
 			},
@@ -95,6 +97,7 @@ func TestRouter_Render(t *testing.T) {
 					uassert.Equal(t, "Alice/Bob", path)
 					uassert.Equal(t, "hello/Alice/Bob?foo=bar", req.RawPath)
 					uassert.Equal(t, "hello/Alice/Bob", req.Path)
+					uassert.Equal(t, "bar", req.Query.Get("foo"))
 					rw.Write("Matched: " + path)
 				})
 			},

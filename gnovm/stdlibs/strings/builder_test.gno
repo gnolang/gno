@@ -7,7 +7,7 @@ package strings_test
 import (
 	"bytes"
 	"strings"
-	"testing"
+	testing "testing/base"
 	"unicode/utf8"
 )
 

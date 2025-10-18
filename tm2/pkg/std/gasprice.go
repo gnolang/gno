@@ -1,6 +1,7 @@
 package std
 
 import (
+	"fmt"
 	"math/big"
 	"strings"
 
@@ -78,4 +79,8 @@ func (gp GasPrice) IsGTE(gpB GasPrice) (bool, error) {
 	// This approach helps us avoid dealing with configurations where the value of
 	// the minimum gas price is set to 0.00001ugnot/gas.
 	return prod1.Cmp(prod2) >= 0, nil
+}
+
+func (gp GasPrice) String() string {
+	return fmt.Sprintf("%s/%dgas", gp.Price.String(), gp.Gas)
 }

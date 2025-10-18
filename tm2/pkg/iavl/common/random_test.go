@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	mrand "math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,11 +30,7 @@ func TestRandBytes(t *testing.T) {
 func TestDeterminism(t *testing.T) {
 	var firstOutput string
 
-	// Set math/rand's seed for the sake of debugging this test.
-	// (It isn't strictly necessary).
-	mrand.Seed(1)
-
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		output := testThemAll()
 		if i == 0 {
 			firstOutput = output
