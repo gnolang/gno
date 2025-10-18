@@ -60,10 +60,10 @@ func main() {
 		panic("expected proposal to be finished")
 	}
 
-	println(p.Status() == pdao.StatusPassed)
+	println(string(p.Status()))
 	println(executed)
 }
 
 // Output:
-// true
+// executed
 // true
