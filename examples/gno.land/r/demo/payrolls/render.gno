@@ -1,9 +1,10 @@
 package payrolls
 
 import (
+	"chain"
+	"chain/runtime"
 	"math"
 	"net/url"
-	"std"
 	"strconv"
 	"strings"
 	"time"
@@ -32,7 +33,7 @@ func Render(renderPath string) string {
 		path := strings.TrimPrefix(renderPath, "/u/")
 		aon := users.AddressOrName(path)
 		user := rusers.GetUserByAddressOrName(aon)
-		addr := std.Address(aon)
+		addr := address(aon)
 		if user != nil {
 			addr = user.Address
 			w.WriteString(ufmt.Sprintf("- 👤 User: @%s\n", user.Name))
@@ -48,9 +49,9 @@ func Render(renderPath string) string {
 		if !ok {
 			tree = avl.NewTree()
 		}
-		estimatedDay := std.Coins{}
-		estimatedAvailable := std.Coins{}
-		estimatedClaimable := std.Coins{}
+		estimatedDay := chain.Coins{}
+		estimatedAvailable := chain.Coins{}
+		estimatedClaimable := chain.Coins{}
 		shouldEstimate := tree.Size() <= listMaxSize
 		if shouldEstimate {
 			sb.WriteString("## All payrolls\n")
@@ -123,8 +124,8 @@ func Render(renderPath string) string {
 		w.WriteString(ufmt.Sprintf("- 🆔 ID: %s\n", vaultID))
 
 		payrollsBuffer := strings.Builder{}
-		estimatedDay := std.Coins{}
-		estimatedDebt := std.Coins{}
+		estimatedDay := chain.Coins{}
+		estimatedDebt := chain.Coins{}
 		tree, ok := payrollsByVault[vaultID]
 		if !ok {
 			tree = avl.NewTree()
@@ -184,7 +185,7 @@ func Render(renderPath string) string {
 				if coinBalance < 0 {
 					color = "🔴"
 				}
-				w.WriteString(ufmt.Sprintf("  - 🏦 Funds: %s %s\n", color, renderCoin(std.NewCoin(coin.Denom, coinBalance))))
+				w.WriteString(ufmt.Sprintf("  - 🏦 Funds: %s %s\n", color, renderCoin(chain.NewCoin(coin.Denom, coinBalance))))
 
 				w.WriteString(renderEstimatedMonthly("  ", estimatedDay.AmountOf(coin.Denom), coin.Denom))
 
@@ -338,8 +339,8 @@ func renderPayroll(p *payroll, pov string) string {
 	estimatedDay := p.estimateDay()
 	allCoins := addCoins(available, estimatedDay)
 
-	var beneficiaryBreakupCoins std.Coins
-	var creatorBreakupCoins std.Coins
+	var beneficiaryBreakupCoins chain.Coins
+	var creatorBreakupCoins chain.Coins
 	if pov == "details" {
 		allCoins = addCoins(allCoins, beneficiaryBreakupCoins)
 		allCoins = addCoins(allCoins, creatorBreakupCoins)
@@ -352,10 +353,10 @@ func renderPayroll(p *payroll, pov string) string {
 		sb.WriteString(renderClaimable("    ", claimable.AmountOf(coin.Denom), available.AmountOf(coin.Denom), coin.Denom, true))
 		if pov == "details" {
 			if bb := beneficiaryBreakupCoins.AmountOf(coin.Denom); bb > 0 {
-				sb.WriteString(ufmt.Sprintf("    - Breakup by beneficiary bonus: %s\n", renderCoin(std.NewCoin(coin.Denom, bb))))
+				sb.WriteString(ufmt.Sprintf("    - Breakup by beneficiary bonus: %s\n", renderCoin(chain.NewCoin(coin.Denom, bb))))
 			}
 			if cb := creatorBreakupCoins.AmountOf(coin.Denom); cb > 0 {
-				sb.WriteString(ufmt.Sprintf("    - Breakup by creator bonus: %s\n", renderCoin(std.NewCoin(coin.Denom, cb))))
+				sb.WriteString(ufmt.Sprintf("    - Breakup by creator bonus: %s\n", renderCoin(chain.NewCoin(coin.Denom, cb))))
 			}
 		}
 	}
@@ -381,13 +382,13 @@ func renderClaimable(prefix string, claimable int64, available int64, denom stri
 		}
 		sb.WriteString(ufmt.Sprintf("%s %s/%s %s (not enough funds in vault%s!)\n",
 			color,
-			renderCoinAmount(std.NewCoin(denom, claimable)),
-			renderCoinAmount(std.NewCoin(denom, available)),
+			renderCoinAmount(chain.NewCoin(denom, claimable)),
+			renderCoinAmount(chain.NewCoin(denom, available)),
 			renderCoinDenom(denom),
 			pls,
 		))
 	} else {
-		sb.WriteString(ufmt.Sprintf("🟢 %s\n", renderCoin(std.NewCoin(denom, available))))
+		sb.WriteString(ufmt.Sprintf("🟢 %s\n", renderCoin(chain.NewCoin(denom, available))))
 	}
 	return sb.String()
 }
@@ -396,7 +397,7 @@ func renderEstimatedMonthly(prefix string, estimatedDay int64, denom string) str
 	if estimatedDay == 0 {
 		return ""
 	}
-	return ufmt.Sprintf("%s- 💸 Estimated monthly: %s\n", prefix, renderCoin(std.NewCoin(denom, estimatedDay*30)))
+	return ufmt.Sprintf("%s- 💸 Estimated monthly: %s\n", prefix, renderCoin(chain.NewCoin(denom, estimatedDay*30)))
 }
 
 func renderStopButton(id seqid.ID) string {
@@ -425,7 +426,7 @@ func resolveVaultBase(base string) (string, *users.User, bool) {
 		return "", nil, false
 	}
 
-	if strings.HasPrefix(base, std.GetChainDomain()+"/r/") {
+	if strings.HasPrefix(base, runtime.ChainDomain()+"/r/") {
 		return base, nil, true
 	}
 
@@ -434,7 +435,7 @@ func resolveVaultBase(base string) (string, *users.User, bool) {
 		return usr.Address.String(), usr, true
 	}
 
-	if std.Address(base).IsValid() {
+	if address(base).IsValid() {
 		return base, nil, true
 	}
 
@@ -442,7 +443,7 @@ func resolveVaultBase(base string) (string, *users.User, bool) {
 }
 
 func linkPrefix() string {
-	realmPath := std.CurrentRealm().PkgPath()
+	realmPath := runtime.CurrentRealm().PkgPath()
 	slashIdx := strings.Index(realmPath, "/")
 	if slashIdx == -1 {
 		return realmPath
@@ -450,11 +451,11 @@ func linkPrefix() string {
 	return realmPath[slashIdx:]
 }
 
-func renderCoin(coin std.Coin) string {
+func renderCoin(coin chain.Coin) string {
 	return ufmt.Sprintf("%s %s", renderCoinAmount(coin), renderCoinDenom(coin.Denom))
 }
 
-func renderCoinAmount(coin std.Coin) string {
+func renderCoinAmount(coin chain.Coin) string {
 	switch {
 	case strings.HasPrefix(coin.Denom, "/grc20/"):
 		fqdenom := strings.TrimPrefix(coin.Denom, "/grc20/")
@@ -489,7 +490,7 @@ func renderCoinDenom(denom string) string {
 		if token == nil {
 			break
 		}
-		return ufmt.Sprintf("[$%s](%s)", tokenGetter().GetSymbol(), strings.TrimPrefix(fqdenom, std.GetChainDomain()))
+		return ufmt.Sprintf("[$%s](%s)", tokenGetter().GetSymbol(), strings.TrimPrefix(fqdenom, runtime.ChainDomain()))
 	}
 
 	return denom

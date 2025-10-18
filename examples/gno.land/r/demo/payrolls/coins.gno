@@ -1,16 +1,18 @@
 package payrolls
 
 import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 	"errors"
-	"std"
 	"strings"
 
 	"gno.land/r/demo/grc20reg"
 )
 
 // Coins transforms coins into payrolls coins, prefixing their denom them with their type. Examples: "ugnot" -> "/native/ugnot", "gno.land/r/demo/foo20" -> "/grc20/gno.land/r/demo/foo20"
-func Coins(native std.Coins, grc20 std.Coins) (std.Coins, error) {
-	out := make(std.Coins, len(native)+len(grc20))
+func Coins(native chain.Coins, grc20 chain.Coins) (chain.Coins, error) {
+	out := make(chain.Coins, len(native)+len(grc20))
 	for i, coin := range native {
 		out[i].Amount = coin.Amount
 		out[i].Denom = "/native/" + coin.Denom
@@ -24,8 +26,8 @@ func Coins(native std.Coins, grc20 std.Coins) (std.Coins, error) {
 	return out, nil
 }
 
-func addCoins(a std.Coins, b std.Coins) std.Coins {
-	out := make(std.Coins, len(a))
+func addCoins(a chain.Coins, b chain.Coins) chain.Coins {
+	out := make(chain.Coins, len(a))
 	copy(out, a)
 	for _, coin := range b {
 		out = addCoinAmount(out, coin)
@@ -33,16 +35,16 @@ func addCoins(a std.Coins, b std.Coins) std.Coins {
 	return out
 }
 
-func subCoins(a std.Coins, b std.Coins) std.Coins {
-	out := make(std.Coins, len(a))
+func subCoins(a chain.Coins, b chain.Coins) chain.Coins {
+	out := make(chain.Coins, len(a))
 	copy(out, a)
 	for _, coin := range b {
-		out = addCoinAmount(out, std.NewCoin(coin.Denom, -coin.Amount))
+		out = addCoinAmount(out, chain.NewCoin(coin.Denom, -coin.Amount))
 	}
 	return out
 }
 
-func coinsHasPositive(coins std.Coins) bool {
+func coinsHasPositive(coins chain.Coins) bool {
 	for _, coin := range coins {
 		if coin.Amount > 0 {
 			return true
@@ -51,12 +53,12 @@ func coinsHasPositive(coins std.Coins) bool {
 	return false
 }
 
-func clampCoins(a std.Coins, max std.Coins) std.Coins {
-	out := std.Coins{}
+func clampCoins(a chain.Coins, max chain.Coins) chain.Coins {
+	out := chain.Coins{}
 	for _, coin := range a {
 		maxAmount := max.AmountOf(coin.Denom)
 		if coin.Amount > maxAmount {
-			out = append(out, std.NewCoin(coin.Denom, maxAmount))
+			out = append(out, chain.NewCoin(coin.Denom, maxAmount))
 			continue
 		}
 		out = append(out, coin)
@@ -64,13 +66,13 @@ func clampCoins(a std.Coins, max std.Coins) std.Coins {
 	return out
 }
 
-func addCoinAmount(coins std.Coins, value std.Coin) std.Coins {
+func addCoinAmount(coins chain.Coins, value chain.Coin) chain.Coins {
 	for i, coin := range coins {
 		if coin.Denom != value.Denom {
 			continue
 		}
 
-		out := make(std.Coins, len(coins))
+		out := make(chain.Coins, len(coins))
 		copy(out, coins)
 		out[i].Amount += value.Amount
 		return out
@@ -79,7 +81,7 @@ func addCoinAmount(coins std.Coins, value std.Coin) std.Coins {
 	return append(coins, value)
 }
 
-func coinsEmpty(coins std.Coins) bool {
+func coinsEmpty(coins chain.Coins) bool {
 	if len(coins) == 0 {
 		return true
 	}
@@ -91,13 +93,13 @@ func coinsEmpty(coins std.Coins) bool {
 	return true
 }
 
-func sendCoins(dst std.Address, coins std.Coins) {
+func sendCoins(dst address, coins chain.Coins) {
 	if len(coins) == 0 {
 		return
 	}
 
-	natives := std.Coins{}
-	grc20s := std.Coins{}
+	natives := chain.Coins{}
+	grc20s := chain.Coins{}
 
 	for _, coin := range coins {
 		if coin.Amount == 0 {
@@ -108,7 +110,7 @@ func sendCoins(dst std.Address, coins std.Coins) {
 		}
 
 		var (
-			target *std.Coins
+			target *chain.Coins
 			denom  string
 		)
 
@@ -121,12 +123,12 @@ func sendCoins(dst std.Address, coins std.Coins) {
 		} else {
 			panic(errors.New("unknown coin kind"))
 		}
-		*target = addCoins(*target, std.NewCoins(std.NewCoin(denom, coin.Amount)))
+		*target = addCoins(*target, chain.NewCoins(chain.NewCoin(denom, coin.Amount)))
 	}
 
 	if len(natives) != 0 {
-		banker := std.GetBanker(std.BankerTypeRealmSend)
-		banker.SendCoins(std.CurrentRealm().Addr(), dst, natives)
+		banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+		banker_.SendCoins(runtime.CurrentRealm().Addr(), dst, natives)
 	}
 
 	for _, coin := range grc20s {

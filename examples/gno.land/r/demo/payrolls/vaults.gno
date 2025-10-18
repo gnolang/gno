@@ -1,8 +1,9 @@
 package payrolls
 
 import (
+	"chain"
+	"chain/runtime"
 	"errors"
-	"std"
 	"strings"
 
 	"gno.land/p/demo/avl"
@@ -14,10 +15,10 @@ var vaults avl.Tree // std.Addresss -> std.Coins
 
 var errInvalidInput = errors.New("invalid input")
 
-func getVaultCoins(id string) std.Coins {
+func getVaultCoins(id string) chain.Coins {
 	amount, ok := vaults.Get(id)
 	if ok {
-		return amount.(std.Coins)
+		return amount.(chain.Coins)
 	}
 	return nil
 }
@@ -43,7 +44,7 @@ func vaultID(base string, namespace string) (string, error) {
 		return vaultIDUnsafe(user.Address.String(), namespace), nil
 	}
 
-	if id, ok := vaultIDFromAddr(std.Address(base), namespace); ok {
+	if id, ok := vaultIDFromAddr(address(base), namespace); ok {
 		return id, nil
 	}
 
@@ -68,7 +69,7 @@ func vaultIDUnsafe(base string, namespace string) string {
 	return base + "." + namespace
 }
 
-func vaultIDFromAddr(addr std.Address, namespace string) (string, bool) {
+func vaultIDFromAddr(addr address, namespace string) (string, bool) {
 	if !addr.IsValid() {
 		return "", false
 	}
@@ -76,13 +77,13 @@ func vaultIDFromAddr(addr std.Address, namespace string) (string, bool) {
 }
 
 func vaultIDFromPkgPath(base string, namespace string) (string, bool) {
-	if !strings.HasPrefix(base, std.GetChainDomain()+"/r/") {
+	if !strings.HasPrefix(base, runtime.ChainDomain()+"/r/") {
 		return "", false
 	}
 	return vaultIDUnsafe(base, namespace), true
 }
 
-func vaultIDFromRealm(base std.Realm, namespace string) string {
+func vaultIDFromRealm(base runtime.Realm, namespace string) string {
 	if base.IsUser() {
 		return vaultIDUnsafe(base.Addr().String(), namespace)
 	} else {
