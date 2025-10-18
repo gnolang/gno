@@ -47,26 +47,25 @@ importing some standard library packages, as well as some pure packages directly
 from the chain.
 
 First, let's declare a `Post` struct that will hold all the data of a single post.
-We will import two packages:
-- `std` - the [Gno standard package](../resources/gno-stdlibs.md) which provides chain-related functionality
-- `time` - which allows us to handle time
+We import the `time` package, which allows us to handle time-related functionality.
 
 [embedmd]:# (../_assets/minisocial/types-1.gno go)
 ```go
 package minisocial
 
 import (
-	"std"  // The standard Gno package
 	"time" // For handling time operations
 )
 
 // Post defines the main data we keep about each post
 type Post struct {
-	text      string      // Main text body
-	author    std.Address // Address of the post author, provided by the execution context
-	createdAt time.Time   // When the post was created
+	text      string    // Main text body
+	author    address   // Address of the post author, provided by the execution context
+	createdAt time.Time // When the post was created
 }
 ```
+
+The `address` keyword is a built-in keyword type represents a Gno address.
 
 Standard libraries such as `time` are ported over directly from Go. Check out the
 [Go-Gno Compatability](../resources/go-gno-compatibility.md) page for more info.
@@ -103,9 +102,9 @@ func CreatePost(_ realm, text string) error {
 
 	// Append the new post to the list
 	posts = append(posts, &Post{
-		text:      text,                          // Set the input text
-		author:    std.PreviousRealm().Address(), // The author of the address is the previous realm, the realm that called this one
-		createdAt: time.Now(),                    // Capture the time of the transaction, in this case the block timestamp
+		text:      text,                              // Set the input text
+		author:    runtime.PreviousRealm().Address(), // The author of the address is the previous realm, the realm that called this one
+		createdAt: time.Now(),                        // Capture the time of the transaction, in this case the block timestamp
 	})
 
 	return nil
@@ -117,9 +116,10 @@ A few things to note:
   best practices: return early in your code and modify state only after you are sure all
   security checks in your code have passed. To discard (revert) state changes,
   use `panic()`.
-- To get the caller of `CreatePost`, we need to import package `std`, the [Gno standard package](../resources/gno-stdlibs.md),
-and use `std.PreviousRealm.Address()`. Check out the [realm concept page](../resources/realms.md)
-& the [std package](../resources/gno-stdlibs.md) reference page for more info.
+- To get the caller of `CreatePost`, we need to import `chain/runtime`,
+which provides access to the function caller, and use `runtime.PreviousRealm.Address()`.
+Check out the [realm concept page](../resources/realms.md) & the 
+[`chain/runtime` package](../resources/gno-stdlibs.md) reference page for more info.
 - In Gno, `time.Now()` returns the timestamp of the block the transaction was
 included in, instead of the system time.
 
@@ -286,7 +286,6 @@ Let's create a `post_test.gno` file, and add the following code:
 package minisocial
 
 import (
-	"std"
 	"strings"
 	"testing"
 
@@ -297,7 +296,7 @@ func TestCreatePostSingle(t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
 	// TestSetRealm sets the realm caller, in this case Alice
-	testing.SetRealm(std.NewUserRealm(aliceAddr))
+	testing.SetRealm(testing.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
 
@@ -337,7 +336,7 @@ func TestCreatePostMultiple(t *testing.T) {
 	for _, p := range posts {
 		// Set the appropriate caller realm based on the author
 		authorAddr := testutils.TestAddress(p.author)
-		testing.SetRealm(std.NewUserRealm(authorAddr))
+		testing.SetRealm(testing.NewUserRealm(authorAddr))
 
 		// Create the post
 		// To call a crossing function, we specify the `cross` keyword
