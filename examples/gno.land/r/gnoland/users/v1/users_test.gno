@@ -1,7 +1,7 @@
 package users
 
 import (
-	"std"
+	"chain"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -23,9 +23,9 @@ func TestRegister_Valid(t *testing.T) {
 		addr := testutils.TestAddress(username)
 
 		// Simulate a proper user call with the required 1GNOT fee.
-		testing.SetRealm(std.NewUserRealm(addr))
+		testing.SetRealm(testing.NewUserRealm(addr))
 		testing.SetOriginCaller(addr)
-		testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", registerPrice)))
+		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
 
 		urequire.NotPanics(t, func() {
 			Register(cross, username)
@@ -33,10 +33,24 @@ func TestRegister_Valid(t *testing.T) {
 	}
 }
 
+func TestRegister_Free(t *testing.T) {
+	registerPrice = 0
+
+	addr := testutils.TestAddress("alice456")
+
+	// Simulate a proper user call with 0gnot fee.
+	testing.SetRealm(testing.NewUserRealm(addr))
+	testing.SetOriginCaller(addr)
+
+	urequire.NotPanics(t, func() {
+		Register(cross, "alice456")
+	})
+}
+
 func TestRegister_Invalid(t *testing.T) {
 	t.Run("invalid usernames", func(t *testing.T) {
-		testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", registerPrice)))
-		testing.SetRealm(std.NewUserRealm(testutils.TestAddress("bob123")))
+		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
+		testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("bob123")))
 
 		invalidUsernames := []string{
 			"alice",                 // vanity
@@ -58,8 +72,8 @@ func TestRegister_Invalid(t *testing.T) {
 	})
 
 	t.Run("taken username", func(t *testing.T) {
-		testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", registerPrice)))
-		testing.SetRealm(std.NewUserRealm(testutils.TestAddress("bob123")))
+		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
+		testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("bob123")))
 
 		username := "bob123"
 
@@ -75,10 +89,10 @@ func TestRegister_Invalid(t *testing.T) {
 	t.Run("invalid payment", func(t *testing.T) {
 		addr := testutils.TestAddress("bob123")
 
-		testing.SetRealm(std.NewUserRealm(addr))
+		testing.SetRealm(testing.NewUserRealm(addr))
 		testing.SetOriginCaller(addr)
 
-		testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 12))) // invalid payment amount
+		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 12))) // invalid payment amount
 
 		uassert.AbortsWithMessage(t, ErrInvalidPayment.Error(), func() {
 			Register(cross, "alice123")

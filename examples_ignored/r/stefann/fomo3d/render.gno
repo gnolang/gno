@@ -84,7 +84,7 @@ func RenderHome() string {
 }
 
 // RenderPlayer renders specific player information
-func RenderPlayer(addr std.Address, keys int64, dividends int64) string {
+func RenderPlayer(addr address, keys int64, dividends int64) string {
 	var builder strings.Builder
 	displayName := getDisplayName(addr)
 	builder.WriteString(ufmt.Sprintf("# Player Stats: %s\n\n", displayName))
@@ -122,7 +122,7 @@ func RenderPlayer(addr std.Address, keys int64, dividends int64) string {
 }
 
 // Helper to get display name - just returns namespace if exists, otherwise address
-func getDisplayName(addr std.Address) string {
+func getDisplayName(addr address) string {
 	if user := users.ResolveAddress(addr); user != nil {
 		return user.Name()
 	}

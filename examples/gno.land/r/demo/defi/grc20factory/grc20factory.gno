@@ -1,7 +1,7 @@
 package foo20
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/moul/md"
@@ -27,11 +27,11 @@ type instance struct {
 }
 
 func New(cur realm, name, symbol string, decimals int, initialMint, faucet int64) {
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	NewWithAdmin(cur, name, symbol, decimals, initialMint, faucet, caller)
 }
 
-func NewWithAdmin(cur realm, name, symbol string, decimals int, initialMint, faucet int64, admin std.Address) {
+func NewWithAdmin(cur realm, name, symbol string, decimals int, initialMint, faucet int64, admin address) {
 	exists := instances.Has(symbol)
 	if exists {
 		panic("token already exists")
@@ -63,38 +63,38 @@ func TotalSupply(symbol string) int64 {
 	return inst.token.ReadonlyTeller().TotalSupply()
 }
 
-func HasAddr(symbol string, owner std.Address) bool {
+func HasAddr(symbol string, owner address) bool {
 	inst := mustGetInstance(symbol)
 	return inst.token.HasAddr(owner)
 }
 
-func BalanceOf(symbol string, owner std.Address) int64 {
+func BalanceOf(symbol string, owner address) int64 {
 	inst := mustGetInstance(symbol)
 	return inst.token.ReadonlyTeller().BalanceOf(owner)
 }
 
-func Allowance(symbol string, owner, spender std.Address) int64 {
+func Allowance(symbol string, owner, spender address) int64 {
 	inst := mustGetInstance(symbol)
 	return inst.token.ReadonlyTeller().Allowance(owner, spender)
 }
 
-func Transfer(cur realm, symbol string, to std.Address, amount int64) {
+func Transfer(cur realm, symbol string, to address, amount int64) {
 	inst := mustGetInstance(symbol)
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.Transfer(to, amount))
 }
 
-func Approve(cur realm, symbol string, spender std.Address, amount int64) {
+func Approve(cur realm, symbol string, spender address, amount int64) {
 	inst := mustGetInstance(symbol)
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.Approve(spender, amount))
 }
 
-func TransferFrom(cur realm, symbol string, from, to std.Address, amount int64) {
+func TransferFrom(cur realm, symbol string, from, to address, amount int64) {
 	inst := mustGetInstance(symbol)
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.TransferFrom(from, to, amount))
 }
@@ -107,17 +107,17 @@ func Faucet(cur realm, symbol string) {
 	}
 	// FIXME: add limits?
 	// FIXME: add payment in gnot?
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	checkErr(inst.ledger.Mint(caller, inst.faucet))
 }
 
-func Mint(cur realm, symbol string, to std.Address, amount int64) {
+func Mint(cur realm, symbol string, to address, amount int64) {
 	inst := mustGetInstance(symbol)
 	inst.admin.AssertOwnedByPrevious()
 	checkErr(inst.ledger.Mint(to, amount))
 }
 
-func Burn(cur realm, symbol string, from std.Address, amount int64) {
+func Burn(cur realm, symbol string, from address, amount int64) {
 	inst := mustGetInstance(symbol)
 	inst.admin.AssertOwnedByPrevious()
 	checkErr(inst.ledger.Burn(from, amount))
@@ -129,7 +129,7 @@ func DropInstanceOwnership(cur realm, symbol string) {
 	checkErr(inst.admin.DropOwnershipByCurrent())
 }
 
-func TransferInstanceOwnership(cur realm, symbol string, newOwner std.Address) {
+func TransferInstanceOwnership(cur realm, symbol string, newOwner address) {
 	inst := mustGetInstance(symbol)
 	checkErr(inst.admin.TransferOwnership(newOwner))
 }
@@ -199,7 +199,7 @@ func renderBalance(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Get the balance of the specified address for the token.
 	inst := mustGetInstance(symbol)
-	balance := inst.token.CallerTeller().BalanceOf(std.Address(addr))
+	balance := inst.token.CallerTeller().BalanceOf(address(addr))
 
 	// Render the balance information.
 	out := md.Paragraph(
