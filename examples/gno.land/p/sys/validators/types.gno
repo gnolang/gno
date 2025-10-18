@@ -27,6 +27,9 @@ type ValsetProtocol interface {
 
 	// GetValidators returns the currently active validator set
 	GetValidators() []Validator
+
+	// TotalVotingPower returns the total voting power of the validator set
+	TotalVotingPower() uint64
 }
 
 // Validator represents a single chain validator
