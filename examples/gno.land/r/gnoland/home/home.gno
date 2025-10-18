@@ -95,7 +95,7 @@ the foundations of a fairer and freer world, join us today.
 
 |||
 
-## [Latest Events](/r/gnoland/events)
+## [Latest Events](/r/devrels/events)
 
 :upcoming-events:
 
