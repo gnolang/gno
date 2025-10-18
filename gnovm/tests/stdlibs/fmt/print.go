@@ -76,7 +76,7 @@ func X_valueOfInternal(v gnolang.TypedValue) (
 	case gnolang.StructKind:
 		kind, xlen = "struct", len(baseT.(*gnolang.StructType).Fields)
 	case gnolang.InterfaceKind:
-		kind, xlen = "interface", len(baseT.(*gnolang.InterfaceType).Methods)
+		kind, xlen = "interface", len(baseT.(*gnolang.InterfaceType).FieldTypes)
 	case gnolang.FuncKind:
 		kind = "func"
 	case gnolang.MapKind:
