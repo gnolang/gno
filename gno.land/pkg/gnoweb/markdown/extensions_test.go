@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	mdutils "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/utils"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/extensions"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/stretchr/testify/require"
 	"github.com/yuin/goldmark"
@@ -15,10 +15,8 @@ import (
 )
 
 const (
-	testdataDir   = "golden"
-	realmTestDir  = "ext_realm/golden"
-	docTestDir    = "ext_doc/golden"
-	sharedTestDir = "ext_shared/golden"
+	goldenRealmTestDir = "golden/realm"
+	goldenDocTestDir   = "golden/doc"
 )
 
 var (
@@ -39,7 +37,7 @@ func testGoldmarkOutputWithExtension(t *testing.T, nameIn string, input []byte, 
 
 	assertExt(t, nameIn, ".md")
 
-	name := nameIn[:len(nameIn)-3]
+	name := nameIn[:len(nameIn)-3] // strip .md
 	require.Greater(t, len(name), 0, "txtar file name cannot be empty")
 
 	// Create a test URL for the context
@@ -47,7 +45,7 @@ func testGoldmarkOutputWithExtension(t *testing.T, nameIn string, input []byte, 
 	require.NoError(t, err)
 
 	// Create parser context with the test URL
-	ctxOpts := parser.WithContext(mdutils.NewGnoParserContext(gnourl))
+	ctxOpts := parser.WithContext(extensions.NewGnoParserContext(gnourl))
 
 	// Use the provided extension
 	ext := createExtension()
@@ -71,39 +69,34 @@ func testGoldmarkOutputWithExtension(t *testing.T, nameIn string, input []byte, 
 	return "output.html", html.Bytes()
 }
 
-// testGoldmarkOutput tests realm extension
-func testRealmGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []byte) {
-	t.Helper()
-	return testGoldmarkOutputWithExtension(t, nameIn, input, createTestExtension(NewRealmGnoExtension, WithImageValidator(func(uri string) bool {
-		return !strings.HasPrefix(uri, "https://") // disallow https
-	})))
-}
-
 // testDocGoldmarkOutput tests documentation extension
 func testDocGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []byte) {
 	t.Helper()
 	return testGoldmarkOutputWithExtension(t, nameIn, input, createTestExtension(NewDocumentationGnoExtension))
 }
 
-func TestGnoExtension(t *testing.T) {
+func TestGeneralExtensions(t *testing.T) {
 	gold := NewGoldentTests(testRealmGoldmarkOutput)
 	gold.Update = *update
 	gold.Recurse = true
-	gold.Run(t, realmTestDir)
+	gold.Run(t, goldenRealmTestDir)
 }
 
-func TestDocumentationExtension(t *testing.T) {
+// testGoldmarkOutput tests realm extension
+func testRealmGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []byte) {
+	t.Helper()
+	return testGoldmarkOutputWithExtension(t, nameIn, input,
+		createTestExtension(NewRealmGnoExtension, WithImageValidator(func(uri string) bool {
+			return !strings.HasPrefix(uri, "https://") // disallow https
+		})),
+	)
+}
+
+func TestDocExtensions(t *testing.T) {
 	gold := NewGoldentTests(testDocGoldmarkOutput)
 	gold.Update = *update
 	gold.Recurse = true
-	gold.Run(t, docTestDir)
-}
-
-func TestSharedExtension(t *testing.T) {
-	gold := NewGoldentTests(testRealmGoldmarkOutput)
-	gold.Update = *update
-	gold.Recurse = true
-	gold.Run(t, sharedTestDir)
+	gold.Run(t, goldenDocTestDir)
 }
 
 func assertExt(t *testing.T, filename, ext string) {

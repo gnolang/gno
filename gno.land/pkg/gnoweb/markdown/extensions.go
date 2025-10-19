@@ -34,26 +34,38 @@ import (
 	"github.com/yuin/goldmark"
 
 	// Import real extensions from subdirectories
-	extdoc "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/ext_doc"
-	extrealm "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/ext_realm"
-	extshared "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/ext_shared"
+	exts "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/extensions"
+	extsdoc "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/extensions/doc"
 )
 
 // ImageValidatorFunc validates image URLs. It should return `true` for any valid image URL.
-type ImageValidatorFunc = extrealm.ImageValidatorFunc
+type ImageValidatorFunc = exts.ImageValidatorFunc
 
 var _ goldmark.Extender = (*GnoExtension)(nil)
-
-type GnoExtension struct {
-	cfg *config
-}
-
-// Option
 
 type config struct {
 	imgValidatorFunc ImageValidatorFunc
 	extensions       []goldmark.Extender
 }
+
+type GnoExtension struct {
+	cfg *config
+}
+
+// Extend adds the Gno extension to the provided Goldmark markdown processor.
+func (e *GnoExtension) Extend(m goldmark.Markdown) {
+	// Add all configured extensions
+	for _, ext := range e.cfg.extensions {
+		ext.Extend(m)
+	}
+
+	// If set, setup images filter (ExtImageValidator has a different signature than other extensions)
+	if e.cfg.imgValidatorFunc != nil {
+		exts.ExtImageValidator.Extend(m, e.cfg.imgValidatorFunc)
+	}
+}
+
+// Option
 
 type Option func(cfg *config)
 
@@ -63,16 +75,10 @@ func WithImageValidator(valFunc ImageValidatorFunc) Option {
 	}
 }
 
-func WithExtensions(exts ...goldmark.Extender) Option {
-	return func(cfg *config) {
-		cfg.extensions = append(cfg.extensions, exts...)
-	}
-}
-
 // newGnoExtension is a helper function to create Gno extensions with common logic
-func newGnoExtension(defaultExtensions []goldmark.Extender, opts ...Option) *GnoExtension {
+func newGnoExtension(exts []goldmark.Extender, opts ...Option) *GnoExtension {
 	cfg := &config{
-		extensions: defaultExtensions,
+		extensions: exts,
 	}
 
 	// Apply all options
@@ -87,11 +93,11 @@ func newGnoExtension(defaultExtensions []goldmark.Extender, opts ...Option) *Gno
 // Includes all realm-specific features with full markdown support
 func NewRealmGnoExtension(opts ...Option) *GnoExtension {
 	return newGnoExtension([]goldmark.Extender{
-		extrealm.ExtColumns, // Enable columns for realms
-		extrealm.ExtAlerts,  // Enable alerts for realms
-		extshared.ExtLinks,  // Enable links for realms
-		extrealm.ExtForms,   // Enable forms for realms
-		extrealm.ExtMention, // Enable mentions for realms
+		exts.ExtColumns, // Enable columns for realms
+		exts.ExtAlerts,  // Enable alerts for realms
+		exts.ExtLinks,   // Enable links for realms
+		exts.ExtForms,   // Enable forms for realms
+		exts.ExtMention, // Enable mentions for realms
 	}, opts...)
 }
 
@@ -99,20 +105,7 @@ func NewRealmGnoExtension(opts ...Option) *GnoExtension {
 // Includes ExtCodeExpand and ExtLinks for clean, focused documentation
 func NewDocumentationGnoExtension(opts ...Option) *GnoExtension {
 	return newGnoExtension([]goldmark.Extender{
-		extdoc.ExtCodeExpand, // Expandable code blocks for documentation
-		extshared.ExtLinks,   // Enable links for documentation
+		extsdoc.ExtCodeExpand, // Expandable code blocks for documentation
+		exts.ExtLinks,         // Enable links for documentation
 	}, opts...)
-}
-
-// Extend adds the Gno extension to the provided Goldmark markdown processor.
-func (e *GnoExtension) Extend(m goldmark.Markdown) {
-	// Add all configured extensions
-	for _, ext := range e.cfg.extensions {
-		ext.Extend(m)
-	}
-
-	// If set, setup images filter (ExtImageValidator has a different signature than other extensions)
-	if e.cfg.imgValidatorFunc != nil {
-		extrealm.ExtImageValidator.Extend(m, e.cfg.imgValidatorFunc)
-	}
 }

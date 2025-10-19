@@ -1,4 +1,4 @@
-package extrealm
+package extensions
 
 import (
 	"github.com/yuin/goldmark"

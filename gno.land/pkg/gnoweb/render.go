@@ -12,7 +12,6 @@ import (
 	"github.com/alecthomas/chroma/v2/lexers"
 	chromaconfig "github.com/gnolang/gno/gno.land/pkg/gnoweb/chroma"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
-	mdutils "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/utils"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/parser"
@@ -56,7 +55,7 @@ func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig) *HTMLRenderer {
 // RenderRealm renders a realm to HTML and returns a table of contents.
 func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte) (md.Toc, error) {
 	// Use the dedicated realm Goldmark instance (pre-created for performance)
-	ctx := mdutils.NewGnoParserContext(u)
+	ctx := md.NewGnoParserContext(u)
 
 	// Use Goldmark for Markdown parsing
 	doc := r.realmGM.Parser().Parse(text.NewReader(src), parser.WithContext(ctx))
@@ -109,7 +108,7 @@ func (r *HTMLRenderer) RenderSource(w io.Writer, name string, src []byte) error 
 // RenderDocumentation renders documentation with expandable code blocks enabled
 func (r *HTMLRenderer) RenderDocumentation(w io.Writer, u *weburl.GnoURL, src []byte) error {
 	// Use the dedicated documentation Goldmark instance
-	ctx := mdutils.NewGnoParserContext(u)
+	ctx := md.NewGnoParserContext(u)
 
 	// Parse and render the markdown with context
 	doc := r.documentationGM.Parser().Parse(text.NewReader(src), parser.WithContext(ctx))
