@@ -74,7 +74,7 @@ func main() {
 		ProofAcked: []ics23.CommitmentProof_Exist{
 			{
 				// iavl proof
-				Exist: ics23.NewExistenceProof(ics23.IavlSpec,
+				Exist: ics23.NewExistenceProof(ics23.IavlSpec(),
 					[]byte("prefix207-tendermint-42"), "cf49bb81a77249af41ecbe7792d98ddf24b47b491a177ca5a8b1e82e2eaf011e",
 					"000202",
 					[]string{
@@ -91,7 +91,7 @@ func main() {
 			},
 			{
 				// rootmulti proof
-				Exist: ics23.NewExistenceProof(ics23.IavlSpec,
+				Exist: ics23.NewExistenceProof(ics23.IavlSpec(),
 					[]byte("iavlStoreKey"), "84c09ad209aabb70c74c97d0d2ca94fb826ab18c89b98e88e6abef2af82fe58c",
 					"00", nil, nil),
 			},

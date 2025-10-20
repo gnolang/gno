@@ -2,47 +2,48 @@ package ics23
 
 // GetSDKSpecs returns the proof specs of an SDK chain.
 func GetSDKProofSpecs() []*ProofSpec {
-	return sdkSpecs
+	return []*ProofSpec{IavlSpec(), TendermintSpec()}
 }
 
-// var representing the proofspecs for an SDK chain
-var sdkSpecs = []*ProofSpec{IavlSpec, TendermintSpec}
-
 // IavlSpec constrains the format from proofs-iavl (iavl merkle proofs)
-var IavlSpec = &ProofSpec{
-	LeafSpec: &LeafOp{
-		Prefix:       []byte{0},
-		PrehashKey:   HashOp_NO_HASH,
-		Hash:         HashOp_SHA256,
-		PrehashValue: HashOp_SHA256,
-		Length:       LengthOp_VAR_PROTO,
-	},
-	InnerSpec: &InnerSpec{
-		ChildOrder:      []int32{0, 1},
-		MinPrefixLength: 4,
-		MaxPrefixLength: 12,
-		ChildSize:       33, // (with length byte)
-		EmptyChild:      nil,
-		Hash:            HashOp_SHA256,
-	},
+func IavlSpec() *ProofSpec {
+	return &ProofSpec{
+		LeafSpec: &LeafOp{
+			Prefix:       []byte{0},
+			PrehashKey:   HashOp_NO_HASH,
+			Hash:         HashOp_SHA256,
+			PrehashValue: HashOp_SHA256,
+			Length:       LengthOp_VAR_PROTO,
+		},
+		InnerSpec: &InnerSpec{
+			ChildOrder:      []int32{0, 1},
+			MinPrefixLength: 4,
+			MaxPrefixLength: 12,
+			ChildSize:       33, // (with length byte)
+			EmptyChild:      nil,
+			Hash:            HashOp_SHA256,
+		},
+	}
 }
 
 // TendermintSpec constrains the format from proofs-tendermint (crypto/merkle SimpleProof)
-var TendermintSpec = &ProofSpec{
-	LeafSpec: &LeafOp{
-		Prefix:       []byte{0},
-		PrehashKey:   HashOp_NO_HASH,
-		Hash:         HashOp_SHA256,
-		PrehashValue: HashOp_SHA256,
-		Length:       LengthOp_VAR_PROTO,
-	},
-	InnerSpec: &InnerSpec{
-		ChildOrder:      []int32{0, 1},
-		MinPrefixLength: 1,
-		MaxPrefixLength: 1,
-		ChildSize:       32, // (no length byte)
-		Hash:            HashOp_SHA256,
-	},
+func TendermintSpec() *ProofSpec {
+	return &ProofSpec{
+		LeafSpec: &LeafOp{
+			Prefix:       []byte{0},
+			PrehashKey:   HashOp_NO_HASH,
+			Hash:         HashOp_SHA256,
+			PrehashValue: HashOp_SHA256,
+			Length:       LengthOp_VAR_PROTO,
+		},
+		InnerSpec: &InnerSpec{
+			ChildOrder:      []int32{0, 1},
+			MinPrefixLength: 1,
+			MaxPrefixLength: 1,
+			ChildSize:       32, // (no length byte)
+			Hash:            HashOp_SHA256,
+		},
+	}
 }
 
 // ProofSpec defines what the expected parameters are for a given proof type.
