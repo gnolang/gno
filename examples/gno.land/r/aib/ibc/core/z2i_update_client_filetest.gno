@@ -89,61 +89,10 @@ func main() {
 
 // Output:
 // ----------- assert render clients
-// ## Client 07-tendermint-1
-// - Type: 07-tendermint
-// - Creator: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-// - Status: Active
-// - CounterpartyClientID: 07-tendermint-2
-// - CounterpartyMerklePrefix: 'prefix1' 'prefix2'
-// - Client state:
-//   - ChainId: atomone-1
-//   - TrustingPeriod: 1h0m0s
-//   - UnbondingPeriod: 3h0m0s
-//   - LatestHeight: 1/5
-// - Latest consensus state:
-//   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
-//   - Root: 774bfe80005952b99fe0765099c1281ab1e7d4db80013b2a840fd7ff506f898a
-//   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
-//
+// [{"id":"07-tendermint-1","type":"07-tendermint","creator":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","status":"Active","counterparty_client_id":"07-tendermint-2","counterparty_merke_prefix":["prefix1","prefix2"],"client_state":{"chain_id":"atomone-1","latest_height":{"revision_number":1,"revision_height":5},"trusting_period":"1h0m0s","unbonding_period":"3h0m0s"},"last_consensus_state":{"height":{"revision_number":1,"revision_height":5},"timestamp":1234567950,"root":"d0v+gABZUrmf4HZQmcEoGrHn1NuAATsqhA/X/1BviYo=","next_validators_hash":"35auXHoAzg/PvyvSEGAtw0fBdW/Q0eC61ge1hSAN9gI="}}]
 // ----------- assert render clients/07-tendermint-1/consensus_states
-// ## Client 07-tendermint-1 consensus states
-// - ConsensusState height 1/2:
-//   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
-//   - RootHash: fda37a1203142d75e6b9f70159edfb8280674ddc448c7e63c767cf770bfe9b14
-//   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
-// - ConsensusState height 1/5:
-//   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
-//   - RootHash: 774bfe80005952b99fe0765099c1281ab1e7d4db80013b2a840fd7ff506f898a
-//   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
-//
+// [{"height":{"revision_number":1,"revision_height":2},"timestamp":1234567890,"root":"/aN6EgMULXXmufcBWe37goBnTdxEjH5jx2fPdwv+mxQ=","next_validators_hash":"35auXHoAzg/PvyvSEGAtw0fBdW/Q0eC61ge1hSAN9gI="},{"height":{"revision_number":1,"revision_height":5},"timestamp":1234567950,"root":"d0v+gABZUrmf4HZQmcEoGrHn1NuAATsqhA/X/1BviYo=","next_validators_hash":"35auXHoAzg/PvyvSEGAtw0fBdW/Q0eC61ge1hSAN9gI="}]
 // ----------- assert render clients
-// ## Client 07-tendermint-1
-// - Type: 07-tendermint
-// - Creator: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-// - Status: Active
-// - CounterpartyClientID: 07-tendermint-2
-// - CounterpartyMerklePrefix: 'prefix1' 'prefix2'
-// - Client state:
-//   - ChainId: atomone-1
-//   - TrustingPeriod: 1h0m0s
-//   - UnbondingPeriod: 3h0m0s
-//   - LatestHeight: 1/5
-// - Latest consensus state:
-//   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
-//   - Root: 774bfe80005952b99fe0765099c1281ab1e7d4db80013b2a840fd7ff506f898a
-//   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
-//
+// [{"id":"07-tendermint-1","type":"07-tendermint","creator":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","status":"Active","counterparty_client_id":"07-tendermint-2","counterparty_merke_prefix":["prefix1","prefix2"],"client_state":{"chain_id":"atomone-1","latest_height":{"revision_number":1,"revision_height":5},"trusting_period":"1h0m0s","unbonding_period":"3h0m0s"},"last_consensus_state":{"height":{"revision_number":1,"revision_height":5},"timestamp":1234567950,"root":"d0v+gABZUrmf4HZQmcEoGrHn1NuAATsqhA/X/1BviYo=","next_validators_hash":"35auXHoAzg/PvyvSEGAtw0fBdW/Q0eC61ge1hSAN9gI="}}]
 // ----------- assert render clients/07-tendermint-1/consensus_states
-// ## Client 07-tendermint-1 consensus states
-// - ConsensusState height 1/2:
-//   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
-//   - RootHash: fda37a1203142d75e6b9f70159edfb8280674ddc448c7e63c767cf770bfe9b14
-//   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
-// - ConsensusState height 1/3:
-//   - Timestamp: 2009-02-13 23:33:30 +0000 UTC
-//   - RootHash: 2c970bdc7aa83d24aa3f38e90537d3bf44d81b93c53902cbb0633ce654b58c0d
-//   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
-// - ConsensusState height 1/5:
-//   - Timestamp: 2009-02-13 23:32:30 +0000 UTC
-//   - RootHash: 774bfe80005952b99fe0765099c1281ab1e7d4db80013b2a840fd7ff506f898a
-//   - NextValidatorsHash: df96ae5c7a00ce0fcfbf2bd210602dc347c1756fd0d1e0bad607b585200df602
+// [{"height":{"revision_number":1,"revision_height":2},"timestamp":1234567890,"root":"/aN6EgMULXXmufcBWe37goBnTdxEjH5jx2fPdwv+mxQ=","next_validators_hash":"35auXHoAzg/PvyvSEGAtw0fBdW/Q0eC61ge1hSAN9gI="},{"height":{"revision_number":1,"revision_height":3},"timestamp":1234568010,"root":"LJcL3HqoPSSqPzjpBTfTv0TYG5PFOQLLsGM85lS1jA0=","next_validators_hash":"35auXHoAzg/PvyvSEGAtw0fBdW/Q0eC61ge1hSAN9gI="},{"height":{"revision_number":1,"revision_height":5},"timestamp":1234567950,"root":"d0v+gABZUrmf4HZQmcEoGrHn1NuAATsqhA/X/1BviYo=","next_validators_hash":"35auXHoAzg/PvyvSEGAtw0fBdW/Q0eC61ge1hSAN9gI="}]

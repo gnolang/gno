@@ -1,13 +1,16 @@
 package core
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/lightclient/tendermint"
+	"gno.land/p/aib/ibc/types"
 	"gno.land/p/nt/mux"
 	"gno.land/p/nt/seqid"
 	"gno.land/p/nt/ufmt"
+	"gno.land/p/onbloc/json"
 )
 
 func Render(path string) string {
@@ -17,13 +20,15 @@ func Render(path string) string {
 	router.HandleFunc("clients", RenderClients)
 	router.HandleFunc("clients/{id}", RenderClient)
 	router.HandleFunc("clients/{id}/consensus_states", RenderClientConsensusStates)
+	router.HandleFunc("clients/{id}/consensus_states/{revision_number}/{revision_height}", RenderClientConsensusState)
 	router.HandleFunc("clients/{id}/next_sequence_send", RenderClientNextSequenceSend)
 	router.HandleFunc("clients/{id}/packet_commitments", RenderClientPacketCommitments)
 	return router.Render(path)
 }
 
 func RenderHome(w *mux.ResponseWriter, r *mux.Request) {
-	w.Write("Hello IBC!")
+	// TODO list available endpoints ?
+	w.Write(`["Hello IBC!"]`)
 }
 
 func RenderApps(w *mux.ResponseWriter, r *mux.Request) {
@@ -36,38 +41,70 @@ func RenderApps(w *mux.ResponseWriter, r *mux.Request) {
 }
 
 func RenderClients(w *mux.ResponseWriter, r *mux.Request) {
+	var nodes []*json.Node
 	store.clientByID.Iterate("", "", func(_ string, v any) bool {
+		// TODO paginate
 		c := v.(*client)
-		w.Write(c.Render())
+		nodes = append(nodes, c.Render())
 		return false
 	})
+	renderNode(w, json.ArrayNode("", nodes))
 }
 
 func RenderClient(w *mux.ResponseWriter, r *mux.Request) {
 	id := r.GetVar("id")
 	c := store.getClient(id)
 	if c == nil {
-		w.Write(ufmt.Sprintf("client %s not found", id))
+		renderNode(w, nodeErrorClientNotFound(id))
 		return
 	}
-	w.Write(c.Render())
+	renderNode(w, c.Render())
 }
 
 func RenderClientConsensusStates(w *mux.ResponseWriter, r *mux.Request) {
 	id := r.GetVar("id")
 	c := store.getClient(id)
 	if c == nil {
-		w.Write(ufmt.Sprintf("client %s not found", id))
+		renderNode(w, nodeErrorClientNotFound(id))
 		return
 	}
-	w.Write(c.RenderConsensusStates())
+	renderNode(w, c.RenderConsensusStates())
+}
+
+func RenderClientConsensusState(w *mux.ResponseWriter, r *mux.Request) {
+	var (
+		id             = r.GetVar("id")
+		revisionNumber = r.GetVar("revision_number")
+		revisionHeight = r.GetVar("revision_height")
+		heightStr      = revisionNumber + "/" + revisionHeight
+	)
+	height, err := types.ParseHeight(heightStr)
+	if err != nil {
+		renderNode(w, nodeError("cant parse height %s: %v", heightStr, err))
+		return
+	}
+	c := store.getClient(id)
+	if c == nil {
+		renderNode(w, nodeErrorClientNotFound(id))
+		return
+	}
+	switch c.typ {
+	case lightclient.Tendermint:
+		lc := c.lightClient.(*tendermint.TMLightClient)
+		cs, found := lc.GetConsensusState(height)
+		if !found {
+			renderNode(w, nodeError("consensus state not found for height %s", height))
+			return
+		}
+		renderNode(w, renderConsensusState(height, cs))
+	}
 }
 
 func RenderClientNextSequenceSend(w *mux.ResponseWriter, r *mux.Request) {
 	id := r.GetVar("id")
 	c := store.getClient(id)
 	if c == nil {
-		w.Write(ufmt.Sprintf("client %s not found", id))
+		renderNode(w, nodeErrorClientNotFound(id))
 		return
 	}
 	w.Write(ufmt.Sprint(uint64(c.sendSeq) + 1))
@@ -77,7 +114,7 @@ func RenderClientPacketCommitments(w *mux.ResponseWriter, r *mux.Request) {
 	id := r.GetVar("id")
 	c := store.getClient(id)
 	if c == nil {
-		w.Write(ufmt.Sprintf("client %s not found", id))
+		renderNode(w, nodeErrorClientNotFound(id))
 		return
 	}
 	w.Write(ufmt.Sprintf("## Client %s packet commitments\n", c.id))
@@ -90,54 +127,86 @@ func RenderClientPacketCommitments(w *mux.ResponseWriter, r *mux.Request) {
 	})
 }
 
-func (c *client) Render() string {
-	var s string
-	s += ufmt.Sprintf("## Client %s\n", c.id)
-	s += ufmt.Sprintf("- Type: %s\n", c.typ)
-	s += ufmt.Sprintf("- Creator: %s\n", c.creator)
-	s += ufmt.Sprintf("- Status: %s\n", c.lightClient.Status())
-	s += ufmt.Sprintf("- CounterpartyClientID: %s\n", c.counterpartyClientID)
-	var merklePrefix string
-	for _, m := range c.counterpartyMerklePrefix {
-		merklePrefix += "'" + string(m) + "' "
+func (c *client) Render() *json.Node {
+	m := map[string]*json.Node{
+		"id":                     json.StringNode("", c.id),
+		"type":                   json.StringNode("", c.typ),
+		"creator":                json.StringNode("", c.creator.String()),
+		"status":                 json.StringNode("", c.lightClient.Status()),
+		"counterparty_client_id": json.StringNode("", c.counterpartyClientID),
 	}
-	s += ufmt.Sprintf("- CounterpartyMerklePrefix: %s\n", merklePrefix)
+	var prefixes []*json.Node
+	for _, m := range c.counterpartyMerklePrefix {
+		prefixes = append(prefixes, json.StringNode("", string(m)))
+	}
+	m["counterparty_merke_prefix"] = json.ArrayNode("", prefixes)
 	switch c.typ {
 	case lightclient.Tendermint:
 		lc := c.lightClient.(*tendermint.TMLightClient)
-		s += "- Client state:\n"
-		s += ufmt.Sprintf("  - ChainId: %s\n", lc.ClientState.ChainID)
-		s += ufmt.Sprintf("  - TrustingPeriod: %s\n", lc.ClientState.TrustingPeriod)
-		s += ufmt.Sprintf("  - UnbondingPeriod: %s\n", lc.ClientState.UnbondingPeriod)
-		s += ufmt.Sprintf("  - LatestHeight: %s\n", lc.LatestHeight().String())
-		latestConsState, found := lc.GetConsensusState(lc.LatestHeight())
-		if !found {
-			s += "Latest consensus state not found\n"
-			return s
+		m["client_state"] = json.ObjectNode("", map[string]*json.Node{
+			"chain_id": json.StringNode("", lc.ClientState.ChainID),
+			"latest_height": json.ObjectNode("", map[string]*json.Node{
+				"revision_number": json.NumberNode("", float64(lc.LatestHeight().RevisionNumber)),
+				"revision_height": json.NumberNode("", float64(lc.LatestHeight().RevisionHeight)),
+			}),
+			"trusting_period":  json.StringNode("", lc.ClientState.TrustingPeriod.String()),
+			"unbonding_period": json.StringNode("", lc.ClientState.UnbondingPeriod.String()),
+		})
+		lastConsState, found := lc.GetConsensusState(lc.LatestHeight())
+		if found {
+			m["last_consensus_state"] = renderConsensusState(lc.LatestHeight(), lastConsState)
 		}
-		s += "- Latest consensus state:\n"
-		s += ufmt.Sprintf("  - Timestamp: %s\n", latestConsState.Timestamp)
-		s += ufmt.Sprintf("  - Root: %s\n", hex.EncodeToString(latestConsState.Root.Hash))
-		s += ufmt.Sprintf("  - NextValidatorsHash: %s\n", hex.EncodeToString(latestConsState.NextValidatorsHash))
 	}
-	return s
+
+	return json.ObjectNode("", m)
 }
 
-func (c *client) RenderConsensusStates() string {
-	var s string
-	s += ufmt.Sprintf("## Client %s consensus states\n", c.id)
+func (c *client) RenderConsensusStates() *json.Node {
 	switch c.typ {
 	case lightclient.Tendermint:
 		lc := c.lightClient.(*tendermint.TMLightClient)
+		var nodes []*json.Node
 		lc.ConsensusStateByHeight.Iterate("", "", func(key string, v any) bool {
-			// TODO paginate
-			s += ufmt.Sprintf("- ConsensusState height %s:\n", key)
 			cs := v.(*tendermint.ConsensusState)
-			s += ufmt.Sprintf("  - Timestamp: %s\n", cs.Timestamp)
-			s += ufmt.Sprintf("  - RootHash: %s\n", hex.EncodeToString(cs.Root.Hash))
-			s += ufmt.Sprintf("  - NextValidatorsHash: %s\n", hex.EncodeToString(cs.NextValidatorsHash))
+			height, _ := types.ParseHeight(key)
+			nodes = append(nodes, renderConsensusState(height, cs))
 			return false
 		})
+		return json.ArrayNode("", nodes)
 	}
-	return s
+	return nodeError("unhandled client type %s", c.typ)
+}
+
+func renderConsensusState(height types.Height, cs *tendermint.ConsensusState) *json.Node {
+	return json.ObjectNode("", map[string]*json.Node{
+		"height":               renderHeight(height),
+		"timestamp":            json.NumberNode("", float64(cs.Timestamp.Unix())),
+		"root":                 json.StringNode("", base64.StdEncoding.EncodeToString(cs.Root.Hash)),
+		"next_validators_hash": json.StringNode("", base64.StdEncoding.EncodeToString(cs.NextValidatorsHash)),
+	})
+}
+
+func renderHeight(h types.Height) *json.Node {
+	return json.ObjectNode("", map[string]*json.Node{
+		"revision_number": json.NumberNode("", float64(h.RevisionNumber)),
+		"revision_height": json.NumberNode("", float64(h.RevisionHeight)),
+	})
+}
+
+func renderNode(w *mux.ResponseWriter, n *json.Node) {
+	bz, err := json.Marshal(n)
+	if err != nil {
+		panic(err)
+	}
+	w.Write(string(bz))
+}
+
+func nodeErrorClientNotFound(id string) *json.Node {
+	return nodeError("client %s not found", id)
+}
+
+func nodeError(msg string, args ...any) *json.Node {
+	return json.ObjectNode("", map[string]*json.Node{
+		"error": json.StringNode("", ufmt.Sprintf(msg, args...)),
+	})
 }
