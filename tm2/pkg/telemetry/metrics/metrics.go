@@ -97,9 +97,14 @@ var (
 
 	// WSRequestTime measures the WS request response time
 	WSRequestTime metric.Int64Histogram
+
+	provider *sdkMetric.MeterProvider
 )
 
 func Init(config config.Config) error {
+	if !config.MetricsEnabled {
+		return nil
+	}
 	var (
 		ctx = context.Background()
 		exp sdkMetric.Exporter
@@ -131,7 +136,7 @@ func Init(config config.Config) error {
 		}
 	}
 
-	provider := sdkMetric.NewMeterProvider(
+	provider = sdkMetric.NewMeterProvider(
 		// Default period is 1m
 		sdkMetric.WithReader(sdkMetric.NewPeriodicReader(exp)),
 		sdkMetric.WithResource(
@@ -275,4 +280,10 @@ func Init(config config.Config) error {
 	}
 
 	return nil
+}
+
+func Shutdown() {
+	if provider != nil {
+		provider.Shutdown(context.Background())
+	}
 }

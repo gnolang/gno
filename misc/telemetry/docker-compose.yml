@@ -4,12 +4,23 @@ services:
     ports:
       - "4317:4317"
       - "4318:4318"
-      - "8090"
+      - "8090:8090"
     volumes:
       - ./collector/collector.yaml:/etc/otelcol-contrib/config.yaml
     networks:
       - gnoland-net
-  
+    depends_on:
+      - tempo
+      - prometheus
+  tempo:
+    image: grafana/tempo:latest
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./tempo/tempo.yml:/etc/tempo.yaml
+      - ./tempo/data:/var/tempo
+    networks:
+      - gnoland-net
+
   prometheus:
     image: prom/prometheus:latest
     command:
@@ -42,7 +53,7 @@ services:
       - gnoland-net
     volumes:
       # Shared Volume
-      - gnoland-shared:/gnoroot/shared-data
+      - ./gnodata:/gnoroot/shared-data
     entrypoint:
       - sh
       - -c
@@ -56,11 +67,11 @@ services:
         gnogenesis generate
         gnogenesis validator add -name val000 -address $(gnoland secrets get validator_key.address -raw) -pub-key $(gnoland secrets get validator_key.pub_key -raw)
         gnogenesis balances add -balance-sheet /gnoroot/gno.land/genesis/genesis_balances.txt
-        gnogenesis txs add packages /gnoroot/examples/gno.land
         gnoland config init
         gnoland config set consensus.timeout_commit 1s
         gnoland config set moniker val000
-        gnoland config set telemetry.enabled true
+        gnoland config set telemetry.metrics_enabled true
+        gnoland config set telemetry.traces_enabled true
         gnoland config set telemetry.exporter_endpoint collector:4317
         gnoland config set telemetry.service_instance_id val0
         gnoland secrets get node_id.id -raw > /gnoroot/shared-data/node_p2p.id
@@ -74,12 +85,14 @@ services:
       start_period: 60s
 
   gnoland-rpc:
-    image: ghcr.io/gnolang/gno/gnoland:master
+    image: gnoland:local
     networks:
       - gnoland-net
     volumes:
       # Shared Volume
-      - gnoland-shared:/gnoroot/shared-data
+      - ./gnodata:/gnoroot/shared-data
+    ports:
+      - "26657:26657"
     entrypoint:
       - sh
       - -c
@@ -89,7 +102,8 @@ services:
         gnoland config set consensus.timeout_commit 1s
         gnoland config set moniker rpc0
         gnoland config set rpc.laddr tcp://0.0.0.0:26657
-        gnoland config set telemetry.enabled true
+        gnoland config set telemetry.metrics_enabled true
+        gnoland config set telemetry.traces_enabled true
         gnoland config set telemetry.service_instance_id rpc000
         gnoland config set telemetry.exporter_endpoint collector:4317
         gnoland config set p2p.persistent_peers "$(cat /gnoroot/shared-data/node_p2p.id)@gnoland-val:26656"
@@ -116,7 +130,7 @@ networks:
 volumes:
   prometheus:
     driver: local
-  grafana_data:
+  tempo:
     driver: local
-  gnoland-shared:
+  grafana_data:
     driver: local

@@ -12,10 +12,13 @@ import (
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/net/netutil"
 
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
 )
 
 // Config is a RPC server configuration.
@@ -50,7 +53,7 @@ func DefaultConfig() *Config {
 func StartHTTPServer(listener net.Listener, handler http.Handler, logger *slog.Logger, config *Config) error {
 	logger.Info(fmt.Sprintf("Starting RPC HTTP server on %s", listener.Addr()))
 	s := &http.Server{
-		Handler:           RecoverAndLogHandler(maxBytesHandler{h: handler, n: config.MaxBodyBytes}, logger),
+		Handler:           RecoverAndLogHandler(maxBytesHandler{h: handler, n: config.MaxBodyBytes}, logger, telemetry.Tracer("rpcserver")),
 		ReadTimeout:       config.ReadTimeout,
 		ReadHeaderTimeout: 60 * time.Second,
 		WriteTimeout:      config.WriteTimeout,
@@ -73,8 +76,9 @@ func StartHTTPAndTLSServer(
 ) error {
 	logger.Info(fmt.Sprintf("Starting RPC HTTPS server on %s (cert: %q, key: %q)",
 		listener.Addr(), certFile, keyFile))
+
 	s := &http.Server{
-		Handler:           RecoverAndLogHandler(maxBytesHandler{h: handler, n: config.MaxBodyBytes}, logger),
+		Handler:           RecoverAndLogHandler(maxBytesHandler{h: handler, n: config.MaxBodyBytes}, logger, telemetry.Tracer("rpcserver")),
 		ReadTimeout:       config.ReadTimeout,
 		ReadHeaderTimeout: 60 * time.Second,
 		WriteTimeout:      config.WriteTimeout,
@@ -135,11 +139,21 @@ func WriteRPCResponseArrayHTTP(w http.ResponseWriter, res types.RPCResponses) {
 // RecoverAndLogHandler wraps an HTTP handler, adding error logging.
 // If the inner function panics, the outer function recovers, logs, sends an
 // HTTP 500 error response.
-func RecoverAndLogHandler(handler http.Handler, logger *slog.Logger) http.Handler {
+func RecoverAndLogHandler(handler http.Handler, logger *slog.Logger, tracer trace.Tracer) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Wrap the ResponseWriter to remember the status
 		rww := &ResponseWriterWrapper{-1, w}
 		begin := time.Now()
+		ctx, span := tracer.Start(r.Context(), "rpcserver")
+		span.SetAttributes(
+			attribute.String("http.method", r.Method),
+			attribute.String("http.path", r.URL.Path),
+			attribute.String("remoteAddr", r.RemoteAddr),
+		)
+		defer span.End()
+		logger.Warn("started Span", "span", span.SpanContext().TraceID().String())
+
+		r = r.WithContext(ctx)
 
 		rww.Header().Set("X-Server-Time", fmt.Sprintf("%v", begin.Unix()))
 

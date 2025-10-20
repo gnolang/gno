@@ -20,6 +20,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 	"github.com/gorilla/websocket"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
@@ -129,6 +131,8 @@ func funcReturnTypes(f any) []reflect.Type {
 // jsonrpc calls grab the given method's function info and runs reflect.Call
 func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		span := trace.SpanFromContext(r.Context())
+		span.AddEvent("makeJSONRPCHandler")
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			WriteRPCResponseHTTP(w, types.RPCInvalidRequestError(types.JSONRPCStringID(""), errors.Wrap(err, "error reading request body")))
@@ -175,6 +179,11 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.H
 // If the request should produce a response, it returns a pointer to that response.
 // Otherwise (e.g. if the request is a notification or fails validation), it returns nil.
 func processRequest(r *http.Request, req types.RPCRequest, funcMap map[string]*RPCFunc, logger *slog.Logger) *types.RPCResponse {
+	span := trace.SpanFromContext(r.Context())
+	span.AddEvent("processRequest")
+	span.SetAttributes(
+		attribute.String("method", req.Method),
+	)
 	// Skip notifications (an empty ID indicates no response should be sent)
 	if req.ID == types.JSONRPCStringID("") {
 		logger.Debug("Skipping notification (empty ID)")
@@ -333,6 +342,8 @@ func makeHTTPHandler(rpcFunc *RPCFunc, logger *slog.Logger) http.HandlerFunc {
 	// All other endpoints
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Debug("HTTP HANDLER", "req", r)
+		span := trace.SpanFromContext(r.Context())
+		span.AddEvent("makeHTTPHandler")
 
 		ctx := &types.Context{HTTPReq: r}
 		args := []reflect.Value{reflect.ValueOf(ctx)}

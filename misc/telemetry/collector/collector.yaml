@@ -10,6 +10,10 @@ processors:
 exporters:
   prometheus:
     endpoint: collector:8090
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
 
 service:
   telemetry:
@@ -20,3 +24,7 @@ service:
       receivers: [ otlp ]
       processors: [ batch ]
       exporters: [ prometheus ]
+    traces:
+      receivers: [ otlp ]
+      processors: [ batch ]
+      exporters: [ otlp/tempo ]  
