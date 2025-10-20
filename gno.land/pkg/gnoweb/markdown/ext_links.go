@@ -238,9 +238,9 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 	if entering {
 		w.WriteString(`<a href="`)
 		if !html.IsDangerousURL(n.Destination) {
-			_, _ = w.Write(util.EscapeHTML(util.URLEscape(n.Destination, true)))
+			w.Write(util.EscapeHTML(util.URLEscape(n.Destination, true)))
 		}
-		_ = w.WriteByte('"')
+		w.WriteByte('"')
 
 		// Prepare additional link attributes.
 		attrs := []attr{}
