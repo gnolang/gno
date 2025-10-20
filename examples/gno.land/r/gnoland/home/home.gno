@@ -1,14 +1,14 @@
 package home
 
 import (
-	"std"
+	"chain/runtime"
 	"strconv"
 
-	"gno.land/p/demo/ownable"
 	"gno.land/p/moul/dynreplacer"
+	"gno.land/p/nt/ownable"
 	blog "gno.land/r/gnoland/blog"
 
-	"gno.land/r/gnoland/events"
+	"gno.land/r/devrels/events"
 	users "gno.land/r/gnoland/users/v1"
 	"gno.land/r/leon/hor"
 )
@@ -35,7 +35,7 @@ func Render(_ string) string {
 		return users.RenderLatestUsersWidget(5)
 	})
 	r.RegisterCallback(":chain-height:", func() string {
-		return strconv.Itoa(int(std.ChainHeight()))
+		return strconv.Itoa(int(runtime.ChainHeight()))
 	})
 
 	template := `# Welcome to Gno.land
@@ -82,7 +82,7 @@ the foundations of a fairer and freer world, join us today.
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
 - [Staging chain](https://docs.gno.land/resources/gnoland-networks/#staging-environments-portal-loops)
-- [Testnet 6](https://test6.testnets.gno.land/)
+- [Testnet 7](https://test7.testnets.gno.land/)
 - [Faucet Hub](https://faucet.gno.land)
 
 </gno-columns>
@@ -95,7 +95,7 @@ the foundations of a fairer and freer world, join us today.
 
 |||
 
-## [Latest Events](/r/gnoland/events)
+## [Latest Events](/r/devrels/events)
 
 :upcoming-events:
 
@@ -208,7 +208,7 @@ func quoteOfTheBlock() string {
 		"Now, you Gno.",
 		"Come for the Go, Stay for the Gno.",
 	}
-	height := std.ChainHeight()
+	height := runtime.ChainHeight()
 	idx := int(height) % len(quotes)
 	qotb := quotes[idx]
 	return qotb

@@ -1,7 +1,8 @@
 package dao
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"strconv"
 )
 
@@ -19,7 +20,7 @@ var allowedDAOs []string
 var proposals *Proposals = NewProposals()
 
 // Remember this realm for rendering.
-var gRealm = std.CurrentRealm()
+var gRealm = runtime.CurrentRealm()
 
 // Render calls directly to Render's DAO implementation.
 // This allows to have this realm as the main entry point for everything.
@@ -79,7 +80,7 @@ func CreateProposal(cur realm, r ProposalRequest) (ProposalID, error) {
 	pid := proposals.SetProposal(p)
 	dao.PostCreateProposal(r, pid)
 
-	std.Emit("ProposalCreated",
+	chain.Emit("ProposalCreated",
 		"id", strconv.FormatInt(int64(pid), 10),
 	)
 
@@ -139,7 +140,7 @@ func GetProposal(cur realm, pid ProposalID) (*Proposal, error) {
 // If AllowedDAOs field is not set correctly, the actual DAO
 // implementation wont be able to execute new Proposals!
 func UpdateImpl(cur realm, r UpdateRequest) {
-	gRealm := std.PreviousRealm().PkgPath()
+	gRealm := runtime.PreviousRealm().PkgPath()
 
 	if !InAllowedDAOs(gRealm) {
 		panic("permission denied for prev realm: " + gRealm)

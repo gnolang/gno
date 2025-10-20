@@ -2,7 +2,6 @@
 package test
 
 import (
-	"std"
 	"strings"
 	"testing"
 
@@ -10,7 +9,7 @@ import (
 )
 
 const (
-	caller = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
+	caller = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
 	msg    = "Boom!"
 )
 
@@ -30,7 +29,7 @@ func Success(realm) {
 func main() {
 	wantMsg := "Tick Tock"
 
-	testing.SetRealm(std.NewUserRealm(caller))
+	testing.SetRealm(testing.NewUserRealm(caller))
 
 	expect.Func(t, func() { Success(cross) }).ToCrossPanic()
 	expect.Func(t, func() { Fail(cross) }).ToCrossPanic().WithMessage(wantMsg)

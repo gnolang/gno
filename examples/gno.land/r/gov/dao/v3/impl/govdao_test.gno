@@ -2,18 +2,20 @@ package impl
 
 import (
 	"fmt"
-	"std"
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/urequire"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
+	susers "gno.land/r/sys/users"
 )
 
 func init() {
 	loadMembers()
+	registerTestUser(m1, m11, m111, m1111, m2, m3, m4, m5, m6, noMember)
+
 	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO:         govDAO,
 		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
@@ -33,6 +35,21 @@ var (
 
 	noMember = testutils.TestAddress("nm1")
 )
+
+const gUsersV1Path = "gno.land/r/gnoland/users/v1"
+
+// Register a namespace for every addresses
+// Necessary to test GovDAO Vote
+func registerTestUser(addrs ...address) {
+	// Set realm to users admin to register test user
+	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
+	for _, addr := range addrs {
+		err := susers.RegisterUser(cross, addr.String()[1:], addr)
+		if err != nil {
+			panic(err.Error() + " : " + addr.String())
+		}
+	}
+}
 
 func loadMembers() {
 	// This is needed because state is saved between unit tests,
@@ -62,7 +79,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	portfolio := "# This is my portfolio:\n\n- THINGS"
 
 	testing.SetOriginCaller(noMember)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	nm1 := testutils.TestAddress("nm1")
 
@@ -75,7 +92,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m1)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	proposalRequest := NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio)
 
@@ -129,7 +146,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	dao.MustVoteOnProposalSimple(cross, 0, "NO")
 
 	urequire.Equal(t, true, strings.Contains(dao.Render(""), "Prop #0 - New T2 Member Proposal"))
-	//urequire.Equal(t, true, strings.Contains(dao.Render(""), "Author: "+m1.String()))
+	// urequire.Equal(t, true, strings.Contains(dao.Render(""), "Author: "+m1.String()))
 
 	urequire.AbortsWithMessage(t, "proposal didn't reach supermajority yet: 66", func() {
 		dao.ExecuteProposal(cross, dao.ProposalID(0))
@@ -195,7 +212,7 @@ func TestProposalPagination(cur realm, t *testing.T) {
 	portfolio := "### This is my portfolio:\n\n- THINGS"
 
 	testing.SetOriginCaller(m1)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	nm1 := testutils.TestAddress("nm1")
 
@@ -239,14 +256,14 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	loadMembers()
 
 	testing.SetOriginCaller(noMember)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	urequire.PanicsWithMessage(t, "proposer is not a member", func() {
 		NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
 	})
 
 	testing.SetOriginCaller(m1)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	preq := NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
 

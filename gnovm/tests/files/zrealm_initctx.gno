@@ -2,16 +2,18 @@
 package testinit
 
 import (
-	"std"
+	"chain/runtime"
 
-	"gno.land/r/demo/tests"
+	tests "gno.land/r/tests/vm"
 )
 
-var addr = std.Address("test")
-var addrInit = std.Address("addrInit")
+var (
+	addr     = address("test")
+	addrInit = address("addrInit")
+)
 
 func init() {
-	addr = std.OriginCaller()
+	addr = runtime.OriginCaller()
 	addrInit = tests.InitOriginCaller(cross)
 }
 

@@ -1,6 +1,6 @@
 # testing gno lint command: not declared error
 
-! gno lint ./bad_file.gno
+! gno lint .
 
 cmp stdout stdout.golden
 cmp stderr stderr.golden
@@ -13,10 +13,9 @@ func main() {
 	println("Hello", 42)
 }
 
--- examples/gno.land/p/demo/hello/gnomod.toml --
+-- gnomod.toml --
 module = "gno.land/p/demo/hello"
 
 -- stdout.golden --
 -- stderr.golden --
-auto-generated "gnomod.toml"
 bad_file.gno:4:2: undefined: hello (code=gnoTypeCheckError)

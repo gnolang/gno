@@ -3,11 +3,12 @@
 package main
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/nt/treasury"
 )
 
@@ -19,7 +20,7 @@ func checkBalanceAndHistory(t *treasury.Treasury, bankerIDs []string) {
 		}
 		println("Banker", bankerID, "Balance:", balances[0].Amount)
 
-		history, err := t.History(bankerID, 0)
+		history, err := t.History(bankerID, 1, 10)
 		if err != nil {
 			panic("failed to get banker history: " + err.Error())
 		}
@@ -29,8 +30,8 @@ func checkBalanceAndHistory(t *treasury.Treasury, bankerIDs []string) {
 
 func main() {
 	// Define addresses for the sender (owner) and destination.
-	ownerAddr := std.DerivePkgAddr("gno.land/r/treasury/main")
-	destAddr := std.DerivePkgAddr("gno.land/r/dest/main")
+	ownerAddr := chain.PackageAddress("gno.land/r/treasury/main")
+	destAddr := chain.PackageAddress("gno.land/r/dest/main")
 
 	// Try to create a Treasury instance with no bankers.
 	_, err := treasury.New(nil)
@@ -51,8 +52,8 @@ func main() {
 
 	// Try to create a Treasury instance with a duplicate banker.
 	var (
-		banker            = std.NewBanker(std.BankerTypeRealmSend)
-		coinsBanker, _    = treasury.NewCoinsBanker(banker)
+		banker_           = banker.NewBanker(banker.BankerTypeRealmSend)
+		coinsBanker, _    = treasury.NewCoinsBanker(banker_)
 		grc20Banker, _    = treasury.NewGRC20Banker(grc20Lister)
 		grc20BankerDup, _ = treasury.NewGRC20Banker(grc20Lister)
 	)
@@ -79,22 +80,22 @@ func main() {
 	}
 
 	// Check if the addresses of the bankers matches the owner address.
-	for _, banker := range bankers {
-		addr, err := t.Address(banker.ID())
+	for _, banker_ := range bankers {
+		addr, err := t.Address(banker_.ID())
 		if err != nil {
 			panic("failed to get banker address: " + err.Error())
 		}
-		println("Banker", banker.ID(), "Address:", addr)
+		println("Banker", banker_.ID(), "Address:", addr)
 	}
 
 	// Check if the balances and history of the bankers match the expected values.
-	testing.IssueCoins(ownerAddr, std.NewCoins(std.NewCoin("ugnot", amount)))
+	testing.IssueCoins(ownerAddr, chain.NewCoins(chain.NewCoin("ugnot", amount)))
 	bankerIDs := []string{coinsBanker.ID(), grc20Banker.ID()}
 	checkBalanceAndHistory(t, bankerIDs)
 
 	// Send 3 valid payments using the CoinsBanker.
 	validCoinsPayment := treasury.NewCoinsPayment(
-		std.NewCoins(std.NewCoin("ugnot", 100)),
+		chain.NewCoins(chain.NewCoin("ugnot", 100)),
 		destAddr,
 	)
 	for i := 0; i < 3; i++ {

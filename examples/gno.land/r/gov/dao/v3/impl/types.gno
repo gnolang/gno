@@ -1,11 +1,10 @@
 package impl
 
 import (
-	"std"
 	"strings"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/ufmt"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
 )
@@ -190,7 +189,7 @@ func writeVotes(sb *strings.Builder, t memberstore.MembersByTier, title string) 
 		ms, _ := value.(*avl.Tree)
 		ms.Iterate("", "", func(addr string, _ interface{}) bool {
 			sb.WriteString("\n")
-			sb.WriteString("- " + tryResolveAddr(std.Address(addr)) + "\n")
+			sb.WriteString("- " + tryResolveAddr(address(addr)) + "\n")
 
 			return false
 		})

@@ -5,9 +5,10 @@
 | Network | RPC Endpoint                            | Chain ID  |
 |---------|-----------------------------------------|-----------|
 | Staging | https://rpc.gno.land:443                | `staging` |
-| Test6   | https://rpc.test6.testnets.gno.land:443 | `test6`   |
+| Test9   | https://rpc.test9.testnets.gno.land:443 | `test9`   |
 
 ### WebSocket endpoints
+
 All networks follow the same pattern for websocket connections:
 
 ```shell
@@ -15,8 +16,6 @@ wss://<rpc-endpoint:port>/websocket
 ```
 
 ## Staging Environments
-
-XXX: tell that staging is currently using a custom code but will switch to a gnodev powered alternative, usable by anyone to run a staging
 
 Staging is an always-up-to-date staging testnet that allows for using
 the latest version of Gno, gno.land, and TM2. By utilizing the power of Docker
@@ -71,8 +70,6 @@ After genesis has been replayed, the chain continues working as normal.
 
 The Staging network deployment can be found at [gno.land](https://gno.land), while
 the exposed RPC endpoints can be found on `https://rpc.gno.land:443`.
-
-XXX: list or link to the list of available RPC endpoints.
 
 #### A warning note
 
@@ -134,30 +131,46 @@ is the `gnoweb` render of the Staging testnet.
     [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop) folder in the
     monorepo
 
-### Test6
+### Test9
 
-Test6 is the latest testnet released on the 23rd of June, 2025. It enables token 
-locking, implements the interrealm specification, GovDAO V3 and more.
+The latest Gno.land testnet, released on the 14th of October, 2025.
 
 - **Persistence of state:**
   - State is fully persisted unless there are breaking changes in a new release,
     where persistence partly depends on implementing a migration strategy
 - **Timeliness of code:**
-  - Pre-deployed packages and realms are at release tag [chain/test6](https://github.com/gnolang/gno/releases/tag/chain%2Ftest6.0)
+  - Pre-deployed packages and realms are at release tag [chain/test9.0](https://github.com/gnolang/gno/releases/tag/chain%2Ftest9.0)
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
 
+This testnet introduces major changes to the codebase, such as the `std` package 
+split, private realms, the storage fee collector, and more. 
 
 ### TestX
 
 These testnets are deprecated and currently serve as archives of previous progress.
 
+### Test8 (archive)
+
+Test8 is the testnet released on the 5th of September, 2025.
+
+### Test7 (archive)
+
+Test7 is the testnet released on the 25th of July, 2025.
+
+### Test6 (archive)
+
+Test6 enables token locking, implements the interrealm specification, GovDAO V3 and more.
+
+Launch date: 23rd of June 2025
+
 ### Test5 (archive)
 
 Test5 a permanent multi-node testnet. It bumped the validator set from 7 to 17
 nodes, introduced GovDAO V2, and added lots of bug fixes and quality of life
-improvements.
+improvements. Archived data for test5 can be
+found [here](https://github.com/gnolang/tx-exports/tree/main/test5.gno.land).
 
 Test5 was launched in November 2024.
 
