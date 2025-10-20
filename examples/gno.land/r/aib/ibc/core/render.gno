@@ -2,7 +2,6 @@ package core
 
 import (
 	"encoding/base64"
-	"encoding/hex"
 
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/lightclient/tendermint"
@@ -32,12 +31,15 @@ func RenderHome(w *mux.ResponseWriter, r *mux.Request) {
 }
 
 func RenderApps(w *mux.ResponseWriter, r *mux.Request) {
-	w.Write("## Registered apps\n")
+	var nodes []*json.Node
 	for port, app := range store.routes {
-		w.Write(ufmt.Sprintf("- PortID: %s\n", port))
-		w.Write(ufmt.Sprintf("  - PkgPath: %s\n", app.pkgPath))
-		w.Write(ufmt.Sprintf("  - Address: %s\n", app.address))
+		nodes = append(nodes, json.ObjectNode("", map[string]*json.Node{
+			"port_id":  json.StringNode("", port),
+			"pkg_path": json.StringNode("", app.pkgPath),
+			"address":  json.StringNode("", app.address.String()),
+		}))
 	}
+	renderNode(w, json.ArrayNode("", nodes))
 }
 
 func RenderClients(w *mux.ResponseWriter, r *mux.Request) {
@@ -107,7 +109,7 @@ func RenderClientNextSequenceSend(w *mux.ResponseWriter, r *mux.Request) {
 		renderNode(w, nodeErrorClientNotFound(id))
 		return
 	}
-	w.Write(ufmt.Sprint(uint64(c.sendSeq) + 1))
+	w.Write(ufmt.Sprintf(`{"next_sequence_send": %d}"`, int64(c.sendSeq)+1))
 }
 
 func RenderClientPacketCommitments(w *mux.ResponseWriter, r *mux.Request) {
@@ -117,14 +119,17 @@ func RenderClientPacketCommitments(w *mux.ResponseWriter, r *mux.Request) {
 		renderNode(w, nodeErrorClientNotFound(id))
 		return
 	}
-	w.Write(ufmt.Sprintf("## Client %s packet commitments\n", c.id))
+	var nodes []*json.Node
 	c.packetCommitmentsBySeq.Iterate("", "", func(key string, v any) bool {
 		// TODO paginate
-		seq, _ := seqid.FromBinary(key)
-		w.Write(ufmt.Sprintf("- Sequence %s\n", seq))
-		w.Write(ufmt.Sprintf("  - %s\n", hex.EncodeToString(v.([]byte))))
+		id, _ := seqid.FromBinary(key)
+		nodes = append(nodes, json.ObjectNode("", map[string]*json.Node{
+			"sequence": json.StringNode("", id.String()),
+			"data":     json.StringNode("", base64.StdEncoding.EncodeToString(v.([]byte))),
+		}))
 		return false
 	})
+	renderNode(w, json.ArrayNode("", nodes))
 }
 
 func (c *client) Render() *json.Node {
