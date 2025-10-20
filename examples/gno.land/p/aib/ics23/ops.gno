@@ -162,7 +162,7 @@ func (op *LeafOp) CheckAgainstSpec(spec *ProofSpec) error {
 		return errors.New("spec.LeafSpec must be non-nil")
 	}
 
-	if spec.SpecEquals(IavlSpec) {
+	if spec.SpecEquals(IavlSpec()) {
 		err := validateIavlOps(op, 0)
 		if err != nil {
 			return err
@@ -203,14 +203,14 @@ func (op *InnerOp) CheckAgainstSpec(spec *ProofSpec, b int) error {
 		return ufmt.Errorf("unexpected HashOp: %d", op.Hash)
 	}
 
-	if spec.SpecEquals(IavlSpec) {
+	if spec.SpecEquals(IavlSpec()) {
 		err := validateIavlOps(op, b)
 		if err != nil {
 			return err
 		}
 	}
 
-	if spec.SpecEquals(TendermintSpec) {
+	if spec.SpecEquals(TendermintSpec()) {
 		err := validateTendermintOps(op)
 		if err != nil {
 			return err
