@@ -56,9 +56,9 @@ func main() {
 }
 
 // Output:
-// next sequence: 1
+// next sequence: {"next_sequence_send": 1}"
 // returned sequence: 1
-// next sequence: 2
+// next sequence: {"next_sequence_send": 2}"
 // ----------- app report
 // OnSendPacket (1)
 // - spendable: 500ugnot

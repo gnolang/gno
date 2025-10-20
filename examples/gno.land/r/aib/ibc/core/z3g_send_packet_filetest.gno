@@ -75,9 +75,9 @@ func main() {
 }
 
 // Output:
-// next sequence: 1
+// next sequence: {"next_sequence_send": 1}"
 // returned sequence: 1
-// next sequence: 2
+// next sequence: {"next_sequence_send": 2}"
 // ----------- app1 report
 // OnSendPacket (1)
 // - spendable: 0ugnot
@@ -113,13 +113,9 @@ func main() {
 // OnAcknowledgementPacket (0)
 //
 // returned sequence: 2
-// next sequence: 3
+// next sequence: {"next_sequence_send": 3}"
 // ----------- assert render clients/07-tendermint-1/packet_commitments
-// ## Client 07-tendermint-1 packet commitments
-// - Sequence 0000001
-//   - 22b9c6bbaa72797cdb5a51f682c52fe9c665c446634c66b939f30a002158b381
-// - Sequence 0000002
-//   - 22b9c6bbaa72797cdb5a51f682c52fe9c665c446634c66b939f30a002158b381
+// [{"sequence":"0000001","data":"IrnGu6pyeXzbWlH2gsUv6cZlxEZjTGa5OfMKACFYs4E="},{"sequence":"0000002","data":"IrnGu6pyeXzbWlH2gsUv6cZlxEZjTGa5OfMKACFYs4E="}]
 
 // Events:
 // [

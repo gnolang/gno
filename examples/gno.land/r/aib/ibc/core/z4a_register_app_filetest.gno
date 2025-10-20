@@ -16,10 +16,4 @@ func main() {
 
 // Output:
 // ----------- assert render apps
-// ## Registered apps
-// - PortID: app1
-//   - PkgPath: main
-//   - Address: g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4
-// - PortID: app2
-//   - PkgPath: main
-//   - Address: g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4
+// [{"port_id":"app1","pkg_path":"main","address":"g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4"},{"port_id":"app2","pkg_path":"main","address":"g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4"}]
