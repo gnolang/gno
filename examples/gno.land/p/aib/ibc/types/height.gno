@@ -1,6 +1,11 @@
 package types
 
-import "gno.land/p/nt/ufmt"
+import (
+	"strconv"
+	"strings"
+
+	"gno.land/p/nt/ufmt"
+)
 
 // Height is a monotonically increasing data type
 // that can be compared against another Height for the purposes of updating and
@@ -27,6 +32,24 @@ func NewHeight(revision, height uint64) Height {
 		RevisionNumber: revision,
 		RevisionHeight: height,
 	}
+}
+
+// ParseHeight is a utility function that takes a string representation of the
+// height and returns a Height struct.
+func ParseHeight(heightStr string) (Height, error) {
+	splitStr := strings.Split(heightStr, "/")
+	if len(splitStr) != 2 {
+		return Height{}, ufmt.Errorf("expected height string format: {revision}/{height}. Got: %s", heightStr)
+	}
+	revisionNumber, err := strconv.ParseUint(splitStr[0], 10, 64)
+	if err != nil {
+		return Height{}, ufmt.Errorf("invalid revision number. parse err: %s", err)
+	}
+	revisionHeight, err := strconv.ParseUint(splitStr[1], 10, 64)
+	if err != nil {
+		return Height{}, ufmt.Errorf("invalid revision height. parse err: %s", err)
+	}
+	return NewHeight(revisionNumber, revisionHeight), nil
 }
 
 func ZeroHeight() Height { return Height{} }

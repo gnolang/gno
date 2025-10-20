@@ -29,12 +29,20 @@ func main() {
 
 	println("\n----------- assert render clients")
 	println(core.Render("clients"))
-	println("----------- assert render clients/unknown")
-	println(core.Render("clients/unknown"))
+	println("\n----------- assert render clients/xxx")
+	println(core.Render("clients/xxx"))
 	println("\n----------- assert render clients/07-tendermint-1")
 	println(core.Render("clients/" + clientID1))
-	println("----------- assert render clients/07-tendermint-1/consensus_states")
+	println("\n----------- assert render clients/07-tendermint-1/consensus_states")
 	println(core.Render("clients/" + clientID1 + "/consensus_states"))
+	println("\n----------- assert render clients/07-tendermint-1/consensus_states/2/2")
+	println(core.Render("clients/" + clientID1 + "/consensus_states/2/2"))
+	println("\n----------- assert render clients/07-tendermint-1/consensus_states/2/3")
+	println(core.Render("clients/" + clientID1 + "/consensus_states/2/3"))
+	println("\n----------- assert render clients/07-tendermint-1/consensus_states/xxx/yyy")
+	println(core.Render("clients/" + clientID1 + "/consensus_states/xxx/yyy"))
+	println("\n----------- assert render clients/xxx/consensus_states/2/3")
+	println(core.Render("clients/xxx/consensus_states/2/3"))
 }
 
 // Output:
@@ -42,63 +50,28 @@ func main() {
 // CreateClient 07-tendermint-2
 //
 // ----------- assert render clients
-// ## Client 07-tendermint-1
-// - Type: 07-tendermint
-// - Creator: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-// - Status: Active
-// - CounterpartyClientID: 07-tendermint-2
-// - CounterpartyMerklePrefix: 'prefix1' 'prefix2'
-// - Client state:
-//   - ChainId: chain-id-2
-//   - TrustingPeriod: 1h0m0s
-//   - UnbondingPeriod: 3h0m0s
-//   - LatestHeight: 2/2
-// - Latest consensus state:
-//   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
-//   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
-//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
-// ## Client 07-tendermint-2
-// - Type: 07-tendermint
-// - Creator: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-// - Status: Active
-// - CounterpartyClientID:
-// - CounterpartyMerklePrefix:
-// - Client state:
-//   - ChainId: chain-id-2
-//   - TrustingPeriod: 1h0m0s
-//   - UnbondingPeriod: 3h0m0s
-//   - LatestHeight: 2/2
-// - Latest consensus state:
-//   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
-//   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
-//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
+// [{"id":"07-tendermint-1","type":"07-tendermint","creator":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","status":"Active","counterparty_client_id":"07-tendermint-2","counterparty_merke_prefix":["prefix1","prefix2"],"client_state":{"chain_id":"chain-id-2","latest_height":{"revision_number":2,"revision_height":2},"trusting_period":"1h0m0s","unbonding_period":"3h0m0s"},"last_consensus_state":{"height":{"revision_number":2,"revision_height":2},"timestamp":1234567890,"root":"EGkBgr/gwNYq9XkPLS+UWQksRtpw/yCAIRjy3KjUlI8=","next_validators_hash":"TiAQkvoom97x5Cu6r9TvoalcmOXH6Bk+JLVRHGtEAjw="}},{"id":"07-tendermint-2","type":"07-tendermint","creator":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","status":"Active","counterparty_client_id":"","counterparty_merke_prefix":[],"client_state":{"chain_id":"chain-id-2","latest_height":{"revision_number":2,"revision_height":2},"trusting_period":"1h0m0s","unbonding_period":"3h0m0s"},"last_consensus_state":{"height":{"revision_number":2,"revision_height":2},"timestamp":1234567890,"root":"EGkBgr/gwNYq9XkPLS+UWQksRtpw/yCAIRjy3KjUlI8=","next_validators_hash":"TiAQkvoom97x5Cu6r9TvoalcmOXH6Bk+JLVRHGtEAjw="}}]
 //
-// ----------- assert render clients/unknown
-// client unknown not found
+// ----------- assert render clients/xxx
+// {"error":"client xxx not found"}
 //
 // ----------- assert render clients/07-tendermint-1
-// ## Client 07-tendermint-1
-// - Type: 07-tendermint
-// - Creator: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-// - Status: Active
-// - CounterpartyClientID: 07-tendermint-2
-// - CounterpartyMerklePrefix: 'prefix1' 'prefix2'
-// - Client state:
-//   - ChainId: chain-id-2
-//   - TrustingPeriod: 1h0m0s
-//   - UnbondingPeriod: 3h0m0s
-//   - LatestHeight: 2/2
-// - Latest consensus state:
-//   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
-//   - Root: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
-//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
+// {"id":"07-tendermint-1","type":"07-tendermint","creator":"g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm","status":"Active","counterparty_client_id":"07-tendermint-2","counterparty_merke_prefix":["prefix1","prefix2"],"client_state":{"chain_id":"chain-id-2","latest_height":{"revision_number":2,"revision_height":2},"trusting_period":"1h0m0s","unbonding_period":"3h0m0s"},"last_consensus_state":{"height":{"revision_number":2,"revision_height":2},"timestamp":1234567890,"root":"EGkBgr/gwNYq9XkPLS+UWQksRtpw/yCAIRjy3KjUlI8=","next_validators_hash":"TiAQkvoom97x5Cu6r9TvoalcmOXH6Bk+JLVRHGtEAjw="}}
 //
 // ----------- assert render clients/07-tendermint-1/consensus_states
-// ## Client 07-tendermint-1 consensus states
-// - ConsensusState height 2/2:
-//   - Timestamp: 2009-02-13 23:31:30 +0000 UTC
-//   - RootHash: 10690182bfe0c0d62af5790f2d2f9459092c46da70ff20802118f2dca8d4948f
-//   - NextValidatorsHash: 4e201092fa289bdef1e42bbaafd4efa1a95c98e5c7e8193e24b5511c6b44023c
+// [{"height":{"revision_number":2,"revision_height":2},"timestamp":1234567890,"root":"EGkBgr/gwNYq9XkPLS+UWQksRtpw/yCAIRjy3KjUlI8=","next_validators_hash":"TiAQkvoom97x5Cu6r9TvoalcmOXH6Bk+JLVRHGtEAjw="}]
+//
+// ----------- assert render clients/07-tendermint-1/consensus_states/2/2
+// {"height":{"revision_number":2,"revision_height":2},"timestamp":1234567890,"root":"EGkBgr/gwNYq9XkPLS+UWQksRtpw/yCAIRjy3KjUlI8=","next_validators_hash":"TiAQkvoom97x5Cu6r9TvoalcmOXH6Bk+JLVRHGtEAjw="}
+//
+// ----------- assert render clients/07-tendermint-1/consensus_states/2/3
+// {"error":"consensus state not found for height 2/3"}
+//
+// ----------- assert render clients/07-tendermint-1/consensus_states/xxx/yyy
+// {"error":"cant parse height xxx/yyy: invalid revision number. parse err: strconv.ParseUint: parsing \"xxx\": invalid syntax"}
+//
+// ----------- assert render clients/xxx/consensus_states/2/3
+// {"error":"client xxx not found"}
 
 // Events:
 // [
