@@ -64,7 +64,7 @@ func main() {
 //
 // |||
 //
-// ## [Latest Events](/r/gnoland/events)
+// ## [Latest Events](/r/devrels/events)
 //
 // No events.
 //
