@@ -38,7 +38,7 @@ func VerifyNonMembership(spec *ProofSpec, root CommitmentRoot,
 }
 
 // TODO move this elsewhere
-func NewExistenceProof(spec *ProofSpec, key []byte, value, leaf string, suffixes, prefixes []string) *ExistenceProof {
+func NewExistenceProof(spec *ProofSpec, key []byte, value, leaf string, prefixes, suffixes []string) *ExistenceProof {
 	ep := &ExistenceProof{
 		Key:   key,
 		Value: hexDec(value),
@@ -53,8 +53,8 @@ func NewExistenceProof(spec *ProofSpec, key []byte, value, leaf string, suffixes
 	for i, _ := range prefixes {
 		ep.Path = append(ep.Path, &InnerOp{
 			Hash:   spec.InnerSpec.Hash,
-			Suffix: hexDec(suffixes[i]),
 			Prefix: hexDec(prefixes[i]),
+			Suffix: hexDec(suffixes[i]),
 		})
 	}
 	return ep
