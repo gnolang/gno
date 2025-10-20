@@ -1,17 +1,16 @@
 package disperse
 
 import (
-	"std"
 	"strconv"
 	"strings"
 	"unicode"
 )
 
-func parseAddresses(addresses string) ([]std.Address, error) {
-	var ret []std.Address
+func parseAddresses(addresses string) ([]address, error) {
+	var ret []address
 
 	for _, str := range strings.Split(addresses, ",") {
-		addr := std.Address(str)
+		addr := address(str)
 		if !addr.IsValid() {
 			return nil, ErrInvalidAddress
 		}

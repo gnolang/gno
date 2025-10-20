@@ -1,15 +1,14 @@
 package params
 
 import (
-	"std"
 	"testing"
 
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/urequire"
 	"gno.land/r/gov/dao"
 )
 
 func TestSetFeeCollector(t *testing.T) {
-	userRealm := std.NewUserRealm(g1user)
+	userRealm := testing.NewUserRealm(g1user)
 	testing.SetRealm(userRealm)
 
 	pr := NewSetFeeCollectorRequest(userRealm.Address())

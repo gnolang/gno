@@ -49,11 +49,11 @@ A flag intended for **chain creators**. Marks the package as *unimportable*
 during normal operation. This flag is **ignored at block 0**, allowing draft
 packages to be included at genesis.
 
-#### `private` (coming soon)
+#### `private`
 
 Marks the package as private and **unimportable** by any other package. Additionally:
 - It can be **re-uploaded** - the new version fully overwrites the old one.
-- Memory, pointers, or types defined in this package **cannot be used or stored elsewhere**.
+- Memory, pointers, or types defined in this package **cannot be stored elsewhere**.
 - Usually, this flag can be used for packages that are meant to be changed,
   such as the home realm of a specific user (i.e. `r/username/home`).
 - *This flag _does not_ provide any sort of privacy. All code is still fully
@@ -86,3 +86,68 @@ private = true
 
 Note that this example isn't realistic because we should either replace,
 configure addpkg settings, or do neither, but never both at the same time.
+
+## Workspaces with `gnowork.toml`
+
+Adding a `gnowork.toml` file to the root of your workspace allows Gno tooling to 
+better understand your local environment and resolve dependencies between packages.
+This is especially useful during local development and testing with tools like 
+`gno test` & `gno lint`. 
+
+Consider the following project structure:
+
+```text
+project/
+    ├─ p/
+    │   └─ library/
+    │       ├─ gnomod.toml
+    │       └─ lib.gno
+    └─ r/
+        └─ app/
+            ├─ gnomod.toml
+            ├─ app.gno
+            └─ app_test.gno
+```
+
+In this setup, the `app` package cannot use `library` as a dependency during local 
+development. The tooling has no way of knowing that both live inside the same
+workspace - only dependencies usable are the ones found in `gnohome`, where the 
+tooling was initially installed.
+
+By adding a `gnowork.toml` file at the root, Gno tooling can properly link the 
+packages together:
+
+```text
+project/
+    ├─ gnowork.toml
+    ├─ p/
+    │   └─ library/
+    │       ├─ gnomod.toml
+    │       └─ lib.gno
+    └─ r/
+        └─ app/
+            ├─ gnomod.toml
+            ├─ app.gno
+            └─ app_test.gno
+```
+
+At the moment, `gnowork.toml` does not have any configuration options and should be
+an empty file. In the future, workspace-level configuration options may be added to
+support more advanced use cases.
+
+Gno tooling resolves dependencies by first using the packages available in your workspace.
+If a dependency cannot be found locally, it will then fall back to other sources,
+such as a remote chain.
+
+<!-- TODO: allow configuration of dependency source priority/hierarchy -->
+
+Note: `gnowork.toml` support is a work in progress for `gnodev` and `gnopls`.
+
+#### Cleaning the dependency cache
+
+Downloaded dependencies are stored locally under `$GNOHOME/pkg/mod/`.
+If you want to remove them and fetch fresh versions, you can run:
+
+```bash
+gno clean -modcache
+```

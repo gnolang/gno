@@ -1,12 +1,13 @@
 package home
 
 import (
-	"std"
+	"chain/banker"
+	"chain/runtime"
 	"strings"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/nt/ufmt"
 	"gno.land/r/leon/hor"
 )
 
@@ -60,21 +61,21 @@ func UpdateAboutMe(cur realm, col1 string) {
 }
 
 func VoteModern(cur realm) {
-	ugnotAmount := std.OriginSend().AmountOf("ugnot")
+	ugnotAmount := banker.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	modernVotes += votes
 	updateCurrentTheme()
 }
 
 func VoteClassic(cur realm) {
-	ugnotAmount := std.OriginSend().AmountOf("ugnot")
+	ugnotAmount := banker.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	classicVotes += votes
 	updateCurrentTheme()
 }
 
 func VoteMinimal(cur realm) {
-	ugnotAmount := std.OriginSend().AmountOf("ugnot")
+	ugnotAmount := banker.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	minimalVotes += votes
 	updateCurrentTheme()
@@ -82,9 +83,9 @@ func VoteMinimal(cur realm) {
 
 func CollectBalance(cur realm) {
 	if err := Auth.DoByPrevious("collect_balance", func() error {
-		banker := std.NewBanker(std.BankerTypeRealmSend)
+		banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
 		ownerAddr := Address()
-		banker.SendCoins(std.CurrentRealm().Address(), ownerAddr, banker.GetCoins(std.CurrentRealm().Address()))
+		banker_.SendCoins(runtime.CurrentRealm().Address(), ownerAddr, banker_.GetCoins(runtime.CurrentRealm().Address()))
 		return nil
 	}); err != nil {
 		panic(err)

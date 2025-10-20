@@ -22,7 +22,7 @@ on:
 jobs:
   main:
     name: Run gno.land suite
-    uses: ./.github/workflows/main_template.yml
+    uses: ./.github/workflows/template_main.yml
     with:
       modulepath: "gno.land"
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/gno.land/..."
@@ -47,7 +47,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: lts/Jod # (22.x) https://github.com/nodejs/Release
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: |
           make -C gno.land/pkg/gnoweb fclean generate
           # Check if there are changes after running generate.gnoweb
@@ -61,5 +61,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: lts/Jod
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: make -C gno.land/pkg/gnoweb/frontend lint.ci

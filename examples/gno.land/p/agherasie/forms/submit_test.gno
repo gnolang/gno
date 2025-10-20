@@ -1,15 +1,14 @@
 package forms
 
 import (
-	"std"
 	"testing"
 	"time"
 
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/urequire"
 )
 
 func TestAnswerForm(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm("g1user"))
+	testing.SetRealm(testing.NewUserRealm("g1user"))
 
 	db := NewDB()
 
@@ -55,7 +54,7 @@ func TestAnswerForm(t *testing.T) {
 }
 
 func TestAnswerFormDates(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm("g1user"))
+	testing.SetRealm(testing.NewUserRealm("g1user"))
 	db := NewDB()
 
 	now := time.Now()

@@ -201,7 +201,7 @@ func toClientAddrAndParse(remoteAddr string) (string, string) {
 	}
 
 	// replace / with . for http requests (kvstore domain)
-	trimmedAddress := strings.Replace(address, "/", ".", -1)
+	trimmedAddress := strings.ReplaceAll(address, "/", ".")
 
 	return clientProtocol, trimmedAddress
 }

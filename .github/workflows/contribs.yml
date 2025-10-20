@@ -22,7 +22,7 @@ jobs:
       programs: ${{ steps.set-matrix.outputs.programs }}
       go-versions: ${{ steps.get-go-versions.outputs.go-versions }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - id: set-matrix
         run: |
@@ -52,7 +52,7 @@ jobs:
       matrix:
         program: ${{ fromJson(needs.setup.outputs.programs) }}
     name: Run Main
-    uses: ./.github/workflows/main_template.yml
+    uses: ./.github/workflows/template_main.yml
     with:
       modulepath: contribs/${{ matrix.program }}
       go-version: ${{ (fromJson(needs.setup.outputs.go-versions))[matrix.program] }}
