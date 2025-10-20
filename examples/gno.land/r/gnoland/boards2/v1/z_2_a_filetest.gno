@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	owner   = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	path    = "test-board/1/2"
-	comment = "Test comment"
+	owner   address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	path            = "test-board/1/2"
+	comment         = "Test comment"
 )
 
 var (

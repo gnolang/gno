@@ -32,6 +32,8 @@ flag_management:
         threshold: 10
 
 ignore:
+  - "tm2/pkg/db/mockdb"
+  - "tm2/pkg/db/internal/test_common.go"
   - "gnovm/stdlibs/generated.go"
   - "gnovm/tests/stdlibs/generated.go"
   - "**/*.pb.go"

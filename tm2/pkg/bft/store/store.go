@@ -77,11 +77,14 @@ func (bs *BlockStore) LoadBlock(height int64) *types.Block {
 // If no part is found for the given height and index, it returns nil.
 func (bs *BlockStore) LoadBlockPart(height int64, index int) *types.Part {
 	part := new(types.Part)
-	bz := bs.db.Get(calcBlockPartKey(height, index))
+	bz, err := bs.db.Get(calcBlockPartKey(height, index))
+	if err != nil {
+		panic(err)
+	}
 	if len(bz) == 0 {
 		return nil
 	}
-	err := amino.Unmarshal(bz, part)
+	err = amino.Unmarshal(bz, part)
 	if err != nil {
 		panic(errors.Wrap(err, "Error reading block part"))
 	}
@@ -92,11 +95,14 @@ func (bs *BlockStore) LoadBlockPart(height int64, index int) *types.Part {
 // If no block is found for the given height, it returns nil.
 func (bs *BlockStore) LoadBlockMeta(height int64) *types.BlockMeta {
 	blockMeta := new(types.BlockMeta)
-	bz := bs.db.Get(calcBlockMetaKey(height))
+	bz, err := bs.db.Get(calcBlockMetaKey(height))
+	if err != nil {
+		panic(err)
+	}
 	if len(bz) == 0 {
 		return nil
 	}
-	err := amino.Unmarshal(bz, blockMeta)
+	err = amino.Unmarshal(bz, blockMeta)
 	if err != nil {
 		panic(errors.Wrap(err, "Error reading block meta"))
 	}
@@ -109,11 +115,14 @@ func (bs *BlockStore) LoadBlockMeta(height int64) *types.BlockMeta {
 // If no commit is found for the given height, it returns nil.
 func (bs *BlockStore) LoadBlockCommit(height int64) *types.Commit {
 	commit := new(types.Commit)
-	bz := bs.db.Get(calcBlockCommitKey(height))
+	bz, err := bs.db.Get(calcBlockCommitKey(height))
+	if err != nil {
+		panic(err)
+	}
 	if len(bz) == 0 {
 		return nil
 	}
-	err := amino.Unmarshal(bz, commit)
+	err = amino.Unmarshal(bz, commit)
 	if err != nil {
 		panic(errors.Wrap(err, "Error reading block commit"))
 	}
@@ -125,11 +134,14 @@ func (bs *BlockStore) LoadBlockCommit(height int64) *types.Commit {
 // a new block at `height + 1` that includes this commit in its block.LastCommit.
 func (bs *BlockStore) LoadSeenCommit(height int64) *types.Commit {
 	commit := new(types.Commit)
-	bz := bs.db.Get(calcSeenCommitKey(height))
+	bz, err := bs.db.Get(calcSeenCommitKey(height))
+	if err != nil {
+		panic(err)
+	}
 	if len(bz) == 0 {
 		return nil
 	}
-	err := amino.Unmarshal(bz, commit)
+	err = amino.Unmarshal(bz, commit)
 	if err != nil {
 		panic(errors.Wrap(err, "Error reading block seen commit"))
 	}
@@ -234,14 +246,17 @@ func (bsj BlockStoreStateJSON) Save(db dbm.DB) {
 // LoadBlockStoreStateJSON returns the BlockStoreStateJSON as loaded from disk.
 // If no BlockStoreStateJSON was previously persisted, it returns the zero value.
 func LoadBlockStoreStateJSON(db dbm.DB) BlockStoreStateJSON {
-	bytes := db.Get(blockStoreKey)
+	bytes, err := db.Get(blockStoreKey)
+	if err != nil {
+		panic(err)
+	}
 	if len(bytes) == 0 {
 		return BlockStoreStateJSON{
 			Height: 0,
 		}
 	}
 	bsj := BlockStoreStateJSON{}
-	err := amino.UnmarshalJSON(bytes, &bsj)
+	err = amino.UnmarshalJSON(bytes, &bsj)
 	if err != nil {
 		panic(fmt.Sprintf("Could not unmarshal bytes: %X", bytes))
 	}

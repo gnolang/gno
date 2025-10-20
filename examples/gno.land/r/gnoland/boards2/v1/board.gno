@@ -125,7 +125,7 @@ func (board *Board) DeleteThread(pid PostID) {
 func (board *Board) Render(path, menu string) string {
 	var (
 		sb          strings.Builder
-		creatorLink = md.UserLink(board.Creator.String())
+		creatorLink = userLink(board.Creator)
 		date        = board.CreatedAt().Format(dateFormat)
 	)
 
@@ -233,7 +233,7 @@ func createBasicBoardPermissions(owner address) *BasicPermissions {
 		PermissionThreadRepost,
 		PermissionReplyCreate,
 	)
-	perms.SetUserRoles(owner, RoleOwner)
+	perms.SetUserRoles(cross, owner, RoleOwner)
 	perms.ValidateFunc(PermissionBoardRename, validateBoardRename)
 	perms.ValidateFunc(PermissionMemberInvite, validateMemberInvite)
 	perms.ValidateFunc(PermissionRoleChange, validateRoleChange)

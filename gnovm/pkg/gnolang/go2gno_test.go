@@ -17,7 +17,8 @@ func main(){
 		}
 	}
 }`
-	n, err := ParseFile("main.go", gocode)
+	var m *Machine
+	n, err := m.ParseFile("main.go", gocode)
 	assert.NoError(t, err, "ParseFile error")
 	assert.NotNil(t, n, "ParseFile error")
 	t.Logf("CODE:\n%s\n\n", gocode)
