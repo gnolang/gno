@@ -94,7 +94,6 @@ func (r *expandableCodeRenderer) renderCodeBlock(w util.BufWriter, source []byte
 	w.WriteString("\n")
 
 	return ast.WalkSkipChildren, nil
-
 }
 
 func (e *expandableCodeExtension) Extend(m goldmark.Markdown) {
