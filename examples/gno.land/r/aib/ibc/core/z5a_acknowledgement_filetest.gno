@@ -17,7 +17,7 @@ func main() {
 		chainID        = "chain-id-2"
 		trustedHeight  = types.NewHeight(2, 2)
 		clientState    = tmtesting.NewClientState(chainID, trustedHeight)
-		apphash, _     = hex.DecodeString("8a69ba7fc634fdcd3e5b7356d39f226e6893316f90bd3a75be950c5543e621e5")
+		apphash, _     = hex.DecodeString("17e17bf221817fd337042762f6656f849577915a88f9bfefd5d02d9bbf8545ab")
 		valset         = tmtesting.GenValset()
 		consensusState = tmtesting.GenConsensusState(time.Now(), apphash[:], valset.Hash())
 		counterpartyID = "07-tendermint-42"
@@ -60,13 +60,12 @@ func main() {
 			}},
 		},
 		Acknowledgement: types.Acknowledgement{
-			AppAcknowledgements: [][]byte{[]byte("ack")},
+			AppAcknowledgements: [][]byte{[]byte(`{"response":{"result":"1"}}`)},
 		},
-		// Create the proof (generated from https://github.com/tbruyelle/cosmos-sdk/blob/0b8e35b2962476e550918571daaeef7bf7e3ad40/store/rootmulti/proof_test.go#L63)
-		// ROOT 8a69ba7fc634fdcd3e5b7356d39f226e6893316f90bd3a75be950c5543e621e5
-		// iavlProof:
+		// Create the proof (generated from https://github.com/tbruyelle/sdktools/blob/31452ec4783bc45db1f84fe43fde93033e6b5576/proof/proof.go#L56)
+		// ROOT 17e17bf221817fd337042762f6656f849577915a88f9bfefd5d02d9bbf8545ab
 		// KEY 7072656669783230372d74656e6465726d696e742d3432030000000000000001 "prefix207-tendermint-42\x03\x00\x00\x00\x00\x00\x00\x00\x01"
-		// VAL cf49bb81a77249af41ecbe7792d98ddf24b47b491a177ca5a8b1e82e2eaf011e
+		// VAL c9afb775ca1536d3d85957df4b94e601c321139436def9950b4a85302e90d61d
 		// 0 LEAF PREFIX 000202
 		// 	0 OP PREFIX 0204022035f8ea805390e084854f399b42ccdeaea33a1dedc115638ac48d0600637dba1f20
 		// 	0 OP SUFFIX
@@ -74,34 +73,28 @@ func main() {
 		// 	1 OP SUFFIX 20798e2caa96fdfba376ddeb47999954d2f47e65162264b0536ab5dff7fc0a2e07
 		// 	2 OP PREFIX 060c02209af37dd595a0190803b5e05aaef42ae3fad499e4fbe37f7cd31cadff22a9ee7420
 		// 	2 OP SUFFIX
-		// rootmulti proof:
 		// KEY 6961766c53746f72654b6579 "iavlStoreKey"
-		// VAL fba7f41e4afa674eb64ccc33761c255cfb964147ede2893d7f51eb8fb1e4dea1
+		// VAL f23f8fc99e04b38c6a5c77b04034d7024621006e345c4826542ad74d7600e4ca
 		// 1 LEAF PREFIX 00
 		ProofAcked: []ics23.CommitmentProof_Exist{
 			{
 				// iavl proof
-				Exist: ics23.NewExistenceProof(ics23.IavlSpec(),
+				Exist: ibctesting.NewExistenceProof(ics23.IavlSpec(),
 					[]byte("prefix207-tendermint-42\x03\x00\x00\x00\x00\x00\x00\x00\x01"),
-					"cf49bb81a77249af41ecbe7792d98ddf24b47b491a177ca5a8b1e82e2eaf011e",
+					"c9afb775ca1536d3d85957df4b94e601c321139436def9950b4a85302e90d61d",
 					"000202",
-					[]string{
-						"0204022035f8ea805390e084854f399b42ccdeaea33a1dedc115638ac48d0600637dba1f20",
-						"04080220",
-						"060c02209af37dd595a0190803b5e05aaef42ae3fad499e4fbe37f7cd31cadff22a9ee7420",
-					},
-					[]string{
-						"",
-						"20798e2caa96fdfba376ddeb47999954d2f47e65162264b0536ab5dff7fc0a2e07",
-						"",
+					[][]string{
+						{"0204022035f8ea805390e084854f399b42ccdeaea33a1dedc115638ac48d0600637dba1f20", ""},
+						{"04080220", "20798e2caa96fdfba376ddeb47999954d2f47e65162264b0536ab5dff7fc0a2e07"},
+						{"060c02209af37dd595a0190803b5e05aaef42ae3fad499e4fbe37f7cd31cadff22a9ee7420", ""},
 					},
 				),
 			},
 			{
 				// rootmulti proof
-				Exist: ics23.NewExistenceProof(ics23.IavlSpec(),
-					[]byte("iavlStoreKey"), "fba7f41e4afa674eb64ccc33761c255cfb964147ede2893d7f51eb8fb1e4dea1",
-					"00", nil, nil),
+				Exist: ibctesting.NewExistenceProof(ics23.IavlSpec(),
+					[]byte("iavlStoreKey"), "f23f8fc99e04b38c6a5c77b04034d7024621006e345c4826542ad74d7600e4ca",
+					"00", nil),
 			},
 		},
 		ProofHeight: trustedHeight,
@@ -154,6 +147,7 @@ func main() {
 //   - version: v1
 //   - encoding: application/json
 //   - value: {}
+// - ack: {"response":{"result":"1"}}
 //
 //
 // res: (1 gno.land/p/aib/ibc/types.ResponseResultType)
@@ -183,6 +177,7 @@ func main() {
 //   - version: v1
 //   - encoding: application/json
 //   - value: {}
+// - ack: {"response":{"result":"1"}}
 
 // Events:
 // [

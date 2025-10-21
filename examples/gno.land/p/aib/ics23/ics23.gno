@@ -1,7 +1,5 @@
 package ics23
 
-import "encoding/hex"
-
 // CommitmentRoot is a byte slice that represents the merkle root of a tree
 // that can be used to validate proofs
 type CommitmentRoot []byte
@@ -35,32 +33,4 @@ func VerifyNonMembership(spec *ProofSpec, root CommitmentRoot,
 		return false
 	}
 	return proof.Nonexist.Verify(spec, root, key) == nil
-}
-
-// TODO move this elsewhere
-func NewExistenceProof(spec *ProofSpec, key []byte, value, leaf string, prefixes, suffixes []string) *ExistenceProof {
-	ep := &ExistenceProof{
-		Key:   key,
-		Value: hexDec(value),
-		Leaf: &LeafOp{
-			Hash:         spec.LeafSpec.Hash,
-			PrehashKey:   spec.LeafSpec.PrehashKey,
-			PrehashValue: spec.LeafSpec.PrehashValue,
-			Length:       spec.LeafSpec.Length,
-			Prefix:       hexDec(leaf),
-		},
-	}
-	for i, _ := range prefixes {
-		ep.Path = append(ep.Path, &InnerOp{
-			Hash:   spec.InnerSpec.Hash,
-			Prefix: hexDec(prefixes[i]),
-			Suffix: hexDec(suffixes[i]),
-		})
-	}
-	return ep
-}
-
-func hexDec(s string) []byte {
-	b, _ := hex.DecodeString(s)
-	return b
 }
