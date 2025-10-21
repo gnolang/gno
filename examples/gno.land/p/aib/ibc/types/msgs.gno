@@ -3,11 +3,13 @@ package types
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 
 	"gno.land/p/aib/ibc/host"
 	"gno.land/p/aib/ics23"
 	"gno.land/p/nt/ufmt"
+	"gno.land/p/onbloc/json"
 )
 
 // MsgSendPacket sends an outgoing IBC packet.
@@ -82,11 +84,6 @@ func (msg *MsgAcknowledgement) ValidateBasic() error {
 	return msg.Packet.ValidateBasic()
 }
 
-func ErrorAcknowledgement() []byte {
-	bz := sha256.Sum256([]byte("UNIVERSAL_ERROR_ACKNOWLEDGEMENT"))
-	return bz[:]
-}
-
 // Validate performs a basic validation of the acknowledgement
 func (ack Acknowledgement) Validate() error {
 	// acknowledgement list should be non-empty
@@ -103,12 +100,62 @@ func (ack Acknowledgement) Validate() error {
 		// Ensure that the app acknowledgement contains ErrorAcknowledgement
 		// **if and only if** the app acknowledgement list has a single element
 		if len(ack.AppAcknowledgements) > 1 {
-			if bytes.Equal(a, ErrorAcknowledgement()) {
+			if bytes.Equal(a, UniversalErrorAcknowledgement()) {
 				return errors.New("cannot have the error acknowledgement in multi acknowledgement list")
 			}
 		}
 	}
 
+	return nil
+}
+
+func UniversalErrorAcknowledgement() []byte {
+	bz := sha256.Sum256([]byte("UNIVERSAL_ERROR_ACKNOWLEDGEMENT"))
+	return bz[:]
+}
+
+// AppAcknowledgement is the recommended acknowledgement format to be used by
+// app-specific protocols.
+type AppAcknowledgement struct {
+	Response AppAcknowledgementResponse
+}
+
+type AppAcknowledgementResponse struct {
+	Result []byte
+	Error  string
+}
+
+func NewErrorAppAcknowledgement() AppAcknowledgement {
+	return AppAcknowledgement{Response: AppAcknowledgementResponse{Error: "error"}}
+}
+
+func (a AppAcknowledgement) Success() bool {
+	return a.Response.Error == ""
+}
+
+func (a *AppAcknowledgement) UnmarshalJSON(bz []byte) error {
+	root, err := json.Unmarshal(bz)
+	if err != nil {
+		return err
+	}
+	resp, err := root.GetKey("response")
+	if err != nil {
+		return err
+	}
+	result, err := resp.GetKey("result")
+	if err != nil {
+		rerror, err := resp.GetKey("error")
+		if err != nil {
+			return err
+		}
+		a.Response = AppAcknowledgementResponse{Error: rerror.MustString()}
+		return nil
+	}
+	resBz, err := base64.StdEncoding.DecodeString(result.MustString())
+	if err != nil {
+		return err
+	}
+	a.Response = AppAcknowledgementResponse{Result: resBz}
 	return nil
 }
 

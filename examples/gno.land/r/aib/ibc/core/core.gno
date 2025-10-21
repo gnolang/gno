@@ -183,7 +183,7 @@ func Acknowledgement(cur realm, msg types.MsgAcknowledgement) types.ResponseResu
 
 	// Invoke registed app OnAcknowledgementPacket() for each payload.SourcePort.
 	recvSuccess := !bytes.Equal(msg.Acknowledgement.AppAcknowledgements[0],
-		types.ErrorAcknowledgement())
+		types.UniversalErrorAcknowledgement())
 	for i, payload := range msg.Packet.Payloads {
 		app := store.route(payload.SourcePort)
 		// if recv was successful, each payload should have its own acknowledgement
@@ -196,7 +196,7 @@ func Acknowledgement(cur realm, msg types.MsgAcknowledgement) types.ResponseResu
 		if recvSuccess {
 			ack = msg.Acknowledgement.AppAcknowledgements[i]
 		} else {
-			ack = types.ErrorAcknowledgement()
+			ack = types.UniversalErrorAcknowledgement()
 		}
 		err := app.OnAcknowledgementPacket(
 			msg.Packet.SourceClient, c.counterpartyClientID, msg.Packet.Sequence,
