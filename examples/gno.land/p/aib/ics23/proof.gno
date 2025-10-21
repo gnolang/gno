@@ -112,7 +112,6 @@ func (p *ExistenceProof) Verify(spec *ProofSpec, root CommitmentRoot, key []byte
 	}
 
 	if !bytes.Equal(key, p.Key) {
-		ufmt.Printf("KEY:%q PROOFKEY:%q\n", string(key), string(p.Key))
 		return ufmt.Errorf("provided key doesn't match proof")
 	}
 	if !bytes.Equal(value, p.Value) {
