@@ -15,6 +15,7 @@ type Args struct {
 	DestinationClient string
 	Sequence          uint64
 	Payload           types.Payload
+	Ack               []byte
 }
 
 type App struct {
@@ -99,6 +100,7 @@ func (a *App) OnAcknowledgementPacket(
 			DestinationClient: destinationClient,
 			Sequence:          sequence,
 			Payload:           payload,
+			Ack:               acknowledgement,
 		})
 	return a.Calls.OnAcknowledgementPacketReturn
 }
@@ -139,5 +141,8 @@ func (a *Args) Report() string {
 	s += ufmt.Sprintf("  - version: %s\n", a.Payload.Version)
 	s += ufmt.Sprintf("  - encoding: %s\n", a.Payload.Encoding)
 	s += ufmt.Sprintf("  - value: %s\n", string(a.Payload.Value))
+	if len(a.Ack) > 0 {
+		s += ufmt.Sprintf("- ack: %s\n", string(a.Ack))
+	}
 	return s
 }
