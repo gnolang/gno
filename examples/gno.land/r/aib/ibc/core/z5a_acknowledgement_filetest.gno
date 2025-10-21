@@ -110,6 +110,8 @@ func main() {
 	res := core.Acknowledgement(cross, ackPacket)
 
 	println("res:", res)
+	println("\n----------- assert render clients/07-tendermint-1/packet_commitments")
+	println(core.Render("clients/" + clientID + "/packet_commitments"))
 	println("\n----------- app report")
 	println(app.Report())
 
@@ -123,6 +125,9 @@ func main() {
 
 // Output:
 // res: (2 gno.land/p/aib/ibc/types.ResponseResultType)
+//
+// ----------- assert render clients/07-tendermint-1/packet_commitments
+// []
 //
 // ----------- app report
 // OnSendPacket (1)
