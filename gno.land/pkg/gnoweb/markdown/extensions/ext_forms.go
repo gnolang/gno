@@ -1,4 +1,4 @@
-package markdown
+package extensions
 
 import (
 	"bytes"
@@ -261,7 +261,7 @@ func (p *formParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 	}
 
 	fn.RenderPath, _ = ExtractAttr(tok.Attr, "path")
-	if gnourl, ok := getUrlFromContext(pc); ok {
+	if gnourl, ok := GetUrlFromContext(pc); ok {
 		fn.RealmName = gnourl.Path // Use full path instead of just namespace
 	}
 

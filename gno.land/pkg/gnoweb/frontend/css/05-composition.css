@@ -111,7 +111,8 @@
 
 /* ===== REALM VIEW ===== */
 .c-realm-view,
-.c-readme-view {
+.c-readme-view,
+.c-function-view {
 	--cr-px-base: var(--g-px-base);
 	--cr-space-mult: 1;
 	--cr-space-base: calc(1em / var(--g-space-mult) * var(--cr-space-mult));

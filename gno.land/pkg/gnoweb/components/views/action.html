@@ -97,7 +97,7 @@ UI - Help Function component
     </header>
 
     {{ with .Doc }}
-    <p class="description">{{ . }}</p>
+    <div class="c-function-view">{{ noescape_string . }}</div>
     {{ end }}
     <form class="params">
       {{- with .Params }}

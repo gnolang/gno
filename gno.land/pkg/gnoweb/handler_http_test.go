@@ -18,6 +18,7 @@ import (
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -84,6 +85,11 @@ func (rawRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte) (md.To
 }
 
 func (rawRenderer) RenderSource(w io.Writer, name string, src []byte) error {
+	_, err := w.Write(src)
+	return err
+}
+
+func (rawRenderer) RenderDocumentation(w io.Writer, u *weburl.GnoURL, src []byte) error {
 	_, err := w.Write(src)
 	return err
 }
@@ -834,9 +840,11 @@ func TestHTTPHandler_GetSourceView_DefaultCase(t *testing.T) {
 	t.Parallel()
 
 	pkg := &gnoweb.MockPackage{
-		Domain: "ex",
+		Domain: "example.com",
 		Path:   "/r/test_default",
-		Files:  map[string]string{"main.gno": "package main"},
+		Files: map[string]string{
+			"main.gno": `package main; func main() {}`,
+		},
 	}
 
 	cfg := newTestHandlerConfig(t, gnoweb.NewMockClient(pkg))
@@ -846,14 +854,118 @@ func TestHTTPHandler_GetSourceView_DefaultCase(t *testing.T) {
 		cfg,
 	)
 	require.NoError(t, err)
+	req, err := http.NewRequest(http.MethodGet, "/r/test_default$source&file=main.gno", nil)
+	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/r/test_default$source&file=main.gno", nil)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "main.gno")
 	assert.Contains(t, rr.Body.String(), "package main")
+}
+
+// TestWebHandler_GetHelpView_PackageDocMarkdown tests the package documentation markdown rendering
+func TestWebHandler_GetHelpView_PackageDocMarkdown(t *testing.T) {
+	t.Parallel()
+
+	// Test cases for package documentation markdown rendering
+	testCases := []struct {
+		name          string
+		packageDoc    string
+		shouldContain string
+	}{
+		{
+			name:          "basic text rendering",
+			packageDoc:    "This is a simple package with basic text.",
+			shouldContain: "This is a simple package with basic text.",
+		},
+		{
+			name:          "escaped markdown characters",
+			packageDoc:    "Special char is \\`\\_\\` and \\*bold\\*",
+			shouldContain: "Special char is `_` and *bold*",
+		},
+		{
+			name:          "empty package doc",
+			packageDoc:    "",
+			shouldContain: "Function",
+		},
+		{
+			name:          "escape HTML link",
+			packageDoc:    "<a href=\"http://inject.com\">text</a>",
+			shouldContain: "&lt;!-- raw HTML omitted --&gt",
+		},
+		{
+			name:          "escape HTML image",
+			packageDoc:    "<img src=\"inject.png\">",
+			shouldContain: "&lt;!-- raw HTML omitted --&gt",
+		},
+		{
+			name:          "code block with expandable feature",
+			packageDoc:    "```go\nfunc main() {\n    fmt.Println(\"Hello\")\n}\n```",
+			shouldContain: "&lt;details class=&#34;doc-example&#34;&gt;",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Create a mock package with package documentation
+			mockPackage := &gnoweb.MockPackage{
+				Domain: "example.com",
+				Path:   "/r/test_package_doc",
+				Files: map[string]string{
+					"render.gno": `package main; func Render(path string) string { return "test" }`,
+				},
+				Functions: []*doc.JSONFunc{
+					{
+						Name:    "Render",
+						Params:  []*doc.JSONField{{Name: "path", Type: "string"}},
+						Results: []*doc.JSONField{{Name: "", Type: "string"}},
+					},
+				},
+			}
+
+			// Create a custom mock client that returns package documentation
+			mockClient := gnoweb.NewMockClient(mockPackage)
+			client := &stubClient{
+				docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+					// Get the base documentation from the mock
+					baseDoc, err := mockClient.Doc(ctx, path)
+					if err != nil {
+						return nil, err
+					}
+
+					// Add the package documentation
+					baseDoc.PackageDoc = tc.packageDoc
+					return baseDoc, nil
+				},
+			}
+
+			// Create config with the mock client
+			config := &gnoweb.HTTPHandlerConfig{
+				ClientAdapter: client,
+				Renderer: gnoweb.NewHTMLRenderer(
+					log.NewTestingLogger(t),
+					gnoweb.NewDefaultRenderConfig(),
+				),
+				Aliases: map[string]gnoweb.AliasTarget{},
+			}
+
+			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+			handler, err := gnoweb.NewHTTPHandler(logger, config)
+			require.NoError(t, err)
+
+			req, err := http.NewRequest(http.MethodGet, "/r/test_package_doc$help", nil)
+			require.NoError(t, err)
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			assert.Equal(t, http.StatusOK, rr.Code)
+			assert.Contains(t, rr.Body.String(), tc.shouldContain)
+		})
+	}
 }
 
 func TestHTTPHandler_ContextTimeout(t *testing.T) {

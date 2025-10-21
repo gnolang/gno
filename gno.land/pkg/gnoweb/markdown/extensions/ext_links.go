@@ -1,4 +1,4 @@
-package markdown
+package extensions
 
 import (
 	"errors"
@@ -89,7 +89,7 @@ type linkTransformer struct{}
 
 // Transform replaces ast.Link nodes with GnoLink nodes in two passes.
 func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
-	orig, ok := getUrlFromContext(pc)
+	orig, ok := GetUrlFromContext(pc)
 	if !ok {
 		return
 	}

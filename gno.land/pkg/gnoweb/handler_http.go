@@ -456,6 +456,16 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		}
 	}
 
+	// Render package documentation from markdown to HTML
+	packageDocHTML := h.RenderDocumentation(jdoc.PackageDoc, gnourl)
+
+	// Render function documentation from markdown to HTML
+	for _, fn := range fsigs {
+		if fn.Doc != "" {
+			fn.Doc = h.RenderDocumentation(fn.Doc, gnourl)
+		}
+	}
+
 	realmName := path.Base(gnourl.Path)
 	return http.StatusOK, components.HelpView(components.HelpData{
 		SelectedFunc: selFn,
@@ -467,7 +477,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
 		Remote:    h.Static.RemoteHelp,
 		Functions: fsigs,
-		Doc:       jdoc.PackageDoc,
+		Doc:       packageDocHTML,
 		Domain:    h.Static.Domain,
 	})
 }
@@ -730,4 +740,20 @@ func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 	}
 
 	return data
+}
+
+// RenderDocumentation renders markdown documentation to HTML
+func (h *HTTPHandler) RenderDocumentation(markdown string, gnourl *weburl.GnoURL) string {
+	if markdown == "" {
+		return ""
+	}
+
+	// Use the dedicated documentation renderer
+	var buf bytes.Buffer
+	if err := h.Renderer.RenderDocumentation(&buf, gnourl, []byte(markdown)); err != nil {
+		h.Logger.Warn("unable to render markdown documentation", "error", err)
+		return markdown // fallback to raw markdown
+	}
+
+	return buf.String()
 }

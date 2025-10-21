@@ -10,10 +10,10 @@ import (
 	"github.com/alecthomas/chroma/v2"
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/lexers"
+	chromaconfig "github.com/gnolang/gno/gno.land/pkg/gnoweb/chroma"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/yuin/goldmark"
-	markdown "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 )
@@ -22,6 +22,7 @@ import (
 type Renderer interface {
 	RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte) (md.Toc, error)
 	RenderSource(w io.Writer, name string, src []byte) error
+	RenderDocumentation(w io.Writer, u *weburl.GnoURL, src []byte) error
 }
 
 // HTMLRenderer implements the Renderer interface for HTML output.
@@ -29,31 +30,36 @@ type HTMLRenderer struct {
 	logger *slog.Logger
 	cfg    *RenderConfig
 
-	gm goldmark.Markdown
-	ch *chromahtml.Formatter
+	// Separate Goldmark instances for different contexts
+	realmGM         goldmark.Markdown // For realm rendering
+	documentationGM goldmark.Markdown // For documentation rendering
+	ch              *chromahtml.Formatter
+	chromaStyle     *chroma.Style
 }
 
 func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig) *HTMLRenderer {
-	gmOpts := append(cfg.GoldmarkOptions, goldmark.WithExtensions(
-		markdown.NewHighlighting(
-			markdown.WithFormatOptions(cfg.ChromaOptions...), // force using chroma config
-		),
-	))
+	// Use shared Chroma components
+	chromaFormatter, chromaStyle := chromaconfig.GetSharedChromaComponents()
+
 	return &HTMLRenderer{
 		logger: logger,
 		cfg:    &cfg,
-		gm:     goldmark.New(gmOpts...),
-		ch:     chromahtml.New(cfg.ChromaOptions...),
+		// Create dedicated instances for each context
+		realmGM:         goldmark.New(NewRealmGoldmarkOptions()...),
+		documentationGM: goldmark.New(NewDocumentationGoldmarkOptions()...),
+		ch:              chromaFormatter,
+		chromaStyle:     chromaStyle,
 	}
 }
 
 // RenderRealm renders a realm to HTML and returns a table of contents.
 func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte) (md.Toc, error) {
+	// Use the dedicated realm Goldmark instance (pre-created for performance)
 	ctx := md.NewGnoParserContext(u)
 
 	// Use Goldmark for Markdown parsing
-	doc := r.gm.Parser().Parse(text.NewReader(src), parser.WithContext(ctx))
-	if err := r.gm.Renderer().Render(w, src, doc); err != nil {
+	doc := r.realmGM.Parser().Parse(text.NewReader(src), parser.WithContext(ctx))
+	if err := r.realmGM.Renderer().Render(w, src, doc); err != nil {
 		return md.Toc{}, fmt.Errorf("unable to render markdown at path %q: %w", u.Path, err)
 	}
 
@@ -92,8 +98,22 @@ func (r *HTMLRenderer) RenderSource(w io.Writer, name string, src []byte) error 
 		return fmt.Errorf("unable to tokenise %q: %w", name, err)
 	}
 
-	if err := r.ch.Format(w, r.cfg.ChromaStyle, iterator); err != nil {
+	if err := r.ch.Format(w, r.chromaStyle, iterator); err != nil {
 		return fmt.Errorf("unable to format source file %q: %w", name, err)
+	}
+
+	return nil
+}
+
+// RenderDocumentation renders documentation with expandable code blocks enabled
+func (r *HTMLRenderer) RenderDocumentation(w io.Writer, u *weburl.GnoURL, src []byte) error {
+	// Use the dedicated documentation Goldmark instance
+	ctx := md.NewGnoParserContext(u)
+
+	// Parse and render the markdown with context
+	doc := r.documentationGM.Parser().Parse(text.NewReader(src), parser.WithContext(ctx))
+	if err := r.documentationGM.Renderer().Render(w, src, doc); err != nil {
+		return fmt.Errorf("unable to render documentation: %w", err)
 	}
 
 	return nil
@@ -101,5 +121,5 @@ func (r *HTMLRenderer) RenderSource(w io.Writer, name string, src []byte) error 
 
 // WriteChromaCSS writes the CSS for syntax highlighting to the provided writer.
 func (r *HTMLRenderer) WriteChromaCSS(w io.Writer) error {
-	return r.ch.WriteCSS(w, r.cfg.ChromaStyle)
+	return r.ch.WriteCSS(w, r.chromaStyle)
 }

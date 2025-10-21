@@ -1,4 +1,4 @@
-package markdown
+package extensions
 
 import (
 	"bytes"
@@ -66,8 +66,8 @@ func GetWordArticle(word string) string {
 	return "a"
 }
 
-// nodeText returns the text content of a node, recursively.
-func nodeText(src []byte, n ast.Node) []byte {
+// NodeText returns the text content of a node, recursively.
+func NodeText(src []byte, n ast.Node) []byte {
 	var buf bytes.Buffer
 	writeNodeText(src, &buf, n)
 	return buf.Bytes()

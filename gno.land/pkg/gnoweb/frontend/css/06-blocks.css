@@ -1200,9 +1200,15 @@ pre.chroma-chroma {
 		}
 	}
 
-	.description {
+	.c-function-view {
+		--g-space-mult: 6;
 		color: var(--s-color-text-secondary);
-		font-size: var(--g-font-size-200);
+		font-size: var(--g-font-size-100);
+		padding-block-start: 0;
+
+		h3 {
+			font-size: var(--g-font-size-200);
+		}
 	}
 
 	.params {
@@ -1788,7 +1794,8 @@ pre.chroma-chroma {
 
 /* ===== GNO REALM VIEW COMPONENT ===== */
 .c-realm-view,
-.c-readme-view {
+.c-readme-view,
+.c-function-view {
 	/* ===== COLUMNS COMPONENT ===== */
 	.gno-columns {
 		display: flex;

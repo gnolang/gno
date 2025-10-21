@@ -1,12 +1,16 @@
 package doc
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/doc"
+	"go/doc/comment"
 	"go/format"
 	"go/printer"
 	"go/token"
+	"io"
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -112,10 +116,19 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 	}
 	file := ast.MergePackageFiles(astpkg, 0)
 
+	// Create custom printer that doesn't generate heading IDs
+	printer := createCustomPrinter(pkg)
+
+	// Parse package documentation
+	var pkgDoc string
+	if pkg.Doc != "" {
+		pkgDoc = normalizedMarkdownPrinter(printer, pkg.Doc)
+	}
+
 	jsonDoc := &JSONDocumentation{
 		PackagePath: d.pkgData.dir.dir,
 		PackageLine: fmt.Sprintf("package %s // import %q", pkg.Name, pkg.ImportPath),
-		PackageDoc:  string(pkg.Markdown(pkg.Doc)),
+		PackageDoc:  pkgDoc,
 		Values:      []*JSONValueDecl{},
 		Funcs:       []*JSONFunc{},
 		Types:       []*JSONType{},
@@ -128,20 +141,24 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 	}
 
 	for _, value := range pkg.Consts {
+		var p comment.Parser
+		doc := p.Parse(value.Doc)
 		jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
 			Signature: mustFormatNode(d.pkgData.fset, value.Decl, opt.Source, file),
 			Const:     true,
-			Values:    d.extractValueSpecs(pkg, value.Decl.Specs),
-			Doc:       string(pkg.Markdown(value.Doc)),
+			Values:    d.extractValueSpecs(value.Decl.Specs, printer),
+			Doc:       normalizedMarkdownPrinter(printer, doc),
 		})
 	}
 
 	for _, value := range pkg.Vars {
+		var p comment.Parser
+		doc := p.Parse(value.Doc)
 		jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
 			Signature: mustFormatNode(d.pkgData.fset, value.Decl, opt.Source, file),
 			Const:     false,
-			Values:    d.extractValueSpecs(pkg, value.Decl.Specs),
-			Doc:       string(pkg.Markdown(value.Doc)),
+			Values:    d.extractValueSpecs(value.Decl.Specs, printer),
+			Doc:       normalizedMarkdownPrinter(printer, doc),
 		})
 	}
 
@@ -151,7 +168,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 			Name:      fun.Name,
 			Crossing:  isCrossing(params),
 			Signature: mustFormatNode(d.pkgData.fset, fun.Decl, opt.Source, file),
-			Doc:       string(pkg.Markdown(fun.Doc)),
+			Doc:       normalizedMarkdownPrinter(printer, fun.Doc),
 			Params:    params,
 			Results:   d.extractJSONFields(fun.Decl.Type.Results),
 		})
@@ -244,7 +261,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 		jsonDoc.Types = append(jsonDoc.Types, &JSONType{
 			Name:       typ.Name,
 			Type:       mustFormatNode(d.pkgData.fset, typeExpr, false, file),
-			Doc:        string(pkg.Markdown(typ.Doc)),
+			Doc:        normalizedMarkdownPrinter(printer, typ.Doc),
 			Alias:      typeSpec.Assign != 0,
 			Kind:       kind,
 			InterElems: interElems,
@@ -253,19 +270,23 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 
 		// values of this type
 		for _, c := range typ.Consts {
+			var p comment.Parser
+			doc := p.Parse(c.Doc)
 			jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
 				Signature: mustFormatNode(d.pkgData.fset, c.Decl, opt.Source, file),
 				Const:     true,
-				Values:    d.extractValueSpecs(pkg, c.Decl.Specs),
-				Doc:       string(pkg.Markdown(c.Doc)),
+				Values:    d.extractValueSpecs(c.Decl.Specs, printer),
+				Doc:       normalizedMarkdownPrinter(printer, doc),
 			})
 		}
 		for _, v := range typ.Vars {
+			var p comment.Parser
+			doc := p.Parse(v.Doc)
 			jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
 				Signature: mustFormatNode(d.pkgData.fset, v.Decl, opt.Source, file),
 				Const:     false,
-				Values:    d.extractValueSpecs(pkg, v.Decl.Specs),
-				Doc:       string(pkg.Markdown(v.Doc)),
+				Values:    d.extractValueSpecs(v.Decl.Specs, printer),
+				Doc:       normalizedMarkdownPrinter(printer, doc),
 			})
 		}
 
@@ -276,7 +297,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 				Name:      fun.Name,
 				Crossing:  isCrossing(params),
 				Signature: mustFormatNode(d.pkgData.fset, fun.Decl, opt.Source, file),
-				Doc:       string(pkg.Markdown(fun.Doc)),
+				Doc:       normalizedMarkdownPrinter(printer, fun.Doc),
 				Params:    params,
 				Results:   d.extractJSONFields(fun.Decl.Type.Results),
 			})
@@ -289,7 +310,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 				Name:      meth.Name,
 				Crossing:  isCrossing(params),
 				Signature: mustFormatNode(d.pkgData.fset, meth.Decl, opt.Source, file),
-				Doc:       string(pkg.Markdown(meth.Doc)),
+				Doc:       normalizedMarkdownPrinter(printer, meth.Doc),
 				Params:    params,
 				Results:   d.extractJSONFields(meth.Decl.Type.Results),
 			})
@@ -297,6 +318,106 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 	}
 
 	return jsonDoc, nil
+}
+
+// createCustomPrinter creates a printer that doesn't generate heading IDs
+// and handles backslash escaping properly
+func createCustomPrinter(pkg *doc.Package) *comment.Printer {
+	printer := pkg.Printer()
+	printer.HeadingID = func(h *comment.Heading) string {
+		return "" // Return empty string to omit heading IDs
+	}
+	return printer
+}
+
+// normalizedMarkdownPrinter converts a doc comment to markdown without double backslashes
+// and converts indented code blocks to fenced code blocks for Chroma syntax highlighting
+func normalizedMarkdownPrinter(printer *comment.Printer, doc interface{}) string {
+	if doc == "" {
+		return ""
+	}
+
+	var md string
+	switch d := doc.(type) {
+	case string:
+		if d == "" {
+			return ""
+		}
+		var p comment.Parser
+		parsedDoc := p.Parse(d)
+		md = string(printer.Markdown(parsedDoc))
+	case *comment.Doc:
+		md = string(printer.Markdown(d))
+	default:
+		return ""
+	}
+
+	md = convertIndentedCodeBlocksToFenced(md)
+
+	return md
+}
+
+// convertIndentedCodeBlocksToFenced converts 4-space indented code blocks to fenced code blocks
+// This is needed because Chroma only works with fenced code blocks, not indented ones
+func convertIndentedCodeBlocksToFenced(markdown string) string {
+	var buf bytes.Buffer
+	reader := strings.NewReader(markdown)
+
+	if err := normalizeCodeBlockStream(reader, &buf); err != nil {
+		// If conversion fails, return original markdown
+		return markdown
+	}
+
+	return buf.String()
+}
+
+// normalizeCodeBlockStream converts indented code blocks to fenced code blocks using streams
+func normalizeCodeBlockStream(r io.Reader, w io.Writer) error {
+	scanner := bufio.NewScanner(r)
+	writer := bufio.NewWriter(w)
+	defer writer.Flush()
+
+	inCode := false
+	write := func(s string) error { _, err := writer.WriteString(s + "\n"); return err }
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		isCode := strings.HasPrefix(line, "\t") || (len(line) >= 4 && line[:4] == "    ")
+
+		if isCode && !inCode {
+			if err := write("```go"); err != nil {
+				return err
+			}
+			inCode = true
+		}
+		if !isCode && inCode {
+			if err := write("```"); err != nil {
+				return err
+			}
+			inCode = false
+		}
+
+		if isCode {
+			if strings.HasPrefix(line, "\t") {
+				line = line[1:]
+			} else {
+				line = line[4:]
+			}
+		}
+		if err := write(line); err != nil {
+			return err
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("lecture failed: %w", err)
+	}
+	if inCode {
+		if err := write("```"); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (d *Documentable) extractJSONFields(fieldList *ast.FieldList) []*JSONField {
@@ -342,7 +463,7 @@ func (d *Documentable) extractJSONFields(fieldList *ast.FieldList) []*JSONField 
 	return results
 }
 
-func (d *Documentable) extractValueSpecs(pkg *doc.Package, specs []ast.Spec) []*JSONValue {
+func (d *Documentable) extractValueSpecs(specs []ast.Spec, printer *comment.Printer) []*JSONValue {
 	values := []*JSONValue{}
 
 	for _, value := range specs {
@@ -366,7 +487,7 @@ func (d *Documentable) extractValueSpecs(pkg *doc.Package, specs []ast.Spec) []*
 			jsonValue := &JSONValue{
 				Name: name.Name,
 				Type: typeString,
-				Doc:  string(pkg.Markdown(commentBuf.String())),
+				Doc:  normalizedMarkdownPrinter(printer, commentBuf.String()),
 			}
 			values = append(values, jsonValue)
 		}

@@ -3,6 +3,7 @@
 package markdown
 
 import (
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/extensions"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/util"
 )
@@ -104,7 +105,7 @@ func TocInspect(n ast.Node, src []byte, opts TocOptions) (Toc, error) {
 			target = appendChild(parent)
 		}
 
-		target.Title = util.UnescapePunctuations(nodeText(src, heading))
+		target.Title = util.UnescapePunctuations(extensions.NodeText(src, heading))
 
 		if id, ok := n.AttributeString("id"); ok {
 			target.ID, _ = id.([]byte)
