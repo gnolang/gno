@@ -1129,6 +1129,9 @@ func shouldSwapOnSpecificity(t1, t2 Type) bool {
 			return true // left empty interface
 		} else {
 			if it2, ok := baseOf(t2).(*InterfaceType); ok {
+				if it2.IsEmptyInterface() {
+					return false
+				}
 				// The more methods, the more specific.
 				return len(it1.Methods) < len(it2.Methods)
 			} else {
