@@ -11,19 +11,19 @@ import (
 	"gno.land/r/aib/ibc/core"
 )
 
-// Acknowledgement TODO
+// Acknowledgement success
 func main() {
 	var (
 		chainID        = "chain-id-2"
 		trustedHeight  = types.NewHeight(2, 2)
 		clientState    = tmtesting.NewClientState(chainID, trustedHeight)
-		apphash, _     = hex.DecodeString("7e2766f175b518c898ecd74c51e80bb1d892cd3ba5265af64bb39714417742e7")
+		apphash, _     = hex.DecodeString("8a69ba7fc634fdcd3e5b7356d39f226e6893316f90bd3a75be950c5543e621e5")
 		valset         = tmtesting.GenValset()
 		consensusState = tmtesting.GenConsensusState(time.Now(), apphash[:], valset.Hash())
 		counterpartyID = "07-tendermint-42"
 	)
 	clientID := core.CreateClient(cross, clientState, consensusState)
-	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, counterpartyID)
+	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("iavlStoreKey"), []byte("prefix2")}, counterpartyID)
 	// Register app
 	var (
 		app       = &ibctesting.App{}
@@ -62,8 +62,9 @@ func main() {
 		Acknowledgement: types.Acknowledgement{
 			AppAcknowledgements: [][]byte{[]byte("ack")},
 		},
-		// Generated from cosmos-sdk/store/rootmulti/proof_test.go:
+		// Create the proof (generated from https://github.com/tbruyelle/cosmos-sdk/blob/0b8e35b2962476e550918571daaeef7bf7e3ad40/store/rootmulti/proof_test.go#L63)
 		// ROOT 8a69ba7fc634fdcd3e5b7356d39f226e6893316f90bd3a75be950c5543e621e5
+		// iavlProof:
 		// KEY 7072656669783230372d74656e6465726d696e742d3432030000000000000001 "prefix207-tendermint-42\x03\x00\x00\x00\x00\x00\x00\x00\x01"
 		// VAL cf49bb81a77249af41ecbe7792d98ddf24b47b491a177ca5a8b1e82e2eaf011e
 		// 0 LEAF PREFIX 000202
@@ -73,6 +74,7 @@ func main() {
 		// 	1 OP SUFFIX 20798e2caa96fdfba376ddeb47999954d2f47e65162264b0536ab5dff7fc0a2e07
 		// 	2 OP PREFIX 060c02209af37dd595a0190803b5e05aaef42ae3fad499e4fbe37f7cd31cadff22a9ee7420
 		// 	2 OP SUFFIX
+		// rootmulti proof:
 		// KEY 6961766c53746f72654b6579 "iavlStoreKey"
 		// VAL fba7f41e4afa674eb64ccc33761c255cfb964147ede2893d7f51eb8fb1e4dea1
 		// 1 LEAF PREFIX 00
@@ -108,7 +110,43 @@ func main() {
 	res := core.Acknowledgement(cross, ackPacket)
 
 	println("res:", res)
+	println("\n----------- app report")
+	println(app.Report())
+
+	// assert NOOP response (res=1) if ack is resubmitted
+	res = core.Acknowledgement(cross, ackPacket)
+
+	println("res:", res)
 }
 
-// Error:
-// TODO
+// Output:
+// res: (2 gno.land/p/aib/ibc/types.ResponseResultType)
+//
+// ----------- app report
+// OnSendPacket (1)
+// - spendable: 0ugnot
+// - sourceClient: 07-tendermint-1
+// - destinationClient: 07-tendermint-42
+// - sequence: 1
+// - payload:
+//   - sourcePort: app
+//   - destinationPort: destinationPort
+//   - version: v1
+//   - encoding: application/json
+//   - value: {}
+//
+// OnRecvPacket (0)
+// OnTimeoutPacket (0)
+// OnAcknowledgementPacket (1)
+// - sourceClient: 07-tendermint-1
+// - destinationClient: 07-tendermint-42
+// - sequence: 1
+// - payload:
+//   - sourcePort: app
+//   - destinationPort: destinationPort
+//   - version: v1
+//   - encoding: application/json
+//   - value: {}
+//
+//
+// res: (1 gno.land/p/aib/ibc/types.ResponseResultType)

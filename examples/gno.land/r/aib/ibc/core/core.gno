@@ -162,10 +162,6 @@ func Acknowledgement(cur realm, msg types.MsgAcknowledgement) types.ResponseResu
 		merklePath = types.BuildMerklePath(c.counterpartyMerklePrefix, key)
 		value      = types.CommitAcknowledgement(msg.Acknowledgement)
 	)
-	ufmt.Printf("KEY %q\n", string(key))
-	ufmt.Printf("KEY %q\n", string(merklePath.KeyPath[0]))
-	ufmt.Printf("KEY %q\n", string(merklePath.KeyPath[1]))
-	ufmt.Printf("VAL %q\n", hex.EncodeToString(value))
 	if err := c.lightClient.VerifyMembership(
 		msg.ProofHeight, msg.ProofAcked, merklePath, value,
 	); err != nil {
@@ -187,7 +183,7 @@ func Acknowledgement(cur realm, msg types.MsgAcknowledgement) types.ResponseResu
 
 	// Invoke registed app OnAcknowledgementPacket() for each payload.SourcePort.
 	recvSuccess := !bytes.Equal(msg.Acknowledgement.AppAcknowledgements[0],
-		types.ErrorAcknowledgement[:])
+		types.ErrorAcknowledgement())
 	for i, payload := range msg.Packet.Payloads {
 		app := store.route(payload.SourcePort)
 		// if recv was successful, each payload should have its own acknowledgement
@@ -200,7 +196,7 @@ func Acknowledgement(cur realm, msg types.MsgAcknowledgement) types.ResponseResu
 		if recvSuccess {
 			ack = msg.Acknowledgement.AppAcknowledgements[i]
 		} else {
-			ack = types.ErrorAcknowledgement[:]
+			ack = types.ErrorAcknowledgement()
 		}
 		err := app.OnAcknowledgementPacket(
 			msg.Packet.SourceClient, c.counterpartyClientID, msg.Packet.Sequence,

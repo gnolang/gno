@@ -10,9 +10,8 @@ package types
 // Each element of the path represents the key of a merkle tree from the root
 // to the leaf.
 // The elements of the path before the final element must be the path to the
-// tree that contains
-// the ICS24 provable store. Thus, it should remain constant for all ICS24
-// proofs.
+// tree that contains the ICS24 provable store. Thus, it should remain constant
+// for all ICS24 proofs.
 // The final element of the path is the key of the leaf in the ICS24 provable
 // store, thus IBC core will append the ICS24 path to the final element of the
 // MerklePath stored in the counterparty to create the full path to the leaf

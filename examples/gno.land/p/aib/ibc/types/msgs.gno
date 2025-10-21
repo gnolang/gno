@@ -82,7 +82,10 @@ func (msg *MsgAcknowledgement) ValidateBasic() error {
 	return msg.Packet.ValidateBasic()
 }
 
-var ErrorAcknowledgement = sha256.Sum256([]byte("UNIVERSAL_ERROR_ACKNOWLEDGEMENT"))
+func ErrorAcknowledgement() []byte {
+	bz := sha256.Sum256([]byte("UNIVERSAL_ERROR_ACKNOWLEDGEMENT"))
+	return bz[:]
+}
 
 // Validate performs a basic validation of the acknowledgement
 func (ack Acknowledgement) Validate() error {
@@ -100,7 +103,7 @@ func (ack Acknowledgement) Validate() error {
 		// Ensure that the app acknowledgement contains ErrorAcknowledgement
 		// **if and only if** the app acknowledgement list has a single element
 		if len(ack.AppAcknowledgements) > 1 {
-			if bytes.Equal(a, ErrorAcknowledgement[:]) {
+			if bytes.Equal(a, ErrorAcknowledgement()) {
 				return errors.New("cannot have the error acknowledgement in multi acknowledgement list")
 			}
 		}
