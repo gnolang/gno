@@ -149,13 +149,14 @@ func (c *client) Render() *json.Node {
 	case lightclient.Tendermint:
 		lc := c.lightClient.(*tendermint.TMLightClient)
 		m["client_state"] = json.ObjectNode("", map[string]*json.Node{
-			"chain_id": json.StringNode("", lc.ClientState.ChainID),
-			"latest_height": json.ObjectNode("", map[string]*json.Node{
-				"revision_number": json.NumberNode("", float64(lc.LatestHeight().RevisionNumber)),
-				"revision_height": json.NumberNode("", float64(lc.LatestHeight().RevisionHeight)),
-			}),
+			"chain_id":         json.StringNode("", lc.ClientState.ChainID),
+			"latest_height":    renderHeight(lc.ClientState.LatestHeight),
+			"frozen_height":    renderHeight(lc.ClientState.FrozenHeight),
+			"trust_level":      renderFraction(lc.ClientState.TrustLevel),
 			"trusting_period":  json.StringNode("", lc.ClientState.TrustingPeriod.String()),
 			"unbonding_period": json.StringNode("", lc.ClientState.UnbondingPeriod.String()),
+			"max_clock_drift":  json.StringNode("", lc.ClientState.MaxClockDrift.String()),
+			"upgrade_path":     renderStrings(lc.ClientState.UpgradePath),
 		})
 		lastConsState, found := lc.GetConsensusState(lc.LatestHeight())
 		if found {
@@ -196,6 +197,21 @@ func renderHeight(h types.Height) *json.Node {
 		"revision_number": json.NumberNode("", float64(h.RevisionNumber)),
 		"revision_height": json.NumberNode("", float64(h.RevisionHeight)),
 	})
+}
+
+func renderFraction(f tendermint.Fraction) *json.Node {
+	return json.ObjectNode("", map[string]*json.Node{
+		"numerator":   json.NumberNode("", float64(f.Numerator)),
+		"denominator": json.NumberNode("", float64(f.Denominator)),
+	})
+}
+
+func renderStrings(s []string) *json.Node {
+	var nodes []*json.Node
+	for _, s := range s {
+		nodes = append(nodes, json.StringNode("", s))
+	}
+	return json.ArrayNode("", nodes)
 }
 
 func renderNode(w *mux.ResponseWriter, n *json.Node) {
