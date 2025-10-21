@@ -162,10 +162,10 @@ func Acknowledgement(cur realm, msg types.MsgAcknowledgement) types.ResponseResu
 		merklePath = types.BuildMerklePath(c.counterpartyMerklePrefix, key)
 		value      = types.CommitAcknowledgement(msg.Acknowledgement)
 	)
-	ufmt.Println("KEY", string(key))
-	ufmt.Println("KEY", string(merklePath.KeyPath[0]))
-	ufmt.Println("KEY", string(merklePath.KeyPath[1]))
-	ufmt.Println("VAL", hex.EncodeToString(value))
+	ufmt.Printf("KEY %q\n", string(key))
+	ufmt.Printf("KEY %q\n", string(merklePath.KeyPath[0]))
+	ufmt.Printf("KEY %q\n", string(merklePath.KeyPath[1]))
+	ufmt.Printf("VAL %q\n", hex.EncodeToString(value))
 	if err := c.lightClient.VerifyMembership(
 		msg.ProofHeight, msg.ProofAcked, merklePath, value,
 	); err != nil {
