@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"errors"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -143,8 +141,8 @@ func (cs ClientState) ValidateBasic() error {
 	}
 
 	// the latest height revision number must match the chain id revision number
-	if cs.LatestHeight.RevisionNumber != ParseChainID(cs.ChainID) {
-		return ufmt.Errorf("latest height revision number must match chain id revision number (%d != %d)", cs.LatestHeight.RevisionNumber, ParseChainID(cs.ChainID))
+	if cs.LatestHeight.RevisionNumber != types.ParseChainID(cs.ChainID) {
+		return ufmt.Errorf("latest height revision number must match chain id revision number (%d != %d)", cs.LatestHeight.RevisionNumber, types.ParseChainID(cs.ChainID))
 	}
 	if cs.LatestHeight.RevisionHeight == 0 {
 		return ufmt.Errorf("tendermint client's latest height revision height cannot be zero")
@@ -181,29 +179,6 @@ func ValidateTrustLevel(lvl Fraction) error {
 		return ufmt.Errorf("trustLevel must be within [1/3, 1], given %v", lvl)
 	}
 	return nil
-}
-
-// IsRevisionFormat checks if a chainID is in the format required for parsing revisions
-// The chainID must be in the form: `{chainID}-{revision}`.
-// 24-host may enforce stricter checks on chainID
-var IsRevisionFormat = regexp.MustCompile(`^.*[^\n-]-{1}[1-9][0-9]*$`).MatchString
-
-// ParseChainID is a utility function that returns a revision number from the given ChainID.
-// ParseChainID attempts to parse a chain id in the format: `{chainID}-{revision}`
-// and return the revisionnumber as a uint64.
-// If the chainID is not in the expected format, a default revision value of 0 is returned.
-func ParseChainID(chainID string) uint64 {
-	if !IsRevisionFormat(chainID) {
-		// chainID is not in revision format, return 0 as default
-		return 0
-	}
-	splitStr := strings.Split(chainID, "-")
-	revision, err := strconv.ParseUint(splitStr[len(splitStr)-1], 10, 64)
-	// sanity check: error should always be nil since regex only allows numbers in last element
-	if err != nil {
-		panic(ufmt.Errorf("regex allowed non-number value as last split element for chainID: %s", chainID))
-	}
-	return revision
 }
 
 // Implements lightclient.ConsensusState

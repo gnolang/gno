@@ -1,7 +1,6 @@
 package tendermint
 
 import (
-	"chain/runtime"
 	"errors"
 	"time"
 
@@ -25,14 +24,9 @@ func (tm *TMLightClient) Initialize(clientState lightclient.ClientState, consens
 	tm.ClientState = &cs
 	consState := consensusState.(ConsensusState)
 	consState.processedTime = time.Now()
-	consState.processedHeight = getSelfHeight()
+	consState.processedHeight = types.GetSelfHeight()
 	tm.ConsensusStateByHeight.Set(cs.LatestHeight.String(), &consState)
 	return nil
-}
-
-func getSelfHeight() types.Height {
-	revision := ParseChainID(runtime.ChainID())
-	return types.NewHeight(revision, uint64(runtime.ChainHeight()))
 }
 
 // Implements lightclient.Interface
@@ -103,7 +97,7 @@ func (tm *TMLightClient) UpdateState(clientMsg lightclient.ClientMessage) []type
 		Root:               NewMerkleRoot(msg.Header.AppHash),
 		NextValidatorsHash: msg.Header.NextValidatorsHash,
 		processedTime:      time.Now(),
-		processedHeight:    getSelfHeight(),
+		processedHeight:    types.GetSelfHeight(),
 	}
 	tm.ConsensusStateByHeight.Set(msgHeight.String(), consState)
 	return []types.Height{msgHeight}

@@ -151,7 +151,7 @@ func (h MsgHeader) ConsensusState() ConsensusState {
 // header is nil.
 // NOTE: the header.Header is checked to be non nil in ValidateBasic.
 func (h MsgHeader) GetHeight() types.Height {
-	revision := ParseChainID(h.Header.ChainID)
+	revision := types.ParseChainID(h.Header.ChainID)
 	return types.NewHeight(revision, h.Header.Height)
 }
 
