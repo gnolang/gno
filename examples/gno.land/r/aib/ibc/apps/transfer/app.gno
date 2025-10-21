@@ -163,7 +163,38 @@ func (a *App) OnAcknowledgementPacket(
 	if err := data.ValidateBasic(); err != nil {
 		return ufmt.Errorf("invalid FungibleTokenPacketData: %v", err)
 	}
-	// TODO refund the amount if ack is an error
+	denom := ExtractDenomFromPath(data.Denom)
+	if strings.Contains(denom.Base, "/") {
+		return ufmt.Errorf("base denomination %s cannot contain slashes for IBC v2 packet", denom.Base)
+	}
+	token := Token{Denom: denom, Amount: data.Amount}
+
+	if ack.Success() {
+		// the acknowledgement succeeded on the receiving chain so nothing
+		// needs to be executed and no error needs to be returned
+	} else {
+		// TODO refund
+		panic("ack refund not implemented")
+	}
+
+	// Emit events
+	chain.Emit(EventTypePacket,
+		AttributeKeySender, data.Sender,
+		AttributeKeyReceiver, data.Receiver,
+		AttributeKeyDenom, token.Denom.Path(),
+		AttributeKeyAmount, token.Amount,
+		AttributeKeyMemo, data.Memo,
+		AttributeKeyAck, string(acknowledgement),
+	)
+	if ack.Success() {
+		chain.Emit(EventTypePacket,
+			AttributeKeyAckSuccess, string(ack.Response.Result),
+		)
+	} else {
+		chain.Emit(EventTypePacket,
+			AttributeKeyAckError, ack.Response.Error,
+		)
+	}
 	panic("transfer.OnAcknowledgementPacket not implemented")
 
 }

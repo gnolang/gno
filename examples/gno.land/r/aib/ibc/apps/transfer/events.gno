@@ -2,11 +2,10 @@ package transfer
 
 // IBC transfer events
 const (
-	EventTypeTimeout      = "timeout"
-	EventTypePacket       = "fungible_token_packet"
-	EventTypeTransfer     = "ibc_transfer"
-	EventTypeChannelClose = "channel_closed"
-	EventTypeDenom        = "denomination"
+	EventTypeTimeout  = "timeout"
+	EventTypePacket   = "fungible_token_packet"
+	EventTypeTransfer = "ibc_transfer"
+	EventTypeDenom    = "denomination"
 
 	AttributeKeySender         = "sender"
 	AttributeKeyReceiver       = "receiver"
