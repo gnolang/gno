@@ -1,6 +1,8 @@
 package types
 
 import (
+	"chain/runtime"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -112,4 +114,37 @@ func (h Height) Compare(height Height) int64 {
 		return 1
 	}
 	return 0
+}
+
+// GetSelfHeight is a utility function that returns self height given context.
+// Revision number is retrieved from runtime.ChainID()
+func GetSelfHeight() Height {
+	revision := ParseChainID(runtime.ChainID())
+	return NewHeight(revision, uint64(runtime.ChainHeight()))
+}
+
+// IsRevisionFormat checks if a chainID is in the format required for parsing
+// revisions
+// The chainID must be in the form: `{chainID}-{revision}`.
+// 24-host may enforce stricter checks on chainID
+var IsRevisionFormat = regexp.MustCompile(`^.*[^\n-]-{1}[1-9][0-9]*$`).MatchString
+
+// ParseChainID is a utility function that returns a revision number from the
+// given ChainID.
+// ParseChainID attempts to parse a chain id in the format:
+// `{chainID}-{revision}` and return the revisionnumber as a uint64.
+// If the chainID is not in the expected format, a default revision value of 0
+// is returned.
+func ParseChainID(chainID string) uint64 {
+	if !IsRevisionFormat(chainID) {
+		// chainID is not in revision format, return 0 as default
+		return 0
+	}
+	splitStr := strings.Split(chainID, "-")
+	revision, err := strconv.ParseUint(splitStr[len(splitStr)-1], 10, 64)
+	// sanity check: error should always be nil since regex only allows numbers in last element
+	if err != nil {
+		panic(ufmt.Errorf("regex allowed non-number value as last split element for chainID: %s", chainID))
+	}
+	return revision
 }
