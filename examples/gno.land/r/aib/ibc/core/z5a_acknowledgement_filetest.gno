@@ -117,6 +117,8 @@ func main() {
 	res = core.Acknowledgement(cross, ackPacket)
 
 	println("res:", res)
+	println("\n----------- app report")
+	println(app.Report())
 }
 
 // Output:
@@ -150,3 +152,103 @@ func main() {
 //
 //
 // res: (1 gno.land/p/aib/ibc/types.ResponseResultType)
+//
+// ----------- app report
+// OnSendPacket (1)
+// - spendable: 0ugnot
+// - sourceClient: 07-tendermint-1
+// - destinationClient: 07-tendermint-42
+// - sequence: 1
+// - payload:
+//   - sourcePort: app
+//   - destinationPort: destinationPort
+//   - version: v1
+//   - encoding: application/json
+//   - value: {}
+//
+// OnRecvPacket (0)
+// OnTimeoutPacket (0)
+// OnAcknowledgementPacket (1)
+// - sourceClient: 07-tendermint-1
+// - destinationClient: 07-tendermint-42
+// - sequence: 1
+// - payload:
+//   - sourcePort: app
+//   - destinationPort: destinationPort
+//   - version: v1
+//   - encoding: application/json
+//   - value: {}
+
+// Events:
+// [
+//   {
+//     "type": "create_client",
+//     "attrs": [
+//       {
+//         "key": "client_id",
+//         "value": "07-tendermint-1"
+//       },
+//       {
+//         "key": "client_type",
+//         "value": "07-tendermint"
+//       },
+//       {
+//         "key": "consensus_heights",
+//         "value": "2/2"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/aib/ibc/core"
+//   },
+//   {
+//     "type": "send_packet",
+//     "attrs": [
+//       {
+//         "key": "packet_source_client",
+//         "value": "07-tendermint-1"
+//       },
+//       {
+//         "key": "packet_dest_client",
+//         "value": "07-tendermint-42"
+//       },
+//       {
+//         "key": "packet_sequence",
+//         "value": "1"
+//       },
+//       {
+//         "key": "packet_timeout_timestamp",
+//         "value": "1234571490"
+//       },
+//       {
+//         "key": "encoded_packet_hex",
+//         "value": "0801120f30372d74656e6465726d696e742d311a1030372d74656e6465726d696e742d343220e2a1d8cc042a300a03617070120f64657374696e6174696f6e506f72741a02763122106170706c69636174696f6e2f6a736f6e2a027b7d"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/aib/ibc/core"
+//   },
+//   {
+//     "type": "acknowledge_packet",
+//     "attrs": [
+//       {
+//         "key": "packet_source_client",
+//         "value": "07-tendermint-1"
+//       },
+//       {
+//         "key": "packet_dest_client",
+//         "value": "07-tendermint-42"
+//       },
+//       {
+//         "key": "packet_sequence",
+//         "value": "1"
+//       },
+//       {
+//         "key": "packet_timeout_timestamp",
+//         "value": "1234571490"
+//       },
+//       {
+//         "key": "encoded_packet_hex",
+//         "value": "0801120f30372d74656e6465726d696e742d311a1030372d74656e6465726d696e742d343220e2a1d8cc042a300a03617070120f64657374696e6174696f6e506f72741a02763122106170706c69636174696f6e2f6a736f6e2a027b7d"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/aib/ibc/core"
+//   }
+// ]
