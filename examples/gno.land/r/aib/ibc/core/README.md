@@ -41,6 +41,10 @@ Emitted event:
 }
 ```
 
+## RegisterCounterparty
+
+See [`zz_register_counterparty_example_filetest.gno`](./zz_register_counterparty_example_filetest.gno)
+
 ## UpdateClient
 
 See [`zz_update_client_example_filetest.gno`](./zz_update_client_example_filetest.gno)
