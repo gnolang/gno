@@ -76,7 +76,6 @@ func testDocGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, [
 }
 
 func TestGeneralExtensions(t *testing.T) {
-	flag.Parse()
 	gold := NewGoldentTests(testRealmGoldmarkOutput)
 	gold.Update = *update
 	gold.Recurse = true
@@ -94,7 +93,6 @@ func testRealmGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string,
 }
 
 func TestDocExtensions(t *testing.T) {
-	flag.Parse()
 	gold := NewGoldentTests(testDocGoldmarkOutput)
 	gold.Update = *update
 	gold.Recurse = true

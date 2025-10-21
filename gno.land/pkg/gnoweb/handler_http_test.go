@@ -892,17 +892,17 @@ func TestWebHandler_GetHelpView_PackageDocMarkdown(t *testing.T) {
 		{
 			name:          "escape HTML link",
 			packageDoc:    "<a href=\"http://inject.com\">text</a>",
-			shouldContain: "<!-- raw HTML omitted -->",
+			shouldContain: "&lt;!-- raw HTML omitted --&gt",
 		},
 		{
 			name:          "escape HTML image",
 			packageDoc:    "<img src=\"inject.png\">",
-			shouldContain: "<!-- raw HTML omitted -->",
+			shouldContain: "&lt;!-- raw HTML omitted --&gt",
 		},
 		{
 			name:          "code block with expandable feature",
 			packageDoc:    "```go\nfunc main() {\n    fmt.Println(\"Hello\")\n}\n```",
-			shouldContain: "<details class=\"doc-example\">",
+			shouldContain: "&lt;details class=&#34;doc-example&#34;&gt;",
 		},
 	}
 
