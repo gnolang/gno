@@ -1,6 +1,7 @@
 package transfer
 
 import (
+	"bytes"
 	"chain"
 	"chain/banker"
 	"chain/runtime"
@@ -141,5 +142,28 @@ func (a *App) OnAcknowledgementPacket(
 	acknowledgement []byte,
 	payload types.Payload,
 ) error {
+	var ack types.AppAcknowledgement
+	// construct an error acknowledgement if the acknowledgement bytes are the sentinel error acknowledgement so we can use the shared transfer logic
+	if bytes.Equal(acknowledgement, types.UniversalErrorAcknowledgement()) {
+		// the specific error does not matter
+		ack = types.NewErrorAppAcknowledgement()
+	} else {
+		if err := ack.UnmarshalJSON(acknowledgement); err != nil {
+			return ufmt.Errorf("cannot unmarshal ICS-20 transfer packet acknowledgement: %v", err)
+		}
+		if !ack.Success() {
+			return ufmt.Errorf("cannot pass in a custom error acknowledgement with IBC v2")
+		}
+	}
+
+	var data FungibleTokenPacketData
+	if err := data.ProtoUnmarshal(payload.Value); err != nil {
+		return ufmt.Errorf("decoding FungibleTokenPacketData: %v", err)
+	}
+	if err := data.ValidateBasic(); err != nil {
+		return ufmt.Errorf("invalid FungibleTokenPacketData: %v", err)
+	}
+	// TODO refund the amount if ack is an error
 	panic("transfer.OnAcknowledgementPacket not implemented")
+
 }
