@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/base64"
+	"time"
 
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/lightclient/tendermint"
@@ -153,9 +154,9 @@ func (c *client) Render() *json.Node {
 			"latest_height":    renderHeight(lc.ClientState.LatestHeight),
 			"frozen_height":    renderHeight(lc.ClientState.FrozenHeight),
 			"trust_level":      renderFraction(lc.ClientState.TrustLevel),
-			"trusting_period":  json.StringNode("", lc.ClientState.TrustingPeriod.String()),
-			"unbonding_period": json.StringNode("", lc.ClientState.UnbondingPeriod.String()),
-			"max_clock_drift":  json.StringNode("", lc.ClientState.MaxClockDrift.String()),
+			"trusting_period":  renderDuration(lc.ClientState.TrustingPeriod),
+			"unbonding_period": renderDuration(lc.ClientState.UnbondingPeriod),
+			"max_clock_drift":  renderDuration(lc.ClientState.MaxClockDrift),
 			"upgrade_path":     renderStrings(lc.ClientState.UpgradePath),
 		})
 		lastConsState, found := lc.GetConsensusState(lc.LatestHeight())
@@ -204,6 +205,10 @@ func renderFraction(f tendermint.Fraction) *json.Node {
 		"numerator":   json.NumberNode("", float64(f.Numerator)),
 		"denominator": json.NumberNode("", float64(f.Denominator)),
 	})
+}
+
+func renderDuration(d time.Duration) *json.Node {
+	return json.NumberNode("", d.Seconds())
 }
 
 func renderStrings(s []string) *json.Node {
