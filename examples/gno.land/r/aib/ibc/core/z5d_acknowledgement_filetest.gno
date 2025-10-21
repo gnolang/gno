@@ -12,7 +12,7 @@ import (
 	"gno.land/r/aib/ibc/core"
 )
 
-// Acknowledgement client not found
+// Acknowledgement status not active
 func main() {
 	var (
 		chainID        = "chain-id-2"
