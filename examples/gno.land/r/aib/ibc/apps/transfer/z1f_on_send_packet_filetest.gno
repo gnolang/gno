@@ -60,4 +60,4 @@ func main() {
 }
 
 // Error:
-// send packet failed for app transfer: send coins: spendLimit 10ugnot exceeded for coins 100ugnot
+// spendLimit 10ugnot exceeded for coins 100ugnot
