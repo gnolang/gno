@@ -20,6 +20,17 @@ func main() {
 		},
 	}
 
+	// NOTE: if the target app requires funds like the transfer app, the sent
+	// coins must be transfered to the `r/aib/ibc/core` realm before calling
+	// `core.SendPacket`. Uncomment the following code to do that.
+	//
+	// Send the coins sent to this realm to the r/aib/ibc/core realm
+	// bank := banker.NewBanker(banker.BankerTypeRealmSend)
+	// ibcCoreAddr := chain.PackageAddress("gno.land/r/aib/ibc/core")
+	// bank.SendCoins(
+	// runtime.CurrentRealm().Address(), ibcCoreAddr, banker.OriginSend(),
+	// )
+
 	sequence := core.SendPacket(cross, packet)
 
 	println(sequence)
