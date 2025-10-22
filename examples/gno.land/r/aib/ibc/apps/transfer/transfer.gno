@@ -57,3 +57,7 @@ func GetEscrowAddress(clientID string) address {
 	}
 	return address(addr)
 }
+
+func Render(_ string) string {
+	return "hello transfer app"
+}

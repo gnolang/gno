@@ -118,7 +118,7 @@ func TestClientStateValidateBasic(t *testing.T) {
 		},
 		{
 			name:        "proof specs contains nil",
-			clientState: tendermint.NewClientState(chainID, tendermint.DefaultTrustLevel, trustingPeriod, ubdPeriod, maxClockDrift, height, []*ics23.ProofSpec{ics23.TendermintSpec, nil}, upgradePath),
+			clientState: tendermint.NewClientState(chainID, tendermint.DefaultTrustLevel, trustingPeriod, ubdPeriod, maxClockDrift, height, []*ics23.ProofSpec{ics23.TendermintSpec(), nil}, upgradePath),
 			expErr:      "proof spec cannot be nil at index: 1",
 		},
 		{
