@@ -30,6 +30,10 @@ func WithWriter(dir string, startHeightReq int64, endHeight int64, logger *zap.L
 		return errors.New("end height must be >= 0")
 	}
 
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	dir = filepath.Clean(dir)
 
 	unlock, err := lockDir(dir)
