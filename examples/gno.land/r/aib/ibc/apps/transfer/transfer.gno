@@ -7,7 +7,6 @@ import (
 	"crypto/bech32"
 	"crypto/sha256"
 
-	"gno.land/p/aeddi/panictoerr"
 	"gno.land/p/nt/ufmt"
 )
 
@@ -26,11 +25,7 @@ func sendTransfer(banker banker.Banker, sourceClient string, token Token) error 
 		to     = GetEscrowAddress(sourceClient)
 		amount = chain.NewCoins(coin)
 	)
-	if err := panictoerr.PanicAbortToError(func() {
-		banker.SendCoins(from, to, amount)
-	}); err != nil {
-		return ufmt.Errorf("send coins: %v", err)
-	}
+	banker.SendCoins(from, to, amount)
 
 	// TODO track escrowed coins by denom in store?
 
