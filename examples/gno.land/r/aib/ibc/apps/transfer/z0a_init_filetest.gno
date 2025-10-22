@@ -30,7 +30,4 @@ func main() {
 
 // Output:
 // ----------- assert render apps
-// ## Registered apps
-// - PortID: transfer
-//   - PkgPath: gno.land/r/aib/ibc/apps/transfer
-//   - Address: g1tp3gk4quumurav4858hjfdy6hxtyffwmnxyr00
+// [{"port_id":"transfer","pkg_path":"gno.land/r/aib/ibc/apps/transfer","address":"g1tp3gk4quumurav4858hjfdy6hxtyffwmnxyr00"}]
