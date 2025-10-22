@@ -63,7 +63,9 @@ func WithWriter(dir string, startHeightReq int64, endHeight int64, logger *zap.L
 		return fmt.Errorf("decide start height: %w", err)
 	}
 
-	state.StartHeight = height
+	if state.StartHeight == -1 {
+		state.StartHeight = height
+	}
 
 	prefix := "Starting backup"
 	if state.EndHeight != -1 {
