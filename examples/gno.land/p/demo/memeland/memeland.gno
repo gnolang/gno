@@ -1,15 +1,15 @@
 package memeland
 
 import (
+	"chain/runtime"
 	"sort"
-	"std"
 	"strconv"
 	"strings"
 	"time"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ownable"
-	"gno.land/p/demo/seqid"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/seqid"
 )
 
 const (
@@ -20,7 +20,7 @@ const (
 type Post struct {
 	ID            string
 	Data          string
-	Author        std.Address
+	Author        address
 	Timestamp     time.Time
 	UpvoteTracker *avl.Tree // address > struct{}{}
 }
@@ -50,7 +50,7 @@ func (m *Memeland) PostMeme(data string, timestamp int64) string {
 	newPost := &Post{
 		ID:            id,
 		Data:          data,
-		Author:        std.CurrentRealm().Address(),
+		Author:        runtime.CurrentRealm().Address(),
 		Timestamp:     time.Unix(timestamp, 0),
 		UpvoteTracker: avl.NewTree(),
 	}
@@ -65,7 +65,7 @@ func (m *Memeland) Upvote(id string) string {
 		panic("post with specified ID does not exist")
 	}
 
-	caller := std.CurrentRealm().Address().String()
+	caller := runtime.CurrentRealm().Address().String()
 
 	if _, exists := post.UpvoteTracker.Get(caller); exists {
 		panic("user has already upvoted this post")

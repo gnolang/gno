@@ -175,11 +175,7 @@ func TestNoBlockResponse(t *testing.T) {
 		{100, false},
 	}
 
-	for {
-		if reactorPairs[1].reactor.pool.IsCaughtUp() {
-			break
-		}
-
+	for !reactorPairs[1].reactor.pool.IsCaughtUp() {
 		time.Sleep(10 * time.Millisecond)
 	}
 
@@ -245,7 +241,7 @@ func TestFlappyBadBlockStopsPeer(t *testing.T) {
 		Channels:      []byte{BlockchainChannel},
 	}
 
-	switches, transports := p2pTesting.MakeConnectedPeers(t, ctx, testingCfg)
+	_, transports := p2pTesting.MakeConnectedPeers(t, ctx, testingCfg)
 
 	defer func() {
 		for _, r := range reactorPairs {
@@ -254,11 +250,7 @@ func TestFlappyBadBlockStopsPeer(t *testing.T) {
 		}
 	}()
 
-	for {
-		if reactorPairs[3].reactor.pool.IsCaughtUp() {
-			break
-		}
-
+	for !reactorPairs[3].reactor.pool.IsCaughtUp() {
 		time.Sleep(1 * time.Second)
 	}
 
@@ -294,14 +286,9 @@ func TestFlappyBadBlockStopsPeer(t *testing.T) {
 		Channels:      []byte{BlockchainChannel},
 	}
 
-	sw, _ := p2pTesting.MakeConnectedPeers(t, ctx, testingCfg)
-	switches = append(switches, sw...)
+	p2pTesting.MakeConnectedPeers(t, ctx, testingCfg)
 
-	for {
-		if lastReactorPair.reactor.pool.IsCaughtUp() || len(lastReactorPair.reactor.Switch.Peers().List()) == 0 {
-			break
-		}
-
+	for !lastReactorPair.reactor.pool.IsCaughtUp() && len(lastReactorPair.reactor.Switch.Peers().List()) != 0 {
 		time.Sleep(1 * time.Second)
 	}
 

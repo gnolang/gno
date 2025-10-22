@@ -1,0 +1,69 @@
+# Test manual entropy key generation
+
+# Test 1: Create key with entropy and verify output
+input test123
+input test123  
+input my entropy seed with sufficient randomness from dice rolls 18 7 3 12 5 19 8 2 14 11 20 1 9 15 4 13 6 17 10 16 4 8 12 3 7 19 2 11 15 18 5 9 14 6 1 20 13 10 17 4 8 16
+input y
+gnokey add mykey --entropy --insecure-password-stdin --home $WORK
+stdout 'mykey \(local\)'
+stdout 'Derived entropy \(SHA-256\):'
+stdout 'g1agaedd6jgwcyxxy3ra6r8t20fv2s0t4rcguqrw'
+
+# Test 2: Deterministic generation - same entropy should give same key
+input test123
+input test123
+input my entropy seed with sufficient randomness from dice rolls 18 7 3 12 5 19 8 2 14 11 20 1 9 15 4 13 6 17 10 16 4 8 12 3 7 19 2 11 15 18 5 9 14 6 1 20 13 10 17 4 8 16
+input y  
+gnokey add mykey2 --entropy --insecure-password-stdin --home $WORK
+stdout 'mykey2 \(local\)'
+stdout 'g1agaedd6jgwcyxxy3ra6r8t20fv2s0t4rcguqrw'
+
+# Verify both keys have same address (deterministic)
+gnokey list --home $WORK
+stdout 'mykey.*local.*g1agaedd6jgwcyxxy3ra6r8t20fv2s0t4rcguqrw'
+stdout 'mykey2.*local.*g1agaedd6jgwcyxxy3ra6r8t20fv2s0t4rcguqrw'
+
+# Test 3: Different entropy creates different keys
+# Create alice with different entropy
+input test123
+input test123  
+input alice entropy seed with sufficient randomness 1234567890
+input y
+gnokey add alice --entropy --insecure-password-stdin --home $WORK
+stdout 'alice \(local\)'
+stdout 'g1ezuf6l84p0rfn67jywsg3z2ftcfnq9wdq3vt34'
+
+# Create bob with different entropy  
+input test123
+input test123
+input bob entropy seed with different randomness abcdefghijk
+input y
+gnokey add bob --entropy --insecure-password-stdin --home $WORK
+stdout 'bob \(local\)'
+stdout 'g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054'
+
+# Create charlie with different entropy
+input test123
+input test123
+input charlie entropy seed with unique randomness xyz987654321
+input y
+gnokey add charlie --entropy --insecure-password-stdin --home $WORK
+stdout 'charlie \(local\)'
+stdout 'g1k8g5ljcvdtg6km6qt6k6ytf4sycgyxqkezuaq5'
+
+# List all keys and verify all addresses are different
+gnokey list --home $WORK
+stdout 'mykey.*local.*g1agaedd6jgwcyxxy3ra6r8t20fv2s0t4rcguqrw'
+stdout 'mykey2.*local.*g1agaedd6jgwcyxxy3ra6r8t20fv2s0t4rcguqrw'
+stdout 'alice.*local.*g1ezuf6l84p0rfn67jywsg3z2ftcfnq9wdq3vt34'
+stdout 'bob.*local.*g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054'
+stdout 'charlie.*local.*g1k8g5ljcvdtg6km6qt6k6ytf4sycgyxqkezuaq5'
+
+# Test 4: Insufficient entropy rejection
+input test123
+input test123
+input short
+input n
+! gnokey add shortkey --entropy --insecure-password-stdin --home $WORK
+stderr 'entropy too short'

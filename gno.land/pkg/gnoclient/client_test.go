@@ -1,6 +1,7 @@
 package gnoclient
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -24,7 +25,7 @@ var testGasFee = ugnot.ValueString(10000)
 
 func TestRender(t *testing.T) {
 	t.Parallel()
-	testRealmPath := "gno.land/r/demo/deep/very/deep"
+	testRealmPath := "gno.land/r/tests/vm/deep/very/deep"
 	expectedRender := []byte("it works!")
 
 	client := Client{
@@ -42,7 +43,7 @@ func TestRender(t *testing.T) {
 			},
 		},
 		RPCClient: &mockRPCClient{
-			abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+			abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
 				res := &ctypes.ResultABCIQuery{
 					Response: abci.ResponseQuery{
 						ResponseBase: abci.ResponseBase{
@@ -81,7 +82,7 @@ func TestCallSingle(t *testing.T) {
 			},
 		},
 		RPCClient: &mockRPCClient{
-			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
@@ -108,7 +109,7 @@ func TestCallSingle(t *testing.T) {
 	msg := []vm.MsgCall{
 		{
 			Caller:  caller.GetAddress(),
-			PkgPath: "gno.land/r/demo/deep/very/deep",
+			PkgPath: "gno.land/r/tests/vm/deep/very/deep",
 			Func:    "Render",
 			Args:    []string{""},
 			Send:    std.Coins{{Denom: ugnot.Denom, Amount: int64(100)}},
@@ -145,7 +146,7 @@ func TestCallMultiple(t *testing.T) {
 			},
 		},
 		RPCClient: &mockRPCClient{
-			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					CheckTx: abci.ResponseCheckTx{
 						ResponseBase: abci.ResponseBase{
@@ -177,14 +178,14 @@ func TestCallMultiple(t *testing.T) {
 	msg := []vm.MsgCall{
 		{
 			Caller:  caller.GetAddress(),
-			PkgPath: "gno.land/r/demo/deep/very/deep",
+			PkgPath: "gno.land/r/tests/vm/deep/very/deep",
 			Func:    "Render",
 			Args:    []string{""},
 			Send:    std.Coins{{Denom: ugnot.Denom, Amount: int64(100)}},
 		},
 		{
 			Caller:  caller.GetAddress(),
-			PkgPath: "gno.land/r/demo/wugnot",
+			PkgPath: "gno.land/r/gnoland/wugnot",
 			Func:    "Deposit",
 			Args:    []string{""},
 			Send:    std.Coins{{Denom: ugnot.Denom, Amount: int64(1000)}},
@@ -619,7 +620,7 @@ func TestRunSingle(t *testing.T) {
 			},
 		},
 		RPCClient: &mockRPCClient{
-			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
@@ -643,8 +644,8 @@ func TestRunSingle(t *testing.T) {
 	fileBody := `package main
 import (
 	"std"
-	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/deep/very/deep"
+	"gno.land/p/nt/ufmt"
+	"gno.land/r/tests/vm/deep/very/deep"
 )
 func main() {
 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
@@ -696,7 +697,7 @@ func TestRunMultiple(t *testing.T) {
 			},
 		},
 		RPCClient: &mockRPCClient{
-			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+			broadcastTxCommit: func(ctx context.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
@@ -720,8 +721,8 @@ func TestRunMultiple(t *testing.T) {
 	fileBody := `package main
 import (
 	"std"
-	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/deep/very/deep"
+	"gno.land/p/nt/ufmt"
+	"gno.land/r/tests/vm/deep/very/deep"
 )
 func main() {
 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
@@ -1173,7 +1174,7 @@ func TestBlock(t *testing.T) {
 	client := &Client{
 		Signer: &mockSigner{},
 		RPCClient: &mockRPCClient{
-			block: func(height *int64) (*ctypes.ResultBlock, error) {
+			block: func(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
 				return &ctypes.ResultBlock{
 					BlockMeta: &types.BlockMeta{
 						BlockID: types.BlockID{},
@@ -1203,7 +1204,7 @@ func TestBlockResults(t *testing.T) {
 	client := &Client{
 		Signer: &mockSigner{},
 		RPCClient: &mockRPCClient{
-			blockResults: func(height *int64) (*ctypes.ResultBlockResults, error) {
+			blockResults: func(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error) {
 				return &ctypes.ResultBlockResults{
 					Height:  *height,
 					Results: nil,
@@ -1225,7 +1226,7 @@ func TestLatestBlockHeight(t *testing.T) {
 	client := &Client{
 		Signer: &mockSigner{},
 		RPCClient: &mockRPCClient{
-			status: func() (*ctypes.ResultStatus, error) {
+			status: func(ctx context.Context, heightGte *int64) (*ctypes.ResultStatus, error) {
 				return &ctypes.ResultStatus{
 					SyncInfo: ctypes.SyncInfo{
 						LatestBlockHeight: latestHeight,
@@ -1434,7 +1435,7 @@ func TestClient_EstimateGas(t *testing.T) {
 		var (
 			rpcErr        = errors.New("rpc error")
 			mockRPCClient = &mockRPCClient{
-				abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
 					require.Equal(t, simulatePath, path)
 
 					var tx std.Tx
@@ -1468,7 +1469,7 @@ func TestClient_EstimateGas(t *testing.T) {
 				},
 			}
 			mockRPCClient = &mockRPCClient{
-				abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
 					require.Equal(t, simulatePath, path)
 
 					var tx std.Tx
@@ -1500,7 +1501,7 @@ func TestClient_EstimateGas(t *testing.T) {
 				},
 			}
 			mockRPCClient = &mockRPCClient{
-				abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
 					require.Equal(t, simulatePath, path)
 
 					var tx std.Tx
@@ -1543,7 +1544,7 @@ func TestClient_EstimateGas(t *testing.T) {
 				},
 			}
 			mockRPCClient = &mockRPCClient{
-				abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+				abciQuery: func(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error) {
 					require.Equal(t, simulatePath, path)
 
 					var tx std.Tx

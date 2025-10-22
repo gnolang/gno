@@ -64,12 +64,17 @@ var (
 		r.N("TLD", r.R(2, 63, r.C(`a-z`))))             // top level domain, 2~63 letters.
 	Re_name    = r.G(r.M(`_`), r.C(`a-z`), r.S(r.C(`a-z0-9_`))) // optional leading _, start with letter, no dots!
 	Re_address = r.N("ADDRESS", `g1`, r.P(r.C(`a-z0-9`)))       // starts with g1, all lowercase.
+
+	// Compile at init to avoid runtime compilation.
+	ReGnoUserPkgPath = Re_gnoUserPkgPath.Compile()
+	ReGnoStdPkgPath  = Re_gnoStdPkgPath.Compile()
+	ReAddress        = Re_address.Compile()
 )
 
 // IsRealmPath determines whether the given pkgpath is for a realm, and as such
 // should persist the global state. It also excludes _test paths.
 func IsRealmPath(pkgPath string) bool {
-	match := Re_gnoUserPkgPath.Match(pkgPath)
+	match := ReGnoUserPkgPath.Match(pkgPath)
 	if match == nil || match.Get("LETTER") != "r" {
 		return false
 	}
@@ -82,20 +87,20 @@ func IsRealmPath(pkgPath string) bool {
 // IsEphemeralPath determines whether the given pkgpath is for an ephemeral realm.
 // Ephemeral realms are temporary and don't persist state between transactions.
 func IsEphemeralPath(pkgPath string) bool {
-	match := Re_gnoUserPkgPath.Match(pkgPath)
+	match := ReGnoUserPkgPath.Match(pkgPath)
 	return match != nil && match.Get("LETTER") == "e"
 }
 
 // IsGnoRunPath returns true if it's a run (MsgRun) package path.
-// DerivePkgAddr() returns the embedded address such that the run package can
+// DerivePkgAddress() returns the embedded address such that the run package can
 // receive coins on behalf of the user.
-// XXX XXX XXX XXX change DerivePkgAddr().
+// XXX XXX XXX XXX change DerivePkgAddress().
 func IsGnoRunPath(pkgPath string) (addr string, ok bool) {
-	match := Re_gnoUserPkgPath.Match(pkgPath)
+	match := ReGnoUserPkgPath.Match(pkgPath)
 	if match == nil || match.Get("LETTER") != "e" || match.Get("REPO") != "run" {
 		return "", false
 	}
-	addrmatch := Re_address.Match(match.Get("USER"))
+	addrmatch := ReAddress.Match(match.Get("USER"))
 	if addrmatch == nil {
 		return "", false
 	}
@@ -122,7 +127,7 @@ func IsInternalPath(pkgPath string) (base string, isInternal bool) {
 // It only considers "pure" those starting with gno.land/p/, so it returns false for
 // stdlib packages, realm paths, and run paths. It also excludes _test paths.
 func IsPPackagePath(pkgPath string) bool {
-	match := Re_gnoUserPkgPath.Match(pkgPath)
+	match := ReGnoUserPkgPath.Match(pkgPath)
 	if match == nil || match.Get("LETTER") != "p" {
 		return false
 	}
@@ -135,14 +140,14 @@ func IsPPackagePath(pkgPath string) bool {
 // IsStdlib determines whether pkgPath is for a standard library.
 // Dots are not allowed for stdlib paths.
 func IsStdlib(pkgPath string) bool {
-	match := Re_gnoStdPkgPath.Match(pkgPath)
+	match := ReGnoStdPkgPath.Match(pkgPath)
 	return match != nil
 }
 
 // IsUserlib determines whether pkgPath is for a non-stdlib path.
 // It must be of the form <domain>/<letter>/<user>(/<repo>).
 func IsUserlib(pkgPath string) bool {
-	match := Re_gnoUserPkgPath.Match(pkgPath)
+	match := ReGnoUserPkgPath.Match(pkgPath)
 	return match != nil
 }
 
@@ -231,34 +236,29 @@ func (mpfilter MemPackageFilter) FilterGno(mfile *std.MemFile, pname Name) bool 
 		if endsWithAny(fname, []string{"_filetest.gno"}) {
 			return true
 		}
-		pname2, err := PackageNameFromFileBody(fname, fbody)
-		if err != nil {
-			panic(err)
-		}
-		if pname2 == pname {
-			return false
-		} else if pname2 == pname+"_test" {
-			return true
-		} else {
-			panic(fmt.Sprintf("unexpected package name %q in package (for MPFTest filter)", pname2))
-		}
+		return isIntegrationTestFile(pname, fname, fbody)
 	case MPFIntegration:
 		if !endsWithAny(fname, []string{"_test.gno"}) {
 			return true
 		}
-		pname2, err := PackageNameFromFileBody(fname, fbody)
-		if err != nil {
-			panic(err)
-		}
-		if pname2 == pname {
-			return true
-		} else if pname2 == pname+"_test" {
-			return false
-		} else {
-			panic(fmt.Sprintf("unexpected package name %q in package (for MPFIntegration filter)", pname2))
-		}
+		return !isIntegrationTestFile(pname, fname, fbody)
 	default:
 		panic("should not happen")
+	}
+}
+
+func isIntegrationTestFile(pname Name, fname, fbody string) bool {
+	pname2, err := PackageNameFromFileBody(fname, fbody)
+	if err != nil {
+		panic(err)
+	}
+	switch pname2 {
+	case pname:
+		return false
+	case pname + "_test":
+		return true
+	default:
+		panic(fmt.Sprintf("unexpected package name %q in package with name %q", pname2, pname))
 	}
 }
 
@@ -428,11 +428,13 @@ const (
 func (mptype MemPackageType) IsAny() bool {
 	return mptype == MPAnyAll || mptype == MPAnyProd || mptype == MPAnyTest || mptype == MPAnyIntegration
 }
+
 func (mptype MemPackageType) AssertNotAny() {
 	if mptype.IsAny() {
 		panic(fmt.Sprintf("undefined any: %#v", mptype))
 	}
 }
+
 func (mptype MemPackageType) Decide(pkgPath string) MemPackageType {
 	switch mptype {
 	case MPAnyAll:
@@ -470,38 +472,47 @@ func (mptype MemPackageType) Decide(pkgPath string) MemPackageType {
 		panic("unexpected mptype")
 	}
 }
+
 func (mptype MemPackageType) IsStdlib() bool {
 	mptype.AssertNotAny()
 	return mptype == MPStdlibAll || mptype == MPStdlibProd || mptype == MPStdlibTest || mptype == MPStdlibIntegration
 }
+
 func (mptype MemPackageType) IsUserlib() bool {
 	mptype.AssertNotAny()
 	return mptype == MPUserAll || mptype == MPUserProd || mptype == MPUserTest || mptype == MPUserIntegration
 }
+
 func (mptype MemPackageType) IsAll() bool {
 	mptype.AssertNotAny()
 	return mptype == MPUserAll || mptype == MPStdlibAll
 }
+
 func (mptype MemPackageType) IsProd() bool {
 	mptype.AssertNotAny()
 	return mptype == MPUserProd || mptype == MPStdlibProd
 }
+
 func (mptype MemPackageType) IsTest() bool {
 	mptype.AssertNotAny()
 	return mptype == MPUserTest || mptype == MPStdlibTest
 }
+
 func (mptype MemPackageType) IsIntegration() bool {
 	mptype.AssertNotAny()
 	return mptype == MPUserIntegration || mptype == MPStdlibIntegration
 }
+
 func (mptype MemPackageType) IsFiletests() bool {
 	mptype.AssertNotAny()
 	return mptype == MPFiletests
 }
+
 func (mptype MemPackageType) IsRunnable() bool {
 	mptype.AssertNotAny()
 	return mptype.IsTest() || mptype.IsProd() || mptype.IsIntegration()
 }
+
 func (mptype MemPackageType) IsStorable() bool {
 	// MPAny* is not a valid mpkg type for storage,
 	// e.g. mpkg.Type should never be MPAnyAll.
@@ -511,6 +522,7 @@ func (mptype MemPackageType) IsStorable() bool {
 	return mptype.IsAll() || mptype.IsProd() || mptype.IsTest()
 	// MP*Integration has no reason to be stored.
 }
+
 func (mptype MemPackageType) AsRunnable() MemPackageType {
 	// If All, demote to Prod.
 	// If Test, keep as is.
@@ -558,25 +570,15 @@ func (mptype MemPackageType) Validate(pkgPath string) {
 	default:
 		panic("should not happen")
 	}
-	if mptype.IsUserlib() {
-	}
 	switch mptype {
 	case MPAnyAll, MPAnyProd, MPAnyTest:
-		if strings.HasSuffix(pkgPath, "_test") {
-		}
 	case MPAnyIntegration:
 	case MPUserAll, MPUserProd, MPUserTest:
 	case MPUserIntegration:
 	case MPStdlibAll, MPStdlibProd, MPStdlibTest:
 	case MPStdlibIntegration:
 	case MPFiletests:
-	}
-	if !slices.Contains([]MemPackageType{
-		MPAnyAll, MPAnyProd, MPAnyTest, MPAnyIntegration,
-		MPStdlibAll, MPStdlibProd, MPStdlibTest, MPStdlibIntegration,
-		MPUserAll, MPUserProd, MPUserTest, MPUserIntegration,
-		MPFiletests,
-	}, mptype) {
+	default:
 		panic(fmt.Sprintf("invalid mem package type %q", mptype))
 	}
 }
@@ -853,8 +855,8 @@ func MustReadMemPackageFromList(list []string, pkgPath string, mptype MemPackage
 //
 // If one of the files has a different package name than mpkg.Name,
 // or [ParseFile] returns an error, ParseMemPackageAsType panics.
-func ParseMemPackage(mpkg *std.MemPackage) (fset *FileSet) {
-	return ParseMemPackageAsType(mpkg, mpkg.Type.(MemPackageType))
+func (m *Machine) ParseMemPackage(mpkg *std.MemPackage) (fset *FileSet) {
+	return m.ParseMemPackageAsType(mpkg, mpkg.Type.(MemPackageType))
 }
 
 // ParseMemPackageAsType executes [ParseFile] on each file of the mpkg, with
@@ -863,7 +865,7 @@ func ParseMemPackage(mpkg *std.MemPackage) (fset *FileSet) {
 //
 // If one of the files has a different package name than mpkg.Name,
 // or [ParseFile] returns an error, ParseMemPackageAsType panics.
-func ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageType) (fset *FileSet) {
+func (m *Machine) ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageType) (fset *FileSet) {
 	pkgPath := mpkg.Path
 	mptype.Validate(pkgPath)
 	mpkg.Type.(MemPackageType).AssertCompatible(mpkg.Path, mptype)
@@ -901,7 +903,7 @@ func ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageType) (fset *F
 		// NOTE: the above is (almost) duplicated in ReadMemPackageFromList().
 		//--------------------------------------------------------------------------------
 		// Parse the file.
-		n, err := ParseFile(mfile.Name, mfile.Body)
+		n, err := m.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
@@ -923,7 +925,7 @@ func ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageType) (fset *F
 
 // ParseMemPackageTests parses test files (skipping filetests) in the mpkg and splits
 // the files into categories for testing.
-func ParseMemPackageTests(mpkg *std.MemPackage) (tset, itset *FileSet, itfiles, ftfiles []*std.MemFile) {
+func (m *Machine) ParseMemPackageTests(mpkg *std.MemPackage) (tset, itset *FileSet, itfiles, ftfiles []*std.MemFile) {
 	tset = &FileSet{}
 	itset = &FileSet{}
 	var errs error
@@ -932,7 +934,7 @@ func ParseMemPackageTests(mpkg *std.MemPackage) (tset, itset *FileSet, itfiles, 
 			continue // skip this file.
 		}
 
-		n, err := ParseFile(mfile.Name, mfile.Body)
+		n, err := m.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
@@ -989,8 +991,8 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 	}
 	// Validate mpkg path.
 	if true && // none of these match...
-		!Re_gnoUserPkgPath.Matches(mpkg.Path) &&
-		!Re_gnoStdPkgPath.Matches(mpkg.Path) {
+		!ReGnoUserPkgPath.Matches(mpkg.Path) &&
+		!ReGnoStdPkgPath.Matches(mpkg.Path) {
 		// .ValidateBasic() ensured rePkgPathURL or stdlib path,
 		// but reGnoPkgPathStd is more restrictive.
 		return fmt.Errorf("invalid package/realm path %q", mpkg.Path)

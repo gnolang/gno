@@ -5,18 +5,18 @@
 package gnomaze
 
 import (
+	"chain/runtime"
 	"encoding/base64"
 	"hash/adler32"
 	"math"
 	"math/rand"
 	"net/url"
-	"std"
 	"strconv"
 	"strings"
 	"time"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/nt/ufmt"
 	"gno.land/r/leon/hor"
 )
 
@@ -44,7 +44,7 @@ var (
 
 func init() {
 	// Generate the map
-	seed := uint64(std.ChainHeight())
+	seed := uint64(runtime.ChainHeight())
 	rng := rand.New(rand.NewPCG(seed, uint64(time.Now().Unix())))
 	generateLevel(rng, level)
 	salt = rng.Int64()
@@ -115,7 +115,7 @@ func (p *PlayerState) Rotate(clockwise bool) {
 
 // GenerateNextLevel validates the answer and generates a new level
 func GenerateNextLevel(cur realm, answer string) {
-	seed := uint64(std.ChainHeight())
+	seed := uint64(runtime.ChainHeight())
 	rng := rand.New(rand.NewPCG(seed, uint64(time.Now().Unix())))
 
 	endState := PlayerState{CellX: endPos.X, CellY: endPos.Y}
@@ -433,7 +433,7 @@ func Render(path string) string {
 		Direction: atoiDefault(query.Get("dir"), 0), // Start facing east
 	}
 
-	cpath := strings.TrimPrefix(std.CurrentRealm().PkgPath(), std.ChainDomain())
+	cpath := strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), runtime.ChainDomain())
 	psum := p.SumCode()
 	reset := "[reset](" + cpath + ")"
 
