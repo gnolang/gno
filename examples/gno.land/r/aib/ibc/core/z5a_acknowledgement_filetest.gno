@@ -8,6 +8,7 @@ import (
 	ibctesting "gno.land/p/aib/ibc/testing"
 	"gno.land/p/aib/ibc/types"
 	"gno.land/p/aib/ics23"
+	appstesting "gno.land/r/aib/ibc/apps/testing"
 	"gno.land/r/aib/ibc/core"
 )
 
@@ -26,7 +27,7 @@ func main() {
 	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("iavlStoreKey"), []byte("prefix2")}, counterpartyID)
 	// Register app
 	var (
-		app       = &ibctesting.App{}
+		app       = &appstesting.App{}
 		appPortID = "app"
 	)
 	core.RegisterApp(cross, appPortID, app)
@@ -123,6 +124,7 @@ func main() {
 // []
 //
 // ----------- app report
+// balance:
 // OnSendPacket (1)
 // - spendable: 0ugnot
 // - sourceClient: 07-tendermint-1
@@ -153,6 +155,7 @@ func main() {
 // res: (1 gno.land/p/aib/ibc/types.ResponseResultType)
 //
 // ----------- app report
+// balance:
 // OnSendPacket (1)
 // - spendable: 0ugnot
 // - sourceClient: 07-tendermint-1

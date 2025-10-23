@@ -1,13 +1,13 @@
 package main
 
 import (
-	"gno.land/p/aib/ibc/testing"
+	appstesting "gno.land/r/aib/ibc/apps/testing"
 	"gno.land/r/aib/ibc/core"
 )
 
 // RegisterApp fails because portID is not alphanumeric
 func main() {
-	core.RegisterApp(cross, "gno.land/r/aib/ibc", &testing.App{})
+	core.RegisterApp(cross, "gno.land/r/aib/ibc", &appstesting.App{})
 }
 
 // Error:
