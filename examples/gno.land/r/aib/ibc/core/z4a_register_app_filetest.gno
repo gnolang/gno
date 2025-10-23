@@ -1,14 +1,14 @@
 package main
 
 import (
-	"gno.land/p/aib/ibc/testing"
+	appstesting "gno.land/r/aib/ibc/apps/testing"
 	"gno.land/r/aib/ibc/core"
 )
 
 // RegisterApp success
 func main() {
-	core.RegisterApp(cross, "app1", &testing.App{})
-	core.RegisterApp(cross, "app2", &testing.App{})
+	core.RegisterApp(cross, "app1", &appstesting.App{})
+	core.RegisterApp(cross, "app2", &appstesting.App{})
 
 	println("----------- assert render apps")
 	println(core.Render("apps"))

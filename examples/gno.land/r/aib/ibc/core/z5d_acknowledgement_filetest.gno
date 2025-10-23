@@ -6,9 +6,9 @@ import (
 	"time"
 
 	tmtesting "gno.land/p/aib/ibc/lightclient/tendermint/testing"
-	ibctesting "gno.land/p/aib/ibc/testing"
 	"gno.land/p/aib/ibc/types"
 	"gno.land/p/aib/ics23"
+	appstesting "gno.land/r/aib/ibc/apps/testing"
 	"gno.land/r/aib/ibc/core"
 )
 
@@ -27,7 +27,7 @@ func main() {
 	core.RegisterCounterparty(cross, clientID, [][]byte{[]byte("prefix1"), []byte("prefix2")}, counterpartyID)
 	// Register app
 	var (
-		app       = &ibctesting.App{}
+		app       = &appstesting.App{}
 		appPortID = "app"
 	)
 	core.RegisterApp(cross, appPortID, app)

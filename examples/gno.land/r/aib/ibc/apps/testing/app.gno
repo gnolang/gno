@@ -2,6 +2,7 @@ package testing
 
 import (
 	"chain/banker"
+	"chain/runtime"
 
 	"gno.land/p/aib/ibc/app"
 	"gno.land/p/aib/ibc/types"
@@ -107,6 +108,11 @@ func (a *App) OnAcknowledgementPacket(
 
 func (a *App) Report() string {
 	var s string
+	// Report app realm balance
+	s += ufmt.Sprintf("balance: %s\n",
+		banker.NewBanker(banker.BankerTypeReadonly).GetCoins(
+			runtime.CurrentRealm().Address(),
+		))
 	s += ufmt.Sprintf("OnSendPacket (%d)\n", len(a.Calls.OnSendPacket))
 	for _, args := range a.Calls.OnSendPacket {
 		s += args.Report() + "\n"
@@ -128,7 +134,7 @@ func (a *App) Report() string {
 
 func (a *Args) Report() string {
 	var s string
-	// Report banker if provided and of type LimitedBanker.
+	// Report spendable coins if banker provided
 	if banker, ok := a.Banker.(*limitedbanker.LimitedBanker); ok {
 		s += ufmt.Sprintf("- spendable: %s\n", banker.SpendableCoins())
 	}

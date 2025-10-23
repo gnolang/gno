@@ -6,8 +6,8 @@ import (
 	"time"
 
 	tmtesting "gno.land/p/aib/ibc/lightclient/tendermint/testing"
-	ibctesting "gno.land/p/aib/ibc/testing"
 	"gno.land/p/aib/ibc/types"
+	appstesting "gno.land/r/aib/ibc/apps/testing"
 	"gno.land/r/aib/ibc/core"
 )
 
@@ -26,7 +26,7 @@ func main() {
 	println("next sequence:", core.Render("clients/"+clientID+"/next_sequence_send"))
 	// Register app
 	var (
-		app       = &ibctesting.App{}
+		app       = &appstesting.App{}
 		appPortID = "app1"
 	)
 	app.Calls.OnSendPacketReturn = errors.New("app error")

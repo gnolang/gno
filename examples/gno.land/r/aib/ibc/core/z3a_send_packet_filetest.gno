@@ -5,8 +5,8 @@ import (
 	"time"
 
 	tmtesting "gno.land/p/aib/ibc/lightclient/tendermint/testing"
-	ibctesting "gno.land/p/aib/ibc/testing"
 	"gno.land/p/aib/ibc/types"
+	appstesting "gno.land/r/aib/ibc/apps/testing"
 	"gno.land/r/aib/ibc/core"
 )
 
@@ -25,12 +25,12 @@ func main() {
 	println("next sequence:", core.Render("clients/"+clientID+"/next_sequence_send"))
 	// Register 2 apps
 	var (
-		app1       = &ibctesting.App{}
+		app1       = &appstesting.App{}
 		app1PortID = "app1"
 	)
 	core.RegisterApp(cross, app1PortID, app1)
 	var (
-		app2       = &ibctesting.App{}
+		app2       = &appstesting.App{}
 		app2PortID = "app2"
 	)
 	core.RegisterApp(cross, app2PortID, app2)
@@ -79,6 +79,7 @@ func main() {
 // returned sequence: 1
 // next sequence: {"next_sequence_send": 2}"
 // ----------- app1 report
+// balance:
 // OnSendPacket (1)
 // - spendable: 0ugnot
 // - sourceClient: 07-tendermint-1
@@ -96,6 +97,7 @@ func main() {
 // OnAcknowledgementPacket (0)
 //
 // ----------- app2 report
+// balance:
 // OnSendPacket (1)
 // - spendable: 0ugnot
 // - sourceClient: 07-tendermint-1
