@@ -344,14 +344,26 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"chain/banker",
-		"assertCallerIsRealm",
-		[]gno.FieldTypeExpr{},
+		"assertCallerIsRealmOrEphemeral",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("uint8")},
+		},
 		[]gno.FieldTypeExpr{},
 		true,
 		func(m *gno.Machine) {
-			libs_chain_banker.X_assertCallerIsRealm(
-				m,
+			b := m.LastBlock()
+			var (
+				p0  uint8
+				rp0 = reflect.ValueOf(&p0).Elem()
 			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+
+			libs_chain_banker.X_assertCallerIsRealmOrEphemeral(
+				m,
+				p0)
 		},
 	},
 	{
