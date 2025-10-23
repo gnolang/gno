@@ -5,21 +5,72 @@ gnoland start
 gnokey query auth/accounts/$test1_user_addr
 stdout '"coins": "10000000000000ugnot"'
 
-## run script/script.gno with send flag
-gnokey maketx run -send 42ugnot -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1 $WORK/script/script.gno
+## run script/print_originsend.gno with send flag
+gnokey maketx run -send 42ugnot -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1 $WORK/script/print_originsend.gno
 stdout 'send: 42ugnot'
 
 ## user balance after realm send
-# only reduced by -gas-fee, -send does not affect balance since it the run 
-# script shares the same address as the user.
+# only reduced by -gas-fee, -send does not affect balance since no transfer
+# occurred and the run script shares the same address as the user.
 gnokey query auth/accounts/$test1_user_addr
 stdout '"coins": "9999999000000ugnot"'
 
--- script/script.gno --
+## run script/newbanker_realmissue.gno with send flag
+# must fail because this banker type is not allowed in ephemerals.
+! gnokey maketx run -send 42ugnot -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1 $WORK/script/newbanker_realmissue.gno
+stderr 'invalid banker type 3 for ephemeral'
+
+## run script/newbanker_realmsend.gno with send flag
+# must fail because this banker type is not allowed in ephemerals.
+! gnokey maketx run -send 42ugnot -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1 $WORK/script/newbanker_realmsend.gno
+stderr 'invalid banker type 2 for ephemeral'
+
+## run script/newbanker_originsend.gno with send flag
+gnokey maketx run -send 42ugnot -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1 $WORK/script/newbanker_originsend.gno
+stdout 'OK!'
+
+## user balance after coin transfer in newbanker_originsend
+# reduced by -gas-fee and -send 
+gnokey query auth/accounts/$test1_user_addr
+stdout '"coins": "9999997999958ugnot"'
+
+-- script/print_originsend.gno --
 package main
 
 import "chain/banker"
 
 func main() {
 	println("send:", banker.OriginSend())
+}
+-- script/newbanker_realmissue.gno --
+package main
+
+import "chain/banker"
+
+func main() {
+	banker.NewBanker(banker.BankerTypeRealmIssue)
+}
+-- script/newbanker_realmsend.gno --
+package main
+
+import "chain/banker"
+
+func main() {
+	banker.NewBanker(banker.BankerTypeRealmSend)
+}
+-- script/newbanker_originsend.gno --
+package main
+
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
+)
+
+func main() {
+	to := chain.PackageAddress("gno.land/r/gimmemoney")
+	banker.NewBanker(banker.BankerTypeOriginSend).SendCoins(
+		runtime.CurrentRealm().Address(), to,
+		chain.Coins{{"ugnot", 42}},
+	)
 }
