@@ -42,6 +42,7 @@ type AppConfig struct {
 	unsafeAPI   bool
 	interactive bool
 	paths       string
+	emptyBlocks bool
 }
 
 func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
@@ -218,6 +219,13 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"paths",
 		defaultCfg.paths,
 		`additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported`,
+	)
+
+	fs.BoolVar(
+		&c.emptyBlocks,
+		"empty-blocks",
+		defaultCfg.emptyBlocks,
+		"enable creation of empty blocks",
 	)
 
 	fs.BoolVar(
