@@ -111,6 +111,7 @@ FLAGS
   -chain-domain gno.land	set node ChainDomain
   -chain-id dev	set node ChainID
   -deploy-key g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5	default key name or Bech32 address for deploying packages
+  -empty-blocks=false 	enable creation of empty blocks
   -genesis ...	load the given genesis file
   -interactive=false 	enable gnodev interactive mode
   -lazy-loader=true 	enable lazy loader
@@ -154,6 +155,7 @@ FLAGS
   -chain-domain gno.land	set node ChainDomain
   -chain-id dev	set node ChainID
   -deploy-key g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5	default key name or Bech32 address for deploying packages
+  -empty-blocks=false 	enable creation of empty blocks
   -genesis ...	load the given genesis file
   -interactive=false 	enable gnodev interactive mode
   -lazy-loader=false 	enable lazy loader
