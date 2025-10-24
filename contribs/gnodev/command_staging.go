@@ -31,6 +31,7 @@ var defaultStagingOptions = AppConfig{
 	lazyLoader:          false,
 	paths:               path.Join(DefaultDomain, "/**"), // Load every package under the main domain},
 	emptyBlocks:         false,
+	emptyBlocksInterval: 1,
 
 	// As we have no reason to configure this yet, set this to random port
 	// to avoid potential conflict with other app

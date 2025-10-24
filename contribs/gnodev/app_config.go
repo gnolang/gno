@@ -31,18 +31,19 @@ type AppConfig struct {
 	resolvers varResolver
 
 	// Node Configuration
-	logFormat   string
-	lazyLoader  bool
-	verbose     bool
-	noWatch     bool
-	noReplay    bool
-	maxGas      int64
-	chainId     string
-	chainDomain string
-	unsafeAPI   bool
-	interactive bool
-	paths       string
-	emptyBlocks bool
+	logFormat           string
+	lazyLoader          bool
+	verbose             bool
+	noWatch             bool
+	noReplay            bool
+	maxGas              int64
+	chainId             string
+	chainDomain         string
+	unsafeAPI           bool
+	interactive         bool
+	paths               string
+	emptyBlocks         bool
+	emptyBlocksInterval int64
 }
 
 func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
@@ -225,7 +226,14 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		&c.emptyBlocks,
 		"empty-blocks",
 		defaultCfg.emptyBlocks,
-		"enable creation of empty blocks",
+		"enable creation of empty blocks (default: ~1s interval)",
+	)
+
+	fs.Int64Var(
+		&c.emptyBlocksInterval,
+		"empty-blocks-interval",
+		defaultCfg.emptyBlocksInterval,
+		"set the interval for creating empty blocks (in seconds)",
 	)
 
 	fs.BoolVar(

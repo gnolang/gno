@@ -7,6 +7,7 @@ import (
 	"net"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
@@ -112,6 +113,8 @@ func setupDevNodeConfig(
 	config.MaxGasPerBlock = cfg.maxGas
 	config.ChainID = cfg.chainId
 	config.TMConfig.Consensus.CreateEmptyBlocks = cfg.emptyBlocks
+	config.TMConfig.Consensus.CreateEmptyBlocksInterval = time.Duration(cfg.emptyBlocksInterval) * time.Second
+
 	// other listeners
 	config.TMConfig.P2P.ListenAddress = defaultLocalAppConfig.nodeP2PListenerAddr
 	config.TMConfig.ProxyApp = defaultLocalAppConfig.nodeProxyAppListenerAddr
