@@ -1050,6 +1050,8 @@ func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 			if dmtid != imtid {
 				return fmt.Errorf("wrong type for method %s", im.Name)
 			}
+		} else {
+			return fmt.Errorf("wrong type for method %s", im.Name)
 		}
 	}
 	return nil
