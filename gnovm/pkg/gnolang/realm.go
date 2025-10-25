@@ -28,7 +28,7 @@ is provided a home package, for example
 a "realm package", and functions and methods declared there
 have special privileges.
 
-Every "realm package" should define at last one package-level variable:
+Every "realm package" should define at least one package-level variable:
 
 ```go
 // PKGPATH: gno.land/r/alice
@@ -725,6 +725,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 
 // Saves .created and .updated objects.
 func (rlm *Realm) saveUnsavedObjects(store Store) {
+	tids := make(map[TypeID]struct{})
 	for _, co := range rlm.created {
 		// for i := len(rlm.created) - 1; i >= 0; i-- {
 		// co := rlm.created[i]
@@ -734,7 +735,7 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 			continue
 		} else {
 			if !co.GetIsDeleted() {
-				rlm.saveUnsavedObjectRecursively(store, co)
+				rlm.saveUnsavedObjectRecursively(store, co, tids)
 			}
 		}
 	}
@@ -747,14 +748,16 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 			continue
 		} else {
 			if !uo.GetIsDeleted() {
-				rlm.saveUnsavedObjectRecursively(store, uo)
+				rlm.saveUnsavedObjectRecursively(store, uo, tids)
 			}
 		}
 	}
 }
 
 // store unsaved children first.
-func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
+// ensure that the object and children does not have any private dependencies.
+// use a visited map to mark visited types when asserting there are no private dependencies.
+func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object, visited map[TypeID]struct{}) {
 	if debugRealm {
 		if !oo.GetIsNewReal() && !oo.GetIsDirty() {
 			panic("cannot save new real or non-dirty objects")
@@ -771,13 +774,17 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 			panic("cannot save deleted objects")
 		}
 	}
+
+	// assert object have no private dependencies.
+	rlm.assertObjectIsPublic(oo, store, visited)
+
 	// first, save unsaved children.
 	unsaved := getUnsavedChildObjects(oo)
 	for _, uch := range unsaved {
 		if uch.GetIsEscaped() || uch.GetIsNewEscaped() {
 			// no need to save preemptively.
 		} else {
-			rlm.saveUnsavedObjectRecursively(store, uch)
+			rlm.saveUnsavedObjectRecursively(store, uch, visited)
 		}
 	}
 	// then, save self.
@@ -854,6 +861,11 @@ func (rlm *Realm) clearMarks() {
 		// but its state was not unset. see `processNewCreatedMarks`.
 		// (As a result, it will be garbage collected.)
 		// therefore, new real is allowed to exist here.
+		for _, oo := range rlm.newCreated {
+			if oo.GetIsNewReal() && oo.GetRefCount() != 0 {
+				panic("cannot clear marks if new created exist with refCount not zero")
+			}
+		}
 
 		for _, oo := range rlm.newEscaped {
 			if oo.GetIsNewEscaped() {
@@ -869,6 +881,144 @@ func (rlm *Realm) clearMarks() {
 	rlm.updated = nil
 	rlm.deleted = nil
 	rlm.escaped = nil
+}
+
+// assertObjectIsPublic ensures that the object is public and does not have any private dependencies.
+// it check recursively the types of the object
+// it does not recursively check the values because
+// child objects are validated separately during the save traversal (saveUnsavedObjectRecursively)
+func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[TypeID]struct{}) {
+	objID := obj.GetObjectID()
+	if objID.PkgID != rlm.ID && isPkgPrivateFromPkgID(store, objID.PkgID) {
+		panic("cannot persist reference of object from the private realm " + pkgPathFromPkgID(store, objID.PkgID))
+	}
+
+	// NOTE: should i set the visited tids map at the higher level so it's set one time.
+	// it could help to reduce the number of checks for the same type.
+	switch v := obj.(type) {
+	case *HeapItemValue:
+		if v.Value.T != nil {
+			rlm.assertTypeIsPublic(store, v.Value.T, visited)
+		}
+	case *ArrayValue:
+		for _, av := range v.List {
+			if av.T != nil {
+				rlm.assertTypeIsPublic(store, av.T, visited)
+			}
+		}
+	case *StructValue:
+		for _, sv := range v.Fields {
+			if sv.T != nil {
+				rlm.assertTypeIsPublic(store, sv.T, visited)
+			}
+		}
+	case *MapValue:
+		for head := v.List.Head; head != nil; head = head.Next {
+			if head.Key.T != nil {
+				rlm.assertTypeIsPublic(store, head.Key.T, visited)
+			}
+			if head.Value.T != nil {
+				rlm.assertTypeIsPublic(store, head.Value.T, visited)
+			}
+		}
+	case *FuncValue:
+		if v.PkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, v.PkgPath) {
+			panic("cannot persist function or method from the private realm " + v.PkgPath)
+		}
+		if v.Type != nil {
+			rlm.assertTypeIsPublic(store, v.Type, visited)
+		}
+		for _, capture := range v.Captures {
+			if capture.T != nil {
+				rlm.assertTypeIsPublic(store, capture.T, visited)
+			}
+		}
+	case *BoundMethodValue:
+		if v.Func.PkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, v.Func.PkgPath) {
+			panic("cannot persist bound method from the private realm " + v.Func.PkgPath)
+		}
+		if v.Receiver.T != nil {
+			rlm.assertTypeIsPublic(store, v.Receiver.T, visited)
+		}
+	case *Block:
+		for _, bv := range v.Values {
+			if bv.T != nil {
+				rlm.assertTypeIsPublic(store, bv.T, visited)
+			}
+		}
+		if v.Blank.T != nil {
+			rlm.assertTypeIsPublic(store, v.Blank.T, visited)
+		}
+	case *PackageValue:
+		if v.PkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, v.PkgPath) {
+			panic("cannot persist package from the private realm " + v.PkgPath)
+		}
+	default:
+		panic(fmt.Sprintf("assertNoPrivateDeps: unhandled object type %T", v))
+	}
+}
+
+// assertTypeIsPublic ensure that the type t is not defined in a private realm.
+// it do it recursively for all types in t and have recursive guard to avoid infinite recursion on declared types.
+func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]struct{}) {
+	pkgPath := ""
+
+	// NOTE: Use to avoid infinite recursion on declared types & avoid repeated checks.
+	tid := t.TypeID()
+	if _, exists := visited[tid]; exists {
+		return
+	}
+	visited[tid] = struct{}{}
+	switch tt := t.(type) {
+	case *FuncType:
+		for _, param := range tt.Params {
+			rlm.assertTypeIsPublic(store, param, visited)
+		}
+		for _, result := range tt.Results {
+			rlm.assertTypeIsPublic(store, result, visited)
+		}
+	case FieldType:
+		rlm.assertTypeIsPublic(store, tt.Type, visited)
+	case *SliceType, *ArrayType, *ChanType, *PointerType:
+		rlm.assertTypeIsPublic(store, tt.Elem(), visited)
+	case *tupleType:
+		for _, et := range tt.Elts {
+			rlm.assertTypeIsPublic(store, et, visited)
+		}
+	case *MapType:
+		rlm.assertTypeIsPublic(store, tt.Key, visited)
+		rlm.assertTypeIsPublic(store, tt.Elem(), visited)
+	case *InterfaceType:
+		pkgPath = tt.GetPkgPath()
+		for _, method := range tt.Methods {
+			rlm.assertTypeIsPublic(store, method, visited)
+		}
+	case *StructType:
+		pkgPath = tt.GetPkgPath()
+		for _, field := range tt.Fields {
+			rlm.assertTypeIsPublic(store, field, visited)
+		}
+	case *DeclaredType:
+		rlm.assertTypeIsPublic(store, tt.Base, visited)
+		for _, method := range tt.Methods {
+			rlm.assertTypeIsPublic(store, method.T, visited)
+			if mv, ok := method.V.(*FuncValue); ok {
+				rlm.assertTypeIsPublic(store, mv.Type, visited)
+			}
+		}
+		pkgPath = tt.GetPkgPath()
+	case *RefType:
+		panic("should not happen: ref type in assert type is public")
+	case PrimitiveType, *TypeType, *PackageType, blockType, heapItemType:
+		// these types do not have a package path.
+		// NOTE: PackageType have a TypeID, should i loat it from store and check it?
+		return
+	default:
+		panic(fmt.Sprintf("assertTypeIsPublic: unhandled type %T", tt))
+	}
+	if pkgPath != "" && pkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, pkgPath) {
+		panic("cannot persist object of type defined in the private realm " + pkgPath)
+	}
 }
 
 //----------------------------------------
@@ -1266,6 +1416,7 @@ func copyValueWithRefs(val Value) Value {
 			Block:      block,
 			PkgName:    cv.PkgName,
 			PkgPath:    cv.PkgPath,
+			Private:    cv.Private,
 			FNames:     cv.FNames, // no copy
 			FBlocks:    fblocks,
 			Realm:      cv.Realm,
@@ -1448,7 +1599,11 @@ func fillTypesOfValue(store Store, val Value) Value {
 			fillTypesTV(store, &cur.Key)
 			fillTypesTV(store, &cur.Value)
 
-			cv.vmap[cur.Key.ComputeMapKey(store, false)] = cur
+			fillValueTV(store, &cur.Key)
+			mk, isNaN := cur.Key.ComputeMapKey(store, false)
+			if !isNaN {
+				cv.vmap[mk] = cur
+			}
 		}
 		return cv
 	case TypeValue:
@@ -1631,4 +1786,32 @@ func getOwner(store Store, oo Object) Object {
 		}
 	}
 	return po
+}
+
+func isPkgPrivateFromPkgID(store Store, pkgID PkgID) bool {
+	oid := ObjectIDFromPkgID(pkgID)
+	oo := store.GetObject(oid)
+	pv, ok := oo.(*PackageValue)
+	if !ok {
+		panic("oid with time set at 1 does not refer to package value")
+	}
+	return pv.Private
+}
+
+func pkgPathFromPkgID(store Store, pkgID PkgID) string {
+	oid := ObjectIDFromPkgID(pkgID)
+	oo := store.GetObject(oid)
+	pv, ok := oo.(*PackageValue)
+	if !ok {
+		panic("oid with time set at 1 does not refer to package value")
+	}
+	return pv.PkgPath
+}
+
+func isPkgPrivateFromPkgPath(store Store, pkgPath string) bool {
+	pv := store.GetPackage(pkgPath, false)
+	if pv == nil {
+		panic("cannot find package value from store for path " + pkgPath)
+	}
+	return pv.Private
 }

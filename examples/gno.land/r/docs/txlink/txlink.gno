@@ -1,7 +1,7 @@
 package txlink
 
 import (
-	"std"
+	"chain/runtime"
 	"time"
 
 	"gno.land/p/moul/txlink"
@@ -16,9 +16,9 @@ type Message struct {
 var messages []Message
 
 // Post saves a message with the caller as the author
-func Post(cur realm, text string) {
+func Post(_ realm, text string) {
 	msg := Message{
-		Author: std.PreviousRealm().Address().String(),
+		Author: runtime.PreviousRealm().Address().String(),
 		Text:   text,
 		Time:   time.Now(),
 	}

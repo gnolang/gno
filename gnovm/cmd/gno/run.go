@@ -78,6 +78,30 @@ func (c *runCmd) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
+func packageNameFromFirstFile(args []string) (string, error) {
+	for _, arg := range args {
+		if s, err := os.Stat(arg); err == nil && s.IsDir() {
+			files, err := os.ReadDir(arg)
+			if err != nil {
+				return "", err
+			}
+			for _, f := range files {
+				n := f.Name()
+				if isGnoFile(f) &&
+					!strings.HasSuffix(n, "_test.gno") &&
+					!strings.HasSuffix(n, "_filetest.gno") {
+					return gno.ParseFilePackageName(filepath.Join(arg, n))
+				}
+			}
+		} else if err != nil {
+			return "", err
+		} else {
+			return gno.ParseFilePackageName(arg)
+		}
+	}
+	return "", nil
+}
+
 func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	if len(args) == 0 {
 		return flag.ErrHelp
@@ -100,8 +124,26 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 		args = []string{"."}
 	}
 
+	var send std.Coins
+	pkgPath, err := packageNameFromFirstFile(args)
+	if err != nil {
+		return err
+	}
+	ctx := test.Context("", pkgPath, send)
+	m := gno.NewMachineWithOptions(gno.MachineOptions{
+		PkgPath:       pkgPath,
+		Output:        output,
+		Input:         stdin,
+		Store:         testStore,
+		MaxAllocBytes: maxAllocRun,
+		Context:       ctx,
+		Debug:         cfg.debug || cfg.debugAddr != "",
+	})
+
+	defer m.Release()
+
 	// read files
-	files, err := parseFiles(args, stderr)
+	files, err := parseFiles(m, args, stderr)
 	if err != nil {
 		return err
 	}
@@ -109,20 +151,6 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	if len(files) == 0 {
 		return errors.New("no files to run")
 	}
-
-	var send std.Coins
-	pkgPath := string(files[0].PkgName)
-	ctx := test.Context("", pkgPath, send)
-	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath: pkgPath,
-		Output:  output,
-		Input:   stdin,
-		Store:   testStore,
-		Context: ctx,
-		Debug:   cfg.debug || cfg.debugAddr != "",
-	})
-
-	defer m.Release()
 
 	// If the debug address is set, the debugger waits for a remote client to connect to it.
 	if cfg.debugAddr != "" {
@@ -136,7 +164,7 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	return runExpr(m, cfg.expr)
 }
 
-func parseFiles(fpaths []string, stderr io.WriteCloser) ([]*gno.FileNode, error) {
+func parseFiles(m *gno.Machine, fpaths []string, stderr io.WriteCloser) ([]*gno.FileNode, error) {
 	files := make([]*gno.FileNode, 0, len(fpaths))
 	var didPanic bool
 	for _, fpath := range fpaths {
@@ -145,7 +173,7 @@ func parseFiles(fpaths []string, stderr io.WriteCloser) ([]*gno.FileNode, error)
 			if err != nil {
 				return nil, err
 			}
-			subFiles, err := parseFiles(subFns, stderr)
+			subFiles, err := parseFiles(m, subFns, stderr)
 			if err != nil {
 				return nil, err
 			}
@@ -159,7 +187,7 @@ func parseFiles(fpaths []string, stderr io.WriteCloser) ([]*gno.FileNode, error)
 
 		dir, fname := filepath.Split(fpath)
 		didPanic = catchPanic(dir, fname, stderr, func() {
-			files = append(files, gno.MustReadFile(fpath))
+			files = append(files, m.MustReadFile(fpath))
 		})
 	}
 
@@ -187,7 +215,7 @@ func listNonTestFiles(dir string) ([]string, error) {
 }
 
 func runExpr(m *gno.Machine, expr string) (err error) {
-	ex, err := gno.ParseExpr(expr)
+	ex, err := m.ParseExpr(expr)
 	if err != nil {
 		return fmt.Errorf("could not parse expression: %w", err)
 	}
@@ -198,11 +226,13 @@ func runExpr(m *gno.Machine, expr string) (err error) {
 				err = fmt.Errorf("panic running expression %s: %v\nStacktrace:\n%s",
 					expr, r.Error(), m.ExceptionStacktrace())
 			default:
-				err = fmt.Errorf("panic running expression %s: %v\nMachine State:%s\nStacktrace:\n%s",
-					expr, r, m.String(), m.Stacktrace().String())
+				err = fmt.Errorf("panic running expression %s: %v\nStacktrace:\n%s",
+					expr, r, m.Stacktrace().String())
 			}
 		}
 	}()
 	m.Eval(ex)
 	return nil
 }
+
+const maxAllocRun = 500_000_000

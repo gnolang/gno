@@ -1,4 +1,4 @@
-loadpkg gno.land/p/demo/avl
+loadpkg gno.land/p/nt/avl
 
 # start a new node
 gnoland start
@@ -33,7 +33,7 @@ import (
 	"strconv"
 	"time"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 var gData = avl.Tree{} // id -> string
@@ -44,7 +44,7 @@ type MyData struct {
 
 // Add a lot of data to gData (as much as we can do with the given maximum gas allowed).
 func AddData(cur realm) {
-	for i := 1; i <= 1000; i++ {
+	for i := 1; i <= 100; i++ {
 		gData.Set(strconv.Itoa(gData.Size()), "hello")
 	}
 }

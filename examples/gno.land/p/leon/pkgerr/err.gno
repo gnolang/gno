@@ -10,11 +10,11 @@
 package pkgerr
 
 import (
+	"chain/runtime"
 	"errors"
-	"std"
 	"strings"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 // pkgErr is a custom error type that prepends the current
@@ -44,6 +44,6 @@ func (e pkgErr) Unwrap() error {
 // Error implements the `error` interface for pkgErr.
 func (e *pkgErr) Error() string {
 	return ufmt.Sprintf("%s: %s",
-		strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land/"),
+		strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), "gno.land/"),
 		e.originalErr)
 }
