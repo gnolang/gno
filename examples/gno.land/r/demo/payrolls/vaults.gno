@@ -6,9 +6,8 @@ import (
 	"errors"
 	"strings"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/users"
-	rusers "gno.land/r/demo/users"
+	"gno.land/p/nt/avl"
+	"gno.land/r/sys/users"
 )
 
 var vaults avl.Tree // std.Addresss -> std.Coins
@@ -39,9 +38,9 @@ func vaultID(base string, namespace string) (string, error) {
 		return id, nil
 	}
 
-	user := rusers.GetUserByAddressOrName(users.AddressOrName(base))
+	user, _ := users.ResolveAny(base)
 	if user != nil {
-		return vaultIDUnsafe(user.Address.String(), namespace), nil
+		return vaultIDUnsafe(user.Addr().String(), namespace), nil
 	}
 
 	if id, ok := vaultIDFromAddr(address(base), namespace); ok {
@@ -85,7 +84,7 @@ func vaultIDFromPkgPath(base string, namespace string) (string, bool) {
 
 func vaultIDFromRealm(base runtime.Realm, namespace string) string {
 	if base.IsUser() {
-		return vaultIDUnsafe(base.Addr().String(), namespace)
+		return vaultIDUnsafe(base.Address().String(), namespace)
 	} else {
 		return vaultIDUnsafe(base.PkgPath(), namespace)
 	}

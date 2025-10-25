@@ -9,12 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/users"
-	"gno.land/r/demo/grc20reg"
-	rusers "gno.land/r/demo/users"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/ufmt"
+	"gno.land/r/demo/defi/grc20reg"
+	"gno.land/r/sys/users"
 )
 
 const (
@@ -23,7 +22,7 @@ const (
 	defaultDenom  = "/grc20/" + defaultFqname
 )
 
-func Render(renderPath string) string {
+func Render(cur realm, renderPath string) string {
 	w := strings.Builder{}
 
 	switch {
@@ -31,13 +30,13 @@ func Render(renderPath string) string {
 		w.WriteString("# Payrolls beneficiary\n")
 
 		path := strings.TrimPrefix(renderPath, "/u/")
-		aon := users.AddressOrName(path)
-		user := rusers.GetUserByAddressOrName(aon)
-		addr := address(aon)
+		var addr address
+		user, _ := users.ResolveAny(path)
 		if user != nil {
-			addr = user.Address
-			w.WriteString(ufmt.Sprintf("- 👤 User: @%s\n", user.Name))
+			addr = user.Addr()
+			w.WriteString(ufmt.Sprintf("- 👤 User: @%s\n", user.Name()))
 		} else if !addr.IsValid() {
+			addr = address(path)
 			w.WriteString(ufmt.Sprintf("❓ User %q not found\n", addr.String()))
 			break
 		}
@@ -117,7 +116,7 @@ func Render(renderPath string) string {
 
 		name := vaultID
 		if vaultUser != nil {
-			name = vaultIDUnsafe("@"+vaultUser.Name, namespace)
+			name = vaultIDUnsafe("@"+vaultUser.Name(), namespace)
 		}
 		w.WriteString(ufmt.Sprintf("- 🎩 Name: %s\n", name))
 
@@ -278,19 +277,19 @@ func renderPayroll(p *payroll, pov string) string {
 		base, namespace := splitVaultInput(p.vaultID)
 		_, usr, _ := resolveVaultBase(base)
 		if usr != nil {
-			base = "@" + usr.Name
+			base = "@" + usr.Name()
 		}
 		pvid := vaultIDUnsafe(base, namespace)
 		sb.WriteString(ufmt.Sprintf("  - 🎩 Vault: [%s](%s:/v/%s)\n", pvid, linkPrefix(), pvid))
 	}
 
 	if pov != "beneficiary" {
-		beneficiaryUser := rusers.GetUserByAddress(p.beneficiary)
+		beneficiaryUser := users.ResolveAddress(p.beneficiary)
 		var userStr string
 		if beneficiaryUser == nil {
 			userStr = p.beneficiary.String()
 		} else {
-			userStr = "@" + beneficiaryUser.Name
+			userStr = "@" + beneficiaryUser.Name()
 		}
 		sb.WriteString(ufmt.Sprintf("  - 👤 Beneficiary: [%s](%s:/u/%s)\n", userStr, linkPrefix(), userStr))
 	}
@@ -421,7 +420,7 @@ func renderActions(prefix string, actions []string) string {
 	return prefix + "- ✋ Actions: " + strings.Join(actions, " ") + "\n"
 }
 
-func resolveVaultBase(base string) (string, *users.User, bool) {
+func resolveVaultBase(base string) (string, *users.UserData, bool) {
 	if len(base) == 0 {
 		return "", nil, false
 	}
@@ -430,9 +429,9 @@ func resolveVaultBase(base string) (string, *users.User, bool) {
 		return base, nil, true
 	}
 
-	usr := rusers.GetUserByAddressOrName(users.AddressOrName(base))
+	usr, _ := users.ResolveAny(base)
 	if usr != nil {
-		return usr.Address.String(), usr, true
+		return usr.Addr().String(), usr, true
 	}
 
 	if address(base).IsValid() {
@@ -459,11 +458,7 @@ func renderCoinAmount(coin chain.Coin) string {
 	switch {
 	case strings.HasPrefix(coin.Denom, "/grc20/"):
 		fqdenom := strings.TrimPrefix(coin.Denom, "/grc20/")
-		tokenGetter := grc20reg.Get(fqdenom)
-		if tokenGetter == nil {
-			break
-		}
-		token := tokenGetter()
+		token := grc20reg.Get(fqdenom)
 		if token == nil {
 			break
 		}
@@ -482,15 +477,11 @@ func renderCoinDenom(denom string) string {
 
 	case strings.HasPrefix(denom, "/grc20/"):
 		fqdenom := strings.TrimPrefix(denom, "/grc20/")
-		tokenGetter := grc20reg.Get(fqdenom)
-		if tokenGetter == nil {
-			break
-		}
-		token := tokenGetter()
+		token := grc20reg.Get(fqdenom)
 		if token == nil {
 			break
 		}
-		return ufmt.Sprintf("[$%s](%s)", tokenGetter().GetSymbol(), strings.TrimPrefix(fqdenom, runtime.ChainDomain()))
+		return ufmt.Sprintf("[$%s](%s)", token.GetSymbol(), strings.TrimPrefix(fqdenom, runtime.ChainDomain()))
 	}
 
 	return denom

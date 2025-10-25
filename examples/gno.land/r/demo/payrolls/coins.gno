@@ -7,11 +7,11 @@ import (
 	"errors"
 	"strings"
 
-	"gno.land/r/demo/grc20reg"
+	tokens "gno.land/r/demo/defi/grc20factory"
 )
 
 // Coins transforms coins into payrolls coins, prefixing their denom them with their type. Examples: "ugnot" -> "/native/ugnot", "gno.land/r/demo/foo20" -> "/grc20/gno.land/r/demo/foo20"
-func Coins(native chain.Coins, grc20 chain.Coins) (chain.Coins, error) {
+func Coins(cur realm, native chain.Coins, grc20 chain.Coins) (chain.Coins, error) {
 	out := make(chain.Coins, len(native)+len(grc20))
 	for i, coin := range native {
 		out[i].Amount = coin.Amount
@@ -126,15 +126,13 @@ func sendCoins(dst address, coins chain.Coins) {
 		*target = addCoins(*target, chain.NewCoins(chain.NewCoin(denom, coin.Amount)))
 	}
 
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	from := runtime.CurrentRealm().Address()
 	if len(natives) != 0 {
-		banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
-		banker_.SendCoins(runtime.CurrentRealm().Addr(), dst, natives)
+		banker_.SendCoins(from, dst, natives)
 	}
 
 	for _, coin := range grc20s {
-		err := grc20reg.MustGet(coin.Denom)().CallerTeller().Transfer(dst, uint64(coin.Amount))
-		if err != nil {
-			panic(err)
-		}
+		tokens.TransferFrom(cross, coin.Denom, from, dst, coin.Amount)
 	}
 }

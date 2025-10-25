@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"gno.land/p/demo/seqid"
+	"gno.land/p/nt/seqid"
 )
 
 // XXX: should pass a read-only payroll object to those funcs
@@ -13,16 +13,16 @@ import (
 // DistribFn is a distribution function used to compute and amount of released coins at a particular point in time.
 //
 // It must return payrolls [Coins]
-type DistribFn func(worked time.Duration) chain.Coins
+type DistribFn func(cur realm, worked time.Duration) chain.Coins
 
 // BreakupFn is a function used to compute payroll termination bonuses.
 //
 // It must return payrolls [Coins]
-type BreakupFn func(elapsed time.Duration, pauseDuration time.Duration, source CallSource) chain.Coins
+type BreakupFn func(cur realm, elapsed time.Duration, pauseDuration time.Duration, source CallSource) chain.Coins
 
 // DistribStep returns a distribution function that will release coins every `per` duration.
-func DistribStep(coins chain.Coins, per time.Duration) DistribFn {
-	return func(elapsed time.Duration) chain.Coins {
+func DistribStep(cur realm, coins chain.Coins, per time.Duration) DistribFn {
+	return func(cur realm, elapsed time.Duration) chain.Coins {
 		blocksCount := elapsed / per
 		out := make(chain.Coins, 0, len(coins))
 		for _, coin := range coins {
@@ -33,8 +33,8 @@ func DistribStep(coins chain.Coins, per time.Duration) DistribFn {
 }
 
 // DistribLinear returns a distribution function that will continuously release coins every seconds and amount to a rate of `coins` every `per` duration.
-func DistribLinear(coins chain.Coins, per time.Duration) DistribFn {
-	return func(elapsed time.Duration) chain.Coins {
+func DistribLinear(cur realm, coins chain.Coins, per time.Duration) DistribFn {
+	return func(cur realm, elapsed time.Duration) chain.Coins {
 		out := make(chain.Coins, 0, len(coins))
 		for _, coin := range coins {
 			newAmount := (int64(elapsed.Seconds()) * coin.Amount) / int64(per.Seconds())
@@ -45,24 +45,24 @@ func DistribLinear(coins chain.Coins, per time.Duration) DistribFn {
 }
 
 // DistribMonthlyStep returns a distribution function that will release `coins` every months
-func DistribMonthlyStep(amountPerMonth chain.Coins) DistribFn {
-	return DistribStep(amountPerMonth, time.Hour*24*30)
+func DistribMonthlyStep(cur realm, amountPerMonth chain.Coins) DistribFn {
+	return DistribStep(cur, amountPerMonth, time.Hour*24*30)
 }
 
 // DistribMonthlyStep returns a distribution function that will continuously release coins every seconds and amount to a rate of `coins` every months
-func DistribMonthlyContinuous(amountPerMonth chain.Coins) DistribFn {
-	return DistribLinear(amountPerMonth, time.Hour*24*30)
+func DistribMonthlyContinuous(cur realm, amountPerMonth chain.Coins) DistribFn {
+	return DistribLinear(cur, amountPerMonth, time.Hour*24*30)
 }
 
 // CreateMonthlyContinuous creates a payroll with a continuous release at a fixed rate per months of a token identified by denom.
 //
 // denom must be a payrolls [Coins] denom
-func CreateMonthlyContinuous(namespace string, label string, beneficiary address, amountPerMonth int64, denom string) seqid.ID {
+func CreateMonthlyContinuous(cur realm, namespace string, label string, beneficiary address, amountPerMonth int64, denom string) seqid.ID {
 	if amountPerMonth <= 0 || denom == "" {
 		panic(errors.New("invalid input"))
 	}
 	coinsPerMonth := chain.NewCoins(chain.NewCoin(denom, amountPerMonth))
-	return Create(namespace, label, beneficiary, DistribMonthlyContinuous(coinsPerMonth), nil)
+	return Create(cur, namespace, label, beneficiary, DistribMonthlyContinuous(cur, coinsPerMonth), nil)
 }
 
 // CreateCDI creates a payroll that tries to match the French CDI contract
@@ -70,19 +70,19 @@ func CreateMonthlyContinuous(namespace string, label string, beneficiary address
 // Denom must be a payrolls [Coins] denom
 //
 // See: https://travail-emploi.gouv.fr/le-contrat-de-travail-duree-indeterminee-cdi
-func CreateCDI(namespace string, label string, beneficiary address, amountPerMonth int64, denom string) seqid.ID {
+func CreateCDI(cur realm, namespace string, label string, beneficiary address, amountPerMonth int64, denom string) seqid.ID {
 	if amountPerMonth <= 0 || denom == "" {
 		panic(errors.New("invalid input"))
 	}
 	coinsPerMonth := chain.NewCoins(chain.NewCoin(denom, amountPerMonth))
-	return Create(namespace, label, beneficiary, DistribMonthlyStep(coinsPerMonth), BreakupCDI(coinsPerMonth))
+	return Create(cur, namespace, label, beneficiary, DistribMonthlyStep(cur, coinsPerMonth), BreakupCDI(cur, coinsPerMonth))
 }
 
 // BreakupCDI is a breakup function that will release an amount of coins
 // according to a simplified "Rupture Conventionelle" (conventional breakup) model based on the French CDI employment contract
-func BreakupCDI(coinsPerMonth chain.Coins) BreakupFn {
+func BreakupCDI(cur realm, coinsPerMonth chain.Coins) BreakupFn {
 	const hoursPerYear = float64(8_670)
-	return func(elapsed time.Duration, pauseDuration time.Duration, source CallSource) chain.Coins {
+	return func(cur realm, elapsed time.Duration, pauseDuration time.Duration, source CallSource) chain.Coins {
 		if source != CallSourceCreator {
 			return nil
 		}

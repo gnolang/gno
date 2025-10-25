@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"gno.land/p/demo/seqid"
+	"gno.land/p/nt/seqid"
 )
 
 type payroll struct {
@@ -45,7 +45,7 @@ func (p *payroll) freeAt(when time.Time, estimate bool) chain.Coins {
 		elapsed = when.Sub(p.createdAt)
 	}
 	elapsed -= p.pauseDuration
-	res := p.distrib(elapsed)
+	res := p.distrib(cross, elapsed)
 
 	return res
 }
@@ -109,7 +109,7 @@ func (p *payroll) getBreakupCoins(source CallSource) chain.Coins {
 		return nil
 	}
 
-	return p.breakup(time.Now().Sub(p.createdAt), p.pauseDuration, source)
+	return p.breakup(cross, time.Now().Sub(p.createdAt), p.pauseDuration, source)
 }
 
 func (p *payroll) assertSource(addr address) CallSource {
