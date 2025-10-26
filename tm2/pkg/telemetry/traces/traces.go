@@ -68,7 +68,7 @@ func Init(cfg config.Config) error {
 	)
 
 	otel.SetTracerProvider(provider)
- 	tracer = otel.Tracer(cfg.ServiceName)
+	tracer = otel.Tracer(cfg.ServiceName)
 
 	return nil
 }
@@ -79,7 +79,6 @@ func Shutdown() {
 	}
 }
 
-
-func Tracer() trace.Tracer{
+func Tracer() trace.Tracer {
 	return tracer
 }
