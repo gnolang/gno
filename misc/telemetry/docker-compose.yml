@@ -4,8 +4,7 @@ services:
     ports:
       - "4317:4317"
       - "4318:4318"
-      - "8090:8090"
-      - "55680:55680"
+      - "8090"
     volumes:
       - ./collector/collector.yaml:/etc/otelcol-contrib/config.yaml
     networks:
@@ -54,7 +53,7 @@ services:
       - gnoland-net
     volumes:
       # Shared Volume
-      - ./gnodata:/gnoroot/shared-data
+      - gnoland-shared:/gnoroot/shared-data
     entrypoint:
       - sh
       - -c
@@ -86,14 +85,12 @@ services:
       start_period: 60s
 
   gnoland-rpc:
-    image: gnoland:local
+    image: ghcr.io/gnolang/gno/gnoland:master
     networks:
       - gnoland-net
     volumes:
       # Shared Volume
-      - ./gnodata:/gnoroot/shared-data
-    ports:
-      - "26657:26657"
+      - gnoland-shared:/gnoroot/shared-data
     entrypoint:
       - sh
       - -c
@@ -131,7 +128,7 @@ networks:
 volumes:
   prometheus:
     driver: local
-  tempo:
-    driver: local
   grafana_data:
+    driver: local
+  gnoland-shared:
     driver: local
