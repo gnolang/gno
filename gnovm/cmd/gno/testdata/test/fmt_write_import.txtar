@@ -8,18 +8,18 @@ cmp stderr stderr.golden
 package testdata
 
 import (
-	"std"
+	"chain/banker"
 	"doesnotexist"
 )
 
-   var myVar1 = std.Banker{}
+var myVar1 = banker.Banker{}
 
 -- file1.gno.golden --
 package testdata
 
 import (
-	"std"
+	"chain/banker"
 )
 
-var myVar1 = std.Banker{}
+var myVar1 = banker.Banker{}
 -- stderr.golden --
