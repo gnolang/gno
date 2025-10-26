@@ -6,6 +6,9 @@ import (
 	"net/url"
 
 	"github.com/gnolang/gno/tm2/pkg/telemetry/config"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
+
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -14,9 +17,11 @@ import (
 	sdkTrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
-var provider *sdkTrace.TracerProvider
 
-func Init(cfg config.Config) ( error) {
+var provider *sdkTrace.TracerProvider
+var tracer trace.Tracer = noop.NewTracerProvider().Tracer("")
+
+func Init(cfg config.Config) error {
 	if !cfg.TracesEnabled {
 		return nil
 	}
@@ -34,21 +39,22 @@ func Init(cfg config.Config) ( error) {
 	case "http", "https":
 		exp, err = otlptracehttp.New(
 			ctx,
-			otlptracehttp.WithEndpointURL(cfg.ExporterEndpoint),
+			otlptracehttp.WithEndpointURL(u.Host),
 		)
 		if err != nil {
 			return fmt.Errorf("unable to create http traces exporter, %w", err)
 		}
-	default:
+	case "grpc":
 		exp, err = otlptracegrpc.New(
 			ctx,
-			otlptracegrpc.WithEndpoint(cfg.ExporterEndpoint),
+			otlptracegrpc.WithEndpoint(u.Host),
 			otlptracegrpc.WithInsecure(),
 		)
 		if err != nil {
 			return fmt.Errorf("unable to create grpc metrics exporter, %w", err)
 		}
-		
+	default:
+		return fmt.Errorf("unsupported scheme: %s", u.Scheme)
 	}
 
 	provider = sdkTrace.NewTracerProvider(
@@ -62,6 +68,7 @@ func Init(cfg config.Config) ( error) {
 	)
 
 	otel.SetTracerProvider(provider)
+ 	tracer = otel.Tracer(cfg.ServiceName)
 
 	return nil
 }
@@ -70,4 +77,9 @@ func Shutdown() {
 	if provider != nil {
 		provider.Shutdown(context.Background())
 	}
+}
+
+
+func Tracer() trace.Tracer{
+	return tracer
 }

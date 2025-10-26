@@ -14,7 +14,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel/trace/noop"
 
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -176,7 +175,7 @@ func TestRecoverAndLogHandler(t *testing.T) {
 				})
 			)
 
-			RecoverAndLogHandler(handler, logger, noop.NewTracerProvider().Tracer("test")).ServeHTTP(resp, req)
+			RecoverAndLogHandler(handler, logger).ServeHTTP(resp, req)
 
 			require.Equal(t, tt.expectedResponse, resp.Body.String())
 		})

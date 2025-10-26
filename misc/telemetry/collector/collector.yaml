@@ -21,10 +21,10 @@ service:
       level: "debug"
   pipelines:
     metrics:
-      receivers: [ otlp ]
-      processors: [ batch ]
-      exporters: [ prometheus ]
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus]
     traces:
-      receivers: [ otlp ]
-      processors: [ batch ]
-      exporters: [ otlp/tempo ]  
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/tempo]
