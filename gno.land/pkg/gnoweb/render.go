@@ -24,8 +24,14 @@ import (
 
 // Renderer defines the interface for rendering realms and source files.
 type Renderer interface {
-	RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte) (md.Toc, error)
+	RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ctx RealmRenderContext) (md.Toc, error)
 	RenderSource(w io.Writer, name string, src []byte) error
+}
+
+// RealmRenderContext holds context information for rendering realms
+type RealmRenderContext struct {
+	ChainId string
+	Remote  string
 }
 
 // HTMLRenderer implements the Renderer interface for HTML output.
@@ -54,9 +60,11 @@ func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig, client ClientAdapter
 }
 
 // RenderRealm renders a realm to HTML and returns a table of contents.
-func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte) (md.Toc, error) {
+func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ctx RealmRenderContext) (md.Toc, error) {
 	var mdctx md.GnoContext
 	mdctx.GnoURL = u
+	mdctx.ChainId = ctx.ChainId
+	mdctx.Remote = ctx.Remote
 
 	var once sync.Once
 

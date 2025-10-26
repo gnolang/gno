@@ -19,7 +19,10 @@ func TestRenderer_RenderRealm_Markdown(t *testing.T) {
 	w := &bytes.Buffer{}
 	u := &weburl.GnoURL{Path: "/r/test"}
 	src := []byte(`# Hello\n\nThis is a **test**.`)
-	toc, err := r.RenderRealm(w, u, src)
+	toc, err := r.RenderRealm(w, u, src, RealmRenderContext{
+		ChainId: "dev",
+		Remote:  "127.0.0.1:26657",
+	})
 	require.NoError(t, err)
 	assert.Regexp(t, "<h1[^>]*>.*Hello.*</h1>", w.String())
 	assert.Contains(t, w.String(), "<strong>test</strong>")

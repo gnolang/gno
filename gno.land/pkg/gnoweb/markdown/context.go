@@ -9,6 +9,8 @@ import (
 var (
 	gUrlContextKey        = parser.NewContextKey()
 	gRealmFuncsContextKey = parser.NewContextKey()
+	gChainIdContextKey    = parser.NewContextKey()
+	gRemoteContextKey     = parser.NewContextKey()
 )
 
 type RealmFuncSigGetter func(fn string) (*vm.FunctionSignature, error)
@@ -16,6 +18,8 @@ type RealmFuncSigGetter func(fn string) (*vm.FunctionSignature, error)
 type GnoContext struct {
 	GnoURL             *weburl.GnoURL
 	RealmFuncSigGetter RealmFuncSigGetter
+	ChainId            string
+	Remote             string
 }
 
 // NewGnoParserContext creates a new parser context with GnoURL
@@ -23,6 +27,8 @@ func NewGnoParserContext(mdctx GnoContext) parser.Context {
 	ctx := parser.NewContext()
 	ctx.Set(gUrlContextKey, mdctx.GnoURL)
 	ctx.Set(gRealmFuncsContextKey, mdctx.RealmFuncSigGetter)
+	ctx.Set(gChainIdContextKey, mdctx.ChainId)
+	ctx.Set(gRemoteContextKey, mdctx.Remote)
 	return ctx
 }
 
@@ -41,5 +47,21 @@ func getRealmFuncsGetterFromContext(ctx parser.Context) (gfuncs RealmFuncSigGett
 		return nil, false
 	}
 
+	return
+}
+
+// getChainIdFromContext retrieves the ChainId from the parser context
+func getChainIdFromContext(ctx parser.Context) (chainId string, ok bool) {
+	if chainId, ok = ctx.Get(gChainIdContextKey).(string); !ok {
+		return "", false
+	}
+	return
+}
+
+// getRemoteFromContext retrieves the Remote from the parser context
+func getRemoteFromContext(ctx parser.Context) (remote string, ok bool) {
+	if remote, ok = ctx.Get(gRemoteContextKey).(string); !ok {
+		return "", false
+	}
 	return
 }

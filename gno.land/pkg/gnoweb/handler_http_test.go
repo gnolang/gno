@@ -87,7 +87,7 @@ func (s *stubClient) ListFuncs(ctx context.Context, path string) (vm.FunctionSig
 
 type rawRenderer struct{}
 
-func (rawRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte) (md.Toc, error) {
+func (rawRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ctx gnoweb.RealmRenderContext) (md.Toc, error) {
 	_, err := w.Write(src)
 	return md.Toc{}, err
 }

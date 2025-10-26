@@ -1,10 +1,13 @@
 package components
 
 import (
+	"bytes"
 	"html/template"
 	"strings"
 
 	// for error types
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
 
@@ -67,6 +70,33 @@ func registerHelpFuncs(funcs template.FuncMap) {
 			}
 		}
 		return url
+	}
+
+	// Render command block using the single utility function
+	funcs["renderCommandBlock"] = func(funcName, funcSig, pkgPath, chainId, remote, selectedSend string, params []*doc.JSONField) template.HTML {
+		// Convert doc.JSONField to vm.NamedType
+		vmParams := make([]vm.NamedType, len(params))
+		for i, param := range params {
+			vmParams[i] = vm.NamedType{Name: param.Name, Type: param.Type}
+		}
+		
+		data := markdown.CommandBlockData{
+			FuncName:     funcName,
+			FuncSig:      funcSig,
+			Params:       vmParams,
+			PkgPath:      pkgPath,
+			ChainId:      chainId,
+			Remote:       remote,
+			SelectedSend: selectedSend,
+			Prefix:       "function",
+		}
+		
+		var buf bytes.Buffer
+		if err := markdown.RenderCommandBlock(&buf, data); err != nil {
+			return template.HTML("<!-- Error rendering command block: " + err.Error() + " -->")
+		}
+		
+		return template.HTML(buf.String())
 	}
 }
 

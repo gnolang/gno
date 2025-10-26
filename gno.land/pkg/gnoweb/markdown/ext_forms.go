@@ -143,6 +143,8 @@ type FormNode struct {
 	Exec       *vm.FunctionSignature
 	RenderPath string
 	RealmName  string
+	ChainId    string
+	Remote     string
 	Error      error
 	usedNames  map[string]bool
 }
@@ -198,6 +200,14 @@ func (p *FormParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 	node.RenderPath, _ = ExtractAttr(tok.Attr, "path")
 	if gnourl, ok := getUrlFromContext(pc); ok {
 		node.RealmName = gnourl.Path
+	}
+
+	// Get ChainId and Remote from context
+	if chainId, ok := getChainIdFromContext(pc); ok {
+		node.ChainId = chainId
+	}
+	if remote, ok := getRemoteFromContext(pc); ok {
+		node.Remote = remote
 	}
 
 	// Handle exec attribute
@@ -420,13 +430,20 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 	}
 
 	// Render form opening
-	fmt.Fprintf(w, `<form class="gno-form" method="post" action="%s" autocomplete="off" spellcheck="false">`+"\n",
-		HTMLEscapeString(action))
+	fmt.Fprintf(w, `<form class="gno-form" method="post" action="%s" autocomplete="off" spellcheck="false"`, HTMLEscapeString(action))
+	if n.Exec != nil {
+		fmt.Fprintf(w, ` data-controller="form-exec"`, )
+	}
+	fmt.Fprintf(w, `>`+"\n",)
 	fmt.Fprintf(w, `<div class="gno-form_header">
 <span><span class="font-bold">%s</span> Form</span>
 <span class="tooltip" data-tooltip="Processed securely by %s"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
 </div>
 `, HTMLEscapeString(n.RealmName), HTMLEscapeString(n.RealmName))
+
+	if n.Exec != nil {
+		fmt.Fprintf(w, `<div data-controller="action-function" data-action-function-name-value="%s">`+"\n", HTMLEscapeString(n.Exec.FuncName))
+	}
 
 	// Track select elements that have been rendered
 	renderedSelects := make(map[string]bool)
@@ -441,7 +458,7 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 
 		switch e := elem.(type) {
 		case FormInput:
-			r.renderInput(w, e, i, &lastDescID)
+			r.renderInput(w, e, i, &lastDescID, n.Exec != nil)
 		case FormTextarea:
 			r.renderTextarea(w, e, i, &lastDescID)
 		case FormSelect:
@@ -458,11 +475,42 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 			HTMLEscapeString(n.RealmName))
 	}
 
+	// Add command block if we have an exec function
+	if n.Exec != nil {
+		fmt.Fprintf(w, `<div class="gno-form_command u-hidden" data-form-exec-target="command">`)
+		r.renderCommandBlock(w, n)
+		fmt.Fprintln(w, `</div>`)
+		fmt.Fprintln(w, `</div>`)
+	}
+
 	fmt.Fprintln(w, "</form>")
+	
 	return ast.WalkContinue, nil
 }
 
-func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastDescID *string) {
+func (r *FormRenderer) renderCommandBlock(w util.BufWriter, n *FormNode) {
+	// Use default values if not set
+	chainId := n.ChainId
+	if chainId == "" {
+		chainId = "dev"
+	}
+	remote := n.Remote
+	if remote == "" {
+		remote = "127.0.0.1:26657"
+	}
+	
+	data := CommandBlockData{
+		FuncName:     n.Exec.FuncName,
+		Params:       n.Exec.Params,
+		PkgPath:      n.RenderPath,
+		ChainId:      chainId,
+		Remote:       remote,
+		Prefix:       "function",
+	}
+	RenderCommandBlock(w, data)
+}
+
+func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastDescID *string, isExec bool) {
 	// Description
 	if e.Description != "" {
 		descID := fmt.Sprintf("desc_%s_%d", e.Name, idx)
@@ -476,7 +524,7 @@ func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastD
 	if isSelectable {
 		uniqueID := fmt.Sprintf("%s_%d", e.Name, idx)
 		fmt.Fprintf(w, `<div class="gno-form_selectable">
-<input type="%s" id="%s" name="%s" value="%s"`,
+<input type="%s" id="%s" name="%s" value="%s" `,
 			HTMLEscapeString(e.Type),
 			HTMLEscapeString(uniqueID),
 			HTMLEscapeString(e.Name),
@@ -488,6 +536,7 @@ func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastD
 		if e.Checked {
 			fmt.Fprint(w, ` checked`)
 		}
+		
 		fmt.Fprintln(w, ` />`)
 
 		label := e.Value
@@ -499,11 +548,15 @@ func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastD
 `, HTMLEscapeString(uniqueID), HTMLEscapeString(label))
 	} else {
 		fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s"> %s </label>
-<input type="%s" id="%s" name="%s" placeholder="%s" />
-</div>
-`, HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder),
+<input type="%s" id="%s" name="%s" placeholder="%s"`,
+			HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder),
 			HTMLEscapeString(e.Type), HTMLEscapeString(e.Name),
 			HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder))
+		if isExec {
+			fmt.Fprintf(w, ` data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" data-action-function-param-value="%s"`, HTMLEscapeString(e.Name))
+		}
+		fmt.Fprintln(w, ` />
+</div>`)
 	}
 }
 
