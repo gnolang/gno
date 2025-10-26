@@ -7,7 +7,7 @@ import (
 	"errors"
 	"strings"
 
-	tokens "gno.land/r/demo/defi/grc20factory"
+	grc20reg "gno.land/r/demo/defi/grc20reg"
 )
 
 // Coins transforms coins into payrolls coins, prefixing their denom them with their type. Examples: "ugnot" -> "/native/ugnot", "gno.land/r/demo/foo20" -> "/grc20/gno.land/r/demo/foo20"
@@ -133,6 +133,6 @@ func sendCoins(dst address, coins chain.Coins) {
 	}
 
 	for _, coin := range grc20s {
-		tokens.TransferFrom(cross, coin.Denom, from, dst, coin.Amount)
+		grc20reg.MustGet(coin.Denom).RealmTeller().Transfer(dst, coin.Amount)
 	}
 }

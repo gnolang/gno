@@ -195,7 +195,7 @@ func fundGRC20(base string, namespace string, token *grc20.Token, tokenKey strin
 		amount = int64(token.Allowance(runtime.PreviousRealm().Address(), runtime.CurrentRealm().Address()))
 	}
 
-	teller := token.CallerTeller()
+	teller := token.RealmTeller()
 	if err := teller.TransferFrom(runtime.PreviousRealm().Address(), runtime.CurrentRealm().Address(), amount); err != nil {
 		panic(err)
 	}

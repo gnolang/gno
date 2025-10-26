@@ -2,7 +2,6 @@ package payrolls_test
 
 import (
 	"chain"
-	"chain/banker"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -12,7 +11,7 @@ import (
 )
 
 func TestPayrollsGRC20(t *testing.T) {
-	monthlyPAY := chain.NewCoin("gno.land/r/demo/grc20factory.PAY", 5_000_0000)
+	monthlyPAY := chain.NewCoin("gno.land/r/demo/defi/grc20factory.PAY", 5_000_0000)
 	monthlyGRC20s := chain.NewCoins(monthlyPAY)
 	namespace := "finance"
 	monthlyPayrollsCoins, err := payrolls.Coins(cross, nil, monthlyGRC20s)
@@ -27,7 +26,7 @@ func TestPayrollsGRC20(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(tokenCreator))
 
 	fundAmount := int64(20_000_000)
-	grc20factory.New(cross, "Pay", "PAY", 6, 0, fundAmount)
+	grc20factory.NewWithAdmin(cross, "Pay", "PAY", 6, 0, fundAmount, tokenCreator)
 
 	testing.SetOriginCaller(creator)
 	testing.SetRealm(testing.NewUserRealm(creator))
@@ -43,37 +42,37 @@ func TestPayrollsGRC20(t *testing.T) {
 	)
 
 	creatorBalance := grc20factory.BalanceOf("PAY", creator)
-	urequire.Equal(t, uint64(0), creatorBalance)
+	urequire.Equal(t, int64(0), creatorBalance, "creator balance after setup")
 
 	realmBalance := grc20factory.BalanceOf("PAY", payrollsRealm.Address())
-	urequire.Equal(t, fundAmount, realmBalance)
+	urequire.Equal(t, fundAmount, realmBalance, "realm balance after setup")
 
-	skipHeight := uint64(10000)
-	testing.SkipHeights(int64(skipHeight))
+	skipHeight := int64(10000)
+	testing.SkipHeights(skipHeight)
 
 	urequire.NotPanics(t, func() {
 		testing.SetOriginCaller(beneficiary)
 		testing.SetRealm(testing.NewUserRealm(beneficiary))
 		payrolls.Claim(cross, payrollID, address(""))
-	})
+	}, "claim payroll")
 
 	expectedBeneficiaryBalance := int64(964506)
 
 	beneficiaryBalance := grc20factory.BalanceOf("PAY", beneficiary)
-	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance)
+	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance, "beneficiary balance after claim")
 
 	realmBalance = grc20factory.BalanceOf("PAY", payrollsRealm.Address())
-	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, realmBalance)
+	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, realmBalance, "realm balance after claim")
 
 	urequire.NotPanics(t, func() {
 		testing.SetOriginCaller(beneficiary)
 		testing.SetRealm(testing.NewUserRealm(beneficiary))
 		payrolls.Pause(cross, payrollID)
-	})
+	}, "pause payroll")
 
-	testing.SkipHeights(int64(skipHeight))
+	testing.SkipHeights(skipHeight)
 
-	urequire.PanicsWithMessage(t, "nothing to claim", func() {
+	urequire.AbortsWithMessage(t, "nothing to claim", func() {
 		testing.SetOriginCaller(beneficiary)
 		testing.SetRealm(testing.NewUserRealm(beneficiary))
 		payrolls.Claim(cross, payrollID, address(""))
@@ -83,53 +82,53 @@ func TestPayrollsGRC20(t *testing.T) {
 		testing.SetOriginCaller(beneficiary)
 		testing.SetRealm(testing.NewUserRealm(beneficiary))
 		payrolls.Resume(cross, payrollID)
-	})
+	}, "resume payroll")
 
-	testing.SkipHeights(int64(skipHeight))
+	testing.SkipHeights(skipHeight)
 
 	urequire.NotPanics(t, func() {
 		testing.SetOriginCaller(creator)
 		testing.SetRealm(testing.NewUserRealm(creator))
 
 		payrolls.Stop(cross, payrollID)
-	})
+	}, "stop payroll")
 
 	beneficiaryBalance = grc20factory.BalanceOf("PAY", beneficiary)
-	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance)
+	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance, "beneficiary balance after stop")
 
 	realmBalance = grc20factory.BalanceOf("PAY", payrollsRealm.Address())
-	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, realmBalance)
+	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, realmBalance, "realm balance after claim all")
 
 	urequire.NotPanics(t, func() {
 		testing.SetOriginCaller(beneficiary)
 		testing.SetRealm(testing.NewUserRealm(beneficiary))
 		payrolls.ClaimAll(cross, address(""))
-	})
+	}, "claim all payrolls")
 
 	expectedBeneficiaryBalance = int64(1969060)
 
 	beneficiaryBalance = grc20factory.BalanceOf("PAY", beneficiary)
-	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance)
+	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance, "beneficiary balance after claim all")
 
 	realmBalance = grc20factory.BalanceOf("PAY", payrollsRealm.Address())
-	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, realmBalance)
+	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, realmBalance, "realm balance after claim all")
 
 	urequire.NotPanics(t, func() {
 		testing.SetOriginCaller(creator)
 		testing.SetRealm(testing.NewUserRealm(creator))
 		payrolls.WithdrawFunds(cross, namespace, monthlyPayrollsCoins[0].Denom, -1, "")
-	})
+	}, "withdraw funds")
 
 	beneficiaryBalance = grc20factory.BalanceOf("PAY", beneficiary)
-	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance)
+	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance, "beneficiary balance after withdraw")
 	creatorBalance = grc20factory.BalanceOf("PAY", creator)
-	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, creatorBalance)
+	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, creatorBalance, "creator balance after withdraw")
 
-	urequire.PanicsWithMessage(t, "nothing to claim", func() {
+	urequire.AbortsWithMessage(t, "nothing to claim", func() {
 		testing.SetOriginCaller(beneficiary)
 		testing.SetRealm(testing.NewUserRealm(beneficiary))
 		payrolls.ClaimAll(cross, address(""))
-	})
+	}, "claim all with no funds")
 }
 
 func TestPayrollsNative(t *testing.T) {
@@ -139,11 +138,6 @@ func TestPayrollsNative(t *testing.T) {
 	fundAmount := int64(20_000_000)
 	monthlyPayrollsCoins, err := payrolls.Coins(cross, monthlyNatives, nil)
 	urequire.NoError(t, err)
-
-	balanceOf := func(addr address) int64 {
-		banker_ := banker.NewBanker(banker.BankerTypeReadonly)
-		return banker_.GetCoins(addr).AmountOf(monthlyNatives[0].Denom)
-	}
 
 	payrollsRealm := testing.NewCodeRealm("gno.land/r/demo/payrolls")
 	creator := testutils.TestAddress("creator")
@@ -163,11 +157,11 @@ func TestPayrollsNative(t *testing.T) {
 		payrolls.BreakupCDI(cross, monthlyPayrollsCoins),
 	)
 
-	creatorBalance := balanceOf(creator)
-	urequire.Equal(t, int64(0), creatorBalance)
+	creatorBalance := payrolls.BalanceOf(t, creator, monthlyNatives[0].Denom)
+	urequire.Equal(t, int64(0), creatorBalance, "creator balance after setup")
 
-	realmBalance := balanceOf(payrollsRealm.Address())
-	urequire.Equal(t, fundAmount, realmBalance)
+	realmBalance := payrolls.BalanceOf(t, payrollsRealm.Address(), monthlyNatives[0].Denom)
+	urequire.Equal(t, fundAmount, realmBalance, "realm balance after setup")
 
 	skipHeight := uint64(10000)
 	testing.SkipHeights(int64(skipHeight))
@@ -180,11 +174,11 @@ func TestPayrollsNative(t *testing.T) {
 
 	expectedBeneficiaryBalance := int64(964506)
 
-	beneficiaryBalance := balanceOf(beneficiary)
-	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance)
+	beneficiaryBalance := payrolls.BalanceOf(t, beneficiary, monthlyNatives[0].Denom)
+	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance, "beneficiary balance after claim")
 
-	realmBalance = balanceOf(payrollsRealm.Address())
-	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, realmBalance)
+	realmBalance = payrolls.BalanceOf(t, payrollsRealm.Address(), monthlyNatives[0].Denom)
+	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, realmBalance, "realm balance after claim")
 
 	urequire.NotPanics(t, func() {
 		testing.SetOriginCaller(beneficiary)
@@ -194,17 +188,17 @@ func TestPayrollsNative(t *testing.T) {
 
 	testing.SkipHeights(int64(skipHeight))
 
-	urequire.PanicsWithMessage(t, "nothing to claim", func() {
+	urequire.AbortsWithMessage(t, "nothing to claim", func() {
 		testing.SetOriginCaller(beneficiary)
 		testing.SetRealm(testing.NewUserRealm(beneficiary))
 		payrolls.Claim(cross, payrollID, address(""))
-	})
+	}, "claim paused payroll")
 
 	urequire.NotPanics(t, func() {
 		testing.SetOriginCaller(beneficiary)
 		testing.SetRealm(testing.NewUserRealm(beneficiary))
 		payrolls.Resume(cross, payrollID)
-	})
+	}, "resume payroll")
 
 	testing.SkipHeights(int64(skipHeight))
 
@@ -213,42 +207,42 @@ func TestPayrollsNative(t *testing.T) {
 		testing.SetRealm(testing.NewUserRealm(creator))
 
 		payrolls.Stop(cross, payrollID)
-	})
+	}, "stop payroll")
 
-	beneficiaryBalance = balanceOf(beneficiary)
-	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance)
+	beneficiaryBalance = payrolls.BalanceOf(t, beneficiary, monthlyNatives[0].Denom)
+	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance, "beneficiary balance after stop")
 
-	realmBalance = balanceOf(payrollsRealm.Address())
-	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, realmBalance)
+	realmBalance = payrolls.BalanceOf(t, payrollsRealm.Address(), monthlyNatives[0].Denom)
+	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, realmBalance, "realm balance after stop")
 
 	urequire.NotPanics(t, func() {
 		testing.SetOriginCaller(beneficiary)
 		testing.SetRealm(testing.NewUserRealm(beneficiary))
 		payrolls.ClaimAll(cross, address(""))
-	})
+	}, "claim all payrolls")
 
 	expectedBeneficiaryBalance = int64(1969060)
 
-	beneficiaryBalance = balanceOf(beneficiary)
-	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance)
+	beneficiaryBalance = payrolls.BalanceOf(t, beneficiary, monthlyNatives[0].Denom)
+	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance, "beneficiary balance after claim all")
 
-	realmBalance = balanceOf(payrollsRealm.Address())
-	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, realmBalance)
+	realmBalance = payrolls.BalanceOf(t, payrollsRealm.Address(), monthlyNatives[0].Denom)
+	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, realmBalance, "realm balance after claim all")
 
 	urequire.NotPanics(t, func() {
 		testing.SetOriginCaller(creator)
 		testing.SetRealm(testing.NewUserRealm(creator))
 		payrolls.WithdrawFunds(cross, namespace, monthlyPayrollsCoins[0].Denom, -1, "")
-	})
+	}, "withdraw funds")
 
-	beneficiaryBalance = balanceOf(beneficiary)
-	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance)
-	creatorBalance = balanceOf(creator)
-	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, creatorBalance)
+	beneficiaryBalance = payrolls.BalanceOf(t, beneficiary, monthlyNatives[0].Denom)
+	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance, "beneficiary balance after withdraw")
+	creatorBalance = payrolls.BalanceOf(t, creator, monthlyNatives[0].Denom)
+	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, creatorBalance, "creator balance after withdraw")
 
-	urequire.PanicsWithMessage(t, "nothing to claim", func() {
+	urequire.AbortsWithMessage(t, "nothing to claim", func() {
 		testing.SetOriginCaller(beneficiary)
 		testing.SetRealm(testing.NewUserRealm(beneficiary))
 		payrolls.ClaimAll(cross, address(""))
-	})
+	}, "claim all payrolls")
 }
