@@ -1,4 +1,4 @@
-// Package coinsort provides helpers to sort a slice of std.Coins using the
+// Package coinsort provides helpers to sort a slice of banker.Coins using the
 // classic sort.Sort API (without relying on sort.Slice).
 //
 // Usage examples:
@@ -13,15 +13,15 @@
 //	    return a.Amount > b.Amount // descending
 //	})
 //
-// Note: when getting std.Coins from the banker, it's sorted by denom by default.
+// Note: when getting banker.Coins from the banker, it's sorted by denom by default.
 package coinsort
 
 import (
+	"chain"
 	"sort"
-	"std"
 )
 
-type ByAmount struct{ std.Coins }
+type ByAmount struct{ chain.Coins }
 
 func (b ByAmount) Len() int           { return len(b.Coins) }
 func (b ByAmount) Swap(i, j int)      { b.Coins[i], b.Coins[j] = b.Coins[j], b.Coins[i] }
@@ -30,20 +30,20 @@ func (b ByAmount) Less(i, j int) bool { return b.Coins[i].Amount < b.Coins[j].Am
 // SortByBalance sorts c in ascending order by Amount.
 //
 //	coinsort.SortByBalance(myCoins)
-func SortByBalance(c std.Coins) {
+func SortByBalance(c chain.Coins) {
 	sort.Sort(ByAmount{c})
 }
 
 // LessFunc defines the comparison function for SortBy. It must return true if
 // 'a' should come before 'b'.
 
-type LessFunc func(a, b std.Coin) bool
+type LessFunc func(a, b chain.Coin) bool
 
 // customSorter adapts a LessFunc to sort.Interface so we can keep using
 // sort.Sort (rather than sort.Slice).
 
 type customSorter struct {
-	coins std.Coins
+	coins chain.Coins
 	less  LessFunc
 }
 
@@ -57,10 +57,10 @@ func (cs customSorter) Less(i, j int) bool {
 //
 // Example – descending by Amount:
 //
-//	coinsort.SortBy(coins, func(a, b std.Coin) bool {
+//	coinsort.SortBy(coins, func(a, b banker.Coin) bool {
 //	    return a.Amount > b.Amount
 //	})
-func SortBy(c std.Coins, less LessFunc) {
+func SortBy(c chain.Coins, less LessFunc) {
 	if less == nil {
 		return // nothing to do; keep original order
 	}

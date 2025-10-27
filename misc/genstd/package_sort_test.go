@@ -48,14 +48,6 @@ func Test_sortPackages(t *testing.T) {
 			},
 			output: []string{"b", "a"},
 		},
-		{
-			name: "testingSpecial",
-			pkgs: []*pkgData{
-				{importPath: "testing", imports: imports("fmt", "os", "b")},
-				{importPath: "b"},
-			},
-			output: []string{"b", "testing"},
-		},
 
 		{
 			name: "cyclical0",

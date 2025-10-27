@@ -123,21 +123,18 @@ gno = "0.9"
 -- pusers/users.gno --
 package users
 
-import (
-	"std"
-	"strconv"
-)
+import "strconv"
 
 //----------------------------------------
 // Types
 
 type User struct {
-	Address std.Address
+	Address address
 	Name    string
 	Profile string
 	Number  int
 	Invites int
-	Inviter std.Address
+	Inviter address
 }
 
 func (u *User) Render() string {
@@ -172,22 +169,24 @@ gno = "0.9"
 package users
 
 import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 	"regexp"
-	"std"
 	"strconv"
 	"strings"
 
+	"gno.land/p/demo/users"
+	"gno.land/p/jefft0/avlhelpers"
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/avl/pager"
-	"gno.land/p/jefft0/avlhelpers"
-	"gno.land/p/demo/users"
 )
 
 //----------------------------------------
 // State
 
 var (
-	admin std.Address = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
+	admin address = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
 
 	restricted avl.Tree                  // Name -> true - restricted name
 	name2User  avl.Tree                  // Name -> *users.User
@@ -201,17 +200,17 @@ var (
 //----------------------------------------
 // Top-level functions
 
-func Register(cur realm, inviter std.Address, name string, profile string) {
+func Register(cur realm, inviter address, name string, profile string) {
 	// assert CallTx call.
-	std.AssertOriginCall()
+	runtime.AssertOriginCall()
 	// assert invited or paid.
-	caller := std.PreviousRealm().Address()
-	if caller != std.OriginCaller() {
+	caller := runtime.PreviousRealm().Address()
+	if caller != runtime.OriginCaller() {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
 
-	sentCoins := std.OriginSend()
-	minCoin := std.NewCoin("ugnot", minFee)
+	sentCoins := banker.OriginSend()
+	minCoin := chain.NewCoin("ugnot", minFee)
 
 	if inviter == "" {
 		// banker := std.GetBanker(std.BankerTypeOrigSend)
@@ -287,10 +286,10 @@ func Register(cur realm, inviter std.Address, name string, profile string) {
 
 func Invite(cur realm, invitee string) {
 	// assert CallTx call.
-	std.AssertOriginCall()
+	runtime.AssertOriginCall()
 	// get caller/inviter.
-	caller := std.PreviousRealm().Address()
-	if caller != std.OriginCaller() {
+	caller := runtime.PreviousRealm().Address()
+	if caller != runtime.OriginCaller() {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
 	lines := strings.Split(invitee, "\n")
@@ -326,10 +325,10 @@ func Invite(cur realm, invitee string) {
 
 func GrantInvites(cur realm, invites string) {
 	// assert CallTx call.
-	std.AssertOriginCall()
+	runtime.AssertOriginCall()
 	// assert admin.
-	caller := std.PreviousRealm().Address()
-	if caller != std.OriginCaller() {
+	caller := runtime.PreviousRealm().Address()
+	if caller != runtime.OriginCaller() {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
 	if caller != admin {
@@ -377,9 +376,9 @@ func GrantInvites(cur realm, invites string) {
 // Any leftover fees go toward invitations.
 func SetMinFee(cur realm, newMinFee int64) {
 	// assert CallTx call.
-	std.AssertOriginCall()
+	runtime.AssertOriginCall()
 	// assert admin caller.
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	if caller != admin {
 		panic("unauthorized")
 	}
@@ -390,9 +389,9 @@ func SetMinFee(cur realm, newMinFee int64) {
 // This helps prevent fat finger accidents.
 func SetMaxFeeMultiple(cur realm, newMaxFeeMult int64) {
 	// assert CallTx call.
-	std.AssertOriginCall()
+	runtime.AssertOriginCall()
 	// assert admin caller.
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	if caller != admin {
 		panic("unauthorized")
 	}
@@ -411,7 +410,7 @@ func GetUserByName(name string) *users.User {
 	return userI.(*users.User)
 }
 
-func GetUserByAddress(addr std.Address) *users.User {
+func GetUserByAddress(addr address) *users.User {
 	userI, ok := addr2User.Get(addr.String())
 	if !ok {
 		return nil
@@ -425,7 +424,7 @@ func GetUserByAddressOrName(input users.AddressOrName) *users.User {
 	if isName {
 		return GetUserByName(name)
 	}
-	return GetUserByAddress(std.Address(input))
+	return GetUserByAddress(address(input))
 }
 
 // Get a list of user names starting from the given prefix. Limit the
@@ -434,10 +433,10 @@ func ListUsersByPrefix(prefix string, maxResults int) []string {
 	return avlhelpers.ListByteStringKeysByPrefix(&name2User, prefix, maxResults)
 }
 
-func Resolve(input users.AddressOrName) std.Address {
+func Resolve(input users.AddressOrName) address {
 	name, isName := input.GetName()
 	if !isName {
-		return std.Address(input) // TODO check validity
+		return address(input) // TODO check validity
 	}
 
 	user := GetUserByName(name)
@@ -447,9 +446,9 @@ func Resolve(input users.AddressOrName) std.Address {
 // Add restricted name to the list
 func AdminAddRestrictedName(name string) {
 	// assert CallTx call.
-	std.AssertOriginCall()
+	runtime.AssertOriginCall()
 	// get caller
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	// assert admin
 	if caller != admin {
 		panic("unauthorized")
@@ -481,7 +480,7 @@ func Render(fullPath string) string {
 		if path[:2] != "g1" {
 			return "invalid address " + path
 		}
-		user := GetUserByAddress(std.Address(path))
+		user := GetUserByAddress(address(path))
 		if user == nil {
 			// TODO: display basic information about account.
 			return "unknown address " + path
@@ -528,18 +527,18 @@ var preRestrictedNames = []string{
 // pre-registered users
 var preRegisteredUsers = []struct {
 	Name    string
-	Address std.Address
+	Address address
 }{
 	// system name
 	{"archive", "g1xlnyjrnf03ju82v0f98ruhpgnquk28knmjfe5k"}, // -> @r_archive
-	{"demo", "g13ek2zz9qurzynzvssyc4sthwppnruhnp0gdz8n"},     // -> @r_demo
-	{"gno", "g19602kd9tfxrfd60sgreadt9zvdyyuudcyxsz8a"},      // -> @r_gno
-	{"gnoland", "g1g3lsfxhvaqgdv4ccemwpnms4fv6t3aq3p5z6u7"},  // -> @r_gnoland
-	{"gnolang", "g1yjlnm3z2630gg5mryjd79907e0zx658wxs9hnd"},  // -> @r_gnolang
-	{"gov", "g1g73v2anukg4ej7axwqpthsatzrxjsh0wk797da"},      // -> @r_gov
-	{"nt", "g15ge0ae9077eh40erwrn2eq0xw6wupwqthpv34l"},       // -> @r_nt
-	{"sys", "g1r929wt2qplfawe4lvqv9zuwfdcz4vxdun7qh8l"},      // -> @r_sys
-	{"x", "g164sdpew3c2t3rvxj3kmfv7c7ujlvcw2punzzuz"},        // -> @r_x
+	{"demo", "g13ek2zz9qurzynzvssyc4sthwppnruhnp0gdz8n"},    // -> @r_demo
+	{"gno", "g19602kd9tfxrfd60sgreadt9zvdyyuudcyxsz8a"},     // -> @r_gno
+	{"gnoland", "g1g3lsfxhvaqgdv4ccemwpnms4fv6t3aq3p5z6u7"}, // -> @r_gnoland
+	{"gnolang", "g1yjlnm3z2630gg5mryjd79907e0zx658wxs9hnd"}, // -> @r_gnolang
+	{"gov", "g1g73v2anukg4ej7axwqpthsatzrxjsh0wk797da"},     // -> @r_gov
+	{"nt", "g15ge0ae9077eh40erwrn2eq0xw6wupwqthpv34l"},      // -> @r_nt
+	{"sys", "g1r929wt2qplfawe4lvqv9zuwfdcz4vxdun7qh8l"},     // -> @r_sys
+	{"x", "g164sdpew3c2t3rvxj3kmfv7c7ujlvcw2punzzuz"},       // -> @r_x
 
 	// test1 user
 	{"test1", "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}, // -> @test1
@@ -588,14 +587,16 @@ gno = "0.9"
 package boards
 
 import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 	"regexp"
-	"std"
 	"strconv"
 	"strings"
 	"time"
 
-	"gno.land/p/nt/avl"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/nt/avl"
 
 	"gno.land/r/demo/users"
 )
@@ -613,14 +614,14 @@ type Board struct {
 	id        BoardID // only set for public boards.
 	url       string
 	name      string
-	creator   std.Address
+	creator   address
 	threads   avl.Tree // Post.id -> *Post
 	postsCtr  uint64   // increments Post.id
 	createdAt time.Time
 	deleted   avl.Tree // TODO reserved for fast-delete.
 }
 
-func newBoard(id BoardID, url string, name string, creator std.Address) *Board {
+func newBoard(id BoardID, url string, name string, creator address) *Board {
 	if !reName.MatchString(name) {
 		panic("invalid name: " + name)
 	}
@@ -662,7 +663,7 @@ func (board *Board) GetThread(pid PostID) *Post {
 	return postI.(*Post)
 }
 
-func (board *Board) AddThread(creator std.Address, title string, body string) *Post {
+func (board *Board) AddThread(creator address, title string, body string) *Post {
 	pid := board.incGetPostID()
 	pidkey := postIDKey(pid)
 	thread := newPost(board, pid, creator, title, body, pid, 0, 0)
@@ -680,7 +681,7 @@ func (board *Board) DeleteThread(pid PostID) {
 	}
 }
 
-func (board *Board) HasPermission(addr std.Address, perm Permission) bool {
+func (board *Board) HasPermission(addr address, perm Permission) bool {
 	if board.creator == addr {
 		switch perm {
 		case EditPermission:
@@ -810,7 +811,7 @@ func summaryOf(str string, length int) string {
 	return line
 }
 
-func displayAddressMD(addr std.Address) string {
+func displayAddressMD(addr address) string {
 	user := users.GetUserByAddress(addr)
 	if user == nil {
 		return "[" + addr.String() + "](/r/demo/users:" + addr.String() + ")"
@@ -819,7 +820,7 @@ func displayAddressMD(addr std.Address) string {
 	}
 }
 
-func usernameOf(addr std.Address) string {
+func usernameOf(addr address) string {
 	user := users.GetUserByAddress(addr)
 	if user == nil {
 		return ""
@@ -842,7 +843,7 @@ func (pid PostID) String() string {
 type Post struct {
 	board       *Board
 	id          PostID
-	creator     std.Address
+	creator     address
 	title       string // optional
 	body        string
 	replies     avl.Tree // Post.id -> *Post
@@ -855,7 +856,7 @@ type Post struct {
 	updatedAt   time.Time
 }
 
-func newPost(board *Board, id PostID, creator std.Address, title, body string, threadID, parentID PostID, repostBoard BoardID) *Post {
+func newPost(board *Board, id PostID, creator address, title, body string, threadID, parentID PostID, repostBoard BoardID) *Post {
 	return &Post{
 		board:       board,
 		id:          id,
@@ -880,7 +881,7 @@ func (post *Post) GetPostID() PostID {
 	return post.id
 }
 
-func (post *Post) AddReply(creator std.Address, body string) *Post {
+func (post *Post) AddReply(creator address, body string) *Post {
 	board := post.board
 	pid := board.incGetPostID()
 	pidkey := postIDKey(pid)
@@ -911,7 +912,7 @@ func (thread *Post) GetReply(pid PostID) *Post {
 	}
 }
 
-func (post *Post) AddRepostTo(creator std.Address, title, body string, dst *Board) *Post {
+func (post *Post) AddRepostTo(creator address, title, body string, dst *Board) *Post {
 	if !post.IsThread() {
 		panic("cannot repost non-thread post")
 	}
@@ -944,7 +945,7 @@ func (thread *Post) DeletePost(pid PostID) {
 	}
 }
 
-func (post *Post) HasPermission(addr std.Address, perm Permission) bool {
+func (post *Post) HasPermission(addr address, perm Permission) bool {
 	if post.creator == addr {
 		switch perm {
 		case EditPermission:
@@ -1092,11 +1093,11 @@ func GetBoardIDFromName(name string) (BoardID, bool) {
 }
 
 func CreateBoard(name string) BoardID {
-	if !std.PreviousRealm().IsUser() {
+	if !runtime.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
 	bid := incGetBoardID()
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	if usernameOf(caller) == "" {
 		panic("unauthorized")
 	}
@@ -1109,8 +1110,8 @@ func CreateBoard(name string) BoardID {
 }
 
 func checkAnonFee() bool {
-	sent := std.OriginSend()
-	anonFeeCoin := std.NewCoin("ugnot", int64(gDefaultAnonFee))
+	sent := banker.OriginSend()
+	anonFeeCoin := chain.NewCoin("ugnot", int64(gDefaultAnonFee))
 	if len(sent) == 1 && sent[0].IsGTE(anonFeeCoin) {
 		return true
 	}
@@ -1118,10 +1119,10 @@ func checkAnonFee() bool {
 }
 
 func CreateThread(bid BoardID, title string, body string) PostID {
-	if !std.PreviousRealm().IsUser() {
+	if !runtime.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	if usernameOf(caller) == "" {
 		if !checkAnonFee() {
 			panic("please register, otherwise minimum fee " + strconv.Itoa(gDefaultAnonFee) + " is required if anonymous")
@@ -1136,10 +1137,10 @@ func CreateThread(bid BoardID, title string, body string) PostID {
 }
 
 func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
-	if !std.PreviousRealm().IsUser() {
+	if !runtime.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	if usernameOf(caller) == "" {
 		if !checkAnonFee() {
 			panic("please register, otherwise minimum fee " + strconv.Itoa(gDefaultAnonFee) + " is required if anonymous")
@@ -1166,10 +1167,10 @@ func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
 // If dstBoard is private, does not ping back.
 // If board specified by bid is private, panics.
 func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoardID BoardID) PostID {
-	if !std.PreviousRealm().IsUser() {
+	if !runtime.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	if usernameOf(caller) == "" {
 		// TODO: allow with gDefaultAnonFee payment.
 		if !checkAnonFee() {
@@ -1196,10 +1197,10 @@ func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoar
 }
 
 func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
-	if !std.PreviousRealm().IsUser() {
+	if !runtime.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	board := getBoard(bid)
 	if board == nil {
 		panic("board not exist")
@@ -1228,10 +1229,10 @@ func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 }
 
 func EditPost(bid BoardID, threadid, postid PostID, title, body string) {
-	if !std.PreviousRealm().IsUser() {
+	if !runtime.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	board := getBoard(bid)
 	if board == nil {
 		panic("board not exist")

@@ -1,7 +1,6 @@
 package blog
 
 import (
-	"std"
 	"strconv"
 	"strings"
 	"time"
@@ -143,7 +142,7 @@ func (b Blog) Render(path string) string {
 	return router.Render(path)
 }
 
-func (b *Blog) NewPost(publisher std.Address, slug, title, body, pubDate string, authors, tags []string) error {
+func (b *Blog) NewPost(publisher address, slug, title, body, pubDate string, authors, tags []string) error {
 	if _, found := b.Posts.Get(slug); found {
 		return ErrPostSlugExists
 	}
@@ -245,7 +244,7 @@ type Post struct {
 	UpdatedAt    time.Time
 	Comments     avl.Tree
 	Authors      []string
-	Publisher    std.Address
+	Publisher    address
 	Tags         []string
 	CommentIndex int
 }
@@ -265,7 +264,7 @@ func (p *Post) Update(title, body, publicationDate string, authors, tags []strin
 	return p.Blog.prepareAndSetPost(p, true)
 }
 
-func (p *Post) AddComment(author std.Address, comment string) error {
+func (p *Post) AddComment(author address, comment string) error {
 	if p == nil {
 		return ErrNoSuchPost
 	}
@@ -389,7 +388,7 @@ func (p *Post) Summary() string {
 type Comment struct {
 	Post      *Post
 	CreatedAt time.Time
-	Author    std.Address
+	Author    address
 	Comment   string
 }
 

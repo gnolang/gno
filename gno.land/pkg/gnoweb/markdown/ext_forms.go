@@ -490,8 +490,8 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 	// Render form opening and header
 	fmt.Fprintf(w, `<form class="gno-form" method="post" action="%s" autocomplete="off" spellcheck="false">`+"\n", HTMLEscapeString(formAction))
 	fmt.Fprintln(w, `<div class="gno-form_header">`)
-	fmt.Fprintf(w, `<span><span class="font-bold">%s</span> Form</span>`+"\n", HTMLEscapeString(n.RealmName))
-	fmt.Fprintf(w, `<span class="tooltip" data-tooltip="Processed securely by %s"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>`+"\n", HTMLEscapeString(n.RealmName))
+	fmt.Fprintf(w, `<span><span>%s</span> Form</span>`+"\n", HTMLEscapeString(n.RealmName))
+	fmt.Fprintf(w, `<span class="tooltip" data-tooltip-target="info" data-tooltip="Processed securely by %s"><svg class="c-icon"><use href="#ico-info"></use></svg></span>`+"\n", HTMLEscapeString(n.RealmName))
 	fmt.Fprintln(w, `</div>`)
 
 	// Render all form elements in order of appearance
@@ -631,7 +631,7 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 				fmt.Fprintf(w, `</select>`+"\n")
 
 				// SVG icon for select
-				fmt.Fprintf(w, `<svg class="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"><use href="#ico-arrow"></use></svg>`+"\n")
+				fmt.Fprintf(w, `<svg class="c-icone co"><use href="#ico-arrow"></use></svg>`+"\n")
 
 				fmt.Fprintln(w, "</div>")
 			}

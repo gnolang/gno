@@ -1,7 +1,7 @@
 package commondao
 
 import (
-	"std"
+	"chain/runtime"
 	"strings"
 	"time"
 
@@ -29,7 +29,7 @@ func CreateTextProposal(_ realm, daoID uint64, title, body string, votingDays ui
 		panic("maximum proposal voting period is 30 days")
 	}
 
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	assertCallerIsMember(caller, dao)
 
 	var votingPeriod time.Duration
@@ -61,7 +61,7 @@ func CreateMembersUpdateProposal(_ realm, daoID uint64, newMembers, removeMember
 		panic("forbidden")
 	}
 
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	assertCallerIsMember(caller, dao)
 
 	toAdd := mustParseStringToAddrset(newMembers)
@@ -92,7 +92,7 @@ func CreateSubDAOProposal(_ realm, daoID uint64, name, members string) uint64 {
 		panic("forbidden")
 	}
 
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	assertCallerIsMember(caller, dao)
 
 	daoMembers := mustParseStringToAddrset(members)
@@ -128,7 +128,7 @@ func CreateDissolutionProposal(_ realm, daoID uint64) uint64 {
 		panic("forbidden")
 	}
 
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	assertCallerIsMember(caller, dao)
 
 	def := newDissolvePropDefinition(dissolveDAO)
@@ -155,7 +155,7 @@ func mustParseStringToAddrset(s string) (set addrset.Set) {
 			continue
 		}
 
-		addr := std.Address(raw)
+		addr := address(raw)
 		if !addr.IsValid() {
 			panic("invalid address: " + addr.String())
 		}

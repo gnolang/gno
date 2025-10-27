@@ -1629,12 +1629,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 					ft := bnft
 					if ft.IsCrossing() {
-						// Special case when ctxpn.PkgPath is "testing/base",
+						// Special case when ctxpn.PkgPath is "testing",
 						// pkg/test/test.gno will pass toConstExpr(Nx(`.cur`), NewConcreteRealm())
 						// of the callee function's realm. Normally this isn't possible,
 						// as non-realm packages do not have access to `cur`,
 						// and you cannot pass `cur` to an external realm anyways.
-						if ctxpn.PkgPath == "testing/base" {
+						if ctxpn.PkgPath == "testing" {
 							goto LEAVE_CALL_EXPR_END_CHECK_CROSSING
 						}
 						// START Check validity of crossing arg n.Args[0].(*NameExpr).
