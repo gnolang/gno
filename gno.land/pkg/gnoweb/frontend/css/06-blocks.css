@@ -1588,7 +1588,7 @@ pre.chroma-chroma {
 	}
 
 	/* pure not found */
-	&:has(input[value="pure"]:checked) {
+	&:has(input[value="pures"]:checked) {
 		.range {
 			&:not(:has(> [data-list-type-value="pure"])) {
 				&::before,
