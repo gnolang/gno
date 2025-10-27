@@ -432,9 +432,9 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 	// Render form opening
 	fmt.Fprintf(w, `<form class="gno-form" method="post" action="%s" autocomplete="off" spellcheck="false"`, HTMLEscapeString(action))
 	if n.Exec != nil {
-		fmt.Fprintf(w, ` data-controller="form-exec"`, )
+		fmt.Fprintf(w, ` data-controller="form-exec"`)
 	}
-	fmt.Fprintf(w, `>`+"\n",)
+	fmt.Fprintf(w, `>`+"\n")
 	fmt.Fprintf(w, `<div class="gno-form_header">
 <span><span class="font-bold">%s</span> Form</span>
 <span class="tooltip" data-tooltip="Processed securely by %s"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
@@ -471,20 +471,39 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 
 	// Submit button
 	if len(n.Elements) > 0 {
-		fmt.Fprintf(w, `<input type="submit" value="Submit to %s Realm" />`+"\n",
+		fmt.Fprintf(w, `<div class="gno-form_input"><input type="submit" value="Submit to %s Realm" /></div>`+"\n",
 			HTMLEscapeString(n.RealmName))
 	}
 
 	// Add command block if we have an exec function
 	if n.Exec != nil {
-		fmt.Fprintf(w, `<div class="gno-form_command u-hidden" data-form-exec-target="command">`)
+		fmt.Fprintf(w, `<div class="command u-hidden" data-form-exec-target="command">`)
+		// Add mode and address controls if we have an exec function
+		if n.Exec != nil {
+			fmt.Fprintf(w, `<div data-controller="action-header" class="c-between">
+		<span class="title">Command</span>
+		<div class="c-inline">
+<div class="b-input">
+  <select data-action-header-target="mode" data-action="change->action-header#updateMode">
+    <option value="secure" selected="selected">Mode: Full Security</option>
+    <option value="fast">Mode: Fast</option>
+  </select>
+  <svg><use href="#ico-arrow-down"></use></svg>
+</div>
+<div class="b-input">
+  <label for="form-address-%s">Address</label>
+  <input type="text" data-action-header-target="address" data-action="input->action-header#updateAddress" id="form-address-%s" class="u-font-mono" placeholder="ADDRESS" />
+</div>
+</div>
+</div>`, HTMLEscapeString(n.Exec.FuncName), HTMLEscapeString(n.Exec.FuncName))
+		}
 		r.renderCommandBlock(w, n)
 		fmt.Fprintln(w, `</div>`)
 		fmt.Fprintln(w, `</div>`)
 	}
 
 	fmt.Fprintln(w, "</form>")
-	
+
 	return ast.WalkContinue, nil
 }
 
@@ -498,14 +517,14 @@ func (r *FormRenderer) renderCommandBlock(w util.BufWriter, n *FormNode) {
 	if remote == "" {
 		remote = "127.0.0.1:26657"
 	}
-	
+
 	data := CommandBlockData{
-		FuncName:     n.Exec.FuncName,
-		Params:       n.Exec.Params,
-		PkgPath:      n.RenderPath,
-		ChainId:      chainId,
-		Remote:       remote,
-		Prefix:       "function",
+		FuncName: n.Exec.FuncName,
+		Params:   n.Exec.Params,
+		PkgPath:  n.RenderPath,
+		ChainId:  chainId,
+		Remote:   remote,
+		Prefix:   "function",
 	}
 	RenderCommandBlock(w, data)
 }
@@ -536,7 +555,7 @@ func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastD
 		if e.Checked {
 			fmt.Fprint(w, ` checked`)
 		}
-		
+
 		fmt.Fprintln(w, ` />`)
 
 		label := e.Value

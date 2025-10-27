@@ -19,14 +19,13 @@ export class FormExecController extends BaseController {
 
 	// Handle form submission
 	private _handleSubmit(event: Event): void {
-        // Prevent the form from submitting - Extensions should handle the submission
+		// Prevent the form from submitting - Extensions should handle the submission
 		event.preventDefault();
 		event.stopPropagation();
 
-        const actionFunction = this.getTarget("command");
-        if (actionFunction) {
-            actionFunction.classList.remove("u-hidden");
-        }
+		const actionFunction = this.getTarget("command");
+		if (actionFunction) {
+			actionFunction.classList.remove("u-hidden");
+		}
 	}
 }
-

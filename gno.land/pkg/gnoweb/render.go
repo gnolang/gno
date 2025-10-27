@@ -98,7 +98,6 @@ func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ct
 		if err != nil {
 			return nil, err
 		}
-
 		return msigs[fn], err
 	})
 

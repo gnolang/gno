@@ -79,7 +79,7 @@ func registerHelpFuncs(funcs template.FuncMap) {
 		for i, param := range params {
 			vmParams[i] = vm.NamedType{Name: param.Name, Type: param.Type}
 		}
-		
+
 		data := markdown.CommandBlockData{
 			FuncName:     funcName,
 			FuncSig:      funcSig,
@@ -90,12 +90,12 @@ func registerHelpFuncs(funcs template.FuncMap) {
 			SelectedSend: selectedSend,
 			Prefix:       "function",
 		}
-		
+
 		var buf bytes.Buffer
 		if err := markdown.RenderCommandBlock(&buf, data); err != nil {
 			return template.HTML("<!-- Error rendering command block: " + err.Error() + " -->")
 		}
-		
+
 		return template.HTML(buf.String())
 	}
 }

@@ -190,7 +190,6 @@ func (c *rpcClient) ListFuncs(ctx context.Context, pkgPath string) (vm.FunctionS
 	}
 
 	return fsigs, nil
-
 }
 
 // query sends a query to the RPC client and returns the response

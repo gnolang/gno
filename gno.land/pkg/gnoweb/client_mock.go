@@ -156,7 +156,7 @@ func (m *MockClient) ListFuncs(ctx context.Context, path string) (vm.FunctionSig
 		sig := vm.FunctionSignature{
 			FuncName: fn.Name,
 		}
-		
+
 		// Convert parameters
 		for _, param := range fn.Params {
 			sig.Params = append(sig.Params, vm.NamedType{
@@ -164,7 +164,7 @@ func (m *MockClient) ListFuncs(ctx context.Context, path string) (vm.FunctionSig
 				Type: param.Type,
 			})
 		}
-		
+
 		// Convert results
 		for _, result := range fn.Results {
 			sig.Results = append(sig.Results, vm.NamedType{
@@ -172,10 +172,10 @@ func (m *MockClient) ListFuncs(ctx context.Context, path string) (vm.FunctionSig
 				Type: result.Type,
 			})
 		}
-		
+
 		sigs = append(sigs, sig)
 	}
-	
+
 	return sigs, nil
 }
 
