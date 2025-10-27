@@ -62,9 +62,8 @@ func main() {
 	escrowAddr := transfer.GetEscrowAddress(clientID)
 	println("r/aib/ibc/core balance before SendPacket:", bank.GetCoins(ibcCoreAddr))
 	println("escrowAddr balance before SendPacket:", bank.GetCoins(escrowAddr))
-
+	// Send the packet
 	sequence := core.SendPacket(cross, sendPacket)
-
 	println("\nr/aib/ibc/core balance after SendPacket:", bank.GetCoins(ibcCoreAddr))
 	println("escrowAddr balance after SendPacket:", bank.GetCoins(escrowAddr))
 
