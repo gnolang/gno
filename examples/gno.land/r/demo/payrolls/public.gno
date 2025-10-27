@@ -107,13 +107,15 @@ func claimInternal(id seqid.ID, destination address, mustClaim bool) bool {
 func ClaimAll(cur realm, destination address) {
 	beneficiary := runtime.PreviousRealm().Address()
 	claimed := false
-	payrollsByBeneficiary[beneficiary].Iterate("", "", func(key string, value interface{}) bool {
-		p := value.(*payroll)
-		if ok := claimInternal(p.id, destination, false); ok {
-			claimed = true
-		}
-		return false
-	})
+	if tree := payrollsByBeneficiary[beneficiary]; tree != nil {
+		tree.Iterate("", "", func(key string, value interface{}) bool {
+			p := value.(*payroll)
+			if ok := claimInternal(p.id, destination, false); ok {
+				claimed = true
+			}
+			return false
+		})
+	}
 	if !claimed {
 		panic(errors.New("nothing to claim"))
 	}
@@ -233,11 +235,13 @@ func WithdrawFunds(cur realm, namespace string, denom string, amount int64, dest
 	}
 
 	available := vaultAmount
-	payrollsByVault[id].Iterate("", "", func(_ string, value interface{}) bool {
-		p := value.(*payroll)
-		available = subCoins(available, p.available())
-		return false
-	})
+	if tree := payrollsByVault[id]; tree != nil {
+		tree.Iterate("", "", func(_ string, value interface{}) bool {
+			p := value.(*payroll)
+			available = subCoins(available, p.available())
+			return false
+		})
+	}
 
 	availableAmount := available.AmountOf(denom)
 	if anyAmount {
