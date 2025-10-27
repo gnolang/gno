@@ -10,7 +10,7 @@ Example:
 	func init() {
 		myBlog, _ = blog.NewBlog(
 			"Personal Blog",
-			std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"),
+			"g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs",
 			blog.WithUserResolver(myResolver),
 		)
 	}

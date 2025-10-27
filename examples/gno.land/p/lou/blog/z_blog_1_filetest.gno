@@ -1,15 +1,14 @@
 package main
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/lou/blog"
 )
 
 func main() {
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
-	_, err := blog.NewBlog("My Blog", std.Address("he"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
+	_, err := blog.NewBlog("My Blog", address("he"))
 	if err != nil {
 		println("error:", err.Error())
 	}

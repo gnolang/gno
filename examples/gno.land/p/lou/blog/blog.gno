@@ -1,7 +1,7 @@
 package blog
 
 import (
-	"std"
+	"chain/runtime"
 	"strings"
 	"time"
 
@@ -39,15 +39,15 @@ func (b Blog) Prefix() string {
 	return b.prefix
 }
 
-func NewBlog(title string, owner std.Address, opts ...Options) (*Blog, error) {
+func NewBlog(title string, owner address, opts ...Options) (*Blog, error) {
 	if title == "" {
 		return nil, ErrEmptyTitle
 	}
-	if err := CheckAddr(owner.String()); err != nil {
+	if err := CheckAddr(owner); err != nil {
 		return nil, err
 	}
 
-	pkgPath := std.CurrentRealm().PkgPath()
+	pkgPath := runtime.CurrentRealm().PkgPath()
 	if pkgPath == "" {
 		return nil, ErrEmptyPrefix
 	}
@@ -110,7 +110,7 @@ func (b *Blog) AddPost(post *Post) error {
 	if _, err := b.GetPostBySlug(post.Slug()); err == nil {
 		return ErrPostAlreadyExists
 	}
-	if err := CheckAddr(post.Publisher()); err != nil {
+	if err := CheckAddr(address(post.Publisher())); err != nil {
 		return err
 	}
 
@@ -196,8 +196,8 @@ func (b *Blog) LikePostById(id string) error { // toggles between like and unlik
 	if err != nil {
 		return err
 	}
-	if err := post.LikePost(std.PreviousRealm().Address().String()); err != nil {
-		post.UnlikePost(std.PreviousRealm().Address().String())
+	if err := post.LikePost(runtime.PreviousRealm().Address().String()); err != nil {
+		post.UnlikePost(runtime.PreviousRealm().Address().String())
 	}
 	return nil
 
@@ -210,8 +210,8 @@ func (b *Blog) LikePostBySlug(slug string) error { // toggles between like and u
 	if err != nil {
 		return err
 	}
-	if err := post.LikePost(std.PreviousRealm().Address().String()); err != nil {
-		post.UnlikePost(std.PreviousRealm().Address().String())
+	if err := post.LikePost(runtime.PreviousRealm().Address().String()); err != nil {
+		post.UnlikePost(runtime.PreviousRealm().Address().String())
 	}
 	return nil
 }

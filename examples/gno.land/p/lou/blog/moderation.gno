@@ -1,28 +1,24 @@
 package blog
 
-import (
-	"std"
-)
-
-func (b *Blog) AddModerator(addr std.Address) error {
+func (b *Blog) AddModerator(addr address) error {
 	return b.Authorizable.AddToAuthList(addr)
 }
 
-func (b *Blog) DeleteModerator(addr std.Address) error {
+func (b *Blog) DeleteModerator(addr address) error {
 	return b.Authorizable.DeleteFromAuthList(addr)
 }
 
 type UserResolver func(input string) (string, bool)
 
-func CheckAddr(addr string) error {
-	if !std.Address(addr).IsValid() {
+func CheckAddr(addr address) error {
+	if !addr.IsValid() {
 		return ErrInvalidCaller
 	}
 	return nil
 }
 
 func CheckUser(addr string, resolver UserResolver) (string, error) {
-	if CheckAddr(addr) != nil {
+	if CheckAddr(address(addr)) != nil {
 		return "", ErrInvalidCaller
 	}
 	if !isRegistered(addr, resolver) {

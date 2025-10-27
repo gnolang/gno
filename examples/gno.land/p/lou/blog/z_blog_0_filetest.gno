@@ -1,7 +1,6 @@
 package main
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/lou/blog"
@@ -9,8 +8,8 @@ import (
 
 func main() {
 	user := std.Address("g1testuser")
-	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
+	testing.SetRealm(testing.NewUserRealm(user))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
 	_, err := blog.NewBlog("", user)
 	if err != nil {
 		println("error:", err.Error())
