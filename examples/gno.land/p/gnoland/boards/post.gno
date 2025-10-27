@@ -22,7 +22,7 @@ type Post struct {
 	// OriginalBoardID contains the board ID of the original post when current post is a repost.
 	OriginalBoardID ID
 
-	//  Board contains the board where post is created.
+	// Board contains the board where post is created.
 	Board *Board
 
 	// Title contains the post's title.
@@ -50,6 +50,9 @@ type Post struct {
 	// Creator is the account address that created the post.
 	Creator address
 
+	// Meta allows storing post metadata.
+	Meta any
+
 	// CreatedAt is the post's creation time.
 	CreatedAt time.Time
 
@@ -61,6 +64,81 @@ type Post struct {
 // It returns the body making sure that the length is limited to 80 characters.
 func (post Post) Summary() string {
 	return SummaryOf(post.Body, 80)
+}
+
+// SetID sets post ID value.
+func (post *Post) SetID(v ID) {
+	post.ID = v
+}
+
+// SetParentID sets post's parent ID value.
+func (post *Post) SetParentID(v ID) {
+	post.ParentID = v
+}
+
+// SetThreadID sets thread ID value.
+func (post *Post) SetThreadID(v ID) {
+	post.ThreadID = v
+}
+
+// SetOriginalBoardID sets the board ID of the original post when current post is a repost.
+func (post *Post) SetOriginalBoardID(v ID) {
+	post.OriginalBoardID = v
+}
+
+// SetBoard sets the board where post was created.
+func (post *Post) SetBoard(v *Board) {
+	post.Board = v
+}
+
+// SetTitle sets title value.
+func (post *Post) SetTitle(v string) {
+	post.Title = v
+}
+
+// SetBody sets post's content.
+func (post *Post) SetBody(v string) {
+	post.Body = v
+}
+
+// SetHidden sets hidden value.
+func (post *Post) SetHidden(v bool) {
+	post.Hidden = v
+}
+
+// SetReadonly sets readonly value.
+func (post *Post) SetReadonly(v bool) {
+	post.Readonly = v
+}
+
+// SetReplyStorage sets the storage where post replies are stored.
+func (post *Post) SetReplyStorage(v PostStorage) {
+	post.Replies = v
+}
+
+// SetRepostStorage sets the storage where thread reposts are stored.
+func (post *Post) SetRepostStorage(v RepostStorage) {
+	post.Reposts = v
+}
+
+// SetFlagStorage sets the storage where post flags are stored.
+func (post *Post) SetFlagStorage(v FlagStorage) {
+	post.Flags = v
+}
+
+// SetCreator sets the address of the account that created the post.
+func (post *Post) SetCreator(v address) {
+	post.Creator = v
+}
+
+// SetCreatedAt sets the time when post was created.
+func (post *Post) SetCreatedAt(v time.Time) {
+	post.CreatedAt = v
+}
+
+// SetUpdatedAt sets the time when a post value was updated.
+func (post *Post) SetUpdatedAt(v time.Time) {
+	post.UpdatedAt = v
 }
 
 // IsThread checks if a post is a thread.
