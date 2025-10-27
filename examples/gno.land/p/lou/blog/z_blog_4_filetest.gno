@@ -8,6 +8,7 @@ import (
 	"gno.land/p/lou/blog"
 )
 
+// TO FIX
 func testUserResolver(input string) (string, bool) {
 	switch input {
 	case "g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs":
@@ -75,4 +76,8 @@ func main() {
 }
 
 // Output:
+// # test blog
+// 
+// [⊞ grid](/r/test:?mode=grid) | [☰ list](/r/test:?mode=list) | [⏱ relative](/r/test:?time=short) | [↕ alphabetical \(A\-Z\)](/r/test:?order=asc&sort=alpha) | [↕ recent](/r/test:?order=asc&sort=recent) | [↕ last updated](/r/test:?order=asc&sort=update) | [past year](/r/test:?end=2009-02-13&start=2008-02-13), [this year](/r/test:?end=2009-02-13&start=2009-01-01), [last 30 days](/r/test:?end=2009-02-13&start=2009-01-14) | [🗘 reset](/r/test)
 //
+// No posts found.
