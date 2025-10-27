@@ -195,6 +195,5 @@ func (a *App) OnAcknowledgementPacket(
 			AttributeKeyAckError, ack.Response.Error,
 		)
 	}
-	panic("transfer.OnAcknowledgementPacket not implemented")
-
+	return nil
 }
