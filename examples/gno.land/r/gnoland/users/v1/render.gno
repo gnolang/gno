@@ -24,7 +24,7 @@ func Render(path string) string {
 func renderHomePage() string {
 	var out string
 
-	out += "# gno.land user registry\n"
+	out += "# Gno.land User Registry\n"
 
 	if paused {
 		out += md.HorizontalRule()
@@ -42,7 +42,7 @@ func renderHomePage() string {
 }
 
 func renderIntroParagraph() string {
-	out := md.Paragraph("Welcome to the gno.land user registry (v1). Please register a username.")
+	out := md.Paragraph("Welcome to the Gno.land User Registry (v1). Please register a username.")
 	out += md.Paragraph(`Registering a username grants the registering address the right to deploy packages and realms
 under that username’s namespace. For example, if an address registers the username ` + md.InlineCode("gnome123") + `, it 
 will gain permission to deploy packages and realms to package paths with the pattern ` + md.InlineCode("gno.land/{p,r}/gnome123/*") + `.`)
@@ -62,7 +62,12 @@ will gain permission to deploy packages and realms to package paths with the pat
 
 	if !paused {
 		amount := ufmt.Sprintf("%dugnot", registerPrice)
-		out += md.H3(ufmt.Sprintf(" [[Click here to register]](%s)", txlink.NewLink("Register").SetSend(amount).URL()))
+		link := txlink.NewLink("Register")
+		if registerPrice > 0 {
+			link = link.SetSend(amount)
+		}
+
+		out += md.H3(ufmt.Sprintf(" [[Click here to register]](%s)", link.URL()))
 		// XXX: Display registration price adjusting for dynamic GNOT price when it becomes possible.
 		out += ufmt.Sprintf("Registration price: %f GNOT (%s)\n\n", float64(registerPrice)/1_000_000, amount)
 	}
