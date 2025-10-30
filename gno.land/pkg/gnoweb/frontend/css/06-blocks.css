@@ -726,6 +726,7 @@
 
 	& > label {
 		display: flex;
+		white-space: nowrap;
 		align-items: center;
 		gap: var(--g-space-3);
 		padding: var(--g-space-1-5) var(--g-space-3);
@@ -1270,10 +1271,13 @@ pre.chroma-chroma {
 	}
 
 	.btn-copy {
+		background-color: var(--transparent);
+		padding: 0;
 		position: absolute;
 		top: var(--g-space-2);
 		right: var(--g-space-2);
 		color: var(--s-color-text-tertiary);
+		cursor: pointer;
 
 		&:hover {
 			color: var(--s-color-text-primary);
@@ -1973,7 +1977,6 @@ pre.chroma-chroma {
 		display: block;
 		border-radius: var(--s-rounded);
 		border: var(--s-border-secondary);
-		padding: var(--g-space-2) var(--g-space-4);
 		margin-block: var(--g-space-12);
 
 		input[type="submit"] {
@@ -1989,6 +1992,46 @@ pre.chroma-chroma {
 				opacity: 0.9;
 			}
 		}
+
+		.command {
+			margin-block-start: var(--g-space-6);
+			background-color: var(--s-color-bg-base-dev);
+			padding: var(--g-space-4);
+
+			.title {
+				white-space: nowrap;
+				font-size: var(--g-font-size-200);
+				font-weight: var(--g-font-semibold);
+			}
+
+			& > .b-code {
+				background-color: var(--s-color-bg-base-dev);
+
+				& > pre {
+					background-color: var(--s-color-bg-base);
+					margin-block-end: 0;
+				}
+			}
+
+			.c-inline,
+			.c-between {
+				flex-direction: column;
+				align-items: flex-start;
+				gap: var(--g-space-2);
+				@media (--md) {
+					align-items: center;
+					flex-direction: row;
+				}
+
+				& > * {
+					width: 100%;
+
+					@media (--md) {
+						width: auto;
+					}
+				}
+			}
+		}
 	}
 
 	.gno-form_header {
@@ -1996,12 +2039,14 @@ pre.chroma-chroma {
 		justify-content: space-between;
 		color: var(--s-color-text-tertiary);
 		font-size: var(--g-font-size-50);
+		padding: var(--g-space-2) var(--g-space-4) 0;
 		margin-block-end: var(--g-space-6);
 	}
 
 	.gno-form_input,
 	.gno-form_select {
 		position: relative;
+		padding-inline: var(--g-space-4);
 
 		label {
 			position: absolute;
