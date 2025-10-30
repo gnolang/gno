@@ -163,3 +163,15 @@ func (bs Balances) LoadFromSheet(sheet io.Reader) error {
 
 	return nil
 }
+
+func TotalBalance(bals []Balance) std.Coins {
+	bm := NewBalances()
+	total := std.NewCoins()
+	for _, bal := range bals {
+		bm.Set(bal.Address, bal.Amount)
+	}
+	for _, v := range bm {
+		total = total.Add(v.Amount)
+	}
+	return total
+}
