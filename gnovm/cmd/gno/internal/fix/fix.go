@@ -39,11 +39,10 @@ modification may be required in these cases.`,
 		Version: "0.9",
 	},
 	{
-		Name:              "stdsplit",
-		Date:              "2025-08-13",
-		Desc:              "rewrites imports and symbols of the std package into the new packages and symbols",
-		F:                 stdsplit,
-		DisabledByDefault: true,
+		Name: "stdsplit",
+		Date: "2025-08-13",
+		Desc: "rewrites imports and symbols of the std package into the new packages and symbols",
+		F:    stdsplit,
 	},
 }
 

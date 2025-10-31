@@ -733,7 +733,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key TypedVal
 			// https://go.dev/play/p/iNPDR4FQlRv
 			mli.Key = key
 			return PointerValue{
-				TV:    fillValueTV(store, &mli.Value),
+				TV:    &mli.Value,
 				Base:  mv,
 				Index: PointerIndexMap,
 			}
@@ -743,7 +743,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key TypedVal
 
 	mv.vmap[kmk] = mli
 	return PointerValue{
-		TV:    fillValueTV(store, &mli.Value),
+		TV:    &mli.Value,
 		Base:  mv,
 		Index: PointerIndexMap,
 	}
@@ -795,6 +795,7 @@ type PackageValue struct {
 	FNames     []string
 	FBlocks    []Value
 	Realm      *Realm `json:"-"` // if IsRealmPath(PkgPath), otherwise nil.
+	Private    bool
 	// NOTE: Realm is persisted separately.
 
 	fBlocksMap map[string]*Block
@@ -898,6 +899,10 @@ func (pv *PackageValue) GetRealm() *Realm {
 
 func (pv *PackageValue) SetRealm(rlm *Realm) {
 	pv.Realm = rlm
+}
+
+func (pv *PackageValue) SetPrivate(private bool) {
+	pv.Private = private
 }
 
 // Convenience.

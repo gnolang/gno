@@ -2,7 +2,6 @@ package commondao
 
 import (
 	"errors"
-	"std"
 
 	"gno.land/p/nt/avl/list"
 	"gno.land/p/nt/seqid"
@@ -134,7 +133,7 @@ func (dao *CommonDAO) SetDeleted(deleted bool) {
 }
 
 // Propose creates a new DAO proposal.
-func (dao *CommonDAO) Propose(creator std.Address, d ProposalDefinition) (*Proposal, error) {
+func (dao *CommonDAO) Propose(creator address, d ProposalDefinition) (*Proposal, error) {
 	id, ok := dao.genID.TryNext()
 	if !ok {
 		return nil, ErrOverflow
@@ -150,7 +149,7 @@ func (dao *CommonDAO) Propose(creator std.Address, d ProposalDefinition) (*Propo
 }
 
 // MustPropose creates a new DAO proposal or panics on error.
-func (dao *CommonDAO) MustPropose(creator std.Address, d ProposalDefinition) *Proposal {
+func (dao *CommonDAO) MustPropose(creator address, d ProposalDefinition) *Proposal {
 	p, err := dao.Propose(creator, d)
 	if err != nil {
 		panic(err)
@@ -172,7 +171,7 @@ func (dao CommonDAO) GetProposal(proposalID uint64) *Proposal {
 // By default votes are only allowed to members of the DAO when the proposal is active,
 // and within the voting period. No votes are allowed once the voting deadline passes.
 // DAO deadline checks can optionally be disabled using the `DisableVotingDeadlineCheck` option.
-func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice, reason string) error {
+func (dao *CommonDAO) Vote(member address, proposalID uint64, c VoteChoice, reason string) error {
 	if !dao.Members().Has(member) {
 		return ErrNotMember
 	}

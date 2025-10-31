@@ -123,33 +123,6 @@ func walkDirForGnoFiles(root string, addPath func(path string)) error {
 	return filepath.WalkDir(root, walkFn)
 }
 
-func gnoPackagesFromArgsRecursively(args []string) ([]string, error) {
-	var paths []string
-
-	for _, argPath := range args {
-		info, err := os.Stat(argPath)
-		if err != nil {
-			return nil, fmt.Errorf("gno: invalid file or package path %q: %w", argPath, err)
-		}
-
-		if !info.IsDir() {
-			paths = append(paths, cleanPath(argPath))
-
-			continue
-		}
-
-		// Gather package paths from the directory
-		err = walkDirForGnoFiles(argPath, func(path string) {
-			paths = append(paths, cleanPath(path))
-		})
-		if err != nil {
-			return nil, fmt.Errorf("unable to walk dir: %w", err)
-		}
-	}
-
-	return paths, nil
-}
-
 // targetsFromPatterns returns a list of target paths that match the patterns.
 // Each pattern can represent a file or a directory, and if the pattern
 // includes "/...", the "..." is treated as a wildcard, matching any string.

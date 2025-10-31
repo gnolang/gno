@@ -1,7 +1,7 @@
 package crossrealm_b
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/r/tests/vm/crossrealm"
 )
@@ -15,11 +15,11 @@ func (f *fooer) SetS(newVal string) {
 }
 
 func (f *fooer) Foo(cur realm) {
-	println("hello " + f.s + " cur=" + std.CurrentRealm().PkgPath() + " prev=" + std.PreviousRealm().PkgPath())
+	println("hello " + f.s + " cur=" + runtime.CurrentRealm().PkgPath() + " prev=" + runtime.PreviousRealm().PkgPath())
 }
 
 func (f *fooer) Bar() {
-	println("hello " + f.s + " cur=" + std.CurrentRealm().PkgPath() + " prev=" + std.PreviousRealm().PkgPath())
+	println("hello " + f.s + " cur=" + runtime.CurrentRealm().PkgPath() + " prev=" + runtime.PreviousRealm().PkgPath())
 }
 
 var (

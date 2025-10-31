@@ -1,7 +1,7 @@
 package coins
 
 import (
-	"std"
+	"chain"
 	"strings"
 	"testing"
 
@@ -16,19 +16,19 @@ func TestBalanceChecker(t *testing.T) {
 	addr1 := testutils.TestAddress("user1")
 	addr2 := testutils.TestAddress("user2")
 
-	coinsRealm := std.NewCodeRealm("gno.land/r/gnoland/coins")
+	coinsRealm := testing.NewCodeRealm("gno.land/r/gnoland/coins")
 	testing.SetRealm(coinsRealm)
 
-	testing.IssueCoins(addr1, std.NewCoins(std.NewCoin(denom1, 1000000)))
-	testing.IssueCoins(addr2, std.NewCoins(std.NewCoin(denom1, 501)))
+	testing.IssueCoins(addr1, chain.NewCoins(chain.NewCoin(denom1, 1000000)))
+	testing.IssueCoins(addr2, chain.NewCoins(chain.NewCoin(denom1, 501)))
 
-	testing.IssueCoins(addr2, std.NewCoins(std.NewCoin(denom2, 12345)))
+	testing.IssueCoins(addr2, chain.NewCoins(chain.NewCoin(denom2, 12345)))
 
 	gnoAddr, _ := ctg.ConvertCosmosToGno("cosmos1s2v4tdskccx2p3yyvzem4mw5nn5fprwcku77hr")
 	osmoAddr := "osmo1fl48vsnmsdzcv85q5d2q4z5ajdha8yu3aq6l09"
 	gnoAddr1, _ := ctg.ConvertAnyToGno(osmoAddr)
 
-	testing.IssueCoins(gnoAddr1, std.NewCoins(std.NewCoin(denom2, 12345)))
+	testing.IssueCoins(gnoAddr1, chain.NewCoins(chain.NewCoin(denom2, 12345)))
 
 	tests := []struct {
 		name      string
