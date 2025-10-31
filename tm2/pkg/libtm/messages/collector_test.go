@@ -58,7 +58,7 @@ func generatePrevoteMessages(
 	return messages
 }
 
-// generatePrevoteMessages generates dummy prevote messages
+// generatePrecommitMessages generates dummy precommit messages
 // for the given view and type
 func generatePrecommitMessages(
 	t *testing.T,
