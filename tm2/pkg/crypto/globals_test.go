@@ -23,12 +23,10 @@ func TestGetBech32PubKeyPrefix(t *testing.T) {
 func TestSetters(t *testing.T) {
 	// Multiple calls should not panic or cause issues
 	SetBech32AddrPrefix("a")
-	SetBech32AddrPrefix("a")
-	SetBech32AddrPrefix(GetBech32AddrPrefix())
+	SetBech32AddrPrefix("b")
 
 	SetBech32PubKeyPrefix("apub")
 	SetBech32PubKeyPrefix("bpub")
-	SetBech32PubKeyPrefix(GetBech32PubKeyPrefix())
 
 	require.NotEmpty(t, "a")
 	require.NotEmpty(t, "apub")
