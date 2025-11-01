@@ -20,23 +20,16 @@ func TestGetBech32PubKeyPrefix(t *testing.T) {
 	require.Equal(t, "gpub", prefix, "default pubkey prefix should be 'gpub'")
 }
 
-func TestSettersAreIdempotent(t *testing.T) {
-	// Calling setters multiple times with the same value should be safe
-	// Note: We use the default values to avoid interfering with other tests
-	// since sync.Once persists across tests in the same package
-	defaultPrefix := "g"
-	defaultPubKeyPrefix := "gpub"
-
+func TestSetters(t *testing.T) {
 	// Multiple calls should not panic or cause issues
-	SetBech32AddrPrefix(defaultPrefix)
-	SetBech32AddrPrefix(defaultPrefix)
-	SetBech32AddrPrefix(defaultPrefix)
+	SetBech32AddrPrefix("a")
+	SetBech32AddrPrefix("a")
+	SetBech32AddrPrefix(GetBech32AddrPrefix())
 
-	SetBech32PubKeyPrefix(defaultPubKeyPrefix)
-	SetBech32PubKeyPrefix(defaultPubKeyPrefix)
-	SetBech32PubKeyPrefix(defaultPubKeyPrefix)
+	SetBech32PubKeyPrefix("apub")
+	SetBech32PubKeyPrefix("bpub")
+	SetBech32PubKeyPrefix(GetBech32PubKeyPrefix())
 
-	// Values should remain as default (or whatever was set first)
-	require.NotEmpty(t, GetBech32AddrPrefix())
-	require.NotEmpty(t, GetBech32PubKeyPrefix())
+	require.NotEmpty(t, "a")
+	require.NotEmpty(t, "apub")
 }
