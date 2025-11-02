@@ -9,7 +9,7 @@ import (
 
 var (
 	myBlog *blog.Blog
-	admin = address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs")
+	admin  = address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs")
 )
 
 func init() {
