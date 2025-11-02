@@ -59,6 +59,33 @@ func UpdatePost(_ realm, id, slug, title, body, publicationDate, authors, tags s
 	}
 }
 
+func UpdatePostBySlug(_ realm, slug, title, body, publicationDate, authors, tags string) {
+	var err error
+	var post *blog.Post
+	authorsField := strings.Split(authors, " ")
+	tagsField := strings.Split(tags, " ")
+
+	_, err = myBlog.GetPostBySlug(slug)
+	if err != nil {
+		panic(err)
+	}
+	post, err = blog.NewPost(
+		slug,
+		title,
+		body,
+		publicationDate,
+		runtime.OriginCaller().String(),
+		authorsField,
+		tagsField,
+	)
+	if err != nil {
+		panic(err)
+	}
+	if err := myBlog.UpdatePostBySlug(slug, post); err != nil {
+		panic(err)
+	}
+}
+
 func DeletePost(_ realm, slug string) {
 	if err := myBlog.DeletePostBySlug(slug); err != nil {
 		panic(err)

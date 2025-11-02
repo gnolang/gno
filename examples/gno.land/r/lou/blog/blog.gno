@@ -9,12 +9,13 @@ import (
 
 var (
 	myBlog *blog.Blog
+	admin = address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs")
 )
 
 func init() {
 	myBlog, _ = blog.NewBlog(
 		"Lou's Blog",
-		address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"),
+		admin,
 		blog.WithUserResolver(myResolver),
 	)
 	hor.Register(cross, "Lou's blog realm", "")
