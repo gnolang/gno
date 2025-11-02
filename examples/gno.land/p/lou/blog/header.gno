@@ -19,7 +19,7 @@ type HeaderPreset struct {
 
 func RenderModeToggle(rawPath string) string {
 	return md.Link("⊞ grid", GetGridFmtPath(rawPath)) + " | " +
-		md.Link("☰ list", GetListFmtPath(rawPath))
+		md.Link("≔ list", GetListFmtPath(rawPath))
 }
 
 func RenderTimeFormat(rawPath string) string {
@@ -27,7 +27,7 @@ func RenderTimeFormat(rawPath string) string {
 	if time == "" {
 		time = "relative"
 	}
-	return md.Link("⏱ "+time, GetTimeFmtPath(rawPath, toggleTimeFormat(time)))
+	return md.Link("⧖ "+time, GetTimeFmtPath(rawPath, toggleTimeFormat(time)))
 }
 
 func RenderSortAlpha(rawPath string) string {

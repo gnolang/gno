@@ -35,7 +35,7 @@ func RenderBlogHeader(prefix, rawPath string) string {
 		{"recent", "", RenderSortRecent},
 		{"update", "", RenderSortUpdate},
 		{"time-range", "", func(p string) string { return RenderTimeRangeLinks(p, nil) }},
-		{"reset", "", func(p string) string { return md.Link("🗘 reset", prefix) }},
+		{"reset", "", func(p string) string { return md.Link("⟳ reset", prefix) }},
 	}
 	return RenderHeader(rawPath, headerPresets)
 }
@@ -149,7 +149,7 @@ func (b Blog) RenderFilterHeader(req *mux.Request, user string, isListing bool) 
 	}
 	headerPresets = append(headerPresets,
 		HeaderPreset{"time-range", "", func(p string) string { return RenderTimeRangeLinks(p, nil) }},
-		HeaderPreset{"reset", "", func(p string) string { return md.Link("🗘 reset", b.Prefix()) }},
+		HeaderPreset{"reset", "", func(p string) string { return md.Link("⟳ reset", b.Prefix()) }},
 	)
 	out += RenderHeader(b.Prefix()+":"+req.RawPath, headerPresets)
 	return out + "\n\n"
