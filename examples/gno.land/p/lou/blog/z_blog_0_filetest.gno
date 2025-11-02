@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	user := std.Address("g1testuser")
+	user := address("g1testuser")
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
 	_, err := blog.NewBlog("", user)

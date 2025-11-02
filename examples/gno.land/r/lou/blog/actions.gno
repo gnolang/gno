@@ -1,7 +1,7 @@
 package blog
 
 import (
-	"std"
+	"chain/runtime"
 	"strings"
 
 	"gno.land/p/lou/blog"
@@ -18,7 +18,7 @@ func CreatePost(_ realm, slug, title, body, publicationDate, authors, tags strin
 		title,
 		body,
 		publicationDate,
-		std.OriginCaller().String(),
+		runtime.OriginCaller().String(),
 		authorsField,
 		tagsField,
 	)
@@ -47,7 +47,7 @@ func UpdatePost(_ realm, id, slug, title, body, publicationDate, authors, tags s
 		title,
 		body,
 		publicationDate,
-		std.OriginCaller().String(),
+		runtime.OriginCaller().String(),
 		authorsField,
 		tagsField,
 	)
@@ -78,7 +78,7 @@ func AddCommentToPostBySlug(_ realm, slug, comment string) {
 		panic(err)
 	}
 
-	comm, err := blog.NewComment(std.PreviousRealm().Address().String(), comment)
+	comm, err := blog.NewComment(runtime.PreviousRealm().Address().String(), comment)
 	if err != nil {
 		panic(err)
 	}

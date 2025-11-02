@@ -1,8 +1,6 @@
 package blog
 
 import (
-	"std"
-
 	"gno.land/p/lou/blog"
 
 	"gno.land/r/leon/hor"
@@ -16,7 +14,7 @@ var (
 func init() {
 	myBlog, _ = blog.NewBlog(
 		"Lou's Blog",
-		std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"),
+		address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"),
 		blog.WithUserResolver(myResolver),
 	)
 	hor.Register(cross, "Lou's blog realm", "")
