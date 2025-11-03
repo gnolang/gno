@@ -137,7 +137,7 @@ be token transfers, changes in ownership, updates in user profiles, and more.
 Each event is recorded in the ABCI results of each block, ensuring that action
 that happened is verifiable and accessible to off-chain services.
 
-To emit an event, you can use the `Emit()` function from the `std` package
+To emit an event, you can use the `Emit()` function from the `chain` package
 provided in the Gno standard library. The `Emit()` function takes in a string
 representing the type of event, and an even number of arguments after representing
 `key:value` pairs.
@@ -341,7 +341,7 @@ arguments acting as key-value pairs to be included in the emitted event.
 
 ##### Usage
 ```go
-std.Emit("MyEvent", "myKey1", "myValue1", "myKey2", "myValue2")
+chain.Emit("MyEvent", "myKey1", "myValue1", "myKey2", "myValue2")
 ```
 ---
 
@@ -374,7 +374,7 @@ Read more [here](#coindenom-1).
 
 #### Usage
 ```go
-denom := std.CoinDenom("gno.land/r/demo/blog", "blgcoin") // /gno.land/r/demo/blog:blgcoin
+denom := chain.CoinDenom("gno.land/r/demo/blog", "blgcoin") // /gno.land/r/demo/blog:blgcoin
 ```
 
 ---
@@ -404,7 +404,7 @@ Returns a new Coin with a specific denomination and amount.
 
 ###### Usage
 ```go
-coin := std.NewCoin("ugnot", 100)
+coin := chain.NewCoin("ugnot", 100)
 ```
 ---
 
@@ -413,7 +413,7 @@ Returns a string representation of the `Coin` it was called upon.
 
 ###### Usage
 ```go
-coin := std.NewCoin("ugnot", 100)
+coin := chain.NewCoin("ugnot", 100)
 coin.String() // 100ugnot
 ```
 ---
@@ -428,8 +428,8 @@ Coin `c` it was called upon. If coins compared are not of the same denomination,
 
 ###### Usage
 ```go
-coin1 := std.NewCoin("ugnot", 150)
-coin2 := std.NewCoin("ugnot", 100)
+coin1 := chain.NewCoin("ugnot", 150)
+coin2 := chain.NewCoin("ugnot", 100)
 
 coin1.IsGTE(coin2) // true
 coin2.IsGTE(coin1) // false
@@ -446,8 +446,8 @@ panic.
 
 ###### Usage
 ```go
-coin := std.NewCoin("ugnot", 150)
-coin := std.NewCoin("ugnot", 100)
+coin := chain.NewCoin("ugnot", 150)
+coin := chain.NewCoin("ugnot", 100)
 
 coin1.IsLT(coin2) // false
 coin2.IsLT(coin1) // true
@@ -464,9 +464,9 @@ panic.
 
 ###### Usage
 ```go
-coin1 := std.NewCoin("ugnot", 150)
-coin2 := std.NewCoin("ugnot", 100)
-coin3 := std.NewCoin("ugnot", 100)
+coin1 := chain.NewCoin("ugnot", 150)
+coin2 := chain.NewCoin("ugnot", 100)
+coin3 := chain.NewCoin("ugnot", 100)
 
 coin1.IsEqual(coin2) // false
 coin2.IsEqual(coin1) // false
@@ -485,8 +485,8 @@ will result in subtraction.
 
 ###### Usage
 ```go
-coin1 := std.NewCoin("ugnot", 150)
-coin2 := std.NewCoin("ugnot", 100)
+coin1 := chain.NewCoin("ugnot", 150)
+coin2 := chain.NewCoin("ugnot", 100)
 
 coin3 := coin1.Add(coin2)
 coin3.String() // 250ugnot
@@ -504,8 +504,8 @@ will result in addition.
 
 ###### Usage
 ```go
-coin1 := std.NewCoin("ugnot", 150)
-coin2 := std.NewCoin("ugnot", 100)
+coin1 := chain.NewCoin("ugnot", 150)
+coin2 := chain.NewCoin("ugnot", 100)
 
 coin3 := coin1.Sub(coin2)
 coin3.String() // 50ugnot
@@ -517,8 +517,8 @@ Checks if a coin amount is positive.
 
 ###### Usage
 ```go
-coin1 := std.NewCoin("ugnot", 150)
-coin2 := std.NewCoin("ugnot", -150)
+coin1 := chain.NewCoin("ugnot", 150)
+coin2 := chain.NewCoin("ugnot", -150)
 
 coin1.IsPositive() // true
 coin2.IsPositive() // false
@@ -530,8 +530,8 @@ Checks if a coin amount is negative.
 
 ###### Usage
 ```go
-coin1 := std.NewCoin("ugnot", 150)
-coin2 := std.NewCoin("ugnot", -150)
+coin1 := chain.NewCoin("ugnot", 150)
+coin2 := chain.NewCoin("ugnot", -150)
 
 coin1.IsNegative() // false
 coin2.IsNegative() // true
@@ -543,8 +543,8 @@ Checks if a coin amount is zero.
 
 ###### Usage
 ```go
-coin1 := std.NewCoin("ugnot", 150)
-coin2 := std.NewCoin("ugnot", 0)
+coin1 := chain.NewCoin("ugnot", 150)
+coin2 := chain.NewCoin("ugnot", 0)
 
 coin1.IsZero() // false
 coin2.IsZero() // true
@@ -571,11 +571,11 @@ duplicates into one, keeping the properties of a mathematical set.
 
 ###### Usage
 ```go
-coin1 := std.NewCoin("ugnot", 150)
-coin2 := std.NewCoin("example", 100)
-coin3 := std.NewCoin("ugnot", 100)
+coin1 := chain.NewCoin("ugnot", 150)
+coin2 := chain.NewCoin("example", 100)
+coin3 := chain.NewCoin("ugnot", 100)
 
-coins := std.NewCoins(coin1, coin2, coin3)
+coins := chain.NewCoins(coin1, coin2, coin3)
 coins.String() // 250ugnot, 100example
 ```
 ---
@@ -585,7 +585,7 @@ Returns a string representation of the `Coins` set it was called upon.
 
 ###### Usage
 ```go
-coins := std.Coins{std.Coin{"ugnot", 100}, std.Coin{"foo", 150}, std.Coin{"bar", 200}}
+coins := chain.Coins{chain.Coin{"ugnot", 100}, chain.Coin{"foo", 150}, chain.Coin{"bar", 200}}
 coins.String() // 100ugnot,150foo,200bar
 ```
 ---
@@ -599,7 +599,7 @@ upon. Returns `0` if the specified coin does not exist in the set.
 
 ##### Usage
 ```go
-coins := std.Coins{std.Coin{"ugnot", 100}, std.Coin{"foo", 150}, std.Coin{"bar", 200}}
+coins := chain.Coins{chain.Coin{"ugnot", 100}, chain.Coin{"foo", 150}, chain.Coin{"bar", 200}}
 coins.AmountOf("foo") // 150
 ```
 ---
@@ -629,7 +629,7 @@ Panics if caller of function is not an EOA. Only allows `MsgCall` transactions; 
 
 ##### Usage
 ```go
-std.AssertOriginCall()
+runtime.AssertOriginCall()
 ```
 ---
 
@@ -641,7 +641,7 @@ Returns the chain domain. Currently only `gno.land` is supported.
 
 ##### Usage
 ```go
-domain := std.ChainDomain() // gno.land
+domain := runtime.ChainDomain() // gno.land
 ```
 ---
 
@@ -653,7 +653,7 @@ Returns the chain ID.
 
 ##### Usage
 ```go
-chainID := std.ChainID() // dev | test5 | main ...
+chainID := runtime.ChainID() // dev | test5 | main ...
 ```
 ---
 
@@ -665,7 +665,7 @@ Returns the current block number (height).
 
 ##### Usage
 ```go
-height := std.ChainHeight()
+height := runtime.ChainHeight()
 ```
 ---
 
@@ -677,7 +677,7 @@ Returns the original signer of the transaction.
 
 ##### Usage
 ```go
-caller := std.OriginCaller()
+caller := runtime.OriginCaller()
 ```
 ---
 
@@ -689,7 +689,7 @@ Returns current [Realm](./realms.md) object.
 
 ##### Usage
 ```go
-currentRealm := std.CurrentRealm()
+currentRealm := runtime.CurrentRealm()
 ```
 ---
 
@@ -702,7 +702,7 @@ user realm, `pkgpath` will be empty.
 
 ##### Usage
 ```go
-prevRealm := std.PreviousRealm()
+prevRealm := runtime.PreviousRealm()
 ```
 ---
 
@@ -740,7 +740,7 @@ Returns `Banker` of the specified type.
 ##### Usage
 
 ```go
-banker := std.NewBanker(std.<BankerType>)
+banker := banker.NewBanker(banker.<BankerType>)
 ```
 ---
 
@@ -814,7 +814,7 @@ Returns the `Coins` that were sent along with the calling transaction.
 
 ##### Usage
 ```go
-coinsSent := std.OriginSend()
+coinsSent := banker.OriginSend()
 ```
 ---
 
@@ -823,12 +823,12 @@ coinsSent := std.OriginSend()
 ```go
 // package `testing`
 func SkipHeights(count int64)
-func SetOriginCaller(origCaller std.Address)
-func SetOriginSend(sent std.Coins)
-func IssueCoins(addr std.Address, coins std.Coins)
-func SetRealm(realm std.Realm)
-func NewUserRealm(address std.Address) std.Realm
-func NewCodeRealm(pkgPath string) std.Realm
+func SetOriginCaller(origCaller address)
+func SetOriginSend(sent chain.Coins)
+func IssueCoins(addr address, coins chain.Coins)
+func SetRealm(realm realm)
+func NewUserRealm(address address) realm
+func NewCodeRealm(pkgPath string) realm
 ```
 
 ### SkipHeights
@@ -852,7 +852,7 @@ testing.SkipHeights(100)
 ### SetOriginCaller
 
 ```go
-func SetOriginCaller(origCaller std.Address)
+func SetOriginCaller(origCaller address)
 ```
 
 Sets the current caller of the transaction to **addr**.
@@ -860,7 +860,7 @@ Sets the current caller of the transaction to **addr**.
 #### Usage
 
 ```go
-testing.SetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+testing.SetOriginCaller(address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 ```
 
 ---
@@ -868,7 +868,7 @@ testing.SetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 ### SetOriginSend
 
 ```go
-func SetOriginSend(sent std.Coins)
+func SetOriginSend(sent chain.Coins)
 ```
 
 Sets the sent & spent coins for the current context.
@@ -884,7 +884,7 @@ testing.SetOriginSend(sent Coins)
 ### IssueCoins
 
 ```go
-func IssueCoins(addr std.Address, coins std.Coins)
+func IssueCoins(addr address, coins chain.Coins)
 ```
 
 Issues testing context **coins** to **addr**.
@@ -892,8 +892,8 @@ Issues testing context **coins** to **addr**.
 #### Usage
 
 ```go
-issue := std.Coins{{"coin1", 100}, {"coin2", 200}}
-addr := std.Address("g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec")
+issue := chain.Coins{{"coin1", 100}, {"coin2", 200}}
+addr := address("g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec")
 testing.TestIssueCoins(addr, issue)
 ```
 
@@ -915,10 +915,10 @@ Should be used in combination with [`NewUserRealm`](#newuserrealm) &
 #### Usage
 
 ```go
-addr := std.Address("g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec")
-testing.SetRealm(std.NewUserRealm(""))
+addr := address("g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec")
+testing.SetRealm(testing.NewUserRealm(""))
 // or
-testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/users"))
+testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/users"))
 ```
 
 ---
@@ -926,15 +926,15 @@ testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/users"))
 ### NewUserRealm
 
 ```go
-func NewUserRealm(address std.Address) Realm
+func NewUserRealm(address address) Realm
 ```
 
 Creates a new user realm for testing purposes.
 
 #### Usage
 ```go
-addr := std.Address("g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec")
-userRealm := std.NewUserRealm(addr)
+addr := address("g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec")
+userRealm := testing.NewUserRealm(addr)
 ```
 
 ---
@@ -942,7 +942,7 @@ userRealm := std.NewUserRealm(addr)
 ### NewCodeRealm
 
 ```go
-func NewCodeRealm(pkgPath string) std.Realm
+func NewCodeRealm(pkgPath string) realm
 ```
 
 Creates a new code realm for testing purposes.
@@ -950,5 +950,5 @@ Creates a new code realm for testing purposes.
 #### Usage
 ```go
 path := "gno.land/r/demo/boards"
-codeRealm := std.NewCodeRealm(path)
+codeRealm := testing.NewCodeRealm(path)
 ```
