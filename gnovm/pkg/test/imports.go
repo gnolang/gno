@@ -148,7 +148,7 @@ func StoreWithOptions(
 			m.Store.AddMemPackage(mpkg, mptype)
 			return m.PreprocessFiles(
 				mpkg.Name, mpkg.Path,
-				gno.ParseMemPackageAsType(mpkg, mptype),
+				m.ParseMemPackageAsType(mpkg, mptype),
 				save, false, opts.FixFrom)
 		} else {
 			return m.RunMemPackage(mpkg, save)
@@ -315,13 +315,11 @@ func loadStdlib(
 		// Normal stdlib path.
 		stdlibLocation(rootDir, pkgPath),
 	}
-	var mPkgType gno.MemPackageType
+	mPkgType := gno.MPStdlibProd
 	if testing {
 		// Override path. Definitions here override the previous if duplicate.
 		dirs = append(dirs, testStdlibLocation(rootDir, pkgPath))
 		mPkgType = gno.MPStdlibTest
-	} else {
-		mPkgType = gno.MPStdlibProd
 	}
 	files := make([]string, 0, 32) // pre-alloc 32 as a likely high number of files
 	for _, path := range dirs {
@@ -355,7 +353,7 @@ func loadStdlib(
 	})
 	if preprocessOnly {
 		m2.Store.AddMemPackage(mpkg, mPkgType)
-		return m2.PreprocessFiles(mpkg.Name, mpkg.Path, gno.ParseMemPackageAsType(mpkg, mPkgType), true, true, "")
+		return m2.PreprocessFiles(mpkg.Name, mpkg.Path, m2.ParseMemPackageAsType(mpkg, mPkgType), true, true, "")
 	}
 	// TODO: make this work when using gno lint.
 	return m2.RunMemPackageWithOverrides(mpkg, true)
