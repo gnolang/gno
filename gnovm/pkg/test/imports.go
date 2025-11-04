@@ -239,8 +239,6 @@ func StoreWithOptions(
 		if opts.WithExamples {
 			// if examples package...
 			examplePath := filepath.Join(rootDir, "examples", pkgPath)
-			/*
-      // FIXME: need to check this
 			if osm.DirExists(examplePath) {
 				// Skip loading if this is the package being tested with coverage
 				// This ensures we use the instrumented version instead
@@ -251,28 +249,6 @@ func StoreWithOptions(
 					return nil, nil
 				}
 
-				mpkg := gno.MustReadMemPackage(examplePath, pkgPath, gno.MPUserProd)
-				if mpkg.IsEmpty() {
-					panic(fmt.Sprintf("found an empty package %q", pkgPath))
-				}
-
-				// NOTE: Coverage instrumentation should NOT be applied to imported packages.
-				// Only the package being tested should be instrumented, not its dependencies.
-				// Instrumenting imports causes parse errors because the "testing" package
-				// is not available in the regular package context.
-
-				send := std.Coins{}
-				ctx := Context("", pkgPath, send)
-				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-					PkgPath:       pkgPath,
-					Output:        output,
-					Store:         store,
-					Context:       ctx,
-					ReviveEnabled: true,
-					SkipPackage:   true,
-				})
-				return _processMemPackage(m2, mpkg, true)
-			  */
 				return loadFromDir(examplePath)
 			}
 		}

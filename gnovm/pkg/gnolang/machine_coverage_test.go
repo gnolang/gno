@@ -149,7 +149,8 @@ func TestTrackCoverageForNode_Success(t *testing.T) {
 
 	// Create and push a block
 	fileNode.Location = loc
-	block := NewBlock(fileNode, nil)
+	alloc := NewAllocator(1024)
+	block := NewBlock(alloc, fileNode, nil)
 	m.PushBlock(block)
 
 	// Track coverage for a node
@@ -181,7 +182,8 @@ func TestTrackCoverageForNode_WithExprAndStmt(t *testing.T) {
 	}
 
 	fileNode.Location = loc
-	block := NewBlock(fileNode, nil)
+	alloc := NewAllocator(1024)
+	block := NewBlock(alloc, fileNode, nil)
 	m.PushBlock(block)
 
 	// Test with an actual expression node
