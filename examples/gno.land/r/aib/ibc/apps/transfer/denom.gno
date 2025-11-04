@@ -2,6 +2,7 @@ package transfer
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"strings"
 
 	"gno.land/p/aib/ibc/host"
@@ -84,7 +85,8 @@ func (d Denom) IBCDenom() string {
 		return d.Base
 	}
 
-	return ufmt.Sprintf("%s/%s", denomPrefix, d.Hash())
+	return ufmt.Sprintf("%s/%s", denomPrefix,
+		strings.ToUpper(hex.EncodeToString(d.Hash())))
 }
 
 // ExtractDenomFromPath returns the denom from the full path.
