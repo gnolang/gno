@@ -76,7 +76,7 @@ The components of these paths are:
 
 Two important facts about package paths:
 - The maximum length of a package path is `256` characters.
-- A realm's address is directly derived from its package path, by using [`std.DerivePkgAddr()`](./gno-stdlibs.md#derivepkgaddr)
+- A realm's address is directly derived from its package path, by using [`chain.PackageAddress()`](./gno-stdlibs.md#derivepkgaddr)
 
 ## Namespaces
 
