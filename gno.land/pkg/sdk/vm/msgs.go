@@ -16,9 +16,10 @@ import (
 
 // MsgAddPackage - create and initialize new package
 type MsgAddPackage struct {
-	Creator crypto.Address  `json:"creator" yaml:"creator"`
-	Package *std.MemPackage `json:"package" yaml:"package"`
-	Deposit std.Coins       `json:"deposit" yaml:"deposit"`
+	Creator    crypto.Address  `json:"creator" yaml:"creator"`
+	Package    *std.MemPackage `json:"package" yaml:"package"`
+	Send       std.Coins       `json:"send" yaml:"send"`
+	MaxDeposit std.Coins       `json:"max_deposit" yaml:"max_deposit"`
 }
 
 var _ std.Msg = MsgAddPackage{}
@@ -56,10 +57,16 @@ func (msg MsgAddPackage) ValidateBasic() error {
 	if msg.Package.Path == "" { // XXX
 		return ErrInvalidPkgPath("missing package path")
 	}
-	if !msg.Deposit.IsValid() {
-		return std.ErrInvalidCoins(msg.Deposit.String())
+	if !msg.Send.IsValid() {
+		return std.ErrInvalidCoins(msg.Send.String())
 	}
-	// XXX validate files.
+	if !msg.MaxDeposit.IsValid() {
+		return std.ErrInvalidCoins(msg.MaxDeposit.String())
+	}
+	// Validate: ensure the package contains at least one file.
+	if len(msg.Package.Files) == 0 {
+		return ErrInvalidFile("no files in MsgAddPackage")
+	}
 	return nil
 }
 
@@ -75,7 +82,7 @@ func (msg MsgAddPackage) GetSigners() []crypto.Address {
 
 // Implements ReceiveMsg.
 func (msg MsgAddPackage) GetReceived() std.Coins {
-	return msg.Deposit
+	return msg.Send
 }
 
 //----------------------------------------
@@ -83,11 +90,12 @@ func (msg MsgAddPackage) GetReceived() std.Coins {
 
 // MsgCall - executes a Gno statement.
 type MsgCall struct {
-	Caller  crypto.Address `json:"caller" yaml:"caller"`
-	Send    std.Coins      `json:"send" yaml:"send"`
-	PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
-	Func    string         `json:"func" yaml:"func"`
-	Args    []string       `json:"args" yaml:"args"`
+	Caller     crypto.Address `json:"caller" yaml:"caller"`
+	Send       std.Coins      `json:"send" yaml:"send"`
+	MaxDeposit std.Coins      `json:"max_deposit" yaml:"max_deposit"`
+	PkgPath    string         `json:"pkg_path" yaml:"pkg_path"`
+	Func       string         `json:"func" yaml:"func"`
+	Args       []string       `json:"args,omitempty" yaml:"args"`
 }
 
 var _ std.Msg = MsgCall{}
@@ -125,6 +133,12 @@ func (msg MsgCall) ValidateBasic() error {
 	if msg.Func == "" { // XXX
 		return ErrInvalidExpr("missing function to call")
 	}
+	if !msg.Send.IsValid() {
+		return std.ErrInvalidCoins(msg.Send.String())
+	}
+	if !msg.MaxDeposit.IsValid() {
+		return std.ErrInvalidCoins(msg.MaxDeposit.String())
+	}
 	return nil
 }
 
@@ -148,9 +162,10 @@ func (msg MsgCall) GetReceived() std.Coins {
 
 // MsgRun - executes arbitrary Gno code.
 type MsgRun struct {
-	Caller  crypto.Address  `json:"caller" yaml:"caller"`
-	Send    std.Coins       `json:"send" yaml:"send"`
-	Package *std.MemPackage `json:"package" yaml:"package"`
+	Caller     crypto.Address  `json:"caller" yaml:"caller"`
+	Send       std.Coins       `json:"send" yaml:"send"`
+	MaxDeposit std.Coins       `json:"max_deposit" yaml:"max_deposit"`
+	Package    *std.MemPackage `json:"package" yaml:"package"`
 }
 
 var _ std.Msg = MsgRun{}
@@ -194,7 +209,17 @@ func (msg MsgRun) ValidateBasic() error {
 			return ErrInvalidPkgPath(fmt.Sprintf("invalid pkgpath for MsgRun: %q", path))
 		}
 	}
+	// Validate: ensure the package contains at least one file.
+	if len(msg.Package.Files) == 0 {
+		return ErrInvalidFile("no files in MsgRun")
+	}
 
+	if !msg.Send.IsValid() {
+		return std.ErrInvalidCoins(msg.Send.String())
+	}
+	if !msg.MaxDeposit.IsValid() {
+		return std.ErrInvalidCoins(msg.MaxDeposit.String())
+	}
 	return nil
 }
 

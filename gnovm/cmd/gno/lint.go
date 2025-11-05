@@ -7,12 +7,13 @@ import (
 	"fmt"
 	goio "io"
 	"io/fs"
-	"os"
 	"path/filepath"
 
+	"github.com/gnolang/gno/gnovm/cmd/gno/internal/cmdutil"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -67,31 +68,59 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		cmd.rootDir = gnoenv.RootDir()
 	}
 
-	dirs, err := gnoPackagesFromArgsRecursively(args)
+	loadCfg := packages.LoadConfig{
+		Fetcher:    testPackageFetcher,
+		Deps:       true,
+		Test:       true,
+		Out:        io.Err(),
+		AllowEmpty: true,
+		GnoRoot:    cmd.rootDir,
+	}
+	pkgs, err := packages.Load(loadCfg, args...)
 	if err != nil {
-		return fmt.Errorf("list packages from args: %w", err)
+		return err
 	}
 
 	hasError := false
 
 	prodbs, prodgs := test.StoreWithOptions(
 		cmd.rootDir, goio.Discard,
-		test.StoreOptions{PreprocessOnly: true, WithExtern: false, WithExamples: true, Testing: false},
+		test.StoreOptions{PreprocessOnly: true, WithExtern: false, WithExamples: true, Testing: false, Packages: pkgs},
 	)
 	testbs, testgs := test.StoreWithOptions(
 		cmd.rootDir, goio.Discard,
-		test.StoreOptions{PreprocessOnly: true, WithExtern: false, WithExamples: true, Testing: true},
+		test.StoreOptions{
+			PreprocessOnly: true,
+			WithExtern:     false,
+			WithExamples:   true,
+			Testing:        true,
+			SourceStore:    prodgs,
+			Packages:       pkgs,
+		},
 	)
-	ppkgs := map[string]processedPackage{}
+	ppkgs := map[string]cmdutil.ProcessedPackage{}
+	cache := make(gno.TypeCheckCache)
 
 	if cmd.verbose {
-		io.ErrPrintfln("linting directories: %v", dirs)
+		targetsNames := []string{}
+		for _, pkg := range pkgs {
+			if len(pkg.Match) == 0 {
+				continue
+			}
+			targetsNames = append(targetsNames, lintTargetName(pkg))
+		}
+		io.ErrPrintfln("linting packages: %v", targetsNames)
 	}
 	//----------------------------------------
 	// LINT STAGE 1: Typecheck and lint.
-	for _, dir := range dirs {
+	for _, pkg := range pkgs {
+		// ignore dependencies
+		if len(pkg.Match) == 0 {
+			continue
+		}
+
 		if cmd.verbose {
-			io.ErrPrintfln("linting %q", dir)
+			io.ErrPrintfln("linting %q", lintTargetName(pkg))
 		}
 
 		// XXX Currently the linter only supports linting directories.
@@ -101,10 +130,8 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		// rather than dirs. Commands like `gno lint a.gno b.gno`
 		// should create a temporary package from just those files. We
 		// could also load mempackages lazily for memory efficiency.
-		info, err := os.Stat(dir)
-		if err == nil && !info.IsDir() {
-			dir = filepath.Dir(dir)
-		}
+		// Alternative: support `command-line-arguments` in packages.Load
+		dir := pkg.Dir
 
 		// Read and parse gnomod.toml directly.
 		fpath := filepath.Join(dir, "gnomod.toml")
@@ -180,7 +207,8 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			// typecheck error we prefer.
 			tgetter := tgs.GetPackageGetter()
 			tgs.SetPackageGetter(func(pkgPath string, store gno.Store) (
-				*gno.PackageNode, *gno.PackageValue) {
+				*gno.PackageNode, *gno.PackageValue,
+			) {
 				if pkgPath == mpkg.Path {
 					tmpkg := gno.MPFTest.FilterMemPackage(mpkg)
 					m2 := gno.NewMachineWithOptions(gno.MachineOptions{
@@ -193,7 +221,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 					tmpkgType := tmpkg.Type.(gno.MemPackageType)
 					m2.Store.AddMemPackage(tmpkg, tmpkgType)
 					return m2.PreprocessFiles(tmpkg.Name, tmpkg.Path,
-						gno.ParseMemPackageAsType(tmpkg, tmpkgType), true, true, "")
+						m2.ParseMemPackageAsType(tmpkg, tmpkgType), true, true, "")
 				} else {
 					return tgetter(pkgPath, store)
 				}
@@ -211,7 +239,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		// Handle runtime errors
 		didPanic := catchPanic(dir, pkgPath, io.Err(), func() {
 			// Memo process results here.
-			ppkg := processedPackage{mpkg: mpkg, dir: dir}
+			ppkg := cmdutil.ProcessedPackage{MPkg: mpkg, Dir: dir}
 
 			// Run type checking
 			// LINT STEP 2: ParseGnoMod()
@@ -228,7 +256,12 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			if cmd.autoGnomod {
 				tcmode = gno.TCLatestRelaxed
 			}
-			errs := lintTypeCheck(io, dir, mpkg, newProdGnoStore(), newTestGnoStore(true), tcmode)
+			errs := lintTypeCheck(io, dir, mpkg, gno.TypeCheckOptions{
+				Getter:     newProdGnoStore(),
+				TestGetter: newTestGnoStore(true),
+				Mode:       tcmode,
+				Cache:      cache,
+			})
 			if errs != nil {
 				// io.ErrPrintln(errs) printed above.
 				hasError = true
@@ -252,7 +285,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				tm.Store = newProdGnoStore()
 				pn, _ := tm.PreprocessFiles(
 					mpkg.Name, mpkg.Path, fset, false, false, "")
-				ppkg.AddProd(pn, fset)
+				ppkg.AddNormal(pn, fset)
 			}
 			{
 				// LINT STEP 5: PreprocessFiles()
@@ -304,15 +337,20 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 	//----------------------------------------
 	// LINT STAGE 2: Write.
 	// Must be a separate stage to prevent partial writes.
-	for _, dir := range dirs {
-		ppkg, ok := ppkgs[dir]
+	for _, pkg := range pkgs {
+		// ignore dependencies
+		if len(pkg.Match) == 0 {
+			continue
+		}
+
+		ppkg, ok := ppkgs[pkg.Dir]
 		if !ok {
 			// Skip directories that were not processed (e.g., ignored modules)
 			continue
 		}
 
 		// LINT STEP 6: mpkg.WriteTo():
-		err := ppkg.mpkg.WriteTo(dir)
+		err := ppkg.MPkg.WriteTo(pkg.Dir)
 		if err != nil {
 			return err
 		}
@@ -328,14 +366,12 @@ func lintTypeCheck(
 	io commands.IO,
 	dir string,
 	mpkg *std.MemPackage,
-	prodStore gno.Store,
-	testStore gno.Store,
-	tcmode gno.TypeCheckMode) (
+	opts gno.TypeCheckOptions) (
 	// Results:
 	lerr error,
 ) {
 	// gno.TypeCheckMemPackage(mpkg, testStore).
-	_, tcErrs := gno.TypeCheckMemPackage(mpkg, prodStore, testStore, tcmode)
+	_, tcErrs := gno.TypeCheckMemPackage(mpkg, opts)
 
 	// Print errors, and return the first unexpected error.
 	errors := multierr.Errors(tcErrs)
@@ -345,4 +381,12 @@ func lintTypeCheck(
 
 	lerr = tcErrs
 	return
+}
+
+func lintTargetName(pkg *packages.Package) string {
+	if pkg.ImportPath != "" {
+		return pkg.ImportPath
+	}
+
+	return tryRelativizePath(pkg.Dir)
 }

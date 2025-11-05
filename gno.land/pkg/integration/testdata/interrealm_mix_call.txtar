@@ -1,6 +1,6 @@
 adduser test2
 
-loadpkg gno.land/p/demo/ufmt
+loadpkg gno.land/p/nt/ufmt
 
 ## start a new node
 gnoland start
@@ -69,7 +69,7 @@ package callerrealm
 import (
  	"gno.land/p/test/utils"
 	"gno.land/r/test/borrowrealm"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 var obj = borrowrealm.NewObject() // seems to be same thing with obj = borrowrealm.ObjectImpl{}
@@ -130,7 +130,7 @@ package borrowrealm
 
 import (
  	"gno.land/p/test/utils"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 var Object ObjectImplem
@@ -217,26 +217,24 @@ gno = "0.9"
 -- utils/utils.gno --
 package utils
 
-import (
- 	"std"
-)
+import "chain/runtime"
 
 func AssertCurrentRealmPkgPath(expected string) {
- 	currentRealm := std.CurrentRealm().PkgPath()
- 	if currentRealm != expected {
- 	 	if expected == "" {
- 	 	 	expected = "empty"
- 	 	}
- 	 	panic("expected std.CurrentRealm().PkgPath() to return " + expected + ", got " + currentRealm)
- 	}
+	currentRealm := runtime.CurrentRealm().PkgPath()
+	if currentRealm != expected {
+		if expected == "" {
+			expected = "empty"
+		}
+		panic("expected std.CurrentRealm().PkgPath() to return " + expected + ", got " + currentRealm)
+	}
 }
 
 func AssertPreviousRealmPkgPath(expected string) {
- 	previousRealm := std.PreviousRealm().PkgPath()
- 	if previousRealm != expected {
- 	 	if expected == "" {
- 	 	 	expected = "empty"
- 	 	}
- 	 	panic("expected std.PreviousRealm().PkgPath() to return " + expected + ", got " + previousRealm)
- 	}
+	previousRealm := runtime.PreviousRealm().PkgPath()
+	if previousRealm != expected {
+		if expected == "" {
+			expected = "empty"
+		}
+		panic("expected std.PreviousRealm().PkgPath() to return " + expected + ", got " + previousRealm)
+	}
 }

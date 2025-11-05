@@ -31,7 +31,6 @@ func main() {
 	// Create a simple proposal request with nil executor
 	// The error should come from PreCreateProposal before executor is validated
 	pr := dao.NewProposalRequest("Test Proposal", "This is a test proposal", nil)
-	
 	_, err := dao.CreateProposal(cross, pr)
 	if err != nil {
 		println(err.Error())
@@ -42,8 +41,6 @@ func main() {
 package load_govdao
 
 import (
-	"std"
-
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
 	"gno.land/r/gov/dao/v3/memberstore"
@@ -54,7 +51,7 @@ func init() {
 	memberstore.Get().SetTier(memberstore.T2)
 	memberstore.Get().SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(memberstore.T1, std.Address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3}) // member address
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3}) // member address
 
 	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO:         impl.GetInstance(),

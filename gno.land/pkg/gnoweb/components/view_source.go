@@ -9,6 +9,7 @@ const (
 	ReadmeFileName string   = "README.md"
 )
 
+// SourceData holds data for rendering a source code view.
 type SourceData struct {
 	PkgPath      string
 	Files        []string
@@ -31,9 +32,9 @@ func (d SourceData) WrappedSource() Component {
 // ArticleClasses returns the CSS classes based on file type.
 func (d SourceData) ArticleClasses() string {
 	if d.FileName == ReadmeFileName {
-		return "realm-view bg-light px-4 pt-6 pb-4 rounded lg:col-span-7"
+		return "c-readme-view"
 	}
-	return "source-view col-span-1 lg:col-span-7 lg:row-start-2 pb-24 text-gray-900"
+	return "c-source-view"
 }
 
 type SourceTocData struct {
@@ -44,11 +45,13 @@ type SourceTocData struct {
 	TomlFiles    []SourceTocItem
 }
 
+// SourceTocItem represents an item in the source view table of contents.
 type SourceTocItem struct {
 	Link string
 	Text string
 }
 
+// sourceViewParams holds parameters for rendering the source view template.
 type sourceViewParams struct {
 	Article      ArticleData
 	Files        []string
@@ -61,6 +64,7 @@ type sourceViewParams struct {
 	ComponentTOC Component
 }
 
+// SourceView creates a new View for displaying source code and its table of contents.
 func SourceView(data SourceData) *View {
 	tocData := SourceTocData{
 		Icon: "file",

@@ -16,8 +16,9 @@ import (
 	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/stdlibs"
-	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
+	"github.com/gnolang/gno/gnovm/tests/stdlibs/chain/runtime"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -41,11 +42,11 @@ const (
 // the pkgAddr the coins in `send` by default, and only that.
 // The Height and Timestamp parameters are set to the [DefaultHeight] and
 // [DefaultTimestamp].
-func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *teststd.TestExecContext {
+func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *runtime.TestExecContext {
 	// FIXME: create a better package to manage this, with custom constructors
 	pkgAddr := gno.DerivePkgBech32Addr(pkgPath) // the addr of the pkgPath called.
 
-	banker := &teststd.TestBanker{
+	banker := &runtime.TestBanker{
 		CoinTable: map[crypto.Bech32Address]std.Coins{
 			pkgAddr: send,
 		},
@@ -62,9 +63,9 @@ func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *tests
 		Params:          newTestParams(),
 		EventLogger:     sdk.NewEventLogger(),
 	}
-	return &teststd.TestExecContext{
+	return &runtime.TestExecContext{
 		ExecContext: ctx,
-		RealmFrames: make(map[int]teststd.RealmOverride),
+		RealmFrames: make(map[int]runtime.RealmOverride),
 	}
 }
 
@@ -104,12 +105,13 @@ func newTestParams() *testParams {
 	return &testParams{}
 }
 
-func (tp *testParams) SetBool(key string, val bool)        { /* noop */ }
-func (tp *testParams) SetBytes(key string, val []byte)     { /* noop */ }
-func (tp *testParams) SetInt64(key string, val int64)      { /* noop */ }
-func (tp *testParams) SetUint64(key string, val uint64)    { /* noop */ }
-func (tp *testParams) SetString(key string, val string)    { /* noop */ }
-func (tp *testParams) SetStrings(key string, val []string) { /* noop */ }
+func (tp *testParams) SetBool(key string, val bool)                     { /* noop */ }
+func (tp *testParams) SetBytes(key string, val []byte)                  { /* noop */ }
+func (tp *testParams) SetInt64(key string, val int64)                   { /* noop */ }
+func (tp *testParams) SetUint64(key string, val uint64)                 { /* noop */ }
+func (tp *testParams) SetString(key string, val string)                 { /* noop */ }
+func (tp *testParams) SetStrings(key string, val []string)              { /* noop */ }
+func (tp *testParams) UpdateStrings(key string, val []string, add bool) { /* noop */ }
 
 // ----------------------------------------
 // main test function
@@ -146,6 +148,7 @@ type TestOptions struct {
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
+	tcCache        gno.TypeCheckCache
 }
 
 // WriterForStore is the writer that should be passed to [Store], so that
@@ -155,7 +158,7 @@ func (opts *TestOptions) WriterForStore() io.Writer {
 }
 
 // NewTestOptions sets up TestOptions, filling out all "required" parameters.
-func NewTestOptions(rootDir string, stdout, stderr io.Writer) *TestOptions {
+func NewTestOptions(rootDir string, stdout, stderr io.Writer, pkgs packages.PkgList) *TestOptions {
 	opts := &TestOptions{
 		RootDir: rootDir,
 		Output:  stdout,
@@ -163,9 +166,9 @@ func NewTestOptions(rootDir string, stdout, stderr io.Writer) *TestOptions {
 	}
 	opts.BaseStore, opts.TestStore = StoreWithOptions(
 		rootDir, opts.WriterForStore(), StoreOptions{
-			WithExtern:   false,
-			WithExamples: true,
-			Testing:      true,
+			WithExtern: false,
+			Testing:    true,
+			Packages:   pkgs,
 		})
 	return opts
 }
@@ -399,7 +402,7 @@ func (opts *TestOptions) runTestFiles(
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
 
-		testingpv := m.Store.GetPackage("testing/base", false)
+		testingpv := m.Store.GetPackage("testing", false)
 		testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
 		testingcx := &gno.ConstExpr{TypedValue: testingtv}
 		testfv := m.Eval(gno.Nx(tf.Name))[0].GetFunc()
@@ -414,7 +417,7 @@ func (opts *TestOptions) runTestFiles(
 			// > TestSomething(cur realm, t *testing.T) {...}
 			//
 			// Normally this isn't possible because
-			// stdlibs/testing/base is a non-realm, so it cannot
+			// stdlibs/testing is a non-realm, so it cannot
 			// have `cur`. And while a realm could call `func(cur
 			// realm){...}(cross)`, some *_test.gno test cases want
 			// `cur` to refer to the realm package, while
@@ -453,7 +456,7 @@ func (opts *TestOptions) runTestFiles(
 				}
 				if err != nil {
 					p = filepath.Join(opts.RootDir, "examples", ppath, name)
-					b, err = os.ReadFile(p)
+					b, _ = os.ReadFile(p)
 				}
 				return string(b)
 			}
@@ -478,7 +481,7 @@ func (opts *TestOptions) runTestFiles(
 		))
 
 		if opts.Events {
-			events := m.Context.(*teststd.TestExecContext).EventLogger.Events()
+			events := m.Context.(*runtime.TestExecContext).EventLogger.Events()
 			if events != nil {
 				res, err := json.Marshal(events)
 				if err != nil {
@@ -573,12 +576,13 @@ func parseMemPackageTests(mpkg *std.MemPackage) (tset, itset *gno.FileSet, itfil
 	tset = &gno.FileSet{}
 	itset = &gno.FileSet{}
 	var errs error
+	var m *gno.Machine
 	for _, mfile := range mpkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // skip this file.
 		}
 
-		n, err := gno.ParseFile(mfile.Name, mfile.Body)
+		n, err := m.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue

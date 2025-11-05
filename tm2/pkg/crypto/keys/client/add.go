@@ -18,6 +18,7 @@ import (
 var (
 	errInvalidMnemonic       = errors.New("invalid bip39 mnemonic")
 	errInvalidDerivationPath = errors.New("invalid derivation path")
+	errPassphraseMismatch    = errors.New("passphrases don't match")
 )
 
 var reDerivationPath = regexp.MustCompile(`^44'\/118'\/\d+'\/0\/\d+$`)
@@ -29,6 +30,8 @@ type AddCfg struct {
 	NoBackup bool
 	Account  uint64
 	Index    uint64
+	Entropy  bool
+	Masked   bool
 
 	DerivationPath commands.StringArr
 }
@@ -88,6 +91,20 @@ func (c *AddCfg) RegisterFlags(fs *flag.FlagSet) {
 		"address index number for HD derivation",
 	)
 
+	fs.BoolVar(
+		&c.Entropy,
+		"entropy",
+		false,
+		"supply custom entropy for key generation instead of using computer's PRNG",
+	)
+
+	fs.BoolVar(
+		&c.Masked,
+		"masked",
+		false,
+		"mask input characters (use with --entropy or --recover)",
+	)
+
 	fs.Var(
 		&c.DerivationPath,
 		"derivation-path",
@@ -145,26 +162,21 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 	}
 
 	// Ask for a password when generating a local key
-	encryptPassword, err := io.GetCheckPassword(
-		[2]string{
-			"Enter a passphrase to encrypt your key to disk:",
-			"Repeat the passphrase:",
-		},
-		cfg.RootCfg.InsecurePasswordStdin,
-	)
+	pw, err := promptPassphrase(io, cfg.RootCfg.InsecurePasswordStdin)
 	if err != nil {
-		return fmt.Errorf("unable to parse provided password, %w", err)
+		return err
 	}
 
-	// Get bip39 mnemonic
-	mnemonic, err := GenerateMnemonic(mnemonicEntropySize)
-	if err != nil {
-		return fmt.Errorf("unable to generate mnemonic, %w", err)
-	}
+	var mnemonic string
 
-	if cfg.Recover {
+	switch {
+	case cfg.Recover:
 		bip39Message := "Enter your bip39 mnemonic"
-		mnemonic, err = io.GetString(bip39Message)
+		if cfg.Masked {
+			mnemonic, err = io.GetPassword(bip39Message, false)
+		} else {
+			mnemonic, err = io.GetString(bip39Message)
+		}
 		if err != nil {
 			return fmt.Errorf("unable to parse mnemonic, %w", err)
 		}
@@ -173,6 +185,18 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 		if !bip39.IsMnemonicValid(mnemonic) {
 			return errInvalidMnemonic
 		}
+	case cfg.Entropy:
+		// Generate mnemonic using custom entropy
+		mnemonic, err = GenerateMnemonicWithCustomEntropy(io, cfg.Masked)
+		if err != nil {
+			return fmt.Errorf("unable to generate mnemonic with custom entropy, %w", err)
+		}
+	default:
+		// Generate mnemonic using computer PRNG
+		mnemonic, err = GenerateMnemonic(mnemonicEntropySize)
+		if err != nil {
+			return fmt.Errorf("unable to generate mnemonic, %w", err)
+		}
 	}
 
 	// Save the account
@@ -180,7 +204,7 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 		name,
 		mnemonic,
 		"",
-		encryptPassword,
+		pw,
 		uint32(cfg.Account),
 		uint32(cfg.Index),
 	)
@@ -204,6 +228,33 @@ func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 	return nil
 }
 
+// promptPassphrase prompts for a password, with confirmation.
+func promptPassphrase(io commands.IO, insecurePasswordStdin bool) (string, error) {
+	pw, err := io.GetPassword("Enter a passphrase to encrypt your private key on disk: ", insecurePasswordStdin)
+	if err != nil {
+		return "", fmt.Errorf("unable to get provided passphrase, %w", err)
+	}
+
+	// If empty, just print the warning
+	if pw == "" {
+		io.Println("WARNING: a key with no passphrase will be stored UNENCRYPTED.\n" +
+			"This is unsafe for any key used on-chain.")
+
+		return "", nil
+	}
+
+	pw2, err := io.GetPassword("Repeat the passphrase: ", insecurePasswordStdin)
+	if err != nil {
+		return "", fmt.Errorf("unable to get provided passphrase, %w", err)
+	}
+
+	if pw != pw2 {
+		return "", errPassphraseMismatch
+	}
+
+	return pw, nil
+}
+
 func printCreate(info keys.Info, showMnemonic bool, mnemonic string, io commands.IO) {
 	io.Println("")
 	printNewInfo(info, io)
@@ -212,7 +263,7 @@ func printCreate(info keys.Info, showMnemonic bool, mnemonic string, io commands
 	if showMnemonic {
 		io.Printfln(`
 **IMPORTANT** write this mnemonic phrase in a safe place.
-It is the only way to recover your account if you ever forget your password.
+It is the only way to recover your account if you ever forget your passphrase.
 %v
 `, mnemonic)
 	}

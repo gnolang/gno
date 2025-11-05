@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/gnolang/gno/gnovm/pkg/version"
+	"github.com/gnolang/gno/tm2/pkg/version"
 )
 
 func TestVersionApp(t *testing.T) {

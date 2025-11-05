@@ -6,6 +6,8 @@ stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
 
 loadpkg gno.land/r/gov/dao
 loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/sys/users
+loadpkg gno.land/r/gnoland/users/v1
 
 # load specific govDAO implementation and needed users for your integration test
 loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
@@ -14,7 +16,11 @@ gnoland start
 
 # call gov/dao render to check everything is working as expected and the loader worked
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
-stdout 'data: # GovDAO Proposals'
+stdout 'data: # GovDAO'
+
+# Register member with a namespace first
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "mem123" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test member
+stdout 'OK!'
 
 # add the proposal (temporarily comment out to debug)
 # First run a debug script to understand the addresses
@@ -27,7 +33,7 @@ stdout 'Current realm: CodeRealm{ g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0, gno.
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
 stdout OK!
 
-# call gov/dao render to check everything the proposal was created
+# call gov/dao render to check the proposal was created
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
 stdout 'This is a proposal to add `g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0` to \*\*T2\*\*.'
 
@@ -47,39 +53,33 @@ stdout 'Tier T2 contains 1 members'
 package main
 
 import (
-	"std"
-
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
 )
 
 func main() {
-	addr := std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0")
+	addr := address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0")
 	tier := "T2"
 	portfolio := "this is my portfolio"
-	
+
 	preq := impl.NewAddMemberRequest(cross, addr, tier, portfolio)
 	dao.MustCreateProposal(cross, preq)
 }
-
 -- debug/check_addresses.gno --
 package main
 
-import "std"
+import "chain/runtime"
 
 func main() {
 	println("=== Debug info ===")
-	println("Origin caller:", std.OriginCaller())
-	currentRealm := std.CurrentRealm()
+	println("Origin caller:", runtime.OriginCaller())
+	currentRealm := runtime.CurrentRealm()
 	println("Current realm:", currentRealm.String())
 }
-
 -- loader/load_govdao.gno --
 package load_govdao
 
 import (
-	"std"
-
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
 	"gno.land/r/gov/dao/v3/memberstore"
@@ -90,7 +90,7 @@ func init() {
 	memberstore.Get().SetTier(memberstore.T2)
 	memberstore.Get().SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(memberstore.T1, std.Address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3}) // member address
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3}) // member address
 
 	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO:         impl.GetInstance(),
