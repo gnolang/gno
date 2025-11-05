@@ -17,13 +17,13 @@ import (
 	"gno.land/r/aib/ibc/core"
 )
 
-// OnAcknowledgementPacket: success
+// OnAcknowledgementPacket: success with refund
 func main() {
 	var (
 		chainID        = "chain-id-2"
 		trustedHeight  = types.NewHeight(2, 2)
 		clientState    = tmtesting.NewClientState(chainID, trustedHeight)
-		apphash, _     = hex.DecodeString("a119217258843545bc79dd7df4c050c6c2a21b1de7c132dd065fd7463f743e2d")
+		apphash, _     = hex.DecodeString("5467ca2d19a7b74dbcd20e33bda91932f912d76595872ec856945af96e743b82")
 		valset         = tmtesting.GenValset()
 		consensusState = tmtesting.GenConsensusState(time.Now(), apphash[:], valset.Hash())
 		counterpartyID = "07-tendermint-42"
@@ -85,14 +85,15 @@ func main() {
 			},
 		},
 		Acknowledgement: types.Acknowledgement{
-			AppAcknowledgements: [][]byte{[]byte(`{"response":{"result":"BQ=="}}`)},
+			// This error should trigger a refund
+			AppAcknowledgements: [][]byte{types.UniversalErrorAcknowledgement()},
 		},
 		// Write the proof of acknowledgement written during the RecvPacket of the
 		// counterparty client.
 		// (generated from https://github.com/tbruyelle/sdktools/blob/31452ec4783bc45db1f84fe43fde93033e6b5576/proof/proof.go#L56)
-		// ROOT a119217258843545bc79dd7df4c050c6c2a21b1de7c132dd065fd7463f743e2d
+		// ROOT 5467ca2d19a7b74dbcd20e33bda91932f912d76595872ec856945af96e743b82
 		// KEY 7072656669783230372d74656e6465726d696e742d3432030000000000000001 "prefix207-tendermint-42\x03\x00\x00\x00\x00\x00\x00\x00\x01"
-		// VAL 21293f61ea4291dc3188aa8be6de66eb0ee05b100325b0313b2584f2c09611af
+		// VAL e2fb30dfbf7abdeaca82d426534d2b3a9d5444dd2a87fa16d38b77ba1a13ced7
 		// 0 LEAF PREFIX 000202
 		// 	0 OP PREFIX 0204022035f8ea805390e084854f399b42ccdeaea33a1dedc115638ac48d0600637dba1f20
 		// 	0 OP SUFFIX
@@ -101,14 +102,14 @@ func main() {
 		// 	2 OP PREFIX 060c02209af37dd595a0190803b5e05aaef42ae3fad499e4fbe37f7cd31cadff22a9ee7420
 		// 	2 OP SUFFIX
 		// KEY 6961766c53746f72654b6579 "iavlStoreKey"
-		// VAL 54676b16cfa5413e302b0dff767d1da811440b383608c7d8ab6a1b3647821f1d
+		// VAL 9157a500d6c8de1714badf446d17b6b8d3a58b30f854831866d433536fd2eab9
 		// 1 LEAF PREFIX 00
 		ProofAcked: []ics23.CommitmentProof_Exist{
 			{
 				// iavl proof
 				Exist: ibctesting.NewExistenceProof(ics23.IavlSpec(),
 					[]byte("prefix207-tendermint-42\x03\x00\x00\x00\x00\x00\x00\x00\x01"),
-					"21293f61ea4291dc3188aa8be6de66eb0ee05b100325b0313b2584f2c09611af",
+					"e2fb30dfbf7abdeaca82d426534d2b3a9d5444dd2a87fa16d38b77ba1a13ced7",
 					"000202",
 					[][]string{
 						{"0204022035f8ea805390e084854f399b42ccdeaea33a1dedc115638ac48d0600637dba1f20", ""},
@@ -120,7 +121,7 @@ func main() {
 			{
 				// rootmulti proof
 				Exist: ibctesting.NewExistenceProof(ics23.IavlSpec(),
-					[]byte("iavlStoreKey"), "54676b16cfa5413e302b0dff767d1da811440b383608c7d8ab6a1b3647821f1d",
+					[]byte("iavlStoreKey"), "9157a500d6c8de1714badf446d17b6b8d3a58b30f854831866d433536fd2eab9",
 					"00", nil),
 			},
 		},

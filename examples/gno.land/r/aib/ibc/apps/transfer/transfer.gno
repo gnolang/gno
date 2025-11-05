@@ -5,52 +5,56 @@ import (
 	"chain/banker"
 	"chain/runtime"
 	"crypto/bech32"
-	"crypto/sha256"
 
 	"gno.land/p/nt/ufmt"
 )
 
-// sendTransfer sends the specified amount of tokens from the sender to the
-// escrow account.
-func sendTransfer(banker banker.Banker, sourceClient string, token Token) error {
+// escrowCoins sends the specified amount of tokens from the sender to the
+// realm address.
+func escrowCoin(banker banker.Banker, token Token) error {
 	// TODO handle when token is an IBC denom
 	coin, err := token.ToCoin()
 	if err != nil {
 		return ufmt.Errorf("token to coin error: %v", err)
 	}
 
-	// Send the amount to the escrow address
+	// Send the amount from sender to realm address
 	var (
-		from   = runtime.CurrentRealm().Address()
-		to     = GetEscrowAddress(sourceClient)
+		from   = runtime.OriginCaller()
+		to     = runtime.CurrentRealm().Address()
 		amount = chain.NewCoins(coin)
 	)
 	banker.SendCoins(from, to, amount)
 
-	// TODO track escrowed coins by denom in store?
+	// TODO track escrowed coins by denom/client in store?
 
 	return nil
 }
 
-// GetEscrowAddress returns the escrow address for the specified client.
-// The escrow address follows the format as outlined in ADR 028:
-// https://github.com/cosmos/cosmos-sdk/blob/master/docs/architecture/adr-028-public-key-addresses.md
-func GetEscrowAddress(clientID string) address {
-	// a slash is used to create domain separation between port and client
-	// identifiers to prevent address collisions between escrow addresses created
-	// for different clients.
-	contents := ufmt.Sprintf("%s/%s", PortID, clientID)
-
-	// ADR 028 AddressHash construction
-	preImage := []byte(escrowAddressVersion)
-	preImage = append(preImage, 0)
-	preImage = append(preImage, contents...)
-	hash := sha256.Sum256(preImage)
-	addr, err := bech32.EncodeFromBase256("g", hash[:20])
+// escrowCoins sends the specified amount of tokens from the realm to the
+// original sender.
+func unescrowCoin(sender string, token Token) error {
+	// TODO handle when token is an IBC denom
+	coin, err := token.ToCoin()
 	if err != nil {
-		panic(err)
+		return ufmt.Errorf("token to coin error: %v", err)
 	}
-	return address(addr)
+
+	// Send back the amount from escrow address back to sender
+	var (
+		from   = runtime.CurrentRealm().Address()
+		amount = chain.NewCoins(coin)
+		banker = banker.NewBanker(banker.BankerTypeRealmSend)
+	)
+	_, to, err := bech32.Decode(sender)
+	if err != nil {
+		return ufmt.Errorf("sender address %s conversion error: %v", sender, err)
+	}
+	banker.SendCoins(from, address(to), amount)
+
+	// TODO track escrowed coins by denom/client in store?
+
+	return nil
 }
 
 func Render(_ string) string {

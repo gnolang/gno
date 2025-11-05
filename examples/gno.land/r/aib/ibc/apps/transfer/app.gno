@@ -99,7 +99,7 @@ func (a *App) OnSendPacket(
 	}
 	token := Token{Denom: denom, Amount: data.Amount}
 
-	if err := sendTransfer(banker, sourceClient, token); err != nil {
+	if err := escrowCoin(banker, token); err != nil {
 		return err
 	}
 
@@ -173,8 +173,9 @@ func (a *App) OnAcknowledgementPacket(
 		// the acknowledgement succeeded on the receiving chain so nothing
 		// needs to be executed and no error needs to be returned
 	} else {
-		// TODO refund
-		panic("ack refund not implemented")
+		if err := unescrowCoin(data.Sender, token); err != nil {
+			return err
+		}
 	}
 
 	// Emit events

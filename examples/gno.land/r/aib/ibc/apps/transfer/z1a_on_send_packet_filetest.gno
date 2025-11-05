@@ -55,22 +55,22 @@ func main() {
 	bank.SendCoins(
 		runtime.CurrentRealm().Address(), ibcCoreAddr, banker.OriginSend(),
 	)
-	escrowAddr := transfer.GetEscrowAddress(clientID)
+	transferAppAddr := chain.PackageAddress("gno.land/r/aib/ibc/apps/transfer")
 	println("r/aib/ibc/core balance before SendPacket:", bank.GetCoins(ibcCoreAddr))
-	println("escrowAddr balance before SendPacket:", bank.GetCoins(escrowAddr))
+	println("transferAppAddr balance before SendPacket:", bank.GetCoins(transferAppAddr))
 
 	core.SendPacket(cross, packet)
 
 	println("\nr/aib/ibc/core balance after SendPacket:", bank.GetCoins(ibcCoreAddr))
-	println("escrowAddr balance after SendPacket:", bank.GetCoins(escrowAddr))
+	println("transferAppAddr balance after SendPacket:", bank.GetCoins(transferAppAddr))
 }
 
 // Output:
 // r/aib/ibc/core balance before SendPacket: 100ugnot
-// escrowAddr balance before SendPacket:
+// transferAppAddr balance before SendPacket:
 //
 // r/aib/ibc/core balance after SendPacket:
-// escrowAddr balance after SendPacket: 100ugnot
+// transferAppAddr balance after SendPacket: 100ugnot
 
 // Events:
 // [
