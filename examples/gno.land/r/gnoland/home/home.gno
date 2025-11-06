@@ -84,7 +84,7 @@ the foundations of a fairer and freer world, join us today.
 - [Staging chain](https://docs.gno.land/resources/gnoland-networks/#staging-environments-portal-loops)
 - [Testnet 9](https://test9.testnets.gno.land/)
 - [Faucet Hub](https://faucet.gno.land)
-- [Open Boards, a social discussion forum](https://gno.land/r/boards000/v1rc1:General
+- [Open Boards, a social discussion forum](https://gno.land/r/boards000/v1rc1:General)
 
 </gno-columns>
 
