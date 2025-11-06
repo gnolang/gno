@@ -1068,6 +1068,9 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
 		cp.N = tv.N // preserve N_Readonly
+	case StringValue:
+		cp = tv
+		alloc.CacheString(string(cv)) // keep track of string
 	default:
 		cp = tv
 	}

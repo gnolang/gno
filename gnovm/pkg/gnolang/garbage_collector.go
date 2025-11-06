@@ -148,8 +148,20 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 
 		*visitCount++ // Count operations for gas calculation
 
-		// Add object size to alloc.
+		// Add size to alloc.
 		size := v.GetShallowSize()
+
+		// special case for StringValue
+		// Count header size only if it's reused;
+		// otherwise, count the underlying string size.
+		if sv, ok := v.(StringValue); ok {
+			if alloc.HasString(string(sv)) {
+				// do nothing
+			} else {
+				// count header and underlying string as well
+				size += allocStringByte * int64(len(sv))
+			}
+		}
 
 		// Stop if alloc max exceeded during GC.
 		// NOTE: Unlikely to occur, but keep it here for

@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"unsafe"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -18,9 +19,10 @@ type Allocator struct {
 	// usage during a single transaction, and is used
 	// to calculate the corresponding gas usage.
 	// It increases monotonically.
-	peakBytes int64
-	collect   func() (left int64, ok bool) // gc callback
-	gasMeter  store.GasMeter
+	peakBytes   int64
+	collect     func() (left int64, ok bool) // gc callback
+	gasMeter    store.GasMeter
+	stringCache map[uintptr]struct{}
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -161,6 +163,19 @@ func (alloc *Allocator) Allocate(size int64) {
 
 		alloc.peakBytes = alloc.bytes
 	}
+}
+
+func (alloc *Allocator) CacheString(str string) {
+	alloc.stringCache[uintptr(unsafe.Pointer(&str))] = struct{}{}
+}
+
+func (alloc *Allocator) HasString(str string) bool {
+	// XXX, should this happen?
+	if alloc.stringCache == nil {
+		return false
+	}
+	_, exists := alloc.stringCache[uintptr(unsafe.Pointer(&str))]
+	return exists
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
@@ -481,7 +496,8 @@ func (fv *FuncValue) GetShallowSize() int64 {
 }
 
 func (sv StringValue) GetShallowSize() int64 {
-	return allocString + allocStringByte*int64(len(sv))
+	// return allocString + allocStringByte*int64(len(sv))
+	return allocString
 }
 
 func (biv BigintValue) GetShallowSize() int64 {
