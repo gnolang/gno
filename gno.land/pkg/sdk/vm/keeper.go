@@ -448,7 +448,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
-	  // Private packages can be re-uploaded (overwritten).
+		// Private packages can be re-uploaded (overwritten).
 		if !gm.Private {
 			return ErrPkgAlreadyExists("package already exists: " + pkgPath)
 		}
