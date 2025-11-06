@@ -440,9 +440,20 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)
 	}
-	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
-		return ErrPkgAlreadyExists("package already exists: " + pkgPath)
+
+	// Extra keeper-only checks.
+	gm, err := gnomod.ParseMemPackage(memPkg)
+	if err != nil {
+		return ErrInvalidPackage(err.Error())
 	}
+
+	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
+	  // Private packages can be re-uploaded (overwritten).
+		if !gm.Private {
+			return ErrPkgAlreadyExists("package already exists: " + pkgPath)
+		}
+	}
+
 	if !gno.IsRealmPath(pkgPath) && !gno.IsPPackagePath(pkgPath) {
 		return ErrInvalidPkgPath("package path must be valid realm or p package path")
 	}
@@ -467,11 +478,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrTypeCheck(err)
 	}
 
-	// Extra keeper-only checks.
-	gm, err := gnomod.ParseMemPackage(memPkg)
-	if err != nil {
-		return ErrInvalidPackage(err.Error())
-	}
 	// no development packages.
 	if gm.HasReplaces() {
 		return ErrInvalidPackage("development packages are not allowed")
