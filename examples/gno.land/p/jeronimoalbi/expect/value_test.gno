@@ -61,6 +61,7 @@ func TestValue(t *testing.T) {
 	t.Run("to be nil", func(t *testing.T) {
 		t.Parallel()
 		expect.Value(t, nil).ToBeNil()
+		expect.Value(t, (*int)(nil)).ToBeNil() // typed nil
 	})
 
 	t.Run("not to be nil", func(t *testing.T) {

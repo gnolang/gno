@@ -31,7 +31,7 @@ func (c ValueChecker) Not() ValueChecker {
 // ToBeNil asserts that current value is nil.
 func (c ValueChecker) ToBeNil() {
 	c.ctx.T().Helper()
-	c.ctx.CheckExpectation(c.value == nil, func(ctx Context) string {
+	c.ctx.CheckExpectation(c.value == nil || istypednil(c.value), func(ctx Context) string {
 		if !ctx.IsNegated() {
 			return ufmt.Sprintf("Expected value to be nil\nGot: %v", c.value)
 		}
