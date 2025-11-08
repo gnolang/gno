@@ -43,11 +43,19 @@ func (c ValueChecker) ToBeNil() {
 func (c ValueChecker) ToEqual(value any) {
 	c.ctx.T().Helper()
 
+	// Assert error values first to allow comparing errors to string values
+	if err, ok := c.value.(error); ok {
+		c.assertErrorEquality(err, value)
+		return
+	}
+
 	switch v := value.(type) {
 	case string:
 		c.AsString().ToEqual(v)
 	case []byte:
 		c.AsString().ToEqual(string(v))
+	case Stringer:
+		c.AsString().ToEqual(v.String())
 	case bool:
 		c.AsBoolean().ToEqual(v)
 	case float32:
@@ -74,6 +82,8 @@ func (c ValueChecker) ToEqual(value any) {
 		c.AsInt().ToEqual(int64(v))
 	case int64:
 		c.AsInt().ToEqual(v)
+	case error:
+		c.ctx.Fail("Error is not equal to value\nGot: %s", v.Error())
 	default:
 		c.ctx.Fail("Unsupported type: %T", value)
 	}
@@ -142,4 +152,31 @@ func (c ValueChecker) AsInt() IntChecker {
 	}
 
 	return NewIntChecker(c.ctx, v)
+}
+
+func (c ValueChecker) assertErrorEquality(value error, got any) {
+	c.ctx.T().Helper()
+
+	if err, ok := got.(error); ok {
+		c.ctx.CheckExpectation(err.Error() == value.Error(), func(ctx Context) string {
+			if !ctx.IsNegated() {
+				return ufmt.Sprintf("Expected errors to match\nGot: %s\nWant: %s", err.Error(), value.Error())
+			}
+			return ufmt.Sprintf("Expected errors to be different\nGot: %s", err.Error())
+		})
+		return
+	}
+
+	s, err := asString(got)
+	if err != nil {
+		c.ctx.Fail("Failed: %s: expected error or string value\nGot: %T", err.Error(), got)
+		return
+	}
+
+	c.ctx.CheckExpectation(s == value.Error(), func(ctx Context) string {
+		if !ctx.IsNegated() {
+			return ufmt.Sprintf("Expected error message match\nGot: %s\nWant: %s", s, value.Error())
+		}
+		return ufmt.Sprintf("Expected error message to be different\nGot: %s", s)
+	})
 }
