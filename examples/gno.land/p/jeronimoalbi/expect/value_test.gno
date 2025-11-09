@@ -76,17 +76,19 @@ func TestValue(t *testing.T) {
 		expect.Value(t, "TRUE").AsBoolean().ToBeTruthy()
 		expect.Value(t, "t").AsBoolean().ToBeTruthy()
 		expect.Value(t, "1").AsBoolean().ToBeTruthy()
-		expect.Value(t, []byte("foo")).AsBoolean().ToBeTruthy()
+		expect.Value(t, []byte("true")).AsBoolean().ToBeTruthy()
 	})
 
 	t.Run("not to be truthy", func(t *testing.T) {
 		t.Parallel()
 
+		expect.Value(t, "").AsBoolean().Not().ToBeTruthy()
 		expect.Value(t, "false").AsBoolean().Not().ToBeTruthy()
 		expect.Value(t, "FALSE").AsBoolean().Not().ToBeTruthy()
 		expect.Value(t, "f").AsBoolean().Not().ToBeTruthy()
 		expect.Value(t, "0").AsBoolean().Not().ToBeTruthy()
 		expect.Value(t, []byte(nil)).AsBoolean().Not().ToBeTruthy()
+		expect.Value(t, []byte("false")).AsBoolean().Not().ToBeTruthy()
 	})
 
 	t.Run("to be falsy", func(t *testing.T) {
@@ -107,7 +109,7 @@ func TestValue(t *testing.T) {
 		expect.Value(t, "TRUE").AsBoolean().Not().ToBeFalsy()
 		expect.Value(t, "t").AsBoolean().Not().ToBeFalsy()
 		expect.Value(t, "1").AsBoolean().Not().ToBeFalsy()
-		expect.Value(t, []byte("foo")).AsBoolean().Not().ToBeFalsy()
+		expect.Value(t, []byte("true")).AsBoolean().Not().ToBeFalsy()
 	})
 
 	t.Run("to equal stringer", func(t *testing.T) {
