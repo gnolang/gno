@@ -783,6 +783,157 @@ gno.land/r/boards
 gno.land/r/boards:foo/bar
 gno.land/r/docs/markdown$source
 
+### Mathematics
+
+Supports mathematical expressions using LaTeX syntax, which are rendered as MathML for proper mathematical display.
+
+#### Inline Math
+
+Mathematical expressions can be written inline using single dollar signs:
+
+±±±markdown
+Einstein's famous equation is $E = mc^2$.
+±±±
+
+Einstein's famous equation is $E = mc^2$.
+
+Greek letters and symbols:
+
+±±±markdown
+Greek letters: $\alpha, \beta, \gamma, \Delta, \Omega$
+
+Mathematical operators: $+ - \times \div \pm \mp = \neq < > \leq \geq$
+
+Functions: $\sin, \cos, \tan, \log, \ln, \exp, \max, \min$
+±±±
+
+Greek letters: $\alpha, \beta, \gamma, \Delta, \Omega$
+
+Mathematical operators: $+ - \times \div \pm \mp = \neq < > \leq \geq$
+
+Functions: $\sin, \cos, \tan, \log, \ln, \exp, \max, \min$
+
+#### Block Math
+
+For larger mathematical expressions, use double dollar signs:
+
+±±±markdown
+$$
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+$$
+±±±
+
+$$
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+$$
+
+#### Advanced Examples
+
+Matrices:
+
+±±±markdown
+$$
+\begin{pmatrix}
+a & b \\
+c & d
+\end{pmatrix}
+\begin{pmatrix}
+x \\
+y
+\end{pmatrix} = 
+\begin{pmatrix}
+ax + by \\
+cx + dy
+\end{pmatrix}
+$$
+±±±
+
+$$
+\begin{pmatrix}
+a & b \\
+c & d
+\end{pmatrix}
+\begin{pmatrix}
+x \\
+y
+\end{pmatrix} = 
+\begin{pmatrix}
+ax + by \\
+cx + dy
+\end{pmatrix}
+$$
+
+Complex equations with Greek letters:
+
+±±±markdown
+$$
+\nabla \times \vec{E} = -\frac{\partial \vec{B}}{\partial t}
+$$
+±±±
+
+$$
+\nabla \times \vec{E} = -\frac{\partial \vec{B}}{\partial t}
+$$
+
+Fractions and roots:
+
+±±±markdown
+Fractions: $\frac{a}{b}$, $\frac{x^2 + y^2}{z^3}$
+
+Square roots: $\sqrt{x}$, $\sqrt[3]{x}$, $\sqrt[n]{x}$
+
+Superscripts and subscripts: $x^2$, $x_1$, $x^{2+3}$, $x_{i+1}$
+±±±
+
+Fractions: $\frac{a}{b}$, $\frac{x^2 + y^2}{z^3}$
+
+Square roots: $\sqrt{x}$, $\sqrt[3]{x}$, $\sqrt[n]{x}$
+
+Superscripts and subscripts: $x^2$, $x_1$, $x^{2+3}$, $x_{i+1}$
+
+#### More complex examples:
+
+Characteristic polynomial: $\det(A - \lambda I) = 0$
+
+Eigenvalue equation: $A\mathbf{v} = \lambda\mathbf{v}$
+
+Schrödinger equation (time-independent): $\hat{H}|\psi\rangle = E|\psi\rangle$
+
+Dirac equation: $(i\gamma^\mu\partial_\mu - m)\psi = 0$
+
+Klein-Gordon equation: $(\partial_\mu\partial^\mu + m^2)\phi = 0$
+
+Maxwell equations in tensor form: $\partial_\mu F^{\mu\nu} = \mu_0 J^\nu$
+
+Einstein field equations: $R_{\mu\nu} - \frac{1}{2}Rg_{\mu\nu} + \Lambda g_{\mu\nu} = \frac{8\pi G}{c^4}T_{\mu\nu}$
+
+Schwarzschild metric: $ds^2 = -\left(1 - \frac{2GM}{c^2r}\right)dt^2 + \left(1 - \frac{2GM}{c^2r}\right)^{-1}dr^2 + r^2(d\theta^2 + \sin^2\theta d\phi^2)$
+
+Boltzmann distribution: $P(E) = \frac{1}{Z}e^{-\beta E}$
+
+Partition function: $Z = \sum_i e^{-\beta E_i}$
+
+Bose-Einstein distribution: $f(E) = \frac{1}{e^{\beta(E-\mu)} - 1}$
+
+First law: $dU = \delta Q - \delta W$
+
+Second law: $dS \geq \frac{\delta Q}{T}$
+
+#### Supported Features
+
+- **Fractions**: ±\frac{numerator}{denominator}±
+- **Superscripts and subscripts**: ±x^2±, ±x_1±, ±x^{2+3}±, ±x_{i+1}±
+- **Square roots**: ±\sqrt{x}±, ±\sqrt[n]{x}±
+- **Greek letters**: ±\alpha±, ±\beta±, ±\gamma±, ±\Delta±, ±\Omega±, etc.
+- **Mathematical operators**: ±\times±, ±\div±, ±\pm±, ±\mp±, ±\leq±, ±\geq±, ±\neq±, ±\approx±, ±\equiv±
+- **Arrows**: ±\rightarrow±, ±\leftarrow±, ±\leftrightarrow±, ±\Rightarrow±, ±\Leftarrow±, ±\Leftrightarrow±
+- **Set theory**: ±\in±, ±\notin±, ±\subset±, ±\supset±, ±\cup±, ±\cap±, ±\emptyset±
+- **Logical operators**: ±\land±, ±\lor±, ±\lnot±, ±\forall±, ±\exists±
+- **Integrals and sums**: ±\int±, ±\sum±, ±\prod±, ±\lim±
+- **Functions**: ±\sin±, ±\cos±, ±\tan±, ±\log±, ±\ln±, ±\exp±, ±\max±, ±\min±
+- **Matrices**: ±\begin{matrix}...\end{matrix}±, ±\begin{pmatrix}...\end{pmatrix}±
+- **Complex equations**: Schrödinger, Maxwell, Fourier transforms, etc.
+
 ### And more...
 
 XXX: TODO

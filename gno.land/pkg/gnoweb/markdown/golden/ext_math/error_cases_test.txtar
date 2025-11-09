@@ -1,0 +1,82 @@
+-- input.md --
+Error cases and edge cases test:
+
+Empty math: $$ $$
+
+Single character: $x$
+
+Unmatched braces: $x^{2$
+
+Unmatched parentheses: $\frac{a}{b$
+
+Invalid commands: $\unknowncommand$
+
+Mixed delimiters: $x = 1$$ (should be separate)
+
+Nested math: $x = $y + z$ + w$ (should not work)
+
+-- output.html --
+<p>Error cases and edge cases test:</p>
+<p>Empty math: 
+<math class="math-displaystyle" display="block" displaystyle="true" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <none></none>
+    <annotation encoding="application/x-tex"> </annotation>
+  </semantics>
+</math>
+</p>
+<p>Single character: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>x</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">x</annotation>
+  </semantics>
+</math>
+</p>
+<p>Unmatched braces: <span class="math-inline">x^{2</span></p>
+<p>Unmatched parentheses: <span class="math-inline">\frac{a}{b</span></p>
+<p>Invalid commands: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <merror>unknowncommand</merror>
+    </mrow>
+    <annotation encoding="application/x-tex">\unknowncommand</annotation>
+  </semantics>
+</math>
+</p>
+<p>Mixed delimiters: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>x</mi>
+      <mo>=</mo>
+      <mn>1</mn>
+    </mrow>
+    <annotation encoding="application/x-tex">x = 1</annotation>
+  </semantics>
+</math>
+$ (should be separate)</p>
+<p>Nested math: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>x</mi>
+      <mo>=</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">x = </annotation>
+  </semantics>
+</math>
+y + z
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo>+</mo>
+      <mi>w</mi>
+    </mrow>
+    <annotation encoding="application/x-tex"> + w</annotation>
+  </semantics>
+</math>
+ (should not work)</p>

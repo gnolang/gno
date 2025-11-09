@@ -1,0 +1,109 @@
+-- input.md --
+Mathematical operators test:
+
+Basic operators: $+ - \times \div \pm \mp$
+
+Relations: $= \neq < > \leq \geq \ll \gg \approx \equiv \sim \simeq \cong \propto$
+
+Set theory: $\in \notin \subset \supset \subseteq \supseteq \cup \cap \emptyset \varnothing$
+
+Arrows: $\rightarrow \leftarrow \leftrightarrow \Rightarrow \Leftarrow \Leftrightarrow \mapsto \to$
+
+Functions: $\sin \cos \tan \log \ln \exp \max \min \sup \inf \lim$
+
+-- output.html --
+<p>Mathematical operators test:</p>
+<p>Basic operators: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo>+</mo>
+      <mo>−</mo>
+      <mo>×</mo>
+      <mo>÷</mo>
+      <mo>±</mo>
+      <mo>∓</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">+ - \times \div \pm \mp</annotation>
+  </semantics>
+</math>
+</p>
+<p>Relations: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo>=</mo>
+      <mo>≠</mo>
+      <mo>&lt;</mo>
+      <mo>&gt;</mo>
+      <mo>≤</mo>
+      <mo>≥</mo>
+      <mo>≪</mo>
+      <mo>≫</mo>
+      <mo>≈</mo>
+      <mo>≡</mo>
+      <mo>∼</mo>
+      <mo>≃</mo>
+      <mo>≅</mo>
+      <mo>∝</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">= \neq &lt; > \leq \geq \ll \gg \approx \equiv \sim \simeq \cong \propto</annotation>
+  </semantics>
+</math>
+</p>
+<p>Set theory: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo>∈</mo>
+      <mo>∉</mo>
+      <mo>⊂</mo>
+      <mo>⊃</mo>
+      <mo>⊆</mo>
+      <mo>⊇</mo>
+      <mo>∪</mo>
+      <mo>∩</mo>
+      <mi>∅</mi>
+      <mi>⌀</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">\in \notin \subset \supset \subseteq \supseteq \cup \cap \emptyset \varnothing</annotation>
+  </semantics>
+</math>
+</p>
+<p>Arrows: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo>→</mo>
+      <mo>←</mo>
+      <mo>↔</mo>
+      <mo>⇒</mo>
+      <mo>⇐</mo>
+      <mo>⇔</mo>
+      <mo>↦</mo>
+      <mo>→</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">\rightarrow \leftarrow \leftrightarrow \Rightarrow \Leftarrow \Leftrightarrow \mapsto \to</annotation>
+  </semantics>
+</math>
+</p>
+<p>Functions: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi lspace="0.11111em">sin</mi>
+      <mi lspace="0.11111em">cos</mi>
+      <mi lspace="0.11111em">tan</mi>
+      <mi lspace="0.11111em">log</mi>
+      <mi lspace="0.11111em">ln</mi>
+      <mi lspace="0.11111em">exp</mi>
+      <mi lspace="0.11111em" movablelimits="true">max</mi>
+      <mi lspace="0.11111em" movablelimits="true">min</mi>
+      <mi lspace="0.11111em" movablelimits="true">sup</mi>
+      <mi lspace="0.11111em" movablelimits="true">inf</mi>
+      <mi lspace="0.11111em" movablelimits="true">lim</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">\sin \cos \tan \log \ln \exp \max \min \sup \inf \lim</annotation>
+  </semantics>
+</math>
+</p>
