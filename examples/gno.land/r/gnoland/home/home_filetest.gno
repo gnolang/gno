@@ -104,7 +104,7 @@ func main() {
 //
 // Official realm packages developed by the Gno.land core team.
 //
-// [-> Browse](/r/gnoland)
+// [Browse](/r/gnoland)
 //
 // |||
 //
@@ -112,7 +112,7 @@ func main() {
 //
 // System-level realm packages used by the chain.
 //
-// [-> Browse](/r/sys)
+// [Browse](/r/sys)
 //
 // |||
 //
@@ -120,7 +120,7 @@ func main() {
 //
 // Demo realm packages showcasing what’s possible.
 //
-// [-> Browse](/r/demo)
+// [Browse](/r/demo)
 //
 // |||
 //
@@ -128,7 +128,7 @@ func main() {
 //
 // Pure packages for demo purposes.
 //
-// [-> Browse](/p/demo)
+// [Browse](/p/demo)
 //
 // </gno-columns>
 //
