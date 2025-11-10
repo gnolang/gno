@@ -2,11 +2,13 @@ package validators
 
 import (
 	"chain"
+	"fmt"
 	"testing"
 	"time"
 
 	"gno.land/p/nt/testutils"
 	"gno.land/p/nt/urequire"
+
 	pVals "gno.land/p/sys/validators"
 	"gno.land/r/gov/dao"
 	daoinit "gno.land/r/gov/dao/v3/init" // ensures govdao initializer runs
@@ -65,7 +67,7 @@ func TestValidatorProposals(t *testing.T) {
 					{
 						Address:     testutils.TestAddress("valoper1"),
 						PubKey:      "valoper1_pubkey",
-						VotingPower: 10,
+						VotingPower: 1,
 					},
 				}
 			}
@@ -99,7 +101,7 @@ func TestValidatorProposals(t *testing.T) {
 					{
 						Address:     testutils.TestAddress("valoper2"),
 						PubKey:      "valoper2_pubkey",
-						VotingPower: 5,
+						VotingPower: 1,
 					},
 				}
 			}
@@ -134,7 +136,7 @@ func TestValidatorProposals(t *testing.T) {
 					{
 						Address:     testutils.TestAddress("valoper3"),
 						PubKey:      "valoper3_pubkey",
-						VotingPower: 5,
+						VotingPower: 1,
 					},
 				}
 			}
@@ -159,6 +161,104 @@ func TestValidatorProposals(t *testing.T) {
 	t.Run("Proposal fails due to too many changes", func(t *testing.T) {
 		// Test: Proposal execution fails if too many validators are changed.
 		lastValsetUpdate = time.Now().Add(-valsetUpdateCooldown - time.Minute)
+		for _, existing := range vp.GetValidators() {
+			removeValidator(existing.Address)
+		}
+		legacy := make([]pVals.Validator, 0, 4)
+		for i := 1; i <= 4; i++ {
+			val := pVals.Validator{
+				Address:     testutils.TestAddress(fmt.Sprintf("legacyTooMany%d", i)),
+				PubKey:      fmt.Sprintf("legacyTooMany%d_pubkey", i),
+				VotingPower: 1,
+			}
+			legacy = append(legacy, val)
+			addValidator(val)
+		}
+
+		setupTestCoins()
+
+		var pid dao.ProposalID
+		urequire.NotPanics(t, func(cur realm) {
+			testing.SetRealm(testing.NewUserRealm(testUserAddr))
+			changesFn := func() []pVals.Validator {
+				updates := []pVals.Validator{
+					{
+						Address:     legacy[0].Address,
+						PubKey:      legacy[0].PubKey,
+						VotingPower: 0,
+					},
+					{
+						Address:     legacy[1].Address,
+						PubKey:      legacy[1].PubKey,
+						VotingPower: 0,
+					},
+					{
+						Address:     legacy[2].Address,
+						PubKey:      legacy[2].PubKey,
+						VotingPower: 0,
+					},
+				}
+				updates = append(updates, pVals.Validator{
+					Address:     testutils.TestAddress("tooManyNew1"),
+					PubKey:      "tooManyNew1_pubkey",
+					VotingPower: 1,
+				})
+				updates = append(updates, pVals.Validator{
+					Address:     testutils.TestAddress("tooManyNew2"),
+					PubKey:      "tooManyNew2_pubkey",
+					VotingPower: 1,
+				})
+				return updates
+			}
+			pr := NewPropRequest(changesFn, "Replace validator set", "Attempt to replace >2/3 of validators")
+			pid = dao.MustCreateProposal(cross, pr)
+		})
+
+		proposal, err := dao.GetProposal(cross, pid)
+		urequire.NoError(t, err, "proposal not found")
+		urequire.Equal(t, "Attempt to replace >2/3 of validators", proposal.Description())
+
+		setupTestCoins()
+		urequire.AbortsWithMessage(t, errTooManyChanges, func() {
+			dao.MustVoteOnProposal(cross, dao.VoteRequest{
+				Option:     dao.YesVote,
+				ProposalID: pid,
+			})
+			dao.ExecuteProposal(cross, pid)
+		})
+	})
+
+	t.Run("Proposal incorrectly allows majority-new validators", func(t *testing.T) {
+		// Test: Proposal should reject when >2/3 of the resulting set are brand new validators.
+		lastValsetUpdate = time.Now().Add(-valsetUpdateCooldown - time.Minute)
+
+		// Reset any prior state so we can craft the scenario deterministically.
+		for _, existing := range vp.GetValidators() {
+			removeValidator(existing.Address)
+		}
+
+		legacyValidators := []pVals.Validator{
+			{
+				Address:     testutils.TestAddress("legacy1"),
+				PubKey:      "legacy1_pubkey",
+				VotingPower: 1,
+			},
+			{
+				Address:     testutils.TestAddress("legacy2"),
+				PubKey:      "legacy2_pubkey",
+				VotingPower: 1,
+			},
+			{
+				Address:     testutils.TestAddress("legacy3"),
+				PubKey:      "legacy3_pubkey",
+				VotingPower: 1,
+			},
+		}
+
+		for _, val := range legacyValidators {
+			addValidator(val)
+		}
+
 		setupTestCoins()
 
 		var pid dao.ProposalID
@@ -167,24 +267,45 @@ func TestValidatorProposals(t *testing.T) {
 			changesFn := func() []pVals.Validator {
 				return []pVals.Validator{
 					{
-						Address:     testutils.TestAddress("valoper4"),
-						PubKey:      "valoper4_pubkey",
-						VotingPower: 30,
+						Address:     testutils.TestAddress("newval1"),
+						PubKey:      "newval1_pubkey",
+						VotingPower: 1,
 					},
 					{
-						Address:     testutils.TestAddress("valoper3"),
-						PubKey:      "valoper3_pubkey",
-						VotingPower: 0,
+						Address:     testutils.TestAddress("newval2"),
+						PubKey:      "newval2_pubkey",
+						VotingPower: 1,
+					},
+					{
+						Address:     testutils.TestAddress("newval3"),
+						PubKey:      "newval3_pubkey",
+						VotingPower: 1,
+					},
+					{
+						Address:     testutils.TestAddress("newval4"),
+						PubKey:      "newval4_pubkey",
+						VotingPower: 1,
+					},
+					{
+						Address:     testutils.TestAddress("newval5"),
+						PubKey:      "newval5_pubkey",
+						VotingPower: 1,
+					},
+					{
+						Address:     testutils.TestAddress("newval6"),
+						PubKey:      "newval6_pubkey",
+						VotingPower: 1,
+					},
+					{
+						Address:     testutils.TestAddress("newval7"),
+						PubKey:      "newval7_pubkey",
+						VotingPower: 1,
 					},
 				}
 			}
-			pr := NewPropRequest(changesFn, "Add validators 4 and 5", "Attempt to add too many validators")
+			pr := NewPropRequest(changesFn, "Add majority-new validators", "Should reject >2/3 new validators")
 			pid = dao.MustCreateProposal(cross, pr)
 		})
-
-		proposal, err := dao.GetProposal(cross, pid)
-		urequire.NoError(t, err, "proposal not found")
-		urequire.Equal(t, "Attempt to add too many validators", proposal.Description())
 
 		setupTestCoins()
 		urequire.AbortsWithMessage(t, errTooManyChanges, func() {

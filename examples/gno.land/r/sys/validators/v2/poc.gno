@@ -33,36 +33,43 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 			return errors.New(errValsetUpdateCooldown)
 		}
 
-		// Get the current total voting power of the validator set.
-		currentVotingPower := vp.TotalVotingPower()
+		prevTotalVotingPower := vp.TotalVotingPower()
 
-		// Track total voting power to be removed and added in this proposal.
-		var votingPowerToRemove, votingPowerToAdd uint64
+		proposedValidators := vp.GetValidatorsMap()
+
+		var addedVotingPower uint64
 
 		// Gather all proposed validator changes.
 		for _, change := range changesFn() {
+			val, exists := proposedValidators[change.Address]
+			if exists {
+				val.VotingPower = change.VotingPower
+				proposedValidators[change.Address] = val
+			} else {
+				addedVotingPower += change.VotingPower
+			}
+
 			if change.VotingPower == 0 {
-				existingValidator, err := vp.GetValidator(change.Address)
-				if err != nil {
+				if !exists {
 					return errors.New("cannot remove non-existing validator: " + change.Address.String())
 				}
-
-				votingPowerToRemove += existingValidator.VotingPower
 
 				removeValidator(change.Address)
 				continue
 			}
 
-			votingPowerToAdd += change.VotingPower
 			addValidator(change)
 		}
 
-		remainingVotingPower := currentVotingPower - votingPowerToRemove
-		totalVotingPower := votingPowerToAdd + remainingVotingPower
+		var updatedVotingPower uint64
+		for _, val := range proposedValidators {
+			updatedVotingPower += val.VotingPower
+		}
 
-		// Enforce the maximum allowed change threshold (must be less than 2/3 of the set).
-		if remainingVotingPower > 0 && remainingVotingPower*3 < totalVotingPower {
-			// Reject the proposal if too much voting power is changed.
+		// Guardrails:
+		//   1. The resulting validator set cannot shrink below 1/3 of its previous voting power.
+		//   2. Legacy validators must retain at least 1/3 of the voting power in the new set.
+		if prevTotalVotingPower > 0 && (updatedVotingPower*3 < prevTotalVotingPower || updatedVotingPower*2 < addedVotingPower) {
 			return errors.New(errTooManyChanges)
 		}
 

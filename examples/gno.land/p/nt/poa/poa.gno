@@ -114,3 +114,16 @@ func (p *PoA) TotalVotingPower() uint64 {
 	})
 	return total
 }
+
+func (p *PoA) GetValidatorsMap() map[address]validators.Validator {
+	valsMap := make(map[address]validators.Validator, p.validators.Size())
+
+	p.validators.Iterate("", "", func(_ string, value any) bool {
+		validator := value.(validators.Validator)
+		valsMap[validator.Address] = validator
+
+		return false
+	})
+
+	return valsMap
+}

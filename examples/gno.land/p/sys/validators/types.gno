@@ -28,6 +28,9 @@ type ValsetProtocol interface {
 	// GetValidators returns the currently active validator set
 	GetValidators() []Validator
 
+	// GetValidatorsMap returns the currently active validator set as a map
+	GetValidatorsMap() map[address]Validator
+
 	// TotalVotingPower returns the total voting power of the validator set
 	TotalVotingPower() uint64
 }
