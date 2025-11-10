@@ -161,5 +161,12 @@ func main() {
 //
 // ---
 //
-// **This is a testnet.**
-// Package names are not guaranteed to be available for production.
+// ## Sign up for our newsletter
+//
+// Stay in the Gno by signing up for our newsletter. You'll get the scoop on dev updates, fresh content, and community news.
+//
+// [![Subscribe to stay in the Gno](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNTYiIGhlaWdodD0iNDQiIHZpZXdCb3g9IjAgMCAyNTYgNDQiPjxzdHlsZT50ZXh0e2ZvbnQtZmFtaWx5OnNhbnMtc2VyaWY7Zm9udC1zaXplOjE0cHg7dGV4dC1hbmNob3I6bWlkZGxlO2RvbWluYW50LWJhc2VsaW5lOm1pZGRsZTt9PC9zdHlsZT48cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iMjU2IiBoZWlnaHQ9IjQ0IiByeD0iOCIgcnk9IjgiIGZpbGw9IiMyMjZjNTciIC8+PHRleHQgeD0iMTI4IiB5PSIyMiIgZHg9IjAiIGR5PSIwIiByb3RhdGU9IiIgZmlsbD0iI2ZmZmZmZiIgPlN1YnNjcmliZSB0byBzdGF5IGluIHRoZSBHbm88L3RleHQ+PC9zdmc+)](https://land.us18.list-manage.com/subscribe?u=8befe3303cf82796d2c1a1aff&id=271812000b)
+//
+// ---
+//
+// **This is a testnet.** Package names are not guaranteed to be available for production.

@@ -8,6 +8,7 @@ import (
 	"gno.land/p/nt/ownable"
 	blog "gno.land/r/gnoland/blog"
 
+	"gno.land/p/leon/svgbtn"
 	"gno.land/r/devrels/events"
 	users "gno.land/r/gnoland/users/v1"
 	"gno.land/r/leon/hor"
@@ -31,6 +32,7 @@ func Render(_ string) string {
 		return hor.RenderExhibWidget(5)
 	})
 	r.RegisterCallback(":qotb:", quoteOfTheBlock)
+	r.RegisterCallback(":newsletter-button:", newsletterButton)
 	r.RegisterCallback(":latest-gnomes:", func() string {
 		return users.RenderLatestUsersWidget(5)
 	})
@@ -190,15 +192,32 @@ Latest Gnomes in the [registry](/r/gnoland/users/v1).
 
 ---
 
-**This is a testnet.**
-Package names are not guaranteed to be available for production.
-`
+## Sign up for our newsletter
+
+Stay in the Gno by signing up for our newsletter. You'll get the scoop on dev updates, fresh content, and community news.
+
+:newsletter-button:
+
+---
+
+**This is a testnet.** Package names are not guaranteed to be available for production.`
 
 	if override != "" {
 		template = override
 	}
 	result := r.Replace(template)
 	return result
+}
+
+func newsletterButton() string {
+	return svgbtn.Button(
+		256,
+		44,
+		"#226c57",
+		"#ffffff",
+		"Subscribe to stay in the Gno",
+		"https://land.us18.list-manage.com/subscribe?u=8befe3303cf82796d2c1a1aff&id=271812000b",
+	)
 }
 
 func quoteOfTheBlock() string {
