@@ -82,8 +82,9 @@ the foundations of a fairer and freer world, join us today.
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
 - [Staging chain](https://docs.gno.land/resources/gnoland-networks/#staging-environments-portal-loops)
-- [Testnet 7](https://test7.testnets.gno.land/)
+- [Testnet 9](https://test9.testnets.gno.land/)
 - [Faucet Hub](https://faucet.gno.land)
+- [Open Boards, a social discussion forum](https://gno.land/r/boards000/v1rc1:General)
 
 </gno-columns>
 
@@ -132,7 +133,7 @@ All code in Gno.land is organized in packages, and each package lives at a uniqu
 
 Official realm packages developed by the Gno.land core team.
 
-[-> Browse](/r/gnoland)
+[Browse](/r/gnoland)
 
 |||
 
@@ -140,7 +141,7 @@ Official realm packages developed by the Gno.land core team.
 
 System-level realm packages used by the chain.
 
-[-> Browse](/r/sys)
+[Browse](/r/sys)
 
 |||
 
@@ -148,7 +149,7 @@ System-level realm packages used by the chain.
 
 Demo realm packages showcasing what’s possible.
 
-[-> Browse](/r/demo)
+[Browse](/r/demo)
 
 |||
 
@@ -156,7 +157,7 @@ Demo realm packages showcasing what’s possible.
 
 Pure packages for demo purposes.
 
-[-> Browse](/p/demo)
+[Browse](/p/demo)
 
 </gno-columns>
 
