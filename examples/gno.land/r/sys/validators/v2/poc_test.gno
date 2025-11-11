@@ -317,3 +317,64 @@ func TestValidatorProposals(t *testing.T) {
 		})
 	})
 }
+
+func TestTrustLevel(t *testing.T) {
+	const (
+		minRegisterFee int64 = 20 * 1_000_000
+		minProposalFee int64 = 100 * 1_000_000
+	)
+
+	setupTestCoins := func() {
+		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", minRegisterFee)})
+		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", minProposalFee)})
+	}
+
+	// Ensure realm context uses the governance user
+	testing.SetRealm(testing.NewUserRealm(testUserAddr))
+
+	t.Run("Trust level proposal updates ratio", func(t *testing.T) {
+		lastValsetUpdate = time.Now().Add(-valsetUpdateCooldown - time.Minute)
+		numBefore, denBefore := GetTrustLevel()
+
+		setupTestCoins()
+
+		var pid dao.ProposalID
+		urequire.NotPanics(t, func(cur realm) {
+			testing.SetRealm(testing.NewUserRealm(testUserAddr))
+			pr := NewTrustLevelPropRequest(2, 5, "Tighten trust level", "Require 40% legacy power")
+			pid = dao.MustCreateProposal(cross, pr)
+		})
+
+		setupTestCoins()
+		urequire.NotPanics(t, func() {
+			dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+			dao.ExecuteProposal(cross, pid)
+		})
+
+		numAfter, denAfter := GetTrustLevel()
+		urequire.Equal(t, uint64(2), numAfter)
+		urequire.Equal(t, uint64(5), denAfter)
+
+		urequire.NoError(t, setTrustLevel(numBefore, denBefore))
+	})
+
+	t.Run("Trust level rejects invalid ratios", func(t *testing.T) {
+		lastValsetUpdate = time.Now().Add(-valsetUpdateCooldown - time.Minute)
+		numBefore, denBefore := GetTrustLevel()
+
+		err := setTrustLevel(0, 3)
+		urequire.ErrorContains(t, err, errInvalidTrustLevel)
+
+		err = setTrustLevel(2, 1)
+		urequire.ErrorContains(t, err, errInvalidTrustLevel)
+
+		err = setTrustLevel(1, 0)
+		urequire.ErrorContains(t, err, errInvalidTrustLevel)
+
+		numAfter, denAfter := GetTrustLevel()
+		urequire.Equal(t, numBefore, numAfter)
+		urequire.Equal(t, denBefore, denAfter)
+
+		urequire.NoError(t, setTrustLevel(1, 3))
+	})
+}

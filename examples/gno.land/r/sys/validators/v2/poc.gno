@@ -11,13 +11,20 @@ import (
 var (
 	lastValsetUpdate     time.Time                       // last time the valset was updated
 	valsetUpdateCooldown = time.Duration(24 * time.Hour) // cooldown period between valset updates
+	trustLevelRatio      = trustRatio{numerator: 1, denominator: 3}
 )
 
 const (
 	errNoChangesProposed    = "no set changes proposed"
 	errValsetUpdateCooldown = "valset update cooldown in effect"
-	errTooManyChanges       = "too many changes proposed; must be less than 2/3 of current validator set"
+	errTooManyChanges       = "too many changes proposed; trust level violated"
+	errInvalidTrustLevel    = "invalid trust level fraction"
 )
+
+type trustRatio struct {
+	numerator   uint64
+	denominator uint64
+}
 
 // NewPropRequest creates a new proposal request that wraps a changes closure
 // proposal. This wrapper is required to ensure the GovDAO Realm actually
@@ -67,9 +74,9 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 		}
 
 		// Guardrails:
-		//   1. The resulting validator set cannot shrink below 1/3 of its previous voting power.
-		//   2. Legacy validators must retain at least 1/3 of the voting power in the new set.
-		if prevTotalVotingPower > 0 && (updatedVotingPower*3 < prevTotalVotingPower || updatedVotingPower*2 < addedVotingPower) {
+		//   1. The resulting validator set cannot shrink below the configured trust level of its previous voting power.
+		//   2. Legacy validators must retain at least the configured trust level of the voting power in the new set.
+		if prevTotalVotingPower > 0 && (updatedVotingPower*trustLevelRatio.denominator < prevTotalVotingPower*trustLevelRatio.numerator || updatedVotingPower*trustLevelRatio.denominator < (addedVotingPower+updatedVotingPower)*trustLevelRatio.numerator) {
 			return errors.New(errTooManyChanges)
 		}
 
@@ -101,4 +108,40 @@ func GetValidator(addr address) validators.Validator {
 // GetValidators returns the typed validator set
 func GetValidators() []validators.Validator {
 	return vp.GetValidators()
+}
+
+// GetTrustLevel returns the currently configured trust level ratio.
+func GetTrustLevel() (uint64, uint64) {
+	return trustLevelRatio.numerator, trustLevelRatio.denominator
+}
+
+// NewTrustLevelPropRequest creates a governance proposal to update the trust level ratio.
+func NewTrustLevelPropRequest(numerator, denominator uint64, title, description string) dao.ProposalRequest {
+	if err := validateTrustLevelInputs(numerator, denominator); err != nil {
+		panic(err.Error())
+	}
+
+	callback := func(cur realm) error {
+		return setTrustLevel(numerator, denominator)
+	}
+
+	e := dao.NewSimpleExecutor(callback, "")
+
+	return dao.NewProposalRequest(title, description, e)
+}
+
+func setTrustLevel(numerator, denominator uint64) error {
+	if err := validateTrustLevelInputs(numerator, denominator); err != nil {
+		return err
+	}
+
+	trustLevelRatio = trustRatio{numerator: numerator, denominator: denominator}
+	return nil
+}
+
+func validateTrustLevelInputs(numerator, denominator uint64) error {
+	if denominator == 0 || numerator == 0 || numerator > denominator {
+		return errors.New(errInvalidTrustLevel)
+	}
+	return nil
 }
