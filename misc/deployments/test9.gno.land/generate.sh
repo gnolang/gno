@@ -23,8 +23,8 @@ pullTxs () {
     wget -O "$TARGET_FILE" "$TXS_URL"
 }
 
-CHAIN_ID=test9
-GENESIS_TIME=1760428800 # Tuesday, October 14th 2025 10:00 GMT+0200 (Central European Summer Time)
+CHAIN_ID=test9.1
+GENESIS_TIME=1762329600 # Wednesday, November 5th 2025 09:00 GMT+0200 (Central European Summer Time)
 GENESIS_FILE=genesis.json
 
 # Generate a fresh genesis.json

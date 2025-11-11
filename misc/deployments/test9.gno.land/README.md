@@ -70,12 +70,12 @@ You can download the full `genesis.json` using the following steps:
 wget -O genesis.json https://gno-testnets-genesis.s3.eu-central-1.amazonaws.com/test9/genesis.json
 ```
 
-The `shasum` hash of the `genesis.json` should be `ebe97d4255a8eea9143661be202af35b4e7763adcb77cfe26eaca7475c1ed0e7`.
+The `shasum` hash of the `genesis.json` should be `ceed41da25e8d0de82c4551abc124857000530438c5657af8f9be730804dffd8`.
 Verify it by running:
 
 ```sh
 shasum -a 256 genesis.json
-ebe97d4255a8eea9143661be202af35b4e7763adcb77cfe26eaca7475c1ed0e7  genesis.json
+ceed41da25e8d0de82c4551abc124857000530438c5657af8f9be730804dffd8  genesis.json
 ```
 
 ---
@@ -122,7 +122,7 @@ To verify the checksum of the genesis balances sheet:
 
 ```shell
 shasum -a 256 genesis_balances.txt
-f53d37bedaa52726cb3eba2de816235f034cac1ea41116609d69a5357256f28e  genesis_balances.txt
+09fe55352f34db131a21135c6cfc3d97192e6a76c36b137845679da17a5bd39e  genesis_balances.txt
 ```
 
 The `genesis_txs.jsonl` can be fetched locally by:
@@ -135,7 +135,7 @@ To verify the checksum of the genesis transaction sheet:
 
 ```shell
 shasum -a 256 genesis_txs.jsonl
-97c9d3ea428d020cc00c06591c4e8a4415002f085f2422488948e6b7e8981265  genesis_txs.jsonl
+bfa650a2d9349cfa79c5aa2325d0424768812a99ac47c8f23f7c4b90a13db4d3  genesis_txs.jsonl
 ```
 
 ### Reconstructing the genesis transactions
@@ -155,7 +155,7 @@ You can run the following steps to regenerate the `genesis_txs.jsonl`, from the 
 mkdir -p tmp-gnokey
 
 gnokey add --recover Test9Deployer --home tmp-gnokey
-gnogenesis generate -chain-id test9 -genesis-time 1760428800
+gnogenesis generate -chain-id test9.1 -genesis-time 1762329600
 gnogenesis txs add packages ./examples -gno-home tmp-gnokey -key-name Test9Deployer
 gnogenesis txs export genesis_txs.jsonl
 
