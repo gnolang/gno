@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"slices"
 
@@ -82,6 +83,12 @@ func newAuthAuthorizedAddCmd(rootCfg *common.AuthFlags, io commands.IO) *command
 }
 
 func execAuthAuthorizedAdd(rootCfg *common.AuthFlags, args []string, io commands.IO) error {
+	// Check that at least one public key is provided.
+	if len(args) == 0 {
+		io.ErrPrintln("error: at least one public key must be provided\n")
+		return flag.ErrHelp
+	}
+
 	// Add the public keys to the authorized keys list.
 	return manipulatesAuthorizedKeys(rootCfg, args, func(current []string, updates []string) []string {
 		for _, publicKey := range updates {
@@ -113,6 +120,12 @@ func newAuthAuthorizedRemoveCmd(rootCfg *common.AuthFlags, io commands.IO) *comm
 }
 
 func execAuthAuthorizedRemove(rootCfg *common.AuthFlags, args []string, io commands.IO) error {
+	// Check that at least one public key is provided.
+	if len(args) == 0 {
+		io.ErrPrintln("error: at least one public key must be provided\n")
+		return flag.ErrHelp
+	}
+
 	// Remove the public keys from the authorized keys list.
 	return manipulatesAuthorizedKeys(rootCfg, args, func(current []string, updates []string) []string {
 		for _, publicKey := range updates {
