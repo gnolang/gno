@@ -20,11 +20,13 @@ type Member struct {
 type RoleInfo struct {
 	Name        string
 	Description string
+	Color       string
 }
 
 type Role struct {
 	Name        string
 	Description string
+	Color       string
 	Members     *avl.Tree // string -> struct{}
 }
 
@@ -69,6 +71,7 @@ func (m *MembersStore) RoleInfo(role string) RoleInfo {
 	return RoleInfo{
 		Name:        roleData.Name,
 		Description: roleData.Description,
+		Color:       roleData.Color,
 	}
 }
 
@@ -150,6 +153,22 @@ func (m *MembersStore) CountMembersWithRole(role string) uint32 {
 	return uint32(len(m.GetMembersWithRole(role)))
 }
 
+func (m *MembersStore) GetMembersWithoutRole() []string {
+	var res []string
+	m.Members.Iterate("", "", func(key string, value interface{}) bool {
+		roles := m.GetMemberRoles(key)
+		if len(roles) == 0 {
+			res = append(res, key)
+		}
+		return false
+	})
+	return res
+}
+
+func (m *MembersStore) CountMembersWithoutRole() uint32 {
+	return uint32(len(m.GetMembersWithoutRole()))
+}
+
 func (m *MembersStore) setRoles(roles []RoleInfo) {
 	for _, role := range roles {
 		m.AddRole(role)
@@ -173,6 +192,9 @@ func (m *MembersStore) AddMember(member string, roles []string) {
 			panic("role: " + role + " does not exist")
 		}
 		membersRoles.Set(role, struct{}{})
+		roleDataRaw, _ := m.Roles.Get(role)
+		roleData := roleDataRaw.(*Role)
+		roleData.Members.Set(member, struct{}{})
 	}
 	m.Members.Set(member, membersRoles)
 
@@ -204,7 +226,7 @@ func (m *MembersStore) RemoveMember(member string) {
 		if !ok {
 			panic("a value of memberstore.roles is not a Role, should not happen")
 		}
-		role.Members.Remove(role.Name)
+		role.Members.Remove(member)
 		return false
 	})
 	m.Members.Remove(member)
@@ -222,6 +244,7 @@ func (m *MembersStore) AddRole(role RoleInfo) {
 	roleData := &Role{
 		Name:        role.Name,
 		Description: role.Description,
+		Color:       role.Color,
 		Members:     avl.NewTree(),
 	}
 

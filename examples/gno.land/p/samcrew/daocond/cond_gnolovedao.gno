@@ -18,7 +18,9 @@ type gnolovDaoCondThreshold struct {
 
 var roleWeights = []float64{3.0, 2.0, 1.0}
 
-// This is our implementation of the govdao codition following Jae Kwon's specification: https://gist.github.com/jaekwon/918ad325c4c8f7fb5d6e022e33cb7eb3
+// Creates a weighted voting condition based on role tiers with dynamic power calculation.
+// Example: GnoloveDAOCondThreshold(0.5, ["admin", "mod", "user"], hasRoleFn, countFn)
+// This is our implementation of the govdao condition following Jae Kwon's specification: https://gist.github.com/jaekwon/918ad325c4c8f7fb5d6e022e33cb7eb3
 func GnoloveDAOCondThreshold(threshold float64, roles []string, hasRoleFn func(memberId string, role string) bool, usersWithRoleCountFn func(role string) uint32) Condition {
 	if threshold <= 0 || threshold > 1 {
 		panic(errors.New("invalid threshold"))
@@ -40,17 +42,18 @@ func GnoloveDAOCondThreshold(threshold float64, roles []string, hasRoleFn func(m
 	}
 }
 
-// Eval implements Condition.
+// Checks if weighted voting power meets the threshold.
 func (c *gnolovDaoCondThreshold) Eval(ballot Ballot) bool {
-	return c.yesRatio(ballot) >= c.threshold
+	return c.voteRatio(ballot, VoteYes) >= c.threshold
 }
 
-// Signal implements Condition.
+// Returns progress toward meeting the weighted threshold between 0.0 and 1.0.
 func (c *gnolovDaoCondThreshold) Signal(ballot Ballot) float64 {
-	return math.Min(c.yesRatio(ballot)/c.threshold, 1)
+	return math.Min(c.voteRatio(ballot, VoteYes)/c.threshold, 1)
 }
 
-// Render implements Condition.
+// Displays the condition with role weights as text.
+// Example output: "50% of total voting power | admin => 3.00 power | mod => 2.00 power"
 func (c *gnolovDaoCondThreshold) Render() string {
 	rolePowers := []string{}
 	for i, role := range c.roles {
@@ -60,7 +63,8 @@ func (c *gnolovDaoCondThreshold) Render() string {
 	return ufmt.Sprintf("%g%% of total voting power | %s", c.threshold*100, strings.Join(rolePowers, " | "))
 }
 
-// RenderWithVotes implements Condition.
+// Displays the condition with current weighted vote counts and breakdown.
+// Shows detailed voting power analysis and vote distribution across roles.
 func (c *gnolovDaoCondThreshold) RenderWithVotes(ballot Ballot) string {
 	vPowers, totalPower := c.computeVotingPowers()
 	rolePowers := []string{}
@@ -71,30 +75,32 @@ func (c *gnolovDaoCondThreshold) RenderWithVotes(ballot Ballot) string {
 	s := ""
 	s += ufmt.Sprintf("%g%% of total voting power | %s\n\n", c.threshold*100, strings.Join(rolePowers, " | "))
 	s += ufmt.Sprintf("Threshold needed: %g%% of total voting power\n\n", c.threshold*100)
-	s += ufmt.Sprintf("Yes: %d/%d\n\n", c.yesRatio(ballot), totalPower)
+	s += ufmt.Sprintf("Yes: %d/%d\n\n", c.voteRatio(ballot, VoteYes), totalPower)
+	s += ufmt.Sprintf("No: %d/%d\n\n", c.voteRatio(ballot, VoteNo), totalPower)
+	s += ufmt.Sprintf("Abstain: %d/%d\n\n", c.voteRatio(ballot, VoteAbstain), totalPower)
 	s += ufmt.Sprintf("Voting power needed: %g%% of total voting power\n\n", c.threshold*totalPower)
 	return s
 }
 
 var _ Condition = (*gnolovDaoCondThreshold)(nil)
 
-func (c *gnolovDaoCondThreshold) yesRatio(ballot Ballot) float64 {
-	var totalYes float64
+func (c *gnolovDaoCondThreshold) voteRatio(ballot Ballot, vote Vote) float64 {
+	var total float64
 	votingPowersByTier, totalPower := c.computeVotingPowers()
 	// Case when there are zero T1s
 	if totalPower == 0.0 {
 		return totalPower
 	}
 
-	ballot.Iterate(func(voter string, vote Vote) bool {
-		if vote != VoteYes {
+	ballot.Iterate(func(voter string, v Vote) bool {
+		if v != vote {
 			return false
 		}
 		tier := c.getUserRole(voter)
-		totalYes += votingPowersByTier[tier]
+		total += votingPowersByTier[tier]
 		return false
 	})
-	return totalYes / totalPower
+	return total / totalPower
 }
 
 func (c *gnolovDaoCondThreshold) getUserRole(userID string) string {

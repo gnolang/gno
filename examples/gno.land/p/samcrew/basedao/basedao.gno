@@ -8,10 +8,30 @@ import (
 	"gno.land/p/nt/mux"
 	"gno.land/p/samcrew/daocond"
 	"gno.land/p/samcrew/daokit"
+	"gno.land/p/samcrew/realmid"
 )
 
 type daoPublic struct {
 	impl *DAOPrivate
+}
+
+type SetImplemRaw func(newLocalDAO daokit.DAO, newDAO daokit.DAO)
+
+type RenderFn func(path string, dao *DAOPrivate) string
+
+func (d *daoPublic) Extension(path string) daokit.Extension {
+	ext, ok := d.impl.Core.Extensions.Get(path)
+	if !ok {
+		return nil
+	}
+	if ext.Info().Private && runtime.CurrentRealm().PkgPath() != d.impl.Realm.PkgPath() {
+		panic("attempt to get private extension outside of DAO realm")
+	}
+	return ext
+}
+
+func (d *daoPublic) ExtensionsList() daokit.ExtensionsList {
+	return d.impl.Core.Extensions.List()
 }
 
 func (d *daoPublic) Propose(req daokit.ProposalRequest) uint64 {
@@ -26,26 +46,57 @@ func (d *daoPublic) Vote(id uint64, vote daocond.Vote) {
 	d.impl.Vote(id, vote)
 }
 
-// DAOPrivate is meant for internal realm usage and should not be exposed
+func (d *daoPublic) Render(path string) string {
+	return d.impl.Render(path)
+}
+
+// DAO is meant for internal realm usage and should not be exposed.
 type DAOPrivate struct {
 	Core             *daokit.Core
 	Members          *MembersStore
 	RenderRouter     *mux.Router
 	GetProfileString ProfileStringGetter
 	Realm            runtime.Realm
+	RenderFn         func(path string, dao *DAOPrivate) string
+	CallerID         CallerIDFn
+
+	InitialConfig *Config // mostly there in case we need this data during upgrade
 }
 
+// Function type that returns the identifier of the current caller.
+// Used to identify who is making calls to DAO functions.
+type CallerIDFn func() string
+
 type Config struct {
-	Name               string
-	Description        string
-	ImageURI           string
-	Members            *MembersStore
-	NoDefaultHandlers  bool
-	NoDefaultRendering bool
-	InitialCondition   daocond.Condition
-	SetProfileString   ProfileStringSetter
-	GetProfileString   ProfileStringGetter
-	NoCreationEvent    bool
+	// Basic DAO information
+	Name        string
+	Description string
+	ImageURI    string
+
+	// Storage handler
+	Members *MembersStore
+
+	// Feature toggles
+	NoDefaultHandlers  bool // Skips registration of default management actions (add/remove members, etc.)
+	NoDefaultRendering bool // Skips setup of default web UI rendering routes
+	NoCreationEvent    bool // Skips emitting the DAO creation event
+
+	// Governance configuration
+	InitialCondition daocond.Condition // Default condition for all built-in actions, defaults to 60% member majority
+
+	// Profile integration (optional)
+	SetProfileString ProfileStringSetter // Function to update profile fields (DisplayName, Bio, Avatar)
+	GetProfileString ProfileStringGetter // Function to retrieve profile fields for members
+
+	// Advanced customization hooks
+	SetImplemFn       SetImplemRaw      // Function called when DAO implementation changes via governance
+	MigrationParamsFn MigrationParamsFn // Function providing parameters for DAO upgrades
+	RenderFn          RenderFn          // Rendering function for Gnoweb
+	CrossFn           daokit.CrossFn    // Cross-realm communication function for multi-realm DAOs
+	CallerID          CallerIDFn        // Custom function to identify the current caller, defaults to realmid.Previous
+
+	// Internal configuration
+	PrivateVarName string // Name of the private DAO variable for member querying extensions
 }
 
 type ProfileStringSetter func(cur realm, field string, value string) bool
@@ -65,13 +116,28 @@ func New(conf *Config) (daokit.DAO, *DAOPrivate) {
 		panic(errors.New("GetProfileString is required"))
 	}
 
+	if conf.CallerID == nil {
+		conf.CallerID = realmid.Previous
+	}
+
 	core := daokit.NewCore()
 	dao := &DAOPrivate{
 		Core:             core,
 		Members:          members,
 		GetProfileString: conf.GetProfileString,
 		Realm:            runtime.CurrentRealm(),
+		RenderFn:         conf.RenderFn,
+		CallerID:         conf.CallerID,
+		InitialConfig:    conf,
 	}
+
+	pubdao := &daoPublic{impl: dao}
+
+	dao.Core.Extensions.Set(&membersViewExtension{
+		getStore:  func() *MembersStore { return dao.Members },
+		queryPath: dao.Realm.PkgPath() + "." + conf.PrivateVarName + ".Members",
+	})
+
 	dao.initRenderingRouter()
 
 	if !conf.NoDefaultRendering {
@@ -91,8 +157,33 @@ func New(conf *Config) (daokit.DAO, *DAOPrivate) {
 
 		if conf.SetProfileString != nil {
 			dao.Core.Resources.Set(&daokit.Resource{
-				Handler:   NewEditProfileHandler(conf.SetProfileString, []string{"DisplayName", "Bio", "Avatar"}),
-				Condition: conf.InitialCondition,
+				Handler:     NewEditProfileHandler(conf.SetProfileString, []string{"DisplayName", "Bio", "Avatar"}),
+				Condition:   conf.InitialCondition,
+				DisplayName: "Edit Profile",
+				Description: "This proposal allows you to edit this DAO profile.",
+			})
+		}
+
+		if conf.SetImplemFn != nil {
+			if conf.CrossFn == nil {
+				panic("nil cross function")
+			}
+
+			setImplemFn := func(dao daokit.DAO) {
+				crossingDAO := daokit.NewCrossing(dao, conf.CrossFn)
+				conf.SetImplemFn(dao, crossingDAO)
+			}
+			setImplemFn(pubdao)
+
+			if conf.MigrationParamsFn == nil {
+				conf.MigrationParamsFn = func() []any { return nil }
+			}
+
+			dao.Core.Resources.Set(&daokit.Resource{
+				Handler:     NewChangeDAOImplementationHandler(dao, setImplemFn, conf.MigrationParamsFn),
+				Condition:   conf.InitialCondition,
+				DisplayName: "Change DAO Implementation",
+				Description: "Change the underlying DAO implementation.",
 			})
 		}
 
@@ -133,7 +224,7 @@ func New(conf *Config) (daokit.DAO, *DAOPrivate) {
 		chain.Emit(EventBaseDAOCreated)
 	}
 
-	return &daoPublic{impl: dao}, dao
+	return pubdao, dao
 }
 
 func (d *DAOPrivate) Vote(proposalID uint64, vote daocond.Vote) {
@@ -156,7 +247,7 @@ func (d *DAOPrivate) Propose(req daokit.ProposalRequest) uint64 {
 }
 
 func (d *DAOPrivate) assertCallerIsMember() string {
-	id := runtime.PreviousRealm().Address().String()
+	id := d.CallerID()
 	if !d.Members.IsMember(id) {
 		panic(errors.New("caller is not a member"))
 	}

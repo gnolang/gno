@@ -1,15 +1,17 @@
-package daodemo
+package simple_dao
 
 import "testing"
 
+// `init()` function is executed by default from `simple_dao.gno`, hence the `membersCount != 1`.
+// Refers to `simple_dao.gno` to understand the outcome of this test.
 func TestInit(t *testing.T) {
 	membersCount := daoPrivate.Members.MembersCount()
-	if membersCount != 4 {
-		t.Fatalf("Expected 4 members, got %d", membersCount)
+	if membersCount != 1 {
+		t.Fatalf("Expected 1 members, got %d", membersCount)
 	}
 
 	roles := daoPrivate.Members.GetRoles()
-	expectedRoles := []string{"admin", "public-relationships", "finance-officer"}
+	expectedRoles := []string{"public-relationships", "finance-officer"}
 	if len(roles) != len(expectedRoles) {
 		t.Fatalf("Expected %d roles, got %d", len(expectedRoles), len(roles))
 	}
