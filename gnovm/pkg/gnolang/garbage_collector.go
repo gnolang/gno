@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -35,6 +36,8 @@ type Visitor func(v Value) (stop bool)
 // XXX: make sure tv.T isn't bumped from allocation either.
 // XXX: record original value and verify after GC
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
+	fmt.Println("==================Start GarbageCollect...............")
+	fmt.Println("======currBytes: ", m.Alloc.bytes)
 	// times objects are visited for gc
 	var visitCount int64
 
@@ -55,11 +58,13 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	// We don't need the old value anymore.
 	m.Alloc.Reset()
 
+	old := m.Alloc.Fork()
+
 	// This is the only place where it's bumped.
 	m.GCCycle += 1
 
 	// Construct visitor callback.
-	vis := GCVisitorFn(m.GCCycle, m.Alloc, &visitCount)
+	vis := GCVisitorFn(m.GCCycle, m.Alloc, old, &visitCount)
 
 	// Visit blocks
 	for _, block := range m.Blocks {
@@ -127,13 +132,15 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 // Returns a visitor that bumps the GCCycle counter
 // and stops if alloc is out of memory.
-func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
+func GCVisitorFn(gcCycle int64, alloc, old *Allocator, visitCount *int64) Visitor {
 	var vis func(value Value) bool
 
 	vis = func(v Value) bool {
 		if debug {
 			debug.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
 		}
+
+		fmt.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
 
 		if oo, isObject := v.(Object); isObject {
 			// Return if already measured.
@@ -149,16 +156,18 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 		*visitCount++ // Count operations for gas calculation
 
 		// Add size to alloc.
+
 		size := v.GetShallowSize()
 
 		// special case for StringValue
 		// Count header size only if it's reused;
 		// otherwise, count the underlying string size.
+		// XXX, optimize this for types other than string
 		if sv, ok := v.(StringValue); ok {
-			if alloc.HasString(string(sv)) {
-				// do nothing
+			if exist := old.GetString(string(sv)); !exist {
+				// static do nothing
 			} else {
-				// count header and underlying string as well
+				// panic("!!!")
 				size += allocStringByte * int64(len(sv))
 			}
 		}

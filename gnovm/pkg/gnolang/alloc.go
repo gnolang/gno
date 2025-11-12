@@ -22,7 +22,7 @@ type Allocator struct {
 	peakBytes   int64
 	collect     func() (left int64, ok bool) // gc callback
 	gasMeter    store.GasMeter
-	stringCache map[uintptr]struct{}
+	stringCache map[uintptr]struct{} // cache pointer to the underlying immutable of a string
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -90,7 +90,8 @@ func NewAllocator(maxBytes int64) *Allocator {
 		return nil
 	}
 	return &Allocator{
-		maxBytes: maxBytes,
+		maxBytes:    maxBytes,
+		stringCache: make(map[uintptr]struct{}),
 	}
 }
 
@@ -127,8 +128,9 @@ func (alloc *Allocator) Fork() *Allocator {
 		return nil
 	}
 	return &Allocator{
-		maxBytes: alloc.maxBytes,
-		bytes:    alloc.bytes,
+		maxBytes:    alloc.maxBytes,
+		bytes:       alloc.bytes,
+		stringCache: alloc.stringCache,
 	}
 }
 
@@ -137,6 +139,8 @@ func (alloc *Allocator) Allocate(size int64) {
 		// this can happen for map items just prior to assignment.
 		return
 	}
+	fmt.Println("======Trying to Allocate, size: ", size)
+	fmt.Println("======current bytes: ", alloc.bytes)
 	if alloc.bytes+size > alloc.maxBytes {
 		if left, ok := alloc.collect(); !ok {
 			panic("should not happen, allocation limit exceeded while gc.")
@@ -152,6 +156,7 @@ func (alloc *Allocator) Allocate(size int64) {
 		}
 	} else {
 		alloc.bytes += size
+		fmt.Println("======allocated size: ", size)
 	}
 	// The value of `bytes` decreases during GC, and fees
 	// are only charged when it exceeds peakBytes (again).
@@ -166,16 +171,21 @@ func (alloc *Allocator) Allocate(size int64) {
 }
 
 func (alloc *Allocator) CacheString(str string) {
-	alloc.stringCache[uintptr(unsafe.Pointer(&str))] = struct{}{}
+	if alloc == nil {
+		return
+	}
+	// p points to the underlying immutable
+	p := uintptr(unsafe.Pointer(unsafe.StringData(str)))
+	alloc.stringCache[p] = struct{}{}
 }
 
-func (alloc *Allocator) HasString(str string) bool {
-	// XXX, should this happen?
-	if alloc.stringCache == nil {
-		return false
+func (alloc *Allocator) GetString(str string) bool {
+	p := uintptr(unsafe.Pointer(unsafe.StringData(str)))
+	_, exist := alloc.stringCache[p]
+	if exist {
+		delete(alloc.stringCache, p)
 	}
-	_, exists := alloc.stringCache[uintptr(unsafe.Pointer(&str))]
-	return exists
+	return exist
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
@@ -253,6 +263,7 @@ func (alloc *Allocator) AllocateHeapItem() {
 // constructor utilities.
 
 func (alloc *Allocator) NewString(s string) StringValue {
+	alloc.CacheString(s)
 	alloc.AllocateString(int64(len(s)))
 	return StringValue(s)
 }

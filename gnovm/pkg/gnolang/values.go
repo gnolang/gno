@@ -1070,7 +1070,6 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 		cp.N = tv.N // preserve N_Readonly
 	case StringValue:
 		cp = tv
-		alloc.CacheString(string(cv)) // keep track of string
 	default:
 		cp = tv
 	}

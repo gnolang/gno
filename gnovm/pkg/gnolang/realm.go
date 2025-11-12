@@ -1555,7 +1555,10 @@ func fillTypesOfValue(store Store, val Value) Value {
 	case nil: // do nothing
 		return cv
 	case StringValue: // do nothing
-		return cv
+		// store.GetAllocator().CacheString(string(cv))
+		// return cv
+		cv2 := store.GetAllocator().NewString(string(cv))
+		return cv2
 	case BigintValue: // do nothing
 		return cv
 	case BigdecValue: // do nothing
