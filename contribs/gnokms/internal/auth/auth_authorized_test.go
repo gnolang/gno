@@ -299,7 +299,7 @@ func TestAuthorizedList(t *testing.T) {
 		buffer, io := createBufferedCmdOutput(t)
 
 		// Add authorized keys to the auth key file.
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			authorizedKey := ed25519.GenPrivKey().PubKey().String()
 			authKeysFile.ClientAuthorizedKeys = append(authKeysFile.ClientAuthorizedKeys, authorizedKey)
 		}
