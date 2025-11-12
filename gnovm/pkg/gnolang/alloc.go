@@ -72,8 +72,8 @@ const (
 	allocBoundMethod = _allocBase + _allocPointer + _allocBoundMethodValue
 	allocBlock       = _allocBase + _allocPointer + _allocBlock
 	allocBlockItem   = _allocTypedValue
-	allocRefValue    = _allocBase + +_allocRefValue
-	allocRefNode     = _allocBase + +_allocRefNode
+	allocRefValue    = _allocBase + _allocRefValue
+	allocRefNode     = _allocBase + _allocRefNode
 	allocType        = _allocBase + _allocPointer + _allocType
 	allocDataByte    = 1
 	allocPackage     = _allocBase + _allocPointer + _allocPackageValue
@@ -135,7 +135,7 @@ func (alloc *Allocator) Allocate(size int64) {
 		// this can happen for map items just prior to assignment.
 		return
 	}
-	if alloc.bytes+size > alloc.maxBytes {
+	if overflow.Addp(alloc.bytes, size) > alloc.maxBytes {
 		if left, ok := alloc.collect(); !ok {
 			panic("should not happen, allocation limit exceeded while gc.")
 		} else {
@@ -164,7 +164,7 @@ func (alloc *Allocator) Allocate(size int64) {
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
-	alloc.Allocate(allocString + allocStringByte*size)
+	alloc.Allocate(overflow.Addp(allocString, overflow.Mulp(allocStringByte, size)))
 }
 
 func (alloc *Allocator) AllocatePointer() {
@@ -172,11 +172,11 @@ func (alloc *Allocator) AllocatePointer() {
 }
 
 func (alloc *Allocator) AllocateDataArray(size int64) {
-	alloc.Allocate(allocArray + size)
+	alloc.Allocate(overflow.Addp(allocArray, size))
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
-	alloc.Allocate(allocArray + allocArrayItem*items)
+	alloc.Allocate(overflow.Addp(allocArray, overflow.Mulp(allocArrayItem*items)))
 }
 
 func (alloc *Allocator) AllocateSlice() {
@@ -189,7 +189,7 @@ func (alloc *Allocator) AllocateStruct() {
 }
 
 func (alloc *Allocator) AllocateStructFields(fields int64) {
-	alloc.Allocate(allocStructField * fields)
+	alloc.Allocate(overflow.Mulp(allocStructField, fields))
 }
 
 func (alloc *Allocator) AllocateFunc() {
@@ -197,7 +197,7 @@ func (alloc *Allocator) AllocateFunc() {
 }
 
 func (alloc *Allocator) AllocateMap(items int64) {
-	alloc.Allocate(allocMap + allocMapItem*items)
+	alloc.Allocate(overflow.Addp(allocMap, overflow.Mulp(allocMapItem, items)))
 }
 
 func (alloc *Allocator) AllocateMapItem() {
@@ -213,11 +213,11 @@ func (alloc *Allocator) AllocatePackageValue() {
 }
 
 func (alloc *Allocator) AllocateBlock(items int64) {
-	alloc.Allocate(allocBlock + allocBlockItem*items)
+	alloc.Allocate(overflow.Addp(allocBlock, overflow.Mulp(allocBlockItem, items)))
 }
 
 func (alloc *Allocator) AllocateBlockItems(items int64) {
-	alloc.Allocate(allocBlockItem * items)
+	alloc.Allocate(overflow.Mulp(allocBlockItem, items))
 }
 
 /* NOTE: Not used, account for with AllocatePointer.
