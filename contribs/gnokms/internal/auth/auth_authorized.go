@@ -129,6 +129,10 @@ func execAuthAuthorizedRemove(rootCfg *common.AuthFlags, args []string, io comma
 
 // newAuthAuthorizedListCmd creates the auth authorized list subcommand.
 func newAuthAuthorizedListCmd(rootCfg *common.AuthFlags, io commands.IO) *commands.Command {
+	cfg := &authRawFlags{
+		auth: rootCfg,
+	}
+
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "list",
@@ -136,27 +140,33 @@ func newAuthAuthorizedListCmd(rootCfg *common.AuthFlags, io commands.IO) *comman
 			ShortHelp:  "lists the client authorized keys",
 			LongHelp:   "Lists the public keys of the clients that are authorized to authenticate with gnokms.",
 		},
-		commands.NewEmptyConfig(),
+		cfg,
 		func(_ context.Context, _ []string) error {
-			return execAuthAuthorizedList(rootCfg, io)
+			return execAuthAuthorizedList(cfg, io)
 		},
 	)
 }
 
-func execAuthAuthorizedList(rootCfg *common.AuthFlags, io commands.IO) error {
+func execAuthAuthorizedList(authRawCfg *authRawFlags, io commands.IO) error {
 	// Load the auth keys file.
-	authKeysFile, err := loadAuthKeysFile(rootCfg)
+	authKeysFile, err := loadAuthKeysFile(authRawCfg.auth)
 	if err != nil {
 		return err
 	}
 
 	// Print the authorized keys.
-	if len(authKeysFile.ClientAuthorizedKeys) == 0 {
+	if len(authKeysFile.ClientAuthorizedKeys) == 0 && !authRawCfg.raw {
 		io.Printfln("No authorized keys found.")
-	} else {
-		io.Printfln("Authorized keys:")
-		for _, authorizedKey := range authKeysFile.ClientAuthorizedKeys {
-			io.Printfln("- %s", authorizedKey)
+	} else if len(authKeysFile.ClientAuthorizedKeys) > 0 {
+		if authRawCfg.raw {
+			for _, authorizedKey := range authKeysFile.ClientAuthorizedKeys {
+				io.Printfln("%s", authorizedKey)
+			}
+		} else {
+			io.Printfln("Authorized keys:")
+			for _, authorizedKey := range authKeysFile.ClientAuthorizedKeys {
+				io.Printfln("- %s", authorizedKey)
+			}
 		}
 	}
 
