@@ -4,9 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/tm2/pkg/amino"
 )
 
 var (
@@ -59,15 +60,16 @@ func TestCoinIsValid(t *testing.T) {
 		{Coin{testDenom1, int64(-1)}, false},
 		{Coin{testDenom1, int64(0)}, true},
 		{Coin{testDenom1, int64(1)}, true},
-		{Coin{"Atom", int64(1)}, false},
+		{Coin{"ibc/7F1D3FCF4AE79E1554D670D1AD949A9BA4E4A3C76C63093E17E446A46061A7A2", int64(1)}, true},
+		{Coin{"Atom", int64(1)}, true},
 		{Coin{"a", int64(1)}, false},
 		{Coin{"a very long coin denom", int64(1)}, false},
-		{Coin{"atOm", int64(1)}, false},
+		{Coin{"atOm", int64(1)}, true},
 		{Coin{"     ", int64(1)}, false},
 	}
 
 	for i, tc := range cases {
-		require.Equal(t, tc.expectPass, tc.coin.IsValid(), "unexpected result for IsValid, tc #%d", i)
+		require.Equal(t, tc.expectPass, tc.coin.IsValid(), "unexpected result for IsValid for coin %s tc #%d", tc.coin, i)
 	}
 }
 
