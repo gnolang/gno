@@ -176,7 +176,7 @@ func (alloc *Allocator) AllocateDataArray(size int64) {
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
-	alloc.Allocate(overflow.Addp(allocArray, overflow.Mulp(allocArrayItem*items)))
+	alloc.Allocate(overflow.Addp(allocArray, overflow.Mulp(allocArrayItem, items)))
 }
 
 func (alloc *Allocator) AllocateSlice() {
