@@ -28,6 +28,7 @@ type PrivValidatorConfig struct {
 var (
 	errInvalidSignStatePath   = errors.New("invalid private validator sign state file path")
 	errInvalidLocalSignerPath = errors.New("invalid private validator local signer file path")
+	errNilRemoteSignerConfig  = errors.New("remote signer configuration cannot be nil")
 )
 
 // DefaultPrivValidatorConfig returns a default configuration for the PrivValidator.
@@ -65,6 +66,11 @@ func (cfg *PrivValidatorConfig) ValidateBasic() error {
 	// Verify the validator local signer file path is set.
 	if cfg.LocalSigner == "" {
 		return errInvalidLocalSignerPath
+	}
+
+	// Verify the remote signer configuration is not nil.
+	if cfg.RemoteSigner == nil {
+		return errNilRemoteSignerConfig
 	}
 
 	// Validate the remote signer client configuration.
