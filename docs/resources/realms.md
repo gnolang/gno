@@ -65,7 +65,7 @@ found [here](../users/interact-with-gnokey.md#making-transactions).
 ### Working with Realms
 
 Every Gno transaction produces a call stack that can switch across functions
-declared in realm packages and functions declared in p packages. The `std`
+declared in realm packages and functions declared in p packages. The `chain/runtime`
 package contains functions that return the current realm, previous realm, and
 the origin caller's address. 
 
@@ -75,11 +75,11 @@ In this demo, we consider that all functions called
 are [crossing](./gno-interrealm.md).
 :::
 
-- `std.OriginCaller()` - returns the address of the original signer of the
+- `runtime.OriginCaller()` - returns the address of the original signer of the
   transaction
-- `std.PreviousRealm()` - returns the previous realm instance, which can be a user 
+- `runtime.PreviousRealm()` - returns the previous realm instance, which can be a user 
   realm or a smart contract realm
-- `std.CurrentRealm()` - returns the instance of the realm that has called it
+- `runtime.CurrentRealm()` - returns the instance of the realm that has called it
 
 Let's look at the return values of these functions in two distinct situations:
 1. User realm calling a code realm
@@ -115,12 +115,12 @@ Realm A:
 Let's look at return values for each of the methods, called from within
 `Realm A`, assuming a realm cross is happening:
 ```
-std.OriginCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
-std.PreviousRealm() => Realm {
+runtime.OriginCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+runtime.PreviousRealm() => Realm {
     addr:    `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
     pkgPath: ``
 }
-std.CurrentRealm() => Realm {
+runtime.CurrentRealm() => Realm {
     addr:    `g17m4ga9t9dxn8uf06p3cahdavzfexe33ecg8v2s`
     pkgPath: `gno.land/r/demo/users`
 }
@@ -160,12 +160,12 @@ Realm B:
 Depending on which realm the methods are called in, the values will change. For
 `Realm A`:
 ```
-std.OriginCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
-std.PreviousRealm() => Realm {
+runtime.OriginCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+runtime.PreviousRealm() => Realm {
     addr:    `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
     pkgPath: ``
 }
-std.CurrentRealm() => Realm {
+runtime.CurrentRealm() => Realm {
     addr:    `g1dvqd8qgvavqayxklzfdmccd2eps263p43pu2c6`
     pkgPath: `gno.land/r/demo/a`
 }
@@ -173,12 +173,12 @@ std.CurrentRealm() => Realm {
 
 For `Realm B`:
 ```
-std.OriginCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
-std.PreviousRealm() => Realm {
+runtime.OriginCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+runtime.PreviousRealm() => Realm {
     addr:    `g1dvqd8qgvavqayxklzfdmccd2eps263p43pu2c6`
     pkgPath: `gno.land/r/demo/a`
 }
-std.CurrentRealm() => Realm {
+runtime.CurrentRealm() => Realm {
     addr:    `g1rsk9cwv034cw3s6csjeun2jqypj0ztpecqcm3v`
     pkgPath: `gno.land/r/demo/b`
 }
