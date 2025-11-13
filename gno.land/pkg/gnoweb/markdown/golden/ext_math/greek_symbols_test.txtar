@@ -1,0 +1,153 @@
+-- input.md --
+Greek letters test:
+
+Lowercase: $\alpha, \beta, \gamma, \delta, \epsilon, \zeta, \eta, \theta, \iota, \kappa, \lambda, \mu, \nu, \xi, \omicron, \pi, \rho, \sigma, \tau, \upsilon, \phi, \chi, \psi, \omega$
+
+Uppercase: $\Alpha, \Beta, \Gamma, \Delta, \Epsilon, \Zeta, \Eta, \Theta, \Iota, \Kappa, \Lambda, \Mu, \Nu, \Xi, \Omicron, \Pi, \Rho, \Sigma, \Tau, \Upsilon, \Phi, \Chi, \Psi, \Omega$
+
+Variants: $\varGamma, \varDelta, \varTheta, \varLambda, \varXi, \varPi, \varSigma, \varUpsilon, \varPhi, \varPsi, \varOmega$
+
+-- output.html --
+<p>Greek letters test:</p>
+<p>Lowercase: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>α</mi>
+      <mo>,</mo>
+      <mi>β</mi>
+      <mo>,</mo>
+      <mi>γ</mi>
+      <mo>,</mo>
+      <mi>δ</mi>
+      <mo>,</mo>
+      <mi>ϵ</mi>
+      <mo>,</mo>
+      <mi>ζ</mi>
+      <mo>,</mo>
+      <mi>η</mi>
+      <mo>,</mo>
+      <mi>θ</mi>
+      <mo>,</mo>
+      <mi>ι</mi>
+      <mo>,</mo>
+      <mi>κ</mi>
+      <mo>,</mo>
+      <mi>λ</mi>
+      <mo>,</mo>
+      <mi>μ</mi>
+      <mo>,</mo>
+      <mi>ν</mi>
+      <mo>,</mo>
+      <mi>ξ</mi>
+      <mo>,</mo>
+      <mi>ο</mi>
+      <mo>,</mo>
+      <mi>π</mi>
+      <mo>,</mo>
+      <mi>ρ</mi>
+      <mo>,</mo>
+      <mi>σ</mi>
+      <mo>,</mo>
+      <mi>τ</mi>
+      <mo>,</mo>
+      <mi>υ</mi>
+      <mo>,</mo>
+      <mi>ϕ</mi>
+      <mo>,</mo>
+      <mi>χ</mi>
+      <mo>,</mo>
+      <mi>ψ</mi>
+      <mo>,</mo>
+      <mi>ω</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">\alpha, \beta, \gamma, \delta, \epsilon, \zeta, \eta, \theta, \iota, \kappa, \lambda, \mu, \nu, \xi, \omicron, \pi, \rho, \sigma, \tau, \upsilon, \phi, \chi, \psi, \omega</annotation>
+  </semantics>
+</math>
+</p>
+<p>Uppercase: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi mathvariant="normal">Α</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Β</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Γ</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Δ</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Ε</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Ζ</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Η</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Θ</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Ι</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Κ</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Λ</mi>
+      <mo>,</mo>
+      <mi>Μ</mi>
+      <mo>,</mo>
+      <mi>Ν</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Ξ</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Ο</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Π</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Ρ</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Σ</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Τ</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Υ</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Φ</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Χ</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Ψ</mi>
+      <mo>,</mo>
+      <mi mathvariant="normal">Ω</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">\Alpha, \Beta, \Gamma, \Delta, \Epsilon, \Zeta, \Eta, \Theta, \Iota, \Kappa, \Lambda, \Mu, \Nu, \Xi, \Omicron, \Pi, \Rho, \Sigma, \Tau, \Upsilon, \Phi, \Chi, \Psi, \Omega</annotation>
+  </semantics>
+</math>
+</p>
+<p>Variants: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>Γ</mi>
+      <mo>,</mo>
+      <mi>Δ</mi>
+      <mo>,</mo>
+      <mi>Θ</mi>
+      <mo>,</mo>
+      <mi>Λ</mi>
+      <mo>,</mo>
+      <mi>Ξ</mi>
+      <mo>,</mo>
+      <mi>Π</mi>
+      <mo>,</mo>
+      <mi>Σ</mi>
+      <mo>,</mo>
+      <mi>Υ</mi>
+      <mo>,</mo>
+      <mi>Φ</mi>
+      <mo>,</mo>
+      <mi>Ψ</mi>
+      <mo>,</mo>
+      <mi>Ω</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">\varGamma, \varDelta, \varTheta, \varLambda, \varXi, \varPi, \varSigma, \varUpsilon, \varPhi, \varPsi, \varOmega</annotation>
+  </semantics>
+</math>
+</p>

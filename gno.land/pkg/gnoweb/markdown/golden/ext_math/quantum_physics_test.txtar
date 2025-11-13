@@ -1,0 +1,813 @@
+-- input.md --
+Quantum physics and relativity equations test:
+
+## Quantum Mechanics
+
+Schrödinger equation (time-dependent): $i\hbar\frac{\partial}{\partial t}|\psi\rangle = \hat{H}|\psi\rangle$
+
+Schrödinger equation (time-independent): $\hat{H}|\psi\rangle = E|\psi\rangle$
+
+Heisenberg uncertainty principle: $\Delta x \Delta p \geq \frac{\hbar}{2}$
+
+Commutator: $[\hat{A}, \hat{B}] = \hat{A}\hat{B} - \hat{B}\hat{A}$
+
+Pauli matrices: $\sigma_x = \begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}$, $\sigma_y = \begin{pmatrix} 0 & -i \\ i & 0 \end{pmatrix}$, $\sigma_z = \begin{pmatrix} 1 & 0 \\ 0 & -1 \end{pmatrix}$
+
+## Quantum Field Theory
+
+Dirac equation: $(i\gamma^\mu\partial_\mu - m)\psi = 0$
+
+Klein-Gordon equation: $(\partial_\mu\partial^\mu + m^2)\phi = 0$
+
+Maxwell equations in tensor form: $\partial_\mu F^{\mu\nu} = \mu_0 J^\nu$
+
+## Special Relativity
+
+Lorentz transformation: $x' = \gamma(x - vt)$, $t' = \gamma(t - \frac{vx}{c^2})$
+
+Time dilation: $\Delta t' = \gamma \Delta t$
+
+Length contraction: $L' = \frac{L}{\gamma}$
+
+Relativistic energy: $E = \sqrt{(pc)^2 + (mc^2)^2}$
+
+## General Relativity
+
+Einstein field equations: $R_{\mu\nu} - \frac{1}{2}Rg_{\mu\nu} + \Lambda g_{\mu\nu} = \frac{8\pi G}{c^4}T_{\mu\nu}$
+
+Schwarzschild metric: $ds^2 = -\left(1 - \frac{2GM}{c^2r}\right)dt^2 + \left(1 - \frac{2GM}{c^2r}\right)^{-1}dr^2 + r^2(d\theta^2 + \sin^2\theta d\phi^2)$
+
+## Statistical Mechanics
+
+Boltzmann distribution: $P(E) = \frac{1}{Z}e^{-\beta E}$
+
+Partition function: $Z = \sum_i e^{-\beta E_i}$
+
+Fermi-Dirac distribution: $f(E) = \frac{1}{e^{\beta(E-\mu)} + 1}$
+
+Bose-Einstein distribution: $f(E) = \frac{1}{e^{\beta(E-\mu)} - 1}$
+
+## Thermodynamics
+
+First law: $dU = \delta Q - \delta W$
+
+Second law: $dS \geq \frac{\delta Q}{T}$
+
+Gibbs free energy: $G = H - TS$
+
+Helmholtz free energy: $F = U - TS$
+
+-- output.html --
+<p>Quantum physics and relativity equations test:</p>
+<h2>Quantum Mechanics</h2>
+<p>Schrödinger equation (time-dependent): 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>i</mi>
+      <mi>ℏ</mi>
+      <mfrac>
+        <mi>∂</mi>
+        <mrow>
+          <mi>∂</mi>
+          <mi>t</mi>
+        </mrow>
+      </mfrac>
+      <mi>|</mi>
+      <mi>ψ</mi>
+      <mo>⟩</mo>
+      <mo>=</mo>
+      <mover accent="true">
+        <mi style="font-feature-settings: 'dtls' on;">H</mi>
+        <mo stretchy="true">^</mo>
+      </mover>
+      <mi>|</mi>
+      <mi>ψ</mi>
+      <mo>⟩</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">i\hbar\frac{\partial}{\partial t}|\psi\rangle = \hat{H}|\psi\rangle</annotation>
+  </semantics>
+</math>
+</p>
+<p>Schrödinger equation (time-independent): 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mover accent="true">
+        <mi style="font-feature-settings: 'dtls' on;">H</mi>
+        <mo stretchy="true">^</mo>
+      </mover>
+      <mi>|</mi>
+      <mi>ψ</mi>
+      <mo>⟩</mo>
+      <mo>=</mo>
+      <mi>E</mi>
+      <mi>|</mi>
+      <mi>ψ</mi>
+      <mo>⟩</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">\hat{H}|\psi\rangle = E|\psi\rangle</annotation>
+  </semantics>
+</math>
+</p>
+<p>Heisenberg uncertainty principle: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi mathvariant="normal">Δ</mi>
+      <mi>x</mi>
+      <mi mathvariant="normal">Δ</mi>
+      <mi>p</mi>
+      <mo>≥</mo>
+      <mfrac>
+        <mi>ℏ</mi>
+        <mn>2</mn>
+      </mfrac>
+    </mrow>
+    <annotation encoding="application/x-tex">\Delta x \Delta p \geq \frac{\hbar}{2}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Commutator: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo form="prefix" stretchy="false">[</mo>
+      <mover accent="true">
+        <mi style="font-feature-settings: 'dtls' on;">A</mi>
+        <mo stretchy="true">^</mo>
+      </mover>
+      <mo>,</mo>
+      <mover accent="true">
+        <mi style="font-feature-settings: 'dtls' on;">B</mi>
+        <mo stretchy="true">^</mo>
+      </mover>
+      <mo form="postfix" stretchy="false">]</mo>
+      <mo>=</mo>
+      <mover accent="true">
+        <mi style="font-feature-settings: 'dtls' on;">A</mi>
+        <mo stretchy="true">^</mo>
+      </mover>
+      <mover accent="true">
+        <mi style="font-feature-settings: 'dtls' on;">B</mi>
+        <mo stretchy="true">^</mo>
+      </mover>
+      <mo>−</mo>
+      <mover accent="true">
+        <mi style="font-feature-settings: 'dtls' on;">B</mi>
+        <mo stretchy="true">^</mo>
+      </mover>
+      <mover accent="true">
+        <mi style="font-feature-settings: 'dtls' on;">A</mi>
+        <mo stretchy="true">^</mo>
+      </mover>
+    </mrow>
+    <annotation encoding="application/x-tex">[\hat{A}, \hat{B}] = \hat{A}\hat{B} - \hat{B}\hat{A}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Pauli matrices: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msub>
+        <mi>σ</mi>
+        <mi>x</mi>
+      </msub>
+      <mo>=</mo>
+      <mrow>
+        <mo fence="true" stretchy="true">(</mo>
+        <mtable columnalign="center" rowalign="center">
+          <mtr>
+            <mtd style="text-align:center;">
+              <mn>0</mn>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mn>1</mn>
+            </mtd>
+          </mtr>
+          <mtr>
+            <mtd style="text-align:center;">
+              <mn>1</mn>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mn>0</mn>
+            </mtd>
+          </mtr>
+        </mtable>
+        <mo fence="true" stretchy="true">)</mo>
+      </mrow>
+    </mrow>
+    <annotation encoding="application/x-tex">\sigma_x = \begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}</annotation>
+  </semantics>
+</math>
+, 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msub>
+        <mi>σ</mi>
+        <mi>y</mi>
+      </msub>
+      <mo>=</mo>
+      <mrow>
+        <mo fence="true" stretchy="true">(</mo>
+        <mtable columnalign="center" rowalign="center">
+          <mtr>
+            <mtd style="text-align:center;">
+              <mn>0</mn>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mo>−</mo>
+              <mi>i</mi>
+            </mtd>
+          </mtr>
+          <mtr>
+            <mtd style="text-align:center;">
+              <mi>i</mi>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mn>0</mn>
+            </mtd>
+          </mtr>
+        </mtable>
+        <mo fence="true" stretchy="true">)</mo>
+      </mrow>
+    </mrow>
+    <annotation encoding="application/x-tex">\sigma_y = \begin{pmatrix} 0 & -i \\ i & 0 \end{pmatrix}</annotation>
+  </semantics>
+</math>
+, 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msub>
+        <mi>σ</mi>
+        <mi>z</mi>
+      </msub>
+      <mo>=</mo>
+      <mrow>
+        <mo fence="true" stretchy="true">(</mo>
+        <mtable columnalign="center" rowalign="center">
+          <mtr>
+            <mtd style="text-align:center;">
+              <mn>1</mn>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mn>0</mn>
+            </mtd>
+          </mtr>
+          <mtr>
+            <mtd style="text-align:center;">
+              <mn>0</mn>
+            </mtd>
+            <mtd style="text-align:center;">
+              <mo>−</mo>
+              <mn>1</mn>
+            </mtd>
+          </mtr>
+        </mtable>
+        <mo fence="true" stretchy="true">)</mo>
+      </mrow>
+    </mrow>
+    <annotation encoding="application/x-tex">\sigma_z = \begin{pmatrix} 1 & 0 \\ 0 & -1 \end{pmatrix}</annotation>
+  </semantics>
+</math>
+</p>
+<h2>Quantum Field Theory</h2>
+<p>Dirac equation: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>i</mi>
+      <msup>
+        <mi>γ</mi>
+        <mi>μ</mi>
+      </msup>
+      <msub>
+        <mi>∂</mi>
+        <mi>μ</mi>
+      </msub>
+      <mo>−</mo>
+      <mi>m</mi>
+      <mo form="postfix" stretchy="false">)</mo>
+      <mi>ψ</mi>
+      <mo>=</mo>
+      <mn>0</mn>
+    </mrow>
+    <annotation encoding="application/x-tex">(i\gamma^\mu\partial_\mu - m)\psi = 0</annotation>
+  </semantics>
+</math>
+</p>
+<p>Klein-Gordon equation: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo form="prefix" stretchy="false">(</mo>
+      <msub>
+        <mi>∂</mi>
+        <mi>μ</mi>
+      </msub>
+      <msup>
+        <mi>∂</mi>
+        <mi>μ</mi>
+      </msup>
+      <mo>+</mo>
+      <msup>
+        <mi>m</mi>
+        <mn>2</mn>
+      </msup>
+      <mo form="postfix" stretchy="false">)</mo>
+      <mi>ϕ</mi>
+      <mo>=</mo>
+      <mn>0</mn>
+    </mrow>
+    <annotation encoding="application/x-tex">(\partial_\mu\partial^\mu + m^2)\phi = 0</annotation>
+  </semantics>
+</math>
+</p>
+<p>Maxwell equations in tensor form: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msub>
+        <mi>∂</mi>
+        <mi>μ</mi>
+      </msub>
+      <msup>
+        <mi>F</mi>
+        <mrow>
+          <mi>μ</mi>
+          <mi>ν</mi>
+        </mrow>
+      </msup>
+      <mo>=</mo>
+      <msub>
+        <mi>μ</mi>
+        <mn>0</mn>
+      </msub>
+      <msup>
+        <mi>J</mi>
+        <mi>ν</mi>
+      </msup>
+    </mrow>
+    <annotation encoding="application/x-tex">\partial_\mu F^{\mu\nu} = \mu_0 J^\nu</annotation>
+  </semantics>
+</math>
+</p>
+<h2>Special Relativity</h2>
+<p>Lorentz transformation: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>x</mi>
+      <mo>′</mo>
+      <mo>=</mo>
+      <mi>γ</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>x</mi>
+      <mo>−</mo>
+      <mi>v</mi>
+      <mi>t</mi>
+      <mo form="postfix" stretchy="false">)</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">x' = \gamma(x - vt)</annotation>
+  </semantics>
+</math>
+, 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>t</mi>
+      <mo>′</mo>
+      <mo>=</mo>
+      <mi>γ</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>t</mi>
+      <mo>−</mo>
+      <mfrac>
+        <mrow>
+          <mi>v</mi>
+          <mi>x</mi>
+        </mrow>
+        <mrow>
+          <msup>
+            <mi>c</mi>
+            <mn>2</mn>
+          </msup>
+        </mrow>
+      </mfrac>
+      <mo form="postfix" stretchy="false">)</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">t' = \gamma(t - \frac{vx}{c^2})</annotation>
+  </semantics>
+</math>
+</p>
+<p>Time dilation: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi mathvariant="normal">Δ</mi>
+      <mi>t</mi>
+      <mo>′</mo>
+      <mo>=</mo>
+      <mi>γ</mi>
+      <mi mathvariant="normal">Δ</mi>
+      <mi>t</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">\Delta t' = \gamma \Delta t</annotation>
+  </semantics>
+</math>
+</p>
+<p>Length contraction: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>L</mi>
+      <mo>′</mo>
+      <mo>=</mo>
+      <mfrac>
+        <mi>L</mi>
+        <mi>γ</mi>
+      </mfrac>
+    </mrow>
+    <annotation encoding="application/x-tex">L' = \frac{L}{\gamma}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Relativistic energy: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>E</mi>
+      <mo>=</mo>
+      <msqrt>
+        <mrow>
+          <mo form="prefix" stretchy="false">(</mo>
+          <mi>p</mi>
+          <mi>c</mi>
+          <msup>
+            <mo form="postfix" stretchy="false">)</mo>
+            <mn>2</mn>
+          </msup>
+          <mo>+</mo>
+          <mo form="prefix" stretchy="false">(</mo>
+          <mi>m</mi>
+          <msup>
+            <mi>c</mi>
+            <mn>2</mn>
+          </msup>
+          <msup>
+            <mo form="postfix" stretchy="false">)</mo>
+            <mn>2</mn>
+          </msup>
+        </mrow>
+      </msqrt>
+    </mrow>
+    <annotation encoding="application/x-tex">E = \sqrt{(pc)^2 + (mc^2)^2}</annotation>
+  </semantics>
+</math>
+</p>
+<h2>General Relativity</h2>
+<p>Einstein field equations: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msub>
+        <mi>R</mi>
+        <mrow>
+          <mi>μ</mi>
+          <mi>ν</mi>
+        </mrow>
+      </msub>
+      <mo>−</mo>
+      <mfrac>
+        <mn>1</mn>
+        <mn>2</mn>
+      </mfrac>
+      <mi>R</mi>
+      <msub>
+        <mi>g</mi>
+        <mrow>
+          <mi>μ</mi>
+          <mi>ν</mi>
+        </mrow>
+      </msub>
+      <mo>+</mo>
+      <mi mathvariant="normal">Λ</mi>
+      <msub>
+        <mi>g</mi>
+        <mrow>
+          <mi>μ</mi>
+          <mi>ν</mi>
+        </mrow>
+      </msub>
+      <mo>=</mo>
+      <mfrac>
+        <mrow>
+          <mn>8</mn>
+          <mi>π</mi>
+          <mi>G</mi>
+        </mrow>
+        <mrow>
+          <msup>
+            <mi>c</mi>
+            <mn>4</mn>
+          </msup>
+        </mrow>
+      </mfrac>
+      <msub>
+        <mi>T</mi>
+        <mrow>
+          <mi>μ</mi>
+          <mi>ν</mi>
+        </mrow>
+      </msub>
+    </mrow>
+    <annotation encoding="application/x-tex">R_{\mu\nu} - \frac{1}{2}Rg_{\mu\nu} + \Lambda g_{\mu\nu} = \frac{8\pi G}{c^4}T_{\mu\nu}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Schwarzschild metric: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>d</mi>
+      <msup>
+        <mi>s</mi>
+        <mn>2</mn>
+      </msup>
+      <mo>=</mo>
+      <mo>−</mo>
+      <mrow>
+        <mo fence="true" form="prefix" stretchy="true">(</mo>
+        <mn>1</mn>
+        <mo>−</mo>
+        <mfrac>
+          <mrow>
+            <mn>2</mn>
+            <mi>G</mi>
+            <mi>M</mi>
+          </mrow>
+          <mrow>
+            <msup>
+              <mi>c</mi>
+              <mn>2</mn>
+            </msup>
+            <mi>r</mi>
+          </mrow>
+        </mfrac>
+        <mo fence="true" form="postfix" stretchy="true">)</mo>
+      </mrow>
+      <mi>d</mi>
+      <msup>
+        <mi>t</mi>
+        <mn>2</mn>
+      </msup>
+      <mo>+</mo>
+      <msup>
+        <mrow>
+          <mo fence="true" form="prefix" stretchy="true">(</mo>
+          <mn>1</mn>
+          <mo>−</mo>
+          <mfrac>
+            <mrow>
+              <mn>2</mn>
+              <mi>G</mi>
+              <mi>M</mi>
+            </mrow>
+            <mrow>
+              <msup>
+                <mi>c</mi>
+                <mn>2</mn>
+              </msup>
+              <mi>r</mi>
+            </mrow>
+          </mfrac>
+          <mo fence="true" form="postfix" stretchy="true">)</mo>
+        </mrow>
+        <mrow>
+          <mo>−</mo>
+          <mn>1</mn>
+        </mrow>
+      </msup>
+      <mi>d</mi>
+      <msup>
+        <mi>r</mi>
+        <mn>2</mn>
+      </msup>
+      <mo>+</mo>
+      <msup>
+        <mi>r</mi>
+        <mn>2</mn>
+      </msup>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>d</mi>
+      <msup>
+        <mi>θ</mi>
+        <mn>2</mn>
+      </msup>
+      <mo>+</mo>
+      <msup>
+        <mi lspace="0.11111em">sin</mi>
+        <mn>2</mn>
+      </msup>
+      <mi>θ</mi>
+      <mi>d</mi>
+      <msup>
+        <mi>ϕ</mi>
+        <mn>2</mn>
+      </msup>
+      <mo form="postfix" stretchy="false">)</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">ds^2 = -\left(1 - \frac{2GM}{c^2r}\right)dt^2 + \left(1 - \frac{2GM}{c^2r}\right)^{-1}dr^2 + r^2(d\theta^2 + \sin^2\theta d\phi^2)</annotation>
+  </semantics>
+</math>
+</p>
+<h2>Statistical Mechanics</h2>
+<p>Boltzmann distribution: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>P</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>E</mi>
+      <mo form="postfix" stretchy="false">)</mo>
+      <mo>=</mo>
+      <mfrac>
+        <mn>1</mn>
+        <mi>Z</mi>
+      </mfrac>
+      <msup>
+        <mi>e</mi>
+        <mrow>
+          <mo>−</mo>
+          <mi>β</mi>
+          <mi>E</mi>
+        </mrow>
+      </msup>
+    </mrow>
+    <annotation encoding="application/x-tex">P(E) = \frac{1}{Z}e^{-\beta E}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Partition function: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>Z</mi>
+      <mo>=</mo>
+      <mrow>
+        <munder>
+          <mo largeop="true" movablelimits="true">∑</mo>
+          <mi>i</mi>
+        </munder>
+      </mrow>
+      <msup>
+        <mi>e</mi>
+        <mrow>
+          <mo>−</mo>
+          <mi>β</mi>
+          <msub>
+            <mi>E</mi>
+            <mi>i</mi>
+          </msub>
+        </mrow>
+      </msup>
+    </mrow>
+    <annotation encoding="application/x-tex">Z = \sum_i e^{-\beta E_i}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Fermi-Dirac distribution: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>f</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>E</mi>
+      <mo form="postfix" stretchy="false">)</mo>
+      <mo>=</mo>
+      <mfrac>
+        <mn>1</mn>
+        <mrow>
+          <msup>
+            <mi>e</mi>
+            <mrow>
+              <mi>β</mi>
+              <mo form="prefix" stretchy="false">(</mo>
+              <mi>E</mi>
+              <mo>−</mo>
+              <mi>μ</mi>
+              <mo form="postfix" stretchy="false">)</mo>
+            </mrow>
+          </msup>
+          <mo>+</mo>
+          <mn>1</mn>
+        </mrow>
+      </mfrac>
+    </mrow>
+    <annotation encoding="application/x-tex">f(E) = \frac{1}{e^{\beta(E-\mu)} + 1}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Bose-Einstein distribution: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>f</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>E</mi>
+      <mo form="postfix" stretchy="false">)</mo>
+      <mo>=</mo>
+      <mfrac>
+        <mn>1</mn>
+        <mrow>
+          <msup>
+            <mi>e</mi>
+            <mrow>
+              <mi>β</mi>
+              <mo form="prefix" stretchy="false">(</mo>
+              <mi>E</mi>
+              <mo>−</mo>
+              <mi>μ</mi>
+              <mo form="postfix" stretchy="false">)</mo>
+            </mrow>
+          </msup>
+          <mo>−</mo>
+          <mn>1</mn>
+        </mrow>
+      </mfrac>
+    </mrow>
+    <annotation encoding="application/x-tex">f(E) = \frac{1}{e^{\beta(E-\mu)} - 1}</annotation>
+  </semantics>
+</math>
+</p>
+<h2>Thermodynamics</h2>
+<p>First law: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>d</mi>
+      <mi>U</mi>
+      <mo>=</mo>
+      <mi>δ</mi>
+      <mi>Q</mi>
+      <mo>−</mo>
+      <mi>δ</mi>
+      <mi>W</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">dU = \delta Q - \delta W</annotation>
+  </semantics>
+</math>
+</p>
+<p>Second law: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>d</mi>
+      <mi>S</mi>
+      <mo>≥</mo>
+      <mfrac>
+        <mrow>
+          <mi>δ</mi>
+          <mi>Q</mi>
+        </mrow>
+        <mi>T</mi>
+      </mfrac>
+    </mrow>
+    <annotation encoding="application/x-tex">dS \geq \frac{\delta Q}{T}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Gibbs free energy: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>G</mi>
+      <mo>=</mo>
+      <mi>H</mi>
+      <mo>−</mo>
+      <mi>T</mi>
+      <mi>S</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">G = H - TS</annotation>
+  </semantics>
+</math>
+</p>
+<p>Helmholtz free energy: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>F</mi>
+      <mo>=</mo>
+      <mi>U</mi>
+      <mo>−</mo>
+      <mi>T</mi>
+      <mi>S</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">F = U - TS</annotation>
+  </semantics>
+</math>
+</p>

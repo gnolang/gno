@@ -1,0 +1,54 @@
+-- input.md --
+Test 1: $x = 1$
+
+Test 2: \\(A = \\pi r^2\\)
+
+Test 3: \\[E = mc^2\\]
+
+-- output.html --
+<p>Test 1: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>x</mi>
+      <mo>=</mo>
+      <mn>1</mn>
+    </mrow>
+    <annotation encoding="application/x-tex">x = 1</annotation>
+  </semantics>
+</math>
+</p>
+<p>Test 2: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>A</mi>
+      <mo>=</mo>
+      <mo>\</mo>
+      <mi>p</mi>
+      <mi>i</mi>
+      <msup>
+        <mi>r</mi>
+        <mn>2</mn>
+      </msup>
+    </mrow>
+    <annotation encoding="application/x-tex">A = \\pi r^2</annotation>
+  </semantics>
+</math>
+</p>
+<p>Test 3: 
+<math class="math-displaystyle" display="block" displaystyle="true" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>E</mi>
+      <mo>=</mo>
+      <mi>m</mi>
+      <msup>
+        <mi>c</mi>
+        <mn>2</mn>
+      </msup>
+    </mrow>
+    <annotation encoding="application/x-tex">E = mc^2</annotation>
+  </semantics>
+</math>
+</p>
