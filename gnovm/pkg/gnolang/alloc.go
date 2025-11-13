@@ -139,8 +139,8 @@ func (alloc *Allocator) Allocate(size int64) {
 		// this can happen for map items just prior to assignment.
 		return
 	}
-	fmt.Println("======Trying to Allocate, size: ", size)
-	fmt.Println("======current bytes: ", alloc.bytes)
+	// fmt.Println("======Trying to Allocate, size: ", size)
+	// fmt.Println("======current bytes: ", alloc.bytes)
 	if alloc.bytes+size > alloc.maxBytes {
 		if left, ok := alloc.collect(); !ok {
 			panic("should not happen, allocation limit exceeded while gc.")
@@ -156,7 +156,7 @@ func (alloc *Allocator) Allocate(size int64) {
 		}
 	} else {
 		alloc.bytes += size
-		fmt.Println("======allocated size: ", size)
+		// fmt.Println("======allocated size: ", size)
 	}
 	// The value of `bytes` decreases during GC, and fees
 	// are only charged when it exceeds peakBytes (again).
@@ -263,8 +263,8 @@ func (alloc *Allocator) AllocateHeapItem() {
 // constructor utilities.
 
 func (alloc *Allocator) NewString(s string) StringValue {
-	alloc.CacheString(s)
 	alloc.AllocateString(int64(len(s)))
+	alloc.CacheString(s)
 	return StringValue(s)
 }
 
