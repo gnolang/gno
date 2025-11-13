@@ -208,6 +208,76 @@ func TestValidatorProposals(t *testing.T) {
 					PubKey:      "tooManyNew2_pubkey",
 					VotingPower: 1,
 				})
+				updates = append(updates, pVals.Validator{
+					Address:     testutils.TestAddress("tooManyNew3"),
+					PubKey:      "tooManyNew3_pubkey",
+					VotingPower: 1,
+				})
+				return updates
+			}
+			pr := NewPropRequest(changesFn, "Replace validator set", "Attempt to replace >2/3 of validators")
+			pid = dao.MustCreateProposal(cross, pr)
+		})
+
+		proposal, err := dao.GetProposal(cross, pid)
+		urequire.NoError(t, err, "proposal not found")
+		urequire.Equal(t, "Attempt to replace >2/3 of validators", proposal.Description())
+
+		setupTestCoins()
+		urequire.AbortsWithMessage(t, errTooManyChanges, func() {
+			dao.MustVoteOnProposal(cross, dao.VoteRequest{
+				Option:     dao.YesVote,
+				ProposalID: pid,
+			})
+			dao.ExecuteProposal(cross, pid)
+		})
+	})
+
+	t.Run("Proposal fails due to remove of all legacy validators", func(t *testing.T) {
+		// Test: Proposal execution fails if too many validators are changed.
+		lastValsetUpdate = time.Now().Add(-valsetUpdateCooldown - time.Minute)
+		for _, existing := range vp.GetValidators() {
+			removeValidator(existing.Address)
+		}
+		legacy := make([]pVals.Validator, 0, 4)
+		for i := 1; i <= 4; i++ {
+			val := pVals.Validator{
+				Address:     testutils.TestAddress(fmt.Sprintf("legacyTooMany%d", i)),
+				PubKey:      fmt.Sprintf("legacyTooMany%d_pubkey", i),
+				VotingPower: 1,
+			}
+			legacy = append(legacy, val)
+			addValidator(val)
+		}
+
+		setupTestCoins()
+
+		var pid dao.ProposalID
+		urequire.NotPanics(t, func(cur realm) {
+			testing.SetRealm(testing.NewUserRealm(testUserAddr))
+			changesFn := func() []pVals.Validator {
+				updates := []pVals.Validator{
+					{
+						Address:     legacy[0].Address,
+						PubKey:      legacy[0].PubKey,
+						VotingPower: 0,
+					},
+					{
+						Address:     legacy[1].Address,
+						PubKey:      legacy[1].PubKey,
+						VotingPower: 0,
+					},
+					{
+						Address:     legacy[2].Address,
+						PubKey:      legacy[2].PubKey,
+						VotingPower: 0,
+					},
+					{
+						Address:     legacy[3].Address,
+						PubKey:      legacy[3].PubKey,
+						VotingPower: 0,
+					},
+				}
 				return updates
 			}
 			pr := NewPropRequest(changesFn, "Replace validator set", "Attempt to replace >2/3 of validators")

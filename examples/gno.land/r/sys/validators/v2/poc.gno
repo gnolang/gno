@@ -74,9 +74,9 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 		}
 
 		// Guardrails:
-		//   1. The resulting validator set cannot shrink below the configured trust level of its previous voting power.
-		//   2. Legacy validators must retain at least the configured trust level of the voting power in the new set.
-		if prevTotalVotingPower > 0 && (updatedVotingPower*trustLevelRatio.denominator < prevTotalVotingPower*trustLevelRatio.numerator || updatedVotingPower*trustLevelRatio.denominator < (addedVotingPower+updatedVotingPower)*trustLevelRatio.numerator) {
+		// 1. Cannot remove all legacy validators.
+		// 2. Legacy validators must retain at least the configured trust level of the voting power in the new set.
+		if prevTotalVotingPower > 0 && (updatedVotingPower == 0 || updatedVotingPower*trustLevelRatio.denominator < (addedVotingPower+updatedVotingPower)*trustLevelRatio.numerator) {
 			return errors.New(errTooManyChanges)
 		}
 
