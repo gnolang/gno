@@ -93,7 +93,6 @@ func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ct
 			for _, sig := range sigs {
 				msigs[sig.FuncName] = &sig
 			}
-
 		})
 		if err != nil {
 			return nil, err

@@ -411,16 +411,19 @@ Create a form using the ±<gno-form>± tag and add inputs with ±<gno-input>±:
    - Must start with ±<gno-form>± and end with ±</gno-form>±
    - Optional attributes:
      - ±path±: Render path after form submission (e.g. ±path="user"± will redirect to ±:user?[params]±)
+     - ±exec±: Auto-generate fields from a realm function signature (e.g. ±exec="Render"±).
+       When set, manual fields are not allowed; inputs are derived from the function parameters.
    - Form data is always sent as query parameters
    - Cannot be nested (forms inside forms are not allowed)
    - Automatically includes a header showing the realm name
 
 2. **Input Fields**
    - Created with ±<gno-input>± tag
-   - Required attributes:
+   - Attributes:
      - ±name±: Unique identifier for the input (required)
      - ±type±: Type of input (optional, defaults to "text")
      - ±placeholder±: Hint text shown in the input (optional, defaults to "Enter value")
+     - ±value±: Default value for non-selectable inputs (optional)
      - ±description±: Description of the input as title (optional - can be used as title for group of one or multiple inputs)
    - Supported input types:
      - ±type="text"± (default): For text input
@@ -444,6 +447,7 @@ Create a form using the ±<gno-form>± tag and add inputs with ±<gno-input>±:
      - ±name±: Unique identifier for the textarea (required)
      - ±placeholder±: Hint text shown in the textarea (optional, defaults to "Enter value")
    - Optional attributes:
+     - ±value±: Default content for the textarea (optional)
      - ±rows±: Number of visible rows (2-10, defaults to 4)
    - Perfect for longer text input like messages, descriptions, or comments
    - Each textarea must have a unique name
@@ -607,6 +611,32 @@ Select options work like radio buttons but with a more semantic meaning. All ±<
 </gno-form>
 
 This example shows how to combine all form element types in a single form.
+
+8. Form with Default Values
+±±±markdown
+<gno-form>
+  <gno-input name="username" type="text" placeholder="Enter username" value="Alice" />
+  <gno-input name="age" type="number" placeholder="Your age" value="42" />
+  <gno-textarea name="bio" placeholder="Short bio" rows="4" value="Super builder" />
+</gno-form>
+±±±
+
+<gno-form>
+  <gno-input name="username" type="text" placeholder="Enter username" value="Alice" />
+  <gno-input name="age" type="number" placeholder="Your age" value="42" />
+  <gno-textarea name="bio" placeholder="Short bio" rows="4" value="Super builder" />
+</gno-form>
+
+9. Exec-Generated Form
+When using the ±exec± attribute, the form inputs are automatically generated from the realm function signature, and a command preview appears. Manual fields are not allowed in this mode.
+
+±±±markdown
+<gno-form exec="Render">
+</gno-form>
+±±±
+
+<gno-form exec="Render">
+</gno-form>
 
 #### Important Rules
 

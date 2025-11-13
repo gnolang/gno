@@ -97,6 +97,7 @@ type FormTextarea struct {
 	Name        string
 	Placeholder string
 	Rows        int
+	Value       string
 	Description string
 	Error       error
 }
@@ -344,6 +345,8 @@ func (p *FormParser) parseTextarea(node *FormNode, tok html.Token) {
 			if p := strings.TrimSpace(attr.Val); p != "" {
 				textarea.Placeholder = p
 			}
+		case "value":
+			textarea.Value = strings.TrimSpace(attr.Val)
 		case "rows":
 			if _, err := fmt.Sscanf(attr.Val, "%d", &textarea.Rows); err != nil {
 				textarea.Rows = formDefaultTextareaRows
@@ -571,6 +574,9 @@ func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastD
 			HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder),
 			HTMLEscapeString(e.Type), HTMLEscapeString(e.Name),
 			HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder))
+		if e.Value != "" {
+			fmt.Fprintf(w, ` value="%s"`, HTMLEscapeString(e.Value))
+		}
 		if isExec {
 			fmt.Fprintf(w, ` data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" data-action-function-param-value="%s"`, HTMLEscapeString(e.Name))
 		}
@@ -588,11 +594,11 @@ func (r *FormRenderer) renderTextarea(w util.BufWriter, e FormTextarea, idx int,
 	}
 
 	fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s"> %s </label>
-<textarea id="%s" name="%s" placeholder="%s" rows="%d"></textarea>
+<textarea id="%s" name="%s" placeholder="%s" rows="%d">%s</textarea>
 </div>
 `, HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder),
 		HTMLEscapeString(e.Name), HTMLEscapeString(e.Name),
-		HTMLEscapeString(e.Placeholder), e.Rows)
+		HTMLEscapeString(e.Placeholder), e.Rows, HTMLEscapeString(e.Value))
 }
 
 func (r *FormRenderer) renderSelect(w util.BufWriter, elements []FormElement, e FormSelect, idx int, lastDescID *string) {
