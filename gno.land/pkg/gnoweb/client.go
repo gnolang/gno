@@ -180,13 +180,13 @@ func (c *rpcClient) ListFuncs(ctx context.Context, pkgPath string) (vm.FunctionS
 	args := fmt.Sprintf("%s/%s", c.domain, strings.Trim(pkgPath, "/"))
 	res, err := c.query(ctx, qpath, []byte(args))
 	if err != nil {
-		return nil, fmt.Errorf("unable to query qdoc: %w", err)
+		return nil, fmt.Errorf("unable to query qfuncs: %w", err)
 	}
 
 	fsigs := vm.FunctionSignatures{}
 	if err := amino.UnmarshalJSON(res, &fsigs); err != nil {
-		c.logger.Warn("unable to unmarshal qdoc, client is probably outdated")
-		return nil, fmt.Errorf("unable to unmarshal qdoc: %w", err)
+		c.logger.Warn("unable to unmarshal qfuncs, client is probably outdated")
+		return nil, fmt.Errorf("unable to unmarshal qfuncs: %w", err)
 	}
 
 	return fsigs, nil
