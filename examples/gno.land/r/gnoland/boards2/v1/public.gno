@@ -11,6 +11,16 @@ import (
 	"gno.land/p/nt/avl"
 )
 
+type BoardInfo struct {
+	ID       BoardID
+	Name     string
+	Aliases  []string
+	Creator  address
+	Readonly bool
+	// Format of Time.MarshalJSON()
+	CreatedAt string
+}
+
 type PostInfo struct {
 	ID            PostID
 	BoardID       BoardID
@@ -711,6 +721,38 @@ func assertMembersUpdateIsEnabled(boardID BoardID) {
 	}
 }
 
+// GetListedBoards gets a sequence of boards in a range. Only listed boards are returned.
+// The first return value is the total count (independent of startIndex and endIndex).
+// While each board has an an arbitrary id, it also has an index within the returned sequence of boards starting from 0.
+// Limit the response to boards from startIndex up to (not including) endIndex.
+// If you just want the total count, set startIndex and endIndex to 0 and see the first return value.
+func GetListedBoards(startIndex int, endIndex int) (int, []BoardInfo) {
+	infos := []BoardInfo{}
+
+	for i := startIndex; i < endIndex && i < gListedBoardsByID.Size(); i++ {
+		_, boardI := gListedBoardsByID.GetByIndex(i)
+		board := boardI.(*Board)
+
+		createdAtJSON, err := board.createdAt.MarshalJSON()
+		if err != nil {
+			panic("Can't get createdAt JSON: " + err.Error())
+		}
+		createdAt := string(createdAtJSON)[1 : len(createdAtJSON)-1]
+
+		infos = append(infos, BoardInfo{
+			ID:       board.ID,
+			Name:     board.Name,
+			Aliases:  board.Aliases,
+			Creator:  board.Creator,
+			Readonly: board.Readonly,
+			// Format of Time.MarshalJSON()
+			CreatedAt: string(createdAt),
+		})
+	}
+
+	return gListedBoardsByID.Size(), infos
+}
+
 // GetPosts gets a sequence of posts without replies. The first return value is the total count (independent of startIndex and endIndex).
 // While each post has an an arbitrary id, it also has an index within the returned sequence of posts starting from 0.
 // Limit the response to posts from startIndex up to (not including) endIndex within the thread.
@@ -744,7 +786,7 @@ func getPostInfos(posts *avl.Tree, startIndex int, endIndex int) (int, []PostInf
 
 		createdAtJSON, err := post.createdAt.MarshalJSON()
 		if err != nil {
-			panic("Can't get updatedAt JSON: " + err.Error())
+			panic("Can't get createdAt JSON: " + err.Error())
 		}
 		createdAt := string(createdAtJSON)[1 : len(createdAtJSON)-1]
 
