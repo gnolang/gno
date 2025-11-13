@@ -1,0 +1,213 @@
+package tendermint
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"errors"
+	"strings"
+	"time"
+
+	"gno.land/p/aib/ibc/lightclient"
+	"gno.land/p/aib/ibc/types"
+	"gno.land/p/aib/ics23"
+	"gno.land/p/nt/ufmt"
+)
+
+// ClientState from Tendermint tracks the current validator set, latest height,
+// and a possible frozen height.
+type ClientState struct {
+	ChainID    string   `json:"chain_id,omitempty"`
+	TrustLevel Fraction `json:"trust_level"`
+	// duration of the period since the LatestTimestamp during which the
+	// submitted headers are valid for upgrade
+	TrustingPeriod time.Duration `json:"trusting_period"`
+	// duration of the staking unbonding period
+	UnbondingPeriod time.Duration `json:"unbonding_period"`
+	// defines how much new (untrusted) header's Time can drift into the future.
+	MaxClockDrift time.Duration `json:"max_clock_drift"`
+	// Block height when the client was frozen due to a misbehaviour
+	FrozenHeight types.Height `json:"frozen_height"`
+	// Latest height the client was updated to
+	LatestHeight types.Height `json:"latest_height"`
+	// Proof specifications used in verifying counterparty state
+	ProofSpecs []*ics23.ProofSpec `json:"proof_specs,omitempty"`
+
+	// Path at which next upgraded client will be committed.
+	// Each element corresponds to the key for a single CommitmentProof in the
+	// chained proof. NOTE: ClientState must stored under
+	// `{upgradePath}/{upgradeHeight}/clientState` ConsensusState must be stored
+	// under `{upgradepath}/{upgradeHeight}/consensusState` For SDK chains using
+	// the default upgrade module, upgrade_path should be []string{"upgrade",
+	// "upgradedIBCState"}`
+	UpgradePath []string `json:"upgrade_path,omitempty"`
+}
+
+func NewClientState(chainID string, trustLevel Fraction,
+	trustingPeriod, ubdPeriod, maxClockDrift time.Duration,
+	latestHeight types.Height, specs []*ics23.ProofSpec, upgradePath []string) *ClientState {
+	return &ClientState{
+		ChainID:         chainID,
+		TrustLevel:      trustLevel,
+		TrustingPeriod:  trustingPeriod,
+		UnbondingPeriod: ubdPeriod,
+		MaxClockDrift:   maxClockDrift,
+		LatestHeight:    latestHeight,
+		FrozenHeight:    types.ZeroHeight(),
+		ProofSpecs:      specs,
+		UpgradePath:     upgradePath,
+	}
+}
+
+type Fraction struct {
+	Numerator   uint64 `json:"numerator,omitempty"`
+	Denominator uint64 `json:"denominator,omitempty"`
+}
+
+func NewFraction(numerator, denominator uint64) Fraction {
+	return Fraction{
+		Numerator:   numerator,
+		Denominator: denominator,
+	}
+}
+
+// DefaultTrustLevel is the tendermint light client default trust level
+var DefaultTrustLevel = NewFraction(1, 3)
+
+// ConsensusState defines the consensus state from Tendermint.
+type ConsensusState struct {
+	// timestamp that corresponds to the block height in which the ConsensusState
+	// was stored.
+	Timestamp time.Time `json:"timestamp"`
+	// commitment root (i.e app hash)
+	Root               MerkleRoot `json:"root"`
+	NextValidatorsHash []byte     `json:"next_validator_hash,omitempty"`
+
+	processedTime   time.Time
+	processedHeight types.Height
+}
+
+func (cs ConsensusState) Equal(other ConsensusState) bool {
+	return cs.Timestamp.Equal(other.Timestamp) &&
+		bytes.Equal(cs.Root.Hash, other.Root.Hash) &&
+		bytes.Equal(cs.NextValidatorsHash, other.NextValidatorsHash)
+}
+
+type MerkleRoot struct {
+	Hash []byte `json:"hash,omitempty"`
+}
+
+func NewMerkleRoot(hash []byte) MerkleRoot {
+	return MerkleRoot{Hash: hash}
+}
+
+// Empty returns true if the root is empty
+func (mr MerkleRoot) Empty() bool {
+	return len(mr.Hash) == 0
+}
+
+const (
+	// MaxChainIDLen is a maximum length of the chain ID.
+	MaxChainIDLen = 50
+	// SentinelRoot is used as a stand-in root value for the consensus state set at the upgrade height
+	SentinelRoot = "sentinel_root"
+)
+
+// Implements lightclient.ClientState
+func (ClientState) ClientType() string {
+	return lightclient.Tendermint
+}
+
+// Implements lightclient.ClientState
+func (cs ClientState) ValidateBasic() error {
+	if strings.TrimSpace(cs.ChainID) == "" {
+		return ufmt.Errorf("chainID cannot be empty string")
+	}
+
+	if len(cs.ChainID) > MaxChainIDLen {
+		return ufmt.Errorf("chainID is too long; got: %d, max: %d", len(cs.ChainID), MaxChainIDLen)
+	}
+
+	if err := ValidateTrustLevel(cs.TrustLevel); err != nil {
+		return err
+	}
+	if cs.TrustingPeriod <= 0 {
+		return errors.New("trusting period must be greater than zero")
+	}
+	if cs.UnbondingPeriod <= 0 {
+		return errors.New("unbonding period must be greater than zero")
+	}
+	if cs.MaxClockDrift <= 0 {
+		return errors.New("max clock drift must be greater than zero")
+	}
+
+	// the latest height revision number must match the chain id revision number
+	if cs.LatestHeight.RevisionNumber != types.ParseChainID(cs.ChainID) {
+		return ufmt.Errorf("latest height revision number must match chain id revision number (%d != %d)", cs.LatestHeight.RevisionNumber, types.ParseChainID(cs.ChainID))
+	}
+	if cs.LatestHeight.RevisionHeight == 0 {
+		return ufmt.Errorf("tendermint client's latest height revision height cannot be zero")
+	}
+	if cs.TrustingPeriod >= cs.UnbondingPeriod {
+		return ufmt.Errorf("trusting period (%s) should be < unbonding period (%s)", cs.TrustingPeriod, cs.UnbondingPeriod)
+	}
+
+	if cs.ProofSpecs == nil {
+		return ufmt.Errorf("proof specs cannot be nil for tm client")
+	}
+	for i, spec := range cs.ProofSpecs {
+		if spec == nil {
+			return ufmt.Errorf("proof spec cannot be nil at index: %d", i)
+		}
+	}
+	// UpgradePath may be empty, but if it isn't, each key must be non-empty
+	for i, k := range cs.UpgradePath {
+		if strings.TrimSpace(k) == "" {
+			return ufmt.Errorf("key in upgrade path at index %d cannot be empty", i)
+		}
+	}
+
+	return nil
+}
+
+// ValidateTrustLevel checks that trustLevel is within the allowed range [1/3,
+// 1]. If not, it returns an error. 1/3 is the minimum amount of trust needed
+// which does not break the security model.
+func ValidateTrustLevel(lvl Fraction) error {
+	if lvl.Numerator*3 < lvl.Denominator || // < 1/3
+		lvl.Numerator > lvl.Denominator || // > 1
+		lvl.Denominator == 0 {
+		return ufmt.Errorf("trustLevel must be within [1/3, 1], given %v", lvl)
+	}
+	return nil
+}
+
+// Implements lightclient.ConsensusState
+func (ConsensusState) ClientType() string {
+	return lightclient.Tendermint
+}
+
+// Implements lightclient.ConsensusState
+func (cs ConsensusState) ValidateBasic() error {
+	if cs.Root.Empty() {
+		return errors.New("root cannot be empty")
+	}
+	if err := validateHash(cs.NextValidatorsHash); err != nil {
+		return ufmt.Errorf("next validators hash is invalid: %v", err)
+	}
+	if cs.Timestamp.Unix() <= 0 {
+		return errors.New("timestamp must be a positive Unix time")
+	}
+	return nil
+}
+
+// validateHash returns an error if the hash is not empty, but its
+// size != tmhash.Size.
+func validateHash(h []byte) error {
+	if len(h) > 0 && len(h) != sha256.Size {
+		return ufmt.Errorf("expected size to be %d bytes, got %d bytes",
+			sha256.Size,
+			len(h),
+		)
+	}
+	return nil
+}
