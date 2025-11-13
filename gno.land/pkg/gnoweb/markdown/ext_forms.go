@@ -482,24 +482,22 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 	if n.Exec != nil {
 		fmt.Fprintf(w, `<div class="command u-hidden" data-form-exec-target="command">`)
 		// Add mode and address controls if we have an exec function
-		if n.Exec != nil {
-			fmt.Fprintf(w, `<div data-controller="action-header" class="c-between">
-		<span class="title">Command</span>
-		<div class="c-inline">
-<div class="b-input">
-  <select data-action-header-target="mode" data-action="change->action-header#updateMode">
-    <option value="secure" selected="selected">Mode: Full Security</option>
-    <option value="fast">Mode: Fast</option>
-  </select>
-  <svg><use href="#ico-arrow-down"></use></svg>
-</div>
-<div class="b-input">
-  <label for="form-address-%s">Address</label>
-  <input type="text" data-action-header-target="address" data-action="input->action-header#updateAddress" id="form-address-%s" class="u-font-mono" placeholder="ADDRESS" />
-</div>
-</div>
+		fmt.Fprintf(w, `<div data-controller="action-header" class="c-between">
+  <span class="title">Command</span>
+  <div class="c-inline">
+    <div class="b-input">
+      <select data-action-header-target="mode" data-action="change->action-header#updateMode">
+        <option value="secure" selected="selected">Mode: Full Security</option>
+        <option value="fast">Mode: Fast</option>
+      </select>
+      <svg><use href="#ico-arrow-down"></use></svg>
+    </div>
+    <div class="b-input">
+      <label for="form-address-%s">Address</label>
+      <input type="text" data-action-header-target="address" data-action="input->action-header#updateAddress" id="form-address-%s" class="u-font-mono" placeholder="ADDRESS" />
+    </div>
+  </div>
 </div>`, HTMLEscapeString(n.Exec.FuncName), HTMLEscapeString(n.Exec.FuncName))
-		}
 		r.renderCommandBlock(w, n)
 		fmt.Fprintln(w, `</div>`)
 		fmt.Fprintln(w, `</div>`)

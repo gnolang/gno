@@ -408,7 +408,7 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	// Try to decode the bech32 address
 	username = CreateUsernameFromBech32(username)
 
-	//TODO: get from user r/profile and use placeholder if not set
+	// TODO: get from user r/profile and use placeholder if not set
 	handlename := "Gnome " + username
 
 	data := components.UserData{

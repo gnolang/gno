@@ -28,10 +28,10 @@ func RenderCommandBlock(w io.Writer, data CommandBlockData) error {
     <button data-controller="copy" data-action="click->copy#copy"
       data-copy-remote-value="%s-%s" data-copy-clean-value class="btn-copy"
       aria-label="Copy Command">
-     <svg class="c-icon">
-	  <use href="#ico-copy" data-copy-target="icon"></use>
-	  <use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use>
-	 </svg>
+      <svg class="c-icon">
+	      <use href="#ico-copy" data-copy-target="icon"></use>
+	      <use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use>
+      </svg>
     </button>
     <pre><code><span data-%s-target="mode" data-%s-mode-value="fast" class="u-hidden" data-copy-target="%s-%s"># WARNING: This command is running in an INSECURE mode.
 # It is strongly recommended to use a hardware device for signing
