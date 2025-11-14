@@ -13,6 +13,7 @@ import (
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/instrumentation"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -43,10 +44,13 @@ type Machine struct {
 	Debugger Debugger
 
 	// Configuration
-	Output   io.Writer
-	Store    Store
-	Context  any
-	GasMeter store.GasMeter
+	Output              io.Writer
+	Store               Store
+	Context             any
+	GasMeter            store.GasMeter
+	instrumentation     instrumentation.Sink
+	baseInstrumentation instrumentation.Sink
+	profileState        *profilingState
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -80,6 +84,9 @@ type MachineOptions struct {
 	GasMeter      store.GasMeter
 	ReviveEnabled bool
 	SkipPackage   bool // don't get/set package or realm.
+
+	// Instrumentation receives low-level VM events (profiling, tracing, etc).
+	Instrumentation instrumentation.Sink
 }
 
 const (
@@ -136,6 +143,8 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Store = store
 	mm.Context = opts.Context
 	mm.GasMeter = vmGasMeter
+	mm.baseInstrumentation = opts.Instrumentation
+	mm.refreshInstrumentationSink()
 	mm.Debugger.enabled = opts.Debug
 	mm.Debugger.in = opts.Input
 	mm.Debugger.out = output
@@ -182,6 +191,12 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 	m.Blocks = []*Block{
 		pv.GetBlock(m.Store),
 	}
+}
+
+// SetInstrumentationSink replaces the base instrumentation sink used by the machine.
+func (m *Machine) SetInstrumentationSink(s instrumentation.Sink) {
+	m.baseInstrumentation = s
+	m.refreshInstrumentationSink()
 }
 
 //----------------------------------------
@@ -1292,6 +1307,7 @@ func (m *Machine) Run(st Stage) {
 			}
 		}
 		// TODO: this can be optimized manually, even into tiers.
+		m.recordLineSampleIfNeeded()
 		switch op {
 		/* Control operators */
 		case OpHalt:
@@ -1314,6 +1330,7 @@ func (m *Machine) Run(st Stage) {
 			m.doOpEnterCrossing()
 		case OpCall:
 			m.incrCPU(OpCPUCall)
+			m.maybeEmitSample()
 			m.doOpCall()
 		case OpCallNativeBody:
 			m.incrCPU(OpCPUCallNativeBody)

@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 
+	"github.com/gnolang/gno/gnovm/pkg/instrumentation"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
@@ -21,6 +22,8 @@ type Allocator struct {
 	peakBytes int64
 	collect   func() (left int64, ok bool) // gc callback
 	gasMeter  store.GasMeter
+
+	instrumentation instrumentation.Sink
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -100,6 +103,12 @@ func (alloc *Allocator) SetGasMeter(gasMeter store.GasMeter) {
 	alloc.gasMeter = gasMeter
 }
 
+// SetInstrumentationSink wires the allocator to an instrumentation sink so it
+// can emit allocation events for profilers or observers.
+func (alloc *Allocator) SetInstrumentationSink(s instrumentation.Sink) {
+	alloc.instrumentation = s
+}
+
 func (alloc *Allocator) MemStats() string {
 	if alloc == nil {
 		return "nil allocator"
@@ -125,8 +134,11 @@ func (alloc *Allocator) Fork() *Allocator {
 		return nil
 	}
 	return &Allocator{
-		maxBytes: alloc.maxBytes,
-		bytes:    alloc.bytes,
+		maxBytes:        alloc.maxBytes,
+		bytes:           alloc.bytes,
+		peakBytes:       alloc.peakBytes,
+		gasMeter:        alloc.gasMeter,
+		instrumentation: alloc.instrumentation,
 	}
 }
 
@@ -160,6 +172,15 @@ func (alloc *Allocator) Allocate(size int64) {
 		}
 
 		alloc.peakBytes = alloc.bytes
+	}
+
+	if sink := alloc.instrumentation; sink != nil {
+		if caps, ok := sink.(instrumentation.Capabilities); !ok || caps.WantsAllocations() {
+			sink.OnAllocation(&instrumentation.AllocationEvent{
+				Bytes:   size,
+				Objects: 1,
+			})
+		}
 	}
 }
 
