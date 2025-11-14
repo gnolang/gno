@@ -1,0 +1,67 @@
+# Test private realm basic functionality
+
+# start a new node
+gnoland start
+
+# add a public realm
+gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/foobar/publicrealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+# update the public realm
+! gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/foobar/publicrealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'package already exists'
+
+# add a private realm
+gnokey maketx addpkg -pkgdir $WORK/privaterealm -pkgpath gno.land/r/foobar/privaterealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+# update the same private realm
+gnokey maketx addpkg -pkgdir $WORK/privaterealm -pkgpath gno.land/r/foobar/privaterealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+# update the edited private realm over the original
+gnokey maketx addpkg -pkgdir $WORK/privaterealmedited -pkgpath gno.land/r/foobar/privaterealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+# overwrite public realm with private realm
+! gnokey maketx addpkg -pkgdir $WORK/privaterealm -pkgpath gno.land/r/foobar/publicrealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'package already exists'
+
+# overwrite private realm with public realm
+! gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/foobar/privaterealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot change private package to public package'
+
+-- privaterealm/gnomod.toml --
+module = "gno.land/r/test"
+gno = "0.9"
+private = true
+
+-- privaterealm/privaterealm.gno --
+package test
+
+func Echo(cur realm) string {
+	return "hello private world"
+}
+
+-- privaterealmedited/gnomod.toml --
+module = "gno.land/r/test"
+gno = "0.9"
+private = true
+
+-- privaterealmedited/privaterealm.gno --
+package test
+
+func Echo(cur realm) string {
+	return "hello private edited world"
+}
+
+-- publicrealm/gnomod.toml --
+module = "gno.land/r/foobar/publicrealm"
+gno = "0.9"
+
+-- publicrealm/publicrealm.gno --
+package publicrealm
+
+func Echo(cur realm) string {
+	return "hello public world"
+}

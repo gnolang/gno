@@ -441,17 +441,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)
 	}
 
-	// Extra keeper-only checks.
-	gm, err := gnomod.ParseMemPackage(memPkg)
-	if err != nil {
-		return ErrInvalidPackage(err.Error())
-	}
-
-	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
-		// Private packages can be re-uploaded (overwritten).
-		if !gm.Private {
-			return ErrPkgAlreadyExists("package already exists: " + pkgPath)
-		}
+	pv := gnostore.GetPackage(pkgPath, false)
+	if pv != nil && !pv.Private {
+		return ErrPkgAlreadyExists("package already exists: " + pkgPath)
 	}
 
 	if !gno.IsRealmPath(pkgPath) && !gno.IsPPackagePath(pkgPath) {
@@ -478,9 +470,17 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrTypeCheck(err)
 	}
 
+	// Extra keeper-only checks.
+	gm, err := gnomod.ParseMemPackage(memPkg)
+	if err != nil {
+		return ErrInvalidPackage(err.Error())
+	}
 	// no development packages.
 	if gm.HasReplaces() {
 		return ErrInvalidPackage("development packages are not allowed")
+	}
+	if pv != nil && pv.Private && !gm.Private {
+		return ErrInvalidPackage("cannot change private package to public package")
 	}
 	if gm.Private && !gno.IsRealmPath(pkgPath) {
 		return ErrInvalidPackage("private packages must be realm packages")
