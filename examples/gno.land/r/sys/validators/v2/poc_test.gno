@@ -441,10 +441,18 @@ func TestTrustLevel(t *testing.T) {
 		err = setTrustLevel(1, 0)
 		urequire.ErrorContains(t, err, errInvalidTrustLevel)
 
+		err = setTrustLevel(1, 4)
+		urequire.ErrorContains(t, err, errInvalidTrustLevel)
+
+		err = setTrustLevel(3, 4)
+		urequire.ErrorContains(t, err, errInvalidTrustLevel)
+
 		numAfter, denAfter := GetTrustLevel()
 		urequire.Equal(t, numBefore, numAfter)
 		urequire.Equal(t, denBefore, denAfter)
 
 		urequire.NoError(t, setTrustLevel(1, 3))
+		urequire.NoError(t, setTrustLevel(2, 3))
+		urequire.NoError(t, setTrustLevel(numBefore, denBefore))
 	})
 }

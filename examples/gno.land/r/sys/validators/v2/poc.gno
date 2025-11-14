@@ -12,6 +12,8 @@ var (
 	lastValsetUpdate     time.Time                       // last time the valset was updated
 	valsetUpdateCooldown = time.Duration(24 * time.Hour) // cooldown period between valset updates
 	trustLevelRatio      = trustRatio{numerator: 1, denominator: 3}
+	trustLevelMinAllowed = trustRatio{numerator: 1, denominator: 3}
+	trustLevelMaxAllowed = trustRatio{numerator: 2, denominator: 3}
 )
 
 const (
@@ -24,6 +26,10 @@ const (
 type trustRatio struct {
 	numerator   uint64
 	denominator uint64
+}
+
+func (tr trustRatio) Ratio() float64 {
+	return float64(tr.numerator) / float64(tr.denominator)
 }
 
 // NewPropRequest creates a new proposal request that wraps a changes closure
@@ -42,16 +48,16 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 
 		prevTotalVotingPower := vp.TotalVotingPower()
 
-		proposedValidators := vp.GetValidatorsMap()
+		validators := vp.GetValidatorsMap()
 
 		var addedVotingPower uint64
 
 		// Gather all proposed validator changes.
 		for _, change := range changesFn() {
-			val, exists := proposedValidators[change.Address]
+			val, exists := validators[change.Address]
 			if exists {
 				val.VotingPower = change.VotingPower
-				proposedValidators[change.Address] = val
+				validators[change.Address] = val
 			} else {
 				addedVotingPower += change.VotingPower
 			}
@@ -69,14 +75,15 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 		}
 
 		var updatedVotingPower uint64
-		for _, val := range proposedValidators {
+		for _, val := range validators {
 			updatedVotingPower += val.VotingPower
 		}
 
+		newTotalVotingPower := addedVotingPower + updatedVotingPower
 		// Guardrails:
-		// 1. Cannot remove all legacy validators.
+		// 1. Total voting power cannot be zero after the update.
 		// 2. Legacy validators must retain at least the configured trust level of the voting power in the new set.
-		if prevTotalVotingPower > 0 && (updatedVotingPower == 0 || updatedVotingPower*trustLevelRatio.denominator < (addedVotingPower+updatedVotingPower)*trustLevelRatio.numerator) {
+		if prevTotalVotingPower > 0 && (newTotalVotingPower == 0 || updatedVotingPower*trustLevelRatio.denominator < newTotalVotingPower*trustLevelRatio.numerator) {
 			return errors.New(errTooManyChanges)
 		}
 
@@ -140,8 +147,10 @@ func setTrustLevel(numerator, denominator uint64) error {
 }
 
 func validateTrustLevelInputs(numerator, denominator uint64) error {
-	if denominator == 0 || numerator == 0 || numerator > denominator {
+	tr := trustRatio{numerator: numerator, denominator: denominator}
+	if tr.Ratio() < trustLevelMinAllowed.Ratio() || tr.Ratio() > trustLevelMaxAllowed.Ratio() {
 		return errors.New(errInvalidTrustLevel)
 	}
+
 	return nil
 }
