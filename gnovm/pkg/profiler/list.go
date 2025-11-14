@@ -31,12 +31,18 @@ func (p *Profile) WriteFunctionList(w io.Writer, funcName string, store Store) e
 
 	matchedFunctions := make(map[string]*functionData)
 
+	seen := make(map[string]bool)
+
 	for _, sample := range p.Samples {
 		// Check each location in the sample
 		for _, loc := range sample.Location {
-			// Check if this location's function matches our search
-			// allows partial matching (e.g., "Sprintf" matches "gno.land/p/demo/ufmt.Sprintf")
+			if seen[loc.Function] {
+				continue
+			}
+
 			if strings.Contains(loc.Function, funcName) {
+				seen[loc.Function] = true
+
 				// Get or create function data
 				fd, exists := matchedFunctions[loc.Function]
 				if !exists {
@@ -49,24 +55,23 @@ func (p *Profile) WriteFunctionList(w io.Writer, funcName string, store Store) e
 
 				file := loc.File
 				line := loc.Line
-
 				if file == "" || line == 0 {
 					continue
 				}
-
-				// Skip test files when displaying function list
+				// Skip _test.gno as before
 				if strings.HasSuffix(file, "_test.gno") {
 					continue
 				}
 
+				// Ensure maps
 				if fd.fileSamples[file] == nil {
 					fd.fileSamples[file] = make(map[int]*lineStat)
 				}
-
 				if fd.fileSamples[file][line] == nil {
 					fd.fileSamples[file][line] = &lineStat{}
 				}
 
+				// accumulate
 				if len(sample.Value) > 0 {
 					fd.fileSamples[file][line].count += sample.Value[0]
 				}
@@ -74,14 +79,10 @@ func (p *Profile) WriteFunctionList(w io.Writer, funcName string, store Store) e
 					fd.fileSamples[file][line].cycles += sample.Value[1]
 					fd.totalCycles += sample.Value[1]
 				}
-				// Add gas info if available
 				if sample.GasUsed > 0 {
 					fd.fileSamples[file][line].gas += sample.GasUsed
 					fd.totalGas += sample.GasUsed
 				}
-
-				// Only count the first matching location in the stack
-				break
 			}
 		}
 	}
