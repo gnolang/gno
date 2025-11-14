@@ -7,20 +7,17 @@ import (
 
 type profilingState struct {
 	profiler      *profiler.Profiler
-	sink          *profiler.SinkAdapter
+	sink          instrumentation.Sink
 	options       profiler.Options
 	sampleCounter int
 }
 
-func (m *Machine) profileSink() instrumentation.Sink {
-	if m.profileState == nil {
-		return nil
-	}
-	return m.profileState.sink
-}
-
 func (m *Machine) refreshInstrumentationSink() {
-	combined := combineInstrumentationSinks(m.baseInstrumentation, m.profileSink())
+	var profileSink instrumentation.Sink
+	if m.profileState != nil {
+		profileSink = m.profileState.sink
+	}
+	combined := combineInstrumentationSinks(m.baseInstrumentation, profileSink)
 	m.instrumentation = combined
 	if m.Alloc != nil {
 		m.Alloc.SetInstrumentationSink(combined)
@@ -34,19 +31,25 @@ func (m *Machine) refreshInstrumentationSink() {
 
 // StartProfiling enables profiling with the provided options.
 func (m *Machine) StartProfiling(options profiler.Options) {
+	p := profiler.NewProfiler(options.Type, options.SampleRate)
+	p.StartProfiling(nil, options)
+	m.StartProfilingWithSink(profiler.NewSinkAdapter(p, options), options)
 	if m.profileState != nil {
-		m.StopProfiling()
+		m.profileState.profiler = p
+	}
+}
+
+// StartProfilingWithSink enables profiling using the provided instrumentation sink.
+func (m *Machine) StartProfilingWithSink(s instrumentation.Sink, options profiler.Options) {
+	if s == nil {
+		return
 	}
 	if options.SampleRate <= 0 {
 		options.SampleRate = 1000
 	}
-	p := profiler.NewProfiler(options.Type, options.SampleRate)
-	p.StartProfiling(nil, options)
-	sink := profiler.NewSinkAdapter(p, options)
 	m.profileState = &profilingState{
-		profiler: p,
-		sink:     sink,
-		options:  options,
+		sink:    s,
+		options: options,
 	}
 	m.refreshInstrumentationSink()
 }
@@ -56,7 +59,10 @@ func (m *Machine) StopProfiling() *profiler.Profile {
 	if m.profileState == nil {
 		return nil
 	}
-	profile := m.profileState.profiler.StopProfiling()
+	var profile *profiler.Profile
+	if m.profileState.profiler != nil {
+		profile = m.profileState.profiler.StopProfiling()
+	}
 	m.profileState = nil
 	m.refreshInstrumentationSink()
 	return profile

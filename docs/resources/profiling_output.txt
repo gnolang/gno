@@ -1,0 +1,236 @@
+$ gno test -v . -run TestTreeGetByIndex -profile -profile-stdout -profile-format toplist
+=== RUN   TestTreeGetByIndex
+--- PASS: TestTreeGetByIndex (0.00s)
+
+=== PROFILING RESULTS ===
+Top Functions by CPU Cycles
+Total cycles: 0
+
+Rank   Cumulative   Cum%     Flat         Flat%    Calls    Bar                  Function
+----------------------------------------------------------------------------------------------------
+
+Showing top 0 of 0 functions
+ok      .       0.82s
+
+
+
+
+
+
+$ gno test -v . -run TestTreeGetByIndex -profile -profile-stdout -profile-format toplist -profile-sample-rate 1
+=== RUN   TestTreeGetByIndex
+--- PASS: TestTreeGetByIndex (0.00s)
+
+=== PROFILING RESULTS ===
+Top Functions by CPU Cycles
+Total cycles: 13985435
+
+Rank   Cumulative   Cum%     Flat         Flat%    Calls    Bar                  Function
+----------------------------------------------------------------------------------------------------
+1      222651549    1592.02% 222651549    1592.02% 2267     ████████████████████ testing.RunTest
+2      152727917    1092.05% 354261       2.53   % 1744     ████████████████████ .uverse.len
+3      121771002    870.70 % 235551       1.68   % 713      ████████████████████ testing.tRunner
+4      108899590    778.66 % 139591       1.00   % 1416     ████████████████████ strings.Count
+5      96921526     693.02 % 143034       1.02   % 1227     ████████████████████ internal/bytealg.CountString
+6      93891411     671.35 % 136342       0.97   % 599      ████████████████████ testing.shouldRun
+7      88921791     635.82 % 5003         0.04   % 1470     ████████████████████ testing.splitRegexp
+8      79586218     569.07 % 137417       0.98   % 513      ████████████████████ strings.Split
+9      76700461     548.43 % 138097       0.99   % 492      ████████████████████ strings.genSplit
+10     15830216     113.19 % 283740       2.03   % 57       ████████████████████ fmt.Fprintf
+11     13981176     99.97  % 0            0.00   % 45       ███████████████████  testing.
+12     12286753     87.85  % 289149       2.07   % 43       █████████████████    fmt.doPrintf
+13     11442011     81.81  % 197076       1.41   % 65       ████████████████     testing.matches
+14     7896463      56.46  % 358643       2.56   % 42       ███████████          testing.report
+15     6176998      44.17  % 338062       2.42   % 21       ████████             fmt.printArg
+16     6098886      43.61  % 194641       1.39   % 63       ████████             .uverse.make
+17     5307405      37.95  % 340485       2.43   % 18       ███████              fmt.fmtString
+18     5108157      36.52  % 352466       2.52   % 29       ███████              .uverse.append
+19     4630748      33.11  % 351465       2.51   % 16       ██████               fmt.writeString
+20     4430543      31.68  % 341785       2.44   % 15       ██████               fmt.fmtS
+21     4237537      30.30  % 359376       2.57   % 22       ██████               testing.Failed
+22     3991418      28.54  % 361066       2.58   % 21       █████                testing.marshal
+23     3823888      27.34  % 262479       1.88   % 15       █████                gno.land/p/nt/avl.GetByIndex
+24     3717654      26.58  % 199234       1.42   % 21       █████                testing.matchString
+25     2667057      19.07  % 343517       2.46   % 9        ███                  fmt.padString
+26     2198447      15.72  % 269906       1.93   % 8        ███                  testing.formatDur
+27     1893376      13.54  % 284304       2.03   % 8        ██                   fmt.newPrinter
+28     1441364      10.31  % 241688       1.73   % 6        ██                   gno.land/p/nt/avl.Set
+29     1326518      9.48   % 331576       2.37   % 5        █                    fmt.clearflags
+30     1180698      8.44   % 356125       2.55   % 4        █                    os.Write
+31     951156       6.80   % 286432       2.05   % 4        █                    fmt.init
+32     882724       6.31   % 342439       2.45   % 3        █                    fmt.truncateString
+33     817047       5.84   % 270915       1.94   % 3        █                    strconv.Itoa
+34     761678       5.45   % 260452       1.86   % 3        █                    gno.land/p/nt/avl.getLeftNode
+35     590971       4.23   % 356747       2.55   % 2                             os.write
+36     546132       3.91   % 271818       1.94   % 2                             strconv.FormatInt
+37     516384       3.69   % 261659       1.87   % 2                             gno.land/p/nt/avl.getRightNode
+38     483068       3.45   % 243914       1.74   % 2                             gno.land/p/nt/avl.NewNode
+39     471703       3.37   % 284897       2.04   % 2                             .uverse.new
+40     452440       3.24   % 268615       1.92   % 2                             testing.unixNano
+41     324580       2.32   % 59304        0.42   % 43                            gno.land/p/nt/avl.
+42     274314       1.96   % 274314       1.96   % 1                             strconv.small
+43     267127       1.91   % 267127       1.91   % 1                             testing.recoverWithStacktrace
+44     265276       1.90   % 265276       1.90   % 1                             .uverse.recover
+45     263789       1.89   % 263789       1.89   % 1                             .uverse.panic
+46     236115       1.69   % 236115       1.69   % 1                             gno.land/p/nt/avl.NewTree
+
+Showing top 46 of 46 functions
+ok      .       0.89s
+
+
+
+
+
+
+$ gno test -v . -run TestTreeGetByIndex -profile -profile-stdout -profile-format toplist -profile-sample-rate 100
+=== RUN   TestTreeGetByIndex
+--- PASS: TestTreeGetByIndex (0.00s)
+
+=== PROFILING RESULTS ===
+Top Functions by CPU Cycles
+Total cycles: 0
+
+Rank   Cumulative   Cum%     Flat         Flat%    Calls    Bar                  Function
+----------------------------------------------------------------------------------------------------
+
+Showing top 0 of 0 functions
+ok      .       0.84s
+$ gno test -v . -run TestTreeGetByIndex -profile -profile-stdout -profile-format toplist -profile-sample-rate 2  
+=== RUN   TestTreeGetByIndex
+--- PASS: TestTreeGetByIndex (0.00s)
+
+=== PROFILING RESULTS ===
+Top Functions by CPU Cycles
+Total cycles: 107007956
+
+Rank   Cumulative   Cum%     Flat         Flat%    Calls    Bar                  Function
+----------------------------------------------------------------------------------------------------
+1      56301261     52.61  % 56301261     52.61  % 571      ██████████           testing.RunTest
+2      36993017     34.57  % 312404       0.29   % 395      ██████               .uverse.len
+3      30354769     28.37  % 135598       0.13   % 178      █████                testing.tRunner
+4      26370188     24.64  % 139591       0.13   % 331      ████                 strings.Count
+5      23665537     22.12  % 0            0.00   % 151      ████                 testing.shouldRun
+6      23208973     21.69  % 45620        0.04   % 302      ████                 internal/bytealg.CountString
+7      22340184     20.88  % 5003         0.00   % 374      ████                 testing.splitRegexp
+8      20164501     18.84  % 137417       0.13   % 131      ███                  strings.Split
+9      17828412     16.66  % 0            0.00   % 114      ███                  strings.genSplit
+10     3826488      3.58   % 185649       0.17   % 14                            fmt.Fprintf
+11     3501036      3.27   % 197076       0.18   % 20                            testing.matches
+12     3392005      3.17   % 0            0.00   % 11                            testing.
+13     3166796      2.96   % 0            0.00   % 11                            fmt.doPrintf
+14     2818544      2.63   % 352466       0.33   % 19                            .uverse.append
+15     2188934      2.05   % 183189       0.17   % 35                            .uverse.make
+16     1813218      1.69   % 358643       0.34   % 9                             testing.report
+17     1793090      1.68   % 198941       0.19   % 10                            testing.marshal
+18     1443115      1.35   % 338062       0.32   % 5                             fmt.printArg
+19     1264601      1.18   % 202159       0.19   % 7                             testing.Failed
+20     1113002      1.04   % 328836       0.31   % 4                             fmt.writeString
+21     1105053      1.03   % 219143       0.20   % 4                             fmt.fmtString
+22     1020400      0.95   % 262479       0.25   % 4                             gno.land/p/nt/avl.GetByIndex
+23     885910       0.83   % 0            0.00   % 3                             fmt.fmtS
+24     566722       0.53   % 343517       0.32   % 2                             fmt.padString
+25     554278       0.52   % 0            0.00   % 2                             testing.formatDur
+26     538806       0.50   % 186146       0.17   % 3                             testing.matchString
+27     474043       0.44   % 0            0.00   % 2                             fmt.newPrinter
+28     319188       0.30   % 319188       0.30   % 1                             fmt.truncateString
+29     284897       0.27   % 284897       0.27   % 1                             .uverse.new
+30     274314       0.26   % 0            0.00   % 1                             strconv.Itoa
+31     274314       0.26   % 0            0.00   % 1                             strconv.FormatInt
+32     274314       0.26   % 274314       0.26   % 1                             strconv.small
+33     268615       0.25   % 268615       0.25   % 1                             testing.unixNano
+34     240944       0.23   % 240944       0.23   % 1                             gno.land/p/nt/avl.Set
+35     236115       0.22   % 236115       0.22   % 1                             gno.land/p/nt/avl.NewTree
+36     189146       0.18   % 189146       0.18   % 1                             fmt.clearflags
+37     189146       0.18   % 0            0.00   % 1                             fmt.init
+38     7760         0.01   % 7760         0.01   % 4                             gno.land/p/nt/avl.
+
+Showing top 38 of 38 functions
+ok      .       0.81s
+
+
+
+
+
+
+$ gno test -v . -run TestTreeGetByIndex -profile -profile-stdout -profile-format toplist -profile-type memory  
+=== RUN   TestTreeGetByIndex
+--- PASS: TestTreeGetByIndex (0.00s)
+
+=== PROFILING RESULTS ===
+Top Functions by CPU Cycles
+Total cycles: 344
+
+Rank   Cumulative   Cum%     Flat         Flat%    Calls    Bar                  Function
+----------------------------------------------------------------------------------------------------
+1      784          227.91 % 784          227.91 % 1        ████████████████████ <allocation>
+
+Showing top 1 of 1 functions
+ok      .       1.04s
+$ gno test -v . -run TestTreeGetByIndex -profile -profile-stdout -profile-format toplist -profile-sample-rate 2 -profile-type memory
+=== RUN   TestTreeGetByIndex
+--- PASS: TestTreeGetByIndex (0.00s)
+
+=== PROFILING RESULTS ===
+Top Functions by CPU Cycles
+Total cycles: 544
+
+Rank   Cumulative   Cum%     Flat         Flat%    Calls    Bar                  Function
+----------------------------------------------------------------------------------------------------
+1      784          144.12 % 784          144.12 % 1        ████████████████████ <allocation>
+
+Showing top 1 of 1 functions
+ok      .       0.82s
+$ gno test -v . -run TestTreeGetByIndex -profile -profile-stdout -profile-format toplist -profile-sample-rate 2 -profile-list gno.land/p/nt/avl.GetByIndex
+=== RUN   TestTreeGetByIndex
+--- PASS: TestTreeGetByIndex (0.00s)
+
+=== FUNCTION PROFILE ===
+
+Total: 47134519 cycles
+ROUTINE ======================== gno.land/p/nt/avl.GetByIndex in tree.gno
+   7846626    7846626 (flat, cum) 16.65% of Total
+                        53:     return
+                        54:}
+                        55:
+                        56:// GetByIndex retrieves the key-value pair at the specified index in the tree.
+                        57:// It returns the key and value at the given index.
+    245723     245723   58:func (tree *Tree) GetByIndex(index int) (key string, value any) {
+   6561904    6561904   59:     return tree.node.GetByIndex(index)
+         .          .   60:}
+                        61:
+                        62:// Set inserts a key-value pair into the tree.
+    251533     251533   63:// If the key already exists, the value will be updated.
+                        64:// It returns a boolean indicating whether the key was newly inserted or updated.
+                        65:func (tree *Tree) Set(key string, value any) (updated bool) {
+
+Total: 47134519 cycles
+ROUTINE ======================== gno.land/p/nt/avl.GetByIndex in node.gno
+  39287893   39287893 (flat, cum) 83.35% of Total
+                       105:     }
+                       106:}
+                       107:
+                       108:// GetByIndex retrieves the key-value pair of the node at the given index
+                       109:// in the subtree rooted at the node.
+         .          .  110:func (node *Node) GetByIndex(index int) (key string, value any) {
+   9158604    9158604  111:     if node.height == 0 {
+   3073913    3073913  112:             if index == 0 {
+   3542905    3542905  113:                     return node.key, node.value
+         .          .  114:             } else {
+   1583969    1583969  115:                     panic("GetByIndex asked for invalid index")
+         .          .  116:             }
+         .          .  117:     } else {
+         .          .  118:             // TODO: could improve this by storing the sizes
+   5325254    5325254  119:             leftNode := node.getLeftNode()
+   5340368    5340368  120:             if index < leftNode.size {
+   1988585    1988585  121:                     return leftNode.GetByIndex(index)
+         .          .  122:             } else {
+   8516427    8516427  123:                     return node.getRightNode().GetByIndex(index - leftNode.size)
+         .          .  124:             }
+         .          .  125:     }
+         .          .  126:}
+                       127:
+                       128:// Set inserts a new node with the given key-value pair into the subtree rooted at the node,
+                       129:// and returns the new root of the subtree and whether an existing node was updated.
+                       130://
+                       131:// XXX consider a better way to do this... perhaps split Node from Node.
+ok      .       0.86s

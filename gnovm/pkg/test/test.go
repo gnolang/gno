@@ -239,7 +239,7 @@ func (pc *ProfileConfig) attachMachine(m *gno.Machine) {
 	if pc == nil || !pc.IsEnabled() || pc.sink == nil || m == nil {
 		return
 	}
-	m.SetInstrumentationSink(pc.sink)
+	m.StartProfilingWithSink(pc.sink, pc.options)
 	if pc.needsGasMeter() && m.GasMeter == nil {
 		m.GasMeter = storetypes.NewInfiniteGasMeter()
 	}

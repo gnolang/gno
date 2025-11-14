@@ -33,6 +33,14 @@ type testCmd struct {
 	printEvents         bool
 	debug               bool
 	debugAddr           string
+
+	profileEnabled    bool
+	profileType       string
+	profileFormat     string
+	profileStdout     bool
+	profileOutput     string
+	profileFunction   string
+	profileSampleRate int
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -178,6 +186,55 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"enable interactive debugger using tcp address in the form [host]:port",
 	)
+
+	fs.BoolVar(
+		&c.profileEnabled,
+		"profile",
+		false,
+		"enable VM profiling output",
+	)
+
+	fs.StringVar(
+		&c.profileType,
+		"profile-type",
+		"cpu",
+		"profile type (cpu|memory|gas)",
+	)
+
+	fs.StringVar(
+		&c.profileFormat,
+		"profile-format",
+		"text",
+		"profile output format (text|json|toplist|calltree)",
+	)
+
+	fs.BoolVar(
+		&c.profileStdout,
+		"profile-stdout",
+		false,
+		"print profiling output to stdout instead of writing to a file",
+	)
+
+	fs.StringVar(
+		&c.profileOutput,
+		"profile-output",
+		"profile.out",
+		"file path for profile output (ignored if -profile-stdout is set)",
+	)
+
+	fs.StringVar(
+		&c.profileFunction,
+		"profile-list",
+		"",
+		"show line-by-line profile for the given function name",
+	)
+
+	fs.IntVar(
+		&c.profileSampleRate,
+		"profile-sample-rate",
+		0,
+		"override profiling sample rate (default depends on profile type)",
+	)
 }
 
 func execTest(cmd *testCmd, args []string, io commands.IO) error {
@@ -228,6 +285,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Events = cmd.printEvents
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
+	opts.Profile = cmd.profileConfig()
 	cache := make(gno.TypeCheckCache, 64)
 
 	// test.ProdStore() is suitable for type-checking prod (non-test) files.
@@ -352,6 +410,25 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	}
 
 	return nil
+}
+
+func (c *testCmd) profileConfig() *test.ProfileConfig {
+	if !c.profileEnabled && c.profileFunction == "" {
+		return nil
+	}
+	pc := &test.ProfileConfig{
+		Enabled:       true,
+		OutputFile:    c.profileOutput,
+		PrintToStdout: c.profileStdout,
+		Format:        c.profileFormat,
+		Type:          c.profileType,
+		FunctionList:  c.profileFunction,
+		SampleRate:    c.profileSampleRate,
+	}
+	if pc.OutputFile == "" {
+		pc.OutputFile = "profile.out"
+	}
+	return pc
 }
 
 func determinePkgPath(mod *gnomod.File, dir, rootDir string) (string, bool) {
