@@ -653,7 +653,7 @@ func (t *FormTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 }
 
 func (t *FormTransformer) reorderElements(node *FormNode) {
-	var newElements []FormElement
+	newElements := make([]FormElement, 0, len(node.Elements))
 
 	// If user provided any fields, error them all out
 	if len(node.Elements) > 0 {
