@@ -31,9 +31,10 @@ func (p *Profile) WriteFunctionList(w io.Writer, funcName string, store Store) e
 
 	matchedFunctions := make(map[string]*functionData)
 
-	seen := make(map[string]bool)
-
 	for _, sample := range p.Samples {
+		// Deduplicate within this sample to avoid double-counting recursion
+		seen := make(map[string]bool)
+
 		// Check each location in the sample
 		for _, loc := range sample.Location {
 			if seen[loc.Function] {

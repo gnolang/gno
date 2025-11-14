@@ -94,6 +94,11 @@ type Profiler struct {
 	// Test file filtering
 	excludeTests bool // whether to exclude *_test.gno files from profiling
 
+	// Track previous values to compute deltas
+	prevCycles     int64
+	prevGas        int64
+	prevLineCycles int64 // separate tracking for line-level samples
+
 	mu sync.Mutex
 }
 
@@ -117,10 +122,6 @@ type FuncProfile struct {
 	AllocBytes   int64
 	AllocObjects int64
 	Children     map[string]*FuncProfile
-
-	// Track entry cycles and gas for calculating self time/gas
-	entryCycles int64
-	entryGas    int64
 }
 
 // Options for starting profiling
@@ -186,6 +187,18 @@ func (p *Profiler) StartProfiling(m MachineInfo, opts Options) {
 	p.stackSamples = nil
 	p.funcProfiles = make(map[string]*FuncProfile)
 	p.callStack = nil
+
+	// Initialize previous cycle/gas counters to current values
+	// so the first sample computes delta from this baseline
+	if m != nil {
+		p.prevCycles = m.GetCycles()
+		p.prevGas = m.GetGasUsed()
+		p.prevLineCycles = m.GetCycles()
+	} else {
+		p.prevCycles = 0
+		p.prevGas = 0
+		p.prevLineCycles = 0
+	}
 }
 
 // StopProfiling stops profiling and returns the collected profile
@@ -224,10 +237,25 @@ func (p *Profiler) RecordSample(m MachineInfo) {
 		return
 	}
 
+	// VM already handles sampling rate via maybeEmitSample(),
+	// so we record every callback we receive
 	p.opCount++
-	if p.opCount%p.sampleRate != 0 {
-		return
+
+	// Compute deltas since last sample (VM passes cumulative totals)
+	currentCycles := m.GetCycles()
+	currentGas := m.GetGasUsed()
+	deltaCycles := currentCycles - p.prevCycles
+	if deltaCycles < 0 {
+		deltaCycles = currentCycles
 	}
+	deltaGas := currentGas - p.prevGas
+	if deltaGas < 0 {
+		deltaGas = currentGas
+	}
+	// Update previous values immediately so that even skipped samples keep
+	// counters in sync (e.g. when the stack is empty)
+	p.prevCycles = currentCycles
+	p.prevGas = currentGas
 
 	// Build call stack
 	stack := p.buildCallStack(m)
@@ -235,19 +263,18 @@ func (p *Profiler) RecordSample(m MachineInfo) {
 		return
 	}
 
-	// Record stack sample
+	// Record stack sample with deltas
 	p.stackSamples = append(p.stackSamples, stackSample{
 		stack:   p.callStackToStrings(stack),
-		cycles:  m.GetCycles(),
-		gasUsed: m.GetGasUsed(),
+		cycles:  deltaCycles,
+		gasUsed: deltaGas,
 	})
 
-	// Update function profiles
-	p.updateFunctionProfiles(stack, m.GetCycles())
+	p.updateFunctionProfiles(stack, deltaCycles)
 
 	// For gas profiling, also track gas in function profiles
 	if p.profile.Type == ProfileGas {
-		p.updateFunctionGasProfiles(stack, m.GetGasUsed())
+		p.updateFunctionGasProfiles(stack, deltaGas)
 	}
 
 	// Update line-level profiling if enabled
@@ -262,10 +289,10 @@ func (p *Profiler) RecordSample(m MachineInfo) {
 				p.lineSamples[loc.File][loc.Line] = &lineStats{}
 			}
 			p.lineSamples[loc.File][loc.Line].count++
-			p.lineSamples[loc.File][loc.Line].cycles += m.GetCycles()
+			p.lineSamples[loc.File][loc.Line].cycles += deltaCycles
 			// Track gas for gas profiling
 			if p.profile.Type == ProfileGas {
-				p.lineSamples[loc.File][loc.Line].gas += m.GetGasUsed()
+				p.lineSamples[loc.File][loc.Line].gas += deltaGas
 			}
 		}
 	}
@@ -280,11 +307,9 @@ func (p *Profiler) RecordAlloc(m MachineInfo, size, count int64, allocType strin
 		return
 	}
 
-	// Sampling for memory allocations
+	// VM already handles sampling rate for allocations,
+	// so we record every callback we receive
 	p.opCount++
-	if p.opCount%p.sampleRate != 0 {
-		return
-	}
 
 	stack := p.buildCallStack(m)
 	if len(stack) == 0 {
@@ -672,6 +697,14 @@ func (p *Profiler) RecordLineSample(funcName, file string, line int, cycles int6
 		return
 	}
 
+	// Compute delta since last line sample; fall back to current cycles when the
+	// counter resets (e.g. switching to a different machine).
+	deltaCycles := cycles - p.prevLineCycles
+	if deltaCycles < 0 {
+		deltaCycles = cycles
+	}
+	p.prevLineCycles = cycles
+
 	// Skip test files if excludeTests is enabled
 	if p.excludeTests && strings.HasSuffix(file, "_test.gno") {
 		return
@@ -685,7 +718,7 @@ func (p *Profiler) RecordLineSample(funcName, file string, line int, cycles int6
 		p.lineSamples[file][line] = &lineStats{}
 	}
 	p.lineSamples[file][line].count++
-	p.lineSamples[file][line].cycles += cycles
+	p.lineSamples[file][line].cycles += deltaCycles
 
 	// Also record as a sample for function matching
 	// This allows the WriteFunctionList method to find and display these line-level samples
@@ -695,7 +728,7 @@ func (p *Profiler) RecordLineSample(funcName, file string, line int, cycles int6
 			File:     file,
 			Line:     line,
 		}},
-		Value: []int64{1, cycles},
+		Value: []int64{1, deltaCycles},
 	}
 	p.profile.Samples = append(p.profile.Samples, sample)
 }
