@@ -10,6 +10,144 @@ import (
 	"time"
 )
 
+// FrameID uniquely identifies a deduplicated call frame.
+type FrameID int
+
+const invalidFrameID FrameID = -1
+
+// frameKey is used to intern logical call frames.
+type frameKey struct {
+	function   string
+	file       string
+	line       int
+	column     int
+	inlineCall bool
+	pc         uintptr
+}
+
+// frameStore interns ProfileLocation entries so call stacks can be represented
+// by compact FrameIDs.
+type frameStore struct {
+	index  map[frameKey]FrameID
+	frames []ProfileLocation
+}
+
+func newFrameStore() frameStore {
+	return frameStore{
+		index:  make(map[frameKey]FrameID),
+		frames: make([]ProfileLocation, 0, 128),
+	}
+}
+
+func (fs *frameStore) intern(loc ProfileLocation) FrameID {
+	key := frameKey{
+		function:   loc.Function,
+		file:       loc.File,
+		line:       loc.Line,
+		column:     loc.Column,
+		inlineCall: loc.InlineCall,
+		pc:         loc.PC,
+	}
+	if id, ok := fs.index[key]; ok {
+		return id
+	}
+	id := FrameID(len(fs.frames))
+	fs.frames = append(fs.frames, loc)
+	fs.index[key] = id
+	return id
+}
+
+func (fs *frameStore) reset() {
+	fs.index = make(map[frameKey]FrameID)
+	fs.frames = fs.frames[:0]
+}
+
+func (fs *frameStore) framesSnapshot() []ProfileLocation {
+	out := make([]ProfileLocation, len(fs.frames))
+	copy(out, fs.frames)
+	return out
+}
+
+// callTreeNode accumulates aggregated stack information.
+type callTreeNode struct {
+	frameID FrameID
+
+	calls int64
+
+	totalCycles int64
+	selfCycles  int64
+
+	totalGas int64
+	selfGas  int64
+
+	children map[FrameID]*callTreeNode
+}
+
+func newCallTreeNode(frameID FrameID) *callTreeNode {
+	return &callTreeNode{
+		frameID:  frameID,
+		children: make(map[FrameID]*callTreeNode),
+	}
+}
+
+// FunctionStat represents aggregated information for a single function.
+type FunctionStat struct {
+	Name         string `json:"name"`
+	CallCount    int64  `json:"callCount"`
+	TotalCycles  int64  `json:"totalCycles,omitempty"`
+	SelfCycles   int64  `json:"selfCycles,omitempty"`
+	TotalGas     int64  `json:"totalGas,omitempty"`
+	SelfGas      int64  `json:"selfGas,omitempty"`
+	AllocBytes   int64  `json:"allocBytes,omitempty"`
+	AllocObjects int64  `json:"allocObjects,omitempty"`
+}
+
+// CallTreeNode is the exported representation of aggregated call stacks.
+type CallTreeNode struct {
+	FrameID     FrameID         `json:"frameId"`
+	Calls       int64           `json:"calls"`
+	TotalCycles int64           `json:"totalCycles,omitempty"`
+	SelfCycles  int64           `json:"selfCycles,omitempty"`
+	TotalGas    int64           `json:"totalGas,omitempty"`
+	SelfGas     int64           `json:"selfGas,omitempty"`
+	Children    []*CallTreeNode `json:"children,omitempty"`
+}
+
+// functionLineData tracks per-line stats for a function across files.
+type functionLineData struct {
+	funcName    string
+	fileSamples map[string]map[int]*lineStat
+	totalCycles int64
+	totalGas    int64
+}
+
+func (fld *functionLineData) clone() *functionLineData {
+	if fld == nil {
+		return nil
+	}
+	clone := &functionLineData{
+		funcName:    fld.funcName,
+		totalCycles: fld.totalCycles,
+		totalGas:    fld.totalGas,
+		fileSamples: make(map[string]map[int]*lineStat, len(fld.fileSamples)),
+	}
+	for file, lines := range fld.fileSamples {
+		lineCopy := make(map[int]*lineStat, len(lines))
+		for line, stat := range lines {
+			if stat == nil {
+				continue
+			}
+			lineCopy[line] = &lineStat{
+				count:  stat.count,
+				cycles: stat.cycles,
+				gas:    stat.gas,
+			}
+		}
+		clone.fileSamples[file] = lineCopy
+	}
+	return clone
+}
+
 // ProfileType represents the type of profiling data that can be collected.
 type ProfileType int
 
@@ -58,10 +196,20 @@ type ProfileLocation struct {
 
 // Profile represents collected profiling data
 type Profile struct {
-	Type          ProfileType     `json:"type"`
-	TimeNanos     int64           `json:"timeNanos"`
-	DurationNanos int64           `json:"durationNanos"`
-	Samples       []ProfileSample `json:"samples"`
+	Type          ProfileType       `json:"type"`
+	TimeNanos     int64             `json:"timeNanos"`
+	DurationNanos int64             `json:"durationNanos"`
+	TotalCycles   int64             `json:"totalCycles,omitempty"`
+	TotalGas      int64             `json:"totalGas,omitempty"`
+	Frames        []ProfileLocation `json:"frames,omitempty"`
+	Functions     []*FunctionStat   `json:"functions,omitempty"`
+	CallTree      *CallTreeNode     `json:"callTree,omitempty"`
+
+	// Aggregated per-function line statistics (not serialized directly).
+	FunctionLines map[string]*functionLineData `json:"-"`
+
+	// Captured line-level profiling data keyed by file -> line.
+	LineStats map[string]map[int]*lineStats `json:"-"`
 
 	// CPU specific
 	CPUHz int64 `json:"cpuHz,omitempty"`
@@ -81,15 +229,17 @@ type Profiler struct {
 	opCount    int
 
 	// Function profiling
-	funcProfiles map[string]*FuncProfile
-	callStack    []string
+	funcStats map[string]*FunctionStat
 
-	// Stack samples for call tree
-	stackSamples []stackSample
+	// Aggregated call tree rooted at sentinel node.
+	callRoot *callTreeNode
 
 	// Line-level profiling support
 	lineLevel   bool
 	lineSamples map[string]map[int]*lineStats // file -> line -> stats
+
+	// Function line stats aggregated per sample.
+	functionLines map[string]*functionLineData
 
 	// Test file filtering
 	excludeTests bool // whether to exclude *_test.gno files from profiling
@@ -99,29 +249,12 @@ type Profiler struct {
 	prevGas        int64
 	prevLineCycles int64 // separate tracking for line-level samples
 
+	totalCycles int64
+	totalGas    int64
+
+	frameStore frameStore
+
 	mu sync.Mutex
-}
-
-// stackSample represents a single stack trace sample
-type stackSample struct {
-	stack   []string
-	cycles  int64
-	gasUsed int64
-}
-
-// FuncProfile represents profiling data for a single function
-type FuncProfile struct {
-	Name         string
-	CallCount    int64
-	TotalCycles  int64 // Cumulative: includes time in called functions
-	SelfCycles   int64 // Flat: only time spent in this function
-	TotalGas     int64 // Cumulative: includes gas in called functions
-	SelfGas      int64 // Flat: only gas spent in this function
-	TotalTime    time.Duration
-	SelfTime     time.Duration
-	AllocBytes   int64
-	AllocObjects int64
-	Children     map[string]*FuncProfile
 }
 
 // Options for starting profiling
@@ -150,15 +283,19 @@ func NewProfiler(params ...any) *Profiler {
 	}
 
 	p := &Profiler{
-		funcProfiles: make(map[string]*FuncProfile),
-		lineSamples:  make(map[string]map[int]*lineStats),
-		sampleRate:   sampleRate,
-		excludeTests: true, // Exclude test files by default
+		funcStats:     make(map[string]*FunctionStat),
+		lineSamples:   make(map[string]map[int]*lineStats),
+		functionLines: make(map[string]*functionLineData),
+		sampleRate:    sampleRate,
+		excludeTests:  true, // Exclude test files by default
+		frameStore:    newFrameStore(),
+		callRoot:      newCallTreeNode(invalidFrameID),
 	}
 
 	p.profile = &Profile{
-		Type:    profileType,
-		Samples: make([]ProfileSample, 0),
+		Type:          profileType,
+		FunctionLines: make(map[string]*functionLineData),
+		LineStats:     make(map[string]map[int]*lineStats),
 	}
 
 	return p
@@ -177,16 +314,21 @@ func (p *Profiler) StartProfiling(m MachineInfo, opts Options) {
 	}
 
 	p.profile = &Profile{
-		Type:      opts.Type,
-		TimeNanos: p.startTime.UnixNano(),
-		Samples:   make([]ProfileSample, 0),
+		Type:          opts.Type,
+		TimeNanos:     p.startTime.UnixNano(),
+		FunctionLines: make(map[string]*functionLineData),
+		LineStats:     make(map[string]map[int]*lineStats),
 	}
 
 	// Reset state
 	p.opCount = 0
-	p.stackSamples = nil
-	p.funcProfiles = make(map[string]*FuncProfile)
-	p.callStack = nil
+	p.funcStats = make(map[string]*FunctionStat)
+	p.functionLines = make(map[string]*functionLineData)
+	p.callRoot = newCallTreeNode(invalidFrameID)
+	p.frameStore.reset()
+	p.lineSamples = make(map[string]map[int]*lineStats)
+	p.totalCycles = 0
+	p.totalGas = 0
 
 	// Initialize previous cycle/gas counters to current values
 	// so the first sample computes delta from this baseline
@@ -263,19 +405,13 @@ func (p *Profiler) RecordSample(m MachineInfo) {
 		return
 	}
 
-	// Record stack sample with deltas
-	p.stackSamples = append(p.stackSamples, stackSample{
-		stack:   p.callStackToStrings(stack),
-		cycles:  deltaCycles,
-		gasUsed: deltaGas,
-	})
+	p.totalCycles += deltaCycles
+	p.totalGas += deltaGas
 
-	p.updateFunctionProfiles(stack, deltaCycles)
-
-	// For gas profiling, also track gas in function profiles
-	if p.profile.Type == ProfileGas {
-		p.updateFunctionGasProfiles(stack, deltaGas)
-	}
+	frameIDs := p.stackFrameIDs(stack)
+	p.updateCallTree(frameIDs, deltaCycles, deltaGas)
+	p.updateFunctionStats(stack, deltaCycles, deltaGas)
+	p.updateFunctionLineStats(stack, deltaCycles, deltaGas)
 
 	// Update line-level profiling if enabled
 	if p.lineLevel && len(stack) > 0 {
@@ -319,37 +455,11 @@ func (p *Profiler) RecordAlloc(m MachineInfo, size, count int64, allocType strin
 		}}
 	}
 
-	// Create memory allocation sample
-	sample := ProfileSample{
-		Location:   stack,
-		Value:      []int64{count, size},
-		Label:      make(map[string][]string),
-		NumLabel:   make(map[string][]int64),
-		SampleType: ProfileMemory,
-	}
-
-	// Add type information if available
-	if allocType != "" {
-		sample.Label["type"] = []string{allocType}
-	}
-
-	sample.NumLabel["allocations"] = []int64{count}
-	sample.NumLabel["bytes"] = []int64{size}
-
-	p.profile.Samples = append(p.profile.Samples, sample)
-
 	// Update function profile stats
 	funcName := stack[0].Function
-	prof, ok := p.funcProfiles[funcName]
-	if !ok {
-		prof = &FuncProfile{
-			Name:     funcName,
-			Children: make(map[string]*FuncProfile),
-		}
-		p.funcProfiles[funcName] = prof
-	}
-	prof.AllocBytes += size
-	prof.AllocObjects += count
+	stat := p.getFunctionStat(funcName)
+	stat.AllocBytes += size
+	stat.AllocObjects += count
 }
 
 // buildCallStack builds a call stack from machine frames
@@ -406,71 +516,121 @@ func (p *Profiler) buildCallStack(m MachineInfo) []ProfileLocation {
 	return stack
 }
 
-// generateSamples converts function profiles to profile samples
+// generateSamples finalizes aggregated profiling data.
 func (p *Profiler) generateSamples() {
-	// First, add stack samples for call tree visualization
-	for _, stackSample := range p.stackSamples {
-		if len(stackSample.stack) == 0 {
-			continue
-		}
-
-		// Build locations from stack (reverse order for proper hierarchy)
-		locations := make([]ProfileLocation, 0, len(stackSample.stack))
-		for i := len(stackSample.stack) - 1; i >= 0; i-- {
-			locations = append(locations, ProfileLocation{
-				Function: stackSample.stack[i],
-			})
-		}
-
-		sample := ProfileSample{
-			Location:   locations,
-			Value:      []int64{1, stackSample.cycles}, // 1 sample, N cycles
-			Label:      make(map[string][]string),
-			NumLabel:   make(map[string][]int64),
-			SampleType: p.profile.Type,
-			GasUsed:    stackSample.gasUsed,
-		}
-
-		p.profile.Samples = append(p.profile.Samples, sample)
+	if p.profile == nil {
+		return
 	}
 
-	// Then add individual function summaries
-	for _, prof := range p.funcProfiles {
-		// Skip test functions when generating samples
-		if p.excludeTests && strings.Contains(prof.Name, "_test.") {
-			continue
-		}
-
-		sample := ProfileSample{
-			Location: []ProfileLocation{{
-				Function: prof.Name,
-			}},
-			Value: []int64{prof.CallCount, prof.TotalCycles},
-			Label: make(map[string][]string),
-			NumLabel: map[string][]int64{
-				"calls":       {prof.CallCount},
-				"cycles":      {prof.TotalCycles},
-				"flat_cycles": {prof.SelfCycles},
-				"cum_cycles":  {prof.TotalCycles},
-			},
-			SampleType: p.profile.Type,
-		}
-
-		switch p.profile.Type {
-		case ProfileMemory:
-			sample.NumLabel["bytes"] = []int64{prof.AllocBytes}
-			sample.NumLabel["objects"] = []int64{prof.AllocObjects}
-		case ProfileGas:
-			// For gas profiling, use gas values instead of cycles
-			sample.Value = []int64{prof.CallCount, prof.TotalGas}
-			sample.NumLabel["gas"] = []int64{prof.TotalGas}
-			sample.NumLabel["flat_gas"] = []int64{prof.SelfGas}
-			sample.NumLabel["cum_gas"] = []int64{prof.TotalGas}
-			sample.GasUsed = prof.TotalGas
-		}
-
-		p.profile.Samples = append(p.profile.Samples, sample)
+	p.profile.TotalCycles = p.totalCycles
+	p.profile.TotalGas = p.totalGas
+	p.profile.Frames = p.frameStore.framesSnapshot()
+	p.profile.Functions = p.collectFunctionStats()
+	p.profile.CallTree = p.buildExportCallTree()
+	p.profile.FunctionLines = make(map[string]*functionLineData, len(p.functionLines))
+	for name, data := range p.functionLines {
+		p.profile.FunctionLines[name] = data.clone()
 	}
+	p.profile.LineStats = cloneLineSamples(p.lineSamples)
+}
+
+func (p *Profiler) collectFunctionStats() []*FunctionStat {
+	out := make([]*FunctionStat, 0, len(p.funcStats))
+	for _, stat := range p.funcStats {
+		clone := *stat
+		out = append(out, &clone)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if p.profile != nil && p.profile.Type == ProfileGas {
+			if out[i].TotalGas == out[j].TotalGas {
+				return out[i].Name < out[j].Name
+			}
+			return out[i].TotalGas > out[j].TotalGas
+		}
+		if out[i].TotalCycles == out[j].TotalCycles {
+			return out[i].Name < out[j].Name
+		}
+		return out[i].TotalCycles > out[j].TotalCycles
+	})
+	return out
+}
+
+func (p *Profiler) buildExportCallTree() *CallTreeNode {
+	if p.callRoot == nil {
+		return nil
+	}
+	preferGas := p.profile != nil && p.profile.Type == ProfileGas
+	return convertCallTreeNode(p.callRoot, preferGas)
+}
+
+func convertCallTreeNode(node *callTreeNode, preferGas bool) *CallTreeNode {
+	if node == nil {
+		return nil
+	}
+
+	export := &CallTreeNode{
+		FrameID:     node.frameID,
+		Calls:       node.calls,
+		TotalCycles: node.totalCycles,
+		SelfCycles:  node.selfCycles,
+		TotalGas:    node.totalGas,
+		SelfGas:     node.selfGas,
+	}
+
+	if len(node.children) > 0 {
+		children := make([]*CallTreeNode, 0, len(node.children))
+		ids := make([]FrameID, 0, len(node.children))
+		for id := range node.children {
+			ids = append(ids, id)
+		}
+		sort.Slice(ids, func(i, j int) bool {
+			left := node.children[ids[i]]
+			right := node.children[ids[j]]
+			if preferGas {
+				if left.totalGas == right.totalGas {
+					return left.totalCycles > right.totalCycles
+				}
+				return left.totalGas > right.totalGas
+			}
+			if left.totalCycles == right.totalCycles {
+				return left.totalGas > right.totalGas
+			}
+			return left.totalCycles > right.totalCycles
+		})
+		for _, id := range ids {
+			children = append(children, convertCallTreeNode(node.children[id], preferGas))
+		}
+		export.Children = children
+	}
+
+	return export
+}
+
+func cloneLineSamples(src map[string]map[int]*lineStats) map[string]map[int]*lineStats {
+	if len(src) == 0 {
+		return nil
+	}
+	dst := make(map[string]map[int]*lineStats, len(src))
+	for file, lines := range src {
+		lineCopy := make(map[int]*lineStats, len(lines))
+		for line, stat := range lines {
+			if stat == nil {
+				continue
+			}
+			copied := &lineStats{
+				lineStat: lineStat{
+					count:  stat.count,
+					cycles: stat.cycles,
+					gas:    stat.gas,
+				},
+				allocations: stat.allocations,
+				allocBytes:  stat.allocBytes,
+			}
+			lineCopy[line] = copied
+		}
+		dst[file] = lineCopy
+	}
+	return dst
 }
 
 // countingWriter counts bytes written
@@ -492,35 +652,6 @@ func (cw *countingWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
-// extractSampleValues extracts flat and cumulative values from a sample based on profile type
-func (p *Profile) extractSampleValues(sample *ProfileSample) (flatValue, cumValue int64) {
-	labelPrefix := "cycles"
-	fallbackLabel := "cycles"
-
-	if p.Type == ProfileGas {
-		labelPrefix = "gas"
-		fallbackLabel = "gas"
-	}
-
-	// Get flat value
-	flatLabel := fmt.Sprintf("flat_%s", labelPrefix)
-	if val, ok := sample.NumLabel[flatLabel]; ok && len(val) > 0 {
-		flatValue = val[0]
-	} else if val, ok := sample.NumLabel[fallbackLabel]; ok && len(val) > 0 {
-		flatValue = val[0]
-	}
-
-	// Get cumulative value
-	cumLabel := fmt.Sprintf("cum_%s", labelPrefix)
-	if val, ok := sample.NumLabel[cumLabel]; ok && len(val) > 0 {
-		cumValue = val[0]
-	} else if val, ok := sample.NumLabel[fallbackLabel]; ok && len(val) > 0 {
-		cumValue = val[0]
-	}
-
-	return flatValue, cumValue
-}
-
 // WriteTo writes the profile in a human-readable format
 // Implements io.WriterTo interface
 func (p *Profile) WriteTo(w io.Writer) (int64, error) {
@@ -532,63 +663,84 @@ func (p *Profile) WriteTo(w io.Writer) (int64, error) {
 
 	fmt.Fprintf(cw, "Profile Type: %s\n", p.typeString())
 	fmt.Fprintf(cw, "Duration: %s\n", time.Duration(p.DurationNanos))
-	fmt.Fprintf(cw, "Samples: %d\n\n", len(p.Samples))
+	fmt.Fprintf(cw, "Functions Tracked: %d\n\n", len(p.Functions))
 
-	// Sort samples by total cycles/value
-	sort.Slice(p.Samples, func(i, j int) bool {
-		if len(p.Samples[i].Value) > 1 && len(p.Samples[j].Value) > 1 {
-			return p.Samples[i].Value[1] > p.Samples[j].Value[1]
-		}
-		return false
-	})
-
-	// Print top functions
-	fmt.Fprintf(cw, "Top Functions:\n")
-	if p.Type == ProfileGas {
-		fmt.Fprintf(cw, "%-50s %12s %12s %12s %12s\n", "Function", "Flat Gas", "Flat%", "Cum Gas", "Cum%")
-	} else {
-		fmt.Fprintf(cw, "%-50s %12s %12s %12s %12s\n", "Function", "Flat", "Flat%", "Cum", "Cum%")
-	}
-	fmt.Fprintf(cw, "%s\n", strings.Repeat("-", 100))
-
-	var totalValue int64
-	if p.Type == ProfileGas {
-		totalValue = p.totalGas()
-	} else {
-		totalValue = p.totalCycles()
-	}
-
-	for i, sample := range p.Samples {
-		if i >= 20 { // Show top 20
-			break
-		}
-
-		funcName := "unknown"
-		if len(sample.Location) > 0 {
-			// Skip samples from test files
-			if len(sample.Location) > 0 && strings.HasSuffix(sample.Location[0].File, "_test.gno") {
-				continue
-			}
-			funcName = sample.Location[0].Function
-			if len(funcName) > 50 {
-				funcName = funcName[:47] + "..."
-			}
-		}
-
-		flatValue, cumValue := p.extractSampleValues(&sample)
-
-		flatPercent := float64(0)
-		cumPercent := float64(0)
-		if totalValue > 0 {
-			flatPercent = float64(flatValue) / float64(totalValue) * 100
-			cumPercent = float64(cumValue) / float64(totalValue) * 100
-		}
-
-		fmt.Fprintf(cw, "%-50s %12d %11.2f%% %12d %11.2f%%\n",
-			funcName, flatValue, flatPercent, cumValue, cumPercent)
+	switch p.Type {
+	case ProfileGas:
+		writeTopGasFunctions(cw, p.Functions, p.TotalGas)
+	case ProfileMemory:
+		writeTopMemoryFunctions(cw, p.Functions, p.totalAllocBytes(), p.totalAllocObjects())
+	default:
+		writeTopCPUFunctions(cw, p.Functions, p.TotalCycles)
 	}
 
 	return cw.n, cw.err
+}
+
+func writeTopCPUFunctions(w io.Writer, stats []*FunctionStat, total int64) {
+	fmt.Fprintf(w, "Top Functions (CPU Cycles):\n")
+	fmt.Fprintf(w, "%-50s %12s %12s %12s %12s\n", "Function", "Flat", "Flat%", "Cum", "Cum%")
+	fmt.Fprintf(w, "%s\n", strings.Repeat("-", 100))
+	for i, stat := range stats {
+		if i >= 20 {
+			break
+		}
+		flat := stat.SelfCycles
+		cum := stat.TotalCycles
+		flatPercent := percent(flat, total)
+		cumPercent := percent(cum, total)
+		fmt.Fprintf(w, "%-50s %12d %11.2f%% %12d %11.2f%%\n",
+			shortenName(stat.Name, 50), flat, flatPercent, cum, cumPercent)
+	}
+	fmt.Fprintln(w)
+}
+
+func writeTopGasFunctions(w io.Writer, stats []*FunctionStat, total int64) {
+	fmt.Fprintf(w, "Top Functions (Gas):\n")
+	fmt.Fprintf(w, "%-50s %12s %12s %12s %12s\n", "Function", "Flat Gas", "Flat%", "Cum Gas", "Cum%")
+	fmt.Fprintf(w, "%s\n", strings.Repeat("-", 100))
+	for i, stat := range stats {
+		if i >= 20 {
+			break
+		}
+		flat := stat.SelfGas
+		cum := stat.TotalGas
+		flatPercent := percent(flat, total)
+		cumPercent := percent(cum, total)
+		fmt.Fprintf(w, "%-50s %12d %11.2f%% %12d %11.2f%%\n",
+			shortenName(stat.Name, 50), flat, flatPercent, cum, cumPercent)
+	}
+	fmt.Fprintln(w)
+}
+
+func writeTopMemoryFunctions(w io.Writer, stats []*FunctionStat, totalBytes, totalObjects int64) {
+	fmt.Fprintf(w, "Top Functions (Memory Allocations):\n")
+	fmt.Fprintf(w, "%-50s %12s %12s %12s %12s\n", "Function", "Bytes", "Bytes%", "Objects", "Obj%")
+	fmt.Fprintf(w, "%s\n", strings.Repeat("-", 100))
+	for i, stat := range stats {
+		if i >= 20 {
+			break
+		}
+		bytesPercent := percent(stat.AllocBytes, totalBytes)
+		objPercent := percent(stat.AllocObjects, totalObjects)
+		fmt.Fprintf(w, "%-50s %12d %11.2f%% %12d %11.2f%%\n",
+			shortenName(stat.Name, 50), stat.AllocBytes, bytesPercent, stat.AllocObjects, objPercent)
+	}
+	fmt.Fprintln(w)
+}
+
+func percent(value, total int64) float64 {
+	if total == 0 {
+		return 0
+	}
+	return float64(value) / float64(total) * 100
+}
+
+func shortenName(name string, max int) string {
+	if len(name) <= max {
+		return name
+	}
+	return name[:max-3] + "..."
 }
 
 // WriteJSON writes the profile in JSON format
@@ -619,56 +771,41 @@ func (p *Profile) typeString() string {
 
 // totalCycles calculates total cycles across all samples
 func (p *Profile) totalCycles() int64 {
-	total := int64(0)
-	seen := make(map[string]bool)
-
-	for _, sample := range p.Samples {
-		if len(sample.Location) <= 0 {
-			continue
-		}
-
-		funcName := sample.Location[0].Function
-		if seen[funcName] {
-			continue
-		}
-
-		seen[funcName] = true
-		if cumVal, ok := sample.NumLabel["cum_cycles"]; ok && len(cumVal) > 0 {
-			// For top-level functions only
-			if len(sample.Location) == 1 {
-				total += cumVal[0]
-			}
-		} else if len(sample.Value) > 1 && len(sample.Location) == 1 {
-			total += sample.Value[1]
-		}
+	if p.TotalCycles > 0 {
+		return p.TotalCycles
 	}
-
+	var total int64
+	for _, stat := range p.Functions {
+		total += stat.SelfCycles
+	}
 	return total
 }
 
 // totalGas calculates total gas across all samples
 func (p *Profile) totalGas() int64 {
-	total := int64(0)
-	seen := make(map[string]bool)
-
-	for _, sample := range p.Samples {
-		if len(sample.Location) <= 0 {
-			continue
-		}
-
-		funcName := sample.Location[0].Function
-		if seen[funcName] {
-			continue
-		}
-
-		seen[funcName] = true
-		if cumVal, ok := sample.NumLabel["cum_gas"]; ok && len(cumVal) > 0 {
-			total += cumVal[0]
-		} else if sample.GasUsed > 0 {
-			total += sample.GasUsed
-		}
+	if p.TotalGas > 0 {
+		return p.TotalGas
 	}
+	var total int64
+	for _, stat := range p.Functions {
+		total += stat.SelfGas
+	}
+	return total
+}
 
+func (p *Profile) totalAllocBytes() int64 {
+	var total int64
+	for _, stat := range p.Functions {
+		total += stat.AllocBytes
+	}
+	return total
+}
+
+func (p *Profile) totalAllocObjects() int64 {
+	var total int64
+	for _, stat := range p.Functions {
+		total += stat.AllocObjects
+	}
 	return total
 }
 
@@ -720,85 +857,122 @@ func (p *Profiler) RecordLineSample(funcName, file string, line int, cycles int6
 	p.lineSamples[file][line].count++
 	p.lineSamples[file][line].cycles += deltaCycles
 
-	// Also record as a sample for function matching
-	// This allows the WriteFunctionList method to find and display these line-level samples
-	sample := ProfileSample{
-		Location: []ProfileLocation{{
-			Function: funcName,
-			File:     file,
-			Line:     line,
-		}},
-		Value: []int64{1, deltaCycles},
-	}
-	p.profile.Samples = append(p.profile.Samples, sample)
 }
 
-// callStackToStrings converts a call stack to string slice
-func (p *Profiler) callStackToStrings(stack []ProfileLocation) []string {
-	result := make([]string, len(stack))
+func (p *Profiler) stackFrameIDs(stack []ProfileLocation) []FrameID {
+	ids := make([]FrameID, len(stack))
 	for i, loc := range stack {
-		result[i] = loc.Function
+		ids[i] = p.frameStore.intern(loc)
 	}
-	return result
+	return ids
 }
 
-// updateFunctionProfiles updates function profiling data
-func (p *Profiler) updateFunctionProfiles(stack []ProfileLocation, cycles int64) {
+func (p *Profiler) updateCallTree(ids []FrameID, cycles, gas int64) {
+	if len(ids) == 0 {
+		return
+	}
+
+	if p.callRoot == nil {
+		p.callRoot = newCallTreeNode(invalidFrameID)
+	}
+
+	node := p.callRoot
+	for i := len(ids) - 1; i >= 0; i-- {
+		id := ids[i]
+		child, ok := node.children[id]
+		if !ok {
+			child = newCallTreeNode(id)
+			node.children[id] = child
+		}
+		child.calls++
+		child.totalCycles += cycles
+		if i == 0 {
+			child.selfCycles += cycles
+		}
+		child.totalGas += gas
+		if i == 0 {
+			child.selfGas += gas
+		}
+		node = child
+	}
+}
+
+func (p *Profiler) updateFunctionStats(stack []ProfileLocation, cycles, gas int64) {
 	seen := make(map[string]bool)
 
 	for i, loc := range stack {
 		funcName := loc.Function
-		if seen[funcName] {
+		if funcName == "" || seen[funcName] {
 			continue
 		}
 		seen[funcName] = true
 
-		prof := p.funcProfiles[funcName]
-		if prof == nil {
-			prof = &FuncProfile{
-				Name:     funcName,
-				Children: make(map[string]*FuncProfile),
-			}
-			p.funcProfiles[funcName] = prof
-		}
-
-		// Update cumulative cycles (appears anywhere in stack)
-		prof.TotalCycles += cycles
-		prof.CallCount++
-
-		// Update self cycles (only for the top of stack)
+		stat := p.getFunctionStat(funcName)
+		stat.CallCount++
+		stat.TotalCycles += cycles
 		if i == 0 {
-			prof.SelfCycles += cycles
+			stat.SelfCycles += cycles
+		}
+		stat.TotalGas += gas
+		if i == 0 {
+			stat.SelfGas += gas
 		}
 	}
 }
 
-// updateFunctionGasProfiles updates function gas profiling data
-func (p *Profiler) updateFunctionGasProfiles(stack []ProfileLocation, gasUsed int64) {
+func (p *Profiler) updateFunctionLineStats(stack []ProfileLocation, cycles, gas int64) {
 	seen := make(map[string]bool)
 
-	for i, loc := range stack {
+	for _, loc := range stack {
 		funcName := loc.Function
-		if seen[funcName] {
+		if funcName == "" || seen[funcName] {
 			continue
 		}
 		seen[funcName] = true
 
-		prof := p.funcProfiles[funcName]
-		if prof == nil {
-			prof = &FuncProfile{
-				Name:     funcName,
-				Children: make(map[string]*FuncProfile),
+		file := loc.File
+		line := loc.Line
+		if file == "" || line <= 0 {
+			continue
+		}
+		if p.excludeTests && strings.HasSuffix(file, "_test.gno") {
+			continue
+		}
+
+		info, ok := p.functionLines[funcName]
+		if !ok {
+			info = &functionLineData{
+				funcName:    funcName,
+				fileSamples: make(map[string]map[int]*lineStat),
 			}
-			p.funcProfiles[funcName] = prof
+			p.functionLines[funcName] = info
 		}
-
-		// Update cumulative gas (appears anywhere in stack)
-		prof.TotalGas += gasUsed
-
-		// Update self gas (only for the top of stack)
-		if i == 0 {
-			prof.SelfGas += gasUsed
+		if info.fileSamples[file] == nil {
+			info.fileSamples[file] = make(map[int]*lineStat)
 		}
+		stat := info.fileSamples[file][line]
+		if stat == nil {
+			stat = &lineStat{}
+			info.fileSamples[file][line] = stat
+		}
+		stat.count++
+		stat.cycles += cycles
+		if gas > 0 {
+			stat.gas += gas
+		}
+		info.totalCycles += cycles
+		info.totalGas += gas
 	}
+}
+
+func (p *Profiler) getFunctionStat(name string) *FunctionStat {
+	if name == "" {
+		name = "<unknown>"
+	}
+	stat, ok := p.funcStats[name]
+	if !ok {
+		stat = &FunctionStat{Name: name}
+		p.funcStats[name] = stat
+	}
+	return stat
 }

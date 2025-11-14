@@ -115,7 +115,7 @@ func TestWriteFunctionList_PartialMatch(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &Profile{
-				Samples: tt.samples,
+				FunctionLines: buildFunctionLineMap(tt.samples),
 			}
 
 			var buf bytes.Buffer
@@ -157,7 +157,7 @@ func TestWriteFunctionList_PartialMatch(t *testing.T) {
 
 func TestWriteFunctionList_MultipleMatches_Formatting(t *testing.T) {
 	p := &Profile{
-		Samples: []ProfileSample{
+		FunctionLines: buildFunctionLineMap([]ProfileSample{
 			{
 				Location: []ProfileLocation{{
 					Function: "gno.land/p/demo/ufmt.Sprintf",
@@ -174,7 +174,7 @@ func TestWriteFunctionList_MultipleMatches_Formatting(t *testing.T) {
 				}},
 				Value: []int64{1, 2000},
 			},
-		},
+		}),
 	}
 
 	var buf bytes.Buffer
@@ -217,7 +217,7 @@ func Sprintf(format string, args ...interface{}) string {
 	}
 
 	p := &Profile{
-		Samples: []ProfileSample{
+		FunctionLines: buildFunctionLineMap([]ProfileSample{
 			{
 				Location: []ProfileLocation{{
 					Function: "gno.land/p/demo/ufmt.Sprintf",
@@ -226,7 +226,7 @@ func Sprintf(format string, args ...interface{}) string {
 				}},
 				Value: []int64{1, 1000},
 			},
-		},
+		}),
 	}
 
 	var buf bytes.Buffer
@@ -246,6 +246,49 @@ func Sprintf(format string, args ...interface{}) string {
 	if !strings.Contains(output, "3:") {
 		t.Error("expected line numbers to be shown")
 	}
+}
+
+func buildFunctionLineMap(samples []ProfileSample) map[string]*functionLineData {
+	result := make(map[string]*functionLineData)
+	for _, sample := range samples {
+		seen := make(map[string]bool)
+		for _, loc := range sample.Location {
+			if loc.Function == "" || seen[loc.Function] {
+				continue
+			}
+			seen[loc.Function] = true
+			data := result[loc.Function]
+			if data == nil {
+				data = &functionLineData{
+					funcName:    loc.Function,
+					fileSamples: make(map[string]map[int]*lineStat),
+				}
+				result[loc.Function] = data
+			}
+			if data.fileSamples[loc.File] == nil {
+				data.fileSamples[loc.File] = make(map[int]*lineStat)
+			}
+			stat := data.fileSamples[loc.File][loc.Line]
+			if stat == nil {
+				stat = &lineStat{}
+				data.fileSamples[loc.File][loc.Line] = stat
+			}
+			if len(sample.Value) > 0 {
+				stat.count += sample.Value[0]
+			} else {
+				stat.count++
+			}
+			if len(sample.Value) > 1 {
+				stat.cycles += sample.Value[1]
+				data.totalCycles += sample.Value[1]
+			}
+			if sample.GasUsed > 0 {
+				stat.gas += sample.GasUsed
+				data.totalGas += sample.GasUsed
+			}
+		}
+	}
+	return result
 }
 
 // mockStore implements Store interface for testing

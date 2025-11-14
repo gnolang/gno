@@ -31,61 +31,30 @@ func (p *Profile) WriteFunctionList(w io.Writer, funcName string, store Store) e
 
 	matchedFunctions := make(map[string]*functionData)
 
-	for _, sample := range p.Samples {
-		// Deduplicate within this sample to avoid double-counting recursion
-		seen := make(map[string]bool)
-
-		// Check each location in the sample
-		for _, loc := range sample.Location {
-			if seen[loc.Function] {
-				continue
-			}
-
-			if strings.Contains(loc.Function, funcName) {
-				seen[loc.Function] = true
-
-				// Get or create function data
-				fd, exists := matchedFunctions[loc.Function]
-				if !exists {
-					fd = &functionData{
-						funcName:    loc.Function,
-						fileSamples: make(map[string]map[int]*lineStat),
-					}
-					matchedFunctions[loc.Function] = fd
-				}
-
-				file := loc.File
-				line := loc.Line
-				if file == "" || line == 0 {
+	for name, data := range p.FunctionLines {
+		if data == nil || !strings.Contains(name, funcName) {
+			continue
+		}
+		fd := &functionData{
+			funcName:    name,
+			fileSamples: make(map[string]map[int]*lineStat),
+			totalCycles: data.totalCycles,
+			totalGas:    data.totalGas,
+		}
+		for file, lines := range data.fileSamples {
+			fd.fileSamples[file] = make(map[int]*lineStat, len(lines))
+			for line, stat := range lines {
+				if stat == nil {
 					continue
 				}
-				// Skip _test.gno as before
-				if strings.HasSuffix(file, "_test.gno") {
-					continue
-				}
-
-				// Ensure maps
-				if fd.fileSamples[file] == nil {
-					fd.fileSamples[file] = make(map[int]*lineStat)
-				}
-				if fd.fileSamples[file][line] == nil {
-					fd.fileSamples[file][line] = &lineStat{}
-				}
-
-				// accumulate
-				if len(sample.Value) > 0 {
-					fd.fileSamples[file][line].count += sample.Value[0]
-				}
-				if len(sample.Value) > 1 {
-					fd.fileSamples[file][line].cycles += sample.Value[1]
-					fd.totalCycles += sample.Value[1]
-				}
-				if sample.GasUsed > 0 {
-					fd.fileSamples[file][line].gas += sample.GasUsed
-					fd.totalGas += sample.GasUsed
+				fd.fileSamples[file][line] = &lineStat{
+					count:  stat.count,
+					cycles: stat.cycles,
+					gas:    stat.gas,
 				}
 			}
 		}
+		matchedFunctions[name] = fd
 	}
 
 	if len(matchedFunctions) == 0 {

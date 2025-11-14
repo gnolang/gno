@@ -29,7 +29,7 @@ func TestSinkAdapterOnSample(t *testing.T) {
 	sink.OnSample(ctx)
 
 	profile := p.StopProfiling()
-	if profile == nil || len(profile.Samples) == 0 {
+	if profile == nil || len(profile.Functions) == 0 {
 		t.Fatalf("expected profile sample to be recorded")
 	}
 }
@@ -56,8 +56,11 @@ func TestSinkAdapterOnAllocation(t *testing.T) {
 
 	sink.OnAllocation(event)
 	profile := p.StopProfiling()
-	if profile == nil || len(profile.Samples) == 0 {
+	if profile == nil || len(profile.Functions) == 0 {
 		t.Fatalf("expected allocation sample to be recorded")
+	}
+	if profile.Functions[0].AllocBytes == 0 {
+		t.Fatalf("expected allocation bytes to be tracked")
 	}
 }
 

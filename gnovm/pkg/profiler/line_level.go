@@ -67,31 +67,38 @@ func (p *Profile) WriteSourceAnnotated(w io.Writer, filename string, source io.R
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	// Collect line stats for this file
 	lineStats := make(map[int]*lineStat)
 	totalCycles := int64(0)
 
-	// Get profiler instance to access line stats
-	// This is a bit tricky as Profile doesn't directly reference Profiler
-	// For now, we'll extract from samples
-	for _, sample := range p.Samples {
-		if len(sample.Location) > 0 && sample.Location[0].File == filename {
-			line := sample.Location[0].Line
-			if line <= 0 {
+	if fileStats, ok := p.LineStats[filename]; ok {
+		for line, stat := range fileStats {
+			if stat == nil {
 				continue
 			}
-
-			if lineStats[line] == nil {
-				lineStats[line] = &lineStat{}
+			lineStats[line] = &lineStat{
+				count:  stat.count,
+				cycles: stat.cycles,
+				gas:    stat.gas,
 			}
-
-			if len(sample.Value) > 1 {
-				lineStats[line].cycles += sample.Value[1]
-				totalCycles += sample.Value[1]
+			totalCycles += stat.cycles
+		}
+	} else {
+		for _, fn := range p.FunctionLines {
+			if fn == nil {
+				continue
 			}
-
-			if len(sample.Value) > 0 {
-				lineStats[line].count += sample.Value[0]
+			samples := fn.fileSamples[filename]
+			for line, stat := range samples {
+				if stat == nil {
+					continue
+				}
+				if lineStats[line] == nil {
+					lineStats[line] = &lineStat{}
+				}
+				lineStats[line].count += stat.count
+				lineStats[line].cycles += stat.cycles
+				lineStats[line].gas += stat.gas
+				totalCycles += stat.cycles
 			}
 		}
 	}

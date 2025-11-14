@@ -18,15 +18,6 @@ const (
 	FormatJSON
 )
 
-// node represents a call tree node
-type node struct {
-	name     string
-	cycles   int64
-	gas      int64
-	calls    int64
-	children map[string]*node
-}
-
 // WriteFormat writes the profile in the specified format
 func (p *Profile) WriteFormat(w io.Writer, format ProfileFormat) error {
 	switch format {
@@ -47,52 +38,6 @@ func (p *Profile) WriteCallTree(w io.Writer) error {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	root := &node{
-		name:     "<root>",
-		children: make(map[string]*node),
-	}
-
-	// Process stack samples to build tree
-	for _, sample := range p.Samples {
-		if len(sample.Location) == 0 {
-			continue // Skip empty samples
-		}
-
-		cycles := int64(0)
-		gas := int64(0)
-		if len(sample.Value) > 1 {
-			cycles = sample.Value[1]
-		}
-		if sample.GasUsed > 0 {
-			gas = sample.GasUsed
-		}
-
-		// Traverse/build tree from root to leaf
-		// Location[0] is the bottom of the stack (root)
-		// Location[n-1] is the top of the stack (leaf)
-		current := root
-		for i := 0; i < len(sample.Location); i++ {
-			funcName := sample.Location[i].Function
-			if child, ok := current.children[funcName]; ok {
-				child.cycles += cycles
-				child.gas += gas
-				child.calls++
-				current = child
-			} else {
-				newNode := &node{
-					name:     funcName,
-					cycles:   cycles,
-					gas:      gas,
-					calls:    1,
-					children: make(map[string]*node),
-				}
-				current.children[funcName] = newNode
-				current = newNode
-			}
-		}
-	}
-
-	// Print tree
 	if p.Type == ProfileGas {
 		fmt.Fprintf(w, "Call Tree (Gas Usage)\n")
 		fmt.Fprintf(w, "=====================\n\n")
@@ -101,17 +46,28 @@ func (p *Profile) WriteCallTree(w io.Writer) error {
 		fmt.Fprintf(w, "======================\n\n")
 	}
 
+	if p.CallTree == nil {
+		fmt.Fprintf(w, "No call tree data available.\n")
+		return nil
+	}
+
 	totalCycles := p.totalCycles()
 	totalGas := p.totalGas()
-	printNode(w, root, "", true, totalCycles, totalGas, 0, p.Type)
+	printVisualizationNode(w, p, p.CallTree, "", true, totalCycles, totalGas, 0)
 
 	return nil
 }
 
-// printNode recursively prints a call tree node
-func printNode(w io.Writer, n *node, prefix string, isLast bool, totalCycles, totalGas int64, depth int, profileType ProfileType) {
-	if n.name != "<root>" {
-		// Print current node
+func printVisualizationNode(w io.Writer, p *Profile, node *CallTreeNode, prefix string, isLast bool, totalCycles, totalGas int64, depth int) {
+	if node == nil {
+		return
+	}
+	name := frameName(p, node.FrameID)
+	if node.FrameID == invalidFrameID {
+		name = "<root>"
+	}
+
+	if name != "<root>" {
 		connector := "├─"
 		if isLast {
 			connector = "└─"
@@ -120,41 +76,23 @@ func printNode(w io.Writer, n *node, prefix string, isLast bool, totalCycles, to
 			connector = ""
 		}
 
-		if profileType == ProfileGas {
-			percent := float64(0)
-			if totalGas > 0 {
-				percent = float64(n.gas) / float64(totalGas) * 100
-			}
+		if p.Type == ProfileGas {
+			percent := percent(node.TotalGas, totalGas)
 			fmt.Fprintf(w, "%s%s %s: %d gas (%.1f%%), %d calls\n",
-				prefix, connector, n.name, n.gas, percent, n.calls)
+				prefix, connector, name, node.TotalGas, percent, node.Calls)
 		} else {
-			percent := float64(0)
-			if totalCycles > 0 {
-				percent = float64(n.cycles) / float64(totalCycles) * 100
-			}
+			percent := percent(node.TotalCycles, totalCycles)
 			fmt.Fprintf(w, "%s%s %s: %d cycles (%.1f%%), %d calls\n",
-				prefix, connector, n.name, n.cycles, percent, n.calls)
+				prefix, connector, name, node.TotalCycles, percent, node.Calls)
 		}
 	}
 
-	// Sort children by cycles or gas
-	children := make([]*node, 0, len(n.children))
-	for _, child := range n.children {
-		children = append(children, child)
-	}
-	if profileType == ProfileGas {
-		sort.Slice(children, func(i, j int) bool {
-			return children[i].gas > children[j].gas
-		})
-	} else {
-		sort.Slice(children, func(i, j int) bool {
-			return children[i].cycles > children[j].cycles
-		})
+	if len(node.Children) == 0 {
+		return
 	}
 
-	// Print children
 	childPrefix := prefix
-	if n.name != "<root>" {
+	if name != "<root>" {
 		if isLast {
 			childPrefix += "    "
 		} else {
@@ -162,9 +100,9 @@ func printNode(w io.Writer, n *node, prefix string, isLast bool, totalCycles, to
 		}
 	}
 
-	for i, child := range children {
-		isLastChild := i == len(children)-1
-		printNode(w, child, childPrefix, isLastChild, totalCycles, totalGas, depth+1, profileType)
+	for i, child := range node.Children {
+		isLastChild := i == len(node.Children)-1
+		printVisualizationNode(w, p, child, childPrefix, isLastChild, totalCycles, totalGas, depth+1)
 	}
 }
 
@@ -173,110 +111,74 @@ func (p *Profile) WriteTopList(w io.Writer) error {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	// Aggregate by function
-	type funcStat struct {
-		name       string
-		flat       int64
-		cumulative int64
-		calls      int64
+	if len(p.Functions) == 0 {
+		fmt.Fprintf(w, "No function statistics available.\n")
+		return nil
 	}
 
-	funcMap := make(map[string]*funcStat)
+	funcs := append([]*FunctionStat(nil), p.Functions...)
 
-	// Process samples
-	for _, sample := range p.Samples {
-		if len(sample.Location) == 0 {
-			continue
-		}
+	var total int64
+	var label string
+	var flatMetric func(*FunctionStat) int64
+	var cumMetric func(*FunctionStat) int64
 
-		// Get metrics
-		cycles := int64(0)
-		if len(sample.Value) > 1 {
-			cycles = sample.Value[1]
-		}
-
-		calls := int64(1)
-		if callsVal, ok := sample.NumLabel["calls"]; ok && len(callsVal) > 0 {
-			calls = callsVal[0]
-		}
-
-		flatCycles := int64(0)
-		if flatVal, ok := sample.NumLabel["flat_cycles"]; ok && len(flatVal) > 0 {
-			flatCycles = flatVal[0]
-		} else {
-			flatCycles = cycles
-		}
-
-		cumCycles := int64(0)
-		if cumVal, ok := sample.NumLabel["cum_cycles"]; ok && len(cumVal) > 0 {
-			cumCycles = cumVal[0]
-		} else {
-			cumCycles = cycles
-		}
-
-		funcName := sample.Location[0].Function
-		if stat, ok := funcMap[funcName]; ok {
-			// Update existing
-			stat.flat = max(stat.flat, flatCycles)
-			stat.cumulative = max(stat.cumulative, cumCycles)
-			stat.calls = max(stat.calls, calls)
-		} else {
-			// Create new
-			funcMap[funcName] = &funcStat{
-				name:       funcName,
-				flat:       flatCycles,
-				cumulative: cumCycles,
-				calls:      calls,
-			}
-		}
+	switch p.Type {
+	case ProfileGas:
+		label = "Gas"
+		total = p.totalGas()
+		flatMetric = func(stat *FunctionStat) int64 { return stat.SelfGas }
+		cumMetric = func(stat *FunctionStat) int64 { return stat.TotalGas }
+	default:
+		label = "CPU Cycles"
+		total = p.totalCycles()
+		flatMetric = func(stat *FunctionStat) int64 { return stat.SelfCycles }
+		cumMetric = func(stat *FunctionStat) int64 { return stat.TotalCycles }
 	}
 
-	// Convert to slice and sort
-	funcs := make([]*funcStat, 0, len(funcMap))
-	for _, stat := range funcMap {
-		funcs = append(funcs, stat)
-	}
 	sort.Slice(funcs, func(i, j int) bool {
-		return funcs[i].cumulative > funcs[j].cumulative
+		return cumMetric(funcs[i]) > cumMetric(funcs[j])
 	})
 
-	// Print header
-	totalCycles := p.totalCycles()
-	fmt.Fprintf(w, "Top Functions by CPU Cycles\n")
-	fmt.Fprintf(w, "Total cycles: %d\n\n", totalCycles)
+	fmt.Fprintf(w, "Top Functions by %s\n", label)
+	fmt.Fprintf(w, "Total: %d\n\n", total)
 	fmt.Fprintf(w, "%-6s %-12s %-8s %-12s %-8s %-8s %-20s %s\n",
 		"Rank", "Cumulative", "Cum%", "Flat", "Flat%", "Calls", "Bar", "Function")
 	fmt.Fprintf(w, "%s\n", strings.Repeat("-", 100))
 
-	// Print functions
 	for i, stat := range funcs {
 		if i >= 50 { // Limit to top 50
 			break
 		}
 
-		cumPercent := float64(0)
-		flatPercent := float64(0)
-		if totalCycles > 0 {
-			cumPercent = float64(stat.cumulative) / float64(totalCycles) * 100
-			flatPercent = float64(stat.flat) / float64(totalCycles) * 100
-		}
+		flat := flatMetric(stat)
+		cum := cumMetric(stat)
+		cumPercent := percent(cum, total)
+		flatPercent := percent(flat, total)
 
 		// Create visual bar
 		barLength := min(int(cumPercent/5), 20) // 20 chars max
 		bar := strings.Repeat("█", barLength)
 
 		// Truncate function name if too long
-		funcName := stat.name
+		funcName := stat.Name
 		if len(funcName) > 50 {
 			funcName = funcName[:47] + "..."
 		}
 
 		fmt.Fprintf(w, "%-6d %-12d %-7.2f%% %-12d %-7.2f%% %-8d %-20s %s\n",
-			i+1, stat.cumulative, cumPercent, stat.flat, flatPercent, stat.calls, bar, funcName)
+			i+1, cum, cumPercent, flat, flatPercent, stat.CallCount, bar, funcName)
 	}
 
 	// Print summary
 	fmt.Fprintf(w, "\nShowing top %d of %d functions\n", min(50, len(funcs)), len(funcs))
 
 	return nil
+}
+
+func frameName(p *Profile, id FrameID) string {
+	if id < 0 || int(id) >= len(p.Frames) {
+		return ""
+	}
+	return p.Frames[int(id)].Function
 }
