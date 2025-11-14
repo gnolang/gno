@@ -15,100 +15,6 @@ type LocationKey struct {
 	Line     int
 }
 
-// profileLocation represents an enhanced location in the call stack
-type profileLocation struct {
-	function   string
-	file       string
-	line       int
-	column     int
-	inlineCall bool
-	pc         uintptr
-}
-
-// newProfileLocation creates a new profile location
-func newProfileLocation(function, file string, line, column int) *profileLocation {
-	return &profileLocation{
-		function: function,
-		file:     file,
-		line:     line,
-		column:   column,
-	}
-}
-
-func (pl *profileLocation) Function() string { return pl.function }
-func (pl *profileLocation) Line() int        { return pl.line }
-
-// setValues sets all values at once (useful for pooling)
-func (pl *profileLocation) setValues(function, file string, line, column int) {
-	pl.function = function
-	pl.file = file
-	pl.line = line
-	pl.column = column
-	pl.pc = 0
-	pl.inlineCall = false
-}
-
-// reset clears all values (for pool reuse)
-func (pl *profileLocation) reset() {
-	pl.function = ""
-	pl.file = ""
-	pl.line = 0
-	pl.column = 0
-	pl.pc = 0
-	pl.inlineCall = false
-}
-
-// Convert to public ProfileLocation for API compatibility
-func (pl *profileLocation) toPublic() ProfileLocation {
-	return ProfileLocation{
-		Function:   pl.function,
-		File:       pl.file,
-		Line:       pl.line,
-		Column:     pl.column,
-		InlineCall: pl.inlineCall,
-		PC:         pl.pc,
-	}
-}
-
-// locationCache provides efficient location deduplication
-type locationCache struct {
-	locations map[LocationKey]*profileLocation
-	mu        sync.RWMutex
-}
-
-func newLocationCache() *locationCache {
-	return &locationCache{
-		locations: make(map[LocationKey]*profileLocation),
-	}
-}
-
-func (lc *locationCache) getOrCreate(key LocationKey) *profileLocation {
-	lc.mu.RLock()
-	if loc, exists := lc.locations[key]; exists {
-		lc.mu.RUnlock()
-		return loc
-	}
-	lc.mu.RUnlock()
-
-	lc.mu.Lock()
-	defer lc.mu.Unlock()
-
-	// Double-check after acquiring write lock
-	if loc, exists := lc.locations[key]; exists {
-		return loc
-	}
-
-	loc := newProfileLocation(key.Function, key.File, key.Line, 0)
-	lc.locations[key] = loc
-	return loc
-}
-
-func (lc *locationCache) size() int {
-	lc.mu.RLock()
-	defer lc.mu.RUnlock()
-	return len(lc.locations)
-}
-
 // lineStats tracks statistics for a single line
 type lineStats struct {
 	lineStat
@@ -122,18 +28,6 @@ type lineStat struct {
 	count  int64
 	cycles int64
 	gas    int64
-}
-
-func newLineStats() *lineStats { return &lineStats{} }
-
-func (ls *lineStats) addSample(cycles int64, allocations, allocBytes int64) {
-	ls.mu.Lock()
-	defer ls.mu.Unlock()
-
-	ls.count++
-	ls.cycles += cycles
-	ls.allocations += allocations
-	ls.allocBytes += allocBytes
 }
 
 func (ls *lineStats) Count() int64 {
@@ -166,79 +60,6 @@ func (p *Profiler) LineStats(filename string) map[int]*lineStats {
 	defer p.mu.Unlock()
 
 	return p.lineSamples[filename]
-}
-
-// EnableLineLevel enables or disables line-level profiling
-func (p *Profiler) EnableLineLevel(enable bool) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.lineLevel = enable
-	if enable && p.locationCache == nil {
-		p.locationCache = newLocationCache()
-	}
-}
-
-// RecordLineLevel records a sample with line-level information
-func (p *Profiler) RecordLineLevel(m MachineInfo, loc *profileLocation, cycles int64) {
-	if !p.enabled || !p.lineLevel {
-		return
-	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.recordLineLevelUnlocked(loc, cycles)
-}
-
-// recordLineLevelUnlocked records line-level profiling information without locking
-// Must be called with mutex already held
-func (p *Profiler) recordLineLevelUnlocked(loc *profileLocation, cycles int64) {
-	// Update line statistics
-	p.updateLineStatsUnlocked(loc, cycles, 0, 0)
-
-	// Record in regular samples for compatibility
-	sample := ProfileSample{
-		Location:   []ProfileLocation{loc.toPublic()},
-		Value:      []int64{1, cycles},
-		Label:      make(map[string][]string),
-		NumLabel:   make(map[string][]int64),
-		SampleType: p.profile.Type,
-	}
-
-	p.profile.Samples = append(p.profile.Samples, sample)
-}
-
-// updateLineStatsUnlocked updates line-level statistics without locking
-// Must be called with mutex already held
-func (p *Profiler) updateLineStatsUnlocked(loc *profileLocation, cycles, allocations, allocBytes int64) {
-	// Use the original file name for internal storage
-	file := loc.file
-	line := loc.Line()
-
-	if p.lineSamples[file] == nil {
-		p.lineSamples[file] = make(map[int]*lineStats)
-	}
-
-	stats := p.lineSamples[file][line]
-	if stats == nil {
-		stats = newLineStats()
-		p.lineSamples[file][line] = stats
-	}
-
-	stats.addSample(cycles, allocations, allocBytes)
-}
-
-// Memory pool methods
-func (p *Profiler) getLocationFromPool() *profileLocation {
-	loc := p.locationPool.Get().(*profileLocation)
-	loc.reset()
-	return loc
-}
-
-func (p *Profiler) putLocationToPool(loc *profileLocation) {
-	loc.reset()
-	p.locationPool.Put(loc)
 }
 
 // WriteSourceAnnotated writes source code with profiling annotations

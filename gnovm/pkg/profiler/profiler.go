@@ -88,10 +88,8 @@ type Profiler struct {
 	stackSamples []stackSample
 
 	// Line-level profiling support
-	lineLevel     bool
-	locationCache *locationCache
-	lineSamples   map[string]map[int]*lineStats // file -> line -> stats
-	locationPool  sync.Pool
+	lineLevel   bool
+	lineSamples map[string]map[int]*lineStats // file -> line -> stats
 
 	// Test file filtering
 	excludeTests bool // whether to exclude *_test.gno files from profiling
@@ -151,16 +149,10 @@ func NewProfiler(params ...any) *Profiler {
 	}
 
 	p := &Profiler{
-		funcProfiles:  make(map[string]*FuncProfile),
-		lineSamples:   make(map[string]map[int]*lineStats),
-		locationCache: newLocationCache(),
-		sampleRate:    sampleRate,
-		excludeTests:  true, // Exclude test files by default
-		locationPool: sync.Pool{
-			New: func() any {
-				return &profileLocation{}
-			},
-		},
+		funcProfiles: make(map[string]*FuncProfile),
+		lineSamples:  make(map[string]map[int]*lineStats),
+		sampleRate:   sampleRate,
+		excludeTests: true, // Exclude test files by default
 	}
 
 	p.profile = &Profile{
@@ -276,77 +268,6 @@ func (p *Profiler) RecordSample(m MachineInfo) {
 				p.lineSamples[loc.File][loc.Line].gas += m.GetGasUsed()
 			}
 		}
-	}
-}
-
-// RecordFuncEnter records function entry
-func (p *Profiler) RecordFuncEnter(m MachineInfo, funcName string) {
-	if !p.enabled {
-		return
-	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.callStack = append(p.callStack, funcName)
-
-	prof, ok := p.funcProfiles[funcName]
-	if !ok {
-		prof = &FuncProfile{
-			Name:     funcName,
-			Children: make(map[string]*FuncProfile),
-		}
-		p.funcProfiles[funcName] = prof
-	}
-	prof.CallCount++
-	prof.entryCycles = m.GetCycles() // Store entry cycles
-	prof.entryGas = m.GetGasUsed()   // Store entry gas
-
-	// Update parent-child relationships
-	if len(p.callStack) > 1 {
-		parentName := p.callStack[len(p.callStack)-2]
-		if parentProf, ok := p.funcProfiles[parentName]; ok {
-			if _, exists := parentProf.Children[funcName]; !exists {
-				parentProf.Children[funcName] = prof
-			}
-		}
-	}
-}
-
-// RecordFuncExit records function exit
-func (p *Profiler) RecordFuncExit(m MachineInfo, funcName string, cycles int64) {
-	if !p.enabled {
-		return
-	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	// Record stack sample
-	if len(p.callStack) > 0 && p.opCount%p.sampleRate == 0 {
-		// Make a copy of the current call stack
-		stackCopy := make([]string, len(p.callStack))
-		copy(stackCopy, p.callStack)
-
-		p.stackSamples = append(p.stackSamples, stackSample{
-			stack:   stackCopy,
-			cycles:  cycles,
-			gasUsed: m.GetGasUsed(),
-		})
-	}
-
-	if len(p.callStack) > 0 {
-		p.callStack = p.callStack[:len(p.callStack)-1]
-	}
-
-	if prof, ok := p.funcProfiles[funcName]; ok {
-		// Calculate self cycles and gas (flat time/gas)
-		selfCycles := m.GetCycles() - prof.entryCycles
-		selfGas := m.GetGasUsed() - prof.entryGas
-		prof.SelfCycles += selfCycles
-		prof.SelfGas += selfGas
-		prof.TotalCycles += cycles // This should be the total including sub-calls
-		prof.TotalGas += selfGas   // Add the gas consumed in this function
 	}
 }
 
@@ -777,46 +698,6 @@ func (p *Profiler) RecordLineSample(funcName, file string, line int, cycles int6
 		Value: []int64{1, cycles},
 	}
 	p.profile.Samples = append(p.profile.Samples, sample)
-}
-
-// Start starts profiling
-func (p *Profiler) Start() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.enabled = true
-	p.startTime = time.Now()
-
-	if p.profile != nil {
-		// Update start time if profile already exists
-		p.profile.TimeNanos = p.startTime.UnixNano()
-	}
-
-	// Reset state
-	p.opCount = 0
-	p.stackSamples = nil
-	// Don't reset funcProfiles and lineSamples to preserve data
-	p.callStack = nil
-}
-
-// Stop stops profiling and returns the collected profile
-func (p *Profiler) Stop() *Profile {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if !p.enabled || p.profile == nil {
-		return nil
-	}
-
-	p.enabled = false
-	p.profile.DurationNanos = time.Since(p.startTime).Nanoseconds()
-
-	// Build profile samples from collected data
-	p.generateSamples()
-
-	result := p.profile
-	// Don't reset p.profile to nil here - keep it for GetLineStats
-	return result
 }
 
 // callStackToStrings converts a call stack to string slice
