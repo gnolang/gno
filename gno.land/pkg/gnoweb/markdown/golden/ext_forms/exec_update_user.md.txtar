@@ -1,0 +1,26 @@
+-- input.md --
+
+<gno-form exec="UpdateUser">
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
+<div class="gno-form_header">
+<span><span class="font-bold">/r/test</span> Form</span>
+<span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
+</div>
+<div class="gno-form_input"><label for="username"> Enter username </label>
+<input type="text" id="username" name="username" placeholder="Enter username" />
+</div>
+<div class="gno-form_input"><label for="email"> Enter email </label>
+<input type="text" id="email" name="email" placeholder="Enter email" />
+</div>
+<div class="gno-form_input"><label for="age"> Enter age </label>
+<input type="number" id="age" name="age" placeholder="Enter age" />
+</div>
+<div class="gno-form_selectable">
+<input type="checkbox" id="active_3" name="active" value="true" />
+<label for="active_3"> true </label>
+</div>
+<input type="submit" value="Submit to /r/test Realm" />
+</form>
