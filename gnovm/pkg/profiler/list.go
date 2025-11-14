@@ -1,7 +1,11 @@
 package profiler
 
 import (
+	"errors"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io"
 	"os"
 	"path/filepath"
@@ -141,10 +145,13 @@ func (p *Profile) writeFunctionFileList(w io.Writer, funcName, file string, line
 		return err
 	}
 
-	lines := strings.Split(source, "\n")
-
 	// Find the function boundaries
-	startLine, endLine := findFunctionBounds(lines, funcName)
+	startLine, endLine, err := findFunctionBounds(source, funcName)
+	if err != nil {
+		return err
+	}
+
+	lines := strings.Split(source, "\n")
 	if startLine == -1 {
 		// If we can't find the function, show all lines with samples
 		startLine = 1
@@ -273,49 +280,47 @@ func readSourceFile(file string, store Store) (string, error) {
 	return "", fmt.Errorf("could not read source file: %s", file)
 }
 
-// findFunctionBounds tries to find the start and end lines of a function
-func findFunctionBounds(lines []string, funcName string) (start, end int) {
-	// Extract just the function name without package
-	parts := strings.Split(funcName, ".")
-	shortName := parts[len(parts)-1]
+func findFunctionBounds(source string, funcName string) (start int, end int, err error) {
+	fset := token.NewFileSet()
 
-	inFunction := false
-	braceCount := 0
-	start = -1
-
-	for i, line := range lines {
-		// Look for function declaration
-		if !inFunction && strings.Contains(line, "func ") && strings.Contains(line, shortName) {
-			start = i + 1 // Convert to 1-based
-			inFunction = true
-			if strings.Contains(line, "{") {
-				braceCount = 1
-			}
-			continue
-		}
-
-		if inFunction {
-			// Count braces to find end
-			for _, ch := range line {
-				switch ch {
-				case '{':
-					braceCount++
-				case '}':
-					braceCount--
-					if braceCount == 0 {
-						return start, i + 1 // Convert to 1-based
-					}
-				default:
-					continue
-				}
-			}
-		}
+	// ParseMode = parser.ParseComments | parser.AllErrors
+	file, parseErr := parser.ParseFile(fset, "", source, parser.ParseComments)
+	if parseErr != nil {
+		return -1, -1, parseErr
 	}
 
-	// If we found start but not end, return to end of file
-	if start != -1 {
-		return start, len(lines)
+	shortName := funcName
+	// handle x.y.z → extract z
+	if dot := strings.LastIndex(shortName, "."); dot >= 0 {
+		shortName = shortName[dot+1:]
 	}
 
-	return -1, -1
+	var foundStart, foundEnd int
+
+	ast.Inspect(file, func(n ast.Node) bool {
+		decl, ok := n.(*ast.FuncDecl)
+		if !ok {
+			return true
+		}
+
+		if decl.Name.Name != shortName {
+			return true
+		}
+
+		// Found target function
+		startPos := decl.Body.Pos()
+		endPos := decl.Body.End()
+
+		start = fset.Position(startPos).Line
+		end = fset.Position(endPos).Line
+
+		foundStart, foundEnd = start, end
+		return false // stop traversal
+	})
+
+	if foundStart == 0 {
+		return -1, -1, errors.New("function not found: " + funcName)
+	}
+
+	return foundStart, foundEnd, nil
 }
