@@ -17,6 +17,7 @@ type BoardInfo struct {
 	Aliases  []string
 	Creator  address
 	Readonly bool
+	NThreads int
 	// Format of Time.MarshalJSON()
 	CreatedAt string
 }
@@ -745,6 +746,7 @@ func GetListedBoards(startIndex int, endIndex int) (int, []BoardInfo) {
 			Aliases:  board.Aliases,
 			Creator:  board.Creator,
 			Readonly: board.Readonly,
+			NThreads: board.threads.Size(),
 			// Format of Time.MarshalJSON()
 			CreatedAt: string(createdAt),
 		})
