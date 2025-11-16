@@ -65,8 +65,11 @@ func (oid *ObjectID) UnmarshalAmino(oids string) error {
 	if err != nil {
 		return err
 	}
-	if newTime <= 0 && !oid.PkgID.IsZero() {
-		return errors.New("invalid NewTime: must be greater than zero for non-zero PkgID, got %d", newTime)
+	if newTime < 0 {
+		return errors.New("invalid NewTime: cannot be negative, got %d", newTime)
+	}
+	if newTime == 0 && !oid.PkgID.IsZero() {
+		return errors.New("invalid NewTime: must be greater than zero for non-zero PkgID")
 	}
 	oid.NewTime = uint64(newTime)
 	return nil
