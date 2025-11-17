@@ -405,6 +405,9 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			io.ErrPrintfln("ok      %s \t%s", prettyDir, dstr)
 		}
 	}
+
+	maybeStartProfileShell(io, opts)
+
 	if testErrCount > 0 || buildErrCount > 0 {
 		return fail()
 	}
@@ -424,6 +427,7 @@ func (c *testCmd) profileConfig() *test.ProfileConfig {
 		Type:          c.profileType,
 		FunctionList:  c.profileFunction,
 		SampleRate:    c.profileSampleRate,
+		Interactive:   c.profileEnabled || c.profileFunction != "",
 	}
 	if pc.OutputFile == "" {
 		pc.OutputFile = "profile.out"

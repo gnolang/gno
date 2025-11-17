@@ -130,6 +130,7 @@ func TestLineSamplesPopulateFunctionStats(t *testing.T) {
 
 	funcName := "pkg.foo"
 	file := "foo.gno"
+	canonicalFile := canonicalFilePath(file, funcName)
 
 	p.RecordLineSample(funcName, file, 5, 100)
 	p.RecordLineSample(funcName, file, 5, 130)
@@ -138,9 +139,9 @@ func TestLineSamplesPopulateFunctionStats(t *testing.T) {
 	if info == nil {
 		t.Fatalf("expected function line stats for %s", funcName)
 	}
-	stat := info.fileSamples[file][5]
+	stat := info.fileSamples[canonicalFile][5]
 	if stat == nil {
-		t.Fatalf("expected stats for %s:%d", file, 5)
+		t.Fatalf("expected stats for %s:%d", canonicalFile, 5)
 	}
 	if stat.cycles != 130 {
 		t.Fatalf("expected 130 cycles, got %d", stat.cycles)
@@ -150,5 +151,38 @@ func TestLineSamplesPopulateFunctionStats(t *testing.T) {
 	}
 	if info.totalCycles != 130 {
 		t.Fatalf("expected total cycles 130, got %d", info.totalCycles)
+	}
+}
+
+func TestProfilerFiltersTestingPackage(t *testing.T) {
+	p := NewProfiler(ProfileCPU, 1)
+	p.StartProfiling(nil, Options{Type: ProfileCPU, SampleRate: 1})
+
+	machine := &mockMachineInfo{
+		frames: []FrameInfo{
+			mockFrame{name: "RunTest", file: "run.gno", pkgPath: "testing", line: 1},
+			mockFrame{name: "Target", file: "demo.gno", pkgPath: "gno.land/p/demo", line: 2},
+		},
+		cycles: 100,
+	}
+
+	p.RecordSample(machine)
+
+	if _, ok := p.funcStats["testing.RunTest"]; ok {
+		t.Fatalf("expected testing package functions to be filtered out")
+	}
+	if _, ok := p.funcStats["gno.land/p/demo.Target"]; !ok {
+		t.Fatalf("expected user function to remain in stats")
+	}
+
+	p.EnableLineProfiling()
+	p.RecordLineSample("testing.RunTest", "run.gno", 1, 10)
+	p.RecordLineSample("gno.land/p/demo.Target", "demo.gno", 2, 20)
+
+	if _, ok := p.functionLines["testing.RunTest"]; ok {
+		t.Fatalf("expected no line data for testing package")
+	}
+	if _, ok := p.functionLines["gno.land/p/demo.Target"]; !ok {
+		t.Fatalf("expected line data for user function")
 	}
 }

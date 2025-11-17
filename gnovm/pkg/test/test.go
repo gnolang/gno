@@ -140,10 +140,12 @@ type ProfileConfig struct {
 	Type          string
 	FunctionList  string
 	SampleRate    int
+	Interactive   bool
 
-	profiler *profiler.Profiler
-	sink     instrumentation.Sink
-	options  profiler.Options
+	profiler    *profiler.Profiler
+	sink        instrumentation.Sink
+	options     profiler.Options
+	lastProfile *profiler.Profile
 }
 
 // IsEnabled reports whether profiling is active.
@@ -188,6 +190,14 @@ func (pc *ProfileConfig) GetSampleRate() int {
 	return 100
 }
 
+// LastProfile returns the most recently collected profile snapshot.
+func (pc *ProfileConfig) LastProfile() *profiler.Profile {
+	if pc == nil {
+		return nil
+	}
+	return pc.lastProfile
+}
+
 func (pc *ProfileConfig) needsAllocator() bool {
 	return pc != nil && pc.GetProfileType() == profiler.ProfileMemory
 }
@@ -205,13 +215,14 @@ func (pc *ProfileConfig) initialize() error {
 		SampleRate: pc.GetSampleRate(),
 	}
 	prof := profiler.NewProfiler(opts.Type, opts.SampleRate)
-	if pc.FunctionList != "" {
+	if pc.FunctionList != "" || pc.Interactive {
 		prof.EnableLineProfiling()
 	}
 	prof.StartProfiling(nil, opts)
 	pc.profiler = prof
 	pc.options = opts
 	pc.sink = profiler.NewSinkAdapter(prof, opts)
+	pc.lastProfile = nil
 	return nil
 }
 
@@ -222,6 +233,7 @@ func (pc *ProfileConfig) finalize(opts *TestOptions, writer ProfileWriter) error
 	profile := pc.profiler.StopProfiling()
 	pc.profiler = nil
 	pc.sink = nil
+	pc.lastProfile = profile
 	if profile == nil {
 		return nil
 	}

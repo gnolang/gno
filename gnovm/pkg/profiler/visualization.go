@@ -106,8 +106,16 @@ func printVisualizationNode(w io.Writer, p *Profile, node *CallTreeNode, prefix 
 	}
 }
 
-// WriteTopList writes a sorted list of top functions
+const defaultTopListLimit = 50
+
+// WriteTopList writes a sorted list of top functions using the default limit.
 func (p *Profile) WriteTopList(w io.Writer) error {
+	return p.WriteTopListLimit(w, defaultTopListLimit)
+}
+
+// WriteTopListLimit writes a sorted list of top functions with a custom limit.
+// If limit <= 0, all functions are shown.
+func (p *Profile) WriteTopListLimit(w io.Writer, limit int) error {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
@@ -146,11 +154,16 @@ func (p *Profile) WriteTopList(w io.Writer) error {
 		"Rank", "Cumulative", "Cum%", "Flat", "Flat%", "Calls", "Bar", "Function")
 	fmt.Fprintf(w, "%s\n", strings.Repeat("-", 100))
 
-	for i, stat := range funcs {
-		if i >= 50 { // Limit to top 50
-			break
-		}
+	effectiveLimit := limit
+	if effectiveLimit <= 0 || effectiveLimit > len(funcs) {
+		effectiveLimit = len(funcs)
+	}
+	if limit == 0 {
+		effectiveLimit = min(defaultTopListLimit, len(funcs))
+	}
 
+	for i := 0; i < effectiveLimit; i++ {
+		stat := funcs[i]
 		flat := flatMetric(stat)
 		cum := cumMetric(stat)
 		cumPercent := percent(cum, total)
@@ -171,7 +184,7 @@ func (p *Profile) WriteTopList(w io.Writer) error {
 	}
 
 	// Print summary
-	fmt.Fprintf(w, "\nShowing top %d of %d functions\n", min(50, len(funcs)), len(funcs))
+	fmt.Fprintf(w, "\nShowing top %d of %d functions\n", effectiveLimit, len(funcs))
 
 	return nil
 }

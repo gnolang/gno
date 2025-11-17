@@ -418,19 +418,23 @@ func (p *Profiler) RecordSample(m MachineInfo) {
 	// Update line-level profiling if enabled
 	if p.lineLevel && len(stack) > 0 {
 		loc := stack[0]
+		// Some frames only record basenames (e.g. "basename.gno"), which caused
+		// `source not available` when profiling code outside the current package.
+		// Canonicalize the path so cross-package references can be resolved later.
+		file := canonicalFilePath(loc.File, loc.Function)
 		// Skip test files if excludeTests is enabled
-		if loc.File != "" && loc.Line > 0 && !(p.excludeTests && strings.HasSuffix(loc.File, "_test.gno")) {
-			if p.lineSamples[loc.File] == nil {
-				p.lineSamples[loc.File] = make(map[int]*lineStats)
+		if file != "" && loc.Line > 0 && !(p.excludeTests && strings.HasSuffix(file, "_test.gno")) {
+			if p.lineSamples[file] == nil {
+				p.lineSamples[file] = make(map[int]*lineStats)
 			}
-			if p.lineSamples[loc.File][loc.Line] == nil {
-				p.lineSamples[loc.File][loc.Line] = &lineStats{}
+			if p.lineSamples[file][loc.Line] == nil {
+				p.lineSamples[file][loc.Line] = &lineStats{}
 			}
-			p.lineSamples[loc.File][loc.Line].count++
-			p.lineSamples[loc.File][loc.Line].cycles += deltaCycles
+			p.lineSamples[file][loc.Line].count++
+			p.lineSamples[file][loc.Line].cycles += deltaCycles
 			// Track gas for gas profiling
 			if p.profile.Type == ProfileGas {
-				p.lineSamples[loc.File][loc.Line].gas += deltaGas
+				p.lineSamples[file][loc.Line].gas += deltaGas
 			}
 		}
 	}
@@ -844,8 +848,10 @@ func (p *Profiler) RecordLineSample(funcName, file string, line int, cycles int6
 	}
 	p.prevLineCycles = cycles
 
+	file = canonicalFilePath(file, funcName)
+
 	// Skip test files if excludeTests is enabled
-	if p.excludeTests && strings.HasSuffix(file, "_test.gno") {
+	if file == "" || (p.excludeTests && strings.HasSuffix(file, "_test.gno")) {
 		return
 	}
 
@@ -905,7 +911,7 @@ func (p *Profiler) updateFunctionStats(stack []ProfileLocation, cycles, gas int6
 
 	for i, loc := range stack {
 		funcName := loc.Function
-		if funcName == "" || seen[funcName] {
+		if funcName == "" || seen[funcName] || isFilteredFunction(funcName) {
 			continue
 		}
 		seen[funcName] = true
@@ -928,12 +934,12 @@ func (p *Profiler) updateFunctionLineStats(stack []ProfileLocation, cycles, gas 
 
 	for _, loc := range stack {
 		funcName := loc.Function
-		if funcName == "" || seen[funcName] {
+		if funcName == "" || seen[funcName] || isFilteredFunction(funcName) {
 			continue
 		}
 		seen[funcName] = true
 
-		file := loc.File
+		file := canonicalFilePath(loc.File, funcName)
 		line := loc.Line
 		if file == "" || line <= 0 {
 			continue
@@ -969,7 +975,8 @@ func (p *Profiler) updateFunctionLineStats(stack []ProfileLocation, cycles, gas 
 }
 
 func (p *Profiler) updateFunctionLineStatsFromLineSample(funcName, file string, line int, cycles int64) {
-	if funcName == "" || file == "" || line <= 0 {
+	file = canonicalFilePath(file, funcName)
+	if funcName == "" || file == "" || line <= 0 || isFilteredFunction(funcName) {
 		return
 	}
 
@@ -1007,4 +1014,36 @@ func (p *Profiler) getFunctionStat(name string) *FunctionStat {
 		p.funcStats[name] = stat
 	}
 	return stat
+}
+
+func isFilteredFunction(name string) bool {
+	// The Go `testing` harness dominates samples when running `gno test`.
+	// Filter those frames out so the toplist highlights user code instead.
+	return strings.HasPrefix(name, "testing.")
+}
+
+// canonicalFilePath reconstructs a fully-qualified file path when the VM only
+// reported a basename. This fixes `source not available` errors that previously
+// occurred for packages imported from other directories.
+func canonicalFilePath(file, funcName string) string {
+	if file == "" {
+		return ""
+	}
+	if strings.Contains(file, "/") {
+		return file
+	}
+	if pkg := packageFromFunction(funcName); pkg != "" {
+		return pkg + "/" + file
+	}
+	return file
+}
+
+func packageFromFunction(funcName string) string {
+	if funcName == "" {
+		return ""
+	}
+	if idx := strings.LastIndex(funcName, "."); idx > 0 {
+		return funcName[:idx]
+	}
+	return ""
 }
