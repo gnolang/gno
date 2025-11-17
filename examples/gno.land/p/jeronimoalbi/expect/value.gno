@@ -105,8 +105,8 @@ func (c ValueChecker) ToEqual(value any) {
 	}
 }
 
-// ToEqualErrorString asserts that current error value contains an error string.
-func (c ValueChecker) ToEqualErrorString(msg string) {
+// ToContainErrorString asserts that current error value contains an error string.
+func (c ValueChecker) ToContainErrorString(msg string) {
 	c.ctx.T().Helper()
 
 	err, ok := c.value.(error)
@@ -119,7 +119,7 @@ func (c ValueChecker) ToEqualErrorString(msg string) {
 		if !ctx.IsNegated() {
 			return ufmt.Sprintf("Expected error message to contain: %s\nGot: %s", msg, err.Error())
 		}
-		return ufmt.Sprintf("Expected error message to be different\nGot: %s", msg)
+		return ufmt.Sprintf("Expected error message not to contain: %s\nGot: %s", msg, err.Error())
 	})
 }
 

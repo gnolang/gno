@@ -34,7 +34,7 @@ func main() {
 	expect.Value(t, int32(1)).ToEqual(int32(2))
 	expect.Value(t, int64(1)).ToEqual(int64(2))
 	expect.Value(t, errors.New("foo")).ToEqual(errors.New("bar"))
-	expect.Value(t, errors.New("foo")).ToEqualErrorString("bar")
+	expect.Value(t, errors.New("foo")).ToContainErrorString("bar")
 
 	expect.Value(t, 0).ToEqual(errors.New("foo"))
 	expect.Value(t, 0).ToEqual([]string{})
