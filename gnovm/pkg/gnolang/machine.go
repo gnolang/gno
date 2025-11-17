@@ -2047,9 +2047,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	    immediate attachment. That is, block values are not by default attached.
 	  * Function values are never parents except for the function's captured names.
 	  * TODO verify all of the above.
-
+	
 	*/
-
+	
 	//========================================
 	// main.go
 	package caller // as /r/caller/run (msg call)
@@ -2061,22 +2061,22 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		// The storage realm(s) is initialy an empty stack (no methods have been called).
 		//   - now: (storage:[], current:caller, previous:nil)
 
-	 	// ================================================================================
-	        // ## fn is declared /r/realm:
+		// ================================================================================
+		// ## fn is declared /r/realm:
 		//
 		// --------------------------------------------------------------------------------
-	   	// CASE rA1: function declared at package level -- do not storage-cross
+		// CASE rA1: function declared at package level -- do not storage-cross
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
 		//   - in alice.TopFunc:                    (storage:[], current:caller, previous:nil)
 		bob.Do(alice.TopFunc)                       // FAIL: caller != bob
 		// ----------------------------------------
-	        // CASE rA2: function declared in func(...) (non-crossing) -- do not storage-cross
+		// CASE rA2: function declared in func(...) (non-crossing) -- do not storage-cross
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
 		//   - in alice.TopFuncFnNoncrossing:       (storage:[], current:caller, previous:nil)
 		//   - in alice.TopFuncFnNoncrossing.inner: (storage:[], current:caller, previous:nil)
 		bob.Do(alice.TopFuncFnNoncrossing())        // FAIL: caller != bob
 		// ----------------------------------------
-	        // CASE rA3: function declared in func(cur realm, ...) (crossing) -- do not storage-cross
+		// CASE rA3: function declared in func(cur realm, ...) (crossing) -- do not storage-cross
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
 		//   - alice.TopFuncFnCrossing:             (storage:[], current:alice,  previous:caller)
 		//   - alice.TopFuncFnCrossing.inner:       (storage:[], current:caller, previous:nil)
@@ -2120,7 +2120,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		alice.SetObject(obj)                        // obj attached to alice
 		bob.Do(obj.Method)                          // FAIL: attached to alice (but need bob)
 		// ----------------------------------------
-	        // CASE rC3: method has attached receiver via cls -- storage-cross to receiver
+		// CASE rC3: method has attached receiver via cls -- storage-cross to receiver
 		obj := new(alice.Object)
 		cls := func() {
 			print(obj)
@@ -2130,7 +2130,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		//   - in obj.Method:                       (storage:[bob], current:caller, previous:nil)
 		bob.Do(obj.Method)                          // SUCCESS: attached to bob
 		// ----------------------------------------
-	        // CASE rC4: method has (wrong) attached receiver via cls -- stroage-cross to (wrong) receiver
+		// CASE rC4: method has (wrong) attached receiver via cls -- stroage-cross to (wrong) receiver
 		obj := new(alice.Object)
 		cls := func() {
 			print(obj)
@@ -2151,22 +2151,22 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		}
 		cls()
 
-	 	// ================================================================================
-	        // ## fn is declared /p/package: (similar to /r/realm except for CASE pA3 and CASE pB2)
+		// ================================================================================
+		// ## fn is declared /p/package: (similar to /r/realm except for CASE pA3 and CASE pB2)
 		//
 		// --------------------------------------------------------------------------------
-	   	// CASE pA1: function declared at package level -- do not storage-cross
+		// CASE pA1: function declared at package level -- do not storage-cross
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
 		//   - in peter.TopFunc:                    (storage:[], current:caller, previous:nil)
 		bob.Do(peter.TopFunc)                       // FAIL: caller != bob
 		// ----------------------------------------
-	        // CASE pA2: function declared in func(...) (non-crossing) -- do not storage-cross
+		// CASE pA2: function declared in func(...) (non-crossing) -- do not storage-cross
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
 		//   - in peter.TopFuncFnNoncrossing:       (storage:[], current:caller, previous:nil)
 		//   - in peter.TopFuncFnNoncrossing.inner: (storage:[], current:caller, previous:nil)
 		bob.Do(peter.TopFuncFnNoncrossing())        // FAIL: caller != bob
 		// ----------------------------------------
-	        // CASE pA3: function declared in func(cur realm, ...) (crossing) -- illegal crossing function NOTE (differs)
+		// CASE pA3: function declared in func(cur realm, ...) (crossing) -- illegal crossing function NOTE (differs)
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
 		//   - peter.TopFuncFnCrossing:             (illegal)
 		//   - peter.TopFuncFnCrossing.inner:       (illegal)
@@ -2210,7 +2210,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		alice.SetObject(obj)                        // obj attached to alice
 		bob.Do(obj.Method)                          // FAIL: attached to alice (but need bob)
 		// ----------------------------------------
-	        // CASE pC3: method has attached receiver via cls -- storage-cross to receiver
+		// CASE pC3: method has attached receiver via cls -- storage-cross to receiver
 		obj := new(peter.Object)
 		cls := func() {
 			print(obj)
@@ -2220,7 +2220,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		//   - in obj.Method:                       (storage:[bob], current:caller, previous:nil)
 		bob.Do(obj.Method)                          // SUCCESS: attached to bob
 		// ----------------------------------------
-	        // CASE pC4: method has (wrong) attached receiver via cls -- storage-cross to (wrong) receiver
+		// CASE pC4: method has (wrong) attached receiver via cls -- storage-cross to (wrong) receiver
 		obj := new(peter.Object)
 		cls := func() {
 			print(obj)
