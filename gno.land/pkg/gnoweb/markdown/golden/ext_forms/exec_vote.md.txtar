@@ -4,17 +4,65 @@
 </gno-form>
 
 -- output.html --
-<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
+<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false" data-controller="form-exec">
 <div class="gno-form_header">
 <span><span class="font-bold">/r/test</span> Form</span>
 <span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
 </div>
+<div data-controller="action-function" data-action-function-name-value="Vote">
 <div class="gno-form_input"><label for="proposal_id"> Enter proposal_id </label>
-<input type="number" id="proposal_id" name="proposal_id" placeholder="Enter proposal_id" />
+<input type="number" id="proposal_id" name="proposal_id" placeholder="Enter proposal_id" data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" data-action-function-param-value="proposal_id" />
 </div>
 <div class="gno-form_selectable">
-<input type="checkbox" id="vote_1" name="vote" value="true" />
+<input type="checkbox" id="vote_1" name="vote" value="true"  />
 <label for="vote_1"> true </label>
 </div>
-<input type="submit" value="Submit to /r/test Realm" />
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
+<div class="command u-hidden" data-form-exec-target="command"><div data-controller="action-header" class="c-between">
+  <span class="title">Command</span>
+  <div class="c-inline">
+    <div class="b-input">
+      <select data-action-header-target="mode" data-action="change->action-header#updateMode">
+        <option value="secure" selected="selected">Mode: Full Security</option>
+        <option value="fast">Mode: Fast</option>
+      </select>
+      <svg><use href="#ico-arrow-down"></use></svg>
+    </div>
+    <div class="b-input">
+      <label for="form-address-Vote">Address</label>
+      <input type="text" data-action-header-target="address" data-action="input->action-header#updateAddress" id="form-address-Vote" class="u-font-mono" placeholder="ADDRESS" />
+    </div>
+  </div>
+</div>
+<div class="b-code">
+    <button
+        data-controller="copy"
+        data-action="click->copy#copy"
+        data-copy-remote-value="action-form-Vote"
+        data-copy-clean-value
+        class="btn-copy"
+        aria-label="Copy Command"
+    >
+        <svg class="c-icon">
+            <use href="#ico-copy" data-copy-target="icon"></use>
+            <use
+                href="#ico-check"
+                class="u-hidden u-color-valid"
+                data-copy-target="icon"
+            ></use>
+        </svg>
+    </button>
+    <pre><code><span data-action-form-target="mode" data-action-form-mode-value="fast" class="u-hidden" data-copy-target="action-form-Vote"># WARNING: This command is running in an INSECURE mode.
+    # It is strongly recommended to use a hardware device for signing
+    # and avoid trusting any computer connected to the internet,
+    # as your private keys could be exposed.
+
+    gnokey maketx call -pkgpath "/r/test" -func "Vote" -args "<span data-action-form-target="arg" data-action-form-arg-value="proposal_id"></span>" -args "<span data-action-form-target="arg" data-action-form-arg-value="vote"></span>" -gas-fee 1000000ugnot -gas-wanted 5000000 -send "<span data-action-form-target="send-code"></span>" -broadcast -chainid "dev" -remote "127.0.0.1:26657" <span data-action-form-target="address">ADDRESS</span></span><span data-action-form-target="mode" data-action-form-mode-value="secure" data-copy-target="action-form-Vote" class="u-inline">gnokey query -remote "127.0.0.1:26657" auth/accounts/<span data-action-form-target="address">ADDRESS</span>
+    gnokey maketx call -pkgpath "/r/test" -func "Vote" -args "<span data-action-form-target="arg" data-action-form-arg-value="proposal_id"></span>" -args "<span data-action-form-target="arg" data-action-form-arg-value="vote"></span>" -gas-fee 1000000ugnot -gas-wanted 5000000 -send "<span data-action-form-target="send-code"></span>" <span data-action-form-target="address">ADDRESS</span> > call.tx
+    gnokey sign -tx-path call.tx -chainid "dev" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-action-form-target="address">ADDRESS</span>
+    gnokey broadcast -remote "127.0.0.1:26657" call.tx
+  </span></code></pre>
+</div>
+</div>
+</div>
 </form>
