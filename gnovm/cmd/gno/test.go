@@ -34,12 +34,14 @@ type testCmd struct {
 	debug               bool
 	debugAddr           string
 
-	profileEnabled    bool
-	profileType       string
-	profileFormat     string
-	profileStdout     bool
-	profileOutput     string
-	profileSampleRate int
+	profileEnabled     bool
+	profileType        string
+	profileFormat      string
+	profileStdout      bool
+	profileOutput      string
+	profileSampleRate  int
+	profileInteractive bool
+	profileLine        bool
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -226,6 +228,20 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		"profile-sample-rate",
 		0,
 		"override profiling sample rate (default depends on profile type)",
+	)
+
+	fs.BoolVar(
+		&c.profileInteractive,
+		"profile-interactive",
+		false,
+		"enable interactive profiler shell after running tests (requires -profile)",
+	)
+
+	fs.BoolVar(
+		&c.profileLine,
+		"profile-line",
+		false,
+		"enable line-level profiling for detailed source analysis (requires -profile)",
 	)
 }
 
@@ -418,7 +434,8 @@ func (c *testCmd) profileConfig() *test.ProfileConfig {
 		Format:        c.profileFormat,
 		Type:          c.profileType,
 		SampleRate:    c.profileSampleRate,
-		Interactive:   c.profileEnabled,
+		Interactive:   c.profileInteractive,
+		LineLevel:     c.profileLine,
 	}
 	if pc.OutputFile == "" {
 		pc.OutputFile = "profile.out"

@@ -140,6 +140,7 @@ type ProfileConfig struct {
 	Type          string
 	SampleRate    int
 	Interactive   bool
+	LineLevel     bool
 
 	profiler    *profiler.Profiler
 	sink        instrumentation.Sink
@@ -214,7 +215,7 @@ func (pc *ProfileConfig) initialize() error {
 		SampleRate: pc.GetSampleRate(),
 	}
 	prof := profiler.NewProfiler(opts.Type, opts.SampleRate)
-	if pc.Interactive {
+	if pc.LineLevel || pc.Interactive {
 		prof.EnableLineProfiling()
 	}
 	prof.StartProfiling(nil, opts)

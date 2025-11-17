@@ -35,6 +35,7 @@ func TestExecuteProfileCommand(t *testing.T) {
 				require.Contains(t, err, "text")
 				require.Contains(t, err, "top")
 				require.Contains(t, err, "list")
+				require.Contains(t, err, "clear")
 				require.Contains(t, err, "exit")
 			},
 		},
@@ -65,6 +66,16 @@ func TestExecuteProfileCommand(t *testing.T) {
 			checkOut: func(t *testing.T, out, err string) {
 				require.Contains(t, out, "{")
 				require.Contains(t, out, "}")
+			},
+		},
+		{
+			name:    "clear command",
+			command: "clear",
+			checkOut: func(t *testing.T, out, err string) {
+				// Check for ANSI clear screen sequence in stdout only
+				require.Contains(t, out, "\033[2J\033[H")
+				// stderr should remain empty (no re-display of prompt)
+				require.Empty(t, err)
 			},
 		},
 	}

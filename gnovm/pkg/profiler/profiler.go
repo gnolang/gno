@@ -1042,8 +1042,32 @@ func packageFromFunction(funcName string) string {
 	if funcName == "" {
 		return ""
 	}
-	if idx := strings.LastIndex(funcName, "."); idx > 0 {
-		return funcName[:idx]
+
+	// Handle method calls like "pkg.(*Type).Method" or "pkg.Type.Method"
+	// We need to extract just the package path, not the type information
+
+	// First, check if this is a method (contains parentheses or multiple dots after the package)
+	if strings.Contains(funcName, "(") {
+		// This is a pointer receiver method like "pkg.(*Type).Method"
+		// Find the first dot to get the package name
+		if idx := strings.Index(funcName, "."); idx > 0 {
+			return funcName[:idx]
+		}
+	} else {
+		// Count dots to distinguish between "pkg.Func" and "pkg.Type.Method"
+		parts := strings.Split(funcName, ".")
+		if len(parts) >= 2 {
+			// Check if the second part starts with uppercase (likely a type)
+			if len(parts) == 3 && len(parts[1]) > 0 && parts[1][0] >= 'A' && parts[1][0] <= 'Z' {
+				// This is likely "pkg.Type.Method"
+				return parts[0]
+			}
+			// This is likely "pkg.subpkg.Func" or just "pkg.Func"
+			if idx := strings.LastIndex(funcName, "."); idx > 0 {
+				return funcName[:idx]
+			}
+		}
 	}
+
 	return ""
 }

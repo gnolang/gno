@@ -78,6 +78,7 @@ func executeProfileCommand(input string, cmdIO commands.IO, profile *profiler.Pr
 		fmt.Fprintln(cmdIO.Err(), "  calltree       - display the call tree view")
 		fmt.Fprintln(cmdIO.Err(), "  json           - dump the raw JSON profile")
 		fmt.Fprintln(cmdIO.Err(), "  list <func>    - show line-by-line profile for matching functions")
+		fmt.Fprintln(cmdIO.Err(), "  clear          - clear the screen")
 		fmt.Fprintln(cmdIO.Err(), "  exit/quit      - leave the shell")
 	case "text", "summary":
 		if _, err := profile.WriteTo(cmdIO.Out()); err != nil {
@@ -104,6 +105,9 @@ func executeProfileCommand(input string, cmdIO commands.IO, profile *profiler.Pr
 		if err := profile.WriteJSON(cmdIO.Out()); err != nil {
 			fmt.Fprintf(cmdIO.Err(), "error: %v\n", err)
 		}
+	case "clear":
+		fmt.Fprint(cmdIO.Err(), "\033[H\033[2J")
+		fmt.Fprintln(cmdIO.Err(), "Profiler shell ready. Type 'help' for available commands, 'exit' to leave.")
 	case "list":
 		target := strings.TrimSpace(args)
 		if target == "" {
