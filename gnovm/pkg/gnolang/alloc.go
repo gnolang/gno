@@ -403,7 +403,9 @@ func (pv *PackageValue) GetShallowSize() int64 {
 		return 0
 	}
 
-	return allocPackage
+	// Account for the PkgName field in addition to the base package allocation
+	// PkgName is of type Name (which is string), so use string allocation pattern
+	return allocPackage + allocString + allocStringByte*int64(len(pv.PkgName))
 }
 
 func (b *Block) GetShallowSize() int64 {
