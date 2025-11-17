@@ -39,7 +39,6 @@ type testCmd struct {
 	profileFormat     string
 	profileStdout     bool
 	profileOutput     string
-	profileFunction   string
 	profileSampleRate int
 }
 
@@ -220,13 +219,6 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		"profile-output",
 		"profile.out",
 		"file path for profile output (ignored if -profile-stdout is set)",
-	)
-
-	fs.StringVar(
-		&c.profileFunction,
-		"profile-list",
-		"",
-		"show line-by-line profile for the given function name",
 	)
 
 	fs.IntVar(
@@ -416,7 +408,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 }
 
 func (c *testCmd) profileConfig() *test.ProfileConfig {
-	if !c.profileEnabled && c.profileFunction == "" {
+	if !c.profileEnabled {
 		return nil
 	}
 	pc := &test.ProfileConfig{
@@ -425,9 +417,8 @@ func (c *testCmd) profileConfig() *test.ProfileConfig {
 		PrintToStdout: c.profileStdout,
 		Format:        c.profileFormat,
 		Type:          c.profileType,
-		FunctionList:  c.profileFunction,
 		SampleRate:    c.profileSampleRate,
-		Interactive:   c.profileEnabled || c.profileFunction != "",
+		Interactive:   c.profileEnabled,
 	}
 	if pc.OutputFile == "" {
 		pc.OutputFile = "profile.out"

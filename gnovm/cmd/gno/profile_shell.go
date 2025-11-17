@@ -107,12 +107,8 @@ func executeProfileCommand(input string, cmdIO commands.IO, profile *profiler.Pr
 	case "list":
 		target := strings.TrimSpace(args)
 		if target == "" {
-			target = cfg.FunctionList
-			if target == "" {
-				fmt.Fprintln(cmdIO.Err(), "usage: list <function-pattern>")
-				break
-			}
-			fmt.Fprintf(cmdIO.Err(), "using default function pattern %q\n", target)
+			fmt.Fprintln(cmdIO.Err(), "usage: list <function-pattern>")
+			break
 		}
 		if err := profile.WriteFunctionList(cmdIO.Out(), target, store); err != nil {
 			fmt.Fprintf(cmdIO.Err(), "error: %v\n", err)

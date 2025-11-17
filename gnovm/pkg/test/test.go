@@ -138,7 +138,6 @@ type ProfileConfig struct {
 	PrintToStdout bool
 	Format        string
 	Type          string
-	FunctionList  string
 	SampleRate    int
 	Interactive   bool
 
@@ -215,7 +214,7 @@ func (pc *ProfileConfig) initialize() error {
 		SampleRate: pc.GetSampleRate(),
 	}
 	prof := profiler.NewProfiler(opts.Type, opts.SampleRate)
-	if pc.FunctionList != "" || pc.Interactive {
+	if pc.Interactive {
 		prof.EnableLineProfiling()
 	}
 	prof.StartProfiling(nil, opts)
@@ -271,11 +270,6 @@ func (w *DefaultProfileWriter) WriteProfile(profile *profiler.Profile, pc *Profi
 	}
 
 	switch {
-	case pc.FunctionList != "":
-		fmt.Fprintln(output, "\n=== FUNCTION PROFILE ===")
-		if err := profile.WriteFunctionList(output, pc.FunctionList, NewStoreAdapter(testStore)); err != nil {
-			return fmt.Errorf("failed to write function profile: %w", err)
-		}
 	case pc.PrintToStdout:
 		fmt.Fprintln(output, "\n=== PROFILING RESULTS ===")
 		if err := profile.WriteFormat(output, pc.GetFormat()); err != nil {
