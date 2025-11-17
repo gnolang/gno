@@ -411,7 +411,9 @@ func (p *Profiler) RecordSample(m MachineInfo) {
 	frameIDs := p.stackFrameIDs(stack)
 	p.updateCallTree(frameIDs, deltaCycles, deltaGas)
 	p.updateFunctionStats(stack, deltaCycles, deltaGas)
-	p.updateFunctionLineStats(stack, deltaCycles, deltaGas)
+	if !p.lineLevel {
+		p.updateFunctionLineStats(stack, deltaCycles, deltaGas)
+	}
 
 	// Update line-level profiling if enabled
 	if p.lineLevel && len(stack) > 0 {
@@ -857,6 +859,7 @@ func (p *Profiler) RecordLineSample(funcName, file string, line int, cycles int6
 	p.lineSamples[file][line].count++
 	p.lineSamples[file][line].cycles += deltaCycles
 
+	p.updateFunctionLineStatsFromLineSample(funcName, file, line, deltaCycles)
 }
 
 func (p *Profiler) stackFrameIDs(stack []ProfileLocation) []FrameID {
@@ -963,6 +966,35 @@ func (p *Profiler) updateFunctionLineStats(stack []ProfileLocation, cycles, gas 
 		info.totalCycles += cycles
 		info.totalGas += gas
 	}
+}
+
+func (p *Profiler) updateFunctionLineStatsFromLineSample(funcName, file string, line int, cycles int64) {
+	if funcName == "" || file == "" || line <= 0 {
+		return
+	}
+
+	info, ok := p.functionLines[funcName]
+	if !ok {
+		info = &functionLineData{
+			funcName:    funcName,
+			fileSamples: make(map[string]map[int]*lineStat),
+		}
+		p.functionLines[funcName] = info
+	}
+
+	if info.fileSamples[file] == nil {
+		info.fileSamples[file] = make(map[int]*lineStat)
+	}
+
+	stat := info.fileSamples[file][line]
+	if stat == nil {
+		stat = &lineStat{}
+		info.fileSamples[file][line] = stat
+	}
+
+	stat.count++
+	stat.cycles += cycles
+	info.totalCycles += cycles
 }
 
 func (p *Profiler) getFunctionStat(name string) *FunctionStat {

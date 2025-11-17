@@ -107,3 +107,48 @@ func TestProfilerRecordLineSampleHandlesCounterReset(t *testing.T) {
 		t.Fatalf("expected cumulative cycles 115, got %d", got)
 	}
 }
+
+func TestLineSamplesPopulateFunctionStats(t *testing.T) {
+	p := NewProfiler(ProfileCPU, 1)
+	p.EnableLineProfiling()
+	p.StartProfiling(nil, Options{Type: ProfileCPU, SampleRate: 1})
+
+	// Sampling via call stacks should be ignored while line profiling is enabled.
+	machine := &mockMachineInfo{
+		frames: []FrameInfo{mockFrame{
+			name:    "foo",
+			file:    "foo.gno",
+			pkgPath: "pkg",
+			line:    1,
+		}},
+		cycles: 10,
+	}
+	p.RecordSample(machine)
+	if len(p.functionLines) != 0 {
+		t.Fatalf("expected no function line stats from stack sampling when line profiling is enabled")
+	}
+
+	funcName := "pkg.foo"
+	file := "foo.gno"
+
+	p.RecordLineSample(funcName, file, 5, 100)
+	p.RecordLineSample(funcName, file, 5, 130)
+
+	info := p.functionLines[funcName]
+	if info == nil {
+		t.Fatalf("expected function line stats for %s", funcName)
+	}
+	stat := info.fileSamples[file][5]
+	if stat == nil {
+		t.Fatalf("expected stats for %s:%d", file, 5)
+	}
+	if stat.cycles != 130 {
+		t.Fatalf("expected 130 cycles, got %d", stat.cycles)
+	}
+	if stat.count != 2 {
+		t.Fatalf("expected 2 samples, got %d", stat.count)
+	}
+	if info.totalCycles != 130 {
+		t.Fatalf("expected total cycles 130, got %d", info.totalCycles)
+	}
+}
