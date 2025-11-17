@@ -2,6 +2,7 @@ package profiler
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -245,6 +246,53 @@ func Sprintf(format string, args ...interface{}) string {
 	// Check line numbers are shown
 	if !strings.Contains(output, "3:") {
 		t.Error("expected line numbers to be shown")
+	}
+}
+
+func TestWriteFunctionList_CumulativeCycles(t *testing.T) {
+	store := &mockStore{
+		files: map[string]string{
+			"demo/foo.gno": `package demo
+
+func Foo() {
+	callA()
+	callB()
+}
+`,
+		},
+	}
+
+	funcName := "gno.land/p/demo.Foo"
+	file := "demo/foo.gno"
+	p := &Profile{
+		FunctionLines: map[string]*functionLineData{
+			funcName: {
+				funcName: funcName,
+				fileSamples: map[string]map[int]*lineStat{
+					file: {
+						5: {cycles: 100},
+						6: {cycles: 200},
+					},
+				},
+				totalCycles: 300,
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	if err := p.WriteFunctionList(&buf, "Foo", store); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+	firstLine := fmt.Sprintf("%10d %10d %4d:", 100, 100, 5)
+	secondLine := fmt.Sprintf("%10d %10d %4d:", 200, 300, 6)
+
+	if !strings.Contains(output, firstLine) {
+		t.Fatalf("expected first line to contain %q\noutput:\n%s", firstLine, output)
+	}
+	if !strings.Contains(output, secondLine) {
+		t.Fatalf("expected second line to contain %q\noutput:\n%s", secondLine, output)
 	}
 }
 

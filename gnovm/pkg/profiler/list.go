@@ -156,6 +156,8 @@ func (p *Profile) writeFunctionFileList(w io.Writer, funcName, file string, line
 	showStart := max(1, startLine-contextLines)
 	showEnd := min(len(lines), endLine+contextLines)
 
+	cumulativeCycles := int64(0)
+
 	// Write lines with annotations - match go tool pprof format
 	for i := showStart; i <= showEnd && i <= len(lines); i++ {
 		line := ""
@@ -164,13 +166,14 @@ func (p *Profile) writeFunctionFileList(w io.Writer, funcName, file string, line
 		}
 
 		if stat, exists := lineStats[i]; exists {
+			cumulativeCycles += stat.cycles
 			// Line with profile data
 			if stat.gas > 0 {
 				fmt.Fprintf(w, "%10d %10d %4d:%s [gas: %d]\n",
-					stat.cycles, stat.cycles, i, line, stat.gas)
+					stat.cycles, cumulativeCycles, i, line, stat.gas)
 			} else {
 				fmt.Fprintf(w, "%10d %10d %4d:%s\n",
-					stat.cycles, stat.cycles, i, line)
+					stat.cycles, cumulativeCycles, i, line)
 			}
 		} else {
 			// Lines without samples
