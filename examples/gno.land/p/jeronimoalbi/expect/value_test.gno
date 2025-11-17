@@ -28,9 +28,7 @@ func TestValue(t *testing.T) {
 		expect.Value(t, int32(1)).ToEqual(int32(1))
 		expect.Value(t, int64(1)).ToEqual(int64(1))
 		expect.Value(t, errors.New("foo")).ToEqual(errors.New("foo"))
-		expect.Value(t, errors.New("foo")).ToEqual("foo")
-		expect.Value(t, errors.New("foo")).ToEqual([]byte("foo"))
-		expect.Value(t, errors.New("foo")).ToEqual(stringer("foo"))
+		expect.Value(t, errors.New("foo")).ToEqualErrorString("foo")
 	})
 
 	t.Run("not to equal", func(t *testing.T) {
@@ -53,9 +51,7 @@ func TestValue(t *testing.T) {
 		expect.Value(t, int32(1)).Not().ToEqual(int32(2))
 		expect.Value(t, int64(1)).Not().ToEqual(int64(2))
 		expect.Value(t, errors.New("foo")).Not().ToEqual(errors.New("bar"))
-		expect.Value(t, errors.New("foo")).Not().ToEqual("bar")
-		expect.Value(t, errors.New("foo")).Not().ToEqual([]byte("bar"))
-		expect.Value(t, errors.New("foo")).Not().ToEqual(stringer("bar"))
+		expect.Value(t, errors.New("foo")).Not().ToEqualErrorString("bar")
 	})
 
 	t.Run("to be nil", func(t *testing.T) {

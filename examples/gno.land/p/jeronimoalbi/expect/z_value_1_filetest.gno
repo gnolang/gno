@@ -34,9 +34,7 @@ func main() {
 	expect.Value(t, int32(1)).Not().ToEqual(int32(1))
 	expect.Value(t, int64(1)).Not().ToEqual(int64(1))
 	expect.Value(t, errors.New("foo")).Not().ToEqual(errors.New("foo"))
-	expect.Value(t, errors.New("foo")).Not().ToEqual("foo")
-	expect.Value(t, errors.New("foo")).Not().ToEqual([]byte("foo"))
-	expect.Value(t, errors.New("foo")).Not().ToEqual(stringer("foo"))
+	expect.Value(t, errors.New("foo")).Not().ToEqualErrorString("foo")
 
 	expect.Value(t, 0).Not().ToEqual(errors.New("foo"))
 	expect.Value(t, 0).Not().ToEqual([]string{})
@@ -78,10 +76,6 @@ func main() {
 // Expected value to be different
 // Got: 1
 // Expected errors to be different
-// Got: foo
-// Expected error message to be different
-// Got: foo
-// Expected error message to be different
 // Got: foo
 // Expected error message to be different
 // Got: foo

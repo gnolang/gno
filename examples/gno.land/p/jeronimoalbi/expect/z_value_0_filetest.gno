@@ -34,9 +34,7 @@ func main() {
 	expect.Value(t, int32(1)).ToEqual(int32(2))
 	expect.Value(t, int64(1)).ToEqual(int64(2))
 	expect.Value(t, errors.New("foo")).ToEqual(errors.New("bar"))
-	expect.Value(t, errors.New("foo")).ToEqual("bar")
-	expect.Value(t, errors.New("foo")).ToEqual([]byte("bar"))
-	expect.Value(t, errors.New("foo")).ToEqual(stringer("bar"))
+	expect.Value(t, errors.New("foo")).ToEqualErrorString("bar")
 
 	expect.Value(t, 0).ToEqual(errors.New("foo"))
 	expect.Value(t, 0).ToEqual([]string{})
@@ -94,17 +92,10 @@ func main() {
 // Got: 1
 // Want: 2
 // Expected errors to match
-// Got: bar
-// Want: foo
-// Expected error message match
-// Got: bar
-// Want: foo
-// Expected error message match
-// Got: bar
-// Want: foo
-// Expected error message match
-// Got: bar
-// Want: foo
+// Got: foo
+// Want: bar
+// Expected error message to contain: bar
+// Got: foo
 // Error is not equal to value
 // Got: foo
 // Unsupported type: unknown
