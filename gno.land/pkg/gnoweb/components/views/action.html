@@ -147,7 +147,7 @@ UI - Help Function component
     </form>
     <div>
       <h3 class="title">Command</h3>
-      {{ renderCommandBlock .Name .Signature $.PkgPath $.ChainId $.Remote $data.SelectedSend .Params }}
+      {{ template "ui/command" (buildCommandData $data .) }}
     </div>
   </article>
   {{ end }}

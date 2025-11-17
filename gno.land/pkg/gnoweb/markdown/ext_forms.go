@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"html/template"
 	"strings"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
@@ -519,15 +521,28 @@ func (r *FormRenderer) renderCommandBlock(w util.BufWriter, n *FormNode) {
 		remote = "127.0.0.1:26657"
 	}
 
-	data := CommandBlockData{
-		FuncName: n.Exec.FuncName,
-		Params:   n.Exec.Params,
-		PkgPath:  n.RenderPath,
-		ChainId:  chainId,
-		Remote:   remote,
-		Prefix:   "function",
+	// Extract parameter names
+	paramNames := make([]string, len(n.Exec.Params))
+
+	for i, param := range n.Exec.Params {
+		paramNames[i] = param.Name
 	}
-	RenderCommandBlock(w, data)
+
+	// Prepare data for the command template
+	data := components.CommandData{
+		Prefix:     template.HTMLAttr("action-form"),
+		FuncName:   n.Exec.FuncName,
+		PkgPath:    n.RealmName,
+		ParamNames: paramNames,
+		ChainId:    chainId,
+		Remote:     remote,
+	}
+
+	// Create and render the template component
+	comp := components.NewTemplateComponent("ui/command", data)
+	if err := comp.Render(w); err != nil {
+		fmt.Fprintf(w, "<!-- Error rendering command block: %s -->\n", HTMLEscapeString(err.Error()))
+	}
 }
 
 func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastDescID *string, isExec bool) {

@@ -1,13 +1,10 @@
 package components
 
 import (
-	"bytes"
 	"html/template"
 	"strings"
 
 	// for error types
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
-	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
 
@@ -37,6 +34,15 @@ type HelpTocData struct {
 type HelpTocItem struct {
 	Link string
 	Text string
+}
+
+type CommandData struct {
+	Prefix     template.HTMLAttr
+	FuncName   string
+	PkgPath    string
+	ParamNames []string
+	ChainId    string
+	Remote     string
 }
 
 type helpViewParams struct {
@@ -72,31 +78,22 @@ func registerHelpFuncs(funcs template.FuncMap) {
 		return url
 	}
 
-	// Render command block using the single utility function
-	funcs["renderCommandBlock"] = func(funcName, funcSig, pkgPath, chainId, remote, selectedSend string, params []*doc.JSONField) template.HTML {
-		// Convert doc.JSONField to vm.NamedType
-		vmParams := make([]vm.NamedType, len(params))
-		for i, param := range params {
-			vmParams[i] = vm.NamedType{Name: param.Name, Type: param.Type}
+	funcs["buildCommandData"] = func(data HelpData, fn *doc.JSONFunc) CommandData {
+		// Extract parameter names
+		paramNames := make([]string, len(fn.Params))
+
+		for i, param := range fn.Params {
+			paramNames[i] = param.Name
 		}
 
-		data := markdown.CommandBlockData{
-			FuncName:     funcName,
-			FuncSig:      funcSig,
-			Params:       vmParams,
-			PkgPath:      pkgPath,
-			ChainId:      chainId,
-			Remote:       remote,
-			SelectedSend: selectedSend,
-			Prefix:       "function",
+		return CommandData{
+			Prefix:     template.HTMLAttr("action-function"),
+			FuncName:   fn.Name,
+			PkgPath:    data.PkgPath,
+			ParamNames: paramNames,
+			ChainId:    data.ChainId,
+			Remote:     data.Remote,
 		}
-
-		var buf bytes.Buffer
-		if err := markdown.RenderCommandBlock(&buf, data); err != nil {
-			return template.HTML("<!-- Error rendering command block: " + err.Error() + " -->")
-		}
-
-		return template.HTML(buf.String())
 	}
 }
 
