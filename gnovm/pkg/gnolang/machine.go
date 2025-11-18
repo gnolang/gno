@@ -1982,7 +1982,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	 be nested the storage-realms are represented as a stack which maybe
 	 empty.
 
-	 A "virual-realm" is used when calling a method of a nil receiver
+	 A "virtual-realm" is used when calling a method of a nil receiver
 	 declared in a /p/package (/p/package is immutable). Two
 	 virtual-realms of the same /p/package are identical and are immutable.
 	 
@@ -2087,17 +2087,17 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		// CASE rB1: method has nil receiver -- storage-cross to declared
 		//   - in bob.Do:                           (storage:[],    current:caller, previous:nil)
 		//   - in obj.Method:                       (storage:[bob], current:caller, previous:nil)
-		bob.Do((*bob.Object)(nil)).Method)          // SUCCESS: storage-crossed to bob
+		bob.Do((*bob.Object)(nil).Method)          // SUCCESS: storage-crossed to bob
 		// ----------------------------------------
 		// CASE rB2: method has nil receiver -- storage-cross to (wrong) declared
 		//   - in bob.Do:                           (storage:[],      current:caller, previous:nil)
 		//   - in obj.Method:                       (storage:[alice], current:caller, previous:nil)
-		bob.Do((*alice.Object)(nil)).Method)        // FAIL: alice != bob
+		bob.Do((*alice.Object)(nil).Method)        // FAIL: alice != bob
 		// ----------------------------------------
 		// CASE rB3: method has unattached receiver (inline) -- do not storage-cross
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
 		//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
-		bob.Do((new(alice.Object).Method)           // FAIL: caller != bob
+		bob.Do(new(alice.Object).Method)           // FAIL: caller != bob
 		// ----------------------------------------
 		// CASE rB4: method has unattached receiver (var) -- do not storage-cross (same as rB3 above)
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
@@ -2177,17 +2177,17 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		// (identical to rB1 for consistency)
 		//   - in bob.Do:                           (storage:[],    current:caller, previous:nil)
 		//   - in obj.Method:                       (storage:[bob], current:caller, previous:nil)
-		bob.Do((*bob.Object)(nil)).Method)          // SUCCESS: storage-cross to bob
+		bob.Do((*bob.Object)(nil).Method)          // SUCCESS: storage-cross to bob
 		// ----------------------------------------
 		// CASE pB2: method has nil receiver -- storage-cross to (wrong, virtual-realm) declared as storage NOTE (differs)
 		//   - in bob.Do:                           (storage:[],              current:caller, previous:nil)
 		//   - in obj.Method:                       (storage:[peter.virtual], current:caller, previous:nil)
-		bob.Do((*peter.Object)(nil)).Method)        // FAIL: peter.virtual != bob
+		bob.Do((*peter.Object)(nil).Method)        // FAIL: peter.virtual != bob
 		// ----------------------------------------
 		// CASE pB3: method has unattached receiver (inline) -- do not storage-cross
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
 		//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
-		bob.Do((new(peter.Object).Method)           // FAIL: caller != bob
+		bob.Do(new(peter.Object).Method)           // FAIL: caller != bob
 		// ----------------------------------------
 		// CASE pB4: method has unattached receiver (var) -- do not storage-cross (same as pB3 above)
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
