@@ -477,7 +477,12 @@ func (p *Profiler) buildCallStack(m MachineInfo) []ProfileLocation {
 	}
 
 	frames := m.GetFrames()
-	for i := len(frames) - 1; i >= 0; i-- {
+
+	// preserve the VM's top-first frame order.
+	// This ensures that the `updateFunctionStats` increments
+	// `SelfCycles` for the actual top-of-stack frame and
+	// `updateCallTree` still walks from root to leaf correctly.
+	for i := 0; i < len(frames); i++ {
 		frame := frames[i]
 		if !frame.IsCall() {
 			continue
