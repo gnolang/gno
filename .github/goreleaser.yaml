@@ -107,6 +107,17 @@ builds:
     goarch:
       - amd64
       - arm64
+  - id: gnokms
+    dir: ./contribs/gnokms
+    binary: gnokms
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
   - id: tx-archive
     dir: ./contribs/tx-archive/cmd
     binary: tx-archive
@@ -400,6 +411,7 @@ dockers:
     ids:
       - gnobro
       - gnogenesis
+      - gnokms
     extra_files:
       - gno.land/genesis/genesis_balances.txt
       - gno.land/genesis/genesis_txs.jsonl
@@ -422,6 +434,7 @@ dockers:
     ids:
       - gnobro
       - gnogenesis
+      - gnokms
     extra_files:
       - gno.land/genesis/genesis_balances.txt
       - gno.land/genesis/genesis_txs.jsonl
