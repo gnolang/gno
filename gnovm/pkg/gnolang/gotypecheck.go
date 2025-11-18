@@ -134,7 +134,7 @@ type TypeCheckMode int
 const (
 	TCLatestStrict  TypeCheckMode = iota // require latest gnomod gno version, forbid drafts
 	TCGenesisStrict                      // require latest gnomod gno version, allow drafts
-	TCLatestRelaxed                      // generate latest gno.mod if missing; for testing
+	TCLatestRelaxed                      // generate latest gno.mod if missing; for msg run tx and testing
 	TCGno0p0                             // when gno fix'ing from gno 0.0.
 )
 
