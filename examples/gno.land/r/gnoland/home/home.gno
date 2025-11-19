@@ -8,6 +8,7 @@ import (
 	"gno.land/p/nt/ownable"
 	blog "gno.land/r/gnoland/blog"
 
+	"gno.land/p/leon/svgbtn"
 	"gno.land/r/devrels/events"
 	users "gno.land/r/gnoland/users/v1"
 	"gno.land/r/leon/hor"
@@ -31,6 +32,7 @@ func Render(_ string) string {
 		return hor.RenderExhibWidget(5)
 	})
 	r.RegisterCallback(":qotb:", quoteOfTheBlock)
+	r.RegisterCallback(":newsletter-button:", newsletterButton)
 	r.RegisterCallback(":latest-gnomes:", func() string {
 		return users.RenderLatestUsersWidget(5)
 	})
@@ -82,8 +84,9 @@ the foundations of a fairer and freer world, join us today.
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
 - [Staging chain](https://docs.gno.land/resources/gnoland-networks/#staging-environments-portal-loops)
-- [Testnet 7](https://test7.testnets.gno.land/)
+- [Testnet 9](https://test9.testnets.gno.land/)
 - [Faucet Hub](https://faucet.gno.land)
+- [Open Boards, a social discussion forum](https://gno.land/r/boards000/v1rc1:General)
 
 </gno-columns>
 
@@ -95,7 +98,7 @@ the foundations of a fairer and freer world, join us today.
 
 |||
 
-## [Latest Events](/r/gnoland/events)
+## [Latest Events](/r/devrels/events)
 
 :upcoming-events:
 
@@ -132,7 +135,7 @@ All code in Gno.land is organized in packages, and each package lives at a uniqu
 
 Official realm packages developed by the Gno.land core team.
 
-[-> Browse](/r/gnoland)
+[Browse](/r/gnoland)
 
 |||
 
@@ -140,7 +143,7 @@ Official realm packages developed by the Gno.land core team.
 
 System-level realm packages used by the chain.
 
-[-> Browse](/r/sys)
+[Browse](/r/sys)
 
 |||
 
@@ -148,7 +151,7 @@ System-level realm packages used by the chain.
 
 Demo realm packages showcasing what’s possible.
 
-[-> Browse](/r/demo)
+[Browse](/r/demo)
 
 |||
 
@@ -156,7 +159,7 @@ Demo realm packages showcasing what’s possible.
 
 Pure packages for demo purposes.
 
-[-> Browse](/p/demo)
+[Browse](/p/demo)
 
 </gno-columns>
 
@@ -189,15 +192,32 @@ Latest Gnomes in the [registry](/r/gnoland/users/v1).
 
 ---
 
-**This is a testnet.**
-Package names are not guaranteed to be available for production.
-`
+## Sign up for our newsletter
+
+Stay in the Gno by signing up for our newsletter. You'll get the scoop on dev updates, fresh content, and community news.
+
+:newsletter-button:
+
+---
+
+**This is a testnet.** Package names are not guaranteed to be available for production.`
 
 	if override != "" {
 		template = override
 	}
 	result := r.Replace(template)
 	return result
+}
+
+func newsletterButton() string {
+	return svgbtn.Button(
+		256,
+		44,
+		"#226c57",
+		"#ffffff",
+		"Subscribe to stay in the Gno",
+		"https://land.us18.list-manage.com/subscribe?u=8befe3303cf82796d2c1a1aff&id=271812000b",
+	)
 }
 
 func quoteOfTheBlock() string {

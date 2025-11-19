@@ -15,7 +15,7 @@ func clearState(t *testing.T) {
 	t.Helper()
 
 	b = &blog.Blog{
-		Title:  "gno.land's blog",
+		Title:  "Gno.land's blog",
 		Prefix: "/r/gnoland/blog:",
 	}
 	adminAddr = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")

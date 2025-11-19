@@ -33,6 +33,20 @@ func TestRegister_Valid(t *testing.T) {
 	}
 }
 
+func TestRegister_Free(t *testing.T) {
+	registerPrice = 0
+
+	addr := testutils.TestAddress("alice456")
+
+	// Simulate a proper user call with 0gnot fee.
+	testing.SetRealm(testing.NewUserRealm(addr))
+	testing.SetOriginCaller(addr)
+
+	urequire.NotPanics(t, func() {
+		Register(cross, "alice456")
+	})
+}
+
 func TestRegister_Invalid(t *testing.T) {
 	t.Run("invalid usernames", func(t *testing.T) {
 		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
