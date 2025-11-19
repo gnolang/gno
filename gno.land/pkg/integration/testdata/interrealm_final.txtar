@@ -1,6 +1,8 @@
 adduserfrom runner 'apart roast chief monitor bundle auto fade double valid budget able average onion slam rice flame despair wage uphold nominee proud alien spider useful'
 stdout 'g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80'
 
+loadpkg gno.land/p/nt/ufmt
+
 ## start a new node
 gnoland start
 
@@ -58,6 +60,13 @@ stderr 'cannot modify external-realm or non-realm object'
 ## execute RC5
 ! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func RC5 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
+
+## execute RD1
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func RD1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+
+## query
+gnokey query "vm/qrender" --data "gno.land/r/test/bob:"
+stdout 'AllowedList\[2\] = 3'
 
 
 ## entry
@@ -183,10 +192,23 @@ func RC5(cur realm) {
     obj := new(alice.Object)
 	var cls func()
     cls = func() {
-        bob.Do(obj.Method)                // FAIL: not yet unattached
+        bob.Do(obj.Method)                		 // FAIL: not yet unattached
         bob.SetClosure(cross, cls)               // obj recursively attached to alice late
     }
     cls()
+}
+
+// XXX, this is the inital GHSA issue.
+func RD1(cur realm) {
+	// CASE rD1: closure attached to bob
+    //   - in bob.ExecuteClosure:         (storage:[], current:bob, previous:caller)
+	f := func() {
+		bob.AllowedList = append(bob.AllowedList, 3)
+		println("all right")
+	}
+
+	bob.SetClosure(cross, f)
+	bob.ExecuteClosure(cross)
 }
 
 
@@ -234,6 +256,8 @@ gno = "0.9"
 -- bob/bob.gno --
 package bob
 
+import 	"gno.land/p/nt/ufmt"
+
 func Do(fn func()) {
     // Normal non-crossing function doesn't change the current or
     // previous realm.
@@ -267,7 +291,21 @@ func (obj *Object) Method() { // CASE rB1, CASE pB1
 }
 
 var object Foo
+
 func SetObject(cur realm, f Foo) { object = f }  // CASE rC1, CASE pC1
 
 var closure func()
-func SetClosure(cur realm, cls func()) { closure = cls } // CASE rC3, CASE pC3
+
+var AllowedList = []int{1, 2}
+
+func SetClosure(cur realm, cls func()) { 
+	closure = cls
+} // CASE rC3, CASE pC3
+
+func ExecuteClosure(cur realm) {
+	closure()
+} // CASE rD1
+
+func Render(_ string) string {
+ 	return ufmt.Sprintf("AllowedList[2] = %d", AllowedList[2])
+}
