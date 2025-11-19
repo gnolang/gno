@@ -1,0 +1,273 @@
+adduserfrom runner 'apart roast chief monitor bundle auto fade double valid budget able average onion slam rice flame despair wage uphold nominee proud alien spider useful'
+stdout 'g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80'
+
+## start a new node
+gnoland start
+
+## load packages
+gnokey maketx addpkg -pkgdir $WORK/bob -pkgpath gno.land/r/test/bob -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/alice -pkgpath gno.land/r/test/alice -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/callerrealm -pkgpath gno.land/r/test/callerrealm -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+
+## execute RA1
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func RA1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+stderr 'cannot modify external-realm or non-realm object'
+
+## execute RA2
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func RA2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+stderr 'cannot modify external-realm or non-realm object'
+
+## execute RA3
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func RA3 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+stderr 'cannot modify external-realm or non-realm object'
+
+## execute RB1
+## XXX, fix this
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func RB1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+## stdout 'OK'
+stderr 'cannot modify external-realm or non-realm object'
+
+## execute RB2
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func RB2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+stderr 'cannot modify external-realm or non-realm object'
+
+## execute RB3
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func RB3 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+stderr 'cannot modify external-realm or non-realm object'
+
+## execute RB4
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func RB4 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+stderr 'cannot modify external-realm or non-realm object'
+
+## execute RC1
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func RC1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+stdout 'OK'
+
+## execute RC2
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func RC2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+stderr 'cannot modify external-realm or non-realm object'
+
+## execute RC3
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func RC3 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+stdout 'OK'
+
+## execute RC4
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func RC4 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+stderr 'cannot modify external-realm or non-realm object'
+
+## execute RC5
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func RC5 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+stderr 'cannot modify external-realm or non-realm object'
+
+
+## entry
+-- callerrealm/gnomod.toml --
+module = "gno.land/r/test/callerrealm"
+gno = "0.9"
+
+
+-- callerrealm/main.gno --
+package callerrealm
+
+import (
+	"gno.land/r/test/alice"
+	"gno.land/r/test/bob"
+)
+
+// The storage realm(s) is initialy an empty stack (no methods have been called).
+//   - now: (storage:[], current:caller, previous:nil)
+
+// ================================================================================
+// ## fn is declared /r/realm:
+//
+func RA1(cur realm) {
+    // CASE rA1: function declared at package level -- do not storage-cross
+    //   - in bob.Do:                           (storage:[], current:caller, previous:nil)
+    //   - in alice.TopFunc:                    (storage:[], current:caller, previous:nil)
+    bob.Do(alice.TopFunc)                       // FAIL: caller != bob
+}
+
+func RA2(cur realm) {
+    // CASE rA2: function declared in func(...) (non-crossing) -- do not storage-cross
+    //   - in bob.Do:                           (storage:[], current:caller, previous:nil)
+    //   - in alice.TopFuncFnNoncrossing:       (storage:[], current:caller, previous:nil)
+    //   - in alice.TopFuncFnNoncrossing.inner: (storage:[], current:caller, previous:nil)
+    bob.Do(alice.TopFuncFnNoncrossing())        // FAIL: caller != bob
+}
+
+func RA3(cur realm) {
+    // CASE rA3: function declared in func(cur realm, ...) (crossing) -- do not storage-cross
+    //   - in bob.Do:                           (storage:[], current:caller, previous:nil)
+    //   - alice.TopFuncFnCrossing:             (storage:[], current:alice,  previous:caller)
+    //   - alice.TopFuncFnCrossing.inner:       (storage:[], current:caller, previous:nil)
+    //     (cross doesn't matter in inner)
+    bob.Do(alice.TopFuncFnCrossing(cross))      // FAIL: caller != bob
+}
+
+func RB1(cur realm){
+    // CASE rB1: method has nil receiver -- storage-cross to declared
+    //   - in bob.Do:                           (storage:[],    current:caller, previous:nil)
+    //   - in obj.Method:                       (storage:[bob], current:caller, previous:nil)
+    bob.Do((*bob.Object)(nil).Method)          // SUCCESS: storage-crossed to bob
+}
+
+func RB2(cur realm){
+	// CASE rB2: method has nil receiver -- storage-cross to (wrong) declared
+    //   - in bob.Do:                           (storage:[],      current:caller, previous:nil)
+    //   - in obj.Method:                       (storage:[alice], current:caller, previous:nil)
+    bob.Do((*alice.Object)(nil).Method)        // FAIL: alice != bob
+}
+
+func RB3(cur realm){
+	// CASE rB3: method has unattached receiver (inline) -- do not storage-cross
+    //   - in bob.Do:                           (storage:[], current:caller, previous:nil)
+    //   - in obj.Method:                       (storage:[], current:caller, previous:nil)
+    bob.Do(new(alice.Object).Method)           // FAIL: caller != bob
+}
+
+func RB4(cur realm){
+	// CASE rB4: method has unattached receiver (var) -- do not storage-cross (same as rB3 above)
+    //   - in bob.Do:                           (storage:[], current:caller, previous:nil)
+    //   - in obj.Method:                       (storage:[], current:caller, previous:nil)
+    obj := new(alice.Object)
+    bob.Do(obj.Method)                          // FAIL: caller != bob
+}
+
+
+func RC1(cur realm) {
+	// CASE rC1: method has attached receiver -- storage-cross to receiver
+    //  - in bob.Do:                            (storage:[],    current:caller, previous:nil)
+    //  - in obj.Method:                        (storage:[bob], current:caller, previous:nil)
+    obj := new(alice.Object)
+    bob.SetObject(cross, obj)                          // obj attached to bob
+    bob.Do(obj.Method)                          // SUCCESS: attached to bob
+}
+
+func RC2(cur realm) {
+	// CASE rC2: method has (wrong) attached receiver -- storage-cross to receiver
+    //  - in bob.Do:                            (storage:[],    current:caller, previous:nil)
+    //  - in obj.Method:                        (storage:[alice], current:caller, previous:nil)
+    obj := new(alice.Object)
+    alice.SetObject(cross, obj)                        // obj attached to alice
+    bob.Do(obj.Method)                          // FAIL: attached to alice (but need bob)
+}
+
+func RC3(cur realm) {
+	// CASE rC3: method has attached receiver via cls -- storage-cross to receiver
+    obj := new(alice.Object)
+    cls := func() {
+        print(obj)
+    }
+    bob.SetClosure(cross, cls)                  // obj recursively attached via cls to bob
+    //   - in bob.Do:                           (storage:[],    current:caller, previous:nil)
+    //   - in obj.Method:                       (storage:[bob], current:caller, previous:nil)
+    bob.Do(obj.Method)                          // SUCCESS: attached to bob
+}
+
+func RC4(cur realm) {
+	// CASE rC4: method has (wrong) attached receiver via cls -- stroage-cross to (wrong) receiver
+    obj := new(alice.Object)
+    cls := func() {
+        print(obj)
+    }
+    alice.SetClosure(cross, cls)                 // obj recursively attached via cls to alice
+    //   - in bob.Do:                           (storage:[],      current:caller, previous:nil)
+    //   - in obj.Method:                       (storage:[alice], current:caller, previous:nil)
+    bob.Do(obj.Method)                          // FAIL: alice != bob
+}
+
+func RC5(cur realm) {
+	// CASE rC5: method has attached receiver via cls late -- do not storage-cross
+    //   - in bob.Do:                           (storage:[], current:caller, previous:nil)
+    //   - in obj.Method:                       (storage:[], current:caller, previous:nil)
+    obj := new(alice.Object)
+	var cls func()
+    cls = func() {
+        bob.Do(obj.Method)                // FAIL: not yet unattached
+        bob.SetClosure(cross, cls)               // obj recursively attached to alice late
+    }
+    cls()
+}
+
+
+-- alice/gnomod.toml --
+module = "gno.land/r/test/alice"
+gno = "0.9"
+
+-- alice/alice.gno --
+package alice
+
+import "gno.land/r/test/bob"
+
+func TopFunc() { // CASE rA1
+    bob.PrivateFunc()
+}
+
+func TopFuncFnNoncrossing() func() {
+    return func() { // CASE rA2
+        bob.PrivateFunc()
+    }
+}
+
+func TopFuncFnCrossing(cur realm)func() {
+    return func() { // CASE rA3
+        bob.PrivateFunc()
+    }
+}
+
+type Object struct {}
+
+func (obj *Object) Method() { // CASE rB2~4, CASE rC1~5
+    bob.PrivateFunc()
+}
+var object *Object 
+func SetObject(cur realm, obj *Object) { object = obj } // CASE rC2, CASE pC2
+
+var closure func() 
+func SetClosure(cur realm, cls func()) { closure = cls } // case rC4~5, CASE pC4~5
+
+
+-- bob/gnomod.toml --
+module = "gno.land/r/test/bob"
+gno = "0.9"
+
+-- bob/bob.gno --
+package bob
+
+func Do(fn func()) {
+    // Normal non-crossing function doesn't change the current or
+    // previous realm.
+    // Should behave the same as if /p/bob.Do(), or the same as if
+    // fn() directly.
+    fn()
+}
+func DoCrossing(cur realm, fn func()) {
+    fn()
+}
+
+var private int
+
+func PrivateFunc() {
+    // This function is exposed but is not crossing, so fails
+    // unless current realm is bob.
+    // Generally not useful to expose such a "private function",
+    // but can be useful in some circumstances.
+    // TODO document when it is useful.
+    private = -1
+}
+
+type Foo interface{
+	Method()
+}
+
+type Object struct {}
+
+func (obj *Object) Method() { // CASE rB1, CASE pB1
+    PrivateFunc()
+}
+
+var object Foo
+func SetObject(cur realm, f Foo) { object = f }  // CASE rC1, CASE pC1
+
+var closure func()
+func SetClosure(cur realm, cls func()) { closure = cls } // CASE rC3, CASE pC3
