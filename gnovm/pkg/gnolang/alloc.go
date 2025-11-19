@@ -403,7 +403,7 @@ func (pv *PackageValue) GetShallowSize() int64 {
 		return 0
 	}
 
-	return allocPackage + allocString + allocStringByte*int64(len(pv.PkgName))
+	return overflow.Addp(allocPackage+allocString, overflow.Mulp(allocStringByte, int64(len(pv.PkgName))))
 }
 
 func (b *Block) GetShallowSize() int64 {
@@ -422,25 +422,25 @@ func (b *Block) GetShallowSize() int64 {
 		ss += allocRefValue
 	}
 
-	ss = allocBlock + allocBlockItem*int64(len(b.Values))
+	ss = overflow.Addp(allocBlock, overflow.Mulp(allocBlockItem, int64(len(b.Values))))
 
 	return ss
 }
 
 func (av *ArrayValue) GetShallowSize() int64 {
 	if av.Data != nil {
-		return allocArray + int64(len(av.Data))
+		return overflow.Addp(allocArray, int64(len(av.Data)))
 	} else {
-		return allocArray + int64(len(av.List)*allocArrayItem)
+		return overflow.Addp(allocArray, overflow.Mulp(int64(len(av.List)), allocArrayItem))
 	}
 }
 
 func (sv *StructValue) GetShallowSize() int64 {
-	return allocStruct + int64(len(sv.Fields))*allocStructField
+	return overflow.Addp(allocStruct, overflow.Mulp(int64(len(sv.Fields)), allocStructField))
 }
 
 func (mv *MapValue) GetShallowSize() int64 {
-	return allocMap + allocMapItem*int64(mv.GetLength())
+	return overflow.Addp(allocMap, overflow.Mulp(allocMapItem, int64(mv.GetLength())))
 }
 
 func (bmv *BoundMethodValue) GetShallowSize() int64 {
@@ -484,7 +484,7 @@ func (fv *FuncValue) GetShallowSize() int64 {
 }
 
 func (sv StringValue) GetShallowSize() int64 {
-	return allocString + allocStringByte*int64(len(sv))
+	return overflow.Addp(allocString, overflow.Mulp(allocStringByte, int64(len(sv))))
 }
 
 func (biv BigintValue) GetShallowSize() int64 {
