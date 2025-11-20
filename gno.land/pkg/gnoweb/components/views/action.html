@@ -76,11 +76,6 @@ UI - Help Function component
             {{ template "ui/copy" }}
           </button>
         </span>
-        {{- if .Crossing }}
-          <a target="_blank" href="https://github.com/gnolang/blog/blob/dev/moul/crossing/posts/2025-05-xx_crossing_manfred/README.md#understanding-cross-and-crossing">
-            crossing
-          </a>
-        {{- end }}
       </span>
       <span class="b-btns">
         <button class="b-btn b-btn--secondary c-with-icon" aria-label="Copy Function" data-controller="copy"
@@ -158,6 +153,7 @@ UI - Help Function component
           aria-label="Copy Command">
           {{ template "ui/copy" }}
         </button>
+       {{ if .Crossing }}
         {{/* prettier-ignore-start */}}
         <pre><code><span data-action-function-target="mode" data-action-function-mode-value="fast" class="u-hidden" data-copy-target="action-function-{{ .Name }}"># WARNING: This command is running in an INSECURE mode.
 # It is strongly recommended to use a hardware device for signing
@@ -169,6 +165,11 @@ gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .Name }}"{{ range .Param
 gnokey sign -tx-path call.tx -chainid "{{ $.ChainId }}" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-action-function-target="address">ADDRESS</span>
 gnokey broadcast -remote "{{ $.Remote }}" call.tx</span></code></pre>
         {{/* prettier-ignore-end */}}
+       {{ else }}
+        <pre><code><span data-copy-target="action-function-{{ .Name }}">gnokey query vm/qeval -remote "{{ $.Remote }}" -data "{{ $.PkgPath }}.{{ .Name }}({{ range $i, $p := .Params }}{{ if gt $i 0 }},{{ end }}<span data-action-function-target="arg" data-action-function-arg-value="{{ $p.Name }}"></span>{{ end }})"</span>
+Result:
+<span data-action-function-target="qeval-result"></span></code></pre>  
+       {{ end }}
       </div>
     </div>
   </article>

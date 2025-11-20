@@ -118,6 +118,43 @@ export class ActionFunctionController extends BaseController {
 			u.searchParams.set(paramName, paramValue);
 			functionLink.href = u.toString();
 		}
+
+		const resultTarget = this.getTarget("qeval-result") as HTMLElement;
+		if (resultTarget) {
+			// Do qeval
+			let args = "";
+			let haveArgs = true;
+			for (const arg of this.getTargets("arg")) {
+				if (arg.textContent == "") {
+					haveArgs = false;
+					break;
+				}
+				if (args != "") {
+					args += ",";
+				}
+				// Unescape
+				args += arg.textContent.replace(/\\(.)/g, "$1");
+			}
+
+			if (haveArgs) {
+				// TODO: Get PkgPath
+				const data = "gno.land/r/gnoland/boards2/v1." + this._funcName + "(" + args + ")";
+				fetch("/qeval?data=" + encodeURIComponent(data))
+				.then(async response => {
+  					if (response.ok) {
+ 		    			const result = await response.text();
+						resultTarget.textContent = result
+					} else {
+		    			resultTarget.textContent = "";
+					}
+				})
+				.catch((e) => {
+	    			resultTarget.textContent = "";
+  				});
+			} else {
+				resultTarget.textContent = "";
+			}
+		}
 	}
 
 	// DOM ACTIONS
