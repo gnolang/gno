@@ -37,7 +37,6 @@ type HelpTocItem struct {
 }
 
 type CommandData struct {
-	Prefix     template.HTMLAttr
 	FuncName   string
 	PkgPath    string
 	ParamNames []string
@@ -87,7 +86,6 @@ func registerHelpFuncs(funcs template.FuncMap) {
 		}
 
 		return CommandData{
-			Prefix:     template.HTMLAttr("action-function"),
 			FuncName:   fn.Name,
 			PkgPath:    data.PkgPath,
 			ParamNames: paramNames,
