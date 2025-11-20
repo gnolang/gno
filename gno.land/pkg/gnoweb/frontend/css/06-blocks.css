@@ -1271,7 +1271,7 @@ pre.chroma-chroma {
 	}
 
 	.btn-copy {
-		background-color: var(--transparent);
+		background-color: var(--g-color-transparent);
 		padding: 0;
 		position: absolute;
 		top: var(--g-space-2);
