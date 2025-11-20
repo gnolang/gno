@@ -464,6 +464,7 @@ func (p *Profiler) RecordAlloc(m MachineInfo, size, count int64, allocType strin
 	// Update function profile stats
 	funcName := stack[0].Function
 	stat := p.getFunctionStat(funcName)
+	stat.CallCount++
 	stat.AllocBytes += size
 	stat.AllocObjects += count
 }

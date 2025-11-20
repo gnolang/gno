@@ -19,12 +19,19 @@ func (m *Machine) refreshInstrumentationSink() {
 	}
 	combined := combineInstrumentationSinks(m.baseInstrumentation, profileSink)
 	m.instrumentation = combined
+	var allocSink instrumentation.Sink
+	if combined != nil {
+		allocSink = &allocationStackInjector{
+			machine: m,
+			sink:    combined,
+		}
+	}
 	if m.Alloc != nil {
-		m.Alloc.SetInstrumentationSink(combined)
+		m.Alloc.SetInstrumentationSink(allocSink)
 	}
 	if m.Store != nil {
 		if alloc := m.Store.GetAllocator(); alloc != nil {
-			alloc.SetInstrumentationSink(combined)
+			alloc.SetInstrumentationSink(allocSink)
 		}
 	}
 }
@@ -87,6 +94,15 @@ func combineInstrumentationSinks(sinks ...instrumentation.Sink) instrumentation.
 
 type instrumentationFanout struct {
 	sinks []instrumentation.Sink
+}
+
+// allocationStackInjector wraps an instrumentation sink so allocation events
+// carry call stacks even though the allocator only emits size/object data.
+// The profiler needs real stack frames to attribute allocations, so on each
+// event we capture the current machine stack if the event omitted one.
+type allocationStackInjector struct {
+	machine *Machine
+	sink    instrumentation.Sink
 }
 
 func (f *instrumentationFanout) OnSample(ctx *instrumentation.SampleContext) {
@@ -153,6 +169,45 @@ func wantsLineSamples(s instrumentation.Sink) bool {
 		return caps.WantsLineSamples()
 	}
 	return true
+}
+
+func (a *allocationStackInjector) OnSample(ctx *instrumentation.SampleContext) {
+	if a.sink != nil {
+		a.sink.OnSample(ctx)
+	}
+}
+
+func (a *allocationStackInjector) OnAllocation(ev *instrumentation.AllocationEvent) {
+	if a.sink == nil {
+		return
+	}
+	if ev != nil && len(ev.Stack) == 0 && a.machine != nil {
+		if frames := a.machine.captureFrameSnapshots(); len(frames) > 0 {
+			// Copy the frames so downstream sinks can retain the stack.
+			stack := make([]instrumentation.FrameSnapshot, len(frames))
+			copy(stack, frames)
+			ev.Stack = stack
+		}
+	}
+	a.sink.OnAllocation(ev)
+}
+
+func (a *allocationStackInjector) OnLineSample(sample *instrumentation.LineSample) {
+	if a.sink != nil {
+		a.sink.OnLineSample(sample)
+	}
+}
+
+func (a *allocationStackInjector) WantsSamples() bool {
+	return wantsSamples(a.sink)
+}
+
+func (a *allocationStackInjector) WantsAllocations() bool {
+	return wantsAllocations(a.sink)
+}
+
+func (a *allocationStackInjector) WantsLineSamples() bool {
+	return wantsLineSamples(a.sink)
 }
 
 func (m *Machine) instrumentationCapabilities() instrumentation.Capabilities {

@@ -57,3 +57,53 @@ func TestAllocatorEmitsAllocationEvents(t *testing.T) {
 		t.Fatalf("expected allocation size %d, got %+v", size, sink.lastAlloc)
 	}
 }
+
+func TestAllocationStackInjectorAddsMachineFrames(t *testing.T) {
+	m := &Machine{
+		Frames: []Frame{
+			{
+				Func: &FuncValue{
+					Name:     Name("parent"),
+					FileName: "parent.gno",
+					PkgPath:  "gno.land/p/demo",
+				},
+			},
+			{
+				Func: &FuncValue{
+					Name:     Name("leaf"),
+					FileName: "leaf.gno",
+					PkgPath:  "gno.land/p/demo",
+				},
+			},
+		},
+	}
+	sink := &mockInstrumentationSink{}
+	injector := &allocationStackInjector{
+		machine: m,
+		sink:    sink,
+	}
+
+	injector.OnAllocation(&instrumentation.AllocationEvent{
+		Bytes:   64,
+		Objects: 1,
+	})
+
+	if sink.allocCount != 1 {
+		t.Fatalf("expected allocation to reach sink, got %d", sink.allocCount)
+	}
+	if sink.lastAlloc == nil {
+		t.Fatalf("expected allocation event to be recorded")
+	}
+	if len(sink.lastAlloc.Stack) != 2 {
+		t.Fatalf("expected stack of length 2, got %d", len(sink.lastAlloc.Stack))
+	}
+	if sink.lastAlloc.Stack[0].FuncName != "leaf" {
+		t.Fatalf("expected top frame leaf, got %s", sink.lastAlloc.Stack[0].FuncName)
+	}
+	if sink.lastAlloc.Stack[1].FuncName != "parent" {
+		t.Fatalf("expected parent frame, got %s", sink.lastAlloc.Stack[1].FuncName)
+	}
+	if sink.lastAlloc.Stack[0].PkgPath != "gno.land/p/demo" {
+		t.Fatalf("expected pkg path propagated, got %+v", sink.lastAlloc.Stack[0])
+	}
+}

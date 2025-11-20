@@ -137,6 +137,11 @@ func (p *Profile) WriteTopListLimit(w io.Writer, limit int) error {
 		total = p.totalGas()
 		flatMetric = func(stat *FunctionStat) int64 { return stat.SelfGas }
 		cumMetric = func(stat *FunctionStat) int64 { return stat.TotalGas }
+	case ProfileMemory:
+		label = "Memory Bytes"
+		total = p.totalAllocBytes()
+		flatMetric = func(stat *FunctionStat) int64 { return stat.AllocBytes }
+		cumMetric = func(stat *FunctionStat) int64 { return stat.AllocBytes }
 	default:
 		label = "CPU Cycles"
 		total = p.totalCycles()

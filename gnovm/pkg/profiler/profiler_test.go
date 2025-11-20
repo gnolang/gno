@@ -186,3 +186,47 @@ func TestProfilerFiltersTestingPackage(t *testing.T) {
 		t.Fatalf("expected line data for user function")
 	}
 }
+
+func TestProfilerRecordAllocUsesCallStack(t *testing.T) {
+	p := NewProfiler(ProfileMemory, 1)
+	p.StartProfiling(nil, Options{Type: ProfileMemory, SampleRate: 1})
+
+	frame := mockFrame{
+		name:    "Leaf",
+		file:    "leaf.gno",
+		pkgPath: "gno.land/p/demo",
+		line:    10,
+	}
+	machine := &mockMachineInfo{
+		frames: []FrameInfo{frame},
+	}
+
+	const allocBytes = 512
+	const allocObjects = 3
+	p.RecordAlloc(machine, allocBytes, allocObjects, "test")
+
+	profile := p.StopProfiling()
+	if profile == nil {
+		t.Fatalf("expected profile to be returned")
+	}
+
+	var stat *FunctionStat
+	for _, fn := range profile.Functions {
+		if fn.Name == "gno.land/p/demo.Leaf" {
+			stat = fn
+			break
+		}
+	}
+	if stat == nil {
+		t.Fatalf("expected allocation stats for gno.land/p/demo.Leaf, got %+v", profile.Functions)
+	}
+	if stat.AllocBytes != allocBytes {
+		t.Fatalf("expected %d alloc bytes, got %d", allocBytes, stat.AllocBytes)
+	}
+	if stat.AllocObjects != allocObjects {
+		t.Fatalf("expected %d alloc objects, got %d", allocObjects, stat.AllocObjects)
+	}
+	if stat.CallCount != 1 {
+		t.Fatalf("expected call count 1, got %d", stat.CallCount)
+	}
+}
