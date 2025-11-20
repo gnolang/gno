@@ -7,6 +7,19 @@ import (
 	"testing"
 )
 
+func TestWriteFunctionList_MemoryProfileShowsWarning(t *testing.T) {
+	p := &Profile{
+		Type: ProfileMemory,
+	}
+	var buf bytes.Buffer
+	if err := p.WriteFunctionList(&buf, "any", nil); err != nil {
+		t.Fatalf("WriteFunctionList returned error: %v", err)
+	}
+	if got := buf.String(); !strings.Contains(got, "Line-level listings are not available for memory profiles") {
+		t.Fatalf("expected warning for memory profile, got %q", got)
+	}
+}
+
 func TestWriteFunctionList_PartialMatch(t *testing.T) {
 	tests := []struct {
 		name          string

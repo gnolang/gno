@@ -18,6 +18,11 @@ const ROUTINE_SEPARATOR = "ROUTINE ========================"
 // WriteFunctionList writes a line-by-line profile for a specific function,
 // similar to 'go tool pprof list' command
 func (p *Profile) WriteFunctionList(w io.Writer, funcName string, store Store) error {
+	if p.Type == ProfileMemory {
+		fmt.Fprintf(w, "Line-level listings are not available for memory profiles. Re-run with CPU or gas profiling plus -profile-line.\n")
+		return nil
+	}
+
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
