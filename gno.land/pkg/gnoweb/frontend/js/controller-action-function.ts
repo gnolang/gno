@@ -150,7 +150,7 @@ export class ActionFunctionController extends BaseController {
 					})
 					.catch((_e) => {
 						resultTarget.textContent = "";
-  					});
+					});
 			} else {
 				resultTarget.textContent = "";
 			}
