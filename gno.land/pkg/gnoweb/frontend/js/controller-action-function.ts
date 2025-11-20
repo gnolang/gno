@@ -125,11 +125,11 @@ export class ActionFunctionController extends BaseController {
 			let args = "";
 			let haveArgs = true;
 			for (const arg of this.getTargets("arg")) {
-				if (arg.textContent == "") {
+				if (arg.textContent === "") {
 					haveArgs = false;
 					break;
 				}
-				if (args != "") {
+				if (args !== "") {
 					args += ",";
 				}
 				// Unescape
@@ -138,8 +138,8 @@ export class ActionFunctionController extends BaseController {
 
 			if (haveArgs) {
 				// TODO: Get PkgPath
-				const data = "gno.land/r/gnoland/boards2/v1." + this._funcName + "(" + args + ")";
-				fetch("/qeval?data=" + encodeURIComponent(data))
+				const data = `gno.land/r/gnoland/boards2/v1.${this._funcName}(${args})`;
+				fetch(`/qeval?data=${encodeURIComponent(data)}`)
 				.then(async response => {
   					if (response.ok) {
  		    			const result = await response.text();
@@ -148,7 +148,7 @@ export class ActionFunctionController extends BaseController {
 		    			resultTarget.textContent = "";
 					}
 				})
-				.catch((e) => {
+				.catch((_e) => {
 	    			resultTarget.textContent = "";
   				});
 			} else {
