@@ -1,11 +1,36 @@
 package validators
 
 import (
+	"errors"
+	"time"
+
 	"gno.land/p/sys/validators"
 	"gno.land/r/gov/dao"
 )
 
-const errNoChangesProposed = "no set changes proposed"
+var (
+	lastValsetUpdate     time.Time                       // last time the valset was updated
+	valsetUpdateCooldown = time.Duration(24 * time.Hour) // cooldown period between valset updates
+	trustLevelRatio      = trustRatio{numerator: 1, denominator: 3}
+	trustLevelMinAllowed = trustRatio{numerator: 1, denominator: 3}
+	trustLevelMaxAllowed = trustRatio{numerator: 2, denominator: 3}
+)
+
+const (
+	errNoChangesProposed    = "no set changes proposed"
+	errValsetUpdateCooldown = "valset update cooldown in effect"
+	errTooManyChanges       = "too many changes proposed; trust level violated"
+	errInvalidTrustLevel    = "invalid trust level fraction"
+)
+
+type trustRatio struct {
+	numerator   uint64
+	denominator uint64
+}
+
+func (tr trustRatio) Ratio() float64 {
+	return float64(tr.numerator) / float64(tr.denominator)
+}
 
 // NewPropRequest creates a new proposal request that wraps a changes closure
 // proposal. This wrapper is required to ensure the GovDAO Realm actually
@@ -16,18 +41,54 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 	}
 
 	callback := func(cur realm) error {
-		for _, change := range changesFn() {
-			if change.VotingPower == 0 {
-				// This change request is to remove the validator
-				removeValidator(change.Address)
+		// Enforce cooldown: proposals can only update the validator set after the cooldown period.
+		if time.Since(lastValsetUpdate) < valsetUpdateCooldown {
+			return errors.New(errValsetUpdateCooldown)
+		}
 
+		prevTotalVotingPower := vp.TotalVotingPower()
+
+		validators := vp.GetValidatorsMap()
+
+		var addedVotingPower uint64
+
+		// Gather all proposed validator changes.
+		for _, change := range changesFn() {
+			val, exists := validators[change.Address]
+			if exists {
+				val.VotingPower = change.VotingPower
+				validators[change.Address] = val
+			} else {
+				addedVotingPower += change.VotingPower
+			}
+
+			if change.VotingPower == 0 {
+				if !exists {
+					return errors.New("cannot remove non-existing validator: " + change.Address.String())
+				}
+
+				removeValidator(change.Address)
 				continue
 			}
 
-			// This change request is to add the validator
 			addValidator(change)
 		}
 
+		var updatedVotingPower uint64
+		for _, val := range validators {
+			updatedVotingPower += val.VotingPower
+		}
+
+		newTotalVotingPower := addedVotingPower + updatedVotingPower
+		// Guardrails:
+		// 1. Total voting power cannot be zero after the update.
+		// 2. Legacy validators must retain at least the configured trust level of the voting power in the new set.
+		if prevTotalVotingPower > 0 && (newTotalVotingPower == 0 || updatedVotingPower*trustLevelRatio.denominator < newTotalVotingPower*trustLevelRatio.numerator) {
+			return errors.New(errTooManyChanges)
+		}
+
+		// Update the last valset update time
+		lastValsetUpdate = time.Now()
 		return nil
 	}
 
@@ -54,4 +115,42 @@ func GetValidator(addr address) validators.Validator {
 // GetValidators returns the typed validator set
 func GetValidators() []validators.Validator {
 	return vp.GetValidators()
+}
+
+// GetTrustLevel returns the currently configured trust level ratio.
+func GetTrustLevel() (uint64, uint64) {
+	return trustLevelRatio.numerator, trustLevelRatio.denominator
+}
+
+// NewTrustLevelPropRequest creates a governance proposal to update the trust level ratio.
+func NewTrustLevelPropRequest(numerator, denominator uint64, title, description string) dao.ProposalRequest {
+	if err := validateTrustLevelInputs(numerator, denominator); err != nil {
+		panic(err.Error())
+	}
+
+	callback := func(cur realm) error {
+		return setTrustLevel(numerator, denominator)
+	}
+
+	e := dao.NewSimpleExecutor(callback, "")
+
+	return dao.NewProposalRequest(title, description, e)
+}
+
+func setTrustLevel(numerator, denominator uint64) error {
+	if err := validateTrustLevelInputs(numerator, denominator); err != nil {
+		return err
+	}
+
+	trustLevelRatio = trustRatio{numerator: numerator, denominator: denominator}
+	return nil
+}
+
+func validateTrustLevelInputs(numerator, denominator uint64) error {
+	tr := trustRatio{numerator: numerator, denominator: denominator}
+	if tr.Ratio() < trustLevelMinAllowed.Ratio() || tr.Ratio() > trustLevelMaxAllowed.Ratio() {
+		return errors.New(errInvalidTrustLevel)
+	}
+
+	return nil
 }
