@@ -259,64 +259,8 @@ func TestClear(t *testing.T) {
 	}
 }
 
-func TestIterator(t *testing.T) {
-	d := New()
-	d.PushBack("x", "y", "z")
 
-	iter := d.Iterator()
-	var items []any
 
-	for item := iter.Next(); item != nil; item = iter.Next() {
-		items = append(items, item)
-	}
-
-	if len(items) != 3 {
-		t.Errorf("Expected 3 items, got %d", len(items))
-	}
-	if items[0] != "x" || items[1] != "y" || items[2] != "z" {
-		t.Errorf("Expected [x, y, z], got %v", items)
-	}
-}
-
-func TestReverseIterator(t *testing.T) {
-	d := New()
-	d.PushBack("x", "y", "z")
-
-	iter := d.ReverseIterator()
-	var items []any
-
-	for item := iter.Next(); item != nil; item = iter.Next() {
-		items = append(items, item)
-	}
-
-	if len(items) != 3 {
-		t.Errorf("Expected 3 items, got %d", len(items))
-	}
-	if items[0] != "z" || items[1] != "y" || items[2] != "x" {
-		t.Errorf("Expected [z, y, x] (reverse), got %v", items)
-	}
-}
-
-func TestHasNext(t *testing.T) {
-	d := New()
-	d.PushBack("a", "b")
-
-	iter := d.Iterator()
-
-	if !iter.HasNext() {
-		t.Error("Expected HasNext to be true")
-	}
-
-	iter.Next()
-	if !iter.HasNext() {
-		t.Error("Expected HasNext to be true")
-	}
-
-	iter.Next()
-	if iter.HasNext() {
-		t.Error("Expected HasNext to be false")
-	}
-}
 
 func TestUnboundedGrowth(t *testing.T) {
 	d := New() // unbounded
@@ -377,3 +321,64 @@ func TestMixedOperations(t *testing.T) {
 		t.Errorf("Expected [a, b], got %v", list)
 	}
 }
+
+func TestAllIterator(t *testing.T) {
+	d := New()
+	d.PushBack("x", "y", "z")
+
+	var items []any
+	iter := d.All()
+	iter(func(value any) bool {
+		items = append(items, value)
+		return true // continue
+	})
+
+	if len(items) != 3 {
+		t.Errorf("Expected 3 items, got %d", len(items))
+	}
+	if items[0] != "x" || items[1] != "y" || items[2] != "z" {
+		t.Errorf("Expected [x, y, z], got %v", items)
+	}
+}
+
+func TestBackwardIterator(t *testing.T) {
+	d := New()
+	d.PushBack("x", "y", "z")
+
+	var items []any
+	iter := d.Backward()
+	iter(func(value any) bool {
+		items = append(items, value)
+		return true // continue
+	})
+
+	if len(items) != 3 {
+		t.Errorf("Expected 3 items, got %d", len(items))
+	}
+	if items[0] != "z" || items[1] != "y" || items[2] != "x" {
+		t.Errorf("Expected [z, y, x] (reverse), got %v", items)
+	}
+}
+
+func TestAllIteratorEarlyBreak(t *testing.T) {
+	d := New()
+	d.PushBack("a", "b", "c", "d", "e")
+
+	var items []any
+	iter := d.All()
+	iter(func(value any) bool {
+		items = append(items, value)
+		if value == "c" {
+			return false // stop
+		}
+		return true // continue
+	})
+
+	if len(items) != 3 {
+		t.Errorf("Expected 3 items after break, got %d", len(items))
+	}
+	if items[0] != "a" || items[1] != "b" || items[2] != "c" {
+		t.Errorf("Expected [a, b, c], got %v", items)
+	}
+}
+

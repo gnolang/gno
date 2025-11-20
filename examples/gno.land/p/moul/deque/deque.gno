@@ -28,9 +28,18 @@
 //	first := d.PopFront()  // Returns "b"
 //	last := d.Last()       // Returns "d"
 //
-//	d.Enumerate(func(i int, val any) bool {
-//	    println(i, val)
-//	    return false  // continue
+//	// Iterate forward
+//	iter := d.All()
+//	iter(func(val any) bool {
+//	    println(val)
+//	    return true // continue
+//	})
+//
+//	// Iterate backward
+//	iter = d.Backward()
+//	iter(func(val any) bool {
+//	    println(val)
+//	    return true // continue
 //	})
 package deque
 
@@ -288,58 +297,31 @@ func (d *Deque) SetMaxSize(maxSize int) {
 	}
 }
 
-// Iterator returns a new iterator for forward traversal
-func (d *Deque) Iterator() *Iterator {
-	return &Iterator{
-		current: d.head,
+// All returns an iterator function for forward traversal (Go 1.23+ compatible)
+// Note: range-over-func syntax is not yet supported in Gno, use iter() directly
+func (d *Deque) All() func(yield func(any) bool) {
+	return func(yield func(any) bool) {
+		current := d.head
+		for current != nil {
+			if !yield(current.value) {
+				return
+			}
+			current = current.next
+		}
 	}
 }
 
-// ReverseIterator returns a new iterator for backward traversal
-func (d *Deque) ReverseIterator() *ReverseIterator {
-	return &ReverseIterator{
-		current: d.tail,
+// Backward returns an iterator function for backward traversal (Go 1.23+ compatible)
+// Note: range-over-func syntax is not yet supported in Gno, use iter() directly
+func (d *Deque) Backward() func(yield func(any) bool) {
+	return func(yield func(any) bool) {
+		current := d.tail
+		for current != nil {
+			if !yield(current.value) {
+				return
+			}
+			current = current.prev
+		}
 	}
 }
 
-// Iterator provides forward traversal from front to back
-type Iterator struct {
-	current *Node
-}
-
-// Next returns the next element or nil when complete
-func (it *Iterator) Next() any {
-	if it.current == nil {
-		return nil
-	}
-
-	value := it.current.value
-	it.current = it.current.next
-	return value
-}
-
-// HasNext returns true if more elements are available
-func (it *Iterator) HasNext() bool {
-	return it.current != nil
-}
-
-// ReverseIterator provides backward traversal from back to front
-type ReverseIterator struct {
-	current *Node
-}
-
-// Next returns the next element (moving backward) or nil when complete
-func (it *ReverseIterator) Next() any {
-	if it.current == nil {
-		return nil
-	}
-
-	value := it.current.value
-	it.current = it.current.prev
-	return value
-}
-
-// HasNext returns true if more elements are available
-func (it *ReverseIterator) HasNext() bool {
-	return it.current != nil
-}
