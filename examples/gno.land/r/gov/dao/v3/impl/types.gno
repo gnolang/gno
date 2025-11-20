@@ -213,8 +213,10 @@ func StringifyProposal(p *dao.Proposal) string {
 		out += ufmt.Sprintf(`
 This proposal contains the following metadata:
 
-%s	
-`, p.ExecutorString())
+%s
+
+Executor created in: %s
+`, p.ExecutorString(), p.ExecutorCreationRealm())
 	}
 
 	return out
