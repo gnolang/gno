@@ -800,15 +800,23 @@ func SIf(cond bool, then_, else_ Stmt) Stmt {
 // ----------------------------------------
 // AST Query
 
-// Unwraps IndexExpr and SelectorExpr only.
-// (defensive, in case malformed exprs that mix).
+// LeftmostX returns the base (leftmost) expression by unwrapping
+// selector/index/slice chains. This is used by analyses (e.g. escape
+// analysis) to find the true root object for expressions like
+// a.b.c, a[i].b, or a[i:j].b.
+//
+// It repeatedly descends through SelectorExpr, IndexExpr, and SliceExpr
+// until a non-selector expression is found. It does not cross function
+// call boundaries or otherwise alter dereference/address semantics.
 func LeftmostX(x Expr) Expr {
 	for {
-		switch x := x.(type) {
-		case *IndexExpr:
-			return x.X
+		switch tx := x.(type) {
 		case *SelectorExpr:
-			return x.X
+			x = tx.X
+		case *IndexExpr:
+			x = tx.X
+		case *SliceExpr:
+			x = tx.X
 		default:
 			return x
 		}
