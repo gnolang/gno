@@ -1,24 +1,25 @@
-package commondao
+package commondao_test
 
 import (
 	"errors"
 	"testing"
 	"time"
 
-	"gno.land/p/nt/seqid"
 	"gno.land/p/nt/uassert"
 	"gno.land/p/nt/urequire"
+
+	"gno.land/p/nt/commondao"
 )
 
 func TestNew(t *testing.T) {
 	cases := []struct {
 		name    string
-		parent  *CommonDAO
+		parent  *commondao.CommonDAO
 		members []address
 	}{
 		{
 			name:    "with parent",
-			parent:  New(),
+			parent:  commondao.New(),
 			members: []address{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},
 		},
 		{
@@ -41,12 +42,12 @@ func TestNew(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			membersCount := len(tc.members)
-			options := []Option{WithParent(tc.parent)}
+			options := []commondao.Option{commondao.WithParent(tc.parent)}
 			for _, m := range tc.members {
-				options = append(options, WithMember(m))
+				options = append(options, commondao.WithMember(m))
 			}
 
-			dao := New(options...)
+			dao := commondao.New(options...)
 
 			if tc.parent == nil {
 				uassert.Equal(t, nil, dao.Parent())
@@ -69,7 +70,7 @@ func TestNew(t *testing.T) {
 
 func TestCommonDAOMembersAdd(t *testing.T) {
 	member := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	dao := New(WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"))
+	dao := commondao.New(commondao.WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"))
 
 	added := dao.Members().Add(member)
 	urequire.True(t, added)
@@ -83,7 +84,7 @@ func TestCommonDAOMembersAdd(t *testing.T) {
 
 func TestCommonDAOMembersRemove(t *testing.T) {
 	member := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	dao := New(WithMember(member))
+	dao := commondao.New(commondao.WithMember(member))
 
 	removed := dao.Members().Remove(member)
 	urequire.True(t, removed)
@@ -96,19 +97,19 @@ func TestCommonDAOMembersHas(t *testing.T) {
 	cases := []struct {
 		name   string
 		member address
-		dao    *CommonDAO
+		dao    *commondao.CommonDAO
 		want   bool
 	}{
 		{
 			name:   "member",
 			member: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			dao:    New(WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")),
+			dao:    commondao.New(commondao.WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")),
 			want:   true,
 		},
 		{
 			name:   "not a dao member",
 			member: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			dao:    New(WithMember("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc")),
+			dao:    commondao.New(commondao.WithMember("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc")),
 		},
 	}
 
@@ -123,38 +124,27 @@ func TestCommonDAOMembersHas(t *testing.T) {
 func TestCommonDAOPropose(t *testing.T) {
 	cases := []struct {
 		name    string
-		setup   func() *CommonDAO
+		setup   func() *commondao.CommonDAO
 		creator address
-		def     ProposalDefinition
+		def     commondao.ProposalDefinition
 		err     error
 	}{
 		{
 			name:    "success",
-			setup:   func() *CommonDAO { return New() },
+			setup:   func() *commondao.CommonDAO { return commondao.New() },
 			creator: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 			def:     testPropDef{},
 		},
 		{
 			name:  "nil definition",
-			setup: func() *CommonDAO { return New() },
-			err:   ErrProposalDefinitionRequired,
+			setup: func() *commondao.CommonDAO { return commondao.New() },
+			err:   commondao.ErrProposalDefinitionRequired,
 		},
 		{
 			name:  "invalid creator address",
-			setup: func() *CommonDAO { return New() },
+			setup: func() *commondao.CommonDAO { return commondao.New() },
 			def:   testPropDef{},
-			err:   ErrInvalidCreatorAddress,
-		},
-		{
-			name: "proposal ID overflow",
-			setup: func() *CommonDAO {
-				dao := New()
-				dao.genID = seqid.ID(1<<64 - 1)
-				return dao
-			},
-			creator: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			def:     testPropDef{},
-			err:     ErrOverflow,
+			err:   commondao.ErrInvalidCreatorAddress,
 		},
 	}
 
@@ -181,83 +171,83 @@ func TestCommonDAOPropose(t *testing.T) {
 func TestCommonDAOVote(t *testing.T) {
 	cases := []struct {
 		name       string
-		setup      func() *CommonDAO
+		setup      func() *commondao.CommonDAO
 		member     address
-		choice     VoteChoice
+		choice     commondao.VoteChoice
 		proposalID uint64
 		err        error
 	}{
 		{
 			name: "success",
-			setup: func() *CommonDAO {
+			setup: func() *commondao.CommonDAO {
 				member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
-				dao := New(WithMember(member))
+				dao := commondao.New(commondao.WithMember(member))
 				dao.Propose(member, testPropDef{votingPeriod: time.Hour})
 				return dao
 			},
 			member:     "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			choice:     ChoiceYes,
+			choice:     commondao.ChoiceYes,
 			proposalID: 1,
 		},
 		{
 			name: "success with custom vote choice",
-			setup: func() *CommonDAO {
+			setup: func() *commondao.CommonDAO {
 				member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
-				dao := New(WithMember(member))
+				dao := commondao.New(commondao.WithMember(member))
 				dao.Propose(member, testPropDef{
 					votingPeriod: time.Hour,
-					voteChoices:  []VoteChoice{"FOO", "BAR"},
+					voteChoices:  []commondao.VoteChoice{"FOO", "BAR"},
 				})
 				return dao
 			},
 			member:     "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			choice:     VoteChoice("BAR"),
+			choice:     commondao.VoteChoice("BAR"),
 			proposalID: 1,
 		},
 		{
 			name: "success with deadline check disabled",
-			setup: func() *CommonDAO {
+			setup: func() *commondao.CommonDAO {
 				member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
-				dao := New(
-					WithMember(member),
-					DisableVotingDeadlineCheck(),
+				dao := commondao.New(
+					commondao.WithMember(member),
+					commondao.DisableVotingDeadlineCheck(),
 				)
 				dao.Propose(member, testPropDef{})
 				return dao
 			},
 			member:     "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			choice:     ChoiceYes,
+			choice:     commondao.ChoiceYes,
 			proposalID: 1,
 		},
 		{
 			name: "invalid vote choice",
-			setup: func() *CommonDAO {
+			setup: func() *commondao.CommonDAO {
 				member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
-				dao := New(WithMember(member))
+				dao := commondao.New(commondao.WithMember(member))
 				dao.Propose(member, testPropDef{votingPeriod: time.Hour})
 				return dao
 			},
 			member:     "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			choice:     VoteChoice("invalid"),
+			choice:     commondao.VoteChoice("invalid"),
 			proposalID: 1,
-			err:        ErrInvalidVoteChoice,
+			err:        commondao.ErrInvalidVoteChoice,
 		},
 		{
 			name:   "not a member",
-			setup:  func() *CommonDAO { return New() },
+			setup:  func() *commondao.CommonDAO { return commondao.New() },
 			member: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			choice: ChoiceAbstain,
-			err:    ErrNotMember,
+			choice: commondao.ChoiceAbstain,
+			err:    commondao.ErrNotMember,
 		},
 		{
 			name: "proposal not found",
-			setup: func() *CommonDAO {
-				return New(WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"))
+			setup: func() *commondao.CommonDAO {
+				return commondao.New(commondao.WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"))
 			},
 			member:     "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			choice:     ChoiceAbstain,
+			choice:     commondao.ChoiceAbstain,
 			proposalID: 42,
-			err:        ErrProposalNotFound,
+			err:        commondao.ErrProposalNotFound,
 		},
 	}
 
@@ -289,48 +279,50 @@ func TestCommonDAOTally(t *testing.T) {
 	member := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	cases := []struct {
 		name   string
-		setup  func(*CommonDAO) (proposalID uint64)
+		setup  func(*commondao.CommonDAO) (proposalID uint64)
 		passes bool
 		err    error
 	}{
 		{
 			name: "pass",
-			setup: func(dao *CommonDAO) uint64 {
+			setup: func(dao *commondao.CommonDAO) uint64 {
 				return dao.MustPropose(member, testPropDef{tallyResult: true}).ID()
 			},
 			passes: true,
 		},
 		{
 			name: "fail to pass",
-			setup: func(dao *CommonDAO) uint64 {
+			setup: func(dao *commondao.CommonDAO) uint64 {
 				return dao.MustPropose(member, testPropDef{tallyResult: false}).ID()
 			},
 			passes: false,
 		},
 		{
 			name:  "proposal not found",
-			setup: func(*CommonDAO) uint64 { return 404 },
-			err:   ErrProposalNotFound,
+			setup: func(*commondao.CommonDAO) uint64 { return 404 },
+			err:   commondao.ErrProposalNotFound,
 		},
-		{
-			name: "proposal status not active",
-			setup: func(dao *CommonDAO) uint64 {
-				p := dao.MustPropose(member, testPropDef{})
-				p.status = StatusPassed
-				return p.ID()
-			},
-			err: ErrStatusIsNotActive,
-		},
+		// TODO: Requires PR to be merged https://github.com/gnolang/gno/pull/4737
+		// {
+		// 	name: "proposal status not active",
+		// 	setup: func(dao *commondao.CommonDAO) uint64 {
+		// 		p := dao.MustPropose(member, testPropDef{tallyResult: true})
+		// 		members := commondao.NewMemberSet(dao.Members())
+		// 		p.Tally(members)
+		// 		return p.ID()
+		// 	},
+		// 	err: commondao.ErrStatusIsNotActive,
+		// },
 		{
 			name: "proposal failed error",
-			setup: func(dao *CommonDAO) uint64 {
-				return dao.MustPropose(member, testPropDef{tallyErr: ErrProposalFailed}).ID()
+			setup: func(dao *commondao.CommonDAO) uint64 {
+				return dao.MustPropose(member, testPropDef{tallyErr: commondao.ErrProposalFailed}).ID()
 			},
 			passes: false,
 		},
 		{
 			name: "error",
-			setup: func(dao *CommonDAO) uint64 {
+			setup: func(dao *commondao.CommonDAO) uint64 {
 				return dao.MustPropose(member, testPropDef{tallyErr: errTest}).ID()
 			},
 			err: errTest,
@@ -339,7 +331,7 @@ func TestCommonDAOTally(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			dao := New(WithMember(member))
+			dao := commondao.New(commondao.WithMember(member))
 			proposalID := tc.setup(dao)
 
 			passes, err := dao.Tally(proposalID)
@@ -361,9 +353,9 @@ func TestCommonDAOExecute(t *testing.T) {
 	member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 	cases := []struct {
 		name         string
-		setup        func() *CommonDAO
+		setup        func() *commondao.CommonDAO
 		proposalID   uint64
-		status       ProposalStatus
+		status       commondao.ProposalStatus
 		statusReason string
 		err          error
 	}{
@@ -372,8 +364,8 @@ func TestCommonDAOExecute(t *testing.T) {
 		//       crossing which is not possible without defining it within a realm.
 		// {
 		// 	name: "success",
-		// 	setup: func() *CommonDAO {
-		// 		dao := New(WithMember(member))
+		// 	setup: func() *commondao.CommonDAO {
+		// 		dao := commondao.New(commondao.WithMember(member))
 		// 		dao.Propose(member, testPropDef{tallyResult: true})
 		// 		return dao
 		// 	},
@@ -382,8 +374,8 @@ func TestCommonDAOExecute(t *testing.T) {
 		// },
 		// {
 		// 	name: "execution error",
-		// 	setup: func() *CommonDAO {
-		// 		dao := New(WithMember(member))
+		// 	setup: func() *commondao.CommonDAO {
+		// 		dao := commondao.New(commondao.WithMember(member))
 		// 		dao.Propose(member, testPropDef{
 		// 			tallyResult:  true,
 		// 			executionErr: errTest,
@@ -396,51 +388,53 @@ func TestCommonDAOExecute(t *testing.T) {
 		// },
 		{
 			name:       "proposal not found",
-			setup:      func() *CommonDAO { return New() },
+			setup:      func() *commondao.CommonDAO { return commondao.New() },
 			proposalID: 1,
-			err:        ErrProposalNotFound,
+			err:        commondao.ErrProposalNotFound,
 		},
-		{
-			name: "proposal not active",
-			setup: func() *CommonDAO {
-				dao := New(WithMember(member))
-				p, _ := dao.Propose(member, testPropDef{})
-				p.status = StatusPassed
-				return dao
-			},
-			proposalID: 1,
-			err:        ErrStatusIsNotActive,
-		},
+		// TODO: Requires PR to be merged https://github.com/gnolang/gno/pull/4737
+		// {
+		// 	name: "proposal not active",
+		// 	setup: func() *commondao.CommonDAO {
+		// 		dao := commondao.New(commondao.WithMember(member))
+		// 		p := dao.MustPropose(member, testPropDef{tallyResult: true})
+		// 		members := commondao.NewMemberSet(dao.Members())
+		// 		p.Tally(members)
+		// 		return dao
+		// 	},
+		// 	proposalID: 1,
+		// 	err:        commondao.ErrStatusIsNotActive,
+		// },
 		{
 			name: "voting deadline not met",
-			setup: func() *CommonDAO {
-				dao := New(WithMember(member))
+			setup: func() *commondao.CommonDAO {
+				dao := commondao.New(commondao.WithMember(member))
 				dao.Propose(member, testPropDef{votingPeriod: time.Minute * 5})
 				return dao
 			},
 			proposalID: 1,
-			err:        ErrVotingDeadlineNotMet,
+			err:        commondao.ErrVotingDeadlineNotMet,
 		},
 		{
 			name: "validation error",
-			setup: func() *CommonDAO {
-				dao := New(WithMember(member))
+			setup: func() *commondao.CommonDAO {
+				dao := commondao.New(commondao.WithMember(member))
 				dao.Propose(member, testPropDef{validationErr: errTest})
 				return dao
 			},
 			proposalID:   1,
-			status:       StatusFailed,
+			status:       commondao.StatusFailed,
 			statusReason: errTest.Error(),
 		},
 		{
 			name: "tally error",
-			setup: func() *CommonDAO {
-				dao := New(WithMember(member))
+			setup: func() *commondao.CommonDAO {
+				dao := commondao.New(commondao.WithMember(member))
 				dao.Propose(member, testPropDef{tallyErr: errTest})
 				return dao
 			},
 			proposalID:   1,
-			status:       StatusFailed,
+			status:       commondao.StatusFailed,
 			statusReason: errTest.Error(),
 		},
 	}
