@@ -30,6 +30,7 @@ func TestExecuteProfileCommand(t *testing.T) {
 			name:    "help command",
 			command: "help",
 			checkOut: func(t *testing.T, out, err string) {
+				t.Helper()
 				require.Contains(t, err, "Commands:")
 				require.Contains(t, err, "help")
 				require.Contains(t, err, "text")
@@ -43,6 +44,7 @@ func TestExecuteProfileCommand(t *testing.T) {
 			name:    "exit command",
 			command: "exit",
 			checkOut: func(t *testing.T, out, err string) {
+				t.Helper()
 				require.Contains(t, err, "Exiting profiler shell")
 			},
 		},
@@ -50,6 +52,7 @@ func TestExecuteProfileCommand(t *testing.T) {
 			name:    "unknown command",
 			command: "foobar",
 			checkOut: func(t *testing.T, out, err string) {
+				t.Helper()
 				require.Contains(t, err, "unknown command")
 			},
 		},
@@ -57,6 +60,7 @@ func TestExecuteProfileCommand(t *testing.T) {
 			name:    "text command",
 			command: "text",
 			checkOut: func(t *testing.T, out, err string) {
+				t.Helper()
 				require.Contains(t, out, "Profile Type:")
 			},
 		},
@@ -64,6 +68,7 @@ func TestExecuteProfileCommand(t *testing.T) {
 			name:    "json command",
 			command: "json",
 			checkOut: func(t *testing.T, out, err string) {
+				t.Helper()
 				require.Contains(t, out, "{")
 				require.Contains(t, out, "}")
 			},
@@ -72,6 +77,7 @@ func TestExecuteProfileCommand(t *testing.T) {
 			name:    "clear command",
 			command: "clear",
 			checkOut: func(t *testing.T, out, err string) {
+				t.Helper()
 				// Check for ANSI clear screen sequence in stdout only
 				require.Contains(t, out, "\033[2J\033[H")
 				// stderr should remain empty (no re-display of prompt)

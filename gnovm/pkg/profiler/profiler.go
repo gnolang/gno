@@ -754,11 +754,11 @@ func percent(value, total int64) float64 {
 	return float64(value) / float64(total) * 100
 }
 
-func shortenName(name string, max int) string {
-	if len(name) <= max {
+func shortenName(name string, maxlen int) string {
+	if len(name) <= maxlen {
 		return name
 	}
-	return name[:max-3] + "..."
+	return name[:maxlen-3] + "..."
 }
 
 // WriteJSON writes the profile in JSON format

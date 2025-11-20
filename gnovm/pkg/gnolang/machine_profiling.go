@@ -105,8 +105,8 @@ type allocationStackInjector struct {
 	sink    instrumentation.Sink
 }
 
-var ( 
-	_ instrumentation.Sink = (*allocationStackInjector)(nil)
+var (
+	_ instrumentation.Sink         = (*allocationStackInjector)(nil)
 	_ instrumentation.Capabilities = (*allocationStackInjector)(nil)
 )
 
