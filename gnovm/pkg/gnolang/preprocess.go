@@ -17,6 +17,7 @@ const (
 	blankIdentifier           = "_"
 	debugFind                 = false // toggle when debugging.
 	AttrPreprocessFuncLitExpr = "FuncLitExpr"
+	TestingBasePkgPath        = "testing"
 )
 
 // Predefine (initStaticBlocks) and partially evaluates all names
@@ -1634,7 +1635,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// of the callee function's realm. Normally this isn't possible,
 						// as non-realm packages do not have access to `cur`,
 						// and you cannot pass `cur` to an external realm anyways.
-						if ctxpn.PkgPath == "testing" {
+						if ctxpn.PkgPath == TestingBasePkgPath {
 							goto LEAVE_CALL_EXPR_END_CHECK_CROSSING
 						}
 						// START Check validity of crossing arg n.Args[0].(*NameExpr).
