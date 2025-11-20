@@ -259,9 +259,6 @@ func TestClear(t *testing.T) {
 	}
 }
 
-
-
-
 func TestUnboundedGrowth(t *testing.T) {
 	d := New() // unbounded
 
@@ -381,4 +378,3 @@ func TestAllIteratorEarlyBreak(t *testing.T) {
 		t.Errorf("Expected [a, b, c], got %v", items)
 	}
 }
-

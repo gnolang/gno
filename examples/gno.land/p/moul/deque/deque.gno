@@ -324,4 +324,3 @@ func (d *Deque) Backward() func(yield func(any) bool) {
 		}
 	}
 }
-
