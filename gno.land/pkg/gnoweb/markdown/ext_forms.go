@@ -439,11 +439,15 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 		fmt.Fprintf(w, ` data-controller="form-exec"`)
 	}
 	fmt.Fprintf(w, `>`+"\n")
+	headerLabel := "Form"
+	if n.Exec != nil {
+		headerLabel = fmt.Sprintf("Exec: %s", HTMLEscapeString(titleCase(n.Exec.FuncName)))
+	}
 	fmt.Fprintf(w, `<div class="gno-form_header">
-<span><span class="font-bold">%s</span> Form</span>
+<span><span class="font-bold">%s</span> %s</span>
 <span class="tooltip" data-tooltip="Processed securely by %s"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
 </div>
-`, HTMLEscapeString(n.RealmName), HTMLEscapeString(n.RealmName))
+`, HTMLEscapeString(n.RealmName), headerLabel, HTMLEscapeString(n.RealmName))
 
 	if n.Exec != nil {
 		fmt.Fprintf(w, `<div data-controller="action-function" data-action-function-name-value="%s">`+"\n", HTMLEscapeString(n.Exec.FuncName))
@@ -475,8 +479,13 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 
 	// Submit button
 	if len(n.Elements) > 0 {
-		fmt.Fprintf(w, `<div class="gno-form_input"><input type="submit" value="Submit to %s Realm" /></div>`+"\n",
-			HTMLEscapeString(n.RealmName))
+		if n.Exec != nil {
+			fmt.Fprintf(w, `<div class="gno-form_input"><input type="submit" value="Submit (%s Function)" /></div>`+"\n",
+				HTMLEscapeString(titleCase(n.Exec.FuncName)))
+		} else {
+			fmt.Fprintf(w, `<div class="gno-form_input"><input type="submit" value="Submit to %s Realm" /></div>`+"\n",
+				HTMLEscapeString(n.RealmName))
+		}
 	}
 
 	// Add command block if we have an exec function
