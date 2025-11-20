@@ -37,32 +37,22 @@
   </div>
 </div>
 <div class="b-code">
-    <button
-        data-controller="copy"
-        data-action="click->copy#copy"
-        data-copy-remote-value="action-form-Vote"
-        data-copy-clean-value
-        class="btn-copy"
-        aria-label="Copy Command"
-    >
+    <button data-controller="copy" data-action="click->copy#copy" data-copy-remote-value="action-function-Vote"
+        data-copy-clean-value class="btn-copy" aria-label="Copy Command">
         <svg class="c-icon">
             <use href="#ico-copy" data-copy-target="icon"></use>
-            <use
-                href="#ico-check"
-                class="u-hidden u-color-valid"
-                data-copy-target="icon"
-            ></use>
+            <use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use>
         </svg>
     </button>
-    <pre><code><span data-action-form-target="mode" data-action-form-mode-value="fast" class="u-hidden" data-copy-target="action-form-Vote"># WARNING: This command is running in an INSECURE mode.
-    # It is strongly recommended to use a hardware device for signing
-    # and avoid trusting any computer connected to the internet,
-    # as your private keys could be exposed.
+    <pre><code><span data-action-function-target="mode" data-action-function-mode-value="fast" class="u-hidden" data-copy-target="action-function-Vote"># WARNING: This command is running in an INSECURE mode.
+# It is strongly recommended to use a hardware device for signing
+# and avoid trusting any computer connected to the internet,
+# as your private keys could be exposed.
 
-    gnokey maketx call -pkgpath "/r/test" -func "Vote" -args "<span data-action-form-target="arg" data-action-form-arg-value="proposal_id"></span>" -args "<span data-action-form-target="arg" data-action-form-arg-value="vote"></span>" -gas-fee 1000000ugnot -gas-wanted 5000000 -send "<span data-action-form-target="send-code"></span>" -broadcast -chainid "dev" -remote "127.0.0.1:26657" <span data-action-form-target="address">ADDRESS</span></span><span data-action-form-target="mode" data-action-form-mode-value="secure" data-copy-target="action-form-Vote" class="u-inline">gnokey query -remote "127.0.0.1:26657" auth/accounts/<span data-action-form-target="address">ADDRESS</span>
-    gnokey maketx call -pkgpath "/r/test" -func "Vote" -args "<span data-action-form-target="arg" data-action-form-arg-value="proposal_id"></span>" -args "<span data-action-form-target="arg" data-action-form-arg-value="vote"></span>" -gas-fee 1000000ugnot -gas-wanted 5000000 -send "<span data-action-form-target="send-code"></span>" <span data-action-form-target="address">ADDRESS</span> > call.tx
-    gnokey sign -tx-path call.tx -chainid "dev" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-action-form-target="address">ADDRESS</span>
-    gnokey broadcast -remote "127.0.0.1:26657" call.tx
+gnokey maketx call -pkgpath "/r/test" -func "Vote" -args "<span data-action-function-target="arg" data-action-function-arg-value="proposal_id"></span>" -args "<span data-action-function-target="arg" data-action-function-arg-value="vote"></span>" -gas-fee 1000000ugnot -gas-wanted 5000000 -send "<span data-action-function-target="send-code"></span>" -broadcast -chainid "dev" -remote "127.0.0.1:26657" <span data-action-function-target="address">ADDRESS</span></span><span data-action-function-target="mode" data-action-function-mode-value="secure" data-copy-target="action-function-Vote" class="u-inline">gnokey query -remote "127.0.0.1:26657" auth/accounts/<span data-action-function-target="address">ADDRESS</span>
+gnokey maketx call -pkgpath "/r/test" -func "Vote" -args "<span data-action-function-target="arg" data-action-function-arg-value="proposal_id"></span>" -args "<span data-action-function-target="arg" data-action-function-arg-value="vote"></span>" -gas-fee 1000000ugnot -gas-wanted 5000000 -send "<span data-action-function-target="send-code"></span>" <span data-action-function-target="address">ADDRESS</span> > call.tx
+gnokey sign -tx-path call.tx -chainid "dev" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-action-function-target="address">ADDRESS</span>
+gnokey broadcast -remote "127.0.0.1:26657" call.tx
   </span></code></pre>
 </div>
 </div>
