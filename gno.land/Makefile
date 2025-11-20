@@ -17,11 +17,15 @@ CGO_ENABLED ?= 0
 export CGO_ENABLED
 # test suite flags.
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
+# used for gnokey version [branch].[N]+[hash]
+VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || echo "$(shell git rev-parse --abbrev-ref HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)")
+
+GOBUILD_FLAGS ?= -ldflags "-X github.com/gnolang/gno/tm2/pkg/version.Version=$(VERSION)"
 
 ########################################
 # Dev tools
 .PHONY: start.gnoland
-start.gnoland:; go run ./cmd/gnoland start -lazy
+start.gnoland:; go run ./cmd/gnoland start -lazy -skip-genesis-sig-verification
 
 .PHONY: start.gnoweb
 start.gnoweb:; go run ./cmd/gnoweb
@@ -31,7 +35,7 @@ build: build.gnoland build.gnokey build.gnoweb
 
 build.gnoland:;    go build -o build/gnoland   ./cmd/gnoland
 build.gnoweb:;     go build -o build/gnoweb    ./cmd/gnoweb
-build.gnokey:;     go build -o build/gnokey    ./cmd/gnokey
+build.gnokey:;     go build $(GOBUILD_FLAGS) -o build/gnokey    ./cmd/gnokey
 
 run.gnoland:;      go run ./cmd/gnoland start
 run.gnoweb:;       go run ./cmd/gnoweb
@@ -63,7 +67,7 @@ clean:
 
 .PHONY: lint
 lint:
-	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config ../.github/golangci.yml ./...
+	$(rundep) github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --config ../.github/golangci.yml ./...
 
 .PHONY: fmt
 fmt:
@@ -76,7 +80,7 @@ fmt:
 test: _test.help _test.gnoland _test.gnoweb _test.gnokey _test.pkgs
 
 _test.help:
-	@echo "run \`INMEMORY_TS=true make test\` if you encounter 'context deadline exceeded' for non-parallel testing" 
+	@echo "run \`INMEMORY_TS=true make test\` if you encounter 'context deadline exceeded' for non-parallel testing"
 _test.gnoland:;      go test $(GOTEST_FLAGS) ./cmd/gnoland
 _test.gnoweb:;       go test $(GOTEST_FLAGS) ./cmd/gnoweb
 _test.gnokey:;       go test $(GOTEST_FLAGS) ./cmd/gnokey

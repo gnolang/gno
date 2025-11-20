@@ -10,6 +10,7 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
 
@@ -82,7 +83,7 @@ gno = "0.9"`,
 			}
 
 			// List packages
-			pkgs, err := gno.ReadPkgListFromDir(dirPath)
+			pkgs, err := packages.ReadPkgListFromDir(dirPath, gno.MPAnyAll)
 			require.NoError(t, err)
 			assert.Equal(t, len(tc.outPkgList), len(pkgs))
 			for _, p := range pkgs {

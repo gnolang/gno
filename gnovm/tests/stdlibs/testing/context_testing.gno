@@ -1,7 +1,8 @@
 package testing
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"time"
 )
 
@@ -27,7 +28,7 @@ func setContext(
 func GetContext() Context {
 	originCaller, origSendDenoms, origSendAmounts, origSpendDenoms, origSpendAmounts, chainID, height, timeUnix, timeNano := getContext()
 	return Context{
-		OriginCaller: std.Address(originCaller),
+		OriginCaller: address(originCaller),
 		OriginSend:   compactNative(origSendDenoms, origSendAmounts),
 		OriginSpend:  compactNative(origSpendDenoms, origSpendAmounts),
 		ChainID:      chainID,
@@ -61,20 +62,20 @@ func SetContext(ctx Context) {
 
 func testIssueCoins(addr string, denom []string, amt []int64)
 
-func SetOriginCaller(origCaller std.Address) {
+func SetOriginCaller(origCaller address) {
 	ctx := GetContext()
 	ctx.OriginCaller = origCaller
-	ctx.CurrentRealm = std.NewUserRealm(origCaller)
+	ctx.CurrentRealm = NewUserRealm(origCaller)
 	SetContext(ctx)
 }
 
-func SetOriginSend(send std.Coins) {
+func SetOriginSend(send chain.Coins) {
 	ctx := GetContext()
 	ctx.OriginSend = send
 	SetContext(ctx)
 }
 
-func SetOriginSpend(spend std.Coins) {
+func SetOriginSpend(spend chain.Coins) {
 	ctx := GetContext()
 	ctx.OriginSpend = spend
 	SetContext(ctx)
@@ -92,7 +93,7 @@ func SetHeight(height int64) {
 // If rlm.PkgPath() is "", implies rlm.Address() is the user address.
 // OriginCaller will also be set. This is identical to calling
 // ctx.SetOriginCaller(userAddress)
-func SetRealm(rlm std.Realm) {
+func SetRealm(rlm runtime.Realm) {
 	ctx := GetContext()
 	ctx.CurrentRealm = rlm
 	if rlm.PkgPath() == "" {
@@ -108,13 +109,13 @@ func SkipHeights(count int64) {
 	SetContext(Context{Height: toHeight, Time: toTime})
 }
 
-func IssueCoins(addr std.Address, coins std.Coins) {
+func IssueCoins(addr address, coins chain.Coins) {
 	denom, amt := expandNative(coins)
 	testIssueCoins(addr.String(), denom, amt)
 }
 
 // expandNative expands for usage within natively bound functions.
-func expandNative(coins std.Coins) (denoms []string, amounts []int64) {
+func expandNative(coins chain.Coins) (denoms []string, amounts []int64) {
 	denoms = make([]string, len(coins))
 	amounts = make([]int64, len(coins))
 	for i, coin := range coins {
@@ -126,10 +127,27 @@ func expandNative(coins std.Coins) (denoms []string, amounts []int64) {
 }
 
 // compactNative compacts coins for usage within natively bound functions.
-func compactNative(denoms []string, amounts []int64) std.Coins {
-	coins := make(std.Coins, len(denoms))
+func compactNative(denoms []string, amounts []int64) chain.Coins {
+	coins := make(chain.Coins, len(denoms))
 	for i := range coins {
-		coins[i] = std.Coin{Denom: denoms[i], Amount: amounts[i]}
+		coins[i] = chain.Coin{Denom: denoms[i], Amount: amounts[i]}
 	}
 	return coins
 }
+
+// NewUserRealm creates a new "user" realm with the given address.
+func NewUserRealm(user address) runtime.Realm {
+	return newRealm(string(user), "")
+}
+
+// NewCodeRealm creates a new realm for a published code realm with the given
+// pkgPath.
+func NewCodeRealm(pkgPath string) runtime.Realm {
+	if !isRealm(pkgPath) {
+		panic("should only be called for Realms")
+	}
+	return newRealm(string(chain.PackageAddress(pkgPath)), pkgPath)
+}
+
+func newRealm(addr, pkgPath string) runtime.Realm // injected
+func isRealm(pkgPath string) bool

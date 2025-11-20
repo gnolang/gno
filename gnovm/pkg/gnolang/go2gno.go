@@ -33,45 +33,47 @@ package gnolang
 import (
 	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"os"
 	"reflect"
 	"strconv"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/gnolang/gno/gnovm/pkg/parser"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
-func MustReadFile(path string) *FileNode {
-	n, err := ReadFile(path)
+func (m *Machine) MustReadFile(path string) *FileNode {
+	n, err := m.ReadFile(path)
 	if err != nil {
 		panic(err)
 	}
 	return n
 }
 
-func MustParseFile(fname string, body string) *FileNode {
-	n, err := ParseFile(fname, body)
+func (m *Machine) MustParseFile(fname string, body string) *FileNode {
+	n, err := m.ParseFile(fname, body)
 	if err != nil {
 		panic(err)
 	}
 	return n
 }
 
-func ReadFile(path string) (*FileNode, error) {
+func (m *Machine) ReadFile(path string) (*FileNode, error) {
 	bz, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	return ParseFile(path, string(bz))
+	return m.ParseFile(path, string(bz))
 }
 
-func ParseExpr(code string) (expr Expr, err error) {
-	x, err := parser.ParseExpr(code)
+func (m *Machine) ParseExpr(code string) (expr Expr, err error) {
+	x, err := parser.ParseExpr2(code, newParserCallback(m))
 	if err != nil {
 		return nil, err
 	}
+
 	// recover from Go2Gno.
 	// NOTE: Go2Gno is best implemented with panics due to inlined toXYZ() calls.
 	defer func() {
@@ -90,20 +92,20 @@ func ParseExpr(code string) (expr Expr, err error) {
 	return Go2Gno(fset, x).(Expr), nil
 }
 
-func MustParseExpr(code string) Expr {
-	x, err := ParseExpr(code)
+func (m *Machine) MustParseExpr(code string) Expr {
+	x, err := m.ParseExpr(code)
 	if err != nil {
 		panic(err)
 	}
 	return x
 }
 
-func ParseStmts(code string) (stmts []Stmt, err error) {
+func (m *Machine) ParseStmts(code string) (stmts []Stmt, err error) {
 	// Go only parses exprs and files,
 	// so wrap in a func body.
 	fset := token.NewFileSet()
-	code = fmt.Sprintf("func(){%s}", code)
-	x, err := parser.ParseExprFrom(fset, "<repl>", code, parser.SkipObjectResolution)
+	code = fmt.Sprintf("func(){%s}\n", code)
+	x, err := parser.ParseExprFrom2(fset, "<repl>", code, parser.SkipObjectResolution, newParserCallback(m))
 	if err != nil {
 		return nil, err
 	}
@@ -121,6 +123,7 @@ func ParseStmts(code string) (stmts []Stmt, err error) {
 			return
 		}
 	}()
+
 	// parse with Go2Gno.
 	for _, gostmt := range gostmts {
 		var stmt Stmt
@@ -139,43 +142,68 @@ func ParseStmts(code string) (stmts []Stmt, err error) {
 	return stmts, nil
 }
 
-func MustParseStmts(code string) []Stmt {
-	stmts, err := ParseStmts(code)
+func (m *Machine) MustParseStmts(code string) []Stmt {
+	stmts, err := m.ParseStmts(code)
 	if err != nil {
 		panic(err)
 	}
 	return stmts
 }
 
-func ParseDecls(code string) (decls []Decl, err error) {
+func (m *Machine) ParseDecls(code string) (decls []Decl, err error) {
 	// Go only parses exprs and files,
 	// so wrap in a func body.
-	code = fmt.Sprintf("package repl\n%s", code)
-	fn, err := ParseFile("repl.gno", code)
+	code = fmt.Sprintf("package repl\n%s\n", code)
+	fn, err := m.ParseFile("<repl>", code)
 	if err != nil {
 		return nil, err
 	}
 	return fn.Decls, nil
 }
 
-func MustParseDecls(code string) []Decl {
-	decls, err := ParseDecls(code)
+func (m *Machine) MustParseDecls(code string) []Decl {
+	decls, err := m.ParseDecls(code)
 	if err != nil {
 		panic(err)
 	}
 	return decls
 }
 
+// ParseFilePackageName returns the package name of a gno file.
+func ParseFilePackageName(fname string) (string, error) {
+	fs := token.NewFileSet()
+	// Just parse the package clause, and nothing else.
+	f, err := parser.ParseFile(fs, fname, nil, parser.PackageClauseOnly)
+	if err != nil {
+		return "", err
+	}
+	return f.Name.Name, nil
+}
+
+const (
+	tokenCostFactor   = 1 // To be adjusted from benchmarks.
+	nestingCostFactor = 1 // To be adjusted from benchmarks.
+)
+
+func newParserCallback(m *Machine) parser.ParserCallback {
+	if m == nil || m.GasMeter == nil {
+		return nil
+	}
+	return func(tok token.Token, nestLev int) {
+		m.GasMeter.ConsumeGas(types.Gas(tokenCostFactor+nestLev*nestingCostFactor), "parsing")
+	}
+}
+
 // ParseFile uses the Go parser to parse body. It then runs [Go2Gno] on the
 // resulting AST -- the resulting FileNode is returned, together with any other
 // error (including panics, which are recovered) from [Go2Gno].
-func ParseFile(fname string, body string) (fn *FileNode, err error) {
+func (m *Machine) ParseFile(fname string, body string) (fn *FileNode, err error) {
 	// Use go parser to parse the body.
 	fs := token.NewFileSet()
 	// TODO(morgan): would be nice to add parser.SkipObjectResolution as we don't
 	// seem to be using its features, but this breaks when testing (specifically redeclaration tests).
 	const parseOpts = parser.ParseComments | parser.DeclarationErrors
-	astf, err := parser.ParseFile(fs, fname, body, parseOpts)
+	astf, err := parser.ParseFile2(fs, fname, body, parseOpts, newParserCallback(m))
 	if err != nil {
 		return nil, err
 	}

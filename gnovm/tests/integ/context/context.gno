@@ -1,11 +1,11 @@
 package runtests
 
 import (
-	"fmt"
-	"std"
+	"chain/runtime"
+	"strconv"
 )
 
 func Context() {
 	// This requires a Context to work; it will fail ugly if the Context isn't available.
-	fmt.Printf("Context worked: %d\n", std.ChainHeight())
+	println("Context worked: " + strconv.Itoa(int(runtime.ChainHeight())))
 }

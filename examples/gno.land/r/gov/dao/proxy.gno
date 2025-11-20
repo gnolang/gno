@@ -1,22 +1,26 @@
 package dao
 
-import "std"
+import (
+	"chain"
+	"chain/runtime"
+	"strconv"
+)
 
 // dao is the actual govDAO implementation, having all the needed business logic
 var dao DAO
 
-// AllowedDAOs contains realms that can be used to update the actual govDAO implementation,
+// allowedDAOs contains realms that can be used to update the actual govDAO implementation,
 // and validate Proposals.
 // This is like that to be able to rollback using a previous govDAO implementation in case
 // the latest implementation has a breaking bug. After a test period, a proposal can be
 // executed to remove all previous govDAOs implementations and leave the last one.
-var AllowedDAOs []string
+var allowedDAOs []string
 
 // proposals contains all the proposals in history.
 var proposals *Proposals = NewProposals()
 
 // Remember this realm for rendering.
-var gRealm = std.CurrentRealm()
+var gRealm = runtime.CurrentRealm()
 
 // Render calls directly to Render's DAO implementation.
 // This allows to have this realm as the main entry point for everything.
@@ -51,7 +55,7 @@ func ExecuteProposal(cur realm, pid ProposalID) bool {
 	if err != nil {
 		panic(err.Error())
 	}
-	if err := prop.executor.Execute(); err != nil {
+	if err := prop.executor.Execute(cross); err != nil {
 		panic(err.Error())
 	}
 	return true
@@ -70,11 +74,15 @@ func CreateProposal(cur realm, r ProposalRequest) (ProposalID, error) {
 		title:       r.title,
 		description: r.description,
 		executor:    r.executor,
-		allowedDAOs: AllowedDAOs[:],
+		allowedDAOs: allowedDAOs[:],
 	}
 
 	pid := proposals.SetProposal(p)
 	dao.PostCreateProposal(r, pid)
+
+	chain.Emit("ProposalCreated",
+		"id", strconv.FormatInt(int64(pid), 10),
+	)
 
 	return pid, nil
 }
@@ -132,14 +140,14 @@ func GetProposal(cur realm, pid ProposalID) (*Proposal, error) {
 // If AllowedDAOs field is not set correctly, the actual DAO
 // implementation wont be able to execute new Proposals!
 func UpdateImpl(cur realm, r UpdateRequest) {
-	gRealm := std.PreviousRealm().PkgPath()
+	gRealm := runtime.PreviousRealm().PkgPath()
 
 	if !InAllowedDAOs(gRealm) {
 		panic("permission denied for prev realm: " + gRealm)
 	}
 
 	if r.AllowedDAOs != nil {
-		AllowedDAOs = r.AllowedDAOs
+		allowedDAOs = r.AllowedDAOs
 	}
 
 	if r.DAO != nil {
@@ -147,11 +155,17 @@ func UpdateImpl(cur realm, r UpdateRequest) {
 	}
 }
 
+func AllowedDAOs() []string {
+	dup := make([]string, len(allowedDAOs))
+	copy(dup, allowedDAOs)
+	return dup
+}
+
 func InAllowedDAOs(pkg string) bool {
-	if len(AllowedDAOs) == 0 {
+	if len(allowedDAOs) == 0 {
 		return true // corner case for initialization
 	}
-	for _, d := range AllowedDAOs {
+	for _, d := range allowedDAOs {
 		if pkg == d {
 			return true
 		}

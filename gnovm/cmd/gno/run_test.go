@@ -32,6 +32,14 @@ func TestRunApp(t *testing.T) {
 			errShouldContain: "name main not declared",
 		},
 		{
+			args:             []string{"run", "../../tests/integ/package_mismatched"},
+			errShouldContain: "found mismatched packages",
+		},
+		{
+			args:             []string{"run", "../../tests/integ/run_main/main.gno", "../../tests/integ/run_namedpkg"},
+			errShouldContain: "found mismatched packages",
+		},
+		{
 			args:                []string{"run", "-expr", "Hello()", "../../tests/integ/run_package"},
 			stdoutShouldContain: "called Hello",
 		},
@@ -67,10 +75,6 @@ func TestRunApp(t *testing.T) {
 			stdoutShouldContain: "out of range!",
 		},
 		{
-			args:                 []string{"run", "../../tests/integ/undefined_variable_test/undefined_variables_test.gno"},
-			recoverShouldContain: "--- preprocess stack ---", // should contain preprocess debug stack trace
-		},
-		{
 			args:                []string{"run", "-debug", "../../tests/integ/debugger/sample.gno"},
 			stdoutShouldContain: "Welcome to the Gnovm debugger",
 		},
@@ -99,7 +103,14 @@ func TestRunApp(t *testing.T) {
 			}(),
 			errShouldBe: "exit code: 1",
 		},
-		// TODO: a test file
+		{
+			args:             []string{"run", "../../tests/integ/undefined_variable/undefined_variables_test.gno"},
+			errShouldContain: "gno run: cannot run test files (undefined_variables_test.gno)",
+		},
+		{
+			args:             []string{"run", "../../tests/integ/package_testonly"},
+			errShouldContain: "no non-test Gno files in ../../tests/integ/package_testonly",
+		},
 		// TODO: args
 		// TODO: nativeLibs VS stdlibs
 		// TODO: with gas meter

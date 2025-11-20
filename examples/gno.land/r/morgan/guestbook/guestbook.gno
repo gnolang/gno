@@ -3,20 +3,20 @@
 package guestbook
 
 import (
-	"std"
+	"chain/runtime"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/seqid"
 )
 
 // Signature is a single entry in the guestbook.
 type Signature struct {
 	Message string
-	Author  std.Address
+	Author  address
 	Time    time.Time
 }
 
@@ -43,7 +43,7 @@ const (
 
 // Sign signs the guestbook, with the specified message.
 func Sign(cur realm, message string) {
-	prev := std.PreviousRealm()
+	prev := runtime.PreviousRealm()
 	switch {
 	case !prev.IsUser():
 		panic(errNotAUser)

@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/benchmark/storage"
+gno = "0.9"

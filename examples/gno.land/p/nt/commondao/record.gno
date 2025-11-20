@@ -3,9 +3,8 @@ package commondao
 import (
 	"errors"
 	"math"
-	"std"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 // ErrVoteExists indicates that a user already voted.
@@ -21,12 +20,12 @@ type (
 	// Vote defines a single vote.
 	Vote struct {
 		// Address is the address of the user that this vote belons to.
-		Address std.Address
+		Address address
 
 		// Choice contains the voted choice.
 		Choice VoteChoice
 
-		// Reason contains the reason for the vote.
+		// Reason contains an optional reason for the vote.
 		Reason string
 
 		// Context can store any custom voting values related to the vote.
@@ -74,12 +73,12 @@ func (r ReadonlyVotingRecord) VoteCount(c VoteChoice) int {
 }
 
 // HasVoted checks if an account already voted.
-func (r ReadonlyVotingRecord) HasVoted(user std.Address) bool {
+func (r ReadonlyVotingRecord) HasVoted(user address) bool {
 	return r.votes.Has(user.String())
 }
 
 // GetVote returns a vote.
-func (r ReadonlyVotingRecord) GetVote(user std.Address) (_ Vote, found bool) {
+func (r ReadonlyVotingRecord) GetVote(user address) (_ Vote, found bool) {
 	if v, found := r.votes.Get(user.String()); found {
 		return v.(Vote), true
 	}

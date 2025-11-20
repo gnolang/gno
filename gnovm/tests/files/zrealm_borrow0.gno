@@ -1,11 +1,11 @@
-// PKGPATH: gno.land/r/borrow_test
-package borrow_test
+// PKGPATH: gno.land/r/borrow
+package borrow
 
 import (
+	"chain/runtime"
 	"fmt"
-	"std"
 
-	"gno.land/r/demo/tests/crossrealm"
+	"gno.land/r/tests/vm/crossrealm"
 )
 
 type Struct struct {
@@ -34,8 +34,8 @@ func (s *Struct) printRealms() {
 	// Should this be allowed?
 	// Whether it panics or not is determined by
 	// 'fr.DidCrossing = true' in PushFrameCall.
-	fmt.Println(std.CurrentRealm())
-	fmt.Println(std.PreviousRealm())
+	fmt.Println(runtime.CurrentRealm())
+	fmt.Println(runtime.PreviousRealm())
 }
 
 type Passthrough struct {
@@ -80,5 +80,5 @@ func main(cur realm) {
 
 // Output:
 // 101
-// CodeRealm{ g1evmgnh6rmk8vgahd4p2pc3reh0dw26twaz3rqq, gno.land/r/borrow_test }
+// CodeRealm{ g1mdevzlw3defhhew53zsky80lhqnk94ew8grqdt, gno.land/r/borrow }
 // UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }

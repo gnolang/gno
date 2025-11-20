@@ -151,7 +151,10 @@ func (kb *dbKeybase) persistDerivedKey(seed []byte, passwd, name, fullHdPath str
 // List returns the keys from storage in alphabetical order.
 func (kb dbKeybase) List() ([]Info, error) {
 	var res []Info
-	iter := kb.db.Iterator(nil, nil)
+	iter, err := kb.db.Iterator(nil, nil)
+	if err != nil {
+		return nil, err
+	}
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
 		key := string(iter.Key())
@@ -179,12 +182,12 @@ func (kb dbKeybase) HasByNameOrAddress(nameOrBech32 string) (bool, error) {
 
 // HasByName checks if a key with the name is in the keybase.
 func (kb dbKeybase) HasByName(name string) (bool, error) {
-	return kb.db.Has(infoKey(name)), nil
+	return kb.db.Has(infoKey(name))
 }
 
 // HasByAddress checks if a key with the address is in the keybase.
 func (kb dbKeybase) HasByAddress(address crypto.Address) (bool, error) {
-	return kb.db.Has(addrKey(address)), nil
+	return kb.db.Has(addrKey(address))
 }
 
 // Get returns the public information about one key.
@@ -197,7 +200,10 @@ func (kb dbKeybase) GetByNameOrAddress(nameOrBech32 string) (Info, error) {
 }
 
 func (kb dbKeybase) GetByName(name string) (Info, error) {
-	bs := kb.db.Get(infoKey(name))
+	bs, err := kb.db.Get(infoKey(name))
+	if err != nil {
+		return nil, fmt.Errorf("error while getting key %s from db: %w", name, err)
+	}
 	if len(bs) == 0 {
 		return nil, keyerror.NewErrKeyNotFound(name)
 	}
@@ -205,11 +211,17 @@ func (kb dbKeybase) GetByName(name string) (Info, error) {
 }
 
 func (kb dbKeybase) GetByAddress(address crypto.Address) (Info, error) {
-	ik := kb.db.Get(addrKey(address))
+	ik, err := kb.db.Get(addrKey(address))
+	if err != nil {
+		return nil, fmt.Errorf("error while getting key with address %s from db: %w", address, err)
+	}
 	if len(ik) == 0 {
 		return nil, keyerror.NewErrKeyNotFound(fmt.Sprintf("key with address %s not found", address))
 	}
-	bs := kb.db.Get(ik)
+	bs, err := kb.db.Get(ik)
+	if err != nil {
+		return nil, fmt.Errorf("error while getting info for address %s from db: %w", address, err)
+	}
 	return readInfo(bs)
 }
 
@@ -223,22 +235,20 @@ func (kb dbKeybase) Sign(nameOrBech32, passphrase string, msg []byte) (sig []byt
 
 	var priv crypto.PrivKey
 
-	switch info.(type) {
+	switch info := info.(type) {
 	case localInfo:
-		linfo := info.(localInfo)
-		if linfo.PrivKeyArmor == "" {
+		if info.PrivKeyArmor == "" {
 			err = fmt.Errorf("%w: %s", errKeyNotAvailable, nameOrBech32)
 			return
 		}
 
-		priv, err = armor.UnarmorDecryptPrivKey(linfo.PrivKeyArmor, passphrase)
+		priv, err = armor.UnarmorDecryptPrivKey(info.PrivKeyArmor, passphrase)
 		if err != nil {
 			return nil, nil, err
 		}
 
 	case ledgerInfo:
-		linfo := info.(ledgerInfo)
-		priv, err = ledger.NewPrivKeyLedgerSecp256k1Unsafe(linfo.Path)
+		priv, err = ledger.NewPrivKeyLedgerSecp256k1Unsafe(info.Path)
 		if err != nil {
 			return
 		}
@@ -265,8 +275,7 @@ func (kb dbKeybase) Verify(nameOrBech32 string, msg []byte, sig []byte) (err err
 		return
 	}
 
-	var pub crypto.PubKey
-	pub = info.GetPubKey()
+	pub := info.GetPubKey()
 	if !pub.VerifyBytes(msg, sig) {
 		return errors.New("invalid signature")
 	}
@@ -291,14 +300,13 @@ func (kb dbKeybase) ExportPrivKey(nameOrBech32 string, passphrase string) (crypt
 
 	var priv crypto.PrivKey
 
-	switch info.(type) {
+	switch info := info.(type) {
 	case localInfo:
-		linfo := info.(localInfo)
-		if linfo.PrivKeyArmor == "" {
+		if info.PrivKeyArmor == "" {
 			return nil, fmt.Errorf("%w: %s", errKeyNotAvailable, nameOrBech32)
 		}
 
-		priv, err = armor.UnarmorDecryptPrivKey(linfo.PrivKeyArmor, passphrase)
+		priv, err = armor.UnarmorDecryptPrivKey(info.PrivKeyArmor, passphrase)
 		if err != nil {
 			return nil, err
 		}
@@ -342,10 +350,9 @@ func (kb dbKeybase) Rotate(nameOrBech32, oldpass string, getNewpass func() (stri
 	if err != nil {
 		return err
 	}
-	switch info.(type) {
+	switch info := info.(type) {
 	case localInfo:
-		linfo := info.(localInfo)
-		key, err := armor.UnarmorDecryptPrivKey(linfo.PrivKeyArmor, oldpass)
+		key, err := armor.UnarmorDecryptPrivKey(info.PrivKeyArmor, oldpass)
 		if err != nil {
 			return err
 		}
@@ -404,7 +411,10 @@ func (kb dbKeybase) writeMultisigKey(name string, pub crypto.PubKey) (Info, erro
 func (kb dbKeybase) writeInfo(name string, info Info) error {
 	// write the info by key
 	key := infoKey(name)
-	oldInfob := kb.db.Get(key)
+	oldInfob, err := kb.db.Get(key)
+	if err != nil {
+		return fmt.Errorf("error while getting info by key %v: %w", key, err)
+	}
 	if len(oldInfob) > 0 {
 		// Enforce 1-to-1 name to address. Remove the lookup by the old address
 		oldInfo, err := readInfo(oldInfob)
@@ -415,7 +425,10 @@ func (kb dbKeybase) writeInfo(name string, info Info) error {
 	}
 
 	addressKey := addrKey(info.GetAddress())
-	nameKeyForAddress := kb.db.Get(addressKey)
+	nameKeyForAddress, err := kb.db.Get(addressKey)
+	if err != nil {
+		return fmt.Errorf("error while getting key for address %v: %w", info.GetAddress().String(), err)
+	}
 	if len(nameKeyForAddress) > 0 {
 		// Enforce 1-to-1 name to address. Remove the info by the old name with the same address
 		kb.db.DeleteSync(nameKeyForAddress)

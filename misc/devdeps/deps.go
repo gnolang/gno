@@ -24,8 +24,11 @@ import (
 	_ "golang.org/x/tools/cmd/godoc"
 
 	// linter
-	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
+	_ "github.com/golangci/golangci-lint/v2/cmd/golangci-lint"
 
 	// embedmd
 	_ "github.com/campoy/embedmd/embedmd"
+
+	// required to generate mocks (see `make mocks`)
+	_ "github.com/golang/mock/mockgen"
 )

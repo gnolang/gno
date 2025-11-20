@@ -1,0 +1,17 @@
+-- input.md --
+<gno-form>
+<gno-input name="foo">
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
+<div class="gno-form_header">
+<span><span>/r/test</span> Form</span>
+<span class="tooltip" data-tooltip-target="info" data-tooltip="Processed securely by /r/test"><svg class="c-icon"><use href="#ico-info"></use></svg></span>
+</div>
+<div class="gno-form_input"><label for="">  </label>
+<input type="" id="" name="" placeholder="" />
+</div>
+<!-- Error: unexpected or invalid tag -->
+<input type="submit" value="Submit to /r/test Realm" />
+</form>
