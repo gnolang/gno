@@ -530,7 +530,7 @@ func (r *FormRenderer) renderCommandBlock(w util.BufWriter, n *FormNode) {
 
 	// Prepare data for the command template
 	data := components.CommandData{
-		Prefix:     template.HTMLAttr("action-form"),
+		Prefix:     template.HTMLAttr("action-function"),
 		FuncName:   n.Exec.FuncName,
 		PkgPath:    n.RealmName,
 		ParamNames: paramNames,

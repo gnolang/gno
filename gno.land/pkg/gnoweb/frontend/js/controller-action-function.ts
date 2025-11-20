@@ -26,7 +26,6 @@ export class ActionFunctionController extends BaseController {
 		this.on("mode:changed", (event: Event) => {
 			const customEvent = event as CustomEvent;
 			const mode: ActionMode = customEvent.detail.mode;
-			console.log("mode:changed", mode);
 			this._updateAllFunctionsMode(mode);
 		});
 
@@ -44,7 +43,6 @@ export class ActionFunctionController extends BaseController {
 		const modeElements = this.getTargets("mode");
 
 		modeElements.forEach((modeElement) => {
-			console.log("modeElement in function", modeElement);
 			const isVisible = this.getValue("mode", modeElement) === mode;
 			modeElement.classList.toggle("u-inline", isVisible);
 			modeElement.classList.toggle("u-hidden", !isVisible);
