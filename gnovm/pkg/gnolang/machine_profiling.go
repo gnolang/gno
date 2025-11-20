@@ -105,6 +105,11 @@ type allocationStackInjector struct {
 	sink    instrumentation.Sink
 }
 
+var ( 
+	_ instrumentation.Sink = (*allocationStackInjector)(nil)
+	_ instrumentation.Capabilities = (*allocationStackInjector)(nil)
+)
+
 func (f *instrumentationFanout) OnSample(ctx *instrumentation.SampleContext) {
 	for _, sink := range f.sinks {
 		sink.OnSample(ctx)

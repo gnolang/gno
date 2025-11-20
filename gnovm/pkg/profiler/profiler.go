@@ -495,8 +495,14 @@ func (p *Profiler) buildCallStack(m MachineInfo) []ProfileLocation {
 			continue
 		}
 
+		// fallback: anonymous or package-level init function.
+		funcName := frame.GetFuncName()
+		if funcName == "" {
+			funcName = "<anonymous>"
+		}
+
 		loc := ProfileLocation{
-			Function: frame.GetFuncName(),
+			Function: funcName,
 			File:     fileName,
 			Line:     0, // Default line
 			Column:   0,

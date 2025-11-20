@@ -230,3 +230,32 @@ func TestProfilerRecordAllocUsesCallStack(t *testing.T) {
 		t.Fatalf("expected call count 1, got %d", stat.CallCount)
 	}
 }
+
+func TestProfilerAnonymousFunctionNameFallback(t *testing.T) {
+	p := NewProfiler(ProfileCPU, 1)
+	p.StartProfiling(nil, Options{Type: ProfileCPU, SampleRate: 1})
+
+	machine := &mockMachineInfo{
+		frames: []FrameInfo{
+			mockFrame{
+				name:    "",
+				file:    "anon.gno",
+				pkgPath: "gno.land/p/demo",
+				line:    1,
+			},
+		},
+		cycles: 10,
+	}
+
+	p.RecordSample(machine)
+	profile := p.StopProfiling()
+	if profile == nil {
+		t.Fatalf("expected profile data")
+	}
+	if len(profile.Functions) != 1 {
+		t.Fatalf("expected single entry, got %d", len(profile.Functions))
+	}
+	if got := profile.Functions[0].Name; got != "gno.land/p/demo.<anonymous>" {
+		t.Fatalf("expected anonymous fallback name, got %q", got)
+	}
+}
