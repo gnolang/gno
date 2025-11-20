@@ -1,13 +1,13 @@
 package components
 
 import (
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
+	ti "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/tocitem"
 )
 
 const RealmViewType ViewType = "realm-view"
 
 type RealmTOCData struct {
-	Items []*markdown.TocItem
+	Items []*ti.TocItem
 }
 
 type RealmData struct {
