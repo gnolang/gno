@@ -140,16 +140,16 @@ export class ActionFunctionController extends BaseController {
 				// TODO: Get PkgPath
 				const data = `gno.land/r/gnoland/boards2/v1.${this._funcName}(${args})`;
 				fetch(`/qeval?data=${encodeURIComponent(data)}`)
-					.then(async response => {
-  						if (response.ok) {
- 		    				const result = await response.text();
-							resultTarget.textContent = result
+					.then(async (response) => {
+						if (response.ok) {
+							const result = await response.text();
+							resultTarget.textContent = result;
 						} else {
-		    				resultTarget.textContent = "";
+							resultTarget.textContent = "";
 						}
 					})
 					.catch((_e) => {
-	    				resultTarget.textContent = "";
+						resultTarget.textContent = "";
   					});
 			} else {
 				resultTarget.textContent = "";
