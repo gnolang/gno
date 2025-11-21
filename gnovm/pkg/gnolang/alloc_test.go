@@ -23,4 +23,5 @@ func TestAllocSizes(t *testing.T) {
 	println("TypeValue{}", unsafe.Sizeof(TypeValue{}))
 	println("TypedValue{}", unsafe.Sizeof(TypedValue{}))
 	println("ObjectInfo{}", unsafe.Sizeof(ObjectInfo{}))
+	println("PackageValue{}", unsafe.Sizeof(PackageValue{}))
 }
