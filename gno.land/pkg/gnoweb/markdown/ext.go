@@ -80,6 +80,9 @@ func (e *GnoExtension) Extend(m goldmark.Markdown) {
 	// Add mentions extension
 	ExtMention.Extend(m)
 
+	// Add math extension
+	ExtMath.Extend(m)
+
 	// If set, setup images filter
 	if e.cfg.imgValidatorFunc != nil {
 		ExtImageValidator.Extend(m, e.cfg.imgValidatorFunc)
