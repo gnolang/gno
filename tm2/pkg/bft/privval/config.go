@@ -1,6 +1,7 @@
 package privval
 
 import (
+	"context"
 	"log/slog"
 	"path/filepath"
 
@@ -81,9 +82,10 @@ func (cfg *PrivValidatorConfig) ValidateBasic() error {
 }
 
 // NewSignerFromConfig returns a new Signer instance based on the configuration.
-// The clientLogger is only used for the remote signer client and ignored if the signer is local.
+// The ctx and clientLogger are only used for the remote signer client.
 // The clientPrivKey is only used for the remote signer client using a TCP connection.
 func NewSignerFromConfig(
+	ctx context.Context,
 	config *PrivValidatorConfig,
 	clientPrivKey ed25519.PrivKeyEd25519,
 	clientLogger *slog.Logger,
@@ -92,6 +94,7 @@ func NewSignerFromConfig(
 	// If the remote signer address is set, use a remote signer client.
 	if config.RemoteSigner != nil && config.RemoteSigner.ServerAddress != "" {
 		return rsclient.NewRemoteSignerClientFromConfig(
+			ctx,
 			config.RemoteSigner,
 			clientPrivKey,
 			clientLogger,
@@ -103,7 +106,7 @@ func NewSignerFromConfig(
 }
 
 // NewPrivValidatorFromConfig returns a new PrivValidator instance based on the configuration.
-// The clientLogger is only used for the remote signer client and ignored if the signer is local.
+// The ctx and clientLogger are only used for the remote signer client.
 // The clientPrivKey is only used for the remote signer client using a TCP connection.
 func NewPrivValidatorFromConfig(
 	config *PrivValidatorConfig,
@@ -111,7 +114,7 @@ func NewPrivValidatorFromConfig(
 	clientLogger *slog.Logger,
 ) (*PrivValidator, error) {
 	// Initialize the signer from the configuration.
-	signer, err := NewSignerFromConfig(config, clientPrivKey, clientLogger)
+	signer, err := NewSignerFromConfig(context.Background(), config, clientPrivKey, clientLogger)
 	if err != nil {
 		return nil, err
 	}

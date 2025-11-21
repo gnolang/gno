@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -19,7 +20,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 	t.Run("nil logger", func(t *testing.T) {
 		t.Parallel()
 
-		rsc, err := NewRemoteSignerClient("", nil)
+		rsc, err := NewRemoteSignerClient(context.Background(), "", nil)
 		require.Nil(t, rsc)
 		assert.ErrorIs(t, err, ErrNilLogger)
 	})
@@ -28,7 +29,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		t.Parallel()
 
 		invalidAddressProtocol := "udp://127.0.0.1"
-		rsc, err := NewRemoteSignerClient(invalidAddressProtocol, logger)
+		rsc, err := NewRemoteSignerClient(context.Background(), invalidAddressProtocol, logger)
 		require.Nil(t, rsc)
 		assert.ErrorIs(t, err, ErrInvalidAddressProtocol)
 	})
@@ -44,7 +45,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		defer rss.Stop()
 
 		// Test default dialMaxRetries.
-		rsc, err := NewRemoteSignerClient(unixSocket, logger)
+		rsc, err := NewRemoteSignerClient(context.Background(), unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.Equal(t, defaultDialMaxRetries, rsc.dialMaxRetries)
@@ -52,7 +53,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 
 		// Test functional option.
 		option := WithDialMaxRetries(3)
-		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
+		rsc, err = NewRemoteSignerClient(context.Background(), unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		assert.Equal(t, 3, rsc.dialMaxRetries)
@@ -69,7 +70,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		defer rss.Stop()
 
 		// Test default dialRetryInterval.
-		rsc, err := NewRemoteSignerClient(unixSocket, logger)
+		rsc, err := NewRemoteSignerClient(context.Background(), unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.Equal(t, defaultDialRetryInterval, rsc.dialRetryInterval)
@@ -77,7 +78,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 
 		// Test functional option.
 		option := WithDialRetryInterval(42)
-		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
+		rsc, err = NewRemoteSignerClient(context.Background(), unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		assert.Equal(t, time.Duration(42), rsc.dialRetryInterval)
@@ -94,7 +95,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		defer rss.Stop()
 
 		// Test default dialTimeout.
-		rsc, err := NewRemoteSignerClient(unixSocket, logger)
+		rsc, err := NewRemoteSignerClient(context.Background(), unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.Equal(t, defaultDialTimeout, rsc.dialTimeout)
@@ -102,7 +103,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 
 		// Test functional option.
 		option := WithDialTimeout(time.Millisecond)
-		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
+		rsc, err = NewRemoteSignerClient(context.Background(), unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		assert.Equal(t, time.Millisecond, rsc.dialTimeout)
@@ -119,7 +120,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		defer rss.Stop()
 
 		// Test default keepAlivePeriod.
-		rsc, err := NewRemoteSignerClient(unixSocket, logger)
+		rsc, err := NewRemoteSignerClient(context.Background(), unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.Equal(t, defaultKeepAlivePeriod, rsc.keepAlivePeriod)
@@ -127,7 +128,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 
 		// Test functional option.
 		option := WithKeepAlivePeriod(42)
-		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
+		rsc, err = NewRemoteSignerClient(context.Background(), unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		assert.Equal(t, time.Duration(42), rsc.keepAlivePeriod)
@@ -144,7 +145,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		defer rss.Stop()
 
 		// Test default requestTimeout.
-		rsc, err := NewRemoteSignerClient(unixSocket, logger)
+		rsc, err := NewRemoteSignerClient(context.Background(), unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.Equal(t, defaultRequestTimeout, rsc.requestTimeout)
@@ -152,7 +153,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 
 		// Test functional option.
 		option := WithRequestTimeout(time.Millisecond)
-		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
+		rsc, err = NewRemoteSignerClient(context.Background(), unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		assert.Equal(t, time.Millisecond, rsc.requestTimeout)
@@ -169,7 +170,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		defer rss.Stop()
 
 		// Test default clientPrivKey.
-		rsc, err := NewRemoteSignerClient(unixSocket, logger)
+		rsc, err := NewRemoteSignerClient(context.Background(), unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.NotNil(t, rsc.clientPrivKey)
@@ -178,7 +179,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		// Test functional option.
 		privKey := ed25519.GenPrivKey()
 		option := WithClientPrivKey(privKey)
-		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
+		rsc, err = NewRemoteSignerClient(context.Background(), unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		assert.Equal(t, privKey, rsc.clientPrivKey)
@@ -195,7 +196,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		defer rss.Stop()
 
 		// Test default authorizedKeys.
-		rsc, err := NewRemoteSignerClient(unixSocket, logger)
+		rsc, err := NewRemoteSignerClient(context.Background(), unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.Empty(t, rsc.authorizedKeys)
@@ -204,7 +205,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		// Test functional option.
 		keys := []ed25519.PubKeyEd25519{ed25519.GenPrivKey().PubKey().(ed25519.PubKeyEd25519)}
 		option := WithAuthorizedKeys(keys)
-		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
+		rsc, err = NewRemoteSignerClient(context.Background(), unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		assert.Equal(t, keys, rsc.authorizedKeys)

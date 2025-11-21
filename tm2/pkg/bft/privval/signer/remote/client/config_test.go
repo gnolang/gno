@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -96,7 +97,7 @@ func TestNewRemoteSignerClientFromConfig(t *testing.T) {
 		cfg := DefaultRemoteSignerClientConfig()
 		cfg.AuthorizedKeys = []string{invalidPubKey}
 
-		client, err := NewRemoteSignerClientFromConfig(cfg, privKey, logger)
+		client, err := NewRemoteSignerClientFromConfig(context.Background(), cfg, privKey, logger)
 		require.Nil(t, client)
 		assert.ErrorIs(t, err, errInvalidAuthorizedKey)
 	})
@@ -120,7 +121,7 @@ func TestNewRemoteSignerClientFromConfig(t *testing.T) {
 		cfg.AuthorizedKeys = validKeys
 		cfg.ServerAddress = unixSocket
 
-		client, err := NewRemoteSignerClientFromConfig(cfg, privKey, logger)
+		client, err := NewRemoteSignerClientFromConfig(context.Background(), cfg, privKey, logger)
 		require.NotNil(t, client)
 		require.NoError(t, err)
 

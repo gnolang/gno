@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -45,6 +46,7 @@ func newRemoteSignerClient(t *testing.T, address string) *c.RemoteSignerClient {
 	t.Helper()
 
 	rsc, _ := c.NewRemoteSignerClient(
+		context.Background(),
 		address,
 		log.NewNoopLogger(),
 	)
@@ -193,25 +195,6 @@ func TestServerResponse(t *testing.T) {
 		rsc.Close()
 	})
 
-	t.Run("Ping response", func(t *testing.T) {
-		t.Parallel()
-
-		var (
-			unixSocket = testUnixSocket(t)
-			signer     = types.NewMockSigner()
-		)
-
-		// Test a valid Sign response.
-		rss := newRemoteSignerServer(t, unixSocket, signer)
-		require.NotNil(t, rss)
-		require.NoError(t, rss.Start())
-		rsc := newRemoteSignerClient(t, unixSocket)
-		require.NotNil(t, rsc)
-		assert.NoError(t, rsc.Ping())
-		rss.Stop()
-		rsc.Close()
-	})
-
 	t.Run("Invalid request", func(t *testing.T) {
 		t.Parallel()
 
@@ -239,13 +222,15 @@ func TestServerConnection(t *testing.T) {
 		require.NoError(t, rss.Start())
 		serverPort := rss.ListenAddress(t).(*net.TCPAddr).Port
 		rsc, err := c.NewRemoteSignerClient(
+			context.Background(),
 			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
 			c.WithClientPrivKey(clientPrivKey),
 		)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
-		require.NoError(t, rsc.Ping())
+		_, err = rsc.Sign([]byte("test"))
+		require.NoError(t, err)
 		rss.Stop()
 		rsc.Close()
 
@@ -262,13 +247,15 @@ func TestServerConnection(t *testing.T) {
 		require.NoError(t, rss.Start())
 		serverPort = rss.ListenAddress(t).(*net.TCPAddr).Port
 		rsc, err = c.NewRemoteSignerClient(
+			context.Background(),
 			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
 			c.WithAuthorizedKeys([]ed25519.PubKeyEd25519{serverPrivKey.PubKey().(ed25519.PubKeyEd25519)}),
 		)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
-		assert.NoError(t, rsc.Ping())
+		_, err = rsc.Sign([]byte("test"))
+		assert.NoError(t, err)
 		rss.Stop()
 		rsc.Close()
 	})
@@ -288,6 +275,7 @@ func TestServerConnection(t *testing.T) {
 		require.NoError(t, rss.Start())
 		serverPort := rss.ListenAddress(t).(*net.TCPAddr).Port
 		rsc, err := c.NewRemoteSignerClient(
+			context.Background(),
 			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
 			c.WithAuthorizedKeys([]ed25519.PubKeyEd25519{ed25519.GenPrivKey().PubKey().(ed25519.PubKeyEd25519)}),

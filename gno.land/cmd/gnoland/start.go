@@ -217,7 +217,7 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		}
 
 		// Init the signer based on the config
-		signer, err := privval.NewSignerFromConfig(cfg.Consensus.PrivValidator, nodeKey.PrivKey, logger)
+		signer, err := privval.NewSignerFromConfig(ctx, cfg.Consensus.PrivValidator, nodeKey.PrivKey, logger)
 		if err != nil {
 			return fmt.Errorf("unable to instantiate signer based on config: %w", err)
 		}
@@ -226,6 +226,9 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		if err := lazyInitGenesis(io, c, genesisPath, signer); err != nil {
 			return fmt.Errorf("unable to initialize genesis.json, %w", err)
 		}
+
+		// Close the signer
+		signer.Close()
 	}
 
 	// Initialize telemetry
