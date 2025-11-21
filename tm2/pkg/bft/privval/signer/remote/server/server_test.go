@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"testing"
+	"time"
 
 	r "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote"
 	c "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
@@ -45,8 +46,11 @@ func testUnixSocket(t *testing.T) string {
 func newRemoteSignerClient(t *testing.T, address string) *c.RemoteSignerClient {
 	t.Helper()
 
+	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelFn()
+
 	rsc, _ := c.NewRemoteSignerClient(
-		context.Background(),
+		ctx,
 		address,
 		log.NewNoopLogger(),
 	)
@@ -221,8 +225,11 @@ func TestServerConnection(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
 		serverPort := rss.ListenAddress(t).(*net.TCPAddr).Port
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
 		rsc, err := c.NewRemoteSignerClient(
-			context.Background(),
+			ctx,
 			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
 			c.WithClientPrivKey(clientPrivKey),
@@ -246,8 +253,11 @@ func TestServerConnection(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
 		serverPort = rss.ListenAddress(t).(*net.TCPAddr).Port
+
+		ctx, cancelFn = context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
 		rsc, err = c.NewRemoteSignerClient(
-			context.Background(),
+			ctx,
 			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
 			c.WithAuthorizedKeys([]ed25519.PubKeyEd25519{serverPrivKey.PubKey().(ed25519.PubKeyEd25519)}),
@@ -274,8 +284,11 @@ func TestServerConnection(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
 		serverPort := rss.ListenAddress(t).(*net.TCPAddr).Port
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
 		rsc, err := c.NewRemoteSignerClient(
-			context.Background(),
+			ctx,
 			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
 			c.WithAuthorizedKeys([]ed25519.PubKeyEd25519{ed25519.GenPrivKey().PubKey().(ed25519.PubKeyEd25519)}),

@@ -341,7 +341,7 @@ func lazyInitNodeDir(io commands.IO, nodeDir string) error {
 	return fmt.Errorf("unable to initialize secrets, %w", err)
 }
 
-// lazyInitGenesis a new genesis.json file, with a signle validator
+// lazyInitGenesis a new genesis.json file, with a single validator
 func lazyInitGenesis(
 	io commands.IO,
 	c *startCfg,
