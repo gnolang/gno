@@ -371,6 +371,8 @@ func destar(x Expr) Expr {
 // Stacktrace returns the stack trace of the machine.
 // It collects the executions and frames from the machine's frames and statements.
 func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
+	// fmt.Println("======Stacktrace, len of stmts: ", len(m.Stmts))
+	// PrintCaller(2, 5)
 	if len(m.Frames) == 0 {
 		return
 	}
@@ -402,21 +404,19 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	if m.LastFrame().Func != nil && m.LastFrame().Func.IsNative() {
 		stacktrace.LastLine = -1 // special line for native.
 	} else {
-		if len(m.Stmts) > 0 {
-			ls := m.PeekStmt(1)
-			if bs, ok := ls.(*bodyStmt); ok {
-				ls := bs.LastStmt()
-				if ls != nil {
-					stacktrace.LastLine = ls.GetLine()
-				}
-			}
-		} else if len(m.Exprs) > 0 {
-			stacktrace.LastLine = m.PeekExpr(1).GetLine()
+		// fmt.Println("===not native...")
+		// if len(m.Stmts) > 0 {
+		ls := m.PeekStmt(1)
+		// fmt.Println("===ls, type of ls: ", ls, reflect.TypeOf(ls))
+		if bs, ok := ls.(*bodyStmt); ok {
+			stacktrace.LastLine = bs.LastStmt().GetLine()
+			// fmt.Println("======got last line: ", stacktrace.LastLine)
+			return
 		} else {
-			stacktrace.LastLine = 0 // dunno
+			stacktrace.LastLine = ls.GetLine()
+			// println("===not bodystmt...")
 		}
 	}
-
 	return
 }
 
@@ -1637,6 +1637,8 @@ func (m *Machine) PushStmt(s Stmt) {
 	if debug {
 		m.Printf("+s %v\n", s)
 	}
+	// fmt.Printf("+s %v\n", s)
+	// PrintCaller(2, 5)
 	m.Stmts = append(m.Stmts, s)
 }
 
@@ -1684,6 +1686,8 @@ func (m *Machine) PushExpr(x Expr) {
 	if debug {
 		m.Printf("+x %v\n", x)
 	}
+	// fmt.Printf("+x %v\n", x)
+	// PrintCaller(2, 5)
 	m.Exprs = append(m.Exprs, x)
 }
 
