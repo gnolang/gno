@@ -2122,23 +2122,29 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					pn := pv.GetPackageNode(store)
 					// ensure exposed or package path match.
-					if !isUpper(string(n.Sel)) && ctxpn.PkgPath != pv.PkgPath {
+					if !(isUpper(string(n.Sel)) || ctxpn.PkgPath == pv.PkgPath) {
 						panic(fmt.Sprintf("cannot access %s.%s from %s",
 							pv.PkgPath, n.Sel, ctxpn.PkgPath))
+					}
+					// ensure no modification from external realm.
+					//  1. ext.Name = xyz    // static illegal assignment
+					//  2. (ext.Foo).Bar = 1 // runtime illegal assignment (readonly)
+					// case 2 is handled at runtime. XXX verify
+					if ctxpn.PkgPath != pv.PkgPath {
+						if ftype == TRANS_ASSIGN_LHS {
+							panic(fmt.Sprintf("cannot mutate %s.%s from %s",
+								pv.PkgPath, n.Sel, ctxpn.PkgPath))
+						}
 					}
 					// NOTE: this can happen with software upgrades,
 					// with multiple versions of the same package path.
 					n.Path = pn.GetPathForName(store, n.Sel)
-					// packages may contain constant vars,
-					// so check and evaluate if so.
+					// Produce const expr if typed or untyped const.
 					tt := pn.GetStaticTypeOfAt(store, n.Path)
-
-					// Produce a constant expression for both typed and untyped constants.
 					if isUntyped(tt) || pn.GetIsConstAt(store, n.Path) {
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
 					}
-
 				case *TypeType:
 					// unbound method
 					xt := evalStaticType(store, last, n.X)
@@ -3412,11 +3418,11 @@ func codaHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 	})
 }
 
-// Replace a package name with RefValue{PkgPath}
-// `pkg`      -> RefValue{PkgPath}
-// Replace a local package declared name with
-// SelectorExpr{X:RefValue{PkgPath},Sel:name}
-// `pkg.name` -> SelectorExpr{RefValue{PkgPath}, name}
+// Replace package name with ref:
+//   - `pkg`  ->                RefValue{PkgPath}
+//
+// Replace package declared name ref:
+//   - `name` -> SelectorExpr{X:RefValue{PkgPath},Sel:name}
 func codaPackageSelectors(bn BlockNode) {
 	// Iterate over all nodes recursively.
 	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
