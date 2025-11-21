@@ -22,7 +22,7 @@ jobs:
       programs: ${{ steps.set-matrix.outputs.programs }}
       go-versions: ${{ steps.get-go-versions.outputs.go-versions }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - id: set-matrix
         run: |
