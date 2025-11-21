@@ -1,12 +1,10 @@
 package users
 
 import (
-	"std"
-
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/nt/ufmt"
 
 	"gno.land/r/demo/profile"
 	susers "gno.land/r/sys/users"
@@ -26,7 +24,7 @@ func Render(path string) string {
 func renderHomePage() string {
 	var out string
 
-	out += "# gno.land user registry\n"
+	out += "# Gno.land User Registry\n"
 
 	if paused {
 		out += md.HorizontalRule()
@@ -44,14 +42,15 @@ func renderHomePage() string {
 }
 
 func renderIntroParagraph() string {
-	out := md.Paragraph("Welcome to the gno.land user registry (v1). Please register a username.")
+	out := md.Paragraph("Welcome to the Gno.land User Registry (v1). Please register a username.")
 	out += md.Paragraph(`Registering a username grants the registering address the right to deploy packages and realms
 under that username’s namespace. For example, if an address registers the username ` + md.InlineCode("gnome123") + `, it 
 will gain permission to deploy packages and realms to package paths with the pattern ` + md.InlineCode("gno.land/{p,r}/gnome123/*") + `.`)
 
 	out += md.Paragraph("In V1, usernames must follow these rules, in order to prevent username squatting:")
 	items := []string{
-		"Must start with 3 characters",
+		"Must start with 3 letters",
+		"Letters must be lowercase",
 		"Must end with 3 numbers",
 		"Have a maximum length of 20 characters",
 		"With the only special character allowed being `_`",
@@ -63,7 +62,12 @@ will gain permission to deploy packages and realms to package paths with the pat
 
 	if !paused {
 		amount := ufmt.Sprintf("%dugnot", registerPrice)
-		out += md.H3(ufmt.Sprintf(" [[Click here to register]](%s)", txlink.NewLink("Register").SetSend(amount).URL()))
+		link := txlink.NewLink("Register")
+		if registerPrice > 0 {
+			link = link.SetSend(amount)
+		}
+
+		out += md.H3(ufmt.Sprintf(" [[Click here to register]](%s)", link.URL()))
 		// XXX: Display registration price adjusting for dynamic GNOT price when it becomes possible.
 		out += ufmt.Sprintf("Registration price: %f GNOT (%s)\n\n", float64(registerPrice)/1_000_000, amount)
 	}
@@ -76,8 +80,8 @@ will gain permission to deploy packages and realms to package paths with the pat
 
 // resolveUser resolves the user based on the path, determining if it's a name or address
 func resolveUser(path string) (*susers.UserData, bool, bool) {
-	if std.Address(path).IsValid() {
-		return susers.ResolveAddress(std.Address(path)), false, false
+	if address(path).IsValid() {
+		return susers.ResolveAddress(address(path)), false, false
 	}
 
 	data, isLatest := susers.ResolveName(path)

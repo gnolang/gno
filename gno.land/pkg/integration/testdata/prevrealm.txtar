@@ -38,7 +38,7 @@ gnokey maketx call -pkgpath gno.land/r/myrlm -func A -gas-fee 100000ugnot -gas-w
 stdout ${test1_user_addr}
 
 ## 2. MsgCall -> myrealm.B -> myrlm.A: user address
-gnokey maketx call -pkgpath gno.land/r/myrlm -func B -gas-fee 100000ugnot -gas-wanted 1000000 -broadcast -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/myrlm -func B -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test test1
 stdout ${test1_user_addr}
 
 ## 3. MsgCall -> r/foo.A -> myrlm.A: r/foo
@@ -95,10 +95,10 @@ stdout ${test1_user_addr}
 -- r/myrlm/myrlm.gno --
 package myrlm
 
-import "std"
+import "chain/runtime"
 
 func A(cur realm) string {
-	return std.PreviousRealm().Address().String()
+	return runtime.PreviousRealm().Address().String()
 }
 
 func B(cur realm) string {
@@ -119,14 +119,14 @@ func B(cur realm) string {
 -- p/demo/bar/bar.gno --
 package bar
 
-import "std"
+import "chain/runtime"
 
 func A() string {
-	return std.PreviousRealm().Address().String()
+	return runtime.PreviousRealm().Address().String()
 }
 
 func B() string {
-	 return A()
+	return A()
 }
 -- run/myrlm-a.gno --
 package main
@@ -172,9 +172,9 @@ func main() {
 -- run/baz.gno --
 package main
 
-import "std"
+import "chain/runtime"
 
 func main() {
-	name := std.PreviousRealm().Address().String()
+	name := runtime.PreviousRealm().Address().String()
 	println(name)
 }

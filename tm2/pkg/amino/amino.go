@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -343,9 +344,8 @@ func (cdc *Codec) Marshal(o any) ([]byte, error) {
 		pbm, ok := o.(PBMessager)
 		if ok {
 			return cdc.MarshalPBBindings(pbm)
-		} else {
-			// Fall back to using reflection for native primitive types.
 		}
+		// Else, fall back to using reflection for native primitive types.
 	}
 
 	return cdc.MarshalReflect(o)
@@ -618,9 +618,8 @@ func (cdc *Codec) Unmarshal(bz []byte, ptr any) error {
 		pbm, ok := ptr.(PBMessager)
 		if ok {
 			return cdc.unmarshalPBBindings(bz, pbm)
-		} else {
-			// Fall back to using reflection for native primitive types.
 		}
+		// Else, fall back to using reflection for native primitive types.
 	}
 
 	return cdc.unmarshalReflect(bz, ptr)
@@ -774,7 +773,6 @@ func (cdc *Codec) MustUnmarshalAny(bz []byte, ptr any) {
 	if err != nil {
 		panic(err)
 	}
-	return
 }
 
 func (cdc *Codec) JSONMarshal(o any) ([]byte, error) {
@@ -837,7 +835,7 @@ func (cdc *Codec) MarshalJSONAny(o any) ([]byte, error) {
 	return bz, nil
 }
 
-// MustMarshalJSON panics if an error occurs. Besides tha behaves exactly like MarshalJSON.
+// MustMarshalJSON panics if an error occurs. Besides that behaves exactly like MarshalJSON.
 func (cdc *Codec) MustMarshalJSON(o any) []byte {
 	bz, err := cdc.JSONMarshal(o)
 	if err != nil {
@@ -846,7 +844,7 @@ func (cdc *Codec) MustMarshalJSON(o any) []byte {
 	return bz
 }
 
-// MustMarshalJSONAny panics if an error occurs. Besides tha behaves exactly like MarshalJSONAny.
+// MustMarshalJSONAny panics if an error occurs. Besides that behaves exactly like MarshalJSONAny.
 func (cdc *Codec) MustMarshalJSONAny(o any) []byte {
 	bz, err := cdc.MarshalJSONAny(o)
 	if err != nil {
@@ -874,7 +872,7 @@ func (cdc *Codec) JSONUnmarshal(bz []byte, ptr any) error {
 	return cdc.decodeReflectJSON(bz, info, rv, FieldOptions{})
 }
 
-// MustUnmarshalJSON panics if an error occurs. Besides tha behaves exactly like UnmarshalJSON.
+// MustUnmarshalJSON panics if an error occurs. Besides that behaves exactly like UnmarshalJSON.
 func (cdc *Codec) MustUnmarshalJSON(bz []byte, ptr any) {
 	if err := cdc.JSONUnmarshal(bz, ptr); err != nil {
 		panic(err)
@@ -927,6 +925,9 @@ func GetCallersDirname() string {
 	dirname = filepath.Dir(filename)
 	if filename == "" || dirname == "" {
 		panic("could not derive caller's package directory")
+	}
+	if !path.IsAbs(dirname) {
+		dirname = "" // if relative, assume from module and return empty string
 	}
 	return dirname
 }

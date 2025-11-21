@@ -1,9 +1,9 @@
-// PKGPATH: gno.land/r/borrow_test
-package borrow_test
+// PKGPATH: gno.land/r/borrow
+package borrow
 
 import (
-	"gno.land/r/demo/tests/crossrealm"
-	"gno.land/r/demo/tests/crossrealm_b"
+	"gno.land/r/tests/vm/crossrealm"
+	"gno.land/r/tests/vm/crossrealm_b"
 )
 
 type Struct struct {

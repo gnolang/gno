@@ -25,7 +25,7 @@ func TestCallSingle_Integration(t *testing.T) {
 	// Setup packages
 	rootdir := gnoenv.RootDir()
 	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
-	meta := loadpkgs(t, rootdir, "gno.land/r/demo/deep/very/deep")
+	meta := loadpkgs(t, rootdir, "gno.land/r/tests/vm/deep/very/deep")
 	state := config.Genesis.AppState.(gnoland.GnoGenesisState)
 	state.Txs = append(state.Txs, meta...)
 	config.Genesis.AppState = state
@@ -59,7 +59,7 @@ func TestCallSingle_Integration(t *testing.T) {
 	// Make Msg config
 	msg := vm.MsgCall{
 		Caller:  caller.GetAddress(),
-		PkgPath: "gno.land/r/demo/deep/very/deep",
+		PkgPath: "gno.land/r/tests/vm/deep/very/deep",
 		Func:    "RenderCrossing",
 		Args:    []string{"test argument"},
 		Send:    nil,
@@ -84,7 +84,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 	// Setup packages
 	rootdir := gnoenv.RootDir()
 	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
-	meta := loadpkgs(t, rootdir, "gno.land/r/demo/deep/very/deep")
+	meta := loadpkgs(t, rootdir, "gno.land/r/tests/vm/deep/very/deep")
 	state := config.Genesis.AppState.(gnoland.GnoGenesisState)
 	state.Txs = append(state.Txs, meta...)
 	config.Genesis.AppState = state
@@ -118,7 +118,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 	// Make Msg configs
 	msg1 := vm.MsgCall{
 		Caller:  caller.GetAddress(),
-		PkgPath: "gno.land/r/demo/deep/very/deep",
+		PkgPath: "gno.land/r/tests/vm/deep/very/deep",
 		Func:    "RenderCrossing",
 		Args:    []string{""},
 		Send:    nil,
@@ -127,7 +127,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 	// Same call, different argument
 	msg2 := vm.MsgCall{
 		Caller:  caller.GetAddress(),
-		PkgPath: "gno.land/r/demo/deep/very/deep",
+		PkgPath: "gno.land/r/tests/vm/deep/very/deep",
 		Func:    "RenderCrossing",
 		Args:    []string{"test argument"},
 		Send:    nil,
@@ -289,7 +289,7 @@ func TestRunSingle_Integration(t *testing.T) {
 	// Setup packages
 	rootdir := gnoenv.RootDir()
 	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
-	meta := loadpkgs(t, rootdir, "gno.land/p/demo/ufmt", "gno.land/r/demo/tests")
+	meta := loadpkgs(t, rootdir, "gno.land/p/nt/ufmt", "gno.land/r/tests/vm")
 	state := config.Genesis.AppState.(gnoland.GnoGenesisState)
 	state.Txs = append(state.Txs, meta...)
 	config.Genesis.AppState = state
@@ -319,8 +319,8 @@ func TestRunSingle_Integration(t *testing.T) {
 
 	fileBody := `package main
 import (
-	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/tests"
+	"gno.land/p/nt/ufmt"
+	tests "gno.land/r/tests/vm"
 )
 func main() {
 	println(ufmt.Sprintf("- before: %d", tests.Counter(cross)))
@@ -338,8 +338,7 @@ func main() {
 		Caller: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Name: "main",
-			// Path will be automatically set by handler.
-			// Path: fmt.Sprintf("gno.land/r/%s/run", caller.GetAddress().String()),
+			// Path: fmt.Sprintf("gno.land/e/%s/run", caller.GetAddress().String()),
 			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
@@ -367,9 +366,9 @@ func TestRunMultiple_Integration(t *testing.T) {
 	rootdir := gnoenv.RootDir()
 	config := integration.TestingMinimalNodeConfig(rootdir)
 	meta := loadpkgs(t, rootdir,
-		"gno.land/p/demo/ufmt",
-		"gno.land/r/demo/tests",
-		"gno.land/r/demo/deep/very/deep",
+		"gno.land/p/nt/ufmt",
+		"gno.land/r/tests/vm",
+		"gno.land/r/tests/vm/deep/very/deep",
 	)
 	state := config.Genesis.AppState.(gnoland.GnoGenesisState)
 	state.Txs = append(state.Txs, meta...)
@@ -399,8 +398,8 @@ func TestRunMultiple_Integration(t *testing.T) {
 
 	fileBody1 := `package main
 import (
-	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/tests"
+	"gno.land/p/nt/ufmt"
+	tests "gno.land/r/tests/vm"
 )
 func main() {
 	println(ufmt.Sprintf("- before: %d", tests.Counter(cross)))
@@ -412,8 +411,8 @@ func main() {
 
 	fileBody2 := `package main
 import (
-	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/deep/very/deep"
+	"gno.land/p/nt/ufmt"
+	"gno.land/r/tests/vm/deep/very/deep"
 )
 func main() {
 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
@@ -427,8 +426,7 @@ func main() {
 		Caller: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Name: "main",
-			// Path will be automatically set by handler.
-			// Path: fmt.Sprintf("gno.land/r/%s/run", caller.GetAddress().String()),
+			// Path: fmt.Sprintf("gno.land/e/%s/run", caller.GetAddress().String()),
 			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
@@ -442,8 +440,7 @@ func main() {
 		Caller: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Name: "main",
-			// Path will be automatically set by handler.
-			// Path: fmt.Sprintf("gno.land/r/%s/run", caller.GetAddress().String()),
+			// Path: fmt.Sprintf("gno.land/e/%s/run", caller.GetAddress().String()),
 			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
@@ -502,7 +499,7 @@ func Echo(str string) string {
 
 	fileName := "echo.gno"
 	deploymentPath := "gno.land/p/demo/integration/test/echo"
-	deposit := std.Coins{{Denom: ugnot.Denom, Amount: int64(100)}}
+	deposit := std.Coins{{Denom: ugnot.Denom, Amount: int64(10000000)}}
 
 	caller, err := client.Signer.Info()
 	require.NoError(t, err)
@@ -524,7 +521,7 @@ func Echo(str string) string {
 				},
 			},
 		},
-		Deposit: deposit,
+		MaxDeposit: deposit,
 	}
 
 	// Execute AddPackage
@@ -540,9 +537,9 @@ func Echo(str string) string {
 	assert.Equal(t, fileName+"\ngnomod.toml", string(query.Response.Data))
 
 	// Query balance to validate deposit
-	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath))
+	baseAcc, _, err := client.QueryAccount(gnolang.DeriveStorageDepositCryptoAddr(deploymentPath))
 	require.NoError(t, err)
-	assert.Equal(t, baseAcc.GetCoins(), deposit)
+	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 177600}}, baseAcc.GetCoins())
 
 	// Test signing separately (using a different deployment path)
 	deploymentPathB := "gno.land/p/demo/integration/test/echo2"
@@ -583,7 +580,8 @@ func TestAddPackageMultiple_Integration(t *testing.T) {
 		Memo:           "",
 	}
 
-	deposit := std.Coins{{Denom: ugnot.Denom, Amount: int64(100)}}
+	deposit := std.Coins{{Denom: ugnot.Denom, Amount: int64(10000000)}}
+	send := std.Coins{{Denom: ugnot.Denom, Amount: int64(1000000)}}
 	deploymentPath1 := "gno.land/p/demo/integration/test/echo"
 
 	body1 := `package echo
@@ -618,7 +616,7 @@ func Hello(str string) string {
 				},
 			},
 		},
-		Deposit: nil,
+		MaxDeposit: nil,
 	}
 
 	msg2 := vm.MsgAddPackage{
@@ -637,9 +635,14 @@ func Hello(str string) string {
 				},
 			},
 		},
-		Deposit: deposit,
+		Send:       send,
+		MaxDeposit: deposit,
 	}
 
+	// Verify initial balance of deployer's account
+	baseAcc, _, err := client.QueryAccount(caller.GetAddress())
+	require.NoError(t, err)
+	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 10000000000000}}, baseAcc.GetCoins())
 	// Execute AddPackage
 	_, err = client.AddPackage(baseCfg, msg1, msg2)
 	assert.NoError(t, err)
@@ -653,9 +656,9 @@ func Hello(str string) string {
 	assert.Equal(t, string(query.Response.Data), "echo.gno\ngnomod.toml")
 
 	// Query balance to validate deposit
-	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath1))
+	baseAcc, _, err = client.QueryAccount(gnolang.DeriveStorageDepositCryptoAddr(deploymentPath1))
 	require.NoError(t, err)
-	assert.Equal(t, baseAcc.GetCoins().String(), "")
+	assert.Equal(t, "177600ugnot", baseAcc.GetCoins().String())
 
 	// Check Package #2
 	query, err = client.Query(QueryCfg{
@@ -666,10 +669,21 @@ func Hello(str string) string {
 	assert.Contains(t, string(query.Response.Data), "hello.gno")
 	assert.Contains(t, string(query.Response.Data), "gnomod.toml")
 
-	// Query balance to validate deposit
+	// Query storage deposit balance to validate deposit
+	baseAcc, _, err = client.QueryAccount(gnolang.DeriveStorageDepositCryptoAddr(deploymentPath2))
+	require.NoError(t, err)
+	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 178700}}, baseAcc.GetCoins())
+
+	// Verify the realm account balance received from the send
 	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath2))
 	require.NoError(t, err)
-	assert.Equal(t, baseAcc.GetCoins(), deposit)
+	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 1000000}}, baseAcc.GetCoins())
+
+	// Verify remaining balance of deployer's account
+	baseAcc, _, err = client.QueryAccount(caller.GetAddress())
+	require.NoError(t, err)
+	// 999999654370 = 10000000000000 - (GasFee 2100000 + Storage Deposit 177600 + Storage Deposit 178700 + Send 1000000)
+	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 9999996543700}}, baseAcc.GetCoins())
 
 	// Test signing separately (using a different deployment path)
 	deploymentPath1B := "gno.land/p/demo/integration/test/echo2"

@@ -1050,6 +1050,8 @@ func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 			if dmtid != imtid {
 				return fmt.Errorf("wrong type for method %s", im.Name)
 			}
+		} else {
+			return fmt.Errorf("wrong type for method %s", im.Name)
 		}
 	}
 	return nil
@@ -1506,14 +1508,19 @@ func (dt *DeclaredType) TypeID() TypeID {
 	return dt.typeid
 }
 
-var Re_declaredTypeID = r.G(
-	r.N("PATH", r.P(r.CN(r.E(`[.`)))),
-	r.M(r.E(`[`), r.N("LOC", Re_location), r.E(`]`)),
-	r.E(`.`),
-	r.N("NAME", r.P(`.`)))
+var (
+	Re_declaredTypeID = r.G(
+		r.N("PATH", r.P(r.CN(r.E(`[.`)))),
+		r.M(r.E(`[`), r.N("LOC", Re_location), r.E(`]`)),
+		r.E(`.`),
+		r.N("NAME", r.P(`.`)))
+
+	// Compile at init to avoid runtime compilation.
+	ReDeclaredTypeID = Re_declaredTypeID.Compile()
+)
 
 func ParseDeclaredTypeID(tid string) (pkgPath string, loc string, name string, ok bool) {
-	match := Re_declaredTypeID.Match(tid)
+	match := ReDeclaredTypeID.Match(tid)
 	if match == nil {
 		return
 	}
@@ -1669,7 +1676,7 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 			// NOTE: makes code simple but requires preprocessor's
 			// Store to pre-load method types.
 			rt := fv.GetType(nil).Params[0].Type
-			vp := ValuePath{}
+			var vp ValuePath
 			if _, ok := rt.(*PointerType); ok {
 				vp = NewValuePathPtrMethod(uint16(i), n)
 			} else {
@@ -2392,11 +2399,11 @@ func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
 				for n, t := range lookup {
 					bs.Define(n, asValue(t))
 				}
+				m := NewMachine("", nil)
 				// Parse generic to expr.
-				gx := MustParseExpr(string(generic))
+				gx := m.MustParseExpr(string(generic))
 				gx = Preprocess(nil, bs, gx).(Expr)
 				// Evaluate type from generic expression.
-				m := NewMachine("", nil)
 				tv := m.EvalStatic(bs, gx)
 				m.Release()
 				if isElem {

@@ -1,11 +1,11 @@
-// PKGPATH: gno.land/r/borrow_test
-package borrow_test
+// PKGPATH: gno.land/r/borrow
+package borrow
 
 import (
+	"chain/runtime"
 	"fmt"
-	"std"
 
-	"gno.land/r/demo/tests/crossrealm"
+	"gno.land/r/tests/vm/crossrealm"
 )
 
 type Struct struct {
@@ -15,8 +15,8 @@ type Struct struct {
 func (s *Struct) Mutate() {
 	s.A += 1
 	fmt.Printf("s.A: %d\n", s.A)
-	fmt.Println("current realm: ", std.CurrentRealm())
-	fmt.Println("previous realm: ", std.PreviousRealm())
+	fmt.Println("current realm: ", runtime.CurrentRealm())
+	fmt.Println("previous realm: ", runtime.PreviousRealm())
 }
 
 type Passthrough struct {
@@ -43,5 +43,5 @@ func main(cur realm) {
 
 // Output:
 // s.A: 101
-// current realm:  CodeRealm{ g1evmgnh6rmk8vgahd4p2pc3reh0dw26twaz3rqq, gno.land/r/borrow_test }
+// current realm:  CodeRealm{ g1mdevzlw3defhhew53zsky80lhqnk94ew8grqdt, gno.land/r/borrow }
 // previous realm:  UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }

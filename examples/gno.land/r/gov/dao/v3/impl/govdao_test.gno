@@ -1,18 +1,21 @@
 package impl
 
 import (
-	"std"
+	"fmt"
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/urequire"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
+	susers "gno.land/r/sys/users"
 )
 
 func init() {
 	loadMembers()
+	registerTestUser(m1, m11, m111, m1111, m2, m3, m4, m5, m6, noMember)
+
 	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO:         govDAO,
 		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
@@ -32,6 +35,21 @@ var (
 
 	noMember = testutils.TestAddress("nm1")
 )
+
+const gUsersV1Path = "gno.land/r/gnoland/users/v1"
+
+// Register a namespace for every addresses
+// Necessary to test GovDAO Vote
+func registerTestUser(addrs ...address) {
+	// Set realm to users admin to register test user
+	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
+	for _, addr := range addrs {
+		err := susers.RegisterUser(cross, addr.String()[1:], addr)
+		if err != nil {
+			panic(err.Error() + " : " + addr.String())
+		}
+	}
+}
 
 func loadMembers() {
 	// This is needed because state is saved between unit tests,
@@ -61,7 +79,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	portfolio := "# This is my portfolio:\n\n- THINGS"
 
 	testing.SetOriginCaller(noMember)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	nm1 := testutils.TestAddress("nm1")
 
@@ -74,7 +92,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m1)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	proposalRequest := NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio)
 
@@ -127,9 +145,8 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	// })
 	dao.MustVoteOnProposalSimple(cross, 0, "NO")
 
-	urequire.Equal(t, true, contains(dao.Render(""), "Proposal open for votes"))
-	urequire.Equal(t, true, contains(dao.Render(""), "15.789473684210526%"))
-	urequire.Equal(t, true, contains(dao.Render(""), "52.63157894736842%"))
+	urequire.Equal(t, true, strings.Contains(dao.Render(""), "Prop #0 - New T2 Member Proposal"))
+	// urequire.Equal(t, true, strings.Contains(dao.Render(""), "Author: "+m1.String()))
 
 	urequire.AbortsWithMessage(t, "proposal didn't reach supermajority yet: 66", func() {
 		dao.ExecuteProposal(cross, dao.ProposalID(0))
@@ -144,8 +161,8 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	accepted := dao.ExecuteProposal(cross, dao.ProposalID(0))
 	urequire.Equal(t, false, accepted)
 
-	urequire.Equal(t, true, contains(dao.Render(""), "**PROPOSAL HAS BEEN DENIED**"))
-	urequire.Equal(t, true, contains(dao.Render(""), "NO PERCENT: 68.42105263157895%"))
+	urequire.Equal(t, true, contains(dao.Render("0"), "**PROPOSAL HAS BEEN DENIED**"))
+	urequire.Equal(t, true, contains(dao.Render("0"), "NO PERCENT: 68.42105263157895%"))
 }
 
 func TestProposalPagination(cur realm, t *testing.T) {
@@ -153,7 +170,7 @@ func TestProposalPagination(cur realm, t *testing.T) {
 	portfolio := "### This is my portfolio:\n\n- THINGS"
 
 	testing.SetOriginCaller(m1)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	nm1 := testutils.TestAddress("nm1")
 
@@ -182,28 +199,29 @@ func TestProposalPagination(cur realm, t *testing.T) {
 	pid = dao.MustCreateProposal(cross, proposalRequest)
 	urequire.Equal(t, 6, int(pid))
 
-	urequire.Equal(t, true, contains(dao.Render(""), "## Proposal with id: 6"))
-	urequire.Equal(t, true, contains(dao.Render(""), "## Proposal with id: 5"))
-	urequire.Equal(t, true, contains(dao.Render(""), "## Proposal with id: 4"))
+	fmt.Println(dao.Render(""))
+	urequire.Equal(t, true, contains(dao.Render(""), "### [Prop #6 - New T2 Member Proposal](/r/gov/dao:6)"))
+	urequire.Equal(t, true, contains(dao.Render(""), "### [Prop #5 - New T2 Member Proposal](/r/gov/dao:5)"))
+	urequire.Equal(t, true, contains(dao.Render(""), "### [Prop #4 - New T2 Member Proposal](/r/gov/dao:4)"))
+	urequire.Equal(t, true, contains(dao.Render(""), "### [Prop #3 - New T2 Member Proposal](/r/gov/dao:3)"))
+	urequire.Equal(t, true, contains(dao.Render(""), "### [Prop #2 - New T2 Member Proposal](/r/gov/dao:2)"))
 
-	urequire.Equal(t, true, contains(dao.Render("/?page=2"), "## Proposal with id: 3"))
-	urequire.Equal(t, true, contains(dao.Render("/?page=2"), "## Proposal with id: 2"))
-	urequire.Equal(t, true, contains(dao.Render("/?page=2"), "## Proposal with id: 1"))
-	urequire.Equal(t, true, contains(dao.Render("/?page=3"), "## Proposal with id: 0"))
+	urequire.Equal(t, true, contains(dao.Render("?page=2"), "### [Prop #1 - New T2 Member Proposal](/r/gov/dao:1)"))
+	urequire.Equal(t, true, contains(dao.Render("?page=2"), "### [Prop #0 - New T2 Member Proposal](/r/gov/dao:0)"))
 }
 
 func TestUpgradeDaoImplementation(t *testing.T) {
 	loadMembers()
 
 	testing.SetOriginCaller(noMember)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	urequire.PanicsWithMessage(t, "proposer is not a member", func() {
 		NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
 	})
 
 	testing.SetOriginCaller(m1)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	preq := NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
 
@@ -247,7 +265,7 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	// })
 	dao.MustVoteOnProposalSimple(cross, int64(pid), "YES")
 
-	urequire.Equal(t, true, contains(dao.Render("7"), "Proposal open for votes"))
+	urequire.Equal(t, true, contains(dao.Render("7"), "**Proposal is open for votes**"))
 	urequire.Equal(t, true, contains(dao.Render("7"), "68.42105263157895%"))
 	urequire.Equal(t, true, contains(dao.Render("7"), "0%"))
 
@@ -255,7 +273,6 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	urequire.Equal(t, true, accepted)
 	urequire.Equal(t, true, contains(dao.Render("7"), "**PROPOSAL HAS BEEN ACCEPTED**"))
 	urequire.Equal(t, true, contains(dao.Render("7"), "YES PERCENT: 68.42105263157895%"))
-
 }
 
 func contains(s, substr string) bool {

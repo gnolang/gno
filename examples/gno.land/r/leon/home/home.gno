@@ -1,12 +1,14 @@
 package home
 
 import (
-	"std"
+	"chain/banker"
+	"chain/runtime"
 	"strconv"
 
 	"gno.land/p/demo/svg"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/ufmt"
 
 	"gno.land/r/demo/art/gnoface"
 	"gno.land/r/demo/art/millipede"
@@ -21,19 +23,32 @@ var (
 	abtMe      [2]string
 )
 
-func Render(_ string) string {
+func Render(path string) string {
 	out := "# Leon's Homepage\n\n"
+
+	if path == "buttons" {
+		return renderButtonPage()
+	}
 
 	out += renderAboutMe()
 	out += renderArt()
 	out += config.Banner()
+	out += "\n\n"
+	out += svgbtn.Button(
+		1200,
+		50,
+		gnomeBodyColors[int(runtime.ChainHeight()+1)%len(gnomeBodyColors)],
+		"#ffffff",
+		"Support my work!",
+		"/r/leon/home$help&func=Donate&.send=1000000ugnot",
+	)
 
 	return out
 }
 
 func init() {
 	hor.Register(cross, "Leon's Home Realm", "")
-	mirror.Register(std.CurrentRealm().PkgPath(), Render)
+	mirror.Register(cross, runtime.CurrentRealm().PkgPath(), Render)
 
 	pfp = "https://i.imgflip.com/91vskx.jpg"
 	pfpCaption = "[My favourite painting & pfp](https://en.wikipedia.org/wiki/Wanderer_above_the_Sea_of_Fog)"
@@ -42,15 +57,15 @@ func init() {
 Hi, I'm Leon, a DevRel Engineer at gno.land. I am a tech enthusiast, 
 life-long learner, and sharer of knowledge.`,
 		`### Contributions
-My contributions to gno.land can mainly be found 
-[here](https://github.com/gnolang/gno/issues?q=sort:updated-desc+author:leohhhn).
+My contributions to Gno.land can mainly be found 
+[on GitHub](https://github.com/gnolang/gno/issues?q=sort:updated-desc+author:leohhhn), and on [the chain](/u/leon).
 
 TODO import r/gh`,
 	}
 }
 
 func UpdatePFP(cur realm, url, caption string) {
-	if !config.IsAuthorized(std.PreviousRealm().Address()) {
+	if !config.IsAuthorized(runtime.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -59,7 +74,7 @@ func UpdatePFP(cur realm, url, caption string) {
 }
 
 func UpdateAboutMe(cur realm, col1, col2 string) {
-	if !config.IsAuthorized(std.PreviousRealm().Address()) {
+	if !config.IsAuthorized(runtime.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -67,22 +82,37 @@ func UpdateAboutMe(cur realm, col1, col2 string) {
 	abtMe[1] = col2
 }
 
+func Donate(_ realm) string {
+	sent := banker.OriginSend()
+	if len(sent) == 0 {
+		return ":c"
+	}
+
+	banker.NewBanker(banker.BankerTypeOriginSend).SendCoins(
+		runtime.CurrentRealm().Address(),
+		config.OwnableMain.Owner(),
+		sent,
+	) // wish this was prettier :)
+
+	return "Thanks for donating " + sent.String() + " <3"
+}
+
 func renderAboutMe() string {
 	return md.Columns([]string{
 		ufmt.Sprintf("![my profile pic](%s)\n\n%s\n", pfp, pfpCaption),
 		abtMe[0],
 		abtMe[1],
-	})
+	}, false)
 }
 
 func renderArt() string {
 	out := "# Gno Art\n"
 
 	out += md.Columns([]string{
-		gnoface.Render(strconv.Itoa(int(std.ChainHeight()))),
+		gnoface.Render(strconv.Itoa(int(runtime.ChainHeight()))),
 		renderMillipede(),
 		"SVG Gnome\n" + RenderSVGGnome(),
-	})
+	}, false)
 
 	out += "This art is dynamic; it will change with every new block.\n\n"
 
@@ -91,7 +121,7 @@ func renderArt() string {
 
 func renderMillipede() string {
 	out := "Millipede\n\n"
-	out += "```\n" + millipede.Draw(int(std.ChainHeight())%10+1) + "```\n"
+	out += "```\n" + millipede.Draw(int(runtime.ChainHeight())%10+1) + "```\n"
 	return out
 }
 
@@ -108,7 +138,7 @@ func RenderSVGGnome() string { // exported for your pleasure :)
 	c := svg.NewCanvas(430, 430).WithViewBox(13, 25, 75, 75)
 
 	// Body: blue triangle
-	body := svg.NewPolygon("50,50 30,100 70,100", gnomeBodyColors[int(std.ChainHeight())%len(gnomeBodyColors)])
+	body := svg.NewPolygon("50,50 30,100 70,100", gnomeBodyColors[int(runtime.ChainHeight())%len(gnomeBodyColors)])
 
 	// Head: peach circle (overlaps body)
 	head := svg.NewCircle(50, 60, 10, "#FAD7B6")
@@ -127,6 +157,22 @@ func RenderSVGGnome() string { // exported for your pleasure :)
 	c.Append(body, head, beard, hat, leftEye, rightEye)
 
 	return c.Render("svg gnome")
+}
+
+func renderButtonPage() string {
+	out := "# Buttons Demo\n\n"
+
+	out += md.ColumnsN([]string{
+		svgbtn.PrimaryButton(140, 45, "Click Me", "/r/leon/home:click") + "\n\n",
+		svgbtn.DangerButton(140, 45, "Delete", "/delete") + "\n\n",
+		svgbtn.SuccessButton(140, 45, "Go Home", "/r/leon/home") + "\n\n",
+		svgbtn.SmallButton(100, 45, "Edit", "/edit") + "\n\n",
+		svgbtn.WideButton(200, 40, "Big Action", "/big") + "\n\n",
+		svgbtn.TextButton(100, 30, "More Info", "/r/leon/home:info") + "\n\n",
+		svgbtn.IconButton(100, 40, "Config", "/r/leon/config") + "\n\n",
+	}, 3, true)
+
+	return out
 }
 
 var gnomeBodyColors = []string{

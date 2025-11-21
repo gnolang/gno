@@ -61,15 +61,17 @@ func NewRepl(opts ...ReplOption) *Repl {
 	r.input = os.Stdin
 	r.output = os.Stdout
 	r.errput = os.Stderr
-	_, r.store = test.Store(gnoenv.RootDir(), test.OutputWithError(r.output, r.errput))
+	_, r.store = test.TestStore(gnoenv.RootDir(), test.OutputWithError(r.output, r.errput), nil)
+
+	var nilAllocator = (*gno.Allocator)(nil)
 	r.pn = gno.NewPackageNode("repl", r.pkgPath, &gno.FileSet{})
-	r.pv = r.pn.NewPackage()
+	r.pv = r.pn.NewPackage(nilAllocator)
 	r.fn = &gno.FileNode{
-		FileName: "repl.gno",
+		FileName: "<repl>",
 		PkgName:  "repl",
 		Decls:    nil,
 	}
-	r.fb = gno.NewBlock(r.fn, r.pv.GetBlock(r.store))
+	r.fb = gno.NewBlock(nilAllocator, r.fn, r.pv.GetBlock(r.store))
 	for _, opt := range opts {
 		opt(r)
 	}
@@ -136,7 +138,7 @@ func (r *Repl) RunStatements(code string) {
 				switch rec := rec.(type) {
 				case *gno.PreprocessError:
 					err := rec.Unwrap()
-					match := gno.Re_errorLine.Match(err.Error())
+					match := gno.ReErrorLine.Match(err.Error())
 					if match == nil {
 						r.Errorln(err.Error())
 					} else {
@@ -144,7 +146,7 @@ func (r *Repl) RunStatements(code string) {
 					}
 				case error:
 					err := rec
-					match := gno.Re_errorLine.Match(err.Error())
+					match := gno.ReErrorLine.Match(err.Error())
 					if match == nil {
 						r.Errorln(err.Error())
 					} else {
@@ -155,9 +157,16 @@ func (r *Repl) RunStatements(code string) {
 		}()
 	}
 
-	decls, err := gno.ParseDecls(code)
+	if r.debug {
+		// Activate debugger for this statement only.
+		r.m.Debugger.Enable(os.Stdin, os.Stdout, func(ppath, file string) string { return code })
+		r.debug = false
+		defer r.m.Debugger.Disable()
+	}
+
+	decls, err := r.m.ParseDecls(code)
 	if err != nil {
-		stmts, err2 := gno.ParseStmts(code)
+		stmts, err2 := r.m.ParseStmts(code)
 		if err2 != nil {
 			r.Errorln(err2.Error())
 			return
@@ -183,5 +192,5 @@ func (r *Repl) Reset() {
 
 // Debug activates the GnoVM debugger for the next evaluation.
 func (r *Repl) Debug() {
-	panic("not yet implemented")
+	r.debug = true
 }

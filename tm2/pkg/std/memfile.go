@@ -2,7 +2,7 @@ package std
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -88,9 +88,11 @@ func (mfile *MemFile) Copy() *MemFile {
 // NOTE: in the future, a MemPackage may represent updates/additional-files for
 // an existing package.
 type MemPackage struct {
-	Name  string     `json:"name" yaml:"name"`   // package name as declared by `package`
-	Path  string     `json:"path" yaml:"path"`   // import path
-	Files []*MemFile `json:"files" yaml:"files"` // plain file system files.
+	Name  string     `json:"name" yaml:"name"`           // package name as declared by `package`
+	Path  string     `json:"path" yaml:"path"`           // import path
+	Files []*MemFile `json:"files" yaml:"files"`         // plain file system files.
+	Type  any        `json:"type,omitempty" yaml:"type"` // (user defined) package type.
+	Info  any        `json:"info,omitempty" yaml:"info"` // (user defined) extra information.
 }
 
 // Package Name must be lower_case, can have digits & underscores.
@@ -124,9 +126,6 @@ func (mpkg *MemPackage) ValidateBasic() error {
 		},
 	)
 	if !sorted {
-		for i := 0; i < len(mpkg.Files); i++ {
-			fmt.Println("memfile", i, ":", mpkg.Files[i].Name)
-		}
 		return fmt.Errorf("mempackage %q has unsorted files", mpkg.Path)
 	}
 
@@ -216,7 +215,19 @@ func (mpkg *MemPackage) DeleteFile(name string) *MemFile {
 
 // Returns true if it has no files.
 func (mpkg *MemPackage) IsEmpty() bool {
-	return len(mpkg.Files) == 0
+	return mpkg.IsEmptyOf(".gno")
+}
+
+// Returns true if it has no files ending in `xtn`.  xtn should start with a
+// dot to check extensions, but need not start with one, e.g. to test for
+// _test.gno.
+func (mpkg *MemPackage) IsEmptyOf(xtn string) bool {
+	for _, mfile := range mpkg.Files {
+		if strings.HasSuffix(mfile.Name, xtn) {
+			return false
+		}
+	}
+	return true
 }
 
 // Returns true if zero.
@@ -230,7 +241,7 @@ func (mpkg *MemPackage) WriteTo(dir string) error {
 	for _, mfile := range mpkg.Files {
 		// fmt.Printf(" - %s (%d bytes)\n", mfile.Name, len(mfile.Body))
 		fpath := filepath.Join(dir, mfile.Name)
-		err := ioutil.WriteFile(fpath, []byte(mfile.Body), 0o644)
+		err := os.WriteFile(fpath, []byte(mfile.Body), 0o644)
 		if err != nil {
 			return err
 		}

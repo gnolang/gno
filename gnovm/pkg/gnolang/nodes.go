@@ -3,20 +3,12 @@ package gnolang
 import (
 	"cmp"
 	"fmt"
-	"go/parser"
-	"go/token"
 	"math"
-	"os"
-	"path"
-	"path/filepath"
 	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
-
-	"github.com/gnolang/gno/tm2/pkg/std"
-	"go.uber.org/multierr"
 )
 
 // ----------------------------------------
@@ -798,7 +790,7 @@ func (ss Body) isCrossing_gno0p0() bool {
 		return false
 	}
 	cx, ok := xs.X.(*CallExpr)
-	return cx.isCrossing_gno0p0()
+	return ok && cx.isCrossing_gno0p0()
 }
 
 // ----------------------------------------
@@ -1280,228 +1272,6 @@ func (fs FileSet) GetFileNames() (fnames []string) {
 	return
 }
 
-// PackageNameFromFileBody extracts the package name from the given Gno code body.
-// The 'name' parameter is used for better error traces, and 'body' contains the Gno code.
-func PackageNameFromFileBody(name, body string) (Name, error) {
-	fset := token.NewFileSet()
-	astFile, err := parser.ParseFile(fset, name, body, parser.PackageClauseOnly)
-	if err != nil {
-		return "", err
-	}
-
-	return Name(astFile.Name.Name), nil
-}
-
-// MustPackageNameFromFileBody is a wrapper around [PackageNameFromFileBody] that panics on error.
-func MustPackageNameFromFileBody(name, body string) Name {
-	pkgName, err := PackageNameFromFileBody(name, body)
-	if err != nil {
-		panic(err)
-	}
-	return pkgName
-}
-
-// ReadMemPackage initializes a new MemPackage by reading the OS directory at
-// dir, and saving it with the given pkgPath (import path).  The resulting
-// MemPackage will contain the names and content of all *.gno files, and
-// additionally README.md, LICENSE.
-//
-// ReadMemPackage does not perform validation aside from the package's name;
-// the files are not parsed but their contents are merely stored inside a MemFile.
-//
-// NOTE: panics if package name is invalid (characters must be alphanumeric or _,
-// lowercase, and must start with a letter).
-func ReadMemPackage(dir string, pkgPath string) (*std.MemPackage, error) {
-	files, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-	// exceptions to allowedMemPackageFileExtensions
-	badFileExtensions := []string{".gen.go"}
-
-	if IsStdlib(pkgPath) {
-		// Allows transpilation to work on stdlibs with native fns.
-		allowedMemPackageFileExtensions = append(allowedMemPackageFileExtensions, ".go")
-	}
-
-	list := make([]string, 0, len(files))
-	for _, file := range files {
-		// Ignore directories and hidden files, only include allowed files & extensions,
-		// then exclude files that are of the bad extensions.
-		if file.IsDir() ||
-			strings.HasPrefix(file.Name(), ".") ||
-			(!endsWithAny(file.Name(), allowedMemPackageFileExtensions) && !slices.Contains(allowedMemPackageFiles, file.Name())) ||
-			endsWithAny(file.Name(), badFileExtensions) {
-			continue
-		}
-		list = append(list, filepath.Join(dir, file.Name()))
-	}
-	return ReadMemPackageFromList(list, pkgPath, MemPackageTypeAny)
-}
-
-func endsWithAny(str string, suffixes []string) bool {
-	return slices.ContainsFunc(suffixes, func(s string) bool {
-		return strings.HasSuffix(str, s)
-	})
-}
-
-// MustReadMemPackage is a wrapper around [ReadMemPackage] that panics on error.
-func MustReadMemPackage(dir string, pkgPath string) *std.MemPackage {
-	pkg, err := ReadMemPackage(dir, pkgPath)
-	if err != nil {
-		panic(err)
-	}
-	return pkg
-}
-
-// ReadMemPackageFromList creates a new [std.MemPackage] with the specified
-// pkgPath, containing the contents of all the files provided in the list
-// slice. No parsing is done on the file bodies except package names for
-// validation. The returned mempackage must be validated separately with
-// gno.ValidateMemPackage().
-//
-// Returns both read mempackage and (multi)error if package name is invalid
-// (characters must be alphanumeric or _, lowercase, and must start with a
-// letter, and be the same for normal files and normal *_test.gno files, and
-// xxx_test for integration tests).  Filetest package names are not checked. If
-// the only file present is a single filetest, its package name is used.
-//
-// XXX TODO pkgPath should instead be derived by inspecting the contents, among
-// them the gno.mod file.
-func ReadMemPackageFromList(list []string, pkgPath string, mtype MemPackageType) (*std.MemPackage, error) {
-	mpkg := &std.MemPackage{Path: pkgPath}
-	var pkgName Name          // normal file pkg name
-	var pkgNameDiffers bool   // normal file pkg name is inconsistent
-	var pkgNameFT Name        // filetest pkg name
-	var pkgNameFTDiffers bool // filetest pkg name is inconsistent
-	var errs error            // all errors minus filetest pkg name errors.
-	for _, fpath := range list {
-		fname := filepath.Base(fpath)
-		bz, err := os.ReadFile(fpath)
-		if err != nil {
-			return nil, err
-		}
-		// Check that all pkg names are the same (else package is invalid).
-		// Try to derive the package name, but this is not a replacement
-		// for gno.ValidateMemPackage().
-		if strings.HasSuffix(fname, ".gno") {
-			var pkgName2 Name
-			pkgName2, err = PackageNameFromFileBody(path.Join(pkgPath, fname), string(bz))
-			if err != nil {
-				errs = multierr.Append(errs, err)
-				continue
-			}
-			if mtype == MemPackageTypeFiletests || strings.HasSuffix(fname, "_filetest.gno") {
-				// Filetests may have arbitrary package names.
-				// pkgName2 (of this file) may be unrelated to
-				// pkgName of the mem package.
-				if pkgNameFT == "" && !pkgNameFTDiffers {
-					pkgNameFT = pkgName2
-				} else if pkgNameFT != pkgName2 {
-					pkgNameFT = ""
-					pkgNameFTDiffers = true
-				}
-			} else {
-				if strings.HasSuffix(string(pkgName2), "_test") {
-					pkgName2 = pkgName2[:len(pkgName2)-len("_test")]
-				}
-				if !pkgNameDiffers && pkgName == "" {
-					pkgName = pkgName2
-				} else if !pkgNameDiffers && pkgName != pkgName2 {
-					// This happens when transpiling
-					// tests/files; both mpkg and errors
-					// will be returned.
-					errs = multierr.Append(errs, fmt.Errorf("%s:0: expected package name %q but got %q", fpath, pkgName, pkgName2))
-					pkgName = ""
-					pkgNameDiffers = true
-				}
-			}
-		}
-		mpkg.Files = append(mpkg.Files,
-			&std.MemFile{
-				Name: fname,
-				Body: string(bz),
-			})
-	}
-
-	// If there were any errors so far, return error.
-	if errs != nil {
-		return mpkg, errs
-	}
-	// If mpkg is empty, return an error
-	if mpkg.IsEmpty() {
-		return mpkg, fmt.Errorf("package has no files")
-	}
-	// If pkgNameDiffers, return mpkg and the errors.
-	if mtype != MemPackageTypeFiletests && pkgNameDiffers {
-		return mpkg, errs
-	}
-	// If only filetests with the same name, its package name is used.
-	if pkgName == "" && !pkgNameDiffers && !pkgNameFTDiffers {
-		pkgName = pkgNameFT
-	}
-	// Still no pkgName or invalid; ensure error.
-	if pkgName == "" {
-		if mtype == MemPackageTypeFiletests {
-			pkgName = "filetests"
-		} else {
-			pkgName = "xxxinvalidpackagenamexxx" // sensible default
-			errs = multierr.Append(errs, fmt.Errorf("package name could be determined"))
-		}
-	} else if err := validatePkgName(pkgName); err != nil {
-		errs = multierr.Append(errs, err)
-		return mpkg, errs // terminate before setting name.
-	}
-	// Finally, set the name.
-	mpkg.Name = string(pkgName)
-
-	// Sort files and return.
-	mpkg.Sort()
-	return mpkg, nil
-}
-
-// MustReadMemPackageFromList is a wrapper around [ReadMemPackageFromList] that panics on error.
-func MustReadMemPackageFromList(list []string, pkgPath string, mtype MemPackageType) *std.MemPackage {
-	pkg, err := ReadMemPackageFromList(list, pkgPath, mtype)
-	if err != nil {
-		panic(err)
-	}
-	return pkg
-}
-
-// ParseMemPackage executes [ParseFile] on each file of the mpkg, excluding
-// test and spurious (non-gno) files. The resulting *FileSet is returned.
-//
-// If one of the files has a different package name than mpkg.Name,
-// or [ParseFile] returns an error, ParseMemPackage panics.
-func ParseMemPackage(mpkg *std.MemPackage) (fset *FileSet) {
-	fset = &FileSet{}
-	var errs error
-	for _, mfile := range mpkg.Files {
-		if !strings.HasSuffix(mfile.Name, ".gno") ||
-			endsWithAny(mfile.Name, []string{"_test.gno", "_filetest.gno"}) ||
-			mfile.Name == "gno.mod" {
-			continue // skip spurious or test or gno.mod file.
-		}
-		n, err := ParseFile(mfile.Name, mfile.Body)
-		if err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
-		if mpkg.Name != string(n.PkgName) {
-			panic(fmt.Sprintf(
-				"expected package name [%s] but got [%s]",
-				mpkg.Name, n.PkgName))
-		}
-		// add package file.
-		fset.AddFiles(n)
-	}
-	if errs != nil {
-		panic(errs)
-	}
-	return fset
-}
-
 func (fs *FileSet) AddFiles(fns ...*FileNode) {
 	fs.Files = append(fs.Files, fns...)
 }
@@ -1597,23 +1367,34 @@ func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 	return pn
 }
 
-func (pn *PackageNode) NewPackage() *PackageValue {
-	pv := &PackageValue{
-		Block: &Block{
-			Source: pn,
-		},
-		PkgName:    pn.PkgName,
-		PkgPath:    pn.PkgPath,
-		FNames:     nil,
-		FBlocks:    nil,
-		fBlocksMap: make(map[string]*Block),
+func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
+	var pv *PackageValue
+	if pn.PkgName == "main" {
+		// Allocation is only for the new created main package,
+		// other packages are allocted while loading from store.
+		pv = alloc.NewPackageValue(pn)
+	} else {
+		pv = &PackageValue{
+			Block: &Block{
+				Source: pn,
+			},
+			PkgName:    pn.PkgName,
+			PkgPath:    pn.PkgPath,
+			FNames:     nil,
+			FBlocks:    nil,
+			fBlocksMap: make(map[string]*Block),
+		}
 	}
+	// Set realm for realm packages, main package, and ephemeral run packages
 	if IsRealmPath(pn.PkgPath) || pn.PkgPath == "main" {
+		rlm := NewRealm(pn.PkgPath)
+		pv.SetRealm(rlm)
+	} else if _, isRunPath := IsGnoRunPath(pn.PkgPath); isRunPath {
 		rlm := NewRealm(pn.PkgPath)
 		pv.SetRealm(rlm)
 	}
 	pv.IncRefCount() // all package values have starting ref count of 1.
-	pn.PrepareNewValues(pv)
+	pn.PrepareNewValues(alloc, pv)
 	return pv
 }
 
@@ -1623,7 +1404,7 @@ func (pn *PackageNode) NewPackage() *PackageValue {
 // length. The implementation is similar to Block.ExpandWith.
 // NOTE: declared methods do not get their closures set here. See
 // *DeclaredType.GetValueAt() which returns a filled copy.
-func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
+func (pn *PackageNode) PrepareNewValues(alloc *Allocator, pv *PackageValue) []TypedValue {
 	// should already exist.
 	block := pv.Block.(*Block)
 	if block.Source != pn {
@@ -1650,7 +1431,7 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 		for i, tv := range nvs {
 			if fv, ok := tv.V.(*FuncValue); ok {
 				// copy function value and assign closure from package value.
-				fv = fv.Copy(nilAllocator)
+				fv = fv.Copy(alloc) // mainly for main package func, MsgCall/MsgRun/filetest
 				if fv.FileName == "" {
 					// .uverse functions have no filename,
 					// and repl runs declarations directly
@@ -1676,7 +1457,7 @@ func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 			if heapItems[pvl+i] {
 				nvs[i] = TypedValue{
 					T: heapItemType{},
-					V: &HeapItemValue{Value: nvs[i]},
+					V: alloc.NewHeapItem(nvs[i]),
 				}
 			}
 		}
@@ -1947,7 +1728,6 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	sb.Consts = make([]Name, 0, 16)
 	sb.Externs = make([]Name, 0, 16)
 	sb.Parent = parent
-	return
 }
 
 // Implements BlockNode.
@@ -2434,7 +2214,6 @@ func (sb *StaticBlock) GetFuncNodeForExpr(store Store, fne Expr) (FuncNode, erro
 					// So just return this.
 					pn = this
 				} else {
-					pv = store.GetPackage(ref.PkgPath, false)
 					pn = store.GetPackageNode(ref.PkgPath)
 				}
 			} else {
