@@ -128,28 +128,6 @@ func (rsc *RemoteSignerClient) Close() error {
 	return err
 }
 
-// Ping sends a ping request to the server.
-func (rsc *RemoteSignerClient) Ping() error {
-	response, err := rsc.send(&r.PingRequest{})
-	if err != nil {
-		err = fmt.Errorf("%w: %w", ErrSendingRequestFailed, err)
-		if !errors.Is(err, ErrClientAlreadyClosed) {
-			rsc.logger.Error("Ping request failed", "error", err)
-		}
-		return err
-	}
-
-	if _, ok := response.(*r.PingResponse); !ok {
-		err = fmt.Errorf("%w: %T", ErrInvalidResponseType, response)
-		rsc.logger.Error("Ping request failed", "error", err)
-		return err
-	}
-
-	rsc.logger.Debug("Ping request succeeded")
-
-	return nil
-}
-
 // RemoteSignerClient type implements fmt.Stringer.
 var _ fmt.Stringer = (*RemoteSignerClient)(nil)
 

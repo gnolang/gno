@@ -42,9 +42,3 @@ type SignResponse struct {
 	Signature []byte
 	Error     *RemoteSignerError
 }
-
-// PingRequest is a request to confirm that the connection is alive.
-type PingRequest struct{}
-
-// PingResponse is a response to confirm that the connection is alive.
-type PingResponse struct{}
