@@ -4,8 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/tm2/pkg/amino"
 )
 
 func TestKeeper(t *testing.T) {
@@ -44,7 +45,7 @@ func TestKeeper(t *testing.T) {
 	require.NotPanics(t, func() { keeper.GetBool(ctx, "param2", &param2) })
 	require.NotPanics(t, func() { keeper.GetUint64(ctx, "param3", &param3) })
 	require.NotPanics(t, func() { keeper.GetInt64(ctx, "param4", &param4) })
-	require.NotPanics(t, func() { keeper.GetBytes(ctx, "param5", &param5) })
+	require.NotPanics(t, func() { param5 = keeper.GetBytes(ctx, "param5") })
 
 	require.Equal(t, param1, "foo")
 	require.Equal(t, param2, true)
@@ -69,7 +70,7 @@ func TestKeeper(t *testing.T) {
 	require.NotPanics(t, func() { keeper.GetBool(ctx, "param2", &param2) })
 	require.NotPanics(t, func() { keeper.GetUint64(ctx, "param3", &param3) })
 	require.NotPanics(t, func() { keeper.GetInt64(ctx, "param4", &param4) })
-	require.NotPanics(t, func() { keeper.GetBytes(ctx, "param5", &param5) })
+	require.NotPanics(t, func() { param5 = keeper.GetBytes(ctx, "param5") })
 
 	require.Equal(t, param1, "bar")
 	require.Equal(t, param2, false)
