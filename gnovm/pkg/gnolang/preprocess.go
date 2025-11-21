@@ -483,6 +483,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// XXX check node lines and locations
 	checkNodeLinesLocations("XXXpkgPath", "XXXfileName", n)
 
+	// "coda" means "conclusion".
 	// NOTE: need to use Transcribe() here instead of `bn, ok := n.(BlockNode)`
 	// because say n may be a *CallExpr containing an anonymous function.
 	Transcribe(n,
@@ -496,10 +497,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				}
 			}
 			if bn, ok := n.(BlockNode); ok {
-				// findGotoLoopDefines(ctx, bn)
-				findHeapDefinesByUse(ctx, bn)
-				findHeapUsesDemoteDefines(ctx, bn)
-				findPackageSelectors(bn)
+				// codaGotoLoopDefines(ctx, bn)
+				codaHeapDefinesByUse(ctx, bn)
+				codaHeapUsesDemoteDefines(ctx, bn)
+				codaPackageSelectors(bn)
 				return n, TRANS_SKIP
 			}
 			return n, TRANS_CONTINUE
@@ -1157,7 +1158,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								n.Name))
 						}
 						// Remember the package path
-						// for findPackageSelectors().
+						// for codaPackageSelectors().
 						pvc := evalConst(store, last, n)
 						pv, ok := pvc.V.(*PackageValue)
 						if !ok {
@@ -2857,11 +2858,11 @@ func parseMultipleAssignFromOneExpr(
 // Also finds GotoLoopStmts.
 // XXX DEPRECATED but kept here in case needed in the future.
 // We may still want this for optimizing heap defines;
-// the current implementation of findHeapDefinesByUse/findHeapUsesDemoteDefines
+// the current implementation of codaHeapDefinesByUse/codaHeapUsesDemoteDefines
 // produces false positives.
 //
 //nolint:unused
-func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
+func codaGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 	// iterate over all nodes recursively.
 	_ = TranscribeB(ctx, bn, func(
 		ns []Node,
@@ -2875,7 +2876,7 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 		defer doRecover(stack, n)
 
 		if debug {
-			debug.Printf("findGotoLoopDefines %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("codaGotoLoopDefines %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -3009,7 +3010,7 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 // capture.
 // Also happens to declare all package and file names
 // as heap use, so that functions added later may use them.
-func findHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
+func codaHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 	// Iterate over all nodes recursively.
 	_ = TranscribeB(ctx, bn, func(
 		ns []Node,
@@ -3023,7 +3024,7 @@ func findHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 		defer doRecover(stack, n)
 
 		if debug {
-			debug.Printf("findHeapDefinesByUse %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("codaHeapDefinesByUse %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -3036,7 +3037,7 @@ func findHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 			switch n := n.(type) {
 			case *ValueDecl:
 				// Top level value decls are always heap escaped.
-				// See also corresponding case in findHeapUsesDemoteDefines.
+				// See also corresponding case in codaHeapUsesDemoteDefines.
 				if !n.Const {
 					switch last.(type) {
 					case *PackageNode, *FileNode:
@@ -3093,7 +3094,7 @@ func findHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 						return n, TRANS_CONTINUE
 					}
 					// Ignore top level declarations.
-					// This get replaced by findPackageSelectors.
+					// This get replaced by codaPackageSelectors.
 					if pn, ok := dbn.(*PackageNode); ok {
 						if pn.PkgPath != ".uverse" {
 							n.SetAttribute(ATTR_PACKAGE_DECL, true)
@@ -3111,7 +3112,7 @@ func findHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 					// Found a heap item closure capture.
 					addAttrHeapUse(dbn, n.Name)
 					// The path must stay same for now,
-					// used later in findHeapUsesDemoteDefines.
+					// used later in codaHeapUsesDemoteDefines.
 					idx := addHeapCapture(dbn, flx, depth, n)
 					// adjust NameExpr type.
 					n.Type = NameExprTypeHeapUse
@@ -3261,7 +3262,7 @@ func findLastFunction(last BlockNode, stop BlockNode) (fn FuncNode, depth int, f
 // If a name is used as a heap item, Convert all other uses of such names
 // for heap use. If a name of type heap define is not actually used
 // as heap use, demotes them.
-func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
+func codaHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	last := ctx
 	stack := append(make([]BlockNode, 0, 32), last)
@@ -3271,7 +3272,7 @@ func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 		defer doRecover(stack, n)
 
 		if debug {
-			debug.Printf("findHeapUsesDemoteDefines %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("codaHeapUsesDemoteDefines %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -3325,7 +3326,7 @@ func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 				}
 			case *ValueDecl:
 				// Top level var value decls are always heap escaped.
-				// See also corresponding case in findHeapDefinesByUse.
+				// See also corresponding case in codaHeapDefinesByUse.
 				if !n.Const {
 					switch last.(type) {
 					case *PackageNode, *FileNode:
@@ -3411,11 +3412,12 @@ func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 	})
 }
 
-// Replaces all pkg.name selectors with const exprs containing refs.
-// TODO Do not perform this transform unless the name is used
-// inside of a closure. Top level declared functions and methods
-// do not need this indirection. XXX
-func findPackageSelectors(bn BlockNode) {
+// Replace a package name with RefValue{PkgPath}
+// `pkg`      -> RefValue{PkgPath}
+// Replace a local package declared name with
+// SelectorExpr{X:RefValue{PkgPath},Sel:name}
+// `pkg.name` -> SelectorExpr{RefValue{PkgPath}, name}
+func codaPackageSelectors(bn BlockNode) {
 	// Iterate over all nodes recursively.
 	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		switch stage {
@@ -3423,9 +3425,7 @@ func findPackageSelectors(bn BlockNode) {
 			switch n := n.(type) {
 			case *NameExpr:
 				// Replace a package name with RefValue{PkgPath}
-				prefi := n.GetAttribute(ATTR_PACKAGE_REF)
-				if prefi != nil {
-					pref := prefi.(RefValue)
+				if pref, ok := n.GetAttribute(ATTR_PACKAGE_REF).(RefValue); ok {
 					cx := &ConstExpr{
 						Source: n,
 						TypedValue: TypedValue{
@@ -3447,9 +3447,7 @@ func findPackageSelectors(bn BlockNode) {
 						Source: Nx(".pkgSelector"),
 						TypedValue: TypedValue{
 							T: gPackageType,
-							V: RefValue{
-								PkgPath: pn.PkgPath,
-							},
+							V: RefValue{PkgPath: pn.PkgPath},
 						},
 					}
 					setPreprocessed(cx)

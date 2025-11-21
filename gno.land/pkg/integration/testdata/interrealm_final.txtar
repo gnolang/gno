@@ -265,7 +265,7 @@ func CASE_rD1(cur realm) {
 	//   - in closure cls:                      (storage:[], current:bob, previous:caller)
 	cls := func() {
 		bob.AllowedList = append(bob.AllowedList, 3)
-		println("all right") // XXX doesn't print?
+		panic("bob.AllowedList should not be mutable from an external realm; package should be read-only")
 	}
 	bob.SetClosure(cross, cls)
 	bob.RunClosure(cross)
@@ -278,7 +278,7 @@ func CASE_rD2(cur realm) {
 	//   - in closure cls:                      (storage:[], current:bob, previous:caller)
 	cls := func() {
 		bob.AllowedList = append(bob.AllowedList, 777)
-		println("all right") // XXX doesn't print?
+		panic("bob.AllowedList should not be mutable from an external realm; package should be read-only")
 	}
 	bob.SetClosure(cross, cls)
 	bob.RunClosure2(cross, cls)
