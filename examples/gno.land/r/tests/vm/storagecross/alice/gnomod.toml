@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/storagecross/alice"
+gno = "0.9"
