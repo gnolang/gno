@@ -403,7 +403,7 @@ func (pv *PackageValue) GetShallowSize() int64 {
 		return 0
 	}
 
-	return overflow.Addp(allocPackage+allocString, overflow.Mulp(allocStringByte, int64(len(pv.PkgName))))
+	return overflow.Addp(allocPackage, overflow.Mulp(allocStringByte, int64(len(pv.PkgName))))
 }
 
 func (b *Block) GetShallowSize() int64 {
