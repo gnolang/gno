@@ -15,6 +15,7 @@ func TestExecuteProfileCommand(t *testing.T) {
 	// Create a minimal profile for testing
 	prof := profiler.NewProfiler(profiler.ProfileCPU, 1)
 	prof.StartProfiling(nil, profiler.Options{Type: profiler.ProfileCPU, SampleRate: 1})
+
 	// Stop immediately to get an empty but valid profile
 	profile := prof.StopProfiling()
 
@@ -78,10 +79,10 @@ func TestExecuteProfileCommand(t *testing.T) {
 			command: "clear",
 			checkOut: func(t *testing.T, out, err string) {
 				t.Helper()
-				// Check for ANSI clear screen sequence in stdout only
-				require.Contains(t, out, "\033[2J\033[H")
-				// stderr should remain empty (no re-display of prompt)
-				require.Empty(t, err)
+				// Check for ANSI clear screen sequence in stderr
+				require.Contains(t, err, "\033[H\033[2J")
+				require.Contains(t, err, "Profiler shell ready")
+				require.Empty(t, out)
 			},
 		},
 	}

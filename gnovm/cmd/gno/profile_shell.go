@@ -14,6 +14,16 @@ import (
 	"golang.org/x/term"
 )
 
+const profileShellHelp = `Commands:
+  help           - show this help
+  text           - print textual summary of the profile
+  top            - show top functions by cumulative cost
+  calltree       - display the call tree view
+  json           - dump the raw JSON profile
+  list <func>    - show line-by-line profile for matching functions
+  clear          - clear the screen
+  exit/quit      - leave the shell`
+
 func maybeStartProfileShell(cmdIO commands.IO, opts *test.TestOptions) {
 	if opts == nil || opts.Profile == nil || !opts.Profile.Interactive {
 		return
@@ -71,15 +81,7 @@ func executeProfileCommand(input string, cmdIO commands.IO, profile *profiler.Pr
 		fmt.Fprintln(cmdIO.Err(), "Exiting profiler shell.")
 		return true
 	case "help":
-		fmt.Fprintln(cmdIO.Err(), "Commands:")
-		fmt.Fprintln(cmdIO.Err(), "  help           - show this help")
-		fmt.Fprintln(cmdIO.Err(), "  text           - print textual summary of the profile")
-		fmt.Fprintln(cmdIO.Err(), "  top            - show top functions by cumulative cost")
-		fmt.Fprintln(cmdIO.Err(), "  calltree       - display the call tree view")
-		fmt.Fprintln(cmdIO.Err(), "  json           - dump the raw JSON profile")
-		fmt.Fprintln(cmdIO.Err(), "  list <func>    - show line-by-line profile for matching functions")
-		fmt.Fprintln(cmdIO.Err(), "  clear          - clear the screen")
-		fmt.Fprintln(cmdIO.Err(), "  exit/quit      - leave the shell")
+		fmt.Fprintln(cmdIO.Err(), profileShellHelp)
 	case "text", "summary":
 		if _, err := profile.WriteTo(cmdIO.Out()); err != nil {
 			fmt.Fprintf(cmdIO.Err(), "error: %v\n", err)
