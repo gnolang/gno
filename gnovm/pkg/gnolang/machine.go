@@ -2231,25 +2231,53 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	return pv
 }
 
-// Returns true if tv is N_Readonly or, its "first object" resides in a
-// different non-zero realm. Returns false for non-N_Readonly StringValue, free
-// floating pointers, and unreal objects.
+// Returns true iff:
+//   - m.Realm is nil (single user mode), or
+//   - tv is N_Readonly, or
+//   - tv is not an object ("first object" ID is zero), or
+//   - tv is an unreal object (no object id), or
+//   - tv is a package value and m.Package is different, or
+//   - tv is an object (not a package) and m.Realm is different
 func (m *Machine) IsReadonly(tv *TypedValue) bool {
+	// Returns true iff:
+	//  - m.Realm is nil (single user mode)
 	if m.Realm == nil {
+		fmt.Println("case 1")
 		return false
 	}
+	//  - tv is N_Readonly
 	if tv.IsReadonly() {
+		fmt.Println("case 2")
 		return true
 	}
 	tvoid, ok := tv.GetFirstObjectID()
+	//  - tv is not an object ("first object" ID is zero)
 	if !ok {
 		// e.g. if tv is a string, or free floating pointers.
+		fmt.Println("case 3")
 		return false
 	}
+	//  - tv is an unreal object (no object id)
 	if tvoid.IsZero() {
+		fmt.Println("case 4")
 		return false
 	}
-	if tvoid.PkgID != m.Realm.ID {
+	//  - tv is a package value and m.Package is different
+	if tvoid.IsPackage() && tvoid != m.Package.ID {
+		// Note tv can only be a package if it is a name expr declared
+		// by an import, or if it is an implicit <local package>.name
+		// selector with local/self package as .X.  An imported package
+		// is by definition declared externally, while the implicit
+		// local package is by definition the same.  Either way what
+		// matters is m.Package (where the code is declared), not
+		// m.Realm (which may be a storage realm different than
+		// m.Package).
+		fmt.Println("case 5")
+		return true
+	}
+	//  - tv is an object (not a package) and m.Realm is different
+	if !tvoid.IsPackage() && tvoid.PkgID != m.Realm.ID {
+		fmt.Println("case 6")
 		return true
 	}
 	return false

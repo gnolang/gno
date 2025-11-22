@@ -2121,15 +2121,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						pv = pv_
 					}
 					pn := pv.GetPackageNode(store)
-					// ensure exposed or package path match.
+					// Ensure exposed or package path match.
 					if !(isUpper(string(n.Sel)) || ctxpn.PkgPath == pv.PkgPath) {
 						panic(fmt.Sprintf("cannot access %s.%s from %s",
 							pv.PkgPath, n.Sel, ctxpn.PkgPath))
 					}
-					// ensure no modification from external realm.
-					//  1. ext.Name = xyz    // static illegal assignment
-					//  2. (ext.Foo).Bar = 1 // runtime illegal assignment (readonly)
-					// case 2 is handled at runtime. XXX verify
+					// Ensure no modification from code declared in external realm.
+					//  1. ext.Name = xyz    // illegal assignment (static & runtime)
+					//  2. (ext.Foo).Bar = 1 // illegal assignment (runtime)
+					// For defensiveness the runtime check remains despite static checking here.
+					// See also Machine.IsReadOnly().
 					if ctxpn.PkgPath != pv.PkgPath {
 						if ftype == TRANS_ASSIGN_LHS {
 							panic(fmt.Sprintf("cannot mutate %s.%s from %s",
