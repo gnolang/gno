@@ -270,6 +270,13 @@ func (node *Node) rotateLeft() *Node {
 func (node *Node) calcHeightAndSize() {
 	node.height = maxInt8(node.getLeftNode().height, node.getRightNode().height) + 1
 	node.size = node.getLeftNode().size + node.getRightNode().size
+
+	if node.height < 0 {
+		panic("height overflow: tree height exceeds int8 max")
+	}
+	if node.size < 0 {
+		panic("size overflow: node size exceeds int max")
+	}
 }
 
 // calcBalance calculates the balance factor of the node.
