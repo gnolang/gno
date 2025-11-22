@@ -108,12 +108,15 @@ func (node *Node) Get(key string) (index int, value any, exists bool) {
 // GetByIndex retrieves the key-value pair of the node at the given index
 // in the subtree rooted at the node.
 func (node *Node) GetByIndex(index int) (key string, value any) {
+	if index < 0 {
+		panic("GetByIndex: negative index not allowed")
+	}
+
 	if node.height == 0 {
-		if index == 0 {
-			return node.key, node.value
-		} else {
+		if index != 0 {
 			panic("GetByIndex asked for invalid index")
 		}
+		return node.key, node.value
 	} else {
 		// TODO: could improve this by storing the sizes
 		leftNode := node.getLeftNode()
@@ -267,6 +270,13 @@ func (node *Node) rotateLeft() *Node {
 func (node *Node) calcHeightAndSize() {
 	node.height = maxInt8(node.getLeftNode().height, node.getRightNode().height) + 1
 	node.size = node.getLeftNode().size + node.getRightNode().size
+
+	if node.height < 0 {
+		panic("height overflow: tree height exceeds int8 max")
+	}
+	if node.size < 0 {
+		panic("size overflow: node size exceeds int max")
+	}
 }
 
 // calcBalance calculates the balance factor of the node.
@@ -382,14 +392,15 @@ func (node *Node) TraverseByOffset(offset, limit int, ascending bool, leavesOnly
 		return false
 	}
 
+	if limit < 0 {
+		panic("TraverseByOffset: negative limit not allowed")
+	}
+
 	// fast paths. these happen only if TraverseByOffset is called directly on a leaf.
-	if limit <= 0 || offset >= node.size {
+	if limit <= 0 || node.size <= offset {
 		return false
 	}
 	if node.IsLeaf() {
-		if offset > 0 {
-			return false
-		}
 		return cb(node)
 	}
 
