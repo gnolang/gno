@@ -392,15 +392,14 @@ func (node *Node) TraverseByOffset(offset, limit int, ascending bool, leavesOnly
 		return false
 	}
 
-	if limit < 0 {
-		panic("TraverseByOffset: negative limit not allowed")
-	}
-
 	// fast paths. these happen only if TraverseByOffset is called directly on a leaf.
 	if limit <= 0 || node.size <= offset {
 		return false
 	}
 	if node.IsLeaf() {
+		if offset > 0 {
+			return false
+		}
 		return cb(node)
 	}
 
