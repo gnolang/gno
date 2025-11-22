@@ -2564,18 +2564,24 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
 
 // NOTE: RefValue Object methods declared in ownership.go
 type RefValue struct {
-	ObjectID ObjectID  `json:",omitempty"`
-	Escaped  bool      `json:",omitempty"`
-	PkgPath  string    `json:",omitempty"`
-	Hash     ValueHash `json:",omitempty"`
+	ObjectID ObjectID  `json:",omitempty"` // If non-zero, PkgPath is empty
+	Escaped  bool      `json:",omitempty"` // XXX NOT USED DELETEME
+	PkgPath  string    `json:",omitempty"` // If set, ObjectID is non-zero
+	Hash     ValueHash `json:",omitempty"` // Set iff not escaped
 }
 
 func RefValueFromPackage(pv *PackageValue) RefValue {
 	return RefValue{PkgPath: pv.PkgPath}
 }
 
+// If rv.PkgPath is set, derives ObjectID from it.
+// This is because only one of ObjectID or PkgPath is set.
 func (rv RefValue) GetObjectID() ObjectID {
-	return rv.ObjectID
+	if rv.PkgPath != "" {
+		return ObjectIDFromPkgPath(rv.PkgPath)
+	} else {
+		return rv.ObjectID
+	}
 }
 
 // Base for a detached singleton (e.g. new(int) or &struct{})

@@ -71,6 +71,11 @@ func (oid ObjectID) String() string {
 	return oids
 }
 
+func (oid ObjectID) IsPackage() bool {
+	// all package objects have newtime 1.
+	return !oid.PkgID.IsZero() && oid.NewTime == 1
+}
+
 // TODO: make faster by making PkgID a pointer
 // and enforcing that the value of PkgID is never zero.
 func (oid ObjectID) IsZero() bool {
@@ -416,15 +421,18 @@ func (tv *TypedValue) GetFirstObjectID() (ObjectID, bool) {
 	case *BoundMethodValue:
 		return cv.GetObjectID(), true
 	case *PackageValue:
+		fmt.Println("case pv")
 		return cv.Block.(ObjectIDer).GetObjectID(), true
 	case *Block:
 		return cv.GetObjectID(), true
 	case RefValue:
+		fmt.Println("case rv")
 		return cv.GetObjectID(), true
 	case *HeapItemValue:
 		// should only appear in PointerValue.Base
 		panic("heap item value should only appear as a pointer's base")
 	default:
+		fmt.Println("case ??")
 		return ObjectID{}, false
 	}
 }
