@@ -968,6 +968,12 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[Type
 
 // assertTypeIsPublic ensure that the type t is not defined in a private realm.
 // it do it recursively for all types in t and have recursive guard to avoid infinite recursion on declared types.
+//
+// XXX JAE: In addition to the other comment above about assertObjectIsPublic() usage,
+// shouldn't this be computed once for every type statically in the preprocessor?
+// The type itself could have a boolean, and every type could have SetIsPrivate() (no args)
+// after construction that sets the boolean based on its dependencies.
+// This slow implementation seems fine for now, something to optimize later.
 func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]struct{}) {
 	pkgPath := ""
 
