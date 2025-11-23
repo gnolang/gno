@@ -474,6 +474,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	if rlm != nil {
 		pb := pv.GetBlock(m.Store)
 		for _, update := range updates {
+			// XXX simplify.
 			if hiv, ok := update.V.(*HeapItemValue); ok {
 				rlm.DidUpdate(pb, nil, hiv)
 			} else {
@@ -2234,50 +2235,40 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 // Returns true iff:
 //   - m.Realm is nil (single user mode), or
 //   - tv is N_Readonly, or
+//   - tv is a ref to (external) package path, or
 //   - tv is not an object ("first object" ID is zero), or
 //   - tv is an unreal object (no object id), or
-//   - tv is a package value and m.Package is different, or
-//   - tv is an object (not a package) and m.Realm is different
+//   - tv is an object residing in external realm
 func (m *Machine) IsReadonly(tv *TypedValue) bool {
 	// Returns true iff:
 	//  - m.Realm is nil (single user mode)
 	if m.Realm == nil {
-		fmt.Println("case 1")
 		return false
 	}
 	//  - tv is N_Readonly
 	if tv.IsReadonly() {
-		fmt.Println("case 2")
 		return true
+	}
+	//  - tv is a ref to package path
+	if rv, ok := tv.V.(RefValue); ok && rv.PkgPath != "" {
+		if rv.PkgPath == m.Package.PkgPath {
+			return false // local package
+		} else {
+			return true // external package
+		}
 	}
 	tvoid, ok := tv.GetFirstObjectID()
 	//  - tv is not an object ("first object" ID is zero)
 	if !ok {
 		// e.g. if tv is a string, or free floating pointers.
-		fmt.Println("case 3")
 		return false
 	}
 	//  - tv is an unreal object (no object id)
 	if tvoid.IsZero() {
-		fmt.Println("case 4")
 		return false
 	}
-	//  - tv is a package value and m.Package is different
-	if tvoid.IsPackage() && tvoid != m.Package.ID {
-		// Note tv can only be a package if it is a name expr declared
-		// by an import, or if it is an implicit <local package>.name
-		// selector with local/self package as .X.  An imported package
-		// is by definition declared externally, while the implicit
-		// local package is by definition the same.  Either way what
-		// matters is m.Package (where the code is declared), not
-		// m.Realm (which may be a storage realm different than
-		// m.Package).
-		fmt.Println("case 5")
-		return true
-	}
-	//  - tv is an object (not a package) and m.Realm is different
-	if !tvoid.IsPackage() && tvoid.PkgID != m.Realm.ID {
-		fmt.Println("case 6")
+	//  - tv is an object residing in external realm
+	if tvoid.PkgID != m.Realm.ID {
 		return true
 	}
 	return false

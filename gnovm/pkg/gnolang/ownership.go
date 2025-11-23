@@ -71,7 +71,7 @@ func (oid ObjectID) String() string {
 	return oids
 }
 
-func (oid ObjectID) IsPackage() bool {
+func (oid ObjectID) IsPackageID() bool {
 	// all package objects have newtime 1.
 	return !oid.PkgID.IsZero() && oid.NewTime == 1
 }
@@ -385,22 +385,30 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 	case *BoundMethodValue:
 		return cv
 	case *PackageValue:
-		return cv.GetBlock(store)
+		return cv
 	case *Block:
 		return cv
 	case RefValue:
+		if cv.PkgPath != "" {
+			// Constructed by preprocessor from package name exprs
+			// (or derived implicitly for local package names).
+			// These may refer to package values not yet
+			// real/persisted; this function should not handle it.
+			panic("GetFirstObject() cannot handle RefValue{PkgPath}")
+		}
 		oo := store.GetObject(cv.ObjectID)
 		tv.V = oo
 		return oo
 	case *HeapItemValue:
 		// should only appear in PointerValue.Base
+		// and is not contained by any parent.
 		panic("heap item value should only appear as a pointer's base")
 	default:
 		return nil
 	}
 }
 
-// returns false if there is no object.
+// returns false if there is no real (persisted) object.
 func (tv *TypedValue) GetFirstObjectID() (ObjectID, bool) {
 	switch cv := tv.V.(type) {
 	case PointerValue:
@@ -421,18 +429,22 @@ func (tv *TypedValue) GetFirstObjectID() (ObjectID, bool) {
 	case *BoundMethodValue:
 		return cv.GetObjectID(), true
 	case *PackageValue:
-		fmt.Println("case pv")
-		return cv.Block.(ObjectIDer).GetObjectID(), true
+		return cv.GetObjectID(), true
 	case *Block:
 		return cv.GetObjectID(), true
 	case RefValue:
-		fmt.Println("case rv")
-		return cv.GetObjectID(), true
+		if cv.PkgPath != "" {
+			// Constructed by preprocessor from package name exprs
+			// (or derived implicitly for local package names).
+			// These may refer to package values not yet
+			// real/persisted; this function should not handle it.
+			panic("GetFirstObjectID() cannot handle RefValue{PkgPath}")
+		}
+		return cv.ObjectID, true
 	case *HeapItemValue:
 		// should only appear in PointerValue.Base
 		panic("heap item value should only appear as a pointer's base")
 	default:
-		fmt.Println("case ??")
 		return ObjectID{}, false
 	}
 }

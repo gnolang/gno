@@ -2133,7 +2133,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// See also Machine.IsReadOnly().
 					if ctxpn.PkgPath != pv.PkgPath {
 						if ftype == TRANS_ASSIGN_LHS {
-							panic(fmt.Sprintf("cannot mutate %s.%s from %s",
+							panic(fmt.Sprintf("cannot directly mutate %s.%s from %s",
 								pv.PkgPath, n.Sel, ctxpn.PkgPath))
 						}
 					}

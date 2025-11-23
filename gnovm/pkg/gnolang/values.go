@@ -801,6 +801,10 @@ type PackageValue struct {
 	fBlocksMap map[string]*Block
 }
 
+// See PackageNode.NewPackage() for PackageValue constructor.
+// Do not uncomment; always use PackageNode.NewPackage().
+// func NewPackageValue() {}
+
 // IsRealm returns true if pv represents a realm.
 func (pv *PackageValue) IsRealm() bool {
 	return IsRealmPath(pv.PkgPath)
@@ -2562,6 +2566,9 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
 	b.Source = source // otherwise new variables won't show in print or debugger.
 }
 
+// RefValue.PkgPath is set if the RefValue refers to a local package or an
+// external package and originates from a name by the preprocessor.  In this
+// case .ObjectID cannot be set because it may not yet be real.
 // NOTE: RefValue Object methods declared in ownership.go
 type RefValue struct {
 	ObjectID ObjectID  `json:",omitempty"` // If non-zero, PkgPath is empty
@@ -2574,14 +2581,14 @@ func RefValueFromPackage(pv *PackageValue) RefValue {
 	return RefValue{PkgPath: pv.PkgPath}
 }
 
-// If rv.PkgPath is set, derives ObjectID from it.
-// This is because only one of ObjectID or PkgPath is set.
+// Returns .ObjectID.
+// Does not derive ObjectID from PkgPath if of form RefValue{PkgPath}.
+// TODO: consider splitting into another value type to prevent confusion.
 func (rv RefValue) GetObjectID() ObjectID {
 	if rv.PkgPath != "" {
-		return ObjectIDFromPkgPath(rv.PkgPath)
-	} else {
-		return rv.ObjectID
+		panic("unexpected ref value of form RefValue{PkgPath}")
 	}
+	return rv.ObjectID
 }
 
 // Base for a detached singleton (e.g. new(int) or &struct{})
