@@ -776,7 +776,14 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object, visited m
 	}
 
 	// assert object have no private dependencies.
-	// XXX Jae: this shouldn't be a separate recursive routine; it doubles the cost of saving.
+	//
+	// XXX JAE: Can't this whole routine be changed so that it only applies
+	// when finalizing from a private function?  A public package cannot
+	// import a private package, so if the above is true, there's no way it
+	// can save a private package's object.
+	//
+	// This way the finalization logic is faster for public packages --
+	// nothing needs to be done.
 	rlm.assertObjectIsPublic(oo, store, visited)
 
 	// first, save unsaved children.
@@ -884,7 +891,6 @@ func (rlm *Realm) clearMarks() {
 	rlm.escaped = nil
 }
 
-// XXX Jae: this shouldn't be a separate recursive routine; it doubles the cost of saving.
 // assertObjectIsPublic ensures that the object is public and does not have any private dependencies.
 // it check recursively the types of the object
 // it does not recursively check the values because
