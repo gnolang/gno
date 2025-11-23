@@ -3,16 +3,15 @@
  - option 1: do not storage-cross
  - option 2: storage-cross to declared as storage
  - option 3: storage-cross to receiver
- - option 4: storage-cross to virtual-realm (of /p/package)
 
 "Storage-crossing" is like (regular) crossing for method calls except it
 does not affect CurrentRealm()/PreviousRealm(). Since method calls can
 be nested the storage-realms are represented as a stack which maybe
 empty.
 
-A "virtual-realm" is used when calling a method of a nil receiver
-declared in a /p/package (/p/package is immutable). Two
-virtual-realms of the same /p/package are identical and are immutable.
+"Present realm" is the present storage-realm if any storage-crossing
+has occurred by method call since the last explicit cross. Otherwise
+it is the realm last explicitly crossed into.
 
 When calling a method of a nil receiver declared in an /r/realm we
 storage-cross to the storage realm /r/realm.
@@ -27,56 +26,53 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
    - CASE rA2: function declared in func(...) (non-crossing)        -- do not storage-cross
    - CASE rA3: function declared in func(cur realm, ...) (crossing) -- do not storage-cross
 
- * fn is method declared in /r/realm (nil/unattached receiver):
-   - CASE rB1: method has nil receiver                              -- storage-cross to declared
-   - CASE rB2: method has nil receiver                              -- storage-cross to (wrong) declared
-   - CASE rB3: method has unattached receiver (inline)              -- do not storage-cross
-   - CASE rB4: method has unattached receiver (var)                 -- do not storage-cross
+ * fn is method declared in /r/realm (nil or unreal receiver):
+   - CASE rB1: method has nil receiver                              -- do not storage-cross
+   - CASE rB2: method has nil receiver (external)                   -- do not storage-cross
+   - CASE rB3: method has unreal receiver (inline)                  -- do not storage-cross
+   - CASE rB4: method has unreal receiver (var)                     -- do not storage-cross
 
- * fn is method declared in /r/realm (attached receiver):
-   - CASE rC1: method has attached receiver                         -- storage-cross to receiver
-   - CASE rC2: method has (wrong) attached receiver                 -- storage-cross to (wrong) receiver
-   - CASE rC3: method has attached receiver via closure             -- storage-cross to receiver
-   - CASE rC4: method has (wrong) attached receiver via closure     -- storage-cross to (wrong) receiver
-   - CASE rC5: method has attached receiver via closure late        -- do not storage-cross
+ * fn is method declared in /r/realm (real receiver):
+   - CASE rC1: method has real receiver                             -- storage-cross to receiver
+   - CASE rC2: method has real receiver (external)                  -- storage-cross to receiver
+   - CASE rC3: method has real receiver via closure                 -- storage-cross to receiver
+   - CASE rC4: method has real receiver via closure (external)      -- storage-cross to receiver
+   - CASE rC5: method has real receiver via closure late            -- do not storage-cross
 
  * fn is crossing function declared in /r/realm:
-   - CASE rD1: closure attached and run crossing selector           -- XXX 
-   - CASE rD1: closure attached and run crossing arg                -- XXX
+   - CASE rD1: direct modification from external closure            -- illegal modification
 
 ----------------------------------------
 ## fn is declared in /p/package:
 (similar to /r/realm except for CASE pA3 and CASE pB2)
 
  * fn is function declared in /p/package:
-   - CASE pA1: function declared at package level                   -- do not storage-cross (same)
-   - CASE pA2: function declared in func(...) (non-crossing)        -- do not storage-cross (same)
+   - CASE pA1: function declared at package level                   -- do not storage-cross
+   - CASE pA2: function declared in func(...) (non-crossing)        -- do not storage-cross
    - CASE pA3: function declared in func(cur realm, ...) (crossing) -- illegal crossing function
 
- * fn is method declared in /p/package:
-   - CASE pB1: method has nil receiver                              -- storage-cross to declared (identical)
-   - CASE pB2: method has nil receiver                              -- storage-cross to (wrong, virtual-realm) declared
-   - CASE pB3: method has unattached receiver (inline)              -- do not storage-cross (same)
-   - CASE pB4: method has unattached receiver (var)                 -- do not storage-cross (same)
+ * fn is method declared in /p/package (nil or unreal receiver):
+   - CASE pB1: method has nil receiver                              -- do not storage-cross
+   - CASE pB2: method has nil receiver (external)                   -- do not storage-cross
+   - CASE pB3: method has unreal receiver (inline)                  -- do not storage-cross
+   - CASE pB4: method has unreal receiver (var)                     -- do not storage-cross
 
- * fn method declared in /p/package:
-   - CASE pC1: method has attached receiver                         -- storage-cross to receiver (same)
-   - CASE pC2: method has (wrong) attached receiver                 -- storage-cross to (wrong) receiver (same)
-   - CASE pC3: method has attached receiver via closure             -- storage-cross to receiver (same)
-   - CASE pC4: method has (wrong) attached receiver via closure     -- storage-cross to (wrong) receiver (same)
-   - CASE pC5: method has attached receiver via closure late        -- do not storage-cross (same)
+ * fn is method declared in /p/package:
+   - CASE pC1: method has real receiver                             -- storage-cross to receiver
+   - CASE pC2: method has real receiver (external)                  -- storage-cross to receiver
+   - CASE pC3: method has real receiver via closure                 -- storage-cross to receiver
+   - CASE pC4: method has real receiver via closure (external)      -- storage-cross to receiver
+   - CASE pC5: method has real receiver via closure late            -- do not storage-cross
 
 ----------------------------------------
 ## NOTEs
 
- * (Storage) attachment is like tainting w/ colors.
- * Assigning to a field of an already-attached object results in
-   immeediate recursive attachment to the storage realm of the parent.
- * Assigning to a field of a yet unattached object does NOT result
-   in immediate recursive attachement; it may happen during finalization.
- * After finalization all objects are attached to one realm or another.
- * A variable declaration via `:=` or `var` does not result in
-   immediate attachment. That is, block values are not by default attached.
+ * Assigning to a field of a yet unreal object does NOT result in immediate
+   recursive attachement to realm; it may happen during finalization; in the
+   future "attach()" will allow for realm attachment before finalization.
+ * After finalization all objects are persisted in one realm or another.
+ * A variable declaration via `:=` or `var` in a block is initially unreal and
+   unattached.
  * Function values are never parents except for the function's captured names.
  * TODO verify all of the above.
 	
@@ -115,83 +111,81 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
 		bob.Do(alice.TopFuncFnCrossing(cross))      // FAIL: caller != bob
 		//
 		// --------------------------------------------------------------------------------
-		// CASE rB1: method has nil receiver -- storage-cross to declared
-		//   - in bob.Do:                           (storage:[],    current:caller, previous:nil)
-		//   - in obj.Method:                       (storage:[bob], current:caller, previous:nil)
-		bob.Do((*bob.Object)(nil).Method)          // SUCCESS: storage-crossed to bob
-		// ----------------------------------------
-		// CASE rB2: method has nil receiver -- storage-cross to (wrong) declared
-		//   - in bob.Do:                           (storage:[],      current:caller, previous:nil)
-		//   - in obj.Method:                       (storage:[alice], current:caller, previous:nil)
-		bob.Do((*alice.Object)(nil).Method)        // FAIL: alice != bob
-		// ----------------------------------------
-		// CASE rB3: method has unattached receiver (inline) -- do not storage-cross
+		// CASE rB1: method has nil receiver -- do not storage-cross
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
 		//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
-		bob.Do(new(alice.Object).Method)           // FAIL: caller != bob
+		bob.Do((*bob.Object)(nil).Method)           // FAIL: caller != bob
 		// ----------------------------------------
-		// CASE rB4: method has unattached receiver (var) -- do not storage-cross (same as rB3 above)
+		// CASE rB2: method has nil receiver (external) -- do not storage-cross
+		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
+		//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
+		bob.Do((*alice.Object)(nil).Method)         // FAIL: caller != bob
+		// ----------------------------------------
+		// CASE rB3: method has unreal receiver (inline) -- do not storage-cross
+		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
+		//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
+		bob.Do(new(alice.Object).Method)            // FAIL: caller != bob
+		// ----------------------------------------
+		// CASE rB4: method has unreal receiver (var) -- do not storage-cross
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
 		//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
 		obj := new(alice.Object)
 		bob.Do(obj.Method)                          // FAIL: caller != bob
 		//
 		// --------------------------------------------------------------------------------
-		// CASE rC1: method has attached receiver -- storage-cross to receiver
+		// CASE rC1: method has real receiver -- storage-cross to receiver
 		//  - in bob.Do:                            (storage:[],    current:caller, previous:nil)
 		//  - in obj.Method:                        (storage:[bob], current:caller, previous:nil)
 		obj := new(alice.Object)
-		bob.SetObject(obj)                          // obj attached to bob
-		bob.Do(obj.Method)                          // SUCCESS: attached to bob
+		bob.SetObject(obj)                          // obj persisted in bob
+		bob.Do(obj.Method)                          // SUCCESS: resides in bob
 		// ----------------------------------------
-		// CASE rC2: method has (wrong) attached receiver -- storage-cross to receiver
+		// CASE rC2: method has real receiver (external) -- storage-cross to receiver
 		//  - in bob.Do:                            (storage:[],    current:caller, previous:nil)
 		//  - in obj.Method:                        (storage:[alice], current:caller, previous:nil)
 		obj := new(alice.Object)
-		alice.SetObject(obj)                        // obj attached to alice
-		bob.Do(obj.Method)                          // FAIL: attached to alice (but need bob)
+		alice.SetObject(obj)                        // obj persisted in alice
+		bob.Do(obj.Method)                          // FAIL: resides in alice (needs bob)
 		// ----------------------------------------
-		// CASE rC3: method has attached receiver via cls -- storage-cross to receiver
+		// CASE rC3: method has real receiver via closure -- storage-cross to receiver
 		obj := new(alice.Object)
 		cls := func() {
 			print(obj)
 		}
-		bob.SetClosure(cls)                         // obj recursively attached via cls to bob
+		bob.SetClosure(cls)                         // obj persisted in bob via cls
 		//   - in bob.Do:                           (storage:[],    current:caller, previous:nil)
 		//   - in obj.Method:                       (storage:[bob], current:caller, previous:nil)
-		bob.Do(obj.Method)                          // SUCCESS: attached to bob
+		bob.Do(obj.Method)                          // SUCCESS: resides in bob
 		// ----------------------------------------
-		// CASE rC4: method has (wrong) attached receiver via cls -- stroage-cross to (wrong) receiver
+		// CASE rC4: method has real receiver via closure (external) -- stroage-cross to receiver
 		obj := new(alice.Object)
 		cls := func() {
 			print(obj)
 		}
-		alice.SetClosure(cls)                       // obj recursively attached via cls to alice
+		alice.SetClosure(cls)                       // obj persisted in alice via cls
 		//   - in bob.Do:                           (storage:[],      current:caller, previous:nil)
 		//   - in obj.Method:                       (storage:[alice], current:caller, previous:nil)
 		bob.Do(obj.Method)                          // FAIL: alice != bob
 		// ----------------------------------------
-		// CASE rC5: method has attached receiver via cls late -- do not storage-cross
+		// CASE rC5: method has real receiver via closure late -- do not storage-cross
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
 		//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
 		obj := new(alice.Object)
 		cls := func() {
-			bob.Do(obj.Method)                      // FAIL: not yet unattached
-			bob.SetClosure(cls)                     // obj recursively attached to bob late
-			bob.Do(obj.Method)                      // SUCCESS: attached to bob
+			bob.Do(obj.Method)                      // FAIL: not yet persisted
+			bob.SetClosure(cls)                     // obj persisted to bob late
+			// this would work otherwise:
+			// bob.Do(obj.Method)                   
 		}
 		cls()
 		//
 		// --------------------------------------------------------------------------------
-		// CASE rD1: XXX closure attached to bob
+		// CASE rD1: direct modification from external closure -- illegal modification
 		//   - in bob.ExecuteClosure:               (storage:[], current:bob, previous:caller)
 		f := func() {
-			bob.AllowedList = append(bob.AllowedList, 3)
-			println("all right")
+			bob.AllowedList = append(bob.AllowedList, 3) // INVALID (illegal modification)
+		    panic("bob.AllowedList should not be mutable via dot selector from an external realm; static error expected")
 		}
-		
-		bob.SetClosure(cross, f)
-		bob.ExecuteClosure(cross)
 		//
 		// ================================================================================
 		// ## fn is declared /p/package: (similar to /r/realm except for CASE pA3 and CASE pB2)
@@ -208,75 +202,76 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
 		//   - in peter.TopFuncFnNoncrossing.inner: (storage:[], current:caller, previous:nil)
 		bob.Do(peter.TopFuncFnNoncrossing())        // FAIL: caller != bob
 		// ----------------------------------------
-		// CASE pA3: function declared in func(cur realm, ...) (crossing) -- omitted (illegal crossing function)
-		// bob.Do(peter.TopFuncFnCrossing(cross))   // INVALID (illegal crossing function)
+		// CASE pA3: function declared in func(cur realm, ...) (crossing) -- illegal crossing function
+		bob.Do(peter.TopFuncFnCrossing(cross))      // INVALID (illegal crossing function)
 		//
 		// --------------------------------------------------------------------------------
-		// CASE pB1: method has nil receiver -- storage-cross to declared as storage
+		// CASE pB1: method has nil receiver -- do not storage-cross
 		// (identical to rB1 for consistency)
-		//   - in bob.Do:                           (storage:[],    current:caller, previous:nil)
-		//   - in obj.Method:                       (storage:[bob], current:caller, previous:nil)
-		bob.Do((*bob.Object)(nil).Method)           // SUCCESS: storage-cross to bob
+		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
+		//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
+		bob.Do((*bob.Object)(nil).Method)           // FAIL: caller != bob
 		// ----------------------------------------
-		// CASE pB2: method has nil receiver -- storage-cross to (wrong, virtual-realm) declared as storage NOTE (differs)
-		//   - in bob.Do:                           (storage:[],              current:caller, previous:nil)
-		//   - in obj.Method:                       (storage:[peter.virtual], current:caller, previous:nil)
-		bob.Do((*peter.Object)(nil).Method)         // FAIL: peter.virtual != bob
+		// CASE pB2: method has nil receiver (external) -- do not storage-cross
+		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
+		//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
+		bob.Do((*peter.Object)(nil).Method)         // FAIL: caller != bob
 		// ----------------------------------------
-		// CASE pB3: method has unattached receiver (inline) -- do not storage-cross
+		// CASE pB3: method has unreal receiver (inline) -- do not storage-cross
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
 		//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
 		bob.Do(new(peter.Object).Method)            // FAIL: caller != bob
 		// ----------------------------------------
-		// CASE pB4: method has unattached receiver (var) -- do not storage-cross (same as pB3 above)
+		// CASE pB4: method has unreal receiver (var) -- do not storage-cross
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
 		//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
 		obj := new(peter.Object)
 		bob.Do(obj.Method)                          // FAIL: caller != bob
 		//
 		// --------------------------------------------------------------------------------
-		// CASE pC1: method has attached receiver -- storage-cross to receiver
+		// CASE pC1: method has real receiver -- storage-cross to receiver
 		//  - in bob.Do:                            (storage:[],    current:caller, previous:nil)
 		//  - in obj.Method:                        (storage:[bob], current:caller, previous:nil)
 		obj := new(peter.Object)
-		bob.SetObject(obj)                          // obj attached to bob
-		bob.Do(obj.Method)                          // SUCCESS: attached to bob
+		bob.SetObject(obj)                          // obj persisted in bob
+		bob.Do(obj.Method)                          // SUCCESS: persisted in bob
 		// ----------------------------------------
-		// CASE pC2: method has (wrong) attached receiver -- storage-cross to receiver
+		// CASE pC2: method has real receiver (external) -- storage-cross to receiver
 		//  - in bob.Do:                            (storage:[],      current:caller, previous:nil)
 		//  - in obj.Method:                        (storage:[alice], current:caller, previous:nil)
 		obj := new(peter.Object)
-		alice.SetObject(obj)                        // obj attached to alice
-		bob.Do(obj.Method)                          // FAIL: attached to alice (but need bob)
+		alice.SetObject(obj)                        // obj persisted in alice
+		bob.Do(obj.Method)                          // FAIL: resides in alice (needs bob)
 		// ----------------------------------------
-		// CASE pC3: method has attached receiver via cls -- storage-cross to receiver
+		// CASE pC3: method has real receiver via closure -- storage-cross to receiver
 		obj := new(peter.Object)
 		cls := func() {
 			print(obj)
 		}
-		bob.SetClosure(cls)                         // obj recursively attached via cls to bob
+		bob.SetClosure(cls)                         // obj persisted in bob via cls
 		//   - in bob.Do:                           (storage:[],    current:caller, previous:nil)
 		//   - in obj.Method:                       (storage:[bob], current:caller, previous:nil)
-		bob.Do(obj.Method)                          // SUCCESS: attached to bob
+		bob.Do(obj.Method)                          // SUCCESS: resides in bob
 		// ----------------------------------------
-		// CASE pC4: method has (wrong) attached receiver via cls -- storage-cross to (wrong) receiver
+		// CASE pC4: method has real receiver via closure (external) -- storage-cross to receiver
 		obj := new(peter.Object)
 		cls := func() {
 			print(obj)
 		}
-		alice.SetClosure(cls)                       // obj recursively attached via cls to alice
+		alice.SetClosure(cls)                       // obj persisted in alice via cls
 		//   - in bob.Do:                           (storage:[],      current:caller, previous:nil)
 		//   - in obj.Method:                       (storage:[alice], current:caller, previous:nil)
 		bob.Do(obj.Method)                          // FAIL: alice != bob
 		// ----------------------------------------
-		// CASE pC5: method has attached receiver via cls late -- do not storage-cross
+		// CASE pC5: method has real receiver via closure late -- do not storage-cross
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
 		//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
 		obj := new(peter.Object)
 		cls := func() {
-			bob.Do(obj.Method)                  // FAIL: not yet unattached
-			alice.SetClosure(cls)               // obj recursively attached via cls to alice late
-			bob.Do(obj.Method)                  // SUCCESS: attached to bob
+			bob.Do(obj.Method)                      // FAIL: not yet persisted
+			alice.SetClosure(cls)                   // obj persisted to bob late
+			// this would work otherwise:
+			// bob.Do(obj.Method)              
 		}
 		cls()
 
@@ -356,7 +351,16 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
 	}
 	type Object struct {}
 	func (obj *Object) Method() { // CASE rB1, CASE pB1
-		bob.PrivateFunc()
+		// The effect of the three lines below should be the same.
+		// They can only succeed if present realm is already 
+		// They can only suc// bob and obj is nil or unreal; or if obj is attached
+		// to bob (thus making the present realm bob by storage-realm).
+		private = -3
+		obj.method2()
+		PrivateFunc()
+	}
+	func (obj *Object) method2() {
+		private = -2
 	}
 	var object *Object 
 	func SetObject(obj any) { object = obj }  // CASE rC1, CASE pC1

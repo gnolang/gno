@@ -27,9 +27,7 @@ stderr 'cannot modify external-realm or non-realm object'
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_rB1
-## XXX, fix this
 ! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rB1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
-## stdout 'OK'
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_rB2
@@ -65,18 +63,12 @@ stderr 'cannot modify external-realm or non-realm object'
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_rD1
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rD1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
+! gnokey maketx addpkg -pkgdir $WORK/callerrealm_rd1 -pkgpath gno.land/r/test/callerrealm_rd1 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stderr 'cannot directly mutate gno.land/r/test/bob.AllowedList from gno.land/r/test/callerrealm_rd1'
 
 ## query
-gnokey query "vm/qrender" --data "gno.land/r/test/bob:"
-stdout 'AllowedList = \[1, 2, 3\]'
-
-## test CASE_rD2
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rD2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
-
-## query
-gnokey query "vm/qrender" --data "gno.land/r/test/bob:"
-stdout 'AllowedList = \[1, 2, 3, 777\]'
+# gnokey query "vm/qrender" --data "gno.land/r/test/bob:"
+# stdout 'AllowedList = \[1, 2, 3\]'
 
 ## test CASE_pA1
 ! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pA1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
@@ -86,13 +78,11 @@ stderr 'cannot modify external-realm or non-realm object'
 ! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pA2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
 stderr 'cannot modify external-realm or non-realm object'
 
-## test CASE_pA3 - omitted (illegal crossing function)
+## test CASE_pA3 -- omitted (illegal crossing function)
 # ! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pA3 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
 
 ## test CASE_pB1
-## XXX, fix this
 ! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pB1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test runner
-## stdout 'OK'
 stderr 'cannot modify external-realm or non-realm object'
 
 ## test CASE_pB2
@@ -173,29 +163,29 @@ func CASE_rA3(cur realm) {
 	bob.Do(alice.TopFuncFnCrossing(cross))      // FAIL: caller != bob
 }
 
-func CASE_rB1(cur realm){
-	// CASE rB1: method has nil receiver -- storage-cross to declared
-	//   - in bob.Do:                           (storage:[],    current:caller, previous:nil)
-	//   - in obj.Method:                       (storage:[bob], current:caller, previous:nil)
-	bob.Do((*bob.Object)(nil).Method)           // SUCCESS: storage-crossed to bob
+func CASE_rB1(cur realm) {
+	// CASE rB1: method has nil receiver -- do not storage-cross
+	//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
+	//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
+	bob.Do((*bob.Object)(nil).Method)           // FAIL: caller != bob
 }
 
-func CASE_rB2(cur realm){
-	// CASE rB2: method has nil receiver -- storage-cross to (wrong) declared
-	//   - in bob.Do:                           (storage:[],      current:caller, previous:nil)
-	//   - in obj.Method:                       (storage:[alice], current:caller, previous:nil)
-	bob.Do((*alice.Object)(nil).Method)         // FAIL: alice != bob
+func CASE_rB2(cur realm) {
+	// CASE rB2: method has nil receiver (external) -- do not storage-cross
+	//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
+	//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
+	bob.Do((*alice.Object)(nil).Method)         // FAIL: caller != bob
 }
 
 func CASE_rB3(cur realm){
-	// CASE rB3: method has unattached receiver (inline) -- do not storage-cross
+	// CASE rB3: method has unreal receiver (inline) -- do not storage-cross
 	//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
 	//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
 	bob.Do(new(alice.Object).Method)            // FAIL: caller != bob
 }
 
 func CASE_rB4(cur realm){
-	// CASE rB4: method has unattached receiver (var) -- do not storage-cross (same as rB3 above)
+	// CASE rB4: method has unreal receiver (var) -- do not storage-cross
 	//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
 	//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
 	obj := new(alice.Object)
@@ -204,87 +194,61 @@ func CASE_rB4(cur realm){
 
 
 func CASE_rC1(cur realm) {
-	// CASE rC1: method has attached receiver -- storage-cross to receiver
+	// CASE rC1: method has real receiver -- storage-cross to receiver
 	//  - in bob.Do:                            (storage:[],    current:caller, previous:nil)
 	//  - in obj.Method:                        (storage:[bob], current:caller, previous:nil)
 	obj := new(alice.Object)
-	bob.SetObject(cross, obj)                   // obj attached to bob
-	bob.Do(obj.Method)                          // SUCCESS: attached to bob
+	bob.SetObject(cross, obj)                   // obj persisted in bob
+	bob.Do(obj.Method)                          // SUCCESS: resides in bob
 }
 
 func CASE_rC2(cur realm) {
-	// CASE rC2: method has (wrong) attached receiver -- storage-cross to receiver
+	// CASE rC2: method has real receiver (external) -- storage-cross to receiver
 	//  - in bob.Do:                            (storage:[],    current:caller, previous:nil)
 	//  - in obj.Method:                        (storage:[alice], current:caller, previous:nil)
 	obj := new(alice.Object)
-	alice.SetObject(cross, obj)                 // obj attached to alice
-	bob.Do(obj.Method)                          // FAIL: attached to alice (but need bob)
+	alice.SetObject(cross, obj)                 // obj persisted in alice
+	bob.Do(obj.Method)                          // FAIL: resides in alice (needs bob)
 }
 
 func CASE_rC3(cur realm) {
-	// CASE rC3: method has attached receiver via cls -- storage-cross to receiver
+	// CASE rC3: method has real receiver via closure -- storage-cross to receiver
 	obj := new(alice.Object)
 	cls := func() {
 		print(obj)
 	}
-	bob.SetClosure(cross, cls)                  // obj recursively attached via cls to bob
+	bob.SetClosure(cross, cls)                  // obj persisted in bob via cls
 	//   - in bob.Do:                           (storage:[],    current:caller, previous:nil)
 	//   - in obj.Method:                       (storage:[bob], current:caller, previous:nil)
-	bob.Do(obj.Method)                          // SUCCESS: attached to bob
+	bob.Do(obj.Method)                          // SUCCESS: resides in bob
 }
 
 func CASE_rC4(cur realm) {
-	// CASE rC4: method has (wrong) attached receiver via cls -- stroage-cross to (wrong) receiver
+	// CASE rC4: method has real receiver via closure (external) -- storage-cross to receiver
 	obj := new(alice.Object)
 	cls := func() {
 		print(obj)
 	}
-	alice.SetClosure(cross, cls)                // obj recursively attached via cls to alice
+	alice.SetClosure(cross, cls)                // obj persisted in alice via cls
 	//   - in bob.Do:                           (storage:[],      current:caller, previous:nil)
 	//   - in obj.Method:                       (storage:[alice], current:caller, previous:nil)
 	bob.Do(obj.Method)                          // FAIL: alice != bob
 }
 
 func CASE_rC5(cur realm) {
-	// CASE rC5: method has attached receiver via cls late -- do not storage-cross
+	// CASE rC5: method has real receiver via closure late -- do not storage-cross
 	//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
 	//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
 	obj := new(alice.Object)
 	var cls func()
 	cls = func() {
-		bob.Do(obj.Method)                  // FAIL: not yet unattached
-		bob.SetClosure(cross, cls)          // obj recursively attached to alice late
+		bob.Do(obj.Method)                  // FAIL: not yet persisted
+		bob.SetClosure(cross, cls)          // obj persisted in bob late
 	}
 	cls()
 }
 
-// Matches https://github.com/gnolang/gno/security/advisories/GHSA-64hv-3ww9-mc3f.
-func CASE_rD1(cur realm) {
-	// CASE rD1: closure attached to bob, then run set closure after crossing to bob.
-	//   - in bob.RunClosure:                   (storage:[], current:bob, previous:caller)
-	//   - in closure cls:                      (storage:[], current:bob, previous:caller)
-	cls := func() {
-		// static error: ext.Name = x not allowed.
-		bob.AllowedList = append(bob.AllowedList, 3)
-		panic("bob.AllowedList should not be mutable via dot selector from an external realm; static error expected")
-	}
-	bob.SetClosure(cross, cls)
-	bob.RunClosure(cross)
-}
-
-func CASE_rD2(cur realm) {
-	// CASE rD2: closure attached to bob, then run passed closure after crossing to bob.
-        // (similar to CASE_rD1 but closure passed in)
-	//   - in bob.RunClosure:                   (storage:[], current:bob, previous:caller)
-	//   - in closure cls:                      (storage:[], current:bob, previous:caller)
-	cls := func() {
-		// static error: ext.Name = x not allowed.
-		bob.AllowedList = append(bob.AllowedList, 777)
-		panic("bob.AllowedList should not be mutable via dot selector from an external realm; static error expected")
-	}
-	bob.SetClosure(cross, cls)
-	bob.RunClosure2(cross, cls)
-}
+// NOTE CASE_rD1 in callerrealm_rd1
 
 // ================================================================================
 // ## fn is declared /p/package:
@@ -304,34 +268,36 @@ func CASE_pA2(cur realm) {
 	bob.Do2(peter.TopFuncFnNoncrossing(), bob.PrivateFunc) // FAIL: caller != bob
 }
 
+/* illegal so omitted
 func CASE_pA3(cur realm) {
 	// CASE pA3: omitted (invalid crossing function)
-	// bob.Do(peter.TopFuncFnCrossing(cross))   // INVALID (illegal crossing function)
+	bob.Do(peter.TopFuncFnCrossing(cross))      // INVALID (illegal crossing function)
 }
+*/
 
-func CASE_pB1(cur realm){
-	// CASE pB1: method has nil receiver -- storage-cross to declared (identical to rB1)
-	//   - in bob.Do:                           (storage:[],    current:caller, previous:nil)
-	//   - in obj.Method:                       (storage:[bob], current:caller, previous:nil)
-	bob.Do((*bob.Object)(nil).Method)           // SUCCESS: storage-crossed to bob
+func CASE_pB1(cur realm) {
+	// CASE pB1: method has nil receiver -- do not storage-cross
+	//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
+	//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
+	bob.Do((*bob.Object)(nil).Method)           // FAIL: caller != bob
 }
 
 func CASE_pB2(cur realm){
-	// CASE pB2: method has nil receiver -- storage-cross to (wrong, virtual-realm) declared
-	//   - in bob.Do2:                          (storage:[],              current:caller, previous:nil)
-	//   - in obj.Method:                       (storage:[peter.virtual], current:caller, previous:nil)
-	bob.Do2((*peter.Object)(nil).Method, bob.PrivateFunc) // FAIL: peter.virtual != bob
+	// CASE pB2: method has nil receiver (external) -- do not storage-cross
+	//   - in bob.Do2:                          (storage:[], current:caller, previous:nil)
+	//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
+	bob.Do2((*peter.Object)(nil).Method, bob.PrivateFunc) // FAIL: caller != bob
 }
 
 func CASE_pB3(cur realm){
-	// CASE pB3: method has unattached receiver (inline) -- do not storage-cross
+	// CASE pB3: method has unreal receiver (inline) -- do not storage-cross
 	//   - in bob.Do2:                          (storage:[], current:caller, previous:nil)
 	//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
 	bob.Do2(new(peter.Object).Method, bob.PrivateFunc) // FAIL: caller != bob
 }
 
 func CASE_pB4(cur realm){
-	// CASE pB4: method has unattached receiver (var) -- do not storage-cross (same as pB3 above)
+	// CASE pB4: method has unreal receiver (var) -- do not storage-cross
 	//   - in bob.Do2:                          (storage:[], current:caller, previous:nil)
 	//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
 	obj := new(peter.Object)
@@ -339,60 +305,82 @@ func CASE_pB4(cur realm){
 }
 
 func CASE_pC1(cur realm) {
-	// CASE pC1: method has attached receiver -- storage-cross to receiver
+	// CASE pC1: method has real receiver -- storage-cross to receiver
 	//  - in bob.Do2:                           (storage:[],    current:caller, previous:nil)
 	//  - in obj.Method:                        (storage:[bob], current:caller, previous:nil)
 	obj := new(peter.Object)
-	bob.SetObject(cross, obj)                   // obj attached to bob
-	bob.Do2(obj.Method, bob.PrivateFunc)        // SUCCESS: attached to bob
+	bob.SetObject(cross, obj)                   // obj persisted in bob
+	bob.Do2(obj.Method, bob.PrivateFunc)        // SUCCESS: resides in bob
 }
 
 func CASE_pC2(cur realm) {
-	// CASE pC2: method has (wrong) attached receiver -- storage-cross to receiver
+	// CASE pC2: method has real receiver (external) -- storage-cross to receiver
 	//  - in bob.Do2:                           (storage:[],      current:caller, previous:nil)
 	//  - in obj.Method:                        (storage:[alice], current:caller, previous:nil)
 	obj := new(peter.Object)
-	alice.SetObject(cross, obj)                 // obj attached to alice
-	bob.Do2(obj.Method, bob.PrivateFunc)        // FAIL: attached to alice (but need bob)
+	alice.SetObject(cross, obj)                 // obj persisted in alice
+	bob.Do2(obj.Method, bob.PrivateFunc)        // FAIL: resides in alice (needs bob)
 }
 
 func CASE_pC3(cur realm) {
-	// CASE pC3: method has attached receiver via cls -- storage-cross to receiver
+	// CASE pC3: method has real receiver via closure -- storage-cross to receiver
 	obj := new(peter.Object)
 	cls := func() {
 		print(obj)
 	}
-	bob.SetClosure(cross, cls)                  // obj recursively attached via cls to bob
+	bob.SetClosure(cross, cls)                  // obj persisted in bob via cls
 	//   - in bob.Do2:                          (storage:[],    current:caller, previous:nil)
 	//   - in obj.Method:                       (storage:[bob], current:caller, previous:nil)
-	bob.Do2(obj.Method, bob.PrivateFunc)        // SUCCESS: attached to bob
+	bob.Do2(obj.Method, bob.PrivateFunc)        // SUCCESS: resides in bob
 }
 
 func CASE_pC4(cur realm) {
-	// CASE pC4: method has (wrong) attached receiver via cls -- storage-cross to (wrong) receiver
+	// CASE pC4: method has real receiver via cls (external) -- storage-cross to receiver
 	obj := new(peter.Object)
 	cls := func() {
 		print(obj)
 	}
-	alice.SetClosure(cross, cls)                // obj recursively attached via cls to alice
+	alice.SetClosure(cross, cls)                // obj persisted in alice via cls
 	//   - in bob.Do2:                          (storage:[],      current:caller, previous:nil)
 	//   - in obj.Method:                       (storage:[alice], current:caller, previous:nil)
 	bob.Do2(obj.Method, bob.PrivateFunc)        // FAIL: alice != bob
 }
 
 func CASE_pC5(cur realm) {
-	// CASE pC5: method has attached receiver via cls late -- do not storage-cross
+	// CASE pC5: method has real receiver via cls late -- do not storage-cross
 	//   - in bob.Do2:                          (storage:[], current:caller, previous:nil)
 	//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
 	obj := new(peter.Object)
 	var cls func()
 	cls = func() {
-		bob.Do2(obj.Method, bob.PrivateFunc) // FAIL: not yet unattached
-		bob.SetClosure(cross, cls)          // obj recursively attached to bob late
+		bob.Do2(obj.Method, bob.PrivateFunc) // FAIL: not yet persisted
+		bob.SetClosure(cross, cls)          // obj persisted to bob late
 	}
 	cls()
 }
 
+-- callerrealm_rd1/gnomod.toml --
+module = "gno.land/r/test/callerrealm_rd1"
+gno = "0.9"
+
+
+-- callerrealm_rd1/main.gno --
+package callerrealm_rd1
+
+import (
+	"gno.land/r/test/bob"
+)
+
+// Matches https://github.com/gnolang/gno/security/advisories/GHSA-64hv-3ww9-mc3f.
+func CASE_rD1(cur realm) {
+	// CASE rD1: direct modification in closure -- illegal modification
+	cls := func() {
+		// static error: ext.Name = x not allowed.
+		bob.AllowedList = append(bob.AllowedList, 3)
+		panic("bob.AllowedList should not be mutable via dot selector from an external realm; static error expected")
+	}
+	bob.SetClosure(cross, cls)
+}
 
 -- alice/gnomod.toml --
 module = "gno.land/r/test/alice"
@@ -507,7 +495,17 @@ func PrivateFunc() {
 type Object struct {}
 
 func (obj *Object) Method() { // CASE rB1, CASE pB1
+	// The effect of the three lines below should be the same.
+	// They can only succeed if present realm is already 
+	// bob and obj is nil or unreal; or if obj is attached
+	// to bob (thus making the present realm bob by storage-realm).
+	private = -3
+	obj.method2()
 	PrivateFunc()
+}
+
+func (obj *Object) method2() {
+	private = -2
 }
 
 var object any
@@ -517,16 +515,6 @@ var closure func()
 func SetClosure(cur realm, cls func()) { 
 	closure = cls
 } // CASE rC3, CASE pC3
-
-func RunClosure(cur realm) {
-	closure()
-} // CASE rD1
-
-// Similar to RunClosure() but pass in closure.
-func RunClosure2(cur realm, fn func()) { // CASE rD2
-	fn()
-}
-
 
 var AllowedList = []int{1, 2}
 
