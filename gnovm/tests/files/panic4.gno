@@ -7,7 +7,7 @@ func main() {
 // Stacktrace:
 // panic: ===
 // main<VPBlock(1,0)>()
-//     main/recover22.gno:4
+//     main/panic4.gno:4
 
 // Error:
 // ===

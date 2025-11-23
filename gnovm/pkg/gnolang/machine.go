@@ -395,8 +395,8 @@ func destar(x Expr) Expr {
 // Stacktrace returns the stack trace of the machine.
 // It collects the executions and frames from the machine's frames and statements.
 func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
-	// fmt.Println("======Stacktrace, len of stmts: ", len(m.Stmts))
-	// PrintCaller(2, 5)
+	fmt.Println("======Stacktrace, len of stmts: ", len(m.Stmts))
+	PrintCaller(2, 5)
 	if len(m.Frames) == 0 {
 		return
 	}
@@ -430,15 +430,32 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	} else {
 		// fmt.Println("===not native...")
 		// if len(m.Stmts) > 0 {
+
+		if len(m.Exprs) > 0 {
+			stacktrace.LastLine = m.PeekExpr(1).GetLine()
+			expr := m.PeekExpr(1)
+			fmt.Println("===expr, type of expr: ", expr, reflect.TypeOf(expr))
+			fmt.Println("======2: ", stacktrace.LastLine)
+			return
+		}
+
 		ls := m.PeekStmt(1)
-		// fmt.Println("===ls, type of ls: ", ls, reflect.TypeOf(ls))
+		fmt.Println("===ls, type of ls: ", ls, reflect.TypeOf(ls))
 		if bs, ok := ls.(*bodyStmt); ok {
+			ls2 := bs.LastStmt()
+			fmt.Println("===ls2, type of ls2: ", ls2, reflect.TypeOf(ls2))
 			stacktrace.LastLine = bs.LastStmt().GetLine()
-			// fmt.Println("======got last line: ", stacktrace.LastLine)
+			fmt.Println("======1: ", stacktrace.LastLine)
 			return
 		} else {
-			stacktrace.LastLine = ls.GetLine()
-			// println("===not bodystmt...")
+			if len(m.Exprs) > 0 {
+				stacktrace.LastLine = m.PeekExpr(1).GetLine()
+				fmt.Println("======2: ", stacktrace.LastLine)
+			} else {
+				stacktrace.LastLine = ls.GetLine()
+				fmt.Println("======3: ", stacktrace.LastLine)
+			}
+			println("===not bodystmt...")
 		}
 	}
 	return
@@ -1659,8 +1676,8 @@ func (m *Machine) PushStmt(s Stmt) {
 	if debug {
 		m.Printf("+s %v\n", s)
 	}
-	// fmt.Printf("+s %v\n", s)
-	// PrintCaller(2, 5)
+	fmt.Printf("+s %v\n", s)
+	PrintCaller(2, 5)
 	m.Stmts = append(m.Stmts, s)
 }
 
@@ -1679,6 +1696,8 @@ func (m *Machine) PopStmt() Stmt {
 	if debug {
 		m.Printf("-s %v\n", s)
 	}
+	fmt.Printf("-s %v\n", s)
+	PrintCaller(2, 5)
 	if bs, ok := s.(*bodyStmt); ok {
 		return bs.PopActiveStmt()
 	}
@@ -1708,8 +1727,8 @@ func (m *Machine) PushExpr(x Expr) {
 	if debug {
 		m.Printf("+x %v\n", x)
 	}
-	// fmt.Printf("+x %v\n", x)
-	// PrintCaller(2, 5)
+	fmt.Printf("+x %v\n", x)
+	PrintCaller(2, 5)
 	m.Exprs = append(m.Exprs, x)
 }
 
@@ -1719,6 +1738,8 @@ func (m *Machine) PopExpr() Expr {
 	if debug {
 		m.Printf("-x %v\n", x)
 	}
+	fmt.Printf("-x %v\n", x)
+	PrintCaller(2, 5)
 	m.Exprs = m.Exprs[:numExprs-1]
 	return x
 }

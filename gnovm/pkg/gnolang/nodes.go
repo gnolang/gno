@@ -1015,7 +1015,7 @@ func (x *bodyStmt) PopActiveStmt() (as Stmt) {
 // }
 
 func (x *bodyStmt) LastStmt() Node {
-	// fmt.Println("======LastStmt, x.NextBodyIndex: ", x.NextBodyIndex)
+	fmt.Println("======LastStmt, x.NextBodyIndex: ", x.NextBodyIndex)
 	switch x.NextBodyIndex {
 	case -2:
 		// Init statement, we can't get the statement before the bodyStmt from here.

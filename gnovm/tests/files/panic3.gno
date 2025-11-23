@@ -14,6 +14,6 @@ func main() {
 // Stacktrace:
 // panic: division by zero
 // foo<VPBlock(3,1)>()
-//     main/recover21.gno:5
+//     main/panic3.gno:5
 // main<VPBlock(1,2)>()
-//     main/recover21.gno:8
+//     main/panic3.gno:8

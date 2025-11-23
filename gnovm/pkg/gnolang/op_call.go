@@ -189,6 +189,7 @@ func (m *Machine) doOpCall() {
 			BodyLen:       len(fbody),
 			NextBodyIndex: -2,
 		}
+		fmt.Println("===doOpCall, fbody: ", b.bodyStmt.Body)
 		m.PushOp(OpBody)
 		m.PushStmt(b.GetBodyStmt())
 	} else {
