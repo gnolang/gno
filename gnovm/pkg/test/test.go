@@ -13,9 +13,11 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -163,7 +165,7 @@ func (opts *TestOptions) WriterForStore() io.Writer {
 }
 
 // NewTestOptions sets up TestOptions, filling out all "required" parameters.
-func NewTestOptions(rootDir string, stdout, stderr io.Writer) *TestOptions {
+func NewTestOptions(rootDir string, stdout, stderr io.Writer, pkgs packages.PkgList) *TestOptions {
 	opts := &TestOptions{
 		RootDir:      rootDir,
 		Output:       stdout,
@@ -172,9 +174,9 @@ func NewTestOptions(rootDir string, stdout, stderr io.Writer) *TestOptions {
 	}
 	opts.BaseStore, opts.TestStore = StoreWithOptions(
 		rootDir, opts.WriterForStore(), StoreOptions{
-			WithExtern:   false,
-			WithExamples: true,
-			Testing:      true,
+			WithExtern: false,
+			Testing:    true,
+			Packages:   pkgs,
 		})
 	return opts
 }
@@ -343,7 +345,6 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 			} else if opts.Verbose {
 				fmt.Fprintf(opts.Error, "--- PASS: %s (%s)\n", testName, dstr)
 			}
-
 			// XXX: add per-test metrics
 		}
 	}
@@ -356,15 +357,16 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	return errs
 }
 
-// reportCoverage reports coverage statistics for the package
 func (opts *TestOptions) reportCoverage(pkgPath string) {
 	coverageData, exists := opts.coverageData[pkgPath]
 	if !exists || coverageData == nil {
+
 		fmt.Fprintf(opts.Error, "coverage: [no statements] of statements in %s\n", pkgPath)
 		return
 	}
 
 	covered, total := coverageData.GetCoverage()
+
 	if total == 0 {
 		fmt.Fprintf(opts.Error, "coverage: [no statements] of statements in %s\n", pkgPath)
 		return
@@ -392,7 +394,7 @@ func (opts *TestOptions) writeCoverageProfile() {
 	fmt.Fprintf(file, "mode: %s\n", opts.CoverMode)
 
 	// Write coverage data for each package
-	for pkgPath, coverageData := range opts.coverageData {
+	for _, coverageData := range opts.coverageData {
 		if coverageData == nil {
 			continue
 		}
@@ -413,10 +415,13 @@ func (opts *TestOptions) writeCoverageProfile() {
 }
 
 // mergeCoverageData merges coverage data from a test machine into the accumulated coverage data
+// mergeCoverageData merges coverage data from a test machine into the accumulated coverage data
 func (opts *TestOptions) mergeCoverageData(pkgPath string, newCoverage *gno.CoverageData) {
 	if newCoverage == nil {
 		return
 	}
+	
+
 
 	existingCoverage, exists := opts.coverageData[pkgPath]
 	if !exists || existingCoverage == nil {
@@ -426,10 +431,65 @@ func (opts *TestOptions) mergeCoverageData(pkgPath string, newCoverage *gno.Cove
 	}
 
 	// Merge coverage data by combining blocks and updating counts
-	existingCoverage.Blocks = append(existingCoverage.Blocks, newCoverage.Blocks...)
-	for filename, blocks := range newCoverage.Files {
-		existingCoverage.Files[filename] = append(existingCoverage.Files[filename], blocks...)
+	for filename, newBlocks := range newCoverage.Files {
+		if _, ok := existingCoverage.Files[filename]; !ok {
+			existingCoverage.Files[filename] = newBlocks
+			existingCoverage.Blocks = append(existingCoverage.Blocks, newBlocks...)
+			continue
+		}
+
+		existingBlocks := existingCoverage.Files[filename]
+		
+		// If lengths match, assume 1:1 mapping (fast path)
+		if len(existingBlocks) == len(newBlocks) {
+			for i, newBlock := range newBlocks {
+				existingBlock := existingBlocks[i]
+				// Double check positions match
+				if existingBlock.StartLine == newBlock.StartLine &&
+					existingBlock.StartCol == newBlock.StartCol &&
+					existingBlock.EndLine == newBlock.EndLine &&
+					existingBlock.EndCol == newBlock.EndCol {
+					
+					mergeCounts(existingCoverage.Mode, existingBlock, newBlock)
+				} else {
+					// Mismatch in position? Try to find the block.
+					findAndMerge(existingCoverage.Mode, existingBlocks, newBlock)
+				}
+			}
+			continue
+		}
+
+		// Length mismatch, try to match individual blocks
+		// fmt.Fprintf(opts.Error, "DEBUG: coverage block count mismatch for %s: existing=%d new=%d\n", filename, len(existingBlocks), len(newBlocks))
+		for _, newBlock := range newBlocks {
+			findAndMerge(existingCoverage.Mode, existingBlocks, newBlock)
+		}
 	}
+}
+
+func mergeCounts(mode gno.CoverageMode, dest, src *gno.CoverageBlock) {
+	switch mode {
+	case gno.CoverageModeSet:
+		if atomic.LoadUint64(&src.Count) > 0 {
+			atomic.StoreUint64(&dest.Count, 1)
+		}
+	case gno.CoverageModeCount, gno.CoverageModeAtomic:
+		atomic.AddUint64(&dest.Count, atomic.LoadUint64(&src.Count))
+	}
+}
+
+func findAndMerge(mode gno.CoverageMode, blocks []*gno.CoverageBlock, target *gno.CoverageBlock) {
+	for _, block := range blocks {
+		if block.StartLine == target.StartLine &&
+			block.StartCol == target.StartCol &&
+			block.EndLine == target.EndLine &&
+			block.EndCol == target.EndCol {
+			mergeCounts(mode, block, target)
+			return
+		}
+	}
+	// If not found, we ignore it to avoid duplicates. 
+	// In a perfect world we might append, but that risks the duplication issue if not careful.
 }
 
 // Runs *_test.go tests.
@@ -468,6 +528,7 @@ func (opts *TestOptions) runTestFiles(
 	m.Alloc = alloc
 
 	// Enable coverage if requested
+	var pkgCoverage *gno.CoverageData
 	if opts.Cover {
 		coverMode := gno.CoverageModeSet // default
 		switch opts.CoverMode {
@@ -476,12 +537,18 @@ func (opts *TestOptions) runTestFiles(
 		case "atomic":
 			coverMode = gno.CoverageModeAtomic
 		}
-		m.Coverage = gno.NewCoverageData(coverMode, mpkg.Path)
+		pkgCoverage = gno.NewCoverageData(coverMode, mpkg.Path)
+		m.Coverage = pkgCoverage
 	}
 	if tgs.GetMemPackage(mpkg.Path) == nil {
 		m.RunMemPackage(mpkg, false)
 	} else {
 		m.SetActivePackage(tgs.GetPackage(mpkg.Path, false))
+		// If coverage is enabled, we need to register blocks even if the package was already loaded
+		if m.Coverage != nil {
+			pn := m.Store.GetBlockNode(gno.PackageNodeLocation(mpkg.Path)).(*gno.PackageNode)
+			m.RegisterCoverageBlocks(pn.FileSet)
+		}
 	}
 	pv := m.Package
 
@@ -502,14 +569,7 @@ func (opts *TestOptions) runTestFiles(
 
 		// Enable coverage if requested (for each test machine)
 		if opts.Cover {
-			coverMode := gno.CoverageModeSet // default
-			switch opts.CoverMode {
-			case "count":
-				coverMode = gno.CoverageModeCount
-			case "atomic":
-				coverMode = gno.CoverageModeAtomic
-			}
-			m.Coverage = gno.NewCoverageData(coverMode, mpkg.Path)
+			m.Coverage = pkgCoverage
 		}
 
 		m.SetActivePackage(pv)
@@ -538,8 +598,9 @@ func (opts *TestOptions) runTestFiles(
 			// previous to be the current realm.
 
 			// Extract unexposed testing.runTestWithRealm.
-			m.SetActivePackage(testingpv)
-			runTestX = gno.Nx("runTest_cur")
+			//
+			// > func runTestWithRealm(name string, f func(realm, *T), cur realm) (string, string)
+			runTestX = gno.Sel(testingcx, "runTestWithRealm")
 			runTest = m.Eval(runTestX)[0]
 			runTestF = "F_cur"
 			runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewConcreteRealm(mpkg.Path))
@@ -568,7 +629,7 @@ func (opts *TestOptions) runTestFiles(
 				}
 				if err != nil {
 					p = filepath.Join(opts.RootDir, "examples", ppath, name)
-					b, err = os.ReadFile(p)
+					b, _ = os.ReadFile(p)
 				}
 				return string(b)
 			}
@@ -644,15 +705,12 @@ func (opts *TestOptions) runTestFiles(
 				allocsVal,
 			)
 		}
-
-		// Collect coverage data from this test machine
-		if opts.Cover && m.Coverage != nil {
-			opts.mergeCoverageData(mpkg.Path, m.Coverage)
-		}
 	}
 
-	// Coverage data is collected during test execution and stored in opts.coverageData
-	// No need to collect here as it's done in the test loop
+	// Collect coverage data from this package run
+	if opts.Cover && pkgCoverage != nil {
+		opts.mergeCoverageData(mpkg.Path, pkgCoverage)
+	}
 
 	return errs
 }

@@ -148,6 +148,7 @@ type Attributes struct {
 	Span  // Node.Line is the start.
 	Label Name
 	data  map[GnoAttribute]any // not persisted
+	CoverageBlockIndex int // -1 if not set
 }
 
 func (attr *Attributes) GetLabel() Name {
@@ -199,6 +200,14 @@ func (attr *Attributes) IsZero() bool {
 	panic("should not use") // node should override Pos/Span/Location methods.
 }
 
+func (attr *Attributes) GetCoverageBlockIndex() int {
+	return attr.CoverageBlockIndex
+}
+
+func (attr *Attributes) SetCoverageBlockIndex(idx int) {
+	attr.CoverageBlockIndex = idx
+}
+
 // ----------------------------------------
 // Node
 
@@ -217,6 +226,8 @@ type Node interface {
 	GetAttribute(key GnoAttribute) any
 	SetAttribute(key GnoAttribute, value any)
 	DelAttribute(key GnoAttribute)
+	GetCoverageBlockIndex() int
+	SetCoverageBlockIndex(int)
 }
 
 // non-pointer receiver to help make immutable.
@@ -789,7 +800,7 @@ func (ss Body) isCrossing_gno0p0() bool {
 		return false
 	}
 	cx, ok := xs.X.(*CallExpr)
-	return cx.isCrossing_gno0p0()
+	return ok && cx.isCrossing_gno0p0()
 }
 
 // ----------------------------------------
@@ -1687,7 +1698,6 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	sb.Consts = make([]Name, 0, 16)
 	sb.Externs = make([]Name, 0, 16)
 	sb.Parent = parent
-	return
 }
 
 // Implements BlockNode.
@@ -2174,7 +2184,6 @@ func (sb *StaticBlock) GetFuncNodeForExpr(store Store, fne Expr) (FuncNode, erro
 					// So just return this.
 					pn = this
 				} else {
-					pv = store.GetPackage(ref.PkgPath, false)
 					pn = store.GetPackageNode(ref.PkgPath)
 				}
 			} else {

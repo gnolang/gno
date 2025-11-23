@@ -74,8 +74,8 @@ func NewCoverageData(mode CoverageMode, pkgPath string) *CoverageData {
 	}
 }
 
-// AddBlock adds a coverage block
-func (cd *CoverageData) AddBlock(filename string, startLine, startCol, endLine, endCol, numStmt int) int {
+// RegisterBlock registers a coverage block during preprocessing
+func (cd *CoverageData) RegisterBlock(filename string, startLine, startCol, endLine, endCol, numStmt int) int {
 	cd.mutex.Lock()
 	defer cd.mutex.Unlock()
 
@@ -131,32 +131,14 @@ func (m *Machine) trackStatementCoverage(s Stmt) {
 		return
 	}
 
-	// Get statement location information
-	loc := s.GetLocation()
-	if loc.IsZero() {
+	// Get the pre-registered block index
+	idx := s.GetCoverageBlockIndex()
+	if idx == -1 {
 		return
 	}
 
-	// For now, create a simple coverage block for each statement
-	// In a more sophisticated implementation, we would pre-analyze the code
-	// and create coverage blocks during preprocessing
-	filename := loc.File
-	if filename == "" {
-		filename = "unknown"
-	}
-
-	// Create a coverage block for this statement
-	blockIndex := m.Coverage.AddBlock(
-		filename,
-		loc.Line,
-		loc.Column,
-		loc.Line, // For now, assume single-line statements
-		loc.Column+10, // Rough estimate
-		1, // One statement per block for simplicity
-	)
-
 	// Increment the coverage count
-	m.Coverage.IncrementBlock(blockIndex)
+	m.Coverage.IncrementBlock(idx)
 }
 
 //----------------------------------------
@@ -360,10 +342,9 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 		// TODO: is this right?
 		if pn.FileSet == nil {
 			pn.FileSet = fset
-		} else {
-			// This happens for non-realm file tests.
-			// TODO ensure the files are the same.
 		}
+		// pn.FileSet != nil happens for non-realm file tests.
+		// TODO ensure the files are the same.
 	}
 }
 
@@ -810,6 +791,14 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	// after all files are preprocessed, because value decl may be out of
 	// order and depend on other files.
 
+	// Register coverage blocks if enabled
+	if m.Coverage != nil {
+		loc := PackageNodeLocation(m.Package.PkgPath)
+		if pn, ok := m.Store.GetBlockNode(loc).(*PackageNode); ok {
+			m.RegisterCoverageBlocks(pn.FileSet)
+		}
+	}
+
 	// Run declarations.
 	for _, fn := range fns {
 		for _, decl := range fn.Decls {
@@ -962,9 +951,8 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 			Ss(
 				Return(x),
 			)))
-	} else {
-		// x already creates its own scope.
 	}
+	// else,x already creates its own scope.
 	// Preprocess x.
 	x = Preprocess(m.Store, last, x).(Expr)
 	// Evaluate x.
@@ -1894,7 +1882,6 @@ func (m *Machine) PushValue(tv TypedValue) {
 		m.Printf("+v %v\n", tv)
 	}
 	m.Values = append(m.Values, tv)
-	return
 }
 
 // Resulting reference is volatile.
@@ -2634,15 +2621,8 @@ func (m *Machine) String() string {
 		}
 		// Update b
 		switch bp := b.Parent.(type) {
-		case nil:
-			b = nil
-		case *Block:
-			b = bp
 		case RefValue:
 			fmt.Fprintf(builder, "            (block ref %v)\n", bp.ObjectID)
-			b = nil
-		default:
-			panic("should not happen")
 		}
 	}
 	builder.WriteString("    Blocks (other):\n")
