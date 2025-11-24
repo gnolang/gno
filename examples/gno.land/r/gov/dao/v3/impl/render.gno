@@ -61,6 +61,11 @@ func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
 	out += "[> Go to Memberstore <](/r/gov/dao/v3/memberstore)\n"
 	out += "## Proposals\n"
 	page := ren.pssPager.MustGetPageByPath(url)
+	if len(page.Items) == 0 {
+		out += "\nNo proposals yet.\n\n"
+		return out
+	}
+
 	for _, item := range page.Items {
 		seqpid, err := seqid.FromString(item.Key)
 		if err != nil {
@@ -152,6 +157,9 @@ func isPropActive(ps *proposalStatus) bool {
 }
 
 func getPropStatus(ps *proposalStatus) string {
+	if ps == nil {
+		return "UNKNOWN"
+	}
 	if ps.Accepted {
 		return "ACCEPTED"
 	} else if ps.Denied {
