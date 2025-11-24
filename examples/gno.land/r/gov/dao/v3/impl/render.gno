@@ -142,7 +142,7 @@ func (ren *render) renderVotesForProposal(sPid string, d *GovDAO) string {
 
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
 	if ps == nil {
-		return ufmt.Sprintf("# Proposal not found\n\nProposal #%v does not exist.", pid)
+		return ufmt.Sprintf("# Proposal not found\n\nProposal #%v does not exist.", dao.ProposalID(pid))
 	}
 
 	out := ""
