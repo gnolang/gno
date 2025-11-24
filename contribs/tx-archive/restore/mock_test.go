@@ -7,16 +7,16 @@ import (
 )
 
 type (
-	sendTransactionDelegate func(*std.Tx) error
+	sendTransactionDelegate func(context.Context, *std.Tx) error
 )
 
 type mockClient struct {
 	sendTransactionFn sendTransactionDelegate
 }
 
-func (m *mockClient) SendTransaction(tx *std.Tx) error {
+func (m *mockClient) SendTransaction(ctx context.Context, tx *std.Tx) error {
 	if m.sendTransactionFn != nil {
-		return m.sendTransactionFn(tx)
+		return m.sendTransactionFn(ctx, tx)
 	}
 
 	return nil

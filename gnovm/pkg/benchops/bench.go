@@ -1,6 +1,7 @@
 package benchops
 
 import (
+	"runtime"
 	"time"
 )
 
@@ -23,6 +24,12 @@ type bench struct {
 	storeAccumSize [256]int64
 	storeStartTime [256]time.Time
 	curStoreCode   byte
+
+	nativeCounts    [256]int64
+	nativeAccumDur  [256]time.Duration
+	nativeStartTime [256]time.Time
+	isNativeStarted bool
+	curNativeCode   byte
 }
 
 func InitMeasure() {
@@ -31,6 +38,7 @@ func InitMeasure() {
 		isOpCodeStarted: false,
 		curOpCode:       invalidCode,
 		curStoreCode:    invalidCode,
+		curNativeCode:   invalidCode,
 	}
 }
 
@@ -38,7 +46,7 @@ func StartOpCode(code byte) {
 	if code == invalidCode {
 		panic("the OpCode is invalid")
 	}
-	if measure.opStartTime[code] != measure.timeZero {
+	if !measure.opStartTime[code].Equal(measure.timeZero) {
 		panic("Can not start a non-stopped timer")
 	}
 	measure.opStartTime[code] = time.Now()
@@ -51,7 +59,7 @@ func StartOpCode(code byte) {
 // Stop the current measurement
 func StopOpCode() {
 	code := measure.curOpCode
-	if measure.opStartTime[code] == measure.timeZero {
+	if measure.opStartTime[code].Equal(measure.timeZero) {
 		panic("Can not stop a stopped timer")
 	}
 	measure.opAccumDur[code] += time.Since(measure.opStartTime[code])
@@ -61,14 +69,14 @@ func StopOpCode() {
 
 // Pause current opcode measurement
 func PauseOpCode() {
-	if measure.isOpCodeStarted == false {
+	if !measure.isOpCodeStarted {
 		return
 	}
 	if measure.curOpCode == invalidCode {
 		panic("Can not Pause timer of an invalid OpCode")
 	}
 	code := measure.curOpCode
-	if measure.opStartTime[code] == measure.timeZero {
+	if measure.opStartTime[code].Equal(measure.timeZero) {
 		panic("Should not pause a stopped timer")
 	}
 	measure.opAccumDur[code] += time.Since(measure.opStartTime[code])
@@ -77,7 +85,7 @@ func PauseOpCode() {
 
 // Resume resumes current measurement
 func ResumeOpCode() {
-	if measure.isOpCodeStarted == false {
+	if !measure.isOpCodeStarted {
 		return
 	}
 	if measure.curOpCode == invalidCode {
@@ -105,7 +113,7 @@ func StartStore(code byte) {
 func StopStore(size int) {
 	code := measure.curStoreCode
 
-	if measure.storeStartTime[code] == measure.timeZero {
+	if measure.storeStartTime[code].Equal(measure.timeZero) {
 		panic("Can not stop a stopped timer")
 	}
 
@@ -113,4 +121,38 @@ func StopStore(size int) {
 	measure.storeStartTime[code] = measure.timeZero // stop the timer
 	measure.storeAccumSize[code] += int64(size)
 	measure.curStoreCode = invalidCode
+}
+
+func StartNative(code byte) {
+	if code == invalidCode {
+		panic("the OpCode is invalid")
+	}
+	if !measure.nativeStartTime[code].Equal(measure.timeZero) {
+		panic("Can not start a non-stopped timer")
+	}
+	runtime.GC() // run GC before starting native code timing
+	measure.nativeStartTime[code] = time.Now()
+	measure.nativeCounts[code]++
+
+	measure.isNativeStarted = true
+	measure.curNativeCode = code
+}
+
+func StopNative() {
+	if !measure.isNativeStarted {
+		return
+	}
+	if measure.curNativeCode == invalidCode {
+		panic("Can not stop timer of an invalid OpCode")
+	}
+
+	code := measure.curNativeCode
+
+	if measure.nativeStartTime[code].Equal(measure.timeZero) {
+		panic("Can not stop a stopped timer")
+	}
+
+	measure.nativeAccumDur[code] += time.Since(measure.nativeStartTime[code])
+	measure.nativeStartTime[code] = measure.timeZero // stop the timer
+	measure.curNativeCode = invalidCode
 }

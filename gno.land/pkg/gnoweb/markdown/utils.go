@@ -1,13 +1,16 @@
 package markdown
 
 import (
+	"bytes"
 	"errors"
+	"html/template"
 	"io"
 	"unicode"
 
-	"html/template"
-
+	"github.com/yuin/goldmark/ast"
 	"golang.org/x/net/html"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // HTMLEscapeString escapes special characters in HTML content
@@ -61,4 +64,31 @@ func GetWordArticle(word string) string {
 		return "an"
 	}
 	return "a"
+}
+
+// nodeText returns the text content of a node, recursively.
+func nodeText(src []byte, n ast.Node) []byte {
+	var buf bytes.Buffer
+	writeNodeText(src, &buf, n)
+	return buf.Bytes()
+}
+
+// writeNodeText writes the text content of a node to a buffer.
+func writeNodeText(src []byte, dst io.Writer, n ast.Node) {
+	switch n := n.(type) {
+	case *ast.Text:
+		_, _ = dst.Write(n.Segment.Value(src))
+	case *ast.String:
+		_, _ = dst.Write(n.Value)
+	default:
+		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+			writeNodeText(src, dst, c)
+		}
+	}
+}
+
+var titleCaser = cases.Title(language.AmericanEnglish)
+
+func titleCase(s string) string {
+	return titleCaser.String(s)
 }

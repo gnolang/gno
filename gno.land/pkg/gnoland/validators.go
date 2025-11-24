@@ -3,7 +3,7 @@ package gnoland
 import (
 	"regexp"
 
-	gnovm "github.com/gnolang/gno/gnovm/stdlibs/std"
+	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/events"
 )
@@ -36,7 +36,7 @@ func validatorEventFilter(event events.Event) []validatorUpdate {
 	// Make sure an add / remove event happened
 	for _, ev := range txResult.Result.Response.Events {
 		// Make sure the event is a GnoVM event
-		gnoEv, ok := ev.(gnovm.GnoEvent)
+		gnoEv, ok := ev.(chain.Event)
 		if !ok {
 			continue
 		}

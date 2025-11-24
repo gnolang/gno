@@ -37,6 +37,8 @@ builds:
   - id: gnokey
     main: ./gno.land/cmd/gnokey
     binary: gnokey
+    ldflags:
+      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Version }}
     env:
       - CGO_ENABLED=0
     goos:
@@ -97,6 +99,17 @@ builds:
   - id: gnogenesis
     dir: ./contribs/gnogenesis
     binary: gnogenesis
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+  - id: gnokms
+    dir: ./contribs/gnokms
+    binary: gnokms
     env:
       - CGO_ENABLED=0
     goos:
@@ -398,6 +411,7 @@ dockers:
     ids:
       - gnobro
       - gnogenesis
+      - gnokms
     extra_files:
       - gno.land/genesis/genesis_balances.txt
       - gno.land/genesis/genesis_txs.jsonl
@@ -420,6 +434,7 @@ dockers:
     ids:
       - gnobro
       - gnogenesis
+      - gnokms
     extra_files:
       - gno.land/genesis/genesis_balances.txt
       - gno.land/genesis/genesis_txs.jsonl

@@ -182,18 +182,6 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	// Modifiers will be added later to the node config bellow
 	ds.paths = append(paths, localPaths...)
 
-	// Setup default web home realm, fallback on first local path
-	switch webHome := ds.cfg.webHome; webHome {
-	case "":
-		if len(ds.paths) > 0 {
-			ds.webHomePath = strings.TrimPrefix(ds.paths[0], ds.cfg.chainDomain)
-			ds.logger.WithGroup(WebLogName).Info("using default package", "path", ds.paths[0])
-		}
-	case "/", ":none:": // skip
-	default:
-		ds.webHomePath = webHome
-	}
-
 	balances, err := generateBalances(ds.book, ds.cfg)
 	if err != nil {
 		return fmt.Errorf("unable to generate balances: %w", err)
@@ -201,7 +189,10 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	ds.logger.Debug("balances loaded", "list", balances.List())
 
 	nodeLogger := ds.logger.WithGroup(NodeLogName)
-	nodeCfg := setupDevNodeConfig(ds.cfg, nodeLogger, ds.emitterServer, balances, ds.loader)
+	nodeCfg, err := setupDevNodeConfig(ds.cfg, nodeLogger, ds.emitterServer, balances, ds.loader, ds.book)
+	if err != nil {
+		return fmt.Errorf("unable to setup node config: %w", err)
+	}
 	nodeCfg.PackagesModifier = modifiers // add modifiers
 
 	address := resolveUnixOrTCPAddr(nodeCfg.TMConfig.RPC.ListenAddress)
@@ -232,6 +223,20 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 		return err
 	}
 	ds.DeferClose(ds.devNode.Close)
+
+	// Setup default web home realm, fallback on first local path
+	devNodePaths := ds.devNode.Paths()
+
+	switch webHome := ds.cfg.webHome; webHome {
+	case "":
+		if len(devNodePaths) > 0 {
+			ds.webHomePath = strings.TrimPrefix(devNodePaths[0], ds.cfg.chainDomain)
+			ds.logger.WithGroup(WebLogName).Info("using default package", "path", devNodePaths[0])
+		}
+	case "/", ":none:": // skip
+	default:
+		ds.webHomePath = webHome
+	}
 
 	ds.watcher, err = watcher.NewPackageWatcher(loggerEvents, ds.emitterServer)
 	if err != nil {
@@ -370,7 +375,7 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 		})
 
 		mux.HandleFunc("/list_accounts", func(res http.ResponseWriter, req *http.Request) {
-			if jsonBytes, err := marshalJSONAccounts(ds.book); err != nil {
+			if jsonBytes, err := marshalJSONAccounts(req.Context(), ds.book); err != nil {
 				ds.logger.Error("failed to list accounts", slog.Any("err", err))
 				res.WriteHeader(http.StatusInternalServerError)
 			} else {
@@ -526,7 +531,7 @@ func (ds *App) handleKeyPress(ctx context.Context, key rawterm.KeyPress) {
 		ds.logger.Info("Gno Dev Helper", "helper", helper)
 
 	case rawterm.KeyA: // Accounts
-		logAccounts(ds.logger.WithGroup(AccountsLogName), ds.book, ds.devNode)
+		logAccounts(ctx, ds.logger.WithGroup(AccountsLogName), ds.book, ds.devNode)
 
 	case rawterm.KeyR: // Reload
 		ds.logger.WithGroup(NodeLogName).Info("reloading...")
@@ -592,15 +597,6 @@ func (ds *App) handleKeyPress(ctx context.Context, key rawterm.KeyPress) {
 
 // XXX: packages modifier does not support glob yet
 func resolvePackagesModifier(cfg *AppConfig, bk *address.Book, qpaths []string) ([]gnodev.QueryPath, []string, error) {
-	if cfg.deployKey == "" {
-		return nil, nil, fmt.Errorf("default deploy key cannot be empty")
-	}
-
-	defaultKey, _, ok := bk.GetFromNameOrAddress(cfg.deployKey)
-	if !ok {
-		return nil, nil, fmt.Errorf("unable to get deploy key %q", cfg.deployKey)
-	}
-
 	modifiers := make([]gnodev.QueryPath, 0, len(qpaths))
 	paths := make([]string, 0, len(qpaths))
 
@@ -612,11 +608,6 @@ func resolvePackagesModifier(cfg *AppConfig, bk *address.Book, qpaths []string) 
 		qpath, err := gnodev.ResolveQueryPath(bk, path)
 		if err != nil {
 			return nil, nil, fmt.Errorf("invalid package path/query %q: %w", path, err)
-		}
-
-		// Assign a default creator if user haven't specified it.
-		if qpath.Creator.IsZero() {
-			qpath.Creator = defaultKey
 		}
 
 		modifiers = append(modifiers, qpath)

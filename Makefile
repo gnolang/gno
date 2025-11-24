@@ -74,8 +74,12 @@ fmt:
 
 .PHONY: lint
 lint:
-	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config .github/golangci.yml
+	$(rundep) github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --config .github/golangci.yml
 
 .PHONY: tidy
 tidy:
 	$(MAKE) --no-print-directory -C misc     tidy
+
+.PHONY: mocks
+mocks:
+	$(rundep) github.com/golang/mock/mockgen -source=tm2/pkg/db/types.go -package mockdb -destination tm2/pkg/db/mockdb/mockdb.go

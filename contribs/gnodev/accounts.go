@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -107,8 +108,8 @@ func generateBalances(bk *address.Book, cfg *AppConfig) (gnoland.Balances, error
 	return blsFile, nil
 }
 
-func getCoins(address string) (std.Coins, error) {
-	qres, err := client.NewLocal().ABCIQuery("auth/accounts/"+address, []byte{})
+func getCoins(ctx context.Context, address string) (std.Coins, error) {
+	qres, err := client.NewLocal().ABCIQuery(ctx, "auth/accounts/"+address, []byte{})
 	if err != nil {
 		return nil, fmt.Errorf("unable to query account: %w", err)
 	}
@@ -121,7 +122,7 @@ func getCoins(address string) (std.Coins, error) {
 	return qret.BaseAccount.GetCoins(), nil
 }
 
-func logAccounts(logger *slog.Logger, book *address.Book, _ *dev.Node) error {
+func logAccounts(ctx context.Context, logger *slog.Logger, book *address.Book, _ *dev.Node) error {
 	var tab strings.Builder
 	tabw := tabwriter.NewWriter(&tab, 0, 0, 2, ' ', tabwriter.TabIndent)
 
@@ -131,8 +132,7 @@ func logAccounts(logger *slog.Logger, book *address.Book, _ *dev.Node) error {
 
 	for _, entry := range entries {
 		address := entry.Address.String()
-
-		coins, err := getCoins(address)
+		coins, err := getCoins(ctx, address)
 		if err != nil {
 			return fmt.Errorf("unable to get coins for address %q: %w", address, err)
 		}
@@ -163,7 +163,7 @@ type AccountBalance struct {
 	Balance std.Coins `json:"balance"`
 }
 
-func marshalJSONAccounts(book *address.Book) ([]byte, error) {
+func marshalJSONAccounts(ctx context.Context, book *address.Book) ([]byte, error) {
 	var (
 		entries  = book.List()
 		accounts = make([]AccountBalance, 0, len(entries))
@@ -172,7 +172,7 @@ func marshalJSONAccounts(book *address.Book) ([]byte, error) {
 	for _, entry := range entries {
 		address := entry.Address.String()
 
-		coins, err := getCoins(address)
+		coins, err := getCoins(ctx, address)
 		if err != nil {
 			return nil, fmt.Errorf("unable to get coins for address %q: %w", address, err)
 		}

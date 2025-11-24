@@ -1,7 +1,6 @@
 package main
 
 import (
-	"std"
 	"testing"
 
 	pcommondao "gno.land/p/nt/commondao"
@@ -10,19 +9,19 @@ import (
 )
 
 const (
-	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	user  = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
 var dao *pcommondao.CommonDAO
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(testing.NewUserRealm(owner))
 	commondao.Invite(cross, user)
 
-	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
-	dao = commondao.New("Foo")
+	testing.SetRealm(testing.NewUserRealm(user))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
+	dao = commondao.New(cross, "Foo")
 	dao.Members().Add(user)
 
 	options := commondao.GetOptions(dao.ID())
@@ -30,7 +29,7 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(user))
+	testing.SetRealm(testing.NewUserRealm(user))
 
 	pID := commondao.CreateDissolutionProposal(cross, dao.ID())
 
@@ -50,6 +49,6 @@ func main() {
 // true
 // true
 // true
-// 2009-02-20 23:31:30 +0000 UTC m=+1235172690.000000001
+// 2009-02-20 23:31:30 +0000 UTC
 // **DAO:**
 // [Foo](/r/nt/commondao:2)

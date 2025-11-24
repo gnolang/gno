@@ -92,9 +92,9 @@ func IsEphemeralPath(pkgPath string) bool {
 }
 
 // IsGnoRunPath returns true if it's a run (MsgRun) package path.
-// DerivePkgAddr() returns the embedded address such that the run package can
+// DerivePkgAddress() returns the embedded address such that the run package can
 // receive coins on behalf of the user.
-// XXX XXX XXX XXX change DerivePkgAddr().
+// XXX XXX XXX XXX change DerivePkgAddress().
 func IsGnoRunPath(pkgPath string) (addr string, ok bool) {
 	match := ReGnoUserPkgPath.Match(pkgPath)
 	if match == nil || match.Get("LETTER") != "e" || match.Get("REPO") != "run" {
@@ -236,34 +236,29 @@ func (mpfilter MemPackageFilter) FilterGno(mfile *std.MemFile, pname Name) bool 
 		if endsWithAny(fname, []string{"_filetest.gno"}) {
 			return true
 		}
-		pname2, err := PackageNameFromFileBody(fname, fbody)
-		if err != nil {
-			panic(err)
-		}
-		if pname2 == pname {
-			return false
-		} else if pname2 == pname+"_test" {
-			return true
-		} else {
-			panic(fmt.Sprintf("unexpected package name %q in package (for MPFTest filter)", pname2))
-		}
+		return isIntegrationTestFile(pname, fname, fbody)
 	case MPFIntegration:
 		if !endsWithAny(fname, []string{"_test.gno"}) {
 			return true
 		}
-		pname2, err := PackageNameFromFileBody(fname, fbody)
-		if err != nil {
-			panic(err)
-		}
-		if pname2 == pname {
-			return true
-		} else if pname2 == pname+"_test" {
-			return false
-		} else {
-			panic(fmt.Sprintf("unexpected package name %q in package (for MPFIntegration filter)", pname2))
-		}
+		return !isIntegrationTestFile(pname, fname, fbody)
 	default:
 		panic("should not happen")
+	}
+}
+
+func isIntegrationTestFile(pname Name, fname, fbody string) bool {
+	pname2, err := PackageNameFromFileBody(fname, fbody)
+	if err != nil {
+		panic(err)
+	}
+	switch pname2 {
+	case pname:
+		return false
+	case pname + "_test":
+		return true
+	default:
+		panic(fmt.Sprintf("unexpected package name %q in package with name %q", pname2, pname))
 	}
 }
 
@@ -575,25 +570,15 @@ func (mptype MemPackageType) Validate(pkgPath string) {
 	default:
 		panic("should not happen")
 	}
-	if mptype.IsUserlib() {
-	}
 	switch mptype {
 	case MPAnyAll, MPAnyProd, MPAnyTest:
-		if strings.HasSuffix(pkgPath, "_test") {
-		}
 	case MPAnyIntegration:
 	case MPUserAll, MPUserProd, MPUserTest:
 	case MPUserIntegration:
 	case MPStdlibAll, MPStdlibProd, MPStdlibTest:
 	case MPStdlibIntegration:
 	case MPFiletests:
-	}
-	if !slices.Contains([]MemPackageType{
-		MPAnyAll, MPAnyProd, MPAnyTest, MPAnyIntegration,
-		MPStdlibAll, MPStdlibProd, MPStdlibTest, MPStdlibIntegration,
-		MPUserAll, MPUserProd, MPUserTest, MPUserIntegration,
-		MPFiletests,
-	}, mptype) {
+	default:
 		panic(fmt.Sprintf("invalid mem package type %q", mptype))
 	}
 }
@@ -870,8 +855,8 @@ func MustReadMemPackageFromList(list []string, pkgPath string, mptype MemPackage
 //
 // If one of the files has a different package name than mpkg.Name,
 // or [ParseFile] returns an error, ParseMemPackageAsType panics.
-func ParseMemPackage(mpkg *std.MemPackage) (fset *FileSet) {
-	return ParseMemPackageAsType(mpkg, mpkg.Type.(MemPackageType))
+func (m *Machine) ParseMemPackage(mpkg *std.MemPackage) (fset *FileSet) {
+	return m.ParseMemPackageAsType(mpkg, mpkg.Type.(MemPackageType))
 }
 
 // ParseMemPackageAsType executes [ParseFile] on each file of the mpkg, with
@@ -880,7 +865,7 @@ func ParseMemPackage(mpkg *std.MemPackage) (fset *FileSet) {
 //
 // If one of the files has a different package name than mpkg.Name,
 // or [ParseFile] returns an error, ParseMemPackageAsType panics.
-func ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageType) (fset *FileSet) {
+func (m *Machine) ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageType) (fset *FileSet) {
 	pkgPath := mpkg.Path
 	mptype.Validate(pkgPath)
 	mpkg.Type.(MemPackageType).AssertCompatible(mpkg.Path, mptype)
@@ -918,7 +903,7 @@ func ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageType) (fset *F
 		// NOTE: the above is (almost) duplicated in ReadMemPackageFromList().
 		//--------------------------------------------------------------------------------
 		// Parse the file.
-		n, err := ParseFile(mfile.Name, mfile.Body)
+		n, err := m.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
@@ -940,7 +925,7 @@ func ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageType) (fset *F
 
 // ParseMemPackageTests parses test files (skipping filetests) in the mpkg and splits
 // the files into categories for testing.
-func ParseMemPackageTests(mpkg *std.MemPackage) (tset, itset *FileSet, itfiles, ftfiles []*std.MemFile) {
+func (m *Machine) ParseMemPackageTests(mpkg *std.MemPackage) (tset, itset *FileSet, itfiles, ftfiles []*std.MemFile) {
 	tset = &FileSet{}
 	itset = &FileSet{}
 	var errs error
@@ -949,7 +934,7 @@ func ParseMemPackageTests(mpkg *std.MemPackage) (tset, itset *FileSet, itfiles, 
 			continue // skip this file.
 		}
 
-		n, err := ParseFile(mfile.Name, mfile.Body)
+		n, err := m.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue

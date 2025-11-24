@@ -52,9 +52,9 @@ func TestParamsGetCmd(t *testing.T) {
 		// Output should be valid JSON and contain all sections
 		var decoded map[string]any
 		require.NoError(t, json.Unmarshal(out.Bytes(), &decoded))
-		assert.Contains(t, string(out.Bytes()), "auth")
-		assert.Contains(t, string(out.Bytes()), "vm")
-		assert.Contains(t, string(out.Bytes()), "bank")
+		assert.Contains(t, out.String(), "auth")
+		assert.Contains(t, out.String(), "vm")
+		assert.Contains(t, out.String(), "bank")
 	})
 
 	t.Run("get auth section", func(t *testing.T) {
