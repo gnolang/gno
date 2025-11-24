@@ -64,7 +64,6 @@ func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
 	for _, item := range page.Items {
 		seqpid, err := seqid.FromString(item.Key)
 		if err != nil {
-			// Skip invalid items instead of panicking
 			continue
 		}
 		out += ren.renderProposalListItem(ufmt.Sprintf("%v", int64(seqpid)), d)
