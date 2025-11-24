@@ -78,12 +78,12 @@ func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
 func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 	pid, err := strconv.ParseInt(sPid, 10, 64)
 	if err != nil {
-		return "# Error\n\nInvalid proposal ID format."
+		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", err.Error())
 	}
 
 	p, err := dao.GetProposal(cross, dao.ProposalID(pid))
 	if err != nil {
-		return ufmt.Sprintf("# Proposal Not Found\n\nProposal #%v does not exist.", pid)
+		return ufmt.Sprintf("# Proposal not found\n\n%s", err.Error())
 	}
 
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
@@ -107,12 +107,12 @@ func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
 	pid, err := strconv.ParseInt(sPid, 10, 64)
 	if err != nil {
-		return "### Error\n\nInvalid proposal ID format.\n\n"
+		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", err.Error())
 	}
 
 	p, err := dao.GetProposal(cross, dao.ProposalID(pid))
 	if err != nil {
-		return ufmt.Sprintf("### Proposal #%v\n\nThis proposal does not exist or has been removed.\n\n", pid)
+		return ufmt.Sprintf("# Proposal not found\n\n%s\n\n", err.Error())
 	}
 
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
@@ -132,12 +132,12 @@ func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
 func (ren *render) renderVotesForProposal(sPid string, d *GovDAO) string {
 	pid, err := strconv.ParseInt(sPid, 10, 64)
 	if err != nil {
-		return "# Error\n\nInvalid proposal ID format."
+		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", err.Error())
 	}
 
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
 	if ps == nil {
-		return ufmt.Sprintf("# Proposal Not Found\n\nProposal #%v does not exist.", pid)
+		return ufmt.Sprintf("# Proposal not found\n\nProposal #%v does not exist.", pid)
 	}
 
 	out := ""
