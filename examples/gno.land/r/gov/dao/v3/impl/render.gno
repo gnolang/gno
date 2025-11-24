@@ -64,7 +64,8 @@ func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
 	for _, item := range page.Items {
 		seqpid, err := seqid.FromString(item.Key)
 		if err != nil {
-			panic(err.Error())
+			// Skip invalid items instead of panicking
+			continue
 		}
 		out += ren.renderProposalListItem(ufmt.Sprintf("%v", int64(seqpid)), d)
 		out += "---\n\n"
@@ -78,10 +79,15 @@ func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
 func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 	pid, err := strconv.ParseInt(sPid, 10, 64)
 	if err != nil {
-		panic(err.Error())
+		return "# Error\n\nInvalid proposal ID format."
 	}
+
+	p, err := dao.GetProposal(cross, dao.ProposalID(pid))
+	if err != nil {
+		return ufmt.Sprintf("# Proposal Not Found\n\nProposal #%v does not exist.", pid)
+	}
+
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
-	p := dao.MustGetProposal(cross, dao.ProposalID(pid))
 	out := ufmt.Sprintf("## Prop #%v - %v\n", pid, p.Title())
 	out += "Author: " + tryResolveAddr(p.Author()) + "\n\n"
 
@@ -102,10 +108,15 @@ func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
 	pid, err := strconv.ParseInt(sPid, 10, 64)
 	if err != nil {
-		panic(err.Error())
+		return "### Error\n\nInvalid proposal ID format.\n\n"
 	}
+
+	p, err := dao.GetProposal(cross, dao.ProposalID(pid))
+	if err != nil {
+		return ufmt.Sprintf("### Proposal #%v\n\nThis proposal does not exist or has been removed.\n\n", pid)
+	}
+
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
-	p := dao.MustGetProposal(cross, dao.ProposalID(pid))
 	out := ufmt.Sprintf("### [Prop #%v - %v](%v:%v)\n", pid, p.Title(), ren.relativeRealmPath, pid)
 	out += ufmt.Sprintf("Author: %s\n\n", tryResolveAddr(p.Author()))
 
@@ -122,9 +133,13 @@ func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
 func (ren *render) renderVotesForProposal(sPid string, d *GovDAO) string {
 	pid, err := strconv.ParseInt(sPid, 10, 64)
 	if err != nil {
-		panic(err.Error())
+		return "# Error\n\nInvalid proposal ID format."
 	}
+
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
+	if ps == nil {
+		return ufmt.Sprintf("# Proposal Not Found\n\nProposal #%v does not exist.", pid)
+	}
 
 	out := ""
 	out += ufmt.Sprintf("# Proposal #%v - Vote List\n\n", pid)
