@@ -778,12 +778,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object, visited m
 	// assert object have no private dependencies.
 	//
 	// XXX JAE: Can't this whole routine be changed so that it only applies
-	// when finalizing from a private function?  A public package cannot
-	// import a private package, so if the above is true, there's no way it
-	// can save a private package's object.
-	//
-	// This way the finalization logic is faster for public packages --
-	// nothing needs to be done.
+	// when finalizing when the first frame function is declared in a
+	// private package? See discussion:
+	// https://github.com/gnolang/gno/pull/4890/files#r2554336836
 	rlm.assertObjectIsPublic(oo, store, visited)
 
 	// first, save unsaved children.
