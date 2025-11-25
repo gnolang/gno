@@ -139,6 +139,8 @@ func (vm *VMKeeper) Initialize(
 		m2.PreprocessAllFilesAndSaveBlockNodes()
 		gno.EnableDebug()
 
+		// TODO: add typecheck for packages from stdlibs.InitOrder
+
 		logger.Debug("GnoVM packages preprocessed",
 			"elapsed", time.Since(start))
 	}
@@ -220,6 +222,8 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 	})
 	defer m.Release()
 	m.RunMemPackage(memPkg, true)
+
+	// TODO: add typecheck
 }
 
 type testStdlibCache struct {
