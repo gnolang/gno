@@ -20,6 +20,9 @@ export class ActionFunctionController extends BaseController {
 
 		this._initializeArgs();
 		this._listenForEvents();
+
+		// Some functions may have no params, or all params have values
+		this._updateQEvalResult();
 	}
 
 	// listen for events from action-header controller
