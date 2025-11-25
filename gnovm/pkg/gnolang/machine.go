@@ -2288,7 +2288,11 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		ro = m.IsReadonly(xv)
 	case *StarExpr:
 		xv := m.PopValue()
-		pv = xv.V.(PointerValue)
+		var ok bool
+		pv, ok = xv.V.(PointerValue)
+		if !ok {
+			m.Panic(typedString("nil pointer dereference"))
+		}
 		ro = m.IsReadonly(xv)
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()
