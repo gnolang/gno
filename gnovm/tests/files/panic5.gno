@@ -11,7 +11,7 @@ func main() {
 // Stacktrace:
 // panic: division by zero
 // main<VPBlock(1,0)>()
-//     main/panic5.gno:5
+//     main/panic5.gno:6
 
 // Error:
 // division by zero

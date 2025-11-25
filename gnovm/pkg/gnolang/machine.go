@@ -39,6 +39,7 @@ type Machine struct {
 	GCCycle       int64         // number of "gc" cycles
 	Stage         Stage         // pre for static eval, add for package init, run otherwise
 	ReviveEnabled bool          // true if revive() enabled (only in testing mode for now)
+	Lastline      int
 
 	Debugger Debugger
 
@@ -430,6 +431,10 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	} else {
 		// fmt.Println("===not native...")
 		// if len(m.Stmts) > 0 {
+		if m.Lastline != 0 {
+			stacktrace.LastLine = m.Lastline
+			return
+		}
 
 		if len(m.Exprs) > 0 {
 			stacktrace.LastLine = m.PeekExpr(1).GetLine()
@@ -771,7 +776,7 @@ func (m *Machine) runFunc(st Stage, fn Name, maybeCrossing bool) {
 		if ft.IsCrossing() {
 			// .cur is a special keyword for non-crossing calls of
 			// a crossing function where `cur` is not available
-			// from m.RunFuncMaybeCrossing().
+			// from m.FuncMaybeCrossing().
 			//
 			// `main(cur realm)` and `init(cur realm)` are
 			// considered to have already crossed at "frame -1", so
@@ -1738,6 +1743,8 @@ func (m *Machine) PopExpr() Expr {
 	if debug {
 		m.Printf("-x %v\n", x)
 	}
+	// set line before pop
+	m.Lastline = x.GetLine()
 	fmt.Printf("-x %v\n", x)
 	PrintCaller(2, 5)
 	m.Exprs = m.Exprs[:numExprs-1]
@@ -2376,6 +2383,7 @@ func (m *Machine) Panic(etv TypedValue) {
 // It should ONLY be called from doOp* Op handlers,
 // and should return immediately from the origin Op.
 func (m *Machine) pushPanic(etv TypedValue) {
+	fmt.Println("===pushPanic, etv: ", etv)
 	// Construct a new exception.
 	ex := &Exception{
 		Value:      etv,
