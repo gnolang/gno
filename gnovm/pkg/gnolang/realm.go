@@ -1802,6 +1802,8 @@ func getOwner(store Store, oo Object) Object {
 	return po
 }
 
+// XXX this would be a lot faster if the PkgID itself included a private bit;
+// no store argument or lookup would be needed.
 func isPkgPrivateFromPkgID(store Store, pkgID PkgID) bool {
 	oid := ObjectIDFromPkgID(pkgID)
 	oo := store.GetObject(oid)
