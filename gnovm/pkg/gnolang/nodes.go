@@ -141,6 +141,8 @@ const (
 	ATTR_PACKAGE_DECL          GnoAttribute = "ATTR_PACKAGE_DECL"
 	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH" // if name expr refers to package.
 	ATTR_FIX_FROM              GnoAttribute = "ATTR_FIX_FROM"     // gno fix this version.
+	ATTR_LINT_MODE             GnoAttribute = "ATTR_LINT_MODE"
+	ATTR_FILE_SOURCE           GnoAttribute = "ATTR_FILE_SOURCE" // source code of file (for linting comments)
 )
 
 // Embedded in each Node.

@@ -492,7 +492,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 // the package getter for tests, e.g. from "gnovm/tests/files/extern/*", or from
 // "examples/*".
 //   - fixFrom: the version of gno to fix from.
-func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool, fixFrom string) (*PackageNode, *PackageValue) {
+func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool, fixFrom string, lintMode bool, mpkg *std.MemPackage) (*PackageNode, *PackageValue) {
 	if !withOverrides {
 		if err := checkDuplicates(fset); err != nil {
 			panic(fmt.Errorf("running package %q: %w", pkgName, err))
@@ -502,12 +502,22 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 	if fixFrom != "" {
 		pn.SetAttribute(ATTR_FIX_FROM, fixFrom)
 	}
+	if lintMode {
+		pn.SetAttribute(ATTR_LINT_MODE, true)
+	}
 	pv := pn.NewPackage(nilAllocator)
 	pb := pv.GetBlock(m.Store)
 	m.SetActivePackage(pv)
 	m.Store.SetBlockNode(pn)
 	PredefineFileSet(m.Store, pn, fset)
 	for _, fn := range fset.Files {
+		if lintMode {
+			mf := mpkg.GetFile(fn.FileName)
+			if mf != nil {
+				fn.SetAttribute(ATTR_FILE_SOURCE, mf.Body)
+			}
+		}
+
 		fn = Preprocess(m.Store, pn, fn).(*FileNode)
 		// After preprocessing, save blocknodes to store.
 		SaveBlockNodes(m.Store, fn)

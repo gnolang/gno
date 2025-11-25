@@ -524,6 +524,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 	last := ctx
 	stack := append(make([]BlockNode, 0, 32), last)
 	ctxpn := packageOf(ctx)
+	var currentFile *FileNode
 
 	// iterate over all nodes recursively
 	nn := Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
@@ -886,6 +887,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_BLOCK -----------------------
 			case *FileNode:
 				// only for imports.
+				currentFile = n
 				pushInitBlock(n, &last, &stack)
 				{
 					// This logic supports out-of-order
@@ -1844,6 +1846,56 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								}
 							} else {
 								checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type, true)
+							}
+						}
+						if ctxpn.HasAttribute(ATTR_LINT_MODE) {
+							if sel, ok := n.Func.(*SelectorExpr); ok {
+								methodName := string(sel.Sel)
+								if methodName == "Iterate" || methodName == "ReverseIterate" {
+									recvT := evalStaticTypeOf(store, last, sel.X)
+									t := unwrapPointerType(recvT)
+									dt, ok := t.(*DeclaredType)
+									if ok && dt.PkgPath == "gno.land/p/nt/avl" && dt.Name == "Tree" {
+										if len(n.Args) < 3 {
+											return n, TRANS_CONTINUE
+										}
+										startArg := n.Args[0]
+										endArg := n.Args[1]
+
+										isEmptyString := func(s Expr) bool {
+											if cs, ok := s.(*ConstExpr); ok {
+												if cs.T.Kind() == StringKind {
+													sv := cs.V.(StringValue)
+													return sv == ""
+												}
+											}
+											return false
+										}
+
+										hasNoLint := false
+										body := currentFile.GetAttribute(ATTR_FILE_SOURCE)
+										if bodyStr, ok := body.(string); ok {
+											lines := strings.Split(bodyStr, "\n")
+											line := n.Pos.Line
+
+											prevLineIndex := line - 2
+											if prevLineIndex >= 0 && prevLineIndex < len(lines) {
+												prevLine := strings.TrimSpace(lines[prevLineIndex])
+												if strings.HasPrefix(prevLine, "//nolint") {
+													hasNoLint = true
+												}
+											}
+										}
+
+										startEmpty := isEmptyString(startArg)
+										endEmpty := isEmptyString(endArg)
+
+										if startEmpty && endEmpty && !hasNoLint {
+											fmt.Printf("warning: calling %s.%s without start or end limit\n", dt.Name, methodName)
+										}
+									}
+
+								}
 							}
 						}
 					}
