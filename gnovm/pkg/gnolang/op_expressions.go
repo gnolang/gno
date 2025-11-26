@@ -63,6 +63,7 @@ func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
 	xv := m.PeekValue(1) // package, struct, whatever.
 	ro := m.IsReadonly(xv)
+	fmt.Println("doOpSelector", sx, "isReadonly:", ro, "xv:", xv)
 	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
 	if debug {
 		m.Printf("-v[S] %v\n", xv)

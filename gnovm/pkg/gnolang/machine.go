@@ -2236,6 +2236,7 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 // floating pointers, and unreal objects.
 func (m *Machine) IsReadonly(tv *TypedValue) bool {
 	if m.Realm == nil {
+		fmt.Println("realm == nil")
 		return false
 	}
 	if tv.IsReadonly() {
@@ -2244,14 +2245,17 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 	tvoid, ok := tv.GetFirstObjectID()
 	if !ok {
 		// e.g. if tv is a string, or free floating pointers.
+		fmt.Println("no FirstObjectID")
 		return false
 	}
 	if tvoid.IsZero() {
+		fmt.Println("tvoid.IsZero", tv)
 		return false
 	}
 	if tvoid.PkgID != m.Realm.ID {
 		return true
 	}
+	fmt.Println("tvoid.PkgID == m.Realm.ID")
 	return false
 }
 
@@ -2286,6 +2290,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		xv := m.PopValue()
 		pv = xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
 		ro = m.IsReadonly(xv)
+		fmt.Println(lx, "isReadonly:", ro)
 	case *StarExpr:
 		xv := m.PopValue()
 		pv = xv.V.(PointerValue)
