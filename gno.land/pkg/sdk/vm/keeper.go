@@ -139,7 +139,19 @@ func (vm *VMKeeper) Initialize(
 		m2.PreprocessAllFilesAndSaveBlockNodes()
 		gno.EnableDebug()
 
-		// TODO: add typecheck for packages from stdlibs.InitOrder
+		opts := gno.TypeCheckOptions{
+			Getter:     vm.gnoStore,
+			TestGetter: vm.testStdlibCache.memPackageGetter(vm.gnoStore),
+			Mode:       gno.TCLatestStrict,
+			Cache:      vm.typeCheckCache,
+		}
+		for _, stdlib := range stdlibs.InitOrder() {
+			mp := vm.gnoStore.GetMemPackage(stdlib)
+			_, err := gno.TypeCheckMemPackage(mp, opts)
+			if err != nil {
+				panic(fmt.Errorf("intialization error type checking %q: %w", stdlib, err))
+			}
+		}
 
 		logger.Debug("GnoVM packages preprocessed",
 			"elapsed", time.Since(start))
@@ -193,6 +205,18 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
 	gs := vm.getGnoTransactionStore(ctx)
 	loadStdlib(gs, stdlibDir)
+	opts := gno.TypeCheckOptions{
+		Getter:     gs,
+		TestGetter: vm.testStdlibCache.memPackageGetter(gs),
+		Mode:       gno.TCLatestStrict,
+		Cache:      vm.getTypeCheckCache(ctx),
+	}
+	for _, lib := range stdlibs.InitOrder() {
+		_, err := gno.TypeCheckMemPackage(gs.GetMemPackage(stdlibDir), opts)
+		if err != nil {
+			panic(fmt.Errorf("failed type checking stdlib %q: %w", lib, err))
+		}
+	}
 }
 
 func loadStdlib(store gno.Store, stdlibDir string) {
@@ -222,8 +246,6 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 	})
 	defer m.Release()
 	m.RunMemPackage(memPkg, true)
-
-	// TODO: add typecheck
 }
 
 type testStdlibCache struct {
