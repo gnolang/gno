@@ -294,6 +294,24 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
 	opts.Profile = cmd.profileConfig()
+	profileStarted := false
+	profileFinalized := false
+	if opts.Profile != nil {
+		var err error
+		profileStarted, err = opts.Profile.Start()
+		if err != nil {
+			return err
+		}
+	}
+	defer func() {
+		if !profileStarted || profileFinalized || opts.Profile == nil {
+			return
+		}
+		if err := opts.Profile.Stop(opts, &test.DefaultProfileWriter{}); err != nil {
+			io.ErrPrintfln("Profiling error: %v", err)
+		}
+		profileFinalized = true
+	}()
 	cache := make(gno.TypeCheckCache, 64)
 
 	// test.ProdStore() is suitable for type-checking prod (non-test) files.
@@ -412,6 +430,13 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		} else {
 			io.ErrPrintfln("ok      %s \t%s", prettyDir, dstr)
 		}
+	}
+
+	if profileStarted && !profileFinalized && opts.Profile != nil {
+		if err := opts.Profile.Stop(opts, &test.DefaultProfileWriter{}); err != nil {
+			return err
+		}
+		profileFinalized = true
 	}
 
 	maybeStartProfileShell(io, opts)

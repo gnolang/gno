@@ -198,6 +198,29 @@ func (pc *ProfileConfig) LastProfile() *profiler.Profile {
 	return pc.lastProfile
 }
 
+// Start activates profiling if it isn't already running.
+// Returns true when this call initialized profiling and should be paired with Stop.
+func (pc *ProfileConfig) Start() (bool, error) {
+	if pc == nil || !pc.IsEnabled() {
+		return false, nil
+	}
+	if pc.profiler != nil {
+		return false, nil
+	}
+	if err := pc.initialize(); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// Stop finalizes profiling if it's currently running.
+func (pc *ProfileConfig) Stop(opts *TestOptions, writer ProfileWriter) error {
+	if pc == nil || pc.profiler == nil {
+		return nil
+	}
+	return pc.finalize(opts, writer)
+}
+
 func (pc *ProfileConfig) needsAllocator() bool {
 	return pc != nil && pc.GetProfileType() == profiler.ProfileMemory
 }
@@ -404,17 +427,22 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	opts.outWriter.errW = opts.Error
 
 	var errs error
+	profileStarted := false
 
 	// Initialize profiling if enabled
 	if opts.Profile != nil {
-		if err := opts.Profile.initialize(); err != nil {
+		var err error
+		profileStarted, err = opts.Profile.Start()
+		if err != nil {
 			return fmt.Errorf("failed to initialize profiling: %w", err)
 		}
-		defer func() {
-			if err := opts.Profile.finalize(opts, &DefaultProfileWriter{}); err != nil {
-				errs = multierr.Append(errs, err)
-			}
-		}()
+		if profileStarted {
+			defer func() {
+				if err := opts.Profile.Stop(opts, &DefaultProfileWriter{}); err != nil {
+					errs = multierr.Append(errs, err)
+				}
+			}()
+		}
 	}
 
 	// Create a common tcw/tgs for both the `pkg` tests as well as the
