@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/profiler"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -100,7 +101,8 @@ func TestProfilingSpansMultiplePackages(t *testing.T) {
 		t.Fatalf("failed to start profiling: %v", err)
 	}
 
-	opts := NewTestOptions("", io.Discard, io.Discard, nil)
+	rootDir := gnoenv.RootDir()
+	opts := NewTestOptions(rootDir, io.Discard, io.Discard, nil)
 	opts.Profile = pc
 
 	pkgs := []*std.MemPackage{
