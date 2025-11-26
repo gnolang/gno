@@ -38,10 +38,14 @@ func (p *Profile) WriteCallTree(w io.Writer) error {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	if p.Type == ProfileGas {
+	switch p.Type {
+	case ProfileGas:
 		fmt.Fprintf(w, "Call Tree (Gas Usage)\n")
 		fmt.Fprintf(w, "=====================\n\n")
-	} else {
+	case ProfileMemory:
+		fmt.Fprintf(w, "Call Tree (Allocations)\n")
+		fmt.Fprintf(w, "=======================\n\n")
+	default:
 		fmt.Fprintf(w, "Call Tree (CPU Cycles)\n")
 		fmt.Fprintf(w, "======================\n\n")
 	}
@@ -53,12 +57,13 @@ func (p *Profile) WriteCallTree(w io.Writer) error {
 
 	totalCycles := p.totalCycles()
 	totalGas := p.totalGas()
-	printVisualizationNode(w, p, p.CallTree, "", true, totalCycles, totalGas, 0)
+	totalAlloc := p.totalAllocBytes()
+	printVisualizationNode(w, p, p.CallTree, "", true, totalCycles, totalGas, totalAlloc, 0)
 
 	return nil
 }
 
-func printVisualizationNode(w io.Writer, p *Profile, node *CallTreeNode, prefix string, isLast bool, totalCycles, totalGas int64, depth int) {
+func printVisualizationNode(w io.Writer, p *Profile, node *CallTreeNode, prefix string, isLast bool, totalCycles, totalGas, totalAlloc int64, depth int) {
 	if node == nil {
 		return
 	}
@@ -76,11 +81,16 @@ func printVisualizationNode(w io.Writer, p *Profile, node *CallTreeNode, prefix 
 			connector = ""
 		}
 
-		if p.Type == ProfileGas {
+		switch p.Type {
+		case ProfileGas:
 			percent := percent(node.TotalGas, totalGas)
 			fmt.Fprintf(w, "%s%s %s: %d gas (%.1f%%), %d calls\n",
 				prefix, connector, name, node.TotalGas, percent, node.Calls)
-		} else {
+		case ProfileMemory:
+			percent := percent(node.AllocBytes, totalAlloc)
+			fmt.Fprintf(w, "%s%s %s: %d bytes (%.1f%%), %d allocs, %d calls\n",
+				prefix, connector, name, node.AllocBytes, percent, node.AllocObjs, node.Calls)
+		default:
 			percent := percent(node.TotalCycles, totalCycles)
 			fmt.Fprintf(w, "%s%s %s: %d cycles (%.1f%%), %d calls\n",
 				prefix, connector, name, node.TotalCycles, percent, node.Calls)
@@ -102,7 +112,7 @@ func printVisualizationNode(w io.Writer, p *Profile, node *CallTreeNode, prefix 
 
 	for i, child := range node.Children {
 		isLastChild := i == len(node.Children)-1
-		printVisualizationNode(w, p, child, childPrefix, isLastChild, totalCycles, totalGas, depth+1)
+		printVisualizationNode(w, p, child, childPrefix, isLastChild, totalCycles, totalGas, totalAlloc, depth+1)
 	}
 }
 

@@ -80,6 +80,9 @@ type callTreeNode struct {
 	totalGas int64
 	selfGas  int64
 
+	allocBytes   int64
+	allocObjects int64
+
 	children map[FrameID]*callTreeNode
 }
 
@@ -110,6 +113,8 @@ type CallTreeNode struct {
 	SelfCycles  int64           `json:"selfCycles,omitempty"`
 	TotalGas    int64           `json:"totalGas,omitempty"`
 	SelfGas     int64           `json:"selfGas,omitempty"`
+	AllocBytes  int64           `json:"allocBytes,omitempty"`
+	AllocObjs   int64           `json:"allocObjs,omitempty"`
 	Children    []*CallTreeNode `json:"children,omitempty"`
 }
 
@@ -119,6 +124,8 @@ type functionLineData struct {
 	fileSamples map[string]map[int]*lineStat
 	totalCycles int64
 	totalGas    int64
+	totalAllocs int64
+	totalAllocB int64
 }
 
 func (fld *functionLineData) clone() *functionLineData {
@@ -129,6 +136,8 @@ func (fld *functionLineData) clone() *functionLineData {
 		funcName:    fld.funcName,
 		totalCycles: fld.totalCycles,
 		totalGas:    fld.totalGas,
+		totalAllocs: fld.totalAllocs,
+		totalAllocB: fld.totalAllocB,
 		fileSamples: make(map[string]map[int]*lineStat, len(fld.fileSamples)),
 	}
 	for file, lines := range fld.fileSamples {
@@ -220,6 +229,12 @@ type Profile struct {
 	mu sync.RWMutex `json:"-"`
 }
 
+type sampleBaseline struct {
+	prevCycles     int64
+	prevGas        int64
+	prevLineCycles int64
+}
+
 // Profiler manages profiling data collection
 type Profiler struct {
 	enabled    bool
@@ -227,6 +242,8 @@ type Profiler struct {
 	startTime  time.Time
 	sampleRate int // sample every N operations
 	opCount    int
+
+	baselines map[uintptr]*sampleBaseline // keyed by machine identity; 0 for unknown
 
 	// Function profiling
 	funcStats map[string]*FunctionStat
@@ -243,11 +260,6 @@ type Profiler struct {
 
 	// Test file filtering
 	excludeTests bool // whether to exclude *_test.gno files from profiling
-
-	// Track previous values to compute deltas
-	prevCycles     int64
-	prevGas        int64
-	prevLineCycles int64 // separate tracking for line-level samples
 
 	totalCycles int64
 	totalGas    int64
@@ -306,6 +318,11 @@ func (p *Profiler) StartProfiling(m MachineInfo, opts Options) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	if p.enabled {
+		// Avoid resetting an active session; callers should StopProfiling first.
+		return
+	}
+
 	p.enabled = true
 	p.startTime = time.Now()
 	p.sampleRate = opts.SampleRate
@@ -329,17 +346,17 @@ func (p *Profiler) StartProfiling(m MachineInfo, opts Options) {
 	p.lineSamples = make(map[string]map[int]*lineStats)
 	p.totalCycles = 0
 	p.totalGas = 0
+	p.baselines = make(map[uintptr]*sampleBaseline)
 
 	// Initialize previous cycle/gas counters to current values
 	// so the first sample computes delta from this baseline
 	if m != nil {
-		p.prevCycles = m.GetCycles()
-		p.prevGas = m.GetGasUsed()
-		p.prevLineCycles = m.GetCycles()
-	} else {
-		p.prevCycles = 0
-		p.prevGas = 0
-		p.prevLineCycles = 0
+		key := machineKey(m)
+		p.baselines[key] = &sampleBaseline{
+			prevCycles:     m.GetCycles(),
+			prevGas:        m.GetGasUsed(),
+			prevLineCycles: m.GetCycles(),
+		}
 	}
 }
 
@@ -384,20 +401,21 @@ func (p *Profiler) RecordSample(m MachineInfo) {
 	p.opCount++
 
 	// Compute deltas since last sample (VM passes cumulative totals)
+	baseline := p.ensureBaseline(machineKey(m))
 	currentCycles := m.GetCycles()
 	currentGas := m.GetGasUsed()
-	deltaCycles := currentCycles - p.prevCycles
-	if deltaCycles < 0 {
+	deltaCycles := currentCycles - baseline.prevCycles
+	if deltaCycles < 0 || currentCycles <= baseline.prevCycles {
 		deltaCycles = currentCycles
 	}
-	deltaGas := currentGas - p.prevGas
-	if deltaGas < 0 {
+	deltaGas := currentGas - baseline.prevGas
+	if deltaGas < 0 || currentGas <= baseline.prevGas {
 		deltaGas = currentGas
 	}
 	// Update previous values immediately so that even skipped samples keep
 	// counters in sync (e.g. when the stack is empty)
-	p.prevCycles = currentCycles
-	p.prevGas = currentGas
+	baseline.prevCycles = currentCycles
+	baseline.prevGas = currentGas
 
 	// Build call stack
 	stack := p.buildCallStack(m)
@@ -409,7 +427,7 @@ func (p *Profiler) RecordSample(m MachineInfo) {
 	p.totalGas += deltaGas
 
 	frameIDs := p.stackFrameIDs(stack)
-	p.updateCallTree(frameIDs, deltaCycles, deltaGas)
+	p.updateCallTree(frameIDs, deltaCycles, deltaGas, 0, 0)
 	p.updateFunctionStats(stack, deltaCycles, deltaGas)
 	if !p.lineLevel {
 		p.updateFunctionLineStats(stack, deltaCycles, deltaGas)
@@ -460,6 +478,10 @@ func (p *Profiler) RecordAlloc(m MachineInfo, size, count int64, allocType strin
 			Function: "<allocation>",
 		}}
 	}
+
+	frameIDs := p.stackFrameIDs(stack)
+	p.updateCallTree(frameIDs, 0, 0, size, count)
+	p.updateAllocationLineStats(stack, size, count)
 
 	// Update function profile stats
 	funcName := stack[0].Function
@@ -559,6 +581,12 @@ func (p *Profiler) collectFunctionStats() []*FunctionStat {
 		out = append(out, &clone)
 	}
 	sort.Slice(out, func(i, j int) bool {
+		if p.profile != nil && p.profile.Type == ProfileMemory {
+			if out[i].AllocBytes == out[j].AllocBytes {
+				return out[i].AllocObjects > out[j].AllocObjects
+			}
+			return out[i].AllocBytes > out[j].AllocBytes
+		}
 		if p.profile != nil && p.profile.Type == ProfileGas {
 			if out[i].TotalGas == out[j].TotalGas {
 				return out[i].Name < out[j].Name
@@ -578,10 +606,11 @@ func (p *Profiler) buildExportCallTree() *CallTreeNode {
 		return nil
 	}
 	preferGas := p.profile != nil && p.profile.Type == ProfileGas
-	return convertCallTreeNode(p.callRoot, preferGas)
+	preferAlloc := p.profile != nil && p.profile.Type == ProfileMemory
+	return convertCallTreeNode(p.callRoot, preferGas, preferAlloc)
 }
 
-func convertCallTreeNode(node *callTreeNode, preferGas bool) *CallTreeNode {
+func convertCallTreeNode(node *callTreeNode, preferGas, preferAlloc bool) *CallTreeNode {
 	if node == nil {
 		return nil
 	}
@@ -593,6 +622,8 @@ func convertCallTreeNode(node *callTreeNode, preferGas bool) *CallTreeNode {
 		SelfCycles:  node.selfCycles,
 		TotalGas:    node.totalGas,
 		SelfGas:     node.selfGas,
+		AllocBytes:  node.allocBytes,
+		AllocObjs:   node.allocObjects,
 	}
 
 	if len(node.children) > 0 {
@@ -604,6 +635,12 @@ func convertCallTreeNode(node *callTreeNode, preferGas bool) *CallTreeNode {
 		sort.Slice(ids, func(i, j int) bool {
 			left := node.children[ids[i]]
 			right := node.children[ids[j]]
+			if preferAlloc {
+				if left.allocBytes == right.allocBytes {
+					return left.allocObjects > right.allocObjects
+				}
+				return left.allocBytes > right.allocBytes
+			}
 			if preferGas {
 				if left.totalGas == right.totalGas {
 					return left.totalCycles > right.totalCycles
@@ -616,7 +653,7 @@ func convertCallTreeNode(node *callTreeNode, preferGas bool) *CallTreeNode {
 			return left.totalCycles > right.totalCycles
 		})
 		for _, id := range ids {
-			children = append(children, convertCallTreeNode(node.children[id], preferGas))
+			children = append(children, convertCallTreeNode(node.children[id], preferGas, preferAlloc))
 		}
 		export.Children = children
 	}
@@ -637,12 +674,12 @@ func cloneLineSamples(src map[string]map[int]*lineStats) map[string]map[int]*lin
 			}
 			copied := &lineStats{
 				lineStat: lineStat{
-					count:  stat.count,
-					cycles: stat.cycles,
-					gas:    stat.gas,
+					count:       stat.count,
+					cycles:      stat.cycles,
+					gas:         stat.gas,
+					allocations: stat.allocations,
+					allocBytes:  stat.allocBytes,
 				},
-				allocations: stat.allocations,
-				allocBytes:  stat.allocBytes,
 			}
 			lineCopy[line] = copied
 		}
@@ -844,7 +881,7 @@ func (p *Profiler) IsLineProfilingEnabled() bool {
 // RecordLineSample records a line-level profiling sample
 // This method is called from the VM's main execution loop when line-level profiling is enabled
 // It tracks the exact source location and cycles spent at each line
-func (p *Profiler) RecordLineSample(funcName, file string, line int, cycles int64) {
+func (p *Profiler) RecordLineSample(funcName, file string, line int, cycles int64, machineID uintptr) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -854,11 +891,12 @@ func (p *Profiler) RecordLineSample(funcName, file string, line int, cycles int6
 
 	// Compute delta since last line sample; fall back to current cycles when the
 	// counter resets (e.g. switching to a different machine).
-	deltaCycles := cycles - p.prevLineCycles
-	if deltaCycles < 0 {
+	baseline := p.ensureBaseline(machineID)
+	deltaCycles := cycles - baseline.prevLineCycles
+	if deltaCycles < 0 || cycles <= baseline.prevLineCycles {
 		deltaCycles = cycles
 	}
-	p.prevLineCycles = cycles
+	baseline.prevLineCycles = cycles
 
 	file = canonicalFilePath(file, funcName)
 
@@ -888,7 +926,7 @@ func (p *Profiler) stackFrameIDs(stack []ProfileLocation) []FrameID {
 	return ids
 }
 
-func (p *Profiler) updateCallTree(ids []FrameID, cycles, gas int64) {
+func (p *Profiler) updateCallTree(ids []FrameID, cycles, gas, allocBytes, allocObjs int64) {
 	if len(ids) == 0 {
 		return
 	}
@@ -914,6 +952,8 @@ func (p *Profiler) updateCallTree(ids []FrameID, cycles, gas int64) {
 		if i == 0 {
 			child.selfGas += gas
 		}
+		child.allocBytes += allocBytes
+		child.allocObjects += allocObjs
 		node = child
 	}
 }
@@ -983,6 +1023,57 @@ func (p *Profiler) updateFunctionLineStats(stack []ProfileLocation, cycles, gas 
 		}
 		info.totalCycles += cycles
 		info.totalGas += gas
+	}
+}
+
+func (p *Profiler) updateAllocationLineStats(stack []ProfileLocation, size, count int64) {
+	seen := make(map[string]bool)
+	for _, loc := range stack {
+		funcName := loc.Function
+		if funcName == "" || seen[funcName] || isFilteredFunction(funcName) {
+			continue
+		}
+		seen[funcName] = true
+
+		file := canonicalFilePath(loc.File, funcName)
+		line := loc.Line
+		if file == "" || line <= 0 {
+			continue
+		}
+		if p.excludeTests && strings.HasSuffix(file, "_test.gno") {
+			continue
+		}
+
+		if p.lineSamples[file] == nil {
+			p.lineSamples[file] = make(map[int]*lineStats)
+		}
+		if p.lineSamples[file][line] == nil {
+			p.lineSamples[file][line] = &lineStats{}
+		}
+		lstat := p.lineSamples[file][line]
+		lstat.allocations += count
+		lstat.allocBytes += size
+
+		info, ok := p.functionLines[funcName]
+		if !ok {
+			info = &functionLineData{
+				funcName:    funcName,
+				fileSamples: make(map[string]map[int]*lineStat),
+			}
+			p.functionLines[funcName] = info
+		}
+		if info.fileSamples[file] == nil {
+			info.fileSamples[file] = make(map[int]*lineStat)
+		}
+		stat := info.fileSamples[file][line]
+		if stat == nil {
+			stat = &lineStat{}
+			info.fileSamples[file][line] = stat
+		}
+		stat.allocations += count
+		stat.allocBytes += size
+		info.totalAllocs += count
+		info.totalAllocB += size
 	}
 }
 
@@ -1082,4 +1173,31 @@ func packageFromFunction(funcName string) string {
 	}
 
 	return ""
+}
+
+func (p *Profiler) ensureBaseline(key uintptr) *sampleBaseline {
+	if p.baselines == nil {
+		p.baselines = make(map[uintptr]*sampleBaseline)
+	}
+	if b := p.baselines[key]; b != nil {
+		return b
+	}
+	b := &sampleBaseline{}
+	p.baselines[key] = b
+	return b
+}
+
+func machineKey(m MachineInfo) uintptr {
+	if m == nil {
+		return 0
+	}
+	type identifier interface {
+		Identity() uintptr
+	}
+	if idm, ok := m.(identifier); ok {
+		if id := idm.Identity(); id != 0 {
+			return id
+		}
+	}
+	return 0
 }

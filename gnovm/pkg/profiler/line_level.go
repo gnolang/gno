@@ -18,16 +18,16 @@ type LocationKey struct {
 // lineStats tracks statistics for a single line
 type lineStats struct {
 	lineStat
-	allocations int64
-	allocBytes  int64
-	mu          sync.Mutex
+	mu sync.Mutex
 }
 
 // lineStat is a simplified version for WriteSourceAnnotated
 type lineStat struct {
-	count  int64
-	cycles int64
-	gas    int64
+	count       int64
+	cycles      int64
+	gas         int64
+	allocations int64
+	allocBytes  int64
 }
 
 func (ls *lineStats) Count() int64 {

@@ -6,11 +6,13 @@ type mockMachineInfo struct {
 	frames []FrameInfo
 	cycles int64
 	gas    int64
+	id     uintptr
 }
 
 func (m *mockMachineInfo) GetFrames() []FrameInfo { return m.frames }
 func (m *mockMachineInfo) GetCycles() int64       { return m.cycles }
 func (m *mockMachineInfo) GetGasUsed() int64      { return m.gas }
+func (m *mockMachineInfo) Identity() uintptr      { return m.id }
 
 type mockFrame struct {
 	name    string
@@ -87,8 +89,8 @@ func TestProfilerRecordLineSampleHandlesCounterReset(t *testing.T) {
 	file := "foo.gno"
 	line := 10
 
-	p.RecordLineSample("foo", file, line, 100)
-	p.RecordLineSample("foo", file, line, 5) // counter reset -> delta should be 5
+	p.RecordLineSample("foo", file, line, 100, 0)
+	p.RecordLineSample("foo", file, line, 5, 0) // counter reset -> delta should be 5
 
 	stats := p.lineSamples[file][line]
 	if stats == nil {
@@ -99,10 +101,10 @@ func TestProfilerRecordLineSampleHandlesCounterReset(t *testing.T) {
 	}
 
 	// Skip a test file to ensure baseline still updates
-	p.RecordLineSample("foo", "foo_test.gno", 10, 50)
+	p.RecordLineSample("foo", "foo_test.gno", 10, 50, 0)
 
 	// Next valid line sample should use delta from the skipped baseline (60-50)
-	p.RecordLineSample("foo", file, line, 60)
+	p.RecordLineSample("foo", file, line, 60, 0)
 	if got := p.lineSamples[file][line].cycles; got != 115 {
 		t.Fatalf("expected cumulative cycles 115, got %d", got)
 	}
@@ -132,8 +134,8 @@ func TestLineSamplesPopulateFunctionStats(t *testing.T) {
 	file := "foo.gno"
 	canonicalFile := canonicalFilePath(file, funcName)
 
-	p.RecordLineSample(funcName, file, 5, 100)
-	p.RecordLineSample(funcName, file, 5, 130)
+	p.RecordLineSample(funcName, file, 5, 100, 0)
+	p.RecordLineSample(funcName, file, 5, 130, 0)
 
 	info := p.functionLines[funcName]
 	if info == nil {
@@ -151,6 +153,119 @@ func TestLineSamplesPopulateFunctionStats(t *testing.T) {
 	}
 	if info.totalCycles != 130 {
 		t.Fatalf("expected total cycles 130, got %d", info.totalCycles)
+	}
+}
+
+func TestProfilerSeparatesBaselinesPerMachine(t *testing.T) {
+	p := NewProfiler(ProfileCPU, 1)
+	p.StartProfiling(nil, Options{Type: ProfileCPU, SampleRate: 1})
+
+	m1 := &mockMachineInfo{
+		id: 1,
+		frames: []FrameInfo{mockFrame{
+			name:    "foo",
+			file:    "foo.gno",
+			line:    1,
+			pkgPath: "pkg",
+		}},
+		cycles: 10,
+	}
+	m2 := &mockMachineInfo{
+		id: 2,
+		frames: []FrameInfo{mockFrame{
+			name:    "bar",
+			file:    "bar.gno",
+			line:    1,
+			pkgPath: "pkg",
+		}},
+		cycles: 5,
+	}
+
+	p.RecordSample(m1) // +10
+	p.RecordSample(m2) // +5
+	m1.cycles = 20
+	p.RecordSample(m1) // +10 from m1 baseline, should not include m2
+
+	if got := p.totalCycles; got != 25 {
+		t.Fatalf("expected isolated baselines, total cycles 25, got %d", got)
+	}
+}
+
+func TestProfilerResetsBaselineWhenIdentityReused(t *testing.T) {
+	p := NewProfiler(ProfileCPU, 1)
+	p.StartProfiling(nil, Options{Type: ProfileCPU, SampleRate: 1})
+
+	id := uintptr(1)
+	m1 := &mockMachineInfo{
+		id: id,
+		frames: []FrameInfo{mockFrame{
+			name:    "foo",
+			file:    "foo.gno",
+			line:    1,
+			pkgPath: "pkg",
+		}},
+		cycles: 100,
+		gas:    10,
+	}
+	p.RecordSample(m1)
+	if got := p.totalCycles; got != 100 {
+		t.Fatalf("expected cycles 100 after first sample, got %d", got)
+	}
+
+	// Reuse identity with a fresh machine whose counters restarted.
+	m2 := &mockMachineInfo{
+		id:     id,
+		frames: m1.frames,
+		cycles: 100,
+		gas:    10,
+	}
+	p.RecordSample(m2)
+	if got := p.totalCycles; got != 200 {
+		t.Fatalf("expected cycles 200 after baseline reset, got %d", got)
+	}
+	if got := p.totalGas; got != 20 {
+		t.Fatalf("expected gas 20 after baseline reset, got %d", got)
+	}
+}
+
+func TestProfilerIgnoresRestartWhileRunning(t *testing.T) {
+	p := NewProfiler(ProfileCPU, 1)
+	p.StartProfiling(nil, Options{Type: ProfileCPU, SampleRate: 1})
+
+	m := &mockMachineInfo{
+		id:     1,
+		frames: []FrameInfo{mockFrame{name: "foo", file: "foo.gno", line: 1}},
+		cycles: 10,
+	}
+	p.RecordSample(m)
+
+	// Second start should be ignored, preserving accumulated state.
+	p.StartProfiling(nil, Options{Type: ProfileCPU, SampleRate: 1})
+
+	m.cycles = 20
+	p.RecordSample(m)
+
+	if got := p.totalCycles; got != 20 {
+		t.Fatalf("expected totals to continue after redundant start, got %d", got)
+	}
+}
+
+func TestRecordAllocPopulatesCallTreeAndLines(t *testing.T) {
+	p := NewProfiler(ProfileMemory, 1)
+	p.StartProfiling(nil, Options{Type: ProfileMemory, SampleRate: 1})
+
+	m := &mockMachineInfo{
+		id:     1,
+		frames: []FrameInfo{mockFrame{name: "allocFn", file: "pkg/foo.gno", pkgPath: "pkg", line: 7}},
+	}
+	p.RecordAlloc(m, 64, 2, "struct")
+	profile := p.StopProfiling()
+
+	if profile.CallTree == nil || len(profile.CallTree.Children) == 0 || profile.CallTree.Children[0].AllocBytes == 0 {
+		t.Fatalf("expected call tree to accumulate allocation bytes")
+	}
+	if stats := profile.LineStats["pkg/foo.gno"][7]; stats == nil || stats.allocBytes == 0 || stats.allocations == 0 {
+		t.Fatalf("expected line stats to include allocation data")
 	}
 }
 
@@ -176,8 +291,8 @@ func TestProfilerFiltersTestingPackage(t *testing.T) {
 	}
 
 	p.EnableLineProfiling()
-	p.RecordLineSample("testing.RunTest", "run.gno", 1, 10)
-	p.RecordLineSample("gno.land/p/demo.Target", "demo.gno", 2, 20)
+	p.RecordLineSample("testing.RunTest", "run.gno", 1, 10, 0)
+	p.RecordLineSample("gno.land/p/demo.Target", "demo.gno", 2, 20, 0)
 
 	if _, ok := p.functionLines["testing.RunTest"]; ok {
 		t.Fatalf("expected no line data for testing package")

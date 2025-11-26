@@ -1,6 +1,8 @@
 package gnolang
 
 import (
+	"unsafe"
+
 	"github.com/gnolang/gno/gnovm/pkg/instrumentation"
 	"github.com/gnolang/gno/gnovm/pkg/profiler"
 )
@@ -194,6 +196,9 @@ func (a *allocationStackInjector) OnAllocation(ev *instrumentation.AllocationEve
 			ev.Stack = stack
 		}
 	}
+	if ev != nil && ev.MachineID == 0 && a.machine != nil {
+		ev.MachineID = uintptr(unsafe.Pointer(a.machine))
+	}
 	a.sink.OnAllocation(ev)
 }
 
@@ -250,8 +255,9 @@ func (m *Machine) captureSampleContext() *instrumentation.SampleContext {
 		return nil
 	}
 	ctx := &instrumentation.SampleContext{
-		Frames: frames,
-		Cycles: m.Cycles,
+		Frames:    frames,
+		Cycles:    m.Cycles,
+		MachineID: uintptr(unsafe.Pointer(m)),
 	}
 	if m.GasMeter != nil {
 		ctx.GasUsed = m.GasMeter.GasConsumed()
@@ -319,10 +325,11 @@ func (m *Machine) captureLineSample() *instrumentation.LineSample {
 		return nil
 	}
 	return &instrumentation.LineSample{
-		Func:   funcName,
-		File:   file,
-		Line:   line,
-		Cycles: m.Cycles,
+		Func:      funcName,
+		File:      file,
+		Line:      line,
+		Cycles:    m.Cycles,
+		MachineID: uintptr(unsafe.Pointer(m)),
 	}
 }
 

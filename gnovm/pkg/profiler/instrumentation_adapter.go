@@ -47,6 +47,7 @@ func (sa *SinkAdapter) OnSample(ctx *instrumentation.SampleContext) {
 		frames: ctx.Frames,
 		cycles: ctx.Cycles,
 		gas:    ctx.GasUsed,
+		id:     ctx.MachineID,
 	})
 }
 
@@ -57,6 +58,7 @@ func (sa *SinkAdapter) OnAllocation(ev *instrumentation.AllocationEvent) {
 	}
 	sa.profiler.RecordAlloc(adapterMachineInfo{
 		frames: ev.Stack,
+		id:     ev.MachineID,
 	}, ev.Bytes, ev.Objects, ev.Kind)
 }
 
@@ -65,7 +67,7 @@ func (sa *SinkAdapter) OnLineSample(sample *instrumentation.LineSample) {
 	if sa.profiler == nil || sample == nil {
 		return
 	}
-	sa.profiler.RecordLineSample(sample.Func, sample.File, sample.Line, sample.Cycles)
+	sa.profiler.RecordLineSample(sample.Func, sample.File, sample.Line, sample.Cycles, sample.MachineID)
 }
 
 // adapterMachineInfo implements MachineInfo using instrumentation snapshots.
@@ -73,6 +75,7 @@ type adapterMachineInfo struct {
 	frames []instrumentation.FrameSnapshot
 	cycles int64
 	gas    int64
+	id     uintptr
 }
 
 func (a adapterMachineInfo) GetFrames() []FrameInfo {
@@ -83,12 +86,12 @@ func (a adapterMachineInfo) GetFrames() []FrameInfo {
 	return frames
 }
 
-func (a adapterMachineInfo) GetCycles() int64 {
-	return a.cycles
-}
+func (a adapterMachineInfo) GetCycles() int64  { return a.cycles }
+func (a adapterMachineInfo) GetGasUsed() int64 { return a.gas }
 
-func (a adapterMachineInfo) GetGasUsed() int64 {
-	return a.gas
+// Identity returns a stable identifier for the originating machine, if known.
+func (a adapterMachineInfo) Identity() uintptr {
+	return a.id
 }
 
 type frameSnapshotAdapter struct {
@@ -103,17 +106,9 @@ func (f frameSnapshotAdapter) IsCall() bool {
 	return f.snap.IsCall
 }
 
-func (f frameSnapshotAdapter) GetFuncName() string {
-	return f.snap.FuncName
-}
-
-func (f frameSnapshotAdapter) GetFileName() string {
-	return f.snap.File
-}
-
-func (f frameSnapshotAdapter) GetPkgPath() string {
-	return f.snap.PkgPath
-}
+func (f frameSnapshotAdapter) GetFuncName() string { return f.snap.FuncName }
+func (f frameSnapshotAdapter) GetFileName() string { return f.snap.File }
+func (f frameSnapshotAdapter) GetPkgPath() string  { return f.snap.PkgPath }
 
 func (f frameSnapshotAdapter) GetSource() SourceInfo {
 	return sourceSnapshotAdapter{line: f.snap.Line, column: f.snap.Column}

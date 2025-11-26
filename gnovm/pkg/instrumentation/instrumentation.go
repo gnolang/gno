@@ -24,6 +24,9 @@ type SampleContext struct {
 	Frames  []FrameSnapshot
 	Cycles  int64
 	GasUsed int64
+	// MachineID is a best-effort identifier for the originating machine so
+	// profilers can separate baselines when multiple machines share a sink.
+	MachineID uintptr
 }
 
 // AllocationEvent represents a heap allocation attributed to a specific stack.
@@ -32,6 +35,8 @@ type AllocationEvent struct {
 	Objects int64
 	Kind    string
 	Stack   []FrameSnapshot
+	// MachineID carries the originating machine for attribution, when available.
+	MachineID uintptr
 }
 
 // LineSample captures per-line execution metrics similar to pprof's line-level
@@ -41,6 +46,8 @@ type LineSample struct {
 	File   string
 	Line   int
 	Cycles int64
+	// MachineID carries the originating machine for attribution, when available.
+	MachineID uintptr
 }
 
 // Sink receives instrumentation events emitted by the VM. Implementations may
