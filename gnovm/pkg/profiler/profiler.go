@@ -453,6 +453,7 @@ func (p *Profiler) RecordSample(m MachineInfo) {
 			// Track gas for gas profiling
 			if p.profile.Type == ProfileGas {
 				p.lineSamples[file][loc.Line].gas += deltaGas
+				p.updateFunctionLineGas(loc, deltaGas)
 			}
 		}
 	}
@@ -1105,6 +1106,48 @@ func (p *Profiler) updateFunctionLineStatsFromLineSample(funcName, file string, 
 	stat.count++
 	stat.cycles += cycles
 	info.totalCycles += cycles
+}
+
+// updateFunctionLineGas records gas for a specific line without altering cycle-based
+// statistics. This keeps gas totals in sync for line-level profiles where cycle
+// attribution is handled by dedicated line samples.
+func (p *Profiler) updateFunctionLineGas(loc ProfileLocation, gas int64) {
+	if gas <= 0 {
+		return
+	}
+
+	funcName := loc.Function
+	if funcName == "" || isFilteredFunction(funcName) {
+		return
+	}
+
+	file := canonicalFilePath(loc.File, funcName)
+	line := loc.Line
+	if file == "" || line <= 0 {
+		return
+	}
+	if p.excludeTests && strings.HasSuffix(file, "_test.gno") {
+		return
+	}
+
+	info, ok := p.functionLines[funcName]
+	if !ok {
+		info = &functionLineData{
+			funcName:    funcName,
+			fileSamples: make(map[string]map[int]*lineStat),
+		}
+		p.functionLines[funcName] = info
+	}
+	if info.fileSamples[file] == nil {
+		info.fileSamples[file] = make(map[int]*lineStat)
+	}
+	stat := info.fileSamples[file][line]
+	if stat == nil {
+		stat = &lineStat{}
+		info.fileSamples[file][line] = stat
+	}
+	stat.gas += gas
+	info.totalGas += gas
 }
 
 func (p *Profiler) getFunctionStat(name string) *FunctionStat {

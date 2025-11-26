@@ -156,6 +156,53 @@ func TestLineSamplesPopulateFunctionStats(t *testing.T) {
 	}
 }
 
+func TestLineProfilingTracksGas(t *testing.T) {
+	p := NewProfiler(ProfileGas, 1)
+	p.EnableLineProfiling()
+	p.StartProfiling(nil, Options{Type: ProfileGas, SampleRate: 1})
+
+	funcName := "pkg.foo"
+	file := "pkg/foo.gno"
+	line := 5
+
+	// Seed line-level stats so gas can be merged into the existing entry.
+	p.RecordLineSample(funcName, file, line, 10, 1)
+
+	machine := &mockMachineInfo{
+		frames: []FrameInfo{mockFrame{
+			name:    "foo",
+			file:    file,
+			pkgPath: "pkg",
+			line:    line,
+		}},
+		cycles: 20,
+		gas:    15,
+		id:     1,
+	}
+	p.RecordSample(machine)
+
+	profile := p.StopProfiling()
+	if profile == nil {
+		t.Fatalf("expected profile to be returned")
+	}
+
+	fn := profile.FunctionLines[funcName]
+	if fn == nil {
+		t.Fatalf("expected function line data for %s", funcName)
+	}
+	canonicalFile := canonicalFilePath(file, funcName)
+	stat := fn.fileSamples[canonicalFile][line]
+	if stat == nil {
+		t.Fatalf("expected line stats for %s:%d", canonicalFile, line)
+	}
+	if stat.gas != 15 {
+		t.Fatalf("expected gas 15, got %d", stat.gas)
+	}
+	if fn.totalGas != 15 {
+		t.Fatalf("expected total gas 15, got %d", fn.totalGas)
+	}
+}
+
 func TestProfilerSeparatesBaselinesPerMachine(t *testing.T) {
 	p := NewProfiler(ProfileCPU, 1)
 	p.StartProfiling(nil, Options{Type: ProfileCPU, SampleRate: 1})
