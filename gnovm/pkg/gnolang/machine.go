@@ -444,17 +444,11 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 			// ls2 := bs.LastStmt()
 			// fmt.Println("===ls2, type of ls2: ", ls2, reflect.TypeOf(ls2))
 			stacktrace.LastLine = bs.LastStmt().GetLine()
-			// fmt.Println("======1: ", stacktrace.LastLine)
 			return
 		} else {
-			// if len(m.Exprs) > 0 {
-			// 	stacktrace.LastLine = m.PeekExpr(1).GetLine()
-			// 	fmt.Println("======2: ", stacktrace.LastLine)
-			// } else {
+			// XXX, ???
+			// recover/recover1.gno
 			stacktrace.LastLine = ls.GetLine()
-			// fmt.Println("======3: ", stacktrace.LastLine)
-			// }
-			// println("===not bodystmt...")
 		}
 	}
 	return
