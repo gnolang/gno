@@ -137,7 +137,7 @@ func handlerQEval(logger *slog.Logger, cli *client.RPCClient) http.Handler {
 			return "", errors.Wrap(err, "qeval")
 		}
 		if qres.Response.Error != nil {
-			return "", errors.Wrapf(qres.Response.Error, "qeval failed: log:%s", qres.Response.Log)
+			return "Error: " + qres.Response.Error.Error(), nil
 		}
 
 		return string(qres.Response.Data), nil
