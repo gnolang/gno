@@ -395,12 +395,27 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 	}
 }
 
-// returns false if there is no object.
-func (tv *TypedValue) GetFirstObjectID() (ObjectID, bool) {
+// GetTrueBaseObjectID returns the ObjectID of the "base" of tv.
+// This is different from GetFirstObject in two significant ways:
+//  1. GetTrueBaseObjectID does not go through RefValues; for this reason, it
+//     also doesn't need a store to fetch the nested object.
+//  2. If a HeapItemValue is unreal, the TrueBaseObjectID of its underlying
+//     Value is considered instead.
+//
+// This function controls heavily the behaviour of [Machine.IsReadonly], and
+// thus the readonly taint behaviour.
+func (tv *TypedValue) GetTrueBaseObjectID() (ObjectID, bool) {
 	switch cv := tv.V.(type) {
 	case PointerValue:
 		if cv.Base == nil {
 			return ObjectID{}, false
+		}
+		if hiv, ok := cv.Base.(*HeapItemValue); ok {
+			// When the HeapItemValue has just been constructed, use the object
+			// ID of the parent.
+			if hiv.GetObjectID().IsZero() {
+				return hiv.Value.GetTrueBaseObjectID()
+			}
 		}
 		return cv.Base.(ObjectIDer).GetObjectID(), true
 	case *ArrayValue:

@@ -2241,7 +2241,7 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 	if tv.IsReadonly() {
 		return true
 	}
-	tvoid, ok := tv.GetFirstObjectID()
+	tvoid, ok := tv.GetTrueBaseObjectID()
 	if !ok {
 		// e.g. if tv is a string, or free floating pointers.
 		return false
