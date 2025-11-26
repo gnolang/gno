@@ -411,7 +411,7 @@ func destar(x Expr) Expr {
 // It collects the executions and frames from the machine's frames and statements.
 func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	if len(m.Frames) == 0 {
-		return
+		return stacktrace
 	}
 
 	calls := make([]StacktraceCall, 0, len(m.Frames))
@@ -467,7 +467,7 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 		}
 	}
 
-	return
+	return stacktrace
 }
 
 // Convenience for tests.
@@ -750,7 +750,7 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 			}
 		}
 	}
-	return
+	return throwaway
 }
 
 // Resave any changes to realm after init calls.
@@ -1134,6 +1134,9 @@ func (m *Machine) incrCPU(cycles int64) {
 		m.GasMeter.ConsumeGas(gasCPU, "CPUCycles") // May panic if out of gas.
 	}
 	m.Cycles += cycles
+	if m.profileState != nil {
+		m.maybeEmitSample()
+	}
 }
 
 const (
@@ -1330,7 +1333,6 @@ func (m *Machine) Run(st Stage) {
 			m.doOpEnterCrossing()
 		case OpCall:
 			m.incrCPU(OpCPUCall)
-			m.maybeEmitSample()
 			m.doOpCall()
 		case OpCallNativeBody:
 			m.incrCPU(OpCPUCallNativeBody)
@@ -1722,7 +1724,7 @@ func (m *Machine) ForcePopStmt() (s Stmt) {
 	}
 	// TODO debug lines and assertions.
 	m.Stmts = m.Stmts[:len(m.Stmts)-1]
-	return
+	return s
 }
 
 // Offset starts at 1.
@@ -2319,7 +2321,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	default:
 		panic("should not happen")
 	}
-	return
+	return pv, ro
 }
 
 // for testing.
