@@ -396,8 +396,8 @@ func destar(x Expr) Expr {
 // Stacktrace returns the stack trace of the machine.
 // It collects the executions and frames from the machine's frames and statements.
 func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
-	fmt.Println("======Stacktrace, len of stmts: ", len(m.Stmts))
-	PrintCaller(2, 5)
+	// fmt.Println("======Stacktrace, len of stmts: ", len(m.Stmts))
+	// PrintCaller(2, 5)
 	if len(m.Frames) == 0 {
 		return
 	}
@@ -434,33 +434,27 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 		if m.Lastline != 0 {
 			stacktrace.LastLine = m.Lastline
 			return
-		}
-
-		if len(m.Exprs) > 0 {
-			stacktrace.LastLine = m.PeekExpr(1).GetLine()
-			expr := m.PeekExpr(1)
-			fmt.Println("===expr, type of expr: ", expr, reflect.TypeOf(expr))
-			fmt.Println("======2: ", stacktrace.LastLine)
-			return
+		} else {
+			// panic("!!!")
 		}
 
 		ls := m.PeekStmt(1)
-		fmt.Println("===ls, type of ls: ", ls, reflect.TypeOf(ls))
+		// fmt.Println("===ls, type of ls: ", ls, reflect.TypeOf(ls))
 		if bs, ok := ls.(*bodyStmt); ok {
-			ls2 := bs.LastStmt()
-			fmt.Println("===ls2, type of ls2: ", ls2, reflect.TypeOf(ls2))
+			// ls2 := bs.LastStmt()
+			// fmt.Println("===ls2, type of ls2: ", ls2, reflect.TypeOf(ls2))
 			stacktrace.LastLine = bs.LastStmt().GetLine()
-			fmt.Println("======1: ", stacktrace.LastLine)
+			// fmt.Println("======1: ", stacktrace.LastLine)
 			return
 		} else {
-			if len(m.Exprs) > 0 {
-				stacktrace.LastLine = m.PeekExpr(1).GetLine()
-				fmt.Println("======2: ", stacktrace.LastLine)
-			} else {
-				stacktrace.LastLine = ls.GetLine()
-				fmt.Println("======3: ", stacktrace.LastLine)
-			}
-			println("===not bodystmt...")
+			// if len(m.Exprs) > 0 {
+			// 	stacktrace.LastLine = m.PeekExpr(1).GetLine()
+			// 	fmt.Println("======2: ", stacktrace.LastLine)
+			// } else {
+			stacktrace.LastLine = ls.GetLine()
+			// fmt.Println("======3: ", stacktrace.LastLine)
+			// }
+			// println("===not bodystmt...")
 		}
 	}
 	return
@@ -1681,8 +1675,7 @@ func (m *Machine) PushStmt(s Stmt) {
 	if debug {
 		m.Printf("+s %v\n", s)
 	}
-	fmt.Printf("+s %v\n", s)
-	PrintCaller(2, 5)
+	m.Lastline = s.GetLine()
 	m.Stmts = append(m.Stmts, s)
 }
 
@@ -1701,8 +1694,6 @@ func (m *Machine) PopStmt() Stmt {
 	if debug {
 		m.Printf("-s %v\n", s)
 	}
-	fmt.Printf("-s %v\n", s)
-	PrintCaller(2, 5)
 	if bs, ok := s.(*bodyStmt); ok {
 		return bs.PopActiveStmt()
 	}
@@ -1732,8 +1723,6 @@ func (m *Machine) PushExpr(x Expr) {
 	if debug {
 		m.Printf("+x %v\n", x)
 	}
-	fmt.Printf("+x %v\n", x)
-	PrintCaller(2, 5)
 	m.Exprs = append(m.Exprs, x)
 }
 
@@ -1743,10 +1732,9 @@ func (m *Machine) PopExpr() Expr {
 	if debug {
 		m.Printf("-x %v\n", x)
 	}
-	// set line before pop
+	// set line of the current expt
+	// XXX, correct?
 	m.Lastline = x.GetLine()
-	fmt.Printf("-x %v\n", x)
-	PrintCaller(2, 5)
 	m.Exprs = m.Exprs[:numExprs-1]
 	return x
 }
@@ -2237,6 +2225,8 @@ func (m *Machine) PushForPointer(lx Expr) {
 		m.PushExpr(lx)
 		m.PushOp(OpEval)
 	default:
+		// m.Lastline = m.PeekExpr(1).GetLine()
+		// fmt.Println("===set lastline, lx: ", m.Lastline, lx)
 		panic(fmt.Sprintf(
 			"illegal assignment X expression type %v",
 			reflect.TypeOf(lx)))
@@ -2247,6 +2237,7 @@ func (m *Machine) PushForPointer(lx Expr) {
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	pv, ro := m.PopAsPointer2(lx)
 	if ro {
+		// m.Lastline = lx.GetLine()
 		m.Panic(typedString("cannot directly modify readonly tainted object (w/o method): " + lx.String()))
 	}
 	return pv
@@ -2383,7 +2374,7 @@ func (m *Machine) Panic(etv TypedValue) {
 // It should ONLY be called from doOp* Op handlers,
 // and should return immediately from the origin Op.
 func (m *Machine) pushPanic(etv TypedValue) {
-	fmt.Println("===pushPanic, etv: ", etv)
+	// fmt.Println("===pushPanic, etv: ", etv)
 	// Construct a new exception.
 	ex := &Exception{
 		Value:      etv,

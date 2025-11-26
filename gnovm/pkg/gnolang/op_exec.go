@@ -56,7 +56,7 @@ func (m *Machine) doOpExec(op Op) {
 		debug.Printf("PEEK STMT: %v\n", s)
 		debug.Printf("%v\n", m)
 	}
-	fmt.Printf("PEEK STMT: %v\n", s)
+	// fmt.Printf("PEEK STMT: %v\n", s)
 
 	// NOTE this could go in the switch statement, and we could
 	// use the EXEC_SWITCH to jump back, rather than putting this
