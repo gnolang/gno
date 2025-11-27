@@ -157,7 +157,7 @@ export class ActionFunctionController extends BaseController {
 
 		const data = `${this._pkgPath}.${this._funcName}(${args})`;
 		fetch(
-			`http://127.0.0.1:26657/abci_query?path=vm%2fqeval&data=${btoa(data)}`
+			`http://127.0.0.1:26657/abci_query?path=vm%2fqeval&data=${btoa(data)}`,
 		)
 			.then(async (response) => {
 				if (response.ok) {
