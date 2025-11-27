@@ -131,7 +131,8 @@ export class ActionFunctionController extends BaseController {
 	// If there is no "qeval-result" target, then do nothing.
 	private _updateQEvalResult(): void {
 		const resultTarget = this.getTarget("qeval-result") as HTMLElement;
-		if (!resultTarget) {
+		const remoteTarget = this.getTarget("remote") as HTMLElement;
+		if (!(resultTarget && remoteTarget)) {
 			// This is a crossing function
 			return;
 		}
@@ -157,7 +158,7 @@ export class ActionFunctionController extends BaseController {
 
 		const data = `${this._pkgPath}.${this._funcName}(${args})`;
 		fetch(
-			`http://127.0.0.1:26657/abci_query?path=vm%2fqeval&data=${btoa(data)}`,
+			`http://${remoteTarget.textContent}/abci_query?path=vm%2fqeval&data=${btoa(data)}`,
 		)
 			.then(async (response) => {
 				if (response.ok) {
