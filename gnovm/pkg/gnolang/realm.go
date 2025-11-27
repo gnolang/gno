@@ -453,7 +453,8 @@ func (rlm *Realm) searchCreatedAndIncRefCreatedDescendants(store Store, oo Objec
 
 	more := getChildObjects2(store, oo)
 	for _, child := range more {
-		if _, ok := child.(*PackageValue); ok {
+		switch child.(type) {
+		case *PackageValue, *Block:
 			continue
 		}
 
