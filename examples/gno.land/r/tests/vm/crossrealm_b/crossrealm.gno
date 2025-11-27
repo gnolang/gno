@@ -49,3 +49,10 @@ func IncrementObject(cur realm) any {
 	*ptr += 1
 	return Object
 }
+
+var n int
+
+// NOTE should be non-crossing
+func IncrGlobal() {
+	n++
+}

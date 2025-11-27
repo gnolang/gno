@@ -388,8 +388,10 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 		tv.V = oo
 		return oo
 	case *HeapItemValue:
-		// should only appear in PointerValue.Base
-		panic("heap item value should only appear as a pointer's base")
+		// should only appear in PointerValue.Base or
+		// closure capture; if you need to implement
+		// this, probably doing it wrong.
+		panic("invalid usage of GetFirstObject() on heap item")
 	default:
 		return nil
 	}
@@ -437,8 +439,10 @@ func (tv *TypedValue) GetTrueBaseObjectID() (ObjectID, bool) {
 	case RefValue:
 		return cv.GetObjectID(), true
 	case *HeapItemValue:
-		// should only appear in PointerValue.Base
-		panic("heap item value should only appear as a pointer's base")
+		// should only appear in PointerValue.Base or
+		// closure capture; if you need to implement
+		// this, probably doing it wrong.
+		panic("invalid usage of GetTrueBaseObjectID() on heap item")
 	default:
 		return ObjectID{}, false
 	}
