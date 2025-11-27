@@ -140,7 +140,7 @@ func GetProposal(cur realm, pid ProposalID) (*Proposal, error) {
 
 	prop := proposals.GetProposal(pid)
 	if prop == nil {
-		return nil, errors.New(ufmt.Sprintf("Proposal #%v does not exist.", pid))
+		return nil, errors.New(ufmt.Sprintf("Proposal %v does not exist.", int64(pid)))
 	}
 
 	if err := dao.PostGetProposal(pid, prop); err != nil {
