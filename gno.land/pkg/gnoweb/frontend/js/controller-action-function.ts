@@ -118,7 +118,9 @@ export class ActionFunctionController extends BaseController {
 					: "data-copy-text-value";
 				const currentUrl = functionLink.getAttribute(linkAttribute);
 				if (!currentUrl) {
-					console.warn(`No href or data-copy-text-value attribute found for the function link: ${functionLink}.`);
+					console.warn(
+						`No href or data-copy-text-value attribute found for the function link: ${functionLink}.`,
+					);
 					return;
 				}
 
