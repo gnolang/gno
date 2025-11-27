@@ -53,7 +53,7 @@ func registerHelpFuncs(funcs template.FuncMap) {
 
 	funcs["buildHelpURL"] = func(data HelpData, fn *doc.JSONFunc) string {
 		pkgPath := strings.TrimPrefix(data.PkgPath, data.Domain)
-		url := data.Domain + pkgPath + "$help&func=" + fn.Name
+		url := pkgPath + "$help&func=" + fn.Name
 		if len(fn.Params) > 0 {
 			url += "&"
 			for i, param := range fn.Params {
