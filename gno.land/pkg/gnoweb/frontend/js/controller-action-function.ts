@@ -156,11 +156,14 @@ export class ActionFunctionController extends BaseController {
 		}
 
 		const data = `${this._pkgPath}.${this._funcName}(${args})`;
-		fetch(`/qeval?data=${encodeURIComponent(data)}`)
+		fetch(`http://127.0.0.1:26657/abci_query?path=vm%2fqeval&data=${btoa(data)}`)
 			.then(async (response) => {
 				if (response.ok) {
-					const result = await response.text();
-					resultTarget.textContent = result;
+					const result = (await response.json()).result.response.ResponseBase;
+					if (result.Data)
+						resultTarget.textContent = atob(result.Data);
+					else
+						resultTarget.textContent = `Error: ${result.Error.value}`;
 				} else {
 					resultTarget.textContent = "";
 				}

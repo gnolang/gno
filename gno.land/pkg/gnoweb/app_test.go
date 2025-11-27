@@ -77,7 +77,6 @@ func TestRoutes(t *testing.T) {
 			// Test special endpoints
 			{"/liveness", ok, `{"status":"ok"}`},
 			{"/ready", ok, `{"status":"ready"}`},
-			{"/qeval?data=gno.land%2Fr%2Fsys%2Fusers.ResolveName(\"test1\")", ok, `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`},
 			// Test Toc
 			{"/", ok, `href="#learn-about-gnoland"`},
 			// Test aliased path and static file

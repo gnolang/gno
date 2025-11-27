@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"runtime"
 	"time"
 
@@ -124,45 +123,6 @@ func handlerReadyJSON(logger *slog.Logger, cli *client.RPCClient, domain string)
 		// not ready
 		logger.Warn("readiness check failed", "error", err, "test_path", testPath)
 		http.Error(w, "not ready", http.StatusServiceUnavailable)
-	})
-}
-
-// handlerQEval sends the data to the node's vm/qeval and returns the result.
-func handlerQEval(logger *slog.Logger, cli *client.RPCClient) http.Handler {
-	const qpath = "vm/qeval"
-
-	qEval := func(ctx context.Context, data string) (string, error) {
-		qres, err := cli.ABCIQuery(ctx, qpath, []byte(data))
-		if err != nil {
-			return "", errors.Wrap(err, "qeval")
-		}
-		if qres.Response.Error != nil {
-			return "Error: " + qres.Response.Error.Error(), nil
-		}
-
-		return string(qres.Response.Data), nil
-	}
-
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-
-		dataE := r.URL.Query().Get("data")
-		data, err := url.QueryUnescape(dataE)
-		if err != nil {
-			logger.Warn("Unescape data failed", "error", err, "dataE", dataE)
-			http.Error(w, "can't unescape data", http.StatusServiceUnavailable)
-			return
-		}
-
-		res, err := qEval(ctx, data)
-		if err != nil {
-			logger.Warn("qeval failed", "error", err, "data", data)
-			http.Error(w, "can't call qeval", http.StatusServiceUnavailable)
-			return
-		}
-
-		w.Header().Set("Content-Type", "text/plain")
-		w.Write([]byte(res))
 	})
 }
 
