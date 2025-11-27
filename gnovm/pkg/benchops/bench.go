@@ -19,11 +19,12 @@ type bench struct {
 	curOpCode       byte
 	timeZero        time.Time
 
-	storeCounts    [256]int64
-	storeAccumDur  [256]time.Duration
-	storeAccumSize [256]int64
-	storeStartTime [256]time.Time
-	curStoreCode   byte
+	storeCounts         [256]int64
+	storeAccumDur       [256]time.Duration
+	storeAccumSize      [256]int64
+	storeStartTime      [256]time.Time
+	storeRecursionDepth [256]int
+	curStoreCode        byte
 
 	nativeCounts    [256]int64
 	nativeAccumDur  [256]time.Duration
@@ -101,26 +102,38 @@ func ResumeOpCode() {
 }
 
 func StartStore(code byte) {
-	if measure.storeStartTime[code] != measure.timeZero {
-		panic("Can not start a non-stopped timer")
+	// Increment recursion depth for this store operation
+	measure.storeRecursionDepth[code]++
+
+	// Only start the timer on the first (outermost) call
+	if measure.storeRecursionDepth[code] == 1 {
+		if measure.storeStartTime[code] != measure.timeZero {
+			panic("Can not start a non-stopped timer")
+		}
+		measure.storeStartTime[code] = time.Now()
+		measure.storeCounts[code]++
+		measure.curStoreCode = code
 	}
-	measure.storeStartTime[code] = time.Now()
-	measure.storeCounts[code]++
-	measure.curStoreCode = code
 }
 
-// assume there is no recursive call for store.
 func StopStore(size int) {
 	code := measure.curStoreCode
 
-	if measure.storeStartTime[code].Equal(measure.timeZero) {
-		panic("Can not stop a stopped timer")
-	}
-
-	measure.storeAccumDur[code] += time.Since(measure.storeStartTime[code])
-	measure.storeStartTime[code] = measure.timeZero // stop the timer
+	// Always accumulate size for all operations (including nested)
 	measure.storeAccumSize[code] += int64(size)
-	measure.curStoreCode = invalidCode
+
+	// Decrement recursion depth
+	measure.storeRecursionDepth[code]--
+
+	// Only stop the timer when returning from the outermost call (depth becomes 0)
+	if measure.storeRecursionDepth[code] == 0 {
+		if measure.storeStartTime[code].Equal(measure.timeZero) {
+			panic("Can not stop a stopped timer")
+		}
+		measure.storeAccumDur[code] += time.Since(measure.storeStartTime[code])
+		measure.storeStartTime[code] = measure.timeZero // stop the timer
+		measure.curStoreCode = invalidCode
+	}
 }
 
 func StartNative(code byte) {
