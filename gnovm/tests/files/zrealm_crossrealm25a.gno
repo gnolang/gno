@@ -12,17 +12,25 @@ type Struct struct {
 var ourS *Struct
 
 func init() {
+	println("s = &Struct{A: 100}")
 	s := &Struct{A: 100}
+	println("crossrealm_b.SetObject(cross, &s.A)")
 	crossrealm_b.SetObject(cross, &s.A)
+	println("ourS = s")
 	ourS = s
 }
 
 func main(cur realm) {
+	println("crossrealm_b.IncrementObject(cross)")
 	println(crossrealm_b.IncrementObject(cross))
 	println(ourS.A)
 }
 
 // Output:
+// s = &Struct{A: 100}
+// crossrealm_b.SetObject(cross, &s.A)
+// ourS = s
+// crossrealm_b.IncrementObject(cross)
 // &(101 int)
 // 101
 

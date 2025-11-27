@@ -30,4 +30,4 @@ func main(cur realm) {
 // s.A = 123
 
 // Error:
-// cannot modify external-realm or non-realm object
+// cannot directly modify readonly tainted object (w/o method): s<~VPBlock(3,1)>.A
