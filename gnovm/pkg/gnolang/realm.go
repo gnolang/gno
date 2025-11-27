@@ -776,6 +776,11 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object, visited m
 	}
 
 	// assert object have no private dependencies.
+	//
+	// XXX JAE: Can't this whole routine be changed so that it only applies
+	// when finalizing when the first frame function is declared in a
+	// private package? See discussion:
+	// https://github.com/gnolang/gno/pull/4890/files#r2554336836
 	rlm.assertObjectIsPublic(oo, store, visited)
 
 	// first, save unsaved children.
@@ -960,6 +965,12 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[Type
 
 // assertTypeIsPublic ensure that the type t is not defined in a private realm.
 // it do it recursively for all types in t and have recursive guard to avoid infinite recursion on declared types.
+//
+// XXX JAE: In addition to the other comment above about assertObjectIsPublic() usage,
+// shouldn't this be computed once for every type statically in the preprocessor?
+// The type itself could have a boolean, and every type could have SetIsPrivate() (no args)
+// after construction that sets the boolean based on its dependencies.
+// This slow implementation seems fine for now, something to optimize later.
 func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]struct{}) {
 	pkgPath := ""
 
@@ -1788,6 +1799,8 @@ func getOwner(store Store, oo Object) Object {
 	return po
 }
 
+// XXX this would be a lot faster if the PkgID itself included a private bit;
+// no store argument or lookup would be needed.
 func isPkgPrivateFromPkgID(store Store, pkgID PkgID) bool {
 	oid := ObjectIDFromPkgID(pkgID)
 	oo := store.GetObject(oid)
