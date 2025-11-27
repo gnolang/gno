@@ -6,15 +6,24 @@ package gnolang
 // In debug builds, we panic to catch potential misuse.
 
 func (sv StringValue) DeepFill(store Store) Value {
-	panic("StringValue.DeepFill should not be called - StringValue is only used for constant expressions")
+	if debug {
+		panic("StringValue.DeepFill should not be called - StringValue is only used for constant expressions")
+	}
+	return sv
 }
 
 func (biv BigintValue) DeepFill(store Store) Value {
-	panic("BigintValue.DeepFill should not be called - BigintValue is only used for constant expressions")
+	if debug {
+		panic("BigintValue.DeepFill should not be called - BigintValue is only used for constant expressions")
+	}
+	return biv
 }
 
 func (bdv BigdecValue) DeepFill(store Store) Value {
-	panic("BigdecValue.DeepFill should not be called - BigdecValue is only used for constant expressions")
+	if debug {
+		panic("BigdecValue.DeepFill should not be called - BigdecValue is only used for constant expressions")
+	}
+	return bdv
 }
 
 func (dbv DataByteValue) DeepFill(store Store) Value {
