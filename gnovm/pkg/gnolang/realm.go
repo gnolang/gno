@@ -442,6 +442,7 @@ func (rlm *Realm) processNewCreatedMarks(store Store, start int) int {
 func (rlm *Realm) searchCreatedAndIncRefCreatedDescendants(store Store, oo Object, visited map[ObjectID]struct{}) {
 	if oo.GetObjectID().IsZero() {
 		rlm.incRefCreatedDescendants(store, oo)
+		visited[oo.GetObjectID()] = struct{}{}
 		return
 	}
 
@@ -452,6 +453,10 @@ func (rlm *Realm) searchCreatedAndIncRefCreatedDescendants(store Store, oo Objec
 
 	more := getChildObjects2(store, oo)
 	for _, child := range more {
+		if _, ok := child.(*PackageValue); ok {
+			continue
+		}
+
 		rlm.searchCreatedAndIncRefCreatedDescendants(store, child, visited)
 	}
 }
