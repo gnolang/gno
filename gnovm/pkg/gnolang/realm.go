@@ -439,16 +439,20 @@ func (rlm *Realm) processNewCreatedMarks(store Store, start int) int {
 	return len(rlm.newCreated)
 }
 
-func (rlm *Realm) searchCreatedAndIncRefCreatedDescendants(store Store, oo Object) {
-	// Todo RECURSE GUARD
+func (rlm *Realm) searchCreatedAndIncRefCreatedDescendants(store Store, oo Object, visited map[ObjectID]struct{}) {
 	if oo.GetObjectID().IsZero() {
 		rlm.incRefCreatedDescendants(store, oo)
 		return
 	}
 
+	if _, ok := visited[oo.GetObjectID()]; ok {
+		return
+	}
+	visited[oo.GetObjectID()] = struct{}{}
+
 	more := getChildObjects2(store, oo)
 	for _, child := range more {
-		rlm.searchCreatedAndIncRefCreatedDescendants(store, child)
+		rlm.searchCreatedAndIncRefCreatedDescendants(store, child, visited)
 	}
 }
 
@@ -631,7 +635,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store, start int) int {
 			if po == nil {
 				// e.g. !eo.GetIsNewReal(),
 				// should have no parent.
-				rlm.searchCreatedAndIncRefCreatedDescendants(store, eo)
+				rlm.searchCreatedAndIncRefCreatedDescendants(store, eo, make(map[ObjectID]struct{}))
 				continue
 			} else {
 				if po.GetRefCount() == 0 {
@@ -640,7 +644,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store, start int) int {
 					// will be saved regardless.
 				} else {
 					// exists, mark dirty.
-					rlm.searchCreatedAndIncRefCreatedDescendants(store, eo)
+					rlm.searchCreatedAndIncRefCreatedDescendants(store, eo, make(map[ObjectID]struct{}))
 					rlm.MarkDirty(po)
 				}
 				if eo.GetObjectID().IsZero() {
