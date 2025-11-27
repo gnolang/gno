@@ -2231,28 +2231,15 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	return pv
 }
 
-// Returns true if tv is N_Readonly or, its "first object" resides in a
-// different non-zero realm. Returns false for non-N_Readonly StringValue, free
-// floating pointers, and unreal objects.
+// Returns true if tv is N_Readonly or, its relevant object(s)
+// resides in a different non-zero realm. Returns false for
+// non-N_Readonly StringValue, free floating pointers, and unreal
+// objects.
 func (m *Machine) IsReadonly(tv *TypedValue) bool {
 	if m.Realm == nil {
 		return false
 	}
-	if tv.IsReadonly() {
-		return true
-	}
-	tvoid, ok := tv.GetFirstObjectID()
-	if !ok {
-		// e.g. if tv is a string, or free floating pointers.
-		return false
-	}
-	if tvoid.IsZero() {
-		return false
-	}
-	if tvoid.PkgID != m.Realm.ID {
-		return true
-	}
-	return false
+	return tv.IsReadonlyBy(m.Realm.ID)
 }
 
 // Returns ro = true if the base is readonly,
