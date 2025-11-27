@@ -439,7 +439,8 @@ func (rlm *Realm) processNewCreatedMarks(store Store, start int) int {
 	return len(rlm.newCreated)
 }
 
-func (rlm *Realm) searchCreatedAndIncRefCreated(store Store, oo Object) {
+func (rlm *Realm) searchCreatedAndIncRefCreatedDescendants(store Store, oo Object) {
+	// Todo RECURSE GUARD
 	if oo.GetObjectID().IsZero() {
 		rlm.incRefCreatedDescendants(store, oo)
 		return
@@ -447,7 +448,7 @@ func (rlm *Realm) searchCreatedAndIncRefCreated(store Store, oo Object) {
 
 	more := getChildObjects2(store, oo)
 	for _, child := range more {
-		rlm.searchCreatedAndIncRefCreated(store, child)
+		rlm.searchCreatedAndIncRefCreatedDescendants(store, child)
 	}
 }
 
@@ -630,7 +631,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store, start int) int {
 			if po == nil {
 				// e.g. !eo.GetIsNewReal(),
 				// should have no parent.
-				rlm.searchCreatedAndIncRefCreated(store, eo)
+				rlm.searchCreatedAndIncRefCreatedDescendants(store, eo)
 				continue
 			} else {
 				if po.GetRefCount() == 0 {
@@ -639,7 +640,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store, start int) int {
 					// will be saved regardless.
 				} else {
 					// exists, mark dirty.
-					rlm.searchCreatedAndIncRefCreated(store, eo)
+					rlm.searchCreatedAndIncRefCreatedDescendants(store, eo)
 					rlm.MarkDirty(po)
 				}
 				if eo.GetObjectID().IsZero() {
