@@ -21,7 +21,7 @@ export class ActionFunctionController extends BaseController {
 		this._initializeArgs();
 		this._listenForEvents();
 
-		// Some functions may have no params, or all params have values
+		// Some functions may have no params, or all params already have values
 		this._updateQEvalResult();
 	}
 
@@ -156,14 +156,17 @@ export class ActionFunctionController extends BaseController {
 		}
 
 		const data = `${this._pkgPath}.${this._funcName}(${args})`;
-		fetch(`http://127.0.0.1:26657/abci_query?path=vm%2fqeval&data=${btoa(data)}`)
+		fetch(
+			`http://127.0.0.1:26657/abci_query?path=vm%2fqeval&data=${btoa(data)}`
+		)
 			.then(async (response) => {
 				if (response.ok) {
 					const result = (await response.json()).result.response.ResponseBase;
-					if (result.Data)
+					if (result.Data) {
 						resultTarget.textContent = atob(result.Data);
-					else
+					} else {
 						resultTarget.textContent = `Error: ${result.Error.value}`;
+					}
 				} else {
 					resultTarget.textContent = "";
 				}
