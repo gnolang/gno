@@ -621,8 +621,6 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 		}()
 	}
 	oid := oo.GetObjectID()
-	// For debugging:
-	// fmt.Println("SETOBJECT", fmt.Sprintf("%p", oo), oo, fmt.Sprintf("%#v", oo))
 	// replace children/fields with Ref.
 	o2 := copyValueWithRefs(oo)
 	// marshal to binary.
