@@ -212,7 +212,7 @@ func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
 		Cache:      vm.getTypeCheckCache(ctx),
 	}
 	for _, lib := range stdlibs.InitOrder() {
-		_, err := gno.TypeCheckMemPackage(gs.GetMemPackage(stdlibDir), opts)
+		_, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
 		if err != nil {
 			panic(fmt.Errorf("failed type checking stdlib %q: %w", lib, err))
 		}
