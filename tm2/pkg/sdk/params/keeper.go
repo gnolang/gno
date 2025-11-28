@@ -38,7 +38,7 @@ type ParamsKeeperI interface {
 	SetStrings(ctx sdk.Context, key string, value []string)
 
 	Has(ctx sdk.Context, key string) bool
-	GetBytes(ctx sdk.Context, key string) []byte
+	GetBytes(ctx sdk.Context, key string, ptr *[]byte)
 	SetBytes(ctx sdk.Context, key string, value []byte)
 
 	GetStruct(ctx sdk.Context, key string, strctPtr any)
@@ -124,8 +124,12 @@ func (pk ParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) {
 	pk.getIfExists(ctx, key, ptr)
 }
 
-func (pk ParamsKeeper) GetBytes(ctx sdk.Context, key string) []byte {
-	return ctx.Store(pk.key).Get(storeKey(key))
+func (pk ParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) {
+	stor := ctx.Store(pk.key)
+	bz := stor.Get(storeKey(key))
+	if bz != nil {
+		*ptr = bz
+	}
 }
 
 func (pk ParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {
@@ -287,8 +291,8 @@ func (ppk prefixParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool) {
 	ppk.pk.GetBool(ctx, ppk.prefixed(key), ptr)
 }
 
-func (ppk prefixParamsKeeper) GetBytes(ctx sdk.Context, key string) []byte {
-	return ppk.pk.GetBytes(ctx, ppk.prefixed(key))
+func (ppk prefixParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) {
+	ppk.pk.GetBytes(ctx, ppk.prefixed(key), ptr)
 }
 
 func (ppk prefixParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {

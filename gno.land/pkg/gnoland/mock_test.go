@@ -171,7 +171,7 @@ func (m *mockParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string)  
 func (m *mockParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64)      {}
 func (m *mockParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64)    {}
 func (m *mockParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool)        {}
-func (m *mockParamsKeeper) GetBytes(ctx sdk.Context, key string) []byte           { return nil }
+func (m *mockParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte)     {}
 func (m *mockParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {}
 
 func (m *mockParamsKeeper) SetString(ctx sdk.Context, key string, value string)    {}
