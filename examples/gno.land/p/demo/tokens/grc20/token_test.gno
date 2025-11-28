@@ -70,11 +70,11 @@ func TestToken(t *testing.T) {
 	checkBalances(1000, 0, 100)
 	checkAllowances(300, 0, 0, 0, 0, 0)
 
-	urequire.Error(t, adm.SpendAllowance(alice, bob, 2000000))
+	urequire.Error(t, adm.spendAllowance(alice, bob, 2000000))
 	checkBalances(1000, 0, 100)
 	checkAllowances(300, 0, 0, 0, 0, 0)
 
-	urequire.NoError(t, adm.SpendAllowance(alice, bob, 100))
+	urequire.NoError(t, adm.spendAllowance(alice, bob, 100))
 	checkBalances(1000, 0, 100)
 	checkAllowances(200, 0, 0, 0, 0, 0)
 }
@@ -98,6 +98,7 @@ func TestTransferFromAtomicity(t *testing.T) {
 		spender = testutils.TestAddress("spender")
 
 		invalidRecipient = address("")
+		recipient = testutils.TestAddress("to")
 	)
 
 	token, admin := NewToken("Test", "TEST", 6)
@@ -121,6 +122,15 @@ func TestTransferFromAtomicity(t *testing.T) {
 	remainingAllowance := token.Allowance(owner, spender)
 	uassert.Equal(t, remainingAllowance, initialAllowance,
 		"allowance should not be reduced when transfer fails")
+
+	// transfer all tokens
+	admin.Transfer(owner, recipient, 100)
+	remainingBalance := token.BalanceOf(owner)
+	uassert.Equal(t, remainingBalance, int64(0),
+		"balance should be zero")
+	
+	err = admin.TransferFrom(owner, spender, recipient, transferAmount)
+	uassert.Error(t, err, "transfer should fail due to insufficient balance")
 }
 
 func TestMintUntilOverflow(t *testing.T) {
