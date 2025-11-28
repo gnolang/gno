@@ -168,8 +168,8 @@ func (dao CommonDAO) GetProposal(proposalID uint64) *Proposal {
 }
 
 // Withdraw withdraws a proposal that has no votes.
-// Only proposals without votes can be withdrawed, and once
-// withdrawed they are considered finished.
+// Only proposals without votes can be withdrawn, and once
+// withdrawn they are considered finished.
 func (dao *CommonDAO) Withdraw(proposalID uint64) error {
 	p := dao.activeProposals.Get(proposalID)
 	if p == nil {
@@ -180,7 +180,7 @@ func (dao *CommonDAO) Withdraw(proposalID uint64) error {
 		return ErrWithdrawalNotAllowed
 	}
 
-	p.status = StatusWithdrawed
+	p.status = StatusWithdrawn
 	dao.activeProposals.Remove(p.id)
 	dao.finishedProposals.Add(p)
 	return nil

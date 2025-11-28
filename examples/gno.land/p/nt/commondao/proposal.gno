@@ -13,7 +13,7 @@ const (
 	StatusRejected                  = "rejected"
 	StatusExecuted                  = "executed"
 	StatusFailed                    = "failed"
-	StatusWithdrawed                = "withdrawed"
+	StatusWithdrawn                = "withdrawn"
 )
 
 const (
