@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -38,6 +39,8 @@ var defaultLocalAppConfig = AppConfig{
 	interactive:         isatty.IsTerminal(os.Stdout.Fd()),
 	unsafeAPI:           true,
 	lazyLoader:          true,
+	emptyBlocks:         false,
+	emptyBlocksInterval: time.Second * 1,
 
 	// As we have no reason to configure this yet, set this to random port
 	// to avoid potential conflict with other app

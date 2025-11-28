@@ -111,6 +111,8 @@ func setupDevNodeConfig(
 	config.NoReplay = cfg.noReplay
 	config.MaxGasPerBlock = cfg.maxGas
 	config.ChainID = cfg.chainId
+	config.TMConfig.Consensus.CreateEmptyBlocks = cfg.emptyBlocks
+	config.TMConfig.Consensus.CreateEmptyBlocksInterval = cfg.emptyBlocksInterval
 
 	// other listeners
 	config.TMConfig.P2P.ListenAddress = defaultLocalAppConfig.nodeP2PListenerAddr

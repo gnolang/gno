@@ -1,6 +1,9 @@
 package main
 
-import "flag"
+import (
+	"flag"
+	"time"
+)
 
 type AppConfig struct {
 	// Listeners
@@ -31,17 +34,19 @@ type AppConfig struct {
 	resolvers varResolver
 
 	// Node Configuration
-	logFormat   string
-	lazyLoader  bool
-	verbose     bool
-	noWatch     bool
-	noReplay    bool
-	maxGas      int64
-	chainId     string
-	chainDomain string
-	unsafeAPI   bool
-	interactive bool
-	paths       string
+	logFormat           string
+	lazyLoader          bool
+	verbose             bool
+	noWatch             bool
+	noReplay            bool
+	maxGas              int64
+	chainId             string
+	chainDomain         string
+	unsafeAPI           bool
+	interactive         bool
+	paths               string
+	emptyBlocks         bool
+	emptyBlocksInterval time.Duration
 }
 
 func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
@@ -218,6 +223,20 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"paths",
 		defaultCfg.paths,
 		`additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported`,
+	)
+
+	fs.BoolVar(
+		&c.emptyBlocks,
+		"empty-blocks",
+		defaultCfg.emptyBlocks,
+		"enable creation of empty blocks (default: ~1s interval)",
+	)
+
+	fs.DurationVar(
+		&c.emptyBlocksInterval,
+		"empty-blocks-interval",
+		defaultCfg.emptyBlocksInterval,
+		"set the interval for creating empty blocks",
 	)
 
 	fs.BoolVar(
