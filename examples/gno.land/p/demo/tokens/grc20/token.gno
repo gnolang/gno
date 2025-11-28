@@ -134,7 +134,7 @@ func (led *PrivateLedger) TransferFrom(owner, spender, to address, amount int64)
 		return ErrInvalidAmount
 	}
 
-	if !to.IsValid(){
+	if !to.IsValid() {
 		return ErrInvalidAddress
 	}
 
@@ -142,7 +142,7 @@ func (led *PrivateLedger) TransferFrom(owner, spender, to address, amount int64)
 		return ErrInsufficientBalance
 	}
 
-	if err := led.spendAllowance(owner, spender, amount); err != nil{
+	if err := led.spendAllowance(owner, spender, amount); err != nil {
 		return err
 	}
 
@@ -242,16 +242,14 @@ func (led *PrivateLedger) Burn(addr address, amount int64) error {
 
 // spendAllowance decreases the allowance of the specified owner and spender.
 func (led *PrivateLedger) spendAllowance(owner, spender address, amount int64) error {
-	if !owner.IsValid() {
+	if !owner.IsValid() || !spender.IsValid() {
 		return ErrInvalidAddress
 	}
-	if !spender.IsValid() {
-		return ErrInvalidAddress
-	}
+
 	if amount < 0 {
 		return ErrInvalidAmount
 	}
-
+	// do nothing
 	if amount == 0 {
 		return nil
 	}

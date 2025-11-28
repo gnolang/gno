@@ -98,7 +98,7 @@ func TestTransferFromAtomicity(t *testing.T) {
 		spender = testutils.TestAddress("spender")
 
 		invalidRecipient = address("")
-		recipient = testutils.TestAddress("to")
+		recipient        = testutils.TestAddress("to")
 	)
 
 	token, admin := NewToken("Test", "TEST", 6)
@@ -128,7 +128,7 @@ func TestTransferFromAtomicity(t *testing.T) {
 	remainingBalance := token.BalanceOf(owner)
 	uassert.Equal(t, remainingBalance, int64(0),
 		"balance should be zero")
-	
+
 	err = admin.TransferFrom(owner, spender, recipient, transferAmount)
 	uassert.Error(t, err, "transfer should fail due to insufficient balance")
 }
