@@ -142,6 +142,8 @@ func (led *PrivateLedger) TransferFrom(owner, spender, to address, amount int64)
 		return ErrInsufficientBalance
 	}
 
+	// the validity of the owner and spender is verified within spendAllowance.
+	// by this point, all pre-checks pass, ensure the atomicity of the following calls.
 	if err := led.spendAllowance(owner, spender, amount); err != nil {
 		return err
 	}
