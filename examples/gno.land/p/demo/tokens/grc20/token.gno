@@ -130,14 +130,15 @@ func (led *PrivateLedger) Transfer(from, to address, amount int64) error {
 // TransferFrom transfers tokens from the specified owner to the specified to address.
 // It first checks if the owner has sufficient balance and then decreases the allowance.
 func (led *PrivateLedger) TransferFrom(owner, spender, to address, amount int64) error {
+	if amount < 0 {
+		return ErrInvalidAmount
+	}
+
 	if !to.IsValid(){
 		return ErrInvalidAddress
 	}
 
-	// XXX, test this
-	var	fromBalance = led.balanceOf(owner)
-
-	if fromBalance < amount {
+	if led.balanceOf(owner) < amount {
 		return ErrInsufficientBalance
 	}
 
