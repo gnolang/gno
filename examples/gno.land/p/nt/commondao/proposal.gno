@@ -8,11 +8,11 @@ import (
 )
 
 const (
-	StatusActive     ProposalStatus = "active"
-	StatusPassed                    = "passed"
-	StatusRejected                  = "rejected"
-	StatusExecuted                  = "executed"
-	StatusFailed                    = "failed"
+	StatusActive    ProposalStatus = "active"
+	StatusPassed                   = "passed"
+	StatusRejected                 = "rejected"
+	StatusExecuted                 = "executed"
+	StatusFailed                   = "failed"
 	StatusWithdrawn                = "withdrawn"
 )
 
