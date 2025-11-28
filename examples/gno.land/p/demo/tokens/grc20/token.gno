@@ -134,7 +134,7 @@ func (led *PrivateLedger) TransferFrom(owner, spender, to address, amount int64)
 		return ErrInvalidAmount
 	}
 
-	if !to.IsValid() {
+	if !owner.IsValid() || !to.IsValid() {
 		return ErrInvalidAddress
 	}
 
@@ -142,8 +142,8 @@ func (led *PrivateLedger) TransferFrom(owner, spender, to address, amount int64)
 		return ErrInsufficientBalance
 	}
 
-	// the validity of the owner and spender is verified within spendAllowance.
-	// by this point, all pre-checks pass, ensure the atomicity of the following calls.
+	// The check above guarantees that Transfer will succeed, ensuring
+	// atomicity for the subsequent operations.
 	if err := led.spendAllowance(owner, spender, amount); err != nil {
 		return err
 	}
