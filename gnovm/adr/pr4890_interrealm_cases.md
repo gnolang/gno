@@ -1,8 +1,8 @@
-# When calling func(..., fn func, ...):
+# XXX need a better title
 
+XXX
  - option 1: do not storage-cross
- - option 2: storage-cross to declared as storage
- - option 3: storage-cross to receiver
+ - option 2: storage-cross to receiver
 
 "Storage-crossing" is like (regular) crossing for method calls except it
 does not affect CurrentRealm()/PreviousRealm(). Since method calls can
@@ -37,7 +37,7 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
    - CASE rC2: method has real receiver (external)                  -- storage-cross to receiver
    - CASE rC3: method has real receiver via closure                 -- storage-cross to receiver
    - CASE rC4: method has real receiver via closure (external)      -- storage-cross to receiver
-   - CASE rC5: method has real receiver via closure late            -- do not storage-cross
+   - CASE rC5: method has real receiver via closure too late        -- do not storage-cross
 
  * fn is crossing function declared in /r/realm:
    - CASE rD1: direct modification from external closure            -- illegal modification
@@ -62,7 +62,7 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
    - CASE pC2: method has real receiver (external)                  -- storage-cross to receiver
    - CASE pC3: method has real receiver via closure                 -- storage-cross to receiver
    - CASE pC4: method has real receiver via closure (external)      -- storage-cross to receiver
-   - CASE pC5: method has real receiver via closure late            -- do not storage-cross
+   - CASE pC5: method has real receiver via closure too late        -- do not storage-cross
 
 ----------------------------------------
 ## NOTEs
@@ -90,7 +90,7 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
 
 		// ================================================================================
 		// ## fn is declared /r/realm:
-		//
+
 		// --------------------------------------------------------------------------------
 		// CASE rA1: function declared at package level -- do not storage-cross
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
@@ -109,7 +109,7 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
 		//   - alice.TopFuncFnCrossing.inner:       (storage:[], current:caller, previous:nil)
 		//     (cross doesn't matter in inner)
 		bob.Do(alice.TopFuncFnCrossing(cross))      // FAIL: caller != bob
-		//
+
 		// --------------------------------------------------------------------------------
 		// CASE rB1: method has nil receiver -- do not storage-cross
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
@@ -131,7 +131,7 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
 		//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
 		obj := new(alice.Object)
 		bob.Do(obj.Method)                          // FAIL: caller != bob
-		//
+
 		// --------------------------------------------------------------------------------
 		// CASE rC1: method has real receiver -- storage-cross to receiver
 		//  - in bob.Do:                            (storage:[],    current:caller, previous:nil)
@@ -167,18 +167,19 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
 		//   - in obj.Method:                       (storage:[alice], current:caller, previous:nil)
 		bob.Do(obj.Method)                          // FAIL: alice != bob
 		// ----------------------------------------
-		// CASE rC5: method has real receiver via closure late -- do not storage-cross
+		// CASE rC5: method has real receiver via closure too late -- do not storage-cross
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
 		//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
 		obj := new(alice.Object)
 		cls := func() {
+			print(obj)
 			bob.Do(obj.Method)                      // FAIL: not yet persisted
-			bob.SetClosure(cls)                     // obj persisted to bob late
+			bob.SetClosure(cls)                     // obj persisted to bob too late
 			// this would work otherwise:
 			// bob.Do(obj.Method)                   
 		}
 		cls()
-		//
+
 		// --------------------------------------------------------------------------------
 		// CASE rD1: direct modification from external closure -- illegal modification
 		//   - in bob.ExecuteClosure:               (storage:[], current:bob, previous:caller)
@@ -186,10 +187,11 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
 			bob.AllowedList = append(bob.AllowedList, 3) // INVALID (illegal modification)
 		    panic("bob.AllowedList should not be mutable via dot selector from an external realm; static error expected")
 		}
-		//
+
+
 		// ================================================================================
 		// ## fn is declared /p/package: (similar to /r/realm except for CASE pA3 and CASE pB2)
-		//
+
 		// --------------------------------------------------------------------------------
 		// CASE pA1: function declared at package level -- do not storage-cross
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
@@ -204,7 +206,7 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
 		// ----------------------------------------
 		// CASE pA3: function declared in func(cur realm, ...) (crossing) -- illegal crossing function
 		bob.Do(peter.TopFuncFnCrossing(cross))      // INVALID (illegal crossing function)
-		//
+
 		// --------------------------------------------------------------------------------
 		// CASE pB1: method has nil receiver -- do not storage-cross
 		// (identical to rB1 for consistency)
@@ -227,7 +229,7 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
 		//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
 		obj := new(peter.Object)
 		bob.Do(obj.Method)                          // FAIL: caller != bob
-		//
+
 		// --------------------------------------------------------------------------------
 		// CASE pC1: method has real receiver -- storage-cross to receiver
 		//  - in bob.Do:                            (storage:[],    current:caller, previous:nil)
@@ -263,13 +265,14 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
 		//   - in obj.Method:                       (storage:[alice], current:caller, previous:nil)
 		bob.Do(obj.Method)                          // FAIL: alice != bob
 		// ----------------------------------------
-		// CASE pC5: method has real receiver via closure late -- do not storage-cross
+		// CASE pC5: method has real receiver via closure too late -- do not storage-cross
 		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
 		//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
 		obj := new(peter.Object)
 		cls := func() {
+			print(obj)
 			bob.Do(obj.Method)                      // FAIL: not yet persisted
-			alice.SetClosure(cls)                   // obj persisted to bob late
+			alice.SetClosure(cls)                   // obj persisted to bob too late
 			// this would work otherwise:
 			// bob.Do(obj.Method)              
 		}
