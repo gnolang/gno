@@ -70,11 +70,11 @@ func TestToken(t *testing.T) {
 	checkBalances(1000, 0, 100)
 	checkAllowances(300, 0, 0, 0, 0, 0)
 
-	urequire.Error(t, adm.spendAllowance(alice, bob, 2000000))
+	urequire.Error(t, adm.SpendAllowance(alice, bob, 2000000))
 	checkBalances(1000, 0, 100)
 	checkAllowances(300, 0, 0, 0, 0, 0)
 
-	urequire.NoError(t, adm.spendAllowance(alice, bob, 100))
+	urequire.NoError(t, adm.SpendAllowance(alice, bob, 100))
 	checkBalances(1000, 0, 100)
 	checkAllowances(200, 0, 0, 0, 0, 0)
 }
