@@ -10,8 +10,8 @@ gnokey maketx run -send 42ugnot -gas-fee 1000000ugnot -gas-wanted 20000000 -broa
 stdout 'send: 42ugnot'
 
 ## user balance after realm send
-# only reduced by -gas-fee, -send does not affect balance since it the run 
-# script shares the same address as the user.
+# only reduced by -gas-fee, -send does not affect balance since the ephemeral
+# realm shares the same address as the user.
 gnokey query auth/accounts/$test1_user_addr
 stdout '"coins": "9999999000000ugnot"'
 
