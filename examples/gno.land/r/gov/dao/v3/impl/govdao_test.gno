@@ -174,7 +174,7 @@ func TestExecutorCreationRealm(cur realm, t *testing.T) {
 
 	// Create executor in the template contract realm
 	executor := dao.NewSimpleExecutor(func(realm) error { return nil }, "Test executor from template")
-	
+
 	proposalRequest := dao.NewProposalRequest(
 		"Test Proposal",
 		"This proposal tests executor creation realm tracking",
@@ -184,21 +184,21 @@ func TestExecutorCreationRealm(cur realm, t *testing.T) {
 	// Create proposal from the DAO realm
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 	pid := dao.MustCreateProposal(cross, proposalRequest)
-	
+
 	// Get the proposal
 	prop := dao.MustGetProposal(cross, pid)
-	
+
 	// Verify the author is m1
 	urequire.Equal(t, m1, prop.Author())
-	
+
 	// Verify the executor creation realm is captured correctly
 	urequire.Equal(t, "gno.land/r/template/contract", prop.ExecutorCreationRealm())
-	
+
 	// Check that it's displayed in the render output
 	rendered := dao.Render("")
 	urequire.Equal(t, true, contains(rendered, "Executor created in: gno.land/r/template/contract"))
 	urequire.Equal(t, true, contains(rendered, "Test executor from template"))
-	
+
 	// Also check individual proposal rendering
 	individualRendered := dao.Render(pid.String())
 	urequire.Equal(t, true, contains(individualRendered, "Executor created in: gno.land/r/template/contract"))
