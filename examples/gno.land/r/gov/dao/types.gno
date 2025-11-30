@@ -149,7 +149,7 @@ func NewSimpleExecutor(callback func(realm) error, description string) *SimpleEx
 	return &SimpleExecutor{
 		callback:      callback,
 		desc:          description,
-		creationRealm: std.CurrentRealm().PkgPath(),
+		creationRealm: runtime.CurrentRealm().PkgPath(),
 	}
 }
 

@@ -170,7 +170,7 @@ func TestExecutorCreationRealm(cur realm, t *testing.T) {
 
 	// Test that executor creation realm is captured correctly
 	testing.SetOriginCaller(m1)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/template/contract"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/template/contract"))
 
 	// Create executor in the template contract realm
 	executor := dao.NewSimpleExecutor(func(realm) error { return nil }, "Test executor from template")
@@ -182,7 +182,7 @@ func TestExecutorCreationRealm(cur realm, t *testing.T) {
 	)
 
 	// Create proposal from the DAO realm
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 	pid := dao.MustCreateProposal(cross, proposalRequest)
 	
 	// Get the proposal
