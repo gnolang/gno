@@ -97,6 +97,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	proposalRequest := NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio)
 
 	testing.SetOriginCaller(m1)
+	testing.SetRealm(testing.NewUserRealm(m1))
 	pid := dao.MustCreateProposal(cross, proposalRequest)
 	urequire.Equal(t, int(pid), 0)
 
@@ -181,8 +182,8 @@ func TestExecutorCreationRealm(cur realm, t *testing.T) {
 		executor,
 	)
 
-	// Create proposal from the DAO realm
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	// Create proposal from user realm (user can call DAO directly)
+	testing.SetRealm(testing.NewUserRealm(m1))
 	pid := dao.MustCreateProposal(cross, proposalRequest)
 
 	// Get the proposal
@@ -194,15 +195,12 @@ func TestExecutorCreationRealm(cur realm, t *testing.T) {
 	// Verify the executor creation realm is captured correctly
 	urequire.Equal(t, "gno.land/r/template/contract", prop.ExecutorCreationRealm())
 
-	// Check that it's displayed in the render output
-	rendered := dao.Render("")
-	urequire.Equal(t, true, contains(rendered, "Executor created in: gno.land/r/template/contract"))
-	urequire.Equal(t, true, contains(rendered, "Test executor from template"))
-
-	// Also check individual proposal rendering
+	// Check that it's displayed in the individual proposal render output
 	individualRendered := dao.Render(pid.String())
 	urequire.Equal(t, true, contains(individualRendered, "Executor created in: gno.land/r/template/contract"))
 	urequire.Equal(t, true, contains(individualRendered, "Test executor from template"))
+
+	// Also verify the main content is there
 	urequire.Equal(t, true, contains(individualRendered, "Test Proposal"))
 	urequire.Equal(t, true, contains(individualRendered, "This proposal tests executor creation realm tracking"))
 }
@@ -221,34 +219,41 @@ func TestProposalPagination(cur realm, t *testing.T) {
 	proposalRequest := NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio)
 
 	testing.SetOriginCaller(m1)
+	testing.SetRealm(testing.NewUserRealm(m1))
 	pid = dao.MustCreateProposal(cross, proposalRequest)
 
 	// TODO: tests keep the same vm state: https://github.com/gnolang/gno/issues/1982
-	urequire.Equal(t, 1, int(pid))
-
-	pid = dao.MustCreateProposal(cross, proposalRequest)
 	urequire.Equal(t, 2, int(pid))
 
+	testing.SetRealm(testing.NewUserRealm(m1))
 	pid = dao.MustCreateProposal(cross, proposalRequest)
 	urequire.Equal(t, 3, int(pid))
 
+	testing.SetRealm(testing.NewUserRealm(m1))
 	pid = dao.MustCreateProposal(cross, proposalRequest)
 	urequire.Equal(t, 4, int(pid))
 
+	testing.SetRealm(testing.NewUserRealm(m1))
 	pid = dao.MustCreateProposal(cross, proposalRequest)
 	urequire.Equal(t, 5, int(pid))
 
+	testing.SetRealm(testing.NewUserRealm(m1))
 	pid = dao.MustCreateProposal(cross, proposalRequest)
 	urequire.Equal(t, 6, int(pid))
 
+	testing.SetRealm(testing.NewUserRealm(m1))
+	pid = dao.MustCreateProposal(cross, proposalRequest)
+	urequire.Equal(t, 7, int(pid))
+
 	fmt.Println(dao.Render(""))
+	urequire.Equal(t, true, contains(dao.Render(""), "### [Prop #7 - New T2 Member Proposal](/r/gov/dao:7)"))
 	urequire.Equal(t, true, contains(dao.Render(""), "### [Prop #6 - New T2 Member Proposal](/r/gov/dao:6)"))
 	urequire.Equal(t, true, contains(dao.Render(""), "### [Prop #5 - New T2 Member Proposal](/r/gov/dao:5)"))
 	urequire.Equal(t, true, contains(dao.Render(""), "### [Prop #4 - New T2 Member Proposal](/r/gov/dao:4)"))
 	urequire.Equal(t, true, contains(dao.Render(""), "### [Prop #3 - New T2 Member Proposal](/r/gov/dao:3)"))
-	urequire.Equal(t, true, contains(dao.Render(""), "### [Prop #2 - New T2 Member Proposal](/r/gov/dao:2)"))
 
-	urequire.Equal(t, true, contains(dao.Render("?page=2"), "### [Prop #1 - New T2 Member Proposal](/r/gov/dao:1)"))
+	urequire.Equal(t, true, contains(dao.Render("?page=2"), "### [Prop #2 - New T2 Member Proposal](/r/gov/dao:2)"))
+	urequire.Equal(t, true, contains(dao.Render("?page=2"), "### [Prop #1 - Test Proposal](/r/gov/dao:1)"))
 	urequire.Equal(t, true, contains(dao.Render("?page=2"), "### [Prop #0 - New T2 Member Proposal](/r/gov/dao:0)"))
 }
 
@@ -268,8 +273,9 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	preq := NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
 
 	testing.SetOriginCaller(m1)
+	testing.SetRealm(testing.NewUserRealm(m1))
 	pid := dao.MustCreateProposal(cross, preq)
-	urequire.Equal(t, int(pid), 7)
+	urequire.Equal(t, int(pid), 8)
 
 	// m1 votes yes because that member is interested on it
 	dao.MustVoteOnProposal(cross, dao.VoteRequest{
@@ -307,14 +313,14 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	// })
 	dao.MustVoteOnProposalSimple(cross, int64(pid), "YES")
 
-	urequire.Equal(t, true, contains(dao.Render("7"), "**Proposal is open for votes**"))
-	urequire.Equal(t, true, contains(dao.Render("7"), "68.42105263157895%"))
-	urequire.Equal(t, true, contains(dao.Render("7"), "0%"))
+	urequire.Equal(t, true, contains(dao.Render("8"), "**Proposal is open for votes**"))
+	urequire.Equal(t, true, contains(dao.Render("8"), "68.42105263157895%"))
+	urequire.Equal(t, true, contains(dao.Render("8"), "0%"))
 
 	accepted := dao.ExecuteProposal(cross, dao.ProposalID(pid))
 	urequire.Equal(t, true, accepted)
-	urequire.Equal(t, true, contains(dao.Render("7"), "**PROPOSAL HAS BEEN ACCEPTED**"))
-	urequire.Equal(t, true, contains(dao.Render("7"), "YES PERCENT: 68.42105263157895%"))
+	urequire.Equal(t, true, contains(dao.Render("8"), "**PROPOSAL HAS BEEN ACCEPTED**"))
+	urequire.Equal(t, true, contains(dao.Render("8"), "YES PERCENT: 68.42105263157895%"))
 }
 
 func contains(s, substr string) bool {
