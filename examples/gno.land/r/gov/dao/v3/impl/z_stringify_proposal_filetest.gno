@@ -60,11 +60,11 @@ func main() {
 
 	// Get the proposal and test the core functionality
 	prop := dao.MustGetProposal(cross, pid)
-	
+
 	// Test that executor string is captured correctly
 	println("Executor string:", prop.ExecutorString())
-	
-	// Test that executor creation realm is captured correctly  
+
+	// Test that executor creation realm is captured correctly
 	println("Executor creation realm:", prop.ExecutorCreationRealm())
 
 	// Stringify
