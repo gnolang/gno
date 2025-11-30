@@ -2580,6 +2580,10 @@ func (rv RefValue) GetObjectID() ObjectID {
 
 // Base for a detached singleton (e.g. new(int) or &struct{})
 // Conceptually like a Block that holds one value.
+// NOTE: It is possible for the value to be external
+// while the heap item itself is not; but this
+// should not be possible w/ blocks or struct values.
+// See test/files/zrealm_crossrealm25a.gno.
 // NOTE: could be renamed to HeapItemBaseValue.
 // See also note in realm.go about auto-unwrapping.
 type HeapItemValue struct {
