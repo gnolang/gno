@@ -39,7 +39,7 @@ type Machine struct {
 	GCCycle       int64         // number of "gc" cycles
 	Stage         Stage         // pre for static eval, add for package init, run otherwise
 	ReviveEnabled bool          // true if revive() enabled (only in testing mode for now)
-	Lastline      int
+	Lastline      int           // the line the VM is currently executing
 
 	Debugger Debugger
 
@@ -396,8 +396,6 @@ func destar(x Expr) Expr {
 // Stacktrace returns the stack trace of the machine.
 // It collects the executions and frames from the machine's frames and statements.
 func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
-	// fmt.Println("======Stacktrace, len of stmts: ", len(m.Stmts))
-	// PrintCaller(2, 5)
 	if len(m.Frames) == 0 {
 		return
 	}
@@ -429,26 +427,15 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	if m.LastFrame().Func != nil && m.LastFrame().Func.IsNative() {
 		stacktrace.LastLine = -1 // special line for native.
 	} else {
-		// fmt.Println("===not native...")
-		// if len(m.Stmts) > 0 {
 		if m.Lastline != 0 {
 			stacktrace.LastLine = m.Lastline
 			return
-		} else {
-			// panic("!!!")
 		}
 
 		ls := m.PeekStmt(1)
-		// fmt.Println("===ls, type of ls: ", ls, reflect.TypeOf(ls))
 		if bs, ok := ls.(*bodyStmt); ok {
-			// ls2 := bs.LastStmt()
-			// fmt.Println("===ls2, type of ls2: ", ls2, reflect.TypeOf(ls2))
 			stacktrace.LastLine = bs.LastStmt().GetLine()
 			return
-		} else {
-			// XXX, ???
-			// recover/recover1.gno
-			stacktrace.LastLine = ls.GetLine()
 		}
 	}
 	return
@@ -764,7 +751,7 @@ func (m *Machine) runFunc(st Stage, fn Name, maybeCrossing bool) {
 		if ft.IsCrossing() {
 			// .cur is a special keyword for non-crossing calls of
 			// a crossing function where `cur` is not available
-			// from m.FuncMaybeCrossing().
+			// from m.m.RunFuncMaybeCrossing().
 			//
 			// `main(cur realm)` and `init(cur realm)` are
 			// considered to have already crossed at "frame -1", so
@@ -1679,6 +1666,7 @@ func (m *Machine) PushStmts(ss ...Stmt) {
 			m.Printf("+s %v\n", s)
 		}
 	}
+	// XXX, also set lastLine here?
 	m.Stmts = append(m.Stmts, ss...)
 }
 
@@ -1726,8 +1714,6 @@ func (m *Machine) PopExpr() Expr {
 	if debug {
 		m.Printf("-x %v\n", x)
 	}
-	// set line of the current expt
-	// XXX, correct?
 	m.Lastline = x.GetLine()
 	m.Exprs = m.Exprs[:numExprs-1]
 	return x
@@ -2231,7 +2217,6 @@ func (m *Machine) PushForPointer(lx Expr) {
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	pv, ro := m.PopAsPointer2(lx)
 	if ro {
-		// m.Lastline = lx.GetLine()
 		m.Panic(typedString("cannot directly modify readonly tainted object (w/o method): " + lx.String()))
 	}
 	return pv
@@ -2368,7 +2353,6 @@ func (m *Machine) Panic(etv TypedValue) {
 // It should ONLY be called from doOp* Op handlers,
 // and should return immediately from the origin Op.
 func (m *Machine) pushPanic(etv TypedValue) {
-	// fmt.Println("===pushPanic, etv: ", etv)
 	// Construct a new exception.
 	ex := &Exception{
 		Value:      etv,

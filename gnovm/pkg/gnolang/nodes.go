@@ -1013,39 +1013,6 @@ func (x *bodyStmt) LastStmt() Stmt {
 	return x.Body[x.NextBodyIndex-1]
 }
 
-// func (x *bodyStmt) LastStmt() Node {
-// 	fmt.Println("======LastStmt, x.NextBodyIndex: ", x.NextBodyIndex)
-// 	switch x.NextBodyIndex {
-// 	case -2:
-// 		// Init statement, we can't get the statement before the bodyStmt from here.
-// 		if x.Cond != nil {
-// 			return x.Cond
-// 		}
-// 		return nil
-// 	case -1:
-// 		// Either post-stmt or last statement (this is the condition.)
-// 		// This may actually be the init as well.
-// 		if x.BodyLen == 0 {
-// 			return x.Post
-// 		}
-// 		return cmp.Or(x.Post, x.Body[x.BodyLen-1])
-// 	case 0:
-// 		switch {
-// 		case x.Cond != nil:
-// 			return x.Cond
-// 		case x.Post != nil:
-// 			return x.Post
-// 		case x.BodyLen > 0:
-// 			return x.Body[x.BodyLen-1]
-// 		default:
-// 			// XXX what to do for RangeStmt?
-// 			return nil
-// 		}
-// 	default:
-// 		return x.Body[x.NextBodyIndex-1]
-// 	}
-// }
-
 func (x *bodyStmt) String() string {
 	next := ""
 	if x.NextBodyIndex < 0 {

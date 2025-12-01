@@ -134,7 +134,6 @@ func (m *Machine) doOpSlice() {
 // catch all potential ambiguities where the intent is to
 // deref, but the result is a pointer-to type.
 func (m *Machine) doOpStar() {
-	// fmt.Println("===doOpStar...")
 	xv := m.PopValue()
 	switch bt := baseOf(xv.T).(type) {
 	case *PointerType:
