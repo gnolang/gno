@@ -2,6 +2,7 @@ package subscriptions
 
 import (
 	"chain"
+	"chain/banker"
 	"testing"
 
 	"gno.land/p/nt/testutils"
@@ -214,19 +215,53 @@ func TestSendCoins(t *testing.T) {
 	//     IssueCoin(addr Address, denom string, amount int64)
 	//     RemoveCoin(addr Address, denom string, amount int64)
 	// }
-
-	coinsToSend := chain.NewCoins(
-		chain.NewCoin("coinA", 500),
-		chain.NewCoin("coinB", 300),
-	)
-
 	alice := testutils.TestAddress("alice")
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(testing.NewUserRealm(alice))
-	testing.IssueCoins(alice, coinsToSend)
+	coinsToSend := chain.NewCoins(
+		chain.NewCoin("/native/gno.land/r/samcrew/subscriptions:a", 100),
+		chain.NewCoin("/native/gno.land/r/samcrew/subscriptions:b", 200),
+	)
 
-	// := testutils.TestAddress("bob")
+	// without native prefix
+	coinsToIssue := chain.NewCoins(
+		chain.NewCoin("gno.land/r/samcrew/subscriptions:a", 100),
+		chain.NewCoin("gno.land/r/samcrew/subscriptions:b", 200),
+	)
+
+	testing.IssueCoins(alice, coinsToIssue)
+
+	bob := testutils.TestAddress("bob")
 	testing.SetOriginSend(coinsToSend)
 
-	//sendCoins(dst, coinsToSend)
+	sendCoins(bob, coinsToSend)
+
+	banker := banker.NewBanker(banker.BankerTypeRealmIssue)
+	aliceCoins := banker.GetCoins(alice)
+	bobCoins := banker.GetCoins(bob)
+	for _, coin := range coinsToIssue {
+		aliceAmount := int64(0)
+		bobAmount := int64(0)
+		for _, aCoin := range aliceCoins {
+			if aCoin.Denom == coin.Denom {
+				aliceAmount = aCoin.Amount
+				break
+			}
+		}
+		for _, bCoin := range bobCoins {
+			if bCoin.Denom == coin.Denom {
+				bobAmount = bCoin.Amount
+				break
+			}
+		}
+
+		expectedAliceAmount := int64(0)
+		expectedBobAmount := coin.Amount
+		if aliceAmount != expectedAliceAmount {
+			t.Fatalf("invalid alice amount for %s: got %d, want %d", coin.Denom, aliceAmount, expectedAliceAmount)
+		}
+		if bobAmount != expectedBobAmount {
+			t.Fatalf("invalid bob amount for %s: got %d, want %d", coin.Denom, bobAmount, expectedBobAmount)
+		}
+	}
 }
