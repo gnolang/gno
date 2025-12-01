@@ -751,7 +751,7 @@ func (m *Machine) runFunc(st Stage, fn Name, maybeCrossing bool) {
 		if ft.IsCrossing() {
 			// .cur is a special keyword for non-crossing calls of
 			// a crossing function where `cur` is not available
-			// from m.m.RunFuncMaybeCrossing().
+			// from m.RunFuncMaybeCrossing().
 			//
 			// `main(cur realm)` and `init(cur realm)` are
 			// considered to have already crossed at "frame -1", so
