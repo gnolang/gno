@@ -116,6 +116,23 @@ func Withdraw(cur realm, serviceName string, denom string, amount int64) {
 	sendCoins(creator, withdraw)
 }
 
+// IsSubscribed checks if a user is currently subscribed to a service
+// - serviceName: the name of the service to check
+// - userAddr: the address of the user to check
+// Returns true if the user is subscribed and active, false otherwise
+func IsSubscribed(cur realm, serviceName string, userAddr string) bool {
+	svc := getServiceByName(serviceName)
+	if svc == nil {
+		return false
+	}
+	if !svc.subscribers.Has(userAddr) {
+		return false
+	}
+	subValue, _ := svc.subscribers.Get(userAddr)
+	sub := subValue.(*subscription)
+	return sub.isActive(svc.renewalPeriod, svc.price)
+}
+
 // NewService creates a new subscription service with the given parameters
 // - displayName: the name of the service
 // - description: a brief description of the service
