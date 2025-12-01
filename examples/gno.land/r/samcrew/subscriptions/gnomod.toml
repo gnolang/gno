@@ -1,2 +1,3 @@
 module = "gno.land/r/samcrew/subscriptions"
 gno = "0.9"
+private = true
