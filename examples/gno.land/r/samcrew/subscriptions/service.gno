@@ -23,7 +23,7 @@ func (svc *service) balance() chain.Coins {
 	balance := chain.Coins{}
 	svc.subscribers.Iterate("", "", func(key string, value interface{}) bool {
 		sub := value.(*subscription)
-		due := sub.dueAmount(svc.renewalPeriod, svc.price)
+		due, _ := sub.dueAmount(svc.renewalPeriod, svc.price)
 		balance = addCoins(balance, due)
 		return false
 	})
