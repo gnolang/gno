@@ -191,30 +191,6 @@ func TestAddCoinAmount(t *testing.T) {
 }
 
 func TestSendCoins(t *testing.T) {
-	//// package `testing`
-	//func SkipHeights(count int64)
-	//func SetOriginCaller(origCaller address)
-	//func SetOriginSend(sent chain.Coins)
-	//func IssueCoins(addr address, coins chain.Coins)
-	//func SetRealm(realm realm)
-	//func NewUserRealm(address address) realm
-	//func NewCodeRealm(pkgPath string) realm
-
-	// 	type BankerType uint8
-
-	// const (
-	//     BankerTypeReadonly BankerType = iota
-	//     BankerTypeOriginSend
-	//     BankerTypeRealmSend
-	//     BankerTypeRealmIssue
-	// )
-
-	// type Banker interface {
-	//     GetCoins(addr Address) (dst Coins)
-	//     SendCoins(from, to Address, coins Coins)
-	//     IssueCoin(addr Address, denom string, amount int64)
-	//     RemoveCoin(addr Address, denom string, amount int64)
-	// }
 	alice := testutils.TestAddress("alice")
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(testing.NewUserRealm(alice))
