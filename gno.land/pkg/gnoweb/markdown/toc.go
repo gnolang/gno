@@ -3,6 +3,8 @@
 package markdown
 
 import (
+	ti "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/tocitem"
+
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/util"
 )
@@ -10,35 +12,7 @@ import (
 const MaxDepth = 6
 
 type Toc struct {
-	Items []*TocItem
-}
-
-type TocItem struct {
-	// Title of this item in the table of contents.
-	//
-	// This may be blank for items that don't refer to a heading, and only
-	// have sub-items.
-	Title []byte
-
-	// ID is the identifier for the heading that this item refers to. This
-	// is the fragment portion of the link without the "#".
-	//
-	// This may be blank if the item doesn't have an id assigned to it, or
-	// if it doesn't have a title.
-	//
-	// Enable AutoHeadingID in your parser if you expected these to be set
-	// but they weren't.
-	ID []byte
-
-	// Items references children of this item.
-	//
-	// For a heading at level 3, Items, contains the headings at level 4
-	// under that section.
-	Items []*TocItem
-}
-
-func (i TocItem) Anchor() string {
-	return "#" + string(i.ID)
+	Items []*ti.TocItem
 }
 
 type TocOptions struct {
@@ -48,24 +22,24 @@ type TocOptions struct {
 func TocInspect(n ast.Node, src []byte, opts TocOptions) (Toc, error) {
 	// Appends an empty subitem to the given node
 	// and returns a reference to it.
-	appendChild := func(n *TocItem) *TocItem {
-		child := new(TocItem)
+	appendChild := func(n *ti.TocItem) *ti.TocItem {
+		child := new(ti.TocItem)
 		n.Items = append(n.Items, child)
 		return child
 	}
 
 	// Returns the last subitem of the given node,
 	// creating it if necessary.
-	lastChild := func(n *TocItem) *TocItem {
+	lastChild := func(n *ti.TocItem) *ti.TocItem {
 		if len(n.Items) > 0 {
 			return n.Items[len(n.Items)-1]
 		}
 		return appendChild(n)
 	}
 
-	var root TocItem
+	var root ti.TocItem
 
-	stack := []*TocItem{&root} // inv: len(stack) >= 1
+	stack := []*ti.TocItem{&root} // inv: len(stack) >= 1
 	err := ast.Walk(n, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
 			return ast.WalkContinue, nil
@@ -113,26 +87,7 @@ func TocInspect(n ast.Node, src []byte, opts TocOptions) (Toc, error) {
 		return ast.WalkSkipChildren, nil
 	})
 
-	root.Items = compactItems(root.Items)
+	root.Items = ti.CompactItems(root.Items)
 
 	return Toc{Items: root.Items}, err
-}
-
-// compactItems removes items with no titles
-// from the given list of items.
-//
-// Children of removed items will be promoted to the parent item.
-func compactItems(items []*TocItem) []*TocItem {
-	result := make([]*TocItem, 0)
-	for _, item := range items {
-		if len(item.Title) == 0 {
-			result = append(result, compactItems(item.Items)...)
-			continue
-		}
-
-		item.Items = compactItems(item.Items)
-		result = append(result, item)
-	}
-
-	return result
 }
