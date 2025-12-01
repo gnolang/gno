@@ -4,31 +4,34 @@ import (
 	"chain"
 	"chain/banker"
 	"chain/runtime"
-	"errors"
 	"time"
 
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/ownable"
 	"gno.land/p/nt/seqid"
-	"gno.land/r/demo/defi/grc20reg"
 )
 
 var services *avl.Tree
 var users *avl.Tree
 var id seqid.ID
 
-// XXX: Handle GRC20 allowances and transfers for initial deposits or let people subscribe and then topup later?
-func Subscribe(cur realm, serviceName string) {
+// Subscribe allows a user to subscribe to a service by providing the service name
+// - serviceName: the name of the service to subscribe to
+// - fqName: the fully qualified name of the GRC20 token to use for payment (empty string for native coins)
+// - amount: the amount of GRC20 tokens to deposit initially (0 for native coins)
+func Subscribe(cur realm, serviceName string, fqName string, amount int64) {
 	creator := runtime.PreviousRealm().Address()
 	svc := mustGetServiceByName(serviceName)
 	if svc.subscribers.Has(creator.String()) {
 		panic("already subscribed")
 	}
-	send := banker.OriginSend()
-	sCoins, err := Coins(cur, send, chain.Coins{})
+	natSend := banker.OriginSend()
+	grc20Send := chain.NewCoins(chain.NewCoin("/grc20/"+fqName, amount))
+	sCoins, err := Coins(cur, natSend, grc20Send)
 	if err != nil {
 		panic(err)
 	}
+	// XXX: support multiple initial GRC20 tokens
 	if !coinsHasPositive(sCoins) || lessCoinsThan(sCoins, svc.price) {
 		panic("initial deposit must be positive and at least the service price")
 	}
@@ -42,6 +45,9 @@ func Subscribe(cur realm, serviceName string) {
 	svc.subscribers.Set(creator.String(), sub)
 }
 
+// Unsubscribe allows a user to unsubscribe from a service by providing the service name
+// It refunds any remaining balance after deducting due amounts to the service owner
+// - serviceName: the name of the service to unsubscribe from
 func Unsubscribe(cur realm, serviceName string) {
 	creator := runtime.PreviousRealm().Address()
 	svc := mustGetServiceByName(serviceName)
@@ -50,7 +56,7 @@ func Unsubscribe(cur realm, serviceName string) {
 	}
 	subValue, _ := svc.subscribers.Get(creator.String())
 	sub := subValue.(*subscription)
-	due := sub.dueAmount(svc.renewalPeriod, svc.price)
+	due, _ := sub.dueAmount(svc.renewalPeriod, svc.price)
 	if coinsHasPositive(due) {
 		sendCoins(svc.owner.Owner(), due)
 	}
@@ -61,69 +67,46 @@ func Unsubscribe(cur realm, serviceName string) {
 	svc.subscribers.Remove(creator.String())
 }
 
-func TopupNative(cur realm, serviceName string) {
-	creator := runtime.PreviousRealm().Address()
-
-	runtime.AssertOriginCall()
-
-	send := banker.OriginSend()
-	if !coinsHasPositive(send) {
-		panic("topup amount must be positive")
-	}
-	for i := range send {
-		send[i].Denom = "/native/" + send[i].Denom
-	}
-
+// Topup allows a user to top up their subscription balance using native coins or GRC20 tokens
+// - serviceName: the name of the service to top up
+// - fqName: the fully qualified name of the GRC20 token to use for top up (empty string for native coins)
+// - amount: the amount of GRC20 tokens to deposit (0 for native coins)
+func Topup(cur realm, serviceName string, fqName string, amount int64) {
 	svc := mustGetServiceByName(serviceName)
-	if !svc.subscribers.Has(creator.String()) {
+	if !svc.subscribers.Has(runtime.PreviousRealm().Address().String()) {
 		panic("not subscribed")
 	}
-	subValue, _ := svc.subscribers.Get(creator.String())
-	sub := subValue.(*subscription)
-	sub.balance = addCoins(sub.balance, send)
+	subRaw, _ := svc.subscribers.Get(runtime.PreviousRealm().Address().String())
+	sub := subRaw.(*subscription)
+	_, active := sub.dueAmount(svc.renewalPeriod, svc.price)
+	native := banker.OriginSend()
+	if coinsHasPositive(native) {
+		topupNative(cur, serviceName)
+	}
+	if amount != 0 {
+		topupGRC20(cur, serviceName, fqName, amount)
+	}
+	// XXX: reset subscription if it was inactive and now has enough balance
+	if !active && !lessCoinsThan(sub.balance, svc.price) {
+		sub.startedAt = time.Now()
+		sub.lastChargedAt = time.Now()
+		sub.initialPaid = false
+	}
 }
 
-func TopupGRC20(cur realm, serviceName string, fqName string, amount int64) {
-	token := grc20reg.MustGet(fqName)
-	if token == nil {
-		panic(errors.New("token not found: " + fqName))
-	}
-	creator := runtime.PreviousRealm().Address()
-	send := chain.NewCoins(chain.NewCoin("/grc20/"+fqName, amount))
-
-	anyAmount := amount == -1
-	if !anyAmount && amount <= 0 {
-		panic("topup amount must be positive or -1 for max")
-	}
-
-	if anyAmount {
-		amount = int64(token.Allowance(creator, runtime.CurrentRealm().Address()))
-	}
-
-	teller := token.RealmTeller()
-	if err := teller.TransferFrom(creator, runtime.CurrentRealm().Address(), amount); err != nil {
-		panic(err)
-	}
-
-	svc := mustGetServiceByName(serviceName)
-	if !svc.subscribers.Has(creator.String()) {
-		panic("not subscribed")
-	}
-	subValue, _ := svc.subscribers.Get(creator.String())
-	sub := subValue.(*subscription)
-	sub.balance = addCoins(sub.balance, send)
-}
-
+// Withdraw allows a user to withdraw available balance from their subscription
+// - serviceName: the name of the service to withdraw from
+// - denom: the denomination of the coin to withdraw
+// - amount: the amount of the coin to withdraw
 func Withdraw(cur realm, serviceName string, denom string, amount int64) {
 	creator := runtime.PreviousRealm().Address()
 	svc := mustGetServiceByName(serviceName)
 	if !svc.subscribers.Has(creator.String()) {
 		panic("not subscribed")
 	}
-	// When withdrawing it's important to withdraw only the available balance so without the due amount
 	subValue, _ := svc.subscribers.Get(creator.String())
 	sub := subValue.(*subscription)
-	due := sub.dueAmount(svc.renewalPeriod, svc.price)
+	due, _ := sub.dueAmount(svc.renewalPeriod, svc.price)
 	available := subCoins(sub.balance, due)
 	withdraw := chain.NewCoins(chain.NewCoin(denom, amount))
 	if lessCoinsThan(available, withdraw) {
@@ -133,12 +116,12 @@ func Withdraw(cur realm, serviceName string, denom string, amount int64) {
 	sendCoins(creator, withdraw)
 }
 
-// Helper to create through MsgCall with GNOT native token price.
-func NewServiceWithMonthlyRenewal(cur realm, displayName, description string, price uint64) {
-	coins := chain.NewCoins(chain.NewCoin("ugnot", int64(price)))
-	NewService(cur, displayName, description, 30*28*time.Hour, coins, chain.Coins{})
-}
-
+// NewService creates a new subscription service with the given parameters
+// - displayName: the name of the service
+// - description: a brief description of the service
+// - renewalPeriod: the duration between renewals
+// - native: the price of the service in native coins
+// - grc20: the price of the service in GRC20 tokens
 func NewService(cur realm, displayName, description string, renewalPeriod time.Duration, native chain.Coins, grc20 chain.Coins) {
 	// XXX: prefix with creator realm to avoid name clashes?
 	if services.Has(displayName) {
@@ -161,6 +144,8 @@ func NewService(cur realm, displayName, description string, renewalPeriod time.D
 	services.Set(displayName, svc)
 }
 
+// ServiceClaimVault allows the owner of a service to claim the funds in the service's vault
+// - displayName: the name of the service
 func ServiceClaimVault(cur realm, displayName string) {
 	svc := mustGetServiceByName(displayName)
 	svc.owner.AssertOwnedByPrevious()
