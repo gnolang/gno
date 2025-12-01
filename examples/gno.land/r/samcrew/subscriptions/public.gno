@@ -11,8 +11,8 @@ import (
 	"gno.land/p/nt/seqid"
 )
 
-var services *avl.Tree
-var users *avl.Tree
+var services *avl.Tree // key: displayName, value: *service
+var users *avl.Tree    // key: user address, value: avl.Tree of subscribed service names and empty struct{}
 var id seqid.ID
 
 // Subscribe allows a user to subscribe to a service by providing the service name
@@ -26,7 +26,10 @@ func Subscribe(cur realm, serviceName string, fqName string, amount int64) {
 		panic("already subscribed")
 	}
 	natSend := banker.OriginSend()
-	grc20Send := chain.NewCoins(chain.NewCoin("/grc20/"+fqName, amount))
+	grc20Send := chain.Coins{}
+	if amount != 0 {
+		grc20Send = chain.NewCoins(chain.NewCoin("/grc20/"+fqName, amount))
+	}
 	sCoins, err := Coins(cur, natSend, grc20Send)
 	if err != nil {
 		panic(err)
@@ -37,12 +40,22 @@ func Subscribe(cur realm, serviceName string, fqName string, amount int64) {
 	}
 	sub := &subscription{
 		serviceID:     svc.id,
-		balance:       sCoins,
+		vault:         sCoins,
 		startedAt:     time.Now(),
 		lastChargedAt: time.Now(),
 		initialPaid:   false,
 	}
 	svc.subscribers.Set(creator.String(), sub)
+
+	var userSubs *avl.Tree
+	userSubsRaw, ok := users.Get(creator.String())
+	if !ok {
+		userSubs = avl.NewTree()
+	} else {
+		userSubs = userSubsRaw.(*avl.Tree)
+	}
+	userSubs.Set(serviceName, struct{}{})
+	users.Set(creator.String(), userSubs)
 }
 
 // Unsubscribe allows a user to unsubscribe from a service by providing the service name
@@ -60,11 +73,18 @@ func Unsubscribe(cur realm, serviceName string) {
 	if coinsHasPositive(due) {
 		sendCoins(svc.owner.Owner(), due)
 	}
-	remaining := subCoins(sub.balance, due)
+	remaining := subCoins(sub.vault, due)
 	if coinsHasPositive(remaining) {
 		sendCoins(creator, remaining)
 	}
 	svc.subscribers.Remove(creator.String())
+
+	userSubsRaw, _ := users.Get(creator.String())
+	userSubs := userSubsRaw.(*avl.Tree)
+	userSubs.Remove(serviceName)
+	if userSubs.Size() == 0 {
+		users.Remove(creator.String())
+	}
 }
 
 // Topup allows a user to top up their subscription balance using native coins or GRC20 tokens
@@ -87,7 +107,7 @@ func Topup(cur realm, serviceName string, fqName string, amount int64) {
 		topupGRC20(cur, serviceName, fqName, amount)
 	}
 	// XXX: reset subscription if it was inactive and now has enough balance
-	if !active && !lessCoinsThan(sub.balance, svc.price) {
+	if !active && !lessCoinsThan(sub.vault, svc.price) {
 		sub.startedAt = time.Now()
 		sub.lastChargedAt = time.Now()
 		sub.initialPaid = false
@@ -107,12 +127,12 @@ func Withdraw(cur realm, serviceName string, denom string, amount int64) {
 	subValue, _ := svc.subscribers.Get(creator.String())
 	sub := subValue.(*subscription)
 	due, _ := sub.dueAmount(svc.renewalPeriod, svc.price)
-	available := subCoins(sub.balance, due)
+	available := subCoins(sub.vault, due)
 	withdraw := chain.NewCoins(chain.NewCoin(denom, amount))
 	if lessCoinsThan(available, withdraw) {
 		panic("insufficient available balance to withdraw")
 	}
-	sub.balance = subCoins(sub.balance, withdraw)
+	sub.vault = subCoins(sub.vault, withdraw)
 	sendCoins(creator, withdraw)
 }
 
