@@ -2205,8 +2205,6 @@ func (m *Machine) PushForPointer(lx Expr) {
 		m.PushExpr(lx)
 		m.PushOp(OpEval)
 	default:
-		// m.Lastline = m.PeekExpr(1).GetLine()
-		// fmt.Println("===set lastline, lx: ", m.Lastline, lx)
 		panic(fmt.Sprintf(
 			"illegal assignment X expression type %v",
 			reflect.TypeOf(lx)))
