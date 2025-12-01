@@ -393,7 +393,7 @@ func (node *Node) TraverseByOffset(offset, limit int, ascending bool, leavesOnly
 	}
 
 	// fast paths. these happen only if TraverseByOffset is called directly on a leaf.
-	if limit <= 0 || node.size <= offset {
+	if limit <= 0 || offset >= node.size {
 		return false
 	}
 	if node.IsLeaf() {
