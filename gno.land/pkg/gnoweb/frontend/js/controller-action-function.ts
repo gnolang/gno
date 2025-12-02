@@ -142,6 +142,7 @@ export class ActionFunctionController extends BaseController {
 		const haveAllArgs = argNodes.every((arg) => arg.textContent !== "");
 		if (!haveAllArgs) {
 			resultTarget.textContent = "(enter param values)";
+			resultTarget.classList.remove("u-color-danger");
 			return;
 		}
 
@@ -154,6 +155,10 @@ export class ActionFunctionController extends BaseController {
 		// Fetch the qeval result from the remote and update the DOM.
 		const result = await this._fetchQEval(remoteTarget.textContent || "", data);
 		resultTarget.textContent = result;
+		resultTarget.classList.toggle(
+			"u-color-danger",
+			result.startsWith("Error:"),
+		);
 	}
 
 	// Fetch the qeval result from the remote
