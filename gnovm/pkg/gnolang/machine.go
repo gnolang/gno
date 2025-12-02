@@ -1656,7 +1656,6 @@ func (m *Machine) PushStmt(s Stmt) {
 	if debug {
 		m.Printf("+s %v\n", s)
 	}
-	m.Lastline = s.GetLine()
 	m.Stmts = append(m.Stmts, s)
 }
 
@@ -1714,7 +1713,6 @@ func (m *Machine) PopExpr() Expr {
 	if debug {
 		m.Printf("-x %v\n", x)
 	}
-	m.Lastline = x.GetLine()
 	m.Exprs = m.Exprs[:numExprs-1]
 	return x
 }

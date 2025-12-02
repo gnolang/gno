@@ -52,6 +52,7 @@ SelectStmt ->
 
 func (m *Machine) doOpExec(op Op) {
 	s := m.PeekStmt(1) // TODO: PeekStmt1()?
+	m.Lastline = s.GetLine()
 	if debug {
 		debug.Printf("PEEK STMT: %v\n", s)
 		debug.Printf("%v\n", m)

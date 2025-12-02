@@ -19,6 +19,7 @@ var (
 
 func (m *Machine) doOpEval() {
 	x := m.PeekExpr(1)
+	m.Lastline = x.GetLine()
 	if debug {
 		debug.Printf("EVAL: (%T) %v\n", x, x)
 	}
