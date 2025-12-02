@@ -61,7 +61,8 @@ UI - Help Function component
 </h2>
 <div class="c-stack">
   {{ range .Functions }}
-  <article class="b-action-function" data-controller="action-function" data-action-function-name-value="{{ .Name }}" data-action-function-pkgpath-value="{{ $.PkgPath }}">
+  <article class="b-action-function" data-controller="action-function" data-action-function-name-value="{{ .Name }}"
+    data-action-function-pkgpath-value="{{ $.PkgPath }}">
     <header>
       <span class="title">
         <h2 id="func-{{ .Name }}">
@@ -147,7 +148,7 @@ UI - Help Function component
     </form>
     <div>
       <h3 class="title">Command</h3>
-      <div class="b-code">
+      <div class="b-code u-mb-2">
         <button data-controller="copy" data-action="click->copy#copy"
           data-copy-remote-value="action-function-{{ .Name }}" data-copy-clean-value class="btn-copy"
           aria-label="Copy Command">
@@ -155,7 +156,7 @@ UI - Help Function component
         </button>
         {{/* prettier-ignore-start */}}
         {{ if .Crossing }}
-          <pre><code><span data-action-function-target="mode" data-action-function-mode-value="fast" class="u-hidden" data-copy-target="action-function-{{ .Name }}"># WARNING: This command is running in an INSECURE mode.
+        <pre><code><span data-action-function-target="mode" data-action-function-mode-value="fast" class="u-hidden" data-copy-target="action-function-{{ .Name }}"># WARNING: This command is running in an INSECURE mode.
 # It is strongly recommended to use a hardware device for signing
 # and avoid trusting any computer connected to the internet,
 # as your private keys could be exposed.
@@ -165,13 +166,19 @@ gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .Name }}"{{ range .Param
 gnokey sign -tx-path call.tx -chainid "{{ $.ChainId }}" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-action-function-target="address">ADDRESS</span>
 gnokey broadcast -remote "{{ $.Remote }}" call.tx</span></code></pre>
         {{ else }}
-          <pre><code><span data-copy-target="action-function-{{ .Name }}">gnokey query vm/qeval -remote "<span data-action-function-target="remote">{{ $.Remote }}</span>" -data "{{ $.PkgPath }}.{{ .Name }}({{ range $i, $p := .Params }}{{ if gt $i 0 }},{{ end }}<span data-action-function-target="arg" data-action-function-arg-value="{{ $p.Name }}"></span>{{ end }})"</span>
-Result:
-<span data-action-function-target="qeval-result"></span></code></pre>  
+        <pre><code><span data-copy-target="action-function-{{ .Name }}">gnokey query vm/qeval -remote "<span data-action-function-target="remote">{{ $.Remote }}</span>" -data "{{ $.PkgPath }}.{{ .Name }}({{ range $i, $p := .Params }}{{ if gt $i 0 }},{{ end }}<span data-action-function-target="arg" data-action-function-arg-value="{{ $p.Name }}"></span>{{ end }})"</span></code></pre>
         {{ end }}
         {{/* prettier-ignore-end */}}
       </div>
     </div>
+    {{ if not .Crossing }}
+    <div class="b-action-result">
+      <h3 class="title">Result</h3>
+      <div class="b-code">
+        <pre><code><span data-action-function-target="qeval-result"></span></code></pre>
+      </div>
+    </div>
+    {{ end }}
   </article>
   {{ end }}
 </div>

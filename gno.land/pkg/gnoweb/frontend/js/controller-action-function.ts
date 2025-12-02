@@ -88,20 +88,23 @@ export class ActionFunctionController extends BaseController {
 			const { paramName, paramValue } = this._sanitizeArgsInput(
 				paramInput as HTMLInputElement,
 			);
-			if (paramName) this._pushArgsInDOM(paramName, paramValue);
+			if (paramName) this._updateArgInDOM(paramName, paramValue);
 		});
 	}
 
-	// debounced update all args
+	// debounced update all args and update the qeval result
 	private _debouncedUpdateAllArgs = debounce(
 		(paramName: string, paramValue: string) => {
-			if (paramName) this._pushArgsInDOM(paramName, paramValue);
+			if (paramName) {
+				this._updateArgInDOM(paramName, paramValue);
+				this._updateQEvalResult();
+			}
 		},
 		50,
 	);
 
 	// push args in DOM (in func code)
-	private _pushArgsInDOM(paramName: string, paramValue: string): void {
+	private _updateArgInDOM(paramName: string, paramValue: string): void {
 		const escapedValue = escapeShellSpecialChars(paramValue);
 
 		// Update args elements with the new parameter value
@@ -123,58 +126,48 @@ export class ActionFunctionController extends BaseController {
 			u.searchParams.set(paramName, paramValue);
 			functionLink.href = u.toString();
 		}
-
-		this._updateQEvalResult();
 	}
 
-	// Fetch the qeval result and update the "qeval-result" target.
+	// Update the qeval result
 	// If there is no "qeval-result" target, then do nothing.
-	private _updateQEvalResult(): void {
+	private async _updateQEvalResult(): Promise<void> {
 		const resultTarget = this.getTarget("qeval-result") as HTMLElement;
 		const remoteTarget = this.getTarget("remote") as HTMLElement;
-		if (!(resultTarget && remoteTarget)) {
-			// This is a crossing function
-			return;
-		}
 
-		let args = "";
-		let haveAllArgs = true;
-		for (const arg of this.getTargets("arg")) {
-			if (arg.textContent === "") {
-				haveAllArgs = false;
-				break;
-			}
-			if (args !== "") {
-				args += ",";
-			}
-			// Unescape
-			args += arg.textContent.replace(/\\(.)/g, "$1");
-		}
+		// If there is no resultTarget or remoteTarget, this is a crossing function.
+		if (!(resultTarget && remoteTarget)) return;
 
+		// If there are no args, then show the "(enter param values)" placeholder.
+		const argNodes = this.getTargets("arg");
+		const haveAllArgs = argNodes.every((arg) => arg.textContent !== "");
 		if (!haveAllArgs) {
 			resultTarget.textContent = "(enter param values)";
 			return;
 		}
 
+		// Build the data string for the qeval query.
+		const args = argNodes
+			.map((arg) => (arg.textContent as string).replace(/\\(.)/g, "$1"))
+			.join(",");
 		const data = `${this._pkgPath}.${this._funcName}(${args})`;
-		fetch(
-			`http://${remoteTarget.textContent}/abci_query?path=vm%2fqeval&data=${btoa(data)}`,
-		)
-			.then(async (response) => {
-				if (response.ok) {
-					const result = (await response.json()).result.response.ResponseBase;
-					if (result.Data) {
-						resultTarget.textContent = atob(result.Data);
-					} else {
-						resultTarget.textContent = `Error: ${result.Error.value}`;
-					}
-				} else {
-					resultTarget.textContent = "";
-				}
-			})
-			.catch((_e) => {
-				resultTarget.textContent = "";
-			});
+
+		// Fetch the qeval result from the remote and update the DOM.
+		const result = await this._fetchQEval(remoteTarget.textContent || "", data);
+		resultTarget.textContent = result;
+	}
+
+	// Fetch the qeval result from the remote
+	private async _fetchQEval(remote: string, data: string): Promise<string> {
+		try {
+			const url = `http://${remote}/abci_query?path=vm%2fqeval&data=${btoa(data)}`;
+			const response = await fetch(url);
+			if (!response.ok) return "";
+
+			const result = (await response.json()).result.response.ResponseBase;
+			return result.Data ? atob(result.Data) : `Error: ${result.Error.value}`;
+		} catch {
+			return "";
+		}
 	}
 
 	// DOM ACTIONS
