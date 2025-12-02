@@ -118,7 +118,5 @@ func (vm *VMKeeper) getSysNamesPkgParam(ctx sdk.Context) string {
 }
 
 func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
-	// fmt.Printf("===vm WillSetParam, key: %s, value: %v\n", key, value)
-	// gno.PrintCaller(2, 5)
 	// XXX validate input?
 }

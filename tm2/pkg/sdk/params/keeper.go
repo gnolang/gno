@@ -241,6 +241,7 @@ func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr any) {
 func (pk ParamsKeeper) set(ctx sdk.Context, key string, value any) {
 	module, rawKey := parsePrefix(key)
 
+	// XXX, ok to not module registered?
 	if !pk.IsRegistered(module) {
 		panic(fmt.Sprintf("module name <%s> not registered", module))
 	}
