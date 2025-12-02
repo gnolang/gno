@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestParamsKeeper(t *testing.T) {
+func TestParamsKeeperFail(t *testing.T) {
 	env := setupTestEnv()
 	params := NewSDKParams(env.vmk.prmk, env.ctx)
 
@@ -62,6 +62,58 @@ func TestParamsKeeper(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			require.PanicsWithValue(t, tc.expectedMsg, tc.setFunc, "The panic message did not match the expected value")
+		})
+	}
+}
+
+func TestParamsKeeperSuccess(t *testing.T) {
+	env := setupTestEnv()
+	params := NewSDKParams(env.vmk.prmk, env.ctx)
+
+	testCases := []struct {
+		name     string
+		setFunc  func()
+		testFunc func(t *testing.T)
+	}{
+		{
+			name: "string test",
+			setFunc: func() {
+				params.SetString("vm:p", "foo")
+			},
+			testFunc: func(t *testing.T) {
+				var actual string
+				params.pmk.GetString(env.ctx, "vm:p", &actual)
+				require.Equal(t, "foo", actual)
+			},
+		},
+		{
+			name: "int64 test",
+			setFunc: func() {
+				params.SetInt64("vm:p", int64(1))
+			},
+			testFunc: func(t *testing.T) {
+				var actual int64
+				params.pmk.GetInt64(env.ctx, "vm:p", &actual)
+				require.Equal(t, int64(1), actual)
+			},
+		},
+		{
+			name: "string test",
+			setFunc: func() {
+				params.SetString("auth:p1", "foo")
+			},
+			testFunc: func(t *testing.T) {
+				var actual string
+				params.pmk.GetString(env.ctx, "auth:p1", &actual)
+				require.Equal(t, "foo", actual)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.setFunc()
+			tc.testFunc(t)
 		})
 	}
 }

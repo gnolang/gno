@@ -240,12 +240,16 @@ func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr any) {
 
 func (pk ParamsKeeper) set(ctx sdk.Context, key string, value any) {
 	module, rawKey := parsePrefix(key)
-	if module != "" {
-		kpr := pk.GetRegisteredKeeper(module)
-		if kpr != nil {
-			kpr.WillSetParam(ctx, rawKey, value)
-		}
+
+	if !pk.IsRegistered(module) {
+		panic(fmt.Sprintf("module name <%s> not registered", module))
 	}
+
+	kpr := pk.GetRegisteredKeeper(module)
+	if kpr != nil {
+		kpr.WillSetParam(ctx, rawKey, value)
+	}
+
 	stor := ctx.Store(pk.key)
 	bz := amino.MustMarshalJSON(value)
 	stor.Set(storeKey(key), bz)
