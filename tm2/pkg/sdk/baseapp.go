@@ -407,6 +407,32 @@ func (app *BaseApp) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 	}
 }
 
+// NewQueryContext creates a read-only Context for the given height.
+// If the height provided is 0, it uses the latest height (as genesis is unfetchable)
+func (app *BaseApp) NewQueryContext(height int64) (Context, error) {
+	if height == 0 {
+		height = app.LastBlockHeight()
+	}
+
+	// Load read-only snapshot
+	cacheMS, err := app.cms.MultiImmutableCacheWrapWithVersion(height)
+	if err != nil {
+		return Context{}, fmt.Errorf(
+			"failed to load state at height %d (latest: %d): %w",
+			height, app.LastBlockHeight(), err,
+		)
+	}
+
+	ctx := NewContext(
+		RunTxModeCheck,
+		cacheMS,
+		app.checkState.ctx.BlockHeader(),
+		app.logger,
+	).WithMinGasPrices(app.minGasPrices)
+
+	return ctx, nil
+}
+
 func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abci.ResponseQuery) {
 	if len(path) >= 2 {
 		var result Result

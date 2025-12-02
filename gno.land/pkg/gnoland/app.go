@@ -34,6 +34,23 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
+// App wraps the TM2 base-app, and the Gnoland keepers
+type App struct {
+	*sdk.BaseApp
+
+	vmKeeper vm.VMKeeperI
+}
+
+// NewQueryContext creates a new app query context (read-only)
+func (a *App) NewQueryContext(h int64) (sdk.Context, error) {
+	return a.BaseApp.NewQueryContext(h)
+}
+
+// VMKeeper returns the VM keeper associated with the app
+func (a *App) VMKeeper() vm.VMKeeperI {
+	return a.vmKeeper
+}
+
 // AppOptions contains the options to create the gno.land ABCI application.
 type AppOptions struct {
 	DB                         dbm.DB             // required
@@ -208,7 +225,13 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	vmk.Initialize(cfg.Logger, ms)
 	ms.MultiWrite() // XXX why was't this needed?
 
-	return baseApp, nil
+	// Wrap the app
+	app := &App{
+		BaseApp:  baseApp,
+		vmKeeper: vmk,
+	}
+
+	return app, nil
 }
 
 // GenesisAppConfig wraps the most important
