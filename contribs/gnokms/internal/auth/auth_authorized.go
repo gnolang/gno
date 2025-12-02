@@ -168,18 +168,25 @@ func execAuthAuthorizedList(authRawCfg *authRawFlags, io commands.IO) error {
 	}
 
 	// Print the authorized keys.
-	if len(authKeysFile.ClientAuthorizedKeys) == 0 && !authRawCfg.raw {
-		io.Printfln("No authorized keys found.")
-	} else if len(authKeysFile.ClientAuthorizedKeys) > 0 {
-		if authRawCfg.raw {
-			for _, authorizedKey := range authKeysFile.ClientAuthorizedKeys {
-				io.Printfln("%s", authorizedKey)
-			}
-		} else {
-			io.Printfln("Authorized keys:")
-			for _, authorizedKey := range authKeysFile.ClientAuthorizedKeys {
-				io.Printfln("- %s", authorizedKey)
-			}
+	keys := authKeysFile.ClientAuthorizedKeys
+
+	// Handle empty list.
+	if len(authKeysFile.ClientAuthorizedKeys) == 0 {
+		if !authRawCfg.raw {
+			io.Printfln("No authorized keys found.")
+		}
+		return nil
+	}
+
+	// Print keys based on output mode.
+	if authRawCfg.raw {
+		for _, key := range keys {
+			io.Printfln("%s", key)
+		}
+	} else {
+		io.Printfln("Authorized keys:")
+		for _, key := range keys {
+			io.Printfln("- %s", key)
 		}
 	}
 
