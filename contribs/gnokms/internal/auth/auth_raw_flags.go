@@ -11,15 +11,11 @@ type authRawFlags struct {
 	raw  bool
 }
 
-var defaultAuthRawFlags = &authRawFlags{
-	raw: false,
-}
-
 func (f *authRawFlags) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&f.raw,
 		"raw",
-		defaultAuthRawFlags.raw,
+		false,
 		"output raw values, without descriptions",
 	)
 }
