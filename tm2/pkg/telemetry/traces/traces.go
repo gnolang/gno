@@ -10,25 +10,20 @@ import (
 	"go.opentelemetry.io/otel/trace/noop"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdkTrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
-
-var provider *sdkTrace.TracerProvider
-var tracer trace.Tracer = noop.NewTracerProvider().Tracer("")
+var (
+	provider *sdkTrace.TracerProvider
+	tracer trace.Tracer = noop.NewTracerProvider().Tracer("")
+	ctx, cancel = context.WithCancel(context.Background())
+)
 
 func Init(cfg config.Config) error {
-	if !cfg.TracesEnabled {
-		return nil
-	}
-	var (
-		ctx = context.Background()
-		exp sdkTrace.SpanExporter
-	)
+	var exp sdkTrace.SpanExporter
 
 	u, err := url.Parse(cfg.ExporterEndpoint)
 	if err != nil {
@@ -43,15 +38,6 @@ func Init(cfg config.Config) error {
 		)
 		if err != nil {
 			return fmt.Errorf("unable to create http traces exporter, %w", err)
-		}
-	case "grpc":
-		exp, err = otlptracegrpc.New(
-			ctx,
-			otlptracegrpc.WithEndpoint(u.Host),
-			otlptracegrpc.WithInsecure(),
-		)
-		if err != nil {
-			return fmt.Errorf("unable to create grpc metrics exporter, %w", err)
 		}
 	default:
 		return fmt.Errorf("unsupported scheme: %s", u.Scheme)
@@ -75,7 +61,8 @@ func Init(cfg config.Config) error {
 
 func Shutdown() {
 	if provider != nil {
-		provider.Shutdown(context.Background())
+		provider.Shutdown(ctx)
+		cancel()
 	}
 }
 

@@ -47,16 +47,27 @@ func Init(c config.Config) error {
 	// Update the global configuration
 	globalConfig = c
 
-	err := metrics.Init(c)
-	if err != nil {
-		return err
+	if c.MetricsEnabled {
+		err := metrics.Init(c)
+		if err != nil {
+			return err
+		}
 	}
-
-	return traces.Init(c)
+	if c.TracesEnabled {
+		err := traces.Init(c)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Shutdown shuts down the global telemetry (metrics and traces)
 func Shutdown() {
-	metrics.Shutdown()
-	traces.Shutdown()
+	if globalConfig.MetricsEnabled {
+		metrics.Shutdown()
+	}
+	if globalConfig.TracesEnabled {
+		traces.Shutdown()
+	}
 }

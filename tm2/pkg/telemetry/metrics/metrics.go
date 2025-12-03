@@ -102,9 +102,6 @@ var (
 )
 
 func Init(config config.Config) error {
-	if !config.MetricsEnabled {
-		return nil
-	}
 	var (
 		ctx = context.Background()
 		exp sdkMetric.Exporter
