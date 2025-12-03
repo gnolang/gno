@@ -58,32 +58,31 @@ func (c BooleanChecker) ToBeTruthy() {
 	})
 }
 
-func formatBoolean(value bool) string {
-	return strconv.FormatBool(value)
-}
-
 func asBoolean(value any) (bool, error) {
 	if value == nil {
 		return false, nil
 	}
 
+	var s string
 	switch v := value.(type) {
 	case bool:
 		return v, nil
 	case string:
-		if v == "" {
-			return false, nil
-		}
-		return strconv.ParseBool(v)
+		s = v
 	case []byte:
-		return v != nil, nil
+		s = string(v)
 	case Stringer:
-		s := v.String()
-		if s == "" {
-			return false, nil
-		}
-		return strconv.ParseBool(v.String())
+		s = v.String()
 	default:
 		return false, ErrIncompatibleType
 	}
+
+	if s != "" {
+		return strconv.ParseBool(s)
+	}
+	return false, nil
+}
+
+func formatBoolean(value bool) string {
+	return strconv.FormatBool(value)
 }
