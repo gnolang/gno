@@ -24,7 +24,7 @@ func main() {
 }
 
 // Error:
-// main/cmp_iface_5.gno:19:5-23: int64 does not implement .uverse.error (missing method Error)
+// main/cmp_iface_5.gno:19:5-23: invalid operation: errCmp<VPBlock(4,1)> == (const (1 int64)) (mismatched types int64 and .uverse.error)
 
 // TypeCheckError:
 // main/cmp_iface_5.gno:19:15: invalid operation: errCmp == int64(1) (mismatched types error and int64)

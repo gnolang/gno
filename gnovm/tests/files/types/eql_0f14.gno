@@ -11,7 +11,7 @@ func main() {
 }
 
 // Error:
-// main/eql_0f14.gno:10:10-16: cannot use [2]string as [2]int
+// main/eql_0f14.gno:10:10-16: invalid operation: a<VPBlock(3,0)> == c<VPBlock(3,1)> (mismatched types [2]string and [2]int)
 
 // TypeCheckError:
 // main/eql_0f14.gno:10:15: invalid operation: a == c (mismatched types [2]string and [2]int)

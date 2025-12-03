@@ -734,7 +734,10 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 		case EQL, NEQ:
 			assertComparable(xt, dt)
 			if !isUntyped(xt) && !isUntyped(dt) {
-				assertAssignableTo(x, xt, dt)
+				err := checkAssignableTo(x, xt, dt)
+				if err != nil {
+					panic(fmt.Sprintf("invalid operation: %v (mismatched types %v and %v)", x, xt, dt))
+				}
 			}
 		case LSS, LEQ, GTR, GEQ:
 			if checker, ok := binaryChecker[x.Op]; ok {
