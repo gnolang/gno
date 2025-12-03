@@ -76,12 +76,9 @@ func (pk ParamsKeeper) ForModule(moduleName string) prefixParamsKeeper {
 	return ppk
 }
 
-func (pk ParamsKeeper) GetRegisteredKeeper(moduleName string) ParamfulKeeper {
-	rk, ok := pk.kprs[moduleName]
-	if !ok {
-		panic("keeper for module " + moduleName + " not registered")
-	}
-	return rk
+func (pk ParamsKeeper) GetRegisteredKeeper(moduleName string) (rk ParamfulKeeper, ok bool) {
+	rk, ok = pk.kprs[moduleName]
+	return
 }
 
 func (pk ParamsKeeper) Register(moduleName string, pmk ParamfulKeeper) {
@@ -241,14 +238,10 @@ func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr any) {
 func (pk ParamsKeeper) set(ctx sdk.Context, key string, value any) {
 	module, rawKey := parsePrefix(key)
 
-	// XXX, ok to not module registered?
-	if !pk.IsRegistered(module) {
-		panic(fmt.Sprintf("module name <%s> not registered", module))
-	}
-
-	kpr := pk.GetRegisteredKeeper(module)
-	if kpr != nil {
+	if kpr, ok := pk.GetRegisteredKeeper(module); ok {
 		kpr.WillSetParam(ctx, rawKey, value)
+	} else {
+		panic(fmt.Sprintf("module name <%s> not registered", module))
 	}
 
 	stor := ctx.Store(pk.key)
