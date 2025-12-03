@@ -16,10 +16,11 @@ import (
 	sdkTrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
+
 var (
-	provider *sdkTrace.TracerProvider
-	tracer trace.Tracer = noop.NewTracerProvider().Tracer("")
-	ctx, cancel = context.WithCancel(context.Background())
+	provider    *sdkTrace.TracerProvider
+	tracer      trace.Tracer = noop.NewTracerProvider().Tracer("")
+	ctx, cancel              = context.WithCancel(context.Background())
 )
 
 func Init(cfg config.Config) error {
