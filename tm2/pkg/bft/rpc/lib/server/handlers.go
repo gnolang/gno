@@ -130,7 +130,7 @@ func funcReturnTypes(f any) []reflect.Type {
 // jsonrpc calls grab the given method's function info and runs reflect.Call
 func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		_, span := traces.Tracer().Start(r.Context(), "makeJSONRPCHandler")
+		_, span := traces.Tracer().Start(r.Context(), traceMakeJSONRPCHandler)
 		defer span.End()
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -338,7 +338,7 @@ func makeHTTPHandler(rpcFunc *RPCFunc, logger *slog.Logger) http.HandlerFunc {
 	// All other endpoints
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Debug("HTTP HANDLER", "req", r)
-		_, span := traces.Tracer().Start(r.Context(), "makeHTTPHandler")
+		_, span := traces.Tracer().Start(r.Context(), traceMakeHTTPHandler)
 		defer span.End()
 
 		ctx := &types.Context{HTTPReq: r}
