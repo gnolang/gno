@@ -81,6 +81,7 @@ func TestParamsKeeperSuccess(t *testing.T) {
 				params.SetString("vm:p", "foo")
 			},
 			testFunc: func(t *testing.T) {
+				t.Helper()
 				var actual string
 				params.pmk.GetString(env.ctx, "vm:p", &actual)
 				require.Equal(t, "foo", actual)
@@ -92,6 +93,7 @@ func TestParamsKeeperSuccess(t *testing.T) {
 				params.SetInt64("vm:p", int64(1))
 			},
 			testFunc: func(t *testing.T) {
+				t.Helper()
 				var actual int64
 				params.pmk.GetInt64(env.ctx, "vm:p", &actual)
 				require.Equal(t, int64(1), actual)
@@ -103,6 +105,7 @@ func TestParamsKeeperSuccess(t *testing.T) {
 				params.SetString("auth:p1", "foo")
 			},
 			testFunc: func(t *testing.T) {
+				t.Helper()
 				var actual string
 				params.pmk.GetString(env.ctx, "auth:p1", &actual)
 				require.Equal(t, "foo", actual)
