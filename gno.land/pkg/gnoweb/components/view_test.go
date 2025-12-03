@@ -6,10 +6,8 @@ import (
 	"testing"
 
 	ti "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/tocitem"
-	"github.com/stretchr/testify/assert"
-
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSourceView(t *testing.T) {
@@ -220,7 +218,7 @@ func TestRealmViewTOCXSSPrevention(t *testing.T) {
 			// Create a RealmView with potentially malicious TOC item
 			content := NewReaderComponent(strings.NewReader("test content"))
 			tocItems := &RealmTOCData{
-				Items: []*markdown.TocItem{
+				Items: []*ti.TocItem{
 					{Title: tt.tocTitle, ID: tt.tocID},
 				},
 			}

@@ -411,10 +411,8 @@ Create a form using the ±<gno-form>± tag and add inputs with ±<gno-input>±:
    - Must start with ±<gno-form>± and end with ±</gno-form>±
    - Optional attributes:
      - ±path±: Render path after form submission (e.g. ±path="user"± will redirect to ±:user?[params]±)
-     - ±exec±: Specifies the function name to execute (e.g. ±exec="CreatePost"±).
-       When set, a command preview is displayed with the gnokey command to execute.
-       Fields must be defined manually using ±<gno-input>±, ±<gno-textarea>±, or ±<gno-select>±.
-       **Important**: Fields must be defined in the same order as the function parameters.
+     - ±exec±: Specify a realm function to execute (e.g. ±exec="CreatePost"±).
+       When set, fields must be defined manually and their ±name± attributes must match the function's parameter names in the same order they appear in the function signature.
    - Form data is always sent as query parameters
    - Cannot be nested (forms inside forms are not allowed)
    - Automatically includes a header showing the realm name
@@ -629,19 +627,21 @@ This example shows how to combine all form element types in a single form.
   <gno-textarea name="bio" placeholder="Short bio" rows="4" value="Super builder" />
 </gno-form>
 
-9. Exec Form with Command Preview
-When using the ±exec± attribute, the form displays a command preview showing the gnokey command needed to execute the function. Fields must be defined manually.
+9. Exec Form with Manual Fields
+When using the ±exec± attribute, a command preview appears for the specified function. You must manually define form fields whose ±name± attributes match the function's parameter names, placed in the same order as they appear in the function signature.
 
 ±±±markdown
 <gno-form exec="CreatePost">
-  <gno-input name="title" placeholder="Post title" description="Create a new post" />
-  <gno-textarea name="content" placeholder="Write your content here" rows="5" />
+  <gno-input name="title" type="text" placeholder="Post title" />
+  <gno-textarea name="content" rows="5" placeholder="Post content"></gno-textarea>
+  <gno-input name="tags" type="text" placeholder="Comma-separated tags" />
 </gno-form>
 ±±±
 
 <gno-form exec="CreatePost">
-  <gno-input name="title" placeholder="Post title" description="Create a new post" />
-  <gno-textarea name="content" placeholder="Write your content here" rows="5" />
+  <gno-input name="title" type="text" placeholder="Post title" />
+  <gno-textarea name="content" rows="5" placeholder="Post content"></gno-textarea>
+  <gno-input name="tags" type="text" placeholder="Comma-separated tags" />
 </gno-form>
 
 The command preview shows the full gnokey command with placeholders for each field value.
