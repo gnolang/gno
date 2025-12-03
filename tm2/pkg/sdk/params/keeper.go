@@ -149,6 +149,10 @@ func (pk ParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64) {
 }
 
 func (pk ParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) {
+	if value == nil {
+		ctx.Store(pk.key).Delete(storeKey(key))
+		return
+	}
 	ctx.Store(pk.key).Set(storeKey(key), value)
 }
 
