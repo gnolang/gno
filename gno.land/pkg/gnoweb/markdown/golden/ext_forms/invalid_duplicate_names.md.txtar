@@ -18,11 +18,11 @@
 </div>
 <!-- Error: &#34;duplicate&#34;: name already used -->
 <div class="gno-form_selectable">
-<input type="radio" id="radio1_2" name="radio1" value="option1"  />
+<input type="radio" id="radio1_2" name="radio1" value="option1" />
 <label for="radio1_2"> option1 - Radio 1 </label>
 </div>
 <div class="gno-form_selectable">
-<input type="radio" id="radio1_3" name="radio1" value="option2"  />
+<input type="radio" id="radio1_3" name="radio1" value="option2" />
 <label for="radio1_3"> option2 - Radio 2 </label>
 </div>
 <!-- Error: &#34;duplicate&#34;: name already used -->
