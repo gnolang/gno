@@ -139,6 +139,8 @@ func (dao *CommonDAO) Propose(creator address, d ProposalDefinition) (*Proposal,
 		return nil, ErrOverflow
 	}
 
+	// doesn't check if the prop creator is a dao member? i assume it's left  to the user of the p/ to define the behavior?
+
 	p, err := NewProposal(uint64(id), creator, d)
 	if err != nil {
 		return nil, err
