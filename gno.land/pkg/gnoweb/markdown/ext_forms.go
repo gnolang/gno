@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
-	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
@@ -33,14 +32,12 @@ const (
 
 // Form-specific errors
 var (
-	ErrFormInvalidTag        = errors.New("unexpected or invalid tag")
-	ErrFormMissingName       = errors.New("missing 'name' attribute")
-	ErrFormInvalidInputType  = errors.New("invalid input type")
-	ErrFormDuplicateName     = errors.New("name already used")
-	ErrFormInvalidAttribute  = errors.New("invalid attribute for input type")
-	ErrFormMissingValue      = errors.New("missing 'value' attribute")
-	ErrFormParameterNotFound = errors.New("parameter not found in function")
-	ErrFormUnsupportedType   = errors.New("unsupported parameter type")
+	ErrFormInvalidTag       = errors.New("unexpected or invalid tag")
+	ErrFormMissingName      = errors.New("missing 'name' attribute")
+	ErrFormInvalidInputType = errors.New("invalid input type")
+	ErrFormDuplicateName    = errors.New("name already used")
+	ErrFormInvalidAttribute = errors.New("invalid attribute for input type")
+	ErrFormMissingValue     = errors.New("missing 'value' attribute")
 )
 
 var (
@@ -142,7 +139,7 @@ func (e FormSelect) String() string {
 type FormNode struct {
 	ast.BaseBlock
 	Elements   []FormElement
-	Exec       *vm.FunctionSignature
+	ExecFunc   string // Function name for exec attribute
 	RenderPath string
 	RealmName  string
 	ChainId    string
@@ -214,14 +211,7 @@ func (p *FormParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 
 	// Handle exec attribute
 	if exec, ok := ExtractAttr(tok.Attr, "exec"); ok {
-		if sigGetter, ok := getRealmFuncsGetterFromContext(pc); ok {
-			sig, err := sigGetter(exec)
-			if err != nil || sig == nil {
-				node.Error = ErrFormInvalidTag
-			} else {
-				node.Exec = sig
-			}
-		}
+		node.ExecFunc = exec
 	}
 
 	return node, parser.Continue
@@ -435,13 +425,13 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 
 	// Render form opening
 	fmt.Fprintf(w, `<form class="gno-form" method="post" action="%s" autocomplete="off" spellcheck="false"`, HTMLEscapeString(action))
-	if n.Exec != nil {
+	if n.ExecFunc != "" {
 		fmt.Fprintf(w, ` data-controller="form-exec"`)
 	}
 	fmt.Fprintf(w, `>`+"\n")
 	headerLabel := "Form"
-	if n.Exec != nil {
-		headerLabel = fmt.Sprintf("Exec: %s", HTMLEscapeString(titleCase(n.Exec.FuncName)))
+	if n.ExecFunc != "" {
+		headerLabel = fmt.Sprintf("Exec: %s", HTMLEscapeString(titleCase(n.ExecFunc)))
 	}
 	fmt.Fprintf(w, `<div class="gno-form_header">
 <span><span class="font-bold">%s</span> %s</span>
@@ -449,8 +439,8 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 </div>
 `, HTMLEscapeString(n.RealmName), headerLabel, HTMLEscapeString(n.RealmName))
 
-	if n.Exec != nil {
-		fmt.Fprintf(w, `<div data-controller="action-function" data-action-function-name-value="%s">`+"\n", HTMLEscapeString(n.Exec.FuncName))
+	if n.ExecFunc != "" {
+		fmt.Fprintf(w, `<div data-controller="action-function" data-action-function-name-value="%s">`+"\n", HTMLEscapeString(n.ExecFunc))
 	}
 
 	// Track select elements that have been rendered
@@ -466,7 +456,7 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 
 		switch e := elem.(type) {
 		case FormInput:
-			r.renderInput(w, e, i, &lastDescID, n.Exec != nil)
+			r.renderInput(w, e, i, &lastDescID, n.ExecFunc != "")
 		case FormTextarea:
 			r.renderTextarea(w, e, i, &lastDescID)
 		case FormSelect:
@@ -479,9 +469,9 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 
 	// Submit button
 	if len(n.Elements) > 0 {
-		if n.Exec != nil {
+		if n.ExecFunc != "" {
 			fmt.Fprintf(w, `<div class="gno-form_input"><input type="submit" value="Submit (%s Function)" /></div>`+"\n",
-				HTMLEscapeString(titleCase(n.Exec.FuncName)))
+				HTMLEscapeString(titleCase(n.ExecFunc)))
 		} else {
 			fmt.Fprintf(w, `<div class="gno-form_input"><input type="submit" value="Submit to %s Realm" /></div>`+"\n",
 				HTMLEscapeString(n.RealmName))
@@ -489,7 +479,7 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 	}
 
 	// Add command block if we have an exec function
-	if n.Exec != nil {
+	if n.ExecFunc != "" {
 		fmt.Fprintf(w, `<div class="command u-hidden" data-form-exec-target="command">`)
 		// Add mode and address controls if we have an exec function
 		fmt.Fprintf(w, `<div data-controller="action-header" class="c-between">
@@ -507,7 +497,7 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
       <input type="text" data-action-header-target="address" data-action="input->action-header#updateAddress" id="form-address-%s" class="u-font-mono" placeholder="ADDRESS" />
     </div>
   </div>
-</div>`, HTMLEscapeString(n.Exec.FuncName), HTMLEscapeString(n.Exec.FuncName))
+</div>`, HTMLEscapeString(n.ExecFunc), HTMLEscapeString(n.ExecFunc))
 		r.renderCommandBlock(w, n)
 		fmt.Fprintln(w, `</div>`)
 		fmt.Fprintln(w, `</div>`)
@@ -529,16 +519,22 @@ func (r *FormRenderer) renderCommandBlock(w util.BufWriter, n *FormNode) {
 		remote = "127.0.0.1:26657"
 	}
 
-	// Extract parameter names
-	paramNames := make([]string, len(n.Exec.Params))
-
-	for i, param := range n.Exec.Params {
-		paramNames[i] = param.Name
+	// Extract parameter names from manually defined form elements
+	paramNames := make([]string, 0)
+	for _, elem := range n.Elements {
+		if elem.GetError() != nil {
+			continue // Skip elements with errors
+		}
+		// Get the name from each form element
+		name := elem.GetName()
+		if name != "" {
+			paramNames = append(paramNames, name)
+		}
 	}
 
 	// Prepare data for the command template
 	data := components.CommandData{
-		FuncName:   n.Exec.FuncName,
+		FuncName:   n.ExecFunc,
 		PkgPath:    n.RealmName,
 		ParamNames: paramNames,
 		ChainId:    chainId,
@@ -660,91 +656,12 @@ func (r *FormRenderer) renderSelect(w util.BufWriter, elements []FormElement, e 
 </div>`)
 }
 
-// FormTransformer reorders form elements based on function signatures
-type FormTransformer struct{}
-
-func (t *FormTransformer) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
-	ast.Walk(doc, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
-		if !entering {
-			if formNode, ok := node.(*FormNode); ok && formNode.Exec != nil {
-				t.reorderElements(formNode)
-			}
-		}
-		return ast.WalkContinue, nil
-	})
-}
-
-func (t *FormTransformer) reorderElements(node *FormNode) {
-	newElements := make([]FormElement, 0, len(node.Elements))
-
-	// If user provided any fields, error them all out
-	if len(node.Elements) > 0 {
-		for _, elem := range node.Elements {
-			switch e := elem.(type) {
-			case FormInput:
-				e.Error = fmt.Errorf("manual fields not allowed when 'exec' is specified")
-				newElements = append(newElements, e)
-			case FormTextarea:
-				e.Error = fmt.Errorf("manual fields not allowed when 'exec' is specified")
-				newElements = append(newElements, e)
-			case FormSelect:
-				e.Error = fmt.Errorf("manual fields not allowed when 'exec' is specified")
-				newElements = append(newElements, e)
-			default:
-				newElements = append(newElements, elem)
-			}
-		}
-	}
-
-	// Generate fields for all function parameters
-	for _, param := range node.Exec.Params {
-		newElements = append(newElements, t.createDefaultElement(param))
-	}
-
-	node.Elements = newElements
-}
-
-func (t *FormTransformer) createDefaultElement(param vm.NamedType) FormElement {
-	placeholder := fmt.Sprintf("Enter %s", param.Name)
-
-	switch param.Type {
-	case "string":
-		return FormInput{
-			Name:        param.Name,
-			Type:        "text",
-			Placeholder: placeholder,
-		}
-	case "int", "int8", "int16", "int32", "int64",
-		"uint", "uint8", "uint16", "uint32", "uint64",
-		"float32", "float64":
-		return FormInput{
-			Name:        param.Name,
-			Type:        "number",
-			Placeholder: placeholder,
-		}
-	case "bool":
-		return FormInput{
-			Name:  param.Name,
-			Type:  "checkbox",
-			Value: "true",
-		}
-	default:
-		return FormInput{
-			Name:        param.Name,
-			Type:        "text",
-			Placeholder: fmt.Sprintf("Unsupported type: %s", param.Type),
-			Error:       fmt.Errorf("%w '%s' for parameter '%s'", ErrFormUnsupportedType, param.Type, param.Name),
-		}
-	}
-}
-
 // FormExtension integrates forms into goldmark
 type FormExtension struct{}
 
 func (e *FormExtension) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(
 		parser.WithBlockParsers(util.Prioritized(NewFormParser(), 500)),
-		parser.WithASTTransformers(util.Prioritized(&FormTransformer{}, 500)),
 	)
 	m.Renderer().AddOptions(
 		renderer.WithNodeRenderers(util.Prioritized(NewFormRenderer(), 500)),

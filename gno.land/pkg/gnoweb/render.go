@@ -1,21 +1,17 @@
 package gnoweb
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"log/slog"
 	gopath "path"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/alecthomas/chroma/v2"
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/lexers"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
-	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/yuin/goldmark"
 	markdown "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/parser"
@@ -65,40 +61,6 @@ func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ct
 	mdctx.GnoURL = u
 	mdctx.ChainId = ctx.ChainId
 	mdctx.Remote = ctx.Remote
-
-	var once sync.Once
-
-	// Create a lazy function to get funcs signature
-	mdctx.RealmFuncSigGetter = md.RealmFuncSigGetter(func(fn string) (*vm.FunctionSignature, error) {
-		var msigs map[string]*vm.FunctionSignature
-
-		var err error
-		once.Do(func() {
-			if r.client == nil {
-				r.logger.Warn("no client configured for fetching function signatures")
-				return
-			}
-
-			ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
-			defer cancel()
-
-			var sigs vm.FunctionSignatures
-			sigs, err = r.client.ListFuncs(ctx, u.Path)
-			if err != nil {
-				r.logger.Error("unable to fetch func signature lists", "path", u.Path, "err", err)
-				return
-			}
-
-			msigs = make(map[string]*vm.FunctionSignature)
-			for _, sig := range sigs {
-				msigs[sig.FuncName] = &sig
-			}
-		})
-		if err != nil {
-			return nil, err
-		}
-		return msigs[fn], err
-	})
 
 	pctx := md.NewGnoParserContext(mdctx)
 

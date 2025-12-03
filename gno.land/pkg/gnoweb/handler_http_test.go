@@ -17,7 +17,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
-	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -40,7 +39,6 @@ type stubClient struct {
 	docFunc       func(ctx context.Context, path string) (*doc.JSONDocumentation, error)
 	listFilesFunc func(ctx context.Context, path string) ([]string, error)
 	listPathsFunc func(ctx context.Context, prefix string, limit int) ([]string, error)
-	listFuncsFunc func(ctx context.Context, path string) (vm.FunctionSignatures, error)
 }
 
 func (s *stubClient) Realm(ctx context.Context, path, args string) ([]byte, error) {
@@ -76,13 +74,6 @@ func (s *stubClient) ListPaths(ctx context.Context, prefix string, limit int) ([
 		return s.listPathsFunc(ctx, prefix, limit)
 	}
 	return nil, errors.New("stubClient: ListPaths not implemented")
-}
-
-func (s *stubClient) ListFuncs(ctx context.Context, path string) (vm.FunctionSignatures, error) {
-	if s.listFuncsFunc != nil {
-		return s.listFuncsFunc(ctx, path)
-	}
-	return nil, errors.New("stubClient: ListFuncs not implemented")
 }
 
 type rawRenderer struct{}
