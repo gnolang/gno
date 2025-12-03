@@ -75,7 +75,7 @@ func TestParamsKeeperSuccess(t *testing.T) {
 		testFunc func(t *testing.T)
 	}{
 		{
-			name: "string test",
+			name: "string test module vm",
 			testFunc: func(t *testing.T) {
 				t.Helper()
 				params.SetString("vm:p", "foo")
@@ -86,7 +86,7 @@ func TestParamsKeeperSuccess(t *testing.T) {
 			},
 		},
 		{
-			name: "int64 test",
+			name: "int64 test module vm",
 			testFunc: func(t *testing.T) {
 				t.Helper()
 				params.SetInt64("vm:p", int64(1))
@@ -97,7 +97,7 @@ func TestParamsKeeperSuccess(t *testing.T) {
 			},
 		},
 		{
-			name: "string test",
+			name: "string test module auth",
 			testFunc: func(t *testing.T) {
 				t.Helper()
 				params.SetString("auth:p1", "foo")
@@ -109,7 +109,7 @@ func TestParamsKeeperSuccess(t *testing.T) {
 		},
 
 		{
-			name: "string test 2",
+			name: "string test module bank",
 			testFunc: func(t *testing.T) {
 				t.Helper()
 				params.SetString("bank:p1", "foo")
