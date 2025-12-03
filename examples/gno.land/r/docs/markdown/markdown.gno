@@ -411,8 +411,10 @@ Create a form using the ±<gno-form>± tag and add inputs with ±<gno-input>±:
    - Must start with ±<gno-form>± and end with ±</gno-form>±
    - Optional attributes:
      - ±path±: Render path after form submission (e.g. ±path="user"± will redirect to ±:user?[params]±)
-     - ±exec±: Auto-generate fields from a realm function signature (e.g. ±exec="Render"±).
-       When set, manual fields are not allowed; inputs are derived from the function parameters.
+     - ±exec±: Specifies the function name to execute (e.g. ±exec="CreatePost"±).
+       When set, a command preview is displayed with the gnokey command to execute.
+       Fields must be defined manually using ±<gno-input>±, ±<gno-textarea>±, or ±<gno-select>±.
+       **Important**: Fields must be defined in the same order as the function parameters.
    - Form data is always sent as query parameters
    - Cannot be nested (forms inside forms are not allowed)
    - Automatically includes a header showing the realm name
@@ -627,16 +629,55 @@ This example shows how to combine all form element types in a single form.
   <gno-textarea name="bio" placeholder="Short bio" rows="4" value="Super builder" />
 </gno-form>
 
-9. Exec-Generated Form
-When using the ±exec± attribute, the form inputs are automatically generated from the realm function signature, and a command preview appears. Manual fields are not allowed in this mode.
+9. Exec Form with Command Preview
+When using the ±exec± attribute, the form displays a command preview showing the gnokey command needed to execute the function. Fields must be defined manually.
 
 ±±±markdown
-<gno-form exec="Render">
+<gno-form exec="CreatePost">
+  <gno-input name="title" placeholder="Post title" description="Create a new post" />
+  <gno-textarea name="content" placeholder="Write your content here" rows="5" />
 </gno-form>
 ±±±
 
-<gno-form exec="Render">
+<gno-form exec="CreatePost">
+  <gno-input name="title" placeholder="Post title" description="Create a new post" />
+  <gno-textarea name="content" placeholder="Write your content here" rows="5" />
 </gno-form>
+
+The command preview shows the full gnokey command with placeholders for each field value.
+
+10. Exec Form with All Field Types
+Here's an example demonstrating all supported field types in a single exec form:
+
+±±±markdown
+<gno-form exec="CreateProfile">
+  <gno-input name="username" placeholder="Your username" description="Profile Information" />
+  <gno-input name="age" type="number" placeholder="Your age" />
+  <gno-textarea name="bio" placeholder="Tell us about yourself" rows="4" />
+  <gno-select name="country" value="USA" description="Select your country" />
+  <gno-select name="country" value="France" />
+  <gno-select name="country" value="Germany" />
+  <gno-input name="visibility" type="radio" value="public" description="Profile visibility" checked="true" />
+  <gno-input name="visibility" type="radio" value="private" />
+  <gno-input name="notifications" type="checkbox" value="email" description="Notifications" checked="true" />
+  <gno-input name="notifications" type="checkbox" value="sms" />
+</gno-form>
+±±±
+
+<gno-form exec="CreateProfile">
+  <gno-input name="username" placeholder="Your username" description="Profile Information" value="alice" />
+  <gno-input name="age" type="number" placeholder="Your age" />
+  <gno-textarea name="bio" placeholder="Tell us about yourself" rows="4" />
+  <gno-select name="country" value="USA" description="Select your country" />
+  <gno-select name="country" value="France" />
+  <gno-select name="country" value="Germany" />
+  <gno-input name="visibility" type="radio" value="public" description="Profile visibility" checked="true" />
+  <gno-input name="visibility" type="radio" value="private" />
+  <gno-input name="notifications" type="checkbox" value="email" description="Notifications" checked="true" />
+  <gno-input name="notifications" type="checkbox" value="sms" />
+</gno-form>
+
+All field types update the command preview in real-time as you interact with them.
 
 #### Important Rules
 

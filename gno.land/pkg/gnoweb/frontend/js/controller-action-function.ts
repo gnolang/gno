@@ -75,13 +75,49 @@ export class ActionFunctionController extends BaseController {
 		return { paramName, paramValue };
 	}
 
+	// get current value for a param name (handles checkbox multiple values)
+	private _getParamCurrentValue(paramName: string): string {
+		// radio or checkbox multiple values
+		const inputs = this.getTargets("param-input")
+			.filter((inp) => this.getValue("param", inp) === paramName)
+			.map((inp) => inp as HTMLInputElement);
+
+		if (!inputs.length) return "";
+
+		const firstInput = inputs[0];
+
+		// Checkbox: join all checked values
+		if (firstInput.type === "checkbox") {
+			return inputs
+				.filter((inp) => inp.checked)
+				.map((inp) => inp.value.trim())
+				.join(",");
+		}
+
+		// Radio: find checked one
+		if (firstInput.type === "radio") {
+			const checked = inputs.find((inp) => inp.checked);
+			return checked?.value.trim() || "";
+		}
+
+		// Other: return value
+		return firstInput.value.trim();
+	}
+
 	// initialize the args
 	private _initializeArgs(): void {
+		// multiple values (radio or checkbox) to be initialized only once
+		const processed = new Set<string>();
+
+		// initialize the args
 		this.getTargets("param-input").forEach((paramInput) => {
-			const { paramName, paramValue } = this._sanitizeArgsInput(
-				paramInput as HTMLInputElement,
-			);
-			if (paramName) this._pushArgsInDOM(paramName, paramValue);
+			const paramName = this.getValue("param", paramInput);
+			if (!paramName || processed.has(paramName)) return;
+
+			const paramValue = this._getParamCurrentValue(paramName);
+			if (paramValue) this._pushArgsInDOM(paramName, paramValue);
+
+			processed.add(paramName);
 		});
 	}
 
@@ -122,9 +158,12 @@ export class ActionFunctionController extends BaseController {
 	// update all args (DOM action)
 	public updateAllArgs(event: Event): void {
 		const target = event.target as HTMLInputElement;
-		const { paramName, paramValue } = this._sanitizeArgsInput(target);
+		const paramName = this.getValue("param", target);
+		if (!paramName) return;
 
-		if (paramName) this._debouncedUpdateAllArgs(paramName, paramValue);
+		// get the current value for the param name
+		const paramValue = this._getParamCurrentValue(paramName);
+		this._debouncedUpdateAllArgs(paramName, paramValue);
 	}
 
 	// update all functions send (DOM action)

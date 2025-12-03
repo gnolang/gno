@@ -20,7 +20,6 @@ var (
 	dump   = flag.Bool("dump", false, "dump ast tree after parsing")
 )
 
-
 func testGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []byte) {
 	t.Helper()
 

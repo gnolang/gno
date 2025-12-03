@@ -448,6 +448,7 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 	lastDescID := ""
 
 	// Render elements
+	isExec := n.ExecFunc != ""
 	for i, elem := range n.Elements {
 		if elem.GetError() != nil {
 			fmt.Fprintf(w, "<!-- Error: %s -->\n", HTMLEscapeString(elem.GetError().Error()))
@@ -456,12 +457,12 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 
 		switch e := elem.(type) {
 		case FormInput:
-			r.renderInput(w, e, i, &lastDescID, n.ExecFunc != "")
+			r.renderInput(w, e, i, &lastDescID, isExec)
 		case FormTextarea:
-			r.renderTextarea(w, e, i, &lastDescID)
+			r.renderTextarea(w, e, i, &lastDescID, isExec)
 		case FormSelect:
 			if !renderedSelects[e.Name] {
-				r.renderSelect(w, n.Elements, e, i, &lastDescID)
+				r.renderSelect(w, n.Elements, e, i, &lastDescID, isExec)
 				renderedSelects[e.Name] = true
 			}
 		}
@@ -519,16 +520,13 @@ func (r *FormRenderer) renderCommandBlock(w util.BufWriter, n *FormNode) {
 		remote = "127.0.0.1:26657"
 	}
 
-	// Extract parameter names from manually defined form elements
-	paramNames := make([]string, 0)
+	// Extract unique parameter names (preserving order and avoiding duplicates)
+	seen := make(map[string]bool)
+	var paramNames []string
 	for _, elem := range n.Elements {
-		if elem.GetError() != nil {
-			continue // Skip elements with errors
-		}
-		// Get the name from each form element
-		name := elem.GetName()
-		if name != "" {
+		if name := elem.GetName(); name != "" && !seen[name] && elem.GetError() == nil {
 			paramNames = append(paramNames, name)
+			seen[name] = true
 		}
 	}
 
@@ -562,7 +560,7 @@ func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastD
 	if isSelectable {
 		uniqueID := fmt.Sprintf("%s_%d", e.Name, idx)
 		fmt.Fprintf(w, `<div class="gno-form_selectable">
-<input type="%s" id="%s" name="%s" value="%s" `,
+<input type="%s" id="%s" name="%s" value="%s"`,
 			HTMLEscapeString(e.Type),
 			HTMLEscapeString(uniqueID),
 			HTMLEscapeString(e.Name),
@@ -573,6 +571,9 @@ func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastD
 		}
 		if e.Checked {
 			fmt.Fprint(w, ` checked`)
+		}
+		if isExec {
+			fmt.Fprintf(w, ` data-action-function-target="param-input" data-action="change->action-function#updateAllArgs" data-action-function-param-value="%s"`, HTMLEscapeString(e.Name))
 		}
 
 		fmt.Fprintln(w, ` />`)
@@ -601,7 +602,7 @@ func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastD
 	}
 }
 
-func (r *FormRenderer) renderTextarea(w util.BufWriter, e FormTextarea, idx int, lastDescID *string) {
+func (r *FormRenderer) renderTextarea(w util.BufWriter, e FormTextarea, idx int, lastDescID *string, isExec bool) {
 	if e.Description != "" {
 		descID := fmt.Sprintf("desc_%s_%d", e.Name, idx)
 		fmt.Fprintf(w, `<div id="%s" class="gno-form_description">%s</div>`+"\n",
@@ -610,14 +611,19 @@ func (r *FormRenderer) renderTextarea(w util.BufWriter, e FormTextarea, idx int,
 	}
 
 	fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s"> %s </label>
-<textarea id="%s" name="%s" placeholder="%s" rows="%d">%s</textarea>
-</div>
-`, HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder),
+<textarea id="%s" name="%s" placeholder="%s" rows="%d"`,
+		HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder),
 		HTMLEscapeString(e.Name), HTMLEscapeString(e.Name),
-		HTMLEscapeString(e.Placeholder), e.Rows, HTMLEscapeString(e.Value))
+		HTMLEscapeString(e.Placeholder), e.Rows)
+	if isExec {
+		fmt.Fprintf(w, ` data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" data-action-function-param-value="%s"`, HTMLEscapeString(e.Name))
+	}
+	fmt.Fprintf(w, `>%s</textarea>
+</div>
+`, HTMLEscapeString(e.Value))
 }
 
-func (r *FormRenderer) renderSelect(w util.BufWriter, elements []FormElement, e FormSelect, idx int, lastDescID *string) {
+func (r *FormRenderer) renderSelect(w util.BufWriter, elements []FormElement, e FormSelect, idx int, lastDescID *string, isExec bool) {
 	if e.Description != "" {
 		descID := fmt.Sprintf("desc_%s_%d", e.Name, idx)
 		fmt.Fprintf(w, `<div id="%s" class="gno-form_description">%s</div>`+"\n",
@@ -633,6 +639,9 @@ func (r *FormRenderer) renderSelect(w util.BufWriter, elements []FormElement, e 
 
 	if *lastDescID != "" {
 		fmt.Fprintf(w, ` aria-labelledby="%s"`, HTMLEscapeString(*lastDescID))
+	}
+	if isExec {
+		fmt.Fprintf(w, ` data-action-function-target="param-input" data-action="change->action-function#updateAllArgs" data-action-function-param-value="%s"`, HTMLEscapeString(e.Name))
 	}
 	fmt.Fprintln(w, `>`)
 
