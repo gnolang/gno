@@ -13,24 +13,24 @@ func TestKeeper(t *testing.T) {
 	ctx, store, keeper := env.ctx, env.store, env.keeper
 	_ = store // XXX: add store tests?
 
-	require.False(t, keeper.Has(ctx, "param1"))
-	require.False(t, keeper.Has(ctx, "param2"))
-	require.False(t, keeper.Has(ctx, "param3"))
-	require.False(t, keeper.Has(ctx, "param4"))
-	require.False(t, keeper.Has(ctx, "param5"))
+	require.False(t, keeper.Has(ctx, "params_test:param1"))
+	require.False(t, keeper.Has(ctx, "params_test:param2"))
+	require.False(t, keeper.Has(ctx, "params_test:param3"))
+	require.False(t, keeper.Has(ctx, "params_test:param4"))
+	require.False(t, keeper.Has(ctx, "params_test:param5"))
 
 	// initial set
-	require.NotPanics(t, func() { keeper.SetString(ctx, "param1", "foo") })
-	require.NotPanics(t, func() { keeper.SetBool(ctx, "param2", true) })
-	require.NotPanics(t, func() { keeper.SetUint64(ctx, "param3", 42) })
-	require.NotPanics(t, func() { keeper.SetInt64(ctx, "param4", -1337) })
-	require.NotPanics(t, func() { keeper.SetBytes(ctx, "param5", []byte("hello world!")) })
+	require.NotPanics(t, func() { keeper.SetString(ctx, "params_test:param1", "foo") })
+	require.NotPanics(t, func() { keeper.SetBool(ctx, "params_test:param2", true) })
+	require.NotPanics(t, func() { keeper.SetUint64(ctx, "params_test:param3", 42) })
+	require.NotPanics(t, func() { keeper.SetInt64(ctx, "params_test:param4", -1337) })
+	require.NotPanics(t, func() { keeper.SetBytes(ctx, "params_test:param5", []byte("hello world!")) })
 
-	require.True(t, keeper.Has(ctx, "param1"))
-	require.True(t, keeper.Has(ctx, "param2"))
-	require.True(t, keeper.Has(ctx, "param3"))
-	require.True(t, keeper.Has(ctx, "param4"))
-	require.True(t, keeper.Has(ctx, "param5"))
+	require.True(t, keeper.Has(ctx, "params_test:param1"))
+	require.True(t, keeper.Has(ctx, "params_test:param2"))
+	require.True(t, keeper.Has(ctx, "params_test:param3"))
+	require.True(t, keeper.Has(ctx, "params_test:param4"))
+	require.True(t, keeper.Has(ctx, "params_test:param5"))
 
 	var (
 		param1 string
@@ -40,11 +40,11 @@ func TestKeeper(t *testing.T) {
 		param5 []byte
 	)
 
-	require.NotPanics(t, func() { keeper.GetString(ctx, "param1", &param1) })
-	require.NotPanics(t, func() { keeper.GetBool(ctx, "param2", &param2) })
-	require.NotPanics(t, func() { keeper.GetUint64(ctx, "param3", &param3) })
-	require.NotPanics(t, func() { keeper.GetInt64(ctx, "param4", &param4) })
-	require.NotPanics(t, func() { keeper.GetBytes(ctx, "param5", &param5) })
+	require.NotPanics(t, func() { keeper.GetString(ctx, "params_test:param1", &param1) })
+	require.NotPanics(t, func() { keeper.GetBool(ctx, "params_test:param2", &param2) })
+	require.NotPanics(t, func() { keeper.GetUint64(ctx, "params_test:param3", &param3) })
+	require.NotPanics(t, func() { keeper.GetInt64(ctx, "params_test:param4", &param4) })
+	require.NotPanics(t, func() { keeper.GetBytes(ctx, "params_test:param5", &param5) })
 
 	require.Equal(t, param1, "foo")
 	require.Equal(t, param2, true)
@@ -53,23 +53,23 @@ func TestKeeper(t *testing.T) {
 	require.Equal(t, param5, []byte("hello world!"))
 
 	// reset
-	require.NotPanics(t, func() { keeper.SetString(ctx, "param1", "bar") })
-	require.NotPanics(t, func() { keeper.SetBool(ctx, "param2", false) })
-	require.NotPanics(t, func() { keeper.SetUint64(ctx, "param3", 12345) })
-	require.NotPanics(t, func() { keeper.SetInt64(ctx, "param4", 1000) })
-	require.NotPanics(t, func() { keeper.SetBytes(ctx, "param5", []byte("bye")) })
+	require.NotPanics(t, func() { keeper.SetString(ctx, "params_test:param1", "bar") })
+	require.NotPanics(t, func() { keeper.SetBool(ctx, "params_test:param2", false) })
+	require.NotPanics(t, func() { keeper.SetUint64(ctx, "params_test:param3", 12345) })
+	require.NotPanics(t, func() { keeper.SetInt64(ctx, "params_test:param4", 1000) })
+	require.NotPanics(t, func() { keeper.SetBytes(ctx, "params_test:param5", []byte("bye")) })
 
-	require.True(t, keeper.Has(ctx, "param1"))
-	require.True(t, keeper.Has(ctx, "param2"))
-	require.True(t, keeper.Has(ctx, "param3"))
-	require.True(t, keeper.Has(ctx, "param4"))
-	require.True(t, keeper.Has(ctx, "param5"))
+	require.True(t, keeper.Has(ctx, "params_test:param1"))
+	require.True(t, keeper.Has(ctx, "params_test:param2"))
+	require.True(t, keeper.Has(ctx, "params_test:param3"))
+	require.True(t, keeper.Has(ctx, "params_test:param4"))
+	require.True(t, keeper.Has(ctx, "params_test:param5"))
 
-	require.NotPanics(t, func() { keeper.GetString(ctx, "param1", &param1) })
-	require.NotPanics(t, func() { keeper.GetBool(ctx, "param2", &param2) })
-	require.NotPanics(t, func() { keeper.GetUint64(ctx, "param3", &param3) })
-	require.NotPanics(t, func() { keeper.GetInt64(ctx, "param4", &param4) })
-	require.NotPanics(t, func() { keeper.GetBytes(ctx, "param5", &param5) })
+	require.NotPanics(t, func() { keeper.GetString(ctx, "params_test:param1", &param1) })
+	require.NotPanics(t, func() { keeper.GetBool(ctx, "params_test:param2", &param2) })
+	require.NotPanics(t, func() { keeper.GetUint64(ctx, "params_test:param3", &param3) })
+	require.NotPanics(t, func() { keeper.GetInt64(ctx, "params_test:param4", &param4) })
+	require.NotPanics(t, func() { keeper.GetBytes(ctx, "params_test:param5", &param5) })
 
 	require.Equal(t, param1, "bar")
 	require.Equal(t, param2, false)
@@ -89,15 +89,15 @@ func TestKeeper_internal(t *testing.T) {
 		zero  any
 		ptr   any
 	}{
-		{"string", "test", "", new(string)},
-		{"bool", true, false, new(bool)},
-		{"int16", int16(1), int16(0), new(int16)},
-		{"int32", int32(1), int32(0), new(int32)},
-		{"int64", int64(1), int64(0), new(int64)},
-		{"uint16", uint16(1), uint16(0), new(uint16)},
-		{"uint32", uint32(1), uint32(0), new(uint32)},
-		{"uint64", uint64(1), uint64(0), new(uint64)},
-		{"struct", s{1}, s{0}, new(s)},
+		{"params_test:string", "test", "", new(string)},
+		{"params_test:bool", true, false, new(bool)},
+		{"params_test:int16", int16(1), int16(0), new(int16)},
+		{"params_test:int32", int32(1), int32(0), new(int32)},
+		{"params_test:int64", int64(1), int64(0), new(int64)},
+		{"params_test:uint16", uint16(1), uint16(0), new(uint16)},
+		{"params_test:uint32", uint32(1), uint32(0), new(uint32)},
+		{"params_test:uint64", uint64(1), uint64(0), new(uint64)},
+		{"params_test:struct", s{1}, s{0}, new(s)},
 	}
 
 	for i, kv := range kvs {
