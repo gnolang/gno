@@ -8,6 +8,9 @@ import (
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 )
 
+// TODO update response types, since now we can properly encode them
+
+// VMEval evaluates a call to an exported function without using gas, in read-only mode
 func (s *Server) VMEval(_ *rpctypes.Context, height int64, realm, expr string) (string, error) {
 	ctx, err := s.app.NewQueryContext(height)
 	if err != nil {
@@ -22,6 +25,7 @@ func (s *Server) VMEval(_ *rpctypes.Context, height int64, realm, expr string) (
 	return result, nil
 }
 
+// VMRender evaluates the "Render" function call
 func (s *Server) VMRender(_ *rpctypes.Context, height int64, pkgPath, path string) (string, error) {
 	ctx, err := s.app.NewQueryContext(height)
 	if err != nil {
@@ -29,7 +33,7 @@ func (s *Server) VMRender(_ *rpctypes.Context, height int64, pkgPath, path strin
 	}
 
 	expr := fmt.Sprintf("Render(%q)", path)
-	result, err := s.app.VMKeeper().QueryEvalString(ctx, pkgPath, expr)
+	result, err := s.app.VMKeeper().QueryEval(ctx, pkgPath, expr)
 	if err != nil {
 		if strings.Contains(err.Error(), "Render not declared") {
 			err = vm.NoRenderDeclError{}
@@ -41,20 +45,22 @@ func (s *Server) VMRender(_ *rpctypes.Context, height int64, pkgPath, path strin
 	return result, nil
 }
 
+// VMFuncs returns the exported functions for the given package path
 func (s *Server) VMFuncs(_ *rpctypes.Context, height int64, pkgPath string) (string, error) {
 	ctx, err := s.app.NewQueryContext(height)
 	if err != nil {
 		return "", fmt.Errorf("unable to create query context: %w", err)
 	}
 
-	fsigs, err := s.app.VMKeeper().QueryFuncs(ctx, pkgPath)
+	funcSigs, err := s.app.VMKeeper().QueryFuncs(ctx, pkgPath)
 	if err != nil {
 		return "", err
 	}
 
-	return fsigs.JSON(), nil
+	return funcSigs.JSON(), nil
 }
 
+// VMPaths lists all existing package paths prefixed with the specified target string, paginated
 func (s *Server) VMPaths(_ *rpctypes.Context, height int64, target string, limit int) (string, error) {
 	const (
 		defaultLimit = 1_000
@@ -81,6 +87,7 @@ func (s *Server) VMPaths(_ *rpctypes.Context, height int64, target string, limit
 	return strings.Join(paths, "\n"), nil
 }
 
+// VMFile returns package contents for a given package path
 func (s *Server) VMFile(_ *rpctypes.Context, height int64, filepath string) (string, error) {
 	ctx, err := s.app.NewQueryContext(height)
 	if err != nil {
@@ -95,6 +102,7 @@ func (s *Server) VMFile(_ *rpctypes.Context, height int64, filepath string) (str
 	return result, nil
 }
 
+// VMDoc returns the JSON of the doc for a given package path, suitable for printing
 func (s *Server) VMDoc(_ *rpctypes.Context, height int64, pkgPath string) (string, error) {
 	ctx, err := s.app.NewQueryContext(height)
 	if err != nil {
@@ -109,6 +117,7 @@ func (s *Server) VMDoc(_ *rpctypes.Context, height int64, pkgPath string) (strin
 	return jsonDoc.JSON(), nil
 }
 
+// VMStorage returns storage usage and deposit locked in a realm
 func (s *Server) VMStorage(_ *rpctypes.Context, height int64, pkgPath string) (string, error) {
 	ctx, err := s.app.NewQueryContext(height)
 	if err != nil {
@@ -122,3 +131,5 @@ func (s *Server) VMStorage(_ *rpctypes.Context, height int64, pkgPath string) (s
 
 	return result, nil
 }
+
+// TODO add simulate

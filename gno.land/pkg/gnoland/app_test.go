@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -211,28 +212,28 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 			*ptr++
 		}
 	}
-	mock := &mockVMKeeper{
-		makeGnoTransactionStoreFn: func(ctx sdk.Context) sdk.Context {
+	mockKeeper := &mock.VMKeeper{
+		MakeGnoTransactionStoreFn: func(ctx sdk.Context) sdk.Context {
 			makeCalls++
 			assert.False(t, containsGnoStore(ctx), "should not already contain gno store")
 			return ctx.WithContext(context.WithValue(ctx.Context(), gnoStoreKey, gnoStoreValue))
 		},
-		commitGnoTransactionStoreFn: func(ctx sdk.Context) {
+		CommitGnoTransactionStoreFn: func(ctx sdk.Context) {
 			commitCalls++
 			assert.True(t, containsGnoStore(ctx), "should contain gno store")
 		},
-		loadStdlibFn:       loadStdlib(&loadStdlibCalls),
-		loadStdlibCachedFn: loadStdlib(&loadStdlibCachedCalls),
+		LoadStdlibFn:       loadStdlib(&loadStdlibCalls),
+		LoadStdlibCachedFn: loadStdlib(&loadStdlibCachedCalls),
 	}
 
 	// call initchainer
 	cfg := InitChainerConfig{
 		StdlibDir:       stdlibDir,
-		vmk:             mock,
-		acck:            &mockAuthKeeper{},
-		bankk:           &mockBankKeeper{},
-		prmk:            &mockParamsKeeper{},
-		gpk:             &mockGasPriceKeeper{},
+		vmk:             mockKeeper,
+		acck:            &mock.AuthKeeper{},
+		bankk:           &mock.BankKeeper{},
+		prmk:            &mock.ParamsKeeper{},
+		gpk:             &mock.GasPriceKeeper{},
 		CacheStdlibLoad: cached,
 	}
 
@@ -509,14 +510,14 @@ func TestEndBlocker(t *testing.T) {
 		return builder.String()
 	}
 
-	newCommonEvSwitch := func() *mockEventSwitch {
+	newCommonEvSwitch := func() *mock.EventSwitch {
 		var cb events.EventCallback
 
-		return &mockEventSwitch{
-			addListenerFn: func(_ string, callback events.EventCallback) {
+		return &mock.EventSwitch{
+			AddListenerFn: func(_ string, callback events.EventCallback) {
 				cb = callback
 			},
-			fireEventFn: func(event events.Event) {
+			FireEventFn: func(event events.Event) {
 				cb(event)
 			},
 		}
@@ -530,10 +531,10 @@ func TestEndBlocker(t *testing.T) {
 		}
 
 		// Create the collector
-		c := newCollector[validatorUpdate](&mockEventSwitch{}, noFilter)
+		c := newCollector[validatorUpdate](&mock.EventSwitch{}, noFilter)
 
 		// Create the EndBlocker
-		eb := EndBlocker(c, nil, nil, nil, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, nil, &mock.EndBlockerApp{})
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
@@ -558,8 +559,8 @@ func TestEndBlocker(t *testing.T) {
 
 			mockEventSwitch = newCommonEvSwitch()
 
-			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
+			mockVMKeeper = &mock.VMKeeper{
+				QueryEvalFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
 					vmCalled = true
 
 					require.Equal(t, valRealm, pkgPath)
@@ -577,7 +578,7 @@ func TestEndBlocker(t *testing.T) {
 		mockEventSwitch.FireEvent(chain.Event{})
 
 		// Create the EndBlocker
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mock.EndBlockerApp{})
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
@@ -605,8 +606,8 @@ func TestEndBlocker(t *testing.T) {
 
 			mockEventSwitch = newCommonEvSwitch()
 
-			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
+			mockVMKeeper = &mock.VMKeeper{
+				QueryEvalFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
 					vmCalled = true
 
 					require.Equal(t, valRealm, pkgPath)
@@ -624,7 +625,7 @@ func TestEndBlocker(t *testing.T) {
 		mockEventSwitch.FireEvent(chain.Event{})
 
 		// Create the EndBlocker
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mock.EndBlockerApp{})
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
@@ -648,8 +649,8 @@ func TestEndBlocker(t *testing.T) {
 
 			mockEventSwitch = newCommonEvSwitch()
 
-			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
+			mockVMKeeper = &mock.VMKeeper{
+				QueryEvalFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
 					require.Equal(t, valRealm, pkgPath)
 					require.NotEmpty(t, expr)
 
@@ -696,7 +697,7 @@ func TestEndBlocker(t *testing.T) {
 		mockEventSwitch.FireEvent(txEvent)
 
 		// Create the EndBlocker
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mock.EndBlockerApp{})
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
@@ -737,8 +738,8 @@ func TestEndBlocker(t *testing.T) {
 
 			mockEventSwitch = newCommonEvSwitch()
 
-			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
+			mockVMKeeper = &mock.VMKeeper{
+				QueryEvalFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
 					require.Equal(t, valRealm, pkgPath)
 					require.NotEmpty(t, expr)
 
@@ -770,7 +771,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](mockEventSwitch, validatorEventFilter)
 		mockEventSwitch.FireEvent(txEvent)
 
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mock.EndBlockerApp{})
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
 			Validator: &abci.ValidatorParams{
 				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
@@ -803,8 +804,8 @@ func TestEndBlocker(t *testing.T) {
 
 			mockEventSwitch = newCommonEvSwitch()
 
-			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
+			mockVMKeeper = &mock.VMKeeper{
+				QueryEvalFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
 					require.Equal(t, valRealm, pkgPath)
 					require.NotEmpty(t, expr)
 
@@ -835,7 +836,7 @@ func TestEndBlocker(t *testing.T) {
 
 		c := newCollector[validatorUpdate](mockEventSwitch, validatorEventFilter)
 		mockEventSwitch.FireEvent(txEvent)
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mock.EndBlockerApp{})
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
 			Validator: &abci.ValidatorParams{
 				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
@@ -864,8 +865,8 @@ func TestEndBlocker(t *testing.T) {
 
 			mockEventSwitch = newCommonEvSwitch()
 
-			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
+			mockVMKeeper = &mock.VMKeeper{
+				QueryEvalFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
 					require.Equal(t, valRealm, pkgPath)
 					require.NotEmpty(t, expr)
 
@@ -890,7 +891,7 @@ func TestEndBlocker(t *testing.T) {
 
 		c := newCollector[validatorUpdate](mockEventSwitch, validatorEventFilter)
 		mockEventSwitch.FireEvent(txEvent)
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mock.EndBlockerApp{})
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
 			Validator: &abci.ValidatorParams{
 				PubKeyTypeURLs: []string{"/tm.PubKeyEd25519"},

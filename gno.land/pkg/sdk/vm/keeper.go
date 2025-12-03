@@ -54,6 +54,11 @@ type VMKeeperI interface {
 	AddPackage(ctx sdk.Context, msg MsgAddPackage) error
 	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
 	QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error)
+	QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionSignatures, err error)
+	QueryPaths(ctx sdk.Context, target string, limit int) ([]string, error)
+	QueryFile(ctx sdk.Context, filepath string) (res string, err error)
+	QueryDoc(ctx sdk.Context, pkgPath string) (*doc.JSONDocumentation, error)
+	QueryStorage(ctx sdk.Context, pkgPath string) (string, error)
 	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
 	LoadStdlib(ctx sdk.Context, stdlibDir string)
 	LoadStdlibCached(ctx sdk.Context, stdlibDir string)

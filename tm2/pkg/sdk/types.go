@@ -40,12 +40,9 @@ type (
 	GasPrice = std.GasPrice
 )
 
-var (
-	ParseGasPrice  = std.ParseGasPrice
-	ParseGasPrices = std.ParseGasPrices
-)
+var ParseGasPrices = std.ParseGasPrices
 
-//----------------------------------------
+// ----------------------------------------
 
 // Enum mode for app.runTx
 type RunTxMode uint8

@@ -4,22 +4,35 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	rpcserver "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 )
 
+// Application is the required Gnoland app abstraction for the RPC
+type Application interface {
+	// NewQueryContext creates a new app query context (read-only)
+	NewQueryContext(height int64) (sdk.Context, error)
+
+	// VMKeeper returns the VM keeper associated with the app
+	VMKeeper() vm.VMKeeperI
+}
+
+// Server is the Gnoland (app) RPC server instance
 type Server struct {
-	app    *gnoland.App
+	app    Application
 	logger *slog.Logger
 }
 
-func NewServer(app *gnoland.App, logger *slog.Logger) *Server {
+// NewServer creates a new instance of the Gnoland (app) RPC server
+func NewServer(app Application, logger *slog.Logger) *Server {
 	return &Server{
 		app:    app,
 		logger: logger.With("module", "gnoland_rpc"),
 	}
 }
 
+// rpcFuncs returns the endpoint -> handler mapping
 func (s *Server) rpcFuncs() map[string]*rpcserver.RPCFunc {
 	return map[string]*rpcserver.RPCFunc{
 		"vm/render":  rpcserver.NewRPCFunc(s.VMRender, "height,pkgPath,path"),
@@ -32,6 +45,7 @@ func (s *Server) rpcFuncs() map[string]*rpcserver.RPCFunc {
 	}
 }
 
+// NewMux creates a server mux, and registers the endpoints for both http and ws requests
 func (s *Server) NewMux() *http.ServeMux {
 	mux := http.NewServeMux()
 
