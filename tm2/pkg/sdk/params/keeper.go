@@ -238,9 +238,11 @@ func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr any) {
 func (pk ParamsKeeper) set(ctx sdk.Context, key string, value any) {
 	module, rawKey := parsePrefix(key)
 
-	kpr, ok := pk.GetRegisteredKeeper(module)
-	if ok {
-		kpr.WillSetParam(ctx, rawKey, value)
+	if module != "" {
+		kpr, ok := pk.GetRegisteredKeeper(module)
+		if ok {
+			kpr.WillSetParam(ctx, rawKey, value)
+		}
 	}
 
 	stor := ctx.Store(pk.key)
