@@ -72,12 +72,11 @@ func TestParamsKeeperSuccess(t *testing.T) {
 
 	testCases := []struct {
 		name     string
-		testFunc func(t *testing.T)
+		testFunc func()
 	}{
 		{
 			name: "string test module vm",
-			testFunc: func(t *testing.T) {
-				t.Helper()
+			testFunc: func() {
 				params.SetString("vm:p", "foo")
 
 				var actual string
@@ -87,8 +86,7 @@ func TestParamsKeeperSuccess(t *testing.T) {
 		},
 		{
 			name: "int64 test module vm",
-			testFunc: func(t *testing.T) {
-				t.Helper()
+			testFunc: func() {
 				params.SetInt64("vm:p", int64(1))
 
 				var actual int64
@@ -98,8 +96,7 @@ func TestParamsKeeperSuccess(t *testing.T) {
 		},
 		{
 			name: "string test module auth",
-			testFunc: func(t *testing.T) {
-				t.Helper()
+			testFunc: func() {
 				params.SetString("auth:p1", "foo")
 
 				var actual string
@@ -110,8 +107,7 @@ func TestParamsKeeperSuccess(t *testing.T) {
 
 		{
 			name: "string test module bank",
-			testFunc: func(t *testing.T) {
-				t.Helper()
+			testFunc: func() {
 				params.SetString("bank:p1", "foo")
 
 				var actual string
@@ -123,7 +119,7 @@ func TestParamsKeeperSuccess(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tc.testFunc(t)
+			tc.testFunc()
 		})
 	}
 }
