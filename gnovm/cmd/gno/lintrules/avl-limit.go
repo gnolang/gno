@@ -10,6 +10,7 @@ import (
 
 type AvlLimitRule struct{}
 
+// XXX: this is a PoC not a production ready code
 func (AvlLimitRule) Run(ctx *RuleContext, node gnolang.Node) error {
 	call, ok := node.(*gnolang.CallExpr)
 	if !ok {
