@@ -41,8 +41,8 @@ func NewMemberStorage() MemberStorage {
 // NewMemberStorageWithGrouping a new member storage with support for member groups.
 // Member groups can be used by implementations that require grouping users by roles
 // or by tiers for example.
-func NewMemberStorageWithGrouping() MemberStorage {
-	return &memberStorage{grouping: NewMemberGrouping()}
+func NewMemberStorageWithGrouping(options ...MemberGroupingOption) MemberStorage {
+	return &memberStorage{grouping: NewMemberGrouping(options...)}
 }
 
 type memberStorage struct {

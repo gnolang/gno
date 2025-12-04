@@ -17,14 +17,6 @@ var tmpl = template.New("web")
 
 func registerCommonFuncs(funcs template.FuncMap) {
 	// NOTE: this method does NOT escape HTML, use with caution
-	funcs["noescape_string"] = func(in string) template.HTML {
-		return template.HTML(in) //nolint:gosec
-	}
-	// NOTE: this method does NOT escape HTML, use with caution
-	funcs["noescape_bytes"] = func(in []byte) template.HTML {
-		return template.HTML(in) //nolint:gosec
-	}
-	// NOTE: this method does NOT escape HTML, use with caution
 	// Render Component element into raw html element
 	funcs["render"] = func(comp Component) (template.HTML, error) {
 		var buf bytes.Buffer
