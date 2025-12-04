@@ -106,17 +106,28 @@ export class ActionFunctionController extends BaseController {
 				arg.textContent = escapedValue || "";
 			});
 
-		// Update function link with new parameter value
-		const functionLink = this.getTarget("function-link") as HTMLAnchorElement;
-		if (functionLink) {
-			const currentUrl = functionLink.getAttribute("href");
-			if (!currentUrl) {
-				console.warn(`No href attribute found for function link`);
-				return;
-			}
-			const u = new URL(functionLink.href, window.location.origin);
-			u.searchParams.set(paramName, paramValue);
-			functionLink.href = u.toString();
+		// Update function links (execute and anchor) with new parameter value
+		const functionLinks = [
+			...this.getTargets("function-execute"),
+			...this.getTargets("function-anchor"),
+		] as HTMLAnchorElement[];
+		if (functionLinks.length > 0) {
+			functionLinks.forEach((functionLink) => {
+				const linkAttribute = functionLink.hasAttribute("href")
+					? "href"
+					: "data-copy-text-value";
+				const currentUrl = functionLink.getAttribute(linkAttribute);
+				if (!currentUrl) {
+					console.warn(
+						`No href or data-copy-text-value attribute found for the function link: ${functionLink}.`,
+					);
+					return;
+				}
+
+				const u = new URL(currentUrl, window.location.origin);
+				u.searchParams.set(paramName, paramValue);
+				functionLink.setAttribute(linkAttribute, u.toString() || "");
+			});
 		}
 	}
 
