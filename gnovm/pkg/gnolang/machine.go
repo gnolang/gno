@@ -39,6 +39,7 @@ type Machine struct {
 	GCCycle       int64         // number of "gc" cycles
 	Stage         Stage         // pre for static eval, add for package init, run otherwise
 	ReviveEnabled bool          // true if revive() enabled (only in testing mode for now)
+	Lastline      int           // the line the VM is currently executing
 
 	Debugger Debugger
 
@@ -426,32 +427,17 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	if m.LastFrame().Func != nil && m.LastFrame().Func.IsNative() {
 		stacktrace.LastLine = -1 // special line for native.
 	} else {
-		if len(m.Stmts) > 0 {
-			ls := m.PeekStmt(1)
-			if bs, ok := ls.(*bodyStmt); ok {
-				stacktrace.LastLine = bs.LastStmt().GetLine()
-			} else {
-				goto NOTPANIC // not a panic call
-			}
-		} else {
-			goto NOTPANIC // not a panic call
+		if m.Lastline != 0 {
+			stacktrace.LastLine = m.Lastline
+			return
 		}
-	NOTPANIC:
-		if len(m.Exprs) > 0 {
-			stacktrace.LastLine = m.PeekExpr(1).GetLine()
-		} else if len(m.Stmts) > 0 {
-			stmt := m.PeekStmt(1)
-			if bs, ok := stmt.(*bodyStmt); ok {
-				if 0 <= bs.NextBodyIndex-1 {
-					stmt = bs.Body[bs.NextBodyIndex-1]
-				}
-			}
-			stacktrace.LastLine = stmt.GetLine()
-		} else {
-			stacktrace.LastLine = 0 // dunno
+
+		ls := m.PeekStmt(1)
+		if bs, ok := ls.(*bodyStmt); ok {
+			stacktrace.LastLine = bs.LastStmt().GetLine()
+			return
 		}
 	}
-
 	return
 }
 
@@ -1679,6 +1665,7 @@ func (m *Machine) PushStmts(ss ...Stmt) {
 			m.Printf("+s %v\n", s)
 		}
 	}
+	// XXX, also set lastLine here?
 	m.Stmts = append(m.Stmts, ss...)
 }
 
