@@ -239,11 +239,9 @@ func (pk ParamsKeeper) set(ctx sdk.Context, key string, value any) {
 	module, rawKey := parsePrefix(key)
 
 	kpr, ok := pk.GetRegisteredKeeper(module)
-	if !ok {
-		panic(fmt.Sprintf("module name <%s> not registered", module))
+	if ok {
+		kpr.WillSetParam(ctx, rawKey, value)
 	}
-
-	kpr.WillSetParam(ctx, rawKey, value)
 
 	stor := ctx.Store(pk.key)
 	bz := amino.MustMarshalJSON(value)
