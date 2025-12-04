@@ -245,8 +245,7 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 
 	// Tally votes and update proposal status to "passed" or "rejected"
 	if err == nil {
-		members := NewMemberSet(dao.Members())
-		err = p.Tally(members)
+		err = p.Tally(dao.Members())
 		if err == nil && p.Status() == StatusRejected {
 			// Don't try to execute proposal if it's been rejected
 			return nil

@@ -333,6 +333,7 @@ func TestIsQuorumReached(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			members := commondao.NewMemberStorage()
+			storage := commondao.MustNewReadonlyMemberStorage(members)
 			for _, m := range tc.members {
 				members.Add(m)
 			}
@@ -342,7 +343,7 @@ func TestIsQuorumReached(t *testing.T) {
 				record.AddVote(v)
 			}
 
-			success := commondao.IsQuorumReached(tc.quorum, record.Readonly(), commondao.NewMemberSet(members))
+			success := commondao.IsQuorumReached(tc.quorum, record.Readonly(), *storage)
 
 			if tc.fail {
 				uassert.False(t, success, "expect quorum to fail")
@@ -382,8 +383,7 @@ func TestProposalTally(t *testing.T) {
 			name: "proposal is not active",
 			setup: func() *commondao.Proposal {
 				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyResult: true})
-				members := commondao.NewMemberSet(commondao.NewMemberStorage())
-				p.Tally(members)
+				p.Tally(commondao.NewMemberStorage())
 				return p
 			},
 			err: commondao.ErrStatusIsNotActive,
@@ -401,8 +401,9 @@ func TestProposalTally(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			p := tc.setup()
+			members := commondao.NewMemberStorage()
 
-			err := p.Tally(commondao.MemberSet{})
+			err := p.Tally(members)
 
 			if tc.err != nil {
 				urequire.ErrorIs(t, err, tc.err)
@@ -441,7 +442,7 @@ func (testPropDef) Body() string                  { return "" }
 func (d testPropDef) VotingPeriod() time.Duration { return d.votingPeriod }
 func (d testPropDef) Validate() error             { return d.validationErr }
 
-func (d testPropDef) Tally(commondao.ReadonlyVotingRecord, commondao.MemberSet) (bool, error) {
+func (d testPropDef) Tally(commondao.VotingContext) (bool, error) {
 	return d.tallyResult, d.tallyErr
 }
 
