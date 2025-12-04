@@ -2,9 +2,9 @@ package boards2
 
 import (
 	"gno.land/p/gnoland/boards"
-	boardsdao "gno.land/p/gnoland/boards/dao"
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/commondao"
+	"gno.land/p/nt/commondao/exts/storage"
 )
 
 // ValidatorFunc defines a function type for permissions validators.
@@ -22,13 +22,13 @@ type BasicPermissions struct {
 // This type is a default implementation to handle users, roles and permissions.
 // It uses an underlying DAO to manage users and roles.
 func NewBasicPermissions() *BasicPermissions {
-	storage := boardsdao.NewMemberStorage()
+	s := storage.NewMemberStorage()
 	return &BasicPermissions{
 		validators: avl.NewTree(),
 		public:     avl.NewTree(),
 		dao: commondao.New(
 			// Use a custom boards member storage
-			commondao.WithMemberStorage(storage),
+			commondao.WithMemberStorage(s),
 		),
 	}
 }
@@ -92,7 +92,7 @@ func (bp BasicPermissions) RoleExists(r boards.Role) bool {
 
 // GetUserRoles returns the list of roles assigned to a user.
 func (bp BasicPermissions) GetUserRoles(user address) []boards.Role {
-	groups := boardsdao.GetMemberGroups(bp.dao.Members(), user)
+	groups := storage.GetMemberGroups(bp.dao.Members(), user)
 	if groups == nil {
 		return nil
 	}
@@ -120,7 +120,7 @@ func (bp BasicPermissions) HasPermission(user address, perm boards.Permission) b
 		return true
 	}
 
-	groups := boardsdao.GetMemberGroups(bp.dao.Members(), user)
+	groups := storage.GetMemberGroups(bp.dao.Members(), user)
 	if groups == nil {
 		return false
 	}
@@ -151,7 +151,7 @@ func (bp BasicPermissions) HasPermission(user address, perm boards.Permission) b
 // Method can also be called to change the roles of an existing user.
 // All user's roles can be removed by calling this method without roles.
 func (bp *BasicPermissions) SetUserRoles(_ realm, user address, roles ...boards.Role) {
-	groups := boardsdao.GetMemberGroups(bp.dao.Members(), user)
+	groups := storage.GetMemberGroups(bp.dao.Members(), user)
 	isGuest := len(roles) == 0
 
 	// If user has roles remove it from the groups its currently assigned
@@ -187,7 +187,7 @@ func (bp *BasicPermissions) SetUserRoles(_ realm, user address, roles ...boards.
 
 // RemoveUser removes a user from permissions.
 func (bp *BasicPermissions) RemoveUser(_ realm, user address) bool {
-	groups := boardsdao.GetMemberGroups(bp.dao.Members(), user)
+	groups := storage.GetMemberGroups(bp.dao.Members(), user)
 	if groups == nil {
 		return bp.dao.Members().Remove(user)
 	}
@@ -218,7 +218,7 @@ func (bp BasicPermissions) UsersCount() int {
 func (bp BasicPermissions) IterateUsers(start, count int, fn boards.UsersIterFn) (stopped bool) {
 	bp.dao.Members().IterateByOffset(start, count, func(addr address) bool {
 		user := boards.User{Address: addr}
-		groups := boardsdao.GetMemberGroups(bp.dao.Members(), addr)
+		groups := storage.GetMemberGroups(bp.dao.Members(), addr)
 		if groups != nil {
 			user.Roles = make([]boards.Role, len(groups))
 			for i, name := range groups {

@@ -1,4 +1,4 @@
-package dao
+package storage
 
 import (
 	"gno.land/p/jeronimoalbi/message"
@@ -12,8 +12,7 @@ const (
 )
 
 // GetMemberGroups returns the groups that a member belongs to.
-// It can be used on boards member storage instances, instead of iterating
-// all groups checking for user existance which would be more expensive.
+// It returns no groups if member storage was not created using this package.
 func GetMemberGroups(s commondao.MemberStorage, member address) []string {
 	storage, ok := s.(*memberStorage)
 	if !ok {
@@ -35,6 +34,7 @@ func GetMemberGroups(s commondao.MemberStorage, member address) []string {
 }
 
 // NewMemberStorage creates a new CommonDAO member storage with grouping support.
+//
 // This is a custom storage that automatically adds or removes members that are added
 // or removed from any of the member groups. This allows for quick and inexpensive
 // checks for the number of total unique storage users, including users added to groups,
@@ -124,8 +124,8 @@ func (s memberStorage) Size() int {
 // IterateByOffset iterates members starting at the given offset.
 // The callback can return true to stop iteration.
 // It also iterates unique members that belong to any of the member groups.
-func (s memberStorage) IterateByOffset(offset, count int, fn func(address) bool) {
-	s.MemberStorage.IterateByOffset(offset, count, fn)
+func (s memberStorage) IterateByOffset(offset, count int, fn commondao.MemberIterFn) bool {
+	return s.MemberStorage.IterateByOffset(offset, count, fn)
 }
 
 // groupMemberUpdateData defines a data type for group member updates.

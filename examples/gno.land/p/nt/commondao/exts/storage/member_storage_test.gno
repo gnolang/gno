@@ -1,4 +1,4 @@
-package dao_test
+package storage_test
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 	"gno.land/p/nt/commondao"
 	"gno.land/p/nt/urequire"
 
-	boardsdao "gno.land/p/gnoland/boards/dao"
+	"gno.land/p/nt/commondao/exts/storage"
 )
 
 func TestMemberStorageGroupingMemberAdd(t *testing.T) {
@@ -19,7 +19,7 @@ func TestMemberStorageGroupingMemberAdd(t *testing.T) {
 		{
 			name: "empty group",
 			setup: func() commondao.MemberStorage {
-				s := boardsdao.NewMemberStorage()
+				s := storage.NewMemberStorage()
 				s.Grouping().Add("foo")
 				return s
 			},
@@ -29,7 +29,7 @@ func TestMemberStorageGroupingMemberAdd(t *testing.T) {
 		{
 			name: "group with members",
 			setup: func() commondao.MemberStorage {
-				s := boardsdao.NewMemberStorage()
+				s := storage.NewMemberStorage()
 				group, _ := s.Grouping().Add("foo")
 				group.Members().Add("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
 				group.Members().Add("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
@@ -41,7 +41,7 @@ func TestMemberStorageGroupingMemberAdd(t *testing.T) {
 		{
 			name: "multiple groups with members",
 			setup: func() commondao.MemberStorage {
-				s := boardsdao.NewMemberStorage()
+				s := storage.NewMemberStorage()
 				group, _ := s.Grouping().Add("foo")
 				group.Members().Add("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
 				group, _ = s.Grouping().Add("bar")
@@ -78,7 +78,7 @@ func TestMemberStorageGroupingMemberRemove(t *testing.T) {
 		{
 			name: "one group one member",
 			setup: func() commondao.MemberStorage {
-				s := boardsdao.NewMemberStorage()
+				s := storage.NewMemberStorage()
 				group, _ := s.Grouping().Add("foo")
 				group.Members().Add("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				return s
@@ -89,7 +89,7 @@ func TestMemberStorageGroupingMemberRemove(t *testing.T) {
 		{
 			name: "one group multiple members",
 			setup: func() commondao.MemberStorage {
-				s := boardsdao.NewMemberStorage()
+				s := storage.NewMemberStorage()
 				group, _ := s.Grouping().Add("foo")
 				group.Members().Add("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
 				group.Members().Add("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
@@ -102,7 +102,7 @@ func TestMemberStorageGroupingMemberRemove(t *testing.T) {
 		{
 			name: "multiple groups multiple members",
 			setup: func() commondao.MemberStorage {
-				s := boardsdao.NewMemberStorage()
+				s := storage.NewMemberStorage()
 				group, _ := s.Grouping().Add("foo")
 				group.Members().Add("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
 				group.Members().Add("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
@@ -139,14 +139,14 @@ func TestMemberStorageSize(t *testing.T) {
 		{
 			name: "empty",
 			setup: func() commondao.MemberStorage {
-				return boardsdao.NewMemberStorage()
+				return storage.NewMemberStorage()
 			},
 			size: 0,
 		},
 		{
 			name: "member without group",
 			setup: func() commondao.MemberStorage {
-				s := boardsdao.NewMemberStorage()
+				s := storage.NewMemberStorage()
 				s.Add("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				return s
 			},
@@ -155,7 +155,7 @@ func TestMemberStorageSize(t *testing.T) {
 		{
 			name: "multiple members without group",
 			setup: func() commondao.MemberStorage {
-				s := boardsdao.NewMemberStorage()
+				s := storage.NewMemberStorage()
 				s.Add("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				s.Add("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
 				return s
@@ -165,7 +165,7 @@ func TestMemberStorageSize(t *testing.T) {
 		{
 			name: "member in group",
 			setup: func() commondao.MemberStorage {
-				s := boardsdao.NewMemberStorage()
+				s := storage.NewMemberStorage()
 				group, _ := s.Grouping().Add("foo")
 				group.Members().Add("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				return s
@@ -175,7 +175,7 @@ func TestMemberStorageSize(t *testing.T) {
 		{
 			name: "multiple members in group",
 			setup: func() commondao.MemberStorage {
-				s := boardsdao.NewMemberStorage()
+				s := storage.NewMemberStorage()
 				group, _ := s.Grouping().Add("foo")
 				group.Members().Add("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				group.Members().Add("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
@@ -186,7 +186,7 @@ func TestMemberStorageSize(t *testing.T) {
 		{
 			name: "multiple members in different groups",
 			setup: func() commondao.MemberStorage {
-				s := boardsdao.NewMemberStorage()
+				s := storage.NewMemberStorage()
 				group, _ := s.Grouping().Add("foo")
 				group.Members().Add("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				group, _ = s.Grouping().Add("bar")
@@ -220,13 +220,13 @@ func TestMemberStorageIterateByOffset(t *testing.T) {
 		{
 			name: "empty",
 			setup: func() commondao.MemberStorage {
-				return boardsdao.NewMemberStorage()
+				return storage.NewMemberStorage()
 			},
 		},
 		{
 			name: "without group",
 			setup: func() commondao.MemberStorage {
-				s := boardsdao.NewMemberStorage()
+				s := storage.NewMemberStorage()
 				s.Add("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				s.Add("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
 				return s
@@ -239,7 +239,7 @@ func TestMemberStorageIterateByOffset(t *testing.T) {
 		{
 			name: "single group",
 			setup: func() commondao.MemberStorage {
-				s := boardsdao.NewMemberStorage()
+				s := storage.NewMemberStorage()
 				group, _ := s.Grouping().Add("foo")
 				group.Members().Add("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				group.Members().Add("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
@@ -253,7 +253,7 @@ func TestMemberStorageIterateByOffset(t *testing.T) {
 		{
 			name: "multiple groups",
 			setup: func() commondao.MemberStorage {
-				s := boardsdao.NewMemberStorage()
+				s := storage.NewMemberStorage()
 				group, _ := s.Grouping().Add("foo")
 				group.Members().Add("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				group, _ = s.Grouping().Add("bar")
