@@ -17,7 +17,6 @@ func init() {
 
 func JoinValues() string {
 	result := ""
-	//nolint
 	lintest.Iterate("", "", func(key string, value any) bool {
 		result += value.(string) + ","
 		return false
