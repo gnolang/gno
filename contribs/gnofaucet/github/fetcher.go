@@ -25,7 +25,8 @@ func NewGHFetcher(
 	rClient *redis.Client,
 	repos map[string][]string,
 	logger *slog.Logger,
-	interval time.Duration) *GHFetcher {
+	interval time.Duration,
+) *GHFetcher {
 	return &GHFetcher{
 		ghClient:      ghClient,
 		redisClient:   rClient,
