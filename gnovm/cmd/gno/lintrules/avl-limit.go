@@ -26,7 +26,6 @@ func (AvlLimitRule) Run(ctx *RuleContext, node gnolang.Node) error {
 		return nil
 	}
 
-	// --- Receiver type check
 	recvT := gnolang.EvalStaticTypeOf(ctx.Store, ctx.File, sel.X)
 	if !isAVLTree(recvT) {
 		// DEBUG:
@@ -34,23 +33,20 @@ func (AvlLimitRule) Run(ctx *RuleContext, node gnolang.Node) error {
 		return nil
 	}
 
-	// --- Require at least 2 args (start, end)
 	if len(call.Args) < 2 {
 		return nil
 	}
 
-	// --- Check both args are "" literal
 	if !isEmptyConstString(call.Args[0]) ||
 		!isEmptyConstString(call.Args[1]) {
 		return nil
 	}
 
-	// --- Check //nolint or //nolint:avl-limit on prev line
 	if hasNoLintDirective(ctx, node.GetPos()) {
 		return nil
 	}
 
-	return errors.New("avl tree error lolilol")
+	return errors.New("avl tree Iterate/Reverse iterate")
 }
 
 func isEmptyConstString(expr gnolang.Expr) bool {
@@ -70,18 +66,13 @@ func hasNoLintDirective(ctx *RuleContext, pos gnolang.Pos) bool {
 	}
 
 	lines := strings.Split(ctx.Source, "\n")
-	line := pos.Line - 1 // convert to 0-based index
+	line := pos.Line - 2
 
 	if line <= 0 || line > len(lines) {
 		return false
 	}
-
-	prev := strings.TrimSpace(lines[line-1])
-
-	if strings.HasPrefix(prev, "//nolint") {
-		return true
-	}
-	return false
+	prev := strings.TrimSpace(lines[line])
+	return strings.HasPrefix(prev, "//nolint")
 }
 
 func isAVLTree(t gnolang.Type) bool {

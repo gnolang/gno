@@ -293,12 +293,15 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 					lintrules.AvlLimitRule{},
 				}
 
+				// TODO: Should i recreate a new store ?
+				tm.Store = newProdGnoStore()
 				pn = gno.NewPackageNode(gno.Name(mpkg.Name), pkgPath, fset)
 				tm.Store.SetBlockNode(pn)
 				gno.PredefineFileSet(tm.Store, pn, fset)
 				for _, fn := range fset.Files {
-					src := string("")
-					runLintOnFile(
+					mf := mpkg.GetFile(fn.FileName)
+					src := string(mf.Body)
+					runLintExtensions(
 						tm.Store,
 						pn,
 						fn,
@@ -417,7 +420,7 @@ func lintTargetName(pkg *packages.Package) string {
 	return tryRelativizePath(pkg.Dir)
 }
 
-func runLintOnFile(
+func runLintExtensions(
 	store gnolang.Store,
 	pn *gnolang.PackageNode,
 	fn *gnolang.FileNode,
@@ -427,13 +430,11 @@ func runLintOnFile(
 ) {
 	ctx := &lintrules.RuleContext{
 		Store:  store,
-		File:   pn.GetFileByName(pn.FileNames()[0]), // correct per node below
+		File:   pn.GetFileByName(pn.FileNames()[0]),
 		Source: source,
 	}
 
-	// Our visitor stores current file while traversing multiple files
 	var currentFile *gnolang.FileNode
-
 	gnolang.TranscribeB(pn, fn, func(
 		ns []gnolang.Node,
 		stack []gnolang.BlockNode,
@@ -445,12 +446,13 @@ func runLintOnFile(
 	) (gnolang.Node, gnolang.TransCtrl) {
 
 		if stage == gnolang.TRANS_ENTER {
+
 			if fn, ok := n.(*gnolang.FileNode); ok {
 				currentFile = fn
 			}
+			ctx.File = currentFile
 
 			for _, rule := range rules {
-				ctx.File = currentFile // update current file context
 				if err := rule.Run(ctx, n); err != nil {
 					report(err, n.GetPos())
 				}

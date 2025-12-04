@@ -5,10 +5,9 @@ import (
 )
 
 type RuleContext struct {
-	Store   gnolang.Store
-	File    *gnolang.FileNode
-	FileSet *gnolang.FileSet
-	Source  string
+	Store  gnolang.Store
+	File   *gnolang.FileNode
+	Source string
 }
 
 type LintRule interface {

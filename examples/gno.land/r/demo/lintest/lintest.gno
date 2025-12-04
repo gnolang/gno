@@ -17,6 +17,7 @@ func init() {
 
 func JoinValues() string {
 	result := ""
+	//nolint
 	lintest.Iterate("", "", func(key string, value any) bool {
 		result += value.(string) + ","
 		return false
@@ -28,6 +29,7 @@ func JoinValues() string {
 
 func JoinValuesReverse() string {
 	result := ""
+	//nolint
 	lintest.ReverseIterate("", "", func(key string, value any) bool {
 		result += value.(string) + ","
 		return false
