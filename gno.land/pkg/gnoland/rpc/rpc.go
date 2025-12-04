@@ -1,6 +1,8 @@
 package rpc
 
 import (
+	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -16,6 +18,9 @@ type Application interface {
 
 	// VMKeeper returns the VM keeper associated with the app
 	VMKeeper() vm.VMKeeperI
+
+	// Simulate runs a transaction in simulate mode on the latest state
+	Simulate(txBytes []byte, tx sdk.Tx) sdk.Result
 }
 
 // Server is the Gnoland (app) RPC server instance
@@ -35,18 +40,19 @@ func NewServer(app Application, logger *slog.Logger) *Server {
 // rpcFuncs returns the endpoint -> handler mapping
 func (s *Server) rpcFuncs() map[string]*rpcserver.RPCFunc {
 	return map[string]*rpcserver.RPCFunc{
-		"vm/render":  rpcserver.NewRPCFunc(s.VMRender, "height,pkgPath,path"),
-		"vm/funcs":   rpcserver.NewRPCFunc(s.VMFuncs, "height,pkgPath"),
-		"vm/eval":    rpcserver.NewRPCFunc(s.VMEval, "height,data"),
-		"vm/file":    rpcserver.NewRPCFunc(s.VMFile, "height,filepath"),
-		"vm/doc":     rpcserver.NewRPCFunc(s.VMDoc, "height,pkgPath"),
-		"vm/paths":   rpcserver.NewRPCFunc(s.VMPaths, "height,target,limit"),
-		"vm/storage": rpcserver.NewRPCFunc(s.VMStorage, "height,pkgPath"),
+		"vm/render":   rpcserver.NewRPCFunc(s.VMRender, "height,pkgPath,path"),
+		"vm/funcs":    rpcserver.NewRPCFunc(s.VMFuncs, "height,pkgPath"),
+		"vm/eval":     rpcserver.NewRPCFunc(s.VMEval, "height,data"),
+		"vm/file":     rpcserver.NewRPCFunc(s.VMFile, "height,filepath"),
+		"vm/doc":      rpcserver.NewRPCFunc(s.VMDoc, "height,pkgPath"),
+		"vm/paths":    rpcserver.NewRPCFunc(s.VMPaths, "height,target,limit"),
+		"vm/storage":  rpcserver.NewRPCFunc(s.VMStorage, "height,pkgPath"),
+		"vm/simulate": rpcserver.NewRPCFunc(s.VMSimulate, "tx"),
 	}
 }
 
-// NewMux creates a server mux, and registers the endpoints for both http and ws requests
-func (s *Server) NewMux() *http.ServeMux {
+// newMux creates a server mux, and registers the endpoints for both http and ws requests
+func (s *Server) newMux() *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// Register the HTTP handlers
@@ -58,4 +64,32 @@ func (s *Server) NewMux() *http.ServeMux {
 	mux.HandleFunc("/websocket", wsMgr.WebsocketHandler)
 
 	return mux
+}
+
+func (s *Server) Serve(
+	ctx context.Context,
+	addr string,
+	cfg *rpcserver.Config,
+) error {
+	if cfg == nil {
+		cfg = rpcserver.DefaultConfig()
+	}
+
+	l, err := rpcserver.Listen(addr, cfg)
+	if err != nil {
+		return fmt.Errorf("unable to listen for app RPC on %s: %w", addr, err)
+	}
+
+	go func() {
+		<-ctx.Done()
+		_ = l.Close()
+	}()
+
+	go func() {
+		if err := rpcserver.StartHTTPServer(l, s.newMux(), s.logger, cfg); err != nil {
+			s.logger.Error("unable to gracefully stop app RPC", "err", err)
+		}
+	}()
+
+	return nil
 }

@@ -11,6 +11,9 @@ type (
 
 	// vmKeeperDelegate returns the VM keeper associated with the app
 	vmKeeperDelegate func() vm.VMKeeperI
+
+	// Simulate runs a transaction in simulate mode on the latest state
+	simulateDelegate func([]byte) sdk.Result
 )
 
 type mockApplication struct {

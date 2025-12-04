@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	apprpc "github.com/gnolang/gno/gno.land/pkg/gnoland/rpc"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -17,6 +18,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
+	rpcserver "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -259,6 +261,15 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	// Start the node (async)
 	if err := gnoNode.Start(); err != nil {
 		return fmt.Errorf("unable to start the Gnoland node, %w", err)
+	}
+
+	var (
+		appRPCAddr = "tcp://0.0.0.0:26660" // TODO: make configurable
+		appRPC     = apprpc.NewServer(cfg.LocalApp.(apprpc.Application), logger)
+	)
+
+	if err = appRPC.Serve(ctx, appRPCAddr, rpcserver.DefaultConfig()); err != nil {
+		return fmt.Errorf("unable to start app RPC server: %w", err)
 	}
 
 	// Wait for the exit signal

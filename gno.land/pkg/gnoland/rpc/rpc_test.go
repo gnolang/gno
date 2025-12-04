@@ -44,7 +44,7 @@ func TestServer_WebsocketReachable(t *testing.T) {
 		logger: slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})),
 	}
 
-	mux := s.NewMux()
+	mux := s.newMux()
 
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
