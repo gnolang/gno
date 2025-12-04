@@ -378,8 +378,7 @@ func TestCommonDAOExecute(t *testing.T) {
 			setup: func() *commondao.CommonDAO {
 				dao := commondao.New(commondao.WithMember(member))
 				p, _ := dao.Propose(member, testPropDef{tallyResult: false})
-				members := commondao.NewMemberSet(dao.Members())
-				p.Tally(members)
+				p.Tally(dao.Members())
 				return dao
 			},
 			proposalID: 1,
