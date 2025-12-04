@@ -10,7 +10,9 @@ import (
 	"path/filepath"
 
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/cmdutil"
+	"github.com/gnolang/gno/gnovm/cmd/gno/lintrules"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
@@ -286,6 +288,30 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				pn, _ := tm.PreprocessFiles(
 					mpkg.Name, mpkg.Path, fset, false, false, "")
 				ppkg.AddNormal(pn, fset)
+
+				rules := []lintrules.LintRule{
+					lintrules.AvlLimitRule{},
+				}
+
+				pn = gno.NewPackageNode(gno.Name(mpkg.Name), pkgPath, fset)
+				tm.Store.SetBlockNode(pn)
+				gno.PredefineFileSet(tm.Store, pn, fset)
+				for _, fn := range fset.Files {
+					src := string("")
+					runLintOnFile(
+						tm.Store,
+						pn,
+						fn,
+						src,
+						rules,
+						func(err error, pos gnolang.Pos) {
+							fmt.Printf("%s:%d:%d: %s\n",
+								fn.FileName, pos.Line, pos.Column,
+								err.Error(),
+							)
+						},
+					)
+				}
 			}
 			{
 				// LINT STEP 5: PreprocessFiles()
@@ -389,4 +415,48 @@ func lintTargetName(pkg *packages.Package) string {
 	}
 
 	return tryRelativizePath(pkg.Dir)
+}
+
+func runLintOnFile(
+	store gnolang.Store,
+	pn *gnolang.PackageNode,
+	fn *gnolang.FileNode,
+	source string,
+	rules []lintrules.LintRule,
+	report func(error, gnolang.Pos),
+) {
+	ctx := &lintrules.RuleContext{
+		Store:  store,
+		File:   pn.GetFileByName(pn.FileNames()[0]), // correct per node below
+		Source: source,
+	}
+
+	// Our visitor stores current file while traversing multiple files
+	var currentFile *gnolang.FileNode
+
+	gnolang.TranscribeB(pn, fn, func(
+		ns []gnolang.Node,
+		stack []gnolang.BlockNode,
+		last gnolang.BlockNode,
+		ftype gnolang.TransField,
+		index int,
+		n gnolang.Node,
+		stage gnolang.TransStage,
+	) (gnolang.Node, gnolang.TransCtrl) {
+
+		if stage == gnolang.TRANS_ENTER {
+			if fn, ok := n.(*gnolang.FileNode); ok {
+				currentFile = fn
+			}
+
+			for _, rule := range rules {
+				ctx.File = currentFile // update current file context
+				if err := rule.Run(ctx, n); err != nil {
+					report(err, n.GetPos())
+				}
+			}
+		}
+
+		return n, gnolang.TRANS_CONTINUE
+	})
 }
