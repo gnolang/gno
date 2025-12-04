@@ -168,6 +168,61 @@ func TestCommonDAOPropose(t *testing.T) {
 	}
 }
 
+func TestCommonDAOWithdraw(t *testing.T) {
+	cases := []struct {
+		name       string
+		proposalID uint64
+		setup      func() *commondao.CommonDAO
+		err        error
+	}{
+		{
+			name:       "success",
+			proposalID: 1,
+			setup: func() *commondao.CommonDAO {
+				member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
+				dao := commondao.New(commondao.WithMember(member))
+				dao.Propose(member, testPropDef{votingPeriod: time.Hour})
+				return dao
+			},
+		},
+		{
+			name:       "proposal not found",
+			proposalID: 404,
+			setup: func() *commondao.CommonDAO {
+				return commondao.New(commondao.WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"))
+			},
+			err: commondao.ErrProposalNotFound,
+		},
+		{
+			name:       "withdrawal not allowed",
+			proposalID: 1,
+			setup: func() *commondao.CommonDAO {
+				member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
+				dao := commondao.New(commondao.WithMember(member))
+				p, _ := dao.Propose(member, testPropDef{votingPeriod: time.Hour})
+				dao.Vote(member, p.ID(), commondao.ChoiceYes, "")
+				return dao
+			},
+			err: commondao.ErrWithdrawalNotAllowed,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dao := tc.setup()
+
+			err := dao.Withdraw(tc.proposalID)
+
+			if tc.err != nil {
+				urequire.ErrorIs(t, err, tc.err)
+				return
+			}
+
+			urequire.NoError(t, err)
+		})
+	}
+}
+
 func TestCommonDAOVote(t *testing.T) {
 	cases := []struct {
 		name       string
@@ -274,80 +329,6 @@ func TestCommonDAOVote(t *testing.T) {
 	}
 }
 
-func TestCommonDAOTally(t *testing.T) {
-	errTest := errors.New("test")
-	member := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	cases := []struct {
-		name   string
-		setup  func(*commondao.CommonDAO) (proposalID uint64)
-		passes bool
-		err    error
-	}{
-		{
-			name: "pass",
-			setup: func(dao *commondao.CommonDAO) uint64 {
-				return dao.MustPropose(member, testPropDef{tallyResult: true}).ID()
-			},
-			passes: true,
-		},
-		{
-			name: "fail to pass",
-			setup: func(dao *commondao.CommonDAO) uint64 {
-				return dao.MustPropose(member, testPropDef{tallyResult: false}).ID()
-			},
-			passes: false,
-		},
-		{
-			name:  "proposal not found",
-			setup: func(*commondao.CommonDAO) uint64 { return 404 },
-			err:   commondao.ErrProposalNotFound,
-		},
-		// TODO: Requires PR to be merged https://github.com/gnolang/gno/pull/4737
-		// {
-		// 	name: "proposal status not active",
-		// 	setup: func(dao *commondao.CommonDAO) uint64 {
-		// 		p := dao.MustPropose(member, testPropDef{tallyResult: true})
-		// 		members := commondao.NewMemberSet(dao.Members())
-		// 		p.Tally(members)
-		// 		return p.ID()
-		// 	},
-		// 	err: commondao.ErrStatusIsNotActive,
-		// },
-		{
-			name: "proposal failed error",
-			setup: func(dao *commondao.CommonDAO) uint64 {
-				return dao.MustPropose(member, testPropDef{tallyErr: commondao.ErrProposalFailed}).ID()
-			},
-			passes: false,
-		},
-		{
-			name: "error",
-			setup: func(dao *commondao.CommonDAO) uint64 {
-				return dao.MustPropose(member, testPropDef{tallyErr: errTest}).ID()
-			},
-			err: errTest,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			dao := commondao.New(commondao.WithMember(member))
-			proposalID := tc.setup(dao)
-
-			passes, err := dao.Tally(proposalID)
-
-			if tc.err != nil {
-				uassert.ErrorIs(t, err, tc.err, "expect an error")
-				uassert.False(t, passes, "expect tally to fail")
-				return
-			}
-
-			uassert.NoError(t, err, "expect no error")
-			uassert.Equal(t, tc.passes, passes, "expect tally success value to match")
-		})
-	}
-}
-
 func TestCommonDAOExecute(t *testing.T) {
 	errTest := errors.New("test")
 	member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
@@ -392,19 +373,18 @@ func TestCommonDAOExecute(t *testing.T) {
 			proposalID: 1,
 			err:        commondao.ErrProposalNotFound,
 		},
-		// TODO: Requires PR to be merged https://github.com/gnolang/gno/pull/4737
-		// {
-		// 	name: "proposal not active",
-		// 	setup: func() *commondao.CommonDAO {
-		// 		dao := commondao.New(commondao.WithMember(member))
-		// 		p := dao.MustPropose(member, testPropDef{tallyResult: true})
-		// 		members := commondao.NewMemberSet(dao.Members())
-		// 		p.Tally(members)
-		// 		return dao
-		// 	},
-		// 	proposalID: 1,
-		// 	err:        commondao.ErrStatusIsNotActive,
-		// },
+		{
+			name: "execution not allowed",
+			setup: func() *commondao.CommonDAO {
+				dao := commondao.New(commondao.WithMember(member))
+				p, _ := dao.Propose(member, testPropDef{tallyResult: false})
+				members := commondao.NewMemberSet(dao.Members())
+				p.Tally(members)
+				return dao
+			},
+			proposalID: 1,
+			err:        commondao.ErrExecutionNotAllowed,
+		},
 		{
 			name: "voting deadline not met",
 			setup: func() *commondao.CommonDAO {
@@ -419,7 +399,10 @@ func TestCommonDAOExecute(t *testing.T) {
 			name: "validation error",
 			setup: func() *commondao.CommonDAO {
 				dao := commondao.New(commondao.WithMember(member))
-				dao.Propose(member, testPropDef{validationErr: errTest})
+				dao.Propose(member, testPropDef{
+					validationErr: errTest,
+					tallyResult:   true,
+				})
 				return dao
 			},
 			proposalID:   1,
@@ -446,6 +429,7 @@ func TestCommonDAOExecute(t *testing.T) {
 			err := dao.Execute(tc.proposalID)
 
 			if tc.err != nil {
+				urequire.Error(t, err, "expected an error")
 				urequire.ErrorIs(t, err, tc.err, "expect error to match")
 				return
 			}

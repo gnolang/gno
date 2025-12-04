@@ -42,4 +42,4 @@ func main() {
 
 // Output:
 // true
-// passed
+// executed

@@ -353,6 +353,68 @@ func TestIsQuorumReached(t *testing.T) {
 	}
 }
 
+func TestProposalTally(t *testing.T) {
+	errTest := errors.New("test")
+	creator := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	cases := []struct {
+		name   string
+		setup  func() *commondao.Proposal
+		status commondao.ProposalStatus
+		err    error
+	}{
+		{
+			name: "passed",
+			setup: func() *commondao.Proposal {
+				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyResult: true})
+				return p
+			},
+			status: commondao.StatusPassed,
+		},
+		{
+			name: "rejected",
+			setup: func() *commondao.Proposal {
+				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyResult: false})
+				return p
+			},
+			status: commondao.StatusRejected,
+		},
+		{
+			name: "proposal is not active",
+			setup: func() *commondao.Proposal {
+				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyResult: true})
+				members := commondao.NewMemberSet(commondao.NewMemberStorage())
+				p.Tally(members)
+				return p
+			},
+			err: commondao.ErrStatusIsNotActive,
+		},
+		{
+			name: "tally error",
+			setup: func() *commondao.Proposal {
+				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyErr: errTest})
+				return p
+			},
+			err: errTest,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := tc.setup()
+
+			err := p.Tally(commondao.MemberSet{})
+
+			if tc.err != nil {
+				urequire.ErrorIs(t, err, tc.err)
+				return
+			}
+
+			urequire.NoError(t, err)
+			urequire.Equal(t, string(tc.status), string(p.Status()))
+		})
+	}
+}
+
 func TestMustValidate(t *testing.T) {
 	uassert.NotPanics(t, func() {
 		commondao.MustValidate(testPropDef{})

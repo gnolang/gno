@@ -145,8 +145,6 @@ using `CommonDAO.ActiveProposals().Add()`.
 
 ```go
 import (
-    "std"
-
     "gno.land/p/nt/commondao"
     "gno.land/r/example/mydao"
 )
