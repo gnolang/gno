@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -117,6 +118,7 @@ func TestResolveDocumentable(t *testing.T) {
 			result, err := ResolveDocumentable(
 				[]string{path("")}, []string{path("mod")},
 				tc.args, tc.unexp,
+				"", time.Minute,
 			)
 			// we use stripFset because d.pkgData.fset contains sync/atomic values,
 			// which in turn makes reflect.DeepEqual compare the two sync.Atomic values.
