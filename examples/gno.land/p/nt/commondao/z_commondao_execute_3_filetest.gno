@@ -68,4 +68,4 @@ func main() {
 }
 
 // Output:
-// passed
+// executed

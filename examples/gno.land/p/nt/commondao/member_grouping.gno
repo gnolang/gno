@@ -36,12 +36,20 @@ type (
 )
 
 // NewMemberGrouping creates a new members grouping.
-func NewMemberGrouping() MemberGrouping {
-	return &memberGrouping{}
+func NewMemberGrouping(options ...MemberGroupingOption) MemberGrouping {
+	g := &memberGrouping{
+		createStorage: func(string) MemberStorage { return NewMemberStorage() },
+	}
+
+	for _, apply := range options {
+		apply(g)
+	}
+	return g
 }
 
 type memberGrouping struct {
-	groups avl.Tree // string(name) -> MemberGroup
+	groups        avl.Tree // string(name) -> MemberGroup
+	createStorage func(group string) MemberStorage
 }
 
 // Size returns the number of groups that grouping contains.
@@ -60,7 +68,7 @@ func (g *memberGrouping) Add(name string) (MemberGroup, error) {
 		return nil, errors.New("member group already exists: " + name)
 	}
 
-	mg, err := NewMemberGroup(name, NewMemberStorage())
+	mg, err := NewMemberGroup(name, g.createStorage(name))
 	if err != nil {
 		return nil, err
 	}

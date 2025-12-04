@@ -73,7 +73,10 @@ func TestVotingRecordAddVote(t *testing.T) {
 				},
 			},
 			setup: func(r *commondao.VotingRecord) {
-				r.AddVote(commondao.Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: commondao.ChoiceAbstain})
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceAbstain,
+				})
 			},
 			yesCount:     1,
 			abstainCount: 0,
@@ -129,24 +132,42 @@ func TestFindMostVotedChoice(t *testing.T) {
 		{
 			name: "one vote",
 			setup: func(r *commondao.VotingRecord) {
-				r.AddVote(commondao.Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: commondao.ChoiceYes})
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
 			},
 			choice: commondao.ChoiceYes,
 		},
 		{
 			name: "multiple votes",
 			setup: func(r *commondao.VotingRecord) {
-				r.AddVote(commondao.Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: commondao.ChoiceNo})
-				r.AddVote(commondao.Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: commondao.ChoiceYes})
-				r.AddVote(commondao.Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: commondao.ChoiceNo})
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceNo,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+					Choice:  commondao.ChoiceNo,
+				})
 			},
 			choice: commondao.ChoiceNo,
 		},
 		{
 			name: "tie",
 			setup: func(r *commondao.VotingRecord) {
-				r.AddVote(commondao.Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: commondao.ChoiceYes})
-				r.AddVote(commondao.Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: commondao.ChoiceNo})
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceNo,
+				})
 			},
 			choice: commondao.ChoiceNone,
 		},
@@ -184,9 +205,18 @@ func TestSelectChoiceByAbsoluteMajority(t *testing.T) {
 		{
 			name: "majority",
 			setup: func(r *commondao.VotingRecord) {
-				r.AddVote(commondao.Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: commondao.ChoiceYes})
-				r.AddVote(commondao.Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: commondao.ChoiceYes})
-				r.AddVote(commondao.Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: commondao.ChoiceNo})
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+					Choice:  commondao.ChoiceNo,
+				})
 			},
 			choice:       commondao.ChoiceYes,
 			membersCount: 3,
@@ -195,8 +225,14 @@ func TestSelectChoiceByAbsoluteMajority(t *testing.T) {
 		{
 			name: "no majority",
 			setup: func(r *commondao.VotingRecord) {
-				r.AddVote(commondao.Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: commondao.ChoiceYes})
-				r.AddVote(commondao.Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: commondao.ChoiceNo})
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceNo,
+				})
 			},
 			choice:       "",
 			membersCount: 3,
@@ -205,9 +241,18 @@ func TestSelectChoiceByAbsoluteMajority(t *testing.T) {
 		{
 			name: "majority with abstain vote",
 			setup: func(r *commondao.VotingRecord) {
-				r.AddVote(commondao.Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: commondao.ChoiceYes})
-				r.AddVote(commondao.Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: commondao.ChoiceYes})
-				r.AddVote(commondao.Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: commondao.ChoiceAbstain})
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+					Choice:  commondao.ChoiceAbstain,
+				})
 			},
 			choice:       commondao.ChoiceYes,
 			membersCount: 3,
@@ -248,9 +293,18 @@ func TestSelectChoiceBySuperMajority(t *testing.T) {
 		{
 			name: "majority",
 			setup: func(r *commondao.VotingRecord) {
-				r.AddVote(commondao.Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: commondao.ChoiceYes})
-				r.AddVote(commondao.Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: commondao.ChoiceYes})
-				r.AddVote(commondao.Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: commondao.ChoiceNo})
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+					Choice:  commondao.ChoiceNo,
+				})
 			},
 			choice:       commondao.ChoiceYes,
 			membersCount: 3,
@@ -259,8 +313,14 @@ func TestSelectChoiceBySuperMajority(t *testing.T) {
 		{
 			name: "no majority",
 			setup: func(r *commondao.VotingRecord) {
-				r.AddVote(commondao.Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: commondao.ChoiceYes})
-				r.AddVote(commondao.Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: commondao.ChoiceNo})
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceNo,
+				})
 			},
 			choice:       "",
 			membersCount: 3,
@@ -269,9 +329,18 @@ func TestSelectChoiceBySuperMajority(t *testing.T) {
 		{
 			name: "majority with abstain vote",
 			setup: func(r *commondao.VotingRecord) {
-				r.AddVote(commondao.Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: commondao.ChoiceYes})
-				r.AddVote(commondao.Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: commondao.ChoiceYes})
-				r.AddVote(commondao.Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: commondao.ChoiceAbstain})
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+					Choice:  commondao.ChoiceAbstain,
+				})
 			},
 			choice:       commondao.ChoiceYes,
 			membersCount: 3,
@@ -310,9 +379,18 @@ func TestSelectChoiceByPlurality(t *testing.T) {
 		{
 			name: "plurality",
 			setup: func(r *commondao.VotingRecord) {
-				r.AddVote(commondao.Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: commondao.ChoiceYes})
-				r.AddVote(commondao.Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: commondao.ChoiceYes})
-				r.AddVote(commondao.Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: commondao.ChoiceNo})
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+					Choice:  commondao.ChoiceNo,
+				})
 			},
 			choice:  commondao.ChoiceYes,
 			success: true,
@@ -320,8 +398,14 @@ func TestSelectChoiceByPlurality(t *testing.T) {
 		{
 			name: "no plurality",
 			setup: func(r *commondao.VotingRecord) {
-				r.AddVote(commondao.Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: commondao.ChoiceYes})
-				r.AddVote(commondao.Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: commondao.ChoiceNo})
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceNo,
+				})
 			},
 			choice:  "",
 			success: false,
@@ -329,10 +413,22 @@ func TestSelectChoiceByPlurality(t *testing.T) {
 		{
 			name: "plurality with abstain vote",
 			setup: func(r *commondao.VotingRecord) {
-				r.AddVote(commondao.Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: commondao.ChoiceYes})
-				r.AddVote(commondao.Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: commondao.ChoiceYes})
-				r.AddVote(commondao.Vote{Address: "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5", Choice: commondao.ChoiceNo})
-				r.AddVote(commondao.Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: commondao.ChoiceAbstain})
+				r.AddVote(commondao.Vote{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+					Choice:  commondao.ChoiceYes,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5",
+					Choice:  commondao.ChoiceNo,
+				})
+				r.AddVote(commondao.Vote{
+					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+					Choice:  commondao.ChoiceAbstain,
+				})
 			},
 			choice:  commondao.ChoiceYes,
 			success: true,
