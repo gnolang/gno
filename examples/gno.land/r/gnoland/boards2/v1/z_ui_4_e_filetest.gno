@@ -4,6 +4,8 @@ package main
 import (
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
@@ -13,7 +15,7 @@ const (
 	dstBoardName         = "BoardName2"
 )
 
-var repostThreadID boards2.PostID
+var repostThreadID boards.ID
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
@@ -24,7 +26,7 @@ func init() {
 
 	// Repost thread into a different board
 	dstBoardID := boards2.CreateBoard(cross, dstBoardName, false)
-	repostThreadID = boards2.CreateRepost(cross, boardID, threadID, "Bar", "Body2", dstBoardID)
+	repostThreadID = boards2.CreateRepost(cross, boardID, threadID, dstBoardID, "Bar", "Body2")
 
 	// Remove the original thread
 	boards2.DeleteThread(cross, boardID, threadID)

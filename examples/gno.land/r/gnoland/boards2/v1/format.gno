@@ -9,6 +9,8 @@ import (
 	"gno.land/r/sys/users"
 )
 
+const dateFormat = "2006-01-02 3:04pm MST"
+
 func padLeft(s string, length int) string {
 	if len(s) >= length {
 		return s

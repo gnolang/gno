@@ -3,6 +3,8 @@ package boards2
 import (
 	"errors"
 
+	"gno.land/p/gnoland/boards"
+
 	"gno.land/r/sys/users"
 )
 
@@ -13,7 +15,7 @@ import (
 // 2. Board name
 // 3. Board ID
 // 4. Is board listed
-func validateBoardCreate(_ Permissions, args Args) error {
+func validateBoardCreate(_ boards.Permissions, args boards.Args) error {
 	caller, ok := args[0].(address)
 	if !ok {
 		return errors.New("expected a valid caller address")
@@ -41,7 +43,7 @@ func validateBoardCreate(_ Permissions, args Args) error {
 // 2. Board ID
 // 3. Current board name
 // 4. New board name
-func validateBoardRename(_ Permissions, args Args) error {
+func validateBoardRename(_ boards.Permissions, args boards.Args) error {
 	caller, ok := args[0].(address)
 	if !ok {
 		return errors.New("expected a valid caller address")
@@ -68,7 +70,7 @@ func validateBoardRename(_ Permissions, args Args) error {
 // 1. Caller address
 // 2. Board ID
 // 3. Invites
-func validateMemberInvite(perms Permissions, args Args) error {
+func validateMemberInvite(perms boards.Permissions, args boards.Args) error {
 	caller, ok := args[0].(address)
 	if !ok {
 		return errors.New("expected a valid caller address")
@@ -96,7 +98,7 @@ func validateMemberInvite(perms Permissions, args Args) error {
 // 2. Board ID
 // 3. Member address
 // 4. Role
-func validateRoleChange(perms Permissions, args Args) error {
+func validateRoleChange(perms boards.Permissions, args boards.Args) error {
 	caller, ok := args[0].(address)
 	if !ok {
 		return errors.New("expected a valid caller address")
@@ -105,7 +107,7 @@ func validateRoleChange(perms Permissions, args Args) error {
 	// Owners and Admins can change roles.
 	// Admins should not be able to assign or remove the Owner role from members.
 	if perms.HasRole(caller, RoleAdmin) {
-		role, ok := args[3].(Role)
+		role, ok := args[3].(boards.Role)
 		if !ok {
 			return errors.New("expected a valid member role")
 		}
