@@ -1,0 +1,237 @@
+-- input.md --
+Matrix tests:
+
+Simple matrix: $\begin{matrix} a & b \\ c & d \end{matrix}$
+
+Parentheses matrix: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}$
+
+Brackets matrix: $\begin{bmatrix} a & b \\ c & d \end{bmatrix}$
+
+Braces matrix: $\begin{Bmatrix} a & b \\ c & d \end{Bmatrix}$
+
+Vertical bars: $\begin{vmatrix} a & b \\ c & d \end{vmatrix}$
+
+Double vertical bars: $\begin{Vmatrix} a & b \\ c & d \end{Vmatrix}$
+
+Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}$
+
+-- output.html --
+<p>Matrix tests:</p>
+<p>Simple matrix: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mtable columnalign="center" rowalign="center">
+        <mtr>
+          <mtd>
+            <mi>a</mi>
+          </mtd>
+          <mtd>
+            <mi>b</mi>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mi>c</mi>
+          </mtd>
+          <mtd>
+            <mi>d</mi>
+          </mtd>
+        </mtr>
+      </mtable>
+    </mrow>
+    <annotation encoding="application/x-tex">\begin{matrix} a & b \\ c & d \end{matrix}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Parentheses matrix: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo fence="true" stretchy="true">(</mo>
+      <mtable columnalign="center" rowalign="center">
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>a</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>b</mi>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>c</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>d</mi>
+          </mtd>
+        </mtr>
+      </mtable>
+      <mo fence="true" stretchy="true">)</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">\begin{pmatrix} a & b \\ c & d \end{pmatrix}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Brackets matrix: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo fence="true" stretchy="true">[</mo>
+      <mtable columnalign="center" rowalign="center">
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>a</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>b</mi>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>c</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>d</mi>
+          </mtd>
+        </mtr>
+      </mtable>
+      <mo fence="true" stretchy="true">]</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">\begin{bmatrix} a & b \\ c & d \end{bmatrix}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Braces matrix: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo fence="true" stretchy="true">{</mo>
+      <mtable columnalign="center" rowalign="center">
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>a</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>b</mi>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>c</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>d</mi>
+          </mtd>
+        </mtr>
+      </mtable>
+      <mo fence="true" stretchy="true">}</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">\begin{Bmatrix} a & b \\ c & d \end{Bmatrix}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Vertical bars: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo fence="true" stretchy="true">|</mo>
+      <mtable columnalign="center" rowalign="center">
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>a</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>b</mi>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>c</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>d</mi>
+          </mtd>
+        </mtr>
+      </mtable>
+      <mo fence="true" stretchy="true">|</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">\begin{vmatrix} a & b \\ c & d \end{vmatrix}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Double vertical bars: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo fence="true" stretchy="true">‖</mo>
+      <mtable columnalign="center" rowalign="center">
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>a</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>b</mi>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>c</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>d</mi>
+          </mtd>
+        </mtr>
+      </mtable>
+      <mo fence="true" stretchy="true">‖</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">\begin{Vmatrix} a & b \\ c & d \end{Vmatrix}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Large matrix: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo fence="true" stretchy="true">(</mo>
+      <mtable columnalign="center" rowalign="center">
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>a</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>b</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>c</mi>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>d</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>e</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>f</mi>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd style="text-align:center;">
+            <mi>g</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>h</mi>
+          </mtd>
+          <mtd style="text-align:center;">
+            <mi>i</mi>
+          </mtd>
+        </mtr>
+      </mtable>
+      <mo fence="true" stretchy="true">)</mo>
+    </mrow>
+    <annotation encoding="application/x-tex">\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}</annotation>
+  </semantics>
+</math>
+</p>

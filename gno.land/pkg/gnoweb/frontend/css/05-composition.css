@@ -373,6 +373,11 @@
 
 	math {
 		font-family: var(--g-font-family-mono);
+		font-size: var(--g-font-size-300);
+
+		&[display="block"] {
+			margin-block: var(--cr-space-4);
+		}
 	}
 
 	small {

@@ -1,0 +1,442 @@
+-- input.md --
+Advanced roots and complex equations test:
+
+## Complex Roots
+
+Simple square root: $\sqrt{x}$
+
+Square root with expression: $\sqrt{x^2 + y^2}$
+
+k-th root: $\sqrt[k]{x}$
+
+k-th root with complex expression: $\sqrt[k]{x^n + y^m}$
+
+Nested roots: $\sqrt{\sqrt{x}}$
+
+Multiple roots: $\sqrt{x} + \sqrt{y}$
+
+## Fractional Powers
+
+Fractional power: $x^{1/2}$
+
+Complex fractional power: $x^{m/n}$
+
+Nested fractional powers: $(x^{1/2})^{1/3}$
+
+## Advanced Root Equations
+
+Quadratic formula with k-th root: $x = \frac{-b \pm \sqrt[k]{b^k - 4ac}}{2a}$
+
+Cubic formula: $x = \sqrt[3]{\frac{-q}{2} + \sqrt{\frac{q^2}{4} + \frac{p^3}{27}}} + \sqrt[3]{\frac{-q}{2} - \sqrt{\frac{q^2}{4} + \frac{p^3}{27}}}$
+
+Nested radical: $\sqrt{1 + \sqrt{1 + \sqrt{1 + \sqrt{x}}}}$
+
+## Complex Mathematical Structures
+
+Continued fraction: $x = a_0 + \cfrac{1}{a_1 + \cfrac{1}{a_2 + \cfrac{1}{a_3 + \cfrac{1}{a_4}}}}$
+
+Nested fractions with roots: $\frac{1}{\sqrt{1 + \frac{1}{\sqrt{1 + \frac{1}{\sqrt{x}}}}}}$
+
+-- output.html --
+<p>Advanced roots and complex equations test:</p>
+<h2>Complex Roots</h2>
+<p>Simple square root: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msqrt>
+        <mi>x</mi>
+      </msqrt>
+    </mrow>
+    <annotation encoding="application/x-tex">\sqrt{x}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Square root with expression: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msqrt>
+        <mrow>
+          <msup>
+            <mi>x</mi>
+            <mn>2</mn>
+          </msup>
+          <mo>+</mo>
+          <msup>
+            <mi>y</mi>
+            <mn>2</mn>
+          </msup>
+        </mrow>
+      </msqrt>
+    </mrow>
+    <annotation encoding="application/x-tex">\sqrt{x^2 + y^2}</annotation>
+  </semantics>
+</math>
+</p>
+<p>k-th root: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mroot>
+        <mi>x</mi>
+        <mi>k</mi>
+      </mroot>
+    </mrow>
+    <annotation encoding="application/x-tex">\sqrt[k]{x}</annotation>
+  </semantics>
+</math>
+</p>
+<p>k-th root with complex expression: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mroot>
+        <mrow>
+          <msup>
+            <mi>x</mi>
+            <mi>n</mi>
+          </msup>
+          <mo>+</mo>
+          <msup>
+            <mi>y</mi>
+            <mi>m</mi>
+          </msup>
+        </mrow>
+        <mi>k</mi>
+      </mroot>
+    </mrow>
+    <annotation encoding="application/x-tex">\sqrt[k]{x^n + y^m}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Nested roots: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msqrt>
+        <msqrt>
+          <mi>x</mi>
+        </msqrt>
+      </msqrt>
+    </mrow>
+    <annotation encoding="application/x-tex">\sqrt{\sqrt{x}}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Multiple roots: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msqrt>
+        <mi>x</mi>
+      </msqrt>
+      <mo>+</mo>
+      <msqrt>
+        <mi>y</mi>
+      </msqrt>
+    </mrow>
+    <annotation encoding="application/x-tex">\sqrt{x} + \sqrt{y}</annotation>
+  </semantics>
+</math>
+</p>
+<h2>Fractional Powers</h2>
+<p>Fractional power: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msup>
+        <mi>x</mi>
+        <mrow>
+          <mn>1</mn>
+          <mo>/</mo>
+          <mn>2</mn>
+        </mrow>
+      </msup>
+    </mrow>
+    <annotation encoding="application/x-tex">x^{1/2}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Complex fractional power: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msup>
+        <mi>x</mi>
+        <mrow>
+          <mi>m</mi>
+          <mo>/</mo>
+          <mi>n</mi>
+        </mrow>
+      </msup>
+    </mrow>
+    <annotation encoding="application/x-tex">x^{m/n}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Nested fractional powers: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo form="prefix" stretchy="false">(</mo>
+      <msup>
+        <mi>x</mi>
+        <mrow>
+          <mn>1</mn>
+          <mo>/</mo>
+          <mn>2</mn>
+        </mrow>
+      </msup>
+      <msup>
+        <mo form="postfix" stretchy="false">)</mo>
+        <mrow>
+          <mn>1</mn>
+          <mo>/</mo>
+          <mn>3</mn>
+        </mrow>
+      </msup>
+    </mrow>
+    <annotation encoding="application/x-tex">(x^{1/2})^{1/3}</annotation>
+  </semantics>
+</math>
+</p>
+<h2>Advanced Root Equations</h2>
+<p>Quadratic formula with k-th root: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>x</mi>
+      <mo>=</mo>
+      <mfrac>
+        <mrow>
+          <mo>−</mo>
+          <mi>b</mi>
+          <mo>±</mo>
+          <mroot>
+            <mrow>
+              <msup>
+                <mi>b</mi>
+                <mi>k</mi>
+              </msup>
+              <mo>−</mo>
+              <mn>4</mn>
+              <mi>a</mi>
+              <mi>c</mi>
+            </mrow>
+            <mi>k</mi>
+          </mroot>
+        </mrow>
+        <mrow>
+          <mn>2</mn>
+          <mi>a</mi>
+        </mrow>
+      </mfrac>
+    </mrow>
+    <annotation encoding="application/x-tex">x = \frac{-b \pm \sqrt[k]{b^k - 4ac}}{2a}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Cubic formula: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>x</mi>
+      <mo>=</mo>
+      <mroot>
+        <mrow>
+          <mfrac>
+            <mrow>
+              <mo>−</mo>
+              <mi>q</mi>
+            </mrow>
+            <mn>2</mn>
+          </mfrac>
+          <mo>+</mo>
+          <msqrt>
+            <mrow>
+              <mfrac>
+                <mrow>
+                  <msup>
+                    <mi>q</mi>
+                    <mn>2</mn>
+                  </msup>
+                </mrow>
+                <mn>4</mn>
+              </mfrac>
+              <mo>+</mo>
+              <mfrac>
+                <mrow>
+                  <msup>
+                    <mi>p</mi>
+                    <mn>3</mn>
+                  </msup>
+                </mrow>
+                <mn>27</mn>
+              </mfrac>
+            </mrow>
+          </msqrt>
+        </mrow>
+        <mn>3</mn>
+      </mroot>
+      <mo>+</mo>
+      <mroot>
+        <mrow>
+          <mfrac>
+            <mrow>
+              <mo>−</mo>
+              <mi>q</mi>
+            </mrow>
+            <mn>2</mn>
+          </mfrac>
+          <mo>−</mo>
+          <msqrt>
+            <mrow>
+              <mfrac>
+                <mrow>
+                  <msup>
+                    <mi>q</mi>
+                    <mn>2</mn>
+                  </msup>
+                </mrow>
+                <mn>4</mn>
+              </mfrac>
+              <mo>+</mo>
+              <mfrac>
+                <mrow>
+                  <msup>
+                    <mi>p</mi>
+                    <mn>3</mn>
+                  </msup>
+                </mrow>
+                <mn>27</mn>
+              </mfrac>
+            </mrow>
+          </msqrt>
+        </mrow>
+        <mn>3</mn>
+      </mroot>
+    </mrow>
+    <annotation encoding="application/x-tex">x = \sqrt[3]{\frac{-q}{2} + \sqrt{\frac{q^2}{4} + \frac{p^3}{27}}} + \sqrt[3]{\frac{-q}{2} - \sqrt{\frac{q^2}{4} + \frac{p^3}{27}}}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Nested radical: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msqrt>
+        <mrow>
+          <mn>1</mn>
+          <mo>+</mo>
+          <msqrt>
+            <mrow>
+              <mn>1</mn>
+              <mo>+</mo>
+              <msqrt>
+                <mrow>
+                  <mn>1</mn>
+                  <mo>+</mo>
+                  <msqrt>
+                    <mi>x</mi>
+                  </msqrt>
+                </mrow>
+              </msqrt>
+            </mrow>
+          </msqrt>
+        </mrow>
+      </msqrt>
+    </mrow>
+    <annotation encoding="application/x-tex">\sqrt{1 + \sqrt{1 + \sqrt{1 + \sqrt{x}}}}</annotation>
+  </semantics>
+</math>
+</p>
+<h2>Complex Mathematical Structures</h2>
+<p>Continued fraction: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>x</mi>
+      <mo>=</mo>
+      <msub>
+        <mi>a</mi>
+        <mn>0</mn>
+      </msub>
+      <mo>+</mo>
+      <mfrac displaystyle="true">
+        <mn>1</mn>
+        <mrow>
+          <msub>
+            <mi>a</mi>
+            <mn>1</mn>
+          </msub>
+          <mo>+</mo>
+          <mfrac displaystyle="true">
+            <mn>1</mn>
+            <mrow>
+              <msub>
+                <mi>a</mi>
+                <mn>2</mn>
+              </msub>
+              <mo>+</mo>
+              <mfrac displaystyle="true">
+                <mn>1</mn>
+                <mrow>
+                  <msub>
+                    <mi>a</mi>
+                    <mn>3</mn>
+                  </msub>
+                  <mo>+</mo>
+                  <mfrac displaystyle="true">
+                    <mn>1</mn>
+                    <mrow>
+                      <msub>
+                        <mi>a</mi>
+                        <mn>4</mn>
+                      </msub>
+                    </mrow>
+                  </mfrac>
+                </mrow>
+              </mfrac>
+            </mrow>
+          </mfrac>
+        </mrow>
+      </mfrac>
+    </mrow>
+    <annotation encoding="application/x-tex">x = a_0 + \cfrac{1}{a_1 + \cfrac{1}{a_2 + \cfrac{1}{a_3 + \cfrac{1}{a_4}}}}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Nested fractions with roots: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mfrac>
+        <mn>1</mn>
+        <msqrt>
+          <mrow>
+            <mn>1</mn>
+            <mo>+</mo>
+            <mfrac>
+              <mn>1</mn>
+              <msqrt>
+                <mrow>
+                  <mn>1</mn>
+                  <mo>+</mo>
+                  <mfrac>
+                    <mn>1</mn>
+                    <msqrt>
+                      <mi>x</mi>
+                    </msqrt>
+                  </mfrac>
+                </mrow>
+              </msqrt>
+            </mfrac>
+          </mrow>
+        </msqrt>
+      </mfrac>
+    </mrow>
+    <annotation encoding="application/x-tex">\frac{1}{\sqrt{1 + \frac{1}{\sqrt{1 + \frac{1}{\sqrt{x}}}}}}</annotation>
+  </semantics>
+</math>
+</p>
