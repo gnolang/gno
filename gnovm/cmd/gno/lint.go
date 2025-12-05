@@ -257,7 +257,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			if cmd.autoGnomod {
 				tcmode = gno.TCLatestRelaxed
 			}
-			tcpkg, errs := lintTypeCheck(io, dir, mpkg, gno.TypeCheckOptions{
+			tcPkg, errs := lintTypeCheck(io, dir, mpkg, gno.TypeCheckOptions{
 				Getter:     newProdGnoStore(),
 				TestGetter: newTestGnoStore(true),
 				Mode:       tcmode,
@@ -270,7 +270,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			}
 
 			// ensure the 'Render' function is correct
-			err = lintRenderSignature(io, tcpkg)
+			err = lintRenderSignature(io, tcPkg)
 			if err != nil {
 				// io.ErrPrintln(err) printed above.
 				hasError = true
