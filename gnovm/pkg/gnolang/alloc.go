@@ -403,7 +403,29 @@ func (pv *PackageValue) GetShallowSize() int64 {
 		return 0
 	}
 
-	return overflow.Addp(allocPackage, overflow.Mulp(allocStringByte, int64(len(pv.PkgName))))
+	var ss int64
+	ss = allocPackage
+
+	ss = overflow.Addp(ss, overflow.Mulp(allocStringByte, int64(len(pv.PkgName))))
+	ss = overflow.Addp(ss, overflow.Mulp(allocStringByte, int64(len(pv.PkgPath))))
+
+	if pv.FNames != nil {
+		ss = overflow.Addp(ss, overflow.Mulp(_allocName, int64(len(pv.FNames))))
+		for _, fname := range pv.FNames {
+			ss = overflow.Addp(ss, overflow.Mulp(allocStringByte, int64(len(fname))))
+		}
+	}
+
+	if pv.FBlocks != nil {
+		ss = overflow.Addp(ss, overflow.Mulp(_allocValue, int64(len(pv.FBlocks))))
+	}
+
+	if pv.fBlocksMap != nil {
+		mapSize := int64(len(pv.fBlocksMap))
+		ss = overflow.Addp(ss, overflow.Mulp(_allocName+_allocPointer, mapSize))
+	}
+
+	return ss
 }
 
 func (b *Block) GetShallowSize() int64 {
