@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -116,7 +116,7 @@ func SignAndBroadcastHandler(
 	nameOrBech32 string,
 	tx std.Tx,
 	pass string,
-) (*types.ResultBroadcastTxCommit, error) {
+) (*ctypes.ResultBroadcastTxCommit, error) {
 	baseopts := cfg.RootCfg
 	txopts := cfg
 
@@ -226,14 +226,7 @@ func ExecSignAndBroadcast(
 	if cfg.RootCfg.OnTxSuccess != nil {
 		cfg.RootCfg.OnTxSuccess(tx, bres)
 	} else {
-		io.Println(string(bres.DeliverTx.Data))
-		io.Println("OK!")
-		io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
-		io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
-		io.Println("HEIGHT:    ", bres.Height)
-		io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
-		io.Println("INFO:      ", bres.DeliverTx.Info)
-		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
+		PrintTxInfo(tx, bres, io)
 	}
 
 	return nil

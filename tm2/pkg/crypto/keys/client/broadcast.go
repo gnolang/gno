@@ -88,13 +88,7 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 		if cfg.RootCfg.OnTxSuccess != nil {
 			cfg.RootCfg.OnTxSuccess(tx, res)
 		} else {
-			io.Println(string(res.DeliverTx.Data))
-			io.Println("OK!")
-			io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
-			io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
-			io.Println("HEIGHT:    ", res.Height)
-			io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
-			io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
+			PrintTxInfo(tx, res, io)
 		}
 	}
 	return nil

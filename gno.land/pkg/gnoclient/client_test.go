@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
-	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -20,6 +19,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -1619,7 +1619,7 @@ func TestClient_EstimateGas(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, gasUsed, deliverTx.GasUsed)
 
-		bytesDelta, coinsDelta, hasStorageEvents := keyscli.GetStorageInfo(deliverTx.Events)
+		bytesDelta, coinsDelta, hasStorageEvents := client.GetStorageInfo(deliverTx.Events)
 		assert.Equal(t, true, hasStorageEvents)
 		assert.Equal(t, int64(10), bytesDelta)
 		assert.Equal(t, "1000ugnot", coinsDelta.String())
