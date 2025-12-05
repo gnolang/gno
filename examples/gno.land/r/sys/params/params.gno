@@ -87,14 +87,14 @@ func NewSysParamStringsPropRequestWithTitle(module, submodule, name, title strin
 func NewSysParamStringsPropRequestAddWithTitle(module, submodule, name, title string, value []string) dao.ProposalRequest {
 	return newPropRequest(
 		syskey(module, submodule, name),
-		func() { prms.UpdateSysParamStrings(module, submodule, name, value, true) },
+		func() { prms.AddUniqueSysParamStrings(module, submodule, name, value) },
 		title,
 	)
 }
 func NewSysParamStringsPropRequestRemoveWithTitle(module, submodule, name, title string, value []string) dao.ProposalRequest {
 	return newPropRequest(
 		syskey(module, submodule, name),
-		func() { prms.UpdateSysParamStrings(module, submodule, name, value, false) },
+		func() { prms.RemoveSysParamStrings(module, submodule, name, value) },
 		title,
 	)
 }

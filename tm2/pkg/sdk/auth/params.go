@@ -160,59 +160,48 @@ func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		if !ok {
 			return
 		}
-		ak.applyUnrestrictedAddrsChange(ctx, addrs)
+		ak.updateUnrestrictedAddrs(ctx, addrs, true)
 	default:
 		// No-op for unrecognized keys
 		logger.Error("No-op for unrecognized keys", "key", key)
 	}
 }
 
-func (ak AccountKeeper) applyUnrestrictedAddrsChange(ctx sdk.Context, newAddrs []string) {
-	params, ok := ctx.Value(AuthParamsContextKey{}).(Params)
-	if !ok {
-		panic("missing or invalid AuthParams in context")
-	}
-	// Build sets once.
-	oldSet := make(map[string]struct{}, len(params.UnrestrictedAddrs))
-	for _, addr := range params.UnrestrictedAddrs {
-		oldSet[addr.String()] = struct{}{}
-	}
-	newSet := make(map[string]struct{}, len(newAddrs))
-	for _, s := range newAddrs {
-		newSet[s] = struct{}{}
-	}
-	// addition
-	for s := range newSet {
-		if _, ok := oldSet[s]; ok {
-			continue // in both, no change
+func (ak AccountKeeper) WillUpdateParam(ctx sdk.Context, key string, value any, add bool) {
+	switch key {
+	case "p:unrestricted_addrs":
+		addrs, ok := value.([]string)
+		if !ok {
+			return
 		}
+		ak.updateUnrestrictedAddrs(ctx, addrs, add)
+	default:
+		panic("XXX")
+	}
+}
+
+func (ak AccountKeeper) updateUnrestrictedAddrs(ctx sdk.Context, addrs []string, whitelist bool) {
+	for _, s := range addrs {
 		addr, err := crypto.AddressFromString(s)
 		if err != nil {
 			panic(fmt.Sprintf("invalid address: %v", err))
 		}
 		acc := ak.GetAccount(ctx, addr)
+		if acc == nil {
+			continue
+		}
+
 		uacc, ok := acc.(std.AccountUnrestricter)
 		if !ok {
 			continue
 		}
-		uacc.SetTokenLockWhitelisted(true)
-		ak.SetAccount(ctx, acc)
-	}
-	// removal
-	for s := range oldSet {
-		if _, ok := newSet[s]; ok {
-			continue // in both, no change
-		}
-		addr, err := crypto.AddressFromString(s)
-		if err != nil {
-			panic(fmt.Sprintf("invalid address: %v", err))
-		}
-		acc := ak.GetAccount(ctx, addr)
-		uacc, ok := acc.(std.AccountUnrestricter)
-		if !ok {
+
+		if uacc.IsTokenLockWhitelisted() == whitelist {
 			continue
 		}
-		uacc.SetTokenLockWhitelisted(false)
+
+		uacc.SetTokenLockWhitelisted(whitelist)
+
 		ak.SetAccount(ctx, acc)
 	}
 }

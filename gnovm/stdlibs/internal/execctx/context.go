@@ -22,7 +22,8 @@ type ParamsInterface interface {
 	SetUint64(key string, val uint64)
 	SetBytes(key string, val []byte)
 	SetStrings(key string, val []string)
-	UpdateStrings(key string, val []string, add bool)
+	AddUniqueStrings(key string, val []string)
+	RemoveStrings(key string, val []string)
 }
 
 type ExecContext struct {

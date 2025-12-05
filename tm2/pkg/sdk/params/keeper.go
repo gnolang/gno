@@ -39,6 +39,9 @@ type ParamsKeeperI interface {
 	SetBytes(ctx sdk.Context, key string, value []byte)
 	SetStrings(ctx sdk.Context, key string, value []string)
 
+	AddUniqueStrings(ctx sdk.Context, key string, delta []string)
+	RemoveStrings(ctx sdk.Context, key string, delta []string)
+
 	Has(ctx sdk.Context, key string) bool
 	GetRaw(ctx sdk.Context, key string) []byte
 	SetRaw(ctx sdk.Context, key string, value []byte)
@@ -53,6 +56,7 @@ type ParamsKeeperI interface {
 
 type ParamfulKeeper interface {
 	WillSetParam(ctx sdk.Context, key string, value any)
+	WillUpdateParam(ctx sdk.Context, key string, value any, add bool)
 }
 
 var _ ParamsKeeperI = ParamsKeeper{}
@@ -156,6 +160,101 @@ func (pk ParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) {
 
 func (pk ParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) {
 	pk.set(ctx, key, value)
+}
+
+func (pk ParamsKeeper) RemoveStrings(ctx sdk.Context, key string, values []string) {
+	ss := &[]string{}
+	pk.GetStrings(ctx, key, ss)
+
+	if len(values) == 0 {
+		return
+	}
+
+	oldList := *ss
+	changed := false
+
+	if len(oldList) == 0 {
+		return
+	}
+
+	// Build the set of items to remove
+	removeSet := make(map[string]struct{}, len(values))
+	for _, v := range values {
+		removeSet[v] = struct{}{}
+	}
+
+	// Filter in-place (reuse memory)
+	// n is the index for the "kept" items
+	n := 0
+	for _, s := range oldList {
+		if _, found := removeSet[s]; !found {
+			oldList[n] = s
+			n++
+		} else {
+			changed = true
+		}
+	}
+
+	// Reslice to the new length
+	oldList = oldList[:n]
+
+	if changed {
+		*ss = oldList // Update the pointer
+
+		// update paramful keeper
+		module, rawKey := parsePrefix(key)
+		if module != "" {
+			kpr := pk.GetRegisteredKeeper(module)
+			if kpr != nil {
+				add := false
+				kpr.WillUpdateParam(ctx, rawKey, *ss, add)
+			}
+		}
+
+		pk.SetStrings(ctx, key, oldList) // Write to Store
+	}
+}
+
+func (pk ParamsKeeper) AddUniqueStrings(ctx sdk.Context, key string, values []string) {
+	ss := &[]string{}
+	pk.GetStrings(ctx, key, ss)
+
+	if len(values) == 0 {
+		return
+	}
+
+	oldList := *ss
+	changed := false
+
+	// Use a map to track existing items to prevent duplicates.
+	exists := make(map[string]struct{}, len(oldList)+len(values))
+	for _, s := range oldList {
+		exists[s] = struct{}{}
+	}
+
+	for _, v := range values {
+		if _, found := exists[v]; !found {
+			oldList = append(oldList, v)
+			exists[v] = struct{}{} // Mark found so we don't add duplicates from delta itself
+			changed = true
+		}
+	}
+
+	if changed {
+		*ss = oldList // Update the pointer
+
+		// update paramful keeper
+		module, rawKey := parsePrefix(key)
+		if module != "" {
+			kpr := pk.GetRegisteredKeeper(module)
+			if kpr != nil {
+				add := true
+				kpr.WillUpdateParam(ctx, rawKey, *ss, add)
+			}
+		}
+
+		pk.SetStrings(ctx, key, oldList) // Write to Store
+	}
 }
 
 func (pk ParamsKeeper) GetRaw(ctx sdk.Context, key string) []byte {
@@ -329,6 +428,14 @@ func (ppk prefixParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte
 
 func (ppk prefixParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) {
 	ppk.pk.SetStrings(ctx, ppk.prefixed(key), value)
+}
+
+func (ppk prefixParamsKeeper) AddUniqueStrings(ctx sdk.Context, key string, value []string) {
+	ppk.pk.AddUniqueStrings(ctx, ppk.prefixed(key), value)
+}
+
+func (ppk prefixParamsKeeper) RemoveStrings(ctx sdk.Context, key string, value []string) {
+	ppk.pk.RemoveStrings(ctx, ppk.prefixed(key), value)
 }
 
 func (ppk prefixParamsKeeper) Has(ctx sdk.Context, key string) bool {
