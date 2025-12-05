@@ -4,8 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/tm2/pkg/amino"
 )
 
 func TestKeeper(t *testing.T) {
