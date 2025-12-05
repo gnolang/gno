@@ -32,15 +32,15 @@ const (
 	_allocPointer = 8
 	// gno types
 	_allocSlice            = 24
-	_allocPointerValue     = 40
-	_allocStructValue      = 152
-	_allocArrayValue       = 176
+	_allocPointerValue     = 32
+	_allocStructValue      = 176
+	_allocArrayValue       = 200
 	_allocSliceValue       = 40
-	_allocFuncValue        = 312
-	_allocMapValue         = 144
-	_allocBoundMethodValue = 176
-	_allocBlock            = 472
-	_allocPackageValue     = 240
+	_allocFuncValue        = 352
+	_allocMapValue         = 168
+	_allocBoundMethodValue = 200
+	_allocBlock            = 520
+	_allocPackageValue     = 272
 	_allocTypeValue        = 16
 	_allocTypedValue       = 40
 	_allocRefValue         = 72
