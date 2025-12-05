@@ -480,7 +480,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrInvalidPackage("development packages are not allowed")
 	}
 	if pv != nil && pv.Private && !gm.Private {
-		return ErrInvalidPackage("cannot change private package to public package")
+		return ErrInvalidPackage("a private package cannot be overridden by a public package")
 	}
 	if gm.Private && !gno.IsRealmPath(pkgPath) {
 		return ErrInvalidPackage("private packages must be realm packages")
