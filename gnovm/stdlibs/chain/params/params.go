@@ -42,9 +42,14 @@ func SetStrings(m *gno.Machine, key string, val []string) {
 	execctx.GetContext(m).Params.SetStrings(pk, val)
 }
 
-func UpdateParamStrings(m *gno.Machine, key string, val []string, add bool) {
+func AddUniqueParamStrings(m *gno.Machine, key string, val []string) {
 	pk := pkey(m, key)
-	execctx.GetContext(m).Params.UpdateStrings(pk, val, add)
+	execctx.GetContext(m).Params.AddUniqueStrings(pk, val)
+}
+
+func RemoveParamStrings(m *gno.Machine, key string, val []string) {
+	pk := pkey(m, key)
+	execctx.GetContext(m).Params.RemoveStrings(pk, val)
 }
 
 // NOTE: further validation must happen by implementor of ParamsInterface.

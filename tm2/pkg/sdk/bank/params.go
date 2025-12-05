@@ -67,3 +67,7 @@ func (bank BankKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		// Allow setting non-existent key.
 	}
 }
+
+func (bank BankKeeper) WillUpdateParam(ctx sdk.Context, key string, value any, add bool) {
+	// XXX
+}

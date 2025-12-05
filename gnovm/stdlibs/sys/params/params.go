@@ -43,10 +43,16 @@ func X_setSysParamStrings(m *gno.Machine, module, submodule, name string, val []
 	execctx.GetContext(m).Params.SetStrings(pk, val)
 }
 
-func X_updateSysParamStrings(m *gno.Machine, module, submodule, name string, val []string, add bool) {
+func X_addUniqueSysParamStrings(m *gno.Machine, module, submodule, name string, val []string) {
 	assertSysParamsRealm(m)
 	pk := prmkey(module, submodule, name)
-	execctx.GetContext(m).Params.UpdateStrings(pk, val, add)
+	execctx.GetContext(m).Params.AddUniqueStrings(pk, val)
+}
+
+func X_removeSysParamStrings(m *gno.Machine, module, submodule, name string, val []string) {
+	assertSysParamsRealm(m)
+	pk := prmkey(module, submodule, name)
+	execctx.GetContext(m).Params.RemoveStrings(pk, val)
 }
 
 func assertSysParamsRealm(m *gno.Machine) {

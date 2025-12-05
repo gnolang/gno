@@ -99,4 +99,5 @@ func (bankk DummyBankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address,
 }
 
 // WillSetParam checks if the key contains the module's parameter key prefix and updates the module parameter accordingly.
-func (bankk DummyBankKeeper) WillSetParam(ctx sdk.Context, key string, value any) {}
+func (bankk DummyBankKeeper) WillSetParam(ctx sdk.Context, key string, value any)              {}
+func (bankk DummyBankKeeper) WillUpdateParam(ctx sdk.Context, key string, value any, add bool) {}

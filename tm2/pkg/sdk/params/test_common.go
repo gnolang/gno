@@ -62,3 +62,6 @@ func NewDummyKeeper(prmk ParamsKeeperI) DummyKeeper {
 func (dk DummyKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	// do nothing
 }
+func (dk DummyKeeper) WillUpdateParam(ctx sdk.Context, key string, value any, add bool) {
+	// do nothing
+}
