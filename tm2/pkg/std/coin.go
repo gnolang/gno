@@ -192,7 +192,10 @@ func NewCoins(coins ...Coin) Coins {
 	}
 
 	if !newCoins.IsValid() {
-		panic(fmt.Errorf("invalid coin set: %s", newCoins))
+		panic(fmt.Errorf(
+			"invalid coin set: %s (must be sorted, lowercase-only denoms, and positive amounts)",
+			newCoins,
+		))
 	}
 
 	return newCoins
@@ -271,7 +274,10 @@ func (coins Coins) IsValid() bool {
 func (coins Coins) Add(coinsB Coins) Coins {
 	res := coins.AddUnsafe(coinsB)
 	if !res.IsValid() {
-		panic(fmt.Sprintf("invalid result: %v + %v = %v", coins, coinsB, res))
+		panic(fmt.Sprintf(
+			"invalid result: %v + %v = %v (coins must stay sorted, lowercase-only denoms, and positive amounts)",
+			coins, coinsB, res,
+		))
 	}
 	return res
 }
@@ -372,7 +378,10 @@ func (coins Coins) DenomsSubsetOf(coinsB Coins) bool {
 func (coins Coins) Sub(coinsB Coins) Coins {
 	res := coins.SubUnsafe(coinsB)
 	if !res.IsValid() {
-		panic(fmt.Sprintf("invalid result: %v - %v = %v", coins, coinsB, res))
+		panic(fmt.Sprintf(
+			"invalid result: %v - %v = %v (must be sorted, lowercase-only denoms, and positive amounts)",
+			coins, coinsB, res,
+		))
 	}
 	return res
 }
@@ -717,7 +726,10 @@ func ParseCoins(coinsStr string) (Coins, error) {
 
 	// validate coins before returning
 	if !coins.IsValid() {
-		return nil, fmt.Errorf("parseCoins invalid: %#v", coins)
+		return nil, fmt.Errorf(
+			"parseCoins: invalid coins %v (must be sorted, lowercase-only denoms, and positive amounts)",
+			coins,
+		)
 	}
 
 	return coins, nil
