@@ -2,7 +2,6 @@ package impl
 
 import (
 	"chain/runtime"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -35,18 +34,7 @@ func NewRender(d *GovDAO) *render {
 	})
 
 	r.HandleFunc("activity", func(rw *mux.ResponseWriter, req *mux.Request) {
-		rw.Write(ren.renderActivityPage(d, 10))
-	})
-
-	r.HandleFunc("activity/{count}", func(rw *mux.ResponseWriter, req *mux.Request) {
-		count, err := strconv.Atoi(req.GetVar("count"))
-		if err != nil || count <= 0 {
-			count = 10
-		}
-		if count > 20 {
-			count = 20
-		}
-		rw.Write(ren.renderActivityPage(d, count))
+		rw.Write(ren.renderActivityPage(req.RawPath, d))
 	})
 
 	r.HandleFunc("{pid}", func(rw *mux.ResponseWriter, req *mux.Request) {
@@ -140,93 +128,20 @@ Executor created in: %s
 }
 
 type memberActivity struct {
-	addr       address
-	tier       string
-	activity   uint32
-	available  uint32
-	percentage float64
+	addr      address
+	tier      string
+	available uint32
+	votes     uint32
 }
 
-// memberActivitySorter implements sort.Interface for sorting member activities by participation percentage
-type memberActivitySorter []memberActivity
-
-func (mas memberActivitySorter) Len() int {
-	return len(mas)
-}
-
-func (mas memberActivitySorter) Less(i, j int) bool {
-	if mas[i].percentage != mas[j].percentage {
-		return mas[i].percentage > mas[j].percentage
-	}
-	return mas[i].activity > mas[j].activity
-}
-
-func (mas memberActivitySorter) Swap(i, j int) {
-	mas[i], mas[j] = mas[j], mas[i]
-}
-
-// getRecentProposalIDs returns the most recent proposal IDs, up to maxCount
-func (d *GovDAO) getRecentProposalIDs(maxCount int) []dao.ProposalID {
-	var proposalIDs []dao.ProposalID
-
-	// Iterate in reverse order to get most recent first
-	d.pss.ReverseIterate("", "", func(id string, _ interface{}) bool {
-		seqpid, err := seqid.FromString(id)
-		if err != nil {
-			return false
-		}
-		proposalIDs = append(proposalIDs, dao.ProposalID(seqpid))
-
-		if len(proposalIDs) >= maxCount {
-			return true
-		}
-		return false
-	})
-
-	return proposalIDs
-}
-
-func (ren *render) renderActivityPage(d *GovDAO, recentProposalsCount int) string {
+func (ren *render) renderActivityPage(path string, d *GovDAO) string {
 	out := "# GovDAO Activity\n\n"
-
-	out += "### Configuration\n"
-	out += "**Proposals to analyze:** [5](" + ren.relativeRealmPath + ":activity/5) | "
-	out += "[10](" + ren.relativeRealmPath + ":activity/10) | "
-	out += "[20](" + ren.relativeRealmPath + ":activity/20)\n\n"
-	out += "---\n\n"
-	out += ufmt.Sprintf("## Members Activity (Last %d Proposals)\n\n", recentProposalsCount)
+	out += "## Members Activity\n\n"
 
 	tiers := memberstore.Get()
 	if tiers.Size() == 0 {
 		out += "### No members available\n"
 		return out
-	}
-
-	recentProposalIDs := d.getRecentProposalIDs(recentProposalsCount)
-	if len(recentProposalIDs) == 0 {
-		out += "### No proposals available\n"
-		return out
-	}
-
-	memberVotes := make(map[string]uint32) // address -> vote count
-
-	for _, pid := range recentProposalIDs {
-		ps := d.pss.GetStatus(pid)
-		if ps == nil {
-			continue
-		}
-		ps.AllVotes.Iterate("", "", func(tierName string, tierValue any) bool {
-			memberTree, ok := tierValue.(*avl.Tree)
-			if !ok {
-				return false
-			}
-
-			memberTree.Iterate("", "", func(addrKey string, _ any) bool {
-				memberVotes[addrKey]++
-				return false
-			})
-			return false
-		})
 	}
 
 	var activities []memberActivity
@@ -238,35 +153,14 @@ func (ren *render) renderActivityPage(d *GovDAO, recentProposalsCount int) strin
 
 		memberTree.Iterate("", "", func(addrKey string, _ any) bool {
 			memberAddr := address(addrKey)
-			member, _ := tiers.GetMember(memberAddr)
-			if member == nil {
-				return false
-			}
 
-			var available uint32
-			for _, pid := range recentProposalIDs {
-				ps := d.pss.GetStatus(pid)
-				if ps != nil && !member.JoinTime.After(ps.CreatedAt) {
-					available++
-				}
-			}
-
-			if available == 0 {
-				return false
-			}
-
-			activity := memberVotes[addrKey]
-			var percentage float64
-			if available > 0 {
-				percentage = float64(activity) / float64(available) * 100.0
-			}
+			activity := GetMemberActivity(memberAddr)
 
 			activities = append(activities, memberActivity{
-				addr:       memberAddr,
-				tier:       tierName,
-				activity:   activity,
-				available:  available,
-				percentage: percentage,
+				addr:      memberAddr,
+				tier:      tierName,
+				available: activity.Available,
+				votes:     activity.Votes,
 			})
 
 			return false
@@ -274,19 +168,37 @@ func (ren *render) renderActivityPage(d *GovDAO, recentProposalsCount int) strin
 		return false
 	})
 
-	sort.Sort(memberActivitySorter(activities))
-
+	activityTree := avl.NewTree()
+	var index int
 	for _, ma := range activities {
-		if ma.available > 0 {
-			out += ufmt.Sprintf("**%s** (%s): %d/%d (%.1f%%)\n\n",
-				tryResolveAddr(ma.addr), ma.tier, ma.activity, ma.available, ma.percentage)
-		} else {
-			out += ufmt.Sprintf("**%s** (%s): %d/%d\n\n",
-				tryResolveAddr(ma.addr), ma.tier, ma.activity, ma.available)
-		}
+		activityTree.Set(ufmt.Sprintf("%05d", index), ma)
+		index++
 	}
 
-	out += ufmt.Sprintf("_Total: %d members_\n\n", len(activities))
+	activityPager := pager.NewPager(activityTree, 15, false)
+	page := activityPager.MustGetPageByPath(path)
+
+	for _, item := range page.Items {
+		ma, ok := item.Value.(memberActivity)
+		if !ok {
+			continue
+		}
+
+		percentage := float64(0)
+		if ma.available > 0 {
+			percentage = (float64(ma.votes) / float64(ma.available)) * 100.0
+		}
+
+		out += ufmt.Sprintf("**%s** (%s): %d/%d votes (%.2f%%)\n\n",
+			tryResolveAddr(ma.addr), ma.tier, ma.votes, ma.available, percentage)
+	}
+
+	out += "\n\n" + page.Picker("") + "\n\n"
+
+	startIdx := (page.PageNumber-1)*page.PageSize + 1
+	endIdx := startIdx + len(page.Items) - 1
+	out += ufmt.Sprintf("_Showing %d-%d of %d members_\n\n",
+		startIdx, endIdx, len(activities))
 
 	return out
 }
