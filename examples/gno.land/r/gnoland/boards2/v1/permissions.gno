@@ -2,6 +2,8 @@ package boards2
 
 import (
 	"gno.land/p/gnoland/boards"
+
+	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 const (
@@ -37,8 +39,8 @@ const (
 	PermissionUserUnban                             = "user:unban"
 )
 
-func createBasicBoardPermissions(owner address) *BasicPermissions {
-	perms := NewBasicPermissions()
+func createBasicBoardPermissions(owner address) *permissions.Permisions {
+	perms := permissions.New()
 	perms.SetSuperRole(RoleOwner)
 	perms.AddRole(
 		RoleAdmin,
@@ -78,8 +80,8 @@ func createBasicBoardPermissions(owner address) *BasicPermissions {
 		PermissionReplyCreate,
 	)
 	perms.SetUserRoles(cross, owner, RoleOwner)
-	perms.ValidateFunc(PermissionBoardRename, validateBoardRename)
-	perms.ValidateFunc(PermissionMemberInvite, validateMemberInvite)
-	perms.ValidateFunc(PermissionRoleChange, validateRoleChange)
+	perms.ValidateFunc(PermissionBoardRename, validateBasicBoardRename)
+	perms.ValidateFunc(PermissionMemberInvite, validateBasicMemberInvite)
+	perms.ValidateFunc(PermissionRoleChange, validateBasicRoleChange)
 	return perms
 }

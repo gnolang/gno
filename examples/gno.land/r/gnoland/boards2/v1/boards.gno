@@ -7,6 +7,8 @@ import (
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/nt/avl"
+
+	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 // TODO: Refactor globals in favor of a cleaner pattern
@@ -39,16 +41,16 @@ func init() {
 
 // initRealmPermissions returns the default realm permissions.
 func initRealmPermissions(owners ...address) boards.Permissions {
-	perms := NewBasicPermissions()
+	perms := permissions.New()
 	perms.SetSuperRole(RoleOwner)
 	perms.AddRole(RoleAdmin, PermissionBoardCreate)
 	for _, owner := range owners {
 		perms.SetUserRoles(cross, owner, RoleOwner)
 	}
 
-	perms.ValidateFunc(PermissionBoardCreate, validateBoardCreate)
-	perms.ValidateFunc(PermissionMemberInvite, validateMemberInvite)
-	perms.ValidateFunc(PermissionRoleChange, validateRoleChange)
+	perms.ValidateFunc(PermissionBoardCreate, validateBasicBoardCreate)
+	perms.ValidateFunc(PermissionMemberInvite, validateBasicMemberInvite)
+	perms.ValidateFunc(PermissionRoleChange, validateBasicRoleChange)
 	return perms
 }
 

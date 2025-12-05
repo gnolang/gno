@@ -8,14 +8,14 @@ import (
 	"gno.land/r/sys/users"
 )
 
-// validateBoardCreate validates PermissionBoardCreate.
+// validateBasicBoardCreate validates PermissionBoardCreate.
 //
 // Expected `args` values:
 // 1. Caller address
 // 2. Board name
 // 3. Board ID
 // 4. Is board listed
-func validateBoardCreate(_ boards.Permissions, args boards.Args) error {
+func validateBasicBoardCreate(_ boards.Permissions, args boards.Args) error {
 	caller, ok := args[0].(address)
 	if !ok {
 		return errors.New("expected a valid caller address")
@@ -36,14 +36,14 @@ func validateBoardCreate(_ boards.Permissions, args boards.Args) error {
 	return nil
 }
 
-// validateBoardRename validates PermissionBoardRename.
+// validateBasicBoardRename validates PermissionBoardRename.
 //
 // Expected `args` values:
 // 1. Caller address
 // 2. Board ID
 // 3. Current board name
 // 4. New board name
-func validateBoardRename(_ boards.Permissions, args boards.Args) error {
+func validateBasicBoardRename(_ boards.Permissions, args boards.Args) error {
 	caller, ok := args[0].(address)
 	if !ok {
 		return errors.New("expected a valid caller address")
@@ -64,13 +64,13 @@ func validateBoardRename(_ boards.Permissions, args boards.Args) error {
 	return nil
 }
 
-// validateMemberInvite validates PermissionMemberInvite.
+// validateBasicMemberInvite validates PermissionMemberInvite.
 //
 // Expected `args` values:
 // 1. Caller address
 // 2. Board ID
 // 3. Invites
-func validateMemberInvite(perms boards.Permissions, args boards.Args) error {
+func validateBasicMemberInvite(perms boards.Permissions, args boards.Args) error {
 	caller, ok := args[0].(address)
 	if !ok {
 		return errors.New("expected a valid caller address")
@@ -91,14 +91,14 @@ func validateMemberInvite(perms boards.Permissions, args boards.Args) error {
 	return nil
 }
 
-// validateRoleChange validates PermissionRoleChange.
+// validateBasicRoleChange validates PermissionRoleChange.
 //
 // Expected `args` values:
 // 1. Caller address
 // 2. Board ID
 // 3. Member address
 // 4. Role
-func validateRoleChange(perms boards.Permissions, args boards.Args) error {
+func validateBasicRoleChange(perms boards.Permissions, args boards.Args) error {
 	caller, ok := args[0].(address)
 	if !ok {
 		return errors.New("expected a valid caller address")
