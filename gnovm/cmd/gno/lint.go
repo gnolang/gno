@@ -404,7 +404,7 @@ func lintTargetName(pkg *packages.Package) string {
 // lintRenderSignature checks if a Render function in the package has the
 // expected signature: func Render(string) string
 // Methods are ignored (e.g. func (t *Type) Render()).
-// Returns true if the signature is incorrect.
+// Returns error if the signature is incorrect.
 func lintRenderSignature(io commands.IO, pkg *types.Package) error {
 	if pkg == nil {
 		return nil
