@@ -17,6 +17,7 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 	"github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -740,7 +741,7 @@ func TestSimulateTx(t *testing.T) {
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
 			limit := gasConsumed
-			newCtx = ctx.WithGasMeter(store.NewGasMeter(limit))
+			newCtx = ctx.WithGasMeter(gas.NewMeter(limit))
 			return
 		})
 	}
@@ -877,7 +878,7 @@ func TestTxGasLimits(t *testing.T) {
 	gasGranted := int64(10)
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
-			gmeter := store.NewPassthroughGasMeter(
+			gmeter := gas.NewPassthroughMeter(
 				ctx.GasMeter(),
 				gasGranted,
 			)
@@ -953,7 +954,7 @@ func TestMaxBlockGasLimits(t *testing.T) {
 	gasGranted := int64(10)
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
-			gmeter := store.NewPassthroughGasMeter(
+			gmeter := gas.NewPassthroughMeter(
 				ctx.GasMeter(),
 				gasGranted,
 			)
@@ -1114,7 +1115,7 @@ func TestGasConsumptionBadTx(t *testing.T) {
 	gasWanted := int64(5)
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
-			gmeter := store.NewPassthroughGasMeter(
+			gmeter := gas.NewPassthroughMeter(
 				ctx.GasMeter(),
 				gasWanted,
 			)

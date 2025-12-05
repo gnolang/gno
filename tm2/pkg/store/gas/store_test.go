@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	gasutil "github.com/gnolang/gno/tm2/pkg/gas"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/gas"
-	"github.com/gnolang/gno/tm2/pkg/store/types"
 
 	"github.com/stretchr/testify/require"
 )
@@ -21,22 +21,22 @@ func TestGasKVStoreBasic(t *testing.T) {
 	t.Parallel()
 
 	mem := dbadapter.Store{DB: memdb.NewMemDB()}
-	meter := types.NewGasMeter(10000)
-	st := gas.New(mem, meter, types.DefaultGasConfig())
+	meter := gasutil.NewMeter(10000)
+	st := gas.New(mem, meter, gasutil.DefaultConfig())
 	require.Empty(t, st.Get(keyFmt(1)), "Expected `key1` to be empty")
 	st.Set(keyFmt(1), valFmt(1))
 	require.Equal(t, valFmt(1), st.Get(keyFmt(1)))
 	st.Delete(keyFmt(1))
 	require.Empty(t, st.Get(keyFmt(1)), "Expected `key1` to be empty")
-	require.Equal(t, meter.GasConsumed(), types.Gas(6429))
+	require.Equal(t, meter.GasConsumed(), gasutil.Gas(6429))
 }
 
 func TestGasKVStoreIterator(t *testing.T) {
 	t.Parallel()
 
 	mem := dbadapter.Store{DB: memdb.NewMemDB()}
-	meter := types.NewGasMeter(10000)
-	st := gas.New(mem, meter, types.DefaultGasConfig())
+	meter := gasutil.NewMeter(10000)
+	st := gas.New(mem, meter, gasutil.DefaultConfig())
 	require.Empty(t, st.Get(keyFmt(1)), "Expected `key1` to be empty")
 	require.Empty(t, st.Get(keyFmt(2)), "Expected `key2` to be empty")
 	st.Set(keyFmt(1), valFmt(1))
@@ -54,15 +54,15 @@ func TestGasKVStoreIterator(t *testing.T) {
 	iterator.Next()
 	require.False(t, iterator.Valid())
 	require.Panics(t, iterator.Next)
-	require.Equal(t, meter.GasConsumed(), types.Gas(6987))
+	require.Equal(t, meter.GasConsumed(), gasutil.Gas(6987))
 }
 
 func TestGasKVStoreOutOfGasSet(t *testing.T) {
 	t.Parallel()
 
 	mem := dbadapter.Store{DB: memdb.NewMemDB()}
-	meter := types.NewGasMeter(0)
-	st := gas.New(mem, meter, types.DefaultGasConfig())
+	meter := gasutil.NewMeter(0)
+	st := gas.New(mem, meter, gasutil.DefaultConfig())
 	require.Panics(t, func() { st.Set(keyFmt(1), valFmt(1)) }, "Expected out-of-gas")
 }
 
@@ -70,8 +70,8 @@ func TestGasKVStoreOutOfGasIterator(t *testing.T) {
 	t.Parallel()
 
 	mem := dbadapter.Store{DB: memdb.NewMemDB()}
-	meter := types.NewGasMeter(20000)
-	st := gas.New(mem, meter, types.DefaultGasConfig())
+	meter := gasutil.NewMeter(20000)
+	st := gas.New(mem, meter, gasutil.DefaultConfig())
 	st.Set(keyFmt(1), valFmt(1))
 	iterator := st.Iterator(nil, nil)
 	iterator.Next()

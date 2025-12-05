@@ -14,9 +14,9 @@ import (
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 //----------------------------------------
@@ -46,7 +46,7 @@ type Machine struct {
 	Output   io.Writer
 	Store    Store
 	Context  any
-	GasMeter store.GasMeter
+	GasMeter gas.Meter
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -77,7 +77,7 @@ type MachineOptions struct {
 	Context       any
 	Alloc         *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes int64      // or 0 for no limit.
-	GasMeter      store.GasMeter
+	GasMeter      gas.Meter
 	ReviveEnabled bool
 	SkipPackage   bool // don't get/set package or realm.
 }

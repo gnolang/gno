@@ -7,8 +7,9 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 	"github.com/gnolang/gno/tm2/pkg/store"
-	"github.com/gnolang/gno/tm2/pkg/store/gas"
+	gasstore "github.com/gnolang/gno/tm2/pkg/store/gas"
 )
 
 /*
@@ -28,8 +29,8 @@ type Context struct {
 	txBytes       []byte
 	logger        *slog.Logger
 	voteInfo      []abci.VoteInfo
-	gasMeter      store.GasMeter // XXX make passthroughGasMeter w/ blockGasMeter?
-	blockGasMeter store.GasMeter
+	gasMeter      gas.Meter // XXX make passthroughGasMeter w/ blockGasMeter?
+	blockGasMeter gas.Meter
 	minGasPrices  []GasPrice
 	consParams    *abci.ConsensusParams
 	eventLogger   *EventLogger
@@ -39,20 +40,20 @@ type Context struct {
 type Request = Context
 
 // Read-only accessors
-func (c Context) Context() context.Context      { return c.ctx }
-func (c Context) Mode() RunTxMode               { return c.mode }
-func (c Context) MultiStore() store.MultiStore  { return c.ms }
-func (c Context) BlockHeight() int64            { return c.header.GetHeight() }
-func (c Context) BlockTime() time.Time          { return c.header.GetTime() }
-func (c Context) ChainID() string               { return c.chainID }
-func (c Context) TxBytes() []byte               { return c.txBytes }
-func (c Context) Logger() *slog.Logger          { return c.logger }
-func (c Context) VoteInfos() []abci.VoteInfo    { return c.voteInfo }
-func (c Context) GasMeter() store.GasMeter      { return c.gasMeter }
-func (c Context) BlockGasMeter() store.GasMeter { return c.blockGasMeter }
-func (c Context) IsCheckTx() bool               { return c.mode == RunTxModeCheck }
-func (c Context) MinGasPrices() []GasPrice      { return c.minGasPrices }
-func (c Context) EventLogger() *EventLogger     { return c.eventLogger }
+func (c Context) Context() context.Context     { return c.ctx }
+func (c Context) Mode() RunTxMode              { return c.mode }
+func (c Context) MultiStore() store.MultiStore { return c.ms }
+func (c Context) BlockHeight() int64           { return c.header.GetHeight() }
+func (c Context) BlockTime() time.Time         { return c.header.GetTime() }
+func (c Context) ChainID() string              { return c.chainID }
+func (c Context) TxBytes() []byte              { return c.txBytes }
+func (c Context) Logger() *slog.Logger         { return c.logger }
+func (c Context) VoteInfos() []abci.VoteInfo   { return c.voteInfo }
+func (c Context) GasMeter() gas.Meter          { return c.gasMeter }
+func (c Context) BlockGasMeter() gas.Meter     { return c.blockGasMeter }
+func (c Context) IsCheckTx() bool              { return c.mode == RunTxModeCheck }
+func (c Context) MinGasPrices() []GasPrice     { return c.minGasPrices }
+func (c Context) EventLogger() *EventLogger    { return c.eventLogger }
 
 // clone the header before returning
 func (c Context) BlockHeader() abci.Header {
@@ -76,7 +77,7 @@ func NewContext(mode RunTxMode, ms store.MultiStore, header abci.Header, logger 
 		header:       header,
 		chainID:      header.GetChainID(),
 		logger:       logger,
-		gasMeter:     store.NewInfiniteGasMeter(),
+		gasMeter:     gas.NewInfiniteMeter(),
 		minGasPrices: nil,
 		eventLogger:  NewEventLogger(),
 	}
@@ -122,12 +123,12 @@ func (c Context) WithVoteInfos(voteInfo []abci.VoteInfo) Context {
 	return c
 }
 
-func (c Context) WithGasMeter(meter store.GasMeter) Context {
+func (c Context) WithGasMeter(meter gas.Meter) Context {
 	c.gasMeter = meter
 	return c
 }
 
-func (c Context) WithBlockGasMeter(meter store.GasMeter) Context {
+func (c Context) WithBlockGasMeter(meter gas.Meter) Context {
 	c.blockGasMeter = meter
 	return c
 }
@@ -172,7 +173,7 @@ func (c Context) Value(key any) any {
 
 // Store fetches a Store from the MultiStore, but wrapped for gas calculation.
 func (c Context) GasStore(key store.StoreKey) store.Store {
-	return gas.New(c.MultiStore().GetStore(key), c.GasMeter(), store.DefaultGasConfig())
+	return gasstore.New(c.MultiStore().GetStore(key), c.GasMeter(), gas.DefaultConfig())
 }
 
 func (c Context) Store(key store.StoreKey) store.Store {

@@ -19,22 +19,13 @@ type (
 	StoreKey               = types.StoreKey
 	StoreOptions           = types.StoreOptions
 	Queryable              = types.Queryable
-	Gas                    = types.Gas
-	GasMeter               = types.GasMeter
-	GasConfig              = types.GasConfig
-	OutOfGasError          = types.OutOfGasError
-	GasOverflowError       = types.GasOverflowError
 )
 
 var (
-	PruneNothing           = types.PruneNothing
-	PruneEverything        = types.PruneEverything
-	PruneSyncable          = types.PruneSyncable
-	NewGasMeter            = types.NewGasMeter
-	NewInfiniteGasMeter    = types.NewInfiniteGasMeter
-	NewPassthroughGasMeter = types.NewPassthroughGasMeter
-	DefaultGasConfig       = types.DefaultGasConfig
-	PrefixIterator         = types.PrefixIterator
-	ReversePrefixIterator  = types.ReversePrefixIterator
-	NewStoreKey            = types.NewStoreKey
+	PruneNothing          = types.PruneNothing
+	PruneEverything       = types.PruneEverything
+	PruneSyncable         = types.PruneSyncable
+	PrefixIterator        = types.PrefixIterator
+	ReversePrefixIterator = types.ReversePrefixIterator
+	NewStoreKey           = types.NewStoreKey
 )

@@ -29,6 +29,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -677,7 +678,7 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 		return
 	}
 	if err, ok := r.(error); ok {
-		var oog stypes.OutOfGasError
+		var oog gas.OutOfGasError
 		if goerrors.As(err, &oog) {
 			if repanicOutOfGas {
 				panic(oog)
@@ -996,7 +997,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 }
 
 func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr string) (rtvs []gno.TypedValue, err error) {
-	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+	ctx = ctx.WithGasMeter(gas.NewMeter(maxGasQuery))
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 	// Get Package.

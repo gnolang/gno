@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/txlog"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/colors"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -38,7 +39,7 @@ type NativeResolver func(pkgName string, name Name) func(m *Machine)
 // blockchain, or the file system.
 type Store interface {
 	// STABLE
-	BeginTransaction(baseStore, iavlStore store.Store, gasMeter store.GasMeter) TransactionStore
+	BeginTransaction(baseStore, iavlStore store.Store, gasMeter gas.Meter) TransactionStore
 	GetPackageGetter() PackageGetter
 	SetPackageGetter(PackageGetter)
 	GetPackage(pkgPath string, isImport bool) *PackageValue
@@ -158,7 +159,7 @@ type defaultStore struct {
 	current []string  // for detecting import cycles.
 
 	// gas
-	gasMeter  store.GasMeter
+	gasMeter  gas.Meter
 	gasConfig GasConfig
 
 	// realm storage changes on message level.
@@ -189,7 +190,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 }
 
 // If nil baseStore and iavlStore, the baseStores are re-used.
-func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gasMeter store.GasMeter) TransactionStore {
+func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gasMeter gas.Meter) TransactionStore {
 	if baseStore == nil {
 		baseStore = ds.baseStore
 	}
@@ -375,7 +376,7 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	if bz == nil {
 		return nil
 	}
-	gas := overflow.Mulp(ds.gasConfig.GasGetPackageRealm, store.Gas(len(bz)))
+	gas := overflow.Mulp(ds.gasConfig.GasGetPackageRealm, gas.Gas(len(bz)))
 	ds.consumeGas(gas, GasGetPackageRealmDesc)
 	amino.MustUnmarshal(bz, &rlm)
 	size = len(bz)
@@ -405,7 +406,7 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 	oid := ObjectIDFromPkgPath(rlm.Path)
 	key := backendRealmKey(oid)
 	bz := amino.MustMarshal(rlm)
-	gas := overflow.Mulp(ds.gasConfig.GasSetPackageRealm, store.Gas(len(bz)))
+	gas := overflow.Mulp(ds.gasConfig.GasSetPackageRealm, gas.Gas(len(bz)))
 	ds.consumeGas(gas, GasSetPackageRealmDesc)
 	ds.baseStore.Set([]byte(key), bz)
 	size = len(bz)
@@ -469,7 +470,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		hash := hashbz[:HashSize]
 		bz := hashbz[HashSize:]
 		var oo Object
-		gas := overflow.Mulp(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
+		gas := overflow.Mulp(ds.gasConfig.GasGetObject, gas.Gas(len(bz)))
 		ds.consumeGas(gas, GasGetObjectDesc)
 		amino.MustUnmarshal(bz, &oo)
 		if debug {
@@ -625,7 +626,7 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 	o2 := copyValueWithRefs(oo)
 	// marshal to binary.
 	bz := amino.MustMarshalAny(o2)
-	gas := overflow.Mulp(ds.gasConfig.GasSetObject, store.Gas(len(bz)))
+	gas := overflow.Mulp(ds.gasConfig.GasSetObject, gas.Gas(len(bz)))
 	ds.consumeGas(gas, GasSetObjectDesc)
 	// set hash.
 	hash := HashBytes(bz) // XXX objectHash(bz)???
@@ -774,7 +775,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 		key := backendTypeKey(tid)
 		bz := ds.baseStore.Get([]byte(key))
 		if bz != nil {
-			gas := overflow.Mulp(ds.gasConfig.GasGetType, store.Gas(len(bz)))
+			gas := overflow.Mulp(ds.gasConfig.GasGetType, gas.Gas(len(bz)))
 			ds.consumeGas(gas, GasGetTypeDesc)
 			var tt Type
 			amino.MustUnmarshal(bz, &tt)
@@ -833,7 +834,7 @@ func (ds *defaultStore) SetType(tt Type) {
 		key := backendTypeKey(tid)
 		tcopy := copyTypeWithRefs(tt)
 		bz := amino.MustMarshalAny(tcopy)
-		gas := overflow.Mulp(ds.gasConfig.GasSetType, store.Gas(len(bz)))
+		gas := overflow.Mulp(ds.gasConfig.GasSetType, gas.Gas(len(bz)))
 		ds.consumeGas(gas, GasSetTypeDesc)
 		ds.baseStore.Set([]byte(key), bz)
 		size = len(bz)
@@ -977,7 +978,7 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	ctr := ds.incGetPackageIndexCounter()
 	idxkey := []byte(backendPackageIndexKey(ctr))
 	bz := amino.MustMarshal(mpkg)
-	gas := overflow.Mulp(ds.gasConfig.GasAddMemPackage, store.Gas(len(bz)))
+	gas := overflow.Mulp(ds.gasConfig.GasAddMemPackage, gas.Gas(len(bz)))
 	ds.consumeGas(gas, GasAddMemPackageDesc)
 	ds.baseStore.Set(idxkey, []byte(mpkg.Path))
 	pathkey := []byte(backendPackagePathKey(mpkg.Path))
@@ -1020,7 +1021,7 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 		}
 		return nil
 	}
-	gas := overflow.Mulp(ds.gasConfig.GasGetMemPackage, store.Gas(len(bz)))
+	gas := overflow.Mulp(ds.gasConfig.GasGetMemPackage, gas.Gas(len(bz)))
 	ds.consumeGas(gas, GasGetMemPackageDesc)
 
 	var mpkg *std.MemPackage

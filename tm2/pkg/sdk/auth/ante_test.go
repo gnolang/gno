@@ -17,10 +17,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	tu "github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // run the tx through the anteHandler and ensure its valid
@@ -645,7 +645,7 @@ func TestConsumeSignatureVerificationGas(t *testing.T) {
 	}
 
 	type args struct {
-		meter  store.GasMeter
+		meter  gas.Meter
 		sig    []byte
 		pubkey crypto.PubKey
 		params Params
@@ -656,10 +656,10 @@ func TestConsumeSignatureVerificationGas(t *testing.T) {
 		gasConsumed int64
 		shouldErr   bool
 	}{
-		{"PubKeyEd25519", args{store.NewInfiniteGasMeter(), nil, ed25519.GenPrivKey().PubKey(), params}, DefaultSigVerifyCostED25519, false},
-		{"PubKeySecp256k1", args{store.NewInfiniteGasMeter(), nil, secp256k1.GenPrivKey().PubKey(), params}, DefaultSigVerifyCostSecp256k1, false},
-		{"Multisig", args{store.NewInfiniteGasMeter(), amino.MustMarshal(multisignature1), multisigKey1, params}, expectedCost1, false},
-		{"unknown key", args{store.NewInfiniteGasMeter(), nil, nil, params}, 0, true},
+		{"PubKeyEd25519", args{gas.NewInfiniteMeter(), nil, ed25519.GenPrivKey().PubKey(), params}, DefaultSigVerifyCostED25519, false},
+		{"PubKeySecp256k1", args{gas.NewInfiniteMeter(), nil, secp256k1.GenPrivKey().PubKey(), params}, DefaultSigVerifyCostSecp256k1, false},
+		{"Multisig", args{gas.NewInfiniteMeter(), amino.MustMarshal(multisignature1), multisigKey1, params}, expectedCost1, false},
+		{"unknown key", args{gas.NewInfiniteMeter(), nil, nil, params}, 0, true},
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -831,7 +831,7 @@ func TestCustomSignatureVerificationGasConsumer(t *testing.T) {
 	// setup
 	env := setupTestEnv()
 	// setup an ante handler that only accepts PubKeyEd25519
-	anteHandler := NewAnteHandler(env.acck, env.bankk, func(meter store.GasMeter, sig []byte, pubkey crypto.PubKey, params Params) sdk.Result {
+	anteHandler := NewAnteHandler(env.acck, env.bankk, func(meter gas.Meter, sig []byte, pubkey crypto.PubKey, params Params) sdk.Result {
 		switch pubkey := pubkey.(type) {
 		case ed25519.PubKeyEd25519:
 			meter.ConsumeGas(params.SigVerifyCostED25519, "ante verify: ed25519")

@@ -41,7 +41,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/gnovm/pkg/parser"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/store/types"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 )
 
 func (m *Machine) MustReadFile(path string) *FileNode {
@@ -190,7 +190,7 @@ func newParserCallback(m *Machine) parser.ParserCallback {
 		return nil
 	}
 	return func(tok token.Token, nestLev int) {
-		m.GasMeter.ConsumeGas(types.Gas(tokenCostFactor+nestLev*nestingCostFactor), "parsing")
+		m.GasMeter.ConsumeGas(gas.Gas(tokenCostFactor+nestLev*nestingCostFactor), "parsing")
 	}
 }
 

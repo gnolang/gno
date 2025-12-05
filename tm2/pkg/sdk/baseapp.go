@@ -14,6 +14,7 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
@@ -340,7 +341,7 @@ func (app *BaseApp) InitChain(req abci.RequestInitChain) (res abci.ResponseInitC
 
 	// add block gas meter for any genesis transactions (allow infinite gas)
 	app.deliverState.ctx = app.deliverState.ctx.
-		WithBlockGasMeter(store.NewInfiniteGasMeter())
+		WithBlockGasMeter(gas.NewInfiniteMeter())
 
 	// Run the set chain initializer
 	res = app.initChainer(app.deliverState.ctx, req)
@@ -546,11 +547,11 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 	}
 
 	// add block gas meter
-	var gasMeter store.GasMeter
+	var gasMeter gas.Meter
 	if maxGas := app.getMaximumBlockGas(); maxGas > 0 {
-		gasMeter = store.NewGasMeter(maxGas)
+		gasMeter = gas.NewMeter(maxGas)
 	} else {
-		gasMeter = store.NewInfiniteGasMeter()
+		gasMeter = gas.NewInfiniteMeter()
 	}
 
 	app.deliverState.ctx = app.deliverState.ctx.WithBlockGasMeter(gasMeter)
@@ -741,7 +742,7 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 
 	if mode == RunTxModeDeliver {
 		gasleft := ctx.BlockGasMeter().Remaining()
-		ctx = ctx.WithGasMeter(store.NewPassthroughGasMeter(
+		ctx = ctx.WithGasMeter(gas.NewPassthroughMeter(
 			ctx.GasMeter(),
 			gasleft,
 		))
@@ -761,7 +762,7 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch ex := r.(type) {
-			case store.OutOfGasError:
+			case gas.OutOfGasError:
 				log := fmt.Sprintf(
 					"out of gas, gasWanted: %d, gasUsed: %d location: %v",
 					gasWanted,

@@ -9,8 +9,8 @@ import (
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
-	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 const (
@@ -1146,7 +1146,7 @@ func copyListToRunes(dst []rune, tvs []TypedValue) {
 	}
 }
 
-func consumeGas(m *Machine, amount types.Gas) {
+func consumeGas(m *Machine, amount gas.Gas) {
 	if m.GasMeter != nil {
 		m.GasMeter.ConsumeGas(amount, "CPUCycles")
 	}
@@ -1158,7 +1158,7 @@ func consumeGas(m *Machine, amount types.Gas) {
 func uversePrint(m *Machine, xv PointerValue, newline bool) {
 	consumeGas(m, NativeCPUUversePrintInit)
 	output := formatUverseOutput(m, xv, newline)
-	consumeGas(m, overflow.Divp(types.Gas(len(output)), NativeCPUUversePrintCharsPerGas))
+	consumeGas(m, overflow.Divp(gas.Gas(len(output)), NativeCPUUversePrintCharsPerGas))
 	// For debugging:
 	// fmt.Println(colors.Cyan(string(output)))
 	m.Output.Write(output)
