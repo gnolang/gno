@@ -2,7 +2,6 @@ package memberstore
 
 import (
 	"errors"
-	"time"
 
 	"gno.land/p/nt/avl"
 )
@@ -17,13 +16,11 @@ func (e *ErrMemberAlreadyExists) Error() string {
 
 type Member struct {
 	InvitationPoints int
-	JoinTime         time.Time
 }
 
 func NewMember(invitationPoints int) *Member {
 	return &Member{
 		InvitationPoints: invitationPoints,
-		JoinTime:         time.Now(),
 	}
 }
 

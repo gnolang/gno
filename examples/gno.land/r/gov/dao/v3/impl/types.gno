@@ -94,37 +94,6 @@ func newProposalStatus(allowedToVote []string) *proposalStatus {
 	}
 }
 
-func (gov *GovDAO) GetMemberActivity(addr address) (uint32, uint32) {
-	var activity uint32 = 0
-	var available_proposal uint32 = 0
-
-	member, _ := memberstore.Get().GetMember(addr)
-	if member == nil {
-		return activity, available_proposal
-	}
-	joinTime := member.JoinTime
-	gov.pss.Iterate("", "", func(id string, proposalValue interface{}) bool {
-		proposal, ok := proposalValue.(proposalStatus)
-		if !ok {
-			return false
-		}
-		// Skip if proposal was created before member joined
-		if proposal.CreatedAt.Before(joinTime) {
-			return false
-		}
-		available_proposal++
-
-		// Check if member voted on this proposal
-		m, _ := proposal.AllVotes.GetMember(addr)
-		if m != nil {
-			activity++
-		}
-		return false
-	})
-
-	return activity, available_proposal
-}
-
 func (ps *proposalStatus) YesPercent() float64 {
 	var yp float64
 
