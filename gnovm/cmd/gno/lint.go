@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/types"
 	goio "io"
 	"io/fs"
 	"path/filepath"
@@ -256,7 +257,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			if cmd.autoGnomod {
 				tcmode = gno.TCLatestRelaxed
 			}
-			errs := lintTypeCheck(io, dir, mpkg, gno.TypeCheckOptions{
+			tcpkg, errs := lintTypeCheck(io, dir, mpkg, gno.TypeCheckOptions{
 				Getter:     newProdGnoStore(),
 				TestGetter: newTestGnoStore(true),
 				Mode:       tcmode,
@@ -264,6 +265,14 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			})
 			if errs != nil {
 				// io.ErrPrintln(errs) printed above.
+				hasError = true
+				return
+			}
+
+			// ensure the 'Render' function is correct
+			err = lintRenderSignature(io, tcpkg)
+			if err != nil {
+				// io.ErrPrintln(err) printed above.
 				hasError = true
 				return
 			}
@@ -368,10 +377,11 @@ func lintTypeCheck(
 	mpkg *std.MemPackage,
 	opts gno.TypeCheckOptions) (
 	// Results:
+	tcPkg *types.Package,
 	lerr error,
 ) {
 	// gno.TypeCheckMemPackage(mpkg, testStore).
-	_, tcErrs := gno.TypeCheckMemPackage(mpkg, opts)
+	tcPkg, tcErrs := gno.TypeCheckMemPackage(mpkg, opts)
 
 	// Print errors, and return the first unexpected error.
 	errors := multierr.Errors(tcErrs)
@@ -389,4 +399,60 @@ func lintTargetName(pkg *packages.Package) string {
 	}
 
 	return tryRelativizePath(pkg.Dir)
+}
+
+// lintRenderSignature checks if a Render function in the package has the
+// expected signature: func Render(string) string
+// Methods are ignored (e.g. func (t *Type) Render()).
+// Returns true if the signature is incorrect.
+func lintRenderSignature(io commands.IO, pkg *types.Package) error {
+	if pkg == nil {
+		return nil
+	}
+
+	o := pkg.Scope().Lookup("Render")
+	if o == nil {
+		return nil
+	}
+
+	var (
+		stringType = "string"
+		errPrintln = func() error {
+			err := fmt.Errorf("the 'Render' function signature is incorrect for the '%s' package. the signature must be of the form: func Render(string) string", pkg.Name())
+			fmt.Fprintln(io.Err(), gnoIssue{
+				Code:       gnoParserError,
+				Msg:        err.Error(),
+				Confidence: 1,
+				Location:   pkg.Path(),
+			})
+			return err
+		}
+		isSingleString = func(t *types.Tuple) bool {
+			return t != nil &&
+				t.Len() == 1 &&
+				t.At(0) != nil &&
+				t.At(0).Type().String() == stringType
+		}
+	)
+
+	fn, ok := o.(*types.Func)
+	if !ok {
+		return nil
+	}
+
+	s, ok := fn.Type().(*types.Signature)
+	if !ok {
+		return nil
+	}
+
+	if s.Recv() != nil {
+		return nil
+	}
+
+	switch {
+	case !isSingleString(s.Params()), !isSingleString(s.Results()):
+		return errPrintln()
+	default:
+		return nil
+	}
 }
