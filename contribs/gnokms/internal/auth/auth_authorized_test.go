@@ -299,7 +299,7 @@ func TestAuthorizedList(t *testing.T) {
 		buffer, io := createBufferedCmdOutput(t)
 
 		// Add authorized keys to the auth key file.
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			authorizedKey := ed25519.GenPrivKey().PubKey().String()
 			authKeysFile.ClientAuthorizedKeys = append(authKeysFile.ClientAuthorizedKeys, authorizedKey)
 		}
@@ -327,6 +327,74 @@ func TestAuthorizedList(t *testing.T) {
 		require.Contains(t, buffer.String(), "Authorized keys:")
 		for _, authorizedKey := range authKeysFile.ClientAuthorizedKeys {
 			require.Contains(t, buffer.String(), authorizedKey)
+		}
+	})
+
+	t.Run("valid auth key file without authorized keys with raw flag", func(t *testing.T) {
+		t.Parallel()
+
+		// Create the auth key file and a buffered command output.
+		filePath, _ := createAuthKeysFile(t)
+		buffer, io := createBufferedCmdOutput(t)
+
+		// Create the command flags with the auth key file.
+		flags := &common.AuthFlags{
+			AuthKeysFile: filePath,
+		}
+
+		// Create the command.
+		cmd := newAuthAuthorizedListCmd(flags, io)
+
+		// Create a context with a 5s timeout.
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		// Run the command with the --raw flag.
+		cmdErr := cmd.ParseAndRun(ctx, []string{"--raw"})
+		require.NoError(t, cmdErr)
+
+		// Check that the command output is empty (no "No authorized keys found." message).
+		assert.Empty(t, buffer.String())
+	})
+
+	t.Run("valid auth key file with authorized keys with raw flag", func(t *testing.T) {
+		t.Parallel()
+
+		// Create the auth key file and a buffered command output.
+		filePath, authKeysFile := createAuthKeysFile(t)
+		buffer, io := createBufferedCmdOutput(t)
+
+		// Add authorized keys to the auth key file.
+		for range 3 {
+			authorizedKey := ed25519.GenPrivKey().PubKey().String()
+			authKeysFile.ClientAuthorizedKeys = append(authKeysFile.ClientAuthorizedKeys, authorizedKey)
+		}
+
+		// Save the auth key file.
+		require.NoError(t, authKeysFile.Save(filePath))
+
+		// Create the command flags with the auth key file.
+		flags := &common.AuthFlags{
+			AuthKeysFile: filePath,
+		}
+
+		// Create the command.
+		cmd := newAuthAuthorizedListCmd(flags, io)
+
+		// Create a context with a 5s timeout.
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		// Run the command with the --raw flag.
+		cmdErr := cmd.ParseAndRun(ctx, []string{"--raw"})
+		require.NoError(t, cmdErr)
+
+		// Check the command output contains raw keys without formatting.
+		output := buffer.String()
+		assert.NotContains(t, output, "Authorized keys:")
+		assert.NotContains(t, output, "-")
+		for _, authorizedKey := range authKeysFile.ClientAuthorizedKeys {
+			require.Contains(t, output, authorizedKey)
 		}
 	})
 }
