@@ -749,7 +749,7 @@ func TestSimulateTx(t *testing.T) {
 	routerOpt := func(bapp *BaseApp) {
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
 			ctx.GasMeter().ConsumeGas(gas.OpTesting, float64(gasConsumed))
-			return Result{GasUsed: ctx.GasMeter().GasConsumed()}
+			return Result{GasUsed: ctx.GasMeter().GasDetail()}
 		}))
 	}
 

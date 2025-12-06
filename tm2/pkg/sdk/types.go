@@ -2,6 +2,7 @@ package sdk
 
 import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -24,7 +25,7 @@ type Handler interface {
 type Result struct {
 	abci.ResponseBase
 	GasWanted int64
-	GasUsed   int64
+	GasUsed   gas.GasDetail
 }
 
 // AnteHandler authenticates transactions, before their internal messages are handled.

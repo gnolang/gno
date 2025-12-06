@@ -84,7 +84,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 					res = abciResult(std.ErrOutOfGas(log))
 
 					res.GasWanted = tx.Fee.GasWanted
-					res.GasUsed = newCtx.GasMeter().GasConsumed()
+					res.GasUsed = newCtx.GasMeter().GasDetail()
 					abort = true
 				default:
 					panic(r)

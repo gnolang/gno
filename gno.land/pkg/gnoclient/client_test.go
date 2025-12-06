@@ -7,6 +7,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abciErrors "github.com/gnolang/gno/tm2/pkg/bft/abci/example/errors"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -1529,7 +1530,7 @@ func TestClient_EstimateGas(t *testing.T) {
 		t.Parallel()
 
 		var (
-			gasUsed     = int64(100000)
+			gasUsed     = gas.GasDetail{Total: gas.Detail{OperationCount: 1, GasConsumed: 100000}}
 			deliverResp = &abci.ResponseDeliverTx{
 				GasUsed: gasUsed,
 			}
@@ -1572,7 +1573,7 @@ func TestClient_EstimateGas(t *testing.T) {
 		t.Parallel()
 
 		var (
-			gasUsed     = int64(100000)
+			gasUsed     = gas.GasDetail{Total: gas.Detail{OperationCount: 1, GasConsumed: 100000}}
 			deliverResp = &abci.ResponseDeliverTx{
 				GasUsed: gasUsed,
 				ResponseBase: abci.ResponseBase{

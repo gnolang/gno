@@ -702,7 +702,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 	result.Events = events
 	result.Info = strings.Join(msgInfos, "\n")
 	result.Log = strings.Join(msgLogs, "\n")
-	result.GasUsed = ctx.GasMeter().GasConsumed()
+	result.GasUsed = ctx.GasMeter().GasDetail()
 	return result
 }
 
@@ -768,20 +768,20 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 				result.Error = ABCIError(std.ErrOutOfGas(log))
 				result.Log = log
 				result.GasWanted = gasWanted
-				result.GasUsed = ctx.GasMeter().GasConsumed()
+				result.GasUsed = ctx.GasMeter().GasDetail()
 				return
 			default:
 				log := fmt.Sprintf("recovered: %v\nstack:\n%v", r, string(debug.Stack()))
 				result.Error = ABCIError(std.ErrInternal(log))
 				result.Log = log
 				result.GasWanted = gasWanted
-				result.GasUsed = ctx.GasMeter().GasConsumed()
+				result.GasUsed = ctx.GasMeter().GasDetail()
 				return
 			}
 		}
 		// Whether AnteHandler panics or not.
 		result.GasWanted = gasWanted
-		result.GasUsed = ctx.GasMeter().GasConsumed()
+		result.GasUsed = ctx.GasMeter().GasDetail()
 	}()
 
 	// If BlockGasMeter() panics it will be caught by the above recover and will

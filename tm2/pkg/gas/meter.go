@@ -10,6 +10,7 @@ import (
 type Meter interface {
 	GasConsumed() Gas
 	GasConsumedToLimit() Gas
+	GasDetail() GasDetail
 	Limit() Gas
 	Remaining() Gas
 	ConsumeGas(operation Operation, multiplier float64)
@@ -48,8 +49,8 @@ func calculateGasCost(config *Config, operation Operation, multiplier float64) G
 
 type basicMeter struct {
 	limit    Gas
-	consumed Gas
 	config   Config
+	consumed GasDetail
 }
 
 // NewMeter returns a reference to a new basicMeter with the provided configuration.
@@ -62,19 +63,23 @@ func NewMeter(limit Gas, config Config) *basicMeter {
 	}
 	return &basicMeter{
 		limit:    limit,
-		consumed: 0,
 		config:   config,
+		consumed: GasDetail{},
 	}
 }
 
 func (g *basicMeter) GasConsumed() Gas {
-	return g.consumed
+	return g.consumed.Total.GasConsumed
 }
 
 func (g *basicMeter) GasConsumedToLimit() Gas {
 	if g.IsPastLimit() {
 		return g.limit
 	}
+	return g.consumed.Total.GasConsumed
+}
+
+func (g *basicMeter) GasDetail() GasDetail {
 	return g.consumed
 }
 
@@ -89,13 +94,16 @@ func (g *basicMeter) Remaining() Gas {
 func (g *basicMeter) ConsumeGas(operation Operation, multiplier float64) {
 	gasCost := g.CalculateGasCost(operation, multiplier)
 
-	consumed, ok := overflow.Add(g.consumed, gasCost)
+	consumed, ok := overflow.Add(g.consumed.Total.GasConsumed, gasCost)
 	if !ok {
 		panic(OverflowError{operation.String()})
 	}
+
 	// Consume gas even if out of gas.
 	// Corollary, call ConsumeGas after consumption.
-	g.consumed = consumed
+	g.consumed.Total.Add(gasCost)
+	g.consumed.Operations[operation].Add(gasCost) // Per-operation detail
+
 	if consumed > g.limit {
 		panic(OutOfGasError{operation.String()})
 	}
@@ -106,11 +114,11 @@ func (g *basicMeter) CalculateGasCost(operation Operation, multiplier float64) G
 }
 
 func (g *basicMeter) IsPastLimit() bool {
-	return g.consumed > g.limit
+	return g.consumed.Total.GasConsumed > g.limit
 }
 
 func (g *basicMeter) IsOutOfGas() bool {
-	return g.consumed >= g.limit
+	return g.consumed.Total.GasConsumed >= g.limit
 }
 
 func (g *basicMeter) Config() Config {
@@ -121,8 +129,8 @@ func (g *basicMeter) Config() Config {
 // infiniteMeter
 
 type infiniteMeter struct {
-	consumed Gas
 	config   Config
+	consumed GasDetail
 }
 
 // NewInfiniteMeter returns a reference to a new infiniteMeter with the provided configuration.
@@ -131,16 +139,20 @@ func NewInfiniteMeter(config Config) Meter {
 		panic("config multiplier must be positive")
 	}
 	return &infiniteMeter{
-		consumed: 0,
+		consumed: GasDetail{},
 		config:   config,
 	}
 }
 
 func (g *infiniteMeter) GasConsumed() Gas {
-	return g.consumed
+	return g.consumed.Total.GasConsumed
 }
 
 func (g *infiniteMeter) GasConsumedToLimit() Gas {
+	return g.GasConsumed()
+}
+
+func (g *infiniteMeter) GasDetail() GasDetail {
 	return g.consumed
 }
 
@@ -155,11 +167,14 @@ func (g *infiniteMeter) Remaining() Gas {
 func (g *infiniteMeter) ConsumeGas(operation Operation, multiplier float64) {
 	gasCost := g.CalculateGasCost(operation, multiplier)
 
-	consumed, ok := overflow.Add(g.consumed, gasCost)
+	_, ok := overflow.Add(g.consumed.Total.GasConsumed, gasCost)
 	if !ok {
 		panic(OverflowError{operation.String()})
 	}
-	g.consumed = consumed
+
+	// Update gas detail
+	g.consumed.Total.Add(gasCost)
+	g.consumed.Operations[operation].Add(gasCost)
 }
 
 func (g *infiniteMeter) CalculateGasCost(operation Operation, multiplier float64) Gas {
@@ -207,6 +222,10 @@ func (g passthroughMeter) GasConsumed() Gas {
 
 func (g passthroughMeter) GasConsumedToLimit() Gas {
 	return g.Head.GasConsumedToLimit()
+}
+
+func (g passthroughMeter) GasDetail() GasDetail {
+	return g.Head.GasDetail()
 }
 
 func (g passthroughMeter) Limit() Gas {

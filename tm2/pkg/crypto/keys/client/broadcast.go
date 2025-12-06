@@ -158,7 +158,7 @@ func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit)
 		return nil
 	}
 
-	fee := bres.DeliverTx.GasUsed/gp.Gas + 1
+	fee := bres.DeliverTx.GasUsed.Total.GasConsumed/gp.Gas + 1
 	fee = overflow.Mulp(fee, gp.Price.Amount)
 	// 5% fee buffer to cover the suden change of gas price
 	feeBuffer := overflow.Mulp(fee, 5) / 100

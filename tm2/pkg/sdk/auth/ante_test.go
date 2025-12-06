@@ -46,9 +46,9 @@ func checkInvalidTx(t *testing.T, anteHandler sdk.AnteHandler, ctx sdk.Context, 
 	if reflect.TypeOf(err) == reflect.TypeOf(std.OutOfGasError{}) {
 		// GasWanted set correctly
 		require.Equal(t, tx.Fee.GasWanted, result.GasWanted, "Gas wanted not set correctly")
-		require.True(t, result.GasUsed > result.GasWanted, "GasUsed not greated than GasWanted")
+		require.True(t, result.GasUsed.Total.GasConsumed > result.GasWanted, "GasUsed not greated than GasWanted")
 		// Check that context is set correctly
-		require.Equal(t, result.GasUsed, newCtx.GasMeter().GasConsumed(), "Context not updated correctly")
+		require.Equal(t, result.GasUsed.Total, newCtx.GasMeter().GasConsumed(), "Context not updated correctly")
 	}
 }
 
@@ -672,7 +672,7 @@ func TestConsumeSignatureVerificationGas(t *testing.T) {
 				require.False(t, res.IsOK())
 			} else {
 				require.True(t, res.IsOK())
-				require.Equal(t, tt.cost, tt.args.meter.GasConsumed(), fmt.Sprintf("%d != %d", tt.cost, tt.args.meter.GasConsumed()))
+				require.Equal(t, tt.cost, tt.args.meter.GasConsumed(), fmt.Sprintf("%v != %d", tt.cost, tt.args.meter.GasConsumed()))
 			}
 		})
 	}

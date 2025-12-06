@@ -12,6 +12,7 @@ const (
 )
 
 // Operation enumeration.
+// NOTE: Keep in sync with operationNames map and Category definitions.
 const (
 	// Store operations
 	OpStoreReadFlat Operation = iota
@@ -176,6 +177,7 @@ const (
 )
 
 // operationNames maps Operation values to their string names.
+// NOTE: Keep in sync with Operation enumeration and Category definitions.
 var operationNames = [OperationListMaxSize]string{
 	// Store operations
 	OpStoreReadFlat:     "StoreReadFlat",
@@ -345,4 +347,39 @@ func (o Operation) String() string {
 		return name
 	}
 	return "UnknownOperation"
+}
+
+// Category represents a range of operations grouped under a common category.
+type Category struct {
+	From Operation
+	To   Operation
+}
+
+// Contains checks if the given operation belongs to the category.
+func (c Category) Contains(op Operation) bool {
+	return op >= c.From && op <= c.To
+}
+
+// Size returns the number of operations in the category.
+func (c Category) Size() uint8 {
+	return uint8(c.To - c.From + 1)
+}
+
+// categories is the map of all operation categories.
+// NOTE: Keep in sync with Operation enumeration and operationNames map.
+var categories = map[string]Category{
+	"Store":       {OpStoreReadFlat, OpStoreValuePerByte},
+	"KVStore":     {OpKVStoreGetObjectPerByte, OpKVStoreDeleteObject},
+	"Memory":      {OpMemoryAllocPerByte, OpMemoryGarbageCollect},
+	"CPU":         {OpCPUInvalid, OpCPUReturnCallDefers},
+	"Parsing":     {OpParsingToken, OpParsingNesting},
+	"Transaction": {OpTransactionPerByte, OpTransactionSigVerifySecp256k1},
+	"Native":      {OpNativePrintFlat, OpNativePrintPerByte},
+	"BlockGas":    {OpBlockGasSum, OpBlockGasSum},
+	"Testing":     {OpTesting, OpTesting},
+}
+
+// Categories returns the map of all defined operation categories.
+func Categories() map[string]Category {
+	return categories
 }
