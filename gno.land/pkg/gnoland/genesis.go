@@ -20,6 +20,7 @@ import (
 )
 
 const initGasPrice = "1ugnot/1000gas"
+const totalSupply = "1000000000000000ugnot" // 1 Billion gnot
 
 // LoadGenesisBalancesFile loads genesis balances from the provided file path.
 func LoadGenesisBalancesFile(path string) (Balances, error) {
@@ -250,12 +251,13 @@ func DefaultGenState() GnoGenesisState {
 		panic(err)
 	}
 	authGen.Params.InitialGasPrice = gp
-
+	bankGen := bank.DefaultGenesisState()
+	bankGen.Params.TotalSupply = std.MustParseCoins(totalSupply)
 	gs := GnoGenesisState{
 		Balances: []Balance{},
 		Txs:      []TxWithMetadata{},
 		Auth:     authGen,
-		Bank:     bank.DefaultGenesisState(),
+		Bank:     bankGen,
 		VM:       vmm.DefaultGenesisState(),
 	}
 	return gs
