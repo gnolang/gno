@@ -10,15 +10,6 @@ import (
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/gas"
-	"github.com/gnolang/gno/tm2/pkg/overflow"
-)
-
-const (
-	// NativeCPUUversePrintInit is the base gas cost for the Print function.
-	// The actual cost is 1800, but we subtract OpCPUCallNativeBody (424), resulting in 1376.
-	NativeCPUUversePrintInit = 1376
-	// NativeCPUUversePrintPerChar is now chars per gas unit.
-	NativeCPUUversePrintCharsPerGas = 10
 )
 
 // ----------------------------------------
@@ -1146,22 +1137,19 @@ func copyListToRunes(dst []rune, tvs []TypedValue) {
 	}
 }
 
-func consumeGas(m *Machine, amount gas.Gas) {
-	if m.GasMeter != nil {
-		m.GasMeter.ConsumeGas(amount, "CPUCycles")
-	}
-}
-
 // uversePrint is used for the print and println functions.
 // println passes newline = true.
 // xv contains the variadic argument passed to the function.
 func uversePrint(m *Machine, xv PointerValue, newline bool) {
-	consumeGas(m, NativeCPUUversePrintInit)
 	output := formatUverseOutput(m, xv, newline)
-	consumeGas(m, overflow.Divp(gas.Gas(len(output)), NativeCPUUversePrintCharsPerGas))
 	// For debugging:
 	// fmt.Println(colors.Cyan(string(output)))
 	m.Output.Write(output)
+
+	if m.GasMeter != nil {
+		m.GasMeter.ConsumeGas(gas.OpNativePrintFlat, 1)
+		m.GasMeter.ConsumeGas(gas.OpNativePrintPerByte, float64(len(output)))
+	}
 }
 
 func formatUverseOutput(m *Machine, xv PointerValue, newline bool) []byte {

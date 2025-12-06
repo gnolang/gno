@@ -23,6 +23,7 @@ import (
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
@@ -1099,7 +1100,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 
 			count := getTotalCount(tx)
 
-			newCtx.GasMeter().ConsumeGas(count, "counter-ante")
+			newCtx.GasMeter().ConsumeGas(gas.OpTesting, float64(count))
 			res = sdk.Result{
 				GasWanted: getTotalCount(tx),
 			}

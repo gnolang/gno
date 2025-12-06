@@ -105,9 +105,9 @@ func TestIAVLStorePrefix(t *testing.T) {
 func TestPrefixStoreNoNilSet(t *testing.T) {
 	t.Parallel()
 
-	meter := gasutil.NewMeter(100000000)
+	meter := gasutil.NewMeter(100000000, gasutil.DefaultConfig())
 	mem := dbadapter.Store{DB: memdb.NewMemDB()}
-	gasStore := gas.New(mem, meter, gasutil.DefaultConfig())
+	gasStore := gas.New(mem, meter)
 	require.Panics(t, func() { gasStore.Set([]byte("key"), nil) }, "setting a nil value should panic")
 }
 

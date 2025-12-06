@@ -81,8 +81,6 @@ const (
 	allocTypedValue  = _allocTypedValue
 )
 
-const GasCostPerByte = 1 // gas cost per byte allocated
-
 func NewAllocator(maxBytes int64) *Allocator {
 	if maxBytes == 0 {
 		return nil
@@ -156,7 +154,7 @@ func (alloc *Allocator) Allocate(size int64) {
 	if alloc.bytes > alloc.peakBytes {
 		if alloc.gasMeter != nil {
 			change := alloc.bytes - alloc.peakBytes
-			alloc.gasMeter.ConsumeGas(overflow.Mulp(change, GasCostPerByte), "memory allocation")
+			alloc.gasMeter.ConsumeGas(gas.OpMemoryAllocPerByte, float64(change))
 		}
 
 		alloc.peakBytes = alloc.bytes

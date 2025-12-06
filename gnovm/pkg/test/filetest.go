@@ -66,7 +66,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	if dirs.First(DirectiveRealm) != nil {
 		opslog = new(bytes.Buffer)
 	}
-	gasMeter := gas.NewInfiniteMeter()
+	gasMeter := gas.NewInfiniteMeter(gas.DefaultConfig())
 	// Create machine for execution and run test
 	tcw := opts.BaseStore.CacheWrap()
 	m := gno.NewMachineWithOptions(gno.MachineOptions{

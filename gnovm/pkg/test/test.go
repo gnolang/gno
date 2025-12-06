@@ -527,8 +527,11 @@ func (opts *TestOptions) runTestFiles(
 					float64(allocs)/float64(maxAllocs)*100,
 				)
 			}
+
+			// TODO: Calculate cpuCycles when m.GasMeter.GasConsumed() details are available.
+			cpuCycles := "n/a"
 			fmt.Fprintf(opts.Error, "---       runtime: cycle=%s allocs=%s\n",
-				prettySize(m.Cycles),
+				cpuCycles,
 				allocsVal,
 			)
 		}

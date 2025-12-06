@@ -341,7 +341,7 @@ func (app *BaseApp) InitChain(req abci.RequestInitChain) (res abci.ResponseInitC
 
 	// add block gas meter for any genesis transactions (allow infinite gas)
 	app.deliverState.ctx = app.deliverState.ctx.
-		WithBlockGasMeter(gas.NewInfiniteMeter())
+		WithBlockGasMeter(gas.NewInfiniteMeter(gas.DefaultConfig()))
 
 	// Run the set chain initializer
 	res = app.initChainer(app.deliverState.ctx, req)
@@ -549,9 +549,9 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 	// add block gas meter
 	var gasMeter gas.Meter
 	if maxGas := app.getMaximumBlockGas(); maxGas > 0 {
-		gasMeter = gas.NewMeter(maxGas)
+		gasMeter = gas.NewMeter(maxGas, gas.DefaultConfig())
 	} else {
-		gasMeter = gas.NewInfiniteMeter()
+		gasMeter = gas.NewInfiniteMeter(gas.DefaultConfig())
 	}
 
 	app.deliverState.ctx = app.deliverState.ctx.WithBlockGasMeter(gasMeter)
@@ -745,6 +745,7 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 		ctx = ctx.WithGasMeter(gas.NewPassthroughMeter(
 			ctx.GasMeter(),
 			gasleft,
+			gas.DefaultConfig(),
 		))
 	}
 
@@ -752,11 +753,6 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 	if mode == RunTxModeDeliver && ctx.BlockGasMeter().IsOutOfGas() {
 		result.Error = ABCIError(std.ErrOutOfGas("no block gas left to run tx"))
 		return
-	}
-
-	var startingGas int64
-	if mode == RunTxModeDeliver {
-		startingGas = ctx.BlockGasMeter().GasConsumed()
 	}
 
 	defer func() {
@@ -796,13 +792,9 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 	defer func() {
 		if mode == RunTxModeDeliver {
 			ctx.BlockGasMeter().ConsumeGas(
-				ctx.GasMeter().GasConsumedToLimit(),
-				"block gas meter",
+				gas.OpBlockGasSum,
+				float64(ctx.GasMeter().GasConsumedToLimit()),
 			)
-
-			if ctx.BlockGasMeter().GasConsumed() < startingGas {
-				panic(std.ErrGasOverflow("tx gas summation"))
-			}
 		}
 	}()
 

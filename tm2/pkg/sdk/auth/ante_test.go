@@ -651,28 +651,28 @@ func TestConsumeSignatureVerificationGas(t *testing.T) {
 		params Params
 	}
 	tests := []struct {
-		name        string
-		args        args
-		gasConsumed int64
-		shouldErr   bool
+		name      string
+		args      args
+		cost      gas.Cost
+		shouldErr bool
 	}{
-		{"PubKeyEd25519", args{gas.NewInfiniteMeter(), nil, ed25519.GenPrivKey().PubKey(), params}, DefaultSigVerifyCostED25519, false},
-		{"PubKeySecp256k1", args{gas.NewInfiniteMeter(), nil, secp256k1.GenPrivKey().PubKey(), params}, DefaultSigVerifyCostSecp256k1, false},
-		{"Multisig", args{gas.NewInfiniteMeter(), amino.MustMarshal(multisignature1), multisigKey1, params}, expectedCost1, false},
-		{"unknown key", args{gas.NewInfiniteMeter(), nil, nil, params}, 0, true},
+		{"PubKeyEd25519", args{gas.NewInfiniteMeter(gas.DefaultConfig()), nil, ed25519.GenPrivKey().PubKey(), params}, gas.DefaultConfig().Costs[gas.OpTransactionSigVerifyEd25519], false},
+		{"PubKeySecp256k1", args{gas.NewInfiniteMeter(gas.DefaultConfig()), nil, secp256k1.GenPrivKey().PubKey(), params}, gas.DefaultConfig().Costs[gas.OpTransactionSigVerifySecp256k1], false},
+		{"Multisig", args{gas.NewInfiniteMeter(gas.DefaultConfig()), amino.MustMarshal(multisignature1), multisigKey1, params}, expectedCost1, false},
+		{"unknown key", args{gas.NewInfiniteMeter(gas.DefaultConfig()), nil, nil, params}, 0, true},
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			res := DefaultSigVerificationGasConsumer(tt.args.meter, tt.args.sig, tt.args.pubkey, tt.args.params)
+			res := DefaultSigVerificationGasConsumer(tt.args.meter, tt.args.sig, tt.args.pubkey)
 
 			if tt.shouldErr {
 				require.False(t, res.IsOK())
 			} else {
 				require.True(t, res.IsOK())
-				require.Equal(t, tt.gasConsumed, tt.args.meter.GasConsumed(), fmt.Sprintf("%d != %d", tt.gasConsumed, tt.args.meter.GasConsumed()))
+				require.Equal(t, tt.cost, tt.args.meter.GasConsumed(), fmt.Sprintf("%d != %d", tt.cost, tt.args.meter.GasConsumed()))
 			}
 		})
 	}
@@ -694,15 +694,15 @@ func generatePubKeysAndSignatures(n int, msg []byte, keyTypeed25519 bool) (pubke
 	return
 }
 
-func expectedGasCostByKeys(pubkeys []crypto.PubKey) int64 {
-	cost := int64(0)
+func expectedGasCostByKeys(pubkeys []crypto.PubKey) gas.Cost {
+	var cost gas.Cost
 	for _, pubkey := range pubkeys {
 		pubkeyType := strings.ToLower(fmt.Sprintf("%T", pubkey))
 		switch {
 		case strings.Contains(pubkeyType, "ed25519"):
-			cost += DefaultParams().SigVerifyCostED25519
+			cost += gas.DefaultConfig().Costs[gas.OpTransactionSigVerifyEd25519]
 		case strings.Contains(pubkeyType, "secp256k1"):
-			cost += DefaultParams().SigVerifyCostSecp256k1
+			cost += gas.DefaultConfig().Costs[gas.OpTransactionSigVerifyEd25519]
 		default:
 			panic("unexpected key type")
 		}
@@ -831,10 +831,10 @@ func TestCustomSignatureVerificationGasConsumer(t *testing.T) {
 	// setup
 	env := setupTestEnv()
 	// setup an ante handler that only accepts PubKeyEd25519
-	anteHandler := NewAnteHandler(env.acck, env.bankk, func(meter gas.Meter, sig []byte, pubkey crypto.PubKey, params Params) sdk.Result {
+	anteHandler := NewAnteHandler(env.acck, env.bankk, func(meter gas.Meter, sig []byte, pubkey crypto.PubKey) sdk.Result {
 		switch pubkey := pubkey.(type) {
 		case ed25519.PubKeyEd25519:
-			meter.ConsumeGas(params.SigVerifyCostED25519, "ante verify: ed25519")
+			meter.ConsumeGas(gas.OpTransactionSigVerifyEd25519, 1)
 			return sdk.Result{}
 		default:
 			return abciResult(std.ErrInvalidPubKey(fmt.Sprintf("unrecognized public key type: %T", pubkey)))

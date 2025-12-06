@@ -180,17 +180,17 @@ func ParseFilePackageName(fname string) (string, error) {
 	return f.Name.Name, nil
 }
 
-const (
-	tokenCostFactor   = 1 // To be adjusted from benchmarks.
-	nestingCostFactor = 1 // To be adjusted from benchmarks.
-)
-
 func newParserCallback(m *Machine) parser.ParserCallback {
 	if m == nil || m.GasMeter == nil {
 		return nil
 	}
 	return func(tok token.Token, nestLev int) {
-		m.GasMeter.ConsumeGas(gas.Gas(tokenCostFactor+nestLev*nestingCostFactor), "parsing")
+		// Consume gas for token
+		m.GasMeter.ConsumeGas(gas.OpParsingToken, 1)
+		// Consume gas for nesting level
+		if nestLev > 0 {
+			m.GasMeter.ConsumeGas(gas.OpParsingNesting, float64(nestLev))
+		}
 	}
 }
 

@@ -15,7 +15,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/gas"
-	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -35,7 +34,6 @@ type Machine struct {
 	Alloc         *Allocator    // memory allocations
 	Exception     *Exception    // last exception
 	NumResults    int           // number of results returned
-	Cycles        int64         // number of "cpu" cycles
 	GCCycle       int64         // number of "gc" cycles
 	Stage         Stage         // pre for static eval, add for package init, run otherwise
 	ReviveEnabled bool          // true if revive() enabled (only in testing mode for now)
@@ -1108,141 +1106,6 @@ const (
 	OpVoid              Op = 0xFF // For profiling simple operation
 )
 
-const GasFactorCPU int64 = 1
-
-//----------------------------------------
-// "CPU" steps.
-
-func (m *Machine) incrCPU(cycles int64) {
-	if m.GasMeter != nil {
-		gasCPU := overflow.Mulp(cycles, GasFactorCPU)
-		m.GasMeter.ConsumeGas(gasCPU, "CPUCycles") // May panic if out of gas.
-	}
-	m.Cycles += cycles
-}
-
-const (
-	// CPU cycles
-	/* Control operators */
-	OpCPUInvalid             = 1
-	OpCPUHalt                = 1
-	OpCPUNoop                = 1
-	OpCPUExec                = 25
-	OpCPUPrecall             = 207
-	OpCPUEnterCrossing       = 100 // XXX
-	OpCPUCall                = 256
-	OpCPUCallNativeBody      = 424 // Todo benchmark this properly
-	OpCPUDefer               = 64
-	OpCPUCallDeferNativeBody = 33
-	OpCPUGo                  = 1 // Not yet implemented
-	OpCPUSelect              = 1 // Not yet implemented
-	OpCPUSwitchClause        = 38
-	OpCPUSwitchClauseCase    = 143
-	OpCPUTypeSwitch          = 171
-	OpCPUIfCond              = 38
-	OpCPUPopValue            = 1
-	OpCPUPopResults          = 1
-	OpCPUPopBlock            = 3
-	OpCPUPopFrameAndReset    = 15
-	OpCPUPanic1              = 121
-	OpCPUPanic2              = 21
-	OpCPUReturn              = 38
-	OpCPUReturnAfterCopy     = 38 // XXX
-	OpCPUReturnFromBlock     = 36
-	OpCPUReturnToBlock       = 23
-
-	/* Unary & binary operators */
-	OpCPUUpos  = 7
-	OpCPUUneg  = 25
-	OpCPUUnot  = 6
-	OpCPUUxor  = 14
-	OpCPUUrecv = 1 // Not yet implemented
-	OpCPULor   = 26
-	OpCPULand  = 24
-	OpCPUEql   = 160
-	OpCPUNeq   = 95
-	OpCPULss   = 13
-	OpCPULeq   = 19
-	OpCPUGtr   = 20
-	OpCPUGeq   = 26
-	OpCPUAdd   = 18
-	OpCPUSub   = 6
-	OpCPUBor   = 23
-	OpCPUXor   = 13
-	OpCPUMul   = 19
-	OpCPUQuo   = 16
-	OpCPURem   = 18
-	OpCPUShl   = 22
-	OpCPUShr   = 20
-	OpCPUBand  = 9
-	OpCPUBandn = 15
-
-	/* Other expression operators */
-	OpCPUEval        = 29
-	OpCPUBinary1     = 19
-	OpCPUIndex1      = 77
-	OpCPUIndex2      = 195
-	OpCPUSelector    = 32
-	OpCPUSlice       = 103
-	OpCPUStar        = 40
-	OpCPURef         = 125
-	OpCPUTypeAssert1 = 30
-	OpCPUTypeAssert2 = 25
-	// TODO: OpCPUStaticTypeOf is an arbitrary number.
-	// A good way to benchmark this is yet to be determined.
-	OpCPUStaticTypeOf = 100
-	OpCPUCompositeLit = 50
-	OpCPUArrayLit     = 137
-	OpCPUSliceLit     = 183
-	OpCPUSliceLit2    = 467
-	OpCPUMapLit       = 475
-	OpCPUStructLit    = 179
-	OpCPUFuncLit      = 61
-	OpCPUConvert      = 16
-
-	/* Type operators */
-	OpCPUFieldType     = 59
-	OpCPUArrayType     = 57
-	OpCPUSliceType     = 55
-	OpCPUPointerType   = 1 // Not yet implemented
-	OpCPUInterfaceType = 75
-	OpCPUChanType      = 57
-	OpCPUFuncType      = 81
-	OpCPUMapType       = 59
-	OpCPUStructType    = 174
-
-	/* Statement operators */
-	OpCPUAssign      = 79
-	OpCPUAddAssign   = 85
-	OpCPUSubAssign   = 57
-	OpCPUMulAssign   = 55
-	OpCPUQuoAssign   = 50
-	OpCPURemAssign   = 46
-	OpCPUBandAssign  = 54
-	OpCPUBandnAssign = 44
-	OpCPUBorAssign   = 55
-	OpCPUXorAssign   = 48
-	OpCPUShlAssign   = 68
-	OpCPUShrAssign   = 76
-	OpCPUDefine      = 111
-	OpCPUInc         = 76
-	OpCPUDec         = 46
-
-	/* Decl operators */
-	OpCPUValueDecl = 113
-	OpCPUTypeDecl  = 100
-
-	/* Loop (sticky) operators (>= 0xD0) */
-	OpCPUSticky            = 1 // Not a real op
-	OpCPUBody              = 43
-	OpCPUForLoop           = 27
-	OpCPURangeIter         = 105
-	OpCPURangeIterString   = 55
-	OpCPURangeIterMap      = 48
-	OpCPURangeIterArrayPtr = 46
-	OpCPUReturnCallDefers  = 78
-)
-
 //----------------------------------------
 // main run loop.
 
@@ -1291,317 +1154,325 @@ func (m *Machine) Run(st Stage) {
 				bm.StartOpCode(byte(op))
 			}
 		}
+
+		// CPU gas consumption: 1 unit per op.
+		consumeCPUGas := func(op gas.Operation) {
+			if m.GasMeter != nil {
+				m.GasMeter.ConsumeGas(op, 1) // May panic if out of gas.
+			}
+		}
+
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
 		/* Control operators */
 		case OpHalt:
-			m.incrCPU(OpCPUHalt)
+			consumeCPUGas(gas.OpCPUHalt)
 			if bm.OpsEnabled {
 				bm.StopOpCode()
 			}
 			return
 		case OpNoop:
-			m.incrCPU(OpCPUNoop)
+			consumeCPUGas(gas.OpCPUNoop)
 			continue
 		case OpExec:
-			m.incrCPU(OpCPUExec)
+			consumeCPUGas(gas.OpCPUExec)
 			m.doOpExec(op)
 		case OpPrecall:
-			m.incrCPU(OpCPUPrecall)
+			consumeCPUGas(gas.OpCPUPrecall)
 			m.doOpPrecall()
 		case OpEnterCrossing:
-			m.incrCPU(OpCPUEnterCrossing)
+			consumeCPUGas(gas.OpCPUEnterCrossing)
 			m.doOpEnterCrossing()
 		case OpCall:
-			m.incrCPU(OpCPUCall)
+			consumeCPUGas(gas.OpCPUCall)
 			m.doOpCall()
 		case OpCallNativeBody:
-			m.incrCPU(OpCPUCallNativeBody)
+			consumeCPUGas(gas.OpCPUCallNativeBody)
 			m.doOpCallNativeBody()
 		case OpReturn:
-			m.incrCPU(OpCPUReturn)
+			consumeCPUGas(gas.OpCPUReturn)
 			m.doOpReturn()
 		case OpReturnAfterCopy:
-			m.incrCPU(OpCPUReturnAfterCopy)
+			consumeCPUGas(gas.OpCPUReturnAfterCopy)
 			m.doOpReturnAfterCopy()
 		case OpReturnFromBlock:
-			m.incrCPU(OpCPUReturnFromBlock)
+			consumeCPUGas(gas.OpCPUReturnFromBlock)
 			m.doOpReturnFromBlock()
 		case OpReturnToBlock:
-			m.incrCPU(OpCPUReturnToBlock)
+			consumeCPUGas(gas.OpCPUReturnToBlock)
 			m.doOpReturnToBlock()
 		case OpDefer:
-			m.incrCPU(OpCPUDefer)
+			consumeCPUGas(gas.OpCPUDefer)
 			m.doOpDefer()
 		case OpPanic1:
 			panic("deprecated")
 		case OpPanic2:
-			m.incrCPU(OpCPUPanic2)
+			consumeCPUGas(gas.OpCPUPanic2)
 			m.doOpPanic2()
 		case OpCallDeferNativeBody:
-			m.incrCPU(OpCPUCallDeferNativeBody)
+			consumeCPUGas(gas.OpCPUCallDeferNativeBody)
 			m.doOpCallDeferNativeBody()
 		case OpGo:
-			m.incrCPU(OpCPUGo)
+			consumeCPUGas(gas.OpCPUGo)
 			panic("not yet implemented")
 		case OpSelect:
-			m.incrCPU(OpCPUSelect)
+			consumeCPUGas(gas.OpCPUSelect)
 			panic("not yet implemented")
 		case OpSwitchClause:
-			m.incrCPU(OpCPUSwitchClause)
+			consumeCPUGas(gas.OpCPUSwitchClause)
 			m.doOpSwitchClause()
 		case OpSwitchClauseCase:
-			m.incrCPU(OpCPUSwitchClauseCase)
+			consumeCPUGas(gas.OpCPUSwitchClauseCase)
 			m.doOpSwitchClauseCase()
 		case OpTypeSwitch:
-			m.incrCPU(OpCPUTypeSwitch)
+			consumeCPUGas(gas.OpCPUTypeSwitch)
 			m.doOpTypeSwitch()
 		case OpIfCond:
-			m.incrCPU(OpCPUIfCond)
+			consumeCPUGas(gas.OpCPUIfCond)
 			m.doOpIfCond()
 		case OpPopValue:
-			m.incrCPU(OpCPUPopValue)
+			consumeCPUGas(gas.OpCPUPopValue)
 			m.PopValue()
 		case OpPopResults:
-			m.incrCPU(OpCPUPopResults)
+			consumeCPUGas(gas.OpCPUPopResults)
 			m.PopResults()
 		case OpPopBlock:
-			m.incrCPU(OpCPUPopBlock)
+			consumeCPUGas(gas.OpCPUPopBlock)
 			m.PopBlock()
 		case OpPopFrameAndReset:
-			m.incrCPU(OpCPUPopFrameAndReset)
+			consumeCPUGas(gas.OpCPUPopFrameAndReset)
 			m.PopFrameAndReset()
 		/* Unary operators */
 		case OpUpos:
-			m.incrCPU(OpCPUUpos)
+			consumeCPUGas(gas.OpCPUUpos)
 			m.doOpUpos()
 		case OpUneg:
-			m.incrCPU(OpCPUUneg)
+			consumeCPUGas(gas.OpCPUUneg)
 			m.doOpUneg()
 		case OpUnot:
-			m.incrCPU(OpCPUUnot)
+			consumeCPUGas(gas.OpCPUUnot)
 			m.doOpUnot()
 		case OpUxor:
-			m.incrCPU(OpCPUUxor)
+			consumeCPUGas(gas.OpCPUUxor)
 			m.doOpUxor()
 		case OpUrecv:
-			m.incrCPU(OpCPUUrecv)
+			consumeCPUGas(gas.OpCPUUrecv)
 			m.doOpUrecv()
 		/* Binary operators */
 		case OpLor:
-			m.incrCPU(OpCPULor)
+			consumeCPUGas(gas.OpCPULor)
 			m.doOpLor()
 		case OpLand:
-			m.incrCPU(OpCPULand)
+			consumeCPUGas(gas.OpCPULand)
 			m.doOpLand()
 		case OpEql:
-			m.incrCPU(OpCPUEql)
+			consumeCPUGas(gas.OpCPUEql)
 			m.doOpEql()
 		case OpNeq:
-			m.incrCPU(OpCPUNeq)
+			consumeCPUGas(gas.OpCPUNeq)
 			m.doOpNeq()
 		case OpLss:
-			m.incrCPU(OpCPULss)
+			consumeCPUGas(gas.OpCPULss)
 			m.doOpLss()
 		case OpLeq:
-			m.incrCPU(OpCPULeq)
+			consumeCPUGas(gas.OpCPULeq)
 			m.doOpLeq()
 		case OpGtr:
-			m.incrCPU(OpCPUGtr)
+			consumeCPUGas(gas.OpCPUGtr)
 			m.doOpGtr()
 		case OpGeq:
-			m.incrCPU(OpCPUGeq)
+			consumeCPUGas(gas.OpCPUGeq)
 			m.doOpGeq()
 		case OpAdd:
-			m.incrCPU(OpCPUAdd)
+			consumeCPUGas(gas.OpCPUAdd)
 			m.doOpAdd()
 		case OpSub:
-			m.incrCPU(OpCPUSub)
+			consumeCPUGas(gas.OpCPUSub)
 			m.doOpSub()
 		case OpBor:
-			m.incrCPU(OpCPUBor)
+			consumeCPUGas(gas.OpCPUBor)
 			m.doOpBor()
 		case OpXor:
-			m.incrCPU(OpCPUXor)
+			consumeCPUGas(gas.OpCPUXor)
 			m.doOpXor()
 		case OpMul:
-			m.incrCPU(OpCPUMul)
+			consumeCPUGas(gas.OpCPUMul)
 			m.doOpMul()
 		case OpQuo:
-			m.incrCPU(OpCPUQuo)
+			consumeCPUGas(gas.OpCPUQuo)
 			m.doOpQuo()
 		case OpRem:
-			m.incrCPU(OpCPURem)
+			consumeCPUGas(gas.OpCPURem)
 			m.doOpRem()
 		case OpShl:
-			m.incrCPU(OpCPUShl)
+			consumeCPUGas(gas.OpCPUShl)
 			m.doOpShl()
 		case OpShr:
-			m.incrCPU(OpCPUShr)
+			consumeCPUGas(gas.OpCPUShr)
 			m.doOpShr()
 		case OpBand:
-			m.incrCPU(OpCPUBand)
+			consumeCPUGas(gas.OpCPUBand)
 			m.doOpBand()
 		case OpBandn:
-			m.incrCPU(OpCPUBandn)
+			consumeCPUGas(gas.OpCPUBandn)
 			m.doOpBandn()
 		/* Expression operators */
 		case OpEval:
-			m.incrCPU(OpCPUEval)
+			consumeCPUGas(gas.OpCPUEval)
 			m.doOpEval()
 		case OpBinary1:
-			m.incrCPU(OpCPUBinary1)
+			consumeCPUGas(gas.OpCPUBinary1)
 			m.doOpBinary1()
 		case OpIndex1:
-			m.incrCPU(OpCPUIndex1)
+			consumeCPUGas(gas.OpCPUIndex1)
 			m.doOpIndex1()
 		case OpIndex2:
-			m.incrCPU(OpCPUIndex2)
+			consumeCPUGas(gas.OpCPUIndex2)
 			m.doOpIndex2()
 		case OpSelector:
-			m.incrCPU(OpCPUSelector)
+			consumeCPUGas(gas.OpCPUSelector)
 			m.doOpSelector()
 		case OpSlice:
-			m.incrCPU(OpCPUSlice)
+			consumeCPUGas(gas.OpCPUSlice)
 			m.doOpSlice()
 		case OpStar:
-			m.incrCPU(OpCPUStar)
+			consumeCPUGas(gas.OpCPUStar)
 			m.doOpStar()
 		case OpRef:
-			m.incrCPU(OpCPURef)
+			consumeCPUGas(gas.OpCPURef)
 			m.doOpRef()
 		case OpTypeAssert1:
-			m.incrCPU(OpCPUTypeAssert1)
+			consumeCPUGas(gas.OpCPUTypeAssert1)
 			m.doOpTypeAssert1()
 		case OpTypeAssert2:
-			m.incrCPU(OpCPUTypeAssert2)
+			consumeCPUGas(gas.OpCPUTypeAssert2)
 			m.doOpTypeAssert2()
 		case OpStaticTypeOf:
-			m.incrCPU(OpCPUStaticTypeOf)
+			consumeCPUGas(gas.OpCPUStaticTypeOf)
 			m.doOpStaticTypeOf()
 		case OpCompositeLit:
-			m.incrCPU(OpCPUCompositeLit)
+			consumeCPUGas(gas.OpCPUCompositeLit)
 			m.doOpCompositeLit()
 		case OpArrayLit:
-			m.incrCPU(OpCPUArrayLit)
+			consumeCPUGas(gas.OpCPUArrayLit)
 			m.doOpArrayLit()
 		case OpSliceLit:
-			m.incrCPU(OpCPUSliceLit)
+			consumeCPUGas(gas.OpCPUSliceLit)
 			m.doOpSliceLit()
 		case OpSliceLit2:
-			m.incrCPU(OpCPUSliceLit2)
+			consumeCPUGas(gas.OpCPUSliceLit2)
 			m.doOpSliceLit2()
 		case OpFuncLit:
-			m.incrCPU(OpCPUFuncLit)
+			consumeCPUGas(gas.OpCPUFuncLit)
 			m.doOpFuncLit()
 		case OpMapLit:
-			m.incrCPU(OpCPUMapLit)
+			consumeCPUGas(gas.OpCPUMapLit)
 			m.doOpMapLit()
 		case OpStructLit:
-			m.incrCPU(OpCPUStructLit)
+			consumeCPUGas(gas.OpCPUStructLit)
 			m.doOpStructLit()
 		case OpConvert:
-			m.incrCPU(OpCPUConvert)
+			consumeCPUGas(gas.OpCPUConvert)
 			m.doOpConvert()
 		/* Type operators */
 		case OpFieldType:
-			m.incrCPU(OpCPUFieldType)
+			consumeCPUGas(gas.OpCPUFieldType)
 			m.doOpFieldType()
 		case OpArrayType:
-			m.incrCPU(OpCPUArrayType)
+			consumeCPUGas(gas.OpCPUArrayType)
 			m.doOpArrayType()
 		case OpSliceType:
-			m.incrCPU(OpCPUSliceType)
+			consumeCPUGas(gas.OpCPUSliceType)
 			m.doOpSliceType()
 		case OpChanType:
-			m.incrCPU(OpCPUChanType)
+			consumeCPUGas(gas.OpCPUChanType)
 			m.doOpChanType()
 		case OpFuncType:
-			m.incrCPU(OpCPUFuncType)
+			consumeCPUGas(gas.OpCPUFuncType)
 			m.doOpFuncType()
 		case OpMapType:
-			m.incrCPU(OpCPUMapType)
+			consumeCPUGas(gas.OpCPUMapType)
 			m.doOpMapType()
 		case OpStructType:
-			m.incrCPU(OpCPUStructType)
+			consumeCPUGas(gas.OpCPUStructType)
 			m.doOpStructType()
 		case OpInterfaceType:
-			m.incrCPU(OpCPUInterfaceType)
+			consumeCPUGas(gas.OpCPUInterfaceType)
 			m.doOpInterfaceType()
 		/* Statement operators */
 		case OpAssign:
-			m.incrCPU(OpCPUAssign)
+			consumeCPUGas(gas.OpCPUAssign)
 			m.doOpAssign()
 		case OpAddAssign:
-			m.incrCPU(OpCPUAddAssign)
+			consumeCPUGas(gas.OpCPUAddAssign)
 			m.doOpAddAssign()
 		case OpSubAssign:
-			m.incrCPU(OpCPUSubAssign)
+			consumeCPUGas(gas.OpCPUSubAssign)
 			m.doOpSubAssign()
 		case OpMulAssign:
-			m.incrCPU(OpCPUMulAssign)
+			consumeCPUGas(gas.OpCPUMulAssign)
 			m.doOpMulAssign()
 		case OpQuoAssign:
-			m.incrCPU(OpCPUQuoAssign)
+			consumeCPUGas(gas.OpCPUQuoAssign)
 			m.doOpQuoAssign()
 		case OpRemAssign:
-			m.incrCPU(OpCPURemAssign)
+			consumeCPUGas(gas.OpCPURemAssign)
 			m.doOpRemAssign()
 		case OpBandAssign:
-			m.incrCPU(OpCPUBandAssign)
+			consumeCPUGas(gas.OpCPUBandAssign)
 			m.doOpBandAssign()
 		case OpBandnAssign:
-			m.incrCPU(OpCPUBandnAssign)
+			consumeCPUGas(gas.OpCPUBandnAssign)
 			m.doOpBandnAssign()
 		case OpBorAssign:
-			m.incrCPU(OpCPUBorAssign)
+			consumeCPUGas(gas.OpCPUBorAssign)
 			m.doOpBorAssign()
 		case OpXorAssign:
-			m.incrCPU(OpCPUXorAssign)
+			consumeCPUGas(gas.OpCPUXorAssign)
 			m.doOpXorAssign()
 		case OpShlAssign:
-			m.incrCPU(OpCPUShlAssign)
+			consumeCPUGas(gas.OpCPUShlAssign)
 			m.doOpShlAssign()
 		case OpShrAssign:
-			m.incrCPU(OpCPUShrAssign)
+			consumeCPUGas(gas.OpCPUShrAssign)
 			m.doOpShrAssign()
 		case OpDefine:
-			m.incrCPU(OpCPUDefine)
+			consumeCPUGas(gas.OpCPUDefine)
 			m.doOpDefine()
 		case OpInc:
-			m.incrCPU(OpCPUInc)
+			consumeCPUGas(gas.OpCPUInc)
 			m.doOpInc()
 		case OpDec:
-			m.incrCPU(OpCPUDec)
+			consumeCPUGas(gas.OpCPUDec)
 			m.doOpDec()
 		/* Decl operators */
 		case OpValueDecl:
-			m.incrCPU(OpCPUValueDecl)
+			consumeCPUGas(gas.OpCPUValueDecl)
 			m.doOpValueDecl()
 		case OpTypeDecl:
-			m.incrCPU(OpCPUTypeDecl)
+			consumeCPUGas(gas.OpCPUTypeDecl)
 			m.doOpTypeDecl()
 		/* Loop (sticky) operators */
 		case OpBody:
-			m.incrCPU(OpCPUBody)
+			consumeCPUGas(gas.OpCPUBody)
 			m.doOpExec(op)
 		case OpForLoop:
-			m.incrCPU(OpCPUForLoop)
+			consumeCPUGas(gas.OpCPUForLoop)
 			m.doOpExec(op)
 		case OpRangeIter:
-			m.incrCPU(OpCPURangeIter)
+			consumeCPUGas(gas.OpCPURangeIter)
 			m.doOpExec(op)
 		case OpRangeIterArrayPtr:
-			m.incrCPU(OpCPURangeIterArrayPtr)
+			consumeCPUGas(gas.OpCPURangeIterArrayPtr)
 			m.doOpExec(op)
 		case OpRangeIterString:
-			m.incrCPU(OpCPURangeIterString)
+			consumeCPUGas(gas.OpCPURangeIterString)
 			m.doOpExec(op)
 		case OpRangeIterMap:
-			m.incrCPU(OpCPURangeIterMap)
+			consumeCPUGas(gas.OpCPURangeIterMap)
 			m.doOpExec(op)
 		case OpReturnCallDefers:
-			m.incrCPU(OpCPUReturnCallDefers)
+			consumeCPUGas(gas.OpCPUReturnCallDefers)
 			m.doOpReturnCallDefers()
 		default:
 			panic(fmt.Sprintf("unexpected opcode %s", op.String()))

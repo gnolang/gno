@@ -536,7 +536,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// Log the telemetry
 	logTelemetry(
 		m2.GasMeter.GasConsumed(),
-		m2.Cycles,
 		attribute.KeyValue{
 			Key:   "operation",
 			Value: attribute.StringValue("m_addpkg"),
@@ -645,7 +644,6 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// Log the telemetry
 	logTelemetry(
 		m.GasMeter.GasConsumed(),
-		m.Cycles,
 		attribute.KeyValue{
 			Key:   "operation",
 			Value: attribute.StringValue("m_call"),
@@ -821,7 +819,6 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	// Log the telemetry
 	logTelemetry(
 		m2.GasMeter.GasConsumed(),
-		m2.Cycles,
 		attribute.KeyValue{
 			Key:   "operation",
 			Value: attribute.StringValue("m_run"),
@@ -997,7 +994,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 }
 
 func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr string) (rtvs []gno.TypedValue, err error) {
-	ctx = ctx.WithGasMeter(gas.NewMeter(maxGasQuery))
+	ctx = ctx.WithGasMeter(gas.NewMeter(maxGasQuery, gas.DefaultConfig()))
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 	// Get Package.
@@ -1230,7 +1227,6 @@ func (vm *VMKeeper) refundStorageDeposit(ctx sdk.Context, refundReceiver crypto.
 // logTelemetry logs the VM processing telemetry
 func logTelemetry(
 	gasUsed int64,
-	cpuCycles int64,
 	attributes ...attribute.KeyValue,
 ) {
 	if !telemetry.MetricsEnabled() {
@@ -1244,12 +1240,13 @@ func logTelemetry(
 		metric.WithAttributes(attributes...),
 	)
 
-	// Record the CPU cycles
-	metrics.VMCPUCycles.Record(
-		context.Background(),
-		cpuCycles,
-		metric.WithAttributes(attributes...),
-	)
+	// TODO: Calculate CPU cycles when details will be available.
+	// // Record the CPU cycles
+	// metrics.VMCPUCycles.Record(
+	// 	context.Background(),
+	// 	cpuCycles,
+	// 	metric.WithAttributes(attributes...),
+	// )
 
 	// Record the gas used
 	metrics.VMGasUsed.Record(

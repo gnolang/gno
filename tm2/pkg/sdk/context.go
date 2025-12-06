@@ -77,7 +77,7 @@ func NewContext(mode RunTxMode, ms store.MultiStore, header abci.Header, logger 
 		header:       header,
 		chainID:      header.GetChainID(),
 		logger:       logger,
-		gasMeter:     gas.NewInfiniteMeter(),
+		gasMeter:     gas.NewInfiniteMeter(gas.DefaultConfig()),
 		minGasPrices: nil,
 		eventLogger:  NewEventLogger(),
 	}
@@ -173,7 +173,7 @@ func (c Context) Value(key any) any {
 
 // Store fetches a Store from the MultiStore, but wrapped for gas calculation.
 func (c Context) GasStore(key store.StoreKey) store.Store {
-	return gasstore.New(c.MultiStore().GetStore(key), c.GasMeter(), gas.DefaultConfig())
+	return gasstore.New(c.MultiStore().GetStore(key), c.GasMeter())
 }
 
 func (c Context) Store(key store.StoreKey) store.Store {
