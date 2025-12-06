@@ -2,6 +2,7 @@ package cstypes
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -67,7 +68,7 @@ func (rs RoundStepType) String() string {
 // of the cs.receiveRoutine
 type RoundState struct {
 	// TODO replace w/ HRS
-	Height                    int64               `json:"height"` // Height we are working on
+	Height                    *atomic.Int64       `json:"height"` // Height we are working on
 	Round                     int                 `json:"round"`
 	Step                      RoundStepType       `json:"step"`
 	StartTime                 time.Time           `json:"start_time"`
@@ -128,7 +129,7 @@ func (rs *RoundState) GetHRS() HRS {
 	if rs == nil {
 		return HRS{0, 0, RoundStepInvalid}
 	}
-	return HRS{rs.Height, rs.Round, rs.Step}
+	return HRS{rs.Height.Load(), rs.Round, rs.Step}
 }
 
 // Compressed version of the RoundState for use in RPC
@@ -219,7 +220,7 @@ func (rs *RoundState) StringIndented(indent string) string {
 %s  LastCommit:    %v
 %s  LastValidators:%v
 %s}`,
-		indent, rs.Height, rs.Round, rs.Step,
+		indent, rs.Height.Load(), rs.Round, rs.Step,
 		indent, rs.StartTime,
 		indent, rs.CommitTime,
 		indent, rs.Validators.StringIndented(indent+"  "),
@@ -238,5 +239,5 @@ func (rs *RoundState) StringIndented(indent string) string {
 // StringShort returns a string
 func (rs *RoundState) StringShort() string {
 	return fmt.Sprintf(`RoundState{H:%v R:%v S:%v ST:%v}`,
-		rs.Height, rs.Round, rs.Step, rs.StartTime)
+		rs.Height.Load(), rs.Round, rs.Step, rs.StartTime)
 }
