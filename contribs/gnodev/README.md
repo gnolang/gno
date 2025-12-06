@@ -127,6 +127,7 @@ FLAGS
   -txs-file ...	load the provided transactions file (refer to the documentation for format)
   -unsafe-api=true 	enable /reset and /reload endpoints which are not safe to expose publicly
   -v=false 	enable verbose output for development
+  -web-custom-js ...	gnoweb: path to custom JavaScript script to inject into pages
   -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
   -web-home ...	gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
@@ -172,6 +173,7 @@ FLAGS
   -txs-file ...	load the provided transactions file (refer to the documentation for format)
   -unsafe-api=false 	enable /reset and /reload endpoints which are not safe to expose publicly
   -v=false 	enable verbose output for development
+  -web-custom-js ...	gnoweb: path to custom JavaScript script to inject into pages
   -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
   -web-home :none:	gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
