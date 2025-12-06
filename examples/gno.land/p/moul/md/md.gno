@@ -163,15 +163,15 @@ func InlineCode(code string) string {
 }
 
 // CodeBlock creates a markdown code block.
-// Example: CodeBlock("foo") => "```\nfoo\n```"
+// Example: CodeBlock("foo") => "```\nfoo\n```\n"
 func CodeBlock(content string) string {
-	return "```\n" + strings.ReplaceAll(content, "```", "\\```") + "\n```"
+	return "```\n" + strings.ReplaceAll(content, "```", "\\```") + "\n```\n"
 }
 
 // LanguageCodeBlock creates a markdown code block with language-specific syntax highlighting.
-// Example: LanguageCodeBlock("go", "foo") => "```go\nfoo\n```"
+// Example: LanguageCodeBlock("go", "foo") => "```go\nfoo\n```\n"
 func LanguageCodeBlock(language, content string) string {
-	return "```" + language + "\n" + strings.ReplaceAll(content, "```", "\\```") + "\n```"
+	return "```" + language + "\n" + strings.ReplaceAll(content, "```", "\\```") + "\n```\n"
 }
 
 // HorizontalRule returns a horizontal rule for markdown.
