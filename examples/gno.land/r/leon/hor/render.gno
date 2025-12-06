@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"strings"
 
+	"gno.land/p/matijamarjanovic/charts"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/nt/avl"
@@ -112,6 +113,23 @@ func renderDashboard() string {
 	}
 
 	out += "\n\n"
+
+	// Demo charts (SVG)
+	out += md.H2("📊 Charts Preview")
+
+	// Bar chart: items per sort bucket (mocked example values)
+	barVals := []float64{float64(exhibition.itemsSortedByUpvotes.Size()), float64(exhibition.itemsSortedByDownvotes.Size()), float64(exhibition.itemsSortedByCreation.Size())}
+	barLabels := []string{"Upvotes", "Downvotes", "Recent"}
+	out += charts.GenerateBarChart(barVals, barLabels, 600, 320)
+
+	// Line chart: simple growth preview based on page sizes (mocked series)
+	lineVals := []float64{2, 5, 7, 9, float64(exhibition.items.Size())}
+	out += charts.GenerateLineChart(lineVals, 12, 640, 300, "Time", "Count")
+
+	// Column chart: distribution preview (mocked series)
+	colVals := []float64{3, 6, 4, 7, 5, 8}
+	out += charts.GenerateColumnChart(colVals, 8, 640, 320, "Buckets", "Items")
+
 	return out
 }
 
