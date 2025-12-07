@@ -33,7 +33,7 @@ services:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     networks:
       - gnoland-net
-  
+
   grafana:
     image: grafana/grafana
     environment:
@@ -46,7 +46,7 @@ services:
       - "3000:3000"
     networks:
       - gnoland-net
-  
+
   gnoland-val:
     image: ghcr.io/gnolang/gno/gnoland:master
     networks:
@@ -72,7 +72,7 @@ services:
         gnoland config set moniker val000
         gnoland config set telemetry.metrics_enabled true
         gnoland config set telemetry.traces_enabled true
-        gnoland config set telemetry.exporter_endpoint grpc://collector:4317
+        gnoland config set telemetry.exporter_endpoint http://collector:4318
         gnoland config set telemetry.service_instance_id val0
         gnoland secrets get node_id.id -raw > /gnoroot/shared-data/node_p2p.id
         cp /gnoroot/genesis.json /gnoroot/shared-data/genesis.json
@@ -103,7 +103,7 @@ services:
         gnoland config set telemetry.metrics_enabled true
         gnoland config set telemetry.traces_enabled true
         gnoland config set telemetry.service_instance_id rpc000
-        gnoland config set telemetry.exporter_endpoint grpc://collector:4317
+        gnoland config set telemetry.exporter_endpoint http://collector:4318
         gnoland config set p2p.persistent_peers "$(cat /gnoroot/shared-data/node_p2p.id)@gnoland-val:26656"
         gnoland start -genesis /gnoroot/shared-data/genesis.json
     depends_on:

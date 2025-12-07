@@ -35,7 +35,7 @@ func Init(cfg config.Config) error {
 	case "http", "https":
 		exp, err = otlptracehttp.New(
 			ctx,
-			otlptracehttp.WithEndpointURL(u.Host),
+			otlptracehttp.WithEndpointURL(cfg.ExporterEndpoint),
 		)
 		if err != nil {
 			return fmt.Errorf("unable to create http traces exporter, %w", err)

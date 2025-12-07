@@ -1,8 +1,8 @@
 receivers:
   otlp:
     protocols:
-      grpc:
-        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
 
 processors:
   batch:
@@ -10,10 +10,8 @@ processors:
 exporters:
   prometheus:
     endpoint: collector:8090
-  otlp/tempo:
-    endpoint: tempo:4317
-    tls:
-      insecure: true
+  otlphttp/tempo:
+    endpoint: http://tempo:4318
 
 service:
   telemetry:
@@ -27,4 +25,4 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlp/tempo]
+      exporters: [otlphttp/tempo]
