@@ -15,9 +15,9 @@ gnoland start
 # call gov/dao render to check everything is working as expected and the loader worked
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 
-# try to add the proposal using a non-member
+# try to add the proposal using a non-member (should fail because no fee was sent)
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test newmember $WORK/proposer/create_proposal.gno
-stdout 'only members can create new proposals'
+stdout 'non-members must send 1000000ugnot to create a proposal'
 
 -- proposer/create_proposal.gno --
 package main
