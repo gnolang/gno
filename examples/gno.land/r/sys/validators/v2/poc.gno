@@ -124,33 +124,21 @@ func GetTrustLevel() (uint64, uint64) {
 
 // NewTrustLevelPropRequest creates a governance proposal to update the trust level ratio.
 func NewTrustLevelPropRequest(numerator, denominator uint64, title, description string) dao.ProposalRequest {
-	if err := validateTrustLevelInputs(numerator, denominator); err != nil {
-		panic(err.Error())
+	newRatio := trustRatio{numerator: numerator, denominator: denominator}
+	if newRatio.Ratio() < trustLevelMinAllowed.Ratio() || newRatio.Ratio() > trustLevelMaxAllowed.Ratio() {
+		panic(errInvalidTrustLevel)
 	}
 
 	callback := func(cur realm) error {
-		return setTrustLevel(numerator, denominator)
+		if newRatio.Ratio() < trustLevelMinAllowed.Ratio() || newRatio.Ratio() > trustLevelMaxAllowed.Ratio() {
+			return errors.New(errInvalidTrustLevel)
+		}
+
+		trustLevelRatio = newRatio
+		return nil
 	}
 
 	e := dao.NewSimpleExecutor(callback, "")
 
 	return dao.NewProposalRequest(title, description, e)
-}
-
-func setTrustLevel(numerator, denominator uint64) error {
-	if err := validateTrustLevelInputs(numerator, denominator); err != nil {
-		return err
-	}
-
-	trustLevelRatio = trustRatio{numerator: numerator, denominator: denominator}
-	return nil
-}
-
-func validateTrustLevelInputs(numerator, denominator uint64) error {
-	tr := trustRatio{numerator: numerator, denominator: denominator}
-	if tr.Ratio() < trustLevelMinAllowed.Ratio() || tr.Ratio() > trustLevelMaxAllowed.Ratio() {
-		return errors.New(errInvalidTrustLevel)
-	}
-
-	return nil
 }
