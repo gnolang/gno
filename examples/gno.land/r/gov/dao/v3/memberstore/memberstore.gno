@@ -127,7 +127,9 @@ func renderHome(res *mux.ResponseWriter, req *mux.Request) {
 
 		tp := (tier.PowerHandler(members, tiers) * float64(members.GetTierSize(tn)))
 
-		sb.WriteString(ufmt.Sprintf("- %v Tier %v contains %v members with power: %v\n", tierColoredChip(tn), tn, tree.Size(), tp))
+		sb.WriteString("- ")
+		sb.WriteString(tierColoredChip(tn))
+		sb.WriteString(ufmt.Sprintf(" Tier %v contains %v members with power: %v\n", tn, tree.Size(), tp))
 
 		return false
 	})

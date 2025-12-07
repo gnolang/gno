@@ -83,7 +83,7 @@ func NewAddMemberRequest(_ realm, addr address, tier string, portfolio string) d
 		return err
 	}
 
-	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("A new member with address %v is proposed to be on tier %v. Provided Portfolio information:\n\n%v", addr, tier, portfolio))
+	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("A new member with address %v is proposed to be on tier %v.", addr, tier))
 
 	name := tryResolveAddr(addr)
 	return dao.NewProposalRequestWithFilter(
@@ -110,11 +110,11 @@ func NewWithdrawMemberRequest(_ realm, addr address, reason string) dao.Proposal
 		return nil
 	}
 
-	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("Member with address %v will be withdrawn.\n\n REASON: %v.", addr, reason))
+	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("Member with address %v will be withdrawn.", addr))
 
 	return dao.NewProposalRequest(
 		"Member Withdrawal Proposal",
-		ufmt.Sprintf("This is a proposal to remove %s from the GovDAO", tryResolveAddr(addr)),
+		ufmt.Sprintf("This is a proposal to remove %s from the GovDAO.\n\n**Reason:** %s", tryResolveAddr(addr), reason),
 		e,
 	)
 }
@@ -135,7 +135,7 @@ func NewPromoteMemberRequest(addr address, fromTier string, toTier string) dao.P
 		return err
 	}
 
-	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("A new member with address %v will be promoted from tier %v to tier %v.", addr, fromTier, toTier))
+	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("Member with address %v will be promoted from tier %v to tier %v.", addr, fromTier, toTier))
 
 	return dao.NewProposalRequestWithFilter(
 		"Member Promotion Proposal",
@@ -163,17 +163,13 @@ func NewTreasuryPaymentRequest(payment trs_pkg.Payment, reason string) dao.Propo
 
 	e := dao.NewSimpleExecutor(
 		cb,
-		ufmt.Sprintf(
-			"A payment will be sent by the GovDAO treasury.\n\nReason: %s\n\nPayment: %s.",
-			reason,
-			payment.String(),
-		),
+		"A payment will be sent by the GovDAO treasury.",
 	)
 
 	return dao.NewProposalRequest(
 		"Treasury Payment",
 		ufmt.Sprintf(
-			"This proposal is looking to send a payment using the treasury.\n\nReason: %s\n\nPayment: %s",
+			"This proposal is looking to send a payment using the treasury.\n\n**Reason:** %s\n\n**Payment:** %s",
 			reason,
 			payment.String(),
 		),
@@ -200,16 +196,13 @@ func NewTreasuryGRC20TokensUpdate(newTokenKeys []string) dao.ProposalRequest {
 
 	e := dao.NewSimpleExecutor(
 		cb,
-		ufmt.Sprintf(
-			"The list of GRC20 tokens used by the treasury will be updated.\n\nNew Token Keys:\n%s.\n",
-			bulletList,
-		),
+		"The list of GRC20 tokens used by the treasury will be updated.",
 	)
 
 	return dao.NewProposalRequest(
 		"Treasury GRC20 Tokens Update",
 		ufmt.Sprintf(
-			"This proposal is looking to update the list of GRC20 tokens used by the treasury.\n\nNew Token Keys:\n%s",
+			"This proposal is looking to update the list of GRC20 tokens used by the treasury.\n\n**New Token Keys:**\n%s",
 			bulletList,
 		),
 		e,
