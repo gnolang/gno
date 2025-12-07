@@ -12,6 +12,8 @@ require (
 	mvdan.cc/gofumpt v0.8.0
 )
 
+require google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
+
 require (
 	connectrpc.com/connect v1.19.1
 	github.com/bufbuild/buf v1.59.0
