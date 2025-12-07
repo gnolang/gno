@@ -17,5 +17,5 @@ func TestRenderMembershipBadge(t *testing.T) {
 
 	// Test non-member (should show badge)
 	badge = renderMembershipBadge(noMember, dao)
-	urequire.Equal(t, " `[non-member]`", badge, "Non-members should have a badge")
+	urequire.Equal(t, "`[non-member]`", badge, "Non-members should have a badge")
 }
