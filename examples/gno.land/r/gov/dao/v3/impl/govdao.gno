@@ -182,12 +182,11 @@ func (g *GovDAO) Render(pkgPath string, path string) string {
 }
 
 func (g *GovDAO) isValidCall() bool {
-	// We need to verify three cases:
+	// We need to verify two cases:
 	// 1: r/gov/dao (proxy) functions called directly by an user
 	// 2: r/gov/dao/v3/impl methods called directly by an user
-	// 3: r/gov/dao (proxy) functions called from r/gov/dao/v3/impl (for tests)
 
-	// case 1 & 3
+	// case 1
 	if runtime.CurrentRealm().PkgPath() == "gno.land/r/gov/dao" {
 		// called directly by an user through MsgCall
 		if runtime.PreviousRealm().IsUser() {
