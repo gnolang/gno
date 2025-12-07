@@ -333,6 +333,7 @@ func TestIsQuorumReached(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			members := commondao.NewMemberStorage()
+			storage := commondao.MustNewReadonlyMemberStorage(members)
 			for _, m := range tc.members {
 				members.Add(m)
 			}
@@ -342,13 +343,75 @@ func TestIsQuorumReached(t *testing.T) {
 				record.AddVote(v)
 			}
 
-			success := commondao.IsQuorumReached(tc.quorum, record.Readonly(), commondao.NewMemberSet(members))
+			success := commondao.IsQuorumReached(tc.quorum, record.Readonly(), *storage)
 
 			if tc.fail {
 				uassert.False(t, success, "expect quorum to fail")
 			} else {
 				uassert.True(t, success, "expect quorum to succeed")
 			}
+		})
+	}
+}
+
+func TestProposalTally(t *testing.T) {
+	errTest := errors.New("test")
+	creator := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	cases := []struct {
+		name   string
+		setup  func() *commondao.Proposal
+		status commondao.ProposalStatus
+		err    error
+	}{
+		{
+			name: "passed",
+			setup: func() *commondao.Proposal {
+				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyResult: true})
+				return p
+			},
+			status: commondao.StatusPassed,
+		},
+		{
+			name: "rejected",
+			setup: func() *commondao.Proposal {
+				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyResult: false})
+				return p
+			},
+			status: commondao.StatusRejected,
+		},
+		{
+			name: "proposal is not active",
+			setup: func() *commondao.Proposal {
+				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyResult: true})
+				p.Tally(commondao.NewMemberStorage())
+				return p
+			},
+			err: commondao.ErrStatusIsNotActive,
+		},
+		{
+			name: "tally error",
+			setup: func() *commondao.Proposal {
+				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyErr: errTest})
+				return p
+			},
+			err: errTest,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := tc.setup()
+			members := commondao.NewMemberStorage()
+
+			err := p.Tally(members)
+
+			if tc.err != nil {
+				urequire.ErrorIs(t, err, tc.err)
+				return
+			}
+
+			urequire.NoError(t, err)
+			urequire.Equal(t, string(tc.status), string(p.Status()))
 		})
 	}
 }
@@ -379,7 +442,7 @@ func (testPropDef) Body() string                  { return "" }
 func (d testPropDef) VotingPeriod() time.Duration { return d.votingPeriod }
 func (d testPropDef) Validate() error             { return d.validationErr }
 
-func (d testPropDef) Tally(commondao.ReadonlyVotingRecord, commondao.MemberSet) (bool, error) {
+func (d testPropDef) Tally(commondao.VotingContext) (bool, error) {
 	return d.tallyResult, d.tallyErr
 }
 
