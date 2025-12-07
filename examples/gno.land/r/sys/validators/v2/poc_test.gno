@@ -298,7 +298,7 @@ func TestValidatorProposals(t *testing.T) {
 		})
 	})
 
-	t.Run("Proposal incorrectly allows majority-new validators", func(t *testing.T) {
+	t.Run("Proposal allows majority-new validators", func(t *testing.T) {
 		// Test: Proposal should reject when >2/3 of the resulting set are brand new validators.
 		lastValsetUpdate = time.Now().Add(-valsetUpdateCooldown - time.Minute)
 
@@ -378,11 +378,97 @@ func TestValidatorProposals(t *testing.T) {
 		})
 
 		setupTestCoins()
+		urequire.NotPanics(t, func() {
+			dao.MustVoteOnProposal(cross, dao.VoteRequest{
+				Option:     dao.YesVote,
+				ProposalID: pid,
+			})
+			dao.ExecuteProposal(cross, pid)
+		})
+	})
+
+	t.Run("Proposal should fail when less than 1/3 of old power remains", func(t *testing.T) {
+		// Reset the cooldown
+		lastValsetUpdate = time.Now().Add(-valsetUpdateCooldown - time.Minute)
+
+		// Clean the validator set
+		for _, existing := range vp.GetValidators() {
+			removeValidator(existing.Address)
+		}
+
+		// Old set is 4 validators, each with power 1
+		// prevTotalVotingPower = 4.
+		legacy := make([]pVals.Validator, 0, 4)
+		for i := 0; i < 4; i++ {
+			val := pVals.Validator{
+				Address:     testutils.TestAddress(fmt.Sprintf("legacy_%d", i)),
+				PubKey:      fmt.Sprintf("legacy_%d_pubkey", i),
+				VotingPower: 1,
+			}
+
+			legacy = append(legacy, val)
+
+			addValidator(val)
+		}
+
+		// Sanity check that total old power is 4
+		urequire.Equal(t, uint64(4), vp.TotalVotingPower())
+
+		setupTestCoins()
+
+		var pid dao.ProposalID
+		urequire.NotPanics(t, func(cur realm) {
+			testing.SetRealm(testing.NewUserRealm(testUserAddr))
+
+			changesFn := func() []pVals.Validator {
+				return []pVals.Validator{
+					// Remove 3 of the 4 legacy validators
+					{
+						Address:     legacy[1].Address,
+						PubKey:      legacy[1].PubKey,
+						VotingPower: 0,
+					},
+					{
+						Address:     legacy[2].Address,
+						PubKey:      legacy[2].PubKey,
+						VotingPower: 0,
+					},
+					{
+						Address:     legacy[3].Address,
+						PubKey:      legacy[3].PubKey,
+						VotingPower: 0,
+					},
+					// Add 2 new validators with power 1 each
+					{
+						Address:     testutils.TestAddress("new1"),
+						PubKey:      "new1_pubkey",
+						VotingPower: 1,
+					},
+					{
+						Address:     testutils.TestAddress("new2"),
+						PubKey:      "new2_pubkey",
+						VotingPower: 1,
+					},
+				}
+			}
+
+			pr := NewPropRequest(
+				changesFn,
+				"Example mismatch",
+				"Should fail when less than 1/3 of old power remains",
+			)
+
+			pid = dao.MustCreateProposal(cross, pr)
+		})
+
+		setupTestCoins()
+
 		urequire.AbortsWithMessage(t, errTooManyChanges, func() {
 			dao.MustVoteOnProposal(cross, dao.VoteRequest{
 				Option:     dao.YesVote,
 				ProposalID: pid,
 			})
+
 			dao.ExecuteProposal(cross, pid)
 		})
 	})

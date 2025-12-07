@@ -52,8 +52,12 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 
 		var addedVotingPower uint64
 
-		// Gather all proposed validator changes.
-		for _, change := range changesFn() {
+		changes := changesFn()
+		if len(changes) == 0 {
+			return errors.New(errNoChangesProposed)
+		}
+
+		for _, change := range changes {
 			val, exists := validators[change.Address]
 			if exists {
 				val.VotingPower = change.VotingPower
@@ -79,11 +83,7 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 			updatedVotingPower += val.VotingPower
 		}
 
-		newTotalVotingPower := addedVotingPower + updatedVotingPower
-		// Guardrails:
-		// 1. Total voting power cannot be zero after the update.
-		// 2. Legacy validators must retain at least the configured trust level of the voting power in the new set.
-		if prevTotalVotingPower > 0 && (newTotalVotingPower == 0 || updatedVotingPower*trustLevelRatio.denominator < newTotalVotingPower*trustLevelRatio.numerator) {
+		if prevTotalVotingPower > 0 && updatedVotingPower*trustLevelRatio.denominator < prevTotalVotingPower*trustLevelRatio.numerator {
 			return errors.New(errTooManyChanges)
 		}
 
