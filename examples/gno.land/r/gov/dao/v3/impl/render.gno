@@ -93,7 +93,7 @@ func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
 	out := ufmt.Sprintf("## Prop #%v - %v\n", pid, p.Title())
-	out += "Author: " + tryResolveAddr(p.Author()) + renderMembershipBadge(p.Author(), d) + "\n\n"
+	out += ufmt.Sprintf("Author: %s %s\n\n", tryResolveAddr(p.Author()), renderMembershipBadge(p.Author(), d))
 
 	out += p.Description()
 	out += "\n\n"
@@ -133,7 +133,7 @@ func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
 
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
 	out := ufmt.Sprintf("### [Prop #%v - %v](%v:%v)\n", pid, p.Title(), ren.relativeRealmPath, pid)
-	out += ufmt.Sprintf("Author: %s%s\n\n", tryResolveAddr(p.Author()), renderMembershipBadge(p.Author(), d))
+	out += ufmt.Sprintf("Author: %s %s\n\n", tryResolveAddr(p.Author()), renderMembershipBadge(p.Author(), d))
 
 	out += "Status: " + getPropStatus(ps)
 	out += "\n\n"
@@ -203,7 +203,7 @@ func tryResolveAddr(addr address) string {
 func renderMembershipBadge(addr address, d *GovDAO) string {
 	mem, _ := getMembers(cross).GetMember(addr)
 	if mem == nil {
-		return " `[non-member]`"
+		return "`[non-member]`"
 	}
 	return ""
 }
