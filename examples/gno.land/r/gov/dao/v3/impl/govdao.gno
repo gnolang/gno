@@ -2,6 +2,7 @@ package impl
 
 import (
 	"chain"
+	"chain/banker"
 	"chain/runtime"
 	"errors"
 
@@ -11,6 +12,9 @@ import (
 )
 
 var ErrMemberNotFound = errors.New("member not found")
+
+// ProposalFeeAmount is the fee required for non-members to create proposals (in ugnot)
+const ProposalFeeAmount int64 = 1000000 // 1 GNOT
 
 type GovDAO struct {
 	pss    ProposalsStatuses
@@ -63,11 +67,21 @@ func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (address, error) {
 			runtime.CurrentRealm(), runtime.PreviousRealm()))
 	}
 
-	// Verify that the one creating the proposal is a member.
 	caller := runtime.OriginCaller()
 	mem, _ := getMembers(cross).GetMember(caller)
+
+	// If the caller is not a member, they must pay a fee
 	if mem == nil {
-		return caller, errors.New("only members can create new proposals")
+		sent := banker.OriginSend()
+		feeRequired := chain.NewCoin("ugnot", ProposalFeeAmount)
+
+		// Check if the required fee was sent
+		if len(sent) == 0 || sent.AmountOf("ugnot") < ProposalFeeAmount {
+			return caller, errors.New(ufmt.Sprintf(
+				"non-members must send %s to create a proposal",
+				feeRequired.String(),
+			))
+		}
 	}
 
 	return caller, nil
@@ -168,11 +182,12 @@ func (g *GovDAO) Render(pkgPath string, path string) string {
 }
 
 func (g *GovDAO) isValidCall() bool {
-	// We need to verify two cases:
+	// We need to verify three cases:
 	// 1: r/gov/dao (proxy) functions called directly by an user
 	// 2: r/gov/dao/v3/impl methods called directly by an user
+	// 3: r/gov/dao (proxy) functions called from r/gov/dao/v3/impl (for tests)
 
-	// case 1
+	// case 1 & 3
 	if runtime.CurrentRealm().PkgPath() == "gno.land/r/gov/dao" {
 		// called directly by an user through MsgCall
 		if runtime.PreviousRealm().IsUser() {

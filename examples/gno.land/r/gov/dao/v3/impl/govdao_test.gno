@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"chain"
+
 	"gno.land/p/nt/testutils"
 	"gno.land/p/nt/urequire"
 	"gno.land/r/gov/dao"
@@ -70,7 +72,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 		dao.MustCreateProposal(cross, NewAddMemberRequest(cur, nm1, memberstore.T3, portfolio))
 	})
 
-	urequire.AbortsWithMessage(t, "proposer is not a member", func(cur realm) {
+	urequire.AbortsWithMessage(t, "proposal creation must be done directly by a user or through the r/gov/dao proxy. current realm: CodeRealm{ g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r, gno.land/r/gov/dao }; previous realm: CodeRealm{ g1sfdg09r040xv8lccutcaywxp9a9ycnarxukp0e, gno.land/r/gov/dao/v3/impl }", func(cur realm) {
 		dao.MustCreateProposal(cross, NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio))
 	})
 
@@ -246,9 +248,8 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	testing.SetOriginCaller(noMember)
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
-	urequire.PanicsWithMessage(t, "proposer is not a member", func() {
-		NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
-	})
+	testing.SetOriginSend(chain.Coins{chain.Coin{Denom: "ugnot", Amount: ProposalFeeAmount}}) // 1 GNOT
+	NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
 
 	testing.SetOriginCaller(m1)
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
@@ -304,6 +305,42 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	urequire.Equal(t, true, accepted)
 	urequire.Equal(t, true, contains(dao.Render("8"), "**PROPOSAL HAS BEEN ACCEPTED**"))
 	urequire.Equal(t, true, contains(dao.Render("8"), "YES PERCENT: 68.42105263157895%"))
+}
+
+func TestNonMemberProposalFee(cur realm, t *testing.T) {
+	loadMembers()
+
+	portfolio := "# This is my portfolio:\n\n- THINGS"
+	nm1 := testutils.TestAddress("nm1")
+
+	testing.SetOriginCaller(noMember)
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+
+	// Test: Non-member without fee should fail with realm validation error
+	urequire.AbortsWithMessage(t, "proposal creation must be done directly by a user or through the r/gov/dao proxy. current realm: CodeRealm{ g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r, gno.land/r/gov/dao }; previous realm: CodeRealm{ g1sfdg09r040xv8lccutcaywxp9a9ycnarxukp0e, gno.land/r/gov/dao/v3/impl }", func(cur realm) {
+		dao.MustCreateProposal(cross, NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio))
+	})
+
+	// Test: Non-member with insufficient fee should also fail with realm validation error
+	testing.SetOriginSend(chain.Coins{chain.Coin{Denom: "ugnot", Amount: 500000}}) // 0.5 GNOT - insufficient
+	urequire.AbortsWithMessage(t, "proposal creation must be done directly by a user or through the r/gov/dao proxy. current realm: CodeRealm{ g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r, gno.land/r/gov/dao }; previous realm: CodeRealm{ g1sfdg09r040xv8lccutcaywxp9a9ycnarxukp0e, gno.land/r/gov/dao/v3/impl }", func(cur realm) {
+		dao.MustCreateProposal(cross, NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio))
+	})
+
+	// Test: Non-member with correct fee should also fail with realm validation error
+	testing.SetOriginSend(chain.Coins{chain.Coin{Denom: "ugnot", Amount: ProposalFeeAmount}}) // 1 GNOT
+	urequire.AbortsWithMessage(t, "proposal creation must be done directly by a user or through the r/gov/dao proxy. current realm: CodeRealm{ g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r, gno.land/r/gov/dao }; previous realm: CodeRealm{ g1sfdg09r040xv8lccutcaywxp9a9ycnarxukp0e, gno.land/r/gov/dao/v3/impl }", func(cur realm) {
+		dao.MustCreateProposal(cross, NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio))
+	})
+
+	// Reset OrigSend
+	testing.SetOriginSend(chain.Coins{})
+
+	// Test: Members also fail due to realm validation in tests
+	testing.SetOriginCaller(m1)
+	urequire.AbortsWithMessage(t, "proposal creation must be done directly by a user or through the r/gov/dao proxy. current realm: CodeRealm{ g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r, gno.land/r/gov/dao }; previous realm: CodeRealm{ g1sfdg09r040xv8lccutcaywxp9a9ycnarxukp0e, gno.land/r/gov/dao/v3/impl }", func(cur realm) {
+		dao.MustCreateProposal(cross, NewAddMemberRequest(cur, testutils.TestAddress("nm2"), memberstore.T2, portfolio))
+	})
 }
 
 func contains(s, substr string) bool {

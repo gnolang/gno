@@ -1,7 +1,6 @@
 package impl
 
 import (
-	"chain/runtime"
 	"strings"
 
 	"gno.land/p/aeddi/panictoerr"
@@ -14,12 +13,7 @@ import (
 	"gno.land/r/gov/dao/v3/treasury"
 )
 
-func NewChangeLawRequest(_ realm, newLaw Law) dao.ProposalRequest {
-	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
-	if member == nil {
-		panic("proposer is not a member")
-	}
-
+func NewChangeLawRequest(_ realm, newLaw *Law) dao.ProposalRequest {
 	cb := func(_ realm) error {
 		law = &newLaw
 		return nil
@@ -31,11 +25,6 @@ func NewChangeLawRequest(_ realm, newLaw Law) dao.ProposalRequest {
 }
 
 func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.ProposalRequest {
-	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
-	if member == nil {
-		panic("proposer is not a member")
-	}
-
 	cb := func(_ realm) error {
 		// dao.UpdateImpl() must be cross-called from v3/impl but
 		// what calls this cb function is r/gov/dao.
@@ -67,17 +56,7 @@ func NewAddMemberRequest(_ realm, addr address, tier string, portfolio string) d
 		panic("A portfolio for the proposed member is required")
 	}
 
-	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
-	if member == nil {
-		panic("proposer is not a member")
-	}
-
-	if member.InvitationPoints <= 0 {
-		panic("proposer does not have enough invitation points for inviting new people to the board")
-	}
-
 	cb := func(_ realm) error {
-		member.RemoveInvitationPoint()
 		err := memberstore.Get().SetMember(tier, addr, memberByTier(tier))
 
 		return err
