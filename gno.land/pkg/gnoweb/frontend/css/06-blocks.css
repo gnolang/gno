@@ -2100,6 +2100,18 @@ pre.chroma-chroma {
 		&::placeholder {
 			color: var(--s-color-text-tertiary);
 		}
+
+		&[readonly],
+		&:disabled {
+			background-color: var(--s-color-bg-secondary);
+			color: var(--s-color-text-tertiary);
+			cursor: not-allowed;
+
+			&:hover,
+			&:focus {
+				border-color: var(--s-color-border-secondary);
+			}
+		}
 	}
 
 	.gno-form_input input:focus,
@@ -2123,6 +2135,13 @@ pre.chroma-chroma {
 		margin-block-end: var(--g-space-2);
 		padding-inline-start: var(--g-space-4);
 		font-weight: var(--g-font-semibold);
+	}
+
+	.gno-form_readonly-badge {
+		font-size: var(--g-font-size-50);
+		color: var(--s-color-text-tertiary);
+		font-weight: var(--g-font-normal);
+		margin-inline-start: var(--g-space-1);
 	}
 
 	.gno-form_selectable {
@@ -2158,8 +2177,27 @@ pre.chroma-chroma {
 					outline: none;
 				}
 
+				&:focus,
 				&:hover {
 					border-color: var(--s-color-border-tertiary);
+					color: var(--s-color-text-brand-default);
+
+					& + label {
+						color: var(--s-color-text-brand-default);
+						text-decoration: underline;
+					}
+				}
+
+				&:disabled {
+					opacity: var(--g-opacity-50);
+					cursor: not-allowed;
+					text-decoration: line-through;
+
+					& + label {
+						opacity: var(--g-opacity-50);
+						cursor: not-allowed;
+						text-decoration: none;
+					}
 				}
 			}
 
@@ -2213,12 +2251,6 @@ pre.chroma-chroma {
 			&::first-letter {
 				text-transform: capitalize;
 			}
-		}
-
-		&:hover,
-		&:hover + label {
-			color: var(--s-color-text-brand-default);
-			text-decoration: underline;
 		}
 	}
 

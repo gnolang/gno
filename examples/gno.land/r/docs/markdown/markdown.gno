@@ -679,6 +679,35 @@ Here's an example demonstrating all supported field types in a single exec form:
 
 All field types update the command preview in real-time as you interact with them.
 
+11. Form with Readonly Fields
+The ±readonly="true"± attribute makes fields non-editable while displaying their values. This is useful for showing fixed values that users should see but cannot modify.
+
+±±±markdown
+<gno-form>
+  <gno-input name="username" value="alice" readonly="true" description="Your fixed username" />
+  <gno-input name="role" type="text" value="admin" readonly="true" />
+  <gno-input name="status" type="radio" value="active" checked="true" readonly="true" description="Account status" />
+  <gno-input name="status" type="radio" value="inactive" readonly="true" />
+  <gno-input name="verified" type="checkbox" value="yes" checked="true" readonly="true" />
+  <gno-textarea name="terms" value="Terms and conditions text..." rows="3" readonly="true" />
+  <gno-select name="plan" value="premium" selected="true" readonly="true" description="Your subscription" />
+  <gno-select name="plan" value="basic" readonly="true" />
+</gno-form>
+±±±
+
+<gno-form>
+  <gno-input name="username" value="alice" readonly="true" description="Your fixed username" />
+  <gno-input name="role" type="text" value="admin" readonly="true" />
+  <gno-input name="status" type="radio" value="active" checked="true" readonly="true" description="Account status" />
+  <gno-input name="status" type="radio" value="inactive" readonly="true" />
+  <gno-input name="verified" type="checkbox" value="yes" checked="true" readonly="true" />
+  <gno-textarea name="terms" value="Terms and conditions text..." rows="3" readonly="true" />
+  <gno-select name="plan" value="premium" selected="true" readonly="true" description="Your subscription" />
+  <gno-select name="plan" value="basic" readonly="true" />
+</gno-form>
+
+**Note**: For text-based inputs and textareas, the HTML ±readonly± attribute is used. For radio buttons, checkboxes, and select dropdowns, ±disabled± is used instead since ±readonly± doesn't work on these elements in HTML.
+
 #### Important Rules
 
 1. **Validation Rules**:
@@ -691,6 +720,7 @@ All field types update the command preview in real-time as you interact with the
    - Radio and checkbox inputs must have a ±value± attribute
    - The ±checked± attribute is only valid for radio and checkbox inputs
    - The ±selected± attribute is only valid for ±<gno-select>± elements
+   - The ±readonly="true"± attribute makes fields non-editable (works on all field types)
    - Textarea ±rows± attribute must be between 2 and 10 (defaults to 4 if invalid or not specified)
 
 2. **Security Features**:

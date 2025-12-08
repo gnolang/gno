@@ -68,6 +68,7 @@ type FormInput struct {
 	Placeholder string
 	Value       string
 	Checked     bool
+	Readonly    bool
 	Description string
 	Error       error
 }
@@ -96,6 +97,7 @@ type FormTextarea struct {
 	Placeholder string
 	Rows        int
 	Value       string
+	Readonly    bool
 	Description string
 	Error       error
 }
@@ -118,6 +120,7 @@ type FormSelect struct {
 	Name        string
 	Value       string
 	Selected    bool
+	Readonly    bool
 	Description string
 	Error       error
 }
@@ -279,6 +282,7 @@ func (p *FormParser) parseInput(node *FormNode, tok html.Token) {
 	input.Description = attrs["description"]
 	input.Value = attrs["value"]
 	input.Checked = attrs["checked"] == "true"
+	input.Readonly = attrs["readonly"] == "true"
 
 	// Validate
 	if err := node.validateName(input.Name, input.Type); err != nil {
@@ -350,6 +354,8 @@ func (p *FormParser) parseTextarea(node *FormNode, tok html.Token) {
 			}
 		case "description":
 			textarea.Description = strings.TrimSpace(attr.Val)
+		case "readonly":
+			textarea.Readonly = strings.TrimSpace(attr.Val) == "true"
 		}
 	}
 
@@ -379,6 +385,8 @@ func (p *FormParser) parseSelect(node *FormNode, tok html.Token) {
 			sel.Selected = strings.TrimSpace(attr.Val) == "true"
 		case "description":
 			sel.Description = strings.TrimSpace(attr.Val)
+		case "readonly":
+			sel.Readonly = strings.TrimSpace(attr.Val) == "true"
 		}
 	}
 
@@ -572,6 +580,9 @@ func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastD
 		if e.Checked {
 			fmt.Fprint(w, ` checked`)
 		}
+		if e.Readonly {
+			fmt.Fprint(w, ` disabled`)
+		}
 		if isExec {
 			fmt.Fprintf(w, ` data-action-function-target="param-input" data-action="change->action-function#updateAllArgs" data-action-function-param-value="%s"`, HTMLEscapeString(e.Name))
 		}
@@ -582,17 +593,28 @@ func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastD
 		if e.Placeholder != "" {
 			label += " - " + e.Placeholder
 		}
-		fmt.Fprintf(w, `<label for="%s"> %s </label>
+		readonlyBadge := ""
+		if e.Readonly {
+			readonlyBadge = `<span class="gno-form_readonly-badge">(readonly)</span>`
+		}
+		fmt.Fprintf(w, `<label for="%s"> %s %s</label>
 </div>
-`, HTMLEscapeString(uniqueID), HTMLEscapeString(label))
+`, HTMLEscapeString(uniqueID), HTMLEscapeString(label), readonlyBadge)
 	} else {
-		fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s"> %s </label>
+		readonlyBadge := ""
+		if e.Readonly {
+			readonlyBadge = `<span class="gno-form_readonly-badge">(readonly)</span>`
+		}
+		fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s"> %s %s</label>
 <input type="%s" id="%s" name="%s" placeholder="%s"`,
-			HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder),
+			HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder), readonlyBadge,
 			HTMLEscapeString(e.Type), HTMLEscapeString(e.Name),
 			HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder))
 		if e.Value != "" {
 			fmt.Fprintf(w, ` value="%s"`, HTMLEscapeString(e.Value))
+		}
+		if e.Readonly {
+			fmt.Fprint(w, ` readonly`)
 		}
 		if isExec {
 			fmt.Fprintf(w, ` data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" data-action-function-param-value="%s"`, HTMLEscapeString(e.Name))
@@ -610,11 +632,19 @@ func (r *FormRenderer) renderTextarea(w util.BufWriter, e FormTextarea, idx int,
 		*lastDescID = descID
 	}
 
-	fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s"> %s </label>
+	readonlyBadge := ""
+	if e.Readonly {
+		readonlyBadge = `<span class="gno-form_readonly-badge">(readonly)</span>`
+	}
+
+	fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s"> %s %s</label>
 <textarea id="%s" name="%s" placeholder="%s" rows="%d"`,
-		HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder),
+		HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder), readonlyBadge,
 		HTMLEscapeString(e.Name), HTMLEscapeString(e.Name),
 		HTMLEscapeString(e.Placeholder), e.Rows)
+	if e.Readonly {
+		fmt.Fprint(w, ` readonly`)
+	}
 	if isExec {
 		fmt.Fprintf(w, ` data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" data-action-function-param-value="%s"`, HTMLEscapeString(e.Name))
 	}
@@ -632,13 +662,20 @@ func (r *FormRenderer) renderSelect(w util.BufWriter, elements []FormElement, e 
 	}
 
 	label := titleCase(strings.ReplaceAll(e.Name, "_", " "))
-	fmt.Fprintf(w, `<div class="gno-form_select"><label for="%s"> %s </label>
+	readonlyBadge := ""
+	if e.Readonly {
+		readonlyBadge = `<span class="gno-form_readonly-badge">(readonly)</span>`
+	}
+	fmt.Fprintf(w, `<div class="gno-form_select"><label for="%s"> %s %s</label>
 <select id="%s" name="%s"`,
-		HTMLEscapeString(e.Name), HTMLEscapeString(label),
+		HTMLEscapeString(e.Name), HTMLEscapeString(label), readonlyBadge,
 		HTMLEscapeString(e.Name), HTMLEscapeString(e.Name))
 
 	if *lastDescID != "" {
 		fmt.Fprintf(w, ` aria-labelledby="%s"`, HTMLEscapeString(*lastDescID))
+	}
+	if e.Readonly {
+		fmt.Fprint(w, ` disabled`)
 	}
 	if isExec {
 		fmt.Fprintf(w, ` data-action-function-target="param-input" data-action="change->action-function#updateAllArgs" data-action-function-param-value="%s"`, HTMLEscapeString(e.Name))
