@@ -657,14 +657,14 @@ func (ml MapList) MarshalAmino() (MapListImage, error) {
 func (ml *MapList) UnmarshalAmino(mlimg MapListImage) error {
 	for i, item := range mlimg.List {
 		if i == 0 {
-			// init case
 			ml.Head = item
-		}
-		item.Prev = ml.Tail
-		if ml.Tail != nil {
+			ml.Tail = item
+			item.Prev = nil
+		} else {
+			item.Prev = ml.Tail
 			ml.Tail.Next = item
+			ml.Tail = item
 		}
-		ml.Tail = item
 		ml.Size++
 	}
 	return nil
@@ -681,11 +681,11 @@ func (ml *MapList) Append(alloc *Allocator, key TypedValue) *MapListItem {
 	}
 	if ml.Head == nil {
 		ml.Head = item
-	}
-	if ml.Tail != nil {
+		ml.Tail = item
+	} else {
 		ml.Tail.Next = item
+		ml.Tail = item
 	}
-	ml.Tail = item
 	ml.Size++
 	return item
 }
@@ -2580,6 +2580,10 @@ func (rv RefValue) GetObjectID() ObjectID {
 
 // Base for a detached singleton (e.g. new(int) or &struct{})
 // Conceptually like a Block that holds one value.
+// NOTE: It is possible for the value to be external
+// while the heap item itself is not; but this
+// should not be possible w/ blocks or struct values.
+// See test/files/zrealm_crossrealm25a.gno.
 // NOTE: could be renamed to HeapItemBaseValue.
 // See also note in realm.go about auto-unwrapping.
 type HeapItemValue struct {

@@ -25,10 +25,11 @@ A detailed description of the ABCI methods and message types is contained in:
 
 ## Protocol Buffers
 
-To compile the protobuf file, run (from the root of the repo):
+To compile the protobuf file, first install the protobuf command-line tools, e.g. with `brew install protobuf`. Then run (from the root of the repo):
 
 ```
-make protoc_abci
+make -C misc/devdeps
+make -C misc/genproto
 ```
 
 See `protoc --help` and [the Protocol Buffers site](https://developers.google.com/protocol-buffers) for details on compiling for other languages.
