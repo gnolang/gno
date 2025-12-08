@@ -22,8 +22,7 @@ UI - TOC Realm component
 {{ define "ui/toc_realm" }}
 <ul class="b-toc">{{- range .Items }}
   <li>
-    <a href="{{ .Anchor }}"> {{ printf "%s" .Title }}
-    </a>
+    <a href="{{ .Anchor }}">{{ .Title }}</a>
     {{ if .Items }} {{ template "ui/toc_realm" . }} {{ end }}
   </li>
   {{ end }}
