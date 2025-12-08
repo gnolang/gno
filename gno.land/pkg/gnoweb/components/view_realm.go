@@ -1,13 +1,21 @@
 package components
 
-import (
-	ti "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/tocitem"
-)
-
 const RealmViewType ViewType = "realm-view"
 
+// TocItem represents a table of contents item for the components package.
+type TocItem struct {
+	Title string
+	ID    string
+	Items []*TocItem
+}
+
+// Anchor returns the anchor link for this ToC item.
+func (i TocItem) Anchor() string {
+	return "#" + i.ID
+}
+
 type RealmTOCData struct {
-	Items []*ti.TocItem
+	Items []*TocItem
 }
 
 type RealmData struct {

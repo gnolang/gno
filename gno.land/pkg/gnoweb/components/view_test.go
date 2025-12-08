@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	ti "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/tocitem"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/stretchr/testify/assert"
 )
@@ -144,8 +143,8 @@ func (m *mockWriter) Write(p []byte) (n int, err error) {
 func TestRealmView(t *testing.T) {
 	content := NewReaderComponent(strings.NewReader("testdata"))
 	tocItems := &RealmTOCData{
-		Items: []*ti.TocItem{
-			{Title: []byte("Introduction"), ID: []byte("introduction")},
+		Items: []*TocItem{
+			{Title: "Introduction", ID: "introduction"},
 		},
 	}
 	data := RealmData{

@@ -3,7 +3,7 @@
 package markdown
 
 import (
-	ti "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/tocitem"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/util"
@@ -12,7 +12,22 @@ import (
 const MaxDepth = 6
 
 type Toc struct {
-	Items []*ti.TocItem
+	Items []*components.TocItem
+}
+
+// compactItems removes items with no titles from the given list of items.
+// Children of removed items will be promoted to the parent item.
+func compactItems(items []*components.TocItem) []*components.TocItem {
+	result := make([]*components.TocItem, 0, len(items))
+	for _, item := range items {
+		if item.Title == "" {
+			result = append(result, compactItems(item.Items)...)
+			continue
+		}
+		item.Items = compactItems(item.Items)
+		result = append(result, item)
+	}
+	return result
 }
 
 type TocOptions struct {
@@ -22,24 +37,24 @@ type TocOptions struct {
 func TocInspect(n ast.Node, src []byte, opts TocOptions) (Toc, error) {
 	// Appends an empty subitem to the given node
 	// and returns a reference to it.
-	appendChild := func(n *ti.TocItem) *ti.TocItem {
-		child := new(ti.TocItem)
+	appendChild := func(n *components.TocItem) *components.TocItem {
+		child := new(components.TocItem)
 		n.Items = append(n.Items, child)
 		return child
 	}
 
 	// Returns the last subitem of the given node,
 	// creating it if necessary.
-	lastChild := func(n *ti.TocItem) *ti.TocItem {
+	lastChild := func(n *components.TocItem) *components.TocItem {
 		if len(n.Items) > 0 {
 			return n.Items[len(n.Items)-1]
 		}
 		return appendChild(n)
 	}
 
-	var root ti.TocItem
+	var root components.TocItem
 
-	stack := []*ti.TocItem{&root} // inv: len(stack) >= 1
+	stack := []*components.TocItem{&root} // inv: len(stack) >= 1
 	err := ast.Walk(n, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
 			return ast.WalkContinue, nil
@@ -74,20 +89,22 @@ func TocInspect(n ast.Node, src []byte, opts TocOptions) (Toc, error) {
 
 		parent := stack[len(stack)-1]
 		target := lastChild(parent)
-		if len(target.Title) > 0 || len(target.Items) > 0 {
+		if target.Title != "" || len(target.Items) > 0 {
 			target = appendChild(parent)
 		}
 
-		target.Title = util.UnescapePunctuations(nodeText(src, heading))
+		target.Title = string(util.UnescapePunctuations(nodeText(src, heading)))
 
 		if id, ok := n.AttributeString("id"); ok {
-			target.ID, _ = id.([]byte)
+			if idBytes, ok := id.([]byte); ok {
+				target.ID = string(idBytes)
+			}
 		}
 
 		return ast.WalkSkipChildren, nil
 	})
 
-	root.Items = ti.CompactItems(root.Items)
+	root.Items = compactItems(root.Items)
 
 	return Toc{Items: root.Items}, err
 }
