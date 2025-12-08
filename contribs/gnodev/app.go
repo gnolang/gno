@@ -151,13 +151,10 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	loggerEvents := ds.logger.WithGroup(EventServerLogName)
 	ds.emitterServer = emitter.NewServer(loggerEvents)
 
-	// XXX: it would be nice to not have this hardcoded
-	examplesDir := filepath.Join(ds.cfg.root, "examples")
-
-	// Setup loader and resolver
+	// Setup loader
 	loaderLogger := ds.logger.WithGroup(LoaderLogName)
-	resolver, localPaths := setupPackagesResolver(loaderLogger, ds.cfg, dirs...)
-	ds.loader = packages.NewGlobLoader(examplesDir, resolver)
+	var localPaths []string
+	ds.loader, localPaths = setupPackagesLoader(loaderLogger, ds.cfg, dirs...)
 
 	// Get user's address book from local keybase
 	accountLogger := ds.logger.WithGroup(AccountsLogName)
@@ -261,7 +258,7 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 		// Generate initial paths
 		initPaths := map[string]struct{}{}
 		for _, pkg := range ds.devNode.ListPkgs() {
-			initPaths[pkg.Path] = struct{}{}
+			initPaths[pkg.ImportPath] = struct{}{}
 		}
 
 		ds.proxy.HandlePath(func(paths ...string) {

@@ -1,6 +1,22 @@
 package main
 
-import "flag"
+import (
+	"flag"
+	"fmt"
+)
+
+// varResolver is a placeholder for the deprecated resolver flag.
+// The new NativeLoader handles package resolution automatically.
+type varResolver []string
+
+func (va varResolver) String() string {
+	return fmt.Sprintf("%v", []string(va))
+}
+
+func (va *varResolver) Set(value string) error {
+	*va = append(*va, value)
+	return nil
+}
 
 type AppConfig struct {
 	// Listeners

@@ -1,90 +1,48 @@
 package main
 
 import (
-	"fmt"
 	"log/slog"
 	gopath "path"
 	"path/filepath"
 	"regexp"
-	"strings"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 )
 
-type varResolver []packages.Resolver
-
-func (va varResolver) String() string {
-	resolvers := packages.ChainedResolver(va)
-	return resolvers.Name()
-}
-
-func (va *varResolver) Set(value string) error {
-	name, location, found := strings.Cut(value, "=")
-	if !found {
-		return fmt.Errorf("invalid resolver format %q, should be `<name>=<location>`", value)
+func setupPackagesLoader(logger *slog.Logger, cfg *AppConfig, dirs ...string) (packages.Loader, []string) {
+	opts := []packages.NativeLoaderOption{
+		packages.WithLogger(logger),
+		packages.WithGnoRoot(cfg.root),
 	}
 
-	var res packages.Resolver
-	switch name {
-	case "remote":
-		rpc, err := client.NewHTTPClient(location)
-		if err != nil {
-			return fmt.Errorf("invalid resolver remote: %q", location)
-		}
+	// Add extra workspaces (e.g., examples directory)
+	examplesDir := filepath.Join(cfg.root, "examples")
+	opts = append(opts, packages.WithExtraWorkspaces(examplesDir))
 
-		res = packages.NewRemoteResolver(location, rpc)
-	case "root": // process everything from a root directory
-		res = packages.NewRootResolver(location)
-	case "local": // process a single directory
-		path, ok := guessPathGnoMod(location)
-		if !ok {
-			return fmt.Errorf("unable to read module path from gnomod.toml in %q", location)
-		}
-
-		res = packages.NewLocalResolver(path, location)
-	default:
-		return fmt.Errorf("invalid resolver name: %q", name)
+	// Add remote overrides from cfg.resolvers
+	remoteOverrides := make(map[string]string)
+	for _, r := range cfg.resolvers {
+		// The resolver format is "remote=<url>" - we parse domain from the URL
+		// For now, we skip this as we're removing remote resolvers
+		// but we can add it back if needed
+		_ = r
+	}
+	if len(remoteOverrides) > 0 {
+		opts = append(opts, packages.WithRemoteOverrides(remoteOverrides))
 	}
 
-	*va = append(*va, res)
-	return nil
-}
+	loader := packages.NewNativeLoader(opts...)
 
-func setupPackagesResolver(logger *slog.Logger, cfg *AppConfig, dirs ...string) (packages.Resolver, []string) {
-	// Add root resolvers
-	localResolvers := make([]packages.Resolver, len(dirs))
-
+	// Determine local paths from directories
 	var paths []string
-	for i, dir := range dirs {
+	for _, dir := range dirs {
 		path := guessPath(cfg, dir)
-		resolver := packages.NewLocalResolver(path, dir)
-
-		if resolver.IsValid() {
-			logger.Info("guessing directory path", "path", path, "dir", dir)
-			paths = append(paths, path) // append local path
-		} else {
-			logger.Warn("no gno package found", "dir", dir)
-		}
-
-		localResolvers[i] = resolver
+		logger.Info("guessing directory path", "path", path, "dir", dir)
+		paths = append(paths, path)
 	}
 
-	resolver := packages.ChainResolvers(
-		packages.ChainResolvers(localResolvers...), // Resolve local directories
-		packages.ChainResolvers(cfg.resolvers...),  // Use user's custom resolvers
-	)
-
-	// Enrich resolver with middleware
-	return packages.MiddlewareResolver(resolver,
-		packages.CacheMiddleware(func(pkg *packages.Package) bool {
-			return pkg.Kind == packages.PackageKindRemote // Only cache remote package
-		}),
-		packages.FilterStdlibs,                    // Filter stdlib package from resolving
-		packages.PackageCheckerMiddleware(logger), // Pre-check syntax to avoid bothering the node reloading on invalid files
-		packages.LogMiddleware(logger),            // Log request
-	), paths
+	return loader, paths
 }
 
 func guessPathGnoMod(dir string) (path string, ok bool) {

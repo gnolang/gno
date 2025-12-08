@@ -6,11 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
-	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/mattn/go-isatty"
 )
@@ -60,7 +58,7 @@ This mode is optimized for realm development, providing an interactive and flexi
 It enables features such as interactive mode, unsafe API access for testing, and lazy loading to improve performance.
 The log format is set to console for easier readability, and the web interface is accessible locally, making it ideal for iterative development and testing.
 
-By default, the current directory and the "example" folder from "gnoroot" will be used as the root resolver.
+If a gnomod.toml or gno.work file is present in the current directory, gnodev will automatically detect and load the corresponding package(s).
 `,
 			NoParentFlags: true,
 		},
@@ -94,37 +92,15 @@ func execLocalApp(cfg *LocalAppConfig, args []string, cio commands.IO) error {
 		return fmt.Errorf("unable to guess current dir: %w", err)
 	}
 
-	// If no resolvers is defined, use gno example as root resolver
-	var baseResolvers []packages.Resolver
-
-	if len(cfg.resolvers) == 0 {
-		// Check if we are not in gnoroot
-		if !strings.HasPrefix(dir, filepath.Clean(cfg.root)+"/") {
-			// Add current dir as root resolvers
-			baseResolvers = append(baseResolvers, packages.NewRootResolver(dir))
-		}
-
-		// Add examples as root resolver
-		gnoroot, err := gnoenv.GuessRootDir()
-		if err != nil {
-			return err
-		}
-		exampleRoot := filepath.Join(gnoroot, "examples")
-		baseResolvers = append(baseResolvers, packages.NewRootResolver(exampleRoot))
-	}
-
 	// Check if current directory is a valid gno package
-	path := guessPath(&cfg.AppConfig, dir)
-	resolver := packages.NewLocalResolver(path, dir)
-	if resolver.IsValid() {
-		// Add current directory as local resolver
-		baseResolvers = append([]packages.Resolver{resolver}, baseResolvers...)
+	if modfile, err := gnomod.ParseDir(dir); err == nil {
+		// Current directory has a gnomod.toml, add it to paths
 		if len(cfg.paths) > 0 {
 			cfg.paths += ","
 		}
-		cfg.paths += resolver.Path
+		cfg.paths += modfile.Module
 	}
-	cfg.resolvers = append(baseResolvers, cfg.resolvers...)
 
-	return runApp(&cfg.AppConfig, cio) // else run app without any dir
+	// If args are provided, they are directories to add
+	return runApp(&cfg.AppConfig, cio, args...)
 }

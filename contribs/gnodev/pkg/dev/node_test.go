@@ -35,6 +35,8 @@ func TestNewNode_NoPackages(t *testing.T) {
 	// Call NewDevNode with no package should work
 	cfg := DefaultNodeConfig(gnoenv.RootDir(), "gno.land")
 	cfg.Logger = logger
+	// Use an empty mock loader for testing without packages
+	cfg.Loader = packages.NewMockLoader()
 	node, err := NewDevNode(ctx, cfg)
 	require.NoError(t, err)
 
@@ -68,7 +70,7 @@ func Render(_ string) string { return "foo" }
 	logger := log.NewTestingLogger(t)
 
 	cfg := DefaultNodeConfig(gnoenv.RootDir(), "gno.land")
-	cfg.Loader = packages.NewLoader(packages.NewMockResolver(&pkg))
+	cfg.Loader = packages.NewMockLoader(&pkg)
 	cfg.Logger = logger
 
 	node, err := NewDevNode(ctx, cfg, pkg.Path)
@@ -596,7 +598,6 @@ func testingCallRealmWithConfig(t *testing.T, node *Node, bcfg gnoclient.BaseTxC
 }
 
 func newTestingNodeConfig(pkgs ...*std.MemPackage) *NodeConfig {
-	var loader packages.BaseLoader
 	gnoroot := gnoenv.RootDir()
 
 	// Ensure that a gnomod.toml exists
@@ -609,12 +610,9 @@ func newTestingNodeConfig(pkgs ...*std.MemPackage) *NodeConfig {
 		pkg.Sort()
 	}
 
-	loader.Resolver = packages.MiddlewareResolver(
-		packages.NewMockResolver(pkgs...),
-		packages.FilterStdlibs)
 	cfg := DefaultNodeConfig(gnoenv.RootDir(), "gno.land")
 	cfg.TMConfig = integration.DefaultTestingTMConfig(gnoroot)
-	cfg.Loader = &loader
+	cfg.Loader = packages.NewMockLoader(pkgs...)
 	return cfg
 }
 

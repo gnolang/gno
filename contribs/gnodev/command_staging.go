@@ -4,9 +4,7 @@ import (
 	"context"
 	"flag"
 	"path"
-	"path/filepath"
 
-	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -32,7 +30,6 @@ var defaultStagingOptions = AppConfig{
 	paths:               path.Join(DefaultDomain, "/**"), // Load every package under the main domain},
 	emptyBlocks:         false,
 	emptyBlocksInterval: 1,
-
 	// As we have no reason to configure this yet, set this to random port
 	// to avoid potential conflict with other app
 	nodeP2PListenerAddr:      "tcp://127.0.0.1:0",
@@ -69,16 +66,5 @@ func (c *StagingAppConfig) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execStagingCmd(cfg *StagingAppConfig, args []string, io commands.IO) error {
-	// If no resolvers is defined, use gno example as root resolver
-	if len(cfg.AppConfig.resolvers) == 0 {
-		gnoroot, err := gnoenv.GuessRootDir()
-		if err != nil {
-			return err
-		}
-
-		exampleRoot := filepath.Join(gnoroot, "examples")
-		cfg.AppConfig.resolvers = append(cfg.AppConfig.resolvers, packages.NewRootResolver(exampleRoot))
-	}
-
 	return runApp(&cfg.AppConfig, io, args...)
 }
