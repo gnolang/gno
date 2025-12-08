@@ -170,43 +170,43 @@ func TestRealmView(t *testing.T) {
 func TestRealmViewTOCXSSPrevention(t *testing.T) {
 	tests := []struct {
 		name           string
-		tocTitle       []byte
-		tocID          []byte
+		tocTitle       string
+		tocID          string
 		mustNotContain []string
 		mustContain    []string
 	}{
 		{
 			name:           "HTML entities in TOC title",
-			tocTitle:       []byte("&lt;script&gt;alert('XSS')&lt;/script&gt; Heading"),
-			tocID:          []byte("heading"),
+			tocTitle:       "&lt;script&gt;alert('XSS')&lt;/script&gt; Heading",
+			tocID:          "heading",
 			mustNotContain: []string{"<script>alert", "<script>"},
 			mustContain:    []string{"&amp;lt;script&amp;gt;"},
 		},
 		{
 			name:           "Image tag with onerror via entities",
-			tocTitle:       []byte("&lt;img src=x onerror=alert(1)&gt;"),
-			tocID:          []byte("img"),
+			tocTitle:       "&lt;img src=x onerror=alert(1)&gt;",
+			tocID:          "img",
 			mustNotContain: []string{},
 			mustContain:    []string{"&amp;lt;img"},
 		},
 		{
 			name:           "SVG with onload via entities",
-			tocTitle:       []byte("&lt;svg onload=alert(1)&gt;"),
-			tocID:          []byte("svg"),
+			tocTitle:       "&lt;svg onload=alert(1)&gt;",
+			tocID:          "svg",
 			mustNotContain: []string{},
 			mustContain:    []string{"&amp;lt;svg"},
 		},
 		{
 			name:           "Numeric HTML entities",
-			tocTitle:       []byte("&#60;script&#62;alert(1)&#60;/script&#62;"),
-			tocID:          []byte("numeric"),
+			tocTitle:       "&#60;script&#62;alert(1)&#60;/script&#62;",
+			tocID:          "numeric",
 			mustNotContain: []string{"<script"},
 			mustContain:    []string{"&amp;#60;script"},
 		},
 		{
 			name:           "Normal heading with ampersand",
-			tocTitle:       []byte("API & SDK"),
-			tocID:          []byte("api-sdk"),
+			tocTitle:       "API & SDK",
+			tocID:          "api-sdk",
 			mustNotContain: []string{},
 			mustContain:    []string{"API &amp; SDK"},
 		},
@@ -217,7 +217,7 @@ func TestRealmViewTOCXSSPrevention(t *testing.T) {
 			// Create a RealmView with potentially malicious TOC item
 			content := NewReaderComponent(strings.NewReader("test content"))
 			tocItems := &RealmTOCData{
-				Items: []*ti.TocItem{
+				Items: []*TocItem{
 					{Title: tt.tocTitle, ID: tt.tocID},
 				},
 			}
@@ -253,7 +253,7 @@ func TestRealmViewTOCXSSPrevention(t *testing.T) {
 				if !strings.Contains(tocHTML, safe) {
 					t.Errorf("Expected escaped pattern %q not found in TOC HTML.\n"+
 						"Title: %s\nTOC HTML: %s",
-						safe, string(tt.tocTitle), tocHTML)
+						safe, tt.tocTitle, tocHTML)
 				}
 			}
 		})
