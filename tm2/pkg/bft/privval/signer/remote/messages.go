@@ -5,7 +5,9 @@ import (
 )
 
 // MaxMessageSize is the maximum size in bytes of a message that can be sent or received.
-const MaxMessageSize = 10 * 1024
+// This needs to be large enough to accommodate genesis transactions, which can contain
+// entire packages of Gno code and exceed 30KB in size.
+const MaxMessageSize = 1024 * 1024 // 1MB
 
 // RemoteSignerError is an error returned by the remote signer.
 // Necessary because golang errors are not serializable (private fields).
@@ -42,9 +44,3 @@ type SignResponse struct {
 	Signature []byte
 	Error     *RemoteSignerError
 }
-
-// PingRequest is a request to confirm that the connection is alive.
-type PingRequest struct{}
-
-// PingResponse is a response to confirm that the connection is alive.
-type PingResponse struct{}
