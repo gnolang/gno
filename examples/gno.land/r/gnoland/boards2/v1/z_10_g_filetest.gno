@@ -21,7 +21,7 @@ var (
 func init() {
 	// Created a board with a specific flagging threshold
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false)
+	bid = boards2.CreateBoard(cross, "test-board", false, false)
 	boards2.SetFlaggingThreshold(cross, bid, 2)
 
 	// Invite a moderator to the new board

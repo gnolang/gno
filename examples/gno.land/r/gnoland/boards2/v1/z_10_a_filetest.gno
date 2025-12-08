@@ -20,7 +20,7 @@ var (
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false)
+	bid = boards2.CreateBoard(cross, "test-board", false, false)
 
 	// Invite a moderator to the new board
 	boards2.InviteMember(cross, bid, moderator, boards2.RoleModerator)

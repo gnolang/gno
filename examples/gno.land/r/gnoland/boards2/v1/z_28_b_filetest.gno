@@ -17,7 +17,7 @@ var bid boards.ID
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false)
+	bid = boards2.CreateBoard(cross, "test123", false, false)
 
 	// Invite the user as a moderator
 	boards2.InviteMember(cross, bid, user, boards2.RoleModerator)

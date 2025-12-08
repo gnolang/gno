@@ -21,7 +21,7 @@ func init() {
 	perms = permissions.New()
 
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "foobar", false)
+	bid = boards2.CreateBoard(cross, "foobar", false, false)
 }
 
 func main() {

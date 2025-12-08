@@ -18,7 +18,7 @@ var bid boards.ID
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "foo123", false) // Operate on board DAO members
+	bid = boards2.CreateBoard(cross, "foo123", false, false) // Operate on board DAO members
 }
 
 func main() {
