@@ -114,7 +114,10 @@ func validateOpenThreadCreate(perms boards.Permissions, args boards.Args) error 
 		return errors.New("expected a valid caller address")
 	}
 
-	if users.ResolveAddress(caller) == nil {
+	// Owners and admins can create threads without a regisrtered username
+	if perms.HasRole(caller, RoleOwner) || perms.HasRole(caller, RoleAdmin) {
+		return nil
+	} else if users.ResolveAddress(caller) == nil {
 		return errors.New("a registered username is required to create threads on open boards")
 	}
 	return nil
@@ -135,7 +138,8 @@ func validateOpenReplyCreate(perms boards.Permissions, args boards.Args) error {
 		return errors.New("expected a valid caller address")
 	}
 
-	if users.ResolveAddress(caller) == nil {
+	// Board members can reply without a registered username
+	if !perms.HasUser(caller) && users.ResolveAddress(caller) == nil {
 		return errors.New("a registered username is required to comment on open boards")
 	}
 	return nil
