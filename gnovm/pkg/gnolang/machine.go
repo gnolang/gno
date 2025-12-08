@@ -254,6 +254,25 @@ func (m *Machine) RunMemPackageWithOverrides(mpkg *std.MemPackage, save bool) (*
 }
 
 func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
+	// not ideal.
+	// XXX
+	// Only delete the parts that are not overwritten.
+	// For example, if the original package has 10 objects
+	// and the new package has 7 objects, then we can tell that
+	// 3 of them need to be cleaned up.
+	pid := ObjectIDFromPkgPath(mpkg.Path)
+	if m.Store.HasObject(pid) {
+		pkgID := pid.PkgID
+		for i := 1; ; i++ {
+			oid := ObjectID{PkgID: pkgID, NewTime: uint64(i)}
+			if m.Store.HasObject(oid) {
+				m.Store.DelObjectByID(oid)
+			} else {
+				fmt.Println("============clean over...")
+				break
+			}
+		}
+	}
 	// validate mpkg.Type.
 	mptype := mpkg.Type.(MemPackageType)
 	if save && !mptype.IsStorable() {

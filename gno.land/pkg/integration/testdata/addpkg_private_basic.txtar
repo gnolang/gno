@@ -29,7 +29,7 @@ stderr 'package already exists'
 
 # overwrite private realm with public realm
 ! gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/foobar/privaterealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
-stderr 'cannot change private package to public package'
+stderr 'a private package cannot be overridden by a public package'
 
 -- privaterealm/gnomod.toml --
 module = "gno.land/r/test"
@@ -40,7 +40,7 @@ private = true
 package test
 
 func Echo(cur realm) string {
-	return "hello private world"
+ return "hello private world"
 }
 
 -- privaterealmedited/gnomod.toml --
@@ -52,7 +52,7 @@ private = true
 package test
 
 func Echo(cur realm) string {
-	return "hello private edited world"
+ return "hello private edited world"
 }
 
 -- publicrealm/gnomod.toml --
@@ -63,5 +63,5 @@ gno = "0.9"
 package publicrealm
 
 func Echo(cur realm) string {
-	return "hello public world"
+ return "hello public world"
 }

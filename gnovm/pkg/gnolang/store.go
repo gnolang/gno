@@ -48,9 +48,11 @@ type Store interface {
 	GetObject(oid ObjectID) Object
 	GetObjectSafe(oid ObjectID) Object
 	SetObject(Object) int64 // returns size difference of the object
+	HasObject(oid ObjectID) bool
 	GetStagingPackage() *PackageValue
 	SetStagingPackage(pv *PackageValue)
 	DelObject(Object) int64 // returns size difference of the object
+	DelObjectByID(oid ObjectID)
 	GetType(tid TypeID) Type
 	GetTypeSafe(tid TypeID) Type
 	SetCacheType(Type)
@@ -446,6 +448,23 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	return nil
 }
 
+func (ds *defaultStore) HasObject(oid ObjectID) bool {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
+	// check cache.
+	if _, exists := ds.cacheObjects[oid]; exists {
+		return true
+	}
+	key := backendObjectKey(oid)
+	hashbz := ds.baseStore.Get([]byte(key))
+	if hashbz != nil {
+		return true
+	}
+	return false
+}
+
 // loads and caches an object.
 // CONTRACT: object isn't already in the cache.
 func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
@@ -719,6 +738,7 @@ func (ds *defaultStore) loadForLog(oid ObjectID) Object {
 }
 
 func (ds *defaultStore) DelObject(oo Object) int64 {
+	fmt.Println("======DelObject, oo: ", oo.GetObjectID())
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -745,6 +765,18 @@ func (ds *defaultStore) DelObject(oo Object) int64 {
 		fmt.Fprintf(ds.opslog, "d[%v](%d)\n", oo.GetObjectID(), -size)
 	}
 	return size
+}
+
+// XXX, consume gas
+func (ds *defaultStore) DelObjectByID(oid ObjectID) {
+	fmt.Println("======DelObjectByID, oo: ", oid)
+	// delete from cache.
+	delete(ds.cacheObjects, oid)
+	// delete from backend.
+	if ds.baseStore != nil {
+		key := backendObjectKey(oid)
+		ds.baseStore.Delete([]byte(key))
+	}
 }
 
 // NOTE: not used quite yet.
@@ -980,6 +1012,7 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	gas := overflow.Mulp(ds.gasConfig.GasAddMemPackage, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAddMemPackageDesc)
 	ds.baseStore.Set(idxkey, []byte(mpkg.Path))
+	// XXX, clean the old memPackage if overriden.
 	pathkey := []byte(backendPackagePathKey(mpkg.Path))
 	ds.iavlStore.Set(pathkey, bz)
 	size = len(bz)
