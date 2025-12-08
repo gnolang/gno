@@ -9,12 +9,14 @@ var (
 	gUrlContextKey     = parser.NewContextKey()
 	gChainIdContextKey = parser.NewContextKey()
 	gRemoteContextKey  = parser.NewContextKey()
+	gDomainContextKey  = parser.NewContextKey()
 )
 
 type GnoContext struct {
 	GnoURL  *weburl.GnoURL
 	ChainId string
 	Remote  string
+	Domain  string
 }
 
 // NewGnoParserContext creates a new parser context with GnoURL
@@ -23,6 +25,7 @@ func NewGnoParserContext(mdctx GnoContext) parser.Context {
 	ctx.Set(gUrlContextKey, mdctx.GnoURL)
 	ctx.Set(gChainIdContextKey, mdctx.ChainId)
 	ctx.Set(gRemoteContextKey, mdctx.Remote)
+	ctx.Set(gDomainContextKey, mdctx.Domain)
 	return ctx
 }
 
@@ -46,6 +49,14 @@ func getChainIdFromContext(ctx parser.Context) (chainId string, ok bool) {
 // getRemoteFromContext retrieves the Remote from the parser context
 func getRemoteFromContext(ctx parser.Context) (remote string, ok bool) {
 	if remote, ok = ctx.Get(gRemoteContextKey).(string); !ok {
+		return "", false
+	}
+	return
+}
+
+// getDomainFromContext retrieves the Domain from the parser context
+func getDomainFromContext(ctx parser.Context) (domain string, ok bool) {
+	if domain, ok = ctx.Get(gDomainContextKey).(string); !ok {
 		return "", false
 	}
 	return

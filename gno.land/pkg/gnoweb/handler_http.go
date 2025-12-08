@@ -249,6 +249,7 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (
 	toc, err := h.Renderer.RenderRealm(&content, gnourl, []byte(mdContent), RealmRenderContext{
 		ChainId: h.Static.ChainId,
 		Remote:  h.Static.RemoteHelp,
+		Domain:  h.Static.Domain,
 	})
 	if err != nil {
 		h.Logger.Error("unable to render markdown file", "error", err, "path", gnourl.EncodeURL())
@@ -308,6 +309,7 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 	meta, err := h.Renderer.RenderRealm(&content, gnourl, raw, RealmRenderContext{
 		ChainId: h.Static.ChainId,
 		Remote:  h.Static.RemoteHelp,
+		Domain:  h.Static.Domain,
 	})
 	if err != nil {
 		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
@@ -386,6 +388,7 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		_, err = h.Renderer.RenderRealm(&content, gnourl, raw, RealmRenderContext{
 			ChainId: h.Static.ChainId,
 			Remote:  h.Static.RemoteHelp,
+			Domain:  h.Static.Domain,
 		})
 	}
 
@@ -493,6 +496,7 @@ func (h *HTTPHandler) renderReadme(ctx context.Context, gnourl *weburl.GnoURL, p
 	if _, err := h.Renderer.RenderRealm(&buf, gnourl, file, RealmRenderContext{
 		ChainId: h.Static.ChainId,
 		Remote:  h.Static.RemoteHelp,
+		Domain:  h.Static.Domain,
 	}); err != nil {
 		h.Logger.Error("render README.md", "error", err)
 		return nil, nil

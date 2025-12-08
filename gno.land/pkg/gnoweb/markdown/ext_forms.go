@@ -145,6 +145,7 @@ type FormNode struct {
 	ExecFunc   string // Function name for exec attribute
 	RenderPath string
 	RealmName  string
+	Domain     string
 	ChainId    string
 	Remote     string
 	Error      error
@@ -204,12 +205,15 @@ func (p *FormParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 		node.RealmName = gnourl.Path
 	}
 
-	// Get ChainId and Remote from context
+	// Get ChainId, Remote, and Domain from context
 	if chainId, ok := getChainIdFromContext(pc); ok {
 		node.ChainId = chainId
 	}
 	if remote, ok := getRemoteFromContext(pc); ok {
 		node.Remote = remote
+	}
+	if domain, ok := getDomainFromContext(pc); ok {
+		node.Domain = domain
 	}
 
 	// Handle exec attribute
@@ -539,9 +543,11 @@ func (r *FormRenderer) renderCommandBlock(w util.BufWriter, n *FormNode) {
 	}
 
 	// Prepare data for the command template
+	// Build PkgPath with domain (like the action page does)
+	pkgPath := n.Domain + n.RealmName
 	data := components.CommandData{
 		FuncName:   n.ExecFunc,
-		PkgPath:    n.RealmName,
+		PkgPath:    pkgPath,
 		ParamNames: paramNames,
 		ChainId:    chainId,
 		Remote:     remote,

@@ -28,6 +28,7 @@ type Renderer interface {
 type RealmRenderContext struct {
 	ChainId string
 	Remote  string
+	Domain  string
 }
 
 // HTMLRenderer implements the Renderer interface for HTML output.
@@ -61,6 +62,7 @@ func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ct
 	mdctx.GnoURL = u
 	mdctx.ChainId = ctx.ChainId
 	mdctx.Remote = ctx.Remote
+	mdctx.Domain = ctx.Domain
 
 	pctx := md.NewGnoParserContext(mdctx)
 
