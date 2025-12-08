@@ -85,3 +85,56 @@ func createBasicBoardPermissions(owner address) *permissions.Permisions {
 	perms.ValidateFunc(PermissionRoleChange, validateBasicRoleChange)
 	return perms
 }
+
+func createOpenBoardPermissions(owner address) *permissions.Permisions {
+	perms := permissions.New()
+	perms.SetSuperRole(RoleOwner)
+	perms.SetPublicPermissions(
+		PermissionThreadCreate,
+		PermissionReplyCreate,
+	)
+	perms.AddRole(
+		RoleAdmin,
+		PermissionBoardRename,
+		PermissionBoardFlaggingUpdate,
+		PermissionMemberInvite,
+		PermissionMemberInviteRevoke,
+		PermissionMemberRemove,
+		PermissionThreadCreate,
+		PermissionThreadEdit,
+		PermissionThreadDelete,
+		PermissionThreadRepost,
+		PermissionThreadFlag,
+		PermissionThreadFreeze,
+		PermissionReplyCreate,
+		PermissionReplyDelete,
+		PermissionReplyFlag,
+		PermissionRoleChange,
+		PermissionUserBan,
+		PermissionUserUnban,
+	)
+	perms.AddRole(
+		RoleModerator,
+		PermissionThreadCreate,
+		PermissionThreadEdit,
+		PermissionThreadRepost,
+		PermissionThreadFlag,
+		PermissionReplyCreate,
+		PermissionReplyFlag,
+		PermissionUserBan,
+		PermissionUserUnban,
+	)
+	perms.AddRole(
+		RoleGuest,
+		PermissionThreadCreate,
+		PermissionThreadRepost,
+		PermissionReplyCreate,
+	)
+	perms.SetUserRoles(cross, owner, RoleOwner)
+	perms.ValidateFunc(PermissionBoardRename, validateOpenBoardRename)
+	perms.ValidateFunc(PermissionMemberInvite, validateOpenMemberInvite)
+	perms.ValidateFunc(PermissionRoleChange, validateOpenRoleChange)
+	perms.ValidateFunc(PermissionThreadCreate, validateOpenThreadCreate)
+	perms.ValidateFunc(PermissionReplyCreate, validateOpenReplyCreate)
+	return perms
+}

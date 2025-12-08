@@ -106,8 +106,9 @@ func GetBoardIDFromName(_ realm, name string) (_ boards.ID, found bool) {
 
 // CreateBoard creates a new board.
 //
-// Listed boards are included in the list of boards.
-func CreateBoard(_ realm, name string, listed bool) boards.ID {
+// Listed boards are included in the realm's list of boards.
+// Open boards allow anyone to create threads and comment.
+func CreateBoard(_ realm, name string, listed, open bool) boards.ID {
 	assertRealmIsNotLocked()
 
 	name = strings.TrimSpace(name)
@@ -117,14 +118,19 @@ func CreateBoard(_ realm, name string, listed bool) boards.ID {
 	caller := runtime.PreviousRealm().Address()
 	id := gBoardsSequence.Next()
 	board := boards.New(id)
-	args := boards.Args{caller, name, board.ID, listed}
+	args := boards.Args{caller, name, board.ID, listed, open}
 	gPerms.WithPermission(cross, caller, PermissionBoardCreate, args, func(realm) {
 		assertRealmIsNotLocked()
 		assertBoardNameNotExists(name)
 
 		board.Name = name
-		board.Permissions = createBasicBoardPermissions(caller)
 		board.Creator = caller
+
+		if open {
+			board.Permissions = createOpenBoardPermissions(caller)
+		} else {
+			board.Permissions = createBasicBoardPermissions(caller)
+		}
 
 		if err := gBoards.Add(board); err != nil {
 			panic(err)

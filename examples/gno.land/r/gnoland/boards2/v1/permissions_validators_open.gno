@@ -8,42 +8,14 @@ import (
 	"gno.land/r/sys/users"
 )
 
-// validateBasicBoardCreate validates PermissionBoardCreate.
-//
-// Expected `args` values:
-// 1. Caller address
-// 2. Board name
-// 3. Board ID
-// 4. Is board listed
-func validateBasicBoardCreate(_ boards.Permissions, args boards.Args) error {
-	caller, ok := args[0].(address)
-	if !ok {
-		return errors.New("expected a valid caller address")
-	}
-
-	name, ok := args[1].(string)
-	if !ok {
-		return errors.New("expected board name to be a string")
-	}
-
-	if err := checkBoardNameIsNotAddress(name); err != nil {
-		return err
-	}
-
-	if err := checkBoardNameBelongsToAddress(caller, name); err != nil {
-		return err
-	}
-	return nil
-}
-
-// validateBasicBoardRename validates PermissionBoardRename.
+// validateOpenBoardRename validates PermissionBoardRename.
 //
 // Expected `args` values:
 // 1. Caller address
 // 2. Board ID
 // 3. Current board name
 // 4. New board name
-func validateBasicBoardRename(_ boards.Permissions, args boards.Args) error {
+func validateOpenBoardRename(_ boards.Permissions, args boards.Args) error {
 	caller, ok := args[0].(address)
 	if !ok {
 		return errors.New("expected a valid caller address")
@@ -64,13 +36,13 @@ func validateBasicBoardRename(_ boards.Permissions, args boards.Args) error {
 	return nil
 }
 
-// validateBasicMemberInvite validates PermissionMemberInvite.
+// validateOpenMemberInvite validates PermissionMemberInvite.
 //
 // Expected `args` values:
 // 1. Caller address
 // 2. Board ID
 // 3. Invites
-func validateBasicMemberInvite(perms boards.Permissions, args boards.Args) error {
+func validateOpenMemberInvite(perms boards.Permissions, args boards.Args) error {
 	caller, ok := args[0].(address)
 	if !ok {
 		return errors.New("expected a valid caller address")
@@ -91,14 +63,14 @@ func validateBasicMemberInvite(perms boards.Permissions, args boards.Args) error
 	return nil
 }
 
-// validateBasicRoleChange validates PermissionRoleChange.
+// validateOpenRoleChange validates PermissionRoleChange.
 //
 // Expected `args` values:
 // 1. Caller address
 // 2. Board ID
 // 3. Member address
 // 4. Role
-func validateBasicRoleChange(perms boards.Permissions, args boards.Args) error {
+func validateOpenRoleChange(perms boards.Permissions, args boards.Args) error {
 	caller, ok := args[0].(address)
 	if !ok {
 		return errors.New("expected a valid caller address")
@@ -128,19 +100,43 @@ func validateBasicRoleChange(perms boards.Permissions, args boards.Args) error {
 	return nil
 }
 
-func checkBoardNameIsNotAddress(s string) error {
-	if address(s).IsValid() {
-		return errors.New("addresses are not allowed as board name")
+// validateOpenThreadCreate validates PermissionThreadCreate.
+//
+// Expected `args` values:
+// 1. Caller address
+// 2. Board ID
+// 3. Thread ID
+// 4. Title
+// 5. Body
+func validateOpenThreadCreate(perms boards.Permissions, args boards.Args) error {
+	caller, ok := args[0].(address)
+	if !ok {
+		return errors.New("expected a valid caller address")
+	}
+
+	if users.ResolveAddress(caller) == nil {
+		return errors.New("a registered username is required to create threads on open boards")
 	}
 	return nil
 }
 
-func checkBoardNameBelongsToAddress(owner address, name string) error {
-	// When the board name is the name of a registered user
-	// check that caller is the owner of the name.
-	user, _ := users.ResolveName(name)
-	if user != nil && user.Addr() != owner {
-		return errors.New("board name is a user name registered to a different user")
+// validateOpenReplyCreate validates PermissionReplyCreate.
+//
+// Expected `args` values:
+// 1. Caller address
+// 2. Board ID
+// 3. Thread ID
+// 4. Parent ID
+// 5. Reply ID
+// 6. Body
+func validateOpenReplyCreate(perms boards.Permissions, args boards.Args) error {
+	caller, ok := args[0].(address)
+	if !ok {
+		return errors.New("expected a valid caller address")
+	}
+
+	if users.ResolveAddress(caller) == nil {
+		return errors.New("a registered username is required to comment on open boards")
 	}
 	return nil
 }
