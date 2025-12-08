@@ -34,6 +34,10 @@ stdout 'OK!'
 gnokey query auth/accounts/$test1_user_addr
 stdout '"coins": "9999997999958ugnot"'
 
+## r/gimmemoney balance after coin transfer in newbanker_originsend
+gnokey query auth/accounts/g1s3k0addceutlq2xmuphzkefx2c28mc8typ7v0j
+stdout '"coins": "42ugnot"'
+
 -- script/print_originsend.gno --
 package main
 
