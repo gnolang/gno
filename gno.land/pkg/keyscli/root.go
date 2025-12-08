@@ -31,7 +31,7 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 
 	// OnTxSuccess is only used by NewBroadcastCmd
 	cfg.OnTxSuccess = func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
-		client.PrintTxInfo(tx, res, io)
+		client.PrintTxInfo(tx, res, io, cfg.Verbosity)
 	}
 	cmd.AddSubCommands(
 		client.NewAddCmd(cfg, io),

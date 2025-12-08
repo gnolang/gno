@@ -226,7 +226,7 @@ func ExecSignAndBroadcast(
 	if cfg.RootCfg.OnTxSuccess != nil {
 		cfg.RootCfg.OnTxSuccess(tx, bres)
 	} else {
-		PrintTxInfo(tx, bres, io)
+		PrintTxInfo(tx, bres, io, cfg.RootCfg.Verbosity)
 	}
 
 	return nil

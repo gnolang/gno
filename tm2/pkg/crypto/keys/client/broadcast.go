@@ -88,7 +88,7 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 		if cfg.RootCfg.OnTxSuccess != nil {
 			cfg.RootCfg.OnTxSuccess(tx, res)
 		} else {
-			PrintTxInfo(tx, res, io)
+			PrintTxInfo(tx, res, io, cfg.RootCfg.Verbosity)
 		}
 	}
 	return nil

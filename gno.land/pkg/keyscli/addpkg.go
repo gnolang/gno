@@ -141,7 +141,7 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 
 	if cfg.RootCfg.Broadcast {
 		cfg.RootCfg.RootCfg.OnTxSuccess = func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
-			client.PrintTxInfo(tx, res, io)
+			client.PrintTxInfo(tx, res, io, cfg.RootCfg.RootCfg.Verbosity)
 		}
 		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
 		if err != nil {
