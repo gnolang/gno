@@ -88,6 +88,9 @@ func (e FormInput) String() string {
 	if e.Description != "" {
 		s += fmt.Sprintf(" (description=%s)", e.Description)
 	}
+	if e.Readonly {
+		s += " (readonly=true)"
+	}
 	return s
 }
 
@@ -112,6 +115,9 @@ func (e FormTextarea) String() string {
 	if e.Description != "" {
 		s += fmt.Sprintf(" (description=%s)", e.Description)
 	}
+	if e.Readonly {
+		s += " (readonly=true)"
+	}
 	return s
 }
 
@@ -134,6 +140,9 @@ func (e FormSelect) String() string {
 	s := fmt.Sprintf("(name=%s) (value=%s) (selected=%t)", e.Name, e.Value, e.Selected)
 	if e.Description != "" {
 		s += fmt.Sprintf(" (description=%s)", e.Description)
+	}
+	if e.Readonly {
+		s += " (readonly=true)"
 	}
 	return s
 }
