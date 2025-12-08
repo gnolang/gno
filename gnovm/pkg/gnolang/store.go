@@ -63,6 +63,9 @@ type Store interface {
 	SetBlockNode(BlockNode)
 	RealmStorageDiffs() map[string]int64 // returns storage changes per realm within the message
 
+	GetPackageIndexCounter(pid PkgID) uint64
+	GetObjectIndexCounter(key string) uint64
+
 	// UNSTABLE
 	GetAllocator() *Allocator
 	SetAllocator(alloc *Allocator)
@@ -721,6 +724,11 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 		value = hash.Bytes()
 		ds.iavlStore.Set(key, value)
 	}
+
+	pid := oid.PkgID
+	pkgidx := ds.GetPackageIndexCounter(pid)
+	ds.incObjectIndexCounter(backendObjectIndexKey(pid, pkgidx))
+	// fmt.Println("======objidx after increase: ", objidx)
 	return diff
 }
 
@@ -957,7 +965,8 @@ func (ds *defaultStore) NumMemPackages() int64 {
 	}
 }
 
-func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
+// index all packages
+func (ds *defaultStore) incAllPackageIndexCounter() uint64 {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
@@ -972,6 +981,77 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 		nextbz := strconv.Itoa(ctr + 1)
 		ds.baseStore.Set(ctrkey, []byte(nextbz))
 		return uint64(ctr) + 1
+	}
+}
+
+// index per package
+func (ds *defaultStore) incPackageIndexCounter(pid PkgID) uint64 {
+	// fmt.Println("======incPackageIndexCounter: pid: ", pid)
+	ctrkey := pid.Hashlet[:]
+	ctrbz := ds.baseStore.Get(ctrkey)
+	if ctrbz == nil {
+		nextbz := strconv.Itoa(1)
+		ds.baseStore.Set(ctrkey, []byte(nextbz))
+		return 1
+	} else {
+		ctr, err := strconv.Atoi(string(ctrbz))
+		if err != nil {
+			panic(err)
+		}
+		nextbz := strconv.Itoa(ctr + 1)
+		ds.baseStore.Set(ctrkey, []byte(nextbz))
+		return uint64(ctr) + 1
+	}
+}
+
+func (ds *defaultStore) GetPackageIndexCounter(pid PkgID) uint64 {
+	ctrkey := pid.Hashlet[:]
+	ctrbz := ds.baseStore.Get(ctrkey)
+	if ctrbz == nil {
+		return 0
+	} else {
+		ctr, err := strconv.Atoi(string(ctrbz))
+		if err != nil {
+			panic(err)
+		}
+		return uint64(ctr)
+	}
+}
+
+// invode in SetObject
+// key format: pkgID:counter
+// e.g. 0000:1, 0000:2, same packages with different index
+// value is index of objects that belogs to a package
+func (ds *defaultStore) incObjectIndexCounter(key string) uint64 {
+	// fmt.Println("======incObjectIndexCounter, key: ", key)
+	ctrkey := []byte(key)
+	ctrbz := ds.baseStore.Get(ctrkey)
+	if ctrbz == nil {
+		nextbz := strconv.Itoa(1)
+		ds.baseStore.Set(ctrkey, []byte(nextbz))
+		return 1
+	} else {
+		ctr, err := strconv.Atoi(string(ctrbz))
+		if err != nil {
+			panic(err)
+		}
+		nextbz := strconv.Itoa(ctr + 1)
+		ds.baseStore.Set(ctrkey, []byte(nextbz))
+		return uint64(ctr) + 1
+	}
+}
+
+func (ds *defaultStore) GetObjectIndexCounter(key string) uint64 {
+	ctrkey := []byte(key)
+	ctrbz := ds.baseStore.Get(ctrkey)
+	if ctrbz == nil {
+		return 0
+	} else {
+		ctr, err := strconv.Atoi(string(ctrbz))
+		if err != nil {
+			panic(err)
+		}
+		return uint64(ctr)
 	}
 }
 
@@ -1006,7 +1086,9 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	if err != nil {
 		panic(fmt.Errorf("invalid mempackage: %w", err))
 	}
-	ctr := ds.incGetPackageIndexCounter()
+	ctr := ds.incAllPackageIndexCounter()
+	ds.incPackageIndexCounter(ObjectIDFromPkgPath(mpkg.Path).PkgID)
+	// fmt.Println("======got pkgidx: ", pkgidx)
 	idxkey := []byte(backendPackageIndexKey(ctr))
 	bz := amino.MustMarshal(mpkg)
 	gas := overflow.Mulp(ds.gasConfig.GasAddMemPackage, store.Gas(len(bz)))
@@ -1237,8 +1319,16 @@ func backendPackageIndexCtrKey() string {
 	return "pkgidx:counter"
 }
 
+func backendObjectIndexCtrKey(pid PkgID) string {
+	return pid.String()
+}
+
 func backendPackageIndexKey(index uint64) string {
 	return fmt.Sprintf("pkgidx:%020d", index)
+}
+
+func backendObjectIndexKey(pid PkgID, index uint64) string {
+	return fmt.Sprintf("%s:%020d", pid, index)
 }
 
 // We need to prefix stdlibs path with `_` to maitain them lexicographically
