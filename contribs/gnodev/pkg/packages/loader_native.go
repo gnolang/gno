@@ -3,6 +3,7 @@ package packages
 import (
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -111,8 +112,9 @@ func (l *NativeLoader) Load(patterns ...string) ([]*Package, error) {
 }
 
 func (l *NativeLoader) Resolve(importPath string) (*Package, error) {
-	// First check the index
+	// First check the pre-populated index
 	if pkg, ok := l.index.GetByPath(importPath); ok {
+		l.logger.Debug("resolved from index", "path", importPath)
 		return pkg, nil
 	}
 
@@ -126,29 +128,89 @@ func (l *NativeLoader) Resolve(importPath string) (*Package, error) {
 				Kind:       PackageKindFS,
 			}
 			l.index.Add(pkg)
+			l.logger.Debug("resolved stdlib", "path", importPath)
 			return pkg, nil
 		}
-		return nil, fmt.Errorf("stdlib %s not found", importPath)
-	}
-
-	// Try to load via gnovm packages
-	pkgs, err := l.Load(importPath)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(pkgs) == 0 {
 		return nil, ErrResolverPackageNotFound
 	}
 
-	// Find the matching package
-	for _, pkg := range pkgs {
-		if pkg.ImportPath == importPath {
-			return pkg, nil
+	// Not found in index - return error
+	// Note: We don't fall back to Load() here because it requires workspace context
+	// The index should be pre-populated via DiscoverPackages() for lazy loading to work
+	l.logger.Debug("package not found in index", "path", importPath)
+	return nil, ErrResolverPackageNotFound
+}
+
+// DiscoverPackages scans workspace roots and populates the index with all
+// discoverable packages. This enables Resolve() to work for lazy loading
+// by pre-mapping import paths to filesystem directories.
+func (l *NativeLoader) DiscoverPackages() error {
+	roots := l.extraWorkspaces
+
+	l.logger.Debug("starting package discovery", "roots", roots)
+
+	for _, root := range roots {
+		root = filepath.Clean(root)
+		if _, err := os.Stat(root); os.IsNotExist(err) {
+			l.logger.Debug("workspace root does not exist, skipping", "root", root)
+			continue
+		}
+
+		l.logger.Debug("walking workspace root", "root", root)
+
+		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return nil // skip errors
+			}
+
+			// Skip non-files
+			if d.IsDir() {
+				// Skip sub-workspaces (they have their own gnowork.toml)
+				if path != root {
+					subwork := filepath.Join(path, "gnowork.toml")
+					if _, err := os.Stat(subwork); err == nil {
+						return fs.SkipDir
+					}
+				}
+				return nil
+			}
+
+			// Look for gnomod.toml or gno.mod files
+			name := d.Name()
+			if name != "gnomod.toml" && name != "gno.mod" {
+				return nil
+			}
+
+			dir := filepath.Dir(path)
+
+			// Skip if we already have this directory indexed
+			if _, ok := l.index.GetByDir(dir); ok {
+				return nil
+			}
+
+			// Parse the gnomod to get the module path
+			gm, err := gnomod.ParseDir(dir)
+			if err != nil {
+				l.logger.Debug("failed to parse gnomod", "dir", dir, "err", err)
+				return nil // skip invalid
+			}
+
+			pkg := &Package{
+				ImportPath: gm.Module,
+				Dir:        dir,
+				Kind:       PackageKindFS,
+			}
+			l.index.Add(pkg)
+
+			return nil
+		})
+		if err != nil {
+			l.logger.Warn("error walking workspace", "root", root, "err", err)
 		}
 	}
 
-	return nil, ErrResolverPackageNotFound
+	l.logger.Info("packages discovered", "count", l.index.Len())
+	return nil
 }
 
 // GetIndex returns the path index for external use (e.g., file watching)

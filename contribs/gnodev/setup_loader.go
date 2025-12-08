@@ -34,6 +34,12 @@ func setupPackagesLoader(logger *slog.Logger, cfg *AppConfig, dirs ...string) (p
 
 	loader := packages.NewNativeLoader(opts...)
 
+	// Pre-populate the index for lazy loading support
+	// This scans workspace roots and maps import paths to filesystem directories
+	if err := loader.DiscoverPackages(); err != nil {
+		logger.Warn("failed to discover packages", "err", err)
+	}
+
 	// Determine local paths from directories
 	var paths []string
 	for _, dir := range dirs {
