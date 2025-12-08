@@ -30,7 +30,7 @@
 <!-- Error: unexpected or invalid tag -->
 <!-- Error: unexpected or invalid tag -->
 <!-- Error: invalid input type -->
-<div class="gno-form_input"><input type="submit" value="Submit (Updateprofile Function)" /></div>
+<div class="gno-form_input"><input type="submit" value="Submit (UpdateProfile Function)" /></div>
 <div class="command u-hidden" data-form-exec-target="command"><div data-controller="action-header" class="c-between">
   <span class="title">Command</span>
   <div class="c-inline">

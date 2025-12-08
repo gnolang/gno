@@ -20,7 +20,7 @@
 <div class="gno-form_input"><label for="tags"> Comma-separated tags </label>
 <input type="text" id="tags" name="tags" placeholder="Comma-separated tags" data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" data-action-function-param-value="tags" />
 </div>
-<div class="gno-form_input"><input type="submit" value="Submit (Createpost Function)" /></div>
+<div class="gno-form_input"><input type="submit" value="Submit (CreatePost Function)" /></div>
 <div class="command u-hidden" data-form-exec-target="command"><div data-controller="action-header" class="c-between">
   <span class="title">Command</span>
   <div class="c-inline">

@@ -16,7 +16,7 @@
 <input type="text" id="title" name="title" placeholder="Enter value" data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" data-action-function-param-value="title" />
 </div>
 <!-- Error: unexpected or invalid tag -->
-<div class="gno-form_input"><input type="submit" value="Submit (Createpost Function)" /></div>
+<div class="gno-form_input"><input type="submit" value="Submit (CreatePost Function)" /></div>
 <div class="command u-hidden" data-form-exec-target="command"><div data-controller="action-header" class="c-between">
   <span class="title">Command</span>
   <div class="c-inline">

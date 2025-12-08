@@ -480,7 +480,7 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 	if len(n.Elements) > 0 {
 		if n.ExecFunc != "" {
 			fmt.Fprintf(w, `<div class="gno-form_input"><input type="submit" value="Submit (%s Function)" /></div>`+"\n",
-				HTMLEscapeString(titleCase(n.ExecFunc)))
+				HTMLEscapeString(n.ExecFunc))
 		} else {
 			fmt.Fprintf(w, `<div class="gno-form_input"><input type="submit" value="Submit to %s Realm" /></div>`+"\n",
 				HTMLEscapeString(n.RealmName))
