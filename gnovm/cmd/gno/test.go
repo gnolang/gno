@@ -186,6 +186,15 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		args = []string{"."}
 	}
 
+	ctx := context.Background()
+	var cancel context.CancelFunc
+	if cmd.timeout > 0 {
+		ctx, cancel = context.WithTimeout(context.Background(), cmd.timeout)
+	} else {
+		cancel = func() {}
+	}
+	defer cancel()
+
 	// Guess opts.RootDir.
 	if cmd.rootDir == "" {
 		cmd.rootDir = gnoenv.RootDir()
@@ -208,13 +217,6 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		return nil
 	}
 
-	if cmd.timeout > 0 {
-		go func() {
-			time.Sleep(cmd.timeout)
-			panic("test timed out after " + cmd.timeout.String())
-		}()
-	}
-
 	// Set up options to run tests.
 	stdout := goio.Discard
 	if cmd.verbose {
@@ -228,6 +230,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Events = cmd.printEvents
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
+	opts.Context = ctx
 	cache := make(gno.TypeCheckCache, 64)
 
 	// test.ProdStore() is suitable for type-checking prod (non-test) files.
@@ -241,6 +244,12 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	}
 
 	for _, pkg := range pkgs {
+		if ctx.Err() != nil {
+			io.ErrPrintfln("INFO: %v", ctx.Err()) // TODO: fix error msg
+			testErrCount++
+			return fail()
+		}
+
 		for _, err := range pkg.Errors {
 			io.ErrPrintfln("%s", err.Error())
 			buildErrCount++
@@ -337,6 +346,16 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		// Print status with duration.
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
+
+		if ctx.Err() == context.DeadlineExceeded {
+			io.ErrPrintfln("FAIL    %s \ttimed out after %s", prettyDir, cmd.timeout.String())
+			testErrCount++
+			if cmd.failfast {
+				return fail()
+			}
+			continue
+		}
+
 		if didPanic || didError {
 			io.ErrPrintfln("FAIL    %s \t%s", prettyDir, dstr)
 			testErrCount++
