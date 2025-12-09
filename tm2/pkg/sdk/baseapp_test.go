@@ -659,7 +659,7 @@ func TestGasUsedBetweenSimulateAndDeliver(t *testing.T) {
 
 	simulateRes := app.Simulate(txBytes, tx)
 	require.True(t, simulateRes.IsOK(), fmt.Sprintf("%v", simulateRes))
-	require.Greater(t, simulateRes.GasUsed, int64(0)) // gas used should be greater than 0
+	require.Greater(t, simulateRes.GasUsed.Total.GasConsumed, int64(0)) // gas used should be greater than 0
 
 	deliverRes := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
 	require.True(t, deliverRes.IsOK(), fmt.Sprintf("%v", deliverRes))
@@ -770,12 +770,12 @@ func TestSimulateTx(t *testing.T) {
 		// simulate a message, check gas reported
 		result := app.Simulate(txBytes, tx)
 		require.True(t, result.IsOK(), result.Log)
-		require.Equal(t, gasConsumed, result.GasUsed)
+		require.Equal(t, gasConsumed, result.GasUsed.Total.GasConsumed)
 
 		// simulate again, same result
 		result = app.Simulate(txBytes, tx)
 		require.True(t, result.IsOK(), result.Log)
-		require.Equal(t, gasConsumed, result.GasUsed)
+		require.Equal(t, gasConsumed, result.GasUsed.Total.GasConsumed)
 
 		// simulate by calling Query with encoded tx
 		query := abci.RequestQuery{
@@ -789,7 +789,7 @@ func TestSimulateTx(t *testing.T) {
 		require.NoError(t, amino.Unmarshal(queryResult.Value, &res))
 		require.Nil(t, err, "Result unmarshalling failed")
 		require.True(t, res.IsOK(), res.Log)
-		require.Equal(t, gasConsumed, res.GasUsed, res.Log)
+		require.Equal(t, gasConsumed, res.GasUsed.Total.GasConsumed, res.Log)
 		app.EndBlock(abci.RequestEndBlock{})
 		app.Commit()
 	}
@@ -936,7 +936,7 @@ func TestTxGasLimits(t *testing.T) {
 		res := app.Deliver(tx)
 
 		// check gas used and wanted
-		require.Equal(t, tc.gasUsed, res.GasUsed, fmt.Sprintf("%d: %v, %v", i, tc, res))
+		require.Equal(t, tc.gasUsed, res.GasUsed.Total.GasConsumed, fmt.Sprintf("%d: %v, %v", i, tc, res))
 
 		// check for out of gas
 		if !tc.fail {

@@ -1566,7 +1566,7 @@ func TestClient_EstimateGas(t *testing.T) {
 		estimate, err := c.EstimateGas(&std.Tx{})
 
 		require.NoError(t, err)
-		assert.Equal(t, gasUsed, estimate)
+		assert.Equal(t, gasUsed.Total.GasConsumed, estimate)
 	})
 
 	t.Run("valid simulate", func(t *testing.T) {
