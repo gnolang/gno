@@ -12,9 +12,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	rdebug "runtime/debug"
 	"sync"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
+	"github.com/gnolang/gno/tm2/pkg/colors"
 )
 
 /*
@@ -214,16 +216,12 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if co != nil {
 		co.IncRefCount()
 		if co.GetRefCount() > 1 {
-			if co.GetIsReal() {
-				rlm.MarkDirty(co)
+			if !co.GetIsEscaped() {
+				rlm.MarkNewEscaped(co) // XXX
 			}
-			if co.GetIsEscaped() {
-				// already escaped
-			} else {
-				rlm.MarkNewEscaped(co)
-			}
-		} else if co.GetIsReal() {
-			rlm.MarkDirty(co)
+		}
+		if co.GetIsReal() {
+			rlm.MarkDirty(co) // XXX dirty ref...
 		} else {
 			co.SetOwner(po)
 			rlm.MarkNewReal(co)
@@ -293,6 +291,10 @@ func (rlm *Realm) MarkDirty(oo Object) {
 	if rlm.updated == nil {
 		rlm.updated = make([]Object, 0, 256)
 	}
+	fmt.Println(colors.Cyan("START ==================================="))
+	fmt.Println(colors.Cyan(oo))
+	rdebug.PrintStack()
+	fmt.Println(colors.Cyan("END ====================================="))
 	rlm.updated = append(rlm.updated, oo)
 }
 
@@ -458,6 +460,11 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 		return
 	}
 	rlm.assignNewObjectID(oo)
+	if fmt.Sprint(oo) == "struct{(2 int)}" {
+		fmt.Println("----------------------------------------")
+		rdebug.PrintStack()
+		fmt.Println("----------------------------------------")
+	}
 	rlm.created = append(rlm.created, oo)
 	// RECURSE GUARD END
 
@@ -649,7 +656,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store, start int) int {
 // (ancestors) must be marked as dirty to update the
 // hash tree.
 func (rlm *Realm) markDirtyAncestors(store Store) {
-	markAncestorsOne := func(oo Object) {
+	markAncestors := func(oo Object) {
 		for {
 			if pv, ok := oo.(*PackageValue); ok {
 				if debugRealm {
@@ -666,6 +673,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 					panic("ancestor should have a non-zero reference count to be marked as dirty")
 				}
 			}
+			fmt.Println(colors.Greenf("MDA %v %d", oo, rc))
 			if rc > 1 {
 				if debugRealm {
 					if !oo.GetIsEscaped() && !oo.GetIsNewEscaped() {
@@ -683,23 +691,29 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 			po := getOwner(store, oo)
 
 			if po == nil {
+				fmt.Println(colors.Green("MDA po none"))
 				break // no more owners.
 			} else if po.GetIsNewReal() {
+				fmt.Println(colors.Green("MDA po.IsNewReal"))
 				// already will be marked
-				// via call to markAncestorsOne
+				// via call to markAncestors
 				// via .created.
 				break
 			} else if po.GetIsDirty() {
+				fmt.Println(colors.Green("MDA po.IsDirty"))
 				// already will be marked
-				// via call to markAncestorsOne
+				// via call to markAncestors
 				// via .updated.
 				break
 			} else if po.GetIsDeleted() {
+				fmt.Println(colors.Green("MDA po.IsDeleted"))
 				// already deleted, no need to mark.
 				// oo(child) maybe have another owner,
 				// if so, it should be marked by .updated.
 				break
 			} else {
+				fmt.Println(">>>", po.GetObjectID())
+				fmt.Println(colors.Green("MDA po mark dirty"))
 				rlm.MarkDirty(po)
 				// next case
 				oo = po
@@ -710,14 +724,14 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	// to .updated without affecting iteration.
 	for _, oo := range rlm.updated {
 		if !oo.GetIsDeleted() {
-			markAncestorsOne(oo)
+			markAncestors(oo)
 		}
 	}
 	// NOTE: must happen after iterating over rlm.updated
 	// for the same reason.
 	for _, oo := range rlm.created {
 		if !oo.GetIsDeleted() {
-			markAncestorsOne(oo)
+			markAncestors(oo)
 		}
 	}
 }
@@ -727,6 +741,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 
 // Saves .created and .updated objects.
 func (rlm *Realm) saveUnsavedObjects(store Store) {
+	fmt.Println("saveUnsavedObjects.created:", colors.Gray(rlm.created))
 	tids := make(map[TypeID]struct{})
 	for _, co := range rlm.created {
 		// for i := len(rlm.created) - 1; i >= 0; i-- {
@@ -830,6 +845,9 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 		oo.SetIsEscaped(true)
 		// XXX anything else to do?
 	}
+
+	fmt.Println("SAVEOBJECT", colors.Blue(oo), colors.Yellow(fmt.Sprintf("%#v", oo)))
+	rdebug.PrintStack()
 	// set object to store.
 	// NOTE: also sets the hash to object.
 	rlm.sumDiff += store.SetObject(oo)

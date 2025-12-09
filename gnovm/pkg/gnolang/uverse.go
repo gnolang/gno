@@ -8,6 +8,7 @@ import (
 	"io"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
+	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
@@ -1160,7 +1161,7 @@ func uversePrint(m *Machine, xv PointerValue, newline bool) {
 	output := formatUverseOutput(m, xv, newline)
 	consumeGas(m, overflow.Divp(types.Gas(len(output)), NativeCPUUversePrintCharsPerGas))
 	// For debugging:
-	// fmt.Println(colors.Cyan(string(output)))
+	fmt.Println(colors.Magenta(string(output)))
 	m.Output.Write(output)
 }
 
