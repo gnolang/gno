@@ -645,7 +645,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store, start int) int {
 // (ancestors) must be marked as dirty to update the
 // hash tree.
 func (rlm *Realm) markDirtyAncestors(store Store) {
-	markAncestorsOne := func(oo Object) {
+	markAncestors := func(oo Object) {
 		for {
 			if pv, ok := oo.(*PackageValue); ok {
 				if debugRealm {
@@ -682,12 +682,12 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 				break // no more owners.
 			} else if po.GetIsNewReal() {
 				// already will be marked
-				// via call to markAncestorsOne
+				// via call to markAncestors
 				// via .created.
 				break
 			} else if po.GetIsDirty() {
 				// already will be marked
-				// via call to markAncestorsOne
+				// via call to markAncestors
 				// via .updated.
 				break
 			} else if po.GetIsDeleted() {
@@ -706,14 +706,14 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	// to .updated without affecting iteration.
 	for _, oo := range rlm.updated {
 		if !oo.GetIsDeleted() {
-			markAncestorsOne(oo)
+			markAncestors(oo)
 		}
 	}
 	// NOTE: must happen after iterating over rlm.updated
 	// for the same reason.
 	for _, oo := range rlm.created {
 		if !oo.GetIsDeleted() {
-			markAncestorsOne(oo)
+			markAncestors(oo)
 		}
 	}
 }
@@ -831,6 +831,7 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 		oo.SetIsEscaped(true)
 		// XXX anything else to do?
 	}
+
 	// set object to store.
 	// NOTE: also sets the hash to object.
 	rlm.sumDiff += store.SetObject(oo)
