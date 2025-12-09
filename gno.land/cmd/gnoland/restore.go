@@ -55,6 +55,11 @@ func execRestore(ctx context.Context, c *restoreCfg, io commands.IO) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if closeErr := gnoNode.Config().LocalApp.Close(); closeErr != nil {
+			io.ErrPrintln("unable to close gnoland application:", closeErr)
+		}
+	}()
 
 	// need block n+1 to commit block n
 	endHeight := c.endHeight
