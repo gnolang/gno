@@ -15,12 +15,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"go.uber.org/multierr"
 )
+
+// ABCIQueryClient is a simplified interface for just calling ABCIQuery.
+// It is implemented by RPCClient and others, but can be implemented for mock test
+type ABCIQueryClient interface {
+	ABCIQuery(ctx context.Context, path string, data []byte) (*ctypes.ResultABCIQuery, error)
+}
 
 // WriteDocumentationOptions represents the possible options when requesting
 // documentation through Documentable.
@@ -188,18 +193,18 @@ var fpAbs = filepath.Abs
 // dirs specifies the gno system directories to scan which specify full import paths
 // in their directories, such as @/examples and @/gnovm/stdlibs; modDirs specifies
 // directories which contain a gno.mod file.
-// If the package is not found locally, use remote and remoteTimeout to query the remote vm/qdoc
-func ResolveDocumentable(dirs, modDirs, args []string, unexported bool, remote string, remoteTimeout time.Duration) (*Documentable, error) {
+// If the package is not found locally, query the remote vm/qdoc using the queryClient (if not nil)
+func ResolveDocumentable(dirs, modDirs, args []string, unexported bool, queryClient ABCIQueryClient) (*Documentable, error) {
 	d := newDirs(dirs, modDirs)
 
 	parsed, ok := parseArgs(args)
 	if !ok {
 		return nil, fmt.Errorf("commands/doc: invalid arguments: %v", args)
 	}
-	return resolveDocumentable(d, parsed, unexported, remote, remoteTimeout)
+	return resolveDocumentable(d, parsed, unexported, queryClient)
 }
 
-func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool, remote string, remoteTimeout time.Duration) (*Documentable, error) {
+func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool, queryClient ABCIQueryClient) (*Documentable, error) {
 	var candidates []bfsDir
 
 	// if we have a candidate package name, search dirs for a dir that matches it.
@@ -224,7 +229,7 @@ func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool, remote 
 	}
 
 	if len(candidates) == 0 {
-		jdoc := queryQDoc(parsed.pkg, remote, remoteTimeout)
+		jdoc := queryQDoc(parsed.pkg, queryClient)
 		if jdoc != nil {
 			return &Documentable{doc: jdoc}, nil
 		}
@@ -237,7 +242,7 @@ func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool, remote 
 			return nil, fmt.Errorf("commands/doc: package not found: %q", parsed.pkg)
 		}
 		parsed = docArgs{pkg: ".", sym: parsed.pkg, acc: parsed.sym}
-		return resolveDocumentable(dirs, parsed, unexported, remote, remoteTimeout)
+		return resolveDocumentable(dirs, parsed, unexported, queryClient)
 	}
 	// we wanted documentation about a package, and we found one!
 	if parsed.sym == "" {
@@ -289,19 +294,18 @@ func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool, remote 
 	)
 }
 
-// queryQDoc queries the remote vm/qdoc for the pkg path and returns the JSONDocumentation.
+// queryQDoc uses the queryClient to query the remote vm/qdoc for the pkg path and returns the JSONDocumentation.
+// If queryClient is nil, do nothing and return nil.
 // If error, log to the console and return nil.
-func queryQDoc(pkg string, remote string, remoteTimeout time.Duration) *JSONDocumentation {
-	rpcclient, err := client.NewHTTPClient(remote, client.WithRequestTimeout(remoteTimeout))
-	if err != nil {
-		log.Printf("warning: NewHTTPClient failed for %q, error: %v", remote, err)
+func queryQDoc(pkg string, queryClient ABCIQueryClient) *JSONDocumentation {
+	if queryClient == nil {
 		return nil
 	}
 
 	const qpath = "vm/qdoc"
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	qres, err := rpcclient.ABCIQuery(ctx, qpath, []byte(pkg))
+	qres, err := queryClient.ABCIQuery(ctx, qpath, []byte(pkg))
 	if err != nil {
 		log.Printf("unable to query qdoc for %q: %q", pkg, err)
 		return nil

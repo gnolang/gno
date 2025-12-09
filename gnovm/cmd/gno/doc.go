@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -118,7 +119,11 @@ func execDoc(cfg *docCfg, args []string, io commands.IO) error {
 
 	// select dirs from which to gather directories
 	dirs := []string{filepath.Join(cfg.rootDir, "gnovm/stdlibs")}
-	res, err := doc.ResolveDocumentable(dirs, modDirs, args, cfg.unexported, cfg.remote, cfg.remoteTimeout)
+	queryClient, err := client.NewHTTPClient(cfg.remote, client.WithRequestTimeout(cfg.remoteTimeout))
+	if err != nil {
+		return err
+	}
+	res, err := doc.ResolveDocumentable(dirs, modDirs, args, cfg.unexported, queryClient)
 	if res == nil {
 		return err
 	}
