@@ -188,6 +188,11 @@ func execStart(ctx context.Context, c *nodeCfg, io commands.IO) error {
 		return fmt.Errorf("unable to gracefully stop the Gnoland node, %w", err)
 	}
 
+	// Gracefully stop the app
+	if err = gnoNode.Config().LocalApp.Close(); err != nil {
+		return fmt.Errorf("unable to gracefully close the Gnoland application: %w", err)
+	}
+
 	return nil
 }
 
