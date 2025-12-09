@@ -862,6 +862,20 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 	result = app.runMsgs(runMsgCtx, msgs, mode)
 	result.GasWanted = gasWanted
 
+	// Special case for simulation mode where the gas meter is infinite:
+	// if we used more gas than was requested, return an out of gas error.
+	if mode == RunTxModeSimulate && result.Error == nil &&
+		gasWanted > 0 && result.GasUsed > gasWanted {
+		log := fmt.Sprintf(
+			"out of gas during simulation; gasWanted: %d, gasUsed: %d",
+			gasWanted, result.GasUsed,
+		)
+		result.Error = ABCIError(std.ErrOutOfGas(log))
+		result.Log = log
+
+		return result
+	}
+
 	// Safety check: don't write the cache state unless we're in DeliverTx.
 	if mode != RunTxModeDeliver {
 		return result
