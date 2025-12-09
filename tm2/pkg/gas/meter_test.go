@@ -203,12 +203,16 @@ func TestMeterPanics(t *testing.T) {
 	config := DefaultConfig()
 
 	t.Run("negative gas limit", func(t *testing.T) {
+		t.Parallel()
+
 		require.Panics(t, func() {
 			NewMeter(-1, config)
 		}, "Should panic with negative gas limit")
 	})
 
 	t.Run("zero multiplier", func(t *testing.T) {
+		t.Parallel()
+
 		invalidConfig := config
 		invalidConfig.GlobalMultiplier = 0
 		require.Panics(t, func() {
@@ -217,6 +221,8 @@ func TestMeterPanics(t *testing.T) {
 	})
 
 	t.Run("negative multiplier", func(t *testing.T) {
+		t.Parallel()
+
 		invalidConfig := config
 		invalidConfig.GlobalMultiplier = -1
 		require.Panics(t, func() {
@@ -225,6 +231,8 @@ func TestMeterPanics(t *testing.T) {
 	})
 
 	t.Run("infinite meter zero multiplier", func(t *testing.T) {
+		t.Parallel()
+
 		invalidConfig := config
 		invalidConfig.GlobalMultiplier = 0
 		require.Panics(t, func() {
@@ -233,6 +241,8 @@ func TestMeterPanics(t *testing.T) {
 	})
 
 	t.Run("infinite meter negative multiplier", func(t *testing.T) {
+		t.Parallel()
+
 		invalidConfig := config
 		invalidConfig.GlobalMultiplier = -1
 		require.Panics(t, func() {
@@ -241,6 +251,8 @@ func TestMeterPanics(t *testing.T) {
 	})
 
 	t.Run("passthrough negative limit", func(t *testing.T) {
+		t.Parallel()
+
 		baseMeter := NewMeter(1000, config)
 		require.Panics(t, func() {
 			NewPassthroughMeter(baseMeter, -1, config)
@@ -248,6 +260,8 @@ func TestMeterPanics(t *testing.T) {
 	})
 
 	t.Run("overflow in gas consumption", func(t *testing.T) {
+		t.Parallel()
+
 		meter := NewMeter(math.MaxInt64, config)
 		// Consume gas close to max
 		meter.ConsumeGas(OpTesting, float64(math.MaxInt64-100))
@@ -258,6 +272,8 @@ func TestMeterPanics(t *testing.T) {
 	})
 
 	t.Run("overflow in calculateGasCost", func(t *testing.T) {
+		t.Parallel()
+
 		hugeMultiplierConfig := config
 		hugeMultiplierConfig.GlobalMultiplier = math.MaxFloat64
 		hugeMultiplierConfig.Costs[OpTesting] = math.MaxFloat64
@@ -272,12 +288,16 @@ func TestErrorMessages(t *testing.T) {
 	t.Parallel()
 
 	t.Run("OutOfGasError", func(t *testing.T) {
+		t.Parallel()
+
 		err := OutOfGasError{"test-operation"}
 		expected := "out of gas in location: test-operation"
 		require.Equal(t, expected, err.Error(), "OutOfGasError message should match")
 	})
 
 	t.Run("OverflowError", func(t *testing.T) {
+		t.Parallel()
+
 		err := OverflowError{"test-overflow"}
 		expected := "gas overflow in location: test-overflow"
 		require.Equal(t, expected, err.Error(), "OverflowError message should match")
@@ -290,12 +310,16 @@ func TestUtilityMethods(t *testing.T) {
 	config := DefaultConfig()
 
 	t.Run("Config getter", func(t *testing.T) {
+		t.Parallel()
+
 		meter := NewMeter(1000, config)
 		retrievedConfig := meter.Config()
 		require.Equal(t, config.GlobalMultiplier, retrievedConfig.GlobalMultiplier, "Config should match")
 	})
 
 	t.Run("Remaining gas", func(t *testing.T) {
+		t.Parallel()
+
 		meter := NewMeter(1000, config)
 		require.Equal(t, Gas(1000), meter.Remaining(), "Initial remaining should equal limit")
 
@@ -304,11 +328,15 @@ func TestUtilityMethods(t *testing.T) {
 	})
 
 	t.Run("GetCostForOperation", func(t *testing.T) {
+		t.Parallel()
+
 		cost := config.GetCostForOperation(OpStoreReadFlat)
 		require.Equal(t, config.Costs[OpStoreReadFlat], cost, "GetCostForOperation should return correct cost")
 	})
 
 	t.Run("Detail String", func(t *testing.T) {
+		t.Parallel()
+
 		detail := Detail{OperationCount: 5, GasConsumed: 100}
 		str := detail.String()
 		require.Contains(t, str, "5", "String should contain operation count")
@@ -316,11 +344,15 @@ func TestUtilityMethods(t *testing.T) {
 	})
 
 	t.Run("Operation String", func(t *testing.T) {
+		t.Parallel()
+
 		require.Equal(t, "StoreReadFlat", OpStoreReadFlat.String(), "Operation name should match")
 		require.Equal(t, "CPUAdd", OpCPUAdd.String(), "Operation name should match")
 	})
 
 	t.Run("Unknown operation String", func(t *testing.T) {
+		t.Parallel()
+
 		// Create an operation with a value that has no name
 		unknownOp := Operation(100) // Assuming 100 has no name defined
 		// First verify it has no name in the array
@@ -337,6 +369,8 @@ func TestInfiniteMeterBehavior(t *testing.T) {
 	meter := NewInfiniteMeter(config)
 
 	t.Run("never runs out of gas", func(t *testing.T) {
+		t.Parallel()
+
 		// Consume a huge amount of gas
 		for i := 0; i < 1000; i++ {
 			require.NotPanics(t, func() {
@@ -346,28 +380,40 @@ func TestInfiniteMeterBehavior(t *testing.T) {
 	})
 
 	t.Run("IsPastLimit always false", func(t *testing.T) {
+		t.Parallel()
+
 		meter.ConsumeGas(OpTesting, 999999999)
 		require.False(t, meter.IsPastLimit(), "Infinite meter should never be past limit")
 	})
 
 	t.Run("IsOutOfGas always false", func(t *testing.T) {
+		t.Parallel()
+
 		require.False(t, meter.IsOutOfGas(), "Infinite meter should never be out of gas")
 	})
 
 	t.Run("Limit is zero", func(t *testing.T) {
+		t.Parallel()
+
 		require.Equal(t, Gas(0), meter.Limit(), "Infinite meter limit should be 0")
 	})
 
 	t.Run("Remaining is MaxInt64", func(t *testing.T) {
+		t.Parallel()
+
 		require.Equal(t, Gas(math.MaxInt64), meter.Remaining(), "Infinite meter remaining should be MaxInt64")
 	})
 
 	t.Run("GasConsumedToLimit equals GasConsumed", func(t *testing.T) {
+		t.Parallel()
+
 		consumed := meter.GasConsumed()
 		require.Equal(t, consumed, meter.GasConsumedToLimit(), "GasConsumedToLimit should equal GasConsumed")
 	})
 
 	t.Run("Config getter", func(t *testing.T) {
+		t.Parallel()
+
 		retrievedConfig := meter.Config()
 		require.Equal(t, config.GlobalMultiplier, retrievedConfig.GlobalMultiplier, "Config should match")
 	})
@@ -379,6 +425,8 @@ func TestPassthroughMeterLimits(t *testing.T) {
 	config := DefaultConfig()
 
 	t.Run("respects head limit", func(t *testing.T) {
+		t.Parallel()
+
 		baseMeter := NewMeter(10000, config)
 		passthroughMeter := NewPassthroughMeter(baseMeter, 5000, config)
 
@@ -393,6 +441,8 @@ func TestPassthroughMeterLimits(t *testing.T) {
 	})
 
 	t.Run("delegates to base meter", func(t *testing.T) {
+		t.Parallel()
+
 		baseMeter := NewMeter(10000, config)
 		passthroughMeter := NewPassthroughMeter(baseMeter, 5000, config)
 
@@ -404,6 +454,8 @@ func TestPassthroughMeterLimits(t *testing.T) {
 	})
 
 	t.Run("GasConsumedToLimit", func(t *testing.T) {
+		t.Parallel()
+
 		baseMeter := NewMeter(10000, config)
 		passthroughMeter := NewPassthroughMeter(baseMeter, 5000, config)
 
@@ -412,6 +464,8 @@ func TestPassthroughMeterLimits(t *testing.T) {
 	})
 
 	t.Run("Limit returns head limit", func(t *testing.T) {
+		t.Parallel()
+
 		baseMeter := NewMeter(10000, config)
 		passthroughMeter := NewPassthroughMeter(baseMeter, 5000, config)
 
@@ -419,6 +473,8 @@ func TestPassthroughMeterLimits(t *testing.T) {
 	})
 
 	t.Run("Remaining", func(t *testing.T) {
+		t.Parallel()
+
 		baseMeter := NewMeter(10000, config)
 		passthroughMeter := NewPassthroughMeter(baseMeter, 5000, config)
 
@@ -428,6 +484,8 @@ func TestPassthroughMeterLimits(t *testing.T) {
 	})
 
 	t.Run("CalculateGasCost", func(t *testing.T) {
+		t.Parallel()
+
 		baseMeter := NewMeter(10000, config)
 		passthroughMeter := NewPassthroughMeter(baseMeter, 5000, config)
 
@@ -437,6 +495,8 @@ func TestPassthroughMeterLimits(t *testing.T) {
 	})
 
 	t.Run("IsPastLimit", func(t *testing.T) {
+		t.Parallel()
+
 		baseMeter := NewMeter(10000, config)
 		passthroughMeter := NewPassthroughMeter(baseMeter, 5000, config)
 
@@ -451,6 +511,8 @@ func TestPassthroughMeterLimits(t *testing.T) {
 	})
 
 	t.Run("IsOutOfGas", func(t *testing.T) {
+		t.Parallel()
+
 		baseMeter := NewMeter(10000, config)
 		passthroughMeter := NewPassthroughMeter(baseMeter, 5000, config)
 
@@ -460,6 +522,8 @@ func TestPassthroughMeterLimits(t *testing.T) {
 	})
 
 	t.Run("Config getter", func(t *testing.T) {
+		t.Parallel()
+
 		baseMeter := NewMeter(10000, config)
 		passthroughMeter := NewPassthroughMeter(baseMeter, 5000, config)
 
@@ -472,6 +536,8 @@ func TestGlobalMultiplier(t *testing.T) {
 	t.Parallel()
 
 	t.Run("multiplier 1.0", func(t *testing.T) {
+		t.Parallel()
+
 		config := DefaultConfig()
 		config.GlobalMultiplier = 1.0
 		config.Costs[OpTesting] = 100
@@ -482,6 +548,8 @@ func TestGlobalMultiplier(t *testing.T) {
 	})
 
 	t.Run("multiplier 0.5", func(t *testing.T) {
+		t.Parallel()
+
 		config := DefaultConfig()
 		config.GlobalMultiplier = 0.5
 		config.Costs[OpTesting] = 100
@@ -492,6 +560,8 @@ func TestGlobalMultiplier(t *testing.T) {
 	})
 
 	t.Run("multiplier 2.0", func(t *testing.T) {
+		t.Parallel()
+
 		config := DefaultConfig()
 		config.GlobalMultiplier = 2.0
 		config.Costs[OpTesting] = 100
@@ -502,6 +572,8 @@ func TestGlobalMultiplier(t *testing.T) {
 	})
 
 	t.Run("multiplier with operation multiplier", func(t *testing.T) {
+		t.Parallel()
+
 		config := DefaultConfig()
 		config.GlobalMultiplier = 2.0
 		config.Costs[OpTesting] = 100
@@ -514,6 +586,8 @@ func TestGlobalMultiplier(t *testing.T) {
 	})
 
 	t.Run("fractional result rounding", func(t *testing.T) {
+		t.Parallel()
+
 		config := DefaultConfig()
 		config.GlobalMultiplier = 1.5
 		config.Costs[OpTesting] = 10

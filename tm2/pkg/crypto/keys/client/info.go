@@ -103,7 +103,6 @@ func printGasDetail(detail gas.GasDetail, io commands.IO, verbosity int) {
 		} else if category.Total.OperationCount > 0 {
 			tree.AddBranch(delimitColumns(categoryKey, category.Total))
 		}
-
 	}
 
 	// Render the tree as separated lines.
