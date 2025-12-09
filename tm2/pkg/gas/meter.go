@@ -38,6 +38,17 @@ func calculateGasCost(config *Config, operation Operation, multiplier float64) G
 		panic(OverflowError{operation.String()})
 	}
 
+	// Since float64 can only precisely represent integers up to 2^53,
+	// and totalCost is calculated using 3 float64 multiplications, we need to
+	// check for precision loss. We consider that equal to 2^53 is already too
+	// large, since we can't distinguish 2^53 and 2^53 + 1.
+	// So the total cost of an operation (operation base cost * mult * global mult)
+	// must be strictly less than 2^53.
+	const float64PrecisionLimit = 1 << 53
+	if math.Abs(totalCost) >= float64PrecisionLimit {
+		panic(PrecisionError{operation.String()})
+	}
+
 	// Round to the nearest whole number if there's any fractional part.
 	roundedCost := math.Round(totalCost)
 

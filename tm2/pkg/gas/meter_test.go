@@ -200,6 +200,7 @@ func TestGasDetailPassthroughMeter(t *testing.T) {
 func TestMeterPanics(t *testing.T) {
 	t.Parallel()
 
+	const maxSafeFloat64 float64 = (1 << 53) - 1.0
 	config := DefaultConfig()
 
 	t.Run("negative gas limit", func(t *testing.T) {
@@ -263,11 +264,33 @@ func TestMeterPanics(t *testing.T) {
 		t.Parallel()
 
 		meter := NewMeter(math.MaxInt64, config)
-		// Consume gas close to max
-		meter.ConsumeGas(OpTesting, float64(math.MaxInt64-100))
-		// This should cause overflow and panic
+
+		// Consume gas multiple times to get close to MaxInt64
+		iterations := math.MaxInt64 / int64(maxSafeFloat64)
+		for range iterations {
+			meter.ConsumeGas(OpTesting, maxSafeFloat64)
+		}
+
+		// Now we're close enough to MaxInt64, consuming another time will overflow.
 		require.Panics(t, func() {
-			meter.ConsumeGas(OpTesting, float64(200))
+			meter.ConsumeGas(OpTesting, maxSafeFloat64)
+		}, "Should panic on overflow")
+	})
+
+	t.Run("overflow in gas consumption (infinite meter)", func(t *testing.T) {
+		t.Parallel()
+
+		meter := NewInfiniteMeter(config)
+
+		// Consume gas multiple times to get close to MaxInt64
+		iterations := math.MaxInt64 / int64(maxSafeFloat64)
+		for range iterations {
+			meter.ConsumeGas(OpTesting, maxSafeFloat64)
+		}
+
+		// Now we're close enough to MaxInt64, consuming another time will overflow.
+		require.Panics(t, func() {
+			meter.ConsumeGas(OpTesting, maxSafeFloat64)
 		}, "Should panic on overflow")
 	})
 
@@ -281,6 +304,20 @@ func TestMeterPanics(t *testing.T) {
 		require.Panics(t, func() {
 			meter.ConsumeGas(OpTesting, math.MaxFloat64)
 		}, "Should panic on gas calculation overflow")
+	})
+
+	t.Run("precision error in calculateGasCost", func(t *testing.T) {
+		t.Parallel()
+
+		meter := NewMeter(math.MaxInt64, config)
+
+		require.Panics(t, func() {
+			meter.ConsumeGas(OpTesting, maxSafeFloat64+1.0)
+		}, "Should panic on gas calculation precision loss")
+
+		require.NotPanics(t, func() {
+			meter.ConsumeGas(OpTesting, maxSafeFloat64)
+		}, "Should not panic on gas calculation without precision loss")
 	})
 }
 
@@ -301,6 +338,14 @@ func TestErrorMessages(t *testing.T) {
 		err := OverflowError{"test-overflow"}
 		expected := "gas overflow in location: test-overflow"
 		require.Equal(t, expected, err.Error(), "OverflowError message should match")
+	})
+
+	t.Run("PrecisionError", func(t *testing.T) {
+		t.Parallel()
+
+		err := PrecisionError{"test-precision"}
+		expected := "gas precision loss in location: test-precision"
+		require.Equal(t, expected, err.Error(), "PrecisionError message should match")
 	})
 }
 

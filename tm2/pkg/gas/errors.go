@@ -9,12 +9,22 @@ func (oog OutOfGasError) Error() string {
 	return "out of gas in location: " + oog.Descriptor
 }
 
-// OverflowError defines an error thrown when an action results gas consumption
-// unsigned integer overflow.
+// OverflowError defines an error thrown when an action results in an
+// integer/float overflow in gas calculation.
 type OverflowError struct {
 	Descriptor string
 }
 
-func (oog OverflowError) Error() string {
-	return "gas overflow in location: " + oog.Descriptor
+func (og OverflowError) Error() string {
+	return "gas overflow in location: " + og.Descriptor
+}
+
+// PrecisionError defines an error thrown when an action results in a
+// precision loss in gas calculation.
+type PrecisionError struct {
+	Descriptor string
+}
+
+func (pe PrecisionError) Error() string {
+	return "gas precision loss in location: " + pe.Descriptor
 }
