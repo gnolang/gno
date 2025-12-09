@@ -53,7 +53,7 @@ func generateBackup(t *testing.T, backupDir string, height int64) {
 		"--skip-genesis-sig-verification", "true",
 	}))
 
-	node, err := createNode(context.Background(),cfg, io)
+	node, err := createNode(context.Background(), cfg, io)
 	require.NoError(t, err)
 
 	require.NoError(t, node.Start())
