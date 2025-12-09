@@ -6,14 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go/parser"
-	"go/token"
 	"io"
 	"log/slog"
 	"net"
 	"net/http"
-	gopath "path"
-	"strconv"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -101,114 +98,79 @@ func (proxy *PathInterceptor) handleConnections() {
 
 // handleConnection processes a single connection between client and target.
 func (proxy *PathInterceptor) handleConnection(inConn net.Conn) {
-	logger := proxy.logger.With(
-		slog.String("in", inConn.RemoteAddr().String()),
-	)
-	defer inConn.Close()
+	logger := proxy.logger.With(slog.String("in", inConn.RemoteAddr().String()))
 
-	var buffer bytes.Buffer
-	tee := io.TeeReader(inConn, &buffer)
-	reader := bufio.NewReader(tee)
-
-	// First, read and process the HTTP request (this may trigger a reload)
-	request, err := http.ReadRequest(reader)
-	if err != nil {
-		logger.Debug("read request failed", "error", err)
-		return
-	}
-
-	// Check for websocket upgrade - handle differently
-	if isWebSocket(request) {
-		proxy.handleWebSocketConnection(inConn, &buffer, logger)
-		return
-	}
-
-	// Read and process the request body
-	body, err := io.ReadAll(request.Body)
-	request.Body.Close()
-	if err != nil {
-		logger.Debug("body read failed", "error", err)
-		return
-	}
-
-	// Call handlers BEFORE establishing target connection
-	// This allows handlers to reload the node if needed
-	if err := proxy.handleRequest(body); err != nil {
-		proxy.logger.Debug("request handler warning", "error", err)
-	}
-
-	// NOW establish connection to the target (after any reload has completed)
+	// Establish a connection to the target
 	outConn, err := net.Dial(proxy.proxyAddr.Network(), proxy.proxyAddr.String())
 	if err != nil {
 		logger.Error("target connection failed", "target", proxy.proxyAddr.String(), "error", err)
+		inConn.Close()
 		return
 	}
-	defer outConn.Close()
 	logger = logger.With(slog.String("out", outConn.RemoteAddr().String()))
 
-	// Forward the buffered request
-	if _, err := outConn.Write(buffer.Bytes()); err != nil {
-		logger.Debug("request forward failed", "error", err)
-		return
+	// Coordinate connection closure
+	var closeOnce sync.Once
+	closeConnections := func() {
+		inConn.Close()
+		outConn.Close()
 	}
 
-	// Setup bidirectional copying for the rest of the connection
+	// Setup bidirectional copying
 	var wg sync.WaitGroup
 	wg.Add(2)
 
 	// Response path (target -> client)
 	go func() {
 		defer wg.Done()
+		defer closeOnce.Do(closeConnections)
+
 		_, err := io.Copy(inConn, outConn)
-		if err != nil && !errors.Is(err, net.ErrClosed) && !errors.Is(err, io.EOF) {
-			logger.Debug("response copy error", "error", err)
+		if err == nil || errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+			return // Connection has been closed
 		}
+
+		logger.Debug("response copy error", "error", err)
 	}()
 
-	// Request path (client -> target) - forward any remaining data
+	// Request path (client -> target)
 	go func() {
 		defer wg.Done()
-		_, err := io.Copy(outConn, inConn)
-		if err != nil && !errors.Is(err, net.ErrClosed) && !errors.Is(err, io.EOF) {
-			logger.Debug("request copy error", "error", err)
+		defer closeOnce.Do(closeConnections)
+
+		var buffer bytes.Buffer
+		tee := io.TeeReader(inConn, &buffer)
+		reader := bufio.NewReader(tee)
+
+		// Process HTTP requests
+		if err := proxy.processHTTPRequests(reader, &buffer, outConn); err != nil {
+			if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+				return // Connection has been closed
+			}
+
+			if _, isNetError := err.(net.Error); isNetError {
+				logger.Debug("request processing error", "error", err)
+				return
+			}
+
+			// Continue processing the connection if not a network error
+		}
+
+		// Forward remaining data after HTTP processing
+		if buffer.Len() > 0 {
+			if _, err := outConn.Write(buffer.Bytes()); err != nil {
+				logger.Debug("buffer flush failed", "error", err)
+			}
+		}
+
+		// Directly pipe remaining traffic
+		if _, err := io.Copy(outConn, inConn); err != nil && !errors.Is(err, net.ErrClosed) {
+			logger.Debug("raw copy failed", "error", err)
 		}
 	}()
 
 	wg.Wait()
 	logger.Debug("connection closed")
-}
-
-// handleWebSocketConnection handles WebSocket upgrade requests
-func (proxy *PathInterceptor) handleWebSocketConnection(inConn net.Conn, buffer *bytes.Buffer, logger *slog.Logger) {
-	// For WebSocket, establish connection first then forward everything
-	outConn, err := net.Dial(proxy.proxyAddr.Network(), proxy.proxyAddr.String())
-	if err != nil {
-		logger.Error("target connection failed for websocket", "target", proxy.proxyAddr.String(), "error", err)
-		return
-	}
-	defer outConn.Close()
-
-	// Forward the buffered request
-	if _, err := outConn.Write(buffer.Bytes()); err != nil {
-		logger.Debug("websocket request forward failed", "error", err)
-		return
-	}
-
-	// Bidirectional copy for WebSocket
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	go func() {
-		defer wg.Done()
-		io.Copy(inConn, outConn)
-	}()
-
-	go func() {
-		defer wg.Done()
-		io.Copy(outConn, inConn)
-	}()
-
-	wg.Wait()
 }
 
 // processHTTPRequests handles the HTTP request/response cycle.
@@ -258,30 +220,7 @@ func (upaths uniqPaths) list() []string {
 	return paths
 }
 
-// Add a path to
-func (upaths uniqPaths) addPath(path string) {
-	path = cleanupPath(path)
-	upaths[path] = struct{}{}
-}
-
-func (upaths uniqPaths) addPackageDeps(pkg *std.MemPackage) {
-	fset := token.NewFileSet()
-	for _, file := range pkg.Files {
-		if !strings.HasSuffix(file.Name, ".gno") {
-			continue
-		}
-
-		f, err := parser.ParseFile(fset, file.Name, file.Body, parser.ImportsOnly)
-		if err != nil {
-			continue
-		}
-
-		for _, imp := range f.Imports {
-			path, _ := strconv.Unquote(imp.Path.Value)
-			upaths.addPath(path)
-		}
-	}
-}
+func (upaths uniqPaths) add(path string) { upaths[path] = struct{}{} }
 
 // handleRequest parses and processes the RPC request body.
 func (proxy *PathInterceptor) handleRequest(body []byte) error {
@@ -354,18 +293,11 @@ func handleTx(bz []byte, upaths uniqPaths) error {
 
 	for _, msg := range tx.Msgs {
 		switch msg := msg.(type) {
-		case vm.MsgAddPackage:
-			// NOTE: Do not add the package itself to avoid conflict.
-			if msg.Package != nil {
-				upaths.addPackageDeps(msg.Package)
-			}
-		case vm.MsgRun:
-			// NOTE: Do not add the package itself to avoid conflict.
-			if msg.Package != nil {
-				upaths.addPackageDeps(msg.Package)
-			}
+		case vm.MsgAddPackage: // MsgAddPackage should not be handled
 		case vm.MsgCall:
-			upaths.addPath(msg.PkgPath)
+			upaths.add(msg.PkgPath)
+		case vm.MsgRun:
+			upaths.add(msg.Package.Path)
 		}
 	}
 
@@ -380,7 +312,14 @@ func handleQuery(path string, data []byte, upaths uniqPaths) error {
 
 	case "vm/qrender", "vm/qfile", "vm/qfuncs", "vm/qeval":
 		path, _, _ := strings.Cut(string(data), ":") // Cut arguments out
-		upaths.addPath(path)
+		path = filepath.Clean(path)
+
+		// If path is a file, grab the directory instead
+		if ext := filepath.Ext(path); ext != "" {
+			path = filepath.Dir(path)
+		}
+
+		upaths.add(path)
 		return nil
 
 	default:
@@ -388,14 +327,4 @@ func handleQuery(path string, data []byte, upaths uniqPaths) error {
 	}
 
 	// XXX: handle more cases
-}
-
-func cleanupPath(path string) string {
-	path = gopath.Clean(path)
-	// If path is a file, grab the directory instead
-	if ext := gopath.Ext(path); ext != "" {
-		path = gopath.Dir(path)
-	}
-
-	return path
 }
