@@ -8,7 +8,6 @@ import (
 	"os"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/mattn/go-isatty"
 )
@@ -35,7 +34,7 @@ var defaultLocalAppConfig = AppConfig{
 	root:                gnoenv.RootDir(),
 	interactive:         isatty.IsTerminal(os.Stdout.Fd()),
 	unsafeAPI:           true,
-	lazyLoader:          true,
+	loadMode:            LoadModeAuto,
 	emptyBlocks:         false,
 	emptyBlocksInterval: 1,
 
@@ -55,9 +54,15 @@ func NewLocalCmd(io commands.IO) *commands.Command {
 			ShortHelp:  "Start gnodev in local development mode (default)",
 			LongHelp: `LOCAL: Local mode configures the node for local development usage.
 This mode is optimized for realm development, providing an interactive and flexible environment.
-It enables features such as interactive mode, unsafe API access for testing, and lazy loading
-to improve performance. The log format is set to console for easier readability, and the web
+It enables features such as interactive mode, unsafe API access for testing, and on-demand
+package loading. The log format is set to console for easier readability, and the web
 interface is accessible locally, making it ideal for iterative development and testing.
+
+LOAD MODES (-load flag):
+  auto   Pre-load current workspace/package only. If running from the examples folder,
+         uses lazy loading instead. (default)
+  lazy   Load packages on-demand as they are accessed via queries or transactions.
+  full   Pre-load all discovered packages under the chain domain.
 
 PACKAGE DISCOVERY:
   - If the current directory contains a gnomod.toml file, the package is automatically
@@ -65,6 +70,7 @@ PACKAGE DISCOVERY:
   - If the current directory contains a gnowork.toml file, it is treated as a workspace
     and all packages within are discovered.
   - Additional package directories can be passed as arguments.
+  - The -paths flag can be used to pre-load additional packages on top of the load mode.
 
 The examples folder from GNOROOT is always included as a workspace for dependency resolution.
 `,
@@ -100,17 +106,9 @@ func execLocalApp(cfg *LocalAppConfig, args []string, cio commands.IO) error {
 		return fmt.Errorf("unable to guess current dir: %w", err)
 	}
 
-	// Check if current directory is a valid gno package
-	if modfile, err := gnomod.ParseDir(dir); err == nil {
-		// Current directory has a gnomod.toml, add it to paths
-		if len(cfg.paths) > 0 {
-			cfg.paths += ","
-		}
-		cfg.paths += modfile.Module
-	}
-
 	// Always add current directory as workspace root for discovery
 	// (even if it's not itself a gno package, it may contain packages in subdirs)
+	// The load mode will determine what gets pre-loaded from these directories
 	args = append([]string{dir}, args...)
 
 	// If args are provided, they are directories to add

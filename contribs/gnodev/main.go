@@ -24,26 +24,23 @@ func main() {
 			LongHelp: `The gnodev command starts an in-memory node and a gno.land web interface
 for realm package development.
 
-MODES:
-  local    Development mode with interactive features and lazy loading (default)
-  staging  Server mode with JSON logging and all examples preloaded
+LOAD MODES (-load flag):
+  auto   Pre-load current workspace/package only (default for local)
+  lazy   Load all packages on-demand
+  full   Pre-load all discovered packages (default for staging)
 
 PACKAGE DISCOVERY:
-gnodev automatically discovers and loads packages based on your project structure:
+gnodev automatically discovers packages based on your project structure:
 
-  - gnomod.toml: If present in a directory, gnodev recognizes it as a Gno package
-    and uses the module path defined within to load it.
-
-  - gnowork.toml: If present, gnodev treats the directory as a workspace and
-    discovers all packages within it.
-
-When running 'gnodev local' from a directory with gnomod.toml, your package is
-automatically detected and loaded. Additional directories can be passed as arguments.
+  - gnomod.toml: Marks a directory as a Gno package
+  - gnowork.toml: Marks a directory as a workspace containing multiple packages
 
 EXAMPLES:
-  gnodev                           Start in current directory (auto-detects gnomod.toml)
-  gnodev ./myrealm                 Load package from ./myrealm directory
-  gnodev -paths "gno.land/r/**"   Preload matching packages by path pattern
+  gnodev                     Start with auto-detection (pre-loads current package)
+  gnodev -load=lazy          Start with on-demand loading only
+  gnodev -load=full          Pre-load all discovered packages
+  gnodev ./myrealm           Load package from ./myrealm directory
+  gnodev -paths "gno.land/r/demo/**"   Pre-load additional packages
 
 For detailed flags, use 'gnodev local -h' or 'gnodev staging -h'.`,
 		},

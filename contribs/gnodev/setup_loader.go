@@ -3,7 +3,9 @@ package main
 import (
 	"log/slog"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -33,20 +35,51 @@ func setupPackagesLoader(logger *slog.Logger, cfg *AppConfig, dirs ...string) (p
 		logger.Warn("failed to discover packages", "err", err)
 	}
 
-	// Determine local paths from directories
-	// - If dir has gnomod.toml -> it's a package, add its path
-	// - If dir has gnowork.toml -> it's a workspace, use for discovery only
-	// - Otherwise -> use for discovery only
+	// Determine paths to pre-load based on load mode
 	var paths []string
-	for _, dir := range dirs {
-		if path, ok := guessPathGnoMod(dir); ok {
-			logger.Info("package directory detected", "path", path, "dir", dir)
-			paths = append(paths, path)
-		} else if isWorkspaceDir(dir) {
-			logger.Debug("workspace directory detected, using for discovery only", "dir", dir)
-		} else {
-			logger.Debug("directory has no gnomod/gnowork, using for discovery only", "dir", dir)
+	switch cfg.loadMode {
+	case LoadModeAuto:
+		// If in examples folder, use lazy mode (no pre-load)
+		if isInExamplesDir(cfg.root, dirs) {
+			logger.Info("running from examples folder, using lazy loading")
+			break
 		}
+
+		examplesDir := filepath.Join(cfg.root, "examples")
+
+		for _, dir := range dirs {
+			absDir, err := filepath.Abs(dir)
+			if err != nil {
+				continue
+			}
+
+			if isWorkspaceDir(dir) {
+				// Workspace detected: pre-load ALL packages within this workspace
+				// by filtering the discovered index by directory prefix
+				logger.Info("workspace detected, will pre-load all packages", "dir", dir)
+				for _, pkg := range loader.GetIndex().List() {
+					// Skip examples packages
+					if strings.HasPrefix(pkg.Dir, examplesDir) {
+						continue
+					}
+					// Only include packages under this workspace
+					if strings.HasPrefix(pkg.Dir, absDir) {
+						logger.Debug("workspace package detected", "path", pkg.ImportPath)
+						paths = append(paths, pkg.ImportPath)
+					}
+				}
+			} else if pkgPath, ok := guessPathGnoMod(dir); ok {
+				// Single package detected
+				logger.Info("package detected, will be pre-loaded", "path", pkgPath, "dir", dir)
+				paths = append(paths, pkgPath)
+			}
+		}
+	case LoadModeLazy:
+		logger.Info("lazy mode: packages will be loaded on-demand")
+	case LoadModeFull:
+		// Pre-load all discovered packages under the chain domain
+		paths = []string{path.Join(cfg.chainDomain, "/**")}
+		logger.Info("full mode: pre-loading all discovered packages", "pattern", paths[0])
 	}
 
 	return loader, paths
@@ -64,4 +97,18 @@ func isWorkspaceDir(dir string) bool {
 	workFile := filepath.Join(dir, "gnowork.toml")
 	_, err := os.Stat(workFile)
 	return err == nil
+}
+
+func isInExamplesDir(gnoRoot string, dirs []string) bool {
+	examplesDir := filepath.Join(gnoRoot, "examples")
+	for _, dir := range dirs {
+		absDir, err := filepath.Abs(dir)
+		if err != nil {
+			continue
+		}
+		if strings.HasPrefix(absDir, examplesDir) {
+			return true
+		}
+	}
+	return false
 }

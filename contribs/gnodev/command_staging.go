@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"path"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -26,8 +25,7 @@ var defaultStagingOptions = AppConfig{
 	root:                gnoenv.RootDir(),
 	interactive:         false,
 	unsafeAPI:           false,
-	lazyLoader:          false,
-	paths:               path.Join(DefaultDomain, "/**"), // Load every package under the main domain},
+	loadMode:            LoadModeFull, // Pre-load all packages
 	emptyBlocks:         false,
 	emptyBlocksInterval: 1,
 	// As we have no reason to configure this yet, set this to random port
@@ -50,10 +48,11 @@ Interactive mode and unsafe API access are disabled to ensure a secure environme
 The log format is set to JSON, facilitating integration with logging systems.
 
 PACKAGE LOADING:
-Since lazy-load is disabled in this mode, all packages under "gno.land/**" from the examples
-folder are preloaded by default. This ensures all standard packages are available at startup.
+This mode uses -load=full by default, which pre-loads all discovered packages under the
+chain domain (gno.land/**). The lazy loading proxy is disabled in this mode.
 
-Additional package directories can be passed as arguments to load alongside the defaults.
+Additional package directories can be passed as arguments. Use -paths to specify additional
+packages to pre-load, or -load=auto|-load=lazy to change the loading behavior.
 `,
 			NoParentFlags: true,
 		},

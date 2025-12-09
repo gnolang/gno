@@ -13,11 +13,11 @@ Please note that this is a quick overview. For a more detailed guide, refer to t
 ## Features
 -  **In-Memory Node**: Gnodev starts an in-memory node with automatic package discovery.
 -  **Package Discovery**: Automatically detects packages via `gnomod.toml` files and workspaces via `gnowork.toml`.
+-  **Flexible Loading Modes**: Three loading modes (`auto`, `lazy`, `full`) to balance startup time and convenience.
 -  **Web Interface Server**: Gnodev starts a `gnoweb` server on [`localhost:8888`](https://localhost:8888).
 -  **Balances and Keybase Customization**: Set account balances, load them from a file, or add new accounts via a flag.
 -  **Hot Reload**: Monitors package directories for file changes, reloading the package and automatically
    restarting the node as needed.
--  **Lazy Loading**: In local mode, packages are loaded on-demand for faster startup.
 -  **State Maintenance**: Ensures the previous node state is preserved by replaying all transactions.
 -  **Transaction Manipulation**: Allows for interactive cancellation and redoing of transactions.
 -  **State Export**: Export the current state at any time in a genesis doc format.
@@ -39,11 +39,19 @@ While `gnodev` is running, trigger specific actions by pressing the following co
 Run `gnodev` from a directory containing a `gnomod.toml` file, and the package will be automatically detected
 and loaded. You can also pass package directories as arguments.
 
+### Load Modes
+Use the `-load` flag to control how packages are loaded:
+- **auto** (default for local): Pre-loads current workspace/package only
+- **lazy**: Loads all packages on-demand as they are accessed
+- **full** (default for staging): Pre-loads all discovered packages
+
 Example:
 ```
-gnodev                                          # Auto-detect package in current directory
-gnodev ./myrealm                               # Load package from ./myrealm
-gnodev -add-account <bech32|name>=<amount>     # Add premine account
+gnodev                                 # Auto-detect and pre-load current package
+gnodev -load=lazy                      # Load packages on-demand only
+gnodev -load=full                      # Pre-load all packages
+gnodev ./myrealm                       # Load package from ./myrealm
+gnodev -paths "gno.land/r/demo/**"     # Pre-load additional packages
 ```
 
 ### `gnodev -h`

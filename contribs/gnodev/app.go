@@ -192,8 +192,9 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 
 	address := resolveUnixOrTCPAddr(nodeCfg.TMConfig.RPC.ListenAddress)
 
-	// Setup lazy proxy
-	if ds.cfg.lazyLoader {
+	// Setup lazy proxy (enabled for auto and lazy modes, disabled for full mode)
+	enableProxy := ds.cfg.loadMode != LoadModeFull
+	if enableProxy {
 		proxyLogger := ds.logger.WithGroup(ProxyLogName)
 		ds.proxy, err = proxy.NewPathInterceptor(proxyLogger, address)
 		if err != nil {

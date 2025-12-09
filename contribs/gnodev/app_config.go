@@ -5,6 +5,31 @@ import (
 	"fmt"
 )
 
+// LoadMode defines the package loading strategy
+type LoadMode string
+
+const (
+	// LoadModeAuto pre-loads current workspace/package only (not examples).
+	// If running from examples folder, behaves like lazy mode.
+	LoadModeAuto LoadMode = "auto"
+	// LoadModeLazy loads packages on-demand as they're accessed.
+	LoadModeLazy LoadMode = "lazy"
+	// LoadModeFull pre-loads all discovered packages.
+	LoadModeFull LoadMode = "full"
+)
+
+func (m LoadMode) String() string { return string(m) }
+
+func (m *LoadMode) Set(s string) error {
+	switch LoadMode(s) {
+	case LoadModeAuto, LoadModeLazy, LoadModeFull:
+		*m = LoadMode(s)
+		return nil
+	default:
+		return fmt.Errorf("invalid load mode %q: must be auto, lazy, or full", s)
+	}
+}
+
 // varResolver is a placeholder for the deprecated resolver flag.
 // The new NativeLoader handles package resolution automatically.
 type varResolver []string
@@ -47,9 +72,9 @@ type AppConfig struct {
 	resolvers varResolver
 
 	// Node Configuration
-	logFormat           string
-	lazyLoader          bool
-	verbose             bool
+	logFormat string
+	loadMode  LoadMode
+	verbose   bool
 	noWatch             bool
 	noReplay            bool
 	maxGas              int64
@@ -203,11 +228,10 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"do not replay previous transactions upon reload",
 	)
 
-	fs.BoolVar(
-		&c.lazyLoader,
-		"lazy-loader",
-		defaultCfg.lazyLoader,
-		"enable lazy loader",
+	fs.Var(
+		&c.loadMode,
+		"load",
+		"package loading mode: `auto` (pre-load current workspace/package), `lazy` (load on-demand), `full` (pre-load all discovered packages)",
 	)
 
 	fs.Int64Var(
