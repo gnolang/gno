@@ -101,6 +101,10 @@ func execLocalApp(cfg *LocalAppConfig, args []string, cio commands.IO) error {
 		cfg.paths += modfile.Module
 	}
 
+	// Always add current directory as workspace root for discovery
+	// (even if it's not itself a gno package, it may contain packages in subdirs)
+	args = append([]string{dir}, args...)
+
 	// If args are provided, they are directories to add
 	return runApp(&cfg.AppConfig, cio, args...)
 }

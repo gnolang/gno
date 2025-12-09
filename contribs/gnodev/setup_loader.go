@@ -2,9 +2,8 @@ package main
 
 import (
 	"log/slog"
-	gopath "path"
+	"os"
 	"path/filepath"
-	"regexp"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -16,9 +15,10 @@ func setupPackagesLoader(logger *slog.Logger, cfg *AppConfig, dirs ...string) (p
 		packages.WithGnoRoot(cfg.root),
 	}
 
-	// Add extra workspaces (e.g., examples directory)
+	// Add extra workspaces (e.g., examples directory and user-provided directories)
 	examplesDir := filepath.Join(cfg.root, "examples")
-	opts = append(opts, packages.WithExtraWorkspaces(examplesDir))
+	workspaces := append([]string{examplesDir}, dirs...)
+	opts = append(opts, packages.WithExtraWorkspaces(workspaces...))
 
 	// Add remote overrides from cfg.resolvers
 	remoteOverrides := make(map[string]string)
@@ -41,11 +41,19 @@ func setupPackagesLoader(logger *slog.Logger, cfg *AppConfig, dirs ...string) (p
 	}
 
 	// Determine local paths from directories
+	// - If dir has gnomod.toml -> it's a package, add its path
+	// - If dir has gnowork.toml -> it's a workspace, use for discovery only
+	// - Otherwise -> use for discovery only
 	var paths []string
 	for _, dir := range dirs {
-		path := guessPath(cfg, dir)
-		logger.Info("guessing directory path", "path", path, "dir", dir)
-		paths = append(paths, path)
+		if path, ok := guessPathGnoMod(dir); ok {
+			logger.Info("package directory detected", "path", path, "dir", dir)
+			paths = append(paths, path)
+		} else if isWorkspaceDir(dir) {
+			logger.Debug("workspace directory detected, using for discovery only", "dir", dir)
+		} else {
+			logger.Debug("directory has no gnomod/gnowork, using for discovery only", "dir", dir)
+		}
 	}
 
 	return loader, paths
@@ -59,13 +67,8 @@ func guessPathGnoMod(dir string) (path string, ok bool) {
 	return modfile.Module, true
 }
 
-var reInvalidChar = regexp.MustCompile(`[^\w_-]`)
-
-func guessPath(cfg *AppConfig, dir string) (path string) {
-	if path, ok := guessPathGnoMod(dir); ok {
-		return path
-	}
-
-	rname := reInvalidChar.ReplaceAllString(filepath.Base(dir), "-")
-	return gopath.Join(cfg.chainDomain, "/r/dev/", rname)
+func isWorkspaceDir(dir string) bool {
+	workFile := filepath.Join(dir, "gnowork.toml")
+	_, err := os.Stat(workFile)
+	return err == nil
 }

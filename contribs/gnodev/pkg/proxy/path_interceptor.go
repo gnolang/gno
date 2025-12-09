@@ -101,79 +101,114 @@ func (proxy *PathInterceptor) handleConnections() {
 
 // handleConnection processes a single connection between client and target.
 func (proxy *PathInterceptor) handleConnection(inConn net.Conn) {
-	logger := proxy.logger.With(slog.String("in", inConn.RemoteAddr().String()))
+	logger := proxy.logger.With(
+		slog.String("in", inConn.RemoteAddr().String()),
+	)
+	defer inConn.Close()
 
-	// Establish a connection to the target
+	var buffer bytes.Buffer
+	tee := io.TeeReader(inConn, &buffer)
+	reader := bufio.NewReader(tee)
+
+	// First, read and process the HTTP request (this may trigger a reload)
+	request, err := http.ReadRequest(reader)
+	if err != nil {
+		logger.Debug("read request failed", "error", err)
+		return
+	}
+
+	// Check for websocket upgrade - handle differently
+	if isWebSocket(request) {
+		proxy.handleWebSocketConnection(inConn, &buffer, logger)
+		return
+	}
+
+	// Read and process the request body
+	body, err := io.ReadAll(request.Body)
+	request.Body.Close()
+	if err != nil {
+		logger.Debug("body read failed", "error", err)
+		return
+	}
+
+	// Call handlers BEFORE establishing target connection
+	// This allows handlers to reload the node if needed
+	if err := proxy.handleRequest(body); err != nil {
+		proxy.logger.Debug("request handler warning", "error", err)
+	}
+
+	// NOW establish connection to the target (after any reload has completed)
 	outConn, err := net.Dial(proxy.proxyAddr.Network(), proxy.proxyAddr.String())
 	if err != nil {
 		logger.Error("target connection failed", "target", proxy.proxyAddr.String(), "error", err)
-		inConn.Close()
 		return
 	}
+	defer outConn.Close()
 	logger = logger.With(slog.String("out", outConn.RemoteAddr().String()))
 
-	// Coordinate connection closure
-	var closeOnce sync.Once
-	closeConnections := func() {
-		inConn.Close()
-		outConn.Close()
+	// Forward the buffered request
+	if _, err := outConn.Write(buffer.Bytes()); err != nil {
+		logger.Debug("request forward failed", "error", err)
+		return
 	}
 
-	// Setup bidirectional copying
+	// Setup bidirectional copying for the rest of the connection
 	var wg sync.WaitGroup
 	wg.Add(2)
 
 	// Response path (target -> client)
 	go func() {
 		defer wg.Done()
-		defer closeOnce.Do(closeConnections)
-
 		_, err := io.Copy(inConn, outConn)
-		if err == nil || errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
-			return // Connection has been closed
+		if err != nil && !errors.Is(err, net.ErrClosed) && !errors.Is(err, io.EOF) {
+			logger.Debug("response copy error", "error", err)
 		}
-
-		logger.Debug("response copy error", "error", err)
 	}()
 
-	// Request path (client -> target)
+	// Request path (client -> target) - forward any remaining data
 	go func() {
 		defer wg.Done()
-		defer closeOnce.Do(closeConnections)
-
-		var buffer bytes.Buffer
-		tee := io.TeeReader(inConn, &buffer)
-		reader := bufio.NewReader(tee)
-
-		// Process HTTP requests
-		if err := proxy.processHTTPRequests(reader, &buffer, outConn); err != nil {
-			if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
-				return // Connection has been closed
-			}
-
-			if _, isNetError := err.(net.Error); isNetError {
-				logger.Debug("request processing error", "error", err)
-				return
-			}
-
-			// Continue processing the connection if not a network error
-		}
-
-		// Forward remaining data after HTTP processing
-		if buffer.Len() > 0 {
-			if _, err := outConn.Write(buffer.Bytes()); err != nil {
-				logger.Debug("buffer flush failed", "error", err)
-			}
-		}
-
-		// Directly pipe remaining traffic
-		if _, err := io.Copy(outConn, inConn); err != nil && !errors.Is(err, net.ErrClosed) {
-			logger.Debug("raw copy failed", "error", err)
+		_, err := io.Copy(outConn, inConn)
+		if err != nil && !errors.Is(err, net.ErrClosed) && !errors.Is(err, io.EOF) {
+			logger.Debug("request copy error", "error", err)
 		}
 	}()
 
 	wg.Wait()
 	logger.Debug("connection closed")
+}
+
+// handleWebSocketConnection handles WebSocket upgrade requests
+func (proxy *PathInterceptor) handleWebSocketConnection(inConn net.Conn, buffer *bytes.Buffer, logger *slog.Logger) {
+	// For WebSocket, establish connection first then forward everything
+	outConn, err := net.Dial(proxy.proxyAddr.Network(), proxy.proxyAddr.String())
+	if err != nil {
+		logger.Error("target connection failed for websocket", "target", proxy.proxyAddr.String(), "error", err)
+		return
+	}
+	defer outConn.Close()
+
+	// Forward the buffered request
+	if _, err := outConn.Write(buffer.Bytes()); err != nil {
+		logger.Debug("websocket request forward failed", "error", err)
+		return
+	}
+
+	// Bidirectional copy for WebSocket
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		io.Copy(inConn, outConn)
+	}()
+
+	go func() {
+		defer wg.Done()
+		io.Copy(outConn, inConn)
+	}()
+
+	wg.Wait()
 }
 
 // processHTTPRequests handles the HTTP request/response cycle.

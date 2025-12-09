@@ -70,6 +70,7 @@ func (l *NativeLoader) Load(patterns ...string) ([]*Package, error) {
 	cfg := vmpackages.LoadConfig{
 		Deps:                true,
 		AllowEmpty:          true,
+		Test:                true, // Load test file dependencies
 		GnoRoot:             l.gnoRoot,
 		ExtraWorkspaceRoots: l.extraWorkspaces,
 		Out:                 l.out,
