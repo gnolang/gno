@@ -274,22 +274,32 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		private = mod.Private
 	}
 
+	var objidx uint64
 	if oid := ObjectIDFromPkgPath(mpkg.Path); m.Store.HasObject(oid) && private {
 		// idx of the old package
-
 		pkgidx := m.Store.GetPackageIndexCounter(oid.PkgID)
-		// fmt.Println("======pkgidx: ", pkgidx)
-		objidx := m.Store.GetObjectIndexCounter(backendObjectIndexKey(oid.PkgID, pkgidx-1))
-		// fmt.Println("======objidx: ", objidx)
+		fmt.Println("======pkgidx: ", pkgidx-1)
+		objidx = m.Store.GetObjectIndexCounter(backendObjectIndexKey(oid.PkgID, pkgidx))
+		fmt.Println("======objidx: ", objidx)
 
+		fmt.Println("======prepare for cleaning MemPackage here...")
+		ctr2 := m.Store.GetPackageIndexCounter(ObjectIDFromPkgPath(mpkg.Path).PkgID)
+		fmt.Println("======ctr2: ", ctr2)
+		idxkey := []byte(backendPackageIndexKey(ctr2))
+		fmt.Println("======clean Mempackage, idxkey: ", string(idxkey))
+		if ts := m.Store.(transactionStore); ts.baseStore.Has(idxkey) {
+			fmt.Println("======found mempackage, clean it...")
+			ts.baseStore.Delete(idxkey)
+		}
+		//===========================================================
 		defer func() {
-			// fmt.Println("======defer...")
+			fmt.Println("======defer...")
 			// idx of new package
 			pkgidx2 := m.Store.GetPackageIndexCounter(oid.PkgID)
-			// fmt.Println("======pkgidx2: ", pkgidx2)
+			fmt.Println("======pkgidx2: ", pkgidx2)
 
-			objidx2 := m.Store.GetObjectIndexCounter(backendObjectIndexKey(oid.PkgID, pkgidx2-1))
-			// fmt.Println("======objidx2: ", objidx2)
+			objidx2 := m.Store.GetObjectIndexCounter(backendObjectIndexKey(oid.PkgID, pkgidx2))
+			fmt.Println("======objidx2: ", objidx2)
 
 			if objidx2 >= objidx {
 				fmt.Println("======nothing to clean")
@@ -309,6 +319,13 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 			}
 		}()
 	}
+
+	// inc counter
+	ctr := m.Store.NextGlobalID()                                          // global
+	m.Store.NextPackageRevision(ObjectIDFromPkgPath(mpkg.Path).PkgID, ctr) // per package
+
+	// if oid := ObjectIDFromPkgPath(mpkg.Path); m.Store.HasObject(oid) && private {
+	// }
 
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
