@@ -51,6 +51,9 @@ type backupServer struct {
 
 // StreamBlocks implements backuppbconnect.BackupServiceHandler.
 func (b *backupServer) StreamBlocks(_ context.Context, req *connect.Request[backuppb.StreamBlocksRequest], stream *connect.ServerStream[backuppb.StreamBlocksResponse]) error {
+	if req == nil || req.Msg == nil {
+		return fmt.Errorf("request is nil")
+	}
 	startHeight := req.Msg.StartHeight
 	if startHeight == 0 {
 		startHeight = 1
