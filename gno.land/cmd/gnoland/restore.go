@@ -51,7 +51,7 @@ func (c *restoreCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execRestore(ctx context.Context, c *restoreCfg, io commands.IO) error {
-	gnoNode, err := createNode(&c.nodeCfg, io)
+	gnoNode, err := createNode(ctx, &c.nodeCfg, io)
 	if err != nil {
 		return err
 	}

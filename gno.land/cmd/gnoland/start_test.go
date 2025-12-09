@@ -257,7 +257,7 @@ func TestCreateNode(t *testing.T) {
 			io := commands.NewTestIO()
 			io.SetOut(os.Stdout)
 			io.SetErr(os.Stderr)
-			_, err := createNode(cfg, io)
+			_, err := createNode(context.Background(), cfg, io)
 			if tc.errContains != "" {
 				require.ErrorContains(t, err, tc.errContains)
 				return
