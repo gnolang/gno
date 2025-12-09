@@ -535,7 +535,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 	// Log the telemetry
 	logTelemetry(
-		m2.GasMeter.GasConsumed(),
+		m2.GasMeter.GasDetail(),
 		attribute.KeyValue{
 			Key:   "operation",
 			Value: attribute.StringValue("m_addpkg"),
@@ -643,7 +643,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	}
 	// Log the telemetry
 	logTelemetry(
-		m.GasMeter.GasConsumed(),
+		m.GasMeter.GasDetail(),
 		attribute.KeyValue{
 			Key:   "operation",
 			Value: attribute.StringValue("m_call"),
@@ -818,7 +818,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 	// Log the telemetry
 	logTelemetry(
-		m2.GasMeter.GasConsumed(),
+		m2.GasMeter.GasDetail(),
 		attribute.KeyValue{
 			Key:   "operation",
 			Value: attribute.StringValue("m_run"),
@@ -1226,7 +1226,7 @@ func (vm *VMKeeper) refundStorageDeposit(ctx sdk.Context, refundReceiver crypto.
 
 // logTelemetry logs the VM processing telemetry
 func logTelemetry(
-	gasUsed int64,
+	gasUsed gas.GasDetail,
 	attributes ...attribute.KeyValue,
 ) {
 	if !telemetry.MetricsEnabled() {
@@ -1240,18 +1240,17 @@ func logTelemetry(
 		metric.WithAttributes(attributes...),
 	)
 
-	// TODO: Calculate CPU cycles when details will be available.
-	// // Record the CPU cycles
-	// metrics.VMCPUCycles.Record(
-	// 	context.Background(),
-	// 	cpuCycles,
-	// 	metric.WithAttributes(attributes...),
-	// )
+	// Record the CPU cycles
+	metrics.VMCPUCycles.Record(
+		context.Background(),
+		gasUsed.CategoryDetails()["CPU"].Total.GasConsumed,
+		metric.WithAttributes(attributes...),
+	)
 
 	// Record the gas used
 	metrics.VMGasUsed.Record(
 		context.Background(),
-		gasUsed,
+		gasUsed.Total.GasConsumed,
 		metric.WithAttributes(attributes...),
 	)
 }

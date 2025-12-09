@@ -528,10 +528,8 @@ func (opts *TestOptions) runTestFiles(
 				)
 			}
 
-			// TODO: Calculate cpuCycles when m.GasMeter.GasConsumed() details are available.
-			cpuCycles := "n/a"
-			fmt.Fprintf(opts.Error, "---       runtime: cycle=%s allocs=%s\n",
-				cpuCycles,
+			fmt.Fprintf(opts.Error, "---       runtime: cycle=%d allocs=%s\n",
+				m.GasMeter.GasDetail().CategoryDetails()["CPU"].Total.GasConsumed,
 				allocsVal,
 			)
 		}
