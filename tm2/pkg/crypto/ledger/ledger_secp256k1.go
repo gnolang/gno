@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
@@ -179,7 +180,11 @@ func convertDERtoBER(signatureDER []byte) ([]byte, error) {
 func getLedgerDevice() (ledger.SECP256K1, error) {
 	device, err := ledger.Discover()
 	if err != nil {
-		return nil, errors.Wrap(err, "ledger nano S")
+		msg := "ledger nano S"
+		if strings.Contains(err.Error(), "LedgerHID device (idx 0) not found") {
+			msg += ". Try building with CGO_ENABLED=1"
+		}
+		return nil, errors.Wrap(err, msg)
 	}
 
 	return device, nil
