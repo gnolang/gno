@@ -131,7 +131,7 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 	fs.Var(
 		&c.resolvers,
 		"resolver",
-		"list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order",
+		"[DEPRECATED] this flag is ignored; package resolution is now handled automatically via gnomod.toml and gnowork.toml discovery",
 	)
 
 	fs.StringVar(

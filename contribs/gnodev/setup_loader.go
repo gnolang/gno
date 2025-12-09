@@ -20,16 +20,9 @@ func setupPackagesLoader(logger *slog.Logger, cfg *AppConfig, dirs ...string) (p
 	workspaces := append([]string{examplesDir}, dirs...)
 	opts = append(opts, packages.WithExtraWorkspaces(workspaces...))
 
-	// Add remote overrides from cfg.resolvers
-	remoteOverrides := make(map[string]string)
-	for _, r := range cfg.resolvers {
-		// The resolver format is "remote=<url>" - we parse domain from the URL
-		// For now, we skip this as we're removing remote resolvers
-		// but we can add it back if needed
-		_ = r
-	}
-	if len(remoteOverrides) > 0 {
-		opts = append(opts, packages.WithRemoteOverrides(remoteOverrides))
+	// Warn about deprecated resolver flag
+	if len(cfg.resolvers) > 0 {
+		logger.Warn("the -resolver flag is deprecated and ignored; packages are now discovered via gnomod.toml and gnowork.toml")
 	}
 
 	loader := packages.NewNativeLoader(opts...)

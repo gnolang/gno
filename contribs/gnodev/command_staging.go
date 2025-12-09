@@ -48,9 +48,12 @@ func NewStagingCmd(io commands.IO) *commands.Command {
 This mode is designed for stability and security, suitable for pre-deployment testing.
 Interactive mode and unsafe API access are disabled to ensure a secure environment.
 The log format is set to JSON, facilitating integration with logging systems.
-Since lazy-load is disabled in this mode, the entire example folder from "gnoroot" is loaded by default.
 
-Additionally, you can specify an additional package directory to load.
+PACKAGE LOADING:
+Since lazy-load is disabled in this mode, all packages under "gno.land/**" from the examples
+folder are preloaded by default. This ensures all standard packages are available at startup.
+
+Additional package directories can be passed as arguments to load alongside the defaults.
 `,
 			NoParentFlags: true,
 		},
