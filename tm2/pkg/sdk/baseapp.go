@@ -763,7 +763,7 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 			switch ex := r.(type) {
 			case store.OutOfGasError:
 				log := fmt.Sprintf(
-					"out of gas, gasWanted: %d, gasUsed: %d location: %v",
+					"out of gas, gasWanted: %d, gasUsed: %d (until panic) location: %v",
 					gasWanted,
 					ctx.GasMeter().GasConsumed(),
 					ex.Descriptor,
