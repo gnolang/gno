@@ -74,8 +74,6 @@ func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (address, error) {
 	if mem == nil {
 		sent := banker.OriginSend()
 		feeRequired := chain.NewCoin("ugnot", ProposalFeeAmount)
-
-		// Check if the required fee was sent
 		if len(sent) == 0 || sent.AmountOf("ugnot") < ProposalFeeAmount {
 			return caller, errors.New(ufmt.Sprintf(
 				"non-members must send %s to create a proposal",
