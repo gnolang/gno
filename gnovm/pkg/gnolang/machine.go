@@ -254,7 +254,7 @@ func (m *Machine) RunMemPackageWithOverrides(mpkg *std.MemPackage, save bool) (*
 }
 
 func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
-	fmt.Println("======runMemPacakge, path: ", mpkg.Path)
+	// fmt.Println("======runMemPacakge, path: ", mpkg.Path)
 	// validate mpkg.Type.
 	mptype := mpkg.Type.(MemPackageType)
 	if save && !mptype.IsStorable() {
@@ -274,46 +274,43 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		private = mod.Private
 	}
 
-	var objidx uint64
 	if oid := ObjectIDFromPkgPath(mpkg.Path); m.Store.HasObject(oid) && private {
 		// idx of the old package
 		pkgidx := m.Store.GetPackageIndexCounter(oid.PkgID)
-		fmt.Println("======pkgidx: ", pkgidx-1)
-		objidx = m.Store.GetObjectIndexCounter(backendObjectIndexKey(oid.PkgID, pkgidx))
-		fmt.Println("======objidx: ", objidx)
+		// fmt.Println("======pkgidx: ", pkgidx-1)
+		objidx := m.Store.GetObjectIndexCounter(backendObjectIndexKey(oid.PkgID, pkgidx))
+		// fmt.Println("======objidx: ", objidx)
 
-		fmt.Println("======prepare for cleaning MemPackage here...")
+		// fmt.Println("======prepare for cleaning MemPackage here...")
 		ctr2 := m.Store.GetPackageIndexCounter(ObjectIDFromPkgPath(mpkg.Path).PkgID)
-		fmt.Println("======ctr2: ", ctr2)
+		// fmt.Println("======ctr2: ", ctr2)
 		idxkey := []byte(backendPackageIndexKey(ctr2))
-		fmt.Println("======clean Mempackage, idxkey: ", string(idxkey))
-		if ts := m.Store.(transactionStore); ts.baseStore.Has(idxkey) {
-			fmt.Println("======found mempackage, clean it...")
-			ts.baseStore.Delete(idxkey)
+		if m.Store.HasMemPackage(idxkey) {
+			// fmt.Println("======found mempackage, clean it... idxkey: ", string(idxkey))
+			m.Store.DelMemPackage(idxkey)
 		}
 		//===========================================================
 		defer func() {
-			fmt.Println("======defer...")
-			// idx of new package
+			// fmt.Println("======defer...")
+			// idx of new package revision
 			pkgidx2 := m.Store.GetPackageIndexCounter(oid.PkgID)
-			fmt.Println("======pkgidx2: ", pkgidx2)
-
+			// fmt.Println("======pkgidx2: ", pkgidx2)
 			objidx2 := m.Store.GetObjectIndexCounter(backendObjectIndexKey(oid.PkgID, pkgidx2))
-			fmt.Println("======objidx2: ", objidx2)
+			// fmt.Println("======objidx2: ", objidx2)
 
 			if objidx2 >= objidx {
-				fmt.Println("======nothing to clean")
+				// fmt.Println("======nothing to clean")
 				return
 			}
 
-			fmt.Println("======do clean..., num: ", objidx-objidx2)
-			fmt.Println("======objidx: ", objidx)
+			// fmt.Println("======do clean..., num: ", objidx-objidx2)
+			// fmt.Println("======objidx: ", objidx)
 			for i := objidx2 + 1; ; i++ {
-				oid := ObjectID{PkgID: oid.PkgID, NewTime: uint64(i)}
+				oid := ObjectID{PkgID: oid.PkgID, NewTime: i}
 				if m.Store.HasObject(oid) {
 					m.Store.DelObjectByID(oid)
 				} else {
-					fmt.Println("============clean over...")
+					// fmt.Println("============clean over...")
 					break
 				}
 			}
