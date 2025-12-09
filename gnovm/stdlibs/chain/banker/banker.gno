@@ -142,10 +142,38 @@ func (b banker) RemoveCoin(addr address, denom string, amount int64) {
 }
 
 func assertCoinDenom(denom string) {
+	if runtime.CurrentRealm().PkgPath() == "gno.land/r/aib/ibc/apps/transfer" {
+		if !strings.HasPrefix(denom, "ibc/") {
+			panic("gno.land/r/aib/ibc/apps/transfer can only issue/remove coins with the ibc/ prefix")
+		}
+		return
+	}
 	prefix := "/" + runtime.CurrentRealm().PkgPath() + ":"
 	if !strings.HasPrefix(denom, prefix) {
 		panic("invalid denom, can only issue/remove coins with the realm's prefix: " + prefix)
 	}
+
+	baseDenom := denom[len(prefix):]
+	if !isValidBaseDenom(baseDenom) {
+		panic("cannot issue coins with invalid denom base name, it should start by a lowercase letter and be followed by 2-15 lowercase letters or digits")
+	}
+}
+
+// check start by a lowercase letter and be followed by 2-15 lowercase letters or digits
+func isValidBaseDenom(denom string) bool {
+	length := len(denom)
+	if length < 3 || length > 16 {
+		return false
+	}
+	for i, c := range denom {
+		switch {
+		case c >= 'a' && c <= 'z',
+			i > 0 && (c >= '0' && c <= '9'): // continue
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func OriginSend() chain.Coins {
