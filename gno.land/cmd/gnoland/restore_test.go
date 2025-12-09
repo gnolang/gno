@@ -55,6 +55,9 @@ func generateBackup(t *testing.T, backupDir string, height int64) {
 
 	node, err := createNode(context.Background(), cfg, io)
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, node.Config().LocalApp.Close())
+	})
 
 	require.NoError(t, node.Start())
 	for node.BlockStore().Height() < height {
