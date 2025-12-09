@@ -78,7 +78,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				switch ex := r.(type) {
 				case store.OutOfGasError:
 					log := fmt.Sprintf(
-						"out of gas in location: %v; gasWanted: %d, gasUsed: %d",
+						"out of gas in location: %v; gasWanted: %d, gasUsed: %d (until panic)",
 						ex.Descriptor, tx.Fee.GasWanted, newCtx.GasMeter().GasConsumed(),
 					)
 					res = abciResult(std.ErrOutOfGas(log))
@@ -408,6 +408,12 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 
 // SetGasMeter returns a new context with a gas meter set from a given context.
 func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
+	// In simulation mode we want to observe full gas usage even if the provided
+	// gas-wanted is too low, so run with an infinite meter.
+	if ctx.Mode() == sdk.RunTxModeSimulate {
+		return ctx.WithGasMeter(store.NewInfiniteGasMeter())
+	}
+
 	// In various cases such as simulation and during the genesis block, we do not
 	// meter any gas utilization.
 	if ctx.BlockHeight() == 0 {
