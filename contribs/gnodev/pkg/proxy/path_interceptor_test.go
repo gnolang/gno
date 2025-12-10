@@ -7,7 +7,6 @@ import (
 	"path"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/proxy"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
@@ -200,12 +199,11 @@ func Render(_ string) string { return foo.Render("bar") }`,
 			t.Logf("logs: %s", res.DeliverTx.Log)
 		}
 
+		// MsgAddPackage should NOT trigger path handler
 		select {
 		case paths := <-pathChan:
-			require.Len(t, paths, 1)
-			assert.Equal(t, []string{targetPath}, paths)
-		case <-time.After(time.Second):
-			t.Fatal("paths not captured")
+			t.Fatalf("should not catch paths for MsgAddPackage, got: %+v", paths)
+		default:
 		}
 	})
 

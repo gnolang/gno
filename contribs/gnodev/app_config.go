@@ -72,9 +72,9 @@ type AppConfig struct {
 	resolvers varResolver
 
 	// Node Configuration
-	logFormat string
-	loadMode  LoadMode
-	verbose   bool
+	logFormat           string
+	loadMode            LoadMode
+	verbose             bool
 	noWatch             bool
 	noReplay            bool
 	maxGas              int64
