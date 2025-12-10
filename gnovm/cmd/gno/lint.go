@@ -449,10 +449,9 @@ func lintRenderSignature(io commands.IO, pkg *types.Package) error {
 		return nil
 	}
 
-	switch {
-	case !isSingleString(s.Params()), !isSingleString(s.Results()):
+	if !isSingleString(s.Params()) || !isSingleString(s.Results()) {
 		return errPrintln()
-	default:
-		return nil
 	}
+
+	return nil
 }
