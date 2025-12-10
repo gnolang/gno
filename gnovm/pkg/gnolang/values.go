@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
-	"strconv"
 	"unsafe"
 
 	"github.com/cockroachdb/apd/v3"
@@ -1539,20 +1538,31 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 // array or struct) are NaN's; this would make the same tv != to itself, and
 // so shouldn't be included within a vmap.
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isNaN bool) {
-	// Special case when nil: has no separator.
+	// The implementation
+
 	if tv.T == nil {
 		if debug {
 			if omitType {
 				panic("should not happen")
 			}
 		}
-		return nilStr, false
+		// considered as "zero type id"
+		return "\x00", false
 	}
+
+	const (
+		maskTypeID = iota
+		maskStringLength
+		maskArrayLength
+		maskStructLength
+	)
+
 	// General case.
 	bz := make([]byte, 0, 64)
 	if !omitType {
-		bz = append(bz, tv.T.TypeID().Bytes()...)
-		bz = append(bz, ':') // type/value separator
+		typeid := tv.T.TypeID()
+		bz = binary.AppendUvarint(bz, uint64(len(typeid))<<2|maskTypeID)
+		bz = append(bz, typeid...)
 	}
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
@@ -1581,6 +1591,10 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 			} else {
 				bz = tv.PrimitiveBytes(bz)
 			}
+		case StringType:
+			sv := tv.GetString()
+			bz = binary.AppendUvarint(bz, uint64(len(sv))<<2|maskStringLength)
+			bz = append(bz, sv...)
 		default:
 			bz = tv.PrimitiveBytes(bz)
 		}
@@ -1596,7 +1610,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
 		al := av.GetLength()
-		bz = append(bz, '[')
+		bz = binary.AppendUvarint(bz, uint64(al)<<2|maskArrayLength)
 		if av.Data == nil {
 			omitTypes := bt.Elem().Kind() != InterfaceKind
 			for i := range al {
@@ -1606,9 +1620,6 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 					return "", true
 				}
 				bz = append(bz, mk...)
-				if i != al-1 {
-					bz = append(bz, ',')
-				}
 			}
 		} else {
 			bz = append(bz, av.Data...)
@@ -1619,7 +1630,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 	case *StructType:
 		sv := tv.V.(*StructValue)
 		sl := len(sv.Fields)
-		bz = append(bz, '{')
+		bz = binary.AppendUvarint(bz, uint64(sl)<<2|maskStructLength)
 		for i := range sl {
 			fv := fillValueTV(store, &sv.Fields[i])
 			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
@@ -1628,20 +1639,11 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 				return "", true
 			}
 			bz = append(bz, mk...)
-			if i != sl-1 {
-				bz = append(bz, ',')
-			}
 		}
-		bz = append(bz, '}')
 	case *FuncType:
 		panic("func type cannot be used as map key")
 	case *MapType:
 		panic("map type cannot be used as map key")
-	case *InterfaceType:
-		panic("should not happen")
-	case *PackageType:
-		pv := tv.V.(*PackageValue)
-		bz = append(bz, []byte(strconv.Quote(pv.PkgPath))...)
 	case *ChanType:
 		panic("not yet implemented")
 	default:

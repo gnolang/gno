@@ -3,6 +3,9 @@ package gnolang
 import (
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type mockTypedValueStruct struct {
@@ -73,6 +76,60 @@ func TestGetLengthPanic(t *testing.T) {
 			}()
 
 			tt.tv.GetLength()
+		})
+	}
+}
+
+func TestComputeMapKey(t *testing.T) {
+	tt := []struct {
+		valX  string
+		want  MapKey
+		isNaN bool
+	}{
+		{`int64(1)`, "\x14int64\x01\x00\x00\x00\x00\x00\x00\x00", false},
+		{`int32(255)`, "\x14int32\xff\x00\x00\x00", false},
+		// basic string
+		{`"hello"`, "\x18string\x15hello", false},
+		// string that contains bytes which look similar to an encoded int64 key.
+		{`"\x14int64\x01\x00\x00\x00\x00\x00\x00\x00"`, "\x18string\x39\x14int64\x01\x00\x00\x00\x00\x00\x00\x00", false},
+		// NaN should be reported via isNaN == true and empty key.
+		{`func() float64 { p := float64(0); return 0/p }()`, MapKey(""), true},
+		{`func() float32 { p := float32(0); return 0/p }()`, MapKey(""), true},
+		// float negative zero normalization
+		{`float32(-0.0)`, "\x1cfloat32\x00\x00\x00\x00", false},
+		{`float64(-0.0)`, "\x1cfloat64\x00\x00\x00\x00\x00\x00\x00\x00", false},
+		// more examples
+		{`uint8(255)`, "\x14uint8\xff", false},
+		{`true`, "\x10bool\x01", false},
+		{`false`, "\x10bool\x00", false},
+		{`nil`, "\x00", false},
+		{
+			`struct{a int; b bool}{1, true}`,
+			"\x78struct{main.a int;main.b bool}\x0b\x01\x00\x00\x00\x00\x00\x00\x00\x01",
+			false,
+		},
+
+		// Regressions from
+		{
+			`[2]string{"hi,wor", "ld"}`,
+			"",
+			false,
+		},
+		{
+			`[2]string{"hi", "wor,ld"}`,
+			"",
+			false,
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.valX, func(t *testing.T) {
+			m := NewMachine("main", nil)
+			x := m.MustParseExpr(tc.valX)
+			vals := m.Eval(x)
+			require.Len(t, vals, 1)
+			mk, isNaN := vals[0].ComputeMapKey(nil, false)
+			assert.Equal(t, tc.want, mk)
+			assert.Equal(t, tc.isNaN, isNaN)
 		})
 	}
 }
