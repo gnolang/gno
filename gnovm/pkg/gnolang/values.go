@@ -654,11 +654,11 @@ func (ml MapList) MarshalAmino() (MapListImage, error) {
 }
 
 func (ml *MapList) UnmarshalAmino(mlimg MapListImage) error {
-	for i, item := range mlimg.List {
-		if i == 0 {
+	for _, item := range mlimg.List {
+		if ml.Head == nil {
+			item.Prev = nil
 			ml.Head = item
 			ml.Tail = item
-			item.Prev = nil
 		} else {
 			item.Prev = ml.Tail
 			ml.Tail.Next = item
@@ -673,15 +673,16 @@ func (ml *MapList) UnmarshalAmino(mlimg MapListImage) error {
 func (ml *MapList) Append(alloc *Allocator, key TypedValue) *MapListItem {
 	alloc.AllocateMapItem()
 	item := &MapListItem{
-		Prev: ml.Tail,
 		Next: nil,
 		Key:  key,
 		// Value: undefined,
 	}
 	if ml.Head == nil {
+		item.Prev = nil
 		ml.Head = item
 		ml.Tail = item
 	} else {
+		item.Prev = ml.Tail
 		ml.Tail.Next = item
 		ml.Tail = item
 	}
