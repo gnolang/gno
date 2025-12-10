@@ -605,39 +605,41 @@ func TestVMKeeperEvalJSONFormatting2(t *testing.T) {
 			name:     "JSON string",
 			pkgBody:  `func GetString() string { return "hello" }`,
 			expr:     "GetString()",
-			expected: `["hello"]`,
+			expected: `{"results":[{"T":"string","V":"hello"}]}`,
 		},
 		{
 			name:     "JSON integer",
 			pkgBody:  `func GetInt() int { return 42 }`,
 			expr:     "GetInt()",
-			expected: `[42]`,
+			expected: `{"results":[{"T":"int","V":42}]}`,
 		},
 		{
 			name:     "JSON boolean",
 			pkgBody:  `func GetBool() bool { return true }`,
 			expr:     "GetBool()",
-			expected: `[true]`,
+			expected: `{"results":[{"T":"bool","V":true}]}`,
 		},
 		{
 			name:     "JSON bytes",
 			pkgBody:  `func GetBytes() []byte { return []byte("test") }`,
 			expr:     "GetBytes()",
-			expected: `["dGVzdA=="]`,
+			expected: `{"results":[{"T":"[]uint8","V":[116,101,115,116]}]}`,
 		},
 		{
 			name:     "JSON multiple values",
 			pkgBody:  `func GetMulti() (string, int) { return "hello", 42 }`,
 			expr:     "GetMulti()",
-			expected: `["hello",42]`,
+			expected: `{"results":[{"T":"string","V":"hello"},{"T":"int","V":42}]}`,
 		},
 	}
 
 	for i, tc := range tests {
 		pkgPath := fmt.Sprintf("gno.land/r/hello%d", i)
-		pkgBody := fmt.Sprintf("package hello%d", 1) + "\n" + tc.pkgBody
+		pkgName := fmt.Sprintf("hello%d", i)
+		pkgBody := fmt.Sprintf("package %s\n%s", pkgName, tc.pkgBody)
 		t.Run(tc.name, func(t *testing.T) {
 			files := []*std.MemFile{
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 				{Name: "hello.gno", Body: pkgBody},
 			}
 

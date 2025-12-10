@@ -6,6 +6,7 @@ import (
 	"math"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 )
@@ -536,4 +537,389 @@ func jsonExportedValue(tv TypedValue) []byte {
 
 		return amino.MustMarshalJSONAny(tv.V)
 	}
+}
+
+// JSONTypedValue represents a human-readable JSON format for TypedValue.
+// V contains the bare value (not wrapped with @type tags).
+// Nested struct fields and complex array elements are wrapped with JSONTypedValue.
+type JSONTypedValue struct {
+	T        string  `json:"T"`                  // Type string: [<pkgpath>.]<symbol> or primitive
+	V        any     `json:"V"`                  // Value: string | number | bool | null | object | array
+	ObjectID *string `json:"objectid,omitempty"` // For pointers - enables later fetching
+	Error    *string `json:"error,omitempty"`    // .Error() result if implements error
+	Base     *string `json:"base,omitempty"`     // baseOf(T) if different from T
+}
+
+// JSONExportTypedValuesSimple produces human-readable JSON for TypedValues.
+// Unlike JSONExportTypedValues, it outputs values directly without @type tags or ObjectInfo.
+// Requires Machine to call .Error() methods on error types.
+func JSONExportTypedValuesSimple(m *Machine, tvs []TypedValue) ([]byte, error) {
+	seen := map[Object]int{}
+	results := make([]*JSONTypedValue, len(tvs))
+	for i, tv := range tvs {
+		results[i] = jsonTypedValueSimple(m, tv, seen)
+	}
+	return json.Marshal(results)
+}
+
+// jsonTypedValueSimple creates a JSONTypedValue from a TypedValue.
+func jsonTypedValueSimple(m *Machine, tv TypedValue, seen map[Object]int) *JSONTypedValue {
+	jtv := &JSONTypedValue{
+		T: simpleTypeString(tv.T),
+		V: jsonValueSimple(m, tv, seen),
+	}
+
+	// For pointers, include ObjectID for later fetching
+	if _, isPtr := BaseOf(tv.T).(*PointerType); isPtr && tv.V != nil {
+		if pv, ok := tv.V.(PointerValue); ok {
+			if base := pv.Base; base != nil {
+				if obj, ok := base.(Object); ok {
+					oid := obj.GetObjectID().String()
+					if oid != ":0" { // Don't include empty ObjectID
+						jtv.ObjectID = &oid
+					}
+				}
+			}
+		}
+	}
+
+	// For error types, include error string
+	if tv.V != nil && tv.T != nil {
+		if errStr := getSimpleErrorString(m, tv); errStr != nil {
+			jtv.Error = errStr
+		}
+	}
+
+	// For declared types, include base type string
+	jtv.Base = simpleBaseTypeString(tv.T)
+
+	return jtv
+}
+
+// simpleTypeString returns a human-readable type string.
+func simpleTypeString(t Type) string {
+	if t == nil {
+		return "nil"
+	}
+	switch ct := t.(type) {
+	case PrimitiveType:
+		return ct.String()
+	case *DeclaredType:
+		return ct.TypeID().String()
+	case *PointerType:
+		return "*" + simpleTypeString(ct.Elt)
+	case *SliceType:
+		return "[]" + simpleTypeString(ct.Elt)
+	case *ArrayType:
+		return fmt.Sprintf("[%d]%s", ct.Len, simpleTypeString(ct.Elt))
+	case *MapType:
+		return fmt.Sprintf("map[%s]%s", simpleTypeString(ct.Key), simpleTypeString(ct.Value))
+	case *FuncType:
+		return "func"
+	case *InterfaceType:
+		if ct.IsEmptyInterface() {
+			return "interface{}"
+		}
+		return "interface"
+	case *StructType:
+		return "struct"
+	case RefType:
+		return ct.ID.String()
+	default:
+		return t.String()
+	}
+}
+
+// simpleBaseTypeString returns the base type string if it differs from the declared type.
+func simpleBaseTypeString(t Type) *string {
+	if _, ok := t.(*DeclaredType); ok {
+		base := BaseOf(t)
+		if base != nil && base != t {
+			s := simpleTypeString(base)
+			// Only include base if it's different and meaningful
+			if s != "" && s != "struct" {
+				return &s
+			}
+		}
+	}
+	return nil
+}
+
+// getJSONFieldName returns the JSON field name for a struct field.
+// If a json tag is present, uses the tag name (without options like omitempty).
+// Otherwise, returns the Go field name.
+func getJSONFieldName(ft FieldType) string {
+	if ft.Tag != "" {
+		// Use reflect.StructTag to parse the tag
+		tag := reflect.StructTag(ft.Tag)
+		if jsonTag := tag.Get("json"); jsonTag != "" {
+			// Split to handle "name,omitempty" -> take just "name"
+			if comma := strings.Index(jsonTag, ","); comma != -1 {
+				jsonTag = jsonTag[:comma]
+			}
+			// "-" means skip this field, but we still include it with Go name
+			if jsonTag != "-" && jsonTag != "" {
+				return jsonTag
+			}
+		}
+	}
+	return string(ft.Name)
+}
+
+// jsonValueSimple converts a TypedValue's value to a JSON-compatible representation.
+func jsonValueSimple(m *Machine, tv TypedValue, seen map[Object]int) any {
+	if tv.T == nil {
+		return nil
+	}
+
+	bt := BaseOf(tv.T)
+
+	switch bt := bt.(type) {
+	case PrimitiveType:
+		// Primitives store values in tv.N, not tv.V
+		return getPrimitiveValueSimple(bt, tv)
+
+	case *StructType:
+		sv, ok := tv.V.(*StructValue)
+		if !ok {
+			return nil
+		}
+		// Cycle check
+		if id, exists := seen[sv]; exists {
+			return map[string]int{"@ref": id}
+		}
+		seen[sv] = len(seen) + 1
+
+		// Each field is wrapped with JSONTypedValue
+		obj := make(map[string]*JSONTypedValue)
+		for i, field := range sv.Fields {
+			if i < len(bt.Fields) {
+				name := getJSONFieldName(bt.Fields[i])
+				obj[name] = jsonTypedValueSimple(m, field, seen)
+			}
+		}
+		return obj
+
+	case *SliceType:
+		return jsonSliceValueSimple(m, tv, bt, seen)
+
+	case *ArrayType:
+		return jsonArrayValueSimple(m, tv, bt, seen)
+
+	case *PointerType:
+		pv, ok := tv.V.(PointerValue)
+		if !ok {
+			return nil
+		}
+		// Dereference and serialize target value
+		deref := pv.Deref()
+		return jsonValueSimple(m, deref, seen)
+
+	case *MapType:
+		return jsonMapValueSimple(m, tv, bt, seen)
+
+	case *FuncType:
+		if fv, ok := tv.V.(*FuncValue); ok {
+			if fv.PkgPath != "" {
+				return fv.PkgPath + "." + string(fv.Name)
+			}
+			return string(fv.Name)
+		}
+		return "<func>"
+
+	case *InterfaceType:
+		// For interface types, serialize the concrete value
+		return jsonValueSimple(m, tv, seen)
+
+	default:
+		// Fallback: return string representation
+		return tv.V.String()
+	}
+}
+
+// getPrimitiveValueSimple returns the Go value for a primitive type.
+func getPrimitiveValueSimple(bt PrimitiveType, tv TypedValue) any {
+	switch bt {
+	case UntypedBoolType, BoolType:
+		return tv.GetBool()
+	case UntypedStringType, StringType:
+		return tv.GetString()
+	case IntType:
+		return tv.GetInt()
+	case Int8Type:
+		return int64(tv.GetInt8())
+	case Int16Type:
+		return int64(tv.GetInt16())
+	case UntypedRuneType, Int32Type:
+		return int64(tv.GetInt32())
+	case Int64Type:
+		return tv.GetInt64()
+	case UintType:
+		return tv.GetUint()
+	case Uint8Type:
+		return uint64(tv.GetUint8())
+	case DataByteType:
+		return uint64(tv.GetDataByte())
+	case Uint16Type:
+		return uint64(tv.GetUint16())
+	case Uint32Type:
+		return uint64(tv.GetUint32())
+	case Uint64Type:
+		return tv.GetUint64()
+	case Float32Type:
+		return math.Float32frombits(tv.GetFloat32())
+	case Float64Type:
+		return math.Float64frombits(tv.GetFloat64())
+	case UntypedBigintType:
+		return tv.V.(BigintValue).V.String()
+	case UntypedBigdecType:
+		return tv.V.(BigdecValue).V.String()
+	default:
+		return nil
+	}
+}
+
+// jsonSliceValueSimple converts a slice value to JSON.
+func jsonSliceValueSimple(m *Machine, tv TypedValue, st *SliceType, seen map[Object]int) any {
+	sv, ok := tv.V.(*SliceValue)
+	if !ok {
+		return nil
+	}
+
+	length := sv.Length
+	if length == 0 {
+		return []any{}
+	}
+
+	// Check if element type is primitive
+	if isPrimitiveType(st.Elt) {
+		// Return direct array for primitives
+		result := make([]any, length)
+		for i := 0; i < length; i++ {
+			etv := sv.GetPointerAtIndexInt2(nil, i, st.Elt).Deref()
+			result[i] = getPrimitiveValueSimple(BaseOf(st.Elt).(PrimitiveType), etv)
+		}
+		return result
+	}
+
+	// For complex types, return array of JSONTypedValue
+	result := make([]*JSONTypedValue, length)
+	for i := 0; i < length; i++ {
+		etv := sv.GetPointerAtIndexInt2(nil, i, st.Elt).Deref()
+		result[i] = jsonTypedValueSimple(m, etv, seen)
+	}
+	return result
+}
+
+// jsonArrayValueSimple converts an array value to JSON.
+func jsonArrayValueSimple(m *Machine, tv TypedValue, at *ArrayType, seen map[Object]int) any {
+	av, ok := tv.V.(*ArrayValue)
+	if !ok {
+		return nil
+	}
+
+	length := at.Len
+	if length == 0 {
+		return []any{}
+	}
+
+	// Handle byte arrays specially (Data field)
+	if av.Data != nil {
+		// Return as array of numbers
+		result := make([]any, length)
+		for i := 0; i < length; i++ {
+			result[i] = uint64(av.Data[i])
+		}
+		return result
+	}
+
+	// Check if element type is primitive
+	if isPrimitiveType(at.Elt) {
+		result := make([]any, length)
+		for i := 0; i < length; i++ {
+			result[i] = getPrimitiveValueSimple(BaseOf(at.Elt).(PrimitiveType), av.List[i])
+		}
+		return result
+	}
+
+	// For complex types, return array of JSONTypedValue
+	result := make([]*JSONTypedValue, length)
+	for i := 0; i < length; i++ {
+		result[i] = jsonTypedValueSimple(m, av.List[i], seen)
+	}
+	return result
+}
+
+// jsonMapValueSimple converts a map value to JSON.
+func jsonMapValueSimple(m *Machine, tv TypedValue, mt *MapType, seen map[Object]int) any {
+	mv, ok := tv.V.(*MapValue)
+	if !ok {
+		return nil
+	}
+
+	// Check if key type is string-like
+	if isStringLikeType(mt.Key) {
+		// Return as JSON object
+		obj := make(map[string]*JSONTypedValue)
+		for cur := mv.List.Head; cur != nil; cur = cur.Next {
+			keyStr := fmt.Sprintf("%v", jsonValueSimple(m, cur.Key, seen))
+			obj[keyStr] = jsonTypedValueSimple(m, cur.Value, seen)
+		}
+		return obj
+	}
+
+	// Return as array of [key, value] pairs
+	var pairs [][]any
+	for cur := mv.List.Head; cur != nil; cur = cur.Next {
+		pair := []any{
+			jsonTypedValueSimple(m, cur.Key, seen),
+			jsonTypedValueSimple(m, cur.Value, seen),
+		}
+		pairs = append(pairs, pair)
+	}
+	return pairs
+}
+
+// isPrimitiveType returns true if the type is a primitive type.
+func isPrimitiveType(t Type) bool {
+	_, ok := BaseOf(t).(PrimitiveType)
+	return ok
+}
+
+// isStringLikeType returns true if the type can be used as a JSON object key.
+func isStringLikeType(t Type) bool {
+	bt := BaseOf(t)
+	if pt, ok := bt.(PrimitiveType); ok {
+		return pt == StringType || pt == UntypedStringType
+	}
+	return false
+}
+
+// getSimpleErrorString attempts to get the error string from a TypedValue.
+func getSimpleErrorString(m *Machine, tv TypedValue) *string {
+	// Check if value implements error
+	if !tv.ImplError() {
+		return nil
+	}
+
+	// Try to call .Error() method
+	defer func() {
+		recover() // Ignore panics from method calls
+	}()
+
+	// Wrap in pointer if needed for method call
+	callTV := tv
+	if _, ok := BaseOf(tv.T).(*PointerType); !ok {
+		callTV = TypedValue{
+			T: &PointerType{Elt: tv.T},
+			V: PointerValue{TV: &tv},
+		}
+	}
+
+	res := m.Eval(Call(Sel(&ConstExpr{TypedValue: callTV}, "Error")))
+	if len(res) > 0 {
+		s := res[0].GetString()
+		return &s
+	}
+	return nil
 }

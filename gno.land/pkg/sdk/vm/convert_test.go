@@ -233,13 +233,13 @@ func TestConvertError(t *testing.T) {
 		{
 			name:     "non-empty error",
 			errorMsg: "my error",
-			// Value type is the concrete *myError even though declared as error interface
-			expected: `{"results":[{"T":"*RefType{testdata.myError}","V":{"@type":"/gno.PointerValue","TV":null,"Base":{"@type":"/gno.RefValue","ObjectID":":1","Escaped":true},"Index":"0"}}],"@error":"my error"}`,
+			// Simplified format: type is *testdata.myError, value is dereferenced struct, error string included
+			expected: `{"results":[{"T":"*testdata.myError","V":{},"error":"my error"}],"@error":"my error"}`,
 		},
 		{
 			name:     "empty error",
 			errorMsg: "",
-			expected: `{"results":[{"T":"*RefType{testdata.myError}","V":{"@type":"/gno.PointerValue","TV":null,"Base":{"@type":"/gno.RefValue","ObjectID":":1","Escaped":true},"Index":"0"}}],"@error":""}`,
+			expected: `{"results":[{"T":"*testdata.myError","V":{},"error":""}],"@error":""}`,
 		},
 	}
 
