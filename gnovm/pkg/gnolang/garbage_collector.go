@@ -14,7 +14,7 @@ import (
 // TODO: more accurate benchmark.
 const VisitCpuFactor = 8
 
-// Visits all reachable associated values.
+// Visitor visits all reachable associated values.
 // It is used primarily for GC.
 // The caller must provide a callback visitor
 // which knows how to break cycles, otherwise
