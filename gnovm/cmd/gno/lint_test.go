@@ -91,21 +91,21 @@ func TestLintApp(t *testing.T) {
 			args:                 []string{"lint", "."},
 			testDir:              "../../tests/integ/render_invalid1",
 			simulateExternalRepo: true,
-			stderrShouldBe:       "gno.land/t/render_invalid1: the 'Render' function signature is incorrect for the 'main' package. the signature must be of the form: func Render(string) string (code=gnoParserError)\n",
+			stderrShouldBe:       "gno.land/r/test/render_invalid1: the 'Render' function signature is incorrect for the 'main' package. the signature must be of the form: func Render(string) string (code=gnoParserError)\n",
 			errShouldBe:          "exit code: 1",
 		},
 		{
 			args:                 []string{"lint", "."},
 			testDir:              "../../tests/integ/render_invalid2",
 			simulateExternalRepo: true,
-			stderrShouldBe:       "gno.land/t/render_invalid2: the 'Render' function signature is incorrect for the 'main' package. the signature must be of the form: func Render(string) string (code=gnoParserError)\n",
+			stderrShouldBe:       "gno.land/r/test/render_invalid2: the 'Render' function signature is incorrect for the 'main' package. the signature must be of the form: func Render(string) string (code=gnoParserError)\n",
 			errShouldBe:          "exit code: 1",
 		},
 		{
 			args:                 []string{"lint", "."},
 			testDir:              "../../tests/integ/render_invalid3",
 			simulateExternalRepo: true,
-			stderrShouldBe:       "gno.land/t/render_invalid3: the 'Render' function signature is incorrect for the 'main' package. the signature must be of the form: func Render(string) string (code=gnoParserError)\n",
+			stderrShouldBe:       "gno.land/r/test/render_invalid3: the 'Render' function signature is incorrect for the 'main' package. the signature must be of the form: func Render(string) string (code=gnoParserError)\n",
 			errShouldBe:          "exit code: 1",
 		},
 		{
@@ -121,6 +121,11 @@ func TestLintApp(t *testing.T) {
 		{
 			args:                 []string{"lint", "."},
 			testDir:              "../../tests/integ/render_valid3",
+			simulateExternalRepo: true,
+		},
+		{
+			args:                 []string{"lint", "."},
+			testDir:              "../../tests/integ/render_valid4",
 			simulateExternalRepo: true,
 		},
 
