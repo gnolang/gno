@@ -2,9 +2,9 @@ package main
 
 import "fmt"
 
-type Foo struct {
-	A int
-}
+type B struct{}
+
+func (B) Foo() string { return "Foo from B" }
 
 func (f Foo) WithValue(x int) *Foo {
 	f.A = x
