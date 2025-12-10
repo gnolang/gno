@@ -98,6 +98,10 @@ func execSign(cfg *SignCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
+	if cfg.RootCfg.Json {
+		io.ErrPrintln("warning: -json flag has no effect on `sign` command")
+	}
+
 	// saveSignature saves the given transaction signature to the given path (Amino-encoded JSON)
 	saveSignature := func(signature *std.Signature, path string) error {
 		// Encode the signature

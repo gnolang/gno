@@ -1,12 +1,15 @@
 package client
 
 import (
+	"bytes"
+	"encoding/json"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_execList(t *testing.T) {
@@ -48,4 +51,36 @@ func Test_execList(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_execListJSON(t *testing.T) { // Prepare some keybases
+	kbHome1, cleanUp1 := testutils.NewTestCaseDir(t)
+	defer cleanUp1()
+
+	// initialize test keybase.
+	kb, err := keys.NewKeyBaseFromDir(kbHome1)
+	require.NoError(t, err)
+	_, err = kb.CreateAccount("something", testMnemonic, "", "", 0, 0)
+	require.NoError(t, err)
+
+	var buff bytes.Buffer
+	testio := commands.NewTestIO()
+
+	testio.SetOut(commands.WriteNopCloser(&buff))
+	testio.SetErr(commands.WriteNopCloser(&buff))
+
+	// Set current home
+	cfg := &BaseCfg{BaseOptions: BaseOptions{Home: kbHome1, Json: true}}
+	args := []string{}
+
+	err = execList(cfg, args, testio)
+	require.NoError(t, err)
+
+	var out []map[string]any
+	err = json.Unmarshal(buff.Bytes(), &out)
+	assert.NoError(t, err)
+
+	require.Len(t, out, 1)
+	require.NotEmpty(t, out[0]["name"])
+	assert.Equal(t, out[0]["name"], "something")
 }

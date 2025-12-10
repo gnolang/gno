@@ -59,6 +59,10 @@ func execExport(cfg *ExportCfg, io commands.IO) error {
 		return errors.New("key to be exported shouldn't be empty")
 	}
 
+	if cfg.RootCfg.Json {
+		io.ErrPrintln("warning: -json flag has no effect on `export` command")
+	}
+
 	// Create a new instance of the key-base
 	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.Home)
 	if err != nil {
