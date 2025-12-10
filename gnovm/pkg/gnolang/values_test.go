@@ -108,16 +108,27 @@ func TestComputeMapKey(t *testing.T) {
 			"\x78struct{main.a int;main.b bool}\x0b\x01\x00\x00\x00\x00\x00\x00\x00\x01",
 			false,
 		},
+		{`[8]byte{'a', 'b'}`, "\x20[8]uint8\x22ab\x00\x00\x00\x00\x00\x00", false},
 
-		// Regressions from
+		// Regressions from https://github.com/gnolang/gno/issues/4567
 		{
 			`[2]string{"hi,wor", "ld"}`,
-			"",
+			"\x24[2]string\n\x19hi,wor\x09ld",
 			false,
 		},
 		{
 			`[2]string{"hi", "wor,ld"}`,
-			"",
+			"\x24[2]string\n\x09hi\x19wor,ld",
+			false,
+		},
+		{
+			`[2]string{"hi\x09wor", "ld"}`,
+			"\x24[2]string\n\x19hi\x09wor\x09ld",
+			false,
+		},
+		{
+			`[2]string{"hi", "wor\x09ld"}`,
+			"\x24[2]string\n\x09hi\x19wor\x09ld",
 			false,
 		},
 	}
