@@ -38,7 +38,7 @@ type ClientAdapter interface {
 	// package path and filename.
 	File(ctx context.Context, path, filename string) ([]byte, FileMeta, error)
 
-	// Sources lists all source files available in a specified
+	// ListFiles lists all source files available in a specified
 	// package path.
 	ListFiles(ctx context.Context, path string) ([]string, error)
 
@@ -159,13 +159,13 @@ func (c *rpcClient) Doc(ctx context.Context, pkgPath string) (*doc.JSONDocumenta
 	args := fmt.Sprintf("%s/%s", c.domain, strings.Trim(pkgPath, "/"))
 	res, err := c.query(ctx, qpath, []byte(args))
 	if err != nil {
-		return nil, fmt.Errorf("unable to query qdoc: %w", err)
+		return nil, fmt.Errorf("unable to query qdoc for %s: %w", pkgPath, err)
 	}
 
 	jdoc := &doc.JSONDocumentation{}
 	if err := amino.UnmarshalJSON(res, jdoc); err != nil {
 		c.logger.Warn("unable to unmarshal qdoc, client is probably outdated")
-		return nil, fmt.Errorf("unable to unmarshal qdoc: %w", err)
+		return nil, fmt.Errorf("unable to unmarshal qdoc for %s: %w", pkgPath, err)
 	}
 
 	return jdoc, nil
