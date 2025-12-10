@@ -8,6 +8,7 @@ import type { ActionMode } from "./controller-action-header.js";
 export class ActionFunctionController extends BaseController {
 	protected sendValue: string | null = null;
 	declare _funcName: string | null;
+	declare _pkgPath: string | null;
 
 	protected connect(): void {
 		this.initializeDOM({
@@ -15,9 +16,13 @@ export class ActionFunctionController extends BaseController {
 		});
 
 		this._funcName = this.getValue("name") || null;
+		this._pkgPath = this.getValue("pkgpath") || null;
 
 		this._initializeArgs();
 		this._listenForEvents();
+
+		// Some functions may have no params, or all params already have values
+		this._updateQEvalResult();
 	}
 
 	// listen for events from action-header controller
@@ -111,26 +116,31 @@ export class ActionFunctionController extends BaseController {
 
 		// initialize the args
 		this.getTargets("param-input").forEach((paramInput) => {
-			const paramName = this.getValue("param", paramInput);
+			const input = paramInput as HTMLInputElement;
+			const paramName = this.getValue("param", input) || "";
+
 			if (!paramName || processed.has(paramName)) return;
 
 			const paramValue = this._getParamCurrentValue(paramName);
-			if (paramValue) this._pushArgsInDOM(paramName, paramValue);
+			if (paramValue) this._updateArgInDOM(paramName, paramValue);
 
 			processed.add(paramName);
 		});
 	}
 
-	// debounced update all args
+	// debounced update all args and update the qeval result
 	private _debouncedUpdateAllArgs = debounce(
 		(paramName: string, paramValue: string) => {
-			if (paramName) this._pushArgsInDOM(paramName, paramValue);
+			if (paramName) {
+				this._updateArgInDOM(paramName, paramValue);
+				this._updateQEvalResult();
+			}
 		},
 		50,
 	);
 
 	// push args in DOM (in func code)
-	private _pushArgsInDOM(paramName: string, paramValue: string): void {
+	private _updateArgInDOM(paramName: string, paramValue: string): void {
 		const escapedValue = escapeShellSpecialChars(paramValue);
 
 		// Update args elements with the new parameter value
@@ -162,6 +172,53 @@ export class ActionFunctionController extends BaseController {
 				u.searchParams.set(paramName, paramValue);
 				functionLink.setAttribute(linkAttribute, u.toString() || "");
 			});
+		}
+	}
+
+	// Update the qeval result
+	// If there is no "qeval-result" target, then do nothing.
+	private async _updateQEvalResult(): Promise<void> {
+		const resultTarget = this.getTarget("qeval-result") as HTMLElement;
+		const remoteTarget = this.getTarget("remote") as HTMLElement;
+
+		// If there is no resultTarget or remoteTarget, this is a crossing function.
+		if (!(resultTarget && remoteTarget)) return;
+
+		// If there are no args, then show the "(enter param values)" placeholder.
+		const argNodes = this.getTargets("arg");
+		const haveAllArgs = argNodes.every((arg) => arg.textContent !== "");
+		if (!haveAllArgs) {
+			resultTarget.textContent = "(enter param values)";
+			resultTarget.classList.remove("u-color-danger");
+			return;
+		}
+
+		// Build the data string for the qeval query.
+		const args = argNodes
+			.map((arg) => (arg.textContent as string).replace(/\\(.)/g, "$1"))
+			.join(",");
+		const data = `${this._pkgPath}.${this._funcName}(${args})`;
+
+		// Fetch the qeval result from the remote and update the DOM.
+		const result = await this._fetchQEval(remoteTarget.textContent || "", data);
+		resultTarget.textContent = result;
+		resultTarget.classList.toggle(
+			"u-color-danger",
+			result.startsWith("Error:"),
+		);
+	}
+
+	// Fetch the qeval result from the remote
+	private async _fetchQEval(remote: string, data: string): Promise<string> {
+		try {
+			const url = `http://${remote}/abci_query?path=vm%2fqeval&data=${btoa(data)}`;
+			const response = await fetch(url);
+			if (!response.ok) return "";
+
+			const result = (await response.json()).result.response.ResponseBase;
+			return result.Data ? atob(result.Data) : `Error: ${result.Error.value}`;
+		} catch {
+			return "";
 		}
 	}
 
