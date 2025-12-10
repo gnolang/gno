@@ -406,7 +406,8 @@ func lintTargetName(pkg *packages.Package) string {
 // Methods are ignored (e.g. func (t *Type) Render()).
 // Returns error if the signature is incorrect.
 func lintRenderSignature(io commands.IO, pkg *types.Package) error {
-	if pkg == nil {
+	// ignore pure package and ephemeral realms
+	if pkg == nil || !gno.IsRealmPath(pkg.Path()) {
 		return nil
 	}
 
