@@ -6,24 +6,15 @@ package gnolang
 // In debug builds, we panic to catch potential misuse.
 
 func (sv StringValue) DeepFill(store Store) Value {
-	if debug {
-		panic("StringValue.DeepFill should not be called - StringValue is only used for constant expressions")
-	}
-	return sv
+	panic("StringValue.DeepFill should not be called - StringValue is only used for constant expressions")
 }
 
 func (biv BigintValue) DeepFill(store Store) Value {
-	if debug {
-		panic("BigintValue.DeepFill should not be called - BigintValue is only used for constant expressions")
-	}
-	return biv
+	panic("BigintValue.DeepFill should not be called - BigintValue is only used for constant expressions")
 }
 
 func (bdv BigdecValue) DeepFill(store Store) Value {
-	if debug {
-		panic("BigdecValue.DeepFill should not be called - BigdecValue is only used for constant expressions")
-	}
-	return bdv
+	panic("BigdecValue.DeepFill should not be called - BigdecValue is only used for constant expressions")
 }
 
 func (dbv DataByteValue) DeepFill(store Store) Value {
@@ -49,9 +40,7 @@ func (av *ArrayValue) DeepFill(store Store) Value {
 	if av.List != nil {
 		for i := range len(av.List) {
 			tv := &av.List[i]
-			if tv.V != nil {
-				tv.V = tv.V.DeepFill(store)
-			}
+			tv.DeepFill(store)
 		}
 	}
 	return av
@@ -67,9 +56,7 @@ func (sv *SliceValue) DeepFill(store Store) Value {
 func (sv *StructValue) DeepFill(store Store) Value {
 	for i := range len(sv.Fields) {
 		tv := &sv.Fields[i]
-		if tv.V != nil {
-			tv.V = tv.V.DeepFill(store)
-		}
+		tv.DeepFill(store)
 	}
 	return sv
 }
@@ -87,8 +74,6 @@ func (rv RefValue) DeepFill(store Store) Value {
 }
 
 func (hiv *HeapItemValue) DeepFill(store Store) Value {
-	if hiv.Value.V != nil {
-		hiv.Value.V = hiv.Value.V.DeepFill(store)
-	}
+	hiv.Value.DeepFill(store)
 	return hiv
 }
