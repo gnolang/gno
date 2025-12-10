@@ -674,7 +674,7 @@ func (ml *MapList) UnmarshalAmino(mlimg MapListImage) error {
 func (ml *MapList) Append(alloc *Allocator, key TypedValue) *MapListItem {
 	alloc.AllocateMapItem()
 	item := &MapListItem{
-		Prev: nil,
+		Prev: ml.Tail,
 		Next: nil,
 		Key:  key,
 		// Value: undefined,
@@ -684,7 +684,6 @@ func (ml *MapList) Append(alloc *Allocator, key TypedValue) *MapListItem {
 		ml.Tail = item
 		ml.Size = 1
 	} else {
-		item.Prev = ml.Tail
 		ml.Tail.Next = item
 		ml.Tail = item
 		ml.Size++
