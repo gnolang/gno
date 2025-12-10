@@ -2272,6 +2272,14 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 			lb := m.LastBlock()
 			pv = lb.GetPointerTo(m.Store, lx.Path)
 			ro = false // always mutable
+		case NameExprTypeLoopVarDefine:
+			lb := m.LastBlock()
+			pv = lb.GetPointerTo(m.Store, lx.Path)
+			ro = false // always mutable
+		case NameExprTypeLoopVarUse:
+			lb := m.LastBlock()
+			pv = lb.GetPointerTo(m.Store, lx.Path)
+			ro = false // always mutable
 		case NameExprTypeHeapUse:
 			lb := m.LastBlock()
 			pv = lb.GetPointerTo(m.Store, lx.Path)

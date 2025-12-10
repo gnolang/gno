@@ -351,12 +351,14 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 	case *AssignStmt:
 		for idx := range cnn.Lhs {
+			// fmt.Println("---transcribe LHS...")
 			cnn.Lhs[idx] = transcribe(t, nns, TRANS_ASSIGN_LHS, idx, cnn.Lhs[idx], &c).(Expr)
 			if stopOrSkip(nc, c) {
 				return
 			}
 		}
 		for idx := range cnn.Rhs {
+			// fmt.Println("---transcribe RHS...")
 			cnn.Rhs[idx] = transcribe(t, nns, TRANS_ASSIGN_RHS, idx, cnn.Rhs[idx], &c).(Expr)
 			if stopOrSkip(nc, c) {
 				return

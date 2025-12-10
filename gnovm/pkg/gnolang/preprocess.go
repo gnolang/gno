@@ -186,6 +186,7 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 		case TRANS_ENTER:
 			switch n := n.(type) {
 			case *AssignStmt:
+				fmt.Println("---initStaticBlocks, assignStmt: ", n)
 				if n.Op == DEFINE {
 					for i, lx := range n.Lhs {
 						nx := lx.(*NameExpr)
@@ -194,10 +195,20 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 							continue
 						}
 						if !isLocallyDefined2(last, ln) {
-							// if loopvar, will promote to
-							// NameExprTypeHeapDefine later.
-							nx.Type = NameExprTypeDefine
+							fmt.Println("---not locally defined, Reserve it, ln: ", ln)
+							if ftype == TRANS_FOR_INIT {
+								ln = Name(fmt.Sprintf(".loopvar_%s", ln))
+								nx.Type = NameExprTypeLoopVarDefine // demote if shadowed by i := i
+								fmt.Println("---ln: ", ln)
+								nx.Name = ln // rename
+							} else {
+								// if loop extern, will promote to
+								// NameExprTypeHeapDefine later.
+								nx.Type = NameExprTypeDefine
+							}
 							last.Reserve(false, nx, n, NSDefine, i)
+						} else {
+							fmt.Println("---locally defined, Ignore it, ln: ", ln)
 						}
 					}
 				}
@@ -545,6 +556,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			switch n := n.(type) {
 			// TRANS_ENTER -----------------------
 			case *AssignStmt:
+				fmt.Println("---Trans_Enter assignStmt, n: ", n)
 				checkValDefineMismatch(n)
 
 				if n.Op == DEFINE {
@@ -1026,6 +1038,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			switch n := n.(type) {
 			// TRANS_LEAVE -----------------------
 			case *NameExpr:
+				fmt.Println("---Trans_Leave NameExpr: ", n)
+				if len(ns) > 0 {
+					fmt.Println("---last node: ", ns[len(ns)-1])
+				}
+				// fmt.Println("---Trans_Leave NameExpr, last: ", last)
 				if isBlankIdentifier(n) {
 					switch ftype {
 					case TRANS_ASSIGN_LHS, TRANS_RANGE_KEY, TRANS_RANGE_VALUE, TRANS_VAR_NAME:
@@ -1105,13 +1122,21 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				default:
 					switch ftype {
 					case TRANS_ASSIGN_LHS:
+						fmt.Println("---Trans_Assign_LHS")
 						as := ns[len(ns)-1].(*AssignStmt)
 						fillNameExprPath(last, n, as.Op == DEFINE)
 						return n, TRANS_CONTINUE
 					case TRANS_VAR_NAME:
+						fmt.Println("---Trans_Var_Name")
 						fillNameExprPath(last, n, true)
 						return n, TRANS_CONTINUE
 					default:
+						fmt.Println("---default..., use...")
+						// find LoopVarUse, and rename,
+
+						// happens before fill path
+						// rename ensure name match.
+						renameLoopVar(last, n)
 						fillNameExprPath(last, n, false)
 					}
 					// If uverse, return a *ConstExpr.
@@ -2213,6 +2238,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *AssignStmt:
+				fmt.Println("---Trans_Leave, assignStmt: ", n)
 				n.AssertCompatible(store, last)
 				if n.Op == ASSIGN {
 					for _, lh := range n.Lhs {
@@ -5076,6 +5102,11 @@ func fauxChildBlockNode(bn BlockNode) bool {
 }
 
 func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
+	fmt.Println("---fillNameExprPath, nx: ", nx)
+	defer func() {
+		fmt.Println("---path filled: ", nx.Path)
+	}()
+
 	if nx.Name == blankIdentifier {
 		// Blank name has no path; caller error.
 		panic("should not happen")
