@@ -149,7 +149,6 @@ UI - Help Function component
     </form>
     <div>
       <h3 class="title">Command</h3>
-      <!-- change here -->
       <div class="b-code u-mb-2">
         <button data-controller="copy" data-action="click->copy#copy"
           data-copy-remote-value="action-function-{{ .Name }}" data-copy-clean-value class="btn-copy"
@@ -158,24 +157,12 @@ UI - Help Function component
         </button>
         {{/* prettier-ignore-start */}}
         {{ if .Crossing }}
-        <pre><code><span data-action-function-target="mode" data-action-function-mode-value="fast" class="u-hidden" data-copy-target="action-function-{{ .Name }}"># WARNING: This command is running in an INSECURE mode.
-# It is strongly recommended to use a hardware device for signing
-# and avoid trusting any computer connected to the internet,
-# as your private keys could be exposed.
-
-gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .Name }}"{{ range .Params }} -args "<span data-action-function-target="arg" data-action-function-arg-value="{{ .Name }}"></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -send "<span data-action-function-target="send-code"></span>" -broadcast -chainid "{{ $.ChainId }}" -remote "{{ $.Remote }}" <span data-action-function-target="address">ADDRESS</span></span><span data-action-function-target="mode" data-action-function-mode-value="secure" data-copy-target="action-function-{{ .Name }}" class="u-inline">gnokey query -remote "{{ $.Remote }}" auth/accounts/<span data-action-function-target="address">ADDRESS</span>
-gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .Name }}"{{ range .Params }} -args "<span data-action-function-target="arg" data-action-function-arg-value="{{ .Name }}"></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -send "<span data-action-function-target="send-code"></span>" <span data-action-function-target="address">ADDRESS</span> > call.tx
-gnokey sign -tx-path call.tx -chainid "{{ $.ChainId }}" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-action-function-target="address">ADDRESS</span>
-gnokey broadcast -remote "{{ $.Remote }}" call.tx</span></code></pre>
+        {{ template "ui/command" (buildCommandData $data .) }}
         {{ else }}
         <pre><code><span data-copy-target="action-function-{{ .Name }}">gnokey query vm/qeval -remote "<span data-action-function-target="remote">{{ $.Remote }}</span>" -data "{{ $.PkgPath }}.{{ .Name }}({{ range $i, $p := .Params }}{{ if gt $i 0 }},{{ end }}<span data-action-function-target="arg" data-action-function-arg-value="{{ $p.Name }}"></span>{{ end }})"</span></code></pre>
         {{ end }}
         {{/* prettier-ignore-end */}}
       </div>
-      <!-- chgange fin here -->
-      <!-- change here -->
-      {{ template "ui/command" (buildCommandData $data .) }}
-      <!-- chgange fin here -->
     </div>
     {{ if not .Crossing }}
     <div class="b-action-result">
