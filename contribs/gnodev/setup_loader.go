@@ -3,7 +3,6 @@ package main
 import (
 	"log/slog"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -77,9 +76,11 @@ func setupPackagesLoader(logger *slog.Logger, cfg *AppConfig, dirs ...string) (p
 	case LoadModeLazy:
 		logger.Info("lazy mode: packages will be loaded on-demand")
 	case LoadModeFull:
-		// Pre-load all discovered packages under the chain domain
-		paths = []string{path.Join(cfg.chainDomain, "/**")}
-		logger.Info("full mode: pre-loading all discovered packages", "pattern", paths[0])
+		// Pre-load all discovered packages
+		for _, pkg := range loader.GetIndex().List() {
+			paths = append(paths, pkg.ImportPath)
+		}
+		logger.Info("full mode: pre-loading all discovered packages", "count", len(paths))
 	}
 
 	return loader, paths

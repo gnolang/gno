@@ -48,11 +48,11 @@ Interactive mode and unsafe API access are disabled to ensure a secure environme
 The log format is set to JSON, facilitating integration with logging systems.
 
 PACKAGE LOADING:
-This mode uses -load=full by default, which pre-loads all discovered packages under the
-chain domain (gno.land/**). The lazy loading proxy is disabled in this mode.
+This mode uses -load=full by default, which pre-loads all discovered packages.
+The lazy loading proxy is disabled in this mode.
 
-Additional package directories can be passed as arguments. Use -paths to specify additional
-packages to pre-load, or -load=auto|-load=lazy to change the loading behavior.
+Additional package directories can be passed as arguments.
+Use -load=auto or -load=lazy to change the loading behavior.
 `,
 			NoParentFlags: true,
 		},
