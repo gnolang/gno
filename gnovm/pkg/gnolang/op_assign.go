@@ -1,7 +1,10 @@
 package gnolang
 
+import "fmt"
+
 func (m *Machine) doOpDefine() {
 	s := m.PopStmt().(*AssignStmt)
+	fmt.Println("---doOpDefine, s: ", s)
 	// Define each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
@@ -10,6 +13,8 @@ func (m *Machine) doOpDefine() {
 	for i := range s.Lhs {
 		// Get name and value of i'th term.
 		nx := s.Lhs[i].(*NameExpr)
+		fmt.Println("---nx: ", nx)
+		fmt.Println("---rvs[i]: ", rvs[i])
 		// Finally, define (or assign if loop block).
 		ptr := lb.GetPointerToMaybeHeapDefine(m.Store, nx)
 		if m.Stage != StagePre && isUntyped(rvs[i].T) && rvs[i].T.Kind() != BoolKind {
