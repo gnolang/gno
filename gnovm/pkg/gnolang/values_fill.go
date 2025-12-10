@@ -3,7 +3,6 @@ package gnolang
 // StringValue, BigintValue, and BigdecValue are used only for constant expressions
 // and are not collected by the GC (see garbage_collector.go).
 // These types should never require DeepFill calls in correct code.
-// In debug builds, we panic to catch potential misuse.
 
 func (sv StringValue) DeepFill(store Store) Value {
 	panic("StringValue.DeepFill should not be called - StringValue is only used for constant expressions")
