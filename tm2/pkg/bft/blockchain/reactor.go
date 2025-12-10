@@ -364,7 +364,7 @@ FOR_LOOP:
 
 type BlocksIterator func(yield func(block *types.Block) error) error
 
-func (bcR *BlockchainReactor) Restore(ctx context.Context, blocksIterator BlocksIterator) error {
+func (bcR *BlockchainReactor) Restore(ctx context.Context, blocksIterator BlocksIterator, skipVerification bool) error {
 	var (
 		first   *types.Block
 		second  *types.Block
@@ -390,10 +390,11 @@ func (bcR *BlockchainReactor) Restore(ctx context.Context, blocksIterator Blocks
 		firstParts := first.MakePartSet(types.BlockPartSizeBytes)
 		firstPartsHeader := firstParts.Header()
 		firstID := types.BlockID{Hash: first.Hash(), PartsHeader: firstPartsHeader}
-
-		if err := state.Validators.VerifyCommit(
-			chainID, firstID, first.Height, second.LastCommit); err != nil {
-			return fmt.Errorf("invalid commit (%d:%X): %w", first.Height, first.Hash(), err)
+		if !skipVerification {
+			if err := state.Validators.VerifyCommit(
+				chainID, firstID, first.Height, second.LastCommit); err != nil {
+				return fmt.Errorf("invalid commit (%d:%X): %w", first.Height, first.Hash(), err)
+			}
 		}
 
 		bcR.store.SaveBlock(first, firstParts, second.LastCommit)
