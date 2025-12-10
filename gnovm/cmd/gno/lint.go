@@ -401,9 +401,7 @@ func lintTargetName(pkg *packages.Package) string {
 	return tryRelativizePath(pkg.Dir)
 }
 
-// lintRenderSignature checks if a Render function in the package has the
-// expected signature: func Render(string) string
-// Methods are ignored (e.g. func (t *Type) Render()).
+// lintRenderSignature checks if a Render function in the package has the expected signature
 // Returns error if the signature is incorrect.
 func lintRenderSignature(io commands.IO, pkg *types.Package) error {
 	// ignore pure package and ephemeral realms
