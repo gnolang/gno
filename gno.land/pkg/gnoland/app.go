@@ -476,10 +476,12 @@ func EndBlocker(
 		}
 
 		// Run the VM to get the updates from the chain
-		response, err := vmk.QueryEval(
-			ctx,
-			valRealm,
-			fmt.Sprintf("%s(%d)", valChangesFn, app.LastBlockHeight()),
+		response, err := vmk.QueryEval(ctx,
+			vm.QueryMsgEval{
+				PkgPath: valRealm,
+				Expr:    fmt.Sprintf("%s(%d)", valChangesFn, app.LastBlockHeight()),
+				Format:  vm.QueryFormatMachine,
+			},
 		)
 		if err != nil {
 			app.Logger().Error("unable to call VM during EndBlocker", "err", err)

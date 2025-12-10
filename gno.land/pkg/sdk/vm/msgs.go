@@ -237,3 +237,36 @@ func (msg MsgRun) GetSigners() []crypto.Address {
 func (msg MsgRun) GetReceived() std.Coins {
 	return msg.Send
 }
+
+//----------------------------------------
+// QueryMsgCall
+
+// QueryMsgEval - eval a Gno Expr.
+type QueryMsgEval struct {
+	PkgPath string      `json:"pkg_path" yaml:"pkg_path"`
+	Expr    string      `json:"expr" yaml:"expr"`
+	Format  QueryFormat `json:"format" yaml:"format"`
+}
+
+var _ std.QueryMsg = QueryMsgEval{}
+
+func NewMsgEval(format QueryFormat, pkgPath, expr string) QueryMsgEval {
+	return QueryMsgEval{
+		PkgPath: pkgPath,
+		Expr:    expr,
+		Format:  format,
+	}
+}
+
+// Implements QueryMsgMsg.
+func (msg QueryMsgEval) ValidateBasic() error {
+	if msg.Expr == "" {
+		return ErrInvalidExpr("missing expr to eval")
+	}
+
+	if !msg.Format.Validate() {
+		return ErrInvalidQueryFormat("invalid format: " + string(msg.Format))
+	}
+
+	return nil
+}

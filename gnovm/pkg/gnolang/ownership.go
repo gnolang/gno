@@ -45,7 +45,10 @@ type ObjectID struct {
 }
 
 func (oid ObjectID) MarshalAmino() (string, error) {
-	pid := hex.EncodeToString(oid.PkgID.Hashlet[:])
+	var pid string
+	if !oid.IsZero() {
+		pid = hex.EncodeToString(oid.PkgID.Hashlet[:])
+	}
 	return fmt.Sprintf("%s:%d", pid, oid.NewTime), nil
 }
 
@@ -54,9 +57,12 @@ func (oid *ObjectID) UnmarshalAmino(oids string) error {
 	if len(parts) != 2 {
 		return errors.New("invalid ObjectID %s", oids)
 	}
-	_, err := hex.Decode(oid.PkgID.Hashlet[:], []byte(parts[0]))
-	if err != nil {
-		return err
+	oid.PkgID.Hashlet = Hashlet{} // zero out
+	if len(parts[0]) > 0 {
+		_, err := hex.Decode(oid.PkgID.Hashlet[:], []byte(parts[0]))
+		if err != nil {
+			return err
+		}
 	}
 	newTime, err := strconv.Atoi(parts[1])
 	if err != nil {

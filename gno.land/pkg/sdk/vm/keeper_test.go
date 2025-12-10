@@ -586,6 +586,74 @@ func Echo(cur realm, msg string) string {
 	assert.Error(t, err)
 }
 
+func TestVMKeeperEvalJSONFormatting2(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+
+	tests := []struct {
+		name     string
+		pkgBody  string
+		expr     string
+		expected string
+	}{
+		{
+			name:     "JSON string",
+			pkgBody:  `func GetString() string { return "hello" }`,
+			expr:     "GetString()",
+			expected: `["hello"]`,
+		},
+		{
+			name:     "JSON integer",
+			pkgBody:  `func GetInt() int { return 42 }`,
+			expr:     "GetInt()",
+			expected: `[42]`,
+		},
+		{
+			name:     "JSON boolean",
+			pkgBody:  `func GetBool() bool { return true }`,
+			expr:     "GetBool()",
+			expected: `[true]`,
+		},
+		{
+			name:     "JSON bytes",
+			pkgBody:  `func GetBytes() []byte { return []byte("test") }`,
+			expr:     "GetBytes()",
+			expected: `["dGVzdA=="]`,
+		},
+		{
+			name:     "JSON multiple values",
+			pkgBody:  `func GetMulti() (string, int) { return "hello", 42 }`,
+			expr:     "GetMulti()",
+			expected: `["hello",42]`,
+		},
+	}
+
+	for i, tc := range tests {
+		pkgPath := fmt.Sprintf("gno.land/r/hello%d", i)
+		pkgBody := fmt.Sprintf("package hello%d", 1) + "\n" + tc.pkgBody
+		t.Run(tc.name, func(t *testing.T) {
+			files := []*gnovm.MemFile{
+				{Name: "hello.gno", Body: pkgBody},
+			}
+
+			msg1 := NewMsgAddPackage(addr, pkgPath, files)
+			err := env.vmk.AddPackage(ctx, msg1)
+			assert.NoError(t, err)
+			env.vmk.CommitGnoTransactionStore(ctx)
+
+			cfgEval := QueryMsgEval{Expr: tc.expr, PkgPath: pkgPath, Format: QueryFormatJSON}
+			res, err := env.vmk.QueryEval(env.ctx, cfgEval)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, res)
+		})
+	}
+}
+
 // Using x/params from a realm.
 func TestVMKeeperParams(t *testing.T) {
 	env := setupTestEnv()

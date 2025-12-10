@@ -307,6 +307,14 @@ func (hiv *HeapItemValue) String() string {
 // ----------------------------------------
 // *TypedValue.Sprint
 
+func (tv *TypedValue) ImplStringer() bool {
+	return IsImplementedBy(gStringerType, tv.T)
+}
+
+func (tv *TypedValue) ImplError() bool {
+	return IsImplementedBy(gErrorType, tv.T)
+}
+
 // for print() and println().
 func (tv *TypedValue) Sprint(m *Machine) string {
 	// if undefined, just "undefined".
@@ -314,15 +322,17 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		return undefinedStr
 	}
 
-	// if implements .String(), return it.
-	if IsImplementedBy(gStringerType, tv.T) && !tv.IsNilInterface() {
-		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
-		return res[0].GetString()
-	}
-	// if implements .Error(), return it.
-	if IsImplementedBy(gErrorType, tv.T) {
-		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "Error")))
-		return res[0].GetString()
+	if !tv.IsUndefined() {
+		// if implements .String(), return it.
+		if tv.ImplStringer() {
+			res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
+			return res[0].GetString()
+		}
+		// if implements .Error(), return it.
+		if tv.ImplError() {
+			res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "Error")))
+			return res[0].GetString()
+		}
 	}
 
 	return tv.ProtectedSprint(newSeenValues(), true)

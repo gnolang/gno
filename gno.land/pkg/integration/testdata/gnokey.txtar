@@ -1,3 +1,5 @@
+loadpkg gno.land/r/dev/silo $WORK/silo
+
 # test basic gnokey integrations commands
 # golden files have been generated using UPDATE_SCRIPTS=true
 
@@ -7,6 +9,9 @@ adduser user1
 # start gnoland
 gnoland start
 
+# query
+
+## auth
 ## test1 account should be available on default
 gnokey query auth/accounts/$user1_user_addr
 stdout 'height: 0'
@@ -25,3 +30,234 @@ stdout '}'
 ! gnokey query foo/bar
 stdout 'Log:'
 stderr '"gnokey" error: unknown request error'
+
+## succeed json call: string
+gnokey -json query vm/qeval -data "gno.land/r/dev/silo.Hello(\"juliette\")"
+cmp stdout gnokey-json-call-string.stdout.golden
+cmp stderr gnokey-json-call-string.stderr.golden
+
+
+## succeed json call: error
+gnokey -json query vm/qeval -data "gno.land/r/dev/silo.Hello(\"bernard\")"
+cmp stdout gnokey-json-call-error.stdout.golden
+cmp stderr gnokey-json-call-error.stderr.golden
+
+
+## success json call: object
+gnokey -json query vm/qeval -data "gno.land/r/dev/silo.GetSilo()"
+cmp stdout gnokey-json-call-object.stdout.golden
+cmp stderr gnokey-json-call-object.stderr.golden
+
+
+## success json call: []byte
+gnokey -json query vm/qeval -data "gno.land/r/dev/silo.GetSiloData()"
+cmp stdout gnokey-json-call-bytes.stdout.golden
+cmp stderr gnokey-json-call-bytes.stderr.golden
+
+-- silo/silo.gno --
+package silo
+
+import "errors"
+
+type Silo struct {
+	Data string
+}
+
+var mysilo = Silo{
+	Data: "secret message",
+}
+
+func Hello(name string) (string, error) {
+	if name == "bernard" {
+		return "", errors.New("not for you bernard!")
+	}
+
+	return "Hello "+name, nil
+}
+
+func GetSilo() *Silo {
+	return &mysilo
+}
+
+func GetSiloData() []byte {
+	return []byte(mysilo.Data)
+}
+
+-- gnokey-json-call-string.stdout.golden --
+{
+	"response": {
+		"ResponseBase": {
+			"Error": null,
+			"Data": "eyJyZXN1bHRzIjpbeyJUIjoic3RyaW5nIiwiViI6IkhlbGxvIGp1bGlldHRlIn0seyJUIjpudWxsLCJWIjpudWxsfV19",
+			"Events": null,
+			"Log": "",
+			"Info": ""
+		},
+		"Key": null,
+		"Value": null,
+		"Proof": null,
+		"Height": "0"
+	},
+	"data": {
+		"results": [
+			{
+				"T": "string",
+				"V": "Hello juliette"
+			},
+			{
+				"T": null,
+				"V": null
+			}
+		]
+	}
+}
+
+-- gnokey-json-call-string.stderr.golden --
+-- gnokey-json-call-error.stdout.golden --
+{
+	"response": {
+		"ResponseBase": {
+			"Error": null,
+			"Data": "eyJyZXN1bHRzIjpbeyJUIjoic3RyaW5nIiwiViI6IiJ9LHsiVCI6IipSZWZUeXBle2Vycm9ycy5lcnJvclN0cmluZ30iLCJWIjp7IkB0eXBlIjoiL2duby5Qb2ludGVyVmFsdWUiLCJUViI6bnVsbCwiQmFzZSI6eyJAdHlwZSI6Ii9nbm8uUmVmVmFsdWUiLCJPYmplY3RJRCI6IjoxIn0sIkluZGV4IjoiMCJ9fV0sIkBlcnJvciI6Im5vdCBmb3IgeW91IGJlcm5hcmQhIn0=",
+			"Events": null,
+			"Log": "",
+			"Info": ""
+		},
+		"Key": null,
+		"Value": null,
+		"Proof": null,
+		"Height": "0"
+	},
+	"data": {
+		"results": [
+			{
+				"T": "string",
+				"V": ""
+			},
+			{
+				"T": "*RefType{errors.errorString}",
+				"V": {
+					"@type": "/gno.PointerValue",
+					"TV": null,
+					"Base": {
+						"@type": "/gno.RefValue",
+						"ObjectID": ":1"
+					},
+					"Index": "0"
+				}
+			}
+		],
+		"@error": "not for you bernard!"
+	}
+}
+
+-- gnokey-json-call-error.stderr.golden --
+-- gnokey-json-call-error.stdout.golden --
+{
+	"response": {
+		"ResponseBase": {
+			"Error": null,
+			"Data": "eyJyZXN1bHRzIjpbeyJUIjoic3RyaW5nIiwiViI6IiJ9LHsiVCI6IipSZWZUeXBle2Vycm9ycy5lcnJvclN0cmluZ30iLCJWIjp7IkB0eXBlIjoiL2duby5Qb2ludGVyVmFsdWUiLCJUViI6bnVsbCwiQmFzZSI6eyJAdHlwZSI6Ii9nbm8uUmVmVmFsdWUiLCJPYmplY3RJRCI6IjoxIn0sIkluZGV4IjoiMCJ9fV0sIkBlcnJvciI6Im5vdCBmb3IgeW91IGJlcm5hcmQhIn0=",
+			"Events": null,
+			"Log": "",
+			"Info": ""
+		},
+		"Key": null,
+		"Value": null,
+		"Proof": null,
+		"Height": "0"
+	},
+	"data": {
+		"results": [
+			{
+				"T": "string",
+				"V": ""
+			},
+			{
+				"T": "*RefType{errors.errorString}",
+				"V": {
+					"@type": "/gno.PointerValue",
+					"TV": null,
+					"Base": {
+						"@type": "/gno.RefValue",
+						"ObjectID": ":1"
+					},
+					"Index": "0"
+				}
+			}
+		],
+		"@error": "not for you bernard!"
+	}
+}
+
+-- gnokey-json-call-error.stderr.golden --
+-- gnokey-json-call-object.stdout.golden --
+{
+	"response": {
+		"ResponseBase": {
+			"Error": null,
+			"Data": "eyJyZXN1bHRzIjpbeyJUIjoiKlJlZlR5cGV7Z25vLmxhbmQvci9kZXYvc2lsby5TaWxvfSIsIlYiOnsiQHR5cGUiOiIvZ25vLlBvaW50ZXJWYWx1ZSIsIlRWIjpudWxsLCJCYXNlIjp7IkB0eXBlIjoiL2duby5SZWZWYWx1ZSIsIk9iamVjdElEIjoiNmFlZDJlZGE3MmM3OWU0MTFlZWMxZWE3ZjY2MWM1ZTMwMzgzZmI1OToyIiwiRXNjYXBlZCI6dHJ1ZX0sIkluZGV4IjoiMSJ9fV19",
+			"Events": null,
+			"Log": "",
+			"Info": ""
+		},
+		"Key": null,
+		"Value": null,
+		"Proof": null,
+		"Height": "0"
+	},
+	"data": {
+		"results": [
+			{
+				"T": "*RefType{gno.land/r/dev/silo.Silo}",
+				"V": {
+					"@type": "/gno.PointerValue",
+					"TV": null,
+					"Base": {
+						"@type": "/gno.RefValue",
+						"ObjectID": "6aed2eda72c79e411eec1ea7f661c5e30383fb59:2",
+						"Escaped": true
+					},
+					"Index": "1"
+				}
+			}
+		]
+	}
+}
+
+-- gnokey-json-call-object.stderr.golden --
+-- gnokey-json-call-bytes.stdout.golden --
+{
+	"response": {
+		"ResponseBase": {
+			"Error": null,
+			"Data": "eyJyZXN1bHRzIjpbeyJUIjoiW111aW50OCIsIlYiOnsiQHR5cGUiOiIvZ25vLlNsaWNlVmFsdWUiLCJCYXNlIjp7IkB0eXBlIjoiL2duby5SZWZWYWx1ZSIsIk9iamVjdElEIjoiOjEifSwiT2Zmc2V0IjoiMCIsIkxlbmd0aCI6IjE0IiwiTWF4Y2FwIjoiMTYifX1dfQ==",
+			"Events": null,
+			"Log": "",
+			"Info": ""
+		},
+		"Key": null,
+		"Value": null,
+		"Proof": null,
+		"Height": "0"
+	},
+	"data": {
+		"results": [
+			{
+				"T": "[]uint8",
+				"V": {
+					"@type": "/gno.SliceValue",
+					"Base": {
+						"@type": "/gno.RefValue",
+						"ObjectID": ":1"
+					},
+					"Offset": "0",
+					"Length": "14",
+					"Maxcap": "16"
+				}
+			}
+		]
+	}
+}
+
+-- gnokey-json-call-bytes.stderr.golden --
