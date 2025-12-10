@@ -684,7 +684,6 @@ func (ml *MapList) Append(alloc *Allocator, key TypedValue) *MapListItem {
 		ml.Tail = item
 		ml.Size = 1
 	} else {
-		item.Prev = ml.Tail
 		ml.Tail.Next = item
 		ml.Tail = item
 		ml.Size++
