@@ -1,10 +1,13 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"sort"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/conns"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/conns/wsconn"
@@ -81,6 +84,10 @@ func (j *JSONRPC) SetupRoutes(mux *chi.Mux) *chi.Mux {
 	// OPTIONS requests are ignored
 	mux.Options("/", func(http.ResponseWriter, *http.Request) {})
 
+	// Browser-friendly endpoints (GET)
+	mux.Get("/", j.handleIndexRequest)
+	mux.Get("/{method}", j.handleHTTPGetRequest)
+
 	// Register the POST method handler for HTTP requests
 	mux.Post("/", j.handleHTTPRequest)
 
@@ -92,8 +99,8 @@ func (j *JSONRPC) SetupRoutes(mux *chi.Mux) *chi.Mux {
 
 // RegisterHandler registers a new method handler,
 // overwriting existing ones, if any
-func (j *JSONRPC) RegisterHandler(method string, handler Handler) {
-	j.handlers.addHandler(method, handler)
+func (j *JSONRPC) RegisterHandler(method string, handler Handler, paramNames ...string) {
+	j.handlers.addHandler(method, handler, paramNames...)
 }
 
 // UnregisterHandler removes the method handler for the specified method, if any
@@ -280,15 +287,122 @@ func (j *JSONRPC) route(
 	request *spec.BaseJSONRequest,
 ) (any, *spec.BaseJSONError) {
 	// Get the appropriate handler
-	handler := j.handlers[request.Method]
-	if handler == nil {
+	entry, ok := j.handlers[request.Method]
+	if !ok {
 		return nil, spec.NewJSONError(
 			"Method handler not set",
 			spec.MethodNotFoundErrorCode,
 		)
 	}
 
-	return handler(metadata, request.Params)
+	return entry.fn(metadata, request.Params)
+}
+
+// handleHTTPGetRequest parses the GET request, extracts the query params, and passes
+// the JSON-RPC request on for further processing
+func (j *JSONRPC) handleHTTPGetRequest(w http.ResponseWriter, r *http.Request) {
+	method := chi.URLParam(r, "method")
+
+	entry, ok := j.handlers[method]
+	if !ok {
+		http.Error(w, "method not found", http.StatusNotFound)
+
+		return
+	}
+
+	q := r.URL.Query()
+
+	// Query param order does not actually matter, but the ordering of
+	// the params for the POST handler does. Because of this, we build the
+	// params slice in the canonical order defined by the param names
+	params := make([]any, len(entry.paramNames))
+	for i, name := range entry.paramNames {
+		val := q.Get(name)
+		if val == "" {
+			params[i] = nil
+
+			continue
+		}
+
+		params[i] = val
+	}
+
+	baseReq := &spec.BaseJSONRequest{
+		BaseJSON: spec.BaseJSON{
+			JSONRPC: spec.JSONRPCVersion,
+			ID:      0,
+		},
+		Method: method,
+		Params: params,
+	}
+
+	w.Header().Set("Content-Type", jsonMimeType)
+
+	j.handleRequest(
+		metadata.NewMetadata(r.RemoteAddr),
+		httpWriter.New(j.logger, w),
+		spec.BaseJSONRequests{baseReq},
+	)
+}
+
+// handleIndexRequest writes the list of available rpc endpoints as an HTML page
+func (j *JSONRPC) handleIndexRequest(w http.ResponseWriter, r *http.Request) {
+	// Separate methods with and without args
+	noArgNames := make([]string, 0, len(j.handlers))
+	argNames := make([]string, 0, len(j.handlers))
+
+	for name, entry := range j.handlers {
+		if len(entry.paramNames) == 0 {
+			noArgNames = append(noArgNames, name)
+
+			continue
+		}
+
+		argNames = append(argNames, name)
+	}
+
+	sort.Strings(noArgNames)
+	sort.Strings(argNames)
+
+	var buf bytes.Buffer
+
+	buf.WriteString("<html><body>")
+	buf.WriteString("<br>Available endpoints:<br>")
+
+	host := r.Host
+
+	// Endpoints without arguments
+	for _, name := range noArgNames {
+		link := fmt.Sprintf("//%s/%s", host, name)
+		fmt.Fprintf(&buf, "<a href=\"%s\">%s</a></br>", link, link)
+	}
+
+	buf.WriteString("<br>Endpoints that require arguments:<br>")
+
+	// Endpoints with arguments
+	for _, name := range argNames {
+		entry := j.handlers[name]
+
+		link := fmt.Sprintf("//%s/%s?", host, name)
+		for i, argName := range entry.paramNames {
+			link += argName + "=_"
+
+			if i < len(entry.paramNames)-1 {
+				link += "&"
+			}
+		}
+
+		fmt.Fprintf(&buf, "<a href=\"%s\">%s</a></br>", link, link)
+	}
+
+	buf.WriteString("</body></html>")
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+
+	if _, err := buf.WriteTo(w); err != nil {
+		j.logger.Error("failed to write RPC endpoint index", "err", err)
+	}
 }
 
 // isValidBaseRequest validates that the base JSON request is valid
