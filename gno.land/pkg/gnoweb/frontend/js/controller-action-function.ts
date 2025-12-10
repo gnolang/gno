@@ -110,23 +110,23 @@ export class ActionFunctionController extends BaseController {
 	}
 
 	// initialize the args
-  private _initializeArgs(): void {
-    // multiple values (radio or checkbox) to be initialized only once
-    const processed = new Set<string>();
+	private _initializeArgs(): void {
+		// multiple values (radio or checkbox) to be initialized only once
+		const processed = new Set<string>();
 
-    // initialize the args
-    this.getTargets("param-input").forEach((paramInput) => {
-      const input = paramInput as HTMLInputElement;
-      const paramName = this.getValue("param", input) || "";
+		// initialize the args
+		this.getTargets("param-input").forEach((paramInput) => {
+			const input = paramInput as HTMLInputElement;
+			const paramName = this.getValue("param", input) || "";
 
-      if (!paramName || processed.has(paramName)) return;
+			if (!paramName || processed.has(paramName)) return;
 
-      const paramValue = this._getParamCurrentValue(paramName);
-      if (paramValue) this._updateArgInDOM(paramName, paramValue);
+			const paramValue = this._getParamCurrentValue(paramName);
+			if (paramValue) this._updateArgInDOM(paramName, paramValue);
 
-      processed.add(paramName);
-    });
-  }
+			processed.add(paramName);
+		});
+	}
 
 	// debounced update all args and update the qeval result
 	private _debouncedUpdateAllArgs = debounce(
