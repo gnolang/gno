@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/backup/v1"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/require"
@@ -67,7 +68,9 @@ func generateBackup(t *testing.T, backupDir string, height int64) {
 
 	err = backup.WithWriter(backupDir, 0, height, zap.NewNop(), func(startHeight int64, write backup.Writer) error {
 		for i := startHeight; i <= height; i++ {
-			require.NoError(t, write(node.BlockStore().LoadBlock(i)))
+			data, err := amino.Marshal(node.BlockStore().LoadBlock(i))
+			require.NoError(t, err)
+			require.NoError(t, write(data))
 		}
 		return nil
 	})
