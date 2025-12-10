@@ -96,7 +96,6 @@ func exportCopyValueWithRefs(val Value, m map[Object]int) Value {
 			Maxcap: cv.Maxcap,
 		}
 	case *StructValue:
-		fmt.Println("my struct")
 		fields := make([]TypedValue, len(cv.Fields))
 		for i, ftv := range cv.Fields {
 			fields[i] = exportValue(ftv, m)

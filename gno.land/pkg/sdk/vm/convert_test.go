@@ -225,40 +225,48 @@ func TestConvertEmptyNumbers(t *testing.T) {
 // }
 
 func TestConvertError(t *testing.T) {
-	t.Run("empty string error", func(t *testing.T) {
-		m := gnolang.NewMachine("testdata", nil)
-		defer m.Release()
-
-		nn := gnolang.MustParseFile("testdata.gno", `
-package testdata
-type myError struct { }
-func (err myError) Error() string { return %q }
-var Value error = &myError{})`,
-		)
-
-		m.RunFiles(nn)
-		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
-
-		tps := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
-		require.Len(t, tps, 1)
-
-		tv := tps[0]
-		rep := stringifyJSONResults(m, []gnolang.TypedValue{tv})
-		// require.Equal(t, tc.Expected, rep)
-
-	})
-
 	cases := []struct {
-		ValueRep string // Go representation
-		Expected string // string representation
+		name     string
+		errorMsg string
+		expected string
 	}{
 		{
-			"my error",
-			`{"$error":"my error"}`,
+			name:     "non-empty error",
+			errorMsg: "my error",
+			// Value type is the concrete *myError even though declared as error interface
+			expected: `{"results":[{"T":"*RefType{testdata.myError}","V":{"@type":"/gno.PointerValue","TV":null,"Base":{"@type":"/gno.RefValue","ObjectID":":1","Escaped":true},"Index":"0"}}],"@error":"my error"}`,
 		},
 		{
-			"", // empty error
-			`{"$error":""}`,
+			name:     "empty error",
+			errorMsg: "",
+			expected: `{"results":[{"T":"*RefType{testdata.myError}","V":{"@type":"/gno.PointerValue","TV":null,"Base":{"@type":"/gno.RefValue","ObjectID":":1","Escaped":true},"Index":"0"}}],"@error":""}`,
 		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := gnolang.NewMachine("testdata", nil)
+			defer m.Release()
+
+			code := fmt.Sprintf(`
+package testdata
+type myError struct { }
+func (err *myError) Error() string { return %q }
+var Value error = &myError{}`, tc.errorMsg)
+
+			nn := m.MustParseFile("testdata.gno", code)
+			m.RunFiles(nn)
+			m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+			tps := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+			require.Len(t, tps, 1)
+
+			tv := tps[0]
+			// Use signature-based detection: pass error type as lastReturnType
+			// to simulate MsgCall behavior where function signature is known.
+			// We use gErrorType (via IsErrorType) to check if signature declares error.
+			rep := stringifyJSONResults(m, []gnolang.TypedValue{tv}, tv.T)
+			require.Equal(t, tc.expected, rep)
+		})
 	}
 }

@@ -593,7 +593,7 @@ func TestVMKeeperEvalJSONFormatting2(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(9000000)))
 
 	tests := []struct {
 		name     string
@@ -637,7 +637,7 @@ func TestVMKeeperEvalJSONFormatting2(t *testing.T) {
 		pkgPath := fmt.Sprintf("gno.land/r/hello%d", i)
 		pkgBody := fmt.Sprintf("package hello%d", 1) + "\n" + tc.pkgBody
 		t.Run(tc.name, func(t *testing.T) {
-			files := []*gnovm.MemFile{
+			files := []*std.MemFile{
 				{Name: "hello.gno", Body: pkgBody},
 			}
 

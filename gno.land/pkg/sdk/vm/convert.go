@@ -216,7 +216,12 @@ type jsonResults struct {
 	Error   *string         `json:"@error,omitempty"`
 }
 
-func stringifyJSONResults(m *gno.Machine, tvs []gno.TypedValue) string {
+// stringifyJSONResults converts TypedValues to JSON format.
+// lastReturnType is the function signature's last return type (if available).
+// When lastReturnType is provided, error detection is signature-based (per spec):
+// only extract @error if the function signature declares an error return type.
+// When lastReturnType is nil, fallback to value-based detection (for QueryEval).
+func stringifyJSONResults(m *gno.Machine, tvs []gno.TypedValue, lastReturnType gno.Type) string {
 	jres := jsonResults{Results: []byte("[]")}
 	if len(tvs) > 0 {
 		var err error
@@ -226,9 +231,23 @@ func stringifyJSONResults(m *gno.Machine, tvs []gno.TypedValue) string {
 			panic("unable to marshal results")
 		}
 
+		// Check for error based on function signature (spec Step 2):
+		// "If the func return type's last element is exactly a named or unnamed
+		// interface type which implements error, then .Error() is called."
 		last := tvs[len(tvs)-1]
-		if err, ok := tryGetError(m, last); ok {
-			jres.Error = &err
+		shouldExtractError := false
+		if lastReturnType != nil {
+			// Signature-based: check if declared return type implements error
+			shouldExtractError = gno.IsErrorType(lastReturnType)
+		} else {
+			// Fallback for QueryEval: value-based detection
+			shouldExtractError = last.ImplError()
+		}
+
+		if shouldExtractError {
+			if errStr, ok := tryGetError(m, last); ok {
+				jres.Error = &errStr
+			}
 		}
 	}
 

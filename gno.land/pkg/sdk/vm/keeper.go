@@ -634,7 +634,12 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	defer doRecover(m, &err)
 
 	rtvs := m.Eval(xn)
-	res = stringifyResultValues(m, QueryFormatMachine, rtvs)
+	// Extract last return type from function signature for signature-based error detection
+	var lastReturnType gno.Type
+	if len(ft.Results) > 0 {
+		lastReturnType = ft.Results[len(ft.Results)-1].Type
+	}
+	res = stringifyResultValues(m, QueryFormatMachine, rtvs, lastReturnType)
 
 	// Use `\n\n` as separator to separate results for single tx with multi msgs
 	res += "\n\n"
@@ -1014,7 +1019,9 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, msg QueryMsgEval) (res string, er
 		return "", err
 	}
 	rtvs := m.Eval(xx)
-	return stringifyResultValues(m, msg.Format, rtvs), nil
+	// For QueryEval, we don't have function signature info, so pass nil
+	// (will fallback to value-based error detection in stringifyJSONResults)
+	return stringifyResultValues(m, msg.Format, rtvs, nil), nil
 }
 
 func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {
@@ -1044,7 +1051,10 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 	}
 }
 
-func stringifyResultValues(m *gno.Machine, format QueryFormat, values []gno.TypedValue) string {
+// stringifyResultValues converts TypedValues to a string representation based on format.
+// lastReturnType is optional and used for JSON format to determine if the function's
+// signature declares an error return type (for signature-based error detection per spec).
+func stringifyResultValues(m *gno.Machine, format QueryFormat, values []gno.TypedValue, lastReturnType gno.Type) string {
 	if format == "" {
 		format = QueryFormatDefault
 	}
@@ -1071,7 +1081,7 @@ func stringifyResultValues(m *gno.Machine, format QueryFormat, values []gno.Type
 		panic(fmt.Errorf("expected 1 `string` or `Stringer` result, got %v", tv.T.Kind()))
 
 	case QueryFormatJSON:
-		return stringifyJSONResults(m, values)
+		return stringifyJSONResults(m, values, lastReturnType)
 	case QueryFormatDefault, "":
 		var res strings.Builder
 

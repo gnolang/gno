@@ -45,11 +45,11 @@ func TestConvertJSONValuePrimtive(t *testing.T) {
 		// DataByteType (assuming DataByte is an alias for uint8)
 		{"uint8(42)", `{"T":"uint8","V":42}`},
 
-		// Byte slice
-		{`[]byte("AB")`, `{"T":"[]uint8","V":{"@type":"/gno.SliceValue","Base":{"@type":"/gno.RefValue"},"Offset":"0","Length":"2","Maxcap":"8"}}`},
+		// Byte slice - Base is a RefValue reference with ObjectID
+		{`[]byte("AB")`, `{"T":"[]uint8","V":{"@type":"/gno.SliceValue","Base":{"@type":"/gno.RefValue","ObjectID":":1","Escaped":true},"Offset":"0","Length":"2","Maxcap":"8"}}`},
 
-		// Byte array
-		{`[2]byte{0x41, 0x42}`, `{"T":"[2]uint8","V":{"@type":"/gno.RefValue"}}`},
+		// Byte array - exported as RefValue reference
+		{`[2]byte{0x41, 0x42}`, `{"T":"[2]uint8","V":{"@type":"/gno.RefValue","ObjectID":":1","Escaped":true}}`},
 
 		// XXX: BigInt
 		// XXX: BigDec
@@ -60,7 +60,7 @@ func TestConvertJSONValuePrimtive(t *testing.T) {
 			m := NewMachine("testdata", nil)
 			defer m.Release()
 
-			nn := MustParseFile("testdata.gno",
+			nn := m.MustParseFile("testdata.gno",
 				fmt.Sprintf(`package testdata; var Value = %s`, tc.ValueRep))
 			m.RunFiles(nn)
 			m.RunDeclaration(ImportD("testdata", "testdata"))
@@ -93,9 +93,9 @@ func (e *E) String() string { return e.S }
 
 		const expected = `{"T":"*RefType{testdata.E}","V":null}`
 
-		nn := MustParseFile("struct.gno", StructsFile)
+		nn := m.MustParseFile("struct.gno", StructsFile)
 		m.RunFiles(nn)
-		nn = MustParseFile("testdata.gno", `package testdata; var Value *E = nil`)
+		nn = m.MustParseFile("testdata.gno", `package testdata; var Value *E = nil`)
 		m.RunFiles(nn)
 		m.RunDeclaration(ImportD("testdata", "testdata"))
 
@@ -114,11 +114,12 @@ func (e *E) String() string { return e.S }
 		defer m.Release()
 
 		const value = "Hello World"
-		const expected = `{"T":"testdata.E","V":{"@type":"/gno.StructValue","ObjectInfo":{"ID":":1","ModTime":"0","RefCount":"0"},"Fields":[{"T":{"@type":"/gno.PrimitiveType","value":"16"},"V":{"@type":"/gno.StringValue","value":"Hello World"}}]}}`
+		// Struct values are exported as RefValue references to break cycles
+		const expected = `{"T":"testdata.E","V":{"@type":"/gno.RefValue","ObjectID":":1","Escaped":true}}`
 
-		nn := MustParseFile("struct.gno", StructsFile)
+		nn := m.MustParseFile("struct.gno", StructsFile)
 		m.RunFiles(nn)
-		nn = MustParseFile("testdata.gno",
+		nn = m.MustParseFile("testdata.gno",
 			fmt.Sprintf(`package testdata; var Value = E{%q}`, value))
 		m.RunFiles(nn)
 		m.RunDeclaration(ImportD("testdata", "testdata"))
@@ -139,11 +140,12 @@ func (e *E) String() string { return e.S }
 		defer m.Release()
 
 		const value = "Hello World"
-		const expected = `{"T":"*RefType{testdata.E}","V":{"@type":"/gno.PointerValue","TV":null,"Base":{"@type":"/gno.HeapItemValue","ObjectInfo":{"ID":":1","ModTime":"0","RefCount":"0"},"Value":{"T":{"@type":"/gno.RefType","ID":"testdata.E"},"V":{"@type":"/gno.StructValue","ObjectInfo":{"ID":":2","ModTime":"0","RefCount":"0"},"Fields":[{"T":{"@type":"/gno.PrimitiveType","value":"16"},"V":{"@type":"/gno.StringValue","value":"Hello World"}}]}}},"Index":"0"}}`
+		// Pointer values have their Base as RefValue reference
+		const expected = `{"T":"*RefType{testdata.E}","V":{"@type":"/gno.PointerValue","TV":null,"Base":{"@type":"/gno.RefValue","ObjectID":":1","Escaped":true},"Index":"0"}}`
 
-		nn := MustParseFile("struct.gno", StructsFile)
+		nn := m.MustParseFile("struct.gno", StructsFile)
 		m.RunFiles(nn)
-		nn = MustParseFile("testdata.gno",
+		nn = m.MustParseFile("testdata.gno",
 			fmt.Sprintf(`package testdata; var Value = &E{%q}`, value))
 		m.RunFiles(nn)
 		m.RunDeclaration(ImportD("testdata", "testdata"))
@@ -174,7 +176,7 @@ func init() {
 	m := NewMachine("testdata", nil)
 	defer m.Release()
 
-	nn := MustParseFile("testdata.gno", RecursiveValueFile)
+	nn := m.MustParseFile("testdata.gno", RecursiveValueFile)
 	m.RunFiles(nn)
 	m.RunDeclaration(ImportD("testdata", "testdata"))
 
@@ -202,7 +204,7 @@ func init() {
 	m := NewMachine("testdata", nil)
 	defer m.Release()
 
-	nn := MustParseFile("testdata.gno", RecursiveValueFile)
+	nn := m.MustParseFile("testdata.gno", RecursiveValueFile)
 	m.RunFiles(nn)
 	m.RunDeclaration(ImportD("testdata", "testdata"))
 
