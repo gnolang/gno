@@ -7,8 +7,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/klauspost/compress/zstd"
 	"go.uber.org/zap"
 )
@@ -18,7 +16,7 @@ const (
 	nextChunkFilename = "next-chunk" + archiveSuffix
 )
 
-type Writer = func(block *types.Block) error
+type Writer = func(bytes []byte) error
 
 // WithWriter creates a backup writer and pass it to the provided cb.
 // write should not be called concurently
@@ -103,18 +101,9 @@ type writerImpl struct {
 	state      *backupState
 }
 
-func (b *writerImpl) write(block *types.Block) error {
+func (b *writerImpl) write(blockBz []byte) error {
 	if b.poisoned {
 		return errors.New("poisoned")
-	}
-
-	if block.Height != b.nextHeight {
-		return fmt.Errorf("non-contiguous block received, expected height #%d, got #%d", b.nextHeight, block.Height)
-	}
-
-	blockBz, err := amino.Marshal(block)
-	if err != nil {
-		return fmt.Errorf("marshal block: %w", err)
 	}
 
 	header := tar.Header{

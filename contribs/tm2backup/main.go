@@ -8,11 +8,9 @@ import (
 	"os"
 
 	"connectrpc.com/connect"
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/backup/backuppb"
 	"github.com/gnolang/gno/tm2/pkg/bft/backup/backuppb/backuppbconnect"
 	"github.com/gnolang/gno/tm2/pkg/bft/backup/v1"
-	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -82,7 +80,7 @@ func execBackup(ctx context.Context, c *backupCfg, io commands.IO) (resErr error
 	core := zapcore.NewCore(zapcore.NewConsoleEncoder(config.EncoderConfig), zapcore.AddSync(io.Out()), config.Level)
 	logger := zap.New(core)
 
-	return backup.WithWriter(c.outDir, c.startHeight, c.endHeight, logger, func(startHeight int64, write func(block *types.Block) error) error {
+	return backup.WithWriter(c.outDir, c.startHeight, c.endHeight, logger, func(startHeight int64, write func(bytes []byte) error) error {
 		client := backuppbconnect.NewBackupServiceClient(
 			http.DefaultClient,
 			c.remote,
@@ -105,15 +103,7 @@ func execBackup(ctx context.Context, c *backupCfg, io commands.IO) (resErr error
 				return res.Err()
 			}
 
-			// XXX: we unmarshal the block which is remarshalled in the backup writer just after.
-			// This choice was made to have a more stable interface than bytes.
-			// If this proves to be a bottleneck, we should revist.
-			block := &types.Block{}
-			if err := amino.Unmarshal(res.Msg().Data, block); err != nil {
-				return err
-			}
-
-			if err := write(block); err != nil {
+			if err := write(res.Msg().Data); err != nil {
 				return err
 			}
 		}
