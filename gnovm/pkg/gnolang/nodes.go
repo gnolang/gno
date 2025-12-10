@@ -388,25 +388,6 @@ const (
 	NameExprTypeLoopVarHeapUse
 )
 
-var nameExprTypeStrings = [...]string{
-	NameExprTypeNormal:            "Normal",
-	NameExprTypeDefine:            "Define",
-	NameExprTypeHeapDefine:        "HeapDefine",
-	NameExprTypeHeapUse:           "HeapUse",
-	NameExprTypeHeapClosure:       "HeapClosure",
-	NameExprTypeLoopVarDefine:     "LoopVarDefine",
-	NameExprTypeLoopVarUse:        "LoopVarUse",
-	NameExprTypeLoopVarHeapDefine: "LoopVarHeapDefine",
-	NameExprTypeLoopVarHeapUse:    "LoopVarHeapUse",
-}
-
-func (t NameExprType) String() string {
-	if int(t) < 0 || int(t) >= len(nameExprTypeStrings) {
-		return fmt.Sprintf("NameExprType(%d)", t)
-	}
-	return nameExprTypeStrings[t]
-}
-
 type NameExpr struct {
 	Attributes
 	// TODO rename .Path's to .ValuePaths.
@@ -1991,7 +1972,7 @@ func (sb *StaticBlock) FindNameSkipPredefined(store Store, n Name) bool {
 	gen++
 	bp := sb.GetParentNode(store)
 	for bp != nil {
-		if _, loopvar, ok := sb.GetLocalIndexSkipPredefined(n); ok {
+		if _, loopvar, ok := bp.GetStaticBlock().GetLocalIndexSkipPredefined(n); ok {
 			// found a NameExpr with type NameExprTypeLoopVarDefine
 			return loopvar
 		} else {
@@ -2006,7 +1987,8 @@ func (sb *StaticBlock) FindNameSkipPredefined(store Store, n Name) bool {
 }
 
 func (sb *StaticBlock) GetLocalIndexSkipPredefined(n Name) (uint16, bool, bool) {
-	fmt.Println("===GetLocalIndexSkipPredefined, n: ", n)
+	// fmt.Println("===GetLocalIndexSkipPredefined, sb: ", sb.Block)
+	// fmt.Println("===GetLocalIndexSkipPredefined, n: ", n)
 	// if loopvar is found.
 	var loopvar bool
 
@@ -2029,11 +2011,11 @@ func (sb *StaticBlock) GetLocalIndexSkipPredefined(n Name) (uint16, bool, bool) 
 	}
 
 	// if not found above, looking for loopvar.
+	n2 := Name(fmt.Sprintf(".loopvar_%s", n))
+	// fmt.Println("===n2: ", n2)
 	for i, name := range sb.Names {
-		println("===search loopvar")
-		n = Name(fmt.Sprintf(".loopvar_%s", n))
-		fmt.Println("===n: ", n)
-		if name == n {
+		// println("===search loopvar")
+		if name == n2 {
 			if debug {
 				nt := reflect.TypeOf(sb.Source).String()
 				debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",

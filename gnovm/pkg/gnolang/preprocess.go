@@ -1124,6 +1124,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					case TRANS_ASSIGN_LHS:
 						fmt.Println("---Trans_Assign_LHS")
 						as := ns[len(ns)-1].(*AssignStmt)
+						renameLoopVar(last, n)
 						fillNameExprPath(last, n, as.Op == DEFINE)
 						return n, TRANS_CONTINUE
 					case TRANS_VAR_NAME:
