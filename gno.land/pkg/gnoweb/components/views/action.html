@@ -80,14 +80,15 @@ UI - Help Function component
       </span>
       <span class="b-btns">
         <button class="b-btn b-btn--secondary c-with-icon" aria-label="Copy Function" data-controller="copy"
-          data-action="click->copy#copy" data-copy-text-value="{{ buildHelpURL $data . }}" title="Function anchor link">
+          data-action-function-target="function-anchor" data-action="click->copy#copy"
+          data-copy-text-value="{{ buildHelpURL $data . }}" title="Function anchor link">
           <svg class="c-icon">
             <use href="#ico-link" data-copy-target="icon"></use>
             <use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use>
           </svg>
           <span>Link</span>
         </button>
-        <a href="{{ buildHelpURL $data . }}" data-action-function-target="function-link"
+        <a href="{{ buildHelpURL $data . }}" data-action-function-target="function-execute"
           title="Function transaction link" class="b-btn b-btn--secondary c-with-icon">
           <svg class="c-icon">
             <use href="#ico-tx-link"></use>
@@ -148,6 +149,7 @@ UI - Help Function component
     </form>
     <div>
       <h3 class="title">Command</h3>
+      <!-- change here -->
       <div class="b-code u-mb-2">
         <button data-controller="copy" data-action="click->copy#copy"
           data-copy-remote-value="action-function-{{ .Name }}" data-copy-clean-value class="btn-copy"
@@ -170,6 +172,10 @@ gnokey broadcast -remote "{{ $.Remote }}" call.tx</span></code></pre>
         {{ end }}
         {{/* prettier-ignore-end */}}
       </div>
+      <!-- chgange fin here -->
+      <!-- change here -->
+      {{ template "ui/command" (buildCommandData $data .) }}
+      <!-- chgange fin here -->
     </div>
     {{ if not .Crossing }}
     <div class="b-action-result">
