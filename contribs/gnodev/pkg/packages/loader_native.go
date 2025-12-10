@@ -22,43 +22,45 @@ type NativeLoader struct {
 	gnoRoot         string
 	extraWorkspaces []string
 	remoteOverrides map[string]string // domain -> rpc URL
-	out             io.Writer
 }
 
-type NativeLoaderOption func(*NativeLoader)
-
-func WithLogger(logger *slog.Logger) NativeLoaderOption {
-	return func(l *NativeLoader) { l.logger = logger }
+type NativeLoaderConfig struct {
+	Logger          *slog.Logger
+	GnoRoot         string
+	ExtraWorkspaces []string
+	RemoteOverrides map[string]string
 }
 
-func WithGnoRoot(root string) NativeLoaderOption {
-	return func(l *NativeLoader) { l.gnoRoot = root }
+// logWriter wraps a logger as an io.Writer
+type logWriter struct {
+	logger *slog.Logger
 }
 
-func WithExtraWorkspaces(roots ...string) NativeLoaderOption {
-	return func(l *NativeLoader) { l.extraWorkspaces = roots }
+func (w *logWriter) Write(p []byte) (n int, err error) {
+	w.logger.Info(strings.TrimSpace(string(p)))
+	return len(p), nil
 }
 
-func WithRemoteOverrides(overrides map[string]string) NativeLoaderOption {
-	return func(l *NativeLoader) { l.remoteOverrides = overrides }
-}
-
-func WithOutput(out io.Writer) NativeLoaderOption {
-	return func(l *NativeLoader) { l.out = out }
-}
-
-func NewNativeLoader(opts ...NativeLoaderOption) *NativeLoader {
-	l := &NativeLoader{
+func NewNativeLoader(cfg NativeLoaderConfig) *NativeLoader {
+	logger := cfg.Logger
+	if logger == nil {
+		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+	}
+	gnoRoot := cfg.GnoRoot
+	if gnoRoot == "" {
+		gnoRoot = gnoenv.RootDir()
+	}
+	remoteOverrides := cfg.RemoteOverrides
+	if remoteOverrides == nil {
+		remoteOverrides = make(map[string]string)
+	}
+	return &NativeLoader{
 		index:           NewPathIndex(),
-		logger:          slog.New(slog.NewTextHandler(io.Discard, nil)),
-		gnoRoot:         gnoenv.RootDir(),
-		remoteOverrides: make(map[string]string),
-		out:             os.Stdout,
+		logger:          logger,
+		gnoRoot:         gnoRoot,
+		extraWorkspaces: cfg.ExtraWorkspaces,
+		remoteOverrides: remoteOverrides,
 	}
-	for _, opt := range opts {
-		opt(l)
-	}
-	return l
 }
 
 func (l *NativeLoader) Name() string {
@@ -73,7 +75,7 @@ func (l *NativeLoader) Load(patterns ...string) ([]*Package, error) {
 		Test:                true, // Load test file dependencies
 		GnoRoot:             l.gnoRoot,
 		ExtraWorkspaceRoots: l.extraWorkspaces,
-		Out:                 l.out,
+		Out:                 &logWriter{l.logger},
 		Fetcher:             rpcpkgfetcher.New(l.remoteOverrides),
 	}
 

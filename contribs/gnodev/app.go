@@ -563,10 +563,10 @@ func (ds *App) handleKeyPress(ctx context.Context, key rawterm.KeyPress) {
 // commonPathPrefix returns the highest common directory prefix of all paths.
 // For example: ["a/b/x", "a/b/y"] -> "a/b"
 func commonPathPrefix(paths []string) string {
-	if len(paths) == 0 {
+	switch len(paths) {
+	case 0:
 		return ""
-	}
-	if len(paths) == 1 {
+	case 1:
 		return paths[0]
 	}
 

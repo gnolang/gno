@@ -97,9 +97,9 @@ func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
 	}
 
 	examplesDir := filepath.Join(gnoenv.RootDir(), "examples")
-	defaultLoader := packages.NewNativeLoader(
-		packages.WithExtraWorkspaces(examplesDir),
-	)
+	defaultLoader := packages.NewNativeLoader(packages.NativeLoaderConfig{
+		ExtraWorkspaces: []string{examplesDir},
+	})
 
 	return &NodeConfig{
 		Logger:                log.NewNoopLogger(),
@@ -610,6 +610,8 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	// Execute node creation and handle any errors.
 	defer recoverFromError()
 
+	n.logger.Info("starting node", "pkgs", len(genesis.Txs))
+
 	// XXX: Redirect the node log somewhere else
 	node, nodeErr := gnoland.NewInMemoryNode(noopLogger, nodeConfig)
 	if nodeErr != nil {
@@ -630,6 +632,7 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 		return ctx.Err()
 	}
 
+	n.logger.Info("node ready")
 	return nil
 }
 

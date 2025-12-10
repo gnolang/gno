@@ -11,22 +11,20 @@ import (
 )
 
 func setupPackagesLoader(logger *slog.Logger, cfg *AppConfig, dirs ...string) (packages.Loader, []string) {
-	opts := []packages.NativeLoaderOption{
-		packages.WithLogger(logger),
-		packages.WithGnoRoot(cfg.root),
-	}
-
 	// Add extra workspaces (e.g., examples directory and user-provided directories)
 	examplesDir := filepath.Join(cfg.root, "examples")
 	workspaces := append([]string{examplesDir}, dirs...)
-	opts = append(opts, packages.WithExtraWorkspaces(workspaces...))
 
 	// Warn about deprecated resolver flag
 	if len(cfg.resolvers) > 0 {
 		logger.Warn("the -resolver flag is deprecated and ignored; packages are now discovered via gnomod.toml and gnowork.toml")
 	}
 
-	loader := packages.NewNativeLoader(opts...)
+	loader := packages.NewNativeLoader(packages.NativeLoaderConfig{
+		Logger:          logger,
+		GnoRoot:         cfg.root,
+		ExtraWorkspaces: workspaces,
+	})
 
 	// Pre-populate the index for lazy loading support
 	// This scans workspace roots and maps import paths to filesystem directories
