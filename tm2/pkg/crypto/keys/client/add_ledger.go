@@ -66,7 +66,7 @@ func execAddLedger(cfg *AddCfg, args []string, io commands.IO) error {
 		uint32(cfg.Index),
 	)
 	if err != nil {
-		return fmt.Errorf("unable to create Ledger reference in keybase, %+w", err)
+		return fmt.Errorf("unable to create Ledger reference in keybase, %w", err)
 	}
 
 	// Print the information

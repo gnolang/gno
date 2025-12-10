@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"strings"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	secp "github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/zondax/hid"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -178,13 +178,13 @@ func convertDERtoBER(signatureDER []byte) ([]byte, error) {
 }
 
 func getLedgerDevice() (ledger.SECP256K1, error) {
+	if !hid.Supported() {
+		return nil, fmt.Errorf("Ledger support is not enabled. Try building with CGO_ENABLED=1")
+	}
+
 	device, err := ledger.Discover()
 	if err != nil {
-		msg := "ledger nano S"
-		if strings.Contains(err.Error(), "LedgerHID device (idx 0) not found") {
-			msg += ". Try building with CGO_ENABLED=1"
-		}
-		return nil, errors.Wrap(err, msg)
+		return nil, errors.Wrap(err, "ledger nano S")
 	}
 
 	return device, nil
