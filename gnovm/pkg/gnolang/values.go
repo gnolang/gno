@@ -674,12 +674,10 @@ func (ml *MapList) UnmarshalAmino(mlimg MapListImage) error {
 func (ml *MapList) Append(alloc *Allocator, key TypedValue) *MapListItem {
 	alloc.AllocateMapItem()
 	item := &MapListItem{
-		Next: nil,
-		Key:  key,
+		Key: key,
 		// Value: undefined,
 	}
 	if ml.Head == nil {
-		item.Prev = nil
 		ml.Head = item
 		ml.Tail = item
 		ml.Size = 1
