@@ -11,8 +11,9 @@ import (
 
 type restoreCfg struct {
 	nodeCfg
-	backupDir string
-	endHeight int64
+	backupDir        string
+	endHeight        int64
+	skipVerification bool
 }
 
 func newRestoreCmd(io commands.IO) *commands.Command {
@@ -48,6 +49,13 @@ func (c *restoreCfg) RegisterFlags(fs *flag.FlagSet) {
 		0,
 		"height at which the restore process should stop",
 	)
+
+	fs.BoolVar(
+		&c.skipVerification,
+		"skip-verification",
+		false,
+		"skip commit verification of the backup files",
+	)
 }
 
 func execRestore(ctx context.Context, c *restoreCfg, io commands.IO) error {
@@ -73,6 +81,6 @@ func execRestore(ctx context.Context, c *restoreCfg, io commands.IO) error {
 	}
 
 	return backup.WithReader(c.backupDir, startHeight, endHeight, func(reader backup.Reader) error {
-		return gnoNode.Restore(ctx, reader)
+		return gnoNode.Restore(ctx, reader, c.skipVerification)
 	})
 }

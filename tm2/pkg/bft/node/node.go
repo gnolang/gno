@@ -571,8 +571,8 @@ func NewNode(config *cfg.Config,
 	return node, nil
 }
 
-func (n *Node) Restore(ctx context.Context, blocksIterator bc.BlocksIterator) error {
-	return n.bcReactor.Restore(ctx, blocksIterator)
+func (n *Node) Restore(ctx context.Context, blocksIterator bc.BlocksIterator, skipVerification bool) error {
+	return n.bcReactor.Restore(ctx, blocksIterator, skipVerification)
 }
 
 // OnStart starts the Node. It implements service.Service.
