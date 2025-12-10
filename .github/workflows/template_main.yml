@@ -1,0 +1,45 @@
+on:
+  workflow_call:
+    inputs:
+      modulepath:
+        required: true
+        type: string
+      tests-extra-args:
+        required: false
+        type: string
+      tests-ts-seq: # execute txtar sequentially
+        required: false
+        type: boolean
+      go-version:
+        description: "Go version to use"
+        required: false
+        type: string
+        default: "1.23.x"
+    secrets:
+      codecov-token:
+        required: true
+
+jobs:
+  lint:
+    name: Go Lint
+    uses: ./.github/workflows/template_lint.yml
+    with:
+      modulepath: ${{ inputs.modulepath }}
+      go-version: ${{ inputs.go-version }}
+  build:
+    name: Go Build
+    uses: ./.github/workflows/template_build.yml
+    with:
+      modulepath: ${{ inputs.modulepath }}
+      go-version: ${{ inputs.go-version }}
+  test:
+    name: Go Test
+    uses: ./.github/workflows/template_test.yml
+    with:
+      modulepath: ${{ inputs.modulepath }}
+      tests-ts-seq: ${{ inputs.tests-ts-seq }}
+      tests-timeout: "30m"
+      go-version: ${{ inputs.go-version }}
+      tests-extra-args: ${{ inputs.tests-extra-args }}
+    secrets:
+      codecov-token: ${{ secrets.codecov-token }}

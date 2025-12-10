@@ -132,9 +132,9 @@ func (gw gimpGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage {
 type TypeCheckMode int
 
 const (
-	TCLatestStrict  TypeCheckMode = iota // require latest gnomod gno version, forbid drafts
-	TCGenesisStrict                      // require latest gnomod gno version, allow drafts
-	TCLatestRelaxed                      // generate latest gno.mod if missing; for testing
+	TCLatestStrict  TypeCheckMode = iota // require latest gnomod.toml gno version, forbid drafts
+	TCGenesisStrict                      // require latest gnomod.toml gno version, allow drafts
+	TCLatestRelaxed                      // generate latest gnomod.toml if missing
 	TCGno0p0                             // when gno fix'ing from gno 0.0.
 )
 
@@ -263,7 +263,7 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 	}()
 	// In a vast majority of cases, we can use the permCache if it is set.
 	canPerm := gimp.permCache != nil &&
-		((!gimp.testing && pkgPath != gimp.pkgPath) || IsStdlib(pkgPath))
+		((!gimp.testing && pkgPath != gimp.pkgPath) || (IsStdlib(pkgPath) && !IsStdlib(gimp.pkgPath)))
 	if canPerm {
 		pkg := gimp.permCache[ck]
 		if pkg != nil {
@@ -328,6 +328,14 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 		// cannot import draft packages after genesis.
 		// NOTE: see comment below for ImportNotFoundError.
 		err = ImportDraftError{PkgPath: pkgPath}
+		result.err = err
+		result.pending = false
+		return nil, err
+	}
+	if mod != nil && mod.Private {
+		// If the package is private, we cannot import it.
+		err := ImportPrivateError{PkgPath: pkgPath}
+		// NOTE: see comment above for ImportNotFoundError.
 		result.err = err
 		result.pending = false
 		return nil, err
@@ -424,9 +432,10 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 			if IsStdlib(mpkg.Path) {
 				panic("expected ParseCheckGnoMod() to auto-generate a gno.mod for stdlibs")
 			}
-			if gimp.tcmode == TCGno0p0 {
+			switch gimp.tcmode {
+			case TCGno0p0:
 				gnoVersion = GnoVerMissing
-			} else if gimp.tcmode == TCLatestRelaxed {
+			case TCLatestRelaxed:
 				gnoVersion = GnoVerLatest
 			}
 		} else {
@@ -706,11 +715,13 @@ type ImportError interface {
 }
 
 func (e ImportNotFoundError) assertImportError() {}
+func (e ImportPrivateError) assertImportError()  {}
 func (e ImportDraftError) assertImportError()    {}
 func (e ImportCycleError) assertImportError()    {}
 
 var (
 	_ ImportError = ImportNotFoundError{}
+	_ ImportError = ImportPrivateError{}
 	_ ImportError = ImportDraftError{}
 	_ ImportError = ImportCycleError{}
 )
@@ -740,6 +751,20 @@ func (e ImportDraftError) GetMsg() string {
 }
 
 func (e ImportDraftError) Error() string { return importErrorString(e) }
+
+// ImportPrivateError implements ImportError
+type ImportPrivateError struct {
+	Location string
+	PkgPath  string
+}
+
+func (e ImportPrivateError) GetLocation() string { return e.Location }
+
+func (e ImportPrivateError) GetMsg() string {
+	return fmt.Sprintf("import path %q is private and cannot be imported", e.PkgPath)
+}
+
+func (e ImportPrivateError) Error() string { return importErrorString(e) }
 
 // ImportCycleError implements ImportError
 type ImportCycleError struct {

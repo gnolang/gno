@@ -30,5 +30,9 @@
 				"organizeImports": "on"
 			}
 		}
+	},
+	"css": {
+		"formatter": { "enabled": true },
+		"linter": { "enabled": false }
 	}
 }

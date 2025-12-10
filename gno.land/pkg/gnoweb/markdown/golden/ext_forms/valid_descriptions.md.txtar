@@ -46,5 +46,5 @@
 <div class="gno-form_input"><label for="bio"> Tell us about yourself </label>
 <textarea id="bio" name="bio" placeholder="Tell us about yourself" rows="4"></textarea>
 </div>
-<input type="submit" value="Submit to /r/test Realm" />
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
 </form>

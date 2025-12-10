@@ -1,12 +1,13 @@
-GOTOOLS := github.com/golangci/golangci-lint/cmd/golangci-lint
+VERSION := $(shell echo $(shell git describe --tags) | sed 's/^v//')
+COMMIT := $(shell git log -1 --format='%H')
+BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
+DOCKER_BUF := docker run -v $(shell pwd):/workspace --workdir /workspace bufbuild/buf
+DOCKER := $(shell which docker)
 
 PDFFLAGS := -pdf --nodefraction=0.1
-
 LDFLAGS := -ldflags "-X TENDERMINT_IAVL_COLORS_ON=on"
 
 all: lint test install
-
-
 
 install:
 ifeq ($(COLORS_ON),)
@@ -14,54 +15,78 @@ ifeq ($(COLORS_ON),)
 else
 	go install $(LDFLAGS) ./cmd/iaviewer
 endif
+.PHONY: install
 
-test:
-	go test -v --race
+test-short:
+	@echo "--> Running go test"
+	@go test ./... $(LDFLAGS) -v --race --short
+.PHONY: test-short
 
-tools:
-	go get -v $(GOTOOLS)
+cmd/legacydump/legacydump: 
+	cd cmd/legacydump && go build -o legacydump main.go
+
+test: cmd/legacydump/legacydump
+	@echo "--> Running go test"
+	@go test ./... $(LDFLAGS) 
+.PHONY: test
+
+format:
+	find . -name '*.go' -type f -not -path "*.git*" -not -name '*.pb.go' -not -name '*pb_test.go' | xargs gofmt -w -s
+	find . -name '*.go' -type f -not -path "*.git*"  -not -name '*.pb.go' -not -name '*pb_test.go' | xargs goimports -format
+.PHONY: format
 
 # look into .golangci.yml for enabling / disabling linters
+golangci_lint_cmd=golangci-lint
+golangci_version=v1.59.1
+
 lint:
 	@echo "--> Running linter"
-	@golangci-lint run
+	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(golangci_version)
+	@$(golangci_lint_cmd) run --timeout=10m
+
+lint-fix:
+	@echo "--> Running linter"
+	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(golangci_version)
+	@$(golangci_lint_cmd) run --fix --out-format=tab --issues-exit-code=0
 
 # bench is the basic tests that shouldn't crash an aws instance
 bench:
 	cd benchmarks && \
-		go test -bench=RandomBytes . && \
-		go test -bench=Small . && \
-		go test -bench=Medium . && \
-		go test -bench=BenchmarkMemKeySizes .
+		go test $(LDFLAGS) -tags pebbledb -run=NOTEST -bench=Small . && \
+		go test $(LDFLAGS) -tags pebbledb -run=NOTEST -bench=Medium . && \
+		go test $(LDFLAGS) -run=NOTEST -bench=RandomBytes .
+.PHONY: bench
 
 # fullbench is extra tests needing lots of memory and to run locally
 fullbench:
 	cd benchmarks && \
-		go test -bench=RandomBytes . && \
-		go test -bench=Small . && \
-		go test -bench=Medium . && \
-		go test -timeout=30m -bench=Large . && \
-		go test -bench=Mem . && \
-		go test -timeout=60m -bench=LevelDB .
-
+		go test $(LDFLAGS) -run=NOTEST -bench=RandomBytes . && \
+		go test $(LDFLAGS) -tags rocksdb,pebbledb -run=NOTEST -bench=Small . && \
+		go test $(LDFLAGS) -tags rocksdb,pebbledb -run=NOTEST -bench=Medium . && \
+		go test $(LDFLAGS) -tags rocksdb,pebbledb -run=NOTEST -timeout=30m -bench=Large . && \
+		go test $(LDFLAGS) -run=NOTEST -bench=Mem . && \
+		go test $(LDFLAGS) -run=NOTEST -timeout=60m -bench=LevelDB .
+.PHONY: fullbench
 
 # note that this just profiles the in-memory version, not persistence
 profile:
 	cd benchmarks && \
-		go test -bench=Mem -cpuprofile=cpu.out -memprofile=mem.out . && \
+		go test $(LDFLAGS) -bench=Mem -cpuprofile=cpu.out -memprofile=mem.out . && \
 		go tool pprof ${PDFFLAGS} benchmarks.test cpu.out > cpu.pdf && \
 		go tool pprof --alloc_space ${PDFFLAGS} benchmarks.test mem.out > mem_space.pdf && \
 		go tool pprof --alloc_objects ${PDFFLAGS} benchmarks.test mem.out > mem_obj.pdf
+.PHONY: profile
 
 explorecpu:
 	cd benchmarks && \
 		go tool pprof benchmarks.test cpu.out
+.PHONY: explorecpu
 
 exploremem:
 	cd benchmarks && \
 		go tool pprof --alloc_objects benchmarks.test mem.out
+.PHONY: exploremem
 
 delve:
 	dlv test ./benchmarks -- -test.bench=.
-
-.PHONY: lint test tools install delve exploremem explorecpu profile fullbench bench
+.PHONY: delve

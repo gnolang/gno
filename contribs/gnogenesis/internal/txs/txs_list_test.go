@@ -42,7 +42,7 @@ func TestGenesis_List_All(t *testing.T) {
 		// Generate dummy txs
 		txs := generateDummyTxs(t, 10)
 
-		genesis := common.GetDefaultGenesis()
+		genesis := common.DefaultGenesis()
 		genesis.AppState = gnoland.GnoGenesisState{
 			Txs: txs,
 		}

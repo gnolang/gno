@@ -14,12 +14,12 @@
 </div>
 <div class="gno-form_select"><label for="favorite_pet"> Favorite Pet </label>
 <select id="favorite_pet" name="favorite_pet">
-<option value="" >Select a Favorite Pet</option>
+<option value="">Select a Favorite Pet</option>
 <option value="Dog">Dog</option>
 <option value="Cat">Cat</option>
 <option value="Bird">Bird</option>
 </select>
 <svg class="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"><use href="#ico-arrow"></use></svg>
 </div>
-<input type="submit" value="Submit to /r/test Realm" />
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
 </form>

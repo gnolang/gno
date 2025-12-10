@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
 	"os"
@@ -44,6 +45,7 @@ var cspImgHost = []string{
 type webCfg struct {
 	chainid          string
 	remote           string
+	remoteTimeout    time.Duration
 	remoteHelp       string
 	bind             string
 	faucetURL        string
@@ -59,10 +61,11 @@ type webCfg struct {
 }
 
 var defaultWebOptions = webCfg{
-	chainid: "dev",
-	remote:  "127.0.0.1:26657",
-	bind:    ":8888",
-	timeout: time.Minute,
+	chainid:       "dev",
+	remote:        "127.0.0.1:26657",
+	bind:          ":8888",
+	remoteTimeout: time.Minute,
+	timeout:       time.Minute,
 }
 
 func main() {
@@ -95,6 +98,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"remote",
 		defaultWebOptions.remote,
 		"remote gno.land node address",
+	)
+
+	fs.DurationVar(
+		&c.remoteTimeout,
+		"remote-timeout",
+		defaultWebOptions.remoteTimeout,
+		"defined how much time a request to the node should live before timeout",
 	)
 
 	fs.StringVar(
@@ -216,6 +226,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg := gnoweb.NewDefaultAppConfig()
 	appcfg.ChainID = cfg.chainid
 	appcfg.NodeRemote = cfg.remote
+	appcfg.NodeRequestTimeout = cfg.remoteTimeout
 	appcfg.RemoteHelp = cfg.remoteHelp
 	if appcfg.RemoteHelp == "" {
 		appcfg.RemoteHelp = appcfg.NodeRemote
@@ -233,9 +244,8 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse aliases: %w", err)
 		}
-		for alias, value := range aliases {
-			appcfg.Aliases[alias] = value
-		}
+
+		maps.Copy(appcfg.Aliases, aliases)
 	}
 
 	app, err := gnoweb.NewRouter(logger, appcfg)
@@ -252,7 +262,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	logger.Info("Running", "listener", bindaddr.String())
 
 	// Setup security headers
-	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict)
+	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, cfg.remote)
 
 	// Setup server
 	server := &http.Server{
@@ -294,10 +304,7 @@ func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
 		parts[1] = strings.TrimSpace(parts[1])
 
 		// Check if the value is a path to a static file.
-		if strings.HasPrefix(parts[1], "static:") {
-			// If it is, load the static file content and set it as the alias.
-			staticFilePath := strings.TrimPrefix(parts[1], "static:")
-
+		if staticFilePath, found := strings.CutPrefix(parts[1], "static:"); found {
 			content, err := os.ReadFile(staticFilePath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to read static file %s: %w", staticFilePath, err)
@@ -312,7 +319,7 @@ func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
 	return aliases, nil
 }
 
-func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
+func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http.Handler {
 	// Build img-src CSP directive
 	imgSrc := "'self' data:"
 
@@ -324,8 +331,9 @@ func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
 	// scripts, styles, images, and other resources. This helps prevent
 	// cross-site scripting (XSS) and other code injection attacks.
 	csp := fmt.Sprintf(
-		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'",
+		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'; connect-src %s/abci_query",
 		imgSrc,
+		remote,
 	)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

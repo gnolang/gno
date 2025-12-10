@@ -7,7 +7,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/iavl"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 // MultiStoreProof defines a collection of store proofs in a multi-store
@@ -129,9 +129,7 @@ func (op MultiStoreProofOp) Run(args [][]byte) ([][]byte, error) {
 // more proof ops?
 func DefaultProofRuntime() (prt *merkle.ProofRuntime) {
 	prt = merkle.NewProofRuntime()
-	prt.RegisterOpDecoder(merkle.ProofOpSimpleValue, merkle.SimpleValueOpDecoder)
-	prt.RegisterOpDecoder(iavl.ProofOpIAVLValue, iavl.IAVLValueOpDecoder)
-	prt.RegisterOpDecoder(iavl.ProofOpIAVLAbsence, iavl.IAVLAbsenceOpDecoder)
-	prt.RegisterOpDecoder(ProofOpMultiStore, MultiStoreProofOpDecoder)
+	prt.RegisterOpDecoder(types.ProofOpIAVLCommitment, types.CommitmentOpDecoder)
+	prt.RegisterOpDecoder(types.ProofOpSimpleMerkleCommitment, types.CommitmentOpDecoder)
 	return
 }

@@ -7,6 +7,8 @@ stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
 
 loadpkg gno.land/r/gov/dao
 loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/sys/users
+loadpkg gno.land/r/gnoland/users/v1
 
 # load specific govDAO implementation and needed users for your integration test
 loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
@@ -15,6 +17,10 @@ gnoland start
 
 # call gov/dao render to check everything is working as expected and the loader worked
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
+
+# Register member with a namespace first
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "mem123" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test member
+stdout 'OK!'
 
 # register the tokens and fund the treasury address
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/tokens/register_tokens.gno
@@ -30,9 +36,9 @@ stdout OK!
 # call gov/dao render to check the tokens update proposal was created
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
 stdout 'New Token Keys:'
-stdout '- gno.land/r/demo/grc20factory.TOKEN1'
-stdout '- gno.land/r/demo/grc20factory.TOKEN2'
-stdout '- gno.land/r/demo/grc20factory.TOKEN3'
+stdout '- gno.land/r/demo/defi/grc20factory.TOKEN1'
+stdout '- gno.land/r/demo/defi/grc20factory.TOKEN2'
+stdout '- gno.land/r/demo/defi/grc20factory.TOKEN3'
 
 # vote on the tokens update proposal
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test member
@@ -45,17 +51,17 @@ stdout OK!
 # verify the balances associated with the tokens update proposal
 gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/treasury:GRC20'
 stdout '| Denom | Amount |'
-stdout '| gno.land/r/demo/grc20factory.TOKEN1 | 42 |'
-stdout '| gno.land/r/demo/grc20factory.TOKEN2 | 0 |'
-stdout '| gno.land/r/demo/grc20factory.TOKEN3 | 0 |'
+stdout '| gno.land/r/demo/defi/grc20factory.TOKEN1 | 42 |'
+stdout '| gno.land/r/demo/defi/grc20factory.TOKEN2 | 0 |'
+stdout '| gno.land/r/demo/defi/grc20factory.TOKEN3 | 0 |'
 
 -- tokens/register_tokens.gno --
 package main
 
 import (
-	"std"
+	"chain"
 
-	factory "gno.land/r/demo/grc20factory"
+	factory "gno.land/r/demo/defi/grc20factory"
 )
 
 func main() {
@@ -66,11 +72,10 @@ func main() {
 	factory.Mint(
 		cross,
 		"TOKEN1",
-		std.DerivePkgAddr("gno.land/r/gov/dao/v3/treasury"),
+		chain.PackageAddress("gno.land/r/gov/dao/v3/treasury"),
 		42,
 	)
 }
-
 -- proposer/create_proposal.gno --
 package main
 
@@ -82,9 +87,9 @@ import (
 func main() {
 	tureq := impl.NewTreasuryGRC20TokensUpdate(
 		[]string{
-			"gno.land/r/demo/grc20factory.TOKEN1",
-			"gno.land/r/demo/grc20factory.TOKEN2",
-			"gno.land/r/demo/grc20factory.TOKEN3",
+			"gno.land/r/demo/defi/grc20factory.TOKEN1",
+			"gno.land/r/demo/defi/grc20factory.TOKEN2",
+			"gno.land/r/demo/defi/grc20factory.TOKEN3",
 		},
 	)
 	dao.MustCreateProposal(cross, tureq)
@@ -94,8 +99,6 @@ func main() {
 package load_govdao
 
 import (
-	"std"
-
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
 	"gno.land/r/gov/dao/v3/memberstore"
@@ -108,7 +111,7 @@ func init() {
 
 	memberstore.Get().SetMember(
 		memberstore.T1,
-		std.Address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), // member address
+		address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), // member address
 		&memberstore.Member{InvitationPoints: 3},
 	)
 

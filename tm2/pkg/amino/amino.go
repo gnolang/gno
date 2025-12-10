@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -343,9 +344,8 @@ func (cdc *Codec) Marshal(o any) ([]byte, error) {
 		pbm, ok := o.(PBMessager)
 		if ok {
 			return cdc.MarshalPBBindings(pbm)
-		} else {
-			// Fall back to using reflection for native primitive types.
 		}
+		// Else, fall back to using reflection for native primitive types.
 	}
 
 	return cdc.MarshalReflect(o)
@@ -618,9 +618,8 @@ func (cdc *Codec) Unmarshal(bz []byte, ptr any) error {
 		pbm, ok := ptr.(PBMessager)
 		if ok {
 			return cdc.unmarshalPBBindings(bz, pbm)
-		} else {
-			// Fall back to using reflection for native primitive types.
 		}
+		// Else, fall back to using reflection for native primitive types.
 	}
 
 	return cdc.unmarshalReflect(bz, ptr)
@@ -774,7 +773,6 @@ func (cdc *Codec) MustUnmarshalAny(bz []byte, ptr any) {
 	if err != nil {
 		panic(err)
 	}
-	return
 }
 
 func (cdc *Codec) JSONMarshal(o any) ([]byte, error) {
@@ -927,6 +925,9 @@ func GetCallersDirname() string {
 	dirname = filepath.Dir(filename)
 	if filename == "" || dirname == "" {
 		panic("could not derive caller's package directory")
+	}
+	if !path.IsAbs(dirname) {
+		dirname = "" // if relative, assume from module and return empty string
 	}
 	return dirname
 }
