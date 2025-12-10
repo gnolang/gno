@@ -1,0 +1,252 @@
+package blocks
+
+import (
+	"fmt"
+
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/params"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/metadata"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
+	"github.com/gnolang/gno/tm2/pkg/bft/state"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	dbm "github.com/gnolang/gno/tm2/pkg/db"
+)
+
+// Handler is the blocks RPC handler
+type Handler struct {
+	store   state.BlockStore
+	stateDB dbm.DB
+}
+
+// NewHandler creates a new instance of the blocks RPC handler
+func NewHandler(store state.BlockStore, stateDB dbm.DB) *Handler {
+	return &Handler{
+		store:   store,
+		stateDB: stateDB,
+	}
+}
+
+// BlockchainInfoHandler fetches block headers for a given range.
+// Block headers are returned in descending order (highest first)
+//
+//		Params:
+//	  - minHeight   int64 (optional, default 1)
+//	  - maxHeight   int64 (optional, default latest height)
+func (h *Handler) BlockchainInfoHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
+	const limit int64 = 20
+
+	const (
+		idxMinHeight = 0
+		idxMaxHeight = 1
+	)
+
+	minHeight, err := params.AsInt64(p, idxMinHeight)
+	if err != nil {
+		return nil, err
+	}
+
+	maxHeight, err := params.AsInt64(p, idxMaxHeight)
+	if err != nil {
+		return nil, err
+	}
+
+	// Grab the latest height
+	storeHeight := h.store.Height()
+
+	minHeight, maxHeight, filterErr := filterMinMax(storeHeight, minHeight, maxHeight, limit)
+	if filterErr != nil {
+		return nil, spec.GenerateResponseError(filterErr)
+	}
+
+	blockMetas := make([]*types.BlockMeta, 0, maxHeight-minHeight+1)
+	for height := maxHeight; height >= minHeight; height-- {
+		blockMeta := h.store.LoadBlockMeta(height)
+
+		if blockMeta == nil {
+			// This would be a huge problemo
+			continue
+		}
+
+		blockMetas = append(blockMetas, blockMeta)
+	}
+
+	return &ctypes.ResultBlockchainInfo{
+		LastHeight: storeHeight,
+		BlockMetas: blockMetas,
+	}, nil
+}
+
+// BlockHandler fetches the block at the given height.
+// If no height is provided, it will fetch the latest block
+//
+//		Params:
+//	  - height   int64 (optional, default latest height)
+func (h *Handler) BlockHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
+	const idxHeight = 0
+
+	storeHeight := h.store.Height()
+
+	height, err := params.AsInt64(p, idxHeight)
+	if err != nil {
+		return nil, err
+	}
+
+	height, normalizeErr := normalizeHeight(storeHeight, height, 1)
+	if normalizeErr != nil {
+		return nil, spec.GenerateResponseError(normalizeErr)
+	}
+
+	blockMeta := h.store.LoadBlockMeta(height)
+	if blockMeta == nil {
+		return nil, spec.GenerateResponseError(
+			fmt.Errorf("block meta not found for height %d", height),
+		)
+	}
+
+	block := h.store.LoadBlock(height)
+	if block == nil {
+		return nil, spec.GenerateResponseError(
+			fmt.Errorf("block not found for height %d", height),
+		)
+	}
+
+	return &ctypes.ResultBlock{
+		BlockMeta: blockMeta,
+		Block:     block,
+	}, nil
+}
+
+// CommitHandler fetches the block commit for the given height.
+// If no height is provided, it will fetch the commit for the latest block
+//
+//		Params:
+//	  - height   int64 (optional, default latest height)
+func (h *Handler) CommitHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
+	const idxHeight = 0
+
+	storeHeight := h.store.Height()
+
+	height, err := params.AsInt64(p, idxHeight)
+	if err != nil {
+		return nil, err
+	}
+
+	height, normalizeErr := normalizeHeight(storeHeight, height, 1)
+	if normalizeErr != nil {
+		return nil, spec.GenerateResponseError(normalizeErr)
+	}
+
+	blockMeta := h.store.LoadBlockMeta(height)
+	if blockMeta == nil {
+		return nil, spec.GenerateResponseError(
+			fmt.Errorf("block meta not found for height %d", height),
+		)
+	}
+
+	header := blockMeta.Header
+
+	if height == storeHeight {
+		// latest, non-canonical commit
+		commit := h.store.LoadSeenCommit(height)
+		if commit == nil {
+			return nil, spec.GenerateResponseError(
+				fmt.Errorf("seen commit not found for height %d", height),
+			)
+		}
+
+		return ctypes.NewResultCommit(&header, commit, false), nil
+	}
+
+	// canonical commit (from height+1)
+	commit := h.store.LoadBlockCommit(height)
+	if commit == nil {
+		return nil, spec.GenerateResponseError(
+			fmt.Errorf("canonical commit not found for height %d", height),
+		)
+	}
+
+	return ctypes.NewResultCommit(&header, commit, true), nil
+}
+
+// BlockResultsHandler fetches the ABCIResults for the given height.
+// If no height is provided, it will fetch results for the latest block
+//
+//		Params:
+//	  - height   int64 (optional, default latest height)
+func (h *Handler) BlockResultsHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
+	storeHeight := h.store.Height()
+
+	height, err := params.AsInt64(p, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	height, normalizeErr := normalizeHeight(storeHeight, height, 0)
+	if normalizeErr != nil {
+		return nil, spec.GenerateResponseError(normalizeErr)
+	}
+
+	results, loadErr := state.LoadABCIResponses(h.stateDB, height)
+	if loadErr != nil {
+		return nil, spec.GenerateResponseError(loadErr)
+	}
+
+	return &ctypes.ResultBlockResults{
+		Height:  height,
+		Results: results,
+	}, nil
+}
+
+// error if either low or high are negative or low > high
+// if low is 0 it defaults to 1, if high is 0 it defaults to height (block height).
+// limit sets the maximum amounts of values included within [low,high] (inclusive),
+// increasing low as necessary.
+func filterMinMax(height, low, high, limit int64) (int64, int64, error) {
+	// filter negatives
+	if low < 0 || high < 0 {
+		return low, high, fmt.Errorf("heights must be non-negative")
+	}
+
+	// adjust for default values
+	if low == 0 {
+		low = 1
+	}
+	if high == 0 {
+		high = height
+	}
+
+	// limit high to the height
+	high = min(height, high)
+
+	// limit low to within `limit` of max
+	// so the total number of blocks returned will be `limit`
+	low = max(low, high-limit+1)
+
+	if low > high {
+		return low, high, fmt.Errorf("min height %d can't be greater than max height %d", low, high)
+	}
+	return low, high, nil
+}
+
+// normalizeHeight normalizes a requested height against the current chain height.
+//
+// Semantics:
+//   - requestedHeight == 0 -> use latest height
+//   - requestedHeight < minVal -> error
+//   - requestedHeight > currentHeight -> error
+func normalizeHeight(latestHeight, requestedHeight, minVal int64) (int64, error) {
+	// 0 means unspecified → latest
+	if requestedHeight == 0 {
+		return latestHeight, nil
+	}
+
+	if requestedHeight < minVal {
+		return 0, fmt.Errorf("height must be greater than or equal to %d", minVal)
+	}
+
+	if requestedHeight > latestHeight {
+		return 0, fmt.Errorf("height must be less than or equal to the current blockchain height")
+	}
+
+	return requestedHeight, nil
+}

@@ -102,6 +102,12 @@ func AsInt64(params []any, idx int) (int64, *spec.BaseJSONError) {
 	}
 
 	switch v := raw.(type) {
+	case int64:
+		return v, nil
+
+	case int:
+		return int64(v), nil
+
 	case float64:
 		// JSON numbers -> int64 (old Amino expected strings, but no client should rely on that distinction)
 		return int64(v), nil

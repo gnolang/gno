@@ -9,10 +9,12 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 )
 
+// Handler is the ABCI RPC handler
 type Handler struct {
 	proxyAppQuery appconn.Query
 }
 
+// NewHandler creates a new instance of the ABCI RPC handler
 func NewHandler(proxyAppQuery appconn.Query) *Handler {
 	return &Handler{
 		proxyAppQuery: proxyAppQuery,
@@ -69,7 +71,7 @@ func (h *Handler) QueryHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJS
 
 // InfoHandler gets some info about the application.
 //
-// No params
+//	No params
 func (h *Handler) InfoHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
 	// Make sure there are no params
 	if len(p) > 0 {
