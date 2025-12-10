@@ -1,4 +1,4 @@
-// This test is answer to this issue: https://github.com/gnolang/gno/issues/4789
+// This test with method39.gno are answers to this issue: https://github.com/gnolang/gno/issues/4789
 package main
 
 import "fmt"
