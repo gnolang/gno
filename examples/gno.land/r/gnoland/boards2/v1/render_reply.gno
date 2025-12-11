@@ -19,26 +19,26 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	rawID := req.GetVar("thread")
-	tID, err := strconv.Atoi(rawID)
+	threadID, err := strconv.Atoi(rawID)
 	if err != nil {
 		res.Write("Invalid thread ID: " + rawID)
 		return
 	}
 
 	rawID = req.GetVar("reply")
-	rID, err := strconv.Atoi(rawID)
+	replyID, err := strconv.Atoi(rawID)
 	if err != nil {
 		res.Write("Invalid reply ID: " + rawID)
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(tID))
+	thread, found := board.Threads.Get(boards.ID(threadID))
 	if !found {
 		res.Write("Thread does not exist with ID: " + req.GetVar("thread"))
 		return
 	}
 
-	reply, found := thread.Replies.Get(boards.ID(rID))
+	reply, found := thread.Replies.Get(boards.ID(replyID))
 	if !found {
 		res.Write("Reply does not exist with ID: " + rawID)
 		return
