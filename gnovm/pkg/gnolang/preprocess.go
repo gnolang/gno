@@ -3586,6 +3586,17 @@ func evalStaticTypeOf(store Store, last BlockNode, x Expr) Type {
 	return t
 }
 
+// EXPERTIMENT
+func EvalStaticTypeOf(store Store, last BlockNode, x Expr) Type {
+	t := evalStaticTypeOfRaw(store, last, x)
+
+	if tt, ok := t.(*tupleType); ok && len(tt.Elts) == 1 {
+		return tt.Elts[0]
+	}
+
+	return t
+}
+
 // like evalStaticTypeOf() but returns the raw *tupleType for *CallExpr.
 func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 	if t, ok := x.GetAttribute(ATTR_TYPEOF_VALUE).(Type); ok {
