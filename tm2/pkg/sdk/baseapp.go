@@ -762,16 +762,26 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 		if r := recover(); r != nil {
 			switch ex := r.(type) {
 			case store.OutOfGasError:
+				gasUsed := ctx.GasMeter().GasConsumed()
+				maxGas := int64(-1)
+				if cp := ctx.ConsensusParams(); cp != nil {
+					maxGas = cp.Block.MaxGas
+				}
+				var detail string
+				if maxGas > 0 && gasUsed >= maxGas {
+					detail = fmt.Sprintf("(hit consensus maxGas %d)", maxGas)
+				}
 				log := fmt.Sprintf(
-					"out of gas, gasWanted: %d, gasUsed: %d (until panic) location: %v",
+					"out of gas %s, gasWanted: %d, gasUsed: %d (until panic) location: %v",
+					detail,
 					gasWanted,
-					ctx.GasMeter().GasConsumed(),
+					gasUsed,
 					ex.Descriptor,
 				)
 				result.Error = ABCIError(std.ErrOutOfGas(log))
 				result.Log = log
 				result.GasWanted = gasWanted
-				result.GasUsed = ctx.GasMeter().GasConsumed()
+				result.GasUsed = gasUsed
 				return
 			default:
 				log := fmt.Sprintf("recovered: %v\nstack:\n%v", r, string(debug.Stack()))
