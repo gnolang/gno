@@ -686,16 +686,25 @@ func jsonValueSimple(m *Machine, tv TypedValue, seen map[Object]int) any {
 		}
 		// Cycle check
 		if id, exists := seen[sv]; exists {
-			return map[string]int{"@ref": id}
+			return map[string]string{"@ref": fmt.Sprintf(":%d", id)}
 		}
-		seen[sv] = len(seen) + 1
+		id := len(seen) + 1
+		seen[sv] = id
 
-		// Each field is wrapped with JSONTypedValue
-		obj := make(map[string]*JSONTypedValue)
-		for i, field := range sv.Fields {
+		// Use map[string]any to allow mixing objectid with field values
+		obj := make(map[string]any)
+
+		// Add objectid for unreal objects to enable cycle reference tracking
+		if !sv.GetIsReal() {
+			obj["objectid"] = fmt.Sprintf(":%d", id)
+		}
+
+		for i := range sv.Fields {
 			if i < len(bt.Fields) {
 				name := getJSONFieldName(bt.Fields[i])
-				obj[name] = jsonTypedValueSimple(m, field, seen)
+				// Fill the field value to resolve any RefValues before serialization
+				field := fillValueTV(m.Store, &sv.Fields[i])
+				obj[name] = jsonTypedValueSimple(m, *field, seen)
 			}
 		}
 		return obj
@@ -711,8 +720,57 @@ func jsonValueSimple(m *Machine, tv TypedValue, seen map[Object]int) any {
 		if !ok {
 			return nil
 		}
-		// Dereference and serialize target value
+		// Handle case where TV is nil
+		if pv.TV == nil {
+			// Helper to get TV from base
+			getFromBase := func(base Value) any {
+				switch cbv := base.(type) {
+				case *ArrayValue:
+					et := bt.Elt
+					epv := cbv.GetPointerAtIndexInt2(m.Store, pv.Index, et)
+					if epv.TV == nil {
+						return nil
+					}
+					return jsonValueSimple(m, *epv.TV, seen)
+				case *StructValue:
+					fpv := cbv.GetPointerToInt(m.Store, pv.Index)
+					if fpv.TV == nil {
+						return nil
+					}
+					return jsonValueSimple(m, *fpv.TV, seen)
+				case *Block:
+					vpv := cbv.GetPointerToInt(m.Store, pv.Index)
+					if vpv.TV == nil {
+						return nil
+					}
+					return jsonValueSimple(m, *vpv.TV, seen)
+				case *HeapItemValue:
+					return jsonValueSimple(m, cbv.Value, seen)
+				default:
+					return nil
+				}
+			}
+
+			// Check if Base is RefValue (needs loading from store)
+			if rv, isRef := pv.Base.(RefValue); isRef && m.Store != nil {
+				base := m.Store.GetObject(rv.ObjectID)
+				if base == nil {
+					return nil
+				}
+				return getFromBase(base.(Value))
+			}
+			// Base is already filled (not RefValue) - use it directly
+			if base, ok := pv.Base.(Value); ok && base != nil {
+				return getFromBase(base)
+			}
+			return nil
+		}
+		// Dereference - but the TV might contain a RefValue that needs filling
 		deref := pv.Deref()
+		// Fill the dereferenced value to resolve any nested RefValues
+		if m.Store != nil {
+			fillValueTV(m.Store, &deref)
+		}
 		return jsonValueSimple(m, deref, seen)
 
 	case *MapType:
@@ -796,7 +854,7 @@ func jsonSliceValueSimple(m *Machine, tv TypedValue, st *SliceType, seen map[Obj
 		// Return direct array for primitives
 		result := make([]any, length)
 		for i := 0; i < length; i++ {
-			etv := sv.GetPointerAtIndexInt2(nil, i, st.Elt).Deref()
+			etv := sv.GetPointerAtIndexInt2(m.Store, i, st.Elt).Deref()
 			result[i] = getPrimitiveValueSimple(BaseOf(st.Elt).(PrimitiveType), etv)
 		}
 		return result
@@ -805,7 +863,7 @@ func jsonSliceValueSimple(m *Machine, tv TypedValue, st *SliceType, seen map[Obj
 	// For complex types, return array of JSONTypedValue
 	result := make([]*JSONTypedValue, length)
 	for i := 0; i < length; i++ {
-		etv := sv.GetPointerAtIndexInt2(nil, i, st.Elt).Deref()
+		etv := sv.GetPointerAtIndexInt2(m.Store, i, st.Elt).Deref()
 		result[i] = jsonTypedValueSimple(m, etv, seen)
 	}
 	return result

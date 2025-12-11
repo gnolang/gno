@@ -1,7 +1,9 @@
 package vm
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -39,190 +41,9 @@ func TestConvertEmptyNumbers(t *testing.T) {
 	}
 }
 
-// func TestConvertJSONValuePrimtive(t *testing.T) {
-// 	cases := []struct {
-// 		ValueRep string // Go representation
-// 		Expected string // string representation
-// 	}{
-// 		// Boolean
-// 		{"true", "true"},
-// 		{"false", "false"},
-
-// 		// int types
-// 		{"int(42)", `42`}, // Needs to be quoted for amino
-// 		{"int8(42)", `42`},
-// 		{"int16(42)", `42`},
-// 		{"int32(42)", `42`},
-// 		{"int64(42)", `42`},
-
-// 		// uint types
-// 		{"uint(42)", `42`},
-// 		{"uint8(42)", `42`},
-// 		{"uint16(42)", `42`},
-// 		{"uint32(42)", `42`},
-// 		{"uint64(42)", `42`},
-
-// 		// Float types
-// 		{"float32(3.14)", "3.140000"},
-// 		{"float64(3.14)", "3.140000"},
-
-// 		// String type
-// 		{`"hello world"`, `"hello world"`},
-
-// 		// UntypedRuneType
-// 		{`'A'`, `65`},
-
-// 		// DataByteType (assuming DataByte is an alias for uint8)
-// 		{"uint8(42)", `42`},
-
-// 		// Byte slice
-// 		{`[]byte("AB")`, `"QUI="`},
-
-// 		// Byte array
-// 		{`[2]byte{0x41, 0x42}`, `"QUI="`},
-
-// 		// XXX: BigInt
-// 		// XXX: BigDec
-// 	}
-
-// 	for _, tc := range cases {
-// 		t.Run(tc.ValueRep, func(t *testing.T) {
-// 			m := gnolang.NewMachine("testdata", nil)
-// 			defer m.Release()
-
-// 			nn := gnolang.MustParseFile("testdata.gno",
-// 				fmt.Sprintf(`package testdata; var Value = %s`, tc.ValueRep))
-// 			m.RunFiles(nn)
-// 			m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
-
-// 			tps := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
-// 			require.Len(t, tps, 1)
-
-// 			tv := tps[0]
-
-// 			rep := stringifyJSONPrimitiveValue(m, tv)
-// 			require.Equal(t, tc.Expected, rep)
-// 		})
-// 	}
-// }
-
-// func TestConvertJSONValueStruct(t *testing.T) {
-// 	const StructsFile = `
-// package testdata
-
-// // E struct, impement error
-// type E struct { S string }
-
-// func (e *E) Error() string { return e.S }
-// `
-
-// 	t.Run("null pointer", func(t *testing.T) {
-// 		m := gnolang.NewMachine("testdata", nil)
-// 		defer m.Release()
-
-// 		const expected = "null"
-
-// 		nn := gnolang.MustParseFile("struct.gno", StructsFile)
-// 		m.RunFiles(nn)
-// 		nn = gnolang.MustParseFile("testdata.gno", `package testdata; var Value *E = nil`)
-// 		m.RunFiles(nn)
-// 		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
-
-// 		tps := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
-// 		require.Len(t, tps, 1)
-
-// 		tv := tps[0]
-// 		rep := stringifyJSONPrimitiveValue(m, tv)
-// 		require.Equal(t, expected, rep)
-// 	})
-
-// 	t.Run("without pointer", func(t *testing.T) {
-// 		m := gnolang.NewMachine("testdata", nil)
-// 		defer m.Release()
-
-// 		const value = "Hello World"
-// 		const expected = `{"$error":"Hello World"}`
-
-// 		nn := gnolang.MustParseFile("struct.gno", StructsFile)
-// 		m.RunFiles(nn)
-// 		nn = gnolang.MustParseFile("testdata.gno",
-// 			fmt.Sprintf(`package testdata; var Value = E{%q}`, value))
-// 		m.RunFiles(nn)
-// 		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
-
-// 		tps := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
-// 		require.Len(t, tps, 1)
-
-// 		tv := tps[0]
-// 		rep := stringifyJSONPrimitiveValue(m, tv)
-// 		require.Equal(t, expected, rep)
-// 	})
-
-// 	t.Run("with pointer", func(t *testing.T) {
-// 		m := gnolang.NewMachine("testdata", nil)
-// 		defer m.Release()
-
-// 		const value = "Hello World"
-// 		const expected = `{"$error":"Hello World"}`
-
-// 		nn := gnolang.MustParseFile("struct.gno", StructsFile)
-// 		m.RunFiles(nn)
-// 		nn = gnolang.MustParseFile("testdata.gno",
-// 			fmt.Sprintf(`package testdata; var Value = &E{%q}`, value))
-// 		m.RunFiles(nn)
-// 		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
-
-// 		tps := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
-// 		require.Len(t, tps, 1)
-
-// 		tv := tps[0]
-// 		rep := stringifyJSONPrimitiveValue(m, tv)
-// 		require.Equal(t, expected, rep)
-// 	})
-// }
-
-// func TestConvertJSONValuesList(t *testing.T) {
-// 	cases := []struct {
-// 		ValueRep []string // Go representation
-// 		Expected string   // string representation
-// 	}{
-// 		{
-// 			[]string{},
-// 			"[]",
-// 		},
-// 		{
-// 			[]string{"42"},
-// 			"[42]",
-// 		},
-// 		{
-// 			[]string{"42", `"hello world"`},
-// 			`[42,"hello world"]`,
-// 		},
-// 		{
-// 			[]string{"42", `"hello world"`, "[]int{42}"},
-// 			`[42,"hello world",{"$type":"[]int","$oid":"0000000000000000000000000000000000000000:0"}]`,
-// 		},
-// 	}
-
-// 	for _, tc := range cases {
-// 		t.Run(strings.Join(tc.ValueRep, "-"), func(t *testing.T) {
-// 			m := gnolang.NewMachine("testdata", nil)
-// 			defer m.Release()
-
-// 			nn := gnolang.MustParseFile("testdata.gno",
-// 				fmt.Sprintf(`package testdata; var Value = []interface{}{%s}`, strings.Join(tc.ValueRep, ",")))
-// 			m.RunFiles(nn)
-// 			m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
-
-// 			tps := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
-// 			require.Len(t, tps, 1)
-// 			require.Equal(t, gnolang.SliceKind.String(), tps[0].T.Kind().String())
-// 			tpvs := tps[0].V.(*gnolang.SliceValue).Base.(*gnolang.ArrayValue).List
-// 			rep := stringifyJSONPrimitiveValues(m, tpvs)
-// 			require.Equal(t, tc.Expected, rep)
-// 		})
-// 	}
-// }
+// ============================================================================
+// Error Type Tests
+// ============================================================================
 
 func TestConvertError(t *testing.T) {
 	cases := []struct {
@@ -269,4 +90,581 @@ var Value error = &myError{}`, tc.errorMsg)
 			require.Equal(t, tc.expected, rep)
 		})
 	}
+}
+
+// ============================================================================
+// Primitive Value Tests
+// ============================================================================
+
+func TestConvertJSONPrimitives(t *testing.T) {
+	cases := []struct {
+		name     string
+		code     string
+		expected string
+	}{
+		{
+			name:     "int_value",
+			code:     `package testdata; var Value = 42`,
+			expected: `{"results":[{"T":"int","V":42}]}`,
+		},
+		{
+			name:     "string_value",
+			code:     `package testdata; var Value = "hello"`,
+			expected: `{"results":[{"T":"string","V":"hello"}]}`,
+		},
+		{
+			name:     "bool_value",
+			code:     `package testdata; var Value = true`,
+			expected: `{"results":[{"T":"bool","V":true}]}`,
+		},
+		{
+			name:     "float_value",
+			code:     `package testdata; var Value = 3.14`,
+			expected: `{"results":[{"T":"float64","V":3.14}]}`,
+		},
+		{
+			name:     "zero_int",
+			code:     `package testdata; var Value = 0`,
+			expected: `{"results":[{"T":"int","V":0}]}`,
+		},
+		{
+			name:     "negative_int",
+			code:     `package testdata; var Value = -42`,
+			expected: `{"results":[{"T":"int","V":-42}]}`,
+		},
+		{
+			name:     "empty_string",
+			code:     `package testdata; var Value = ""`,
+			expected: `{"results":[{"T":"string","V":""}]}`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := gnolang.NewMachine("testdata", nil)
+			defer m.Release()
+
+			nn := m.MustParseFile("testdata.gno", tc.code)
+			m.RunFiles(nn)
+			m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+			tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+			require.Len(t, tvs, 1)
+
+			rep := stringifyJSONResults(m, tvs, nil)
+			require.Equal(t, tc.expected, rep)
+		})
+	}
+}
+
+// ============================================================================
+// Struct Tests
+// ============================================================================
+
+func TestConvertJSONStructs(t *testing.T) {
+	cases := []struct {
+		name     string
+		code     string
+		expected string
+	}{
+		{
+			name: "simple_struct",
+			code: `package testdata
+type Item struct { ID int; Name string }
+var Value = Item{ID: 1, Name: "test"}`,
+			expected: `{"results":[{"T":"testdata.Item","V":{"ID":{"T":"int","V":1},"Name":{"T":"string","V":"test"}}}]}`,
+		},
+		{
+			name: "empty_struct",
+			code: `package testdata
+type Empty struct {}
+var Value = Empty{}`,
+			expected: `{"results":[{"T":"testdata.Empty","V":{}}]}`,
+		},
+		{
+			name: "nested_struct",
+			code: `package testdata
+type Inner struct { Value int }
+type Outer struct { Inner Inner }
+var Value = Outer{Inner: Inner{Value: 42}}`,
+			expected: `{"results":[{"T":"testdata.Outer","V":{"Inner":{"T":"testdata.Inner","V":{"Value":{"T":"int","V":42}}}}}]}`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := gnolang.NewMachine("testdata", nil)
+			defer m.Release()
+
+			nn := m.MustParseFile("testdata.gno", tc.code)
+			m.RunFiles(nn)
+			m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+			tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+			require.Len(t, tvs, 1)
+
+			rep := stringifyJSONResults(m, tvs, nil)
+			require.Equal(t, tc.expected, rep)
+		})
+	}
+}
+
+// ============================================================================
+// Slice Tests
+// ============================================================================
+
+func TestConvertJSONSlices(t *testing.T) {
+	cases := []struct {
+		name     string
+		code     string
+		expected string
+	}{
+		{
+			name:     "int_slice",
+			code:     `package testdata; var Value = []int{1, 2, 3}`,
+			expected: `{"results":[{"T":"[]int","V":[1,2,3]}]}`,
+		},
+		{
+			name:     "string_slice",
+			code:     `package testdata; var Value = []string{"a", "b"}`,
+			expected: `{"results":[{"T":"[]string","V":["a","b"]}]}`,
+		},
+		{
+			name:     "empty_slice",
+			code:     `package testdata; var Value = []int{}`,
+			expected: `{"results":[{"T":"[]int","V":[]}]}`,
+		},
+		{
+			name: "struct_slice",
+			code: `package testdata
+type Item struct { ID int }
+var Value = []Item{{ID: 1}, {ID: 2}}`,
+			expected: `{"results":[{"T":"[]testdata.Item","V":[{"T":"testdata.Item","V":{"ID":{"T":"int","V":1}}},{"T":"testdata.Item","V":{"ID":{"T":"int","V":2}}}]}]}`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := gnolang.NewMachine("testdata", nil)
+			defer m.Release()
+
+			nn := m.MustParseFile("testdata.gno", tc.code)
+			m.RunFiles(nn)
+			m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+			tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+			require.Len(t, tvs, 1)
+
+			rep := stringifyJSONResults(m, tvs, nil)
+			require.Equal(t, tc.expected, rep)
+		})
+	}
+}
+
+// ============================================================================
+// Pointer Tests
+// ============================================================================
+
+func TestConvertJSONPointers(t *testing.T) {
+	t.Run("nil_pointer", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		code := `package testdata
+type Item struct { ID int }
+var Value *Item = nil`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+		require.Equal(t, `{"results":[{"T":"*testdata.Item","V":null}]}`, rep)
+	})
+
+	t.Run("pointer_to_struct", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		code := `package testdata
+type Item struct { ID int }
+var Value = &Item{ID: 42}`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+		require.Contains(t, rep, `"T":"*testdata.Item"`)
+		require.Contains(t, rep, `"ID":{"T":"int","V":42}`)
+	})
+}
+
+// ============================================================================
+// Map Tests
+// ============================================================================
+
+func TestConvertJSONMaps(t *testing.T) {
+	t.Run("string_int_map", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		code := `package testdata; var Value = map[string]int{"a": 1, "b": 2}`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+
+		// Parse to check structure (key order is non-deterministic)
+		var result map[string]interface{}
+		err := json.Unmarshal([]byte(rep), &result)
+		require.NoError(t, err)
+
+		results := result["results"].([]interface{})
+		require.Len(t, results, 1)
+
+		firstResult := results[0].(map[string]interface{})
+		require.Equal(t, "map[string]int", firstResult["T"])
+	})
+
+	t.Run("empty_map", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		code := `package testdata; var Value = map[string]int{}`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+		require.Contains(t, rep, `"map[string]int"`)
+	})
+}
+
+// ============================================================================
+// Declared Type Tests
+// ============================================================================
+
+func TestConvertJSONDeclaredTypes(t *testing.T) {
+	cases := []struct {
+		name     string
+		code     string
+		expected string
+	}{
+		{
+			name:     "declared_int",
+			code:     `package testdata; type MyInt int; var Value MyInt = 42`,
+			expected: `{"results":[{"T":"testdata.MyInt","V":42,"base":"int"}]}`,
+		},
+		{
+			name:     "declared_string",
+			code:     `package testdata; type MyString string; var Value MyString = "hello"`,
+			expected: `{"results":[{"T":"testdata.MyString","V":"hello","base":"string"}]}`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := gnolang.NewMachine("testdata", nil)
+			defer m.Release()
+
+			nn := m.MustParseFile("testdata.gno", tc.code)
+			m.RunFiles(nn)
+			m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+			tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+			require.Len(t, tvs, 1)
+
+			rep := stringifyJSONResults(m, tvs, nil)
+			require.Equal(t, tc.expected, rep)
+		})
+	}
+}
+
+// ============================================================================
+// Recursive Structure Tests
+// ============================================================================
+
+func TestConvertJSONRecursive(t *testing.T) {
+	t.Run("self_referential", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		code := `package testdata
+type Node struct {
+	Value int
+	Self  *Node
+}
+var Value = &Node{Value: 1}
+func init() { Value.Self = Value }`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+
+		// Should detect cycle with @ref
+		require.Contains(t, rep, `"@ref"`)
+		require.Contains(t, rep, `"Value":{"T":"int","V":1}`)
+	})
+
+	t.Run("linked_list", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		code := `package testdata
+type Node struct {
+	Value int
+	Next  *Node
+}
+var Value = &Node{Value: 1, Next: &Node{Value: 2, Next: &Node{Value: 3}}}`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+
+		// Should have all three values
+		require.Contains(t, rep, `"Value":{"T":"int","V":1}`)
+		require.Contains(t, rep, `"Value":{"T":"int","V":2}`)
+		require.Contains(t, rep, `"Value":{"T":"int","V":3}`)
+	})
+}
+
+// ============================================================================
+// Multiple Return Values Tests
+// ============================================================================
+
+func TestConvertJSONMultipleValues(t *testing.T) {
+	t.Run("two_primitives", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		code := `package testdata
+var Value1 = 42
+var Value2 = "hello"`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tv1 := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value1"))
+		tv2 := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value2"))
+		require.Len(t, tv1, 1)
+		require.Len(t, tv2, 1)
+
+		tvs := []gnolang.TypedValue{tv1[0], tv2[0]}
+		rep := stringifyJSONResults(m, tvs, nil)
+
+		expected := `{"results":[{"T":"int","V":42},{"T":"string","V":"hello"}]}`
+		require.Equal(t, expected, rep)
+	})
+
+	t.Run("mixed_types", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		code := `package testdata
+type Item struct { ID int }
+var Value1 = 42
+var Value2 = Item{ID: 1}
+var Value3 = []int{1, 2, 3}`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tv1 := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value1"))
+		tv2 := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value2"))
+		tv3 := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value3"))
+
+		tvs := []gnolang.TypedValue{tv1[0], tv2[0], tv3[0]}
+		rep := stringifyJSONResults(m, tvs, nil)
+
+		require.Contains(t, rep, `{"T":"int","V":42}`)
+		require.Contains(t, rep, `"T":"testdata.Item"`)
+		require.Contains(t, rep, `{"T":"[]int","V":[1,2,3]}`)
+	})
+
+	t.Run("empty_results", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		tvs := []gnolang.TypedValue{}
+		rep := stringifyJSONResults(m, tvs, nil)
+
+		require.Equal(t, `{"results":[]}`, rep)
+	})
+}
+
+// ============================================================================
+// JSON Tag Tests
+// ============================================================================
+
+func TestConvertJSONTags(t *testing.T) {
+	cases := []struct {
+		name     string
+		code     string
+		expected string
+	}{
+		{
+			name: "custom_tag",
+			code: "package testdata\ntype Tagged struct {\n\tFirstName string `json:\"first_name\"`\n}\nvar Value = Tagged{FirstName: \"John\"}",
+			expected: `{"results":[{"T":"testdata.Tagged","V":{"first_name":{"T":"string","V":"John"}}}]}`,
+		},
+		{
+			name: "tag_with_omitempty",
+			code: "package testdata\ntype WithOmit struct {\n\tName string `json:\"name,omitempty\"`\n}\nvar Value = WithOmit{Name: \"test\"}",
+			expected: `{"results":[{"T":"testdata.WithOmit","V":{"name":{"T":"string","V":"test"}}}]}`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := gnolang.NewMachine("testdata", nil)
+			defer m.Release()
+
+			nn := m.MustParseFile("testdata.gno", tc.code)
+			m.RunFiles(nn)
+			m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+			tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+			require.Len(t, tvs, 1)
+
+			rep := stringifyJSONResults(m, tvs, nil)
+			require.Equal(t, tc.expected, rep)
+		})
+	}
+}
+
+// ============================================================================
+// Stress Tests
+// ============================================================================
+
+func TestConvertJSONStress(t *testing.T) {
+	t.Run("large_slice", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		// Create a slice with 50 elements
+		var elements []string
+		for i := 0; i < 50; i++ {
+			elements = append(elements, fmt.Sprintf("%d", i))
+		}
+		code := fmt.Sprintf(`package testdata; var Value = []int{%s}`, strings.Join(elements, ","))
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+
+		// Should contain first and last elements
+		require.Contains(t, rep, `0`)
+		require.Contains(t, rep, `49`)
+	})
+
+	t.Run("deeply_nested", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		code := `package testdata
+type L5 struct { V string }
+type L4 struct { L5 L5 }
+type L3 struct { L4 L4 }
+type L2 struct { L3 L3 }
+type L1 struct { L2 L2 }
+var Value = L1{L2{L3{L4{L5{"deep"}}}}}`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+
+		// Should contain the deeply nested value
+		require.Contains(t, rep, `"V":{"T":"string","V":"deep"}`)
+		require.Contains(t, rep, `"T":"testdata.L1"`)
+		require.Contains(t, rep, `"T":"testdata.L5"`)
+	})
+}
+
+// ============================================================================
+// Error at Top Level Tests
+// ============================================================================
+
+func TestConvertJSONErrorAtTopLevel(t *testing.T) {
+	t.Run("error_with_other_returns", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		code := `package testdata
+type MyError struct {}
+func (e *MyError) Error() string { return "test error" }
+var Value1 = 42
+var Value2 error = &MyError{}`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tv1 := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value1"))
+		tv2 := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value2"))
+
+		tvs := []gnolang.TypedValue{tv1[0], tv2[0]}
+		// Simulate last return being error type
+		rep := stringifyJSONResults(m, tvs, tv2[0].T)
+
+		// Should have @error at top level
+		require.Contains(t, rep, `"@error":"test error"`)
+		require.Contains(t, rep, `{"T":"int","V":42}`)
+	})
+
+	t.Run("nil_error", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		code := `package testdata
+var Value error = nil`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		// nil error should not produce @error field
+		rep := stringifyJSONResults(m, tvs, tvs[0].T)
+		require.NotContains(t, rep, `"@error"`)
+	})
 }
