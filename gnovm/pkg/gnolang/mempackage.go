@@ -156,28 +156,6 @@ func IsTestFile(file string) bool {
 }
 
 //----------------------------------------
-// Mempackage basic file filters.
-
-var (
-	goodFiles = []string{
-		"LICENSE",
-		"README.md",
-		"gno.mod",
-	}
-	// NOTE: Xtn is easier to type than Extension due to proximity of 'e'
-	// and 'x'.  Our language is thus influenced by the layout of the
-	// "qwerty" keyboard, and perhaps different keyboards affect language
-	// evolution differently.
-	goodFileXtns = []string{
-		".gno",
-		".toml",
-		// ".txtar", // XXX: to be considered
-	}
-	badFileXtns = []string{
-		".gen.go",
-	}
-)
-
 // When running a mempackage (and thus in knowing what to parse), a filter
 // applied must be one of these declared.
 //
@@ -656,8 +634,6 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 	if err != nil {
 		return nil, err
 	}
-	// Shadow defense.
-	goodFiles := goodFiles
 	// Stdlib pkgpath validation.
 	if !mptype.IsStdlib() && IsStdlib(pkgPath) {
 		panic(fmt.Sprintf("unexpected stdlib package path %q for mempackage type %q", pkgPath, mptype))
@@ -668,22 +644,26 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 	if mptype.IsIntegration() && !strings.HasSuffix(pkgPath, "_test") {
 		panic(fmt.Sprintf("unexpected package path %q for mempackage type %q (expected suffix %q)", pkgPath, mptype, "_test"))
 	}
-	// Allows transpilation to work on stdlibs with native fns.
-	if IsStdlib(pkgPath) {
-		goodFiles = append(goodFiles, ".go")
-	}
 	// Construct list of files to add to mpkg.
 	list := make([]string, 0, len(files))
 	for _, file := range files {
-		// Ignore directories and hidden files, only include allowed files & extensions,
-		// then exclude files that are of the bad extensions.
-		if file.IsDir() ||
-			strings.HasPrefix(file.Name(), ".") ||
-			(!endsWithAny(file.Name(), goodFileXtns) &&
-				!slices.Contains(goodFiles, file.Name())) ||
-			endsWithAny(file.Name(), badFileXtns) {
+		name := file.Name()
+
+		// Ignore directories and hidden files.
+		if file.IsDir() || strings.HasPrefix(name, ".") {
 			continue
 		}
+
+		// Allows transpilation to work on stdlibs with native fns.
+		if !IsStdlib(pkgPath) && strings.HasSuffix(name, ".go") {
+			continue
+		}
+
+		mf := std.MemFile{Name: name}
+		if err := mf.ValidateBasic(); err != nil {
+			continue
+		}
+
 		list = append(list, filepath.Join(dir, file.Name()))
 	}
 	return ReadMemPackageFromList(list, pkgPath, mptype)
@@ -984,7 +964,7 @@ func ValidateMemPackage(mpkg *std.MemPackage) error {
 // scope of its type.  It does not validate whether mpkg is runnable or
 // storable.
 func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
-	// Check for file sorting, string lengths, uniqueness...
+	// Check for file sorting, string lengths, name validity, uniqueness...
 	err := mpkg.ValidateBasic()
 	if err != nil {
 		return err
@@ -1000,11 +980,6 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 	// Check mpkg.Type/mptype.
 	mptype := mpkg.Type.(MemPackageType)
 	mptype.Validate(mpkg.Path)
-	// ...
-	goodFileXtns := goodFileXtns
-	if mptype.IsStdlib() { // Allow transpilation to work on stdlib with native functions.
-		goodFileXtns = append(goodFileXtns, ".go")
-	}
 	// Validate package name.
 	if err := validatePkgName(Name(mpkg.Name)); err != nil {
 		return err
@@ -1018,8 +993,8 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 	for _, mfile := range mpkg.Files {
 		// Validate file name.
 		fname := mfile.Name
-		if endsWithAny(fname, badFileXtns) {
-			errs = multierr.Append(errs, fmt.Errorf("invalid file %q: illegal file extension", fname))
+		if !mptype.IsStdlib() && strings.HasSuffix(fname, ".go") {
+			errs = multierr.Append(errs, fmt.Errorf("invalid file %q: non-stdlib package cannot have .go files", fname))
 			continue
 		}
 		if strings.HasPrefix(fname, ".") {
@@ -1029,12 +1004,6 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 		if strings.Contains(fname, "/") {
 			errs = multierr.Append(errs, fmt.Errorf("invalid file %q: file name cannot contain a slash", fname))
 			continue
-		}
-		if !endsWithAny(fname, goodFileXtns) {
-			if !slices.Contains(goodFiles, fname) {
-				errs = multierr.Append(errs, fmt.Errorf("invalid file %q: unrecognized file type", fname))
-				continue
-			}
 		}
 		// Validate .gno package names.
 		if strings.HasSuffix(fname, ".gno") {
