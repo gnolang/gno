@@ -15,6 +15,12 @@ import (
 
 // Coins transforms coins into subscriptions coins, prefixing their denom them with their type. Examples: "ugnot" -> "/native/ugnot", "gno.land/r/demo/foo20" -> "/grc20/gno.land/r/demo/foo20"
 func Coins(cur realm, native chain.Coins, grc20 chain.Coins) (chain.Coins, error) {
+	if len(native) == 0 && len(grc20) == 0 {
+		return chain.Coins{}, errors.New("no coins provided")
+	}
+	if coinsHasNegative(native) || coinsHasNegative(grc20) {
+		return chain.Coins{}, errors.New("negative coin amounts are not allowed")
+	}
 	out := make(chain.Coins, len(native)+len(grc20))
 	for i, coin := range native {
 		out[i].Amount = coin.Amount
@@ -27,6 +33,15 @@ func Coins(cur realm, native chain.Coins, grc20 chain.Coins) (chain.Coins, error
 		out[j].Denom = "/grc20/" + coin.Denom
 	}
 	return out, nil
+}
+
+func coinsHasNegative(coins chain.Coins) bool {
+	for _, coin := range coins {
+		if coin.Amount < 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func coinsHasPositive(coins chain.Coins) bool {
