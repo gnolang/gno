@@ -1,6 +1,8 @@
 package boards2
 
 import (
+	"strings"
+
 	"gno.land/p/gnoland/boards"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
@@ -73,4 +75,50 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(md.HorizontalRule())
 		res.Write(pager.Picker(p))
 	}
+}
+
+func renderBoardMenu(board *boards.Board, req *mux.Request) string {
+	var (
+		b               strings.Builder
+		boardMembersURL = makeBoardURI(board) + "/members"
+	)
+
+	b.WriteString("\n")
+	if board.Readonly {
+		b.WriteString(md.Link("List Members", boardMembersURL))
+		b.WriteString(" • ")
+		b.WriteString(md.Link("Unfreeze Board", makeUnfreezeBoardURI(board)))
+		b.WriteString("\n")
+	} else {
+		b.WriteString(md.Link("Create Thread", makeCreateThreadURI(board)))
+		b.WriteString(" • ")
+		b.WriteString(md.Link("Request Invite", makeRequestInviteURI(board)))
+		b.WriteString(" • ")
+
+		menu := getCurrentMenu(req.RawPath)
+		if menu == menuManageBoard {
+			b.WriteString(md.Bold("Manage Board"))
+		} else {
+			b.WriteString(md.Link("Manage Board", menuURL(menuManageBoard)))
+		}
+
+		b.WriteString("  \n")
+
+		if menu == menuManageBoard {
+			b.WriteString("↳")
+			b.WriteString(md.Link("Invite Member", makeInviteMemberURI(board)))
+			b.WriteString(" • ")
+			b.WriteString(md.Link("List Invite Requests", makeBoardURI(board)+"/invites"))
+			b.WriteString(" • ")
+			b.WriteString(md.Link("List Members", boardMembersURL))
+			b.WriteString(" • ")
+			b.WriteString(md.Link("List Banned Users", makeBoardURI(board)+"/banned-users"))
+			b.WriteString(" • ")
+			b.WriteString(md.Link("Freeze Board", makeFreezeBoardURI(board)))
+			b.WriteString("\n")
+		}
+	}
+
+	b.WriteString("\n")
+	return b.String()
 }
