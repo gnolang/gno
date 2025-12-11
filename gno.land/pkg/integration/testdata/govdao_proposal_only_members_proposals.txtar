@@ -16,7 +16,7 @@ gnoland start
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 
 # try to add the proposal using a non-member
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test newmember $WORK/proposer/create_proposal.gno
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test newmember $WORK/proposer/create_proposal.gno
 stdout 'only members can create new proposals'
 
 -- proposer/create_proposal.gno --

@@ -19,18 +19,18 @@ gnoland start
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 
 # Register member with a namespace first
-gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "mem123" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test member
+gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "mem123" -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test member
 stdout 'OK!'
 
 # register the tokens and fund the treasury address
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/tokens/register_tokens.gno
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test member $WORK/tokens/register_tokens.gno
 
 # verify no balances are found even though the treasury address got tokens
 gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/treasury:GRC20'
 stdout 'No balances found.'
 
 # add the tokens update proposal
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
 stdout OK!
 
 # call gov/dao render to check the tokens update proposal was created
@@ -41,11 +41,11 @@ stdout '- gno.land/r/demo/defi/grc20factory.TOKEN2'
 stdout '- gno.land/r/demo/defi/grc20factory.TOKEN3'
 
 # vote on the tokens update proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -chainid=tendermint_test member
 stdout OK!
 
 # call tokens update proposal execution
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -chainid=tendermint_test member
 stdout OK!
 
 # verify the balances associated with the tokens update proposal

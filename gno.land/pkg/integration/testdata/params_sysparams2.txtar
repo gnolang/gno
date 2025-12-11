@@ -4,27 +4,27 @@ gnoland start
 
 # ---- 1 Test sys/params.SetSysParamXXX when called from gno.land/r/sys/params
 
-gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/sys/params -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/sys/params -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
 
 ## lock transfer
-gnokey maketx call -pkgpath gno.land/r/sys/params -func SetLockTransfer -args "ugnot" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/sys/params -func SetLockTransfer -args "ugnot" -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 gnokey query params/bank:p:restricted_denoms
 stdout 'data: \["ugnot"\]'
 
 # unlock transfer
-gnokey maketx call -pkgpath gno.land/r/sys/params -func SetLockTransfer -args "" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/sys/params -func SetLockTransfer -args "" -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 gnokey query params/bank:p:restricted_denoms
 stdout 'data: \[""\]'
 
 # set non-existing module param
-gnokey maketx call -pkgpath gno.land/r/sys/params -func SetBankArbitrary -args "foo" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/sys/params -func SetBankArbitrary -args "foo" -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 #stderr 'invalid bank parameter name: newkey'
 
 gnokey query params/bank:p:newkey
 stdout 'data: "foo"'
 
 # set invalid key
-! gnokey maketx call -pkgpath gno.land/r/sys/params -func SetInvalidKey -args "ugnot" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/sys/params -func SetInvalidKey -args "ugnot" -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 stderr 'invalid param name: bank:restricted_denoms'
 
 gnokey query params/bank:p:restricted_denoms
@@ -35,34 +35,34 @@ stdout 'data: \n'
 
 
 # ---- 2 Test sys/params.SetSysParamXXX when called outside of gno.land/r/sys/params
-gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/myrealm -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/myrealm -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
 
 ## can not call SetSysParamXXX out side of gno.land/r/params
-! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetSysParamString -args "foo" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetSysParamString -args "foo" -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 stderr 'Data: "sys/params" can only be used from "gno.land/r/sys/params"' # XXX can only be *imported* from... enforce import rule
 
 gnokey query params/bank:p:foo
 stdout 'data: \n'
 
-! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetSysParamBool -args true -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetSysParamBool -args true -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 stderr 'Data: "sys/params" can only be used from "gno.land/r/sys/params"' # XXX can only be *imported* from... enforce import rule
 
 gnokey query params/bank:p:bar
 stdout 'data: \n'
 
-! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetSysParamInt64 -args -100 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetSysParamInt64 -args -100 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 stderr 'Data: "sys/params" can only be used from "gno.land/r/sys/params"' # XXX can only be *imported* from... enforce import rule
 
 gnokey query params/bank:p:baz
 stdout 'data: \n'
 
-! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetSysParamUint64 -args 100 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetSysParamUint64 -args 100 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 stderr 'Data: "sys/params" can only be used from "gno.land/r/sys/params"' # XXX can only be *imported* from... enforce import rule
 
 gnokey query params/bank:p:baz
 stdout 'data: \n'
 
-! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetSysParamBytes -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetSysParamBytes -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 stderr 'Data: "sys/params" can only be used from "gno.land/r/sys/params"' # XXX can only be *imported* from... enforce import rule
 
 gnokey query params/bank:p:baz

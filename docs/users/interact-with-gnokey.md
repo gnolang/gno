@@ -170,7 +170,6 @@ gnokey maketx addpkg \
 -pkgdir "." \
 -gas-fee 10000000ugnot \
 -gas-wanted 8000000 \
--broadcast \
 -chainid staging \
 -remote "https://rpc.gno.land:443"
 ```
@@ -184,7 +183,6 @@ gnokey maketx addpkg \
 -pkgdir "." \
 -gas-fee 10000000ugnot \
 -gas-wanted 200000 \
--broadcast \
 -chainid staging \
 -remote "https://rpc.gno.land:443"
 mykey
@@ -246,7 +244,6 @@ gnokey maketx call \
 -send "1000ugnot" \
 -gas-fee 10000000ugnot \
 -gas-wanted 2000000 \
--broadcast \
 -chainid staging \
 -remote "https://rpc.gno.land:443" \
 mykey
@@ -284,7 +281,6 @@ gnokey maketx call \
 -args "<your_address>" \
 -gas-fee 10000000ugnot \
 -gas-wanted 2000000 \
--broadcast \
 -chainid staging \
 -remote "https://rpc.gno.land:443" \
 mykey
@@ -332,7 +328,6 @@ gnokey maketx send \
 -send 100ugnot \
 -gas-fee 10000000ugnot \
 -gas-wanted 2000000 \
--broadcast \
 -chainid staging \
 -remote "https://rpc.gno.land:443" \
 mykey
@@ -392,7 +387,6 @@ Now we will be able to provide this to the `maketx run` subcommand:
 gnokey maketx run \
 -gas-fee 1000000ugnot \
 -gas-wanted 20000000 \
--broadcast \
 -chainid staging \
 -remote "https://rpc.gno.land:443" \
 mykey ./script.gno
@@ -583,6 +577,7 @@ gnokey maketx call \
 -func "SignUp" \
 -gas-fee 1000000ugnot \
 -gas-wanted 2000000 \
+-broadcast=false \
 mykey > userbook.tx
 ```
 

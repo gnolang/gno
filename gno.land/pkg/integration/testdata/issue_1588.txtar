@@ -3,13 +3,13 @@
 gnoland start
 
 # add contract
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/xx -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/xx -gas-fee 1000000ugnot -gas-wanted 2000000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/demo/xx -func DefineFamily -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/xx -func DefineFamily -gas-fee 1000000ugnot -gas-wanted 2000000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/demo/xx -func GetOutcastChildAge -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/xx -func GetOutcastChildAge -gas-fee 1000000ugnot -gas-wanted 2000000 -chainid=tendermint_test test1
 stdout OK!
 stdout '(10 int)'
 

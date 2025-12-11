@@ -17,7 +17,7 @@ gnoland start
 
 ! gnokey broadcast $WORK/add_feeds.tx
 
-gnokey maketx addpkg -pkgdir $WORK/bye -pkgpath gno.land/r/demo/bye -gas-fee 1000000ugnot -gas-wanted 10_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/bye -pkgpath gno.land/r/demo/bye -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
 stdout OK!
 
 -- imports/imports.gno --

@@ -68,7 +68,6 @@ gnokey maketx addpkg \
   -gas-wanted 2000000 \
   -gas-fee 1000000ugnot \
   -remote https://rpc.gno.land:443 \
-  -broadcast \
   -chainid staging \
   -simulate only \
   YOUR_KEY_NAME
