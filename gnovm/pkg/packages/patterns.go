@@ -20,7 +20,7 @@ type pkgMatch struct {
 	Match []string
 }
 
-func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, patterns ...string) ([]*pkgMatch, error) {
+func expandPatterns(gnoRoot string, loaderCtx *loaderContext, localDeps map[string]string, out io.Writer, patterns ...string) ([]*pkgMatch, error) {
 	pkgMatches := []*pkgMatch(nil)
 
 	addPkgDir := func(dir string, match *string) {
@@ -118,7 +118,11 @@ func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, pat
 			var dir string
 			if gnolang.IsStdlib(pat) {
 				dir = StdlibDir(gnoRoot, pat)
+			} else if localDir, ok := localDeps[pat]; ok {
+				// Found in local workspace roots
+				dir = localDir
 			} else {
+				// Fall back to mod cache
 				dir = PackageDir(pat)
 			}
 			addPkgDir(dir, &match)

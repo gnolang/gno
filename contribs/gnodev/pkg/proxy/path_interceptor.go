@@ -6,14 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go/parser"
-	"go/token"
 	"io"
 	"log/slog"
 	"net"
 	"net/http"
-	gopath "path"
-	"strconv"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -223,30 +220,7 @@ func (upaths uniqPaths) list() []string {
 	return paths
 }
 
-// Add a path to
-func (upaths uniqPaths) addPath(path string) {
-	path = cleanupPath(path)
-	upaths[path] = struct{}{}
-}
-
-func (upaths uniqPaths) addPackageDeps(pkg *std.MemPackage) {
-	fset := token.NewFileSet()
-	for _, file := range pkg.Files {
-		if !strings.HasSuffix(file.Name, ".gno") {
-			continue
-		}
-
-		f, err := parser.ParseFile(fset, file.Name, file.Body, parser.ImportsOnly)
-		if err != nil {
-			continue
-		}
-
-		for _, imp := range f.Imports {
-			path, _ := strconv.Unquote(imp.Path.Value)
-			upaths.addPath(path)
-		}
-	}
-}
+func (upaths uniqPaths) add(path string) { upaths[path] = struct{}{} }
 
 // handleRequest parses and processes the RPC request body.
 func (proxy *PathInterceptor) handleRequest(body []byte) error {
@@ -319,18 +293,11 @@ func handleTx(bz []byte, upaths uniqPaths) error {
 
 	for _, msg := range tx.Msgs {
 		switch msg := msg.(type) {
-		case vm.MsgAddPackage:
-			// NOTE: Do not add the package itself to avoid conflict.
-			if msg.Package != nil {
-				upaths.addPackageDeps(msg.Package)
-			}
-		case vm.MsgRun:
-			// NOTE: Do not add the package itself to avoid conflict.
-			if msg.Package != nil {
-				upaths.addPackageDeps(msg.Package)
-			}
+		case vm.MsgAddPackage: // MsgAddPackage should not be handled
 		case vm.MsgCall:
-			upaths.addPath(msg.PkgPath)
+			upaths.add(msg.PkgPath)
+		case vm.MsgRun:
+			upaths.add(msg.Package.Path)
 		}
 	}
 
@@ -345,7 +312,14 @@ func handleQuery(path string, data []byte, upaths uniqPaths) error {
 
 	case "vm/qrender", "vm/qfile", "vm/qfuncs", "vm/qeval":
 		path, _, _ := strings.Cut(string(data), ":") // Cut arguments out
-		upaths.addPath(path)
+		path = filepath.Clean(path)
+
+		// If path is a file, grab the directory instead
+		if ext := filepath.Ext(path); ext != "" {
+			path = filepath.Dir(path)
+		}
+
+		upaths.add(path)
 		return nil
 
 	default:
@@ -353,14 +327,4 @@ func handleQuery(path string, data []byte, upaths uniqPaths) error {
 	}
 
 	// XXX: handle more cases
-}
-
-func cleanupPath(path string) string {
-	path = gopath.Clean(path)
-	// If path is a file, grab the directory instead
-	if ext := gopath.Ext(path); ext != "" {
-		path = gopath.Dir(path)
-	}
-
-	return path
 }

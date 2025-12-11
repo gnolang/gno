@@ -3,6 +3,8 @@ package packages
 import (
 	"errors"
 	"fmt"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
 type (
@@ -58,21 +60,36 @@ func visitPackage(pkg *Package, pkgs []*Package, visited, onStack map[string]boo
 	visited[pkg.ImportPath] = true
 	onStack[pkg.ImportPath] = true
 
-	// Visit package's dependencies
-	for _, imp := range pkg.Imports[FileKindPackageSource] {
-		found := false
-		for _, p := range pkgs {
-			if p.ImportPath != imp {
+	// Visit package's dependencies (including test dependencies)
+	// We need to consider all import kinds to ensure proper ordering for deployment
+	allImportKinds := []FileKind{FileKindPackageSource, FileKindTest, FileKindXTest, FileKindFiletest}
+	for _, kind := range allImportKinds {
+		for _, imp := range pkg.Imports[kind] {
+			// Skip self-imports (XTest files import their own package for blackbox testing)
+			if imp == pkg.ImportPath {
 				continue
 			}
-			if err := visitPackage(p, pkgs, visited, onStack, sortedPkgs); err != nil {
-				return err
+
+			// Skip stdlib imports - they're handled by the VM natively
+			// and are not included in the package list
+			if gnolang.IsStdlib(imp) {
+				continue
 			}
-			found = true
-			break
-		}
-		if !found {
-			return fmt.Errorf("missing dependency '%s' for package '%s'", imp, pkg.ImportPath)
+
+			found := false
+			for _, p := range pkgs {
+				if p.ImportPath != imp {
+					continue
+				}
+				if err := visitPackage(p, pkgs, visited, onStack, sortedPkgs); err != nil {
+					return err
+				}
+				found = true
+				break
+			}
+			if !found {
+				return fmt.Errorf("missing dependency '%s' for package '%s'", imp, pkg.ImportPath)
+			}
 		}
 	}
 
