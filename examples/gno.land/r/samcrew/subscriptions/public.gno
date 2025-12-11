@@ -30,7 +30,7 @@ func Subscribe(cur realm, serviceName string, fqName string, amount int64) {
 	if amount != 0 {
 		grc20Send = chain.NewCoins(chain.NewCoin("/grc20/"+fqName, amount))
 	}
-	sCoins, err := Coins(cur, natSend, grc20Send)
+	sCoins, err := prefixCoins(cur, natSend, grc20Send)
 	if err != nil {
 		panic(err)
 	}
@@ -166,7 +166,7 @@ func NewService(cur realm, displayName, description string, renewalPeriod time.D
 		panic("service with the same display name already exists")
 	}
 	creator := runtime.PreviousRealm().Address()
-	sCoins, err := Coins(cur, native, grc20)
+	sCoins, err := prefixCoins(cur, native, grc20)
 	if err != nil {
 		panic(err)
 	}
