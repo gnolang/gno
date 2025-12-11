@@ -84,7 +84,10 @@ func TestAddCoin(t *testing.T) {
 		{NewCoin(testDenom1, 1), NewCoin(testDenom1, 1), NewCoin(testDenom1, 2), false},
 		{NewCoin(testDenom1, 1), NewCoin(testDenom1, 0), NewCoin(testDenom1, 1), false},
 		{NewCoin(testDenom1, 1), NewCoin(testDenom2, 1), NewCoin(testDenom1, 1), true},
-		{NewCoin(testDenom1, 0), Coin{
+		{Coin{
+			Denom:  testDenomInvalid,
+			Amount: 1,
+		}, Coin{
 			Denom:  testDenomInvalid,
 			Amount: 1,
 		}, NewCoin(testDenom1, 0), true},
@@ -263,18 +266,24 @@ func TestAddCoins(t *testing.T) {
 		inputOne Coins
 		inputTwo Coins
 		expected Coins
+		panics   bool
 	}{
-		{Coins{{testDenom1, one}, {testDenom2, one}}, Coins{{testDenom1, one}, {testDenom2, one}}, Coins{{testDenom1, two}, {testDenom2, two}}},
-		{Coins{{testDenom1, zero}, {testDenom2, one}}, Coins{{testDenom1, zero}, {testDenom2, zero}}, Coins{{testDenom2, one}}},
-		{Coins{{testDenom1, two}}, Coins{{testDenom2, zero}}, Coins{{testDenom1, two}}},
-		{Coins{{testDenom1, one}}, Coins{{testDenom1, one}, {testDenom2, two}}, Coins{{testDenom1, two}, {testDenom2, two}}},
-		{Coins{{testDenom1, zero}, {testDenom2, zero}}, Coins{{testDenom1, zero}, {testDenom2, zero}}, Coins(nil)},
+		{Coins{{testDenom1, one}, {testDenom2, one}}, Coins{{testDenom1, one}, {testDenom2, one}}, Coins{{testDenom1, two}, {testDenom2, two}}, false},
+		{Coins{{testDenom1, zero}, {testDenom2, one}}, Coins{{testDenom1, zero}, {testDenom2, zero}}, Coins{{testDenom2, one}}, false},
+		{Coins{{testDenom1, two}}, Coins{{testDenom2, zero}}, Coins{{testDenom1, two}}, false},
+		{Coins{{testDenom1, one}}, Coins{{testDenom1, one}, {testDenom2, two}}, Coins{{testDenom1, two}, {testDenom2, two}}, false},
+		{Coins{{testDenom1, zero}, {testDenom2, zero}}, Coins{{testDenom1, zero}, {testDenom2, zero}}, Coins(nil), false},
+		{Coins{{testDenom1, zero}}, Coins{{testDenomInvalid, one}}, Coins{}, true},
 	}
 
 	for tcIndex, tc := range cases {
-		res := tc.inputOne.Add(tc.inputTwo)
-		assert.True(t, res.IsValid())
-		require.Equal(t, tc.expected, res, "sum of coins is incorrect, tc #%d", tcIndex)
+		if tc.panics {
+			require.Panics(t, func() { tc.inputOne.Add(tc.inputTwo) })
+		} else {
+			res := tc.inputOne.Add(tc.inputTwo)
+			assert.True(t, res.IsValid())
+			require.Equal(t, tc.expected, res, "sum of coins is incorrect, tc #%d", tcIndex)
+		}
 	}
 }
 

@@ -121,7 +121,7 @@ func (coin Coin) IsEqual(other Coin) bool {
 func (coin Coin) Add(coinB Coin) Coin {
 	res := coin.AddUnsafe(coinB)
 	if !res.IsValid() {
-		panic(fmt.Sprintf("invalid result: %v + %v = %v", coin, coinB, res))
+		panic(fmt.Sprintf("invalid result: %v + %v = %v (lowercase-only denoms, and positive amounts)", coin, coinB, res))
 	}
 	return res
 }
@@ -275,7 +275,7 @@ func (coins Coins) Add(coinsB Coins) Coins {
 	res := coins.AddUnsafe(coinsB)
 	if !res.IsValid() {
 		panic(fmt.Sprintf(
-			"invalid result: %v + %v = %v (coins must stay sorted, lowercase-only denoms, and positive amounts)",
+			"invalid result: %v + %v = %v (coins must be sorted, lowercase-only denoms, and positive amounts)",
 			coins, coinsB, res,
 		))
 	}
