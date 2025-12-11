@@ -312,36 +312,33 @@ func TestNonMemberProposalFee(cur realm, t *testing.T) {
 	loadMembers()
 
 	portfolio := "# This is my portfolio:\n\n- THINGS"
-	nm1 := testutils.TestAddress("nm1")
 
 	testing.SetOriginCaller(noMember)
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(testing.NewUserRealm(noMember))
 
-	// Test: Non-member without fee should fail with realm validation error
-	uassert.AbortsContains(t, "proposal creation must be done directly by a user or through the r/gov/dao proxy", func(cur realm) {
-		dao.MustCreateProposal(cross, NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio))
-	})
+	// Test: Non-member without fee should fail with fee message
+	_, err := govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
+	urequire.Error(t, err)
+	urequire.ErrorContains(t, err, "non-members must send 1000000ugnot to create a proposal")
 
-	// Test: Non-member with insufficient fee should also fail with realm validation error
+	// Test: Non-member with insufficient fee should fail
 	testing.SetOriginSend(chain.Coins{chain.Coin{Denom: "ugnot", Amount: 500000}}) // 0.5 GNOT - insufficient
-	uassert.AbortsContains(t, "proposal creation must be done directly by a user or through the r/gov/dao proxy", func(cur realm) {
-		dao.MustCreateProposal(cross, NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio))
-	})
+	_, err = govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
+	urequire.Error(t, err)
+	urequire.ErrorContains(t, err, "non-members must send 1000000ugnot to create a proposal")
 
-	// Test: Non-member with correct fee should also fail with realm validation error
+	// Test: Non-member with correct fee should succeed
 	testing.SetOriginSend(chain.Coins{chain.Coin{Denom: "ugnot", Amount: ProposalFeeAmount}}) // 1 GNOT
-	uassert.AbortsContains(t, "proposal creation must be done directly by a user or through the r/gov/dao proxy", func(cur realm) {
-		dao.MustCreateProposal(cross, NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio))
-	})
+	_, err = govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
+	urequire.NoError(t, err)
 
 	// Reset OrigSend
 	testing.SetOriginSend(chain.Coins{})
 
-	// Test: Members also fail due to realm validation in tests
+	// Test: Members don't need to pay a fee
 	testing.SetOriginCaller(m1)
-	uassert.AbortsContains(t, "proposal creation must be done directly by a user or through the r/gov/dao proxy", func(cur realm) {
-		dao.MustCreateProposal(cross, NewAddMemberRequest(cur, testutils.TestAddress("nm2"), memberstore.T2, portfolio))
-	})
+	_, err = govDAO.PreCreateProposal(NewAddMemberRequest(cur, m1, memberstore.T2, portfolio))
+	urequire.NoError(t, err)
 }
 
 func contains(s, substr string) bool {

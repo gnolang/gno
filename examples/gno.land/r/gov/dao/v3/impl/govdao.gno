@@ -14,7 +14,7 @@ import (
 var ErrMemberNotFound = errors.New("member not found")
 
 // ProposalFeeAmount is the fee required for non-members to create proposals (in ugnot)
-const ProposalFeeAmount int64 = 1_000_000 // 1 GNOT
+var ProposalFeeAmount int64 = 1_000_000 // 1 GNOT
 
 type GovDAO struct {
 	pss    ProposalsStatuses
@@ -73,11 +73,10 @@ func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (address, error) {
 	// If the caller is not a member, they must pay a fee
 	if mem == nil {
 		sent := banker.OriginSend()
-		feeRequired := chain.NewCoin("ugnot", ProposalFeeAmount)
 		if len(sent) == 0 || sent.AmountOf("ugnot") < ProposalFeeAmount {
 			return caller, errors.New(ufmt.Sprintf(
-				"non-members must send %s to create a proposal",
-				feeRequired.String(),
+				"non-members must send %dugnot to create a proposal",
+				ProposalFeeAmount,
 			))
 		}
 	}
@@ -203,4 +202,18 @@ func (g *GovDAO) isValidCall() bool {
 	}
 
 	return false
+}
+
+// SetProposalFeeAmount updates the proposal fee amount for non-members.
+func (g *GovDAO) SetProposalFeeAmount(amount int64) error {
+	if !g.isValidCall() {
+		return errors.New("proposal fee amount can only be changed through a proposal")
+	}
+
+	if amount < 0 {
+		return errors.New("proposal fee amount must be non-negative")
+	}
+
+	ProposalFeeAmount = amount
+	return nil
 }

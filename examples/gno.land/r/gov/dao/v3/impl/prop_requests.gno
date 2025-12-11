@@ -195,6 +195,47 @@ func NewTreasuryGRC20TokensUpdate(newTokenKeys []string) dao.ProposalRequest {
 	)
 }
 
+// NewProposalFeeAmountRequest creates a proposal request to update the proposal fee amount
+// required for non-members to create proposals.
+func NewProposalFeeAmountRequest(newAmount int64, reason string) dao.ProposalRequest {
+	if newAmount < 0 {
+		panic("proposal fee amount must be non-negative")
+	}
+
+	if reason == "" {
+		panic("proposal fee amount change requires a reason")
+	}
+
+	cb := func(_ realm) error {
+		return panictoerr.PanicToError(func() {
+			err := _govdao.SetProposalFeeAmount(newAmount)
+			if err != nil {
+				panic(err)
+			}
+		})
+	}
+
+	e := dao.NewSimpleExecutor(
+		cb,
+		ufmt.Sprintf(
+			"The proposal fee amount for non-members will be changed to %d ugnot.\n\nReason: %s",
+			newAmount,
+			reason,
+		),
+	)
+
+	return dao.NewProposalRequest(
+		"Proposal Fee Amount Change",
+		ufmt.Sprintf(
+			"This proposal is looking to change the proposal fee amount for non-members from %d ugnot to %d ugnot.\n\nReason: %s",
+			ProposalFeeAmount,
+			newAmount,
+			reason,
+		),
+		e,
+	)
+}
+
 func memberByTier(tier string) *memberstore.Member {
 	switch tier {
 	case memberstore.T1:
