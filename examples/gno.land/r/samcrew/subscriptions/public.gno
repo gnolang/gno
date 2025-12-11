@@ -87,10 +87,11 @@ func Unsubscribe(cur realm, serviceName string) {
 	}
 }
 
-// Topup allows a user to top up their subscription balance using native coins or GRC20 tokens
-// - serviceName: the name of the service to top up
-// - fqName: the fully qualified name of the GRC20 token to use for top up (empty string for native coins)
-// - amount: the amount of GRC20 tokens to deposit (0 for native coins)
+// Topup increases a user's subscription balance using native coins, GRC20 tokens,
+// or both in the same transaction. Native funds are inferred from the tx.
+// - serviceName: target service
+// - fqName: GRC20 token denom (optional)
+// - amount: amount of GRC20 tokens (ignored if fqName empty)
 func Topup(cur realm, serviceName string, fqName string, amount int64) {
 	svc := mustGetServiceByName(serviceName)
 	if !svc.subscribers.Has(runtime.PreviousRealm().Address().String()) {
