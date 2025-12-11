@@ -16,11 +16,11 @@ import (
 type Handler struct {
 	consensusState Consensus
 	stateDB        dbm.DB
-	peers          Peers
+	peers          ctypes.Peers
 }
 
 // NewHandler creates a new instance of the consensus RPC handler
-func NewHandler(consensusState Consensus, stateDB dbm.DB, peers Peers) *Handler {
+func NewHandler(consensusState Consensus, stateDB dbm.DB, peers ctypes.Peers) *Handler {
 	return &Handler{
 		consensusState: consensusState,
 		stateDB:        stateDB,

@@ -1,0 +1,71 @@
+package net
+
+import (
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/metadata"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
+)
+
+// Handler is the net RPC handler
+type Handler struct {
+	genesisDoc *types.GenesisDoc
+
+	peers     ctypes.Peers
+	transport ctypes.Transport
+}
+
+// NewHandler creates a new instance of the net RPC handler
+func NewHandler(
+	peers ctypes.Peers,
+	transport ctypes.Transport,
+	genesisDoc *types.GenesisDoc,
+) *Handler {
+	return &Handler{
+		peers:      peers,
+		transport:  transport,
+		genesisDoc: genesisDoc,
+	}
+}
+
+// NetInfo fetches the current network info
+//
+//	No params
+func (h *Handler) NetInfo(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
+	if len(p) > 0 {
+		return nil, spec.GenerateInvalidParamError(1)
+	}
+
+	var (
+		set     = h.peers.Peers()
+		out, in = set.NumOutbound(), set.NumInbound()
+	)
+
+	peers := make([]ctypes.Peer, 0, out+in)
+	for _, peer := range set.List() {
+		peers = append(peers, ctypes.Peer{
+			NodeInfo:         peer.NodeInfo(),
+			IsOutbound:       peer.IsOutbound(),
+			ConnectionStatus: peer.Status(),
+			RemoteIP:         peer.RemoteIP().String(),
+		})
+	}
+
+	return &ctypes.ResultNetInfo{
+		Listening: h.transport.IsListening(),
+		Listeners: h.transport.Listeners(),
+		NPeers:    len(peers),
+		Peers:     peers,
+	}, nil
+}
+
+// GenesisHandler fetches the genesis document (genesis.json)
+//
+//	No params
+func (h *Handler) GenesisHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
+	if len(p) > 0 {
+		return nil, spec.GenerateInvalidParamError(1)
+	}
+
+	return &ctypes.ResultGenesis{Genesis: h.genesisDoc}, nil
+}

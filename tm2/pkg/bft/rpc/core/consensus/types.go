@@ -5,7 +5,6 @@ import (
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
 )
 
 // Consensus exposes read-only access to consensus state for RPC handlers
@@ -27,10 +26,4 @@ type Consensus interface {
 
 	// GetRoundStateSimple returns a concise summary of the round state
 	GetRoundStateSimple() cstypes.RoundStateSimple
-}
-
-// Peers exposes access to the current P2P peer set
-type Peers interface {
-	// Peers returns the current peer set
-	Peers() p2p.PeerSet
 }

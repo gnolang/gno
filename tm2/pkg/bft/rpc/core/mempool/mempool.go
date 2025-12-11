@@ -20,7 +20,7 @@ type Handler struct {
 	dispatcher *txDispatcher
 }
 
-// NewHandler creates a new instance of the mempool RPC handler.
+// NewHandler creates a new instance of the mempool RPC handler
 func NewHandler(
 	mp Mempool,
 	evsw events.EventSwitch,

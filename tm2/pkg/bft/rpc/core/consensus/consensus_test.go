@@ -4,7 +4,9 @@ import (
 	"testing"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mock"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -14,7 +16,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
 )
 
 func TestHandler_ValidatorsHandler(t *testing.T) {
@@ -35,7 +36,7 @@ func TestHandler_ValidatorsHandler(t *testing.T) {
 			params = []any{"not-an-int"}
 		)
 
-		h := NewHandler(mockConsensus, db, &mockPeers{})
+		h := NewHandler(mockConsensus, db, &mock.Peers{})
 
 		res, err := h.ValidatorsHandler(nil, params)
 		require.Nil(t, res)
@@ -59,7 +60,7 @@ func TestHandler_ValidatorsHandler(t *testing.T) {
 			params = []any{int64(-1)}
 		)
 
-		h := NewHandler(mockConsensus, db, &mockPeers{})
+		h := NewHandler(mockConsensus, db, &mock.Peers{})
 
 		res, err := h.ValidatorsHandler(nil, params)
 		require.Nil(t, res)
@@ -82,7 +83,7 @@ func TestHandler_ValidatorsHandler(t *testing.T) {
 			}
 		)
 
-		h := NewHandler(mockConsensus, db, &mockPeers{})
+		h := NewHandler(mockConsensus, db, &mock.Peers{})
 
 		res, err := h.ValidatorsHandler(nil, nil)
 		require.Nil(t, res)
@@ -119,7 +120,7 @@ func TestHandler_ValidatorsHandler(t *testing.T) {
 		// Seed the state
 		sm.SaveState(db, st)
 
-		h := NewHandler(mockConsensus, db, &mockPeers{})
+		h := NewHandler(mockConsensus, db, &mock.Peers{})
 
 		res, err := h.ValidatorsHandler(nil, nil)
 		require.Nil(t, err)
@@ -164,9 +165,9 @@ func TestHandler_DumpConsensusStateHandler(t *testing.T) {
 				},
 			}
 
-			mockPeers = &mockPeers{
-				peersFn: func() p2p.PeerSet {
-					return &mockPeerSet{}
+			mockPeers = &mock.Peers{
+				PeersFn: func() p2p.PeerSet {
+					return &mock.PeerSet{}
 				},
 			}
 		)
@@ -195,7 +196,7 @@ func TestHandler_ConsensusStateHandler(t *testing.T) {
 		h := NewHandler(
 			&mockConsensus{},
 			memdb.NewMemDB(),
-			&mockPeers{},
+			&mock.Peers{},
 		)
 
 		res, err := h.ConsensusStateHandler(nil, []any{"extra"})
@@ -220,7 +221,7 @@ func TestHandler_ConsensusStateHandler(t *testing.T) {
 			}
 		)
 
-		h := NewHandler(mockConsensus, memdb.NewMemDB(), &mockPeers{})
+		h := NewHandler(mockConsensus, memdb.NewMemDB(), &mock.Peers{})
 
 		res, err := h.ConsensusStateHandler(nil, nil)
 		require.Nil(t, err)
@@ -251,7 +252,7 @@ func TestHandler_ConsensusParamsHandler(t *testing.T) {
 			params = []any{"not-an-int"}
 		)
 
-		h := NewHandler(mockConsensus, db, &mockPeers{})
+		h := NewHandler(mockConsensus, db, &mock.Peers{})
 
 		res, err := h.ConsensusParamsHandler(nil, params)
 		require.Nil(t, res)
@@ -276,7 +277,7 @@ func TestHandler_ConsensusParamsHandler(t *testing.T) {
 			params = []any{int64(-1)}
 		)
 
-		h := NewHandler(mockConsensus, db, &mockPeers{})
+		h := NewHandler(mockConsensus, db, &mock.Peers{})
 
 		res, err := h.ConsensusParamsHandler(nil, params)
 		require.Nil(t, res)
@@ -300,7 +301,7 @@ func TestHandler_ConsensusParamsHandler(t *testing.T) {
 			db = memdb.NewMemDB()
 		)
 
-		h := NewHandler(mockConsensus, db, &mockPeers{})
+		h := NewHandler(mockConsensus, db, &mock.Peers{})
 
 		res, err := h.ConsensusParamsHandler(nil, nil)
 		require.Nil(t, res)
@@ -334,7 +335,7 @@ func TestHandler_ConsensusParamsHandler(t *testing.T) {
 
 		sm.SaveState(db, st)
 
-		h := NewHandler(mockConsensus, db, &mockPeers{})
+		h := NewHandler(mockConsensus, db, &mock.Peers{})
 
 		res, err := h.ConsensusParamsHandler(nil, nil)
 		require.Nil(t, err)
