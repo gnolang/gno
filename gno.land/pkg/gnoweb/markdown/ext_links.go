@@ -121,7 +121,7 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 		}
 
 		// Detect and set the GnoLink type.
-		gnoLink.GnoURL, gnoLink.LinkType = detectLinkType(dest, &orig)
+		gnoLink.GnoURL, gnoLink.LinkType = detectLinkType(dest, orig)
 
 		return ast.WalkContinue, nil
 	})
