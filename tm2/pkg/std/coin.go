@@ -144,7 +144,7 @@ func (coin Coin) AddUnsafe(coinB Coin) Coin {
 func (coin Coin) Sub(coinB Coin) Coin {
 	res := coin.SubUnsafe(coinB)
 	if !res.IsValid() {
-		panic(fmt.Sprintf("invalid result: %v - %v = %v", coin, coinB, res))
+		panic(fmt.Sprintf("invalid result: %v - %v = %v (lowercase-only denoms, and positive amounts)", coin, coinB, res))
 	}
 	return res
 }
