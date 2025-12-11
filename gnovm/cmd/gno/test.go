@@ -308,7 +308,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		startedAt := time.Now()
 		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
 			if mod == nil || !mod.Ignore {
-				errs := lintTypeCheck(io, pkg.Dir, mpkg, gno.TypeCheckOptions{
+				_, errs := lintTypeCheck(io, pkg.Dir, mpkg, gno.TypeCheckOptions{
 					Getter:     opts.TestStore,
 					TestGetter: opts.TestStore,
 					Mode:       gno.TCLatestRelaxed,
