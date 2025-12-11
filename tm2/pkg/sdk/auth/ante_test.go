@@ -948,3 +948,37 @@ func TestInvalidUserFee(t *testing.T) {
 	require.False(t, res2.IsOK())
 	assert.Contains(t, res2.Log, "Gas price denominations should be equal;")
 }
+
+func TestSetGasMeterSimulationCap(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	cp := env.ctx.ConsensusParams()
+	require.NotNil(t, cp)
+	require.NotNil(t, cp.Block)
+	maxGas := cp.Block.MaxGas
+	require.True(t, maxGas > 0)
+
+	ctxSim := env.ctx.WithMode(sdk.RunTxModeSimulate)
+
+	t.Run("caps to consensus maxGas when higher gas wanted", func(t *testing.T) {
+		ctx := SetGasMeter(ctxSim, maxGas+500)
+		meter := ctx.GasMeter()
+		require.Equal(t, maxGas, meter.Limit())
+		meter.ConsumeGas(store.Gas(maxGas), "fill to max")
+		require.Panics(t, func() {
+			meter.ConsumeGas(1, "over maxGas")
+		})
+	})
+
+	t.Run("ignores lower gas wanted in simulation and uses consensus cap", func(t *testing.T) {
+		const gasWanted = int64(500)
+		ctx := SetGasMeter(ctxSim, gasWanted)
+		meter := ctx.GasMeter()
+		require.Equal(t, maxGas, meter.Limit())
+		meter.ConsumeGas(store.Gas(maxGas), "fill to maxGas cap")
+		require.Panics(t, func() {
+			meter.ConsumeGas(1, "over maxGas")
+		})
+	})
+}

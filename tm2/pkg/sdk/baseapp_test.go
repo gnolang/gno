@@ -946,6 +946,42 @@ func TestTxGasLimits(t *testing.T) {
 	}
 }
 
+func TestConsensusMaxGasMentionedInOutOfGasLog(t *testing.T) {
+	t.Parallel()
+
+	maxGas := int64(50)
+	anteOpt := func(bapp *BaseApp) {
+		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
+			res.GasWanted = 100
+			return ctx, res, false
+		})
+	}
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
+			ctx.GasMeter().ConsumeGas(store.Gas(maxGas+10), "burn beyond maxGas")
+			return Result{}
+		}))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.setConsensusParams(&abci.ConsensusParams{
+		Block: &abci.BlockParams{MaxGas: maxGas},
+	})
+
+	header := &bft.Header{ChainID: "test-chain", Height: app.LastBlockHeight() + 1}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+
+	txBytes, err := amino.Marshal(newTxCounter(0, 1))
+	require.NoError(t, err)
+
+	res := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+
+	require.True(t, res.IsErr())
+	_, ok := res.Error.(std.OutOfGasError)
+	require.True(t, ok)
+	assert.Contains(t, res.Log, "hit consensus maxGas")
+}
+
 // Test that transactions exceeding gas limits fail
 func TestMaxBlockGasLimits(t *testing.T) {
 	t.Parallel()
