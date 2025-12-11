@@ -5,6 +5,11 @@ import (
 	"fmt"
 )
 
+const (
+	defaultPerPage = 30
+	maxPerPage     = 100
+)
+
 // NormalizeHeight normalizes a requested height against the current chain height.
 //
 // Semantics:
@@ -26,4 +31,15 @@ func NormalizeHeight(latestHeight, requestedHeight, minVal int64) (int64, error)
 	}
 
 	return requestedHeight, nil
+}
+
+// ValidatePerPage normalizes the page result limit (pagination)
+func ValidatePerPage(perPage int) int {
+	if perPage < 1 {
+		return defaultPerPage
+	} else if perPage > maxPerPage {
+		return maxPerPage
+	}
+
+	return perPage
 }
