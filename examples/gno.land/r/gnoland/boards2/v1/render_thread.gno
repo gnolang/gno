@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/jeronimoalbi/forms"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/mux"
 )
@@ -57,70 +56,4 @@ func renderThreadSummary(thread *boards.Post) string {
 	}
 	b.WriteString(md.Bold(strings.Join(status, " • ")) + "\n")
 	return b.String()
-}
-
-func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
-	name := req.GetVar("board")
-	board, found := gBoards.GetByName(name)
-	if !found {
-		res.Write("Board does not exist: " + name)
-		return
-	}
-
-	// Thread ID must always be available
-	threadID := req.GetVar("thread")
-	if _, err := strconv.Atoi(threadID); err != nil {
-		res.Write("Invalid thread ID: " + threadID)
-		return
-	}
-
-	// Parse reply ID when post is a reply
-	replyID := req.GetVar("reply")
-	if replyID != "" {
-		_, err := strconv.Atoi(replyID)
-		if err != nil {
-			res.Write("Invalid reply ID: " + replyID)
-			return
-		}
-	}
-
-	exec := "FlagThread"
-	if replyID != "" {
-		exec = "FlagReply"
-	}
-
-	form := forms.New("exec", exec)
-	form.Input(
-		"boardID",
-		"placeholder", "Board ID",
-		"value", board.ID.String(),
-		"readonly", "true",
-	)
-	form.Input(
-		"threadID",
-		"placeholder", "Thread ID",
-		"value", threadID,
-		"readonly", "true",
-	)
-
-	if replyID != "" {
-		form.Input(
-			"replyID",
-			"placeholder", "Reply ID",
-			"value", replyID,
-		)
-	}
-
-	form.Input(
-		"reason",
-		"placeholder", "Reason",
-	)
-
-	if replyID == "" {
-		res.Write(md.H1(board.Name + ": Flag Thread"))
-	} else {
-		res.Write(md.H1(board.Name + ": Flag Reply"))
-	}
-
-	res.Write(form.String())
 }
