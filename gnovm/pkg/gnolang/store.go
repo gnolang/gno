@@ -48,9 +48,11 @@ type Store interface {
 	GetObject(oid ObjectID) Object
 	GetObjectSafe(oid ObjectID) Object
 	SetObject(Object) int64 // returns size difference of the object
+	HasObject(oid ObjectID) bool
 	GetStagingPackage() *PackageValue
 	SetStagingPackage(pv *PackageValue)
 	DelObject(Object) int64 // returns size difference of the object
+	DelObjectByID(oid ObjectID)
 	GetType(tid TypeID) Type
 	GetTypeSafe(tid TypeID) Type
 	SetCacheType(Type)
@@ -65,10 +67,21 @@ type Store interface {
 	GetAllocator() *Allocator
 	SetAllocator(alloc *Allocator)
 	NumMemPackages() int64
+
+	// Generates the next global sequence ID.
+	NextGlobalID() uint64
+	GetGlobalID() uint64
+
+	// Increments the revision number for the specific package.
+	NextPackageRevision(pid PkgID, currentRev uint64)
+	GetPackageIndexCounter(pid PkgID) uint64
+	GetObjectIndexCounter(key string) uint64
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
 	AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType)
+	DelMemPackage(key []byte)
+	HasMemPackage(key []byte) bool
 	GetMemPackage(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
 	FindPathsByPrefix(prefix string) iter.Seq[string]
@@ -446,6 +459,20 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	return nil
 }
 
+func (ds *defaultStore) HasObject(oid ObjectID) bool {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
+	// check cache.
+	if _, exists := ds.cacheObjects[oid]; exists {
+		return true
+	}
+	key := backendObjectKey(oid)
+	hashbz := ds.baseStore.Get([]byte(key))
+	return hashbz != nil
+}
+
 // loads and caches an object.
 // CONTRACT: object isn't already in the cache.
 func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
@@ -702,6 +729,12 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 		value = hash.Bytes()
 		ds.iavlStore.Set(key, value)
 	}
+
+	pid := oid.PkgID
+	pkgidx := ds.GetPackageIndexCounter(pid)
+	// fmt.Println("======SetObject, pkgidx: ", pkgidx)
+	ds.incObjectIndexCounter(backendObjectIndexKey(pid, pkgidx))
+	// fmt.Println("======objidx after increase: ", objidx)
 	return diff
 }
 
@@ -719,6 +752,7 @@ func (ds *defaultStore) loadForLog(oid ObjectID) Object {
 }
 
 func (ds *defaultStore) DelObject(oo Object) int64 {
+	fmt.Println("======DelObject, oo: ", oo.GetObjectID())
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -745,6 +779,18 @@ func (ds *defaultStore) DelObject(oo Object) int64 {
 		fmt.Fprintf(ds.opslog, "d[%v](%d)\n", oo.GetObjectID(), -size)
 	}
 	return size
+}
+
+// XXX, consume gas
+func (ds *defaultStore) DelObjectByID(oid ObjectID) {
+	// fmt.Println("======DelObjectByID, oo: ", oid)
+	// delete from cache.
+	delete(ds.cacheObjects, oid)
+	// delete from backend.
+	if ds.baseStore != nil {
+		key := backendObjectKey(oid)
+		ds.baseStore.Delete([]byte(key))
+	}
 }
 
 // NOTE: not used quite yet.
@@ -911,6 +957,7 @@ func (ds *defaultStore) SetBlockNode(bn BlockNode) {
 	// XXX
 }
 
+// XXX, filter out empty paths.
 func (ds *defaultStore) NumMemPackages() int64 {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ctrkey)
@@ -925,7 +972,8 @@ func (ds *defaultStore) NumMemPackages() int64 {
 	}
 }
 
-func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
+// index all packages
+func (ds *defaultStore) NextGlobalID() uint64 {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
@@ -940,6 +988,77 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 		nextbz := strconv.Itoa(ctr + 1)
 		ds.baseStore.Set(ctrkey, []byte(nextbz))
 		return uint64(ctr) + 1
+	}
+}
+
+func (ds *defaultStore) GetGlobalID() uint64 {
+	ctrkey := []byte(backendPackageIndexCtrKey())
+	ctrbz := ds.baseStore.Get(ctrkey)
+	if ctrbz == nil {
+		return 0
+	} else {
+		ctr, err := strconv.Atoi(string(ctrbz))
+		if err != nil {
+			panic(err)
+		}
+		return uint64(ctr)
+	}
+}
+
+// index per package
+func (ds *defaultStore) NextPackageRevision(pid PkgID, ctr uint64) {
+	// fmt.Printf("======incPackageIndexCounter, pid: %v, ctr: %d\n", pid, ctr)
+	ctrkey := pid.Hashlet[:]
+	ds.baseStore.Set(ctrkey, []byte(strconv.Itoa(int(ctr))))
+}
+
+func (ds *defaultStore) GetPackageIndexCounter(pid PkgID) uint64 {
+	ctrkey := pid.Hashlet[:]
+	ctrbz := ds.baseStore.Get(ctrkey)
+	if ctrbz == nil {
+		return 0
+	} else {
+		ctr, err := strconv.Atoi(string(ctrbz))
+		if err != nil {
+			panic(err)
+		}
+		return uint64(ctr)
+	}
+}
+
+// invode in SetObject
+// key format: pkgID:counter
+// e.g. 0000:1, 0000:2, same packages with different index
+// value is index of objects that belogs to a package
+func (ds *defaultStore) incObjectIndexCounter(key string) uint64 {
+	ctrkey := []byte(key)
+	ctrbz := ds.baseStore.Get(ctrkey)
+	if ctrbz == nil {
+		nextbz := strconv.Itoa(1)
+		ds.baseStore.Set(ctrkey, []byte(nextbz))
+		return 1
+	} else {
+		ctr, err := strconv.Atoi(string(ctrbz))
+		if err != nil {
+			panic(err)
+		}
+		nextbz := strconv.Itoa(ctr + 1)
+		ds.baseStore.Set(ctrkey, []byte(nextbz))
+		return uint64(ctr) + 1
+	}
+}
+
+func (ds *defaultStore) GetObjectIndexCounter(key string) uint64 {
+	ctrkey := []byte(key)
+	ctrbz := ds.baseStore.Get(ctrkey)
+	if ctrbz == nil {
+		return 0
+	} else {
+		ctr, err := strconv.Atoi(string(ctrbz))
+		if err != nil {
+			panic(err)
+		}
+		return uint64(ctr)
 	}
 }
 
@@ -974,7 +1093,8 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	if err != nil {
 		panic(fmt.Errorf("invalid mempackage: %w", err))
 	}
-	ctr := ds.incGetPackageIndexCounter()
+
+	ctr := ds.GetGlobalID()
 	idxkey := []byte(backendPackageIndexKey(ctr))
 	bz := amino.MustMarshal(mpkg)
 	gas := overflow.Mulp(ds.gasConfig.GasAddMemPackage, store.Gas(len(bz)))
@@ -983,6 +1103,14 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	pathkey := []byte(backendPackagePathKey(mpkg.Path))
 	ds.iavlStore.Set(pathkey, bz)
 	size = len(bz)
+}
+
+func (ds *defaultStore) DelMemPackage(key []byte) {
+	ds.baseStore.Delete(key)
+}
+
+func (ds *defaultStore) HasMemPackage(key []byte) bool {
+	return ds.baseStore.Has(key)
 }
 
 // GetMemPackage retrieves the MemPackage at the given path.
@@ -1082,6 +1210,7 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 				idxkey := []byte(backendPackageIndexKey(i))
 				path := ds.baseStore.Get(idxkey)
 				if path == nil {
+					// XXX, this is possible..
 					panic(fmt.Sprintf(
 						"missing package index %d", i))
 				}
@@ -1206,6 +1335,10 @@ func backendPackageIndexCtrKey() string {
 
 func backendPackageIndexKey(index uint64) string {
 	return fmt.Sprintf("pkgidx:%020d", index)
+}
+
+func backendObjectIndexKey(pid PkgID, index uint64) string {
+	return fmt.Sprintf("%s:%020d", pid, index)
 }
 
 // We need to prefix stdlibs path with `_` to maitain them lexicographically
