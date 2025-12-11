@@ -179,7 +179,7 @@ func convertDERtoBER(signatureDER []byte) ([]byte, error) {
 
 func getLedgerDevice() (ledger.SECP256K1, error) {
 	if !hid.Supported() {
-		return nil, fmt.Errorf("Ledger support is not enabled. Try building with CGO_ENABLED=1")
+		return nil, fmt.Errorf("ledger support is not enabled, try building with CGO_ENABLED=1")
 	}
 
 	device, err := ledger.Discover()
