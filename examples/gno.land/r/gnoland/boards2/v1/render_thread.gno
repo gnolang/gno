@@ -88,7 +88,7 @@ func renderCreateThread(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(form.String())
 }
 
-func renderThreadEdit(res *mux.ResponseWriter, req *mux.Request) {
+func renderEditThread(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	board, found := gBoards.GetByName(name)
 	if !found {
