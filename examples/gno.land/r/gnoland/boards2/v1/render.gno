@@ -41,6 +41,7 @@ func Render(path string) string {
 	router.HandleFunc("{board}/members", renderMembers)
 	router.HandleFunc("{board}/invites", renderInvites)
 	router.HandleFunc("{board}/banned-users", renderBannedUsers)
+	router.HandleFunc("{board}/create-thread", renderCreateThread)
 	router.HandleFunc("{board}/{thread}", renderThread)
 	router.HandleFunc("{board}/{thread}/{reply}", renderReply)
 

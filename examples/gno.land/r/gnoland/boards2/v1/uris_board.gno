@@ -38,12 +38,7 @@ func makeInviteMemberURI(b *boards.Board) string {
 }
 
 func makeCreateThreadURI(b *boards.Board) string {
-	return gRealmLink.Call(
-		"CreateThread",
-		"boardID", b.ID.String(),
-		"title", "",
-		"body", "",
-	)
+	return makeBoardURI(b) + "/create-thread"
 }
 
 func makeRequestInviteURI(b *boards.Board) string {
