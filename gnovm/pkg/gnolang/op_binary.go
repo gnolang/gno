@@ -889,17 +889,10 @@ func quoAssign(lv, rv *TypedValue) *Exception {
 		lv.SetUint64(lv.GetUint64() / rv.GetUint64())
 	case Float32Type:
 		// NOTE: gno doesn't fuse *+.
-		ok := !softfloat.Feq32(rv.GetFloat32(), softfloat.Fintto32(0))
-
-		if ok {
-			lv.SetFloat32(softfloat.Fdiv32(lv.GetFloat32(), rv.GetFloat32()))
-		}
+		lv.SetFloat32(softfloat.Fdiv32(lv.GetFloat32(), rv.GetFloat32()))
 	case Float64Type:
 		// NOTE: gno doesn't fuse *+.
-		ok := !softfloat.Feq64(rv.GetFloat64(), softfloat.Fintto64(0))
-		if ok {
-			lv.SetFloat64(softfloat.Fdiv64(lv.GetFloat64(), rv.GetFloat64()))
-		}
+		lv.SetFloat64(softfloat.Fdiv64(lv.GetFloat64(), rv.GetFloat64()))
 	case UntypedBigintType:
 		if rv.GetBigInt().Sign() == 0 {
 			return expt
