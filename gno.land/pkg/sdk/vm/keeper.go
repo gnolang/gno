@@ -299,17 +299,6 @@ func (vm *VMKeeper) MakeGnoTransactionStore(ctx sdk.Context) sdk.Context {
 }
 
 func (vm *VMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
-	tcc := vm.getTypeCheckCache(ctx)
-	for k, v := range tcc {
-		if vm.typeCheckCache[k] != nil {
-			continue
-		}
-		// only add stdlibs to the type check cache.
-		rawK, _, _ := strings.Cut(k, ":")
-		if gno.IsStdlib(rawK) {
-			vm.typeCheckCache[k] = v
-		}
-	}
 	vm.getGnoTransactionStore(ctx).Write()
 }
 

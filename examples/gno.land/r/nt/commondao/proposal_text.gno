@@ -61,12 +61,12 @@ func (p TextPropDefinition) Title() string               { return p.title }
 func (p TextPropDefinition) Body() string                { return p.body }
 func (p TextPropDefinition) VotingPeriod() time.Duration { return p.votingPeriod }
 
-func (p TextPropDefinition) Tally(r commondao.ReadonlyVotingRecord, members commondao.MemberSet) (bool, error) {
-	if !commondao.IsQuorumReached(p.quorum, r, members) {
+func (p TextPropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
+	if !commondao.IsQuorumReached(p.quorum, ctx.VotingRecord, ctx.Members) {
 		return false, commondao.ErrNoQuorum
 	}
 
-	c, success := commondao.SelectChoiceByPlurality(r)
+	c, success := commondao.SelectChoiceByPlurality(ctx.VotingRecord)
 	if success {
 		return c == commondao.ChoiceYes, nil
 	}
