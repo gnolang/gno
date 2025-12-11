@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // bank.Keeper defines a module interface that facilitates the transfer of
@@ -34,16 +36,17 @@ var _ BankKeeperI = &BankKeeper{}
 // creating coins. It implements the BankKeeperI interface.
 type BankKeeper struct {
 	ViewKeeper
-
+	key  store.StoreKey
 	acck auth.AccountKeeper
 	// The keeper used to store parameters
 	prmk params.ParamsKeeperI
 }
 
 // NewBankKeeper returns a new BankKeeper.
-func NewBankKeeper(acck auth.AccountKeeper, pk params.ParamsKeeperI) BankKeeper {
+func NewBankKeeper(key store.StoreKey, acck auth.AccountKeeper, pk params.ParamsKeeperI) BankKeeper {
 	return BankKeeper{
 		ViewKeeper: NewViewKeeper(acck),
+		key:        key,
 		acck:       acck,
 		prmk:       pk,
 	}
@@ -213,6 +216,7 @@ func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt s
 		return nil, err
 	}
 	err := bank.SetCoins(ctx, addr, newCoins)
+	bank.trackBalanceChange(ctx, oldCoins, newCoins)
 
 	return newCoins, err
 }
@@ -233,6 +237,7 @@ func (bank BankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 	}
 
 	err := bank.SetCoins(ctx, addr, newCoins)
+	bank.trackBalanceChange(ctx, oldCoins, newCoins)
 	return newCoins, err
 }
 
@@ -254,6 +259,111 @@ func (bank BankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 
 	bank.acck.SetAccount(ctx, acc)
 	return nil
+}
+
+// Update the balance changes in the store, which will be used to check invariant at the end block
+// the kv will be deleted if invariant check passed. It only tracks the denoms that defined in
+// the total supply.
+func (bank BankKeeper) trackBalanceChange(ctx sdk.Context, oldBalance, newBalance std.Coins) {
+	if ctx.IsCheckTx() {
+		// Skip for checkTx
+		return
+	}
+
+	denoms := []string{}
+	params := bank.GetParams(ctx)
+	for _, v := range params.TotalSupply {
+		denoms = append(denoms, v.Denom)
+	}
+	totalDenomSet := toSet(denoms)
+	inc, dec := diffCoins(oldBalance, newBalance, totalDenomSet)
+	bank.addBalanceChanges(ctx, inc, dec)
+}
+
+func (bank BankKeeper) addBalanceChanges(ctx sdk.Context, inc, dec std.Coins) {
+	store := ctx.Store(bank.key)
+	var balanceInc std.Coins
+	var balanceDec std.Coins
+
+	incKey := []byte(balanceIncKey)
+	if bz := store.Get(incKey); bz != nil {
+		amino.MustUnmarshal(bz, &balanceInc)
+	}
+	balanceInc = balanceInc.Add(inc)
+	if !balanceInc.IsZero() {
+		store.Set(incKey, amino.MustMarshal(balanceInc))
+	}
+	decKey := []byte(balanceDecKey)
+	if bz := store.Get(decKey); bz != nil {
+		amino.MustUnmarshal(bz, &balanceDec)
+	}
+
+	balanceDec = balanceDec.Add(dec)
+	if !balanceDec.IsZero() {
+		store.Set(decKey, amino.MustMarshal(balanceDec))
+	}
+}
+
+func diffCoins(oldCoins, newCoins std.Coins, denomSet stringSet) (inc std.Coins, dec std.Coins) {
+	oldSorted := oldCoins.Sort()
+	newSorted := newCoins.Sort()
+
+	i, j := 0, 0
+	for i < len(oldSorted) && j < len(newSorted) {
+		od := oldSorted[i].Denom
+		nd := newSorted[j].Denom
+		// only track the changes of the demons defined in the total supply.
+		_, ok1 := denomSet[od]
+		_, ok2 := denomSet[nd]
+		if !ok1 {
+			i++
+			continue
+		}
+		if !ok2 {
+			j++
+			continue
+		}
+
+		switch {
+		case od == nd:
+			// same denom: compare amounts
+			o, n := oldSorted[i], newSorted[j]
+			if n.IsGTE(o) && !n.IsEqual(o) {
+				// We do not subtract amounts that would result in redundant zero coins.
+				inc = inc.Add(std.NewCoins(n.Sub(o)))
+			} else {
+				dec = dec.Add(std.NewCoins(o.Sub(n)))
+			}
+			i++
+			j++
+		case od < nd:
+			// denom only in old -> full decrease
+			dec = dec.Add(std.NewCoins(oldSorted[i]))
+			i++
+		default: // od > nd
+			// denom only in new -> full increase
+			inc = inc.Add(std.NewCoins(newSorted[j]))
+			j++
+		}
+	}
+	// tails
+	for ; i < len(oldSorted); i++ {
+		od := oldSorted[i].Denom
+		_, ok := denomSet[od]
+		if !ok {
+			continue
+		}
+		dec = dec.Add(std.NewCoins(oldSorted[i]))
+	}
+	for ; j < len(newSorted); j++ {
+		nd := newSorted[j].Denom
+		_, ok := denomSet[nd]
+		if !ok {
+			continue
+		}
+		inc = inc.Add(std.NewCoins(newSorted[j]))
+	}
+	return inc, dec
 }
 
 // ----------------------------------------
