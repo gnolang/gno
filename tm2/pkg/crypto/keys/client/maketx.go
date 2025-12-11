@@ -218,15 +218,7 @@ func ExecSignAndBroadcast(
 		return errors.Wrapf(bres.CheckTx.Error, "check transaction failed: log:%s", bres.CheckTx.Log)
 	}
 	if bres.DeliverTx.IsErr() {
-		if cfg.RootCfg.OnTxFailure != nil {
-			cfg.RootCfg.OnTxFailure(tx, bres)
-		} else {
-			io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
-			io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
-			io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
-			io.Println("INFO:      ", bres.DeliverTx.Info)
-		}
-		return errors.Wrapf(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
+		return handleDeliverResult(cfg.RootCfg, tx, bres, io)
 	}
 
 	if cfg.RootCfg.OnTxSuccess != nil {
@@ -243,4 +235,17 @@ func ExecSignAndBroadcast(
 	}
 
 	return nil
+}
+
+// handleDeliverResult handles a failed DeliverTx by invoking OnTxFailure or printing defaults.
+func handleDeliverResult(cfg *BaseCfg, tx std.Tx, bres *types.ResultBroadcastTxCommit, io commands.IO) error {
+	if cfg.OnTxFailure != nil {
+		cfg.OnTxFailure(tx, bres)
+	} else {
+		io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
+		io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
+		io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
+		io.Println("INFO:      ", bres.DeliverTx.Info)
+	}
+	return errors.Wrapf(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
 }

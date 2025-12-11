@@ -982,3 +982,21 @@ func TestSetGasMeterSimulationCap(t *testing.T) {
 		})
 	})
 }
+
+// When no consensus maxGas is configured, simulation should use an infinite meter.
+func TestSimulationGasMeterInfiniteWhenNoMaxGas(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx.WithConsensusParams(nil).WithMode(sdk.RunTxModeSimulate)
+
+	ctx = SetGasMeter(ctx, 1) // should be ignored and infinite meter used
+	meter := ctx.GasMeter()
+	require.Equal(t, int64(0), meter.Limit())
+
+	// Consuming a very large amount should not panic.
+	require.NotPanics(t, func() {
+		meter.ConsumeGas(store.Gas(1_000_000_000), "huge consume")
+	})
+	require.False(t, meter.IsOutOfGas())
+}
