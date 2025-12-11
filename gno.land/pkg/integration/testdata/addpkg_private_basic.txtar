@@ -19,9 +19,21 @@ stdout OK!
 gnokey maketx addpkg -pkgdir $WORK/privaterealm -pkgpath gno.land/r/foobar/privaterealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stdout OK!
 
+# ensure A is present
+gnokey query vm/qeval --data "gno.land/r/foobar/privaterealm.A"
+stdout '123'
+
 # update the edited private realm over the original
 gnokey maketx addpkg -pkgdir $WORK/privaterealmedited -pkgpath gno.land/r/foobar/privaterealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stdout OK!
+
+# ensure A is deleted
+! gnokey query vm/qeval --data "gno.land/r/foobar/privaterealm.A"
+stderr 'name A not declared'
+
+# ensure B is present
+gnokey query vm/qeval --data "gno.land/r/foobar/privaterealm.B"
+stdout '456'
 
 # overwrite public realm with private realm
 ! gnokey maketx addpkg -pkgdir $WORK/privaterealm -pkgpath gno.land/r/foobar/publicrealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
@@ -29,27 +41,29 @@ stderr 'package already exists'
 
 # overwrite private realm with public realm
 ! gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/foobar/privaterealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
-stderr 'cannot change private package to public package'
+stderr 'a private package cannot be overridden by a public package'
 
 -- privaterealm/gnomod.toml --
-module = "gno.land/r/test"
+module = "gno.land/r/foobar/privaterealm"
 gno = "0.9"
 private = true
 
 -- privaterealm/privaterealm.gno --
 package test
+var A = "123"
 
 func Echo(cur realm) string {
 	return "hello private world"
 }
 
 -- privaterealmedited/gnomod.toml --
-module = "gno.land/r/test"
+module = "gno.land/r/foobar/privaterealm"
 gno = "0.9"
 private = true
 
 -- privaterealmedited/privaterealm.gno --
 package test
+var B = "456"
 
 func Echo(cur realm) string {
 	return "hello private edited world"
@@ -60,7 +74,7 @@ module = "gno.land/r/foobar/publicrealm"
 gno = "0.9"
 
 -- publicrealm/publicrealm.gno --
-package publicrealm
+package test
 
 func Echo(cur realm) string {
 	return "hello public world"
