@@ -25,7 +25,7 @@ type subscription struct {
 	initialPaid   bool
 }
 
-func (sub *subscription) dueAmount(renewalPeriod time.Duration, price chain.Coins) (chain.Coins, bool) {
+func (sub *subscription) dueAmount(charge bool, renewalPeriod time.Duration, price chain.Coins) (chain.Coins, bool) {
 	elapsed := time.Now().Sub(sub.lastChargedAt)
 	periodsElapsed := int64(elapsed / renewalPeriod)
 	if !sub.initialPaid {
@@ -43,16 +43,22 @@ func (sub *subscription) dueAmount(renewalPeriod time.Duration, price chain.Coin
 		}
 	}
 
+	if charge {
+		sub.vault = subCoins(sub.vault, due)
+		sub.lastChargedAt = sub.lastChargedAt.Add(time.Duration(periodsElapsed) * renewalPeriod)
+		sub.initialPaid = true
+	}
+
 	return due, true
 }
 
 func (sub *subscription) isActive(renewalPeriod time.Duration, price chain.Coins) bool {
-	_, ok := sub.dueAmount(renewalPeriod, price)
+	_, ok := sub.dueAmount(false, renewalPeriod, price)
 	return ok
 }
 
 func (sub *subscription) balance(renewalPeriod time.Duration, price chain.Coins) chain.Coins {
-	dueAmount, _ := sub.dueAmount(renewalPeriod, price)
+	dueAmount, _ := sub.dueAmount(false, renewalPeriod, price)
 	return subCoins(sub.vault, dueAmount)
 }
 

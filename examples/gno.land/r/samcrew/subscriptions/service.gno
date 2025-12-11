@@ -19,11 +19,11 @@ type service struct {
 	subscribers   *avl.Tree // key: address, value: *subscription
 }
 
-func (svc *service) balance() chain.Coins {
+func (svc *service) balance(withdraw bool) chain.Coins {
 	balance := chain.Coins{}
 	svc.subscribers.Iterate("", "", func(key string, value interface{}) bool {
 		sub := value.(*subscription)
-		due, _ := sub.dueAmount(svc.renewalPeriod, svc.price)
+		due, _ := sub.dueAmount(withdraw, svc.renewalPeriod, svc.price)
 		balance = addCoins(balance, due)
 		return false
 	})
