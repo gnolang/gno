@@ -314,7 +314,6 @@ func TestNonMemberProposalFee(cur realm, t *testing.T) {
 	portfolio := "# This is my portfolio:\n\n- THINGS"
 
 	testing.SetOriginCaller(noMember)
-	testing.SetRealm(testing.NewUserRealm(noMember))
 
 	// Test: Non-member without fee should fail with fee message
 	_, err := govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
