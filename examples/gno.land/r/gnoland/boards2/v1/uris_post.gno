@@ -53,13 +53,7 @@ func makeDeletePostURI(p *boards.Post) string {
 
 func makeEditPostURI(p *boards.Post) string {
 	if boards.IsThread(p) {
-		return gRealmLink.Call(
-			"EditThread",
-			"boardID", p.Board.ID.String(),
-			"threadID", p.ThreadID.String(),
-			"title", p.Title,
-			"body", p.Body,
-		)
+		return makeThreadURI(p) + "/edit"
 	}
 
 	return gRealmLink.Call(
