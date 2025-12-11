@@ -10,9 +10,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // simulation signature values used to estimate gas consumption
@@ -26,7 +26,7 @@ func init() {
 
 // SignatureVerificationGasConsumer is the type of function that is used to both consume gas when verifying signatures
 // and also to accept or reject different types of PubKey's. This is where apps can define their own PubKey
-type SignatureVerificationGasConsumer = func(meter store.GasMeter, sig []byte, pubkey crypto.PubKey, params Params) sdk.Result
+type SignatureVerificationGasConsumer = func(meter gas.Meter, sig []byte, pubkey crypto.PubKey) sdk.Result
 
 type AnteOptions struct {
 	// If verifyGenesisSignatures is false, does not check signatures when Height==0.
@@ -76,7 +76,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		defer func() {
 			if r := recover(); r != nil {
 				switch ex := r.(type) {
-				case store.OutOfGasError:
+				case gas.OutOfGasError:
 					log := fmt.Sprintf(
 						"out of gas in location: %v; gasWanted: %d, gasUsed: %d",
 						ex.Descriptor, tx.Fee.GasWanted, newCtx.GasMeter().GasConsumed(),
@@ -84,7 +84,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 					res = abciResult(std.ErrOutOfGas(log))
 
 					res.GasWanted = tx.Fee.GasWanted
-					res.GasUsed = newCtx.GasMeter().GasConsumed()
+					res.GasUsed = newCtx.GasMeter().GasDetail()
 					abort = true
 				default:
 					panic(r)
@@ -102,7 +102,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			return newCtx, abciResult(err), true
 		}
 
-		newCtx.GasMeter().ConsumeGas(params.TxSizeCostPerByte*store.Gas(len(newCtx.TxBytes())), "txSize")
+		newCtx.GasMeter().ConsumeGas(gas.OpTransactionPerByte, float64(len(newCtx.TxBytes())))
 
 		if res := ValidateMemo(tx, params); !res.IsOK() {
 			return newCtx, res, true
@@ -154,7 +154,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				if err != nil {
 					return newCtx, res, true
 				}
-				signerAccs[i], res = processSig(newCtx, sacc, stdSigs[i], signBytes, simulate, params, sigGasConsumer)
+				signerAccs[i], res = processSig(newCtx, sacc, stdSigs[i], signBytes, simulate, sigGasConsumer)
 				if !res.IsOK() {
 					return newCtx, res, true
 				}
@@ -212,7 +212,7 @@ func ValidateMemo(tx std.Tx, params Params) sdk.Result {
 // verify the signature and increment the sequence. If the account doesn't
 // have a pubkey, set it.
 func processSig(
-	ctx sdk.Context, acc std.Account, sig std.Signature, signBytes []byte, simulate bool, params Params,
+	ctx sdk.Context, acc std.Account, sig std.Signature, signBytes []byte, simulate bool,
 	sigGasConsumer SignatureVerificationGasConsumer,
 ) (updatedAcc std.Account, res sdk.Result) {
 	pubKey, res := ProcessPubKey(acc, sig)
@@ -225,7 +225,7 @@ func processSig(
 		return nil, abciResult(std.ErrInternal("setting PubKey on signer's account"))
 	}
 
-	if res := sigGasConsumer(ctx.GasMeter(), sig.Signature, pubKey, params); !res.IsOK() {
+	if res := sigGasConsumer(ctx.GasMeter(), sig.Signature, pubKey); !res.IsOK() {
 		return nil, res
 	}
 
@@ -266,22 +266,22 @@ func ProcessPubKey(acc std.Account, sig std.Signature) (crypto.PubKey, sdk.Resul
 // based upon the public key type. The cost is fetched from the given params
 // and is matched by the concrete type.
 func DefaultSigVerificationGasConsumer(
-	meter store.GasMeter, sig []byte, pubkey crypto.PubKey, params Params,
+	meter gas.Meter, sig []byte, pubkey crypto.PubKey,
 ) sdk.Result {
 	switch pubkey := pubkey.(type) {
 	case ed25519.PubKeyEd25519:
-		meter.ConsumeGas(params.SigVerifyCostED25519, "ante verify: ed25519")
+		meter.ConsumeGas(gas.OpTransactionSigVerifyEd25519, 1)
 		return sdk.Result{}
 
 	case secp256k1.PubKeySecp256k1:
-		meter.ConsumeGas(params.SigVerifyCostSecp256k1, "ante verify: secp256k1")
+		meter.ConsumeGas(gas.OpTransactionSigVerifySecp256k1, 1)
 		return sdk.Result{}
 
 	case multisig.PubKeyMultisigThreshold:
 		var multisignature multisig.Multisignature
 		amino.MustUnmarshal(sig, &multisignature)
 
-		consumeMultisignatureVerificationGas(meter, multisignature, pubkey, params)
+		consumeMultisignatureVerificationGas(meter, multisignature, pubkey)
 		return sdk.Result{}
 
 	default:
@@ -289,15 +289,14 @@ func DefaultSigVerificationGasConsumer(
 	}
 }
 
-func consumeMultisignatureVerificationGas(meter store.GasMeter,
+func consumeMultisignatureVerificationGas(meter gas.Meter,
 	sig multisig.Multisignature, pubkey multisig.PubKeyMultisigThreshold,
-	params Params,
 ) {
 	size := sig.BitArray.Size()
 	sigIndex := 0
 	for i := range size {
 		if sig.BitArray.GetIndex(i) {
-			DefaultSigVerificationGasConsumer(meter, sig.Sigs[sigIndex], pubkey.PubKeys[i], params)
+			DefaultSigVerificationGasConsumer(meter, sig.Sigs[sigIndex], pubkey.PubKeys[i])
 			sigIndex++
 		}
 	}
@@ -411,10 +410,10 @@ func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
 	// In various cases such as simulation and during the genesis block, we do not
 	// meter any gas utilization.
 	if ctx.BlockHeight() == 0 {
-		return ctx.WithGasMeter(store.NewInfiniteGasMeter())
+		return ctx.WithGasMeter(gas.NewInfiniteMeter(gas.DefaultConfig()))
 	}
 
-	return ctx.WithGasMeter(store.NewGasMeter(gasLimit))
+	return ctx.WithGasMeter(gas.NewMeter(gasLimit, gas.DefaultConfig()))
 }
 
 // GetSignBytes returns a slice of bytes to sign over for a given transaction

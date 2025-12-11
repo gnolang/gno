@@ -3,16 +3,8 @@ package gnolang
 import (
 	"reflect"
 
-	"github.com/gnolang/gno/tm2/pkg/overflow"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 )
-
-// Represents the "time unit" cost for
-// a single garbage collection visit.
-// It's similar to "CPU cycles" and is
-// calculated based on a rough benchmarking
-// results.
-// TODO: more accurate benchmark.
-const VisitCpuFactor = 8
 
 // Visit visits all reachable associated values.
 // It is used primarily for GC.
@@ -39,12 +31,12 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	var visitCount int64
 
 	defer func() {
-		gasCPU := overflow.Mulp(overflow.Mulp(visitCount, VisitCpuFactor), GasFactorCPU)
-		if debug {
-			debug.Printf("GasConsumed for GC: %v\n", gasCPU)
-		}
 		if m.GasMeter != nil {
-			m.GasMeter.ConsumeGas(gasCPU, "GC")
+			m.GasMeter.ConsumeGas(gas.OpMemoryGarbageCollect, float64(visitCount))
+			if debug {
+				gasConsumed := m.GasMeter.CalculateGasCost(gas.OpMemoryGarbageCollect, float64(visitCount))
+				debug.Printf("Gas consumed for GC: %v\n", gasConsumed)
+			}
 		}
 	}()
 

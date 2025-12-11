@@ -1,7 +1,7 @@
 package gas
 
 import (
-	"github.com/gnolang/gno/tm2/pkg/overflow"
+	gasutil "github.com/gnolang/gno/tm2/pkg/gas"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/gnolang/gno/tm2/pkg/store/utils"
 )
@@ -11,52 +11,46 @@ var _ types.Store = &Store{}
 // Store applies gas tracking to an underlying Store. It implements the
 // Store interface.
 type Store struct {
-	gasMeter  types.GasMeter
-	gasConfig types.GasConfig
-	parent    types.Store
+	gasMeter gasutil.Meter
+	parent   types.Store
 }
 
 // New returns a reference to a new GasStore.
-func New(parent types.Store, gasMeter types.GasMeter, gasConfig types.GasConfig) *Store {
+// The gas configuration is obtained from the meter.
+func New(parent types.Store, gasMeter gasutil.Meter) *Store {
 	kvs := &Store{
-		gasMeter:  gasMeter,
-		gasConfig: gasConfig,
-		parent:    parent,
+		gasMeter: gasMeter,
+		parent:   parent,
 	}
 	return kvs
 }
 
 // Implements Store.
 func (gs *Store) Get(key []byte) (value []byte) {
-	gs.gasMeter.ConsumeGas(gs.gasConfig.ReadCostFlat, types.GasReadCostFlatDesc)
+	gs.gasMeter.ConsumeGas(gasutil.OpStoreReadFlat, 1)
 	value = gs.parent.Get(key)
-
-	gas := overflow.Mulp(gs.gasConfig.ReadCostPerByte, types.Gas(len(value)))
-	gs.gasMeter.ConsumeGas(gas, types.GasReadPerByteDesc)
-
+	gs.gasMeter.ConsumeGas(gasutil.OpStoreReadPerByte, float64(len(value)))
 	return value
 }
 
 // Implements Store.
 func (gs *Store) Set(key []byte, value []byte) {
 	types.AssertValidValue(value)
-	gs.gasMeter.ConsumeGas(gs.gasConfig.WriteCostFlat, types.GasWriteCostFlatDesc)
-
-	gas := overflow.Mulp(gs.gasConfig.WriteCostPerByte, types.Gas(len(value)))
-	gs.gasMeter.ConsumeGas(gas, types.GasWritePerByteDesc)
+	gs.gasMeter.ConsumeGas(gasutil.OpStoreWriteFlat, 1)
+	gs.gasMeter.ConsumeGas(gasutil.OpStoreWritePerByte, float64(len(value)))
 	gs.parent.Set(key, value)
 }
 
 // Implements Store.
 func (gs *Store) Has(key []byte) bool {
-	gs.gasMeter.ConsumeGas(gs.gasConfig.HasCost, types.GasHasDesc)
+	gs.gasMeter.ConsumeGas(gasutil.OpStoreHas, 1)
 	return gs.parent.Has(key)
 }
 
 // Implements Store.
 func (gs *Store) Delete(key []byte) {
 	// charge gas to prevent certain attack vectors even though space is being freed
-	gs.gasMeter.ConsumeGas(gs.gasConfig.DeleteCost, types.GasDeleteDesc)
+	gs.gasMeter.ConsumeGas(gasutil.OpStoreDelete, 1)
 	gs.parent.Delete(key)
 }
 
@@ -93,7 +87,7 @@ func (gs *Store) iterator(start, end []byte, ascending bool) types.Iterator {
 		parent = gs.parent.ReverseIterator(start, end)
 	}
 
-	gi := newGasIterator(gs.gasMeter, gs.gasConfig, parent)
+	gi := newGasIterator(gs.gasMeter, parent)
 	if gi.Valid() {
 		gi.(*gasIterator).consumeSeekGas()
 	}
@@ -118,16 +112,14 @@ func (gs *Store) Flush() {
 }
 
 type gasIterator struct {
-	gasMeter  types.GasMeter
-	gasConfig types.GasConfig
-	parent    types.Iterator
+	gasMeter gasutil.Meter
+	parent   types.Iterator
 }
 
-func newGasIterator(gasMeter types.GasMeter, gasConfig types.GasConfig, parent types.Iterator) types.Iterator {
+func newGasIterator(gasMeter gasutil.Meter, parent types.Iterator) types.Iterator {
 	return &gasIterator{
-		gasMeter:  gasMeter,
-		gasConfig: gasConfig,
-		parent:    parent,
+		gasMeter: gasMeter,
+		parent:   parent,
 	}
 }
 
@@ -179,7 +171,6 @@ func (gi *gasIterator) Close() error {
 // based on the current value's length.
 func (gi *gasIterator) consumeSeekGas() {
 	value := gi.Value()
-	gas := overflow.Mulp(gi.gasConfig.ReadCostPerByte, types.Gas(len(value)))
-	gi.gasMeter.ConsumeGas(gi.gasConfig.IterNextCostFlat, types.GasIterNextCostFlatDesc)
-	gi.gasMeter.ConsumeGas(gas, types.GasValuePerByteDesc)
+	gi.gasMeter.ConsumeGas(gasutil.OpStoreIterNextFlat, 1)
+	gi.gasMeter.ConsumeGas(gasutil.OpStoreValuePerByte, float64(len(value)))
 }

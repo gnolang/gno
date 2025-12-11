@@ -16,8 +16,8 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/pmezard/go-difflib/difflib"
 	"go.uber.org/multierr"
 )
@@ -66,7 +66,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	if dirs.First(DirectiveRealm) != nil {
 		opslog = new(bytes.Buffer)
 	}
-	gasMeter := store.NewInfiniteGasMeter()
+	gasMeter := gas.NewInfiniteMeter(gas.DefaultConfig())
 	// Create machine for execution and run test
 	tcw := opts.BaseStore.CacheWrap()
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
