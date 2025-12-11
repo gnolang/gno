@@ -5,6 +5,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/params"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/utils"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/metadata"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/gnolang/gno/tm2/pkg/bft/state"
@@ -91,7 +92,7 @@ func (h *Handler) BlockHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJS
 		return nil, err
 	}
 
-	height, normalizeErr := normalizeHeight(storeHeight, height, 1)
+	height, normalizeErr := utils.NormalizeHeight(storeHeight, height, 1)
 	if normalizeErr != nil {
 		return nil, spec.GenerateResponseError(normalizeErr)
 	}
@@ -131,7 +132,7 @@ func (h *Handler) CommitHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJ
 		return nil, err
 	}
 
-	height, normalizeErr := normalizeHeight(storeHeight, height, 1)
+	height, normalizeErr := utils.NormalizeHeight(storeHeight, height, 1)
 	if normalizeErr != nil {
 		return nil, spec.GenerateResponseError(normalizeErr)
 	}
@@ -181,7 +182,7 @@ func (h *Handler) BlockResultsHandler(_ *metadata.Metadata, p []any) (any, *spec
 		return nil, err
 	}
 
-	height, normalizeErr := normalizeHeight(storeHeight, height, 0)
+	height, normalizeErr := utils.NormalizeHeight(storeHeight, height, 0)
 	if normalizeErr != nil {
 		return nil, spec.GenerateResponseError(normalizeErr)
 	}
@@ -226,27 +227,4 @@ func filterMinMax(height, low, high, limit int64) (int64, int64, error) {
 		return low, high, fmt.Errorf("min height %d can't be greater than max height %d", low, high)
 	}
 	return low, high, nil
-}
-
-// normalizeHeight normalizes a requested height against the current chain height.
-//
-// Semantics:
-//   - requestedHeight == 0 -> use latest height
-//   - requestedHeight < minVal -> error
-//   - requestedHeight > currentHeight -> error
-func normalizeHeight(latestHeight, requestedHeight, minVal int64) (int64, error) {
-	// 0 means unspecified → latest
-	if requestedHeight == 0 {
-		return latestHeight, nil
-	}
-
-	if requestedHeight < minVal {
-		return 0, fmt.Errorf("height must be greater than or equal to %d", minVal)
-	}
-
-	if requestedHeight > latestHeight {
-		return 0, fmt.Errorf("height must be less than or equal to the current blockchain height")
-	}
-
-	return requestedHeight, nil
 }
