@@ -20,7 +20,7 @@ func TestCoins(t *testing.T) {
 		chain.NewCoin("/grc20/gno.land/r/demo/foo20", 500),
 	)
 
-	result, err := Coins(cross, native, grc20)
+	result, err := prefixCoins(cross, native, grc20)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
