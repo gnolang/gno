@@ -94,7 +94,7 @@ func serviceHandler(res *mux.ResponseWriter, req *mux.Request) {
 	out += md.Paragraph(svc.description)
 	out += md.Paragraph("Renewal Period: " + humanDuration(svc.renewalPeriod))
 	out += md.Paragraph("Price: " + svc.price.String())
-	out += md.Paragraph("Total Balance: " + svc.balance().String())
+	out += md.Paragraph("Total Balance: " + svc.balance(false).String())
 	out += md.Paragraph("Total Subscribers: " + ufmt.Sprintf("%d", svc.subscriberCount()))
 	out += md.HorizontalRule()
 

@@ -69,7 +69,7 @@ func Unsubscribe(cur realm, serviceName string) {
 	}
 	subValue, _ := svc.subscribers.Get(creator.String())
 	sub := subValue.(*subscription)
-	due, _ := sub.dueAmount(svc.renewalPeriod, svc.price)
+	due, _ := sub.dueAmount(true, svc.renewalPeriod, svc.price)
 	if coinsHasPositive(due) {
 		sendCoins(svc.owner.Owner(), due)
 	}
@@ -99,7 +99,7 @@ func Topup(cur realm, serviceName string, fqName string, amount int64) {
 	}
 	subRaw, _ := svc.subscribers.Get(runtime.PreviousRealm().Address().String())
 	sub := subRaw.(*subscription)
-	_, active := sub.dueAmount(svc.renewalPeriod, svc.price)
+	_, active := sub.dueAmount(false, svc.renewalPeriod, svc.price)
 	native := banker.OriginSend()
 	if coinsHasPositive(native) {
 		topupNative(cur, serviceName)
@@ -127,7 +127,7 @@ func Withdraw(cur realm, serviceName string, denom string, amount int64) {
 	}
 	subValue, _ := svc.subscribers.Get(creator.String())
 	sub := subValue.(*subscription)
-	due, _ := sub.dueAmount(svc.renewalPeriod, svc.price)
+	due, _ := sub.dueAmount(false, svc.renewalPeriod, svc.price)
 	available := subCoins(sub.vault, due)
 	withdraw := chain.NewCoins(chain.NewCoin(denom, amount))
 	if lessCoinsThan(available, withdraw) {
@@ -187,7 +187,7 @@ func NewService(cur realm, displayName, description string, renewalPeriod time.D
 func ServiceClaimVault(cur realm, displayName string) {
 	svc := mustGetServiceByName(displayName)
 	svc.owner.AssertOwnedByPrevious()
-	balance := svc.balance()
+	balance := svc.balance(true)
 	if !coinsHasPositive(balance) {
 		panic("no funds to claim")
 	}
