@@ -152,3 +152,31 @@ func renderCreateThread(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.H1(board.Name + ": Create Thread"))
 	res.Write(form.String())
 }
+
+func renderInviteMember(res *mux.ResponseWriter, req *mux.Request) {
+	name := req.GetVar("board")
+	board, found := gBoards.GetByName(name)
+	if !found {
+		res.Write("Board does not exist: " + name)
+		return
+	}
+
+	form := forms.New("exec", "InviteMember")
+	form.Input(
+		"boardID",
+		"placeholder", "Board ID",
+		"value", board.ID.String(),
+		"readonly", "true",
+	)
+	form.Input(
+		"user",
+		"placeholder", "User",
+	)
+	form.Textarea(
+		"role",
+		"placeholder", "Role",
+	)
+
+	res.Write(md.H1(board.Name + ": Invite Member"))
+	res.Write(form.String())
+}
