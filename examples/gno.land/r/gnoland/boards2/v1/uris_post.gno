@@ -19,21 +19,9 @@ func makeReplyURI(p *boards.Post) string {
 
 func makeCreateReplyURI(p *boards.Post) string {
 	if boards.IsThread(p) {
-		return gRealmLink.Call(
-			"CreateReply",
-			"boardID", p.Board.ID.String(),
-			"threadID", p.ThreadID.String(),
-			"replyID", "0",
-			"body", "",
-		)
+		return makeThreadURI(p) + "/reply"
 	}
-	return gRealmLink.Call(
-		"CreateReply",
-		"boardID", p.Board.ID.String(),
-		"threadID", p.ThreadID.String(),
-		"replyID", p.ID.String(),
-		"body", "",
-	)
+	return makeReplyURI(p) + "/reply"
 }
 
 func makeCreateRepostURI(p *boards.Post) string {

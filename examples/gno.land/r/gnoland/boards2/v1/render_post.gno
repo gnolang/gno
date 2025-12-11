@@ -246,3 +246,63 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write(form.String())
 }
+
+func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
+	name := req.GetVar("board")
+	board, found := gBoards.GetByName(name)
+	if !found {
+		res.Write("Board does not exist: " + name)
+		return
+	}
+
+	// Thread ID must always be available
+	threadID := req.GetVar("thread")
+	if _, err := strconv.Atoi(threadID); err != nil {
+		res.Write("Invalid thread ID: " + threadID)
+		return
+	}
+
+	// Parse reply ID when post is a reply
+	replyID := req.GetVar("reply")
+	if replyID != "" {
+		_, err := strconv.Atoi(replyID)
+		if err != nil {
+			res.Write("Invalid reply ID: " + replyID)
+			return
+		}
+	} else {
+		replyID = "0"
+	}
+
+	form := forms.New("exec", "CreateReply")
+	form.Input(
+		"boardID",
+		"placeholder", "Board ID",
+		"value", board.ID.String(),
+		"readonly", "true",
+	)
+	form.Input(
+		"threadID",
+		"placeholder", "Thread ID",
+		"value", threadID,
+		"readonly", "true",
+	)
+	form.Input(
+		"replyID",
+		"placeholder", "Reply ID",
+		"value", replyID,
+		"readonly", "true",
+	)
+	form.Textarea(
+		"body",
+		"placeholder", "Comment",
+	)
+
+	if replyID == "0" {
+		res.Write(md.H1(board.Name + ": Reply to Thread"))
+	} else {
+		res.Write(md.H1(board.Name + ": Reply to Comment"))
+	}
+
+	res.Write(form.String())
+}
