@@ -760,8 +760,8 @@ func jsonValueSimple(m *Machine, tv TypedValue, seen map[Object]int) any {
 				return getFromBase(base.(Value))
 			}
 			// Base is already filled (not RefValue) - use it directly
-			if base, ok := pv.Base.(Value); ok && base != nil {
-				return getFromBase(base)
+			if pv.Base != nil {
+				return getFromBase(pv.Base)
 			}
 			return nil
 		}
@@ -853,7 +853,7 @@ func jsonSliceValueSimple(m *Machine, tv TypedValue, st *SliceType, seen map[Obj
 	if isPrimitiveType(st.Elt) {
 		// Return direct array for primitives
 		result := make([]any, length)
-		for i := 0; i < length; i++ {
+		for i := range length {
 			etv := sv.GetPointerAtIndexInt2(m.Store, i, st.Elt).Deref()
 			result[i] = getPrimitiveValueSimple(BaseOf(st.Elt).(PrimitiveType), etv)
 		}
@@ -862,7 +862,7 @@ func jsonSliceValueSimple(m *Machine, tv TypedValue, st *SliceType, seen map[Obj
 
 	// For complex types, return array of JSONTypedValue
 	result := make([]*JSONTypedValue, length)
-	for i := 0; i < length; i++ {
+	for i := range length {
 		etv := sv.GetPointerAtIndexInt2(m.Store, i, st.Elt).Deref()
 		result[i] = jsonTypedValueSimple(m, etv, seen)
 	}
@@ -902,7 +902,7 @@ func jsonArrayValueSimple(m *Machine, tv TypedValue, at *ArrayType, seen map[Obj
 
 	// For complex types, return array of JSONTypedValue
 	result := make([]*JSONTypedValue, length)
-	for i := 0; i < length; i++ {
+	for i := range length {
 		result[i] = jsonTypedValueSimple(m, av.List[i], seen)
 	}
 	return result
