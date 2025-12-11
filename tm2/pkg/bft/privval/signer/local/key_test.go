@@ -7,6 +7,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -83,6 +84,33 @@ func TestSave(t *testing.T) {
 		fk, err := GeneratePersistedFileKey(filePath)
 		require.NotNil(t, fk)
 		assert.NoError(t, err)
+	})
+}
+
+func TestPersistFileKey(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil private key", func(t *testing.T) {
+		t.Parallel()
+
+		fk, err := PersistFileKey("", nil)
+		require.Nil(t, fk)
+		assert.ErrorIs(t, err, errInvalidPrivateKey)
+	})
+
+	t.Run("persist provided key", func(t *testing.T) {
+		t.Parallel()
+
+		priv := ed25519.GenPrivKey()
+		filePath := path.Join(t.TempDir(), "validator_key.json")
+
+		fk, err := PersistFileKey(filePath, priv)
+		require.NoError(t, err)
+		require.NotNil(t, fk)
+
+		loaded, err := LoadFileKey(filePath)
+		require.NoError(t, err)
+		assert.Equal(t, fk, loaded)
 	})
 }
 

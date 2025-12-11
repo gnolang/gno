@@ -7,9 +7,14 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/armor"
+)
+
+const (
+	defaultValidatorKeyFileName = "priv_validator_key.json"
 )
 
 type ExportCfg struct {
@@ -17,6 +22,7 @@ type ExportCfg struct {
 
 	NameOrBech32 string
 	OutputPath   string
+	AsValidator  bool
 }
 
 func NewExportCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -28,7 +34,7 @@ func NewExportCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "export",
 			ShortUsage: "export [flags]",
-			ShortHelp:  "exports private key armor",
+			ShortHelp:  "exports a private key as encrypted armor or a validator key file",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -49,7 +55,14 @@ func (c *ExportCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.OutputPath,
 		"output-path",
 		"",
-		"the desired output path for the armor file",
+		"the desired output path for the armor file or validator key",
+	)
+
+	fs.BoolVar(
+		&c.AsValidator,
+		"validator",
+		false,
+		"export the key as a validator private key file (priv_validator_key.json)",
 	)
 }
 
@@ -87,6 +100,24 @@ func execExport(cfg *ExportCfg, io commands.IO) error {
 	privateKey, err := kb.ExportPrivKey(cfg.NameOrBech32, decryptPassword)
 	if err != nil {
 		return fmt.Errorf("unable to export private key, %w", err)
+	}
+
+	// If exporting as a validator key, persist it in the priv_validator_key.json format.
+	if cfg.AsValidator {
+		outputPath := cfg.OutputPath
+		if outputPath == "" {
+			outputPath = defaultValidatorKeyFileName
+		}
+
+		fk, err := local.PersistFileKey(outputPath, privateKey)
+		if err != nil {
+			return fmt.Errorf("unable to write validator key, %w", err)
+		}
+
+		io.Printfln("Validator private key saved at %s", outputPath)
+		io.Printfln("Validator address: %s", fk.Address)
+
+		return nil
 	}
 
 	// Get the armor encrypt password

@@ -110,6 +110,22 @@ func GeneratePersistedFileKey(filePath string) (*FileKey, error) {
 	// Generate a new random FileKey.
 	fk := GenerateFileKey()
 
+	return PersistFileKey(filePath, fk.PrivKey)
+}
+
+// PersistFileKey persists the given private key to disk using the FileKey format.
+// The provided private key is used to derive the public key and address.
+func PersistFileKey(filePath string, privKey crypto.PrivKey) (*FileKey, error) {
+	if privKey == nil {
+		return nil, errInvalidPrivateKey
+	}
+
+	fk := &FileKey{
+		PrivKey: privKey,
+		PubKey:  privKey.PubKey(),
+		Address: privKey.PubKey().Address(),
+	}
+
 	// Persist the FileKey to disk.
 	if err := fk.save(filePath); err != nil {
 		return nil, err

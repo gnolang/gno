@@ -8,6 +8,16 @@
     $> cd ./gno
     $> make install_gnokey
 
+## Validator keys
+
+Use an existing gnokey key as a validator key by exporting it in the `priv_validator_key.json` format expected by gnoland or a remote signer:
+
+```bash
+gnokey export --key mykey --validator --output-path ./priv_validator_key.json
+```
+
+If no `--output-path` is provided, the key is written to `priv_validator_key.json` in the current directory.
+
 Also, see the [quickstart guide](../../../docs/users/interact-with-gnokey.md).
 
 ## Manual Entropy Generation

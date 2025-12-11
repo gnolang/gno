@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // newTestKeybase generates a new test key-base
@@ -71,7 +74,8 @@ type testCmdKeyOptsBase struct {
 type testExportKeyOpts struct {
 	testCmdKeyOptsBase
 
-	outputPath string
+	outputPath  string
+	asValidator bool
 }
 
 // exportKey runs the private key export command
@@ -89,6 +93,7 @@ func exportKey(
 		},
 		NameOrBech32: exportOpts.keyName,
 		OutputPath:   exportOpts.outputPath,
+		AsValidator:  exportOpts.asValidator,
 	}
 
 	cmdIO := commands.NewTestIO()
@@ -196,6 +201,45 @@ func TestExport_ExportKey(t *testing.T) {
 			assert.Greater(t, numLines(string(buff)), 1)
 		})
 	}
+}
+
+func TestExport_AsValidatorKey(t *testing.T) {
+	t.Parallel()
+
+	const (
+		keyName  = "validator-key"
+		password = "password"
+	)
+
+	// Generate a temporary key-base directory
+	kb, kbHome := newTestKeybase(t)
+
+	// Add an initial key to the key base
+	info, err := addRandomKeyToKeybase(kb, keyName, password)
+	require.NoError(t, err)
+
+	outputPath := filepath.Join(t.TempDir(), "priv_validator_key.json")
+
+	assert.NoError(
+		t,
+		exportKey(
+			testExportKeyOpts{
+				testCmdKeyOptsBase: testCmdKeyOptsBase{
+					kbHome:  kbHome,
+					keyName: info.GetName(),
+				},
+				outputPath:  outputPath,
+				asValidator: true,
+			},
+			strings.NewReader(fmt.Sprintf("%s\n", password)),
+		),
+	)
+
+	fileKey, err := local.LoadFileKey(outputPath)
+	require.NoError(t, err)
+
+	assert.Equal(t, info.GetPubKey(), fileKey.PubKey)
+	assert.Equal(t, info.GetAddress(), fileKey.Address)
 }
 
 func TestExport_ExportKeyWithEmptyName(t *testing.T) {
