@@ -14,7 +14,7 @@ import (
 var ErrMemberNotFound = errors.New("member not found")
 
 // ProposalFeeAmount is the fee required for non-members to create proposals (in ugnot)
-const ProposalFeeAmount int64 = 1000000 // 1 GNOT
+const ProposalFeeAmount int64 = 1_000_000 // 1 GNOT
 
 type GovDAO struct {
 	pss    ProposalsStatuses
