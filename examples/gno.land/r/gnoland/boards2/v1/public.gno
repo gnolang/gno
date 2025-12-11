@@ -19,7 +19,7 @@ const (
 	MaxThreadTitleLength = 100
 
 	// MaxReplyLength defines the maximum length allowed for replies.
-	MaxReplyLength = 300
+	MaxReplyLength = 1000
 )
 
 var (
