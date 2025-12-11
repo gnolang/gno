@@ -17,7 +17,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
@@ -122,26 +121,26 @@ func (vm *VMKeeper) Initialize(
 	vm.gnoStore = gno.NewStore(alloc, baseStore, iavlStore)
 	vm.gnoStore.SetNativeResolver(stdlibs.NativeResolver)
 
-	if vm.gnoStore.NumMemPackages() > 0 {
-		// for now, all mem packages must be re-run after reboot.
-		// TODO remove this, and generally solve for in-mem garbage collection
-		// and memory management across many objects/types/nodes/packages.
-		start := time.Now()
+	// if vm.gnoStore.NumMemPackages() > 0 {
+	// 	// for now, all mem packages must be re-run after reboot.
+	// 	// TODO remove this, and generally solve for in-mem garbage collection
+	// 	// and memory management across many objects/types/nodes/packages.
+	// 	start := time.Now()
 
-		m2 := gno.NewMachineWithOptions(
-			gno.MachineOptions{
-				PkgPath: "",
-				Output:  vm.Output,
-				Store:   vm.gnoStore,
-			})
-		defer m2.Release()
-		gno.DisableDebug()
-		m2.PreprocessAllFilesAndSaveBlockNodes()
-		gno.EnableDebug()
+	// 	m2 := gno.NewMachineWithOptions(
+	// 		gno.MachineOptions{
+	// 			PkgPath: "",
+	// 			Output:  vm.Output,
+	// 			Store:   vm.gnoStore,
+	// 		})
+	// 	defer m2.Release()
+	// 	gno.DisableDebug()
+	// 	m2.PreprocessAllFilesAndSaveBlockNodes()
+	// 	gno.EnableDebug()
 
-		logger.Debug("GnoVM packages preprocessed",
-			"elapsed", time.Since(start))
-	}
+	// 	logger.Debug("GnoVM packages preprocessed",
+	// 		"elapsed", time.Since(start))
+	// }
 }
 
 type stdlibCache struct {
