@@ -13,6 +13,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNormalizeRemoteURL(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"tcp protocol", "tcp://127.0.0.1:26657", "http://127.0.0.1:26657"},
+		{"http protocol", "http://127.0.0.1:26657", "http://127.0.0.1:26657"},
+		{"https protocol", "https://rpc.gno.land:443", "https://rpc.gno.land:443"},
+		{"no protocol", "127.0.0.1:26657", "http://127.0.0.1:26657"},
+		{"no protocol with domain", "rpc.gno.land:443", "http://rpc.gno.land:443"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result := normalizeRemoteURL(tc.input)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
 func TestSetupWeb(t *testing.T) {
 	opts := defaultWebOptions
 	opts.bind = "127.0.0.1:0" // random port

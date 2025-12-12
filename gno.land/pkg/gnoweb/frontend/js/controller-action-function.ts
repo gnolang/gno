@@ -208,21 +208,10 @@ export class ActionFunctionController extends BaseController {
 		);
 	}
 
-	// Normalize a remote URL for browser fetch
-	// - http:// and https:// are used as-is
-	// - tcp:// is converted to http:// (RPC over HTTP)
-	// - No protocol defaults to http://
-	private _normalizeRemoteUrl(url: string): string {
-		if (url.startsWith("tcp://")) return url.replace("tcp://", "http://");
-		if (url.startsWith("http://") || url.startsWith("https://")) return url;
-		return `http://${url}`;
-	}
-
 	// Fetch the qeval result from the remote
 	private async _fetchQEval(remote: string, data: string): Promise<string> {
 		try {
-			const baseUrl = this._normalizeRemoteUrl(remote);
-			const url = `${baseUrl}/abci_query?path=vm%2fqeval&data=${btoa(data)}`;
+			const url = `${remote}/abci_query?path=vm%2fqeval&data=${btoa(data)}`;
 			const response = await fetch(url);
 			if (!response.ok) return "";
 
