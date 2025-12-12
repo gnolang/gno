@@ -23,8 +23,8 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	creatorLink := userLink(board.Creator)
 	date := board.CreatedAt.Format(dateFormat)
 
-	res.Write(md.H1(board.Name))
-	res.Write("Board created by " + creatorLink + " on " + date + ", #" + board.ID.String())
+	res.Write(md.H1("Boards › " + board.Name))
+	res.Write("Created by " + creatorLink + " on " + date + ", #" + board.ID.String())
 	if board.Readonly {
 		res.Write("  \n_" + md.Bold("Starting new threads and commenting is disabled") + "_")
 	}
@@ -84,7 +84,6 @@ func renderBoardMenu(board *boards.Board, req *mux.Request) string {
 		boardMembersURL = makeBoardURI(board) + "/members"
 	)
 
-	b.WriteString("\n")
 	if board.Readonly {
 		b.WriteString(md.Link("List Members", boardMembersURL))
 		b.WriteString(" • ")

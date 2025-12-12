@@ -36,6 +36,7 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
+	res.Write(md.H1("Boards › " + board.Name))
 	res.Write(renderPost(thread, req.RawPath, "", 5))
 }
 
@@ -48,7 +49,7 @@ func renderThreadSummary(thread *boards.Post) string {
 		date        = thread.CreatedAt.Format(dateFormat)
 	)
 
-	b.WriteString(md.Bold("≡ "+md.Link(summary, postURI)) + "  \n")
+	b.WriteString(md.Bold(md.Link(summary, postURI)) + "  \n")
 	b.WriteString("Created by " + creatorLink + " on " + date + "  \n")
 
 	status := []string{

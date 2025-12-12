@@ -24,7 +24,7 @@ func renderPost(post *boards.Post, path, indent string, levels int) string {
 	}
 
 	if title != "" { // Replies don't have a title
-		b.WriteString(md.H1(title))
+		b.WriteString(md.H2(title))
 	}
 
 	b.WriteString(indent + "\n")
