@@ -8,25 +8,29 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/config"
 	"golang.org/x/sync/errgroup"
 )
-
-const DefaultListenAddress = "0.0.0.0:26657" // TODO move?
 
 type Server struct {
 	h      http.Handler
 	logger *slog.Logger
-	addr   string
+
+	config *config.Config
 }
 
-func NewHTTPServer(h http.Handler, addr string, logger *slog.Logger) *Server {
-	return &Server{h: h, addr: addr, logger: logger}
+func New(h http.Handler, config *config.Config, logger *slog.Logger) *Server {
+	return &Server{
+		h:      h,
+		config: config,
+		logger: logger,
+	}
 }
 
 // Serve serves the JSON-RPC server
 func (s *Server) Serve(ctx context.Context) error {
 	srv := &http.Server{
-		Addr:              s.addr,
+		Addr:              s.config.ListenAddress,
 		Handler:           s.h,
 		ReadHeaderTimeout: 60 * time.Second,
 		WriteTimeout:      60 * time.Second,
