@@ -2,26 +2,29 @@
 package main
 
 type A struct {
-	b B
+	b *B
 }
 
 type B struct {
-	c C
+	c *C
 }
 
 type C struct {
-	d D
+	d *D
 }
 
 type D struct {
 	e int
 }
 
-var x = A{b: B{c: C{d: D{e: 1}}}}
+var x = A{b: &B{c: &C{d: &D{e: 1}}}}
 
 func init() {
 	println("init() START")
-	x.b.c = C{d: D{e: 2}}
+	// variant of struct63.gno
+	// x.b.c = C{d: D{e: 2}}
+	x.b.c = &C{}
+	x.b.c.d = &D{e: 2}
 	println("init() END")
 }
 
