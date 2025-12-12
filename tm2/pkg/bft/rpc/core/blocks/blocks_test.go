@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/core/mock"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,7 +22,7 @@ func TestHandler_BlockchainInfoHandler(t *testing.T) {
 		t.Parallel()
 
 		var (
-			store  = &mockBlockStore{}
+			store  = &mock.BlockStore{}
 			params = []any{"foo", int64(10)}
 		)
 
@@ -40,8 +41,8 @@ func TestHandler_BlockchainInfoHandler(t *testing.T) {
 		const storeHeight int64 = 10
 
 		var (
-			store = &mockBlockStore{
-				heightFn: func() int64 {
+			store = &mock.BlockStore{
+				HeightFn: func() int64 {
 					return storeHeight
 				},
 			}
@@ -64,9 +65,9 @@ func TestHandler_BlockchainInfoHandler(t *testing.T) {
 
 		var (
 			metas = map[int64]*types.BlockMeta{}
-			store = &mockBlockStore{
-				heightFn: func() int64 { return storeHeight },
-				loadBlockMetaFn: func(h int64) *types.BlockMeta {
+			store = &mock.BlockStore{
+				HeightFn: func() int64 { return storeHeight },
+				LoadBlockMetaFn: func(h int64) *types.BlockMeta {
 					return metas[h]
 				},
 			}
@@ -106,11 +107,11 @@ func TestHandler_BlockchainInfoHandler(t *testing.T) {
 
 		var (
 			metas = map[int64]*types.BlockMeta{}
-			store = &mockBlockStore{
-				heightFn: func() int64 {
+			store = &mock.BlockStore{
+				HeightFn: func() int64 {
 					return storeHeight
 				},
-				loadBlockMetaFn: func(h int64) *types.BlockMeta {
+				LoadBlockMetaFn: func(h int64) *types.BlockMeta {
 					return metas[h]
 				},
 			}
@@ -150,7 +151,7 @@ func TestHandler_BlockHandler(t *testing.T) {
 		t.Parallel()
 
 		var (
-			store  = &mockBlockStore{}
+			store  = &mock.BlockStore{}
 			params = []any{"foo"}
 		)
 
@@ -169,8 +170,8 @@ func TestHandler_BlockHandler(t *testing.T) {
 		const storeHeight int64 = 10
 
 		var (
-			store = &mockBlockStore{
-				heightFn: func() int64 { return storeHeight },
+			store = &mock.BlockStore{
+				HeightFn: func() int64 { return storeHeight },
 			}
 			params = []any{int64(-1)}
 		)
@@ -190,8 +191,8 @@ func TestHandler_BlockHandler(t *testing.T) {
 		const storeHeight int64 = 10
 
 		var (
-			store = &mockBlockStore{
-				heightFn: func() int64 { return storeHeight },
+			store = &mock.BlockStore{
+				HeightFn: func() int64 { return storeHeight },
 			}
 			params = []any{storeHeight + 1}
 		)
@@ -211,11 +212,11 @@ func TestHandler_BlockHandler(t *testing.T) {
 		const storeHeight int64 = 10
 
 		var (
-			store = &mockBlockStore{
-				heightFn: func() int64 {
+			store = &mock.BlockStore{
+				HeightFn: func() int64 {
 					return storeHeight
 				},
-				loadBlockMetaFn: func(_ int64) *types.BlockMeta {
+				LoadBlockMetaFn: func(_ int64) *types.BlockMeta {
 					return nil // explicit
 				},
 			}
@@ -237,9 +238,9 @@ func TestHandler_BlockHandler(t *testing.T) {
 		const storeHeight int64 = 10
 
 		var (
-			store = &mockBlockStore{
-				heightFn: func() int64 { return storeHeight },
-				loadBlockMetaFn: func(h int64) *types.BlockMeta {
+			store = &mock.BlockStore{
+				HeightFn: func() int64 { return storeHeight },
+				LoadBlockMetaFn: func(h int64) *types.BlockMeta {
 					if h == storeHeight {
 						return &types.BlockMeta{
 							Header: types.Header{
@@ -250,7 +251,7 @@ func TestHandler_BlockHandler(t *testing.T) {
 
 					return nil
 				},
-				loadBlockFn: func(_ int64) *types.Block {
+				LoadBlockFn: func(_ int64) *types.Block {
 					return nil // explicit
 				},
 			}
@@ -283,16 +284,16 @@ func TestHandler_BlockHandler(t *testing.T) {
 				},
 			}
 
-			store = &mockBlockStore{
-				heightFn: func() int64 { return storeHeight },
-				loadBlockMetaFn: func(h int64) *types.BlockMeta {
+			store = &mock.BlockStore{
+				HeightFn: func() int64 { return storeHeight },
+				LoadBlockMetaFn: func(h int64) *types.BlockMeta {
 					if h == storeHeight {
 						return meta
 					}
 
 					return nil
 				},
-				loadBlockFn: func(h int64) *types.Block {
+				LoadBlockFn: func(h int64) *types.Block {
 					if h == storeHeight {
 						return block
 					}
@@ -335,18 +336,18 @@ func TestHandler_BlockHandler(t *testing.T) {
 				},
 			}
 
-			store = &mockBlockStore{
-				heightFn: func() int64 {
+			store = &mock.BlockStore{
+				HeightFn: func() int64 {
 					return storeHeight
 				},
-				loadBlockMetaFn: func(h int64) *types.BlockMeta {
+				LoadBlockMetaFn: func(h int64) *types.BlockMeta {
 					if h == blockHeight {
 						return meta
 					}
 
 					return nil
 				},
-				loadBlockFn: func(h int64) *types.Block {
+				LoadBlockFn: func(h int64) *types.Block {
 					if h == blockHeight {
 						return block
 					}
@@ -377,7 +378,7 @@ func TestHandler_CommitHandler(t *testing.T) {
 		t.Parallel()
 
 		var (
-			store  = &mockBlockStore{}
+			store  = &mock.BlockStore{}
 			h      = NewHandler(store, nil)
 			params = []any{"foo"}
 		)
@@ -395,8 +396,8 @@ func TestHandler_CommitHandler(t *testing.T) {
 		const storeHeight int64 = 10
 
 		var (
-			store = &mockBlockStore{
-				heightFn: func() int64 { return storeHeight },
+			store = &mock.BlockStore{
+				HeightFn: func() int64 { return storeHeight },
 			}
 			params = []any{int64(-1)}
 		)
@@ -416,11 +417,11 @@ func TestHandler_CommitHandler(t *testing.T) {
 		const storeHeight int64 = 10
 
 		var (
-			store = &mockBlockStore{
-				heightFn: func() int64 {
+			store = &mock.BlockStore{
+				HeightFn: func() int64 {
 					return storeHeight
 				},
-				loadBlockMetaFn: func(_ int64) *types.BlockMeta {
+				LoadBlockMetaFn: func(_ int64) *types.BlockMeta {
 					return nil // explicit
 				},
 			}
@@ -448,18 +449,18 @@ func TestHandler_CommitHandler(t *testing.T) {
 				},
 			}
 
-			store = &mockBlockStore{
-				heightFn: func() int64 {
+			store = &mock.BlockStore{
+				HeightFn: func() int64 {
 					return storeHeight
 				},
-				loadBlockMetaFn: func(h int64) *types.BlockMeta {
+				LoadBlockMetaFn: func(h int64) *types.BlockMeta {
 					if h == storeHeight {
 						return meta
 					}
 
 					return nil
 				},
-				loadBlockCommitFn: func(_ int64) *types.Commit {
+				LoadBlockCommitFn: func(_ int64) *types.Commit {
 					return nil // explicit
 				},
 			}
@@ -490,18 +491,18 @@ func TestHandler_CommitHandler(t *testing.T) {
 				},
 			}
 
-			store = &mockBlockStore{
-				heightFn: func() int64 {
+			store = &mock.BlockStore{
+				HeightFn: func() int64 {
 					return storeHeight
 				},
-				loadBlockMetaFn: func(h int64) *types.BlockMeta {
+				LoadBlockMetaFn: func(h int64) *types.BlockMeta {
 					if h == targetHeight {
 						return meta
 					}
 
 					return nil
 				},
-				loadBlockCommitFn: func(_ int64) *types.Commit {
+				LoadBlockCommitFn: func(_ int64) *types.Commit {
 					return nil // explicit
 				},
 			}
@@ -530,18 +531,18 @@ func TestHandler_CommitHandler(t *testing.T) {
 			}
 			commit = &types.Commit{}
 
-			store = &mockBlockStore{
-				heightFn: func() int64 {
+			store = &mock.BlockStore{
+				HeightFn: func() int64 {
 					return storeHeight
 				},
-				loadBlockMetaFn: func(h int64) *types.BlockMeta {
+				LoadBlockMetaFn: func(h int64) *types.BlockMeta {
 					if h == storeHeight {
 						return meta
 					}
 
 					return nil
 				},
-				loadSeenCommitFn: func(h int64) *types.Commit {
+				LoadSeenCommitFn: func(h int64) *types.Commit {
 					if h == storeHeight {
 						return commit
 					}
@@ -571,11 +572,11 @@ func TestHandler_CommitHandler(t *testing.T) {
 			targetHeight int64 = 9
 		)
 
-		store := &mockBlockStore{
-			heightFn: func() int64 {
+		store := &mock.BlockStore{
+			HeightFn: func() int64 {
 				return storeHeight
 			},
-			loadBlockMetaFn: func(h int64) *types.BlockMeta {
+			LoadBlockMetaFn: func(h int64) *types.BlockMeta {
 				if h == targetHeight {
 					return &types.BlockMeta{
 						Header: types.Header{
@@ -586,7 +587,7 @@ func TestHandler_CommitHandler(t *testing.T) {
 
 				return nil
 			},
-			loadBlockCommitFn: func(h int64) *types.Commit {
+			LoadBlockCommitFn: func(h int64) *types.Commit {
 				if h == targetHeight {
 					return &types.Commit{}
 				}
@@ -615,7 +616,7 @@ func TestHandler_BlockResultsHandler(t *testing.T) {
 		t.Parallel()
 
 		var (
-			store   = &mockBlockStore{}
+			store   = &mock.BlockStore{}
 			stateDB = memdb.NewMemDB()
 			params  = []any{"foo"}
 		)
@@ -635,8 +636,8 @@ func TestHandler_BlockResultsHandler(t *testing.T) {
 		const storeHeight int64 = 10
 
 		var (
-			store = &mockBlockStore{
-				heightFn: func() int64 { return storeHeight },
+			store = &mock.BlockStore{
+				HeightFn: func() int64 { return storeHeight },
 			}
 			stateDB = memdb.NewMemDB()
 			params  = []any{storeHeight + 1}
@@ -657,8 +658,8 @@ func TestHandler_BlockResultsHandler(t *testing.T) {
 		const storeHeight int64 = 10
 
 		var (
-			store = &mockBlockStore{
-				heightFn: func() int64 { return storeHeight },
+			store = &mock.BlockStore{
+				HeightFn: func() int64 { return storeHeight },
 			}
 			stateDB = memdb.NewMemDB()
 			params  = []any{storeHeight}
@@ -684,8 +685,8 @@ func TestHandler_BlockResultsHandler(t *testing.T) {
 		var (
 			expectedResponses = &sm.ABCIResponses{}
 
-			store = &mockBlockStore{
-				heightFn: func() int64 {
+			store = &mock.BlockStore{
+				HeightFn: func() int64 {
 					return storeHeight
 				},
 			}
