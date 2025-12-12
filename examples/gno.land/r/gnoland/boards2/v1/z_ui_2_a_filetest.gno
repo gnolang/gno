@@ -28,7 +28,7 @@ func init() {
 
 	// Repost thread "C" into a different board
 	dstBoardID := boards2.CreateBoard(cross, "Bar", false)
-	boards2.CreateRepost(cross, boardID, threadID, "Title", "Body", dstBoardID)
+	boards2.CreateRepost(cross, boardID, threadID, dstBoardID, "Title", "Body")
 }
 
 func main() {

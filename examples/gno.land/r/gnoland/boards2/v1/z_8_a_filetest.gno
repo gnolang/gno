@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
@@ -14,7 +16,7 @@ const (
 	path          = "test-board/1"
 )
 
-var bid boards2.BoardID
+var bid boards.ID
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))

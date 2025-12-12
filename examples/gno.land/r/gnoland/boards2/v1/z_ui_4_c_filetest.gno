@@ -4,6 +4,8 @@ package main
 import (
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
@@ -14,8 +16,8 @@ const (
 )
 
 var (
-	threadID       boards2.PostID
-	repostThreadID boards2.PostID
+	threadID       boards.ID
+	repostThreadID boards.ID
 )
 
 func init() {
@@ -27,7 +29,7 @@ func init() {
 
 	// Repost thread into a different board
 	dstBoardID := boards2.CreateBoard(cross, dstBoardName, false)
-	repostThreadID = boards2.CreateRepost(cross, boardID, threadID, "Bar", "Body2", dstBoardID)
+	repostThreadID = boards2.CreateRepost(cross, boardID, threadID, dstBoardID, "Bar", "Body2")
 }
 
 func main() {
