@@ -211,7 +211,7 @@ export class ActionFunctionController extends BaseController {
 	// Fetch the qeval result from the remote
 	private async _fetchQEval(remote: string, data: string): Promise<string> {
 		try {
-			const url = `http://${remote}/abci_query?path=vm%2fqeval&data=${btoa(data)}`;
+			const url = `${remote}/abci_query?path=vm%2fqeval&data=${btoa(data)}`;
 			const response = await fetch(url);
 			if (!response.ok) return "";
 

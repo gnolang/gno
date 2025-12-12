@@ -18,6 +18,20 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// normalizeRemoteURL ensures the remote URL has a valid HTTP(S) protocol.
+// - tcp:// is converted to http:// (RPC uses HTTP over TCP)
+// - No protocol defaults to http://
+// - http:// and https:// are kept as-is
+func normalizeRemoteURL(remote string) string {
+	if strings.HasPrefix(remote, "tcp://") {
+		return strings.Replace(remote, "tcp://", "http://", 1)
+	}
+	if strings.HasPrefix(remote, "http://") || strings.HasPrefix(remote, "https://") {
+		return remote
+	}
+	return "http://" + remote
+}
+
 // Authorized external image host providers.
 var cspImgHost = []string{
 	// Gno-related hosts
@@ -225,10 +239,10 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	// Setup app
 	appcfg := gnoweb.NewDefaultAppConfig()
 	appcfg.ChainID = cfg.chainid
-	appcfg.NodeRemote = cfg.remote
+	appcfg.NodeRemote = normalizeRemoteURL(cfg.remote)
 	appcfg.NodeRequestTimeout = cfg.remoteTimeout
-	appcfg.RemoteHelp = cfg.remoteHelp
-	if appcfg.RemoteHelp == "" {
+	appcfg.RemoteHelp = normalizeRemoteURL(cfg.remoteHelp)
+	if appcfg.RemoteHelp == "" || appcfg.RemoteHelp == "http://" {
 		appcfg.RemoteHelp = appcfg.NodeRemote
 	}
 	appcfg.Analytics = cfg.analytics
@@ -262,7 +276,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	logger.Info("Running", "listener", bindaddr.String())
 
 	// Setup security headers
-	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, cfg.remote)
+	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote)
 
 	// Setup server
 	server := &http.Server{
