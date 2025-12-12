@@ -2265,6 +2265,7 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 // and the lx isn't a name (base is a block),
 // and the lx isn't a composite lit expr.
 func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
+	fmt.Println("---PopAsPointer2, lx: ", lx)
 	switch lx := lx.(type) {
 	case *NameExpr:
 		switch lx.Type {
@@ -2278,6 +2279,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 			ro = false // always mutable
 		case NameExprTypeLoopVarUse:
 			lb := m.LastBlock()
+			fmt.Println("------lb: ", lb)
 			pv = lb.GetPointerTo(m.Store, lx.Path)
 			ro = false // always mutable
 		case NameExprTypeHeapUse:
