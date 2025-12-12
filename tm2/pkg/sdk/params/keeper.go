@@ -76,12 +76,9 @@ func (pk ParamsKeeper) ForModule(moduleName string) prefixParamsKeeper {
 	return ppk
 }
 
-func (pk ParamsKeeper) GetRegisteredKeeper(moduleName string) ParamfulKeeper {
+func (pk ParamsKeeper) GetRegisteredKeeper(moduleName string) (ParamfulKeeper, bool) {
 	rk, ok := pk.kprs[moduleName]
-	if !ok {
-		panic("keeper for module " + moduleName + " not registered")
-	}
-	return rk
+	return rk, ok
 }
 
 func (pk ParamsKeeper) Register(moduleName string, pmk ParamfulKeeper) {
@@ -240,12 +237,14 @@ func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr any) {
 
 func (pk ParamsKeeper) set(ctx sdk.Context, key string, value any) {
 	module, rawKey := parsePrefix(key)
+
 	if module != "" {
-		kpr := pk.GetRegisteredKeeper(module)
-		if kpr != nil {
+		kpr, ok := pk.GetRegisteredKeeper(module)
+		if ok {
 			kpr.WillSetParam(ctx, rawKey, value)
 		}
 	}
+
 	stor := ctx.Store(pk.key)
 	bz := amino.MustMarshalJSON(value)
 	stor.Set(storeKey(key), bz)
