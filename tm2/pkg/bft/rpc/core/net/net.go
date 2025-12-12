@@ -28,10 +28,10 @@ func NewHandler(
 	}
 }
 
-// NetInfo fetches the current network info
+// NetInfoHandler fetches the current network info
 //
 //	No params
-func (h *Handler) NetInfo(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
+func (h *Handler) NetInfoHandler(_ *metadata.Metadata, p []any) (any, *spec.BaseJSONError) {
 	if len(p) > 0 {
 		return nil, spec.GenerateInvalidParamError(1)
 	}

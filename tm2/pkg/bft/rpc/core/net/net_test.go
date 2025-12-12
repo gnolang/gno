@@ -20,7 +20,7 @@ func TestHandler_NetInfo(t *testing.T) {
 
 		h := &Handler{}
 
-		res, err := h.NetInfo(nil, []any{"extra"})
+		res, err := h.NetInfoHandler(nil, []any{"extra"})
 		require.Nil(t, res)
 		require.NotNil(t, err)
 
@@ -56,7 +56,7 @@ func TestHandler_NetInfo(t *testing.T) {
 			transport: mockTransport,
 		}
 
-		res, err := h.NetInfo(nil, nil)
+		res, err := h.NetInfoHandler(nil, nil)
 		require.Nil(t, err)
 		require.NotNil(t, res)
 
