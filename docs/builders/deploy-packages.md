@@ -66,7 +66,6 @@ We need to tell `gnokey` a couple of things:
 - `pkgdir` in which the package is found locally,
 - `gas-fee` and `gas-wanted` values,
 - the `remote` (RPC endpoint) and `chainid` of the Staging network[^2],
-- that we want to broadcast the transaction, and
 - the key or the address we want to use to deploy the package.
 
 The full command would look something like the following:
@@ -76,7 +75,6 @@ gnokey maketx addpkg \
 -pkgdir "." \
 -gas-fee 10000000ugnot \
 -gas-wanted 8000000 \
--broadcast \
 -chainid staging \
 -remote "https://rpc.gno.land:443" \
 MyKey

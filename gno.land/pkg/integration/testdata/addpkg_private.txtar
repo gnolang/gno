@@ -7,147 +7,147 @@ loadpkg gno.land/p/nt/avl
 gnoland start
 
 # add the public realm first
-gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/foobar/publicrealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
+gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/foobar/publicrealm -gas-fee 10000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
 stdout OK!
 
 # add the private realm
-gnokey maketx addpkg -pkgdir $WORK/privaterealm -pkgpath gno.land/r/foobar/privaterealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
+gnokey maketx addpkg -pkgdir $WORK/privaterealm -pkgpath gno.land/r/foobar/privaterealm -gas-fee 10000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
 stdout OK!
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveTreeToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveTreeToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from the private realm gno.land/r/foobar/privaterealm'
 
-gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func ReadTreeToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func ReadTreeToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stdout OK!
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveTreeAsAValueOfTreeToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveTreeAsAValueOfTreeToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from the private realm gno.land/r/foobar/privaterealm'
 
-gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveIntToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveIntToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveStringToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveStringToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stdout OK!
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveSliceToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveSliceToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from the private realm gno.land/r/foobar/privaterealm'
 
-gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func ReadSliceToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func ReadSliceToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stdout 'private1'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMapToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMapToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from the private realm gno.land/r/foobar/privaterealm'
 
-gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func ReadMapToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func ReadMapToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stdout 100
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveValueFromPrivateStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveValueFromPrivateStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayOfPrivateStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayOfPrivateStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveEmptySliceOfPrivateStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveEmptySliceOfPrivateStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmWithoutRef -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmWithoutRef -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stdout OK!
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmWithRefToStruct -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmWithRefToStruct -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmWithRefToTree -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmWithRefToTree -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmAfterSaving -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmAfterSaving -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmWithNewPrivateData -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmWithNewPrivateData -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func EditMixedStructWithPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func EditMixedStructWithPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stdout 'Read Mixed Struct'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveInterfaceToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveInterfaceToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayToPublicRealm2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayToPublicRealm2 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayToPublicRealm3 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayToPublicRealm3 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMapWithPrivateKeyToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMapWithPrivateKeyToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMapWithPrivateValueToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMapWithPrivateValueToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMapWithBothPrivateToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMapWithBothPrivateToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveEmptyMapWithPrivateTypesToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveEmptyMapWithPrivateTypesToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveNestedToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveNestedToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveNestedToPublicRealmAfterSaving -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveNestedToPublicRealmAfterSaving -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveClosureToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveClosureToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveClosure2ToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveClosure2ToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist function or method from the private realm gno.land/r/foobar/privaterealm'
 
 # these functions are allowed since they do not use private types or references to private realm objects
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayOfSimpleFunctionsToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayOfSimpleFunctionsToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist function or method from the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayOfFunctionsWithPrivateDataToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayOfFunctionsWithPrivateDataToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayOfFunctionsWithTreePointerToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayOfFunctionsWithTreePointerToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist function or method from the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveNilPointerToPrivateStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveNilPointerToPrivateStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveEmptyStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveEmptyStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SavePrivateMapToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SavePrivateMapToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SavePrivateMapToPublicRealm2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SavePrivateMapToPublicRealm2 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveCustomTypeToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveCustomTypeToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func TryToExploit1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func TryToExploit1 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func TryToExploit2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func TryToExploit2 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func TryToExploit3 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func TryToExploit3 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMapOfMapOfMapOfPrivateToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMapOfMapOfMapOfPrivateToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveNilSliceOfSliceOfPrivateToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveNilSliceOfSliceOfPrivateToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
-! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr $WORK/msgrun/run.gno
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test $test1_user_addr $WORK/msgrun/run.gno
 
 gnokey query vm/qeval --data 'gno.land/r/foobar/privaterealm.GetTreePointer()'
 stdout 'gno.land/p/nt/avl.Tree'

@@ -21,27 +21,27 @@ loadpkg gno.land/r/gnoland/users/v1
 gnoland start -lock-transfer
 
 ## Load member as T1 to be able to vote afterwards
-gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/load_user.gno
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -chainid=tendermint_test test1 $WORK/run/load_user.gno
 
 ## Submit a proposal to change storage_fee_collector to storage_collector
 
 ## pay the fee and submit a proposal to change the fee collector.
-gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_collector.gno
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -chainid=tendermint_test test1 $WORK/run/propose_collector.gno
 stdout '0'
 
 ## Vote change proposal with unrestricted account test1
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -chainid=tendermint_test test1
 stdout 'OK!'
 
 ## Execute change proposal with unrestricted account test1
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -chainid=tendermint_test test1
 stdout 'OK!'
 
 ## Check storage_collector balance
 gnokey query bank/balances/$storage_collector_user_addr
 stdout '1000000000ugnot'
 
-gnokey maketx addpkg -pkgdir $WORK/bytesbank -pkgpath gno.land/r/bytesbank -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 502500ugnot -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/bytesbank -pkgpath gno.land/r/bytesbank -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 502500ugnot -chainid=tendermint_test test1
 stdout 'EVENTS:     \[{\"bytes_delta\":3411,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":341100},\"pkg_path\":\"gno.land/r/bytesbank\"}]'
 stdout 'STORAGE DELTA:  3411 bytes'
 stdout 'STORAGE FEE:    341100ugnot'
@@ -52,7 +52,7 @@ gnokey query vm/qstorage --data gno.land/r/bytesbank
 stdout 'storage: 3411, deposit: 341100'
 
 ## Set an object with a smaller size. Exactly 2 bytes are released when we update the realm record from 'hello' to 'foo'.
-gnokey maketx call -pkgpath gno.land/r/bytesbank -func Credit -args $norman_user_addr -args 500000  -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test alice
+gnokey maketx call -pkgpath gno.land/r/bytesbank -func Credit -args $norman_user_addr -args 500000  -gas-fee 1000000ugnot -gas-wanted 10000000  -chainid=tendermint_test alice
 stdout OK!
 stdout 'STORAGE DELTA:  501531 bytes'
 stdout 'STORAGE FEE:    50153100ugnot'
@@ -63,7 +63,7 @@ stdout 'storage: 504942, deposit: 50494200'
 
 ## Norman frees the storage of bytes bank, but storage deposit goes to storage fee collector
 ## instead of him
-gnokey maketx call -pkgpath gno.land/r/bytesbank -func Debit -args 0  -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test norman
+gnokey maketx call -pkgpath gno.land/r/bytesbank -func Debit -args 0  -gas-fee 1000000ugnot -gas-wanted 10000000  -chainid=tendermint_test norman
 stdout OK!
 stdout 'STORAGE DELTA:  -501132 bytes'
 
