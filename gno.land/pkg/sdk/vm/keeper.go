@@ -1128,6 +1128,44 @@ func (vm *VMKeeper) QueryStorage(ctx sdk.Context, pkgPath string) (string, error
 	return res, nil
 }
 
+// QueryObject retrieves an object by ObjectID and returns its JSON representation.
+func (vm *VMKeeper) QueryObject(ctx sdk.Context, oidStr string) (res string, err error) {
+	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+
+	// Parse ObjectID
+	var oid gno.ObjectID
+	if err := oid.UnmarshalAmino(oidStr); err != nil {
+		return "", ErrInvalidExpr(fmt.Sprintf("invalid object id %q: %v", oidStr, err))
+	}
+
+	// Retrieve object
+	obj := gnostore.GetObjectSafe(oid)
+	if obj == nil {
+		return "", ErrObjectNotFound(fmt.Sprintf("object not found: %s", oidStr))
+	}
+
+	// Create a machine for JSON export (needed for method calls like .Error())
+	alloc := gno.NewAllocator(maxAllocQuery)
+	m := gno.NewMachineWithOptions(gno.MachineOptions{
+		PkgPath: "",
+		Output:  vm.Output,
+		Store:   gnostore,
+		Alloc:   alloc,
+	})
+	defer m.Release()
+
+	// Export object to JSON
+	jsonBytes, err := gno.JSONExportObject(m, obj)
+	if err != nil {
+		return "", err
+	}
+
+	// Wrap with objectid
+	result := fmt.Sprintf(`{"objectid":%q,"value":%s}`, oidStr, string(jsonBytes))
+	return result, nil
+}
+
 // processStorageDeposit processes storage deposit adjustments for package realms based on
 // storage size changes tracked within the gnoStore.
 //

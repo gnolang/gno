@@ -98,6 +98,7 @@ const (
 	QueryDoc     = "qdoc"
 	QueryPaths   = "qpaths"
 	QueryStorage = "qstorage"
+	QueryObject  = "qobject"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
@@ -125,6 +126,8 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 		res = vh.queryPaths(ctx, req)
 	case QueryStorage:
 		res = vh.queryStorage(ctx, req)
+	case QueryObject:
+		res = vh.queryObject(ctx, req)
 	default:
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
@@ -289,6 +292,17 @@ func (vh vmHandler) queryStorage(ctx sdk.Context, req abci.RequestQuery) (res ab
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
+	}
+	res.Data = []byte(result)
+	return
+}
+
+// queryObject retrieves an object by ObjectID and returns its JSON representation.
+func (vh vmHandler) queryObject(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	oidStr := string(req.Data)
+	result, err := vh.vm.QueryObject(ctx, oidStr)
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(err)
 	}
 	res.Data = []byte(result)
 	return

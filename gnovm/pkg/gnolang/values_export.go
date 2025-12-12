@@ -953,6 +953,12 @@ func isStringLikeType(t Type) bool {
 	return false
 }
 
+// ExportCopyObjectWithRefs exports an Object with references replaced by RefValue.
+// This is the public API for QueryObject to export objects retrieved by ObjectID.
+func ExportCopyObjectWithRefs(obj Object, seen map[Object]int) Value {
+	return exportCopyValueWithRefs(obj, seen)
+}
+
 // getSimpleErrorString attempts to get the error string from a TypedValue.
 func getSimpleErrorString(m *Machine, tv TypedValue) *string {
 	// Check if value implements error
