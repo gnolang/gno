@@ -962,21 +962,23 @@ func TestSetGasMeterSimulationCap(t *testing.T) {
 	ctxSim := env.ctx.WithMode(sdk.RunTxModeSimulate)
 
 	t.Run("caps to consensus maxGas when higher gas wanted", func(t *testing.T) {
+		t.Parallel()
 		ctx := SetGasMeter(ctxSim, maxGas+500)
 		meter := ctx.GasMeter()
 		require.Equal(t, maxGas, meter.Limit())
-		meter.ConsumeGas(store.Gas(maxGas), "fill to max")
+		meter.ConsumeGas(maxGas, "fill to max")
 		require.Panics(t, func() {
 			meter.ConsumeGas(1, "over maxGas")
 		})
 	})
 
 	t.Run("ignores lower gas wanted in simulation and uses consensus cap", func(t *testing.T) {
+		t.Parallel()
 		const gasWanted = int64(500)
 		ctx := SetGasMeter(ctxSim, gasWanted)
 		meter := ctx.GasMeter()
 		require.Equal(t, maxGas, meter.Limit())
-		meter.ConsumeGas(store.Gas(maxGas), "fill to maxGas cap")
+		meter.ConsumeGas(maxGas, "fill to maxGas cap")
 		require.Panics(t, func() {
 			meter.ConsumeGas(1, "over maxGas")
 		})
@@ -996,7 +998,7 @@ func TestSimulationGasMeterInfiniteWhenNoMaxGas(t *testing.T) {
 
 	// Consuming a very large amount should not panic.
 	require.NotPanics(t, func() {
-		meter.ConsumeGas(store.Gas(1_000_000_000), "huge consume")
+		meter.ConsumeGas(1_000_000_000, "huge consume")
 	})
 	require.False(t, meter.IsOutOfGas())
 }
