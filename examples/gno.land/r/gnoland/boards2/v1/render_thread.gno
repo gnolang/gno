@@ -119,7 +119,7 @@ func renderEditThread(res *mux.ResponseWriter, req *mux.Request) {
 	form.Input(
 		"threadID",
 		"placeholder", "Thread ID",
-		"value", rawID,
+		"value", thread.ID.String(),
 		"readonly", "true",
 	)
 	form.Input(

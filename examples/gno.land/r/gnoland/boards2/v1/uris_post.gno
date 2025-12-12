@@ -55,14 +55,7 @@ func makeEditPostURI(p *boards.Post) string {
 	if boards.IsThread(p) {
 		return makeThreadURI(p) + "/edit"
 	}
-
-	return gRealmLink.Call(
-		"EditReply",
-		"boardID", p.Board.ID.String(),
-		"threadID", p.ThreadID.String(),
-		"replyID", p.ID.String(),
-		"body", p.Body,
-	)
+	return makeReplyURI(p) + "/edit"
 }
 
 func makeFlagURI(p *boards.Post) string {

@@ -50,6 +50,7 @@ func Render(path string) string {
 	router.HandleFunc("{board}/{thread}/{reply}", renderReply)
 	router.HandleFunc("{board}/{thread}/{reply}/flag", renderFlagPost)
 	router.HandleFunc("{board}/{thread}/{reply}/reply", renderReplyPost)
+	router.HandleFunc("{board}/{thread}/{reply}/edit", renderEditReply)
 
 	router.NotFoundHandler = func(res *mux.ResponseWriter, _ *mux.Request) {
 		res.Write(md.Blockquote("Path not found"))
