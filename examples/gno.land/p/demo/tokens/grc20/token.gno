@@ -81,14 +81,16 @@ func (tok Token) RenderHome() string {
 
 // SpendAllowance decreases the allowance of the specified owner and spender.
 func (led *PrivateLedger) SpendAllowance(owner, spender address, amount int64) error {
-	if !owner.IsValid() {
+	if !owner.IsValid() || !spender.IsValid() {
 		return ErrInvalidAddress
 	}
-	if !spender.IsValid() {
-		return ErrInvalidAddress
-	}
+
 	if amount < 0 {
 		return ErrInvalidAmount
+	}
+	// do nothing
+	if amount == 0 {
+		return nil
 	}
 
 	currentAllowance := led.allowance(owner, spender)
@@ -162,28 +164,23 @@ func (led *PrivateLedger) TransferFrom(owner, spender, to address, amount int64)
 	if amount < 0 {
 		return ErrInvalidAmount
 	}
+
+	if !owner.IsValid() || !to.IsValid() {
+		return ErrInvalidAddress
+	}
+
 	if led.balanceOf(owner) < amount {
 		return ErrInsufficientBalance
 	}
 
-	// allowance must be sufficient
-	currentAllowance := led.allowance(owner, spender)
-	if currentAllowance < amount {
-		return ErrInsufficientAllowance
+	// The check above guarantees that Transfer will succeed, ensuring
+	// atomicity for the subsequent operations.
+	if err := led.SpendAllowance(owner, spender, amount); err != nil {
+		return err
 	}
 
 	if err := led.Transfer(owner, to, amount); err != nil {
 		return err
-	}
-
-	// decrease the allowance only when transfer is successful
-	key := allowanceKey(owner, spender)
-	newAllowance := overflow.Sub64p(currentAllowance, amount)
-
-	if newAllowance == 0 {
-		led.allowances.Remove(key)
-	} else {
-		led.allowances.Set(key, newAllowance)
 	}
 
 	return nil
