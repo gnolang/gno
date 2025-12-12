@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/alloc_10_long.gno:6:2-29: allocation limit exceeded
+// main/alloc_10_long.gno:6:2-29: should not happen, allocation limit exceeded while gc.
