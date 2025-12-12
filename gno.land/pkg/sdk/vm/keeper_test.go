@@ -260,6 +260,75 @@ func Echo(cur realm) string {
 	assert.NoError(t, err)
 }
 
+func TestVMKeeperAddPackage_UpdatePrivatePackage(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(initialBalance))
+
+	// Create private test package.
+	const pkgPath = "gno.land/r/test"
+	files := []*std.MemFile{
+		{
+			Name: "gnomod.toml",
+			Body: `module = "gno.land/r/test"
+gno = "0.9"
+private = true`,
+		},
+		{
+			Name: "test.gno",
+			Body: `package test
+
+func Echo(cur realm) string {
+	return "hello world"
+}`,
+		},
+	}
+
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	// Re-upload the same private package with updated content.
+	files2 := []*std.MemFile{
+		{
+			Name: "gnomod.toml",
+			Body: `module = "gno.land/r/test"
+gno = "0.9"
+private = true`,
+		},
+		{
+			Name: "test.gno",
+			Body: `package test
+
+func Echo(cur realm) string {
+	return "hello updated world"
+}`,
+		},
+	}
+
+	msg2 := NewMsgAddPackage(addr, pkgPath, files2)
+	err = env.vmk.AddPackage(ctx, msg2)
+	assert.NoError(t, err)
+
+	// Verify the package was updated with the new content.
+	store := env.vmk.getGnoTransactionStore(ctx)
+	memFile := store.GetMemFile(pkgPath, "test.gno")
+	assert.NotNil(t, memFile)
+	expected := `package test
+
+func Echo(cur realm) string {
+	return "hello updated world"
+}`
+	assert.Equal(t, expected, memFile.Body)
+}
+
 func TestVMKeeperAddPackage_ImportPrivate(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
@@ -313,6 +382,111 @@ func Echo(cur realm) string {
 	msg2 := NewMsgAddPackage(addr, pkgPath2, files2)
 	err = env.vmk.AddPackage(ctx, msg2)
 	assert.Error(t, err, ErrTypeCheck(gnolang.ImportPrivateError{PkgPath: pkgPath}))
+}
+
+func TestVMKeeperAddPackage_ChangePublicToPrivate(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(initialBalance))
+
+	const pkgPath = "gno.land/r/test"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "test.gno",
+			Body: `package test
+
+func Echo(cur realm) string {
+	return "hello world"
+}`,
+		},
+	}
+
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	// Try to upload a private version of the same package.
+	files2 := []*std.MemFile{
+		{
+			Name: "gnomod.toml",
+			Body: `module = "gno.land/r/test"
+gno = "0.9"
+private = true`,
+		},
+		{
+			Name: "test.gno",
+			Body: `package test
+
+func Echo(cur realm) string {
+	return "hello private world"
+}`,
+		},
+	}
+
+	msg2 := NewMsgAddPackage(addr, pkgPath, files2)
+	err = env.vmk.AddPackage(ctx, msg2)
+	assert.Error(t, err, ErrInvalidPackage(""))
+}
+
+func TestVMKeeperAddPackage_ChangePrivateToPublic(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(initialBalance))
+
+	// Create a private test package first.
+	const pkgPath = "gno.land/r/test"
+	files := []*std.MemFile{
+		{
+			Name: "gnomod.toml",
+			Body: `module = "gno.land/r/test"
+gno = "0.9"
+private = true`,
+		},
+		{
+			Name: "test.gno",
+			Body: `package test
+
+func Echo(cur realm) string {
+	return "hello private world"
+}`,
+		},
+	}
+
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	// Try to upload a public version of the same package.
+	files2 := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "test.gno",
+			Body: `package test
+
+func Echo(cur realm) string {
+	return "hello public world"
+}`,
+		},
+	}
+
+	msg2 := NewMsgAddPackage(addr, pkgPath, files2)
+	err = env.vmk.AddPackage(ctx, msg2)
+	assert.Error(t, err, ErrInvalidPackage(""))
 }
 
 // Sending total send amount succeeds.
