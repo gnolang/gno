@@ -143,7 +143,7 @@ func StoreWithOptions(
 			return m.PreprocessFiles(
 				mpkg.Name, mpkg.Path,
 				m.ParseMemPackageAsType(mpkg, mptype),
-				save, false, opts.FixFrom)
+				save, false, opts.FixFrom, false, mpkg)
 		} else {
 			return m.RunMemPackage(mpkg, save)
 		}
@@ -314,7 +314,7 @@ func loadStdlib(
 	})
 	if preprocessOnly {
 		m2.Store.AddMemPackage(mpkg, mPkgType)
-		return m2.PreprocessFiles(mpkg.Name, mpkg.Path, m2.ParseMemPackageAsType(mpkg, mPkgType), true, true, "")
+		return m2.PreprocessFiles(mpkg.Name, mpkg.Path, m2.ParseMemPackageAsType(mpkg, mPkgType), true, true, "", false, mpkg)
 	}
 	// TODO: make this work when using gno lint.
 	return m2.RunMemPackageWithOverrides(mpkg, true)
