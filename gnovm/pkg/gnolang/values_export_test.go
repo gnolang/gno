@@ -339,6 +339,8 @@ var Value = &Node{Value: 1, Next: &Node{Value: 2, Next: &Node{Value: 3}}}`
 
 	t.Run("deep_nesting", func(t *testing.T) {
 		// Create a deeply nested structure (10 levels)
+		// With DefaultMaxDepth = 3, we should see depths 1-4 expanded
+		// and depth 5+ truncated
 		code := `package testdata
 type DeepNode struct {
 	Depth int
@@ -367,8 +369,18 @@ func init() {
 		result, err := JSONExportTypedValuesSimple(m, tvs)
 		require.NoError(t, err)
 
-		// Verify depth 10 is present
-		require.Contains(t, string(result), `"Depth":{"T":"int","V":10}`)
+		resultStr := string(result)
+		// Verify first levels are present (depth 0, 1, 2, 3 expanded = values 1, 2, 3, 4)
+		require.Contains(t, resultStr, `"Depth":{"T":"int","V":1}`)
+		require.Contains(t, resultStr, `"Depth":{"T":"int","V":2}`)
+		require.Contains(t, resultStr, `"Depth":{"T":"int","V":3}`)
+		require.Contains(t, resultStr, `"Depth":{"T":"int","V":4}`)
+
+		// Verify truncation occurs at depth limit
+		require.Contains(t, resultStr, `"truncated":true`)
+
+		// Verify deeper levels are NOT present (depth 10 should be truncated)
+		require.NotContains(t, resultStr, `"Depth":{"T":"int","V":10}`)
 	})
 }
 
@@ -616,6 +628,7 @@ var Value = &Data{Value: 42}`
 type Data struct { Value int }
 var Value *Data = nil`
 
+		// V is null when nil (only omitted when truncated)
 		runJSONExportSimpleTest(t, code, `[{"T":"*testdata.Data","V":null}]`)
 	})
 
@@ -664,6 +677,7 @@ var Value = Container{Data: nil}`
 		require.NoError(t, err)
 
 		resultStr := string(result)
+		// V is null when nil (only omitted when truncated)
 		require.Contains(t, resultStr, `"Data":{"T":"*testdata.Item","V":null}`)
 	})
 }

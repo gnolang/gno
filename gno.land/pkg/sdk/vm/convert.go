@@ -216,7 +216,7 @@ type jsonResults struct {
 	Error   *string         `json:"@error,omitempty"`
 }
 
-// stringifyJSONResults converts TypedValues to simplified human-readable JSON format.
+// stringifyJSONResults converts TypedValues to JSON format using Amino marshaling.
 // lastReturnType is the function signature's last return type (if available).
 // When lastReturnType is provided, error detection is signature-based (per spec):
 // only extract @error if the function signature declares an error return type.
@@ -226,8 +226,9 @@ func stringifyJSONResults(m *gno.Machine, tvs []gno.TypedValue, lastReturnType g
 	if len(tvs) > 0 {
 		var err error
 
-		// Use simplified JSON export (human-readable, no @type tags)
-		if jres.Results, err = gnolang.JSONExportTypedValuesSimple(m, tvs); err != nil {
+		// Use Amino-based JSON export with @type tags for consistency with qobject.
+		// This ensures all values (including raw objects) are properly serialized.
+		if jres.Results, err = gnolang.JSONExportTypedValues(tvs, nil); err != nil {
 			panic("unable to marshal results")
 		}
 

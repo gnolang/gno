@@ -623,7 +623,7 @@ func TestVMKeeperEvalJSONFormatting2(t *testing.T) {
 			name:     "JSON bytes",
 			pkgBody:  `func GetBytes() []byte { return []byte("test") }`,
 			expr:     "GetBytes()",
-			expected: `{"results":[{"T":"[]uint8","V":[116,101,115,116]}]}`,
+			expected: `{"results":[{"T":"[]uint8","V":{"@type":"/gno.SliceValue","Base":{"@type":"/gno.RefValue","ObjectID":":1","Escaped":true},"Offset":"0","Length":"4","Maxcap":"8"}}]}`,
 		},
 		{
 			name:     "JSON multiple values",
@@ -700,12 +700,13 @@ func GetItem() *Item {
 		res, err := env.vmk.QueryEval(env.ctx, cfgEval)
 		require.NoError(t, err)
 
-		// Verify structure
-		assert.Contains(t, res, `"T":"*gno.land/r/test/persisted1.Item"`)
-		assert.Contains(t, res, `"ID":{"T":"int","V":42}`)
-		assert.Contains(t, res, `"Name":{"T":"string","V":"test item"}`)
-		// Persisted objects should have objectid
-		assert.Contains(t, res, `"objectid"`)
+		// Verify Amino format structure with @type tags (consistent with qobject)
+		assert.Contains(t, res, `"T":"*RefType{gno.land/r/test/persisted1.Item}"`)
+		// Pointer shows RefValue to the persisted object
+		assert.Contains(t, res, `"@type":"/gno.PointerValue"`)
+		assert.Contains(t, res, `"@type":"/gno.RefValue"`)
+		// RefValue contains queryable ObjectID
+		assert.Contains(t, res, `"ObjectID":"`)
 	})
 
 	t.Run("persisted_map", func(t *testing.T) {
@@ -738,10 +739,10 @@ func GetData() map[string]int {
 		res, err := env.vmk.QueryEval(env.ctx, cfgEval)
 		require.NoError(t, err)
 
-		// Verify map format
+		// Verify Amino format - map shows as RefValue to persisted MapValue
 		assert.Contains(t, res, `"T":"map[string]int"`)
-		assert.Contains(t, res, `"one"`)
-		assert.Contains(t, res, `"two"`)
+		assert.Contains(t, res, `"@type":"/gno.RefValue"`)
+		assert.Contains(t, res, `"ObjectID":"`)
 	})
 
 	t.Run("persisted_declared_type", func(t *testing.T) {
@@ -774,10 +775,10 @@ func GetAmount() Amount {
 		res, err := env.vmk.QueryEval(env.ctx, cfgEval)
 		require.NoError(t, err)
 
-		// Verify declared type with base
+		// Verify Amino format for declared type
 		assert.Contains(t, res, `"T":"gno.land/r/test/persisted7.Amount"`)
-		assert.Contains(t, res, `"V":1000`)
-		assert.Contains(t, res, `"base":"int64"`)
+		// Note: primitive values with declared types have V:null in Amino format
+		// (the N field holds the actual value in binary form)
 	})
 
 	t.Run("persisted_error_type", func(t *testing.T) {
@@ -817,11 +818,13 @@ func GetError() error {
 		res, err := env.vmk.QueryEval(env.ctx, cfgEval)
 		require.NoError(t, err)
 
-		// Verify error type with error field
-		assert.Contains(t, res, `"T":"*gno.land/r/test/persisted8.CustomError"`)
-		assert.Contains(t, res, `"Code":{"T":"int","V":404}`)
-		assert.Contains(t, res, `"Message":{"T":"string","V":"not found"}`)
-		assert.Contains(t, res, `"error":"not found"`)
+		// Verify Amino format for pointer to error type
+		assert.Contains(t, res, `"T":"*RefType{gno.land/r/test/persisted8.CustomError}"`)
+		// Shows as RefValue to the persisted struct
+		assert.Contains(t, res, `"@type":"/gno.PointerValue"`)
+		assert.Contains(t, res, `"@type":"/gno.RefValue"`)
+		// Error string should still be present at top level
+		assert.Contains(t, res, `"@error":"not found"`)
 	})
 
 	t.Run("persisted_json_tags", func(t *testing.T) {
@@ -842,10 +845,11 @@ func GetError() error {
 		res, err := env.vmk.QueryEval(env.ctx, cfgEval)
 		require.NoError(t, err)
 
-		// Verify JSON tags are respected
-		assert.Contains(t, res, `"first_name":{"T":"string","V":"John"}`)
-		assert.Contains(t, res, `"last_name":{"T":"string","V":"Doe"}`)
-		assert.Contains(t, res, `"age":{"T":"int","V":30}`)
+		// Verify Amino format for pointer type
+		assert.Contains(t, res, `"T":"*RefType{gno.land/r/test/persisted9.Person}"`)
+		// Shows as RefValue to the persisted struct
+		assert.Contains(t, res, `"@type":"/gno.PointerValue"`)
+		assert.Contains(t, res, `"@type":"/gno.RefValue"`)
 	})
 
 	t.Run("persisted_nil_pointer", func(t *testing.T) {
@@ -876,8 +880,8 @@ func GetPtr() *Data {
 		res, err := env.vmk.QueryEval(env.ctx, cfgEval)
 		require.NoError(t, err)
 
-		// Verify nil pointer output
-		assert.Contains(t, res, `"T":"*gno.land/r/test/persisted10.Data"`)
+		// Verify Amino format for nil pointer - V should be null
+		assert.Contains(t, res, `"T":"*RefType{gno.land/r/test/persisted10.Data}"`)
 		assert.Contains(t, res, `"V":null`)
 	})
 
@@ -920,10 +924,11 @@ func GetParent() *Parent {
 		res, err := env.vmk.QueryEval(env.ctx, cfgEval)
 		require.NoError(t, err)
 
-		// Verify struct with nil pointer field doesn't panic
-		assert.Contains(t, res, `"T":"*gno.land/r/test/persisted11.Parent"`)
-		assert.Contains(t, res, `"Name":{"T":"string","V":"test"}`)
-		assert.Contains(t, res, `"Child":{"T":"*gno.land/r/test/persisted11.Child","V":null}`)
+		// Verify Amino format for pointer to struct with nil field
+		assert.Contains(t, res, `"T":"*RefType{gno.land/r/test/persisted11.Parent}"`)
+		// Shows as RefValue to the persisted struct
+		assert.Contains(t, res, `"@type":"/gno.PointerValue"`)
+		assert.Contains(t, res, `"@type":"/gno.RefValue"`)
 	})
 
 	// Regression test: persisted slice with RefValue base should not panic
@@ -956,9 +961,10 @@ func GetNumbers() []int {
 		res, err := env.vmk.QueryEval(env.ctx, cfgEval)
 		require.NoError(t, err)
 
-		// Verify slice is correctly serialized
+		// Verify Amino format for persisted slice
 		assert.Contains(t, res, `"T":"[]int"`)
-		assert.Contains(t, res, `[10,20,30,40,50]`)
+		assert.Contains(t, res, `"@type":"/gno.SliceValue"`)
+		assert.Contains(t, res, `"@type":"/gno.RefValue"`)
 	})
 
 	// Regression test: persisted slice of structs with RefValue base
@@ -998,12 +1004,10 @@ func GetItems() []Item {
 		res, err := env.vmk.QueryEval(env.ctx, cfgEval)
 		require.NoError(t, err)
 
-		// Verify slice of structs is correctly serialized
-		assert.Contains(t, res, `"T":"[]gno.land/r/test/persisted13.Item"`)
-		assert.Contains(t, res, `"ID":{"T":"int","V":1}`)
-		assert.Contains(t, res, `"Name":{"T":"string","V":"first"}`)
-		assert.Contains(t, res, `"ID":{"T":"int","V":2}`)
-		assert.Contains(t, res, `"Name":{"T":"string","V":"second"}`)
+		// Verify Amino format for slice of structs
+		assert.Contains(t, res, `"T":"[]RefType{gno.land/r/test/persisted13.Item}"`)
+		assert.Contains(t, res, `"@type":"/gno.SliceValue"`)
+		assert.Contains(t, res, `"@type":"/gno.RefValue"`)
 	})
 
 	// Regression test: deeply nested persisted struct with nil pointers at various levels
@@ -1053,11 +1057,12 @@ func GetRoot() *Level1 {
 		res, err := env.vmk.QueryEval(env.ctx, cfgEval)
 		require.NoError(t, err)
 
-		// Verify nested structure with nil pointers
-		assert.Contains(t, res, `"T":"*gno.land/r/test/persisted14.Level1"`)
-		assert.Contains(t, res, `"Data":{"T":"string","V":"deep"}`)
-		// The nil pointer field should be null
-		assert.Contains(t, res, `"Nil":{"T":"*gno.land/r/test/persisted14.Level3","V":null}`)
+		// Verify Amino format for nested pointer struct
+		assert.Contains(t, res, `"T":"*RefType{gno.land/r/test/persisted14.Level1}"`)
+		assert.Contains(t, res, `"@type":"/gno.PointerValue"`)
+		assert.Contains(t, res, `"@type":"/gno.RefValue"`)
+		// ObjectID present for fetching the object
+		assert.Contains(t, res, `"ObjectID":"`)
 	})
 }
 
@@ -1606,6 +1611,223 @@ func Echo(cur realm, msg string){
 // in a deterministic order by sorting the realm paths before iteration.
 // Without the fix, different runs would produce different error messages
 // due to non-deterministic map iteration order.
+// TestVMKeeperNestedObjectTraversal tests that nested persisted objects
+// can be traversed by querying ObjectIDs returned in RefValue fields.
+// This verifies the object graph can be explored via qeval + qobject queries.
+//
+// The object graph structure for nested pointers is:
+//   HeapItemValue (for *L1) -> StructValue (L1) -> HeapItemValue (for *L2) -> StructValue (L2) -> ...
+//
+// Each pointer field is wrapped in a HeapItemValue, and the actual struct is a separate object.
+// So traversal requires following the RefValue chain through each wrapper.
+func TestVMKeeperNestedObjectTraversal(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(20000000)))
+
+	// Create realm with 3-level nested structure: L1 -> L2 -> L3
+	pkgPath := "gno.land/r/test/nested"
+	pkgBody := `package nested
+
+type L3 struct {
+	Value string
+}
+
+type L2 struct {
+	Name string
+	L3   *L3
+}
+
+type L1 struct {
+	ID int
+	L2 *L2
+}
+
+var root *L1
+
+func init() {
+	root = &L1{
+		ID: 1,
+		L2: &L2{
+			Name: "level2",
+			L3: &L3{
+				Value: "deepest",
+			},
+		},
+	}
+}
+
+func GetRoot() *L1 {
+	return root
+}`
+
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "nested.gno", Body: pkgBody},
+	}
+
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg)
+	require.NoError(t, err)
+	env.vmk.CommitGnoTransactionStore(ctx)
+
+	// Step 1: Query via qeval to get root pointer's ObjectID
+	// qeval returns Amino JSON format consistent with qobject
+	cfgEval := QueryMsgEval{Expr: "GetRoot()", PkgPath: pkgPath, Format: QueryFormatJSON}
+	res, err := env.vmk.QueryEval(env.ctx, cfgEval)
+	require.NoError(t, err)
+	t.Logf("Step 1 - qeval GetRoot():\n%s\n", res)
+
+	// Extract the ObjectID from the PointerValue's RefValue Base
+	// Format: {"V":{"@type":"/gno.PointerValue","Base":{"@type":"/gno.RefValue","ObjectID":"..."}}}
+	oid := extractNestedRefValueObjectID(t, res)
+	require.NotEmpty(t, oid, "Should have ObjectID for *L1")
+
+	// Step 2: Query the HeapItemValue via qobject -> auto-unwrapped to show L1 StructValue!
+	// qobject uses Amino format with @type tags
+	res, err = env.vmk.QueryObject(env.ctx, oid)
+	require.NoError(t, err)
+	t.Logf("Step 2 - L1 StructValue (auto-unwrapped from HeapItemValue):\n%s\n", res)
+	assert.Contains(t, res, `"@type":"/gno.StructValue"`)
+	assert.NotContains(t, res, `"@type":"/gno.HeapItemValue"`, "HeapItemValue should be auto-unwrapped")
+
+	// Extract the ObjectID for *L2 field (nested RefValue in PointerValue.Base)
+	oid = extractNestedRefValueObjectID(t, res)
+	require.NotEmpty(t, oid, "Should have ObjectID for *L2")
+
+	// Step 3: Query *L2 -> auto-unwrapped to show L2 StructValue directly!
+	res, err = env.vmk.QueryObject(env.ctx, oid)
+	require.NoError(t, err)
+	t.Logf("Step 3 - L2 StructValue (auto-unwrapped):\n%s\n", res)
+	assert.Contains(t, res, `"@type":"/gno.StructValue"`)
+	assert.Contains(t, res, `level2`) // L2.Name value
+	assert.NotContains(t, res, `"@type":"/gno.HeapItemValue"`)
+
+	// Extract the ObjectID for *L3 field
+	oid = extractNestedRefValueObjectID(t, res)
+	require.NotEmpty(t, oid, "Should have ObjectID for *L3")
+
+	// Step 4: Query *L3 -> auto-unwrapped to show L3 StructValue directly!
+	res, err = env.vmk.QueryObject(env.ctx, oid)
+	require.NoError(t, err)
+	t.Logf("Step 4 - L3 StructValue (final, auto-unwrapped):\n%s\n", res)
+	assert.Contains(t, res, `"@type":"/gno.StructValue"`)
+	assert.Contains(t, res, `deepest`) // L3.Value - the deepest value!
+	assert.NotContains(t, res, `"@type":"/gno.HeapItemValue"`)
+
+	t.Log("Successfully traversed nested object graph from L1 -> L2 -> L3!")
+	t.Log("HeapItemValue wrappers were automatically unwrapped, reducing traversal steps from 7 to 4!")
+}
+
+// extractRootObjectIDFromSimpleJSON extracts the root-level objectid from simple JSON qeval response.
+// The simple JSON format has objectid at multiple levels; we want the last one which is the root.
+// Format: {"results":[{"T":"...","V":{...nested...},"objectid":"ROOT_ID"}]}
+func extractRootObjectIDFromSimpleJSON(t *testing.T, jsonStr string) string {
+	t.Helper()
+
+	// For simple JSON format, the root objectid is at the end of the results array element
+	// Find the last "objectid" in the first result
+	pattern := `"objectid":"`
+	lastIdx := strings.LastIndex(jsonStr, pattern)
+	if lastIdx == -1 {
+		return ""
+	}
+
+	start := lastIdx + len(pattern)
+	end := strings.Index(jsonStr[start:], `"`)
+	if end == -1 {
+		return ""
+	}
+
+	return jsonStr[start : start+end]
+}
+
+// extractObjectIDFromAminoJSON extracts an ObjectID from Amino format JSON response.
+// Format: {"objectid":"...","value":{...}} or {"@type":"...","ObjectID":"..."}
+func extractObjectIDFromAminoJSON(t *testing.T, jsonStr string) string {
+	t.Helper()
+
+	// Try wrapper objectid first (qobject response format)
+	wrapperPattern := `{"objectid":"`
+	if strings.HasPrefix(jsonStr, wrapperPattern) {
+		start := len(wrapperPattern)
+		end := strings.Index(jsonStr[start:], `"`)
+		if end != -1 {
+			return jsonStr[start : start+end]
+		}
+	}
+
+	// Try Amino format (nested ObjectID in value)
+	patterns := []string{`"ObjectID":"`, `"objectid":"`}
+	for _, pattern := range patterns {
+		idx := strings.Index(jsonStr, pattern)
+		if idx != -1 {
+			start := idx + len(pattern)
+			end := strings.Index(jsonStr[start:], `"`)
+			if end != -1 {
+				return jsonStr[start : start+end]
+			}
+		}
+	}
+	return ""
+}
+
+// extractRefFromJSON extracts the @ref value from simple JSON format.
+// Format: {"@ref":"pkgid:N"}
+func extractRefFromJSON(t *testing.T, jsonStr string) string {
+	t.Helper()
+
+	pattern := `"@ref":"`
+	idx := strings.Index(jsonStr, pattern)
+	if idx == -1 {
+		return ""
+	}
+
+	start := idx + len(pattern)
+	end := strings.Index(jsonStr[start:], `"`)
+	if end == -1 {
+		return ""
+	}
+
+	return jsonStr[start : start+end]
+}
+
+// extractNestedRefValueObjectID extracts the first nested ObjectID from a JSON response.
+// Works with both qeval format ({"results":[...]}) and qobject format ({"objectid":"...","value":{...}}).
+// This finds the first RefValue.ObjectID that appears in the content (Amino format).
+func extractNestedRefValueObjectID(t *testing.T, jsonStr string) string {
+	t.Helper()
+
+	// For qobject responses, skip past the wrapper "objectid" and "value" fields
+	// For qeval responses, we just search in "results"
+	searchFrom := jsonStr
+
+	// If it's a qobject response with "value" wrapper, skip to that section
+	valuePattern := `"value":`
+	if valueIdx := strings.Index(jsonStr, valuePattern); valueIdx != -1 {
+		searchFrom = jsonStr[valueIdx:]
+	}
+
+	// Look for RefValue's ObjectID (Amino format uses uppercase ObjectID)
+	pattern := `"ObjectID":"`
+	idx := strings.Index(searchFrom, pattern)
+	if idx == -1 {
+		return ""
+	}
+
+	start := idx + len(pattern)
+	end := strings.Index(searchFrom[start:], `"`)
+	if end == -1 {
+		return ""
+	}
+
+	return searchFrom[start : start+end]
+}
+
 func TestVMKeeper_RealmDiffIterationDeterminism(t *testing.T) {
 	// This test creates multiple realms with different names that would iterate
 	// in different orders in a map. It then triggers storage operations that

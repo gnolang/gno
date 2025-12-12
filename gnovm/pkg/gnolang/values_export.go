@@ -539,35 +539,450 @@ func jsonExportedValue(tv TypedValue) []byte {
 	}
 }
 
+// Constants for depth limiting in JSON export
+const (
+	DefaultMaxDepth = 3  // Default depth limit for JSON export
+	UnlimitedDepth  = -1 // No depth limit (use with caution)
+)
+
 // JSONTypedValue represents a human-readable JSON format for TypedValue.
 // V contains the bare value (not wrapped with @type tags).
 // Nested struct fields and complex array elements are wrapped with JSONTypedValue.
 type JSONTypedValue struct {
-	T        string  `json:"T"`                  // Type string: [<pkgpath>.]<symbol> or primitive
-	V        any     `json:"V"`                  // Value: string | number | bool | null | object | array
-	ObjectID *string `json:"objectid,omitempty"` // For pointers - enables later fetching
-	Error    *string `json:"error,omitempty"`    // .Error() result if implements error
-	Base     *string `json:"base,omitempty"`     // baseOf(T) if different from T
+	T         string  // Type string: [<pkgpath>.]<symbol> or primitive
+	V         any     // Value: null when nil, omitted only when Truncated=true
+	ObjectID  *string // For pointers - enables later fetching
+	Error     *string // .Error() result if implements error
+	Base      *string // baseOf(T) if different from T
+	Truncated bool    // True when content omitted due to depth limit
+}
+
+// MarshalJSON implements custom JSON marshaling for JSONTypedValue.
+// V is omitted only when Truncated is true; otherwise V is included (even if nil -> null).
+func (jtv JSONTypedValue) MarshalJSON() ([]byte, error) {
+	type jsonAlias struct {
+		T         string  `json:"T"`
+		V         any     `json:"V,omitempty"`
+		ObjectID  *string `json:"objectid,omitempty"`
+		Error     *string `json:"error,omitempty"`
+		Base      *string `json:"base,omitempty"`
+		Truncated bool    `json:"truncated,omitempty"`
+	}
+
+	if jtv.Truncated {
+		// Omit V when truncated
+		return json.Marshal(jsonAlias{
+			T:         jtv.T,
+			ObjectID:  jtv.ObjectID,
+			Error:     jtv.Error,
+			Base:      jtv.Base,
+			Truncated: jtv.Truncated,
+		})
+	}
+
+	// Include V normally (even if nil -> null)
+	type jsonAliasWithV struct {
+		T        string  `json:"T"`
+		V        any     `json:"V"`
+		ObjectID *string `json:"objectid,omitempty"`
+		Error    *string `json:"error,omitempty"`
+		Base     *string `json:"base,omitempty"`
+	}
+	return json.Marshal(jsonAliasWithV{
+		T:        jtv.T,
+		V:        jtv.V,
+		ObjectID: jtv.ObjectID,
+		Error:    jtv.Error,
+		Base:     jtv.Base,
+	})
+}
+
+// JSONExportObject exports an Object to JSON using Amino marshaling.
+// This function handles all object types including HeapItemValue, StructValue,
+// ArrayValue, MapValue.
+//
+// The export process:
+// 1. Root object is always fully expanded
+// 2. HeapItemValue is automatically unwrapped to show the underlying value
+//    (HeapItemValue is an implementation detail for pointer indirection)
+// 3. Nested real objects (persisted) become RefValue with their actual ObjectID
+//    (these ObjectIDs can be queried via vm/qobject)
+// 4. Nested non-real objects are expanded inline (they have no queryable ObjectID)
+// 5. Cycles are detected and converted to RefValue to prevent infinite recursion
+//
+// Then the exported object is serialized via Amino's MarshalJSONAny which
+// produces @type tags like "/gno.StructValue" with full ObjectInfo.
+func JSONExportObject(m *Machine, obj Object, maxDepth int) ([]byte, error) {
+	seen := map[Object]int{}
+
+	var st Store
+	if m != nil {
+		st = m.Store
+	}
+
+	// Unwrap HeapItemValue - it's an implementation detail that users shouldn't see.
+	// When querying a HeapItemValue, show the underlying value instead.
+	obj = unwrapHeapItemValue(st, obj)
+
+	// Export the object using JSON-specific export that:
+	// - Expands root and non-real objects inline
+	// - Converts real nested objects to RefValue with their actual ObjectID
+	exported := jsonExportObjectValue(st, obj, seen, 0, maxDepth)
+
+	// Now serialize the exported (cycle-safe) object via Amino.
+	return amino.MarshalJSONAny(exported)
+}
+
+// unwrapHeapItemValue unwraps a HeapItemValue to reveal the underlying object.
+// If the inner value is a RefValue, it loads the actual object from the store.
+// Returns the original object if it's not a HeapItemValue or can't be unwrapped.
+func unwrapHeapItemValue(st Store, obj Object) Object {
+	hiv, ok := obj.(*HeapItemValue)
+	if !ok {
+		return obj
+	}
+
+	// If the underlying value is directly an Object, use that
+	if innerObj, ok := hiv.Value.V.(Object); ok {
+		return innerObj
+	}
+
+	// If the underlying value is a RefValue, load the actual object from store
+	if rv, ok := hiv.Value.V.(RefValue); ok && st != nil {
+		if innerObj := st.GetObject(rv.ObjectID); innerObj != nil {
+			return innerObj
+		}
+	}
+
+	// Can't unwrap - return original HeapItemValue
+	return obj
+}
+
+// jsonExportObjectValue exports an Object for JSON serialization.
+// Unlike exportCopyValueWithRefs (for persistence), this function:
+// - Always expands the root object (depth 0)
+// - Unwraps HeapItemValue to show the underlying object directly
+// - Expands non-real objects inline (they can't be queried separately)
+// - Converts real nested objects to RefValue with actual ObjectID (queryable)
+func jsonExportObjectValue(st Store, obj Object, seen map[Object]int, depth, maxDepth int) Value {
+	if obj == nil {
+		return nil
+	}
+
+	// Unwrap HeapItemValue - it's an implementation detail.
+	// For nested real HeapItemValues, return RefValue pointing to the HeapItemValue
+	// (since that's what qobject queries - and it will auto-unwrap there too).
+	if hiv, ok := obj.(*HeapItemValue); ok {
+		if depth > 0 && hiv.GetIsReal() {
+			return RefValue{
+				ObjectID: hiv.GetObjectID(),
+				Escaped:  hiv.GetIsEscaped() || hiv.GetIsNewEscaped(),
+				Hash:     hiv.GetHash(),
+			}
+		}
+		// For root or non-real HeapItemValue, unwrap and export the inner object
+		obj = unwrapHeapItemValue(st, obj)
+	}
+
+	// Check for cycles first
+	if id, exists := seen[obj]; exists {
+		// Cycle detected - return RefValue
+		// Use actual ObjectID if real, otherwise use local ID
+		if obj.GetIsReal() {
+			return RefValue{
+				ObjectID: obj.GetObjectID(),
+				Escaped:  true,
+			}
+		}
+		return RefValue{
+			ObjectID: ObjectID{NewTime: uint64(id)},
+			Escaped:  true,
+		}
+	}
+
+	// For non-root real objects, return RefValue with actual ObjectID
+	// This allows the user to query them via vm/qobject
+	if depth > 0 && obj.GetIsReal() {
+		return RefValue{
+			ObjectID: obj.GetObjectID(),
+			Escaped:  obj.GetIsEscaped() || obj.GetIsNewEscaped(),
+			Hash:     obj.GetHash(),
+		}
+	}
+
+	// Check depth limit (only for non-root)
+	if maxDepth >= 0 && depth > maxDepth {
+		if obj.GetIsReal() {
+			return RefValue{
+				ObjectID: obj.GetObjectID(),
+				Escaped:  true,
+			}
+		}
+		// Non-real object at depth limit - assign local ID
+		id := len(seen) + 1
+		seen[obj] = id
+		return RefValue{
+			ObjectID: ObjectID{NewTime: uint64(id)},
+			Escaped:  true,
+		}
+	}
+
+	// Mark as seen before recursing (cycle detection)
+	id := len(seen) + 1
+	seen[obj] = id
+
+	// Expand the object
+	return jsonExportCopyValue(st, obj, seen, depth, maxDepth)
+}
+
+// jsonExportCopyValue creates an exported copy of a Value for JSON serialization.
+// This is similar to exportCopyValueWithRefs but uses jsonExportObjectValue for nested objects.
+func jsonExportCopyValue(st Store, val Value, seen map[Object]int, depth, maxDepth int) Value {
+	switch cv := val.(type) {
+	case nil:
+		return nil
+	case StringValue:
+		return cv
+	case BigintValue:
+		return cv
+	case BigdecValue:
+		return cv
+	case DataByteValue:
+		panic("cannot copy data byte value")
+	case PointerValue:
+		if cv.Base == nil {
+			panic("pointer with nil base")
+		}
+		// Base can be an Object or RefValue (if already exported/persisted)
+		var base Value
+		switch b := cv.Base.(type) {
+		case Object:
+			base = jsonExportObjectValue(st, b, seen, depth+1, maxDepth)
+		case RefValue:
+			// Already a RefValue - keep as-is (it's a reference to a persisted object)
+			base = b
+		default:
+			panic(fmt.Sprintf("unexpected pointer base type: %T", cv.Base))
+		}
+		return PointerValue{
+			Base:  base,
+			Index: cv.Index,
+		}
+	case *ArrayValue:
+		if cv.Data == nil {
+			list := make([]TypedValue, len(cv.List))
+			for i, etv := range cv.List {
+				list[i] = jsonExportTypedValue(st, etv, seen, depth+1, maxDepth)
+			}
+			return &ArrayValue{
+				ObjectInfo: cv.ObjectInfo.Copy(),
+				List:       list,
+			}
+		}
+		return &ArrayValue{
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			Data:       cp(cv.Data),
+		}
+	case *SliceValue:
+		var base Value
+		if cv.Base != nil {
+			if obj, ok := cv.Base.(Object); ok {
+				base = jsonExportObjectValue(st, obj, seen, depth+1, maxDepth)
+			} else if ref, ok := cv.Base.(RefValue); ok {
+				base = ref
+			}
+		}
+		return &SliceValue{
+			Base:   base,
+			Offset: cv.Offset,
+			Length: cv.Length,
+			Maxcap: cv.Maxcap,
+		}
+	case *StructValue:
+		fields := make([]TypedValue, len(cv.Fields))
+		for i, ftv := range cv.Fields {
+			fields[i] = jsonExportTypedValue(st, ftv, seen, depth+1, maxDepth)
+		}
+		return &StructValue{
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			Fields:     fields,
+		}
+	case *FuncValue:
+		source := toRefNode(cv.Source)
+		var parent Value
+		if cv.Parent != nil {
+			if obj, ok := cv.Parent.(Object); ok {
+				parent = jsonExportObjectValue(st, obj, seen, depth+1, maxDepth)
+			} else if ref, ok := cv.Parent.(RefValue); ok {
+				parent = ref
+			}
+		}
+		captures := make([]TypedValue, len(cv.Captures))
+		for i, ctv := range cv.Captures {
+			captures[i] = jsonExportTypedValue(st, ctv, seen, depth+1, maxDepth)
+		}
+		ft := exportCopyTypeWithRefs(cv.Type, seen)
+		return &FuncValue{
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			Type:       ft,
+			IsMethod:   cv.IsMethod,
+			Source:     source,
+			Name:       cv.Name,
+			Parent:     parent,
+			Captures:   captures,
+			FileName:   cv.FileName,
+			PkgPath:    cv.PkgPath,
+			NativePkg:  cv.NativePkg,
+			NativeName: cv.NativeName,
+			Crossing:   cv.Crossing,
+		}
+	case *BoundMethodValue:
+		fnc := jsonExportCopyValue(st, cv.Func, seen, depth, maxDepth).(*FuncValue)
+		rtv := jsonExportTypedValue(st, cv.Receiver, seen, depth+1, maxDepth)
+		return &BoundMethodValue{
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			Func:       fnc,
+			Receiver:   rtv,
+		}
+	case *MapValue:
+		list := &MapList{}
+		for cur := cv.List.Head; cur != nil; cur = cur.Next {
+			key2 := jsonExportTypedValue(st, cur.Key, seen, depth+1, maxDepth)
+			val2 := jsonExportTypedValue(st, cur.Value, seen, depth+1, maxDepth)
+			list.Append(nilAllocator, key2).Value = val2
+		}
+		return &MapValue{
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			List:       list,
+		}
+	case TypeValue:
+		return toTypeValue(exportCopyTypeWithRefs(cv.Type, seen))
+	case *PackageValue:
+		// Packages always become RefValue
+		return RefValue{
+			PkgPath: cv.PkgPath,
+		}
+	case *Block:
+		source := toRefNode(cv.Source)
+		vals := make([]TypedValue, len(cv.Values))
+		for i, tv := range cv.Values {
+			vals[i] = jsonExportTypedValue(st, tv, seen, depth+1, maxDepth)
+		}
+		var bparent Value
+		if cv.Parent != nil {
+			if obj, ok := cv.Parent.(Object); ok {
+				bparent = jsonExportObjectValue(st, obj, seen, depth+1, maxDepth)
+			} else if ref, ok := cv.Parent.(RefValue); ok {
+				bparent = ref
+			}
+		}
+		return &Block{
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			Source:     source,
+			Values:     vals,
+			Parent:     bparent,
+			Blank:      TypedValue{},
+		}
+	case RefValue:
+		return cv
+	case *HeapItemValue:
+		return &HeapItemValue{
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			Value:      jsonExportTypedValue(st, cv.Value, seen, depth+1, maxDepth),
+		}
+	default:
+		panic(fmt.Sprintf("unexpected type %v", reflect.TypeOf(val)))
+	}
+}
+
+// jsonExportTypedValue exports a TypedValue for JSON serialization.
+func jsonExportTypedValue(st Store, tv TypedValue, seen map[Object]int, depth, maxDepth int) TypedValue {
+	result := TypedValue{}
+	if tv.T != nil {
+		result.T = exportRefOrCopyType(tv.T, seen)
+	}
+
+	if obj, ok := tv.V.(Object); ok {
+		result.V = jsonExportObjectValue(st, obj, seen, depth, maxDepth)
+		return result
+	}
+
+	// For non-Object values, use the JSON export copy
+	if tv.V != nil {
+		result.V = jsonExportCopyValue(st, tv.V, seen, depth, maxDepth)
+	}
+	// Copy primitive values
+	result.N = tv.N
+	return result
 }
 
 // JSONExportTypedValuesSimple produces human-readable JSON for TypedValues.
 // Unlike JSONExportTypedValues, it outputs values directly without @type tags or ObjectInfo.
 // Requires Machine to call .Error() methods on error types.
+// Uses DefaultMaxDepth for depth limiting.
 func JSONExportTypedValuesSimple(m *Machine, tvs []TypedValue) ([]byte, error) {
+	return JSONExportTypedValuesWithDepth(m, tvs, DefaultMaxDepth)
+}
+
+// JSONExportTypedValuesWithDepth exports TypedValues with explicit depth control.
+// maxDepth: -1 = unlimited, 0 = type only, 1+ = levels to expand
+func JSONExportTypedValuesWithDepth(m *Machine, tvs []TypedValue, maxDepth int) ([]byte, error) {
 	seen := map[Object]int{}
+	return jsonExportTypedValuesWithDepth(m, tvs, seen, 0, maxDepth)
+}
+
+// jsonExportTypedValuesWithDepth is the internal implementation with depth tracking.
+func jsonExportTypedValuesWithDepth(m *Machine, tvs []TypedValue, seen map[Object]int, depth, maxDepth int) ([]byte, error) {
 	results := make([]*JSONTypedValue, len(tvs))
 	for i, tv := range tvs {
-		results[i] = jsonTypedValueSimple(m, tv, seen)
+		results[i] = jsonTypedValueSimpleWithDepth(m, tv, seen, depth, maxDepth)
 	}
 	return json.Marshal(results)
 }
 
 // jsonTypedValueSimple creates a JSONTypedValue from a TypedValue.
+// Deprecated: Use jsonTypedValueSimpleWithDepth instead.
 func jsonTypedValueSimple(m *Machine, tv TypedValue, seen map[Object]int) *JSONTypedValue {
+	return jsonTypedValueSimpleWithDepth(m, tv, seen, 0, UnlimitedDepth)
+}
+
+// jsonTypedValueSimpleWithDepth creates a JSONTypedValue with depth limiting.
+func jsonTypedValueSimpleWithDepth(m *Machine, tv TypedValue, seen map[Object]int, depth, maxDepth int) *JSONTypedValue {
 	jtv := &JSONTypedValue{
 		T: simpleTypeString(tv.T),
-		V: jsonValueSimple(m, tv, seen),
 	}
+
+	// Check for real object boundary - stop expansion with @ref
+	// Skip this check at depth 0 (root level) to always show the queried object's content
+	if depth > 0 {
+		if obj, isObj := tv.V.(Object); isObj && obj.GetIsReal() {
+			oid := obj.GetObjectID().String()
+			jtv.V = map[string]string{"@ref": oid}
+			jtv.ObjectID = &oid
+			return jtv
+		}
+	}
+
+	// Check depth limit (primitives always expand)
+	bt := BaseOf(tv.T)
+	_, isPrim := bt.(PrimitiveType)
+	if !isPrim && maxDepth >= 0 && depth > maxDepth {
+		// At depth limit - mark as truncated, omit V
+		jtv.Truncated = true
+		// Still include objectid for pointers if available
+		if pv, ok := tv.V.(PointerValue); ok && pv.Base != nil {
+			if obj, ok := pv.Base.(Object); ok {
+				oid := obj.GetObjectID().String()
+				if oid != ":0" {
+					jtv.ObjectID = &oid
+				}
+			}
+		}
+		return jtv
+	}
+
+	// Expand value normally
+	jtv.V = jsonValueSimpleWithDepth(m, tv, seen, depth, maxDepth)
 
 	// For pointers, include ObjectID for later fetching
 	if _, isPtr := BaseOf(tv.T).(*PointerType); isPtr && tv.V != nil {
@@ -667,7 +1082,13 @@ func getJSONFieldName(ft FieldType) string {
 }
 
 // jsonValueSimple converts a TypedValue's value to a JSON-compatible representation.
+// Deprecated: Use jsonValueSimpleWithDepth instead.
 func jsonValueSimple(m *Machine, tv TypedValue, seen map[Object]int) any {
+	return jsonValueSimpleWithDepth(m, tv, seen, 0, UnlimitedDepth)
+}
+
+// jsonValueSimpleWithDepth converts a TypedValue's value to JSON with depth limiting.
+func jsonValueSimpleWithDepth(m *Machine, tv TypedValue, seen map[Object]int, depth, maxDepth int) any {
 	if tv.T == nil {
 		return nil
 	}
@@ -676,7 +1097,7 @@ func jsonValueSimple(m *Machine, tv TypedValue, seen map[Object]int) any {
 
 	switch bt := bt.(type) {
 	case PrimitiveType:
-		// Primitives store values in tv.N, not tv.V
+		// Primitives always expand regardless of depth
 		return getPrimitiveValueSimple(bt, tv)
 
 	case *StructType:
@@ -684,6 +1105,14 @@ func jsonValueSimple(m *Machine, tv TypedValue, seen map[Object]int) any {
 		if !ok {
 			return nil
 		}
+
+		// Check for real object boundary - stop expansion with @ref
+		// Skip this check at depth 0 (root level) to always show the queried object's content
+		if depth > 0 && sv.GetIsReal() {
+			oid := sv.GetObjectID().String()
+			return map[string]string{"@ref": oid}
+		}
+
 		// Cycle check
 		if id, exists := seen[sv]; exists {
 			return map[string]string{"@ref": fmt.Sprintf(":%d", id)}
@@ -695,25 +1124,23 @@ func jsonValueSimple(m *Machine, tv TypedValue, seen map[Object]int) any {
 		obj := make(map[string]any)
 
 		// Add objectid for unreal objects to enable cycle reference tracking
-		if !sv.GetIsReal() {
-			obj["objectid"] = fmt.Sprintf(":%d", id)
-		}
+		obj["objectid"] = fmt.Sprintf(":%d", id)
 
 		for i := range sv.Fields {
 			if i < len(bt.Fields) {
 				name := getJSONFieldName(bt.Fields[i])
 				// Fill the field value to resolve any RefValues before serialization
 				field := fillValueTV(m.Store, &sv.Fields[i])
-				obj[name] = jsonTypedValueSimple(m, *field, seen)
+				obj[name] = jsonTypedValueSimpleWithDepth(m, *field, seen, depth+1, maxDepth)
 			}
 		}
 		return obj
 
 	case *SliceType:
-		return jsonSliceValueSimple(m, tv, bt, seen)
+		return jsonSliceValueSimpleWithDepth(m, tv, bt, seen, depth, maxDepth)
 
 	case *ArrayType:
-		return jsonArrayValueSimple(m, tv, bt, seen)
+		return jsonArrayValueSimpleWithDepth(m, tv, bt, seen, depth, maxDepth)
 
 	case *PointerType:
 		pv, ok := tv.V.(PointerValue)
@@ -731,21 +1158,21 @@ func jsonValueSimple(m *Machine, tv TypedValue, seen map[Object]int) any {
 					if epv.TV == nil {
 						return nil
 					}
-					return jsonValueSimple(m, *epv.TV, seen)
+					return jsonValueSimpleWithDepth(m, *epv.TV, seen, depth, maxDepth)
 				case *StructValue:
 					fpv := cbv.GetPointerToInt(m.Store, pv.Index)
 					if fpv.TV == nil {
 						return nil
 					}
-					return jsonValueSimple(m, *fpv.TV, seen)
+					return jsonValueSimpleWithDepth(m, *fpv.TV, seen, depth, maxDepth)
 				case *Block:
 					vpv := cbv.GetPointerToInt(m.Store, pv.Index)
 					if vpv.TV == nil {
 						return nil
 					}
-					return jsonValueSimple(m, *vpv.TV, seen)
+					return jsonValueSimpleWithDepth(m, *vpv.TV, seen, depth, maxDepth)
 				case *HeapItemValue:
-					return jsonValueSimple(m, cbv.Value, seen)
+					return jsonValueSimpleWithDepth(m, cbv.Value, seen, depth, maxDepth)
 				default:
 					return nil
 				}
@@ -771,10 +1198,10 @@ func jsonValueSimple(m *Machine, tv TypedValue, seen map[Object]int) any {
 		if m.Store != nil {
 			fillValueTV(m.Store, &deref)
 		}
-		return jsonValueSimple(m, deref, seen)
+		return jsonValueSimpleWithDepth(m, deref, seen, depth, maxDepth)
 
 	case *MapType:
-		return jsonMapValueSimple(m, tv, bt, seen)
+		return jsonMapValueSimpleWithDepth(m, tv, bt, seen, depth, maxDepth)
 
 	case *FuncType:
 		if fv, ok := tv.V.(*FuncValue); ok {
@@ -787,11 +1214,14 @@ func jsonValueSimple(m *Machine, tv TypedValue, seen map[Object]int) any {
 
 	case *InterfaceType:
 		// For interface types, serialize the concrete value
-		return jsonValueSimple(m, tv, seen)
+		return jsonValueSimpleWithDepth(m, tv, seen, depth, maxDepth)
 
 	default:
 		// Fallback: return string representation
-		return tv.V.String()
+		if tv.V != nil {
+			return tv.V.String()
+		}
+		return nil
 	}
 }
 
@@ -838,7 +1268,13 @@ func getPrimitiveValueSimple(bt PrimitiveType, tv TypedValue) any {
 }
 
 // jsonSliceValueSimple converts a slice value to JSON.
+// Deprecated: Use jsonSliceValueSimpleWithDepth instead.
 func jsonSliceValueSimple(m *Machine, tv TypedValue, st *SliceType, seen map[Object]int) any {
+	return jsonSliceValueSimpleWithDepth(m, tv, st, seen, 0, UnlimitedDepth)
+}
+
+// jsonSliceValueSimpleWithDepth converts a slice value to JSON with depth limiting.
+func jsonSliceValueSimpleWithDepth(m *Machine, tv TypedValue, st *SliceType, seen map[Object]int, depth, maxDepth int) any {
 	sv, ok := tv.V.(*SliceValue)
 	if !ok {
 		return nil
@@ -851,7 +1287,7 @@ func jsonSliceValueSimple(m *Machine, tv TypedValue, st *SliceType, seen map[Obj
 
 	// Check if element type is primitive
 	if isPrimitiveType(st.Elt) {
-		// Return direct array for primitives
+		// Return direct array for primitives (no depth limit for primitives)
 		result := make([]any, length)
 		for i := range length {
 			etv := sv.GetPointerAtIndexInt2(m.Store, i, st.Elt).Deref()
@@ -864,13 +1300,19 @@ func jsonSliceValueSimple(m *Machine, tv TypedValue, st *SliceType, seen map[Obj
 	result := make([]*JSONTypedValue, length)
 	for i := range length {
 		etv := sv.GetPointerAtIndexInt2(m.Store, i, st.Elt).Deref()
-		result[i] = jsonTypedValueSimple(m, etv, seen)
+		result[i] = jsonTypedValueSimpleWithDepth(m, etv, seen, depth+1, maxDepth)
 	}
 	return result
 }
 
 // jsonArrayValueSimple converts an array value to JSON.
+// Deprecated: Use jsonArrayValueSimpleWithDepth instead.
 func jsonArrayValueSimple(m *Machine, tv TypedValue, at *ArrayType, seen map[Object]int) any {
+	return jsonArrayValueSimpleWithDepth(m, tv, at, seen, 0, UnlimitedDepth)
+}
+
+// jsonArrayValueSimpleWithDepth converts an array value to JSON with depth limiting.
+func jsonArrayValueSimpleWithDepth(m *Machine, tv TypedValue, at *ArrayType, seen map[Object]int, depth, maxDepth int) any {
 	av, ok := tv.V.(*ArrayValue)
 	if !ok {
 		return nil
@@ -881,7 +1323,7 @@ func jsonArrayValueSimple(m *Machine, tv TypedValue, at *ArrayType, seen map[Obj
 		return []any{}
 	}
 
-	// Handle byte arrays specially (Data field)
+	// Handle byte arrays specially (Data field) - no depth limit for byte arrays
 	if av.Data != nil {
 		// Return as array of numbers
 		result := make([]any, length)
@@ -891,7 +1333,7 @@ func jsonArrayValueSimple(m *Machine, tv TypedValue, at *ArrayType, seen map[Obj
 		return result
 	}
 
-	// Check if element type is primitive
+	// Check if element type is primitive (no depth limit for primitives)
 	if isPrimitiveType(at.Elt) {
 		result := make([]any, length)
 		for i := 0; i < length; i++ {
@@ -903,13 +1345,19 @@ func jsonArrayValueSimple(m *Machine, tv TypedValue, at *ArrayType, seen map[Obj
 	// For complex types, return array of JSONTypedValue
 	result := make([]*JSONTypedValue, length)
 	for i := range length {
-		result[i] = jsonTypedValueSimple(m, av.List[i], seen)
+		result[i] = jsonTypedValueSimpleWithDepth(m, av.List[i], seen, depth+1, maxDepth)
 	}
 	return result
 }
 
 // jsonMapValueSimple converts a map value to JSON.
+// Deprecated: Use jsonMapValueSimpleWithDepth instead.
 func jsonMapValueSimple(m *Machine, tv TypedValue, mt *MapType, seen map[Object]int) any {
+	return jsonMapValueSimpleWithDepth(m, tv, mt, seen, 0, UnlimitedDepth)
+}
+
+// jsonMapValueSimpleWithDepth converts a map value to JSON with depth limiting.
+func jsonMapValueSimpleWithDepth(m *Machine, tv TypedValue, mt *MapType, seen map[Object]int, depth, maxDepth int) any {
 	mv, ok := tv.V.(*MapValue)
 	if !ok {
 		return nil
@@ -920,8 +1368,8 @@ func jsonMapValueSimple(m *Machine, tv TypedValue, mt *MapType, seen map[Object]
 		// Return as JSON object
 		obj := make(map[string]*JSONTypedValue)
 		for cur := mv.List.Head; cur != nil; cur = cur.Next {
-			keyStr := fmt.Sprintf("%v", jsonValueSimple(m, cur.Key, seen))
-			obj[keyStr] = jsonTypedValueSimple(m, cur.Value, seen)
+			keyStr := fmt.Sprintf("%v", jsonValueSimpleWithDepth(m, cur.Key, seen, depth, maxDepth))
+			obj[keyStr] = jsonTypedValueSimpleWithDepth(m, cur.Value, seen, depth+1, maxDepth)
 		}
 		return obj
 	}
@@ -930,8 +1378,8 @@ func jsonMapValueSimple(m *Machine, tv TypedValue, mt *MapType, seen map[Object]
 	var pairs [][]any
 	for cur := mv.List.Head; cur != nil; cur = cur.Next {
 		pair := []any{
-			jsonTypedValueSimple(m, cur.Key, seen),
-			jsonTypedValueSimple(m, cur.Value, seen),
+			jsonTypedValueSimpleWithDepth(m, cur.Key, seen, depth+1, maxDepth),
+			jsonTypedValueSimpleWithDepth(m, cur.Value, seen, depth+1, maxDepth),
 		}
 		pairs = append(pairs, pair)
 	}
