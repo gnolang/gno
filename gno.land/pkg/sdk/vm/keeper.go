@@ -563,7 +563,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	pn := gnostore.GetBlockNode(pl).(*gno.PackageNode)
 	ft := pn.GetStaticTypeOf(gnostore, gno.Name(fnc)).(*gno.FuncType)
 	if len(ft.Params) == 0 || ft.Params[0].Type.String() != ".uverse.realm" {
-		panic(fmt.Sprintf("function %s is non-crossing and cannot be called with MsgCall (/directly). It can either be called with qeval, or via another code realm", fnc))
+		panic(fmt.Sprintf("function %s is non-crossing and cannot be called with MsgCall; query with vm/qeval or use MsgRun", fnc))
 	}
 
 	// Make main Package with imports.

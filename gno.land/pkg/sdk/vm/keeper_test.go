@@ -1144,7 +1144,7 @@ func EmptyCall() {
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	assert.PanicsWithValue(
 		t,
-		"function Echo is non-crossing and cannot be called with MsgCall (/directly). It can either be called with qeval, or via another code realm",
+		"function Echo is non-crossing and cannot be called with MsgCall; query with vm/qeval or use MsgRun",
 		func() {
 			env.vmk.Call(ctx, msg2)
 		},
@@ -1154,7 +1154,7 @@ func EmptyCall() {
 	msg3 := NewMsgCall(addr, coins, pkgPath, "EmptyCall", []string{})
 	assert.PanicsWithValue(
 		t,
-		"function EmptyCall is non-crossing and cannot be called with MsgCall (/directly). It can either be called with qeval, or via another code realm",
+		"function EmptyCall is non-crossing and cannot be called with MsgCall; query with vm/qeval or use MsgRun",
 		func() {
 			env.vmk.Call(ctx, msg3)
 		},
