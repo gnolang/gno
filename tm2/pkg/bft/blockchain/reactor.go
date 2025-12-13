@@ -373,7 +373,29 @@ func (bcR *BlockchainReactor) Restore(ctx context.Context, blocksIterator Blocks
 		err     error
 	)
 
+	blockBatch := bcR.store.NewBatch()
+	blocksInBatch := 0
+	batchSize := 1000
+	saveBatch := func() error {
+		blockBatch.WriteSync()
+		err = blockBatch.Close()
+		if err != nil {
+			return err
+		}
+
+		blocksInBatch = 0
+		blockBatch = bcR.store.NewBatch()
+		return nil
+	}
 	return blocksIterator(func(block *types.Block) error {
+		defer func() {
+			if blocksInBatch > 0 {
+				err = saveBatch()
+				if err != nil {
+					panic(err)
+				}
+			}
+		}()
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -383,6 +405,12 @@ func (bcR *BlockchainReactor) Restore(ctx context.Context, blocksIterator Blocks
 		if first == nil {
 			first = block
 			return nil
+		}
+		if blocksInBatch >= batchSize {
+			err = saveBatch()
+			if err != nil {
+				return err
+			}
 		}
 
 		second = block
@@ -397,7 +425,7 @@ func (bcR *BlockchainReactor) Restore(ctx context.Context, blocksIterator Blocks
 			}
 		}
 
-		bcR.store.SaveBlock(first, firstParts, second.LastCommit)
+		bcR.store.SaveBlockWithBatch(blockBatch, first, firstParts, second.LastCommit)
 
 		state, err = bcR.blockExec.ApplyBlock(state, firstID, first)
 		if err != nil {
@@ -405,6 +433,7 @@ func (bcR *BlockchainReactor) Restore(ctx context.Context, blocksIterator Blocks
 		}
 
 		first = second
+		blocksInBatch++
 		return nil
 	})
 }
