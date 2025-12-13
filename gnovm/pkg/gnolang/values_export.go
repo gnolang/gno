@@ -241,27 +241,7 @@ func exportCopyValueWithRefs(val Value, m map[Object]int) Value {
 	}
 }
 
-type seenObject map[Object]int
-
-func (s seenObject) has(o Object) (ok bool) {
-	_, ok = s[o]
-	return ok
-}
-
-func (s seenObject) add(o Object) (id int, new bool) {
-	var exist bool
-
-	// Create a local reference to Object for export
-	id, exist = s[o]
-	if new = !exist; new {
-		id = len(s) + 1 // Avoid empty 0 value
-		s[o] = id
-	}
-
-	return
-}
-
-func exportToValueOrRefValue(val Value, seen seenObject) Value {
+func exportToValueOrRefValue(val Value, seen map[Object]int) Value {
 	// TODO use type switch stmt.
 	if ref, ok := val.(RefValue); ok {
 		return ref
