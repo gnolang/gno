@@ -55,7 +55,7 @@ type VMKeeperI interface {
 	AddPackage(ctx sdk.Context, msg MsgAddPackage) error
 	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
 	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
-	QueryEval(ctx sdk.Context, msg QueryMsgEval) (res string, err error)
+	QueryEval(ctx sdk.Context, pkgPath, expr string, format QueryFormat) (res string, err error)
 	LoadStdlib(ctx sdk.Context, stdlibDir string)
 	LoadStdlibCached(ctx sdk.Context, stdlibDir string)
 	MakeGnoTransactionStore(ctx sdk.Context) sdk.Context
@@ -975,16 +975,16 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 }
 
 // QueryEval evaluates a gno expression (readonly, for ABCI queries).
-func (vm *VMKeeper) QueryEval(ctx sdk.Context, msg QueryMsgEval) (res string, err error) {
+func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath, expr string, format QueryFormat) (res string, err error) {
 	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 
 	// Get Package.
-	pv := gnostore.GetPackage(msg.PkgPath, false)
+	pv := gnostore.GetPackage(pkgPath, false)
 	if pv == nil {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
-			"package not found: %s", msg.PkgPath))
+			"package not found: %s", pkgPath))
 		return "", err
 	}
 	// Construct new machine.
@@ -1003,7 +1003,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, msg QueryMsgEval) (res string, er
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:  msg.PkgPath,
+			PkgPath:  pkgPath,
 			Output:   vm.Output,
 			Store:    gnostore,
 			Context:  msgCtx,
@@ -1014,14 +1014,14 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, msg QueryMsgEval) (res string, er
 	defer m.Release()
 	defer doRecoverQuery(m, &err)
 	// Parse expression.
-	xx, err := m.ParseExpr(msg.Expr)
+	xx, err := m.ParseExpr(expr)
 	if err != nil {
 		return "", err
 	}
 	rtvs := m.Eval(xx)
 	// For QueryEval, we don't have function signature info, so pass nil
 	// (will fallback to value-based error detection in stringifyJSONResults)
-	return stringifyResultValues(m, msg.Format, rtvs, nil), nil
+	return stringifyResultValues(m, format, rtvs, nil), nil
 }
 
 func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {

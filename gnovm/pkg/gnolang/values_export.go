@@ -12,38 +12,50 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 )
 
-// JSONExporter handles JSON serialization of Gno values.
-// Configuration fields control export behavior.
-type JSONExporter struct {
+type JSONExporterOptions struct {
 	// ExportUnexported controls whether unexported (lowercase) fields are included.
 	// Default is false (only export uppercase fields).
 	ExportUnexported bool
 
 	// MaxDepth limits the depth of nested object expansion.
-	// Default is DefaultMaxDepth (3). Use -1 for unlimited.
+	// 0 mean no limit.
 	MaxDepth int
-
-	// Internal state (set during export)
-	store Store
-	seen  map[Object]int
 }
 
-// NewJSONExporter creates an exporter with default options.
-func NewJSONExporter() *JSONExporter {
-	return &JSONExporter{
-		ExportUnexported: false,
-		MaxDepth:         DefaultMaxDepth,
+// ExportTypedValues exports multiple TypedValues to JSON.
+// Persisted objects are shown as RefValue (with queryable ObjectID).
+// Ephemeral objects are expanded inline.
+func (opts JSONExporterOptions) ExportTypedValues(tvs []TypedValue) ([]byte, error) {
+	e := &jsonExporter{opts: opts}
+	e.init()
+
+	jexps := make([]*jsonTypedValue, len(tvs))
+
+	for i, tv := range tvs {
+		// Use JSON-specific export that:
+		// - Shows RefValue for persisted (real) objects (with queryable ObjectID)
+		// - Expands ephemeral (unreal) objects inline (no ObjectID)
+		// - Filters unexported fields and json:"-" tagged fields based on options
+		exported := e.exportTypedValue(tv, 0)
+		jexps[i] = jsonExportedTypedValueFromExported(exported)
 	}
+
+	return json.Marshal(jexps)
 }
 
-// init initializes internal state for a new export operation.
-func (e *JSONExporter) init() {
-	if e.seen == nil {
-		e.seen = map[Object]int{}
+// JSONExportTypedValues exports TypedValues using default options.
+// For custom options, use JSONExporter directly.
+func JSONExportTypedValues(tvs []TypedValue) ([]byte, error) {
+	return JSONExporterOptions{}.ExportTypedValues(tvs)
+}
+
+func JSONExportTypedValue(tv TypedValue, seen map[Object]int) ([]byte, error) {
+	if seen == nil {
+		seen = map[Object]int{}
 	}
-	if e.MaxDepth == 0 {
-		e.MaxDepth = DefaultMaxDepth
-	}
+
+	tv = exportValue(tv, seen) // first export value
+	return json.Marshal(jsonExportedTypedValue(tv))
 }
 
 // MUST NOT modify anything inside tv.
@@ -454,39 +466,24 @@ type jsonTypedValue struct {
 	Value json.RawMessage `json:"V"`
 }
 
-// ExportTypedValues exports multiple TypedValues to JSON.
-// Persisted objects are shown as RefValue (with queryable ObjectID).
-// Ephemeral objects are expanded inline.
-func (e *JSONExporter) ExportTypedValues(tvs []TypedValue) ([]byte, error) {
-	e.init()
+// jsonExporter handles JSON serialization of Gno values.
+// Configuration fields control export behavior.
+type jsonExporter struct {
+	opts JSONExporterOptions
 
-	jexps := make([]*jsonTypedValue, len(tvs))
-
-	for i, tv := range tvs {
-		// Use JSON-specific export that:
-		// - Shows RefValue for persisted (real) objects (with queryable ObjectID)
-		// - Expands ephemeral (unreal) objects inline (no ObjectID)
-		// - Filters unexported fields and json:"-" tagged fields based on options
-		exported := e.exportTypedValue(tv, 0)
-		jexps[i] = jsonExportedTypedValueFromExported(exported)
-	}
-
-	return json.Marshal(jexps)
+	// state (set during export)
+	store Store
+	seen  map[Object]int
 }
 
-// JSONExportTypedValues exports TypedValues using default options.
-// For custom options, use JSONExporter directly.
-func JSONExportTypedValues(tvs []TypedValue) ([]byte, error) {
-	return NewJSONExporter().ExportTypedValues(tvs)
-}
-
-func JSONExportTypedValue(tv TypedValue, seen map[Object]int) ([]byte, error) {
-	if seen == nil {
-		seen = map[Object]int{}
+// init initializes internal state for a new export operation.
+func (e *jsonExporter) init() {
+	if e.seen == nil {
+		e.seen = map[Object]int{}
 	}
-
-	tv = exportValue(tv, seen) // first export value
-	return json.Marshal(jsonExportedTypedValue(tv))
+	if e.opts.MaxDepth == 0 {
+		e.opts.MaxDepth = DefaultMaxDepth
+	}
 }
 
 func jsonExportedTypedValue(tv TypedValue) (exp *jsonTypedValue) {
@@ -630,7 +627,6 @@ func jsonExportedValue(tv TypedValue) []byte {
 		if tv.V == nil {
 			return []byte("null")
 		}
-
 		return amino.MustMarshalJSONAny(tv.V)
 	}
 }
@@ -731,16 +727,16 @@ func getStructTypeFromType(typ Type) *StructType {
 // ArrayValue, MapValue.
 //
 // The export process:
-// 1. Root object is always fully expanded
-// 2. HeapItemValue is automatically unwrapped to show the underlying value
-//    (HeapItemValue is an implementation detail for pointer indirection)
-// 3. Nested real objects (persisted) become RefValue with their actual ObjectID
-// 4. Nested non-real objects are expanded inline (no queryable ObjectID)
-// 5. Cycles are detected and converted to RefValue to prevent infinite recursion
+//  1. Root object is always fully expanded
+//  2. HeapItemValue is automatically unwrapped to show the underlying value
+//     (HeapItemValue is an implementation detail for pointer indirection)
+//  3. Nested real objects (persisted) become RefValue with their actual ObjectID
+//  4. Nested non-real objects are expanded inline (no queryable ObjectID)
+//  5. Cycles are detected and converted to RefValue to prevent infinite recursion
 //
 // The exported object is serialized via Amino's MarshalJSONAny which
 // produces @type tags like "/gno.StructValue" with full ObjectInfo.
-func (e *JSONExporter) ExportObject(m *Machine, obj Object) ([]byte, error) {
+func (e *jsonExporter) ExportObject(m *Machine, obj Object) ([]byte, error) {
 	e.init()
 
 	if m != nil {
@@ -763,7 +759,7 @@ func (e *JSONExporter) ExportObject(m *Machine, obj Object) ([]byte, error) {
 // JSONExportObject exports an Object using default options.
 // For custom options, use JSONExporter directly.
 func JSONExportObject(m *Machine, obj Object) ([]byte, error) {
-	return NewJSONExporter().ExportObject(m, obj)
+	return (&jsonExporter{}).ExportObject(m, obj)
 }
 
 // unwrapHeapItemValue unwraps a HeapItemValue to reveal the underlying object.
@@ -1051,7 +1047,7 @@ func jsonExportTypedValue(st Store, tv TypedValue, seen map[Object]int, depth, m
 // exportTypedValue exports a TypedValue for JSON serialization.
 // Returns RefValue for persisted (real) objects at all levels.
 // Only ephemeral (unreal) objects are expanded inline.
-func (e *JSONExporter) exportTypedValue(tv TypedValue, depth int) TypedValue {
+func (e *jsonExporter) exportTypedValue(tv TypedValue, depth int) TypedValue {
 	result := TypedValue{}
 	if tv.T != nil {
 		result.T = exportRefOrCopyType(tv.T, e.seen)
@@ -1074,7 +1070,7 @@ func (e *JSONExporter) exportTypedValue(tv TypedValue, depth int) TypedValue {
 // exportObjectValue exports an Object for JSON serialization.
 // Returns RefValue for persisted (real) objects at all levels (including root).
 // The typ parameter provides type information for field filtering.
-func (e *JSONExporter) exportObjectValue(obj Object, typ Type, depth int) Value {
+func (e *jsonExporter) exportObjectValue(obj Object, typ Type, depth int) Value {
 	if obj == nil {
 		return nil
 	}
@@ -1137,7 +1133,7 @@ func (e *JSONExporter) exportObjectValue(obj Object, typ Type, depth int) Value 
 
 // exportCopyValue creates an exported copy of a Value for JSON serialization.
 // The typ parameter provides type information for field filtering.
-func (e *JSONExporter) exportCopyValue(val Value, typ Type, depth int) Value {
+func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int) Value {
 	switch cv := val.(type) {
 	case nil:
 		return nil

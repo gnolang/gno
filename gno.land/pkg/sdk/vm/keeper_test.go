@@ -649,8 +649,7 @@ func TestVMKeeperEvalJSONFormatting2(t *testing.T) {
 			assert.NoError(t, err)
 			env.vmk.CommitGnoTransactionStore(ctx)
 
-			cfgEval := QueryMsgEval{Expr: tc.expr, PkgPath: pkgPath, Format: QueryFormatJSON}
-			res, err := env.vmk.QueryEval(env.ctx, cfgEval)
+			res, err := env.vmk.QueryEval(env.ctx, pkgPath, tc.expr, QueryFormatJSON)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, res)
 		})
@@ -697,8 +696,7 @@ func GetItem() *Item {
 		require.NoError(t, err)
 		env.vmk.CommitGnoTransactionStore(ctx)
 
-		cfgEval := QueryMsgEval{Expr: "GetItem()", PkgPath: pkgPath, Format: QueryFormatJSON}
-		res, err := env.vmk.QueryEval(env.ctx, cfgEval)
+		res, err := env.vmk.QueryEval(env.ctx, pkgPath, "GetItem()", QueryFormatJSON)
 		require.NoError(t, err)
 
 		// Verify Amino format structure with @type tags (consistent with qobject)
@@ -736,8 +734,7 @@ func GetData() map[string]int {
 		require.NoError(t, err)
 		env.vmk.CommitGnoTransactionStore(ctx)
 
-		cfgEval := QueryMsgEval{Expr: "GetData()", PkgPath: pkgPath, Format: QueryFormatJSON}
-		res, err := env.vmk.QueryEval(env.ctx, cfgEval)
+		res, err := env.vmk.QueryEval(env.ctx, pkgPath, "GetData()", QueryFormatJSON)
 		require.NoError(t, err)
 
 		// Verify Amino format - map shows as RefValue to persisted MapValue
@@ -772,8 +769,7 @@ func GetAmount() Amount {
 		require.NoError(t, err)
 		env.vmk.CommitGnoTransactionStore(ctx)
 
-		cfgEval := QueryMsgEval{Expr: "GetAmount()", PkgPath: pkgPath, Format: QueryFormatJSON}
-		res, err := env.vmk.QueryEval(env.ctx, cfgEval)
+		res, err := env.vmk.QueryEval(env.ctx, pkgPath, "GetAmount()", QueryFormatJSON)
 		require.NoError(t, err)
 
 		// Verify Amino format for declared type
@@ -815,8 +811,7 @@ func GetError() error {
 		require.NoError(t, err)
 		env.vmk.CommitGnoTransactionStore(ctx)
 
-		cfgEval := QueryMsgEval{Expr: "GetError()", PkgPath: pkgPath, Format: QueryFormatJSON}
-		res, err := env.vmk.QueryEval(env.ctx, cfgEval)
+		res, err := env.vmk.QueryEval(env.ctx, pkgPath, "GetError()", QueryFormatJSON)
 		require.NoError(t, err)
 
 		// Verify Amino format for pointer to error type
@@ -842,8 +837,7 @@ func GetError() error {
 		require.NoError(t, err)
 		env.vmk.CommitGnoTransactionStore(ctx)
 
-		cfgEval := QueryMsgEval{Expr: "GetPerson()", PkgPath: pkgPath, Format: QueryFormatJSON}
-		res, err := env.vmk.QueryEval(env.ctx, cfgEval)
+		res, err := env.vmk.QueryEval(env.ctx, pkgPath, "GetPerson()", QueryFormatJSON)
 		require.NoError(t, err)
 
 		// Verify Amino format for pointer type
@@ -877,8 +871,7 @@ func GetPtr() *Data {
 		require.NoError(t, err)
 		env.vmk.CommitGnoTransactionStore(ctx)
 
-		cfgEval := QueryMsgEval{Expr: "GetPtr()", PkgPath: pkgPath, Format: QueryFormatJSON}
-		res, err := env.vmk.QueryEval(env.ctx, cfgEval)
+		res, err := env.vmk.QueryEval(env.ctx, pkgPath, "GetPtr()", QueryFormatJSON)
 		require.NoError(t, err)
 
 		// Verify Amino format for nil pointer - V should be null
@@ -921,8 +914,7 @@ func GetParent() *Parent {
 		require.NoError(t, err)
 		env.vmk.CommitGnoTransactionStore(ctx)
 
-		cfgEval := QueryMsgEval{Expr: "GetParent()", PkgPath: pkgPath, Format: QueryFormatJSON}
-		res, err := env.vmk.QueryEval(env.ctx, cfgEval)
+		res, err := env.vmk.QueryEval(env.ctx, pkgPath, "GetParent()", QueryFormatJSON)
 		require.NoError(t, err)
 
 		// Verify Amino format for pointer to struct with nil field
@@ -958,8 +950,7 @@ func GetNumbers() []int {
 		require.NoError(t, err)
 		env.vmk.CommitGnoTransactionStore(ctx)
 
-		cfgEval := QueryMsgEval{Expr: "GetNumbers()", PkgPath: pkgPath, Format: QueryFormatJSON}
-		res, err := env.vmk.QueryEval(env.ctx, cfgEval)
+		res, err := env.vmk.QueryEval(env.ctx, pkgPath, "GetNumbers()", QueryFormatJSON)
 		require.NoError(t, err)
 
 		// Verify Amino format for persisted slice
@@ -1001,8 +992,7 @@ func GetItems() []Item {
 		require.NoError(t, err)
 		env.vmk.CommitGnoTransactionStore(ctx)
 
-		cfgEval := QueryMsgEval{Expr: "GetItems()", PkgPath: pkgPath, Format: QueryFormatJSON}
-		res, err := env.vmk.QueryEval(env.ctx, cfgEval)
+		res, err := env.vmk.QueryEval(env.ctx, pkgPath, "GetItems()", QueryFormatJSON)
 		require.NoError(t, err)
 
 		// Verify Amino format for slice of structs
@@ -1054,8 +1044,7 @@ func GetRoot() *Level1 {
 		require.NoError(t, err)
 		env.vmk.CommitGnoTransactionStore(ctx)
 
-		cfgEval := QueryMsgEval{Expr: "GetRoot()", PkgPath: pkgPath, Format: QueryFormatJSON}
-		res, err := env.vmk.QueryEval(env.ctx, cfgEval)
+		res, err := env.vmk.QueryEval(env.ctx, pkgPath, "GetRoot()", QueryFormatJSON)
 		require.NoError(t, err)
 
 		// Verify Amino format for nested pointer struct
@@ -1678,8 +1667,7 @@ func GetRoot() *L1 {
 
 	// Step 1: Query via qeval to get root pointer's ObjectID
 	// qeval returns Amino JSON format consistent with qobject
-	cfgEval := QueryMsgEval{Expr: "GetRoot()", PkgPath: pkgPath, Format: QueryFormatJSON}
-	res, err := env.vmk.QueryEval(env.ctx, cfgEval)
+	res, err := env.vmk.QueryEval(env.ctx, pkgPath, "GetRoot()", QueryFormatJSON)
 	require.NoError(t, err)
 	t.Logf("Step 1 - qeval GetRoot():\n%s\n", res)
 
