@@ -46,4 +46,25 @@ Or
 
 ## Getting started
 
-TODO
+Once installed, you can use `gno` to develop and test Gno packages locally.
+
+**Quick examples:**
+
+```bash
+# Run a Gno file
+gno run main.gno
+
+# Test Gno packages
+gno test ./...
+
+# Format Gno code
+gno fmt ./...
+
+# Start an interactive REPL
+gno repl
+```
+
+For comprehensive guides on developing with Gno, see:
+- [Installing gno and developing locally with gnodev](../../../docs/builders/local-dev-with-gnodev.md)
+- [Writing Gno code](../../../docs/builders/anatomy-of-a-gno-package.md)
+- [Testing Gno](../../../docs/resources/gno-testing.md)
