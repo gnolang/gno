@@ -9,11 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ============================================================================
-// Amino JSON Export Tests
-// These tests verify the Amino-based JSON export used by qeval and qobject.
-// ============================================================================
-
 func TestConvertJSONValuePrimitive(t *testing.T) {
 	cases := []struct {
 		ValueRep string // Go representation

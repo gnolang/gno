@@ -75,7 +75,7 @@ type QueryFormat string
 const (
 	QueryFormatMachine QueryFormat = "machine" // Default machine representation
 	QueryFormatString              = "string"  // Single string representation
-	QueryFormatJSON                = "json"    // XXX: EXPERIMENTAL, only supports primitive types for now
+	QueryFormatJSON                = "json"    // JSON format with Amino @type tags
 	QueryFormatDefault             = QueryFormatMachine
 )
 

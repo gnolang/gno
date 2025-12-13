@@ -66,10 +66,11 @@ var Value error = &myError{}`
 		tv := tps[0]
 		// Use signature-based detection: pass error type as lastReturnType
 		rep := stringifyJSONResults(m, []gnolang.TypedValue{tv}, tv.T)
-		// In Amino format, error shows as PointerValue with RefValue base
+		// In Amino format, error shows as PointerValue with expanded StructValue base
+		// (ephemeral objects are expanded inline, not shown as RefValue)
 		// The @error field at top level is extracted
 		require.Contains(t, rep, `"@type":"/gno.PointerValue"`)
-		require.Contains(t, rep, `"@type":"/gno.RefValue"`)
+		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
 		require.Contains(t, rep, `"@error":"my error"`)
 	})
 
@@ -93,9 +94,10 @@ var Value error = &myError{}`
 		tv := tps[0]
 		// Use signature-based detection: pass error type as lastReturnType
 		rep := stringifyJSONResults(m, []gnolang.TypedValue{tv}, tv.T)
-		// In Amino format, error shows as PointerValue with RefValue base
+		// In Amino format, error shows as PointerValue with expanded StructValue base
+		// (ephemeral objects are expanded inline, not shown as RefValue)
 		require.Contains(t, rep, `"@type":"/gno.PointerValue"`)
-		require.Contains(t, rep, `"@type":"/gno.RefValue"`)
+		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
 		require.Contains(t, rep, `"@error":""`)
 	})
 }

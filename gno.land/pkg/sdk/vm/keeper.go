@@ -1156,7 +1156,7 @@ func (vm *VMKeeper) QueryObject(ctx sdk.Context, oidStr string) (res string, err
 	defer m.Release()
 
 	// Export object to JSON with depth limiting
-	jsonBytes, err := gno.JSONExportObject(m, obj, gno.DefaultMaxDepth)
+	jsonBytes, err := gno.JSONExportObject(m, obj)
 	if err != nil {
 		return "", err
 	}
