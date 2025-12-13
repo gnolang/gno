@@ -620,10 +620,11 @@ func TestVMKeeperEvalJSONFormatting2(t *testing.T) {
 			expected: `{"results":[{"T":"bool","V":true}]}`,
 		},
 		{
-			name:     "JSON bytes",
-			pkgBody:  `func GetBytes() []byte { return []byte("test") }`,
-			expr:     "GetBytes()",
-			expected: `{"results":[{"T":"[]uint8","V":{"@type":"/gno.SliceValue","Base":{"@type":"/gno.RefValue","ObjectID":":1","Escaped":true},"Offset":"0","Length":"4","Maxcap":"8"}}]}`,
+			name:    "JSON bytes",
+			pkgBody: `func GetBytes() []byte { return []byte("test") }`,
+			expr:    "GetBytes()",
+			// Ephemeral byte slice shows ArrayValue base with Data (expanded inline)
+			expected: `{"results":[{"T":"[]uint8","V":{"@type":"/gno.SliceValue","Base":{"@type":"/gno.ArrayValue","ObjectInfo":{"ID":":0","ModTime":"0","RefCount":"0","LastObjectSize":"0"},"List":null,"Data":"dGVzdAAAAAA="},"Offset":"0","Length":"4","Maxcap":"8"}}]}`,
 		},
 		{
 			name:     "JSON multiple values",

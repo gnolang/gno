@@ -228,7 +228,8 @@ func stringifyJSONResults(m *gno.Machine, tvs []gno.TypedValue, lastReturnType g
 
 		// Use Amino-based JSON export with @type tags for consistency with qobject.
 		// This ensures all values (including raw objects) are properly serialized.
-		if jres.Results, err = gnolang.JSONExportTypedValues(tvs, nil); err != nil {
+		// Default options: skip unexported fields and json:"-" tagged fields.
+		if jres.Results, err = gnolang.JSONExportTypedValues(tvs, nil, nil); err != nil {
 			panic("unable to marshal results")
 		}
 

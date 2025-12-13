@@ -6,9 +6,30 @@ import (
 	"math"
 	"reflect"
 	"strconv"
+	"strings"
+	"unicode"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 )
+
+// JSONExportOptions controls JSON export behavior for qeval.
+type JSONExportOptions struct {
+	// ExportUnexported controls whether unexported (lowercase) fields are included.
+	// Default is false (only export uppercase fields).
+	ExportUnexported bool
+
+	// MaxDepth limits the depth of nested object expansion.
+	// Default is DefaultMaxDepth (3).
+	MaxDepth int
+}
+
+// DefaultJSONExportOptions returns default export options:
+// - Only exported (uppercase) fields
+// - MaxDepth of 3
+var DefaultJSONExportOptions = &JSONExportOptions{
+	ExportUnexported: false,
+	MaxDepth:         DefaultMaxDepth,
+}
 
 // MUST NOT modify anything inside tv.
 func ExportValues(tvs []TypedValue) []TypedValue {
@@ -438,15 +459,23 @@ type jsonTypedValue struct {
 	Value json.RawMessage `json:"V"`
 }
 
-func JSONExportTypedValues(tvs []TypedValue, seen map[Object]int) ([]byte, error) {
+func JSONExportTypedValues(tvs []TypedValue, seen map[Object]int, opts *JSONExportOptions) ([]byte, error) {
 	if seen == nil {
 		seen = map[Object]int{}
+	}
+	if opts == nil {
+		opts = DefaultJSONExportOptions
 	}
 
 	jexps := make([]*jsonTypedValue, len(tvs))
 
 	for i, tv := range tvs {
-		jexps[i] = jsonExportedTypedValue(exportValue(tv, seen))
+		// Use JSON-specific export that:
+		// - Shows RefValue for persisted (real) objects (even at root) so users can query via qobject
+		// - Expands ephemeral (unreal) objects inline (they have no queryable ObjectID)
+		// - Filters unexported fields and json:"-" tagged fields based on options
+		exported := jsonExportTypedValueForQeval(nil, tv, seen, 0, opts)
+		jexps[i] = jsonExportedTypedValueFromExported(exported)
 	}
 
 	return json.Marshal(jexps)
@@ -465,6 +494,75 @@ func jsonExportedTypedValue(tv TypedValue) (exp *jsonTypedValue) {
 	return &jsonTypedValue{
 		Type:  jsonExportedType(tv.T),
 		Value: jsonExportedValue(tv),
+	}
+}
+
+// jsonExportedTypedValueFromExported converts an already-exported TypedValue to JSON format.
+// This is used by JSONExportTypedValues() after calling jsonExportTypedValue() which
+// expands ephemeral objects inline while keeping RefValue for persisted objects.
+func jsonExportedTypedValueFromExported(tv TypedValue) *jsonTypedValue {
+	return &jsonTypedValue{
+		Type:  jsonExportedType(tv.T),
+		Value: jsonExportedValueFromExported(tv),
+	}
+}
+
+// jsonExportedValueFromExported converts an already-exported TypedValue's value to JSON.
+// Unlike jsonExportedValue(), this handles TypedValues that have already been processed
+// by jsonExportTypedValue() - meaning primitive N values have NOT been extracted yet.
+func jsonExportedValueFromExported(tv TypedValue) []byte {
+	bt := BaseOf(tv.T)
+	switch bt := bt.(type) {
+	case PrimitiveType:
+		var ret string
+		switch bt {
+		case UntypedBoolType, BoolType:
+			ret = strconv.FormatBool(tv.GetBool())
+		case UntypedStringType, StringType:
+			if sv, ok := tv.V.(StringValue); ok {
+				ret = strconv.Quote(string(sv))
+			} else {
+				ret = strconv.Quote(tv.GetString())
+			}
+		case IntType:
+			ret = fmt.Sprintf("%d", tv.GetInt())
+		case Int8Type:
+			ret = fmt.Sprintf("%d", tv.GetInt8())
+		case Int16Type:
+			ret = fmt.Sprintf("%d", tv.GetInt16())
+		case UntypedRuneType, Int32Type:
+			ret = fmt.Sprintf("%d", tv.GetInt32())
+		case Int64Type:
+			ret = fmt.Sprintf("%d", tv.GetInt64())
+		case UintType:
+			ret = fmt.Sprintf("%d", tv.GetUint())
+		case Uint8Type:
+			ret = fmt.Sprintf("%d", tv.GetUint8())
+		case DataByteType:
+			ret = fmt.Sprintf("%d", tv.GetDataByte())
+		case Uint16Type:
+			ret = fmt.Sprintf("%d", tv.GetUint16())
+		case Uint32Type:
+			ret = fmt.Sprintf("%d", tv.GetUint32())
+		case Uint64Type:
+			ret = fmt.Sprintf("%d", tv.GetUint64())
+		case Float32Type:
+			ret = fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32()))
+		case Float64Type:
+			ret = fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64()))
+		case UntypedBigintType:
+			ret = tv.V.(BigintValue).V.String()
+		case UntypedBigdecType:
+			ret = tv.V.(BigdecValue).V.String()
+		default:
+			panic("invalid primitive type - should not happen")
+		}
+		return []byte(ret)
+	default:
+		if tv.V == nil {
+			return []byte("null")
+		}
+		return amino.MustMarshalJSONAny(tv.V)
 	}
 }
 
@@ -542,6 +640,92 @@ func jsonExportedValue(tv TypedValue) []byte {
 const (
 	DefaultMaxDepth = 3 // Default depth limit for JSON export
 )
+
+// isExportedName returns true if name starts with an uppercase letter.
+// This follows Go's convention where uppercase names are exported (public).
+func isExportedName(name Name) bool {
+	if len(name) == 0 {
+		return false
+	}
+	return unicode.IsUpper(rune(name[0]))
+}
+
+// hasJSONSkipTag returns true if the struct tag contains `json:"-"`.
+// Fields with this tag should be omitted from JSON output.
+func hasJSONSkipTag(tag Tag) bool {
+	if tag == "" {
+		return false
+	}
+	// Parse the json tag from the struct tag
+	// Format: `json:"name,options"` or `json:"-"`
+	tagStr := string(tag)
+	for tagStr != "" {
+		// Skip leading space
+		i := 0
+		for i < len(tagStr) && tagStr[i] == ' ' {
+			i++
+		}
+		tagStr = tagStr[i:]
+		if tagStr == "" {
+			break
+		}
+
+		// Scan to colon - find the key
+		i = 0
+		for i < len(tagStr) && tagStr[i] > ' ' && tagStr[i] != ':' && tagStr[i] != '"' && tagStr[i] != 0x7f {
+			i++
+		}
+		if i == 0 || i+1 >= len(tagStr) || tagStr[i] != ':' || tagStr[i+1] != '"' {
+			break
+		}
+		key := tagStr[:i]
+		tagStr = tagStr[i+1:]
+
+		// Scan quoted value
+		i = 1
+		for i < len(tagStr) && tagStr[i] != '"' {
+			if tagStr[i] == '\\' {
+				i++
+			}
+			i++
+		}
+		if i >= len(tagStr) {
+			break
+		}
+		value := tagStr[1:i]
+		tagStr = tagStr[i+1:]
+
+		if key == "json" {
+			// Check if the json tag value is "-" or starts with "-,"
+			if value == "-" || strings.HasPrefix(value, "-,") {
+				return true
+			}
+			return false
+		}
+	}
+	return false
+}
+
+// getStructTypeFromType resolves a Type to its underlying *StructType.
+// Returns nil if the type is not a struct type.
+func getStructTypeFromType(typ Type) *StructType {
+	if typ == nil {
+		return nil
+	}
+
+	switch t := typ.(type) {
+	case *DeclaredType:
+		return getStructTypeFromType(t.Base)
+	case *StructType:
+		return t
+	case RefType:
+		// RefType needs to be resolved via store, which we don't have here.
+		// Caller should resolve RefType before calling this function.
+		return nil
+	default:
+		return nil
+	}
+}
 
 // JSONExportObject exports an Object to JSON using Amino marshaling.
 // This function handles all object types including HeapItemValue, StructValue,
@@ -860,4 +1044,314 @@ func jsonExportTypedValue(st Store, tv TypedValue, seen map[Object]int, depth, m
 	// Copy primitive values
 	result.N = tv.N
 	return result
+}
+
+// jsonExportTypedValueForQeval exports a TypedValue for qeval JSON serialization.
+// Unlike jsonExportTypedValue, this returns RefValue for persisted (real) objects
+// even at root level, since qeval results can be drilled down via qobject.
+// Only ephemeral (unreal) objects are expanded inline.
+// The opts parameter controls field visibility filtering.
+func jsonExportTypedValueForQeval(st Store, tv TypedValue, seen map[Object]int, depth int, opts *JSONExportOptions) TypedValue {
+	result := TypedValue{}
+	if tv.T != nil {
+		result.T = exportRefOrCopyType(tv.T, seen)
+	}
+
+	if obj, ok := tv.V.(Object); ok {
+		result.V = jsonExportObjectValueForQeval(st, obj, tv.T, seen, depth, opts)
+		return result
+	}
+
+	// For non-Object values, use the JSON export copy
+	if tv.V != nil {
+		result.V = jsonExportCopyValueForQeval(st, tv.V, tv.T, seen, depth, opts)
+	}
+	// Copy primitive values
+	result.N = tv.N
+	return result
+}
+
+// jsonExportObjectValueForQeval exports an Object for qeval JSON serialization.
+// Unlike jsonExportObjectValue, this returns RefValue for persisted (real) objects
+// at ALL levels (including root), since these can be queried via qobject.
+// The typ parameter provides type information for field filtering.
+func jsonExportObjectValueForQeval(st Store, obj Object, typ Type, seen map[Object]int, depth int, opts *JSONExportOptions) Value {
+	if obj == nil {
+		return nil
+	}
+
+	maxDepth := opts.MaxDepth
+
+	// Unwrap HeapItemValue - it's an implementation detail.
+	if hiv, ok := obj.(*HeapItemValue); ok {
+		if hiv.GetIsReal() {
+			// Real HeapItemValue - return RefValue pointing to it
+			return RefValue{
+				ObjectID: hiv.GetObjectID(),
+				Escaped:  hiv.GetIsEscaped() || hiv.GetIsNewEscaped(),
+				Hash:     hiv.GetHash(),
+			}
+		}
+		// Non-real HeapItemValue - unwrap and continue
+		obj = unwrapHeapItemValue(st, obj)
+	}
+
+	// Check for cycles first
+	if id, exists := seen[obj]; exists {
+		if obj.GetIsReal() {
+			return RefValue{
+				ObjectID: obj.GetObjectID(),
+				Escaped:  true,
+			}
+		}
+		return RefValue{
+			ObjectID: ObjectID{NewTime: uint64(id)},
+			Escaped:  true,
+		}
+	}
+
+	// For real objects at ANY level (including root), return RefValue
+	// This allows users to drill down via qobject
+	if obj.GetIsReal() {
+		return RefValue{
+			ObjectID: obj.GetObjectID(),
+			Escaped:  obj.GetIsEscaped() || obj.GetIsNewEscaped(),
+			Hash:     obj.GetHash(),
+		}
+	}
+
+	// Check depth limit for non-real objects
+	if maxDepth >= 0 && depth > maxDepth {
+		id := len(seen) + 1
+		seen[obj] = id
+		return RefValue{
+			ObjectID: ObjectID{NewTime: uint64(id)},
+			Escaped:  true,
+		}
+	}
+
+	// Mark as seen before recursing (cycle detection)
+	id := len(seen) + 1
+	seen[obj] = id
+
+	// Expand non-real (ephemeral) object inline
+	return jsonExportCopyValueForQeval(st, obj, typ, seen, depth, opts)
+}
+
+// jsonExportCopyValueForQeval creates an exported copy of a Value for qeval JSON serialization.
+// The typ parameter provides type information for field filtering.
+func jsonExportCopyValueForQeval(st Store, val Value, typ Type, seen map[Object]int, depth int, opts *JSONExportOptions) Value {
+	switch cv := val.(type) {
+	case nil:
+		return nil
+	case StringValue:
+		return cv
+	case BigintValue:
+		return cv
+	case BigdecValue:
+		return cv
+	case DataByteValue:
+		panic("cannot copy data byte value")
+	case PointerValue:
+		if cv.Base == nil {
+			panic("pointer with nil base")
+		}
+		// Get element type for the pointer
+		var eltType Type
+		if pt, ok := BaseOf(typ).(*PointerType); ok {
+			eltType = pt.Elt
+		}
+		var base Value
+		switch b := cv.Base.(type) {
+		case Object:
+			base = jsonExportObjectValueForQeval(st, b, eltType, seen, depth+1, opts)
+		case RefValue:
+			base = b
+		default:
+			panic(fmt.Sprintf("unexpected pointer base type: %T", cv.Base))
+		}
+		return PointerValue{
+			Base:  base,
+			Index: cv.Index,
+		}
+	case *ArrayValue:
+		// Get element type for array
+		var eltType Type
+		if at, ok := BaseOf(typ).(*ArrayType); ok {
+			eltType = at.Elt
+		}
+		if cv.Data == nil {
+			list := make([]TypedValue, len(cv.List))
+			for i, etv := range cv.List {
+				etv.T = eltType // Set element type for filtering
+				list[i] = jsonExportTypedValueForQeval(st, etv, seen, depth+1, opts)
+			}
+			return &ArrayValue{
+				ObjectInfo: cv.ObjectInfo.Copy(),
+				List:       list,
+			}
+		}
+		return &ArrayValue{
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			Data:       cp(cv.Data),
+		}
+	case *SliceValue:
+		// Get element type for slice
+		var eltType Type
+		if slt, ok := BaseOf(typ).(*SliceType); ok {
+			eltType = slt.Elt
+		}
+		var base Value
+		if cv.Base != nil {
+			if obj, ok := cv.Base.(Object); ok {
+				// Slice base is an array, create array type for it
+				var arrType Type
+				if eltType != nil {
+					arrType = &ArrayType{Elt: eltType}
+				}
+				base = jsonExportObjectValueForQeval(st, obj, arrType, seen, depth+1, opts)
+			} else if ref, ok := cv.Base.(RefValue); ok {
+				base = ref
+			}
+		}
+		return &SliceValue{
+			Base:   base,
+			Offset: cv.Offset,
+			Length: cv.Length,
+			Maxcap: cv.Maxcap,
+		}
+	case *StructValue:
+		// Get struct type for field filtering
+		structType := getStructTypeFromType(typ)
+
+		if structType == nil || len(structType.Fields) != len(cv.Fields) {
+			// No type info or mismatch - export all fields (fallback)
+			fields := make([]TypedValue, len(cv.Fields))
+			for i, ftv := range cv.Fields {
+				fields[i] = jsonExportTypedValueForQeval(st, ftv, seen, depth+1, opts)
+			}
+			return &StructValue{
+				ObjectInfo: cv.ObjectInfo.Copy(),
+				Fields:     fields,
+			}
+		}
+
+		// Filter fields based on visibility and json tags
+		var fields []TypedValue
+		for i, ftv := range cv.Fields {
+			ft := structType.Fields[i]
+
+			// Always skip json:"-" tagged fields
+			if hasJSONSkipTag(ft.Tag) {
+				continue
+			}
+
+			// Check export visibility
+			if !opts.ExportUnexported && !isExportedName(ft.Name) {
+				continue
+			}
+
+			// Export this field with its type
+			ftv.T = ft.Type
+			fields = append(fields, jsonExportTypedValueForQeval(st, ftv, seen, depth+1, opts))
+		}
+		return &StructValue{
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			Fields:     fields,
+		}
+	case *FuncValue:
+		source := toRefNode(cv.Source)
+		var parent Value
+		if cv.Parent != nil {
+			if obj, ok := cv.Parent.(Object); ok {
+				parent = jsonExportObjectValueForQeval(st, obj, nil, seen, depth+1, opts)
+			} else if ref, ok := cv.Parent.(RefValue); ok {
+				parent = ref
+			}
+		}
+		captures := make([]TypedValue, len(cv.Captures))
+		for i, ctv := range cv.Captures {
+			captures[i] = jsonExportTypedValueForQeval(st, ctv, seen, depth+1, opts)
+		}
+		ft := exportCopyTypeWithRefs(cv.Type, seen)
+		return &FuncValue{
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			Type:       ft,
+			IsMethod:   cv.IsMethod,
+			Source:     source,
+			Name:       cv.Name,
+			Parent:     parent,
+			Captures:   captures,
+			FileName:   cv.FileName,
+			PkgPath:    cv.PkgPath,
+			NativePkg:  cv.NativePkg,
+			NativeName: cv.NativeName,
+			Crossing:   cv.Crossing,
+		}
+	case *BoundMethodValue:
+		fnc := jsonExportCopyValueForQeval(st, cv.Func, nil, seen, depth, opts).(*FuncValue)
+		rtv := jsonExportTypedValueForQeval(st, cv.Receiver, seen, depth+1, opts)
+		return &BoundMethodValue{
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			Func:       fnc,
+			Receiver:   rtv,
+		}
+	case *MapValue:
+		// Get key/value types from map type
+		var keyType, valType Type
+		if mt, ok := BaseOf(typ).(*MapType); ok {
+			keyType = mt.Key
+			valType = mt.Value
+		}
+		list := &MapList{}
+		for cur := cv.List.Head; cur != nil; cur = cur.Next {
+			k := cur.Key
+			k.T = keyType
+			v := cur.Value
+			v.T = valType
+			key2 := jsonExportTypedValueForQeval(st, k, seen, depth+1, opts)
+			val2 := jsonExportTypedValueForQeval(st, v, seen, depth+1, opts)
+			list.Append(nilAllocator, key2).Value = val2
+		}
+		return &MapValue{
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			List:       list,
+		}
+	case TypeValue:
+		return toTypeValue(exportCopyTypeWithRefs(cv.Type, seen))
+	case *PackageValue:
+		return RefValue{
+			PkgPath: cv.PkgPath,
+		}
+	case *Block:
+		source := toRefNode(cv.Source)
+		vals := make([]TypedValue, len(cv.Values))
+		for i, tv := range cv.Values {
+			vals[i] = jsonExportTypedValueForQeval(st, tv, seen, depth+1, opts)
+		}
+		var bparent Value
+		if cv.Parent != nil {
+			if obj, ok := cv.Parent.(Object); ok {
+				bparent = jsonExportObjectValueForQeval(st, obj, nil, seen, depth+1, opts)
+			} else if ref, ok := cv.Parent.(RefValue); ok {
+				bparent = ref
+			}
+		}
+		return &Block{
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			Source:     source,
+			Values:     vals,
+			Parent:     bparent,
+			Blank:      TypedValue{},
+		}
+	case RefValue:
+		return cv
+	case *HeapItemValue:
+		return &HeapItemValue{
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			Value:      jsonExportTypedValueForQeval(st, cv.Value, seen, depth+1, opts),
+		}
+	default:
+		panic(fmt.Sprintf("unexpected type %v", reflect.TypeOf(val)))
+	}
 }

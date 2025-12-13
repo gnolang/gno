@@ -186,10 +186,10 @@ var Value = Item{ID: 1, Name: "test"}`
 		require.Len(t, tvs, 1)
 
 		rep := stringifyJSONResults(m, tvs, nil)
-		// In Amino format, struct shows as RefValue with ObjectID
+		// Ephemeral (unreal) structs are expanded inline showing their content
 		require.Contains(t, rep, `"T":"testdata.Item"`)
-		require.Contains(t, rep, `"@type":"/gno.RefValue"`)
-		require.Contains(t, rep, `"ObjectID"`)
+		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
+		require.Contains(t, rep, `"Fields"`)
 	})
 
 	t.Run("empty_struct", func(t *testing.T) {
@@ -208,10 +208,11 @@ var Value = Empty{}`
 		require.Len(t, tvs, 1)
 
 		rep := stringifyJSONResults(m, tvs, nil)
-		// In Amino format, empty struct shows as RefValue with ObjectID
+		// Ephemeral empty struct is expanded inline
 		require.Contains(t, rep, `"T":"testdata.Empty"`)
-		require.Contains(t, rep, `"@type":"/gno.RefValue"`)
-		require.Contains(t, rep, `"ObjectID"`)
+		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
+		// Empty struct has null Fields (no fields to export)
+		require.Contains(t, rep, `"Fields":null`)
 	})
 
 	t.Run("nested_struct", func(t *testing.T) {
@@ -231,10 +232,10 @@ var Value = Outer{Inner: Inner{Value: 42}}`
 		require.Len(t, tvs, 1)
 
 		rep := stringifyJSONResults(m, tvs, nil)
-		// In Amino format, nested struct shows as RefValue
+		// Ephemeral nested struct is expanded inline
 		require.Contains(t, rep, `"T":"testdata.Outer"`)
-		require.Contains(t, rep, `"@type":"/gno.RefValue"`)
-		require.Contains(t, rep, `"ObjectID"`)
+		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
+		require.Contains(t, rep, `"Fields"`)
 	})
 }
 
@@ -317,9 +318,10 @@ var Value = []Item{{ID: 1}, {ID: 2}}`
 		require.Len(t, tvs, 1)
 
 		rep := stringifyJSONResults(m, tvs, nil)
-		// In Amino format, struct slice shows as SliceValue with RefValue base
+		// Ephemeral struct slice shows with ArrayValue base containing inline structs
 		require.Contains(t, rep, `"@type":"/gno.SliceValue"`)
-		require.Contains(t, rep, `"@type":"/gno.RefValue"`)
+		require.Contains(t, rep, `"@type":"/gno.ArrayValue"`)
+		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
 		require.Contains(t, rep, `"Length":"2"`)
 	})
 }
@@ -366,9 +368,9 @@ var Value = &Item{ID: 42}`
 		require.Len(t, tvs, 1)
 
 		rep := stringifyJSONResults(m, tvs, nil)
-		// In Amino format, pointer shows as PointerValue with RefValue base
+		// Ephemeral pointer shows as PointerValue with StructValue base (expanded inline)
 		require.Contains(t, rep, `"@type":"/gno.PointerValue"`)
-		require.Contains(t, rep, `"@type":"/gno.RefValue"`)
+		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
 	})
 }
 
@@ -597,41 +599,113 @@ var Value3 = []int{1, 2, 3}`
 // ============================================================================
 
 func TestConvertJSONTags(t *testing.T) {
-	cases := []struct {
-		name     string
-		code     string
-		expected string
-	}{
-		{
-			name: "custom_tag",
-			code: "package testdata\ntype Tagged struct {\n\tFirstName string `json:\"first_name\"`\n}\nvar Value = Tagged{FirstName: \"John\"}",
-			// In Amino format, struct shows as RefValue
-			expected: `{"results":[{"T":"testdata.Tagged","V":{"@type":"/gno.RefValue","ObjectID":":1","Escaped":true}}]}`,
-		},
-		{
-			name: "tag_with_omitempty",
-			code: "package testdata\ntype WithOmit struct {\n\tName string `json:\"name,omitempty\"`\n}\nvar Value = WithOmit{Name: \"test\"}",
-			// In Amino format, struct shows as RefValue
-			expected: `{"results":[{"T":"testdata.WithOmit","V":{"@type":"/gno.RefValue","ObjectID":":1","Escaped":true}}]}`,
-		},
-	}
+	// JSON tags in Gno structs - note that Amino serialization doesn't use JSON tags,
+	// it always uses field names. The ephemeral structs are expanded inline.
+	t.Run("custom_tag", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			m := gnolang.NewMachine("testdata", nil)
-			defer m.Release()
+		code := "package testdata\ntype Tagged struct {\n\tFirstName string `json:\"first_name\"`\n}\nvar Value = Tagged{FirstName: \"John\"}"
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
 
-			nn := m.MustParseFile("testdata.gno", tc.code)
-			m.RunFiles(nn)
-			m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
 
-			tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
-			require.Len(t, tvs, 1)
+		rep := stringifyJSONResults(m, tvs, nil)
+		// Ephemeral struct is expanded inline showing its fields
+		require.Contains(t, rep, `"T":"testdata.Tagged"`)
+		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
+		require.Contains(t, rep, `"Fields"`)
+	})
 
-			rep := stringifyJSONResults(m, tvs, nil)
-			require.Equal(t, tc.expected, rep)
-		})
-	}
+	t.Run("tag_with_omitempty", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		code := "package testdata\ntype WithOmit struct {\n\tName string `json:\"name,omitempty\"`\n}\nvar Value = WithOmit{Name: \"test\"}"
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+		// Ephemeral struct is expanded inline showing its fields
+		require.Contains(t, rep, `"T":"testdata.WithOmit"`)
+		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
+		require.Contains(t, rep, `"Fields"`)
+	})
+
+	t.Run("json_skip_tag", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		// Struct with a json:"-" tagged field that should be skipped
+		code := "package testdata\ntype WithSkip struct {\n\tPublic string\n\tSkipped string `json:\"-\"`\n}\nvar Value = WithSkip{Public: \"visible\", Skipped: \"hidden\"}"
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+		// Struct should only have 1 field (Skipped field is filtered out)
+		require.Contains(t, rep, `"T":"testdata.WithSkip"`)
+		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
+		require.Contains(t, rep, `"visible"`)
+		require.NotContains(t, rep, `"hidden"`)
+	})
+}
+
+// ============================================================================
+// Field Visibility Tests
+// ============================================================================
+
+func TestConvertJSONFieldVisibility(t *testing.T) {
+	t.Run("unexported_field_filtered", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		// Struct with an unexported field that should be filtered by default
+		code := "package testdata\ntype MixedVisibility struct {\n\tPublicField string\n\tprivateField string\n}\nvar Value = MixedVisibility{PublicField: \"public\", privateField: \"private\"}"
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+		// Only exported field should be present
+		require.Contains(t, rep, `"T":"testdata.MixedVisibility"`)
+		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
+		require.Contains(t, rep, `"public"`)
+		require.NotContains(t, rep, `"private"`)
+	})
+
+	t.Run("all_unexported_struct", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		// Struct with only unexported fields
+		code := "package testdata\ntype AllPrivate struct {\n\tprivateA string\n\tprivateB int\n}\nvar Value = AllPrivate{privateA: \"a\", privateB: 42}"
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+		// Struct should have no fields (all filtered)
+		require.Contains(t, rep, `"T":"testdata.AllPrivate"`)
+		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
+		require.Contains(t, rep, `"Fields":null`)
+	})
 }
 
 // ============================================================================
