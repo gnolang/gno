@@ -8,11 +8,6 @@ For **local development**, we recommend using [gnodev](../../../contribs/gnodev)
 
 ## Getting Started
 
-To run your own local gno.land node, follow this guide from the [gnops blog](https://gnops.io/):  
-👉 [Setting up a local Gno chain from scratch](https://gnops.io/articles/guides/local-chain/)
-
-**TODO:** Make this README self-sufficient so that we don’t depend on this blog.
-
 ### Install `gnoland`
 
 ```bash
@@ -21,11 +16,47 @@ cd gno/gno.land
 make install.gnoland
 ```
 
-### Run gnoland
+### Quick Start (Development Mode)
+
+For quick local testing, you can start a node with default settings:
 
 ```bash
 gnoland start -lazy -skip-genesis-sig-verification
 ```
+
+This command:
+- `-lazy`: Delays transaction execution for better development experience
+- `-skip-genesis-sig-verification`: Skips signature verification during genesis (development only)
+
+### Full Setup (Production Mode)
+
+For a production-like setup, initialize the configuration first:
+
+1. **Initialize configuration:**
+   ```bash
+   gnoland config init
+   ```
+   This creates the necessary configuration files in your data directory.
+
+2. **Initialize secrets (validator keys):**
+   ```bash
+   gnoland secrets init
+   ```
+
+3. **Start the node:**
+   ```bash
+   gnoland start
+   ```
+
+### Configuration
+
+The node configuration is stored in your data directory (default: `$HOME/.gnoland`). You can:
+
+- View configuration: `gnoland config get`
+- Update configuration: `gnoland config set <key> <value>`
+- Manage validator keys: `gnoland secrets get/verify`
+
+### Interacting with the Node
 
 Once running, you can interact with it using:
 - [gnokey](../gnokey) – CLI wallet & tool
