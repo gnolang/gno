@@ -750,7 +750,9 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 			continue
 		} else {
 			if !uo.GetIsDeleted() {
-				rlm.saveUnsavedObjectRecursively(store, uo, tids)
+				rlm.assertObjectIsPublic(uo, store, tids)
+				rlm.saveObject(store, uo)
+				uo.SetIsDirty(false, 0)
 			}
 		}
 	}
