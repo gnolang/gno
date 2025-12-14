@@ -70,7 +70,7 @@ func TestConvertJSONValuePrimitive(t *testing.T) {
 			rep, err := JSONExportTypedValue(tv, nil)
 			require.NoError(t, err)
 
-			require.Equal(t, string(tc.Expected), string(rep))
+			require.Equal(t, tc.Expected, string(rep))
 		})
 	}
 }

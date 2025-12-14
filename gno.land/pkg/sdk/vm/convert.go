@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/apd/v3"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
@@ -230,7 +229,7 @@ func stringifyJSONResults(m *gno.Machine, tvs []gno.TypedValue, lastReturnType g
 		// This ensures all values (including raw objects) are properly serialized.
 		// ExportUnexported=true allows viewing internal fields (e.g., avl.Node).
 		// MaxDepth=3 limits nested object expansion.
-		opts := gnolang.JSONExporterOptions{MaxDepth: 3, ExportUnexported: true}
+		opts := gno.JSONExporterOptions{MaxDepth: 3, ExportUnexported: true}
 		if jres.Results, err = opts.ExportTypedValues(tvs); err != nil {
 			panic("unable to marshal results")
 		}

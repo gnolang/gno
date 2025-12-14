@@ -32,6 +32,8 @@ func (opts JSONExporterOptions) ExportTypedValues(tvs []TypedValue) ([]byte, err
 	jexps := make([]*jsonTypedValue, len(tvs))
 
 	for i, tv := range tvs {
+		// Export with RefValue for persisted objects, inline expansion for ephemeral objects.
+		// Filters fields based on ExportUnexported option and json:"-" tags.
 		exported := e.exportTypedValue(tv, 0)
 		jexps[i] = e.jsonExportedTypedValueFromExported(exported)
 	}
@@ -295,11 +297,7 @@ func exportToValueOrRefValue(val Value, seen map[Object]int) Value {
 		}
 	}
 
-	if oo.GetIsDirty() {
-		// This can happen with some circular
-		// references.
-		// panic("unexpected dirty object")
-	}
+	// Note: oo.GetIsDirty() can be true with some circular references.
 
 	if oo.GetIsNewEscaped() {
 		// NOTE: oo.GetOwnerID() will become zero.
@@ -468,13 +466,15 @@ type jsonNamedField struct {
 	Value json.RawMessage `json:"V"`
 }
 
-// jsonStructValue represents a StructValue with named fields for internal JSON marshaling.
+// jsonStructValue is a StructValue with named fields for custom JSON marshaling.
+// Used internally by ExportTypedValues; fields are json.RawMessage for flexibility.
 type jsonStructValue struct {
-	ObjectInfo JSONObjectInfo  `json:"ObjectInfo"`
+	ObjectInfo JSONObjectInfo   `json:"ObjectInfo"`
 	Fields     []jsonNamedField `json:"Fields"`
 }
 
-// JSONField represents a struct field with name, type, and value for Amino serialization.
+// JSONField represents a struct field with name, type, and value.
+// Registered with Amino to produce @type tags in JSON output.
 type JSONField struct {
 	N string `json:"N"` // Field name
 	T Type   `json:"T"` // Type (Amino-serializable)
@@ -482,6 +482,7 @@ type JSONField struct {
 }
 
 // JSONObjectInfo is a simplified ObjectInfo for JSON export.
+// Avoids verbose nested struct serialization of the full ObjectInfo.
 // ID format: ":N" for ephemeral objects, "pkghash:N" for persisted objects.
 type JSONObjectInfo struct {
 	ID       string `json:"ID"`
@@ -489,6 +490,8 @@ type JSONObjectInfo struct {
 }
 
 // makeJSONObjectInfo creates a JSONObjectInfo from ObjectInfo.
+// For ephemeral objects (zero ObjectID), uses incrementalID for the ID (":1", ":2", etc).
+// For persisted objects, uses the full ObjectID string.
 func makeJSONObjectInfo(oi ObjectInfo, incrementalID int) JSONObjectInfo {
 	var id string
 	if oi.ID.IsZero() && incrementalID > 0 {
@@ -502,17 +505,19 @@ func makeJSONObjectInfo(oi ObjectInfo, incrementalID int) JSONObjectInfo {
 	}
 }
 
-// JSONStructValue represents a StructValue with named fields for Amino serialization.
+// JSONStructValue is a StructValue with named fields for Amino serialization.
+// Replaces StructValue during export to include field names in JSON output.
+// Implements the Value interface minimally (export-only type).
 type JSONStructValue struct {
-	ObjectInfo JSONObjectInfo   `json:"ObjectInfo"`
-	Fields     []JSONField `json:"Fields"`
+	ObjectInfo JSONObjectInfo `json:"ObjectInfo"`
+	Fields     []JSONField    `json:"Fields"`
 }
 
-func (asv *JSONStructValue) assertValue()                      {}
-func (asv *JSONStructValue) String() string                    { return "JSONStructValue{...}" }
-func (asv *JSONStructValue) DeepFill(store Store) Value        { return asv }
-func (asv *JSONStructValue) GetShallowSize() int64             { return 0 }
-func (asv *JSONStructValue) VisitAssociated(vis Visitor) bool  { return false }
+func (asv *JSONStructValue) assertValue()                     {}
+func (asv *JSONStructValue) String() string                   { return "JSONStructValue{...}" }
+func (asv *JSONStructValue) DeepFill(store Store) Value       { return asv }
+func (asv *JSONStructValue) GetShallowSize() int64            { return 0 }
+func (asv *JSONStructValue) VisitAssociated(vis Visitor) bool { return false }
 
 // jsonExporter handles JSON serialization of Gno values.
 // Configuration fields control export behavior.
@@ -627,7 +632,7 @@ func (e *jsonExporter) marshalStructValueWithNames(sv *StructValue) []byte {
 	structType := e.structTypes[sv]
 
 	// Build named fields
-	var namedFields []jsonNamedField
+	namedFields := make([]jsonNamedField, 0, len(sv.Fields))
 	for i, ftv := range sv.Fields {
 		var fieldName string
 		if structType != nil && i < len(structType.Fields) {

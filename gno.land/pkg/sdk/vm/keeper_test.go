@@ -1606,7 +1606,8 @@ func Echo(cur realm, msg string){
 // This verifies the object graph can be explored via qeval + qobject queries.
 //
 // The object graph structure for nested pointers is:
-//   HeapItemValue (for *L1) -> StructValue (L1) -> HeapItemValue (for *L2) -> StructValue (L2) -> ...
+//
+//	HeapItemValue (for *L1) -> StructValue (L1) -> HeapItemValue (for *L2) -> StructValue (L2) -> ...
 //
 // Each pointer field is wrapped in a HeapItemValue, and the actual struct is a separate object.
 // So traversal requires following the RefValue chain through each wrapper.

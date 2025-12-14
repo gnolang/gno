@@ -711,8 +711,8 @@ func TestConvertJSONFieldVisibility(t *testing.T) {
 		// Struct should have all fields (ExportUnexported=true)
 		require.Contains(t, rep, `"T":"testdata.AllPrivate"`)
 		require.Contains(t, rep, `"ObjectInfo"`)
-		require.Contains(t, rep, `"a"`)            // privateA value
-		require.Contains(t, rep, `"Fields":[{`)    // has fields, not null
+		require.Contains(t, rep, `"a"`)              // privateA value
+		require.Contains(t, rep, `"Fields":[{`)      // has fields, not null
 		require.NotContains(t, rep, `"Fields":null`) // fields are included
 	})
 }

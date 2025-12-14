@@ -237,4 +237,3 @@ func (msg MsgRun) GetSigners() []crypto.Address {
 func (msg MsgRun) GetReceived() std.Coins {
 	return msg.Send
 }
-
