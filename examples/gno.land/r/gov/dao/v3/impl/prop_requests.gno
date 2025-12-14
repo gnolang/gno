@@ -207,12 +207,8 @@ func NewProposalFeeAmountRequest(newAmount int64, reason string) dao.ProposalReq
 	}
 
 	cb := func(_ realm) error {
-		return panictoerr.PanicToError(func() {
-			err := _govdao.SetProposalFeeAmount(newAmount)
-			if err != nil {
-				panic(err)
-			}
-		})
+		ProposalFeeAmount = newAmount
+		return nil
 	}
 
 	e := dao.NewSimpleExecutor(

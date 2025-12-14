@@ -203,17 +203,3 @@ func (g *GovDAO) isValidCall() bool {
 
 	return false
 }
-
-// SetProposalFeeAmount updates the proposal fee amount for non-members.
-func (g *GovDAO) SetProposalFeeAmount(amount int64) error {
-	if !g.isValidCall() {
-		return errors.New("proposal fee amount can only be changed through a proposal")
-	}
-
-	if amount < 0 {
-		return errors.New("proposal fee amount must be non-negative")
-	}
-
-	ProposalFeeAmount = amount
-	return nil
-}
