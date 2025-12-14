@@ -750,7 +750,7 @@ func (e *jsonExporter) ExportObject(m *Machine, obj Object) ([]byte, error) {
 	// Export the object using JSON-specific export that:
 	// - Expands root and non-real objects inline
 	// - Converts real nested objects to RefValue with their actual ObjectID
-	exported := jsonExportObjectValue(e.store, obj, e.seen, 0, e.MaxDepth)
+	exported := jsonExportObjectValue(e.store, obj, e.seen, 0, e.opts.MaxDepth)
 
 	// Now serialize the exported (cycle-safe) object via Amino.
 	return amino.MarshalJSONAny(exported)
@@ -1114,7 +1114,7 @@ func (e *jsonExporter) exportObjectValue(obj Object, typ Type, depth int) Value 
 	}
 
 	// Check depth limit for non-real objects
-	if e.MaxDepth >= 0 && depth > e.MaxDepth {
+	if e.opts.MaxDepth >= 0 && depth > e.opts.MaxDepth {
 		id := len(e.seen) + 1
 		e.seen[obj] = id
 		return RefValue{
@@ -1240,7 +1240,7 @@ func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int) Value {
 			}
 
 			// Check export visibility
-			if !e.ExportUnexported && !isExportedName(ft.Name) {
+			if !e.opts.ExportUnexported && !isExportedName(ft.Name) {
 				continue
 			}
 
