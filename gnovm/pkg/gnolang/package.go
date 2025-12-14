@@ -33,8 +33,9 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	&HeapItemValue{},
 
 	// Export types with field names (for JSON export with field name support)
-	AminoNamedField{},
-	&AminoStructValue{},
+	JSONField{},
+	JSONObjectInfo{},
+	&JSONStructValue{},
 
 	//----------------------------------------
 	// Realm/Object

@@ -1676,23 +1676,23 @@ func GetRoot() *L1 {
 	oid := extractNestedRefValueObjectID(t, res)
 	require.NotEmpty(t, oid, "Should have ObjectID for *L1")
 
-	// Step 2: Query the HeapItemValue via qobject -> auto-unwrapped to show L1 AminoStructValue!
-	// qobject uses Amino format with @type tags. AminoStructValue includes field names.
+	// Step 2: Query the HeapItemValue via qobject -> auto-unwrapped to show L1 JSONStructValue!
+	// qobject uses Amino format with @type tags. JSONStructValue includes field names.
 	res, err = env.vmk.QueryObject(env.ctx, oid)
 	require.NoError(t, err)
-	t.Logf("Step 2 - L1 AminoStructValue (auto-unwrapped from HeapItemValue):\n%s\n", res)
-	assert.Contains(t, res, `"@type":"/gno.AminoStructValue"`)
+	t.Logf("Step 2 - L1 JSONStructValue (auto-unwrapped from HeapItemValue):\n%s\n", res)
+	assert.Contains(t, res, `"@type":"/gno.JSONStructValue"`)
 	assert.NotContains(t, res, `"@type":"/gno.HeapItemValue"`, "HeapItemValue should be auto-unwrapped")
 
 	// Extract the ObjectID for *L2 field (nested RefValue in PointerValue.Base)
 	oid = extractNestedRefValueObjectID(t, res)
 	require.NotEmpty(t, oid, "Should have ObjectID for *L2")
 
-	// Step 3: Query *L2 -> auto-unwrapped to show L2 AminoStructValue directly!
+	// Step 3: Query *L2 -> auto-unwrapped to show L2 JSONStructValue directly!
 	res, err = env.vmk.QueryObject(env.ctx, oid)
 	require.NoError(t, err)
-	t.Logf("Step 3 - L2 AminoStructValue (auto-unwrapped):\n%s\n", res)
-	assert.Contains(t, res, `"@type":"/gno.AminoStructValue"`)
+	t.Logf("Step 3 - L2 JSONStructValue (auto-unwrapped):\n%s\n", res)
+	assert.Contains(t, res, `"@type":"/gno.JSONStructValue"`)
 	assert.Contains(t, res, `level2`) // L2.Name value
 	assert.NotContains(t, res, `"@type":"/gno.HeapItemValue"`)
 
@@ -1700,11 +1700,11 @@ func GetRoot() *L1 {
 	oid = extractNestedRefValueObjectID(t, res)
 	require.NotEmpty(t, oid, "Should have ObjectID for *L3")
 
-	// Step 4: Query *L3 -> auto-unwrapped to show L3 AminoStructValue directly!
+	// Step 4: Query *L3 -> auto-unwrapped to show L3 JSONStructValue directly!
 	res, err = env.vmk.QueryObject(env.ctx, oid)
 	require.NoError(t, err)
-	t.Logf("Step 4 - L3 AminoStructValue (final, auto-unwrapped):\n%s\n", res)
-	assert.Contains(t, res, `"@type":"/gno.AminoStructValue"`)
+	t.Logf("Step 4 - L3 JSONStructValue (final, auto-unwrapped):\n%s\n", res)
+	assert.Contains(t, res, `"@type":"/gno.JSONStructValue"`)
 	assert.Contains(t, res, `deepest`) // L3.Value - the deepest value!
 	assert.NotContains(t, res, `"@type":"/gno.HeapItemValue"`)
 

@@ -474,8 +474,9 @@ type jsonNamedField struct {
 }
 
 // jsonStructValue is a custom JSON representation of StructValue with field names.
+// Uses AminoObjectInfo for cleaner output of ephemeral objects.
 type jsonStructValue struct {
-	ObjectInfo ObjectInfo       `json:"ObjectInfo"`
+	ObjectInfo AminoObjectInfo  `json:"ObjectInfo"`
 	Fields     []jsonNamedField `json:"Fields"`
 }
 
@@ -487,11 +488,36 @@ type AminoNamedField struct {
 	V Value  `json:"V"` // Value (Amino-serializable)
 }
 
+// AminoObjectInfo is a simplified ObjectInfo for JSON export.
+// For ephemeral objects: ID = ":N" (incremental, e.g., ":1", ":2")
+// For real objects: ID = "pkghash:N" (full ObjectID string representation)
+// This avoids the verbose nested struct serialization of the full ObjectInfo.
+type AminoObjectInfo struct {
+	ID       string `json:"ID"`
+	RefCount int    `json:"RefCount,omitempty"`
+}
+
+// makeAminoObjectInfo creates an AminoObjectInfo with proper ID formatting.
+// For ephemeral objects (zero ObjectID), uses the incrementalID: ":1", ":2", etc.
+// For real objects, uses the full ObjectID string representation.
+func makeAminoObjectInfo(oi ObjectInfo, incrementalID int) AminoObjectInfo {
+	var id string
+	if oi.ID.IsZero() && incrementalID > 0 {
+		id = fmt.Sprintf(":%d", incrementalID)
+	} else {
+		id = oi.ID.String() // Uses MarshalAmino format
+	}
+	return AminoObjectInfo{
+		ID:       id,
+		RefCount: oi.RefCount,
+	}
+}
+
 // AminoStructValue is a StructValue with named fields for Amino serialization.
 // This type replaces StructValue during export to include field names.
 // It implements the Value interface minimally since it's only used for JSON export.
 type AminoStructValue struct {
-	ObjectInfo ObjectInfo        `json:"ObjectInfo"`
+	ObjectInfo AminoObjectInfo   `json:"ObjectInfo"`
 	Fields     []AminoNamedField `json:"Fields"`
 }
 
@@ -638,8 +664,11 @@ func (e *jsonExporter) marshalStructValueWithNames(sv *StructValue) []byte {
 		})
 	}
 
+	// Get incremental ID from seen map for ephemeral objects
+	objID := e.seen[sv]
+
 	jsv := jsonStructValue{
-		ObjectInfo: sv.ObjectInfo,
+		ObjectInfo: makeAminoObjectInfo(sv.ObjectInfo, objID),
 		Fields:     namedFields,
 	}
 
@@ -781,11 +810,6 @@ func jsonExportedValue(tv TypedValue) []byte {
 		return amino.MustMarshalJSONAny(tv.V)
 	}
 }
-
-// Constants for depth limiting in JSON export
-const (
-	DefaultMaxDepth = 3 // Default depth limit for JSON export
-)
 
 // isExportedName returns true if name starts with an uppercase letter.
 // This follows Go's convention where uppercase names are exported (public).
@@ -955,18 +979,15 @@ func (e *jsonExporter) findTypeFromOwner(obj Object) Type {
 	// Use ObjectInfo.OwnerID directly, not GetOwnerID() which requires runtime owner pointer
 	ownerID := obj.GetObjectInfo().OwnerID
 	if ownerID.IsZero() {
-		fmt.Printf("DEBUG findTypeFromOwner: obj %v has no owner\n", obj.GetObjectID())
 		return nil
 	}
 
 	owner := e.store.GetObjectSafe(ownerID)
 	if owner == nil {
-		fmt.Printf("DEBUG findTypeFromOwner: owner %v not found\n", ownerID)
 		return nil
 	}
 
 	objID := obj.GetObjectID()
-	fmt.Printf("DEBUG findTypeFromOwner: obj=%v, owner=%v, ownerType=%T\n", objID, ownerID, owner)
 
 	// Check if owner is a StructValue with fields referencing this object
 	if sv, ok := owner.(*StructValue); ok {
@@ -992,19 +1013,14 @@ func (e *jsonExporter) findTypeFromOwner(obj Object) Type {
 
 	// Check if owner is a HeapItemValue (pointer target)
 	if hiv, ok := owner.(*HeapItemValue); ok {
-		fmt.Printf("DEBUG findTypeFromOwner: owner is HeapItemValue, Value.T=%v, Value.V type=%T\n", hiv.Value.T, hiv.Value.V)
 		// The HeapItemValue stores the type in Value.T
 		if rv, ok := hiv.Value.V.(RefValue); ok {
-			fmt.Printf("DEBUG findTypeFromOwner: HeapItemValue contains RefValue %v, looking for %v\n", rv.ObjectID, objID)
 			if rv.ObjectID == objID {
-				fmt.Printf("DEBUG findTypeFromOwner: MATCH! returning type %v\n", hiv.Value.T)
 				return hiv.Value.T
 			}
 		}
 		if innerObj, ok := hiv.Value.V.(Object); ok {
-			fmt.Printf("DEBUG findTypeFromOwner: HeapItemValue contains Object %v, looking for %v\n", innerObj.GetObjectID(), objID)
 			if innerObj.GetObjectID() == objID {
-				fmt.Printf("DEBUG findTypeFromOwner: MATCH! returning type %v\n", hiv.Value.T)
 				return hiv.Value.T
 			}
 		}
@@ -1022,14 +1038,19 @@ func (e *jsonExporter) findTypeFromOwner(obj Object) Type {
 		}
 	}
 
-	fmt.Printf("DEBUG findTypeFromOwner: no match found for obj=%v in owner=%v\n", objID, ownerID)
 	return nil
 }
 
 // JSONExportObject exports an Object using default options.
-// For custom options, use JSONExporter directly.
+// For custom options, use JSONExporterOptions.ExportObject() directly.
 func JSONExportObject(m *Machine, obj Object) ([]byte, error) {
 	return (&jsonExporter{}).ExportObject(m, obj)
+}
+
+// ExportObject exports an Object using the configured options.
+func (opts JSONExporterOptions) ExportObject(m *Machine, obj Object) ([]byte, error) {
+	e := &jsonExporter{opts: opts}
+	return e.ExportObject(m, obj)
 }
 
 // unwrapHeapItemValue unwraps a HeapItemValue to reveal the underlying object.
@@ -1130,14 +1151,15 @@ func (e *jsonExporter) aminoExportObjectValue(obj Object, typ Type, depth int) V
 	id := len(e.seen) + 1
 	e.seen[obj] = id
 
-	// Expand the object
-	return e.aminoExportCopyValue(obj, typ, depth)
+	// Expand the object, passing the incremental ID for ephemeral object formatting
+	return e.aminoExportCopyValue(obj, typ, depth, id)
 }
 
 // aminoExportCopyValue creates an exported copy of a Value for Amino JSON serialization.
 // The typ parameter provides type information for field name extraction.
+// The objID parameter is the incremental ID assigned to ephemeral objects.
 // For StructValue, converts to AminoStructValue with field names when type info is available.
-func (e *jsonExporter) aminoExportCopyValue(val Value, typ Type, depth int) Value {
+func (e *jsonExporter) aminoExportCopyValue(val Value, typ Type, depth int, objID int) Value {
 	switch cv := val.(type) {
 	case nil:
 		return nil
@@ -1262,7 +1284,7 @@ func (e *jsonExporter) aminoExportCopyValue(val Value, typ Type, depth int) Valu
 		}
 
 		return &AminoStructValue{
-			ObjectInfo: cv.ObjectInfo,
+			ObjectInfo: makeAminoObjectInfo(cv.ObjectInfo, objID),
 			Fields:     namedFields,
 		}
 	case *FuncValue:
@@ -1295,7 +1317,7 @@ func (e *jsonExporter) aminoExportCopyValue(val Value, typ Type, depth int) Valu
 			Crossing:   cv.Crossing,
 		}
 	case *BoundMethodValue:
-		fnc := e.aminoExportCopyValue(cv.Func, nil, depth).(*FuncValue)
+		fnc := e.aminoExportCopyValue(cv.Func, nil, depth, 0).(*FuncValue)
 		rtv := e.aminoExportTypedValue(cv.Receiver, depth+1)
 		return &BoundMethodValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
@@ -1366,7 +1388,7 @@ func (e *jsonExporter) aminoExportTypedValue(tv TypedValue, depth int) TypedValu
 
 	// For non-Object values, use the Amino export copy
 	if tv.V != nil {
-		result.V = e.aminoExportCopyValue(tv.V, tv.T, depth)
+		result.V = e.aminoExportCopyValue(tv.V, tv.T, depth, 0)
 	}
 	// Copy primitive values
 	result.N = tv.N

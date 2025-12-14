@@ -824,3 +824,80 @@ var Value error = nil`
 		require.NotContains(t, rep, `"@error"`)
 	})
 }
+
+// ============================================================================
+// ExportObject Tests (qobject path)
+// ============================================================================
+
+func TestExportObjectUnexportedFields(t *testing.T) {
+	t.Run("unexported_fields_included_with_option", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		// Struct with unexported fields (like avl.Tree with its 'node' field)
+		code := `package testdata
+type Tree struct {
+	node *Node
+}
+type Node struct {
+	key   string
+	value int
+}
+var Value = &Tree{node: &Node{key: "test", value: 42}}`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		// Get the struct value as Object
+		pv, ok := tvs[0].V.(gnolang.PointerValue)
+		require.True(t, ok, "expected pointer value")
+		sv, ok := pv.Base.(*gnolang.HeapItemValue)
+		require.True(t, ok, "expected heap item value")
+
+		// Export with ExportUnexported=true (qobject behavior)
+		opts := gnolang.JSONExporterOptions{ExportUnexported: true}
+		jsonBytes, err := opts.ExportObject(m, sv)
+		require.NoError(t, err)
+
+		// The 'node' field should be included
+		require.Contains(t, string(jsonBytes), `"node"`, "unexported 'node' field should be included")
+		require.Contains(t, string(jsonBytes), `"Fields":[{`, "should have non-empty Fields")
+	})
+
+	t.Run("unexported_fields_excluded_by_default", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		// Struct with only unexported fields
+		code := `package testdata
+type AllPrivate struct {
+	hidden string
+}
+var Value = &AllPrivate{hidden: "secret"}`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		// Get the struct value as Object
+		pv, ok := tvs[0].V.(gnolang.PointerValue)
+		require.True(t, ok, "expected pointer value")
+		sv, ok := pv.Base.(*gnolang.HeapItemValue)
+		require.True(t, ok, "expected heap item value")
+
+		// Export with default options (ExportUnexported=false)
+		jsonBytes, err := gnolang.JSONExportObject(m, sv)
+		require.NoError(t, err)
+
+		// The 'hidden' field should NOT be included with default options
+		require.NotContains(t, string(jsonBytes), `"hidden"`, "unexported 'hidden' field should be excluded by default")
+		require.Contains(t, string(jsonBytes), `"Fields":[]`, "should have empty Fields")
+	})
+}

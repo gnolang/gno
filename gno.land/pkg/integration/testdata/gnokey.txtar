@@ -104,5 +104,5 @@ func GetSiloData() []byte {
 -- gnokey-json-call-bytes.stderr.golden --
 -- gnokey-qobject.stdout.golden --
 height: 0
-data: {"objectid":"6aed2eda72c79e411eec1ea7f661c5e30383fb59:3","value":{"@type":"/gno.AminoStructValue","ObjectInfo":{"ID":"6aed2eda72c79e411eec1ea7f661c5e30383fb59:4","Hash":"877a0487f47efa309c26e43d8781773d9d27145f","OwnerID":"6aed2eda72c79e411eec1ea7f661c5e30383fb59:3","ModTime":"0","RefCount":"1","LastObjectSize":"252"},"Fields":[{"N":"Data","T":{"@type":"/gno.PrimitiveType","value":"16"},"V":{"@type":"/gno.StringValue","value":"secret message"}}]}}
+data: {"objectid":"6aed2eda72c79e411eec1ea7f661c5e30383fb59:3","value":{"@type":"/gno.JSONStructValue","ObjectInfo":{"ID":"6aed2eda72c79e411eec1ea7f661c5e30383fb59:4","Hash":"877a0487f47efa309c26e43d8781773d9d27145f","OwnerID":"6aed2eda72c79e411eec1ea7f661c5e30383fb59:3","ModTime":"0","RefCount":"1","LastObjectSize":"252"},"Fields":[{"N":"Data","T":{"@type":"/gno.PrimitiveType","value":"16"},"V":{"@type":"/gno.StringValue","value":"secret message"}}]}}
 -- gnokey-qobject.stderr.golden --
