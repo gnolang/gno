@@ -353,12 +353,14 @@ func handleQuery(qpath string, data []byte, upaths uniqPaths) error {
 		path, _, _ := strings.Cut(string(data), ":") // Cut arguments out
 		upaths.addPath(path)
 		return nil
-
+	case "vm/qobject": // ignore
 	default:
 		return fmt.Errorf("unhandled: %q", qpath)
 	}
 
 	// XXX: handle more cases
+
+	return nil
 }
 
 func parseQueryEvalData(data string) (pkgPath string) {
