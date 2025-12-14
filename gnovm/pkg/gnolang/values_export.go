@@ -18,7 +18,7 @@ type JSONExporterOptions struct {
 	ExportUnexported bool
 
 	// MaxDepth limits the depth of nested object expansion.
-	// 0 mean no limit.
+	// 0 means no limit.
 	MaxDepth int
 }
 
@@ -32,10 +32,6 @@ func (opts JSONExporterOptions) ExportTypedValues(tvs []TypedValue) ([]byte, err
 	jexps := make([]*jsonTypedValue, len(tvs))
 
 	for i, tv := range tvs {
-		// Use JSON-specific export that:
-		// - Shows RefValue for persisted (real) objects (with queryable ObjectID)
-		// - Expands ephemeral (unreal) objects inline (no ObjectID)
-		// - Filters unexported fields and json:"-" tagged fields based on options
 		exported := e.exportTypedValue(tv, 0)
 		jexps[i] = e.jsonExportedTypedValueFromExported(exported)
 	}
@@ -254,7 +250,6 @@ func exportCopyValueWithRefs(val Value, m map[Object]int) Value {
 }
 
 func exportToValueOrRefValue(val Value, seen map[Object]int) Value {
-	// TODO use type switch stmt.
 	if ref, ok := val.(RefValue); ok {
 		return ref
 	}
@@ -473,60 +468,51 @@ type jsonNamedField struct {
 	Value json.RawMessage `json:"V"`
 }
 
-// jsonStructValue is a custom JSON representation of StructValue with field names.
-// Uses AminoObjectInfo for cleaner output of ephemeral objects.
+// jsonStructValue represents a StructValue with named fields for internal JSON marshaling.
 type jsonStructValue struct {
-	ObjectInfo AminoObjectInfo  `json:"ObjectInfo"`
+	ObjectInfo JSONObjectInfo  `json:"ObjectInfo"`
 	Fields     []jsonNamedField `json:"Fields"`
 }
 
-// AminoNamedField is a TypedValue with field name for Amino serialization.
-// This type is registered with Amino to produce proper @type tags.
-type AminoNamedField struct {
+// JSONField represents a struct field with name, type, and value for Amino serialization.
+type JSONField struct {
 	N string `json:"N"` // Field name
 	T Type   `json:"T"` // Type (Amino-serializable)
 	V Value  `json:"V"` // Value (Amino-serializable)
 }
 
-// AminoObjectInfo is a simplified ObjectInfo for JSON export.
-// For ephemeral objects: ID = ":N" (incremental, e.g., ":1", ":2")
-// For real objects: ID = "pkghash:N" (full ObjectID string representation)
-// This avoids the verbose nested struct serialization of the full ObjectInfo.
-type AminoObjectInfo struct {
+// JSONObjectInfo is a simplified ObjectInfo for JSON export.
+// ID format: ":N" for ephemeral objects, "pkghash:N" for persisted objects.
+type JSONObjectInfo struct {
 	ID       string `json:"ID"`
 	RefCount int    `json:"RefCount,omitempty"`
 }
 
-// makeAminoObjectInfo creates an AminoObjectInfo with proper ID formatting.
-// For ephemeral objects (zero ObjectID), uses the incrementalID: ":1", ":2", etc.
-// For real objects, uses the full ObjectID string representation.
-func makeAminoObjectInfo(oi ObjectInfo, incrementalID int) AminoObjectInfo {
+// makeJSONObjectInfo creates a JSONObjectInfo from ObjectInfo.
+func makeJSONObjectInfo(oi ObjectInfo, incrementalID int) JSONObjectInfo {
 	var id string
 	if oi.ID.IsZero() && incrementalID > 0 {
 		id = fmt.Sprintf(":%d", incrementalID)
 	} else {
 		id = oi.ID.String() // Uses MarshalAmino format
 	}
-	return AminoObjectInfo{
+	return JSONObjectInfo{
 		ID:       id,
 		RefCount: oi.RefCount,
 	}
 }
 
-// AminoStructValue is a StructValue with named fields for Amino serialization.
-// This type replaces StructValue during export to include field names.
-// It implements the Value interface minimally since it's only used for JSON export.
-type AminoStructValue struct {
-	ObjectInfo AminoObjectInfo   `json:"ObjectInfo"`
-	Fields     []AminoNamedField `json:"Fields"`
+// JSONStructValue represents a StructValue with named fields for Amino serialization.
+type JSONStructValue struct {
+	ObjectInfo JSONObjectInfo   `json:"ObjectInfo"`
+	Fields     []JSONField `json:"Fields"`
 }
 
-// Value interface implementation for AminoStructValue (export-only type).
-func (asv *AminoStructValue) assertValue()                      {}
-func (asv *AminoStructValue) String() string                    { return "AminoStructValue{...}" }
-func (asv *AminoStructValue) DeepFill(store Store) Value        { return asv }
-func (asv *AminoStructValue) GetShallowSize() int64             { return 0 }
-func (asv *AminoStructValue) VisitAssociated(vis Visitor) bool  { return false }
+func (asv *JSONStructValue) assertValue()                      {}
+func (asv *JSONStructValue) String() string                    { return "JSONStructValue{...}" }
+func (asv *JSONStructValue) DeepFill(store Store) Value        { return asv }
+func (asv *JSONStructValue) GetShallowSize() int64             { return 0 }
+func (asv *JSONStructValue) VisitAssociated(vis Visitor) bool  { return false }
 
 // jsonExporter handles JSON serialization of Gno values.
 // Configuration fields control export behavior.
@@ -549,9 +535,6 @@ func (e *jsonExporter) init() {
 	}
 	if e.structTypes == nil {
 		e.structTypes = map[*StructValue]*StructType{}
-	}
-	if e.opts.MaxDepth == 0 {
-		e.opts.MaxDepth = DefaultMaxDepth
 	}
 }
 
@@ -668,7 +651,7 @@ func (e *jsonExporter) marshalStructValueWithNames(sv *StructValue) []byte {
 	objID := e.seen[sv]
 
 	jsv := jsonStructValue{
-		ObjectInfo: makeAminoObjectInfo(sv.ObjectInfo, objID),
+		ObjectInfo: makeJSONObjectInfo(sv.ObjectInfo, objID),
 		Fields:     namedFields,
 	}
 
@@ -964,7 +947,7 @@ func (e *jsonExporter) ExportObject(m *Machine, obj Object) ([]byte, error) {
 	// Export the object using Amino-specific export that:
 	// - Expands root and non-real objects inline
 	// - Converts real nested objects to RefValue with their actual ObjectID
-	// - Converts StructValue to AminoStructValue with field names
+	// - Converts StructValue to JSONStructValue with field names
 	// The typ parameter provides type info for field name extraction.
 	exported := e.aminoExportObjectValue(obj, typ, 0)
 
@@ -1084,7 +1067,7 @@ func unwrapHeapItemValue(st Store, obj Object) Object {
 // - Unwraps HeapItemValue to show the underlying object directly
 // - Expands non-real objects inline (they can't be queried separately)
 // - Converts real nested objects to RefValue with actual ObjectID (queryable)
-// - Converts StructValue to AminoStructValue with field names when type info is available
+// - Converts StructValue to JSONStructValue with field names when type info is available
 func (e *jsonExporter) aminoExportObjectValue(obj Object, typ Type, depth int) Value {
 	if obj == nil {
 		return nil
@@ -1158,7 +1141,7 @@ func (e *jsonExporter) aminoExportObjectValue(obj Object, typ Type, depth int) V
 // aminoExportCopyValue creates an exported copy of a Value for Amino JSON serialization.
 // The typ parameter provides type information for field name extraction.
 // The objID parameter is the incremental ID assigned to ephemeral objects.
-// For StructValue, converts to AminoStructValue with field names when type info is available.
+// For StructValue, converts to JSONStructValue with field names when type info is available.
 func (e *jsonExporter) aminoExportCopyValue(val Value, typ Type, depth int, objID int) Value {
 	switch cv := val.(type) {
 	case nil:
@@ -1242,8 +1225,8 @@ func (e *jsonExporter) aminoExportCopyValue(val Value, typ Type, depth int, objI
 		// Get struct type for field names (resolves RefType via store if needed)
 		structType := e.resolveStructType(typ)
 
-		// Build AminoStructValue with field names
-		namedFields := make([]AminoNamedField, 0, len(cv.Fields))
+		// Build JSONStructValue with field names
+		namedFields := make([]JSONField, 0, len(cv.Fields))
 		for i, ftv := range cv.Fields {
 			var fieldName string
 			var fieldType Type
@@ -1276,15 +1259,15 @@ func (e *jsonExporter) aminoExportCopyValue(val Value, typ Type, depth int, objI
 			ftv.T = fieldType
 			exportedField := e.aminoExportTypedValue(ftv, depth+1)
 
-			namedFields = append(namedFields, AminoNamedField{
+			namedFields = append(namedFields, JSONField{
 				N: fieldName,
 				T: exportedField.T,
 				V: exportedField.V,
 			})
 		}
 
-		return &AminoStructValue{
-			ObjectInfo: makeAminoObjectInfo(cv.ObjectInfo, objID),
+		return &JSONStructValue{
+			ObjectInfo: makeJSONObjectInfo(cv.ObjectInfo, objID),
 			Fields:     namedFields,
 		}
 	case *FuncValue:
