@@ -215,9 +215,9 @@ type jsonResults struct {
 	Error   *string         `json:"@error,omitempty"`
 }
 
-// stringifyJSONResults converts TypedValues to JSON format using Amino marshaling.
+// stringifyJSONResults converts TypedValues to JSON format.
 // lastReturnType is the function signature's last return type (if available).
-// When lastReturnType is provided, error detection is signature-based (per spec):
+// When lastReturnType is provided, error detection is signature-based.
 // only extract @error if the function signature declares an error return type.
 // When lastReturnType is nil, fallback to value-based detection (for QueryEval).
 func stringifyJSONResults(m *gno.Machine, tvs []gno.TypedValue, lastReturnType gno.Type) string {
@@ -225,18 +225,14 @@ func stringifyJSONResults(m *gno.Machine, tvs []gno.TypedValue, lastReturnType g
 	if len(tvs) > 0 {
 		var err error
 
-		// Use Amino-based JSON export with @type tags for consistency with qobject.
-		// This ensures all values (including raw objects) are properly serialized.
-		// ExportUnexported=true allows viewing internal fields (e.g., avl.Node).
-		// MaxDepth=3 limits nested object expansion.
 		opts := gno.JSONExporterOptions{MaxDepth: 3, ExportUnexported: true}
 		if jres.Results, err = opts.ExportTypedValues(tvs); err != nil {
 			panic("unable to marshal results")
 		}
 
-		// Check for error based on function signature (spec Step 2):
-		// "If the func return type's last element is exactly a named or unnamed
-		// interface type which implements error, then .Error() is called."
+		// Check for error based on function signature, If the func return type's last
+		// element is exactly a named or unnamed interface type which implements error, then
+		// .Error() is called.
 		last := tvs[len(tvs)-1]
 		shouldExtractError := false
 		if lastReturnType != nil {
