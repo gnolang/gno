@@ -214,15 +214,11 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if co != nil {
 		co.IncRefCount()
 		if co.GetRefCount() > 1 {
-			if co.GetIsReal() {
-				rlm.MarkDirty(co)
-			}
-			if co.GetIsEscaped() {
-				// already escaped
-			} else {
+			if !co.GetIsEscaped() {
 				rlm.MarkNewEscaped(co)
 			}
-		} else if co.GetIsReal() {
+		}
+		if co.GetIsReal() {
 			rlm.MarkDirty(co)
 		} else {
 			co.SetOwner(po)
