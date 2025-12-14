@@ -1,8 +1,10 @@
-# XXX need a better title
+# Exercises in Interrealm Cases
 
-XXX
- - option 1: do not storage-cross
- - option 2: storage-cross to receiver
+These are an attempt to go over some cases systematically.  It may help to go
+over these cases, but they are rather repetitive.  In the future as more cases
+are considered, they should be added here systematically, and also duplicated
+in gno.land/pkg/integration/testdata/interrealm_final.txtar.  That file should
+ideally be transcribed as a test file that makes use of revive() and "testing".
 
 "Storage-crossing" is like (regular) crossing for method calls except it
 does not affect CurrentRealm()/PreviousRealm(). Since method calls can
@@ -44,7 +46,12 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
 
 ----------------------------------------
 ## fn is declared in /p/package:
-(similar to /r/realm except for CASE pA3 and CASE pB2)
+
+These cases are similar to /r/realm except for CASE rA3 and rD1 since
+/p/package cannot contain crossing functions.
+
+Note that the test cases in interrealm_final.txtar are similar but modified to
+account for the difference between realm and pure package.
 
  * fn is function declared in /p/package:
    - CASE pA1: function declared at package level                   -- do not storage-cross
