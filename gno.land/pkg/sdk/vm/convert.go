@@ -264,22 +264,12 @@ func stringifyJSONResults(m *gno.Machine, tvs []gno.TypedValue, lastReturnType g
 }
 
 func tryGetError(m *gno.Machine, tv gno.TypedValue) (string, bool) {
-	bt := gno.BaseOf(tv.T)
-
-	// Check if type implement Error
-	if _, ok := bt.(*gno.PointerType); !ok {
-		// Try wrapping the value
-		tv = gno.TypedValue{
-			T: &gno.PointerType{Elt: tv.T},
-			V: gno.PointerValue{TV: &tv, Base: tv.V},
-		}
+	// Check if type implements error interface
+	if !tv.ImplError() {
+		return "", false
 	}
 
-	// If implements .Error(), return this
-	if tv.ImplError() {
-		res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: tv}, "Error")))
-		return res[0].GetString(), true
-	}
-
-	return "", false
+	// Call .Error() method using the same approach as TypedValue.Sprint()
+	res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: tv}, "Error")))
+	return res[0].GetString(), true
 }
