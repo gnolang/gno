@@ -70,7 +70,7 @@ var Value error = &myError{}`
 		// (ephemeral objects are expanded inline, not shown as RefValue)
 		// The @error field at top level is extracted
 		require.Contains(t, rep, `"@type":"/gno.PointerValue"`)
-		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
+		require.Contains(t, rep, `"ObjectInfo"`)
 		require.Contains(t, rep, `"@error":"my error"`)
 	})
 
@@ -97,7 +97,7 @@ var Value error = &myError{}`
 		// In Amino format, error shows as PointerValue with expanded StructValue base
 		// (ephemeral objects are expanded inline, not shown as RefValue)
 		require.Contains(t, rep, `"@type":"/gno.PointerValue"`)
-		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
+		require.Contains(t, rep, `"ObjectInfo"`)
 		require.Contains(t, rep, `"@error":""`)
 	})
 }
@@ -190,8 +190,11 @@ var Value = Item{ID: 1, Name: "test"}`
 		rep := stringifyJSONResults(m, tvs, nil)
 		// Ephemeral (unreal) structs are expanded inline showing their content
 		require.Contains(t, rep, `"T":"testdata.Item"`)
-		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
+		require.Contains(t, rep, `"ObjectInfo"`)
 		require.Contains(t, rep, `"Fields"`)
+		// Field names should be included
+		require.Contains(t, rep, `"N":"ID"`)
+		require.Contains(t, rep, `"N":"Name"`)
 	})
 
 	t.Run("empty_struct", func(t *testing.T) {
@@ -212,7 +215,7 @@ var Value = Empty{}`
 		rep := stringifyJSONResults(m, tvs, nil)
 		// Ephemeral empty struct is expanded inline
 		require.Contains(t, rep, `"T":"testdata.Empty"`)
-		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
+		require.Contains(t, rep, `"ObjectInfo"`)
 		// Empty struct has null Fields (no fields to export)
 		require.Contains(t, rep, `"Fields":null`)
 	})
@@ -236,8 +239,10 @@ var Value = Outer{Inner: Inner{Value: 42}}`
 		rep := stringifyJSONResults(m, tvs, nil)
 		// Ephemeral nested struct is expanded inline
 		require.Contains(t, rep, `"T":"testdata.Outer"`)
-		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
+		require.Contains(t, rep, `"ObjectInfo"`)
 		require.Contains(t, rep, `"Fields"`)
+		// Field name should be included
+		require.Contains(t, rep, `"N":"Inner"`)
 	})
 }
 
@@ -323,7 +328,7 @@ var Value = []Item{{ID: 1}, {ID: 2}}`
 		// Ephemeral struct slice shows with ArrayValue base containing inline structs
 		require.Contains(t, rep, `"@type":"/gno.SliceValue"`)
 		require.Contains(t, rep, `"@type":"/gno.ArrayValue"`)
-		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
+		require.Contains(t, rep, `"ObjectInfo"`)
 		require.Contains(t, rep, `"Length":"2"`)
 	})
 }
@@ -372,7 +377,7 @@ var Value = &Item{ID: 42}`
 		rep := stringifyJSONResults(m, tvs, nil)
 		// Ephemeral pointer shows as PointerValue with StructValue base (expanded inline)
 		require.Contains(t, rep, `"@type":"/gno.PointerValue"`)
-		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
+		require.Contains(t, rep, `"ObjectInfo"`)
 	})
 }
 
@@ -618,7 +623,7 @@ func TestConvertJSONTags(t *testing.T) {
 		rep := stringifyJSONResults(m, tvs, nil)
 		// Ephemeral struct is expanded inline showing its fields
 		require.Contains(t, rep, `"T":"testdata.Tagged"`)
-		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
+		require.Contains(t, rep, `"ObjectInfo"`)
 		require.Contains(t, rep, `"Fields"`)
 	})
 
@@ -637,7 +642,7 @@ func TestConvertJSONTags(t *testing.T) {
 		rep := stringifyJSONResults(m, tvs, nil)
 		// Ephemeral struct is expanded inline showing its fields
 		require.Contains(t, rep, `"T":"testdata.WithOmit"`)
-		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
+		require.Contains(t, rep, `"ObjectInfo"`)
 		require.Contains(t, rep, `"Fields"`)
 	})
 
@@ -657,7 +662,7 @@ func TestConvertJSONTags(t *testing.T) {
 		rep := stringifyJSONResults(m, tvs, nil)
 		// Struct should only have 1 field (Skipped field is filtered out)
 		require.Contains(t, rep, `"T":"testdata.WithSkip"`)
-		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
+		require.Contains(t, rep, `"ObjectInfo"`)
 		require.Contains(t, rep, `"visible"`)
 		require.NotContains(t, rep, `"hidden"`)
 	})
@@ -668,11 +673,11 @@ func TestConvertJSONTags(t *testing.T) {
 // ============================================================================
 
 func TestConvertJSONFieldVisibility(t *testing.T) {
-	t.Run("unexported_field_filtered", func(t *testing.T) {
+	t.Run("unexported_field_included", func(t *testing.T) {
 		m := gnolang.NewMachine("testdata", nil)
 		defer m.Release()
 
-		// Struct with an unexported field that should be filtered by default
+		// Struct with an unexported field - now included since ExportUnexported=true
 		code := "package testdata\ntype MixedVisibility struct {\n\tPublicField string\n\tprivateField string\n}\nvar Value = MixedVisibility{PublicField: \"public\", privateField: \"private\"}"
 		nn := m.MustParseFile("testdata.gno", code)
 		m.RunFiles(nn)
@@ -682,18 +687,18 @@ func TestConvertJSONFieldVisibility(t *testing.T) {
 		require.Len(t, tvs, 1)
 
 		rep := stringifyJSONResults(m, tvs, nil)
-		// Only exported field should be present
+		// Both fields should be present (ExportUnexported=true)
 		require.Contains(t, rep, `"T":"testdata.MixedVisibility"`)
-		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
+		require.Contains(t, rep, `"ObjectInfo"`)
 		require.Contains(t, rep, `"public"`)
-		require.NotContains(t, rep, `"private"`)
+		require.Contains(t, rep, `"private"`)
 	})
 
 	t.Run("all_unexported_struct", func(t *testing.T) {
 		m := gnolang.NewMachine("testdata", nil)
 		defer m.Release()
 
-		// Struct with only unexported fields
+		// Struct with only unexported fields - now included since ExportUnexported=true
 		code := "package testdata\ntype AllPrivate struct {\n\tprivateA string\n\tprivateB int\n}\nvar Value = AllPrivate{privateA: \"a\", privateB: 42}"
 		nn := m.MustParseFile("testdata.gno", code)
 		m.RunFiles(nn)
@@ -703,10 +708,12 @@ func TestConvertJSONFieldVisibility(t *testing.T) {
 		require.Len(t, tvs, 1)
 
 		rep := stringifyJSONResults(m, tvs, nil)
-		// Struct should have no fields (all filtered)
+		// Struct should have all fields (ExportUnexported=true)
 		require.Contains(t, rep, `"T":"testdata.AllPrivate"`)
-		require.Contains(t, rep, `"@type":"/gno.StructValue"`)
-		require.Contains(t, rep, `"Fields":null`)
+		require.Contains(t, rep, `"ObjectInfo"`)
+		require.Contains(t, rep, `"a"`)            // privateA value
+		require.Contains(t, rep, `"Fields":[{`)    // has fields, not null
+		require.NotContains(t, rep, `"Fields":null`) // fields are included
 	})
 }
 

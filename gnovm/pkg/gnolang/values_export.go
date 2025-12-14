@@ -37,7 +37,7 @@ func (opts JSONExporterOptions) ExportTypedValues(tvs []TypedValue) ([]byte, err
 		// - Expands ephemeral (unreal) objects inline (no ObjectID)
 		// - Filters unexported fields and json:"-" tagged fields based on options
 		exported := e.exportTypedValue(tv, 0)
-		jexps[i] = jsonExportedTypedValueFromExported(exported)
+		jexps[i] = e.jsonExportedTypedValueFromExported(exported)
 	}
 
 	return json.Marshal(jexps)
@@ -466,6 +466,42 @@ type jsonTypedValue struct {
 	Value json.RawMessage `json:"V"`
 }
 
+// jsonNamedField represents a struct field with its name for JSON export.
+type jsonNamedField struct {
+	Name  string          `json:"N"`
+	Type  json.RawMessage `json:"T"`
+	Value json.RawMessage `json:"V"`
+}
+
+// jsonStructValue is a custom JSON representation of StructValue with field names.
+type jsonStructValue struct {
+	ObjectInfo ObjectInfo       `json:"ObjectInfo"`
+	Fields     []jsonNamedField `json:"Fields"`
+}
+
+// AminoNamedField is a TypedValue with field name for Amino serialization.
+// This type is registered with Amino to produce proper @type tags.
+type AminoNamedField struct {
+	N string `json:"N"` // Field name
+	T Type   `json:"T"` // Type (Amino-serializable)
+	V Value  `json:"V"` // Value (Amino-serializable)
+}
+
+// AminoStructValue is a StructValue with named fields for Amino serialization.
+// This type replaces StructValue during export to include field names.
+// It implements the Value interface minimally since it's only used for JSON export.
+type AminoStructValue struct {
+	ObjectInfo ObjectInfo        `json:"ObjectInfo"`
+	Fields     []AminoNamedField `json:"Fields"`
+}
+
+// Value interface implementation for AminoStructValue (export-only type).
+func (asv *AminoStructValue) assertValue()                      {}
+func (asv *AminoStructValue) String() string                    { return "AminoStructValue{...}" }
+func (asv *AminoStructValue) DeepFill(store Store) Value        { return asv }
+func (asv *AminoStructValue) GetShallowSize() int64             { return 0 }
+func (asv *AminoStructValue) VisitAssociated(vis Visitor) bool  { return false }
+
 // jsonExporter handles JSON serialization of Gno values.
 // Configuration fields control export behavior.
 type jsonExporter struct {
@@ -474,12 +510,19 @@ type jsonExporter struct {
 	// state (set during export)
 	store Store
 	seen  map[Object]int
+
+	// structTypes maps StructValue pointers to their corresponding StructType
+	// This allows preserving field names during JSON serialization
+	structTypes map[*StructValue]*StructType
 }
 
 // init initializes internal state for a new export operation.
 func (e *jsonExporter) init() {
 	if e.seen == nil {
 		e.seen = map[Object]int{}
+	}
+	if e.structTypes == nil {
+		e.structTypes = map[*StructValue]*StructType{}
 	}
 	if e.opts.MaxDepth == 0 {
 		e.opts.MaxDepth = DefaultMaxDepth
@@ -496,17 +539,17 @@ func jsonExportedTypedValue(tv TypedValue) (exp *jsonTypedValue) {
 // jsonExportedTypedValueFromExported converts an already-exported TypedValue to JSON format.
 // This is used by JSONExportTypedValues() after calling jsonExportTypedValue() which
 // expands ephemeral objects inline while keeping RefValue for persisted objects.
-func jsonExportedTypedValueFromExported(tv TypedValue) *jsonTypedValue {
+func (e *jsonExporter) jsonExportedTypedValueFromExported(tv TypedValue) *jsonTypedValue {
 	return &jsonTypedValue{
 		Type:  jsonExportedType(tv.T),
-		Value: jsonExportedValueFromExported(tv),
+		Value: e.jsonExportedValueFromExported(tv),
 	}
 }
 
 // jsonExportedValueFromExported converts an already-exported TypedValue's value to JSON.
 // Unlike jsonExportedValue(), this handles TypedValues that have already been processed
 // by jsonExportTypedValue() - meaning primitive N values have NOT been extracted yet.
-func jsonExportedValueFromExported(tv TypedValue) []byte {
+func (e *jsonExporter) jsonExportedValueFromExported(tv TypedValue) []byte {
 	bt := BaseOf(tv.T)
 	switch bt := bt.(type) {
 	case PrimitiveType:
@@ -558,8 +601,116 @@ func jsonExportedValueFromExported(tv TypedValue) []byte {
 		if tv.V == nil {
 			return []byte("null")
 		}
+
+		// Special handling for StructValue to include field names
+		if sv, ok := tv.V.(*StructValue); ok {
+			return e.marshalStructValueWithNames(sv)
+		}
+
 		return amino.MustMarshalJSONAny(tv.V)
 	}
+}
+
+// marshalStructValueWithNames marshals a StructValue to JSON with field names included.
+// Uses the exporter's structTypes mapping to get field name information.
+func (e *jsonExporter) marshalStructValueWithNames(sv *StructValue) []byte {
+	// Look up the struct type from the mapping
+	structType := e.structTypes[sv]
+
+	// Build named fields
+	var namedFields []jsonNamedField
+	for i, ftv := range sv.Fields {
+		var fieldName string
+		if structType != nil && i < len(structType.Fields) {
+			fieldName = string(structType.Fields[i].Name)
+			// Use json tag name if available
+			if jsonName := getJSONFieldName(structType.Fields[i].Tag); jsonName != "" {
+				fieldName = jsonName
+			}
+		} else {
+			fieldName = fmt.Sprintf("field%d", i)
+		}
+
+		namedFields = append(namedFields, jsonNamedField{
+			Name:  fieldName,
+			Type:  jsonExportedType(ftv.T),
+			Value: e.jsonExportedValueFromExported(ftv),
+		})
+	}
+
+	jsv := jsonStructValue{
+		ObjectInfo: sv.ObjectInfo,
+		Fields:     namedFields,
+	}
+
+	result, err := json.Marshal(jsv)
+	if err != nil {
+		return amino.MustMarshalJSONAny(sv) // fallback
+	}
+	return result
+}
+
+// getJSONFieldName extracts the field name from a json struct tag.
+// For example, `json:"myName,omitempty"` returns "myName".
+// Returns empty string if no valid json tag is found.
+func getJSONFieldName(tag Tag) string {
+	if tag == "" {
+		return ""
+	}
+	tagStr := string(tag)
+	for tagStr != "" {
+		// Skip leading space
+		i := 0
+		for i < len(tagStr) && tagStr[i] == ' ' {
+			i++
+		}
+		tagStr = tagStr[i:]
+		if tagStr == "" {
+			break
+		}
+
+		// Scan to colon
+		i = 0
+		for i < len(tagStr) && tagStr[i] != ':' && tagStr[i] != ' ' {
+			i++
+		}
+		if i >= len(tagStr) {
+			break
+		}
+		key := tagStr[:i]
+		tagStr = tagStr[i:]
+
+		if len(tagStr) < 2 || tagStr[0] != ':' || tagStr[1] != '"' {
+			break
+		}
+		tagStr = tagStr[2:] // skip :"
+
+		// Find closing quote
+		i = 0
+		for i < len(tagStr) && tagStr[i] != '"' {
+			if tagStr[i] == '\\' && i+1 < len(tagStr) {
+				i++ // skip escaped char
+			}
+			i++
+		}
+		if i >= len(tagStr) {
+			break
+		}
+		value := tagStr[:i]
+		tagStr = tagStr[i+1:]
+
+		if key == "json" {
+			// Extract name before comma
+			if commaIdx := strings.Index(value, ","); commaIdx >= 0 {
+				value = value[:commaIdx]
+			}
+			if value != "" && value != "-" {
+				return value
+			}
+			return ""
+		}
+	}
+	return ""
 }
 
 func jsonExportedType(typ Type) []byte {
@@ -703,6 +854,7 @@ func hasJSONSkipTag(tag Tag) bool {
 
 // getStructTypeFromType resolves a Type to its underlying *StructType.
 // Returns nil if the type is not a struct type.
+// Note: This function cannot resolve RefType - use jsonExporter.resolveStructType() instead.
 func getStructTypeFromType(typ Type) *StructType {
 	if typ == nil {
 		return nil
@@ -713,13 +865,37 @@ func getStructTypeFromType(typ Type) *StructType {
 		return getStructTypeFromType(t.Base)
 	case *StructType:
 		return t
+	case *PointerType:
+		return getStructTypeFromType(t.Elt)
 	case RefType:
 		// RefType needs to be resolved via store, which we don't have here.
-		// Caller should resolve RefType before calling this function.
+		// Caller should use jsonExporter.resolveStructType() instead.
 		return nil
 	default:
 		return nil
 	}
+}
+
+// resolveStructType resolves a Type to its underlying *StructType.
+// Unlike getStructTypeFromType, this method can resolve RefType using the store.
+// RefType is used for declared types (e.g., gno.land/r/demo/json_export.SimpleStruct)
+// and needs store access to retrieve the actual type definition.
+func (e *jsonExporter) resolveStructType(typ Type) *StructType {
+	if typ == nil {
+		return nil
+	}
+
+	// If it's a RefType, try to resolve it via store first
+	if rt, ok := typ.(RefType); ok {
+		if e.store != nil {
+			if resolvedType := e.store.GetType(rt.ID); resolvedType != nil {
+				return getStructTypeFromType(resolvedType)
+			}
+		}
+		return nil
+	}
+
+	return getStructTypeFromType(typ)
 }
 
 // ExportObject exports an Object to JSON using Amino marshaling.
@@ -743,17 +919,111 @@ func (e *jsonExporter) ExportObject(m *Machine, obj Object) ([]byte, error) {
 		e.store = m.Store
 	}
 
+	// Extract type from HeapItemValue BEFORE unwrapping.
+	// HeapItemValue.Value is a TypedValue containing both type (.T) and value (.V).
+	// The type is needed for field name extraction in struct exports.
+	var typ Type
+	if hiv, ok := obj.(*HeapItemValue); ok {
+		typ = hiv.Value.T
+	}
+
 	// Unwrap HeapItemValue - it's an implementation detail that users shouldn't see.
 	// When querying a HeapItemValue, show the underlying value instead.
 	obj = unwrapHeapItemValue(e.store, obj)
 
-	// Export the object using JSON-specific export that:
+	// If we still don't have type info and the object has an owner,
+	// try to find the type by looking at the owner's fields.
+	if typ == nil && e.store != nil {
+		typ = e.findTypeFromOwner(obj)
+	}
+
+	// Export the object using Amino-specific export that:
 	// - Expands root and non-real objects inline
 	// - Converts real nested objects to RefValue with their actual ObjectID
-	exported := jsonExportObjectValue(e.store, obj, e.seen, 0, e.opts.MaxDepth)
+	// - Converts StructValue to AminoStructValue with field names
+	// The typ parameter provides type info for field name extraction.
+	exported := e.aminoExportObjectValue(obj, typ, 0)
 
 	// Now serialize the exported (cycle-safe) object via Amino.
 	return amino.MarshalJSONAny(exported)
+}
+
+// findTypeFromOwner attempts to find the type of an object by looking at its owner.
+// When an object is stored as a field in a struct, the type info is in the parent.
+// This function loads the owner and searches for a field that references this object.
+func (e *jsonExporter) findTypeFromOwner(obj Object) Type {
+	// Use ObjectInfo.OwnerID directly, not GetOwnerID() which requires runtime owner pointer
+	ownerID := obj.GetObjectInfo().OwnerID
+	if ownerID.IsZero() {
+		fmt.Printf("DEBUG findTypeFromOwner: obj %v has no owner\n", obj.GetObjectID())
+		return nil
+	}
+
+	owner := e.store.GetObjectSafe(ownerID)
+	if owner == nil {
+		fmt.Printf("DEBUG findTypeFromOwner: owner %v not found\n", ownerID)
+		return nil
+	}
+
+	objID := obj.GetObjectID()
+	fmt.Printf("DEBUG findTypeFromOwner: obj=%v, owner=%v, ownerType=%T\n", objID, ownerID, owner)
+
+	// Check if owner is a StructValue with fields referencing this object
+	if sv, ok := owner.(*StructValue); ok {
+		// We need the owner's type to know the field types
+		ownerType := e.findTypeFromOwner(owner)
+		ownerStructType := e.resolveStructType(ownerType)
+
+		for i, ftv := range sv.Fields {
+			// Check if this field's value references our object
+			if rv, ok := ftv.V.(RefValue); ok && rv.ObjectID == objID {
+				if ownerStructType != nil && i < len(ownerStructType.Fields) {
+					return ownerStructType.Fields[i].Type
+				}
+			}
+			// Also check if this field IS our object (inline struct)
+			if fieldObj, ok := ftv.V.(Object); ok && fieldObj.GetObjectID() == objID {
+				if ownerStructType != nil && i < len(ownerStructType.Fields) {
+					return ownerStructType.Fields[i].Type
+				}
+			}
+		}
+	}
+
+	// Check if owner is a HeapItemValue (pointer target)
+	if hiv, ok := owner.(*HeapItemValue); ok {
+		fmt.Printf("DEBUG findTypeFromOwner: owner is HeapItemValue, Value.T=%v, Value.V type=%T\n", hiv.Value.T, hiv.Value.V)
+		// The HeapItemValue stores the type in Value.T
+		if rv, ok := hiv.Value.V.(RefValue); ok {
+			fmt.Printf("DEBUG findTypeFromOwner: HeapItemValue contains RefValue %v, looking for %v\n", rv.ObjectID, objID)
+			if rv.ObjectID == objID {
+				fmt.Printf("DEBUG findTypeFromOwner: MATCH! returning type %v\n", hiv.Value.T)
+				return hiv.Value.T
+			}
+		}
+		if innerObj, ok := hiv.Value.V.(Object); ok {
+			fmt.Printf("DEBUG findTypeFromOwner: HeapItemValue contains Object %v, looking for %v\n", innerObj.GetObjectID(), objID)
+			if innerObj.GetObjectID() == objID {
+				fmt.Printf("DEBUG findTypeFromOwner: MATCH! returning type %v\n", hiv.Value.T)
+				return hiv.Value.T
+			}
+		}
+	}
+
+	// Check if owner is an ArrayValue
+	if av, ok := owner.(*ArrayValue); ok {
+		for _, etv := range av.List {
+			if rv, ok := etv.V.(RefValue); ok && rv.ObjectID == objID {
+				return etv.T
+			}
+			if elemObj, ok := etv.V.(Object); ok && elemObj.GetObjectID() == objID {
+				return etv.T
+			}
+		}
+	}
+
+	fmt.Printf("DEBUG findTypeFromOwner: no match found for obj=%v in owner=%v\n", objID, ownerID)
+	return nil
 }
 
 // JSONExportObject exports an Object using default options.
@@ -787,13 +1057,14 @@ func unwrapHeapItemValue(st Store, obj Object) Object {
 	return obj
 }
 
-// jsonExportObjectValue exports an Object for JSON serialization.
+// aminoExportObjectValue exports an Object for JSON serialization via Amino.
 // Unlike exportCopyValueWithRefs (for persistence), this function:
 // - Always expands the root object (depth 0)
 // - Unwraps HeapItemValue to show the underlying object directly
 // - Expands non-real objects inline (they can't be queried separately)
 // - Converts real nested objects to RefValue with actual ObjectID (queryable)
-func jsonExportObjectValue(st Store, obj Object, seen map[Object]int, depth, maxDepth int) Value {
+// - Converts StructValue to AminoStructValue with field names when type info is available
+func (e *jsonExporter) aminoExportObjectValue(obj Object, typ Type, depth int) Value {
 	if obj == nil {
 		return nil
 	}
@@ -809,11 +1080,11 @@ func jsonExportObjectValue(st Store, obj Object, seen map[Object]int, depth, max
 			}
 		}
 		// For root or non-real HeapItemValue, unwrap and export the inner object
-		obj = unwrapHeapItemValue(st, obj)
+		obj = unwrapHeapItemValue(e.store, obj)
 	}
 
 	// Check for cycles first
-	if id, exists := seen[obj]; exists {
+	if id, exists := e.seen[obj]; exists {
 		// Cycle detected - return RefValue
 		// Use actual ObjectID if real, otherwise use local ID
 		if obj.GetIsReal() {
@@ -839,7 +1110,7 @@ func jsonExportObjectValue(st Store, obj Object, seen map[Object]int, depth, max
 	}
 
 	// Check depth limit (only for non-root)
-	if maxDepth >= 0 && depth > maxDepth {
+	if e.opts.MaxDepth >= 0 && depth > e.opts.MaxDepth {
 		if obj.GetIsReal() {
 			return RefValue{
 				ObjectID: obj.GetObjectID(),
@@ -847,8 +1118,8 @@ func jsonExportObjectValue(st Store, obj Object, seen map[Object]int, depth, max
 			}
 		}
 		// Non-real object at depth limit - assign local ID
-		id := len(seen) + 1
-		seen[obj] = id
+		id := len(e.seen) + 1
+		e.seen[obj] = id
 		return RefValue{
 			ObjectID: ObjectID{NewTime: uint64(id)},
 			Escaped:  true,
@@ -856,16 +1127,17 @@ func jsonExportObjectValue(st Store, obj Object, seen map[Object]int, depth, max
 	}
 
 	// Mark as seen before recursing (cycle detection)
-	id := len(seen) + 1
-	seen[obj] = id
+	id := len(e.seen) + 1
+	e.seen[obj] = id
 
 	// Expand the object
-	return jsonExportCopyValue(st, obj, seen, depth, maxDepth)
+	return e.aminoExportCopyValue(obj, typ, depth)
 }
 
-// jsonExportCopyValue creates an exported copy of a Value for JSON serialization.
-// This is similar to exportCopyValueWithRefs but uses jsonExportObjectValue for nested objects.
-func jsonExportCopyValue(st Store, val Value, seen map[Object]int, depth, maxDepth int) Value {
+// aminoExportCopyValue creates an exported copy of a Value for Amino JSON serialization.
+// The typ parameter provides type information for field name extraction.
+// For StructValue, converts to AminoStructValue with field names when type info is available.
+func (e *jsonExporter) aminoExportCopyValue(val Value, typ Type, depth int) Value {
 	switch cv := val.(type) {
 	case nil:
 		return nil
@@ -881,13 +1153,16 @@ func jsonExportCopyValue(st Store, val Value, seen map[Object]int, depth, maxDep
 		if cv.Base == nil {
 			panic("pointer with nil base")
 		}
-		// Base can be an Object or RefValue (if already exported/persisted)
+		// Get element type for the pointer
+		var eltType Type
+		if pt, ok := BaseOf(typ).(*PointerType); ok {
+			eltType = pt.Elt
+		}
 		var base Value
 		switch b := cv.Base.(type) {
 		case Object:
-			base = jsonExportObjectValue(st, b, seen, depth+1, maxDepth)
+			base = e.aminoExportObjectValue(b, eltType, depth+1)
 		case RefValue:
-			// Already a RefValue - keep as-is (it's a reference to a persisted object)
 			base = b
 		default:
 			panic(fmt.Sprintf("unexpected pointer base type: %T", cv.Base))
@@ -897,10 +1172,16 @@ func jsonExportCopyValue(st Store, val Value, seen map[Object]int, depth, maxDep
 			Index: cv.Index,
 		}
 	case *ArrayValue:
+		// Get element type for array
+		var eltType Type
+		if at, ok := BaseOf(typ).(*ArrayType); ok {
+			eltType = at.Elt
+		}
 		if cv.Data == nil {
 			list := make([]TypedValue, len(cv.List))
 			for i, etv := range cv.List {
-				list[i] = jsonExportTypedValue(st, etv, seen, depth+1, maxDepth)
+				etv.T = eltType // Set element type
+				list[i] = e.aminoExportTypedValue(etv, depth+1)
 			}
 			return &ArrayValue{
 				ObjectInfo: cv.ObjectInfo.Copy(),
@@ -912,10 +1193,19 @@ func jsonExportCopyValue(st Store, val Value, seen map[Object]int, depth, maxDep
 			Data:       cp(cv.Data),
 		}
 	case *SliceValue:
+		// Get element type for slice
+		var eltType Type
+		if slt, ok := BaseOf(typ).(*SliceType); ok {
+			eltType = slt.Elt
+		}
 		var base Value
 		if cv.Base != nil {
 			if obj, ok := cv.Base.(Object); ok {
-				base = jsonExportObjectValue(st, obj, seen, depth+1, maxDepth)
+				var arrType Type
+				if eltType != nil {
+					arrType = &ArrayType{Elt: eltType}
+				}
+				base = e.aminoExportObjectValue(obj, arrType, depth+1)
 			} else if ref, ok := cv.Base.(RefValue); ok {
 				base = ref
 			}
@@ -927,29 +1217,69 @@ func jsonExportCopyValue(st Store, val Value, seen map[Object]int, depth, maxDep
 			Maxcap: cv.Maxcap,
 		}
 	case *StructValue:
-		fields := make([]TypedValue, len(cv.Fields))
+		// Get struct type for field names (resolves RefType via store if needed)
+		structType := e.resolveStructType(typ)
+
+		// Build AminoStructValue with field names
+		namedFields := make([]AminoNamedField, 0, len(cv.Fields))
 		for i, ftv := range cv.Fields {
-			fields[i] = jsonExportTypedValue(st, ftv, seen, depth+1, maxDepth)
+			var fieldName string
+			var fieldType Type
+
+			if structType != nil && i < len(structType.Fields) {
+				ft := structType.Fields[i]
+
+				// Skip json:"-" tagged fields
+				if hasJSONSkipTag(ft.Tag) {
+					continue
+				}
+
+				// Check export visibility
+				if !e.opts.ExportUnexported && !isExportedName(ft.Name) {
+					continue
+				}
+
+				fieldName = string(ft.Name)
+				// Use json tag name if available
+				if jsonName := getJSONFieldName(ft.Tag); jsonName != "" {
+					fieldName = jsonName
+				}
+				fieldType = ft.Type
+			} else {
+				fieldName = fmt.Sprintf("field%d", i)
+				fieldType = ftv.T
+			}
+
+			// Export the field value
+			ftv.T = fieldType
+			exportedField := e.aminoExportTypedValue(ftv, depth+1)
+
+			namedFields = append(namedFields, AminoNamedField{
+				N: fieldName,
+				T: exportedField.T,
+				V: exportedField.V,
+			})
 		}
-		return &StructValue{
-			ObjectInfo: cv.ObjectInfo.Copy(),
-			Fields:     fields,
+
+		return &AminoStructValue{
+			ObjectInfo: cv.ObjectInfo,
+			Fields:     namedFields,
 		}
 	case *FuncValue:
 		source := toRefNode(cv.Source)
 		var parent Value
 		if cv.Parent != nil {
 			if obj, ok := cv.Parent.(Object); ok {
-				parent = jsonExportObjectValue(st, obj, seen, depth+1, maxDepth)
+				parent = e.aminoExportObjectValue(obj, nil, depth+1)
 			} else if ref, ok := cv.Parent.(RefValue); ok {
 				parent = ref
 			}
 		}
 		captures := make([]TypedValue, len(cv.Captures))
 		for i, ctv := range cv.Captures {
-			captures[i] = jsonExportTypedValue(st, ctv, seen, depth+1, maxDepth)
+			captures[i] = e.aminoExportTypedValue(ctv, depth+1)
 		}
-		ft := exportCopyTypeWithRefs(cv.Type, seen)
+		ft := exportCopyTypeWithRefs(cv.Type, e.seen)
 		return &FuncValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
 			Type:       ft,
@@ -965,8 +1295,8 @@ func jsonExportCopyValue(st Store, val Value, seen map[Object]int, depth, maxDep
 			Crossing:   cv.Crossing,
 		}
 	case *BoundMethodValue:
-		fnc := jsonExportCopyValue(st, cv.Func, seen, depth, maxDepth).(*FuncValue)
-		rtv := jsonExportTypedValue(st, cv.Receiver, seen, depth+1, maxDepth)
+		fnc := e.aminoExportCopyValue(cv.Func, nil, depth).(*FuncValue)
+		rtv := e.aminoExportTypedValue(cv.Receiver, depth+1)
 		return &BoundMethodValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
 			Func:       fnc,
@@ -975,8 +1305,8 @@ func jsonExportCopyValue(st Store, val Value, seen map[Object]int, depth, maxDep
 	case *MapValue:
 		list := &MapList{}
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
-			key2 := jsonExportTypedValue(st, cur.Key, seen, depth+1, maxDepth)
-			val2 := jsonExportTypedValue(st, cur.Value, seen, depth+1, maxDepth)
+			key2 := e.aminoExportTypedValue(cur.Key, depth+1)
+			val2 := e.aminoExportTypedValue(cur.Value, depth+1)
 			list.Append(nilAllocator, key2).Value = val2
 		}
 		return &MapValue{
@@ -984,9 +1314,8 @@ func jsonExportCopyValue(st Store, val Value, seen map[Object]int, depth, maxDep
 			List:       list,
 		}
 	case TypeValue:
-		return toTypeValue(exportCopyTypeWithRefs(cv.Type, seen))
+		return toTypeValue(exportCopyTypeWithRefs(cv.Type, e.seen))
 	case *PackageValue:
-		// Packages always become RefValue
 		return RefValue{
 			PkgPath: cv.PkgPath,
 		}
@@ -994,12 +1323,12 @@ func jsonExportCopyValue(st Store, val Value, seen map[Object]int, depth, maxDep
 		source := toRefNode(cv.Source)
 		vals := make([]TypedValue, len(cv.Values))
 		for i, tv := range cv.Values {
-			vals[i] = jsonExportTypedValue(st, tv, seen, depth+1, maxDepth)
+			vals[i] = e.aminoExportTypedValue(tv, depth+1)
 		}
 		var bparent Value
 		if cv.Parent != nil {
 			if obj, ok := cv.Parent.(Object); ok {
-				bparent = jsonExportObjectValue(st, obj, seen, depth+1, maxDepth)
+				bparent = e.aminoExportObjectValue(obj, nil, depth+1)
 			} else if ref, ok := cv.Parent.(RefValue); ok {
 				bparent = ref
 			}
@@ -1016,28 +1345,28 @@ func jsonExportCopyValue(st Store, val Value, seen map[Object]int, depth, maxDep
 	case *HeapItemValue:
 		return &HeapItemValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
-			Value:      jsonExportTypedValue(st, cv.Value, seen, depth+1, maxDepth),
+			Value:      e.aminoExportTypedValue(cv.Value, depth+1),
 		}
 	default:
 		panic(fmt.Sprintf("unexpected type %v", reflect.TypeOf(val)))
 	}
 }
 
-// jsonExportTypedValue exports a TypedValue for JSON serialization.
-func jsonExportTypedValue(st Store, tv TypedValue, seen map[Object]int, depth, maxDepth int) TypedValue {
+// aminoExportTypedValue exports a TypedValue for Amino JSON serialization.
+func (e *jsonExporter) aminoExportTypedValue(tv TypedValue, depth int) TypedValue {
 	result := TypedValue{}
 	if tv.T != nil {
-		result.T = exportRefOrCopyType(tv.T, seen)
+		result.T = exportRefOrCopyType(tv.T, e.seen)
 	}
 
 	if obj, ok := tv.V.(Object); ok {
-		result.V = jsonExportObjectValue(st, obj, seen, depth, maxDepth)
+		result.V = e.aminoExportObjectValue(obj, tv.T, depth)
 		return result
 	}
 
-	// For non-Object values, use the JSON export copy
+	// For non-Object values, use the Amino export copy
 	if tv.V != nil {
-		result.V = jsonExportCopyValue(st, tv.V, seen, depth, maxDepth)
+		result.V = e.aminoExportCopyValue(tv.V, tv.T, depth)
 	}
 	// Copy primitive values
 	result.N = tv.N
@@ -1214,8 +1543,8 @@ func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int) Value {
 			Maxcap: cv.Maxcap,
 		}
 	case *StructValue:
-		// Get struct type for field filtering
-		structType := getStructTypeFromType(typ)
+		// Get struct type for field filtering (resolves RefType via store if needed)
+		structType := e.resolveStructType(typ)
 
 		if structType == nil || len(structType.Fields) != len(cv.Fields) {
 			// No type info or mismatch - export all fields (fallback)
@@ -1231,6 +1560,7 @@ func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int) Value {
 
 		// Filter fields based on visibility and json tags
 		var fields []TypedValue
+		var filteredStructType StructType // Build a filtered struct type with only included fields
 		for i, ftv := range cv.Fields {
 			ft := structType.Fields[i]
 
@@ -1247,11 +1577,15 @@ func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int) Value {
 			// Export this field with its type
 			ftv.T = ft.Type
 			fields = append(fields, e.exportTypedValue(ftv, depth+1))
+			filteredStructType.Fields = append(filteredStructType.Fields, ft)
 		}
-		return &StructValue{
+		result := &StructValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
 			Fields:     fields,
 		}
+		// Store the struct type mapping for later JSON serialization
+		e.structTypes[result] = &filteredStructType
+		return result
 	case *FuncValue:
 		source := toRefNode(cv.Source)
 		var parent Value
