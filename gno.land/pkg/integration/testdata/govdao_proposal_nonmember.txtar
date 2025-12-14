@@ -6,24 +6,21 @@ stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
 
 loadpkg gno.land/r/gov/dao
 loadpkg gno.land/r/gov/dao/v3/impl
-loadpkg gno.land/r/sys/users
-loadpkg gno.land/r/gnoland/users/v1
 loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
 
 gnoland start
 
-# Register member with namespace (required for voting)
-gnokey maketx call -send "1000000ugnot" -pkgpath gno.land/r/gnoland/users/v1 -func Register -args "mem123" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test member
-stdout 'OK!'
+# Case 1: Non-member WITHOUT fee (should fail)
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test nonmember $WORK/proposer/create_proposal.gno
+stdout 'non-members must send 1000000ugnot to create a proposal'
 
-# Non-member creates proposal by paying the fee (1000000ugnot)
-gnokey maketx run -send "1000000ugnot" -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test nonmember $WORK/proposer/create_proposal.gno
+# Case 2: Non-member WITH fee (should succeed)
+gnokey maketx run -send "1000000ugnot" -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test nonmember $WORK/proposer/create_proposal_must.gno
 stdout OK!
 
-# Verify proposal was created by non-member
+# Verify proposal was created
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
 stdout 'New T2 Member Proposal'
-stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
 
 -- proposer/create_proposal.gno --
 package main
@@ -34,9 +31,25 @@ import (
 )
 
 func main() {
-	// Non-member proposes to add themselves as T2 member
 	addr := address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0")
-	preq := impl.NewAddMemberRequest(cross, addr, "T2", "My portfolio as a contributor")
+	preq := impl.NewAddMemberRequest(cross, addr, "T2", "My portfolio")
+	_, err := dao.CreateProposal(cross, preq)
+	if err != nil {
+		println(err.Error())
+	}
+}
+
+-- proposer/create_proposal_must.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+)
+
+func main() {
+	addr := address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0")
+	preq := impl.NewAddMemberRequest(cross, addr, "T2", "My portfolio")
 	dao.MustCreateProposal(cross, preq)
 }
 
