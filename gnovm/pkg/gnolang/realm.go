@@ -383,6 +383,8 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	// or via escaped-object persistence in
 	// the iavl tree.
 	rlm.saveUnsavedObjects(store)
+	// TODO saved newly escaped to iavl.
+	rlm.saveNewEscaped(store)
 	// delete all deleted objects.
 	rlm.removeDeletedObjects(store)
 	// reset realm state for new transaction.
@@ -632,7 +634,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store, start int) int {
 			}
 		}
 	}
-	rlm.escaped = escaped // XXX is this actually used?
+	rlm.escaped = escaped
 	return len(rlm.newEscaped)
 }
 
@@ -830,10 +832,23 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 	// set object to store.
 	// NOTE: also sets the hash to object.
 	rlm.sumDiff += store.SetObject(oo)
-	// set index.
-	// if oo.GetIsEscaped() {
-	// XXX save oid->hash to iavl.
-	// }
+}
+
+//----------------------------------------
+// saveNewEscaped
+
+// Save newly escaped oid->hash to iavl for iavl proofs.
+// NOTE some of these escaped items may be in external realms.
+// TODO actually implement.
+func (rlm *Realm) saveNewEscaped(store Store) {
+	// TODO implement.
+	/*
+		for _, eo := range rlm.escaped {
+				if !oo.GetIsEscaped() {
+					panic("should not happen")
+				}
+		}
+	*/
 }
 
 //----------------------------------------

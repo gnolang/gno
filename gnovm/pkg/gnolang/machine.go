@@ -2245,33 +2245,7 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 	if m.Realm == nil {
 		return false
 	}
-	//  - tv is N_Readonly
-	if tv.IsReadonly() {
-		return true
-	}
-	//  - tv is a ref to package path
-	if rv, ok := tv.V.(RefValue); ok && rv.PkgPath != "" {
-		if rv.PkgPath == m.Package.PkgPath {
-			return false // local package
-		} else {
-			return true // external package
-		}
-	}
-	tvoid, ok := tv.GetFirstObjectID()
-	//  - tv is not an object ("first object" ID is zero)
-	if !ok {
-		// e.g. if tv is a string, or free floating pointers.
-		return false
-	}
-	//  - tv is an unreal object (no object id)
-	if tvoid.IsZero() {
-		return false
-	}
-	//  - tv is an object residing in external realm
-	if tvoid.PkgID != m.Realm.ID {
-		return true
-	}
-	return false
+	return tv.IsReadonlyBy(m.Realm.ID)
 }
 
 // Returns ro = true if the base is readonly,
