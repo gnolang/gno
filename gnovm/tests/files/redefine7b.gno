@@ -9,4 +9,5 @@ func main() {
 
 // Output:
 // 1
+// 2
 // 3
