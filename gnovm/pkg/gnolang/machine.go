@@ -47,6 +47,9 @@ type Machine struct {
 	Store    Store
 	Context  any
 	GasMeter store.GasMeter
+
+	// Coverage tracking (nil if coverage is disabled)
+	Coverage *CoverageCollector
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -80,6 +83,7 @@ type MachineOptions struct {
 	GasMeter      store.GasMeter
 	ReviveEnabled bool
 	SkipPackage   bool // don't get/set package or realm.
+	Coverage      *CoverageCollector // coverage tracking (nil to disable)
 }
 
 const (
@@ -140,6 +144,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Debugger.in = opts.Input
 	mm.Debugger.out = output
 	mm.ReviveEnabled = opts.ReviveEnabled
+	mm.Coverage = opts.Coverage
 	// Maybe get/set package and realm.
 	if !opts.SkipPackage && opts.PkgPath != "" {
 		pv := (*PackageValue)(nil)
@@ -2534,4 +2539,16 @@ func (m *Machine) ExceptionStacktrace() string {
 		builder.WriteString(last.StringWithStacktrace(m))
 	}
 	return builder.String()
+}
+
+// TrackCoverage records that a statement at the given location was executed.
+func (m *Machine) TrackCoverage(loc Location) {
+	if m.Coverage == nil {
+		return
+	}
+	if loc.IsZero() || loc.File == "" {
+		return
+	}
+	cd := m.Coverage.GetOrCreate(loc.PkgPath)
+	cd.MarkCovered(loc.File, loc.Line, loc.Column)
 }

@@ -434,6 +434,19 @@ EXEC_SWITCH:
 	if debug {
 		debug.Printf("EXEC: %v\n", s)
 	}
+	// Track coverage if enabled
+	if m.Coverage != nil && s != nil {
+		if span := s.GetSpan(); !span.IsZero() {
+			if block := m.LastBlock(); block != nil {
+				if src := block.GetSource(m.Store); src != nil {
+					loc := src.GetLocation()
+					if loc.File != "" {
+						m.Coverage.GetOrCreate(loc.PkgPath).MarkCovered(loc.File, span.Line, span.Column)
+					}
+				}
+			}
+		}
+	}
 	switch cs := s.(type) {
 	case *AssignStmt:
 		switch cs.Op {
