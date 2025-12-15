@@ -475,10 +475,37 @@ type jsonStructValue struct {
 
 // JSONField represents a struct field with name, type, and value.
 // Registered with Amino to produce @type tags in JSON output.
+// V is json.RawMessage to allow both Value types (amino-serialized) and raw JSON primitives.
 type JSONField struct {
-	N string `json:"N"` // Field name
-	T Type   `json:"T"` // Type (Amino-serializable)
-	V Value  `json:"V"` // Value (Amino-serializable)
+	N string          `json:"N"` // Field name
+	T Type            `json:"T"` // Type (Amino-serializable)
+	V json.RawMessage `json:"V"` // Value as raw JSON (primitives as-is, complex types amino-serialized)
+}
+
+// MarshalJSON implements custom JSON marshaling for JSONField to properly embed
+// the V field as raw JSON rather than letting amino base64 encode it.
+func (jf JSONField) MarshalJSON() ([]byte, error) {
+	// Marshal the type using amino for proper @type tags
+	tJSON := json.RawMessage("null")
+	if jf.T != nil {
+		var err error
+		tJSON, err = amino.MarshalJSONAny(jf.T)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// V is already raw JSON, embed it directly
+	vJSON := json.RawMessage("null")
+	if jf.V != nil {
+		vJSON = jf.V
+	}
+
+	// Build the JSON object manually to avoid amino's encoding of json.RawMessage
+	if jf.N == "" {
+		return []byte(fmt.Sprintf(`{"T":%s,"V":%s}`, tJSON, vJSON)), nil
+	}
+	return []byte(fmt.Sprintf(`{"N":%s,"T":%s,"V":%s}`, strconv.Quote(jf.N), tJSON, vJSON)), nil
 }
 
 // JSONObjectInfo is a simplified ObjectInfo for JSON export.
@@ -518,6 +545,122 @@ func (asv *JSONStructValue) String() string                   { return "JSONStru
 func (asv *JSONStructValue) DeepFill(store Store) Value       { return asv }
 func (asv *JSONStructValue) GetShallowSize() int64            { return 0 }
 func (asv *JSONStructValue) VisitAssociated(vis Visitor) bool { return false }
+
+// MarshalJSON implements custom JSON marshaling to properly embed JSONField values.
+func (jsv *JSONStructValue) MarshalJSON() ([]byte, error) {
+	// Marshal ObjectInfo
+	objInfo, err := json.Marshal(jsv.ObjectInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	// Marshal Fields manually to use JSONField's MarshalJSON
+	fieldsJSON := make([][]byte, len(jsv.Fields))
+	for i, f := range jsv.Fields {
+		b, err := f.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+		fieldsJSON[i] = b
+	}
+
+	return []byte(fmt.Sprintf(`{"@type":"/gno.JSONStructValue","ObjectInfo":%s,"Fields":[%s]}`,
+		objInfo, joinBytes(fieldsJSON, ","))), nil
+}
+
+// JSONArrayValue is an ArrayValue with human-readable element values for JSON serialization.
+// Replaces ArrayValue during export to include proper primitive formatting.
+// Implements the Value interface minimally (export-only type).
+type JSONArrayValue struct {
+	ObjectInfo JSONObjectInfo `json:"ObjectInfo"`
+	Elements   []JSONField    `json:"Elements"`
+}
+
+func (jav *JSONArrayValue) assertValue()                     {}
+func (jav *JSONArrayValue) String() string                   { return "JSONArrayValue{...}" }
+func (jav *JSONArrayValue) DeepFill(store Store) Value       { return jav }
+func (jav *JSONArrayValue) GetShallowSize() int64            { return 0 }
+func (jav *JSONArrayValue) VisitAssociated(vis Visitor) bool { return false }
+
+// MarshalJSON implements custom JSON marshaling to properly embed JSONField values.
+func (jav *JSONArrayValue) MarshalJSON() ([]byte, error) {
+	// Marshal ObjectInfo
+	objInfo, err := json.Marshal(jav.ObjectInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	// Marshal Elements manually to use JSONField's MarshalJSON
+	elementsJSON := make([][]byte, len(jav.Elements))
+	for i, e := range jav.Elements {
+		b, err := e.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+		elementsJSON[i] = b
+	}
+
+	return []byte(fmt.Sprintf(`{"@type":"/gno.JSONArrayValue","ObjectInfo":%s,"Elements":[%s]}`,
+		objInfo, joinBytes(elementsJSON, ","))), nil
+}
+
+// JSONMapValue is a MapValue with human-readable key/value pairs for JSON serialization.
+// Replaces MapValue during export to include proper primitive formatting.
+// Implements the Value interface minimally (export-only type).
+type JSONMapValue struct {
+	ObjectInfo JSONObjectInfo  `json:"ObjectInfo"`
+	Entries    []JSONMapEntry  `json:"Entries"`
+}
+
+// JSONMapEntry represents a single key-value pair in a JSONMapValue.
+type JSONMapEntry struct {
+	Key   JSONField `json:"Key"`
+	Value JSONField `json:"Value"`
+}
+
+func (jmv *JSONMapValue) assertValue()                     {}
+func (jmv *JSONMapValue) String() string                   { return "JSONMapValue{...}" }
+func (jmv *JSONMapValue) DeepFill(store Store) Value       { return jmv }
+func (jmv *JSONMapValue) GetShallowSize() int64            { return 0 }
+func (jmv *JSONMapValue) VisitAssociated(vis Visitor) bool { return false }
+
+// MarshalJSON implements custom JSON marshaling to properly embed JSONField values.
+func (jmv *JSONMapValue) MarshalJSON() ([]byte, error) {
+	// Marshal ObjectInfo
+	objInfo, err := json.Marshal(jmv.ObjectInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	// Marshal Entries manually to properly serialize keys and values
+	entriesJSON := make([][]byte, len(jmv.Entries))
+	for i, e := range jmv.Entries {
+		keyJSON, err := e.Key.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+		valJSON, err := e.Value.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+		entriesJSON[i] = []byte(fmt.Sprintf(`{"Key":%s,"Value":%s}`, keyJSON, valJSON))
+	}
+
+	return []byte(fmt.Sprintf(`{"@type":"/gno.JSONMapValue","ObjectInfo":%s,"Entries":[%s]}`,
+		objInfo, joinBytes(entriesJSON, ","))), nil
+}
+
+// joinBytes joins byte slices with a separator.
+func joinBytes(parts [][]byte, sep string) string {
+	if len(parts) == 0 {
+		return ""
+	}
+	result := string(parts[0])
+	for _, p := range parts[1:] {
+		result += sep + string(p)
+	}
+	return result
+}
 
 // jsonExporter handles JSON serialization of Gno values.
 // Configuration fields control export behavior.
@@ -621,8 +764,112 @@ func (e *jsonExporter) jsonExportedValueFromExported(tv TypedValue) []byte {
 			return e.marshalStructValueWithNames(sv)
 		}
 
+		// Special handling for our custom JSON types - use their MarshalJSON directly
+		switch v := tv.V.(type) {
+		case *JSONStructValue:
+			result, err := v.MarshalJSON()
+			if err == nil {
+				return result
+			}
+		case *JSONArrayValue:
+			result, err := v.MarshalJSON()
+			if err == nil {
+				return result
+			}
+		case *JSONMapValue:
+			result, err := v.MarshalJSON()
+			if err == nil {
+				return result
+			}
+		case PointerValue:
+			// Handle PointerValue specially to ensure nested JSON types are serialized correctly
+			return e.marshalPointerValueJSON(v)
+		}
+
 		return amino.MustMarshalJSONAny(tv.V)
 	}
+}
+
+// marshalPointerValueJSON marshals a PointerValue to JSON, ensuring nested JSON types
+// are serialized using their custom MarshalJSON methods.
+func (e *jsonExporter) marshalPointerValueJSON(pv PointerValue) []byte {
+	// Serialize the Base value
+	var baseJSON []byte
+	switch base := pv.Base.(type) {
+	case *JSONStructValue:
+		var err error
+		baseJSON, err = base.MarshalJSON()
+		if err != nil {
+			baseJSON = amino.MustMarshalJSONAny(base)
+		}
+	case *JSONArrayValue:
+		var err error
+		baseJSON, err = base.MarshalJSON()
+		if err != nil {
+			baseJSON = amino.MustMarshalJSONAny(base)
+		}
+	case *JSONMapValue:
+		var err error
+		baseJSON, err = base.MarshalJSON()
+		if err != nil {
+			baseJSON = amino.MustMarshalJSONAny(base)
+		}
+	case *HeapItemValue:
+		// For heap items, recursively handle their value
+		baseJSON = e.marshalHeapItemValueJSON(base)
+	default:
+		baseJSON = amino.MustMarshalJSONAny(base)
+	}
+
+	// Build the PointerValue JSON manually
+	return []byte(fmt.Sprintf(`{"@type":"/gno.PointerValue","TV":null,"Base":%s,"Index":"%d"}`,
+		baseJSON, pv.Index))
+}
+
+// marshalHeapItemValueJSON marshals a HeapItemValue to JSON, ensuring nested JSON types
+// are serialized using their custom MarshalJSON methods.
+func (e *jsonExporter) marshalHeapItemValueJSON(hiv *HeapItemValue) []byte {
+	// Get the object info
+	objID := e.seen[hiv]
+	objInfo := makeJSONObjectInfo(hiv.ObjectInfo, objID)
+	objInfoJSON, err := json.Marshal(objInfo)
+	if err != nil {
+		return amino.MustMarshalJSONAny(hiv)
+	}
+
+	// Serialize the value
+	var valueJSON []byte
+	switch v := hiv.Value.V.(type) {
+	case *JSONStructValue:
+		valueJSON, err = v.MarshalJSON()
+		if err != nil {
+			valueJSON = amino.MustMarshalJSONAny(hiv.Value.V)
+		}
+	case *JSONArrayValue:
+		valueJSON, err = v.MarshalJSON()
+		if err != nil {
+			valueJSON = amino.MustMarshalJSONAny(hiv.Value.V)
+		}
+	case *JSONMapValue:
+		valueJSON, err = v.MarshalJSON()
+		if err != nil {
+			valueJSON = amino.MustMarshalJSONAny(hiv.Value.V)
+		}
+	case PointerValue:
+		valueJSON = e.marshalPointerValueJSON(v)
+	default:
+		if hiv.Value.V == nil {
+			valueJSON = []byte("null")
+		} else {
+			valueJSON = amino.MustMarshalJSONAny(hiv.Value.V)
+		}
+	}
+
+	// Serialize the type
+	typeJSON := amino.MustMarshalJSONAny(hiv.Value.T)
+
+	return []byte(fmt.Sprintf(`{"@type":"/gno.HeapItemValue","ObjectInfo":%s,"Value":{"T":%s,"V":%s}}`,
+		objInfoJSON, typeJSON, valueJSON))
 }
 
 // marshalStructValueWithNames marshals a StructValue to JSON with field names included.
@@ -956,8 +1203,18 @@ func (e *jsonExporter) ExportObject(m *Machine, obj Object) ([]byte, error) {
 	// The typ parameter provides type info for field name extraction.
 	exported := e.aminoExportObjectValue(obj, typ, 0)
 
-	// Now serialize the exported (cycle-safe) object via Amino.
-	return amino.MarshalJSONAny(exported)
+	// Use custom MarshalJSON for our JSON types to avoid Amino base64 encoding of json.RawMessage
+	switch v := exported.(type) {
+	case *JSONStructValue:
+		return v.MarshalJSON()
+	case *JSONArrayValue:
+		return v.MarshalJSON()
+	case *JSONMapValue:
+		return v.MarshalJSON()
+	default:
+		// Fallback to Amino for other types
+		return amino.MarshalJSONAny(exported)
+	}
 }
 
 // findTypeFromOwner attempts to find the type of an object by looking at its owner.
@@ -1267,7 +1524,7 @@ func (e *jsonExporter) aminoExportCopyValue(val Value, typ Type, depth int, objI
 			namedFields = append(namedFields, JSONField{
 				N: fieldName,
 				T: exportedField.T,
-				V: exportedField.V,
+				V: e.extractPrimitiveOrValueJSON(exportedField),
 			})
 		}
 
@@ -1514,32 +1771,27 @@ func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int, objID int
 			eltType = at.Elt
 		}
 		if cv.Data == nil {
-			list := make([]TypedValue, len(cv.List))
+			// Convert to JSONArrayValue with human-readable elements
+			elements := make([]JSONField, len(cv.List))
 			for i, etv := range cv.List {
 				etv.T = eltType // Set element type for filtering
-				list[i] = e.exportTypedValue(etv, depth+1)
+				exported := e.exportTypedValue(etv, depth+1)
+				elements[i] = JSONField{
+					N: fmt.Sprintf("%d", i), // Index as name
+					T: exported.T,
+					V: e.extractPrimitiveOrValueJSON(exported),
+				}
 			}
-			result := &ArrayValue{
-				ObjectInfo: cv.ObjectInfo.Copy(),
-				List:       list,
+			return &JSONArrayValue{
+				ObjectInfo: makeJSONObjectInfo(cv.ObjectInfo, objID),
+				Elements:   elements,
 			}
-			// Set the incremental ID on ephemeral objects for proper JSON serialization
-			if objID > 0 {
-				result.ObjectInfo.ID = ObjectID{NewTime: uint64(objID)}
-				e.seen[result] = objID
-			}
-			return result
 		}
-		result := &ArrayValue{
+		// For Data arrays (byte arrays), keep them compact with original ArrayValue format
+		return &ArrayValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
 			Data:       cp(cv.Data),
 		}
-		// Set the incremental ID on ephemeral objects for proper JSON serialization
-		if objID > 0 {
-			result.ObjectInfo.ID = ObjectID{NewTime: uint64(objID)}
-			e.seen[result] = objID
-		}
-		return result
 	case *SliceValue:
 		// Get element type for slice
 		var eltType Type
@@ -1570,26 +1822,24 @@ func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int, objID int
 		structType := e.resolveStructType(typ)
 
 		if structType == nil || len(structType.Fields) != len(cv.Fields) {
-			// No type info or mismatch - export all fields (fallback)
-			fields := make([]TypedValue, len(cv.Fields))
+			// No type info or mismatch - export all fields with index-based names
+			jsonFields := make([]JSONField, len(cv.Fields))
 			for i, ftv := range cv.Fields {
-				fields[i] = e.exportTypedValue(ftv, depth+1)
+				exported := e.exportTypedValue(ftv, depth+1)
+				jsonFields[i] = JSONField{
+					N: fmt.Sprintf("field%d", i),
+					T: exported.T,
+					V: e.extractPrimitiveOrValueJSON(exported),
+				}
 			}
-			result := &StructValue{
-				ObjectInfo: cv.ObjectInfo.Copy(),
-				Fields:     fields,
+			return &JSONStructValue{
+				ObjectInfo: makeJSONObjectInfo(cv.ObjectInfo, objID),
+				Fields:     jsonFields,
 			}
-			// Set the incremental ID on ephemeral objects for proper JSON serialization
-			if objID > 0 {
-				result.ObjectInfo.ID = ObjectID{NewTime: uint64(objID)}
-				e.seen[result] = objID
-			}
-			return result
 		}
 
-		// Filter fields based on visibility and json tags
-		var fields []TypedValue
-		var filteredStructType StructType // Build a filtered struct type with only included fields
+		// Filter fields based on visibility and json tags, with proper field names
+		jsonFields := make([]JSONField, 0, len(cv.Fields))
 		for i, ftv := range cv.Fields {
 			ft := structType.Fields[i]
 
@@ -1603,23 +1853,25 @@ func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int, objID int
 				continue
 			}
 
+			// Get field name (prefer json tag name if available)
+			fieldName := string(ft.Name)
+			if jsonName := getJSONFieldName(ft.Tag); jsonName != "" {
+				fieldName = jsonName
+			}
+
 			// Export this field with its type
 			ftv.T = ft.Type
-			fields = append(fields, e.exportTypedValue(ftv, depth+1))
-			filteredStructType.Fields = append(filteredStructType.Fields, ft)
+			exported := e.exportTypedValue(ftv, depth+1)
+			jsonFields = append(jsonFields, JSONField{
+				N: fieldName,
+				T: exported.T,
+				V: e.extractPrimitiveOrValueJSON(exported),
+			})
 		}
-		result := &StructValue{
-			ObjectInfo: cv.ObjectInfo.Copy(),
-			Fields:     fields,
+		return &JSONStructValue{
+			ObjectInfo: makeJSONObjectInfo(cv.ObjectInfo, objID),
+			Fields:     jsonFields,
 		}
-		// Store the struct type mapping for later JSON serialization
-		e.structTypes[result] = &filteredStructType
-		// Set the incremental ID on ephemeral objects for proper JSON serialization
-		if objID > 0 {
-			result.ObjectInfo.ID = ObjectID{NewTime: uint64(objID)}
-			e.seen[result] = objID
-		}
-		return result
 	case *FuncValue:
 		source := toRefNode(cv.Source)
 		var parent Value
@@ -1676,26 +1928,30 @@ func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int, objID int
 			keyType = mt.Key
 			valType = mt.Value
 		}
-		list := &MapList{}
+		// Convert to JSONMapValue with human-readable entries
+		entries := make([]JSONMapEntry, 0)
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
 			k := cur.Key
 			k.T = keyType
 			v := cur.Value
 			v.T = valType
-			key2 := e.exportTypedValue(k, depth+1)
-			val2 := e.exportTypedValue(v, depth+1)
-			list.Append(nilAllocator, key2).Value = val2
+			keyExported := e.exportTypedValue(k, depth+1)
+			valExported := e.exportTypedValue(v, depth+1)
+			entries = append(entries, JSONMapEntry{
+				Key: JSONField{
+					T: keyExported.T,
+					V: e.extractPrimitiveOrValueJSON(keyExported),
+				},
+				Value: JSONField{
+					T: valExported.T,
+					V: e.extractPrimitiveOrValueJSON(valExported),
+				},
+			})
 		}
-		result := &MapValue{
-			ObjectInfo: cv.ObjectInfo.Copy(),
-			List:       list,
+		return &JSONMapValue{
+			ObjectInfo: makeJSONObjectInfo(cv.ObjectInfo, objID),
+			Entries:    entries,
 		}
-		// Set the incremental ID on ephemeral objects for proper JSON serialization
-		if objID > 0 {
-			result.ObjectInfo.ID = ObjectID{NewTime: uint64(objID)}
-			e.seen[result] = objID
-		}
-		return result
 	case TypeValue:
 		return toTypeValue(exportCopyTypeWithRefs(cv.Type, e.seen))
 	case *PackageValue:
@@ -1732,5 +1988,93 @@ func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int, objID int
 		}
 	default:
 		panic(fmt.Sprintf("unexpected type %v", reflect.TypeOf(val)))
+	}
+}
+
+// extractPrimitiveOrValueJSON extracts human-readable values from primitives as json.RawMessage,
+// or returns the amino-serialized Value for complex types.
+// Used by JSONArrayValue, JSONMapValue, and JSONStructValue to ensure consistent primitive formatting.
+func (e *jsonExporter) extractPrimitiveOrValueJSON(tv TypedValue) json.RawMessage {
+	bt := BaseOf(tv.T)
+	if pt, ok := bt.(PrimitiveType); ok {
+		var jsonStr string
+		switch pt {
+		case BoolType, UntypedBoolType:
+			jsonStr = strconv.FormatBool(tv.GetBool())
+		case StringType, UntypedStringType:
+			var s string
+			if sv, ok := tv.V.(StringValue); ok {
+				s = string(sv)
+			} else {
+				s = tv.GetString()
+			}
+			jsonStr = strconv.Quote(s)
+		case IntType:
+			jsonStr = fmt.Sprintf("%d", tv.GetInt())
+		case Int8Type:
+			jsonStr = fmt.Sprintf("%d", tv.GetInt8())
+		case Int16Type:
+			jsonStr = fmt.Sprintf("%d", tv.GetInt16())
+		case Int32Type, UntypedRuneType:
+			jsonStr = fmt.Sprintf("%d", tv.GetInt32())
+		case Int64Type:
+			jsonStr = fmt.Sprintf("%d", tv.GetInt64())
+		case UintType:
+			jsonStr = fmt.Sprintf("%d", tv.GetUint())
+		case Uint8Type:
+			jsonStr = fmt.Sprintf("%d", tv.GetUint8())
+		case Uint16Type:
+			jsonStr = fmt.Sprintf("%d", tv.GetUint16())
+		case Uint32Type:
+			jsonStr = fmt.Sprintf("%d", tv.GetUint32())
+		case Uint64Type:
+			jsonStr = fmt.Sprintf("%d", tv.GetUint64())
+		case Float32Type:
+			jsonStr = fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32()))
+		case Float64Type:
+			jsonStr = fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64()))
+		case UntypedBigintType:
+			if bv, ok := tv.V.(BigintValue); ok {
+				jsonStr = strconv.Quote(bv.V.String())
+			}
+		case UntypedBigdecType:
+			if bv, ok := tv.V.(BigdecValue); ok {
+				jsonStr = strconv.Quote(bv.V.String())
+			}
+		}
+		if jsonStr != "" {
+			return json.RawMessage(jsonStr)
+		}
+	}
+	// For non-primitives, serialize the exported Value
+	if tv.V == nil {
+		return json.RawMessage("null")
+	}
+
+	// For our custom JSON types, use their MarshalJSON directly to avoid amino interference
+	switch v := tv.V.(type) {
+	case *JSONStructValue:
+		result, err := v.MarshalJSON()
+		if err != nil {
+			return amino.MustMarshalJSONAny(tv.V)
+		}
+		return result
+	case *JSONArrayValue:
+		result, err := v.MarshalJSON()
+		if err != nil {
+			return amino.MustMarshalJSONAny(tv.V)
+		}
+		return result
+	case *JSONMapValue:
+		result, err := v.MarshalJSON()
+		if err != nil {
+			return amino.MustMarshalJSONAny(tv.V)
+		}
+		return result
+	case PointerValue:
+		// Handle PointerValue specially to ensure nested JSON types are serialized correctly
+		return e.marshalPointerValueJSON(v)
+	default:
+		return amino.MustMarshalJSONAny(tv.V)
 	}
 }

@@ -36,6 +36,9 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	JSONField{},
 	JSONObjectInfo{},
 	&JSONStructValue{},
+	&JSONArrayValue{},
+	&JSONMapValue{},
+	JSONMapEntry{},
 
 	//----------------------------------------
 	// Realm/Object

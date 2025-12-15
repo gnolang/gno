@@ -327,9 +327,9 @@ var Value = []Item{{ID: 1}, {ID: 2}}`
 		require.Len(t, tvs, 1)
 
 		rep := stringifyJSONResults(m, tvs, nil)
-		// Ephemeral struct slice shows with ArrayValue base containing inline structs
+		// Ephemeral struct slice shows with JSONArrayValue base containing inline structs
 		require.Contains(t, rep, `"@type":"/gno.SliceValue"`)
-		require.Contains(t, rep, `"@type":"/gno.ArrayValue"`)
+		require.Contains(t, rep, `"@type":"/gno.JSONArrayValue"`)
 		require.Contains(t, rep, `"ObjectInfo"`)
 		require.Contains(t, rep, `"Length":"2"`)
 	})
@@ -504,9 +504,11 @@ func init() { Value.Self = Value }`
 
 		rep := stringifyJSONResults(m, tvs, nil)
 
-		// In Amino format, self-referential pointer shows as PointerValue with RefValue
+		// Self-referential pointer shows as PointerValue with JSONStructValue base
+		// The cycle reference (RefValue) is inside a base64-encoded nested value
 		require.Contains(t, rep, `"@type":"/gno.PointerValue"`)
-		require.Contains(t, rep, `"@type":"/gno.RefValue"`)
+		require.Contains(t, rep, `"@type":"/gno.JSONStructValue"`)
+		require.Contains(t, rep, `"ID":":1"`) // Ephemeral object ID
 	})
 
 	t.Run("linked_list", func(t *testing.T) {
@@ -529,9 +531,11 @@ var Value = &Node{Value: 1, Next: &Node{Value: 2, Next: &Node{Value: 3}}}`
 
 		rep := stringifyJSONResults(m, tvs, nil)
 
-		// In Amino format, pointer shows as PointerValue with RefValue base
+		// Linked list pointer shows as PointerValue with JSONStructValue base
+		// Nested pointers are inside base64-encoded values
 		require.Contains(t, rep, `"@type":"/gno.PointerValue"`)
-		require.Contains(t, rep, `"@type":"/gno.RefValue"`)
+		require.Contains(t, rep, `"@type":"/gno.JSONStructValue"`)
+		require.Contains(t, rep, `"ID":":1"`) // First ephemeral object ID
 	})
 }
 
@@ -793,9 +797,11 @@ var Value = L1{L2{L3{L4{L5{"deep"}}}}}`
 
 		rep := stringifyJSONResults(m, tvs, nil)
 
-		// In Amino format, struct shows as RefValue (since it's non-real but still exported with ref)
+		// Nested structs show as JSONStructValue with proper field names
 		require.Contains(t, rep, `"T":"testdata.L1"`)
-		require.Contains(t, rep, `"@type":"/gno.RefValue"`)
+		require.Contains(t, rep, `"@type":"/gno.JSONStructValue"`)
+		// Verify the deep nesting shows the value with human-readable format
+		require.Contains(t, rep, `"V":"deep"`)
 	})
 }
 

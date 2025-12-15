@@ -224,7 +224,7 @@ func stringifyJSONResults(m *gno.Machine, tvs []gno.TypedValue, ft *gno.FuncType
 	if len(tvs) > 0 {
 		var err error
 
-		opts := gno.JSONExporterOptions{MaxDepth: 3, ExportUnexported: true}
+		opts := gno.JSONExporterOptions{MaxDepth: 10, ExportUnexported: true}
 		if jres.Results, err = opts.ExportTypedValues(tvs); err != nil {
 			panic("unable to marshal results")
 		}
