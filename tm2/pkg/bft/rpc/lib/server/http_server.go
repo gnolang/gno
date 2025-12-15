@@ -12,10 +12,12 @@ import (
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/net/netutil"
 
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 )
 
 // Config is a RPC server configuration.
@@ -73,6 +75,7 @@ func StartHTTPAndTLSServer(
 ) error {
 	logger.Info(fmt.Sprintf("Starting RPC HTTPS server on %s (cert: %q, key: %q)",
 		listener.Addr(), certFile, keyFile))
+
 	s := &http.Server{
 		Handler:           RecoverAndLogHandler(maxBytesHandler{h: handler, n: config.MaxBodyBytes}, logger),
 		ReadTimeout:       config.ReadTimeout,
@@ -140,6 +143,16 @@ func RecoverAndLogHandler(handler http.Handler, logger *slog.Logger) http.Handle
 		// Wrap the ResponseWriter to remember the status
 		rww := &ResponseWriterWrapper{-1, w}
 		begin := time.Now()
+		ctx, span := traces.Tracer().Start(r.Context(), "rpcserver")
+		span.SetAttributes(
+			attribute.String("http.method", r.Method),
+			attribute.String("http.path", r.URL.Path),
+			attribute.String("remoteAddr", r.RemoteAddr),
+		)
+		defer span.End()
+		logger.Warn("started Span", "span", span.SpanContext().TraceID().String())
+
+		r = r.WithContext(ctx)
 
 		rww.Header().Set("X-Server-Time", fmt.Sprintf("%v", begin.Unix()))
 
