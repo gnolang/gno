@@ -26,6 +26,7 @@ type MapCommitter[K comparable, V any] interface {
 	// After calling commit, the underlying tx log is cleared and the
 	// MapCommitter may be reused.
 	Commit()
+	Clear()
 }
 
 // GoMap is a simple implementation of [Map], which wraps the operations of
@@ -82,6 +83,10 @@ func (b *txLog[K, V]) Commit() {
 			b.source.Set(k, v.v)
 		}
 	}
+	b.dirty = make(map[K]deletable[V])
+}
+
+func (b *txLog[K, V]) Clear() {
 	b.dirty = make(map[K]deletable[V])
 }
 

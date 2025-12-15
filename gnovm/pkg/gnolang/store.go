@@ -231,7 +231,7 @@ type transactionStore struct {
 }
 
 func (t transactionStore) Write() {
-	t.cacheTypes.(txlog.MapCommitter[TypeID, Type]).Commit()
+	t.cacheTypes.(txlog.MapCommitter[TypeID, Type]).Clear()
 	t.cacheNodes.(txlog.MapCommitter[Location, BlockNode]).Commit()
 }
 
