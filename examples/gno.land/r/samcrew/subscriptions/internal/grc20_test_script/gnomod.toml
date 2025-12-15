@@ -1,0 +1,2 @@
+module = "gno.land/r/samcrew/subscriptions/internal/grc20_test_script"
+gno = "0.9"
