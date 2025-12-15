@@ -96,18 +96,18 @@ func (p membersUpdatePropDefinition) Validate() (err error) {
 	return err
 }
 
-func (membersUpdatePropDefinition) Tally(r commondao.ReadonlyVotingRecord, members commondao.MemberSet) (bool, error) {
+func (membersUpdatePropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
 	// When DAO has one or two members succeed when there is a YES vote, otherwise
 	// tally requires at least three votes to be able to tally by 2/3s super majority
-	if members.Size() < 3 {
-		return r.VoteCount(commondao.ChoiceYes) > 0, nil
+	if ctx.Members.Size() < 3 {
+		return ctx.VotingRecord.VoteCount(commondao.ChoiceYes) > 0, nil
 	}
 
-	if !commondao.IsQuorumReached(commondao.QuorumTwoThirds, r, members) {
+	if !commondao.IsQuorumReached(commondao.QuorumTwoThirds, ctx.VotingRecord, ctx.Members) {
 		return false, commondao.ErrNoQuorum
 	}
 
-	c, success := commondao.SelectChoiceBySuperMajority(r, members.Size())
+	c, success := commondao.SelectChoiceBySuperMajority(ctx.VotingRecord, ctx.Members.Size())
 	if success {
 		return c == commondao.ChoiceYes, nil
 	}
