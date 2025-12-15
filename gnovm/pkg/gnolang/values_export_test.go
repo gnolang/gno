@@ -234,3 +234,165 @@ func init() {
 
 	t.Logf("Recursive struct with seen: %s", string(data2))
 }
+
+// ============================================================================
+// JSONObjectInfo OwnerID Tests
+// ============================================================================
+
+func TestJSONObjectInfoOwnerID(t *testing.T) {
+	// Create valid PkgID for testing
+	testPkgID := PkgIDFromPkgPath("gno.land/r/test")
+
+	t.Run("ownerid_shown_when_set", func(t *testing.T) {
+		oi := ObjectInfo{
+			ID:       ObjectID{PkgID: testPkgID, NewTime: 10},
+			OwnerID:  ObjectID{PkgID: testPkgID, NewTime: 5},
+			RefCount: 1,
+		}
+
+		jsonOI := makeJSONObjectInfo(oi, 0)
+
+		// OwnerID should be set
+		require.NotEmpty(t, jsonOI.OwnerID, "OwnerID should be set when non-zero")
+		require.Contains(t, jsonOI.OwnerID, ":5", "OwnerID should contain NewTime")
+		require.Contains(t, jsonOI.ID, ":10", "ID should contain NewTime")
+
+		// Verify JSON output includes OwnerID
+		data, err := json.Marshal(jsonOI)
+		require.NoError(t, err)
+		require.Contains(t, string(data), `"OwnerID"`)
+	})
+
+	t.Run("ownerid_omitted_when_zero", func(t *testing.T) {
+		oi := ObjectInfo{
+			ID:       ObjectID{PkgID: testPkgID, NewTime: 10},
+			OwnerID:  ObjectID{}, // zero
+			RefCount: 1,
+		}
+
+		jsonOI := makeJSONObjectInfo(oi, 0)
+
+		// OwnerID should be empty
+		require.Empty(t, jsonOI.OwnerID, "OwnerID should be empty when zero")
+
+		// Verify JSON output omits OwnerID (due to omitempty)
+		data, err := json.Marshal(jsonOI)
+		require.NoError(t, err)
+		require.NotContains(t, string(data), `"OwnerID"`)
+	})
+
+	t.Run("ephemeral_object_with_incremental_id", func(t *testing.T) {
+		oi := ObjectInfo{
+			ID:       ObjectID{}, // zero - ephemeral
+			OwnerID:  ObjectID{}, // zero
+			RefCount: 0,
+		}
+
+		jsonOI := makeJSONObjectInfo(oi, 5)
+
+		// ID should use incremental format
+		require.Equal(t, ":5", jsonOI.ID)
+		require.Empty(t, jsonOI.OwnerID)
+	})
+}
+
+func TestReplaceObjectInfo(t *testing.T) {
+	testPkgID := PkgIDFromPkgPath("gno.land/r/test")
+
+	wrapperOI := ObjectInfo{
+		ID:       ObjectID{PkgID: testPkgID, NewTime: 100},
+		OwnerID:  ObjectID{PkgID: testPkgID, NewTime: 50},
+		RefCount: 2,
+	}
+
+	t.Run("replace_struct_objectinfo", func(t *testing.T) {
+		// Create a JSONStructValue with different ObjectInfo
+		jsv := &JSONStructValue{
+			ObjectInfo: JSONObjectInfo{ID: ":1"},
+			Fields:     []JSONField{{N: "test", V: json.RawMessage(`"value"`)}},
+		}
+
+		result := replaceObjectInfo(jsv, wrapperOI)
+
+		replaced, ok := result.(*JSONStructValue)
+		require.True(t, ok)
+		require.Contains(t, replaced.ObjectInfo.ID, ":100")
+		require.Contains(t, replaced.ObjectInfo.OwnerID, ":50")
+		require.Equal(t, 2, replaced.ObjectInfo.RefCount)
+	})
+
+	t.Run("replace_array_objectinfo", func(t *testing.T) {
+		jav := &JSONArrayValue{
+			ObjectInfo: JSONObjectInfo{ID: ":2"},
+			Elements:   []JSONField{{N: "0", V: json.RawMessage(`1`)}},
+		}
+
+		result := replaceObjectInfo(jav, wrapperOI)
+
+		replaced, ok := result.(*JSONArrayValue)
+		require.True(t, ok)
+		require.Contains(t, replaced.ObjectInfo.ID, ":100")
+		require.Contains(t, replaced.ObjectInfo.OwnerID, ":50")
+	})
+
+	t.Run("replace_map_objectinfo", func(t *testing.T) {
+		jmv := &JSONMapValue{
+			ObjectInfo: JSONObjectInfo{ID: ":3"},
+			Entries:    []JSONMapEntry{},
+		}
+
+		result := replaceObjectInfo(jmv, wrapperOI)
+
+		replaced, ok := result.(*JSONMapValue)
+		require.True(t, ok)
+		require.Contains(t, replaced.ObjectInfo.ID, ":100")
+		require.Contains(t, replaced.ObjectInfo.OwnerID, ":50")
+	})
+}
+
+func TestExportObjectPreservesWrapperObjectInfo(t *testing.T) {
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+
+	// Create a struct that will be wrapped in HeapItemValue
+	code := `package testdata
+type Item struct {
+	Name string
+}
+var Value = &Item{Name: "test"}`
+
+	nn := m.MustParseFile("testdata.gno", code)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+
+	tvs := m.Eval(Sel(Nx("testdata"), "Value"))
+	require.Len(t, tvs, 1)
+
+	// Get the HeapItemValue
+	pv, ok := tvs[0].V.(PointerValue)
+	require.True(t, ok, "expected pointer value")
+	hiv, ok := pv.Base.(*HeapItemValue)
+	require.True(t, ok, "expected heap item value")
+
+	// Set up ObjectInfo on the HeapItemValue to simulate persisted state
+	// In real usage, persisted objects have proper ObjectIDs
+	hivOI := hiv.GetObjectInfo()
+
+	// Export the HeapItemValue
+	opts := JSONExporterOptions{ExportUnexported: true}
+	jsonBytes, err := opts.ExportObject(m, hiv)
+	require.NoError(t, err)
+
+	// Parse the result
+	var result struct {
+		ObjectInfo JSONObjectInfo `json:"ObjectInfo"`
+	}
+	err = json.Unmarshal(jsonBytes, &result)
+	require.NoError(t, err)
+
+	// The exported ObjectInfo should match the HeapItemValue's ObjectInfo,
+	// not the inner StructValue's ObjectInfo
+	expectedID := makeJSONObjectInfo(*hivOI, 0).ID
+	require.Equal(t, expectedID, result.ObjectInfo.ID,
+		"exported ObjectInfo.ID should match HeapItemValue's ID")
+}

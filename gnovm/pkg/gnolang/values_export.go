@@ -513,6 +513,7 @@ func (jf JSONField) MarshalJSON() ([]byte, error) {
 // ID format: ":N" for ephemeral objects, "pkghash:N" for persisted objects.
 type JSONObjectInfo struct {
 	ID       string `json:"ID"`
+	OwnerID  string `json:"OwnerID,omitempty"`
 	RefCount int    `json:"RefCount,omitempty"`
 }
 
@@ -526,8 +527,15 @@ func makeJSONObjectInfo(oi ObjectInfo, incrementalID int) JSONObjectInfo {
 	} else {
 		id = oi.ID.String() // Uses MarshalAmino format
 	}
+
+	var ownerID string
+	if !oi.OwnerID.IsZero() {
+		ownerID = oi.OwnerID.String()
+	}
+
 	return JSONObjectInfo{
 		ID:       id,
+		OwnerID:  ownerID,
 		RefCount: oi.RefCount,
 	}
 }
@@ -1152,12 +1160,16 @@ func (e *jsonExporter) ExportObject(m *Machine, obj Object) ([]byte, error) {
 		e.store = m.Store
 	}
 
-	// Extract type from HeapItemValue BEFORE unwrapping.
+	// Extract type and ObjectInfo from HeapItemValue BEFORE unwrapping.
 	// HeapItemValue.Value is a TypedValue containing both type (.T) and value (.V).
 	// The type is needed for field name extraction in struct exports.
+	// The ObjectInfo is preserved to show the wrapper's position in the ownership tree,
+	// not the inner value's ObjectInfo (which just points back to the wrapper).
 	var typ Type
+	var wrapperObjInfo *ObjectInfo
 	if hiv, ok := obj.(*HeapItemValue); ok {
 		typ = hiv.Value.T
+		wrapperObjInfo = hiv.GetObjectInfo()
 	}
 
 	// Unwrap HeapItemValue - it's an implementation detail that users shouldn't see.
@@ -1176,6 +1188,12 @@ func (e *jsonExporter) ExportObject(m *Machine, obj Object) ([]byte, error) {
 	// - Converts StructValue to JSONStructValue with field names
 	// The typ parameter provides type info for field name extraction.
 	exported := e.aminoExportObjectValue(obj, typ, 0)
+
+	// If we unwrapped a HeapItemValue, use its ObjectInfo instead of the inner value's.
+	// This ensures the ObjectInfo shows the wrapper's position in the ownership tree.
+	if wrapperObjInfo != nil {
+		exported = replaceObjectInfo(exported, *wrapperObjInfo)
+	}
 
 	// Use custom MarshalJSON for our JSON types to avoid Amino base64 encoding of json.RawMessage
 	switch v := exported.(type) {
@@ -1295,6 +1313,24 @@ func unwrapHeapItemValue(st Store, obj Object) Object {
 
 	// Can't unwrap - return original HeapItemValue
 	return obj
+}
+
+// replaceObjectInfo replaces the ObjectInfo in an exported Value with the provided ObjectInfo.
+// This is used when unwrapping HeapItemValue to preserve the wrapper's position in the ownership tree.
+func replaceObjectInfo(v Value, oi ObjectInfo) Value {
+	jsonOI := makeJSONObjectInfo(oi, 0)
+	switch val := v.(type) {
+	case *JSONStructValue:
+		val.ObjectInfo = jsonOI
+		return val
+	case *JSONArrayValue:
+		val.ObjectInfo = jsonOI
+		return val
+	case *JSONMapValue:
+		val.ObjectInfo = jsonOI
+		return val
+	}
+	return v
 }
 
 // aminoExportObjectValue exports an Object for JSON serialization via Amino.
