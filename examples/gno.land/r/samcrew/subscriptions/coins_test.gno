@@ -17,7 +17,7 @@ func TestCoins(t *testing.T) {
 	)
 	expected := chain.NewCoins(
 		chain.NewCoin("/native/ugnot", 1000),
-		chain.NewCoin("/grc20/gno.land/r/demo/foo20", 500),
+		chain.NewCoin("/grc20/r/demo/foo20", 500),
 	)
 
 	result, err := prefixCoins(cross, native, grc20)
