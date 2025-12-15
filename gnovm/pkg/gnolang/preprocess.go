@@ -556,8 +556,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			fmt.Println("---after reset, n: ", n)
 			// inject stmt
 			n = preprocess1(store, ctx, n)
-			heapTrans(n)
 		}
+		heapTrans(n)
 	}
 
 	loopvarTrans()
@@ -4669,6 +4669,11 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 				if tv := last.GetSlot(store, cx.Name, true); tv != nil {
 					return
 				}
+				// find .loopvar_xxx
+				name2 := Name(fmt.Sprintf(".loopvar_%s", cx.Name))
+				if tv := last.GetSlot(store, name2, true); tv != nil {
+					return
+				}
 				return cx.Name, direct
 			}
 		} else {
@@ -5047,6 +5052,7 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 // *TypeDecl is a TypeValue) and sets it on last. As an exception, *FuncDecls
 // will preprocess receiver/argument/result types recursively.
 func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool) (un Name, untype bool, directR bool) {
+	fmt.Println("------tryPredefine, d: ", d)
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
 		panic(fmt.Sprintf("decl node already predefined! %v", d))
 	}
