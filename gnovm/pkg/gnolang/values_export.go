@@ -1118,8 +1118,8 @@ func (e *jsonExporter) aminoExportObjectValue(obj Object, typ Type, depth int) V
 		}
 	}
 
-	// Check depth limit (only for non-root)
-	if e.opts.MaxDepth >= 0 && depth > e.opts.MaxDepth {
+	// Check depth limit (only for non-root, MaxDepth = 0 means no limit)
+	if e.opts.MaxDepth > 0 && depth > e.opts.MaxDepth {
 		if obj.GetIsReal() {
 			return RefValue{
 				ObjectID: obj.GetObjectID(),
@@ -1399,7 +1399,7 @@ func (e *jsonExporter) exportTypedValue(tv TypedValue, depth int) TypedValue {
 
 	// For non-Object values, use the JSON export copy
 	if tv.V != nil {
-		result.V = e.exportCopyValue(tv.V, tv.T, depth)
+		result.V = e.exportCopyValue(tv.V, tv.T, depth, 0)
 	}
 	// Copy primitive values
 	result.N = tv.N
@@ -1452,8 +1452,8 @@ func (e *jsonExporter) exportObjectValue(obj Object, typ Type, depth int) Value 
 		}
 	}
 
-	// Check depth limit for non-real objects
-	if e.opts.MaxDepth >= 0 && depth > e.opts.MaxDepth {
+	// Check depth limit for non-real objects (MaxDepth = 0 means no limit)
+	if e.opts.MaxDepth > 0 && depth > e.opts.MaxDepth {
 		id := len(e.seen) + 1
 		e.seen[obj] = id
 		return RefValue{
@@ -1467,12 +1467,13 @@ func (e *jsonExporter) exportObjectValue(obj Object, typ Type, depth int) Value 
 	e.seen[obj] = id
 
 	// Expand non-real (ephemeral) object inline
-	return e.exportCopyValue(obj, typ, depth)
+	return e.exportCopyValue(obj, typ, depth, id)
 }
 
 // exportCopyValue creates an exported copy of a Value for JSON serialization.
 // The typ parameter provides type information for field filtering.
-func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int) Value {
+// The objID parameter is the incremental ID assigned to ephemeral objects.
+func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int, objID int) Value {
 	switch cv := val.(type) {
 	case nil:
 		return nil
@@ -1518,15 +1519,27 @@ func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int) Value {
 				etv.T = eltType // Set element type for filtering
 				list[i] = e.exportTypedValue(etv, depth+1)
 			}
-			return &ArrayValue{
+			result := &ArrayValue{
 				ObjectInfo: cv.ObjectInfo.Copy(),
 				List:       list,
 			}
+			// Set the incremental ID on ephemeral objects for proper JSON serialization
+			if objID > 0 {
+				result.ObjectInfo.ID = ObjectID{NewTime: uint64(objID)}
+				e.seen[result] = objID
+			}
+			return result
 		}
-		return &ArrayValue{
+		result := &ArrayValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
 			Data:       cp(cv.Data),
 		}
+		// Set the incremental ID on ephemeral objects for proper JSON serialization
+		if objID > 0 {
+			result.ObjectInfo.ID = ObjectID{NewTime: uint64(objID)}
+			e.seen[result] = objID
+		}
+		return result
 	case *SliceValue:
 		// Get element type for slice
 		var eltType Type
@@ -1562,10 +1575,16 @@ func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int) Value {
 			for i, ftv := range cv.Fields {
 				fields[i] = e.exportTypedValue(ftv, depth+1)
 			}
-			return &StructValue{
+			result := &StructValue{
 				ObjectInfo: cv.ObjectInfo.Copy(),
 				Fields:     fields,
 			}
+			// Set the incremental ID on ephemeral objects for proper JSON serialization
+			if objID > 0 {
+				result.ObjectInfo.ID = ObjectID{NewTime: uint64(objID)}
+				e.seen[result] = objID
+			}
+			return result
 		}
 
 		// Filter fields based on visibility and json tags
@@ -1595,6 +1614,11 @@ func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int) Value {
 		}
 		// Store the struct type mapping for later JSON serialization
 		e.structTypes[result] = &filteredStructType
+		// Set the incremental ID on ephemeral objects for proper JSON serialization
+		if objID > 0 {
+			result.ObjectInfo.ID = ObjectID{NewTime: uint64(objID)}
+			e.seen[result] = objID
+		}
 		return result
 	case *FuncValue:
 		source := toRefNode(cv.Source)
@@ -1611,7 +1635,7 @@ func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int) Value {
 			captures[i] = e.exportTypedValue(ctv, depth+1)
 		}
 		ft := exportCopyTypeWithRefs(cv.Type, e.seen)
-		return &FuncValue{
+		result := &FuncValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
 			Type:       ft,
 			IsMethod:   cv.IsMethod,
@@ -1625,14 +1649,26 @@ func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int) Value {
 			NativeName: cv.NativeName,
 			Crossing:   cv.Crossing,
 		}
+		// Set the incremental ID on ephemeral objects for proper JSON serialization
+		if objID > 0 {
+			result.ObjectInfo.ID = ObjectID{NewTime: uint64(objID)}
+			e.seen[result] = objID
+		}
+		return result
 	case *BoundMethodValue:
-		fnc := e.exportCopyValue(cv.Func, nil, depth).(*FuncValue)
+		fnc := e.exportCopyValue(cv.Func, nil, depth, 0).(*FuncValue)
 		rtv := e.exportTypedValue(cv.Receiver, depth+1)
-		return &BoundMethodValue{
+		result := &BoundMethodValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
 			Func:       fnc,
 			Receiver:   rtv,
 		}
+		// Set the incremental ID on ephemeral objects for proper JSON serialization
+		if objID > 0 {
+			result.ObjectInfo.ID = ObjectID{NewTime: uint64(objID)}
+			e.seen[result] = objID
+		}
+		return result
 	case *MapValue:
 		// Get key/value types from map type
 		var keyType, valType Type
@@ -1650,10 +1686,16 @@ func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int) Value {
 			val2 := e.exportTypedValue(v, depth+1)
 			list.Append(nilAllocator, key2).Value = val2
 		}
-		return &MapValue{
+		result := &MapValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
 			List:       list,
 		}
+		// Set the incremental ID on ephemeral objects for proper JSON serialization
+		if objID > 0 {
+			result.ObjectInfo.ID = ObjectID{NewTime: uint64(objID)}
+			e.seen[result] = objID
+		}
+		return result
 	case TypeValue:
 		return toTypeValue(exportCopyTypeWithRefs(cv.Type, e.seen))
 	case *PackageValue:

@@ -825,7 +825,23 @@ func GetError() error {
 
 	t.Run("persisted_json_tags", func(t *testing.T) {
 		pkgPath := "gno.land/r/test/persisted9"
-		pkgBody := "package persisted9\n\ntype Person struct {\n\tFirstName string `json:\"first_name\"`\n\tLastName  string `json:\"last_name\"`\n\tAge       int    `json:\"age,omitempty\"`\n}\n\nvar person *Person\n\nfunc init() {\n\tperson = &Person{FirstName: \"John\", LastName: \"Doe\", Age: 30}\n}\n\nfunc GetPerson() *Person {\n\treturn person\n}"
+		pkgBody := `package persisted9
+
+type Person struct {
+	FirstName string ` + "`json:\"first_name\"`" + `
+	LastName  string ` + "`json:\"last_name\"`" + `
+	Age       int    ` + "`json:\"age,omitempty\"`" + `
+}
+
+var person *Person
+
+func init() {
+	person = &Person{FirstName: "John", LastName: "Doe", Age: 30}
+}
+
+func GetPerson() *Person {
+	return person
+}`
 
 		files := []*std.MemFile{
 			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},

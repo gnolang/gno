@@ -218,8 +218,8 @@ var Value = Empty{}`
 		// Ephemeral empty struct is expanded inline
 		require.Contains(t, rep, `"T":"testdata.Empty"`)
 		require.Contains(t, rep, `"ObjectInfo"`)
-		// Empty struct has null Fields (no fields to export)
-		require.Contains(t, rep, `"Fields":null`)
+		// Empty struct has empty Fields array (no fields to export)
+		require.Contains(t, rep, `"Fields":[]`)
 	})
 
 	t.Run("nested_struct", func(t *testing.T) {
@@ -614,7 +614,11 @@ func TestConvertJSONTags(t *testing.T) {
 		m := gnolang.NewMachine("testdata", nil)
 		defer m.Release()
 
-		code := "package testdata\ntype Tagged struct {\n\tFirstName string `json:\"first_name\"`\n}\nvar Value = Tagged{FirstName: \"John\"}"
+		code := `package testdata
+type Tagged struct {
+	FirstName string ` + "`json:\"first_name\"`" + `
+}
+var Value = Tagged{FirstName: "John"}`
 		nn := m.MustParseFile("testdata.gno", code)
 		m.RunFiles(nn)
 		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
@@ -633,7 +637,11 @@ func TestConvertJSONTags(t *testing.T) {
 		m := gnolang.NewMachine("testdata", nil)
 		defer m.Release()
 
-		code := "package testdata\ntype WithOmit struct {\n\tName string `json:\"name,omitempty\"`\n}\nvar Value = WithOmit{Name: \"test\"}"
+		code := `package testdata
+type WithOmit struct {
+	Name string ` + "`json:\"name,omitempty\"`" + `
+}
+var Value = WithOmit{Name: "test"}`
 		nn := m.MustParseFile("testdata.gno", code)
 		m.RunFiles(nn)
 		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
@@ -653,7 +661,12 @@ func TestConvertJSONTags(t *testing.T) {
 		defer m.Release()
 
 		// Struct with a json:"-" tagged field that should be skipped
-		code := "package testdata\ntype WithSkip struct {\n\tPublic string\n\tSkipped string `json:\"-\"`\n}\nvar Value = WithSkip{Public: \"visible\", Skipped: \"hidden\"}"
+		code := `package testdata
+type WithSkip struct {
+	Public string
+	Skipped string ` + "`json:\"-\"`" + `
+}
+var Value = WithSkip{Public: "visible", Skipped: "hidden"}`
 		nn := m.MustParseFile("testdata.gno", code)
 		m.RunFiles(nn)
 		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
@@ -680,7 +693,12 @@ func TestConvertJSONFieldVisibility(t *testing.T) {
 		defer m.Release()
 
 		// Struct with an unexported field - now included since ExportUnexported=true
-		code := "package testdata\ntype MixedVisibility struct {\n\tPublicField string\n\tprivateField string\n}\nvar Value = MixedVisibility{PublicField: \"public\", privateField: \"private\"}"
+		code := `package testdata
+type MixedVisibility struct {
+	PublicField string
+	privateField string
+}
+var Value = MixedVisibility{PublicField: "public", privateField: "private"}`
 		nn := m.MustParseFile("testdata.gno", code)
 		m.RunFiles(nn)
 		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
@@ -701,7 +719,12 @@ func TestConvertJSONFieldVisibility(t *testing.T) {
 		defer m.Release()
 
 		// Struct with only unexported fields - now included since ExportUnexported=true
-		code := "package testdata\ntype AllPrivate struct {\n\tprivateA string\n\tprivateB int\n}\nvar Value = AllPrivate{privateA: \"a\", privateB: 42}"
+		code := `package testdata
+type AllPrivate struct {
+	privateA string
+	privateB int
+}
+var Value = AllPrivate{privateA: "a", privateB: 42}`
 		nn := m.MustParseFile("testdata.gno", code)
 		m.RunFiles(nn)
 		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
@@ -903,5 +926,303 @@ var Value = &AllPrivate{hidden: "secret"}`
 		// The 'hidden' field should NOT be included with default options
 		require.NotContains(t, string(jsonBytes), `"hidden"`, "unexported 'hidden' field should be excluded by default")
 		require.Contains(t, string(jsonBytes), `"Fields":[]`, "should have empty Fields")
+	})
+}
+
+// ============================================================================
+// Ephemeral Object Incremental ID Tests
+// ============================================================================
+
+func TestConvertJSONEphemeralIncrementalIDs(t *testing.T) {
+	t.Run("linked_list_incremental_ids", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		// Create a 3-node linked list (non-persisted/ephemeral)
+		code := `package testdata
+type Node struct {
+	Value int
+	Next  *Node
+}
+var Value = &Node{Value: 1, Next: &Node{Value: 2, Next: &Node{Value: 3}}}`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+
+		// Verify that ephemeral objects get unique incremental IDs (:1, :2, :3, etc.)
+		// NOT all :0 which would indicate the bug
+		require.Contains(t, rep, `":1"`, "first ephemeral object should have ID :1")
+		require.Contains(t, rep, `":2"`, "second ephemeral object should have ID :2")
+		require.Contains(t, rep, `":3"`, "third ephemeral object should have ID :3")
+
+		// Should NOT contain :0 for any ephemeral object (that's the bug)
+		// Note: :0 might appear in other contexts, so we check the ObjectInfo.ID specifically
+		require.NotContains(t, rep, `"ID":":0"`, "ephemeral objects should not have ID :0")
+	})
+
+	t.Run("self_cycle_incremental_id", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		// Self-referential cycle - only one unique object
+		code := `package testdata
+type Node struct {
+	Value int
+	Self  *Node
+}
+var Value = &Node{Value: 1}
+func init() { Value.Self = Value }`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+
+		// Should have at least one incremental ID
+		require.Contains(t, rep, `":1"`, "ephemeral object should have ID :1")
+		// The cycle reference should also use :1 (same object)
+	})
+
+	t.Run("array_incremental_ids", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		// Array containing pointers to ephemeral structs
+		code := `package testdata
+type Item struct { Value int }
+var Value = [3]*Item{&Item{1}, &Item{2}, &Item{3}}`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+
+		// Array and its elements should have unique IDs
+		require.Contains(t, rep, `":1"`, "array should have incremental ID")
+		require.Contains(t, rep, `":2"`, "first element should have incremental ID")
+		require.NotContains(t, rep, `"ID":":0"`, "ephemeral objects should not have ID :0")
+	})
+
+	t.Run("map_incremental_ids", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		// Map containing pointers to ephemeral structs
+		code := `package testdata
+type Item struct { Value int }
+var Value = map[string]*Item{"a": &Item{1}, "b": &Item{2}}`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+
+		// Map and its values should have unique IDs
+		require.Contains(t, rep, `":1"`, "map should have incremental ID")
+		require.Contains(t, rep, `":2"`, "first value should have incremental ID")
+		require.NotContains(t, rep, `"ID":":0"`, "ephemeral objects should not have ID :0")
+	})
+}
+
+// ============================================================================
+// Cycle Detection Tests - Comprehensive
+// ============================================================================
+
+func TestConvertJSONCycleDetection(t *testing.T) {
+	t.Run("ephemeral_self_cycle_same_id", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		// Self-referential cycle: node points to itself
+		code := `package testdata
+type Node struct {
+	Value int
+	Self  *Node
+}
+var Value = &Node{Value: 42}
+func init() { Value.Self = Value }`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+
+		// The struct should have ID :1
+		require.Contains(t, rep, `"ID":":1"`, "ephemeral struct should have ID :1")
+		// The self-reference (cycle) should be a RefValue pointing to the same ID :1
+		require.Contains(t, rep, `"ObjectID":":1"`, "cycle reference should point to same ID :1")
+		// Should NOT have :0 IDs
+		require.NotContains(t, rep, `"ID":":0"`, "should not have zero ID")
+	})
+
+	t.Run("ephemeral_mutual_recursion_cycle", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		// Mutual recursion: A -> B -> A
+		code := `package testdata
+type NodeA struct {
+	Value int
+	B     *NodeB
+}
+type NodeB struct {
+	Name string
+	A    *NodeA
+}
+var Value *NodeA
+func init() {
+	a := &NodeA{Value: 1}
+	b := &NodeB{Name: "mutual"}
+	a.B = b
+	b.A = a
+	Value = a
+}`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+
+		// Should have two different objects with IDs :1 and :2
+		require.Contains(t, rep, `":1"`, "should have ID :1")
+		require.Contains(t, rep, `":2"`, "should have ID :2")
+		// The back-reference should use RefValue
+		require.Contains(t, rep, `"@type":"/gno.RefValue"`, "cycle should use RefValue")
+		// Should NOT have :0 IDs
+		require.NotContains(t, rep, `"ID":":0"`, "should not have zero ID")
+	})
+
+	t.Run("ephemeral_linked_list_cycle", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		// Linked list cycle: 1 -> 2 -> 3 -> 1
+		code := `package testdata
+type Node struct {
+	Value int
+	Next  *Node
+}
+var Value *Node
+func init() {
+	n1 := &Node{Value: 1}
+	n2 := &Node{Value: 2}
+	n3 := &Node{Value: 3}
+	n1.Next = n2
+	n2.Next = n3
+	n3.Next = n1  // cycle back to n1
+	Value = n1
+}`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+
+		// Should have IDs for the nodes (either in ID or ObjectID field)
+		require.Contains(t, rep, `":1"`, "should have ID :1 for first node")
+		require.Contains(t, rep, `":2"`, "should have ID :2 for second node")
+		// Cycle is detected via RefValue - n3.Next points back to n1
+		require.Contains(t, rep, `"@type":"/gno.RefValue"`, "cycle should use RefValue")
+		// Should NOT have :0 IDs for any ephemeral object
+		require.NotContains(t, rep, `":0"`, "should not have zero ID")
+	})
+
+	t.Run("ephemeral_deep_tree_with_shared_nodes", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		// Tree where multiple parents point to the same child (diamond pattern)
+		// This tests that shared references get the same ID
+		code := `package testdata
+type Node struct {
+	Value int
+	Left  *Node
+	Right *Node
+}
+var Value *Node
+func init() {
+	shared := &Node{Value: 3}
+	left := &Node{Value: 1, Right: shared}
+	right := &Node{Value: 2, Left: shared}
+	Value = &Node{Value: 0, Left: left, Right: right}
+}`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+
+		// Should have multiple objects with unique IDs
+		require.Contains(t, rep, `":1"`, "should have ID :1")
+		require.Contains(t, rep, `":2"`, "should have ID :2")
+		require.Contains(t, rep, `":3"`, "should have ID :3")
+		// The shared node should be referenced via RefValue the second time
+		require.Contains(t, rep, `"@type":"/gno.RefValue"`, "shared reference should use RefValue")
+		// Should NOT have :0 IDs
+		require.NotContains(t, rep, `":0"`, "should not have zero ID")
+	})
+
+	t.Run("ephemeral_no_cycle_distinct_ids", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		// Linear chain without cycle - each node should have unique ID
+		code := `package testdata
+type Node struct {
+	Value int
+	Next  *Node
+}
+var Value = &Node{Value: 1, Next: &Node{Value: 2, Next: &Node{Value: 3, Next: nil}}}`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+
+		// Each node should have a distinct incremental ID
+		// Some nodes may be RefValue (ObjectID) vs StructValue (ID) depending on depth
+		require.Contains(t, rep, `":1"`, "first node should have ID :1")
+		require.Contains(t, rep, `":2"`, "second node should have ID :2")
+		require.Contains(t, rep, `":3"`, "third node should have ID :3")
+		// Should NOT have :0 IDs
+		require.NotContains(t, rep, `":0"`, "should not have zero ID")
 	})
 }

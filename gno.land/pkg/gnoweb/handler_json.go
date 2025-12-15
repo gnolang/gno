@@ -148,21 +148,18 @@ func query(ctx context.Context, logger *slog.Logger, cli *client.RPCClient, qpat
 }
 
 // wantsJSON checks if the client prefers JSON response.
+// Returns true for programmatic clients (curl, APIs), false for browsers.
 func wantsJSON(r *http.Request) bool {
 	accept := r.Header.Get("Accept")
-	// Check for explicit JSON preference
+	// Explicit JSON preference
 	if strings.Contains(accept, "application/json") {
 		return true
 	}
-	// If no Accept header or accepts anything, default to HTML for browsers
-	if accept == "" || accept == "*/*" {
-		return false
-	}
-	// Check if HTML is preferred
+	// Browser: explicit HTML preference (browsers always include text/html)
 	if strings.Contains(accept, "text/html") {
 		return false
 	}
-	// Default to JSON for non-browser clients
+	// Default to JSON for curl (*/*), empty Accept, or other programmatic clients
 	return true
 }
 
