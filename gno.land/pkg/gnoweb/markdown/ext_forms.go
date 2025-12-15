@@ -285,7 +285,7 @@ func (p *FormParser) Continue(node ast.Node, reader text.Reader, pc parser.Conte
 }
 
 func (p *FormParser) parseInput(node *FormNode, tok html.Token) {
-	if tok.Type != html.SelfClosingTagToken && tok.Type != html.StartTagToken {
+	if tok.Type != html.SelfClosingTagToken {
 		node.addElement(FormInput{Error: ErrFormInvalidTag})
 		return
 	}
@@ -347,7 +347,7 @@ func (p *FormParser) parseInput(node *FormNode, tok html.Token) {
 }
 
 func (p *FormParser) parseTextarea(node *FormNode, tok html.Token) {
-	if tok.Type != html.SelfClosingTagToken && tok.Type != html.StartTagToken {
+	if tok.Type != html.SelfClosingTagToken {
 		node.addElement(FormTextarea{Error: ErrFormInvalidTag})
 		return
 	}
@@ -396,7 +396,7 @@ func (p *FormParser) parseTextarea(node *FormNode, tok html.Token) {
 }
 
 func (p *FormParser) parseSelect(node *FormNode, tok html.Token) {
-	if tok.Type != html.SelfClosingTagToken && tok.Type != html.StartTagToken {
+	if tok.Type != html.SelfClosingTagToken {
 		node.addElement(FormSelect{Error: ErrFormInvalidTag})
 		return
 	}
