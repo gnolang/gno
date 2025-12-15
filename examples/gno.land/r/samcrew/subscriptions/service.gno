@@ -19,15 +19,18 @@ type service struct {
 	subscribers   *avl.Tree // key: address, value: *subscription
 }
 
-func (svc *service) balance(withdraw bool) chain.Coins {
-	balance := chain.Coins{}
+// balance calculates the total amount owed by all subscribers.
+// WARNING: This iterates through all subscribers and is gas-expensive.
+// If charge is true, it will also charge all subscribers for their due amounts.
+func (svc *service) balance(charge bool) chain.Coins {
+	total := chain.Coins{}
 	svc.subscribers.Iterate("", "", func(key string, value interface{}) bool {
 		sub := value.(*subscription)
-		due, _ := sub.dueAmount(withdraw, svc.renewalPeriod, svc.price)
-		balance = addCoins(balance, due)
+		due, _ := sub.dueAmount(charge, svc.renewalPeriod, svc.price)
+		total = addCoins(total, due)
 		return false
 	})
-	return balance
+	return total
 }
 
 func (svc *service) subscriberCount() int {

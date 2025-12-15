@@ -25,9 +25,18 @@ type subscription struct {
 	initialPaid   bool
 }
 
+// dueAmount calculates how much the subscriber owes based on elapsed time.
+// If charge is true, it also deducts the amount from vault and updates lastChargedAt.
+// Returns the amount due and whether the subscription can cover all periods.
 func (sub *subscription) dueAmount(charge bool, renewalPeriod time.Duration, price chain.Coins) (chain.Coins, bool) {
+	if renewalPeriod <= 0 {
+		panic("renewal period must be positive")
+	}
+
 	elapsed := time.Now().Sub(sub.lastChargedAt)
 	periodsElapsed := int64(elapsed / renewalPeriod)
+
+	// If initial payment not yet made, add one period
 	if !sub.initialPaid {
 		periodsElapsed += 1
 	}
@@ -71,17 +80,19 @@ func topupNative(cur realm, serviceName string) {
 	if !coinsHasPositive(send) {
 		panic("topup amount must be positive")
 	}
-	for i := range send {
-		send[i].Denom = "/native/" + send[i].Denom
+	
+	prefixedSend, err := prefixCoins(cur, send, nil)
+	if err != nil {
+		panic(err)
 	}
 
 	svc := mustGetServiceByName(serviceName)
 	if !svc.subscribers.Has(creator.String()) {
-		panic("not subscribed")
+		panic("not subscribed to service: " + serviceName)
 	}
 	subValue, _ := svc.subscribers.Get(creator.String())
 	sub := subValue.(*subscription)
-	sub.vault = addCoins(sub.vault, send)
+	sub.vault = addCoins(sub.vault, prefixedSend)
 }
 
 func topupGRC20(cur realm, serviceName string, fqName string, amount int64) {
@@ -90,7 +101,6 @@ func topupGRC20(cur realm, serviceName string, fqName string, amount int64) {
 		panic(errors.New("token not found: " + fqName))
 	}
 	creator := runtime.PreviousRealm().Address()
-	send := chain.NewCoins(chain.NewCoin("/grc20/"+fqName, amount))
 
 	anyAmount := amount == -1
 	if !anyAmount && amount <= 0 {
@@ -101,6 +111,12 @@ func topupGRC20(cur realm, serviceName string, fqName string, amount int64) {
 		amount = int64(token.Allowance(creator, runtime.CurrentRealm().Address()))
 	}
 
+	grc20Send := chain.NewCoins(chain.NewCoin(fqName, amount))
+	prefixedSend, err := prefixCoins(cur, nil, grc20Send)
+	if err != nil {
+		panic(err)
+	}
+
 	teller := token.RealmTeller()
 	if err := teller.TransferFrom(creator, runtime.CurrentRealm().Address(), amount); err != nil {
 		panic(err)
@@ -108,9 +124,9 @@ func topupGRC20(cur realm, serviceName string, fqName string, amount int64) {
 
 	svc := mustGetServiceByName(serviceName)
 	if !svc.subscribers.Has(creator.String()) {
-		panic("not subscribed")
+		panic("not subscribed to service: " + serviceName)
 	}
 	subValue, _ := svc.subscribers.Get(creator.String())
 	sub := subValue.(*subscription)
-	sub.vault = addCoins(sub.vault, send)
+	sub.vault = addCoins(sub.vault, prefixedSend)
 }

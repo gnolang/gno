@@ -13,7 +13,7 @@ import (
 // XXX: this part is 100% from payrolls realm from N0izN0iz <3
 // Payrolls realm: https://github.com/gnolang/gno/pull/3432
 
-// prefixCoins transforms coins into subscriptions coins, prefixing their denom them with their type. Examples: "ugnot" -> "/native/ugnot", "gno.land/r/demo/foo20" -> "/grc20/gno.land/r/demo/foo20"
+// prefixCoins transforms coins into subscriptions coins, prefixing their denom them with their type. Examples: "ugnot" -> "/native/ugnot", "gno.land/r/demo/foo20" -> "/grc20/r/demo/foo20"
 func prefixCoins(cur realm, native chain.Coins, grc20 chain.Coins) (chain.Coins, error) {
 	if len(native) == 0 && len(grc20) == 0 {
 		return chain.Coins{}, errors.New("no coins provided")
@@ -30,7 +30,9 @@ func prefixCoins(cur realm, native chain.Coins, grc20 chain.Coins) (chain.Coins,
 	for i, coin := range grc20 {
 		j := offset + i
 		out[j].Amount = coin.Amount
-		out[j].Denom = "/grc20/" + coin.Denom
+		denom := strings.TrimPrefix(coin.Denom, "gno.land")
+		denom = strings.TrimPrefix(denom, "/")
+		out[j].Denom = "/grc20/" + denom
 	}
 	return out, nil
 }

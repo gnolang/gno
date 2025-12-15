@@ -9,6 +9,7 @@ import (
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/ownable"
 	"gno.land/p/nt/seqid"
+	"gno.land/r/demo/defi/grc20reg"
 )
 
 var services *avl.Tree // key: displayName, value: *service
@@ -20,16 +21,26 @@ var id seqid.ID
 // - fqName: the fully qualified name of the GRC20 token to use for payment (empty string for native coins)
 // - amount: the amount of GRC20 tokens to deposit initially (0 for native coins)
 func Subscribe(cur realm, serviceName string, fqName string, amount int64) {
+	if serviceName == "" {
+		panic("service name cannot be empty")
+	}
+
 	creator := runtime.PreviousRealm().Address()
 	svc := mustGetServiceByName(serviceName)
 	if svc.subscribers.Has(creator.String()) {
 		panic("already subscribed")
 	}
-	natSend := banker.OriginSend()
-	grc20Send := chain.Coins{}
-	if amount != 0 {
-		grc20Send = chain.NewCoins(chain.NewCoin("/grc20/"+fqName, amount))
+
+	// Validate GRC20 token exists if fqName is provided
+	var grc20Send chain.Coins
+	if fqName != "" && amount != 0 {
+		if grc20reg.Get(fqName) == nil {
+			panic("GRC20 token not found: " + fqName)
+		}
+		grc20Send = chain.NewCoins(chain.NewCoin(fqName, amount))
 	}
+
+	natSend := banker.OriginSend()
 	sCoins, err := prefixCoins(cur, natSend, grc20Send)
 	if err != nil {
 		panic(err)
@@ -62,10 +73,14 @@ func Subscribe(cur realm, serviceName string, fqName string, amount int64) {
 // It refunds any remaining balance after deducting due amounts to the service owner
 // - serviceName: the name of the service to unsubscribe from
 func Unsubscribe(cur realm, serviceName string) {
+	if serviceName == "" {
+		panic("service name cannot be empty")
+	}
+
 	creator := runtime.PreviousRealm().Address()
 	svc := mustGetServiceByName(serviceName)
 	if !svc.subscribers.Has(creator.String()) {
-		panic("not subscribed")
+		panic("not subscribed to service: " + serviceName)
 	}
 	subValue, _ := svc.subscribers.Get(creator.String())
 	sub := subValue.(*subscription)
@@ -93,11 +108,24 @@ func Unsubscribe(cur realm, serviceName string) {
 // - fqName: GRC20 token denom (optional)
 // - amount: amount of GRC20 tokens (ignored if fqName empty)
 func Topup(cur realm, serviceName string, fqName string, amount int64) {
-	svc := mustGetServiceByName(serviceName)
-	if !svc.subscribers.Has(runtime.PreviousRealm().Address().String()) {
-		panic("not subscribed")
+	if serviceName == "" {
+		panic("service name cannot be empty")
 	}
-	subRaw, _ := svc.subscribers.Get(runtime.PreviousRealm().Address().String())
+
+	caller := runtime.PreviousRealm().Address()
+	svc := mustGetServiceByName(serviceName)
+	if !svc.subscribers.Has(caller.String()) {
+		panic("not subscribed to service: " + serviceName)
+	}
+
+	// Validate GRC20 token exists if fqName is provided
+	if fqName != "" && amount != 0 {
+		if grc20reg.Get(fqName) == nil {
+			panic("GRC20 token not found: " + fqName)
+		}
+	}
+
+	subRaw, _ := svc.subscribers.Get(caller.String())
 	sub := subRaw.(*subscription)
 	_, active := sub.dueAmount(false, svc.renewalPeriod, svc.price)
 	native := banker.OriginSend()
@@ -120,10 +148,20 @@ func Topup(cur realm, serviceName string, fqName string, amount int64) {
 // - denom: the denomination of the coin to withdraw
 // - amount: the amount of the coin to withdraw
 func Withdraw(cur realm, serviceName string, denom string, amount int64) {
+	if serviceName == "" {
+		panic("service name cannot be empty")
+	}
+	if denom == "" {
+		panic("denomination cannot be empty")
+	}
+	if amount <= 0 {
+		panic("withdrawal amount must be positive")
+	}
+
 	creator := runtime.PreviousRealm().Address()
 	svc := mustGetServiceByName(serviceName)
 	if !svc.subscribers.Has(creator.String()) {
-		panic("not subscribed")
+		panic("not subscribed to service: " + serviceName)
 	}
 	subValue, _ := svc.subscribers.Get(creator.String())
 	sub := subValue.(*subscription)
@@ -161,6 +199,16 @@ func IsSubscribed(cur realm, serviceName string, userAddr string) bool {
 // - native: the price of the service in native coins
 // - grc20: the price of the service in GRC20 tokens
 func NewService(cur realm, displayName, description string, renewalPeriod time.Duration, native chain.Coins, grc20 chain.Coins) {
+	if displayName == "" {
+		panic("display name cannot be empty")
+	}
+	if description == "" {
+		panic("description cannot be empty")
+	}
+	if renewalPeriod <= 0 {
+		panic("renewal period must be positive")
+	}
+
 	// XXX: prefix with creator realm to avoid name clashes?
 	if services.Has(displayName) {
 		panic("service with the same display name already exists")
@@ -182,15 +230,40 @@ func NewService(cur realm, displayName, description string, renewalPeriod time.D
 	services.Set(displayName, svc)
 }
 
-// ServiceClaimVault allows the owner of a service to claim the funds in the service's vault
+// NewServiceSimple creates a new subscription service with simple parameters
+// This is a helper function that simplifies service creation by accepting
+// denomination strings and amounts instead of chain.Coins objects.
+// - displayName: the name of the service
+// - description: a brief description of the service
+// - renewalPeriod: the duration between renewals
+// - nativeDenom: the denomination of native coins (e.g., "ugnot"), empty string for none
+// - nativeAmount: the amount of native coins, 0 for none
+// - grc20Denom: the fully qualified name of GRC20 token (e.g., "gno.land/r/demo/foo20"), empty string for none
+// - grc20Amount: the amount of GRC20 tokens, 0 for none
+func NewServiceSimple(cur realm, displayName, description string, renewalPeriod time.Duration, nativeDenom string, nativeAmount int64, grc20Denom string, grc20Amount int64) {
+	native := chain.Coins{}
+	if nativeDenom != "" && nativeAmount > 0 {
+		native = chain.NewCoins(chain.NewCoin(nativeDenom, nativeAmount))
+	}
+
+	grc20 := chain.Coins{}
+	if grc20Denom != "" && grc20Amount > 0 {
+		grc20 = chain.NewCoins(chain.NewCoin(grc20Denom, grc20Amount))
+	}
+
+	NewService(cur, displayName, description, renewalPeriod, native, grc20)
+}
+
+// ServiceClaimVault allows the owner of a service to claim the funds in the service's vault.
+// It charges all subscribers for their due amounts and transfers the total to the owner.
 // - displayName: the name of the service
 func ServiceClaimVault(cur realm, displayName string) {
 	svc := mustGetServiceByName(displayName)
 	svc.owner.AssertOwnedByPrevious()
 	balance := svc.balance(true)
+
 	if !coinsHasPositive(balance) {
 		panic("no funds to claim")
 	}
 	sendCoins(svc.owner.Owner(), balance)
-
 }
