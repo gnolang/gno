@@ -141,7 +141,7 @@ const (
 	ATTR_PACKAGE_DECL          GnoAttribute = "ATTR_PACKAGE_DECL"
 	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH" // if name expr refers to package.
 	ATTR_FIX_FROM              GnoAttribute = "ATTR_FIX_FROM"     // gno fix this version.
-	ATTR_REWRITTEN             GnoAttribute = "ATTR_REWRITTEN"
+	ATTR_REDEFINE_NAME         GnoAttribute = "ATTR_REDEFINE_NAME"
 )
 
 // Embedded in each Node.

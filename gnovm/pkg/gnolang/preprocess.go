@@ -504,7 +504,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// "coda" means "conclusion".
 	// NOTE: need to use Transcribe() here instead of `bn, ok := n.(BlockNode)`
 	// because say n may be a *CallExpr containing an anonymous function.
-	heapTrans := func(n Node) {
+	transformHeapItem := func(n Node) {
 		Transcribe(n,
 			func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 				if stage != TRANS_ENTER {
@@ -526,8 +526,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			})
 	}
 
-	loopvarTrans := func() {
-		var stop bool
+	transform := func() {
+		var found bool
 		Transcribe(n,
 			func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 				if stage != TRANS_ENTER {
@@ -539,28 +539,21 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 				}
 				if bn, ok := n.(BlockNode); ok {
-					stop = findHeapDefinedLoopvarByUse(ctx, bn)
-					if stop {
-						fmt.Println("---bn: ", bn)
-					}
-
+					found = findHeapDefinedLoopvarByUse(ctx, bn)
 					return n, TRANS_SKIP
 				}
 				return n, TRANS_CONTINUE
 			})
-		if stop {
-			fmt.Println("------do need to inject stmt...")
-			// clean first
-			// re-preprocess
-			resetPreprocess(ctx, n)
-			fmt.Println("---after reset, n: ", n)
-			// inject stmt
+		if found {
+			// restore ATTR_PREPROCESSED attribute
+			RestoreNode(ctx, n)
+			// re-preprocess1
 			n = preprocess1(store, ctx, n)
 		}
-		heapTrans(n)
+		transformHeapItem(n)
 	}
 
-	loopvarTrans()
+	transform()
 
 	return n
 }
@@ -3085,7 +3078,7 @@ func codaGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 	})
 }
 
-func resetPreprocess(ctx BlockNode, n Node) {
+func RestoreNode(ctx BlockNode, n Node) {
 	// Iterate over all nodes recursively.
 	_ = TranscribeB(ctx, n, func(
 		ns []Node,
@@ -3155,37 +3148,27 @@ func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 				}
 			case *ForStmt:
 				fmt.Println("------forStmt: ", n)
-				if n.GetAttribute(ATTR_REWRITTEN) == true {
+				if n2, ok := n.GetAttribute(ATTR_REDEFINE_NAME).(string); ok && n2 != "" {
 					fmt.Println("------forStmt re-written...")
-					// origName := strings.TrimPrefix(string(n.Name), ".loopvar_")
-					origName := "i"
-					redefineName := fmt.Sprintf("%s%s", ".redefine_", origName)
 					stmts := n.GetBody()
 
-					var firstSpan Span
-					for i, s := range stmts {
-						if i == 0 {
-							firstSpan = s.GetSpan()
-						}
-						span := s.GetSpan()
-						span2 := Span4(span.Line+1, span.Column, span.End.Line, span.End.Column)
-						span.SetSpanOverride(span2)
-					}
-					fmt.Println("---stmts: ", stmts)
-					lhs := Nx(redefineName)
+					lhs := Nx(n2)
 					rhs := Nx(".loopvar_i")
 					as := A(lhs, ":=", rhs)
-					as.SetSpan(firstSpan)
-					stmts2 := append([]Stmt{as}, stmts...)
-					fmt.Println("---2, stmts: ", stmts2)
+					stmts2 := make([]Stmt, 0, len(stmts)+1)
+					stmts2 = append(stmts2, as)
+					stmts2 = append(stmts2, stmts...)
 
+					// Index for new injected name
 					index := len(n.GetBlockNames())
+					// Set Heap type
 					lhs.Type = NameExprTypeHeapDefine
+					// Reserve for new injected name
 					n.Reserve(false, lhs, n, NSDefine, index+1)
-
 					n.SetBody(stmts2)
 
 					fmt.Println("---after process, n: ", n)
+					n.DelAttribute(ATTR_REDEFINE_NAME)
 				}
 			case *NameExpr:
 				fmt.Println("---findHeapDefinedLoopvarByUse, n.Name: ", n.Name)
@@ -3216,57 +3199,26 @@ func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 
 				// Find the block where name is defined.
 				dbn := last.GetBlockNodeForPath(nil, n.Path)
-				dbn2 := dbn
 				for {
 					// If used as closure capture, mark as heap use.
 					flx, _, found := findFirstClosure(stack, dbn)
 					fmt.Println("---found closure, flx: ", flx)
 					if !found {
-						fmt.Println("---after process, dbn2: ", dbn2)
 						return n, TRANS_CONTINUE
 					}
 
+					// true if found once
+					stop = true
 					origName := strings.TrimPrefix(string(n.Name), ".loopvar_")
 					redefineName := fmt.Sprintf("%s%s", ".redefine_", origName)
 
-					if dbn.GetAttribute(ATTR_REWRITTEN) != true {
-						// fmt.Println("---dbn not re-written: ", dbn)
-						// stmts := dbn.GetBody()
-
-						// var firstSpan Span
-						// for i, s := range stmts {
-						// 	if i == 0 {
-						// 		firstSpan = s.GetSpan()
-						// 	}
-						// 	span := s.GetSpan()
-						// 	span2 := Span4(span.Line+1, span.Column, span.End.Line, span.End.Column)
-						// 	span.SetSpanOverride(span2)
-						// }
-						// fmt.Println("---stmts: ", stmts)
-						// lhs := Nx(redefineName)
-						// rhs := Nx(redefineName)
-						// as := A(lhs, ":=", rhs)
-						// as.SetSpan(firstSpan)
-						// stmts2 := append([]Stmt{as}, stmts...)
-						// fmt.Println("---2, stmts: ", stmts2)
-
-						// dbn.SetBody(stmts2)
-
-						// fmt.Println("---after process, dbn: ", dbn)
-
-						// stop current process
-						// inject i := i
-						// preprocess1
-						// find...byUse
-						// find...
-						// find...
-						stop = true
-						dbn.SetAttribute(ATTR_REWRITTEN, true)
+					if _, ok := dbn.GetAttribute(ATTR_REDEFINE_NAME).(string); !ok {
+						dbn.SetAttribute(ATTR_REDEFINE_NAME, redefineName)
 					}
 
-					// reset to type normal
+					// Reset to type normal
 					n.Type = NameExprTypeNormal
-					// reset name
+					// Redefine name
 					n.Name = Name(redefineName)
 
 					// Loop again for more closures.
@@ -3367,7 +3319,6 @@ func codaHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 				for {
 					// If used as closure capture, mark as heap use.
 					flx, depth, found := findFirstClosure(stack, dbn)
-					fmt.Println("---findHeapDefinesByUse, flx: ", flx)
 					if !found {
 						return n, TRANS_CONTINUE
 					}
@@ -3394,7 +3345,6 @@ func codaHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 					idx := addHeapCapture(dbn, flx, depth, n)
 					// adjust NameExpr type.
 					n.Type = NameExprTypeHeapUse
-					fmt.Println("------!!!, n.Name: ", n.Name)
 					// XXX, handle loopvar heapuse case
 					n.Path.SetDepth(uint8(depth))
 					n.Path.Index = idx
