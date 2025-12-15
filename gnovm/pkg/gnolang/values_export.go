@@ -753,29 +753,6 @@ func getMapTypes(typ Type) (key, val Type) {
 	return nil, nil
 }
 
-// marshalJSONValue marshals a Value to JSON, using custom MarshalJSON for
-// JSONStructValue, JSONArrayValue, JSONMapValue. Falls back to Amino for others.
-func marshalJSONValue(v Value) []byte {
-	if v == nil {
-		return []byte("null")
-	}
-	switch val := v.(type) {
-	case *JSONStructValue:
-		if b, err := val.MarshalJSON(); err == nil {
-			return b
-		}
-	case *JSONArrayValue:
-		if b, err := val.MarshalJSON(); err == nil {
-			return b
-		}
-	case *JSONMapValue:
-		if b, err := val.MarshalJSON(); err == nil {
-			return b
-		}
-	}
-	return amino.MustMarshalJSONAny(v)
-}
-
 // marshalNestedValue marshals a Value that may contain nested JSON types.
 // Handles PointerValue, HeapItemValue, and JSON wrapper types.
 // The exporter's seen map is needed for HeapItemValue object IDs.
@@ -1040,57 +1017,8 @@ func isExportedName(name Name) bool {
 // hasJSONSkipTag returns true if the struct tag contains `json:"-"`.
 // Fields with this tag should be omitted from JSON output.
 func hasJSONSkipTag(tag Tag) bool {
-	if tag == "" {
-		return false
-	}
-	// Parse the json tag from the struct tag
-	// Format: `json:"name,options"` or `json:"-"`
-	tagStr := string(tag)
-	for tagStr != "" {
-		// Skip leading space
-		i := 0
-		for i < len(tagStr) && tagStr[i] == ' ' {
-			i++
-		}
-		tagStr = tagStr[i:]
-		if tagStr == "" {
-			break
-		}
-
-		// Scan to colon - find the key
-		i = 0
-		for i < len(tagStr) && tagStr[i] > ' ' && tagStr[i] != ':' && tagStr[i] != '"' && tagStr[i] != 0x7f {
-			i++
-		}
-		if i == 0 || i+1 >= len(tagStr) || tagStr[i] != ':' || tagStr[i+1] != '"' {
-			break
-		}
-		key := tagStr[:i]
-		tagStr = tagStr[i+1:]
-
-		// Scan quoted value
-		i = 1
-		for i < len(tagStr) && tagStr[i] != '"' {
-			if tagStr[i] == '\\' {
-				i++
-			}
-			i++
-		}
-		if i >= len(tagStr) {
-			break
-		}
-		value := tagStr[1:i]
-		tagStr = tagStr[i+1:]
-
-		if key == "json" {
-			// Check if the json tag value is "-" or starts with "-,"
-			if value == "-" || strings.HasPrefix(value, "-,") {
-				return true
-			}
-			return false
-		}
-	}
-	return false
+	jsonTag := reflect.StructTag(tag).Get("json")
+	return jsonTag == "-" || strings.HasPrefix(jsonTag, "-,")
 }
 
 // getStructTypeFromType resolves a Type to its underlying *StructType.
