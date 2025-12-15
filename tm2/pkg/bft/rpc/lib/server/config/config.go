@@ -9,6 +9,6 @@ type Config struct {
 // DefaultConfig returns a default configuration for the RPC server
 func DefaultConfig() *Config {
 	return &Config{
-		ListenAddress: "tcp://0.0.0.0:26657",
+		ListenAddress: "0.0.0.0:26657",
 	}
 }
