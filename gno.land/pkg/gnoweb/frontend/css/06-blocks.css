@@ -2144,6 +2144,13 @@ pre.chroma-chroma {
 		margin-inline-start: var(--g-space-1);
 	}
 
+	.gno-form_required-badge {
+		font-size: var(--g-font-size-50);
+		color: var(--s-color-text-tertiary);
+		font-weight: var(--g-font-normal);
+		margin-inline-start: var(--g-space-1);
+	}
+
 	.gno-form_selectable {
 		display: flex;
 		column-gap: var(--g-space-2);
