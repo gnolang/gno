@@ -7,6 +7,7 @@ import (
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 )
 
 // Get block headers for minHeight <= height <= maxHeight.
@@ -73,6 +74,8 @@ import (
 //
 // <aside class="notice">Returns at most 20 items.</aside>
 func BlockchainInfo(ctx *rpctypes.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "BlockchainInfo")
+	defer span.End()
 	// maximum 20 block metas
 	const limit int64 = 20
 	var err error
@@ -235,6 +238,8 @@ func filterMinMax(height, low, high, limit int64) (int64, int64, error) {
 //
 // ```
 func Block(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultBlock, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "Block")
+	defer span.End()
 	storeHeight := blockStore.Height()
 	height, err := getHeight(storeHeight, heightPtr)
 	if err != nil {
@@ -326,6 +331,8 @@ func Block(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultBlock, error)
 //
 // ```
 func Commit(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultCommit, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "Commit")
+	defer span.End()
 	storeHeight := blockStore.Height()
 	height, err := getHeight(storeHeight, heightPtr)
 	if err != nil {
@@ -399,6 +406,8 @@ func Commit(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultCommit, erro
 //
 // ```
 func BlockResults(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultBlockResults, error) {
+	_, span := traces.Tracer().Start(ctx.Context(), "BlockResults")
+	defer span.End()
 	storeHeight := blockStore.Height()
 	height, err := getHeightWithMin(storeHeight, heightPtr, 0)
 	if err != nil {
