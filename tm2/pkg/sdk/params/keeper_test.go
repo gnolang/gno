@@ -77,6 +77,10 @@ func TestKeeper(t *testing.T) {
 	require.Equal(t, param3, uint64(12345))
 	require.Equal(t, param4, int64(1000))
 	require.Equal(t, param5, []byte("bye"))
+
+	// Test SetBytes with nil deletes the key
+	keeper.SetBytes(ctx, "param5", nil)
+	require.False(t, keeper.Has(ctx, "param5"))
 }
 
 // adapted from TestKeeperSubspace from Cosmos SDK, but adapted to a subspace-less Keeper.

@@ -153,7 +153,15 @@ func (pk ParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64) {
 }
 
 func (pk ParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) {
-	ctx.Store(pk.key).Set(storeKey(key), value)
+	stor := ctx.Store(pk.key)
+	if value == nil {
+		stor.Delete(storeKey(key))
+		return
+	}
+	// Copy to avoid altering the input bytes
+	valueCopy := make([]byte, len(value))
+	copy(valueCopy, value)
+	stor.Set(storeKey(key), valueCopy)
 }
 
 func (pk ParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) {
