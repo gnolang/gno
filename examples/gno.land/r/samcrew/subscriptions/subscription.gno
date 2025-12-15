@@ -80,7 +80,7 @@ func topupNative(cur realm, serviceName string) {
 	if !coinsHasPositive(send) {
 		panic("topup amount must be positive")
 	}
-	
+
 	prefixedSend, err := prefixCoins(cur, send, nil)
 	if err != nil {
 		panic(err)
