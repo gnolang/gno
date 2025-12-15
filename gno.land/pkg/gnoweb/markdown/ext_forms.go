@@ -286,8 +286,8 @@ func (p *FormParser) Continue(node ast.Node, reader text.Reader, pc parser.Conte
 
 func (p *FormParser) parseInput(node *FormNode, tok html.Token) {
 	if tok.Type != html.SelfClosingTagToken && tok.Type != html.StartTagToken {
-	    node.addElement(FormInput{Error: ErrFormInvalidTag})
-	    return
+		node.addElement(FormInput{Error: ErrFormInvalidTag})
+		return
 	}
 
 	input := FormInput{Type: formDefaultInputType}
@@ -348,8 +348,8 @@ func (p *FormParser) parseInput(node *FormNode, tok html.Token) {
 
 func (p *FormParser) parseTextarea(node *FormNode, tok html.Token) {
 	if tok.Type != html.SelfClosingTagToken && tok.Type != html.StartTagToken {
-	    node.addElement(FormTextarea{Error: ErrFormInvalidTag})
-	    return
+		node.addElement(FormTextarea{Error: ErrFormInvalidTag})
+		return
 	}
 
 	textarea := FormTextarea{
@@ -397,8 +397,8 @@ func (p *FormParser) parseTextarea(node *FormNode, tok html.Token) {
 
 func (p *FormParser) parseSelect(node *FormNode, tok html.Token) {
 	if tok.Type != html.SelfClosingTagToken && tok.Type != html.StartTagToken {
-	    node.addElement(FormSelect{Error: ErrFormInvalidTag})
-	    return
+		node.addElement(FormSelect{Error: ErrFormInvalidTag})
+		return
 	}
 
 	sel := FormSelect{}
@@ -727,7 +727,6 @@ func (r *FormRenderer) renderSelect(w util.BufWriter, elements []FormElement, e 
 <select id="%s" name="%s"`,
 		HTMLEscapeString(e.Name), requiredBadge, HTMLEscapeString(label), readonlyBadge,
 		HTMLEscapeString(e.Name), HTMLEscapeString(e.Name))
-
 
 	if *lastDescID != "" {
 		fmt.Fprintf(w, ` aria-labelledby="%s"`, HTMLEscapeString(*lastDescID))
