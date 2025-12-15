@@ -410,6 +410,11 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 }
 
 // IsReadonlyBy returns true if tv is readonly by realm rid.
+//   - tv is N_Readonly, or
+//   - tv is not an object ("first object" ID is zero), or
+//   - tv is an unreal object (no object id), or
+//   - tv is an object residing in external realm
+//
 // This is different from GetFirstObject in two significant ways:
 //  1. IsReadonlyBy does not go through RefValues; for this reason, it
 //     also doesn't need a store to fetch the nested object.
@@ -465,6 +470,7 @@ func (tv *TypedValue) IsReadonlyBy(rid PkgID) bool {
 			// (or derived implicitly for local package names).
 			// These may refer to package values not yet
 			// real/persisted; this function should not handle it.
+			// It is should be handled by Machine.IsReadonly().
 			panic("IsReadonlyBy() cannot handle RefValue{PkgPath}")
 		}
 		tvoid = cv.GetObjectID()

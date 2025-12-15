@@ -2234,8 +2234,8 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 
 // Returns true iff:
 //   - m.Realm is nil (single user mode), or
-//   - tv is N_Readonly, or
 //   - tv is a ref to (external) package path, or
+//   - tv is N_Readonly, or
 //   - tv is not an object ("first object" ID is zero), or
 //   - tv is an unreal object (no object id), or
 //   - tv is an object residing in external realm
@@ -2245,6 +2245,18 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 	if m.Realm == nil {
 		return false
 	}
+	//  - tv is a ref to package path
+	if rv, ok := tv.V.(RefValue); ok && rv.PkgPath != "" {
+		if rv.PkgPath == m.Package.PkgPath {
+			return false // local package
+		} else {
+			return true // external package
+		}
+	}
+	//   - tv is N_Readonly, or
+	//   - tv is not an object ("first object" ID is zero), or
+	//   - tv is an unreal object (no object id), or
+	//   - tv is an object residing in external realm
 	return tv.IsReadonlyBy(m.Realm.ID)
 }
 
