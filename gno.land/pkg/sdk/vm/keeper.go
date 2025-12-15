@@ -634,12 +634,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	defer doRecover(m, &err)
 
 	rtvs := m.Eval(xn)
-	// Extract last return type from function signature for signature-based error detection
-	var lastReturnType gno.Type
-	if len(ft.Results) > 0 {
-		lastReturnType = ft.Results[len(ft.Results)-1].Type
-	}
-	res = stringifyResultValues(m, QueryFormatMachine, rtvs, lastReturnType)
+	res = stringifyResultValues(m, QueryFormatMachine, rtvs, ft)
 
 	// Use `\n\n` as separator to separate results for single tx with multi msgs
 	res += "\n\n"
@@ -1052,9 +1047,9 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 }
 
 // stringifyResultValues converts TypedValues to a string representation based on format.
-// lastReturnType is optional and used for JSON format to determine if the function's
-// signature declares an error return type (for signature-based error detection per spec).
-func stringifyResultValues(m *gno.Machine, format QueryFormat, values []gno.TypedValue, lastReturnType gno.Type) string {
+// ft is optional and used for JSON format to determine if the function's signature
+// declares an error return type.
+func stringifyResultValues(m *gno.Machine, format QueryFormat, values []gno.TypedValue, ft *gno.FuncType) string {
 	if format == "" {
 		format = QueryFormatDefault
 	}
@@ -1081,8 +1076,8 @@ func stringifyResultValues(m *gno.Machine, format QueryFormat, values []gno.Type
 		panic(fmt.Errorf("expected 1 `string` or `Stringer` result, got %v", tv.T.Kind()))
 
 	case QueryFormatJSON:
-		return stringifyJSONResults(m, values, lastReturnType)
-	case QueryFormatDefault, "":
+		return stringifyJSONResults(m, values, ft)
+	case QueryFormatMachine:
 		var res strings.Builder
 
 		for i, v := range values {

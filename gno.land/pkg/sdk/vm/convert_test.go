@@ -64,8 +64,9 @@ var Value error = &myError{}`
 		require.Len(t, tps, 1)
 
 		tv := tps[0]
-		// Use signature-based detection: pass error type as lastReturnType
-		rep := stringifyJSONResults(m, []gnolang.TypedValue{tv}, tv.T)
+		// Create a FuncType with error return type for signature-based detection
+		ft := &gnolang.FuncType{Results: []gnolang.FieldType{{Type: tv.T}}}
+		rep := stringifyJSONResults(m, []gnolang.TypedValue{tv}, ft)
 		// In Amino format, error shows as PointerValue with expanded StructValue base
 		// (ephemeral objects are expanded inline, not shown as RefValue)
 		// The @error field at top level is extracted
@@ -92,8 +93,9 @@ var Value error = &myError{}`
 		require.Len(t, tps, 1)
 
 		tv := tps[0]
-		// Use signature-based detection: pass error type as lastReturnType
-		rep := stringifyJSONResults(m, []gnolang.TypedValue{tv}, tv.T)
+		// Create a FuncType with error return type for signature-based detection
+		ft := &gnolang.FuncType{Results: []gnolang.FieldType{{Type: tv.T}}}
+		rep := stringifyJSONResults(m, []gnolang.TypedValue{tv}, ft)
 		// In Amino format, error shows as PointerValue with expanded StructValue base
 		// (ephemeral objects are expanded inline, not shown as RefValue)
 		require.Contains(t, rep, `"@type":"/gno.PointerValue"`)
@@ -797,8 +799,9 @@ var Value2 error = &MyError{}`
 		tv2 := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value2"))
 
 		tvs := []gnolang.TypedValue{tv1[0], tv2[0]}
-		// Simulate last return being error type
-		rep := stringifyJSONResults(m, tvs, tv2[0].T)
+		// Simulate function returning (int, error)
+		ft := &gnolang.FuncType{Results: []gnolang.FieldType{{Type: tv1[0].T}, {Type: tv2[0].T}}}
+		rep := stringifyJSONResults(m, tvs, ft)
 
 		// Should have @error at top level
 		require.Contains(t, rep, `"@error":"test error"`)
@@ -819,8 +822,9 @@ var Value error = nil`
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		// nil error should not produce @error field
-		rep := stringifyJSONResults(m, tvs, tvs[0].T)
+		// nil error should not produce @error field (func returns error type)
+		ft := &gnolang.FuncType{Results: []gnolang.FieldType{{Type: tvs[0].T}}}
+		rep := stringifyJSONResults(m, tvs, ft)
 		require.NotContains(t, rep, `"@error"`)
 	})
 }
