@@ -29,17 +29,17 @@ type ParamsKeeperI interface {
 	GetInt64(ctx sdk.Context, key string, ptr *int64)
 	GetUint64(ctx sdk.Context, key string, ptr *uint64)
 	GetBool(ctx sdk.Context, key string, ptr *bool)
+	GetBytes(ctx sdk.Context, key string, ptr *[]byte)
 	GetStrings(ctx sdk.Context, key string, ptr *[]string)
 
 	SetString(ctx sdk.Context, key string, value string)
 	SetInt64(ctx sdk.Context, key string, value int64)
 	SetUint64(ctx sdk.Context, key string, value uint64)
 	SetBool(ctx sdk.Context, key string, value bool)
+	SetBytes(ctx sdk.Context, key string, value []byte)
 	SetStrings(ctx sdk.Context, key string, value []string)
 
 	Has(ctx sdk.Context, key string) bool
-	GetBytes(ctx sdk.Context, key string, ptr *[]byte)
-	SetBytes(ctx sdk.Context, key string, value []byte)
 
 	GetStruct(ctx sdk.Context, key string, strctPtr any)
 	SetStruct(ctx sdk.Context, key string, strct any)
