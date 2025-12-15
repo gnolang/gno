@@ -71,6 +71,11 @@ func (oid ObjectID) String() string {
 	return oids
 }
 
+func (oid ObjectID) IsPackageID() bool {
+	// all package objects have newtime 1.
+	return !oid.PkgID.IsZero() && oid.NewTime == 1
+}
+
 // TODO: make faster by making PkgID a pointer
 // and enforcing that the value of PkgID is never zero.
 func (oid ObjectID) IsZero() bool {
@@ -380,10 +385,17 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 	case *BoundMethodValue:
 		return cv
 	case *PackageValue:
-		return cv.GetBlock(store)
+		return cv
 	case *Block:
 		return cv
 	case RefValue:
+		if cv.PkgPath != "" {
+			// Constructed by preprocessor from package name exprs
+			// (or derived implicitly for local package names).
+			// These may refer to package values not yet
+			// real/persisted; this function should not handle it.
+			panic("GetFirstObject() cannot handle RefValue{PkgPath}")
+		}
 		oo := store.GetObject(cv.ObjectID)
 		tv.V = oo
 		return oo
@@ -398,6 +410,11 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 }
 
 // IsReadonlyBy returns true if tv is readonly by realm rid.
+//   - tv is N_Readonly, or
+//   - tv is not an object ("first object" ID is zero), or
+//   - tv is an unreal object (no object id), or
+//   - tv is an object residing in external realm
+//
 // This is different from GetFirstObject in two significant ways:
 //  1. IsReadonlyBy does not go through RefValues; for this reason, it
 //     also doesn't need a store to fetch the nested object.
@@ -448,6 +465,14 @@ func (tv *TypedValue) IsReadonlyBy(rid PkgID) bool {
 	case *Block:
 		tvoid = cv.GetObjectID()
 	case RefValue:
+		if cv.PkgPath != "" {
+			// Constructed by preprocessor from package name exprs
+			// (or derived implicitly for local package names).
+			// These may refer to package values not yet
+			// real/persisted; this function should not handle it.
+			// It is should be handled by Machine.IsReadonly().
+			panic("IsReadonlyBy() cannot handle RefValue{PkgPath}")
+		}
 		tvoid = cv.GetObjectID()
 	case *HeapItemValue:
 		// should only appear in PointerValue.Base or
