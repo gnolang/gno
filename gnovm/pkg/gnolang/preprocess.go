@@ -3136,15 +3136,41 @@ func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 			case *RefExpr:
 				lmx := LeftmostX(n.X)
 				if nx, ok := lmx.(*NameExpr); ok {
+					if !strings.HasPrefix(string(nx.Name), ".loopvar") {
+						return n, TRANS_CONTINUE
+					}
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, nx.Path)
 					// The leftmost name of possibly nested index
 					// and selector exprs.
 					// e.g. leftmost.middle[0][2].rightmost
-					// Mark name for heap use.
-					addAttrHeapUse(dbn, nx.Name)
-					// adjust NameExpr type.
-					nx.Type = NameExprTypeHeapUse
+
+					// Ignore post stmt name
+					nn := ns[len(ns)-1]
+					if fstmt, ok := dbn.(*ForStmt); ok {
+						if exst, ok := fstmt.Post.(*ExprStmt); ok {
+							if exst.X == nn {
+								return n, TRANS_CONTINUE
+							}
+						}
+					}
+
+					// if ftype != TRANS_FOR_INIT && ftype != TRANS_FOR_COND && ftype != TRANS_FOR_POST {
+					if _, ok := dbn.(*ForStmt); ok {
+						// true if found once
+						stop = true
+						origName := strings.TrimPrefix(string(nx.Name), ".loopvar_")
+						redefineName := fmt.Sprintf("%s%s", ".redefine_", origName)
+
+						if _, ok := dbn.GetAttribute(ATTR_REDEFINE_NAME).(string); !ok {
+							dbn.SetAttribute(ATTR_REDEFINE_NAME, redefineName)
+						}
+
+						// Reset to type normal
+						nx.Type = NameExprTypeNormal
+						// Redefine name
+						nx.Name = Name(redefineName)
+					}
 				}
 			case *ForStmt:
 				fmt.Println("------forStmt: ", n)
@@ -3207,19 +3233,21 @@ func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 						return n, TRANS_CONTINUE
 					}
 
-					// true if found once
-					stop = true
-					origName := strings.TrimPrefix(string(n.Name), ".loopvar_")
-					redefineName := fmt.Sprintf("%s%s", ".redefine_", origName)
+					if _, ok := dbn.(*ForStmt); ok {
+						// true if found once
+						stop = true
+						origName := strings.TrimPrefix(string(n.Name), ".loopvar_")
+						redefineName := fmt.Sprintf("%s%s", ".redefine_", origName)
 
-					if _, ok := dbn.GetAttribute(ATTR_REDEFINE_NAME).(string); !ok {
-						dbn.SetAttribute(ATTR_REDEFINE_NAME, redefineName)
+						if _, ok := dbn.GetAttribute(ATTR_REDEFINE_NAME).(string); !ok {
+							dbn.SetAttribute(ATTR_REDEFINE_NAME, redefineName)
+						}
+
+						// Reset to type normal
+						n.Type = NameExprTypeNormal
+						// Redefine name
+						n.Name = Name(redefineName)
 					}
-
-					// Reset to type normal
-					n.Type = NameExprTypeNormal
-					// Redefine name
-					n.Name = Name(redefineName)
 
 					// Loop again for more closures.
 					dbn = flx
@@ -5002,7 +5030,6 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 // *TypeDecl is a TypeValue) and sets it on last. As an exception, *FuncDecls
 // will preprocess receiver/argument/result types recursively.
 func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool) (un Name, untype bool, directR bool) {
-	fmt.Println("------tryPredefine, d: ", d)
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
 		panic(fmt.Sprintf("decl node already predefined! %v", d))
 	}

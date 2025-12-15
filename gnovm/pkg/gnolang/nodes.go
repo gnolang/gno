@@ -1777,7 +1777,6 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	// Check local.
 	gen := 1
 	if idx, ok := sb.GetLocalIndex(n); ok {
-		fmt.Printf("---gen: %d, idx: %d \n", gen, idx)
 		return NewValuePathBlock(uint8(gen), idx, n)
 	}
 	sn := sb.GetSource(store)
@@ -2042,8 +2041,7 @@ func (sb *StaticBlock) GetLocalIndexMaybeLoopvar(n Name) (uint16, bool, bool) {
 }
 
 func processLoopVar(last BlockNode, nx *NameExpr) {
-	fmt.Println("===renameLoopVar, nx: ", nx, nx.Type)
-	fmt.Println("---last: ", last)
+	// fmt.Println("===renameLoopVar, nx: ", nx, nx.Type)
 	if nx.Name == blankIdentifier {
 		return
 	}
@@ -2342,7 +2340,6 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 
 // Set type to nil, only reserving the name.
 func (sb *StaticBlock) Reserve(isConst bool, nx *NameExpr, origin Node, nstype NSType, index int) {
-	fmt.Println("======Reserve, nx: ", nx)
 	_, exists := sb.GetLocalIndex(nx.Name)
 	if !exists {
 		sb.Define2(isConst, nx.Name, nil, anyValue(nil), NameSource{nx, origin, nstype, index})

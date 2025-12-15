@@ -2391,10 +2391,6 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
-	fmt.Println("---GetPointerToInt, b: ", b)
-	PrintCaller(2, 5)
-	fmt.Println("---b.Values: ", b.Values)
-	fmt.Println("---index: ", index)
 	vv := fillValueTV(store, &b.Values[index])
 	if hiv, ok := vv.V.(*HeapItemValue); ok {
 		fillValueTV(store, &hiv.Value)
@@ -2422,8 +2418,6 @@ func (b *Block) GetPointerToIntDirect(store Store, index int) PointerValue {
 }
 
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
-	fmt.Println("---GetPointerTo, b: ", b)
-	fmt.Println("---GetPointerTo, path: ", path)
 	if path.IsBlockBlankPath() {
 		if debug {
 			if path.Name != blankIdentifier {
@@ -2444,7 +2438,6 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	// would fail as if it were 1.
 	for i := uint8(1); i < path.Depth; i++ {
 		b = b.GetParent(store)
-		fmt.Println("---parent block: ", b)
 	}
 	return b.GetPointerToInt(store, int(path.Index))
 }
