@@ -192,3 +192,32 @@ func SelectChoiceByPlurality(r ReadonlyVotingRecord) (VoteChoice, bool) {
 	}
 	return ChoiceNone, false
 }
+
+// CollectVotes returns an voting record containing votes of members from one or more groups.
+// Returned tree uses member account address as key and `commondao.Vote` as value.
+func CollectVotes(ctx VotingContext, groups ...string) (*VotingRecord, error) {
+	if len(groups) == 0 {
+		return nil, errors.New("one or more group names are required to collect votes")
+	}
+
+	var (
+		votes    VotingRecord
+		grouping = ctx.Members.Grouping()
+	)
+
+	for _, name := range groups {
+		group, found := grouping.Get(name)
+		if !found {
+			return nil, errors.New("member group not found: " + name)
+		}
+
+		group.Members().IterateByOffset(0, group.Members().Size(), func(member address) bool {
+			v, found := ctx.VotingRecord.GetVote(member)
+			if found {
+				votes.AddVote(v)
+			}
+			return false
+		})
+	}
+	return &votes, nil
+}
