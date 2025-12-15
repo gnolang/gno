@@ -16,7 +16,7 @@ Use an existing gnokey key as a validator key by exporting it in the `priv_valid
 gnokey export -key mykey -validator -output-path ./priv_validator_key.json
 ```
 
-If no `--output-path` is provided, the key is written to `priv_validator_key.json` in the current directory.
+If no `-output-path` is provided, the key is written to `priv_validator_key.json` in the current directory.
 
 Also, see the [quickstart guide](../../../docs/users/interact-with-gnokey.md).
 
