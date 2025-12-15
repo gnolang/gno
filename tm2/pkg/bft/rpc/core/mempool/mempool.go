@@ -24,11 +24,10 @@ type Handler struct {
 func NewHandler(
 	mp Mempool,
 	evsw events.EventSwitch,
-	timeoutBroadcastTxCommit time.Duration, // TODO use config?
 ) *Handler {
 	return &Handler{
 		mempool:    mp,
-		dispatcher: newTxDispatcher(evsw, timeoutBroadcastTxCommit),
+		dispatcher: newTxDispatcher(evsw, time.Second*10),
 	}
 }
 

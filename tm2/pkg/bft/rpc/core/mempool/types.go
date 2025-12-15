@@ -12,7 +12,7 @@ type Mempool interface {
 	CheckTx(tx types.Tx, cb func(abci.Response)) error
 
 	// ReapMaxTxs returns up to max pending transactions from the mempool
-	ReapMaxTxs(max int) []types.Tx
+	ReapMaxTxs(max int) types.Txs
 
 	// Size returns the number of transactions currently in the mempool
 	Size() int

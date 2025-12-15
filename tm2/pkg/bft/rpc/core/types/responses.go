@@ -14,6 +14,8 @@ import (
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
+// TODO move to respective packages
+
 // List of blocks
 type ResultBlockchainInfo struct {
 	LastHeight int64              `json:"last_height"`

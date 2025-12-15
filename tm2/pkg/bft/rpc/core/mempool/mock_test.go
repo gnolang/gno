@@ -7,7 +7,7 @@ import (
 
 type (
 	checkTxDelegate    func(tx types.Tx, cb func(abci.Response)) error
-	reapMaxTxsDelegate func(max int) []types.Tx
+	reapMaxTxsDelegate func(max int) types.Txs
 	sizeDelegate       func() int
 	txsBytesDelegate   func() int64
 )
