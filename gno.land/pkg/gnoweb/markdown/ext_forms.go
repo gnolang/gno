@@ -22,6 +22,7 @@ const (
 	formInputTag    = "gno-input"
 	formTextareaTag = "gno-textarea"
 	formSelectTag   = "gno-select"
+	formMarkdownTag = "gno-markdown"
 
 	formDefaultInputType    = "text"
 	formDefaultPlaceholder  = "Enter value"
@@ -53,6 +54,20 @@ var (
 		"checkbox": true,
 	}
 )
+
+// FormMarkdown represents a block of custom markdown content embedded
+type FormMarkdown struct {
+	Raw   string	// Raw markdown content inside <gno-markdown>
+	Error error		// Parsing/Randering error (if any)
+}
+func (e FormMarkdown) GetName() string { return "" }
+func (e FormMarkdown) GetError() error { return e.Error }
+func (e FormMarkdown) String() string {
+	if e.Error != nil {
+		return fmt.Sprintf("(err=%s)", e.Error)
+	}
+	return "(markdown)"
+}
 
 // FormElement represents any form element
 type FormElement interface {
@@ -265,6 +280,8 @@ func (p *FormParser) Continue(node ast.Node, reader text.Reader, pc parser.Conte
 		p.parseTextarea(formNode, tok)
 	case formSelectTag:
 		p.parseSelect(formNode, tok)
+	case formMarkdownTag:
+		p.parseMarkdown(formNode, reader)
 	default:
 		formNode.addElement(FormInput{Error: ErrFormInvalidTag})
 	}
@@ -486,6 +503,8 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 				r.renderSelect(w, n.Elements, e, i, &lastDescID, isExec)
 				renderedSelects[e.Name] = true
 			}
+		case FormMarkdown:
+			r.renderMarkdown(w, e)
 		}
 	}
 
@@ -743,4 +762,35 @@ func parseFormTag(line []byte) (html.Token, bool) {
 		return html.Token{}, false
 	}
 	return toks[0], true
+}
+
+func (p *FormParser) parseMarkdown(node *FormNode, reader text.Reader) {
+	var buf bytes.Buffer
+	reader.AdvanceLine()
+	for {
+		line, _ := reader.PeekLine()
+		if bytes.Contains(line, []byte("</gno-markdown>")) {
+			reader.AdvanceLine()
+			break
+		}
+		buf.Write(line)
+		reader.AdvanceLine()
+	}
+	node.addElement(FormMarkdown{
+		Raw: strings.TrimSpace(buf.String()),
+	})
+}
+
+func (r *FormRenderer) renderMarkdown(w util.BufWriter, e FormMarkdown) {
+	if e.Error != nil {
+		fmt.Fprintf(w, "Error: %s\n", HTMLEscapeString(e.Error.Error()))
+		return
+	}
+	var out bytes.Buffer
+	md := goldmark.New()
+	if err := md.Convert([]byte(e.Raw), &out); err != nil {
+		fmt.Fprintf(w, "Markdown error: %s\n", HTMLEscapeString(err.Error()))
+		return
+	}
+	fmt.Fprintf(w, `<div class="gno-form_markdown">%s</div>`+"\n", out.String())
 }
