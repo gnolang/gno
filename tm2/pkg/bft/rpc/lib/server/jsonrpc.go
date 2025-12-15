@@ -330,7 +330,7 @@ func (j *JSONRPC) handleHTTPGetRequest(w http.ResponseWriter, r *http.Request) {
 	baseReq := &spec.BaseJSONRequest{
 		BaseJSON: spec.BaseJSON{
 			JSONRPC: spec.JSONRPCVersion,
-			ID:      spec.JSONRPCIntID(0),
+			ID:      spec.JSONRPCNumberID(0),
 		},
 		Method: method,
 		Params: params,

@@ -3,6 +3,8 @@ package spec
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/gnolang/gno/tm2/pkg/amino"
 )
 
 const JSONRPCVersion = "2.0"
@@ -20,10 +22,10 @@ func (id JSONRPCStringID) String() string {
 	return string(id)
 }
 
-// JSONRPCIntID is a wrapper for JSON-RPC number IDs
-type JSONRPCIntID uint
+// JSONRPCNumberID is a wrapper for JSON-RPC number IDs
+type JSONRPCNumberID uint
 
-func (id JSONRPCIntID) String() string {
+func (id JSONRPCNumberID) String() string {
 	return fmt.Sprintf("%d", id)
 }
 
@@ -34,7 +36,7 @@ func parseID(idValue any) (JSONRPCID, error) {
 		return JSONRPCStringID(v), nil
 	case float64:
 		// encoding/json uses float64 for numbers
-		return JSONRPCIntID(uint(v)), nil
+		return JSONRPCNumberID(uint(v)), nil
 	case nil:
 		// omitted
 		return nil, nil
@@ -55,7 +57,16 @@ type BaseJSONRequest struct {
 	BaseJSON
 
 	Method string `json:"method"`
-	Params []any  `json:"params"`
+
+	// Keeping Params as []any, instead of a json.RawMessage
+	// is a design choice. The Tendermint RPC, traditionally,
+	// has always supported positional params, so []any.
+	// POST requests to the Tendermint RPC always include positional params.
+	// Additionally, the Tendermint RPC does not support named params ({}).
+	// The RPC can handle GET requests from the user's browser, which can contain
+	// random positional arguments, but this is a case that can be handled easily,
+	// without enforcing the Params to be either-or a specific type.
+	Params []any `json:"params"`
 }
 
 // BaseJSONRequests represents a batch of JSON-RPC requests
@@ -66,8 +77,8 @@ type BaseJSONResponses []*BaseJSONResponse
 
 // BaseJSONResponse defines the base JSON response format
 type BaseJSONResponse struct {
-	Result any            `json:"result,omitempty"`
-	Error  *BaseJSONError `json:"error,omitempty"`
+	Result json.RawMessage `json:"result,omitempty"` // We need to keep the result as a RawMessage, for Amino encoding
+	Error  *BaseJSONError  `json:"error,omitempty"`
 	BaseJSON
 }
 
@@ -76,6 +87,16 @@ type BaseJSONError struct {
 	Data    any    `json:"data,omitempty"`
 	Code    int    `json:"code"`
 	Message string `json:"message"`
+}
+
+func (err BaseJSONError) Error() string {
+	const baseFormat = "RPC error %d - %s"
+
+	if err.Data != "" {
+		return fmt.Sprintf(baseFormat+": %s", err.Code, err.Message, err.Data)
+	}
+
+	return fmt.Sprintf(baseFormat, err.Code, err.Message)
 }
 
 // NewJSONRequest creates a new JSON-RPC request
@@ -100,12 +121,27 @@ func NewJSONResponse(
 	result any,
 	err *BaseJSONError,
 ) *BaseJSONResponse {
+	var raw json.RawMessage
+
+	if err == nil && result != nil {
+		b, marshalErr := amino.MarshalJSON(result)
+		if marshalErr != nil {
+			return NewJSONResponse(
+				id,
+				nil,
+				GenerateResponseError(marshalErr),
+			)
+		}
+
+		raw = b
+	}
+
 	return &BaseJSONResponse{
 		BaseJSON: BaseJSON{
 			ID:      id,
 			JSONRPC: JSONRPCVersion,
 		},
-		Result: result,
+		Result: raw,
 		Error:  err,
 	}
 }
@@ -160,7 +196,7 @@ func (r BaseJSONRequest) MarshalJSON() ([]byte, error) {
 		// omitted
 	case JSONRPCStringID:
 		id = string(v)
-	case JSONRPCIntID:
+	case JSONRPCNumberID:
 		id = uint(v)
 	default:
 		if v != nil {
@@ -229,7 +265,7 @@ func (r BaseJSONResponse) MarshalJSON() ([]byte, error) {
 	case nil:
 	case JSONRPCStringID:
 		id = string(v)
-	case JSONRPCIntID:
+	case JSONRPCNumberID:
 		id = uint(v)
 	default:
 		if v != nil {
@@ -238,10 +274,10 @@ func (r BaseJSONResponse) MarshalJSON() ([]byte, error) {
 	}
 
 	var raw struct {
-		JSONRPC string         `json:"jsonrpc"`
-		ID      any            `json:"id,omitempty"`
-		Result  any            `json:"result,omitempty"`
-		Error   *BaseJSONError `json:"error,omitempty"`
+		JSONRPC string          `json:"jsonrpc"`
+		ID      any             `json:"id,omitempty"`
+		Result  json.RawMessage `json:"result,omitempty"`
+		Error   *BaseJSONError  `json:"error,omitempty"`
 	}
 
 	raw.JSONRPC = r.JSONRPC
@@ -266,6 +302,7 @@ func (r *BaseJSONResponse) UnmarshalJSON(data []byte) error {
 
 	r.JSONRPC = raw.JSONRPC
 	r.Error = raw.Error
+	r.Result = raw.Result
 
 	id, err := parseID(raw.ID)
 	if err != nil {
@@ -273,14 +310,6 @@ func (r *BaseJSONResponse) UnmarshalJSON(data []byte) error {
 	}
 
 	r.ID = id
-
-	var result any
-	if len(raw.Result) > 0 && string(raw.Result) != "null" {
-		if err := json.Unmarshal(raw.Result, &result); err != nil {
-			return fmt.Errorf("unable to parse response result: %w", err)
-		}
-	}
-	r.Result = result
 
 	return nil
 }

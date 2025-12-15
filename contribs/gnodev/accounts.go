@@ -13,7 +13,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -107,7 +106,7 @@ func generateBalances(bk *address.Book, cfg *AppConfig) (gnoland.Balances, error
 	return blsFile, nil
 }
 
-func logAccounts(ctx context.Context, logger *slog.Logger, book *address.Book, _ *dev.Node) error {
+func logAccounts(ctx context.Context, logger *slog.Logger, book *address.Book, n *dev.Node) error {
 	var tab strings.Builder
 	tabw := tabwriter.NewWriter(&tab, 0, 0, 2, ' ', tabwriter.TabIndent)
 
@@ -117,7 +116,7 @@ func logAccounts(ctx context.Context, logger *slog.Logger, book *address.Book, _
 
 	for _, entry := range entries {
 		address := entry.Address.String()
-		qres, err := client.NewLocal().ABCIQuery(ctx, "auth/accounts/"+address, []byte{})
+		qres, err := n.Client().ABCIQuery(ctx, "auth/accounts/"+address, []byte{})
 		if err != nil {
 			return fmt.Errorf("unable to query account %q: %w", address, err)
 		}

@@ -149,10 +149,15 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig, pkgpaths ...string) (*Node
 		pkgsModifier[qpath.Path] = qpath
 	}
 
+	rpcClient, err := client.NewHTTPClient(cfg.TMConfig.RPC.ListenAddress)
+	if err != nil {
+		return nil, fmt.Errorf("unable to initialize RPC client: %w", err)
+	}
+
 	devnode := &Node{
 		loader:            cfg.Loader,
 		config:            cfg,
-		client:            client.NewLocal(),
+		client:            rpcClient,
 		emitter:           cfg.Emitter,
 		logger:            cfg.Logger,
 		startTime:         startTime,

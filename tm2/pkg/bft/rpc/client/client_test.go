@@ -2,9 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
-	"fmt"
 	"testing"
 	"time"
 
@@ -12,7 +9,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
-	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/stretchr/testify/assert"
@@ -23,7 +20,7 @@ import (
 func generateMockRequestClient(
 	t *testing.T,
 	method string,
-	verifyParamsFn func(*testing.T, map[string]any),
+	verifyParamsFn func(*testing.T, []any),
 	responseData any,
 ) *mockClient {
 	t.Helper()
@@ -31,29 +28,28 @@ func generateMockRequestClient(
 	return &mockClient{
 		sendRequestFn: func(
 			_ context.Context,
-			request types.RPCRequest,
-		) (*types.RPCResponse, error) {
+			request *spec.BaseJSONRequest,
+		) (*spec.BaseJSONResponse, error) {
 			// Validate the request
 			require.Equal(t, "2.0", request.JSONRPC)
 			require.NotNil(t, request.ID)
 			require.Equal(t, request.Method, method)
 
 			// Validate the params
-			var params map[string]any
-			require.NoError(t, json.Unmarshal(request.Params, &params))
-
-			verifyParamsFn(t, params)
+			verifyParamsFn(t, request.Params)
 
 			// Prepare the result
 			result, err := amino.MarshalJSON(responseData)
 			require.NoError(t, err)
 
 			// Prepare the response
-			response := &types.RPCResponse{
-				JSONRPC: "2.0",
-				ID:      request.ID,
-				Result:  result,
-				Error:   nil,
+			response := &spec.BaseJSONResponse{
+				Result: result, // direct
+				Error:  nil,
+				BaseJSON: spec.BaseJSON{
+					JSONRPC: spec.JSONRPCVersion,
+					ID:      request.ID,
+				},
 			}
 
 			return response, nil
@@ -65,7 +61,7 @@ func generateMockRequestClient(
 func generateMockRequestsClient(
 	t *testing.T,
 	method string,
-	verifyParamsFn func(*testing.T, map[string]any),
+	verifyParamsFn func(*testing.T, []any),
 	responseData []any,
 ) *mockClient {
 	t.Helper()
@@ -73,9 +69,9 @@ func generateMockRequestsClient(
 	return &mockClient{
 		sendBatchFn: func(
 			_ context.Context,
-			requests types.RPCRequests,
-		) (types.RPCResponses, error) {
-			responses := make(types.RPCResponses, 0, len(requests))
+			requests spec.BaseJSONRequests,
+		) (spec.BaseJSONResponses, error) {
+			responses := make(spec.BaseJSONResponses, 0, len(requests))
 
 			// Validate the requests
 			for index, r := range requests {
@@ -84,21 +80,20 @@ func generateMockRequestsClient(
 				require.Equal(t, r.Method, method)
 
 				// Validate the params
-				var params map[string]any
-				require.NoError(t, json.Unmarshal(r.Params, &params))
-
-				verifyParamsFn(t, params)
+				verifyParamsFn(t, r.Params)
 
 				// Prepare the result
 				result, err := amino.MarshalJSON(responseData[index])
 				require.NoError(t, err)
 
 				// Prepare the response
-				response := types.RPCResponse{
-					JSONRPC: "2.0",
-					ID:      r.ID,
-					Result:  result,
-					Error:   nil,
+				response := &spec.BaseJSONResponse{
+					Result: result, // direct
+					Error:  nil,
+					BaseJSON: spec.BaseJSON{
+						JSONRPC: spec.JSONRPCVersion,
+						ID:      r.ID,
+					},
 				}
 
 				responses = append(responses, response)
@@ -119,7 +114,7 @@ func TestRPCClient_Status(t *testing.T) {
 			},
 		}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
 			assert.Len(t, params, 1)
@@ -153,7 +148,7 @@ func TestRPCClient_ABCIInfo(t *testing.T) {
 			},
 		}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
 			assert.Len(t, params, 0)
@@ -191,13 +186,13 @@ func TestRPCClient_ABCIQuery(t *testing.T) {
 			},
 		}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
-			assert.Equal(t, path, params["path"])
-			assert.Equal(t, base64.StdEncoding.EncodeToString(data), params["data"])
-			assert.Equal(t, fmt.Sprintf("%d", opts.Height), params["height"])
-			assert.Equal(t, opts.Prove, params["prove"])
+			assert.Equal(t, path, params[0])
+			assert.Equal(t, data, params[1])
+			assert.Equal(t, opts.Height, params[2])
+			assert.Equal(t, opts.Prove, params[3])
 		}
 
 		mockClient = generateMockRequestClient(
@@ -228,10 +223,10 @@ func TestRPCClient_BroadcastTxCommit(t *testing.T) {
 			Hash: []byte("dummy"),
 		}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
-			assert.Equal(t, base64.StdEncoding.EncodeToString(tx), params["tx"])
+			assert.Equal(t, bfttypes.Tx(tx), params[0])
 		}
 
 		mockClient = generateMockRequestClient(
@@ -262,10 +257,10 @@ func TestRPCClient_BroadcastTxAsync(t *testing.T) {
 			Hash: []byte("dummy"),
 		}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
-			assert.Equal(t, base64.StdEncoding.EncodeToString(tx), params["tx"])
+			assert.Equal(t, bfttypes.Tx(tx), params[0])
 		}
 
 		mockClient = generateMockRequestClient(
@@ -296,10 +291,10 @@ func TestRPCClient_BroadcastTxSync(t *testing.T) {
 			Hash: []byte("dummy"),
 		}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
-			assert.Equal(t, base64.StdEncoding.EncodeToString(tx), params["tx"])
+			assert.Equal(t, bfttypes.Tx(tx), params[0])
 		}
 
 		mockClient = generateMockRequestClient(
@@ -330,10 +325,10 @@ func TestRPCClient_UnconfirmedTxs(t *testing.T) {
 			Count: 10,
 		}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
-			assert.Equal(t, fmt.Sprintf("%d", limit), params["limit"])
+			assert.Equal(t, limit, params[0])
 		}
 
 		mockClient = generateMockRequestClient(
@@ -362,7 +357,7 @@ func TestRPCClient_NumUnconfirmedTxs(t *testing.T) {
 			Count: 10,
 		}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
 			assert.Len(t, params, 0)
@@ -394,7 +389,7 @@ func TestRPCClient_NetInfo(t *testing.T) {
 			NPeers: 10,
 		}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
 			assert.Len(t, params, 0)
@@ -428,7 +423,7 @@ func TestRPCClient_DumpConsensusState(t *testing.T) {
 			},
 		}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
 			assert.Len(t, params, 0)
@@ -462,7 +457,7 @@ func TestRPCClient_ConsensusState(t *testing.T) {
 			},
 		}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
 			assert.Len(t, params, 0)
@@ -496,10 +491,10 @@ func TestRPCClient_ConsensusParams(t *testing.T) {
 			BlockHeight: blockHeight,
 		}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
-			assert.Equal(t, fmt.Sprintf("%d", blockHeight), params["height"])
+			assert.Equal(t, blockHeight, params[0])
 		}
 
 		mockClient = generateMockRequestClient(
@@ -526,7 +521,7 @@ func TestRPCClient_Health(t *testing.T) {
 	var (
 		expectedResult = &ctypes.ResultHealth{}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
 			assert.Len(t, params, 0)
@@ -561,11 +556,11 @@ func TestRPCClient_BlockchainInfo(t *testing.T) {
 			LastHeight: 100,
 		}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
-			assert.Equal(t, fmt.Sprintf("%d", minHeight), params["minHeight"])
-			assert.Equal(t, fmt.Sprintf("%d", maxHeight), params["maxHeight"])
+			assert.Equal(t, minHeight, params[0])
+			assert.Equal(t, maxHeight, params[1])
 		}
 
 		mockClient = generateMockRequestClient(
@@ -596,7 +591,7 @@ func TestRPCClient_Genesis(t *testing.T) {
 			},
 		}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
 			assert.Len(t, params, 0)
@@ -634,10 +629,10 @@ func TestRPCClient_Block(t *testing.T) {
 			},
 		}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
-			assert.Equal(t, fmt.Sprintf("%d", height), params["height"])
+			assert.Equal(t, height, params[0])
 		}
 
 		mockClient = generateMockRequestClient(
@@ -668,10 +663,10 @@ func TestRPCClient_BlockResults(t *testing.T) {
 			Height: height,
 		}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
-			assert.Equal(t, fmt.Sprintf("%d", height), params["height"])
+			assert.Equal(t, height, params[0])
 		}
 
 		mockClient = generateMockRequestClient(
@@ -702,10 +697,10 @@ func TestRPCClient_Commit(t *testing.T) {
 			CanonicalCommit: true,
 		}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
-			assert.Equal(t, fmt.Sprintf("%d", height), params["height"])
+			assert.Equal(t, height, params[0])
 		}
 
 		mockClient = generateMockRequestClient(
@@ -737,10 +732,10 @@ func TestRPCClient_Tx(t *testing.T) {
 			Height: 10,
 		}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
-			assert.Equal(t, base64.StdEncoding.EncodeToString(hash), params["hash"])
+			assert.Equal(t, hash, params[0])
 		}
 
 		mockClient = generateMockRequestClient(
@@ -771,10 +766,10 @@ func TestRPCClient_Validators(t *testing.T) {
 			BlockHeight: height,
 		}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
-			assert.Equal(t, fmt.Sprintf("%d", height), params["height"])
+			assert.Equal(t, height, params[0])
 		}
 
 		mockClient = generateMockRequestClient(
@@ -827,7 +822,7 @@ func TestRPCClient_Batch(t *testing.T) {
 			},
 		}
 
-		verifyFn = func(t *testing.T, params map[string]any) {
+		verifyFn = func(t *testing.T, params []any) {
 			t.Helper()
 
 			assert.Len(t, params, 0)
@@ -847,9 +842,9 @@ func TestRPCClient_Batch(t *testing.T) {
 	// Create the batch
 	batch := c.NewBatch()
 
-	require.NoError(t, batch.Status())
-	require.NoError(t, batch.Status())
-	require.NoError(t, batch.Status())
+	batch.Status()
+	batch.Status()
+	batch.Status()
 
 	require.EqualValues(t, 3, batch.Count())
 

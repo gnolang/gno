@@ -12,7 +12,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
-	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gorilla/websocket"
@@ -46,7 +46,7 @@ func defaultHTTPHandler(
 		require.Equal(t, "application/json", r.Header.Get("content-type"))
 
 		// Parse the message
-		var req types.RPCRequest
+		var req *spec.BaseJSONRequest
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 
 		// Basic request validation
@@ -58,10 +58,13 @@ func defaultHTTPHandler(
 		require.NoError(t, err)
 
 		// Send a response back
-		response := types.RPCResponse{
-			JSONRPC: "2.0",
-			ID:      req.ID,
-			Result:  result,
+		response := spec.BaseJSONResponse{
+			Result: result, // direct
+			Error:  nil,
+			BaseJSON: spec.BaseJSON{
+				JSONRPC: spec.JSONRPCVersion,
+				ID:      req.ID,
+			},
 		}
 
 		// Marshal the response
@@ -98,7 +101,7 @@ func defaultWSHandler(
 			require.NoError(t, err)
 
 			// Parse the message
-			var req types.RPCRequest
+			var req *spec.BaseJSONRequest
 			require.NoError(t, json.Unmarshal(message, &req))
 
 			// Basic request validation
@@ -110,10 +113,13 @@ func defaultWSHandler(
 			require.NoError(t, err)
 
 			// Send a response back
-			response := types.RPCResponse{
-				JSONRPC: "2.0",
-				ID:      req.ID,
-				Result:  result,
+			response := spec.BaseJSONResponse{
+				Result: result, // direct
+				Error:  nil,
+				BaseJSON: spec.BaseJSON{
+					JSONRPC: spec.JSONRPCVersion,
+					ID:      req.ID,
+				},
 			}
 
 			// Marshal the response

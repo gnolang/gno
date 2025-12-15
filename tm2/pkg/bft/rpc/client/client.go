@@ -11,7 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/batch"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/http"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/client/ws"
-	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/rs/xid"
 )
@@ -108,13 +108,18 @@ func (c *RPCClient) NewBatch() *RPCBatch {
 }
 
 func (c *RPCClient) Status(ctx context.Context, heightGte *int64) (*ctypes.ResultStatus, error) {
+	var v int64
+	if heightGte != nil {
+		v = *heightGte
+	}
+
 	return sendRequestCommon[ctypes.ResultStatus](
 		ctx,
 		c.requestTimeout,
 		c.caller,
 		statusMethod,
-		map[string]any{
-			"heightGte": heightGte,
+		[]any{
+			v,
 		},
 	)
 }
@@ -125,7 +130,7 @@ func (c *RPCClient) ABCIInfo(ctx context.Context) (*ctypes.ResultABCIInfo, error
 		c.requestTimeout,
 		c.caller,
 		abciInfoMethod,
-		map[string]any{},
+		nil,
 	)
 }
 
@@ -139,11 +144,11 @@ func (c *RPCClient) ABCIQueryWithOptions(ctx context.Context, path string, data 
 		c.requestTimeout,
 		c.caller,
 		abciQueryMethod,
-		map[string]any{
-			"path":   path,
-			"data":   data,
-			"height": opts.Height,
-			"prove":  opts.Prove,
+		[]any{
+			path,
+			data,
+			opts.Height,
+			opts.Prove,
 		},
 	)
 }
@@ -154,7 +159,9 @@ func (c *RPCClient) BroadcastTxCommit(ctx context.Context, tx types.Tx) (*ctypes
 		c.requestTimeout,
 		c.caller,
 		broadcastTxCommitMethod,
-		map[string]any{"tx": tx},
+		[]any{
+			tx,
+		},
 	)
 }
 
@@ -172,7 +179,9 @@ func (c *RPCClient) broadcastTX(ctx context.Context, route string, tx types.Tx) 
 		c.requestTimeout,
 		c.caller,
 		route,
-		map[string]any{"tx": tx},
+		[]any{
+			tx,
+		},
 	)
 }
 
@@ -182,7 +191,9 @@ func (c *RPCClient) UnconfirmedTxs(ctx context.Context, limit int) (*ctypes.Resu
 		c.requestTimeout,
 		c.caller,
 		unconfirmedTxsMethod,
-		map[string]any{"limit": limit},
+		[]any{
+			limit,
+		},
 	)
 }
 
@@ -192,7 +203,7 @@ func (c *RPCClient) NumUnconfirmedTxs(ctx context.Context) (*ctypes.ResultUnconf
 		c.requestTimeout,
 		c.caller,
 		numUnconfirmedTxsMethod,
-		map[string]any{},
+		nil,
 	)
 }
 
@@ -202,7 +213,7 @@ func (c *RPCClient) NetInfo(ctx context.Context) (*ctypes.ResultNetInfo, error) 
 		c.requestTimeout,
 		c.caller,
 		netInfoMethod,
-		map[string]any{},
+		nil,
 	)
 }
 
@@ -212,7 +223,7 @@ func (c *RPCClient) DumpConsensusState(ctx context.Context) (*ctypes.ResultDumpC
 		c.requestTimeout,
 		c.caller,
 		dumpConsensusStateMethod,
-		map[string]any{},
+		nil,
 	)
 }
 
@@ -222,14 +233,14 @@ func (c *RPCClient) ConsensusState(ctx context.Context) (*ctypes.ResultConsensus
 		c.requestTimeout,
 		c.caller,
 		consensusStateMethod,
-		map[string]any{},
+		nil,
 	)
 }
 
 func (c *RPCClient) ConsensusParams(ctx context.Context, height *int64) (*ctypes.ResultConsensusParams, error) {
-	params := map[string]any{}
+	var v int64
 	if height != nil {
-		params["height"] = height
+		v = *height
 	}
 
 	return sendRequestCommon[ctypes.ResultConsensusParams](
@@ -237,7 +248,9 @@ func (c *RPCClient) ConsensusParams(ctx context.Context, height *int64) (*ctypes
 		c.requestTimeout,
 		c.caller,
 		consensusParamsMethod,
-		params,
+		[]any{
+			v,
+		},
 	)
 }
 
@@ -247,7 +260,7 @@ func (c *RPCClient) Health(ctx context.Context) (*ctypes.ResultHealth, error) {
 		c.requestTimeout,
 		c.caller,
 		healthMethod,
-		map[string]any{},
+		nil,
 	)
 }
 
@@ -257,9 +270,9 @@ func (c *RPCClient) BlockchainInfo(ctx context.Context, minHeight, maxHeight int
 		c.requestTimeout,
 		c.caller,
 		blockchainMethod,
-		map[string]any{
-			"minHeight": minHeight,
-			"maxHeight": maxHeight,
+		[]any{
+			minHeight,
+			maxHeight,
 		},
 	)
 }
@@ -270,14 +283,14 @@ func (c *RPCClient) Genesis(ctx context.Context) (*ctypes.ResultGenesis, error) 
 		c.requestTimeout,
 		c.caller,
 		genesisMethod,
-		map[string]any{},
+		nil,
 	)
 }
 
 func (c *RPCClient) Block(ctx context.Context, height *int64) (*ctypes.ResultBlock, error) {
-	params := map[string]any{}
+	var v int64
 	if height != nil {
-		params["height"] = height
+		v = *height
 	}
 
 	return sendRequestCommon[ctypes.ResultBlock](
@@ -285,14 +298,16 @@ func (c *RPCClient) Block(ctx context.Context, height *int64) (*ctypes.ResultBlo
 		c.requestTimeout,
 		c.caller,
 		blockMethod,
-		params,
+		[]any{
+			v,
+		},
 	)
 }
 
 func (c *RPCClient) BlockResults(ctx context.Context, height *int64) (*ctypes.ResultBlockResults, error) {
-	params := map[string]any{}
+	var v int64
 	if height != nil {
-		params["height"] = height
+		v = *height
 	}
 
 	return sendRequestCommon[ctypes.ResultBlockResults](
@@ -300,14 +315,16 @@ func (c *RPCClient) BlockResults(ctx context.Context, height *int64) (*ctypes.Re
 		c.requestTimeout,
 		c.caller,
 		blockResultsMethod,
-		params,
+		[]any{
+			v,
+		},
 	)
 }
 
 func (c *RPCClient) Commit(ctx context.Context, height *int64) (*ctypes.ResultCommit, error) {
-	params := map[string]any{}
+	var v int64
 	if height != nil {
-		params["height"] = height
+		v = *height
 	}
 
 	return sendRequestCommon[ctypes.ResultCommit](
@@ -315,7 +332,9 @@ func (c *RPCClient) Commit(ctx context.Context, height *int64) (*ctypes.ResultCo
 		c.requestTimeout,
 		c.caller,
 		commitMethod,
-		params,
+		[]any{
+			v,
+		},
 	)
 }
 
@@ -325,16 +344,16 @@ func (c *RPCClient) Tx(ctx context.Context, hash []byte) (*ctypes.ResultTx, erro
 		c.requestTimeout,
 		c.caller,
 		txMethod,
-		map[string]any{
-			"hash": hash,
+		[]any{
+			hash,
 		},
 	)
 }
 
 func (c *RPCClient) Validators(ctx context.Context, height *int64) (*ctypes.ResultValidators, error) {
-	params := map[string]any{}
+	var v int64
 	if height != nil {
-		params["height"] = height
+		v = *height
 	}
 
 	return sendRequestCommon[ctypes.ResultValidators](
@@ -342,16 +361,20 @@ func (c *RPCClient) Validators(ctx context.Context, height *int64) (*ctypes.Resu
 		c.requestTimeout,
 		c.caller,
 		validatorsMethod,
-		params,
+		[]any{
+			v,
+		},
 	)
 }
 
 // newRequest creates a new request based on the method
 // and given params
-func newRequest(method string, params map[string]any) (rpctypes.RPCRequest, error) {
-	id := rpctypes.JSONRPCStringID(xid.New().String())
-
-	return rpctypes.MapToRequest(id, method, params)
+func newRequest(method string, params []any) *spec.BaseJSONRequest {
+	return spec.NewJSONRequest(
+		spec.JSONRPCStringID(xid.New().String()),
+		method,
+		params,
+	)
 }
 
 // sendRequestCommon is the common request creation, sending, and parsing middleware
@@ -360,13 +383,10 @@ func sendRequestCommon[T any](
 	timeout time.Duration,
 	caller rpcclient.Client,
 	method string,
-	params map[string]any,
+	params []any,
 ) (*T, error) {
 	// Prepare the RPC request
-	request, err := newRequest(method, params)
-	if err != nil {
-		return nil, err
-	}
+	request := newRequest(method, params)
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()

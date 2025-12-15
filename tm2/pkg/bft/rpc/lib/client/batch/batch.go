@@ -3,11 +3,11 @@ package batch
 import (
 	"context"
 
-	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 )
 
 type Client interface {
-	SendBatch(context.Context, types.RPCRequests) (types.RPCResponses, error)
+	SendBatch(context.Context, spec.BaseJSONRequests) (spec.BaseJSONResponses, error)
 }
 
 // Batch allows us to buffer multiple request/response structures
@@ -15,14 +15,14 @@ type Client interface {
 // NOT thread safe
 type Batch struct {
 	client   Client
-	requests types.RPCRequests
+	requests spec.BaseJSONRequests
 }
 
 // NewBatch creates a new batch object
 func NewBatch(client Client) *Batch {
 	return &Batch{
 		client:   client,
-		requests: make(types.RPCRequests, 0),
+		requests: make(spec.BaseJSONRequests, 0),
 	}
 }
 
@@ -38,14 +38,14 @@ func (b *Batch) Clear() int {
 
 func (b *Batch) clear() int {
 	count := len(b.requests)
-	b.requests = make(types.RPCRequests, 0)
+	b.requests = make(spec.BaseJSONRequests, 0)
 
 	return count
 }
 
 // Send will attempt to send the current batch of enqueued requests, and then
 // will clear out the requests once done
-func (b *Batch) Send(ctx context.Context) (types.RPCResponses, error) {
+func (b *Batch) Send(ctx context.Context) (spec.BaseJSONResponses, error) {
 	defer func() {
 		b.clear()
 	}()
@@ -59,6 +59,6 @@ func (b *Batch) Send(ctx context.Context) (types.RPCResponses, error) {
 }
 
 // AddRequest adds a new request onto the batch
-func (b *Batch) AddRequest(request types.RPCRequest) {
+func (b *Batch) AddRequest(request *spec.BaseJSONRequest) {
 	b.requests = append(b.requests, request)
 }

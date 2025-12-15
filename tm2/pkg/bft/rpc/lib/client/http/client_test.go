@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/spec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -112,25 +112,19 @@ func TestClient_SendRequest(t *testing.T) {
 		t.Parallel()
 
 		var (
-			request = types.RPCRequest{
-				JSONRPC: "2.0",
-				ID:      types.JSONRPCStringID("id"),
-			}
+			request = spec.NewJSONRequest(spec.JSONRPCStringID("id"), "", nil)
 
 			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				require.Equal(t, http.MethodPost, r.Method)
 				require.Equal(t, "application/json", r.Header.Get("content-type"))
 
 				// Parse the message
-				var req types.RPCRequest
+				var req spec.BaseJSONRequest
 				require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 				require.Equal(t, request.ID.String(), req.ID.String())
 
 				// Send an empty response back
-				response := types.RPCResponse{
-					JSONRPC: "2.0",
-					ID:      req.ID,
-				}
+				response := spec.NewJSONResponse(req.ID, nil, nil)
 
 				// Marshal the response
 				marshalledResponse, err := json.Marshal(response)
@@ -164,10 +158,7 @@ func TestClient_SendRequest(t *testing.T) {
 		t.Parallel()
 
 		var (
-			request = types.RPCRequest{
-				JSONRPC: "2.0",
-				ID:      types.JSONRPCStringID("id"),
-			}
+			request = spec.NewJSONRequest(spec.JSONRPCStringID("id"), "", nil)
 
 			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				require.Equal(t, http.MethodPost, r.Method)
@@ -175,10 +166,7 @@ func TestClient_SendRequest(t *testing.T) {
 
 				// Send an empty response back,
 				// with an invalid ID
-				response := types.RPCResponse{
-					JSONRPC: "2.0",
-					ID:      types.JSONRPCStringID("totally random ID"),
-				}
+				response := spec.NewJSONResponse(spec.JSONRPCStringID("totally random ID"), nil, nil)
 
 				// Marshal the response
 				marshalledResponse, err := json.Marshal(response)
@@ -209,12 +197,9 @@ func TestClient_SendBatchRequest(t *testing.T) {
 	t.Parallel()
 
 	var (
-		request = types.RPCRequest{
-			JSONRPC: "2.0",
-			ID:      types.JSONRPCStringID("id"),
-		}
+		request = spec.NewJSONRequest(spec.JSONRPCStringID("id"), "", nil)
 
-		requests = types.RPCRequests{
+		requests = spec.BaseJSONRequests{
 			request,
 			request,
 		}
@@ -224,7 +209,7 @@ func TestClient_SendBatchRequest(t *testing.T) {
 			require.Equal(t, "application/json", r.Header.Get("content-type"))
 
 			// Parse the message
-			var reqs types.RPCRequests
+			var reqs spec.BaseJSONRequests
 			require.NoError(t, json.NewDecoder(r.Body).Decode(&reqs))
 			require.Len(t, reqs, len(requests))
 
@@ -233,12 +218,9 @@ func TestClient_SendBatchRequest(t *testing.T) {
 			}
 
 			// Send an empty response batch back
-			response := types.RPCResponse{
-				JSONRPC: "2.0",
-				ID:      request.ID,
-			}
+			response := spec.NewJSONResponse(request.ID, nil, nil)
 
-			responses := types.RPCResponses{
+			responses := spec.BaseJSONResponses{
 				response,
 				response,
 			}

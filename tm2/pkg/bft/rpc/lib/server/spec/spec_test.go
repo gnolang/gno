@@ -39,12 +39,12 @@ func TestJSONRPCID_Marshal_Unmarshal(t *testing.T) {
 		},
 		{
 			"zero ID",
-			JSONRPCIntID(0),
+			JSONRPCNumberID(0),
 			"0",
 		},
 		{
 			"non-zero ID",
-			JSONRPCIntID(100),
+			JSONRPCNumberID(100),
 			"100",
 		},
 	}
@@ -132,8 +132,10 @@ func TestJSONRPCID_Marshal_Unmarshal(t *testing.T) {
 
 				successResponse := NewJSONResponse(
 					testCase.id,
-					map[string]any{
-						"Value": "hello",
+					struct {
+						Value string
+					}{
+						Value: "hello",
 					},
 					nil,
 				)
