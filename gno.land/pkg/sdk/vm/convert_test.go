@@ -471,10 +471,9 @@ func TestConvertJSONDeclaredTypes(t *testing.T) {
 		require.Len(t, tvs, 1)
 
 		rep := stringifyJSONResults(m, tvs, nil)
-		// In Amino format, declared string shows as StringValue
+		// Declared string shows type name with inline string value (consistent with primitives)
 		require.Contains(t, rep, `"T":"testdata.MyString"`)
-		require.Contains(t, rep, `"@type":"/gno.StringValue"`)
-		require.Contains(t, rep, `"value":"hello"`)
+		require.Contains(t, rep, `"V":"hello"`)
 	})
 }
 
