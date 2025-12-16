@@ -139,13 +139,13 @@ func (f *Form) Select(name, value string, attributes ...string) *Form {
 
 // Strings returns the form as Gno-Flavored Markdown.
 func (f Form) String() string {
-	if f.fields == nil {
-		return ""
-	}
-
 	fields := strings.Join(f.fields, "\n")
 	attrs := strings.Join(f.attrs, " ")
-	return "<gno-form " + attrs + ">\n" + fields + "\n</gno-form>\n"
+	if len(attrs) > 0 {
+		attrs = " " + attrs
+	}
+
+	return "<gno-form" + attrs + ">\n" + fields + "\n</gno-form>\n"
 }
 
 func (f *Form) appendInputType(typeName, name, value string, attributes ...string) *Form {
