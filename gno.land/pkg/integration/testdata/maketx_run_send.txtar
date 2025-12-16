@@ -30,7 +30,7 @@ gnokey maketx run -send 42ugnot -gas-fee 1000000ugnot -gas-wanted 20000000 -broa
 stdout 'OK!'
 
 ## user balance after coin transfer in newbanker_originsend
-# reduced by -gas-fee and -send 
+# reduced by -gas-fee and -send
 gnokey query auth/accounts/$test1_user_addr
 stdout '"coins": "9999997999958ugnot"'
 

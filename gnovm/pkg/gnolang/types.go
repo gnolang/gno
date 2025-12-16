@@ -1050,6 +1050,8 @@ func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 			if dmtid != imtid {
 				return fmt.Errorf("wrong type for method %s", im.Name)
 			}
+		} else {
+			return fmt.Errorf("wrong type for method %s", im.Name)
 		}
 	}
 	return nil
@@ -2298,7 +2300,7 @@ func specifyType(store Store, n Node, lookup map[Name]Type, tmpl Type, spec Type
 				generic := ct.Generic[:len(ct.Generic)-len(".Elem()")]
 				match, ok := lookup[generic]
 				if ok {
-					assertAssignableTo(n, spec, match.Elem(), false)
+					assertAssignableTo(n, spec, match.Elem())
 					return // ok
 				} else {
 					// Panic here, because we don't know whether T
@@ -2312,7 +2314,7 @@ func specifyType(store Store, n Node, lookup map[Name]Type, tmpl Type, spec Type
 			} else {
 				match, ok := lookup[ct.Generic]
 				if ok {
-					assertAssignableTo(n, spec, match, false)
+					assertAssignableTo(n, spec, match)
 					return // ok
 				} else {
 					if isUntyped(spec) {

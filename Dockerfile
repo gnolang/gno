@@ -71,6 +71,14 @@ RUN         --mount=type=cache,target=/go/pkg/mod/,id=contribs_modcache \
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=contribs_modcache \
             --mount=type=cache,target=/root/.cache/go-build,id=contribs_buildcache \
             go build -ldflags "-w -s" -o /gnoroot/build/gnogenesis .
+## GnoKMS
+WORKDIR     /gnoroot/contribs/gnokms
+RUN         --mount=type=cache,target=/go/pkg/mod/,id=kms_modcache \
+            --mount=type=cache,target=/root/.cache/go-build,id=kms_buildcache \
+            go mod download -x
+RUN         --mount=type=cache,target=/go/pkg/mod/,id=kms_modcache \
+            --mount=type=cache,target=/root/.cache/go-build,id=kms_buildcache \
+            go build -o /gnoroot/build/gnokms .
 
 # Misc build
 FROM        setup-gnocore AS build-misc
@@ -144,11 +152,12 @@ COPY        --from=build-gnocore /gnoroot/gnovm/stdlibs       /gnoroot/gnovm/std
 COPY        --from=build-gnocore /gnoroot/gnovm/tests/stdlibs /gnoroot/gnovm/tests/stdlibs
 ENTRYPOINT  ["/usr/bin/gno"]
 
-# Gno Contribs [ Gnobro, Gnogenesis ]
+# Gno Contribs [ Gnobro, Gnogenesis, GnoKMS ]
 ## ghcr.io/gnolang/gnocontribs
 FROM        base AS gnocontribs
-COPY        --from=build-gnobro /gnoroot/build/gnobro                       /usr/bin/gnobro
-COPY        --from=build-contribs /gnoroot/build/gnogenesis                 /usr/bin/gnogenesis
+COPY        --from=build-gnobro /gnoroot/build/gnobro                           /usr/bin/gnobro
+COPY        --from=build-contribs /gnoroot/build/gnogenesis                     /usr/bin/gnogenesis
+COPY        --from=build-contribs /gnoroot/build/gnokms                          /usr/bin/gnokms
 COPY        --from=build-gnocore /gnoroot/examples                              /gnoroot/examples
 COPY        --from=build-gnocore /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
 COPY        --from=build-gnocore /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
