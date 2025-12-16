@@ -3,7 +3,7 @@
 package ledger
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	ledger_go "github.com/cosmos/ledger-cosmos-go"
@@ -29,7 +29,7 @@ var Discover DiscoverFn = DiscoverDefault
 // DiscoverDefault is the default function for [Discover].
 func DiscoverDefault() (SECP256K1, error) {
 	if !hid.Supported() {
-		return nil, fmt.Errorf("ledger support is not enabled, try building with CGO_ENABLED=1")
+		return nil, errors.New("ledger support is not enabled, try building with CGO_ENABLED=1")
 	}
 
 	device, err := ledger_go.FindLedgerCosmosUserApp()
