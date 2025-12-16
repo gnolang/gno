@@ -59,9 +59,9 @@ func (f *Form) Input(name string, attributes ...string) *Form {
 		name, value := attributes[i], attributes[i+1]
 		if name == "type" {
 			switch value {
-			case "radio":
+			case InputTypeRadio:
 				panic("use form.Radio() to create inputs of type radio")
-			case "checkbox":
+			case InputTypeCheckbox:
 				panic("use form.Checkbox() to create inputs of type checkbox")
 			}
 		}
@@ -137,7 +137,7 @@ func (f *Form) Select(name, value string, attributes ...string) *Form {
 	return f
 }
 
-// Strings returns the form as Gno-Flavored Markdown.
+// String returns the form as Gno-Flavored Markdown.
 func (f Form) String() string {
 	fields := strings.Join(f.fields, "\n")
 	attrs := strings.Join(f.attrs, " ")
