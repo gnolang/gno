@@ -1,9 +1,9 @@
 package main
 
-import "gno.land/p/jeronimoalbi/forms"
+import "gno.land/p/jeronimoalbi/mdform"
 
 func main() {
-	form := forms.
+	form := mdform.
 		New(
 			"exec", "FunctionName",
 		).

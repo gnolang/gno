@@ -1,4 +1,4 @@
-# Forms Package
+# Markdown Form Package
 
 The package provides a very simplistic [Gno-Flavored Markdown form](/r/docs/markdown#forms) generator.
 
@@ -7,10 +7,10 @@ Forms can be created by sequentially calling form methods to create each one of 
 Example usage:
 
 ```go
-import "gno.land/p/jeronimoalbi/forms"
+import "gno.land/p/jeronimoalbi/mdform"
 
 func Render(string) string {
-	form := forms.New()
+    form := mdform.New()
 
     // Add a text input field
     form.Input(
@@ -46,7 +46,7 @@ func Render(string) string {
         "checked", "true",
     )
 
-	return form.String()
+    return form.String()
 }
 ```
 

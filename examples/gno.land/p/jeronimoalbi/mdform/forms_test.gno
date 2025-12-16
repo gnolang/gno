@@ -1,10 +1,10 @@
-package forms_test
+package mdform_test
 
 import (
 	"strings"
 	"testing"
 
-	"gno.land/p/jeronimoalbi/forms"
+	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/nt/uassert"
 	"gno.land/p/nt/urequire"
 )
@@ -41,7 +41,7 @@ func TestNew(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var markdown string
 			fn := func() {
-				f := forms.New(tc.attrs...)
+				f := mdform.New(tc.attrs...)
 				markdown = strings.ReplaceAll(f.String(), "\n", "")
 			}
 
@@ -110,7 +110,7 @@ func TestFormInput(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var markdown string
 			fn := func() {
-				f := forms.New()
+				f := mdform.New()
 				f.Input(tc.inputName, tc.attrs...)
 				markdown = strings.ReplaceAll(f.String(), "\n", "")
 			}
@@ -183,7 +183,7 @@ func TestFormRadio(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var markdown string
 			fn := func() {
-				f := forms.New()
+				f := mdform.New()
 				f.Radio(tc.inputName, tc.value, tc.attrs...)
 				markdown = strings.ReplaceAll(f.String(), "\n", "")
 			}
@@ -256,7 +256,7 @@ func TestFormCheckbox(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var markdown string
 			fn := func() {
-				f := forms.New()
+				f := mdform.New()
 				f.Checkbox(tc.inputName, tc.value, tc.attrs...)
 				markdown = strings.ReplaceAll(f.String(), "\n", "")
 			}
@@ -314,7 +314,7 @@ func TestFormTextarea(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var markdown string
 			fn := func() {
-				f := forms.New()
+				f := mdform.New()
 				f.Textarea(tc.inputName, tc.attrs...)
 				markdown = strings.ReplaceAll(f.String(), "\n", "")
 			}
@@ -375,7 +375,7 @@ func TestFormSelect(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var markdown string
 			fn := func() {
-				f := forms.New()
+				f := mdform.New()
 				f.Select(tc.inputName, tc.value, tc.attrs...)
 				markdown = strings.ReplaceAll(f.String(), "\n", "")
 			}
