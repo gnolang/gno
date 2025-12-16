@@ -145,9 +145,6 @@ func (m *Machine) doOpCall() {
 	pb := fr.Func.GetParent(m.Store)
 	b := m.Alloc.NewBlock(fs, pb)
 
-	fmt.Println("======doOpCall, fv: ", fv)
-	fmt.Println("======doOpCall, fv.Captures: ", fv.Captures)
-
 	// Copy *FuncValue.Captures into block
 	// NOTE: addHeapCapture in preprocess ensures order.
 	if len(fv.Captures) != 0 {
