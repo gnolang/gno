@@ -33,6 +33,7 @@ func main() {
 		Checkbox(
 			"interests",
 			"tech",
+			"checked", "true",
 		)
 	println(form.String())
 }
@@ -44,5 +45,5 @@ func main() {
 // <gno-select name="country" value="Spain" />
 // <gno-select name="country" value="Germany" />
 // <gno-input type="checkbox" name="interests" value="music" description="What do you like to do?" />
-// <gno-input type="checkbox" name="interests" value="tech" />
+// <gno-input type="checkbox" name="interests" value="tech" checked="true" />
 // </gno-form>
