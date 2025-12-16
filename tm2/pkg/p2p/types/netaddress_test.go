@@ -1,6 +1,7 @@
 package types
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"testing"
@@ -280,6 +281,39 @@ func TestNetAddress_Local(t *testing.T) {
 			assert.Equal(t, testCase.isLocal, addr.Local())
 		})
 	}
+}
+
+func TestNetAddressResolveIP(t *testing.T) {
+	t.Parallel()
+
+	var (
+		key      = GenerateNodeKey()
+		expected = "127.0.0.2"
+	)
+
+	addr := &NetAddress{
+		ID:       key.ID(),
+		Hostname: expected,
+		IP:       net.ParseIP("127.0.0.1"),
+		Port:     8080,
+	}
+
+	err := addr.ResolveIP(context.Background())
+	require.NoError(t, err)
+
+	assert.Equal(t, expected, addr.IP.String())
+}
+
+func TestNetAddressFromStringHostnamePreserved(t *testing.T) {
+	t.Parallel()
+
+	key := GenerateNodeKey()
+
+	addr, err := NewNetAddressFromString(fmt.Sprintf("%s@localhost:8080", key.ID()))
+	require.NoError(t, err)
+
+	assert.Equal(t, "localhost", addr.Hostname)
+	require.NotNil(t, addr.IP)
 }
 
 func TestNetAddress_Routable(t *testing.T) {
