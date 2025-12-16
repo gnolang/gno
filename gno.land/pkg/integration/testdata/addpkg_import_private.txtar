@@ -2,11 +2,11 @@
 gnoland start
 
 # add the private realm
-gnokey maketx addpkg -pkgdir $WORK/private -pkgpath gno.land/r/foobar/privaterealm -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
+gnokey maketx addpkg -pkgdir $WORK/private -pkgpath gno.land/r/foobar/privaterealm -gas-fee 10000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
 stdout OK!
 
 # add bar package located in $WORK directory as gno.land/r/$test1_user_addr/bar
-! gnokey maketx addpkg -pkgdir $WORK/public -pkgpath gno.land/r/foobar/bar -gas-fee 10000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test $test1_user_addr
+! gnokey maketx addpkg -pkgdir $WORK/public -pkgpath gno.land/r/foobar/bar -gas-fee 10000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
 
 # check error message
 stdout 'TX HASH:    '

@@ -10,7 +10,7 @@ stdout '"sequence": "0"'
 stdout '"coins": "10000000000000ugnot"'
 
 # Tx add package -simulate only, estimate gas used and gas fee
-gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello  -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate only test1
+gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello  -gas-wanted 2000000 -gas-fee 1000000ugnot -chainid tendermint_test -simulate only test1
 stdout 'GAS USED:   269942'
 stdout 'INFO:       estimated gas usage: 269942, gas fee: 283ugnot, current gas price: 1ugnot/1000gas'
 
@@ -20,7 +20,7 @@ stdout '"sequence": "0"'
 stdout '"coins": "10000000000000ugnot"'
 
 # Using the simulated gas and estimated gas fee should ensure the transaction executes successfully.
-gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello  -gas-wanted  269914 -gas-fee 282ugnot -broadcast -chainid tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello  -gas-wanted  269914 -gas-fee 282ugnot -chainid tendermint_test test1
 stdout 'OK'
 stdout 'EVENTS:     \[.*"fee_delta":\{"denom":"ugnot","amount":207700\}.*\]'
 
@@ -30,7 +30,7 @@ stdout '"sequence": "1"'
 stdout '"coins": "9999999792018ugnot"'
 
 # Tx Call -simulate only, estimate gas used and gas fee
-gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate only test1
+gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 2000000 -gas-fee 1000000ugnot -chainid tendermint_test -simulate only test1
 stdout 'GAS USED:   113965'
 stdout 'INFO:       estimated gas usage: 113965, gas fee: 119ugnot, current gas price: 1ugnot/1000gas'
 
@@ -40,7 +40,7 @@ stdout '"sequence": "1"'
 stdout '"coins": "9999999792018ugnot"'
 
 # Using the simulated gas and estimated gas fee should ensure the transaction executes successfully.
-gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 113942 -gas-fee 118ugnot -broadcast -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 113942 -gas-fee 118ugnot -chainid tendermint_test test1
 stdout 'OK'
 
 ## fee is charged and sequence number increased

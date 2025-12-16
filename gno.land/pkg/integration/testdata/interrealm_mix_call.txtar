@@ -6,9 +6,9 @@ loadpkg gno.land/p/nt/ufmt
 gnoland start
 
 ## load packages
-gnokey maketx addpkg -pkgdir $WORK/utils -pkgpath gno.land/p/test/utils -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
-gnokey maketx addpkg -pkgdir $WORK/borrowrealm -pkgpath gno.land/r/test/borrowrealm -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
-gnokey maketx addpkg -pkgdir $WORK/callerrealm -pkgpath gno.land/r/test/callerrealm -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/utils -pkgpath gno.land/p/test/utils -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/borrowrealm -pkgpath gno.land/r/test/borrowrealm -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/callerrealm -pkgpath gno.land/r/test/callerrealm -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
 
 ## validate initial state
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
@@ -17,44 +17,44 @@ gnokey query "vm/qrender" --data "gno.land/r/test/callerrealm:"
 stdout 'obj\.value = 0'
 
 ## execute NonCrossingMutation
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func NonCrossingMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func NonCrossingMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test2
 stderr 'cannot modify external-realm or non-realm object'
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 0, value = 0'
 
 ## execute CrossingMutation
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CrossingMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CrossingMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test2
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 0, value = 1'
 
 ## execute NonCrossingObjectMutation
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func NonCrossingObjectMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func NonCrossingObjectMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test2
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 1, value = 1'
 
 ## execute ObjectMutationRootedAtCaller
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func ObjectMutationRootedAtCaller -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func ObjectMutationRootedAtCaller -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test2
 gnokey query "vm/qrender" --data "gno.land/r/test/callerrealm:"
 stdout 'obj\.value = 1'
 
 ## execute CallMutateObject
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CallMutateObject -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CallMutateObject -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test2
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 2, value = 1'
 
 ## execute InspectRealmsCrossing
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func InspectRealmsCrossing -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func InspectRealmsCrossing -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test2
 
 ## execute InspectRealmsNonCrossing
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func InspectRealmsNonCrossing -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func InspectRealmsNonCrossing -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test2
 
 ## execute MutateObjectWithBorrowCrossing
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateObjectWithBorrowCrossing -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateObjectWithBorrowCrossing -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test2
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 3, value = 1'
 
 ## execute MutateCrossingObjectRootedAtCaller
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateCrossingObjectRootedAtCaller -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateCrossingObjectRootedAtCaller -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test2
 stderr 'cannot directly modify readonly tainted object'
 gnokey query "vm/qrender" --data "gno.land/r/test/callerrealm:"
 stdout 'obj\.value = 1'
