@@ -2469,7 +2469,6 @@ func (b *Block) GetPointerToDirect(store Store, path ValuePath) PointerValue {
 
 // First defines a new HeapItemValue if heap slot.
 func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerValue {
-	PrintCaller(2, 5)
 	switch nx.Type {
 	case NameExprTypeNormal:
 		// XXX convert rangestmt switchstmt names

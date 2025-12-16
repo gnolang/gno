@@ -1955,7 +1955,7 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 }
 
 func (sb *StaticBlock) FindNameMaybeLoopvar(store Store, n Name) (loopvar, found bool) {
-	fmt.Println("FindNameSkipPredefined, n: ", n)
+	// fmt.Println("FindNameSkipPredefined, n: ", n)
 	if n == blankIdentifier {
 		return false, false
 	}
@@ -1964,7 +1964,7 @@ func (sb *StaticBlock) FindNameMaybeLoopvar(store Store, n Name) (loopvar, found
 	// also search with .loopvar_, this make sure `i` also
 	// get a correct path.
 	if _, loopvar, found = sb.GetLocalIndexMaybeLoopvar(n); found {
-		fmt.Println("===loopVar: ", loopvar)
+		// fmt.Println("===loopVar: ", loopvar)
 		// found a NameExpr with type NameExprTypeLoopVarDefine
 		return
 	}
@@ -2050,13 +2050,13 @@ func processLoopVar(last BlockNode, nx *NameExpr) {
 		// handle loopvar stuff
 		loopvar, found := last.FindNameMaybeLoopvar(nil, nx.Name)
 		if found && loopvar {
-			fmt.Println("---found loopvar use, nx: ", nx)
+			// fmt.Println("---found loopvar use, nx: ", nx)
 			nx.Type = NameExprTypeLoopVarUse
 			// XXX, necessary?
 			nx.Name = Name(fmt.Sprintf(".loopvar_%s", nx.Name))
-			fmt.Println("===after rename, nx: ", nx)
+			// fmt.Println("===after rename, nx: ", nx)
 		} else {
-			fmt.Println("Not loopvar, nx: ", nx, nx.Type)
+			// fmt.Println("Not loopvar, nx: ", nx, nx.Type)
 		}
 	}
 }
