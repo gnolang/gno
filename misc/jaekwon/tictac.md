@@ -151,3 +151,13 @@ Also, I re-watched the Veritasium video, and when he lifts the weight at constan
 His own video proves my point. He just missed it because he is biased.
 
 QED.
+
+-------
+
+p.s. I figured it out.
+
+> Law: Spinning mass creates its own inertial frame of reference. When a spinning mass is moving laterally at velocity V, this frame of reference also moves with velocity V.
+
+This allows for a gyroscope wheel to counteract the force of gravity when the right rotational forces are applied to it such as in the axle.
+
+This explains why galaxies have arms that spin faster than they should. https://www.youtube.com/watch?v=7LASMfgNsIw
