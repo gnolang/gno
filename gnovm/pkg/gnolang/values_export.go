@@ -1,11 +1,9 @@
 package gnolang
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 	"reflect"
-	"strconv"
 	"strings"
 	"unicode"
 
@@ -22,8 +20,9 @@ type JSONExporterOptions struct {
 	MaxDepth int
 }
 
-// ExportTypedValues exports multiple TypedValues to JSON.
+// ExportTypedValues exports multiple TypedValues to JSON using Amino serialization.
 // Root values are expanded inline, nested real objects become RefValue.
+// Uses amino.MarshalJSON for consistent @type tag handling on complex values.
 func (opts JSONExporterOptions) ExportTypedValues(tvs []TypedValue) ([]byte, error) {
 	e := &jsonExporter{opts: opts}
 	e.init()
@@ -37,7 +36,14 @@ func (opts JSONExporterOptions) ExportTypedValues(tvs []TypedValue) ([]byte, err
 		jexps[i] = e.jsonExportedTypedValueFromExported(exported)
 	}
 
-	return json.Marshal(jexps)
+	// Single Amino call at top level for all serialization.
+	return amino.MarshalJSON(jexps)
+}
+
+// JSONExportTypedValues exports multiple TypedValues to JSON using default options.
+// This is a convenience function that calls JSONExporterOptions{}.ExportTypedValues().
+func JSONExportTypedValues(tvs []TypedValue) ([]byte, error) {
+	return JSONExporterOptions{}.ExportTypedValues(tvs)
 }
 
 // exportCopyValueWithRefs copies a value with references to objects.
@@ -399,57 +405,17 @@ func exportCopyMethods(methods []TypedValue, m map[Object]int) []TypedValue {
 }
 
 type jsonTypedValue struct {
-	Type  json.RawMessage `json:"T"`
-	Value json.RawMessage `json:"V"`
-}
-
-// jsonNamedField represents a struct field with its name for JSON export.
-type jsonNamedField struct {
-	Name  string          `json:"N"`
-	Type  json.RawMessage `json:"T"`
-	Value json.RawMessage `json:"V"`
-}
-
-// jsonStructValue is a StructValue with named fields for custom JSON marshaling.
-// Used internally by ExportTypedValues; fields are json.RawMessage for flexibility.
-type jsonStructValue struct {
-	ObjectInfo JSONObjectInfo   `json:"ObjectInfo"`
-	Fields     []jsonNamedField `json:"Fields"`
+	Type  string `json:"T"`
+	Value any    `json:"V"`
 }
 
 // JSONField represents a struct field with name, type, and value.
 // Registered with Amino to produce @type tags in JSON output.
-// V is json.RawMessage to allow both Value types (amino-serialized) and raw JSON primitives.
+// V holds native Go primitives (int64, string, bool, etc.) or Value types for Amino serialization.
 type JSONField struct {
-	N string          `json:"N"` // Field name
-	T Type            `json:"T"` // Type (Amino-serializable)
-	V json.RawMessage `json:"V"` // Value as raw JSON (primitives as-is, complex types amino-serialized)
-}
-
-// MarshalJSON implements custom JSON marshaling for JSONField to properly embed
-// the V field as raw JSON rather than letting amino base64 encode it.
-func (jf JSONField) MarshalJSON() ([]byte, error) {
-	// Marshal the type using amino for proper @type tags
-	tJSON := json.RawMessage("null")
-	if jf.T != nil {
-		var err error
-		tJSON, err = amino.MarshalJSONAny(jf.T)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// V is already raw JSON, embed it directly
-	vJSON := json.RawMessage("null")
-	if jf.V != nil {
-		vJSON = jf.V
-	}
-
-	return json.Marshal(struct {
-		N string          `json:"N,omitempty"`
-		T json.RawMessage `json:"T"`
-		V json.RawMessage `json:"V"`
-	}{jf.N, tJSON, vJSON})
+	N string `json:"N,omitempty"` // Field name
+	T Type   `json:"T"`           // Type (Amino-serializable)
+	V any    `json:"V"`           // Value: primitives or Value types
 }
 
 // JSONObjectInfo is a simplified ObjectInfo for JSON export.
@@ -498,23 +464,6 @@ func (asv *JSONStructValue) DeepFill(store Store) Value       { return asv }
 func (asv *JSONStructValue) GetShallowSize() int64            { return 0 }
 func (asv *JSONStructValue) VisitAssociated(vis Visitor) bool { return false }
 
-// MarshalJSON implements custom JSON marshaling to properly embed JSONField values.
-func (jsv *JSONStructValue) MarshalJSON() ([]byte, error) {
-	fields, err := marshalJSONFields(jsv.Fields)
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(struct {
-		Type       string          `json:"@type"`
-		ObjectInfo JSONObjectInfo  `json:"ObjectInfo"`
-		Fields     json.RawMessage `json:"Fields"`
-	}{
-		Type:       "/gno.JSONStructValue",
-		ObjectInfo: jsv.ObjectInfo,
-		Fields:     fields,
-	})
-}
-
 // JSONArrayValue is an ArrayValue with human-readable element values for JSON serialization.
 // Replaces ArrayValue during export to include proper primitive formatting.
 // Implements the Value interface minimally (export-only type).
@@ -528,23 +477,6 @@ func (jav *JSONArrayValue) String() string                   { return "JSONArray
 func (jav *JSONArrayValue) DeepFill(store Store) Value       { return jav }
 func (jav *JSONArrayValue) GetShallowSize() int64            { return 0 }
 func (jav *JSONArrayValue) VisitAssociated(vis Visitor) bool { return false }
-
-// MarshalJSON implements custom JSON marshaling to properly embed JSONField values.
-func (jav *JSONArrayValue) MarshalJSON() ([]byte, error) {
-	elements, err := marshalJSONFields(jav.Elements)
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(struct {
-		Type       string          `json:"@type"`
-		ObjectInfo JSONObjectInfo  `json:"ObjectInfo"`
-		Elements   json.RawMessage `json:"Elements"`
-	}{
-		Type:       "/gno.JSONArrayValue",
-		ObjectInfo: jav.ObjectInfo,
-		Elements:   elements,
-	})
-}
 
 // JSONMapValue is a MapValue with human-readable key/value pairs for JSON serialization.
 // Replaces MapValue during export to include proper primitive formatting.
@@ -566,114 +498,64 @@ func (jmv *JSONMapValue) DeepFill(store Store) Value       { return jmv }
 func (jmv *JSONMapValue) GetShallowSize() int64            { return 0 }
 func (jmv *JSONMapValue) VisitAssociated(vis Visitor) bool { return false }
 
-// MarshalJSON implements custom JSON marshaling to properly embed JSONField values.
-func (jmv *JSONMapValue) MarshalJSON() ([]byte, error) {
-	// Marshal each entry using struct marshaling
-	entriesJSON := make([]json.RawMessage, len(jmv.Entries))
-	for i, e := range jmv.Entries {
-		keyJSON, err := e.Key.MarshalJSON()
-		if err != nil {
-			return nil, err
-		}
-		valJSON, err := e.Value.MarshalJSON()
-		if err != nil {
-			return nil, err
-		}
-		entryJSON, err := json.Marshal(struct {
-			Key   json.RawMessage `json:"Key"`
-			Value json.RawMessage `json:"Value"`
-		}{keyJSON, valJSON})
-		if err != nil {
-			return nil, err
-		}
-		entriesJSON[i] = entryJSON
-	}
-
-	// Combine entries into array
-	entriesArrayJSON, _ := json.Marshal(entriesJSON)
-
-	return json.Marshal(struct {
-		Type       string          `json:"@type"`
-		ObjectInfo JSONObjectInfo  `json:"ObjectInfo"`
-		Entries    json.RawMessage `json:"Entries"`
-	}{
-		Type:       "/gno.JSONMapValue",
-		ObjectInfo: jmv.ObjectInfo,
-		Entries:    entriesArrayJSON,
-	})
-}
-
-// primitiveToJSON converts a primitive TypedValue to JSON bytes.
-// Returns (json, true) for primitives, (nil, false) for non-primitives.
-func primitiveToJSON(tv TypedValue) ([]byte, bool) {
+// primitiveToAny converts a primitive TypedValue to a native Go value.
+// Returns (value, true) for primitives, (nil, false) for non-primitives.
+// The returned values are native Go types that json/amino can serialize directly.
+func primitiveToAny(tv TypedValue) (any, bool) {
 	bt := BaseOf(tv.T)
 	pt, ok := bt.(PrimitiveType)
 	if !ok {
 		return nil, false
 	}
 
-	var s string
 	switch pt {
 	case BoolType, UntypedBoolType:
-		s = strconv.FormatBool(tv.GetBool())
+		return tv.GetBool(), true
 	case StringType, UntypedStringType:
 		if sv, ok := tv.V.(StringValue); ok {
-			s = strconv.Quote(string(sv))
-		} else {
-			s = strconv.Quote(tv.GetString())
+			return string(sv), true
 		}
+		return tv.GetString(), true
 	case IntType:
-		s = strconv.FormatInt(int64(tv.GetInt()), 10)
+		return int64(tv.GetInt()), true
 	case Int8Type:
-		s = strconv.FormatInt(int64(tv.GetInt8()), 10)
+		return int64(tv.GetInt8()), true
 	case Int16Type:
-		s = strconv.FormatInt(int64(tv.GetInt16()), 10)
+		return int64(tv.GetInt16()), true
 	case Int32Type, UntypedRuneType:
-		s = strconv.FormatInt(int64(tv.GetInt32()), 10)
+		return int64(tv.GetInt32()), true
 	case Int64Type:
-		s = strconv.FormatInt(tv.GetInt64(), 10)
+		return tv.GetInt64(), true
 	case UintType:
-		s = strconv.FormatUint(uint64(tv.GetUint()), 10)
+		return uint64(tv.GetUint()), true
 	case Uint8Type:
-		s = strconv.FormatUint(uint64(tv.GetUint8()), 10)
+		return uint64(tv.GetUint8()), true
 	case DataByteType:
-		s = strconv.FormatUint(uint64(tv.GetDataByte()), 10)
+		return uint64(tv.GetDataByte()), true
 	case Uint16Type:
-		s = strconv.FormatUint(uint64(tv.GetUint16()), 10)
+		return uint64(tv.GetUint16()), true
 	case Uint32Type:
-		s = strconv.FormatUint(uint64(tv.GetUint32()), 10)
+		return uint64(tv.GetUint32()), true
 	case Uint64Type:
-		s = strconv.FormatUint(tv.GetUint64(), 10)
+		return tv.GetUint64(), true
 	case Float32Type:
-		s = strconv.FormatFloat(float64(math.Float32frombits(tv.GetFloat32())), 'g', -1, 32)
+		// Convert float32 to string since Amino doesn't support float32 in interface{} fields
+		f := math.Float32frombits(tv.GetFloat32())
+		return fmt.Sprintf("%v", f), true
 	case Float64Type:
-		s = strconv.FormatFloat(math.Float64frombits(tv.GetFloat64()), 'g', -1, 64)
+		// Convert float64 to string since Amino doesn't support float64 in interface{} fields
+		f := math.Float64frombits(tv.GetFloat64())
+		return fmt.Sprintf("%v", f), true
 	case UntypedBigintType:
 		if bv, ok := tv.V.(BigintValue); ok {
-			s = bv.V.String()
+			return bv.V.String(), true
 		}
 	case UntypedBigdecType:
 		if bv, ok := tv.V.(BigdecValue); ok {
-			s = bv.V.String()
+			return bv.V.String(), true
 		}
 	}
-	if s == "" {
-		return nil, false
-	}
-	return []byte(s), true
-}
-
-// marshalJSONFields marshals a slice of JSONField with proper embedding.
-func marshalJSONFields(fields []JSONField) ([]byte, error) {
-	parts := make([]json.RawMessage, len(fields))
-	for i, f := range fields {
-		b, err := f.MarshalJSON()
-		if err != nil {
-			return nil, err
-		}
-		parts[i] = b
-	}
-	return json.Marshal(parts)
+	return nil, false
 }
 
 // getElementType extracts element type from array, slice, or pointer types.
@@ -695,107 +577,6 @@ func getMapTypes(typ Type) (key, val Type) {
 		return mt.Key, mt.Value
 	}
 	return nil, nil
-}
-
-// marshalNestedValue marshals a Value that may contain nested JSON types.
-// Handles PointerValue, HeapItemValue, and JSON wrapper types.
-// The exporter's seen map is needed for HeapItemValue object IDs.
-func (e *jsonExporter) marshalNestedValue(v Value) []byte {
-	if v == nil {
-		return []byte("null")
-	}
-	switch val := v.(type) {
-	case *JSONStructValue:
-		if b, err := val.MarshalJSON(); err == nil {
-			return b
-		}
-	case *JSONArrayValue:
-		if b, err := val.MarshalJSON(); err == nil {
-			return b
-		}
-	case *JSONMapValue:
-		if b, err := val.MarshalJSON(); err == nil {
-			return b
-		}
-	case PointerValue:
-		return e.marshalPointerValue(val)
-	case *HeapItemValue:
-		return e.marshalHeapItemValue(val)
-	case *SliceValue:
-		return e.marshalSliceValue(val)
-	case StringValue:
-		// Handle declared string types - output just the string value
-		return []byte(strconv.Quote(string(val)))
-	case BigintValue:
-		// Handle declared bigint types - output the number
-		return []byte(val.V.String())
-	case BigdecValue:
-		// Handle declared bigdec types - output the number
-		return []byte(val.V.String())
-	}
-	return amino.MustMarshalJSONAny(v)
-}
-
-// marshalPointerValue marshals a PointerValue to JSON with proper nested type handling.
-func (e *jsonExporter) marshalPointerValue(pv PointerValue) []byte {
-	baseJSON := e.marshalNestedValue(pv.Base)
-	result, _ := json.Marshal(struct {
-		Type  string          `json:"@type"`
-		TV    *TypedValue     `json:"TV"`
-		Base  json.RawMessage `json:"Base"`
-		Index string          `json:"Index"`
-	}{
-		Type:  "/gno.PointerValue",
-		TV:    nil,
-		Base:  baseJSON,
-		Index: strconv.Itoa(pv.Index),
-	})
-	return result
-}
-
-// marshalHeapItemValue marshals a HeapItemValue to JSON with proper nested type handling.
-func (e *jsonExporter) marshalHeapItemValue(hiv *HeapItemValue) []byte {
-	objID := e.seen[hiv]
-	objInfo := makeJSONObjectInfo(hiv.ObjectInfo, objID)
-
-	valueJSON := e.marshalNestedValue(hiv.Value.V)
-	typeJSON := amino.MustMarshalJSONAny(hiv.Value.T)
-
-	// Build the inner Value struct
-	innerValue, _ := json.Marshal(struct {
-		T json.RawMessage `json:"T"`
-		V json.RawMessage `json:"V"`
-	}{typeJSON, valueJSON})
-
-	result, _ := json.Marshal(struct {
-		Type       string          `json:"@type"`
-		ObjectInfo JSONObjectInfo  `json:"ObjectInfo"`
-		Value      json.RawMessage `json:"Value"`
-	}{
-		Type:       "/gno.HeapItemValue",
-		ObjectInfo: objInfo,
-		Value:      innerValue,
-	})
-	return result
-}
-
-// marshalSliceValue marshals a SliceValue to JSON with proper nested type handling.
-func (e *jsonExporter) marshalSliceValue(sv *SliceValue) []byte {
-	baseJSON := e.marshalNestedValue(sv.Base)
-	result, _ := json.Marshal(struct {
-		Type   string          `json:"@type"`
-		Base   json.RawMessage `json:"Base"`
-		Offset string          `json:"Offset"`
-		Length string          `json:"Length"`
-		Maxcap string          `json:"Maxcap"`
-	}{
-		Type:   "/gno.SliceValue",
-		Base:   baseJSON,
-		Offset: strconv.Itoa(sv.Offset),
-		Length: strconv.Itoa(sv.Length),
-		Maxcap: strconv.Itoa(sv.Maxcap),
-	})
-	return result
 }
 
 // jsonExporter handles JSON serialization of Gno values.
@@ -823,77 +604,13 @@ func (e *jsonExporter) init() {
 }
 
 // jsonExportedTypedValueFromExported converts an already-exported TypedValue to JSON format.
-// This is used by JSONExportTypedValues() after calling jsonExportTypedValue() which
+// This is used by ExportTypedValues() after calling exportTypedValue() which
 // expands ephemeral objects inline while keeping RefValue for persisted objects.
 func (e *jsonExporter) jsonExportedTypedValueFromExported(tv TypedValue) *jsonTypedValue {
 	return &jsonTypedValue{
-		Type:  jsonExportedType(tv.T),
-		Value: e.jsonExportedValueFromExported(tv),
+		Type:  typeToString(tv.T),
+		Value: e.extractValue(tv),
 	}
-}
-
-// jsonExportedValueFromExported converts an already-exported TypedValue's value to JSON.
-// Unlike jsonExportedValue(), this handles TypedValues that have already been processed
-// by jsonExportTypedValue() - meaning primitive N values have NOT been extracted yet.
-func (e *jsonExporter) jsonExportedValueFromExported(tv TypedValue) []byte {
-	// Handle primitives using shared helper
-	if b, ok := primitiveToJSON(tv); ok {
-		return b
-	}
-
-	if tv.V == nil {
-		return []byte("null")
-	}
-
-	// Special handling for StructValue to include field names
-	if sv, ok := tv.V.(*StructValue); ok {
-		return e.marshalStructValueWithNames(sv)
-	}
-
-	// Use shared nested value marshaler for JSON types and pointers
-	return e.marshalNestedValue(tv.V)
-}
-
-// marshalStructValueWithNames marshals a StructValue to JSON with field names included.
-// Uses the exporter's structTypes mapping to get field name information.
-func (e *jsonExporter) marshalStructValueWithNames(sv *StructValue) []byte {
-	// Look up the struct type from the mapping
-	structType := e.structTypes[sv]
-
-	// Build named fields
-	namedFields := make([]jsonNamedField, 0, len(sv.Fields))
-	for i, ftv := range sv.Fields {
-		var fieldName string
-		if structType != nil && i < len(structType.Fields) {
-			fieldName = string(structType.Fields[i].Name)
-			// Use json tag name if available
-			if jsonName := getJSONFieldName(structType.Fields[i].Tag); jsonName != "" {
-				fieldName = jsonName
-			}
-		} else {
-			fieldName = fmt.Sprintf("field%d", i)
-		}
-
-		namedFields = append(namedFields, jsonNamedField{
-			Name:  fieldName,
-			Type:  jsonExportedType(ftv.T),
-			Value: e.jsonExportedValueFromExported(ftv),
-		})
-	}
-
-	// Get incremental ID from seen map for ephemeral objects
-	objID := e.seen[sv]
-
-	jsv := jsonStructValue{
-		ObjectInfo: makeJSONObjectInfo(sv.ObjectInfo, objID),
-		Fields:     namedFields,
-	}
-
-	result, err := json.Marshal(jsv)
-	if err != nil {
-		return amino.MustMarshalJSONAny(sv) // fallback
-	}
-	return result
 }
 
 // getJSONFieldName extracts the field name from a json struct tag.
@@ -914,20 +631,18 @@ func getJSONFieldName(tag Tag) string {
 	return jsonTag
 }
 
-func jsonExportedType(typ Type) []byte {
+// typeToString converts a Type to its string representation for JSON export.
+func typeToString(typ Type) string {
 	if typ == nil {
-		return []byte("null")
+		return ""
 	}
 
-	var ret string
 	switch ct := typ.(type) {
 	case RefType:
-		ret = ct.TypeID().String()
+		return ct.TypeID().String()
 	default:
-		ret = ct.String()
+		return ct.String()
 	}
-
-	return []byte(strconv.Quote(ret))
 }
 
 // isExportedName returns true if name starts with an uppercase letter.
@@ -1048,18 +763,8 @@ func (e *jsonExporter) ExportObject(m *Machine, obj Object) ([]byte, error) {
 		exported = replaceObjectInfo(exported, *wrapperObjInfo)
 	}
 
-	// Use custom MarshalJSON for our JSON types to avoid Amino base64 encoding of json.RawMessage
-	switch v := exported.(type) {
-	case *JSONStructValue:
-		return v.MarshalJSON()
-	case *JSONArrayValue:
-		return v.MarshalJSON()
-	case *JSONMapValue:
-		return v.MarshalJSON()
-	default:
-		// Fallback to Amino for other types
-		return amino.MarshalJSONAny(exported)
-	}
+	// Use Amino for all types - handles @type tags and serialization
+	return amino.MarshalJSONAny(exported)
 }
 
 // findTypeFromOwner attempts to find the type of an object by looking at its owner.
@@ -1310,7 +1015,7 @@ func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int, objID int
 				elements[i] = JSONField{
 					N: fmt.Sprintf("%d", i),
 					T: exported.T,
-					V: e.extractPrimitiveOrValueJSON(exported),
+					V: e.extractValue(exported),
 				}
 			}
 			return &JSONArrayValue{
@@ -1383,7 +1088,7 @@ func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int, objID int
 			namedFields = append(namedFields, JSONField{
 				N: fieldName,
 				T: exportedField.T,
-				V: e.extractPrimitiveOrValueJSON(exportedField),
+				V: e.extractValue(exportedField),
 			})
 		}
 
@@ -1447,11 +1152,11 @@ func (e *jsonExporter) exportCopyValue(val Value, typ Type, depth int, objID int
 			entries = append(entries, JSONMapEntry{
 				Key: JSONField{
 					T: keyExported.T,
-					V: e.extractPrimitiveOrValueJSON(keyExported),
+					V: e.extractValue(keyExported),
 				},
 				Value: JSONField{
 					T: valExported.T,
-					V: e.extractPrimitiveOrValueJSON(valExported),
+					V: e.extractValue(valExported),
 				},
 			})
 		}
@@ -1519,17 +1224,15 @@ func (e *jsonExporter) exportTypedValue(tv TypedValue, depth int) TypedValue {
 	return result
 }
 
-// extractPrimitiveOrValueJSON extracts human-readable values from primitives as json.RawMessage,
-// or returns the amino-serialized Value for complex types.
-// Used by JSONArrayValue, JSONMapValue, and JSONStructValue to ensure consistent primitive formatting.
-func (e *jsonExporter) extractPrimitiveOrValueJSON(tv TypedValue) json.RawMessage {
-	// Handle primitives using shared helper
-	if b, ok := primitiveToJSON(tv); ok {
-		return json.RawMessage(b)
+// extractValue extracts a value from a TypedValue for JSON serialization.
+// For primitives, returns native Go values (int64, string, bool, etc.).
+// For complex types, returns the Value directly for Amino serialization.
+func (e *jsonExporter) extractValue(tv TypedValue) any {
+	// Handle primitives - return native Go values
+	if v, ok := primitiveToAny(tv); ok {
+		return v
 	}
-	// For non-primitives, use shared nested value marshaler
-	if tv.V == nil {
-		return json.RawMessage("null")
-	}
-	return json.RawMessage(e.marshalNestedValue(tv.V))
+	// For non-primitives, return the Value directly
+	// Amino will serialize it with @type tags
+	return tv.V
 }

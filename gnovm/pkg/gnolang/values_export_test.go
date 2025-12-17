@@ -13,36 +13,36 @@ func TestConvertJSONValuePrimitive(t *testing.T) {
 		ValueRep string // Go representation
 		Expected string // string representation
 	}{
-		// Boolean
-		{"true", `[{"T":"bool","V":true}]`},
-		{"false", `[{"T":"bool","V":false}]`},
+		// Boolean - wrapped with protobuf BoolValue
+		{"true", `[{"T":"bool","V":{"@type":"/google.protobuf.BoolValue","value":true}}]`},
+		{"false", `[{"T":"bool","V":{"@type":"/google.protobuf.BoolValue","value":false}}]`},
 
-		// int types
-		{"int(42)", `[{"T":"int","V":42}]`},
-		{"int8(42)", `[{"T":"int8","V":42}]`},
-		{"int16(42)", `[{"T":"int16","V":42}]`},
-		{"int32(42)", `[{"T":"int32","V":42}]`},
-		{"int64(42)", `[{"T":"int64","V":42}]`},
+		// int types - wrapped with protobuf Int64Value
+		{"int(42)", `[{"T":"int","V":{"@type":"/google.protobuf.Int64Value","value":"42"}}]`},
+		{"int8(42)", `[{"T":"int8","V":{"@type":"/google.protobuf.Int64Value","value":"42"}}]`},
+		{"int16(42)", `[{"T":"int16","V":{"@type":"/google.protobuf.Int64Value","value":"42"}}]`},
+		{"int32(42)", `[{"T":"int32","V":{"@type":"/google.protobuf.Int64Value","value":"42"}}]`},
+		{"int64(42)", `[{"T":"int64","V":{"@type":"/google.protobuf.Int64Value","value":"42"}}]`},
 
-		// uint types
-		{"uint(42)", `[{"T":"uint","V":42}]`},
-		{"uint8(42)", `[{"T":"uint8","V":42}]`},
-		{"uint16(42)", `[{"T":"uint16","V":42}]`},
-		{"uint32(42)", `[{"T":"uint32","V":42}]`},
-		{"uint64(42)", `[{"T":"uint64","V":42}]`},
+		// uint types - wrapped with protobuf UInt64Value
+		{"uint(42)", `[{"T":"uint","V":{"@type":"/google.protobuf.UInt64Value","value":"42"}}]`},
+		{"uint8(42)", `[{"T":"uint8","V":{"@type":"/google.protobuf.UInt64Value","value":"42"}}]`},
+		{"uint16(42)", `[{"T":"uint16","V":{"@type":"/google.protobuf.UInt64Value","value":"42"}}]`},
+		{"uint32(42)", `[{"T":"uint32","V":{"@type":"/google.protobuf.UInt64Value","value":"42"}}]`},
+		{"uint64(42)", `[{"T":"uint64","V":{"@type":"/google.protobuf.UInt64Value","value":"42"}}]`},
 
-		// Float types
-		{"float32(3.14)", `[{"T":"float32","V":3.14}]`},
-		{"float64(3.14)", `[{"T":"float64","V":3.14}]`},
+		// Float types - converted to string and wrapped with protobuf StringValue
+		{"float32(3.14)", `[{"T":"float32","V":{"@type":"/google.protobuf.StringValue","value":"3.14"}}]`},
+		{"float64(3.14)", `[{"T":"float64","V":{"@type":"/google.protobuf.StringValue","value":"3.14"}}]`},
 
-		// String type
-		{`"hello world"`, `[{"T":"string","V":"hello world"}]`},
+		// String type - wrapped with protobuf StringValue
+		{`"hello world"`, `[{"T":"string","V":{"@type":"/google.protobuf.StringValue","value":"hello world"}}]`},
 
-		// UntypedRuneType
-		{`'A'`, `[{"T":"int32","V":65}]`},
+		// UntypedRuneType - wrapped with protobuf Int64Value
+		{`'A'`, `[{"T":"int32","V":{"@type":"/google.protobuf.Int64Value","value":"65"}}]`},
 
 		// DataByteType (assuming DataByte is an alias for uint8)
-		{"uint8(42)", `[{"T":"uint8","V":42}]`},
+		{"uint8(42)", `[{"T":"uint8","V":{"@type":"/google.protobuf.UInt64Value","value":"42"}}]`},
 	}
 
 	for _, tc := range cases {
