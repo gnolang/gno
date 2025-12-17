@@ -74,12 +74,12 @@ func (s *basicGRC1155Token) IsApprovedForAll(owner, operator address) bool {
 		return true
 	}
 	key := owner.String() + ":" + operator.String()
-	_, found := s.operatorApprovals.Get(key)
+	approved, found := s.operatorApprovals.Get(key)
 	if !found {
 		return false
 	}
 
-	return true
+	return approved.(bool)
 }
 
 // Safely transfers `tokenId` token from `from` to `to`, checking that
