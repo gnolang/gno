@@ -7,6 +7,7 @@ import (
 	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/mdalert"
 	"gno.land/p/nt/mux"
 )
 
@@ -24,12 +25,14 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	date := board.CreatedAt.Format(dateFormat)
 
 	res.Write(md.H1("Boards › " + board.Name))
-	res.Write("Created by " + creatorLink + " on " + date + ", #" + board.ID.String())
 	if board.Readonly {
-		res.Write("  \n_" + md.Bold("Starting new threads and commenting is disabled") + "_")
+		res.Write(
+			mdalert.Warning("Info", "Creating new threads and commenting are disabled within this board") + "\n",
+		)
 	}
 
-	res.Write("\n" + renderBoardMenu(board, req))
+	res.Write("Created by " + creatorLink + " on " + date + ", #" + board.ID.String())
+	res.Write("  \n" + renderBoardMenu(board, req))
 	res.Write(md.HorizontalRule())
 
 	if board.Threads.Size() == 0 {

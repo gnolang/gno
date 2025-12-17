@@ -109,9 +109,14 @@ func renderPostContent(post *boards.Post, indent string, levels int) string {
 
 	isReadonly := post.Readonly || post.Board.Readonly
 	if !isReadonly {
+		replyLabel := "Reply"
+		if boards.IsThread(post) {
+			replyLabel = "Comment"
+		}
+
 		actions = append(
 			actions,
-			md.Link("Reply", makeCreateReplyURI(post)),
+			md.Link(replyLabel, makeCreateReplyURI(post)),
 			md.Link("Edit", makeEditPostURI(post)),
 			md.Link("Delete", makeDeletePostURI(post)),
 		)
@@ -256,7 +261,7 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 	)
 
 	if isReply {
-		res.Write(md.H1(board.Name + ": Flag Reply"))
+		res.Write(md.H1(board.Name + ": Flag Comment"))
 	} else {
 		res.Write(md.H1(board.Name + ": Flag Thread"))
 	}
@@ -375,13 +380,13 @@ func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
 	)
 
 	if isReply {
-		res.Write(md.H1(board.Name + ": Reply to Comment"))
+		res.Write(md.H1(board.Name + ": Reply"))
 		res.Write(
 			md.Paragraph(ufmt.Sprintf("Replying to a comment posted by %s:", userLink(reply.Creator))) +
 				md.Blockquote(reply.Body),
 		)
 	} else {
-		res.Write(md.H1(board.Name + ": New Thread Comment"))
+		res.Write(md.H1(board.Name + ": Comment"))
 		res.Write(
 			md.Paragraph(
 				ufmt.Sprintf("Commenting on %s thread", md.Link(thread.Title, makeThreadURI(thread))),

@@ -143,9 +143,7 @@ func renderEditThread(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write(md.H1(board.Name + ": Edit Thread"))
 	res.Write(
-		md.Paragraph(
-			ufmt.Sprintf("Editing %s thread", md.Link(thread.Title, makeThreadURI(thread))),
-		),
+		md.Paragraph("Editing " + md.Link(thread.Title, makeThreadURI(thread))),
 	)
 	res.Write(form.String())
 }
