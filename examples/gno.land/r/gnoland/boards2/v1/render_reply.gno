@@ -9,6 +9,7 @@ import (
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/mux"
+	"gno.land/p/nt/ufmt"
 )
 
 func renderReply(res *mux.ResponseWriter, req *mux.Request) {
@@ -166,6 +167,11 @@ func renderEditReply(res *mux.ResponseWriter, req *mux.Request) {
 		"value", reply.Body,
 	)
 
-	res.Write(md.H1(board.Name + ": Edit Reply"))
+	res.Write(md.H1(board.Name + ": Edit Comment"))
+	res.Write(
+		md.Paragraph(
+			ufmt.Sprintf("Editing comment from %s thread", md.Link(thread.Title, makeThreadURI(thread))),
+		),
+	)
 	res.Write(form.String())
 }

@@ -8,6 +8,7 @@ import (
 	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/mux"
+	"gno.land/p/nt/ufmt"
 )
 
 func renderThread(res *mux.ResponseWriter, req *mux.Request) {
@@ -86,6 +87,11 @@ func renderCreateThread(res *mux.ResponseWriter, req *mux.Request) {
 	)
 
 	res.Write(md.H1(board.Name + ": Create Thread"))
+	res.Write(
+		md.Paragraph(
+			ufmt.Sprintf("Thread will be created in %s board", md.Link(board.Name, makeBoardURI(board))),
+		),
+	)
 	res.Write(form.String())
 }
 
@@ -136,6 +142,11 @@ func renderEditThread(res *mux.ResponseWriter, req *mux.Request) {
 	)
 
 	res.Write(md.H1(board.Name + ": Edit Thread"))
+	res.Write(
+		md.Paragraph(
+			ufmt.Sprintf("Editing %s thread", md.Link(thread.Title, makeThreadURI(thread))),
+		),
+	)
 	res.Write(form.String())
 }
 
@@ -189,5 +200,16 @@ func renderRepostThread(res *mux.ResponseWriter, req *mux.Request) {
 	)
 
 	res.Write(md.H1(board.Name + ": Repost Thread"))
+	res.Write(
+		md.Paragraph(
+			"Threads can be reposted to other open boards or boards where you are a member " +
+				"and are allowed to create new threads.",
+		),
+	)
+	res.Write(
+		md.Paragraph(
+			ufmt.Sprintf("Reposting %s thread.", md.Link(thread.Title, makeThreadURI(thread))),
+		),
+	)
 	res.Write(form.String())
 }

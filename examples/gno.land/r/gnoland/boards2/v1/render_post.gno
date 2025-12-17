@@ -8,6 +8,7 @@ import (
 	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/mux"
+	"gno.land/p/nt/ufmt"
 )
 
 func renderPost(post *boards.Post, path, indent string, levels int) string {
@@ -190,24 +191,39 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	// Thread ID must always be available
-	threadID := req.GetVar("thread")
-	if _, err := strconv.Atoi(threadID); err != nil {
-		res.Write("Invalid thread ID: " + threadID)
+	rawID := req.GetVar("thread")
+	threadID, err := strconv.Atoi(rawID)
+	if err != nil {
+		res.Write("Invalid thread ID: " + rawID)
+		return
+	}
+
+	thread, found := board.Threads.Get(boards.ID(threadID))
+	if !found {
+		res.Write("Thread does not exist with ID: " + rawID)
 		return
 	}
 
 	// Parse reply ID when post is a reply
-	replyID := req.GetVar("reply")
-	if replyID != "" {
-		_, err := strconv.Atoi(replyID)
+	var reply *boards.Post
+	rawID = req.GetVar("reply")
+	isReply := rawID != ""
+	if isReply {
+		replyID, err := strconv.Atoi(rawID)
 		if err != nil {
-			res.Write("Invalid reply ID: " + replyID)
+			res.Write("Invalid reply ID: " + rawID)
+			return
+		}
+
+		reply, _ = thread.Replies.Get(boards.ID(replyID))
+		if reply == nil {
+			res.Write("Reply does not exist with ID: " + rawID)
 			return
 		}
 	}
 
 	exec := "FlagThread"
-	if replyID != "" {
+	if isReply {
 		exec = "FlagReply"
 	}
 
@@ -221,27 +237,63 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 	form.Input(
 		"threadID",
 		"placeholder", "Thread ID",
-		"value", threadID,
+		"value", thread.ID.String(),
 		"readonly", "true",
 	)
 
-	if replyID != "" {
+	if isReply {
 		form.Input(
 			"replyID",
 			"placeholder", "Reply ID",
-			"value", replyID,
+			"value", reply.ID.String(),
+			"readonly", "true",
 		)
 	}
 
 	form.Input(
 		"reason",
-		"placeholder", "Reason",
+		"placeholder", "Flagging Reason",
 	)
 
-	if replyID == "" {
-		res.Write(md.H1(board.Name + ": Flag Thread"))
-	} else {
+	if isReply {
 		res.Write(md.H1(board.Name + ": Flag Reply"))
+	} else {
+		res.Write(md.H1(board.Name + ": Flag Thread"))
+	}
+
+	res.Write(
+		md.Paragraph(
+			"Thread or comment moderation is done though flagging, which is usually done "+
+				"by board members with the moderator role, though other roles could also potentially flag.",
+		) +
+			md.Paragraph(
+				"Flagging relies on a configurable threshold, which by default is of one flag, that when "+
+					"reached leads to the flagged thread or comment to be hidden.",
+			) +
+			md.Paragraph(
+				"Flagging thresholds can be different within each board.",
+			),
+	)
+
+	if isReply {
+		res.Write(
+			md.Paragraph(
+				ufmt.Sprintf(
+					"⚠ Your are flagging a %s from %s ⚠",
+					md.Link("comment", makeReplyURI(reply)),
+					userLink(reply.Creator),
+				),
+			),
+		)
+	} else {
+		res.Write(
+			md.Paragraph(
+				ufmt.Sprintf(
+					"⚠ Your are flagging %s thread ⚠",
+					md.Link(thread.Title, makeThreadURI(thread)),
+				),
+			),
+		)
 	}
 
 	res.Write(form.String())
@@ -256,22 +308,35 @@ func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	// Thread ID must always be available
-	threadID := req.GetVar("thread")
-	if _, err := strconv.Atoi(threadID); err != nil {
-		res.Write("Invalid thread ID: " + threadID)
+	rawID := req.GetVar("thread")
+	threadID, err := strconv.Atoi(rawID)
+	if err != nil {
+		res.Write("Invalid thread ID: " + rawID)
+		return
+	}
+
+	thread, found := board.Threads.Get(boards.ID(threadID))
+	if !found {
+		res.Write("Thread does not exist with ID: " + rawID)
 		return
 	}
 
 	// Parse reply ID when post is a reply
-	replyID := req.GetVar("reply")
-	if replyID != "" {
-		_, err := strconv.Atoi(replyID)
+	var reply *boards.Post
+	rawID = req.GetVar("reply")
+	isReply := rawID != ""
+	if isReply {
+		replyID, err := strconv.Atoi(rawID)
 		if err != nil {
-			res.Write("Invalid reply ID: " + replyID)
+			res.Write("Invalid reply ID: " + rawID)
 			return
 		}
-	} else {
-		replyID = "0"
+
+		reply, _ = thread.Replies.Get(boards.ID(replyID))
+		if reply == nil {
+			res.Write("Reply does not exist with ID: " + rawID)
+			return
+		}
 	}
 
 	form := mdform.New("exec", "CreateReply")
@@ -284,24 +349,44 @@ func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
 	form.Input(
 		"threadID",
 		"placeholder", "Thread ID",
-		"value", threadID,
+		"value", thread.ID.String(),
 		"readonly", "true",
 	)
-	form.Input(
-		"replyID",
-		"placeholder", "Reply ID",
-		"value", replyID,
-		"readonly", "true",
-	)
+
+	if isReply {
+		form.Input(
+			"replyID",
+			"placeholder", "Reply ID",
+			"value", reply.ID.String(),
+			"readonly", "true",
+		)
+	} else {
+		form.Input(
+			"replyID",
+			"placeholder", "Reply ID",
+			"value", "0",
+			"readonly", "true",
+		)
+	}
+
 	form.Textarea(
 		"body",
 		"placeholder", "Comment",
 	)
 
-	if replyID == "0" {
-		res.Write(md.H1(board.Name + ": Reply to Thread"))
-	} else {
+	if isReply {
 		res.Write(md.H1(board.Name + ": Reply to Comment"))
+		res.Write(
+			md.Paragraph(ufmt.Sprintf("Replying to a comment posted by %s:", userLink(reply.Creator))) +
+				md.Blockquote(reply.Body),
+		)
+	} else {
+		res.Write(md.H1(board.Name + ": New Thread Comment"))
+		res.Write(
+			md.Paragraph(
+				ufmt.Sprintf("Commenting on %s thread", md.Link(thread.Title, makeThreadURI(thread))),
+			),
+		)
 	}
 
 	res.Write(form.String())

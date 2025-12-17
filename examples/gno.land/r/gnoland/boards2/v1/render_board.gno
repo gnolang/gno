@@ -140,13 +140,40 @@ func renderInviteMember(res *mux.ResponseWriter, req *mux.Request) {
 	)
 	form.Input(
 		"user",
-		"placeholder", "User",
+		"placeholder", "Address",
 	)
-	form.Textarea(
+	form.Select(
 		"role",
-		"placeholder", "Role",
+		string(RoleOwner),
+	)
+	form.Select(
+		"role",
+		string(RoleAdmin),
+	)
+	form.Select(
+		"role",
+		string(RoleModerator),
+	)
+	form.Select(
+		"role",
+		string(RoleGuest),
+		"selected", "true",
 	)
 
 	res.Write(md.H1(board.Name + ": Invite Member"))
+	res.Write(
+		md.Paragraph(
+			"Both open and invite only boards can have multiple members with different roles within a "+
+				"board, where members can have a single role at a time.",
+		) +
+			md.Paragraph(
+				"Boards are independent communities which could apply different permissions per role than "+
+					"other boards, but generally Boards2 supports four roles, _owner_, _admin_, _moderator_ "+
+					"and _guest_.",
+			) +
+			md.Paragraph(
+				"Member will be added to "+md.Link(board.Name, makeBoardURI(board))+" board.",
+			),
+	)
 	res.Write(form.String())
 }
