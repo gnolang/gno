@@ -138,3 +138,56 @@ func renderEditThread(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.H1(board.Name + ": Edit Thread"))
 	res.Write(form.String())
 }
+
+func renderRepostThread(res *mux.ResponseWriter, req *mux.Request) {
+	name := req.GetVar("board")
+	board, found := gBoards.GetByName(name)
+	if !found {
+		res.Write("Board does not exist: " + name)
+		return
+	}
+
+	rawID := req.GetVar("thread")
+	threadID, err := strconv.Atoi(rawID)
+	if err != nil {
+		res.Write("Invalid thread ID: " + rawID)
+		return
+	}
+
+	thread, found := board.Threads.Get(boards.ID(threadID))
+	if !found {
+		res.Write("Thread does not exist with ID: " + rawID)
+		return
+	}
+
+	form := mdform.New("exec", "CreateRepost")
+	form.Input(
+		"boardID",
+		"placeholder", "Board ID",
+		"value", board.ID.String(),
+		"readonly", "true",
+	)
+	form.Input(
+		"threadID",
+		"placeholder", "Thread ID",
+		"value", thread.ID.String(),
+		"readonly", "true",
+	)
+	form.Input(
+		"destinationBoardID",
+		"type", mdform.InputTypeNumber,
+		"placeholder", "Board ID where to repost",
+	)
+	form.Input(
+		"title",
+		"placeholder", "Title",
+	)
+	form.Textarea(
+		"body",
+		"placeholder", "Content",
+		"rows", "10",
+	)
+
+	res.Write(md.H1(board.Name + ": Repost Thread"))
+	res.Write(form.String())
+}

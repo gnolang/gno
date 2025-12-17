@@ -47,6 +47,7 @@ func Render(path string) string {
 	router.HandleFunc("{board}/{thread}/flag", renderFlagPost)
 	router.HandleFunc("{board}/{thread}/reply", renderReplyPost)
 	router.HandleFunc("{board}/{thread}/edit", renderEditThread)
+	router.HandleFunc("{board}/{thread}/repost", renderRepostThread)
 	router.HandleFunc("{board}/{thread}/{reply}", renderReply)
 	router.HandleFunc("{board}/{thread}/{reply}/flag", renderFlagPost)
 	router.HandleFunc("{board}/{thread}/{reply}/reply", renderReplyPost)

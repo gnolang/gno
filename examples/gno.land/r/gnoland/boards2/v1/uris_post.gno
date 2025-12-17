@@ -25,14 +25,7 @@ func makeCreateReplyURI(p *boards.Post) string {
 }
 
 func makeCreateRepostURI(p *boards.Post) string {
-	return gRealmLink.Call(
-		"CreateRepost",
-		"boardID", p.Board.ID.String(),
-		"threadID", p.ID.String(),
-		"destinationBoardID", "",
-		"title", "",
-		"body", "",
-	)
+	return makeThreadURI(p) + "/repost"
 }
 
 func makeDeletePostURI(p *boards.Post) string {
