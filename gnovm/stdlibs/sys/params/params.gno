@@ -31,11 +31,18 @@ func SetSysParamStrings(module, submodule, name string, val []string) {
 	setSysParamStrings(module, submodule, name, val)
 }
 
-func UpdateSysParamStrings(module, submodule, name string, val []string, add bool) {
+func AddUniqueSysParamStrings(module, submodule, name string, val []string) {
 	if val == nil {
 		val = []string{}
 	}
-	updateSysParamStrings(module, submodule, name, val, add)
+	addUniqueSysParamStrings(module, submodule, name, val)
+}
+
+func RemoveSysParamStrings(module, submodule, name string, val []string) {
+	if val == nil {
+		val = []string{}
+	}
+	removeSysParamStrings(module, submodule, name, val)
 }
 
 func setSysParamString(module, submodule, name string, val string)
@@ -44,4 +51,5 @@ func setSysParamInt64(module, submodule, name string, val int64)
 func setSysParamUint64(module, submodule, name string, val uint64)
 func setSysParamBytes(module, submodule, name string, val []byte)
 func setSysParamStrings(module, submodule, name string, val []string)
-func updateSysParamStrings(module, submodule, name string, val []string, add bool)
+func addUniqueSysParamStrings(module, submodule, name string, val []string)
+func removeSysParamStrings(module, submodule, name string, val []string)
