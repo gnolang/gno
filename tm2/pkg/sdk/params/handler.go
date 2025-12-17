@@ -53,7 +53,8 @@ func (bh paramsHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.
 				std.ErrUnknownRequest(fmt.Sprintf("module not registered: %q", module)))
 			return
 		}
-		val := bh.params.GetRaw(ctx, rest)
+		var val []byte
+		bh.params.GetBytes(ctx, rest, &val)
 		res.Data = val
 		return
 
