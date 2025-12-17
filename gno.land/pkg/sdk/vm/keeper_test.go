@@ -605,19 +605,19 @@ func TestVMKeeperEvalJSONFormatting2(t *testing.T) {
 			name:     "JSON string",
 			pkgBody:  `func GetString() string { return "hello" }`,
 			expr:     "GetString()",
-			expected: `{"results":[{"T":"string","V":"hello"}]}`,
+			expected: `{"results":[{"T":"string","V":{"@type":"/google.protobuf.StringValue","value":"hello"}}]}`,
 		},
 		{
 			name:     "JSON integer",
 			pkgBody:  `func GetInt() int { return 42 }`,
 			expr:     "GetInt()",
-			expected: `{"results":[{"T":"int","V":42}]}`,
+			expected: `{"results":[{"T":"int","V":{"@type":"/google.protobuf.Int64Value","value":"42"}}]}`,
 		},
 		{
 			name:     "JSON boolean",
 			pkgBody:  `func GetBool() bool { return true }`,
 			expr:     "GetBool()",
-			expected: `{"results":[{"T":"bool","V":true}]}`,
+			expected: `{"results":[{"T":"bool","V":{"@type":"/google.protobuf.BoolValue","value":true}}]}`,
 		},
 		{
 			name:    "JSON bytes",
@@ -630,7 +630,7 @@ func TestVMKeeperEvalJSONFormatting2(t *testing.T) {
 			name:     "JSON multiple values",
 			pkgBody:  `func GetMulti() (string, int) { return "hello", 42 }`,
 			expr:     "GetMulti()",
-			expected: `{"results":[{"T":"string","V":"hello"},{"T":"int","V":42}]}`,
+			expected: `{"results":[{"T":"string","V":{"@type":"/google.protobuf.StringValue","value":"hello"}},{"T":"int","V":{"@type":"/google.protobuf.Int64Value","value":"42"}}]}`,
 		},
 	}
 
@@ -737,10 +737,11 @@ func GetData() map[string]int {
 		res, err := env.vmk.QueryEval(env.ctx, pkgPath, "GetData()", QueryFormatJSON)
 		require.NoError(t, err)
 
-		// Verify Amino format - map shows as RefValue to persisted MapValue
+		// Verify Amino format - map is expanded inline as JSONMapValue with ObjectInfo
 		assert.Contains(t, res, `"T":"map[string]int"`)
-		assert.Contains(t, res, `"@type":"/gno.RefValue"`)
-		assert.Contains(t, res, `"ObjectID":"`)
+		assert.Contains(t, res, `"@type":"/gno.JSONMapValue"`)
+		assert.Contains(t, res, `"ObjectInfo"`)
+		assert.Contains(t, res, `"ID":"`)
 	})
 
 	t.Run("persisted_declared_type", func(t *testing.T) {

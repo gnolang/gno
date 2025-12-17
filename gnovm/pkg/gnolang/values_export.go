@@ -517,7 +517,7 @@ func primitiveToAny(tv TypedValue) (any, bool) {
 		}
 		return tv.GetString(), true
 	case IntType:
-		return int64(tv.GetInt()), true
+		return tv.GetInt(), true
 	case Int8Type:
 		return int64(tv.GetInt8()), true
 	case Int16Type:
@@ -527,7 +527,7 @@ func primitiveToAny(tv TypedValue) (any, bool) {
 	case Int64Type:
 		return tv.GetInt64(), true
 	case UintType:
-		return uint64(tv.GetUint()), true
+		return tv.GetUint(), true
 	case Uint8Type:
 		return uint64(tv.GetUint8()), true
 	case DataByteType:

@@ -117,37 +117,37 @@ func TestConvertJSONPrimitives(t *testing.T) {
 		{
 			name:     "int_value",
 			code:     `package testdata; var Value = 42`,
-			expected: `{"results":[{"T":"int","V":42}]}`,
+			expected: `{"results":[{"T":"int","V":{"@type":"/google.protobuf.Int64Value","value":"42"}}]}`,
 		},
 		{
 			name:     "string_value",
 			code:     `package testdata; var Value = "hello"`,
-			expected: `{"results":[{"T":"string","V":"hello"}]}`,
+			expected: `{"results":[{"T":"string","V":{"@type":"/google.protobuf.StringValue","value":"hello"}}]}`,
 		},
 		{
 			name:     "bool_value",
 			code:     `package testdata; var Value = true`,
-			expected: `{"results":[{"T":"bool","V":true}]}`,
+			expected: `{"results":[{"T":"bool","V":{"@type":"/google.protobuf.BoolValue","value":true}}]}`,
 		},
 		{
 			name:     "float_value",
 			code:     `package testdata; var Value = 3.14`,
-			expected: `{"results":[{"T":"float64","V":3.14}]}`,
+			expected: `{"results":[{"T":"float64","V":{"@type":"/google.protobuf.StringValue","value":"3.14"}}]}`,
 		},
 		{
 			name:     "zero_int",
 			code:     `package testdata; var Value = 0`,
-			expected: `{"results":[{"T":"int","V":0}]}`,
+			expected: `{"results":[{"T":"int","V":{"@type":"/google.protobuf.Int64Value","value":"0"}}]}`,
 		},
 		{
 			name:     "negative_int",
 			code:     `package testdata; var Value = -42`,
-			expected: `{"results":[{"T":"int","V":-42}]}`,
+			expected: `{"results":[{"T":"int","V":{"@type":"/google.protobuf.Int64Value","value":"-42"}}]}`,
 		},
 		{
 			name:     "empty_string",
 			code:     `package testdata; var Value = ""`,
-			expected: `{"results":[{"T":"string","V":""}]}`,
+			expected: `{"results":[{"T":"string","V":{"@type":"/google.protobuf.StringValue","value":""}}]}`,
 		},
 	}
 
@@ -471,9 +471,10 @@ func TestConvertJSONDeclaredTypes(t *testing.T) {
 		require.Len(t, tvs, 1)
 
 		rep := stringifyJSONResults(m, tvs, nil)
-		// Declared string shows type name with inline string value (consistent with primitives)
+		// Declared string shows type name with StringValue in Amino format
 		require.Contains(t, rep, `"T":"testdata.MyString"`)
-		require.Contains(t, rep, `"V":"hello"`)
+		require.Contains(t, rep, `"@type":"/gno.StringValue"`)
+		require.Contains(t, rep, `"value":"hello"`)
 	})
 }
 
@@ -563,7 +564,8 @@ var Value2 = "hello"`
 		tvs := []gnolang.TypedValue{tv1[0], tv2[0]}
 		rep := stringifyJSONResults(m, tvs, nil)
 
-		expected := `{"results":[{"T":"int","V":42},{"T":"string","V":"hello"}]}`
+		// In Amino format, primitives are wrapped in protobuf type wrappers
+		expected := `{"results":[{"T":"int","V":{"@type":"/google.protobuf.Int64Value","value":"42"}},{"T":"string","V":{"@type":"/google.protobuf.StringValue","value":"hello"}}]}`
 		require.Equal(t, expected, rep)
 	})
 
@@ -588,8 +590,9 @@ var Value3 = []int{1, 2, 3}`
 		tvs := []gnolang.TypedValue{tv1[0], tv2[0], tv3[0]}
 		rep := stringifyJSONResults(m, tvs, nil)
 
-		// In Amino format, primitive int is fine, struct and slice show as RefValue/SliceValue
-		require.Contains(t, rep, `{"T":"int","V":42}`)
+		// In Amino format, primitive int is wrapped, struct and slice show as RefValue/SliceValue
+		require.Contains(t, rep, `"T":"int"`)
+		require.Contains(t, rep, `"@type":"/google.protobuf.Int64Value"`)
 		require.Contains(t, rep, `"T":"testdata.Item"`)
 		require.Contains(t, rep, `"T":"[]int"`)
 		require.Contains(t, rep, `"@type":"/gno.SliceValue"`)
@@ -799,8 +802,8 @@ var Value = L1{L2{L3{L4{L5{"deep"}}}}}`
 		// Nested structs show as JSONStructValue with proper field names
 		require.Contains(t, rep, `"T":"testdata.L1"`)
 		require.Contains(t, rep, `"@type":"/gno.JSONStructValue"`)
-		// Verify the deep nesting shows the value with human-readable format
-		require.Contains(t, rep, `"V":"deep"`)
+		// Verify the deep nesting shows the value in Amino format (string wrapped)
+		require.Contains(t, rep, `"value":"deep"`)
 	})
 }
 
@@ -833,7 +836,9 @@ var Value2 error = &MyError{}`
 
 		// Should have @error at top level
 		require.Contains(t, rep, `"@error":"test error"`)
-		require.Contains(t, rep, `{"T":"int","V":42}`)
+		// Int is wrapped in Amino format
+		require.Contains(t, rep, `"T":"int"`)
+		require.Contains(t, rep, `"@type":"/google.protobuf.Int64Value"`)
 	})
 
 	t.Run("nil_error", func(t *testing.T) {
