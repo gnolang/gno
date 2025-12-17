@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/jeronimoalbi/forms"
+	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/mux"
@@ -141,7 +141,7 @@ func renderEditReply(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	form := forms.New("exec", "EditReply")
+	form := mdform.New("exec", "EditReply")
 	form.Input(
 		"boardID",
 		"placeholder", "Board ID",

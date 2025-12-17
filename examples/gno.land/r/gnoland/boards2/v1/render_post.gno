@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/jeronimoalbi/forms"
+	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/mux"
 )
@@ -211,7 +211,7 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 		exec = "FlagReply"
 	}
 
-	form := forms.New("exec", exec)
+	form := mdform.New("exec", exec)
 	form.Input(
 		"boardID",
 		"placeholder", "Board ID",
@@ -274,7 +274,7 @@ func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
 		replyID = "0"
 	}
 
-	form := forms.New("exec", "CreateReply")
+	form := mdform.New("exec", "CreateReply")
 	form.Input(
 		"boardID",
 		"placeholder", "Board ID",

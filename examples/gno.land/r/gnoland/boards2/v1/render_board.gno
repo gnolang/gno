@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/jeronimoalbi/forms"
+	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/mux"
@@ -131,7 +131,7 @@ func renderInviteMember(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	form := forms.New("exec", "InviteMember")
+	form := mdform.New("exec", "InviteMember")
 	form.Input(
 		"boardID",
 		"placeholder", "Board ID",

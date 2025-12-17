@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/jeronimoalbi/forms"
+	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/mux"
 )
@@ -68,7 +68,7 @@ func renderCreateThread(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	form := forms.New("exec", "CreateThread")
+	form := mdform.New("exec", "CreateThread")
 	form.Input(
 		"boardID",
 		"placeholder", "Board ID",
@@ -110,7 +110,7 @@ func renderEditThread(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	form := forms.New("exec", "EditThread")
+	form := mdform.New("exec", "EditThread")
 	form.Input(
 		"boardID",
 		"placeholder", "Board ID",

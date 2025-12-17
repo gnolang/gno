@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/jeronimoalbi/forms"
+	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
@@ -140,7 +140,7 @@ func renderBoardListMenu(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderCreateBoard(res *mux.ResponseWriter, _ *mux.Request) {
-	form := forms.New("exec", "CreateBoard")
+	form := mdform.New("exec", "CreateBoard")
 	form.Input(
 		"name",
 		"placeholder", "Board name",
