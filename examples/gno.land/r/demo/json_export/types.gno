@@ -85,6 +85,60 @@ func (e MyError) Error() string {
 
 type EmptyStruct struct{}
 
+// ============================================================================
+// EDGE CASE TYPES (for stress testing)
+// ============================================================================
+
+// TreeNode for binary tree tests
+type TreeNode struct {
+	Value int
+	Left  *TreeNode
+	Right *TreeNode
+}
+
+// GridNode for wide+deep tests (N fields x M levels)
+type GridNode struct {
+	Level  int
+	Fields map[string]interface{}
+	Child  *GridNode
+}
+
+// StringEdgeCases holds problematic string values
+type StringEdgeCases struct {
+	LongString     string
+	UnicodeString  string
+	EmojiString    string
+	NullByteString string
+	SpecialChars   string
+	Newlines       string
+	Quotes         string
+	Backslashes    string
+	MixedContent   string
+}
+
+// NumericEdgeCases holds all numeric boundary values
+type NumericEdgeCases struct {
+	MaxInt64    int64
+	MinInt64    int64
+	MaxUint64   uint64
+	MaxInt32    int32
+	MinInt32    int32
+	MaxInt16    int16
+	MinInt16    int16
+	MaxInt8     int8
+	MinInt8     int8
+	MaxFloat64  float64
+	MinFloat64  float64
+	TinyFloat64 float64
+	MaxFloat32  float32
+	MinFloat32  float32
+}
+
+// PointerArray for wide pointer arrays
+type PointerArray struct {
+	Pointers []*SimpleStruct
+}
+
 // === COMBINED STRUCT (for GetAll) ===
 
 // AllTypes combines all type variations into a single struct for comprehensive testing

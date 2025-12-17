@@ -1,6 +1,11 @@
 package json_export
 
-import "gno.land/p/nt/avl"
+import (
+	"math"
+	"strconv"
+
+	"gno.land/p/nt/avl"
+)
 
 // ============================================================================
 // PRIMITIVES
@@ -318,6 +323,291 @@ func GetAllEphemeral() AllTypes {
 }
 
 // ============================================================================
+// EDGE CASES: VERTICAL (DEEP NESTING)
+// ============================================================================
+
+// GetDeepNestedStruct returns a linked list N levels deep
+// Structure: {Value:0, Next: {Value:1, Next: {...Value:N-1, Next:nil}}}
+func GetDeepNestedStruct(n int) *Node {
+	if n <= 0 {
+		return nil
+	}
+	root := &Node{Value: 0}
+	current := root
+	for i := 1; i < n; i++ {
+		current.Next = &Node{Value: i}
+		current = current.Next
+	}
+	return root
+}
+
+// GetDeepNestedSlice returns N levels of nested slices
+// Structure: [[[[...["leaf"]...]]]]
+func GetDeepNestedSlice(n int) []interface{} {
+	if n <= 0 {
+		return nil
+	}
+	if n == 1 {
+		return []interface{}{"leaf"}
+	}
+	return []interface{}{GetDeepNestedSlice(n - 1)}
+}
+
+// GetDeepNestedMap returns N levels of nested maps
+// Structure: {"level0": {"level1": {...{"leaf": "value"}}}}
+func GetDeepNestedMap(n int) map[string]interface{} {
+	if n <= 0 {
+		return nil
+	}
+	if n == 1 {
+		return map[string]interface{}{"leaf": "value"}
+	}
+	key := "level" + strconv.Itoa(n-1)
+	return map[string]interface{}{key: GetDeepNestedMap(n - 1)}
+}
+
+// ============================================================================
+// EDGE CASES: HORIZONTAL (WIDE STRUCTURES)
+// ============================================================================
+
+// GetWideStruct returns a map with N fields (simulating wide struct)
+// Structure: {"field0": 0, "field1": 1, ..., "fieldN-1": N-1}
+func GetWideStruct(n int) map[string]interface{} {
+	if n <= 0 {
+		return make(map[string]interface{})
+	}
+	fields := make(map[string]interface{})
+	for i := 0; i < n; i++ {
+		fields["field"+strconv.Itoa(i)] = i
+	}
+	return fields
+}
+
+// GetWideSlice returns a slice with N elements
+// Structure: [0, 1, 2, ..., N-1]
+func GetWideSlice(n int) []int {
+	if n <= 0 {
+		return nil
+	}
+	slice := make([]int, n)
+	for i := 0; i < n; i++ {
+		slice[i] = i
+	}
+	return slice
+}
+
+// GetWideMap returns a map with N entries
+// Structure: {"key0": 0, "key1": 1, ..., "keyN-1": N-1}
+func GetWideMap(n int) map[string]int {
+	if n <= 0 {
+		return nil
+	}
+	m := make(map[string]int)
+	for i := 0; i < n; i++ {
+		m["key"+strconv.Itoa(i)] = i
+	}
+	return m
+}
+
+// GetWideStructSlice returns N SimpleStruct elements
+func GetWideStructSlice(n int) []SimpleStruct {
+	if n <= 0 {
+		return nil
+	}
+	slice := make([]SimpleStruct, n)
+	for i := 0; i < n; i++ {
+		slice[i] = SimpleStruct{ID: i, Name: "item" + strconv.Itoa(i)}
+	}
+	return slice
+}
+
+// GetWidePointerArray returns an array of N pointers to structs
+func GetWidePointerArray(n int) *PointerArray {
+	if n <= 0 {
+		return &PointerArray{Pointers: nil}
+	}
+	pointers := make([]*SimpleStruct, n)
+	for i := 0; i < n; i++ {
+		pointers[i] = &SimpleStruct{ID: i, Name: "ptr" + strconv.Itoa(i)}
+	}
+	return &PointerArray{Pointers: pointers}
+}
+
+// ============================================================================
+// EDGE CASES: COMBINED STRESS
+// ============================================================================
+
+// GetWideAndDeep returns N fields per level, M levels deep
+// Tests memory and recursion with both horizontal and vertical stress
+func GetWideAndDeep(width, depth int) *GridNode {
+	if depth <= 0 {
+		return nil
+	}
+	fields := make(map[string]interface{})
+	for i := 0; i < width; i++ {
+		fields["field"+strconv.Itoa(i)] = i
+	}
+	return &GridNode{
+		Level:  depth,
+		Fields: fields,
+		Child:  GetWideAndDeep(width, depth-1),
+	}
+}
+
+// GetBinaryTree returns a complete binary tree with N levels
+// Total nodes = 2^N - 1
+func GetBinaryTree(levels int) *TreeNode {
+	if levels <= 0 {
+		return nil
+	}
+	return buildBinaryTree(0, levels)
+}
+
+func buildBinaryTree(value, remainingLevels int) *TreeNode {
+	if remainingLevels <= 0 {
+		return nil
+	}
+	return &TreeNode{
+		Value: value,
+		Left:  buildBinaryTree(value*2+1, remainingLevels-1),
+		Right: buildBinaryTree(value*2+2, remainingLevels-1),
+	}
+}
+
+// ============================================================================
+// EDGE CASES: STRINGS
+// ============================================================================
+
+// GetLongString returns a string with N characters
+func GetLongString(n int) string {
+	if n <= 0 {
+		return ""
+	}
+	// Repeat pattern for readable output
+	pattern := "abcdefghij"
+	result := ""
+	for len(result) < n {
+		result += pattern
+	}
+	return result[:n]
+}
+
+// GetUnicodeString returns a string with various unicode characters
+func GetUnicodeString() string {
+	return "Hello \u4e16\u754c \u3053\u3093\u306b\u3061\u306f \u0421\u0430\u043b\u044e\u0442"
+}
+
+// GetEmojiString returns a string with emojis
+func GetEmojiString() string {
+	return "\U0001F600 \U0001F680 \U0001F4BB \U0001F3C6 \U0001F389"
+}
+
+// GetNullByteString returns a string containing null bytes
+func GetNullByteString() string {
+	return "before\x00middle\x00after"
+}
+
+// GetSpecialCharsString returns a string with JSON-sensitive characters
+func GetSpecialCharsString() string {
+	return "quotes: \"double\" 'single' | backslashes: \\ \\\\ | newlines: \n\r\n | tabs: \t"
+}
+
+// GetStringEdgeCases returns all string edge cases in one struct
+func GetStringEdgeCases(longStringLen int) *StringEdgeCases {
+	return &StringEdgeCases{
+		LongString:     GetLongString(longStringLen),
+		UnicodeString:  GetUnicodeString(),
+		EmojiString:    GetEmojiString(),
+		NullByteString: GetNullByteString(),
+		SpecialChars:   GetSpecialCharsString(),
+		Newlines:       "line1\nline2\r\nline3",
+		Quotes:         `"quoted" and 'quoted'`,
+		Backslashes:    `path\to\file and \\server\share`,
+		MixedContent:   "mix: \"\\\n\t\u4e16\U0001F600",
+	}
+}
+
+// ============================================================================
+// EDGE CASES: NUMERICS
+// ============================================================================
+
+// GetNumericEdgeCases returns all numeric boundary values
+func GetNumericEdgeCases() *NumericEdgeCases {
+	return &NumericEdgeCases{
+		MaxInt64:    math.MaxInt64,
+		MinInt64:    math.MinInt64,
+		MaxUint64:   math.MaxUint64,
+		MaxInt32:    math.MaxInt32,
+		MinInt32:    math.MinInt32,
+		MaxInt16:    math.MaxInt16,
+		MinInt16:    math.MinInt16,
+		MaxInt8:     math.MaxInt8,
+		MinInt8:     math.MinInt8,
+		MaxFloat64:  math.MaxFloat64,
+		MinFloat64:  -math.MaxFloat64,
+		TinyFloat64: math.SmallestNonzeroFloat64,
+		MaxFloat32:  math.MaxFloat32,
+		MinFloat32:  -math.MaxFloat32,
+	}
+}
+
+// GetMaxIntValues returns maximum integer values for each type
+func GetMaxIntValues() (int, int8, int16, int32, int64) {
+	return math.MaxInt, math.MaxInt8, math.MaxInt16, math.MaxInt32, math.MaxInt64
+}
+
+// GetMinIntValues returns minimum integer values for each type
+func GetMinIntValues() (int, int8, int16, int32, int64) {
+	return math.MinInt, math.MinInt8, math.MinInt16, math.MinInt32, math.MinInt64
+}
+
+// GetMaxUintValues returns maximum unsigned integer values
+func GetMaxUintValues() (uint, uint8, uint16, uint32, uint64) {
+	return math.MaxUint, math.MaxUint8, math.MaxUint16, math.MaxUint32, math.MaxUint64
+}
+
+// GetFloatEdgeCases returns float edge cases
+func GetFloatEdgeCases() (float32, float32, float64, float64, float64) {
+	return math.MaxFloat32, math.SmallestNonzeroFloat32,
+		math.MaxFloat64, math.SmallestNonzeroFloat64, -math.MaxFloat64
+}
+
+// ============================================================================
+// EDGE CASES: POINTERS
+// ============================================================================
+
+// GetDeepPointerChain returns N levels of pointer indirection
+// Each level wraps a Node with a pointer to the next level
+func GetDeepPointerChain(n int) *Node {
+	if n <= 0 {
+		return nil
+	}
+	root := &Node{Value: 0}
+	current := root
+	for i := 1; i < n; i++ {
+		current.Next = &Node{Value: i}
+		current = current.Next
+	}
+	return root
+}
+
+// GetMixedPointerSlice returns slice with mix of nil and non-nil pointers
+func GetMixedPointerSlice(n int) []*SimpleStruct {
+	if n <= 0 {
+		return nil
+	}
+	slice := make([]*SimpleStruct, n)
+	for i := 0; i < n; i++ {
+		if i%3 == 0 {
+			slice[i] = nil // Every third element is nil
+		} else {
+			slice[i] = &SimpleStruct{ID: i, Name: "mixed" + strconv.Itoa(i)}
+		}
+	}
+	return slice
+}
+
+// ============================================================================
 // RENDER (for web interface)
 // ============================================================================
 
@@ -385,6 +675,43 @@ This realm provides various type examples for testing JSON export functionality.
 - **GetRange(start, end int)** - Get slice of integers [start, end)
 - **Lookup(key string)** - Get value from map ("one", "two", "three")
 
+### Edge Cases (Stress Testing)
+
+#### Vertical (Deep Nesting) - Dynamic N parameter
+- **GetDeepNestedStruct(n int)** - N-level deep linked list chain
+- **GetDeepNestedSlice(n int)** - N-level nested slices [[[...]]]
+- **GetDeepNestedMap(n int)** - N-level nested maps
+
+#### Horizontal (Wide Structures) - Dynamic N parameter
+- **GetWideStruct(n int)** - Map with N fields
+- **GetWideSlice(n int)** - Slice with N elements
+- **GetWideMap(n int)** - Map with N entries
+- **GetWideStructSlice(n int)** - N SimpleStruct elements
+- **GetWidePointerArray(n int)** - N pointers to structs
+
+#### Combined Stress - Dynamic width/depth parameters
+- **GetWideAndDeep(width, depth int)** - N fields x M levels
+- **GetBinaryTree(levels int)** - Complete binary tree (2^N - 1 nodes)
+
+#### String Edge Cases
+- **GetLongString(n int)** - String with N characters
+- **GetUnicodeString()** - Unicode chars (Chinese, Japanese, Russian)
+- **GetEmojiString()** - Emoji characters
+- **GetNullByteString()** - String with null bytes
+- **GetSpecialCharsString()** - JSON-sensitive: quotes, backslashes, newlines, tabs
+- **GetStringEdgeCases(longLen int)** - All string edge cases combined
+
+#### Numeric Edge Cases
+- **GetNumericEdgeCases()** - All boundary values (MaxInt64, MinInt64, etc.)
+- **GetMaxIntValues()** - Max int values (int, int8-64)
+- **GetMinIntValues()** - Min int values
+- **GetMaxUintValues()** - Max uint values
+- **GetFloatEdgeCases()** - Float boundary values
+
+#### Pointer Edge Cases
+- **GetDeepPointerChain(n int)** - N levels of pointer indirection
+- **GetMixedPointerSlice(n int)** - Mix of nil/non-nil pointers
+
 ## Usage
 
 Query with JSON format:
@@ -400,6 +727,16 @@ Web query examples:
 /query/r/demo/json_export.GetListNode(5)
 /query/r/demo/json_export.GetByID(1)
 /query/r/demo/json_export.Lookup("one")
+` + "```" + `
+
+Edge case stress tests:
+` + "```" + `
+/query/r/demo/json_export.GetDeepNestedStruct(100)
+/query/r/demo/json_export.GetWideSlice(10000)
+/query/r/demo/json_export.GetBinaryTree(10)
+/query/r/demo/json_export.GetNumericEdgeCases()
+/query/r/demo/json_export.GetStringEdgeCases(1000)
+/query/r/demo/json_export.GetWideAndDeep(50, 20)
 ` + "```" + `
 `
 }
