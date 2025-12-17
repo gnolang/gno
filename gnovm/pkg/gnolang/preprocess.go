@@ -533,19 +533,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			})
 	}
 
-	transformLoopvar := func(n Node) (found bool) {
+	transformLoopvar := func(n Node) {
+		var found bool
 		// fmt.Println("---transformLoopvar, n: ", n, reflect.TypeOf(n))
 		Transcribe(n,
 			func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 				if stage != TRANS_LEAVE {
 					return n, TRANS_CONTINUE
 				}
-				// fmt.Println("---!!!Trans_Enter, n: ", n)
-				// if _, ok := n.(*FuncLitExpr); ok {
-				// 	if n.GetAttribute(ATTR_PREPROCESS_SKIPPED) == AttrPreprocessFuncLitExpr {
-				// 		return n, TRANS_SKIP
-				// 	}
-				// }
 				// fmt.Println("---Trans_Leave bn: ", n)
 				if bn, ok := n.(BlockNode); ok {
 					// fmt.Println("---TransLoopvar, bn: ", bn)
@@ -561,13 +556,26 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				}
 				return n, TRANS_CONTINUE
 			})
-		return
-	}
 
-	transform := func(n Node) {
-		found := transformLoopvar(n)
+		// find capture .loopvar_i
+		// inject scope var
 		if found {
-			// fmt.Println("---Found loopvar ...")
+			Transcribe(n,
+				func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+					if stage != TRANS_LEAVE {
+						return n, TRANS_CONTINUE
+					}
+					if bn, ok := n.(BlockNode); ok {
+						if _, ok := bn.(*ForStmt); ok {
+							shadowLoopvar(ctx, bn)
+						}
+						return n, TRANS_CONTINUE
+					} else {
+					}
+					return n, TRANS_CONTINUE
+				})
+
+			// fmt.Println("---Found loopvar capture...")
 			// fmt.Println("---Current n: ", n)
 			// restore ATTR_PREPROCESSED attribute
 			RestoreNode(ctx, n)
@@ -575,11 +583,18 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			n = preprocess1(store, ctx, n)
 			// fmt.Println("---after preprocess1...")
 		}
+	}
+
+	_ = transformLoopvar
+
+	transform := func() {
+		// transformLoopvar(n)
 		transformHeapItem(n)
 	}
 
 	// do transform
-	transform(n)
+	transform()
+	// fmt.Println("---final n: ", n)
 
 	return n
 }
@@ -1193,9 +1208,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						fillNameExprPath(last, n, true)
 						return n, TRANS_CONTINUE
 					default:
-						// fmt.Println("---default..., use...")
-						// find LoopVarUse, and rename,
-
 						// happens before fill path
 						// rename ensure name match.
 						processLoopVar(last, n)
@@ -3138,6 +3150,7 @@ func RestoreNode(ctx BlockNode, n Node) {
 }
 
 func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
+	var transForBody bool
 	// Iterate over all nodes recursively.
 	_ = TranscribeB(ctx, bn, func(
 		ns []Node,
@@ -3153,6 +3166,13 @@ func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 		if debug {
 			debug.Printf("findHeapDefinedLoopvarByUse %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
+		// only rename names in body.
+		if ftype == TRANS_FOR_BODY {
+			transForBody = true
+		}
+		if ftype == TRANS_FOR_INIT || ftype == TRANS_FOR_COND || ftype == TRANS_FOR_POST {
+			transForBody = false
+		}
 
 		switch stage {
 		// ----------------------------------------
@@ -3161,10 +3181,16 @@ func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 		// ----------------------------------------
 		case TRANS_LEAVE:
 			// fmt.Println("------Trans_Leave, n: ", n, reflect.TypeOf(n))
+			// fmt.Println("---is transForBody: ", transForBody)
 			switch n := n.(type) {
 			case *RefExpr:
 				lmx := LeftmostX(n.X)
 				if nx, ok := lmx.(*NameExpr); ok {
+
+					if !transForBody {
+						return n, TRANS_CONTINUE
+					}
+					// fmt.Println("---refX..., nx: ", nx)
 					if nx.Path.Type != VPBlock {
 						return n, TRANS_CONTINUE
 					}
@@ -3196,23 +3222,13 @@ func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 					// and selector exprs.
 					// e.g. leftmost.middle[0][2].rightmost
 
-					// Ignore post stmt name
-					nn := ns[len(ns)-1]
-					if fstmt, ok := dbn.(*ForStmt); ok {
-						if exst, ok := fstmt.Post.(*ExprStmt); ok {
-							if exst.X == nn {
-								return n, TRANS_CONTINUE
-							}
-						}
-					}
+					// fmt.Println("---Rename...")
+					origName := strings.TrimPrefix(string(nx.Name), ".loopvar_")
+					redefineName := fmt.Sprintf("%s%s", ".redefine_", origName)
 
-					// fmt.Println("---Loopvar by RefExpr, nx: ", nx)
 					if _, ok := dbn.(*ForStmt); ok {
 						// true if found once
 						stop = true
-						origName := strings.TrimPrefix(string(nx.Name), ".loopvar_")
-						redefineName := fmt.Sprintf("%s%s", ".redefine_", origName)
-
 						if _, ok := dbn.GetAttribute(ATTR_REDEFINE_NAME).(string); !ok {
 							dbn.SetAttribute(ATTR_REDEFINE_NAME, redefineName)
 						}
@@ -3220,7 +3236,7 @@ func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 						// Reset to type normal
 						nx.Type = NameExprTypeNormal
 						// Redefine name
-						nx.Name = Name(redefineName)
+						// nx.Name = Name(redefineName)
 					}
 				}
 			case *NameExpr:
@@ -3252,6 +3268,7 @@ func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 
 				// Find the block where name is defined.
 				dbn := last.GetBlockNodeForPath(nil, n.Path)
+
 				for {
 					// If used as closure capture, mark as heap use.
 					flx, _, found := findFirstClosure(stack, dbn)
@@ -3259,52 +3276,141 @@ func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 						return n, TRANS_CONTINUE
 					}
 
-					// fmt.Println("---Loopvar by closure, n: ", n)
-					// fmt.Println("---Loopvar by closure, flx: ", flx)
-					// fmt.Println("---dbn: ", dbn)
+					origName := strings.TrimPrefix(string(n.Name), ".loopvar_")
+					redefineName := fmt.Sprintf("%s%s", ".redefine_", origName)
+
 					if _, ok := dbn.(*ForStmt); ok {
-						// true if found once
 						stop = true
-						origName := strings.TrimPrefix(string(n.Name), ".loopvar_")
-						redefineName := fmt.Sprintf("%s%s", ".redefine_", origName)
 
 						if _, ok := dbn.GetAttribute(ATTR_REDEFINE_NAME).(string); !ok {
 							dbn.SetAttribute(ATTR_REDEFINE_NAME, redefineName)
 						}
-
-						// Reset to type normal
-						n.Type = NameExprTypeNormal
-						// Redefine name
-						n.Name = Name(redefineName)
 					}
 
 					// Loop again for more closures.
 					dbn = flx
 				}
+			}
+			return n, TRANS_CONTINUE
+		}
+		return n, TRANS_CONTINUE
+	})
+	return
+}
+
+func shadowLoopvar(ctx BlockNode, bn BlockNode) (stop bool) {
+	var transForBody bool
+	// Iterate over all nodes recursively.
+	_ = TranscribeB(ctx, bn, func(
+		ns []Node,
+		stack []BlockNode,
+		last BlockNode,
+		ftype TransField,
+		index int,
+		n Node,
+		stage TransStage,
+	) (Node, TransCtrl) {
+		defer doRecover(stack, n)
+
+		if debug {
+			debug.Printf("shadowLoopvar %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+		}
+
+		// only rename names in body.
+		if ftype == TRANS_FOR_BODY {
+			transForBody = true
+		}
+		if ftype == TRANS_FOR_INIT || ftype == TRANS_FOR_COND || ftype == TRANS_FOR_POST {
+			transForBody = false
+		}
+
+		switch stage {
+		// ----------------------------------------
+		case TRANS_BLOCK:
+
+		// ----------------------------------------
+		case TRANS_LEAVE:
+			switch n := n.(type) {
+			case *NameExpr:
+				fmt.Println("---shadowLoopvar, nx: ", n, n.Type)
+				fmt.Println("---last: ", last)
+
+				if !transForBody {
+					return n, TRANS_CONTINUE
+				}
+				// NOTE: Keep in sync maybe with transpile_gno0p0.go/FindMore...
+				// Ignore non-block type paths
+				if n.Path.Type != VPBlock {
+					return n, TRANS_CONTINUE
+				}
+				// Ignore blank identifers
+				if n.Name == blankIdentifier {
+					return n, TRANS_CONTINUE
+				}
+				// Ignore package names
+				if n.GetAttribute(ATTR_PACKAGE_REF) != nil {
+					return n, TRANS_CONTINUE
+				}
+				// Ignore decls names.
+				if ftype == TRANS_VAR_NAME {
+					return n, TRANS_CONTINUE
+				}
+				// Ignore := defines, etc.
+				// if n.Type != NameExprTypeLoopVarUse {
+				// 	return n, TRANS_CONTINUE
+				// }
+				if !strings.HasPrefix(string(n.Name), ".loopvar") {
+					return n, TRANS_CONTINUE
+				}
+
+				// Find the block where name is defined.
+				// dbn := last.GetBlockNodeForPath(nil, n.Path)
+
+				// rename all .loopvar_i use to .redefine_i except .loopvar_i in ForStmt.
+				nn := ns[len(ns)-1]
+				fmt.Println("------nn: ", nn, reflect.TypeOf(nn))
+
+				origName := strings.TrimPrefix(string(n.Name), ".loopvar_")
+				redefineName := fmt.Sprintf("%s%s", ".redefine_", origName)
+				n.Name = Name(redefineName)
+				// n.Type = NameExprTypeNormal
+				fmt.Println("---rename .loopvar_i to .redefine_x..., n.Name: ", n.Name)
 			case *ForStmt:
-				// fmt.Println("------Trans_Leave, forStmt: ", n)
+				// do the injection here.
+				fmt.Println("------Trans_Leave, forStmt: ", n)
 				if n2, ok := n.GetAttribute(ATTR_REDEFINE_NAME).(string); ok && n2 != "" {
-					// fmt.Println("------forStmt re-written...")
+					fmt.Println("------forStmt re-written...")
 					stmts := n.GetBody()
 
 					origName := strings.TrimPrefix(string(n2), ".redefine_")
 
 					lhs := Nx(n2)
 					rhs := Nx(fmt.Sprintf("%s%s", ".loopvar_", origName))
+					lhs.Type = NameExprTypeHeapDefine
+					rhs.Type = NameExprTypeNormal
+					// lhs.Type = NameExprTypeDefine
+
 					as := A(lhs, ":=", rhs)
-					stmts2 := make([]Stmt, 0, len(stmts)+1)
+					stmts2 := make([]Stmt, 0, len(stmts)+2)
 					stmts2 = append(stmts2, as)
 					stmts2 = append(stmts2, stmts...)
+
+					lhs2 := Nx(fmt.Sprintf("%s%s", ".loopvar_", origName))
+					rhs2 := Nx(n2)
+					lhs2.Type = NameExprTypeDefine
+					// will promote to heap use
+					rhs2.Type = NameExprTypeNormal
+					as2 := A(lhs2, ":=", rhs2)
+					stmts2 = append(stmts2, as2)
 
 					// Index for new injected name
 					index := len(n.GetBlockNames())
 					// Set Heap type
-					lhs.Type = NameExprTypeHeapDefine
 					// Reserve for new injected name
 					n.Reserve(false, lhs, n, NSDefine, index+1)
 					n.SetBody(stmts2)
 
-					// fmt.Println("------after process, n: ", n)
+					fmt.Println("------after process, n: ", n)
 					n.DelAttribute(ATTR_REDEFINE_NAME)
 				}
 			}
@@ -3449,6 +3555,8 @@ func addName(names []Name, name Name) []Name {
 }
 
 func addAttrHeapUse(bn BlockNode, name Name) {
+	fmt.Println("---addAttrHeapUse, bn: ", bn)
+	fmt.Println("---addAttrHeapUse, name: ", name)
 	lus, _ := bn.GetAttribute(ATTR_HEAP_USES).([]Name)
 	lus = addName(lus, name)
 	bn.SetAttribute(ATTR_HEAP_USES, lus)
@@ -3709,6 +3817,15 @@ func codaHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 						name := fd.Type.Results[i].Name
 						if hasAttrHeapUse(fd, name) {
 							fd.Type.Results[i].NameExpr.Type = NameExprTypeHeapDefine
+							fd.SetIsHeapItem(name)
+						}
+					}
+					fmt.Println("---fd: ", fd)
+					fmt.Println("---captures: ", fd.HeapCaptures)
+					for i := 0; i < len(fd.HeapCaptures); i++ {
+						name := fd.HeapCaptures[i].Name
+						if hasAttrHeapUse(fd, name) {
+							fd.HeapCaptures[i].Type = NameExprTypeHeapDefine
 							fd.SetIsHeapItem(name)
 						}
 					}
