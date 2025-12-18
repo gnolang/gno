@@ -84,7 +84,7 @@ stdout OK!
 stderr 'banker with type BankerTypeOriginSend can only be instantiated by the origin package'
 
 ## Final verification - victim's coins remain safe throughout all tests
-## Victim started with 10000000, spent gas on one successful call, should have most of it
+## Victim started with 1000000000, spent gas on one successful call, should have most of it
 gnokey query bank/balances/${victim_user_addr}
 stdout 'ugnot'
 
