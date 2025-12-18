@@ -17,8 +17,7 @@ type BitArray struct {
 	Elems []uint64 `json:"elems"` // NOTE: persisted via reflect, must be exported
 }
 
-// ValidateBasic checks that the BitArray is internally consistent.
-// It verifies that the number of elements in Elems matches what is expected
+// ValidateBasic verifies that the number of elements in Elems matches what is expected
 // based on the declared Bits count. This prevents malicious peers from sending
 // inconsistent BitArrays that could cause consensus failures.
 func (bA *BitArray) ValidateBasic() error {
