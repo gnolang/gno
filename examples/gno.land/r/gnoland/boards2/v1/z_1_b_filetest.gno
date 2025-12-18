@@ -6,6 +6,7 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
+	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 const (
@@ -21,14 +22,14 @@ func init() {
 	bid = boards2.CreateBoard(cross, "test123", false, false)
 
 	// Add an admin member
-	boards2.InviteMember(cross, bid, admin, boards2.RoleAdmin)
+	boards2.InviteMember(cross, bid, admin, permissions.RoleAdmin)
 }
 
 func main() {
 	// Next call will be done by the admin member
 	testing.SetRealm(testing.NewUserRealm(admin))
 
-	boards2.InviteMember(cross, bid, user, boards2.RoleOwner)
+	boards2.InviteMember(cross, bid, user, permissions.RoleOwner)
 }
 
 // Error:
