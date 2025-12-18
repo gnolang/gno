@@ -36,7 +36,7 @@ func SetHelp(_ realm, content string) {
 	content = strings.TrimSpace(content)
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{content}
-	gPerms.WithPermission(cross, caller, PermissionRealmHelp, args, func(realm) {
+	gPerms.WithPermission(caller, PermissionRealmHelp, args, func() {
 		gHelp = content
 	})
 }
@@ -52,7 +52,7 @@ func SetPermissions(_ realm, boardID boards.ID, p boards.Permissions) {
 
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{boardID}
-	gPerms.WithPermission(cross, caller, PermissionPermissionsUpdate, args, func(realm) {
+	gPerms.WithPermission(caller, PermissionPermissionsUpdate, args, func() {
 		assertRealmIsNotLocked()
 
 		// When board ID is zero it means that realm permissions are being updated
@@ -84,7 +84,7 @@ func SetRealmNotice(_ realm, message string) {
 	message = strings.TrimSpace(message)
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{message}
-	gPerms.WithPermission(cross, caller, PermissionRealmNotice, args, func(realm) {
+	gPerms.WithPermission(caller, PermissionRealmNotice, args, func() {
 		gNotice = message
 
 		chain.Emit(
@@ -119,7 +119,7 @@ func CreateBoard(_ realm, name string, listed, open bool) boards.ID {
 	id := gBoardsSequence.Next()
 	board := boards.New(id)
 	args := boards.Args{caller, name, board.ID, listed, open}
-	gPerms.WithPermission(cross, caller, PermissionBoardCreate, args, func(realm) {
+	gPerms.WithPermission(caller, PermissionBoardCreate, args, func() {
 		assertRealmIsNotLocked()
 		assertBoardNameNotExists(name)
 
@@ -167,7 +167,7 @@ func RenameBoard(_ realm, name, newName string) {
 
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{caller, board.ID, name, newName}
-	board.Permissions.WithPermission(cross, caller, PermissionBoardRename, args, func(realm) {
+	board.Permissions.WithPermission(caller, PermissionBoardRename, args, func() {
 		assertRealmIsNotLocked()
 		assertBoardNameNotExists(newName)
 
@@ -202,7 +202,7 @@ func CreateThread(_ realm, boardID boards.ID, title, body string) boards.ID {
 
 	thread := boards.MustNewThread(board, caller, title, body)
 	args := boards.Args{caller, board.ID, thread.ID, title, body}
-	board.Permissions.WithPermission(cross, caller, PermissionThreadCreate, args, func(realm) {
+	board.Permissions.WithPermission(caller, PermissionThreadCreate, args, func() {
 		assertRealmIsNotLocked()
 		assertUserIsNotBanned(board.ID, caller)
 
@@ -254,7 +254,7 @@ func CreateReply(_ realm, boardID, threadID, replyID boards.ID, body string) boa
 
 	reply := boards.MustNewReply(parent, caller, body)
 	args := boards.Args{caller, board.ID, thread.ID, parent.ID, reply.ID, body}
-	board.Permissions.WithPermission(cross, caller, PermissionReplyCreate, args, func(realm) {
+	board.Permissions.WithPermission(caller, PermissionReplyCreate, args, func() {
 		assertRealmIsNotLocked()
 
 		// Add reply to its parent
@@ -301,7 +301,7 @@ func CreateRepost(_ realm, boardID, threadID, destinationBoardID boards.ID, titl
 
 	repost := boards.MustNewRepost(thread, dst, caller)
 	args := boards.Args{caller, board.ID, thread.ID, dst.ID, repost.ID, title, body}
-	dst.Permissions.WithPermission(cross, caller, PermissionThreadRepost, args, func(realm) {
+	dst.Permissions.WithPermission(caller, PermissionThreadRepost, args, func() {
 		assertRealmIsNotLocked()
 
 		repost.Title = title
@@ -364,7 +364,7 @@ func DeleteThread(_ realm, boardID, threadID boards.ID) {
 	}
 
 	args := boards.Args{caller, board.ID, thread.ID}
-	board.Permissions.WithPermission(cross, caller, PermissionThreadDelete, args, func(realm) {
+	board.Permissions.WithPermission(caller, PermissionThreadDelete, args, func() {
 		assertRealmIsNotLocked()
 		deleteThread()
 	})
@@ -431,7 +431,7 @@ func DeleteReply(_ realm, boardID, threadID, replyID boards.ID) {
 	}
 
 	args := boards.Args{caller, board.ID, thread.ID, reply.ID}
-	board.Permissions.WithPermission(cross, caller, PermissionReplyDelete, args, func(realm) {
+	board.Permissions.WithPermission(caller, PermissionReplyDelete, args, func() {
 		assertRealmIsNotLocked()
 		deleteReply()
 	})
@@ -480,7 +480,7 @@ func EditThread(_ realm, boardID, threadID boards.ID, title, body string) {
 	}
 
 	args := boards.Args{caller, board.ID, thread.ID, title, body}
-	board.Permissions.WithPermission(cross, caller, PermissionThreadEdit, args, func(realm) {
+	board.Permissions.WithPermission(caller, PermissionThreadEdit, args, func() {
 		assertRealmIsNotLocked()
 		editThread()
 	})
@@ -555,7 +555,7 @@ func RemoveMember(_ realm, boardID boards.ID, member address) {
 	}
 
 	args := boards.Args{boardID, member}
-	perms.WithPermission(cross, caller, PermissionMemberRemove, args, func(realm) {
+	perms.WithPermission(caller, PermissionMemberRemove, args, func() {
 		assertMembersUpdateIsEnabled(boardID)
 		removeMember()
 	})
@@ -605,7 +605,7 @@ func ChangeMemberRole(_ realm, boardID boards.ID, member address, role boards.Ro
 	perms := mustGetPermissions(boardID)
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{caller, boardID, member, role}
-	perms.WithPermission(cross, caller, PermissionRoleChange, args, func(realm) {
+	perms.WithPermission(caller, PermissionRoleChange, args, func() {
 		assertMembersUpdateIsEnabled(boardID)
 
 		perms.SetUserRoles(cross, member, role)

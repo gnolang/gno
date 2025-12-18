@@ -238,7 +238,7 @@ func (bp Permisions) IterateUsers(start, count int, fn boards.UsersIterFn) (stop
 // It panics on error or when a permission validator fails.
 // Callbacks are by default called when there is no validator registered for the permission.
 // If a permission validation function exists it's called before calling the callback.
-func (bp *Permisions) WithPermission(_ realm, user address, p boards.Permission, args boards.Args, cb func(realm)) {
+func (bp *Permisions) WithPermission(user address, p boards.Permission, args boards.Args, cb func()) {
 	if !bp.HasPermission(user, p) {
 		panic("unauthorized")
 	}
@@ -252,5 +252,5 @@ func (bp *Permisions) WithPermission(_ realm, user address, p boards.Permission,
 		}
 	}
 
-	cb(cross)
+	cb()
 }

@@ -29,7 +29,7 @@ type (
 
 		// WithPermission calls a callback when a user has a specific permission.
 		// It panics on error.
-		WithPermission(realm, address, Permission, Args, func(realm))
+		WithPermission(address, Permission, Args, func())
 
 		// SetUserRoles adds a new user when it doesn't exist and sets its roles.
 		// Method can also be called to change the roles of an existing user.
