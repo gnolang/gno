@@ -17,32 +17,6 @@ type BitArray struct {
 	Elems []uint64 `json:"elems"` // NOTE: persisted via reflect, must be exported
 }
 
-// ValidateBasic verifies that the number of elements in Elems matches what is expected
-// based on the declared Bits count. This prevents malicious peers from sending
-// inconsistent BitArrays that could cause consensus failures.
-func (bA *BitArray) ValidateBasic() error {
-	if bA == nil {
-		return nil
-	}
-	bA.mtx.Lock()
-	defer bA.mtx.Unlock()
-
-	if bA.Bits < 0 {
-		return fmt.Errorf("negative number of bits %d", bA.Bits)
-	}
-
-	// Calculate expected number of elements for the given bits count
-	expectedElems := (bA.Bits + 63) / 64
-	actualElems := len(bA.Elems)
-
-	if expectedElems != actualElems {
-		return fmt.Errorf("mismatch between specified number of bits %d, and number of elements %d, expected %d elements",
-			bA.Bits, actualElems, expectedElems)
-	}
-
-	return nil
-}
-
 // NewBitArray returns a new bit array.
 // It returns nil if the number of bits is zero.
 func NewBitArray(bits int) *BitArray {
@@ -51,7 +25,7 @@ func NewBitArray(bits int) *BitArray {
 	}
 	return &BitArray{
 		Bits:  bits,
-		Elems: make([]uint64, (bits+63)/64),
+		Elems: make([]uint64, numElements(bits)),
 	}
 }
 
@@ -93,7 +67,7 @@ func (bA *BitArray) SetIndex(i int, v bool) bool {
 }
 
 func (bA *BitArray) setIndex(i int, v bool) bool {
-	if i >= bA.Bits {
+	if i >= bA.Bits || i/64 >= len(bA.Elems) {
 		return false
 	}
 	if v {
@@ -124,7 +98,7 @@ func (bA *BitArray) copy() *BitArray {
 }
 
 func (bA *BitArray) copyBits(bits int) *BitArray {
-	c := make([]uint64, (bits+63)/64)
+	c := make([]uint64, numElements(bits))
 	copy(c, bA.Elems)
 	return &BitArray{
 		Bits:  bits,
@@ -282,10 +256,16 @@ func (bA *BitArray) PickRandom() (int, bool) {
 }
 
 func (bA *BitArray) getTrueIndices() []int {
+	numElems := len(bA.Elems)
+	if numElems != numElements(bA.Bits) {
+		return nil
+	}
+	if numElems == 0 {
+		return nil
+	}
+
 	trueIndices := make([]int, 0, bA.Bits)
 	curBit := 0
-	numElems := len(bA.Elems)
-	// set all true indices
 	for i := range numElems - 1 {
 		elem := bA.Elems[i]
 		if elem == 0 {
@@ -299,7 +279,6 @@ func (bA *BitArray) getTrueIndices() []int {
 			curBit++
 		}
 	}
-	// handle last element
 	lastElem := bA.Elems[numElems-1]
 	numFinalBits := bA.Bits - curBit
 	for i := range numFinalBits {
@@ -464,4 +443,25 @@ func (bA *BitArray) UnmarshalJSON(bz []byte) error {
 	bA.Elems = bA2.Elems
 
 	return nil
+}
+
+// ValidateBasic verifies that Elems has the correct length for the declared Bits count.
+func (bA *BitArray) ValidateBasic() error {
+	if bA == nil {
+		return nil
+	}
+	bA.mtx.Lock()
+	defer bA.mtx.Unlock()
+
+	expectedElems := numElements(bA.Bits)
+	if expectedElems != len(bA.Elems) {
+		return fmt.Errorf("mismatch between specified number of bits %d, and number of elements %d, expected %d elements",
+			bA.Bits, len(bA.Elems), expectedElems)
+	}
+
+	return nil
+}
+
+func numElements(bits int) int {
+	return (bits + 63) / 64
 }

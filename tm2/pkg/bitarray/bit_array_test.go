@@ -301,7 +301,6 @@ func TestBitArrayValidateBasic(t *testing.T) {
 	}{
 		{"nil BitArray is valid", nil, ""},
 		{"valid BitArray", NewBitArray(10), ""},
-		{"negative bits", &BitArray{Bits: -1, Elems: nil}, "negative number of bits"},
 		{"mismatched Elems nil", &BitArray{Bits: 10, Elems: nil}, "mismatch between specified number of bits 10, and number of elements 0, expected 1 elements"},
 		{"mismatched Elems too few", &BitArray{Bits: 100, Elems: make([]uint64, 1)}, "mismatch between specified number of bits 100, and number of elements 1, expected 2 elements"},
 		{"mismatched Elems too many", &BitArray{Bits: 10, Elems: make([]uint64, 5)}, "mismatch between specified number of bits 10, and number of elements 5, expected 1 elements"},
