@@ -598,6 +598,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	pl := gno.PackageNodeLocation(pkgPath)
 	pn := gnostore.GetBlockNode(pl).(*gno.PackageNode)
 	ft := pn.GetStaticTypeOf(gnostore, gno.Name(fnc)).(*gno.FuncType)
+	if len(ft.Params) == 0 || ft.Params[0].Type.String() != ".uverse.realm" {
+		panic(fmt.Sprintf("function %s is non-crossing and cannot be called with MsgCall; query with vm/qeval or use MsgRun", fnc))
+	}
+
 	// Make main Package with imports.
 	mpn := gno.NewPackageNode("main", "", nil)
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
