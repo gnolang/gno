@@ -76,7 +76,7 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 			callback := func() { called = true }
 
 			testCaseFn := func() {
-				perms.WithPermission(tc.user, tc.permission, tc.args, callback)
+				perms.WithPermission(cross, tc.user, tc.permission, tc.args, callback)
 			}
 
 			if tc.err != "" {

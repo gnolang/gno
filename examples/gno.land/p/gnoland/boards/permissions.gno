@@ -28,8 +28,11 @@ type (
 		HasPermission(address, Permission) bool
 
 		// WithPermission calls a callback when a user has a specific permission.
+		// Crossing when calling this method is required to allow implementations
+		// to update their internal state, for example to create proposals that
+		// when approved execute the permissioned callback.
 		// It panics on error.
-		WithPermission(address, Permission, Args, func())
+		WithPermission(realm, address, Permission, Args, func(realm))
 
 		// SetUserRoles adds a new user when it doesn't exist and sets its roles.
 		// Method can also be called to change the roles of an existing user.
