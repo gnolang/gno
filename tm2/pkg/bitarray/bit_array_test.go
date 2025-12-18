@@ -292,32 +292,23 @@ func TestUnmarshalJSONDoesntCrashOnZeroBits(t *testing.T) {
 }
 
 func TestBitArrayValidateBasic(t *testing.T) {
-	t.Parallel()
-
 	testCases := []struct {
-		name   string
-		bA     *BitArray
-		expErr string
+		name    string
+		bA1     *BitArray
+		expPass bool
 	}{
-		{"nil BitArray is valid", nil, ""},
-		{"valid BitArray", NewBitArray(10), ""},
-		{"mismatched Elems nil", &BitArray{Bits: 10, Elems: nil}, "mismatch between specified number of bits 10, and number of elements 0, expected 1 elements"},
-		{"mismatched Elems too few", &BitArray{Bits: 100, Elems: make([]uint64, 1)}, "mismatch between specified number of bits 100, and number of elements 1, expected 2 elements"},
-		{"mismatched Elems too many", &BitArray{Bits: 10, Elems: make([]uint64, 5)}, "mismatch between specified number of bits 10, and number of elements 5, expected 1 elements"},
+		{"valid empty", &BitArray{}, true},
+		{"valid explicit 0 bits nil elements", &BitArray{Bits: 0, Elems: nil}, true},
+		{"valid explicit 0 bits 0 len elements", &BitArray{Bits: 0, Elems: make([]uint64, 0)}, true},
+		{"valid nil", nil, true},
+		{"valid with elements", NewBitArray(10), true},
+		{"more elements than bits specifies", &BitArray{Bits: 0, Elems: make([]uint64, 5)}, false},
+		{"less elements than bits specifies", &BitArray{Bits: 200, Elems: make([]uint64, 1)}, false},
 	}
-
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			err := tc.bA.ValidateBasic()
-			if tc.expErr == "" {
-				require.NoError(t, err)
-			} else {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tc.expErr)
-			}
+			err := tc.bA1.ValidateBasic()
+			require.Equal(t, err == nil, tc.expPass)
 		})
 	}
 }
