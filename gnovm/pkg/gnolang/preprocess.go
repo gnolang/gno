@@ -3449,10 +3449,10 @@ func shadowLoopvar(ctx BlockNode, bn BlockNode) (stop bool) {
 
 					lhs2 := Nx(fmt.Sprintf("%s%s", ".loopvar_", origName))
 					rhs2 := Nx(n2)
-					lhs2.Type = NameExprTypeDefine
+					lhs2.Type = NameExprTypeNormal
 					// will promote to heap use
 					rhs2.Type = NameExprTypeNormal
-					as2 := A(lhs2, ":=", rhs2)
+					as2 := A(lhs2, "=", rhs2)
 					stmts2 = append(stmts2, as2)
 
 					// Index for new injected name
@@ -3573,8 +3573,8 @@ func renameLoopvarUse(ctx BlockNode, bn BlockNode) (stop bool) {
 				fmt.Println("---after rename, n: ", n)
 				nn2 := ns[len(ns)-1]
 				fmt.Println("---3, nn2: ", nn2)
-				// n.Type = NameExprTypeNormal
-				n.Type = NameExprTypeHeapUse
+				n.Type = NameExprTypeNormal
+				// n.Type = NameExprTypeHeapUse
 			}
 			return n, TRANS_CONTINUE
 		}

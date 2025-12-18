@@ -56,6 +56,8 @@ func (m *Machine) doOpExec(op Op) {
 		debug.Printf("PEEK STMT: %v\n", s)
 		debug.Printf("%v\n", m)
 	}
+	fmt.Printf("PEEK STMT: %v, op: %v\n", s, op)
+	// PrintCaller(2, 5)
 
 	// NOTE this could go in the switch statement, and we could
 	// use the EXEC_SWITCH to jump back, rather than putting this
@@ -86,6 +88,13 @@ func (m *Machine) doOpExec(op Op) {
 		}
 	case OpForLoop:
 		bs := m.LastBlock().GetBodyStmt()
+		fmt.Println("---lastBlock: ", m.LastBlock())
+		fmt.Println("---bs.Cond: ", bs.Cond)
+		// panic("!!!")
+		// last := m.LastBlock()
+		fmt.Println("---OpForLoop...")
+		// fmt.Println("---last: ", last)
+		fmt.Printf("---bs.NextBodyIndex: %d, bodyLen:%d\n", bs.NextBodyIndex, bs.BodyLen)
 		// evaluate .Cond.
 		if bs.NextBodyIndex == -2 { // init
 			bs.NumOps = len(m.Ops)
@@ -96,7 +105,9 @@ func (m *Machine) doOpExec(op Op) {
 		}
 		if bs.NextBodyIndex == -1 {
 			if bs.Cond != nil {
+				// panic("!!!")
 				cond := m.PopValue()
+				fmt.Println("---cond: ", cond)
 				if !cond.GetBool() {
 					// done with loop.
 					m.PopFrameAndReset()
@@ -112,6 +123,7 @@ func (m *Machine) doOpExec(op Op) {
 			// continue onto exec stmt.
 			bs.Active = next
 			s = next
+			fmt.Println("---s: ", s, reflect.TypeOf(s))
 			goto EXEC_SWITCH
 		} else if bs.NextBodyIndex == bs.BodyLen {
 			// (queue to) go back.
@@ -500,16 +512,23 @@ EXEC_SWITCH:
 	case *ForStmt:
 		m.PushFrameBasic(cs)
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
-		b.bodyStmt = bodyStmt{
-			Body:          cs.BodyBlock.Body,
-			BodyLen:       len(cs.BodyBlock.Body),
-			NextBodyIndex: -2,
-			Cond:          cs.Cond,
-			Post:          cs.Post,
-		}
+		// b.bodyStmt = bodyStmt{
+		// 	Body:          cs.BodyBlock.Body,
+		// 	BodyLen:       len(cs.BodyBlock.Body),
+		// 	NextBodyIndex: -2,
+		// 	Cond:          cs.Cond,
+		// 	Post:          cs.Post,
+		// }
 		m.PushBlock(b)
+
 		m.PushOp(OpForLoop)
-		m.PushStmt(b.GetBodyStmt())
+
+		// m.PushStmt(b.GetBodyStmt())
+
+		// exec block stmt
+		m.PushStmt(cs.BodyBlock)
+		m.PushOp(OpExec)
+
 		// evaluate condition
 		if cs.Cond != nil {
 			m.PushExpr(cs.Cond)
@@ -755,15 +774,42 @@ EXEC_SWITCH:
 			m.PushStmt(cs.Init)
 		}
 	case *BlockStmt:
+		last := m.LastBlock()
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		m.PushBlock(b)
-		m.PushOp(OpPopBlock)
+
+		// m.PushOp(OpPopBlock)
+
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
 			BodyLen:       len(cs.Body),
 			NextBodyIndex: -2,
 		}
-		m.PushOp(OpBody)
+		var forBody bool
+		if fs, ok := last.GetSource(m.Store).(*ForStmt); ok {
+			b.bodyStmt.Cond = fs.Cond
+			b.bodyStmt.Post = fs.Post
+			// fmt.Println("---fs.Cond: ", fs.Cond)
+			// fmt.Println("---fs.Post: ", fs.Post)
+			forBody = true
+		}
+
+		if !forBody {
+			m.PushOp(OpPopBlock)
+		} else {
+			// m.PopStmt()
+		}
+
+		// b.bodyStmt = bodyStmt{
+		// 	Body:          cs.BodyBlock.Body,
+		// 	BodyLen:       len(cs.BodyBlock.Body),
+		// 	NextBodyIndex: -2,
+		// 	Cond:          cs.Cond,
+		// 	Post:          cs.Post,
+		// }
+		if !forBody {
+			m.PushOp(OpBody)
+		}
 		m.PushStmt(b.GetBodyStmt())
 	case *EmptyStmt:
 	default:
