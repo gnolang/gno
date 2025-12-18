@@ -41,10 +41,10 @@ Maximum Fee = Gas Wanted × Gas Fee
 
 You will be charged the gas fee you specified.
 
-### Gas Price
+## Gas Price
 
-The network dynamically adjusts the minimum required gas fee after each block
-based on demand. `--gas-fee` must meet or exceed this network gas price
+The network dynamically adjusts the minimum required gas price after each block
+based on demand. Your `--gas-fee` must meet or exceed this network gas price
 for your transaction to be accepted.
 
 You can query the network gas price using:
