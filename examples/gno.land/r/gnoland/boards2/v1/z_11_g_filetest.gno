@@ -7,6 +7,7 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
+	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 const (
@@ -24,11 +25,11 @@ var (
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false)
+	bid = boards2.CreateBoard(cross, "test-board", false, false)
 	pid = boards2.CreateThread(cross, bid, "Foo", "bar")
 
 	// Invite a member using a role with permission to edit threads
-	boards2.InviteMember(cross, bid, admin, boards2.RoleAdmin)
+	boards2.InviteMember(cross, bid, admin, permissions.RoleAdmin)
 }
 
 func main() {
