@@ -749,14 +749,9 @@ The `data` field returns a `GasPrice` object, which contains:
 - `gas` - the gas units
 - `price` - the price for those gas units in the form of a [coin](../resources/gno-stdlibs.md#coin)
 
-Together, these represent a rate. For example, `{gas: 1000, price: "100ugnot"}` means
-the minimum rate is 100ugnot per 1000 gas units (0.1 ugnot/gas). To calculate your
-`--gas-fee`, multiply this rate by your `--gas-wanted`. Using the example above with
-`--gas-wanted 2000000`, the minimum fee would be: 2,000,000 × (100/1000) = 200,000 ugnot.
-
 The network adjusts the gas price after each block based on demand. This query returns
 the gas price calculated from the most recently completed block, which is the minimum
-gas price currently required for new transactions.
+gas price required for new transactions.
 For a deeper explanation, see [Gas Price](../resources/gas-fees.md#gas-price).
 
 ## `vm/qfuncs`

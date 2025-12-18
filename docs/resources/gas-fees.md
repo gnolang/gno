@@ -44,15 +44,65 @@ You will be charged the gas fee you specified.
 ## Gas Price
 
 The network dynamically adjusts the minimum required gas price after each block
-based on demand. Your `--gas-fee` must meet or exceed this network gas price
-for your transaction to be accepted.
+based on demand. This ensures the network responds to congestion by increasing
+prices when usage is high and decreasing them when usage is low.
 
-You can query the network gas price using:
+### How Gas Price Works
+
+The gas price is returned as a `GasPrice` object with two fields:
+- `gas` - the gas units (e.g., 1000)
+- `price` - the price for those gas units (e.g., "100ugnot")
+
+Together, these represent a **rate**. For example, `{gas: 1000, price: "100ugnot"}`
+means the minimum rate is 100 ugnot per 1000 gas units, which simplifies to
+0.1 ugnot per gas unit.
+
+### Calculating Your Gas Fee
+
+Your `--gas-fee` must meet or exceed this network gas price for your transaction
+to be accepted. To calculate the minimum fee:
+
+1. Query the current gas price
+2. Calculate the rate: `price / gas`
+3. Multiply by your `--gas-wanted`
+
+**Example:**
+```bash
+# Query returns: {gas: 1000, price: "100ugnot"}
+# Rate = 100 ÷ 1000 = 0.1 ugnot/gas
+
+# If you want --gas-wanted 2000000:
+# Minimum fee = 2,000,000 × 0.1 = 200,000 ugnot
+# So set: --gas-fee 200000ugnot (or higher)
+```
+
+### Querying Gas Price
+
+You can query the current network gas price using:
 ```bash
 gnokey query auth/gasprice -remote https://rpc.gno.land:443
 ```
 
+This returns the gas price calculated from the most recently completed block,
+which is the minimum rate currently required for new transactions.
+
 For more details, see [`auth/gasprice`](../users/interact-with-gnokey.md#authgasprice).
+
+### How the Network Adjusts Gas Price
+
+The network automatically adjusts the gas price after each block based on demand:
+
+- **Low demand**: Price decreases (but never below 1 ugnot/1000 gas)
+- **High demand**: Price increases
+
+The network targets 70% utilization of the maximum block gas limit (3B gas).
+When blocks exceed this target, prices rise. When blocks fall below it, prices drop.
+Changes are gradual to avoid sudden price spikes.
+
+**Note**: Individual validators can also set their own minimum gas price. When you
+submit a transaction, it must meet both the network gas price AND the minimum set
+by the specific validator node you're sending to. Different validators may have
+different minimums.
 
 ## Typical Gas Values
 
