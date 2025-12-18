@@ -434,7 +434,7 @@ EXEC_SWITCH:
 	if debug {
 		debug.Printf("EXEC: %v\n", s)
 	}
-	// fmt.Printf("==========================EXEC: %v\n", s)
+	fmt.Printf("==========================EXEC: %v, (type of s): %v\n", s, reflect.TypeOf(s))
 
 	switch cs := s.(type) {
 	case *AssignStmt:
@@ -501,8 +501,8 @@ EXEC_SWITCH:
 		m.PushFrameBasic(cs)
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		b.bodyStmt = bodyStmt{
-			Body:          cs.Body,
-			BodyLen:       len(cs.Body),
+			Body:          cs.BodyBlock.Body,
+			BodyLen:       len(cs.BodyBlock.Body),
 			NextBodyIndex: -2,
 			Cond:          cs.Cond,
 			Post:          cs.Post,

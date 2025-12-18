@@ -651,10 +651,10 @@ func ImportD(name any, path string) *ImportDecl {
 
 func For(init, cond, post any, b ...Stmt) *ForStmt {
 	return &ForStmt{
-		Init: S(init).(SimpleStmt),
-		Cond: X(cond),
-		Post: S(post).(SimpleStmt),
-		Body: b,
+		Init:      S(init).(SimpleStmt),
+		Cond:      X(cond),
+		Post:      S(post).(SimpleStmt),
+		BodyBlock: &BlockStmt{Body: b},
 	}
 }
 

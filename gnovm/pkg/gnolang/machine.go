@@ -926,6 +926,7 @@ func (m *Machine) RunStatement(st Stage, s Stmt) {
 			}
 		}()
 		s = Preprocess(m.Store, last, s).(Stmt)
+		fmt.Println("---s: ", s)
 	}()
 	// run s.
 	m.PushOp(OpHalt)
@@ -2265,6 +2266,8 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 // and the lx isn't a name (base is a block),
 // and the lx isn't a composite lit expr.
 func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
+	// fmt.Println("---PopAsPointer2, lx: ", lx)
+	// PrintCaller(2, 8)
 	switch lx := lx.(type) {
 	case *NameExpr:
 		switch lx.Type {
@@ -2276,6 +2279,10 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 			lb := m.LastBlock()
 			pv = lb.GetPointerTo(m.Store, lx.Path)
 			ro = false // always mutable
+		// case NameExprTypeDefine:
+		// 	lb := m.LastBlock()
+		// 	pv = lb.GetPointerTo(m.Store, lx.Path)
+		// 	ro = false // always mutable
 		case NameExprTypeLoopVarUse:
 			lb := m.LastBlock()
 			pv = lb.GetPointerTo(m.Store, lx.Path)
@@ -2287,7 +2294,8 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		case NameExprTypeHeapClosure:
 			panic("should not happen")
 		default:
-			panic("unexpected NameExpr in PopAsPointer")
+			// panic("unexpected NameExpr in PopAsPointer")
+			panic(fmt.Sprintf("unexpected NameExpr in PopAsPointer: %v\n", lx.Type))
 		}
 	case *IndexExpr:
 		iv := m.PopValue()
