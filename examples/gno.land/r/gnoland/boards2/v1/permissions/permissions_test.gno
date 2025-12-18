@@ -73,17 +73,17 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 			var called bool
 
 			perms := tc.setup()
-			callback := func() { called = true }
+			callback := func(realm) { called = true }
 
 			testCaseFn := func() {
 				perms.WithPermission(cross, tc.user, tc.permission, tc.args, callback)
 			}
 
 			if tc.err != "" {
-				urequire.PanicsWithMessage(t, tc.err, testCaseFn, "expect panic with message")
+				urequire.AbortsWithMessage(t, tc.err, testCaseFn, "expect panic with message")
 				return
 			} else {
-				urequire.NotPanics(t, testCaseFn, "expect no panic")
+				urequire.NotAborts(t, testCaseFn, "expect no panic")
 			}
 
 			urequire.Equal(t, tc.called, called, "expect callback to be called")
