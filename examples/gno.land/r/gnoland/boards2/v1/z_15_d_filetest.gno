@@ -20,8 +20,8 @@ var (
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	srcBID = boards2.CreateBoard(cross, "src-board", false)
-	dstBID = boards2.CreateBoard(cross, "dst-board", false)
+	srcBID = boards2.CreateBoard(cross, "src-board", false, false)
+	dstBID = boards2.CreateBoard(cross, "dst-board", false, false)
 
 	srcTID = boards2.CreateThread(cross, srcBID, "original title", "original text")
 }
