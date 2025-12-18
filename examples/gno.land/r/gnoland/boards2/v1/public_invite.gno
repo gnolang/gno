@@ -8,6 +8,8 @@ import (
 
 	"gno.land/p/gnoland/boards"
 	"gno.land/p/nt/avl"
+
+	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 // Invite contains a user invitation.
@@ -82,10 +84,10 @@ func AcceptInvite(_ realm, boardID boards.ID, user address) {
 	caller := runtime.PreviousRealm().Address()
 	invite := Invite{
 		User: user,
-		Role: RoleGuest,
+		Role: permissions.RoleGuest,
 	}
 	args := boards.Args{caller, boardID, []Invite{invite}}
-	board.Permissions.WithPermission(caller, PermissionMemberInvite, args, func() {
+	board.Permissions.WithPermission(caller, permissions.PermissionMemberInvite, args, func() {
 		assertMembersUpdateIsEnabled(boardID)
 
 		invitee := user.String()
@@ -105,7 +107,7 @@ func AcceptInvite(_ realm, boardID boards.ID, user address) {
 			"MembersInvited",
 			"invitedBy", caller.String(),
 			"boardID", board.ID.String(),
-			"members", user.String()+":"+string(RoleGuest), // TODO: Support optional role assign
+			"members", user.String()+":"+string(permissions.RoleGuest), // TODO: Support optional role assign
 		)
 	})
 }
@@ -116,8 +118,8 @@ func RevokeInvite(_ realm, boardID boards.ID, user address) {
 
 	board := mustGetBoard(boardID)
 	caller := runtime.PreviousRealm().Address()
-	args := boards.Args{boardID, user, RoleGuest}
-	board.Permissions.WithPermission(caller, PermissionMemberInviteRevoke, args, func() {
+	args := boards.Args{boardID, user, permissions.RoleGuest}
+	board.Permissions.WithPermission(caller, permissions.PermissionMemberInviteRevoke, args, func() {
 		invitee := user.String()
 		requests, found := getInviteRequests(boardID)
 		if !found || !requests.Has(invitee) {
@@ -145,7 +147,7 @@ func inviteMembers(boardID boards.ID, invites ...Invite) {
 	perms := mustGetPermissions(boardID)
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{caller, boardID, invites}
-	perms.WithPermission(caller, PermissionMemberInvite, args, func() {
+	perms.WithPermission(caller, permissions.PermissionMemberInvite, args, func() {
 		assertMembersUpdateIsEnabled(boardID)
 
 		users := make([]string, len(invites))

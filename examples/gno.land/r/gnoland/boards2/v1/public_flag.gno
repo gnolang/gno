@@ -6,6 +6,8 @@ import (
 	"strconv"
 
 	"gno.land/p/gnoland/boards"
+
+	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 // SetFlaggingThreshold sets the number of flags required to hide a thread or comment.
@@ -23,7 +25,7 @@ func SetFlaggingThreshold(_ realm, boardID boards.ID, threshold int) {
 
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{board.ID, threshold}
-	board.Permissions.WithPermission(caller, PermissionBoardFlaggingUpdate, args, func() {
+	board.Permissions.WithPermission(caller, permissions.PermissionBoardFlaggingUpdate, args, func() {
 		assertRealmIsNotLocked()
 
 		gFlaggingThresholds.Set(boardID.String(), threshold)
@@ -50,7 +52,7 @@ func GetFlaggingThreshold(boardID boards.ID) int {
 func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
 	caller := runtime.PreviousRealm().Address()
 	board := mustGetBoard(boardID)
-	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
+	isRealmOwner := gPerms.HasRole(caller, permissions.RoleOwner)
 	if !isRealmOwner {
 		assertRealmIsNotLocked()
 		assertBoardIsNotFrozen(board)
@@ -86,7 +88,7 @@ func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
 	}
 
 	args := boards.Args{caller, board.ID, thread.ID, reason}
-	board.Permissions.WithPermission(caller, PermissionThreadFlag, args, func() {
+	board.Permissions.WithPermission(caller, permissions.PermissionThreadFlag, args, func() {
 		flagThread()
 	})
 }
@@ -98,7 +100,7 @@ func FlagThread(_ realm, boardID, threadID boards.ID, reason string) {
 func FlagReply(_ realm, boardID, threadID, replyID boards.ID, reason string) {
 	caller := runtime.PreviousRealm().Address()
 	board := mustGetBoard(boardID)
-	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
+	isRealmOwner := gPerms.HasRole(caller, permissions.RoleOwner)
 	if !isRealmOwner {
 		assertRealmIsNotLocked()
 		assertBoardIsNotFrozen(board)
@@ -132,7 +134,7 @@ func FlagReply(_ realm, boardID, threadID, replyID boards.ID, reason string) {
 	}
 
 	args := boards.Args{caller, board.ID, thread.ID, reply.ID, reason}
-	board.Permissions.WithPermission(caller, PermissionReplyFlag, args, func() {
+	board.Permissions.WithPermission(caller, permissions.PermissionReplyFlag, args, func() {
 		flagReply()
 	})
 }

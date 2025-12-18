@@ -6,6 +6,8 @@ import (
 	"strconv"
 
 	"gno.land/p/gnoland/boards"
+
+	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 // FreezeBoard freezes a board so no more threads and comments can be created or modified.
@@ -57,7 +59,7 @@ func setBoardReadonly(boardID boards.ID, readonly bool) {
 
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{caller, board.ID, readonly}
-	board.Permissions.WithPermission(caller, PermissionBoardFreeze, args, func() {
+	board.Permissions.WithPermission(caller, permissions.PermissionBoardFreeze, args, func() {
 		assertRealmIsNotLocked()
 
 		board.Readonly = readonly
@@ -84,7 +86,7 @@ func setThreadReadonly(boardID, threadID boards.ID, readonly bool) {
 
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{caller, board.ID, thread.ID, readonly}
-	board.Permissions.WithPermission(caller, PermissionThreadFreeze, args, func() {
+	board.Permissions.WithPermission(caller, permissions.PermissionThreadFreeze, args, func() {
 		assertRealmIsNotLocked()
 
 		thread.Readonly = readonly

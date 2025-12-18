@@ -42,15 +42,15 @@ func init() {
 // initRealmPermissions returns the default realm permissions.
 func initRealmPermissions(owners ...address) boards.Permissions {
 	perms := permissions.New()
-	perms.SetSuperRole(RoleOwner)
-	perms.AddRole(RoleAdmin, PermissionBoardCreate)
+	perms.SetSuperRole(permissions.RoleOwner)
+	perms.AddRole(permissions.RoleAdmin, permissions.PermissionBoardCreate)
 	for _, owner := range owners {
-		perms.SetUserRoles(cross, owner, RoleOwner)
+		perms.SetUserRoles(cross, owner, permissions.RoleOwner)
 	}
 
-	perms.ValidateFunc(PermissionBoardCreate, validateBasicBoardCreate)
-	perms.ValidateFunc(PermissionMemberInvite, validateBasicMemberInvite)
-	perms.ValidateFunc(PermissionRoleChange, validateBasicRoleChange)
+	perms.ValidateFunc(permissions.PermissionBoardCreate, validateBasicBoardCreate)
+	perms.ValidateFunc(permissions.PermissionMemberInvite, validateBasicMemberInvite)
+	perms.ValidateFunc(permissions.PermissionRoleChange, validateBasicRoleChange)
 	return perms
 }
 

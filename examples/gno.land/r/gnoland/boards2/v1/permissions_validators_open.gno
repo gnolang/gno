@@ -5,6 +5,7 @@ import (
 
 	"gno.land/p/gnoland/boards"
 
+	"gno.land/r/gnoland/boards2/v1/permissions"
 	"gno.land/r/sys/users"
 )
 
@@ -54,9 +55,9 @@ func validateOpenMemberInvite(perms boards.Permissions, args boards.Args) error 
 	}
 
 	// Make sure that only owners invite other owners
-	callerIsOwner := perms.HasRole(caller, RoleOwner)
+	callerIsOwner := perms.HasRole(caller, permissions.RoleOwner)
 	for _, v := range invites {
-		if v.Role == RoleOwner && !callerIsOwner {
+		if v.Role == permissions.RoleOwner && !callerIsOwner {
 			return errors.New("only owners are allowed to invite other owners")
 		}
 	}
@@ -78,13 +79,13 @@ func validateOpenRoleChange(perms boards.Permissions, args boards.Args) error {
 
 	// Owners and Admins can change roles.
 	// Admins should not be able to assign or remove the Owner role from members.
-	if perms.HasRole(caller, RoleAdmin) {
+	if perms.HasRole(caller, permissions.RoleAdmin) {
 		role, ok := args[3].(boards.Role)
 		if !ok {
 			return errors.New("expected a valid member role")
 		}
 
-		if role == RoleOwner {
+		if role == permissions.RoleOwner {
 			return errors.New("admins are not allowed to promote members to Owner")
 		} else {
 			member, ok := args[2].(address)
@@ -92,7 +93,7 @@ func validateOpenRoleChange(perms boards.Permissions, args boards.Args) error {
 				return errors.New("expected a valid member address")
 			}
 
-			if perms.HasRole(member, RoleOwner) {
+			if perms.HasRole(member, permissions.RoleOwner) {
 				return errors.New("admins are not allowed to remove the Owner role")
 			}
 		}
@@ -115,7 +116,7 @@ func validateOpenThreadCreate(perms boards.Permissions, args boards.Args) error 
 	}
 
 	// Owners and admins can create threads without a regisrtered username
-	if perms.HasRole(caller, RoleOwner) || perms.HasRole(caller, RoleAdmin) {
+	if perms.HasRole(caller, permissions.RoleOwner) || perms.HasRole(caller, permissions.RoleAdmin) {
 		return nil
 	} else if users.ResolveAddress(caller) == nil {
 		return errors.New("a registered username is required to create threads on open boards")
