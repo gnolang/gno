@@ -1674,6 +1674,8 @@ func (m *Machine) PushStmt(s Stmt) {
 	if debug {
 		m.Printf("+s %v\n", s)
 	}
+	fmt.Printf("+s %v\n", s)
+	PrintCaller(2, 5)
 	m.Stmts = append(m.Stmts, s)
 }
 
@@ -1692,7 +1694,10 @@ func (m *Machine) PopStmt() Stmt {
 	if debug {
 		m.Printf("-s %v\n", s)
 	}
+	fmt.Printf("-s %v\n", s)
+	PrintCaller(2, 5)
 	if bs, ok := s.(*bodyStmt); ok {
+		fmt.Println("---pop active stmt...")
 		return bs.PopActiveStmt()
 	}
 

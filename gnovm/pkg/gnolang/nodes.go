@@ -2032,20 +2032,19 @@ func (sb *StaticBlock) FindNamePrefixedForPath(store Store, n Name, path ValuePa
 }
 
 func (sb *StaticBlock) FindLocalNamePrefixed(n Name, prefixes ...string) (uint16, bool, Name) {
-	fmt.Println("===FindLocalNamePrefixed, sb.GetBlockNames: ", sb.GetBlockNames())
-	fmt.Println("===FindLocalNamePrefixed, prefixed: ", prefixes)
-	// fmt.Println("===FindLocalNamePrefixed, n: ", n)
+	// fmt.Println("===FindLocalNamePrefixed, sb.GetBlockNames: ", sb.GetBlockNames())
+	// fmt.Println("===FindLocalNamePrefixed, prefixed: ", prefixes)
 
 	for _, prefix := range prefixes {
 		n2 := Name(prefix) + n
-		fmt.Println("---search n2: ", n2)
+		// fmt.Println("---search n2: ", n2)
 		// firstly search general TypeDefine names,
 		// it potentially overrides the loopvar.
 		for i, name := range sb.Names {
 			if name == n2 {
-				fmt.Println("---match n2: ", n2)
-				fmt.Println("---sb.GetBlockNames: ", sb.GetBlockNames())
-				fmt.Println("---sb.Source: ", sb.Source)
+				// fmt.Println("---match n2: ", n2)
+				// fmt.Println("---sb.GetBlockNames: ", sb.GetBlockNames())
+				// fmt.Println("---sb.Source: ", sb.Source)
 				if debug {
 					nt := reflect.TypeOf(sb.Source).String()
 					debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",

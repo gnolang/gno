@@ -22,7 +22,8 @@ func (m *Machine) doOpEval() {
 	if debug {
 		debug.Printf("EVAL: (%T) %v\n", x, x)
 	}
-	fmt.Printf("EVAL: (%T) %v\n", x, x)
+	// fmt.Printf("EVAL: (%T) %v\n", x, x)
+	// fmt.Println("---last: ", m.LastBlock())
 	// This case moved out of switch for performance.
 	// TODO: understand this better.
 	if nx, ok := x.(*NameExpr); ok {

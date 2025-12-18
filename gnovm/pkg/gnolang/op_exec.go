@@ -87,12 +87,14 @@ func (m *Machine) doOpExec(op Op) {
 			return
 		}
 	case OpForLoop:
-		bs := m.LastBlock().GetBodyStmt()
-		fmt.Println("---lastBlock: ", m.LastBlock())
-		fmt.Println("---bs.Cond: ", bs.Cond)
-		// panic("!!!")
-		// last := m.LastBlock()
 		fmt.Println("---OpForLoop...")
+		// XXX
+		// bs := m.LastBlock().GetBodyStmt()
+		bs := m.PeekStmt(1).(*bodyStmt)
+		// fmt.Println("---last: ", m.LastBlock())
+		fmt.Println("---bs: ", bs)
+		fmt.Println("---bs.Cond: ", bs.Cond)
+		// last := m.LastBlock()
 		// fmt.Println("---last: ", last)
 		fmt.Printf("---bs.NextBodyIndex: %d, bodyLen:%d\n", bs.NextBodyIndex, bs.BodyLen)
 		// evaluate .Cond.
@@ -105,7 +107,6 @@ func (m *Machine) doOpExec(op Op) {
 		}
 		if bs.NextBodyIndex == -1 {
 			if bs.Cond != nil {
-				// panic("!!!")
 				cond := m.PopValue()
 				fmt.Println("---cond: ", cond)
 				if !cond.GetBool() {
@@ -114,6 +115,17 @@ func (m *Machine) doOpExec(op Op) {
 					return
 				}
 			}
+			// push real block
+			last := m.LastBlock()
+			if fs, ok := last.GetSource(m.Store).(*ForStmt); ok {
+				source := fs.BodyBlock
+				b2 := m.Alloc.NewBlock(source, last)
+				// b2.bodyStmt = *last.GetBodyStmt()
+				// fmt.Println("---b2.BodyStmt: ", b2.bodyStmt)
+				m.PushBlock(b2)
+				fmt.Println("---last after push real block: ", m.LastBlock())
+			}
+			// panic("!!!")
 			bs.NextBodyIndex++
 		}
 		// execute body statement.
@@ -124,6 +136,7 @@ func (m *Machine) doOpExec(op Op) {
 			bs.Active = next
 			s = next
 			fmt.Println("---s: ", s, reflect.TypeOf(s))
+			fmt.Println("---last: ", m.LastBlock())
 			goto EXEC_SWITCH
 		} else if bs.NextBodyIndex == bs.BodyLen {
 			// (queue to) go back.
@@ -132,15 +145,21 @@ func (m *Machine) doOpExec(op Op) {
 				m.PushOp(OpEval)
 			}
 			bs.NextBodyIndex = -1
+
+			// pop to forstmt block for post stmt.
+			m.PopBlock() // pop *BlockStmt block...
+
 			if next := bs.Post; next == nil {
 				bs.Active = nil
 				return // go back now.
 			} else {
+				fmt.Println("---continue to post stmt...")
 				// continue onto post stmt.
 				// XXX this is a kind of exception....
 				// that is, this needs to run after
 				// the bodyStmt is force popped?
 				// or uh...
+
 				bs.Active = next
 				s = next
 				goto EXEC_SWITCH
@@ -512,22 +531,17 @@ EXEC_SWITCH:
 	case *ForStmt:
 		m.PushFrameBasic(cs)
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
-		// b.bodyStmt = bodyStmt{
-		// 	Body:          cs.BodyBlock.Body,
-		// 	BodyLen:       len(cs.BodyBlock.Body),
-		// 	NextBodyIndex: -2,
-		// 	Cond:          cs.Cond,
-		// 	Post:          cs.Post,
-		// }
+		b.bodyStmt = bodyStmt{
+			Body:          cs.BodyBlock.Body,
+			BodyLen:       len(cs.BodyBlock.Body),
+			NextBodyIndex: -2,
+			Cond:          cs.Cond,
+			Post:          cs.Post,
+		}
 		m.PushBlock(b)
 
 		m.PushOp(OpForLoop)
-
-		// m.PushStmt(b.GetBodyStmt())
-
-		// exec block stmt
-		m.PushStmt(cs.BodyBlock)
-		m.PushOp(OpExec)
+		m.PushStmt(b.GetBodyStmt())
 
 		// evaluate condition
 		if cs.Cond != nil {
@@ -774,42 +788,18 @@ EXEC_SWITCH:
 			m.PushStmt(cs.Init)
 		}
 	case *BlockStmt:
-		last := m.LastBlock()
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		m.PushBlock(b)
 
-		// m.PushOp(OpPopBlock)
+		m.PushOp(OpPopBlock)
 
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
 			BodyLen:       len(cs.Body),
 			NextBodyIndex: -2,
 		}
-		var forBody bool
-		if fs, ok := last.GetSource(m.Store).(*ForStmt); ok {
-			b.bodyStmt.Cond = fs.Cond
-			b.bodyStmt.Post = fs.Post
-			// fmt.Println("---fs.Cond: ", fs.Cond)
-			// fmt.Println("---fs.Post: ", fs.Post)
-			forBody = true
-		}
 
-		if !forBody {
-			m.PushOp(OpPopBlock)
-		} else {
-			// m.PopStmt()
-		}
-
-		// b.bodyStmt = bodyStmt{
-		// 	Body:          cs.BodyBlock.Body,
-		// 	BodyLen:       len(cs.BodyBlock.Body),
-		// 	NextBodyIndex: -2,
-		// 	Cond:          cs.Cond,
-		// 	Post:          cs.Post,
-		// }
-		if !forBody {
-			m.PushOp(OpBody)
-		}
+		m.PushOp(OpBody)
 		m.PushStmt(b.GetBodyStmt())
 	case *EmptyStmt:
 	default:
