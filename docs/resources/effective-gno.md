@@ -627,7 +627,7 @@ reliable way to manage access to your contract.
 
 ### Using avl.Tree for efficient data retrieval
 
-The main difference between `avl.Tree` and `map` is:
+The main differences between `avl.Tree` and `map` are:
 
 - **AVL Trees**: O(log n) lookup, lazy loading, iterate in **sorted key order**.
 - **Maps**: O(1) lookup, type safety, iterate in **insertion order**.
