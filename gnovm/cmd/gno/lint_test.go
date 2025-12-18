@@ -110,6 +110,13 @@ func TestLintApp(t *testing.T) {
 		},
 		{
 			args:                 []string{"lint", "."},
+			testDir:              "../../tests/integ/render_invalid4",
+			simulateExternalRepo: true,
+			stderrShouldBe:       "gno.land/r/test/render_invalid4/main.gno:5: the 'Render' function signature is incorrect for the 'main' package. the signature must be of the form: func Render(string) string (code=gnoLintError)\n",
+			errShouldBe:          "exit code: 1",
+		},
+		{
+			args:                 []string{"lint", "."},
 			testDir:              "../../tests/integ/render_valid1",
 			simulateExternalRepo: true,
 		},
