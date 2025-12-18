@@ -266,6 +266,7 @@ func (bA *BitArray) getTrueIndices() []int {
 
 	trueIndices := make([]int, 0, bA.Bits)
 	curBit := 0
+	// set all true indices
 	for i := range numElems - 1 {
 		elem := bA.Elems[i]
 		if elem == 0 {
@@ -279,6 +280,7 @@ func (bA *BitArray) getTrueIndices() []int {
 			curBit++
 		}
 	}
+	// handle last element
 	lastElem := bA.Elems[numElems-1]
 	numFinalBits := bA.Bits - curBit
 	for i := range numFinalBits {
