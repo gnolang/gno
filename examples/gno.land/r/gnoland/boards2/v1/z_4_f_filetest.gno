@@ -3,6 +3,8 @@ package main
 import (
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
@@ -11,7 +13,7 @@ const (
 	admin address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 )
 
-var bid boards2.BoardID // Operate on board DAO
+var bid boards.ID // Operate on board DAO
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
@@ -23,7 +25,7 @@ func init() {
 func main() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.ChangeMemberRole(cross, bid, admin, boards2.Role("foo"))
+	boards2.ChangeMemberRole(cross, bid, admin, boards.Role("foo"))
 }
 
 // Error:
