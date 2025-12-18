@@ -29,8 +29,11 @@ networks.
 See [Third-party wallets](../users/third-party-wallets.md).
 
 ### AVL Tree
-Data structure in Gno which is commonly used instead of the native `map`. Found
-at `gno.land/p/nt/avl`.
+Data structure in Gno provides a gas-efficient sorted tree 
+structure for storing key-value data. Useful when you need access to large datasets.
+Deployed under `gno.land/p/nt/avl`.
+
+See [Effective Gno](./effective-gno.md#using-avltree-for-efficient-data-retrieval)for usage guidance.
 
 ## B
 

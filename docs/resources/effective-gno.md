@@ -627,57 +627,89 @@ reliable way to manage access to your contract.
 
 ### Using avl.Tree for efficient data retrieval
 
-In Gno, the `avl.Tree` data structure is a powerful tool for optimizing data
-retrieval. It works by lazily resolving information, which means it only loads
-the data you need when you need it. This allows you to scale your application
-and pay less gas for data retrieval.
+The main difference between `map` and `avl.Tree` is:
+
+- **Maps**: O(1) lookup, type safety, iterate in **insertion order**.
+- **AVL Trees**: O(log n) lookup, lazy loading, iterate in **sorted key order**.
+
+**Use `avl.Tree` when you need**:
+
+- Lazy loading (gas-efficient for large datasets - only loads what you access)
+- Efficient range queries (find all keys between "alice" and "charlie")
+- Sorted iteration by key value
+
+**Use `map` when you need**:
+
+- O(1) fast lookups
+- Type safety (AVL values are `interface{}` and require type casting)
+- Iteration by insertion order
+
+```go
+// Map example
+var users map[string]User
+users["bob"] = User{}
+users["alice"] = User{}
+for name := range users { // Order: bob, alice (insertion order)
+    // ...
+}
+user := users["alice"] // O(1) direct access
+
+
+// AVL example 
+var users avl.Tree
+users.Set("bob", User{})
+users.Set("alice", User{})
+users.Set("charlie", User{})
+// Iterate all users (sorted alphabetically)
+users.Iterate("", "", func(name string, value interface{}) bool {
+	// Order: alice, bob, charlie (sorted by key)
+	user := value.(*User)
+    return false // return true to stop iteration
+}
+
+// Range query: get users from "alice" to "bob" (inclusive)
+// This is O(log n + k) where k = results in range
+users.Iterate("alice", "bob", func(name string, value interface{}) bool {
+	// Only visits: alice, bob
+	user := value.(*User)
+    return false
+})
+
+users.Iterate("", "", func(name string, value interface{}) bool { // Order: alice, bob (sorted)
+	user := value.(*User)
+    return false // return true to stop the loop
+})
+
+// Get a specific user (O(log n))
+value, exists := users.Get("alice")
+if !exists {
+	return nil
+}
+return value.(*User) // Type cast required - values are interface{}
+
+
+// Multi-index example - search the same data in different ways
+var (
+	usersById   avl.Tree // Find user by ID
+	usersByName avl.Tree // Find user by name
+)
+
+func AddUser(id, name string) {
+	usersById.Set(id, name)     // Can search by ID
+	usersByName.Set(name, id)   // Can search by name
+}
+```
 
 [AVL is short for Adelson-Velsky and Landis:][avl-wiki] under the hood, it is an
 implementation of a self-balancing binary tree.
 [avl-wiki]: https://en.wikipedia.org/wiki/AVL_tree
 
-The `avl.Tree` can be used like a map, where you can store key-value pairs and
-retrieve an entry with a simple key. However, unlike a traditional map, the
-`avl.Tree` doesn't load unnecessary data. This makes it particularly efficient
-for large data sets where you only need to access a small subset of the data at
-a time.
-
-Here's an example of how you can use `avl.Tree`:
-
-```go
-import "avl"
-
-var tree avl.Tree
-
-func GetPost(id string) *Post {
-	return tree.Get(id).(*Post)
-}
-
-func AddPost(_ realm, id string, post *Post) {
-	tree.Set(id, post)
-}
-```
-
-In this example, `GetPost` is a function that retrieves a post from the
-`avl.Tree` using an ID. It only loads the post with the specified ID, without
-loading any other posts.
 
 In the future, we plan to add built-in "map" support that will match the
 efficiency of an `avl.Tree` while offering a more intuitive API. Until then, if
 you're dealing with a compact dataset, it's probably best to use slices.
 For larger datasets where you need to quickly retrieve elements by keys,
-`avl.Tree` is the way to go.
-
-You can also create SQL-like indexes by having multiple `avl.Tree` instances for
-different fields. For example, you can have an `avl.Tree` for ID to *post, then
-an `avl.Tree` for Tags, etc. Then, you can create reader methods that will just
-retrieve what you need, similar to SQL indexes.
-
-By using `avl.Tree` and other efficient data structures, you can optimize your
-Gno code for performance and cost-effectiveness, making your applications more
-scalable and efficient.
-
-TODO: multi-indices example
+`avl.Tree` is the way to go
 
 ### Construct "safe" objects
 

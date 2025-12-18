@@ -133,9 +133,12 @@ folder.
 
 ### Package `avl`
 
-Deployed under `gno.land/p/nt/avl`, the AVL package provides a tree structure
-for storing data. It replaces the functionality of the native `map` in Gno, as
-maps are not fully deterministic. Usage example:
+Deployed under `gno.land/p/nt/avl`, the AVL package provides a gas-efficient sorted tree 
+structure for storing key-value data. Useful when you need access to large datasets.
+
+See [Effective Gno](./effective-gno.md#using-avltree-for-efficient-data-retrieval) 
+for usage guidance.
+Usage example:
 
 ```go
 package myrealm
