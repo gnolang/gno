@@ -134,7 +134,7 @@ To verify the checksum of the genesis transaction sheet:
 
 ```shell
 shasum -a 256 genesis_txs.jsonl
-2a86be46e5aea0adcd1d6de48421d832a2c55714126b8d93802e525d04d74a33  genesis_txs.jsonl
+fcea051524e263bd01da70c02795e423f65f192d91fcbe5344c23ca2b3f33737  genesis_txs.jsonl
 ```
 
 ### Reconstructing the genesis transactions
