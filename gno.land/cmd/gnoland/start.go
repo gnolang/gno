@@ -236,6 +236,8 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		return fmt.Errorf("unable to initialize telemetry, %w", err)
 	}
 
+	defer telemetry.Shutdown()
+
 	// Print the starting graphic
 	if c.logFormat != string(log.JSONFormat) {
 		io.Println(startGraphic)
