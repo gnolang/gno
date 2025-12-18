@@ -9,7 +9,7 @@ import (
 
 const (
 	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
-	boardName         = "BoardName"
+	boardName         = "TestBoard"
 )
 
 func init() {
@@ -36,22 +36,21 @@ func main() {
 }
 
 // Output:
-// # BoardName
-// Board created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, #1
-//
-// [Create Thread](/r/gnoland/boards2/v1$help&func=CreateThread&boardID=1&body=&title=) • [Request Invite](/r/gnoland/boards2/v1$help&func=RequestInvite&boardID=1) • [Manage Board](?menu=manageBoard)
+// # Boards › TestBoard
+// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, #1
+// [Create Thread](/r/gnoland/boards2/v1:TestBoard/create-thread) • [Request Invite](/r/gnoland/boards2/v1$help&func=RequestInvite&boardID=1) • [Manage Board](?menu=manageBoard)
 //
 // ---
-// Sort by: [oldest first](/r/gnoland/boards2/v1:BoardName?order=desc)
+// Sort by: [oldest first](/r/gnoland/boards2/v1:TestBoard?order=desc)
 //
-// **≡ [A](/r/gnoland/boards2/v1:BoardName/1)**
+// **[A](/r/gnoland/boards2/v1:TestBoard/1)**
 // Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC
 // **1 replies • 0 reposts**
 //
-// **≡ [B](/r/gnoland/boards2/v1:BoardName/3)**
+// **[B](/r/gnoland/boards2/v1:TestBoard/3)**
 // Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC
 // **0 replies • 0 reposts**
 //
-// **≡ [C](/r/gnoland/boards2/v1:BoardName/4)**
+// **[C](/r/gnoland/boards2/v1:TestBoard/4)**
 // Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC
 // **0 replies • 1 reposts**

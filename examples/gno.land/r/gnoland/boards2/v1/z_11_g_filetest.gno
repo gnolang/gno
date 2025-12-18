@@ -1,7 +1,6 @@
 package main
 
 import (
-	"strings"
 	"testing"
 
 	"gno.land/p/gnoland/boards"
@@ -37,12 +36,14 @@ func main() {
 
 	boards2.EditThread(cross, bid, pid, title, body)
 
-	// Render content must contains thread's title and body
-	content := boards2.Render(path)
-	println(strings.HasPrefix(content, "# "+title))
-	println(strings.Contains(content, body))
+	println(boards2.Render(path))
 }
 
 // Output:
-// true
-// true
+// # Boards › test-board
+// ## Test Thread
+//
+// Test body
+//
+// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC
+// [Flag](/r/gnoland/boards2/v1:test-board/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board/1/repost) • [Comment](/r/gnoland/boards2/v1:test-board/1/reply) • [Edit](/r/gnoland/boards2/v1:test-board/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1)

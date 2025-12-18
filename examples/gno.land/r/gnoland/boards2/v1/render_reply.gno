@@ -5,9 +5,11 @@ import (
 	"strings"
 
 	"gno.land/p/gnoland/boards"
+	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/mux"
+	"gno.land/p/nt/ufmt"
 )
 
 func renderReply(res *mux.ResponseWriter, req *mux.Request) {
@@ -19,26 +21,26 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	rawID := req.GetVar("thread")
-	tID, err := strconv.Atoi(rawID)
+	threadID, err := strconv.Atoi(rawID)
 	if err != nil {
 		res.Write("Invalid thread ID: " + rawID)
 		return
 	}
 
 	rawID = req.GetVar("reply")
-	rID, err := strconv.Atoi(rawID)
+	replyID, err := strconv.Atoi(rawID)
 	if err != nil {
 		res.Write("Invalid reply ID: " + rawID)
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(tID))
+	thread, found := board.Threads.Get(boards.ID(threadID))
 	if !found {
 		res.Write("Thread does not exist with ID: " + req.GetVar("thread"))
 		return
 	}
 
-	reply, found := thread.Replies.Get(boards.ID(rID))
+	reply, found := thread.Replies.Get(boards.ID(replyID))
 	if !found {
 		res.Write("Reply does not exist with ID: " + rawID)
 		return
@@ -104,4 +106,72 @@ func renderSubReplies(post *boards.Post, indent string, levels int) string {
 		return false
 	})
 	return b.String()
+}
+
+func renderEditReply(res *mux.ResponseWriter, req *mux.Request) {
+	name := req.GetVar("board")
+	board, found := gBoards.GetByName(name)
+	if !found {
+		res.Write("Board does not exist: " + name)
+		return
+	}
+
+	rawID := req.GetVar("thread")
+	threadID, err := strconv.Atoi(rawID)
+	if err != nil {
+		res.Write("Invalid thread ID: " + rawID)
+		return
+	}
+
+	rawID = req.GetVar("reply")
+	replyID, err := strconv.Atoi(rawID)
+	if err != nil {
+		res.Write("Invalid reply ID: " + rawID)
+		return
+	}
+
+	thread, found := board.Threads.Get(boards.ID(threadID))
+	if !found {
+		res.Write("Thread does not exist with ID: " + req.GetVar("thread"))
+		return
+	}
+
+	reply, found := thread.Replies.Get(boards.ID(replyID))
+	if !found {
+		res.Write("Reply does not exist with ID: " + rawID)
+		return
+	}
+
+	form := mdform.New("exec", "EditReply")
+	form.Input(
+		"boardID",
+		"placeholder", "Board ID",
+		"value", board.ID.String(),
+		"readonly", "true",
+	)
+	form.Input(
+		"threadID",
+		"placeholder", "Thread ID",
+		"value", thread.ID.String(),
+		"readonly", "true",
+	)
+	form.Input(
+		"replyID",
+		"placeholder", "Reply ID",
+		"value", reply.ID.String(),
+		"readonly", "true",
+	)
+	form.Textarea(
+		"bod",
+		"placeholder", "Comment",
+		"value", reply.Body,
+	)
+
+	res.Write(md.H1(board.Name + ": Edit Comment"))
+	res.Write(
+		md.Paragraph(
+			ufmt.Sprintf("Editing comment from %s thread", md.Link(thread.Title, makeThreadURI(thread))),
+		),
+	)
+	res.Write(form.String())
 }
