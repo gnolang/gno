@@ -661,7 +661,7 @@ users.Set("bob", User{})
 users.Set("alice", User{})
 users.Set("charlie", User{})
 // Iterate all users (sorted alphabetically)
-users.Iterate("", "", func(name string, value interface{}) bool {
+users.Iterate("", "", func(name string, value any) bool {
 	// Order: alice, bob, charlie (sorted by key)
 	user := value.(*User) // Type cast required - values are interface{}
     return false // return true to stop iteration
