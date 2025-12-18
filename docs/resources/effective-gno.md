@@ -663,21 +663,16 @@ users.Set("charlie", User{})
 // Iterate all users (sorted alphabetically)
 users.Iterate("", "", func(name string, value interface{}) bool {
 	// Order: alice, bob, charlie (sorted by key)
-	user := value.(*User)
+	user := value.(*User) // Type cast required - values are interface{}
     return false // return true to stop iteration
 }
 
 // Range query: get users from "alice" to "bob" (inclusive)
 // This is O(log n + k) where k = results in range
-users.Iterate("alice", "bob", func(name string, value interface{}) bool {
-	// Only visits: alice, bob
-	user := value.(*User)
+users.Iterate("bob", "charlie", func(name string, value interface{}) bool {
+	// Only visits: bob, charlie
+	user := value.(*User) 
     return false
-})
-
-users.Iterate("", "", func(name string, value interface{}) bool { // Order: alice, bob (sorted)
-	user := value.(*User)
-    return false // return true to stop the loop
 })
 
 // Get a specific user (O(log n))
@@ -685,7 +680,7 @@ value, exists := users.Get("alice")
 if !exists {
 	return nil
 }
-return value.(*User) // Type cast required - values are interface{}
+return value.(*User) 
 
 
 // Multi-index example - search the same data in different ways
