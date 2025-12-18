@@ -27,16 +27,6 @@ func main() {
 }
 
 // Preprocessed:
-// file{ package main; func main() { var f<!VPBlock(1,0)> func(); for .loopvar_i<!@VPBlock(1,0)> := (const (0 int)); .loopvar_i<*VPBlock(1,0)> < (const (5 int));  { .redefine_i<!~VPBlock(1,1)> := .loopvar_i<VPBlock(1,0)>; (const (println func(...interface {})))((const ("enter, i: " string)), .redefine_i<~VPBlock(1,1)>); if .redefine_i<~VPBlock(2,1)> == (const (2 int)) { (const (println func(...interface {})))((const ("---continue" string))); .redefine_i<~VPBlock(2,1)>++; .loopvar_i<*VPBlock(2,0)> = .redefine_i<~VPBlock(2,1)>; continue }; .redefine_i<~VPBlock(1,1)>++; f<VPBlock(2,0)> = func func(){ start<!VPBlock(1,0)> := .redefine_i<~VPBlock(1,1)>; (const (println func(...interface {})))((const ("capture, start: " string)), start<VPBlock(1,0)>) }<.redefine_i<()~VPBlock(1,1)>>; f<VPBlock(2,0)>(); .loopvar_i<!VPBlock(1,0)> := .redefine_i<~VPBlock(1,1)> } } }
+// file{ package main; func main() { var f<!VPBlock(1,0)> func(); for .loopvar_i<!@VPBlock(1,0)> := (const (0 int)); .loopvar_i<*VPBlock(1,0)> < (const (5 int));  { .redefine_i<!~VPBlock(1,0)> := .loopvar_i<*VPBlock(2,0)>; (const (println func(...interface {})))((const ("enter, i: " string)), .redefine_i<~VPBlock(1,0)>); if .redefine_i<~VPBlock(2,0)> == (const (2 int)) { (const (println func(...interface {})))((const ("---continue" string))); .redefine_i<~VPBlock(2,0)>++; .loopvar_i<*VPBlock(3,0)> = .redefine_i<~VPBlock(2,0)>; continue }; .redefine_i<~VPBlock(1,0)>++; f<VPBlock(3,0)> = func func(){ start<!VPBlock(1,0)> := .redefine_i<~VPBlock(1,1)>; (const (println func(...interface {})))((const ("capture, start: " string)), start<VPBlock(1,0)>) }<.redefine_i<()~VPBlock(1,0)>>; f<VPBlock(3,0)>(); .loopvar_i<*VPBlock(2,0)> = .redefine_i<~VPBlock(1,0)> }  } }
 
-// Output:
-// enter, i:  0
-// capture, start:  1
-// enter, i:  1
-// capture, start:  2
-// enter, i:  2
-// ---continue
-// enter, i:  3
-// capture, start:  4
-// enter, i:  4
-// capture, start:  5
+// Error:

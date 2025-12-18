@@ -925,7 +925,7 @@ func (m *Machine) RunStatement(st Stage, s Stmt) {
 			}
 		}()
 		s = Preprocess(m.Store, last, s).(Stmt)
-		fmt.Println("---s: ", s)
+		// fmt.Println("---s: ", s)
 	}()
 	// run s.
 	m.PushOp(OpHalt)
@@ -1622,6 +1622,8 @@ func (m *Machine) PushOp(op Op) {
 	if debug {
 		m.Printf("+o %v\n", op)
 	}
+	// fmt.Printf("+o %v\n", op)
+	// PrintCaller(2, 5)
 
 	m.Ops = append(m.Ops, op)
 }
