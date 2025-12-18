@@ -29,21 +29,11 @@ func makeUnfreezeBoardURI(b *boards.Board) string {
 }
 
 func makeInviteMemberURI(b *boards.Board) string {
-	return gRealmLink.Call(
-		"InviteMember",
-		"boardID", b.ID.String(),
-		"user", "",
-		"role", "",
-	)
+	return makeBoardURI(b) + "/invite-member"
 }
 
 func makeCreateThreadURI(b *boards.Board) string {
-	return gRealmLink.Call(
-		"CreateThread",
-		"boardID", b.ID.String(),
-		"title", "",
-		"body", "",
-	)
+	return makeBoardURI(b) + "/create-thread"
 }
 
 func makeRequestInviteURI(b *boards.Board) string {

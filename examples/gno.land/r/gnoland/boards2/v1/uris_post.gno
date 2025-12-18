@@ -19,32 +19,13 @@ func makeReplyURI(p *boards.Post) string {
 
 func makeCreateReplyURI(p *boards.Post) string {
 	if boards.IsThread(p) {
-		return gRealmLink.Call(
-			"CreateReply",
-			"boardID", p.Board.ID.String(),
-			"threadID", p.ThreadID.String(),
-			"replyID", "0",
-			"body", "",
-		)
+		return makeThreadURI(p) + "/reply"
 	}
-	return gRealmLink.Call(
-		"CreateReply",
-		"boardID", p.Board.ID.String(),
-		"threadID", p.ThreadID.String(),
-		"replyID", p.ID.String(),
-		"body", "",
-	)
+	return makeReplyURI(p) + "/reply"
 }
 
 func makeCreateRepostURI(p *boards.Post) string {
-	return gRealmLink.Call(
-		"CreateRepost",
-		"boardID", p.Board.ID.String(),
-		"threadID", p.ID.String(),
-		"destinationBoardID", "",
-		"title", "",
-		"body", "",
-	)
+	return makeThreadURI(p) + "/repost"
 }
 
 func makeDeletePostURI(p *boards.Post) string {
@@ -65,39 +46,14 @@ func makeDeletePostURI(p *boards.Post) string {
 
 func makeEditPostURI(p *boards.Post) string {
 	if boards.IsThread(p) {
-		return gRealmLink.Call(
-			"EditThread",
-			"boardID", p.Board.ID.String(),
-			"threadID", p.ThreadID.String(),
-			"title", p.Title,
-			"body", p.Body,
-		)
+		return makeThreadURI(p) + "/edit"
 	}
-
-	return gRealmLink.Call(
-		"EditReply",
-		"boardID", p.Board.ID.String(),
-		"threadID", p.ThreadID.String(),
-		"replyID", p.ID.String(),
-		"body", p.Body,
-	)
+	return makeReplyURI(p) + "/edit"
 }
 
 func makeFlagURI(p *boards.Post) string {
 	if boards.IsThread(p) {
-		return gRealmLink.Call(
-			"FlagThread",
-			"boardID", p.Board.ID.String(),
-			"threadID", p.ThreadID.String(),
-			"reason", "",
-		)
+		return makeThreadURI(p) + "/flag"
 	}
-
-	return gRealmLink.Call(
-		"FlagReply",
-		"boardID", p.Board.ID.String(),
-		"threadID", p.ThreadID.String(),
-		"replyID", p.ID.String(),
-		"reason", "",
-	)
+	return makeReplyURI(p) + "/flag"
 }
