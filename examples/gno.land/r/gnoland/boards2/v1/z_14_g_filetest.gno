@@ -6,6 +6,7 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
+	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 const (
@@ -20,12 +21,12 @@ var (
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false)
+	bid = boards2.CreateBoard(cross, "test-board", false, false)
 	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
 	rid = boards2.CreateReply(cross, bid, tid, 0, "body")
 
 	// Invite a member using a role with permission to delete replies
-	boards2.InviteMember(cross, bid, member, boards2.RoleAdmin)
+	boards2.InviteMember(cross, bid, member, permissions.RoleAdmin)
 }
 
 func main() {

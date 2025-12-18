@@ -16,7 +16,7 @@ func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a board and then add 3 threads
-	boardID := boards2.CreateBoard(cross, boardName, false)
+	boardID := boards2.CreateBoard(cross, boardName, false, false)
 
 	// Create thread "A" with a single comment
 	threadID := boards2.CreateThread(cross, boardID, "A", "Body")
@@ -27,7 +27,7 @@ func init() {
 	threadID = boards2.CreateThread(cross, boardID, "C", "Body")
 
 	// Repost thread "C" into a different board
-	dstBoardID := boards2.CreateBoard(cross, "Bar", false)
+	dstBoardID := boards2.CreateBoard(cross, "Bar", false, false)
 	boards2.CreateRepost(cross, boardID, threadID, dstBoardID, "Title", "Body")
 }
 

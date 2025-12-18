@@ -20,15 +20,15 @@ func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a board with a thread
-	origBID := boards2.CreateBoard(cross, "origin-board", false)
+	origBID := boards2.CreateBoard(cross, "origin-board", false, false)
 	origTID := boards2.CreateThread(cross, origBID, "title", "text")
 
 	// Create a second board and repost a thread using an empty title
-	srcBID = boards2.CreateBoard(cross, "source-board", false)
+	srcBID = boards2.CreateBoard(cross, "source-board", false, false)
 	srcTID = boards2.CreateRepost(cross, origBID, origTID, srcBID, "original title", "original text")
 
 	// Create a third board to try reposting the repost
-	dstBID = boards2.CreateBoard(cross, "destination-board", false)
+	dstBID = boards2.CreateBoard(cross, "destination-board", false, false)
 }
 
 func main() {

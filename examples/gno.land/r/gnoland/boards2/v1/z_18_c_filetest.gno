@@ -6,6 +6,7 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
+	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
@@ -17,10 +18,10 @@ var (
 
 func init() {
 	// Create a new permissions instance without users
-	perms = boards2.NewBasicPermissions()
+	perms = permissions.New()
 
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "foobar", false)
+	bid = boards2.CreateBoard(cross, "foobar", false, false)
 }
 
 func main() {

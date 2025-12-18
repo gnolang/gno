@@ -16,7 +16,7 @@ func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a board and a thread
-	boardID := boards2.CreateBoard(cross, boardName, false)
+	boardID := boards2.CreateBoard(cross, boardName, false, false)
 	boards2.CreateThread(cross, boardID, "A", "Body")
 }
 

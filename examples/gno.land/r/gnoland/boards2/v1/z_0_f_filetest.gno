@@ -12,7 +12,7 @@ const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
 func main() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.CreateBoard(cross, "gnoland", false)
+	boards2.CreateBoard(cross, "gnoland", false, false)
 }
 
 // Error:

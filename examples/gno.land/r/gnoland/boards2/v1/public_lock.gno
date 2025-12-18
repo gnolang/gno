@@ -6,6 +6,8 @@ import (
 	"strconv"
 
 	"gno.land/p/gnoland/boards"
+
+	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 // LockRealm locks the realm making it readonly.
@@ -26,7 +28,7 @@ func LockRealm(_ realm, lockRealmMembers bool) {
 	}
 
 	caller := runtime.PreviousRealm().Address()
-	gPerms.WithPermission(cross, caller, PermissionRealmLock, boards.Args{}, func(realm) {
+	gPerms.WithPermission(cross, caller, permissions.PermissionRealmLock, boards.Args{}, func(realm) {
 		gLocked.realm = true
 		gLocked.realmMembers = lockRealmMembers
 
