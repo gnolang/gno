@@ -430,15 +430,12 @@ func lintRenderSignature(io commands.IO, pkg *types.Package, fset *token.FileSet
 		return nil
 	}
 
-	var (
-		stringType     = "string"
-		isSingleString = func(t *types.Tuple) bool {
-			return t != nil &&
-				t.Len() == 1 &&
-				t.At(0) != nil &&
-				t.At(0).Type().String() == stringType
-		}
-	)
+	isSingleString := func(t *types.Tuple) bool {
+		return t != nil &&
+			t.Len() == 1 &&
+			t.At(0) != nil &&
+			t.At(0).Type().String() == "string"
+	}
 
 	if !isSingleString(s.Params()) || !isSingleString(s.Results()) {
 		location := pkg.Path()
