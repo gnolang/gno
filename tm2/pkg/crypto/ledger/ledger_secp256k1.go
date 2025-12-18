@@ -8,7 +8,6 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	secp "github.com/decred/dcrd/dcrec/secp256k1/v4"
-	"github.com/zondax/hid"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -178,10 +177,6 @@ func convertDERtoBER(signatureDER []byte) ([]byte, error) {
 }
 
 func getLedgerDevice() (ledger.SECP256K1, error) {
-	if !hid.Supported() {
-		return nil, fmt.Errorf("ledger support is not enabled, try building with CGO_ENABLED=1")
-	}
-
 	device, err := ledger.Discover()
 	if err != nil {
 		return nil, errors.Wrap(err, "ledger nano S")
