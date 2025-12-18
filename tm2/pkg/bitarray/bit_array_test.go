@@ -274,3 +274,51 @@ func TestJSONMarshalUnmarshal(t *testing.T) {
 		})
 	}
 }
+
+// Reproducer/regression test for json.Unmarshal crashing when no bits are passed into the JSON.
+func TestUnmarshalJSONDoesntCrashOnZeroBits(t *testing.T) {
+	t.Parallel()
+
+	type indexCorpus struct {
+		BitArray *BitArray `json:"ba"`
+		Index    int       `json:"i"`
+	}
+
+	ic := new(indexCorpus)
+	blob := []byte(`{"BA":""}`)
+	err := json.Unmarshal(blob, ic)
+	require.NoError(t, err)
+	require.Equal(t, ic.BitArray, &BitArray{Bits: 0, Elems: nil})
+}
+
+func TestBitArrayValidateBasic(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name   string
+		bA     *BitArray
+		expErr string
+	}{
+		{"nil BitArray is valid", nil, ""},
+		{"valid BitArray", NewBitArray(10), ""},
+		{"negative bits", &BitArray{Bits: -1, Elems: nil}, "negative number of bits"},
+		{"mismatched Elems nil", &BitArray{Bits: 10, Elems: nil}, "mismatch between specified number of bits 10, and number of elements 0, expected 1 elements"},
+		{"mismatched Elems too few", &BitArray{Bits: 100, Elems: make([]uint64, 1)}, "mismatch between specified number of bits 100, and number of elements 1, expected 2 elements"},
+		{"mismatched Elems too many", &BitArray{Bits: 10, Elems: make([]uint64, 5)}, "mismatch between specified number of bits 10, and number of elements 5, expected 1 elements"},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := tc.bA.ValidateBasic()
+			if tc.expErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.expErr)
+			}
+		})
+	}
+}

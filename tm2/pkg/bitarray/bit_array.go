@@ -17,6 +17,33 @@ type BitArray struct {
 	Elems []uint64 `json:"elems"` // NOTE: persisted via reflect, must be exported
 }
 
+// ValidateBasic checks that the BitArray is internally consistent.
+// It verifies that the number of elements in Elems matches what is expected
+// based on the declared Bits count. This prevents malicious peers from sending
+// inconsistent BitArrays that could cause consensus failures.
+func (bA *BitArray) ValidateBasic() error {
+	if bA == nil {
+		return nil
+	}
+	bA.mtx.Lock()
+	defer bA.mtx.Unlock()
+
+	if bA.Bits < 0 {
+		return fmt.Errorf("negative number of bits %d", bA.Bits)
+	}
+
+	// Calculate expected number of elements for the given bits count
+	expectedElems := (bA.Bits + 63) / 64
+	actualElems := len(bA.Elems)
+
+	if expectedElems != actualElems {
+		return fmt.Errorf("mismatch between specified number of bits %d, and number of elements %d, expected %d elements",
+			bA.Bits, actualElems, expectedElems)
+	}
+
+	return nil
+}
+
 // NewBitArray returns a new bit array.
 // It returns nil if the number of bits is zero.
 func NewBitArray(bits int) *BitArray {
@@ -412,6 +439,18 @@ func (bA *BitArray) UnmarshalJSON(bz []byte) error {
 
 	// Construct new BitArray and copy over.
 	numBits := len(bits)
+
+	// Handle empty bit array case and returns nil for 0 bits
+	if numBits == 0 {
+		bA.mtx.Lock()
+		defer bA.mtx.Unlock()
+
+		bA.Bits = 0
+		bA.Elems = nil
+
+		return nil
+	}
+
 	bA2 := NewBitArray(numBits)
 	for i := range numBits {
 		if bits[i] == 'x' {
