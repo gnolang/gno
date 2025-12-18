@@ -171,7 +171,15 @@ var (
 	cachedInitTypeCheckCache gno.TypeCheckCache
 )
 
-// LoadStdlib loads the Gno standard library into the given store.
+// LoadStdlibCached loads the Gno standard library into the given store.
+//
+// This works differently from [VMKeeper.LoadStdlib] as it performs an initial
+// loading of the stdlib, which is then copied for future use.
+//
+// LoadStdlibCached is more efficient for programs which have to load a fresh
+// keeper many times (including tests and gnodev). For normal node execution,
+// LoadStdlib should be used instead, for lower memory consumption and faster
+// cold start.
 func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 	cachedStdlibOnce.Do(func() {
 		cachedStdlib = stdlibCache{
@@ -211,7 +219,9 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 	vm.typeCheckCache = maps.Clone(cachedInitTypeCheckCache)
 }
 
-// LoadStdlib loads the Gno standard library into the given store.
+// LoadStdlib loads the Gno standard library into the given store. It will
+// additionally execute type checking on the mempackages in the standard
+// library.
 func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
 	gs := vm.getGnoTransactionStore(ctx)
 	loadStdlib(gs, stdlibDir)
