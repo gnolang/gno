@@ -629,8 +629,8 @@ reliable way to manage access to your contract.
 
 The main difference between `map` and `avl.Tree` is:
 
-- **Maps**: O(1) lookup, type safety, iterate in **insertion order**.
 - **AVL Trees**: O(log n) lookup, lazy loading, iterate in **sorted key order**.
+- **Maps**: O(1) lookup, type safety, iterate in **insertion order**.
 
 **Use `avl.Tree` when you need**:
 
