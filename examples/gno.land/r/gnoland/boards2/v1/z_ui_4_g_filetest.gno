@@ -21,11 +21,11 @@ func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a board and a thread
-	boardID := boards2.CreateBoard(cross, srcBoardName, false)
+	boardID := boards2.CreateBoard(cross, srcBoardName, false, false)
 	threadID := boards2.CreateThread(cross, boardID, "Foo", "Body")
 
 	// Repost thread into a different board
-	dstBoardID := boards2.CreateBoard(cross, dstBoardName, false)
+	dstBoardID := boards2.CreateBoard(cross, dstBoardName, false, false)
 	repostThreadID = boards2.CreateRepost(cross, boardID, threadID, dstBoardID, "Bar", "Body2")
 
 	// Flag original thread

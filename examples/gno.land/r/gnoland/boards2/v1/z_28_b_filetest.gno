@@ -6,6 +6,7 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
+	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 const (
@@ -17,10 +18,10 @@ var bid boards.ID
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false)
+	bid = boards2.CreateBoard(cross, "test123", false, false)
 
 	// Invite the user as a moderator
-	boards2.InviteMember(cross, bid, user, boards2.RoleModerator)
+	boards2.InviteMember(cross, bid, user, permissions.RoleModerator)
 }
 
 func main() {
