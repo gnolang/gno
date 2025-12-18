@@ -3,6 +3,8 @@ package main
 import (
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
@@ -12,8 +14,8 @@ const (
 )
 
 var (
-	bid      boards2.BoardID
-	tid, rid boards2.PostID
+	bid      boards.ID
+	tid, rid boards.ID
 )
 
 func init() {
