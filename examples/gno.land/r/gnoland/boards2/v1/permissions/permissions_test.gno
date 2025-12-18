@@ -80,10 +80,10 @@ func TestBasicPermissionsWithPermission(t *testing.T) {
 			}
 
 			if tc.err != "" {
-				urequire.AbortsWithMessage(t, tc.err, testCaseFn, "expect panic with message")
+				urequire.PanicsWithMessage(t, tc.err, testCaseFn, "expect panic with message")
 				return
 			} else {
-				urequire.NotAborts(t, testCaseFn, "expect no panic")
+				urequire.NotPanics(t, testCaseFn, "expect no panic")
 			}
 
 			urequire.Equal(t, tc.called, called, "expect callback to be called")
