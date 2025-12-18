@@ -95,7 +95,7 @@ The network automatically adjusts the gas price after each block based on demand
 - **Low demand**: Price decreases (but never below 1 ugnot/1000 gas)
 - **High demand**: Price increases
 
-The network targets 70% utilization of the maximum block gas limit (3B gas).
+The network targets 70% utilization of the maximum block gas limit (3B gas) by default.
 When blocks exceed this target, prices rise. When blocks fall below it, prices drop.
 Changes are gradual to avoid sudden price spikes.
 
