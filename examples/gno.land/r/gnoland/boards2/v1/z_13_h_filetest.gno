@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
@@ -13,8 +15,8 @@ const (
 )
 
 var (
-	bid      boards2.BoardID
-	rid, tid boards2.PostID
+	bid      boards.ID
+	rid, tid boards.ID
 )
 
 func init() {
