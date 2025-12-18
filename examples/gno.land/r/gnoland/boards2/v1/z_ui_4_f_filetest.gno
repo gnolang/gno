@@ -4,6 +4,8 @@ package main
 import (
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
@@ -12,7 +14,7 @@ const (
 	boardName         = "BoardName"
 )
 
-var threadID boards2.PostID
+var threadID boards.ID
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
