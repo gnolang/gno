@@ -634,7 +634,7 @@ The main differences between `avl.Tree` and `map` are:
 
 **Use `avl.Tree` when you need**:
 
-- Lazy loading (gas-efficient for large datasets - only loads what you access)
+- Lazy loading (gas-efficient for large datasets - only loads the search path)
 - Efficient range queries (find all keys between "alice" and "charlie")
 - Sorted iteration by key value
 
@@ -669,7 +669,7 @@ users.Iterate("", "", func(name string, value any) bool {
 
 // Range query: get users from "alice" to "bob" (inclusive)
 // This is O(log n + k) where k = results in range
-users.Iterate("bob", "charlie", func(name string, value interface{}) bool {
+users.Iterate("bob", "charlie", func(name string, value any) bool {
 	// Only visits: bob, charlie
 	user := value.(*User) 
     return false
