@@ -649,7 +649,7 @@ types of queries to a Gno.land network.
 
 Below is a list of queries a user can make with `gnokey`:
 - `auth/accounts/{ADDRESS}` - returns information about an account
-- `auth/gasprice` - returns the gas price from the last block
+- `auth/gasprice` - returns the current minimum gas price required for transactions
 - `bank/balances/{ADDRESS}` - returns balances of an account
 - `vm/qfuncs` - returns the exported functions for a given pkgpath
 - `vm/qfile` - returns package contents for a given pkgpath
@@ -722,9 +722,8 @@ The data field will contain the coins the address owns.
 
 ## `auth/gasprice`
 
-The `auth/gasprice` query allows you to fetch the gas price from the last block.
-This is useful for determining the current gas price on the network. To call it,
-we can run the following command:
+The `auth/gasprice` query allows you to fetch the minimum gas fee currently
+required for transactions. To call it, we can run the following command:
 
 ```bash
 gnokey query auth/gasprice -remote https://rpc.gno.land:443
@@ -750,9 +749,8 @@ The `data` field returns a `GasPrice` object, which contains:
 - `price` - the price per gas unit in the form of a [coin](../resources/gno-stdlibs.md#coin)
 
 The network adjusts the gas price after each block based on demand. This query returns
-the gas price calculated from the last block, which is the minimum price required for
-upcoming transactions.
-For a deeper explanation, see [Gas Fees](../resources/gas-fees.md).
+the gas price calculated from the latest block.
+For a deeper explanation, see [Gas Price](../resources/gas-fees.md#gas-price).
 
 ## `vm/qfuncs`
 

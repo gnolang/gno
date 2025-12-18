@@ -41,7 +41,13 @@ Maximum Fee = Gas Wanted × Gas Fee
 
 You will be charged the gas fee you specified.
 
-You can query the last block network gas price using:
+### Gas Price
+
+The network dynamically adjusts the minimum required gas fee after each block
+based on demand. `--gas-fee` must meet or exceed this network gas price
+for your transaction to be accepted.
+
+You can query the network gas price using:
 ```bash
 gnokey query auth/gasprice -remote https://rpc.gno.land:443
 ```
