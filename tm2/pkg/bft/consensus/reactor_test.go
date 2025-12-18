@@ -620,7 +620,7 @@ func TestNewValidBlockMessageValidateBasic(t *testing.T) {
 		{
 			func(msg *NewValidBlockMessage) {
 				msg.BlockParts.Bits = 500
-				msg.BlockPartsHeader.Total = 500 // Make header match so BitArray validation is reached
+				msg.BlockPartsHeader.Total = 500 // header total should match bitarray size so ba validation is reached
 			},
 			"mismatch between specified number of bits 500, and number of elements 1, expected 8 elements",
 		},
