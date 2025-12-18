@@ -11,8 +11,8 @@ import (
 
 const (
 	owner        address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
-	srcBoardName         = "BoardName"
-	dstBoardName         = "BoardName2"
+	srcBoardName         = "test-board"
+	dstBoardName         = "test-board-2"
 )
 
 var repostThreadID boards.ID
@@ -38,7 +38,7 @@ func main() {
 }
 
 // Output:
-// # Boards › BoardName2
+// # Boards › test-board-2
 // ## Bar
 //
 // > *⚠ Source post has been deleted*
@@ -46,4 +46,4 @@ func main() {
 // Body2
 //
 // Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC
-// [Flag](/r/gnoland/boards2/v1:BoardName2/1/flag) • [Repost](/r/gnoland/boards2/v1$help&func=CreateRepost&boardID=2&body=&destinationBoardID=&threadID=1&title=) • [Reply](/r/gnoland/boards2/v1:BoardName2/1/reply) • [Edit](/r/gnoland/boards2/v1:BoardName2/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=2&threadID=1)
+// [Flag](/r/gnoland/boards2/v1:test-board-2/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board-2/1/repost) • [Comment](/r/gnoland/boards2/v1:test-board-2/1/reply) • [Edit](/r/gnoland/boards2/v1:test-board-2/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=2&threadID=1)

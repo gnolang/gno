@@ -27,8 +27,10 @@ func main() {
 
 // Output:
 // # Boards › TestBoard
+// > [!WARNING] Info
+// > Creating new threads and commenting are disabled within this board
+//
 // Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, #1
-// _**Starting new threads and commenting is disabled**_
 // [List Members](/r/gnoland/boards2/v1:TestBoard/members) • [Unfreeze Board](/r/gnoland/boards2/v1$help&func=UnfreezeBoard&boardID=1&replyID=&threadID=)
 //
 // ---

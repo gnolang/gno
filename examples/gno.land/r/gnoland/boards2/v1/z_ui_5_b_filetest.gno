@@ -11,7 +11,7 @@ import (
 
 const (
 	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
-	boardName         = "BoardName"
+	boardName         = "test-board"
 )
 
 var (
@@ -45,17 +45,17 @@ func main() {
 // Body
 //
 // Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC
-// [Flag](/r/gnoland/boards2/v1:BoardName/1/flag) • [Repost](/r/gnoland/boards2/v1$help&func=CreateRepost&boardID=1&body=&destinationBoardID=&threadID=1&title=) • [Reply](/r/gnoland/boards2/v1:BoardName/1/reply) • [Edit](/r/gnoland/boards2/v1:BoardName/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1) • [Show all Replies](/r/gnoland/boards2/v1:BoardName/1)
+// [Flag](/r/gnoland/boards2/v1:test-board/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board/1/repost) • [Comment](/r/gnoland/boards2/v1:test-board/1/reply) • [Edit](/r/gnoland/boards2/v1:test-board/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1) • [Show all Replies](/r/gnoland/boards2/v1:test-board/1)
 //
 //
 // >
 // > This reply has been deleted
 // >
-// > Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, [#2](/r/gnoland/boards2/v1:BoardName/1/2)
-// [Flag](/r/gnoland/boards2/v1:BoardName/1/2/flag) • [Reply](/r/gnoland/boards2/v1:BoardName/1/2/reply) • [Edit](/r/gnoland/boards2/v1:BoardName/1/2/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteReply&boardID=1&replyID=2&threadID=1)
+// > Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, [#2](/r/gnoland/boards2/v1:test-board/1/2)
+// [Flag](/r/gnoland/boards2/v1:test-board/1/2/flag) • [Reply](/r/gnoland/boards2/v1:test-board/1/2/reply) • [Edit](/r/gnoland/boards2/v1:test-board/1/2/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteReply&boardID=1&replyID=2&threadID=1)
 // >
 // > >
 // > > Third comment
 // > >
-// > > Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, [#3](/r/gnoland/boards2/v1:BoardName/1/3)
-// [Flag](/r/gnoland/boards2/v1:BoardName/1/3/flag) • [Reply](/r/gnoland/boards2/v1:BoardName/1/3/reply) • [Edit](/r/gnoland/boards2/v1:BoardName/1/3/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteReply&boardID=1&replyID=3&threadID=1)
+// > > Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, [#3](/r/gnoland/boards2/v1:test-board/1/3)
+// [Flag](/r/gnoland/boards2/v1:test-board/1/3/flag) • [Reply](/r/gnoland/boards2/v1:test-board/1/3/reply) • [Edit](/r/gnoland/boards2/v1:test-board/1/3/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteReply&boardID=1&replyID=3&threadID=1)
