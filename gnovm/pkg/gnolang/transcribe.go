@@ -425,13 +425,19 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 				return
 			}
 		}
-		// iterate over Body; its length can change if a statement is decomposed.
-		for idx := 0; idx < len(cnn.Body); idx++ {
-			cnn.Body[idx] = transcribe(t, nns, TRANS_FOR_BODY, idx, cnn.Body[idx], &c).(Stmt)
-			if stopOrSkip(nc, c) {
-				return
-			}
+
+		cnn.BodyBlock = transcribe(t, nns, TRANS_FOR_BODY, 0, cnn.BodyBlock, &c).(*BlockStmt)
+		if stopOrSkip(nc, c) {
+			return
 		}
+
+		// // iterate over Body; its length can change if a statement is decomposed.
+		// for idx := 0; idx < len(cnn.Body); idx++ {
+		// 	cnn.Body[idx] = transcribe(t, nns, TRANS_FOR_BODY, idx, cnn.Body[idx], &c).(Stmt)
+		// 	if stopOrSkip(nc, c) {
+		// 		return
+		// 	}
+		// }
 	case *GoStmt:
 		cnn.Call = *transcribe(t, nns, TRANS_GO_CALL, 0, &cnn.Call, &c).(*CallExpr)
 		if stopOrSkip(nc, c) {

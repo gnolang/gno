@@ -219,7 +219,8 @@ func (x *ForStmt) Copy() Node {
 		Init: copyStmt(x.Init),
 		Cond: copyExpr(x.Cond),
 		Post: copyStmt(x.Post),
-		Body: copyStmts(x.Body),
+		// Body: copyStmts(x.Body),
+		BodyBlock: &BlockStmt{Body: copyStmts(x.GetBody())},
 	}
 }
 

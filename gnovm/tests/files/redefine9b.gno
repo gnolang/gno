@@ -5,9 +5,8 @@ import (
 )
 
 func main() {
-	println(ufmt.Println("hello ufmt"))
+	ufmt.Printf("string: %s\n", "hello ufmt")
 }
 
 // Output:
 // hello ufmt
-// 11 undefined
