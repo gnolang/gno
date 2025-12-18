@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/token"
 	"go/types"
 	goio "io"
 	"io/fs"
@@ -257,7 +258,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			if cmd.autoGnomod {
 				tcmode = gno.TCLatestRelaxed
 			}
-			tcPkg, errs := lintTypeCheck(io, dir, mpkg, gno.TypeCheckOptions{
+			tcPkg, tcFset, errs := lintTypeCheck(io, dir, mpkg, gno.TypeCheckOptions{
 				Getter:     newProdGnoStore(),
 				TestGetter: newTestGnoStore(true),
 				Mode:       tcmode,
@@ -270,7 +271,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			}
 
 			// ensure the 'Render' function is correct
-			err = lintRenderSignature(io, tcPkg)
+			err = lintRenderSignature(io, tcPkg, tcFset)
 			if err != nil {
 				// io.ErrPrintln(err) printed above.
 				hasError = true
@@ -378,10 +379,11 @@ func lintTypeCheck(
 	opts gno.TypeCheckOptions) (
 	// Results:
 	tcPkg *types.Package,
+	tcFset *token.FileSet,
 	lerr error,
 ) {
 	// gno.TypeCheckMemPackage(mpkg, testStore).
-	tcPkg, tcErrs := gno.TypeCheckMemPackage(mpkg, opts)
+	tcPkg, tcFset, tcErrs := gno.TypeCheckMemPackage(mpkg, opts)
 
 	// Print errors, and return the first unexpected error.
 	errors := multierr.Errors(tcErrs)
@@ -403,7 +405,7 @@ func lintTargetName(pkg *packages.Package) string {
 
 // lintRenderSignature checks if a Render function in the package has the expected signature
 // Returns error if the signature is incorrect.
-func lintRenderSignature(io commands.IO, pkg *types.Package) error {
+func lintRenderSignature(io commands.IO, pkg *types.Package, fset *token.FileSet) error {
 	// ignore pure package and ephemeral realms
 	if pkg == nil || !gno.IsRealmPath(pkg.Path()) {
 		return nil
@@ -413,26 +415,6 @@ func lintRenderSignature(io commands.IO, pkg *types.Package) error {
 	if o == nil {
 		return nil
 	}
-
-	var (
-		stringType = "string"
-		errPrintln = func() error {
-			err := fmt.Errorf("the 'Render' function signature is incorrect for the '%s' package. the signature must be of the form: func Render(string) string", pkg.Name())
-			fmt.Fprintln(io.Err(), gnoIssue{
-				Code:       gnoParserError,
-				Msg:        err.Error(),
-				Confidence: 1,
-				Location:   pkg.Path(),
-			})
-			return err
-		}
-		isSingleString = func(t *types.Tuple) bool {
-			return t != nil &&
-				t.Len() == 1 &&
-				t.At(0) != nil &&
-				t.At(0).Type().String() == stringType
-		}
-	)
 
 	fn, ok := o.(*types.Func)
 	if !ok {
@@ -448,8 +430,31 @@ func lintRenderSignature(io commands.IO, pkg *types.Package) error {
 		return nil
 	}
 
+	var (
+		stringType     = "string"
+		isSingleString = func(t *types.Tuple) bool {
+			return t != nil &&
+				t.Len() == 1 &&
+				t.At(0) != nil &&
+				t.At(0).Type().String() == stringType
+		}
+	)
+
 	if !isSingleString(s.Params()) || !isSingleString(s.Results()) {
-		return errPrintln()
+		location := pkg.Path()
+		if fset != nil && fn.Pos().IsValid() {
+			pos := fset.Position(fn.Pos())
+			location = fmt.Sprintf("%s:%d", pos.Filename, pos.Line)
+		}
+
+		err := fmt.Errorf("the 'Render' function signature is incorrect for the '%s' package. the signature must be of the form: func Render(string) string", pkg.Name())
+		fmt.Fprintln(io.Err(), gnoIssue{
+			Code:       gnoParserError,
+			Msg:        err.Error(),
+			Confidence: 1,
+			Location:   location,
+		})
+		return err
 	}
 
 	return nil

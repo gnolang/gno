@@ -172,7 +172,7 @@ type TypeCheckOptions struct {
 //   - getter: the normal package import getter without test stdlibs.
 //   - tgetter: getter for test stdlibs with overrides when gimp.testing (importing from *_test.gno|*_filetest.gno).
 func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
-	pkg *types.Package, errs error,
+	pkg *types.Package, fset *token.FileSet, errs error,
 ) {
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
@@ -192,7 +192,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 	}
 	gimp.cfg.Importer = gimp
 
-	pkg, errs = gimp.typeCheckMemPackage(mpkg, nil)
+	pkg, fset, errs = gimp.typeCheckMemPackage(mpkg, nil)
 	return
 }
 
@@ -341,7 +341,7 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 		return nil, err
 	}
 	wtests := gimp.testing && gimp.pkgPath == pkgPath
-	pkg, errs := gimp.typeCheckMemPackage(mpkg, &wtests)
+	pkg, _, errs := gimp.typeCheckMemPackage(mpkg, &wtests)
 	if errs != nil {
 		result.err = errs
 		result.pending = false
@@ -407,14 +407,14 @@ func prepareGoGno0p9(f *ast.File) (err error) {
 // Returns parsed *types.Package, *token.FileSet, []*ast.File.
 //   - wtests: if nil, type check all, including filetests; otherwise returns early.
 func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool) (
-	pkg *types.Package, errs error,
+	pkg *types.Package, fset *token.FileSet, errs error,
 ) {
 	// See adr/pr4264_lint_transpile.md
 	// STEP 2: Check gno.mod version.
 	var gnoVersion string
 	mod, err := ParseCheckGnoMod(mpkg)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if gimp.tcmode.RequiresLatestGnoMod() {
 		if mod == nil {
@@ -446,8 +446,9 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// STEP 3: Parse the mem package to Go AST.
 	gofset, allgofs, gofs, _gofs, tgofs, errs := GoParseMemPackage(mpkg)
 	if errs != nil {
-		return nil, errs
+		return nil, nil, errs
 	}
+	fset = gofset
 
 	// STEP 3: Prepare for Go type-checking.
 	for _, gof := range allgofs {
@@ -552,7 +553,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		}
 		*/
 	}
-	return pkg, multierr.Combine(gimp.errors[numErrs:]...)
+	return pkg, fset, multierr.Combine(gimp.errors[numErrs:]...)
 }
 
 // Ensure uniqueness of declarations,
