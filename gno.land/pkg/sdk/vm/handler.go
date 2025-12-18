@@ -46,14 +46,14 @@ func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.
 	return sdk.Result{}
 }
 
-// Handle MsgCall.
 func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result) {
 	resstr, err := vh.vm.Call(ctx, msg)
 	if err != nil {
 		return abciResult(err)
 	}
+
 	res.Data = []byte(resstr)
-	return
+	return res
 }
 
 // Handle MsgRun.
@@ -62,12 +62,32 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 	if err != nil {
 		return abciResult(err)
 	}
+
 	res.Data = []byte(resstr)
-	return
+	return res
 }
 
 // ----------------------------------------
 // Query
+
+type QueryFormat string
+
+const (
+	QueryFormatMachine QueryFormat = "machine" // Default machine representation
+	QueryFormatString              = "string"  // Single string representation
+	QueryFormatJSON                = "json"    // JSON format with Amino @type tags
+	QueryFormatDefault             = QueryFormatMachine
+)
+
+func (format QueryFormat) Validate() bool {
+	// Validate format
+	switch format {
+	case QueryFormatMachine, QueryFormatJSON, QueryFormatString:
+		return true
+	default:
+		return false
+	}
+}
 
 // query paths
 const (
@@ -78,21 +98,26 @@ const (
 	QueryDoc     = "qdoc"
 	QueryPaths   = "qpaths"
 	QueryStorage = "qstorage"
+	QueryObject  = "qobject"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	path := secondPart(req.Path)
-	if i := strings.IndexByte(path, '?'); i >= 0 { // cut query
-		path = path[:i]
-	}
+	path, query, _ := strings.Cut(req.Path, "?")
 
-	switch path {
+	switch path2 := secondPart(path); path2 {
 	case QueryRender:
 		res = vh.queryRender(ctx, req)
 	case QueryFuncs:
 		res = vh.queryFuncs(ctx, req)
 	case QueryEval:
-		res = vh.queryEval(ctx, req)
+		values, err := url.ParseQuery(query)
+		if err != nil {
+			return sdk.ABCIResponseQueryFromError(
+				fmt.Errorf("invalid query params: %w", err),
+			)
+		}
+
+		res = vh.queryEval(ctx, req, values)
 	case QueryFile:
 		res = vh.queryFile(ctx, req)
 	case QueryDoc:
@@ -101,6 +126,8 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 		res = vh.queryPaths(ctx, req)
 	case QueryStorage:
 		res = vh.queryStorage(ctx, req)
+	case QueryObject:
+		res = vh.queryObject(ctx, req)
 	default:
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
@@ -120,8 +147,12 @@ func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abc
 	}
 
 	pkgPath, path := reqData[:dot], reqData[dot+1:]
+
+	// Generate expr request
 	expr := fmt.Sprintf("Render(%q)", path)
-	result, err := vh.vm.QueryEvalString(ctx, pkgPath, expr)
+
+	// Try evaluate `Render` function
+	result, err := vh.vm.QueryEval(ctx, pkgPath, expr, QueryFormatString)
 	if err != nil {
 		if strings.Contains(err.Error(), "Render not declared") {
 			err = NoRenderDeclError{}
@@ -183,15 +214,26 @@ func (vh vmHandler) queryPaths(ctx sdk.Context, req abci.RequestQuery) (res abci
 }
 
 // queryEval evaluates any expression in readonly mode and returns the results.
-func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	pkgPath, expr := parseQueryEvalData(string(req.Data))
-	result, err := vh.vm.QueryEval(ctx, pkgPath, expr)
-	if err != nil {
-		res = sdk.ABCIResponseQueryFromError(err)
-		return
+func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery, values url.Values) (res abci.ResponseQuery) {
+	format := QueryFormat(values.Get("format"))
+	if format == "" {
+		format = QueryFormatDefault
+	} else if !format.Validate() {
+		return sdk.ABCIResponseQueryFromError(fmt.Errorf("invalid query result format %q", format))
 	}
+
+	pkgpath, expr := parseQueryEvalData(string(req.Data))
+	if expr == "" {
+		return sdk.ABCIResponseQueryFromError(fmt.Errorf("expr cannot be empty"))
+	}
+
+	result, err := vh.vm.QueryEval(ctx, pkgpath, expr, format)
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(err)
+	}
+
 	res.Data = []byte(result)
-	return
+	return res
 }
 
 // parseQueryEval parses the input string of vm/qeval. It takes the first dot
@@ -250,6 +292,17 @@ func (vh vmHandler) queryStorage(ctx sdk.Context, req abci.RequestQuery) (res ab
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
+	}
+	res.Data = []byte(result)
+	return
+}
+
+// queryObject retrieves an object by ObjectID and returns its JSON representation.
+func (vh vmHandler) queryObject(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	oidStr := string(req.Data)
+	result, err := vh.vm.QueryObject(ctx, oidStr)
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(err)
 	}
 	res.Data = []byte(result)
 	return

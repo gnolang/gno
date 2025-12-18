@@ -183,5 +183,9 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Handle readiness check - service can communicate with RPC node and serve clients
 	mux.Handle("/ready", handlerReadyJSON(logger, rpcclient, cfg.Domain))
 
+	// Handle JSON query endpoints
+	mux.Handle("/query/", handlerQuery(logger, rpcclient, cfg.Domain))
+	mux.Handle("/object/", handlerObject(logger, rpcclient))
+
 	return mux, nil
 }
