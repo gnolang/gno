@@ -3,14 +3,16 @@ package main
 import (
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
 const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
 
 var (
-	bid      boards2.BoardID
-	rid, tid boards2.PostID
+	bid      boards.ID
+	rid, tid boards.ID
 )
 
 func init() {
@@ -28,4 +30,4 @@ func main() {
 }
 
 // Error:
-// item flag count threshold exceeded: 1
+// flag count threshold exceeded: 1
