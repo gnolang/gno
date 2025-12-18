@@ -749,9 +749,9 @@ The `data` field returns a `GasPrice` object, which contains:
 - `gas` - the gas units
 - `price` - the price per gas unit in the form of a [coin](../resources/gno-stdlibs.md#coin)
 
-The gas price is calculated and updated automatically by the network based on block
-utilization. You can use this information to estimate transaction costs or to set
-appropriate gas fees for your transactions.
+The network adjusts the gas price after each block based on demand. This query returns
+the minimum gas price required for the last block.
+For a deeper explanation, see [Gas Fees](../resources/gas-fees.md).
 
 ## `vm/qfuncs`
 

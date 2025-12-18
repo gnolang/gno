@@ -41,6 +41,13 @@ Maximum Fee = Gas Wanted × Gas Fee
 
 You will be charged the gas fee you specified.
 
+You can query the current network gas price using:
+```bash
+gnokey query auth/gasprice -remote https://rpc.gno.land:443
+```
+
+For more details, see [`auth/gasprice`](../users/interact-with-gnokey.md#authgasprice).
+
 ## Typical Gas Values
 
 Here are some recommended gas values for common operations:
