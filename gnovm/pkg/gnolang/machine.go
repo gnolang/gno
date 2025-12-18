@@ -2127,7 +2127,7 @@ func (m *Machine) PeekCallFrame(n int) *Frame {
 	return m.peekCallFrame(n)
 }
 
-// TODO: this function and PopUntilLastCallFrame() is used in conjunction
+// TODO: this function and FindAndPopToCallFrame() is used in conjunction
 // spanning two disjoint operations upon return. Optimize.
 // If n is 1, returns the immediately last call frame.
 func (m *Machine) peekCallFrame(n int) *Frame {
@@ -2153,9 +2153,10 @@ func (m *Machine) LastDeferCallFrame() *Frame {
 	return &m.Frames[len(m.Frames)-1]
 }
 
-// pops the last non-call (loop) frames
-// and returns the last call frame (which is left on stack).
-func (m *Machine) PopUntilLastCallFrame() *Frame {
+// FindAndPopToCallFrame searches for the last call frame.
+// If found, pops all frames above it (keeping the call frame on stack) and returns it.
+// If not found, does not modify the frame stack and returns nil.
+func (m *Machine) FindAndPopToCallFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := &m.Frames[i]
 		if fr.IsCall() {
@@ -2166,8 +2167,10 @@ func (m *Machine) PopUntilLastCallFrame() *Frame {
 	return nil
 }
 
-// pops until revive (call) frame.
-func (m *Machine) PopUntilLastReviveFrame() *Frame {
+// FindAndPopToReviveFrame searches for the last revive frame.
+// If found, pops all frames above it (keeping the revive frame on stack) and returns it.
+// If not found, does not modify the frame stack and returns nil.
+func (m *Machine) FindAndPopToReviveFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := &m.Frames[i]
 		if fr.IsRevive {
@@ -2364,7 +2367,7 @@ func (m *Machine) pushPanic(etv TypedValue) {
 		Stacktrace: m.Stacktrace(),
 	}
 	// Pop after capturing stacktrace.
-	fr := m.PopUntilLastCallFrame()
+	fr := m.FindAndPopToCallFrame()
 	// Link ex.Previous.
 	if m.Exception == nil {
 		// Recall the last m.Exception before frame.
