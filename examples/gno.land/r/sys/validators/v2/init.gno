@@ -23,14 +23,14 @@ func init() {
 		},
 		// onbloc-val-01
 		{
-			Address:     address("g10c6v7u2gk3vecu33wr68kkdnh2swrg9n7klpus"),
-			PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp08ma9r9jg457ge5r5r3l5lkrg6h5e2h2l449gdxg6uc39a5n4nlksu78n",
+			Address:     address("g1wmaglcam7xq3kwvrks6ysyeutf0jc877f4q3nl"),
+			PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpelzea0ep9dclr83vygetymcs5uekam9j53t2sgcefumxth2wagquu3vrk",
 			VotingPower: 1,
 		},
 		// onbloc-val-02
 		{
-			Address:     address("g16w9dydfwhavfe4vdll9fa8anuw4pu7509fqps8"),
-			PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpfxr5m293n6fkfjlx5yqk2q9kjpsdz3ax8at8vaaw63aye3kgueft6tmkr",
+			Address:     address("g1quanjrv29f3zvy8cnsd7s3wjcnhmv4v4n3knhm"),
+			PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqz3ewj7qudswvtsex2l73g42v5tnkyguxcgft8tdg3mrpzwzzn4lde0vag",
 			VotingPower: 1,
 		},
 	}

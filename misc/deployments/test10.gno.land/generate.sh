@@ -39,8 +39,8 @@ gnogenesis validator add -name gnocore-val-01 -power 1 -address g1gmg597aa85gk6u
 gnogenesis validator add -name gnocore-val-02 -power 1 -address g1y8uw54dytc3twhv0vr4h8erghh7vxkczxvz9x0 -pub-key gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq06uuq3asdxgs5f438y863wkly5flazwtaz83ldvh33pmdecd0s0jyndfnl
 
 # Onbloc (2)
-gnogenesis validator add -name onbloc-val-01 -power 1 -address g10c6v7u2gk3vecu33wr68kkdnh2swrg9n7klpus -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp08ma9r9jg457ge5r5r3l5lkrg6h5e2h2l449gdxg6uc39a5n4nlksu78n
-gnogenesis validator add -name onbloc-val-02 -power 1 -address g16w9dydfwhavfe4vdll9fa8anuw4pu7509fqps8 -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpfxr5m293n6fkfjlx5yqk2q9kjpsdz3ax8at8vaaw63aye3kgueft6tmkr
+gnogenesis validator add -name onbloc-val-01 -power 1 -address g1wmaglcam7xq3kwvrks6ysyeutf0jc877f4q3nl -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpelzea0ep9dclr83vygetymcs5uekam9j53t2sgcefumxth2wagquu3vrk
+gnogenesis validator add -name onbloc-val-02 -power 1 -address g1quanjrv29f3zvy8cnsd7s3wjcnhmv4v4n3knhm -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqz3ewj7qudswvtsex2l73g42v5tnkyguxcgft8tdg3mrpzwzzn4lde0vag
 
 # Use a temporary directory for intermediary states
 TMP_DIR=./tmp-genesis
