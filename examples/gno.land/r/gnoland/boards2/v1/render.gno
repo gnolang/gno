@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gno.land/p/gnoland/boards"
+	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
@@ -20,6 +21,12 @@ const (
 
 const menuManageBoard = "manageBoard"
 
+var (
+	createBoardURI = gRealmPath + ":create-board"
+	adminUsersURI  = gRealmPath + ":admin-users"
+	helpURI        = gRealmPath + ":help"
+)
+
 func Render(path string) string {
 	var (
 		b      strings.Builder
@@ -29,12 +36,22 @@ func Render(path string) string {
 	router.HandleFunc("", renderBoardsList)
 	router.HandleFunc("help", renderHelp)
 	router.HandleFunc("admin-users", renderMembers)
+	router.HandleFunc("create-board", renderCreateBoard)
 	router.HandleFunc("{board}", renderBoard)
 	router.HandleFunc("{board}/members", renderMembers)
 	router.HandleFunc("{board}/invites", renderInvites)
 	router.HandleFunc("{board}/banned-users", renderBannedUsers)
+	router.HandleFunc("{board}/create-thread", renderCreateThread)
+	router.HandleFunc("{board}/invite-member", renderInviteMember)
 	router.HandleFunc("{board}/{thread}", renderThread)
+	router.HandleFunc("{board}/{thread}/flag", renderFlagPost)
+	router.HandleFunc("{board}/{thread}/reply", renderReplyPost)
+	router.HandleFunc("{board}/{thread}/edit", renderEditThread)
+	router.HandleFunc("{board}/{thread}/repost", renderRepostThread)
 	router.HandleFunc("{board}/{thread}/{reply}", renderReply)
+	router.HandleFunc("{board}/{thread}/{reply}/flag", renderFlagPost)
+	router.HandleFunc("{board}/{thread}/{reply}/reply", renderReplyPost)
+	router.HandleFunc("{board}/{thread}/{reply}/edit", renderEditReply)
 
 	router.NotFoundHandler = func(res *mux.ResponseWriter, _ *mux.Request) {
 		res.Write(md.Blockquote("Path not found"))
@@ -69,9 +86,8 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.HorizontalRule())
 
 	if gListedBoardsByID.Size() == 0 {
-		link := gRealmLink.Call("CreateBoard", "name", "", "listed", "true")
 		res.Write(md.H3("Currently there are no boards"))
-		res.Write("Be the first to " + md.Link("create a new board", link) + " !")
+		res.Write("Be the first to " + md.Link("create a new board", createBoardURI) + " !")
 		return
 	}
 
@@ -116,60 +132,57 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderBoardListMenu(res *mux.ResponseWriter, req *mux.Request) {
-	path := strings.TrimPrefix(string(gRealmLink), "gno.land")
-
-	res.Write(md.Link("Create Board", gRealmLink.Call("CreateBoard", "name", "", "listed", "true")))
+	res.Write(md.Link("Create Board", createBoardURI))
 	res.Write(" • ")
-	res.Write(md.Link("List Admin Users", path+":admin-users"))
+	res.Write(md.Link("List Admin Users", adminUsersURI))
 	res.Write(" • ")
-	res.Write(md.Link("Help", path+":help"))
+	res.Write(md.Link("Help", helpURI))
 	res.Write("\n\n")
 }
 
-func renderBoardMenu(board *boards.Board, req *mux.Request) string {
-	var (
-		b               strings.Builder
-		boardMembersURL = makeBoardURI(board) + "/members"
+func renderCreateBoard(res *mux.ResponseWriter, _ *mux.Request) {
+	form := mdform.New("exec", "CreateBoard")
+	form.Input(
+		"name",
+		"placeholder", "Board name",
 	)
+	form.Radio(
+		"listed",
+		"true",
+		"checked", "true",
+		"description", "Should board be publically listed?",
+	)
+	form.Radio(
+		"listed",
+		"false",
+	)
+	// TODO: Enable when open boards are supported
+	// form.Radio(
+	// 	"open",
+	// 	"true",
+	// 	"description", "Should anyone be allowed to create threads and comments?",
+	// )
+	// form.Radio(
+	// 	"open",
+	// 	"false",
+	// 	"checked", "true",
+	// )
 
-	b.WriteString("\n")
-	if board.Readonly {
-		b.WriteString(md.Link("List Members", boardMembersURL))
-		b.WriteString(" • ")
-		b.WriteString(md.Link("Unfreeze Board", makeUnfreezeBoardURI(board)))
-		b.WriteString("\n")
-	} else {
-		b.WriteString(md.Link("Create Thread", makeCreateThreadURI(board)))
-		b.WriteString(" • ")
-		b.WriteString(md.Link("Request Invite", makeRequestInviteURI(board)))
-		b.WriteString(" • ")
-
-		menu := getCurrentMenu(req.RawPath)
-		if menu == menuManageBoard {
-			b.WriteString(md.Bold("Manage Board"))
-		} else {
-			b.WriteString(md.Link("Manage Board", menuURL(menuManageBoard)))
-		}
-
-		b.WriteString("  \n")
-
-		if menu == menuManageBoard {
-			b.WriteString("↳")
-			b.WriteString(md.Link("Invite Member", makeInviteMemberURI(board)))
-			b.WriteString(" • ")
-			b.WriteString(md.Link("List Invite Requests", makeBoardURI(board)+"/invites"))
-			b.WriteString(" • ")
-			b.WriteString(md.Link("List Members", boardMembersURL))
-			b.WriteString(" • ")
-			b.WriteString(md.Link("List Banned Users", makeBoardURI(board)+"/banned-users"))
-			b.WriteString(" • ")
-			b.WriteString(md.Link("Freeze Board", makeFreezeBoardURI(board)))
-			b.WriteString("\n")
-		}
-	}
-
-	b.WriteString("\n")
-	return b.String()
+	res.Write(md.H1("Boards: Create Board"))
+	res.Write(
+		md.Paragraph(
+			"Boards are by default listed by the realm but they can optionally " +
+				"be created so they are only found by their URL.",
+		),
+	)
+	// TODO: Enable when open boards are supported
+	// res.Write(
+	// 	md.Paragraph(
+	// 		"They can also be created to be open so anyone is allowed to create " +
+	// 			"new threads and also to comment on any thread within the open board.",
+	// 	),
+	// )
+	res.Write(form.String())
 }
 
 func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
