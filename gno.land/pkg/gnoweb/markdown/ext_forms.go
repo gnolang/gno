@@ -634,7 +634,7 @@ func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastD
 		}
 		requiredBadge := ""
 		if e.Required {
-			requiredBadge = `<span class="gno-form_required-badge">*</span>`
+			requiredBadge = `<span class="gno-form_required-badge">(required)</span>`
 		}
 		fmt.Fprintf(w, `<label for="%s">%s %s %s</label>
 </div>
@@ -646,11 +646,11 @@ func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastD
 		}
 		requiredBadge := ""
 		if e.Required {
-			requiredBadge = `<span class="gno-form_required-badge">*</span>`
+			requiredBadge = `<span class="gno-form_required-badge">(required)</span>`
 		}
 		fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s">%s %s %s</label>
 <input type="%s" id="%s" name="%s" placeholder="%s"`,
-			HTMLEscapeString(e.Name), requiredBadge, HTMLEscapeString(e.Placeholder), readonlyBadge,
+			HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder), requiredBadge, readonlyBadge,
 			HTMLEscapeString(e.Type), HTMLEscapeString(e.Name),
 			HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder))
 		if e.Value != "" {
@@ -684,12 +684,12 @@ func (r *FormRenderer) renderTextarea(w util.BufWriter, e FormTextarea, idx int,
 	}
 	requiredBadge := ""
 	if e.Required {
-		requiredBadge = `<span class="gno-form_required-badge">*</span>`
+		requiredBadge = `<span class="gno-form_required-badge">(required)</span>`
 	}
 
 	fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s">%s %s %s</label>
 <textarea id="%s" name="%s" placeholder="%s" rows="%d"`,
-		HTMLEscapeString(e.Name), requiredBadge, HTMLEscapeString(e.Placeholder), readonlyBadge,
+		HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder), requiredBadge, readonlyBadge,
 		HTMLEscapeString(e.Name), HTMLEscapeString(e.Name),
 		HTMLEscapeString(e.Placeholder), e.Rows)
 	if e.Readonly {
@@ -721,11 +721,11 @@ func (r *FormRenderer) renderSelect(w util.BufWriter, elements []FormElement, e 
 	}
 	requiredBadge := ""
 	if e.Required {
-		requiredBadge = `<span class="gno-form_required-badge">*</span>`
+		requiredBadge = `<span class="gno-form_required-badge">(required)</span>`
 	}
 	fmt.Fprintf(w, `<div class="gno-form_select"><label for="%s">%s %s %s</label>
 <select id="%s" name="%s"`,
-		HTMLEscapeString(e.Name), requiredBadge, HTMLEscapeString(label), readonlyBadge,
+		HTMLEscapeString(e.Name), HTMLEscapeString(label), requiredBadge, readonlyBadge,
 		HTMLEscapeString(e.Name), HTMLEscapeString(e.Name))
 
 	if *lastDescID != "" {
