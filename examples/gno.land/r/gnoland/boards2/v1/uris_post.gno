@@ -1,7 +1,11 @@
 package boards2
 
-func makeThreadURI(p *Post) string {
-	if p.IsThread() {
+import (
+	"gno.land/p/gnoland/boards"
+)
+
+func makeThreadURI(p *boards.Post) string {
+	if boards.IsThread(p) {
 		return makeBoardURI(p.Board) + "/" + p.ID.String()
 	}
 
@@ -9,12 +13,12 @@ func makeThreadURI(p *Post) string {
 	return makeBoardURI(p.Board) + "/" + p.ThreadID.String()
 }
 
-func makeReplyURI(p *Post) string {
+func makeReplyURI(p *boards.Post) string {
 	return makeBoardURI(p.Board) + "/" + p.ThreadID.String() + "/" + p.ID.String()
 }
 
-func makeCreateReplyURI(p *Post) string {
-	if p.IsThread() {
+func makeCreateReplyURI(p *boards.Post) string {
+	if boards.IsThread(p) {
 		return gRealmLink.Call(
 			"CreateReply",
 			"boardID", p.Board.ID.String(),
@@ -32,19 +36,19 @@ func makeCreateReplyURI(p *Post) string {
 	)
 }
 
-func makeCreateRepostURI(p *Post) string {
+func makeCreateRepostURI(p *boards.Post) string {
 	return gRealmLink.Call(
 		"CreateRepost",
 		"boardID", p.Board.ID.String(),
 		"threadID", p.ID.String(),
+		"destinationBoardID", "",
 		"title", "",
 		"body", "",
-		"destinationBoardID", "",
 	)
 }
 
-func makeDeletePostURI(p *Post) string {
-	if p.IsThread() {
+func makeDeletePostURI(p *boards.Post) string {
+	if boards.IsThread(p) {
 		return gRealmLink.Call(
 			"DeleteThread",
 			"boardID", p.Board.ID.String(),
@@ -59,8 +63,8 @@ func makeDeletePostURI(p *Post) string {
 	)
 }
 
-func makeEditPostURI(p *Post) string {
-	if p.IsThread() {
+func makeEditPostURI(p *boards.Post) string {
+	if boards.IsThread(p) {
 		return gRealmLink.Call(
 			"EditThread",
 			"boardID", p.Board.ID.String(),
@@ -79,8 +83,8 @@ func makeEditPostURI(p *Post) string {
 	)
 }
 
-func makeFlagURI(p *Post) string {
-	if p.IsThread() {
+func makeFlagURI(p *boards.Post) string {
+	if boards.IsThread(p) {
 		return gRealmLink.Call(
 			"FlagThread",
 			"boardID", p.Board.ID.String(),

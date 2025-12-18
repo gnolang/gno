@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	"gno.land/p/nt/ufmt"
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
@@ -11,9 +13,9 @@ import (
 const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
 
 var (
-	srcBID boards2.BoardID
-	dstBID boards2.BoardID
-	srcTID boards2.PostID
+	srcBID boards.ID
+	dstBID boards.ID
+	srcTID boards.ID
 )
 
 func init() {
@@ -28,7 +30,7 @@ func main() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Success case
-	tID := boards2.CreateRepost(cross, srcBID, srcTID, "repost title", "repost text", dstBID)
+	tID := boards2.CreateRepost(cross, srcBID, srcTID, dstBID, "repost title", "repost text")
 	p := ufmt.Sprintf("dst-board/%s", tID)
 	out := boards2.Render(p)
 
