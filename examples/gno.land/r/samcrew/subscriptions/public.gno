@@ -10,6 +10,7 @@ import (
 	"gno.land/p/nt/ownable"
 	"gno.land/p/nt/seqid"
 	"gno.land/r/demo/defi/grc20reg"
+	"gno.land/r/samcrew/normalizedcoins"
 )
 
 var services *avl.Tree // key: displayName, value: *service
@@ -41,12 +42,12 @@ func Subscribe(cur realm, serviceName string, fqName string, amount int64) {
 	}
 
 	natSend := banker.OriginSend()
-	sCoins, err := prefixCoins(cur, natSend, grc20Send)
+	sCoins, err := normalizedcoins.PrefixCoins(natSend, grc20Send)
 	if err != nil {
 		panic(err)
 	}
 	// XXX: support multiple initial GRC20 tokens
-	if !coinsHasPositive(sCoins) || lessCoinsThan(sCoins, svc.price) {
+	if !normalizedcoins.CoinsHasPositive(sCoins) || normalizedcoins.LessCoinsThan(sCoins, svc.price) {
 		panic("initial deposit must be positive and at least the service price")
 	}
 	sub := &subscription{
@@ -85,12 +86,12 @@ func Unsubscribe(cur realm, serviceName string) {
 	subValue, _ := svc.subscribers.Get(creator.String())
 	sub := subValue.(*subscription)
 	due, _ := sub.dueAmount(true, svc.renewalPeriod, svc.price)
-	if coinsHasPositive(due) {
-		sendCoins(svc.owner.Owner(), due)
+	if normalizedcoins.CoinsHasPositive(due) {
+		normalizedcoins.SendCoins(svc.owner.Owner(), due)
 	}
-	remaining := subCoins(sub.vault, due)
-	if coinsHasPositive(remaining) {
-		sendCoins(creator, remaining)
+	remaining := normalizedcoins.SubCoins(sub.vault, due)
+	if normalizedcoins.CoinsHasPositive(remaining) {
+		normalizedcoins.SendCoins(creator, remaining)
 	}
 	svc.subscribers.Remove(creator.String())
 
@@ -129,14 +130,14 @@ func Topup(cur realm, serviceName string, fqName string, amount int64) {
 	sub := subRaw.(*subscription)
 	_, active := sub.dueAmount(false, svc.renewalPeriod, svc.price)
 	native := banker.OriginSend()
-	if coinsHasPositive(native) {
+	if normalizedcoins.CoinsHasPositive(native) {
 		topupNative(cur, serviceName)
 	}
 	if amount != 0 {
 		topupGRC20(cur, serviceName, fqName, amount)
 	}
 	// XXX: reset subscription if it was inactive and now has enough balance
-	if !active && !lessCoinsThan(sub.vault, svc.price) {
+	if !active && !normalizedcoins.LessCoinsThan(sub.vault, svc.price) {
 		sub.startedAt = time.Now()
 		sub.lastChargedAt = time.Now()
 		sub.initialPaid = false
@@ -166,13 +167,13 @@ func Withdraw(cur realm, serviceName string, denom string, amount int64) {
 	subValue, _ := svc.subscribers.Get(creator.String())
 	sub := subValue.(*subscription)
 	due, _ := sub.dueAmount(false, svc.renewalPeriod, svc.price)
-	available := subCoins(sub.vault, due)
+	available := normalizedcoins.SubCoins(sub.vault, due)
 	withdraw := chain.NewCoins(chain.NewCoin(denom, amount))
-	if lessCoinsThan(available, withdraw) {
+	if normalizedcoins.LessCoinsThan(available, withdraw) {
 		panic("insufficient available balance to withdraw")
 	}
-	sub.vault = subCoins(sub.vault, withdraw)
-	sendCoins(creator, withdraw)
+	sub.vault = normalizedcoins.SubCoins(sub.vault, withdraw)
+	normalizedcoins.SendCoins(creator, withdraw)
 }
 
 // IsSubscribed checks if a user is currently subscribed to a service
@@ -214,7 +215,7 @@ func NewService(cur realm, displayName, description string, renewalPeriod time.D
 		panic("service with the same display name already exists")
 	}
 	creator := runtime.PreviousRealm().Address()
-	sCoins, err := prefixCoins(cur, native, grc20)
+	sCoins, err := normalizedcoins.PrefixCoins(native, grc20)
 	if err != nil {
 		panic(err)
 	}
@@ -262,8 +263,8 @@ func ServiceClaimVault(cur realm, displayName string) {
 	svc.owner.AssertOwnedByPrevious()
 	balance := svc.balance(true)
 
-	if !coinsHasPositive(balance) {
+	if !normalizedcoins.CoinsHasPositive(balance) {
 		panic("no funds to claim")
 	}
-	sendCoins(svc.owner.Owner(), balance)
+	normalizedcoins.SendCoins(svc.owner.Owner(), balance)
 }
