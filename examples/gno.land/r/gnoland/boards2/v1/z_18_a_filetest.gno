@@ -6,6 +6,7 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
+	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 const (
@@ -17,7 +18,7 @@ var perms boards.Permissions
 
 func init() {
 	// Create a new permissions instance without users
-	perms = boards2.NewBasicPermissions()
+	perms = permissions.New()
 }
 
 func main() {
