@@ -156,17 +156,16 @@ func renderCreateBoard(res *mux.ResponseWriter, _ *mux.Request) {
 		"listed",
 		"false",
 	)
-	// TODO: Enable when open boards are supported
-	// form.Radio(
-	// 	"open",
-	// 	"true",
-	// 	"description", "Should anyone be allowed to create threads and comments?",
-	// )
-	// form.Radio(
-	// 	"open",
-	// 	"false",
-	// 	"checked", "true",
-	// )
+	form.Radio(
+		"open",
+		"true",
+		"description", "Should anyone be allowed to create threads and comments?",
+	)
+	form.Radio(
+		"open",
+		"false",
+		"checked", "true",
+	)
 
 	res.Write(md.H1("Boards: Create Board"))
 	res.Write(
@@ -175,13 +174,12 @@ func renderCreateBoard(res *mux.ResponseWriter, _ *mux.Request) {
 				"be created so they are only found by their URL.",
 		),
 	)
-	// TODO: Enable when open boards are supported
-	// res.Write(
-	// 	md.Paragraph(
-	// 		"They can also be created to be open so anyone is allowed to create " +
-	// 			"new threads and also to comment on any thread within the open board.",
-	// 	),
-	// )
+	res.Write(
+		md.Paragraph(
+			"They can also be created to be open so anyone is allowed to create " +
+				"new threads and also to comment on any thread within the open board.",
+		),
+	)
 	res.Write(form.String())
 }
 
