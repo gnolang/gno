@@ -95,7 +95,7 @@ func (m *Machine) doOpExec(op Op) {
 		fmt.Println("---bs: ", bs)
 		fmt.Println("---bs.Cond: ", bs.Cond)
 		// last := m.LastBlock()
-		// fmt.Println("---last: ", last)
+		fmt.Println("---last: ", m.LastBlock())
 		fmt.Printf("---bs.NextBodyIndex: %d, bodyLen:%d\n", bs.NextBodyIndex, bs.BodyLen)
 		// evaluate .Cond.
 		if bs.NextBodyIndex == -2 { // init
@@ -117,6 +117,7 @@ func (m *Machine) doOpExec(op Op) {
 			}
 			// push real block
 			last := m.LastBlock()
+			// find first forstmt
 			if fs, ok := last.GetSource(m.Store).(*ForStmt); ok {
 				source := fs.BodyBlock
 				b2 := m.Alloc.NewBlock(source, last)
@@ -139,6 +140,7 @@ func (m *Machine) doOpExec(op Op) {
 			fmt.Println("---last: ", m.LastBlock())
 			goto EXEC_SWITCH
 		} else if bs.NextBodyIndex == bs.BodyLen {
+			fmt.Println("---queue to back:, last: ", m.LastBlock())
 			// (queue to) go back.
 			if bs.Cond != nil {
 				m.PushExpr(bs.Cond)
@@ -147,7 +149,11 @@ func (m *Machine) doOpExec(op Op) {
 			bs.NextBodyIndex = -1
 
 			// pop to forstmt block for post stmt.
-			m.PopBlock() // pop *BlockStmt block...
+			if bs, ok := m.LastBlock().GetSource(m.Store).(*BlockStmt); ok {
+				if _, ok := bs.GetParentNode(m.Store).(*ForStmt); ok {
+					m.PopBlock() // pop *BlockStmt block...
+				}
+			}
 
 			if next := bs.Post; next == nil {
 				bs.Active = nil
