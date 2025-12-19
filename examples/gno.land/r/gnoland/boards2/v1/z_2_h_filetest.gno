@@ -3,6 +3,8 @@ package main
 import (
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
@@ -12,13 +14,13 @@ const (
 )
 
 var (
-	bid boards2.BoardID
-	tid boards2.PostID
+	bid boards.ID
+	tid boards.ID
 )
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false)
+	bid = boards2.CreateBoard(cross, "test123", false, false)
 	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
 }
 
