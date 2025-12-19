@@ -3259,8 +3259,9 @@ func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 							dbn.SetAttribute(ATTR_REDEFINE_NAME, redefineName)
 						}
 
+						// XXX, keep it loopvar use
 						// Reset to type normal
-						nx.Type = NameExprTypeNormal
+						// nx.Type = NameExprTypeNormal
 						// Redefine name
 						// nx.Name = Name(redefineName)
 					}
@@ -3420,7 +3421,6 @@ func shadowLoopvar(ctx BlockNode, bn BlockNode) (stop bool) {
 			case *ForStmt:
 				// do the injection here.
 				fmt.Println("------Trans_Leave, forStmt: ", n)
-				// panic("!!!")
 				if n2, ok := n.GetAttribute(ATTR_REDEFINE_NAME).(string); ok && n2 != "" {
 					// -------------------------------------------------
 					// this is the target *ForStmt
@@ -3466,11 +3466,10 @@ func shadowLoopvar(ctx BlockNode, bn BlockNode) (stop bool) {
 					// n.Reserve(false, lhs, n, NSDefine, index+1)
 
 					fmt.Println("======AFTER DEFINE, names: ", n.GetBlockNames())
-					fmt.Println("---n: ", n)
 
 					bodyBlock.SetBody(stmts2)
 
-					// fmt.Println("------after process, n: ", n)
+					fmt.Println("------after process, n: ", n)
 					n.DelAttribute(ATTR_REDEFINE_NAME)
 				}
 			}
@@ -3507,9 +3506,9 @@ func renameLoopvarUse(ctx BlockNode, bn BlockNode) (stop bool) {
 		case TRANS_LEAVE:
 			switch n := n.(type) {
 			case *NameExpr:
-				// fmt.Println("---starting renameLoopvarUse, nx: ", n, n.Type)
-				// nn := ns[len(ns)-1]
-				// fmt.Println("---1, nn: ", nn)
+				fmt.Println("---starting renameLoopvarUse, nx: ", n, n.Type)
+				nn := ns[len(ns)-1]
+				fmt.Println("---1, nn: ", nn)
 				// NOTE: Keep in sync maybe with transpile_gno0p0.go/FindMore...
 				// Ignore non-block type paths
 				if n.Path.Type != VPBlock {
@@ -3540,41 +3539,46 @@ func renameLoopvarUse(ctx BlockNode, bn BlockNode) (stop bool) {
 				}
 
 				fmt.Println("---origName: ", origName)
-				nn := ns[len(ns)-1]
+				nn = ns[len(ns)-1]
 				fmt.Println("---2, nn: ", nn)
 
 				fmt.Println("---last: ", last)
 				fmt.Println("---last.GetBlockNames: ", last.GetBlockNames())
 
-				// "i", or ".redefine_i"
-
+				var renamed bool
 				found0, name0 := last.FindNamePrefixed(nil, origName, "")
 				fmt.Println("---found0: ", found0)
 				if found0 {
 					n.Name = name0
 					fmt.Println("===Rename to: ", name0)
+					renamed = true
 				} else {
-					found1, name1 := last.FindNamePrefixed(nil, origName, ".loopvar_")
+					// found1, name1 := last.FindNamePrefixed(nil, origName, ".loopvar_")
+					found1, name1 := last.FindNamePrefixedForPath(nil, origName, n.Path.Depth-1, ".redefine_")
 
-					found2, name2 := last.FindNamePrefixedForPath(nil, origName, n.Path, ".redefine_")
-
-					fmt.Printf("---found1: %t, name1: %v\n", found1, name1)
-					fmt.Printf("---found2: %t, name2: %v\n", found2, name2)
-
-					if found1 && !found2 {
+					if found1 {
+						fmt.Printf("---found1: %t, name1: %v\n", found1, name1)
 						fmt.Println("---rename to name1: ", name1)
 						n.Name = name1
-					} else if found1 && found2 {
-						fmt.Println("---rename to name2: ", name2)
-						n.Name = name2
+						renamed = true
+					} else {
+						found2, name2 := last.FindNamePrefixedForPath(nil, origName, n.Path.Depth, ".loopvar_")
+						if found2 {
+							fmt.Printf("---found2: %t, name2: %v\n", found2, name2)
+							fmt.Println("---rename to name2: ", name2)
+							n.Name = name2
+							renamed = true
+						}
 					}
 				}
 
-				fmt.Println("---after rename, n: ", n)
-				nn2 := ns[len(ns)-1]
-				fmt.Println("---3, nn2: ", nn2)
-				n.Type = NameExprTypeNormal
-				// n.Type = NameExprTypeHeapUse
+				if renamed {
+					fmt.Println("---after rename, n: ", n)
+					nn2 := ns[len(ns)-1]
+					fmt.Println("---3, nn2: ", nn2)
+					n.Type = NameExprTypeNormal
+					// n.Type = NameExprTypeHeapUse
+				}
 			}
 			return n, TRANS_CONTINUE
 		}

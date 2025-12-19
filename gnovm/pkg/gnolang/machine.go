@@ -1837,6 +1837,8 @@ func (m *Machine) PopBlock() (b *Block) {
 	if debug {
 		m.Println("-B")
 	}
+	fmt.Println("-B")
+	PrintCaller(2, 6)
 	numBlocks := len(m.Blocks)
 	b = m.Blocks[numBlocks-1]
 	m.Blocks = m.Blocks[:numBlocks-1]
