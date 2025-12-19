@@ -7,6 +7,7 @@ import (
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/ownable"
 	"gno.land/p/nt/seqid"
+	"gno.land/r/samcrew/normalizedcoins"
 )
 
 type service struct {
@@ -27,7 +28,7 @@ func (svc *service) balance(charge bool) chain.Coins {
 	svc.subscribers.Iterate("", "", func(key string, value interface{}) bool {
 		sub := value.(*subscription)
 		due, _ := sub.dueAmount(charge, svc.renewalPeriod, svc.price)
-		total = addCoins(total, due)
+		total = normalizedcoins.AddCoins(total, due)
 		return false
 	})
 	return total

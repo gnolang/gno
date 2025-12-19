@@ -10,6 +10,7 @@ import (
 	"gno.land/p/nt/avl"
 	"gno.land/p/nt/seqid"
 	"gno.land/r/demo/defi/grc20reg"
+	"gno.land/r/samcrew/normalizedcoins"
 )
 
 func init() {
@@ -46,14 +47,14 @@ func (sub *subscription) dueAmount(charge bool, renewalPeriod time.Duration, pri
 
 	due := chain.Coins{} // dummy initial value
 	for i := int64(0); i < periodsElapsed; i++ {
-		due = addCoins(due, price)
-		if lessCoinsThan(sub.vault, due) {
-			return subCoins(due, price), false
+		due = normalizedcoins.AddCoins(due, price)
+		if normalizedcoins.LessCoinsThan(sub.vault, due) {
+			return normalizedcoins.SubCoins(due, price), false
 		}
 	}
 
 	if charge {
-		sub.vault = subCoins(sub.vault, due)
+		sub.vault = normalizedcoins.SubCoins(sub.vault, due)
 		sub.lastChargedAt = sub.lastChargedAt.Add(time.Duration(periodsElapsed) * renewalPeriod)
 		sub.initialPaid = true
 	}
@@ -68,7 +69,7 @@ func (sub *subscription) isActive(renewalPeriod time.Duration, price chain.Coins
 
 func (sub *subscription) balance(renewalPeriod time.Duration, price chain.Coins) chain.Coins {
 	dueAmount, _ := sub.dueAmount(false, renewalPeriod, price)
-	return subCoins(sub.vault, dueAmount)
+	return normalizedcoins.SubCoins(sub.vault, dueAmount)
 }
 
 func topupNative(cur realm, serviceName string) {
@@ -77,11 +78,11 @@ func topupNative(cur realm, serviceName string) {
 	runtime.AssertOriginCall()
 
 	send := banker.OriginSend()
-	if !coinsHasPositive(send) {
+	if !normalizedcoins.CoinsHasPositive(send) {
 		panic("topup amount must be positive")
 	}
 
-	prefixedSend, err := prefixCoins(cur, send, nil)
+	prefixedSend, err := normalizedcoins.PrefixCoins(send, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -92,7 +93,7 @@ func topupNative(cur realm, serviceName string) {
 	}
 	subValue, _ := svc.subscribers.Get(creator.String())
 	sub := subValue.(*subscription)
-	sub.vault = addCoins(sub.vault, prefixedSend)
+	sub.vault = normalizedcoins.AddCoins(sub.vault, prefixedSend)
 }
 
 func topupGRC20(cur realm, serviceName string, fqName string, amount int64) {
@@ -112,7 +113,7 @@ func topupGRC20(cur realm, serviceName string, fqName string, amount int64) {
 	}
 
 	grc20Send := chain.NewCoins(chain.NewCoin(fqName, amount))
-	prefixedSend, err := prefixCoins(cur, nil, grc20Send)
+	prefixedSend, err := normalizedcoins.PrefixCoins(nil, grc20Send)
 	if err != nil {
 		panic(err)
 	}
@@ -128,5 +129,5 @@ func topupGRC20(cur realm, serviceName string, fqName string, amount int64) {
 	}
 	subValue, _ := svc.subscribers.Get(creator.String())
 	sub := subValue.(*subscription)
-	sub.vault = addCoins(sub.vault, prefixedSend)
+	sub.vault = normalizedcoins.AddCoins(sub.vault, prefixedSend)
 }
