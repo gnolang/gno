@@ -564,7 +564,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 		// find capture .loopvar_i
 		// inject scope var
 		if found {
-			fmt.Println("---found: ", found)
+			// fmt.Println("---found: ", found)
 			Transcribe(n,
 				func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 					if stage != TRANS_LEAVE {
@@ -595,14 +595,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					return n, TRANS_CONTINUE
 				})
 
-			fmt.Println("---Current n: ", n)
+			// fmt.Println("---Current n: ", n)
 			// restore ATTR_PREPROCESSED attribute
 			// fmt.Println("---restore node...")
 			RestoreNode(ctx, n)
 			// fmt.Println("---after restore node...")
 			// re-preprocess1
 			n = preprocess1(store, ctx, n)
-			fmt.Println("---after re-preprocess1..., n: ", n)
+			// fmt.Println("---after re-preprocess1..., n: ", n)
 			// panic("!!!")
 		}
 	}
@@ -616,7 +616,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 	// do transform
 	transform()
-	fmt.Println("---transform complete..., n: ", n)
+	// fmt.Println("---transform complete..., n: ", n)
 
 	return n
 }
@@ -740,12 +740,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			switch n := n.(type) {
 			// TRANS_BLOCK -----------------------
 			case *BlockStmt:
-				fmt.Println("---PushInitBlockStmt..., n: ", n)
+				// fmt.Println("---PushInitBlockStmt..., n: ", n)
 				pushInitBlock(n, &last, &stack)
 
 			// TRANS_BLOCK -----------------------
 			case *ForStmt:
-				fmt.Println("---PushInitBlockForStmt..., n: ", n)
+				// fmt.Println("---PushInitBlockForStmt..., n: ", n)
 				pushInitBlock(n, &last, &stack)
 
 			// TRANS_BLOCK -----------------------
@@ -1141,7 +1141,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			switch n := n.(type) {
 			// TRANS_LEAVE -----------------------
 			case *NameExpr:
-				// fmt.Println("---Trans_Leave NameExpr: ", n)
+				// fmt.Println("---Trans_Leave *NameExpr: ", n)
 				if isBlankIdentifier(n) {
 					switch ftype {
 					case TRANS_ASSIGN_LHS, TRANS_RANGE_KEY, TRANS_RANGE_VALUE, TRANS_VAR_NAME:
@@ -1234,6 +1234,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					default:
 						// happens before fill path
 						// rename ensure name match.
+						// fmt.Println("---default...")
+						// if len(ns) > 0 {
+						// 	nn := ns[len(ns)-1]
+						// 	fmt.Println("---nn: ", nn)
+						// }
 						TagLoopvar(last, n)
 						fillNameExprPath(last, n, false)
 					}
@@ -2336,7 +2341,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *AssignStmt:
-				fmt.Println("---Trans_Leave, assignStmt: ", n)
+				// fmt.Println("---Trans_Leave, assignStmt: ", n)
 				n.AssertCompatible(store, last)
 				if n.Op == ASSIGN {
 					for _, lh := range n.Lhs {
@@ -2359,7 +2364,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					for i := range len(n.Lhs) {
 						nameExprs[i] = n.Lhs[i].(*NameExpr)
 					}
-					fmt.Println("---defineOrDecl...")
+					// fmt.Println("---defineOrDecl...")
 					defineOrDecl(store, last, n, false, nameExprs, nil, n.Rhs, true)
 				} else { // ASSIGN, or assignment operation (+=, -=, <<=, etc.)
 					// NOTE: Keep in sync with DEFINE above.
@@ -2655,6 +2660,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *ValueDecl:
+				// fmt.Println("Trans_Leave *ValueDecl, n: ", n)
 				assertValidAssignRhs(store, last, n)
 
 				// evaluate value if const expr.
@@ -2803,8 +2809,8 @@ func defineOrDecl(
 		} else {
 			_, ok := node.GetLocalIndex(nx.Name)
 			if isDefine && ok {
-				fmt.Println("------Define2, nx.Name: ", nx.Name)
-				fmt.Println("------last: ", bn, reflect.TypeOf(bn))
+				// fmt.Println("------Define2, nx.Name: ", nx.Name)
+				// fmt.Println("------last: ", bn, reflect.TypeOf(bn))
 				// Keep the original nx, this one is fake.
 				node.Define2(isConst, nx.Name, sts[i], tvs[i], noNameSource)
 			} else {
@@ -3362,10 +3368,10 @@ func shadowLoopvar(ctx BlockNode, bn BlockNode) (stop bool) {
 				// bn is the parent block of continue.
 				// where we need copy out.
 				if name, ok := bn.GetAttribute(ATTR_REWRITE_CONTINUE).(string); ok && name != "" {
-					fmt.Println("---bn: ", bn, reflect.TypeOf(bn))
-					fmt.Println("---name: ", name)
+					// fmt.Println("---bn: ", bn, reflect.TypeOf(bn))
+					// fmt.Println("---name: ", name)
 					body := bn.GetBody()
-					fmt.Println("---len of body: ", len(body))
+					// fmt.Println("---len of body: ", len(body))
 
 					lhs := Nx(fmt.Sprintf("%s%s", ".loopvar_", name))
 					rhs := Nx(fmt.Sprintf("%s%s", ".redefine_", name))
@@ -3400,18 +3406,18 @@ func shadowLoopvar(ctx BlockNode, bn BlockNode) (stop bool) {
 			switch n := n.(type) {
 			case *BranchStmt:
 				// find correspongding forstmt, maybe labeled.
-				fmt.Println("---BranchStmt, n: ", n, n.Op)
+				// fmt.Println("---BranchStmt, n: ", n, n.Op)
 				// fmt.Println("---Block depth: ", n.BlockDepth)
 				// bn, d1, d2, idx := findGotoLabel(last, n.Label)
 				// fmt.Println("---bn: ", bn, reflect.TypeOf(bn))
 				// fmt.Println("---: ", d1, d2, idx)
 
-				fmt.Println("---last: ", last)
+				// fmt.Println("---last: ", last)
 
 				fs, _, _ := findFirstForStmt(stack)
-				fmt.Println("---fs found: ", fs)
+				// fmt.Println("---fs found: ", fs)
 				if s, ok := fs.GetAttribute(ATTR_REDEFINE_NAME).(string); ok {
-					fmt.Println("---s: ", s)
+					// fmt.Println("---s: ", s)
 
 					// body := last.GetBody()
 					// fmt.Println("---body: ", body)
@@ -3420,7 +3426,7 @@ func shadowLoopvar(ctx BlockNode, bn BlockNode) (stop bool) {
 
 			case *ForStmt:
 				// do the injection here.
-				fmt.Println("------Trans_Leave, forStmt: ", n)
+				// fmt.Println("------Trans_Leave, forStmt: ", n)
 				if n2, ok := n.GetAttribute(ATTR_REDEFINE_NAME).(string); ok && n2 != "" {
 					// -------------------------------------------------
 					// this is the target *ForStmt
@@ -3460,16 +3466,16 @@ func shadowLoopvar(ctx BlockNode, bn BlockNode) (stop bool) {
 					// Set Heap type
 					// Reserve for new injected name
 
-					tv := n.GetSlot(nil, Name(".loopvar_i"), true)
-					bodyBlock.Define(".redefine_i", tv.Copy(nil))
+					tv := n.GetSlot(nil, Name(fmt.Sprintf("%s%s", ".loopvar_", origName)), true)
+					bodyBlock.Define(Name(fmt.Sprintf("%s%s", ".redefine_", origName)), tv.Copy(nil))
 
 					// n.Reserve(false, lhs, n, NSDefine, index+1)
 
-					fmt.Println("======AFTER DEFINE, names: ", n.GetBlockNames())
+					// fmt.Println("======AFTER DEFINE, names: ", n.GetBlockNames())
 
 					bodyBlock.SetBody(stmts2)
 
-					fmt.Println("------after process, n: ", n)
+					// fmt.Println("------after process, n: ", n)
 					n.DelAttribute(ATTR_REDEFINE_NAME)
 				}
 			}
@@ -3506,9 +3512,9 @@ func renameLoopvarUse(ctx BlockNode, bn BlockNode) (stop bool) {
 		case TRANS_LEAVE:
 			switch n := n.(type) {
 			case *NameExpr:
-				fmt.Println("---starting renameLoopvarUse, nx: ", n, n.Type)
-				nn := ns[len(ns)-1]
-				fmt.Println("---1, nn: ", nn)
+				// fmt.Println("---starting renameLoopvarUse, nx: ", n, n.Type)
+				// nn := ns[len(ns)-1]
+				// fmt.Println("---1, nn: ", nn)
 				// NOTE: Keep in sync maybe with transpile_gno0p0.go/FindMore...
 				// Ignore non-block type paths
 				if n.Path.Type != VPBlock {
@@ -3532,40 +3538,37 @@ func renameLoopvarUse(ctx BlockNode, bn BlockNode) (stop bool) {
 					return n, TRANS_CONTINUE
 				}
 
-				fmt.Println("---renameLoopvarUse, nx: ", n, n.Type)
+				// fmt.Println("---renameLoopvarUse, nx: ", n, n.Type)
+				// nn = ns[len(ns)-1]
+				// fmt.Println("---2, nn: ", nn)
+
+				// fmt.Println("---last: ", last)
+				// fmt.Println("---last.GetBlockNames: ", last.GetBlockNames())
+
 				var origName Name
-				if strings.HasPrefix(string(n.Name), ".loopvar_") {
-					origName = Name(strings.TrimPrefix(string(n.Name), ".loopvar_"))
-				}
-
-				fmt.Println("---origName: ", origName)
-				nn = ns[len(ns)-1]
-				fmt.Println("---2, nn: ", nn)
-
-				fmt.Println("---last: ", last)
-				fmt.Println("---last.GetBlockNames: ", last.GetBlockNames())
-
 				var renamed bool
-				found0, name0 := last.FindNamePrefixed(nil, origName, "")
-				fmt.Println("---found0: ", found0)
-				if found0 {
-					n.Name = name0
-					fmt.Println("===Rename to: ", name0)
-					renamed = true
-				} else {
-					// found1, name1 := last.FindNamePrefixed(nil, origName, ".loopvar_")
-					found1, name1 := last.FindNamePrefixedForPath(nil, origName, n.Path.Depth-1, ".redefine_")
 
+				if !strings.HasPrefix(string(n.Name), ".loopvar_") {
+					found0, name0 := last.FindNamePrefixed(nil, n.Name, "")
+					// fmt.Println("---found0: ", found0)
+					if found0 {
+						n.Name = name0
+						// fmt.Println("===Rename to: ", name0)
+						renamed = true
+					}
+				} else {
+					origName = Name(strings.TrimPrefix(string(n.Name), ".loopvar_"))
+					found1, name1 := last.FindNamePrefixedForPath(nil, origName, n.Path.Depth-1, ".redefine_")
 					if found1 {
-						fmt.Printf("---found1: %t, name1: %v\n", found1, name1)
-						fmt.Println("---rename to name1: ", name1)
+						// fmt.Printf("---found1: %t, name1: %v\n", found1, name1)
+						// fmt.Println("---rename to name1: ", name1)
 						n.Name = name1
 						renamed = true
 					} else {
 						found2, name2 := last.FindNamePrefixedForPath(nil, origName, n.Path.Depth, ".loopvar_")
 						if found2 {
-							fmt.Printf("---found2: %t, name2: %v\n", found2, name2)
-							fmt.Println("---rename to name2: ", name2)
+							// fmt.Printf("---found2: %t, name2: %v\n", found2, name2)
+							// fmt.Println("---rename to name2: ", name2)
 							n.Name = name2
 							renamed = true
 						}
@@ -3573,9 +3576,9 @@ func renameLoopvarUse(ctx BlockNode, bn BlockNode) (stop bool) {
 				}
 
 				if renamed {
-					fmt.Println("---after rename, n: ", n)
-					nn2 := ns[len(ns)-1]
-					fmt.Println("---3, nn2: ", nn2)
+					// fmt.Println("---after rename, n: ", n)
+					// nn2 := ns[len(ns)-1]
+					// fmt.Println("---3, nn2: ", nn2)
 					n.Type = NameExprTypeNormal
 					// n.Type = NameExprTypeHeapUse
 				}

@@ -4,9 +4,10 @@ import (
 	"gno.land/p/nt/ufmt"
 )
 
+// for loop in ufmt.gno
 func main() {
 	ufmt.Printf("string: %s\n", "hello ufmt")
 }
 
 // Output:
-// hello ufmt
+// string: hello ufmt
