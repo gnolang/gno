@@ -18,7 +18,7 @@ var (
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false)
+	bid = boards2.CreateBoard(cross, "test-board", false, false)
 	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
 }
 
@@ -29,4 +29,4 @@ func main() {
 }
 
 // Error:
-// reply is too long, maximum allowed is 300 characters
+// reply is too long, maximum allowed is 1000 characters

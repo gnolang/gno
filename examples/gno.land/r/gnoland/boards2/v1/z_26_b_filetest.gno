@@ -6,6 +6,7 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
+	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 const (
@@ -17,7 +18,7 @@ var bid boards.ID
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false)
+	bid = boards2.CreateBoard(cross, "test123", false, false)
 
 	// Request an invite as a user that is not a member
 	testing.SetRealm(testing.NewUserRealm(user))
@@ -25,7 +26,7 @@ func init() {
 
 	// Add user as a member idependently of the invite request
 	testing.SetRealm(testing.NewUserRealm(owner))
-	boards2.InviteMember(cross, bid, user, boards2.RoleGuest)
+	boards2.InviteMember(cross, bid, user, permissions.RoleGuest)
 }
 
 func main() {
