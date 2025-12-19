@@ -21,4 +21,4 @@
 // }
 
 // Error:
-// redefine9f.gno:24:58: expected 'package', found 'EOF'
+// heap_alloc_forloop17.gno:24:58: expected 'package', found 'EOF'

@@ -1673,8 +1673,8 @@ func (m *Machine) PushStmt(s Stmt) {
 	if debug {
 		m.Printf("+s %v\n", s)
 	}
-	fmt.Printf("+s %v\n", s)
-	PrintCaller(2, 5)
+	// fmt.Printf("+s %v\n", s)
+	// PrintCaller(2, 5)
 	m.Stmts = append(m.Stmts, s)
 }
 
@@ -1693,10 +1693,10 @@ func (m *Machine) PopStmt() Stmt {
 	if debug {
 		m.Printf("-s %v\n", s)
 	}
-	fmt.Printf("-s %v\n", s)
-	PrintCaller(2, 5)
+	// fmt.Printf("-s %v\n", s)
+	// PrintCaller(2, 5)
 	if bs, ok := s.(*bodyStmt); ok {
-		fmt.Println("---pop active stmt...")
+		// fmt.Println("---pop active stmt...")
 		return bs.PopActiveStmt()
 	}
 
@@ -1836,8 +1836,8 @@ func (m *Machine) PopBlock() (b *Block) {
 	if debug {
 		m.Println("-B")
 	}
-	fmt.Println("-B")
-	PrintCaller(2, 6)
+	// fmt.Println("-B")
+	// PrintCaller(2, 6)
 	numBlocks := len(m.Blocks)
 	b = m.Blocks[numBlocks-1]
 	m.Blocks = m.Blocks[:numBlocks-1]
