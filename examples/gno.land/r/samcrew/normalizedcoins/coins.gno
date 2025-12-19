@@ -1,4 +1,4 @@
-package subscriptions
+package normalizedcoins
 
 import (
 	"chain"
@@ -10,15 +10,25 @@ import (
 	"gno.land/r/demo/defi/grc20reg"
 )
 
-// XXX: this part is 100% from payrolls realm from N0izN0iz <3
-// Payrolls realm: https://github.com/gnolang/gno/pull/3432
+// Package normalizedcoins provides utilities for handling normalized coin representations
+// that combine native and GRC20 tokens with prefixed denoms.
+//
+// This implementation is inspired by the payrolls realm from N0izN0iz:
+// https://github.com/gnolang/gno/pull/3432
 
-// prefixCoins transforms coins into subscriptions coins, prefixing their denom them with their type. Examples: "ugnot" -> "/native/ugnot", "gno.land/r/demo/foo20" -> "/grc20/r/demo/foo20"
-func prefixCoins(cur realm, native chain.Coins, grc20 chain.Coins) (chain.Coins, error) {
+// PrefixCoins transforms coins into normalized coins, prefixing their denoms with their type.
+// Native coins are prefixed with "/native/" and GRC20 coins with "/grc20/".
+//
+// Examples:
+//   - "ugnot" -> "/native/ugnot"
+//   - "gno.land/r/demo/foo20" -> "/grc20/r/demo/foo20"
+//
+// Returns an error if no coins are provided or if any coin has a negative amount.
+func PrefixCoins(native chain.Coins, grc20 chain.Coins) (chain.Coins, error) {
 	if len(native) == 0 && len(grc20) == 0 {
 		return chain.Coins{}, errors.New("no coins provided")
 	}
-	if coinsHasNegative(native) || coinsHasNegative(grc20) {
+	if CoinsHasNegative(native) || CoinsHasNegative(grc20) {
 		return chain.Coins{}, errors.New("negative coin amounts are not allowed")
 	}
 	out := make(chain.Coins, len(native)+len(grc20))
@@ -37,7 +47,8 @@ func prefixCoins(cur realm, native chain.Coins, grc20 chain.Coins) (chain.Coins,
 	return out, nil
 }
 
-func coinsHasNegative(coins chain.Coins) bool {
+// CoinsHasNegative returns true if any coin in the collection has a negative amount.
+func CoinsHasNegative(coins chain.Coins) bool {
 	for _, coin := range coins {
 		if coin.Amount < 0 {
 			return true
@@ -46,7 +57,8 @@ func coinsHasNegative(coins chain.Coins) bool {
 	return false
 }
 
-func coinsHasPositive(coins chain.Coins) bool {
+// CoinsHasPositive returns true if any coin in the collection has a positive amount.
+func CoinsHasPositive(coins chain.Coins) bool {
 	for _, coin := range coins {
 		if coin.Amount > 0 {
 			return true
@@ -55,25 +67,28 @@ func coinsHasPositive(coins chain.Coins) bool {
 	return false
 }
 
-func addCoins(a chain.Coins, b chain.Coins) chain.Coins {
+// AddCoins adds two coin collections together, combining amounts for matching denoms.
+func AddCoins(a chain.Coins, b chain.Coins) chain.Coins {
 	out := make(chain.Coins, len(a))
 	copy(out, a)
 	for _, coin := range b {
-		out = addCoinAmount(out, coin)
+		out = AddCoinAmount(out, coin)
 	}
 	return out
 }
 
-func subCoins(a chain.Coins, b chain.Coins) chain.Coins {
+// SubCoins subtracts coin collection b from a, reducing amounts for matching denoms.
+func SubCoins(a chain.Coins, b chain.Coins) chain.Coins {
 	out := make(chain.Coins, len(a))
 	copy(out, a)
 	for _, coin := range b {
-		out = addCoinAmount(out, chain.NewCoin(coin.Denom, -coin.Amount))
+		out = AddCoinAmount(out, chain.NewCoin(coin.Denom, -coin.Amount))
 	}
 	return out
 }
 
-func multiplyCoins(coins chain.Coins, factor int64) chain.Coins {
+// MultiplyCoins multiplies all coin amounts by the given factor.
+func MultiplyCoins(coins chain.Coins, factor int64) chain.Coins {
 	out := make(chain.Coins, len(coins))
 	for i, coin := range coins {
 		out[i] = chain.Coin{
@@ -84,7 +99,8 @@ func multiplyCoins(coins chain.Coins, factor int64) chain.Coins {
 	return out
 }
 
-func lessCoinsThan(a chain.Coins, b chain.Coins) bool {
+// LessCoinsThan returns true if any coin amount in a is less than its corresponding amount in b.
+func LessCoinsThan(a chain.Coins, b chain.Coins) bool {
 	for _, coinA := range a {
 		found := false
 		for _, coinB := range b {
@@ -103,7 +119,9 @@ func lessCoinsThan(a chain.Coins, b chain.Coins) bool {
 	return false
 }
 
-func addCoinAmount(coins chain.Coins, value chain.Coin) chain.Coins {
+// AddCoinAmount adds a single coin amount to a coin collection.
+// If the denom exists, it adds to the existing amount; otherwise, it appends the coin.
+func AddCoinAmount(coins chain.Coins, value chain.Coin) chain.Coins {
 	for i, coin := range coins {
 		if coin.Denom != value.Denom {
 			continue
@@ -117,7 +135,12 @@ func addCoinAmount(coins chain.Coins, value chain.Coin) chain.Coins {
 	return append(coins, value)
 }
 
-func sendCoins(dst address, coins chain.Coins) {
+// SendCoins sends normalized coins to a destination address.
+// It automatically separates native and GRC20 coins based on their prefixes
+// and uses the appropriate transfer mechanism for each type.
+//
+// Panics if any coin has a negative amount or an invalid denom prefix.
+func SendCoins(dst address, coins chain.Coins) {
 	if len(coins) == 0 {
 		return
 	}
@@ -147,7 +170,7 @@ func sendCoins(dst address, coins chain.Coins) {
 		} else {
 			panic(errors.New("invalid coin denom prefix: " + coin.Denom))
 		}
-		*target = addCoinAmount(*target, chain.NewCoin(denom, coin.Amount))
+		*target = AddCoinAmount(*target, chain.NewCoin(denom, coin.Amount))
 	}
 
 	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue)
