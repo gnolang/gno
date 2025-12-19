@@ -1105,6 +1105,62 @@ func Echo(cur realm, msg string) string { // XXX remove crossing call ?
 	)
 }
 
+func TestNonCrossingCallError(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(initialBalance))
+
+	// Create test package.
+	const pkgPath = "gno.land/r/test"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "test.gno",
+			Body: `package test
+			
+func Echo(msg string) string {
+	return "echo:"+msg
+}
+	
+func EmptyCall() {
+	return
+}
+
+`,
+		},
+	}
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	// Call Echo function which is not a crossing call
+	coins := std.MustParseCoins(ugnot.ValueString(1))
+	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
+	assert.PanicsWithValue(
+		t,
+		"function Echo is non-crossing and cannot be called with MsgCall; query with vm/qeval or use MsgRun",
+		func() {
+			env.vmk.Call(ctx, msg2)
+		},
+	)
+
+	// Call EmptyCall function which is not a crossing call
+	msg3 := NewMsgCall(addr, coins, pkgPath, "EmptyCall", []string{})
+	assert.PanicsWithValue(
+		t,
+		"function EmptyCall is non-crossing and cannot be called with MsgCall; query with vm/qeval or use MsgRun",
+		func() {
+			env.vmk.Call(ctx, msg3)
+		},
+	)
+}
+
 func TestVMKeeperReinitialize(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
