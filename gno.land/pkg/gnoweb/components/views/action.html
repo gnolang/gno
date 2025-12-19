@@ -164,7 +164,9 @@ UI - Help Function component
         {{/* prettier-ignore-end */}}
       </div>
     </div>
-    {{ if not .Crossing }}
+    {{ if .Crossing }}
+    <p><img src="data:image/png;base64,{{ buildHelpQR $data . }}"/></p>
+    {{ else }}
     <div class="b-action-result">
       <h3 class="title">Result</h3>
       <div class="b-code">
