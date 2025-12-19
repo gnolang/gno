@@ -33,7 +33,8 @@ func indentBody(indent string, body string) string {
 	)
 	for i, line := range lines {
 		if i > 0 {
-			res += "\n"
+			// Add two spaces to keep newlines within Markdown
+			res += "  \n"
 		}
 		res += indent + line
 	}
