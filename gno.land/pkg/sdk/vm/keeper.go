@@ -475,9 +475,12 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)
 	}
-	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
+
+	pv := gnostore.GetPackage(pkgPath, false)
+	if pv != nil && !pv.Private {
 		return ErrPkgAlreadyExists("package already exists: " + pkgPath)
 	}
+
 	if !gno.IsRealmPath(pkgPath) && !gno.IsPPackagePath(pkgPath) {
 		return ErrInvalidPkgPath("package path must be valid realm or p package path")
 	}
@@ -510,6 +513,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// no development packages.
 	if gm.HasReplaces() {
 		return ErrInvalidPackage("development packages are not allowed")
+	}
+	if pv != nil && pv.Private && !gm.Private {
+		return ErrInvalidPackage("a private package cannot be overridden by a public package")
 	}
 	if gm.Private && !gno.IsRealmPath(pkgPath) {
 		return ErrInvalidPackage("private packages must be realm packages")
@@ -602,6 +608,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	pl := gno.PackageNodeLocation(pkgPath)
 	pn := gnostore.GetBlockNode(pl).(*gno.PackageNode)
 	ft := pn.GetStaticTypeOf(gnostore, gno.Name(fnc)).(*gno.FuncType)
+	if len(ft.Params) == 0 || ft.Params[0].Type.String() != ".uverse.realm" {
+		panic(fmt.Sprintf("function %s is non-crossing and cannot be called with MsgCall; query with vm/qeval or use MsgRun", fnc))
+	}
+
 	// Make main Package with imports.
 	mpn := gno.NewPackageNode("main", "", nil)
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})

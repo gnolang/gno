@@ -40,8 +40,6 @@ type ParamsKeeperI interface {
 	SetStrings(ctx sdk.Context, key string, value []string)
 
 	Has(ctx sdk.Context, key string) bool
-	GetRaw(ctx sdk.Context, key string) []byte
-	SetRaw(ctx sdk.Context, key string, value []byte)
 
 	GetStruct(ctx sdk.Context, key string, strctPtr any)
 	SetStruct(ctx sdk.Context, key string, strct any)
@@ -127,7 +125,11 @@ func (pk ParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) {
 }
 
 func (pk ParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) {
-	pk.getIfExists(ctx, key, ptr)
+	stor := ctx.Store(pk.key)
+	bz := stor.Get(storeKey(key))
+	if bz != nil {
+		*ptr = bz
+	}
 }
 
 func (pk ParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {
@@ -151,21 +153,19 @@ func (pk ParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64) {
 }
 
 func (pk ParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) {
-	pk.set(ctx, key, value)
+	stor := ctx.Store(pk.key)
+	if value == nil {
+		stor.Delete(storeKey(key))
+		return
+	}
+	// Copy to avoid altering the input bytes
+	valueCopy := make([]byte, len(value))
+	copy(valueCopy, value)
+	stor.Set(storeKey(key), valueCopy)
 }
 
 func (pk ParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) {
 	pk.set(ctx, key, value)
-}
-
-func (pk ParamsKeeper) GetRaw(ctx sdk.Context, key string) []byte {
-	stor := ctx.Store(pk.key)
-	return stor.Get(storeKey(key))
-}
-
-func (pk ParamsKeeper) SetRaw(ctx sdk.Context, key string, value []byte) {
-	stor := ctx.Store(pk.key)
-	stor.Set(storeKey(key), value)
 }
 
 func (pk ParamsKeeper) GetStruct(ctx sdk.Context, key string, strctPtr any) {
@@ -333,14 +333,6 @@ func (ppk prefixParamsKeeper) SetStrings(ctx sdk.Context, key string, value []st
 
 func (ppk prefixParamsKeeper) Has(ctx sdk.Context, key string) bool {
 	return ppk.pk.Has(ctx, ppk.prefixed(key))
-}
-
-func (ppk prefixParamsKeeper) GetRaw(ctx sdk.Context, key string) []byte {
-	return ppk.pk.GetRaw(ctx, ppk.prefixed(key))
-}
-
-func (ppk prefixParamsKeeper) SetRaw(ctx sdk.Context, key string, value []byte) {
-	ppk.pk.SetRaw(ctx, ppk.prefixed(key), value)
 }
 
 func (ppk prefixParamsKeeper) GetStruct(ctx sdk.Context, key string, paramPtr any) {
