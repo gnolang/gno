@@ -5,17 +5,19 @@ import (
 
 	"gno.land/p/gnoland/boards"
 
+	"gno.land/r/gnoland/boards2/v1/permissions"
 	"gno.land/r/sys/users"
 )
 
-// validateBoardCreate validates PermissionBoardCreate.
+// validateBasicBoardCreate validates PermissionBoardCreate.
 //
 // Expected `args` values:
 // 1. Caller address
 // 2. Board name
 // 3. Board ID
 // 4. Is board listed
-func validateBoardCreate(_ boards.Permissions, args boards.Args) error {
+// 5. Is board open
+func validateBasicBoardCreate(perms boards.Permissions, args boards.Args) error {
 	caller, ok := args[0].(address)
 	if !ok {
 		return errors.New("expected a valid caller address")
@@ -24,6 +26,15 @@ func validateBoardCreate(_ boards.Permissions, args boards.Args) error {
 	name, ok := args[1].(string)
 	if !ok {
 		return errors.New("expected board name to be a string")
+	}
+
+	open, ok := args[4].(bool)
+	if !ok {
+		return errors.New("expected board open flag to be a boolean")
+	}
+
+	if open && !perms.HasRole(caller, permissions.RoleOwner) {
+		return errors.New("only owners can create open boards")
 	}
 
 	if err := checkBoardNameIsNotAddress(name); err != nil {
@@ -36,14 +47,14 @@ func validateBoardCreate(_ boards.Permissions, args boards.Args) error {
 	return nil
 }
 
-// validateBoardRename validates PermissionBoardRename.
+// validateBasicBoardRename validates PermissionBoardRename.
 //
 // Expected `args` values:
 // 1. Caller address
 // 2. Board ID
 // 3. Current board name
 // 4. New board name
-func validateBoardRename(_ boards.Permissions, args boards.Args) error {
+func validateBasicBoardRename(_ boards.Permissions, args boards.Args) error {
 	caller, ok := args[0].(address)
 	if !ok {
 		return errors.New("expected a valid caller address")
@@ -64,13 +75,13 @@ func validateBoardRename(_ boards.Permissions, args boards.Args) error {
 	return nil
 }
 
-// validateMemberInvite validates PermissionMemberInvite.
+// validateBasicMemberInvite validates PermissionMemberInvite.
 //
 // Expected `args` values:
 // 1. Caller address
 // 2. Board ID
 // 3. Invites
-func validateMemberInvite(perms boards.Permissions, args boards.Args) error {
+func validateBasicMemberInvite(perms boards.Permissions, args boards.Args) error {
 	caller, ok := args[0].(address)
 	if !ok {
 		return errors.New("expected a valid caller address")
@@ -82,23 +93,23 @@ func validateMemberInvite(perms boards.Permissions, args boards.Args) error {
 	}
 
 	// Make sure that only owners invite other owners
-	callerIsOwner := perms.HasRole(caller, RoleOwner)
+	callerIsOwner := perms.HasRole(caller, permissions.RoleOwner)
 	for _, v := range invites {
-		if v.Role == RoleOwner && !callerIsOwner {
+		if v.Role == permissions.RoleOwner && !callerIsOwner {
 			return errors.New("only owners are allowed to invite other owners")
 		}
 	}
 	return nil
 }
 
-// validateRoleChange validates PermissionRoleChange.
+// validateBasicRoleChange validates PermissionRoleChange.
 //
 // Expected `args` values:
 // 1. Caller address
 // 2. Board ID
 // 3. Member address
 // 4. Role
-func validateRoleChange(perms boards.Permissions, args boards.Args) error {
+func validateBasicRoleChange(perms boards.Permissions, args boards.Args) error {
 	caller, ok := args[0].(address)
 	if !ok {
 		return errors.New("expected a valid caller address")
@@ -106,13 +117,13 @@ func validateRoleChange(perms boards.Permissions, args boards.Args) error {
 
 	// Owners and Admins can change roles.
 	// Admins should not be able to assign or remove the Owner role from members.
-	if perms.HasRole(caller, RoleAdmin) {
+	if perms.HasRole(caller, permissions.RoleAdmin) {
 		role, ok := args[3].(boards.Role)
 		if !ok {
 			return errors.New("expected a valid member role")
 		}
 
-		if role == RoleOwner {
+		if role == permissions.RoleOwner {
 			return errors.New("admins are not allowed to promote members to Owner")
 		} else {
 			member, ok := args[2].(address)
@@ -120,7 +131,7 @@ func validateRoleChange(perms boards.Permissions, args boards.Args) error {
 				return errors.New("expected a valid member address")
 			}
 
-			if perms.HasRole(member, RoleOwner) {
+			if perms.HasRole(member, permissions.RoleOwner) {
 				return errors.New("admins are not allowed to remove the Owner role")
 			}
 		}

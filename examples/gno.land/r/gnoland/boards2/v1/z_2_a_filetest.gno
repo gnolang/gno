@@ -22,7 +22,7 @@ var (
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false)
+	bid = boards2.CreateBoard(cross, "test-board", false, false)
 	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
 }
 

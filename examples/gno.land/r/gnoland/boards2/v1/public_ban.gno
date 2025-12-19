@@ -8,6 +8,8 @@ import (
 
 	"gno.land/p/gnoland/boards"
 	"gno.land/p/nt/avl"
+
+	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 // Constants for different banning periods.
@@ -36,10 +38,10 @@ func Ban(_ realm, boardID boards.ID, user address, hours uint, reason string) {
 	caller := runtime.PreviousRealm().Address()
 	until := time.Now().Add(time.Minute * 60 * time.Duration(hours))
 	args := boards.Args{boardID, user, until, reason}
-	board.Permissions.WithPermission(cross, caller, PermissionUserBan, args, func(realm) {
+	board.Permissions.WithPermission(cross, caller, permissions.PermissionUserBan, args, func(realm) {
 		// When banning invited members make sure they are guests, otherwise
 		// disallow banning. Only guest or external users can be banned.
-		if board.Permissions.HasUser(user) && !board.Permissions.HasRole(user, RoleGuest) {
+		if board.Permissions.HasUser(user) && !board.Permissions.HasRole(user, permissions.RoleGuest) {
 			panic("owner, admin and moderator banning is not allowed")
 		}
 
@@ -69,7 +71,7 @@ func Unban(_ realm, boardID boards.ID, user address, reason string) {
 	board := mustGetBoard(boardID)
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{boardID, user, reason}
-	board.Permissions.WithPermission(cross, caller, PermissionUserUnban, args, func(realm) {
+	board.Permissions.WithPermission(cross, caller, permissions.PermissionUserUnban, args, func(realm) {
 		banned, found := getBannedUsers(boardID)
 		if !found || !banned.Has(user.String()) {
 			panic("user is not banned")
