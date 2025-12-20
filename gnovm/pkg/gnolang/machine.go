@@ -1694,6 +1694,7 @@ func (m *Machine) PopStmt() Stmt {
 	if debug {
 		m.Printf("-s %v\n", s)
 	}
+	// fmt.Println("---m.stmts: ", m.Stmts)
 	// fmt.Printf("-s %v\n", s)
 	// PrintCaller(2, 5)
 	if bs, ok := s.(*bodyStmt); ok {
@@ -2032,6 +2033,7 @@ func (m *Machine) PopFrame() Frame {
 // jump to target frame, and
 // set machine accordingly.
 func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
+	// fmt.Printf("---GotoJump, depthFrames: %d, depthBlocks: %d\n", depthFrames, depthBlocks)
 	if depthFrames >= len(m.Frames) {
 		panic("should not happen, depthFrames exeeds total frames")
 	}
@@ -2050,7 +2052,6 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 		// pop stmts
 		m.Stmts = m.Stmts[:len(m.Stmts)-depthFrames]
 	}
-
 	if depthBlocks >= len(m.Blocks) {
 		panic("should not happen, depthBlocks exeeds total blocks")
 	}
@@ -2107,14 +2108,16 @@ func (m *Machine) PopFrameAndReturn() {
 }
 
 func (m *Machine) PeekFrameAndContinueFor() {
+	// fmt.Println("---PeekFrameAndContinueFor...")
 	fr := m.LastFrame()
 	m.Ops = m.Ops[:fr.NumOps+1]
 	m.Values = m.Values[:fr.NumValues]
 	m.Exprs = m.Exprs[:fr.NumExprs]
-	m.Stmts = m.Stmts[:fr.NumStmts+1]
+	m.Stmts = m.Stmts[:fr.NumStmts+1+1] // keep bodystmt in stack
 	m.Blocks = m.Blocks[:fr.NumBlocks+1]
 	ls := m.PeekStmt(1).(*bodyStmt)
 	ls.NextBodyIndex = ls.BodyLen
+	// fmt.Println("---ls.NextBldyIndex: ", ls.NextBodyIndex)
 }
 
 func (m *Machine) PeekFrameAndContinueRange() {
