@@ -2076,7 +2076,7 @@ func (sb *StaticBlock) FindLocalNamePrefixed(n Name, prefixes ...string) (uint16
 	return 0, false, ""
 }
 
-func TagLoopvar(last BlockNode, nx *NameExpr) {
+func MarkLoopvar(last BlockNode, nx *NameExpr) {
 	// fmt.Println("===TagLoopvar, nx: ", nx, nx.Type)
 	if nx.Name == blankIdentifier {
 		return

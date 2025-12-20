@@ -2303,6 +2303,20 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 			lb := m.LastBlock()
 			pv = lb.GetPointerTo(m.Store, lx.Path)
 			ro = false // always mutable
+		case NameExprTypeLoopVarHeapUse:
+			lb := m.LastBlock()
+			path := lx.Path
+			ptr := lb.GetPointerToDirect(m.Store, path)
+			hiv := &HeapItemValue{}
+			*ptr.TV = TypedValue{
+				T: heapItemType{},
+				V: hiv,
+			}
+			pv = PointerValue{
+				TV:    &hiv.Value,
+				Base:  hiv,
+				Index: 0,
+			}
 		case NameExprTypeHeapClosure:
 			panic("should not happen")
 		default:
