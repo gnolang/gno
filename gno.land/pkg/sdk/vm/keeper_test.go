@@ -260,6 +260,75 @@ func Echo(cur realm) string {
 	assert.NoError(t, err)
 }
 
+func TestVMKeeperAddPackage_UpdatePrivatePackage(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(initialBalance))
+
+	// Create private test package.
+	const pkgPath = "gno.land/r/test"
+	files := []*std.MemFile{
+		{
+			Name: "gnomod.toml",
+			Body: `module = "gno.land/r/test"
+gno = "0.9"
+private = true`,
+		},
+		{
+			Name: "test.gno",
+			Body: `package test
+
+func Echo(cur realm) string {
+	return "hello world"
+}`,
+		},
+	}
+
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	// Re-upload the same private package with updated content.
+	files2 := []*std.MemFile{
+		{
+			Name: "gnomod.toml",
+			Body: `module = "gno.land/r/test"
+gno = "0.9"
+private = true`,
+		},
+		{
+			Name: "test.gno",
+			Body: `package test
+
+func Echo(cur realm) string {
+	return "hello updated world"
+}`,
+		},
+	}
+
+	msg2 := NewMsgAddPackage(addr, pkgPath, files2)
+	err = env.vmk.AddPackage(ctx, msg2)
+	assert.NoError(t, err)
+
+	// Verify the package was updated with the new content.
+	store := env.vmk.getGnoTransactionStore(ctx)
+	memFile := store.GetMemFile(pkgPath, "test.gno")
+	assert.NotNil(t, memFile)
+	expected := `package test
+
+func Echo(cur realm) string {
+	return "hello updated world"
+}`
+	assert.Equal(t, expected, memFile.Body)
+}
+
 func TestVMKeeperAddPackage_ImportPrivate(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
@@ -313,6 +382,111 @@ func Echo(cur realm) string {
 	msg2 := NewMsgAddPackage(addr, pkgPath2, files2)
 	err = env.vmk.AddPackage(ctx, msg2)
 	assert.Error(t, err, ErrTypeCheck(gnolang.ImportPrivateError{PkgPath: pkgPath}))
+}
+
+func TestVMKeeperAddPackage_ChangePublicToPrivate(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(initialBalance))
+
+	const pkgPath = "gno.land/r/test"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "test.gno",
+			Body: `package test
+
+func Echo(cur realm) string {
+	return "hello world"
+}`,
+		},
+	}
+
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	// Try to upload a private version of the same package.
+	files2 := []*std.MemFile{
+		{
+			Name: "gnomod.toml",
+			Body: `module = "gno.land/r/test"
+gno = "0.9"
+private = true`,
+		},
+		{
+			Name: "test.gno",
+			Body: `package test
+
+func Echo(cur realm) string {
+	return "hello private world"
+}`,
+		},
+	}
+
+	msg2 := NewMsgAddPackage(addr, pkgPath, files2)
+	err = env.vmk.AddPackage(ctx, msg2)
+	assert.Error(t, err, ErrInvalidPackage(""))
+}
+
+func TestVMKeeperAddPackage_ChangePrivateToPublic(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(initialBalance))
+
+	// Create a private test package first.
+	const pkgPath = "gno.land/r/test"
+	files := []*std.MemFile{
+		{
+			Name: "gnomod.toml",
+			Body: `module = "gno.land/r/test"
+gno = "0.9"
+private = true`,
+		},
+		{
+			Name: "test.gno",
+			Body: `package test
+
+func Echo(cur realm) string {
+	return "hello private world"
+}`,
+		},
+	}
+
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	// Try to upload a public version of the same package.
+	files2 := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "test.gno",
+			Body: `package test
+
+func Echo(cur realm) string {
+	return "hello public world"
+}`,
+		},
+	}
+
+	msg2 := NewMsgAddPackage(addr, pkgPath, files2)
+	err = env.vmk.AddPackage(ctx, msg2)
+	assert.Error(t, err, ErrInvalidPackage(""))
 }
 
 // Sending total send amount succeeds.
@@ -927,6 +1101,62 @@ func Echo(cur realm, msg string) string { // XXX remove crossing call ?
 		"wrong number of arguments in call to Echo: want 2 got 3",
 		func() {
 			env.vmk.Call(ctx, msg2)
+		},
+	)
+}
+
+func TestNonCrossingCallError(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(initialBalance))
+
+	// Create test package.
+	const pkgPath = "gno.land/r/test"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "test.gno",
+			Body: `package test
+			
+func Echo(msg string) string {
+	return "echo:"+msg
+}
+	
+func EmptyCall() {
+	return
+}
+
+`,
+		},
+	}
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	// Call Echo function which is not a crossing call
+	coins := std.MustParseCoins(ugnot.ValueString(1))
+	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
+	assert.PanicsWithValue(
+		t,
+		"function Echo is non-crossing and cannot be called with MsgCall; query with vm/qeval or use MsgRun",
+		func() {
+			env.vmk.Call(ctx, msg2)
+		},
+	)
+
+	// Call EmptyCall function which is not a crossing call
+	msg3 := NewMsgCall(addr, coins, pkgPath, "EmptyCall", []string{})
+	assert.PanicsWithValue(
+		t,
+		"function EmptyCall is non-crossing and cannot be called with MsgCall; query with vm/qeval or use MsgRun",
+		func() {
+			env.vmk.Call(ctx, msg3)
 		},
 	)
 }

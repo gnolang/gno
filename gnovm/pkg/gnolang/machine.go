@@ -476,6 +476,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	if rlm != nil {
 		pb := pv.GetBlock(m.Store)
 		for _, update := range updates {
+			// XXX simplify.
 			if hiv, ok := update.V.(*HeapItemValue); ok {
 				rlm.DidUpdate(pb, nil, hiv)
 			} else {
@@ -2233,14 +2234,31 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	return pv
 }
 
-// Returns true if tv is N_Readonly or, its relevant object(s)
-// resides in a different non-zero realm. Returns false for
-// non-N_Readonly StringValue, free floating pointers, and unreal
-// objects.
+// Returns true iff:
+//   - m.Realm is nil (single user mode), or
+//   - tv is a ref to (external) package path, or
+//   - tv is N_Readonly, or
+//   - tv is not an object ("first object" ID is zero), or
+//   - tv is an unreal object (no object id), or
+//   - tv is an object residing in external realm
 func (m *Machine) IsReadonly(tv *TypedValue) bool {
+	// Returns true iff:
+	//  - m.Realm is nil (single user mode)
 	if m.Realm == nil {
 		return false
 	}
+	//  - tv is a ref to package path
+	if rv, ok := tv.V.(RefValue); ok && rv.PkgPath != "" {
+		if rv.PkgPath == m.Package.PkgPath {
+			return false // local package
+		} else {
+			return true // external package
+		}
+	}
+	//   - tv is N_Readonly, or
+	//   - tv is not an object ("first object" ID is zero), or
+	//   - tv is an unreal object (no object id), or
+	//   - tv is an object residing in external realm
 	return tv.IsReadonlyBy(m.Realm.ID)
 }
 

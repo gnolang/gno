@@ -5,6 +5,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -78,7 +79,7 @@ func TestTxHandler(t *testing.T) {
 		SetBlockStore(blockStore)
 
 		// Load the result
-		loadedTxResult, err := Tx(nil, tx.Hash())
+		loadedTxResult, err := Tx(&rpctypes.Context{}, tx.Hash())
 
 		require.NoError(t, err)
 		require.NotNil(t, loadedTxResult)
@@ -104,7 +105,7 @@ func TestTxHandler(t *testing.T) {
 		SetStateDB(sdb)
 
 		// Load the result
-		loadedTxResult, err := Tx(nil, hash)
+		loadedTxResult, err := Tx(&rpctypes.Context{}, hash)
 		require.Nil(t, loadedTxResult)
 
 		assert.Equal(t, expectedErr, err)
@@ -158,7 +159,7 @@ func TestTxHandler(t *testing.T) {
 		SetBlockStore(blockStore)
 
 		// Load the result
-		loadedTxResult, err := Tx(nil, tx.Hash())
+		loadedTxResult, err := Tx(&rpctypes.Context{}, tx.Hash())
 		require.Nil(t, loadedTxResult)
 
 		assert.ErrorContains(t, err, "unable to get block transaction")
@@ -214,7 +215,7 @@ func TestTxHandler(t *testing.T) {
 		SetBlockStore(blockStore)
 
 		// Load the result
-		loadedTxResult, err := Tx(nil, tx.Hash())
+		loadedTxResult, err := Tx(&rpctypes.Context{}, tx.Hash())
 		require.Nil(t, loadedTxResult)
 
 		assert.ErrorContains(t, err, "unable to load block results")
