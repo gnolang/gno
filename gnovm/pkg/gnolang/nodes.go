@@ -142,6 +142,7 @@ const (
 	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH" // if name expr refers to package.
 	ATTR_FIX_FROM              GnoAttribute = "ATTR_FIX_FROM"     // gno fix this version.
 	ATTR_REDEFINE_NAME         GnoAttribute = "ATTR_REDEFINE_NAME"
+	ATTR_HEAP_DEFINE_LOOPVAR   GnoAttribute = "ATTR_HEAP_DEFINE_LOOPVAR"
 	ATTR_REWRITE_CONTINUE      GnoAttribute = "ATTR_REWRITE_CONTINUE"
 )
 
@@ -2041,7 +2042,7 @@ func (sb *StaticBlock) FindNamePrefixedForPath(store Store, n Name, depth uint8,
 func (sb *StaticBlock) FindLocalNamePrefixed(n Name, prefixes ...string) (uint16, bool, Name) {
 	// fmt.Println("===FindLocalNamePrefixed, sb.GetBlockNames: ", sb.GetBlockNames())
 	// fmt.Println("===FindLocalNamePrefixed, prefixed: ", prefixes)
-	// fmt.Println("===FindLocalNamePrefixed, sb: ", sb)
+	// fmt.Println("===FindLocalNamePrefixed, sb: ", sb.Source)
 
 	for _, prefix := range prefixes {
 		n2 := Name(prefix) + n
