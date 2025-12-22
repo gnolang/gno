@@ -681,7 +681,6 @@ if !exists {
 }
 return value.(*User) 
 
-
 // Multi-index example - search the same data in different ways
 var (
 	usersById   avl.Tree // Find user by ID
