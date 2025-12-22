@@ -89,6 +89,8 @@ func (g *GovDAO) PostCreateProposal(r dao.ProposalRequest, pid dao.ProposalID) {
 		}
 	}
 	g.pss.Set(pid.String(), newProposalStatus(tatv))
+
+	incrementAvailableVotesForAllMembers(cross)
 }
 
 // Members **must** have a namespace to vote to enforce simpler tracking.
@@ -132,6 +134,8 @@ func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
 	default:
 		return errors.New("voting can only be YES or NO")
 	}
+
+	incrementMemberActivity(caller)
 
 	return nil
 }
