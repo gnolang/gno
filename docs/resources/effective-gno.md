@@ -666,7 +666,7 @@ users.Iterate("", "", func(name string, value any) bool {
     return false // return true to stop iteration
 }
 
-// Range query: get users from "alice" to "bob" (inclusive)
+// Range query: get users from "bob" to "charlie" (inclusive)
 // This is O(log n + k) where k = results in range
 users.Iterate("bob", "charlie", func(name string, value any) bool {
 	// Only visits: bob, charlie
