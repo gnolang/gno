@@ -2142,7 +2142,7 @@ func (m *Machine) PeekCallFrame(n int) *Frame {
 	return m.peekCallFrame(n)
 }
 
-// TODO: this function and FindAndPopToCallFrame() is used in conjunction
+// TODO: this function and FindAndPopToCallFrame() are used in conjunction
 // spanning two disjoint operations upon return. Optimize.
 // If n is 1, returns the immediately last call frame.
 func (m *Machine) peekCallFrame(n int) *Frame {
