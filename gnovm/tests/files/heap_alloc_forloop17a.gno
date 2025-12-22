@@ -3,7 +3,7 @@ package main
 func main() {
 	var f func()
 	for i := 0; i < 3;{
-		// .redefine_i = .loopvar_i
+		// .redefine_i := .loopvar_i
 		println("enter, i: ", i)
 
 		if i == 1 {
