@@ -18,12 +18,12 @@ stdout 'false bool'
 
 # Gui should be able to addpkg on test1 addr
 # gui addpkg -> gno.land/r/<addr_test1>/mysuperpkg
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/mysuperpkg -gas-fee 1000000ugnot -gas-wanted 600000 -broadcast -chainid=tendermint_test gui
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/mysuperpkg -gas-fee 1000000ugnot -gas-wanted 900000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
 # Gui should be able to addpkg on random name
 # gui addpkg -> gno.land/r/randomname/mysuperpkg
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/randomname/mysuperpkg -gas-fee 1000000ugnot -gas-wanted 550000 -broadcast -chainid=tendermint_test gui
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/randomname/mysuperpkg -gas-fee 1000000ugnot -gas-wanted 800000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
 # Enable `sys/names`
@@ -59,12 +59,12 @@ stderr 'is not authorized to deploy packages to namespace'
 
 # test gui register namespace
 # gui call -> gnoland/users/v1.Register
-gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func Register -send "1000000ugnot" -gas-fee 1000000ugnot -gas-wanted 13000000 -broadcast -chainid=tendermint_test -args 'guigui123' gui
+gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func Register -send "1000000ugnot" -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test -args 'guigui123' gui
 stdout 'OK!'
 
 # Test gui publishing on guigui123/one
 # gui addpkg -> gno.land/r/guigui123/one
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guigui123/one -gas-fee 1000000ugnot -gas-wanted 3700000 -broadcast -chainid=tendermint_test gui
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guigui123/one -gas-fee 1000000ugnot -gas-wanted 6000000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
 # Test admin publishing on guigui123/two

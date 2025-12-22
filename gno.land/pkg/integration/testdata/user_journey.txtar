@@ -142,7 +142,7 @@ stdout '220 int64'
 ###########################
 
 # user3 register as gnoland/user
-gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func Register -args user333 -gas-fee 1000000ugnot -gas-wanted 14000000 -send 1000000ugnot -broadcast -chainid=tendermint_test user3
+gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func Register -args user333 -gas-fee 1000000ugnot -gas-wanted 15000000 -send 1000000ugnot -broadcast -chainid=tendermint_test user3
 stdout 'OK!'
 
 # user3 creates a new board and a thread
@@ -156,7 +156,7 @@ stdout 'OK!'
 stderr 'please register, otherwise minimum fee 100000000 is required if anonymous'
 
 # user2 registers as gnoland/user
-gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func Register -args user222 -gas-fee 1000000ugnot -gas-wanted 14000000 -send 1000000ugnot -broadcast -chainid=tendermint_test user2
+gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func Register -args user222 -gas-fee 1000000ugnot -gas-wanted 15000000 -send 1000000ugnot -broadcast -chainid=tendermint_test user2
 stdout 'OK!'
 
 # user2 posts a reply to the thread
