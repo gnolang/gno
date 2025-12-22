@@ -654,7 +654,6 @@ for name := range users { // Order: bob, alice (insertion order)
 }
 user := users["alice"] // O(1) direct access
 
-
 // AVL example 
 var users avl.Tree
 users.Set("bob", User{})
