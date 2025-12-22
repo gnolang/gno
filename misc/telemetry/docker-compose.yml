@@ -9,7 +9,18 @@ services:
       - ./collector/collector.yaml:/etc/otelcol-contrib/config.yaml
     networks:
       - gnoland-net
-  
+    depends_on:
+      - tempo
+      - prometheus
+  tempo:
+    image: grafana/tempo:latest
+    command:
+      - "-config.file=/etc/tempo.yaml"
+    volumes:
+      - ./tempo/tempo.yml:/etc/tempo.yaml
+    networks:
+      - gnoland-net
+
   prometheus:
     image: prom/prometheus:latest
     command:
@@ -22,7 +33,7 @@ services:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     networks:
       - gnoland-net
-  
+
   grafana:
     image: grafana/grafana
     environment:
@@ -35,7 +46,7 @@ services:
       - "3000:3000"
     networks:
       - gnoland-net
-  
+
   gnoland-val:
     image: ghcr.io/gnolang/gno/gnoland:master
     networks:
@@ -56,12 +67,12 @@ services:
         gnogenesis generate
         gnogenesis validator add -name val000 -address $(gnoland secrets get validator_key.address -raw) -pub-key $(gnoland secrets get validator_key.pub_key -raw)
         gnogenesis balances add -balance-sheet /gnoroot/gno.land/genesis/genesis_balances.txt
-        gnogenesis txs add packages /gnoroot/examples/gno.land
         gnoland config init
         gnoland config set consensus.timeout_commit 1s
         gnoland config set moniker val000
-        gnoland config set telemetry.enabled true
-        gnoland config set telemetry.exporter_endpoint collector:4317
+        gnoland config set telemetry.metrics_enabled true
+        gnoland config set telemetry.traces_enabled true
+        gnoland config set telemetry.exporter_endpoint http://collector:4318
         gnoland config set telemetry.service_instance_id val0
         gnoland secrets get node_id.id -raw > /gnoroot/shared-data/node_p2p.id
         cp /gnoroot/genesis.json /gnoroot/shared-data/genesis.json
@@ -89,9 +100,10 @@ services:
         gnoland config set consensus.timeout_commit 1s
         gnoland config set moniker rpc0
         gnoland config set rpc.laddr tcp://0.0.0.0:26657
-        gnoland config set telemetry.enabled true
+        gnoland config set telemetry.metrics_enabled true
+        gnoland config set telemetry.traces_enabled true
         gnoland config set telemetry.service_instance_id rpc000
-        gnoland config set telemetry.exporter_endpoint collector:4317
+        gnoland config set telemetry.exporter_endpoint http://collector:4318
         gnoland config set p2p.persistent_peers "$(cat /gnoroot/shared-data/node_p2p.id)@gnoland-val:26656"
         gnoland start -genesis /gnoroot/shared-data/genesis.json
     depends_on:
