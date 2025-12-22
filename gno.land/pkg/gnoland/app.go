@@ -106,7 +106,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	prmk := params.NewParamsKeeper(mainKey)
 	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount)
-	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
+	bankk := bank.NewBankKeeper(mainKey, acck, prmk.ForModule(bank.ModuleName))
 	gpk := auth.NewGasPriceKeeper(mainKey)
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
 	vmk.Output = cfg.VMOutput
@@ -187,6 +187,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			c,
 			acck,
 			gpk,
+			bankk,
 			vmk,
 			baseApp,
 		),
@@ -434,6 +435,12 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 
 		cfg.GenesisTxResultHandler(ctx, stdTx, res)
 	}
+	invariant := bank.TotalSupplyInvariant(cfg.acck, cfg.bankk)
+	msg, stop := invariant(ctx)
+
+	if stop {
+		panic(fmt.Errorf("invariant broken: %s", msg))
+	}
 	return txResponses, nil
 }
 
@@ -453,6 +460,7 @@ func EndBlocker(
 	collector *collector[validatorUpdate],
 	acck auth.AccountKeeperI,
 	gpk auth.GasPriceKeeperI,
+	bankk bank.BankKeeperI,
 	vmk vm.VMKeeperI,
 	app endBlockerApp,
 ) func(
@@ -468,7 +476,9 @@ func EndBlocker(
 		if acck != nil && gpk != nil {
 			auth.EndBlocker(ctx, gpk)
 		}
-
+		if bankk != nil {
+			bank.EndBlocker(ctx, bankk)
+		}
 		// Check if there was a valset change
 		if len(collector.getEvents()) == 0 {
 			// No valset updates
