@@ -205,6 +205,8 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 			fn = Preprocess(m.Store, pn, fn).(*FileNode)
 			// Save BlockNodes to m.Store.
 			SaveBlockNodes(m.Store, fn)
+
+			SaveTypes(m.Store, fn)
 		}
 		// Normally, the fileset would be added onto the
 		// package node only after runFiles(), but we cannot

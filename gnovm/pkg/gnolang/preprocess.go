@@ -5519,3 +5519,17 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 		return n, TRANS_CONTINUE
 	})
 }
+
+func SaveTypes(store Store, fn *FileNode) {
+	Transcribe(fn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage != TRANS_ENTER {
+			return n, TRANS_CONTINUE
+		}
+
+		if typeDecl, ok := n.(*TypeDecl); ok {
+			store.SetType(getType(typeDecl.Type))
+		}
+
+		return n, TRANS_CONTINUE
+	})
+}
