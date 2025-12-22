@@ -704,7 +704,7 @@ In the future, we plan to add built-in "map" support that will match the
 efficiency of an `avl.Tree` while offering a more intuitive API. Until then, if
 you're dealing with a compact dataset, it's probably best to use slices.
 For larger datasets where you need to quickly retrieve elements by keys,
-`avl.Tree` is the way to go
+`avl.Tree` is the way to go.
 
 ### Construct "safe" objects
 
