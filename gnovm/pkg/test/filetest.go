@@ -77,6 +77,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		GasMeter:      gasMeter,
 		Debug:         opts.Debug,
 		ReviveEnabled: true,
+		Coverage:      opts.Coverage,
 	})
 	defer m.Release()
 

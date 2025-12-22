@@ -33,6 +33,10 @@ type testCmd struct {
 	printEvents         bool
 	debug               bool
 	debugAddr           string
+	// Coverage options
+	cover        bool
+	coverMode    string
+	coverProfile string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -178,6 +182,27 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"enable interactive debugger using tcp address in the form [host]:port",
 	)
+
+	fs.BoolVar(
+		&c.cover,
+		"cover",
+		false,
+		"enable coverage analysis",
+	)
+
+	fs.StringVar(
+		&c.coverMode,
+		"covermode",
+		"set",
+		"coverage mode: set, count, or atomic",
+	)
+
+	fs.StringVar(
+		&c.coverProfile,
+		"coverprofile",
+		"",
+		"write a coverage profile to the specified file",
+	)
 }
 
 func execTest(cmd *testCmd, args []string, io commands.IO) error {
@@ -229,6 +254,15 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
 	cache := make(gno.TypeCheckCache, 64)
+
+	// Set up coverage if enabled
+	if cmd.cover {
+		coverMode := gno.CoverageMode(cmd.coverMode)
+		if coverMode != gno.CoverageModeSet && coverMode != gno.CoverageModeCount && coverMode != gno.CoverageModeAtomic {
+			return fmt.Errorf("invalid covermode: %s", cmd.coverMode)
+		}
+		opts.Coverage = gno.NewCoverageCollector(coverMode)
+	}
 
 	// test.ProdStore() is suitable for type-checking prod (non-test) files.
 	// _, pgs := test.ProdStore(cmd.rootDir, opts.WriterForStore())
@@ -349,6 +383,23 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
 		return fail()
+	}
+
+	// Print and write coverage results if enabled
+	if cmd.cover && opts.Coverage != nil {
+		coverage := opts.Coverage.TotalCoverage()
+		io.ErrPrintfln("coverage: %.1f%% of statements", coverage)
+
+		if cmd.coverProfile != "" {
+			f, err := os.Create(cmd.coverProfile)
+			if err != nil {
+				return fmt.Errorf("failed to create coverage profile: %w", err)
+			}
+			defer f.Close()
+			if err := opts.Coverage.WriteProfile(f); err != nil {
+				return fmt.Errorf("failed to write coverage profile: %w", err)
+			}
+		}
 	}
 
 	return nil
