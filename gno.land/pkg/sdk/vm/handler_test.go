@@ -151,7 +151,7 @@ func pvEcho(msg string) string { return "pvecho:"+msg }
 			msg1 := NewMsgAddPackage(addr, pkgPath, files)
 			err := env.vmk.AddPackage(ctx, msg1)
 			assert.NoError(t, err)
-			env.vmk.CommitGnoTransactionStore(ctx)
+			env.vmk.CommitGnoTransactionStore(ctx, true, false)
 
 			req := abci.RequestQuery{
 				Path: "vm/qeval",

@@ -88,9 +88,12 @@ type Store interface {
 type TransactionStore interface {
 	Store
 
-	// Write commits the current buffered transaction data to the underlying store.
-	// It also clears the current buffer of the transaction.
-	Write()
+	WriteCacheNodes()
+
+	WriteCacheTypes()
+
+	ClearCacheNodes()
+	ClearCacheTypes()
 }
 
 // Gas consumption descriptors.
@@ -230,9 +233,20 @@ type transactionStore struct {
 	*defaultStore
 }
 
-func (t transactionStore) Write() {
-	t.cacheTypes.(txlog.MapCommitter[TypeID, Type]).Clear()
+func (t transactionStore) WriteCacheNodes() {
 	t.cacheNodes.(txlog.MapCommitter[Location, BlockNode]).Commit()
+}
+
+func (t transactionStore) WriteCacheTypes() {
+	t.cacheTypes.(txlog.MapCommitter[TypeID, Type]).Commit()
+}
+
+func (t transactionStore) ClearCacheNodes() {
+	t.cacheNodes.(txlog.MapCommitter[Location, BlockNode]).Clear()
+}
+
+func (t transactionStore) ClearCacheTypes() {
+	t.cacheTypes.(txlog.MapCommitter[TypeID, Type]).Clear()
 }
 
 // XXX: we should block Go2GnoType, because it uses a global cache map;

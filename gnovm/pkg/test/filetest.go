@@ -399,7 +399,8 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		// Clear store cache and reconstruct machine from committed info
 		// (mimicking on-chain behaviour).
 		// (jae) why is this needed?
-		txs.Write()
+		txs.WriteCacheNodes()
+		txs.ClearCacheTypes()
 		m.Store = orig
 		pv2 := m.Store.GetPackage(pkgPath, false)
 		m.SetActivePackage(pv2)

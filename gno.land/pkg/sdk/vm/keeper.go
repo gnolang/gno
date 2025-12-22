@@ -58,7 +58,7 @@ type VMKeeperI interface {
 	LoadStdlib(ctx sdk.Context, stdlibDir string)
 	LoadStdlibCached(ctx sdk.Context, stdlibDir string)
 	MakeGnoTransactionStore(ctx sdk.Context) sdk.Context
-	CommitGnoTransactionStore(ctx sdk.Context)
+	CommitGnoTransactionStore(ctx sdk.Context, commitCacheNodes, commitCacheTypes bool)
 	InitGenesis(ctx sdk.Context, data GenesisState)
 }
 
@@ -334,8 +334,18 @@ func (vm *VMKeeper) MakeGnoTransactionStore(ctx sdk.Context) sdk.Context {
 		WithValue(vmkContextKeyStore, vm.newGnoTransactionStore(ctx))
 }
 
-func (vm *VMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
-	vm.getGnoTransactionStore(ctx).Write()
+func (vm *VMKeeper) CommitGnoTransactionStore(ctx sdk.Context, commitCacheNodes, commitCacheTypes bool) {
+	if commitCacheNodes {
+		vm.getGnoTransactionStore(ctx).WriteCacheNodes()
+	} else {
+		vm.getGnoTransactionStore(ctx).ClearCacheNodes()
+	}
+
+	if commitCacheTypes {
+		vm.getGnoTransactionStore(ctx).WriteCacheTypes()
+	} else {
+		vm.getGnoTransactionStore(ctx).ClearCacheTypes()
+	}
 }
 
 func (vm *VMKeeper) getTypeCheckCache(ctx sdk.Context) gno.TypeCheckCache {
