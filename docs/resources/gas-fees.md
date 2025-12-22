@@ -99,10 +99,8 @@ The network targets 70% utilization of the maximum block gas limit (3B gas) by d
 When blocks exceed this target, prices rise. When blocks fall below it, prices drop.
 Changes are gradual to avoid sudden price spikes.
 
-**Note**: Individual validators can also set their own minimum gas price. When you
-submit a transaction, it must meet both the network gas price AND the minimum set
-by the specific validator node you're sending to. Different validators may have
-different minimums.
+**Note**: Individual validators can also set their own minimum gas price through the
+`min_gas_prices` configuration parameter in their `config.toml` file. Different validators may have different minimums.
 
 ## Typical Gas Values
 
@@ -161,6 +159,15 @@ gnokey maketx call \
   -chainid staging \
   YOUR_KEY_NAME
 ```
+
+## Common Errors
+
+**Insufficient fees:** `insufficient fees; got: 50000ugnot required: 200000ugnot`
+- Your `--gas-fee` is too low. Increase it to meet the minimum required.
+
+**Out of gas:** `out of gas in location: ... wanted: 100000, used: 150000`
+- Your `--gas-wanted` is too low. Use `--simulate only` to estimate needed gas, then increase.
+- ⚠️ **You're still charged for failed transactions!** Fees are deducted before execution, so even if your transaction runs out of gas, you pay for the gas consumed up to the limit.
 
 ## Gas Optimization Tips
 
