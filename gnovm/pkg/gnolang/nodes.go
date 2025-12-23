@@ -143,7 +143,7 @@ const (
 	ATTR_FIX_FROM              GnoAttribute = "ATTR_FIX_FROM"     // gno fix this version.
 	ATTR_REDEFINE_NAME         GnoAttribute = "ATTR_REDEFINE_NAME"
 	ATTR_HEAP_DEFINE_LOOPVAR   GnoAttribute = "ATTR_HEAP_DEFINE_LOOPVAR"
-	ATTR_REWRITE_CONTINUE      GnoAttribute = "ATTR_REWRITE_CONTINUE"
+	ATTR_CONTINUE_INSERT       GnoAttribute = "ATTR_CONTINUE_INSERT"
 )
 
 // Embedded in each Node.
@@ -1826,7 +1826,6 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	if idx, ok := UverseNode().GetLocalIndex(n); ok {
 		return NewValuePathUverse(idx, n)
 	}
-	PrintCaller(2, 8)
 	// Name does not exist.
 	panic(fmt.Sprintf("name %s not declared", n))
 }
