@@ -6,7 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"gno.land/p/gnoland/boards"
 	"gno.land/p/nt/avl"
+
+	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 // Invite contains a user invitation.
@@ -15,13 +18,13 @@ type Invite struct {
 	User address
 
 	// Role is the optional role to assign to the user.
-	Role Role
+	Role boards.Role
 }
 
 // InviteMember adds a member to the realm or to a board.
 //
 // A role can optionally be specified to be assigned to the new member.
-func InviteMember(_ realm, boardID BoardID, user address, role Role) {
+func InviteMember(_ realm, boardID boards.ID, user address, role boards.Role) {
 	inviteMembers(boardID, Invite{
 		User: user,
 		Role: role,
@@ -31,12 +34,12 @@ func InviteMember(_ realm, boardID BoardID, user address, role Role) {
 // InviteMembers adds one or more members to the realm or to a board.
 //
 // Board ID is only required when inviting a member to a specific board.
-func InviteMembers(_ realm, boardID BoardID, invites ...Invite) {
+func InviteMembers(_ realm, boardID boards.ID, invites ...Invite) {
 	inviteMembers(boardID, invites...)
 }
 
 // RequestInvite request to be invited to a board.
-func RequestInvite(_ realm, boardID BoardID) {
+func RequestInvite(_ realm, boardID boards.ID) {
 	assertMembersUpdateIsEnabled(boardID)
 
 	if !runtime.PreviousRealm().IsUser() {
@@ -48,7 +51,7 @@ func RequestInvite(_ realm, boardID BoardID) {
 
 	board := mustGetBoard(boardID)
 	user := runtime.PreviousRealm().Address()
-	if board.perms.HasUser(user) {
+	if board.Permissions.HasUser(user) {
 		panic("caller is already a member")
 	}
 
@@ -69,22 +72,22 @@ func RequestInvite(_ realm, boardID BoardID) {
 }
 
 // AcceptInvite accepts a board invite request.
-func AcceptInvite(_ realm, boardID BoardID, user address) {
+func AcceptInvite(_ realm, boardID boards.ID, user address) {
 	assertMembersUpdateIsEnabled(boardID)
 	assertInviteRequestExists(boardID, user)
 
 	board := mustGetBoard(boardID)
-	if board.perms.HasUser(user) {
+	if board.Permissions.HasUser(user) {
 		panic("user is already a member")
 	}
 
 	caller := runtime.PreviousRealm().Address()
 	invite := Invite{
 		User: user,
-		Role: RoleGuest,
+		Role: permissions.RoleGuest,
 	}
-	args := Args{caller, boardID, []Invite{invite}}
-	board.perms.WithPermission(cross, caller, PermissionMemberInvite, args, func(realm) {
+	args := boards.Args{caller, boardID, []Invite{invite}}
+	board.Permissions.WithPermission(cross, caller, permissions.PermissionMemberInvite, args, func(realm) {
 		assertMembersUpdateIsEnabled(boardID)
 
 		invitee := user.String()
@@ -93,31 +96,30 @@ func AcceptInvite(_ realm, boardID BoardID, user address) {
 			panic("invite request not found")
 		}
 
-		board := mustGetBoard(boardID)
-		if board.perms.HasUser(user) {
+		if board.Permissions.HasUser(user) {
 			panic("user is already a member")
 		}
 
-		board.perms.SetUserRoles(cross, user)
+		board.Permissions.SetUserRoles(cross, user)
 		requests.Remove(invitee)
 
 		chain.Emit(
 			"MembersInvited",
 			"invitedBy", caller.String(),
-			"boardID", boardID.String(),
-			"members", user.String()+":"+string(RoleGuest), // TODO: Support optional role assign
+			"boardID", board.ID.String(),
+			"members", user.String()+":"+string(permissions.RoleGuest), // TODO: Support optional role assign
 		)
 	})
 }
 
 // RevokeInvite revokes a board invite request.
-func RevokeInvite(_ realm, boardID BoardID, user address) {
+func RevokeInvite(_ realm, boardID boards.ID, user address) {
 	assertInviteRequestExists(boardID, user)
 
 	board := mustGetBoard(boardID)
 	caller := runtime.PreviousRealm().Address()
-	args := Args{boardID, user, RoleGuest}
-	board.perms.WithPermission(cross, caller, PermissionMemberInviteRevoke, args, func(realm) {
+	args := boards.Args{boardID, user, permissions.RoleGuest}
+	board.Permissions.WithPermission(cross, caller, permissions.PermissionMemberInviteRevoke, args, func(realm) {
 		invitee := user.String()
 		requests, found := getInviteRequests(boardID)
 		if !found || !requests.Has(invitee) {
@@ -129,13 +131,13 @@ func RevokeInvite(_ realm, boardID BoardID, user address) {
 		chain.Emit(
 			"InviteRevoked",
 			"revokedBy", caller.String(),
-			"boardID", boardID.String(),
+			"boardID", board.ID.String(),
 			"user", user.String(),
 		)
 	})
 }
 
-func inviteMembers(boardID BoardID, invites ...Invite) {
+func inviteMembers(boardID boards.ID, invites ...Invite) {
 	assertMembersUpdateIsEnabled(boardID)
 
 	if len(invites) == 0 {
@@ -144,11 +146,10 @@ func inviteMembers(boardID BoardID, invites ...Invite) {
 
 	perms := mustGetPermissions(boardID)
 	caller := runtime.PreviousRealm().Address()
-	args := Args{caller, boardID, invites}
-	perms.WithPermission(cross, caller, PermissionMemberInvite, args, func(realm) {
+	args := boards.Args{caller, boardID, invites}
+	perms.WithPermission(cross, caller, permissions.PermissionMemberInvite, args, func(realm) {
 		assertMembersUpdateIsEnabled(boardID)
 
-		perms := mustGetPermissions(boardID)
 		users := make([]string, len(invites))
 		for _, v := range invites {
 			assertMemberAddressIsValid(v.User)
@@ -171,7 +172,7 @@ func inviteMembers(boardID BoardID, invites ...Invite) {
 	})
 }
 
-func assertInviteRequestExists(boardID BoardID, user address) {
+func assertInviteRequestExists(boardID boards.ID, user address) {
 	invitee := user.String()
 	requests, found := getInviteRequests(boardID)
 	if !found || !requests.Has(invitee) {

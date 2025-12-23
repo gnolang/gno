@@ -267,6 +267,8 @@ func createNode(ctx context.Context, c *nodeCfg, io commands.IO) (*node.Node, er
 		return nil, fmt.Errorf("unable to initialize telemetry, %w", err)
 	}
 
+	defer telemetry.Shutdown()
+
 	// Print the starting graphic
 	if c.logFormat != string(log.JSONFormat) {
 		io.Println(startGraphic)
