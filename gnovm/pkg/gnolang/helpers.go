@@ -897,3 +897,39 @@ func chopRight(in string) (left string, tok rune, right string) {
 		return
 	}
 }
+
+// func injectStmts(b Body, idx uint8, s Stmt) Body {
+// 	stmts := make([]Stmt, 0, len(b)+1)
+// 	stmts = append(stmts, b[:idx]...)
+// 	stmts = append(stmts, s)
+// 	stmts = append(stmts, b[idx:]...)
+// 	return stmts
+// }
+
+type StmtInsertion struct {
+	stmt Stmt
+	idx  int
+}
+
+func addStmtInsertionAttr(bn BlockNode, si *StmtInsertion) {
+	var (
+		sis   []*StmtInsertion
+		found bool
+	)
+	if sis, found = bn.GetAttribute(ATTR_CONTINUE_INSERT).([]*StmtInsertion); !found {
+		sis = append(sis, si)
+	} else {
+		if slices.Contains(sis, si) {
+			return
+		}
+		sis = append(sis, si)
+	}
+	bn.SetAttribute(ATTR_CONTINUE_INSERT, sis)
+}
+
+func getStmtInsertionAttr(bn BlockNode) ([]*StmtInsertion, bool) {
+	if sis, found := bn.GetAttribute(ATTR_CONTINUE_INSERT).([]*StmtInsertion); found {
+		return sis, true
+	}
+	return nil, false
+}

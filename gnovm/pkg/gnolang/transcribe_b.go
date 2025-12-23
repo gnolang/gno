@@ -50,11 +50,23 @@ func TranscribeB(last BlockNode, n Node, tb TransformB) (nn Node) {
 			}
 			return
 		case TRANS_LEAVE:
+			// fmt.Println("---000000000000000,last: ", last)
+			// if bs, ok := n.(*BranchStmt); ok {
+			// // bt = true
+			// fmt.Println("---Trans_Leave, branch stmt, bs: ", bs)
+			// fmt.Println("---1111111111111111,last: ", last)
+			// if len(ns) > 1 {
+			// 	fmt.Println("---ns[len(ns) - 1]: ", ns[len(ns)-1])
+			// }
+			// }
 			nn, tctrl = tb(ns, stack, last, ftype, index, n, stage) // user transform
 			switch n.(type) {                                       // pop block
 			case BlockNode:
 				stack = stack[:len(stack)-1]
 				last = stack[len(stack)-1]
+				// if bt {
+				// 	fmt.Println("---222222222222222222,last: ", last)
+				// }
 			}
 			return
 		default:
