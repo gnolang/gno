@@ -1348,6 +1348,7 @@ func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 	return pn
 }
 
+// PackageValue should be constructed here for initialization.
 func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 	var pv *PackageValue
 	if pn.PkgName == "main" {
@@ -1366,6 +1367,8 @@ func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 			fBlocksMap: make(map[string]*Block),
 		}
 	}
+	// Cannot set ObjectID here; it is not real yet.
+	// BAD: pv.SetObjectID(ObjectIDFromPkgPath(pv.PkgPath))
 	// Set realm for realm packages, main package, and ephemeral run packages
 	if IsRealmPath(pn.PkgPath) || pn.PkgPath == "main" {
 		rlm := NewRealm(pn.PkgPath)
