@@ -2476,6 +2476,7 @@ func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerVa
 		return b.GetPointerTo(store, nx.Path)
 	case NameExprTypeDefine:
 		return b.GetPointerTo(store, nx.Path)
+		// XXX, or consider demote loopvar attr?
 	case NameExprTypeLoopVarDefine:
 		return b.GetPointerTo(store, nx.Path)
 	case NameExprTypeHeapDefine:

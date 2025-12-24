@@ -898,17 +898,9 @@ func chopRight(in string) (left string, tok rune, right string) {
 	}
 }
 
-// func injectStmts(b Body, idx uint8, s Stmt) Body {
-// 	stmts := make([]Stmt, 0, len(b)+1)
-// 	stmts = append(stmts, b[:idx]...)
-// 	stmts = append(stmts, s)
-// 	stmts = append(stmts, b[idx:]...)
-// 	return stmts
-// }
-
 type StmtInsertion struct {
 	stmt Stmt
-	idx  int
+	idx  int // position to insert
 }
 
 func addStmtInsertionAttr(bn BlockNode, si *StmtInsertion) {
@@ -932,4 +924,40 @@ func getStmtInsertionAttr(bn BlockNode) ([]*StmtInsertion, bool) {
 		return sis, true
 	}
 	return nil, false
+}
+
+func addLoopvarAttrs(bn BlockNode, key GnoAttribute, names ...Name) {
+	var (
+		ns    []Name
+		found bool
+	)
+	if ns, found = bn.GetAttribute(key).([]Name); !found {
+		ns = append(ns, names...)
+	} else {
+		for _, n := range names {
+			if slices.Contains(ns, n) {
+				return
+			} else {
+				ns = append(ns, n)
+			}
+		}
+	}
+
+	bn.SetAttribute(key, ns)
+}
+
+func hasLoopvarAttrs(fs *ForStmt, n Name, key GnoAttribute) bool {
+	if ns, ok := fs.GetAttribute(key).([]Name); ok {
+		if slices.Contains(ns, n) {
+			return true
+		}
+	}
+	return false
+}
+
+func getLoopvarAttrs(bn BlockNode, key GnoAttribute) []Name {
+	if names, ok := bn.GetAttribute(key).([]Name); ok {
+		return names
+	}
+	return nil
 }

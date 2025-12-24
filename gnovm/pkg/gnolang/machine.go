@@ -926,7 +926,6 @@ func (m *Machine) RunStatement(st Stage, s Stmt) {
 			}
 		}()
 		s = Preprocess(m.Store, last, s).(Stmt)
-		// fmt.Println("---s: ", s)
 	}()
 	// run s.
 	m.PushOp(OpHalt)
@@ -1623,9 +1622,6 @@ func (m *Machine) PushOp(op Op) {
 	if debug {
 		m.Printf("+o %v\n", op)
 	}
-	// fmt.Printf("+o %v\n", op)
-	// PrintCaller(2, 5)
-
 	m.Ops = append(m.Ops, op)
 }
 
@@ -1674,8 +1670,6 @@ func (m *Machine) PushStmt(s Stmt) {
 	if debug {
 		m.Printf("+s %v\n", s)
 	}
-	// fmt.Printf("+s %v\n", s)
-	// PrintCaller(2, 5)
 	m.Stmts = append(m.Stmts, s)
 }
 
@@ -1694,11 +1688,7 @@ func (m *Machine) PopStmt() Stmt {
 	if debug {
 		m.Printf("-s %v\n", s)
 	}
-	// fmt.Println("---m.stmts: ", m.Stmts)
-	// fmt.Printf("-s %v\n", s)
-	// PrintCaller(2, 5)
 	if bs, ok := s.(*bodyStmt); ok {
-		// fmt.Println("---pop active stmt...")
 		return bs.PopActiveStmt()
 	}
 
@@ -2033,7 +2023,6 @@ func (m *Machine) PopFrame() Frame {
 // jump to target frame, and
 // set machine accordingly.
 func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
-	// fmt.Printf("---GotoJump, depthFrames: %d, depthBlocks: %d\n", depthFrames, depthBlocks)
 	if depthFrames >= len(m.Frames) {
 		panic("should not happen, depthFrames exeeds total frames")
 	}
@@ -2108,7 +2097,6 @@ func (m *Machine) PopFrameAndReturn() {
 }
 
 func (m *Machine) PeekFrameAndContinueFor() {
-	// fmt.Println("---PeekFrameAndContinueFor...")
 	fr := m.LastFrame()
 	m.Ops = m.Ops[:fr.NumOps+1]
 	m.Values = m.Values[:fr.NumValues]
@@ -2117,7 +2105,6 @@ func (m *Machine) PeekFrameAndContinueFor() {
 	m.Blocks = m.Blocks[:fr.NumBlocks+1]
 	ls := m.PeekStmt(1).(*bodyStmt)
 	ls.NextBodyIndex = ls.BodyLen
-	// fmt.Println("---ls.NextBldyIndex: ", ls.NextBodyIndex)
 }
 
 func (m *Machine) PeekFrameAndContinueRange() {
@@ -2287,19 +2274,11 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 			lb := m.LastBlock()
 			pv = lb.GetPointerTo(m.Store, lx.Path)
 			ro = false // always mutable
-		case NameExprTypeLoopVarDefine:
-			lb := m.LastBlock()
-			pv = lb.GetPointerTo(m.Store, lx.Path)
-			ro = false // always mutable
-		// case NameExprTypeDefine:
-		// 	lb := m.LastBlock()
-		// 	pv = lb.GetPointerTo(m.Store, lx.Path)
-		// 	ro = false // always mutable
-		case NameExprTypeLoopVarUse:
-			lb := m.LastBlock()
-			pv = lb.GetPointerTo(m.Store, lx.Path)
-			ro = false // always mutable
 		case NameExprTypeHeapUse:
+			lb := m.LastBlock()
+			pv = lb.GetPointerTo(m.Store, lx.Path)
+			ro = false // always mutable
+		case NameExprTypeLoopVarUse:
 			lb := m.LastBlock()
 			pv = lb.GetPointerTo(m.Store, lx.Path)
 			ro = false // always mutable

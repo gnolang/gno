@@ -892,10 +892,9 @@ type ExprStmt struct {
 type ForStmt struct {
 	Attributes
 	StaticBlock
-	Init Stmt // initialization (simple) statement; or nil
-	Cond Expr // condition; or nil
-	Post Stmt // post iteration (simple) statement; or nil
-	// Body
+	Init      Stmt // initialization (simple) statement; or nil
+	Cond      Expr // condition; or nil
+	Post      Stmt // post iteration (simple) statement; or nil
 	BodyBlock *BlockStmt
 }
 
@@ -1965,9 +1964,6 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 }
 
 func (sb *StaticBlock) FindNamePrefixed(store Store, n Name, prefixes ...string) (found bool, name Name) {
-	// fmt.Println("FindNamePrefixed, n: ", n)
-	// fmt.Println("FindNamePrefixed, prefixes: ", prefixes)
-	// fmt.Println("FindNamePrefixed, sb.GetBlockNames: ", sb.GetBlockNames())
 	if n == blankIdentifier {
 		return false, ""
 	}
@@ -1976,8 +1972,6 @@ func (sb *StaticBlock) FindNamePrefixed(store Store, n Name, prefixes ...string)
 	// also search with .loopvar_, this make sure `i` also
 	// get a correct path.
 	if _, found, name = sb.FindLocalNamePrefixed(n, prefixes...); found {
-		// fmt.Println("===loopVar: ", loopvar)
-		// found a NameExpr with type NameExprTypeLoopVarDefine
 		return
 	}
 	// Check ancestors.
@@ -1999,10 +1993,6 @@ func (sb *StaticBlock) FindNamePrefixed(store Store, n Name, prefixes ...string)
 }
 
 func (sb *StaticBlock) FindNamePrefixedForPath(store Store, n Name, depth uint8, prefixes ...string) (found bool, name Name) {
-	// fmt.Println("FindNamePrefixedForPath, n: ", n)
-	// fmt.Println("FindNamePrefixedForPath, depth: ", depth)
-	// fmt.Println("FindNamePrefixedForPath, prefixes: ", prefixes)
-	// fmt.Println("FindNamePrefixedForPath, sb: ", sb.Source)
 	if n == blankIdentifier {
 		return false, ""
 	}
@@ -2018,12 +2008,10 @@ func (sb *StaticBlock) FindNamePrefixedForPath(store Store, n Name, depth uint8,
 	// Check ancestors.
 	gen++
 	bp := sb.GetParentNode(store)
-	// fmt.Println("---bp: ", bp)
 	if _, ok := bp.(*IfStmt); ok {
 		depth++
 	}
 	for bp != nil && gen <= int(depth) {
-		// fmt.Println("---2, bp: ", bp)
 		if _, found, name = bp.GetStaticBlock().FindLocalNamePrefixed(n, prefixes...); found {
 			// found a NameExpr with type NameExprTypeLoopVarDefine
 			return
@@ -2045,14 +2033,10 @@ func (sb *StaticBlock) FindLocalNamePrefixed(n Name, prefixes ...string) (uint16
 
 	for _, prefix := range prefixes {
 		n2 := Name(prefix) + n
-		// fmt.Println("---search n2: ", n2)
 		// firstly search general TypeDefine names,
 		// it potentially overrides the loopvar.
 		for i, name := range sb.Names {
 			if name == n2 {
-				// fmt.Println("---match n2: ", n2)
-				// fmt.Println("---sb.GetBlockNames: ", sb.GetBlockNames())
-				// fmt.Println("---sb.Source: ", sb.Source)
 				if debug {
 					nt := reflect.TypeOf(sb.Source).String()
 					debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",
@@ -2085,17 +2069,10 @@ func MarkLoopvar(last BlockNode, nx *NameExpr) {
 	if nx.Type == NameExprTypeNormal {
 		// find 'i' or '.loopvar_i'
 		found, n := last.FindNamePrefixed(nil, nx.Name, "", ".loopvar_")
-		// fmt.Println("---found: ", found)
-		// fmt.Println("---n: ", n)
 		if found && strings.HasPrefix(string(n), ".loopvar_") {
 			nx.Type = NameExprTypeLoopVarUse
-			// XXX, necessary?
-			// this helps next step resove for path.
-			// see FillNameExprPath.
+			// rename to .loopvar_x for later use.
 			nx.Name = n
-			// fmt.Println("===after rename, nx: ", nx)
-		} else {
-			// fmt.Println("Not loopvar, nx: ", nx, nx.Type)
 		}
 	}
 }
