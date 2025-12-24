@@ -12,14 +12,18 @@
 <span><span class="font-bold">/r/test</span> Form</span>
 <span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
 </div>
-<div class="gno-form_input"><label for="username">Enter username<span class="gno-form_required-badge">(required)</span></label>
+<div class="gno-form_input"><label for="username">Enter username <span class="gno-form_required-badge">(required)</span> </label>
 <input type="text" id="username" name="username" placeholder="Enter username" value="Alice" required />
 </div>
-<div class="gno-form_input"><label for="bio">Short bio<span class="gno-form_required-badge">(required)</span></label>
+<div class="gno-form_input"><label for="bio">Short bio <span class="gno-form_required-badge">(required)</span> </label>
 <textarea id="bio" name="bio" placeholder="Short bio" rows="4" required>Super builder</textarea>
 </div>
-<div class="gno-form_select"><label for="role">Role<span class="gno-form_required-badge">(required)</span></label>
-<select id="role" name="role" required><option value="">Select a Role</option><option value="admin" selected>admin</option><option value="user">user</option></select>
+<div class="gno-form_select"><label for="role">Role <span class="gno-form_required-badge">(required)</span> </label>
+<select id="role" name="role" required>
+<option value="">Select a Role</option>
+<option value="admin">admin</option>
+<option value="user">user</option>
+</select>
 <svg class="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"><use href="#ico-arrow"></use></svg>
 </div>
 <div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
