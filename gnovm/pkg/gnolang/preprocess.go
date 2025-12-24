@@ -601,12 +601,22 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 					return n, TRANS_CONTINUE
 				})
+			// fmt.Println("---after renamed..., n: ", n)
 
-			// restore ATTR_PREPROCESSED attribute
-			RestoreNode(ctx, n)
-			// re-preprocess1
-			n = preprocess1(store, ctx, n)
-			// fmt.Println("---after re-preprocess1..., n: ", n)
+			Transcribe(n,
+				func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+					if stage != TRANS_LEAVE {
+						return n, TRANS_CONTINUE
+					}
+					if bn, ok := n.(BlockNode); ok {
+						if _, ok := bn.(*ForStmt); ok {
+							resolveInjectedName(ctx, bn)
+						}
+						return n, TRANS_CONTINUE
+					} else {
+					}
+					return n, TRANS_CONTINUE
+				})
 		}
 	}
 
@@ -3141,42 +3151,6 @@ func codaGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 	})
 }
 
-func RestoreNode(ctx BlockNode, n Node) {
-	// Iterate over all nodes recursively.
-	_ = TranscribeB(ctx, n, func(
-		ns []Node,
-		stack []BlockNode,
-		last BlockNode,
-		ftype TransField,
-		index int,
-		n Node,
-		stage TransStage,
-	) (Node, TransCtrl) {
-		defer doRecover(stack, n)
-
-		if debug {
-			debug.Printf("RestoreNode %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
-		}
-
-		switch stage {
-		// ----------------------------------------
-		case TRANS_BLOCK:
-
-		// ----------------------------------------
-		case TRANS_LEAVE:
-			switch n.(type) {
-			case *TypeDecl:
-				// no re-preprocess as it's reusing PredefineFileSet result.
-				// otherwise method infos will be wiped.
-			default:
-				n.SetAttribute(ATTR_PREPROCESSED, false)
-			}
-			return n, TRANS_CONTINUE
-		}
-		return n, TRANS_CONTINUE
-	})
-}
-
 func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 	// Iterate over all nodes recursively.
 	_ = TranscribeB(ctx, bn, func(
@@ -3613,6 +3587,56 @@ func renameLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 		return n, TRANS_CONTINUE
 	})
 	return
+}
+
+func resolveInjectedName(ctx BlockNode, bn BlockNode) {
+	// Iterate over all nodes recursively.
+	_ = TranscribeB(ctx, bn, func(
+		ns []Node,
+		stack []BlockNode,
+		last BlockNode,
+		ftype TransField,
+		index int,
+		n Node,
+		stage TransStage,
+	) (Node, TransCtrl) {
+		defer doRecover(stack, n)
+
+		if debug {
+			debug.Printf("resolveInjectedName %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+		}
+
+		switch stage {
+		// ----------------------------------------
+		case TRANS_BLOCK:
+
+		// ----------------------------------------
+		case TRANS_LEAVE:
+			switch n := n.(type) {
+			case *NameExpr:
+				// fmt.Printf("------resove name: %s, n.Path: %v, n.Path.Type: %v\n", n.Name, n.Path, n.Path.Type)
+				// if n.Path.Type == VPInvalid {
+				// fmt.Println("---fillNameExprPath...")
+				switch ftype {
+				case TRANS_ASSIGN_LHS:
+					as := ns[len(ns)-1].(*AssignStmt)
+					// XXX, why this again?
+					MarkLoopvar(last, n)
+					fillNameExprPath(last, n, as.Op == DEFINE)
+					return n, TRANS_CONTINUE
+				case TRANS_VAR_NAME:
+					fillNameExprPath(last, n, true)
+					return n, TRANS_CONTINUE
+				default:
+					MarkLoopvar(last, n)
+					fillNameExprPath(last, n, false)
+				}
+				// }
+				return n, TRANS_CONTINUE
+			}
+		}
+		return n, TRANS_CONTINUE
+	})
 }
 
 // Finds heap defines by their use in ref expressions or
