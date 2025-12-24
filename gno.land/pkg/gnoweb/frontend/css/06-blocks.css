@@ -2112,6 +2112,20 @@ pre.chroma-chroma {
 				border-color: var(--s-color-border-secondary);
 			}
 		}
+
+		&:user-invalid {
+			border-color: var(--s-color-border-error);
+
+			&:focus {
+				border-color: var(--s-color-border-error);
+			}
+		}
+
+		@supports not selector(:user-invalid) {
+			&:invalid:not(:placeholder-shown):not(:focus) {
+				border-color: var(--s-color-border-error);
+			}
+		}
 	}
 
 	.gno-form_input input:focus,
@@ -2137,7 +2151,7 @@ pre.chroma-chroma {
 		font-weight: var(--g-font-semibold);
 	}
 
-	.gno-form_readonly-badge {
+	.gno-form_info-badge {
 		font-size: var(--g-font-size-50);
 		color: var(--s-color-text-tertiary);
 		font-weight: var(--g-font-normal);
@@ -2197,6 +2211,17 @@ pre.chroma-chroma {
 						opacity: var(--g-opacity-50);
 						cursor: not-allowed;
 						text-decoration: none;
+					}
+				}
+
+				/* Validation states for radio/checkbox */
+				&:user-invalid {
+					border-color: var(--s-color-border-error);
+				}
+
+				@supports not selector(:user-invalid) {
+					&:invalid {
+						border-color: var(--s-color-border-error);
 					}
 				}
 			}
@@ -2349,7 +2374,7 @@ pre.chroma-chroma {
 		}
 
 		&.gno-alert-caution {
-			border-inline-start-color: var(--s-color-border-caution);
+			border-inline-start-color: var(--s-color-border-error);
 			background-color: color-mix(
 				in srgb,
 				var(--s-color-bg-caution-default) 10%,

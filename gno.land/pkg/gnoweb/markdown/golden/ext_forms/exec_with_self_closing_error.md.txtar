@@ -12,7 +12,7 @@
 <span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
 </div>
 <div data-controller="action-function" data-action-function-name-value="CreatePost">
-<div class="gno-form_input"><label for="title"> Enter value </label>
+<div class="gno-form_input"><label for="title">Enter value</label>
 <input type="text" id="title" name="title" placeholder="Enter value" data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" data-action-function-param-value="title" />
 </div>
 <!-- Error: unexpected or invalid tag -->
