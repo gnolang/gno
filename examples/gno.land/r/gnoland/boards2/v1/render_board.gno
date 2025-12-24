@@ -9,15 +9,15 @@ import (
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/mdalert"
 	"gno.land/p/nt/mux"
+	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	board, found := gBoards.GetByName(name)
 	if !found {
-		link := md.Link("create a new board", gRealmLink.Call("CreateBoard", "name", name, "listed", "true"))
 		res.Write(md.H3("The board you are looking for does not exist"))
-		res.Write("Do you want to " + link + " ?")
+		res.Write("Do you want to " + md.Link("create a new board", createBoardURI) + " ?")
 		return
 	}
 
@@ -147,19 +147,19 @@ func renderInviteMember(res *mux.ResponseWriter, req *mux.Request) {
 	)
 	form.Select(
 		"role",
-		string(RoleOwner),
+		string(permissions.RoleOwner),
 	)
 	form.Select(
 		"role",
-		string(RoleAdmin),
+		string(permissions.RoleAdmin),
 	)
 	form.Select(
 		"role",
-		string(RoleModerator),
+		string(permissions.RoleModerator),
 	)
 	form.Select(
 		"role",
-		string(RoleGuest),
+		string(permissions.RoleGuest),
 		"selected", "true",
 	)
 
