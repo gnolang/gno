@@ -68,7 +68,7 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	} else {
 		vmk.LoadStdlib(stdlibCtx, stdlibsDir)
 	}
-	vmk.CommitGnoTransactionStore(stdlibCtx)
+	vmk.CommitGnoTransactionStore(stdlibCtx, true, true)
 	mcw.MultiWrite()
 	vmh := NewHandler(vmk)
 

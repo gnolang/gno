@@ -171,7 +171,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	})
 	baseApp.SetEndTxHook(func(ctx sdk.Context, result sdk.Result) {
 		if result.IsOK() {
-			vmk.CommitGnoTransactionStore(ctx)
+			vmk.CommitGnoTransactionStore(ctx, true, false)
 		}
 	})
 
@@ -345,7 +345,7 @@ func (cfg InitChainerConfig) loadStdlibs(ctx sdk.Context) {
 	} else {
 		cfg.vmk.LoadStdlib(stdlibCtx, cfg.StdlibDir)
 	}
-	cfg.vmk.CommitGnoTransactionStore(stdlibCtx)
+	cfg.vmk.CommitGnoTransactionStore(stdlibCtx, true, true)
 
 	msCache.MultiWrite()
 }

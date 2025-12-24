@@ -217,9 +217,11 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 			assert.False(t, containsGnoStore(ctx), "should not already contain gno store")
 			return ctx.WithContext(context.WithValue(ctx.Context(), gnoStoreKey, gnoStoreValue))
 		},
-		commitGnoTransactionStoreFn: func(ctx sdk.Context) {
+		commitGnoTransactionStoreFn: func(ctx sdk.Context, commitCacheNodes, commitCacheTypes bool) {
 			commitCalls++
 			assert.True(t, containsGnoStore(ctx), "should contain gno store")
+			assert.True(t, commitCacheNodes, "should commit cache nodes")
+			assert.True(t, commitCacheTypes, "should commit cache types")
 		},
 		loadStdlibFn:       loadStdlib(&loadStdlibCalls),
 		loadStdlibCachedFn: loadStdlib(&loadStdlibCachedCalls),

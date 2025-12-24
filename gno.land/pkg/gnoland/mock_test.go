@@ -58,7 +58,7 @@ type mockVMKeeper struct {
 	loadStdlibFn                func(sdk.Context, string)
 	loadStdlibCachedFn          func(sdk.Context, string)
 	makeGnoTransactionStoreFn   func(ctx sdk.Context) sdk.Context
-	commitGnoTransactionStoreFn func(ctx sdk.Context)
+	commitGnoTransactionStoreFn func(ctx sdk.Context, commitCacheNodes, commitCacheTypes bool)
 }
 
 func (m *mockVMKeeper) AddPackage(ctx sdk.Context, msg vm.MsgAddPackage) error {
@@ -112,9 +112,9 @@ func (m *mockVMKeeper) MakeGnoTransactionStore(ctx sdk.Context) sdk.Context {
 	return ctx
 }
 
-func (m *mockVMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
+func (m *mockVMKeeper) CommitGnoTransactionStore(ctx sdk.Context, commitCacheNodes, commitCacheTypes bool) {
 	if m.commitGnoTransactionStoreFn != nil {
-		m.commitGnoTransactionStoreFn(ctx)
+		m.commitGnoTransactionStoreFn(ctx, commitCacheNodes, commitCacheTypes)
 	}
 }
 

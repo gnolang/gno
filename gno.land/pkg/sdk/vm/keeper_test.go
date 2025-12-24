@@ -1454,7 +1454,7 @@ func UpdateAll(cur realm) {
 		// Capture the error - it should vary based on iteration order
 		_, err = env.vmk.Call(ctx, callMsg)
 
-		env.vmk.CommitGnoTransactionStore(ctx)
+		env.vmk.CommitGnoTransactionStore(ctx, true, false)
 
 		// Return error string which should vary with iteration order
 		if err != nil {

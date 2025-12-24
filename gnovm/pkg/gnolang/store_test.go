@@ -46,7 +46,8 @@ func TestTransactionStore(t *testing.T) {
 	assert.NotNil(t, txSt.GetType("gno.vm/t/hello.A"))
 
 	// use write on the stores
-	txSt.Write()
+	txSt.WriteCacheNodes()
+	txSt.WriteCacheTypes()
 	wrappedTm2Store.Write()
 
 	// mem package should exist and be ==.
@@ -93,7 +94,8 @@ func TestCopyFromCachedStore(t *testing.T) {
 	destStore := NewStore(nil, d1s, d2s)
 	destStoreTx := destStore.BeginTransaction(nil, nil, nil) // CopyFromCachedStore requires a tx store.
 	CopyFromCachedStore(destStoreTx, cachedStore, c1s, c2s)
-	destStoreTx.Write()
+	destStoreTx.WriteCacheNodes()
+	destStoreTx.WriteCacheTypes()
 
 	assert.Equal(t, c1, d1, "cached baseStore and dest baseStore should match")
 	assert.Equal(t, c2, d2, "cached iavlStore and dest iavlStore should match")
