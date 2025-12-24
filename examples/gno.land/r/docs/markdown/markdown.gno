@@ -716,7 +716,7 @@ Here's an example demonstrating all supported field types in a single exec form:
   <gno-select name="country" value="USA" description="Select your country" />
   <gno-select name="country" value="France" />
   <gno-select name="country" value="Germany" />
-  <gno-input name="visibility" type="radio" value="public" description="Profile visibility" checked="true" />
+  <gno-input name="visibility" type="radio" value="public" description="Profile visibility" required="true" />
   <gno-input name="visibility" type="radio" value="private" />
   <gno-input name="notifications" type="checkbox" value="email" description="Notifications" checked="true" />
   <gno-input name="notifications" type="checkbox" value="sms" />
@@ -730,7 +730,7 @@ Here's an example demonstrating all supported field types in a single exec form:
   <gno-select name="country" value="USA" description="Select your country" />
   <gno-select name="country" value="France" />
   <gno-select name="country" value="Germany" />
-  <gno-input name="visibility" type="radio" value="public" description="Profile visibility" checked="true" />
+  <gno-input name="visibility" type="radio" value="public" description="Profile visibility" required="true" />
   <gno-input name="visibility" type="radio" value="private" />
   <gno-input name="notifications" type="checkbox" value="email" description="Notifications" checked="true" />
   <gno-input name="notifications" type="checkbox" value="sms" />

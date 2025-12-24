@@ -587,15 +587,20 @@ func (r *FormRenderer) renderCommandBlock(w util.BufWriter, n *FormNode) {
 }
 
 func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastDescID *string, isExec bool) {
-	// Description
+	isSelectable := e.Type == "radio" || e.Type == "checkbox"
+	isRadio := e.Type == "radio"
+
+	// Description (for radio only, add required badge in description since it applies to group)
 	if e.Description != "" {
 		descID := fmt.Sprintf("desc_%s_%d", e.Name, idx)
-		fmt.Fprintf(w, `<div id="%s" class="gno-form_description">%s</div>`+"\n",
-			HTMLEscapeString(descID), HTMLEscapeString(e.Description))
+		requiredBadge := ""
+		if isRadio && e.Required {
+			requiredBadge = `<span class="gno-form_info-badge">(required)</span>`
+		}
+		fmt.Fprintf(w, `<div id="%s" class="gno-form_description">%s%s</div>`+"\n",
+			HTMLEscapeString(descID), HTMLEscapeString(e.Description), requiredBadge)
 		*lastDescID = descID
 	}
-
-	isSelectable := e.Type == "radio" || e.Type == "checkbox"
 
 	if isSelectable {
 		uniqueID := fmt.Sprintf("%s_%d", e.Name, idx)
@@ -628,20 +633,18 @@ func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastD
 		if e.Placeholder != "" {
 			label += " - " + e.Placeholder
 		}
-		if e.Required {
-			label += "(required)"
-		}
 		readonlyBadge := ""
 		if e.Readonly {
 			readonlyBadge = `<span class="gno-form_info-badge">(readonly)</span>`
 		}
+		
 		requiredBadge := ""
-		if e.Required {
+		if !isRadio && e.Required {
 			requiredBadge = `<span class="gno-form_info-badge">(required)</span>`
 		}
 		fmt.Fprintf(w, `<label for="%s">%s%s%s</label>
 </div>
-`, HTMLEscapeString(uniqueID), requiredBadge, HTMLEscapeString(label), readonlyBadge)
+`, HTMLEscapeString(uniqueID), HTMLEscapeString(label), requiredBadge, readonlyBadge)
 	} else {
 		readonlyBadge := ""
 		if e.Readonly {
