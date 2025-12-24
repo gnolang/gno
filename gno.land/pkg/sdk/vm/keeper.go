@@ -147,7 +147,7 @@ func (vm *VMKeeper) Initialize(
 		}
 		for _, stdlib := range stdlibs.InitOrder() {
 			mp := vm.gnoStore.GetMemPackage(stdlib)
-			_, err := gno.TypeCheckMemPackage(mp, opts)
+			_, _, err := gno.TypeCheckMemPackage(mp, opts)
 			if err != nil {
 				panic(fmt.Errorf("intialization error type checking %q: %w", stdlib, err))
 			}
@@ -191,7 +191,7 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 			Cache:      cachedInitTypeCheckCache,
 		}
 		for _, lib := range stdlibs.InitOrder() {
-			_, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
+			_, _, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
 			if err != nil {
 				panic(fmt.Errorf("failed type checking stdlib %q: %w", lib, err))
 			}
@@ -222,7 +222,7 @@ func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
 		Cache:      vm.getTypeCheckCache(ctx),
 	}
 	for _, lib := range stdlibs.InitOrder() {
-		_, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
+		_, _, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
 		if err != nil {
 			panic(fmt.Errorf("failed type checking stdlib %q: %w", lib, err))
 		}
@@ -490,7 +490,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		opts.Mode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
 	}
 	// Validate Gno syntax and type check.
-	_, err = gno.TypeCheckMemPackage(memPkg, opts)
+	_, _, err = gno.TypeCheckMemPackage(memPkg, opts)
 	if err != nil {
 		return ErrTypeCheck(err)
 	}
@@ -776,7 +776,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	_, err = gno.TypeCheckMemPackage(memPkg, gno.TypeCheckOptions{
+	_, _, err = gno.TypeCheckMemPackage(memPkg, gno.TypeCheckOptions{
 		Getter:     gnostore,
 		TestGetter: vm.testStdlibCache.memPackageGetter(gnostore),
 		Mode:       gno.TCLatestRelaxed,

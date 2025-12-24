@@ -341,7 +341,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 		// Validate Gno syntax and type check.
 		if tcheck {
-			if _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
+			if _, _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
 				// Use Teststore to load imported packages,
 				// mimicing the loading behavior with on-chain.
 				// (if using m.Store, the realm package will
@@ -384,7 +384,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.Store = txs
 		// Validate Gno syntax and type check.
 		if tcheck {
-			if _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
+			if _, _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
 				Getter:     m.Store,
 				TestGetter: m.Store,
 				Mode:       gno.TCLatestRelaxed,
