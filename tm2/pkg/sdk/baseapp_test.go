@@ -17,6 +17,7 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 	"github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -658,7 +659,7 @@ func TestGasUsedBetweenSimulateAndDeliver(t *testing.T) {
 
 	simulateRes := app.Simulate(txBytes, tx)
 	require.True(t, simulateRes.IsOK(), fmt.Sprintf("%v", simulateRes))
-	require.Greater(t, simulateRes.GasUsed, int64(0)) // gas used should be greater than 0
+	require.Greater(t, simulateRes.GasUsed.Total.GasConsumed, int64(0)) // gas used should be greater than 0
 
 	deliverRes := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
 	require.True(t, deliverRes.IsOK(), fmt.Sprintf("%v", deliverRes))
@@ -740,15 +741,15 @@ func TestSimulateTx(t *testing.T) {
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
 			limit := gasConsumed
-			newCtx = ctx.WithGasMeter(store.NewGasMeter(limit))
+			newCtx = ctx.WithGasMeter(gas.NewMeter(limit, gas.DefaultConfig()))
 			return
 		})
 	}
 
 	routerOpt := func(bapp *BaseApp) {
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
-			ctx.GasMeter().ConsumeGas(gasConsumed, "test")
-			return Result{GasUsed: ctx.GasMeter().GasConsumed()}
+			ctx.GasMeter().ConsumeGas(gas.OpTesting, float64(gasConsumed))
+			return Result{GasUsed: ctx.GasMeter().GasDetail()}
 		}))
 	}
 
@@ -769,12 +770,12 @@ func TestSimulateTx(t *testing.T) {
 		// simulate a message, check gas reported
 		result := app.Simulate(txBytes, tx)
 		require.True(t, result.IsOK(), result.Log)
-		require.Equal(t, gasConsumed, result.GasUsed)
+		require.Equal(t, gasConsumed, result.GasUsed.Total.GasConsumed)
 
 		// simulate again, same result
 		result = app.Simulate(txBytes, tx)
 		require.True(t, result.IsOK(), result.Log)
-		require.Equal(t, gasConsumed, result.GasUsed)
+		require.Equal(t, gasConsumed, result.GasUsed.Total.GasConsumed)
 
 		// simulate by calling Query with encoded tx
 		query := abci.RequestQuery{
@@ -788,7 +789,7 @@ func TestSimulateTx(t *testing.T) {
 		require.NoError(t, amino.Unmarshal(queryResult.Value, &res))
 		require.Nil(t, err, "Result unmarshalling failed")
 		require.True(t, res.IsOK(), res.Log)
-		require.Equal(t, gasConsumed, res.GasUsed, res.Log)
+		require.Equal(t, gasConsumed, res.GasUsed.Total.GasConsumed, res.Log)
 		app.EndBlock(abci.RequestEndBlock{})
 		app.Commit()
 	}
@@ -877,14 +878,15 @@ func TestTxGasLimits(t *testing.T) {
 	gasGranted := int64(10)
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
-			gmeter := store.NewPassthroughGasMeter(
+			gmeter := gas.NewPassthroughMeter(
 				ctx.GasMeter(),
 				gasGranted,
+				gas.DefaultConfig(),
 			)
 			newCtx = ctx.WithGasMeter(gmeter)
 
 			count := getCounter(tx)
-			newCtx.GasMeter().ConsumeGas(count, "counter-ante")
+			newCtx.GasMeter().ConsumeGas(gas.OpTesting, float64(count))
 			res = Result{
 				GasWanted: gasGranted,
 			}
@@ -895,7 +897,7 @@ func TestTxGasLimits(t *testing.T) {
 	routerOpt := func(bapp *BaseApp) {
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
 			count := msg.(msgCounter).Counter
-			ctx.GasMeter().ConsumeGas(count, "counter-handler")
+			ctx.GasMeter().ConsumeGas(gas.OpTesting, float64(count))
 			return Result{}
 		}))
 	}
@@ -934,7 +936,7 @@ func TestTxGasLimits(t *testing.T) {
 		res := app.Deliver(tx)
 
 		// check gas used and wanted
-		require.Equal(t, tc.gasUsed, res.GasUsed, fmt.Sprintf("%d: %v, %v", i, tc, res))
+		require.Equal(t, tc.gasUsed, res.GasUsed.Total.GasConsumed, fmt.Sprintf("%d: %v, %v", i, tc, res))
 
 		// check for out of gas
 		if !tc.fail {
@@ -953,14 +955,15 @@ func TestMaxBlockGasLimits(t *testing.T) {
 	gasGranted := int64(10)
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
-			gmeter := store.NewPassthroughGasMeter(
+			gmeter := gas.NewPassthroughMeter(
 				ctx.GasMeter(),
 				gasGranted,
+				gas.DefaultConfig(),
 			)
 			newCtx = ctx.WithGasMeter(gmeter)
 
 			count := getCounter(tx)
-			newCtx.GasMeter().ConsumeGas(count, "counter-ante")
+			newCtx.GasMeter().ConsumeGas(gas.OpTesting, float64(count))
 			res = Result{
 				GasWanted: gasGranted,
 			}
@@ -971,7 +974,7 @@ func TestMaxBlockGasLimits(t *testing.T) {
 	routerOpt := func(bapp *BaseApp) {
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
 			count := msg.(msgCounter).Counter
-			ctx.GasMeter().ConsumeGas(count, "counter-handler")
+			ctx.GasMeter().ConsumeGas(gas.OpTesting, float64(count))
 			return Result{}
 		}))
 	}
@@ -1114,13 +1117,14 @@ func TestGasConsumptionBadTx(t *testing.T) {
 	gasWanted := int64(5)
 	anteOpt := func(bapp *BaseApp) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
-			gmeter := store.NewPassthroughGasMeter(
+			gmeter := gas.NewPassthroughMeter(
 				ctx.GasMeter(),
 				gasWanted,
+				gas.DefaultConfig(),
 			)
 			newCtx = ctx.WithGasMeter(gmeter)
 
-			newCtx.GasMeter().ConsumeGas(getCounter(tx), "counter-ante")
+			newCtx.GasMeter().ConsumeGas(gas.OpTesting, float64(getCounter(tx)))
 			if getFailOnAnte(tx) {
 				res.Error = ABCIError(std.ErrInternal("ante handler failure"))
 				return newCtx, res, true
@@ -1136,7 +1140,7 @@ func TestGasConsumptionBadTx(t *testing.T) {
 	routerOpt := func(bapp *BaseApp) {
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
 			count := msg.(msgCounter).Counter
-			ctx.GasMeter().ConsumeGas(count, "counter-handler")
+			ctx.GasMeter().ConsumeGas(gas.OpTesting, float64(count))
 			return Result{}
 		}))
 	}

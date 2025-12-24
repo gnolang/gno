@@ -309,7 +309,7 @@ func (c *Client) EstimateGas(tx *std.Tx) (int64, error) {
 
 	// Return the actual value returned by the node
 	// for executing the transaction
-	return deliverTx.GasUsed, nil
+	return deliverTx.GasUsed.Total.GasConsumed, nil
 }
 
 // Simulate the transaction and return the ResponseDeliverTx.

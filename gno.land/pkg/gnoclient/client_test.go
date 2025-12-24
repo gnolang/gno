@@ -7,11 +7,11 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abciErrors "github.com/gnolang/gno/tm2/pkg/bft/abci/example/errors"
+	"github.com/gnolang/gno/tm2/pkg/gas"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
-	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -19,6 +19,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -1529,7 +1530,7 @@ func TestClient_EstimateGas(t *testing.T) {
 		t.Parallel()
 
 		var (
-			gasUsed     = int64(100000)
+			gasUsed     = gas.GasDetail{Total: gas.Detail{OperationCount: 1, GasConsumed: 100000}}
 			deliverResp = &abci.ResponseDeliverTx{
 				GasUsed: gasUsed,
 			}
@@ -1565,14 +1566,14 @@ func TestClient_EstimateGas(t *testing.T) {
 		estimate, err := c.EstimateGas(&std.Tx{})
 
 		require.NoError(t, err)
-		assert.Equal(t, gasUsed, estimate)
+		assert.Equal(t, gasUsed.Total.GasConsumed, estimate)
 	})
 
 	t.Run("valid simulate", func(t *testing.T) {
 		t.Parallel()
 
 		var (
-			gasUsed     = int64(100000)
+			gasUsed     = gas.GasDetail{Total: gas.Detail{OperationCount: 1, GasConsumed: 100000}}
 			deliverResp = &abci.ResponseDeliverTx{
 				GasUsed: gasUsed,
 				ResponseBase: abci.ResponseBase{
@@ -1618,7 +1619,7 @@ func TestClient_EstimateGas(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, gasUsed, deliverTx.GasUsed)
 
-		bytesDelta, coinsDelta, hasStorageEvents := keyscli.GetStorageInfo(deliverTx.Events)
+		bytesDelta, coinsDelta, hasStorageEvents := client.GetStorageInfo(deliverTx.Events)
 		assert.Equal(t, true, hasStorageEvents)
 		assert.Equal(t, int64(10), bytesDelta)
 		assert.Equal(t, "1000ugnot", coinsDelta.String())

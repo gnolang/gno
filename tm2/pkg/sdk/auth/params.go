@@ -14,11 +14,8 @@ type AuthParamsContextKey struct{}
 
 // Default parameter values
 const (
-	DefaultMaxMemoBytes           int64 = 65536
-	DefaultTxSigLimit             int64 = 7
-	DefaultTxSizeCostPerByte      int64 = 10
-	DefaultSigVerifyCostED25519   int64 = 590
-	DefaultSigVerifyCostSecp256k1 int64 = 1000
+	DefaultMaxMemoBytes int64 = 65536
+	DefaultTxSigLimit   int64 = 7
 
 	DefaultGasPricesChangeCompressor int64 = 10
 	DefaultTargetGasRatio            int64 = 70 //  70% of the MaxGas in a block
@@ -30,9 +27,6 @@ const (
 type Params struct {
 	MaxMemoBytes              int64            `json:"max_memo_bytes" yaml:"max_memo_bytes"`
 	TxSigLimit                int64            `json:"tx_sig_limit" yaml:"tx_sig_limit"`
-	TxSizeCostPerByte         int64            `json:"tx_size_cost_per_byte" yaml:"tx_size_cost_per_byte"`
-	SigVerifyCostED25519      int64            `json:"sig_verify_cost_ed25519" yaml:"sig_verify_cost_ed25519"`
-	SigVerifyCostSecp256k1    int64            `json:"sig_verify_cost_secp256k1" yaml:"sig_verify_cost_secp256k1"`
 	GasPricesChangeCompressor int64            `json:"gas_price_change_compressor" yaml:"gas_price_change_compressor"`
 	TargetGasRatio            int64            `json:"target_gas_ratio" yaml:"target_gas_ratio"`
 	InitialGasPrice           std.GasPrice     `json:"initial_gasprice"`
@@ -41,16 +35,12 @@ type Params struct {
 }
 
 // NewParams creates a new Params object
-func NewParams(maxMemoBytes, txSigLimit, txSizeCostPerByte,
-	sigVerifyCostED25519, sigVerifyCostSecp256k1, gasPricesChangeCompressor, targetGasRatio int64,
-	feeCollector crypto.Address,
+func NewParams(maxMemoBytes, txSigLimit, gasPricesChangeCompressor,
+	targetGasRatio int64, feeCollector crypto.Address,
 ) Params {
 	return Params{
 		MaxMemoBytes:              maxMemoBytes,
 		TxSigLimit:                txSigLimit,
-		TxSizeCostPerByte:         txSizeCostPerByte,
-		SigVerifyCostED25519:      sigVerifyCostED25519,
-		SigVerifyCostSecp256k1:    sigVerifyCostSecp256k1,
 		GasPricesChangeCompressor: gasPricesChangeCompressor,
 		TargetGasRatio:            targetGasRatio,
 		FeeCollector:              feeCollector,
@@ -67,9 +57,6 @@ func DefaultParams() Params {
 	return NewParams(
 		DefaultMaxMemoBytes,
 		DefaultTxSigLimit,
-		DefaultTxSizeCostPerByte,
-		DefaultSigVerifyCostED25519,
-		DefaultSigVerifyCostSecp256k1,
 		DefaultGasPricesChangeCompressor,
 		DefaultTargetGasRatio,
 		crypto.AddressFromPreimage([]byte(DefaultFeeCollectorName)),
@@ -83,9 +70,6 @@ func (p Params) String() string {
 	sb.WriteString("Params: \n")
 	fmt.Fprintf(sb, "MaxMemoBytes: %d\n", p.MaxMemoBytes)
 	fmt.Fprintf(sb, "TxSigLimit: %d\n", p.TxSigLimit)
-	fmt.Fprintf(sb, "TxSizeCostPerByte: %d\n", p.TxSizeCostPerByte)
-	fmt.Fprintf(sb, "SigVerifyCostED25519: %d\n", p.SigVerifyCostED25519)
-	fmt.Fprintf(sb, "SigVerifyCostSecp256k1: %d\n", p.SigVerifyCostSecp256k1)
 	fmt.Fprintf(sb, "GasPricesChangeCompressor: %d\n", p.GasPricesChangeCompressor)
 	fmt.Fprintf(sb, "TargetGasRatio: %d\n", p.TargetGasRatio)
 	fmt.Fprintf(sb, "FeeCollector: %s\n", p.FeeCollector.String())
@@ -98,15 +82,6 @@ func (p Params) Validate() error {
 	}
 	if p.TxSigLimit <= 0 {
 		return fmt.Errorf("invalid tx signature limit: %d", p.TxSigLimit)
-	}
-	if p.SigVerifyCostED25519 <= 0 {
-		return fmt.Errorf("invalid ED25519 signature verification cost: %d", p.SigVerifyCostED25519)
-	}
-	if p.SigVerifyCostSecp256k1 <= 0 {
-		return fmt.Errorf("invalid SECK256k1 signature verification cost: %d", p.SigVerifyCostSecp256k1)
-	}
-	if p.TxSizeCostPerByte <= 0 {
-		return fmt.Errorf("invalid tx size cost per byte: %d", p.TxSizeCostPerByte)
 	}
 	if p.GasPricesChangeCompressor <= 0 {
 		return fmt.Errorf("invalid gas prices change compressor: %d, it should be larger or equal to 1", p.GasPricesChangeCompressor)

@@ -100,7 +100,7 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 		{input: []byte(`gno.land/r/doesnotexist.Foo`), expectedErrorMatch: `^invalid package path$`},
 		{input: []byte(`gno.land/r/hello.Panic()`), expectedErrorMatch: `^foo$`},
 		{input: []byte(`gno.land/r/hello.sl[6]`), expectedErrorMatch: `^slice index out of bounds: 6 \(len=5\)$`},
-		{input: []byte(`gno.land/r/hello.func(){ for {} }()`), expectedErrorMatch: `out of gas in location: CPUCycles`},
+		{input: []byte(`gno.land/r/hello.func(){ for {} }()`), expectedErrorMatch: `out of gas in location: CPUForLoop`},
 	}
 
 	for _, tc := range tt {
