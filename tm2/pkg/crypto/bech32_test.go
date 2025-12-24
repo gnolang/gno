@@ -14,12 +14,12 @@ import (
 )
 
 var invalidStrs = []string{
-	crypto.Bech32AddrPrefix + "AB0C",
-	crypto.Bech32AddrPrefix + "1234",
-	crypto.Bech32AddrPrefix + "5678",
-	crypto.Bech32AddrPrefix + "BBAB",
-	crypto.Bech32AddrPrefix + "FF04",
-	crypto.Bech32AddrPrefix + "6789",
+	crypto.GetBech32AddrPrefix() + "AB0C",
+	crypto.GetBech32AddrPrefix() + "1234",
+	crypto.GetBech32AddrPrefix() + "5678",
+	crypto.GetBech32AddrPrefix() + "BBAB",
+	crypto.GetBech32AddrPrefix() + "FF04",
+	crypto.GetBech32AddrPrefix() + "6789",
 }
 
 func TestEmptyAddresses(t *testing.T) {
