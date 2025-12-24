@@ -628,31 +628,38 @@ func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastD
 		if e.Placeholder != "" {
 			label += " - " + e.Placeholder
 		}
+		if e.Required {
+			label += "(required)"
+		}
 		readonlyBadge := ""
 		if e.Readonly {
-			readonlyBadge = `<span class="gno-form_readonly-badge">(readonly)</span>`
+			readonlyBadge = `<span class="gno-form_info-badge">(readonly)</span>`
 		}
 		requiredBadge := ""
 		if e.Required {
-			requiredBadge = `<span class="gno-form_required-badge">(required)</span>`
+			requiredBadge = `<span class="gno-form_info-badge">(required)</span>`
 		}
-		fmt.Fprintf(w, `<label for="%s">%s %s %s</label>
+		fmt.Fprintf(w, `<label for="%s">%s%s%s</label>
 </div>
 `, HTMLEscapeString(uniqueID), requiredBadge, HTMLEscapeString(label), readonlyBadge)
 	} else {
 		readonlyBadge := ""
 		if e.Readonly {
-			readonlyBadge = `<span class="gno-form_readonly-badge">(readonly)</span>`
+			readonlyBadge = `<span class="gno-form_info-badge">(readonly)</span>`
 		}
 		requiredBadge := ""
 		if e.Required {
-			requiredBadge = `<span class="gno-form_required-badge">(required)</span>`
+			requiredBadge = `<span class="gno-form_info-badge">(required)</span>`
 		}
-		fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s">%s %s %s</label>
+		placeholder := e.Placeholder
+		if e.Required {
+			placeholder += " (required)"
+		}
+		fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s">%s%s%s</label>
 <input type="%s" id="%s" name="%s" placeholder="%s"`,
 			HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder), requiredBadge, readonlyBadge,
 			HTMLEscapeString(e.Type), HTMLEscapeString(e.Name),
-			HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder))
+			HTMLEscapeString(e.Name), HTMLEscapeString(placeholder))
 		if e.Value != "" {
 			fmt.Fprintf(w, ` value="%s"`, HTMLEscapeString(e.Value))
 		}
@@ -680,18 +687,23 @@ func (r *FormRenderer) renderTextarea(w util.BufWriter, e FormTextarea, idx int,
 
 	readonlyBadge := ""
 	if e.Readonly {
-		readonlyBadge = `<span class="gno-form_readonly-badge">(readonly)</span>`
+		readonlyBadge = `<span class="gno-form_info-badge">(readonly)</span>`
 	}
 	requiredBadge := ""
 	if e.Required {
-		requiredBadge = `<span class="gno-form_required-badge">(required)</span>`
+		requiredBadge = `<span class="gno-form_info-badge">(required)</span>`
 	}
 
-	fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s">%s %s %s</label>
+	placeholder := e.Placeholder
+	if e.Required {
+		placeholder += " (required)"
+	}
+
+	fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s">%s%s%s</label>
 <textarea id="%s" name="%s" placeholder="%s" rows="%d"`,
 		HTMLEscapeString(e.Name), HTMLEscapeString(e.Placeholder), requiredBadge, readonlyBadge,
 		HTMLEscapeString(e.Name), HTMLEscapeString(e.Name),
-		HTMLEscapeString(e.Placeholder), e.Rows)
+		HTMLEscapeString(placeholder), e.Rows)
 	if e.Readonly {
 		fmt.Fprint(w, ` readonly`)
 	}
@@ -717,13 +729,13 @@ func (r *FormRenderer) renderSelect(w util.BufWriter, elements []FormElement, e 
 	label := titleCase(strings.ReplaceAll(e.Name, "_", " "))
 	readonlyBadge := ""
 	if e.Readonly {
-		readonlyBadge = `<span class="gno-form_readonly-badge">(readonly)</span>`
+		readonlyBadge = `<span class="gno-form_info-badge">(readonly)</span>`
 	}
 	requiredBadge := ""
 	if e.Required {
-		requiredBadge = `<span class="gno-form_required-badge">(required)</span>`
+		requiredBadge = `<span class="gno-form_info-badge">(required)</span>`
 	}
-	fmt.Fprintf(w, `<div class="gno-form_select"><label for="%s">%s %s %s</label>
+	fmt.Fprintf(w, `<div class="gno-form_select"><label for="%s">%s%s%s</label>
 <select id="%s" name="%s"`,
 		HTMLEscapeString(e.Name), HTMLEscapeString(label), requiredBadge, readonlyBadge,
 		HTMLEscapeString(e.Name), HTMLEscapeString(e.Name))
@@ -743,8 +755,12 @@ func (r *FormRenderer) renderSelect(w util.BufWriter, elements []FormElement, e 
 	fmt.Fprintln(w, `>`)
 
 	article := GetWordArticle(label)
-	fmt.Fprintf(w, `<option value="">Select %s %s</option>`+"\n",
-		article, HTMLEscapeString(label))
+	defaultOptionText := fmt.Sprintf("Select %s %s", article, label)
+	if e.Required {
+		defaultOptionText += " (required)"
+	}
+	fmt.Fprintf(w, `<option value="">%s</option>`+"\n",
+		HTMLEscapeString(defaultOptionText))
 
 	// Collect all options for this select
 	for _, elem := range elements {
