@@ -351,14 +351,12 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 	case *AssignStmt:
 		for idx := range cnn.Lhs {
-			// fmt.Println("---transcribe LHS...")
 			cnn.Lhs[idx] = transcribe(t, nns, TRANS_ASSIGN_LHS, idx, cnn.Lhs[idx], &c).(Expr)
 			if stopOrSkip(nc, c) {
 				return
 			}
 		}
 		for idx := range cnn.Rhs {
-			// fmt.Println("---transcribe RHS...")
 			cnn.Rhs[idx] = transcribe(t, nns, TRANS_ASSIGN_RHS, idx, cnn.Rhs[idx], &c).(Expr)
 			if stopOrSkip(nc, c) {
 				return
@@ -430,14 +428,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		if stopOrSkip(nc, c) {
 			return
 		}
-
-		// // iterate over Body; its length can change if a statement is decomposed.
-		// for idx := 0; idx < len(cnn.Body); idx++ {
-		// 	cnn.Body[idx] = transcribe(t, nns, TRANS_FOR_BODY, idx, cnn.Body[idx], &c).(Stmt)
-		// 	if stopOrSkip(nc, c) {
-		// 		return
-		// 	}
-		// }
 	case *GoStmt:
 		cnn.Call = *transcribe(t, nns, TRANS_GO_CALL, 0, &cnn.Call, &c).(*CallExpr)
 		if stopOrSkip(nc, c) {

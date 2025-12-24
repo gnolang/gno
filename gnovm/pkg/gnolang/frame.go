@@ -21,10 +21,6 @@ type Frame struct {
 	NumStmts  int  // number of statements in stack
 	NumBlocks int  // number of blocks in stack
 
-	// NextBodyIndex int  // for *ForStmt body index
-	// Cond          Expr // for ForStmt
-	// Post          Stmt
-
 	// call frame
 	Func          *FuncValue    // function value
 	Receiver      TypedValue    // if bound method
