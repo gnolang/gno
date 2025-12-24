@@ -637,7 +637,7 @@ func (r *FormRenderer) renderInput(w util.BufWriter, e FormInput, idx int, lastD
 		if e.Readonly {
 			readonlyBadge = `<span class="gno-form_info-badge">(readonly)</span>`
 		}
-		
+
 		requiredBadge := ""
 		if !isRadio && e.Required {
 			requiredBadge = `<span class="gno-form_info-badge">(required)</span>`
