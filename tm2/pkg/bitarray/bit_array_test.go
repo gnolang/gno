@@ -274,3 +274,41 @@ func TestJSONMarshalUnmarshal(t *testing.T) {
 		})
 	}
 }
+
+// Reproducer/regression test for json.Unmarshal crashing when no bits are passed into the JSON.
+func TestUnmarshalJSONDoesntCrashOnZeroBits(t *testing.T) {
+	t.Parallel()
+
+	type indexCorpus struct {
+		BitArray *BitArray `json:"ba"`
+		Index    int       `json:"i"`
+	}
+
+	ic := new(indexCorpus)
+	blob := []byte(`{"BA":""}`)
+	err := json.Unmarshal(blob, ic)
+	require.NoError(t, err)
+	require.Equal(t, ic.BitArray, &BitArray{Bits: 0, Elems: nil})
+}
+
+func TestBitArrayValidateBasic(t *testing.T) {
+	testCases := []struct {
+		name    string
+		bA1     *BitArray
+		expPass bool
+	}{
+		{"valid empty", &BitArray{}, true},
+		{"valid explicit 0 bits nil elements", &BitArray{Bits: 0, Elems: nil}, true},
+		{"valid explicit 0 bits 0 len elements", &BitArray{Bits: 0, Elems: make([]uint64, 0)}, true},
+		{"valid nil", nil, true},
+		{"valid with elements", NewBitArray(10), true},
+		{"more elements than bits specifies", &BitArray{Bits: 0, Elems: make([]uint64, 5)}, false},
+		{"less elements than bits specifies", &BitArray{Bits: 200, Elems: make([]uint64, 1)}, false},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.bA1.ValidateBasic()
+			require.Equal(t, err == nil, tc.expPass)
+		})
+	}
+}
