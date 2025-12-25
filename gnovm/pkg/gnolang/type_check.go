@@ -650,7 +650,8 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 // Check part of the LHS to ensure it is of a numeric type.
 // More stringent checks will be performed in the subsequent stage in
 // assertShiftExprCompatible2.
-func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt, rt Type) {
+func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt, rt Type, propagate bool) {
+	// fmt.Printf("---assertShiftExprCompatible1, lt: %v, rt: %v\n", lt, rt)
 	// check rhs type
 	if rt == nil {
 		panic(fmt.Sprintf("cannot convert %v to type uint", x.Right))
@@ -693,21 +694,34 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 		if lt == UntypedBigdecType {
 			// 1.0 << 1
 			if lic && ric {
+				// XXX, duplicate?
 				convertConst(store, last, x, lcx, UntypedBigintType)
 				return
 			}
 		}
 		// not const, e.g. 1.0 << x, see types/shift_d5.gno
+		// this can be valid if the context if IntType.
+		// e.g. var y int = 1.0 << x.
 		if isNumeric(lt) {
-			return
+			if propagate {
+				return
+			}
+			// embedded in an outer shift expr, no propagation.
+			// e.g. y = (1.0 << s) << s
+			if isUntyped(lt) {
+				lt = defaultTypeOf(lt)
+			}
 		}
 		panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(lt)))
 	}
 	panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 }
 
-// used in checkOrConvertType, only check lhs type
+// used in checkOrConvertType, only check lhs type.
+// check if untyped non-const shift expr is compatible.
+// e.g. y := 1.0 << x.
 func (x *BinaryExpr) assertShiftExprCompatible2(t Type) {
+	// fmt.Println("---,assertShiftExprCompatible2..., t: ", t)
 	// check lhs type
 	if checker, ok := binaryChecker[x.Op]; ok {
 		if !checker(t) {
