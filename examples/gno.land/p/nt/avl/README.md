@@ -2,6 +2,34 @@
 
 The `avl` package provides a gas-efficient AVL tree implementation for storing key-value data in Gno realms.
 
+## Basic Usage
+
+```go
+package myrealm
+
+import "gno.land/p/nt/avl"
+
+// This AVL tree will be persisted after transaction calls
+var tree *avl.Tree
+
+func Set(key string, value int) {
+	// tree.Set takes in a string key, and a value that can be of any type
+	tree.Set(key, value)
+}
+
+func Get(key string) int {
+	// tree.Get returns the value at given key in its raw form,
+	// and a bool to signify the existence of the key-value pair
+	rawValue, exists := tree.Get(key)
+	if !exists {
+		panic("value at given key does not exist")
+	}
+
+	// rawValue needs to be converted into the proper type before returning it
+	return rawValue.(int)
+}
+```
+
 ## Storage Architecture: AVL Tree vs Map
 
 In Gno, the choice between `avl.Tree` and `map` is fundamentally about how data is persisted in storage.
@@ -40,36 +68,8 @@ Object :31 = Node{key="101", height=1, size=2, left=:32, right=...}
 Object :33 = Node{key="100", value="123", height=0, size=1}
 ```
 - Accessing `tree.Get("100")` loads ~10 objects (the search path)
-- Gas cost: proportional to log₂(n) ≈ 10 nodes
+- Gas cost: proportional to log(n) ≈ 10 nodes
 - **10 object fetches, each containing only a single node**
-
-## Basic Usage
-
-```go
-package myrealm
-
-import "gno.land/p/nt/avl"
-
-// This AVL tree will be persisted after transaction calls
-var tree *avl.Tree
-
-func Set(key string, value int) {
-	// tree.Set takes in a string key, and a value that can be of any type
-	tree.Set(key, value)
-}
-
-func Get(key string) int {
-	// tree.Get returns the value at given key in its raw form,
-	// and a bool to signify the existence of the key-value pair
-	rawValue, exists := tree.Get(key)
-	if !exists {
-		panic("value at given key does not exist")
-	}
-
-	// rawValue needs to be converted into the proper type before returning it
-	return rawValue.(int)
-}
-```
 
 ## Further Reading
 
