@@ -33,7 +33,7 @@ Data structure in Gno provides a gas-efficient sorted tree
 structure for storing key-value data. Useful when you need access to large datasets.
 Deployed under `gno.land/p/nt/avl`.
 
-See [Effective Gno](./effective-gno.md#using-avltree-for-efficient-data-retrieval) for usage guidance 
+See [Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage) for usage guidance 
 and the [package README](../../examples/gno.land/p/nt/avl/README.md) for technical details.
 
 ## B

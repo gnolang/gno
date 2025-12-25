@@ -76,4 +76,4 @@ func Get(key string) int {
 - [Why should you use an AVL tree instead of a map?](https://howl.moe/posts/2024-09-19-gno-avl-over-maps/) - Howl detailed analysis
 - [Berty's AVL scalability report](https://github.com/gnolang/hackerspace/issues/67) - Real-world testing with up to 20M entries
 - [Wikipedia - AVL tree](https://en.wikipedia.org/wiki/AVL_tree) - Algorithm details and balancing
-- [Effective Gno](https://docs.gno.land/resources/effective-gno#using-avltree-for-efficient-data-retrieval) - High-level usage guidance
+- [Effective Gno](https://docs.gno.land/resources/effective-gno#prefer-avltree-over-map-for-scalable-storage) - High-level usage guidance
