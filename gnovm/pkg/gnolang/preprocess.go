@@ -1194,12 +1194,22 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// Special (recursive) case if shift and right isn't uint.
 				isShift := n.Op == SHL || n.Op == SHR
 				if isShift {
-					fmt.Println("---shift, n: ", n)
+					// fmt.Println("---shift, n: ", n)
 					// check LHS type compatibility
-					n.assertShiftExprCompatible1(store, last, lt, rt)
+					propagate := func() bool {
+						var prevNode Node
+						if len(ns) > 1 {
+							prevNode = ns[len(ns)-1]
+						}
+						if bx2, ok := prevNode.(*BinaryExpr); ok && (bx2.Op == SHL || bx2.Op == SHR) && bx2.Left == n {
+							return false
+						}
+						return true
+					}
+					n.assertShiftExprCompatible1(store, last, lt, rt, propagate())
 					// checkOrConvert RHS
 					if baseOf(rt) != UintType {
-						fmt.Println("---RHS not uint...")
+						// fmt.Println("---RHS not uint...")
 						// convert n.Right to (gno) uint type,
 						rn := Expr(Call("uint", n.Right))
 						// reset/create n2 to preprocess right child.
@@ -1212,7 +1222,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 						n2.Right.SetAttribute(ATTR_SHIFT_RHS, true)
 						resn := Preprocess(store, last, n2)
-						fmt.Println("---resn: ", resn)
+						// fmt.Println("---resn: ", resn)
 						return resn, TRANS_CONTINUE
 					}
 					// Shift Expr finished.
@@ -1303,7 +1313,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				}
 			// TRANS_LEAVE -----------------------
 			case *CallExpr:
-				fmt.Println("---Trans_Leave, *CallExpr: ", n)
+				// fmt.Println("---Trans_Leave, *CallExpr: ", n)
 				// Func type evaluation.
 				nft := evalStaticTypeOf(store, last, n.Func)
 				switch bnft := baseOf(nft).(type) {
@@ -4062,33 +4072,34 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 				t = defaultTypeOf(xt)
 			}
 
-			fmt.Printf("checkOrConvertType, *x: %v:, t:%v \n", *x, t)
-			PrintCaller(2, 5)
+			// fmt.Printf("checkOrConvertType, *x: %v:, t:%v \n", *x, t)
+			// PrintCaller(2, 5)
 			bx.assertShiftExprCompatible2(t)
-			fmt.Println("---after assert 2...")
+			// fmt.Println("---after assert 2...")
 			// check recursively.
 			// e.g. y = (1.0 << s) << s...
 			// see shif_deep3.gno.
 
 			// left is nested untyped shift expr.
-			lsxu := func() bool {
-				if bx2, ok := bx.Left.(*BinaryExpr); ok && (bx2.Op == SHL || bx2.Op == SHR) {
-					fmt.Println("---left is shift binary...")
-					xt := evalStaticTypeOf(store, last, bx.Left)
-					fmt.Println("==================xt: ", xt)
-					if isUntyped(xt) {
-						return true
-					}
-				}
-				return false
-			}
+			// lsxu := func() bool {
+			// 	if bx2, ok := bx.Left.(*BinaryExpr); ok && (bx2.Op == SHL || bx2.Op == SHR) {
+			// 		// fmt.Println("---left is shift binary...")
+			// 		xt := evalStaticTypeOf(store, last, bx.Left)
+			// 		// fmt.Println("==================xt: ", xt)
+			// 		if isUntyped(xt) {
+			// 			return true
+			// 		}
+			// 	}
+			// 	return false
+			// }
 
-			if lsxu() {
-				// no inward context type
-				checkOrConvertType(store, last, n, &bx.Left, nil)
-			} else {
-				checkOrConvertType(store, last, n, &bx.Left, t)
-			}
+			// if lsxu() {
+			// 	// no inward context type
+			// 	checkOrConvertType(store, last, n, &bx.Left, nil)
+			// } else {
+			// 	checkOrConvertType(store, last, n, &bx.Left, t)
+			// }
+			checkOrConvertType(store, last, n, &bx.Left, t)
 		} else {
 			assertAssignableTo(n, xt, t)
 		}
