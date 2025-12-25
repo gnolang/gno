@@ -635,13 +635,15 @@ The main differences between `avl.Tree` and `map` are:
 **Use `avl.Tree` when you need**:
 
 - Lazy loading (gas-efficient for large datasets - only loads the search path)
-- Efficient range queries (find all keys between "alice" and "charlie")
+- Efficient range queries (find all keys between "bob" and "charlie")
+- Data that grows over time (user registries, leaderboards)
 - Sorted iteration by key value
 
 **Use `map` when you need**:
 
 - O(1) fast lookups
-- Type safety (AVL values are `interface{}` and require type casting)
+- Small bounded datasets (e.g.: configuration values)
+- Type safety (AVL values are `any` and require type casting)
 - Iteration by insertion order
 
 ```go
@@ -697,12 +699,10 @@ func AddUser(id, name string) {
 implementation of a self-balancing binary tree.
 [avl-wiki]: https://en.wikipedia.org/wiki/AVL_tree
 
+For a detailed explanation of how maps and AVL trees are stored in Gno's object store, see the [avl package README](../../examples/gno.land/p/nt/avl/README.md).
 
 In the future, we plan to add built-in "map" support that will match the
-efficiency of an `avl.Tree` while offering a more intuitive API. Until then, if
-you're dealing with a compact dataset, it's probably best to use slices.
-For larger datasets where you need to quickly retrieve elements by keys,
-`avl.Tree` is the way to go.
+efficiency of an `avl.Tree` while offering a more intuitive API.
 
 ### Construct "safe" objects
 

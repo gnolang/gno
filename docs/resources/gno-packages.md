@@ -136,9 +136,10 @@ folder.
 Deployed under `gno.land/p/nt/avl`, the AVL package provides a gas-efficient sorted tree 
 structure for storing key-value data. Useful when you need access to large datasets.
 
-See [Effective Gno](./effective-gno.md#using-avltree-for-efficient-data-retrieval) 
-for usage guidance.
-Usage example:
+See [Effective Gno](./effective-gno.md#using-avltree-for-efficient-data-retrieval) for usage guidance 
+and the [package README](../../examples/gno.land/p/nt/avl/README.md) for technical details.
+
+#### Usage example:
 
 ```go
 package myrealm
