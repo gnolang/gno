@@ -627,7 +627,7 @@ reliable way to manage access to your contract.
 
 ### Prefer avl.Tree over map for scalable storage
 
-In Gno, storage format determines gas costs. `map` store all entries in one object—accessing any value loads everything. `avl.Tree` store each node separately, accessing a value loads only the search path.
+An `avl.Tree` works like a `map` for storing key-value pairs, but with a crucial difference: `maps` store all entries in one object (accessing any value loads everything), while AVL trees store each node separately (accessing a value loads only the search path). This makes AVL trees far more gas-efficient for large or growing datasets.
 
 **Key differences**:
 
