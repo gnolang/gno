@@ -96,7 +96,20 @@ type (
 
 	// Executable defines an interface for proposal definitions that modify state on approval.
 	// Once proposals are executed they are archived and considered finished.
+	//
+	// Execution doesn't cross when this interface is implemented, so if crossing is required to
+	// modify the state it has to be done explicitly within the `Execute()` implementation.
 	Executable interface {
+		// Execute executes the proposal.
+		Execute() error
+	}
+
+	// CrossExecutable defines an interface for proposal definitions that modify state on approval.
+	// Once proposals are executed they are archived and considered finished.
+	//
+	// Only proposal definitions defined within realms can implement this type of execution method
+	// because crossing methods (and functions) can only be defined within realms.
+	CrossExecutable interface {
 		// Execute executes the proposal.
 		Execute(realm) error
 	}
@@ -123,13 +136,23 @@ func MustValidate(v Validable) {
 }
 
 // MustExecute executes an executable proposal or panics on error.
-func MustExecute(e Executable) {
-	if e == nil {
+// It only supports `Executable` and `CrossExecutable` implementations.
+func MustExecute(exec any) {
+	if exec == nil {
 		panic("executable proposal definition is nil")
 	}
 
-	if err := e.Execute(cross); err != nil {
-		panic(err)
+	switch e := exec.(type) {
+	case Executable:
+		if err := e.Execute(); err != nil {
+			panic(err)
+		}
+	case CrossExecutable:
+		if err := e.Execute(cross); err != nil {
+			panic(err)
+		}
+	default:
+		panic("proposal is not executable")
 	}
 }
 

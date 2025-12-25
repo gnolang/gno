@@ -21,7 +21,7 @@ func (testPropDef) Title() string                               { return "" }
 func (testPropDef) Body() string                                { return "" }
 func (testPropDef) VotingPeriod() time.Duration                 { return 0 }
 func (testPropDef) Tally(commondao.VotingContext) (bool, error) { return true, nil }
-func (testPropDef) Execute(cur realm) error                     { return errors.New("test error") }
+func (testPropDef) Execute() error                              { return errors.New("test error") }
 
 func init() {
 	dao = commondao.New(commondao.WithMember(member))
