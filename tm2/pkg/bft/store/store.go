@@ -49,6 +49,11 @@ func (bs *BlockStore) Height() int64 {
 	return bs.height
 }
 
+// NewBatch returns a new database batch for grouping block store writes.
+func (bs *BlockStore) NewBatch() dbm.Batch {
+	return bs.db.NewBatch()
+}
+
 // LoadBlock returns the block with the given height.
 // If no block is found for that height, it returns nil.
 func (bs *BlockStore) LoadBlock(height int64) *types.Block {
@@ -156,6 +161,16 @@ func (bs *BlockStore) LoadSeenCommit(height int64) *types.Commit {
 //	we need this to reload the precommits to catch-up nodes to the
 //	most recent height.  Otherwise they'd stall at H-1.
 func (bs *BlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
+	batch := bs.NewBatch()
+	bs.SaveBlockWithBatch(batch, block, blockParts, seenCommit)
+	err := batch.WriteSync()
+	if err != nil {
+		panic(err)
+	}
+	batch.Close()
+}
+
+func (bs *BlockStore) SaveBlockWithBatch(batch dbm.Batch, block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
 	if block == nil {
 		panic("BlockStore can only save a non-nil block")
 	}
@@ -170,41 +185,38 @@ func (bs *BlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 	// Save block meta
 	blockMeta := types.NewBlockMeta(block, blockParts)
 	metaBytes := amino.MustMarshal(blockMeta)
-	bs.db.Set(calcBlockMetaKey(height), metaBytes)
+	batch.Set(calcBlockMetaKey(height), metaBytes)
 
 	// Save block parts
 	for i := range blockParts.Total() {
 		part := blockParts.GetPart(i)
-		bs.saveBlockPart(height, i, part)
+		bs.saveBlockPart(batch, height, i, part)
 	}
 
 	// Save block commit (duplicate and separate from the Block)
 	blockCommitBytes := amino.MustMarshal(block.LastCommit)
-	bs.db.Set(calcBlockCommitKey(height-1), blockCommitBytes)
+	batch.Set(calcBlockCommitKey(height-1), blockCommitBytes)
 
 	// Save seen commit (seen +2/3 precommits for block)
 	// NOTE: we can delete this at a later height
 	seenCommitBytes := amino.MustMarshal(seenCommit)
-	bs.db.Set(calcSeenCommitKey(height), seenCommitBytes)
+	batch.Set(calcSeenCommitKey(height), seenCommitBytes)
 
 	// Save new BlockStoreStateJSON descriptor
-	BlockStoreStateJSON{Height: height}.Save(bs.db)
+	BlockStoreStateJSON{Height: height}.Save(batch)
 
 	// Done!
 	bs.mtx.Lock()
 	bs.height = height
 	bs.mtx.Unlock()
-
-	// Flush
-	bs.db.SetSync(nil, nil)
 }
 
-func (bs *BlockStore) saveBlockPart(height int64, index int, part *types.Part) {
+func (bs *BlockStore) saveBlockPart(batch dbm.Batch, height int64, index int, part *types.Part) {
 	if height != bs.Height()+1 {
 		panic(fmt.Sprintf("BlockStore can only save contiguous blocks. Wanted %v, got %v", bs.Height()+1, height))
 	}
 	partBytes := amino.MustMarshal(part)
-	bs.db.Set(calcBlockPartKey(height, index), partBytes)
+	batch.Set(calcBlockPartKey(height, index), partBytes)
 }
 
 //-----------------------------------------------------------------------------
@@ -235,12 +247,12 @@ type BlockStoreStateJSON struct {
 }
 
 // Save persists the blockStore state to the database as JSON.
-func (bsj BlockStoreStateJSON) Save(db dbm.DB) {
+func (bsj BlockStoreStateJSON) Save(batch dbm.Batch) {
 	bytes, err := amino.MarshalJSON(bsj)
 	if err != nil {
 		panic(fmt.Sprintf("Could not marshal state bytes: %v", err))
 	}
-	db.SetSync(blockStoreKey, bytes)
+	batch.Set(blockStoreKey, bytes)
 }
 
 // LoadBlockStoreStateJSON returns the BlockStoreStateJSON as loaded from disk.
