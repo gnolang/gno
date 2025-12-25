@@ -625,9 +625,11 @@ By using these access control mechanisms, you can ensure that your contract's
 functionality is accessible only to the intended users, providing a secure and
 reliable way to manage access to your contract.
 
-### Using avl.Tree for efficient data retrieval
+### Prefer avl.Tree over map for scalable storage
 
-The main differences between `avl.Tree` and `map` are:
+In Gno, storage format determines gas costs. `map` store all entries in one object—accessing any value loads everything. `avl.Tree` store each node separately, accessing a value loads only the search path.
+
+**Key differences**:
 
 - **AVL Trees**: O(log n) lookup, lazy loading, iterate in **sorted key order**.
 - **Maps**: O(1) lookup, type safety, iterate in **insertion order**.
