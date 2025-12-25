@@ -700,10 +700,6 @@ func AddUser(id, name string) {
 }
 ```
 
-[AVL is short for Adelson-Velsky and Landis:][avl-wiki] under the hood, it is an
-implementation of a self-balancing binary tree.
-[avl-wiki]: https://en.wikipedia.org/wiki/AVL_tree
-
 For a detailed explanation of how maps and AVL trees are stored in Gno's object store, see the [avl package README](../../examples/gno.land/p/nt/avl/README.md).
 
 In the future, we plan to add built-in "map" support that will match the
