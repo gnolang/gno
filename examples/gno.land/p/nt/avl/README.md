@@ -8,7 +8,7 @@ In Gno, the choice between `avl.Tree` and `map` is fundamentally about how data 
 
 **Maps** are stored as a single, monolithic object. When you access *any* value in a map, Gno must load the *entire* map into memory. For a map with 1,000 entries, accessing one value means loading all 1,000 entries.
 
-**AVL trees** store each node as a separate object. When you access a value, Gno only loads the nodes along the search path (typically log₂(n) nodes). For a tree with 1,000 entries, accessing one value loads only ~10 nodes. 
+**AVL trees** store each node as a separate object. When you access a value, Gno only loads the nodes along the search path (typically log(n) nodes). For a tree with 1,000 entries, accessing one value loads only ~10 nodes. 
 
 ## Storage Comparison Example
 
