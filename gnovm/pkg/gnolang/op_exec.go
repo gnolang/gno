@@ -87,37 +87,24 @@ func (m *Machine) doOpExec(op Op) {
 			return
 		}
 	case OpForLoop:
-		// fmt.Println("---OpForLoop...")
-		// fmt.Println("---last: ", m.LastBlock())
-		var bs *bodyStmt
-		// fr := m.LastFrame()
-		// var fs *ForStmt // last *ForStmt
-		// var init bool
-		// bs0 from *ForStmt.
-		// continue also goes this path.
-		if bs0 := m.PeekStmt(1).(*bodyStmt); bs0.NextBodyIndex == -2 {
-			// copy
-			bs = &bodyStmt{
-				Body:          bs0.Body,
-				BodyLen:       len(bs0.Body),
-				NextBodyIndex: -2,
-				Cond:          bs0.Cond,
-				Post:          bs0.Post,
-			}
-		} else {
-			bs = m.PeekStmt(1).(*bodyStmt)
-		}
+		// bs = m.PeekStmt(1).(*bodyStmt)
+		bs := m.LastBlock().GetBodyStmt()
 
-		// fmt.Println("---bs: ", bs)
-		// fmt.Println("---bs.Cond: ", bs.Cond)
-		// fmt.Printf("---bs.NextBodyIndex: %d, bodyLen:%d\n", bs.NextBodyIndex, bs.BodyLen)
+		var init bool
+		switch bs.NextBodyIndex {
+		case -1:
+			bs = m.PeekStmt(1).(*bodyStmt)
+			fallthrough
+		case -2:
+			init = true
+		}
 
 		// evaluate .Cond.
 		if bs.NextBodyIndex == -2 { // init
 			bs.NumOps = len(m.Ops)
 			bs.NumValues = len(m.Values)
 			bs.NumExprs = len(m.Exprs)
-			bs.NumStmts = len(m.Stmts) // updated
+			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex = -1
 		}
 		if bs.NextBodyIndex == -1 {
@@ -129,25 +116,23 @@ func (m *Machine) doOpExec(op Op) {
 					return
 				}
 			}
-			last := m.LastBlock()
 
-			// push real block of for body for execution.
-			// 1. initial enter from initial *ForStmt
-			// 2. last *BlockStmt block popped.
+			last := m.LastBlock()
+			// push body block for execution.
 			if fs, ok := last.GetSource(m.Store).(*ForStmt); ok {
 				source := fs.BodyBlock
 				b2 := m.Alloc.NewBlock(source, last)
-				// copy in
-				b2.bodyStmt = *bs
-				m.PushBlock(b2)
-				m.PushStmt(b2.GetBodyStmt())
-				// update index for Goto use
-				// current bs is b2.bodystmt
+				b2.bodyStmt = *bs // copy in bodystmt.
 				bs = b2.GetBodyStmt()
-				bs.NumStmts++
+				if init {
+					m.PushStmt(bs)
+					bs.NumStmts++
+				}
+				m.PushBlock(b2)
 			} else {
 				panic("should not happen, last should be *ForStmt")
 			}
+
 			bs.NextBodyIndex++
 		}
 		// execute body statement.
@@ -156,13 +141,10 @@ func (m *Machine) doOpExec(op Op) {
 			bs.NextBodyIndex++
 			// continue onto exec stmt.
 			bs.Active = next
-			// fmt.Println("---bs.Active: ", bs.Active)
 			s = next
-			// fmt.Println("---s: ", s, reflect.TypeOf(s))
 
-			goto EXEC_SWITCH
+			// goto EXEC_SWITCH
 		} else if bs.NextBodyIndex == bs.BodyLen {
-			// fmt.Println("---queue back...")
 			// (queue to) go back.
 			if bs.Cond != nil {
 				m.PushExpr(bs.Cond)
@@ -170,25 +152,21 @@ func (m *Machine) doOpExec(op Op) {
 			}
 			bs.NextBodyIndex = -1
 
-			// pop to forstmt block for post stmt.
-			// *ForStmt{ *BlockStmt{} }
+			// pop to *ForStmt block for post stmt exec.
+			// (*ForStmt{*BlockStmt{}}).
+			// Check if the current top of the stack is a BlockStmt (The Loop Body)
 			if bs, ok := m.LastBlock().GetSource(m.Store).(*BlockStmt); ok {
-				if _, ok := bs.GetParentNode(m.Store).(*ForStmt); ok {
-					m.PopBlock() // pop *BlockStmt block...
-				} else {
-					panic("should not happen, last 2 blocks should be *ForStmt{ *BlockStmt{} } ")
+				if _, isFor := bs.GetParentNode(m.Store).(*ForStmt); !isFor {
+					panic("should not happen, last blocks should be *ForStmt{ *BlockStmt{} }")
 				}
-			} else {
-				// fmt.Println("---No pop, last.Source: ", m.LastBlock().GetSource(m.Store))
-				// fmt.Println("---last: ", m.LastBlock())
-				// panic("should not happen, last block should be *BlockStmt{}")
+				m.PopBlock()
 			}
+			// if it wasn't a BlockStmt(popped by continue), do nothing.
 
 			if next := bs.Post; next == nil {
 				bs.Active = nil
 				return // go back now.
 			} else {
-				// fmt.Println("---continue to post stmt...")
 				// continue onto post stmt.
 				// XXX this is a kind of exception....
 				// that is, this needs to run after
@@ -564,7 +542,6 @@ EXEC_SWITCH:
 		m.PushExpr(cs.X)
 		m.PushOp(OpEval)
 	case *ForStmt:
-		// fmt.Println("------*ForStmt...")
 		m.PushFrameBasic(cs)
 
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
@@ -711,7 +688,6 @@ EXEC_SWITCH:
 			}
 		case CONTINUE:
 			// TODO document
-			// fmt.Println("---Continue...")
 			for {
 				fr := m.LastFrame()
 				switch fr.Source.(type) {
@@ -736,31 +712,13 @@ EXEC_SWITCH:
 		case GOTO:
 			m.GotoJump(int(cs.FrameDepth), int(cs.BlockDepth))
 			last := m.LastBlock()
-			// fmt.Println("---Goto, last: ", last)
 			bs := last.GetBodyStmt()
-
-			// fmt.Println("=======================")
-			// fmt.Println("---len(m.Stmts): ", len(m.Stmts))
-			// fmt.Println("---bs.NumStmts): ", bs.NumStmts)
-			// fmt.Println("---peek stmts: ", m.PeekStmt(1))
-			// fmt.Println("=======================")
-
-			// fmt.Println("---Goto, bs: ", bs)
-			// fmt.Println("---Goto, bs.Body: ", bs.Body)
-
 			m.Ops = m.Ops[:bs.NumOps]
 			m.Values = m.Values[:bs.NumValues]
 			m.Exprs = m.Exprs[:bs.NumExprs]
 			m.Stmts = m.Stmts[:bs.NumStmts]
 			bs.NextBodyIndex = cs.BodyIndex
-
-			// set to frame for *ForStmt track
-			// stmt := m.PeekStmt(1)
-			// fmt.Println("---Goto, stmt: ", stmt)
-			// fmt.Println("---Goto, NextBodyIndex: ", bs.NextBodyIndex)
-
 			bs.Active = bs.Body[cs.BodyIndex] // prefill
-			// fmt.Println("---bs.Active: ", bs.Active)
 		case FALLTHROUGH:
 			ss, ok := m.LastFrame().Source.(*SwitchStmt)
 			// this is handled in the preprocessor
