@@ -552,41 +552,15 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					if bn, ok := n.(BlockNode); ok {
 						if _, ok := bn.(*ForStmt); ok {
 							findContinue(ctx, bn)
-						}
-						return n, TRANS_CONTINUE
-					}
-					return n, TRANS_CONTINUE
-				})
-
-			Transcribe(n,
-				func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-					if stage != TRANS_LEAVE {
-						return n, TRANS_CONTINUE
-					}
-					if bn, ok := n.(BlockNode); ok {
-						if _, ok := bn.(*ForStmt); ok {
 							rewriteContinue(ctx, bn)
-						}
-						return n, TRANS_CONTINUE
-					}
-					return n, TRANS_CONTINUE
-				})
-
-			Transcribe(n,
-				func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-					if stage != TRANS_LEAVE {
-						return n, TRANS_CONTINUE
-					}
-					if bn, ok := n.(BlockNode); ok {
-						if _, ok := bn.(*ForStmt); ok {
 							shadowLoopvar(ctx, bn)
 						}
 						return n, TRANS_CONTINUE
-					} else {
 					}
 					return n, TRANS_CONTINUE
 				})
 
+			// rename & resolve after rewrite fully done.
 			Transcribe(n,
 				func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 					if stage != TRANS_LEAVE {
@@ -595,21 +569,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					if bn, ok := n.(BlockNode); ok {
 						if _, ok := bn.(*ForStmt); ok {
 							renameLoopvarByUse(ctx, bn)
-						}
-						return n, TRANS_CONTINUE
-					} else {
-					}
-					return n, TRANS_CONTINUE
-				})
-			// fmt.Println("---after renamed..., n: ", n)
-
-			Transcribe(n,
-				func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-					if stage != TRANS_LEAVE {
-						return n, TRANS_CONTINUE
-					}
-					if bn, ok := n.(BlockNode); ok {
-						if _, ok := bn.(*ForStmt); ok {
 							resolveInjectedName(ctx, bn)
 						}
 						return n, TRANS_CONTINUE
