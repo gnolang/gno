@@ -102,10 +102,10 @@ func (x NameExpr) String() string {
 		return fmt.Sprintf("%s<%s>", x.Name, x.Path.String())
 	case NameExprTypeDefine:
 		return fmt.Sprintf("%s<!%s>", x.Name, x.Path.String())
-	case NameExprTypeLoopVarDefine:
-		return fmt.Sprintf("%s<!@%s>", x.Name, x.Path.String())
 	case NameExprTypeHeapDefine:
 		return fmt.Sprintf("%s<!~%s>", x.Name, x.Path.String())
+	case NameExprTypeLoopVarDefine:
+		return fmt.Sprintf("%s<!@%s>", x.Name, x.Path.String())
 	case NameExprTypeLoopVarHeapDefine:
 		return fmt.Sprintf("%s<@!~%s>", x.Name, x.Path.String())
 	case NameExprTypeHeapUse:

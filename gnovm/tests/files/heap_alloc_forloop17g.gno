@@ -38,3 +38,6 @@
 
 // // Error:
 // // main/heap_alloc_forloop17e.gno:6:2-32:3''': name .loopvar_j not declared
+
+// Error:
+// heap_alloc_forloop17g.gno:40:80: expected 'package', found 'EOF'

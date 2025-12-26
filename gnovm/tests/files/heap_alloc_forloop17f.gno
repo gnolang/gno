@@ -46,3 +46,6 @@
 // // enter, i:  2
 // // ---continue
 // // 1
+
+// Error:
+// heap_alloc_forloop17f.gno:48:9: expected 'package', found 'EOF'
