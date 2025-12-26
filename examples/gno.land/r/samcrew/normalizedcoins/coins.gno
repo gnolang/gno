@@ -156,21 +156,15 @@ func SendCoins(dst address, coins chain.Coins) {
 			panic(errors.New("negative send amount"))
 		}
 
-		var (
-			target *chain.Coins
-			denom  string
-		)
-
 		if strings.HasPrefix(coin.Denom, "/native/") {
-			target = &natives
-			denom = strings.TrimPrefix(coin.Denom, "/native/")
+			denom := strings.TrimPrefix(coin.Denom, "/native/")
+			natives = AddCoinAmount(natives, chain.NewCoin(denom, coin.Amount))
 		} else if strings.HasPrefix(coin.Denom, "/grc20/") {
-			target = &grc20s
-			denom = strings.TrimPrefix(coin.Denom, "/grc20/")
+			denom := strings.TrimPrefix(coin.Denom, "/grc20/")
+			grc20s = AddCoinAmount(grc20s, chain.NewCoin(denom, coin.Amount))
 		} else {
 			panic(errors.New("invalid coin denom prefix: " + coin.Denom))
 		}
-		*target = AddCoinAmount(*target, chain.NewCoin(denom, coin.Amount))
 	}
 
 	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue)

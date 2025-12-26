@@ -38,6 +38,10 @@ func Subscribe(cur realm, serviceName string, fqName string, amount int64) {
 		if grc20reg.Get(fqName) == nil {
 			panic("GRC20 token not found: " + fqName)
 		}
+		teller := token.RealmTeller()
+		if err := teller.TransferFrom(creator, runtime.CurrentRealm().Address(), amount); err != nil {
+			panic(err)
+		}
 		grc20Send = chain.NewCoins(chain.NewCoin(fqName, amount))
 	}
 
