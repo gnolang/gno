@@ -141,6 +141,9 @@ const (
 	ATTR_PACKAGE_DECL          GnoAttribute = "ATTR_PACKAGE_DECL"
 	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH" // if name expr refers to package.
 	ATTR_FIX_FROM              GnoAttribute = "ATTR_FIX_FROM"     // gno fix this version.
+	ATTR_REDEFINE_NAME         GnoAttribute = "ATTR_REDEFINE_NAME"
+	ATTR_HEAP_DEFINE_LOOPVAR   GnoAttribute = "ATTR_HEAP_DEFINE_LOOPVAR"
+	ATTR_CONTINUE_INSERT       GnoAttribute = "ATTR_CONTINUE_INSERT"
 )
 
 // Embedded in each Node.
@@ -375,11 +378,15 @@ type Exprs []Expr
 type NameExprType int
 
 const (
-	NameExprTypeNormal      NameExprType = iota // default
-	NameExprTypeDefine                          // when defining normally
-	NameExprTypeHeapDefine                      // when defining escaped name in loop
-	NameExprTypeHeapUse                         // when above used in non-define lhs/rhs
-	NameExprTypeHeapClosure                     // when closure captures name
+	NameExprTypeNormal        NameExprType = iota // default
+	NameExprTypeDefine                            // when defining normally
+	NameExprTypeHeapDefine                        // when defining escaped name in loop
+	NameExprTypeHeapUse                           // when above used in non-define lhs/rhs
+	NameExprTypeHeapClosure                       // when closure captures name
+	NameExprTypeLoopVarDefine                     // when defining a loopvar
+	NameExprTypeLoopVarUse
+	NameExprTypeLoopVarHeapDefine // when loopvar is captured
+	NameExprTypeLoopVarHeapUse
 )
 
 type NameExpr struct {
@@ -885,10 +892,18 @@ type ExprStmt struct {
 type ForStmt struct {
 	Attributes
 	StaticBlock
-	Init Stmt // initialization (simple) statement; or nil
-	Cond Expr // condition; or nil
-	Post Stmt // post iteration (simple) statement; or nil
-	Body
+	Init      Stmt // initialization (simple) statement; or nil
+	Cond      Expr // condition; or nil
+	Post      Stmt // post iteration (simple) statement; or nil
+	BodyBlock *BlockStmt
+}
+
+func (fs *ForStmt) GetBody() Body {
+	return fs.BodyBlock.Body
+}
+
+func (fs *ForStmt) SetBody(b Body) {
+	fs.BodyBlock.Body.SetBody(b)
 }
 
 type GoStmt struct {
@@ -1559,6 +1574,9 @@ type BlockNode interface {
 	GetBody() Body
 	SetBody(Body)
 
+	FindNamePrefixed(Store, Name, ...string) (bool, Name)
+	FindNamePrefixedForPath(Store, Name, uint8, ...string) (bool, Name)
+
 	// Utility methods for gno fix etc.
 	// Unlike GetType[Decl|Expr]For[Path|Expr] which are determined
 	// statically, functions may be variable, so GetFuncNodeFor[Path|Expr]
@@ -1943,6 +1961,120 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 			sb, nt, n)
 	}
 	return 0, false
+}
+
+func (sb *StaticBlock) FindNamePrefixed(store Store, n Name, prefixes ...string) (found bool, name Name) {
+	if n == blankIdentifier {
+		return false, ""
+	}
+	// Check local.
+	gen := 1
+	// also search with .loopvar_, this make sure `i` also
+	// get a correct path.
+	if _, found, name = sb.FindLocalNamePrefixed(n, prefixes...); found {
+		return
+	}
+	// Check ancestors.
+	gen++
+	bp := sb.GetParentNode(store)
+	for bp != nil {
+		if _, found, name = bp.GetStaticBlock().FindLocalNamePrefixed(n, prefixes...); found {
+			// found a NameExpr with type NameExprTypeLoopVarDefine
+			return
+		} else {
+			bp = bp.GetParentNode(store)
+			gen++
+			if 0xff < gen {
+				panic("value path depth overflow")
+			}
+		}
+	}
+	return
+}
+
+func (sb *StaticBlock) FindNamePrefixedForPath(store Store, n Name, depth uint8, prefixes ...string) (found bool, name Name) {
+	if n == blankIdentifier {
+		return false, ""
+	}
+	// Check local.
+	gen := 1
+	// also search with .loopvar_, this make sure `i` also
+	// get a correct path.
+	if _, found, name = sb.FindLocalNamePrefixed(n, prefixes...); found {
+		// fmt.Println("===loopVar: ", loopvar)
+		// found a NameExpr with type NameExprTypeLoopVarDefine
+		return
+	}
+	// Check ancestors.
+	gen++
+	bp := sb.GetParentNode(store)
+	if _, ok := bp.(*IfStmt); ok {
+		depth++
+	}
+	for bp != nil && gen <= int(depth) {
+		if _, found, name = bp.GetStaticBlock().FindLocalNamePrefixed(n, prefixes...); found {
+			// found a NameExpr with type NameExprTypeLoopVarDefine
+			return
+		} else {
+			bp = bp.GetParentNode(store)
+			gen++
+			if 0xff < gen {
+				panic("value path depth overflow")
+			}
+		}
+	}
+	return
+}
+
+func (sb *StaticBlock) FindLocalNamePrefixed(n Name, prefixes ...string) (uint16, bool, Name) {
+	// fmt.Println("===FindLocalNamePrefixed, sb.GetBlockNames: ", sb.GetBlockNames())
+	// fmt.Println("===FindLocalNamePrefixed, prefixed: ", prefixes)
+	// fmt.Println("===FindLocalNamePrefixed, sb: ", sb.Source)
+
+	for _, prefix := range prefixes {
+		n2 := Name(prefix) + n
+		// firstly search general TypeDefine names,
+		// it potentially overrides the loopvar.
+		for i, name := range sb.Names {
+			if name == n2 {
+				if debug {
+					nt := reflect.TypeOf(sb.Source).String()
+					debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",
+						sb, nt, n, i, name)
+				}
+				// skip predefined name
+				t := sb.Types[i]
+				if t != nil {
+					return uint16(i), true, n2
+				}
+				// else going on search loopvar
+			}
+		}
+	}
+
+	if debug {
+		nt := reflect.TypeOf(sb.Source).String()
+		debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = undefined\n",
+			sb, nt, n)
+	}
+	return 0, false, ""
+}
+
+func MarkLoopvar(last BlockNode, nx *NameExpr) {
+	// fmt.Println("===TagLoopvar, nx: ", nx, nx.Type)
+	if nx.Name == blankIdentifier {
+		return
+	}
+
+	if nx.Type == NameExprTypeNormal {
+		// find 'i' or '.loopvar_i'
+		found, n := last.FindNamePrefixed(nil, nx.Name, "", ".loopvar_")
+		if found && strings.HasPrefix(string(n), ".loopvar_") {
+			nx.Type = NameExprTypeLoopVarUse
+			// rename to .loopvar_x for later use.
+			nx.Name = n
+		}
+	}
 }
 
 // Implemented BlockNode.

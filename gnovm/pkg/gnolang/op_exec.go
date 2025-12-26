@@ -56,6 +56,8 @@ func (m *Machine) doOpExec(op Op) {
 		debug.Printf("PEEK STMT: %v\n", s)
 		debug.Printf("%v\n", m)
 	}
+	// fmt.Printf("PEEK STMT: %v, op: %v\n", s, op)
+	// PrintCaller(2, 5)
 
 	// NOTE this could go in the switch statement, and we could
 	// use the EXEC_SWITCH to jump back, rather than putting this
@@ -85,7 +87,18 @@ func (m *Machine) doOpExec(op Op) {
 			return
 		}
 	case OpForLoop:
+		// bs = m.PeekStmt(1).(*bodyStmt)
 		bs := m.LastBlock().GetBodyStmt()
+
+		var init bool
+		switch bs.NextBodyIndex {
+		case -1:
+			bs = m.PeekStmt(1).(*bodyStmt)
+			fallthrough
+		case -2:
+			init = true
+		}
+
 		// evaluate .Cond.
 		if bs.NextBodyIndex == -2 { // init
 			bs.NumOps = len(m.Ops)
@@ -103,6 +116,23 @@ func (m *Machine) doOpExec(op Op) {
 					return
 				}
 			}
+
+			last := m.LastBlock()
+			// push body block for execution.
+			if fs, ok := last.GetSource(m.Store).(*ForStmt); ok {
+				source := fs.BodyBlock
+				b2 := m.Alloc.NewBlock(source, last)
+				b2.bodyStmt = *bs // copy in bodystmt.
+				bs = b2.GetBodyStmt()
+				if init {
+					m.PushStmt(bs)
+					bs.NumStmts++
+				}
+				m.PushBlock(b2)
+			} else {
+				panic("should not happen, last should be *ForStmt")
+			}
+
 			bs.NextBodyIndex++
 		}
 		// execute body statement.
@@ -112,7 +142,8 @@ func (m *Machine) doOpExec(op Op) {
 			// continue onto exec stmt.
 			bs.Active = next
 			s = next
-			goto EXEC_SWITCH
+
+			// goto EXEC_SWITCH
 		} else if bs.NextBodyIndex == bs.BodyLen {
 			// (queue to) go back.
 			if bs.Cond != nil {
@@ -120,6 +151,18 @@ func (m *Machine) doOpExec(op Op) {
 				m.PushOp(OpEval)
 			}
 			bs.NextBodyIndex = -1
+
+			// pop to *ForStmt block for post stmt exec.
+			// (*ForStmt{*BlockStmt{}}).
+			// Check if the current top of the stack is a BlockStmt (The Loop Body)
+			if bs, ok := m.LastBlock().GetSource(m.Store).(*BlockStmt); ok {
+				if _, isFor := bs.GetParentNode(m.Store).(*ForStmt); !isFor {
+					panic("should not happen, last blocks should be *ForStmt{ *BlockStmt{} }")
+				}
+				m.PopBlock()
+			}
+			// if it wasn't a BlockStmt(popped by continue), do nothing.
+
 			if next := bs.Post; next == nil {
 				bs.Active = nil
 				return // go back now.
@@ -129,6 +172,7 @@ func (m *Machine) doOpExec(op Op) {
 				// that is, this needs to run after
 				// the bodyStmt is force popped?
 				// or uh...
+
 				bs.Active = next
 				s = next
 				goto EXEC_SWITCH
@@ -434,6 +478,8 @@ EXEC_SWITCH:
 	if debug {
 		debug.Printf("EXEC: %v\n", s)
 	}
+	// fmt.Printf("==========================EXEC: %v, (type of s): %v\n", s, reflect.TypeOf(s))
+
 	switch cs := s.(type) {
 	case *AssignStmt:
 		switch cs.Op {
@@ -497,17 +543,20 @@ EXEC_SWITCH:
 		m.PushOp(OpEval)
 	case *ForStmt:
 		m.PushFrameBasic(cs)
+
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		b.bodyStmt = bodyStmt{
-			Body:          cs.Body,
-			BodyLen:       len(cs.Body),
+			Body:          cs.BodyBlock.Body,
+			BodyLen:       len(cs.BodyBlock.Body),
 			NextBodyIndex: -2,
 			Cond:          cs.Cond,
 			Post:          cs.Post,
 		}
 		m.PushBlock(b)
+
 		m.PushOp(OpForLoop)
 		m.PushStmt(b.GetBodyStmt())
+
 		// evaluate condition
 		if cs.Cond != nil {
 			m.PushExpr(cs.Cond)
@@ -755,12 +804,15 @@ EXEC_SWITCH:
 	case *BlockStmt:
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		m.PushBlock(b)
+
 		m.PushOp(OpPopBlock)
+
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
 			BodyLen:       len(cs.Body),
 			NextBodyIndex: -2,
 		}
+
 		m.PushOp(OpBody)
 		m.PushStmt(b.GetBodyStmt())
 	case *EmptyStmt:

@@ -2476,6 +2476,9 @@ func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerVa
 		return b.GetPointerTo(store, nx.Path)
 	case NameExprTypeDefine:
 		return b.GetPointerTo(store, nx.Path)
+		// XXX, or consider demote loopvar attr?
+	case NameExprTypeLoopVarDefine:
+		return b.GetPointerTo(store, nx.Path)
 	case NameExprTypeHeapDefine:
 		path := nx.Path
 		ptr := b.GetPointerToDirect(store, path)
@@ -2497,7 +2500,7 @@ func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerVa
 			return ptr
 		}
 	default:
-		panic("unexpected NameExpr type for GetPointerToMaybeHeapDefine")
+		panic(fmt.Sprintf("unexpected NameExpr type for GetPointerToMaybeHeapDefine: %v \n", nx.Type))
 	}
 }
 

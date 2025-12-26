@@ -651,10 +651,10 @@ func ImportD(name any, path string) *ImportDecl {
 
 func For(init, cond, post any, b ...Stmt) *ForStmt {
 	return &ForStmt{
-		Init: S(init).(SimpleStmt),
-		Cond: X(cond),
-		Post: S(post).(SimpleStmt),
-		Body: b,
+		Init:      S(init).(SimpleStmt),
+		Cond:      X(cond),
+		Post:      S(post).(SimpleStmt),
+		BodyBlock: &BlockStmt{Body: b},
 	}
 }
 
@@ -896,4 +896,68 @@ func chopRight(in string) (left string, tok rune, right string) {
 		right = string(ss.rnz[lastOut+2 : len(in)-2])
 		return
 	}
+}
+
+type StmtInsertion struct {
+	stmt Stmt
+	idx  int // position to insert
+}
+
+func addStmtInsertionAttr(bn BlockNode, si *StmtInsertion) {
+	var (
+		sis   []*StmtInsertion
+		found bool
+	)
+	if sis, found = bn.GetAttribute(ATTR_CONTINUE_INSERT).([]*StmtInsertion); !found {
+		sis = append(sis, si)
+	} else {
+		if slices.Contains(sis, si) {
+			return
+		}
+		sis = append(sis, si)
+	}
+	bn.SetAttribute(ATTR_CONTINUE_INSERT, sis)
+}
+
+func getStmtInsertionAttr(bn BlockNode) ([]*StmtInsertion, bool) {
+	if sis, found := bn.GetAttribute(ATTR_CONTINUE_INSERT).([]*StmtInsertion); found {
+		return sis, true
+	}
+	return nil, false
+}
+
+func addLoopvarAttrs(bn BlockNode, key GnoAttribute, names ...Name) {
+	var (
+		ns    []Name
+		found bool
+	)
+	if ns, found = bn.GetAttribute(key).([]Name); !found {
+		ns = append(ns, names...)
+	} else {
+		for _, n := range names {
+			if slices.Contains(ns, n) {
+				return
+			} else {
+				ns = append(ns, n)
+			}
+		}
+	}
+
+	bn.SetAttribute(key, ns)
+}
+
+func hasLoopvarAttrs(fs *ForStmt, n Name, key GnoAttribute) bool {
+	if ns, ok := fs.GetAttribute(key).([]Name); ok {
+		if slices.Contains(ns, n) {
+			return true
+		}
+	}
+	return false
+}
+
+func getLoopvarAttrs(bn BlockNode, key GnoAttribute) []Name {
+	if names, ok := bn.GetAttribute(key).([]Name); ok {
+		return names
+	}
+	return nil
 }
