@@ -617,6 +617,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 					return n, TRANS_CONTINUE
 				})
+			// fmt.Println("---after resolve names..., n: ", n)
 		}
 	}
 
@@ -3338,7 +3339,8 @@ func findContinue(ctx BlockNode, bn BlockNode) {
 						rhs := Nx(rn)
 
 						// XXX, check if heap use...
-						lhs.Type = NameExprTypeLoopVarUse
+						// lhs.Type = NameExprTypeLoopVarUse
+						lhs.Type = NameExprTypeNormal
 						rhs.Type = NameExprTypeNormal
 
 						as := A(lhs, "=", rhs)
@@ -3446,7 +3448,7 @@ func shadowLoopvar(ctx BlockNode, bn BlockNode) (stop bool) {
 					rhs := Nx(fmt.Sprintf("%s%s", ".loopvar_", rn))
 					lhs.Type = NameExprTypeHeapDefine
 					rhs.Type = NameExprTypeNormal
-					// lhs.Type = NameExprTypeDefine
+					// rhs.Type = NameExprTypeLoopVarUse
 
 					as := A(lhs, ":=", rhs)
 					body = slices.Insert(body, 0, Stmt(as))
@@ -3458,9 +3460,10 @@ func shadowLoopvar(ctx BlockNode, bn BlockNode) (stop bool) {
 					// lhs2.Type = NameExprTypeLoopVarHeapUse
 					if hasLoopvarAttrs(n, rn, ATTR_HEAP_DEFINE_LOOPVAR) {
 						lhs2.Type = NameExprTypeLoopVarHeapUse
+					} else {
+						lhs2.Type = NameExprTypeNormal
 					}
 
-					// lhs2.Type = NameExprTypeNormal
 					// will promote to heap use
 					rhs2.Type = NameExprTypeNormal
 
@@ -3614,24 +3617,26 @@ func resolveInjectedName(ctx BlockNode, bn BlockNode) {
 		case TRANS_LEAVE:
 			switch n := n.(type) {
 			case *NameExpr:
-				// fmt.Printf("------resove name: %s, n.Path: %v, n.Path.Type: %v\n", n.Name, n.Path, n.Path.Type)
-				// if n.Path.Type == VPInvalid {
-				// fmt.Println("---fillNameExprPath...")
+				// fmt.Printf("resolveInjectedName %s (%v) stage:%v\n", n.String(), n.Type, stage)
+				// demote loopvar related name type.
+				if n.Type == NameExprTypeLoopVarDefine {
+					n.Type = NameExprTypeDefine
+				}
+				if n.Type == NameExprTypeLoopVarUse {
+					n.Type = NameExprTypeNormal
+				}
+
 				switch ftype {
 				case TRANS_ASSIGN_LHS:
 					as := ns[len(ns)-1].(*AssignStmt)
-					// XXX, why this again?
-					MarkLoopvar(last, n)
 					fillNameExprPath(last, n, as.Op == DEFINE)
 					return n, TRANS_CONTINUE
 				case TRANS_VAR_NAME:
 					fillNameExprPath(last, n, true)
 					return n, TRANS_CONTINUE
 				default:
-					MarkLoopvar(last, n)
 					fillNameExprPath(last, n, false)
 				}
-				// }
 				return n, TRANS_CONTINUE
 			}
 		}

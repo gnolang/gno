@@ -25,7 +25,7 @@ func main() {
 }
 
 // Preprocessed:
-// file{ package main; type printer (const-type main.printer); func newPrinter() .res.0 *(typeval{main.printer}) { return &((const-type main.printer){}) }; func (p *(typeval{main.printer})) doPrintf() { for .loopvar_i<!@VPBlock(1,0)> := (const (0 int)); .loopvar_i<*VPBlock(1,0)> < (const (3 int));  { .redefine_i<!~VPBlock(1,1)> := .loopvar_i<*VPBlock(2,0)>; digits<!VPBlock(1,0)> := func func() .res.0 (const-type string){ start<!VPBlock(1,1)> := .redefine_i<~VPBlock(1,2)>; (const (println func(...interface {})))(start<VPBlock(1,1)>); return (const ("ok" string)) }<.redefine_i<()~VPBlock(1,1)>>; digits<VPBlock(1,0)>(); .redefine_i<~VPBlock(1,1)>++; .loopvar_i<*VPBlock(2,0)> = .redefine_i<~VPBlock(1,1)> }  }; func main() { p<!VPBlock(1,0)> := newPrinter<VPBlock(3,1)>(); p<VPBlock(1,0)>.doPrintf() } }
+// file{ package main; type printer (const-type main.printer); func newPrinter() .res.0 *(typeval{main.printer}) { return &((const-type main.printer){}) }; func (p *(typeval{main.printer})) doPrintf() { for .loopvar_i<!VPBlock(1,0)> := (const (0 int)); .loopvar_i<VPBlock(1,0)> < (const (3 int));  { .redefine_i<!~VPBlock(1,1)> := .loopvar_i<VPBlock(2,0)>; digits<!VPBlock(1,0)> := func func() .res.0 (const-type string){ start<!VPBlock(1,1)> := .redefine_i<~VPBlock(1,2)>; (const (println func(...interface {})))(start<VPBlock(1,1)>); return (const ("ok" string)) }<.redefine_i<()~VPBlock(1,1)>>; digits<VPBlock(1,0)>(); .redefine_i<~VPBlock(1,1)>++; .loopvar_i<VPBlock(2,0)> = .redefine_i<~VPBlock(1,1)> }  }; func main() { p<!VPBlock(1,0)> := newPrinter<VPBlock(3,1)>(); p<VPBlock(1,0)>.doPrintf() } }
 
 // Output:
 // 0

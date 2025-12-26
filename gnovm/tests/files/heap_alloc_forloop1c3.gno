@@ -21,7 +21,7 @@ func main() {
 }
 
 // Preprocessed:
-// file{ package main; type Int (const-type main.Int); var s1<!~VPBlock(2,1)> []*(typeval{main.Int}); func forLoopRef() { for .loopvar_i<!@VPBlock(1,0)> := (const (0 main.Int)); .loopvar_i<*VPBlock(1,0)> < (const (10 main.Int)); .loopvar_i<*VPBlock(1,0)>++ { .redefine_i<!~VPBlock(1,0)> := .loopvar_i<*VPBlock(2,0)>; s1<~VPBlock(5,1)> = (const (append func([]*main.Int, ...*main.Int) []*main.Int))(s1<~VPBlock(5,1)>, &(.redefine_i<~VPBlock(1,0)>)); .loopvar_i<*VPBlock(2,0)> = .redefine_i<~VPBlock(1,0)> } ; for i<!VPBlock(1,0)>, e<!VPBlock(1,1)> := range s1<~VPBlock(4,1)> { (const (println func(...interface {})))((const ("i, e: " string)), i<VPBlock(1,0)>, *(e<VPBlock(1,1)>)) } }; func main() { forLoopRef<VPBlock(3,2)>() } }
+// file{ package main; type Int (const-type main.Int); var s1<!~VPBlock(2,1)> []*(typeval{main.Int}); func forLoopRef() { for .loopvar_i<!VPBlock(1,0)> := (const (0 main.Int)); .loopvar_i<VPBlock(1,0)> < (const (10 main.Int)); .loopvar_i<VPBlock(1,0)>++ { .redefine_i<!~VPBlock(1,0)> := .loopvar_i<VPBlock(2,0)>; s1<~VPBlock(5,1)> = (const (append func([]*main.Int, ...*main.Int) []*main.Int))(s1<~VPBlock(5,1)>, &(.redefine_i<~VPBlock(1,0)>)); .loopvar_i<VPBlock(2,0)> = .redefine_i<~VPBlock(1,0)> } ; for i<!VPBlock(1,0)>, e<!VPBlock(1,1)> := range s1<~VPBlock(4,1)> { (const (println func(...interface {})))((const ("i, e: " string)), i<VPBlock(1,0)>, *(e<VPBlock(1,1)>)) } }; func main() { forLoopRef<VPBlock(3,2)>() } }
 
 // Output:
 // i, e:  0 (0 main.Int)
