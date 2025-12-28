@@ -1,0 +1,24 @@
+-- input.md --
+<gno-form>
+<gno-markdown>
+# Newsletter subscription
+**Do you agree** to receive updates and announcements by email?
+</gno-markdown>
+<gno-input name="newsletter" type="checkbox" value="subscribe" placeholder="Subscribe to newsletter" description="Receive updates about new features" />
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
+<div class="gno-form_header">
+<span><span class="font-bold">/r/test</span> Form</span>
+<span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
+</div>
+<div class="gno-form_markdown"><h1>Newsletter subscription</h1>
+<p><strong>Do you agree</strong> to receive updates and announcements by email?</p>
+<div id="desc_newsletter" class="gno-form_description">Receive updates about new features</div>
+<div class="gno-form_selectable">
+<input type="checkbox" id="newsletter" name="newsletter" value="subscribe" aria-labelledby="desc_newsletter" />
+<label for="newsletter"> subscribe - Subscribe to newsletter </label>
+</div>
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
+</form>
