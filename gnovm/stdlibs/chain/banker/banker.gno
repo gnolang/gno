@@ -68,7 +68,7 @@ func (b BankerType) String() string {
 // NewBanker returns a new Banker, with its capabilities matching the given
 // [BankerType].
 func NewBanker(bt BankerType) Banker {
-	assertCallerIsRealm()
+	assertCallerIsRealmOrEphemeral(uint8(bt))
 	if bt >= maxBanker {
 		panic("invalid banker type")
 	}
@@ -179,7 +179,7 @@ func OriginSend() chain.Coins {
 	return coins
 }
 
-func assertCallerIsRealm()
+func assertCallerIsRealmOrEphemeral(bt uint8)
 func originSend() (denoms []string, amounts []int64)
 
 // expandNative expands coins for usage within natively bound functions.
