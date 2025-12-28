@@ -38,6 +38,7 @@ Learn about core concepts found in Gno.land & Gno.
 
 - [Effective Gno](resources/effective-gno.md) - Learn how to write Gno following best practices, including counter-intuitive good practices specific to blockchain
 - [Packages](resources/gno-packages.md) - Learn about realms, pure packages, smart contracts, dApps and how they're organized in the Gno.land ecosystem.
+- [Data Structures](resources/gno-data-structures.md) - Learn about arrays, slices, maps, structs, pointers, and when to use AVL trees for efficient storage.
 - [Networks](resources/gnoland-networks.md) - Discover different Gno.land networks (testnets, devnets) and their purposes, including network configurations.
 - [Users and Teams](resources/users-and-teams.md) - Understand user registration, namespace ownership, and team collaboration in the Gno.land ecosystem.
 - [Gas Fees](resources/gas-fees.md) - Learn about gas pricing, estimation, and optimization strategies in Gno.land.
