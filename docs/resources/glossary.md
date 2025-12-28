@@ -202,6 +202,14 @@ which the address is derived) that represents an account on Gno.land.
 
 ## M
 
+### Map
+A native Gno data structure for storing key-value pairs, identical to Go maps.
+Maps provide O(1) lookup time and type safety, but store all entries in a single
+object which can be gas-inefficient for large datasets. For scalable storage in
+realms, consider using `avl.Tree` instead.
+See [Data Structures](./gno-data-structures.md) and
+[Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage).
+
 ### Merkleization
 The process of organizing data into a Merkle tree structure, allowing efficient
 and secure verification of large data sets.
