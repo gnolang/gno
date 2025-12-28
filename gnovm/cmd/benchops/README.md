@@ -23,7 +23,7 @@ It gives us a complete picture of the node perform.
 
   1. Build the production node with benchmarking flags:
 
-  `go build -tags "benchmarkingstorage benchmarkingops" gno.land/cmd/gnoland`
+  `go build -tags "benchmarkingstorage benchmarkingops benchmarkingnative" gno.land/cmd/gnoland`
 
   2. Run the node in the production environment. It will dump benchmark data to a benchmarks.bin file.
 
