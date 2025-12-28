@@ -1,0 +1,43 @@
+loadpkg gno.land/r/demo/crossrealm $WORK/crossrealm
+loadpkg gno.land/r/demo/main $WORK/main
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/demo/main -func Exec -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+-- crossrealm/gnomod.toml --
+module = "gno.land/r/demo/crossrealm"
+gno = "0.9"
+
+-- crossrealm/crossrealm.gno --
+package crossrealm
+
+
+var f any
+
+func Edit(cur realm, v any) {
+f = v
+}
+
+
+
+-- main/gnomod.toml --
+module = "gno.land/r/demo/main"
+gno = "0.9"
+-- main/main.gno --
+package main
+
+import (
+	"gno.land/r/demo/crossrealm"
+)
+
+type S struct {
+ v *int
+}
+var v S
+
+func Exec(cur realm) {
+g := 2
+v.v = &g
+crossrealm.Edit(cross, &v)
+}
