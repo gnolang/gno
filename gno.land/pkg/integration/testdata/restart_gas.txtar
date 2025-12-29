@@ -1,0 +1,51 @@
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/$test1_user_addr/bar -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout 'GAS USED: +571103'
+
+gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/$test1_user_addr/foo -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout 'GAS USED: +571130'
+
+gnoland restart
+
+gnokey maketx addpkg -pkgdir $WORK/baz -pkgpath gno.land/r/$test1_user_addr/baz -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout 'GAS USED: +571130'
+
+-- bar/gnomod.toml --
+module = "bar"
+gno = "0.9"
+
+-- bar/hello.gno --
+package bar
+
+import "chain/runtime"
+
+func PreviousRealm(cur realm) string {
+	return runtime.PreviousRealm().String()
+}
+
+-- baz/gnomod.toml --
+module = "baz"
+gno = "0.9"
+
+-- baz/hello.gno --
+package baz
+
+import "chain/runtime"
+
+func PreviousRealm(cur realm) string {
+	return runtime.PreviousRealm().String()
+}
+
+-- foo/gnomod.toml --
+module = "foo"
+gno = "0.9"
+
+-- foo/hello.gno --
+package foo
+
+import "chain/runtime"
+
+func PreviousRealm(cur realm) string {
+	return runtime.PreviousRealm().String()
+}
