@@ -39,7 +39,7 @@ func statusOK(code int) bool { return code >= 200 && code <= 299 }
 
 // Ensure that nefarious/unintended inputs to `params`
 // do not crash our RPC handlers.
-// See Issue https://github.com/gnolang/gno/tm2/pkg/bft/issues/708.
+// See Issue https://github.com/tendermint/tendermint/issues/708.
 func TestRPCParams(t *testing.T) {
 	t.Parallel()
 
