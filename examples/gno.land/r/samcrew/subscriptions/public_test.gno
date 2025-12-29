@@ -36,15 +36,15 @@ func TestNewService(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	tests := []struct {
-		name           string
-		displayName    string
-		description    string
-		renewalPeriod  time.Duration
-		native         chain.Coins
-		grc20          chain.Coins
-		expectedPrice  chain.Coins
-		expectPanic    bool
-		panicMsg       string
+		name          string
+		displayName   string
+		description   string
+		renewalPeriod time.Duration
+		native        chain.Coins
+		grc20         chain.Coins
+		expectedPrice chain.Coins
+		expectPanic   bool
+		panicMsg      string
 	}{
 		{
 			name:          "valid service with native coins",
