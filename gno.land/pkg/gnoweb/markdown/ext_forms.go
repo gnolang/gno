@@ -354,7 +354,7 @@ func (p *FormParser) parseTextarea(node *FormNode, tok html.Token) {
 				textarea.Placeholder = p
 			}
 		case "value":
-			textarea.Value = strings.TrimSpace(attr.Val)
+			textarea.Value = strings.NewReplacer("\\n", "\n", "\\t", "\t").Replace(strings.TrimSpace(attr.Val))
 		case "rows":
 			if _, err := fmt.Sscanf(attr.Val, "%d", &textarea.Rows); err != nil {
 				textarea.Rows = formDefaultTextareaRows
