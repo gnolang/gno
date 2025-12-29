@@ -74,9 +74,6 @@ func (sub *subscription) balance(renewalPeriod time.Duration, price chain.Coins)
 
 func topupNative(cur realm, serviceName string) {
 	creator := runtime.PreviousRealm().Address()
-
-	runtime.AssertOriginCall()
-
 	send := banker.OriginSend()
 	if !normalizedcoins.CoinsHasPositive(send) {
 		panic("topup amount must be positive")

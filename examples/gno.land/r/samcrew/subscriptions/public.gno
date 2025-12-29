@@ -17,6 +17,68 @@ var services *avl.Tree // key: displayName, value: *service
 var users *avl.Tree    // key: user address, value: avl.Tree of subscribed service names and empty struct{}
 var id seqid.ID
 
+// NewService creates a new subscription service with the given parameters
+// - displayName: the name of the service
+// - description: a brief description of the service
+// - renewalPeriod: the duration between renewals
+// - native: the price of the service in native coins
+// - grc20: the price of the service in GRC20 tokens
+func NewService(cur realm, displayName, description string, renewalPeriod time.Duration, native chain.Coins, grc20 chain.Coins) {
+	if displayName == "" {
+		panic("display name cannot be empty")
+	}
+	if description == "" {
+		panic("description cannot be empty")
+	}
+	if renewalPeriod <= 0 {
+		panic("renewal period must be positive")
+	}
+
+	// XXX: prefix with creator realm to avoid name clashes?
+	if services.Has(displayName) {
+		panic("service with the same display name already exists")
+	}
+	creator := runtime.PreviousRealm().Address()
+	sCoins, err := normalizedcoins.PrefixCoins(native, grc20)
+	if err != nil {
+		panic(err)
+	}
+	svc := &service{
+		id:            id.Next(),
+		owner:         ownable.NewWithAddress(creator),
+		displayName:   displayName,
+		description:   description,
+		renewalPeriod: renewalPeriod,
+		price:         sCoins,
+		subscribers:   avl.NewTree(),
+	}
+	services.Set(displayName, svc)
+}
+
+// NewServiceSimple creates a new subscription service with simple parameters
+// This is a helper function that simplifies service creation by accepting
+// denomination strings and amounts instead of chain.Coins objects.
+// - displayName: the name of the service
+// - description: a brief description of the service
+// - renewalPeriod: the duration between renewals
+// - nativeDenom: the denomination of native coins (e.g., "ugnot"), empty string for none
+// - nativeAmount: the amount of native coins, 0 for none
+// - grc20Denom: the fully qualified name of GRC20 token (e.g., "gno.land/r/demo/foo20"), empty string for none
+// - grc20Amount: the amount of GRC20 tokens, 0 for none
+func NewServiceSimple(cur realm, displayName, description string, renewalPeriod time.Duration, nativeDenom string, nativeAmount int64, grc20Denom string, grc20Amount int64) {
+	native := chain.Coins{}
+	if nativeDenom != "" && nativeAmount > 0 {
+		native = chain.NewCoins(chain.NewCoin(nativeDenom, nativeAmount))
+	}
+
+	grc20 := chain.Coins{}
+	if grc20Denom != "" && grc20Amount > 0 {
+		grc20 = chain.NewCoins(chain.NewCoin(grc20Denom, grc20Amount))
+	}
+
+	NewService(cur, displayName, description, renewalPeriod, native, grc20)
+}
+
 // Subscribe allows a user to subscribe to a service by providing the service name
 // - serviceName: the name of the service to subscribe to
 // - fqName: the fully qualified name of the GRC20 token to use for payment (empty string for native coins)
@@ -35,7 +97,8 @@ func Subscribe(cur realm, serviceName string, fqName string, amount int64) {
 	// Validate GRC20 token exists if fqName is provided
 	var grc20Send chain.Coins
 	if fqName != "" && amount != 0 {
-		if grc20reg.Get(fqName) == nil {
+		token := grc20reg.Get(fqName)
+		if token == nil {
 			panic("GRC20 token not found: " + fqName)
 		}
 		teller := token.RealmTeller()
@@ -195,68 +258,6 @@ func IsSubscribed(cur realm, serviceName string, userAddr string) bool {
 	subValue, _ := svc.subscribers.Get(userAddr)
 	sub := subValue.(*subscription)
 	return sub.isActive(svc.renewalPeriod, svc.price)
-}
-
-// NewService creates a new subscription service with the given parameters
-// - displayName: the name of the service
-// - description: a brief description of the service
-// - renewalPeriod: the duration between renewals
-// - native: the price of the service in native coins
-// - grc20: the price of the service in GRC20 tokens
-func NewService(cur realm, displayName, description string, renewalPeriod time.Duration, native chain.Coins, grc20 chain.Coins) {
-	if displayName == "" {
-		panic("display name cannot be empty")
-	}
-	if description == "" {
-		panic("description cannot be empty")
-	}
-	if renewalPeriod <= 0 {
-		panic("renewal period must be positive")
-	}
-
-	// XXX: prefix with creator realm to avoid name clashes?
-	if services.Has(displayName) {
-		panic("service with the same display name already exists")
-	}
-	creator := runtime.PreviousRealm().Address()
-	sCoins, err := normalizedcoins.PrefixCoins(native, grc20)
-	if err != nil {
-		panic(err)
-	}
-	svc := &service{
-		id:            id.Next(),
-		owner:         ownable.NewWithAddress(creator),
-		displayName:   displayName,
-		description:   description,
-		renewalPeriod: renewalPeriod,
-		price:         sCoins,
-		subscribers:   avl.NewTree(),
-	}
-	services.Set(displayName, svc)
-}
-
-// NewServiceSimple creates a new subscription service with simple parameters
-// This is a helper function that simplifies service creation by accepting
-// denomination strings and amounts instead of chain.Coins objects.
-// - displayName: the name of the service
-// - description: a brief description of the service
-// - renewalPeriod: the duration between renewals
-// - nativeDenom: the denomination of native coins (e.g., "ugnot"), empty string for none
-// - nativeAmount: the amount of native coins, 0 for none
-// - grc20Denom: the fully qualified name of GRC20 token (e.g., "gno.land/r/demo/foo20"), empty string for none
-// - grc20Amount: the amount of GRC20 tokens, 0 for none
-func NewServiceSimple(cur realm, displayName, description string, renewalPeriod time.Duration, nativeDenom string, nativeAmount int64, grc20Denom string, grc20Amount int64) {
-	native := chain.Coins{}
-	if nativeDenom != "" && nativeAmount > 0 {
-		native = chain.NewCoins(chain.NewCoin(nativeDenom, nativeAmount))
-	}
-
-	grc20 := chain.Coins{}
-	if grc20Denom != "" && grc20Amount > 0 {
-		grc20 = chain.NewCoins(chain.NewCoin(grc20Denom, grc20Amount))
-	}
-
-	NewService(cur, displayName, description, renewalPeriod, native, grc20)
 }
 
 // ServiceClaimVault allows the owner of a service to claim the funds in the service's vault.
