@@ -708,12 +708,36 @@ The ±readonly="true"± attribute makes fields non-editable while displaying the
 
 **Note**: For text-based inputs and textareas, the HTML ±readonly± attribute is used. For radio buttons, checkboxes, and select dropdowns, ±disabled± is used instead since ±readonly± doesn't work on these elements in HTML.
 
+12. Form with Embedded Markdown Content
+
+The <gno-markdown> tag allows you to embed formatted markdown content within forms for descriptions, instructions, or explanatory text.
+±±±markdown
+<gno-form>
+  <gno-markdown>
+# Newsletter Subscription
+**Do you agree** to receive updates and announcements by email?
+  </gno-markdown>
+  <gno-input name="newsletter" type="checkbox" value="subscribe" />
+</gno-form>
+±±±
+
+<gno-form>
+  <gno-markdown>
+# Newsletter Subscription
+**Do you agree** to receive updates and announcements by email?
+  </gno-markdown>
+  <gno-input name="newsletter" type="checkbox" value="subscribe" />
+</gno-form>
+
+Markdown blocks support all standard syntax (headings, bold, italic, lists, links) and can be placed anywhere within forms. Multiple blocks are allowed.
+
 #### Important Rules
 
 1. **Validation Rules**:
    - Every ±<gno-input>± must have a ±name± attribute
    - Every ±<gno-textarea>± must have a ±name± attribute
    - Every ±<gno-select>± must have a ±name± and ±value± attribute
+   - The ±<gno-markdown>± tag must be properly closed with </gno-markdown> and supports all standard markdown syntax
    - Duplicate attribute names are not allowed (except for radio, checkbox, and select groups)
    - Forms must be properly closed
    - Nested forms will not render
