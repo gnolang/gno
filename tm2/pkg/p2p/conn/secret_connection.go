@@ -41,13 +41,13 @@ var ErrSmallOrderRemotePubKey = errors.New("detected low order point from remote
 
 // SecretConnection implements net.Conn.
 // It is an implementation of the STS protocol.
-// See https://github.com/tendermint/classic/blob/0.1/docs/sts-final.pdf for
+// See https://github.com/tendermint/tendermint/blob/0.1/docs/sts-final.pdf for
 // details on the protocol.
 //
 // Consumers of the SecretConnection are responsible for authenticating
 // the remote peer's pubkey against known information, like a nodeID.
 // Otherwise they are vulnerable to MITM.
-// (TODO(ismail): see also https://github.com/tendermint/classic/issues/3010)
+// (TODO(ismail): see also https://github.com/tendermint/tendermint/issues/3010)
 type SecretConnection struct {
 	// immutable
 	recvAead cipher.AEAD
@@ -461,7 +461,7 @@ func incrNonce(nonce *[aeadNonceSize]byte) {
 	counter := binary.LittleEndian.Uint64(nonce[4:])
 	if counter == math.MaxUint64 {
 		// Terminates the session and makes sure the nonce would not re-used.
-		// See https://github.com/tendermint/classic/issues/3531
+		// See https://github.com/tendermint/tendermint/issues/3531
 		panic("can't increase nonce without overflow")
 	}
 	counter++

@@ -32,7 +32,7 @@ func TestStoreLoadValidators(t *testing.T) {
 	// 2) LoadValidators loads validators using a checkpoint height
 
 	// TODO(melekes): REMOVE in 0.33 release
-	// https://github.com/tendermint/classic/issues/3543
+	// https://github.com/tendermint/tendermint/issues/3543
 	// for releases prior to v0.31.4, it uses last height changed
 	valInfo := &sm.ValidatorsInfo{
 		LastHeightChanged: sm.ValSetCheckpointInterval,

@@ -248,7 +248,7 @@ func (sw *MultiplexSwitch) stopAndRemovePeer(peer PeerConn, err error) {
 	// Removing a peer should go last to avoid a situation where a peer
 	// reconnect to our node and the switch calls InitPeer before
 	// RemovePeer is finished.
-	// https://github.com/tendermint/classic/issues/3338
+	// https://github.com/tendermint/tendermint/issues/3338
 	sw.peers.Remove(peer.ID())
 
 	sw.events.Notify(events.PeerDisconnectedEvent{

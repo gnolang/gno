@@ -804,7 +804,7 @@ func (wsc *wsConnection) writeRoutine() {
 }
 
 // All writes to the websocket must (re)set the write deadline.
-// If some writes don't set it while others do, they may timeout incorrectly (https://github.com/gnolang/gno/tm2/pkg/bft/issues/553)
+// If some writes don't set it while others do, they may timeout incorrectly (https://github.com/tendermint/tendermint/issues/553)
 func (wsc *wsConnection) writeMessageWithDeadline(msgType int, msg []byte) error {
 	if err := wsc.baseConn.SetWriteDeadline(time.Now().Add(wsc.writeWait)); err != nil {
 		return err

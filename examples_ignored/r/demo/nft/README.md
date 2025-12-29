@@ -4,7 +4,6 @@ I read over EIP-721 which appears to be the de-facto NFT standard on Ethereum. T
 
 - [EIP-721](https://eips.ethereum.org/EIPS/eip-721)
 - [gno.land/r/demo/nft/nft.go](https://gno.land/r/demo/nft/nft.go)
-- [zrealm_nft3.go test](https://github.com/gnolang/gno/blob/master/tests/files2/zrealm_nft3.gno)
 
 In short, this demonstrates how to implement Ethereum contract interfaces in gno.land; by using only standard Go language features.
 

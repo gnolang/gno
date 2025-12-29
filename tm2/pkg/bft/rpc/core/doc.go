@@ -8,7 +8,7 @@ Tendermint supports the following RPC protocols:
 * JSONRPC over websockets
 
 Tendermint RPC is built using our own RPC library which contains its own set of documentation and tests.
-See it here: https://github.com/gnolang/gno/tm2/pkg/bft/tree/master/rpc/lib
+See it here: https://github.com/gnolang/gno/tree/master/tm2/pkg/bft/rpc/lib
 
 ## Configuration
 

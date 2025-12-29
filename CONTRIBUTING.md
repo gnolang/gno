@@ -6,7 +6,7 @@ Thank you for contributing to Gno! This guide will help you get started.
 
 - **[Documentation](https://docs.gno.land)** - comprehensive documentation for Gno
 - **[Go Package Docs](https://gnolang.github.io/gno/github.com/gnolang/gno.html)** - API reference documentation
-- **[Awesome Gno](https://github.com/gnoverse/awesome-gno** - curated list of Gno resources
+- **[Awesome Gno](https://github.com/gnoverse/awesome-gno)** - curated list of Gno resources
 - **[Discord](https://discord.gg/YFtMjWwUN7)** - join our community for discussions and support
 
 ## Getting Started

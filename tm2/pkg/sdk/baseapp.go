@@ -719,7 +719,7 @@ func (app *BaseApp) getState(mode RunTxMode) *state {
 // a cache wrapped multi-store.
 func (app *BaseApp) cacheTxContext(ctx Context) (Context, store.MultiStore) {
 	ms := ctx.MultiStore()
-	// TODO: https://github.com/tendermint/classic/sdk/issues/2824
+	// TODO: https://github.com/cosmos/cosmos-sdk/issues/2824
 	msCache := ms.MultiCacheWrap()
 	return ctx.WithMultiStore(msCache), msCache
 }
@@ -818,7 +818,7 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 		// Cache wrap context before anteHandler call in case
 		// it aborts.  This is required for both CheckTx and
 		// DeliverTx.  Ref:
-		// https://github.com/tendermint/classic/sdk/issues/2772
+		// https://github.com/cosmos/cosmos-sdk/issues/2772
 		//
 		// NOTE: Alternatively, we could require that
 		// anteHandler ensures that writes do not happen if
