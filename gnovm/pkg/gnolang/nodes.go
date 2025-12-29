@@ -463,7 +463,7 @@ type IndexExpr struct { // X[Index]
 	Attributes
 	X     Expr // expression
 	Index Expr // index expression
-	HasOK bool // if true, is form: `value, ok := <X>[<Key>]
+	HasOK bool // if true, is form: `value, ok := <X>[<Key>]`
 }
 
 type SelectorExpr struct { // X.Sel
