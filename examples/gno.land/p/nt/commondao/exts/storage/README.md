@@ -1,4 +1,4 @@
-# CommonDAO Package Storage Extension
+# CommonDAO Package Storage Extensions
 
 Storage package is an extension of `gno.land/p/nt/commondao` that provides
 alternative storage implementations.
