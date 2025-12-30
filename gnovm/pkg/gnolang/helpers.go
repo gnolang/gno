@@ -926,37 +926,30 @@ func getStmtInsertionAttr(bn BlockNode) ([]*StmtInsertion, bool) {
 	return nil, false
 }
 
-func addLoopvarAttrs(bn BlockNode, key GnoAttribute, names ...Name) {
+func addLoopvarAttrs(bn BlockNode, key GnoAttribute, name Name) {
 	var (
-		ns    []Name
+		ns    map[Name]struct{}
 		found bool
 	)
-	if ns, found = bn.GetAttribute(key).([]Name); !found {
-		ns = append(ns, names...)
-	} else {
-		for _, n := range names {
-			if slices.Contains(ns, n) {
-				return
-			} else {
-				ns = append(ns, n)
-			}
-		}
+	if ns, found = bn.GetAttribute(key).(map[Name]struct{}); !found {
+		ns = make(map[Name]struct{})
 	}
+
+	ns[name] = struct{}{}
 
 	bn.SetAttribute(key, ns)
 }
 
 func hasLoopvarAttrs(fs *ForStmt, n Name, key GnoAttribute) bool {
-	if ns, ok := fs.GetAttribute(key).([]Name); ok {
-		if slices.Contains(ns, n) {
-			return true
-		}
+	if ns, ok := fs.GetAttribute(key).(map[Name]struct{}); ok {
+		_, ok := ns[n]
+		return ok
 	}
 	return false
 }
 
-func getLoopvarAttrs(bn BlockNode, key GnoAttribute) []Name {
-	if names, ok := bn.GetAttribute(key).([]Name); ok {
+func getLoopvarAttrs(bn BlockNode, key GnoAttribute) map[Name]struct{} {
+	if names, ok := bn.GetAttribute(key).(map[Name]struct{}); ok {
 		return names
 	}
 	return nil
