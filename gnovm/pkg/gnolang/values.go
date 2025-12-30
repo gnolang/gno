@@ -2500,7 +2500,7 @@ func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerVa
 			return ptr
 		}
 	default:
-		panic(fmt.Sprintf("unexpected NameExpr type for GetPointerToMaybeHeapDefine: %v \n", nx.Type))
+		panic("unexpected NameExpr type for GetPointerToMaybeHeapDefine")
 	}
 }
 

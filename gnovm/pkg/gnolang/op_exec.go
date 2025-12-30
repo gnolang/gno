@@ -56,8 +56,6 @@ func (m *Machine) doOpExec(op Op) {
 		debug.Printf("PEEK STMT: %v\n", s)
 		debug.Printf("%v\n", m)
 	}
-	// fmt.Printf("PEEK STMT: %v, op: %v\n", s, op)
-	// PrintCaller(2, 5)
 
 	// NOTE this could go in the switch statement, and we could
 	// use the EXEC_SWITCH to jump back, rather than putting this
@@ -87,10 +85,9 @@ func (m *Machine) doOpExec(op Op) {
 			return
 		}
 	case OpForLoop:
-		// bs = m.PeekStmt(1).(*bodyStmt)
 		bs := m.LastBlock().GetBodyStmt()
 
-		var init bool
+		var init bool // enter a first/new loop iteration.
 		switch bs.NextBodyIndex {
 		case -1:
 			bs = m.PeekStmt(1).(*bodyStmt)
@@ -142,8 +139,7 @@ func (m *Machine) doOpExec(op Op) {
 			// continue onto exec stmt.
 			bs.Active = next
 			s = next
-
-			// goto EXEC_SWITCH
+			goto EXEC_SWITCH
 		} else if bs.NextBodyIndex == bs.BodyLen {
 			// (queue to) go back.
 			if bs.Cond != nil {

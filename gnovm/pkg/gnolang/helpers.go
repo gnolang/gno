@@ -898,59 +898,36 @@ func chopRight(in string) (left string, tok rune, right string) {
 	}
 }
 
-type StmtInsertion struct {
+type StmtInjection struct {
 	stmt Stmt
 	idx  int // position to insert
 }
 
-func addStmtInsertionAttr(bn BlockNode, si *StmtInsertion) {
-	var (
-		sis   []*StmtInsertion
-		found bool
-	)
-	if sis, found = bn.GetAttribute(ATTR_CONTINUE_INSERT).([]*StmtInsertion); !found {
-		sis = append(sis, si)
-	} else {
-		if slices.Contains(sis, si) {
-			return
-		}
-		sis = append(sis, si)
+func addStmtInsertionAttr(bn BlockNode, si *StmtInjection) {
+	val := bn.GetAttribute(ATTR_CONTINUE_INSERT)
+	sis, _ := val.([]*StmtInjection)
+	if slices.Contains(sis, si) {
+		return
 	}
-	bn.SetAttribute(ATTR_CONTINUE_INSERT, sis)
+	bn.SetAttribute(ATTR_CONTINUE_INSERT, append(sis, si))
 }
 
-func getStmtInsertionAttr(bn BlockNode) ([]*StmtInsertion, bool) {
-	if sis, found := bn.GetAttribute(ATTR_CONTINUE_INSERT).([]*StmtInsertion); found {
-		return sis, true
-	}
-	return nil, false
+func getStmtInjectionAttr(bn BlockNode) []*StmtInjection {
+	sis, _ := bn.GetAttribute(ATTR_CONTINUE_INSERT).([]*StmtInjection)
+	return sis
 }
 
 func addLoopvarAttrs(bn BlockNode, key GnoAttribute, name Name) {
-	var (
-		ns    map[Name]struct{}
-		found bool
-	)
-	if ns, found = bn.GetAttribute(key).(map[Name]struct{}); !found {
+	val := bn.GetAttribute(key)
+	ns, ok := val.(map[Name]struct{})
+	if !ok {
 		ns = make(map[Name]struct{})
 	}
-
 	ns[name] = struct{}{}
-
 	bn.SetAttribute(key, ns)
 }
 
-func hasLoopvarAttrs(fs *ForStmt, n Name, key GnoAttribute) bool {
-	if ns, ok := fs.GetAttribute(key).(map[Name]struct{}); ok {
-		_, ok := ns[n]
-		return ok
-	}
-	return false
-}
-
 func getLoopvarAttrs(bn BlockNode, key GnoAttribute) map[Name]struct{} {
-	if names, ok := bn.GetAttribute(key).(map[Name]struct{}); ok {
-		return names
-	}
-	return nil
+	names, _ := bn.GetAttribute(key).(map[Name]struct{})
+	return names
 }

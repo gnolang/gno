@@ -724,10 +724,6 @@ func (x *BinaryExpr) assertShiftExprCompatible2(t Type) {
 // Overall,it efficiently filters out incompatible expressions, stopping before the next
 // checkOrConvertType() operation to optimize performance.
 func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
-	// fmt.Println("---AssertCompatible, x: ", x)
-	// fmt.Println("---AssertCompatible, lt: ", lt)
-	// fmt.Println("---AssertCompatible, rt: ", rt)
-	// XXX, go run ../gnovm/cmd/gno test -v ./gno.land/p/nt/avl/list
 	xt, dt, swapped := lt, rt, false
 	if shouldSwapOnSpecificity(lt, rt) {
 		xt, dt, swapped = dt, xt, true
