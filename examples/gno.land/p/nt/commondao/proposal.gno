@@ -27,6 +27,7 @@ const (
 const (
 	QuorumOneThird     float64 = 0.33 // percentage
 	QuorumHalf                 = 0.5
+	QuorumMoreThanHalf         = 0.51
 	QuorumTwoThirds            = 0.66
 	QuorumThreeFourths         = 0.75
 	QuorumFull                 = 1
