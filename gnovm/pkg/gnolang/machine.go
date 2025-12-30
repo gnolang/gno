@@ -1622,6 +1622,7 @@ func (m *Machine) PushOp(op Op) {
 	if debug {
 		m.Printf("+o %v\n", op)
 	}
+
 	m.Ops = append(m.Ops, op)
 }
 
@@ -1828,8 +1829,6 @@ func (m *Machine) PopBlock() (b *Block) {
 	if debug {
 		m.Println("-B")
 	}
-	// fmt.Println("-B")
-	// PrintCaller(2, 6)
 	numBlocks := len(m.Blocks)
 	b = m.Blocks[numBlocks-1]
 	m.Blocks = m.Blocks[:numBlocks-1]
@@ -2041,6 +2040,7 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 		// pop stmts
 		m.Stmts = m.Stmts[:len(m.Stmts)-depthFrames]
 	}
+
 	if depthBlocks >= len(m.Blocks) {
 		panic("should not happen, depthBlocks exeeds total blocks")
 	}
@@ -2265,8 +2265,6 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 // and the lx isn't a name (base is a block),
 // and the lx isn't a composite lit expr.
 func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
-	// fmt.Println("---PopAsPointer2, lx: ", lx)
-	// PrintCaller(2, 8)
 	switch lx := lx.(type) {
 	case *NameExpr:
 		switch lx.Type {
@@ -2299,8 +2297,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		case NameExprTypeHeapClosure:
 			panic("should not happen")
 		default:
-			// panic("unexpected NameExpr in PopAsPointer")
-			panic(fmt.Sprintf("unexpected NameExpr in PopAsPointer: %v\n", lx.Type))
+			panic("unexpected NameExpr in PopAsPointer")
 		}
 	case *IndexExpr:
 		iv := m.PopValue()

@@ -1,51 +1,28 @@
-// package main
+package main
 
-// func main() {
-// 	var f func()
-// OUTER:
-// 	for i := 0; i < 3; {
-// 		// .redefine_i := .loopvar_i
-// 		println("enter, i: ", i)
-// 		for j := 0; j < 2; j++ {
-// 			if j == 1 {
-// 				i := i  // i := .redefine_i, this is priortized.
-// 				println("---continue")
-// 				i++ // i
 
-// 				func(){
-// 					println(j)
-// 				}()
+var p *int
 
-// 				// copy out
-// 				// .loopvar_j = .redefine_j
-// 				// .loopvar_i = i
-// 				continue OUTER
-// 			}
-// 		}
+func main() {
+	for i := 0; i < 10; i++ {
+		switch i % 3 {
+		case 0:
+			continue // Targets the for loop
+		case 1:
+			println("One")
+			continue // Targets the for loop
+		}
+		
+		p = &i
+	}
+	println(*p)
+}
 
-// 		i++
+// Preprocessed:
+// file{ package main; var p<!~VPBlock(2,0)> *((const-type int)); func main() { for .loopvar_i<!VPBlock(1,0)> := (const (0 int)); .loopvar_i<VPBlock(1,0)> < (const (10 int)); .loopvar_i<VPBlock(1,0)>++ { .redefine_i<!~VPBlock(1,0)> := .loopvar_i<VPBlock(2,0)>; switch .redefine_i<~VPBlock(2,0)> % (const (3 int)) { case (const (0 int)): .loopvar_i<VPBlock(3,0)> = .redefine_i<~VPBlock(2,0)>; continue; case (const (1 int)): (const (println func(...interface {})))((const ("One" string))); .loopvar_i<VPBlock(3,0)> = .redefine_i<~VPBlock(2,0)>; continue }; p<~VPBlock(5,0)> = &(.redefine_i<~VPBlock(1,0)>); .loopvar_i<VPBlock(2,0)> = .redefine_i<~VPBlock(1,0)> } ; (const (println func(...interface {})))(*(p<~VPBlock(3,0)>)) } }
 
-// 		f = func() {
-// 			start := i
-// 			println("capture, start: ", start)
-// 		}
-// 		f()
-// 	}
-// }
-
-// // Preprocessed:
-// // file{ package main; func main() { var f<!VPBlock(1,0)> func(); for .loopvar_i<!@VPBlock(1,0)> := (const (0 int)); .loopvar_i<*VPBlock(1,0)> < (const (3 int));  { .redefine_i<!~VPBlock(1,0)> := .loopvar_i<*VPBlock(2,0)>; (const (println func(...interface {})))((const ("enter, i: " string)), .redefine_i<~VPBlock(1,0)>); for .loopvar_j<!@VPBlock(1,0)> := (const (0 int)); .loopvar_j<*VPBlock(1,0)> < (const (2 int)); .loopvar_j<*VPBlock(1,0)>++ { .redefine_j<!~VPBlock(1,0)> := .loopvar_j<*VPBlock(2,0)>; if .redefine_j<~VPBlock(2,0)> == (const (1 int)) { i<!VPBlock(1,0)> := .redefine_i<~VPBlock(4,0)>; (const (println func(...interface {})))((const ("---continue" string))); i<VPBlock(1,0)>++; func func(){ (const (println func(...interface {})))(.redefine_j<~VPBlock(1,0)>) }<.redefine_j<()~VPBlock(2,0)>>(); .loopvar_i<*VPBlock(5,0)> = i<VPBlock(1,0)>; .loopvar_j<*VPBlock(3,0)> = .redefine_j<~VPBlock(2,0)>; .loopvar_i<*VPBlock(5,0)> = i<VPBlock(1,0)>; .loopvar_j<*VPBlock(3,0)> = .redefine_j<~VPBlock(2,0)>; continue OUTER<0,0,0> }; .loopvar_j<*VPBlock(2,0)> = .redefine_j<~VPBlock(1,0)> } ; .redefine_i<~VPBlock(1,0)>++; f<VPBlock(3,0)> = func func(){ start<!VPBlock(1,0)> := .redefine_i<~VPBlock(1,1)>; (const (println func(...interface {})))((const ("capture, start: " string)), start<VPBlock(1,0)>) }<.redefine_i<()~VPBlock(1,0)>>; f<VPBlock(3,0)>(); .loopvar_i<*VPBlock(2,0)> = .redefine_i<~VPBlock(1,0)> }  } }
-
-// // Output:
-// // enter, i:  0
-// // ---continue
-// // 1
-// // enter, i:  1
-// // ---continue
-// // 1
-// // enter, i:  2
-// // ---continue
-// // 1
-
-// Error:
-// heap_alloc_forloop17f.gno:48:9: expected 'package', found 'EOF'
+// Output:
+// One
+// One
+// One
+// 8
