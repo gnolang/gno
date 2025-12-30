@@ -204,10 +204,8 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 								nx.Type = NameExprTypeDefine
 								last.Reserve(false, nx, n, NSDefine, i)
 							}
-						} else {
-							// XXX
-							// do nothing.
 						}
+						// else do nothing.
 					}
 				}
 			case *ImportDecl:
@@ -3158,8 +3156,6 @@ func findHeapDefinedLoopvarByUse(ctx BlockNode, bn BlockNode) (stop bool) {
 						// .loopvar_x referenced in .InitStmt(?) or .PostStmt
 						if _, ok := last.(*ForStmt); ok {
 							addLoopvarAttrs(fs, ATTR_HEAP_DEFINE_LOOPVAR, Name(origName))
-						} else {
-							// keep as is.
 						}
 						// add redefine attr
 						addLoopvarAttrs(fs, ATTR_REDEFINE_NAME, Name(origName))
@@ -3285,11 +3281,10 @@ func findContinue(ctx BlockNode, bn BlockNode) {
 						}
 						addStmtInsertionAttr(last, si)
 					}
-				} else {
-					// no capture for the loopvar
-					// or an explicit i := i defined
-					// do nothing.
 				}
+				// else no capture for the loopvar,
+				// or an explicit i := i defined,
+				// do nothing.
 				return n, TRANS_CONTINUE
 			}
 		}
@@ -3326,7 +3321,7 @@ func rewriteContinue(ctx BlockNode, bn BlockNode) {
 				if len(sis) > 0 {
 					body := bn.GetBody()
 					for _, si := range sis {
-						body = slices.Insert(body, int(si.idx), si.stmt)
+						body = slices.Insert(body, si.idx, si.stmt)
 					}
 					bn.SetBody(body)
 				}
@@ -3579,16 +3574,25 @@ func resolveInjectedName(ctx BlockNode, bn BlockNode) {
 					n.Type = NameExprTypeNormal
 				}
 
-				switch ftype {
-				case TRANS_ASSIGN_LHS:
-					as := ns[len(ns)-1].(*AssignStmt)
-					fillNameExprPath(last, n, as.Op == DEFINE)
+				if ftype == TRANS_COMPOSITE_KEY {
 					return n, TRANS_CONTINUE
-				case TRANS_VAR_NAME:
-					fillNameExprPath(last, n, true)
+				}
+
+				switch n.Name {
+				case blankIdentifier, "iota", ".cur", "cross":
 					return n, TRANS_CONTINUE
 				default:
-					fillNameExprPath(last, n, false)
+					switch ftype {
+					case TRANS_ASSIGN_LHS:
+						as := ns[len(ns)-1].(*AssignStmt)
+						fillNameExprPath(last, n, as.Op == DEFINE)
+						return n, TRANS_CONTINUE
+					case TRANS_VAR_NAME:
+						fillNameExprPath(last, n, true)
+						return n, TRANS_CONTINUE
+					default:
+						fillNameExprPath(last, n, false)
+					}
 				}
 				return n, TRANS_CONTINUE
 			}
