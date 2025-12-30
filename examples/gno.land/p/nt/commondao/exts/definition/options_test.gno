@@ -1,96 +1,96 @@
-package proposal_test
+package definition_test
 
 import (
 	"testing"
 	"time"
 
 	"gno.land/p/nt/commondao"
-	"gno.land/p/nt/commondao/exts/proposal"
+	"gno.land/p/nt/commondao/exts/definition"
 	"gno.land/p/nt/urequire"
 )
 
-func TestDefinitionOptions(t *testing.T) {
+func TestOptions(t *testing.T) {
 	tests := []struct {
 		name     string
-		option   func() proposal.DefinitionOption
+		option   func() definition.Option
 		panicMsg string
 	}{
 		{
 			name: "custom voting choices",
-			option: func() proposal.DefinitionOption {
-				return proposal.WithVoteChoices([]commondao.VoteChoice{"A", "B", "C"})
+			option: func() definition.Option {
+				return definition.WithVoteChoices([]commondao.VoteChoice{"A", "B", "C"})
 			},
 		},
 		{
 			name: "no voting choices",
-			option: func() proposal.DefinitionOption {
-				return proposal.WithVoteChoices([]commondao.VoteChoice{})
+			option: func() definition.Option {
+				return definition.WithVoteChoices([]commondao.VoteChoice{})
 			},
 			panicMsg: "proposal requires at least two voting choices: got 0",
 		},
 		{
 			name: "one voting choice",
-			option: func() proposal.DefinitionOption {
-				return proposal.WithVoteChoices([]commondao.VoteChoice{"A"})
+			option: func() definition.Option {
+				return definition.WithVoteChoices([]commondao.VoteChoice{"A"})
 			},
 			panicMsg: "proposal requires at least two voting choices: got 1",
 		},
 		{
 			name: "duplicated voting choice",
-			option: func() proposal.DefinitionOption {
-				return proposal.WithVoteChoices([]commondao.VoteChoice{"A", "B", "A"})
+			option: func() definition.Option {
+				return definition.WithVoteChoices([]commondao.VoteChoice{"A", "B", "A"})
 			},
 			panicMsg: "proposal voting choice is duplicated: A",
 		},
 		{
 			name: "voting period",
-			option: func() proposal.DefinitionOption {
-				return proposal.WithVotingPeriod(time.Hour * 24)
+			option: func() definition.Option {
+				return definition.WithVotingPeriod(time.Hour * 24)
 			},
 		},
 		{
 			name: "zero voting period",
-			option: func() proposal.DefinitionOption {
-				return proposal.WithVotingPeriod(0)
+			option: func() definition.Option {
+				return definition.WithVotingPeriod(0)
 			},
 		},
 		{
 			name: "negative voting period",
-			option: func() proposal.DefinitionOption {
-				return proposal.WithVotingPeriod(-time.Hour)
+			option: func() definition.Option {
+				return definition.WithVotingPeriod(-time.Hour)
 			},
 			panicMsg: "voting period of proposal must be greater or equal to zero",
 		},
 		{
 			name: "tally callback",
-			option: func() proposal.DefinitionOption {
-				return proposal.WithTally(func(commondao.VotingContext) (bool, error) { return true, nil })
+			option: func() definition.Option {
+				return definition.WithTally(func(commondao.VotingContext) (bool, error) { return true, nil })
 			},
 		},
 		{
 			name: "nil tally callback",
-			option: func() proposal.DefinitionOption {
-				return proposal.WithTally(nil)
+			option: func() definition.Option {
+				return definition.WithTally(nil)
 			},
 			panicMsg: "proposal tally callback is nil",
 		},
 		{
 			name: "validator callback",
-			option: func() proposal.DefinitionOption {
-				return proposal.WithValidation(func() error { return nil })
+			option: func() definition.Option {
+				return definition.WithValidation(func() error { return nil })
 			},
 		},
 		{
 			name: "nil validator callback",
-			option: func() proposal.DefinitionOption {
-				return proposal.WithValidation(nil)
+			option: func() definition.Option {
+				return definition.WithValidation(nil)
 			},
 			panicMsg: "proposal validation callback is nil",
 		},
 		{
 			name: "nil executor callback",
-			option: func() proposal.DefinitionOption {
-				return proposal.WithExecutor(nil)
+			option: func() definition.Option {
+				return definition.WithExecutor(nil)
 			},
 			panicMsg: "proposal executor callback is nil",
 		},
@@ -99,12 +99,12 @@ func TestDefinitionOptions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
-			var option proposal.DefinitionOption
+			var option definition.Option
 
 			// Act
 			fn := func() {
 				option = tt.option()
-				_ = proposal.MustNewDefinition("Title", "Body", option)
+				_ = definition.MustNew("Title", "Body", option)
 			}
 
 			// Assert

@@ -1,11 +1,11 @@
-# CommonDAO Package Proposal Extensions
+# CommonDAO Package Definition Extension
 
-Proposal package is an extension of `gno.land/p/nt/commondao` that provides
-alternative implementations to implement proposals.
+Definition package is an extension of `gno.land/p/nt/commondao` that provides
+an alternative approach to define custom proposal types.
 
 ## Definition
 
-`Definition` type is an implementation that allows creating custom proposal
+The `Definition` type is an implementation that allows creating custom proposal
 definitions using callback functions and definition options.
 
 CommonDAO package supports different proposal types though the
@@ -21,11 +21,11 @@ majority of the votes are _YES_.
 New definition can be created using any of the following functions:
 
 ```go
-// NewDefinition creates a new custom proposal definition or returns an error
-func NewDefinition(title, body string, options ...DefinitionOption) (Definition, error)
+// New creates a new custom proposal definition or returns an error
+func New(title, body string, options ...Option) (Definition, error)
 
-// MustNewDefinition creates a new custom proposal definition or panics on error
-func MustNewDefinition(title, body string, options ...DefinitionOption) Definition
+// MustNew creates a new custom proposal definition or panics on error
+func MustNew(title, body string, options ...Option) Definition
 ```
 
 Default definition behavior can be configured by setting custom options that
@@ -46,7 +46,7 @@ import (
   "time"
 
   "gno.land/p/nt/commondao"
-  "gno.land/p/nt/commondao/exts/storage"
+  "gno.land/p/nt/commondao/exts/definition"
 )
 
 var dao = commondao.New()
@@ -76,13 +76,13 @@ func CreateMemberProposal(member address) uint64 {
   }
 
   // Create a custom proposal definition for an example proposal type
-  def := proposal.MustNewDefinition(
+  def := definition.MustNew(
     "Example Proposal",
     "This is a simple proposal example",
-    proposal.WithVotingPeriod(time.Hour * 24 * 2), // 2 days
-    proposal.WithTally(tally),
-    proposal.WithValidation(validate),
-    proposal.WithExecutor(executor),
+    definition.WithVotingPeriod(time.Hour * 24 * 2), // 2 days
+    definition.WithTally(tally),
+    definition.WithValidation(validate),
+    definition.WithExecutor(executor),
   )
 
   // Create a new proposal

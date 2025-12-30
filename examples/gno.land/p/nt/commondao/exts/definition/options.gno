@@ -1,4 +1,4 @@
-package proposal
+package definition
 
 import (
 	"strconv"
@@ -7,12 +7,12 @@ import (
 	"gno.land/p/nt/commondao"
 )
 
-// DefinitionOption configures CommonDAO proposal definitions.
-type DefinitionOption func(*Definition)
+// Option configures CommonDAO proposal definitions.
+type Option func(*Definition)
 
 // WithVoteChoices configures a proposal to use custom voting choices.
 // It panics when there are less than two choices or when a voting choice is duplicated.
-func WithVoteChoices(choices []commondao.VoteChoice) DefinitionOption {
+func WithVoteChoices(choices []commondao.VoteChoice) Option {
 	count := len(choices)
 	if count < 2 {
 		panic("proposal requires at least two voting choices: got " + strconv.Itoa(count))
@@ -34,7 +34,7 @@ func WithVoteChoices(choices []commondao.VoteChoice) DefinitionOption {
 
 // WithVotingPeriod configures the voting period of a proposal.
 // It panics when voting period is negative.
-func WithVotingPeriod(period time.Duration) DefinitionOption {
+func WithVotingPeriod(period time.Duration) Option {
 	if period < 0 {
 		// Zero allows unit testing of proposals
 		panic("voting period of proposal must be greater or equal to zero")
@@ -48,7 +48,7 @@ func WithVotingPeriod(period time.Duration) DefinitionOption {
 // WithTally configures a proposal definition to use a custom voties tallying.
 // New definitions tally using simple majority (51%) by default.
 // It panics when tally callback is nil.
-func WithTally(cb TallyFunc) DefinitionOption {
+func WithTally(cb TallyFunc) Option {
 	if cb == nil {
 		panic("proposal tally callback is nil")
 	}
@@ -61,7 +61,7 @@ func WithTally(cb TallyFunc) DefinitionOption {
 // WithValidation configures a proposal definition to support proposal validation.
 // Validation is done before execution and normally also during proposal rendering.
 // It panics when validation callback is nil.
-func WithValidation(cb func() error) DefinitionOption {
+func WithValidation(cb func() error) Option {
 	if cb == nil {
 		panic("proposal validation callback is nil")
 	}
@@ -73,7 +73,7 @@ func WithValidation(cb func() error) DefinitionOption {
 
 // WithExecutor configures a proposal definition to support proposal execution.
 // It panics when executor callback is nil.
-func WithExecutor(cb func(realm) error) DefinitionOption {
+func WithExecutor(cb func(realm) error) Option {
 	if cb == nil {
 		panic("proposal executor callback is nil")
 	}

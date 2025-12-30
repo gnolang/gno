@@ -1,4 +1,4 @@
-package proposal_test
+package definition_test
 
 import (
 	"errors"
@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"gno.land/p/nt/commondao"
-	"gno.land/p/nt/commondao/exts/proposal"
+	"gno.land/p/nt/commondao/exts/definition"
 	"gno.land/p/nt/uassert"
 )
 
-func TestNewDefinition(t *testing.T) {
+func TestNew(t *testing.T) {
 	tests := []struct {
 		name  string
 		title string
@@ -26,20 +26,20 @@ func TestNewDefinition(t *testing.T) {
 		{
 			name:  "empty title",
 			title: "",
-			err:   proposal.ErrTitleIsRequired,
+			err:   definition.ErrTitleIsRequired,
 		},
 		{
 			name:  "empty title",
 			title: "Proposal Title",
 			body:  "",
-			err:   proposal.ErrBodyIsRequired,
+			err:   definition.ErrBodyIsRequired,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Act
-			def, err := proposal.NewDefinition(tt.title, tt.body)
+			def, err := definition.New(tt.title, tt.body)
 
 			// Assert
 			if tt.err != nil {
@@ -56,27 +56,27 @@ func TestNewDefinition(t *testing.T) {
 
 func TestDefinitionCustomVoteChoices(t *testing.T) {
 	// Default voting choices
-	def := proposal.MustNewDefinition("Title", "Body")
+	def := definition.MustNew("Title", "Body")
 	uassert.Equal(t, "YES,NO,ABSTAIN", joinVoteChoices(def.CustomVoteChoices()), "expect default vote choces to match")
 
 	// Custom voting choices
-	def = proposal.MustNewDefinition("Title", "Body", proposal.WithVoteChoices([]commondao.VoteChoice{"A", "B", "C"}))
+	def = definition.MustNew("Title", "Body", definition.WithVoteChoices([]commondao.VoteChoice{"A", "B", "C"}))
 	uassert.Equal(t, "A,B,C", joinVoteChoices(def.CustomVoteChoices()), "expect custom vote choces to match")
 }
 
 func TestDefinitionVotingPeriod(t *testing.T) {
 	// Default voting period
-	def := proposal.MustNewDefinition("Title", "Body")
-	uassert.True(t, proposal.DefaultVotingPeriod == def.VotingPeriod(), "expect default voting period to match")
+	def := definition.MustNew("Title", "Body")
+	uassert.True(t, definition.DefaultVotingPeriod == def.VotingPeriod(), "expect default voting period to match")
 
 	// Custom voting period
 	period := time.Hour * 24 * 30
-	def = proposal.MustNewDefinition("Title", "Body", proposal.WithVotingPeriod(period))
+	def = definition.MustNew("Title", "Body", definition.WithVotingPeriod(period))
 	uassert.True(t, period == def.VotingPeriod(), "expect custom voting period to match")
 
 	// Zero voting period
 	period = 0
-	def = proposal.MustNewDefinition("Title", "Body", proposal.WithVotingPeriod(period))
+	def = definition.MustNew("Title", "Body", definition.WithVotingPeriod(period))
 	uassert.True(t, period == def.VotingPeriod(), "expect zero voting period to match")
 }
 
@@ -107,7 +107,7 @@ func TestDefinitionTally(t *testing.T) {
 				return tt.passes, tt.err
 			}
 
-			def := proposal.MustNewDefinition("Title", "Body", proposal.WithTally(fn))
+			def := definition.MustNew("Title", "Body", definition.WithTally(fn))
 
 			// Act
 			passes, err := def.Tally(commondao.VotingContext{})
@@ -145,7 +145,7 @@ func TestDefinitionValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
-			def := proposal.MustNewDefinition("Title", "Body", proposal.WithValidation(tt.validator))
+			def := definition.MustNew("Title", "Body", definition.WithValidation(tt.validator))
 
 			// Act
 			err := def.Validate()

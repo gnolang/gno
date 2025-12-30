@@ -1,4 +1,4 @@
-package proposal
+package definition
 
 import (
 	"errors"
@@ -25,14 +25,14 @@ var defaultVoteChoices = []commondao.VoteChoice{
 // TallyFunc defines a function to handle proposal votes tallying.
 type TallyFunc func(commondao.VotingContext) (passes bool, _ error)
 
-// NewDefinition creates a new proposal definition.
+// New creates a new proposal definition.
 //
 // By default, new definitions have a voting period of 7 days, allowing YES, NO and
 // ABSTAIN votes, tallying those votes using an absolute majority of more than 50% of
 // member votes, considering that a proposal passes when the majority of the votes are YES.
 //
 // Default definition behavior can be configured by setting custom options.
-func NewDefinition(title, body string, options ...DefinitionOption) (Definition, error) {
+func New(title, body string, options ...Option) (Definition, error) {
 	title = strings.TrimSpace(title)
 	if title == "" {
 		return Definition{}, ErrTitleIsRequired
@@ -56,9 +56,9 @@ func NewDefinition(title, body string, options ...DefinitionOption) (Definition,
 	return def, nil
 }
 
-// MustNewDefinition creates a new proposal definition or panics on error.
-func MustNewDefinition(title, body string, options ...DefinitionOption) Definition {
-	def, err := NewDefinition(title, body, options...)
+// MustNew creates a new proposal definition or panics on error.
+func MustNew(title, body string, options ...Option) Definition {
+	def, err := New(title, body, options...)
 	if err != nil {
 		panic(err)
 	}
