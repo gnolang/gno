@@ -16,8 +16,10 @@ func forLoopRef() {
 	}()
 
 	for i := Int(0); i < 10; inc2(&i) {
+		// .redefine_i := .loopvar_i
 		// in rename, after inject, search depth to depth - 1
 		s1 = append(s1, &i)
+		// .loopvar_i = .redefine_i
 	}
 }
 

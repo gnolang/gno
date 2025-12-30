@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"maps"
 	"math"
 	"math/big"
 	"reflect"
@@ -3271,7 +3272,7 @@ func findContinue(ctx BlockNode, bn BlockNode) {
 				// fmt.Println("============names: ", names)
 				if len(names) != 0 {
 					body := last.GetBody()
-					for _, name := range names {
+					for name := range names {
 						var (
 							ln string
 							rn string
@@ -3394,50 +3395,76 @@ func shadowLoopvar(ctx BlockNode, bn BlockNode) (stop bool) {
 			case *ForStmt:
 				bodyBlock := n.BodyBlock
 				// do the injection here.
-				var rns []Name
+				var (
+					rns  map[Name]struct{}
+					hlns map[Name]struct{}
+				)
+				// get names to redefine
 				rns = getLoopvarAttrs(n, ATTR_REDEFINE_NAME)
-				if len(rns) == 0 {
+				hlns = getLoopvarAttrs(n, ATTR_HEAP_DEFINE_LOOPVAR)
+				// fmt.Println("---rns: ", rns)
+				// fmt.Println("---hlns: ", hlns)
+
+				if len(rns) == 0 && len(hlns) == 0 {
 					return n, TRANS_CONTINUE
 				}
-				// fmt.Println("------forStmt re-written, rns: ", rns)
-				for _, rn := range rns {
-					body := bodyBlock.GetBody()
 
-					lhs := Nx(fmt.Sprintf("%s%s", ".redefine_", rn))
-					rhs := Nx(fmt.Sprintf("%s%s", ".loopvar_", rn))
-					lhs.Type = NameExprTypeHeapDefine
-					rhs.Type = NameExprTypeNormal
-					// rhs.Type = NameExprTypeLoopVarUse
-
-					as := A(lhs, ":=", rhs)
-					body = slices.Insert(body, 0, Stmt(as))
-
-					lhs2 := Nx(fmt.Sprintf("%s%s", ".loopvar_", rn))
-					rhs2 := Nx(fmt.Sprintf("%s%s", ".redefine_", rn))
-
-					// test: heap_alloc_forloop1c2.gno
-					// lhs2.Type = NameExprTypeLoopVarHeapUse
-					if hasLoopvarAttrs(n, rn, ATTR_HEAP_DEFINE_LOOPVAR) {
-						lhs2.Type = NameExprTypeLoopVarHeapUse
-					} else {
-						lhs2.Type = NameExprTypeNormal
+				maps.DeleteFunc(rns, func(k Name, v struct{}) bool {
+					if _, found := hlns[k]; found {
+						return true
 					}
+					return false
+				})
 
-					// will promote to heap use
-					rhs2.Type = NameExprTypeNormal
+				// fmt.Println("---after clean, len rns: ", len(rns))
+				// fmt.Println("------forStmt re-written, rns: ", rns)
+				rewrite := func(names map[Name]struct{}, heap bool) {
+					for rn := range names {
+						// fmt.Printf("---rn: %s, heap: %t\n", rn, heap)
+						body := bodyBlock.GetBody()
 
-					as2 := A(lhs2, "=", rhs2)
+						lhs := Nx(fmt.Sprintf("%s%s", ".redefine_", rn))
+						rhs := Nx(fmt.Sprintf("%s%s", ".loopvar_", rn))
+						lhs.Type = NameExprTypeHeapDefine
+						rhs.Type = NameExprTypeNormal
+						// rhs.Type = NameExprTypeLoopVarUse
 
-					body = slices.Insert(body, len(body), Stmt(as2))
+						as := A(lhs, ":=", rhs)
+						body = slices.Insert(body, 0, Stmt(as))
 
-					// define injected name
-					tv := n.GetSlot(nil, Name(fmt.Sprintf("%s%s", ".loopvar_", rn)), true)
-					bodyBlock.Define(Name(fmt.Sprintf("%s%s", ".redefine_", rn)), tv.Copy(nil))
+						// define injected name
+						tv := n.GetSlot(nil, Name(fmt.Sprintf("%s%s", ".loopvar_", rn)), true)
+						bodyBlock.Define(Name(fmt.Sprintf("%s%s", ".redefine_", rn)), tv.Copy(nil))
 
-					bodyBlock.SetBody(body)
-					// fmt.Println("------after process, n: ", n)
-					n.DelAttribute(ATTR_REDEFINE_NAME)
+						lhs2 := Nx(fmt.Sprintf("%s%s", ".loopvar_", rn))
+						rhs2 := Nx(fmt.Sprintf("%s%s", ".redefine_", rn))
+
+						// test: heap_alloc_forloop1c2.gno
+						// lhs2.Type = NameExprTypeLoopVarHeapUse
+						if heap {
+							addAttrHeapUse(n.BodyBlock, rhs2.Name)
+							lhs2.Type = NameExprTypeLoopVarHeapUse
+						} else {
+							lhs2.Type = NameExprTypeNormal
+						}
+
+						// will promote to heap use
+						// rhs2.Type = NameExprTypeNormal
+						rhs2.Type = NameExprTypeHeapUse
+						as2 := A(lhs2, "=", rhs2)
+						body = slices.Insert(body, len(body), Stmt(as2))
+
+						bodyBlock.SetBody(body)
+						// fmt.Println("------after process, n: ", n)
+					}
 				}
+
+				rewrite(rns, false)
+				rewrite(hlns, true)
+
+				// delete attr
+				n.DelAttribute(ATTR_REDEFINE_NAME)
+				n.DelAttribute(ATTR_HEAP_DEFINE_LOOPVAR)
 			}
 			return n, TRANS_CONTINUE
 		}
@@ -3737,6 +3764,8 @@ func addName(names []Name, name Name) []Name {
 }
 
 func addAttrHeapUse(bn BlockNode, name Name) {
+	// fmt.Println("---addAttrHeapUse, bn: ", bn)
+	// fmt.Println("---addAttrHeapUse, name: ", name)
 	lus, _ := bn.GetAttribute(ATTR_HEAP_USES).([]Name)
 	lus = addName(lus, name)
 	bn.SetAttribute(ATTR_HEAP_USES, lus)
@@ -3945,8 +3974,11 @@ func codaHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 				case NameExprTypeDefine, NameExprTypeHeapDefine:
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
+					// fmt.Println("---codaHeapUsesDemoteDefines, dbn: ", dbn)
+					// fmt.Println("---codaHeapUsesDemoteDefines, n.Name: ", n.Name)
 					// If the name is actually heap used:
 					if hasAttrHeapUse(dbn, n.Name) {
+						// fmt.Println("---hasAttrHeapUse...")
 						// Promote type to heap define.
 						n.Type = NameExprTypeHeapDefine
 						// Make record in static block.
