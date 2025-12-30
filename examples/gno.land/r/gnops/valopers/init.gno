@@ -43,11 +43,17 @@ To add your validator node to the registry, use the [**Register**](` + txlink.Ca
   - **Max length**: **2048 characters**
   - Must include answers to the questions listed below
 
+- **Server Type** (Infrastructure Type)
+  - Must be one of the following values:
+    - **cloud**: For validators running on cloud infrastructure (AWS, GCP, Azure, etc.)
+    - **on-prem**: For validators running on on-premises infrastructure
+    - **data-center**: For validators running in dedicated data centers
+
 - **Validator Address**
-  - Your validator node’s address
+  - Your validator node's address
 
 - **Validator Public Key**
-  - Your validator node’s public key
+  - Your validator node's public key
 
 ### ✍️ Required Information for the Description
 
