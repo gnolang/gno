@@ -16,6 +16,7 @@ const (
 var (
 	dao      *commondao.CommonDAO
 	proposal *commondao.Proposal
+	executed bool
 )
 
 type testPropDef struct{}
@@ -23,7 +24,6 @@ type testPropDef struct{}
 func (testPropDef) Title() string               { return "" }
 func (testPropDef) Body() string                { return "" }
 func (testPropDef) VotingPeriod() time.Duration { return 0 }
-func (testPropDef) Execute(cur realm) error     { return nil }
 
 // Tally only succeeds if one YES vote from an admin is found
 func (testPropDef) Tally(ctx commondao.VotingContext) (bool, error) {
@@ -37,6 +37,11 @@ func (testPropDef) Tally(ctx commondao.VotingContext) (bool, error) {
 		// Proposal passes when a YES vote is found
 		return (found && v.Choice == commondao.ChoiceYes)
 	}), nil
+}
+
+func (testPropDef) Execute(realm) error {
+	executed = true
+	return nil
 }
 
 func init() {
@@ -58,14 +63,17 @@ func init() {
 }
 
 func main() {
+	// Should be able to execute because tally suceeds
 	err := dao.Execute(proposal.ID())
 	if err != nil {
 		panic(err)
 	}
 
+	println(executed)
 	println(string(proposal.Status()))
 	println(proposal.StatusReason())
 }
 
 // Output:
+// true
 // executed

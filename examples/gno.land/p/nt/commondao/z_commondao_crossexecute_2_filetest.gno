@@ -2,7 +2,6 @@
 package test
 
 import (
-	"testing"
 	"time"
 
 	"gno.land/p/nt/commondao"
@@ -23,12 +22,8 @@ func (testPropDef) Body() string                                { return "" }
 func (testPropDef) VotingPeriod() time.Duration                 { return time.Hour } // Voting ends in 1 hour
 func (testPropDef) Tally(commondao.VotingContext) (bool, error) { return true, nil }
 
-func (testPropDef) Execute() error {
-	// Use a crossing wrap function to cross back into "gno.land/r/test" to update the local state
-	func(realm) {
-		executed = true
-	}(cross)
-
+func (testPropDef) Execute(realm) error {
+	executed = true
 	return nil
 }
 
@@ -41,9 +36,6 @@ func init() {
 }
 
 func main() {
-	// Make sure proposal is executed in a realm different than the one where definition has been defined
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/testing/dao"))
-
 	// Should be able to execute before voting deadline because deadline check is disabled
 	err := dao.Execute(proposal.ID())
 	if err != nil {
