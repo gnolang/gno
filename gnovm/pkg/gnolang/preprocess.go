@@ -675,6 +675,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					xt = xt.Elem()
 					n.IsArrayPtr = true
+				case ArrayKind, SliceKind:
+				default:
+					panic(fmt.Sprintf(
+						"range iteration requires map, string, array, slice, or pointer to array; got %s",
+						xt.Kind().String(),
+					))
 				}
 				// key value if define.
 				if n.Op == DEFINE {
