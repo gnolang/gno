@@ -105,6 +105,8 @@ func Withdraw(_ realm, amount int64) {
 }
 ` + "```" + `
 
+See [Common Mistakes](/r/docs/mistakes) for other pitfalls to avoid.
+
 ---
 
 [Back to Solidity Patterns](/r/docs/soliditypatterns) | [Banker Example](/r/docs/soliditypatterns/banker)

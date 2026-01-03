@@ -110,7 +110,7 @@ func prettyPrint(node *json.Node, indent int) string {
 func Render(_ string) string {
 	return `# JSON in Gno
 
-JSON handling in Gno is done through the ` + "`/p/onbloc/json`" + ` package.
+JSON handling in Gno is done through the [` + "`/p/onbloc/json`" + `](/p/onbloc/json) package.
 
 ## Creating JSON Objects
 
@@ -189,7 +189,12 @@ user := json.ObjectNode("", map[string]*json.Node{
 
 ---
 
-See also: [p/onbloc/json](/p/onbloc/json)
+[View source code](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/docs/json)
+
+## See also
+
+- [p/onbloc/json](/p/onbloc/json) - JSON package documentation
+- [Registry Pattern](/r/docs/registry) - Uses JSON for data export
 `
 }
 

@@ -173,8 +173,8 @@ func renderHome() string {
 The registry pattern allows entities to register themselves in a shared
 index. Other contracts or users can then look up registered entities.
 
-Common use cases include name resolution from addresses to human-readable
-names, token discovery, and realm showcasing.
+Common use cases include name resolution (mapping addresses to human-readable
+names), token discovery, and realm showcasing.
 
 ## This Example
 
@@ -265,9 +265,12 @@ Token realms register themselves so other contracts can discover available token
 - [r/leon/hor](/r/leon/hor) - Hall of Realms. Realms register themselves by
 calling ^hor.Register()^ from their init function to be showcased in the exhibition.
 
-## Related Examples
+[View source code](/r/docs/registry$source)
 
-- [r/docs/factory](/r/docs/factory) - Factory pattern for creating objects
+## See also
+
+- [Factory Pattern](/r/docs/factory) - Creating and managing object instances
+- [Crossing](/r/docs/crossing) - Understanding realm boundaries and caller validation
 `
 	return out
 }

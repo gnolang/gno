@@ -87,5 +87,15 @@ func ComposedAction(_ realm) {
 ` + "```" + `
 
 This pattern allows you to build sophisticated applications from simple building blocks.
+
+---
+
+[View source code](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/docs/composition)
+
+## See also
+
+- [Factory Pattern](/r/docs/factory) - Creating and managing realm instances
+- [Registry Pattern](/r/docs/registry) - Service registration and discovery
+- [Crossing](/r/docs/crossing) - Understanding realm boundaries
 `
 }

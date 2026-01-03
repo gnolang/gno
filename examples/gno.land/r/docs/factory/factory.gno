@@ -82,27 +82,22 @@ func renderHome() string {
 	out := `# Factory Pattern
 
 The factory pattern allows a realm to create and manage multiple instances
-of objects. This is useful for:
-
-- Token factories (create new tokens)
-- NFT minting
-- Contract deployment
-- User-generated content
+of objects. This is useful for token factories, NFT minting, contract deployment,
+and user-generated content.
 
 ## How It Works
 
 1. Users call a "create" function with parameters
 2. The factory validates the inputs
-3. A new object is created and stored
+3. A new object is created and stored in an [AVL tree](/p/nt/avl)
 4. The factory tracks all created objects
 
 ## This Example
 
-This realm is a simple token factory. It demonstrates:
-- Creating objects with validated parameters
-- Storing objects in an AVL tree for efficient lookup
-- Preventing duplicates (unique symbols)
-- Ownership tracking
+This realm is a simple token factory. It demonstrates creating objects with
+validated parameters, storing objects in an AVL tree for efficient lookup,
+preventing duplicates (unique symbols), and ownership tracking using
+[runtime.PreviousRealm()](/r/docs/crossing).
 
 ## Live Demo
 
@@ -164,6 +159,14 @@ func GetProduct(id string) *Product {
     return val.(*Product)
 }
 ` + "```" + `
+
+[View source code](/r/docs/factory$source)
+
+---
+
+See also:
+- [Registry Pattern](/r/docs/registry) - Register and discover entities
+- [Crossing](/r/docs/crossing) - Understanding realm boundaries
 `
 	return out
 }

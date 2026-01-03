@@ -19,7 +19,7 @@ func Render(path string) string {
 func renderHome() string {
 	return `# User & Profile Integration
 
-This example demonstrates how to use both ` + "`/r/sys/users`" + ` and ` + "`/r/demo/profile`" + `
+This example demonstrates how to use both [` + "`/r/sys/users`" + `](/r/sys/users) and [` + "`/r/demo/profile`" + `](/r/demo/profile)
 to create rich user experiences in your realm.
 
 ## /r/sys/users
