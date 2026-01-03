@@ -64,7 +64,7 @@ The only way to execute code in another realm is through an explicit function ca
 using the ` + "`cross`" + ` keyword, making all realm boundary crossings visible and intentional.
 See [Crossing](/r/docs/crossing) for more details.
 
-` + "```gno" + `
+` + "```go" + `
 // This is SAFE in Gno
 func Withdraw(_ realm, amount int64) {
     caller := runtime.PreviousRealm().Address()
@@ -87,7 +87,7 @@ This means you can't have a partially-executed state that an attacker could expl
 Even though reentrancy isn't possible in Gno, following the
 **Checks-Effects-Interactions** pattern keeps code readable and maintainable:
 
-` + "```gno" + `
+` + "```go" + `
 func Withdraw(_ realm, amount int64) {
     caller := runtime.PreviousRealm().Address()
     

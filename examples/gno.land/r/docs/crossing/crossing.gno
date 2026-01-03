@@ -52,7 +52,7 @@ This tracking is essential for authorization and security.
 
 Functions that modify realm state should include a ` + "`_ realm`" + ` parameter:
 
-` + "```gno" + `
+` + "```go" + `
 // This function crosses the realm boundary
 func ModifyState(_ realm, newValue string) {
     state = newValue  // Modifies THIS realm's state
@@ -68,7 +68,7 @@ The ` + "`realm`" + ` parameter signals that this function:
 
 Realms (under ` + "`/r/`" + `) have their own isolated state:
 
-` + "```gno" + `
+` + "```go" + `
 // /r/counter/counter.gno
 package counter
 
@@ -119,7 +119,7 @@ When User → Realm A → Realm B → Realm C:
 Packages (under ` + "`/p/`" + `) don't have their own persistent state. When a
 realm imports a package, the package's variables are stored in that realm:
 
-` + "```gno" + `
+` + "```go" + `
 // /p/demo/counter/counter.gno
 package counter
 
@@ -143,7 +143,7 @@ stored in its own state.
 
 Tests can simulate crossing using testing utilities:
 
-` + "```gno" + `
+` + "```go" + `
 import "testing"
 
 func TestCrossRealm(t *testing.T) {
@@ -162,7 +162,7 @@ func TestCrossRealm(t *testing.T) {
 
 ### Use PreviousRealm for Authorization
 
-` + "```gno" + `
+` + "```go" + `
 // SAFE: Checks immediate caller
 func AdminOnly(_ realm) {
     if runtime.PreviousRealm().Address() != admin {
@@ -174,7 +174,7 @@ func AdminOnly(_ realm) {
 
 ### Use OriginCaller for Logging
 
-` + "```gno" + `
+` + "```go" + `
 // OK for logging: Records the original user
 func LogAction(_ realm) {
     user := runtime.OriginCaller()

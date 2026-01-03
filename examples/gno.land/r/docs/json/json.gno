@@ -116,7 +116,7 @@ JSON handling in Gno is done through the ` + "`/p/onbloc/json`" + ` package.
 
 Use the node builder pattern to create JSON:
 
-` + "```gno" + `
+` + "```go" + `
 import "gno.land/p/onbloc/json"
 
 // Create a JSON object
@@ -133,7 +133,7 @@ encoded, err := json.Marshal(node)
 
 ## Creating JSON Arrays
 
-` + "```gno" + `
+` + "```go" + `
 items := []*json.Node{
     json.StringNode("", "apple"),
     json.StringNode("", "banana"),
@@ -147,7 +147,7 @@ encoded, err := json.Marshal(node)
 
 ## Parsing JSON
 
-` + "```gno" + `
+` + "```go" + `
 data := ` + "`" + `{"name":"Bob","active":true}` + "`" + `
 node, err := json.Unmarshal([]byte(data))
 if err != nil {
@@ -171,7 +171,7 @@ The package supports these JSON types:
 
 ## Nested Structures
 
-` + "```gno" + `
+` + "```go" + `
 address := json.ObjectNode("", map[string]*json.Node{
     "city":    json.StringNode("city", "New York"),
     "country": json.StringNode("country", "USA"),
