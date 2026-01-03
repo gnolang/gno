@@ -204,20 +204,6 @@ func init() {
 }
 ` + "```" + `
 
-
----
-
-## Quick Reference
-
-| Mistake | Risk Level | Solution |
-|---------|------------|----------|
-| Integer overflow | 🔴 High | Use math/overflow or uint256 |
-| Error not reverting | 🔴 High | Use panic for critical errors |
-| OriginCaller misuse | 🔴 High | Use PreviousRealm for auth |
-| Missing realm param | 🟡 Medium | Always add for state changes |
-| Invalid addresses | 🟡 Medium | Validate with IsValid() |
-| Init order | 🟡 Medium | Use init() function |
-
 ---
 
 See also:
