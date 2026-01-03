@@ -210,7 +210,7 @@ services by name.
 
 ## Code Pattern
 
-` + "```gno" + `
+` + "```go" + `
 package registry
 
 import (

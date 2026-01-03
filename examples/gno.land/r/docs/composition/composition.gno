@@ -69,7 +69,7 @@ Composition enables reusability, testability, maintainability, and enforces sing
 
 ## Code Pattern
 
-` + "```gno" + `
+` + "```go" + `
 package mycomposite
 
 import (

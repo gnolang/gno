@@ -28,7 +28,7 @@ The [user registry](/r/sys/users) provides:
 - Username registration
 - Address ↔ Username resolution
 
-` + "```gno" + `
+` + "```go" + `
 import "gno.land/r/sys/users"
 
 // Resolve a username to user data
@@ -54,7 +54,7 @@ The [profile registry](/r/demo/profile) provides:
 
 [Set your profile →](/r/demo/profile$help&func=SetStringField)
 
-` + "```gno" + `
+` + "```go" + `
 import "gno.land/r/demo/profile"
 
 // Get profile fields
@@ -69,7 +69,7 @@ profile.SetStringField(profile.Bio, "Gno developer")
 
 ## Combined Usage Pattern
 
-` + "```gno" + `
+` + "```go" + `
 func RenderUser(nameOrAddr string) string {
     // First, resolve the user
     userData, _ := users.ResolveAny(nameOrAddr)

@@ -130,7 +130,7 @@ This realm is a simple token factory. It demonstrates:
 
 ## Code Pattern
 
-` + "```gno" + `
+` + "```go" + `
 package factory
 
 import "gno.land/p/nt/avl"

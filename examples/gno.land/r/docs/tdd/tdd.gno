@@ -47,7 +47,7 @@ TDD is writing tests BEFORE writing code.
 
 First, write the test:
 
-` + "```gno" + `
+` + "```go" + `
 // calculator_test.gno
 func TestAdd(t *testing.T) {
     result := Add(2, 3)
@@ -59,7 +59,7 @@ func TestAdd(t *testing.T) {
 
 Then write the code:
 
-` + "```gno" + `
+` + "```go" + `
 // calculator.gno
 func Add(a, b int64) int64 {
     return a + b
@@ -70,7 +70,7 @@ func Add(a, b int64) int64 {
 
 Test multiple cases efficiently:
 
-` + "```gno" + `
+` + "```go" + `
 func TestAdd(t *testing.T) {
     tests := []struct {
         a, b, want int64
@@ -92,7 +92,7 @@ func TestAdd(t *testing.T) {
 
 ## Testing Panics
 
-` + "```gno" + `
+` + "```go" + `
 func TestDivideByZero(t *testing.T) {
     defer func() {
         if r := recover(); r == nil {
@@ -105,7 +105,7 @@ func TestDivideByZero(t *testing.T) {
 
 ## Testing with Addresses
 
-` + "```gno" + `
+` + "```go" + `
 func TestWithCaller(t *testing.T) {
     addr := testing.TestAddress("user1")
     testing.SetOriginCaller(addr)
@@ -117,7 +117,7 @@ func TestWithCaller(t *testing.T) {
 
 ## Testing with Coins
 
-` + "```gno" + `
+` + "```go" + `
 func TestWithCoins(t *testing.T) {
     testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", 1000)})
     

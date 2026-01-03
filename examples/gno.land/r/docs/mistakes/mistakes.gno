@@ -14,7 +14,7 @@ This guide covers frequent pitfalls and how to avoid them.
 
 Go (and Gno) integers can overflow silently:
 
-` + "```gno" + `
+` + "```go" + `
 // DANGEROUS: Silent overflow
 var balance int64 = 9223372036854775807 // max int64
 balance += 1 // Wraps to -9223372036854775808!
@@ -24,7 +24,7 @@ balance += 1 // Wraps to -9223372036854775808!
 
 Use the ` + "`math/overflow`" + ` standard library:
 
-` + "```gno" + `
+` + "```go" + `
 import "math/overflow"
 
 // Returns result and ok=false if overflow
@@ -47,7 +47,7 @@ For very large numbers use ` + "`p/onbloc/uint256`" + `.
 
 Returning an error doesn't stop execution or revert state:
 
-` + "```gno" + `
+` + "```go" + `
 // WRONG: Error is returned but state is already changed!
 func Transfer(to address, amount int64) error {
     balances[from] -= amount  // State changed!
@@ -65,7 +65,7 @@ func Transfer(to address, amount int64) error {
 
 Check conditions BEFORE modifying state, or use panic:
 
-` + "```gno" + `
+` + "```go" + `
 // CORRECT: Check first
 func Transfer(to address, amount int64) {
     if balances[from] < amount {
@@ -84,7 +84,7 @@ func Transfer(to address, amount int64) {
 
 Using ` + "`OriginCaller`" + ` can lead to middleman attacks:
 
-` + "```gno" + `
+` + "```go" + `
 // VULNERABLE: Uses OriginCaller
 func Withdraw(_ realm, amount int64) {
     caller := runtime.OriginCaller()  // Returns the ORIGINAL user
@@ -107,7 +107,7 @@ func Withdraw(_ realm, amount int64) {
 
 Use ` + "`PreviousRealm().Address()`" + ` for permission checks:
 
-` + "```gno" + `
+` + "```go" + `
 // SAFE: Uses PreviousRealm
 func Withdraw(_ realm, amount int64) {
     caller := runtime.PreviousRealm().Address()  // Returns IMMEDIATE caller
@@ -133,7 +133,7 @@ func Withdraw(_ realm, amount int64) {
 
 Public state-changing functions need the ` + "`_ realm`" + ` parameter:
 
-` + "```gno" + `
+` + "```go" + `
 // WRONG: Missing realm parameter
 func UpdateState(value int) {
     state = value  // This won't work correctly in production!
@@ -144,7 +144,7 @@ func UpdateState(value int) {
 
 Always add the realm parameter for state-changing functions:
 
-` + "```gno" + `
+` + "```go" + `
 // CORRECT: Has realm parameter
 func UpdateState(_ realm, value int) {
     state = value
@@ -157,7 +157,7 @@ func UpdateState(_ realm, value int) {
 
 ### The Problem
 
-` + "```gno" + `
+` + "```go" + `
 // DANGEROUS: No validation
 func SetAdmin(newAdmin address) {
     admin = newAdmin  // Could be zero address!
@@ -166,7 +166,7 @@ func SetAdmin(newAdmin address) {
 
 ### The Solution
 
-` + "```gno" + `
+` + "```go" + `
 // SAFE: Validates address
 func SetAdmin(_ realm, newAdmin address) {
     if !newAdmin.IsValid() {
@@ -184,7 +184,7 @@ func SetAdmin(_ realm, newAdmin address) {
 
 Global variables are initialized in declaration order:
 
-` + "```gno" + `
+` + "```go" + `
 // WRONG: config used before initialized
 var defaultValue = config.DefaultValue  // panic: config is nil!
 var config = loadConfig()
@@ -194,7 +194,7 @@ var config = loadConfig()
 
 Use ` + "`init()`" + ` for complex initialization:
 
-` + "```gno" + `
+` + "```go" + `
 var config *Config
 var defaultValue int
 
