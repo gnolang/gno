@@ -117,7 +117,8 @@ When User → Realm A → Realm B → Realm C:
 ## Crossing in Packages (/p/)
 
 Packages (under ` + "`/p/`" + `) don't have their own persistent state. When a
-realm imports a package, the package's variables are stored in that realm:
+realm imports a package like [/p/nt/avl](/p/nt/avl), the package's variables
+are stored in that realm:
 
 ` + "```go" + `
 // /p/demo/counter/counter.gno

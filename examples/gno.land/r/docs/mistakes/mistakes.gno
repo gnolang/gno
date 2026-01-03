@@ -22,7 +22,7 @@ balance += 1 // Wraps to -9223372036854775808!
 
 ### The Solution
 
-Use the ` + "`math/overflow`" + ` standard library:
+Use the [` + "`math/overflow`" + `](https://docs.gno.land/resources/gno-stdlibs) standard library:
 
 ` + "```go" + `
 import "math/overflow"
@@ -37,7 +37,7 @@ if !ok {
 result := overflow.Add64p(a, b)  // Panics on overflow
 ` + "```" + `
 
-For very large numbers use ` + "`p/onbloc/uint256`" + `.
+For very large numbers use [` + "`p/onbloc/uint256`" + `](/p/onbloc/uint256).
 
 ---
 
@@ -82,7 +82,7 @@ func Transfer(to address, amount int64) {
 
 ### The Problem
 
-Using ` + "`OriginCaller`" + ` can lead to middleman attacks:
+Using [` + "`OriginCaller`" + `](/r/docs/crossing) can lead to middleman attacks:
 
 ` + "```go" + `
 // VULNERABLE: Uses OriginCaller
@@ -105,7 +105,7 @@ func Withdraw(_ realm, amount int64) {
 
 ### The Solution
 
-Use ` + "`PreviousRealm().Address()`" + ` for permission checks:
+Use [` + "`PreviousRealm().Address()`" + `](/r/docs/crossing) for permission checks:
 
 ` + "```go" + `
 // SAFE: Uses PreviousRealm
@@ -131,7 +131,7 @@ func Withdraw(_ realm, amount int64) {
 
 ### The Problem
 
-Public state-changing functions need the ` + "`_ realm`" + ` parameter:
+Public state-changing functions need the [` + "`_ realm`" + `](/r/docs/crossing) parameter:
 
 ` + "```go" + `
 // WRONG: Missing realm parameter
