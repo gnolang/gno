@@ -1,114 +1,86 @@
 package reentrancy
 
-// This example demonstrates why reentrancy attacks are NOT possible in Gno,
-// unlike in Solidity where they have caused major vulnerabilities.
-
 func Render(_ string) string {
 	return `# Reentrancy in Gno
 
-## The Problem in Solidity
+In Solidity, sending ETH automatically triggers the recipient's ` + "`receive()`" + ` or ` + "`fallback()`" + ` 
+function. An attacker can exploit this to call back into the original contract before state 
+updates complete—the infamous DAO hack exploited this vulnerability for a $60M loss.
 
-Reentrancy is one of the most notorious vulnerabilities in Solidity, responsible for 
-the infamous DAO hack that led to a $60M loss and Ethereum's hard fork.
-
-### How Reentrancy Works in Solidity
+## The Solidity Problem
 
 ` + "```solidity" + `
-// VULNERABLE Solidity contract
 contract VulnerableVault {
-    mapping(address => uint) public balances;
+    mapping(address => uint) balances;
     
     function withdraw() public {
         uint amount = balances[msg.sender];
-        
-        // DANGER: External call BEFORE state update
-        (bool success, ) = msg.sender.call{value: amount}("");
-        require(success);
-        
-        // State updated AFTER external call
-        balances[msg.sender] = 0;
+        msg.sender.call{value: amount}("");  // 1. Sends ETH, triggering attacker's receive()
+        balances[msg.sender] = 0;            // 3. State update happens too late!
     }
 }
 
-// Attacker contract
 contract Attacker {
     VulnerableVault vault;
     
-    // This function is called when receiving ETH
     receive() external payable {
-        // Re-enter the withdraw function!
         if (address(vault).balance >= 1 ether) {
-            vault.withdraw();
+            vault.withdraw();  // 2. Re-enters withdraw() while balance is still non-zero
         }
     }
 }
 ` + "```" + `
 
-The attack flow:
-1. Attacker deposits 1 ETH
-2. Attacker calls withdraw()
-3. Vault sends ETH to attacker
-4. Attacker's receive() is triggered
-5. Attacker calls withdraw() AGAIN (balance not yet updated!)
-6. Repeat until vault is drained
+## Why Gno is Safe
 
-## Why Reentrancy is NOT Possible in Gno
-
-Gno's architecture fundamentally prevents reentrancy. 
-
-In Solidity, when you send ETH, the recipient's ` + "`receive()`" + ` or ` + "`fallback()`" + ` 
-function is automatically called. This creates the reentrancy vector.
-
-**In Gno, coin transfers do not trigger any code execution on the recipient.**
-The only way to execute code in another realm is through an explicit function call
-using the ` + "`cross`" + ` keyword, making all realm boundary crossings visible and intentional.
-See [Crossing](/r/docs/crossing) for more details.
+Coin transfers in Gno do **not** execute code on the recipient. Unlike Solidity's 
+` + "`receive()`" + ` and ` + "`fallback()`" + ` hooks, Gno realm code only runs through explicit 
+` + "`cross`" + ` function calls—eliminating the reentrancy attack vector entirely.
 
 ` + "```go" + `
-// This is SAFE in Gno
 func Withdraw(_ realm, amount int64) {
-    caller := runtime.PreviousRealm().Address()
+    caller := std.PreviousRealm().Address()
     
-    // Even if we update state AFTER sending...
-    bnk := banker.NewBanker(banker.BankerTypeRealmSend)
-    bnk.SendCoins(realmAddr, caller, coins)
-    
-    // No code executes on the recipient!
-    // The caller cannot re-enter this function
-    deposits[caller] = 0
+    bnk := std.NewBanker(std.BankerTypeRealmSend)
+    coins := std.NewCoins(std.NewCoin("ugnot", amount))
+    bnk.SendCoins(std.CurrentRealm().Address(), caller, coins)  // No code executes on recipient
+    deposits[caller] = 0  // Safe - no reentrancy possible
 }
 ` + "```" + `
 
-Gno transactions are atomic. If any part fails, the entire transaction reverts.
-This means you can't have a partially-executed state that an attacker could exploit.
+## Best Practice: Checks-Effects-Interactions
 
-## Best Practices
-
-Even though reentrancy isn't possible in Gno, following the
-**Checks-Effects-Interactions** pattern keeps code readable and maintainable:
+Even though Gno prevents reentrancy attacks, following the **Checks-Effects-Interactions** 
+pattern keeps your code clear and maintainable:
 
 ` + "```go" + `
 func Withdraw(_ realm, amount int64) {
-    caller := runtime.PreviousRealm().Address()
+    caller := std.PreviousRealm().Address()
     
-    // 1. CHECKS - Validate all conditions
-    if deposits[caller] < amount {
+    // 1. Checks - validate all preconditions
+    balance := deposits[caller]
+    if balance < amount {
         panic("insufficient balance")
     }
     
-    // 2. EFFECTS - Update state
+    // 2. Effects - update state before external calls
     deposits[caller] -= amount
     
-    // 3. INTERACTIONS - External calls last
-    bnk := banker.NewBanker(banker.BankerTypeRealmSend)
-    bnk.SendCoins(realmAddr, caller, coins)
+    // 3. Interactions - perform external operations last
+    bnk := std.NewBanker(std.BankerTypeRealmSend)
+    coins := std.NewCoins(std.NewCoin("ugnot", amount))
+    bnk.SendCoins(std.CurrentRealm().Address(), caller, coins)
 }
 ` + "```" + `
 
-See [Common Mistakes](/r/docs/mistakes) for other pitfalls to avoid.
+This pattern remains a best practice for code clarity and future-proofing, even when 
+reentrancy isn't a concern.
 
 ---
 
-[Back to Solidity Patterns](/r/docs/soliditypatterns) | [Banker Example](/r/docs/soliditypatterns/banker)
+
+## See Also
+
+- [Banker](/r/docs/banker) - Coin transfer patterns
 `
 }

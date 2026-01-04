@@ -2,7 +2,6 @@ package registry
 
 import (
 	"chain/runtime"
-	"strconv"
 	"strings"
 
 	"gno.land/p/nt/avl"
@@ -17,10 +16,7 @@ type Service struct {
 	Active      bool
 }
 
-var (
-	services     avl.Tree // key (owner:name) -> *Service
-	serviceCount int
-)
+var services avl.Tree // key (owner:name) -> *Service
 
 const (
 	maxNameLength        = 50
@@ -59,7 +55,6 @@ func Register(_ realm, name, description, endpoint string) {
 	}
 
 	services.Set(key, service)
-	serviceCount++
 }
 
 // Update updates an existing service (owner only)
@@ -124,7 +119,6 @@ func Delete(_ realm, name string) {
 	}
 
 	services.Remove(key)
-	serviceCount--
 }
 
 // Lookup returns a service by owner address and name
@@ -172,41 +166,7 @@ func renderHome() string {
 
 Allows entities to register themselves in a shared
 index. Other contracts can then look up registered entities.
-
-Common use cases include name resolution (mapping addresses to human-readable
-names), token discovery, and realm showcasing.
-
-## This Example
-
-This service registry allows anyone to register a service with a unique name.
-Only the owner can update or deactivate their service, but anyone can look up
-services by name.
-
-## Live Demo
-
-[Register Service](/r/docs/registry$help&func=Register)
-
-### Registered Services
-
-**Total services:** ` + strconv.Itoa(serviceCount) + `
-
-`
-	if serviceCount == 0 {
-		out += "_No services registered yet._\n"
-	} else {
-		services.Iterate("", "", func(key string, value any) bool {
-			service := value.(*Service)
-			status := "✅"
-			if !service.Active {
-				status = "❌"
-			}
-			out += "- " + status + " [" + service.Name + "](/r/docs/registry:" + key + ")\n"
-			return false
-		})
-	}
-
-	out += `
----
+Common use cases include mapping data, token discovery and realm showcasing.
 
 ## Code Pattern
 
@@ -254,7 +214,41 @@ func Lookup(owner address, name string) *Entry {
 }
 ` + "```" + `
 
-## Real-World Examples in Gno
+
+## This Example
+
+This service registry allows anyone to register a service with a unique name.
+Only the owner can update or deactivate their service, but anyone can look up
+services by name.
+
+## Live Demo
+
+[Register Service](/r/docs/registry$help&func=Register)
+
+### Registered Services
+
+`
+	count := services.Size()
+
+	if count == 0 {
+		out += "_No services registered yet._\n"
+	} else {
+		services.Iterate("", "", func(key string, value any) bool {
+			service := value.(*Service)
+			status := "✅"
+			if !service.Active {
+				status = "❌"
+			}
+			out += "- " + status + " [" + service.Name + "](/r/docs/registry:" + key + ")\n"
+			return false
+		})
+	}
+
+	out += `
+---
+
+
+## Examples
 
 - [r/sys/users](/r/sys/users) - Official username registry. Users register
 their username and address, and anyone can look them up.
@@ -266,11 +260,6 @@ Token realms register themselves so other contracts can discover available token
 calling ^hor.Register()^ from their init function to be showcased in the exhibition.
 
 [View source code](/r/docs/registry$source)
-
-## See also
-
-- [Factory Pattern](/r/docs/factory) - Creating and managing object instances
-- [Crossing](/r/docs/crossing) - Understanding realm boundaries and caller validation
 `
 	return out
 }

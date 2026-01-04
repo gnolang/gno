@@ -154,7 +154,7 @@ func CreateToken(tokenType int, name string) Token {
     }
 }
 
-// Usage - work with interface, not concrete types
+// Work with interface, not concrete types
 token := CreateToken(Fungible, "USDC")
 token.Transfer(recipientAddr, 100)  // Transfer 100 tokens
 ` + "```" + `
