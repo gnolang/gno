@@ -47,20 +47,20 @@ type PlayerInfo struct {
 
 // GameState represents the current state of the FOMO3D game
 type GameState struct { // TODO: Separate GameState and RoundState and save round history tree in GameState
-	StartBlock         int64       // Block when the game started
-	EndBlock           int64       // Block when the game will end
-	LastKeyBlock       int64       // Block of last key purchase
-	LastBuyer          std.Address // Address of last key buyer
-	Jackpot            int64       // Current jackpot in ugnot
-	KeyPrice           int64       // Current price of keys in ugnot
-	TotalKeys          int64       // Total number of keys in circulation
-	Ended              bool        // Whether the game has ended
-	CurrentRound       int64       // Current round number
-	NextPot            int64       // Next round's starting pot
-	OwnerFee           int64       // Accumulated owner fees
-	BuyKeysLink        string      // Link to BuyKeys function
-	ClaimDividendsLink string      // Link to ClaimDividends function
-	StartGameLink      string      // Link to StartGame function
+	StartBlock         int64   // Block when the game started
+	EndBlock           int64   // Block when the game will end
+	LastKeyBlock       int64   // Block of last key purchase
+	LastBuyer          address // Address of last key buyer
+	Jackpot            int64   // Current jackpot in ugnot
+	KeyPrice           int64   // Current price of keys in ugnot
+	TotalKeys          int64   // Total number of keys in circulation
+	Ended              bool    // Whether the game has ended
+	CurrentRound       int64   // Current round number
+	NextPot            int64   // Next round's starting pot
+	OwnerFee           int64   // Accumulated owner fees
+	BuyKeysLink        string  // Link to BuyKeys function
+	ClaimDividendsLink string  // Link to ClaimDividends function
+	StartGameLink      string  // Link to StartGame function
 }
 
 var (
@@ -278,7 +278,7 @@ func EndGame() {
 }
 
 // GetGameState returns current game state
-func GetGameState() (int64, int64, int64, std.Address, int64, int64, int64, bool, int64, int64) {
+func GetGameState() (int64, int64, int64, address, int64, int64, int64, bool, int64, int64) {
 	return gameState.StartBlock,
 		gameState.EndBlock,
 		gameState.LastKeyBlock,
@@ -292,14 +292,14 @@ func GetGameState() (int64, int64, int64, std.Address, int64, int64, int64, bool
 }
 
 // GetOwnerInfo returns the owner address and unclaimed fees
-func GetOwnerInfo() (std.Address, int64) {
+func GetOwnerInfo() (address, int64) {
 	return Ownable.Owner(), gameState.OwnerFee
 }
 
 // Helper to convert string (address or username) to address
-func stringToAddress(input string) std.Address {
+func stringToAddress(input string) address {
 	// Check if input is valid address
-	addr := std.Address(input)
+	addr := address(input)
 	if addr.IsValid() {
 		return addr
 	}
@@ -312,7 +312,7 @@ func stringToAddress(input string) std.Address {
 	return ""
 }
 
-func isPlayerInGame(addr std.Address) bool {
+func isPlayerInGame(addr address) bool {
 	_, exists := players.Get(addr.String())
 	return exists
 }

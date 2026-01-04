@@ -17,6 +17,7 @@ func TestJSONDocumentation(t *testing.T) {
 		PackagePath: "gno.land/r/hello",
 		PackageLine: "package hello // import \"hello\"",
 		PackageDoc:  "hello is a package for testing\n",
+		Bugs:        []string{"Bug about myInterface\n"},
 		Values: []*JSONValueDecl{
 			{
 				Signature: "const ConstString = \"const string\"",
@@ -134,9 +135,12 @@ func TestJSONDocumentation(t *testing.T) {
 			{
 				Type:      "",
 				Name:      "Inc",
-				Signature: "func Inc() int",
+				Crossing:  true,
+				Signature: "func Inc(cur realm) int",
 				Doc:       "",
-				Params:    []*JSONField{},
+				Params: []*JSONField{
+					{Name: "cur", Type: "realm"},
+				},
 				Results: []*JSONField{
 					{Name: "", Type: "int"},
 				},
@@ -184,19 +188,89 @@ func TestJSONDocumentation(t *testing.T) {
 		},
 		Types: []*JSONType{
 			{
-				Name:      "myStruct",
-				Signature: "type myStruct struct{ a int }",
-				Doc:       "myStruct is a struct for testing\n",
+				Name:  "myAlias",
+				Type:  "myStruct",
+				Doc:   "Test type aliases\n",
+				Alias: true,
+				Kind:  "ident",
+			},
+			{
+				Name: "myArrayType",
+				Type: "[5]int",
+				Doc:  "Test array type\n",
+				Kind: "array",
+			},
+			{
+				Name: "myChanType",
+				Type: "chan int",
+				Doc:  "Test chan type\n",
+				Kind: "chan",
+			},
+			{
+				Name: "myFuncType",
+				Type: "func(int) string",
+				Doc:  "Test func type\n",
+				Kind: "func",
+			},
+			{
+				Name: "myInterface",
+				Type: "interface {\n\terror\n\t// Bar is for testing\n\tBar(x int) string // Bar line comment\n}",
+				Doc:  "myInterface is an interface for testing\n",
+				Kind: "interface",
+				InterElems: []*JSONInterfaceElement{
+					{Type: "error"},
+					{
+						Method: &JSONFunc{
+							Type:      "myInterface",
+							Name:      "Bar",
+							Signature: "Bar(x int) string",
+							Doc:       "// Bar is for testing // Bar line comment\n",
+							Params: []*JSONField{
+								{Name: "x", Type: "int"},
+							},
+							Results: []*JSONField{
+								{Name: "", Type: "string"},
+							},
+						},
+					},
+				},
+			},
+			{
+				Name: "myMapType",
+				Type: "map[string]int",
+				Doc:  "Test map type\n",
+				Kind: "map",
+			},
+			{
+				Name: "myPointerType",
+				Type: "*myStruct",
+				Doc:  "Test pointer type\n",
+				Kind: "pointer",
+			},
+			{
+				Name: "mySliceType",
+				Type: "[]int",
+				Doc:  "Test slice type\n",
+				Kind: "slice",
+			},
+			{
+				Name: "myStruct",
+				Type: "struct {\n\t// a is a field\n\ta int // a comment\n}",
+				Doc:  "myStruct is a struct for testing\n",
+				Kind: "struct",
+				Fields: []*JSONField{
+					{Name: "a", Type: "int", Doc: "// a is a field\n// a comment\n"},
+				},
 			},
 		},
 	}
 
 	// Get the JSONDocumentation similar to VMKeeper.QueryDoc
-	mpkg, err := gnolang.ReadMemPackage(dir, pkgPath)
+	mpkg, err := gnolang.ReadMemPackage(dir, pkgPath, gnolang.MPAnyAll)
 	require.NoError(t, err)
 	d, err := NewDocumentableFromMemPkg(mpkg, true, "", "")
 	require.NoError(t, err)
-	jdoc, err := d.WriteJSONDocumentation()
+	jdoc, err := d.WriteJSONDocumentation(nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, expected.JSON(), jdoc.JSON())

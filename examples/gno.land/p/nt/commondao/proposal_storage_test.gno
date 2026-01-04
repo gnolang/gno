@@ -1,15 +1,17 @@
-package commondao
+package commondao_test
 
 import (
 	"testing"
 
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
+
+	"gno.land/p/nt/commondao"
 )
 
 func TestProposalStorageAdd(t *testing.T) {
-	p, _ := NewProposal(1, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", testPropDef{})
-	s := NewProposalStorage()
+	p, _ := commondao.NewProposal(1, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", testPropDef{})
+	s := commondao.NewProposalStorage()
 	initialSize := s.Size()
 
 	s.Add(p)
@@ -20,8 +22,8 @@ func TestProposalStorageAdd(t *testing.T) {
 }
 
 func TestProposalStorageGet(t *testing.T) {
-	p, _ := NewProposal(1, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", testPropDef{})
-	s := NewProposalStorage()
+	p, _ := commondao.NewProposal(1, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", testPropDef{})
+	s := commondao.NewProposalStorage()
 	s.Add(p)
 
 	p2 := s.Get(p.ID())
@@ -31,8 +33,8 @@ func TestProposalStorageGet(t *testing.T) {
 }
 
 func TestProposalStorageRemove(t *testing.T) {
-	p, _ := NewProposal(1, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", testPropDef{})
-	s := NewProposalStorage()
+	p, _ := commondao.NewProposal(1, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", testPropDef{})
+	s := commondao.NewProposalStorage()
 	s.Add(p)
 
 	s.Remove(p.ID())
@@ -45,15 +47,15 @@ func TestProposalStorageIterate(t *testing.T) {
 	var (
 		i   int
 		ids = []uint64{22, 33, 44}
-		s   = NewProposalStorage()
+		s   = commondao.NewProposalStorage()
 	)
 
 	for _, id := range ids {
-		p, _ := NewProposal(id, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", testPropDef{})
+		p, _ := commondao.NewProposal(id, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", testPropDef{})
 		s.Add(p)
 	}
 
-	s.Iterate(0, s.Size(), false, func(p *Proposal) bool {
+	s.Iterate(0, s.Size(), false, func(p *commondao.Proposal) bool {
 		uassert.Equal(t, ids[i], p.ID(), "expect proposal ID to match")
 
 		i++
@@ -63,7 +65,7 @@ func TestProposalStorageIterate(t *testing.T) {
 	uassert.Equal(t, len(ids), i, "expect storage to iterate all proposals")
 
 	i = s.Size() - 1
-	s.Iterate(0, s.Size(), true, func(p *Proposal) bool {
+	s.Iterate(0, s.Size(), true, func(p *commondao.Proposal) bool {
 		uassert.Equal(t, ids[i], p.ID(), "expect proposal ID to match")
 
 		i--

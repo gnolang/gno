@@ -22,9 +22,9 @@ stdout 'same address, success!'
 -- registry/registry.gno --
 package registry
 
-import "std"
+import "chain/runtime"
 
-type transferCb func(cur realm, to std.Address, amount uint64) string
+type transferCb func(cur realm, to address, amount uint64) string
 
 type pair struct {
 	name string
@@ -43,7 +43,7 @@ func TransferByName(cur realm, name string, to string, amount uint64) string {
 			continue
 		}
 
-		if std.CurrentRealm().Address().String() != pair.cb(cross, std.Address(to), amount) {
+		if runtime.CurrentRealm().Address().String() != pair.cb(cross, address(to), amount) {
 			return "invalid address, ownership issue :("
 		}
 
@@ -71,9 +71,9 @@ gno = "0.9"
 -- foo20/foo20.gno --
 package foo20
 
-import "std"
+import "chain/runtime"
 
-func Transfer(cur realm, to std.Address, amount uint64) string {
-	println("transfer from=" + std.PreviousRealm().Address().String() + " to=" + to.String() + " some-amount")
-	return std.PreviousRealm().Address().String()
+func Transfer(cur realm, to address, amount uint64) string {
+	println("transfer from=" + runtime.PreviousRealm().Address().String() + " to=" + to.String() + " some-amount")
+	return runtime.PreviousRealm().Address().String()
 }

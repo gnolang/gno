@@ -80,12 +80,15 @@ func LoadState(db dbm.DB) State {
 }
 
 func loadState(db dbm.DB, key []byte) (state State) {
-	buf := db.Get(key)
+	buf, err := db.Get(key)
+	if err != nil {
+		panic(err)
+	}
 	if len(buf) == 0 {
 		return state
 	}
 
-	err := amino.Unmarshal(buf, &state)
+	err = amino.Unmarshal(buf, &state)
 	if err != nil {
 		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
 		osm.Exit(fmt.Sprintf(`LoadState: Data has been corrupted or its spec has changed:
@@ -160,13 +163,16 @@ func (arz *ABCIResponses) ResultsHash() []byte {
 // This is useful for recovering from crashes where we called app.Commit and before we called
 // s.Save(). It can also be used to produce Merkle proofs of the result of txs.
 func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
-	buf := db.Get(CalcABCIResponsesKey(height))
+	buf, err := db.Get(CalcABCIResponsesKey(height))
+	if err != nil {
+		return nil, fmt.Errorf("error while getting abci response: %w", err)
+	}
 	if buf == nil {
 		return nil, NoABCIResponsesForHeightError{height}
 	}
 
 	abciResponses := new(ABCIResponses)
-	err := amino.Unmarshal(buf, abciResponses)
+	err = amino.Unmarshal(buf, abciResponses)
 	if err != nil {
 		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
 		osm.Exit(fmt.Sprintf(`LoadABCIResponses: Data has been corrupted or its spec has
@@ -198,7 +204,10 @@ func (t *TxResultIndex) Bytes() []byte {
 // LoadTxResultIndex loads the tx result associated with the given
 // tx hash from the database, if any
 func LoadTxResultIndex(db dbm.DB, txHash []byte) (*TxResultIndex, error) {
-	buf := db.Get(CalcTxResultKey(txHash))
+	buf, err := db.Get(CalcTxResultKey(txHash))
+	if err != nil {
+		return nil, fmt.Errorf("error while getting tx result: %w", err)
+	}
 	if buf == nil {
 		return nil, NoTxResultForHashError{txHash}
 	}
@@ -270,13 +279,16 @@ func lastStoredHeightFor(height, lastHeightChanged int64) int64 {
 
 // CONTRACT: Returned ValidatorsInfo can be mutated.
 func loadValidatorsInfo(db dbm.DB, height int64) *ValidatorsInfo {
-	buf := db.Get(calcValidatorsKey(height))
+	buf, err := db.Get(calcValidatorsKey(height))
+	if err != nil {
+		panic(err)
+	}
 	if len(buf) == 0 {
 		return nil
 	}
 
 	v := new(ValidatorsInfo)
-	err := amino.Unmarshal(buf, v)
+	err = amino.Unmarshal(buf, v)
 	if err != nil {
 		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
 		osm.Exit(fmt.Sprintf(`LoadValidators: Data has been corrupted or its spec has changed:
@@ -347,13 +359,16 @@ func LoadConsensusParams(db dbm.DB, height int64) (abci.ConsensusParams, error) 
 }
 
 func loadConsensusParamsInfo(db dbm.DB, height int64) *ConsensusParamsInfo {
-	buf := db.Get(calcConsensusParamsKey(height))
+	buf, err := db.Get(calcConsensusParamsKey(height))
+	if err != nil {
+		panic(err)
+	}
 	if len(buf) == 0 {
 		return nil
 	}
 
 	paramsInfo := new(ConsensusParamsInfo)
-	err := amino.Unmarshal(buf, paramsInfo)
+	err = amino.Unmarshal(buf, paramsInfo)
 	if err != nil {
 		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
 		osm.Exit(fmt.Sprintf(`LoadConsensusParams: Data has been corrupted or its spec has changed:

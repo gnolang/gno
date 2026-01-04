@@ -1,11 +1,11 @@
 package minisocial
 
 import (
-	"std"  // The standard Gno package
+	// The standard Gno package
 	"time" // For handling time operations
 
-	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/ufmt"
 
 	"gno.land/r/sys/users"
 )
@@ -14,7 +14,7 @@ import (
 type Post struct {
 	id        seqid.ID
 	text      string
-	author    std.Address
+	author    address
 	createdAt time.Time
 	updatedAt time.Time
 }

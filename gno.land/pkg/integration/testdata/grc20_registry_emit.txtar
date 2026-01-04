@@ -1,0 +1,36 @@
+# check events when transferring tokens via the token teller interface
+# add registry
+loadpkg gno.land/r/demo/defi/grc20reg
+loadpkg gno.land/r/demo/defi/foo20
+loadpkg gno.land/r/grc20transfer $WORK
+
+## start a new node
+gnoland start
+
+# run the faucet before transferring the balance
+gnokey maketx call -pkgpath gno.land/r/demo/defi/foo20 -func Faucet -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+
+# check the event after transferring the grc20 token
+gnokey maketx call -pkgpath gno.land/r/grc20transfer -func TransferBy -args 'gno.land/r/demo/defi/foo20' -args 'g1c8cf99clyyjr2kh9awxnfyt36cvmr703tsmazp' -args '1000000' -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'GAS WANTED: [0-9]+'
+stdout 'GAS USED:   [0-9]+'
+stdout 'HEIGHT:     [0-9]+'
+stdout 'EVENTS:     \[{"type":"Transfer","attrs":\[{"key":"token","value":"gno.land/r/demo/defi/foo20.FOO"},{"key":"from","value":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},{"key":"to","value":"g1c8cf99clyyjr2kh9awxnfyt36cvmr703tsmazp"},{"key":"value","value":"1000000"}\],"pkg_path":"gno.land/p/demo/tokens/grc20"},{\"bytes_delta\":2011,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":201100},\"pkg_path\":\"gno.land/r/demo/defi/foo20\"}\]'
+stdout 'TX HASH:    '
+
+-- gnomod.toml --
+module = "gno.land/r/grc20transfer"
+gno = "0.9"
+-- grc20transfer.gno --
+package grc20transfer
+
+import "gno.land/r/demo/defi/grc20reg"
+
+func TransferBy(cur realm, path string, to address, amount int64) {
+	grc20 := grc20reg.MustGet(path)
+	err := grc20.CallerTeller().Transfer(to, amount)
+	if err != nil {
+		panic(err)
+	}
+}

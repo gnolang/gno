@@ -1,7 +1,7 @@
 # https://github.com/gnolang/gno/issues/2763
 
 ! gno test .
-stderr 'redeclarations for identifiers.*add2'
+stderr 'foo_test.gno:16:6: add2 redeclared in this block \(code=gnoTypeCheckError\)'
 
 -- foo.gno --
 package foo
@@ -33,3 +33,7 @@ func TestFoo(t *testing.T) {
 func add2(a, b int) int {
 	return a + b
 }
+
+
+-- gnomod.toml --
+module = "gno.test/r/integ/issue_2763"

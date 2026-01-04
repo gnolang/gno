@@ -1,18 +1,18 @@
 package memberstore
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/r/gov/dao"
 )
 
 func NewChangeTiersRequest(tiers TiersByName) dao.ProposalRequest {
-	member, _ := Get().GetMember(std.OriginCaller())
+	member, _ := Get().GetMember(runtime.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
 
-	callback := func() error {
+	callback := func(cur realm) error {
 		Tiers = tiers
 
 		return nil

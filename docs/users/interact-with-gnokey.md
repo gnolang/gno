@@ -147,14 +147,15 @@ The `addpkg` subcommmand uses the following flags and arguments:
 - `-pkgpath` - on-chain path where your code will be uploaded to
 - `-pkgdir` - local path where your is located
 - `-broadcast` - enables broadcasting the transaction to the chain
-- `-deposit` - a deposit amount of GNOT to send along with the transaction
+- `-send` - Amount of GNOT to send to the realm with the transaction (optional)
+- `-max-deposit` - Maximum GNOT to lock for storage deposit (optional)
 - `-gas-wanted` - the upper limit for units of gas for the execution of the
   transaction
 - `-gas-fee` - amount of GNOTs to pay per gas unit
 - `-chain-id` - id of the chain that we are sending the transaction to
 - `-remote` - specifies the remote node RPC listener address
 
-The `-pkgpath`, `-pkgdir`, and `-deposit` flags are unique to the `addpkg`
+The `-pkgpath`, `-pkgdir`, flags are unique to the `addpkg`
 subcommand, while `-broadcast`, `-gas-wanted`, `-gas-fee`, `-chain-id`, and
 `-remote` are used for setting the base transaction configuration. These flags
 will be repeated throughout the tutorial.
@@ -167,7 +168,6 @@ the `example/p/` folder, the command will look like this:
 gnokey maketx addpkg \
 -pkgpath "gno.land/p/<your_namespace>/hello_world" \
 -pkgdir "." \
--deposit "" \
 -gas-fee 10000000ugnot \
 -gas-wanted 8000000 \
 -broadcast \
@@ -182,7 +182,6 @@ transaction:
 gnokey maketx addpkg \
 -pkgpath "gno.land/p/examplenamespace/hello_world" \
 -pkgdir "." \
--send "" \
 -gas-fee 10000000ugnot \
 -gas-wanted 200000 \
 -broadcast \
@@ -234,7 +233,7 @@ does not use gas.
 
 For this example, we will call the `wugnot` realm, which wraps GNOTs to a
 GRC20-compatible token called `wugnot`. We can find this realm deployed on the
-[Staging](../resources/gnoland-networks.md) chain, under the `gno.land/r/demo/wugnot` path.
+[Staging](../resources/gnoland-networks.md) chain, under the `gno.land/r/gnoland/wugnot` path.
 
 We will wrap `1000ugnot` into the equivalent in `wugnot`. To do this, we can call
 the `Deposit()` function found in the `wugnot` realm. As previously, we will
@@ -242,7 +241,7 @@ configure the `maketx call` subcommand:
 
 ```bash
 gnokey maketx call \
--pkgpath "gno.land/r/demo/wugnot" \
+-pkgpath "gno.land/r/gnoland/wugnot" \
 -func "Deposit" \
 -send "1000ugnot" \
 -gas-fee 10000000ugnot \
@@ -267,7 +266,7 @@ OK!
 GAS WANTED: 2000000
 GAS USED:   489528
 HEIGHT:     24142
-EVENTS:     [{"type":"Transfer","attrs":[{"key":"from","value":""},{"key":"to","value":"g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"},{"key":"value","value":"1000"}],"pkg_path":"gno.land/r/demo/wugnot","func":"Mint"}]
+EVENTS:     [{"type":"Transfer","attrs":[{"key":"from","value":""},{"key":"to","value":"g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"},{"key":"value","value":"1000"}],"pkg_path":"gno.land/r/gnoland/wugnot","func":"Mint"}]
 TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
 ```
 
@@ -280,7 +279,7 @@ can call the `BalanceOf()` function in the same realm:
 
 ```bash
 gnokey maketx call \
--pkgpath "gno.land/r/demo/wugnot" \
+-pkgpath "gno.land/r/gnoland/wugnot" \
 -func "BalanceOf" \
 -args "<your_address>" \
 -gas-fee 10000000ugnot \
@@ -344,7 +343,7 @@ the publicly-known `test1` address, and `100ugnot` for the coins we want to send
 respectively.
 
 To check the balance of a specific address, check out the `bank/balances` query
-in the [Querying a network](#bankbalances) section.
+in the [Querying a network](#querying-a-gnoland-network) section.
 
 ## `Run`
 
@@ -417,7 +416,7 @@ to the following example realm:
 ```go
 package foo
 
-import "gno.land/p/demo/ufmt"
+import "gno.land/p/nt/ufmt"
 
 var (
 	MainFoo *Foo
@@ -461,7 +460,7 @@ func Render(_ string) string {
 package main
 
 import (
-  "gno.land/r/docs/examples/run/foo"
+  "gno.land/r/docs/examples/foo"
 )
 
 func main() {
@@ -486,7 +485,7 @@ package main
 import (
   "strconv"
 
-  "gno.land/r/docs/examples/run/foo"
+  "gno.land/r/docs/examples/foo"
 )
 
 func main() {
@@ -511,7 +510,7 @@ func main() {
 ```go
 package main
 
-import "gno.land/r/docs/examples/run/foo"
+import "gno.land/r/docs/examples/foo"
 
 func main() {
 	println(foo.MainFoo.String())
@@ -638,7 +637,7 @@ Make sure the signature is in the `hex` format.
 gnokey verify -docpath userbook.tx mykey <signature>
 ```
 
-# Querying a Gno.land network
+## Querying a Gno.land network
 
 Gno.land and `gnokey` support ABCI queries. Using ABCI queries, you can query the state of
 a Gno.land network without spending any gas. All queries need to be pointed towards
@@ -656,6 +655,7 @@ Below is a list of queries a user can make with `gnokey`:
 - `vm/qdoc` - Returns the JSON of the doc for a given pkgpath, suitable for printing
 - `vm/qeval` - evaluates an expression in read-only mode on and returns the results
 - `vm/qrender` - shorthand for evaluating `vm/qeval Render("")` for a given pkgpath
+- `vm/qstorage` - returns storage usage and deposit locked in a realm
 
 Let's see how we can use them.
 
@@ -724,7 +724,7 @@ Using the `vm/qfuncs` query, we can fetch exported functions from a specific pac
 path. To specify the path we want to query, we can use the `-data` flag:
 
 ```bash
-gnokey query vm/qfuncs --data "gno.land/r/demo/wugnot" -remote https://rpc.gno.land:443
+gnokey query vm/qfuncs --data "gno.land/r/gnoland/wugnot" -remote https://rpc.gno.land:443
 ```
 
 The output is a string containing all exported functions for the `wugnot` realm:
@@ -759,7 +759,7 @@ specific package path. To specify the path we want to query, we can use the
 `-data` flag:
 
 ```bash
-gnokey query vm/qfile -data "gno.land/r/demo/wugnot" -remote https://rpc.gno.land:443
+gnokey query vm/qfile -data "gno.land/r/gnoland/wugnot" -remote https://rpc.gno.land:443
 ```
 
 If the `-data` field contains only the package path, the output is a list of all
@@ -767,7 +767,7 @@ files found within the `wugnot` realm:
 
 ```bash
 height: 0
-data: gno.mod
+data: gnomod.toml
 wugnot.gno
 z0_filetest.gno
 ```
@@ -776,7 +776,7 @@ If the `-data` field also specifies a file name after the path, the source code
 of the file will be retrieved:
 
 ```bash
-gnokey query vm/qfile -data "gno.land/r/demo/wugnot/wugnot.gno" -remote https://rpc.gno.land:443
+gnokey query vm/qfile -data "gno.land/r/gnoland/wugnot/wugnot.gno" -remote https://rpc.gno.land:443
 ```
 
 Output:
@@ -788,8 +788,8 @@ import (
         "std"
         "strings"
 
-        "gno.land/p/demo/grc/grc20"
-        "gno.land/p/demo/ufmt"
+        "gno.land/p/nt/grc/grc20"
+        "gno.land/p/nt/ufmt"
         pusers "gno.land/p/demo/users"
         "gno.land/r/demo/users"
 )
@@ -882,7 +882,7 @@ data: {
 in read-only mode. For example:
 
 ```bash
-gnokey query vm/qeval -remote https://rpc.gno.land:443 -data "gno.land/r/demo/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
+gnokey query vm/qeval -remote https://rpc.gno.land:443 -data "gno.land/r/gnoland/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
 ```
 
 This command will return the `wugnot` balance of the above address without using gas.
@@ -896,11 +896,11 @@ Currently, `vm/qeval` only supports primitive types in expressions.
 We can use it like this:
 
 ```bash
-gnokey query vm/qrender --data "gno.land/r/demo/wugnot:" -remote https://rpc.gno.land:443
+gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:" -remote https://rpc.gno.land:443
 ```
 
 Running this command will display the current `Render()` output of the WUGNOT
-realm, which is also displayed by default on the [realm's page](https://gno.land/r/demo/wugnot):
+realm, which is also displayed by default on the [realm's page](https://gno.land/r/gnoland/wugnot):
 
 ```bash
 height: 0
@@ -919,7 +919,7 @@ address in its `Render()` function. We can fetch the balance of an account by
 providing the following custom pattern to the `wugnot` realm:
 
 ```bash
-gnokey query vm/qrender --data "gno.land/r/demo/wugnot:balance/g125em6arxsnj49vx35f0n0z34putv5ty3376fg5" -remote https://rpc.gno.land:443
+gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:balance/g125em6arxsnj49vx35f0n0z34putv5ty3376fg5" -remote https://rpc.gno.land:443
 ```
 
 To see how this was achieved, check out `wugnot`'s `Render()` function.
@@ -927,19 +927,19 @@ To see how this was achieved, check out `wugnot`'s `Render()` function.
 
 ## `vm/qpaths`
 
-`vm/qpaths` lists all existing package paths prefixed with the specified string 
-using `--data=<prefix>`. If no paths are provided, all known paths will be 
-listed, including those from `stdlibs`. You can specify an additional *limit* 
-parameter at the end of the path using `<path>?limit=<x>` to restrict the number 
-of results to `x` elements. If `0` is specified as *limit*, then, no limit will 
+`vm/qpaths` lists all existing package paths prefixed with the specified string
+using `--data=<prefix>`. If no paths are provided, all known paths will be
+listed, including those from `stdlibs`. You can specify an additional *limit*
+parameter at the end of the path using `<path>?limit=<x>` to restrict the number
+of results to `x` elements. If `0` is specified as *limit*, then, no limit will
 be applied, with a hard limit of `10_000`. The default *limit* is `1_000`.
-  
+
 A simple example:
 ```bash
 gnokey query vm/qpaths --data "gno.land/r/gnoland"
 ```
 
-Would output: 
+Would output:
 ```bash
 height: 0
 data: gno.land/r/gnoland/blog
@@ -951,7 +951,7 @@ gno.land/r/gnoland/users
 gno.land/r/gnoland/users/v1
 ```
 
-The result limit can also be specified in the following manner (mind the added 
+The result limit can also be specified in the following manner (mind the added
 quotes):
 ```bash
 gnokey query "vm/qpaths?limit=3" --data "gno.land/r/gnoland"
@@ -974,8 +974,28 @@ gno.land/p/foo/ui
 gno.land/p/foo/svg
 ```
 
-In practice, this is shorthand for listing packages under `gno.land/p/foo` & 
+In practice, this is shorthand for listing packages under `gno.land/p/foo` &
 `gno.land/r/foo`.
+
+## `vm/qstorage`
+
+This ABCI query endpoint can be used to inspect current storage usage and deposit in a realm:
+
+```bash
+gnokey query vm/qstorage --data "gno.land/r/foo"
+```
+
+Sample Output:
+
+```
+storage: 5025, deposit: 502500
+```
+
+`storage` represents total bytes used, while `deposit` is the total GNOT locked for that by that realm.
+
+The storage price can be also calculated directly using this output
+(e.g., deposit / storage, `502500/5025 = 100ugnot`) instead of querying the price
+per byte from the params realm.
 
 ### Gas parameters
 
@@ -993,5 +1013,5 @@ gnokey maketx call \
   YOUR_KEY_NAME
 ```
 
-For detailed information about gas fees, including recommended values and 
+For detailed information about gas fees, including recommended values and
 optimization strategies, see the [Gas Fees documentation](../resources/gas-fees.md).

@@ -1,20 +1,20 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
-	"std"
+	"chain/runtime"
 
-	crossrealm "gno.land/r/demo/tests/crossrealm"
+	crossrealm "gno.land/r/tests/vm/crossrealm"
 )
 
 type fooer struct{}
 
 func (fooer) Foo(cur realm) {
-	println("hello " + std.CurrentRealm().PkgPath())
+	println("hello " + runtime.CurrentRealm().PkgPath())
 }
 
 func (fooer) Bar() {
-	println("hello " + std.CurrentRealm().PkgPath())
+	println("hello " + runtime.CurrentRealm().PkgPath())
 }
 
 var f *fooer
@@ -34,4 +34,4 @@ func main(cur realm) {
 // init
 
 // Error:
-// cannot cur-call to external realm function gno.land/r/crossrealm_test.Foo from gno.land/r/demo/tests/crossrealm
+// cannot cur-call to external realm function gno.land/r/crossrealm.Foo from gno.land/r/tests/vm/crossrealm
