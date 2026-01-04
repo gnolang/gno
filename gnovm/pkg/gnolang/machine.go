@@ -1920,9 +1920,12 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	}
 	m.Package = pv
 
-	// If with cross, always switch to pv.Realm.
-	// If method, this means the object cannot be modified if
-	// stored externally by this method; but other methods can.
+	// Cross-call of a crossing-function like Public(cur, ...) or a
+	// crossing-method like recv.Method(cur, ...).
+	// If cross-calling (with cross), always switch to pv.Realm.
+	// If cross-calling a crossing-method the receiver cannot be modified
+	// if it resides in a realm-storage different than the realm in which
+	// the method is declared.
 	if withCross {
 		// since gno 0.9 cross type-checking makes this impossible.
 		// XXX move this into if debug { ... }
@@ -1944,12 +1947,16 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		return
 	}
 
-	// Non-crossing call of a crossing function like Public(cur, ...).
+	// Non-crossing call of a crossing-function like Public(nil, ...) or
+	// crossing-method like recv.Method(nil, ...).
 	if fv.IsCrossing() {
 		if m.Realm != pv.Realm {
-			// Illegal crossing to external realm.
-			// (the function was variable and run-time check was necessary).
-			// panic; not explicit
+			// Illegal realm-context crossing or storage-realm
+			// crossing to an external realm-storage. This only
+			// happens when the function or method called was
+			// variable and so can only be detected at run-time.
+			// Otherwise it is caught in the preprocessor
+			// type-checker.
 			mrpath := "<no realm>"
 			if m.Realm != nil {
 				mrpath = m.Realm.Path
@@ -1969,23 +1976,23 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		return
 	}
 
-	// Not cross nor crossing.
-	// Only "soft" switch to storage realm of receiver.
+	// Calling a non-crossing-function or non-crossing-method.
+	// Storage-cross to realm-storage of receiver's realm-storage.
 	var rlm *Realm
 	if recv.IsDefined() { // method call
 		obj := recv.GetFirstObject(m.Store)
 		if obj == nil { // nil receiver
-			// no switch
+			// no storage-cross.
 			return
 		} else {
 			recvOID := obj.GetObjectInfo().ID
 			if recvOID.IsZero() ||
 				(m.Realm != nil && recvOID.PkgID == m.Realm.ID) {
-				// no switch
+				// no storage-cross.
 				return
 			} else {
-				// Implicit switch to storage realm.
-				// Neither cross nor didswitch.
+				// Storage-cross to realm-storage.
+				// Neither with-cross nor didCrossing.
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
 				rlm = objpv.GetRealm()
@@ -2003,7 +2010,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			}
 		}
 	} else { // top level function
-		// no switch
+		// no storage-cross.
 		return
 	}
 }
