@@ -35,5 +35,5 @@ func RenderValue() string {
 }
 
 func Render(_ string) string {
-	return "# Counter Component\n\nCurrent value: " + RenderValue() + "\n\nThis is a sub-component of [r/docs/composition](/r/docs/composition)."
+	return "# Counter Component\n\nCurrent value: " + RenderValue() + "\n\nThis is a sub-component of [/r/docs/composition](/r/docs/composition)."
 }

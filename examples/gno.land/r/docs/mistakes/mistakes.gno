@@ -103,9 +103,9 @@ func SetAdmin(_ realm, newAdmin address) {
 
 ---
 
-### See also:
-- [Safe Objects](/r/docs/safeobjects)
-- [Crossing](/r/docs/crossing)
-- [Solidity Patterns](/r/docs/soliditypatterns)
+See also:
+- [Safe Objects](/r/docs/safeobjects) - Exposing objects with preserved privileges
+- [Crossing](/r/docs/crossing) - Understanding realm boundaries and caller validation
+- [Solidity Patterns](/r/docs/soliditypatterns) - Common patterns converted to Gno
 `
 }

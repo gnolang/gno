@@ -39,5 +39,5 @@ func RenderLog() string {
 }
 
 func Render(_ string) string {
-	return "# Logger Component\n\n" + RenderLog() + "\n\nThis is a sub-component of [r/docs/composition](/r/docs/composition)."
+	return "# Logger Component\n\n" + RenderLog() + "\n\nThis is a sub-component of [/r/docs/composition](/r/docs/composition)."
 }

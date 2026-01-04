@@ -14,13 +14,13 @@ Explore various examples to learn more about Gno functionality and usage.
 - [Source](/r/docs/source) - View realm source code.
 
 ## Development & Testing
-- [Crossing](/r/docs/crossing) - Understanding realm boundary crossing.
 - [Common Mistakes](/r/docs/mistakes) - Pitfalls to avoid: overflow, errors, OriginCaller attacks.
+- [Crossing](/r/docs/crossing) - Understanding realm boundary crossing.
 - [Calling non-primitive argument functions](/r/docs/complexargs) - Learn how to call functions that take in complex arguments.
 - [Test-Driven Development (TDD)](/r/docs/tdd) - Writing tests before code in Gno.
 
 ## Data & Serialization
-- [JSON](/r/docs/json) - Working with JSON data using ^p/onbloc/json^.
+- [JSON](/r/docs/json) - Working with JSON data using ^/p/onbloc/json^.
 - [AVL Pager](/r/docs/avl_pager) - Paginate through AVL tree items.
 - [AVL Pager + Render paths](/r/docs/avl_pager_params) - Handle render arguments with pagination.
 

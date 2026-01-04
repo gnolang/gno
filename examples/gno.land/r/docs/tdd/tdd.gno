@@ -134,11 +134,9 @@ gno test -v .           # Verbose output
 gno test -run TestAdd . # Run specific test
 ` + "```" + `
 
-[View source code](/r/docs/tdd$source)
-
 ---
 
-See also:
+### See also:
 - [gno test documentation](https://docs.gno.land/reference/gno-cli/gno-test)
 - [Crossing](/r/docs/crossing) - How to test realm boundaries
 - [Common Mistakes](/r/docs/mistakes) - Pitfalls to avoid
