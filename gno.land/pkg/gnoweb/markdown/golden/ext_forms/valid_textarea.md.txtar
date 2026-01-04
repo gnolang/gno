@@ -27,5 +27,5 @@
 <div class="gno-form_input"><label for="story"> Share your story </label>
 <textarea id="story" name="story" placeholder="Share your story" rows="3"></textarea>
 </div>
-<input type="submit" value="Submit to /r/test Realm" />
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
 </form>

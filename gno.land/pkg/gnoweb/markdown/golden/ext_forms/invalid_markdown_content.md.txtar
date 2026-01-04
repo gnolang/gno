@@ -14,5 +14,5 @@ This is some **markdown** content
 <div class="gno-form_input"><label for="markdown"> In markdown </label>
 <input type="text" id="markdown" name="markdown" placeholder="In markdown" />
 </div>
-<input type="submit" value="Submit to /r/test Realm" />
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
 </form>

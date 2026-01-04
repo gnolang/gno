@@ -29,5 +29,5 @@
 <div class="gno-form_input"><label for="feedback"> Your feedback </label>
 <textarea id="feedback" name="feedback" placeholder="Your feedback" rows="4"></textarea>
 </div>
-<input type="submit" value="Submit to /r/test Realm" />
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
 </form>

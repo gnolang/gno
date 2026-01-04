@@ -10,6 +10,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
@@ -19,6 +20,7 @@ import (
 
 type MakeRunCfg struct {
 	RootCfg    *client.MakeTxCfg
+	Send       string
 	MaxDeposit string
 }
 
@@ -41,6 +43,12 @@ func NewMakeRunCmd(rootCfg *client.MakeTxCfg, cmdio commands.IO) *commands.Comma
 }
 
 func (c *MakeRunCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.Send,
+		"send",
+		"",
+		"send amount",
+	)
 	fs.StringVar(
 		&c.MaxDeposit,
 		"max-deposit",
@@ -74,7 +82,13 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	}
 	caller := info.GetAddress()
 
-	// Parase deposit amount
+	// Parse send amount.
+	send, err := std.ParseCoins(cfg.Send)
+	if err != nil {
+		return errors.Wrap(err, "parsing send coins")
+	}
+
+	// Parse deposit amount
 	deposit, err := std.ParseCoins(cfg.MaxDeposit)
 	if err != nil {
 		return errors.Wrap(err, "parsing storage deposit coins")
@@ -132,6 +146,7 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	msg := vm.MsgRun{
 		Caller:     caller,
 		Package:    memPkg,
+		Send:       send,
 		MaxDeposit: deposit,
 	}
 	tx := std.Tx{
@@ -142,6 +157,9 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	}
 
 	if cfg.RootCfg.Broadcast {
+		cfg.RootCfg.RootCfg.OnTxSuccess = func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
+			PrintTxInfo(tx, res, cmdio)
+		}
 		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, cmdio)
 		if err != nil {
 			return err

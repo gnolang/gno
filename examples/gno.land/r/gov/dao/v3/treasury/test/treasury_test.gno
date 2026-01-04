@@ -1,18 +1,20 @@
 package test
 
 import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 	"sort"
-	"std"
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/fqname"
-	"gno.land/p/demo/grc/grc20"
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/fqname"
+	"gno.land/p/nt/testutils"
 	trs_pkg "gno.land/p/nt/treasury"
+	"gno.land/p/nt/uassert"
 
-	"gno.land/r/demo/grc20reg"
+	"gno.land/r/demo/defi/grc20reg"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
 	"gno.land/r/gov/dao/v3/treasury"
@@ -21,9 +23,9 @@ import (
 var (
 	user1Addr       = testutils.TestAddress("g1user1")
 	user2Addr       = testutils.TestAddress("g1user2")
-	treasuryAddr    = std.DerivePkgAddr("gno.land/r/gov/dao/v3/treasury")
-	allowedRealm    = std.NewCodeRealm("gno.land/r/test/allowed")
-	notAllowedRealm = std.NewCodeRealm("gno.land/r/test/notallowed")
+	treasuryAddr    = chain.PackageAddress("gno.land/r/gov/dao/v3/treasury")
+	allowedRealm    = testing.NewCodeRealm("gno.land/r/test/allowed")
+	notAllowedRealm = testing.NewCodeRealm("gno.land/r/test/notallowed")
 	mintAmount      = int64(1000)
 )
 
@@ -46,19 +48,19 @@ func init() {
 	})
 }
 
-func ugnotCoins(t *testing.T, amount int64) std.Coins {
+func ugnotCoins(t *testing.T, amount int64) chain.Coins {
 	t.Helper()
 
 	// Create a new coin with the ugnot denomination.
-	return std.NewCoins(std.NewCoin("ugnot", amount))
+	return chain.NewCoins(chain.NewCoin("ugnot", amount))
 }
 
-func ugnotBalance(t *testing.T, addr std.Address) int64 {
+func ugnotBalance(t *testing.T, addr address) int64 {
 	t.Helper()
 
 	// Get the balance of ugnot coins for the given address.
-	banker := std.NewBanker(std.BankerTypeReadonly)
-	coins := banker.GetCoins(addr)
+	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+	coins := banker_.GetCoins(addr)
 
 	return coins.AmountOf("ugnot")
 }
@@ -69,7 +71,7 @@ type keyedToken struct {
 	token *grc20.Token
 }
 
-func registerGRC20Tokens(t *testing.T, tokenNames []string, toMint std.Address) []keyedToken {
+func registerGRC20Tokens(t *testing.T, tokenNames []string, toMint address) []keyedToken {
 	t.Helper()
 
 	var (
@@ -89,7 +91,7 @@ func registerGRC20Tokens(t *testing.T, tokenNames []string, toMint std.Address) 
 		ledger.Mint(toMint, mintAmount)
 
 		// Add the token and key to the lists.
-		key := fqname.Construct(std.CurrentRealm().PkgPath(), symbol)
+		key := fqname.Construct(runtime.CurrentRealm().PkgPath(), symbol)
 		keyedTokens = append(keyedTokens, keyedToken{key: key, token: token})
 		keys = append(keys, key)
 	}
@@ -184,7 +186,7 @@ func TestSendGRC20Payment(t *testing.T) {
 	const txAmount = 42
 
 	// For each token-user pair.
-	for i, userAddr := range []std.Address{user1Addr, user2Addr} {
+	for i, userAddr := range []address{user1Addr, user2Addr} {
 		for _, keyed := range keyedTokens {
 			// Check that the treasury has the expected balance before sending.
 			uassert.Equal(t, keyed.token.BalanceOf(treasuryAddr), mintAmount-int64(txAmount*i))
@@ -231,7 +233,7 @@ func TestSendGRC20Payment(t *testing.T) {
 	uassert.Equal(t, compared, len(keyedTokens))
 
 	// Check the history of the GRC20Banker.
-	history := treasury.History(grc20BankerID, 0)
+	history := treasury.History(grc20BankerID, 1, 10)
 	uassert.Equal(t, len(history), 6)
 
 	// Try to send a dummy payment with the GRC20 banker ID, it should abort.
@@ -260,7 +262,7 @@ func TestSendGRC20Payment(t *testing.T) {
 	)
 
 	// Check the history of the GRC20Banker.
-	history = treasury.History(grc20BankerID, 0)
+	history = treasury.History(grc20BankerID, 1, 10)
 	uassert.Equal(t, len(history), 6)
 }
 
@@ -294,7 +296,7 @@ func TestSendCoinPayment(t *testing.T) {
 			uassert.Equal(t, balances[0].Amount, expectedTreasuryBalance)
 
 			// Check treasury.History returned value.
-			history := treasury.History(bankerID, 0)
+			history := treasury.History(bankerID, 1, expectedHistoryLen+1)
 			uassert.Equal(t, len(history), expectedHistoryLen)
 		}
 	)

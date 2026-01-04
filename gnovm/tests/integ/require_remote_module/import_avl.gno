@@ -1,7 +1,7 @@
 package importavl
 
 import (
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 func DoNothing(t *avl.Tree) {

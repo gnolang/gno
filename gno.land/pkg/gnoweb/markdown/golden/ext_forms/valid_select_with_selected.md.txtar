@@ -14,12 +14,12 @@
 </div>
 <div class="gno-form_select"><label for="color"> Color </label>
 <select id="color" name="color">
-<option value="" >Select a Color</option>
+<option value="">Select a Color</option>
 <option value="Red">Red</option>
 <option value="Green" selected>Green</option>
 <option value="Blue">Blue</option>
 </select>
 <svg class="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"><use href="#ico-arrow"></use></svg>
 </div>
-<input type="submit" value="Submit to /r/test Realm" />
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
 </form>

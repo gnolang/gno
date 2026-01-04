@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/urequire"
 )
 
 func TestGetFormByID(t *testing.T) {
@@ -18,7 +18,7 @@ func TestGetFormByID(t *testing.T) {
 	data := `[{"label":"Name","fieldType":"string","required":true},{"label":"Age","fieldType":"number","required":false},{"label":"Is this a test?","fieldType":"boolean","required":false},{"label":"Favorite Food","fieldType":"['Pizza', 'Schnitzel', 'Burger']","required":true},{"label":"Favorite Foods","fieldType":"{'Pizza', 'Schnitzel', 'Burger'}","required":true}]`
 
 	urequire.NotPanics(t, func() {
-		id := CreateForm(title, description, openAt, closeAt, data)
+		id := CreateForm(cross, title, description, openAt, closeAt, data)
 
 		form := GetFormByID(id)
 
@@ -35,9 +35,9 @@ func TestGetForms(t *testing.T) {
 
 	urequire.NotPanics(t, func() {
 		data1 := `[{"label":"Name","fieldType":"string","required":true}]`
-		CreateForm("NameForm", description, openAt, closeAt, data1)
+		CreateForm(cross, "NameForm", description, openAt, closeAt, data1)
 		data2 := `[{"label":"Age","fieldType":"number","required":false}]`
-		CreateForm("AgeForm", description, openAt, closeAt, data2)
+		CreateForm(cross, "AgeForm", description, openAt, closeAt, data2)
 
 		forms := GetForms()
 

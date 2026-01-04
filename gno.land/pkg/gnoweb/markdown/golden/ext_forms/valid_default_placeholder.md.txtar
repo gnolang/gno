@@ -12,5 +12,5 @@
 <div class="gno-form_input"><label for="age"> Enter value </label>
 <input type="text" id="age" name="age" placeholder="Enter value" />
 </div>
-<input type="submit" value="Submit to /r/test Realm" />
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
 </form>

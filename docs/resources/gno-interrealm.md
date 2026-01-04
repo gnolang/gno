@@ -14,7 +14,7 @@ The added dimension of the program domain means the language should be extended
 to best express the complexities of programming in the inter-realm (inter-user)
 domain. In other words, Go is a restricted subset of the Gno language in the
 single-user context. (In this analogy client requests for Go web servers don't
-count as they run outside of the server program).
+count as they run outside the server program).
 
 ### Interrealm Programming Context
 
@@ -116,6 +116,37 @@ be protected from external realm direct modification, but the return object
 could be passed back to the realm for mutation; or the object may be mutated
 through its own methods.
 
+```go
+// /r/alice
+var blacklist []string
+func GetBlacklist() []string {
+    return blacklist
+}
+func FilterList(cur realm, testlist []string) { // blanks out blacklist items from testlist
+    for i, item := range testlist {
+        if contains(blacklist, item) {
+            testlist[i] = ""
+        }
+    }
+}
+```
+
+This is a toy example, but you can see that the intent of `FilterList()` is to
+modify an externally provided slice; yet if you call `alice.FilterList(cross,
+alice.GetBlacklist())` you can trick alice into modifying its own blacklist--the
+result is that alice.BlackList becomes full of blank values.
+
+With the readonly taint, `var Blacklist []string` solves the problem for you;
+that is, /r/bob cannot call `alice.FilterList(cross, alice.Blacklist)`, even
+though alice can call `FilterList(cur, Blacklist)` if it wants to (but that would
+simply be programmer error).
+
+Of course the problem remains if alice implements `func GetBlacklist() []string
+{ return Blacklist }` since then /r/bob can call `alice.FilterList(cross,
+alice.GetBlacklist())` which would not be readonly tainted, but we should be
+adding the `readonly` modifier to support `func GetBlacklist() readonly
+[]string`. TODO 
+
 ## `fn(cross, ...)` and `func fn(cur realm, ...){...}` Specification
 
 Gno extends Go's type system with interrealm rules. These rules can be
@@ -143,7 +174,7 @@ A function declared in a realm package when called:
 The `cur realm` argument must appear as the first argument of a function's 
 parameter list. It is illegal to use anywhere else, and cannot be used in p
 packages. Functions that start with the `cur realm` argument as first argument
-are called "crossing functions".
+are called "crossing functions". 
 
 A crossing function declared in a realm different from the last explicitly
 crossed realm *must* be called like `fn(cross, ...)`. That is, functions of
@@ -229,13 +260,12 @@ be upgraded.
 Both `fn(cross, ...)` and `func fn(cur realm, ...){...}` may become special syntax in
 future Gno versions.
 
-## `attach()`
 
 ## `panic()` and `revive(fn)`
 
 `panic()` behaves the same within the same realm boundary, but when a panic
 crosses a realm boundary (as defined in [Realm
-Finalization](#realm-finalization)) the Machine aborts the program. This is
+Boundries](#realm-boundaries)) the Machine aborts the program. This is
 because in a multi-user environment it isn't safe to let the caller recover from
 realm panics that often leave the state in an invalid state.
 
@@ -245,8 +275,7 @@ the `revive(fn)` builtin.
 
 ```go
 abort := revive(func() {
-    cross(func() {
-        crossing()
+    cross(func(_ realm) {
         panic("cross-realm panic")
     })
 })
@@ -263,6 +292,10 @@ and the behavior will change such that `fn()` is run in transactional
 was an abort.
 
 TL;DR: `revive(fn)` is Gno's builtin for STM (software transactional memory).
+
+## `attach()`
+
+Coming soon.
 
 ## Application
 
@@ -309,7 +342,7 @@ functions of other realms is still possible with MsgRun.
 ```go
 // PKGPATH: gno.land/r/test/test
 
-func Public(cur realm) {
+func Public(_ realm) {
 
     // Returns (
     //     addr:<origin_caller>,
@@ -330,7 +363,7 @@ func Public(cur realm) {
     AnotherPublic(cur)
 }
 
-func AnotherPublic(cur realm) {
+func AnotherPublic(_ realm) {
     ...
 }
 ```
@@ -489,7 +522,7 @@ package myrealm
 
 import (
     "std"
-    "stdlibs/testing"
+    "testing"
 )
 
 func TestFoo(t *testing.T) {
@@ -552,7 +585,6 @@ func main() {
     // CodeRealm("gno.land/r/test/test") before
     // main() is called, so crossing() here
     // is redundant.
-    // crossing()
 
     // Returns (
     //     addr:g1user,

@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/microblog"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 	susers "gno.land/r/sys/users"
 )
 
@@ -81,7 +81,7 @@ func PageToString(p *microblog.Page) string {
 
 // NewPost takes a single argument (post markdown) and
 // adds a post to the address of the caller.
-func NewPost(text string) string {
+func NewPost(_ realm, text string) string {
 	if err := m.NewPost(text); err != nil {
 		return "unable to add new post"
 	}

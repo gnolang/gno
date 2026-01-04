@@ -19,6 +19,6 @@
 <div class="gno-form_input"><label for="inner"> Enter value </label>
 <input type="text" id="inner" name="inner" placeholder="Enter value" />
 </div>
-<input type="submit" value="Submit to /r/test Realm" />
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
 </form>
-<!-- Error: unexpected or invalid tag -->
+<!-- raw HTML omitted -->

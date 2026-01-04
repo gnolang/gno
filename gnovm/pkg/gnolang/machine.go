@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -115,18 +116,21 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	}
 	alloc := opts.Alloc
 	if alloc == nil {
-		alloc = NewAllocator(opts.MaxAllocBytes)
+		alloc = NewAllocator(opts.MaxAllocBytes) // allocator is nil if MaxAllocBytes is zero
 	}
 	store := opts.Store
 	if store == nil {
 		// bare store, no stdlibs.
 		store = NewStore(alloc, nil, nil)
+	} else if store.GetAllocator() == nil {
+		store.SetAllocator(alloc)
 	}
 	// Get machine from pool.
 	mm := machinePool.Get().(*Machine)
 	mm.Alloc = alloc
 	if mm.Alloc != nil {
 		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
+		mm.Alloc.SetGasMeter(vmGasMeter)
 	}
 	mm.Output = output
 	mm.Store = store
@@ -143,7 +147,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		if pv == nil {
 			pkgName := defaultPkgName(opts.PkgPath)
 			pn := NewPackageNode(pkgName, opts.PkgPath, &FileSet{})
-			pv = pn.NewPackage()
+			pv = pn.NewPackage(mm.Alloc)
 			store.SetBlockNode(pn)
 			store.SetCachePackage(pv)
 		}
@@ -192,7 +196,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for mpkg := range ch {
 		mpkg = MPFProd.FilterMemPackage(mpkg)
-		fset := ParseMemPackage(mpkg)
+		fset := m.ParseMemPackage(mpkg)
 		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
 		m.Store.SetBlockNode(pn)
 		PredefineFileSet(m.Store, pn, fset)
@@ -209,10 +213,9 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 		// TODO: is this right?
 		if pn.FileSet == nil {
 			pn.FileSet = fset
-		} else {
-			// This happens for non-realm file tests.
-			// TODO ensure the files are the same.
 		}
+		// pn.FileSet != nil happens for non-realm file tests.
+		// TODO ensure the files are the same.
 	}
 }
 
@@ -228,7 +231,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // NOTE: Does not validate the mpkg. Caller must validate the mpkg before
 // calling.
 func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
-	if bm.OpsEnabled || bm.StorageEnabled {
+	if bm.OpsEnabled || bm.StorageEnabled || bm.NativeEnabled {
 		bm.InitMeasure()
 	}
 	if bm.StorageEnabled {
@@ -263,7 +266,13 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	// sort mpkg.
 	mpkg.Sort()
 	// parse files.
-	files := ParseMemPackageAsType(mpkg, mptype)
+	files := m.ParseMemPackageAsType(mpkg, mptype)
+	mod, err := gnomod.ParseMemPackage(mpkg)
+	private := false
+	if err == nil && mod != nil {
+		private = mod.Private
+	}
+
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
@@ -273,7 +282,8 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		pn = m.Store.GetBlockNode(loc).(*PackageNode)
 	} else {
 		pn = NewPackageNode(Name(mpkg.Name), mpkg.Path, &FileSet{})
-		pv = pn.NewPackage()
+		pv = pn.NewPackage(m.Alloc)
+		pv.SetPrivate(private)
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 	}
@@ -464,6 +474,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	if rlm != nil {
 		pb := pv.GetBlock(m.Store)
 		for _, update := range updates {
+			// XXX simplify.
 			if hiv, ok := update.V.(*HeapItemValue); ok {
 				rlm.DidUpdate(pb, nil, hiv)
 			} else {
@@ -478,7 +489,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 }
 
 // PreprocessFiles runs Preprocess on the given files. It is used to detect
-// compile-time errors in the package. It is also usde to preprocess files from
+// compile-time errors in the package. It is also used to preprocess files from
 // the package getter for tests, e.g. from "gnovm/tests/files/extern/*", or from
 // "examples/*".
 //   - fixFrom: the version of gno to fix from.
@@ -492,7 +503,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 	if fixFrom != "" {
 		pn.SetAttribute(ATTR_FIX_FROM, fixFrom)
 	}
-	pv := pn.NewPackage()
+	pv := pn.NewPackage(nilAllocator)
 	pb := pv.GetBlock(m.Store)
 	m.SetActivePackage(pv)
 	m.Store.SetBlockNode(pn)
@@ -511,7 +522,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		pv.AddFileBlock(fn.FileName, fb)
 	}
 	// Get new values across all files in package.
-	pn.PrepareNewValues(pv)
+	pn.PrepareNewValues(nilAllocator, pv)
 	// save package value.
 	var throwaway *Realm
 	if save {
@@ -596,7 +607,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	}
 
 	// Get new values across all files in package.
-	updates := pn.PrepareNewValues(pv)
+	updates := pn.PrepareNewValues(m.Alloc, pv)
 
 	// to detect loops in var declarations.
 	loopfindr := []Name{}
@@ -811,9 +822,8 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 			Ss(
 				Return(x),
 			)))
-	} else {
-		// x already creates its own scope.
 	}
+	// else,x already creates its own scope.
 	// Preprocess x.
 	x = Preprocess(m.Store, last, x).(Expr)
 	// Evaluate x.
@@ -940,7 +950,7 @@ func (m *Machine) RunDeclaration(d Decl) {
 	pn := m.LastBlock().GetSource(m.Store).(*PackageNode)
 	d = Preprocess(m.Store, pn, d).(Decl)
 	// do not SaveBlockNodes(m.Store, d).
-	pn.PrepareNewValues(m.Package)
+	pn.PrepareNewValues(m.Alloc, m.Package)
 	m.runDeclaration(d)
 	if debug {
 		if pn != m.Package.GetBlock(m.Store).GetSource(m.Store) {
@@ -1122,7 +1132,7 @@ const (
 	OpCPUPrecall             = 207
 	OpCPUEnterCrossing       = 100 // XXX
 	OpCPUCall                = 256
-	OpCPUCallNativeBody      = 424
+	OpCPUCallNativeBody      = 424 // Todo benchmark this properly
 	OpCPUDefer               = 64
 	OpCPUCallDeferNativeBody = 33
 	OpCPUGo                  = 1 // Not yet implemented
@@ -1243,6 +1253,12 @@ func (m *Machine) Run(st Stage) {
 		defer func() {
 			// output each machine run results to file
 			bm.FinishRun()
+		}()
+	}
+	if bm.NativeEnabled {
+		defer func() {
+			// output each machine run results to file
+			bm.FinishNative()
 		}()
 	}
 	defer func() {
@@ -1743,7 +1759,6 @@ func (m *Machine) PushValue(tv TypedValue) {
 		m.Printf("+v %v\n", tv)
 	}
 	m.Values = append(m.Values, tv)
-	return
 }
 
 // Resulting reference is volatile.
@@ -1973,11 +1988,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				// Neither cross nor didswitch.
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				if objpv.IsRealm() && objpv.Realm == nil {
-					rlm = m.Store.GetPackageRealm(objpv.PkgPath)
-				} else {
-					rlm = objpv.GetRealm()
-				}
+				rlm = objpv.GetRealm()
 				m.Realm = rlm
 				// DO NOT set DidCrossing here. Make
 				// DidCrossing only happen upon explicit
@@ -2221,28 +2232,32 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	return pv
 }
 
-// Returns true if tv is N_Readonly or, its "first object" resides in a
-// different non-zero realm. Returns false for non-N_Readonly StringValue, free
-// floating pointers, and unreal objects.
+// Returns true iff:
+//   - m.Realm is nil (single user mode), or
+//   - tv is a ref to (external) package path, or
+//   - tv is N_Readonly, or
+//   - tv is not an object ("first object" ID is zero), or
+//   - tv is an unreal object (no object id), or
+//   - tv is an object residing in external realm
 func (m *Machine) IsReadonly(tv *TypedValue) bool {
+	// Returns true iff:
+	//  - m.Realm is nil (single user mode)
 	if m.Realm == nil {
 		return false
 	}
-	if tv.IsReadonly() {
-		return true
+	//  - tv is a ref to package path
+	if rv, ok := tv.V.(RefValue); ok && rv.PkgPath != "" {
+		if rv.PkgPath == m.Package.PkgPath {
+			return false // local package
+		} else {
+			return true // external package
+		}
 	}
-	tvoid, ok := tv.GetFirstObjectID()
-	if !ok {
-		// e.g. if tv is a string, or free floating pointers.
-		return false
-	}
-	if tvoid.IsZero() {
-		return false
-	}
-	if tvoid.PkgID != m.Realm.ID {
-		return true
-	}
-	return false
+	//   - tv is N_Readonly, or
+	//   - tv is not an object ("first object" ID is zero), or
+	//   - tv is an unreal object (no object id), or
+	//   - tv is an object residing in external realm
+	return tv.IsReadonlyBy(m.Realm.ID)
 }
 
 // Returns ro = true if the base is readonly,
@@ -2325,6 +2340,10 @@ func (m *Machine) CheckEmpty() error {
 	} else {
 		return nil
 	}
+}
+
+func (m *Machine) PanicString(ex string) {
+	m.Panic(typedString(ex))
 }
 
 // This function does go-panic.
@@ -2483,15 +2502,8 @@ func (m *Machine) String() string {
 		}
 		// Update b
 		switch bp := b.Parent.(type) {
-		case nil:
-			b = nil
-		case *Block:
-			b = bp
 		case RefValue:
 			fmt.Fprintf(builder, "            (block ref %v)\n", bp.ObjectID)
-			b = nil
-		default:
-			panic("should not happen")
 		}
 	}
 	builder.WriteString("    Blocks (other):\n")

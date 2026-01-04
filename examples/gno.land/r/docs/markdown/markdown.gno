@@ -103,12 +103,12 @@ Blockquotes are created using the > character:
 ±±±markdown
 > This is a blockquote
 >
-> It can span multiple lines
+>> It can span multiple lines
 ±±±
 
 > This is a blockquote
 >
-> It can span multiple lines
+>> It can span multiple lines
 
 ### Code
 
@@ -411,16 +411,19 @@ Create a form using the ±<gno-form>± tag and add inputs with ±<gno-input>±:
    - Must start with ±<gno-form>± and end with ±</gno-form>±
    - Optional attributes:
      - ±path±: Render path after form submission (e.g. ±path="user"± will redirect to ±:user?[params]±)
+     - ±exec±: Specify a realm function to execute (e.g. ±exec="CreatePost"±).
+       When set, fields must be defined manually and their ±name± attributes must match the function's parameter names in the same order they appear in the function signature.
    - Form data is always sent as query parameters
    - Cannot be nested (forms inside forms are not allowed)
    - Automatically includes a header showing the realm name
 
 2. **Input Fields**
    - Created with ±<gno-input>± tag
-   - Required attributes:
+   - Attributes:
      - ±name±: Unique identifier for the input (required)
      - ±type±: Type of input (optional, defaults to "text")
      - ±placeholder±: Hint text shown in the input (optional, defaults to "Enter value")
+     - ±value±: Default value for non-selectable inputs (optional)
      - ±description±: Description of the input as title (optional - can be used as title for group of one or multiple inputs)
    - Supported input types:
      - ±type="text"± (default): For text input
@@ -444,6 +447,7 @@ Create a form using the ±<gno-form>± tag and add inputs with ±<gno-input>±:
      - ±name±: Unique identifier for the textarea (required)
      - ±placeholder±: Hint text shown in the textarea (optional, defaults to "Enter value")
    - Optional attributes:
+     - ±value±: Default content for the textarea (optional)
      - ±rows±: Number of visible rows (2-10, defaults to 4)
    - Perfect for longer text input like messages, descriptions, or comments
    - Each textarea must have a unique name
@@ -608,6 +612,102 @@ Select options work like radio buttons but with a more semantic meaning. All ±<
 
 This example shows how to combine all form element types in a single form.
 
+8. Form with Default Values
+±±±markdown
+<gno-form>
+  <gno-input name="username" type="text" placeholder="Enter username" value="Alice" />
+  <gno-input name="age" type="number" placeholder="Your age" value="42" />
+  <gno-textarea name="bio" placeholder="Short bio" rows="4" value="Super builder" />
+</gno-form>
+±±±
+
+<gno-form>
+  <gno-input name="username" type="text" placeholder="Enter username" value="Alice" />
+  <gno-input name="age" type="number" placeholder="Your age" value="42" />
+  <gno-textarea name="bio" placeholder="Short bio" rows="4" value="Super builder" />
+</gno-form>
+
+9. Exec Form with Manual Fields
+When using the ±exec± attribute, a command preview appears for the specified function. You must manually define form fields whose ±name± attributes match the function's parameter names, placed in the same order as they appear in the function signature.
+
+±±±markdown
+<gno-form exec="CreatePost">
+  <gno-input name="title" type="text" placeholder="Post title" />
+  <gno-textarea name="content" rows="5" placeholder="Post content"></gno-textarea>
+  <gno-input name="tags" type="text" placeholder="Comma-separated tags" />
+</gno-form>
+±±±
+
+<gno-form exec="CreatePost">
+  <gno-input name="title" type="text" placeholder="Post title" />
+  <gno-textarea name="content" rows="5" placeholder="Post content"></gno-textarea>
+  <gno-input name="tags" type="text" placeholder="Comma-separated tags" />
+</gno-form>
+
+The command preview shows the full gnokey command with placeholders for each field value.
+
+10. Exec Form with All Field Types
+Here's an example demonstrating all supported field types in a single exec form:
+
+±±±markdown
+<gno-form exec="CreateProfile">
+  <gno-input name="username" placeholder="Your username" description="Profile Information" />
+  <gno-input name="age" type="number" placeholder="Your age" />
+  <gno-textarea name="bio" placeholder="Tell us about yourself" rows="4" />
+  <gno-select name="country" value="USA" description="Select your country" />
+  <gno-select name="country" value="France" />
+  <gno-select name="country" value="Germany" />
+  <gno-input name="visibility" type="radio" value="public" description="Profile visibility" checked="true" />
+  <gno-input name="visibility" type="radio" value="private" />
+  <gno-input name="notifications" type="checkbox" value="email" description="Notifications" checked="true" />
+  <gno-input name="notifications" type="checkbox" value="sms" />
+</gno-form>
+±±±
+
+<gno-form exec="CreateProfile">
+  <gno-input name="username" placeholder="Your username" description="Profile Information" value="alice" />
+  <gno-input name="age" type="number" placeholder="Your age" />
+  <gno-textarea name="bio" placeholder="Tell us about yourself" rows="4" />
+  <gno-select name="country" value="USA" description="Select your country" />
+  <gno-select name="country" value="France" />
+  <gno-select name="country" value="Germany" />
+  <gno-input name="visibility" type="radio" value="public" description="Profile visibility" checked="true" />
+  <gno-input name="visibility" type="radio" value="private" />
+  <gno-input name="notifications" type="checkbox" value="email" description="Notifications" checked="true" />
+  <gno-input name="notifications" type="checkbox" value="sms" />
+</gno-form>
+
+All field types update the command preview in real-time as you interact with them.
+
+11. Form with Readonly Fields
+The ±readonly="true"± attribute makes fields non-editable while displaying their values. This is useful for showing fixed values that users should see but cannot modify.
+
+±±±markdown
+<gno-form>
+  <gno-input name="username" value="alice" readonly="true" description="Your fixed username" />
+  <gno-input name="role" type="text" value="admin" readonly="true" />
+  <gno-input name="status" type="radio" value="active" checked="true" readonly="true" description="Account status" />
+  <gno-input name="status" type="radio" value="inactive" readonly="true" />
+  <gno-input name="verified" type="checkbox" value="yes" checked="true" readonly="true" />
+  <gno-textarea name="terms" value="Terms and conditions text..." rows="3" readonly="true" />
+  <gno-select name="plan" value="premium" selected="true" readonly="true" description="Your subscription" />
+  <gno-select name="plan" value="basic" readonly="true" />
+</gno-form>
+±±±
+
+<gno-form>
+  <gno-input name="username" value="alice" readonly="true" description="Your fixed username" />
+  <gno-input name="role" type="text" value="admin" readonly="true" />
+  <gno-input name="status" type="radio" value="active" checked="true" readonly="true" description="Account status" />
+  <gno-input name="status" type="radio" value="inactive" readonly="true" />
+  <gno-input name="verified" type="checkbox" value="yes" checked="true" readonly="true" />
+  <gno-textarea name="terms" value="Terms and conditions text..." rows="3" readonly="true" />
+  <gno-select name="plan" value="premium" selected="true" readonly="true" description="Your subscription" />
+  <gno-select name="plan" value="basic" readonly="true" />
+</gno-form>
+
+**Note**: For text-based inputs and textareas, the HTML ±readonly± attribute is used. For radio buttons, checkboxes, and select dropdowns, ±disabled± is used instead since ±readonly± doesn't work on these elements in HTML.
+
 #### Important Rules
 
 1. **Validation Rules**:
@@ -620,6 +720,7 @@ This example shows how to combine all form element types in a single form.
    - Radio and checkbox inputs must have a ±value± attribute
    - The ±checked± attribute is only valid for radio and checkbox inputs
    - The ±selected± attribute is only valid for ±<gno-select>± elements
+   - The ±readonly="true"± attribute makes fields non-editable (works on all field types)
    - Textarea ±rows± attribute must be between 2 and 10 (defaults to 4 if invalid or not specified)
 
 2. **Security Features**:
@@ -732,31 +833,42 @@ By default, the alert boxes are opened. The title is optional and if not provide
 > > [!NOTE]
 > > This is a scoped note
 
-### Usernames
+### User Mentions and Bech32 Addresses
 
-XXX: TODO (add again this feature that was removed)
+Gno markdown automatically recognizes and renders user mentions and Bech32 addresses as clickable links.
 
-<!--
-±±±markdown
-@username
-@dev123
-±±±
+#### User Mentions
 
-@username
-@dev123
--->
-
-### Bech32 Addresses
-
-XXX: TODO
-
-Gno markdown can automatically recognize and render Bech32 addresses.
+// You can mention users using the "@" symbol followed by a username. The username can contain letters, numbers, and underscores.
 
 ±±±markdown
-g1jg955hm9a6f0yen878c2hur6q7stqz7rzpyrwpe
+Hello @alice, how are you doing?
+
+This is a mention of @bob_user and @test-123.
+
+You can also mention users like @user_name_123.
 ±±±
 
-g1jg955hm9a6f0yen878c2hur6q7stqz7rzpyrwpe
+
+Hello @alice, how are you doing?
+
+This is a mention of @bob_user.
+
+You can also mention users like @user_name_123.
+
+#### Bech32 Addresses
+
+Gno markdown can automatically recognize and render valid Bech32 addresses as clickable links.
+
+±±±markdown
+This is a GNO address: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+
+You can also reference g1abc123def456ghi789jkl012mno345pqr678stu901vwx234yz5.
+±±±
+
+This is a GNO address: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+
+You can also reference g1abc123def456ghi789jkl012mno345pqr678stu901vwx234yz5.
 
 ### Smart Contract Integration
 

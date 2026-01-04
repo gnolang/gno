@@ -1,22 +1,22 @@
 package btree_dao
 
 import (
+	"chain/runtime"
 	"errors"
-	"std"
 	"strings"
 	"time"
 
 	"gno.land/p/demo/btree"
-	"gno.land/p/demo/grc/grc721"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/tokens/grc721"
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/ufmt"
 )
 
 // RegistrationDetails holds the details of a user's registration in the BTree DAO.
 // It stores the user's address, registration time, their B-Tree if they planted one,
 // and their NFT ID.
 type RegistrationDetails struct {
-	Address   std.Address
+	Address   address
 	RegTime   time.Time
 	UserBTree *btree.BTree
 	NFTID     string
@@ -39,14 +39,14 @@ var (
 // PlantTree allows a user to plant their B-Tree in the DAO forest.
 // It mints an NFT to the user and registers their tree in the DAO.
 // Returns an error if the tree is already planted, empty, or if NFT minting fails.
-func PlantTree(userBTree *btree.BTree) error {
+func PlantTree(_ realm, userBTree *btree.BTree) error {
 	return plantImpl(userBTree, "")
 }
 
 // PlantSeed allows a user to register as a seed in the DAO with a message.
 // It mints an NFT to the user and registers them as a seed member.
 // Returns an error if the message is empty or if NFT minting fails.
-func PlantSeed(message string) error {
+func PlantSeed(_ realm, message string) error {
 	return plantImpl(nil, message)
 }
 
@@ -57,7 +57,7 @@ func PlantSeed(message string) error {
 // Returns an error if any validation fails or if NFT minting fails.
 func plantImpl(userBTree *btree.BTree, seedMessage string) error {
 	// Get the caller's address
-	userAddress := std.OriginCaller()
+	userAddress := runtime.OriginCaller()
 
 	var nftID string
 	var regDetails *RegistrationDetails

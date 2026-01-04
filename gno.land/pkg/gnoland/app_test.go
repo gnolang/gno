@@ -9,9 +9,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
+	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bftCfg "github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -32,8 +35,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // Tests that NewAppWithOptions works even when only providing a simple DB.
@@ -123,7 +124,7 @@ func TestNewAppWithOptions(t *testing.T) {
 		{"params/vm:gno.land/r/sys/testrealm:bar_uint64", `"1337"`},
 		{"params/vm:gno.land/r/sys/testrealm:bar_bool", `true`},
 		{"params/vm:gno.land/r/sys/testrealm:bar_strings", `["some","strings"]`},
-		{"params/vm:gno.land/r/sys/testrealm:bar_bytes", `"SGkh"`}, // XXX: make this test more readable
+		{"params/vm:gno.land/r/sys/testrealm:bar_bytes", string([]byte{0x48, 0x69, 0x21})}, // XXX: make this test more readable
 	}
 
 	for _, tc := range tcs {
@@ -573,7 +574,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](mockEventSwitch, noFilter)
 
 		// Fire a GnoVM event
-		mockEventSwitch.FireEvent(gnostd.GnoEvent{})
+		mockEventSwitch.FireEvent(chain.Event{})
 
 		// Create the EndBlocker
 		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
@@ -620,7 +621,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](mockEventSwitch, noFilter)
 
 		// Fire a GnoVM event
-		mockEventSwitch.FireEvent(gnostd.GnoEvent{})
+		mockEventSwitch.FireEvent(chain.Event{})
 
 		// Create the EndBlocker
 		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
@@ -663,7 +664,7 @@ func TestEndBlocker(t *testing.T) {
 		// Construct the GnoVM events
 		vmEvents := make([]abci.Event, 0, len(changes))
 		for index := range changes {
-			event := gnostd.GnoEvent{
+			event := chain.Event{
 				Type:    validatorAddedEvent,
 				PkgPath: valRealm,
 			}
@@ -672,7 +673,7 @@ func TestEndBlocker(t *testing.T) {
 			if index%2 == 0 {
 				changes[index].Power = 0
 
-				event = gnostd.GnoEvent{
+				event = chain.Event{
 					Type:    validatorRemovedEvent,
 					PkgPath: valRealm,
 				}
@@ -746,11 +747,11 @@ func TestEndBlocker(t *testing.T) {
 			}
 
 			vmEvents = []abci.Event{
-				gnostd.GnoEvent{
+				chain.Event{
 					Type:    validatorAddedEvent,
 					PkgPath: valRealm,
 				},
-				gnostd.GnoEvent{
+				chain.Event{
 					Type:    validatorAddedEvent,
 					PkgPath: valRealm,
 				},
@@ -812,11 +813,11 @@ func TestEndBlocker(t *testing.T) {
 			}
 
 			vmEvents = []abci.Event{
-				gnostd.GnoEvent{
+				chain.Event{
 					Type:    validatorAddedEvent,
 					PkgPath: valRealm,
 				},
-				gnostd.GnoEvent{
+				chain.Event{
 					Type:    validatorAddedEvent,
 					PkgPath: valRealm,
 				},
@@ -858,7 +859,8 @@ func TestEndBlocker(t *testing.T) {
 					Address: key1.PubKey().Address(),
 					PubKey:  key1.PubKey(),
 					Power:   1,
-				}}
+				},
+			}
 
 			mockEventSwitch = newCommonEvSwitch()
 
@@ -875,7 +877,7 @@ func TestEndBlocker(t *testing.T) {
 					Response: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
 							Events: []abci.Event{
-								gnostd.GnoEvent{
+								chain.Event{
 									Type:    validatorAddedEvent,
 									PkgPath: valRealm,
 								},
@@ -1293,7 +1295,7 @@ func TestPruneStrategyNothing(t *testing.T) {
 	// Reopen the same DB
 	db, err := dbm.NewDB(
 		"gnolang",
-		dbm.GoLevelDBBackend,
+		dbm.PebbleDBBackend,
 		filepath.Join(appDir, bftCfg.DefaultDBDir),
 	)
 	require.NoError(t, err)
@@ -1309,4 +1311,7 @@ func TestPruneStrategyNothing(t *testing.T) {
 
 	// Make sure loading a past version doesn't fail
 	assert.NoError(t, cms.LoadVersion(1))
+
+	err = db.Close()
+	require.NoError(t, err)
 }

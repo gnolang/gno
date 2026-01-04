@@ -2,12 +2,11 @@ package panictoerr_test
 
 import (
 	"errors"
-	"std"
 	"testing"
 
 	pte "gno.land/p/aeddi/panictoerr"
-	"gno.land/p/demo/uassert"
-	grc20 "gno.land/r/demo/grc20factory"
+	"gno.land/p/nt/uassert"
+	grc20 "gno.land/r/demo/defi/grc20factory"
 )
 
 // Test PanicToError with different types as panic value.
@@ -30,7 +29,7 @@ func TestSimplePanicToError(t *testing.T) {
 
 func TestRealmPanicToError(t *testing.T) {
 	// Set a test realm to be able to call a realm.
-	testRealm := std.NewCodeRealm("gno.land/r/aeddi/panictoerr/test")
+	testRealm := testing.NewCodeRealm("gno.land/r/aeddi/panictoerr/test")
 	testing.SetRealm(testRealm)
 
 	const message = "token instance does not exist"
