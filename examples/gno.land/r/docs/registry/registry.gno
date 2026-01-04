@@ -170,8 +170,8 @@ func Render(path string) string {
 func renderHome() string {
 	out := `# Registry Pattern
 
-The registry pattern allows entities to register themselves in a shared
-index. Other contracts or users can then look up registered entities.
+Allows entities to register themselves in a shared
+index. Other contracts can then look up registered entities.
 
 Common use cases include name resolution (mapping addresses to human-readable
 names), token discovery, and realm showcasing.
