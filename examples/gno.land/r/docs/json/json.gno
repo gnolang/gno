@@ -110,11 +110,9 @@ func prettyPrint(node *json.Node, indent int) string {
 func Render(_ string) string {
 	return `# JSON in Gno
 
-JSON handling in Gno is done through the [` + "`/p/onbloc/json`" + `](/p/onbloc/json) package.
+Done through the [` + "`/p/onbloc/json`" + `](/p/onbloc/json) package.
 
 ## Creating JSON Objects
-
-Use the node builder pattern to create JSON:
 
 ` + "```go" + `
 import "gno.land/p/onbloc/json"
@@ -169,20 +167,6 @@ The package supports these JSON types:
 - ` + "`json.BoolType`" + ` - Booleans (true/false)
 - ` + "`json.NullType`" + ` - Null values
 
-## Nested Structures
-
-` + "```go" + `
-address := json.ObjectNode("", map[string]*json.Node{
-    "city":    json.StringNode("city", "New York"),
-    "country": json.StringNode("country", "USA"),
-})
-
-user := json.ObjectNode("", map[string]*json.Node{
-    "name":    json.StringNode("name", "Charlie"),
-    "address": address,
-})
-` + "```" + `
-
 ## Live Demo
 
 ` + renderDemo() + `
@@ -192,9 +176,6 @@ user := json.ObjectNode("", map[string]*json.Node{
 ### See also
 
 - [/p/onbloc/json](/p/onbloc/json) - JSON package documentation
-- [Registry Pattern](/r/docs/registry) - Uses JSON for data export
-
-> [View source code](/r/docs/json$source)
 `
 }
 

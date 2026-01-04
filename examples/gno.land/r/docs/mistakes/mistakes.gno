@@ -100,12 +100,5 @@ func SetAdmin(_ realm, newAdmin address) {
     admin = newAdmin
 }
 ` + "```" + `
-
----
-
-See also:
-- [Safe Objects](/r/docs/safeobjects) - Exposing objects with preserved privileges
-- [Crossing](/r/docs/crossing) - Understanding realm boundaries and caller validation
-- [Solidity Patterns](/r/docs/soliditypatterns) - Common patterns converted to Gno
 `
 }
