@@ -3,49 +3,24 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 )
 
-// retryUntilTimeout runs the callback until the timeout is exceeded, or
-// the callback returns a flag indicating completion
-func retryUntilTimeout(ctx context.Context, cb func() bool) error {
-	ch := make(chan error, 1)
-
-	go func() {
-		defer close(ch)
-
-		for {
-			select {
-			case <-ctx.Done():
-				ch <- ctx.Err()
-				return
-			default:
-				retry := cb()
-				if !retry {
-					ch <- nil
-					return
-				}
-			}
-
-			time.Sleep(500 * time.Millisecond)
-		}
-	}()
-
-	return <-ch
-}
-
 // prepareNodeRPC sets the RPC listen address for the node to be an arbitrary
 // free address. Setting the listen port to a free port on the machine avoids
 // node collisions between different testing suites
-func prepareNodeRPC(t *testing.T, nodeDir string) {
+func prepareNodeRPC(t *testing.T, nodeDir string, addr string) {
 	t.Helper()
 
 	path := constructConfigPath(nodeDir)
@@ -70,13 +45,9 @@ func prepareNodeRPC(t *testing.T, nodeDir string) {
 	// Run config init
 	require.NoError(t, newRootCmd(io).ParseAndRun(ctx, args))
 
-	args = []string{
-		"config",
-		"set",
-		"--config-path",
-		path,
-		"rpc.laddr",
-		"tcp://0.0.0.0:0",
+	args = []string{"config", "set",
+		"--config-path", path,
+		"rpc.laddr", addr,
 	}
 
 	// Run config set
@@ -84,81 +55,147 @@ func prepareNodeRPC(t *testing.T, nodeDir string) {
 }
 
 func TestStart_Lazy(t *testing.T) {
-	t.Parallel()
+	// Running a full node is cpu consuming
+	// Do run this one in parallel
+	// t.Parallel()
 
-	var (
-		nodeDir     = t.TempDir()
-		genesisFile = filepath.Join(nodeDir, "test_genesis.json")
-	)
+	// We allow one minute by node lifespan
+	const maxTestDeadline = 2 * time.Minute
 
-	// Prepare the config
-	prepareNodeRPC(t, nodeDir)
+	shortTempDir := func(t *testing.T) string {
+		t.Helper()
 
-	args := []string{
-		"start",
-		"--lazy",
-		"--skip-failing-genesis-txs",
-
-		// These two flags are tested together as they would otherwise
-		// pollute this directory (cmd/gnoland) if not set.
-		"--data-dir",
-		nodeDir,
-		"--genesis",
-		genesisFile,
+		dir, err := os.MkdirTemp("/tmp", "socktest-*")
+		require.NoError(t, err)
+		t.Cleanup(func() { os.RemoveAll(dir) })
+		return dir
 	}
 
-	// Prepare the IO
-	mockOut := new(bytes.Buffer)
-	mockErr := new(bytes.Buffer)
-	io := commands.NewTestIO()
-	io.SetOut(commands.WriteNopCloser(mockOut))
-	io.SetErr(commands.WriteNopCloser(mockErr))
+	tests := []struct {
+		name           string
+		additionalArgs []string
+	}{
+		{
+			name:           "with skip-failing-genesis-txs",
+			additionalArgs: []string{"--skip-failing-genesis-txs"},
+		},
+		{
+			name:           "with skip-genesis-sig-verification",
+			additionalArgs: []string{"--skip-genesis-sig-verification"},
+		},
+		{
+			name:           "with 2 skips",
+			additionalArgs: []string{"--skip-genesis-sig-verification", "--skip-failing-genesis-txs"},
+		},
+		// XXX: {name: "no args", additionalArgs: []string{}}, // not compatible with current genesis.
+	}
 
-	// Create and run the command
-	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancelFn()
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Generate temp socket filepath for listening.
+			// (Use short path to avoid > 120 char socket path).
+			sockFile := filepath.Join(shortTempDir(t), "rpc.sock")
+			sockAddr := fmt.Sprintf("unix://%s", sockFile)
 
-	// Set up the command ctx
-	g, gCtx := errgroup.WithContext(ctx)
+			var (
+				nodeDir     = t.TempDir()
+				genesisFile = filepath.Join(nodeDir, "test_genesis.json")
+			)
 
-	// Set up the retry ctx
-	rCtx, rCtxCancelFn := context.WithTimeout(gCtx, 5*time.Second)
-	defer rCtxCancelFn()
+			// Prepare the config
+			prepareNodeRPC(t, nodeDir, sockAddr)
 
-	// Start the node
-	g.Go(func() error {
-		err := newRootCmd(io).ParseAndRun(rCtx, args)
-		return err
-	})
+			args := []string{
+				"start",
+				"--lazy",
+			}
 
-	// This is a very janky way to verify the node has started.
-	// The alternative is to poll the node's RPC endpoints, but for some reason
-	// this introduces a lot of flakyness to the testing suite -- shocking!
-	// In an effort to keep this simple, and avoid randomly failing tests,
-	// we query the CLI output of the command
-	require.NoError(t, retryUntilTimeout(rCtx, func() bool {
-		return !strings.Contains(mockOut.String(), startGraphic)
-	}), g.Wait())
+			// Add additional args
+			args = append(args, tc.additionalArgs...)
 
-	cancelFn() // stop the node
-	require.NoError(t, g.Wait())
+			args = append(args,
+				// These two flags are tested together as they would otherwise
+				// pollute this directory (cmd/gnoland) if not set.
+				"--data-dir",
+				nodeDir,
+				"--genesis",
+				genesisFile,
+			)
 
-	// Make sure the genesis is generated
-	assert.FileExists(t, genesisFile)
+			// Prepare the IO
+			mockOut := new(bytes.Buffer)
+			mockErr := new(bytes.Buffer)
+			io := commands.NewTestIO()
+			io.SetOut(commands.WriteNopCloser(mockOut))
+			io.SetErr(commands.WriteNopCloser(mockErr))
 
-	// Make sure the config is generated (default)
-	assert.FileExists(t, constructConfigPath(nodeDir))
+			// Create and run the command
+			deadline := time.Now().Add(maxTestDeadline)
+			ctx, cancelFn := context.WithDeadline(context.Background(), deadline)
+			defer cancelFn()
 
-	// Make sure the secrets are generated
-	var (
-		secretsPath        = constructSecretsPath(nodeDir)
-		validatorKeyPath   = filepath.Join(secretsPath, defaultValidatorKeyName)
-		validatorStatePath = filepath.Join(secretsPath, defaultValidatorStateName)
-		nodeKeyPath        = filepath.Join(secretsPath, defaultNodeKeyName)
-	)
+			// Set up the command ctx
+			g, gCtx := errgroup.WithContext(ctx)
 
-	assert.DirExists(t, secretsPath)
-	assert.FileExists(t, validatorKeyPath)
-	assert.FileExists(t, validatorStatePath)
-	assert.FileExists(t, nodeKeyPath)
+			// Start the node
+			g.Go(func() error {
+				defer cancelFn()
+				return newRootCmd(io).ParseAndRun(gCtx, args)
+			})
+
+			t.Logf("node: check for ascii graphic to show up - time left %s", time.Until(deadline))
+
+			// Check that starting ascii graphic display
+			require.Eventuallyf(t, func() bool {
+				return strings.Contains(mockOut.String(), startGraphic)
+			}, time.Until(deadline), time.Millisecond*500, "node: ascii graphic never show up")
+
+			cli, err := client.NewHTTPClient(sockAddr)
+			require.NoError(t, err)
+
+			t.Logf("rpc: get node infos - time left %s", time.Until(deadline))
+
+			// Check that rpc endpoint is correctly listening on our socket
+			require.EventuallyWithT(t, func(c *assert.CollectT) {
+				info, qerr := cli.ABCIInfo(gCtx)
+				require.NoError(c, qerr)
+				require.NoError(c, info.Response.Error)
+			}, time.Until(deadline), time.Millisecond*500, "rpc: unable get node infos")
+
+			t.Logf("rpc: query vm/qpaths - time left %s", time.Until(deadline))
+
+			// Check the node as fully loaded by checking rpc qpaths endpoint
+			require.EventuallyWithT(t, func(c *assert.CollectT) {
+				qres, qerr := cli.ABCIQuery(gCtx, "vm/qpaths", []byte("gno.land"))
+				require.NoError(c, qerr)
+				require.NoError(c, qres.Response.Error)
+				paths := strings.Split(string(qres.Response.Data), "\n")
+				require.Greater(c, len(paths), 1, "query qpaths: no package has been loaded")
+			}, time.Until(deadline), time.Millisecond*500, "rpc: unable to call rpc vm/qpaths")
+
+			t.Logf("node: stopping - time left %s", time.Until(deadline))
+
+			cancelFn() // stop the node
+			require.NoError(t, g.Wait())
+
+			// Make sure the genesis is generated
+			assert.FileExists(t, genesisFile)
+
+			// Make sure the config is generated (default)
+			assert.FileExists(t, constructConfigPath(nodeDir))
+
+			// Make sure the secrets are generated
+			var (
+				secretsPath        = constructSecretsPath(nodeDir)
+				validatorKeyPath   = filepath.Join(secretsPath, defaultValidatorKeyName)
+				validatorStatePath = filepath.Join(secretsPath, defaultValidatorStateName)
+				nodeKeyPath        = filepath.Join(secretsPath, defaultNodeKeyName)
+			)
+
+			assert.DirExists(t, secretsPath)
+			assert.FileExists(t, validatorKeyPath)
+			assert.FileExists(t, validatorStatePath)
+			assert.FileExists(t, nodeKeyPath)
+		})
+	}
 }

@@ -41,6 +41,10 @@ install.gno:
 install.gnodev:
 	$(MAKE) --no-print-directory -C ./contribs/gnodev install
 	@printf "\033[0;32m[+] 'gnodev' has been installed. Read more in ./contribs/gnodev/\033[0m\n"
+.PHONY: install.gnobro
+install.gnobro:
+	$(MAKE) --no-print-directory -C ./contribs/gnobro install
+	@printf "\033[0;32m[+] 'gnobro' has been installed. Read more in ./contribs/gnobro/\033[0m\n"
 
 
 # old aliases
@@ -70,8 +74,12 @@ fmt:
 
 .PHONY: lint
 lint:
-	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config .github/golangci.yml
+	$(rundep) github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --config .github/golangci.yml
 
 .PHONY: tidy
 tidy:
 	$(MAKE) --no-print-directory -C misc     tidy
+
+.PHONY: mocks
+mocks:
+	$(rundep) github.com/golang/mock/mockgen -source=tm2/pkg/db/types.go -package mockdb -destination tm2/pkg/db/mockdb/mockdb.go

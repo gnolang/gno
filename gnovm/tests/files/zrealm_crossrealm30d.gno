@@ -1,12 +1,12 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 // This tests for realm finalization upon implicit (borrow) realm switches.
 // This is like zrealm_crossrealm30[a,b,c].gno, but with cross().
 // Unlike a,b,c, this file saves sb locally, but crosses into it(self).
 
 import (
-	"gno.land/r/demo/tests/crossrealm_b"
+	"gno.land/r/tests/vm/crossrealm_b"
 )
 
 type StructA struct {

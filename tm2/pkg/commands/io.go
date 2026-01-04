@@ -24,7 +24,6 @@ type IO interface {
 	Printfln(format string, args ...any)
 	ErrPrintln(args ...any)
 	ErrPrintfln(format string, args ...any)
-	GetCheckPassword(prompts [2]string, insecure bool) (string, error)
 	GetConfirmation(prompt string) (bool, error)
 	GetPassword(prompt string, insecure bool) (string, error)
 	GetString(prompt string) (string, error)

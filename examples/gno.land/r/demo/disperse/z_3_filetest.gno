@@ -3,18 +3,18 @@
 package main
 
 import (
-	"std"
+	"chain"
 	"testing"
 
+	tokens "gno.land/r/demo/defi/grc20factory"
 	"gno.land/r/demo/disperse"
-	tokens "gno.land/r/demo/grc20factory"
 )
 
 func main() {
-	disperseAddr := std.DerivePkgAddr("gno.land/r/demo/disperse")
-	mainAddr := std.DerivePkgAddr("gno.land/r/demo/main")
-	beneficiary1 := std.Address("g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0")
-	beneficiary2 := std.Address("g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c")
+	disperseAddr := chain.PackageAddress("gno.land/r/demo/disperse")
+	mainAddr := chain.PackageAddress("gno.land/r/demo/main")
+	beneficiary1 := address("g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0")
+	beneficiary2 := address("g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c")
 
 	testing.SetOriginCaller(mainAddr)
 

@@ -3,11 +3,12 @@ package hor
 import (
 	"testing"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
 	"gno.land/p/jeronimoalbi/datasource"
 	"gno.land/p/moul/addrset"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
+	_ "gno.land/r/gnoland/users/v1" // initialize pre-populated user store
 )
 
 var (

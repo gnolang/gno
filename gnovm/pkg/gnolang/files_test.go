@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,11 +44,10 @@ func TestFiles(t *testing.T) {
 			Output:  io.Discard,
 			Error:   io.Discard,
 			Sync:    *withSync,
-			Cache:   gnolang.TypeCheckCache{},
 		}
 		o.BaseStore, o.TestStore = test.StoreWithOptions(
 			rootDir, o.WriterForStore(),
-			test.StoreOptions{WithExtern: true},
+			test.StoreOptions{WithExtern: true, WithExamples: true, Testing: true},
 		)
 		return o
 	}
@@ -89,6 +87,11 @@ func TestFiles(t *testing.T) {
 			})
 			return nil
 		}
+		if strings.HasSuffix(path, ".swp") ||
+			strings.HasSuffix(path, ".swo") ||
+			strings.HasSuffix(path, ".swn") {
+			return nil
+		}
 
 		content, err := fs.ReadFile(fsys, path)
 		if err != nil {
@@ -103,7 +106,7 @@ func TestFiles(t *testing.T) {
 				t.Parallel()
 				opts = newOpts()
 			}
-			changed, err := opts.RunFiletest(path, content)
+			changed, err := opts.RunFiletest(path, content, opts.TestStore)
 			if err != nil {
 				t.Fatal(err.Error())
 			}
@@ -137,7 +140,7 @@ func TestStdlibs(t *testing.T) {
 			capture = new(bytes.Buffer)
 			out = capture
 		}
-		opts = test.NewTestOptions(rootDir, out, out)
+		opts = test.NewTestOptions(rootDir, out, out, nil)
 		opts.Verbose = true
 		return
 	}
@@ -156,7 +159,7 @@ func TestStdlibs(t *testing.T) {
 		fp := filepath.Join(dir, path)
 
 		// Exclude empty directories.
-		files, err := ioutil.ReadDir(fp)
+		files, err := os.ReadDir(fp)
 		hasFiles := false
 		if err != nil {
 			return err
@@ -172,7 +175,7 @@ func TestStdlibs(t *testing.T) {
 		}
 
 		// Read and run tests.
-		mpkg := gnolang.MustReadMemPackage(fp, path)
+		mpkg := gnolang.MustReadMemPackage(fp, path, gnolang.MPStdlibAll)
 		t.Run(strings.ReplaceAll(mpkg.Path, "/", "-"), func(t *testing.T) {
 			capture, opts := sharedCapture, sharedOpts
 			switch mpkg.Path {
@@ -230,7 +233,7 @@ func TestStdlibs(t *testing.T) {
 		}
 
 		fp := filepath.Join(testDir, path)
-		mpkg := gnolang.MustReadMemPackage(fp, path)
+		mpkg := gnolang.MustReadMemPackage(fp, path, gnolang.MPStdlibAll)
 		t.Run("test-"+strings.ReplaceAll(mpkg.Path, "/", "-"), func(t *testing.T) {
 			if sharedCapture != nil {
 				sharedCapture.Reset()

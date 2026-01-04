@@ -49,10 +49,11 @@ via the `-deploy-key` flag.
 
 #### Detecting package paths
 
-If the current working directory contains a `gno.mod` file, `gnodev` deploys the
-package to the `pkgpath` specified inside.
+If the current working directory contains a `gnomod.toml` file, `gnodev` deploys the
+package to the `pkgpath` specified inside. Check out [this page](../resources/configuring-gno-projects.md)
+for more info.
 
-If no `gno.mod` file is found, `gnodev` searches for a `.gno` file containing a
+If no `gnomod.toml` file is found, `gnodev` searches for a `.gno` file containing a
 package name and deploys it under `gno.land/r/dev/<pkgname>`.
 
 #### Deploying example packages
@@ -102,7 +103,7 @@ Let's use the local file structure we set up in the [previous tutorial](anatomy-
 
 ```
 counter/
-    ├─ gno.mod
+    ├─ gnomod.toml
     ├─ counter.gno
 ```
 
@@ -205,13 +206,6 @@ After running gnodev, you can access several components:
 1. A local version of [gnoweb](../users/explore-with-gnoweb.md)
 2. A local blockchain instance for testing
 3. The web-based gnodev UI to monitor your node
-
-## Conclusion
-
-That's it! 🎉
-
-We covered the main features of `gnodev`. Next, we will go onto a full development
-example, where we build a minimal social media app.
 
 [^1]: The default deployer address is `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`,
 a.k.a. `test1` - the mnemonic phrase for this address is publicly known.

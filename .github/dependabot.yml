@@ -1,6 +1,5 @@
 version: 2
 updates:
-
   # Maintain dependencies for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -31,5 +30,3 @@ updates:
     open-pull-requests-limit: 10
     pull-request-branch-name:
       separator: "-"
-    reviewers:
-      - "moul"

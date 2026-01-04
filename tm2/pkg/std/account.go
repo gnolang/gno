@@ -39,7 +39,8 @@ type Account interface {
 }
 
 type AccountUnrestricter interface {
-	IsUnrestricted() bool
+	IsTokenLockWhitelisted() bool
+	SetTokenLockWhitelisted(bool)
 }
 
 //----------------------------------------

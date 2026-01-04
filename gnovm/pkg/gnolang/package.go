@@ -104,6 +104,9 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	FileNode{},
 	PackageNode{},
 	RefNode{},
+	NameSource{},
+	Pos{},
+	Span{},
 
 	//----------------------------------------
 	// Types
@@ -124,4 +127,9 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	&tupleType{},
 	RefType{},
 	heapItemType{},
+
+	//----------------------------------------
+	// MemPackage related
+	MemPackageType(""),
+	MemPackageFilter(""),
 ))

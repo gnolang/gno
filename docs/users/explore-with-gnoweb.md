@@ -93,3 +93,18 @@ by design.
 
 Visit the [`gno.land/r/docs/source`](https://gno.land/r/docs/source) realm to learn
 how you can do this.
+
+## Alternative: Terminal UI with gnobro
+
+While `gnoweb` provides a web-based interface for exploring realms, developers
+who prefer working in the terminal can use `gnobro` - a terminal user interface
+(TUI) for browsing realms.
+
+`gnobro` offers:
+- Terminal-based navigation of realms
+- Direct connection to `gnodev` for local development
+- Real-time updates when connected to a development server
+- SSH access for remote browsing
+
+To learn more about `gnobro`, see the [gnobro
+documentation](../../contribs/gnobro/README.md).

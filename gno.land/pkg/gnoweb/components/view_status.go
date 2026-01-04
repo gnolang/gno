@@ -10,7 +10,7 @@ type StatusData struct {
 	ButtonText string
 }
 
-// StatusErrorComponent returns a view for error scenarios
+// StatusErrorComponent returns a view for error scenarios with a message.
 func StatusErrorComponent(message string) *View {
 	return NewTemplateView(
 		StatusViewType,
@@ -24,7 +24,7 @@ func StatusErrorComponent(message string) *View {
 	)
 }
 
-// StatusNoRenderComponent returns a view for non-error notifications
+// StatusNoRenderComponent returns a view for non-error notifications when Render() is not implemented.
 func StatusNoRenderComponent(pkgPath string) *View {
 	return NewTemplateView(
 		StatusViewType,
