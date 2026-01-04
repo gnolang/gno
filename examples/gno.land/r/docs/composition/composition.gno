@@ -30,42 +30,8 @@ func Reset(_ realm) {
 func Render(_ string) string {
 	return `# Realm Composition
 
-This example demonstrates how to compose functionality from multiple realms.
-
-## What is Composition?
-
-Composition in Gno allows you to build complex functionality by combining
-simpler, focused realms. This follows the principle of "separation of concerns"
-and makes code more maintainable and reusable.
-
-## This Example
-
-This realm combines two sub-realms:
-- **Counter** ([source](/r/docs/composition/counter)) - Manages a simple counter
-- **Logger** ([source](/r/docs/composition/logger)) - Maintains an activity log
-
-By composing these together, we get a logged counter without either realm
-knowing about the other's implementation details.
-
-Composition enables reusability, testability, maintainability, and enforces single responsibility.
-
-## Live Demo
-
-### Current Counter Value
-
-` + counter.RenderValue() + `
-
-### Activity Log
-
-` + logger.RenderLog() + `
-
-### Actions
-
-- [Increment and Log](/r/docs/composition$help&func=IncrementAndLog)
-- [Decrement and Log](/r/docs/composition$help&func=DecrementAndLog)
-- [Reset All](/r/docs/composition$help&func=Reset)
-
----
+Composition allows you to build complex realms by combining simpler ones,
+following the "separation of concerns" principle.
 
 ## Code Pattern
 
@@ -86,16 +52,26 @@ func ComposedAction(_ realm) {
 }
 ` + "```" + `
 
-This pattern allows you to build sophisticated applications from simple building blocks.
 
 ---
 
-[View source code](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/docs/composition)
+## Live Demo
 
-## See also
+- **Counter** ([source](/r/docs/composition/counter))
+- **Logger** ([source](/r/docs/composition/logger))
 
-- [Factory Pattern](/r/docs/factory) - Creating and managing realm instances
-- [Registry Pattern](/r/docs/registry) - Service registration and discovery
-- [Crossing](/r/docs/crossing) - Understanding realm boundaries
+### Current Counter Value
+
+` + counter.RenderValue() + `
+
+### Activity Log
+
+` + logger.RenderLog() + `
+
+### Actions
+
+- [Increment and Log](/r/docs/composition$help&func=IncrementAndLog)
+- [Decrement and Log](/r/docs/composition$help&func=DecrementAndLog)
+- [Reset All](/r/docs/composition$help&func=Reset)
 `
 }

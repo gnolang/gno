@@ -189,12 +189,12 @@ user := json.ObjectNode("", map[string]*json.Node{
 
 ---
 
-[View source code](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/docs/json)
+### See also
 
-## See also
-
-- [p/onbloc/json](/p/onbloc/json) - JSON package documentation
+- [/p/onbloc/json](/p/onbloc/json) - JSON package documentation
 - [Registry Pattern](/r/docs/registry) - Uses JSON for data export
+
+> [View source code](/r/docs/json$source)
 `
 }
 
