@@ -395,11 +395,6 @@ message ReturnStmt {
 	repeated google.protobuf.Any results = 2 [json_name = "Results"];
 }
 
-message PanicStmt {
-	Attributes attributes = 1 [json_name = "Attributes"];
-	google.protobuf.Any exception = 2 [json_name = "Exception"];
-}
-
 message SelectStmt {
 	Attributes attributes = 1 [json_name = "Attributes"];
 	repeated SelectCaseStmt cases = 2 [json_name = "Cases"];

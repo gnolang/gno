@@ -1,0 +1,20 @@
+-- input.md --
+[![img](https://example.com/img.png)](https://example.com)
+
+[![img](https://example.com/img.png)](/r/gnolang/gno$help&arg1=value1p)
+
+[**boldtext**](https://example.com)
+
+[foo **bar** baz](https://example.com)
+
+[*italictext*](https://example.com)
+
+[foo *bar* baz](https://example.com)
+
+-- output.html --
+<p><a href="https://example.com" rel="noopener nofollow ugc"><img src="" alt="img"><span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a></p>
+<p><a href="/r/gnolang/gno$help&amp;arg1=value1p"><img src="" alt="img"><span class="link-internal tooltip" data-tooltip-target="info" data-tooltip="Cross package link" title="Cross package link"><svg class="c-icon"><use href="#ico-internal-link"></use></svg></span><span class="link-tx tooltip" data-tooltip-target="info" data-tooltip="Transaction link" title="Transaction link"><svg class="c-icon"><use href="#ico-tx-link"></use></svg></span></a></p>
+<p><a href="https://example.com" rel="noopener nofollow ugc"><strong>boldtext</strong><span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a></p>
+<p><a href="https://example.com" rel="noopener nofollow ugc">foo <strong>bar</strong> baz<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a></p>
+<p><a href="https://example.com" rel="noopener nofollow ugc"><em>italictext</em><span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a></p>
+<p><a href="https://example.com" rel="noopener nofollow ugc">foo <em>bar</em> baz<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a></p>

@@ -13,6 +13,6 @@ func TestGetHelloWorld(t *testing.T) {
 	s := "hello " + tests.World + World
 	const want = "hello worldWORLD"
 	if s != want {
-		t.Errorf("got %q want %q", s, want)
+		t.Error("not the same")
 	}
 }

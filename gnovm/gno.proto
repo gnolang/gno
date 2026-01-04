@@ -393,11 +393,6 @@ message ReturnStmt {
 	repeated google.protobuf.Any Results = 2;
 }
 
-message PanicStmt {
-	Attributes Attributes = 1;
-	google.protobuf.Any Exception = 2;
-}
-
 message SelectStmt {
 	Attributes Attributes = 1;
 	repeated SelectCaseStmt Cases = 2;

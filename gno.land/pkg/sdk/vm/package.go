@@ -18,7 +18,11 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 
 	// errors
 	InvalidPkgPathError{}, "InvalidPkgPathError",
+	NoRenderDeclError{}, "NoRenderDeclError",
+	PkgExistError{}, "PkgExistError",
 	InvalidStmtError{}, "InvalidStmtError",
 	InvalidExprError{}, "InvalidExprError",
 	TypeCheckError{}, "TypeCheckError",
+	UnauthorizedUserError{}, "UnauthorizedUserError",
+	InvalidPackageError{}, "InvalidPackageError",
 ))

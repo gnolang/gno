@@ -1,0 +1,58 @@
+name: Deployment genesis.json Verification
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    paths:
+      - "misc/deployments/**/genesis.json"
+      - ".github/workflows/genesis-verify.yml"
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        testnet: ["test7.gno.land"] # Currently, all active testnet deployment genesis.json are legacy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v46
+        with:
+          files: "misc/deployments/${{ matrix.testnet }}/genesis.json"
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: contribs/gnogenesis/go.mod
+
+      - name: Build gnogenesis
+        run: make -C contribs/gnogenesis
+
+      - name: Verify each genesis file
+        run: |
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "Verifying $file"
+            gnogenesis verify -genesis-path $file
+          done
+
+      - name: Build gnoland
+        run: make -C gno.land install.gnoland
+
+      - name: Running latest gnoland with each genesis file
+        run: |
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "Running gnoland with $file"
+            timeout 60s gnoland start -lazy --genesis $file || exit_code=$?
+            if [ $exit_code -eq 124 ]; then
+              echo "Gnoland genesis state generated successfully"
+            else
+              echo "Gnoland failed to start with $file"
+              exit 1
+            fi
+          done

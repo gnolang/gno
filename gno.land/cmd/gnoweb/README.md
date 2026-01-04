@@ -2,12 +2,8 @@
 
 The gno.land web interface.
 
-Live demo: https://test3.gno.land/
+Live demo: [https://gno.land/](https://gno.land/) or using `gnodev` from the directory [gnodev](../../../contribs/gnodev).
 
-## Install `gnoweb`
+## Alternative
 
-Install and run a local [`gnoland`](../gnoland) instance first.
-
-    $> git clone git@github.com:gnolang/gno.git
-    $> cd ./gno/gno.land
-    $> make install.gnoweb
+For a terminal-based UI to browse realms, check out [gnobro](../../../contribs/gnobro).

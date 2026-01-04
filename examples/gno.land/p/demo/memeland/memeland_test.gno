@@ -1,22 +1,19 @@
 package memeland
 
 import (
-	"std"
 	"strings"
 	"testing"
 	"time"
 
-	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/ufmt"
 )
 
 func TestPostMeme(t *testing.T) {
 	m := NewMemeland()
 	id := m.PostMeme("Test meme data", time.Now().Unix())
-	if id == "" {
-		t.Error("Expected valid ID, got empty string")
-	}
+	uassert.NotEqual(t, "", string(id), "Expected valid ID, got empty string")
 }
 
 func TestGetPostsInRangePagination(t *testing.T) {
@@ -57,9 +54,7 @@ func TestGetPostsInRangePagination(t *testing.T) {
 
 			// Count posts by how many times id: shows up in JSON string
 			postCount := strings.Count(result, `"id":"`)
-			if postCount != tc.expectedNumOfPosts {
-				t.Errorf("Expected %d posts in the JSON string, but found %d", tc.expectedNumOfPosts, postCount)
-			}
+			uassert.Equal(t, tc.expectedNumOfPosts, postCount)
 		})
 	}
 }
@@ -92,28 +87,22 @@ func TestGetPostsInRangeByTimestamp(t *testing.T) {
 		"DATE_CREATED",        // sort by newest first
 	)
 
-	if jsonStr == "" {
-		t.Error("Expected non-empty JSON string, got empty string")
-	}
+	uassert.NotEmpty(t, jsonStr, "Expected non-empty JSON string, got empty string")
 
 	// Count the number of posts returned in the JSON string as a rudimentary check for correct pagination/filtering
 	postCount := strings.Count(jsonStr, `"id":"`)
-	if seqid.ID(postCount) != m.MemeCounter {
-		t.Errorf("Expected %d posts in the JSON string, but found %d", m.MemeCounter, postCount)
-	}
+	uassert.Equal(t, uint64(m.MemeCounter), uint64(postCount))
 
 	// Check if data is there
 	for _, expData := range memeData {
-		if !strings.Contains(jsonStr, expData) {
-			t.Errorf("Expected %s in the JSON string, but counld't find it", expData)
-		}
+		check := strings.Contains(jsonStr, expData)
+		uassert.True(t, check, ufmt.Sprintf("Expected %s in the JSON string, but counld't find it", expData))
 	}
 
 	// Check if ordering is correct, sort by created date
 	for i := 0; i < len(memeData)-2; i++ {
-		if strings.Index(jsonStr, memeData[i]) < strings.Index(jsonStr, memeData[i+1]) {
-			t.Errorf("Expected %s to be before %s, but was at %d, and %d", memeData[i], memeData[i+1], i, i+1)
-		}
+		check := strings.Index(jsonStr, memeData[i]) >= strings.Index(jsonStr, memeData[i+1])
+		uassert.True(t, check, ufmt.Sprintf("Expected %s to be before %s, but was at %d, and %d", memeData[i], memeData[i+1], i, i+1))
 	}
 }
 
@@ -132,7 +121,8 @@ func TestGetPostsInRangeByUpvote(t *testing.T) {
 	m.Upvote(id2)
 
 	// Change caller so avoid double upvote panic
-	std.TestSetOrigCaller(testutils.TestAddress("alice"))
+	alice := testutils.TestAddress("alice")
+	testing.SetRealm(testing.NewUserRealm(alice))
 	m.Upvote(id1)
 
 	// Final upvote count:
@@ -152,20 +142,15 @@ func TestGetPostsInRangeByUpvote(t *testing.T) {
 		"UPVOTES",             // sort by upvote
 	)
 
-	if jsonStr == "" {
-		t.Error("Expected non-empty JSON string, got empty string")
-	}
+	uassert.NotEmpty(t, jsonStr, "Expected non-empty JSON string, got empty string")
 
 	// Count the number of posts returned in the JSON string as a rudimentary check for correct pagination/filtering
 	postCount := strings.Count(jsonStr, `"id":"`)
-	if seqid.ID(postCount) != m.MemeCounter {
-		t.Errorf("Expected %d posts in the JSON string, but found %d", m.MemeCounter, postCount)
-	}
+	uassert.Equal(t, uint64(m.MemeCounter), uint64(postCount))
 
 	// Check if ordering is correct
-	if strings.Index(jsonStr, "Meme #1") > strings.Index(jsonStr, "Meme #2") {
-		t.Errorf("Expected %s to be before %s", memeData1, memeData2)
-	}
+	check := strings.Index(jsonStr, "Meme #1") <= strings.Index(jsonStr, "Meme #2")
+	uassert.True(t, check, ufmt.Sprintf("Expected %s to be before %s", memeData1, memeData2))
 }
 
 func TestBadSortBy(t *testing.T) {
@@ -226,9 +211,7 @@ func TestNoPosts(t *testing.T) {
 
 	jsonStr := m.GetPostsInRange(0, now, 1, 1, "DATE_CREATED")
 
-	if jsonStr != "[]" {
-		t.Errorf("Expected 0 posts to return [], got %s", jsonStr)
-	}
+	uassert.Equal(t, jsonStr, "[]")
 }
 
 func TestUpvote(t *testing.T) {
@@ -240,56 +223,43 @@ func TestUpvote(t *testing.T) {
 
 	// Initial upvote count should be 0
 	post := m.getPost(postID)
-
-	if post.UpvoteTracker.Size() != 0 {
-		t.Errorf("Expected initial upvotes to be 0, got %d", post.UpvoteTracker.Size())
-	}
+	uassert.Equal(t, 0, post.UpvoteTracker.Size())
 
 	// Upvote the post
 	upvoteResult := m.Upvote(postID)
-	if upvoteResult != "upvote successful" {
-		t.Errorf("Expected upvote to be successful, got: %s", upvoteResult)
-	}
+	uassert.Equal(t, "upvote successful", upvoteResult)
 
 	// Retrieve the post again and check the upvote count
 	post = m.getPost(postID)
-
-	if post.UpvoteTracker.Size() != 1 {
-		t.Errorf("Expected upvotes to be 1 after upvoting, got %d", post.UpvoteTracker.Size())
-	}
+	uassert.Equal(t, 1, post.UpvoteTracker.Size())
 }
 
 func TestDelete(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	std.TestSetOrigCaller(alice)
+	testing.SetRealm(testing.NewUserRealm(alice))
 
 	// Alice is admin
 	m := NewMemeland()
 
 	// Set caller to Bob
 	bob := testutils.TestAddress("bob")
-	std.TestSetOrigCaller(bob)
+	testing.SetRealm(testing.NewUserRealm(bob))
 
 	// Bob adds post to Memeland
 	now := time.Now()
 	postID := m.PostMeme("Meme #1", now.Unix())
 
 	// Alice removes Bob's post
-	std.TestSetOrigCaller(alice)
+	testing.SetRealm(testing.NewUserRealm(alice))
 
 	id := m.RemovePost(postID)
-	if id != postID {
-		t.Errorf("post IDs not matching")
-	}
-
-	if len(m.Posts) != 0 {
-		t.Errorf("there should be 0 posts after removing")
-	}
+	uassert.Equal(t, postID, id, "post IDs not matching")
+	uassert.Equal(t, 0, len(m.Posts), "there should be 0 posts after removing")
 }
 
 func TestDeleteByNonAdmin(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	std.TestSetOrigCaller(alice)
+	testing.SetRealm(testing.NewUserRealm(alice))
 
 	m := NewMemeland()
 
@@ -299,7 +269,7 @@ func TestDeleteByNonAdmin(t *testing.T) {
 
 	// Bob will try to delete meme posted by Alice, which should fail
 	bob := testutils.TestAddress("bob")
-	std.TestSetOrigCaller(bob)
+	testing.SetRealm(testing.NewUserRealm(bob))
 
 	defer func() {
 		if r := recover(); r == nil {

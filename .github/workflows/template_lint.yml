@@ -1,0 +1,26 @@
+on:
+  workflow_call:
+    inputs:
+      modulepath:
+        required: true
+        type: string
+      go-version:
+        required: true
+        type: string
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+      - name: Lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          working-directory: ${{ inputs.modulepath }}
+          args: --config=${{ github.workspace }}/.github/golangci.yml
+          version: v2.3 # sync with misc/devdeps

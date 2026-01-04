@@ -1,0 +1,68 @@
+-- input.md --
+> [!NOTE]- Custom Info Title
+> This is a note with custom title
+
+> [!INFO]- Custom Info Title
+> This is an info with custom title
+
+> [!TIP]- Custom Tip Title
+> This is a tip with custom title
+
+> [!SUCCESS]- Custom Success Title
+> This is a success with custom title
+
+> [!WARNING]- Custom Warning Title
+> This is a warning with custom title
+
+> [!CAUTION]- Custom Caution Title
+> This is a caution with custom title
+
+-- output.html --
+<details class="gno-alert gno-alert-note">
+<summary>
+<svg><use href="#ico-note"></use></svg>Custom Info Title<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>This is a note with custom title</p>
+</div>
+</details>
+<details class="gno-alert gno-alert-info">
+<summary>
+<svg><use href="#ico-info"></use></svg>Custom Info Title<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>This is an info with custom title</p>
+</div>
+</details>
+<details class="gno-alert gno-alert-tip">
+<summary>
+<svg><use href="#ico-tip"></use></svg>Custom Tip Title<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>This is a tip with custom title</p>
+</div>
+</details>
+<details class="gno-alert gno-alert-success">
+<summary>
+<svg><use href="#ico-success"></use></svg>Custom Success Title<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>This is a success with custom title</p>
+</div>
+</details>
+<details class="gno-alert gno-alert-warning">
+<summary>
+<svg><use href="#ico-warning"></use></svg>Custom Warning Title<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>This is a warning with custom title</p>
+</div>
+</details>
+<details class="gno-alert gno-alert-caution">
+<summary>
+<svg><use href="#ico-caution"></use></svg>Custom Caution Title<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>This is a caution with custom title</p>
+</div>
+</details>

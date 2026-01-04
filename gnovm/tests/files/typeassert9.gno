@@ -16,5 +16,10 @@ func main() {
 	_ = reader.(Writer)
 }
 
+// Stacktrace:
+// panic: interface conversion: interface is nil, not main.Writer
+// main<VPBlock(1,2)>()
+//     main/typeassert9.gno:16
+
 // Error:
 // interface conversion: interface is nil, not main.Writer

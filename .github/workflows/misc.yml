@@ -6,30 +6,27 @@ on:
   push:
     branches:
       - master
-  workflow_dispatch:
-  pull_request: 
+  pull_request:
     paths:
-      - "misc/**"
-      - ".github/**"
+      - misc/**
+  workflow_dispatch:
 
 jobs:
   main:
     strategy:
-        fail-fast: false
-        matrix:
-          # fixed list because we have some non go programs on that misc folder
-          program:
-            - autocounterd
-            # - devdeps
-            - docker-integration
-            - genproto
-            - genstd
-            - goscan
-            - logos
-            - loop
-    name: Run Main
-    uses: ./.github/workflows/main_template.yml
+      fail-fast: false
+      matrix:
+        # fixed list because we have some non go programs on that misc folder
+        program:
+          - autocounterd
+          - genproto
+          - genstd
+          - goscan
+          - loop
+    name: Run misc suite
+    uses: ./.github/workflows/template_main.yml
     with:
       modulepath: misc/${{ matrix.program }}
+      tests-extra-args: "-coverpkg=github.com/gnolang/gno/misc/..."
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}

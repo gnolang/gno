@@ -1,0 +1,8 @@
+# Run gno test with a dir that doesn't exists
+
+! gno test no-such-dir
+
+! stdout .+ 
+stderr 'no such file or directory'
+
+-- gnowork.toml --

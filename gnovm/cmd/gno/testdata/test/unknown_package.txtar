@@ -1,0 +1,29 @@
+# Test for loading an unknown package
+
+! gno test -v .
+
+! stdout .+
+# XXX catch and convert to gnoImportError
+stderr 'contract\.gno:3:8: package foobarbaz is not in std'
+
+-- contract.gno --
+package contract
+
+import "foobarbaz"
+
+func Foo() {
+	_ = foobarbaz.Gnognogno
+}
+
+-- contract_test.gno --
+package contract
+
+import "testing"
+
+func TestFoo(t *testing.T) {
+	Foo()
+}
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/unknown_package"

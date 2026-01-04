@@ -1,0 +1,23 @@
+# Test Error instruction incorrect
+
+! gno test -v .
+
+stderr '=== RUN   ./x_filetest.gno'
+stderr 'Error diff:'
+stderr '-xxx'
+stderr '\+oups'
+
+-- x_filetest.gno --
+package main
+
+func main() {
+	panic("oups")
+}
+
+// Error:
+// xxx
+
+
+
+-- gnomod.toml --
+module = 'gno.test/r/integ/error_incorrect'

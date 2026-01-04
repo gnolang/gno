@@ -74,7 +74,7 @@ func Test_linkFunctions(t *testing.T) {
 			// require, otherwise the following would panic
 			require.Len(t, v.Params, 1)
 			p := v.Params[0]
-			assert.Equal(t, "int", p.GnoType())
+			assert.Equal(t, `gno.X("int")`, p.GnoTypeExpression())
 			assert.Equal(t, "int", p.GoQualifiedName())
 			assert.False(t, p.IsTypedValue)
 		} else {
@@ -84,7 +84,7 @@ func Test_linkFunctions(t *testing.T) {
 			// require, otherwise the following would panic
 			require.Len(t, v.Results, 1)
 			p := v.Results[0]
-			assert.Equal(t, "int", p.GnoType())
+			assert.Equal(t, `gno.X("int")`, p.GnoTypeExpression())
 			assert.Equal(t, "int", p.GoQualifiedName())
 			assert.False(t, p.IsTypedValue)
 		} else {
@@ -126,7 +126,7 @@ func Test_linkFunctions_TypedValue(t *testing.T) {
 	assert.Len(t, mappings[0].Results, 0)
 	_ = assert.Len(t, mappings[0].Params, 1) &&
 		assert.Equal(t, true, mappings[0].Params[0].IsTypedValue) &&
-		assert.Equal(t, "struct{m1 map[string]interface{}}", mappings[0].Params[0].GnoType())
+		assert.Equal(t, `gno.X("struct{m1 map[string]any}")`, mappings[0].Params[0].GnoTypeExpression())
 
 	assert.Equal(t, false, mappings[1].MachineParam)
 	assert.Equal(t, "TVResult", mappings[1].GnoFunc)
@@ -134,7 +134,7 @@ func Test_linkFunctions_TypedValue(t *testing.T) {
 	assert.Len(t, mappings[1].Params, 0)
 	_ = assert.Len(t, mappings[1].Results, 1) &&
 		assert.Equal(t, true, mappings[1].Results[0].IsTypedValue) &&
-		assert.Equal(t, "interface{S() map[int]Banker}", mappings[1].Results[0].GnoType())
+		assert.Equal(t, `gno.AnyT()`, mappings[1].Results[0].GnoTypeExpression())
 
 	assert.Equal(t, true, mappings[2].MachineParam)
 	assert.Equal(t, "TVFull", mappings[2].GnoFunc)

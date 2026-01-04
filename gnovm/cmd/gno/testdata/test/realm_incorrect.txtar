@@ -1,0 +1,31 @@
+# Test Realm instruction incorrect
+
+! gno test -v .
+
+! stdout .+ # stdout should be empty
+stderr '=== RUN   ./x_filetest.gno'
+stderr 'Realm diff:'
+stderr '--- Expected'
+stderr '-xxxx'
+stderr '-xxx'
+stderr '\+finalizerealm\["gno.land/r/xx"\]'
+stderr '\+    @@ -2,11 \+2,12 @@'
+stderr 'x_filetest.gno failed'
+
+-- x_filetest.gno --
+// PKGPATH: gno.land/r/xx
+package xx
+
+var x int
+
+func main(cur realm) {
+	x = 1
+}
+
+// Realm:
+// xxxx
+
+
+-- gnomod.toml --
+module = "gno.test/r/integ/realm_incorrect"
+gno = "0.9"

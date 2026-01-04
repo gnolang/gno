@@ -1,0 +1,35 @@
+name: "Docs Generate & Lint"
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+
+jobs:
+  embed:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ./go.mod
+
+      - name: make generate
+        working-directory: docs/
+        run: make generate -B
+
+      - name: Check if there is a diff
+        run: |
+          diff=$(git status --porcelain)
+          if [[ $diff ]]; then
+              echo 'Please run `make generate` in docs/.'
+              exit 1
+          fi
+
+      - name: make lint
+        working-directory: docs/
+        run: make lint

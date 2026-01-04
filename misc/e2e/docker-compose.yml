@@ -1,0 +1,42 @@
+services:
+  gnoland:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: gnoland
+    container_name: e2e-gnoland
+    entrypoint:
+      - sh
+      - -c
+      - |
+        gnoland config init
+        gnoland config set rpc.laddr tcp://0.0.0.0:26657
+        gnoland start -lazy -chainid=test -skip-genesis-sig-verification
+    networks:
+      - gnotest
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:26657/health"]
+      interval: 5s
+      timeout: 10s
+      retries: 60
+      start_period: 30s
+
+  gnokey-test:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: gnokey
+    container_name: e2e-gnokey
+    depends_on:
+      gnoland:
+        condition: service_healthy
+    networks:
+      - gnotest
+    volumes:
+      - ./:/e2e:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["/e2e/run_tests.sh"]
+
+networks:
+  gnotest:
+    driver: bridge

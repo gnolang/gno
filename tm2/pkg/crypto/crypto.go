@@ -2,6 +2,8 @@ package crypto
 
 import (
 	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/bech32"
@@ -42,7 +44,8 @@ func MustAddressFromString(str string) (addr Address) {
 }
 
 func AddressFromPreimage(bz []byte) Address {
-	return AddressFromBytes(tmhash.SumTruncated(bz))
+	addr := AddressFromBytes(tmhash.SumTruncated(bz))
+	return addr
 }
 
 func AddressFromBytes(bz []byte) (ret Address) {
@@ -53,11 +56,25 @@ func AddressFromBytes(bz []byte) (ret Address) {
 	return
 }
 
+func (addr Address) MarshalJSON() ([]byte, error) {
+	b := AddressToBech32(addr)
+	return []byte(`"` + b + `"`), nil
+}
+
+func (addr *Address) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	return addr.UnmarshalAmino(s)
+}
+
 func (addr Address) MarshalAmino() (string, error) {
 	return AddressToBech32(addr), nil
 }
 
 func (addr *Address) UnmarshalAmino(b32str string) (err error) {
+	// NOTE: also used to unmarshal normal JSON, through UnmarshalJSON.
 	if b32str == "" {
 		return nil // leave addr as zero.
 	}
@@ -113,6 +130,8 @@ func (addr *Address) DecodeString(str string) error {
 // ----------------------------------------
 // ID
 
+var ErrZeroID = errors.New("address ID is zero")
+
 // The bech32 representation w/ bech32 prefix.
 type ID string
 
@@ -126,16 +145,12 @@ func (id ID) String() string {
 
 func (id ID) Validate() error {
 	if id.IsZero() {
-		return fmt.Errorf("zero ID is invalid")
+		return ErrZeroID
 	}
-	var addr Address
-	err := addr.DecodeID(id)
-	return err
-}
 
-func AddressFromID(id ID) (addr Address, err error) {
-	err = addr.DecodeString(string(id))
-	return
+	var addr Address
+
+	return addr.DecodeID(id)
 }
 
 func (addr Address) ID() ID {

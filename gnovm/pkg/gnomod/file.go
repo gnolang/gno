@@ -1,224 +1,167 @@
-// Some part of file is copied and modified from
-// golang.org/x/mod/modfile/read.go
-//
-// Copyright 2018 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in here[1].
-//
-// [1]: https://cs.opensource.google/go/x/mod/+/master:LICENSE
-
 package gnomod
 
 import (
-	"errors"
 	"fmt"
-	"log"
 	"os"
-	"path/filepath"
-	"strings"
 
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
 
-// Parsed gno.mod file.
+// Parsed gnomod.toml file.
 type File struct {
-	Draft   bool
-	Module  *modfile.Module
-	Go      *modfile.Go
-	Require []*modfile.Require
-	Replace []*modfile.Replace
+	// Module is the path of the module.
+	// Like `gno.land/r/path/to/module`.
+	Module string `toml:"module" json:"module"`
 
-	Syntax *modfile.FileSyntax
+	// Gno is the gno version string for compatibility within the gno toolchain.
+	// It is intended to be set by the `gno` cli when initializing or upgrading a module.
+	Gno string `toml:"gno" json:"gno"`
+
+	// Ignore indicate that the module will be ignored by the gno toolchain but still usable in development environments.
+	Ignore bool `toml:"ignore,omitempty" json:"ignore,omitempty"`
+
+	// Draft indicates that the module isn't ready for production use.
+	// Draft modules:
+	// - are added to the chain at genesis time and cannot be added after.
+	// - cannot be imported by other newly added modules.
+	Draft bool `toml:"draft,omitempty" json:"draft,omitempty"`
+
+	// Private indicates that the module is private.
+	// Private modules:
+	// - Cannot be imported by other realms.
+	// - References to objects owned by this realm cannot be stored outside it.
+	// - Data whose type is defined in this realm cannot be retained in other realms.
+	Private bool `toml:"private,omitempty" json:"private,omitempty"`
+
+	// Replace is a list of replace directives for the module's dependencies.
+	// Each replace can link to a different online module path, or a local path.
+	// If this value is set, the module cannot be added to the chain.
+	Replace []Replace `toml:"replace,omitempty" json:"replace,omitempty"`
+
+	// AddPkg is the addpkg section of the gnomod.toml file.
+	// It is filled by the vmkeeper when a module is added.
+	// It is not intended to be used offchain.
+	AddPkg AddPkg `toml:"addpkg,omitempty" json:"addpkg,omitempty"`
 }
 
-// AddRequire sets the first require line for path to version vers,
-// preserving any existing comments for that line and removing all
-// other lines for path.
-//
-// If no line currently exists for path, AddRequire adds a new line
-// at the end of the last require block.
-func (f *File) AddRequire(path, vers string) error {
-	need := true
-	for _, r := range f.Require {
-		if r.Mod.Path == path {
-			if need {
-				r.Mod.Version = vers
-				updateLine(r.Syntax, "require", modfile.AutoQuote(path), vers)
-				need = false
-			} else {
-				markLineAsRemoved(r.Syntax)
-				*r = modfile.Require{}
-			}
+type AddPkg struct {
+	// Creator is the address of the creator.
+	Creator string `toml:"creator,omitempty" json:"creator,omitempty"`
+	// Height is the block height at which the module was added.
+	Height int `toml:"height,omitempty" json:"height,omitempty"`
+	// XXX: GnoVersion // gno version at add time?
+	// XXX: Consider things like IsUsingBanker or other security-awareness flags
+}
+
+type Replace struct {
+	// Old is the old module path of the dependency, i.e.,
+	// `gno.land/r/path/to/module`.
+	Old string `toml:"old" json:"old"`
+	// New is the new module path of the dependency, i.e.,
+	// `gno.land/r/path/to/module/v2` or a local path, i.e.,
+	// `../path/to/module`.
+	New string `toml:"new" json:"new"`
+}
+
+// GetGno returns the current gno version or the default one.
+func (f *File) GetGno() (version string) {
+	if f.Gno == "" {
+		return "0.0"
+	}
+	return f.Gno
+}
+
+// SetGno sets the gno version.
+func (f *File) SetGno(version string) {
+	f.Gno = version
+}
+
+// AddReplace adds a replace directive or replaces an existing one.
+func (f *File) AddReplace(oldPath, newPath string) {
+	for i, r := range f.Replace {
+		if r.Old == oldPath {
+			f.Replace[i].New = newPath
+			return
 		}
 	}
-
-	if need {
-		f.AddNewRequire(path, vers, false)
-	}
-	return nil
+	newReplace := Replace{Old: oldPath, New: newPath}
+	f.Replace = append(f.Replace, newReplace)
 }
 
-// AddNewRequire adds a new require line for path at version vers at the end of
-// the last require block, regardless of any existing require lines for path.
-func (f *File) AddNewRequire(path, vers string, indirect bool) {
-	line := addLine(f.Syntax, nil, "require", modfile.AutoQuote(path), vers)
-	r := &modfile.Require{
-		Mod:    module.Version{Path: path, Version: vers},
-		Syntax: line,
-	}
-	setIndirect(r, indirect)
-	f.Require = append(f.Require, r)
-}
-
-func (f *File) AddModuleStmt(path string) error {
-	if f.Syntax == nil {
-		f.Syntax = new(modfile.FileSyntax)
-	}
-	if f.Module == nil {
-		f.Module = &modfile.Module{
-			Mod:    module.Version{Path: path},
-			Syntax: addLine(f.Syntax, nil, "module", modfile.AutoQuote(path)),
-		}
-	} else {
-		f.Module.Mod.Path = path
-		updateLine(f.Module.Syntax, "module", modfile.AutoQuote(path))
-	}
-	return nil
-}
-
-func (f *File) AddComment(text string) {
-	if f.Syntax == nil {
-		f.Syntax = new(modfile.FileSyntax)
-	}
-	f.Syntax.Stmt = append(f.Syntax.Stmt, &modfile.CommentBlock{
-		Comments: modfile.Comments{
-			Before: []modfile.Comment{
-				{
-					Token: text,
-				},
-			},
-		},
-	})
-}
-
-func (f *File) AddReplace(oldPath, oldVers, newPath, newVers string) error {
-	return addReplace(f.Syntax, &f.Replace, oldPath, oldVers, newPath, newVers)
-}
-
-func (f *File) DropRequire(path string) error {
-	for _, r := range f.Require {
-		if r.Mod.Path == path {
-			markLineAsRemoved(r.Syntax)
-			*r = modfile.Require{}
+// DropReplace drops a replace directive.
+func (f *File) DropReplace(oldPath string) {
+	for i, r := range f.Replace {
+		if r.Old == oldPath {
+			f.Replace = append(f.Replace[:i], f.Replace[i+1:]...)
 		}
 	}
-	return nil
 }
 
-func (f *File) DropReplace(oldPath, oldVers string) error {
-	for _, r := range f.Replace {
-		if r.Old.Path == oldPath && r.Old.Version == oldVers {
-			markLineAsRemoved(r.Syntax)
-			*r = modfile.Replace{}
-		}
-	}
-	return nil
-}
-
-// Validate validates gno.mod
+// Validate validates gnomod.toml.
 func (f *File) Validate() error {
-	if f.Module == nil {
-		return errors.New("requires module")
+	modPath := f.Module
+
+	// module is required.
+	if modPath == "" {
+		return fmt.Errorf("invalid gnomod.toml: 'module' is required")
+	}
+
+	// module is a valid import path.
+	err := module.CheckImportPath(modPath)
+	if err != nil {
+		return fmt.Errorf("invalid gnomod.toml: %w", err)
 	}
 
 	return nil
 }
 
-// Resolve takes a Require directive from File and returns any adequate replacement
-// following the Replace directives.
-func (f *File) Resolve(r *modfile.Require) module.Version {
-	mod, replaced := isReplaced(r.Mod, f.Replace)
-	if replaced {
-		return mod
+// Resolve takes a module path and returns any adequate replacement following
+// the Replace directives.
+func (f *File) Resolve(target string) string {
+	for _, r := range f.Replace {
+		if r.Old == target {
+			return r.New
+		}
 	}
-	return r.Mod
+	return target
 }
 
-// FetchDeps fetches and writes gno.mod packages
-// in GOPATH/pkg/gnomod/
-func (f *File) FetchDeps(path string, remote string, verbose bool) error {
-	for _, r := range f.Require {
-		mod := f.Resolve(r)
-		if r.Mod.Path != mod.Path {
-			if modfile.IsDirectoryPath(mod.Path) {
-				continue
-			}
-		}
-		indirect := ""
-		if r.Indirect {
-			indirect = "// indirect"
-		}
+// WriteFile writes gnomod.toml to the given absolute file path.
+func (f *File) WriteFile(fpath string) error {
+	data := []byte(f.WriteString())
+	err := os.WriteFile(fpath, data, 0o644)
+	if err != nil {
+		return fmt.Errorf("writefile %q: %w", fpath, err)
+	}
+	return nil
+}
 
-		_, err := os.Stat(PackageDir(path, mod))
-		if !os.IsNotExist(err) {
-			if verbose {
-				log.Println("cached", mod.Path, indirect)
-			}
+// Sanitize sanitizes the gnomod.toml file.
+func (f *File) Sanitize() {
+	// set default version if missing.
+	f.Gno = f.GetGno()
+
+	// sanitize replaces.
+	replaces := make([]Replace, 0, len(f.Replace))
+	seen := make(map[string]bool)
+	for _, r := range f.Replace {
+		// empty replaces.
+		if r.Old == "" || r.New == "" || r.Old == r.New {
 			continue
 		}
-		if verbose {
-			log.Println("fetching", mod.Path, indirect)
-		}
-		requirements, err := writePackage(remote, path, mod.Path)
-		if err != nil {
-			return fmt.Errorf("writepackage: %w", err)
-		}
 
-		modFile := new(File)
-		modFile.AddModuleStmt(mod.Path)
-		for _, req := range requirements {
-			path := req[1 : len(req)-1] // trim leading and trailing `"`
-			if strings.HasSuffix(path, modFile.Module.Mod.Path) {
-				continue
-			}
+		// duplicates.
+		if seen[r.Old] {
+			continue
+		}
+		seen[r.Old] = true
 
-			if !gno.IsStdlib(path) {
-				modFile.AddNewRequire(path, "v0.0.0-latest", true)
-			}
-		}
-
-		err = modFile.FetchDeps(path, remote, verbose)
-		if err != nil {
-			return err
-		}
-		goMod, err := GnoToGoMod(*modFile)
-		if err != nil {
-			return err
-		}
-		pkgPath := PackageDir(path, mod)
-		goModFilePath := filepath.Join(pkgPath, "go.mod")
-		err = goMod.Write(goModFilePath)
-		if err != nil {
-			return err
-		}
+		replaces = append(replaces, r)
 	}
-
-	return nil
+	f.Replace = replaces
 }
 
-// writes file to the given absolute file path
-func (f *File) Write(fname string) error {
-	f.Syntax.Cleanup()
-	data := modfile.Format(f.Syntax)
-	err := os.WriteFile(fname, data, 0o644)
-	if err != nil {
-		return fmt.Errorf("writefile %q: %w", fname, err)
-	}
-	return nil
-}
-
-func (f *File) Sanitize() {
-	removeDups(f.Syntax, &f.Require, &f.Replace)
+// HasReplaces returns true if the module has any replace directives.
+func (f *File) HasReplaces() bool {
+	return len(f.Replace) > 0
 }

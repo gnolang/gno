@@ -1,0 +1,29 @@
+# Test Output instruction incorrect
+
+# with -v, stdout should contain output (unmodified).
+! gno test -v .
+
+stdout 'hey'
+
+stderr '=== RUN   ./x_filetest.gno'
+stderr '--- Expected'
+stderr '\+\+\+ Actual'
+stderr '@@ -1,2 \+1 @@'
+stderr 'hey'
+stderr '-hru?'
+
+-- x_filetest.gno --
+package main
+
+func main() {
+	println("hey")
+}
+
+// Output:
+// hey
+// hru?
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/output_incorrect"
+gno = "0.9"

@@ -28,7 +28,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	&BoundMethodValue{},
 	TypeValue{},
 	&PackageValue{},
-	// &NativeValue{},
 	&Block{},
 	RefValue{},
 	&HeapItemValue{},
@@ -73,7 +72,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	MapTypeExpr{},
 	StructTypeExpr{},
 	constTypeExpr{},
-	MaybeNativeTypeExpr{},
 	AssignStmt{},
 	BlockStmt{},
 	BranchStmt{},
@@ -87,7 +85,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	IncDecStmt{},
 	RangeStmt{},
 	ReturnStmt{},
-	PanicStmt{},
 	SelectStmt{},
 	SelectCaseStmt{},
 	SendStmt{},
@@ -107,6 +104,9 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	FileNode{},
 	PackageNode{},
 	RefNode{},
+	NameSource{},
+	Pos{},
+	Span{},
 
 	//----------------------------------------
 	// Types
@@ -126,4 +126,10 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	blockType{},
 	&tupleType{},
 	RefType{},
+	heapItemType{},
+
+	//----------------------------------------
+	// MemPackage related
+	MemPackageType(""),
+	MemPackageFilter(""),
 ))

@@ -15,7 +15,7 @@ func TestPanicOnMaxLength(t *testing.T) {
 	maxLength := 1000
 
 	l := newWithMax(maxLength)
-	for i := 0; i < maxLength; i++ {
+	for range maxLength {
 		l.PushBack(1)
 	}
 	assert.Panics(t, func() {
@@ -77,13 +77,13 @@ func TestScanRightDeleteRandom(t *testing.T) {
 	stop := make(chan struct{})
 
 	els := make([]*CElement, numElements)
-	for i := 0; i < numElements; i++ {
+	for i := range numElements {
 		el := l.PushBack(i)
 		els[i] = el
 	}
 
 	// Launch scanner routines that will rapidly iterate over elements.
-	for i := 0; i < numScanners; i++ {
+	for i := range numScanners {
 		go func(scannerID int) {
 			var el *CElement
 			restartCounter := 0
@@ -108,7 +108,7 @@ func TestScanRightDeleteRandom(t *testing.T) {
 	}
 
 	// Remove an element, push back an element.
-	for i := 0; i < numTimes; i++ {
+	for i := range numTimes {
 		// Pick an element to remove
 		rmElIdx := random.RandIntn(len(els))
 		rmEl := els[rmElIdx]

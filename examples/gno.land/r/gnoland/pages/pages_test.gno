@@ -8,17 +8,19 @@ import (
 func TestHome(t *testing.T) {
 	printedOnce := false
 	got := Render("")
+
 	expectedSubtrings := []string{
 		"/r/gnoland/pages:p/tokenomics",
+		"/r/gnoland/pages:p/links",
+		"/r/gnoland/pages:p/contribute",
 		"/r/gnoland/pages:p/start",
-		"/r/gnoland/pages:p/gor",
 		"/r/gnoland/pages:p/about",
 		"/r/gnoland/pages:p/gnolang",
 	}
+
 	for _, substring := range expectedSubtrings {
 		if !strings.Contains(got, substring) {
 			if !printedOnce {
-				println(got)
 				printedOnce = true
 			}
 			t.Errorf("expected %q, but not found.", substring)
@@ -36,7 +38,6 @@ func TestAbout(t *testing.T) {
 	for _, substring := range expectedSubtrings {
 		if !strings.Contains(got, substring) {
 			if !printedOnce {
-				println(got)
 				printedOnce = true
 			}
 			t.Errorf("expected %q, but not found.", substring)

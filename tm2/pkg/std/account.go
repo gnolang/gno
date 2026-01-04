@@ -38,6 +38,11 @@ type Account interface {
 	String() string
 }
 
+type AccountUnrestricter interface {
+	IsTokenLockWhitelisted() bool
+	SetTokenLockWhitelisted(bool)
+}
+
 //----------------------------------------
 // BaseAccount
 

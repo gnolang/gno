@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -64,7 +65,7 @@ func TestAnteHandlerSigErrors(t *testing.T) {
 	// setup
 	env := setupTestEnv()
 	ctx := env.ctx
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 
 	// keys and addresses
 	priv1, _, addr1 := tu.KeyTestPubAddr()
@@ -113,7 +114,7 @@ func TestAnteHandlerAccountNumbers(t *testing.T) {
 
 	// setup
 	env := setupTestEnv()
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 	ctx := env.ctx
 
 	// keys and addresses
@@ -172,7 +173,7 @@ func TestAnteHandlerAccountNumbersAtBlockHeightZero(t *testing.T) {
 
 	// setup
 	env := setupTestEnv()
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 	ctx := env.ctx
 	header := ctx.BlockHeader().(*bft.Header)
 	header.Height = 0
@@ -208,8 +209,8 @@ func TestAnteHandlerAccountNumbersAtBlockHeightZero(t *testing.T) {
 	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, []uint64{1}, seqs, fee)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
 
-	// from correct account number
-	seqs = []uint64{1}
+	// At genesis account number is zero
+	seqs = []uint64{0}
 	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, []uint64{0}, seqs, fee)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 
@@ -222,7 +223,7 @@ func TestAnteHandlerAccountNumbersAtBlockHeightZero(t *testing.T) {
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
 
 	// correct account numbers
-	privs, accnums, seqs = []crypto.PrivKey{priv1, priv2}, []uint64{0, 0}, []uint64{2, 0}
+	privs, accnums, seqs = []crypto.PrivKey{priv1, priv2}, []uint64{0, 0}, []uint64{0, 0}
 	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 }
@@ -233,7 +234,7 @@ func TestAnteHandlerSequences(t *testing.T) {
 
 	// setup
 	env := setupTestEnv()
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 	ctx := env.ctx
 
 	// keys and addresses
@@ -313,7 +314,7 @@ func TestAnteHandlerFees(t *testing.T) {
 	// setup
 	env := setupTestEnv()
 	ctx := env.ctx
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 
 	// keys and addresses
 	priv1, _, addr1 := tu.KeyTestPubAddr()
@@ -333,11 +334,13 @@ func TestAnteHandlerFees(t *testing.T) {
 	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.InsufficientFundsError{})
 
+	feeCollector := env.acck.FeeCollectorAddress(ctx)
+
 	acc1.SetCoins(std.NewCoins(std.NewCoin("atom", 149)))
 	env.acck.SetAccount(ctx, acc1)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.InsufficientFundsError{})
 
-	collector := env.bank.(DummyBankKeeper).acck.GetAccount(ctx, FeeCollectorAddress())
+	collector := env.bankk.(DummyBankKeeper).acck.GetAccount(ctx, feeCollector)
 	require.Nil(t, collector)
 	require.Equal(t, env.acck.GetAccount(ctx, addr1).GetCoins().AmountOf("atom"), int64(149))
 
@@ -345,7 +348,7 @@ func TestAnteHandlerFees(t *testing.T) {
 	env.acck.SetAccount(ctx, acc1)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 
-	require.Equal(t, env.bank.(DummyBankKeeper).acck.GetAccount(ctx, FeeCollectorAddress()).GetCoins().AmountOf("atom"), int64(150))
+	require.Equal(t, env.bankk.(DummyBankKeeper).acck.GetAccount(ctx, feeCollector).GetCoins().AmountOf("atom"), int64(150))
 	require.Equal(t, env.acck.GetAccount(ctx, addr1).GetCoins().AmountOf("atom"), int64(0))
 }
 
@@ -355,7 +358,7 @@ func TestAnteHandlerMemoGas(t *testing.T) {
 
 	// setup
 	env := setupTestEnv()
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 	ctx := env.ctx
 
 	// keys and addresses
@@ -397,7 +400,7 @@ func TestAnteHandlerMultiSigner(t *testing.T) {
 
 	// setup
 	env := setupTestEnv()
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 	ctx := env.ctx
 
 	// keys and addresses
@@ -449,7 +452,7 @@ func TestAnteHandlerBadSignBytes(t *testing.T) {
 
 	// setup
 	env := setupTestEnv()
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 	ctx := env.ctx
 
 	// keys and addresses
@@ -500,7 +503,6 @@ func TestAnteHandlerBadSignBytes(t *testing.T) {
 		{chainID, 0, 1, fee3, msgs, unauthErr},                           // test wrong fee
 	}
 
-	privs, seqs = []crypto.PrivKey{priv1}, []uint64{1}
 	for _, cs := range cases {
 		signPayload, err := std.GetSignaturePayload(std.SignDoc{
 			ChainID:       cs.chainID,
@@ -537,7 +539,7 @@ func TestAnteHandlerSetPubKey(t *testing.T) {
 
 	// setup
 	env := setupTestEnv()
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 	ctx := env.ctx
 
 	// keys and addresses
@@ -611,17 +613,18 @@ func TestProcessPubKey(t *testing.T) {
 		wantErr bool
 	}{
 		{"no sigs, simulate off", args{acc1, std.Signature{}, false}, true},
-		{"no sigs, simulate on", args{acc1, std.Signature{}, true}, false},
+		{"no sigs, simulate on", args{acc1, std.Signature{}, true}, true},
+		{"no sigs, account with pub, simulate off", args{acc2, std.Signature{}, false}, false},
 		{"no sigs, account with pub, simulate on", args{acc2, std.Signature{}, true}, false},
 		{"pubkey doesn't match addr, simulate off", args{acc1, std.Signature{PubKey: priv2.PubKey()}, false}, true},
-		{"pubkey doesn't match addr, simulate on", args{acc1, std.Signature{PubKey: priv2.PubKey()}, true}, false},
+		{"pubkey doesn't match addr, simulate on", args{acc1, std.Signature{PubKey: priv2.PubKey()}, true}, true},
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := ProcessPubKey(tt.args.acc, tt.args.sig, tt.args.simulate)
+			_, err := ProcessPubKey(tt.args.acc, tt.args.sig)
 			require.Equal(t, tt.wantErr, !err.IsOK())
 		})
 	}
@@ -637,7 +640,7 @@ func TestConsumeSignatureVerificationGas(t *testing.T) {
 	multisigKey1 := multisig.NewPubKeyMultisigThreshold(2, pkSet1)
 	multisignature1 := multisig.NewMultisig(len(pkSet1))
 	expectedCost1 := expectedGasCostByKeys(pkSet1)
-	for i := 0; i < len(pkSet1); i++ {
+	for i := range pkSet1 {
 		multisignature1.AddSignatureFromPubKey(sigSet1[i], pkSet1[i], pkSet1)
 	}
 
@@ -653,7 +656,7 @@ func TestConsumeSignatureVerificationGas(t *testing.T) {
 		gasConsumed int64
 		shouldErr   bool
 	}{
-		{"PubKeyEd25519", args{store.NewInfiniteGasMeter(), nil, ed25519.GenPrivKey().PubKey(), params}, DefaultSigVerifyCostED25519, true},
+		{"PubKeyEd25519", args{store.NewInfiniteGasMeter(), nil, ed25519.GenPrivKey().PubKey(), params}, DefaultSigVerifyCostED25519, false},
 		{"PubKeySecp256k1", args{store.NewInfiniteGasMeter(), nil, secp256k1.GenPrivKey().PubKey(), params}, DefaultSigVerifyCostSecp256k1, false},
 		{"Multisig", args{store.NewInfiniteGasMeter(), amino.MustMarshal(multisignature1), multisigKey1, params}, expectedCost1, false},
 		{"unknown key", args{store.NewInfiniteGasMeter(), nil, nil, params}, 0, true},
@@ -678,7 +681,7 @@ func TestConsumeSignatureVerificationGas(t *testing.T) {
 func generatePubKeysAndSignatures(n int, msg []byte, keyTypeed25519 bool) (pubkeys []crypto.PubKey, signatures [][]byte) {
 	pubkeys = make([]crypto.PubKey, n)
 	signatures = make([][]byte, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		var privkey crypto.PrivKey
 		if rand.Int63()%2 == 0 {
 			privkey = ed25519.GenPrivKey()
@@ -712,7 +715,7 @@ func TestCountSubkeys(t *testing.T) {
 
 	genPubKeys := func(n int) []crypto.PubKey {
 		var ret []crypto.PubKey
-		for i := 0; i < n; i++ {
+		for range n {
 			ret = append(ret, secp256k1.GenPrivKey().PubKey())
 		}
 		return ret
@@ -751,7 +754,7 @@ func TestAnteHandlerSigLimitExceeded(t *testing.T) {
 
 	// setup
 	env := setupTestEnv()
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 	ctx := env.ctx
 
 	// keys and addresses
@@ -809,6 +812,8 @@ func TestEnsureSufficientMempoolFees(t *testing.T) {
 		{std.NewFee(200000, std.NewCoin("stake", 2)), true},
 		{std.NewFee(200000, std.NewCoin("atom", 5)), false},
 	}
+	// Do not set the block gas price
+	ctx = ctx.WithValue(GasPriceContextKey{}, std.GasPrice{})
 
 	for i, tc := range testCases {
 		res := EnsureSufficientMempoolFees(ctx, tc.input)
@@ -826,7 +831,7 @@ func TestCustomSignatureVerificationGasConsumer(t *testing.T) {
 	// setup
 	env := setupTestEnv()
 	// setup an ante handler that only accepts PubKeyEd25519
-	anteHandler := NewAnteHandler(env.acck, env.bank, func(meter store.GasMeter, sig []byte, pubkey crypto.PubKey, params Params) sdk.Result {
+	anteHandler := NewAnteHandler(env.acck, env.bankk, func(meter store.GasMeter, sig []byte, pubkey crypto.PubKey, params Params) sdk.Result {
 		switch pubkey := pubkey.(type) {
 		case ed25519.PubKeyEd25519:
 			meter.ConsumeGas(params.SigVerifyCostED25519, "ante verify: ed25519")
@@ -865,4 +870,81 @@ func TestCustomSignatureVerificationGasConsumer(t *testing.T) {
 	msgs = []std.Msg{msg}
 	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
 	checkValidTx(t, anteHandler, ctx, tx, false)
+}
+
+func TestEnsureBlockGasPrice(t *testing.T) {
+	p1, err := std.ParseGasPrice("3ugnot/10gas") // 0.3ugnot
+	require.NoError(t, err)
+
+	p2, err := std.ParseGasPrice("400ugnot/2000gas") // 0.2ugnot
+	require.NoError(t, err)
+
+	userFeeCases := []struct {
+		minGasPrice   std.GasPrice
+		blockGasPrice std.GasPrice
+		input         std.Fee
+		expectedOK    bool
+	}{
+		// user's gas wanted and gas fee: 0.1ugnot to 0.5ugnot
+		// validator's minGasPrice: 0.3 ugnot
+		// block gas price: 0.2ugnot
+
+		{p1, p2, std.NewFee(100, std.NewCoin("ugnot", 10)), false},
+		{p1, p2, std.NewFee(100, std.NewCoin("ugnot", 20)), false},
+		{p1, p2, std.NewFee(100, std.NewCoin("ugnot", 30)), true},
+		{p1, p2, std.NewFee(100, std.NewCoin("ugnot", 40)), true},
+		{p1, p2, std.NewFee(100, std.NewCoin("ugnot", 50)), true},
+
+		// validator's minGasPrice: 0.2 ugnot
+		// block gas price2: 0.3ugnot
+		{p2, p1, std.NewFee(100, std.NewCoin("ugnot", 10)), false},
+		{p2, p1, std.NewFee(100, std.NewCoin("ugnot", 20)), false},
+		{p2, p1, std.NewFee(100, std.NewCoin("ugnot", 30)), true},
+		{p2, p1, std.NewFee(100, std.NewCoin("ugnot", 40)), true},
+		{p2, p1, std.NewFee(100, std.NewCoin("ugnot", 50)), true},
+	}
+
+	// setup
+	env := setupTestEnv()
+	ctx := env.ctx
+	// validator min gas price // 0.3 ugnot per gas
+	for i, c := range userFeeCases {
+		ctx = ctx.WithMinGasPrices(
+			[]std.GasPrice{c.minGasPrice},
+		)
+		ctx = ctx.WithValue(GasPriceContextKey{}, c.blockGasPrice)
+
+		res := EnsureSufficientMempoolFees(ctx, c.input)
+		require.Equal(
+			t, c.expectedOK, res.IsOK(),
+			"unexpected result; case #%d, input: %v, log: %v", i, c.input, res.Log,
+		)
+	}
+}
+
+func TestInvalidUserFee(t *testing.T) {
+	minGasPrice, err := std.ParseGasPrice("3ugnot/10gas") // 0.3ugnot
+	require.NoError(t, err)
+
+	blockGasPrice, err := std.ParseGasPrice("400ugnot/2000gas") // 0.2ugnot
+	require.NoError(t, err)
+
+	userFee1 := std.NewFee(0, std.NewCoin("ugnot", 50))
+	userFee2 := std.NewFee(100, std.NewCoin("uatom", 50))
+
+	// setup
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	ctx = ctx.WithMinGasPrices(
+		[]std.GasPrice{minGasPrice},
+	)
+	ctx = ctx.WithValue(GasPriceContextKey{}, blockGasPrice)
+	res1 := EnsureSufficientMempoolFees(ctx, userFee1)
+	require.False(t, res1.IsOK())
+	assert.Contains(t, res1.Log, "GasPrice.Gas cannot be zero;")
+
+	res2 := EnsureSufficientMempoolFees(ctx, userFee2)
+	require.False(t, res2.IsOK())
+	assert.Contains(t, res2.Log, "Gas price denominations should be equal;")
 }

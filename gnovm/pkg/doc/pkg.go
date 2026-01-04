@@ -1,3 +1,4 @@
+//nolint:staticcheck // code copied from golang/go, staticcheck complains for usage of ast.Package.
 package doc
 
 import (
@@ -6,9 +7,11 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
-	"os"
 	"path/filepath"
 	"strings"
+
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type pkgData struct {
@@ -36,40 +39,47 @@ type symbolData struct {
 }
 
 func newPkgData(dir bfsDir, unexported bool) (*pkgData, error) {
-	files, err := os.ReadDir(dir.dir)
+	mptype := gno.MPAnyProd
+	mpkg, err := gno.ReadMemPackage(dir.dir, dir.importPath, mptype)
 	if err != nil {
-		return nil, fmt.Errorf("commands/doc: open %q: %w", dir.dir, err)
+		return nil, fmt.Errorf("commands/doc: read files %q: %w", dir.dir, err)
 	}
+	return newPkgDataFromMemPkg(mpkg, unexported)
+}
+
+func newPkgDataFromMemPkg(mpkg *std.MemPackage, unexported bool) (*pkgData, error) {
 	pkg := &pkgData{
-		dir:  dir,
+		dir: bfsDir{
+			importPath: mpkg.Name,
+			dir:        mpkg.Path,
+		},
 		fset: token.NewFileSet(),
 	}
-	for _, file := range files {
-		n := file.Name()
+	for _, file := range mpkg.Files {
+		n := file.Name
 		// Ignore files with prefix . or _ like go tools do.
 		// Ignore _filetest.gno, but not _test.gno, as we use those to compute
 		// examples.
-		if file.IsDir() ||
-			!strings.HasSuffix(n, ".gno") ||
+		if !strings.HasSuffix(n, ".gno") ||
 			strings.HasPrefix(n, ".") ||
 			strings.HasPrefix(n, "_") ||
 			strings.HasSuffix(n, "_filetest.gno") {
 			continue
 		}
-		fullPath := filepath.Join(dir.dir, n)
-		err := pkg.parseFile(fullPath, unexported)
+		err := pkg.parseFile(n, file.Body, unexported)
 		if err != nil {
+			fullPath := filepath.Join(mpkg.Path, n)
 			return nil, fmt.Errorf("commands/doc: parse file %q: %w", fullPath, err)
 		}
 	}
 
 	if len(pkg.files) == 0 {
-		return nil, fmt.Errorf("commands/doc: no valid gno files in %q", dir.dir)
+		return nil, fmt.Errorf("commands/doc: no valid gno files in %q", mpkg.Path)
 	}
 	pkgName := pkg.files[0].Name.Name
 	for _, file := range pkg.files[1:] {
 		if file.Name.Name != pkgName {
-			return nil, fmt.Errorf("commands/doc: multiple packages (%q / %q) in dir %q", pkgName, file.Name.Name, dir.dir)
+			return nil, fmt.Errorf("commands/doc: multiple packages (%q / %q) in dir %q", pkgName, file.Name.Name, mpkg.Path)
 		}
 	}
 	pkg.name = pkgName
@@ -77,13 +87,8 @@ func newPkgData(dir bfsDir, unexported bool) (*pkgData, error) {
 	return pkg, nil
 }
 
-func (pkg *pkgData) parseFile(fileName string, unexported bool) error {
-	f, err := os.Open(fileName)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	astf, err := parser.ParseFile(pkg.fset, filepath.Base(fileName), f, parser.ParseComments)
+func (pkg *pkgData) parseFile(fileName string, body string, unexported bool) error {
+	astf, err := parser.ParseFile(pkg.fset, fileName, body, parser.ParseComments)
 	if err != nil {
 		return err
 	}
@@ -183,7 +188,7 @@ func typeExprString(expr ast.Expr) string {
 	return ""
 }
 
-func (pkg *pkgData) docPackage(opts *WriteDocumentationOptions) (*ast.Package, *doc.Package, error) {
+func (pkg *pkgData) docPackage() (*ast.Package, *doc.Package, error) {
 	// largely taken from go/doc.NewFromFiles source
 
 	// Collect .gno files in a map for ast.NewPackage.
@@ -204,9 +209,8 @@ func (pkg *pkgData) docPackage(opts *WriteDocumentationOptions) (*ast.Package, *
 	//	go doc time.Sunday
 	// from finding the symbol. This is why we always have AllDecls.
 	mode := doc.AllDecls
-	if opts.Source {
-		mode |= doc.PreserveAST
-	}
+	// Always keep the function body to check for crossing(). The caller can set the Body nil if needed
+	mode |= doc.PreserveAST
 
 	// Compute package documentation.
 	// Assign to blank to ignore errors that can happen due to unresolved identifiers.

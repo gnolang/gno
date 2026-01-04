@@ -1,21 +1,23 @@
-name: tm2
+name: TM2
 
 on:
   push:
     branches:
       - master
-  workflow_dispatch:
   pull_request:
     paths:
-      - "tm2/**"
-      - "go.*" # check on go.mod/sum update
-      - ".github/**"
+      - tm2/**
+      # We trigger the testing workflow for changes to the main go.mod,
+      # since this can affect test results
+      - go.mod
+  workflow_dispatch:
 
 jobs:
   main:
-    name: Run Main
-    uses: ./.github/workflows/main_template.yml
+    name: Run TM2 suite
+    uses: ./.github/workflows/template_main.yml
     with:
       modulepath: "tm2"
+      tests-extra-args: "-coverpkg=github.com/gnolang/gno/tm2/..."
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}

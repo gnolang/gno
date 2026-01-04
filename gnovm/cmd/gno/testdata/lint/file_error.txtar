@@ -1,0 +1,24 @@
+# gno lint: test file error
+
+! gno lint .
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- i_have_error_test.gno --
+package main
+
+import "fmt"
+
+func TestIHaveSomeError() {
+	i := undefined_variable
+	fmt.Println("Hello", 42)
+}
+
+-- gnomod.toml --
+module = "gno.land/p/test"
+
+-- stdout.golden --
+-- stderr.golden --
+i_have_error_test.gno:6:7: undefined: undefined_variable (code=gnoTypeCheckError)
+i_have_error_test.gno:6:2: declared and not used: i (code=gnoTypeCheckError)

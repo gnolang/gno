@@ -1,0 +1,20 @@
+loadpkg gno.land/r/dev/admin $WORK
+
+adduser dev
+
+patchpkg "g1abcde" $dev_user_addr
+
+gnoland start
+
+gnokey query vm/qrender --data 'gno.land/r/dev/admin:'
+! stdout g1abcde
+stdout $dev_user_addr
+
+-- admin.gno --
+package admin
+
+var admin = "g1abcde"
+
+func Render(path string) string {
+	return "# Hello " + admin
+}

@@ -4,4 +4,9 @@
 
 package bits
 
+// exported for tests
+
 const DeBruijn64 = deBruijn64
+
+var OverflowError = overflowError
+var DivideError = divideError

@@ -29,11 +29,12 @@ type keyOpts struct {
 type SignCfg struct {
 	RootCfg *BaseCfg
 
-	TxPath        string
-	ChainID       string
-	AccountNumber uint64
-	Sequence      uint64
-	NameOrBech32  string
+	TxPath         string
+	ChainID        string
+	AccountNumber  uint64
+	Sequence       uint64
+	NameOrBech32   string
+	OutputDocument string
 }
 
 func NewSignCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -82,6 +83,13 @@ func (c *SignCfg) RegisterFlags(fs *flag.FlagSet) {
 		0,
 		"account sequence to sign with",
 	)
+
+	fs.StringVar(
+		&c.OutputDocument,
+		"output-document",
+		"",
+		"the signature json document to save. If empty, outputs the signature in the terminal",
+	)
 }
 
 func execSign(cfg *SignCfg, args []string, io commands.IO) error {
@@ -90,20 +98,20 @@ func execSign(cfg *SignCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	// saveTx saves the given transaction to the given path (Amino-encoded JSON)
-	saveTx := func(tx *std.Tx, path string) error {
-		// Encode the transaction
-		encodedTx, err := amino.MarshalJSON(tx)
+	// saveSignature saves the given transaction signature to the given path (Amino-encoded JSON)
+	saveSignature := func(signature *std.Signature, path string) error {
+		// Encode the signature
+		encodedSig, err := amino.MarshalJSON(signature)
 		if err != nil {
-			return fmt.Errorf("unable ot marshal tx to JSON, %w", err)
+			return fmt.Errorf("unable to marshal signature to JSON, %w", err)
 		}
 
-		// Save the transaction
-		if err := os.WriteFile(path, encodedTx, 0o644); err != nil {
-			return fmt.Errorf("unable to write tx to %s, %w", path, err)
+		// Save the signature
+		if err := os.WriteFile(path, encodedSig, 0o644); err != nil {
+			return fmt.Errorf("unable to write signature to %s, %w", path, err)
 		}
 
-		io.Printf("\nTx successfully signed and saved to %s\n", path)
+		io.Printf("\nSignature generated and successfully saved to %s\n", path)
 
 		return nil
 	}
@@ -169,29 +177,46 @@ func execSign(cfg *SignCfg, args []string, io commands.IO) error {
 		decryptPass: password,
 	}
 
-	// Sign the transaction
-	if err := signTx(&tx, kb, sOpts, kOpts); err != nil {
+	// Generate the signature
+	signature, err := generateSignature(&tx, kb, sOpts, kOpts)
+	if err != nil {
 		return fmt.Errorf("unable to sign transaction, %w", err)
 	}
 
-	return saveTx(&tx, cfg.TxPath)
+	if cfg.OutputDocument != "" {
+		// Don't save the signature in-place, separate it
+		return saveSignature(signature, cfg.OutputDocument)
+	}
+
+	// Add the signature to the tx
+	if err = addSignature(&tx, signature); err != nil {
+		return fmt.Errorf("unable to add signature: %w", err)
+	}
+
+	// Save the tx to disk
+	if err = saveTx(&tx, cfg.TxPath); err != nil {
+		return fmt.Errorf("unable to save tx: %w", err)
+	}
+
+	io.Printf("\nTx successfully signed and saved to %s\n", cfg.TxPath)
+
+	return nil
 }
 
-// signTx generates the transaction signature,
-// and saves it to the given transaction
-func signTx(
+// generateSignature generates the transaction signature
+func generateSignature(
 	tx *std.Tx,
 	kb keys.Keybase,
 	signOpts signOpts,
 	keyOpts keyOpts,
-) error {
+) (*std.Signature, error) {
 	signBytes, err := tx.GetSignBytes(
 		signOpts.chainID,
 		signOpts.accountNumber,
 		signOpts.accountSequence,
 	)
 	if err != nil {
-		return fmt.Errorf("unable to get signature bytes, %w", err)
+		return nil, fmt.Errorf("unable to get signature bytes, %w", err)
 	}
 
 	// Sign the transaction data
@@ -201,9 +226,18 @@ func signTx(
 		signBytes,
 	)
 	if err != nil {
-		return fmt.Errorf("unable to sign transaction bytes, %w", err)
+		return nil, fmt.Errorf("unable to sign transaction bytes, %w", err)
 	}
 
+	return &std.Signature{
+		PubKey:    pub,
+		Signature: sig,
+	}, nil
+}
+
+// addSignature generates the transaction signature,
+// and saves it to the given transaction
+func addSignature(tx *std.Tx, sig *std.Signature) error {
 	// Save the signature
 	if tx.Signatures == nil {
 		tx.Signatures = make([]std.Signature, 0, 1)
@@ -211,14 +245,14 @@ func signTx(
 
 	// Check if the signature needs to be overwritten
 	for index, signature := range tx.Signatures {
-		if !signature.PubKey.Equals(pub) {
+		if !signature.PubKey.Equals(sig.PubKey) {
 			continue
 		}
 
 		// Save the signature
 		tx.Signatures[index] = std.Signature{
-			PubKey:    pub,
-			Signature: sig,
+			PubKey:    sig.PubKey,
+			Signature: sig.Signature,
 		}
 
 		return nil
@@ -228,8 +262,8 @@ func signTx(
 	// present before
 	tx.Signatures = append(
 		tx.Signatures, std.Signature{
-			PubKey:    pub,
-			Signature: sig,
+			PubKey:    sig.PubKey,
+			Signature: sig.Signature,
 		},
 	)
 

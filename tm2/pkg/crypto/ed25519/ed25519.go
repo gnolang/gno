@@ -68,11 +68,9 @@ func (privKey PrivKeyEd25519) PubKey() crypto.PubKey {
 // Equals - you probably don't need to use this.
 // Runs in constant time based on length of the keys.
 func (privKey PrivKeyEd25519) Equals(other crypto.PrivKey) bool {
-	if otherEd, ok := other.(PrivKeyEd25519); ok {
-		return subtle.ConstantTimeCompare(privKey[:], otherEd[:]) == 1
-	} else {
-		return false
-	}
+	otherEd, ok := other.(PrivKeyEd25519)
+
+	return ok && subtle.ConstantTimeCompare(privKey[:], otherEd[:]) == 1
 }
 
 // GenPrivKey generates a new ed25519 private key.

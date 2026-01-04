@@ -3,7 +3,7 @@ help:
 	@echo "Available make commands:"
 	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
 
-programs=gnodev gnofaucet
+programs=$(wildcard */)
 
 # command to run dependency utilities, like goimports.
 rundep=go run -modfile ../misc/devdeps/go.mod
@@ -64,3 +64,12 @@ fmt:
 .PHONY: tidy
 tidy:
 	find . -name go.mod -execdir go mod tidy -v \;
+
+
+generate: $(addprefix generate.,$(programs))
+generate.%:
+	@if grep '^generate:' $(subst generate.,,$@)/Makefile; then \
+	  echo "[+] make -C $(subst generate.,,$@) generate"; \
+	  $(MAKE) --no-print-directory -C $(subst generate.,,$@) generate; \
+	fi
+.PHONY: generate

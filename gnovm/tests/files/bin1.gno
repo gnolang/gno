@@ -1,16 +1,14 @@
 package main
 
 import (
-	"crypto/sha1"
+	"crypto/sha256"
 	"fmt"
 )
 
 func main() {
-	d := sha1.New()
-	d.Write([]byte("password"))
-	a := d.Sum(nil)
+	a := sha256.Sum256([]byte("password"))
 	fmt.Println(a)
 }
 
 // Output:
-// [91 170 97 228 201 185 63 63 6 130 37 11 108 248 51 27 126 230 143 216]
+// [94 136 72 152 218 40 4 113 81 208 229 111 141 198 41 39 115 96 61 13 106 171 189 214 42 17 239 114 29 21 66 216]

@@ -11,7 +11,7 @@ func init() {
 	ms.Field = 1
 }
 
-func main() {
+func main(cur realm,) {
 	println(ms)
 	ms.Field--
 	println(ms)
@@ -22,20 +22,13 @@ func main() {
 // (struct{(0 int)} gno.land/r/test.MyStruct)
 
 // Realm:
-// switchrealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]={
-//     "Fields": [
-//         {
-//             "T": {
-//                 "@type": "/gno.PrimitiveType",
-//                 "value": "32"
-//             }
-//         }
-//     ],
-//     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
-//         "ModTime": "4",
-//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
-//         "RefCount": "1"
-//     }
-// }
+// finalizerealm["gno.land/r/test"]
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4](0)=
+//     @@ -1,7 +1,6 @@
+//      {
+//          "Fields": [
+//              {
+//     -            "N": "AQAAAAAAAAA=",
+//                  "T": {
+//                      "@type": "/gno.PrimitiveType",
+//                      "value": "32"

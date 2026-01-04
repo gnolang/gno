@@ -1,23 +1,21 @@
 # load a package from the 'examples' and $WORK directory.
-loadpkg gno.land/p/demo/ufmt
+loadpkg gno.land/p/nt/ufmt
 loadpkg gno.land/r/importtest $WORK
 
 ## start a new node
 gnoland start
 
 ## execute Render
-gnokey maketx call -pkgpath gno.land/r/importtest -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
-stdout '("92054" string)'
-stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/importtest:'
+stdout '92054'
 
 -- import.gno --
 package importtest
 
 import (
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 func Render(_ string) string {
- 	return ufmt.Sprintf("%d", 92054)
+	return ufmt.Sprintf("%d", 92054)
 }
-

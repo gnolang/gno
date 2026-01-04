@@ -1,0 +1,37 @@
+# Test Output instruction updated
+
+gno test -v . -update-golden-tests
+
+stdout 'hey'
+stdout '^hru\?'
+
+stderr '=== RUN   ./x_filetest.gno'
+stderr '--- PASS: ./x_filetest.gno \(\d+\.\d\ds\)'
+stderr 'ok      \. 	\d+\.\d\ds'
+
+cmp x_filetest.gno x_filetest.gno.golden
+
+-- x_filetest.gno --
+package main
+
+func main() {
+	println("hey")
+	println("hru?")
+}
+
+// Output:
+// hey
+-- x_filetest.gno.golden --
+package main
+
+func main() {
+	println("hey")
+	println("hru?")
+}
+
+// Output:
+// hey
+// hru?
+-- gnomod.toml --
+module = "gno.test/p/integ/output_sync"
+gno = "0.9"

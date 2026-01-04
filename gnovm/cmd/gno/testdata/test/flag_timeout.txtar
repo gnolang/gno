@@ -1,0 +1,27 @@
+# Test -timeout flag
+
+! gno test --timeout 1ms .
+
+! stdout .+
+stderr 'panic: test timed out after 1ms'
+
+-- timeout.gno --
+package timeout
+
+-- timeout_test.gno --
+package timeout
+
+import (
+	"testing"
+)
+
+func TestTimeout(t *testing.T) {
+	for i := 0; i < 10_000; i++ {
+		println("plop")
+	}
+}
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/flag_timeout"
+gno = "0.9"
