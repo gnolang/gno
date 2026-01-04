@@ -107,6 +107,5 @@ func TestWithCaller(t *testing.T) {
 
 ### See also:
 - [Common Mistakes](/r/docs/mistakes) - OriginCaller vs PreviousRealm
-- [Safe Objects](/r/docs/safeobjects) - Exposing objects safely
 `
 }
