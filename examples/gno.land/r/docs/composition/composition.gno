@@ -52,13 +52,17 @@ func ComposedAction(_ realm) {
 }
 ` + "```" + `
 
+## This Example
 
----
+This realm combines a counter and a logger. Each action increments or decrements
+the counter while automatically logging the change.
 
-## Live Demo
+## Components
 
 - **Counter** ([source](/r/docs/composition/counter))
 - **Logger** ([source](/r/docs/composition/logger))
+
+## Live Demo
 
 ### Current Counter Value
 
