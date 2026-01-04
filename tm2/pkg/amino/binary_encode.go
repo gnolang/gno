@@ -1,12 +1,13 @@
 package amino
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"reflect"
+
+	"github.com/valyala/bytebufferpool"
 )
 
 const beOptionByte = 0x01
@@ -209,6 +210,8 @@ func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Va
 	return err
 }
 
+var poolBytesBuffer = new(bytebufferpool.Pool)
+
 func (cdc *Codec) encodeReflectBinaryInterface(w io.Writer, iinfo *TypeInfo, rv reflect.Value,
 	fopts FieldOptions, bare bool,
 ) (err error) {
@@ -250,7 +253,9 @@ func (cdc *Codec) encodeReflectBinaryInterface(w io.Writer, iinfo *TypeInfo, rv 
 
 	// For Proto3 compatibility, encode interfaces as google.protobuf.Any
 	// Write field #1, TypeURL
-	buf := bytes.NewBuffer(nil)
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
+
 	{
 		fnum := uint32(1)
 		err = encodeFieldNumberAndTyp3(buf, fnum, Typ3ByteLength)
@@ -269,7 +274,9 @@ func (cdc *Codec) encodeReflectBinaryInterface(w io.Writer, iinfo *TypeInfo, rv 
 	{
 		// google.protobuf.Any values must be a struct, or an unpacked list which
 		// is indistinguishable from a struct.
-		buf2 := bytes.NewBuffer(nil)
+		buf2 := poolBytesBuffer.Get()
+		defer poolBytesBuffer.Put(buf2)
+
 		if !cinfo.IsStructOrUnpacked(fopts) {
 			writeEmpty := false
 			// Encode with an implicit struct, with a single field with number 1.
@@ -356,7 +363,8 @@ func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflec
 
 	// Proto3 byte-length prefixing incurs alloc cost on the encoder.
 	// Here we incur it for unpacked form for ease of dev.
-	buf := bytes.NewBuffer(nil)
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
 
 	// If elem is not already a ByteLength type, write in packed form.
 	// This is a Proto wart due to Proto backwards compatibility issues.
@@ -369,7 +377,7 @@ func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflec
 	typ3 := einfo.GetTyp3(fopts)
 	if typ3 != Typ3ByteLength || (newoptions&beOptionByte > 0) {
 		// Write elems in packed form.
-		for i := 0; i < rv.Len(); i++ {
+		for i := range rv.Len() {
 			erv := rv.Index(i)
 			// If pointer, get dereferenced element value (or zero).
 			if ert.Kind() == reflect.Ptr {
@@ -393,8 +401,11 @@ func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflec
 			einfo.Elem.ReprType.Type.Kind() != reflect.Uint8 &&
 			einfo.Elem.ReprType.GetTyp3(fopts) != Typ3ByteLength
 
+		elemBuf := poolBytesBuffer.Get()
+		defer poolBytesBuffer.Put(elemBuf)
+
 		// Write elems in unpacked form.
-		for i := 0; i < rv.Len(); i++ {
+		for i := range rv.Len() {
 			// Write elements as repeated fields of the parent struct.
 			err = encodeFieldNumberAndTyp3(buf, fopts.BinFieldNum, Typ3ByteLength)
 			if err != nil {
@@ -431,20 +442,21 @@ func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflec
 				// form) are represented as lists of implicit structs.
 				if writeImplicit {
 					// Write field key for Value field of implicit struct.
-					buf2 := new(bytes.Buffer)
-					err = encodeFieldNumberAndTyp3(buf2, 1, Typ3ByteLength)
+
+					err = encodeFieldNumberAndTyp3(elemBuf, 1, Typ3ByteLength)
 					if err != nil {
 						return
 					}
 					// Write field value of implicit struct to buf2.
 					efopts := fopts
 					efopts.BinFieldNum = 0 // dontcare
-					err = cdc.encodeReflectBinary(buf2, einfo, derv, efopts, false, 0)
+					err = cdc.encodeReflectBinary(elemBuf, einfo, derv, efopts, false, 0)
 					if err != nil {
 						return
 					}
 					// Write implicit struct to buf.
-					err = EncodeByteSlice(buf, buf2.Bytes())
+					err = EncodeByteSlice(buf, elemBuf.Bytes())
+					elemBuf.Reset()
 					if err != nil {
 						return
 					}
@@ -497,7 +509,8 @@ func (cdc *Codec) encodeReflectBinaryStruct(w io.Writer, info *TypeInfo, rv refl
 
 	// Proto3 incurs a cost in writing non-root structs.
 	// Here we incur it for root structs as well for ease of dev.
-	buf := bytes.NewBuffer(nil)
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
 
 	for _, field := range info.Fields {
 		// Get type info for field.
@@ -553,7 +566,7 @@ func encodeFieldNumberAndTyp3(w io.Writer, num uint32, typ Typ3) (err error) {
 }
 
 func (cdc *Codec) writeFieldIfNotEmpty(
-	buf *bytes.Buffer,
+	buf *bytebufferpool.ByteBuffer,
 	fieldNum uint32,
 	finfo *TypeInfo,
 	structsFopts FieldOptions, // the wrapping struct's FieldOptions if any
@@ -579,7 +592,7 @@ func (cdc *Codec) writeFieldIfNotEmpty(
 	if !isWriteEmpty && lBeforeValue == lAfterValue-1 && buf.Bytes()[buf.Len()-1] == 0x00 {
 		// rollback typ3/fieldnum and last byte if
 		// not a pointer and empty:
-		buf.Truncate(lBeforeKey)
+		buf.Set(buf.Bytes()[:lBeforeKey])
 	}
 	return nil
 }

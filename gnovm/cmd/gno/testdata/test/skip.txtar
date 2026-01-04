@@ -1,0 +1,29 @@
+# Test skipping a test
+
+gno test -v .
+
+! stdout .+
+stderr 'Hey'
+stderr 'I.m on strike!'
+! stderr 'this shouldn.t print'
+stderr '--- SKIP: TestSkip'
+stderr 'ok  '
+
+-- skip.gno --
+package skip
+
+-- skip_test.gno --
+package skip
+
+import "testing"
+
+func TestSkip(t *testing.T) {
+	t.Log("Hey")
+	t.Skip("I'm on strike!")
+	t.Log("so this shouldn't print")
+}
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/skip"
+gno = "0.9"

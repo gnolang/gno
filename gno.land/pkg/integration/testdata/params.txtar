@@ -1,0 +1,105 @@
+# XXX(FIXME): missing module name in error: `Data: module name <> not registered`
+
+# test for https://github.com/gnolang/gno/pull/2920
+
+gnoland start
+
+# query before adding the package
+gnokey query params/vm:gno.land/r/myrealm:foo
+stdout 'data: $'
+gnokey query params/vm:gno.land/r/myrealm:bar
+stdout 'data: $'
+gnokey query params/vm:gno.land/r/myrealm:baz
+stdout 'data: $'
+
+# add params to gno.land/r/myrealm
+gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/myrealm -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+
+# query after adding the package, but before setting values
+gnokey query params/vm:gno.land/r/myrealm:foo
+stdout 'data: $'
+gnokey query params/vm:gno.land/r/myrealm:bar
+stdout 'data: $'
+gnokey query params/vm:gno.land/r/myrealm:baz
+stdout 'data: $'
+
+## set foo (string)
+gnokey maketx call -pkgpath gno.land/r/myrealm -func SetFoo -args foo1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey query params/vm:gno.land/r/myrealm:foo
+stdout 'data: "foo1"'
+
+# override foo
+gnokey maketx call -pkgpath gno.land/r/myrealm -func SetFoo -args foo2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey query params/vm:gno.land/r/myrealm:foo
+stdout 'data: "foo2"'
+
+
+# set bar (bool)
+gnokey maketx call -pkgpath gno.land/r/myrealm -func SetBar -args true -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey query params/vm:gno.land/r/myrealm:bar
+stdout 'data: true'
+
+# override bar
+gnokey maketx call -pkgpath gno.land/r/myrealm -func SetBar -args false -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey query params/vm:gno.land/r/myrealm:bar
+stdout 'data: false'
+
+
+# set baz (int64)
+gnokey maketx call -pkgpath gno.land/r/myrealm -func SetBaz -args 1337 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey query params/vm:gno.land/r/myrealm:baz
+stdout 'data: "1337"'
+
+# override baz
+gnokey maketx call -pkgpath gno.land/r/myrealm -func SetBaz -args -31337 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey query params/vm:gno.land/r/myrealm:baz
+stdout 'data: "-31337"'
+
+# It is impossible to call std.SetParamXXX with a param key in the <prefix>:<key> format (e.g. "bank:p:lockTransfer") because it is an invalid key.
+! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetLockTransfer -args ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'Data: invalid param key: bank:p:lockTransfer'
+
+# <prefix>.<key> is invalid (e.g., "bank.lockTransfer")
+! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetInvalidString -args ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'Data: invalid param key: bank:p:lockTransfer'
+
+# <key_name>.<type> (e.g., "bank_lockTransfer") is a valid name.
+gnokey maketx call -pkgpath gno.land/r/myrealm -func SetValidString -args ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey query params/vm:gno.land/r/myrealm:bank_lockTransfer
+stdout 'data: "ugnot"'
+
+-- params/gnomod.toml --
+module = "gno.land/r/sys/params"
+gno = "0.9"
+
+-- params/setter.gno --
+package params
+
+import params_ "chain/params"
+
+func SetFoo(cur realm, newFoo string) {
+	params_.SetString("foo", newFoo)
+}
+
+func SetBar(cur realm, newBar bool) {
+	params_.SetBool("bar", newBar)
+}
+
+func SetBaz(cur realm, newBaz int64) {
+	params_.SetInt64("baz", newBaz)
+}
+
+func SetUint64(newBaz uint64) { params_.SetUint64("baz", newBaz) }
+func SetBytes()               { params_.SetBytes("baz", []byte{255, 255}) }
+
+func SetLockTransfer(cur realm, denom string) {
+	params_.SetString("bank:p:lockTransfer", denom)
+}
+
+func SetInvalidString(cur realm, denom string) {
+	params_.SetString("bank:p:lockTransfer", denom)
+}
+
+func SetValidString(cur realm, denom string) {
+	params_.SetString("bank_lockTransfer", denom)
+}

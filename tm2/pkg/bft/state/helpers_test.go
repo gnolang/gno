@@ -52,7 +52,7 @@ func makeAndApplyGoodBlock(state sm.State, height int64, lastCommit *types.Commi
 	blockExec *sm.BlockExecutor,
 ) (sm.State, types.BlockID, error) {
 	block, _ := state.MakeBlock(height, makeTxs(height), lastCommit, proposerAddr)
-	if err := blockExec.ValidateBlock(state, block); err != nil {
+	if err := state.ValidateBlock(block); err != nil {
 		return state, types.BlockID{}, err
 	}
 	blockID := types.BlockID{Hash: block.Hash(), PartsHeader: types.PartSetHeader{}}
@@ -65,7 +65,7 @@ func makeAndApplyGoodBlock(state sm.State, height int64, lastCommit *types.Commi
 
 func makeValidCommit(height int64, blockID types.BlockID, vals *types.ValidatorSet, privVals map[string]types.PrivValidator) (*types.Commit, error) {
 	sigs := make([]*types.CommitSig, 0)
-	for i := 0; i < vals.Size(); i++ {
+	for i := range vals.Size() {
 		_, val := vals.GetByIndex(i)
 		vote, err := types.MakeVote(height, blockID, vals, privVals[val.Address.String()], chainID)
 		if err != nil {
@@ -78,7 +78,7 @@ func makeValidCommit(height int64, blockID types.BlockID, vals *types.ValidatorS
 
 // make some bogus txs
 func makeTxs(height int64) (txs []types.Tx) {
-	for i := 0; i < nTxsPerBlock; i++ {
+	for i := range nTxsPerBlock {
 		txs = append(txs, types.Tx([]byte{byte(height), byte(i)}))
 	}
 	return txs
@@ -87,8 +87,8 @@ func makeTxs(height int64) (txs []types.Tx) {
 func makeState(nVals, height int) (sm.State, dbm.DB, map[string]types.PrivValidator) {
 	vals := make([]types.GenesisValidator, nVals)
 	privVals := make(map[string]types.PrivValidator, nVals)
-	for i := 0; i < nVals; i++ {
-		secret := []byte(fmt.Sprintf("test%d", i))
+	for i := range nVals {
+		secret := fmt.Appendf(nil, "test%d", i)
 		pk := ed25519.GenPrivKeyFromSecret(secret)
 		valAddr := pk.PubKey().Address()
 		vals[i] = types.GenesisValidator{
@@ -97,7 +97,7 @@ func makeState(nVals, height int) (sm.State, dbm.DB, map[string]types.PrivValida
 			Power:   1000,
 			Name:    fmt.Sprintf("test%d", i),
 		}
-		privVals[valAddr.String()] = types.NewMockPVWithParams(pk, false, false)
+		privVals[valAddr.String()] = types.NewMockPVWithPrivKey(pk)
 	}
 	s, _ := sm.MakeGenesisState(&types.GenesisDoc{
 		ChainID:    chainID,
@@ -123,7 +123,7 @@ func makeBlock(state sm.State, height int64) *types.Block {
 
 func genValSet(size int) *types.ValidatorSet {
 	vals := make([]*types.Validator, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		vals[i] = types.NewValidator(ed25519.GenPrivKey().PubKey(), 10)
 	}
 	return types.NewValidatorSet(vals)

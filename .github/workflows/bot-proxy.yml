@@ -1,0 +1,48 @@
+# This workflow must be kept in sync to some extent with bot.yml
+name: GitHub Bot Proxy
+
+on:
+  # Watch for any completed run on bot.yml workflow
+  workflow_run:
+    workflows: [GitHub Bot]
+    types: [completed]
+
+jobs:
+  # This workflow monitors any run completed on the GitHub Bot workflow and
+  # checks if the event that triggered it is limited to read-only permissions
+  # (e.g 'pull_request_review' on a pull request opened from a fork).
+  # In this case, it reruns the GitHub Bot workflow using a 'workflow_dispatch'
+  # event, thereby allowing it to run with write permissions.
+  #
+  # Complete flow:
+  # 'pull_request_review' from fork on bot.yml (read-only) -> 'workflow_run' on bot-proxy.yml (write) -> 'workflow_dispatch' on bot.yml (write)
+  rerun-with-write-perm:
+    name: Rerun Bot with write permission
+    # Skip this workflow if the original event is not 'pull_request_review'
+    if: github.event.workflow_run.event == 'pull_request_review'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+
+    steps:
+      - name: Download artifact from previous run
+        uses: actions/download-artifact@v5
+        with:
+          name: pr-number
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        # Even if the artifact doesn't exist, do not mark the workflow as failed
+        # Useful if the 'pull_request_review' event was emitted by a PR opened
+        # from a branch on the main repo, so it has already been processed by
+        # the bot workflow, and no artifact has been uploaded.
+        continue-on-error: true
+        id: download
+
+      - name: Send workflow_dispatch event to Github Bot
+        # Run only if an artifact was downloaded
+        if: steps.download.outcome == 'success'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.event.workflow_run.repository.full_name }}
+        run: |
+          gh workflow run bot.yml -R "$REPO" -f "pull-request-list=$(cat pr-number)"

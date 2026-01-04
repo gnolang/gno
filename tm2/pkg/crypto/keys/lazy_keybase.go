@@ -6,9 +6,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
 	"github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/gnolang/gno/tm2/pkg/os"
-
 	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
+	"github.com/gnolang/gno/tm2/pkg/os"
 )
 
 const dbBackend = db.GoLevelDBBackend
@@ -179,116 +178,35 @@ func (lkb lazyKeybase) CreateMulti(name string, pubkey crypto.PubKey) (info Info
 	return NewDBKeybase(db).CreateMulti(name, pubkey)
 }
 
-func (lkb lazyKeybase) Update(name, oldpass string, getNewpass func() (string, error)) error {
+func (lkb lazyKeybase) Rotate(name, oldpass string, getNewpass func() (string, error)) error {
 	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	return NewDBKeybase(db).Update(name, oldpass, getNewpass)
+	return NewDBKeybase(db).Rotate(name, oldpass, getNewpass)
 }
 
-func (lkb lazyKeybase) Import(name string, armor string) (err error) {
+func (lkb lazyKeybase) ImportPrivKey(name string, key crypto.PrivKey, encryptPass string) error {
 	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return err
 	}
+
 	defer db.Close()
 
-	return NewDBKeybase(db).Import(name, armor)
+	return NewDBKeybase(db).ImportPrivKey(name, key, encryptPass)
 }
 
-func (lkb lazyKeybase) ImportPrivKey(
-	name string,
-	armor string,
-	decryptPassphrase,
-	encryptPassphrase string,
-) error {
-	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	return NewDBKeybase(db).ImportPrivKey(name, armor, decryptPassphrase, encryptPassphrase)
-}
-
-func (lkb lazyKeybase) ImportPrivKeyUnsafe(
-	name string,
-	armor string,
-	encryptPassphrase string,
-) error {
-	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	return NewDBKeybase(db).ImportPrivKeyUnsafe(name, armor, encryptPassphrase)
-}
-
-func (lkb lazyKeybase) ImportPubKey(name string, armor string) (err error) {
-	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	return NewDBKeybase(db).ImportPubKey(name, armor)
-}
-
-func (lkb lazyKeybase) Export(name string) (armor string, err error) {
-	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
-	if err != nil {
-		return "", err
-	}
-	defer db.Close()
-
-	return NewDBKeybase(db).Export(name)
-}
-
-func (lkb lazyKeybase) ExportPubKey(name string) (armor string, err error) {
-	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
-	if err != nil {
-		return "", err
-	}
-	defer db.Close()
-
-	return NewDBKeybase(db).ExportPubKey(name)
-}
-
-func (lkb lazyKeybase) ExportPrivateKeyObject(name string, passphrase string) (crypto.PrivKey, error) {
+func (lkb lazyKeybase) ExportPrivKey(name string, passphrase string) (crypto.PrivKey, error) {
 	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
 
-	return NewDBKeybase(db).ExportPrivateKeyObject(name, passphrase)
-}
-
-func (lkb lazyKeybase) ExportPrivKey(name string, decryptPassphrase string,
-	encryptPassphrase string,
-) (armor string, err error) {
-	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
-	if err != nil {
-		return "", err
-	}
-	defer db.Close()
-
-	return NewDBKeybase(db).ExportPrivKey(name, decryptPassphrase, encryptPassphrase)
-}
-
-func (lkb lazyKeybase) ExportPrivKeyUnsafe(name string, decryptPassphrase string) (string, error) {
-	db, err := db.NewDB(lkb.name, dbBackend, lkb.dir)
-	if err != nil {
-		return "", err
-	}
-
-	defer db.Close()
-
-	return NewDBKeybase(db).ExportPrivKeyUnsafe(name, decryptPassphrase)
+	return NewDBKeybase(db).ExportPrivKey(name, passphrase)
 }
 
 func (lkb lazyKeybase) CloseDB() {}

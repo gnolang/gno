@@ -12,14 +12,14 @@ stdout 'main: --- hello from foo ---'
 stdout 'OK!'
 stdout 'GAS WANTED: 200000'
 stdout 'GAS USED: '
+stdout 'TX HASH: '
 
 -- bar/bar.gno --
 package bar
 
 func Render(path string) string {
- 	return "hello from foo"
+	return "hello from foo"
 }
-
 -- script/script.gno --
 package main
 

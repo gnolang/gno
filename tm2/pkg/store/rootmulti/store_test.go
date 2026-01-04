@@ -47,14 +47,14 @@ func TestCacheMultiStoreWithVersion(t *testing.T) {
 	var db dbm.DB = memdb.NewMemDB()
 	ms := newMultiStoreWithMounts(db)
 	err := ms.LoadLatestVersion()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	commitID := types.CommitID{}
 	checkStore(t, ms, commitID, commitID)
 
 	k, v := []byte("wind"), []byte("blows")
 
-	store1 := ms.getStoreByName("store1").(types.Store)
+	store1 := ms.getStoreByName("store1")
 	store1.Set(k, v)
 
 	cID := ms.Commit()
@@ -93,7 +93,7 @@ func TestHashStableWithEmptyCommit(t *testing.T) {
 
 	k, v := []byte("wind"), []byte("blows")
 
-	store1 := ms.getStoreByName("store1").(types.Store)
+	store1 := ms.getStoreByName("store1")
 	store1.Set(k, v)
 
 	cID := ms.Commit()
@@ -196,7 +196,7 @@ func TestMultiStoreQuery(t *testing.T) {
 	db := memdb.NewMemDB()
 	multi := newMultiStoreWithMounts(db)
 	err := multi.LoadLatestVersion()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	k, v := []byte("wind"), []byte("blows")
 	k2, v2 := []byte("water"), []byte("flows")
@@ -209,11 +209,11 @@ func TestMultiStoreQuery(t *testing.T) {
 	require.Nil(t, garbage)
 
 	// Set and commit data in one store.
-	store1 := multi.getStoreByName("store1").(types.Store)
+	store1 := multi.getStoreByName("store1")
 	store1.Set(k, v)
 
 	// ... and another.
-	store2 := multi.getStoreByName("store2").(types.Store)
+	store2 := multi.getStoreByName("store2")
 	store2.Set(k2, v2)
 
 	// Commit the multistore.
@@ -298,7 +298,7 @@ func hashStores(stores map[types.StoreKey]types.CommitStore) []byte {
 				CommitID: store.LastCommitID(),
 				// StoreType: store.GetStoreType(),
 			},
-		}.Hash()
+		}.GetHash()
 	}
 	return merkle.SimpleHashFromMap(m)
 }

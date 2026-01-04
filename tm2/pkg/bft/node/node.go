@@ -12,17 +12,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
-	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/rs/cors"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
+	"github.com/gnolang/gno/tm2/pkg/bft/privval"
+	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
+	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
+	"github.com/gnolang/gno/tm2/pkg/p2p/discovery"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bc "github.com/gnolang/gno/tm2/pkg/bft/blockchain"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	cs "github.com/gnolang/gno/tm2/pkg/bft/consensus"
 	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	rpccore "github.com/gnolang/gno/tm2/pkg/bft/rpc/core"
 	_ "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -41,6 +44,23 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/service"
 	verset "github.com/gnolang/gno/tm2/pkg/versionset"
+)
+
+// Reactors are hooks for the p2p module,
+// to alert of connecting / disconnecting peers
+const (
+	mempoolReactorName    = "MEMPOOL"
+	blockchainReactorName = "BLOCKCHAIN"
+	consensusReactorName  = "CONSENSUS"
+	discoveryReactorName  = "DISCOVERY"
+)
+
+const (
+	mempoolModuleName    = "mempool"
+	blockchainModuleName = "blockchain"
+	consensusModuleName  = "consensus"
+	p2pModuleName        = "p2p"
+	discoveryModuleName  = "discovery"
 )
 
 // ------------------------------------------------------------------------------
@@ -87,14 +107,10 @@ func DefaultNewNode(
 	logger *slog.Logger,
 ) (*Node, error) {
 	// Generate node PrivKey
-	nodeKey, err := p2p.LoadOrGenNodeKey(config.NodeKeyFile())
+	nodeKey, err := p2pTypes.LoadOrMakeNodeKey(config.NodeKeyFile())
 	if err != nil {
 		return nil, err
 	}
-
-	// Get privValKeys.
-	newPrivValKey := config.PrivValidatorKeyFile()
-	newPrivValState := config.PrivValidatorStateFile()
 
 	// Get app client creator.
 	appClientCreator := proxy.DefaultClientCreator(
@@ -104,8 +120,19 @@ func DefaultNewNode(
 		config.DBDir(),
 	)
 
-	return NewNode(config,
-		privval.LoadOrGenFilePV(newPrivValKey, newPrivValState),
+	// Initialize the privValidator
+	privVal, err := privval.NewPrivValidatorFromConfig(
+		config.Consensus.PrivValidator,
+		nodeKey.PrivKey,
+		logger.With("module", "remote_signer_client"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewNode(
+		config,
+		privVal,
 		nodeKey,
 		appClientCreator,
 		DefaultGenesisDocProviderFunc(genesisFile),
@@ -117,30 +144,6 @@ func DefaultNewNode(
 
 // Option sets a parameter for the node.
 type Option func(*Node)
-
-// CustomReactors allows you to add custom reactors (name -> p2p.Reactor) to
-// the node's Switch.
-//
-// WARNING: using any name from the below list of the existing reactors will
-// result in replacing it with the custom one.
-//
-//   - MEMPOOL
-//   - BLOCKCHAIN
-//   - CONSENSUS
-//   - EVIDENCE
-//   - PEX
-func CustomReactors(reactors map[string]p2p.Reactor) Option {
-	return func(n *Node) {
-		for name, reactor := range reactors {
-			if existingReactor := n.sw.Reactor(name); existingReactor != nil {
-				n.sw.Logger.Info("Replacing existing reactor with a custom one",
-					"name", name, "existing", existingReactor, "custom", reactor)
-				n.sw.RemoveReactor(name, existingReactor)
-			}
-			n.sw.AddReactor(name, reactor)
-		}
-	}
-}
 
 // ------------------------------------------------------------------------------
 
@@ -155,11 +158,12 @@ type Node struct {
 	privValidator types.PrivValidator // local node's validator key
 
 	// network
-	transport   *p2p.MultiplexTransport
-	sw          *p2p.Switch // p2p connections
-	nodeInfo    p2p.NodeInfo
-	nodeKey     *p2p.NodeKey // our node privkey
-	isListening bool
+	transport        *p2p.MultiplexTransport
+	sw               *p2p.MultiplexSwitch // p2p connections
+	discoveryReactor *discovery.Reactor   // discovery reactor
+	nodeInfo         p2pTypes.NodeInfo
+	nodeKey          *p2pTypes.NodeKey // our node privkey
+	isListening      bool
 
 	// services
 	evsw              events.EventSwitch
@@ -266,7 +270,7 @@ func onlyValidatorIsUs(state sm.State, privVal types.PrivValidator) bool {
 		return false
 	}
 	addr, _ := state.Validators.GetByIndex(0)
-	return privVal.GetPubKey().Address() == addr
+	return privVal.PubKey().Address() == addr
 }
 
 func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp appconn.AppConns,
@@ -279,7 +283,7 @@ func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp appconn.AppConn
 		state.ConsensusParams.Block.MaxTxBytes,
 		mempl.WithPreCheck(sm.TxPreCheck(state)),
 	)
-	mempoolLogger := logger.With("module", "mempool")
+	mempoolLogger := logger.With("module", mempoolModuleName)
 	mempoolReactor := mempl.NewReactor(config.Mempool, mempool)
 	mempoolReactor.SetLogger(mempoolLogger)
 
@@ -289,16 +293,23 @@ func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp appconn.AppConn
 	return mempoolReactor, mempool
 }
 
-func createBlockchainReactor(config *cfg.Config,
+func createBlockchainReactor(
 	state sm.State,
 	blockExec *sm.BlockExecutor,
 	blockStore *store.BlockStore,
 	fastSync bool,
+	switchToConsensusFn bc.SwitchToConsensusFn,
 	logger *slog.Logger,
 ) (bcReactor p2p.Reactor, err error) {
-	bcReactor = bc.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync)
+	bcReactor = bc.NewBlockchainReactor(
+		state.Copy(),
+		blockExec,
+		blockStore,
+		fastSync,
+		switchToConsensusFn,
+	)
 
-	bcReactor.SetLogger(logger.With("module", "blockchain"))
+	bcReactor.SetLogger(logger.With("module", blockchainModuleName))
 	return bcReactor, nil
 }
 
@@ -331,93 +342,15 @@ func createConsensusReactor(config *cfg.Config,
 	return consensusReactor, consensusState
 }
 
-func createTransport(config *cfg.Config, nodeInfo p2p.NodeInfo, nodeKey *p2p.NodeKey, proxyApp appconn.AppConns) (*p2p.MultiplexTransport, []p2p.PeerFilterFunc) {
-	var (
-		mConnConfig = p2p.MConnConfig(config.P2P)
-		transport   = p2p.NewMultiplexTransport(nodeInfo, *nodeKey, mConnConfig)
-		connFilters = []p2p.ConnFilterFunc{}
-		peerFilters = []p2p.PeerFilterFunc{}
-	)
-
-	if !config.P2P.AllowDuplicateIP {
-		connFilters = append(connFilters, p2p.ConnDuplicateIPFilter())
-	}
-
-	// Filter peers by addr or pubkey with an ABCI query.
-	// If the query return code is OK, add peer.
-	if config.FilterPeers {
-		connFilters = append(
-			connFilters,
-			// ABCI query for address filtering.
-			func(_ p2p.ConnSet, c net.Conn, _ []net.IP) error {
-				res, err := proxyApp.Query().QuerySync(abci.RequestQuery{
-					Path: fmt.Sprintf("/p2p/filter/addr/%s", c.RemoteAddr().String()),
-				})
-				if err != nil {
-					return err
-				}
-				if res.IsErr() {
-					return fmt.Errorf("error querying abci app: %v", res)
-				}
-
-				return nil
-			},
-		)
-
-		peerFilters = append(
-			peerFilters,
-			// ABCI query for ID filtering.
-			func(_ p2p.IPeerSet, p p2p.Peer) error {
-				res, err := proxyApp.Query().QuerySync(abci.RequestQuery{
-					Path: fmt.Sprintf("/p2p/filter/id/%s", p.ID()),
-				})
-				if err != nil {
-					return err
-				}
-				if res.IsErr() {
-					return fmt.Errorf("error querying abci app: %v", res)
-				}
-
-				return nil
-			},
-		)
-	}
-
-	p2p.MultiplexTransportConnFilters(connFilters...)(transport)
-	return transport, peerFilters
-}
-
-func createSwitch(config *cfg.Config,
-	transport *p2p.MultiplexTransport,
-	peerFilters []p2p.PeerFilterFunc,
-	mempoolReactor *mempl.Reactor,
-	bcReactor p2p.Reactor,
-	consensusReactor *cs.ConsensusReactor,
-	nodeInfo p2p.NodeInfo,
-	nodeKey *p2p.NodeKey,
-	p2pLogger *slog.Logger,
-) *p2p.Switch {
-	sw := p2p.NewSwitch(
-		config.P2P,
-		transport,
-		p2p.SwitchPeerFilters(peerFilters...),
-	)
-	sw.SetLogger(p2pLogger)
-	sw.AddReactor("MEMPOOL", mempoolReactor)
-	sw.AddReactor("BLOCKCHAIN", bcReactor)
-	sw.AddReactor("CONSENSUS", consensusReactor)
-
-	sw.SetNodeInfo(nodeInfo)
-	sw.SetNodeKey(nodeKey)
-
-	p2pLogger.Info("P2P Node ID", "ID", nodeKey.ID(), "file", config.NodeKeyFile())
-	return sw
+type nodeReactor struct {
+	name    string
+	reactor p2p.Reactor
 }
 
 // NewNode returns a new, ready to go, Tendermint Node.
 func NewNode(config *cfg.Config,
 	privValidator types.PrivValidator,
-	nodeKey *p2p.NodeKey,
+	nodeKey *p2pTypes.NodeKey,
 	clientCreator appconn.ClientCreator,
 	genesisDocProvider GenesisDocProvider,
 	dbProvider DBProvider,
@@ -463,7 +396,7 @@ func NewNode(config *cfg.Config,
 
 	// Create the handshaker, which calls RequestInfo, sets the AppVersion on the state,
 	// and replays any blocks as necessary to sync tendermint with the app.
-	consensusLogger := logger.With("module", "consensus")
+	consensusLogger := logger.With("module", consensusModuleName)
 	if err := doHandshake(stateDB, state, blockStore, genDoc, evsw, proxyApp, consensusLogger); err != nil {
 		return nil, err
 	}
@@ -473,23 +406,7 @@ func NewNode(config *cfg.Config,
 	// what happened during block replay).
 	state = sm.LoadState(stateDB)
 
-	// If an address is provided, listen on the socket for a connection from an
-	// external signing process.
-	if config.PrivValidatorListenAddr != "" {
-		// FIXME: we should start services inside OnStart
-		privValidator, err = createAndStartPrivValidatorSocketClient(config.PrivValidatorListenAddr, logger)
-		if err != nil {
-			return nil, errors.Wrap(err, "error with private validator socket client")
-		}
-	}
-
-	pubKey := privValidator.GetPubKey()
-	if pubKey == nil {
-		// TODO: GetPubKey should return errors - https://github.com/gnolang/gno/tm2/pkg/bft/issues/3602
-		return nil, errors.New("could not retrieve public key from private validator")
-	}
-
-	logNodeStartupInfo(state, pubKey, logger, consensusLogger)
+	logNodeStartupInfo(state, privValidator.PubKey(), logger, consensusLogger)
 
 	// Decide whether to fast-sync or not
 	// We don't fast-sync when the only validator is us.
@@ -506,37 +423,102 @@ func NewNode(config *cfg.Config,
 		mempool,
 	)
 
-	// Make BlockchainReactor
-	bcReactor, err := createBlockchainReactor(config, state, blockExec, blockStore, fastSync, logger)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create blockchain reactor")
-	}
-
 	// Make ConsensusReactor
 	consensusReactor, consensusState := createConsensusReactor(
 		config, state, blockExec, blockStore, mempool,
 		privValidator, fastSync, evsw, consensusLogger,
 	)
 
+	// Make BlockchainReactor
+	bcReactor, err := createBlockchainReactor(
+		state,
+		blockExec,
+		blockStore,
+		fastSync,
+		consensusReactor.SwitchToConsensus,
+		logger,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create blockchain reactor")
+	}
+
+	reactors := []nodeReactor{
+		{
+			mempoolReactorName, mempoolReactor,
+		},
+		{
+			blockchainReactorName, bcReactor,
+		},
+		{
+			consensusReactorName, consensusReactor,
+		},
+	}
+
 	nodeInfo, err := makeNodeInfo(config, nodeKey, txEventStore, genDoc, state)
 	if err != nil {
 		return nil, errors.Wrap(err, "error making NodeInfo")
 	}
 
-	// Setup Transport.
-	transport, peerFilters := createTransport(config, nodeInfo, nodeKey, proxyApp)
+	p2pLogger := logger.With("module", p2pModuleName)
 
-	// Setup Switch.
-	p2pLogger := logger.With("module", "p2p")
-	sw := createSwitch(
-		config, transport, peerFilters, mempoolReactor, bcReactor,
-		consensusReactor, nodeInfo, nodeKey, p2pLogger,
+	// Setup the multiplex transport, used by the P2P switch
+	transport := p2p.NewMultiplexTransport(
+		nodeInfo,
+		*nodeKey,
+		conn.MConfigFromP2P(config.P2P),
+		p2pLogger.With("transport", "multiplex"),
 	)
 
-	err = sw.AddPersistentPeers(splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "))
-	if err != nil {
-		return nil, errors.Wrap(err, "could not add peers from persistent_peers field")
+	var discoveryReactor *discovery.Reactor
+
+	if config.P2P.PeerExchange {
+		discoveryReactor = discovery.NewReactor()
+
+		discoveryReactor.SetLogger(logger.With("module", discoveryModuleName))
+
+		reactors = append(reactors, nodeReactor{
+			name:    discoveryReactorName,
+			reactor: discoveryReactor,
+		})
 	}
+
+	// Setup MultiplexSwitch.
+	peerAddrs, errs := p2pTypes.NewNetAddressFromStrings(
+		splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "),
+	)
+	for _, err = range errs {
+		p2pLogger.Error("invalid persistent peer address", "err", err)
+	}
+
+	// Parse the private peer IDs
+	privatePeerIDs, errs := p2pTypes.NewIDFromStrings(
+		splitAndTrimEmpty(config.P2P.PrivatePeerIDs, ",", " "),
+	)
+	for _, err = range errs {
+		p2pLogger.Error("invalid private peer ID", "err", err)
+	}
+
+	// Prepare the misc switch options
+	opts := []p2p.SwitchOption{
+		p2p.WithPersistentPeers(peerAddrs),
+		p2p.WithPrivatePeers(privatePeerIDs),
+		p2p.WithMaxInboundPeers(config.P2P.MaxNumInboundPeers),
+		p2p.WithMaxOutboundPeers(config.P2P.MaxNumOutboundPeers),
+	}
+
+	// Prepare the reactor switch options
+	for _, r := range reactors {
+		opts = append(opts, p2p.WithReactor(r.name, r.reactor))
+	}
+
+	sw := p2p.NewMultiplexSwitch(
+		transport,
+		opts...,
+	)
+
+	sw.SetLogger(p2pLogger)
+
+	p2pLogger.Info("P2P Node ID", "ID", nodeKey.ID(), "file", config.NodeKeyFile())
 
 	if config.ProfListenAddress != "" {
 		server := &http.Server{
@@ -554,10 +536,11 @@ func NewNode(config *cfg.Config,
 		genesisDoc:    genDoc,
 		privValidator: privValidator,
 
-		transport: transport,
-		sw:        sw,
-		nodeInfo:  nodeInfo,
-		nodeKey:   nodeKey,
+		transport:        transport,
+		sw:               sw,
+		discoveryReactor: discoveryReactor,
+		nodeInfo:         nodeInfo,
+		nodeKey:          nodeKey,
 
 		evsw:              evsw,
 		stateDB:           stateDB,
@@ -611,10 +594,14 @@ func (n *Node) OnStart() error {
 	}
 
 	// Start the transport.
-	addr, err := p2p.NewNetAddressFromString(p2p.NetAddressString(n.nodeKey.ID(), n.config.P2P.ListenAddress))
+	// The listen address for the transport needs to be an address within reach of the machine NIC
+	listenAddress := p2pTypes.NetAddressString(n.nodeKey.ID(), n.config.P2P.ListenAddress)
+
+	addr, err := p2pTypes.NewNetAddressFromString(listenAddress)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to parse network address, %w", err)
 	}
+
 	if err := n.transport.Listen(*addr); err != nil {
 		return err
 	}
@@ -639,10 +626,13 @@ func (n *Node) OnStart() error {
 	}
 
 	// Always connect to persistent peers
-	err = n.sw.DialPeersAsync(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "))
-	if err != nil {
-		return errors.Wrap(err, "could not dial peers from persistent_peers field")
+	peerAddrs, errs := p2pTypes.NewNetAddressFromStrings(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "))
+	for _, err := range errs {
+		n.Logger.Error("invalid persistent peer address", "err", err)
 	}
+
+	// Dial the persistent peers
+	n.sw.DialPeers(peerAddrs...)
 
 	return nil
 }
@@ -653,12 +643,24 @@ func (n *Node) OnStop() {
 
 	n.Logger.Info("Stopping Node")
 
-	// first stop the non-reactor services
+	// Fist close the private validator
+	if err := n.privValidator.Close(); err != nil {
+		n.Logger.Error("Error closing private validator", "err", err)
+	}
+
+	// Stop the non-reactor services
 	n.evsw.Stop()
 	n.eventStoreService.Stop()
 
+	// Stop the node p2p transport
+	if err := n.transport.Close(); err != nil {
+		n.Logger.Error("unable to gracefully close transport", "err", err)
+	}
+
 	// now stop the reactors
-	n.sw.Stop()
+	if err := n.sw.Stop(); err != nil {
+		n.Logger.Error("unable to gracefully close switch", "err", err)
+	}
 
 	// stop mempool WAL
 	if n.config.Mempool.WalEnabled() {
@@ -673,10 +675,6 @@ func (n *Node) OnStop() {
 		if err := l.Close(); err != nil {
 			n.Logger.Error("Error closing listener", "listener", l, "err", err)
 		}
-	}
-
-	if pvsc, ok := n.privValidator.(service.Service); ok {
-		pvsc.Stop()
 	}
 }
 
@@ -694,8 +692,7 @@ func (n *Node) configureRPC() {
 	rpccore.SetMempool(n.mempool)
 	rpccore.SetP2PPeers(n.sw)
 	rpccore.SetP2PTransport(n)
-	pubKey := n.privValidator.GetPubKey()
-	rpccore.SetPubKey(pubKey)
+	rpccore.SetPubKey(n.privValidator.PubKey())
 	rpccore.SetGenesisDoc(n.genesisDoc)
 	rpccore.SetProxyAppQuery(n.proxyApp.Query())
 	rpccore.SetGetFastSync(n.consensusReactor.FastSync)
@@ -704,7 +701,17 @@ func (n *Node) configureRPC() {
 	rpccore.SetConfig(*n.config.RPC)
 }
 
-func (n *Node) startRPC() ([]net.Listener, error) {
+func (n *Node) startRPC() (listeners []net.Listener, err error) {
+	defer func() {
+		if err != nil {
+			// Close all the created listeners on any error, instead of
+			// leaking them: https://github.com/gnolang/gno/issues/3639
+			for _, ln := range listeners {
+				ln.Close()
+			}
+		}
+	}()
+
 	listenAddrs := splitAndTrimEmpty(n.config.RPC.ListenAddress, ",", " ")
 
 	config := rpcserver.DefaultConfig()
@@ -720,8 +727,8 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 
 	// we may expose the rpc over both a unix and tcp socket
 	var rebuildAddresses bool
-	listeners := make([]net.Listener, len(listenAddrs))
-	for i, listenAddr := range listenAddrs {
+	listeners = make([]net.Listener, 0, len(listenAddrs))
+	for _, listenAddr := range listenAddrs {
 		mux := http.NewServeMux()
 		rpcLogger := n.Logger.With("module", "rpc-server")
 		wmLogger := rpcLogger.With("protocol", "websocket")
@@ -773,7 +780,7 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 			)
 		}
 
-		listeners[i] = listener
+		listeners = append(listeners, listener)
 	}
 	if rebuildAddresses {
 		n.config.RPC.ListenAddress = joinListenerAddresses(listeners)
@@ -791,7 +798,7 @@ func joinListenerAddresses(ll []net.Listener) string {
 }
 
 // Switch returns the Node's Switch.
-func (n *Node) Switch() *p2p.Switch {
+func (n *Node) Switch() *p2p.MultiplexSwitch {
 	return n.sw
 }
 
@@ -859,17 +866,17 @@ func (n *Node) IsListening() bool {
 }
 
 // NodeInfo returns the Node's Info from the Switch.
-func (n *Node) NodeInfo() p2p.NodeInfo {
+func (n *Node) NodeInfo() p2pTypes.NodeInfo {
 	return n.nodeInfo
 }
 
 func makeNodeInfo(
 	config *cfg.Config,
-	nodeKey *p2p.NodeKey,
+	nodeKey *p2pTypes.NodeKey,
 	txEventStore eventstore.TxEventStore,
 	genDoc *types.GenesisDoc,
 	state sm.State,
-) (p2p.NodeInfo, error) {
+) (p2pTypes.NodeInfo, error) {
 	txIndexerStatus := eventstore.StatusOff
 	if txEventStore.GetType() != null.EventStoreType {
 		txIndexerStatus = eventstore.StatusOn
@@ -882,8 +889,9 @@ func makeNodeInfo(
 		Version: state.AppVersion,
 	})
 
-	nodeInfo := p2p.NodeInfo{
+	nodeInfo := p2pTypes.NodeInfo{
 		VersionSet: vset,
+		NetAddress: nil, // The shared address depends on the configuration
 		Network:    genDoc.ChainID,
 		Version:    version.Version,
 		Channels: []byte{
@@ -892,24 +900,54 @@ func makeNodeInfo(
 			mempl.MempoolChannel,
 		},
 		Moniker: config.Moniker,
-		Other: p2p.NodeInfoOther{
+		Other: p2pTypes.NodeInfoOther{
 			TxIndex:    txIndexerStatus,
 			RPCAddress: config.RPC.ListenAddress,
 		},
 	}
 
-	lAddr := config.P2P.ExternalAddress
-	if lAddr == "" {
-		lAddr = config.P2P.ListenAddress
+	// Make sure the discovery channel is shared with peers
+	// in case peer discovery is enabled
+	if config.P2P.PeerExchange {
+		nodeInfo.Channels = append(nodeInfo.Channels, discovery.Channel)
 	}
-	addr, err := p2p.NewNetAddressFromString(p2p.NetAddressString(nodeKey.ID(), lAddr))
+
+	// Grab the supplied listen address.
+	// This address needs to be valid, but it can be unspecified.
+	// If the listen address is unspecified (port / IP unbound),
+	// then this address cannot be used by peers for dialing
+	addr, err := p2pTypes.NewNetAddressFromString(
+		p2pTypes.NetAddressString(nodeKey.ID(), config.P2P.ListenAddress),
+	)
 	if err != nil {
-		return nodeInfo, errors.Wrap(err, "invalid (local) node net address")
+		return p2pTypes.NodeInfo{}, fmt.Errorf("unable to parse network address, %w", err)
 	}
+
+	// Use the transport listen address as the advertised address
 	nodeInfo.NetAddress = addr
 
-	err = nodeInfo.Validate()
-	return nodeInfo, err
+	// Prepare the advertised dial address (if any)
+	// for the node, which other peers can use to dial
+	if config.P2P.ExternalAddress != "" {
+		addr, err = p2pTypes.NewNetAddressFromString(
+			p2pTypes.NetAddressString(
+				nodeKey.ID(),
+				config.P2P.ExternalAddress,
+			),
+		)
+		if err != nil {
+			return p2pTypes.NodeInfo{}, fmt.Errorf("invalid p2p external address: %w", err)
+		}
+
+		nodeInfo.NetAddress = addr
+	}
+
+	// Validate the node info
+	if err := nodeInfo.Validate(); err != nil {
+		return p2pTypes.NodeInfo{}, fmt.Errorf("unable to validate node info, %w", err)
+	}
+
+	return nodeInfo, nil
 }
 
 // ------------------------------------------------------------------------------
@@ -941,12 +979,15 @@ func LoadStateFromDBOrGenesisDocProvider(stateDB dbm.DB, genesisDocProvider Gene
 
 // panics if failed to unmarshal bytes
 func loadGenesisDoc(db dbm.DB) (*types.GenesisDoc, error) {
-	b := db.Get(genesisDocKey)
+	b, err := db.Get(genesisDocKey)
+	if err != nil {
+		return nil, fmt.Errorf("error while getting Genesis doc: %w", err)
+	}
 	if len(b) == 0 {
 		return nil, errors.New("Genesis doc not found")
 	}
 	var genDoc *types.GenesisDoc
-	err := amino.UnmarshalJSON(b, &genDoc)
+	err = amino.UnmarshalJSON(b, &genDoc)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to load genesis doc due to unmarshaling error: %v (bytes: %X)", err, b))
 	}
@@ -962,23 +1003,6 @@ func saveGenesisDoc(db dbm.DB, genDoc *types.GenesisDoc) {
 	db.SetSync(genesisDocKey, b)
 }
 
-func createAndStartPrivValidatorSocketClient(
-	listenAddr string,
-	logger *slog.Logger,
-) (types.PrivValidator, error) {
-	pve, err := privval.NewSignerListener(listenAddr, logger)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to start private validator")
-	}
-
-	pvsc, err := privval.NewSignerClient(pve)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to start private validator")
-	}
-
-	return pvsc, nil
-}
-
 // splitAndTrimEmpty slices s into all subslices separated by sep and returns a
 // slice of the string s with all leading and trailing Unicode code points
 // contained in cutset removed. If sep is empty, SplitAndTrim splits after each
@@ -991,7 +1015,7 @@ func splitAndTrimEmpty(s, sep, cutset string) []string {
 
 	spl := strings.Split(s, sep)
 	nonEmptyStrings := make([]string, 0, len(spl))
-	for i := 0; i < len(spl); i++ {
+	for i := range spl {
 		element := strings.Trim(spl[i], cutset)
 		if element != "" {
 			nonEmptyStrings = append(nonEmptyStrings, element)

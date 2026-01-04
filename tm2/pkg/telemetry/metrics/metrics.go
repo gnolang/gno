@@ -16,48 +16,37 @@ import (
 )
 
 const (
-	broadcastTxTimerKey = "broadcast_tx_hist"
-	buildBlockTimerKey  = "build_block_hist"
+	buildBlockTimerKey = "build_block_hist"
 
-	inboundPeersKey  = "inbound_peers_hist"
-	outboundPeersKey = "outbound_peers_hist"
-	dialingPeersKey  = "dialing_peers_hist"
+	inboundPeersKey  = "inbound_peers_gauge"
+	outboundPeersKey = "outbound_peers_gauge"
 
 	numMempoolTxsKey = "num_mempool_txs_hist"
 	numCachedTxsKey  = "num_cached_txs_hist"
 
-	vmQueryCallsKey  = "vm_query_calls_counter"
-	vmQueryErrorsKey = "vm_query_errors_counter"
-	vmGasUsedKey     = "vm_gas_used_hist"
-	vmCPUCyclesKey   = "vm_cpu_cycles_hist"
-	vmExecMsgKey     = "vm_exec_msg_hist"
+	vmExecMsgKey   = "vm_exec_msg_counter"
+	vmGasUsedKey   = "vm_gas_used_hist"
+	vmCPUCyclesKey = "vm_cpu_cycles_hist"
 
 	validatorCountKey       = "validator_count_hist"
 	validatorVotingPowerKey = "validator_vp_hist"
 	blockIntervalKey        = "block_interval_hist"
 	blockTxsKey             = "block_txs_hist"
 	blockSizeKey            = "block_size_hist"
+	gasPriceKey             = "block_gas_price_hist"
 
 	httpRequestTimeKey = "http_request_time_hist"
 	wsRequestTimeKey   = "ws_request_time_hist"
 )
 
 var (
-	// Misc //
-
-	// BroadcastTxTimer measures the transaction broadcast duration
-	BroadcastTxTimer metric.Int64Histogram
-
 	// Networking //
 
 	// InboundPeers measures the active number of inbound peers
-	InboundPeers metric.Int64Histogram
+	InboundPeers metric.Int64Gauge
 
 	// OutboundPeers measures the active number of outbound peers
-	OutboundPeers metric.Int64Histogram
-
-	// DialingPeers measures the active number of peers in the dialing state
-	DialingPeers metric.Int64Histogram
+	OutboundPeers metric.Int64Gauge
 
 	// Mempool //
 
@@ -69,20 +58,14 @@ var (
 
 	// Runtime //
 
-	// VMQueryCalls measures the frequency of VM query calls
-	VMQueryCalls metric.Int64Counter
-
-	// VMQueryErrors measures the frequency of VM query errors
-	VMQueryErrors metric.Int64Counter
+	// VMExecMsgFrequency measures the frequency of VM operations
+	VMExecMsgFrequency metric.Int64Counter
 
 	// VMGasUsed measures the VM gas usage
 	VMGasUsed metric.Int64Histogram
 
 	// VMCPUCycles measures the VM CPU cycles
 	VMCPUCycles metric.Int64Histogram
-
-	// VMExecMsgFrequency measures the frequency of VM operations
-	VMExecMsgFrequency metric.Int64Counter
 
 	// Consensus //
 
@@ -104,6 +87,9 @@ var (
 	// BlockSizeBytes measures the size of the latest block in bytes
 	BlockSizeBytes metric.Int64Histogram
 
+	// BlockGasPriceAmount measures the block gas price of the last block
+	BlockGasPriceAmount metric.Int64Histogram
+
 	// RPC //
 
 	// HTTPRequestTime measures the HTTP request response time
@@ -111,6 +97,8 @@ var (
 
 	// WSRequestTime measures the WS request response time
 	WSRequestTime metric.Int64Histogram
+
+	provider *sdkMetric.MeterProvider
 )
 
 func Init(config config.Config) error {
@@ -145,7 +133,7 @@ func Init(config config.Config) error {
 		}
 	}
 
-	provider := sdkMetric.NewMeterProvider(
+	provider = sdkMetric.NewMeterProvider(
 		// Default period is 1m
 		sdkMetric.WithReader(sdkMetric.NewPeriodicReader(exp)),
 		sdkMetric.WithResource(
@@ -160,14 +148,6 @@ func Init(config config.Config) error {
 	otel.SetMeterProvider(provider)
 	meter := provider.Meter(config.MeterName)
 
-	if BroadcastTxTimer, err = meter.Int64Histogram(
-		broadcastTxTimerKey,
-		metric.WithDescription("broadcast tx duration"),
-		metric.WithUnit("ms"),
-	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
-	}
-
 	if BuildBlockTimer, err = meter.Int64Histogram(
 		buildBlockTimerKey,
 		metric.WithDescription("block build duration"),
@@ -177,26 +157,24 @@ func Init(config config.Config) error {
 	}
 
 	// Networking //
-	if InboundPeers, err = meter.Int64Histogram(
+	if InboundPeers, err = meter.Int64Gauge(
 		inboundPeersKey,
 		metric.WithDescription("inbound peer count"),
 	); err != nil {
 		return fmt.Errorf("unable to create histogram, %w", err)
 	}
+	// Initialize InboundPeers Gauge
+	InboundPeers.Record(ctx, 0)
 
-	if OutboundPeers, err = meter.Int64Histogram(
+	if OutboundPeers, err = meter.Int64Gauge(
 		outboundPeersKey,
 		metric.WithDescription("outbound peer count"),
 	); err != nil {
 		return fmt.Errorf("unable to create histogram, %w", err)
 	}
 
-	if DialingPeers, err = meter.Int64Histogram(
-		dialingPeersKey,
-		metric.WithDescription("dialing peer count"),
-	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
-	}
+	// Initialize OutboundPeers Gauge
+	OutboundPeers.Record(ctx, 0)
 
 	// Mempool //
 	if NumMempoolTxs, err = meter.Int64Histogram(
@@ -214,16 +192,9 @@ func Init(config config.Config) error {
 	}
 
 	// Runtime //
-	if VMQueryCalls, err = meter.Int64Counter(
-		vmQueryCallsKey,
-		metric.WithDescription("vm query call frequency"),
-	); err != nil {
-		return fmt.Errorf("unable to create counter, %w", err)
-	}
-
-	if VMQueryErrors, err = meter.Int64Counter(
-		vmQueryErrorsKey,
-		metric.WithDescription("vm query errors call frequency"),
+	if VMExecMsgFrequency, err = meter.Int64Counter(
+		vmExecMsgKey,
+		metric.WithDescription("vm msg operation call frequency"),
 	); err != nil {
 		return fmt.Errorf("unable to create counter, %w", err)
 	}
@@ -240,13 +211,6 @@ func Init(config config.Config) error {
 		metric.WithDescription("VM CPU cycles"),
 	); err != nil {
 		return fmt.Errorf("unable to create histogram, %w", err)
-	}
-
-	if VMExecMsgFrequency, err = meter.Int64Counter(
-		vmExecMsgKey,
-		metric.WithDescription("vm msg operation call frequency"),
-	); err != nil {
-		return fmt.Errorf("unable to create counter, %w", err)
 	}
 
 	// Consensus //
@@ -287,6 +251,13 @@ func Init(config config.Config) error {
 		return fmt.Errorf("unable to create histogram, %w", err)
 	}
 
+	if BlockGasPriceAmount, err = meter.Int64Histogram(
+		gasPriceKey,
+		metric.WithDescription("block gas price"),
+		metric.WithUnit("token"),
+	); err != nil {
+		return fmt.Errorf("unable to create histogram, %w", err)
+	}
 	// RPC //
 
 	if HTTPRequestTime, err = meter.Int64Histogram(
@@ -306,4 +277,10 @@ func Init(config config.Config) error {
 	}
 
 	return nil
+}
+
+func Shutdown() {
+	if provider != nil {
+		provider.Shutdown(context.Background())
+	}
 }

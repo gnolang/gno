@@ -194,50 +194,34 @@ func TestConfig_Get_Base(t *testing.T) {
 			true,
 		},
 		{
-			"validator key fetched",
-			"priv_validator_key_file",
+			"validator sign state fetched",
+			"consensus.priv_validator.sign_state",
 			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.PrivValidatorKey, unmarshalJSONCommon[string](t, value))
+				assert.Equal(t, loadedCfg.Consensus.PrivValidator.SignState, unmarshalJSONCommon[string](t, value))
 			},
 			false,
 		},
 		{
-			"validator key fetched, raw",
-			"priv_validator_key_file",
+			"validator sign state fetched, raw",
+			"consensus.priv_validator.sign_state",
 			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.PrivValidatorKey, escapeNewline(value))
+				assert.Equal(t, loadedCfg.Consensus.PrivValidator.SignState, escapeNewline(value))
 			},
 			true,
 		},
 		{
-			"validator state file fetched",
-			"priv_validator_state_file",
+			"validator local signer fetched",
+			"consensus.priv_validator.local_signer",
 			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.PrivValidatorState, unmarshalJSONCommon[string](t, value))
+				assert.Equal(t, loadedCfg.Consensus.PrivValidator.LocalSigner, unmarshalJSONCommon[string](t, value))
 			},
 			false,
 		},
 		{
-			"validator state file fetched, raw",
-			"priv_validator_state_file",
+			"validator local_signer fetched, raw",
+			"consensus.priv_validator.local_signer",
 			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.PrivValidatorState, escapeNewline(value))
-			},
-			true,
-		},
-		{
-			"validator listen addr fetched",
-			"priv_validator_laddr",
-			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.PrivValidatorListenAddr, unmarshalJSONCommon[string](t, value))
-			},
-			false,
-		},
-		{
-			"validator listen addr fetched, raw",
-			"priv_validator_laddr",
-			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.PrivValidatorListenAddr, escapeNewline(value))
+				assert.Equal(t, loadedCfg.Consensus.PrivValidator.LocalSigner, escapeNewline(value))
 			},
 			true,
 		},
@@ -288,14 +272,6 @@ func TestConfig_Get_Base(t *testing.T) {
 				assert.Equal(t, loadedCfg.ProfListenAddress, escapeNewline(value))
 			},
 			true,
-		},
-		{
-			"filter peers flag fetched",
-			"filter_peers",
-			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.FilterPeers, unmarshalJSONCommon[bool](t, value))
-			},
-			false,
 		},
 	}
 
@@ -617,18 +593,10 @@ func TestConfig_Get_P2P(t *testing.T) {
 			true,
 		},
 		{
-			"upnp toggle",
-			"p2p.upnp",
-			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.P2P.UPNP, unmarshalJSONCommon[bool](t, value))
-			},
-			false,
-		},
-		{
 			"max inbound peers",
 			"p2p.max_num_inbound_peers",
 			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.P2P.MaxNumInboundPeers, unmarshalJSONCommon[int](t, value))
+				assert.Equal(t, loadedCfg.P2P.MaxNumInboundPeers, unmarshalJSONCommon[uint64](t, value))
 			},
 			false,
 		},
@@ -636,7 +604,7 @@ func TestConfig_Get_P2P(t *testing.T) {
 			"max outbound peers",
 			"p2p.max_num_outbound_peers",
 			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.P2P.MaxNumOutboundPeers, unmarshalJSONCommon[int](t, value))
+				assert.Equal(t, loadedCfg.P2P.MaxNumOutboundPeers, unmarshalJSONCommon[uint64](t, value))
 			},
 			false,
 		},
@@ -676,15 +644,7 @@ func TestConfig_Get_P2P(t *testing.T) {
 			"pex reactor toggle",
 			"p2p.pex",
 			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.P2P.PexReactor, unmarshalJSONCommon[bool](t, value))
-			},
-			false,
-		},
-		{
-			"seed mode",
-			"p2p.seed_mode",
-			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.P2P.SeedMode, unmarshalJSONCommon[bool](t, value))
+				assert.Equal(t, loadedCfg.P2P.PeerExchange, unmarshalJSONCommon[bool](t, value))
 			},
 			false,
 		},
@@ -703,30 +663,6 @@ func TestConfig_Get_P2P(t *testing.T) {
 				assert.Equal(t, loadedCfg.P2P.PrivatePeerIDs, escapeNewline(value))
 			},
 			true,
-		},
-		{
-			"allow duplicate IP",
-			"p2p.allow_duplicate_ip",
-			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.P2P.AllowDuplicateIP, unmarshalJSONCommon[bool](t, value))
-			},
-			false,
-		},
-		{
-			"handshake timeout",
-			"p2p.handshake_timeout",
-			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.P2P.HandshakeTimeout, unmarshalJSONCommon[time.Duration](t, value))
-			},
-			false,
-		},
-		{
-			"dial timeout",
-			"p2p.dial_timeout",
-			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.P2P.DialTimeout, unmarshalJSONCommon[time.Duration](t, value))
-			},
-			false,
 		},
 	}
 

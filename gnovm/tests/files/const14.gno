@@ -1,13 +1,13 @@
 package main
 
-import "compress/flate"
+import "math"
 
-func f1(i int) { println("i:", i) }
+func f1(i float64) { println("i:", i) }
 
 func main() {
-	i := flate.BestSpeed
+	i := math.Pi
 	f1(i)
 }
 
 // Output:
-// i: 1
+// i: 3.141592653589793

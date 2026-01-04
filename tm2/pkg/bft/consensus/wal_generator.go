@@ -77,7 +77,7 @@ func (w *heightStopWAL) Write(m walm.WALMessage) error {
 	}
 
 	w.logger.Debug("WAL Write Message", "msg", m)
-	err := w.enc.Write(walm.TimedWALMessage{fixedTime, m})
+	err := w.enc.Write(walm.TimedWALMessage{Time: fixedTime, Msg: m})
 	if err != nil {
 		panic(fmt.Sprintf("failed to encode the msg %v", m))
 	}

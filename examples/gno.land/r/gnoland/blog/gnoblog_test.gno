@@ -1,21 +1,21 @@
 package gnoblog
 
 import (
-	"std"
 	"strings"
 	"testing"
 )
 
-func TestPackage(t *testing.T) {
-	std.TestSetOrigCaller(std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"))
+func TestPackage(cur realm, t *testing.T) {
+	clearState(t)
 
-	author := std.GetOrigCaller()
+	testing.SetOriginCaller(adminAddr)
+	testing.SetRealm(testing.NewUserRealm(adminAddr))
 
 	// by default, no posts.
 	{
 		got := Render("")
 		expected := `
-# Gnoland's Blog
+# Gno.land's blog
 
 No posts.
 `
@@ -24,22 +24,24 @@ No posts.
 
 	// create two posts, list post.
 	{
-		ModAddPost("slug1", "title1", "body1", "2022-05-20T13:17:22Z", "moul", "tag1,tag2")
-		ModAddPost("slug2", "title2", "body2", "2022-05-20T13:17:23Z", "moul", "tag1,tag3")
+		ModAddPost(cross, "slug1", "title1", "body1", "2022-05-20T13:17:22Z", "moul", "tag1,tag2")
+		ModAddPost(cross, "slug2", "title2", "body2", "2022-05-20T13:17:23Z", "moul", "tag1,tag3")
 		got := Render("")
 		expected := `
-	# Gnoland's Blog
+			# Gno.land's blog
 
-<div class='columns-3'><div>
-
+<gno-columns>
 ### [title2](/r/gnoland/blog:p/slug2)
- 20 May 2022
-</div><div>
+20 May 2022
+
+|||
 
 ### [title1](/r/gnoland/blog:p/slug1)
- 20 May 2022
-</div></div>
-	`
+20 May 2022
+
+|||
+</gno-columns>
+`
 		assertMDEquals(t, got, expected)
 	}
 
@@ -47,7 +49,7 @@ No posts.
 	{
 		got := Render("p/slug2")
 		expected := `
-<main class='gno-tmpl-page'>
+	<main class='gno-tmpl-page'>
 
 # title2
 
@@ -59,44 +61,42 @@ Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
 
 Written by moul on 20 May 2022
 
-Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
+Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to Gno.land's blog
 
 ---
 <details><summary>Comment section</summary>
 
 </details>
 </main>
-
-	`
+	
+		`
 		assertMDEquals(t, got, expected)
 	}
 
 	// list by tags.
 	{
 		got := Render("t/invalid")
-		expected := "# [Gnoland's Blog](/r/gnoland/blog:) / t / invalid\n\nNo posts."
+		expected := "# [Gno.land's blog](/r/gnoland/blog:) / t / invalid\n\nNo posts."
 		assertMDEquals(t, got, expected)
 
 		got = Render("t/tag2")
 		expected = `
-# [Gnoland's Blog](/r/gnoland/blog:) / t / tag2
+# [Gno.land's blog](/r/gnoland/blog:) / t / tag2
 
-<div>
 
 ### [title1](/r/gnoland/blog:p/slug1)
- 20 May 2022
-</div>
-	`
+20 May 2022
+		`
 		assertMDEquals(t, got, expected)
 	}
 
 	// add comments.
 	{
-		AddComment("slug1", "comment1")
-		AddComment("slug2", "comment2")
-		AddComment("slug1", "comment3")
-		AddComment("slug2", "comment4")
-		AddComment("slug1", "comment5")
+		AddComment(cross, "slug1", "comment1")
+		AddComment(cross, "slug2", "comment2")
+		AddComment(cross, "slug1", "comment3")
+		AddComment(cross, "slug2", "comment4")
+		AddComment(cross, "slug1", "comment5")
 		got := Render("p/slug2")
 		expected := `<main class='gno-tmpl-page'>
 
@@ -110,26 +110,27 @@ Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
 
 Written by moul on 20 May 2022
 
-Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
+Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to Gno.land's blog
 
 ---
 <details><summary>Comment section</summary>
 
 <h5>comment4
 
-</h5><h6>by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
 <h5>comment2
 
-</h5><h6>by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
 </details>
 </main>
-	`
+
+		`
 		assertMDEquals(t, got, expected)
 	}
 
@@ -138,7 +139,7 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 		oldTitle := "title2"
 		oldDate := "2022-05-20T13:17:23Z"
 
-		ModEditPost("slug2", oldTitle, "body2++", oldDate, "manfred", "tag1,tag4")
+		ModEditPost(cur, "slug2", oldTitle, "body2++", oldDate, "manfred", "tag1,tag4")
 		got := Render("p/slug2")
 		expected := `<main class='gno-tmpl-page'>
 
@@ -152,26 +153,27 @@ Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag4](/r/gnoland/blog:t/tag4)
 
 Written by manfred on 20 May 2022
 
-Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
+Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to Gno.land's blog
 
 ---
 <details><summary>Comment section</summary>
 
 <h5>comment4
 
-</h5><h6>by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
 <h5>comment2
 
-</h5><h6>by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
 </details>
 </main>
-	`
+
+		`
 		assertMDEquals(t, got, expected)
 
 		home := Render("")
@@ -182,11 +184,11 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 		// Edits work everything except title, slug, and publicationDate
 		// Edits to the above will cause duplication on the blog home page
 	}
-
+	//
 	{ // Test remove functionality
 		title := "example title"
 		slug := "testSlug1"
-		ModAddPost(slug, title, "body1", "2022-05-25T13:17:22Z", "moul", "tag1,tag2")
+		ModAddPost(cross, slug, title, "body1", "2022-05-25T13:17:22Z", "moul", "tag1,tag2")
 
 		got := Render("")
 
@@ -200,7 +202,7 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 			t.Errorf("post not rendered properly")
 		}
 
-		ModRemovePost(slug)
+		ModRemovePost(cur, slug)
 		got = Render("")
 
 		if strings.Contains(got, title) {
@@ -211,10 +213,10 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 
 		assertMDEquals(t, postRender, "404")
 	}
-
-	// TODO: pagination.
-	// TODO: ?format=...
-
+	//
+	//	// TODO: pagination.
+	//	// TODO: ?format=...
+	//
 	// all 404s
 	{
 		notFoundPaths := []string{

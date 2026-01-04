@@ -1,0 +1,25 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  e2e-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Run E2E tests
+      run: |
+        cd misc/e2e
+        docker compose version
+        docker compose build
+        docker compose up --abort-on-container-exit --exit-code-from gnokey-test

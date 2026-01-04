@@ -1,13 +1,12 @@
 package consensus
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
@@ -18,26 +17,38 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bitarray"
 	"github.com/gnolang/gno/tm2/pkg/crypto/tmhash"
 	"github.com/gnolang/gno/tm2/pkg/events"
+	p2pTesting "github.com/gnolang/gno/tm2/pkg/internal/p2p"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
-	"github.com/gnolang/gno/tm2/pkg/p2p/mock"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
+	"github.com/stretchr/testify/assert"
 )
 
 // ----------------------------------------------
 // in-process testnets
 
-func startConsensusNet(css []*ConsensusState, n int) ([]*ConsensusReactor, []<-chan events.Event, []events.EventSwitch, []*p2p.Switch) {
+func startConsensusNet(
+	t *testing.T,
+	css []*ConsensusState,
+	n int,
+) ([]*ConsensusReactor, []<-chan events.Event, []events.EventSwitch, []*p2p.MultiplexSwitch) {
+	t.Helper()
+
 	reactors := make([]*ConsensusReactor, n)
 	blocksSubs := make([]<-chan events.Event, 0)
 	eventSwitches := make([]events.EventSwitch, n)
-	p2pSwitches := ([]*p2p.Switch)(nil)
-	for i := 0; i < n; i++ {
+	p2pSwitches := ([]*p2p.MultiplexSwitch)(nil)
+	options := make(map[int][]p2p.SwitchOption)
+	for i := range n {
 		/*logger, err := tmflags.ParseLogLevel("consensus:info,*:error", logger, "info")
 		if err != nil {	t.Fatal(err)}*/
 		reactors[i] = NewConsensusReactor(css[i], true) // so we dont start the consensus states
 		reactors[i].SetLogger(css[i].Logger)
+
+		options[i] = []p2p.SwitchOption{
+			p2p.WithReactor("CONSENSUS", reactors[i]),
+		}
 
 		// evsw is already started with the cs
 		eventSwitches[i] = css[i].evsw
@@ -51,28 +62,43 @@ func startConsensusNet(css []*ConsensusState, n int) ([]*ConsensusReactor, []<-c
 		}
 	}
 	// make connected switches and start all reactors
-	p2pSwitches = p2p.MakeConnectedSwitches(config.P2P, n, func(i int, s *p2p.Switch) *p2p.Switch {
-		s.AddReactor("CONSENSUS", reactors[i])
-		s.SetLogger(reactors[i].conS.Logger.With("module", "p2p"))
-		return s
-	}, p2p.Connect2Switches)
+	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFn()
+
+	testingCfg := p2pTesting.TestingConfig{
+		P2PCfg:        config.P2P,
+		Count:         n,
+		SwitchOptions: options,
+		Channels: []byte{
+			StateChannel,
+			DataChannel,
+			VoteChannel,
+			VoteSetBitsChannel,
+		},
+	}
+
+	p2pSwitches, _ = p2pTesting.MakeConnectedPeers(t, ctx, testingCfg)
 
 	// now that everyone is connected,  start the state machines
 	// If we started the state machines before everyone was connected,
 	// we'd block when the cs fires NewBlockEvent and the peers are trying to start their reactors
 	// TODO: is this still true with new pubsub?
-	for i := 0; i < n; i++ {
+	for i := range n {
 		s := reactors[i].conS.GetState()
 		reactors[i].SwitchToConsensus(s, 0)
 	}
 	return reactors, blocksSubs, eventSwitches, p2pSwitches
 }
 
-func stopConsensusNet(logger *slog.Logger, reactors []*ConsensusReactor, eventSwitches []events.EventSwitch, p2pSwitches []*p2p.Switch) {
+func stopConsensusNet(
+	logger *slog.Logger,
+	reactors []*ConsensusReactor,
+	eventSwitches []events.EventSwitch,
+	p2pSwitches []*p2p.MultiplexSwitch,
+) {
 	logger.Info("stopConsensusNet", "n", len(reactors))
-	for i, r := range reactors {
+	for i := range reactors {
 		logger.Info("stopConsensusNet: Stopping ConsensusReactor", "i", i)
-		r.Switch.Stop()
 	}
 	for i, b := range eventSwitches {
 		logger.Info("stopConsensusNet: Stopping evsw", "i", i)
@@ -92,7 +118,7 @@ func TestReactorBasic(t *testing.T) {
 	N := 4
 	css, cleanup := randConsensusNet(N, "consensus_reactor_test", newMockTickerFunc(true), newCounter)
 	defer cleanup()
-	reactors, blocksSubs, eventSwitches, p2pSwitches := startConsensusNet(css, N)
+	reactors, blocksSubs, eventSwitches, p2pSwitches := startConsensusNet(t, css, N)
 	defer stopConsensusNet(log.NewTestingLogger(t), reactors, eventSwitches, p2pSwitches)
 	// wait till everyone makes the first new block
 	timeoutWaitGroup(t, N, func(j int) {
@@ -112,7 +138,7 @@ func TestReactorCreatesBlockWhenEmptyBlocksFalse(t *testing.T) {
 			c.Consensus.CreateEmptyBlocks = false
 		})
 	defer cleanup()
-	reactors, blocksSubs, eventSwitches, p2pSwitches := startConsensusNet(css, N)
+	reactors, blocksSubs, eventSwitches, p2pSwitches := startConsensusNet(t, css, N)
 	defer stopConsensusNet(log.NewTestingLogger(t), reactors, eventSwitches, p2pSwitches)
 
 	// send a tx
@@ -132,12 +158,12 @@ func TestReactorReceiveDoesNotPanicIfAddPeerHasntBeenCalledYet(t *testing.T) {
 	N := 1
 	css, cleanup := randConsensusNet(N, "consensus_reactor_test", newMockTickerFunc(true), newCounter)
 	defer cleanup()
-	reactors, _, eventSwitches, p2pSwitches := startConsensusNet(css, N)
+	reactors, _, eventSwitches, p2pSwitches := startConsensusNet(t, css, N)
 	defer stopConsensusNet(log.NewTestingLogger(t), reactors, eventSwitches, p2pSwitches)
 
 	var (
 		reactor = reactors[0]
-		peer    = mock.NewPeer(nil)
+		peer    = p2pTesting.NewPeer(t)
 		msg     = amino.MustMarshalAny(&HasVoteMessage{Height: 1, Round: 1, Index: 1, Type: types.PrevoteType})
 	)
 
@@ -156,12 +182,12 @@ func TestReactorReceivePanicsIfInitPeerHasntBeenCalledYet(t *testing.T) {
 	N := 1
 	css, cleanup := randConsensusNet(N, "consensus_reactor_test", newMockTickerFunc(true), newCounter)
 	defer cleanup()
-	reactors, _, eventSwitches, p2pSwitches := startConsensusNet(css, N)
+	reactors, _, eventSwitches, p2pSwitches := startConsensusNet(t, css, N)
 	defer stopConsensusNet(log.NewTestingLogger(t), reactors, eventSwitches, p2pSwitches)
 
 	var (
 		reactor = reactors[0]
-		peer    = mock.NewPeer(nil)
+		peer    = p2pTesting.NewPeer(t)
 		msg     = amino.MustMarshalAny(&HasVoteMessage{Height: 1, Round: 1, Index: 1, Type: types.PrevoteType})
 	)
 
@@ -182,7 +208,7 @@ func TestFlappyReactorRecordsVotesAndBlockParts(t *testing.T) {
 	N := 4
 	css, cleanup := randConsensusNet(N, "consensus_reactor_test", newMockTickerFunc(true), newCounter)
 	defer cleanup()
-	reactors, blocksSubs, eventSwitches, p2pSwitches := startConsensusNet(css, N)
+	reactors, blocksSubs, eventSwitches, p2pSwitches := startConsensusNet(t, css, N)
 	defer stopConsensusNet(log.NewTestingLogger(t), reactors, eventSwitches, p2pSwitches)
 
 	// wait till everyone makes the first new block
@@ -210,13 +236,13 @@ func TestReactorVotingPowerChange(t *testing.T) {
 	css, cleanup := randConsensusNet(nVals, "consensus_voting_power_changes_test", newMockTickerFunc(true), newPersistentKVStore)
 	defer cleanup()
 
-	reactors, blocksSubs, eventSwitches, p2pSwitches := startConsensusNet(css, nVals)
+	reactors, blocksSubs, eventSwitches, p2pSwitches := startConsensusNet(t, css, nVals)
 	defer stopConsensusNet(logger, reactors, eventSwitches, p2pSwitches)
 
 	// map of active validators
 	activeVals := make(map[string]struct{})
-	for i := 0; i < nVals; i++ {
-		addr := css[i].privValidator.GetPubKey().Address()
+	for i := range nVals {
+		addr := css[i].privValidator.PubKey().Address()
 		activeVals[addr.String()] = struct{}{}
 	}
 
@@ -228,7 +254,7 @@ func TestReactorVotingPowerChange(t *testing.T) {
 	// ---------------------------------------------------------------------------
 	logger.Debug("---------------------------- Testing changing the voting power of one validator a few times")
 
-	val1PubKey := css[0].privValidator.GetPubKey()
+	val1PubKey := css[0].privValidator.PubKey()
 	updateValTx := kvstore.MakeValSetChangeTx(val1PubKey, 25)
 	previousTotalVotingPower := css[0].GetRoundState().LastValidators.TotalVotingPower()
 
@@ -276,13 +302,13 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 
 	logger := log.NewTestingLogger(t)
 
-	reactors, blocksSubs, eventSwitches, p2pSwitches := startConsensusNet(css, nPeers)
+	reactors, blocksSubs, eventSwitches, p2pSwitches := startConsensusNet(t, css, nPeers)
 	defer stopConsensusNet(logger, reactors, eventSwitches, p2pSwitches)
 
 	// map of active validators
 	activeVals := make(map[string]struct{})
-	for i := 0; i < nVals; i++ {
-		addr := css[i].privValidator.GetPubKey().Address()
+	for i := range nVals {
+		addr := css[i].privValidator.PubKey().Address()
 		activeVals[addr.String()] = struct{}{}
 	}
 
@@ -294,7 +320,7 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 	// ---------------------------------------------------------------------------
 	logger.Info("---------------------------- Testing adding one validator")
 
-	newValPubKey1 := css[nVals].privValidator.GetPubKey()
+	newValPubKey1 := css[nVals].privValidator.PubKey()
 	newValTx1 := kvstore.MakeValSetChangeTx(newValPubKey1, testMinPower)
 
 	// wait till everyone makes block 2
@@ -320,7 +346,7 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 	// ---------------------------------------------------------------------------
 	logger.Info("---------------------------- Testing changing the voting power of one validator")
 
-	updateValPubKey1 := css[nVals].privValidator.GetPubKey()
+	updateValPubKey1 := css[nVals].privValidator.PubKey()
 	updateValTx1 := kvstore.MakeValSetChangeTx(updateValPubKey1, 25)
 	previousTotalVotingPower := css[nVals].GetRoundState().LastValidators.TotalVotingPower()
 
@@ -336,10 +362,10 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 	// ---------------------------------------------------------------------------
 	logger.Info("---------------------------- Testing adding two validators at once")
 
-	newValPubKey2 := css[nVals+1].privValidator.GetPubKey()
+	newValPubKey2 := css[nVals+1].privValidator.PubKey()
 	newValTx2 := kvstore.MakeValSetChangeTx(newValPubKey2, testMinPower)
 
-	newValPubKey3 := css[nVals+2].privValidator.GetPubKey()
+	newValPubKey3 := css[nVals+2].privValidator.PubKey()
 	newValTx3 := kvstore.MakeValSetChangeTx(newValPubKey3, testMinPower)
 
 	waitForAndValidateBlock(t, nPeers, activeVals, blocksSubs, css, newValTx2, newValTx3)
@@ -371,11 +397,11 @@ func TestReactorWithTimeoutCommit(t *testing.T) {
 	css, cleanup := randConsensusNet(N, "consensus_reactor_with_timeout_commit_test", newMockTickerFunc(false), newCounter)
 	defer cleanup()
 	// override default SkipTimeoutCommit == true for tests
-	for i := 0; i < N; i++ {
+	for i := range N {
 		css[i].config.SkipTimeoutCommit = false
 	}
 
-	reactors, blocksSubs, eventSwitches, p2pSwitches := startConsensusNet(css, N-1)
+	reactors, blocksSubs, eventSwitches, p2pSwitches := startConsensusNet(t, css, N-1)
 	defer stopConsensusNet(log.NewTestingLogger(t), reactors, eventSwitches, p2pSwitches)
 
 	// wait till everyone makes the first new block
@@ -492,7 +518,7 @@ func timeoutWaitGroup(t *testing.T, n int, f func(int), css []*ConsensusState) {
 
 	wg := new(sync.WaitGroup)
 	wg.Add(n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		go func(j int) {
 			f(j)
 			wg.Done()

@@ -31,7 +31,7 @@ func main() {
 
 	fmt.Printf("%x", ha)
 	fmt.Printf("%x", hb)
-	fmt.Printf("%x", ho)
+	fmt.Printf("%x\n", ho)
 }
 
 // Output:

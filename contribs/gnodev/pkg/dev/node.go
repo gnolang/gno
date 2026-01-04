@@ -4,17 +4,24 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -24,25 +31,58 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	// backup "github.com/gnolang/tx-archive/backup/client"
-	// restore "github.com/gnolang/tx-archive/restore/client"
 )
 
 type NodeConfig struct {
-	Logger                *slog.Logger
-	DefaultDeployer       crypto.Address
-	BalancesList          []gnoland.Balance
-	PackagesPathList      []PackagePath
-	Emitter               emitter.Emitter
-	InitialTxs            []std.Tx
-	TMConfig              *tmcfg.Config
+	// Logger is used for logging node activities. It can be set to a custom logger or a noop logger for
+	// silent operation.
+	Logger *slog.Logger
+
+	// Loader is responsible for loading packages. It abstracts the mechanism for retrieving and managing
+	// package data.
+	Loader packages.Loader
+
+	// DefaultCreator specifies the default address used for creating packages and transactions.
+	DefaultCreator crypto.Address
+
+	// DefaultDeposit is the default amount of coins deposited when creating a package.
+	DefaultDeposit std.Coins
+
+	// BalancesList defines the initial balance of accounts in the genesis state.
+	BalancesList []gnoland.Balance
+
+	// PackagesModifier allows modifications to be applied to packages during initialization.
+	PackagesModifier []QueryPath
+
+	// Emitter is used to emit events for various node operations. It can be set to a noop emitter if no
+	// event emission is required.
+	Emitter emitter.Emitter
+
+	// InitialTxs contains the transactions that are included in the genesis state.
+	InitialTxs []gnoland.TxWithMetadata
+
+	// TMConfig holds the Tendermint configuration settings.
+	TMConfig *tmcfg.Config
+
+	// SkipFailingGenesisTxs indicates whether to skip failing transactions during the genesis
+	// initialization.
 	SkipFailingGenesisTxs bool
-	NoReplay              bool
-	MaxGasPerBlock        int64
-	ChainID               string
+
+	// NoReplay, if set to true, prevents replaying of transactions from the block store during node
+	// initialization.
+	NoReplay bool
+
+	// MaxGasPerBlock sets the maximum amount of gas that can be used in a single block.
+	MaxGasPerBlock int64
+
+	// ChainID is the unique identifier for the blockchain.
+	ChainID string
+
+	// ChainDomain specifies the domain name associated with the blockchain network.
+	ChainDomain string
 }
 
-func DefaultNodeConfig(rootdir string) *NodeConfig {
+func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
 	tmc := gnoland.NewDefaultTMConfig(rootdir)
 	tmc.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
 	tmc.Consensus.WALDisabled = true
@@ -52,16 +92,22 @@ func DefaultNodeConfig(rootdir string) *NodeConfig {
 	balances := []gnoland.Balance{
 		{
 			Address: defaultDeployer,
-			Amount:  std.Coins{std.NewCoin("ugnot", 10e12)},
+			Amount:  std.Coins{std.NewCoin(ugnot.Denom, 10e12)},
 		},
 	}
+
+	exampleFolder := filepath.Join(gnoenv.RootDir(), "example") // XXX: we should avoid having to hardcoding this here
+	defaultLoader := packages.NewLoader(packages.NewRootResolver(exampleFolder))
 
 	return &NodeConfig{
 		Logger:                log.NewNoopLogger(),
 		Emitter:               &emitter.NoopServer{},
-		DefaultDeployer:       defaultDeployer,
+		Loader:                defaultLoader,
+		DefaultCreator:        defaultDeployer,
+		DefaultDeposit:        nil,
 		BalancesList:          balances,
 		ChainID:               tmc.ChainID(),
+		ChainDomain:           domain,
 		TMConfig:              tmc,
 		SkipFailingGenesisTxs: true,
 		MaxGasPerBlock:        10_000_000_000,
@@ -73,57 +119,63 @@ type Node struct {
 	*node.Node
 	muNode sync.RWMutex
 
-	config  *NodeConfig
-	emitter emitter.Emitter
-	client  client.Client
-	logger  *slog.Logger
-	pkgs    PackagesMap // path -> pkg
+	config       *NodeConfig
+	emitter      emitter.Emitter
+	client       client.Client
+	logger       *slog.Logger
+	loader       packages.Loader
+	pkgs         []packages.Package
+	pkgsModifier map[string]QueryPath // path -> QueryPath
+	paths        []string
 
 	// keep track of number of loaded package to be able to skip them on restore
 	loadedPackages int
 
+	// track starting time for genesis
+	startTime time.Time
+
 	// state
-	initialState, state []std.Tx
+	initialState, state []gnoland.TxWithMetadata
 	currentStateIndex   int
 }
 
-var DefaultFee = std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
+var DefaultFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
-func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
-	mpkgs, err := NewPackagesMap(cfg.PackagesPathList)
-	if err != nil {
-		return nil, fmt.Errorf("unable map pkgs list: %w", err)
-	}
+func NewDevNode(ctx context.Context, cfg *NodeConfig, pkgpaths ...string) (*Node, error) {
+	startTime := time.Now()
 
-	pkgsTxs, err := mpkgs.Load(DefaultFee)
-	if err != nil {
-		return nil, fmt.Errorf("unable to load genesis packages: %w", err)
+	pkgsModifier := make(map[string]QueryPath, len(cfg.PackagesModifier))
+	for _, qpath := range cfg.PackagesModifier {
+		pkgsModifier[qpath.Path] = qpath
 	}
-	cfg.Logger.Info("pkgs loaded", "path", cfg.PackagesPathList)
 
 	devnode := &Node{
+		loader:            cfg.Loader,
 		config:            cfg,
 		client:            client.NewLocal(),
 		emitter:           cfg.Emitter,
-		pkgs:              mpkgs,
 		logger:            cfg.Logger,
-		loadedPackages:    len(pkgsTxs),
+		startTime:         startTime,
 		state:             cfg.InitialTxs,
 		initialState:      cfg.InitialTxs,
 		currentStateIndex: len(cfg.InitialTxs),
+		paths:             pkgpaths,
+		pkgsModifier:      pkgsModifier,
 	}
 
-	// generate genesis state
-	genesis := gnoland.GnoGenesisState{
-		Balances: cfg.BalancesList,
-		Txs:      append(pkgsTxs, cfg.InitialTxs...),
-	}
-
-	if err := devnode.rebuildNode(ctx, genesis); err != nil {
+	// XXX: MOVE THIS, passing context here can be confusing
+	if err := devnode.Reset(ctx); err != nil {
 		return nil, fmt.Errorf("unable to initialize the node: %w", err)
 	}
 
 	return devnode, nil
+}
+
+func (n *Node) Paths() []string {
+	n.muNode.RLock()
+	defer n.muNode.RUnlock()
+
+	return n.paths
 }
 
 func (n *Node) Close() error {
@@ -133,11 +185,11 @@ func (n *Node) Close() error {
 	return n.Node.Stop()
 }
 
-func (n *Node) ListPkgs() []gnomod.Pkg {
+func (n *Node) ListPkgs() []packages.Package {
 	n.muNode.RLock()
 	defer n.muNode.RUnlock()
 
-	return n.pkgs.toList()
+	return n.pkgs
 }
 
 func (n *Node) Client() client.Client {
@@ -151,40 +203,103 @@ func (n *Node) GetRemoteAddress() string {
 	return n.Node.Config().RPC.ListenAddress
 }
 
-// GetBlockTransactions returns the transactions contained
-// within the specified block, if any
-func (n *Node) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
+// AddPackagePaths to load
+func (n *Node) AddPackagePaths(paths ...string) {
+	n.muNode.Lock()
+	defer n.muNode.Unlock()
+
+	n.paths = append(n.paths, paths...)
+}
+
+func (n *Node) SetPackagePaths(paths ...string) {
+	n.muNode.Lock()
+	defer n.muNode.Unlock()
+
+	n.paths = paths
+}
+
+// HasPackageLoaded returns true if the specified package has already been loaded.
+// NOTE: This only checks if the package was loaded at the genesis level.
+func (n *Node) HasPackageLoaded(path string) bool {
 	n.muNode.RLock()
 	defer n.muNode.RUnlock()
 
-	return n.getBlockTransactions(blockNum)
+	for _, pkg := range n.pkgs {
+		if pkg.MemPackage.Path == path {
+			return true
+		}
+	}
+
+	return false
 }
 
 // GetBlockTransactions returns the transactions contained
-// within the specified block, if any
-func (n *Node) getBlockTransactions(blockNum uint64) ([]std.Tx, error) {
+// within the specified block, if any.
+func (n *Node) GetBlockTransactions(ctx context.Context, blockNum uint64) ([]gnoland.TxWithMetadata, error) {
+	n.muNode.RLock()
+	defer n.muNode.RUnlock()
+
+	return n.getBlockTransactions(ctx, blockNum)
+}
+
+// GetBlockTransactions returns the transactions contained
+// within the specified block, if any.
+func (n *Node) getBlockTransactions(ctx context.Context, blockNum uint64) ([]gnoland.TxWithMetadata, error) {
 	int64BlockNum := int64(blockNum)
-	b, err := n.client.Block(&int64BlockNum)
+	b, err := n.client.Block(ctx, &int64BlockNum)
 	if err != nil {
-		return []std.Tx{}, fmt.Errorf("unable to load block at height %d: %w", blockNum, err) // nothing to see here
+		return nil, fmt.Errorf("unable to load block at height %d: %w", blockNum, err)
+	}
+	txs := b.Block.Data.Txs
+
+	bres, err := n.client.BlockResults(ctx, &int64BlockNum)
+	if err != nil {
+		return nil, fmt.Errorf("unable to load block at height %d: %w", blockNum, err)
+	}
+	deliverTxs := bres.Results.DeliverTxs
+
+	// Sanity check
+	if len(txs) != len(deliverTxs) {
+		panic(fmt.Errorf("invalid block txs len (%d) vs block result txs len (%d)",
+			len(txs), len(deliverTxs),
+		))
 	}
 
-	txs := make([]std.Tx, len(b.Block.Data.Txs))
-	for i, encodedTx := range b.Block.Data.Txs {
-		var tx std.Tx
-		if unmarshalErr := amino.Unmarshal(encodedTx, &tx); unmarshalErr != nil {
-			return nil, fmt.Errorf("unable to unmarshal amino tx, %w", unmarshalErr)
+	txResults := make([]*abci.ResponseDeliverTx, len(deliverTxs))
+	for i, tx := range deliverTxs {
+		txResults[i] = &tx
+	}
+
+	// XXX: Consider replacing a failed transaction with an empty transaction
+	// to preserve the transaction height ?
+	// Note that this would also require committing instead of using the
+	// genesis block.
+
+	metaTxs := make([]gnoland.TxWithMetadata, 0, len(txs))
+	for i, encodedTx := range txs {
+		if deliverTx := deliverTxs[i]; !deliverTx.IsOK() {
+			continue // skip failed tx
 		}
 
-		txs[i] = tx
+		var tx std.Tx
+		if unmarshalErr := amino.Unmarshal(encodedTx, &tx); unmarshalErr != nil {
+			return nil, fmt.Errorf("unable to unmarshal tx: %w", unmarshalErr)
+		}
+
+		metaTxs = append(metaTxs, gnoland.TxWithMetadata{
+			Tx: tx,
+			Metadata: &gnoland.GnoTxMetadata{
+				Timestamp: b.BlockMeta.Header.Time.Unix(),
+			},
+		})
 	}
 
-	return txs, nil
+	return slices.Clip(metaTxs), nil
 }
 
 // GetBlockTransactions returns the transactions contained
-// within the specified block, if any
-// GetLatestBlockNumber returns the latest block height from the chain
+// within the specified block, if any.
+// GetLatestBlockNumber returns the latest block height from the chain.
 func (n *Node) GetLatestBlockNumber() (uint64, error) {
 	n.muNode.RLock()
 	defer n.muNode.RUnlock()
@@ -196,83 +311,28 @@ func (n *Node) getLatestBlockNumber() uint64 {
 	return uint64(n.Node.BlockStore().Height())
 }
 
-// UpdatePackages updates the currently known packages. It will be taken into
-// consideration in the next reload of the node.
-func (n *Node) UpdatePackages(paths ...string) error {
-	n.muNode.Lock()
-	defer n.muNode.Unlock()
-
-	return n.updatePackages(paths...)
-}
-
-func (n *Node) updatePackages(paths ...string) error {
-	var pkgsUpdated int
-	for _, path := range paths {
-		abspath, err := filepath.Abs(path)
-		if err != nil {
-			return fmt.Errorf("unable to resolve abs path of %q: %w", path, err)
-		}
-
-		// Check if we already know the path (or its parent) and set
-		// associated deployer and deposit
-		deployer := n.config.DefaultDeployer
-		var deposit std.Coins
-		for _, ppath := range n.config.PackagesPathList {
-			if !strings.HasPrefix(abspath, ppath.Path) {
-				continue
-			}
-
-			deployer = ppath.Creator
-			deposit = ppath.Deposit
-		}
-
-		// List all packages from target path
-		pkgslist, err := gnomod.ListPkgs(abspath)
-		if err != nil {
-			return fmt.Errorf("failed to list gno packages for %q: %w", path, err)
-		}
-
-		// Update or add package in the current known list.
-		for _, pkg := range pkgslist {
-			n.pkgs[pkg.Dir] = Package{
-				Pkg:     pkg,
-				Creator: deployer,
-				Deposit: deposit,
-			}
-
-			n.logger.Debug("pkgs update", "name", pkg.Name, "path", pkg.Dir)
-		}
-
-		pkgsUpdated += len(pkgslist)
-	}
-
-	n.logger.Info(fmt.Sprintf("updated %d packages", pkgsUpdated))
-	return nil
-}
-
 // Reset stops the node, if running, and reloads it with a new genesis state,
 // effectively ignoring the current state.
 func (n *Node) Reset(ctx context.Context) error {
 	n.muNode.Lock()
 	defer n.muNode.Unlock()
 
-	// Stop the node if it's currently running.
-	if err := n.stopIfRunning(); err != nil {
-		return fmt.Errorf("unable to stop the node: %w", err)
-	}
+	// Reset starting time
+	startTime := time.Now()
 
 	// Generate a new genesis state based on the current packages
-	pkgsTxs, err := n.pkgs.Load(DefaultFee)
+	pkgs, err := n.loader.Load(n.paths...)
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
 	}
 
 	// Append initialTxs
+	pkgsTxs := n.generateTxs(DefaultFee, pkgs)
 	txs := append(pkgsTxs, n.initialState...)
-	genesis := gnoland.GnoGenesisState{
-		Balances: n.config.BalancesList,
-		Txs:      txs,
-	}
+
+	genesis := gnoland.DefaultGenState()
+	genesis.Balances = n.config.BalancesList
+	genesis.Txs = txs
 
 	// Reset the node with the new genesis state.
 	err = n.rebuildNode(ctx, genesis)
@@ -280,8 +340,10 @@ func (n *Node) Reset(ctx context.Context) error {
 		return fmt.Errorf("unable to initialize a new node: %w", err)
 	}
 
+	n.pkgs = pkgs
 	n.loadedPackages = len(pkgsTxs)
 	n.currentStateIndex = len(n.initialState)
+	n.startTime = startTime
 	n.emitter.Emit(&events.Reset{})
 	return nil
 }
@@ -291,16 +353,6 @@ func (n *Node) Reset(ctx context.Context) error {
 func (n *Node) ReloadAll(ctx context.Context) error {
 	n.muNode.Lock()
 	defer n.muNode.Unlock()
-
-	pkgs := n.pkgs.toList()
-	paths := make([]string, len(pkgs))
-	for i, pkg := range pkgs {
-		paths[i] = pkg.Dir
-	}
-
-	if err := n.updatePackages(paths...); err != nil {
-		return fmt.Errorf("unable to reload packages: %w", err)
-	}
 
 	return n.rebuildNodeFromState(ctx)
 }
@@ -328,7 +380,7 @@ func (n *Node) SendTransaction(tx *std.Tx) error {
 	}
 
 	// we use BroadcastTxCommit to ensure to have one block with the given tx
-	res, err := n.client.BroadcastTxCommit(aminoTx)
+	res, err := n.client.BroadcastTxCommit(context.Background(), aminoTx)
 	if err != nil {
 		return fmt.Errorf("unable to broadcast transaction commit: %w", err)
 	}
@@ -346,11 +398,13 @@ func (n *Node) SendTransaction(tx *std.Tx) error {
 	return nil
 }
 
-func (n *Node) getBlockStoreState(ctx context.Context) ([]std.Tx, error) {
+func (n *Node) getBlockStoreState(ctx context.Context) ([]gnoland.TxWithMetadata, error) {
 	// get current genesis state
 	genesis := n.GenesisDoc().AppState.(gnoland.GnoGenesisState)
 
-	state := genesis.Txs[n.loadedPackages:] // ignore previously loaded packages
+	initialTxs := genesis.Txs[n.loadedPackages:] // ignore previously loaded packages
+	state := append([]gnoland.TxWithMetadata{}, initialTxs...)
+
 	lastBlock := n.getLatestBlockNumber()
 	var blocnum uint64 = 1
 	for ; blocnum <= lastBlock; blocnum++ {
@@ -360,7 +414,7 @@ func (n *Node) getBlockStoreState(ctx context.Context) ([]std.Tx, error) {
 		default:
 		}
 
-		txs, txErr := n.getBlockTransactions(blocnum)
+		txs, txErr := n.getBlockTransactions(ctx, blocnum)
 		if txErr != nil {
 			return nil, fmt.Errorf("unable to fetch block transactions, %w", txErr)
 		}
@@ -368,8 +422,49 @@ func (n *Node) getBlockStoreState(ctx context.Context) ([]std.Tx, error) {
 		state = append(state, txs...)
 	}
 
-	// override current state
 	return state, nil
+}
+
+func (n *Node) generateTxs(fee std.Fee, pkgs []packages.Package) []gnoland.TxWithMetadata {
+	metatxs := make([]gnoland.TxWithMetadata, 0, len(pkgs))
+	for _, pkg := range pkgs {
+		msg := vm.MsgAddPackage{
+			Creator:    n.config.DefaultCreator,
+			MaxDeposit: n.config.DefaultDeposit,
+			Package:    &pkg.MemPackage,
+		}
+
+		if m, ok := n.pkgsModifier[pkg.Path]; ok {
+			if !m.Creator.IsZero() {
+				msg.Creator = m.Creator
+			}
+
+			if m.Deposit != nil {
+				msg.MaxDeposit = m.Deposit
+			}
+
+			n.logger.Debug("applying pkgs modifier",
+				"path", pkg.Path,
+				"creator", msg.Creator,
+				"deposit", msg.MaxDeposit,
+			)
+		}
+
+		// Create transaction
+		tx := std.Tx{Fee: fee, Msgs: []std.Msg{msg}}
+		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
+
+		// Wrap it with metadata
+		metatx := gnoland.TxWithMetadata{
+			Tx: tx,
+			Metadata: &gnoland.GnoTxMetadata{
+				Timestamp: n.startTime.Unix(),
+			},
+		}
+		metatxs = append(metatxs, metatx)
+	}
+
+	return metatxs
 }
 
 func (n *Node) stopIfRunning() error {
@@ -383,18 +478,21 @@ func (n *Node) stopIfRunning() error {
 }
 
 func (n *Node) rebuildNodeFromState(ctx context.Context) error {
+	start := time.Now()
+
 	if n.config.NoReplay {
 		// If NoReplay is true, simply reset the node to its initial state
 		n.logger.Warn("replay disabled")
 
-		txs, err := n.pkgs.Load(DefaultFee)
+		pkgs, err := n.loader.Load(n.paths...)
 		if err != nil {
 			return fmt.Errorf("unable to load pkgs: %w", err)
 		}
 
-		return n.rebuildNode(ctx, gnoland.GnoGenesisState{
-			Balances: n.config.BalancesList, Txs: txs,
-		})
+		genesis := gnoland.DefaultGenState()
+		genesis.Balances = n.config.BalancesList
+		genesis.Txs = n.generateTxs(DefaultFee, pkgs)
+		return n.rebuildNode(ctx, genesis)
 	}
 
 	state, err := n.getBlockStoreState(ctx)
@@ -403,24 +501,35 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 	}
 
 	// Load genesis packages
-	pkgsTxs, err := n.pkgs.Load(DefaultFee)
+	pkgs, err := n.loader.Load(n.paths...)
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
 	}
 
 	// Create genesis with loaded pkgs + previous state
-	genesis := gnoland.GnoGenesisState{
-		Balances: n.config.BalancesList,
-		Txs:      append(pkgsTxs, state...),
-	}
+	genesis := gnoland.DefaultGenState()
+	genesis.Balances = n.config.BalancesList
+
+	// Generate txs
+	pkgsTxs := n.generateTxs(DefaultFee, pkgs)
+	genesis.Txs = append(pkgsTxs, state...)
 
 	// Reset the node with the new genesis state.
 	err = n.rebuildNode(ctx, genesis)
-	n.logger.Info("reload done", "pkgs", len(pkgsTxs), "state applied", len(state))
+	if err != nil {
+		return fmt.Errorf("unable to rebuild node: %w", err)
+	}
+	n.logger.Info("reload done",
+		"pkgs", len(pkgsTxs),
+		"state applied", len(state),
+		"took", time.Since(start),
+	)
 
 	// Update node infos
+	n.pkgs = pkgs
 	n.loadedPackages = len(pkgsTxs)
 
+	// Emit reload event
 	n.emitter.Emit(&events.Reload{})
 	return nil
 }
@@ -467,9 +576,13 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	}
 
 	// Setup node config
-	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, genesis)
-	nodeConfig.GenesisTxHandler = n.genesisTxHandler
+	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, n.config.ChainDomain, genesis)
+	nodeConfig.GenesisTxResultHandler = n.genesisTxResultHandler
+	// Speed up stdlib loading after first start (saves about 2-3 seconds on each reload).
+	nodeConfig.CacheStdlibLoad = true
 	nodeConfig.Genesis.ConsensusParams.Block.MaxGas = n.config.MaxGasPerBlock
+	// Genesis verification is always false with Gnodev
+	nodeConfig.SkipGenesisSigVerification = true
 
 	// recoverFromError handles panics and converts them to errors.
 	recoverFromError := func() {
@@ -511,15 +624,25 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	return nil
 }
 
-func (n *Node) genesisTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
+func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
 	if !res.IsErr() {
+		for _, msg := range tx.Msgs {
+			if addpkg, ok := msg.(vm.MsgAddPackage); ok && addpkg.Package != nil {
+				n.logger.Debug("add package",
+					"path", addpkg.Package.Path,
+					"files", len(addpkg.Package.Files),
+					"creator", addpkg.Creator.String(),
+				)
+			}
+		}
+
 		return
 	}
 
 	// XXX: for now, this is only way to catch the error
 	before, after, found := strings.Cut(res.Log, "\n")
 	if !found {
-		n.logger.Error("unable to send tx", "err", res.Error, "log", res.Log)
+		n.logger.Error("unable to send tx", "log", res.Log)
 		return
 	}
 
@@ -540,18 +663,16 @@ func (n *Node) genesisTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
 	}
 
 	n.logger.LogAttrs(context.Background(), slog.LevelError, "unable to deliver tx", attrs...)
-
-	return
 }
 
-func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
+func newNodeConfig(tmc *tmcfg.Config, chainid, chaindomain string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
 	// Create Mocked Identity
-	pv := gnoland.NewMockedPrivValidator()
-	genesis := gnoland.NewDefaultGenesisConfig(chainid)
+	pv := bft.NewMockPV()
+	genesis := gnoland.NewDefaultGenesisConfig(chainid, chaindomain)
 	genesis.AppState = appstate
 
 	// Add self as validator
-	self := pv.GetPubKey()
+	self := pv.PubKey()
 	genesis.Validators = []bft.GenesisValidator{
 		{
 			Address: self.Address(),
@@ -561,10 +682,11 @@ func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesi
 		},
 	}
 
-	return &gnoland.InMemoryNodeConfig{
-		PrivValidator:      pv,
-		TMConfig:           tmc,
-		Genesis:            genesis,
-		GenesisMaxVMCycles: 100_000_000,
+	cfg := &gnoland.InMemoryNodeConfig{
+		PrivValidator: pv,
+		TMConfig:      tmc,
+		Genesis:       genesis,
+		VMOutput:      os.Stdout,
 	}
+	return cfg
 }

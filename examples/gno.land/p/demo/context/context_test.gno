@@ -9,7 +9,7 @@ func TestContextExample(t *testing.T) {
 	ctx := WithValue(Empty(), k, "Gno")
 
 	if v := ctx.Value(k); v != nil {
-		if string(v) != "Gno" {
+		if v.(string) != "Gno" {
 			t.Errorf("language value should be Gno, but is %s", v)
 		}
 	} else {

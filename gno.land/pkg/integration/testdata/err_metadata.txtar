@@ -1,0 +1,30 @@
+# ensure users get proper out of gas errors when they add packages
+
+# start a new node
+gnoland start
+
+! gnokey maketx addpkg -pkgdir $WORK/invalid -pkgpath gno.land/r/invalid -gas-fee 1000000ugnot -gas-wanted 60000 -broadcast -chainid=tendermint_test test1
+
+stdout 'TX HASH:'
+stdout 'INFO:.*vm.version=develop'
+stderr '--= Error =--'
+stderr 'Data: invalid gno package; type check errors:'
+stderr 'gno.land/r/invalid/invalid.gno:.*:.*: expected operand, found .EOF.'
+stderr 'Msg Traces:'
+stderr '.*/tm2/pkg/errors/errors.go:.* - deliver transaction failed: log:msg:0,success:false,log:--= Error =--'
+stderr 'Data: vm.TypeCheckError{abciError:vm.abciError{}, Errors:..string{"gno.land/r/invalid/invalid.gno:.*:.*: expected operand, found .EOF."}}'
+stderr 'Msg Traces:'
+stderr 'Stack Trace:'
+stderr '    0  .*gno.land/pkg/sdk/vm/errors.go:.*'
+#...
+stderr '--= /Error =--'
+stderr ',events:..'
+stderr '--= /Error =--'
+
+-- invalid/gnomod.toml --
+module = "gno.land/r/invalid"
+gno = "0.9"
+
+-- invalid/invalid.gno --
+package invalid
+var Foo =

@@ -1,0 +1,64 @@
+# load the package from $WORK directory
+loadpkg gno.land/r/demo/foree $WORK
+
+# start a new node
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/demo/foree -func Foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'GAS WANTED: 2000000'
+stdout 'GAS USED:   [0-9]+'
+stdout 'HEIGHT:     [0-9]+'
+stdout 'EVENTS:     \[{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"}\]'
+stdout 'TX HASH:    '
+
+gnokey maketx call -pkgpath gno.land/r/demo/foree -func Bar -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'GAS WANTED: 2000000'
+stdout 'GAS USED:   [0-9]+'
+stdout 'HEIGHT:     [0-9]+'
+stdout 'EVENTS:     \[{\"type\":\"Foo\",\"attrs\":\[{\"key\":\"k1\",\"value\":\"v1\"},{\"key\":\"k2\",\"value\":\"v2\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"Bar\",\"attrs\":\[{\"key\":\"bar\",\"value\":\"baz\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"Foo\",\"attrs\":\[{\"key\":\"k1\",\"value\":\"v1\"},{\"key\":\"k2\",\"value\":\"v2\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"Bar\",\"attrs\":\[{\"key\":\"bar\",\"value\":\"baz\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"}\]'
+stdout 'TX HASH:    '
+
+-- foree.gno --
+package foree
+
+import "chain"
+
+func Foo(cur realm) {
+	for i := 0; i < 10; i++ {
+		chain.Emit("testing", "foo", "bar")
+	}
+}
+
+const (
+	eventFoo = "Foo"
+	eventBar = "Bar"
+)
+
+type contractA struct{}
+
+func (c *contractA) Foo(cur realm, cb func()) {
+	subFoo()
+	cb()
+}
+
+func subFoo() {
+	chain.Emit(eventFoo, "k1", "v1", "k2", "v2")
+}
+
+type contractB struct{}
+
+func (c *contractB) subBar() {
+	chain.Emit(eventBar, "bar", "baz")
+}
+
+func Bar(cur realm) {
+	a := &contractA{}
+	b := &contractB{}
+	for i := 0; i < 2; i++ {
+		a.Foo(cross, func() {
+			b.subBar()
+		})
+	}
+}

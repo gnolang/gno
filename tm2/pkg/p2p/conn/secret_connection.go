@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math"
 	"net"
@@ -21,7 +22,6 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/async"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
@@ -37,10 +37,7 @@ const (
 	aeadNonceSize    = chacha20poly1305.NonceSize
 )
 
-var (
-	ErrSmallOrderRemotePubKey = errors.New("detected low order point from remote peer")
-	ErrSharedSecretIsZero     = errors.New("shared secret is all zeroes")
-)
+var ErrSmallOrderRemotePubKey = errors.New("detected low order point from remote peer")
 
 // SecretConnection implements net.Conn.
 // It is an implementation of the STS protocol.
@@ -56,7 +53,7 @@ type SecretConnection struct {
 	recvAead cipher.AEAD
 	sendAead cipher.AEAD
 
-	remPubKey crypto.PubKey
+	remPubKey ed25519.PubKeyEd25519
 	conn      io.ReadWriteCloser
 
 	// net.Conn must be thread safe:
@@ -79,8 +76,8 @@ type SecretConnection struct {
 // Returns nil if there is an error in handshake.
 // Caller should call conn.Close()
 // See docs/sts-final.pdf for more information.
-func MakeSecretConnection(conn io.ReadWriteCloser, locPrivKey crypto.PrivKey) (*SecretConnection, error) {
-	locPubKey := locPrivKey.PubKey()
+func MakeSecretConnection(conn io.ReadWriteCloser, locPrivKey ed25519.PrivKeyEd25519) (*SecretConnection, error) {
+	locPubKey := locPrivKey.PubKey().(ed25519.PubKeyEd25519)
 
 	// Generate ephemeral keys for perfect forward secrecy.
 	locEphPub, locEphPriv := genEphKeys()
@@ -128,7 +125,10 @@ func MakeSecretConnection(conn io.ReadWriteCloser, locPrivKey crypto.PrivKey) (*
 	}
 
 	// Sign the challenge bytes for authentication.
-	locSignature := signChallenge(challenge, locPrivKey)
+	locSignature, err := locPrivKey.Sign(challenge[:])
+	if err != nil {
+		return nil, fmt.Errorf("unable to sign challenge, %w", err)
+	}
 
 	// Share (in secret) each other's pubkey & challenge signature
 	authSigMsg, err := shareAuthSignature(sc, locPubKey, locSignature)
@@ -137,10 +137,6 @@ func MakeSecretConnection(conn io.ReadWriteCloser, locPrivKey crypto.PrivKey) (*
 	}
 
 	remPubKey, remSignature := authSigMsg.Key, authSigMsg.Sig
-
-	if _, ok := remPubKey.(ed25519.PubKeyEd25519); !ok {
-		return nil, errors.New("expected ed25519 pubkey, got %T", remPubKey)
-	}
 
 	if !remPubKey.VerifyBytes(challenge[:], remSignature) {
 		return nil, errors.New("challenge verification failed")
@@ -152,7 +148,7 @@ func MakeSecretConnection(conn io.ReadWriteCloser, locPrivKey crypto.PrivKey) (*
 }
 
 // RemotePubKey returns authenticated remote pubkey
-func (sc *SecretConnection) RemotePubKey() crypto.PubKey {
+func (sc *SecretConnection) RemotePubKey() ed25519.PubKeyEd25519 {
 	return sc.remPubKey
 }
 
@@ -274,14 +270,14 @@ func genEphKeys() (ephPub, ephPriv *[32]byte) {
 func shareEphPubKey(conn io.ReadWriteCloser, locEphPub *[32]byte) (remEphPub *[32]byte, err error) {
 	// Send our pubkey and receive theirs in tandem.
 	trs, _ := async.Parallel(
-		func(_ int) (val interface{}, err error, abort bool) {
+		func(_ int) (val any, err error, abort bool) {
 			_, err1 := amino.MarshalSizedWriter(conn, locEphPub)
 			if err1 != nil {
 				return nil, err1, true // abort
 			}
 			return nil, nil, false
 		},
-		func(_ int) (val interface{}, err error, abort bool) {
+		func(_ int) (val any, err error, abort bool) {
 			var _remEphPub [32]byte
 			_, err2 := amino.UnmarshalSizedReader(conn, &_remEphPub, 1024*1024) // TODO
 			if err2 != nil {
@@ -401,16 +397,12 @@ func deriveSecretAndChallenge(dhSecret *[32]byte, locIsLeast bool) (recvSecret, 
 //
 // It returns an error if the computed shared secret is all zeroes.
 func computeDHSecret(remPubKey, locPrivKey *[32]byte) (shrKey *[32]byte, err error) {
-	shrKey = new([32]byte)
-	curve25519.ScalarMult(shrKey, locPrivKey, remPubKey)
-
-	// reject if the returned shared secret is all zeroes
-	// related to: https://github.com/tendermint/classic/issues/3010
-	zero := new([32]byte)
-	if subtle.ConstantTimeCompare(shrKey[:], zero[:]) == 1 {
-		return nil, ErrSharedSecretIsZero
+	dst, err := curve25519.X25519(locPrivKey[:], remPubKey[:])
+	if err != nil {
+		return nil, err
 	}
-	return
+
+	return (*[32]byte)(dst), nil
 }
 
 func sort32(foo, bar *[32]byte) (lo, hi *[32]byte) {
@@ -424,31 +416,22 @@ func sort32(foo, bar *[32]byte) (lo, hi *[32]byte) {
 	return
 }
 
-func signChallenge(challenge *[32]byte, locPrivKey crypto.PrivKey) (signature []byte) {
-	signature, err := locPrivKey.Sign(challenge[:])
-	// TODO(ismail): let signChallenge return an error instead
-	if err != nil {
-		panic(err)
-	}
-	return
-}
-
 type authSigMessage struct {
-	Key crypto.PubKey
+	Key ed25519.PubKeyEd25519
 	Sig []byte
 }
 
-func shareAuthSignature(sc *SecretConnection, pubKey crypto.PubKey, signature []byte) (recvMsg authSigMessage, err error) {
+func shareAuthSignature(sc *SecretConnection, pubKey ed25519.PubKeyEd25519, signature []byte) (recvMsg authSigMessage, err error) {
 	// Send our info and receive theirs in tandem.
 	trs, _ := async.Parallel(
-		func(_ int) (val interface{}, err error, abort bool) {
+		func(_ int) (val any, err error, abort bool) {
 			_, err1 := amino.MarshalSizedWriter(sc, authSigMessage{pubKey, signature})
 			if err1 != nil {
 				return nil, err1, true // abort
 			}
 			return nil, nil, false
 		},
-		func(_ int) (val interface{}, err error, abort bool) {
+		func(_ int) (val any, err error, abort bool) {
 			var _recvMsg authSigMessage
 			_, err2 := amino.UnmarshalSizedReader(sc, &_recvMsg, 1024*1024) // TODO
 			if err2 != nil {

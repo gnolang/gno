@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
-	emitter "github.com/gnolang/gno/contribs/gnodev/internal/mock"
+	mock "github.com/gnolang/gno/contribs/gnodev/internal/mock/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
-	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -87,10 +88,10 @@ func TestSaveCurrentState(t *testing.T) {
 	require.NoError(t, err)
 
 	// Send a new tx
-	msg := gnoclient.MsgCall{
-		PkgPath:  testCounterRealm,
-		FuncName: "Inc",
-		Args:     []string{"10"},
+	msg := vm.MsgCall{
+		PkgPath: testCounterRealm,
+		Func:    "Inc",
+		Args:    []string{"10"},
 	}
 
 	res, err := testingCallRealm(t, node, msg)
@@ -136,28 +137,33 @@ func TestExportState(t *testing.T) {
 	})
 }
 
-func testingCounterRealm(t *testing.T, inc int) (*Node, *emitter.ServerEmitter) {
+func testingCounterRealm(t *testing.T, inc int) (*Node, *mock.ServerEmitter) {
 	t.Helper()
 
-	const (
-		// foo package
-		counterGnoMod = "module gno.land/r/dev/counter\n"
-		counterFile   = `package counter
+	const counterFile = `
+package counter
+
 import "strconv"
 
 var value int = 0
-func Inc(v int) { value += v } // method to increment value
+
+func Inc(cur realm, v int) {  // method to increment value
+        value += v
+}
+
 func Render(_ string) string { return strconv.Itoa(value) }
 `
-	)
 
-	// Generate package counter
-	counterPkg := generateTestingPackage(t,
-		"gno.mod", counterGnoMod,
-		"foo.gno", counterFile)
+	counterPkg := std.MemPackage{
+		Name: "counter",
+		Path: "gno.land/r/dev/counter",
+		Files: []*std.MemFile{
+			{Name: "file.gno", Body: counterFile},
+		},
+	}
 
 	// Call NewDevNode with no package should work
-	node, emitter := newTestingDevNode(t, counterPkg)
+	node, emitter := newTestingDevNode(t, &counterPkg)
 	assert.Len(t, node.ListPkgs(), 1)
 
 	// Test rendering
@@ -166,13 +172,13 @@ func Render(_ string) string { return strconv.Itoa(value) }
 	require.Equal(t, render, "0")
 
 	// Increment the counter 10 times
-	for i := 0; i < inc; i++ {
+	for i := range inc {
 		t.Logf("call %d", i)
 		// Craft `Inc` msg
-		msg := gnoclient.MsgCall{
-			PkgPath:  testCounterRealm,
-			FuncName: "Inc",
-			Args:     []string{"1"},
+		msg := vm.MsgCall{
+			PkgPath: testCounterRealm,
+			Func:    "Inc",
+			Args:    []string{"1"},
 		}
 
 		res, err := testingCallRealm(t, node, msg)

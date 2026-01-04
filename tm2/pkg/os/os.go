@@ -33,7 +33,7 @@ func Kill() error {
 }
 
 func Exit(s string) {
-	fmt.Printf(s + "\n")
+	fmt.Print(s + "\n")
 	os.Exit(1)
 }
 

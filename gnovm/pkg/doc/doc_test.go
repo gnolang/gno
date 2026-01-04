@@ -27,70 +27,70 @@ func TestResolveDocumentable(t *testing.T) {
 		name        string
 		args        []string
 		unexp       bool
-		expect      Documentable
+		expect      *Documentable
 		errContains string
 	}{
-		{"package", []string{"crypto/rand"}, false, &documentable{bfsDir: getDir("crypto/rand")}, ""},
-		{"packageMod", []string{"gno.land/mod"}, false, &documentable{bfsDir: getDir("mod")}, ""},
-		{"dir", []string{"./testdata/integ/crypto/rand"}, false, &documentable{bfsDir: getDir("crypto/rand")}, ""},
-		{"dirMod", []string{"./testdata/integ/mod"}, false, &documentable{bfsDir: getDir("mod")}, ""},
-		{"dirAbs", []string{path("crypto/rand")}, false, &documentable{bfsDir: getDir("crypto/rand")}, ""},
+		{"package", []string{"crypto/rand"}, false, &Documentable{bfsDir: getDir("crypto/rand")}, ""},
+		{"packageMod", []string{"gno.land/mod"}, false, nil, `package not found`},
+		{"dir", []string{"./testdata/integ/crypto/rand"}, false, &Documentable{bfsDir: getDir("crypto/rand")}, ""},
+		{"dirMod", []string{"./testdata/integ/mod"}, false, &Documentable{bfsDir: getDir("mod")}, ""},
+		{"dirAbs", []string{path("crypto/rand")}, false, &Documentable{bfsDir: getDir("crypto/rand")}, ""},
 		// test_notapkg exists in local dir and also path("test_notapkg").
 		// ResolveDocumentable should first try local dir, and seeing as it is not a valid dir, try searching it as a package.
-		{"dirLocalMisleading", []string{"test_notapkg"}, false, &documentable{bfsDir: getDir("test_notapkg")}, ""},
+		{"dirLocalMisleading", []string{"test_notapkg"}, false, &Documentable{bfsDir: getDir("test_notapkg")}, ""},
 		{
 			"normalSymbol",
 			[]string{"crypto/rand.Flag"},
 			false,
-			&documentable{bfsDir: getDir("crypto/rand"), symbol: "Flag", pkgData: pdata("crypto/rand", false)}, "",
+			&Documentable{bfsDir: getDir("crypto/rand"), symbol: "Flag", pkgData: pdata("crypto/rand", false)}, "",
 		},
 		{
 			"normalAccessible",
 			[]string{"crypto/rand.Generate"},
 			false,
-			&documentable{bfsDir: getDir("crypto/rand"), symbol: "Generate", pkgData: pdata("crypto/rand", false)}, "",
+			&Documentable{bfsDir: getDir("crypto/rand"), symbol: "Generate", pkgData: pdata("crypto/rand", false)}, "",
 		},
 		{
 			"normalSymbolUnexp",
 			[]string{"crypto/rand.unexp"},
 			true,
-			&documentable{bfsDir: getDir("crypto/rand"), symbol: "unexp", pkgData: pdata("crypto/rand", true)}, "",
+			&Documentable{bfsDir: getDir("crypto/rand"), symbol: "unexp", pkgData: pdata("crypto/rand", true)}, "",
 		},
 		{
 			"normalAccessibleFull",
 			[]string{"crypto/rand.Rand.Name"},
 			false,
-			&documentable{bfsDir: getDir("crypto/rand"), symbol: "Rand", accessible: "Name", pkgData: pdata("crypto/rand", false)}, "",
+			&Documentable{bfsDir: getDir("crypto/rand"), symbol: "Rand", accessible: "Name", pkgData: pdata("crypto/rand", false)}, "",
 		},
 		{
 			"disambiguate",
 			[]string{"rand.Flag"},
 			false,
-			&documentable{bfsDir: getDir("crypto/rand"), symbol: "Flag", pkgData: pdata("crypto/rand", false)}, "",
+			&Documentable{bfsDir: getDir("crypto/rand"), symbol: "Flag", pkgData: pdata("crypto/rand", false)}, "",
 		},
 		{
 			"disambiguate2",
 			[]string{"rand.Crypto"},
 			false,
-			&documentable{bfsDir: getDir("crypto/rand"), symbol: "Crypto", pkgData: pdata("crypto/rand", false)}, "",
+			&Documentable{bfsDir: getDir("crypto/rand"), symbol: "Crypto", pkgData: pdata("crypto/rand", false)}, "",
 		},
 		{
 			"disambiguate3",
 			[]string{"rand.Normal"},
 			false,
-			&documentable{bfsDir: getDir("rand"), symbol: "Normal", pkgData: pdata("rand", false)}, "",
+			&Documentable{bfsDir: getDir("rand"), symbol: "Normal", pkgData: pdata("rand", false)}, "",
 		},
 		{
 			"disambiguate4", // just "rand" should use the directory that matches it exactly.
 			[]string{"rand"},
 			false,
-			&documentable{bfsDir: getDir("rand")}, "",
+			&Documentable{bfsDir: getDir("rand")}, "",
 		},
 		{
 			"wdSymbol",
 			[]string{"WdConst"},
 			false,
-			&documentable{bfsDir: getDir("wd"), symbol: "WdConst", pkgData: pdata("wd", false)}, "",
+			&Documentable{bfsDir: getDir("wd"), symbol: "WdConst", pkgData: pdata("wd", false)}, "",
 		},
 
 		{"errInvalidArgs", []string{"1", "2", "3"}, false, nil, "invalid arguments: [1 2 3]"},
@@ -98,8 +98,8 @@ func TestResolveDocumentable(t *testing.T) {
 		{"errNoCandidates2", []string{"LocalSymbol"}, false, nil, `package not found`},
 		{"errNoCandidates3", []string{"Symbol.Accessible"}, false, nil, `package not found`},
 		{"errNonExisting", []string{"rand.NotExisting"}, false, nil, `could not resolve arguments`},
-		{"errIgnoredMod", []string{"modignored"}, false, nil, `package not found`},
-		{"errIgnoredMod2", []string{"./testdata/integ/modignored"}, false, nil, `package not found`},
+		{"errIgnoredMod", []string{"modignored"}, false, &Documentable{bfsDir: getDir("modignored")}, ""},
+		{"errIgnoredMod2", []string{"./testdata/integ/modignored"}, false, &Documentable{bfsDir: getDir("modignored")}, ""},
 		{"errUnexp", []string{"crypto/rand.unexp"}, false, nil, "could not resolve arguments"},
 		{"errDirNotapkg", []string{"./test_notapkg"}, false, nil, `package not found: "./test_notapkg"`},
 	}
@@ -120,7 +120,7 @@ func TestResolveDocumentable(t *testing.T) {
 			)
 			// we use stripFset because d.pkgData.fset contains sync/atomic values,
 			// which in turn makes reflect.DeepEqual compare the two sync.Atomic values.
-			assert.Equal(t, stripFset(tc.expect), stripFset(result), "documentables should match")
+			assert.Equal(t, stripFset(tc.expect), stripFset(result), "Documentables should match")
 			if tc.errContains == "" {
 				assert.NoError(t, err)
 			} else {
@@ -130,11 +130,11 @@ func TestResolveDocumentable(t *testing.T) {
 	}
 }
 
-func stripFset(p Documentable) Documentable {
-	if d, ok := p.(*documentable); ok && d.pkgData != nil {
+func stripFset(d *Documentable) *Documentable {
+	if d != nil && d.pkgData != nil {
 		d.pkgData.fset = nil
 	}
-	return p
+	return d
 }
 
 func TestDocument(t *testing.T) {
@@ -150,30 +150,31 @@ func TestDocument(t *testing.T) {
 
 	tt := []struct {
 		name     string
-		d        *documentable
+		d        *Documentable
 		opts     *WriteDocumentationOptions
 		contains []string
 	}{
-		{"base", &documentable{bfsDir: dir}, nil, []string{"func Crypto", "!Crypto symbol", "func NewRand", "!unexp", "type Flag", "!Name"}},
-		{"func", &documentable{bfsDir: dir, symbol: "crypto"}, nil, []string{"Crypto symbol", "func Crypto", "!func NewRand", "!type Flag"}},
-		{"funcWriter", &documentable{bfsDir: dir, symbol: "NewWriter"}, nil, []string{"func NewWriter() io.Writer", "!func Crypto"}},
-		{"tp", &documentable{bfsDir: dir, symbol: "Rand"}, nil, []string{"type Rand", "comment1", "!func Crypto", "!unexp  ", "!comment4", "Has unexported"}},
-		{"tpField", &documentable{bfsDir: dir, symbol: "Rand", accessible: "Value"}, nil, []string{"type Rand", "!comment1", "comment2", "!func Crypto", "!unexp", "elided"}},
+		{"base", &Documentable{bfsDir: dir}, nil, []string{"func Crypto", "!Crypto symbol", "func NewRand", "!unexp", "type Flag", "!Name"}},
+		{"func", &Documentable{bfsDir: dir, symbol: "crypto"}, nil, []string{"Crypto symbol", "func Crypto", "!func NewRand", "!type Flag"}},
+		{"funcWriter", &Documentable{bfsDir: dir, symbol: "NewWriter"}, nil, []string{"func NewWriter() io.Writer", "!func Crypto", "!// crossing"}},
+		{"tp", &Documentable{bfsDir: dir, symbol: "Rand"}, nil, []string{"type Rand", "comment1", "!func Crypto", "!unexp  ", "!comment4", "Has unexported"}},
+		{"inter", &Documentable{bfsDir: dir, symbol: "Rander"}, nil, []string{"type Rander", "generate", "!unexp  ", "!comment1", "Has unexported"}},
+		{"tpField", &Documentable{bfsDir: dir, symbol: "Rand", accessible: "Value"}, nil, []string{"type Rand", "!comment1", "comment2", "!func Crypto", "!unexp", "elided"}},
 		{
 			"tpUnexp",
-			&documentable{bfsDir: dir, symbol: "Rand"},
+			&Documentable{bfsDir: dir, symbol: "Rand"},
 			&WriteDocumentationOptions{Unexported: true},
 			[]string{"type Rand", "comment1", "!func Crypto", "unexp  ", "comment4", "!Has unexported"},
 		},
 		{
 			"symUnexp",
-			&documentable{bfsDir: dir, symbol: "unexp"},
+			&Documentable{bfsDir: dir, symbol: "unexp"},
 			&WriteDocumentationOptions{Unexported: true},
 			[]string{"var unexp", "!type Rand", "!comment1", "!comment4", "!func Crypto", "!Has unexported"},
 		},
 		{
 			"fieldUnexp",
-			&documentable{bfsDir: dir, symbol: "Rand", accessible: "unexp"},
+			&Documentable{bfsDir: dir, symbol: "Rand", accessible: "unexp"},
 			&WriteDocumentationOptions{Unexported: true},
 			[]string{"type Rand", "!comment1", "comment4", "!func Crypto", "elided", "!Has unexported"},
 		},

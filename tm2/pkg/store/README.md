@@ -116,15 +116,3 @@ type traceOperation struct {
 ```
 
 `traceOperation.Metadata` is filled with `Store.context` when it is not nil. `TraceContext` is a `map[string]interface{}`.
-
-## Transient
-
-`transient.Store` is a base-layer `KVStore` which is automatically discarded at the end of the block.
-
-```go
-type Store struct {
-    dbadapter.Store
-}
-```
-
-`Store.Store` is a `dbadapter.Store` with a `memdb.NewMemDB()`. All `KVStore` methods are reused. When `Store.Commit()` is called, new `dbadapter.Store` is assigned, discarding previous reference and making it garbage collected.

@@ -3,7 +3,7 @@ package types
 import (
 	"math"
 
-	"github.com/gnolang/overflow"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
 // Gas consumption descriptors.
@@ -21,15 +21,23 @@ const (
 // Gas measured by the SDK
 type Gas = int64
 
-// OutOfGasException defines an error thrown when an action results in out of gas.
-type OutOfGasException struct {
+// OutOfGasError defines an error thrown when an action results in out of gas.
+type OutOfGasError struct {
 	Descriptor string
 }
 
-// GasOverflowException defines an error thrown when an action results gas consumption
+func (oog OutOfGasError) Error() string {
+	return "out of gas in location: " + oog.Descriptor
+}
+
+// GasOverflowError defines an error thrown when an action results gas consumption
 // unsigned integer overflow.
-type GasOverflowException struct {
+type GasOverflowError struct {
 	Descriptor string
+}
+
+func (oog GasOverflowError) Error() string {
+	return "gas overflow in location: " + oog.Descriptor
 }
 
 // GasMeter interface to track gas consumption
@@ -71,7 +79,7 @@ func (g *basicGasMeter) Limit() Gas {
 }
 
 func (g *basicGasMeter) Remaining() Gas {
-	return g.Limit() - g.GasConsumedToLimit()
+	return overflow.Subp(g.Limit(), g.GasConsumedToLimit())
 }
 
 func (g *basicGasMeter) GasConsumedToLimit() Gas {
@@ -86,15 +94,15 @@ func (g *basicGasMeter) ConsumeGas(amount Gas, descriptor string) {
 	if amount < 0 {
 		panic("gas must not be negative")
 	}
-	consumed, ok := overflow.Add64(g.consumed, amount)
+	consumed, ok := overflow.Add(g.consumed, amount)
 	if !ok {
-		panic(GasOverflowException{descriptor})
+		panic(GasOverflowError{descriptor})
 	}
 	// consume gas even if out of gas.
 	// corollary, call (Did)ConsumeGas after consumption.
 	g.consumed = consumed
 	if consumed > g.limit {
-		panic(OutOfGasException{descriptor})
+		panic(OutOfGasError{descriptor})
 	}
 }
 
@@ -137,9 +145,9 @@ func (g *infiniteGasMeter) Remaining() Gas {
 }
 
 func (g *infiniteGasMeter) ConsumeGas(amount Gas, descriptor string) {
-	consumed, ok := overflow.Add64(g.consumed, amount)
+	consumed, ok := overflow.Add(g.consumed, amount)
 	if !ok {
-		panic(GasOverflowException{descriptor})
+		panic(GasOverflowError{descriptor})
 	}
 	g.consumed = consumed
 }
@@ -167,10 +175,8 @@ func NewPassthroughGasMeter(base GasMeter, limit int64) passthroughGasMeter {
 	if limit < 0 {
 		panic("gas must not be negative")
 	}
-	if limit > base.Remaining() {
-		// this is fine for now:
-		// will panic when actually consumed.
-	}
+	// limit > base.Remaining() is not checked; so that a panic happens when
+	// gas is actually consumed.
 	return passthroughGasMeter{
 		Base: base,
 		Head: NewGasMeter(limit),

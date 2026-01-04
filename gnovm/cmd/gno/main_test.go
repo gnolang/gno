@@ -9,10 +9,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/examplespkgfetcher"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/stretchr/testify/require"
 )
+
+const div = "--------------------------------------------------------------------------------\n"
+
+func divHeader(label string) string {
+	return label + " " + div[len(label)+1:]
+}
 
 func TestMain_Gno(t *testing.T) {
 	tc := []testMainCase{
@@ -26,6 +32,7 @@ type testMainCase struct {
 	args                 []string
 	testDir              string
 	simulateExternalRepo bool
+	noTmpGnohome         bool
 
 	// for the following FooContain+FooBe expected couples, if both are empty,
 	// then the test suite will require that the "got" is not empty.
@@ -58,13 +65,17 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 			mockOut := bytes.NewBufferString("")
 			mockErr := bytes.NewBufferString("")
 
+			if !test.noTmpGnohome {
+				t.Setenv("GNOHOME", t.TempDir())
+			}
+
 			checkOutputs := func(t *testing.T) {
 				t.Helper()
 
 				if stdoutShouldBeEmpty {
 					require.Empty(t, mockOut.String(), "stdout should be empty")
 				} else {
-					t.Log("stdout", mockOut.String())
+					t.Log(divHeader("stdout"), mockOut.String())
 					if test.stdoutShouldContain != "" {
 						require.Contains(t, mockOut.String(), test.stdoutShouldContain, "stdout should contain")
 					}
@@ -76,7 +87,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 				if stderrShouldBeEmpty {
 					require.Empty(t, mockErr.String(), "stderr should be empty")
 				} else {
-					t.Log("stderr", mockErr.String())
+					t.Log(divHeader("stderr"), mockErr.String())
 					if test.stderrShouldContain != "" {
 						require.Contains(t, mockErr.String(), test.stderrShouldContain, "stderr should contain")
 					}
@@ -89,7 +100,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 			defer func() {
 				if r := recover(); r != nil {
 					output := fmt.Sprintf("%v", r)
-					t.Log("recover", output)
+					t.Log(divHeader("recover"), output)
 					require.False(t, recoverShouldBeEmpty, "should not panic")
 					require.True(t, errShouldBeEmpty, "should not return an error")
 					if test.recoverShouldContain != "" {
@@ -123,12 +134,15 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 			io.SetOut(commands.WriteNopCloser(mockOut))
 			io.SetErr(commands.WriteNopCloser(mockErr))
 
-			err := newGnocliCmd(io).ParseAndRun(context.Background(), test.args)
+			testPackageFetcher = examplespkgfetcher.New("")
+
+			cmd, _ := newGnocliCmd(io)
+			err := cmd.ParseAndRun(context.Background(), test.args)
 
 			if errShouldBeEmpty {
 				require.Nil(t, err, "err should be nil")
 			} else {
-				t.Log("err", err.Error())
+				t.Log("err", fmt.Sprintf("%v", err))
 				require.NotNil(t, err, "err shouldn't be nil")
 				if test.errShouldContain != "" {
 					require.Contains(t, err.Error(), test.errShouldContain, "err should contain")

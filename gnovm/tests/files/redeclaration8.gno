@@ -1,12 +1,10 @@
 package main
 
-import _ "github.com/gnolang/gno/_test/redeclaration2"
+import _ "filetests/extern/redeclaration2"
 
 func main() {
 	println("should not happen")
 }
 
-// XXX show what was redeclared.
-
 // Error:
-// running package "github.com/gnolang/gno/_test/redeclaration2": duplicate declarations not allowed
+// running package "filetests/extern/redeclaration2": redeclarations for identifiers: "a"

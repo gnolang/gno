@@ -103,7 +103,7 @@ func _benchmarkBinary(b *testing.B, cdc *amino.Codec, rt reflect.Type, codecType
 		case "binary":
 			bz, err = cdc.Marshal(ptr)
 		case "json":
-			bz, err = cdc.MarshalJSON(ptr)
+			bz, err = cdc.JSONMarshal(ptr)
 		case "binary_pb":
 			bz, err = pbcdc.Marshal(ptr)
 		case "binary_pb_translate_only":
@@ -129,7 +129,7 @@ func _benchmarkBinary(b *testing.B, cdc *amino.Codec, rt reflect.Type, codecType
 		case "binary":
 			err = cdc.Unmarshal(bz, ptr2)
 		case "json":
-			err = cdc.UnmarshalJSON(bz, ptr2)
+			err = cdc.JSONUnmarshal(bz, ptr2)
 		case "binary_pb":
 			err = pbcdc.Unmarshal(bz, ptr2)
 		case "binary_pb_translate_only":

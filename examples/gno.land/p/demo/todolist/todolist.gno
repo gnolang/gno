@@ -1,16 +1,16 @@
 package todolist
 
 import (
-	"std"
+	"chain/runtime"
 	"strconv"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 type TodoList struct {
 	Title string
 	Tasks *avl.Tree
-	Owner std.Address
+	Owner address
 }
 
 type Task struct {
@@ -22,7 +22,7 @@ func NewTodoList(title string) *TodoList {
 	return &TodoList{
 		Title: title,
 		Tasks: avl.NewTree(),
-		Owner: std.GetOrigCaller(),
+		Owner: runtime.OriginCaller(),
 	}
 }
 
@@ -47,14 +47,14 @@ func (tl *TodoList) RemoveTask(taskId string) {
 
 func (tl *TodoList) GetTasks() []*Task {
 	tasks := make([]*Task, 0, tl.Tasks.Size())
-	tl.Tasks.Iterate("", "", func(key string, value interface{}) bool {
+	tl.Tasks.Iterate("", "", func(key string, value any) bool {
 		tasks = append(tasks, value.(*Task))
 		return false
 	})
 	return tasks
 }
 
-func (tl *TodoList) GetTodolistOwner() std.Address {
+func (tl *TodoList) GetTodolistOwner() address {
 	return tl.Owner
 }
 

@@ -622,6 +622,8 @@ var errLocation = errors.New("time: invalid location name")
 
 var zoneinfo *string
 
+func loadFromEmbeddedTZData(name string) ([]byte, bool) // injected
+
 // XXX var zoneinfoOnce sync.Once
 
 // LoadLocation returns the Location with the given name.
@@ -640,41 +642,19 @@ var zoneinfo *string
 // - $GOROOT/lib/time/zoneinfo.zip
 // - the time/tzdata package, if it was imported
 func LoadLocation(name string) (*Location, error) {
-	panic("XXX LoadLocation not yet implemented")
-	/*
-		if name == "" || name == "UTC" {
-			return UTC, nil
-		}
-		if name == "Local" {
-			return Local, nil
-		}
-		if containsDotDot(name) || name[0] == '/' || name[0] == '\\' {
-			// No valid IANA Time Zone name contains a single dot,
-			// much less dot dot. Likewise, none begin with a slash.
-			return nil, errLocation
-		}
-		zoneinfoOnce.Do(func() {
-			env, _ := syscall.Getenv("ZONEINFO")
-			zoneinfo = &env
-		})
-		var firstErr error
-		if *zoneinfo != "" {
-			if zoneData, err := loadTzinfoFromDirOrZip(*zoneinfo, name); err == nil {
-				if z, err := LoadLocationFromTZData(name, zoneData); err == nil {
-					return z, nil
-				}
-				firstErr = err
-			} else if err != syscall.ENOENT {
-				firstErr = err
-			}
-		}
-		if z, err := loadLocation(name, platformZoneSources); err == nil {
-			return z, nil
-		} else if firstErr == nil {
-			firstErr = err
-		}
-		return nil, firstErr
-	*/
+	if name == "" || name == "UTC" {
+		return UTC, nil
+	}
+	if name == "Local" {
+		return Local, nil
+	}
+	if containsDotDot(name) || name[0] == '/' || name[0] == '\\' {
+		// No valid IANA Time Zone name contains a single dot,
+		// much less dot dot. Likewise, none begin with a slash.
+		return nil, errLocation
+	}
+
+	return loadLocation(name)
 }
 
 // containsDotDot reports whether s contains "..".

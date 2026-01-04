@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"image"
 )
 
+type Point struct{ X, Y int }
+
 func main() {
-	v := map[string]*image.Point{
+	v := map[string]*Point{
 		"foo": {X: 3, Y: 2},
 		"bar": {X: 4, Y: 5},
 	}
@@ -14,4 +15,4 @@ func main() {
 }
 
 // Output:
-// (3,2) (4,5)
+// &{3 2} &{4 5}

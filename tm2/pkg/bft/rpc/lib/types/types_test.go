@@ -117,7 +117,7 @@ func TestJSONRPCID_Marshal_Unmarshal(t *testing.T) {
 				assert.NoError(
 					t,
 					json.Unmarshal(
-						[]byte(fmt.Sprintf(`{"jsonrpc":"2.0","id":%v,"result":{"Value":"hello"}}`, testCase.expectedID)),
+						fmt.Appendf(nil, `{"jsonrpc":"2.0","id":%v,"result":{"Value":"hello"}}`, testCase.expectedID),
 						&expectedResponse,
 					),
 				)

@@ -1,0 +1,17 @@
+# gno lint: no gnomod
+
+! gno lint .
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- good_file.gno --
+package main
+
+func main() {
+	println("Hello", 42)
+}
+
+-- stdout.golden --
+-- stderr.golden --
+gnowork.toml file not found in current or any parent directory and gnomod.toml doesn't exists in current directory

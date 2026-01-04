@@ -6,7 +6,7 @@ func main() {
 	var err error
 
 	switch v := err.(type) {
-	case fmt.Formatter:
+	case interface{ Format() string }:
 		println("formatter")
 	default:
 		fmt.Println(v)

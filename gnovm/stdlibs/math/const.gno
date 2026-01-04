@@ -37,7 +37,7 @@ const (
 
 // Integer limit values.
 const (
-	intSize = 32 << (^uint(0) >> 63) // 32 or 64
+	intSize = 64 // Integers are 64 bits only.
 
 	MaxInt    = 1<<(intSize-1) - 1  // == MaxInt64
 	MinInt    = -1 << (intSize - 1) // == MinInt64

@@ -8,7 +8,7 @@ import (
 	"math/big"
 
 	secp256k1 "github.com/btcsuite/btcd/btcec/v2"
-	"golang.org/x/crypto/ripemd160"
+	"golang.org/x/crypto/ripemd160" //nolint:staticcheck,gosec
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -124,8 +124,8 @@ func (pubKey PubKeySecp256k1) Address() crypto.Address {
 	hasherSHA256.Write(pubKey[:]) // does not error
 	sha := hasherSHA256.Sum(nil)
 
-	hasherRIPEMD160 := ripemd160.New()
-	hasherRIPEMD160.Write(sha) // does not error
+	hasherRIPEMD160 := ripemd160.New() //nolint:gosec
+	hasherRIPEMD160.Write(sha)         // does not error
 	return crypto.AddressFromBytes(hasherRIPEMD160.Sum(nil))
 }
 

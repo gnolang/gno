@@ -1,7 +1,9 @@
 package crypto_test
 
 import (
-	"math/rand"
+	"crypto/sha256"
+	"encoding/json"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -37,7 +39,7 @@ func TestEmptyAddresses(t *testing.T) {
 	require.Nil(t, err)
 }
 
-func testMarshal(t *testing.T, addr crypto.Address, marshal func(orig interface{}) ([]byte, error), unmarshal func(bz []byte, ptr interface{}) error) {
+func testMarshal(t *testing.T, addr crypto.Address, marshal func(orig any) ([]byte, error), unmarshal func(bz []byte, ptr any) error) {
 	t.Helper()
 
 	bz, err := marshal(addr)
@@ -52,13 +54,15 @@ func TestRandBech32AddrConsistency(t *testing.T) {
 	t.Parallel()
 
 	var pub ed25519.PubKeyEd25519
+	cc8 := rand.NewChaCha8(sha256.Sum256([]byte("abc123")))
 
-	for i := 0; i < 1000; i++ {
-		rand.Read(pub[:])
+	for range 1000 {
+		cc8.Read(pub[:])
 
 		addr := crypto.AddressFromBytes(pub.Address().Bytes())
 		testMarshal(t, addr, amino.Marshal, amino.Unmarshal)
 		testMarshal(t, addr, amino.MarshalJSON, amino.UnmarshalJSON)
+		testMarshal(t, addr, json.Marshal, json.Unmarshal)
 
 		str := addr.String()
 		res, err := crypto.AddressFromBech32(str)

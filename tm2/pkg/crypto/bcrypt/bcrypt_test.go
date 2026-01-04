@@ -174,7 +174,7 @@ func TestCostValidationInHash(t *testing.T) {
 	salt := []byte("1234567890123456")
 	pass := []byte("mypassword")
 
-	for c := 0; c < MinCost; c++ {
+	for c := range MinCost {
 		p, _ := newFromPassword(salt, pass, c)
 		if p.cost != DefaultCost {
 			t.Errorf("newFromPassword should default costs below %d to %d, but was %d", MinCost, DefaultCost, p.cost)

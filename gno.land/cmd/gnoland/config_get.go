@@ -36,6 +36,19 @@ func newConfigGetCmd(io commands.IO) *commands.Command {
 		},
 	)
 
+	// Add subcommand helpers
+	gen := commands.FieldsGenerator{
+		MetaUpdate: func(meta *commands.Metadata, inputType string) {
+			meta.ShortUsage = fmt.Sprintf("config get %s <%s>", meta.Name, inputType)
+		},
+		TagNameSelector: "json",
+		TreeDisplay:     true,
+	}
+
+	cmd.AddSubCommands(gen.GenerateFrom(config.Config{}, func(_ context.Context, args []string) error {
+		return execConfigGet(cfg, io, args)
+	})...)
+
 	return cmd
 }
 

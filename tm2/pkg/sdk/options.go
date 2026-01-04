@@ -53,7 +53,7 @@ func (app *BaseApp) SetDB(db dbm.DB) {
 
 func (app *BaseApp) SetCMS(cms store.CommitMultiStore) {
 	if app.sealed {
-		panic("SetEndBlocker() on sealed BaseApp")
+		panic("SetCMS() on sealed BaseApp")
 	}
 	app.cms = cms
 }
@@ -84,4 +84,18 @@ func (app *BaseApp) SetAnteHandler(ah AnteHandler) {
 		panic("SetAnteHandler() on sealed BaseApp")
 	}
 	app.anteHandler = ah
+}
+
+func (app *BaseApp) SetBeginTxHook(beginTx BeginTxHook) {
+	if app.sealed {
+		panic("SetBeginTxHook() on sealed BaseApp")
+	}
+	app.beginTxHook = beginTx
+}
+
+func (app *BaseApp) SetEndTxHook(endTx EndTxHook) {
+	if app.sealed {
+		panic("SetEndTxHook() on sealed BaseApp")
+	}
+	app.endTxHook = endTx
 }

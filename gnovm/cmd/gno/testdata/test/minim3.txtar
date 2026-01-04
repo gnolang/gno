@@ -1,0 +1,19 @@
+# Test minimalist 3
+
+gno test .
+
+! stdout .+
+stderr 'ok      \. 	\d+\.\d\ds'
+
+-- minim.gno --
+package minim
+
+-- minim_filetest.gno --
+package main
+
+func main() {}
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/minim3"
+gno = "0.9"

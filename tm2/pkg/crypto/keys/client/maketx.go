@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/base64"
 	"flag"
 	"fmt"
 
@@ -159,8 +160,15 @@ func SignAndBroadcastHandler(
 		decryptPass: pass,
 	}
 
-	if err := signTx(&tx, kb, sOpts, kOpts); err != nil {
-		return nil, fmt.Errorf("unable to sign transaction, %w", err)
+	// Generate the transaction signature
+	signature, err := generateSignature(&tx, kb, sOpts, kOpts)
+	if err != nil {
+		return nil, fmt.Errorf("unable to sign transaction: %w", err)
+	}
+
+	// Add the signature to the tx
+	if err = addSignature(&tx, signature); err != nil {
+		return nil, fmt.Errorf("unable to add signature: %w", err)
 	}
 
 	// broadcast signed tx
@@ -207,18 +215,26 @@ func ExecSignAndBroadcast(
 		return errors.Wrap(err, "broadcast tx")
 	}
 	if bres.CheckTx.IsErr() {
-		return errors.Wrap(bres.CheckTx.Error, "check transaction failed: log:%s", bres.CheckTx.Log)
+		return errors.Wrapf(bres.CheckTx.Error, "check transaction failed: log:%s", bres.CheckTx.Log)
 	}
 	if bres.DeliverTx.IsErr() {
-		return errors.Wrap(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
+		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
+		io.Println("INFO:      ", bres.DeliverTx.Info)
+		return errors.Wrapf(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
 	}
 
-	io.Println(string(bres.DeliverTx.Data))
-	io.Println("OK!")
-	io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
-	io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
-	io.Println("HEIGHT:    ", bres.Height)
-	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
+	if cfg.RootCfg.OnTxSuccess != nil {
+		cfg.RootCfg.OnTxSuccess(tx, bres)
+	} else {
+		io.Println(string(bres.DeliverTx.Data))
+		io.Println("OK!")
+		io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
+		io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
+		io.Println("HEIGHT:    ", bres.Height)
+		io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
+		io.Println("INFO:      ", bres.DeliverTx.Info)
+		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
+	}
 
 	return nil
 }

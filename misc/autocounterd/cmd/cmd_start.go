@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -43,7 +44,7 @@ func NewStartCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "start",
 			ShortUsage: "start [flags]",
-			ShortHelp:  "Runs the linter for the specified packages",
+			ShortHelp:  "Increments the counter in the specified realm at regular intervals",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -67,13 +68,16 @@ func execStart(cfg *startCfg, args []string, io commands.IO) error {
 
 	signer, err := gnoclient.SignerFromBip39(cfg.mnemonic, cfg.chainID, "", uint32(0), uint32(0))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create signer: %w", err)
 	}
 	if err := signer.Validate(); err != nil {
-		return err
+		return fmt.Errorf("invalid signer: %w", err)
 	}
 
-	rpcClient := rpcclient.NewHTTP(cfg.rpcURL, "/websocket")
+	rpcClient, err := rpcclient.NewHTTPClient(cfg.rpcURL)
+	if err != nil {
+		return fmt.Errorf("failed to create RPC client: %w", err)
+	}
 
 	client := gnoclient.Client{
 		Signer:    signer,
@@ -81,17 +85,19 @@ func execStart(cfg *startCfg, args []string, io commands.IO) error {
 	}
 
 	for {
-		res, err := client.Call(gnoclient.CallCfg{
-			PkgPath:   cfg.realmPath,
-			FuncName:  "Incr",
-			GasFee:    "10000000ugnot",
-			GasWanted: 800000,
-			Args:      nil,
-		})
-		_ = res
+		_, err := client.Call(
+			gnoclient.BaseTxCfg{
+				GasFee:    "10000000ugnot",
+				GasWanted: 800000,
+			},
+			vm.MsgCall{
+				PkgPath: cfg.realmPath,
+				Func:    "Incr",
+				Args:    nil,
+			})
 
 		if err != nil {
-			fmt.Printf("[ERROR] Failed to call Incr on %s, %+v\n", cfg.realmPath, err.Error())
+			fmt.Printf("[ERROR] Failed to call Incr on %s: %v\n", cfg.realmPath, err)
 		} else {
 			fmt.Println("[INFO] Counter incremented with success")
 		}

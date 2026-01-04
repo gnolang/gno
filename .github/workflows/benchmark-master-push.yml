@@ -1,0 +1,70 @@
+name: Run and Save Benchmarks
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - contribs/**/*.go
+      - gno.land/**/*.go
+      - gnovm/**/*.go
+      - tm2/**/*.go
+
+permissions:
+  # deployments permission to deploy GitHub pages website
+  deployments: write
+  # contents permission to update benchmark contents in gh-pages branch
+  contents: write
+
+env:
+  CGO_ENABLED: 0
+
+jobs:
+  benchmarks:
+    if: ${{ github.repository == 'gnolang/gno' }}
+    runs-on: [ self-hosted, Linux, X64, benchmarks ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run benchmark
+        # add more benchmarks by adding additional lines for different packages;
+        # or modify the -bench regexp.
+        run: |
+          set -xeuo pipefail && (
+            go test ./gnovm/pkg/gnolang -bench='BenchmarkBenchdata' -benchmem -run='^$' -v -cpu=1,2
+          ) | tee benchmarks.txt
+
+      - name: Download previous benchmark data
+        uses: actions/cache@v4
+        with:
+          path: ./cache
+          key: ${{ runner.os }}-benchmark
+
+      - name: Store benchmark results into `gh-benchmarks` branch
+        uses: benchmark-action/github-action-benchmark@v1
+        # see https://github.com/benchmark-action/github-action-benchmark?tab=readme-ov-file#action-inputs
+        with:
+          name: Go Benchmarks
+          tool: "go"
+          output-file-path: benchmarks.txt
+          max-items-in-chart: 100
+          # Show alert with commit comment on detecting possible performance regression
+          alert-threshold: "120%"
+          fail-on-alert: false
+          comment-on-alert: true
+          alert-comment-cc-users: "@ajnavarro,@thehowl,@zivkovicmilos"
+          # Enable Job Summary for PRs
+          summary-always: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # NOTE you need to use a separate GITHUB PAT token that has a write access to the specified repository.
+          # gh-repository: 'github.com/gnolang/benchmarks' # on gh-pages branch
+          gh-pages-branch: gh-benchmarks
+          benchmark-data-dir-path: .
+          auto-push: true

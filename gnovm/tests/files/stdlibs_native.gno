@@ -10,6 +10,6 @@ func main() {
 }
 
 // Output:
-// false
-// true
-// done
+
+// Error:
+// main/stdlibs_native.gno:7:2-10: cannot directly mutate time.UTC from main

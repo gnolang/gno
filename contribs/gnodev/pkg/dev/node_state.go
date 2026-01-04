@@ -8,7 +8,6 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 var ErrEmptyState = errors.New("empty state")
@@ -29,7 +28,7 @@ func (n *Node) SaveCurrentState(ctx context.Context) error {
 }
 
 // Export the current state as list of txs
-func (n *Node) ExportCurrentState(ctx context.Context) ([]std.Tx, error) {
+func (n *Node) ExportCurrentState(ctx context.Context) ([]gnoland.TxWithMetadata, error) {
 	n.muNode.RLock()
 	defer n.muNode.RUnlock()
 
@@ -42,7 +41,7 @@ func (n *Node) ExportCurrentState(ctx context.Context) ([]std.Tx, error) {
 	return state[:n.currentStateIndex], nil
 }
 
-func (n *Node) getState(ctx context.Context) ([]std.Tx, error) {
+func (n *Node) getState(ctx context.Context) ([]gnoland.TxWithMetadata, error) {
 	if n.state == nil {
 		var err error
 		n.state, err = n.getBlockStoreState(ctx)
@@ -85,18 +84,13 @@ func (n *Node) MoveBy(ctx context.Context, x int) error {
 	}
 
 	// Load genesis packages
-	pkgsTxs, err := n.pkgs.Load(DefaultFee)
-	if err != nil {
-		return fmt.Errorf("unable to load pkgs: %w", err)
-	}
-
-	newState := n.state[:newIndex]
+	pkgsTxs := n.generateTxs(DefaultFee, n.pkgs)
 
 	// Create genesis with loaded pkgs + previous state
-	genesis := gnoland.GnoGenesisState{
-		Balances: n.config.BalancesList,
-		Txs:      append(pkgsTxs, newState...),
-	}
+	newState := n.state[:newIndex]
+	genesis := gnoland.DefaultGenState()
+	genesis.Balances = n.config.BalancesList
+	genesis.Txs = append(pkgsTxs, newState...)
 
 	// Reset the node with the new genesis state.
 	if err = n.rebuildNode(ctx, genesis); err != nil {
@@ -133,10 +127,10 @@ func (n *Node) ExportStateAsGenesis(ctx context.Context) (*bft.GenesisDoc, error
 
 	// Get current blockstore state
 	doc := *n.Node.GenesisDoc() // copy doc
-	doc.AppState = gnoland.GnoGenesisState{
-		Balances: n.config.BalancesList,
-		Txs:      state,
-	}
+	genState := doc.AppState.(gnoland.GnoGenesisState)
+	genState.Balances = n.config.BalancesList
+	genState.Txs = state
+	doc.AppState = genState
 
 	return &doc, nil
 }

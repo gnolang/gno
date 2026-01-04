@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/flow"
+	"github.com/gnolang/gno/tm2/pkg/p2p/config"
 	"github.com/gnolang/gno/tm2/pkg/service"
 	"github.com/gnolang/gno/tm2/pkg/timer"
 )
@@ -31,7 +32,6 @@ const (
 
 	// some of these defaults are written in the user config
 	// flushThrottle, sendRate, recvRate
-	// TODO: remove values present in config
 	defaultFlushThrottle = 100 * time.Millisecond
 
 	defaultSendQueueCapacity   = 1
@@ -46,7 +46,7 @@ const (
 
 type (
 	receiveCbFunc func(chID byte, msgBytes []byte)
-	errorCbFunc   func(interface{})
+	errorCbFunc   func(error)
 )
 
 /*
@@ -145,6 +145,18 @@ func DefaultMConnConfig() MConnConfig {
 		PingInterval:            defaultPingInterval,
 		PongTimeout:             defaultPongTimeout,
 	}
+}
+
+// MConfigFromP2P returns a multiplex connection configuration
+// with fields updated from the P2PConfig
+func MConfigFromP2P(cfg *config.P2PConfig) MConnConfig {
+	mConfig := DefaultMConnConfig()
+	mConfig.FlushThrottle = cfg.FlushThrottleTimeout
+	mConfig.SendRate = cfg.SendRate
+	mConfig.RecvRate = cfg.RecvRate
+	mConfig.MaxPacketMsgPayloadSize = cfg.MaxPacketMsgPayloadSize
+
+	return mConfig
 }
 
 // NewMConnection wraps net.Conn and creates multiplex connection
@@ -323,7 +335,7 @@ func (c *MConnection) _recover() {
 	}
 }
 
-func (c *MConnection) stopForError(r interface{}) {
+func (c *MConnection) stopForError(r error) {
 	c.Stop()
 	if atomic.CompareAndSwapUint32(&c.errored, 0, 1) {
 		if c.onError != nil {
@@ -489,7 +501,7 @@ func (c *MConnection) sendSomePacketMsgs() bool {
 	c.sendMonitor.Limit(c._maxPacketMsgSize, atomic.LoadInt64(&c.config.SendRate), true)
 
 	// Now send some PacketMsgs.
-	for i := 0; i < numBatchPacketMsgs; i++ {
+	for range numBatchPacketMsgs {
 		if c.sendPacketMsg() {
 			return true
 		}

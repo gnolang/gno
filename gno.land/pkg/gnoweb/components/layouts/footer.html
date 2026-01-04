@@ -1,0 +1,21 @@
+{{ define "layouts/footer" }}
+<footer class="b-footer">
+  <nav class="c-center c-view-grid">
+    <a class="logo" href="/">{{ template "ui/logo" }}</a>
+    <div class="menu c-view-grid">
+      {{ range .Sections }}
+      <ul aria-label="{{ .Title }}">
+        {{ range .Links }}
+        <li><a href="{{ .URL }}">{{ .Label }}</a></li>
+        {{ end }}
+      </ul>
+      {{ end }}
+    </div>
+  </nav>
+</footer>
+
+<!-- javascript module src -->
+<script type="module" src="{{ .AssetsPath }}js/controller.js?v={{ .BuildTime }}"></script>
+<script type="module" src="{{ .AssetsPath }}js/index.js?v={{ .BuildTime }}"></script>
+
+{{- if .Analytics -}} {{- template "layout/analytics" }}{{- end -}} {{ end }}
