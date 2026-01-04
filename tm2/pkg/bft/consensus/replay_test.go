@@ -25,6 +25,7 @@ import (
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/mempool/mock"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
+	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -354,7 +355,7 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	proposalCh := subscribe(css[0].evsw, cstypes.EventCompleteProposal{})
 
 	vss := make([]*validatorStub, nPeers)
-	for i := 0; i < nPeers; i++ {
+	for i := range nPeers {
 		vss[i] = NewValidatorStub(css[i].privValidator, i)
 	}
 	height, round := css[0].Height, css[0].Round
@@ -370,7 +371,7 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	// height 2
 	height++
 	incrementHeight(vss...)
-	newValidatorPubKey1 := css[nVals].privValidator.GetPubKey()
+	newValidatorPubKey1 := css[nVals].privValidator.PubKey()
 	newValidatorTx1 := kvstore.MakeValSetChangeTx(newValidatorPubKey1, testMinPower)
 	err := assertMempool(css[0].txNotifier).CheckTx(newValidatorTx1, nil)
 	assert.Nil(t, err)
@@ -394,7 +395,7 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	// height 3
 	height++
 	incrementHeight(vss...)
-	updateValidatorPubKey1 := css[nVals].privValidator.GetPubKey()
+	updateValidatorPubKey1 := css[nVals].privValidator.PubKey()
 	updateValidatorTx1 := kvstore.MakeValSetChangeTx(updateValidatorPubKey1, 25)
 	err = assertMempool(css[0].txNotifier).CheckTx(updateValidatorTx1, nil)
 	assert.Nil(t, err)
@@ -418,11 +419,11 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	// height 4
 	height++
 	incrementHeight(vss...)
-	newValidatorPubKey2 := css[nVals+1].privValidator.GetPubKey()
+	newValidatorPubKey2 := css[nVals+1].privValidator.PubKey()
 	newValidatorTx2 := kvstore.MakeValSetChangeTx(newValidatorPubKey2, testMinPower)
 	err = assertMempool(css[0].txNotifier).CheckTx(newValidatorTx2, nil)
 	assert.Nil(t, err)
-	newValidatorPubKey3 := css[nVals+2].privValidator.GetPubKey()
+	newValidatorPubKey3 := css[nVals+2].privValidator.PubKey()
 	newValidatorTx3 := kvstore.MakeValSetChangeTx(newValidatorPubKey3, testMinPower)
 	err = assertMempool(css[0].txNotifier).CheckTx(newValidatorTx3, nil)
 	assert.Nil(t, err)
@@ -433,8 +434,9 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	copy(newVss, vss[:nVals+1])
 	sort.Sort(ValidatorStubsByAddress(newVss))
 	selfIndex := 0
+	cssPubKey := css[0].privValidator.PubKey()
 	for i, vs := range newVss {
-		if vs.GetPubKey().Equals(css[0].privValidator.GetPubKey()) {
+		if vs.PubKey().Equals(cssPubKey) {
 			selfIndex = i
 			break
 		}
@@ -456,7 +458,7 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	assert.Nil(t, err)
 
 	rs = css[0].GetRoundState()
-	for i := 0; i < nVals+1; i++ {
+	for i := range nVals + 1 {
 		if i == selfIndex {
 			continue
 		}
@@ -470,7 +472,7 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	incrementHeight(vss...)
 	ensureNewProposal(proposalCh, height, round)
 	rs = css[0].GetRoundState()
-	for i := 0; i < nVals+1; i++ {
+	for i := range nVals + 1 {
 		if i == selfIndex {
 			continue
 		}
@@ -490,8 +492,9 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	newVss = make([]*validatorStub, nVals+3)
 	copy(newVss, vss[:nVals+3])
 	sort.Sort(ValidatorStubsByAddress(newVss))
+	cssPubKey = css[0].privValidator.PubKey()
 	for i, vs := range newVss {
-		if vs.GetPubKey().Equals(css[0].privValidator.GetPubKey()) {
+		if vs.PubKey().Equals(cssPubKey) {
 			selfIndex = i
 			break
 		}
@@ -507,7 +510,7 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	}
 	ensureNewProposal(proposalCh, height, round)
 	rs = css[0].GetRoundState()
-	for i := 0; i < nVals+3; i++ {
+	for i := range nVals + 3 {
 		if i == selfIndex {
 			continue
 		}
@@ -785,12 +788,12 @@ func buildAppStateFromChain(proxyApp appconn.AppConns, stateDB dbm.DB,
 
 	switch mode {
 	case 0:
-		for i := 0; i < nBlocks; i++ {
+		for i := range nBlocks {
 			block := chain[i]
 			state = applyBlock(stateDB, state, block, proxyApp)
 		}
 	case 1, 2:
-		for i := 0; i < nBlocks-1; i++ {
+		for i := range nBlocks - 1 {
 			block := chain[i]
 			state = applyBlock(stateDB, state, block, proxyApp)
 		}
@@ -854,7 +857,10 @@ func TestHandshakePanicsIfAppReturnsWrongAppHash(t *testing.T) {
 	//		- 0x03
 	config, genesisFile := ResetConfig("handshake_test_")
 	defer os.RemoveAll(config.RootDir)
-	privVal := privval.LoadFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile())
+	fileSigner, err := signer.LoadOrMakeLocalSigner(config.Consensus.PrivValidator.LocalSignerPath())
+	require.NoError(t, err)
+	privVal, err := privval.NewPrivValidator(fileSigner, config.Consensus.PrivValidator.SignStatePath())
+	require.NoError(t, err)
 	const appVersion = "v0.0.0-test"
 	stateDB, state, store := makeStateAndStore(config, genesisFile, appVersion)
 	genDoc, _ := sm.MakeGenesisDocFromFile(genesisFile)
@@ -909,7 +915,7 @@ func makeBlocks(n int, state *sm.State, privVal types.PrivValidator) []*types.Bl
 	)
 
 	appHeight := byte(0x01)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		height := int64(i + 1)
 
 		block, parts := makeBlock(*state, prevBlock, prevBlockMeta, privVal, height)
@@ -1060,7 +1066,7 @@ func makeBlockchainFromWAL(wal walm.WAL) ([]*types.Block, []*types.Commit, error
 	return blocks, commits, nil
 }
 
-func readPieceFromWAL(msg *walm.TimedWALMessage) interface{} {
+func readPieceFromWAL(msg *walm.TimedWALMessage) any {
 	// for logging
 	switch m := msg.Msg.(type) {
 	case msgInfo:
@@ -1131,11 +1137,19 @@ func TestHandshakeUpdatesValidators(t *testing.T) {
 
 	val, _ := types.RandValidator(true, 10)
 	vals := types.NewValidatorSet([]*types.Validator{val})
-	app := &initChainApp{vals: vals.ABCIValidatorUpdates()}
+	appVals := vals.ABCIValidatorUpdates()
+	// returns the vals on InitChain
+	app := initChainApp{
+		initChain: func(req abci.RequestInitChain) abci.ResponseInitChain {
+			return abci.ResponseInitChain{
+				Validators: appVals,
+			}
+		},
+	}
 	clientCreator := proxy.NewLocalClientCreator(app)
 
 	config, genesisFile := ResetConfig("handshake_test_")
-	defer os.RemoveAll(config.RootDir)
+	t.Cleanup(func() { require.NoError(t, os.RemoveAll(config.RootDir)) })
 	stateDB, state, store := makeStateAndStore(config, genesisFile, "v0.0.0-test")
 
 	oldValAddr := state.Validators.Validators[0].Address
@@ -1144,13 +1158,9 @@ func TestHandshakeUpdatesValidators(t *testing.T) {
 	genDoc, _ := sm.MakeGenesisDocFromFile(genesisFile)
 	handshaker := NewHandshaker(stateDB, state, store, genDoc)
 	proxyApp := appconn.NewAppConns(clientCreator)
-	if err := proxyApp.Start(); err != nil {
-		t.Fatalf("Error starting proxy app connections: %v", err)
-	}
-	defer proxyApp.Stop()
-	if err := handshaker.Handshake(proxyApp); err != nil {
-		t.Fatalf("Error on abci handshake: %v", err)
-	}
+	require.NoError(t, proxyApp.Start(), "Error starting proxy app connections")
+	t.Cleanup(func() { require.NoError(t, proxyApp.Stop()) })
+	require.NoError(t, handshaker.Handshake(proxyApp), "Error on abci handshake")
 
 	// reload the state, check the validator set was updated
 	state = sm.LoadState(stateDB)
@@ -1161,14 +1171,43 @@ func TestHandshakeUpdatesValidators(t *testing.T) {
 	assert.Equal(t, newValAddr, expectValAddr)
 }
 
-// returns the vals on InitChain
-type initChainApp struct {
-	abci.BaseApplication
-	vals []abci.ValidatorUpdate
+func TestHandshakeGenesisResponseDeliverTx(t *testing.T) {
+	t.Parallel()
+
+	const numInitResponses = 42
+
+	app := initChainApp{
+		initChain: func(req abci.RequestInitChain) abci.ResponseInitChain {
+			return abci.ResponseInitChain{
+				TxResponses: make([]abci.ResponseDeliverTx, numInitResponses),
+			}
+		},
+	}
+	clientCreator := proxy.NewLocalClientCreator(app)
+
+	config, genesisFile := ResetConfig("handshake_test_")
+	t.Cleanup(func() { require.NoError(t, os.RemoveAll(config.RootDir)) })
+	stateDB, state, store := makeStateAndStore(config, genesisFile, "v0.0.0-test")
+
+	// now start the app using the handshake - it should sync
+	genDoc, _ := sm.MakeGenesisDocFromFile(genesisFile)
+	handshaker := NewHandshaker(stateDB, state, store, genDoc)
+	proxyApp := appconn.NewAppConns(clientCreator)
+	require.NoError(t, proxyApp.Start(), "Error starting proxy app connections")
+	t.Cleanup(func() { require.NoError(t, proxyApp.Stop()) })
+	require.NoError(t, handshaker.Handshake(proxyApp), "Error on abci handshake")
+
+	// check that the genesis transaction results are saved
+	res, err := sm.LoadABCIResponses(stateDB, 0)
+	require.NoError(t, err, "Failed to load genesis ABCI responses")
+	assert.Len(t, res.DeliverTxs, numInitResponses)
 }
 
-func (ica *initChainApp) InitChain(req abci.RequestInitChain) abci.ResponseInitChain {
-	return abci.ResponseInitChain{
-		Validators: ica.vals,
-	}
+type initChainApp struct {
+	abci.BaseApplication
+	initChain func(req abci.RequestInitChain) abci.ResponseInitChain
+}
+
+func (m initChainApp) InitChain(req abci.RequestInitChain) abci.ResponseInitChain {
+	return m.initChain(req)
 }

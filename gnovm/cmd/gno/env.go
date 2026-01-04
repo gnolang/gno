@@ -18,7 +18,7 @@ func newEnvCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "env",
 			ShortUsage: "env [flags] <pkgsym>",
-			ShortHelp:  "`env` prints Gno environment information",
+			ShortHelp:  "print gno environment information",
 		},
 		c,
 		func(_ context.Context, args []string) error {

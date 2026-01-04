@@ -6,7 +6,7 @@ package io_test
 
 import (
 	"bytes"
-	"crypto/sha1"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"strings"
@@ -120,8 +120,8 @@ func testMultiWriter(t *testing.T, sink interface {
 	Stringer
 },
 ) {
-	sha1 := sha1.New()
-	mw := io.MultiWriter(sha1, sink)
+	var buf bytes.Buffer
+	mw := io.MultiWriter(&buf, sink)
 
 	sourceString := "My input text."
 	source := strings.NewReader(sourceString)
@@ -135,9 +135,9 @@ func testMultiWriter(t *testing.T, sink interface {
 		t.Errorf("unexpected error: %v", err)
 	}
 
-	sha1hex := fmt.Sprintf("%x", sha1.Sum(nil))
-	if sha1hex != "01cb303fa8c30a64123067c5aa6284ba7ec2d31b" {
-		t.Error("incorrect sha1 value")
+	sha1hex := fmt.Sprintf("%x", sha256.Sum256(buf.Bytes()))
+	if sha1hex != "d3e9e78d2a7e9c4756a4e8e57db6a57ccfd84c6d656d66b9d2bd2620b4ab81b8" {
+		t.Error("incorrect sha256 value")
 	}
 
 	if sink.String() != sourceString {
@@ -159,7 +159,7 @@ func TestMultiWriterSingleChainFlatten(t *testing.T) {
 	n := runtime.Callers(0, pc)
 	var myDepth = callDepth(pc[:n])
 	var writeDepth int // will contain the depth from which writerFunc.Writer was called
-	var w Writer = MultiWriter(writerFunc(func(p []byte) (int, error) {
+	var w io.Writer = io.MultiWriter(writerFunc(func(p []byte) (int, error) {
 		n := runtime.Callers(1, pc)
 		writeDepth += callDepth(pc[:n])
 		return 0, nil
@@ -168,10 +168,10 @@ func TestMultiWriterSingleChainFlatten(t *testing.T) {
 	mw := w
 	// chain a bunch of multiWriters
 	for i := 0; i < 100; i++ {
-		mw = MultiWriter(w)
+		mw = io.MultiWriter(w)
 	}
 
-	mw = MultiWriter(w, mw, w, mw)
+	mw = io.MultiWriter(w, mw, w, mw)
 	mw.Write(nil) // don't care about errors, just want to check the call-depth for Write
 
 	if writeDepth != 4*(myDepth+2) { // 2 should be multiWriter.Write and writerFunc.Write
@@ -247,7 +247,7 @@ func TestMultiReaderFlatten(t *testing.T) {
 	n := runtime.Callers(0, pc)
 	var myDepth = callDepth(pc[:n])
 	var readDepth int // will contain the depth from which fakeReader.Read was called
-	var r Reader = MultiReader(readerFunc(func(p []byte) (int, error) {
+	var r io.Reader = io.MultiReader(readerFunc(func(p []byte) (int, error) {
 		n := runtime.Callers(1, pc)
 		readDepth = callDepth(pc[:n])
 		return 0, errors.New("irrelevant")
@@ -255,7 +255,7 @@ func TestMultiReaderFlatten(t *testing.T) {
 
 	// chain a bunch of multiReaders
 	for i := 0; i < 100; i++ {
-		r = MultiReader(r)
+		r = io.MultiReader(r)
 	}
 
 	r.Read(nil) // don't care about errors, just want to check the call-depth for Read
@@ -307,7 +307,7 @@ func TestMultiReaderFinalEOF(t *testing.T) {
 
 /*
 func TestMultiReaderFreesExhaustedReaders(t *testing.T) {
-	var mr Reader
+	var mr io.Reader
 	closed := make(chan struct{})
 	// The closure ensures that we don't have a live reference to buf1
 	// on our stack after MultiReader is inlined (Issue 18819).  This
@@ -315,14 +315,14 @@ func TestMultiReaderFreesExhaustedReaders(t *testing.T) {
 	func() {
 		buf1 := bytes.NewReader([]byte("foo"))
 		buf2 := bytes.NewReader([]byte("bar"))
-		mr = MultiReader(buf1, buf2)
-		runtime.SetFinalizer(buf1, func(*bytes.Reader) {
+		mr = io.MultiReader(buf1, buf2)
+		runtime.SetFinalizer(buf1, func(*bytes.io.Reader) {
 			close(closed)
 		})
 	}()
 
 	buf := make([]byte, 4)
-	if n, err := ReadFull(mr, buf); err != nil || string(buf) != "foob" {
+	if n, err := io.ReadFull(mr, buf); err != nil || string(buf) != "foob" {
 		t.Fatalf(`ReadFull = %d (%q), %v; want 3, "foo", nil`, n, buf[:n], err)
 	}
 
@@ -333,7 +333,7 @@ func TestMultiReaderFreesExhaustedReaders(t *testing.T) {
 		t.Fatal("timeout waiting for collection of buf1")
 	}
 
-	if n, err := ReadFull(mr, buf[:2]); err != nil || string(buf[:2]) != "ar" {
+	if n, err := io.ReadFull(mr, buf[:2]); err != nil || string(buf[:2]) != "ar" {
 		t.Fatalf(`ReadFull = %d (%q), %v; want 2, "ar", nil`, n, buf[:n], err)
 	}
 }

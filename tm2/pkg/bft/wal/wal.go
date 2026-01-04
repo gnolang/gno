@@ -271,15 +271,14 @@ type WALSearchOptions struct {
 // CONTRACT: caller must close group reader.
 func (wal *baseWAL) SearchForHeight(height int64, options *WALSearchOptions) (rd io.ReadCloser, found bool, err error) {
 	var (
-		msg  *TimedWALMessage
 		meta *MetaMessage
 		gr   *auto.GroupReader
 	)
 
 	// NOTE: starting from the last file in the group because we're usually
 	// searching for the last height. See replay.go
-	min, max := wal.group.MinIndex(), wal.group.MaxIndex()
-	wal.Logger.Info("Searching for height", "height", height, "min", min, "max", max)
+	minVal, maxVal := wal.group.MinIndex(), wal.group.MaxIndex()
+	wal.Logger.Info("Searching for height", "height", height, "min", minVal, "max", maxVal)
 
 	var (
 		mode    = WALSearchModeBackwards
@@ -293,18 +292,18 @@ func (wal *baseWAL) SearchForHeight(height int64, options *WALSearchOptions) (rd
 	}
 
 OUTER_LOOP:
-	for min <= max {
+	for minVal <= maxVal {
 		var index int
 
 		// set index depending on mode.
 		switch mode {
 		case WALSearchModeBackwards:
-			index = max + backoff + idxoff
-			if max < index {
+			index = maxVal + backoff + idxoff
+			if maxVal < index {
 				// (max+backoff)+ doesn't contain any height.
 				// adjust max & backoff accordingly.
 				idxoff = 0
-				max = max + backoff - 1
+				maxVal = maxVal + backoff - 1
 				if backoff == 0 {
 					backoff = -1
 				} else {
@@ -312,16 +311,16 @@ OUTER_LOOP:
 				}
 				continue OUTER_LOOP
 			}
-			if index < min {
+			if index < minVal {
 				panic("should not happen")
 			}
 		case WALSearchModeBinary:
-			index = (min+max+1)/2 + idxoff
-			if max < index {
+			index = (minVal+maxVal+1)/2 + idxoff
+			if maxVal < index {
 				// ((min+max+1)/2)+ doesn't contain any height.
 				// adjust max & binary search accordingly.
 				idxoff = 0
-				max = (min+max+1)/2 - 1
+				maxVal = (minVal+maxVal+1)/2 - 1
 				continue OUTER_LOOP
 			}
 		}
@@ -334,7 +333,7 @@ OUTER_LOOP:
 
 	FILE_LOOP:
 		for {
-			msg, meta, err = dec.ReadMessage()
+			_, meta, err = dec.ReadMessage()
 			// error case
 			if err != nil {
 				if goerrors.Is(err, io.EOF) {
@@ -360,24 +359,24 @@ OUTER_LOOP:
 					case WALSearchModeBackwards:
 						idxoff = 0
 						if backoff == 0 {
-							max--
+							maxVal--
 							backoff = -1
 						} else {
-							max += backoff
+							maxVal += backoff
 							backoff *= 2
 						}
 						// convert to binary search if backoff is too big.
 						// max+backoff would work but max+(backoff*2) is smoother.
-						if max+(backoff*2) <= min {
+						if maxVal+(backoff*2) <= minVal {
 							wal.Logger.Info("Converting to binary search",
-								"height", height, "min", min,
-								"max", max, "backoff", backoff)
+								"height", height, "min", minVal,
+								"max", maxVal, "backoff", backoff)
 							backoff = 0
 							mode = WALSearchModeBinary
 						}
 					case WALSearchModeBinary:
 						idxoff = 0
-						max = (min+max+1)/2 - 1
+						maxVal = (minVal+maxVal+1)/2 - 1
 					}
 					dec.Close()
 					continue OUTER_LOOP
@@ -398,21 +397,21 @@ OUTER_LOOP:
 						} else {
 							// convert to binary search with index as new min.
 							wal.Logger.Info("Converting to binary search with new min",
-								"height", height, "min", min,
-								"max", max, "backoff", backoff)
+								"height", height, "min", minVal,
+								"max", maxVal, "backoff", backoff)
 							idxoff = 0
 							backoff = 0
-							min = index
+							minVal = index
 							mode = WALSearchModeBinary
 							dec.Close()
 							continue OUTER_LOOP
 						}
 					case WALSearchModeBinary:
-						if index < max {
+						if index < maxVal {
 							// maybe in @index, but first try binary search
 							// between @index and max.
 							idxoff = 0
-							min = index
+							minVal = index
 							dec.Close()
 							continue OUTER_LOOP
 						} else { // index == max
@@ -425,11 +424,11 @@ OUTER_LOOP:
 				}
 			}
 			// msg case
-			if msg != nil {
-				// do nothing, we're only interested in meta lines.
-				// TODO: optimize by implementing ReadNextMeta(),
-				// which skips decoding non-meta messages.
-			}
+			// if msg != nil {
+			// do nothing, we're only interested in meta lines.
+			// TODO: optimize by implementing ReadNextMeta(),
+			// which skips decoding non-meta messages.
+			// }
 		}
 	}
 

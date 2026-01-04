@@ -76,7 +76,7 @@ func checkTxs(t *testing.T, mempool Mempool, count int, peerID uint16, failOnChe
 
 	txs := make(types.Txs, count)
 	txInfo := TxInfo{SenderID: peerID}
-	for i := 0; i < count; i++ {
+	for i := range count {
 		txBytes := make([]byte, 20)
 		txs[i] = txBytes
 		_, err := rand.Read(txBytes)
@@ -541,7 +541,7 @@ func checksumFile(t *testing.T, p string) string {
 
 func abciResponses(n int, err abci.Error) []abci.ResponseDeliverTx {
 	responses := make([]abci.ResponseDeliverTx, 0, n)
-	for i := 0; i < n; i++ {
+	for range n {
 		responses = append(responses, abci.ResponseDeliverTx{
 			ResponseBase: abci.ResponseBase{
 				Error: err,

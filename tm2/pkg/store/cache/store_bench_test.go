@@ -15,9 +15,9 @@ func benchmarkCacheStoreIterator(b *testing.B, numKVs int) {
 
 	mem := dbadapter.Store{DB: memdb.NewMemDB()}
 	cstore := cache.New(mem)
-	keys := make([]string, numKVs, numKVs)
+	keys := make([]string, numKVs)
 
-	for i := 0; i < numKVs; i++ {
+	for i := range numKVs {
 		key := make([]byte, 32)
 		value := make([]byte, 32)
 

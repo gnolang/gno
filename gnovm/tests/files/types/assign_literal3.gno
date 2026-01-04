@@ -5,4 +5,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_literal3.gno:4: cannot assign to (const (true <untyped> bool))
+// main/assign_literal3.gno:4:2-14: cannot assign to uverse true
+
+// TypeCheckError:
+// main/assign_literal3.gno:4:2: cannot assign to true (neither addressable nor a map index expression)

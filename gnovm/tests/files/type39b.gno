@@ -19,4 +19,7 @@ func main() {
 }
 
 // Error:
-// main/files/type39b.gno:7: invalid receiver type *main.foo (base type is interface type)
+// main/type39b.gno:7:1-9:2: invalid receiver type *main.foo (base type is interface type)
+
+// TypeCheckError:
+// main/type39b.gno:7:10: invalid receiver type foo (pointer or interface type); main/type39b.gno:18:12: f.echo undefined (type *foo is pointer to interface, not interface)

@@ -2,13 +2,13 @@ package main
 
 import "fmt"
 
-func gen() interface{} {
+func gen() any {
 	return false
 }
 
 func main() {
 	r := gen()
-	fmt.Printf("%T \n", r)
+	fmt.Printf("%T\n", r)
 }
 
 // Output:

@@ -1,8 +1,9 @@
 package gas
 
 import (
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
-	"github.com/gnolang/overflow"
+	"github.com/gnolang/gno/tm2/pkg/store/utils"
 )
 
 var _ types.Store = &Store{}
@@ -30,7 +31,7 @@ func (gs *Store) Get(key []byte) (value []byte) {
 	gs.gasMeter.ConsumeGas(gs.gasConfig.ReadCostFlat, types.GasReadCostFlatDesc)
 	value = gs.parent.Get(key)
 
-	gas := overflow.Mul64p(gs.gasConfig.ReadCostPerByte, types.Gas(len(value)))
+	gas := overflow.Mulp(gs.gasConfig.ReadCostPerByte, types.Gas(len(value)))
 	gs.gasMeter.ConsumeGas(gas, types.GasReadPerByteDesc)
 
 	return value
@@ -41,7 +42,7 @@ func (gs *Store) Set(key []byte, value []byte) {
 	types.AssertValidValue(value)
 	gs.gasMeter.ConsumeGas(gs.gasConfig.WriteCostFlat, types.GasWriteCostFlatDesc)
 
-	gas := overflow.Mul64p(gs.gasConfig.WriteCostPerByte, types.Gas(len(value)))
+	gas := overflow.Mulp(gs.gasConfig.WriteCostPerByte, types.Gas(len(value)))
 	gs.gasMeter.ConsumeGas(gas, types.GasWritePerByteDesc)
 	gs.parent.Set(key, value)
 }
@@ -100,6 +101,22 @@ func (gs *Store) iterator(start, end []byte, ascending bool) types.Iterator {
 	return gi
 }
 
+func (gs *Store) Print() {
+	if ps, ok := gs.parent.(types.Printer); ok {
+		ps.Print()
+	} else {
+		utils.Print(gs.parent)
+	}
+}
+
+func (gs *Store) Flush() {
+	if cts, ok := gs.parent.(types.Flusher); ok {
+		cts.Flush()
+	} else {
+		panic("underlying store does not implement Flush()")
+	}
+}
+
 type gasIterator struct {
 	gasMeter  types.GasMeter
 	gasConfig types.GasConfig
@@ -149,16 +166,20 @@ func (gi *gasIterator) Value() (value []byte) {
 	return value
 }
 
+func (gi *gasIterator) Error() error {
+	return gi.parent.Error()
+}
+
 // Implements Iterator.
-func (gi *gasIterator) Close() {
-	gi.parent.Close()
+func (gi *gasIterator) Close() error {
+	return gi.parent.Close()
 }
 
 // consumeSeekGas consumes a flat gas cost for seeking and a variable gas cost
 // based on the current value's length.
 func (gi *gasIterator) consumeSeekGas() {
 	value := gi.Value()
-	gas := overflow.Mul64p(gi.gasConfig.ReadCostPerByte, types.Gas(len(value)))
+	gas := overflow.Mulp(gi.gasConfig.ReadCostPerByte, types.Gas(len(value)))
 	gi.gasMeter.ConsumeGas(gi.gasConfig.IterNextCostFlat, types.GasIterNextCostFlatDesc)
 	gi.gasMeter.ConsumeGas(gas, types.GasValuePerByteDesc)
 }

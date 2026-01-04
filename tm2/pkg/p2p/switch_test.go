@@ -1,704 +1,923 @@
 package p2p
 
 import (
-	"bytes"
-	"errors"
-	"fmt"
-	"io"
+	"context"
 	"net"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/p2p/dial"
+	"github.com/gnolang/gno/tm2/pkg/p2p/mock"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
-	"github.com/gnolang/gno/tm2/pkg/log"
-	"github.com/gnolang/gno/tm2/pkg/p2p/config"
-	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
-	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
 
-var cfg *config.P2PConfig
-
-func init() {
-	cfg = config.DefaultP2PConfig()
-	cfg.PexReactor = true
-	cfg.AllowDuplicateIP = true
-}
-
-type PeerMessage struct {
-	PeerID  ID
-	Bytes   []byte
-	Counter int
-}
-
-type TestReactor struct {
-	BaseReactor
-
-	mtx          sync.Mutex
-	channels     []*conn.ChannelDescriptor
-	logMessages  bool
-	msgsCounter  int
-	msgsReceived map[byte][]PeerMessage
-}
-
-func NewTestReactor(channels []*conn.ChannelDescriptor, logMessages bool) *TestReactor {
-	tr := &TestReactor{
-		channels:     channels,
-		logMessages:  logMessages,
-		msgsReceived: make(map[byte][]PeerMessage),
-	}
-	tr.BaseReactor = *NewBaseReactor("TestReactor", tr)
-	tr.SetLogger(log.NewNoopLogger())
-	return tr
-}
-
-func (tr *TestReactor) GetChannels() []*conn.ChannelDescriptor {
-	return tr.channels
-}
-
-func (tr *TestReactor) AddPeer(peer Peer) {}
-
-func (tr *TestReactor) RemovePeer(peer Peer, reason interface{}) {}
-
-func (tr *TestReactor) Receive(chID byte, peer Peer, msgBytes []byte) {
-	if tr.logMessages {
-		tr.mtx.Lock()
-		defer tr.mtx.Unlock()
-		// fmt.Printf("Received: %X, %X\n", chID, msgBytes)
-		tr.msgsReceived[chID] = append(tr.msgsReceived[chID], PeerMessage{peer.ID(), msgBytes, tr.msgsCounter})
-		tr.msgsCounter++
-	}
-}
-
-func (tr *TestReactor) getMsgs(chID byte) []PeerMessage {
-	tr.mtx.Lock()
-	defer tr.mtx.Unlock()
-	return tr.msgsReceived[chID]
-}
-
-// -----------------------------------------------------------------------------
-
-// convenience method for creating two switches connected to each other.
-// XXX: note this uses net.Pipe and not a proper TCP conn
-func MakeSwitchPair(_ testing.TB, initSwitch func(int, *Switch) *Switch) (*Switch, *Switch) {
-	// Create two switches that will be interconnected.
-	switches := MakeConnectedSwitches(cfg, 2, initSwitch, Connect2Switches)
-	return switches[0], switches[1]
-}
-
-func initSwitchFunc(i int, sw *Switch) *Switch {
-	// Make two reactors of two channels each
-	sw.AddReactor("foo", NewTestReactor([]*conn.ChannelDescriptor{
-		{ID: byte(0x00), Priority: 10},
-		{ID: byte(0x01), Priority: 10},
-	}, true))
-	sw.AddReactor("bar", NewTestReactor([]*conn.ChannelDescriptor{
-		{ID: byte(0x02), Priority: 10},
-		{ID: byte(0x03), Priority: 10},
-	}, true))
-
-	return sw
-}
-
-func TestSwitches(t *testing.T) {
+func TestMultiplexSwitch_Options(t *testing.T) {
 	t.Parallel()
 
-	s1, s2 := MakeSwitchPair(t, initSwitchFunc)
-	defer s1.Stop()
-	defer s2.Stop()
+	t.Run("custom reactors", func(t *testing.T) {
+		t.Parallel()
 
-	if s1.Peers().Size() != 1 {
-		t.Errorf("Expected exactly 1 peer in s1, got %v", s1.Peers().Size())
-	}
-	if s2.Peers().Size() != 1 {
-		t.Errorf("Expected exactly 1 peer in s2, got %v", s2.Peers().Size())
-	}
-
-	// Lets send some messages
-	ch0Msg := []byte("channel zero")
-	ch1Msg := []byte("channel foo")
-	ch2Msg := []byte("channel bar")
-
-	s1.Broadcast(byte(0x00), ch0Msg)
-	s1.Broadcast(byte(0x01), ch1Msg)
-	s1.Broadcast(byte(0x02), ch2Msg)
-
-	assertMsgReceivedWithTimeout(t, ch0Msg, byte(0x00), s2.Reactor("foo").(*TestReactor), 10*time.Millisecond, 5*time.Second)
-	assertMsgReceivedWithTimeout(t, ch1Msg, byte(0x01), s2.Reactor("foo").(*TestReactor), 10*time.Millisecond, 5*time.Second)
-	assertMsgReceivedWithTimeout(t, ch2Msg, byte(0x02), s2.Reactor("bar").(*TestReactor), 10*time.Millisecond, 5*time.Second)
-}
-
-func assertMsgReceivedWithTimeout(t *testing.T, msgBytes []byte, channel byte, reactor *TestReactor, checkPeriod, timeout time.Duration) {
-	t.Helper()
-
-	ticker := time.NewTicker(checkPeriod)
-	for {
-		select {
-		case <-ticker.C:
-			msgs := reactor.getMsgs(channel)
-			if len(msgs) > 0 {
-				if !bytes.Equal(msgs[0].Bytes, msgBytes) {
-					t.Fatalf("Unexpected message bytes. Wanted: %X, Got: %X", msgBytes, msgs[0].Bytes)
-				}
-				return
+		var (
+			name        = "custom reactor"
+			mockReactor = &mockReactor{
+				setSwitchFn: func(s Switch) {
+					require.NotNil(t, s)
+				},
 			}
-
-		case <-time.After(timeout):
-			t.Fatalf("Expected to have received 1 message in channel #%v, got zero", channel)
-		}
-	}
-}
-
-func TestSwitchFiltersOutItself(t *testing.T) {
-	t.Parallel()
-
-	s1 := MakeSwitch(cfg, 1, "127.0.0.1", "123.123.123", initSwitchFunc)
-
-	// simulate s1 having a public IP by creating a remote peer with the same ID
-	rp := &remotePeer{PrivKey: s1.nodeKey.PrivKey, Config: cfg}
-	rp.Start()
-
-	// addr should be rejected in addPeer based on the same ID
-	err := s1.DialPeerWithAddress(rp.Addr())
-	if assert.Error(t, err) {
-		if err, ok := err.(RejectedError); ok {
-			if !err.IsSelf() {
-				t.Errorf("expected self to be rejected")
-			}
-		} else {
-			t.Errorf("expected RejectedError")
-		}
-	}
-
-	rp.Stop()
-
-	assertNoPeersAfterTimeout(t, s1, 100*time.Millisecond)
-}
-
-func TestSwitchPeerFilter(t *testing.T) {
-	t.Parallel()
-
-	var (
-		filters = []PeerFilterFunc{
-			func(_ IPeerSet, _ Peer) error { return nil },
-			func(_ IPeerSet, _ Peer) error { return fmt.Errorf("denied!") },
-			func(_ IPeerSet, _ Peer) error { return nil },
-		}
-		sw = MakeSwitch(
-			cfg,
-			1,
-			"testing",
-			"123.123.123",
-			initSwitchFunc,
-			SwitchPeerFilters(filters...),
 		)
-	)
-	defer sw.Stop()
 
-	// simulate remote peer
-	rp := &remotePeer{PrivKey: ed25519.GenPrivKey(), Config: cfg}
-	rp.Start()
-	defer rp.Stop()
+		sw := NewMultiplexSwitch(nil, WithReactor(name, mockReactor))
 
-	p, err := sw.transport.Dial(*rp.Addr(), peerConfig{
-		chDescs:      sw.chDescs,
-		onPeerError:  sw.StopPeerForError,
-		isPersistent: sw.isPeerPersistentFn(),
-		reactorsByCh: sw.reactorsByCh,
+		assert.Equal(t, mockReactor, sw.reactors[name])
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	err = sw.addPeer(p)
-	if err, ok := err.(RejectedError); ok {
-		if !err.IsFiltered() {
-			t.Errorf("expected peer to be filtered")
+	t.Run("persistent peers", func(t *testing.T) {
+		t.Parallel()
+
+		peers := generateNetAddr(t, 10)
+
+		sw := NewMultiplexSwitch(nil, WithPersistentPeers(peers))
+
+		for _, p := range peers {
+			assert.True(t, sw.isPersistentPeer(p.ID))
 		}
-	} else {
-		t.Errorf("expected RejectedError")
-	}
+	})
+
+	t.Run("private peers", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			peers = generateNetAddr(t, 10)
+			ids   = make([]types.ID, 0, len(peers))
+		)
+
+		for _, p := range peers {
+			ids = append(ids, p.ID)
+		}
+
+		sw := NewMultiplexSwitch(nil, WithPrivatePeers(ids))
+
+		for _, p := range peers {
+			assert.True(t, sw.isPrivatePeer(p.ID))
+		}
+	})
+
+	t.Run("max inbound peers", func(t *testing.T) {
+		t.Parallel()
+
+		maxInbound := uint64(500)
+
+		sw := NewMultiplexSwitch(nil, WithMaxInboundPeers(maxInbound))
+
+		assert.Equal(t, maxInbound, sw.maxInboundPeers)
+	})
+
+	t.Run("max outbound peers", func(t *testing.T) {
+		t.Parallel()
+
+		maxOutbound := uint64(500)
+
+		sw := NewMultiplexSwitch(nil, WithMaxOutboundPeers(maxOutbound))
+
+		assert.Equal(t, maxOutbound, sw.maxOutboundPeers)
+	})
 }
 
-func TestSwitchPeerFilterTimeout(t *testing.T) {
+func TestMultiplexSwitch_Broadcast(t *testing.T) {
 	t.Parallel()
 
 	var (
-		filters = []PeerFilterFunc{
-			func(_ IPeerSet, _ Peer) error {
-				time.Sleep(10 * time.Millisecond)
-				return nil
+		wg sync.WaitGroup
+
+		expectedChID = byte(10)
+		expectedData = []byte("broadcast data")
+
+		mockTransport = &mockTransport{
+			acceptFn: func(_ context.Context, _ PeerBehavior) (PeerConn, error) {
+				return nil, errors.New("constant error")
 			},
 		}
-		sw = MakeSwitch(
-			cfg,
-			1,
-			"testing",
-			"123.123.123",
-			initSwitchFunc,
-			SwitchFilterTimeout(5*time.Millisecond),
-			SwitchPeerFilters(filters...),
-		)
+
+		peers = mock.GeneratePeers(t, 10)
+		sw    = NewMultiplexSwitch(mockTransport)
 	)
-	defer sw.Stop()
 
-	// simulate remote peer
-	rp := &remotePeer{PrivKey: ed25519.GenPrivKey(), Config: cfg}
-	rp.Start()
-	defer rp.Stop()
+	require.NoError(t, sw.OnStart())
+	t.Cleanup(sw.OnStop)
 
-	p, err := sw.transport.Dial(*rp.Addr(), peerConfig{
-		chDescs:      sw.chDescs,
-		onPeerError:  sw.StopPeerForError,
-		isPersistent: sw.isPeerPersistentFn(),
-		reactorsByCh: sw.reactorsByCh,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Create a new peer set
+	sw.peers = newSet()
 
-	err = sw.addPeer(p)
-	if _, ok := err.(FilterTimeoutError); !ok {
-		t.Errorf("expected FilterTimeoutError")
-	}
-}
+	for _, p := range peers {
+		wg.Add(1)
 
-func TestSwitchPeerFilterDuplicate(t *testing.T) {
-	t.Parallel()
+		p.SendFn = func(chID byte, data []byte) bool {
+			wg.Done()
 
-	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", initSwitchFunc)
-	sw.Start()
-	defer sw.Stop()
+			require.Equal(t, expectedChID, chID)
+			assert.Equal(t, expectedData, data)
 
-	// simulate remote peer
-	rp := &remotePeer{PrivKey: ed25519.GenPrivKey(), Config: cfg}
-	rp.Start()
-	defer rp.Stop()
-
-	p, err := sw.transport.Dial(*rp.Addr(), peerConfig{
-		chDescs:      sw.chDescs,
-		onPeerError:  sw.StopPeerForError,
-		isPersistent: sw.isPeerPersistentFn(),
-		reactorsByCh: sw.reactorsByCh,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := sw.addPeer(p); err != nil {
-		t.Fatal(err)
-	}
-
-	err = sw.addPeer(p)
-	if errRej, ok := err.(RejectedError); ok {
-		if !errRej.IsDuplicate() {
-			t.Errorf("expected peer to be duplicate. got %v", errRej)
+			return false
 		}
-	} else {
-		t.Errorf("expected RejectedError, got %v", err)
+
+		// Load it up with peers
+		sw.peers.Add(p)
 	}
+
+	// Broadcast the data
+	sw.Broadcast(expectedChID, expectedData)
+
+	wg.Wait()
 }
 
-func assertNoPeersAfterTimeout(t *testing.T, sw *Switch, timeout time.Duration) {
-	t.Helper()
-
-	time.Sleep(timeout)
-	if sw.Peers().Size() != 0 {
-		t.Fatalf("Expected %v to not connect to some peers, got %d", sw, sw.Peers().Size())
-	}
-}
-
-func TestSwitchStopsNonPersistentPeerOnError(t *testing.T) {
+func TestMultiplexSwitch_Peers(t *testing.T) {
 	t.Parallel()
 
-	assert, require := assert.New(t), require.New(t)
+	var (
+		peers = mock.GeneratePeers(t, 10)
+		sw    = NewMultiplexSwitch(nil)
+	)
 
-	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", initSwitchFunc)
-	err := sw.Start()
-	if err != nil {
-		t.Error(err)
+	// Create a new peer set
+	sw.peers = newSet()
+
+	for _, p := range peers {
+		// Load it up with peers
+		sw.peers.Add(p)
 	}
-	defer sw.Stop()
 
-	// simulate remote peer
-	rp := &remotePeer{PrivKey: ed25519.GenPrivKey(), Config: cfg}
-	rp.Start()
-	defer rp.Stop()
+	// Broadcast the data
+	ps := sw.Peers()
 
-	p, err := sw.transport.Dial(*rp.Addr(), peerConfig{
-		chDescs:      sw.chDescs,
-		onPeerError:  sw.StopPeerForError,
-		isPersistent: sw.isPeerPersistentFn(),
-		reactorsByCh: sw.reactorsByCh,
-	})
-	require.Nil(err)
+	require.EqualValues(
+		t,
+		len(peers),
+		ps.NumInbound()+ps.NumOutbound(),
+	)
 
-	err = sw.addPeer(p)
-	require.Nil(err)
-
-	require.NotNil(sw.Peers().Get(rp.ID()))
-
-	// simulate failure by closing connection
-	p.(*peer).CloseConn()
-
-	assertNoPeersAfterTimeout(t, sw, 100*time.Millisecond)
-	assert.False(p.IsRunning())
+	for _, p := range peers {
+		assert.True(t, ps.Has(p.ID()))
+	}
 }
 
-func TestSwitchStopPeerForError(t *testing.T) {
+func TestMultiplexSwitch_StopPeer(t *testing.T) {
 	t.Parallel()
 
-	// make two connected switches
-	sw1, sw2 := MakeSwitchPair(t, func(i int, sw *Switch) *Switch {
-		return initSwitchFunc(i, sw)
+	t.Run("peer not persistent", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			p             = mock.GeneratePeers(t, 1)[0]
+			mockTransport = &mockTransport{
+				removeFn: func(removedPeer PeerConn) {
+					assert.Equal(t, p.ID(), removedPeer.ID())
+				},
+			}
+
+			sw = NewMultiplexSwitch(mockTransport)
+		)
+
+		// Create a new peer set
+		sw.peers = newSet()
+
+		// Save the single peer
+		sw.peers.Add(p)
+
+		// Stop and remove the peer
+		sw.StopPeerForError(p, nil)
+
+		// Make sure the peer is removed
+		assert.False(t, sw.peers.Has(p.ID()))
 	})
 
-	assert.Equal(t, len(sw1.Peers().List()), 1)
+	t.Run("persistent peer", func(t *testing.T) {
+		t.Parallel()
 
-	// send messages to the peer from sw1
-	p := sw1.Peers().List()[0]
-	p.Send(0x1, []byte("here's a message to send"))
+		var (
+			p             = mock.GeneratePeers(t, 1)[0]
+			mockTransport = &mockTransport{
+				removeFn: func(removedPeer PeerConn) {
+					assert.Equal(t, p.ID(), removedPeer.ID())
+				},
+				netAddressFn: func() types.NetAddress {
+					return types.NetAddress{}
+				},
+			}
 
-	// stop sw2. this should cause the p to fail,
-	// which results in calling StopPeerForError internally
-	sw2.Stop()
+			sw = NewMultiplexSwitch(mockTransport)
+		)
 
-	// now call StopPeerForError explicitly, eg. from a reactor
-	sw1.StopPeerForError(p, fmt.Errorf("some err"))
-
-	assert.Equal(t, len(sw1.Peers().List()), 0)
-}
-
-func TestSwitchReconnectsToOutboundPersistentPeer(t *testing.T) {
-	t.Parallel()
-
-	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", initSwitchFunc)
-	err := sw.Start()
-	require.NoError(t, err)
-	defer sw.Stop()
-
-	// 1. simulate failure by closing connection
-	rp := &remotePeer{PrivKey: ed25519.GenPrivKey(), Config: cfg}
-	rp.Start()
-	defer rp.Stop()
-
-	err = sw.AddPersistentPeers([]string{rp.Addr().String()})
-	require.NoError(t, err)
-
-	err = sw.DialPeerWithAddress(rp.Addr())
-	require.Nil(t, err)
-	require.NotNil(t, sw.Peers().Get(rp.ID()))
-
-	p := sw.Peers().List()[0]
-	p.(*peer).CloseConn()
-
-	waitUntilSwitchHasAtLeastNPeers(sw, 1)
-	assert.False(t, p.IsRunning())        // old peer instance
-	assert.Equal(t, 1, sw.Peers().Size()) // new peer instance
-
-	// 2. simulate first time dial failure
-	rp = &remotePeer{
-		PrivKey: ed25519.GenPrivKey(),
-		Config:  cfg,
-		// Use different interface to prevent duplicate IP filter, this will break
-		// beyond two peers.
-		listenAddr: "127.0.0.1:0",
-	}
-	rp.Start()
-	defer rp.Stop()
-
-	conf := config.DefaultP2PConfig()
-	conf.TestDialFail = true // will trigger a reconnect
-	err = sw.addOutboundPeerWithConfig(rp.Addr(), conf)
-	require.NotNil(t, err)
-	// DialPeerWithAddres - sw.peerConfig resets the dialer
-	waitUntilSwitchHasAtLeastNPeers(sw, 2)
-	assert.Equal(t, 2, sw.Peers().Size())
-}
-
-func TestSwitchReconnectsToInboundPersistentPeer(t *testing.T) {
-	t.Parallel()
-
-	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", initSwitchFunc)
-	err := sw.Start()
-	require.NoError(t, err)
-	defer sw.Stop()
-
-	// 1. simulate failure by closing the connection
-	rp := &remotePeer{PrivKey: ed25519.GenPrivKey(), Config: cfg}
-	rp.Start()
-	defer rp.Stop()
-
-	err = sw.AddPersistentPeers([]string{rp.Addr().String()})
-	require.NoError(t, err)
-
-	conn, err := rp.Dial(sw.NetAddress())
-	require.NoError(t, err)
-	time.Sleep(100 * time.Millisecond)
-	require.NotNil(t, sw.Peers().Get(rp.ID()))
-
-	conn.Close()
-
-	waitUntilSwitchHasAtLeastNPeers(sw, 1)
-	assert.Equal(t, 1, sw.Peers().Size())
-}
-
-func TestSwitchDialPeersAsync(t *testing.T) {
-	t.Parallel()
-
-	if testing.Short() {
-		return
-	}
-
-	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", initSwitchFunc)
-	err := sw.Start()
-	require.NoError(t, err)
-	defer sw.Stop()
-
-	rp := &remotePeer{PrivKey: ed25519.GenPrivKey(), Config: cfg}
-	rp.Start()
-	defer rp.Stop()
-
-	err = sw.DialPeersAsync([]string{rp.Addr().String()})
-	require.NoError(t, err)
-	time.Sleep(dialRandomizerIntervalMilliseconds * time.Millisecond)
-	require.NotNil(t, sw.Peers().Get(rp.ID()))
-}
-
-func waitUntilSwitchHasAtLeastNPeers(sw *Switch, n int) {
-	for i := 0; i < 20; i++ {
-		time.Sleep(250 * time.Millisecond)
-		has := sw.Peers().Size()
-		if has >= n {
-			break
+		// Make sure the peer is persistent
+		p.IsPersistentFn = func() bool {
+			return true
 		}
-	}
+
+		p.IsOutboundFn = func() bool {
+			return false
+		}
+
+		// Create a new peer set
+		sw.peers = newSet()
+
+		// Save the single peer
+		sw.peers.Add(p)
+
+		// Stop and remove the peer
+		sw.StopPeerForError(p, nil)
+
+		// Make sure the peer is removed
+		assert.False(t, sw.peers.Has(p.ID()))
+
+		// Make sure the peer is in the dial queue
+		sw.dialQueue.Has(p.SocketAddr())
+	})
 }
 
-func TestSwitchFullConnectivity(t *testing.T) {
+func TestMultiplexSwitch_DialLoop(t *testing.T) {
 	t.Parallel()
 
-	switches := MakeConnectedSwitches(cfg, 3, initSwitchFunc, Connect2Switches)
-	defer func() {
-		for _, sw := range switches {
-			sw.Stop()
-		}
-	}()
+	t.Run("peer already connected", func(t *testing.T) {
+		t.Parallel()
 
-	for i, sw := range switches {
-		if sw.Peers().Size() != 2 {
-			t.Fatalf("Expected each switch to be connected to 2 other, but %d switch only connected to %d", sw.Peers().Size(), i)
+		ctx, cancelFn := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cancelFn()
+
+		var (
+			ch = make(chan struct{}, 1)
+
+			peerDialed bool
+
+			p        = mock.GeneratePeers(t, 1)[0]
+			dialTime = time.Now().Add(-5 * time.Second) // in the past
+
+			mockSet = &mockSet{
+				hasFn: func(id types.ID) bool {
+					require.Equal(t, p.ID(), id)
+
+					cancelFn()
+
+					ch <- struct{}{}
+
+					return true
+				},
+			}
+
+			mockTransport = &mockTransport{
+				dialFn: func(
+					_ context.Context,
+					_ types.NetAddress,
+					_ PeerBehavior,
+				) (PeerConn, error) {
+					peerDialed = true
+
+					return nil, nil
+				},
+			}
+
+			sw = NewMultiplexSwitch(mockTransport)
+		)
+
+		sw.peers = mockSet
+
+		// Prepare the dial queue
+		sw.dialQueue.Push(dial.Item{
+			Time:    dialTime,
+			Address: p.SocketAddr(),
+		})
+
+		// Run the dial loop
+		go sw.runDialLoop(ctx)
+
+		select {
+		case <-ch:
+		case <-time.After(5 * time.Second):
 		}
-	}
+
+		assert.False(t, peerDialed)
+	})
+
+	t.Run("peer undialable", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancelFn := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cancelFn()
+
+		var (
+			ch = make(chan struct{}, 1)
+
+			peerDialed bool
+
+			p        = mock.GeneratePeers(t, 1)[0]
+			dialTime = time.Now().Add(-5 * time.Second) // in the past
+
+			mockSet = &mockSet{
+				hasFn: func(id types.ID) bool {
+					require.Equal(t, p.ID(), id)
+
+					return false
+				},
+			}
+
+			mockTransport = &mockTransport{
+				dialFn: func(
+					_ context.Context,
+					_ types.NetAddress,
+					_ PeerBehavior,
+				) (PeerConn, error) {
+					peerDialed = true
+
+					cancelFn()
+
+					ch <- struct{}{}
+
+					return nil, errors.New("invalid dial")
+				},
+			}
+
+			sw = NewMultiplexSwitch(mockTransport)
+		)
+
+		sw.peers = mockSet
+
+		// Prepare the dial queue
+		sw.dialQueue.Push(dial.Item{
+			Time:    dialTime,
+			Address: p.SocketAddr(),
+		})
+
+		// Run the dial loop
+		go sw.runDialLoop(ctx)
+
+		select {
+		case <-ch:
+		case <-time.After(5 * time.Second):
+		}
+
+		assert.True(t, peerDialed)
+	})
+
+	t.Run("peer dialed and added", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancelFn := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cancelFn()
+
+		var (
+			ch = make(chan struct{}, 1)
+
+			peerDialed bool
+
+			p        = mock.GeneratePeers(t, 1)[0]
+			dialTime = time.Now().Add(-5 * time.Second) // in the past
+
+			mockTransport = &mockTransport{
+				dialFn: func(
+					_ context.Context,
+					_ types.NetAddress,
+					_ PeerBehavior,
+				) (PeerConn, error) {
+					peerDialed = true
+
+					cancelFn()
+
+					ch <- struct{}{}
+
+					return p, nil
+				},
+			}
+
+			sw = NewMultiplexSwitch(mockTransport)
+		)
+
+		// Prepare the dial queue
+		sw.dialQueue.Push(dial.Item{
+			Time:    dialTime,
+			Address: p.SocketAddr(),
+		})
+
+		// Run the dial loop
+		go sw.runDialLoop(ctx)
+
+		select {
+		case <-ch:
+		case <-time.After(5 * time.Second):
+		}
+
+		require.True(t, sw.Peers().Has(p.ID()))
+
+		assert.True(t, peerDialed)
+	})
 }
 
-func TestSwitchAcceptRoutine(t *testing.T) {
+func TestMultiplexSwitch_AcceptLoop(t *testing.T) {
 	t.Parallel()
 
-	cfg.MaxNumInboundPeers = 5
+	t.Run("inbound limit reached", func(t *testing.T) {
+		t.Parallel()
 
-	// make switch
-	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", initSwitchFunc)
-	err := sw.Start()
-	require.NoError(t, err)
-	defer sw.Stop()
+		ctx, cancelFn := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cancelFn()
 
-	remotePeers := make([]*remotePeer, 0)
-	assert.Equal(t, 0, sw.Peers().Size())
+		var (
+			ch         = make(chan struct{}, 1)
+			maxInbound = uint64(10)
 
-	// 1. check we connect up to MaxNumInboundPeers
-	for i := 0; i < cfg.MaxNumInboundPeers; i++ {
-		rp := &remotePeer{PrivKey: ed25519.GenPrivKey(), Config: cfg}
-		remotePeers = append(remotePeers, rp)
-		rp.Start()
-		c, err := rp.Dial(sw.NetAddress())
-		require.NoError(t, err)
-		// spawn a reading routine to prevent connection from closing
-		go func(c net.Conn) {
+			peerRemoved bool
+
+			p = mock.GeneratePeers(t, 1)[0]
+
+			mockTransport = &mockTransport{
+				acceptFn: func(_ context.Context, _ PeerBehavior) (PeerConn, error) {
+					return p, nil
+				},
+				removeFn: func(removedPeer PeerConn) {
+					require.Equal(t, p.ID(), removedPeer.ID())
+
+					peerRemoved = true
+
+					ch <- struct{}{}
+				},
+			}
+
+			ps = &mockSet{
+				numInboundFn: func() uint64 {
+					return maxInbound
+				},
+			}
+
+			sw = NewMultiplexSwitch(
+				mockTransport,
+				WithMaxInboundPeers(maxInbound),
+			)
+		)
+
+		// Set the peer set
+		sw.peers = ps
+
+		// Run the accept loop
+		go sw.runAcceptLoop(ctx)
+
+		select {
+		case <-ch:
+		case <-time.After(5 * time.Second):
+		}
+
+		assert.True(t, peerRemoved)
+	})
+
+	t.Run("peer accepted", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancelFn := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cancelFn()
+
+		var (
+			ch         = make(chan struct{}, 1)
+			maxInbound = uint64(10)
+
+			peerAdded bool
+
+			p = mock.GeneratePeers(t, 1)[0]
+
+			mockTransport = &mockTransport{
+				acceptFn: func(_ context.Context, _ PeerBehavior) (PeerConn, error) {
+					return p, nil
+				},
+			}
+
+			ps = &mockSet{
+				numInboundFn: func() uint64 {
+					return maxInbound - 1 // available slot
+				},
+				addFn: func(peer PeerConn) {
+					require.Equal(t, p.ID(), peer.ID())
+
+					peerAdded = true
+
+					ch <- struct{}{}
+				},
+			}
+
+			sw = NewMultiplexSwitch(
+				mockTransport,
+				WithMaxInboundPeers(maxInbound),
+			)
+		)
+
+		// Set the peer set
+		sw.peers = ps
+
+		// Run the accept loop
+		go sw.runAcceptLoop(ctx)
+
+		select {
+		case <-ch:
+		case <-time.After(5 * time.Second):
+		}
+
+		assert.True(t, peerAdded)
+	})
+}
+
+func TestMultiplexSwitch_RedialLoop(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no peers to dial", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			ch = make(chan struct{}, 1)
+
+			peersChecked = 0
+			peers        = mock.GeneratePeers(t, 10)
+
+			ps = &mockSet{
+				hasFn: func(id types.ID) bool {
+					exists := false
+					for _, p := range peers {
+						if p.ID() == id {
+							exists = true
+
+							break
+						}
+					}
+
+					require.True(t, exists)
+
+					peersChecked++
+
+					if peersChecked == len(peers) {
+						ch <- struct{}{}
+					}
+
+					return true
+				},
+			}
+		)
+
+		// Make sure the peers are the
+		// switch persistent peers
+		addrs := make([]*types.NetAddress, 0, len(peers))
+
+		for _, p := range peers {
+			addrs = append(addrs, p.SocketAddr())
+		}
+
+		// Create the switch
+		sw := NewMultiplexSwitch(
+			nil,
+			WithPersistentPeers(addrs),
+		)
+
+		// Set the peer set
+		sw.peers = ps
+
+		// Run the redial loop
+		ctx, cancelFn := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cancelFn()
+
+		go sw.runRedialLoop(ctx)
+
+		select {
+		case <-ch:
+		case <-time.After(5 * time.Second):
+		}
+
+		assert.Equal(t, len(peers), peersChecked)
+	})
+
+	t.Run("missing peers dialed", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			peers       = mock.GeneratePeers(t, 10)
+			missingPeer = peers[0]
+			missingAddr = missingPeer.SocketAddr()
+
+			peersDialed []types.NetAddress
+
+			mockTransport = &mockTransport{
+				dialFn: func(
+					_ context.Context,
+					address types.NetAddress,
+					_ PeerBehavior,
+				) (PeerConn, error) {
+					peersDialed = append(peersDialed, address)
+
+					if address.Equals(*missingPeer.SocketAddr()) {
+						return missingPeer, nil
+					}
+
+					return nil, errors.New("invalid dial")
+				},
+			}
+			ps = &mockSet{
+				hasFn: func(id types.ID) bool {
+					return id != missingPeer.ID()
+				},
+			}
+		)
+
+		// Make sure the peers are the
+		// switch persistent peers
+		addrs := make([]*types.NetAddress, 0, len(peers))
+
+		for _, p := range peers {
+			addrs = append(addrs, p.SocketAddr())
+		}
+
+		// Create the switch
+		sw := NewMultiplexSwitch(
+			mockTransport,
+			WithPersistentPeers(addrs),
+		)
+
+		// Set the peer set
+		sw.peers = ps
+
+		// Run the redial loop
+		ctx, cancelFn := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cancelFn()
+
+		var wg sync.WaitGroup
+
+		wg.Add(2)
+
+		go func() {
+			defer wg.Done()
+
+			sw.runRedialLoop(ctx)
+		}()
+
+		go func() {
+			defer wg.Done()
+
+			deadline := time.After(5 * time.Second)
+
 			for {
-				one := make([]byte, 1)
-				_, err := c.Read(one)
-				if err != nil {
+				select {
+				case <-deadline:
+					return
+				default:
+					if !sw.dialQueue.Has(missingAddr) {
+						continue
+					}
+
+					cancelFn()
+
 					return
 				}
 			}
-		}(c)
-	}
-	time.Sleep(100 * time.Millisecond)
-	assert.Equal(t, cfg.MaxNumInboundPeers, sw.Peers().Size())
+		}()
 
-	// 2. check we close new connections if we already have MaxNumInboundPeers peers
-	rp := &remotePeer{PrivKey: ed25519.GenPrivKey(), Config: cfg}
-	rp.Start()
-	conn, err := rp.Dial(sw.NetAddress())
-	require.NoError(t, err)
-	// check conn is closed
-	one := make([]byte, 1)
-	conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-	_, err = conn.Read(one)
-	assert.Equal(t, io.EOF, err)
-	assert.Equal(t, cfg.MaxNumInboundPeers, sw.Peers().Size())
-	rp.Stop()
+		wg.Wait()
 
-	// stop remote peers
-	for _, rp := range remotePeers {
-		rp.Stop()
-	}
+		require.True(t, sw.dialQueue.Has(missingAddr))
+		assert.Equal(t, missingAddr, sw.dialQueue.Peek().Address)
+	})
 }
 
-type errorTransport struct {
-	acceptErr error
-}
-
-func (et errorTransport) NetAddress() NetAddress {
-	panic("not implemented")
-}
-
-func (et errorTransport) Accept(c peerConfig) (Peer, error) {
-	return nil, et.acceptErr
-}
-
-func (errorTransport) Dial(NetAddress, peerConfig) (Peer, error) {
-	panic("not implemented")
-}
-
-func (errorTransport) Cleanup(Peer) {
-	panic("not implemented")
-}
-
-func TestSwitchAcceptRoutineErrorCases(t *testing.T) {
+func TestMultiplexSwitch_DialPeers(t *testing.T) {
 	t.Parallel()
 
-	sw := NewSwitch(cfg, errorTransport{FilterTimeoutError{}})
-	assert.NotPanics(t, func() {
-		err := sw.Start()
-		assert.NoError(t, err)
-		sw.Stop()
-	})
+	t.Run("self dial request", func(t *testing.T) {
+		t.Parallel()
 
-	sw = NewSwitch(cfg, errorTransport{RejectedError{conn: nil, err: errors.New("filtered"), isFiltered: true}})
-	assert.NotPanics(t, func() {
-		err := sw.Start()
-		assert.NoError(t, err)
-		sw.Stop()
-	})
+		var (
+			p    = mock.GeneratePeers(t, 1)[0]
+			addr = types.NetAddress{
+				ID:   "id",
+				IP:   p.SocketAddr().IP,
+				Port: p.SocketAddr().Port,
+			}
 
-	sw = NewSwitch(cfg, errorTransport{TransportClosedError{}})
-	assert.NotPanics(t, func() {
-		err := sw.Start()
-		assert.NoError(t, err)
-		sw.Stop()
-	})
-}
+			mockTransport = &mockTransport{
+				netAddressFn: func() types.NetAddress {
+					return addr
+				},
+			}
+		)
 
-// mockReactor checks that InitPeer never called before RemovePeer. If that's
-// not true, InitCalledBeforeRemoveFinished will return true.
-type mockReactor struct {
-	*BaseReactor
-
-	// atomic
-	removePeerInProgress           uint32
-	initCalledBeforeRemoveFinished uint32
-}
-
-func (r *mockReactor) RemovePeer(peer Peer, reason interface{}) {
-	atomic.StoreUint32(&r.removePeerInProgress, 1)
-	defer atomic.StoreUint32(&r.removePeerInProgress, 0)
-	time.Sleep(100 * time.Millisecond)
-}
-
-func (r *mockReactor) InitPeer(peer Peer) Peer {
-	if atomic.LoadUint32(&r.removePeerInProgress) == 1 {
-		atomic.StoreUint32(&r.initCalledBeforeRemoveFinished, 1)
-	}
-
-	return peer
-}
-
-func (r *mockReactor) InitCalledBeforeRemoveFinished() bool {
-	return atomic.LoadUint32(&r.initCalledBeforeRemoveFinished) == 1
-}
-
-// see stopAndRemovePeer
-func TestFlappySwitchInitPeerIsNotCalledBeforeRemovePeer(t *testing.T) {
-	t.Parallel()
-
-	testutils.FilterStability(t, testutils.Flappy)
-
-	// make reactor
-	reactor := &mockReactor{}
-	reactor.BaseReactor = NewBaseReactor("mockReactor", reactor)
-
-	// make switch
-	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", func(i int, sw *Switch) *Switch {
-		sw.AddReactor("mock", reactor)
-		return sw
-	})
-	err := sw.Start()
-	require.NoError(t, err)
-	defer sw.Stop()
-
-	// add peer
-	rp := &remotePeer{PrivKey: ed25519.GenPrivKey(), Config: cfg}
-	rp.Start()
-	defer rp.Stop()
-	_, err = rp.Dial(sw.NetAddress())
-	require.NoError(t, err)
-	// wait till the switch adds rp to the peer set
-	time.Sleep(100 * time.Millisecond)
-
-	// stop peer asynchronously
-	go sw.StopPeerForError(sw.Peers().Get(rp.ID()), "test")
-
-	// simulate peer reconnecting to us
-	_, err = rp.Dial(sw.NetAddress())
-	require.NoError(t, err)
-	// wait till the switch adds rp to the peer set
-	time.Sleep(100 * time.Millisecond)
-
-	// make sure reactor.RemovePeer is finished before InitPeer is called
-	assert.False(t, reactor.InitCalledBeforeRemoveFinished())
-}
-
-func BenchmarkSwitchBroadcast(b *testing.B) {
-	s1, s2 := MakeSwitchPair(b, func(i int, sw *Switch) *Switch {
-		// Make bar reactors of bar channels each
-		sw.AddReactor("foo", NewTestReactor([]*conn.ChannelDescriptor{
-			{ID: byte(0x00), Priority: 10},
-			{ID: byte(0x01), Priority: 10},
-		}, false))
-		sw.AddReactor("bar", NewTestReactor([]*conn.ChannelDescriptor{
-			{ID: byte(0x02), Priority: 10},
-			{ID: byte(0x03), Priority: 10},
-		}, false))
-		return sw
-	})
-	defer s1.Stop()
-	defer s2.Stop()
-
-	// Allow time for goroutines to boot up
-	time.Sleep(1 * time.Second)
-
-	b.ResetTimer()
-
-	numSuccess, numFailure := 0, 0
-
-	// Send random message from foo channel to another
-	for i := 0; i < b.N; i++ {
-		chID := byte(i % 4)
-		successChan := s1.Broadcast(chID, []byte("test data"))
-		for s := range successChan {
-			if s {
-				numSuccess++
-			} else {
-				numFailure++
+		// Make sure the "peer" has the same address
+		// as the transport (node)
+		p.NodeInfoFn = func() types.NodeInfo {
+			return types.NodeInfo{
+				NetAddress: &addr,
 			}
 		}
+
+		sw := NewMultiplexSwitch(mockTransport)
+
+		// Dial the peers
+		sw.DialPeers(p.SocketAddr())
+
+		// Make sure the peer wasn't actually dialed
+		assert.False(t, sw.dialQueue.Has(p.SocketAddr()))
+	})
+
+	t.Run("outbound peer limit reached", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			maxOutbound = uint64(10)
+			peers       = mock.GeneratePeers(t, 10)
+
+			mockTransport = &mockTransport{
+				netAddressFn: func() types.NetAddress {
+					return types.NetAddress{
+						ID: "id",
+						IP: net.IP{},
+					}
+				},
+			}
+
+			ps = &mockSet{
+				numOutboundFn: func() uint64 {
+					return maxOutbound
+				},
+			}
+		)
+
+		sw := NewMultiplexSwitch(
+			mockTransport,
+			WithMaxOutboundPeers(maxOutbound),
+		)
+
+		// Set the peer set
+		sw.peers = ps
+
+		// Dial the peers
+		addrs := make([]*types.NetAddress, 0, len(peers))
+
+		for _, p := range peers {
+			addrs = append(addrs, p.SocketAddr())
+		}
+
+		sw.DialPeers(addrs...)
+
+		// Make sure no peers were dialed
+		for _, p := range peers {
+			assert.False(t, sw.dialQueue.Has(p.SocketAddr()))
+		}
+	})
+
+	t.Run("peers dialed", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			maxOutbound = uint64(1000)
+			peers       = mock.GeneratePeers(t, int(maxOutbound/2))
+
+			mockTransport = &mockTransport{
+				netAddressFn: func() types.NetAddress {
+					return types.NetAddress{
+						ID: "id",
+						IP: net.IP{},
+					}
+				},
+			}
+		)
+
+		sw := NewMultiplexSwitch(
+			mockTransport,
+			WithMaxOutboundPeers(10),
+		)
+
+		// Dial the peers
+		addrs := make([]*types.NetAddress, 0, len(peers))
+
+		for _, p := range peers {
+			addrs = append(addrs, p.SocketAddr())
+		}
+
+		sw.DialPeers(addrs...)
+
+		// Make sure peers were dialed
+		for _, p := range peers {
+			assert.True(t, sw.dialQueue.Has(p.SocketAddr()))
+		}
+	})
+}
+
+func TestCalculateBackoff(t *testing.T) {
+	t.Parallel()
+
+	checkJitterRange := func(t *testing.T, expectedAbs, actual time.Duration) {
+		t.Helper()
+		require.LessOrEqual(t, actual, expectedAbs)
+		require.GreaterOrEqual(t, actual, expectedAbs*-1)
 	}
 
-	b.Logf("success: %v, failure: %v", numSuccess, numFailure)
+	// Test that the default jitter factor is 10% of the backoff duration.
+	t.Run("percentage jitter", func(t *testing.T) {
+		t.Parallel()
+
+		for range 1000 {
+			checkJitterRange(t, 100*time.Millisecond, calculateBackoff(0, time.Second, 10*time.Minute)-time.Second)
+			checkJitterRange(t, 200*time.Millisecond, calculateBackoff(1, time.Second, 10*time.Minute)-2*time.Second)
+			checkJitterRange(t, 400*time.Millisecond, calculateBackoff(2, time.Second, 10*time.Minute)-4*time.Second)
+			checkJitterRange(t, 800*time.Millisecond, calculateBackoff(3, time.Second, 10*time.Minute)-8*time.Second)
+			checkJitterRange(t, 1600*time.Millisecond, calculateBackoff(4, time.Second, 10*time.Minute)-16*time.Second)
+		}
+	})
+
+	// Test that the jitter factor is capped at 10 sec.
+	t.Run("capped jitter", func(t *testing.T) {
+		t.Parallel()
+
+		for range 1000 {
+			checkJitterRange(t, 10*time.Second, calculateBackoff(7, time.Second, 10*time.Minute)-128*time.Second)
+			checkJitterRange(t, 10*time.Second, calculateBackoff(10, time.Second, 20*time.Minute)-1024*time.Second)
+			checkJitterRange(t, 10*time.Second, calculateBackoff(20, time.Second, 300*time.Hour)-1048576*time.Second)
+		}
+	})
+
+	// Test that the backoff interval is based on the baseInterval.
+	t.Run("base interval", func(t *testing.T) {
+		t.Parallel()
+
+		for range 1000 {
+			checkJitterRange(t, 4800*time.Millisecond, calculateBackoff(4, 3*time.Second, 10*time.Minute)-48*time.Second)
+			checkJitterRange(t, 8*time.Second, calculateBackoff(3, 10*time.Second, 10*time.Minute)-80*time.Second)
+			checkJitterRange(t, 10*time.Second, calculateBackoff(5, 3*time.Hour, 100*time.Hour)-96*time.Hour)
+		}
+	})
+
+	// Test that the backoff interval is capped at maxInterval +/- jitter factor.
+	t.Run("max interval", func(t *testing.T) {
+		t.Parallel()
+
+		for range 1000 {
+			checkJitterRange(t, 100*time.Millisecond, calculateBackoff(10, 10*time.Hour, time.Second)-time.Second)
+			checkJitterRange(t, 1600*time.Millisecond, calculateBackoff(10, 10*time.Hour, 16*time.Second)-16*time.Second)
+			checkJitterRange(t, 10*time.Second, calculateBackoff(10, 10*time.Hour, 128*time.Second)-128*time.Second)
+		}
+	})
+
+	// Test parameters sanitization for base and max intervals.
+	t.Run("parameters sanitization", func(t *testing.T) {
+		t.Parallel()
+
+		for range 1000 {
+			checkJitterRange(t, 100*time.Millisecond, calculateBackoff(0, -10, -10)-time.Second)
+			checkJitterRange(t, 1600*time.Millisecond, calculateBackoff(4, -10, -10)-16*time.Second)
+			checkJitterRange(t, 10*time.Second, calculateBackoff(7, -10, 10*time.Minute)-128*time.Second)
+		}
+	})
+}
+
+func TestSwitchAcceptLoopTransportClosed(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var transportClosed bool
+	mockTransport := &mockTransport{
+		acceptFn: func(context.Context, PeerBehavior) (PeerConn, error) {
+			transportClosed = true
+			return nil, errTransportClosed
+		},
+	}
+
+	sw := NewMultiplexSwitch(mockTransport)
+
+	// Run the accept loop
+	done := make(chan struct{})
+	go func() {
+		sw.runAcceptLoop(ctx)
+		close(done) // signal that accept loop as ended
+	}()
+
+	select {
+	case <-time.After(time.Second * 2):
+		require.FailNow(t, "timeout while waiting for running loop to stop")
+	case <-done:
+		assert.True(t, transportClosed)
+	}
 }

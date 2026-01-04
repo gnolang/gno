@@ -5,8 +5,8 @@ package avl
 import (
 	"fmt"
 
-	"github.com/gnolang/gno/_test/timtadh/data_structures/tree"
-	"github.com/gnolang/gno/_test/timtadh/data_structures/types"
+	"filetests/extern/timtadh/data_structures/tree"
+	"filetests/extern/timtadh/data_structures/types"
 )
 
 func abs(i int) int {
@@ -43,16 +43,16 @@ func (self *AvlTree) Has(key types.Hashable) bool {
 	return self.root.Has(key)
 }
 
-func (self *AvlTree) Put(key types.Hashable, value interface{}) (err error) {
+func (self *AvlTree) Put(key types.Hashable, value any) (err error) {
 	self.root, _ = self.root.Put(key, value)
 	return nil
 }
 
-func (self *AvlTree) Get(key types.Hashable) (value interface{}, err error) {
+func (self *AvlTree) Get(key types.Hashable) (value any, err error) {
 	return self.root.Get(key)
 }
 
-func (self *AvlTree) Remove(key types.Hashable) (value interface{}, err error) {
+func (self *AvlTree) Remove(key types.Hashable) (value any, err error) {
 	new_root, value, err := self.root.Remove(key)
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func (self *AvlTree) Keys() types.KIterator {
 
 type AvlNode struct {
 	key    types.Hashable
-	value  interface{}
+	value  any
 	height int
 	left   *AvlNode
 	right  *AvlNode
@@ -98,7 +98,7 @@ func (self *AvlNode) Has(key types.Hashable) (has bool) {
 	}
 }
 
-func (self *AvlNode) Get(key types.Hashable) (value interface{}, err error) {
+func (self *AvlNode) Get(key types.Hashable) (value any, err error) {
 	if self == nil {
 		return nil, fmt.Errorf("%v", key)
 	}
@@ -209,7 +209,7 @@ func (self *AvlNode) balance() *AvlNode {
 	return self
 }
 
-func (self *AvlNode) Put(key types.Hashable, value interface{}) (_ *AvlNode, updated bool) {
+func (self *AvlNode) Put(key types.Hashable, value any) (_ *AvlNode, updated bool) {
 	if self == nil {
 		return &AvlNode{key: key, value: value, height: 1}, false
 	}
@@ -231,7 +231,7 @@ func (self *AvlNode) Put(key types.Hashable, value interface{}) (_ *AvlNode, upd
 	return self, updated
 }
 
-func (self *AvlNode) Remove(key types.Hashable) (_ *AvlNode, value interface{}, err error) {
+func (self *AvlNode) Remove(key types.Hashable) (_ *AvlNode, value any, err error) {
 	if self == nil {
 		return nil, nil, fmt.Errorf("%v", key)
 	}
@@ -289,7 +289,7 @@ func (self *AvlNode) Key() types.Hashable {
 	return self.key
 }
 
-func (self *AvlNode) Value() interface{} {
+func (self *AvlNode) Value() any {
 	return self.value
 }
 

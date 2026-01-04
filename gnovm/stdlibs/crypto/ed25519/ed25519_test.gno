@@ -1,9 +1,8 @@
-package ed25519
+package ed25519_test
 
 import (
 	"crypto/ed25519"
 	"encoding/hex"
-	"std"
 	"testing"
 )
 

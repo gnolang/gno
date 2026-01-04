@@ -43,11 +43,13 @@ func NewRootCmdWithBaseConfig(io commands.IO, base BaseOptions) *commands.Comman
 		NewExportCmd(cfg, io),
 		NewImportCmd(cfg, io),
 		NewListCmd(cfg, io),
+		NewRotateCmd(cfg, io),
 		NewSignCmd(cfg, io),
 		NewVerifyCmd(cfg, io),
 		NewQueryCmd(cfg, io),
 		NewBroadcastCmd(cfg, io),
 		NewMakeTxCmd(cfg, io),
+		NewMultisignCmd(cfg, io),
 	)
 
 	return cmd
@@ -79,7 +81,7 @@ func (c *BaseCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.InsecurePasswordStdin,
 		"insecure-password-stdin",
-		c.Quiet,
+		c.InsecurePasswordStdin,
 		"WARNING! take password from stdin",
 	)
 

@@ -1,18 +1,29 @@
 #!/usr/bin/env sh
 
-MONIKER=${MONIKER:-"gnode"}
+MONIKER=${MONIKER:-"the-staging-chain"}
 P2P_LADDR=${P2P_LADDR:-"tcp://0.0.0.0:26656"}
 RPC_LADDR=${RPC_LADDR:-"tcp://0.0.0.0:26657"}
 
-CHAIN_ID=${CHAIN_ID:-"portal-loop"}
+CHAIN_ID=${CHAIN_ID:-"staging"}
 
 GENESIS_BACKUP_FILE=${GENESIS_BACKUP_FILE:-""}
+GENESIS_BALANCES_FILE=${GENESIS_BALANCES_FILE:-""}
 
 SEEDS=${SEEDS:-""}
 PERSISTENT_PEERS=${PERSISTENT_PEERS:-""}
+FINAL_GENESIS_TXS_SHEET="/gnoroot/gno.land/genesis/genesis_txs.jsonl"
 
-echo "" >> /gnoroot/gno.land/genesis/genesis_txs.jsonl
-cat ${GENESIS_BACKUP_FILE} >> /gnoroot/gno.land/genesis/genesis_txs.jsonl
+echo "" >> $FINAL_GENESIS_TXS_SHEET
+cat "${GENESIS_BACKUP_FILE}" >> $FINAL_GENESIS_TXS_SHEET
+
+# Reset balance file if backup file is not empty
+if [ -n "$GENESIS_BALANCES_FILE" ] && [ -s "$GENESIS_BALANCES_FILE" ]; then
+  cat "$GENESIS_BALANCES_FILE" /gnoroot/gno.land/genesis/genesis_balances.txt > /tmp/genesis_balances.tmp
+  mv /tmp/genesis_balances.tmp /gnoroot/gno.land/genesis/genesis_balances.txt
+fi
+
+# Add FAUCET ADDRESS
+[ -n "${FAUCET_ADDRESS}" ] && echo "$FAUCET_ADDRESS=10000000000000ugnot" >> /gnoroot/gno.land/genesis/genesis_balances.txt
 
 # Initialize the secrets
 gnoland secrets init
@@ -32,5 +43,7 @@ gnoland config set p2p.persistent_peers "${PERSISTENT_PEERS}"
 # reading and piping to the gnoland genesis commands
 exec gnoland start \
          --chainid="${CHAIN_ID}" \
+         --genesis-txs-file="${FINAL_GENESIS_TXS_SHEET}" \
          --lazy \
-         --skip-failing-genesis-txs
+         --skip-failing-genesis-txs \
+         --skip-genesis-sig-verification

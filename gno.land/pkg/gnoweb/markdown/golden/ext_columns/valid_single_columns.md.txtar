@@ -1,0 +1,26 @@
+-- input.md --
+<gno-columns>
+# Title 1
+normal content
+</gno-columns>
+
+<gno-columns>
+    content 2 with indent
+</gno-columns>
+
+
+-- output.html --
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<h1>Title 1</h1>
+<p>normal content</p>
+</div>
+</div> <!-- </gno-columns> -->
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<pre><code>content 2 with indent
+</code></pre>
+</div>
+</div> <!-- </gno-columns> -->

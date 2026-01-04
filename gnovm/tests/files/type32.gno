@@ -12,4 +12,7 @@ func main() {
 }
 
 // Error:
-// main/files/type32.gno:9#1: invalid operation: mismatched types string and main.S
+// main/type32.gno:9:11-22: invalid operation: a<VPBlock(2,0)> + (const (":" string)) + b<VPBlock(2,1)> (mismatched types string and main.S)
+
+// TypeCheckError:
+// main/type32.gno:9:11: invalid operation: a + ":" + b (mismatched types string and S)

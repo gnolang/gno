@@ -1,6 +1,8 @@
 package cachemulti
 
 import (
+	"maps"
+
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -43,9 +45,7 @@ func New(
 
 func newStoreFromCMS(cms Store) Store {
 	stores := make(map[types.StoreKey]types.Store)
-	for k, v := range cms.stores {
-		stores[k] = v
-	}
+	maps.Copy(stores, cms.stores)
 	return NewFromStores(stores, nil)
 }
 
@@ -63,5 +63,5 @@ func (cms Store) MultiCacheWrap() types.MultiStore {
 
 // GetStore returns an underlying Store by key.
 func (cms Store) GetStore(key types.StoreKey) types.Store {
-	return cms.stores[key].(types.Store)
+	return cms.stores[key]
 }

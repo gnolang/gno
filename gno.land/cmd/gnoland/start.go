@@ -5,15 +5,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
-	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -22,10 +19,12 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/events"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
+
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
-	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -41,18 +40,20 @@ var startGraphic = strings.ReplaceAll(`
 /___/
 `, "'", "`")
 
+// Keep in sync with contribs/gnogenesis/internal/txs/txs_add_packages.go
+var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1)))
+
 type startCfg struct {
-	gnoRootDir            string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
-	skipFailingGenesisTxs bool   // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
-	genesisBalancesFile   string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
-	genesisTxsFile        string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
-	genesisRemote         string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
-	genesisFile           string
-	chainID               string
-	dataDir               string
-	genesisMaxVMCycles    int64
-	config                string
-	lazyInit              bool
+	gnoRootDir                 string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	skipFailingGenesisTxs      bool   // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	skipGenesisSigVerification bool   // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	genesisBalancesFile        string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	genesisTxsFile             string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	genesisRemote              string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	genesisFile                string
+	chainID                    string
+	dataDir                    string
+	lazyInit                   bool
 
 	logLevel  string
 	logFormat string
@@ -78,13 +79,19 @@ func newStartCmd(io commands.IO) *commands.Command {
 func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	gnoroot := gnoenv.RootDir()
 	defaultGenesisBalancesFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
-	defaultGenesisTxsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.jsonl")
 
 	fs.BoolVar(
 		&c.skipFailingGenesisTxs,
 		"skip-failing-genesis-txs",
 		false,
 		"don't panic when replaying invalid genesis txs",
+	)
+
+	fs.BoolVar(
+		&c.skipGenesisSigVerification,
+		"skip-genesis-sig-verification",
+		false,
+		"don't panic when replaying invalidly signed genesis txs",
 	)
 
 	fs.StringVar(
@@ -97,7 +104,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.genesisTxsFile,
 		"genesis-txs-file",
-		defaultGenesisTxsFile,
+		"",
 		"initial txs to replay",
 	)
 
@@ -136,20 +143,6 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"replacement for '%%REMOTE%%' in genesis",
 	)
 
-	fs.Int64Var(
-		&c.genesisMaxVMCycles,
-		"genesis-max-vm-cycles",
-		100_000_000,
-		"set maximum allowed vm cycles per operation. Zero means no limit.",
-	)
-
-	fs.StringVar(
-		&c.config,
-		flagConfigFlag,
-		"",
-		"the flag config file (optional)",
-	)
-
 	fs.StringVar(
 		&c.logLevel,
 		"log-level",
@@ -186,7 +179,7 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	}
 
 	// Initialize the logger
-	zapLogger, err := initializeLogger(io.Out(), c.logLevel, c.logFormat)
+	zapLogger, err := log.InitializeZapLogger(io.Out(), c.logLevel, c.logFormat)
 	if err != nil {
 		return fmt.Errorf("unable to initialize zap logger, %w", err)
 	}
@@ -217,16 +210,25 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 			return errMissingGenesis
 		}
 
-		// Load the private validator secrets
-		privateKey := privval.LoadFilePV(
-			cfg.PrivValidatorKeyFile(),
-			cfg.PrivValidatorStateFile(),
-		)
+		// Get the node key for signer init
+		nodeKey, err := p2pTypes.LoadOrMakeNodeKey(cfg.NodeKeyFile())
+		if err != nil {
+			return fmt.Errorf("unable to load or make node key, %w", err)
+		}
+
+		// Init the signer based on the config
+		signer, err := privval.NewSignerFromConfig(ctx, cfg.Consensus.PrivValidator, nodeKey.PrivKey, logger)
+		if err != nil {
+			return fmt.Errorf("unable to instantiate signer based on config: %w", err)
+		}
 
 		// Init a new genesis.json
-		if err := lazyInitGenesis(io, c, genesisPath, privateKey.GetPubKey()); err != nil {
+		if err := lazyInitGenesis(io, c, genesisPath, signer); err != nil {
 			return fmt.Errorf("unable to initialize genesis.json, %w", err)
 		}
+
+		// Close the signer
+		signer.Close()
 	}
 
 	// Initialize telemetry
@@ -234,19 +236,33 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		return fmt.Errorf("unable to initialize telemetry, %w", err)
 	}
 
-	// Create application and node
-	cfg.LocalApp, err = gnoland.NewApp(nodeDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
-	if err != nil {
-		return fmt.Errorf("unable to create the Gnoland app, %w", err)
-	}
+	defer telemetry.Shutdown()
 
 	// Print the starting graphic
 	if c.logFormat != string(log.JSONFormat) {
 		io.Println(startGraphic)
 	}
 
+	// Create a top-level shared event switch
+	evsw := events.NewEventSwitch()
+
+	// Create application and node
+	cfg.LocalApp, err = gnoland.NewApp(
+		nodeDir,
+		gnoland.GenesisAppConfig{
+			SkipFailingTxs:      c.skipFailingGenesisTxs,
+			SkipSigVerification: c.skipGenesisSigVerification,
+		},
+		cfg.Application,
+		evsw,
+		logger,
+	)
+	if err != nil {
+		return fmt.Errorf("unable to create the Gnoland app, %w", err)
+	}
+
 	// Create a default node, with the given setup
-	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, logger)
+	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, evsw, logger)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland node, %w", err)
 	}
@@ -256,17 +272,8 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		return fmt.Errorf("unable to start the Gnoland node, %w", err)
 	}
 
-	// Set up the wait context
-	nodeCtx, _ := signal.NotifyContext(
-		ctx,
-		os.Interrupt,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT,
-	)
-
 	// Wait for the exit signal
-	<-nodeCtx.Done()
+	<-ctx.Done()
 
 	if !gnoNode.IsRunning() {
 		return nil
@@ -275,6 +282,11 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	// Gracefully stop the gno node
 	if err := gnoNode.Stop(); err != nil {
 		return fmt.Errorf("unable to gracefully stop the Gnoland node, %w", err)
+	}
+
+	// Gracefully stop the app
+	if err = cfg.LocalApp.Close(); err != nil {
+		return fmt.Errorf("unable to gracefully close the Gnoland application: %w", err)
 	}
 
 	return nil
@@ -331,12 +343,12 @@ func lazyInitNodeDir(io commands.IO, nodeDir string) error {
 	return fmt.Errorf("unable to initialize secrets, %w", err)
 }
 
-// lazyInitGenesis a new genesis.json file, with a signle validator
+// lazyInitGenesis a new genesis.json file, with a single validator
 func lazyInitGenesis(
 	io commands.IO,
 	c *startCfg,
 	genesisPath string,
-	publicKey crypto.PubKey,
+	signer gnoland.GenesisSigner,
 ) error {
 	// Check if the genesis.json is present
 	if osm.FileExists(genesisPath) {
@@ -344,7 +356,7 @@ func lazyInitGenesis(
 	}
 
 	// Generate the new genesis.json file
-	if err := generateGenesisFile(genesisPath, publicKey, c); err != nil {
+	if err := generateGenesisFile(genesisPath, signer, c); err != nil {
 		return fmt.Errorf("unable to generate genesis file, %w", err)
 	}
 
@@ -353,40 +365,38 @@ func lazyInitGenesis(
 	return nil
 }
 
-// initializeLogger initializes the zap logger using the given format and log level,
-// outputting to the given IO
-func initializeLogger(io io.WriteCloser, logLevel, logFormat string) (*zap.Logger, error) {
-	// Initialize the log level
-	level, err := zapcore.ParseLevel(logLevel)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse log level, %w", err)
-	}
+func generateGenesisFile(genesisFile string, signer gnoland.GenesisSigner, c *startCfg) error {
+	var (
+		pubKey = signer.PubKey()
+		// There is an active constraint for gno.land transactions:
+		//
+		// All transaction messages' (MsgSend, MsgAddPkg...) "author" field,
+		// specific to the message type ("creator", "sender"...), must match
+		// the signature address contained in the transaction itself.
+		// This means that if MsgSend is originating from address A,
+		// the owner of the private key for address A needs to sign the transaction
+		// containing the message. Every message in a transaction needs to
+		// originate from the same account that signed the transaction
+		txSender = pubKey.Address()
+	)
 
-	// Initialize the log format
-	format := log.Format(strings.ToLower(logFormat))
-
-	// Initialize the zap logger
-	return log.GetZapLoggerFn(format)(io, level), nil
-}
-
-func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) error {
 	gen := &bft.GenesisDoc{}
 	gen.GenesisTime = time.Now()
 	gen.ChainID = c.chainID
 	gen.ConsensusParams = abci.ConsensusParams{
 		Block: &abci.BlockParams{
 			// TODO: update limits.
-			MaxTxBytes:   1_000_000,   // 1MB,
-			MaxDataBytes: 2_000_000,   // 2MB,
-			MaxGas:       100_000_000, // 100M gas
-			TimeIotaMS:   100,         // 100ms
+			MaxTxBytes:   1_000_000,     // 1MB,
+			MaxDataBytes: 2_000_000,     // 2MB,
+			MaxGas:       3_000_000_000, // 3B gas
+			TimeIotaMS:   100,           // 100ms
 		},
 	}
 
 	gen.Validators = []bft.GenesisValidator{
 		{
-			Address: pk.Address(),
-			PubKey:  pk,
+			Address: pubKey.Address(),
+			PubKey:  pubKey,
 			Power:   10,
 			Name:    "testvalidator",
 		},
@@ -400,24 +410,45 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 
 	// Load examples folder
 	examplesDir := filepath.Join(c.gnoRootDir, "examples")
-	pkgsTxs, err := gnoland.LoadPackagesFromDir(examplesDir, genesisDeployAddress, genesisDeployFee)
+	pkgsTxs, err := gnoland.LoadPackagesFromDir(examplesDir, txSender, genesisDeployFee)
 	if err != nil {
 		return fmt.Errorf("unable to load examples folder: %w", err)
 	}
 
 	// Load Genesis TXs
-	genesisTxs, err := gnoland.LoadGenesisTxsFile(c.genesisTxsFile, c.chainID, c.genesisRemote)
-	if err != nil {
-		return fmt.Errorf("unable to load genesis txs file: %w", err)
+	var genesisTxs []gnoland.TxWithMetadata
+
+	if c.genesisTxsFile != "" {
+		genesisTxs, err = gnoland.LoadGenesisTxsFile(c.genesisTxsFile, c.chainID, c.genesisRemote)
+		if err != nil {
+			return fmt.Errorf("unable to load genesis txs file: %w", err)
+		}
 	}
 
 	genesisTxs = append(pkgsTxs, genesisTxs...)
 
-	// Construct genesis AppState.
-	gen.AppState = gnoland.GnoGenesisState{
-		Balances: balances,
-		Txs:      genesisTxs,
+	// Sign genesis transactions, with the default key (test1)
+	if err = gnoland.SignGenesisTxs(genesisTxs, signer, c.chainID); err != nil {
+		return fmt.Errorf("unable to sign genesis txs: %w", err)
 	}
+
+	// Make sure the genesis transaction author has sufficient
+	// balance to cover transaction deployments in genesis.
+	//
+	// During the init-chainer process, the account that authors the
+	// genesis transactions needs to have a sufficient balance
+	// to cover outstanding transaction costs.
+	// Since the cost can't be estimated upfront at this point, the balance
+	// set is an arbitrary value based on a "best guess" basis.
+	// There should be a larger discussion if genesis transactions should consume gas, at all
+	deployerBalance := int64(len(genesisTxs)) * 2_100_000 // ~2.1 GNOT per tx
+	balances.Set(txSender, std.NewCoins(std.NewCoin("ugnot", deployerBalance)))
+
+	// Construct genesis AppState.
+	defaultGenState := gnoland.DefaultGenState()
+	defaultGenState.Balances = balances.List()
+	defaultGenState.Txs = genesisTxs
+	gen.AppState = defaultGenState
 
 	// Write genesis state
 	if err := gen.SaveAs(genesisFile); err != nil {

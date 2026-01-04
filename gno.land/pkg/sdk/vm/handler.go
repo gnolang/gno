@@ -1,17 +1,15 @@
 package vm
 
 import (
-	"context"
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/gnolang/gno/tm2/pkg/telemetry"
-	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
+	"github.com/gnolang/gno/tm2/pkg/version"
 )
 
 type vmHandler struct {
@@ -73,25 +71,22 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 
 // query paths
 const (
-	QueryPackage = "package"
-	QueryStore   = "store"
 	QueryRender  = "qrender"
 	QueryFuncs   = "qfuncs"
 	QueryEval    = "qeval"
 	QueryFile    = "qfile"
+	QueryDoc     = "qdoc"
+	QueryPaths   = "qpaths"
+	QueryStorage = "qstorage"
 )
 
-func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQuery {
-	var (
-		res  abci.ResponseQuery
-		path = secondPart(req.Path)
-	)
+func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	path := secondPart(req.Path)
+	if i := strings.IndexByte(path, '?'); i >= 0 { // cut query
+		path = path[:i]
+	}
 
 	switch path {
-	case QueryPackage:
-		res = vh.queryPackage(ctx, req)
-	case QueryStore:
-		res = vh.queryStore(ctx, req)
 	case QueryRender:
 		res = vh.queryRender(ctx, req)
 	case QueryFuncs:
@@ -100,6 +95,12 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQ
 		res = vh.queryEval(ctx, req)
 	case QueryFile:
 		res = vh.queryFile(ctx, req)
+	case QueryDoc:
+		res = vh.queryDoc(ctx, req)
+	case QueryPaths:
+		res = vh.queryPaths(ctx, req)
+	case QueryStorage:
+		res = vh.queryStorage(ctx, req)
 	default:
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
@@ -107,91 +108,83 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQ
 				secondPart(req.Path), req.Path)))
 	}
 
-	// Log the telemetry
-	logQueryTelemetry(path, res.IsErr())
-
 	return res
-}
-
-// logQueryTelemetry logs the relevant VM query telemetry
-func logQueryTelemetry(path string, isErr bool) {
-	if !telemetry.MetricsEnabled() {
-		return
-	}
-
-	metrics.VMQueryCalls.Add(
-		context.Background(),
-		1,
-		metric.WithAttributes(
-			attribute.KeyValue{
-				Key:   "path",
-				Value: attribute.StringValue(path),
-			},
-		),
-	)
-
-	if isErr {
-		metrics.VMQueryErrors.Add(context.Background(), 1)
-	}
-}
-
-// queryPackage fetch a package's files.
-func (vh vmHandler) queryPackage(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	res.Data = []byte(fmt.Sprintf("TODO: parse parts get or make fileset..."))
-	return
-}
-
-// queryPackage fetch items from the store.
-func (vh vmHandler) queryStore(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	res.Data = []byte(fmt.Sprintf("TODO: fetch from store"))
-	return
 }
 
 // queryRender calls .Render(<path>) in readonly mode.
 func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	reqData := string(req.Data)
-	reqParts := strings.Split(reqData, "\n")
-	if len(reqParts) != 2 {
-		panic("expected two lines in query input data")
+	dot := strings.IndexByte(reqData, ':')
+	if dot < 0 {
+		panic("expected <pkgpath>:<path> syntax in query input data")
 	}
-	pkgPath := reqParts[0]
-	path := reqParts[1]
+
+	pkgPath, path := reqData[:dot], reqData[dot+1:]
 	expr := fmt.Sprintf("Render(%q)", path)
 	result, err := vh.vm.QueryEvalString(ctx, pkgPath, expr)
 	if err != nil {
+		if strings.Contains(err.Error(), "Render not declared") {
+			err = NoRenderDeclError{}
+		}
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
 	}
+
 	res.Data = []byte(result)
 	return
 }
 
 // queryFuncs returns public facing function signatures as JSON.
 func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	reqData := string(req.Data)
-	reqParts := strings.Split(reqData, "\n")
-	if len(reqParts) != 1 {
-		panic("expected one line in query input data")
-	}
-	pkgPath := reqParts[0]
+	pkgPath := string(req.Data)
 	fsigs, err := vh.vm.QueryFuncs(ctx, pkgPath)
 	if err != nil {
-		res = sdk.ABCIResponseQueryFromError(err)
-		return
+		return sdk.ABCIResponseQueryFromError(err)
 	}
 	res.Data = []byte(fsigs.JSON())
 	return
 }
 
+// queryPaths retrieves paginated package paths based on request data.
+// data can be username prefixed by a @ or a path prefix.
+func (vh vmHandler) queryPaths(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	const defaultLimit = 1_000
+	const maxLimit = 10_000
+
+	target := string(req.Data)
+
+	var query string
+	if i := strings.IndexByte(req.Path, '?'); i >= 0 {
+		query = req.Path[i+1:]
+	}
+
+	params, _ := url.ParseQuery(query)
+
+	// XXX: implement pagination
+
+	// Get limit param, if any
+	limit := defaultLimit // default
+	if l := params.Get("limit"); len(l) > 0 {
+		var err error
+		if limit, err = strconv.Atoi(l); err != nil {
+			return sdk.ABCIResponseQueryFromError(fmt.Errorf("invalid limit argument"))
+		}
+
+		limit = min(limit, maxLimit) // cap to maxLimit
+	}
+
+	paths, err := vh.vm.QueryPaths(ctx, target, limit)
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(err)
+	}
+
+	res.Data = []byte(strings.Join(paths, "\n"))
+	return
+}
+
 // queryEval evaluates any expression in readonly mode and returns the results.
 func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	reqData := string(req.Data)
-	reqParts := strings.Split(reqData, "\n")
-	if len(reqParts) != 2 {
-		panic("expected two lines in query input data")
-	}
-	pkgPath := reqParts[0]
-	expr := reqParts[1]
+	pkgPath, expr := parseQueryEvalData(string(req.Data))
 	result, err := vh.vm.QueryEval(ctx, pkgPath, expr)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
@@ -200,6 +193,29 @@ func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.
 	res.Data = []byte(result)
 	return
 }
+
+// parseQueryEval parses the input string of vm/qeval. It takes the first dot
+// after the first slash (if any) to separe the pkgPath and the expr.
+// For instance, in gno.land/r/realm.MyFunction(), gno.land/r/realm is the
+// pkgPath,and MyFunction() is the expr.
+func parseQueryEvalData(data string) (pkgPath, expr string) {
+	slash := strings.IndexByte(data, '/')
+	if slash >= 0 {
+		pkgPath += data[:slash]
+		data = data[slash:]
+	}
+	dot := strings.IndexByte(data, '.')
+	if dot < 0 {
+		panic(panicInvalidQueryEvalData)
+	}
+	pkgPath += data[:dot]
+	expr = data[dot+1:]
+	return
+}
+
+const (
+	panicInvalidQueryEvalData = "expected <pkgpath>.<expression> syntax in query input data"
+)
 
 // queryFile returns the file bytes, or list of files if directory.
 // if file, res.Value is []byte("file").
@@ -215,11 +231,37 @@ func (vh vmHandler) queryFile(ctx sdk.Context, req abci.RequestQuery) (res abci.
 	return
 }
 
+// queryDoc returns the JSON of the doc for a given pkgpath, suitable for printing
+func (vh vmHandler) queryDoc(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	filepath := string(req.Data)
+	jsonDoc, err := vh.vm.QueryDoc(ctx, filepath)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(jsonDoc.JSON())
+	return
+}
+
+// queryStorage returns the storage size and deposit for a realm
+func (vh vmHandler) queryStorage(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	pkgpath := string(req.Data)
+	result, err := vh.vm.QueryStorage(ctx, pkgpath)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(result)
+	return
+}
+
 // ----------------------------------------
 // misc
 
 func abciResult(err error) sdk.Result {
-	return sdk.ABCIResultFromError(err)
+	res := sdk.ABCIResultFromError(err)
+	res.Info += "vm.version=" + version.Version
+	return res
 }
 
 // returns the second component of a path.

@@ -7,4 +7,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0a1f.gno:6: cannot use int as string
+// main/eql_0a1f.gno:6:10-23: cannot use int as string
+
+// TypeCheckError:
+// main/eql_0a1f.gno:6:15: invalid operation: a == expected (mismatched types int and string)

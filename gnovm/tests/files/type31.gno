@@ -9,4 +9,7 @@ func main() {
 }
 
 // Error:
-// main/files/type31.gno:8: invalid operation: mismatched types string and main.String
+// main/type31.gno:8:10-15: invalid operation: x<VPBlock(1,0)> + y<VPBlock(1,1)> (mismatched types string and main.String)
+
+// TypeCheckError:
+// main/type31.gno:8:10: invalid operation: x + y (mismatched types string and String)

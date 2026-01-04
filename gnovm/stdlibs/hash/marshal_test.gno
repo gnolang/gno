@@ -6,13 +6,10 @@
 // BinaryMarshaler, BinaryUnmarshaler,
 // and lock in the current representations.
 
-package hash
+package hash_test
 
 import (
 	"bytes"
-	"crypto/md5"
-	"crypto/sha1"
-	"crypto/sha256"
 	"encoding"
 	"encoding/hex"
 	"hash"

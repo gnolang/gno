@@ -3,26 +3,27 @@ package gnoface
 import (
 	"testing"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/ufmt"
 )
 
 func TestDraw(t *testing.T) {
 	cases := []struct {
-		seed     int64
+		seed     uint64
 		expected string
 	}{
 		{
 			seed: 42,
 			expected: `
   |||||||
- ////////\
+ |||||||||
  |       |
- | ~   . |
-)| X   X |.
+ | .   ~ |
+)| v   v |O
  |       |
- |   C   |
+ |   L   |
  |       |
- |  __/  |
+ |  ___  |
  |       |
  \~~~~~~~/
 `[1:],
@@ -30,31 +31,31 @@ func TestDraw(t *testing.T) {
 		{
 			seed: 1337,
 			expected: `
-     s
- /|||||||\
+  .......
+ |||||||||
  |       |
- | .   * |
-o| ~   ~ |.
+ | .   _ |
+D| x   X |O
  |       |
- |   O   |
+ |   ~   |
  |       |
- |  __/  |
+ |  ~~~  |
  |       |
- \_______/
+ \~~~~~~~/
 `[1:],
 		},
 		{
 			seed: 123456789,
 			expected: `
-     s
- /~~~~~~~\
+  .......
+ ////////\
  |       |
- | ~   . |
-<| ~   ~ |<
+ | ~   * |
+|| x   X |o
  |       |
  |   V   |
  |       |
- |  \_/  |
+ |   .   |
  |       |
  \-------/
 `[1:],
@@ -64,9 +65,7 @@ o| ~   ~ |.
 		name := ufmt.Sprintf("%d", tc.seed)
 		t.Run(name, func(t *testing.T) {
 			got := Draw(tc.seed)
-			if got != tc.expected {
-				t.Errorf("got %s, expected %s", got, tc.expected)
-			}
+			uassert.Equal(t, string(tc.expected), got)
 		})
 	}
 }
@@ -80,14 +79,14 @@ func TestRender(t *testing.T) {
 			path: "42",
 			expected: "Gnoface #42\n```" + `
   |||||||
- ////////\
+ |||||||||
  |       |
- | ~   . |
-)| X   X |.
+ | .   ~ |
+)| v   v |O
  |       |
- |   C   |
+ |   L   |
  |       |
- |  __/  |
+ |  ___  |
  |       |
  \~~~~~~~/
 ` + "```\n",
@@ -95,31 +94,31 @@ func TestRender(t *testing.T) {
 		{
 			path: "1337",
 			expected: "Gnoface #1337\n```" + `
-     s
- /|||||||\
+  .......
+ |||||||||
  |       |
- | .   * |
-o| ~   ~ |.
+ | .   _ |
+D| x   X |O
  |       |
- |   O   |
+ |   ~   |
  |       |
- |  __/  |
+ |  ~~~  |
  |       |
- \_______/
+ \~~~~~~~/
 ` + "```\n",
 		},
 		{
 			path: "123456789",
 			expected: "Gnoface #123456789\n```" + `
-     s
- /~~~~~~~\
+  .......
+ ////////\
  |       |
- | ~   . |
-<| ~   ~ |<
+ | ~   * |
+|| x   X |o
  |       |
  |   V   |
  |       |
- |  \_/  |
+ |   .   |
  |       |
  \-------/
 ` + "```\n",
@@ -128,9 +127,7 @@ o| ~   ~ |.
 	for _, tc := range cases {
 		t.Run(tc.path, func(t *testing.T) {
 			got := Render(tc.path)
-			if got != tc.expected {
-				t.Errorf("got %s, expected %s", got, tc.expected)
-			}
+			uassert.Equal(t, tc.expected, got)
 		})
 	}
 }

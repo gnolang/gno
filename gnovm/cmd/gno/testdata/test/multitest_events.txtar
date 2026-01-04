@@ -1,0 +1,31 @@
+# Test with a valid _test.gno file
+
+gno test -print-events .
+
+! stdout .+
+stderr 'EVENTS: \[{\"type\":\"EventA\",\"attrs\":\[\],\"pkg_path\":\"gno.test/r/integ/multitest_events"\}]'
+stderr 'EVENTS: \[{\"type\":\"EventB\",\"attrs\":\[{\"key\":\"keyA\",\"value\":\"valA\"}\],\"pkg_path\":\"gno.test/r/integ/multitest_events"},{\"type\":\"EventC\",\"attrs\":\[{\"key\":\"keyD\",\"value\":\"valD\"}\],\"pkg_path\":\"gno.test/r/integ/multitest_events"}\]'
+stderr 'ok      \. 	\d+\.\d\ds'
+
+-- valid.gno --
+package valid
+
+-- valid_test.gno --
+package valid
+
+import "testing"
+import "chain"
+
+func TestA(t *testing.T) {
+	chain.Emit("EventA")
+}
+
+func TestB(t *testing.T) {
+	chain.Emit("EventB", "keyA", "valA")
+	chain.Emit("EventC", "keyD", "valD")
+}
+
+
+-- gnomod.toml --
+module = "gno.test/r/integ/multitest_events"
+gno = "0.9"

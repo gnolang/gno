@@ -28,4 +28,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/and_f2.gno:27: operator & not defined on: InterfaceKind
+// main/and_f2.gno:27:10-17: operator & not defined on: InterfaceKind
+
+// TypeCheckError:
+// main/and_f2.gno:27:10: invalid operation: operator & not defined on e1 (variable of interface type E)

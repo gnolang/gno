@@ -1,0 +1,46 @@
+name: Nightly Releases
+
+on:
+  schedule:
+    - cron: "0 0 * * 2-6"
+  workflow_dispatch:
+
+permissions:
+  contents: write # needed to write releases
+  id-token: write # needed for keyless signing
+  packages: write # needed for ghcr access
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: sigstore/cosign-installer@v3.9.2
+      - uses: anchore/sbom-action/download-syft@v0.20.5
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser-pro
+          version: ~> v2
+          args: release --clean --nightly --snapshot --config ./.github/goreleaser.yaml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          TAG_VERSION: nightly

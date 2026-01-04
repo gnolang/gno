@@ -142,7 +142,7 @@ message Location {
 	string pkg_path = 1 [json_name = "PkgPath"];
 	string file = 2 [json_name = "File"];
 	sint64 line = 3 [json_name = "Line"];
-	sint64 nonce = 4 [json_name = "Nonce"];
+	sint64 column = 4 [json_name = "Column"];
 }
 
 message Attributes {
@@ -393,11 +393,6 @@ message RangeStmt {
 message ReturnStmt {
 	Attributes attributes = 1 [json_name = "Attributes"];
 	repeated google.protobuf.Any results = 2 [json_name = "Results"];
-}
-
-message PanicStmt {
-	Attributes attributes = 1 [json_name = "Attributes"];
-	google.protobuf.Any exception = 2 [json_name = "Exception"];
 }
 
 message SelectStmt {

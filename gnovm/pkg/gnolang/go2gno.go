@@ -33,49 +33,84 @@ package gnolang
 import (
 	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/token"
-	"go/types"
 	"os"
 	"reflect"
 	"strconv"
-	"strings"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/gnolang/gno/gnovm/pkg/parser"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/std"
-	"go.uber.org/multierr"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
-func MustReadFile(path string) *FileNode {
-	n, err := ReadFile(path)
+func (m *Machine) MustReadFile(path string) *FileNode {
+	n, err := m.ReadFile(path)
 	if err != nil {
 		panic(err)
 	}
 	return n
 }
 
-func MustParseFile(filename string, body string) *FileNode {
-	n, err := ParseFile(filename, body)
+func (m *Machine) MustParseFile(fname string, body string) *FileNode {
+	n, err := m.ParseFile(fname, body)
 	if err != nil {
 		panic(err)
 	}
 	return n
 }
 
-func ReadFile(path string) (*FileNode, error) {
+func (m *Machine) ReadFile(path string) (*FileNode, error) {
 	bz, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	return ParseFile(path, string(bz))
+	return m.ParseFile(path, string(bz))
 }
 
-func ParseExpr(expr string) (retx Expr, err error) {
-	x, err := parser.ParseExpr(expr)
+func (m *Machine) ParseExpr(code string) (expr Expr, err error) {
+	x, err := parser.ParseExpr2(code, newParserCallback(m))
 	if err != nil {
 		return nil, err
 	}
+
+	// recover from Go2Gno.
+	// NOTE: Go2Gno is best implemented with panics due to inlined toXYZ() calls.
+	defer func() {
+		if r := recover(); r != nil {
+			if rerr, ok := r.(error); ok {
+				err = errors.Wrap(rerr, "parsing expression")
+			} else {
+				err = errors.New(fmt.Sprintf("%v", r)).Stacktrace()
+			}
+			return
+		}
+	}()
+	// Use a fset, even if empty, so the spans are set properly.
+	fset := token.NewFileSet()
+	// parse with Go2Gno.
+	return Go2Gno(fset, x).(Expr), nil
+}
+
+func (m *Machine) MustParseExpr(code string) Expr {
+	x, err := m.ParseExpr(code)
+	if err != nil {
+		panic(err)
+	}
+	return x
+}
+
+func (m *Machine) ParseStmts(code string) (stmts []Stmt, err error) {
+	// Go only parses exprs and files,
+	// so wrap in a func body.
+	fset := token.NewFileSet()
+	code = fmt.Sprintf("func(){%s}\n", code)
+	x, err := parser.ParseExprFrom2(fset, "<repl>", code, parser.SkipObjectResolution, newParserCallback(m))
+	if err != nil {
+		return nil, err
+	}
+	gostmts := x.(*ast.FuncLit).Body.List
+
 	// recover from Go2Gno.
 	// NOTE: Go2Gno is best implemented with panics due to inlined toXYZ() calls.
 	defer func() {
@@ -88,35 +123,97 @@ func ParseExpr(expr string) (retx Expr, err error) {
 			return
 		}
 	}()
+
 	// parse with Go2Gno.
-	return Go2Gno(nil, x).(Expr), nil
+	for _, gostmt := range gostmts {
+		var stmt Stmt
+		nn := Go2Gno(fset, gostmt)
+		switch nn := nn.(type) {
+		case Stmt:
+			stmt = nn
+		case Expr:
+			stmt = &ExprStmt{X: nn}
+		default:
+			panic(fmt.Sprintf(
+				"unexpected AST type %v (%T)", nn, nn))
+		}
+		stmts = append(stmts, stmt)
+	}
+	return stmts, nil
 }
 
-func MustParseExpr(expr string) Expr {
-	x, err := ParseExpr(expr)
+func (m *Machine) MustParseStmts(code string) []Stmt {
+	stmts, err := m.ParseStmts(code)
 	if err != nil {
 		panic(err)
 	}
-	return x
+	return stmts
+}
+
+func (m *Machine) ParseDecls(code string) (decls []Decl, err error) {
+	// Go only parses exprs and files,
+	// so wrap in a func body.
+	code = fmt.Sprintf("package repl\n%s\n", code)
+	fn, err := m.ParseFile("<repl>", code)
+	if err != nil {
+		return nil, err
+	}
+	return fn.Decls, nil
+}
+
+func (m *Machine) MustParseDecls(code string) []Decl {
+	decls, err := m.ParseDecls(code)
+	if err != nil {
+		panic(err)
+	}
+	return decls
+}
+
+// ParseFilePackageName returns the package name of a gno file.
+func ParseFilePackageName(fname string) (string, error) {
+	fs := token.NewFileSet()
+	// Just parse the package clause, and nothing else.
+	f, err := parser.ParseFile(fs, fname, nil, parser.PackageClauseOnly)
+	if err != nil {
+		return "", err
+	}
+	return f.Name.Name, nil
+}
+
+const (
+	tokenCostFactor   = 1 // To be adjusted from benchmarks.
+	nestingCostFactor = 1 // To be adjusted from benchmarks.
+)
+
+func newParserCallback(m *Machine) parser.ParserCallback {
+	if m == nil || m.GasMeter == nil {
+		return nil
+	}
+	return func(tok token.Token, nestLev int) {
+		m.GasMeter.ConsumeGas(types.Gas(tokenCostFactor+nestLev*nestingCostFactor), "parsing")
+	}
 }
 
 // ParseFile uses the Go parser to parse body. It then runs [Go2Gno] on the
 // resulting AST -- the resulting FileNode is returned, together with any other
 // error (including panics, which are recovered) from [Go2Gno].
-func ParseFile(filename string, body string) (fn *FileNode, err error) {
+func (m *Machine) ParseFile(fname string, body string) (fn *FileNode, err error) {
 	// Use go parser to parse the body.
 	fs := token.NewFileSet()
 	// TODO(morgan): would be nice to add parser.SkipObjectResolution as we don't
 	// seem to be using its features, but this breaks when testing (specifically redeclaration tests).
 	const parseOpts = parser.ParseComments | parser.DeclarationErrors
-	f, err := parser.ParseFile(fs, filename, body, parseOpts)
+	astf, err := parser.ParseFile2(fs, fname, body, parseOpts, newParserCallback(m))
 	if err != nil {
 		return nil, err
 	}
 	// Print the imports from the file's AST.
 	// spew.Dump(f)
 
-	// recover from Go2Gno.
+	// NOTE: DO NOT Disable this when running with -debug or similar.
+	// Global environment variables are a vector for attack and should not
+	// be relied upon for critical production systems.  Recovers from
+	// Go2Gno and returns an error.
 	// NOTE: Go2Gno is best implemented with panics due to inlined toXYZ() calls.
 	defer func() {
 		if r := recover(); r != nil {
@@ -128,15 +225,19 @@ func ParseFile(filename string, body string) (fn *FileNode, err error) {
 			return
 		}
 	}()
-	// parse with Go2Gno.
-	fn = Go2Gno(fs, f).(*FileNode)
-	fn.Name = Name(filename)
+	// Parse with Go2Gno.
+	fn = Go2Gno(fs, astf).(*FileNode)
+	fn.FileName = fname
 	return fn, nil
 }
 
-func setLoc(fs *token.FileSet, pos token.Pos, n Node) Node {
-	posn := fs.Position(pos)
-	n.SetLine(posn.Line)
+// setSpan() will not attempt to overwrite an existing span.
+// This usually happens when an inner node is passed outward,
+// in which case we want to keep the original specificity.
+func setSpan(fs *token.FileSet, gon ast.Node, n Node) Node {
+	if n.GetSpan().IsZero() {
+		n.SetSpan(SpanFromGo(fs, gon))
+	}
 	return n
 }
 
@@ -148,10 +249,17 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	if fs != nil {
 		defer func() {
 			if n != nil {
-				setLoc(fs, gon.Pos(), n)
+				setSpan(fs, gon, n)
 			}
 		}()
 	}
+
+	panicWithPos := func(fmtStr string, args ...any) {
+		pos := fs.Position(gon.Pos())
+		loc := fmt.Sprintf("%s:%d:%d", pos.Filename, pos.Line, pos.Column)
+		panic(fmt.Errorf("%s: %v", loc, fmt.Sprintf(fmtStr, args...)))
+	}
+
 	switch gon := gon.(type) {
 	case *ast.ParenExpr:
 		return toExpr(fs, gon.X)
@@ -228,6 +336,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		}
 	case *ast.FuncLit:
 		type_ := Go2Gno(fs, gon.Type).(*FuncTypeExpr)
+
 		return &FuncLitExpr{
 			Type: *type_,
 			Body: toBody(fs, gon.Body),
@@ -235,21 +344,21 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	case *ast.Field:
 		if len(gon.Names) == 0 {
 			return &FieldTypeExpr{
-				Name: "",
-				Type: toExpr(fs, gon.Type),
-				Tag:  toExpr(fs, gon.Tag),
+				NameExpr: *Nx(""),
+				Type:     toExpr(fs, gon.Type),
+				Tag:      toExpr(fs, gon.Tag),
 			}
 		} else if len(gon.Names) == 1 {
 			return &FieldTypeExpr{
-				Name: toName(gon.Names[0]),
-				Type: toExpr(fs, gon.Type),
-				Tag:  toExpr(fs, gon.Tag),
+				NameExpr: *Nx(toName(gon.Names[0])),
+				Type:     toExpr(fs, gon.Type),
+				Tag:      toExpr(fs, gon.Tag),
 			}
 		} else {
-			panic(fmt.Sprintf(
+			panicWithPos(
 				"expected a Go Field with 1 name but got %v.\n"+
 					"maybe call toFields",
-				gon.Names))
+				gon.Names)
 		}
 	case *ast.ArrayType:
 		if _, ok := gon.Len.(*ast.Ellipsis); ok {
@@ -311,7 +420,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		}
 	case *ast.BlockStmt:
 		return &BlockStmt{
-			Body: toStmts(fs, gon.List),
+			Body: toBody(fs, gon),
 		}
 	case *ast.BranchStmt:
 		return &BranchStmt{
@@ -328,16 +437,6 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Call: *cx,
 		}
 	case *ast.ExprStmt:
-		if cx, ok := gon.X.(*ast.CallExpr); ok {
-			if ix, ok := cx.Fun.(*ast.Ident); ok && ix.Name == "panic" {
-				if len(cx.Args) != 1 {
-					panic("expected panic statement to have single exception value")
-				}
-				return &PanicStmt{
-					Exception: toExpr(fs, cx.Args[0]),
-				}
-			}
-		}
 		return &ExprStmt{
 			X: toExpr(fs, gon.X),
 		}
@@ -346,13 +445,13 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Init: toSimp(fs, gon.Init),
 			Cond: toExpr(fs, gon.Cond),
 			Post: toSimp(fs, gon.Post),
-			Body: toStmts(fs, gon.Body.List),
+			Body: toBody(fs, gon.Body),
 		}
 	case *ast.IfStmt:
 		thenStmt := IfCaseStmt{
-			Body: toStmts(fs, gon.Body.List),
+			Body: toBody(fs, gon.Body),
 		}
-		setLoc(fs, gon.Body.Pos(), &thenStmt)
+		setSpan(fs, gon.Body, &thenStmt)
 		ess := []Stmt(nil)
 		if gon.Else != nil {
 			if _, ok := gon.Else.(*ast.BlockStmt); ok {
@@ -365,7 +464,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Body: ess,
 		}
 		if gon.Else != nil {
-			setLoc(fs, gon.Else.Pos(), &elseStmt)
+			setSpan(fs, gon.Else, &elseStmt)
 		}
 		return &IfStmt{
 			Init: toSimp(fs, gon.Init),
@@ -397,25 +496,26 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	case *ast.TypeSwitchStmt:
 		switch as := gon.Assign.(type) {
 		case *ast.AssignStmt:
-			return &SwitchStmt{
+			stmt := &SwitchStmt{
 				Init:         toStmt(fs, gon.Init),
 				X:            toExpr(fs, as.Rhs[0].(*ast.TypeAssertExpr).X),
 				IsTypeSwitch: true,
 				Clauses:      toClauses(fs, gon.Body.List),
 				VarName:      toName(as.Lhs[0].(*ast.Ident)),
 			}
+			return stmt
 		case *ast.ExprStmt:
-			return &SwitchStmt{
+			stmt := &SwitchStmt{
 				Init:         toStmt(fs, gon.Init),
 				X:            toExpr(fs, as.X.(*ast.TypeAssertExpr).X),
 				IsTypeSwitch: true,
 				Clauses:      toClauses(fs, gon.Body.List),
 				VarName:      "",
 			}
+			return stmt
 		default:
-			panic(fmt.Sprintf(
-				"unexpected *ast.TypeSwitchStmt.Assign type %s",
-				reflect.TypeOf(gon.Assign).String()))
+			panicWithPos("unexpected *ast.TypeSwitchStmt.Assign type %s",
+				reflect.TypeOf(gon.Assign).String())
 		}
 	case *ast.SwitchStmt:
 		x := toExpr(fs, gon.Tag)
@@ -434,7 +534,10 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		recv := FieldTypeExpr{}
 		if isMethod {
 			if len(gon.Recv.List) > 1 {
-				panic("*ast.FuncDecl cannot have multiple receivers")
+				panicWithPos("method has multiple receivers")
+			}
+			if len(gon.Recv.List) == 0 {
+				panicWithPos("method has no receiver")
 			}
 			recv = *Go2Gno(fs, gon.Recv.List[0]).(*FieldTypeExpr)
 		}
@@ -452,7 +555,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Body:     body,
 		}
 	case *ast.GenDecl:
-		panic("unexpected *ast.GenDecl; use toDecls(fs,) instead")
+		panicWithPos("unexpected *ast.GenDecl; use toDecls(fs,) instead")
 	case *ast.File:
 		pkgName := Name(gon.Name.Name)
 		decls := make([]Decl, 0, len(gon.Decls))
@@ -464,114 +567,27 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			}
 		}
 		return &FileNode{
-			Name:    "", // filled later.
-			PkgName: pkgName,
-			Decls:   decls,
+			FileName: "", // filled later.
+			PkgName:  pkgName,
+			Decls:    decls,
 		}
+	case *ast.EmptyStmt:
+		return &EmptyStmt{}
+	case *ast.IndexListExpr:
+		if len(gon.Indices) > 1 {
+			panicWithPos("invalid operation: more than one index")
+		}
+		panicWithPos("invalid operation: indexList is not permitted in Gno")
+	case *ast.GoStmt:
+		panicWithPos("goroutines are not permitted")
 	default:
-		panic(fmt.Sprintf("unknown Go type %v: %s\n",
+		panicWithPos("unknown Go type %v: %s\n",
 			reflect.TypeOf(gon),
 			spew.Sdump(gon),
-		))
-	}
-}
-
-//----------------------------------------
-// type checking (using go/types)
-
-// MemPackageGetter implements the GetMemPackage() method. It is a subset of
-// [Store], separated for ease of testing.
-type MemPackageGetter interface {
-	GetMemPackage(path string) *std.MemPackage
-}
-
-// TypeCheckMemPackage performs type validation and checking on the given
-// mempkg. To retrieve dependencies, it uses getter.
-//
-// The syntax checking is performed entirely using Go's go/types package.
-func TypeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter) error {
-	var errs error
-	imp := &gnoImporter{
-		getter: getter,
-		cache:  map[string]gnoImporterResult{},
-		cfg: &types.Config{
-			Error: func(err error) {
-				errs = multierr.Append(errs, err)
-			},
-		},
-	}
-	imp.cfg.Importer = imp
-
-	_, err := imp.parseCheckMemPackage(mempkg)
-	// prefer to return errs instead of err:
-	// err will generally contain only the first error encountered.
-	if errs != nil {
-		return errs
-	}
-	return err
-}
-
-type gnoImporterResult struct {
-	pkg *types.Package
-	err error
-}
-
-type gnoImporter struct {
-	getter MemPackageGetter
-	cache  map[string]gnoImporterResult
-	cfg    *types.Config
-}
-
-// Unused, but satisfies the Importer interface.
-func (g *gnoImporter) Import(path string) (*types.Package, error) {
-	return g.ImportFrom(path, "", 0)
-}
-
-type importNotFoundError string
-
-func (e importNotFoundError) Error() string { return "import not found: " + string(e) }
-
-// ImportFrom returns the imported package for the given import
-// path when imported by a package file located in dir.
-func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Package, error) {
-	if pkg, ok := g.cache[path]; ok {
-		return pkg.pkg, pkg.err
-	}
-	mpkg := g.getter.GetMemPackage(path)
-	if mpkg == nil {
-		err := importNotFoundError(path)
-		g.cache[path] = gnoImporterResult{err: err}
-		return nil, err
-	}
-	result, err := g.parseCheckMemPackage(mpkg)
-	g.cache[path] = gnoImporterResult{pkg: result, err: err}
-	return result, err
-}
-
-func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage) (*types.Package, error) {
-	fset := token.NewFileSet()
-	files := make([]*ast.File, 0, len(mpkg.Files))
-	var errs error
-	for _, file := range mpkg.Files {
-		if !strings.HasSuffix(file.Name, ".gno") ||
-			endsWith(file.Name, []string{"_test.gno", "_filetest.gno"}) {
-			continue // skip spurious file.
-		}
-
-		const parseOpts = parser.ParseComments | parser.DeclarationErrors | parser.SkipObjectResolution
-		f, err := parser.ParseFile(fset, file.Name, file.Body, parseOpts)
-		if err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
-
-		files = append(files, f)
-	}
-	if errs != nil {
-		return nil, errs
+		)
 	}
 
-	return g.cfg.Check(mpkg.Path, fset, files, nil)
+	return
 }
 
 //----------------------------------------
@@ -735,11 +751,13 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 			name := toName(s.Name)
 			tipe := toExpr(fs, s.Type)
 			alias := s.Assign != 0
-			ds = append(ds, &TypeDecl{
+			td := &TypeDecl{
 				NameExpr: NameExpr{Name: name},
 				Type:     tipe,
 				IsAlias:  alias,
-			})
+			}
+			setSpan(fs, s, td)
+			ds = append(ds, td)
 		case *ast.ValueSpec:
 			if gd.Tok == token.CONST {
 				var names []NameExpr
@@ -748,12 +766,16 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				for _, id := range s.Names {
 					names = append(names, *Nx(toName(id)))
 				}
-				if s.Type == nil {
+
+				// Inherit the last type when
+				// both type and value are nil
+				if s.Type == nil && s.Values == nil {
 					tipe = lastType
 				} else {
 					tipe = toExpr(fs, s.Type)
 					lastType = tipe
 				}
+
 				if s.Values == nil {
 					values = copyExprs(lastValues)
 				} else {
@@ -767,7 +789,7 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					Const:     true,
 				}
 				cd.SetAttribute(ATTR_IOTA, si)
-				setLoc(fs, s.Pos(), cd)
+				setSpan(fs, s, cd)
 				ds = append(ds, cd)
 			} else {
 				var names []NameExpr
@@ -786,7 +808,7 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					Values:    values,
 					Const:     false,
 				}
-				setLoc(fs, s.Pos(), vd)
+				setSpan(fs, s, vd)
 				ds = append(ds, vd)
 			}
 		case *ast.ImportSpec:
@@ -798,7 +820,7 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				NameExpr: *Nx(toName(s.Name)),
 				PkgPath:  path,
 			}
-			setLoc(fs, s.Pos(), im)
+			setSpan(fs, s, im)
 			ds = append(ds, im)
 		default:
 			panic(fmt.Sprintf(
@@ -836,19 +858,23 @@ func toFields(fs *token.FileSet, fields ...*ast.Field) (ftxs []FieldTypeExpr) {
 	for _, f := range fields {
 		if len(f.Names) == 0 {
 			// a single unnamed field w/ type
-			ftxs = append(ftxs, FieldTypeExpr{
-				Name: "",
-				Type: toExpr(fs, f.Type),
-				Tag:  toExpr(fs, f.Tag),
-			})
+			ftx := FieldTypeExpr{
+				NameExpr: *Nx(""),
+				Type:     toExpr(fs, f.Type),
+				Tag:      toExpr(fs, f.Tag),
+			}
+			setSpan(fs, f, &ftx)
+			ftxs = append(ftxs, ftx)
 		} else {
 			// one or more named fields
 			for _, n := range f.Names {
-				ftxs = append(ftxs, FieldTypeExpr{
-					Name: toName(n),
-					Type: toExpr(fs, f.Type),
-					Tag:  toExpr(fs, f.Tag),
-				})
+				ftx := FieldTypeExpr{
+					NameExpr: *Nx(toName(n)),
+					Type:     toExpr(fs, f.Type),
+					Tag:      toExpr(fs, f.Tag),
+				}
+				setSpan(fs, f, &ftx)
+				ftxs = append(ftxs, ftx)
 			}
 		}
 	}
@@ -861,10 +887,12 @@ func toKeyValueExprs(fs *token.FileSet, elts []ast.Expr) (kvxs KeyValueExprs) {
 		if kvx, ok := x.(*ast.KeyValueExpr); ok {
 			kvxs[i] = *Go2Gno(fs, kvx).(*KeyValueExpr)
 		} else {
-			kvxs[i] = KeyValueExpr{
+			kvx := KeyValueExpr{
 				Key:   nil,
 				Value: toExpr(fs, x),
 			}
+			setSpan(fs, x, &kvx)
+			kvxs[i] = kvx
 		}
 	}
 	return
@@ -895,8 +923,10 @@ func toClauses(fs *token.FileSet, csz []ast.Stmt) []SwitchClauseStmt {
 }
 
 func toSwitchClauseStmt(fs *token.FileSet, cc *ast.CaseClause) SwitchClauseStmt {
-	return SwitchClauseStmt{
+	scs := SwitchClauseStmt{
 		Cases: toExprs(fs, cc.List),
 		Body:  toStmts(fs, cc.Body),
 	}
+	setSpan(fs, cc, &scs)
+	return scs
 }

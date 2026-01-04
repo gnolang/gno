@@ -1,11 +1,20 @@
 package gnolang
 
+// XXX test that p is not actually mutable
+
+// XXX finalize should consider hard boundaries only
+
+// XXX types: to support realm persistence of types, must
+// first require the validation of blocknode locations.
+
 import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strings"
+	"sync"
+
+	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
 
 /*
@@ -19,7 +28,7 @@ is provided a home package, for example
 a "realm package", and functions and methods declared there
 have special privileges.
 
-Every "realm package" should define at last one package-level variable:
+Every "realm package" should define at least one package-level variable:
 
 ```go
 // PKGPATH: gno.land/r/alice
@@ -69,16 +78,44 @@ func (pid PkgID) Bytes() []byte {
 	return pid.Hashlet[:]
 }
 
+var (
+	pkgIDFromPkgPathCacheMu sync.Mutex // protects the shared cache.
+	// TODO: later on switch this to an LRU if needed to ensure
+	// fixed memory caps. For now though it isn't a problem:
+	// https://github.com/gnolang/gno/pull/3424#issuecomment-2564571785
+	pkgIDFromPkgPathCache = make(map[string]*PkgID, 100)
+)
+
 func PkgIDFromPkgPath(path string) PkgID {
-	return PkgID{HashBytes([]byte(path))}
+	pkgIDFromPkgPathCacheMu.Lock()
+	defer pkgIDFromPkgPathCacheMu.Unlock()
+
+	pkgID, ok := pkgIDFromPkgPathCache[path]
+	if !ok {
+		pkgID = new(PkgID)
+		*pkgID = PkgID{HashBytes([]byte(path))}
+		pkgIDFromPkgPathCache[path] = pkgID
+	}
+	return *pkgID
 }
 
+// Returns the ObjectID of the PackageValue associated with path.
 func ObjectIDFromPkgPath(path string) ObjectID {
+	pkgID := PkgIDFromPkgPath(path)
+	return ObjectIDFromPkgID(pkgID)
+}
+
+// Returns the ObjectID of the PackageValue associated with pkgID.
+func ObjectIDFromPkgID(pkgID PkgID) ObjectID {
 	return ObjectID{
-		PkgID:   PkgIDFromPkgPath(path),
+		PkgID:   pkgID,
 		NewTime: 1, // by realm logic.
 	}
 }
+
+// --------------------------------------------------------------------------------
+// Realm
+var nilRealm = (*Realm)(nil)
 
 // NOTE: A nil realm is special and has limited functionality; enough to
 // support methods that don't require persistence. This is the default realm
@@ -88,9 +125,13 @@ type Realm struct {
 	Path string
 	Time uint64
 
+	Deposit uint64 // Amount of deposit held
+	Storage uint64 // Amount of storage used
+	sumDiff int64  // Total size difference from added, updated, or deleted objects
+
 	newCreated []Object
-	newEscaped []Object
 	newDeleted []Object
+	newEscaped []Object
 
 	created []Object // about to become real.
 	updated []Object // real objects that were modified.
@@ -105,6 +146,14 @@ func NewRealm(path string) *Realm {
 		ID:   id,
 		Path: path,
 		Time: 0,
+	}
+}
+
+func (rlm *Realm) GetPath() string {
+	if rlm == nil {
+		return ""
+	} else {
+		return rlm.Path
 	}
 }
 
@@ -127,10 +176,14 @@ func (rlm *Realm) String() string {
 // xo or co is nil if the element value is undefined or has no
 // associated object.
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
 	if rlm == nil {
 		return
 	}
-	if debug {
+	if debugRealm {
 		if co != nil && co.GetIsDeleted() {
 			panic("cannot attach a deleted object")
 		}
@@ -145,8 +198,14 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		return // do nothing.
 	}
 	if po.GetObjectID().PkgID != rlm.ID {
-		panic("cannot modify external-realm or non-realm object")
+		panic(&Exception{Value: typedString("cannot modify external-realm or non-realm object")})
 	}
+
+	// XXX check if this boosts performance
+	// XXX with broad integration benchmarking.
+	// XXX if co == xo {
+	// XXX }
+
 	// From here on, po is real (not new-real).
 	// Updates to .newCreated/.newEscaped /.newDeleted made here. (first gen)
 	// More appends happen during FinalizeRealmTransactions(). (second+ gen)
@@ -155,12 +214,11 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if co != nil {
 		co.IncRefCount()
 		if co.GetRefCount() > 1 {
-			if co.GetIsEscaped() {
-				// already escaped
-			} else {
+			if !co.GetIsEscaped() {
 				rlm.MarkNewEscaped(co)
 			}
-		} else if co.GetIsReal() {
+		}
+		if co.GetIsReal() {
 			rlm.MarkDirty(co)
 		} else {
 			co.SetOwner(po)
@@ -174,6 +232,8 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 			if xo.GetIsReal() {
 				rlm.MarkNewDeleted(xo)
 			}
+		} else if xo.GetIsReal() {
+			rlm.MarkDirty(xo)
 		}
 	}
 }
@@ -182,7 +242,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 // mark*
 
 func (rlm *Realm) MarkNewReal(oo Object) {
-	if debug {
+	if debugRealm {
 		if pv, ok := oo.(*PackageValue); ok {
 			// packages should have no owner.
 			if pv.GetOwner() != nil {
@@ -213,7 +273,7 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 }
 
 func (rlm *Realm) MarkDirty(oo Object) {
-	if debug {
+	if debugRealm {
 		if !oo.GetIsReal() && !oo.GetIsNewReal() {
 			panic("cannot mark unreal object as dirty")
 		}
@@ -233,7 +293,7 @@ func (rlm *Realm) MarkDirty(oo Object) {
 }
 
 func (rlm *Realm) MarkNewDeleted(oo Object) {
-	if debug {
+	if debugRealm {
 		if !oo.GetIsNewReal() && !oo.GetIsReal() {
 			panic("cannot mark unreal object as new deleted")
 		}
@@ -253,7 +313,7 @@ func (rlm *Realm) MarkNewDeleted(oo Object) {
 }
 
 func (rlm *Realm) MarkNewEscaped(oo Object) {
-	if debug {
+	if debugRealm {
 		if !oo.GetIsNewReal() && !oo.GetIsReal() {
 			panic("cannot mark unreal object as new escaped")
 		}
@@ -279,28 +339,20 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 // transactions
 
 // OpReturn calls this when exiting a realm transaction.
-func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
-	if readonly {
-		if true ||
-			len(rlm.newCreated) > 0 ||
-			len(rlm.newEscaped) > 0 ||
-			len(rlm.newDeleted) > 0 ||
-			len(rlm.created) > 0 ||
-			len(rlm.updated) > 0 ||
-			len(rlm.deleted) > 0 ||
-			len(rlm.escaped) > 0 {
-			panic("realm updates in readonly transaction")
-		}
-		return
+func (rlm *Realm) FinalizeRealmTransaction(store Store) {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
 	}
-	if debug {
+
+	if debugRealm {
 		// * newCreated - may become created unless ancestor is deleted
 		// * newDeleted - may become deleted unless attached to new-real owner
 		// * newEscaped - may become escaped unless new-real and refcount 0 or 1.
 		// * updated - includes all real updated objects, and will be appended with ancestors
 		ensureUniq(rlm.newCreated)
-		ensureUniq(rlm.newEscaped)
 		ensureUniq(rlm.newDeleted)
+		ensureUniq(rlm.newEscaped)
 		ensureUniq(rlm.updated)
 		if false ||
 			rlm.created != nil ||
@@ -310,20 +362,20 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 		}
 	}
 	// log realm boundaries in opslog.
-	store.LogSwitchRealm(rlm.Path)
+	store.LogFinalizeRealm(rlm.Path)
 	// increment recursively for created descendants.
 	// also assigns object ids for all.
-	rlm.processNewCreatedMarks(store)
+	rlm.processNewCreatedMarks(store, 0)
 	// decrement recursively for deleted descendants.
 	rlm.processNewDeletedMarks(store)
 	// at this point, all ref-counts are final.
 	// demote any escaped if ref-count is 1.
-	rlm.processNewEscapedMarks(store)
+	rlm.processNewEscapedMarks(store, 0)
 	// given created and updated objects,
 	// mark all owned-ancestors also as dirty.
 	rlm.markDirtyAncestors(store)
-	if debug {
-		ensureUniq(rlm.created, rlm.updated, rlm.deleted)
+	if debugRealm {
+		ensureUniq(rlm.created, rlm.updated)
 		ensureUniq(rlm.escaped)
 	}
 	// save all the created and updated objects.
@@ -331,10 +383,17 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	// or via escaped-object persistence in
 	// the iavl tree.
 	rlm.saveUnsavedObjects(store)
+	// TODO saved newly escaped to iavl.
+	rlm.saveNewEscaped(store)
 	// delete all deleted objects.
 	rlm.removeDeletedObjects(store)
 	// reset realm state for new transaction.
 	rlm.clearMarks()
+
+	// Update storage differences.
+	realmDiffs := store.RealmStorageDiffs()
+	realmDiffs[rlm.Path] += rlm.sumDiff
+	rlm.sumDiff = 0
 }
 
 //----------------------------------------
@@ -344,17 +403,20 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 // finding more newly created objects recursively.
 // All newly created objects become appended to .created,
 // and get assigned ids.
-func (rlm *Realm) processNewCreatedMarks(store Store) {
+// Starts processing with index 'start', returns len(newCreated).
+func (rlm *Realm) processNewCreatedMarks(store Store, start int) int {
 	// Create new objects and their new descendants.
-	for _, oo := range rlm.newCreated {
-		if debug {
+	for _, oo := range rlm.newCreated[start:] {
+		if debugRealm {
 			if oo.GetIsDirty() {
 				panic("new created mark cannot be dirty")
 			}
 		}
 		if oo.GetRefCount() == 0 {
-			if debug {
-				if !oo.GetIsNewDeleted() {
+			if debugRealm {
+				// The refCount for a new real object could be zero,
+				// and the object may not yet be marked as deleted.
+				if !oo.GetIsNewDeleted() && !oo.GetIsNewReal() {
 					panic("should have been marked new-deleted")
 				}
 			}
@@ -370,11 +432,12 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 	if len(rlm.newCreated) > 0 {
 		store.SetPackageRealm(rlm)
 	}
+	return len(rlm.newCreated)
 }
 
 // oo must be marked new-real, and ref-count already incremented.
 func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
-	if debug {
+	if debugRealm {
 		if oo.GetIsDirty() {
 			panic("cannot increase reference of descendants of dirty objects")
 		}
@@ -398,7 +461,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	more := getChildObjects2(store, oo)
 	for _, child := range more {
 		if _, ok := child.(*PackageValue); ok {
-			if debug {
+			if debugRealm {
 				if child.GetRefCount() < 1 {
 					panic("cannot increase reference count of package descendant that is unreferenced")
 				}
@@ -419,10 +482,15 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				// NOTE: may already be marked for first gen
 				// newCreated or updated.
 				child.SetOwner(oo)
-				rlm.incRefCreatedDescendants(store, child)
+
+				// Mark it as new-real first to prevent it
+				// from being marked dirty upon reentry.
 				child.SetIsNewReal(true)
+				rlm.incRefCreatedDescendants(store, child)
 			}
 		} else if rc > 1 {
+			// new real or dirty shouldn't be marked.
+			rlm.MarkDirty(child)
 			if child.GetIsEscaped() {
 				// already escaped, do nothing.
 			} else {
@@ -448,7 +516,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 // Must run *after* processNewCreatedMarks().
 func (rlm *Realm) processNewDeletedMarks(store Store) {
 	for _, oo := range rlm.newDeleted {
-		if debug {
+		if debugRealm {
 			if oo.GetObjectID().IsZero() {
 				panic("new deleted mark should have an object ID")
 			}
@@ -465,7 +533,7 @@ func (rlm *Realm) processNewDeletedMarks(store Store) {
 
 // Like incRefCreatedDescendants but decrements.
 func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
-	if debug {
+	if debugRealm {
 		if oo.GetObjectID().IsZero() {
 			panic("cannot decrement references of deleted descendants of object with no object ID")
 		}
@@ -496,7 +564,7 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 		if rc == 0 {
 			rlm.decRefDeletedDescendants(store, child)
 		} else if rc > 0 {
-			// do nothing
+			rlm.MarkDirty(child)
 		} else {
 			panic("deleted descendants should not have a reference count of less than zero")
 		}
@@ -509,7 +577,8 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 // demotes new-real escaped objects with refcount 0 or 1.  remaining
 // objects get their original owners marked dirty (to be further
 // marked via markDirtyAncestors).
-func (rlm *Realm) processNewEscapedMarks(store Store) {
+// Starts processing with index 'start', returns len(newEscaped).
+func (rlm *Realm) processNewEscapedMarks(store Store, start int) int {
 	escaped := make([]Object, 0, len(rlm.newEscaped))
 	// These are those marked by MarkNewEscaped(),
 	// regardless of whether new-real or was real,
@@ -517,8 +586,10 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 	// (and never can be unescaped,)
 	// except for new-reals that get demoted
 	// because ref-count isn't >= 2.
-	for _, eo := range rlm.newEscaped {
-		if debug {
+	// for _, eo := range rlm.newEscaped[start:] {
+	for i := 0; i < len(rlm.newEscaped[start:]); i++ { // may expand.
+		eo := rlm.newEscaped[i]
+		if debugRealm {
 			if !eo.GetIsNewEscaped() {
 				panic("new escaped mark not marked as new escaped")
 			}
@@ -554,14 +625,17 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 					rlm.MarkDirty(po)
 				}
 				if eo.GetObjectID().IsZero() {
-					panic("new escaped mark has no object ID")
+					// eo was passed from caller.
+					rlm.incRefCreatedDescendants(store, eo)
+					eo.SetIsNewReal(true)
 				}
 				// escaped has no owner.
 				eo.SetOwner(nil)
 			}
 		}
 	}
-	rlm.escaped = escaped // XXX is this actually used?
+	rlm.escaped = escaped
+	return len(rlm.newEscaped)
 }
 
 //----------------------------------------
@@ -574,7 +648,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	markAncestorsOne := func(oo Object) {
 		for {
 			if pv, ok := oo.(*PackageValue); ok {
-				if debug {
+				if debugRealm {
 					if pv.GetRefCount() < 1 {
 						panic("expected package value to have refcount 1 or greater")
 					}
@@ -583,13 +657,13 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 				break
 			}
 			rc := oo.GetRefCount()
-			if debug {
+			if debugRealm {
 				if rc == 0 {
 					panic("ancestor should have a non-zero reference count to be marked as dirty")
 				}
 			}
 			if rc > 1 {
-				if debug {
+				if debugRealm {
 					if !oo.GetIsEscaped() && !oo.GetIsNewEscaped() {
 						panic("ancestor should cannot be escaped or new escaped to be marked as dirty")
 					}
@@ -603,6 +677,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 			} // else, rc == 1
 
 			po := getOwner(store, oo)
+
 			if po == nil {
 				break // no more owners.
 			} else if po.GetIsNewReal() {
@@ -615,6 +690,11 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 				// via call to markAncestorsOne
 				// via .updated.
 				break
+			} else if po.GetIsDeleted() {
+				// already deleted, no need to mark.
+				// oo(child) maybe have another owner,
+				// if so, it should be marked by .updated.
+				break
 			} else {
 				rlm.MarkDirty(po)
 				// next case
@@ -625,12 +705,16 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	// NOTE: newly dirty-marked owners get appended
 	// to .updated without affecting iteration.
 	for _, oo := range rlm.updated {
-		markAncestorsOne(oo)
+		if !oo.GetIsDeleted() {
+			markAncestorsOne(oo)
+		}
 	}
 	// NOTE: must happen after iterating over rlm.updated
 	// for the same reason.
 	for _, oo := range rlm.created {
-		markAncestorsOne(oo)
+		if !oo.GetIsDeleted() {
+			markAncestorsOne(oo)
+		}
 	}
 }
 
@@ -639,6 +723,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 
 // Saves .created and .updated objects.
 func (rlm *Realm) saveUnsavedObjects(store Store) {
+	tids := make(map[TypeID]struct{})
 	for _, co := range rlm.created {
 		// for i := len(rlm.created) - 1; i >= 0; i-- {
 		// co := rlm.created[i]
@@ -647,7 +732,9 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 			// of something else created.
 			continue
 		} else {
-			rlm.saveUnsavedObjectRecursively(store, co)
+			if !co.GetIsDeleted() {
+				rlm.saveUnsavedObjectRecursively(store, co, tids)
+			}
 		}
 	}
 	for _, uo := range rlm.updated {
@@ -658,14 +745,18 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 			// of something else created/dirty.
 			continue
 		} else {
-			rlm.saveUnsavedObjectRecursively(store, uo)
+			if !uo.GetIsDeleted() {
+				rlm.saveUnsavedObjectRecursively(store, uo, tids)
+			}
 		}
 	}
 }
 
 // store unsaved children first.
-func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
-	if debug {
+// ensure that the object and children does not have any private dependencies.
+// use a visited map to mark visited types when asserting there are no private dependencies.
+func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object, visited map[TypeID]struct{}) {
+	if debugRealm {
 		if !oo.GetIsNewReal() && !oo.GetIsDirty() {
 			panic("cannot save new real or non-dirty objects")
 		}
@@ -681,19 +772,28 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 			panic("cannot save deleted objects")
 		}
 	}
+
+	// assert object have no private dependencies.
+	//
+	// XXX JAE: Can't this whole routine be changed so that it only applies
+	// when finalizing when the first frame function is declared in a
+	// private package? See discussion:
+	// https://github.com/gnolang/gno/pull/4890/files#r2554336836
+	rlm.assertObjectIsPublic(oo, store, visited)
+
 	// first, save unsaved children.
 	unsaved := getUnsavedChildObjects(oo)
 	for _, uch := range unsaved {
 		if uch.GetIsEscaped() || uch.GetIsNewEscaped() {
 			// no need to save preemptively.
 		} else {
-			rlm.saveUnsavedObjectRecursively(store, uch)
+			rlm.saveUnsavedObjectRecursively(store, uch, visited)
 		}
 	}
 	// then, save self.
 	if oo.GetIsNewReal() {
 		// save created object.
-		if debug {
+		if debugRealm {
 			if oo.GetIsDirty() {
 				panic("cannot save dirty new real object")
 			}
@@ -702,7 +802,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		oo.SetIsNewReal(false)
 	} else {
 		// update existing object.
-		if debug {
+		if debugRealm {
 			if !oo.GetIsDirty() {
 				panic("cannot save non-dirty existing object")
 			}
@@ -723,18 +823,6 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 	if oid.IsZero() {
 		panic("unexpected zero object id")
 	}
-	/* XXX DELETE
-	// ensure all types were already saved (@ preprocessor).
-	if debug {
-		types := getUnsavedTypes(oo, nil)
-		for _, typ := range types {
-			tid := typ.TypeID()
-			if store.GetType(tid) == nil {
-				panic("missing type")
-			}
-		}
-	}
-	*/
 	// set hash to escape index.
 	if oo.GetIsNewEscaped() {
 		oo.SetIsNewEscaped(false)
@@ -743,11 +831,24 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 	}
 	// set object to store.
 	// NOTE: also sets the hash to object.
-	store.SetObject(oo)
-	// set index.
-	if oo.GetIsEscaped() {
-		// XXX save oid->hash to iavl.
-	}
+	rlm.sumDiff += store.SetObject(oo)
+}
+
+//----------------------------------------
+// saveNewEscaped
+
+// Save newly escaped oid->hash to iavl for iavl proofs.
+// NOTE some of these escaped items may be in external realms.
+// TODO actually implement.
+func (rlm *Realm) saveNewEscaped(store Store) {
+	// TODO implement.
+	/*
+		for _, eo := range rlm.escaped {
+				if !oo.GetIsEscaped() {
+					panic("should not happen")
+				}
+		}
+	*/
 }
 
 //----------------------------------------
@@ -755,7 +856,7 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 
 func (rlm *Realm) removeDeletedObjects(store Store) {
 	for _, do := range rlm.deleted {
-		store.DelObject(do)
+		rlm.sumDiff -= store.DelObject(do)
 	}
 }
 
@@ -764,17 +865,24 @@ func (rlm *Realm) removeDeletedObjects(store Store) {
 
 func (rlm *Realm) clearMarks() {
 	// sanity check
-	if debug {
+	if debugRealm {
 		for _, oo := range rlm.newDeleted {
 			if oo.GetIsNewDeleted() {
 				panic("cannot clear marks if new deleted exist")
 			}
 		}
+
+		// A new real object can be possible here.
+		// This new real object may have recCount of 0
+		// but its state was not unset. see `processNewCreatedMarks`.
+		// (As a result, it will be garbage collected.)
+		// therefore, new real is allowed to exist here.
 		for _, oo := range rlm.newCreated {
-			if oo.GetIsNewReal() {
-				panic("cannot clear marks if new created exist")
+			if oo.GetIsNewReal() && oo.GetRefCount() != 0 {
+				panic("cannot clear marks if new created exist with refCount not zero")
 			}
 		}
+
 		for _, oo := range rlm.newEscaped {
 			if oo.GetIsNewEscaped() {
 				panic("cannot clear marks if new escaped exist")
@@ -789,6 +897,150 @@ func (rlm *Realm) clearMarks() {
 	rlm.updated = nil
 	rlm.deleted = nil
 	rlm.escaped = nil
+}
+
+// assertObjectIsPublic ensures that the object is public and does not have any private dependencies.
+// it check recursively the types of the object
+// it does not recursively check the values because
+// child objects are validated separately during the save traversal (saveUnsavedObjectRecursively)
+func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[TypeID]struct{}) {
+	objID := obj.GetObjectID()
+	if objID.PkgID != rlm.ID && isPkgPrivateFromPkgID(store, objID.PkgID) {
+		panic("cannot persist reference of object from the private realm " + pkgPathFromPkgID(store, objID.PkgID))
+	}
+
+	// NOTE: should i set the visited tids map at the higher level so it's set one time.
+	// it could help to reduce the number of checks for the same type.
+	switch v := obj.(type) {
+	case *HeapItemValue:
+		if v.Value.T != nil {
+			rlm.assertTypeIsPublic(store, v.Value.T, visited)
+		}
+	case *ArrayValue:
+		for _, av := range v.List {
+			if av.T != nil {
+				rlm.assertTypeIsPublic(store, av.T, visited)
+			}
+		}
+	case *StructValue:
+		for _, sv := range v.Fields {
+			if sv.T != nil {
+				rlm.assertTypeIsPublic(store, sv.T, visited)
+			}
+		}
+	case *MapValue:
+		for head := v.List.Head; head != nil; head = head.Next {
+			if head.Key.T != nil {
+				rlm.assertTypeIsPublic(store, head.Key.T, visited)
+			}
+			if head.Value.T != nil {
+				rlm.assertTypeIsPublic(store, head.Value.T, visited)
+			}
+		}
+	case *FuncValue:
+		if v.PkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, v.PkgPath) {
+			panic("cannot persist function or method from the private realm " + v.PkgPath)
+		}
+		if v.Type != nil {
+			rlm.assertTypeIsPublic(store, v.Type, visited)
+		}
+		for _, capture := range v.Captures {
+			if capture.T != nil {
+				rlm.assertTypeIsPublic(store, capture.T, visited)
+			}
+		}
+	case *BoundMethodValue:
+		if v.Func.PkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, v.Func.PkgPath) {
+			panic("cannot persist bound method from the private realm " + v.Func.PkgPath)
+		}
+		if v.Receiver.T != nil {
+			rlm.assertTypeIsPublic(store, v.Receiver.T, visited)
+		}
+	case *Block:
+		for _, bv := range v.Values {
+			if bv.T != nil {
+				rlm.assertTypeIsPublic(store, bv.T, visited)
+			}
+		}
+		if v.Blank.T != nil {
+			rlm.assertTypeIsPublic(store, v.Blank.T, visited)
+		}
+	case *PackageValue:
+		if v.PkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, v.PkgPath) {
+			panic("cannot persist package from the private realm " + v.PkgPath)
+		}
+	default:
+		panic(fmt.Sprintf("assertNoPrivateDeps: unhandled object type %T", v))
+	}
+}
+
+// assertTypeIsPublic ensure that the type t is not defined in a private realm.
+// it do it recursively for all types in t and have recursive guard to avoid infinite recursion on declared types.
+//
+// XXX JAE: In addition to the other comment above about assertObjectIsPublic() usage,
+// shouldn't this be computed once for every type statically in the preprocessor?
+// The type itself could have a boolean, and every type could have SetIsPrivate() (no args)
+// after construction that sets the boolean based on its dependencies.
+// This slow implementation seems fine for now, something to optimize later.
+func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]struct{}) {
+	pkgPath := ""
+
+	// NOTE: Use to avoid infinite recursion on declared types & avoid repeated checks.
+	tid := t.TypeID()
+	if _, exists := visited[tid]; exists {
+		return
+	}
+	visited[tid] = struct{}{}
+	switch tt := t.(type) {
+	case *FuncType:
+		for _, param := range tt.Params {
+			rlm.assertTypeIsPublic(store, param, visited)
+		}
+		for _, result := range tt.Results {
+			rlm.assertTypeIsPublic(store, result, visited)
+		}
+	case FieldType:
+		rlm.assertTypeIsPublic(store, tt.Type, visited)
+	case *SliceType, *ArrayType, *ChanType, *PointerType:
+		rlm.assertTypeIsPublic(store, tt.Elem(), visited)
+	case *tupleType:
+		for _, et := range tt.Elts {
+			rlm.assertTypeIsPublic(store, et, visited)
+		}
+	case *MapType:
+		rlm.assertTypeIsPublic(store, tt.Key, visited)
+		rlm.assertTypeIsPublic(store, tt.Elem(), visited)
+	case *InterfaceType:
+		pkgPath = tt.GetPkgPath()
+		for _, method := range tt.Methods {
+			rlm.assertTypeIsPublic(store, method, visited)
+		}
+	case *StructType:
+		pkgPath = tt.GetPkgPath()
+		for _, field := range tt.Fields {
+			rlm.assertTypeIsPublic(store, field, visited)
+		}
+	case *DeclaredType:
+		rlm.assertTypeIsPublic(store, tt.Base, visited)
+		for _, method := range tt.Methods {
+			rlm.assertTypeIsPublic(store, method.T, visited)
+			if mv, ok := method.V.(*FuncValue); ok {
+				rlm.assertTypeIsPublic(store, mv.Type, visited)
+			}
+		}
+		pkgPath = tt.GetPkgPath()
+	case *RefType:
+		panic("should not happen: ref type in assert type is public")
+	case PrimitiveType, *TypeType, *PackageType, blockType, heapItemType:
+		// these types do not have a package path.
+		// NOTE: PackageType have a TypeID, should i loat it from store and check it?
+		return
+	default:
+		panic(fmt.Sprintf("assertTypeIsPublic: unhandled type %T", tt))
+	}
+	if pkgPath != "" && pkgPath != rlm.Path && isPkgPrivateFromPkgPath(store, pkgPath) {
+		panic("cannot persist object of type defined in the private realm " + pkgPath)
+	}
 }
 
 //----------------------------------------
@@ -822,11 +1074,10 @@ func getChildObjects(val Value, more []Value) []Value {
 	case DataByteValue:
 		panic("cannot get children from data byte objects")
 	case PointerValue:
-		if cv.Base != nil {
-			more = getSelfOrChildObjects(cv.Base, more)
-		} else {
-			more = getSelfOrChildObjects(cv.TV.V, more)
+		if cv.Base == nil {
+			panic("should not happen")
 		}
+		more = getSelfOrChildObjects(cv.Base, more)
 		return more
 	case *ArrayValue:
 		for _, ctv := range cv.List {
@@ -842,12 +1093,15 @@ func getChildObjects(val Value, more []Value) []Value {
 		}
 		return more
 	case *FuncValue:
-		if bv, ok := cv.Closure.(*Block); ok {
+		if bv, ok := cv.Parent.(*Block); ok {
 			more = getSelfOrChildObjects(bv, more)
+		}
+		for _, c := range cv.Captures {
+			more = getSelfOrChildObjects(c.V, more)
 		}
 		return more
 	case *BoundMethodValue:
-		more = getChildObjects(cv.Func, more) // *FuncValue not object
+		more = getSelfOrChildObjects(cv.Func, more)
 		more = getSelfOrChildObjects(cv.Receiver.V, more)
 		return more
 	case *MapValue:
@@ -868,10 +1122,14 @@ func getChildObjects(val Value, more []Value) []Value {
 		for _, ctv := range cv.Values {
 			more = getSelfOrChildObjects(ctv.V, more)
 		}
+		// Generally the parent block must also be persisted.
+		// Otherwise NamePath may not resolve when referencing
+		// a parent block.
 		more = getSelfOrChildObjects(cv.Parent, more)
 		return more
-	case *NativeValue:
-		panic("native values not supported")
+	case *HeapItemValue:
+		more = getSelfOrChildObjects(cv.Value.V, more)
+		return more
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v",
@@ -935,7 +1193,7 @@ func copyMethods(methods []TypedValue) []TypedValue {
 		// gets saved (e.g. from *Machine.savePackage()).
 		res[i] = TypedValue{
 			T: copyTypeWithRefs(mtv.T),
-			V: copyValueWithRefs(nil, mtv.V),
+			V: copyValueWithRefs(mtv.V),
 		}
 	}
 	return res
@@ -1011,6 +1269,10 @@ func copyTypeWithRefs(typ Type) Type {
 	case *TypeType:
 		return &TypeType{}
 	case *DeclaredType:
+		if ct.PkgPath == uversePkgPath {
+			// This happens with a type alias to a uverse type.
+			return RefType{ID: ct.TypeID()}
+		}
 		dt := &DeclaredType{
 			PkgPath: ct.PkgPath,
 			Name:    ct.Name,
@@ -1025,8 +1287,6 @@ func copyTypeWithRefs(typ Type) Type {
 			Dir: ct.Dir,
 			Elt: refOrCopyType(ct.Elt),
 		}
-	case *NativeType:
-		panic("cannot copy native types")
 	case blockType:
 		return blockType{}
 	case *tupleType:
@@ -1041,6 +1301,8 @@ func copyTypeWithRefs(typ Type) Type {
 		return RefType{
 			ID: ct.ID,
 		}
+	case heapItemType:
+		return ct
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v", typ))
@@ -1054,7 +1316,7 @@ func copyTypeWithRefs(typ Type) Type {
 // persistence bytes serialization.
 // Also checks for integrity of immediate children -- they must already be
 // persistent (real), and not dirty, or else this function panics.
-func copyValueWithRefs(parent Object, val Value) Value {
+func copyValueWithRefs(val Value) Value {
 	switch cv := val.(type) {
 	case nil:
 		return nil
@@ -1067,33 +1329,25 @@ func copyValueWithRefs(parent Object, val Value) Value {
 	case DataByteValue:
 		panic("cannot copy data byte value with references")
 	case PointerValue:
-		if cv.Base != nil {
-			return PointerValue{
-				/*
-					already represented in .Base[Index]:
-					TypedValue: &TypedValue{
-						T: cv.TypedValue.T,
-						V: copyValueWithRefs(cv.TypedValue.V),
-					},
-				*/
-				Base:  toRefValue(parent, cv.Base),
-				Index: cv.Index,
-			}
-		} else {
-			etv := refOrCopyValue(parent, *cv.TV)
-			return PointerValue{
-				TV: &etv,
-				/*
-					Base:  nil,
-					Index: 0,
-				*/
-			}
+		if cv.Base == nil {
+			panic("should not happen")
+		}
+		return PointerValue{
+			/*
+				already represented in .Base[Index]:
+				TypedValue: &TypedValue{
+					T: cv.TypedValue.T,
+					V: copyValueWithRefs(cv.TypedValue.V),
+				},
+			*/
+			Base:  toRefValue(cv.Base),
+			Index: cv.Index,
 		}
 	case *ArrayValue:
 		if cv.Data == nil {
 			list := make([]TypedValue, len(cv.List))
 			for i, etv := range cv.List {
-				list[i] = refOrCopyValue(cv, etv)
+				list[i] = refOrCopyValue(etv)
 			}
 			return &ArrayValue{
 				ObjectInfo: cv.ObjectInfo.Copy(),
@@ -1107,7 +1361,7 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		}
 	case *SliceValue:
 		return &SliceValue{
-			Base:   toRefValue(parent, cv.Base),
+			Base:   toRefValue(cv.Base),
 			Offset: cv.Offset,
 			Length: cv.Length,
 			Maxcap: cv.Maxcap,
@@ -1115,7 +1369,7 @@ func copyValueWithRefs(parent Object, val Value) Value {
 	case *StructValue:
 		fields := make([]TypedValue, len(cv.Fields))
 		for i, ftv := range cv.Fields {
-			fields[i] = refOrCopyValue(cv, ftv)
+			fields[i] = refOrCopyValue(ftv)
 		}
 		return &StructValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
@@ -1123,15 +1377,15 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		}
 	case *FuncValue:
 		source := toRefNode(cv.Source)
-		if strings.HasSuffix(source.Location.File, "_test.gno") {
-			// Ignore _test files
-			return nil
+		var parent Value
+		if cv.Parent != nil {
+			parent = toRefValue(cv.Parent)
 		}
-		var closure Value
-		if cv.Closure != nil {
-			closure = toRefValue(parent, cv.Closure)
+		captures := make([]TypedValue, len(cv.Captures))
+		for i, ctv := range cv.Captures {
+			captures[i] = refOrCopyValue(ctv)
 		}
-		// nativeBody funcs which don't come from NativeStore (and thus don't
+		// nativeBody funcs which don't come from NativeResolver (and thus don't
 		// have NativePkg/Name) can't be persisted, and should not be able
 		// to get here anyway.
 		if cv.nativeBody != nil && cv.NativePkg == "" {
@@ -1139,29 +1393,32 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		}
 		ft := copyTypeWithRefs(cv.Type)
 		return &FuncValue{
+			ObjectInfo: cv.ObjectInfo.Copy(),
 			Type:       ft,
 			IsMethod:   cv.IsMethod,
 			Source:     source,
 			Name:       cv.Name,
-			Closure:    closure,
+			Parent:     parent,
+			Captures:   captures,
 			FileName:   cv.FileName,
 			PkgPath:    cv.PkgPath,
 			NativePkg:  cv.NativePkg,
 			NativeName: cv.NativeName,
+			Crossing:   cv.Crossing,
 		}
 	case *BoundMethodValue:
-		fnc := copyValueWithRefs(cv, cv.Func).(*FuncValue)
-		rtv := refOrCopyValue(cv, cv.Receiver)
+		fnc := copyValueWithRefs(cv.Func).(*FuncValue)
+		rtv := refOrCopyValue(cv.Receiver)
 		return &BoundMethodValue{
-			ObjectInfo: cv.ObjectInfo.Copy(), // XXX ???
+			ObjectInfo: cv.ObjectInfo.Copy(),
 			Func:       fnc,
 			Receiver:   rtv,
 		}
 	case *MapValue:
 		list := &MapList{}
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
-			key2 := refOrCopyValue(cv, cur.Key)
-			val2 := refOrCopyValue(cv, cur.Value)
+			key2 := refOrCopyValue(cur.Key)
+			val2 := refOrCopyValue(cur.Value)
 			list.Append(nilAllocator, key2).Value = val2
 		}
 		return &MapValue{
@@ -1171,16 +1428,17 @@ func copyValueWithRefs(parent Object, val Value) Value {
 	case TypeValue:
 		return toTypeValue(copyTypeWithRefs(cv.Type))
 	case *PackageValue:
-		block := toRefValue(cv, cv.Block)
+		block := toRefValue(cv.Block)
 		fblocks := make([]Value, len(cv.FBlocks))
 		for i, fb := range cv.FBlocks {
-			fblocks[i] = toRefValue(cv, fb)
+			fblocks[i] = toRefValue(fb)
 		}
 		return &PackageValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
 			Block:      block,
 			PkgName:    cv.PkgName,
 			PkgPath:    cv.PkgPath,
+			Private:    cv.Private,
 			FNames:     cv.FNames, // no copy
 			FBlocks:    fblocks,
 			Realm:      cv.Realm,
@@ -1189,11 +1447,11 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		source := toRefNode(cv.Source)
 		vals := make([]TypedValue, len(cv.Values))
 		for i, tv := range cv.Values {
-			vals[i] = refOrCopyValue(cv, tv)
+			vals[i] = refOrCopyValue(tv)
 		}
 		var bparent Value
 		if cv.Parent != nil {
-			bparent = toRefValue(parent, cv.Parent)
+			bparent = toRefValue(cv.Parent)
 		}
 		bl := &Block{
 			ObjectInfo: cv.ObjectInfo.Copy(),
@@ -1205,8 +1463,12 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		return bl
 	case RefValue:
 		return cv
-	case *NativeValue:
-		panic("native values not supported")
+	case *HeapItemValue:
+		hiv := &HeapItemValue{
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			Value:      refOrCopyValue(cv.Value),
+		}
+		return hiv
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v",
@@ -1218,6 +1480,8 @@ func copyValueWithRefs(parent Object, val Value) Value {
 // fillTypes
 
 // (fully) fills the type.
+// The store stores RefTypes, but this function fills it.
+// This lets the store be independent of laziness.
 func fillType(store Store, typ Type) Type {
 	switch ct := typ.(type) {
 	case nil:
@@ -1284,8 +1548,6 @@ func fillType(store Store, typ Type) Type {
 	case *ChanType:
 		ct.Elt = fillType(store, ct.Elt)
 		return ct
-	case *NativeType:
-		panic("cannot fill native types")
 	case blockType:
 		return ct // nothing to do
 	case *tupleType:
@@ -1295,6 +1557,8 @@ func fillType(store Store, typ Type) Type {
 		return ct
 	case RefType:
 		return store.GetType(ct.TypeID())
+	case heapItemType:
+		return ct
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v", reflect.TypeOf(typ)))
@@ -1330,7 +1594,7 @@ func fillTypesOfValue(store Store, val Value) Value {
 			return cv
 		}
 	case *ArrayValue:
-		for i := 0; i < len(cv.List); i++ {
+		for i := range cv.List {
 			ctv := &cv.List[i]
 			fillTypesTV(store, ctv)
 		}
@@ -1339,7 +1603,7 @@ func fillTypesOfValue(store Store, val Value) Value {
 		fillTypesOfValue(store, cv.Base)
 		return cv
 	case *StructValue:
-		for i := 0; i < len(cv.Fields); i++ {
+		for i := range cv.Fields {
 			ctv := &cv.Fields[i]
 			fillTypesTV(store, ctv)
 		}
@@ -1357,7 +1621,11 @@ func fillTypesOfValue(store Store, val Value) Value {
 			fillTypesTV(store, &cur.Key)
 			fillTypesTV(store, &cur.Value)
 
-			cv.vmap[cur.Key.ComputeMapKey(store, false)] = cur
+			fillValueTV(store, &cur.Key)
+			mk, isNaN := cur.Key.ComputeMapKey(store, false)
+			if !isNaN {
+				cv.vmap[mk] = cur
+			}
 		}
 		return cv
 	case TypeValue:
@@ -1367,14 +1635,15 @@ func fillTypesOfValue(store Store, val Value) Value {
 		fillTypesOfValue(store, cv.Block)
 		return cv
 	case *Block:
-		for i := 0; i < len(cv.Values); i++ {
+		for i := range cv.Values {
 			ctv := &cv.Values[i]
 			fillTypesTV(store, ctv)
 		}
 		return cv
-	case *NativeValue:
-		panic("native values not supported")
 	case RefValue: // do nothing
+		return cv
+	case *HeapItemValue:
+		fillTypesTV(store, &cv.Value)
 		return cv
 	default:
 		panic(fmt.Sprintf(
@@ -1416,6 +1685,7 @@ func (rlm *Realm) assignNewObjectID(oo Object) ObjectID {
 //----------------------------------------
 // Misc.
 
+// should not be used outside of realm.go
 func toRefNode(bn BlockNode) RefNode {
 	return RefNode{
 		Location:  bn.GetLocation(),
@@ -1423,7 +1693,8 @@ func toRefNode(bn BlockNode) RefNode {
 	}
 }
 
-func toRefValue(parent Object, val Value) RefValue {
+// should not be used outside of realm.go
+func toRefValue(val Value) RefValue {
 	// TODO use type switch stmt.
 	if ref, ok := val.(RefValue); ok {
 		return ref
@@ -1437,11 +1708,12 @@ func toRefValue(parent Object, val Value) RefValue {
 			}
 		} else if !oo.GetIsReal() {
 			panic("unexpected unreal object")
-		} else if oo.GetIsDirty() {
-			// This can happen with some circular
-			// references.
-			// panic("unexpected dirty object")
 		}
+		// This can happen with some circular
+		// references.
+		// else if oo.GetIsDirty() {
+		// panic("unexpected dirty object")
+		// }
 		if oo.GetIsNewEscaped() {
 			// NOTE: oo.GetOwnerID() will become zero.
 			return RefValue{
@@ -1450,7 +1722,7 @@ func toRefValue(parent Object, val Value) RefValue {
 				// Hash: nil,
 			}
 		} else if oo.GetIsEscaped() {
-			if debug {
+			if debugRealm {
 				if !oo.GetOwnerID().IsZero() {
 					panic("cannot convert escaped object to ref value without an owner ID")
 				}
@@ -1461,7 +1733,7 @@ func toRefValue(parent Object, val Value) RefValue {
 				// Hash: nil,
 			}
 		} else {
-			if debug {
+			if debugRealm {
 				if oo.GetRefCount() > 1 {
 					panic("unexpected references when converting to ref value")
 				}
@@ -1488,7 +1760,7 @@ func ensureUniq(oozz ...[]Object) {
 	for _, ooz := range oozz {
 		for _, uo := range ooz {
 			if _, ok := om[uo]; ok {
-				panic("duplicate object")
+				panic(fmt.Sprintf("duplicate object: %v", uo))
 			} else {
 				om[uo] = struct{}{}
 			}
@@ -1496,15 +1768,15 @@ func ensureUniq(oozz ...[]Object) {
 	}
 }
 
-func refOrCopyValue(parent Object, tv TypedValue) TypedValue {
+func refOrCopyValue(tv TypedValue) TypedValue {
 	if tv.T != nil {
 		tv.T = refOrCopyType(tv.T)
 	}
 	if obj, ok := tv.V.(Object); ok {
-		tv.V = toRefValue(parent, obj)
+		tv.V = toRefValue(obj)
 		return tv
 	} else {
-		tv.V = copyValueWithRefs(parent, tv.V)
+		tv.V = copyValueWithRefs(tv.V)
 		return tv
 	}
 }
@@ -1514,7 +1786,7 @@ func isUnsaved(oo Object) bool {
 }
 
 func prettyJSON(jstr []byte) []byte {
-	var c interface{}
+	var c any
 	err := json.Unmarshal(jstr, &c)
 	if err != nil {
 		return nil
@@ -1536,4 +1808,34 @@ func getOwner(store Store, oo Object) Object {
 		}
 	}
 	return po
+}
+
+// XXX this would be a lot faster if the PkgID itself included a private bit;
+// no store argument or lookup would be needed.
+func isPkgPrivateFromPkgID(store Store, pkgID PkgID) bool {
+	oid := ObjectIDFromPkgID(pkgID)
+	oo := store.GetObject(oid)
+	pv, ok := oo.(*PackageValue)
+	if !ok {
+		panic("oid with time set at 1 does not refer to package value")
+	}
+	return pv.Private
+}
+
+func pkgPathFromPkgID(store Store, pkgID PkgID) string {
+	oid := ObjectIDFromPkgID(pkgID)
+	oo := store.GetObject(oid)
+	pv, ok := oo.(*PackageValue)
+	if !ok {
+		panic("oid with time set at 1 does not refer to package value")
+	}
+	return pv.PkgPath
+}
+
+func isPkgPrivateFromPkgPath(store Store, pkgPath string) bool {
+	pv := store.GetPackage(pkgPath, false)
+	if pv == nil {
+		panic("cannot find package value from store for path " + pkgPath)
+	}
+	return pv.Private
 }

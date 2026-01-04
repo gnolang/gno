@@ -1,15 +1,13 @@
 package subtests
 
-import (
-	"std"
-)
+import "chain/runtime"
 
-func GetCurrentRealm() std.Realm {
-	return std.CurrentRealm()
+func GetCurrentRealm() runtime.Realm {
+	return runtime.CurrentRealm()
 }
 
-func GetPrevRealm() std.Realm {
-	return std.PrevRealm()
+func GetPreviousRealm() runtime.Realm {
+	return runtime.PreviousRealm()
 }
 
 func Exec(fn func()) {

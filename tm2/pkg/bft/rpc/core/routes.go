@@ -9,7 +9,7 @@ import (
 var Routes = map[string]*rpc.RPCFunc{
 	// info API
 	"health":               rpc.NewRPCFunc(Health, ""),
-	"status":               rpc.NewRPCFunc(Status, ""),
+	"status":               rpc.NewRPCFunc(Status, "heightGte"),
 	"net_info":             rpc.NewRPCFunc(NetInfo, ""),
 	"blockchain":           rpc.NewRPCFunc(BlockchainInfo, "minHeight,maxHeight"),
 	"genesis":              rpc.NewRPCFunc(Genesis, ""),
@@ -36,8 +36,6 @@ var Routes = map[string]*rpc.RPCFunc{
 
 func AddUnsafeRoutes() {
 	// control API
-	Routes["dial_seeds"] = rpc.NewRPCFunc(UnsafeDialSeeds, "seeds")
-	Routes["dial_peers"] = rpc.NewRPCFunc(UnsafeDialPeers, "peers,persistent")
 	Routes["unsafe_flush_mempool"] = rpc.NewRPCFunc(UnsafeFlushMempool, "")
 
 	// profiler API

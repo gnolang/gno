@@ -17,4 +17,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_literal10a.gno:13: cannot assign to s<VPBlock(1,0)>.add()
+// main/assign_literal10a.gno:13:2-13: cannot assign to s<VPBlock(1,0)>.add()
+
+// TypeCheckError:
+// main/assign_literal10a.gno:13:2: cannot assign to s.add() (neither addressable nor a map index expression)

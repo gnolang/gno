@@ -3,29 +3,32 @@ package main
 import (
 	"context"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/peterbourgon/ff/v3"
-	"github.com/peterbourgon/ff/v3/fftoml"
 )
-
-const flagConfigFlag = "flag-config-path"
 
 func main() {
 	cmd := newRootCmd(commands.NewDefaultIO())
 
-	cmd.Execute(context.Background(), os.Args[1:])
+	// Setup wait context to ensure correct cleanup on [interrupt] signal
+	ctx, cancel := signal.NotifyContext(context.Background(),
+		os.Interrupt,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
+	defer cancel()
+
+	cmd.Execute(ctx, os.Args[1:])
 }
 
 func newRootCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
-			ShortHelp:  "starts the gnoland blockchain node",
-			Options: []ff.Option{
-				ff.WithConfigFileFlag(flagConfigFlag),
-				ff.WithConfigFileParser(fftoml.Parser),
-			},
+			ShortHelp:  "manages the gnoland blockchain node",
 		},
 		commands.NewEmptyConfig(),
 		commands.HelpExec,
@@ -33,7 +36,6 @@ func newRootCmd(io commands.IO) *commands.Command {
 
 	cmd.AddSubCommands(
 		newStartCmd(io),
-		newGenesisCmd(io),
 		newSecretsCmd(io),
 		newConfigCmd(io),
 	)

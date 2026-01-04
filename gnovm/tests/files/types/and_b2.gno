@@ -6,4 +6,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/and_b2.gno:5: operator & not defined on: StringKind
+// main/and_b2.gno:5:10-17: operator & not defined on: StringKind
+
+// TypeCheckError:
+// main/and_b2.gno:5:10: invalid operation: 1 & "a" (mismatched types untyped int and untyped string)

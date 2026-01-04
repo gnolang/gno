@@ -5,9 +5,9 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/gnolang/gno/tm2/pkg/colors"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/internal"
-	"github.com/gnolang/gno/tm2/pkg/strings"
 )
 
 func init() {
@@ -36,39 +36,41 @@ func (db *MemDB) Mutex() *sync.Mutex {
 }
 
 // Implements DB.
-func (db *MemDB) Get(key []byte) []byte {
+func (db *MemDB) Get(key []byte) ([]byte, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 	key = internal.NonNilBytes(key)
 
 	value := db.db[string(key)]
-	return value
+	return value, nil
 }
 
 // Implements DB.
-func (db *MemDB) Has(key []byte) bool {
+func (db *MemDB) Has(key []byte) (bool, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 	key = internal.NonNilBytes(key)
 
 	_, ok := db.db[string(key)]
-	return ok
+	return ok, nil
 }
 
 // Implements DB.
-func (db *MemDB) Set(key []byte, value []byte) {
+func (db *MemDB) Set(key []byte, value []byte) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	db.SetNoLock(key, value)
+	return nil
 }
 
 // Implements DB.
-func (db *MemDB) SetSync(key []byte, value []byte) {
+func (db *MemDB) SetSync(key []byte, value []byte) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	db.SetNoLock(key, value)
+	return nil
 }
 
 // Implements internal.AtomicSetDeleter.
@@ -85,19 +87,21 @@ func (db *MemDB) SetNoLockSync(key []byte, value []byte) {
 }
 
 // Implements DB.
-func (db *MemDB) Delete(key []byte) {
+func (db *MemDB) Delete(key []byte) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	db.DeleteNoLock(key)
+	return nil
 }
 
 // Implements DB.
-func (db *MemDB) DeleteSync(key []byte) {
+func (db *MemDB) DeleteSync(key []byte) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	db.DeleteNoLock(key)
+	return nil
 }
 
 // Implements internal.AtomicSetDeleter.
@@ -113,33 +117,27 @@ func (db *MemDB) DeleteNoLockSync(key []byte) {
 }
 
 // Implements DB.
-func (db *MemDB) Close() {
+func (db *MemDB) Close() error {
 	// Close is a noop since for an in-memory
 	// database, we don't have a destination
 	// to flush contents to nor do we want
 	// any data loss on invoking Close()
 	// See the discussion in https://github.com/tendermint/classic/libs/pull/56
+	return nil
 }
 
 // Implements DB.
-func (db *MemDB) Print() {
+func (db *MemDB) Print() error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	for key, value := range db.db {
 		var keystr, valstr string
-		if strings.IsASCIIText(key) {
-			keystr = key
-		} else {
-			keystr = fmt.Sprintf("0x%X", []byte(key))
-		}
-		if strings.IsASCIIText(string(value)) {
-			valstr = string(value)
-		} else {
-			valstr = fmt.Sprintf("0x%X", value)
-		}
-		fmt.Printf("%s:\t%s\n", keystr, valstr)
+		keystr = colors.DefaultColoredBytesN([]byte(key), 50)
+		valstr = colors.DefaultColoredBytesN(value, 100)
+		fmt.Printf("%s: %s\n", keystr, valstr)
 	}
+	return nil
 }
 
 // Implements DB.
@@ -158,28 +156,38 @@ func (db *MemDB) NewBatch() dbm.Batch {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	return &internal.MemBatch{db, nil}
+	return &internal.MemBatch{
+		DB:   db,
+		Ops:  []internal.Operation{},
+		Size: 0,
+	}
+}
+
+// Implements DB.
+// It does the same thing as NewBatch because we can't pre-allocate MemDB.
+func (db *MemDB) NewBatchWithSize(_ int) dbm.Batch {
+	return db.NewBatch()
 }
 
 // ----------------------------------------
 // Iterator
 
 // Implements DB.
-func (db *MemDB) Iterator(start, end []byte) dbm.Iterator {
+func (db *MemDB) Iterator(start, end []byte) (dbm.Iterator, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	keys := db.getSortedKeys(start, end, false)
-	return internal.NewMemIterator(db, keys, start, end)
+	return internal.NewMemIterator(db, keys, start, end), nil
 }
 
 // Implements DB.
-func (db *MemDB) ReverseIterator(start, end []byte) dbm.Iterator {
+func (db *MemDB) ReverseIterator(start, end []byte) (dbm.Iterator, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	keys := db.getSortedKeys(start, end, true)
-	return internal.NewMemIterator(db, keys, start, end)
+	return internal.NewMemIterator(db, keys, start, end), nil
 }
 
 // ----------------------------------------
@@ -196,7 +204,7 @@ func (db *MemDB) getSortedKeys(start, end []byte, reverse bool) []string {
 	sort.Strings(keys)
 	if reverse {
 		nkeys := len(keys)
-		for i := 0; i < nkeys/2; i++ {
+		for i := range nkeys / 2 {
 			temp := keys[i]
 			keys[i] = keys[nkeys-i-1]
 			keys[nkeys-i-1] = temp

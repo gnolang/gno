@@ -9,6 +9,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys/armor"
 )
 
 type ExportCfg struct {
@@ -16,7 +17,6 @@ type ExportCfg struct {
 
 	NameOrBech32 string
 	OutputPath   string
-	Unsafe       bool
 }
 
 func NewExportCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -51,13 +51,6 @@ func (c *ExportCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"the desired output path for the armor file",
 	)
-
-	fs.BoolVar(
-		&c.Unsafe,
-		"unsafe",
-		false,
-		"export the private key armor as unencrypted",
-	)
 }
 
 func execExport(cfg *ExportCfg, io commands.IO) error {
@@ -88,59 +81,26 @@ func execExport(cfg *ExportCfg, io commands.IO) error {
 		)
 	}
 
-	var (
-		armor     string
-		exportErr error
-	)
+	var keyArmor string
 
-	if cfg.Unsafe {
-		// Generate the unencrypted armor
-		armor, exportErr = kb.ExportPrivKeyUnsafe(
-			cfg.NameOrBech32,
-			decryptPassword,
-		)
-
-		privk, err := kb.ExportPrivateKeyObject(cfg.NameOrBech32, decryptPassword)
-		if err != nil {
-			panic(err)
-		}
-
-		io.Printf("privk:\n%x\n", privk.Bytes())
-	} else {
-		// Get the armor encrypt password
-		encryptPassword, err := io.GetCheckPassword(
-			[2]string{
-				"Enter a passphrase to encrypt your private key armor:",
-				"Repeat the passphrase:",
-			},
-			cfg.RootCfg.InsecurePasswordStdin,
-		)
-		if err != nil {
-			return fmt.Errorf(
-				"unable to retrieve armor encrypt password from user, %w",
-				err,
-			)
-		}
-
-		// Generate the encrypted armor
-		armor, exportErr = kb.ExportPrivKey(
-			cfg.NameOrBech32,
-			decryptPassword,
-			encryptPassword,
-		)
+	// Export the private key from the keybase
+	privateKey, err := kb.ExportPrivKey(cfg.NameOrBech32, decryptPassword)
+	if err != nil {
+		return fmt.Errorf("unable to export private key, %w", err)
 	}
 
-	if exportErr != nil {
-		return fmt.Errorf(
-			"unable to export the private key, %w",
-			exportErr,
-		)
+	// Get the armor encrypt password
+	pw, err := promptPassphrase(io, cfg.RootCfg.InsecurePasswordStdin)
+	if err != nil {
+		return err
 	}
+
+	keyArmor = armor.EncryptArmorPrivKey(privateKey, pw)
 
 	// Write the armor to disk
 	if err := os.WriteFile(
 		cfg.OutputPath,
-		[]byte(armor),
+		[]byte(keyArmor),
 		0o644,
 	); err != nil {
 		return fmt.Errorf(
@@ -149,7 +109,7 @@ func execExport(cfg *ExportCfg, io commands.IO) error {
 		)
 	}
 
-	io.Printfln("Private key armor successfully outputted to %s", cfg.OutputPath)
+	io.Printfln("Key armor successfully saved to %s", cfg.OutputPath)
 
 	return nil
 }

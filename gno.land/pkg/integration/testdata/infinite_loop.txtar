@@ -1,0 +1,80 @@
+# XXX(FIXME): fix qeval first
+
+# regression test for https://github.com/gnolang/gno/issues/3612
+# infinite loops should panic in all of simulate, query, render, maketx run and addpkg.
+
+gnoland start
+
+# addpkg + -simulate skip
+! gnokey maketx addpkg -pkgdir $WORK/r1 -pkgpath gno.land/r/demo/r1 -simulate skip -gas-fee 10000000ugnot -gas-wanted 10_000_000 -broadcast -chainid=tendermint_test test1
+! stdout OK!
+stderr 'out of gas.* location: CPUCycles'
+
+# addpkg + -simulate only
+! gnokey maketx addpkg -pkgdir $WORK/r1 -pkgpath gno.land/r/demo/r1 -simulate only -gas-fee 10000000ugnot -gas-wanted 10_000_000 -broadcast -chainid=tendermint_test test1
+! stdout OK!
+stderr 'out of gas.* location: CPUCycles'
+
+# run + -simulate skip
+! gnokey maketx run -simulate skip -gas-fee 10000000ugnot -gas-wanted 10_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run.gno
+! stdout OK!
+stderr 'out of gas.* location: CPUCycles'
+
+# run + -simulate only
+! gnokey maketx run -simulate only -gas-fee 10000000ugnot -gas-wanted 10_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run.gno
+! stdout OK!
+stderr 'out of gas.* location: CPUCycles'
+
+# maketx addpkg on r2 (successful)
+gnokey maketx addpkg -pkgdir $WORK/r2 -pkgpath gno.land/r/demo/r2 -gas-fee 10000000ugnot -gas-wanted 10_000_000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# qeval on the render function
+! gnokey query vm/qeval --data "gno.land/r/demo/r2.Render(\"helloworld\")"
+stderr 'out of gas.* location: CPUCycles'
+
+# qrender function
+! gnokey query vm/qrender --data 'gno.land/r/demo/r2:noice'
+stderr 'out of gas.* location: CPUCycles'
+
+# call on the render function
+! gnokey query vm/qrender --data 'gno.land/r/demo/r2:'
+stderr 'out of gas.* location: CPUCycles'
+
+# simulated call on the render function
+! gnokey query vm/qrender --data 'gno.land/r/demo/r2:'
+stderr 'out of gas.* location: CPUCycles'
+
+-- run.gno --
+package main
+
+func main() {
+	for {}
+
+	println("hey")
+}
+
+-- r1/gnomod.toml --
+module = "gno.land/r/demo/r1"
+gno = "0.9"
+
+-- r1/realm.gno --
+package f1
+
+func init() {
+	for {}
+}
+
+func main() {}
+
+-- r2/gnomod.toml --
+module = "gno.land/r/demo/r2"
+gno = "0.9"
+-- r2/realm.gno --
+package r2
+
+func Render(s string) string {
+	for {}
+
+	return "hello world!"
+}

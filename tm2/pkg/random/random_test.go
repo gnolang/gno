@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	mrand "math/rand"
 	"sync"
 	"testing"
 	"time"
@@ -34,7 +33,7 @@ func TestRandIntn(t *testing.T) {
 	t.Parallel()
 
 	n := 243
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		x := RandIntn(n)
 		assert.True(t, x < n)
 	}
@@ -45,11 +44,7 @@ func TestRandIntn(t *testing.T) {
 func TestDeterminism(t *testing.T) {
 	var firstOutput string
 
-	// Set math/rand's seed for the sake of debugging this test.
-	// (It isn't strictly necessary).
-	mrand.Seed(1)
-
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		output := testThemAll()
 		if i == 0 {
 			firstOutput = output
@@ -85,7 +80,7 @@ func TestRngConcurrencySafety(t *testing.T) {
 	t.Parallel()
 
 	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

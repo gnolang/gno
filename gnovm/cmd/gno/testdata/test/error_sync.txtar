@@ -1,0 +1,32 @@
+# Test Error instruction updated
+# NOTE: unlike Output and Realm instruction updates, Error update is not driven
+# by the '-update-golden-tests' flag. The Error is only updated when it is
+# empty.
+
+gno test -update-golden-tests -v .
+
+! stdout .+
+stderr '=== RUN   ./x_filetest.gno'
+
+cmp x_filetest.gno x_filetest.gno.golden
+
+-- x_filetest.gno --
+package main
+
+func main() {
+	panic("oups")
+}
+
+// Error:
+-- x_filetest.gno.golden --
+package main
+
+func main() {
+	panic("oups")
+}
+
+// Error:
+// oups
+-- gnomod.toml --
+module = "gno.test/p/integ/error_sync"
+gno = "0.9"

@@ -1,10 +1,8 @@
 package main
 
 import (
-	"std"
+	"os"
 	"time"
-
-	"internal/os_test"
 
 	"gno.land/p/demo/tamagotchi"
 )
@@ -16,7 +14,7 @@ func main() {
 	println(t.Markdown())
 
 	println("\n-- WAIT 20 minutes\n")
-	os_test.Sleep(20 * time.Minute)
+	os.Sleep(20 * time.Minute)
 	println(t.Markdown())
 
 	println("\n-- FEEDx3, PLAYx2, HEALx4\n")
@@ -32,19 +30,20 @@ func main() {
 	println(t.Markdown())
 
 	println("\n-- WAIT 20 minutes\n")
-	os_test.Sleep(20 * time.Minute)
+	os.Sleep(20 * time.Minute)
 	println(t.Markdown())
 
 	println("\n-- WAIT 20 hours\n")
-	os_test.Sleep(20 * time.Hour)
+	os.Sleep(20 * time.Hour)
 	println(t.Markdown())
 
 	println("\n-- WAIT 20 hours\n")
-	os_test.Sleep(20 * time.Hour)
+	os.Sleep(20 * time.Hour)
 	println(t.Markdown())
 }
 
 // Output:
+//
 // -- INITIAL
 //
 // # Gnome 😃

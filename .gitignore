@@ -30,3 +30,16 @@ pbbindings.go
 # Test coverage leftovers
 cover.out
 coverage.out
+
+*.swp
+*.swo
+*.swn
+*.swm
+*.bak
+
+.tmp/
+wal/
+!/tm2/pkg/bft/wal/
+
+# Gnoweb frontend
+node_modules/

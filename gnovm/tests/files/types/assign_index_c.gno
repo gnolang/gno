@@ -9,4 +9,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_index_c.gno:7: cannot use int as string
+// main/assign_index_c.gno:7:2-11: cannot use int as string
+
+// TypeCheckError:
+// main/assign_index_c.gno:7:7: cannot use s[0] (variable of type int) as string value in assignment; main/assign_index_c.gno:6:6: declared and not used: s1

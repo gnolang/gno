@@ -1,0 +1,24 @@
+loadpkg gno.land/r/gnoland/users/v1
+loadpkg gno.land/r/archive/boards
+
+# start a new node
+gnoland start -no-parallel
+
+gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateBoard -args 'testboard' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateThread -args 1 -args 'thread1' -args 'thread1' -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx run -max-deposit 2000000000ugnot -gas-fee 10000000ugnot -gas-wanted 2999999999 -broadcast -chainid=tendermint_test test1 $WORK/script/script.gno
+stdout 'OK!'
+
+-- script/script.gno --
+package main
+import "gno.land/r/archive/boards"
+
+func main() {
+	n := 1000
+	for i := 0; i < n; i++ {
+		boards.CreateReply(cross, boards.BoardID(1), boards.PostID(1), boards.PostID(1), "reply")
+	}
+}

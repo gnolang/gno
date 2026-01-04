@@ -6,4 +6,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/nil.gno:5: operator + not defined on: nil
+// main/nil.gno:5:10-19: operator + not defined on: nil
+
+// TypeCheckError:
+// main/nil.gno:5:10: invalid operation: operator + not defined on nil

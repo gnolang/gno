@@ -3,6 +3,8 @@ package vm
 import (
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -19,13 +21,15 @@ import (
 // Insufficient gas for a successful message.
 
 func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
-	success := true
-	ctx, tx, vmHandler := setupAddPkg(success)
+	isValidTx := true
+	ctx, tx, vmHandler := setupAddPkg(isValidTx)
 
 	ctx = ctx.WithMode(sdk.RunTxModeDeliver)
-	simulate := false
 	tx.Fee.GasWanted = 3000
-	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+	gctx := auth.SetGasMeter(ctx, tx.Fee.GasWanted)
+	// Has to be set up after gas meter in the context; so the stores are
+	// correctly wrapped in gas stores.
+	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
 
 	var res sdk.Result
 	abort := false
@@ -33,7 +37,7 @@ func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
-			case store.OutOfGasException:
+			case store.OutOfGasError:
 				res.Error = sdk.ABCIError(std.ErrOutOfGas(""))
 				abort = true
 			default:
@@ -42,7 +46,7 @@ func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
 			assert.True(t, abort)
 			assert.False(t, res.IsOK())
 			gasCheck := gctx.GasMeter().GasConsumed()
-			assert.Equal(t, int64(3231), gasCheck)
+			assert.Equal(t, int64(3462), gasCheck)
 		} else {
 			t.Errorf("should panic")
 		}
@@ -53,53 +57,49 @@ func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
 
 // Enough gas for a successful message.
 func TestAddPkgDeliverTx(t *testing.T) {
-	success := true
-	ctx, tx, vmHandler := setupAddPkg(success)
-
-	var simulate bool
+	isValidTx := true
+	ctx, tx, vmHandler := setupAddPkg(isValidTx)
 
 	ctx = ctx.WithMode(sdk.RunTxModeDeliver)
-	simulate = false
 	tx.Fee.GasWanted = 500000
-	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+	gctx := auth.SetGasMeter(ctx, tx.Fee.GasWanted)
+	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
 	msgs := tx.GetMsgs()
 	res := vmHandler.Process(gctx, msgs[0])
 	gasDeliver := gctx.GasMeter().GasConsumed()
 
 	assert.True(t, res.IsOK())
-	assert.Equal(t, int64(87809), gasDeliver)
+
+	// NOTE: let's try to keep this bellow 250_000 :)
+	assert.Equal(t, int64(226738), gasDeliver)
 }
 
 // Enough gas for a failed transaction.
 func TestAddPkgDeliverTxFailed(t *testing.T) {
-	success := false
-	ctx, tx, vmHandler := setupAddPkg(success)
-
-	var simulate bool
+	isValidTx := false
+	ctx, tx, vmHandler := setupAddPkg(isValidTx)
 
 	ctx = ctx.WithMode(sdk.RunTxModeDeliver)
-	simulate = false
 	tx.Fee.GasWanted = 500000
-	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+	gctx := auth.SetGasMeter(ctx, tx.Fee.GasWanted)
+	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
 	msgs := tx.GetMsgs()
 	res := vmHandler.Process(gctx, msgs[0])
 	gasDeliver := gctx.GasMeter().GasConsumed()
 
 	assert.False(t, res.IsOK())
-	assert.Equal(t, int64(2231), gasDeliver)
+	assert.Equal(t, int64(1231), gasDeliver)
 }
 
 // Not enough gas for a failed transaction.
 func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
-	success := false
-	ctx, tx, vmHandler := setupAddPkg(success)
-
-	var simulate bool
+	isValidTx := false
+	ctx, tx, vmHandler := setupAddPkg(isValidTx)
 
 	ctx = ctx.WithMode(sdk.RunTxModeDeliver)
-	simulate = false
-	tx.Fee.GasWanted = 2230
-	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+	tx.Fee.GasWanted = 1230
+	gctx := auth.SetGasMeter(ctx, tx.Fee.GasWanted)
+	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
 
 	var res sdk.Result
 	abort := false
@@ -107,7 +107,7 @@ func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
-			case store.OutOfGasException:
+			case store.OutOfGasError:
 				res.Error = sdk.ABCIError(std.ErrOutOfGas(""))
 				abort = true
 			default:
@@ -116,7 +116,7 @@ func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
 			assert.True(t, abort)
 			assert.False(t, res.IsOK())
 			gasCheck := gctx.GasMeter().GasConsumed()
-			assert.Equal(t, int64(2231), gasCheck)
+			assert.Equal(t, int64(1231), gasCheck)
 		} else {
 			t.Errorf("should panic")
 		}
@@ -126,23 +126,26 @@ func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
 	res = vmHandler.Process(gctx, msgs[0])
 }
 
-// Set up a test env for both a successful and a failed tx
+// Set up a test env for both a successful and a failed tx.
 func setupAddPkg(success bool) (sdk.Context, sdk.Tx, vmHandler) {
 	// setup
 	env := setupTestEnv()
 	ctx := env.ctx
 	// conduct base gas meter tests from a non-genesis block since genesis block use infinite gas meter instead.
 	ctx = ctx.WithBlockHeader(&bft.Header{Height: int64(1)})
-	vmHandler := NewHandler(env.vmk)
 	// Create an account  with 10M ugnot (10gnot)
 	addr := crypto.AddressFromPreimage([]byte("test1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10000000)))
+
+	const pkgPath = "gno.land/r/hello"
+
 	// success message
 	var files []*std.MemFile
 	if success {
 		files = []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 			{
 				Name: "hello.gno",
 				Body: `package hello
@@ -155,6 +158,7 @@ func Echo() string {
 	} else {
 		// failed message
 		files = []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 			{
 				Name: "hello.gno",
 				Body: `package hello
@@ -166,12 +170,11 @@ func Echo() UnknowType {
 		}
 	}
 
-	pkgPath := "gno.land/r/hello"
 	// create messages and a transaction
 	msg := NewMsgAddPackage(addr, pkgPath, files)
 	msgs := []std.Msg{msg}
-	fee := std.NewFee(500000, std.MustParseCoin("1ugnot"))
+	fee := std.NewFee(500000, std.MustParseCoin(ugnot.ValueString(1)))
 	tx := std.NewTx(msgs, fee, []std.Signature{}, "")
 
-	return ctx, tx, vmHandler
+	return ctx, tx, env.vmh
 }

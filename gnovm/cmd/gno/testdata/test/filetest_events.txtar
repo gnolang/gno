@@ -1,0 +1,54 @@
+# Test with a valid _filetest.gno file
+
+gno test -print-events .
+
+! stdout .+
+stderr 'ok      \. 	\d+\.\d\ds'
+
+gno test -print-events -v .
+
+stdout 'test'
+stderr '=== RUN   ./valid_filetest.gno'
+stderr '--- PASS: ./valid_filetest.gno \(\d+\.\d\ds\)'
+stderr 'ok      \. 	\d+\.\d\ds'
+
+-- valid.gno --
+package valid
+
+-- valid_filetest.gno --
+package main
+
+import "chain"
+
+func main() {
+	println("test")
+	chain.Emit("EventA")
+	chain.Emit("EventB", "keyA",  "valA")
+}
+
+// Output:
+// test
+
+// Events:
+// [
+//   {
+//     "type": "EventA",
+//     "attrs": [],
+//     "pkg_path": "main"
+//   },
+//   {
+//     "type": "EventB",
+//     "attrs": [
+//       {
+//         "key": "keyA",
+//         "value": "valA"
+//       }
+//     ],
+//     "pkg_path": "main"
+//   }
+// ]
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/filetest_events"
+gno = "0.9"

@@ -5,7 +5,7 @@ import (
 )
 
 func main() {
-	var i interface{} = "Hello, world!"
+	var i any = "Hello, world!"
 
 	// Attempt to assert the type of i to string
 	var n int
@@ -19,4 +19,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_type_assertion.gno:13: cannot use string as int
+// main/assign_type_assertion.gno:13:2-20: cannot use string as int
+
+// TypeCheckError:
+// main/assign_type_assertion.gno:13:10: cannot use i.(string) (comma, ok expression of type string) as int value in assignment

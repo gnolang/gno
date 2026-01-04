@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/gnorkle/message"
+	"gno.land/p/nt/uassert"
 )
 
 func TestParseFunc(t *testing.T) {
@@ -38,13 +39,9 @@ func TestParseFunc(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			funcType, remainder := message.ParseFunc(tt.input)
-			if funcType != tt.expFuncType {
-				t.Errorf("expected func type %s, got %s", tt.expFuncType, funcType)
-			}
 
-			if remainder != tt.expRemainder {
-				t.Errorf("expected remainder of %s, got %s", tt.expRemainder, remainder)
-			}
+			uassert.Equal(t, string(tt.expFuncType), string(funcType))
+			uassert.Equal(t, tt.expRemainder, remainder)
 		})
 	}
 }

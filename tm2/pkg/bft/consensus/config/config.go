@@ -4,6 +4,8 @@ import (
 	"errors"
 	"path/filepath"
 	"time"
+
+	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 )
 
 // -----------------------------------------------------------------------------
@@ -16,35 +18,38 @@ const (
 // ConsensusConfig defines the configuration for the Tendermint consensus service,
 // including timeouts and details about the WAL and the block structure.
 type ConsensusConfig struct {
-	RootDir     string `toml:"home"`
-	WALPath     string `toml:"wal_file"`
-	WALDisabled bool   `toml:"-"`
+	RootDir     string `json:"home" toml:"home"`
+	WALPath     string `json:"wal_file" toml:"wal_file"`
+	WALDisabled bool   `json:"-" toml:"-"`
 	walFile     string // overrides WalPath if set
 
-	TimeoutPropose        time.Duration `toml:"timeout_propose"`
-	TimeoutProposeDelta   time.Duration `toml:"timeout_propose_delta"`
-	TimeoutPrevote        time.Duration `toml:"timeout_prevote"`
-	TimeoutPrevoteDelta   time.Duration `toml:"timeout_prevote_delta"`
-	TimeoutPrecommit      time.Duration `toml:"timeout_precommit"`
-	TimeoutPrecommitDelta time.Duration `toml:"timeout_precommit_delta"`
-	TimeoutCommit         time.Duration `toml:"timeout_commit"`
+	PrivValidator *privval.PrivValidatorConfig `json:"priv_validator" toml:"priv_validator" comment:"##### private validator configuration options #####"`
+
+	TimeoutPropose        time.Duration `json:"timeout_propose" toml:"timeout_propose"`
+	TimeoutProposeDelta   time.Duration `json:"timeout_propose_delta" toml:"timeout_propose_delta"`
+	TimeoutPrevote        time.Duration `json:"timeout_prevote" toml:"timeout_prevote"`
+	TimeoutPrevoteDelta   time.Duration `json:"timeout_prevote_delta" toml:"timeout_prevote_delta"`
+	TimeoutPrecommit      time.Duration `json:"timeout_precommit" toml:"timeout_precommit"`
+	TimeoutPrecommitDelta time.Duration `json:"timeout_precommit_delta" toml:"timeout_precommit_delta"`
+	TimeoutCommit         time.Duration `json:"timeout_commit" toml:"timeout_commit"`
 
 	// Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)
-	SkipTimeoutCommit bool `toml:"skip_timeout_commit" comment:"Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)"`
+	SkipTimeoutCommit bool `json:"skip_timeout_commit" toml:"skip_timeout_commit" comment:"Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)"`
 
 	// EmptyBlocks mode and possible interval between empty blocks
-	CreateEmptyBlocks         bool          `toml:"create_empty_blocks" comment:"EmptyBlocks mode and possible interval between empty blocks"`
-	CreateEmptyBlocksInterval time.Duration `toml:"create_empty_blocks_interval"`
+	CreateEmptyBlocks         bool          `json:"create_empty_blocks" toml:"create_empty_blocks" comment:"EmptyBlocks mode and possible interval between empty blocks"`
+	CreateEmptyBlocksInterval time.Duration `json:"create_empty_blocks_interval" toml:"create_empty_blocks_interval"`
 
 	// Reactor sleep duration parameters
-	PeerGossipSleepDuration     time.Duration `toml:"peer_gossip_sleep_duration" comment:"Reactor sleep duration parameters"`
-	PeerQueryMaj23SleepDuration time.Duration `toml:"peer_query_maj23_sleep_duration"`
+	PeerGossipSleepDuration     time.Duration `json:"peer_gossip_sleep_duration" toml:"peer_gossip_sleep_duration" comment:"Reactor sleep duration parameters"`
+	PeerQueryMaj23SleepDuration time.Duration `json:"peer_query_maj_23_sleep_duration" toml:"peer_query_maj23_sleep_duration"`
 }
 
 // DefaultConsensusConfig returns a default configuration for the consensus service
 func DefaultConsensusConfig() *ConsensusConfig {
 	return &ConsensusConfig{
 		WALPath:                     filepath.Join(defaultWALDir, "cs.wal", "wal"),
+		PrivValidator:               privval.DefaultPrivValidatorConfig(),
 		TimeoutPropose:              3000 * time.Millisecond,
 		TimeoutProposeDelta:         500 * time.Millisecond,
 		TimeoutPrevote:              1000 * time.Millisecond,
@@ -63,6 +68,7 @@ func DefaultConsensusConfig() *ConsensusConfig {
 // TestConsensusConfig returns a configuration for testing the consensus service
 func TestConsensusConfig() *ConsensusConfig {
 	cfg := DefaultConsensusConfig()
+	cfg.PrivValidator = privval.TestPrivValidatorConfig()
 	cfg.TimeoutPropose = 500 * time.Millisecond
 	cfg.TimeoutProposeDelta = 1 * time.Millisecond
 	cfg.TimeoutPrevote = 100 * time.Millisecond
@@ -124,6 +130,9 @@ func (cfg *ConsensusConfig) SetWalFile(walFile string) {
 // ValidateBasic performs basic validation (checking param bounds, etc.) and
 // returns an error if any check fails.
 func (cfg *ConsensusConfig) ValidateBasic() error {
+	if err := cfg.PrivValidator.ValidateBasic(); err != nil {
+		return err
+	}
 	if cfg.TimeoutPropose < 0 {
 		return errors.New("timeout_propose can't be negative")
 	}

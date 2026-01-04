@@ -1,0 +1,23 @@
+loadpkg gno.land/r/demo/float_realm $WORK
+
+# test for float args
+
+## start a new node
+gnoland start
+
+gnokey query vm/qeval --data "gno.land/r/demo/float_realm.AddF32(10.5, 20)"
+stdout '30.5 float32'
+
+gnokey query vm/qeval --data "gno.land/r/demo/float_realm.AddF64(3.1, 2.2)"
+stdout '5.3[0-9]* float64'
+
+-- float_realm.gno --
+package float_realm
+
+func AddF32(x, y float32) float32 {
+	return x + y
+}
+
+func AddF64(x, y float64) float64 {
+	return x + y
+}

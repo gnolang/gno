@@ -1,47 +1,13 @@
 package vm
 
 import (
-	"os"
-	"path/filepath"
+	"fmt"
+	"strings"
 
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
-
-func (vm *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
-	// NOTE: native functions/methods added here must be quick operations,
-	// or account for gas before operation.
-	// TODO: define criteria for inclusion, and solve gas calculations.
-	getPackage := func(pkgPath string, newStore gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
-		// otherwise, built-in package value.
-		// first, load from filepath.
-		stdlibPath := filepath.Join(vm.stdlibsDir, pkgPath)
-		if !osm.DirExists(stdlibPath) {
-			// does not exist.
-			return nil, nil
-		}
-		memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
-		if memPkg.IsEmpty() {
-			// no gno files are present, skip this package
-			return nil, nil
-		}
-
-		m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-			PkgPath: "gno.land/r/stdlibs/" + pkgPath,
-			// PkgPath: pkgPath,
-			Output: os.Stdout,
-			Store:  newStore,
-		})
-		defer m2.Release()
-		return m2.RunMemPackage(memPkg, true)
-	}
-	store.SetPackageGetter(getPackage)
-	store.SetNativeStore(stdlibs.NativeStore)
-}
 
 // ----------------------------------------
 // SDKBanker
@@ -79,7 +45,7 @@ func (bnk *SDKBanker) TotalCoin(denom string) int64 {
 
 func (bnk *SDKBanker) IssueCoin(b32addr crypto.Bech32Address, denom string, amount int64) {
 	addr := crypto.MustAddressFromString(string(b32addr))
-	_, err := bnk.vmk.bank.AddCoins(bnk.ctx, addr, std.Coins{std.Coin{denom, amount}})
+	_, err := bnk.vmk.bank.AddCoins(bnk.ctx, addr, std.Coins{std.Coin{Denom: denom, Amount: amount}})
 	if err != nil {
 		panic(err)
 	}
@@ -87,8 +53,112 @@ func (bnk *SDKBanker) IssueCoin(b32addr crypto.Bech32Address, denom string, amou
 
 func (bnk *SDKBanker) RemoveCoin(b32addr crypto.Bech32Address, denom string, amount int64) {
 	addr := crypto.MustAddressFromString(string(b32addr))
-	_, err := bnk.vmk.bank.SubtractCoins(bnk.ctx, addr, std.Coins{std.Coin{denom, amount}})
+	_, err := bnk.vmk.bank.SubtractCoins(bnk.ctx, addr, std.Coins{std.Coin{Denom: denom, Amount: amount}})
 	if err != nil {
 		panic(err)
+	}
+}
+
+// ----------------------------------------
+// SDKParams
+
+// This implements ParamsInterface,
+// which is available as ExecContext.Params.
+// Access to SDKParams gives access to all parameters.
+// Users must write code to limit access as appropriate.
+
+type SDKParams struct {
+	pmk ParamsKeeperI
+	ctx sdk.Context
+}
+
+func NewSDKParams(pmk ParamsKeeperI, ctx sdk.Context) *SDKParams {
+	return &SDKParams{
+		pmk: pmk,
+		ctx: ctx,
+	}
+}
+
+// The key has the format <module>:(<realm>:)?<paramname>.
+func (prm *SDKParams) SetString(key string, value string) {
+	prm.willSetKeeperParams(prm.ctx, key, value)
+	prm.pmk.SetString(prm.ctx, key, value)
+}
+
+func (prm *SDKParams) SetBool(key string, value bool) {
+	prm.willSetKeeperParams(prm.ctx, key, value)
+	prm.pmk.SetBool(prm.ctx, key, value)
+}
+
+func (prm *SDKParams) SetInt64(key string, value int64) {
+	prm.willSetKeeperParams(prm.ctx, key, value)
+	prm.pmk.SetInt64(prm.ctx, key, value)
+}
+
+func (prm *SDKParams) SetUint64(key string, value uint64) {
+	prm.willSetKeeperParams(prm.ctx, key, value)
+	prm.pmk.SetUint64(prm.ctx, key, value)
+}
+
+func (prm *SDKParams) SetBytes(key string, value []byte) {
+	prm.willSetKeeperParams(prm.ctx, key, value)
+	prm.pmk.SetBytes(prm.ctx, key, value)
+}
+
+func (prm *SDKParams) SetStrings(key string, value []string) {
+	prm.willSetKeeperParams(prm.ctx, key, value)
+	prm.pmk.SetStrings(prm.ctx, key, value)
+}
+
+func (prm *SDKParams) UpdateStrings(key string, vals []string, add bool) {
+	ss := &[]string{}
+	prm.pmk.GetStrings(prm.ctx, key, ss)
+
+	oldList := *ss
+	existing := make(map[string]struct{}, len(oldList))
+	// Temporary map for duplicate detection
+	for _, s := range oldList {
+		existing[s] = struct{}{}
+	}
+
+	if add {
+		// Append only non-duplicate values
+		for _, v := range vals {
+			if _, found := existing[v]; !found {
+				oldList = append(oldList, v)
+				existing[v] = struct{}{}
+			}
+		}
+		prm.SetStrings(key, oldList)
+		return
+	}
+	// Remove case
+	updatedList := oldList[:0] // reuse original memory
+	removeSet := make(map[string]struct{}, len(vals))
+	for _, v := range vals {
+		removeSet[v] = struct{}{}
+	}
+
+	for _, s := range oldList {
+		if _, found := removeSet[s]; !found {
+			updatedList = append(updatedList, s)
+		}
+	}
+	prm.SetStrings(key, updatedList)
+}
+
+func (prm *SDKParams) willSetKeeperParams(ctx sdk.Context, key string, value any) {
+	parts := strings.Split(key, ":")
+	if len(parts) == 0 {
+		panic(fmt.Sprintf("SDKParams encountered invalid param key format: %s", key))
+	}
+	mname := parts[0]
+	if !prm.pmk.IsRegistered(mname) {
+		panic(fmt.Sprintf("module name <%s> not registered", mname))
+	}
+	kpr := prm.pmk.GetRegisteredKeeper(mname)
+	if kpr != nil {
+		subkey := key[len(mname)+1:]
+		kpr.WillSetParam(prm.ctx, subkey, value)
 	}
 }

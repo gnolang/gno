@@ -29,4 +29,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/add_assign_f3.gno:27: operator += not defined on: InterfaceKind
+// main/add_assign_f3.gno:27:2-10: operator += not defined on: InterfaceKind
+
+// TypeCheckError:
+// main/add_assign_f3.gno:27:2: invalid operation: operator + not defined on e1 (variable of interface type E)

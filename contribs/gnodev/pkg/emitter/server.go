@@ -1,6 +1,7 @@
 package emitter
 
 import (
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -32,6 +33,10 @@ func NewServer(logger *slog.Logger) *Server {
 	}
 }
 
+func (s *Server) LockEmit() { s.muClients.Lock() }
+
+func (s *Server) UnlockEmit() { s.muClients.Unlock() }
+
 // ws handler
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	conn, err := s.upgrader.Upgrade(w, r, nil)
@@ -60,7 +65,7 @@ func (s *Server) Emit(evt events.Event) {
 	go s.emit(evt)
 }
 
-type eventJSON struct {
+type EventJSON struct {
 	Type events.Type `json:"type"`
 	Data any         `json:"data"`
 }
@@ -69,13 +74,9 @@ func (s *Server) emit(evt events.Event) {
 	s.muClients.Lock()
 	defer s.muClients.Unlock()
 
-	jsonEvt := eventJSON{evt.Type(), evt}
+	s.logEvent(evt)
 
-	s.logger.Info("sending event to clients",
-		"clients", len(s.clients),
-		"type", evt.Type(),
-		"event", evt)
-
+	jsonEvt := EventJSON{evt.Type(), evt}
 	for conn := range s.clients {
 		err := conn.WriteJSON(jsonEvt)
 		if err != nil {
@@ -95,4 +96,16 @@ func (s *Server) conns() []*websocket.Conn {
 	s.muClients.RUnlock()
 
 	return conns
+}
+
+func (s *Server) logEvent(evt events.Event) {
+	var logEvt string
+	if rawEvt, err := json.Marshal(evt); err == nil {
+		logEvt = string(rawEvt)
+	}
+
+	s.logger.Info("sending event to clients",
+		"clients", len(s.clients),
+		"type", evt.Type(),
+		"event", logEvt)
 }

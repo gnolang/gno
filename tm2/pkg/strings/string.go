@@ -2,17 +2,13 @@ package strings
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
 // StringInSlice returns true if a is found the list.
 func StringInSlice(a string, list []string) bool {
-	for _, b := range list {
-		if b == a {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(list, a)
 }
 
 // SplitAndTrim slices s into all subslices separated by sep and returns a
@@ -26,7 +22,7 @@ func SplitAndTrim(s, sep, cutset string) []string {
 	}
 
 	spl := strings.Split(s, sep)
-	for i := 0; i < len(spl); i++ {
+	for i := range spl {
 		spl[i] = strings.Trim(spl[i], cutset)
 	}
 	return spl
@@ -68,10 +64,19 @@ func StringSliceEqual(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		if a[i] != b[i] {
 			return false
 		}
 	}
 	return true
+}
+
+// TrimN naively appens "..." to fit within n bytes.
+func TrimN(s string, n int) string {
+	if len(s) <= n {
+		return s
+	} else {
+		return s[:n-3] + "..."
+	}
 }

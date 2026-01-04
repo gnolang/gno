@@ -71,6 +71,11 @@ func (oid ObjectID) String() string {
 	return oids
 }
 
+func (oid ObjectID) IsPackageID() bool {
+	// all package objects have newtime 1.
+	return !oid.PkgID.IsZero() && oid.NewTime == 1
+}
+
 // TODO: make faster by making PkgID a pointer
 // and enforcing that the value of PkgID is never zero.
 func (oid ObjectID) IsZero() bool {
@@ -82,6 +87,10 @@ func (oid ObjectID) IsZero() bool {
 		}
 	}
 	return oid.PkgID.IsZero()
+}
+
+type ObjectIDer interface {
+	GetObjectID() ObjectID
 }
 
 type Object interface {
@@ -118,6 +127,9 @@ type Object interface {
 	SetIsNewDeleted(bool)
 	GetIsTransient() bool
 
+	GetLastGCCycle() int64
+	SetLastGCCycle(int64)
+
 	// Saves to realm along the way if owned, and also (dirty
 	// or new).
 	// ValueImage(rlm *Realm, owned bool) *ValueImage
@@ -126,44 +138,62 @@ type Object interface {
 var (
 	_ Object = &ArrayValue{}
 	_ Object = &StructValue{}
+	_ Object = &FuncValue{}
 	_ Object = &BoundMethodValue{}
 	_ Object = &MapValue{}
+	_ Object = &PackageValue{}
 	_ Object = &Block{}
+	_ Object = &HeapItemValue{}
 )
 
 type ObjectInfo struct {
-	ID        ObjectID  // set if real.
-	Hash      ValueHash `json:",omitempty"` // zero if dirty.
-	OwnerID   ObjectID  `json:",omitempty"` // parent in the ownership tree.
-	ModTime   uint64    // time last updated.
-	RefCount  int       // for persistence. deleted/gc'd if 0.
-	IsEscaped bool      `json:",omitempty"` // hash in iavl.
-	// MemRefCount int // consider for optimizations.
-	isDirty      bool
-	isDeleted    bool
-	isNewReal    bool
-	isNewEscaped bool
-	isNewDeleted bool
+	ID       ObjectID  // set if real.
+	Hash     ValueHash `json:",omitempty"` // zero if dirty.
+	OwnerID  ObjectID  `json:",omitempty"` // parent in the ownership tree.
+	ModTime  uint64    // time last updated.
+	RefCount int       // for persistence. deleted/gc'd if 0.
 
-	// XXX huh?
-	owner Object // mem reference to owner.
+	// Object has multiple references (refcount > 1) and is persisted separately
+	IsEscaped bool `json:",omitempty"` // hash in iavl.
+
+	LastObjectSize int64 //
+
+	// MemRefCount int // consider for optimizations.
+	// Object has been modified and needs to be saved
+	isDirty bool
+
+	// Object has been permanently deleted
+	isDeleted bool
+
+	// Object is newly created in current transaction and will be persisted
+	isNewReal bool
+
+	// Object newly created multiple references in current transaction
+	isNewEscaped bool
+
+	// Object is marked for deletion in current transaction
+	isNewDeleted bool
+	lastGCCycle  int64
+	owner        Object // mem reference to owner.
 }
 
 // Copy used for serialization of objects.
 // Note that "owner" is nil.
 func (oi *ObjectInfo) Copy() ObjectInfo {
 	return ObjectInfo{
-		ID:           oi.ID,
-		Hash:         oi.Hash.Copy(),
-		OwnerID:      oi.OwnerID,
-		ModTime:      oi.ModTime,
-		RefCount:     oi.RefCount,
-		IsEscaped:    oi.IsEscaped,
-		isDirty:      oi.isDirty,
-		isDeleted:    oi.isDeleted,
-		isNewReal:    oi.isNewReal,
-		isNewEscaped: oi.isNewEscaped,
-		isNewDeleted: oi.isNewDeleted,
+		ID:             oi.ID,
+		Hash:           oi.Hash.Copy(),
+		OwnerID:        oi.OwnerID,
+		ModTime:        oi.ModTime,
+		RefCount:       oi.RefCount,
+		IsEscaped:      oi.IsEscaped,
+		LastObjectSize: oi.LastObjectSize,
+		isDirty:        oi.isDirty,
+		isDeleted:      oi.isDeleted,
+		isNewReal:      oi.isNewReal,
+		isNewEscaped:   oi.isNewEscaped,
+		isNewDeleted:   oi.isNewDeleted,
+		lastGCCycle:    oi.lastGCCycle,
 	}
 }
 
@@ -293,7 +323,13 @@ func (oi *ObjectInfo) SetIsDeleted(x bool, mt uint64) {
 	// NOTE: Don't over-write modtime.
 	// Consider adding a DelTime, or just log it somewhere, or
 	// continue to ignore it.
-	oi.isDirty = x
+
+	// The above comment is likely made because it could introduce complexity
+	// Objects can be "undeleted" if referenced during a transaction
+	// If an object is deleted and then undeleted in the same transaction
+	// If an object is deleted multiple times
+	// ie...continue to ignore it
+	oi.isDeleted = x
 }
 
 func (oi *ObjectInfo) GetIsNewReal() bool {
@@ -320,6 +356,14 @@ func (oi *ObjectInfo) SetIsNewDeleted(x bool) {
 	oi.isNewDeleted = x
 }
 
+func (oi *ObjectInfo) GetLastGCCycle() int64 {
+	return oi.lastGCCycle
+}
+
+func (oi *ObjectInfo) SetLastGCCycle(c int64) {
+	oi.lastGCCycle = c
+}
+
 func (oi *ObjectInfo) GetIsTransient() bool {
 	return false
 }
@@ -327,16 +371,7 @@ func (oi *ObjectInfo) GetIsTransient() bool {
 func (tv *TypedValue) GetFirstObject(store Store) Object {
 	switch cv := tv.V.(type) {
 	case PointerValue:
-		// TODO: in the future, consider skipping the base if persisted
-		// ref-count would be 1, e.g. only this pointer refers to
-		// something in it; in that case, ignore the base.  That will
-		// likely require maybe a preparation step in persistence
-		// ( or unlikely, a second type of ref-counting).
-		if cv.Base != nil {
-			return cv.Base.(Object)
-		} else {
-			return cv.TV.GetFirstObject(store)
-		}
+		return cv.GetBase(store)
 	case *ArrayValue:
 		return cv
 	case *SliceValue:
@@ -344,22 +379,114 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 	case *StructValue:
 		return cv
 	case *FuncValue:
-		return cv.GetClosure(store)
+		return cv
 	case *MapValue:
 		return cv
 	case *BoundMethodValue:
 		return cv
-	case *NativeValue:
-		// XXX allow PointerValue.Assign2 to pass nil for oo1/oo2.
-		// panic("realm logic for native values not supported")
-		return nil
+	case *PackageValue:
+		return cv
 	case *Block:
 		return cv
 	case RefValue:
+		if cv.PkgPath != "" {
+			// Constructed by preprocessor from package name exprs
+			// (or derived implicitly for local package names).
+			// These may refer to package values not yet
+			// real/persisted; this function should not handle it.
+			panic("GetFirstObject() cannot handle RefValue{PkgPath}")
+		}
 		oo := store.GetObject(cv.ObjectID)
 		tv.V = oo
 		return oo
+	case *HeapItemValue:
+		// should only appear in PointerValue.Base or
+		// closure capture; if you need to implement
+		// this, probably doing it wrong.
+		panic("invalid usage of GetFirstObject() on heap item")
 	default:
 		return nil
 	}
+}
+
+// IsReadonlyBy returns true if tv is readonly by realm rid.
+//   - tv is N_Readonly, or
+//   - tv is not an object ("first object" ID is zero), or
+//   - tv is an unreal object (no object id), or
+//   - tv is an object residing in external realm
+//
+// This is different from GetFirstObject in two significant ways:
+//  1. IsReadonlyBy does not go through RefValues; for this reason, it
+//     also doesn't need a store to fetch the nested object.
+//  2. If a pointer's HeapItemValue is unreal, only the object id of
+//     its underlying Value is considered.
+//  3. If a pointer's HeapItemValue is real, both the object id of
+//     the heap item value AND its internal value is considered.
+//
+// This function controls heavily the behaviour of
+// [Machine.IsReadonly], and thus the readonly taint behaviour.
+func (tv *TypedValue) IsReadonlyBy(rid PkgID) bool {
+	if tv.IsReadonly() {
+		return true
+	}
+	var tvoid ObjectID
+	switch cv := tv.V.(type) {
+	case PointerValue:
+		if cv.Base == nil {
+			return false // free floating
+		}
+		if hiv, ok := cv.Base.(*HeapItemValue); ok {
+			// Also need to check the heap item value.
+			// NOTE: It is possible for the value to be
+			// external while the heap item itself is
+			// not.
+			// See test/files/zrealm_crossrealm25a.gno.
+			if hiv.Value.IsReadonlyBy(rid) {
+				return true
+			}
+			tvoid = hiv.GetObjectID()
+		} else {
+			tvoid = cv.Base.(ObjectIDer).GetObjectID()
+		}
+	case *ArrayValue:
+		tvoid = cv.GetObjectID()
+	case *SliceValue:
+		tvoid = cv.Base.(ObjectIDer).GetObjectID()
+	case *StructValue:
+		tvoid = cv.GetObjectID()
+	case *FuncValue:
+		tvoid = cv.GetObjectID()
+	case *MapValue:
+		tvoid = cv.GetObjectID()
+	case *BoundMethodValue:
+		tvoid = cv.GetObjectID()
+	case *PackageValue:
+		tvoid = cv.GetObjectID()
+	case *Block:
+		tvoid = cv.GetObjectID()
+	case RefValue:
+		if cv.PkgPath != "" {
+			// Constructed by preprocessor from package name exprs
+			// (or derived implicitly for local package names).
+			// These may refer to package values not yet
+			// real/persisted; this function should not handle it.
+			// It is should be handled by Machine.IsReadonly().
+			panic("IsReadonlyBy() cannot handle RefValue{PkgPath}")
+		}
+		tvoid = cv.GetObjectID()
+	case *HeapItemValue:
+		// should only appear in PointerValue.Base or
+		// closure capture; if you need to implement
+		// this, probably doing it wrong.
+		panic("invalid usage of IsReadonly() on heap item")
+	default:
+		return false // e.g. primitive
+	}
+	if tvoid.IsZero() {
+		return false
+	}
+	if tvoid.PkgID != rid {
+		return true
+	}
+	return false
 }

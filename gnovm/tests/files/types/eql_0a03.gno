@@ -9,4 +9,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0a03.gno:8: cannot use int8 as int
+// main/eql_0a03.gno:8:10-22: cannot use int8 as int
+
+// TypeCheckError:
+// main/eql_0a03.gno:8:20: invalid operation: intPtr == &i (mismatched types *int8 and *int)

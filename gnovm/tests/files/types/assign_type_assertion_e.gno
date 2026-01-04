@@ -24,4 +24,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_type_assertion_e.gno:20: cannot use main.Dog as main.Robot without explicit conversion
+// main/assign_type_assertion_e.gno:20:2-22: cannot use main.Dog as main.Robot without explicit conversion
+
+// TypeCheckError:
+// main/assign_type_assertion_e.gno:20:10: cannot use animal.(Dog) (comma, ok expression of struct type Dog) as Robot value in assignment

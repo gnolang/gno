@@ -1,9 +1,14 @@
-# generate docs and publish on gh-pages branch
-name: gh-pages
+# generate Go docs and publish on gh-pages branch
+# Live at: https://gnolang.github.io/gno
+name: GitHub pages (godoc & stdlib_diff) build and deploy
 
 on:
   push:
-    branches: [ "master" ]
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
   workflow_dispatch:
 
 permissions:
@@ -17,22 +22,39 @@ concurrency:
 
 jobs:
   build:
-    if: ${{ github.repository == 'gnolang/gno' }} # Alternatively, validate based on provided tokens and permissions.
+    if: github.repository == 'gnolang/gno' # Alternatively, validate based on provided tokens and permissions.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22.x"
+          go-version-file: go.mod
+      # Use the goroot at the top of the project to compare with the GnoVM
+      # stdlib, rather than the one in stdlib_diff (which may have a go.mod with
+      # a different toolchain version).
+      - run: echo "GOROOT_SAVE=$(go env GOROOT)" >> $GITHUB_ENV
+      - run: "cd misc/stdlib_diff && make gen"
       - run: "cd misc/gendocs && make install gen"
+      - run: "mkdir -p pages_output/stdlib_diff"
+      - run: |
+          cp -r misc/gendocs/godoc/* pages_output/
+          cp -r misc/stdlib_diff/stdlib_diff/* pages_output/stdlib_diff/
+
+      # These two last steps will be skipped on pull requests
       - uses: actions/configure-pages@v5
         id: pages
+        if: github.event_name != 'pull_request'
+
       - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
         with:
-          path: ./misc/gendocs/godoc
+          path: ./pages_output
 
   deploy:
-    if: ${{ github.repository == 'gnolang/gno' }} # Alternatively, validate based on provided tokens and permissions.
+    if: >
+      github.repository == 'gnolang/gno' &&
+      github.ref == 'refs/heads/master' &&
+      github.event_name == 'push'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

@@ -1,0 +1,40 @@
+# Test -failfast flag
+
+! gno test -failfast .
+
+! stdout .+
+stderr '--- FAIL: TestFail'
+stderr 'someError'
+! stderr 'TestTopLevel'
+! stderr 'secondError'
+! stderr 'topLevelError'
+
+
+-- failfast.gno --
+package failfast
+
+-- failfast_test.gno --
+package failfast
+
+import (
+	"testing"
+)
+
+func TestFail(t *testing.T) {
+	t.Run("TestFail1",func(t *testing.T){
+		t.Error("someError")
+	})
+
+	t.Run("TestFail2",func(t *testing.T){
+		t.Error("secondError")
+	})
+}
+
+func TestTopLevel(t *testing.T) {
+	t.Error("topLevelError")
+}
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/flag_failfast"
+gno = "0.9"

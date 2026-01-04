@@ -111,7 +111,7 @@ func TestIncrementProposerPriorityPositiveTimes(t *testing.T) {
 func BenchmarkValidatorSetCopy(b *testing.B) {
 	b.StopTimer()
 	vset := NewValidatorSet([]*Validator{})
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		privKey := mock.GenPrivKey()
 		pubKey := privKey.PubKey()
 		val := NewValidator(pubKey, 10)
@@ -137,8 +137,8 @@ func TestProposerSelection1(t *testing.T) {
 		newValidator([]byte("bar"), 300),
 		newValidator([]byte("baz"), 330),
 	})
-	var proposers []string
-	for i := 0; i < 99; i++ {
+	proposers := make([]string, 0, 99)
+	for range 99 {
 		val := vset.GetProposer()
 		proposers = append(proposers, string(val.Address[17:]))
 		vset.IncrementProposerPriority(1)
@@ -160,7 +160,7 @@ func TestProposerSelection2(t *testing.T) {
 	val0, val1, val2 := newValidator(addr0, 100), newValidator(addr1, 100), newValidator(addr2, 100)
 	valList := []*Validator{val0, val1, val2}
 	vals := NewValidatorSet(valList)
-	for i := 0; i < len(valList)*5; i++ {
+	for i := range len(valList) * 5 {
 		ii := (i) % len(valList)
 		prop := vals.GetProposer()
 		if prop.Address != valList[ii].Address {
@@ -207,7 +207,7 @@ func TestProposerSelection2(t *testing.T) {
 	propCount := make([]int, 3)
 	vals = NewValidatorSet(valList)
 	N := 1
-	for i := 0; i < 120*N; i++ {
+	for range 120 * N {
 		prop := vals.GetProposer()
 		ii := prop.Address[19]
 		propCount[ii-1]++
@@ -236,7 +236,7 @@ func TestProposerSelection3(t *testing.T) {
 	})
 
 	proposerOrder := make([]*Validator, 4)
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		proposerOrder[i] = vset.GetProposer()
 		vset.IncrementProposerPriority(1)
 	}
@@ -249,7 +249,7 @@ func TestProposerSelection3(t *testing.T) {
 		got := vset.GetProposer().Address
 		expected := proposerOrder[j%4].Address
 		if got != expected {
-			t.Fatalf(fmt.Sprintf("vset.Proposer (%X) does not match expected proposer (%X) for (%d, %d)", got, expected, i, j))
+			t.Fatalf("vset.Proposer (%X) does not match expected proposer (%X) for (%d, %d)", got, expected, i, j)
 		}
 
 		// serialize, deserialize, check proposer
@@ -263,7 +263,7 @@ func TestProposerSelection3(t *testing.T) {
 		computed := vset.GetProposer() // findGetProposer()
 		if i != 0 {
 			if got != computed.Address {
-				t.Fatalf(fmt.Sprintf("vset.Proposer (%X) does not match computed proposer (%X) for (%d, %d)", got, computed.Address, i, j))
+				t.Fatalf("vset.Proposer (%X) does not match computed proposer (%X) for (%d, %d)", got, computed.Address, i, j)
 			}
 		}
 
@@ -309,7 +309,7 @@ func randValidator_(totalVotingPower int64) *Validator {
 func randValidatorSet(numValidators int) *ValidatorSet {
 	validators := make([]*Validator, numValidators)
 	totalVotingPower := int64(0)
-	for i := 0; i < numValidators; i++ {
+	for i := range numValidators {
 		validators[i] = randValidator_(totalVotingPower)
 		totalVotingPower += validators[i].VotingPower
 	}
@@ -401,7 +401,7 @@ func TestAveragingInIncrementProposerPriority(t *testing.T) {
 			},
 			// this should average twice but the average should be 0 after the first iteration
 			// (voting power is 0 -> no changes)
-			11, 1 / 3,
+			11, 0,
 		},
 		2: {
 			ValidatorSet{
@@ -794,7 +794,7 @@ func toTestValList(valList []*Validator) []testVal {
 
 func testValSet(nVals int, power int64) []testVal {
 	vals := make([]testVal, nVals)
-	for i := 0; i < nVals; i++ {
+	for i := range nVals {
 		vals[i] = testVal{fmt.Sprintf("v%d", i+1), power}
 	}
 	return vals
@@ -1052,7 +1052,7 @@ func TestValSetUpdatesOrderIndependenceTestsExecute(t *testing.T) {
 		// perform at most 20 permutations on the updates and call UpdateWithChangeSet()
 		n := len(tt.updateVals)
 		maxNumPerms := min(20, n*n)
-		for j := 0; j < maxNumPerms; j++ {
+		for range maxNumPerms {
 			// create a copy of original set and apply a random permutation of updates
 			valSetCopy := valSet.Copy()
 			valList := createNewValidatorList(permutation(tt.updateVals))
@@ -1176,7 +1176,7 @@ func randTestVSetCfg(nBase, nAddMax int) testVSetCfg {
 	cfg.updatedVals = make([]testVal, nChanged)
 	cfg.expectedVals = make([]testVal, nBase-nDel+nAdd)
 
-	for i := 0; i < nBase; i++ {
+	for i := range nBase {
 		cfg.startVals[i] = testVal{fmt.Sprintf("v%d", i), int64(random.RandUint()%maxPower + 1)}
 		if i < nOld {
 			cfg.expectedVals[i] = cfg.startVals[i]
@@ -1359,16 +1359,16 @@ func BenchmarkUpdates(b *testing.B) {
 	)
 	// Init with n validators
 	vs := make([]*Validator, n)
-	for j := 0; j < n; j++ {
-		vs[j] = newValidator([]byte(fmt.Sprintf("v%d", j)), 100)
+	for j := range n {
+		vs[j] = newValidator(fmt.Appendf(nil, "v%d", j), 100)
 	}
 	valSet := NewValidatorSet(vs)
 	l := len(valSet.Validators)
 
 	// Make m new validators
 	newValList := make([]*Validator, m)
-	for j := 0; j < m; j++ {
-		newValList[j] = newValidator([]byte(fmt.Sprintf("v%d", j+l)), 1000)
+	for j := range m {
+		newValList[j] = newValidator(fmt.Appendf(nil, "v%d", j+l), 1000)
 	}
 	b.ResetTimer()
 

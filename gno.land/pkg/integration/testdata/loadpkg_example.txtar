@@ -1,28 +1,27 @@
 # load a package from the 'examples' directory.
-loadpkg gno.land/p/demo/ufmt
+loadpkg gno.land/p/nt/ufmt
 
 ## start a new node
 gnoland start
 
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/importtest -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/importtest -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 ## execute Render
-gnokey maketx call -pkgpath gno.land/r/importtest -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
-stdout '("92054" string)'
-stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/importtest:'
+stdout '92054'
 
--- gno.mod --
-module gno.land/r/importtest
+-- gnomod.toml --
+module = "gno.land/r/importtest"
+gno = "0.9"
 
 -- import.gno --
 package importtest
 
 import (
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 func Render(_ string) string {
  	return ufmt.Sprintf("%d", 92054)
 }
-

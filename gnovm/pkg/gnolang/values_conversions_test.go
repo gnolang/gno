@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/cockroachdb/apd/v3"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,5 +24,5 @@ func TestConvertUntypedBigdecToFloat(t *testing.T) {
 
 	ConvertUntypedBigdecTo(dst, bd, typ)
 
-	require.Equal(t, float64(0), dst.GetFloat64())
+	require.True(t, softfloat.Feq64(dst.GetFloat64(), 0))
 }

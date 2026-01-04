@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-type Color func(args ...interface{}) string
+type Color func(args ...any) string
 
 const (
 	ANSIReset      = "\x1b[0m"
@@ -46,7 +46,7 @@ func treat(s string, color string) string {
 	return color + s + ANSIReset
 }
 
-func treatAll(color string, args ...interface{}) string {
+func treatAll(color string, args ...any) string {
 	parts := make([]string, len(args))
 
 	for i, arg := range args {
@@ -56,54 +56,124 @@ func treatAll(color string, args ...interface{}) string {
 	return strings.Join(parts, "")
 }
 
-func None(args ...interface{}) string {
+func None(args ...any) string {
 	return treatAll(ANSIReset, args...)
 }
 
-func Black(args ...interface{}) string {
+func Black(args ...any) string {
 	return treatAll(ANSIFgBlack, args...)
 }
 
-func Red(args ...interface{}) string {
+func Red(args ...any) string {
 	return treatAll(ANSIFgRed, args...)
 }
 
-func Green(args ...interface{}) string {
+func RedBg(args ...any) string {
+	return treatAll(ANSIBgRed, args...)
+}
+
+func Green(args ...any) string {
 	return treatAll(ANSIFgGreen, args...)
 }
 
-func Yellow(args ...interface{}) string {
+func Yellow(args ...any) string {
 	return treatAll(ANSIFgYellow, args...)
 }
 
-func Blue(args ...interface{}) string {
+func Blue(args ...any) string {
 	return treatAll(ANSIFgBlue, args...)
 }
 
-func Magenta(args ...interface{}) string {
+func Magenta(args ...any) string {
 	return treatAll(ANSIFgMagenta, args...)
 }
 
-func Cyan(args ...interface{}) string {
+func Cyan(args ...any) string {
 	return treatAll(ANSIFgCyan, args...)
 }
 
-func White(args ...interface{}) string {
+func White(args ...any) string {
 	return treatAll(ANSIFgWhite, args...)
 }
 
-func Gray(args ...interface{}) string {
+func Gray(args ...any) string {
 	return treatAll(ANSIFgGray, args...)
 }
 
-func ColoredBytes(data []byte, textColor, bytesColor func(...interface{}) string) string {
+// result may be 4 ASNSII chars longer than they should be to denote the
+// elipses (...), and one for a trailing hex nibble in case the last byte is
+// non-ascii.
+// NOTE: it is annoying to try make this perfect and always fit within n, so we
+// don't do this yet, but left as an exercise. :)
+func ColoredBytesN(data []byte, n int, textColor, bytesColor func(...any) string) string {
+	_n := 0
 	s := ""
-	for _, b := range data {
+	buf := ""         // buffer
+	bufIsText := true // is buf text or hex
+	for i, b := range data {
+	RESTART:
 		if 0x21 <= b && b < 0x7F {
-			s += textColor(string(b))
+			if !bufIsText {
+				s += bytesColor(buf)
+				buf = ""
+				bufIsText = true
+				goto RESTART
+			}
+			buf += string(b)
+			_n += 1
+			if n != 0 && _n >= n {
+				if i == len(data)-1 {
+					// done
+					s += textColor(buf)
+					buf = ""
+				} else {
+					s += textColor(buf) + "..."
+					buf = ""
+				}
+				break
+			}
 		} else {
-			s += bytesColor(fmt.Sprintf("%02X", b))
+			if bufIsText {
+				s += textColor(buf)
+				buf = ""
+				bufIsText = false
+				goto RESTART
+			}
+			buf += fmt.Sprintf("%02X", b)
+			_n += 2
+			if n != 0 && _n >= n {
+				if i == len(data)-1 {
+					// done
+					s += bytesColor(buf)
+					buf = ""
+				} else {
+					s += bytesColor(buf) + "..."
+					buf = ""
+				}
+				break
+			}
+		}
+	}
+	if buf != "" {
+		if bufIsText {
+			s += textColor(buf)
+			buf = ""
+		} else {
+			s += bytesColor(buf)
+			buf = ""
 		}
 	}
 	return s
+}
+
+func DefaultColoredBytesN(data []byte, n int) string {
+	return ColoredBytesN(data, n, Blue, Green)
+}
+
+func ColoredBytes(data []byte, textColor, bytesColor func(...any) string) string {
+	return ColoredBytesN(data, 0, textColor, bytesColor)
+}
+
+func DefaultColoredBytes(data []byte) string {
+	return ColoredBytes(data, Blue, Green)
 }

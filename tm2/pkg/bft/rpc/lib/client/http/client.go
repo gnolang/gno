@@ -18,6 +18,9 @@ const (
 	protoHTTP  = "http"
 	protoHTTPS = "https"
 	protoTCP   = "tcp"
+
+	portHTTP  = "80"
+	portHTTPS = "443"
 )
 
 var (
@@ -57,7 +60,7 @@ func (c *Client) SendRequest(ctx context.Context, request types.RPCRequest) (*ty
 	}
 
 	// Make sure the ID matches
-	if response.ID != response.ID {
+	if request.ID != response.ID {
 		return nil, ErrRequestResponseIDMismatch
 	}
 
@@ -163,14 +166,14 @@ func defaultHTTPClient(remoteAddr string) *http.Client {
 		Transport: &http.Transport{
 			// Set to true to prevent GZIP-bomb DoS attacks
 			DisableCompression: true,
-			DialContext: func(_ context.Context, network, addr string) (net.Conn, error) {
-				return makeHTTPDialer(remoteAddr)(network, addr)
+			DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+				return makeHTTPDialer(remoteAddr)
 			},
 		},
 	}
 }
 
-func makeHTTPDialer(remoteAddr string) func(string, string) (net.Conn, error) {
+func makeHTTPDialer(remoteAddr string) (net.Conn, error) {
 	protocol, address := parseRemoteAddr(remoteAddr)
 
 	// net.Dial doesn't understand http/https, so change it to TCP
@@ -179,9 +182,7 @@ func makeHTTPDialer(remoteAddr string) func(string, string) (net.Conn, error) {
 		protocol = protoTCP
 	}
 
-	return func(proto, addr string) (net.Conn, error) {
-		return net.Dial(protocol, address)
-	}
+	return net.Dial(protocol, address)
 }
 
 // protocol - client's protocol (for example, "http", "https", "wss", "ws", "tcp")
@@ -200,7 +201,7 @@ func toClientAddrAndParse(remoteAddr string) (string, string) {
 	}
 
 	// replace / with . for http requests (kvstore domain)
-	trimmedAddress := strings.Replace(address, "/", ".", -1)
+	trimmedAddress := strings.ReplaceAll(address, "/", ".")
 
 	return clientProtocol, trimmedAddress
 }
@@ -230,9 +231,9 @@ func parseRemoteAddr(remoteAddr string) (string, string) {
 	if !strings.Contains(address, ":") {
 		switch protocol {
 		case protoHTTPS:
-			address += ":443"
+			address += ":" + portHTTPS
 		case protoHTTP, protoTCP:
-			address += ":80"
+			address += ":" + portHTTP
 		default: // noop
 		}
 	}

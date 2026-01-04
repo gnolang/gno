@@ -10,4 +10,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0f30b.gno:9: main.f can only be compared to nil
+// main/eql_0f30b.gno:9:10-18: main.f can only be compared to nil
+
+// TypeCheckError:
+// main/eql_0f30b.gno:9:10: invalid operation: f1 == f2 (func can only be compared to nil)

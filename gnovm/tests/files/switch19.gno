@@ -48,4 +48,7 @@ func main() {
 }
 
 // Error:
-// main/files/switch19.gno:34: duplicate type main.Bir in type switch
+// main/switch19.gno:34:2-41:3: duplicate type main.Bir in type switch
+
+// TypeCheckError:
+// main/switch19.gno:37:7: duplicate case Bir in type switch; main/switch19.gno:35:12: 	previous case

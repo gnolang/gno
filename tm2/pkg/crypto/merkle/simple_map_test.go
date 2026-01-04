@@ -26,7 +26,7 @@ func TestSimpleMap(t *testing.T) {
 	}
 	for i, tc := range tests {
 		db := newSimpleMap()
-		for i := 0; i < len(tc.keys); i++ {
+		for i := range tc.keys {
 			db.Set(tc.keys[i], []byte(tc.values[i]))
 		}
 		got := db.Hash()

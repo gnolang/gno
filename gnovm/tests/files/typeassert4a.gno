@@ -16,7 +16,7 @@ func (s *ValueSetter) Set(value string) {
 	s.value = value
 }
 
-func cmpSetter(i interface{}) {
+func cmpSetter(i any) {
 	defer func() {
 		if r := recover(); r != nil {
 			println(r)
@@ -30,7 +30,7 @@ func cmpSetter(i interface{}) {
 
 func main() {
 	var (
-		i              interface{}
+		i              any
 		setter         Setter
 		setterClone    SetterClone
 		valueSetter    ValueSetter
@@ -58,5 +58,5 @@ func main() {
 // interface conversion: interface is nil, not main.Setter
 // interface conversion: interface is nil, not main.Setter
 // ok
-// main.ValueSetter doesn't implement interface{Set func(string)()}
+// main.ValueSetter doesn't implement interface {Set func(string)} (method Set has pointer receiver)
 // ok

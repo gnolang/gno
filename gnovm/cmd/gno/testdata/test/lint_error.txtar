@@ -1,0 +1,29 @@
+# Test with a valid _test.gno file with invalid file.
+
+! gno test -v .
+
+#stdout 'hello123'
+#stderr 'PASS: TestAlwaysValid'
+stderr 'declared and not used: x'
+stderr 'FAIL'
+
+-- valid.gno --
+package valid
+
+func fn() {
+	x := 1
+	println("hello123")
+}
+
+-- valid_test.gno --
+package valid
+
+import "testing"
+
+func TestAlwaysValid(t *testing.T) {
+	fn()
+}
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/lint_error"

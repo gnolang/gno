@@ -1,9 +1,0 @@
-# Test empty gno2
-
-! gno test .
-
-! stdout .+
-stderr 'expected ''package'', found ''EOF'''
-
--- empty.gno --
--- empty_test.gno --

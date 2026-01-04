@@ -1,0 +1,103 @@
+# Run test on gno.land/p/nt/ufmt without path argument
+
+gno test
+
+gno test -v
+
+! stdout .+
+stderr '=== RUN   TestRun/hello'
+stderr '=== RUN   TestRun/hi_you'
+stderr '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
+
+gno test -v -run .*
+
+! stdout .+
+stderr '=== RUN   TestRun/hello'
+stderr '=== RUN   TestRun/hi_you'
+stderr '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
+
+gno test -v -run NotExists
+
+! stdout .+
+! stderr '=== RUN   TestRun'
+
+gno test -v -run .*/hello
+
+! stdout .+
+stderr '=== RUN   TestRun/hello'
+! stderr '=== RUN   TestRun/hi_you'
+! stderr '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
+
+gno test -v -run .*/hi
+
+! stdout .+
+! stderr '=== RUN   TestRun/hello'
+stderr '=== RUN   TestRun/hi_you'
+stderr '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
+
+gno test -v -run .*/NotExists
+
+! stdout .+
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
+
+gno test -v -run Run/.*
+
+! stdout .+
+stderr '=== RUN   TestRun/hello'
+stderr '=== RUN   TestRun/hi_you'
+stderr '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
+
+gno test -v -run Run/
+
+! stdout .+
+stderr '=== RUN   TestRun/hello'
+stderr '=== RUN   TestRun/hi_you'
+stderr '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
+
+gno test -v -run Run/hello
+
+! stdout .+
+stderr '=== RUN   TestRun/hello'
+! stderr '=== RUN   TestRun/hi_you'
+! stderr '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
+
+-- run.gno --
+package run
+
+-- run_test.gno --
+package run
+
+import (
+	"testing"
+)
+
+func TestRun(t *testing.T) {
+	cases := []string {
+		"hello",
+		"hi you",
+		"hi me",
+	}
+	for _, tc := range cases {
+		t.Run(tc, func(t *testing.T) {})
+	}
+}
+
+
+
+-- gnomod.toml --
+module = 'gno.test/r/integ/no_path_flag_run'

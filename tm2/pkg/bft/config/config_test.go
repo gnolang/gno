@@ -4,11 +4,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	// allows the default config to have a valid DB
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	// allows the default config to have a valid DB
-	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
+	_ "github.com/gnolang/gno/tm2/pkg/db/pebbledb"
 )
 
 func TestConfig_LoadOrMakeConfigWithOptions(t *testing.T) {
@@ -131,33 +132,6 @@ func TestConfig_ValidateBaseConfig(t *testing.T) {
 		assert.ErrorIs(t, c.BaseConfig.ValidateBasic(), errInvalidDBPath)
 	})
 
-	t.Run("priv validator key path not set", func(t *testing.T) {
-		t.Parallel()
-
-		c := DefaultConfig()
-		c.PrivValidatorKey = ""
-
-		assert.ErrorIs(t, c.BaseConfig.ValidateBasic(), errInvalidPrivValidatorKeyPath)
-	})
-
-	t.Run("priv validator state path not set", func(t *testing.T) {
-		t.Parallel()
-
-		c := DefaultConfig()
-		c.PrivValidatorState = ""
-
-		assert.ErrorIs(t, c.BaseConfig.ValidateBasic(), errInvalidPrivValidatorStatePath)
-	})
-
-	t.Run("invalid priv validator listen address", func(t *testing.T) {
-		t.Parallel()
-
-		c := DefaultConfig()
-		c.PrivValidatorListenAddr = "beep.boop"
-
-		assert.ErrorIs(t, c.BaseConfig.ValidateBasic(), errInvalidPrivValidatorListenAddress)
-	})
-
 	t.Run("node key path not set", func(t *testing.T) {
 		t.Parallel()
 
@@ -183,5 +157,30 @@ func TestConfig_ValidateBaseConfig(t *testing.T) {
 		c.ProfListenAddress = "beep.boop"
 
 		assert.ErrorIs(t, c.BaseConfig.ValidateBasic(), errInvalidProfListenAddress)
+	})
+}
+
+func TestConfig_DBDir(t *testing.T) {
+	t.Parallel()
+
+	t.Run("DB path is absolute", func(t *testing.T) {
+		t.Parallel()
+
+		c := DefaultConfig()
+		c.RootDir = "/root"
+		c.DBPath = "/abs/path"
+
+		assert.Equal(t, c.DBPath, c.DBDir())
+		assert.NotEqual(t, filepath.Join(c.RootDir, c.DBPath), c.DBDir())
+	})
+
+	t.Run("DB path is relative", func(t *testing.T) {
+		t.Parallel()
+
+		c := DefaultConfig()
+		c.RootDir = "/root"
+		c.DBPath = "relative/path"
+
+		assert.Equal(t, filepath.Join(c.RootDir, c.DBPath), c.DBDir())
 	})
 }
