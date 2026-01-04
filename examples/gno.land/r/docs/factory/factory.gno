@@ -1,190 +1,179 @@
 package factory
 
 import (
-	"chain/runtime"
 	"strconv"
-	"time"
-
-	"gno.land/p/nt/avl"
 )
 
-// Token represents a simple token created by the factory
-type Token struct {
-	Name    string
-	Symbol  string
-	Owner   address
-	Supply  uint64
-	Created int64
+// TokenType represents different types of tokens
+type TokenType int
+
+const (
+	Fungible TokenType = iota
+	NonFungible
+	SoulBound
+)
+
+// Token is the common interface for all token types
+type Token interface {
+	GetInfo() string
+	GetType() string
+	Transfer(to address, amount uint64) string
 }
 
+// FungibleToken implements divisible tokens (like coins)
+type FungibleToken struct {
+	name   string
+	amount uint64
+	owner  address
+}
+
+func (f *FungibleToken) GetInfo() string {
+	return f.name + ": " + strconv.Itoa(int(f.amount)) + " units"
+}
+
+func (f *FungibleToken) GetType() string {
+	return "Fungible"
+}
+
+func (f *FungibleToken) Transfer(to address, amount uint64) string {
+	if amount > f.amount {
+		return "Insufficient balance"
+	}
+	f.amount -= amount
+	return "Transferred " + strconv.Itoa(int(amount)) + " " + f.name + " to " + to.String()
+}
+
+// NonFungibleToken implements unique tokens (like NFTs)
+type NonFungibleToken struct {
+	name  string
+	owner address
+}
+
+func (n *NonFungibleToken) GetInfo() string {
+	return "NFT: " + n.name
+}
+
+func (n *NonFungibleToken) GetType() string {
+	return "Non-Fungible"
+}
+
+func (n *NonFungibleToken) Transfer(to address, amount uint64) string {
+	if amount != 1 {
+		return "NFTs can only be transferred as a whole (amount must be 1)"
+	}
+	n.owner = to
+	return "Transferred NFT " + n.name + " to " + to.String()
+}
+
+// SoulBoundToken implements non-transferable tokens
+type SoulBoundToken struct {
+	name  string
+	owner address
+}
+
+func (s *SoulBoundToken) GetInfo() string {
+	return "SoulBound: " + s.name
+}
+
+func (s *SoulBoundToken) GetType() string {
+	return "SoulBound"
+}
+
+func (s *SoulBoundToken) Transfer(to address, amount uint64) string {
+	return "SoulBound tokens cannot be transferred"
+}
+
+// CreateToken is the factory function that creates different token types
+func CreateToken(tokenType TokenType, name string, owner address) Token {
+	switch tokenType {
+	case Fungible:
+		return &FungibleToken{name: name, amount: 1000, owner: owner}
+	case NonFungible:
+		return &NonFungibleToken{name: name, owner: owner}
+	case SoulBound:
+		return &SoulBoundToken{name: name, owner: owner}
+	default:
+		panic("unknown token type")
+	}
+}
+
+// Demo variables
 var (
-	tokens     avl.Tree // symbol -> *Token
-	tokenCount int
+	lastToken Token
 )
 
-// CreateToken creates a new token with the given parameters
-func CreateToken(_ realm, name, symbol string, initialSupply uint64) string {
-	// Validate inputs
-	if name == "" {
-		panic("name cannot be empty")
-	}
-	if symbol == "" || len(symbol) > 8 {
-		panic("symbol must be 1-8 characters")
-	}
-	if tokens.Has(symbol) {
-		panic("token with this symbol already exists")
-	}
-
-	caller := runtime.PreviousRealm().Address()
-
-	token := &Token{
-		Name:    name,
-		Symbol:  symbol,
-		Owner:   caller,
-		Supply:  initialSupply,
-		Created: time.Now().Unix(),
-	}
-
-	tokens.Set(symbol, token)
-	tokenCount++
-
-	return "Token " + symbol + " created successfully!"
+// CreateFungibleToken creates a fungible token
+func CreateFungibleToken(_ realm, name string) string {
+	token := CreateToken(Fungible, name, "g1caller")
+	lastToken = token
+	return "Created: " + token.GetInfo()
 }
 
-// GetToken returns information about a token
-func GetToken(symbol string) *Token {
-	val, ok := tokens.Get(symbol)
-	if !ok {
-		return nil
-	}
-	return val.(*Token)
+// CreateNFT creates a non-fungible token
+func CreateNFT(_ realm, name string) string {
+	token := CreateToken(NonFungible, name, "g1caller")
+	lastToken = token
+	return "Created: " + token.GetInfo()
 }
 
-// GetTokenCount returns the number of tokens created
-func GetTokenCount() int {
-	return tokenCount
+// CreateSoulBound creates a soul-bound token
+func CreateSoulBound(_ realm, name string) string {
+	token := CreateToken(SoulBound, name, "g1caller")
+	lastToken = token
+	return "Created: " + token.GetInfo()
 }
 
 func Render(path string) string {
-	if path != "" {
-		// Render specific token
-		token := GetToken(path)
-		if token == nil {
-			return "# Token Not Found\n\nNo token with symbol `" + path + "` exists."
-		}
-		return renderToken(token)
-	}
-
-	return renderHome()
-}
-
-func renderHome() string {
 	out := `# Factory Pattern
 
-The factory pattern allows a realm to create and manage multiple instances
-of objects. This is useful for token factories, NFT minting, contract deployment,
-and user-generated content.
-
-## How It Works
-
-1. Users call a "create" function with parameters
-2. The factory validates the inputs
-3. A new object is created and stored in an [AVL tree](/p/nt/avl)
-4. The factory tracks all created objects
-
-## This Example
-
-This realm is a simple token factory. It demonstrates creating objects with
-validated parameters, storing objects in an AVL tree for efficient lookup,
-preventing duplicates (unique symbols), and ownership tracking using
-[runtime.PreviousRealm()](/r/docs/crossing).
-
-## Live Demo
-
-### Create a New Token
-
-[Create Token](/r/docs/factory$help&func=CreateToken)
-
-### Existing Tokens
-
-**Total tokens created:** ` + strconv.Itoa(tokenCount) + `
-
-`
-	if tokenCount == 0 {
-		out += "_No tokens created yet._\n"
-	} else {
-		tokens.Iterate("", "", func(key string, value any) bool {
-			token := value.(*Token)
-			out += "- [" + token.Symbol + "](/r/docs/factory:" + token.Symbol + ") - " + token.Name + "\n"
-			return false
-		})
-	}
-
-	out += `
----
+Creates different types of objects that share a common interface.
 
 ## Code Pattern
 
 ` + "```go" + `
-package factory
-
-import "gno.land/p/nt/avl"
-
-type Product struct {
-    ID    string
-    Owner address
-    // ... other fields
+// Common interface
+type Token interface {
+    GetInfo() string
+    Transfer(to address, amount uint64) string
 }
 
-var products avl.Tree // id -> *Product
+// Concrete types
+type FungibleToken struct { name string, amount uint64 }
+type NonFungibleToken struct { name string }
+type SoulBoundToken struct { name string }
 
-func CreateProduct(_ realm, id string) {
-    if products.Has(id) {
-        panic("product already exists")
+// Factory function
+func CreateToken(tokenType int, name string) Token {
+    switch tokenType {
+    case Fungible:
+        return &FungibleToken{name: name, amount: 1000}
+    case NonFungible:
+        return &NonFungibleToken{name: name}
+    case SoulBound:
+        return &SoulBoundToken{name: name}
     }
-    
-    product := &Product{
-        ID:    id,
-        Owner: runtime.PreviousRealm().Address(),
-    }
-    
-    products.Set(id, product)
 }
 
-func GetProduct(id string) *Product {
-    val, ok := products.Get(id)
-    if !ok {
-        return nil
-    }
-    return val.(*Product)
-}
+// Usage - work with interface, not concrete types
+token := CreateToken(Fungible, "USDC")
+token.Transfer(recipientAddr, 100)  // Transfer 100 tokens
 ` + "```" + `
 
-[View source code](/r/docs/factory$source)
+## Live Demo
 
----
+- [Create Fungible Token](/r/docs/factory$help&func=CreateFungibleToken)
+- [Create NFT](/r/docs/factory$help&func=CreateNFT)
+- [Create SoulBound Token](/r/docs/factory$help&func=CreateSoulBound)
 
-See also:
-- [Registry Pattern](/r/docs/registry) - Register and discover entities
-- [Crossing](/r/docs/crossing) - Understanding realm boundaries
+`
+
+	if lastToken != nil {
+		out += "### Last Created Token\n\n"
+		out += "**Type:** " + lastToken.GetType() + "\n\n"
+		out += "**Info:** " + lastToken.GetInfo() + "\n\n"
+	}
+
+	out += `
 `
 	return out
-}
-
-func renderToken(token *Token) string {
-	return `# Token: ` + token.Symbol + `
-
-## Details
-
-| Property | Value |
-|----------|-------|
-| Name | ` + token.Name + ` |
-| Symbol | ` + token.Symbol + ` |
-| Owner | ` + token.Owner.String() + ` |
-| Total Supply | ` + strconv.FormatUint(token.Supply, 10) + ` |
-
----
-
-[Back to Factory](/r/docs/factory)
-`
 }

@@ -30,7 +30,7 @@ func Reset(_ realm) {
 func Render(_ string) string {
 	return `# Realm Composition
 
-Composition allows you to build complex realms by combining simpler ones,
+Allows you to build complex realms by combining simpler ones,
 following the "separation of concerns" principle.
 
 ## Code Pattern
