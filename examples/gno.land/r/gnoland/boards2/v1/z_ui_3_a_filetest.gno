@@ -8,14 +8,14 @@ import (
 )
 
 const (
-	owner     = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	boardName = "BoardName"
+	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	boardName         = "BoardName"
 )
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.CreateBoard(cross, boardName, false)
+	boards2.CreateBoard(cross, boardName, false, false)
 }
 
 func main() {

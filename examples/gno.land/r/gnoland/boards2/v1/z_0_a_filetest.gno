@@ -6,12 +6,12 @@ import (
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
 
 func main() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	bid := boards2.CreateBoard(cross, "test123", false)
+	bid := boards2.CreateBoard(cross, "test123", false, false)
 	println("ID =", bid)
 }
 

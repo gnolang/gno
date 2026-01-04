@@ -8,19 +8,19 @@ import (
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create board "AAA" with a single thread
-	boardID := boards2.CreateBoard(cross, "AAA", true)
+	boardID := boards2.CreateBoard(cross, "AAA", true, false)
 	boards2.CreateThread(cross, boardID, "Foo", "Bar")
 
 	// Create 2 more boards
-	boards2.CreateBoard(cross, "BBB", true)
-	boards2.CreateBoard(cross, "CCC", true)
-	boards2.CreateBoard(cross, "DDD", false) // <-- Unlisted board
+	boards2.CreateBoard(cross, "BBB", true, false)
+	boards2.CreateBoard(cross, "CCC", true, false)
+	boards2.CreateBoard(cross, "DDD", false, false) // <-- Unlisted board
 }
 
 func main() {
@@ -29,7 +29,7 @@ func main() {
 
 // Output:
 // # Boards
-// [Create Board](/r/gnoland/boards2/v1$help&func=CreateBoard&listed=true&name=) • [List Admin Users](/r/gnoland/boards2/v1:admin-users) • [Help](/r/gnoland/boards2/v1:help)
+// [Create Board](/r/gnoland/boards2/v1:create-board) • [List Admin Users](/r/gnoland/boards2/v1:admin-users) • [Help](/r/gnoland/boards2/v1:help)
 //
 // ---
 // Sort by: [oldest first](/r/gnoland/boards2/v1:?order=desc)

@@ -12,5 +12,5 @@
 <div class="gno-form_input"><label for="duplicate2"> test </label>
 <input type="text" id="duplicate2" name="duplicate2" placeholder="test" />
 </div>
-<input type="submit" value="Submit to /r/test Realm" />
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
 </form>

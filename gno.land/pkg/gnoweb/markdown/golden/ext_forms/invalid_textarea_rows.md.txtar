@@ -24,5 +24,5 @@
 <div class="gno-form_input"><label for="test4"> Valid rows </label>
 <textarea id="test4" name="test4" placeholder="Valid rows" rows="5"></textarea>
 </div>
-<input type="submit" value="Submit to /r/test Realm" />
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
 </form>

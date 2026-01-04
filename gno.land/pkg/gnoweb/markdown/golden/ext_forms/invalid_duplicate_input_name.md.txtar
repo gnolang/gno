@@ -18,8 +18,8 @@
 <div class="gno-form_input"><label for="duplicate"> test </label>
 <input type="text" id="duplicate" name="duplicate" placeholder="test" />
 </div>
-<!-- Error: &#34;duplicate&#34;: input name already used -->
-<!-- Error: &#34;duplicate&#34;: input name already used -->
-<!-- Error: &#34;duplicate&#34;: input name already used -->
-<input type="submit" value="Submit to /r/test Realm" />
+<!-- Error: &#34;duplicate&#34;: name already used -->
+<!-- Error: &#34;duplicate&#34;: name already used -->
+<!-- Error: &#34;duplicate&#34;: name already used -->
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
 </form>

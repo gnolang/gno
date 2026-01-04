@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	name  = "foo123"
+	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	name          = "foo123"
 )
 
 var newName string
@@ -18,7 +18,7 @@ func init() {
 	newName = strings.Repeat("A", boards2.MaxBoardNameLength+1)
 
 	testing.SetRealm(testing.NewUserRealm(owner))
-	boards2.CreateBoard(cross, name, false)
+	boards2.CreateBoard(cross, name, false, false)
 }
 
 func main() {

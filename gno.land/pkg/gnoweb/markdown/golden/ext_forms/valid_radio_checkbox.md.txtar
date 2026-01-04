@@ -38,5 +38,5 @@
 <input type="checkbox" id="preferences_5" name="preferences" value="marketing" checked />
 <label for="preferences_5"> marketing - Marketing emails </label>
 </div>
-<input type="submit" value="Submit to /r/test Realm" />
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
 </form>

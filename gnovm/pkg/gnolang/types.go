@@ -1050,6 +1050,8 @@ func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 			if dmtid != imtid {
 				return fmt.Errorf("wrong type for method %s", im.Name)
 			}
+		} else {
+			return fmt.Errorf("wrong type for method %s", im.Name)
 		}
 	}
 	return nil
@@ -2298,7 +2300,7 @@ func specifyType(store Store, n Node, lookup map[Name]Type, tmpl Type, spec Type
 				generic := ct.Generic[:len(ct.Generic)-len(".Elem()")]
 				match, ok := lookup[generic]
 				if ok {
-					assertAssignableTo(n, spec, match.Elem(), false)
+					assertAssignableTo(n, spec, match.Elem())
 					return // ok
 				} else {
 					// Panic here, because we don't know whether T
@@ -2312,7 +2314,7 @@ func specifyType(store Store, n Node, lookup map[Name]Type, tmpl Type, spec Type
 			} else {
 				match, ok := lookup[ct.Generic]
 				if ok {
-					assertAssignableTo(n, spec, match, false)
+					assertAssignableTo(n, spec, match)
 					return // ok
 				} else {
 					if isUntyped(spec) {
@@ -2397,11 +2399,11 @@ func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
 				for n, t := range lookup {
 					bs.Define(n, asValue(t))
 				}
+				m := NewMachine("", nil)
 				// Parse generic to expr.
-				gx := MustParseExpr(string(generic))
+				gx := m.MustParseExpr(string(generic))
 				gx = Preprocess(nil, bs, gx).(Expr)
 				// Evaluate type from generic expression.
-				m := NewMachine("", nil)
 				tv := m.EvalStatic(bs, gx)
 				m.Release()
 				if isElem {

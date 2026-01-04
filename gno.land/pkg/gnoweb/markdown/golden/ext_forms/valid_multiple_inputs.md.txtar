@@ -17,5 +17,5 @@
 <div class="gno-form_input"><label for="email"> Enter your email </label>
 <input type="text" id="email" name="email" placeholder="Enter your email" />
 </div>
-<input type="submit" value="Submit to /r/test Realm" />
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
 </form>

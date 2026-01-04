@@ -7,14 +7,14 @@ import (
 )
 
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	user  = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
-	name  = "foo123"
+	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	user  address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
+	name          = "foo123"
 )
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	boards2.CreateBoard(cross, name, false)
+	boards2.CreateBoard(cross, name, false, false)
 }
 
 func main() {

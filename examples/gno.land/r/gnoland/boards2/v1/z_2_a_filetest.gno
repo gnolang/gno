@@ -4,23 +4,25 @@ import (
 	"strings"
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
 const (
-	owner   = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	path    = "test-board/1/2"
-	comment = "Test comment"
+	owner   address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	path            = "test-board/1/2"
+	comment         = "Test comment"
 )
 
 var (
-	bid boards2.BoardID
-	tid boards2.PostID
+	bid boards.ID
+	tid boards.ID
 )
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false)
+	bid = boards2.CreateBoard(cross, "test-board", false, false)
 	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
 }
 

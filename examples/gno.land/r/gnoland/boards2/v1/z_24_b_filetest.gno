@@ -3,21 +3,24 @@ package main
 import (
 	"testing"
 
+	"gno.land/p/gnoland/boards"
+
 	boards2 "gno.land/r/gnoland/boards2/v1"
+	"gno.land/r/gnoland/boards2/v1/permissions"
 )
 
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	admin = address("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5")
+	owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+	admin address = "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5"
 )
 
-var bid boards2.BoardID
+var bid boards.ID
 
 func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	bid = boards2.CreateBoard(cross, "test123", false)
-	boards2.InviteMember(cross, bid, admin, boards2.RoleAdmin)
+	bid = boards2.CreateBoard(cross, "test123", false, false)
+	boards2.InviteMember(cross, bid, admin, permissions.RoleAdmin)
 }
 
 func main() {

@@ -23,7 +23,7 @@
 <div class="gno-form_input"><label for="form1"> Enter value </label>
 <input type="text" id="form1" name="form1" placeholder="Enter value" />
 </div>
-<input type="submit" value="Submit to /r/test Realm" />
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
 </form>
 <h1>hello 1</h1>
 <form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
@@ -34,7 +34,7 @@
 <div class="gno-form_input"><label for="form2"> Enter value </label>
 <input type="text" id="form2" name="form2" placeholder="Enter value" />
 </div>
-<input type="submit" value="Submit to /r/test Realm" />
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
 </form>
 <form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
 <div class="gno-form_header">
@@ -44,5 +44,5 @@
 <div class="gno-form_input"><label for="form2"> Enter value </label>
 <input type="text" id="form2" name="form2" placeholder="Enter value" />
 </div>
-<input type="submit" value="Submit to /r/test Realm" />
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
 </form>

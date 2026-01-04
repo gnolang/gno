@@ -30,5 +30,5 @@
 <input type="text" id="default" name="default" placeholder="Default type (text)" />
 </div>
 <!-- Error: invalid input type -->
-<input type="submit" value="Submit to /r/test Realm" />
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
 </form>

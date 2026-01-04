@@ -1,3 +1,4 @@
+// Package gnokey implements a remote signer server using gnokey as the backend.
 package gnokey
 
 import (

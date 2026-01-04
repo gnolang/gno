@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -88,6 +89,7 @@ func (cfg *RemoteSignerClientConfig) ValidateBasic() error {
 // NewRemoteSignerClientFromConfig returns a new RemoteSignerClient instance based on the configuration.
 // The clientPrivKey is only used if the client connects to the server using TCP.
 func NewRemoteSignerClientFromConfig(
+	ctx context.Context,
 	config *RemoteSignerClientConfig,
 	clientPrivKey ed25519.PrivKeyEd25519,
 	clientLogger *slog.Logger,
@@ -110,5 +112,5 @@ func NewRemoteSignerClientFromConfig(
 		options = append(options, WithAuthorizedKeys(authorizedKeys))
 	}
 
-	return NewRemoteSignerClient(config.ServerAddress, clientLogger, options...)
+	return NewRemoteSignerClient(ctx, config.ServerAddress, clientLogger, options...)
 }
