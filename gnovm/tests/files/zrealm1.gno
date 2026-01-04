@@ -4,8 +4,8 @@ package test
 var root Node
 
 type (
-	Node interface{}
-	Key  interface{}
+	Node any
+	Key  any
 )
 
 type InnerNode struct {
@@ -14,7 +14,7 @@ type InnerNode struct {
 	Right Node
 }
 
-func main() {
+func main(cur realm,) {
 	key := "somekey"
 	root = InnerNode{
 		Key:   key,
@@ -24,8 +24,8 @@ func main() {
 }
 
 // Realm:
-// switchrealm["gno.land/r/test"]
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]={
+// finalizerealm["gno.land/r/test"]
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:6](269)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -41,165 +41,33 @@ func main() {
 //         {}
 //     ],
 //     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
+//         "LastObjectSize": "269",
 //         "ModTime": "0",
-//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
 //         "RefCount": "1"
 //     }
 // }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]={
-//     "Blank": {},
-//     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
-//         "IsEscaped": true,
-//         "ModTime": "3",
-//         "RefCount": "2"
-//     },
-//     "Parent": null,
-//     "Source": {
-//         "@type": "/gno.RefNode",
-//         "BlockNode": null,
-//         "Location": {
-//             "Column": "0",
-//             "File": "",
-//             "Line": "0",
-//             "PkgPath": "gno.land/r/test"
-//         }
-//     },
-//     "Values": [
-//         {
-//             "T": {
-//                 "@type": "/gno.RefType",
-//                 "ID": "gno.land/r/test.InnerNode"
-//             },
-//             "V": {
-//                 "@type": "/gno.RefValue",
-//                 "Hash": "ae4e9e2d205cc0081d4ee249e1d188ebe270b220",
-//                 "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.TypeType"
-//             },
-//             "V": {
-//                 "@type": "/gno.TypeValue",
-//                 "Type": {
-//                     "@type": "/gno.DeclaredType",
-//                     "Base": {
-//                         "@type": "/gno.InterfaceType",
-//                         "Generic": "",
-//                         "Methods": [],
-//                         "PkgPath": "gno.land/r/test"
-//                     },
-//                     "Methods": [],
-//                     "Name": "Node",
-//                     "PkgPath": "gno.land/r/test"
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.TypeType"
-//             },
-//             "V": {
-//                 "@type": "/gno.TypeValue",
-//                 "Type": {
-//                     "@type": "/gno.DeclaredType",
-//                     "Base": {
-//                         "@type": "/gno.InterfaceType",
-//                         "Generic": "",
-//                         "Methods": [],
-//                         "PkgPath": "gno.land/r/test"
-//                     },
-//                     "Methods": [],
-//                     "Name": "Key",
-//                     "PkgPath": "gno.land/r/test"
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.TypeType"
-//             },
-//             "V": {
-//                 "@type": "/gno.TypeValue",
-//                 "Type": {
-//                     "@type": "/gno.DeclaredType",
-//                     "Base": {
-//                         "@type": "/gno.StructType",
-//                         "Fields": [
-//                             {
-//                                 "Embedded": false,
-//                                 "Name": "Key",
-//                                 "Tag": "",
-//                                 "Type": {
-//                                     "@type": "/gno.RefType",
-//                                     "ID": "gno.land/r/test.Key"
-//                                 }
-//                             },
-//                             {
-//                                 "Embedded": false,
-//                                 "Name": "Left",
-//                                 "Tag": "",
-//                                 "Type": {
-//                                     "@type": "/gno.RefType",
-//                                     "ID": "gno.land/r/test.Node"
-//                                 }
-//                             },
-//                             {
-//                                 "Embedded": false,
-//                                 "Name": "Right",
-//                                 "Tag": "",
-//                                 "Type": {
-//                                     "@type": "/gno.RefType",
-//                                     "ID": "gno.land/r/test.Node"
-//                                 }
-//                             }
-//                         ],
-//                         "PkgPath": "gno.land/r/test"
-//                     },
-//                     "Methods": [],
-//                     "Name": "InnerNode",
-//                     "PkgPath": "gno.land/r/test"
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [],
-//                 "Results": []
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
-//                 },
-//                 "FileName": "files/zrealm1.gno",
-//                 "IsMethod": false,
-//                 "Name": "main",
-//                 "NativeName": "",
-//                 "NativePkg": "",
-//                 "PkgPath": "gno.land/r/test",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "Column": "1",
-//                         "File": "files/zrealm1.gno",
-//                         "Line": "17",
-//                         "PkgPath": "gno.land/r/test"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [],
-//                     "Results": []
-//                 }
-//             }
-//         }
-//     ]
-// }
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3](156)=
+//     @@ -2,9 +2,19 @@
+//          "ObjectInfo": {
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
+//              "LastObjectSize": "190",
+//     -        "ModTime": "0",
+//     +        "ModTime": "5",
+//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//              "RefCount": "1"
+//          },
+//     -    "Value": {}
+//     +    "Value": {
+//     +        "T": {
+//     +            "@type": "/gno.RefType",
+//     +            "ID": "gno.land/r/test.InnerNode"
+//     +        },
+//     +        "V": {
+//     +            "@type": "/gno.RefValue",
+//     +            "Hash": "860c81a9b1ccd2bc42fc95635a1e940c88b758d7",
+//     +            "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6"
+//     +        }
+//     +    }
+//      }

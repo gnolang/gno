@@ -1,12 +1,12 @@
 package main
 
-import "std"
+import "chain/runtime"
 
 func inner() {
-	caller1 := std.GetCallerAt(1)
-	println(caller1)
-	caller2 := std.GetCallerAt(2)
-	println(caller2)
+	realm1 := runtime.CurrentRealm()
+	println(realm1)
+	realm2 := runtime.PreviousRealm()
+	println(realm2)
 }
 
 func main() {
@@ -14,5 +14,5 @@ func main() {
 }
 
 // Output:
-// g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4
-// g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// CodeRealm{ g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4, main }
+// UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }

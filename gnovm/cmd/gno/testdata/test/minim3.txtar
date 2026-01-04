@@ -2,8 +2,8 @@
 
 gno test .
 
-! stdout .+ 
-stderr 'ok      \. 	\d\.\d\ds'
+! stdout .+
+stderr 'ok      \. 	\d+\.\d\ds'
 
 -- minim.gno --
 package minim
@@ -12,3 +12,8 @@ package minim
 package main
 
 func main() {}
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/minim3"
+gno = "0.9"

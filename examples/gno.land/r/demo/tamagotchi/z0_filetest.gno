@@ -5,7 +5,7 @@ import (
 )
 
 func main() {
-	tamagotchi.Reset("tamagnotchi")
+	tamagotchi.Reset(cross, "tamagnotchi")
 	println(tamagotchi.Render(""))
 }
 

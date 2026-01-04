@@ -1,53 +1,54 @@
 # load the package from $WORK directory
 loadpkg gno.land/r/demo/simple_event $WORK/event
 
+# add a random user
+adduserfrom user1 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
 # start a new node
 gnoland start
 
-## test1 account should be available on default
-gnokey query auth/accounts/${USER_ADDR_test1}
+## account should be available since it has an initial balance
+gnokey query auth/accounts/g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0
 stdout 'height: 0'
 stdout 'data: {'
 stdout '  "BaseAccount": {'
-stdout '    "address": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",'
+stdout '    "address": "'${user1_user_addr}'",'
 stdout '    "coins": "[0-9]*ugnot",' # dynamic
-stdout '    "public_key": {'
-stdout '      "@type": "/tm.PubKeySecp256k1",'
-stdout '      "value": "A\+FhNtsXHjLfSJk1lB8FbiL4mGPjc50Kt81J7EKDnJ2y"'
-stdout '    },'
-stdout '    "account_number": "0",'
-stdout '    "sequence": "1"'
+stdout '    "public_key": null,'
+stdout '    "account_number": "'${user1_account_num}'",'
+stdout '    "sequence": "'${user1_account_seq}'"'
 stdout '  }'
 stdout '}'
 ! stderr '.+' # empty
 
 
 ## sign
-gnokey sign -tx-path $WORK/multi/multi_msg.tx -chainid=tendermint_test -account-number 0 -account-sequence 1 test1
+gnokey sign -tx-path $WORK/multi/multi_msg.tx -chainid=tendermint_test -account-number $user1_account_num -account-sequence $user1_account_seq user1
 stdout 'Tx successfully signed and saved to '
 
 ## broadcast
 gnokey broadcast $WORK/multi/multi_msg.tx -quiet=false
 
 stdout OK!
-stdout 'GAS WANTED: 2000000'
+
+stdout 'GAS WANTED: 3000000'
+
 stdout 'GAS USED:   [0-9]+'
 stdout 'HEIGHT:     [0-9]+'
-stdout 'EVENTS:     \[{\"type\":\"TAG\",\"attrs\":\[{\"key\":\"KEY\",\"value\":\"value11\"}\],\"pkg_path\":\"gno.land\/r\/demo\/simple_event\",\"func\":\"Event\"},{\"type\":\"TAG\",\"attrs\":\[{\"key\":\"KEY\",\"value\":\"value22\"}\],\"pkg_path\":\"gno.land\/r\/demo\/simple_event\",\"func\":\"Event\"}\]'
+stdout 'EVENTS:     \[{\"type\":\"TAG\",\"attrs\":\[{\"key\":\"KEY\",\"value\":\"value11\"}\],\"pkg_path\":\"gno.land/r/demo/simple_event\"},{\"type\":\"TAG\",\"attrs\":\[{\"key\":\"KEY\",\"value\":\"value22\"}\],\"pkg_path\":\"gno.land/r/demo/simple_event\"}\]'
 
 
 
 -- event/simple_event.gno --
 package simple_event
 
-import (
-	"std"
-)
+import "chain"
 
-func Event(value string) {
-    std.Emit("TAG", "KEY", value)
+func Event(cur realm, value string) {
+	chain.Emit("TAG", "KEY", value)
 }
-
 -- multi/multi_msg.tx --
-{"msg":[{"@type":"/vm.m_call","caller":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","send":"","pkg_path":"gno.land/r/demo/simple_event","func":"Event","args":["value11"]},{"@type":"/vm.m_call","caller":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","send":"","pkg_path":"gno.land/r/demo/simple_event","func":"Event","args":["value22"]}],"fee":{"gas_wanted":"2000000","gas_fee":"1000000ugnot"},"signatures":null,"memo":""}
+
+{"msg":[{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/demo/simple_event","func":"Event","args":["value11"]},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/demo/simple_event","func":"Event","args":["value22"]}],"fee":{"gas_wanted":"3000000","gas_fee":"1000000ugnot"},"signatures":null,"memo":""}
 

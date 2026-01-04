@@ -1,0 +1,37 @@
+{{/* ===================================================================================
+LAYOUT - Source component
+=================================================================================== */}}
+{{ define "renderSource" }}
+<!-- Source ToC -->
+{{ with render .ComponentTOC }} {{ template "layout/aside" . }} {{ end }}
+
+<!-- Source Info -->
+<header class="b-content-header u-gap-0 u-mb-0 u-lg-mb-4">
+  <h1 class="title b-content-h1">{{ .FileName }}</h1>
+  <div class="header-info">
+    <span>{{ .FileSize }} · {{ .FileLines }} lines</span>
+    <div class="b-btns">
+      <button data-controller="copy" data-copy-remote-value="source-code" data-action="click->copy#copy"
+        class="b-inline-btn c-with-icon">
+        {{ template "ui/copy" }}
+        <span>Copy</span>
+      </button>
+      <a href="{{ .FileDownload }}" class="b-inline-btn c-with-icon" download="{{ .FileName }}">
+        <svg class="c-icon">
+          <use href="#ico-ddl"></use>
+        </svg>
+        <span>Download</span>
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- Source Content -->
+{{ template "layout/article" .Article }} {{ end }}
+
+{{/* ===================================================================================
+UI - Code wrapper
+=================================================================================== */}}
+{{ define "ui/code_wrapper" }}
+<div class="b-source-code" data-copy-target="source-code">{{ render . }}</div>
+{{ end }}

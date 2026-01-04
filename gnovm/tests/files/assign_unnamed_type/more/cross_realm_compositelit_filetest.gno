@@ -1,8 +1,8 @@
-// PKGPATH: gno.land/r/declaredtype_test
-package declaredtype_test
+// PKGPATH: gno.land/r/declaredtype
+package declaredtype
 
 import (
-	"gno.land/r/demo/tests"
+	tests "gno.land/r/tests/vm"
 )
 
 func main() {
@@ -10,4 +10,4 @@ func main() {
 }
 
 // Output:
-// (slice[(0 gno.land/r/demo/tests.Word)] gno.land/r/demo/tests.nat)
+// (readonly(slice[(0 gno.land/r/tests/vm.Word)]) gno.land/r/tests/vm.nat)

@@ -26,9 +26,6 @@ const (
 	VoteSetBitsChannel = byte(0x23)
 
 	maxMsgSize = 1048576 // 1MB; NOTE/TODO: keep in sync with types.PartSet sizes.
-
-	blocksToContributeToBecomeGoodPeer = 10000
-	votesToContributeToBecomeGoodPeer  = 10000
 )
 
 // -----------------------------------------------------------------------------
@@ -187,7 +184,7 @@ func (conR *ConsensusReactor) AddPeer(peer p2p.PeerConn) {
 }
 
 // RemovePeer is a noop.
-func (conR *ConsensusReactor) RemovePeer(peer p2p.PeerConn, reason interface{}) {
+func (conR *ConsensusReactor) RemovePeer(peer p2p.PeerConn, reason any) {
 	if !conR.IsRunning() {
 		return
 	}
@@ -644,13 +641,14 @@ OUTER_LOOP:
 			}
 		}
 
-		if sleeping == 0 {
+		switch sleeping {
+		case 0:
 			// We sent nothing. Sleep...
 			sleeping = 1
 			logger.Debug("No votes to send, sleeping", "rs.Height", rs.Height, "prs.Height", prs.Height,
 				"localPV", rs.Votes.Prevotes(rs.Round).BitArray(), "peerPV", prs.Prevotes,
 				"localPC", rs.Votes.Precommits(rs.Round).BitArray(), "peerPC", prs.Precommits)
-		} else if sleeping == 2 {
+		case 2:
 			// Continued sleep...
 			sleeping = 1
 		}
@@ -824,15 +822,20 @@ func (conR *ConsensusReactor) peerStatsRoutine() {
 			}
 			switch msg.Msg.(type) {
 			case *VoteMessage:
-				if numVotes := ps.RecordVote(); numVotes%votesToContributeToBecomeGoodPeer == 0 {
-					// TODO: peer metrics.
-					// conR.MultiplexSwitch.MarkPeerAsGood(peer)
-				}
+				ps.RecordVote()
+
+				// votesToContributeToBecomeGoodPeer  = 10000
+				// if numVotes := ps.RecordVote(); numVotes%votesToContributeToBecomeGoodPeer == 0 {
+				// 	// TODO: peer metrics.
+				// 	// conR.MultiplexSwitch.MarkPeerAsGood(peer)
+				// }
 			case *BlockPartMessage:
-				if numParts := ps.RecordBlockPart(); numParts%blocksToContributeToBecomeGoodPeer == 0 {
-					// TODO: peer metrics.
-					// conR.MultiplexSwitch.MarkPeerAsGood(peer)
-				}
+				ps.RecordBlockPart()
+				// blocksToContributeToBecomeGoodPeer = 10000
+				// if numParts := ps.RecordBlockPart(); numParts%blocksToContributeToBecomeGoodPeer == 0 {
+				// 	// TODO: peer metrics.
+				// 	// conR.MultiplexSwitch.MarkPeerAsGood(peer)
+				// }
 			}
 		case <-conR.conS.Quit():
 			return
@@ -1112,7 +1115,8 @@ func (ps *PeerState) EnsureVoteBitArrays(height int64, numValidators int) {
 }
 
 func (ps *PeerState) ensureVoteBitArrays(height int64, numValidators int) {
-	if ps.PRS.Height == height {
+	switch ps.PRS.Height {
+	case height:
 		if ps.PRS.Prevotes == nil {
 			ps.PRS.Prevotes = bitarray.NewBitArray(numValidators)
 		}
@@ -1125,7 +1129,7 @@ func (ps *PeerState) ensureVoteBitArrays(height int64, numValidators int) {
 		if ps.PRS.ProposalPOL == nil {
 			ps.PRS.ProposalPOL = bitarray.NewBitArray(numValidators)
 		}
-	} else if ps.PRS.Height == height+1 {
+	case height + 1:
 		if ps.PRS.LastCommit == nil {
 			ps.PRS.LastCommit = bitarray.NewBitArray(numValidators)
 		}

@@ -11,4 +11,7 @@ func main() {
 }
 
 // Error:
-// main/files/assign25b.gno:8:2: assignment mismatch: 3 variable(s) but 4 value(s)
+// main/assign25b.gno:8:2-27: assignment mismatch: 3 variable(s) but 4 value(s)
+
+// TypeCheckError:
+// main/assign25b.gno:8:13: assignment mismatch: 3 variables but 4 values

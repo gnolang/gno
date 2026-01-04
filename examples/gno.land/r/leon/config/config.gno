@@ -1,63 +1,85 @@
 package config
 
 import (
+	"chain/runtime"
 	"errors"
-	"std"
+	"strings"
+	"time"
+
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/seqid"
 )
 
 var (
-	main   std.Address // leon's main address
-	backup std.Address // backup address
+	cfgID   seqid.ID
+	configs = avl.NewTree()
 
-	ErrInvalidAddr  = errors.New("leon's config: invalid address")
+	absPath = strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), runtime.ChainDomain())
+
+	// SafeObjects
+	OwnableMain   = ownable.NewWithAddress("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
+	OwnableBackup = ownable.NewWithAddress("g1lavlav7zwsjqlzzl3qdl3nl242qtf638vnhdjh")
+
 	ErrUnauthorized = errors.New("leon's config: unauthorized")
 )
 
-func init() {
-	main = "g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"
+type Config struct {
+	id      seqid.ID
+	name    string
+	lines   string
+	updated time.Time
 }
 
-func Address() std.Address {
-	return main
+func AddConfig(cur realm, name, lines string) {
+	if !IsAuthorized(runtime.PreviousRealm().Address()) {
+		panic(ErrUnauthorized)
+	}
+
+	id := cfgID.Next()
+	configs.Set(id.String(), Config{
+		id:      id,
+		name:    name,
+		lines:   lines,
+		updated: time.Now(),
+	})
 }
 
-func Backup() std.Address {
-	return backup
+func EditConfig(cur realm, id string, name, lines string) {
+	if !IsAuthorized(runtime.PreviousRealm().Address()) {
+		panic(ErrUnauthorized)
+	}
+
+	raw, ok := configs.Remove(id)
+	if !ok {
+		panic("no config with that id")
+	}
+
+	conf := raw.(Config)
+	// Overwrites data
+	conf.lines = lines
+	conf.name = name
+	conf.updated = time.Now()
 }
 
-func SetAddress(a std.Address) error {
-	if !a.IsValid() {
-		return ErrInvalidAddr
+func RemoveConfig(cur realm, id string) {
+	if !IsAuthorized(runtime.PreviousRealm().Address()) {
+		panic(ErrUnauthorized)
 	}
 
-	if err := checkAuthorized(); err != nil {
-		return err
+	if _, ok := configs.Remove(id); !ok {
+		panic("no config with that id")
 	}
-
-	main = a
-	return nil
 }
 
-func SetBackup(a std.Address) error {
-	if !a.IsValid() {
-		return ErrInvalidAddr
+func UpdateBanner(cur realm, newBanner string) {
+	if !IsAuthorized(runtime.PreviousRealm().Address()) {
+		panic(ErrUnauthorized)
 	}
 
-	if err := checkAuthorized(); err != nil {
-		return err
-	}
-
-	backup = a
-	return nil
+	banner = newBanner
 }
 
-func checkAuthorized() error {
-	caller := std.PrevRealm().Addr()
-	isAuthorized := caller == main || caller == backup
-
-	if !isAuthorized {
-		return ErrUnauthorized
-	}
-
-	return nil
+func IsAuthorized(addr address) bool {
+	return addr == OwnableMain.Owner() || addr == OwnableBackup.Owner()
 }

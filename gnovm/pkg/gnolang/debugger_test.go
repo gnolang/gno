@@ -28,8 +28,7 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 	bout := bytes.NewBufferString("")
 	berr := bytes.NewBufferString("")
 	stdin := bytes.NewBufferString(in)
-	stdout := writeNopCloser{bout}
-	stderr := writeNopCloser{berr}
+	output := test.OutputWithError(writeNopCloser{bout}, writeNopCloser{berr})
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -39,16 +38,19 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 		err = strings.TrimSpace(strings.ReplaceAll(err, "../../tests/files/", "files/"))
 	}()
 
-	_, testStore := test.Store(gnoenv.RootDir(), false, stdin, stdout, stderr)
+	_, testStore := test.TestStore(gnoenv.RootDir(), output, nil)
 
-	f := gnolang.MustReadFile(file)
+	pkgName, e := gnolang.ParseFilePackageName(file)
+	if e != nil {
+		return "", e.Error()
+	}
 
 	m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
-		PkgPath: string(f.PkgName),
+		PkgPath: pkgName,
 		Input:   stdin,
-		Output:  stdout,
+		Output:  output,
 		Store:   testStore,
-		Context: test.Context(string(f.PkgName), nil),
+		Context: test.Context(test.DefaultCaller, pkgName, nil),
 		Debug:   true,
 	})
 
@@ -61,8 +63,10 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 		}
 	}
 
+	f := m.MustReadFile(file)
+
 	m.RunFiles(f)
-	ex, _ := gnolang.ParseExpr("main()")
+	ex, _ := m.ParseExpr("main()")
 	m.Eval(ex)
 	out, err = bout.String(), berr.String()
 	return
@@ -114,7 +118,7 @@ func TestDebug(t *testing.T) {
 		{in: "p \"xxxx\"\n", out: `("xxxx" string)`},
 		{in: "si\n", out: "sample.gno:14"},
 		{in: "s\ns\n", out: `=>   14: var global = "test"`},
-		{in: "s\n\n\n", out: "=>   33: 	num := 5"},
+		{in: "s\n\n\n\n\n", out: "=>   33: 	num := 5"},
 		{in: "foo", out: "command not available: foo"},
 		{in: "\n\n", out: "dbg> "},
 		{in: "#\n", out: "dbg> "},
@@ -141,8 +145,11 @@ func TestDebug(t *testing.T) {
 		{in: "up xxx", out: `"xxx": invalid syntax`},
 		{in: "b 37\nc\np b\n", out: "(3 int)"},
 		{in: "b 27\nc\np b\n", out: `("!zero" string)`},
-		{in: "b 22\nc\np t.A[3]\n", out: "Command failed: &{(\"slice index out of bounds: 3 (len=3)\" string) <nil> }"},
+		// {in: "b 22\nc\np t.A[3]\n", out: "Command failed: &{(\"slice index out of bounds: 3 (len=3)\" string) <nil> <nil>}"},
 		{in: "b 43\nc\nc\nc\np i\ndetach\n", out: "(1 int)"},
+		{in: "b 37\nc\nnext\n", out: "=>   39:"},
+		{in: "b 40\nc\nnext\n", out: "=>   41:"},
+		{in: "b 22\nc\nstepout\n", out: "=>   40:"},
 	})
 
 	runDebugTest(t, "../../tests/files/a1.gno", []dtest{

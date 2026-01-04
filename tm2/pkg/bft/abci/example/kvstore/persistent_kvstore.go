@@ -12,7 +12,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db"
-	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
+	_ "github.com/gnolang/gno/tm2/pkg/db/pebbledb"
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
@@ -21,7 +21,7 @@ const (
 	ValidatorKeyPrefix    string = "/val/"
 )
 
-const dbBackend = db.GoLevelDBBackend
+const dbBackend = db.PebbleDBBackend
 
 // -----------------------------------------
 
@@ -95,7 +95,10 @@ func (app *PersistentKVStoreApplication) Query(reqQuery abci.RequestQuery) (resQ
 	switch reqQuery.Path {
 	case "/val":
 		key := []byte(ValidatorUpdatePrefix + string(reqQuery.Data))
-		value := app.app.state.db.Get(key)
+		value, err := app.app.state.db.Get(key)
+		if err != nil {
+			panic(err)
+		}
 
 		resQuery.Key = reqQuery.Data
 		resQuery.Value = value
@@ -150,7 +153,10 @@ func (app *PersistentKVStoreApplication) EndBlock(req abci.RequestEndBlock) abci
 // update validators
 
 func (app *PersistentKVStoreApplication) Validators() (validators []abci.ValidatorUpdate) {
-	itr := app.app.state.db.Iterator(nil, nil)
+	itr, err := app.app.state.db.Iterator(nil, nil)
+	if err != nil {
+		panic(err)
+	}
 	for ; itr.Valid(); itr.Next() {
 		if isValidatorKey(itr.Key()) {
 			validator := new(abci.ValidatorUpdate)
@@ -162,7 +168,7 @@ func (app *PersistentKVStoreApplication) Validators() (validators []abci.Validat
 }
 
 func makeValidatorKey(val abci.ValidatorUpdate) []byte {
-	return []byte(fmt.Sprintf("%s%X", ValidatorKeyPrefix, val.PubKey.Address()))
+	return fmt.Appendf(nil, "%s%X", ValidatorKeyPrefix, val.PubKey.Address())
 }
 
 func isValidatorKey(tx []byte) bool {
@@ -171,7 +177,7 @@ func isValidatorKey(tx []byte) bool {
 
 func MakeValSetChangeTx(pubkey crypto.PubKey, power int64) []byte {
 	pubkeyS := base64.StdEncoding.EncodeToString(pubkey.Bytes())
-	return []byte(fmt.Sprintf("%s%s!%d", ValidatorUpdatePrefix, pubkeyS, power))
+	return fmt.Appendf(nil, "%s%s!%d", ValidatorUpdatePrefix, pubkeyS, power)
 }
 
 func isValidatorTx(tx []byte) bool {
@@ -218,7 +224,11 @@ func (app *PersistentKVStoreApplication) execValidatorTx(tx []byte) (res abci.Re
 func (app *PersistentKVStoreApplication) updateValidator(val abci.ValidatorUpdate) (res abci.ResponseDeliverTx) {
 	if val.Power == 0 {
 		// remove validator
-		if !app.app.state.db.Has(makeValidatorKey(val)) {
+		found, err := app.app.state.db.Has(makeValidatorKey(val))
+		if err != nil {
+			panic(err)
+		}
+		if !found {
 			res.Error = errors.UnauthorizedError{}
 			res.Log = fmt.Sprintf("Cannot remove non-existent validator %s", val.PubKey.String())
 			return res

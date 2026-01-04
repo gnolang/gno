@@ -1,5 +1,7 @@
 package p_crossrealm
 
+import "chain/runtime"
+
 type Stringer interface {
 	String() string
 }
@@ -21,4 +23,8 @@ func (c *Container) Print() {
 	} else {
 		println("B:", c.B.String())
 	}
+}
+
+func CurrentRealm() runtime.Realm {
+	return runtime.CurrentRealm()
 }

@@ -1,0 +1,149 @@
+{{/* ===================================================================================
+LAYOUT - Header component
+=================================================================================== */}}
+{{ define "layouts/header" }}
+<header class="b-header">
+  <nav class="c-center c-view-grid" aria-label="Package navigation">
+    <div class="main-nav {{ if .Mode.IsExplorer }}main-nav--explorer{{ end }}">
+      <a href="/" class="user-picture">
+        <img src="/public/imgs/gnoland.svg" alt="Gno username profile pic" width="40px" height="40px" />
+      </a>
+
+      <div class="b-main-navigation">
+        <div class="inner c-reel u-no-scrollbar" data-controller="searchbar">
+          <form class="searchbar" data-action="submit->searchbar#searchUrl">
+            <label for="header-input-search" class="u-sr-only">
+              gno.land Search
+            </label>
+            <input id="header-input-search" data-searchbar-target="input" type="text" value="{{ .RealmPath }}" />
+            <button type="submit" class="u-sr-only">Search</button>
+          </form>
+
+          {{ template "ui/breadcrumb" .Breadcrumb }}
+        </div>
+
+        <!-- Network Info Popup -->
+        <label for="searchbar-server-popup-toggle" class="network-toggle" tabindex="0" role="button"
+          aria-controls="network-info-popup">
+          <svg>
+            <title>Network Info</title>
+            <use href="#ico-earth"></use>
+          </svg>
+        </label>
+
+        <input type="checkbox" id="searchbar-server-popup-toggle" class="b-popup u-sr-only" aria-expanded="false" />
+        <label for="searchbar-server-popup-toggle" class="b-popup-bg"></label>
+
+        <div class="b-popup-dialog" role="dialog" aria-labelledby="network-info-title" aria-modal="true">
+          <div class="inner">
+            <header>
+              <span id="network-info-title">Network Info</span>
+              <label for="searchbar-server-popup-toggle" tabindex="0" role="button" aria-label="Close popup">
+                <svg aria-hidden="true" class="c-icon">
+                  <title>Close Network Info</title>
+                  <use href="#ico-cross"></use>
+                </svg>
+              </label>
+            </header>
+            <div class="item">
+              <svg aria-hidden="true" class="c-icon">
+                <use href="#ico-chain"></use>
+              </svg>
+              <div class="item-content">
+                <span class="item-label">Chain ID</span>
+                <span class="item-value">{{ .ChainId }}</span>
+              </div>
+            </div>
+            <div class="item">
+              <svg aria-hidden="true" class="c-icon">
+                <use href="#ico-rpc"></use>
+              </svg>
+              <div class="item-content">
+                <span class="item-label">RPC Address</span>
+                <span class="item-value">{{ .Remote }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="b-main-menu">
+      {{ if .Mode.IsHome }}
+      <label for="header-input-devmode" class="menu-toggle">
+        <svg>
+          <title>Developer menu switch</title>
+          <use href="#ico-more"></use>
+        </svg>
+      </label>
+      {{ end }}
+      <input id="header-input-devmode" type="checkbox" name="devmode" class="u-sr-only menu-toggle-input" {{ if not
+        .Mode.IsHome }}checked{{ end }} />
+      <div role="menu" class="menu-dev">
+        {{ range .Links.Dev }}{{ template "ui/header_link" . }}{{ end }}
+      </div>
+
+      {{ if .Mode.IsHome }}
+      <div role="menu" class="menu-general">
+        {{ range .Links.General }}{{ template "ui/header_link" . }}{{ end }}
+      </div>
+      {{ end }}
+    </div>
+  </nav>
+</header>
+{{ end }}
+
+{{/* ==================================================================================
+UI - Header link component
+================================================================================== */}}
+{{ define "ui/header_link" }}
+<a href="{{ .URL }}" class="b-menu-link" role="menuitem">
+  <div class="link {{ if .Icon }} link--icon{{ end }}{{ if .IsActive }} link--is-active u-text-stroke{{ end }}">
+    {{ if .Icon }}
+    <svg>
+      <use href="#{{ .Icon }}"></use>
+    </svg>
+    {{ end }}
+    <span class="{{ if .Icon }}link-label{{ end }}">{{ .Label }}</span>
+  </div>
+</a>
+{{ end }}
+
+{{/* ===================================================================================
+UI - Breadcrumb component
+=================================================================================== */}}
+{{ define "ui/breadcrumb" }}
+<form method="GET" action="" class="b-breadcrumb">
+  <ol data-searchbar-target="breadcrumb">
+    <!-- Path Part -->
+    {{- range $index, $part := .Parts }}
+    <li class="element">
+      <a href="{{ $part.URL }}{{ if eq $index 0 }}/{{ end }}">
+        {{ $part.Name }}
+      </a>
+    </li>
+    {{- end }}
+
+    <!-- Args Part -->
+    {{- if .ArgParts }} {{- range $index, $arg := .ArgParts }}
+    <li class="argument">
+      <a href="{{ $arg.URL }}">
+        {{ $arg.Name }}
+      </a>
+    </li>
+    {{- end }} {{- end }}
+
+    <!-- Queries Part -->
+    {{ $allQueries := .Queries }} {{- range $index, $query := $allQueries }}
+    <li class="query">
+      <label for="{{ $query.Key }}">
+        <span>{{ $query.Key }}=</span>
+        <input type="text" id="{{ $query.Key }}" name="{{ $query.Key }}" value="{{ $query.Value }}"
+          placeholder="{{ $query.Key }}" data-controller="breadcrumb" data-action="focus->breadcrumb#focus" />
+      </label>
+    </li>
+    {{- end }}
+  </ol>
+  <button type="submit" class="u-sr-only">Update Breadcrumb</button>
+</form>
+{{ end }}

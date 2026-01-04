@@ -2,7 +2,7 @@
 
 ! gno test -v .
 
-stderr '=== RUN   file/failing_filetest.gno'
+stderr '=== RUN   ./failing_filetest.gno'
 stderr 'unexpected panic: beep boop'
 
 -- failing.gno --
@@ -17,3 +17,8 @@ func main() {
 
 // Output:
 // blah
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/failing_filetest"
+gno = "0.9"

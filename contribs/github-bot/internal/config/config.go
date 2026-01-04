@@ -4,6 +4,7 @@ import (
 	"github.com/gnolang/gno/contribs/github-bot/internal/client"
 	c "github.com/gnolang/gno/contribs/github-bot/internal/conditions"
 	r "github.com/gnolang/gno/contribs/github-bot/internal/requirements"
+	"github.com/gnolang/gno/contribs/github-bot/internal/utils"
 )
 
 type Teams []string
@@ -32,22 +33,90 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 	auto := []AutomaticCheck{
 		{
 			Description: "Maintainers must be able to edit this pull request ([more info](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/allowing-changes-to-a-pull-request-branch-created-from-a-fork))",
-			If:          c.CreatedFromFork(),
-			Then:        r.MaintainerCanModify(),
+			If: c.And(
+				c.BaseBranch("^master$"),
+				c.CreatedFromFork(),
+			),
+			Then: r.MaintainerCanModify(),
 		},
 		{
 			Description: "Changes to 'docs' folder must be reviewed/authored by at least one devrel and one tech-staff",
-			If:          c.FileChanged(gh, "^docs/"),
-			Then: r.Or(
-				r.And(
-					r.AuthorInTeam(gh, "devrels"),
-					r.ReviewByTeamMembers(gh, "tech-staff", 1),
-				),
-				r.And(
+			If: c.And(
+				c.BaseBranch("^master$"),
+				c.FileChanged(gh, "^docs/"),
+			),
+			Then: r.And(
+				r.Or(
 					r.AuthorInTeam(gh, "tech-staff"),
-					r.ReviewByTeamMembers(gh, "devrels", 1),
+					r.ReviewByTeamMembers(gh, "tech-staff", r.RequestIgnore).WithDesiredState(utils.ReviewStateApproved),
+				),
+				r.Or(
+					r.AuthorInTeam(gh, "devrels"),
+					r.ReviewByTeamMembers(gh, "devrels", r.RequestApply).WithDesiredState(utils.ReviewStateApproved),
 				),
 			),
+		},
+		{
+			Description: "Changes related to gnoweb must be reviewed by its codeowners",
+			If: c.And(
+				c.BaseBranch("^master$"),
+				c.FileChanged(gh, "^gno.land/pkg/gnoweb/"),
+			),
+			Then: r.Or(
+				// If alexiscolin or gfanton is the author of the PR, the other must review it.
+				r.Or(
+					r.And(
+						r.Author("alexiscolin"),
+						r.ReviewByUser(gh, "gfanton", r.RequestApply).WithDesiredState(utils.ReviewStateApproved),
+					),
+					r.And(
+						r.Author("gfanton"),
+						r.ReviewByUser(gh, "alexiscolin", r.RequestApply).WithDesiredState(utils.ReviewStateApproved),
+					),
+				),
+				// If neither of them is the author of the PR, at least one of them must review it.
+				r.And(
+					r.Not(r.Author("alexiscolin")),
+					r.Not(r.Author("gfanton")),
+					r.Or(
+						r.ReviewByUser(gh, "alexiscolin", r.RequestApply).WithDesiredState(utils.ReviewStateApproved),
+						r.ReviewByUser(gh, "gfanton", r.RequestApply).WithDesiredState(utils.ReviewStateApproved),
+					),
+				),
+			),
+		},
+		{
+			Description: "Must not contain the \"don't merge\" label",
+			If:          c.Label("don't merge"),
+			Then:        r.Never(),
+		},
+		{
+			Description: "Pending initial approval by a review team member, or review from tech-staff",
+			If: c.And(
+				c.BaseBranch("^master$"),
+				c.Not(c.AuthorInTeam(gh, "tech-staff")),
+			),
+			Then: r.
+				// Decide whether to apply the review/triage-pending label.
+				// The PR should be either a) approved by any review team member
+				// b) reviewed by any member of tech staff
+				// c) be a draft
+				If(r.Or(
+					r.ReviewByAnyUser(gh,
+						"jefft0", "leohhhn", "n0izn0iz", "notJoon", "omarsy", "x1unix",
+					).WithDesiredState(utils.ReviewStateApproved),
+					r.ReviewByTeamMembers(gh, "tech-staff", r.RequestIgnore),
+					r.Draft(),
+				)).
+				Then(
+					r.Not(r.Label(gh, "review/triage-pending", r.LabelRemove)),
+				).
+				Else(
+					r.And(
+						r.Label(gh, "review/triage-pending", r.LabelApply),
+						r.Never(), // Always fail the requirement.
+					),
+				),
 		},
 	}
 
@@ -59,19 +128,22 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 		},
 		{
 			Description: "The pull request description provides enough details",
-			If:          c.Not(c.AuthorInTeam(gh, "core-contributors")),
-			Teams:       Teams{"core-contributors"},
+			If: c.And(
+				c.Not(c.AuthorInTeam(gh, "core-contributors")),
+				c.Not(c.Author("dependabot[bot]")),
+			),
+			Teams: Teams{"core-contributors"},
 		},
 		{
 			Description: "Determine if infra needs to be updated before merging",
 			If: c.And(
-				c.BaseBranch("master"),
+				c.BaseBranch("^master$"),
 				c.Or(
 					c.FileChanged(gh, `Dockerfile`),
 					c.FileChanged(gh, `^misc/deployments`),
 					c.FileChanged(gh, `^misc/docker-`),
 					c.FileChanged(gh, `^.github/workflows/releaser.*\.yml$`),
-					c.FileChanged(gh, `^.github/workflows/portal-loop\.yml$`),
+					c.FileChanged(gh, `^.github/workflows/staging\.yml$`),
 				),
 			),
 			Teams: Teams{"devops"},

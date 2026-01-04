@@ -1,13 +1,11 @@
 package main
 
-import (
-	"std"
-)
+import "chain/runtime"
 
 func main() {
-	caller1 := std.GetCallerAt(1)
-	println(caller1)
+	realm1 := runtime.CurrentRealm()
+	println(realm1)
 }
 
 // Output:
-// g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// CodeRealm{ g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4, main }

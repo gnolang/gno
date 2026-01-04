@@ -20,6 +20,9 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -34,7 +37,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const nodeMaxLifespan = time.Second * 30
+const nodeMaxLifespan = time.Second * 120
+
+var defaultUserBalance = std.Coins{std.NewCoin(ugnot.Denom, 10e8)}
 
 type envKey int
 
@@ -45,6 +50,8 @@ const (
 	envKeyPrivValKey
 	envKeyExecCommand
 	envKeyExecBin
+	envKeyBase
+	envKeyStdinBuffer
 )
 
 type commandkind int
@@ -71,6 +78,8 @@ type tNodeProcess struct {
 type NodesManager struct {
 	nodes map[string]*tNodeProcess
 	mu    sync.RWMutex
+
+	sequentialMu sync.RWMutex
 }
 
 // NewNodesManager creates a new instance of NodesManager.
@@ -158,12 +167,17 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		}
 
 		kb.ImportPrivKey(DefaultAccount_Name, defaultPK, "")
-		env.Setenv("USER_SEED_"+DefaultAccount_Name, DefaultAccount_Seed)
-		env.Setenv("USER_ADDR_"+DefaultAccount_Name, DefaultAccount_Address)
+		env.Setenv(DefaultAccount_Name+"_user_seed", DefaultAccount_Seed)
+		env.Setenv(DefaultAccount_Name+"_user_addr", DefaultAccount_Address)
 
 		// New private key
 		env.Values[envKeyPrivValKey] = ed25519.GenPrivKey()
+
+		// Set gno dbdir
 		env.Setenv("GNO_DBDIR", dbdir)
+
+		// Setup account store
+		env.Values[envKeyBase] = kb
 
 		// Generate node short id
 		var sid string
@@ -174,20 +188,19 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 			env.Setenv("SID", sid)
 		}
 
-		balanceFile := LoadDefaultGenesisBalanceFile(t, gnoRootDir)
-		genesisParamFile := LoadDefaultGenesisParamFile(t, gnoRootDir)
-
 		// Track new user balances added via the `adduser`
 		// command and packages added with the `loadpkg` command.
 		// This genesis will be use when node is started.
-		genesis := &gnoland.GnoGenesisState{
-			Balances: balanceFile,
-			Params:   genesisParamFile,
-			Txs:      []gnoland.TxWithMetadata{},
-		}
 
-		env.Values[envKeyGenesis] = genesis
+		genesis := gnoland.DefaultGenState()
+		genesis.Balances = LoadDefaultGenesisBalanceFile(t, gnoRootDir)
+		genesis.Auth.Params.InitialGasPrice = std.GasPrice{Gas: 0, Price: std.Coin{Amount: 0, Denom: "ugnot"}}
+		genesis.Txs = []gnoland.TxWithMetadata{}
+		LoadDefaultGenesisParamFile(t, gnoRootDir, &genesis)
+
+		env.Values[envKeyGenesis] = &genesis
 		env.Values[envKeyPkgsLoader] = NewPkgsLoader()
+		env.Values[envKeyStdinBuffer] = new(strings.Builder)
 
 		env.Setenv("GNOROOT", gnoRootDir)
 		env.Setenv("GNOHOME", gnoHomeDir)
@@ -215,6 +228,8 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		"adduserfrom": adduserfromCmd(nodesManager),
 		"patchpkg":    patchpkgCmd(),
 		"loadpkg":     loadpkgCmd(gnoRootDir),
+		"scanf":       loadpkgCmd(gnoRootDir),
+		"input":       inputCmd(),
 	}
 
 	// Initialize cmds map if needed
@@ -263,41 +278,72 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			// directly or use the config command for this.
 			fs := flag.NewFlagSet("start", flag.ContinueOnError)
 			nonVal := fs.Bool("non-validator", false, "set up node as a non-validator")
+			lockTransfer := fs.Bool("lock-transfer", false, "lock transfer ugnot")
+			noParallel := fs.Bool("no-parallel", false, "don't run this node in parallel with other testing nodes")
 			if err := fs.Parse(cmdargs); err != nil {
 				ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 			}
 
 			pkgs := ts.Value(envKeyPkgsLoader).(*PkgsLoader)
 			defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-			pkgsTxs, err := pkgs.LoadPackages(defaultPK, defaultFee, nil)
+			pkgsTxs, err := pkgs.GenerateTxs(defaultPK, defaultFee, nil)
 			if err != nil {
 				ts.Fatalf("unable to load packages txs: %s", err)
 			}
 
 			cfg := TestingMinimalNodeConfig(gnoRootDir)
-			genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
-			genesis.Txs = append(pkgsTxs, genesis.Txs...)
+			tsGenesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
+			genesis := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
+			genesis.Txs = append(genesis.Txs, append(pkgsTxs, tsGenesis.Txs...)...)
+			genesis.Balances = append(genesis.Balances, tsGenesis.Balances...)
+			if *lockTransfer {
+				genesis.Bank.Params.RestrictedDenoms = []string{"ugnot"}
+			}
+			genesis.VM.RealmParams = append(genesis.VM.RealmParams, tsGenesis.VM.RealmParams...)
 
-			cfg.Genesis.AppState = *genesis
+			cfg.Genesis.AppState = genesis
 			if *nonVal {
-				pv := gnoland.NewMockedPrivValidator()
+				pv := bft.NewMockPV()
+				pvPubKey := pv.PubKey()
 				cfg.Genesis.Validators = []bft.GenesisValidator{
 					{
-						Address: pv.GetPubKey().Address(),
-						PubKey:  pv.GetPubKey(),
+						Address: pvPubKey.Address(),
+						PubKey:  pvPubKey,
 						Power:   10,
 						Name:    "none",
 					},
 				}
 			}
 
+			if *noParallel {
+				// The reason for this is that a direct Lock() on the RWMutex
+				// can too easily create "splits", which are inefficient;
+				// for instance: 10 parallel tests, one sequential test, 10 parallel tests.
+				// Instead, TryLock() does not "request" the lock to be
+				// transferred to the caller, so any incoming RLock() will be
+				// given if there are other RLocks.
+				// There is probably a better way to do this without using this hack;
+				// however, this should be done if -no-parallel is actually
+				// adopted in a variety of tests.
+				for !nodesManager.sequentialMu.TryLock() {
+					time.Sleep(time.Millisecond * 10)
+				}
+				ts.Defer(nodesManager.sequentialMu.Unlock)
+			} else {
+				nodesManager.sequentialMu.RLock()
+				ts.Defer(nodesManager.sequentialMu.RUnlock)
+			}
+
 			ctx, cancel := context.WithTimeout(context.Background(), nodeMaxLifespan)
 			ts.Defer(cancel)
+
+			start := time.Now()
 
 			dbdir := ts.Getenv("GNO_DBDIR")
 			priv := ts.Value(envKeyPrivValKey).(ed25519.PrivKeyEd25519)
 			nodep := setupNode(ts, ctx, &ProcessNodeConfig{
 				ValidatorKey: priv,
+				Verbose:      false,
 				DBDir:        dbdir,
 				RootDir:      gnoRootDir,
 				TMConfig:     cfg.TMConfig,
@@ -305,9 +351,12 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			})
 
 			nodesManager.Set(sid, &tNodeProcess{NodeProcess: nodep, cfg: cfg})
-
 			ts.Setenv("RPC_ADDR", nodep.Address())
-			fmt.Fprintln(ts.Stdout(), "node started successfully")
+
+			// Load user infos
+			loadUserEnv(ts, nodep.Address())
+
+			fmt.Fprintf(ts.Stdout(), "node started successfully, took %s\n", time.Since(start).String())
 
 		case "restart":
 			node, exists := nodesManager.Get(sid)
@@ -316,7 +365,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 				break
 			}
 
-			if err := node.Stop(); err != nil {
+			if err = node.Stop(); err != nil {
 				err = fmt.Errorf("unable to stop the node gracefully: %w", err)
 				break
 			}
@@ -337,6 +386,9 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			ts.Setenv("RPC_ADDR", nodep.Address())
 			nodesManager.Set(sid, &tNodeProcess{NodeProcess: nodep, cfg: node.cfg})
 
+			// Load user infos
+			loadUserEnv(ts, nodep.Address())
+
 			fmt.Fprintln(ts.Stdout(), "node restarted successfully")
 
 		case "stop":
@@ -346,7 +398,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 				break
 			}
 
-			if err := node.Stop(); err != nil {
+			if err = node.Stop(); err != nil {
 				err = fmt.Errorf("unable to stop the node gracefully: %w", err)
 				break
 			}
@@ -379,7 +431,13 @@ func gnokeyCmd(nodes *NodesManager) func(ts *testscript.TestScript, neg bool, ar
 		io.SetErr(commands.WriteNopCloser(ts.Stderr()))
 		cmd := keyscli.NewRootCmd(io, client.DefaultBaseOptions)
 
-		io.SetIn(strings.NewReader("\n"))
+		// Use stdin buffer if available, otherwise default to newline
+		if stdinBuf, ok := ts.Value(envKeyStdinBuffer).(*strings.Builder); ok && stdinBuf.Len() > 0 {
+			io.SetIn(strings.NewReader(stdinBuf.String()))
+			stdinBuf.Reset() // Clear buffer after use
+		} else {
+			io.SetIn(strings.NewReader("\n"))
+		}
 		defaultArgs := []string{
 			"-home", gnoHomeDir,
 			"-insecure-password-stdin=true",
@@ -419,7 +477,16 @@ func adduserCmd(nodesManager *NodesManager) func(ts *testscript.TestScript, neg 
 			ts.Fatalf("unable to get keybase")
 		}
 
-		balance, err := createAccount(ts, kb, args[0])
+		coins := defaultUserBalance
+		if len(args) > 1 {
+			// parse coins from string
+			coins, err = std.ParseCoins(args[1])
+			if err != nil {
+				ts.Fatalf("unable to parse coins: %s", err)
+			}
+		}
+
+		balance, err := createAccount(ts, kb, args[0], coins)
 		if err != nil {
 			ts.Fatalf("error creating account %s: %s", args[0], err)
 		}
@@ -464,7 +531,7 @@ func adduserfromCmd(nodesManager *NodesManager) func(ts *testscript.TestScript, 
 			ts.Fatalf("unable to get keybase")
 		}
 
-		balance, err := createAccountFrom(ts, kb, args[0], args[1], uint32(account), uint32(index))
+		balance, err := createAccountFrom(ts, kb, args[0], args[1], defaultUserBalance, uint32(account), uint32(index))
 		if err != nil {
 			ts.Fatalf("error creating wallet %s", err)
 		}
@@ -500,20 +567,20 @@ func loadpkgCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, arg
 
 		pkgs := ts.Value(envKeyPkgsLoader).(*PkgsLoader)
 
-		var path, name string
+		var dir, path string
 		switch len(args) {
 		case 2:
-			name = args[0]
-			path = filepath.Clean(args[1])
+			path = args[0]
+			dir = filepath.Clean(args[1])
 		case 1:
-			path = filepath.Clean(args[0])
+			dir = filepath.Clean(args[0])
 		case 0:
 			ts.Fatalf("`loadpkg`: no arguments specified")
 		default:
 			ts.Fatalf("`loadpkg`: too many arguments specified")
 		}
 
-		if path == "all" {
+		if dir == "all" {
 			ts.Logf("warning: loading all packages")
 			if err := pkgs.LoadAllPackagesFromDir(examplesDir); err != nil {
 				ts.Fatalf("unable to load packages from %q: %s", examplesDir, err)
@@ -522,16 +589,74 @@ func loadpkgCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, arg
 			return
 		}
 
-		if !strings.HasPrefix(path, workDir) {
-			path = filepath.Join(examplesDir, path)
+		if !strings.HasPrefix(dir, workDir) {
+			dir = filepath.Join(examplesDir, dir)
 		}
 
-		if err := pkgs.LoadPackage(examplesDir, path, name); err != nil {
+		if err := pkgs.LoadPackage(examplesDir, dir, path); err != nil {
 			ts.Fatalf("`loadpkg` unable to load package(s) from %q: %s", args[0], err)
 		}
 
 		ts.Logf("%q package was added to genesis", args[0])
 	}
+}
+
+func loadUserEnv(ts *testscript.TestScript, remote string) error {
+	const path = "auth/accounts"
+
+	// List all accounts
+	kb := ts.Value(envKeyBase).(keys.Keybase)
+	accounts, err := kb.List()
+	if err != nil {
+		ts.Fatalf("query accounts: unable to list keys: %s", err)
+	}
+
+	cli, err := rpcclient.NewHTTPClient(remote)
+	if err != nil {
+		return fmt.Errorf("unable create rpc client %q: %w", remote, err)
+	}
+
+	batch := cli.NewBatch()
+	for _, account := range accounts {
+		accountPath := filepath.Join(path, account.GetAddress().String())
+		if err := batch.ABCIQuery(accountPath, []byte{}); err != nil {
+			return fmt.Errorf("unable to create query request: %w", err)
+		}
+	}
+
+	batchRes, err := batch.Send(context.Background())
+	if err != nil {
+		return fmt.Errorf("unable to query accounts: %w", err)
+	}
+
+	if len(batchRes) != len(accounts) {
+		ts.Fatalf("query accounts: len(res) != len(accounts)")
+	}
+
+	for i, res := range batchRes {
+		account := accounts[i]
+		name := account.GetName()
+		qres := res.(*ctypes.ResultABCIQuery)
+
+		if err := qres.Response.Error; err != nil {
+			ts.Fatalf("query account %q error: %s", account.GetName(), err.Error())
+		}
+
+		var qret struct{ BaseAccount std.BaseAccount }
+		if err = amino.UnmarshalJSON(qres.Response.Data, &qret); err != nil {
+			ts.Fatalf("query account %q unarmshal error: %s", account.GetName(), err.Error())
+		}
+
+		strAccountNumber := strconv.Itoa(int(qret.BaseAccount.GetAccountNumber()))
+		ts.Setenv(name+"_account_num", strAccountNumber)
+		ts.Logf("[%q] account number: %s", name, strAccountNumber)
+
+		strAccountSequence := strconv.Itoa(int(qret.BaseAccount.GetSequence()))
+		ts.Setenv(name+"_account_seq", strAccountSequence)
+		ts.Logf("[%q] account sequence: %s", name, strAccountNumber)
+	}
+
+	return nil
 }
 
 type tsLogWriter struct {
@@ -589,94 +714,8 @@ func setupNode(ts *testscript.TestScript, ctx context.Context, cfg *ProcessNodeC
 	return nil
 }
 
-// `unquote` takes a slice of strings, resulting from splitting a string block by spaces, and
-// processes them. The function handles quoted phrases and escape characters within these strings.
-func unquote(args []string) ([]string, error) {
-	const quote = '"'
-
-	parts := []string{}
-	var inQuote bool
-
-	var part strings.Builder
-	for _, arg := range args {
-		var escaped bool
-		for _, c := range arg {
-			if escaped {
-				// If the character is meant to be escaped, it is processed with Unquote.
-				// We use `Unquote` here for two main reasons:
-				// 1. It will validate that the escape sequence is correct
-				// 2. It converts the escaped string to its corresponding raw character.
-				//    For example, "\\t" becomes '\t'.
-				uc, err := strconv.Unquote(`"\` + string(c) + `"`)
-				if err != nil {
-					return nil, fmt.Errorf("unhandled escape sequence `\\%c`: %w", c, err)
-				}
-
-				part.WriteString(uc)
-				escaped = false
-				continue
-			}
-
-			// If we are inside a quoted string and encounter an escape character,
-			// flag the next character as `escaped`
-			if inQuote && c == '\\' {
-				escaped = true
-				continue
-			}
-
-			// Detect quote and toggle inQuote state
-			if c == quote {
-				inQuote = !inQuote
-				continue
-			}
-
-			// Handle regular character
-			part.WriteRune(c)
-		}
-
-		// If we're inside a quote, add a single space.
-		// It reflects one or multiple spaces between args in the original string.
-		if inQuote {
-			part.WriteRune(' ')
-			continue
-		}
-
-		// Finalize part, add to parts, and reset for next part
-		parts = append(parts, part.String())
-		part.Reset()
-	}
-
-	// Check if a quote is left open
-	if inQuote {
-		return nil, errors.New("unfinished quote")
-	}
-
-	return parts, nil
-}
-
-func getNodeSID(ts *testscript.TestScript) string {
-	return ts.Getenv("SID")
-}
-
-func tsValidateError(ts *testscript.TestScript, cmd string, neg bool, err error) {
-	if err != nil {
-		fmt.Fprintf(ts.Stderr(), "%q error: %+v\n", cmd, err)
-		if !neg {
-			ts.Fatalf("unexpected %q command failure: %s", cmd, err)
-		}
-	} else {
-		if neg {
-			ts.Fatalf("unexpected %q command success", cmd)
-		}
-	}
-}
-
-type envSetter interface {
-	Setenv(key, value string)
-}
-
 // createAccount creates a new account with the given name and adds it to the keybase.
-func createAccount(env envSetter, kb keys.Keybase, accountName string) (gnoland.Balance, error) {
+func createAccount(ts *testscript.TestScript, kb keys.Keybase, accountName string, coins std.Coins) (gnoland.Balance, error) {
 	var balance gnoland.Balance
 	entropy, err := bip39.NewEntropy(256)
 	if err != nil {
@@ -688,23 +727,11 @@ func createAccount(env envSetter, kb keys.Keybase, accountName string) (gnoland.
 		return balance, fmt.Errorf("error generating mnemonic: %w", err)
 	}
 
-	var keyInfo keys.Info
-	if keyInfo, err = kb.CreateAccount(accountName, mnemonic, "", "", 0, 0); err != nil {
-		return balance, fmt.Errorf("unable to create account: %w", err)
-	}
-
-	address := keyInfo.GetAddress()
-	env.Setenv("USER_SEED_"+accountName, mnemonic)
-	env.Setenv("USER_ADDR_"+accountName, address.String())
-
-	return gnoland.Balance{
-		Address: address,
-		Amount:  std.Coins{std.NewCoin(ugnot.Denom, 10e6)},
-	}, nil
+	return createAccountFrom(ts, kb, accountName, mnemonic, coins, 0, 0)
 }
 
 // createAccountFrom creates a new account with the given metadata and adds it to the keybase.
-func createAccountFrom(env envSetter, kb keys.Keybase, accountName, mnemonic string, account, index uint32) (gnoland.Balance, error) {
+func createAccountFrom(ts *testscript.TestScript, kb keys.Keybase, accountName, mnemonic string, coins std.Coins, account, index uint32) (gnoland.Balance, error) {
 	var balance gnoland.Balance
 
 	// check if mnemonic is valid
@@ -718,12 +745,12 @@ func createAccountFrom(env envSetter, kb keys.Keybase, accountName, mnemonic str
 	}
 
 	address := keyInfo.GetAddress()
-	env.Setenv("USER_SEED_"+accountName, mnemonic)
-	env.Setenv("USER_ADDR_"+accountName, address.String())
+	ts.Setenv(accountName+"_user_seed", mnemonic)
+	ts.Setenv(accountName+"_user_addr", address.String())
 
 	return gnoland.Balance{
 		Address: address,
-		Amount:  std.Coins{std.NewCoin(ugnot.Denom, 10e6)},
+		Amount:  coins,
 	}, nil
 }
 
@@ -786,4 +813,43 @@ func GeneratePrivKeyFromMnemonic(mnemonic, bip39Passphrase string, account, inde
 	// Convert to secp256k1 private key
 	privKey := secp256k1.PrivKeySecp256k1(derivedPriv)
 	return privKey, nil
+}
+
+func getNodeSID(ts *testscript.TestScript) string {
+	return ts.Getenv("SID")
+}
+
+func inputCmd() func(ts *testscript.TestScript, neg bool, args []string) {
+	return func(ts *testscript.TestScript, neg bool, args []string) {
+		if neg {
+			ts.Fatalf("input command does not support negation")
+		}
+
+		if len(args) == 0 {
+			ts.Fatalf("input requires at least one argument")
+		}
+
+		// Get or create stdin buffer
+		stdinBuf, ok := ts.Value(envKeyStdinBuffer).(*strings.Builder)
+		if !ok {
+			ts.Fatalf("stdin buffer not initialized")
+		}
+
+		// Join all arguments with spaces and add newline
+		content := strings.Join(args, " ") + "\n"
+		stdinBuf.WriteString(content)
+	}
+}
+
+func tsValidateError(ts *testscript.TestScript, cmd string, neg bool, err error) {
+	if err != nil {
+		fmt.Fprintf(ts.Stderr(), "%q error: %+v\n", cmd, err)
+		if !neg {
+			ts.Fatalf("unexpected %q command failure: %s", cmd, err)
+		}
+	} else {
+		if neg {
+			ts.Fatalf("unexpected %q command success", cmd)
+		}
+	}
 }

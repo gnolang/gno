@@ -28,8 +28,16 @@ func TestRunApp(t *testing.T) {
 			stdoutShouldContain: "hello, other world!",
 		},
 		{
-			args:                 []string{"run", "../../tests/integ/run_package"},
-			recoverShouldContain: "name main not declared",
+			args:             []string{"run", "../../tests/integ/run_package"},
+			errShouldContain: "name main not declared",
+		},
+		{
+			args:             []string{"run", "../../tests/integ/package_mismatched"},
+			errShouldContain: "found mismatched packages",
+		},
+		{
+			args:             []string{"run", "../../tests/integ/run_main/main.gno", "../../tests/integ/run_namedpkg"},
+			errShouldContain: "found mismatched packages",
 		},
 		{
 			args:                []string{"run", "-expr", "Hello()", "../../tests/integ/run_package"},
@@ -48,7 +56,7 @@ func TestRunApp(t *testing.T) {
 				"run", "-expr", "otherFile()",
 				"../../tests/integ/run_package/package.gno",
 			},
-			recoverShouldContain: "name otherFile not declared",
+			errShouldContain: "name otherFile not declared",
 		},
 		{
 			args: []string{
@@ -65,10 +73,6 @@ func TestRunApp(t *testing.T) {
 		{
 			args:                []string{"run", "-expr", "WithArg(-255)", "../../tests/integ/run_package"},
 			stdoutShouldContain: "out of range!",
-		},
-		{
-			args:                 []string{"run", "../../tests/integ/undefined_variable_test/undefined_variables_test.gno"},
-			recoverShouldContain: "--- preprocess stack ---", // should contain preprocess debug stack trace
 		},
 		{
 			args:                []string{"run", "-debug", "../../tests/integ/debugger/sample.gno"},
@@ -90,16 +94,23 @@ func TestRunApp(t *testing.T) {
 			args: []string{"run", "../../tests/integ/several-files-multiple-errors/"},
 			stderrShouldContain: func() string {
 				lines := []string{
-					"../../tests/integ/several-files-multiple-errors/file2.gno:3:5: expected 'IDENT', found '{' (code=2)",
-					"../../tests/integ/several-files-multiple-errors/file2.gno:5:1: expected type, found '}' (code=2)",
-					"../../tests/integ/several-files-multiple-errors/main.gno:5:5: expected ';', found example (code=2)",
-					"../../tests/integ/several-files-multiple-errors/main.gno:6:2: expected '}', found 'EOF' (code=2)",
+					"../../tests/integ/several-files-multiple-errors/file2.gno:3:5: expected 'IDENT', found '{' (code=gnoParserError)",
+					"../../tests/integ/several-files-multiple-errors/file2.gno:5:1: expected type, found '}' (code=gnoParserError)",
+					"../../tests/integ/several-files-multiple-errors/main.gno:5:5: expected ';', found example (code=gnoParserError)",
+					"../../tests/integ/several-files-multiple-errors/main.gno:6:2: expected '}', found 'EOF' (code=gnoParserError)",
 				}
 				return strings.Join(lines, "\n") + "\n"
 			}(),
 			errShouldBe: "exit code: 1",
 		},
-		// TODO: a test file
+		{
+			args:             []string{"run", "../../tests/integ/undefined_variable/undefined_variables_test.gno"},
+			errShouldContain: "gno run: cannot run test files (undefined_variables_test.gno)",
+		},
+		{
+			args:             []string{"run", "../../tests/integ/package_testonly"},
+			errShouldContain: "no non-test Gno files in ../../tests/integ/package_testonly",
+		},
 		// TODO: args
 		// TODO: nativeLibs VS stdlibs
 		// TODO: with gas meter

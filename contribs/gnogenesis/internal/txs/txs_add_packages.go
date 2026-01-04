@@ -18,7 +18,6 @@ import (
 
 const (
 	defaultAccount_Name      = "test1"
-	defaultAccount_Address   = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 	defaultAccount_Seed      = "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
 	defaultAccount_publicKey = "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj"
 )
@@ -26,7 +25,7 @@ const (
 var errInvalidPackageDir = errors.New("invalid package directory")
 
 // Keep in sync with gno.land/cmd/start.go
-var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1)))
 
 type addPkgCfg struct {
 	txsCfg                *txsCfg
@@ -84,10 +83,11 @@ func execTxsAddPackages(
 	args []string,
 ) error {
 	var (
-		keyname = defaultAccount_Name
+		keyName = defaultAccount_Name
 		keybase keys.Keybase
 		pass    string
 	)
+
 	// Load the genesis
 	genesis, err := types.GenesisDocFromFile(cfg.txsCfg.GenesisPath)
 	if err != nil {
@@ -100,7 +100,7 @@ func execTxsAddPackages(
 	}
 
 	if cfg.keyName != "" {
-		keyname = cfg.keyName
+		keyName = cfg.keyName
 		keybase, err = keys.NewKeyBaseFromDir(cfg.gnoHome)
 		if err != nil {
 			return fmt.Errorf("unable to load keybase: %w", err)
@@ -117,7 +117,7 @@ func execTxsAddPackages(
 		}
 	}
 
-	info, err := keybase.GetByNameOrAddress(keyname)
+	info, err := keybase.GetByNameOrAddress(keyName)
 	if err != nil {
 		return fmt.Errorf("unable to find key in keybase: %w", err)
 	}
@@ -131,7 +131,7 @@ func execTxsAddPackages(
 			return fmt.Errorf("unable to load txs from directory, %w", err)
 		}
 
-		if err := signTxs(txs, keybase, genesis.ChainID, keyname, pass); err != nil {
+		if err := signTxs(txs, keybase, genesis.ChainID, keyName, pass); err != nil {
 			return fmt.Errorf("unable to sign txs, %w", err)
 		}
 

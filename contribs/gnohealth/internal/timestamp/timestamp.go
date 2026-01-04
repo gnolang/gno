@@ -35,7 +35,7 @@ func NewTimestampCmd(io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "timestamp",
-			ShortUsage: "[flags]",
+			ShortUsage: "timestamp [flags]",
 			ShortHelp:  "check if block timestamps are drifting",
 			LongHelp:   "This command checks if block timestamps are drifting on a blockchain by connecting to a specified node via RPC.",
 		},
@@ -128,7 +128,7 @@ func execTimestamp(cfg *timestampCfg, io commands.IO) error {
 
 		case <-ticker.C:
 			// Fetch the latest block number from the chain
-			status, err := client.Status()
+			status, err := client.Status(context.Background(), nil)
 			if err != nil {
 				return fmt.Errorf("unable to fetch latest block number: %w", err)
 			}
@@ -141,7 +141,7 @@ func execTimestamp(cfg *timestampCfg, io commands.IO) error {
 			}
 
 			// Fetch the latest block from the chain
-			lastBlock, err := client.Block(&latest)
+			lastBlock, err := client.Block(context.Background(), &latest)
 			if err != nil {
 				return fmt.Errorf("unable to fetch latest block content: %w", err)
 			}

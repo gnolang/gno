@@ -8,9 +8,9 @@ import (
 	"os"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
@@ -19,7 +19,9 @@ import (
 )
 
 type MakeRunCfg struct {
-	RootCfg *client.MakeTxCfg
+	RootCfg    *client.MakeTxCfg
+	Send       string
+	MaxDeposit string
 }
 
 func NewMakeRunCmd(rootCfg *client.MakeTxCfg, cmdio commands.IO) *commands.Command {
@@ -40,7 +42,20 @@ func NewMakeRunCmd(rootCfg *client.MakeTxCfg, cmdio commands.IO) *commands.Comma
 	)
 }
 
-func (c *MakeRunCfg) RegisterFlags(fs *flag.FlagSet) {}
+func (c *MakeRunCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.Send,
+		"send",
+		"",
+		"send amount",
+	)
+	fs.StringVar(
+		&c.MaxDeposit,
+		"max-deposit",
+		"",
+		"max storage deposit",
+	)
+}
 
 func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	if len(args) != 2 {
@@ -67,6 +82,18 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	}
 	caller := info.GetAddress()
 
+	// Parse send amount.
+	send, err := std.ParseCoins(cfg.Send)
+	if err != nil {
+		return errors.Wrap(err, "parsing send coins")
+	}
+
+	// Parse deposit amount
+	deposit, err := std.ParseCoins(cfg.MaxDeposit)
+	if err != nil {
+		return errors.Wrap(err, "parsing storage deposit coins")
+	}
+
 	// parse gas wanted & fee.
 	gaswanted := cfg.RootCfg.GasWanted
 	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
@@ -74,13 +101,13 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 		return errors.Wrap(err, "parsing gas fee coin")
 	}
 
-	memPkg := &gnovm.MemPackage{}
+	memPkg := &std.MemPackage{}
 	if sourcePath == "-" { // stdin
 		data, err := io.ReadAll(cmdio.In())
 		if err != nil {
 			return fmt.Errorf("could not read stdin: %w", err)
 		}
-		memPkg.Files = []*gnovm.MemFile{
+		memPkg.Files = []*std.MemFile{
 			{
 				Name: "stdin.gno",
 				Body: string(data),
@@ -92,13 +119,13 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 			return fmt.Errorf("could not read source path: %q, %w", sourcePath, err)
 		}
 		if info.IsDir() {
-			memPkg = gno.MustReadMemPackage(sourcePath, "")
+			memPkg = gno.MustReadMemPackage(sourcePath, "", gno.MPUserProd)
 		} else { // is file
 			b, err := os.ReadFile(sourcePath)
 			if err != nil {
 				return fmt.Errorf("could not read %q: %w", sourcePath, err)
 			}
-			memPkg.Files = []*gnovm.MemFile{
+			memPkg.Files = []*std.MemFile{
 				{
 					Name: info.Name(),
 					Body: string(b),
@@ -106,18 +133,21 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 			}
 		}
 	}
+
+	memPkg.Name = "main"
 	if memPkg.IsEmpty() {
 		panic(fmt.Sprintf("found an empty package %q", memPkg.Path))
 	}
 
-	memPkg.Name = "main"
 	// Set to empty; this will be automatically set by the VM keeper.
 	memPkg.Path = ""
 
 	// construct msg & tx and marshal.
 	msg := vm.MsgRun{
-		Caller:  caller,
-		Package: memPkg,
+		Caller:     caller,
+		Package:    memPkg,
+		Send:       send,
+		MaxDeposit: deposit,
 	}
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},
@@ -127,6 +157,9 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	}
 
 	if cfg.RootCfg.Broadcast {
+		cfg.RootCfg.RootCfg.OnTxSuccess = func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
+			PrintTxInfo(tx, res, cmdio)
+		}
 		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, cmdio)
 		if err != nil {
 			return err

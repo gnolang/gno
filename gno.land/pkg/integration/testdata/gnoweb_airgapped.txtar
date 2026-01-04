@@ -2,40 +2,57 @@
 # help page, work as intended.
 
 # load the package from $WORK directory
-loadpkg gno.land/r/demo/echo
+loadpkg gno.land/r/realm $WORK/realm
+
+# add a random user
+adduserfrom user1 'lamp any denial pulse used shoot gap error denial mansion hurry foot solution grab winner congress drastic cat bamboo chicken color digital coffee unknown'
+stdout 'g1meuazsmy8ztaz2xpuyraqq4axy6s00ycl07zva'
 
 # start the node
 gnoland start
 
 # Query account
-gnokey query auth/accounts/${USER_ADDR_test1}
+gnokey query auth/accounts/g1meuazsmy8ztaz2xpuyraqq4axy6s00ycl07zva
 stdout 'height: 0'
 stdout 'data: {'
 stdout '  "BaseAccount": {'
-stdout '    "address": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",'
+stdout '    "address": "g1meuazsmy8ztaz2xpuyraqq4axy6s00ycl07zva",'
 stdout '    "coins": "[0-9]*ugnot",' # dynamic
-stdout '    "public_key": {'
-stdout '      "@type": "/tm.PubKeySecp256k1",'
-stdout '      "value": "A\+FhNtsXHjLfSJk1lB8FbiL4mGPjc50Kt81J7EKDnJ2y"'
-stdout '    },'
-stdout '    "account_number": "0",'
-stdout '    "sequence": "4"'
+stdout '    "public_key": null,'
+stdout '    "account_number": "58",'
+stdout '    "sequence": "0"'
 stdout '  }'
 stdout '}'
 ! stderr '.+' # empty
 
 # Create transaction
-gnokey maketx call -pkgpath "gno.land/r/demo/echo" -func "Render" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "" -args "HELLO" test1
+gnokey maketx call -pkgpath "gno.land/r/realm" -func "SetName" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "" -args "foo" user1
 cp stdout call.tx
 
 # Sign
-gnokey sign -tx-path $WORK/call.tx -chainid "tendermint_test" -account-number 0 -account-sequence 4 test1
+gnokey sign -tx-path $WORK/call.tx -chainid "tendermint_test" -account-number 58 -account-sequence 0 user1
 cmpenv stdout sign.stdout.golden
 
 gnokey broadcast $WORK/call.tx
-stdout '("HELLO" string)'
+stdout '("foo" string)'
 stdout 'GAS WANTED: 2000000'
+
+gnokey query vm/qrender --data '"gno.land/r/realm":'
+stdout '# HELLO foo'
 
 -- sign.stdout.golden --
 
 Tx successfully signed and saved to $WORK/call.tx
+-- realm/realm.gno --
+package name
+
+var name string
+
+func SetName(cur realm, s string) string {
+	name = s
+	return name
+}
+
+func Render(_ string) string {
+	return "# HELLO " + name
+}

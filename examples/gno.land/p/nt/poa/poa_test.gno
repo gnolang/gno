@@ -3,12 +3,12 @@ package poa
 import (
 	"testing"
 
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/urequire"
 	"gno.land/p/sys/validators"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 // generateTestValidators generates a dummy validator set
@@ -153,14 +153,14 @@ func TestPoA_GetValidator(t *testing.T) {
 		t.Parallel()
 
 		var (
-			address     = testutils.TestAddress("caller")
+			address_XXX = testutils.TestAddress("caller")
 			pubKey      = "public-key"
 			votingPower = uint64(10)
 
 			initialSet = generateTestValidators(1)
 		)
 
-		initialSet[0].Address = address
+		initialSet[0].Address = address_XXX
 		initialSet[0].PubKey = pubKey
 		initialSet[0].VotingPower = votingPower
 
@@ -168,11 +168,11 @@ func TestPoA_GetValidator(t *testing.T) {
 		p := NewPoA(WithInitialSet(initialSet))
 
 		// Get the validator
-		val, err := p.GetValidator(address)
+		val, err := p.GetValidator(address_XXX)
 		urequire.NoError(t, err)
 
 		// Validate the address
-		if val.Address != address {
+		if val.Address != address_XXX {
 			t.Fatal("invalid address")
 		}
 

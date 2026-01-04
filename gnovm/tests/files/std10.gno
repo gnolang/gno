@@ -1,14 +1,15 @@
 package main
 
-import "std"
+import "chain/runtime"
 
 func main() {
 	defer func() {
-		// assert panic is recoverable
+		// assert no panic
 		println(recover())
 	}()
-	std.GetCallerAt(0)
+	println(runtime.PreviousRealm())
 }
 
 // Output:
-// GetCallerAt requires positive arg
+// UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
+// undefined

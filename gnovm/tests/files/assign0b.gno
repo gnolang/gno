@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gnolang/gno/_test/net/http"
+	"filetests/extern/net/http"
 )
 
 func main() {
@@ -14,6 +14,5 @@ func main() {
 	fmt.Println(http.DefaultClient)
 }
 
-// Output:
-// &{<nil> <nil> 10000000000}
-// &{<nil> <nil> 0}
+// Error:
+// main/assign0b.gno:13:2-20: cannot directly mutate filetests/extern/net/http.DefaultClient from main

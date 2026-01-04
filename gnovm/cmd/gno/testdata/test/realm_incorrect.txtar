@@ -3,13 +3,13 @@
 ! gno test -v .
 
 ! stdout .+ # stdout should be empty
-stderr '=== RUN   file/x_filetest.gno'
+stderr '=== RUN   ./x_filetest.gno'
 stderr 'Realm diff:'
 stderr '--- Expected'
-stderr '\+\+\+ Actual'
-stderr '@@ -1,2 \+1,67 @@'
+stderr '-xxxx'
 stderr '-xxx'
-stderr '\+switchrealm\["gno.land/r/xx"\]'
+stderr '\+finalizerealm\["gno.land/r/xx"\]'
+stderr '\+    @@ -2,11 \+2,12 @@'
 stderr 'x_filetest.gno failed'
 
 -- x_filetest.gno --
@@ -18,9 +18,14 @@ package xx
 
 var x int
 
-func main() {
+func main(cur realm) {
 	x = 1
 }
 
 // Realm:
 // xxxx
+
+
+-- gnomod.toml --
+module = "gno.test/r/integ/realm_incorrect"
+gno = "0.9"

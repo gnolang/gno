@@ -20,7 +20,7 @@ func benchmarkOpCodes(bstore gno.Store, dir string) {
 	opcodesPkgDir := filepath.Join(dir, "opcodes")
 
 	pv := addPackage(bstore, opcodesPkgDir, opcodesPkgPath)
-	for i := 0; i < rounds; i++ {
+	for range rounds {
 		callOpsBench(bstore, pv)
 	}
 }
@@ -41,7 +41,7 @@ const storagePkgPath = "gno.land/r/x/benchmark/storage"
 func benchmarkStorage(bstore BenchStore, dir string) {
 	gs := bstore.gnoStore
 	avlPkgDir := filepath.Join(dir, "avl")
-	addPackage(gs, avlPkgDir, "gno.land/p/demo/avl")
+	addPackage(gs, avlPkgDir, "gno.land/p/nt/avl")
 
 	storagePkgDir := filepath.Join(dir, "storage")
 	pv := addPackage(gs, storagePkgDir, storagePkgPath)
@@ -56,7 +56,7 @@ func benchStoreSet(bstore BenchStore, pv *gno.PackageValue) {
 	// in forum.gno: func AddPost(title, content string)
 	// one AddPost will be added to three different boards in the forum.gno contract
 
-	for i := 0; i < rounds; i++ {
+	for range rounds {
 		cx := gno.Call("AddPost", gno.Str(title), gno.Str(content))
 		callFunc(bstore.gnoStore, pv, cx)
 		bstore.Write()
@@ -67,8 +67,8 @@ func benchStoreSet(bstore BenchStore, pv *gno.PackageValue) {
 func benchStoreGet(bstore BenchStore, pv *gno.PackageValue) {
 	// in forum.gno: func GetPost(boardId, postId int) string  in forum.gno
 	// there are three different boards on the benchmarking forum contract
-	for i := 0; i < 3; i++ {
-		for j := 0; j < rounds; j++ {
+	for i := range 3 {
+		for j := range rounds {
 			cx := gno.Call("GetPost", gno.X(i), gno.X(j))
 			callFunc(bstore.gnoStore, pv, cx)
 			bstore.Write()
@@ -77,6 +77,16 @@ func benchStoreGet(bstore BenchStore, pv *gno.PackageValue) {
 	}
 }
 
+const nativePkgPath = "gno.land/r/x/benchmark/native"
+
+func benchmarkNative(bstore gno.Store, dir string) {
+	nativePkgDir := filepath.Join(dir, "native")
+
+	pv := addPackage(bstore, nativePkgDir, nativePkgPath)
+	for range rounds {
+		callOpsBench(bstore, pv)
+	}
+}
 func callFunc(gstore gno.Store, pv *gno.PackageValue, cx gno.Expr) []gno.TypedValue {
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -103,10 +113,10 @@ func addPackage(gstore gno.Store, dir string, pkgPath string) *gno.PackageValue 
 		})
 	defer m.Release()
 
-	memPkg := gno.MustReadMemPackage(dir, pkgPath)
+	mpkg := gno.MustReadMemPackage(dir, pkgPath, gno.MPAnyProd)
 
 	// pare the file, create pn, pv and save the values in m.store
-	_, pv := m.RunMemPackage(memPkg, true)
+	_, pv := m.RunMemPackage(mpkg, true)
 
 	return pv
 }
@@ -122,8 +132,8 @@ func loadStdlibs(bstore BenchStore) {
 			return nil, nil
 		}
 
-		memPkg := gno.MustReadMemPackage(stdlibPath, pkgPath)
-		if memPkg.IsEmpty() {
+		mpkg := gno.MustReadMemPackage(stdlibPath, pkgPath, gno.MPStdlibProd)
+		if mpkg.IsEmpty() {
 			// no gno files are present, skip this package
 			return nil, nil
 		}
@@ -135,7 +145,7 @@ func loadStdlibs(bstore BenchStore) {
 			Store:  newStore,
 		})
 		defer m2.Release()
-		return m2.RunMemPackage(memPkg, true)
+		return m2.RunMemPackage(mpkg, true)
 	}
 
 	bstore.gnoStore.SetPackageGetter(getPackage)

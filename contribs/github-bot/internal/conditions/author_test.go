@@ -91,3 +91,30 @@ func TestAuthorInTeam(t *testing.T) {
 		})
 	}
 }
+
+func TestAuthorAssociationIs(t *testing.T) {
+	t.Parallel()
+
+	for _, testCase := range []struct {
+		name            string
+		association     string
+		associationWant string
+		isMet           bool
+	}{
+		{"has", "MEMBER", "MEMBER", true},
+		{"hasNot", "COLLABORATOR", "MEMBER", false},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			pr := &github.PullRequest{
+				AuthorAssociation: github.String(testCase.association),
+			}
+			details := treeprint.New()
+			condition := AuthorAssociationIs(testCase.associationWant)
+
+			assert.Equal(t, condition.IsMet(pr, details), testCase.isMet, fmt.Sprintf("condition should have a met status: %t", testCase.isMet))
+			assert.True(t, utils.TestLastNodeStatus(t, testCase.isMet, details), fmt.Sprintf("condition details should have a status: %t", testCase.isMet))
+		})
+	}
+}

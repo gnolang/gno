@@ -1,0 +1,139 @@
+# test the storage deposit
+
+## start a new node
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/contracts -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 835100ugnot -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+
+# Users are not allowed to withdraw deposits from the realm balance via the realm banker.
+## Get realm gno.land/r/foo (g1evezrh92xaucffmtgsaa3rvmz5s8kedffsg469) balance
+gnokey maketx call -pkgpath gno.land/r/foo -func PkgAddress -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'g1evezrh92xaucffmtgsaa3rvmz5s8kedffsg469'
+stdout OK!
+
+## realm balance before realm send
+gnokey query auth/accounts/g1evezrh92xaucffmtgsaa3rvmz5s8kedffsg469
+stdout '"coins": ""'
+
+
+## Get realm gno.land/r/foo storage deposit address  balance (g1nln0nrcd20s6a2736n864ma8lac0zep8hw7th9) balance
+gnokey maketx call -pkgpath gno.land/r/foo -func StorageDepositAddress -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'g1nln0nrcd20s6a2736n864ma8lac0zep8hw7th9'
+stdout OK!
+
+gnokey query auth/accounts/g1nln0nrcd20s6a2736n864ma8lac0zep8hw7th9
+stdout '"coins": "835100ugnot"'
+
+
+## realm deposit before realm send
+gnokey query vm/qstorage --data gno.land/r/foo
+stdout 'storage: 8351, deposit: 835100'
+
+## user balance before realm send
+gnokey query auth/accounts/$test1_user_addr
+stdout '"coins": "9999996164900ugnot"'
+
+## realm send
+! gnokey maketx call -pkgpath gno.land/r/foo -func RealmSend -args $test1_user_addr -args 1  -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'insufficient coins error'
+
+## realm balance after realm send has not changed
+gnokey query auth/accounts/g1evezrh92xaucffmtgsaa3rvmz5s8kedffsg469
+stdout '"coins": ""'
+
+## realm desposit after realm send,
+gnokey query vm/qstorage --data gno.land/r/foo
+stdout 'storage: 8351, deposit: 835100'
+
+## user balance after realm send has not changed
+gnokey query auth/accounts/$test1_user_addr
+stdout '9999996164900ugnot'
+
+## realm banker send in msg run should bebehave the same.
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1 $WORK/run/realm_send.gno
+stderr 'insufficient coins error'
+
+
+# The behavior of origin banker send should remain unchanged.
+
+
+## Origin banker send within user's allowed amount
+gnokey maketx call -pkgpath gno.land/r/foo -func OriginSend  -args $test1_user_addr -args 1 -send 1ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK'
+
+## Origin banker send more than user's allowed amount
+! gnokey maketx call -pkgpath gno.land/r/foo -func OriginSend  -args $test1_user_addr -args 2 -send 1ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'cannot send "2ugnot", limit "1ugnot" exceeded'
+
+
+## Origin banker send more than user's allowed amount (no send flag specified)
+! gnokey maketx call -pkgpath gno.land/r/foo -func OriginSend  -args $test1_user_addr -args 1  -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'cannot send "1ugnot", limit "" exceeded'
+
+
+-- contracts/gnomod.toml --
+module = "gno.land/r/foo"
+
+gno = "0.9"
+
+-- contracts/storage.gno --
+package foo
+
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
+)
+
+var record Foo
+
+func init() {
+	NewFoo(cross, "hello")
+}
+
+type Foo struct {
+	name string
+}
+
+func NewFoo(cur realm, name string) {
+	record = Foo{name}
+}
+func SetName(n string) {
+	record.name = n
+}
+
+func GetName() string {
+	return record.name
+}
+
+func Clear(cur realm) {
+	record = Foo{}
+}
+func PkgAddress(cur realm) string {
+	return string(chain.PackageAddress("gno.land/r/foo"))
+}
+
+func StorageDepositAddress(cur realm) string {
+	return string(chain.DeriveStorageDepositAddr("gno.land/r/foo"))
+}
+
+func RealmSend(cur realm, to address, amt int64) {
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_.SendCoins(runtime.CurrentRealm().Address(), to, chain.Coins{{"ugnot", amt}})
+}
+
+func OriginSend(cur realm, to address, amt int64) {
+	banker_ := banker.NewBanker(banker.BankerTypeOriginSend)
+	banker_.SendCoins(runtime.CurrentRealm().Address(), to, chain.Coins{{"ugnot", amt}})
+}
+-- run/realm_send.gno --
+package main
+
+import (
+ "gno.land/r/foo"
+)
+func main() {
+	foo.RealmSend(cross,"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", 1)
+}

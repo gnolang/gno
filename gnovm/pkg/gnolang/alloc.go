@@ -1,6 +1,11 @@
 package gnolang
 
-import "reflect"
+import (
+	"fmt"
+
+	"github.com/gnolang/gno/tm2/pkg/overflow"
+	"github.com/gnolang/gno/tm2/pkg/store"
+)
 
 // Keeps track of in-memory allocations.
 // In the future, allocations within realm boundaries will be
@@ -9,6 +14,13 @@ import "reflect"
 type Allocator struct {
 	maxBytes int64
 	bytes    int64
+	// `peakBytes` represents the maximum memory
+	// usage during a single transaction, and is used
+	// to calculate the corresponding gas usage.
+	// It increases monotonically.
+	peakBytes int64
+	collect   func() (left int64, ok bool) // gc callback
+	gasMeter  store.GasMeter
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -24,17 +36,21 @@ const (
 	_allocStructValue      = 152
 	_allocArrayValue       = 176
 	_allocSliceValue       = 40
-	_allocFuncValue        = 136
+	_allocFuncValue        = 312
 	_allocMapValue         = 144
 	_allocBoundMethodValue = 176
-	_allocBlock            = 464
-	_allocNativeValue      = 48
+	_allocBlock            = 472
+	_allocPackageValue     = 240
 	_allocTypeValue        = 16
 	_allocTypedValue       = 40
+	_allocRefValue         = 72
+	_allocRefNode          = 88
 	_allocBigint           = 200 // XXX
 	_allocBigdec           = 200 // XXX
 	_allocType             = 200 // XXX
 	_allocAny              = 200 // XXX
+	_allocValue            = 16  // interface
+	_allocName             = 16  // string
 )
 
 const (
@@ -56,14 +72,16 @@ const (
 	allocBoundMethod = _allocBase + _allocPointer + _allocBoundMethodValue
 	allocBlock       = _allocBase + _allocPointer + _allocBlock
 	allocBlockItem   = _allocTypedValue
-	allocNative      = _allocBase + _allocPointer + _allocNativeValue
+	allocRefValue    = _allocBase + _allocRefValue
+	allocRefNode     = _allocBase + _allocRefNode
 	allocType        = _allocBase + _allocPointer + _allocType
-	// allocDataByte    = 1
-	// allocPackge = 1
-	allocAmino     = _allocBase + _allocPointer + _allocAny
-	allocAminoByte = 10 // XXX
-	allocHeapItem  = _allocBase + _allocPointer + _allocTypedValue
+	allocDataByte    = 1
+	allocPackage     = _allocBase + _allocPointer + _allocPackageValue
+	allocHeapItem    = _allocBase + _allocPointer + _allocTypedValue
+	allocTypedValue  = _allocTypedValue
 )
+
+const GasCostPerByte = 1 // gas cost per byte allocated
 
 func NewAllocator(maxBytes int64) *Allocator {
 	if maxBytes == 0 {
@@ -71,6 +89,22 @@ func NewAllocator(maxBytes int64) *Allocator {
 	}
 	return &Allocator{
 		maxBytes: maxBytes,
+	}
+}
+
+func (alloc *Allocator) SetGCFn(f func() (int64, bool)) {
+	alloc.collect = f
+}
+
+func (alloc *Allocator) SetGasMeter(gasMeter store.GasMeter) {
+	alloc.gasMeter = gasMeter
+}
+
+func (alloc *Allocator) MemStats() string {
+	if alloc == nil {
+		return "nil allocator"
+	} else {
+		return fmt.Sprintf("Allocator{maxBytes:%d, bytes:%d}", alloc.maxBytes, alloc.bytes)
 	}
 }
 
@@ -101,15 +135,36 @@ func (alloc *Allocator) Allocate(size int64) {
 		// this can happen for map items just prior to assignment.
 		return
 	}
+	if overflow.Addp(alloc.bytes, size) > alloc.maxBytes {
+		if left, ok := alloc.collect(); !ok {
+			panic("should not happen, allocation limit exceeded while gc.")
+		} else {
+			if debug {
+				debug.Printf("GC finished, %d left after GC, required size: %d\n", left, size)
+			}
+			// retry after GC
+			alloc.bytes += size
+			if alloc.bytes > alloc.maxBytes {
+				panic("allocation limit exceeded")
+			}
+		}
+	} else {
+		alloc.bytes += size
+	}
+	// The value of `bytes` decreases during GC, and fees
+	// are only charged when it exceeds peakBytes (again).
+	if alloc.bytes > alloc.peakBytes {
+		if alloc.gasMeter != nil {
+			change := alloc.bytes - alloc.peakBytes
+			alloc.gasMeter.ConsumeGas(overflow.Mulp(change, GasCostPerByte), "memory allocation")
+		}
 
-	alloc.bytes += size
-	if alloc.bytes > alloc.maxBytes {
-		panic("allocation limit exceeded")
+		alloc.peakBytes = alloc.bytes
 	}
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
-	alloc.Allocate(allocString + allocStringByte*size)
+	alloc.Allocate(overflow.Addp(allocString, overflow.Mulp(allocStringByte, size)))
 }
 
 func (alloc *Allocator) AllocatePointer() {
@@ -117,11 +172,11 @@ func (alloc *Allocator) AllocatePointer() {
 }
 
 func (alloc *Allocator) AllocateDataArray(size int64) {
-	alloc.Allocate(allocArray + size)
+	alloc.Allocate(overflow.Addp(allocArray, size))
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
-	alloc.Allocate(allocArray + allocArrayItem*items)
+	alloc.Allocate(overflow.Addp(allocArray, overflow.Mulp(allocArrayItem, items)))
 }
 
 func (alloc *Allocator) AllocateSlice() {
@@ -134,7 +189,7 @@ func (alloc *Allocator) AllocateStruct() {
 }
 
 func (alloc *Allocator) AllocateStructFields(fields int64) {
-	alloc.Allocate(allocStructField * fields)
+	alloc.Allocate(overflow.Mulp(allocStructField, fields))
 }
 
 func (alloc *Allocator) AllocateFunc() {
@@ -142,7 +197,7 @@ func (alloc *Allocator) AllocateFunc() {
 }
 
 func (alloc *Allocator) AllocateMap(items int64) {
-	alloc.Allocate(allocMap + allocMapItem*items)
+	alloc.Allocate(overflow.Addp(allocMap, overflow.Mulp(allocMapItem, items)))
 }
 
 func (alloc *Allocator) AllocateMapItem() {
@@ -153,17 +208,16 @@ func (alloc *Allocator) AllocateBoundMethod() {
 	alloc.Allocate(allocBoundMethod)
 }
 
+func (alloc *Allocator) AllocatePackageValue() {
+	alloc.Allocate(allocPackage)
+}
+
 func (alloc *Allocator) AllocateBlock(items int64) {
-	alloc.Allocate(allocBlock + allocBlockItem*items)
+	alloc.Allocate(overflow.Addp(allocBlock, overflow.Mulp(allocBlockItem, items)))
 }
 
 func (alloc *Allocator) AllocateBlockItems(items int64) {
-	alloc.Allocate(allocBlockItem * items)
-}
-
-// NOTE: does not allocate for the underlying value.
-func (alloc *Allocator) AllocateNative() {
-	alloc.Allocate(allocNative)
+	alloc.Allocate(overflow.Mulp(allocBlockItem, items))
 }
 
 /* NOTE: Not used, account for with AllocatePointer.
@@ -174,11 +228,6 @@ func (alloc *Allocator) AllocateDataByte() {
 
 func (alloc *Allocator) AllocateType() {
 	alloc.Allocate(allocType)
-}
-
-// NOTE: a reasonable max-bounds calculation for simplicity.
-func (alloc *Allocator) AllocateAmino(l int64) {
-	alloc.Allocate(allocAmino + allocAminoByte*l)
 }
 
 func (alloc *Allocator) AllocateHeapItem() {
@@ -200,6 +249,21 @@ func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 	alloc.AllocateListArray(int64(n))
 	return &ArrayValue{
 		List: make([]TypedValue, n),
+	}
+}
+
+func (alloc *Allocator) NewListArray2(l, c int) *ArrayValue {
+	if l < 0 || c < 0 {
+		panic(&Exception{Value: typedString("len or cap out of range")})
+	}
+
+	if c < l {
+		panic(&Exception{Value: typedString("length and capacity swapped")})
+	}
+
+	alloc.AllocateListArray(int64(c))
+	return &ArrayValue{
+		List: make([]TypedValue, l, c),
 	}
 }
 
@@ -294,16 +358,27 @@ func (alloc *Allocator) NewMap(size int) *MapValue {
 	return mv
 }
 
-func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
-	alloc.AllocateBlock(int64(source.GetNumNames()))
-	return NewBlock(source, parent)
+// Only used for constructing the main package
+func (alloc *Allocator) NewPackageValue(pn *PackageNode) *PackageValue {
+	alloc.AllocatePackageValue()
+	alloc.AllocateBlock(int64(pn.GetNumNames()))
+	pv := &PackageValue{
+		Block: &Block{
+			Source: pn,
+		},
+		PkgName:    pn.PkgName,
+		PkgPath:    pn.PkgPath,
+		FNames:     nil,
+		FBlocks:    nil,
+		fBlocksMap: make(map[string]*Block),
+	}
+
+	return pv
 }
 
-func (alloc *Allocator) NewNative(rv reflect.Value) *NativeValue {
-	alloc.AllocateNative()
-	return &NativeValue{
-		Value: rv,
-	}
+func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
+	alloc.AllocateBlock(int64(source.GetNumNames()))
+	return NewBlock(alloc, source, parent)
 }
 
 func (alloc *Allocator) NewType(t Type) Type {
@@ -314,4 +389,115 @@ func (alloc *Allocator) NewType(t Type) Type {
 func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 	alloc.AllocateHeapItem()
 	return &HeapItemValue{Value: tv}
+}
+
+// -----------------------------------------------
+// Utilities for obtaining shallow size
+
+func (pv *PackageValue) GetShallowSize() int64 {
+	// .uverse is preloaded
+	if pv.PkgPath == ".uverse" {
+		return 0
+	}
+
+	return allocPackage
+}
+
+func (b *Block) GetShallowSize() int64 {
+	// .uverse is preloaded, its descendants will also
+	// be skipped.
+	if pn, ok := b.Source.(*PackageNode); ok {
+		if pn.PkgPath == ".uverse" {
+			return 0
+		}
+	}
+
+	var ss int64
+	// RefNode is not value, put it here
+	// for convinence
+	if _, ok := b.Source.(RefNode); ok {
+		ss += allocRefValue
+	}
+
+	ss = allocBlock + allocBlockItem*int64(len(b.Values))
+
+	return ss
+}
+
+func (av *ArrayValue) GetShallowSize() int64 {
+	if av.Data != nil {
+		return allocArray + int64(len(av.Data))
+	} else {
+		return allocArray + int64(len(av.List)*allocArrayItem)
+	}
+}
+
+func (sv *StructValue) GetShallowSize() int64 {
+	return allocStruct + int64(len(sv.Fields))*allocStructField
+}
+
+func (mv *MapValue) GetShallowSize() int64 {
+	return allocMap + allocMapItem*int64(mv.GetLength())
+}
+
+func (bmv *BoundMethodValue) GetShallowSize() int64 {
+	// skip .uverse
+	if bmv.Func.PkgPath == ".uverse" {
+		return 0
+	}
+	return allocBoundMethod
+}
+
+func (hiv *HeapItemValue) GetShallowSize() int64 {
+	return allocHeapItem
+}
+
+func (rv RefValue) GetShallowSize() int64 {
+	return allocRefValue
+}
+
+func (pv PointerValue) GetShallowSize() int64 {
+	return allocPointer
+}
+
+func (sv *SliceValue) GetShallowSize() int64 {
+	return allocSlice
+}
+
+func (fv *FuncValue) GetShallowSize() int64 {
+	if fv.PkgPath == ".uverse" {
+		return 0
+	}
+
+	var ss int64
+	ss = allocFunc
+	// RefNode is not value, put it here
+	// for convinence
+	if _, ok := fv.Source.(RefNode); ok {
+		ss += allocRefNode
+	}
+
+	return ss
+}
+
+func (sv StringValue) GetShallowSize() int64 {
+	return allocString + allocStringByte*int64(len(sv))
+}
+
+func (biv BigintValue) GetShallowSize() int64 {
+	return allocBigint
+}
+
+func (bdv BigdecValue) GetShallowSize() int64 {
+	return allocBigdec
+}
+
+func (dbv DataByteValue) GetShallowSize() int64 {
+	return allocDataByte
+}
+
+// Do not count during recalculation,
+// as the type should  pre-exist.
+func (tv TypeValue) GetShallowSize() int64 {
+	return 0
 }

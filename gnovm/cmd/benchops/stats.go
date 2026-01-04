@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -41,16 +41,23 @@ func stats(binFile string) {
 	numWorkers := 2
 	wg.Add(numWorkers)
 	doneCh := make(chan struct{})
-	for i := 0; i < numWorkers; i++ {
+	for range numWorkers {
 		go func() {
 			for {
 				record, ok := <-inputCh
 				if !ok {
 					break
 				}
-				opName := gno.Op(record[0]).String()
-				if record[1] != 0 {
+				var opName string
+				switch record[0] {
+				case byte(bm.TypeOpCode):
+					opName = gno.Op(record[1]).String()
+				case byte(bm.TypeStore):
 					opName = bm.StoreCodeString(record[1])
+				case byte(bm.TypeNative):
+					opName = bm.NativeCodeString(record[1])
+				default:
+					panic(fmt.Sprintf("invalid record type: %d", record[0]))
 				}
 
 				elapsedTime := binary.LittleEndian.Uint32(record[2:])
@@ -97,7 +104,7 @@ func stats(binFile string) {
 		}
 		n := nbytes / recordSize
 
-		for j := 0; j < n; j++ {
+		for j := range n {
 			inputCh <- buf[j*recordSize : (j+1)*recordSize]
 		}
 	}
@@ -137,9 +144,7 @@ func calculateStats(crs []codeRecord) {
 	for k := range m {
 		keys = append(keys, k)
 	}
-	sort.Slice(keys, func(i, j int) bool {
-		return keys[i] < keys[j]
-	})
+	slices.Sort(keys)
 
 	for _, k := range keys {
 		cs := calculate(k, m[k])

@@ -2,7 +2,7 @@ package main
 
 func main() {
 	a := 2
-	s := map[string]interface{}{"k": 1 << a}
+	s := map[string]any{"k": 1 << a}
 	println(s["k"])
 }
 

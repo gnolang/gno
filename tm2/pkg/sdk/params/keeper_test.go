@@ -4,8 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/tm2/pkg/amino"
 )
 
 func TestKeeper(t *testing.T) {
@@ -13,24 +14,24 @@ func TestKeeper(t *testing.T) {
 	ctx, store, keeper := env.ctx, env.store, env.keeper
 	_ = store // XXX: add store tests?
 
-	require.False(t, keeper.Has(ctx, "param1.string"))
-	require.False(t, keeper.Has(ctx, "param2.bool"))
-	require.False(t, keeper.Has(ctx, "param3.uint64"))
-	require.False(t, keeper.Has(ctx, "param4.int64"))
-	require.False(t, keeper.Has(ctx, "param5.bytes"))
+	require.False(t, keeper.Has(ctx, "param1"))
+	require.False(t, keeper.Has(ctx, "param2"))
+	require.False(t, keeper.Has(ctx, "param3"))
+	require.False(t, keeper.Has(ctx, "param4"))
+	require.False(t, keeper.Has(ctx, "param5"))
 
 	// initial set
-	require.NotPanics(t, func() { keeper.SetString(ctx, "param1.string", "foo") })
-	require.NotPanics(t, func() { keeper.SetBool(ctx, "param2.bool", true) })
-	require.NotPanics(t, func() { keeper.SetUint64(ctx, "param3.uint64", 42) })
-	require.NotPanics(t, func() { keeper.SetInt64(ctx, "param4.int64", -1337) })
-	require.NotPanics(t, func() { keeper.SetBytes(ctx, "param5.bytes", []byte("hello world!")) })
+	require.NotPanics(t, func() { keeper.SetString(ctx, "param1", "foo") })
+	require.NotPanics(t, func() { keeper.SetBool(ctx, "param2", true) })
+	require.NotPanics(t, func() { keeper.SetUint64(ctx, "param3", 42) })
+	require.NotPanics(t, func() { keeper.SetInt64(ctx, "param4", -1337) })
+	require.NotPanics(t, func() { keeper.SetBytes(ctx, "param5", []byte("hello world!")) })
 
-	require.True(t, keeper.Has(ctx, "param1.string"))
-	require.True(t, keeper.Has(ctx, "param2.bool"))
-	require.True(t, keeper.Has(ctx, "param3.uint64"))
-	require.True(t, keeper.Has(ctx, "param4.int64"))
-	require.True(t, keeper.Has(ctx, "param5.bytes"))
+	require.True(t, keeper.Has(ctx, "param1"))
+	require.True(t, keeper.Has(ctx, "param2"))
+	require.True(t, keeper.Has(ctx, "param3"))
+	require.True(t, keeper.Has(ctx, "param4"))
+	require.True(t, keeper.Has(ctx, "param5"))
 
 	var (
 		param1 string
@@ -40,11 +41,11 @@ func TestKeeper(t *testing.T) {
 		param5 []byte
 	)
 
-	require.NotPanics(t, func() { keeper.GetString(ctx, "param1.string", &param1) })
-	require.NotPanics(t, func() { keeper.GetBool(ctx, "param2.bool", &param2) })
-	require.NotPanics(t, func() { keeper.GetUint64(ctx, "param3.uint64", &param3) })
-	require.NotPanics(t, func() { keeper.GetInt64(ctx, "param4.int64", &param4) })
-	require.NotPanics(t, func() { keeper.GetBytes(ctx, "param5.bytes", &param5) })
+	require.NotPanics(t, func() { keeper.GetString(ctx, "param1", &param1) })
+	require.NotPanics(t, func() { keeper.GetBool(ctx, "param2", &param2) })
+	require.NotPanics(t, func() { keeper.GetUint64(ctx, "param3", &param3) })
+	require.NotPanics(t, func() { keeper.GetInt64(ctx, "param4", &param4) })
+	require.NotPanics(t, func() { keeper.GetBytes(ctx, "param5", &param5) })
 
 	require.Equal(t, param1, "foo")
 	require.Equal(t, param2, true)
@@ -53,23 +54,23 @@ func TestKeeper(t *testing.T) {
 	require.Equal(t, param5, []byte("hello world!"))
 
 	// reset
-	require.NotPanics(t, func() { keeper.SetString(ctx, "param1.string", "bar") })
-	require.NotPanics(t, func() { keeper.SetBool(ctx, "param2.bool", false) })
-	require.NotPanics(t, func() { keeper.SetUint64(ctx, "param3.uint64", 12345) })
-	require.NotPanics(t, func() { keeper.SetInt64(ctx, "param4.int64", 1000) })
-	require.NotPanics(t, func() { keeper.SetBytes(ctx, "param5.bytes", []byte("bye")) })
+	require.NotPanics(t, func() { keeper.SetString(ctx, "param1", "bar") })
+	require.NotPanics(t, func() { keeper.SetBool(ctx, "param2", false) })
+	require.NotPanics(t, func() { keeper.SetUint64(ctx, "param3", 12345) })
+	require.NotPanics(t, func() { keeper.SetInt64(ctx, "param4", 1000) })
+	require.NotPanics(t, func() { keeper.SetBytes(ctx, "param5", []byte("bye")) })
 
-	require.True(t, keeper.Has(ctx, "param1.string"))
-	require.True(t, keeper.Has(ctx, "param2.bool"))
-	require.True(t, keeper.Has(ctx, "param3.uint64"))
-	require.True(t, keeper.Has(ctx, "param4.int64"))
-	require.True(t, keeper.Has(ctx, "param5.bytes"))
+	require.True(t, keeper.Has(ctx, "param1"))
+	require.True(t, keeper.Has(ctx, "param2"))
+	require.True(t, keeper.Has(ctx, "param3"))
+	require.True(t, keeper.Has(ctx, "param4"))
+	require.True(t, keeper.Has(ctx, "param5"))
 
-	require.NotPanics(t, func() { keeper.GetString(ctx, "param1.string", &param1) })
-	require.NotPanics(t, func() { keeper.GetBool(ctx, "param2.bool", &param2) })
-	require.NotPanics(t, func() { keeper.GetUint64(ctx, "param3.uint64", &param3) })
-	require.NotPanics(t, func() { keeper.GetInt64(ctx, "param4.int64", &param4) })
-	require.NotPanics(t, func() { keeper.GetBytes(ctx, "param5.bytes", &param5) })
+	require.NotPanics(t, func() { keeper.GetString(ctx, "param1", &param1) })
+	require.NotPanics(t, func() { keeper.GetBool(ctx, "param2", &param2) })
+	require.NotPanics(t, func() { keeper.GetUint64(ctx, "param3", &param3) })
+	require.NotPanics(t, func() { keeper.GetInt64(ctx, "param4", &param4) })
+	require.NotPanics(t, func() { keeper.GetBytes(ctx, "param5", &param5) })
 
 	require.Equal(t, param1, "bar")
 	require.Equal(t, param2, false)
@@ -77,12 +78,9 @@ func TestKeeper(t *testing.T) {
 	require.Equal(t, param4, int64(1000))
 	require.Equal(t, param5, []byte("bye"))
 
-	// invalid sets
-	require.PanicsWithValue(t, `key should be like "<name>.string" (invalid.int64)`, func() { keeper.SetString(ctx, "invalid.int64", "hello") })
-	require.PanicsWithValue(t, `key should be like "<name>.int64" (invalid.string)`, func() { keeper.SetInt64(ctx, "invalid.string", int64(42)) })
-	require.PanicsWithValue(t, `key should be like "<name>.uint64" (invalid.int64)`, func() { keeper.SetUint64(ctx, "invalid.int64", uint64(42)) })
-	require.PanicsWithValue(t, `key should be like "<name>.bool" (invalid.int64)`, func() { keeper.SetBool(ctx, "invalid.int64", true) })
-	require.PanicsWithValue(t, `key should be like "<name>.bytes" (invalid.int64)`, func() { keeper.SetBytes(ctx, "invalid.int64", []byte("hello")) })
+	// Test SetBytes with nil deletes the key
+	keeper.SetBytes(ctx, "param5", nil)
+	require.False(t, keeper.Has(ctx, "param5"))
 }
 
 // adapted from TestKeeperSubspace from Cosmos SDK, but adapted to a subspace-less Keeper.
@@ -92,9 +90,9 @@ func TestKeeper_internal(t *testing.T) {
 
 	kvs := []struct {
 		key   string
-		param interface{}
-		zero  interface{}
-		ptr   interface{}
+		param any
+		zero  any
+		ptr   any
 	}{
 		{"string", "test", "", new(string)},
 		{"bool", true, false, new(bool)},
@@ -114,22 +112,14 @@ func TestKeeper_internal(t *testing.T) {
 	for i, kv := range kvs {
 		require.NotPanics(t, func() { keeper.getIfExists(ctx, "invalid", kv.ptr) }, "keeper.GetIfExists panics when no value exists, tc #%d", i)
 		require.Equal(t, kv.zero, indirect(kv.ptr), "keeper.GetIfExists unmarshalls when no value exists, tc #%d", i)
-		require.Panics(t, func() { keeper.get(ctx, "invalid", kv.ptr) }, "invalid keeper.Get not panics when no value exists, tc #%d", i)
-		require.Equal(t, kv.zero, indirect(kv.ptr), "invalid keeper.Get unmarshalls when no value exists, tc #%d", i)
-
 		require.NotPanics(t, func() { keeper.getIfExists(ctx, kv.key, kv.ptr) }, "keeper.GetIfExists panics, tc #%d", i)
 		require.Equal(t, kv.param, indirect(kv.ptr), "stored param not equal, tc #%d", i)
-		require.NotPanics(t, func() { keeper.get(ctx, kv.key, kv.ptr) }, "keeper.Get panics, tc #%d", i)
-		require.Equal(t, kv.param, indirect(kv.ptr), "stored param not equal, tc #%d", i)
-
-		require.Panics(t, func() { keeper.get(ctx, "invalid", kv.ptr) }, "invalid keeper.Get not panics when no value exists, tc #%d", i)
-		require.Equal(t, kv.param, indirect(kv.ptr), "invalid keeper.Get unmarshalls when no value existt, tc #%d", i)
-
-		require.Panics(t, func() { keeper.get(ctx, kv.key, nil) }, "invalid keeper.Get not panics when the pointer is nil, tc #%d", i)
+		require.Panics(t, func() { keeper.getIfExists(ctx, kv.key, nil) }, "invalid keeper.Get not panics when the pointer is nil, tc #%d", i)
 	}
 
 	for i, kv := range kvs {
-		bz := store.Get([]byte(kv.key))
+		vk := storeKey(kv.key)
+		bz := store.Get(vk)
 		require.NotNil(t, bz, "store.Get() returns nil, tc #%d", i)
 		err := amino.UnmarshalJSON(bz, kv.ptr)
 		require.NoError(t, err, "cdc.UnmarshalJSON() returns error, tc #%d", i)
@@ -139,25 +129,23 @@ func TestKeeper_internal(t *testing.T) {
 
 type s struct{ I int }
 
-func indirect(ptr interface{}) interface{} { return reflect.ValueOf(ptr).Elem().Interface() }
+func indirect(ptr any) any { return reflect.ValueOf(ptr).Elem().Interface() }
 
 type Params struct {
 	p1 int
 	p2 string
 }
 
-func TestGetAndSetParams(t *testing.T) {
+func TestGetAndSetStruct(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.ctx
 	keeper := env.keeper
-	// SetParams
+	// SetStruct
 	a := Params{p1: 1, p2: "a"}
-	err := keeper.SetParams(ctx, ModuleName, a)
-	require.NoError(t, err)
+	keeper.SetStruct(ctx, "params_test:p", a)
 
-	// GetParams
+	// GetStruct
 	a1 := Params{}
-	_, err1 := keeper.GetParams(ctx, ModuleName, &a1)
-	require.NoError(t, err1)
+	keeper.GetStruct(ctx, "params_test:p", &a1)
 	require.True(t, amino.DeepEqual(a, a1), "a and a1 should equal")
 }

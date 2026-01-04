@@ -4,13 +4,29 @@ package stdlibs
 
 import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	libsstd "github.com/gnolang/gno/gnovm/stdlibs/std"
+	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
 )
 
-type ExecContext = libsstd.ExecContext
+// These types are aliases to the equivalent types in internal/execctx.
+// The package exists to avoid an import cycle (this package imports individual
+// stdlibs through generated.go; thus packages cannot import this package).
+type (
+	ExecContext = execctx.ExecContext
 
+	// ExecContexter is a type capable of returning the parent [ExecContext]. When
+	// using these standard libraries, m.Context should always implement this
+	// interface. This can be obtained by embedding [ExecContext].
+	ExecContexter = execctx.ExecContexter
+
+	BankerInterface = execctx.BankerInterface
+	ParamsInterface = execctx.ParamsInterface
+)
+
+// GetContext returns the execution context.
+// This is used to allow extending the exec context using interfaces,
+// for instance when testing.
 func GetContext(m *gno.Machine) ExecContext {
-	return libsstd.GetContext(m)
+	return execctx.GetContext(m)
 }
 
 // FindNative returns the NativeFunc associated with the given pkgPath+name
@@ -33,4 +49,13 @@ func NativeResolver(pkgPath string, name gno.Name) func(*gno.Machine) {
 		return nil
 	}
 	return nt.f
+}
+
+func HasNativePkg(pkgPath string) bool {
+	for _, nf := range nativeFuncs {
+		if nf.gnoPkg == pkgPath {
+			return true
+		}
+	}
+	return false
 }

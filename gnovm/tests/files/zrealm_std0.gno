@@ -1,12 +1,10 @@
-// PKGPATH: gno.land/r/std_test
-package std_test
+// PKGPATH: gno.land/r/std
+package std
 
-import (
-	"std"
-)
+import "chain/runtime"
 
-func main() {
-	caller := std.GetOrigCaller()
+func main(cur realm) {
+	caller := runtime.OriginCaller()
 	println(caller)
 }
 

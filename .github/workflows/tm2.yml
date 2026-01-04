@@ -7,12 +7,15 @@ on:
   pull_request:
     paths:
       - tm2/**
+      # We trigger the testing workflow for changes to the main go.mod,
+      # since this can affect test results
+      - go.mod
   workflow_dispatch:
 
 jobs:
   main:
     name: Run TM2 suite
-    uses: ./.github/workflows/main_template.yml
+    uses: ./.github/workflows/template_main.yml
     with:
       modulepath: "tm2"
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/tm2/..."

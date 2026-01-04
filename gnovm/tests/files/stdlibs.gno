@@ -3,7 +3,7 @@ package test
 
 import "time"
 
-func main() {
+func main(cur realm) {
 	println(time.UTC == nil)
 	time.UTC = nil
 	println(time.UTC == nil)
@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// cannot modify external-realm or non-realm object
+// gno.land/r/test/stdlibs.gno:8:2-10: cannot directly mutate time.UTC from gno.land/r/test

@@ -15,12 +15,13 @@
 package helplink
 
 import (
+	"chain/runtime"
 	"strings"
 
 	"gno.land/p/moul/txlink"
 )
 
-const chainDomain = "gno.land" // XXX: std.ChainDomain (#2911)
+var chainDomain = runtime.ChainDomain()
 
 // Func returns a markdown link for the specific function with optional
 // key-value arguments, for the current realm.
@@ -50,13 +51,13 @@ func (r Realm) prefix() string {
 	}
 
 	// local realm -> /realm
-	realm := string(r)
-	if strings.Contains(realm, chainDomain) {
-		return strings.TrimPrefix(realm, chainDomain)
+	rlmstr := string(r)
+	if strings.HasPrefix(rlmstr, chainDomain) {
+		return strings.TrimPrefix(rlmstr, chainDomain)
 	}
 
 	// remote realm -> https://remote.land/realm
-	return "https://" + string(r)
+	return "https://" + rlmstr
 }
 
 // Func returns a markdown link for the specified function with optional

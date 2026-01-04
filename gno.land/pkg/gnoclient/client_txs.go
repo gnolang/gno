@@ -1,8 +1,12 @@
 package gnoclient
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
@@ -15,6 +19,8 @@ var (
 	ErrMissingSigner    = errors.New("missing Signer")
 	ErrMissingRPCClient = errors.New("missing RPCClient")
 )
+
+const simulatePath = ".app/simulate"
 
 // BaseTxCfg defines the base transaction configuration, shared by all message types
 type BaseTxCfg struct {
@@ -277,7 +283,7 @@ func (c *Client) BroadcastTxCommit(signedTx *std.Tx) (*ctypes.ResultBroadcastTxC
 		return nil, errors.Wrap(err, "marshaling tx binary bytes")
 	}
 
-	bres, err := c.RPCClient.BroadcastTxCommit(bz)
+	bres, err := c.RPCClient.BroadcastTxCommit(context.Background(), bz)
 	if err != nil {
 		return nil, errors.Wrap(err, "broadcasting bytes")
 	}
@@ -292,4 +298,55 @@ func (c *Client) BroadcastTxCommit(signedTx *std.Tx) (*ctypes.ResultBroadcastTxC
 	return bres, nil
 }
 
-// TODO: Add more functionality, examples, and unit tests.
+// EstimateGas returns the least amount of gas required
+// for the transaction to go through on the chain (minimum gas wanted).
+// The estimation process assumes the transaction signature has the proper public key
+func (c *Client) EstimateGas(tx *std.Tx) (int64, error) {
+	deliverTx, err := c.Simulate(tx)
+	if err != nil {
+		return 0, err
+	}
+
+	// Return the actual value returned by the node
+	// for executing the transaction
+	return deliverTx.GasUsed, nil
+}
+
+// Simulate the transaction and return the ResponseDeliverTx.
+// The simulation process assumes the transaction signature has the proper public key
+func (c *Client) Simulate(tx *std.Tx) (*abci.ResponseDeliverTx, error) {
+	// Make sure the RPC client is set
+	if err := c.validateRPCClient(); err != nil {
+		return nil, err
+	}
+
+	// Prepare the transaction.
+	// The transaction needs to be amino-binary encoded
+	// in order to be estimated
+	encodedTx, err := amino.Marshal(tx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal tx: %w", err)
+	}
+
+	// Perform the simulation query
+	resp, err := c.RPCClient.ABCIQuery(context.Background(), simulatePath, encodedTx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to perform ABCI query: %w", err)
+	}
+
+	// Extract the query response
+	if err = resp.Response.Error; err != nil {
+		return nil, fmt.Errorf("error encountered during ABCI query: %w", err)
+	}
+
+	deliverTx := new(abci.ResponseDeliverTx)
+	if err = amino.Unmarshal(resp.Response.Value, deliverTx); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal simulation response: %w", err)
+	}
+
+	if err = deliverTx.Error; err != nil {
+		return nil, fmt.Errorf("error encountered during simulation: %w", err)
+	}
+
+	return deliverTx, nil
+}

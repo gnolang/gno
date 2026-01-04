@@ -25,7 +25,6 @@ func TestMain(m *testing.M) {
 
 	// Check if the embedded command should be executed
 	if !*runCommand {
-		fmt.Println("Running tests...")
 		os.Exit(m.Run())
 	}
 
@@ -78,7 +77,7 @@ func TestNodeProcess(t *testing.T) {
 	require.NoError(t, err)
 
 	// Retrieve node info
-	info, err := cli.ABCIInfo()
+	info, err := cli.ABCIInfo(context.Background())
 	require.NoError(t, err)
 	assert.NotEmpty(t, info.Response.Data)
 
@@ -130,7 +129,7 @@ func TestInMemoryNodeProcess(t *testing.T) {
 	require.NoError(t, err)
 
 	// Retrieve node info
-	info, err := cli.ABCIInfo()
+	info, err := cli.ABCIInfo(context.Background())
 	require.NoError(t, err)
 	assert.NotEmpty(t, info.Response.Data)
 

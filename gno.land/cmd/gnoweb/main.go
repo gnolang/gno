@@ -4,9 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
@@ -16,23 +18,54 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// Authorized external image host providers.
+var cspImgHost = []string{
+	// Gno-related hosts
+	"https://gnolang.github.io",
+	"https://assets.gnoteam.com",
+	"https://sa.gno.services",
+
+	// Other providers should respect DMCA guidelines.
+	// NOTE: Feel free to open a PR to add more providers here :)
+
+	// imgur
+	"https://imgur.com",
+	"https://*.imgur.com",
+
+	// GitHub
+	"https://*.github.io",
+	"https://github.com",
+	"https://*.githubusercontent.com",
+
+	// IPFS
+	"https://ipfs.io",
+	"https://cloudflare-ipfs.com",
+}
+
 type webCfg struct {
-	chainid    string
-	remote     string
-	remoteHelp string
-	bind       string
-	faucetURL  string
-	assetsDir  string
-	analytics  bool
-	json       bool
-	html       bool
-	verbose    bool
+	chainid          string
+	remote           string
+	remoteTimeout    time.Duration
+	remoteHelp       string
+	bind             string
+	faucetURL        string
+	aliases          string
+	noDefaultAliases bool
+	noCache          bool
+	timeout          time.Duration
+	analytics        bool
+	json             bool
+	html             bool
+	noStrict         bool
+	verbose          bool
 }
 
 var defaultWebOptions = webCfg{
-	chainid: "dev",
-	remote:  "127.0.0.1:26657",
-	bind:    ":8888",
+	chainid:       "dev",
+	remote:        "127.0.0.1:26657",
+	bind:          ":8888",
+	remoteTimeout: time.Minute,
+	timeout:       time.Minute,
 }
 
 func main() {
@@ -67,6 +100,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"remote gno.land node address",
 	)
 
+	fs.DurationVar(
+		&c.remoteTimeout,
+		"remote-timeout",
+		defaultWebOptions.remoteTimeout,
+		"defined how much time a request to the node should live before timeout",
+	)
+
 	fs.StringVar(
 		&c.remoteHelp,
 		"help-remote",
@@ -75,10 +115,17 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.assetsDir,
-		"assets-dir",
-		defaultWebOptions.assetsDir,
-		"if not empty, will be use as assets directory",
+		&c.aliases,
+		"aliases",
+		defaultWebOptions.aliases,
+		"comma-separated list of aliases in the form: '<path>=<realm-path>' or '<path>=static:<markdown-file>'",
+	)
+
+	fs.BoolVar(
+		&c.noDefaultAliases,
+		"no-default-aliases",
+		defaultWebOptions.noDefaultAliases,
+		"discard default aliases",
 	)
 
 	fs.StringVar(
@@ -127,7 +174,21 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.analytics,
 		"with-analytics",
 		defaultWebOptions.analytics,
-		"nable privacy-first analytics",
+		"enable privacy-first analytics",
+	)
+
+	fs.BoolVar(
+		&c.noStrict,
+		"no-strict",
+		defaultWebOptions.noStrict,
+		"allow cross-site resource forgery and disable https enforcement",
+	)
+
+	fs.BoolVar(
+		&c.noCache,
+		"no-cache",
+		defaultWebOptions.noCache,
+		"disable assets caching",
 	)
 
 	fs.BoolVar(
@@ -135,6 +196,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"v",
 		defaultWebOptions.verbose,
 		"verbose logging mode",
+	)
+
+	fs.DurationVar(
+		&c.timeout,
+		"timeout",
+		defaultWebOptions.timeout,
+		"set read/write/idle timeout for server connections",
 	)
 }
 
@@ -144,7 +212,6 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	if cfg.verbose {
 		level = zapcore.DebugLevel
 	}
-
 	var zapLogger *zap.Logger
 	if cfg.json {
 		zapLogger = log.NewZapJSONLogger(io.Out(), level)
@@ -155,16 +222,30 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 	logger := log.ZapLoggerToSlog(zapLogger)
 
+	// Setup app
 	appcfg := gnoweb.NewDefaultAppConfig()
 	appcfg.ChainID = cfg.chainid
 	appcfg.NodeRemote = cfg.remote
+	appcfg.NodeRequestTimeout = cfg.remoteTimeout
 	appcfg.RemoteHelp = cfg.remoteHelp
+	if appcfg.RemoteHelp == "" {
+		appcfg.RemoteHelp = appcfg.NodeRemote
+	}
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
-	appcfg.AssetsDir = cfg.assetsDir
-	if appcfg.RemoteHelp == "" {
-		appcfg.RemoteHelp = appcfg.NodeRemote
+
+	if cfg.noDefaultAliases {
+		appcfg.Aliases = map[string]gnoweb.AliasTarget{}
+	}
+
+	if cfg.aliases != "" {
+		aliases, err := parseAliases(cfg.aliases)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse aliases: %w", err)
+		}
+
+		maps.Copy(appcfg.Aliases, aliases)
 	}
 
 	app, err := gnoweb.NewRouter(logger, appcfg)
@@ -172,6 +253,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 		return nil, fmt.Errorf("unable to start gnoweb app: %w", err)
 	}
 
+	// Resolve binding address
 	bindaddr, err := net.ResolveTCPAddr("tcp", cfg.bind)
 	if err != nil {
 		return nil, fmt.Errorf("unable to resolve listener %q: %w", cfg.bind, err)
@@ -179,18 +261,106 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 	logger.Info("Running", "listener", bindaddr.String())
 
+	// Setup security headers
+	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, cfg.remote)
+
+	// Setup server
 	server := &http.Server{
-		Handler:           app,
+		Handler:           secureHandler,
 		Addr:              bindaddr.String(),
-		ReadHeaderTimeout: 60 * time.Second,
+		ReadTimeout:       cfg.timeout, // Time to read the request
+		WriteTimeout:      cfg.timeout, // Time to write the entire response
+		IdleTimeout:       cfg.timeout, // Time to keep idle connections open
+		ReadHeaderTimeout: time.Minute, // Time to read request headers
 	}
 
 	return func() error {
 		if err := server.ListenAndServe(); err != nil {
-			logger.Error("HTTP server stopped", " error:", err)
+			logger.Error("HTTP server stopped", "error", err)
 			return commands.ExitCodeError(1)
 		}
 
 		return nil
 	}, nil
+}
+
+// parseAliases parses the given aliases string and return an aliases map.
+// Used by the web handler to resolve path and static file aliases.
+func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
+	var (
+		aliases      = make(map[string]gnoweb.AliasTarget)
+		aliasEntries = strings.Split(aliasesStr, ",")
+	)
+
+	// Add each alias entry to the aliases map.
+	for _, entry := range aliasEntries {
+		parts := strings.Split(entry, "=")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid alias entry: %s", entry)
+		}
+
+		// Trim whitespace from both parts.
+		parts[0] = strings.TrimSpace(parts[0])
+		parts[1] = strings.TrimSpace(parts[1])
+
+		// Check if the value is a path to a static file.
+		if staticFilePath, found := strings.CutPrefix(parts[1], "static:"); found {
+			content, err := os.ReadFile(staticFilePath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read static file %s: %w", staticFilePath, err)
+			}
+
+			aliases[parts[0]] = gnoweb.AliasTarget{Value: string(content), Kind: gnoweb.StaticMarkdown}
+		} else { // Otherwise, treat it as a normal alias.
+			aliases[parts[0]] = gnoweb.AliasTarget{Value: parts[1], Kind: gnoweb.GnowebPath}
+		}
+	}
+
+	return aliases, nil
+}
+
+func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http.Handler {
+	// Build img-src CSP directive
+	imgSrc := "'self' data:"
+
+	for _, host := range cspImgHost {
+		imgSrc += " " + host
+	}
+
+	// Define a Content Security Policy (CSP) to restrict the sources of
+	// scripts, styles, images, and other resources. This helps prevent
+	// cross-site scripting (XSS) and other code injection attacks.
+	csp := fmt.Sprintf(
+		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'; connect-src %s/abci_query",
+		imgSrc,
+		remote,
+	)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Prevent MIME type sniffing by browsers. This ensures that the browser
+		// does not interpret files as a different MIME type than declared.
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+
+		// Prevent the page from being embedded in an iframe. This mitigates
+		// clickjacking attacks by ensuring the page cannot be loaded in a frame.
+		w.Header().Set("X-Frame-Options", "DENY")
+
+		// Control the amount of referrer information sent in the Referer header.
+		// 'no-referrer' ensures that no referrer information is sent, which
+		// enhances privacy and prevents leakage of sensitive URLs.
+		w.Header().Set("Referrer-Policy", "no-referrer")
+
+		// In `strict` mode, prevent cross-site ressources forgery and enforce https
+		if strict {
+			// Set `csp` defined above.
+			w.Header().Set("Content-Security-Policy", csp)
+
+			// Enforce HTTPS by telling browsers to only access the site over HTTPS
+			// for a specified duration (1 year in this case). This also applies to
+			// subdomains and allows preloading into the browser's HSTS list.
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }

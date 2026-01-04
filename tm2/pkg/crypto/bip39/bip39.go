@@ -118,7 +118,7 @@ func MnemonicToByteArray(mnemonic string) ([]byte, error) {
 	if len(hex) != byteSize {
 		tmp := make([]byte, byteSize)
 		diff := byteSize - len(hex)
-		for i := 0; i < len(hex); i++ {
+		for i := range hex {
 			tmp[i+diff] = hex[i]
 		}
 		hex = tmp
@@ -129,7 +129,7 @@ func MnemonicToByteArray(mnemonic string) ([]byte, error) {
 	if len(entropyHex) != entropyByteSize {
 		tmp := make([]byte, entropyByteSize)
 		diff := entropyByteSize - len(entropyHex)
-		for i := 0; i < len(entropyHex); i++ {
+		for i := range entropyHex {
 			tmp[i+diff] = entropyHex[i]
 		}
 		entropyHex = tmp
@@ -139,7 +139,7 @@ func MnemonicToByteArray(mnemonic string) ([]byte, error) {
 	if len(validationHex) != byteSize {
 		tmp2 := make([]byte, byteSize)
 		diff2 := byteSize - len(validationHex)
-		for i := 0; i < len(validationHex); i++ {
+		for i := range validationHex {
 			tmp2[i+diff2] = validationHex[i]
 		}
 		validationHex = tmp2
@@ -234,7 +234,7 @@ func IsMnemonicValid(mnemonic string) bool {
 	}
 
 	// Check if all words belong in the wordlist
-	for i := 0; i < numOfWords; i++ {
+	for i := range numOfWords {
 		if _, ok := ReverseWordMap[words[i]]; !ok {
 			return false
 		}

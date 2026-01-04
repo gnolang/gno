@@ -2,7 +2,9 @@ package cmap
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,7 +26,7 @@ func TestIterateKeysWithValues(t *testing.T) {
 
 	// Iterating Keys, checking for matching Value
 	for _, key := range cmap.Keys() {
-		val := strings.Replace(key, "key", "value", -1)
+		val := strings.ReplaceAll(key, "key", "value")
 		assert.Equal(t, val, cmap.Get(key))
 	}
 
@@ -56,9 +58,64 @@ func TestContains(t *testing.T) {
 	assert.Nil(t, cmap.Get("key2"))
 }
 
+var sink any = nil
+
+func BenchmarkCMapConcurrentInsertsDeletesHas(b *testing.B) {
+	cm := NewCMap()
+	keys := make([]string, 100000)
+	for i := range keys {
+		keys[i] = fmt.Sprintf("key%d", i)
+	}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		var wg sync.WaitGroup
+		semaCh := make(chan bool)
+		nCPU := runtime.NumCPU()
+		for j := range nCPU {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				// Make sure that all the goroutines run at the
+				// exact same time for true concurrent tests.
+				<-semaCh
+
+				for i, key := range keys {
+					if (j+i)%2 == 0 {
+						cm.Has(key)
+					} else {
+						cm.Set(key, j)
+					}
+					_ = cm.Size()
+					if (i+1)%3 == 0 {
+						cm.Delete(key)
+					}
+
+					if (i+1)%327 == 0 {
+						cm.Clear()
+					}
+					_ = cm.Size()
+					_ = cm.Keys()
+				}
+				_ = cm.Values()
+			}()
+		}
+		close(semaCh)
+		wg.Wait()
+
+		sink = semaCh
+	}
+
+	if sink == nil {
+		b.Fatal("Benchmark did not run!")
+	}
+	sink = nil
+}
+
 func BenchmarkCMapHas(b *testing.B) {
 	m := NewCMap()
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		m.Set(fmt.Sprint(i), i)
 	}
 	b.ResetTimer()

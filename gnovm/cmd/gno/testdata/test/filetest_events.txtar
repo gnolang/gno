@@ -3,14 +3,14 @@
 gno test -print-events .
 
 ! stdout .+
-stderr 'ok      \. 	\d\.\d\ds'
+stderr 'ok      \. 	\d+\.\d\ds'
 
 gno test -print-events -v .
 
 stdout 'test'
-stderr '=== RUN   file/valid_filetest.gno'
-stderr '--- PASS: file/valid_filetest.gno \(\d\.\d\ds\)'
-stderr 'ok      \. 	\d\.\d\ds'
+stderr '=== RUN   ./valid_filetest.gno'
+stderr '--- PASS: ./valid_filetest.gno \(\d+\.\d\ds\)'
+stderr 'ok      \. 	\d+\.\d\ds'
 
 -- valid.gno --
 package valid
@@ -18,12 +18,12 @@ package valid
 -- valid_filetest.gno --
 package main
 
-import "std"
+import "chain"
 
 func main() {
 	println("test")
-	std.Emit("EventA")
-	std.Emit("EventB", "keyA",  "valA")
+	chain.Emit("EventA")
+	chain.Emit("EventB", "keyA",  "valA")
 }
 
 // Output:
@@ -34,8 +34,7 @@ func main() {
 //   {
 //     "type": "EventA",
 //     "attrs": [],
-//     "pkg_path": "",
-//     "func": "main"
+//     "pkg_path": "main"
 //   },
 //   {
 //     "type": "EventB",
@@ -45,7 +44,11 @@ func main() {
 //         "value": "valA"
 //       }
 //     ],
-//     "pkg_path": "",
-//     "func": "main"
+//     "pkg_path": "main"
 //   }
 // ]
+
+
+-- gnomod.toml --
+module = "gno.test/p/integ/filetest_events"
+gno = "0.9"

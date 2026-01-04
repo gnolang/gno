@@ -1,4 +1,4 @@
-package io
+package io_test
 
 // Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 )
@@ -17,14 +18,14 @@ type Stringer interface {
 }
 
 func TestMultiReader(t *testing.T) {
-	var mr Reader
+	var mr io.Reader
 	var buf []byte
 	nread := 0
 	withFooBar := func(tests func()) {
 		r1 := strings.NewReader("foo ")
 		r2 := strings.NewReader("")
 		r3 := strings.NewReader("bar")
-		mr = MultiReader(r1, r2, r3)
+		mr = io.MultiReader(r1, r2, r3)
 		buf = make([]byte, 20)
 		tests()
 	}
@@ -50,13 +51,13 @@ func TestMultiReader(t *testing.T) {
 		expectRead(2, "fo", nil)
 		expectRead(5, "o ", nil)
 		expectRead(5, "bar", nil)
-		expectRead(5, "", EOF)
+		expectRead(5, "", io.EOF)
 	})
 	withFooBar(func() {
 		expectRead(4, "foo ", nil)
 		expectRead(1, "b", nil)
 		expectRead(3, "ar", nil)
-		expectRead(1, "", EOF)
+		expectRead(1, "", io.EOF)
 	})
 	withFooBar(func() {
 		expectRead(5, "foo ", nil)
@@ -67,7 +68,7 @@ func TestMultiWriter(t *testing.T) {
 	sink := new(bytes.Buffer)
 	// Hide bytes.Buffer's WriteString method:
 	testMultiWriter(t, struct {
-		Writer
+		io.Writer
 		Stringer
 	}{sink, sink})
 }
@@ -82,11 +83,11 @@ func TestMultiWriter_String(t *testing.T) {
 func TestMultiWriter_WriteStringSingleAlloc(t *testing.T) {
 	var sink1, sink2 bytes.Buffer
 	type simpleWriter struct { // hide bytes.Buffer's WriteString
-		Writer
+		io.Writer
 	}
-	mw := MultiWriter(simpleWriter{&sink1}, simpleWriter{&sink2})
+	mw := io.MultiWriter(simpleWriter{&sink1}, simpleWriter{&sink2})
 	allocs := int(testing.AllocsPerRun2(1000, func() {
-		WriteString(mw, "foo")
+		io.WriteString(mw, "foo")
 	}))
 	if allocs != 1 {
 		t.Errorf("num allocations = %d; want 1", allocs)
@@ -107,24 +108,24 @@ func (c *writeStringChecker) Write(p []byte) (n int, err error) {
 
 func TestMultiWriter_StringCheckCall(t *testing.T) {
 	var c writeStringChecker
-	mw := MultiWriter(&c)
-	WriteString(mw, "foo")
+	mw := io.MultiWriter(&c)
+	io.WriteString(mw, "foo")
 	if !c.called {
 		t.Error("did not see WriteString call to writeStringChecker")
 	}
 }
 
 func testMultiWriter(t *testing.T, sink interface {
-	Writer
+	io.Writer
 	Stringer
 },
 ) {
 	var buf bytes.Buffer
-	mw := MultiWriter(&buf, sink)
+	mw := io.MultiWriter(&buf, sink)
 
 	sourceString := "My input text."
 	source := strings.NewReader(sourceString)
-	written, err := Copy(mw, source)
+	written, err := io.Copy(mw, source)
 
 	if written != int64(len(sourceString)) {
 		t.Errorf("short write of %d, not %d", written, len(sourceString))
@@ -158,7 +159,7 @@ func TestMultiWriterSingleChainFlatten(t *testing.T) {
 	n := runtime.Callers(0, pc)
 	var myDepth = callDepth(pc[:n])
 	var writeDepth int // will contain the depth from which writerFunc.Writer was called
-	var w Writer = MultiWriter(writerFunc(func(p []byte) (int, error) {
+	var w io.Writer = io.MultiWriter(writerFunc(func(p []byte) (int, error) {
 		n := runtime.Callers(1, pc)
 		writeDepth += callDepth(pc[:n])
 		return 0, nil
@@ -167,10 +168,10 @@ func TestMultiWriterSingleChainFlatten(t *testing.T) {
 	mw := w
 	// chain a bunch of multiWriters
 	for i := 0; i < 100; i++ {
-		mw = MultiWriter(w)
+		mw = io.MultiWriter(w)
 	}
 
-	mw = MultiWriter(w, mw, w, mw)
+	mw = io.MultiWriter(w, mw, w, mw)
 	mw.Write(nil) // don't care about errors, just want to check the call-depth for Write
 
 	if writeDepth != 4*(myDepth+2) { // 2 should be multiWriter.Write and writerFunc.Write
@@ -182,25 +183,25 @@ func TestMultiWriterSingleChainFlatten(t *testing.T) {
 
 func TestMultiWriterError(t *testing.T) {
 	f1 := writerFunc(func(p []byte) (int, error) {
-		return len(p) / 2, ErrShortWrite
+		return len(p) / 2, io.ErrShortWrite
 	})
 	f2 := writerFunc(func(p []byte) (int, error) {
 		t.Errorf("MultiWriter called f2.Write")
 		return len(p), nil
 	})
-	w := MultiWriter(f1, f2)
+	w := io.MultiWriter(f1, f2)
 	n, err := w.Write(make([]byte, 100))
-	if n != 50 || err != ErrShortWrite {
+	if n != 50 || err != io.ErrShortWrite {
 		t.Errorf("Write = %d, %v, want 50, ErrShortWrite", n, err)
 	}
 }
 
 // Test that MultiReader copies the input slice and is insulated from future modification.
 func TestMultiReaderCopy(t *testing.T) {
-	slice := []Reader{strings.NewReader("hello world")}
-	r := MultiReader(slice...)
+	slice := []io.Reader{strings.NewReader("hello world")}
+	r := io.MultiReader(slice...)
 	slice[0] = nil
-	data, err := ReadAll(r)
+	data, err := io.ReadAll(r)
 	if err != nil || string(data) != "hello world" {
 		t.Errorf("ReadAll() = %q, %v, want %q, nil", data, err, "hello world")
 	}
@@ -209,8 +210,8 @@ func TestMultiReaderCopy(t *testing.T) {
 // Test that MultiWriter copies the input slice and is insulated from future modification.
 func TestMultiWriterCopy(t *testing.T) {
 	var buf bytes.Buffer
-	slice := []Writer{&buf}
-	w := MultiWriter(slice...)
+	slice := []io.Writer{&buf}
+	w := io.MultiWriter(slice...)
 	slice[0] = nil
 	n, err := w.Write([]byte("hello world"))
 	if err != nil || n != 11 {
@@ -246,7 +247,7 @@ func TestMultiReaderFlatten(t *testing.T) {
 	n := runtime.Callers(0, pc)
 	var myDepth = callDepth(pc[:n])
 	var readDepth int // will contain the depth from which fakeReader.Read was called
-	var r Reader = MultiReader(readerFunc(func(p []byte) (int, error) {
+	var r io.Reader = io.MultiReader(readerFunc(func(p []byte) (int, error) {
 		n := runtime.Callers(1, pc)
 		readDepth = callDepth(pc[:n])
 		return 0, errors.New("irrelevant")
@@ -254,7 +255,7 @@ func TestMultiReaderFlatten(t *testing.T) {
 
 	// chain a bunch of multiReaders
 	for i := 0; i < 100; i++ {
-		r = MultiReader(r)
+		r = io.MultiReader(r)
 	}
 
 	r.Read(nil) // don't care about errors, just want to check the call-depth for Read
@@ -277,12 +278,12 @@ func (b byteAndEOFReader) Read(p []byte) (n int, err error) {
 		panic("unexpected call")
 	}
 	p[0] = byte(b)
-	return 1, EOF
+	return 1, io.EOF
 }
 
 // This used to yield bytes forever; issue 16795.
 func TestMultiReaderSingleByteWithEOF(t *testing.T) {
-	got, err := ReadAll(LimitReader(MultiReader(byteAndEOFReader('a'), byteAndEOFReader('b')), 10))
+	got, err := io.ReadAll(io.LimitReader(io.MultiReader(byteAndEOFReader('a'), byteAndEOFReader('b')), 10))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -296,17 +297,17 @@ func TestMultiReaderSingleByteWithEOF(t *testing.T) {
 // chain continues to return EOF on its final read, rather than
 // yielding a (0, EOF).
 func TestMultiReaderFinalEOF(t *testing.T) {
-	r := MultiReader(bytes.NewReader(nil), byteAndEOFReader('a'))
+	r := io.MultiReader(bytes.NewReader(nil), byteAndEOFReader('a'))
 	buf := make([]byte, 2)
 	n, err := r.Read(buf)
-	if n != 1 || err != EOF {
+	if n != 1 || err != io.EOF {
 		t.Errorf("got %v, %v; want 1, EOF", n, err)
 	}
 }
 
 /*
 func TestMultiReaderFreesExhaustedReaders(t *testing.T) {
-	var mr Reader
+	var mr io.Reader
 	closed := make(chan struct{})
 	// The closure ensures that we don't have a live reference to buf1
 	// on our stack after MultiReader is inlined (Issue 18819).  This
@@ -314,14 +315,14 @@ func TestMultiReaderFreesExhaustedReaders(t *testing.T) {
 	func() {
 		buf1 := bytes.NewReader([]byte("foo"))
 		buf2 := bytes.NewReader([]byte("bar"))
-		mr = MultiReader(buf1, buf2)
-		runtime.SetFinalizer(buf1, func(*bytes.Reader) {
+		mr = io.MultiReader(buf1, buf2)
+		runtime.SetFinalizer(buf1, func(*bytes.io.Reader) {
 			close(closed)
 		})
 	}()
 
 	buf := make([]byte, 4)
-	if n, err := ReadFull(mr, buf); err != nil || string(buf) != "foob" {
+	if n, err := io.ReadFull(mr, buf); err != nil || string(buf) != "foob" {
 		t.Fatalf(`ReadFull = %d (%q), %v; want 3, "foo", nil`, n, buf[:n], err)
 	}
 
@@ -332,7 +333,7 @@ func TestMultiReaderFreesExhaustedReaders(t *testing.T) {
 		t.Fatal("timeout waiting for collection of buf1")
 	}
 
-	if n, err := ReadFull(mr, buf[:2]); err != nil || string(buf[:2]) != "ar" {
+	if n, err := io.ReadFull(mr, buf[:2]); err != nil || string(buf[:2]) != "ar" {
 		t.Fatalf(`ReadFull = %d (%q), %v; want 2, "ar", nil`, n, buf[:n], err)
 	}
 }
@@ -342,21 +343,21 @@ func TestInterleavedMultiReader(t *testing.T) {
 	r1 := strings.NewReader("123")
 	r2 := strings.NewReader("45678")
 
-	mr1 := MultiReader(r1, r2)
-	mr2 := MultiReader(mr1)
+	mr1 := io.MultiReader(r1, r2)
+	mr2 := io.MultiReader(mr1)
 
 	buf := make([]byte, 4)
 
 	// Have mr2 use mr1's []Readers.
 	// Consume r1 (and clear it for GC to handle) and consume part of r2.
-	n, err := ReadFull(mr2, buf)
+	n, err := io.ReadFull(mr2, buf)
 	if got := string(buf[:n]); got != "1234" || err != nil {
 		t.Errorf(`ReadFull(mr2) = (%q, %v), want ("1234", nil)`, got, err)
 	}
 
 	// Consume the rest of r2 via mr1.
 	// This should not panic even though mr2 cleared r1.
-	n, err = ReadFull(mr1, buf)
+	n, err = io.ReadFull(mr1, buf)
 	if got := string(buf[:n]); got != "5678" || err != nil {
 		t.Errorf(`ReadFull(mr1) = (%q, %v), want ("5678", nil)`, got, err)
 	}

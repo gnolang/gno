@@ -1,7 +1,11 @@
 package params
 
+// XXX Rename ParamsKeeper to ParamKeeper, like AccountKeeper is singular.
+
 import (
+	"fmt"
 	"log/slog"
+	"reflect"
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -12,13 +16,12 @@ import (
 const (
 	ModuleName = "params"
 
-	StoreKey = ModuleName
-	// ValueStorePrevfix is "/pv/" for param value.
-	ValueStoreKeyPrefix = "/pv/"
+	// StoreKey = ModuleName
+	StoreKeyPrefix = "/pv/"
 )
 
-func ValueStoreKey(key string) []byte {
-	return append([]byte(ValueStoreKeyPrefix), []byte(key)...)
+func storeKey(key string) []byte {
+	return append([]byte(StoreKeyPrefix), []byte(key)...)
 }
 
 type ParamsKeeperI interface {
@@ -27,57 +30,72 @@ type ParamsKeeperI interface {
 	GetUint64(ctx sdk.Context, key string, ptr *uint64)
 	GetBool(ctx sdk.Context, key string, ptr *bool)
 	GetBytes(ctx sdk.Context, key string, ptr *[]byte)
+	GetStrings(ctx sdk.Context, key string, ptr *[]string)
 
 	SetString(ctx sdk.Context, key string, value string)
 	SetInt64(ctx sdk.Context, key string, value int64)
 	SetUint64(ctx sdk.Context, key string, value uint64)
 	SetBool(ctx sdk.Context, key string, value bool)
 	SetBytes(ctx sdk.Context, key string, value []byte)
+	SetStrings(ctx sdk.Context, key string, value []string)
 
 	Has(ctx sdk.Context, key string) bool
-	GetRaw(ctx sdk.Context, key string) []byte
 
-	// XXX: ListKeys?
+	GetStruct(ctx sdk.Context, key string, strctPtr any)
+	SetStruct(ctx sdk.Context, key string, strct any)
+
+	// NOTE: GetAny and SetAny don't work on structs.
+	GetAny(ctx sdk.Context, key string) any
+	SetAny(ctx sdk.Context, key string, value any)
+}
+
+type ParamfulKeeper interface {
+	WillSetParam(ctx sdk.Context, key string, value any)
 }
 
 var _ ParamsKeeperI = ParamsKeeper{}
 
 // global paramstore Keeper.
 type ParamsKeeper struct {
-	key    store.StoreKey
-	prefix string
+	key  store.StoreKey
+	kprs map[string]ParamfulKeeper // Register a prefix for module parameter keys.
 }
 
 // NewParamsKeeper returns a new ParamsKeeper.
-func NewParamsKeeper(key store.StoreKey, prefix string) ParamsKeeper {
+func NewParamsKeeper(key store.StoreKey) ParamsKeeper {
 	return ParamsKeeper{
-		key:    key,
-		prefix: prefix,
+		key:  key,
+		kprs: map[string]ParamfulKeeper{},
 	}
 }
 
-// GetParam gets a param value from the global param store.
-func (pk ParamsKeeper) GetParams(ctx sdk.Context, key string, target interface{}) (bool, error) {
-	stor := ctx.Store(pk.key)
-
-	bz := stor.Get(ValueStoreKey(key))
-	if bz == nil {
-		return false, nil
-	}
-
-	return true, amino.UnmarshalJSON(bz, target)
+func (pk ParamsKeeper) ForModule(moduleName string) prefixParamsKeeper {
+	ppk := newPrefixParamsKeeper(pk, moduleName+":")
+	return ppk
 }
 
-// SetParam sets a param value to the global param store.
-func (pk ParamsKeeper) SetParams(ctx sdk.Context, key string, param interface{}) error {
-	stor := ctx.Store(pk.key)
-	bz, err := amino.MarshalJSON(param)
-	if err != nil {
-		return err
+func (pk ParamsKeeper) GetRegisteredKeeper(moduleName string) ParamfulKeeper {
+	rk, ok := pk.kprs[moduleName]
+	if !ok {
+		panic("keeper for module " + moduleName + " not registered")
 	}
+	return rk
+}
 
-	stor.Set(ValueStoreKey(key), bz)
-	return nil
+func (pk ParamsKeeper) Register(moduleName string, pmk ParamfulKeeper) {
+	if _, exists := pk.kprs[moduleName]; exists {
+		panic("keeper for module " + moduleName + " already registered")
+	}
+	pk.kprs[moduleName] = pmk
+}
+
+func (pk ParamsKeeper) IsRegistered(moduleName string) bool {
+	_, ok := pk.kprs[moduleName]
+	return ok
+}
+
+func (pk ParamsKeeper) ModuleExists(moduleName string) bool {
+	return pk.IsRegistered(moduleName)
 }
 
 // XXX: why do we expose this?
@@ -87,101 +105,248 @@ func (pk ParamsKeeper) Logger(ctx sdk.Context) *slog.Logger {
 
 func (pk ParamsKeeper) Has(ctx sdk.Context, key string) bool {
 	stor := ctx.Store(pk.key)
-	return stor.Has([]byte(key))
-}
-
-func (pk ParamsKeeper) GetRaw(ctx sdk.Context, key string) []byte {
-	stor := ctx.Store(pk.key)
-	return stor.Get([]byte(key))
+	return stor.Has(storeKey(key))
 }
 
 func (pk ParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) {
-	checkSuffix(key, ".string")
 	pk.getIfExists(ctx, key, ptr)
 }
 
 func (pk ParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool) {
-	checkSuffix(key, ".bool")
 	pk.getIfExists(ctx, key, ptr)
 }
 
 func (pk ParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64) {
-	checkSuffix(key, ".int64")
 	pk.getIfExists(ctx, key, ptr)
 }
 
 func (pk ParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) {
-	checkSuffix(key, ".uint64")
 	pk.getIfExists(ctx, key, ptr)
 }
 
 func (pk ParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) {
-	checkSuffix(key, ".bytes")
+	stor := ctx.Store(pk.key)
+	bz := stor.Get(storeKey(key))
+	if bz != nil {
+		*ptr = bz
+	}
+}
+
+func (pk ParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {
 	pk.getIfExists(ctx, key, ptr)
 }
 
 func (pk ParamsKeeper) SetString(ctx sdk.Context, key, value string) {
-	checkSuffix(key, ".string")
 	pk.set(ctx, key, value)
 }
 
 func (pk ParamsKeeper) SetBool(ctx sdk.Context, key string, value bool) {
-	checkSuffix(key, ".bool")
 	pk.set(ctx, key, value)
 }
 
 func (pk ParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64) {
-	checkSuffix(key, ".int64")
 	pk.set(ctx, key, value)
 }
 
 func (pk ParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64) {
-	checkSuffix(key, ".uint64")
 	pk.set(ctx, key, value)
 }
 
 func (pk ParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) {
-	checkSuffix(key, ".bytes")
+	stor := ctx.Store(pk.key)
+	if value == nil {
+		stor.Delete(storeKey(key))
+		return
+	}
+	// Copy to avoid altering the input bytes
+	valueCopy := make([]byte, len(value))
+	copy(valueCopy, value)
+	stor.Set(storeKey(key), valueCopy)
+}
+
+func (pk ParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) {
 	pk.set(ctx, key, value)
 }
 
-func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr interface{}) {
+func (pk ParamsKeeper) GetStruct(ctx sdk.Context, key string, strctPtr any) {
+	parts := strings.Split(key, ":")
+	if len(parts) != 2 {
+		panic("struct key expected format <module>:<struct name>")
+	}
+	moduleName := parts[0]
+	structName := parts[1] // <submodule>
+	if !pk.IsRegistered(moduleName) {
+		panic("unregistered module name")
+	}
+	if structName != "p" {
+		panic("the only supported struct name is 'p'")
+	}
 	stor := ctx.Store(pk.key)
-	bz := stor.Get([]byte(key))
+	kvz := getStructFieldsFromStore(strctPtr, stor, storeKey(key))
+	decodeStructFields(strctPtr, kvz)
+}
+
+func (pk ParamsKeeper) SetStruct(ctx sdk.Context, key string, strct any) {
+	parts := strings.Split(key, ":")
+	if len(parts) != 2 {
+		panic("struct key expected format <module>:<struct name>")
+	}
+	moduleName := parts[0]
+	structName := parts[1] // <submodule>
+	if !pk.IsRegistered(moduleName) {
+		panic("unregistered module name")
+	}
+	if structName != "p" {
+		panic("the only supported struct name is 'p'")
+	}
+	stor := ctx.Store(pk.key)
+	kvz := encodeStructFields(strct)
+	for _, kv := range kvz {
+		stor.Set(storeKey(key+":"+string(kv.Key)), kv.Value)
+	}
+}
+
+func (pk ParamsKeeper) GetAny(ctx sdk.Context, key string) any {
+	panic("not yet implemented")
+}
+
+func (pk ParamsKeeper) SetAny(ctx sdk.Context, key string, value any) {
+	switch value := value.(type) {
+	case string:
+		pk.SetString(ctx, key, value)
+	case int64:
+		pk.SetInt64(ctx, key, value)
+	case uint64:
+		pk.SetUint64(ctx, key, value)
+	case bool:
+		pk.SetBool(ctx, key, value)
+	case []byte:
+		pk.SetBytes(ctx, key, value)
+	case []string:
+		pk.SetStrings(ctx, key, value)
+	default:
+		panic(fmt.Sprintf("unexected value type for SetAny: %v", reflect.TypeOf(value)))
+	}
+}
+
+func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr any) {
+	stor := ctx.Store(pk.key)
+	bz := stor.Get(storeKey(key))
 	if bz == nil {
 		return
 	}
-	err := amino.UnmarshalJSON(bz, ptr)
-	if err != nil {
-		panic(err)
-	}
+	amino.MustUnmarshalJSON(bz, ptr)
 }
 
-func (pk ParamsKeeper) get(ctx sdk.Context, key string, ptr interface{}) {
+func (pk ParamsKeeper) set(ctx sdk.Context, key string, value any) {
+	module, rawKey := parsePrefix(key)
+	if module != "" {
+		kpr := pk.GetRegisteredKeeper(module)
+		if kpr != nil {
+			kpr.WillSetParam(ctx, rawKey, value)
+		}
+	}
 	stor := ctx.Store(pk.key)
-	bz := stor.Get([]byte(key))
-	err := amino.UnmarshalJSON(bz, ptr)
-	if err != nil {
-		panic(err)
+	bz := amino.MustMarshalJSON(value)
+	stor.Set(storeKey(key), bz)
+}
+
+func parsePrefix(key string) (prefix, rawKey string) {
+	// Look for the first colon.
+	colonIndex := strings.Index(key, ":")
+
+	if colonIndex != -1 {
+		// colon found: the key has a module prefix.
+		prefix = key[:colonIndex]
+		rawKey = key[colonIndex+1:]
+
+		return
+	}
+	return "", key
+}
+
+//----------------------------------------
+
+type prefixParamsKeeper struct {
+	prefix string
+	pk     ParamsKeeper
+}
+
+func newPrefixParamsKeeper(pk ParamsKeeper, prefix string) prefixParamsKeeper {
+	return prefixParamsKeeper{
+		prefix: prefix,
+		pk:     pk,
 	}
 }
 
-func (pk ParamsKeeper) set(ctx sdk.Context, key string, value interface{}) {
-	stor := ctx.Store(pk.key)
-	bz, err := amino.MarshalJSON(value)
-	if err != nil {
-		panic(err)
-	}
-	stor.Set([]byte(key), bz)
+func (ppk prefixParamsKeeper) prefixed(key string) string {
+	return ppk.prefix + key
 }
 
-func checkSuffix(key, expectedSuffix string) {
-	var (
-		noSuffix = !strings.HasSuffix(key, expectedSuffix)
-		noName   = len(key) == len(expectedSuffix)
-		// XXX: additional sanity checks?
-	)
-	if noSuffix || noName {
-		panic(`key should be like "<name>` + expectedSuffix + `" (` + key + `)`)
-	}
+func (ppk prefixParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) {
+	ppk.pk.GetString(ctx, ppk.prefixed(key), ptr)
+}
+
+func (ppk prefixParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64) {
+	ppk.pk.GetInt64(ctx, ppk.prefixed(key), ptr)
+}
+
+func (ppk prefixParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) {
+	ppk.pk.GetUint64(ctx, ppk.prefixed(key), ptr)
+}
+
+func (ppk prefixParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool) {
+	ppk.pk.GetBool(ctx, ppk.prefixed(key), ptr)
+}
+
+func (ppk prefixParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) {
+	ppk.pk.GetBytes(ctx, ppk.prefixed(key), ptr)
+}
+
+func (ppk prefixParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {
+	ppk.pk.GetStrings(ctx, ppk.prefixed(key), ptr)
+}
+
+func (ppk prefixParamsKeeper) SetString(ctx sdk.Context, key string, value string) {
+	ppk.pk.SetString(ctx, ppk.prefixed(key), value)
+}
+
+func (ppk prefixParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64) {
+	ppk.pk.SetInt64(ctx, ppk.prefixed(key), value)
+}
+
+func (ppk prefixParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64) {
+	ppk.pk.SetUint64(ctx, ppk.prefixed(key), value)
+}
+
+func (ppk prefixParamsKeeper) SetBool(ctx sdk.Context, key string, value bool) {
+	ppk.pk.SetBool(ctx, ppk.prefixed(key), value)
+}
+
+func (ppk prefixParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) {
+	ppk.pk.SetBytes(ctx, ppk.prefixed(key), value)
+}
+
+func (ppk prefixParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) {
+	ppk.pk.SetStrings(ctx, ppk.prefixed(key), value)
+}
+
+func (ppk prefixParamsKeeper) Has(ctx sdk.Context, key string) bool {
+	return ppk.pk.Has(ctx, ppk.prefixed(key))
+}
+
+func (ppk prefixParamsKeeper) GetStruct(ctx sdk.Context, key string, paramPtr any) {
+	ppk.pk.GetStruct(ctx, ppk.prefixed(key), paramPtr)
+}
+
+func (ppk prefixParamsKeeper) SetStruct(ctx sdk.Context, key string, param any) {
+	ppk.pk.SetStruct(ctx, ppk.prefixed(key), param)
+}
+
+func (ppk prefixParamsKeeper) GetAny(ctx sdk.Context, key string) any {
+	return ppk.pk.GetAny(ctx, ppk.prefixed(key))
+}
+
+func (ppk prefixParamsKeeper) SetAny(ctx sdk.Context, key string, value any) {
+	ppk.pk.SetAny(ctx, ppk.prefixed(key), value)
 }

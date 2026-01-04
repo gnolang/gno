@@ -6,11 +6,10 @@ func TestCheckAssignableTo(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name       string
-		xt         Type
-		dt         Type
-		autoNative bool
-		wantPanic  bool
+		name      string
+		xt        Type
+		dt        Type
+		wantError string
 	}{
 		{
 			name: "nil to nil",
@@ -30,8 +29,8 @@ func TestCheckAssignableTo(t *testing.T) {
 		{
 			name:      "nil to non-nillable",
 			xt:        nil,
-			dt:        PrimitiveType(StringKind),
-			wantPanic: true,
+			dt:        StringType,
+			wantError: "cannot use nil as string value",
 		},
 		{
 			name: "interface to interface",
@@ -44,14 +43,14 @@ func TestCheckAssignableTo(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if tt.wantPanic {
-				defer func() {
-					if r := recover(); r == nil {
-						t.Errorf("checkAssignableTo() did not panic, want panic")
-					}
-				}()
+			err := checkAssignableTo(nil, tt.xt, tt.dt)
+			if tt.wantError != "" {
+				if err.Error() != tt.wantError {
+					t.Errorf("checkAssignableTo() returned wrong error: want: %v got: %v", tt.wantError, err.Error())
+				}
+			} else if err != nil {
+				t.Errorf("checkAssignableTo() returned unexpected wrong error: got: %v", err.Error())
 			}
-			checkAssignableTo(nil, tt.xt, tt.dt, tt.autoNative)
 		})
 	}
 }

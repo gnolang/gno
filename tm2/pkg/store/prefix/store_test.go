@@ -7,11 +7,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
-	tiavl "github.com/gnolang/gno/tm2/pkg/iavl"
-
+	"github.com/gnolang/gno/tm2/pkg/iavl"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/gas"
-	"github.com/gnolang/gno/tm2/pkg/store/iavl"
+	storeiavl "github.com/gnolang/gno/tm2/pkg/store/iavl"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -32,7 +31,7 @@ type kvpair struct {
 func genRandomKVPairs() []kvpair {
 	kvps := make([]kvpair, 20)
 
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		kvps[i].key = make([]byte, 32)
 		rand.Read(kvps[i].key)
 		kvps[i].value = make([]byte, 32)
@@ -61,7 +60,7 @@ func testPrefixStore(t *testing.T, baseStore types.Store, prefix []byte) {
 
 	kvps := setRandomKVPairs(prefixPrefixStore)
 
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		key := kvps[i].key
 		value := kvps[i].value
 		require.True(t, prefixPrefixStore.Has(key))
@@ -91,8 +90,8 @@ func TestIAVLStorePrefix(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
-	tree := tiavl.NewMutableTree(db, cacheSize)
-	iavlStore := iavl.UnsafeNewStore(tree, types.StoreOptions{
+	tree := iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())
+	iavlStore := storeiavl.UnsafeNewStore(tree, types.StoreOptions{
 		PruningOptions: types.PruningOptions{
 			KeepRecent: numRecent,
 			KeepEvery:  storeEvery,

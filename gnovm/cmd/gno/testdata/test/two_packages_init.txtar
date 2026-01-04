@@ -1,0 +1,49 @@
+# Test that two packages have independent states.
+# https://github.com/gnolang/gno/issues/3240
+
+# Set up GNOROOT in the current directory.
+mkdir $WORK/gnovm/tests
+symlink $WORK/gnovm/stdlibs -> $GNOROOT/gnovm/stdlibs
+symlink $WORK/gnovm/tests/stdlibs -> $GNOROOT/gnovm/tests/stdlibs
+env GNOROOT=$WORK
+
+gno test -v ./examples/gno.land/r/demo/...
+
+-- gnowork.toml --
+-- examples/gno.land/r/demo/aa/a.gno --
+package aa
+
+import "gno.land/r/demo/bb"
+
+func init() {
+	bb.Call(cross)
+}
+
+-- examples/gno.land/r/demo/aa/a_test.gno --
+package aa
+
+import "testing"
+
+func TestA(t *testing.T) {}
+
+-- examples/gno.land/r/demo/bb/a.gno --
+package bb
+
+var called int
+
+func Call(cur realm) {
+	called++
+}
+
+-- examples/gno.land/r/demo/bb/a_test.gno --
+package bb
+
+import "testing"
+
+func TestCalled(t *testing.T) {
+	if called != 0 {
+		t.Fatalf("called: %v", called)
+	}
+}
+
+

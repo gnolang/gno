@@ -1,6 +1,6 @@
-# Run gno transpile with gno files with an invalid import path
+# Run gno tool transpile with gno files with an invalid import path
 
-! gno transpile .
+! gno tool transpile .
 
 ! stdout .+
 stderr '^main.gno:5:2: import "xxx" does not exist$'
@@ -15,7 +15,7 @@ stderr '^2 transpile error\(s\)$'
 package main
 
 import (
-	"std"
+	"chain"
 	"xxx"
 )
 

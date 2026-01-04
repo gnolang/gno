@@ -1,8 +1,11 @@
 package main
 
+// These imports require an identifier, as the `package` declaration doesn't
+// match their paths.
+
 import (
-	"github.com/gnolang/gno/_test/tata" // pkg name is actually tutu
-	"github.com/gnolang/gno/_test/toto" // pkg name is actually titi
+	tutu "filetests/extern/tata"
+	titi "filetests/extern/toto"
 )
 
 func main() {

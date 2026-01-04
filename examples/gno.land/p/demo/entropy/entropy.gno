@@ -11,8 +11,8 @@
 package entropy
 
 import (
+	"chain/runtime"
 	"math"
-	"std"
 	"time"
 )
 
@@ -57,15 +57,15 @@ func (i *Instance) addEntropy() {
 
 	// handle callers
 	{
-		caller1 := std.GetCallerAt(1).String()
-		i.djb2String(caller1)
-		caller2 := std.GetCallerAt(2).String()
-		i.djb2String(caller2)
+		currentRealm := runtime.CurrentRealm().Address().String()
+		i.djb2String(currentRealm)
+		originCaller := runtime.OriginCaller().String()
+		i.djb2String(originCaller)
 	}
 
 	// height
 	{
-		height := std.GetHeight()
+		height := runtime.ChainHeight()
 		if height >= math.MaxUint32 {
 			height -= math.MaxUint32
 		}

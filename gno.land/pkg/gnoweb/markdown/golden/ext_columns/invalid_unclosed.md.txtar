@@ -1,0 +1,33 @@
+-- input.md --
+
+### 3 closings open tags with a single close tag
+
+<gno-columns>
+# Title 1
+content 1
+
+<gno-columns>
+# Title 2
+content 2
+
+<gno-columns>
+# Title 3
+content 3
+
+</gno-columns>
+
+-- output.html --
+<h3>3 closings open tags with a single close tag</h3>
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<h1>Title 1</h1>
+<p>content 1</p>
+<!-- unexpected/invalid columns tag omitted -->
+<h1>Title 2</h1>
+<p>content 2</p>
+<!-- unexpected/invalid columns tag omitted -->
+<h1>Title 3</h1>
+<p>content 3</p>
+</div>
+</div> <!-- </gno-columns> -->

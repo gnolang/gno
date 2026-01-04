@@ -21,13 +21,13 @@
 //	m := memo.New()
 //
 //	// Cache expensive computation
-//	result := m.Memoize("key", func() interface{} {
+//	result := m.Memoize("key", func() any {
 //	    // expensive operation
 //	    return "computed-value"
 //	})
 //
 //	// Subsequent calls with same key return cached result
-//	result = m.Memoize("key", func() interface{} {
+//	result = m.Memoize("key", func() any {
 //	    // function won't be called, cached value is returned
 //	    return "computed-value"
 //	})
@@ -44,13 +44,13 @@
 //	// Cache value with timestamp
 //	result := m.MemoizeWithValidator(
 //	    "key",
-//	    func() interface{} {
+//	    func() any {
 //	        return TimestampedValue{
 //	            Value:     "data",
 //	            Timestamp: time.Now(),
 //	        }
 //	    },
-//	    func(cached interface{}) bool {
+//	    func(cached any) bool {
 //	        // Validate that the cached value is not older than 1 hour
 //	        if tv, ok := cached.(TimestampedValue); ok {
 //	            return time.Since(tv.Timestamp) < time.Hour
@@ -62,13 +62,13 @@ package memo
 
 import (
 	"gno.land/p/demo/btree"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/nt/ufmt"
 )
 
 // Record implements the btree.Record interface for our cache entries
 type cacheEntry struct {
-	key   interface{}
-	value interface{}
+	key   any
+	value any
 }
 
 // Less implements btree.Record interface
@@ -92,7 +92,7 @@ func New() *Memoizer {
 }
 
 // Memoize ensures the result of the given function is cached for the specified key.
-func (m *Memoizer) Memoize(key interface{}, fn func() interface{}) interface{} {
+func (m *Memoizer) Memoize(key any, fn func() any) any {
 	entry := cacheEntry{key: key}
 	if found := m.cache.Get(entry); found != nil {
 		return found.(cacheEntry).value
@@ -104,7 +104,7 @@ func (m *Memoizer) Memoize(key interface{}, fn func() interface{}) interface{} {
 }
 
 // MemoizeWithValidator ensures the result is cached and valid according to the validator function.
-func (m *Memoizer) MemoizeWithValidator(key interface{}, fn func() interface{}, isValid func(interface{}) bool) interface{} {
+func (m *Memoizer) MemoizeWithValidator(key any, fn func() any, isValid func(any) bool) any {
 	entry := cacheEntry{key: key}
 	if found := m.cache.Get(entry); found != nil {
 		cachedEntry := found.(cacheEntry)
@@ -119,7 +119,7 @@ func (m *Memoizer) MemoizeWithValidator(key interface{}, fn func() interface{}, 
 }
 
 // Invalidate removes the cached value for the specified key.
-func (m *Memoizer) Invalidate(key interface{}) {
+func (m *Memoizer) Invalidate(key any) {
 	m.cache.Delete(cacheEntry{key: key})
 }
 

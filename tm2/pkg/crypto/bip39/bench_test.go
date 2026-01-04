@@ -10,7 +10,7 @@ var words = []string{
 
 func BenchmarkIsMnemonicValid(b *testing.B) {
 	b.ReportAllocs()
-	var sharp interface{}
+	var sharp any
 	for i := 0; i < b.N; i++ {
 		for _, word := range words {
 			ok := IsMnemonicValid(word)

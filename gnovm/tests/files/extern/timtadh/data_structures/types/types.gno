@@ -21,10 +21,10 @@ type MHashable interface {
 }
 
 type (
-	Iterator   func() (item interface{}, next Iterator)
+	Iterator   func() (item any, next Iterator)
 	KIterator  func() (key Hashable, next KIterator)
-	KVIterator func() (key Hashable, value interface{}, next KVIterator)
-	Coroutine  func(send interface{}) (recv interface{}, next Coroutine)
+	KVIterator func() (key Hashable, value any, next KVIterator)
+	Coroutine  func(send any) (recv any, next Coroutine)
 )
 
 type Iterable interface {
@@ -56,19 +56,19 @@ type Sized interface {
 type MapOperable interface {
 	Sized
 	Has(key Hashable) bool
-	Put(key Hashable, value interface{}) (err error)
-	Get(key Hashable) (value interface{}, err error)
-	Remove(key Hashable) (value interface{}, err error)
+	Put(key Hashable, value any) (err error)
+	Get(key Hashable) (value any, err error)
+	Remove(key Hashable) (value any, err error)
 }
 
-type WhereFunc func(value interface{}) bool
+type WhereFunc func(value any) bool
 
 type MultiMapOperable interface {
 	Sized
 	Has(key Hashable) bool
 	Count(key Hashable) int
-	Add(key Hashable, value interface{}) (err error)
-	Replace(key Hashable, where WhereFunc, value interface{}) (err error)
+	Add(key Hashable, value any) (err error)
+	Replace(key Hashable, where WhereFunc, value any) (err error)
 	Find(key Hashable) KVIterator
 	RemoveWhere(key Hashable, where WhereFunc) (err error)
 }
@@ -199,7 +199,7 @@ type TreeMap interface {
 type TreeNode interface {
 	IsNil() bool
 	Key() Hashable
-	Value() interface{}
+	Value() any
 	Children() TreeNodeIterator
 	GetChild(int) TreeNode // if your tree can't support this simply panic
 	// many of the utility functions do not require this

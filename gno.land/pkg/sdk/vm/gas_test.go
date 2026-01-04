@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
-	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -25,9 +25,8 @@ func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
 	ctx, tx, vmHandler := setupAddPkg(isValidTx)
 
 	ctx = ctx.WithMode(sdk.RunTxModeDeliver)
-	simulate := false
 	tx.Fee.GasWanted = 3000
-	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+	gctx := auth.SetGasMeter(ctx, tx.Fee.GasWanted)
 	// Has to be set up after gas meter in the context; so the stores are
 	// correctly wrapped in gas stores.
 	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
@@ -61,12 +60,9 @@ func TestAddPkgDeliverTx(t *testing.T) {
 	isValidTx := true
 	ctx, tx, vmHandler := setupAddPkg(isValidTx)
 
-	var simulate bool
-
 	ctx = ctx.WithMode(sdk.RunTxModeDeliver)
-	simulate = false
 	tx.Fee.GasWanted = 500000
-	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+	gctx := auth.SetGasMeter(ctx, tx.Fee.GasWanted)
 	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
 	msgs := tx.GetMsgs()
 	res := vmHandler.Process(gctx, msgs[0])
@@ -74,8 +70,8 @@ func TestAddPkgDeliverTx(t *testing.T) {
 
 	assert.True(t, res.IsOK())
 
-	// NOTE: let's try to keep this bellow 100_000 :)
-	assert.Equal(t, int64(135365), gasDeliver)
+	// NOTE: let's try to keep this bellow 250_000 :)
+	assert.Equal(t, int64(226738), gasDeliver)
 }
 
 // Enough gas for a failed transaction.
@@ -83,12 +79,9 @@ func TestAddPkgDeliverTxFailed(t *testing.T) {
 	isValidTx := false
 	ctx, tx, vmHandler := setupAddPkg(isValidTx)
 
-	var simulate bool
-
 	ctx = ctx.WithMode(sdk.RunTxModeDeliver)
-	simulate = false
 	tx.Fee.GasWanted = 500000
-	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+	gctx := auth.SetGasMeter(ctx, tx.Fee.GasWanted)
 	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
 	msgs := tx.GetMsgs()
 	res := vmHandler.Process(gctx, msgs[0])
@@ -103,12 +96,9 @@ func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
 	isValidTx := false
 	ctx, tx, vmHandler := setupAddPkg(isValidTx)
 
-	var simulate bool
-
 	ctx = ctx.WithMode(sdk.RunTxModeDeliver)
-	simulate = false
 	tx.Fee.GasWanted = 1230
-	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+	gctx := auth.SetGasMeter(ctx, tx.Fee.GasWanted)
 	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
 
 	var res sdk.Result
@@ -147,11 +137,15 @@ func setupAddPkg(success bool) (sdk.Context, sdk.Tx, vmHandler) {
 	addr := crypto.AddressFromPreimage([]byte("test1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10000000)))
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10000000)))
+
+	const pkgPath = "gno.land/r/hello"
+
 	// success message
-	var files []*gnovm.MemFile
+	var files []*std.MemFile
 	if success {
-		files = []*gnovm.MemFile{
+		files = []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 			{
 				Name: "hello.gno",
 				Body: `package hello
@@ -163,7 +157,8 @@ func Echo() string {
 		}
 	} else {
 		// failed message
-		files = []*gnovm.MemFile{
+		files = []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 			{
 				Name: "hello.gno",
 				Body: `package hello
@@ -175,7 +170,6 @@ func Echo() UnknowType {
 		}
 	}
 
-	pkgPath := "gno.land/r/hello"
 	// create messages and a transaction
 	msg := NewMsgAddPackage(addr, pkgPath, files)
 	msgs := []std.Msg{msg}

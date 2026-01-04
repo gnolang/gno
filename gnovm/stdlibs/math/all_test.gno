@@ -3347,7 +3347,7 @@ func TestTrigReduce(t *testing.T) {
 // https://golang.org/issue/201
 
 type floatTest struct {
-	val  interface{}
+	val  any
 	name string
 	str  string
 }

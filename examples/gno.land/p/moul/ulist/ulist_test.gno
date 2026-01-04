@@ -3,9 +3,9 @@ package ulist
 import (
 	"testing"
 
-	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/typeutil"
+	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/ufmt"
 )
 
 func TestNew(t *testing.T) {
@@ -19,7 +19,7 @@ func TestListAppendAndGet(t *testing.T) {
 		name     string
 		setup    func() *List
 		index    int
-		expected interface{}
+		expected any
 	}{
 		{
 			name: "empty list",
@@ -159,8 +159,8 @@ func TestListAppendAndGet(t *testing.T) {
 }
 
 // generateSequence creates a slice of integers from 0 to n-1
-func generateSequence(n int) []interface{} {
-	result := make([]interface{}, n)
+func generateSequence(n int) []any {
+	result := make([]any, n)
 	for i := 0; i < n; i++ {
 		result[i] = i
 	}
@@ -291,7 +291,7 @@ func TestListSizeAndTotalSize(t *testing.T) {
 func TestIterator(t *testing.T) {
 	tests := []struct {
 		name      string
-		values    []interface{}
+		values    []any
 		start     int
 		end       int
 		expected  []Entry
@@ -300,7 +300,7 @@ func TestIterator(t *testing.T) {
 	}{
 		{
 			name:      "empty list",
-			values:    []interface{}{},
+			values:    []any{},
 			start:     0,
 			end:       10,
 			expected:  []Entry{},
@@ -316,7 +316,7 @@ func TestIterator(t *testing.T) {
 		},
 		{
 			name:   "single element forward",
-			values: []interface{}{42},
+			values: []any{42},
 			start:  0,
 			end:    0,
 			expected: []Entry{
@@ -326,7 +326,7 @@ func TestIterator(t *testing.T) {
 		},
 		{
 			name:   "multiple elements forward",
-			values: []interface{}{1, 2, 3, 4, 5},
+			values: []any{1, 2, 3, 4, 5},
 			start:  0,
 			end:    4,
 			expected: []Entry{
@@ -340,7 +340,7 @@ func TestIterator(t *testing.T) {
 		},
 		{
 			name:   "multiple elements reverse",
-			values: []interface{}{1, 2, 3, 4, 5},
+			values: []any{1, 2, 3, 4, 5},
 			start:  4,
 			end:    0,
 			expected: []Entry{
@@ -354,7 +354,7 @@ func TestIterator(t *testing.T) {
 		},
 		{
 			name:   "partial range forward",
-			values: []interface{}{1, 2, 3, 4, 5},
+			values: []any{1, 2, 3, 4, 5},
 			start:  1,
 			end:    3,
 			expected: []Entry{
@@ -366,7 +366,7 @@ func TestIterator(t *testing.T) {
 		},
 		{
 			name:   "partial range reverse",
-			values: []interface{}{1, 2, 3, 4, 5},
+			values: []any{1, 2, 3, 4, 5},
 			start:  3,
 			end:    1,
 			expected: []Entry{
@@ -378,7 +378,7 @@ func TestIterator(t *testing.T) {
 		},
 		{
 			name:      "stop iteration early",
-			values:    []interface{}{1, 2, 3, 4, 5},
+			values:    []any{1, 2, 3, 4, 5},
 			start:     0,
 			end:       4,
 			wantStop:  true,
@@ -390,7 +390,7 @@ func TestIterator(t *testing.T) {
 		},
 		{
 			name:   "negative start",
-			values: []interface{}{1, 2, 3},
+			values: []any{1, 2, 3},
 			start:  -1,
 			end:    2,
 			expected: []Entry{
@@ -402,7 +402,7 @@ func TestIterator(t *testing.T) {
 		},
 		{
 			name:   "negative end",
-			values: []interface{}{1, 2, 3},
+			values: []any{1, 2, 3},
 			start:  0,
 			end:    -2,
 			expected: []Entry{
@@ -412,7 +412,7 @@ func TestIterator(t *testing.T) {
 		},
 		{
 			name:      "start beyond size",
-			values:    []interface{}{1, 2, 3},
+			values:    []any{1, 2, 3},
 			start:     5,
 			end:       6,
 			expected:  []Entry{},
@@ -420,7 +420,7 @@ func TestIterator(t *testing.T) {
 		},
 		{
 			name:   "end beyond size",
-			values: []interface{}{1, 2, 3},
+			values: []any{1, 2, 3},
 			start:  0,
 			end:    5,
 			expected: []Entry{
@@ -432,7 +432,7 @@ func TestIterator(t *testing.T) {
 		},
 		{
 			name:   "with deleted elements",
-			values: []interface{}{1, 2, nil, 4, 5},
+			values: []any{1, 2, nil, 4, 5},
 			start:  0,
 			end:    4,
 			expected: []Entry{
@@ -445,7 +445,7 @@ func TestIterator(t *testing.T) {
 		},
 		{
 			name:   "with deleted elements reverse",
-			values: []interface{}{1, nil, 3, nil, 5},
+			values: []any{1, nil, 3, nil, 5},
 			start:  4,
 			end:    0,
 			expected: []Entry{
@@ -457,7 +457,7 @@ func TestIterator(t *testing.T) {
 		},
 		{
 			name:      "start equals end",
-			values:    []interface{}{1, 2, 3},
+			values:    []any{1, 2, 3},
 			start:     1,
 			end:       1,
 			expected:  []Entry{{Index: 1, Value: 2}},
@@ -471,7 +471,7 @@ func TestIterator(t *testing.T) {
 			list.Append(tt.values...)
 
 			var result []Entry
-			stopped := list.Iterator(tt.start, tt.end, func(index int, value interface{}) bool {
+			stopped := list.Iterator(tt.start, tt.end, func(index int, value any) bool {
 				result = append(result, Entry{Index: index, Value: value})
 				return tt.stopAfter >= 0 && len(result) >= tt.stopAfter
 			})
@@ -580,7 +580,7 @@ func TestEdgeCases(t *testing.T) {
 				l.Append(1, 2, 3)
 				l.Delete(0, 1, 2)
 				var count int
-				l.Iterator(0, 2, func(index int, value interface{}) bool {
+				l.Iterator(0, 2, func(index int, value any) bool {
 					count++
 					return false
 				})
@@ -613,7 +613,7 @@ func TestEdgeCases(t *testing.T) {
 func TestIteratorByOffset(t *testing.T) {
 	tests := []struct {
 		name     string
-		values   []interface{}
+		values   []any
 		offset   int
 		count    int
 		expected []Entry
@@ -621,7 +621,7 @@ func TestIteratorByOffset(t *testing.T) {
 	}{
 		{
 			name:     "empty list",
-			values:   []interface{}{},
+			values:   []any{},
 			offset:   0,
 			count:    5,
 			expected: []Entry{},
@@ -629,7 +629,7 @@ func TestIteratorByOffset(t *testing.T) {
 		},
 		{
 			name:   "positive count forward iteration",
-			values: []interface{}{1, 2, 3, 4, 5},
+			values: []any{1, 2, 3, 4, 5},
 			offset: 1,
 			count:  2,
 			expected: []Entry{
@@ -640,7 +640,7 @@ func TestIteratorByOffset(t *testing.T) {
 		},
 		{
 			name:   "negative count backward iteration",
-			values: []interface{}{1, 2, 3, 4, 5},
+			values: []any{1, 2, 3, 4, 5},
 			offset: 3,
 			count:  -2,
 			expected: []Entry{
@@ -651,7 +651,7 @@ func TestIteratorByOffset(t *testing.T) {
 		},
 		{
 			name:   "count exceeds available elements forward",
-			values: []interface{}{1, 2, 3},
+			values: []any{1, 2, 3},
 			offset: 1,
 			count:  5,
 			expected: []Entry{
@@ -662,7 +662,7 @@ func TestIteratorByOffset(t *testing.T) {
 		},
 		{
 			name:   "count exceeds available elements backward",
-			values: []interface{}{1, 2, 3},
+			values: []any{1, 2, 3},
 			offset: 1,
 			count:  -5,
 			expected: []Entry{
@@ -673,7 +673,7 @@ func TestIteratorByOffset(t *testing.T) {
 		},
 		{
 			name:     "zero count",
-			values:   []interface{}{1, 2, 3},
+			values:   []any{1, 2, 3},
 			offset:   0,
 			count:    0,
 			expected: []Entry{},
@@ -681,7 +681,7 @@ func TestIteratorByOffset(t *testing.T) {
 		},
 		{
 			name:   "negative offset",
-			values: []interface{}{1, 2, 3},
+			values: []any{1, 2, 3},
 			offset: -1,
 			count:  2,
 			expected: []Entry{
@@ -692,7 +692,7 @@ func TestIteratorByOffset(t *testing.T) {
 		},
 		{
 			name:   "offset beyond size",
-			values: []interface{}{1, 2, 3},
+			values: []any{1, 2, 3},
 			offset: 5,
 			count:  -2,
 			expected: []Entry{
@@ -703,7 +703,7 @@ func TestIteratorByOffset(t *testing.T) {
 		},
 		{
 			name:   "with deleted elements",
-			values: []interface{}{1, nil, 3, nil, 5},
+			values: []any{1, nil, 3, nil, 5},
 			offset: 0,
 			count:  3,
 			expected: []Entry{
@@ -715,7 +715,7 @@ func TestIteratorByOffset(t *testing.T) {
 		},
 		{
 			name:   "early stop in forward iteration",
-			values: []interface{}{1, 2, 3, 4, 5},
+			values: []any{1, 2, 3, 4, 5},
 			offset: 0,
 			count:  5,
 			expected: []Entry{
@@ -726,7 +726,7 @@ func TestIteratorByOffset(t *testing.T) {
 		},
 		{
 			name:   "early stop in backward iteration",
-			values: []interface{}{1, 2, 3, 4, 5},
+			values: []any{1, 2, 3, 4, 5},
 			offset: 4,
 			count:  -5,
 			expected: []Entry{
@@ -745,7 +745,7 @@ func TestIteratorByOffset(t *testing.T) {
 		},
 		{
 			name:   "single element forward",
-			values: []interface{}{1},
+			values: []any{1},
 			offset: 0,
 			count:  5,
 			expected: []Entry{
@@ -755,7 +755,7 @@ func TestIteratorByOffset(t *testing.T) {
 		},
 		{
 			name:   "single element backward",
-			values: []interface{}{1},
+			values: []any{1},
 			offset: 0,
 			count:  -5,
 			expected: []Entry{
@@ -765,7 +765,7 @@ func TestIteratorByOffset(t *testing.T) {
 		},
 		{
 			name:     "all deleted elements",
-			values:   []interface{}{nil, nil, nil},
+			values:   []any{nil, nil, nil},
 			offset:   0,
 			count:    3,
 			expected: []Entry{},
@@ -781,12 +781,12 @@ func TestIteratorByOffset(t *testing.T) {
 			var result []Entry
 			var cb IterCbFn
 			if tt.wantStop {
-				cb = func(index int, value interface{}) bool {
+				cb = func(index int, value any) bool {
 					result = append(result, Entry{Index: index, Value: value})
 					return len(result) >= 2 // Stop after 2 elements for early stop tests
 				}
 			} else {
-				cb = func(index int, value interface{}) bool {
+				cb = func(index int, value any) bool {
 					result = append(result, Entry{Index: index, Value: value})
 					return false
 				}
@@ -876,7 +876,7 @@ func TestMustGet(t *testing.T) {
 		name        string
 		setup       func() *List
 		index       int
-		expected    interface{}
+		expected    any
 		shouldPanic bool
 		panicMsg    string
 	}{
@@ -964,21 +964,21 @@ func TestMustGet(t *testing.T) {
 func TestGetRange(t *testing.T) {
 	tests := []struct {
 		name     string
-		values   []interface{}
+		values   []any
 		start    int
 		end      int
 		expected []Entry
 	}{
 		{
 			name:     "empty list",
-			values:   []interface{}{},
+			values:   []any{},
 			start:    0,
 			end:      10,
 			expected: []Entry{},
 		},
 		{
 			name:   "single element",
-			values: []interface{}{42},
+			values: []any{42},
 			start:  0,
 			end:    0,
 			expected: []Entry{
@@ -987,7 +987,7 @@ func TestGetRange(t *testing.T) {
 		},
 		{
 			name:   "multiple elements forward",
-			values: []interface{}{1, 2, 3, 4, 5},
+			values: []any{1, 2, 3, 4, 5},
 			start:  1,
 			end:    3,
 			expected: []Entry{
@@ -998,7 +998,7 @@ func TestGetRange(t *testing.T) {
 		},
 		{
 			name:   "multiple elements reverse",
-			values: []interface{}{1, 2, 3, 4, 5},
+			values: []any{1, 2, 3, 4, 5},
 			start:  3,
 			end:    1,
 			expected: []Entry{
@@ -1009,7 +1009,7 @@ func TestGetRange(t *testing.T) {
 		},
 		{
 			name:   "with deleted elements",
-			values: []interface{}{1, nil, 3, nil, 5},
+			values: []any{1, nil, 3, nil, 5},
 			start:  0,
 			end:    4,
 			expected: []Entry{
@@ -1027,14 +1027,14 @@ func TestGetRange(t *testing.T) {
 		},
 		{
 			name:     "negative indices",
-			values:   []interface{}{1, 2, 3},
+			values:   []any{1, 2, 3},
 			start:    -1,
 			end:      -2,
 			expected: []Entry{},
 		},
 		{
 			name:   "indices beyond size",
-			values: []interface{}{1, 2, 3},
+			values: []any{1, 2, 3},
 			start:  1,
 			end:    5,
 			expected: []Entry{
@@ -1063,21 +1063,21 @@ func TestGetRange(t *testing.T) {
 func TestGetByOffset(t *testing.T) {
 	tests := []struct {
 		name     string
-		values   []interface{}
+		values   []any
 		offset   int
 		count    int
 		expected []Entry
 	}{
 		{
 			name:     "empty list",
-			values:   []interface{}{},
+			values:   []any{},
 			offset:   0,
 			count:    5,
 			expected: []Entry{},
 		},
 		{
 			name:   "positive count forward",
-			values: []interface{}{1, 2, 3, 4, 5},
+			values: []any{1, 2, 3, 4, 5},
 			offset: 1,
 			count:  2,
 			expected: []Entry{
@@ -1087,7 +1087,7 @@ func TestGetByOffset(t *testing.T) {
 		},
 		{
 			name:   "negative count backward",
-			values: []interface{}{1, 2, 3, 4, 5},
+			values: []any{1, 2, 3, 4, 5},
 			offset: 3,
 			count:  -2,
 			expected: []Entry{
@@ -1097,7 +1097,7 @@ func TestGetByOffset(t *testing.T) {
 		},
 		{
 			name:   "count exceeds available elements",
-			values: []interface{}{1, 2, 3},
+			values: []any{1, 2, 3},
 			offset: 1,
 			count:  5,
 			expected: []Entry{
@@ -1107,14 +1107,14 @@ func TestGetByOffset(t *testing.T) {
 		},
 		{
 			name:     "zero count",
-			values:   []interface{}{1, 2, 3},
+			values:   []any{1, 2, 3},
 			offset:   0,
 			count:    0,
 			expected: []Entry{},
 		},
 		{
 			name:   "with deleted elements",
-			values: []interface{}{1, nil, 3, nil, 5},
+			values: []any{1, nil, 3, nil, 5},
 			offset: 0,
 			count:  3,
 			expected: []Entry{
@@ -1125,7 +1125,7 @@ func TestGetByOffset(t *testing.T) {
 		},
 		{
 			name:   "negative offset",
-			values: []interface{}{1, 2, 3},
+			values: []any{1, 2, 3},
 			offset: -1,
 			count:  2,
 			expected: []Entry{
@@ -1135,7 +1135,7 @@ func TestGetByOffset(t *testing.T) {
 		},
 		{
 			name:   "offset beyond size",
-			values: []interface{}{1, 2, 3},
+			values: []any{1, 2, 3},
 			offset: 5,
 			count:  -2,
 			expected: []Entry{
@@ -1173,7 +1173,7 @@ func TestMustSet(t *testing.T) {
 		name        string
 		setup       func() *List
 		index       int
-		value       interface{}
+		value       any
 		shouldPanic bool
 		panicMsg    string
 	}{
@@ -1270,7 +1270,7 @@ func TestSet(t *testing.T) {
 		name        string
 		setup       func() *List
 		index       int
-		value       interface{}
+		value       any
 		expectedErr error
 		verify      func(t *testing.T, l *List)
 	}{

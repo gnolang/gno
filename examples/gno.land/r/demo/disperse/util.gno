@@ -1,17 +1,16 @@
 package disperse
 
 import (
-	"std"
 	"strconv"
 	"strings"
 	"unicode"
 )
 
-func parseAddresses(addresses string) ([]std.Address, error) {
-	var ret []std.Address
+func parseAddresses(addresses string) ([]address, error) {
+	var ret []address
 
 	for _, str := range strings.Split(addresses, ",") {
-		addr := std.Address(str)
+		addr := address(str)
 		if !addr.IsValid() {
 			return nil, ErrInvalidAddress
 		}
@@ -33,8 +32,8 @@ func splitString(input string) (string, string) {
 	return input[:pos], input[pos:]
 }
 
-func parseTokens(tokens string) ([]uint64, []string, error) {
-	var amounts []uint64
+func parseTokens(tokens string) ([]int64, []string, error) {
+	var amounts []int64
 	var symbols []string
 
 	for _, token := range strings.Split(tokens, ",") {
@@ -44,7 +43,7 @@ func parseTokens(tokens string) ([]uint64, []string, error) {
 			return nil, nil, ErrNegativeCoinAmount
 		}
 
-		amounts = append(amounts, uint64(amount))
+		amounts = append(amounts, int64(amount))
 		symbols = append(symbols, symbol)
 	}
 

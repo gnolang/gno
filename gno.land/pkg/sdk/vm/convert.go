@@ -3,6 +3,7 @@ package vm
 import (
 	"encoding/base64"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -27,13 +28,14 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 	case gno.PrimitiveType:
 		switch bt {
 		case gno.BoolType:
-			if arg == "true" {
+			switch arg {
+			case "true":
 				tv.SetBool(true)
 				return
-			} else if arg == "false" {
+			case "false":
 				tv.SetBool(false)
 				return
-			} else {
+			default:
 				panic(fmt.Sprintf(
 					"unexpected bool value %q",
 					arg))
@@ -49,7 +51,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					"error parsing int %q: %v",
 					arg, err))
 			}
-			tv.SetInt(int(i64))
+			tv.SetInt(i64)
 			return
 		case gno.Int8Type:
 			assertNoPlusPrefix(arg)
@@ -99,7 +101,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					"error parsing uint %q: %v",
 					arg, err))
 			}
-			tv.SetUint(uint(u64))
+			tv.SetUint(u64)
 			return
 		case gno.Uint8Type:
 			assertNoPlusPrefix(arg)
@@ -143,11 +145,11 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			return
 		case gno.Float32Type:
 			value := convertFloat(arg, 32)
-			tv.SetFloat32(float32(value))
+			tv.SetFloat32(math.Float32bits(float32(value)))
 			return
 		case gno.Float64Type:
 			value := convertFloat(arg, 64)
-			tv.SetFloat64(value)
+			tv.SetFloat64(math.Float64bits(value))
 			return
 		default:
 			panic(fmt.Sprintf("unexpected primitive type %s", bt.String()))

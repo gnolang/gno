@@ -1,14 +1,14 @@
-// PKGPATH: gno.land/r/access_test
-package access_test
+// PKGPATH: gno.land/r/access
+package access
 
 import (
-	"gno.land/p/demo/testutils"
+	"gno.land/p/nt/testutils"
 )
 
-func main() {
+func main(cur realm) {
 	testutils.TestVar1 += 1
 	println(testutils.TestVar1)
 }
 
 // Error:
-// cannot modify external-realm or non-realm object
+// gno.land/r/access/access2.gno:9:2-20: cannot directly mutate gno.land/p/nt/testutils.TestVar1 from gno.land/r/access

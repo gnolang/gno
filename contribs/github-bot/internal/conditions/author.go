@@ -58,3 +58,24 @@ func (a *authorInTeam) IsMet(pr *github.PullRequest, details treeprint.Tree) boo
 func AuthorInTeam(gh *client.GitHub, team string) Condition {
 	return &authorInTeam{gh: gh, team: team}
 }
+
+type authorAssociationIs struct {
+	assoc string
+}
+
+var _ Condition = &authorAssociationIs{}
+
+func (a *authorAssociationIs) IsMet(pr *github.PullRequest, details treeprint.Tree) bool {
+	detail := fmt.Sprintf("Pull request author has author_association: %q", a.assoc)
+
+	return utils.AddStatusNode(pr.GetAuthorAssociation() == a.assoc, detail, details)
+}
+
+// AuthorAssociationIs asserts that the author of the PR has the given value for
+// the GitHub "author association" field, on the PR.
+//
+// See https://docs.github.com/en/graphql/reference/enums#commentauthorassociation
+// for a list of possible values and descriptions.
+func AuthorAssociationIs(association string) Condition {
+	return &authorAssociationIs{assoc: association}
+}

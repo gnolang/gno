@@ -8,19 +8,33 @@ on:
     paths:
       - gnovm/**
       - tm2/** # GnoVM has a dependency on TM2 types
+      - examples/** # gnovm has some tests that depend on examples
+      # We trigger the testing workflow for changes to the main go.mod,
+      # since this can affect test results
+      - go.mod
   workflow_dispatch:
 
 jobs:
   main:
     name: Run GnoVM suite
-    uses: ./.github/workflows/main_template.yml
+    uses: ./.github/workflows/template_main.yml
     with:
       modulepath: "gnovm"
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/gnovm/..."
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
-  fmt:
-    name: Run gno fmt on stdlibs
-    uses: ./.github/workflows/gnofmt_template.yml
+  stdlibs-fmt:
+    name: stdlibs - Run fmt
+    uses: ./.github/workflows/template_gnofmt.yml
     with:
-      path: "gnovm/stdlibs/..."
+      path: "gnovm/stdlibs"
+  stdlibs-test:
+    name: stdlibs - Run tests
+    uses: ./.github/workflows/template_gnotest.yml
+    with:
+      path: "gnovm/stdlibs"
+  stdlibs-lint:
+    name: stdlibs - Run lint
+    uses: ./.github/workflows/template_gnolint.yml
+    with:
+      path: "gnovm/stdlibs"

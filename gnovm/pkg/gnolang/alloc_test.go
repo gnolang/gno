@@ -20,7 +20,6 @@ func TestAllocSizes(t *testing.T) {
 	println("MapValue{}", unsafe.Sizeof(MapValue{}))
 	println("BoundMethodValue{}", unsafe.Sizeof(BoundMethodValue{}))
 	println("Block{}", unsafe.Sizeof(Block{}))
-	println("NativeValue{}", unsafe.Sizeof(NativeValue{}))
 	println("TypeValue{}", unsafe.Sizeof(TypeValue{}))
 	println("TypedValue{}", unsafe.Sizeof(TypedValue{}))
 	println("ObjectInfo{}", unsafe.Sizeof(ObjectInfo{}))
