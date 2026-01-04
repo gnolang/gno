@@ -105,12 +105,10 @@ Try looking up at test user:
 
 ---
 
-See also:
-- [r/sys/users](/r/sys/users) - User registry
-- [r/demo/profile](/r/demo/profile) - Profile data
+### See also:
+- [/r/sys/users](/r/sys/users) - User registry
+- [/r/demo/profile](/r/demo/profile) - Profile data
 - [Resolving Users](/r/docs/resolveusers) - Basic user resolution
-- [Registry Pattern](/r/docs/registry) - How registries work
-- [Crossing](/r/docs/crossing) - Understanding realm boundaries
 `
 }
 
